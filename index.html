@@ -252,7 +252,12 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/1.0.17/tesseract.min.js"></script>
+<!-- Tesseract.js : version flottante @5 (et non un numéro de patch figé comme pour pdf.js
+     ci-dessus) car cette mise à jour depuis la v1.0.17 n'a pas pu être testée en conditions
+     réelles au moment où elle a été écrite (voir CLAUDE.md, historique des décisions) — jsdelivr
+     garantit qu'une version v5.x existe à cette adresse, ce qu'un numéro de patch deviné n'aurait
+     pas garanti. Une fois une version validée sur un vrai compromis scanné, la figer ici. -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
   if (window.pdfjsLib) {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';

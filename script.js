@@ -854,7 +854,10 @@
 
   // Lit une page du PDF comme une image et tente d'y reconnaître du texte (OCR), pour les
   // signatures manuscrites ou intégrées en image que l'extraction de texte ne peut pas voir.
-  async function ocrPage(pdf, numeroPage) {
+  // Le worker (voir creerWorkerOcr) est créé une seule fois par import de PDF et réutilisé pour
+  // toutes les pages à analyser, plutôt que d'être recréé à chaque page — le recréer à chaque
+  // appel rechargeait inutilement le modèle de langue à chaque page (API Tesseract.js v1).
+  async function ocrPage(pdf, numeroPage, worker) {
     const DELAI_MAX_OCR = 30000; // 30 s : au-delà, on abandonne plutôt que de bloquer l'interface
     try {
       const page = await pdf.getPage(numeroPage);
@@ -864,19 +867,37 @@
       canvas.height = viewport.height;
       const ctx = canvas.getContext('2d');
       await page.render({ canvasContext: ctx, viewport }).promise;
-      if (!window.Tesseract) return '';
+      if (!worker) return '';
 
       // La reconnaissance d'image peut ne jamais rendre la main (bibliothèque indisponible ou
       // bloquée) : sans garde-fou, l'attente est infinie et l'indicateur de progression tourne
       // sans fin. On borne donc l'opération dans le temps.
       const resultat = await Promise.race([
-        Tesseract.recognize(canvas, 'fra'),
+        worker.recognize(canvas),
         new Promise(resolve => setTimeout(() => resolve(null), DELAI_MAX_OCR))
       ]);
-      return (resultat && resultat.text) ? resultat.text : '';
+      return (resultat && resultat.data && resultat.data.text) ? resultat.data.text : '';
     } catch (e) {
       console.error('Erreur OCR', e);
       return '';
+    }
+  }
+
+  // Crée le worker Tesseract une seule fois par import de PDF (voir traiterFichierPdf) : le modèle
+  // de langue française n'est ainsi téléchargé/initialisé qu'une fois, même si plusieurs pages
+  // doivent être passées à l'OCR pour retrouver la date de signature. Le tout premier chargement
+  // du modèle peut être lent (téléchargement) : on lui laisse plus de temps qu'à une page unique.
+  const DELAI_MAX_INIT_OCR = 45000;
+  async function creerWorkerOcr() {
+    if (!window.Tesseract) return null;
+    try {
+      return await Promise.race([
+        Tesseract.createWorker('fra'),
+        new Promise((resolve, reject) => setTimeout(() => reject(new Error('délai d’initialisation OCR dépassé')), DELAI_MAX_INIT_OCR))
+      ]);
+    } catch (e) {
+      console.error('Initialisation OCR impossible', e);
+      return null;
     }
   }
 
@@ -1097,20 +1118,25 @@
           pagesACiber = [dernierePageUtile];
         }
 
-        for (const numeroPage of pagesACiber) {
-          status.className = 'pdf-status loading';
-          status.textContent = `Date de signature non trouvée dans le texte — lecture de l'image page ${numeroPage} (15 à 30 s)…`;
-          majProgression(null);
-          const texteOcr = await ocrPage(pdf, numeroPage);
-          const isoOcr = detecterDateCompromis(texteOcr);
-          if (isoOcr) {
-            dateCompromisDetectee = isoOcr;
-            dateCompromisEstimee = false;
-            majAffichageCompromis();
-            detectedDates = detecterDatesDepuisTexte(dernierTexteTraite, dateCompromisDetectee);
-            renderChips();
-            break;
+        const workerOcr = await creerWorkerOcr();
+        try {
+          for (const numeroPage of pagesACiber) {
+            status.className = 'pdf-status loading';
+            status.textContent = `Date de signature non trouvée dans le texte — lecture de l'image page ${numeroPage} (15 à 30 s)…`;
+            majProgression(null);
+            const texteOcr = await ocrPage(pdf, numeroPage, workerOcr);
+            const isoOcr = detecterDateCompromis(texteOcr);
+            if (isoOcr) {
+              dateCompromisDetectee = isoOcr;
+              dateCompromisEstimee = false;
+              majAffichageCompromis();
+              detectedDates = detecterDatesDepuisTexte(dernierTexteTraite, dateCompromisDetectee);
+              renderChips();
+              break;
+            }
           }
+        } finally {
+          if (workerOcr) await workerOcr.terminate();
         }
 
         // Dernier recours : la date d'enregistrement du fichier (souvent mise à jour au moment de

@@ -83,6 +83,17 @@ double-cliquant sur `index.html`.
   la résoudre sans qu'on le demande explicitement (ça impliquerait un vrai backend).
 - **Décision explicite de rester en local, sans hébergement en ligne.** Ne pas proposer de migrer
   vers un serveur/cloud sans qu'on le redemande — le sujet a été tranché.
+- **Tesseract.js migré de la v1.0.17 vers la v5** (`ocrPage()` / `creerWorkerOcr()` dans
+  `script.js`) : l'ancienne API `Tesseract.recognize(canvas, 'fra')` recréait un worker et
+  rechargeait le modèle de langue à chaque page ; la v5 crée un seul worker
+  (`Tesseract.createWorker('fra')`), réutilisé pour les 1 à 3 pages de la boucle OCR dans
+  `traiterFichierPdf()`, puis terminé (`worker.terminate()`) dans un `finally`. Ce changement
+  n'a **pas pu être testé en conditions réelles** au moment où il a été écrit (pas d'accès réseau
+  dans l'environnement de développement pour charger la lib ni tester sur un vrai PDF scanné) —
+  à valider avec un compromis réel (notamment un signé électroniquement, bloc de signature en
+  image) avant de considérer ce chemin fiable. `index.html` pointe vers
+  `tesseract.js@5` (version flottante sur jsdelivr, pas un patch figé comme pour pdf.js) tant
+  qu'une version précise n'a pas été confirmée fonctionnelle — la figer une fois validée.
 
 ## Comment tester
 
