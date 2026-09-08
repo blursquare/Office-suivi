@@ -87,11 +87,9 @@ double-cliquant sur `index.html`.
   `script.js`) : l'ancienne API `Tesseract.recognize(canvas, 'fra')` recréait un worker et
   rechargeait le modèle de langue à chaque page ; la v5 crée un seul worker
   (`Tesseract.createWorker('fra')`), réutilisé pour les 1 à 3 pages de la boucle OCR dans
-  `traiterFichierPdf()`, puis terminé (`worker.terminate()`) dans un `finally`. Ce changement
-  n'a **pas pu être testé en conditions réelles** au moment où il a été écrit (pas d'accès réseau
-  dans l'environnement de développement pour charger la lib ni tester sur un vrai PDF scanné) —
-  à valider avec un compromis réel (notamment un signé électroniquement, bloc de signature en
-  image) avant de considérer ce chemin fiable. `index.html` pointe vers
+  `traiterFichierPdf()`, puis terminé (`worker.terminate()`) dans un `finally`. **Validé en
+  conditions réelles** (import PDF classique et OCR sur compromis scanné/signature en image,
+  testés via une page GitHub Pages construite sur la branche de développement). `index.html` pointe vers
   `tesseract.js@5` (version flottante sur jsdelivr, pas un patch figé comme pour pdf.js) tant
   qu'une version précise n'a pas été confirmée fonctionnelle — la figer une fois validée.
 
