@@ -1,0 +1,8 @@
+{
+  "name": "registre-des-echeances",
+  "private": true,
+  "description": "Outillage de test pour l'application (aucune dépendance d'exécution — voir CLAUDE.md).",
+  "scripts": {
+    "test": "node --test"
+  }
+}

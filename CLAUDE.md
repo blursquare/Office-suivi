@@ -86,12 +86,25 @@ double-cliquant sur `index.html`.
 
 ## Comment tester
 
-Il n'y a pas de framework de test formel. La pratique jusqu'ici : petits scripts Node.js ad hoc qui
-chargent `script.js`, simulent un `document`/`window` minimal, et vérifient le comportement des
-fonctions pures (détection de dates, extraction d'engagements, etc.). Pour tout ce qui touche au
-DOM réel ou aux API navigateur (File System Access, Service Worker, impression), le test le plus
-fiable est d'ouvrir `index.html` dans un vrai Chrome — utilise les outils de navigateur si
-disponibles dans cet environnement plutôt que de tout re-simuler à la main.
+Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à
+installer). Lancer `npm test` ou `node --test`.
+
+`tests/helpers/load-app.js` charge `script.js` dans un `vm.Context` avec un faux `document`/
+`window` minimal (comme l'ancienne pratique ad hoc, mais versionné cette fois), pour tester les
+fonctions pures d'extraction (`detecterDatesDepuisTexte`, `extraireEngagementsVendeur`,
+`extraireConditions`, `detecterNomDossier`, `normaliserDossierImporte`, `escapeHtml`...) sans
+navigateur réel. `package.json` est un fichier d'outillage pur (le champ `scripts.test` uniquement)
+— il n'introduit aucune dépendance d'exécution et n'a aucun effet sur l'usage réel de l'outil en
+`file://`, qui reste inchangé.
+
+**En ajoutant ou modifiant une regex d'extraction**, ajoutez le cas correspondant dans
+`tests/dates.test.js` ou `tests/engagements.test.js` plutôt que de vérifier à la main : c'est ce qui
+manquait jusqu'ici et qui a permis plusieurs régressions silencieuses (voir l'historique des
+décisions ci-dessus).
+
+Pour tout ce qui touche au DOM réel ou aux API navigateur (File System Access, Service Worker,
+impression), le test le plus fiable reste d'ouvrir `index.html` dans un vrai Chrome — utilise les
+outils de navigateur si disponibles dans cet environnement plutôt que de tout re-simuler à la main.
 
 ## Ce qui reste ouvert / pas encore fait
 

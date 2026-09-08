@@ -770,7 +770,7 @@
           <input type="checkbox" ${item.active ? 'checked' : ''} onchange="toggleChipActive('${item.iso}', this.checked)">
           <span class="slider"></span>
         </label>
-        <span class="date-text">${item.label}</span>
+        <span class="date-text">${escapeHtml(item.label)}</span>
         ${boutonVoir}
       </div>
       <span class="ctx">${escapeHtml(item.contexte)}</span>
