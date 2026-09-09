@@ -2358,9 +2358,12 @@
     d.accesAReconfirmer = false;
 
     let trouve = false;
+    let fichierTrouve = null;
+    let nbAnalyses = 0;
     try {
       const compteur = { n: 0 };
       for await (const entree of fichiersPdfRecursifs(handle, 0, compteur)) {
+        nbAnalyses++;
         try {
           const file = await entree.getFile();
           const buffer = await file.arrayBuffer();
@@ -2387,13 +2390,29 @@
               }
             }
           }
-          if (correspond) { trouve = true; break; }
+          // Trace de diagnostic (jamais affichée à l'écran) : un extrait du texte lu par pdf.js
+          // pour chaque PDF, utile en cas de désaccord entre "le mot y est bien" et "non détecté"
+          // (ex. police embarquée mal encodée qui produit un texte extrait illisible malgré un
+          // PDF visuellement normal et sélectionnable).
+          console.log('[vérification offre de prêt]', entree.name, '→', correspond ? 'correspond' : 'ne correspond pas', '| extrait :', JSON.stringify(texte.trim().slice(0, 200)));
+          if (correspond) { trouve = true; fichierTrouve = entree.name; break; }
         } catch (e) { console.error('Lecture impossible pour', entree.name, e); }
       }
     } catch (e) {
       console.error('Parcours du dossier local impossible', e);
+      if (viaClicUtilisateur) afficherToast("Impossible de parcourir le dossier local relié : " + e.message, 'OK', null);
       render();
       return;
+    }
+
+    if (viaClicUtilisateur) {
+      if (trouve) {
+        afficherToast(`Offre de prêt trouvée (${fichierTrouve}).`, 'OK', null);
+      } else if (nbAnalyses === 0) {
+        afficherToast("Aucun PDF trouvé dans le dossier relié (ni ses sous-dossiers) — vérifiez que les pièces ont bien été enregistrées à cet endroit.", 'OK', null);
+      } else {
+        afficherToast(`${nbAnalyses} PDF analysé(s) dans le dossier : offre de prêt non reconnue dans leur contenu. Voir la console (F12) pour le détail de ce qui a été lu dans chaque fichier.`, 'OK', null);
+      }
     }
 
     const etaitManquante = d.offrePretStatut === 'manquante';

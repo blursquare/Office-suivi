@@ -198,6 +198,19 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
   occasion, `OFFRE_PRET_RE` est passée de `const` à `var` pour rester testable depuis
   `tests/dossier-local.test.js` (les `const` de premier niveau ne deviennent pas des propriétés du
   contexte global `vm`, contrairement aux `function` et aux `var` — voir `tests/helpers/load-app.js`).
+- **`verifierOffrePret()` ne donnait aucun retour visuel lors d'un clic manuel sur "Revérifier"**
+  quand rien n'était trouvé (le badge ne change pas si le statut était déjà "introuvable" — même
+  bug de fond que le point 5 des contraintes ci-dessus, appliqué ici à une vérification plutôt
+  qu'à une erreur de formulaire). Signalé par l'étude après le correctif "offre de crédit" :
+  toujours "introuvable", sans que rien n'indique si le dossier a seulement été mal parcouru (0
+  PDF trouvé) ou si des PDF ont bien été lus mais sans y reconnaître l'offre. Un `afficherToast`
+  résume maintenant le résultat après chaque clic sur "Revérifier" (offre trouvée avec le nom du
+  fichier / aucun PDF trouvé / N PDF analysés sans correspondance), et chaque PDF analysé produit
+  une trace `console.log` avec un extrait du texte lu par pdf.js — utile pour distinguer un PDF
+  au parcours correct dont le texte extrait est illisible (police embarquée mal encodée, cas
+  fréquent sur des PDF générés par des banques/logiciels tiers) d'un vrai problème de détection.
+  Cette trace ne s'affiche qu'en console, jamais à l'écran (pas de PII exposée à l'utilisateur
+  final au-delà de ce qu'il voit déjà en ouvrant lui-même le PDF).
 - **Changer de dossier lié** : un bouton "Changer de dossier" (`changerDossierLocal()`, visible
   uniquement quand un dossier est déjà relié) permet de corriger un dossier local mal choisi sans
   passer par une manipulation cachée. C'est un simple alias de `lierDossierLocal()` : celle-ci
