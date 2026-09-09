@@ -1,51 +1,66 @@
 @echo off
-:: Ouvre index.html dans une fenetre Chrome independante (sans onglets ni barre
-:: d'adresse), sans dependre du menu "Creer un raccourci" de Chrome (masque ou
-:: absent selon la version/la politique du poste - voir CLAUDE.md).
+:: Ouvre index.html dans une fenetre Chrome independante (sans onglets ni
+:: barre d'adresse) - fonctionne meme si Chrome est deja ouvert par ailleurs.
 ::
 :: A garder dans le meme dossier que index.html : %~dp0 designe ce dossier,
-:: donc ce lanceur fonctionne que le dossier soit sur ce poste ou sur un
-:: lecteur reseau (lettre mappee, ex. Z:\...).
+:: donc ce lanceur fonctionne que le dossier soit sur ce poste, sur un
+:: lecteur reseau mappe (lettre, ex. Z:\...), ou un chemin reseau direct
+:: (\\serveur\partage\...).
 ::
-:: IMPORTANT : si Chrome est deja ouvert, il recupere la demande et affiche
-:: l'outil dans un nouvel onglet de la fenetre existante au lieu d'une fenetre
-:: independante (comportement normal de Chrome, pas un bug de ce fichier) -
-:: d'ou la verification ci-dessous.
-::
-:: NOTE : une version precedente ajoutait --user-data-dir pour fonctionner
-:: meme Chrome deja ouvert, via un profil Chrome dedie. Abandonne : sur un
-:: poste avec une politique Chrome restrictive (meme cause probable que le
-:: menu "Creer un raccourci" absent), Chrome echoue alors a s'ouvrir sans
-:: aucun message d'erreur (fenetre qui clignote et se ferme aussitot).
-:: --app seul, confirme fonctionnel, est plus fiable meme s'il impose de
-:: fermer Chrome au prealable.
+:: IMPORTANT : --profile-directory cree un profil Chrome nomme, dedie a
+:: cette application, DANS le dossier Chrome existant (contrairement a
+:: --user-data-dir, qui pointe vers un dossier totalement separe et qui a
+:: echoue silencieusement sur un poste teste - probablement une politique
+:: de poste qui restreint ce parametre precis, voir CLAUDE.md).
+:: Consequence : ce profil dedie a SA PROPRE sauvegarde (localStorage),
+:: separee de celle d'un Chrome classique - les dossiers deja enregistres
+:: via un onglet Chrome normal n'apparaissent pas automatiquement ici. Le
+:: message ci-dessous ne s'affiche qu'une seule fois (tant que ce profil
+:: n'a pas encore ete cree) pour le rappeler.
 setlocal
-set "URL=file:///%~dp0index.html"
+set "DOSSIER=%~dp0"
+if "%DOSSIER:~-1%"=="\" set "DOSSIER=%DOSSIER:~0,-1%"
+set "DOSSIER_URL=%DOSSIER:\=/%"
 
-tasklist /FI "IMAGENAME eq chrome.exe" 2>NUL | find /I "chrome.exe" >NUL
-if %errorlevel%==0 (
-  echo Chrome est deja ouvert.
-  echo Fermez TOUTES les fenetres Chrome, puis relancez ce fichier -
-  echo sinon l'outil s'ouvrira dans un nouvel onglet au lieu d'une fenetre independante.
+if "%DOSSIER:~0,2%"=="\\" (
+  rem Chemin reseau UNC (\\serveur\partage\...) : file://serveur/partage/...
+  set "URL=file:%DOSSIER_URL%/index.html"
+) else (
+  rem Chemin local ou lecteur mappe (C:\...) : file:///C:/...
+  set "URL=file:///%DOSSIER_URL%/index.html"
+)
+
+if not exist "%LocalAppData%\Google\Chrome\User Data\RegistreEcheances" (
+  echo Premiere utilisation de ce lanceur.
+  echo.
+  echo Cette fenetre utilise un profil Chrome dedie, separe de votre navigation
+  echo habituelle, pour pouvoir s'ouvrir meme si Chrome est deja ouvert.
+  echo.
+  echo Si vous avez DEJA des dossiers enregistres via un onglet Chrome classique :
+  echo   1. Fermez cette fenetre.
+  echo   2. Ouvrez l'app normalement dans Chrome, cliquez sur "Exporter (JSON)".
+  echo   3. Relancez ce fichier, puis cliquez sur "Importer (JSON)" pour les retrouver ici.
+  echo.
+  echo Sinon (premiere utilisation de l'app, ou rien a recuperer), appuyez sur une
+  echo touche pour continuer normalement.
   pause
-  goto :fin
 )
 
 where chrome >nul 2>nul
 if %errorlevel%==0 (
-  start "" chrome --app="%URL%"
+  start "" chrome --profile-directory="RegistreEcheances" --app="%URL%"
   goto :fin
 )
 if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" (
-  start "" "%ProgramFiles%\Google\Chrome\Application\chrome.exe" --app="%URL%"
+  start "" "%ProgramFiles%\Google\Chrome\Application\chrome.exe" --profile-directory="RegistreEcheances" --app="%URL%"
   goto :fin
 )
 if exist "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" (
-  start "" "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" --app="%URL%"
+  start "" "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" --profile-directory="RegistreEcheances" --app="%URL%"
   goto :fin
 )
 if exist "%LocalAppData%\Google\Chrome\Application\chrome.exe" (
-  start "" "%LocalAppData%\Google\Chrome\Application\chrome.exe" --app="%URL%"
+  start "" "%LocalAppData%\Google\Chrome\Application\chrome.exe" --profile-directory="RegistreEcheances" --app="%URL%"
   goto :fin
 )
 

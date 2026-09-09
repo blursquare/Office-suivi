@@ -64,18 +64,36 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
    passer par la PWA) s'est également révélé absent du menu ⋮ sur un poste testé — masqué par une
    politique du poste, ou déplacé selon la version de Chrome. `Ouvrir-en-fenetre.bat` (Windows,
    optionnel, voir structure du projet ci-dessus) contourne les deux limitations en lançant
-   directement `chrome --app=file:///...`, **confirmé fonctionnel** — à une condition : **Chrome
-   doit être entièrement fermé avant de lancer le `.bat`**. Si Chrome tourne déjà, il récupère la
-   demande et affiche l'outil dans un nouvel onglet de la fenêtre existante au lieu d'une fenêtre
-   indépendante (comportement normal de Chrome avec `--app`, pas un défaut du `.bat`) — le script
-   détecte ce cas (`tasklist`) et prévient l'utilisateur au lieu d'échouer silencieusement.
-   **Piste abandonnée** : ajouter `--user-data-dir` vers un profil Chrome dédié permettrait en
-   théorie de fonctionner même Chrome déjà ouvert (processus indépendant), mais **a échoué
-   silencieusement** sur le poste testé (fenêtre qui clignote et se ferme aussitôt, Chrome ne
-   s'ouvre jamais) — cohérent avec une politique de poste qui restreint aussi ce paramètre de ligne
-   de commande (même famille de restriction que le menu "Créer un raccourci" absent). Ne pas
-   réintroduire `--user-data-dir` dans ce `.bat` sans avoir vérifié au préalable qu'il fonctionne
-   réellement sur le poste concerné.
+   directement `chrome --profile-directory="RegistreEcheances" --app=file://...`, **confirmé
+   fonctionnel, y compris quand Chrome est déjà ouvert par ailleurs**.
+   Historique des essais (utile si ça cesse de fonctionner un jour) :
+   - `--app` seul : fonctionne, mais seulement si Chrome est entièrement fermé au préalable —
+     sinon la demande est récupérée par la fenêtre déjà ouverte, qui affiche l'outil dans un
+     nouvel onglet au lieu d'une fenêtre indépendante (comportement normal de Chrome, pas un
+     défaut du `.bat`).
+   - `--user-data-dir` vers un profil séparé (dossier de données totalement distinct) :
+     **échoue** quand Chrome est déjà ouvert — aucune fenêtre ne s'ouvre du tout, silencieusement.
+     Cohérent avec une politique de poste qui restreint ce paramètre précis (même famille de
+     restriction que le menu "Créer un raccourci" absent).
+   - `--profile-directory="RegistreEcheances"` (profil nommé, **dans** le dossier Chrome existant,
+     mécanisme différent de `--user-data-dir`) : **fonctionne**, y compris Chrome déjà ouvert —
+     confirmé sur le poste testé. C'est la solution retenue dans `Ouvrir-en-fenetre.bat`.
+   - Piège de diagnostic rencontré en cours de route : le code de sortie de `chrome.exe` renvoyé
+     à la ligne de commande n'indique PAS si une fenêtre s'est ouverte (souvent non-nul même en
+     cas de succès, le process de lancement se détachant). Seul un contrôle visuel (une fenêtre
+     apparaît-elle à l'écran ?) fait foi — ne pas se fier au code de sortie pour diagnostiquer un
+     échec de lancement de Chrome.
+   **Conséquence à ne pas oublier** : ce profil dédié a sa propre sauvegarde (`localStorage`),
+   séparée de celle d'un Chrome classique — les dossiers déjà enregistrés via un onglet Chrome
+   normal n'apparaissent pas automatiquement dans cette fenêtre dédiée. Le `.bat` affiche donc un
+   message une seule fois (à la création du profil, détectée via
+   `if not exist "%LocalAppData%\Google\Chrome\User Data\RegistreEcheances"`) rappelant d'exporter
+   (`Exporter (JSON)`) puis réimporter (`Importer (JSON)`) les dossiers existants avant de
+   continuer.
+   Le `.bat` construit aussi correctement l'URL `file://` pour un chemin réseau UNC
+   (`\\serveur\partage\...` → `file://serveur/partage/...`), pas seulement pour un chemin local ou
+   un lecteur mappé (`C:\...` → `file:///C:/...`) — l'étude dépose ces fichiers sur un chemin réseau
+   direct, pas systématiquement une lettre de lecteur mappée.
 
 ## Historique des décisions importantes
 
