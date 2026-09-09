@@ -57,19 +57,19 @@ rem "start" en le soupconnant de casser --profile-directory - a tort : le
 rem vrai bug etait la parenthese dans le message ci-dessus, voir CLAUDE.md.)
 where chrome >nul 2>nul
 if %errorlevel%==0 (
-  start "" chrome --profile-directory="RegistreEcheances" --start-maximized --window-position=0,0 --window-size=10000,10000 --app="%URL%"
+  start "" /MAX chrome --profile-directory="RegistreEcheances" --app="%URL%"
   goto :fin
 )
 if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" (
-  start "" "%ProgramFiles%\Google\Chrome\Application\chrome.exe" --profile-directory="RegistreEcheances" --start-maximized --window-position=0,0 --window-size=10000,10000 --app="%URL%"
+  start "" /MAX "%ProgramFiles%\Google\Chrome\Application\chrome.exe" --profile-directory="RegistreEcheances" --app="%URL%"
   goto :fin
 )
 if exist "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" (
-  start "" "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" --profile-directory="RegistreEcheances" --start-maximized --window-position=0,0 --window-size=10000,10000 --app="%URL%"
+  start "" /MAX "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" --profile-directory="RegistreEcheances" --app="%URL%"
   goto :fin
 )
 if exist "%LocalAppData%\Google\Chrome\Application\chrome.exe" (
-  start "" "%LocalAppData%\Google\Chrome\Application\chrome.exe" --profile-directory="RegistreEcheances" --start-maximized --window-position=0,0 --window-size=10000,10000 --app="%URL%"
+  start "" /MAX "%LocalAppData%\Google\Chrome\Application\chrome.exe" --profile-directory="RegistreEcheances" --app="%URL%"
   goto :fin
 )
 
