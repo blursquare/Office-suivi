@@ -1395,16 +1395,20 @@
     .tabs { grid-template-columns: 1fr; }
   }
 
+  /* Bloc aplati (bordure gauche colorée plutôt qu'un fond teinté pleine surface) : même langage
+     visuel que .type-pill et .date-block (formulaire), plus proche de la maquette d'origine que
+     l'ancien bloc à fond coloré, plus lourd. */
   .tab {
-    border-top: 3px solid var(--line);
-    border-radius: 0 0 4px 4px;
-    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--line);
+    border-radius: 6px;
+    padding: 10px 12px;
     background: var(--paper-card);
   }
-  .tab.pret { border-top-color: var(--pret); background: var(--pret-bg); }
-  .tab.acte { border-top-color: var(--acte); background: var(--acte-bg); }
-  .tab.ventebien { border-top-color: var(--ventebien); background: var(--ventebien-bg); }
-  .tab.autre { border-top-color: var(--muted); background: var(--line-soft); }
+  .tab.pret { border-left-color: var(--pret); }
+  .tab.acte { border-left-color: var(--acte); }
+  .tab.ventebien { border-left-color: var(--ventebien); }
+  .tab.autre { border-left-color: var(--muted); }
 
   .tab .tab-name {
     font-size: 12.5px;
@@ -1457,8 +1461,8 @@
   .dossier-actions button {
     font-family: inherit;
     font-size: 13px;
-    padding: 7px 12px;
-    border-radius: 2px;
+    padding: 7px 14px;
+    border-radius: 20px;
     border: 1px solid var(--line);
     background: var(--paper-card);
     color: var(--ink-soft);
