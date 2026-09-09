@@ -34,7 +34,10 @@
       if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) return toISO(y, mo - 1, d);
     }
     const moisNoms = Object.keys(MOIS).join('|');
-    const re2 = new RegExp(`(\\d{1,2})\\s+(${moisNoms})\\s+(\\d{4})`, 'i');
+    // (?:er)? : le 1er jour du mois s'écrit toujours en ordinal ("le 1er janvier"), jamais "le 1
+    // janvier" — sans ce groupe, cette date très fréquente en tête de compromis n'était jamais
+    // reconnue.
+    const re2 = new RegExp(`(\\d{1,2})(?:er)?\\s+(${moisNoms})\\s+(\\d{4})`, 'i');
     m = str.match(re2);
     if (m) {
       const d = parseInt(m[1], 10);
@@ -626,7 +629,9 @@
     }
 
     const moisNoms = Object.keys(MOIS).join('|');
-    const reTexte = new RegExp(`\\b(\\d{1,2})\\s+(${moisNoms})\\s+(\\d{4})\\b`, 'gi');
+    // (?:er)? : voir le commentaire équivalent dans extraireDateDeFragment — "le 1er janvier"
+    // sans ce groupe n'est jamais détecté.
+    const reTexte = new RegExp(`\\b(\\d{1,2})(?:er)?\\s+(${moisNoms})\\s+(\\d{4})\\b`, 'gi');
     while ((m = reTexte.exec(texte)) !== null) {
       const d = parseInt(m[1], 10);
       const moKey = m[2].toLowerCase();

@@ -16,6 +16,22 @@ test('détecte une date en toutes lettres', () => {
   assert.equal(iso, '2025-09-03');
 });
 
+test('détecte une date en toutes lettres au 1er du mois (ordinal)', () => {
+  // Régression : "le 1er janvier 2025" n'était jamais reconnu (seul "le 1 janvier 2025",
+  // qui ne s'écrit jamais ainsi en français, matchait).
+  const app = chargerApplication();
+  const iso = app.extraireDateDeFragment('le 1er janvier 2025');
+  assert.equal(iso, '2025-01-01');
+});
+
+test('detecterDatesDepuisTexte reconnaît une échéance fixée au 1er du mois', () => {
+  const app = chargerApplication();
+  const texte = "La signature de l'acte authentique aura lieu au plus tard le 1er décembre 2025.";
+  const dates = app.detecterDatesDepuisTexte(texte, '');
+  assert.equal(dates.length, 1);
+  assert.equal(dates[0].iso, '2025-12-01');
+});
+
 test('detecterDateCompromis retient la signature la plus récente (signature électronique)', () => {
   const app = chargerApplication();
   const texte = `
