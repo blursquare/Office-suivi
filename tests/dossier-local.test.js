@@ -58,3 +58,14 @@ test('fichiersPdfRecursifs applique un plafond de sécurité sur le nombre de fi
   const noms = await collecter(app.fichiersPdfRecursifs(racine, 0, { n: 0 }));
   assert.equal(noms.length, 300);
 });
+
+test('OFFRE_PRET_RE reconnaît les formulations bancaires courantes', () => {
+  const app = chargerApplication();
+  assert.ok(app.OFFRE_PRET_RE.test('OFFRE DE PRÊT IMMOBILIER'));
+  assert.ok(app.OFFRE_PRET_RE.test('Offre préalable de crédit'));
+  // Formulation bancaire tout aussi courante que "offre de prêt", signalée par l'étude comme non
+  // détectée avant l'ajout de cette alternative dans OFFRE_PRET_RE — voir CLAUDE.md.
+  assert.ok(app.OFFRE_PRET_RE.test('Offre de crédit immobilier'));
+  assert.ok(app.OFFRE_PRET_RE.test('Offre de financement'));
+  assert.equal(app.OFFRE_PRET_RE.test("Attestation d'entretien de chaudière"), false);
+});

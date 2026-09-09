@@ -2229,7 +2229,12 @@
   // - La vérification ne tourne que pendant que cet onglet est ouvert, pas en tâche de fond.
 
   const DOSSIER_FS_SUPPORTE = typeof window.showDirectoryPicker === 'function';
-  const OFFRE_PRET_RE = /offre\s+de\s+pr[êe]t|offre\s+pr[ée]alable\s+de\s+cr[ée]dit|offre\s+de\s+financement/i;
+  // "Offre de crédit (immobilier)" est une formulation bancaire tout aussi courante que "offre de
+  // prêt" pour désigner le même document (signalé par l'étude : une offre réelle intitulée ainsi
+  // n'était pas détectée) — à ne pas retirer sans revérifier ce cas.
+  // var (pas const) : exposée globalement comme les fonctions du fichier, pour rester testable
+  // depuis tests/helpers/load-app.js sans dupliquer le motif dans les tests.
+  var OFFRE_PRET_RE = /offre\s+de\s+pr[êe]t|offre\s+pr[ée]alable\s+de\s+cr[ée]dit|offre\s+de\s+cr[ée]dit|offre\s+de\s+financement/i;
   let handlesEnMemoire = {}; // repli si IndexedDB est indisponible (contexte restreint)
 
   // Parcourt un dossier ET ses sous-dossiers à la recherche de fichiers PDF : les pièces d'un

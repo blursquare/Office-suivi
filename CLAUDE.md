@@ -189,6 +189,15 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
   chips au moment de l'import (`assignerDate()`, `ajouterAutre()`) alimentent l'apprentissage — une
   reclassification faite après coup sur un dossier déjà enregistré (`changerCategorie()`) n'est pas
   captée, faute de conserver le texte de la clause d'origine sur le dossier sauvegardé.
+- **Bug corrigé : `OFFRE_PRET_RE` ne reconnaissait pas "offre de crédit (immobilier)"**, une
+  formulation bancaire aussi courante que "offre de prêt" pour désigner le même document.
+  Signalé par l'étude : une offre réelle ainsi intitulée restait marquée "introuvable" même après
+  "Revérifier", alors que le PDF était bien du texte extractible placé dans le bon dossier relié
+  (diagnostiqué en confirmant d'abord que ce n'était ni un problème d'OCR ni de parcours récursif,
+  en demandant simplement le titre de la page de garde). Alternative ajoutée à la regex. À cette
+  occasion, `OFFRE_PRET_RE` est passée de `const` à `var` pour rester testable depuis
+  `tests/dossier-local.test.js` (les `const` de premier niveau ne deviennent pas des propriétés du
+  contexte global `vm`, contrairement aux `function` et aux `var` — voir `tests/helpers/load-app.js`).
 - **Changer de dossier lié** : un bouton "Changer de dossier" (`changerDossierLocal()`, visible
   uniquement quand un dossier est déjà relié) permet de corriger un dossier local mal choisi sans
   passer par une manipulation cachée. C'est un simple alias de `lierDossierLocal()` : celle-ci
