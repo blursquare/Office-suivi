@@ -50,6 +50,14 @@ double-cliquant sur `index.html`.
    Flexbox.** Toute mise en page en colonnes dans `imprimerFiche()` doit passer par de vraies
    balises `<table>`. Les couleurs de fond sur une cellule doivent être en style **inline**
    (`style="background:...`), pas seulement via une classe CSS externe — Word les ignore sinon.
+7. **Le bouton "📲 Installer l'application" (`installerApplication()`, événement
+   `beforeinstallprompt`) n'apparaît PAS en `file://`** (fichier ouvert en double-clic, l'usage réel
+   de l'étude) — **confirmé** en testant les deux côte à côte : le bouton apparaît sur la version
+   hébergée en HTTPS (GitHub Pages) mais jamais sur le fichier local, Chrome n'y autorisant pas
+   l'installation PWA. Ce n'est pas un bug à corriger côté code : c'est une restriction de Chrome
+   sur les origines non sécurisées. En conséquence, au quotidien en `file://`, l'outil s'utilise
+   dans un onglet Chrome normal, jamais en fenêtre d'application indépendante — ne pas promettre
+   cette fenêtre indépendante pour l'usage réel sans avoir requalifié cette limite.
 
 ## Historique des décisions importantes
 
