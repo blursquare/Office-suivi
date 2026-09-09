@@ -10,17 +10,19 @@ avoir à redécouvrir l'historique des décisions. Lis-le entièrement avant tou
 ## Structure du projet
 
 ```
-index.html      Structure de la page (le fichier à ouvrir dans le navigateur)
-style.css       Toute la feuille de style (thèmes clair/sombre inclus)
-script.js       Toute la logique applicative
-manifest.json   Manifest PWA (installation en application)
-sw.js           Service worker minimal (requis pour l'installabilité, ne fait rien d'autre)
-icone.svg       Icône de l'application
+index.html                 Structure de la page (le fichier à ouvrir dans le navigateur)
+style.css                  Toute la feuille de style (thèmes clair/sombre inclus)
+script.js                  Toute la logique applicative
+manifest.json              Manifest PWA (installation en application)
+sw.js                      Service worker minimal (requis pour l'installabilité, ne fait rien d'autre)
+icone.svg                  Icône de l'application
+Ouvrir-en-fenetre.bat      Optionnel (Windows) : ouvre index.html dans une fenêtre Chrome sans
+                           onglets ni barre d'adresse — voir point 7 des contraintes ci-dessous.
 ```
 
-**Important** : ces 6 fichiers doivent toujours être déposés ensemble, au même endroit (poste de
-travail ou lecteur réseau partagé de l'étude). Aucun serveur n'est nécessaire : l'outil s'ouvre en
-double-cliquant sur `index.html`.
+**Important** : ces 6 fichiers (les 7 avec le lanceur `.bat`, optionnel) doivent toujours être
+déposés ensemble, au même endroit (poste de travail ou lecteur réseau partagé de l'étude). Aucun
+serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
 
 ## Contraintes fondamentales à ne jamais oublier
 
@@ -58,6 +60,11 @@ double-cliquant sur `index.html`.
    sur les origines non sécurisées. En conséquence, au quotidien en `file://`, l'outil s'utilise
    dans un onglet Chrome normal, jamais en fenêtre d'application indépendante — ne pas promettre
    cette fenêtre indépendante pour l'usage réel sans avoir requalifié cette limite.
+   Le menu Chrome "Créer un raccourci..." (qui permettrait aussi une fenêtre sans onglet, sans
+   passer par la PWA) s'est également révélé absent du menu ⋮ sur un poste testé — masqué par une
+   politique du poste, ou déplacé selon la version de Chrome. `Ouvrir-en-fenetre.bat` (Windows,
+   optionnel, voir structure du projet ci-dessus) contourne les deux limitations en lançant
+   directement `chrome --app=file:///...` : fiable indépendamment du menu Chrome disponible.
 
 ## Historique des décisions importantes
 
