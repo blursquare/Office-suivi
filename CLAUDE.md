@@ -39,6 +39,17 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
    l'aperçu d'artefact Claude.ai — seulement une fois le fichier ouvert directement). Toujours
    prévoir un message d'erreur clair (`afficherToast`, jamais `afficherErreurFormulaire` pour des
    actions hors du formulaire de création — voir point 5) plutôt qu'un plantage silencieux.
+   **Confirmé sur un poste réel** : ces deux fonctions échouent aussi silencieusement (l'appel
+   `showDirectoryPicker()` se comporte comme annulé — `AbortError`, volontairement ignoré sans
+   message, voir le `catch` dans `lierDossierLocal()`) **quand la page elle-même est ouverte
+   depuis un chemin réseau brut** (`file://serveur/partage/...`, ou `\\serveur\partage\...`) —
+   peu importe le dossier ciblé par le sélecteur, local ou réseau. **Ça fonctionne en revanche
+   normalement si le même partage est ouvert via une lettre de lecteur réseau mappée**
+   (`Z:\...\index.html` plutôt que `\\serveur\partage\...\index.html`) : Chrome traite alors la
+   page comme si elle venait d'un disque local. **Conséquence pour le déploiement de l'étude** :
+   "Lier un dossier local" et "Registre partagé (réseau)" (même famille d'API) exigent que le
+   dossier de l'app soit ouvert via un lecteur réseau mappé, pas un chemin `\\...` direct — à
+   rappeler si l'étude signale à nouveau l'un de ces deux boutons "qui ne fait rien".
 4. **Aucune page web ne peut envoyer un email automatiquement.** Les "relances automatiques"
    ouvrent un brouillon `mailto:` déjà rempli ; l'envoi final reste un clic manuel de
    l'utilisateur. Ne jamais promettre plus que ça sans ajouter un vrai backend (hors scope actuel,
