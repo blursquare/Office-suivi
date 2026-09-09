@@ -137,6 +137,32 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
 
 ## Historique des décisions importantes
 
+- **Suivi des dossiers en deux onglets ("Nouveau dossier" / "Suivi des dossiers")** : demandé pour
+  un volume réel d'une soixantaine de dossiers actifs en parallèle, où la liste de cartes
+  complètes défilait trop longtemps pour retrouver un dossier précis. Deux pistes ont été
+  développées en parallèle sur des branches séparées et comparées via des aperçus GitHub Pages
+  (`claude/vue-dossiers-meme-page` vs `claude/vue-dossiers-onglets`) avant de choisir : la version
+  onglets a été retenue car la vue tableau a besoin de la pleine largeur de l'écran pour rester
+  utile, ce que la colonne étroite `.wrap` (680px, partagée avec le formulaire) ne permettait pas.
+  - `definirOnglet('nouveau'|'suivi')` bascule simplement `style.display` entre `#onglet-nouveau`
+    (formulaire + aperçu PDF, layout `.layout-cols` inchangé) et `#onglet-suivi` (`.wrap-suivi`,
+    pleine largeur 1680px) — pas de framework de routage, cohérent avec le reste de l'outil.
+    Après `ajouterDossier()`, bascule automatique vers "Suivi" pour voir le nouveau dossier.
+  - Dans l'onglet "Suivi" : recherche (nom/responsable), filtres (responsable, statut de l'offre
+    de prêt), et une bascule **Cartes / Tableau** (`definirVue()`). La vue tableau
+    (`renderLigneTableau()`) montre une ligne résumée par dossier qui déplie au clic la carte
+    complète existante (`renderCarteDossier()`, extraite de l'ancien `render()`) — aucune action
+    (boutons, historique, changement de catégorie...) n'est dupliquée dans une seconde
+    implémentation : la ligne tableau n'est qu'un point d'entrée vers la même carte.
+  - Un bandeau de statistiques (`renderStatsSuivi()`) synthétise le portefeuille en tête de
+    l'onglet : dossiers actifs, échéances ≤ 7 jours, offres de prêt introuvables, offres à
+    vérifier — calculé sur tous les dossiers actifs, indépendamment de la recherche/des filtres
+    appliqués à la liste en dessous. Couleur toujours réservée aux catégories existantes
+    (`--urgent`, `--pret`), pas de code couleur inventé pour l'occasion.
+  - `prochaineEcheanceDetail(d)` (nouvelle fonction) détermine, pour un dossier, l'échéance la
+    plus proche à afficher en un coup d'œil (type + libellé + date + jours restants) — logique
+    proche de `calculerProchaineEcheance()` mais qui renvoie le détail complet, pas seulement un
+    nombre de jours pour le tri.
 - **Détection des dates** : le texte est découpé phrase par phrase avec des bornes de contexte
   (voir `EXCLUSION_RE`, `CLAUSE_HYPOTHETIQUE_RE`, `OCCUPATION_JOUISSANCE_RE`,
   `LISTE_EQUIPEMENTS_RE` dans `script.js`). Ces regex existent pour écarter des faux positifs
