@@ -64,7 +64,11 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
    passer par la PWA) s'est également révélé absent du menu ⋮ sur un poste testé — masqué par une
    politique du poste, ou déplacé selon la version de Chrome. `Ouvrir-en-fenetre.bat` (Windows,
    optionnel, voir structure du projet ci-dessus) contourne les deux limitations en lançant
-   directement `chrome --app=file:///...` : fiable indépendamment du menu Chrome disponible.
+   directement `chrome --app=file:///...`, **confirmé fonctionnel** — à une condition : **Chrome
+   doit être entièrement fermé avant de lancer le `.bat`**. Si Chrome tourne déjà, il récupère la
+   demande et affiche l'outil dans un nouvel onglet de la fenêtre existante au lieu d'une fenêtre
+   indépendante (comportement normal de Chrome avec `--app`, pas un défaut du `.bat`) — le script
+   détecte ce cas (`tasklist`) et prévient l'utilisateur au lieu d'échouer silencieusement.
 
 ## Historique des décisions importantes
 
