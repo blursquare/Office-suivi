@@ -266,14 +266,17 @@
     <span class="toolbar-spacer"></span>
     <span id="statut-partage" class="statut-partage" style="display:none;"></span>
     <button type="button" class="toolbar-btn" id="btn-registre-partage" onclick="lierRegistrePartage()">🔗 Registre partagé (réseau)</button>
+  </div>
+
+  <div id="dossier-list"></div>
+
+  <div class="list-toolbar list-toolbar-bas">
     <button type="button" class="toolbar-btn" onclick="exporterDonnees()">⬇ Exporter (JSON)</button>
     <label class="toolbar-btn toolbar-btn-label">
       ⬆ Importer (JSON)
       <input type="file" id="f-import" accept="application/json" onchange="importerDonnees(event)" style="display:none;">
     </label>
   </div>
-
-  <div id="dossier-list"></div>
 
   <footer class="note">
     <strong>.ics</strong> : fichier à importer dans Outlook, qui crée un événement par échéance avec ses rappels. <strong>Email</strong> : ouvre un brouillon pré-rempli dans votre messagerie.<br>

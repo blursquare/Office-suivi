@@ -934,6 +934,18 @@
     padding-bottom: 14px;
     border-bottom: 1px solid var(--line-soft);
   }
+
+  /* Exporter/Importer sous la liste plutôt qu'au-dessus : actions de sauvegarde du registre,
+     moins fréquentes que la recherche/les filtres, pas besoin de les garder sous les yeux en
+     permanence en tête de liste. */
+  .list-toolbar-bas {
+    margin-top: 20px;
+    margin-bottom: 0;
+    padding-top: 16px;
+    padding-bottom: 0;
+    border-bottom: none;
+    border-top: 1px solid var(--line-soft);
+  }
   .toolbar-item {
     display: flex;
     align-items: center;
