@@ -262,6 +262,10 @@
     .stats-suivi { grid-template-columns: repeat(2, 1fr); }
   }
 
+  @media (max-width: 680px) {
+    .wrap-suivi { padding: 20px 16px 60px; }
+  }
+
   header.page .kicker {
     font-size: 13px;
     color: var(--acte);
@@ -961,6 +965,15 @@
   }
   .view-toggle-btn + .view-toggle-btn { border-left: 1px solid var(--line); }
   .view-toggle-btn[aria-pressed="true"] { background: var(--acte-bg); color: var(--acte); }
+
+  /* En dessous de 680px, un tableau de 4 colonnes n'a plus la place de s'afficher sans défiler
+     horizontalement (et déborder visuellement de son cadre) : on masque la bascule et on force
+     la vue "Cartes", déjà pensée pour s'adapter à toutes les largeurs (voir definirVue() dans
+     script.js, qui applique la même règle en JS pour ignorer un choix "tableau" mémorisé). Placée
+     après la règle de base (même spécificité) pour ne pas être écrasée par elle dans la cascade. */
+  @media (max-width: 680px) {
+    .view-toggle { display: none; }
+  }
 
   .toolbar-btn {
     font-family: inherit;

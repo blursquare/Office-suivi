@@ -1627,6 +1627,12 @@
     render();
   }
 
+  // Redessine si on franchit le seuil des 680px (rotation d'écran, redimensionnement de la
+  // fenêtre) : la vue effective (voir render()) en dépend, pas seulement vueDossiers.
+  if (window.matchMedia) {
+    window.matchMedia('(max-width: 680px)').addEventListener('change', () => render());
+  }
+
   // Détermine, parmi les échéances d'un dossier, la plus proche à afficher en un coup d'œil dans
   // la vue tableau (celle déjà retenue pour le tri par calculerProchaineEcheance, mais avec son
   // type/libellé/date en plus, pas seulement le nombre de jours).
@@ -1698,7 +1704,12 @@
       return calculerProchaineEcheance(a) - calculerProchaineEcheance(b);
     });
 
-    if (vueDossiers === 'tableau') {
+    // Sous 680px, le tableau (4 colonnes) n'a plus la place de s'afficher sans défiler
+    // horizontalement — la vue Cartes, déjà responsive, prend le relais quel que soit le choix
+    // mémorisé (même seuil que la media query qui masque la bascule Cartes/Tableau).
+    const vueEffective = window.matchMedia('(max-width: 680px)').matches ? 'cartes' : vueDossiers;
+
+    if (vueEffective === 'tableau') {
       const flechesTri = { nom: '', responsable: '', echeance: '' };
       flechesTri[tri] = ' <span class="tri-actif">▾</span>';
       list.innerHTML = `
