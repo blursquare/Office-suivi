@@ -56,19 +56,19 @@ rem echoue sur un poste teste, sans qu'on sache pourquoi). chrome.exe rend
 rem la main rapidement de lui-meme, cette fenetre ne reste donc pas bloquee.
 where chrome >nul 2>nul
 if %errorlevel%==0 (
-  chrome --profile-directory="RegistreEcheances" --start-maximized --app="%URL%"
+  chrome --profile-directory="RegistreEcheances" --start-maximized --window-position=0,0 --window-size=10000,10000 --app="%URL%"
   goto :fin
 )
 if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" (
-  "%ProgramFiles%\Google\Chrome\Application\chrome.exe" --profile-directory="RegistreEcheances" --start-maximized --app="%URL%"
+  "%ProgramFiles%\Google\Chrome\Application\chrome.exe" --profile-directory="RegistreEcheances" --start-maximized --window-position=0,0 --window-size=10000,10000 --app="%URL%"
   goto :fin
 )
 if exist "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" (
-  "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" --profile-directory="RegistreEcheances" --start-maximized --app="%URL%"
+  "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" --profile-directory="RegistreEcheances" --start-maximized --window-position=0,0 --window-size=10000,10000 --app="%URL%"
   goto :fin
 )
 if exist "%LocalAppData%\Google\Chrome\Application\chrome.exe" (
-  "%LocalAppData%\Google\Chrome\Application\chrome.exe" --profile-directory="RegistreEcheances" --start-maximized --app="%URL%"
+  "%LocalAppData%\Google\Chrome\Application\chrome.exe" --profile-directory="RegistreEcheances" --start-maximized --window-position=0,0 --window-size=10000,10000 --app="%URL%"
   goto :fin
 )
 
