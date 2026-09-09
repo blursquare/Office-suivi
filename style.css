@@ -1177,6 +1177,24 @@
   .ligne-resume .dossier-nom-tableau { font-weight: 600; color: var(--ink); }
   .ligne-resume .dossier-responsable-tableau { color: var(--ink-soft); }
 
+  .th-triable { cursor: pointer; }
+  .th-triable:hover { color: var(--ink-soft); }
+  .tri-actif { color: var(--focus); }
+
+  .action-rapide {
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ink-soft);
+    background: var(--paper-card);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 2px 10px;
+    margin-left: 6px;
+    cursor: pointer;
+  }
+  .action-rapide:hover { border-color: var(--focus); color: var(--focus); }
+
   .type-pill {
     display: inline-flex;
     align-items: center;
@@ -1205,6 +1223,34 @@
   .ligne-detail.ouvert { display: table-row; }
   .ligne-detail td { padding: 18px; border-bottom: 1px solid var(--line-soft); }
   .ligne-detail .dossier { margin-bottom: 0; box-shadow: none; }
+
+  /* ---- vue "Cartes" compacte : grille de résumés qui se déplient en place (grid-column: 1/-1)
+     vers la même carte complète que la vue tableau, sans casser l'alignement des autres cartes. ---- */
+  .cartes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 12px;
+    align-items: start;
+  }
+  .mini-carte {
+    background: var(--paper-card);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: var(--shadow-card);
+  }
+  .mini-carte.est-archive { opacity: 0.65; }
+  .mini-carte-resume { padding: 14px 16px; cursor: pointer; display: flex; flex-direction: column; gap: 6px; }
+  .mini-carte-resume:hover { background: var(--paper-sunk); }
+  .mini-carte-nom { font-weight: 600; color: var(--ink); font-size: 14.5px; }
+  .mini-carte-responsable { font-size: 12.5px; color: var(--ink-soft); }
+  .mini-carte-echeance { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+  .mini-carte-pied { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; padding-top: 4px; border-top: 1px solid var(--line-soft); }
+
+  .mini-carte-detail { display: none; }
+  .mini-carte.ouverte { grid-column: 1 / -1; }
+  .mini-carte.ouverte .mini-carte-resume { border-bottom: 1px solid var(--line-soft); }
+  .mini-carte.ouverte .mini-carte-detail { display: block; padding: 16px; }
+  .mini-carte.ouverte .mini-carte-detail .dossier { margin-bottom: 0; box-shadow: none; border: none; padding: 0; }
 
   .dossier-head {
     display: flex;

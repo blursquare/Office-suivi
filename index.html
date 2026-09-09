@@ -230,6 +230,15 @@
       </select>
     </label>
     <label class="toolbar-item">
+      Échéance
+      <select id="filtre-type" onchange="render()">
+        <option value="">Toutes</option>
+        <option value="pret">Obtention du prêt</option>
+        <option value="acte">Signature de l'acte</option>
+        <option value="ventebien">Vente préalable</option>
+      </select>
+    </label>
+    <label class="toolbar-item">
       Offre de prêt
       <select id="filtre-offre" onchange="render()">
         <option value="">Tous statuts</option>
@@ -243,6 +252,7 @@
       <select id="tri-dossiers" onchange="render()">
         <option value="echeance">Échéance la plus proche</option>
         <option value="nom">Nom du dossier</option>
+        <option value="responsable">Responsable</option>
       </select>
     </label>
     <label class="toolbar-item toolbar-checkbox">

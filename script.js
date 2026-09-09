@@ -1652,6 +1652,7 @@
     const recherche = (document.getElementById('recherche-dossiers').value || '').trim().toLowerCase();
     const filtreResponsable = document.getElementById('filtre-responsable').value;
     const filtreOffre = document.getElementById('filtre-offre').value;
+    const filtreType = document.getElementById('filtre-type').value;
 
     const dossiersActifs = dossiers.filter(d => !d.archive);
     renderDashboard(dossiersActifs);
@@ -1677,6 +1678,10 @@
         if (d.sansPret) return false;
         if ((d.offrePretStatut || 'inconnu') !== filtreOffre) return false;
       }
+      if (filtreType) {
+        const prochaine = prochaineEcheanceDetail(d);
+        if (!prochaine || prochaine.type !== filtreType) return false;
+      }
       return true;
     });
 
@@ -1689,20 +1694,35 @@
 
     const tries = dossiersAffiches.slice().sort((a, b) => {
       if (tri === 'nom') return a.nom.localeCompare(b.nom, 'fr');
+      if (tri === 'responsable') return (a.responsable || '').localeCompare(b.responsable || '', 'fr');
       return calculerProchaineEcheance(a) - calculerProchaineEcheance(b);
     });
 
     if (vueDossiers === 'tableau') {
+      const flechesTri = { nom: '', responsable: '', echeance: '' };
+      flechesTri[tri] = ' <span class="tri-actif">▾</span>';
       list.innerHTML = `
         <div class="table-scroll">
           <table class="dossiers-table">
-            <thead><tr><th>Dossier</th><th>Responsable</th><th>Prochaine échéance</th><th>Offre de prêt</th></tr></thead>
+            <thead><tr>
+              <th class="th-triable" onclick="definirTri('nom')">Dossier${flechesTri.nom}</th>
+              <th class="th-triable" onclick="definirTri('responsable')">Responsable${flechesTri.responsable}</th>
+              <th class="th-triable" onclick="definirTri('echeance')">Prochaine échéance${flechesTri.echeance}</th>
+              <th>Offre de prêt</th>
+            </tr></thead>
             <tbody>${tries.map(renderLigneTableau).join('')}</tbody>
           </table>
         </div>`;
     } else {
-      list.innerHTML = tries.map(renderCarteDossier).join('');
+      list.innerHTML = `<div class="cartes-grid">${tries.map(renderCarteCompacte).join('')}</div>`;
     }
+  }
+
+  // Change le tri depuis un clic sur un en-tête de colonne : répercuté sur le menu "Trier par"
+  // (source unique de vérité, pas de deuxième variable d'état à garder synchronisée).
+  function definirTri(critere) {
+    document.getElementById('tri-dossiers').value = critere;
+    render();
   }
 
   function renderLigneTableau(d) {
@@ -1718,7 +1738,10 @@
                <span class="echeance-jours ${prochaine.jours <= 3 ? 'urgent' : 'calme'}">${formatDateFr(prochaine.iso)} (${prochaine.jours < 0 ? 'dépassée' : prochaine.jours === 0 ? "aujourd'hui" : 'J-' + prochaine.jours})</span>`
             : '<span class="echeance-jours calme">—</span>'}
         </td>
-        <td>${d.sansPret ? '<span class="echeance-jours calme">Comptant — sans prêt</span>' : `<span class="badge-offre ${offre.cls}">${offre.texte}</span>`}</td>
+        <td>
+          ${d.sansPret ? '<span class="echeance-jours calme">Comptant — sans prêt</span>' : `<span class="badge-offre ${offre.cls}">${offre.texte}</span>`}
+          ${(!d.sansPret && d.dossierLie) ? `<button type="button" class="action-rapide" onclick="event.stopPropagation(); verifierOffrePret('${d.id}', true)">Revérifier</button>` : ''}
+        </td>
       </tr>
       <tr class="ligne-detail" id="detail-${d.id}"><td colspan="4">${renderCarteDossier(d)}</td></tr>
     `;
@@ -1727,6 +1750,37 @@
   function toggleLigneDossier(id) {
     const el = document.getElementById('detail-' + id);
     if (el) el.classList.toggle('ouvert');
+  }
+
+  // Vue "Cartes" compacte : un résumé par dossier (nom, responsable, échéance, offre) qui déplie
+  // au clic la même carte complète que la vue tableau — ni logique ni markup d'action dupliqués.
+  function renderCarteCompacte(d) {
+    const prochaine = prochaineEcheanceDetail(d);
+    const offre = !d.sansPret ? libelleOffre(d.offrePretStatut) : null;
+    return `
+      <div class="mini-carte${d.archive ? ' est-archive' : ''}" id="mini-${d.id}">
+        <div class="mini-carte-resume" onclick="toggleCarteCompacte('${d.id}')">
+          <div class="mini-carte-nom">${escapeHtml(d.nom)}</div>
+          <div class="mini-carte-responsable">${escapeHtml(d.responsable || '—')}</div>
+          <div class="mini-carte-echeance">
+            ${prochaine
+              ? `<span class="type-pill ${prochaine.type}"><span class="dot"></span>${escapeHtml(prochaine.label)}</span>
+                 <span class="echeance-jours ${prochaine.jours <= 3 ? 'urgent' : 'calme'}">${prochaine.jours < 0 ? 'dépassée' : prochaine.jours === 0 ? "aujourd'hui" : 'J-' + prochaine.jours}</span>`
+              : '<span class="echeance-jours calme">Aucune échéance</span>'}
+          </div>
+          <div class="mini-carte-pied">
+            ${d.sansPret ? '<span class="echeance-jours calme">Comptant — sans prêt</span>' : `<span class="badge-offre ${offre.cls}">${offre.texte}</span>`}
+            ${(!d.sansPret && d.dossierLie) ? `<button type="button" class="action-rapide" onclick="event.stopPropagation(); verifierOffrePret('${d.id}', true)">Revérifier</button>` : ''}
+          </div>
+        </div>
+        <div class="mini-carte-detail" id="detail-carte-${d.id}">${renderCarteDossier(d)}</div>
+      </div>
+    `;
+  }
+
+  function toggleCarteCompacte(id) {
+    const el = document.getElementById('mini-' + id);
+    if (el) el.classList.toggle('ouverte');
   }
 
   function renderCarteDossier(d) {

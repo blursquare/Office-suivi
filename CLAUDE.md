@@ -163,6 +163,20 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     plus proche à afficher en un coup d'œil (type + libellé + date + jours restants) — logique
     proche de `calculerProchaineEcheance()` mais qui renvoie le détail complet, pas seulement un
     nombre de jours pour le tri.
+  - **Complété ensuite** (repris de la maquette initiale, pour une UX plus dense/moderne) :
+    - Filtre par type d'échéance (`#filtre-type`), et tri "Responsable" ajouté au menu existant.
+    - En-têtes de la vue tableau cliquables pour trier (`definirTri()`) : répercutent leur choix
+      sur le `<select id="tri-dossiers">` plutôt que de maintenir un second état de tri séparé à
+      synchroniser — une seule source de vérité pour le critère de tri, qu'on l'ait changé depuis
+      le menu ou depuis un en-tête.
+    - Vue "Cartes" transformée en grille de résumés compacts (`renderCarteCompacte()`) plutôt que
+      la liste de cartes complètes toujours dépliées : chaque résumé se déplie au clic vers la même
+      carte complète (`renderCarteDossier()`), en prenant toute la largeur de la grille
+      (`grid-column: 1/-1`) sans décaler les autres cartes — même principe de non-duplication des
+      actions que la vue tableau.
+    - Bouton d'action rapide "Revérifier" directement visible sur le résumé (carte compacte et
+      ligne de tableau) quand un dossier est relié, sans avoir à déplier — appelle simplement
+      `verifierOffrePret()` avec `event.stopPropagation()` pour ne pas déclencher le dépliage.
 - **Détection des dates** : le texte est découpé phrase par phrase avec des bornes de contexte
   (voir `EXCLUSION_RE`, `CLAUSE_HYPOTHETIQUE_RE`, `OCCUPATION_JOUISSANCE_RE`,
   `LISTE_EQUIPEMENTS_RE` dans `script.js`). Ces regex existent pour écarter des faux positifs
