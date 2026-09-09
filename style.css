@@ -192,9 +192,43 @@
   }
 
   header.page {
+    max-width: 1680px;
+    margin: 0 auto 0;
+    padding: 32px 32px 28px;
     border-bottom: 1px solid var(--line);
-    padding-bottom: 28px;
-    margin-bottom: 36px;
+  }
+
+  /* ---- onglets « Nouveau dossier » / « Suivi des dossiers » : remplacent la page unique
+     (formulaire + liste toujours visibles l'un sous l'autre) par deux espaces de travail
+     séparés — la liste peut alors occuper toute la largeur, sans la colonne d'aperçu PDF. ---- */
+  .app-tabs {
+    display: flex;
+    gap: 4px;
+    max-width: 1680px;
+    margin: 20px auto 0;
+    padding: 0 32px;
+    border-bottom: 1px solid var(--line);
+  }
+  .app-tab {
+    font-family: 'Poppins', 'Segoe UI', sans-serif;
+    font-size: 14.5px;
+    font-weight: 500;
+    color: var(--ink-soft);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 12px 4px;
+    margin-bottom: -1px;
+    cursor: pointer;
+  }
+  .app-tab + .app-tab { margin-left: 22px; }
+  .app-tab:hover { color: var(--ink); }
+  .app-tab[aria-selected="true"] { color: var(--acte); border-bottom-color: var(--acte); }
+
+  .wrap-suivi {
+    max-width: 1680px;
+    margin: 0 auto;
+    padding: 32px 32px 80px;
   }
 
   header.page .kicker {
@@ -865,6 +899,38 @@
   }
   .toolbar-checkbox { cursor: pointer; }
   .toolbar-spacer { flex: 1; }
+
+  .toolbar-recherche input {
+    font-family: inherit;
+    font-size: 13px;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    padding: 5px 10px;
+    background: var(--paper-card);
+    color: var(--ink);
+    width: 220px;
+    max-width: 40vw;
+  }
+  .toolbar-recherche input:focus { outline: none; border-color: var(--focus); }
+
+  .view-toggle {
+    display: flex;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .view-toggle-btn {
+    font-family: inherit;
+    font-size: 13px;
+    border: none;
+    background: var(--paper-card);
+    color: var(--ink-soft);
+    padding: 6px 12px;
+    cursor: pointer;
+  }
+  .view-toggle-btn + .view-toggle-btn { border-left: 1px solid var(--line); }
+  .view-toggle-btn[aria-pressed="true"] { background: var(--acte-bg); color: var(--acte); }
+
   .toolbar-btn {
     font-family: inherit;
     font-size: 13px;
@@ -1046,6 +1112,68 @@
     transition: box-shadow 0.15s ease;
   }
   .dossier:hover { box-shadow: 0 2px 4px rgba(22,35,60,0.06), 0 6px 16px rgba(22,35,60,0.07); }
+
+  /* ---- vue tableau (alternative compacte à la liste de cartes, pour un grand nombre de
+     dossiers) : une ligne résumée par dossier, qui déplie la carte complète (inchangée, mêmes
+     actions) au clic plutôt que de dupliquer la logique des boutons dans une ligne étroite. ---- */
+  .table-scroll {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--paper-card);
+    box-shadow: var(--shadow-card);
+  }
+  .dossiers-table { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 720px; }
+  .dossiers-table thead th {
+    text-align: left;
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  .dossiers-table tbody td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line-soft);
+    vertical-align: middle;
+  }
+  .ligne-resume { cursor: pointer; }
+  .ligne-resume:hover { background: var(--paper-sunk); }
+  .ligne-resume.est-archive { opacity: 0.65; }
+  .ligne-resume .dossier-nom-tableau { font-weight: 600; color: var(--ink); }
+  .ligne-resume .dossier-responsable-tableau { color: var(--ink-soft); }
+
+  .type-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 2px 8px 2px 6px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+  .type-pill .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .type-pill.pret { background: var(--pret-bg); color: var(--pret); }
+  .type-pill.pret .dot { background: var(--pret); }
+  .type-pill.acte { background: var(--acte-bg); color: var(--acte); }
+  .type-pill.acte .dot { background: var(--acte); }
+  .type-pill.ventebien { background: var(--ventebien-bg); color: var(--ventebien); }
+  .type-pill.ventebien .dot { background: var(--ventebien); }
+  .type-pill.autre { background: var(--line-soft); color: var(--muted); }
+  .type-pill.autre .dot { background: var(--muted); }
+
+  .echeance-jours { font-size: 12px; margin-left: 6px; }
+  .echeance-jours.urgent { color: var(--urgent); font-weight: 600; }
+  .echeance-jours.calme { color: var(--ink-soft); }
+
+  .ligne-detail { display: none; background: var(--paper-sunk); }
+  .ligne-detail.ouvert { display: table-row; }
+  .ligne-detail td { padding: 18px; border-bottom: 1px solid var(--line-soft); }
+  .ligne-detail .dossier { margin-bottom: 0; box-shadow: none; }
 
   .dossier-head {
     display: flex;
