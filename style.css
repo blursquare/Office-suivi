@@ -367,9 +367,19 @@
      d'accessibilité "Texte plus grand" activé) : sans ce garde-fou, le champ peut déborder de son
      bloc .date-block sur iPhone alors qu'il tient normalement dans Chrome/desktop. Signalé par
      l'étude sur les 3 champs de la section "Vérifier les échéances" — non reproductible dans cet
-     environnement de dev (pas de Safari/iOS disponible) : à reconfirmer sur un vrai iPhone. */
+     environnement de dev (pas de Safari/iOS disponible) : à reconfirmer sur un vrai iPhone.
+     Un premier essai (box-sizing/max-width/min-width seuls) n'a pas suffi : cette taille
+     intrinsèque dépend aussi du font-size (la mise à l'échelle "Texte plus grand" d'iOS l'agrandit
+     davantage), d'où la réduction ci-dessous sur petit écran, en plus des propriétés déjà posées. */
   input[type="date"] {
     -webkit-min-logical-width: 0;
+  }
+  @media (max-width: 480px) {
+    input[type="date"] {
+      font-size: 13px;
+      padding: 8px 6px;
+    }
+    .date-block { padding-left: 10px; }
   }
   input[type="text"]:hover, input[type="date"]:hover, input[type="email"]:hover, #f-responsable:hover { border-color: var(--muted); }
 
@@ -1263,6 +1273,58 @@
   .mini-carte.ouverte .mini-carte-resume { border-bottom: 1px solid var(--line-soft); }
   .mini-carte.ouverte .mini-carte-detail { display: block; padding: 16px; }
   .mini-carte.ouverte .mini-carte-detail .dossier { margin-bottom: 0; box-shadow: none; border: none; padding: 0; }
+
+  /* ---- présentation compacte du détail déplié (ligne de tableau ou carte) : un seul dossier
+     ouvert à la fois dans un contexte déjà condensé n'a plus besoin de la respiration prévue à
+     l'origine pour une liste de cartes complètes toujours affichées. ---- */
+  .ligne-detail .dossier,
+  .mini-carte.ouverte .mini-carte-detail .dossier {
+    padding: 16px 18px;
+  }
+  .ligne-detail .dossier-head,
+  .mini-carte.ouverte .mini-carte-detail .dossier-head {
+    margin-bottom: 10px;
+  }
+  .ligne-detail .dossier-nom-input,
+  .mini-carte.ouverte .mini-carte-detail .dossier-nom-input {
+    font-size: 15px;
+  }
+  .ligne-detail .tabs,
+  .mini-carte.ouverte .mini-carte-detail .tabs {
+    gap: 8px;
+  }
+  .ligne-detail .tab,
+  .mini-carte.ouverte .mini-carte-detail .tab {
+    padding: 8px 10px;
+    border-radius: 0 0 3px 3px;
+  }
+  .ligne-detail .tab .tab-date,
+  .mini-carte.ouverte .mini-carte-detail .tab .tab-date {
+    font-size: 13px;
+    margin-bottom: 2px;
+  }
+  .ligne-detail .tab .tab-countdown,
+  .mini-carte.ouverte .mini-carte-detail .tab .tab-countdown {
+    font-size: 12px;
+  }
+  .ligne-detail .dossier-actions,
+  .mini-carte.ouverte .mini-carte-detail .dossier-actions {
+    gap: 6px;
+    margin-top: 12px;
+  }
+  .ligne-detail .dossier-actions button,
+  .mini-carte.ouverte .mini-carte-detail .dossier-actions button {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+  .ligne-detail .analyse-juridique,
+  .mini-carte.ouverte .mini-carte-detail .analyse-juridique {
+    margin-top: 10px !important;
+  }
+  .ligne-detail .historique-toggle,
+  .mini-carte.ouverte .mini-carte-detail .historique-toggle {
+    margin-top: 8px;
+  }
 
   .dossier-head {
     display: flex;
