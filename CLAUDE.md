@@ -78,6 +78,11 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
    - `--profile-directory="RegistreEcheances"` (profil nommé, **dans** le dossier Chrome existant,
      mécanisme différent de `--user-data-dir`) : **fonctionne**, y compris Chrome déjà ouvert —
      confirmé sur le poste testé. C'est la solution retenue dans `Ouvrir-en-fenetre.bat`.
+   - **`start` casse `--profile-directory`** : `start "" chrome --profile-directory=... --app=...`
+     échoue (fenêtre qui clignote, rien ne s'ouvre), alors que l'appel direct sans `start`
+     fonctionne — constaté sur le poste testé, cause exacte non identifiée. Ne pas réintroduire
+     `start` devant l'appel à `chrome.exe`/`chrome` dans ce `.bat` : appeler l'exécutable
+     directement, il rend la main de lui-même sans bloquer la fenêtre.
    - Piège de diagnostic rencontré en cours de route : le code de sortie de `chrome.exe` renvoyé
      à la ligne de commande n'indique PAS si une fenêtre s'est ouverte (souvent non-nul même en
      cas de succès, le process de lancement se détachant). Seul un contrôle visuel (une fenêtre

@@ -46,21 +46,25 @@ if not exist "%LocalAppData%\Google\Chrome\User Data\RegistreEcheances" (
   pause
 )
 
+rem Pas de "start" : appel direct de chrome.exe, seule methode confirmee
+rem fonctionner (voir CLAUDE.md - "start" combine a --profile-directory a
+rem echoue sur un poste teste, sans qu'on sache pourquoi). chrome.exe rend
+rem la main rapidement de lui-meme, cette fenetre ne reste donc pas bloquee.
 where chrome >nul 2>nul
 if %errorlevel%==0 (
-  start "" chrome --profile-directory="RegistreEcheances" --app="%URL%"
+  chrome --profile-directory="RegistreEcheances" --app="%URL%"
   goto :fin
 )
 if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" (
-  start "" "%ProgramFiles%\Google\Chrome\Application\chrome.exe" --profile-directory="RegistreEcheances" --app="%URL%"
+  "%ProgramFiles%\Google\Chrome\Application\chrome.exe" --profile-directory="RegistreEcheances" --app="%URL%"
   goto :fin
 )
 if exist "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" (
-  start "" "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" --profile-directory="RegistreEcheances" --app="%URL%"
+  "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" --profile-directory="RegistreEcheances" --app="%URL%"
   goto :fin
 )
 if exist "%LocalAppData%\Google\Chrome\Application\chrome.exe" (
-  start "" "%LocalAppData%\Google\Chrome\Application\chrome.exe" --profile-directory="RegistreEcheances" --app="%URL%"
+  "%LocalAppData%\Google\Chrome\Application\chrome.exe" --profile-directory="RegistreEcheances" --app="%URL%"
   goto :fin
 )
 
