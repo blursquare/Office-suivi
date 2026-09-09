@@ -64,11 +64,19 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
    passer par la PWA) s'est également révélé absent du menu ⋮ sur un poste testé — masqué par une
    politique du poste, ou déplacé selon la version de Chrome. `Ouvrir-en-fenetre.bat` (Windows,
    optionnel, voir structure du projet ci-dessus) contourne les deux limitations en lançant
-   directement `chrome --app=file:///...`, **confirmé fonctionnel** — à une condition : **Chrome
-   doit être entièrement fermé avant de lancer le `.bat`**. Si Chrome tourne déjà, il récupère la
-   demande et affiche l'outil dans un nouvel onglet de la fenêtre existante au lieu d'une fenêtre
-   indépendante (comportement normal de Chrome avec `--app`, pas un défaut du `.bat`) — le script
-   détecte ce cas (`tasklist`) et prévient l'utilisateur au lieu d'échouer silencieusement.
+   directement `chrome --app=file:///...`, **confirmé fonctionnel**.
+   Premier essai : `--app` seul fonctionnait, mais seulement si Chrome était entièrement fermé au
+   préalable (sinon la demande était récupérée par la fenêtre déjà ouverte, qui affichait l'outil
+   dans un nouvel onglet au lieu d'une fenêtre indépendante). **Corrigé** en ajoutant
+   `--user-data-dir` vers un profil Chrome dédié (`%LocalAppData%\RegistreEcheances\ProfilChrome`) :
+   ça fonctionne désormais même si Chrome est déjà ouvert par ailleurs, car ce profil dédié est un
+   processus Chrome indépendant du Chrome "normal" de l'utilisateur.
+   **Conséquence à ne pas oublier** : ce profil dédié a sa propre sauvegarde (`localStorage`),
+   séparée de celle d'un Chrome classique — les dossiers déjà enregistrés via un onglet Chrome
+   normal n'apparaissent pas automatiquement dans cette fenêtre dédiée. Le `.bat` affiche donc un
+   message une seule fois (à la création du profil, détectée via `if not exist "%PROFIL%"`)
+   rappelant d'exporter (`Exporter (JSON)`) puis réimporter (`Importer (JSON)`) les dossiers
+   existants avant de continuer.
 
 ## Historique des décisions importantes
 

@@ -1,43 +1,53 @@
 @echo off
 :: Ouvre index.html dans une fenetre Chrome independante (sans onglets ni barre
-:: d'adresse), sans dependre du menu "Creer un raccourci" de Chrome (masque ou
-:: absent selon la version/la politique du poste - voir CLAUDE.md).
+:: d'adresse) - meme si Chrome est deja ouvert par ailleurs, grace a un profil
+:: Chrome dedie a cette application (voir IMPORTANT ci-dessous).
 ::
 :: A garder dans le meme dossier que index.html : %~dp0 designe ce dossier,
 :: donc ce lanceur fonctionne que le dossier soit sur ce poste ou sur un
 :: lecteur reseau (lettre mappee, ex. Z:\...).
 ::
-:: IMPORTANT : si Chrome est deja ouvert, il recupere la demande et affiche
-:: l'outil dans un nouvel onglet de la fenetre existante au lieu d'une fenetre
-:: independante (comportement normal de Chrome, pas un bug de ce fichier) -
-:: d'ou la verification ci-dessous.
+:: IMPORTANT : ce profil Chrome dedie a SA PROPRE sauvegarde (localStorage),
+:: separee de celle d'un Chrome "normal" - c'est ce qui lui permet de s'ouvrir
+:: sans conflit meme si Chrome tourne deja. Si des dossiers ont deja ete
+:: enregistres via un onglet Chrome classique, ce message ne s'affichera
+:: qu'une seule fois (a la creation du profil) pour rappeler de les exporter
+:: puis de les reimporter ici.
 setlocal
 set "URL=file:///%~dp0index.html"
+set "PROFIL=%LocalAppData%\RegistreEcheances\ProfilChrome"
 
-tasklist /FI "IMAGENAME eq chrome.exe" 2>NUL | find /I "chrome.exe" >NUL
-if %errorlevel%==0 (
-  echo Chrome est deja ouvert.
-  echo Fermez TOUTES les fenetres Chrome, puis relancez ce fichier -
-  echo sinon l'outil s'ouvrira dans un nouvel onglet au lieu d'une fenetre independante.
+if not exist "%PROFIL%" (
+  echo Premiere utilisation de ce lanceur.
+  echo.
+  echo Cette fenetre utilise un profil Chrome dedie, separe de votre navigation
+  echo habituelle, pour pouvoir s'ouvrir meme si Chrome est deja ouvert.
+  echo.
+  echo Si vous avez DEJA des dossiers enregistres via un onglet Chrome classique :
+  echo   1. Fermez cette fenetre.
+  echo   2. Ouvrez l'app normalement dans Chrome, cliquez sur "Exporter (JSON)".
+  echo   3. Relancez ce fichier, puis cliquez sur "Importer (JSON)" pour les retrouver ici.
+  echo.
+  echo Sinon (premiere utilisation de l'app, ou rien a recuperer), appuyez sur une
+  echo touche pour continuer normalement.
   pause
-  goto :fin
 )
 
 where chrome >nul 2>nul
 if %errorlevel%==0 (
-  start "" chrome --app="%URL%"
+  start "" chrome --user-data-dir="%PROFIL%" --app="%URL%"
   goto :fin
 )
 if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" (
-  start "" "%ProgramFiles%\Google\Chrome\Application\chrome.exe" --app="%URL%"
+  start "" "%ProgramFiles%\Google\Chrome\Application\chrome.exe" --user-data-dir="%PROFIL%" --app="%URL%"
   goto :fin
 )
 if exist "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" (
-  start "" "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" --app="%URL%"
+  start "" "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" --user-data-dir="%PROFIL%" --app="%URL%"
   goto :fin
 )
 if exist "%LocalAppData%\Google\Chrome\Application\chrome.exe" (
-  start "" "%LocalAppData%\Google\Chrome\Application\chrome.exe" --app="%URL%"
+  start "" "%LocalAppData%\Google\Chrome\Application\chrome.exe" --user-data-dir="%PROFIL%" --app="%URL%"
   goto :fin
 )
 
