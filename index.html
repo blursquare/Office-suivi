@@ -13,23 +13,29 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="layout-cols">
-<div class="wrap">
 
-  <header class="page">
-    <div class="header-top">
-      <div>
-        <div class="kicker">Suivi des transactions</div>
-        <div class="brand-bar"></div>
-      </div>
-      <div class="header-actions">
-        <button type="button" class="install-btn" id="install-btn" style="display:none;" onclick="installerApplication()">📲 Installer l'application</button>
-        <button type="button" class="theme-btn" id="theme-btn" onclick="basculerTheme()" aria-label="Basculer le thème clair/sombre">🌙</button>
-      </div>
+<header class="page">
+  <div class="header-top">
+    <div>
+      <div class="kicker">Suivi des transactions</div>
+      <div class="brand-bar"></div>
     </div>
-    <h1>Registre des échéances</h1>
-    <p>Importez un compromis : l'outil en extrait les échéances et les pièces à réclamer, puis génère vos rappels Outlook.</p>
-  </header>
+    <div class="header-actions">
+      <button type="button" class="install-btn" id="install-btn" style="display:none;" onclick="installerApplication()">📲 Installer l'application</button>
+      <button type="button" class="theme-btn" id="theme-btn" onclick="basculerTheme()" aria-label="Basculer le thème clair/sombre">🌙</button>
+    </div>
+  </div>
+  <h1>Registre des échéances</h1>
+  <p>Importez un compromis : l'outil en extrait les échéances et les pièces à réclamer, puis génère vos rappels Outlook.</p>
+</header>
+
+<nav class="app-tabs" role="tablist" aria-label="Sections de l'application">
+  <button type="button" id="tab-nouveau" class="app-tab" role="tab" aria-selected="true" onclick="definirOnglet('nouveau')">Nouveau dossier</button>
+  <button type="button" id="tab-suivi" class="app-tab" role="tab" aria-selected="false" onclick="definirOnglet('suivi')">Suivi des dossiers</button>
+</nav>
+
+<div class="layout-cols" id="onglet-nouveau">
+<div class="wrap">
 
   <details class="panel" id="panel" open>
     <summary>Nouveau dossier <span class="plus">+</span></summary>
@@ -185,6 +191,19 @@
     </div>
   </details>
 
+</div>
+
+<aside class="pdf-viewer" id="pdf-viewer">
+  <div class="pdf-viewer-header">
+    <div class="pdf-viewer-title" id="pdf-viewer-title">Aperçu du compromis</div>
+  </div>
+  <div class="pdf-viewer-canvas-wrap" id="pdf-pages-container"></div>
+</aside>
+
+</div>
+
+<div class="wrap-suivi" id="onglet-suivi" style="display:none;">
+
   <div id="dashboard" class="dashboard" style="display:none;">
     <div class="dashboard-titre">📅 Échéances des 7 prochains jours</div>
     <div id="dashboard-liste"></div>
@@ -244,11 +263,6 @@
 
   <div id="dossier-list"></div>
 
-  <div id="toast" class="toast" style="display:none;">
-    <span id="toast-message"></span>
-    <button type="button" class="toast-undo" id="toast-undo-btn">Annuler</button>
-  </div>
-
   <footer class="note">
     <strong>.ics</strong> : fichier à importer dans Outlook, qui crée un événement par échéance avec ses rappels. <strong>Email</strong> : ouvre un brouillon pré-rempli dans votre messagerie.<br>
     Seul le compromis est analysé, sans ses annexes. Le PDF reste sur votre poste, rien n'est envoyé sur internet.<br>
@@ -257,12 +271,10 @@
 
 </div>
 
-<aside class="pdf-viewer" id="pdf-viewer">
-  <div class="pdf-viewer-header">
-    <div class="pdf-viewer-title" id="pdf-viewer-title">Aperçu du compromis</div>
-  </div>
-  <div class="pdf-viewer-canvas-wrap" id="pdf-pages-container"></div>
-</aside>
+<div id="toast" class="toast" style="display:none;">
+  <span id="toast-message"></span>
+  <button type="button" class="toast-undo" id="toast-undo-btn">Annuler</button>
+</div>
 
 <div class="confirm-overlay" id="confirm-overlay">
   <div class="confirm-box">
@@ -272,8 +284,6 @@
       <button type="button" class="btn-confirmer" id="confirm-btn-ok">Supprimer</button>
     </div>
   </div>
-</div>
-
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>

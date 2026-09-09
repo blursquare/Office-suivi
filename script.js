@@ -1352,7 +1352,7 @@
     await sauvegarder();
     reinitialiserFormulaire();
     document.getElementById('panel').open = false;
-    render();
+    definirOnglet('suivi');
   }
 
   // Modale de confirmation maison : window.confirm() est souvent bloqué dans un aperçu en
@@ -1578,6 +1578,18 @@
         <span class="dashboard-texte"><b>${escapeHtml(e.label)}</b> — ${escapeHtml(e.nomDossier)} (${formatDateFr(e.iso)})</span>
       </div>
     `).join('');
+  }
+
+  // Bascule entre les deux espaces de travail : « Nouveau dossier » (formulaire + aperçu PDF) et
+  // « Suivi des dossiers » (liste complète, en pleine largeur). Choix non persisté : l'app rouvre
+  // toujours sur « Nouveau dossier », cohérent avec le panneau replié/déplié qui n'est pas non
+  // plus mémorisé d'une session à l'autre.
+  function definirOnglet(nom) {
+    document.getElementById('onglet-nouveau').style.display = nom === 'nouveau' ? '' : 'none';
+    document.getElementById('onglet-suivi').style.display = nom === 'suivi' ? '' : 'none';
+    document.getElementById('tab-nouveau').setAttribute('aria-selected', String(nom === 'nouveau'));
+    document.getElementById('tab-suivi').setAttribute('aria-selected', String(nom === 'suivi'));
+    if (nom === 'suivi') render();
   }
 
   // État d'affichage de la liste (recherche, filtres, vue) : réinitialisé à chaque rechargement de
