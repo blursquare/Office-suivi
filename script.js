@@ -614,9 +614,16 @@
       if (dateCompromis && iso <= dateCompromis) return;
       const contexte = extraireContexte(texte, index, longueur);
       if (EXCLUSION_RE.test(contexte.toLowerCase())) return;
-      const suggestion = suggererEcheance(contexte);
+      let suggestion = suggererEcheance(contexte);
+      // Une correction déjà faite par un(e) collaborateur(rice) sur une clause très proche
+      // l'emporte sur la suggestion par mots-clés (voir la section "apprentissage" plus bas).
+      const apprise = trouverCorrectionApprise(contexte);
+      if (apprise) suggestion = apprise.classification;
       seen.add(iso);
-      resultats.push({ iso, label, contexte, suggestion, active: !!suggestion, page: pageDepuisIndex(index) });
+      resultats.push({
+        iso, label, contexte, suggestion, active: !!suggestion, page: pageDepuisIndex(index),
+        apprise: !!apprise, libelleAppris: apprise ? apprise.libelle : null
+      });
     }
 
     const reNum = /\b(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})\b/g;
@@ -769,6 +776,9 @@
     const boutonVoir = (pdfActuel && item.page)
       ? `<button type="button" class="voir-pdf-btn" onclick="voirDateDansPdf(${item.page}, '${item.label.replace(/'/g, "\\'")}')">👁 p.${item.page}</button>`
       : '';
+    const badgeApprise = item.apprise
+      ? `<span class="badge-apprise" title="Classé d'après une correction déjà faite sur une clause très proche — à vérifier comme toute suggestion automatique">🧠 appris</span>`
+      : '';
     chip.innerHTML = `
       <div class="chip-top">
         <label class="switch small">
@@ -776,6 +786,7 @@
           <span class="slider"></span>
         </label>
         <span class="date-text">${escapeHtml(item.label)}</span>
+        ${badgeApprise}
         ${boutonVoir}
       </div>
       <span class="ctx">${escapeHtml(item.contexte)}</span>
@@ -835,6 +846,9 @@
     // change de catégorie et de couleur en conséquence, au lieu de garder l'ancienne suggestion.
     const item = detectedDates.find(d => d.iso === iso);
     if (item) {
+      // Mémorisé seulement si le clic change réellement quelque chose : inutile de retenir un
+      // clic qui ne fait que confirmer ce que l'outil avait déjà bien deviné.
+      if (item.suggestion !== type) memoriserCorrection(item.contexte, type, null);
       item.suggestion = type;
       item.active = true;
       if (type === 'pret' || type === 'acte' || type === 'ventebien') pageParType[type] = item.page;
@@ -1184,10 +1198,13 @@
     if (iso) {
       const item = detectedDates.find(d => d.iso === iso);
       if (item) {
+        // Voir le commentaire équivalent dans assignerDate() : mémorisé seulement si le clic
+        // change réellement la catégorie devinée.
+        if (item.suggestion !== 'autre') memoriserCorrection(item.contexte, 'autre', libelleAutreSuggere(item.contexte) || null);
         item.suggestion = 'autre';
         item.active = true;
         page = item.page;
-        labelSuggere = libelleAutreSuggere(item.contexte);
+        labelSuggere = item.libelleAppris || libelleAutreSuggere(item.contexte);
       }
     }
     autresEnCours.push({ id: 'autre-' + compteurAutre, label: labelSuggere, iso: iso || '', active: true, page });
@@ -1813,6 +1830,128 @@
     // que ce qui ressemble réellement à une liste de dossiers.
     dossiers = Array.isArray(brut) ? brut.filter(d => d && typeof d === 'object' && d.id) : [];
     render();
+  }
+
+  // ---- apprentissage des corrections (dates) ----
+  //
+  // Quand un(e) collaborateur(rice) attribue à une date détectée une catégorie différente de
+  // celle suggérée (ou classe une date que l'outil n'avait pas su classer du tout), on retient
+  // la clause correspondante. Au prochain compromis, si une clause très proche (mêmes mots,
+  // dates/montants neutralisés) réapparaît, la correction déjà faite est réappliquée
+  // automatiquement à la suggestion — qui reste malgré tout à vérifier, comme toute suggestion
+  // automatique (voir le pied de page) : ce n'est pas parce qu'une clause ressemble à une clause
+  // déjà vue qu'elle joue exactement le même rôle dans ce compromis-ci.
+  //
+  // Comparaison approximative (pas d'égalité stricte) : deux occurrences de la même clause-type
+  // diffèrent presque toujours par la date, le montant ou les noms qu'elles contiennent — d'où la
+  // neutralisation de ces éléments avant de comparer, puis un recouvrement de mots (indice de
+  // Jaccard) plutôt qu'une comparaison caractère à caractère.
+  //
+  // Stocké en local uniquement (même mécanisme que le registre des dossiers, voir charger() /
+  // sauvegarder() ci-dessus) : rien n'est envoyé nulle part, et rien de plus que des fragments de
+  // clauses déjà affichés à l'écran n'est conservé.
+  const CLE_APPRENTISSAGE = 'corrections-echeances';
+  const SEUIL_SIMILARITE_APPRENTISSAGE = 0.6; // au-delà, on considère qu'il s'agit de la même clause-type
+  const MAX_CORRECTIONS_MEMORISEES = 500; // filet de sécurité : évite une croissance illimitée du stockage local
+  let correctionsApprises = [];
+
+  function normaliserTexteApprentissage(texte) {
+    const moisNoms = Object.keys(MOIS).join('|');
+    return String(texte)
+      .normalize('NFD').replace(/\p{Diacritic}/gu, '')
+      .toLowerCase()
+      .replace(new RegExp(`\\b\\d{1,2}(?:er)?\\s+(?:${moisNoms})\\s+\\d{4}\\b`, 'g'), ' §date§ ')
+      .replace(/\b\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{4}\b/g, ' §date§ ')
+      .replace(/\d+/g, '§num§')
+      .replace(/[^a-z§\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function tokeniserApprentissage(texteNormalise) {
+    // Mots de 3 lettres ou plus seulement : les mots très courts (de, le, un…) sont trop communs
+    // pour discriminer une clause-type d'une autre et gonfleraient artificiellement le score.
+    return new Set(texteNormalise.split(' ').filter(t => t.length > 2));
+  }
+
+  function similariteJaccard(setA, setB) {
+    if (setA.size === 0 || setB.size === 0) return 0;
+    let intersection = 0;
+    for (const t of setA) { if (setB.has(t)) intersection++; }
+    const union = setA.size + setB.size - intersection;
+    return union === 0 ? 0 : intersection / union;
+  }
+
+  async function sauvegarderApprentissage() {
+    const contenu = JSON.stringify(correctionsApprises);
+    try {
+      if (window.storage) { await window.storage.set(CLE_APPRENTISSAGE, contenu, false); return; }
+    } catch (e) { console.warn('window.storage indisponible pour l’apprentissage, repli sur localStorage.', e); }
+    try { localStorage.setItem(CLE_APPRENTISSAGE, contenu); } catch (e) { console.warn('Sauvegarde de l’apprentissage impossible.', e); }
+  }
+
+  async function chargerApprentissage() {
+    let brut = null;
+    try {
+      if (window.storage) {
+        const res = await window.storage.get(CLE_APPRENTISSAGE, false);
+        if (res && res.value) brut = JSON.parse(res.value);
+      }
+    } catch (e) { /* on tente le repli ci-dessous */ }
+    if (brut === null) {
+      try {
+        const local = localStorage.getItem(CLE_APPRENTISSAGE);
+        if (local) brut = JSON.parse(local);
+      } catch (e) { /* rien d'exploitable non plus ici */ }
+    }
+    correctionsApprises = Array.isArray(brut)
+      ? brut.filter(c => c && typeof c === 'object' && Array.isArray(c.tokens) && typeof c.classification === 'string')
+      : [];
+  }
+
+  // Retrouve, parmi les corrections déjà apprises, la plus proche du contexte donné — ou null si
+  // aucune ne dépasse le seuil de similarité.
+  function trouverCorrectionApprise(contexte) {
+    if (correctionsApprises.length === 0) return null;
+    const tokens = tokeniserApprentissage(normaliserTexteApprentissage(contexte));
+    let meilleure = null;
+    let meilleurScore = SEUIL_SIMILARITE_APPRENTISSAGE;
+    for (const c of correctionsApprises) {
+      const score = similariteJaccard(tokens, new Set(c.tokens));
+      if (score >= meilleurScore) { meilleure = c; meilleurScore = score; }
+    }
+    return meilleure;
+  }
+
+  // Enregistre (ou renforce) la correction pour que la même clause-type soit reconnue à l'avenir.
+  // classification : 'pret' | 'acte' | 'ventebien' | 'autre'. libelle : uniquement pour 'autre'.
+  function memoriserCorrection(contexte, classification, libelle) {
+    if (!contexte || contexte.length < 15) return; // trop court pour donner une empreinte fiable
+    const tokens = [...tokeniserApprentissage(normaliserTexteApprentissage(contexte))];
+    if (tokens.length < 3) return; // pas assez de matière pour comparer de façon fiable
+
+    const existante = trouverCorrectionApprise(contexte);
+    if (existante && existante.classification === classification) {
+      existante.nbConfirmations = (existante.nbConfirmations || 1) + 1;
+      existante.dateMaj = new Date().toISOString();
+    } else {
+      correctionsApprises.push({
+        id: (crypto.randomUUID ? crypto.randomUUID() : 'c-' + Date.now() + '-' + Math.random().toString(16).slice(2)),
+        tokens,
+        contexteExemple: contexte.slice(0, 200),
+        classification,
+        libelle: libelle || null,
+        nbConfirmations: 1,
+        dateMaj: new Date().toISOString()
+      });
+      // Filet de sécurité : on garde les corrections les plus confirmées/récentes plutôt que de
+      // laisser le stockage local croître sans fin au fil des années.
+      if (correctionsApprises.length > MAX_CORRECTIONS_MEMORISEES) {
+        correctionsApprises.sort((a, b) => (b.nbConfirmations - a.nbConfirmations) || b.dateMaj.localeCompare(a.dateMaj));
+        correctionsApprises.length = MAX_CORRECTIONS_MEMORISEES;
+      }
+    }
+    sauvegarderApprentissage();
   }
 
   // ---- export / import (sauvegarde JSON complète du registre) ----
@@ -2498,5 +2637,6 @@
   });
 
   chargerTheme();
+  chargerApprentissage();
   charger().then(() => { revérifierDossiersLiesAuDemarrage(); tenterReconnexionPartage(); });
   renderChips();

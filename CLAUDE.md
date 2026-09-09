@@ -92,6 +92,19 @@ double-cliquant sur `index.html`.
   testés via une page GitHub Pages construite sur la branche de développement). `index.html` pointe vers
   `tesseract.js@5` (version flottante sur jsdelivr, pas un patch figé comme pour pdf.js) tant
   qu'une version précise n'a pas été confirmée fonctionnelle — la figer une fois validée.
+- **Apprentissage des corrections manuelles** (`memoriserCorrection()` / `trouverCorrectionApprise()`
+  dans `script.js`, section "apprentissage des corrections") : quand un(e) collaborateur(rice)
+  reclasse une date détectée (clic sur Prêt/Acte/Vente/Autre différent de la suggestion, y compris
+  quand l'outil n'avait rien deviné), la clause est mémorisée. Au prochain compromis, une clause
+  très proche (mots communs, dates/montants neutralisés, comparée par indice de Jaccard — voir
+  `SEUIL_SIMILARITE_APPRENTISSAGE`) réapplique automatiquement cette classification, marquée d'un
+  badge "🧠 appris" dans les chips — elle reste à vérifier comme toute suggestion automatique, ce
+  n'est pas parce que deux clauses se ressemblent qu'elles jouent le même rôle dans ce compromis.
+  Stocké en local uniquement, même mécanisme que le registre des dossiers (`localStorage`, repli
+  `window.storage` en aperçu Claude.ai). **Limite connue** : seules les corrections faites sur les
+  chips au moment de l'import (`assignerDate()`, `ajouterAutre()`) alimentent l'apprentissage — une
+  reclassification faite après coup sur un dossier déjà enregistré (`changerCategorie()`) n'est pas
+  captée, faute de conserver le texte de la clause d'origine sur le dossier sauvegardé.
 
 ## Comment tester
 
@@ -123,3 +136,9 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
 - Points de vigilance juridiques génériques au-delà de ce qui existe déjà.
 - Fiche imprimée : section "process d'appel de fonds" déjà intégrée : si l'étude fait évoluer sa
   procédure interne, mettre à jour `PROCEDURE_FONDS` dans `script.js` en conséquence.
+- Étendre l'apprentissage des corrections (voir historique ci-dessus) à `changerCategorie()`
+  (reclassification après enregistrement du dossier) : nécessiterait de conserver le texte de la
+  clause d'origine sur le dossier sauvegardé, pas seulement la date choisie.
+- Un panneau pour consulter/vider la mémoire des corrections apprises (`correctionsApprises`)
+  serait utile si elle venait à accumuler des erreurs (ex. une correction faite par erreur) —
+  aujourd'hui seul un vidage du `localStorage` du navigateur permet de la réinitialiser.

@@ -930,6 +930,17 @@
   .badge-confiance.auto { background: var(--success-bg); color: var(--success); }
   .badge-confiance.manuel { background: var(--pret-bg); color: var(--pret); }
 
+  .badge-apprise {
+    display: inline-block;
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 8px;
+    background: var(--line-soft);
+    color: var(--ink-soft);
+    white-space: nowrap;
+  }
+
   /* ---- historique ---- */
   .historique-toggle {
     font-family: inherit;
