@@ -1580,24 +1580,72 @@
     `).join('');
   }
 
+  // État d'affichage de la liste (recherche, filtres, vue) : réinitialisé à chaque rechargement de
+  // la page, comme le tri ou l'affichage des archives — pas besoin de le persister.
+  let vueDossiers = 'cartes';
+  function definirVue(v) {
+    vueDossiers = v;
+    document.getElementById('btn-vue-cartes').setAttribute('aria-pressed', String(v === 'cartes'));
+    document.getElementById('btn-vue-tableau').setAttribute('aria-pressed', String(v === 'tableau'));
+    render();
+  }
+
+  // Détermine, parmi les échéances d'un dossier, la plus proche à afficher en un coup d'œil dans
+  // la vue tableau (celle déjà retenue pour le tri par calculerProchaineEcheance, mais avec son
+  // type/libellé/date en plus, pas seulement le nombre de jours).
+  function prochaineEcheanceDetail(d) {
+    const items = [
+      { type: 'pret', label: 'Obtention du prêt', iso: d.pret },
+      { type: 'acte', label: "Signature de l'acte", iso: d.acte },
+      { type: 'ventebien', label: 'Vente préalable', iso: d.ventebien },
+      ...(d.autres || []).map(a => ({ type: 'autre', label: a.label, iso: a.date }))
+    ].filter(it => it.iso);
+    if (!items.length) return null;
+    const avecJours = items.map(it => ({ ...it, jours: joursRestants(it.iso) }));
+    const upcoming = avecJours.filter(it => it.jours >= 0);
+    const pool = upcoming.length ? upcoming : avecJours;
+    return pool.reduce((a, b) => (a.jours <= b.jours ? a : b));
+  }
+
   function render() {
     const list = document.getElementById('dossier-list');
     const count = document.getElementById('dossier-count');
     const voirArchives = document.getElementById('voir-archives').checked;
     const tri = document.getElementById('tri-dossiers').value;
+    const recherche = (document.getElementById('recherche-dossiers').value || '').trim().toLowerCase();
+    const filtreResponsable = document.getElementById('filtre-responsable').value;
+    const filtreOffre = document.getElementById('filtre-offre').value;
 
     const dossiersActifs = dossiers.filter(d => !d.archive);
     renderDashboard(dossiersActifs);
 
-    const dossiersAffiches = voirArchives ? dossiers : dossiersActifs;
-    count.textContent = dossiersAffiches.length ? `${dossiersAffiches.length} dossier${dossiersAffiches.length > 1 ? 's' : ''}` : '';
+    const dossiersVisibles = voirArchives ? dossiers : dossiersActifs;
 
     if (dossiers.length === 0) {
+      count.textContent = '';
       list.innerHTML = '<div class="empty-state">Aucun dossier suivi pour le moment. Ajoutez votre premier dossier ci-dessus.</div>';
       return;
     }
-    if (dossiersAffiches.length === 0) {
+    if (dossiersVisibles.length === 0) {
+      count.textContent = '';
       list.innerHTML = '<div class="empty-state">Aucun dossier actif — tous vos dossiers sont archivés. Cochez « Afficher les dossiers archivés » pour les revoir.</div>';
+      return;
+    }
+
+    const dossiersAffiches = dossiersVisibles.filter(d => {
+      if (recherche && !(d.nom + ' ' + (d.responsable || '')).toLowerCase().includes(recherche)) return false;
+      if (filtreResponsable && d.responsable !== filtreResponsable) return false;
+      if (filtreOffre) {
+        if (d.sansPret) return false;
+        if ((d.offrePretStatut || 'inconnu') !== filtreOffre) return false;
+      }
+      return true;
+    });
+
+    count.textContent = dossiersAffiches.length ? `${dossiersAffiches.length} dossier${dossiersAffiches.length > 1 ? 's' : ''}` : '';
+
+    if (dossiersAffiches.length === 0) {
+      list.innerHTML = '<div class="empty-state">Aucun dossier ne correspond à cette recherche ou ces filtres.</div>';
       return;
     }
 
@@ -1606,7 +1654,44 @@
       return calculerProchaineEcheance(a) - calculerProchaineEcheance(b);
     });
 
-    list.innerHTML = tries.map(d => {
+    if (vueDossiers === 'tableau') {
+      list.innerHTML = `
+        <div class="table-scroll">
+          <table class="dossiers-table">
+            <thead><tr><th>Dossier</th><th>Responsable</th><th>Prochaine échéance</th><th>Offre de prêt</th></tr></thead>
+            <tbody>${tries.map(renderLigneTableau).join('')}</tbody>
+          </table>
+        </div>`;
+    } else {
+      list.innerHTML = tries.map(renderCarteDossier).join('');
+    }
+  }
+
+  function renderLigneTableau(d) {
+    const prochaine = prochaineEcheanceDetail(d);
+    const offre = !d.sansPret ? libelleOffre(d.offrePretStatut) : null;
+    return `
+      <tr class="ligne-resume${d.archive ? ' est-archive' : ''}" onclick="toggleLigneDossier('${d.id}')">
+        <td><div class="dossier-nom-tableau">${escapeHtml(d.nom)}</div></td>
+        <td class="dossier-responsable-tableau">${escapeHtml(d.responsable || '—')}</td>
+        <td>
+          ${prochaine
+            ? `<span class="type-pill ${prochaine.type}"><span class="dot"></span>${escapeHtml(prochaine.label)}</span>
+               <span class="echeance-jours ${prochaine.jours <= 3 ? 'urgent' : 'calme'}">${formatDateFr(prochaine.iso)} (${prochaine.jours < 0 ? 'dépassée' : prochaine.jours === 0 ? "aujourd'hui" : 'J-' + prochaine.jours})</span>`
+            : '<span class="echeance-jours calme">—</span>'}
+        </td>
+        <td>${d.sansPret ? '<span class="echeance-jours calme">Comptant — sans prêt</span>' : `<span class="badge-offre ${offre.cls}">${offre.texte}</span>`}</td>
+      </tr>
+      <tr class="ligne-detail" id="detail-${d.id}"><td colspan="4">${renderCarteDossier(d)}</td></tr>
+    `;
+  }
+
+  function toggleLigneDossier(id) {
+    const el = document.getElementById('detail-' + id);
+    if (el) el.classList.toggle('ouvert');
+  }
+
+  function renderCarteDossier(d) {
       const confiance = d.confiance || {};
       const historique = d.historique || [];
       const analyse = d.analyseJuridique || { documents: [], engagements: [], conditions: [] };
@@ -1678,7 +1763,6 @@
         ` : ''}
       </div>
     `;
-    }).join('');
   }
 
   function escapeHtml(s) {

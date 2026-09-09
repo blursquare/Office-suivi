@@ -196,6 +196,27 @@
   </div>
 
   <div class="list-toolbar">
+    <label class="toolbar-item toolbar-recherche">
+      <input type="search" id="recherche-dossiers" placeholder="Rechercher un dossier ou un responsable…" oninput="render()">
+    </label>
+    <label class="toolbar-item">
+      Responsable
+      <select id="filtre-responsable" onchange="render()">
+        <option value="">Tous</option>
+        <option>Bastien ANGLUMENT</option>
+        <option>Julie VASSELIN</option>
+        <option>Jérémy SAUJOT</option>
+      </select>
+    </label>
+    <label class="toolbar-item">
+      Offre de prêt
+      <select id="filtre-offre" onchange="render()">
+        <option value="">Tous statuts</option>
+        <option value="recue">Reçue</option>
+        <option value="manquante">Introuvable</option>
+        <option value="inconnu">À vérifier</option>
+      </select>
+    </label>
     <label class="toolbar-item">
       Trier par
       <select id="tri-dossiers" onchange="render()">
@@ -207,6 +228,10 @@
       <input type="checkbox" id="voir-archives" onchange="render()">
       Afficher les dossiers archivés
     </label>
+    <div class="view-toggle" role="group" aria-label="Affichage de la liste">
+      <button type="button" id="btn-vue-cartes" class="view-toggle-btn" aria-pressed="true" onclick="definirVue('cartes')">Cartes</button>
+      <button type="button" id="btn-vue-tableau" class="view-toggle-btn" aria-pressed="false" onclick="definirVue('tableau')">Tableau</button>
+    </div>
     <span class="toolbar-spacer"></span>
     <span id="statut-partage" class="statut-partage" style="display:none;"></span>
     <button type="button" class="toolbar-btn" id="btn-registre-partage" onclick="lierRegistrePartage()">🔗 Registre partagé (réseau)</button>
