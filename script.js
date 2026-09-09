@@ -2231,6 +2231,24 @@
   const OFFRE_PRET_RE = /offre\s+de\s+pr[êe]t|offre\s+pr[ée]alable\s+de\s+cr[ée]dit|offre\s+de\s+financement/i;
   let handlesEnMemoire = {}; // repli si IndexedDB est indisponible (contexte restreint)
 
+  // Parcourt un dossier ET ses sous-dossiers à la recherche de fichiers PDF : les pièces d'un
+  // dossier client sont presque toujours rangées dans des sous-dossiers ("Offres", "Pièces
+  // reçues"…), jamais à la racine — s'arrêter au premier niveau (comme le faisait cette fonction
+  // avant) manquait donc systématiquement l'offre de prêt dans ce cas, le cas le plus courant.
+  const PROFONDEUR_MAX_RECHERCHE_PDF = 4;
+  const MAX_FICHIERS_PARCOURUS = 300; // filet de sécurité sur un dossier réseau volumineux
+  async function* fichiersPdfRecursifs(handleDossier, profondeur, compteur) {
+    if (profondeur > PROFONDEUR_MAX_RECHERCHE_PDF) return;
+    for await (const [nom, entree] of handleDossier.entries()) {
+      if (compteur.n >= MAX_FICHIERS_PARCOURUS) return;
+      if (entree.kind === 'file') {
+        if (/\.pdf$/i.test(nom)) { compteur.n++; yield entree; }
+      } else if (entree.kind === 'directory') {
+        yield* fichiersPdfRecursifs(entree, profondeur + 1, compteur);
+      }
+    }
+  }
+
   function ouvrirBaseHandles() {
     return new Promise((resolve, reject) => {
       if (!window.indexedDB) { resolve(null); return; }
@@ -2324,8 +2342,8 @@
 
     let trouve = false;
     try {
-      for await (const [nom, entree] of handle.entries()) {
-        if (entree.kind !== 'file' || !/\.pdf$/i.test(nom)) continue;
+      const compteur = { n: 0 };
+      for await (const entree of fichiersPdfRecursifs(handle, 0, compteur)) {
         try {
           const file = await entree.getFile();
           const buffer = await file.arrayBuffer();
@@ -2336,8 +2354,24 @@
             const content = await page.getTextContent();
             texte += content.items.map(it => it.str).join(' ') + '\n';
           }
-          if (OFFRE_PRET_RE.test(texte)) { trouve = true; break; }
-        } catch (e) { console.error('Lecture impossible pour', nom, e); }
+          let correspond = OFFRE_PRET_RE.test(texte);
+          // Un PDF scanné (offre reçue par fax, scan ou export image) ne contient aucun texte
+          // extractible — on tente alors l'OCR sur sa première page plutôt que de conclure trop
+          // vite à une absence d'offre (même logique que pour la date de signature du compromis,
+          // voir traiterFichierPdf()).
+          if (!correspond && texte.trim().length < 40) {
+            const workerVerif = await creerWorkerOcr();
+            if (workerVerif) {
+              try {
+                const texteOcr = await ocrPage(pdf, 1, workerVerif);
+                correspond = OFFRE_PRET_RE.test(texteOcr);
+              } finally {
+                await workerVerif.terminate();
+              }
+            }
+          }
+          if (correspond) { trouve = true; break; }
+        } catch (e) { console.error('Lecture impossible pour', entree.name, e); }
       }
     } catch (e) {
       console.error('Parcours du dossier local impossible', e);

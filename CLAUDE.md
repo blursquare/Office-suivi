@@ -124,6 +124,13 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
   chips au moment de l'import (`assignerDate()`, `ajouterAutre()`) alimentent l'apprentissage — une
   reclassification faite après coup sur un dossier déjà enregistré (`changerCategorie()`) n'est pas
   captée, faute de conserver le texte de la clause d'origine sur le dossier sauvegardé.
+- **Bug corrigé : `verifierOffrePret()` ne regardait que la racine du dossier local relié**
+  (`handle.entries()` n'est pas récursif). Signalé par l'étude : "je sélectionne bien le dossier
+  mais il ne détecte pas l'offre" — l'offre était dans un sous-dossier ("Offres", "Pièces reçues"…),
+  ce qui est le cas le plus courant, pas l'exception. `fichiersPdfRecursifs()` parcourt maintenant
+  les sous-dossiers (jusqu'à `PROFONDEUR_MAX_RECHERCHE_PDF`, avec un plafond
+  `MAX_FICHIERS_PARCOURUS` en garde-fou). Un repli OCR sur la première page a aussi été ajouté pour
+  les PDF scannés sans texte extractible (même logique que pour la date de signature du compromis).
 
 ## Comment tester
 
