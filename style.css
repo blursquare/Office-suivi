@@ -231,6 +231,37 @@
     padding: 32px 32px 80px;
   }
 
+  /* ---- bandeau de statistiques en tête du suivi : reprend la palette existante, la couleur
+     restant réservée aux catégories d'échéance (urgent/prêt) plutôt qu'un code inventé. ---- */
+  .stats-suivi {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .stat-tile {
+    background: var(--paper-card);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px 16px;
+    box-shadow: var(--shadow-card);
+  }
+  .stat-num {
+    font-family: 'Poppins', sans-serif;
+    font-size: 26px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+  }
+  .stat-num.c-urgent { color: var(--urgent); }
+  .stat-num.c-pret { color: var(--pret); }
+  .stat-num.c-neutre { color: var(--ink); }
+  .stat-label { font-size: 12px; color: var(--ink-soft); margin-top: 4px; }
+
+  @media (max-width: 720px) {
+    .stats-suivi { grid-template-columns: repeat(2, 1fr); }
+  }
+
   header.page .kicker {
     font-size: 13px;
     color: var(--acte);

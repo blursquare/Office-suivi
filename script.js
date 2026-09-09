@@ -1580,6 +1580,31 @@
     `).join('');
   }
 
+  // Bandeau de synthèse en tête de l'onglet "Suivi des dossiers" : donne un état global du
+  // portefeuille (dossiers actifs, hors filtres/recherche de la liste) avant de la parcourir.
+  function renderStatsSuivi(dossiersActifs) {
+    const bloc = document.getElementById('stats-suivi');
+    if (!bloc) return;
+
+    const urgents = dossiersActifs.filter(d => {
+      const prochaine = prochaineEcheanceDetail(d);
+      return prochaine && prochaine.jours <= 7;
+    }).length;
+    const avecPret = dossiersActifs.filter(d => !d.sansPret);
+    const manquantes = avecPret.filter(d => d.offrePretStatut === 'manquante').length;
+    const aVerifier = avecPret.filter(d => (d.offrePretStatut || 'inconnu') === 'inconnu').length;
+
+    const tuiles = [
+      ['c-neutre', dossiersActifs.length, dossiersActifs.length > 1 ? 'dossiers actifs' : 'dossier actif'],
+      ['c-urgent', urgents, 'échéances ≤ 7 jours'],
+      ['c-pret', manquantes, 'offres de prêt introuvables'],
+      ['c-neutre', aVerifier, 'offres à vérifier']
+    ];
+    bloc.innerHTML = tuiles.map(([cls, valeur, libelle]) =>
+      `<div class="stat-tile"><div class="stat-num ${cls}">${valeur}</div><div class="stat-label">${libelle}</div></div>`
+    ).join('');
+  }
+
   // Bascule entre les deux espaces de travail : « Nouveau dossier » (formulaire + aperçu PDF) et
   // « Suivi des dossiers » (liste complète, en pleine largeur). Choix non persisté : l'app rouvre
   // toujours sur « Nouveau dossier », cohérent avec le panneau replié/déplié qui n'est pas non
@@ -1630,6 +1655,7 @@
 
     const dossiersActifs = dossiers.filter(d => !d.archive);
     renderDashboard(dossiersActifs);
+    renderStatsSuivi(dossiersActifs);
 
     const dossiersVisibles = voirArchives ? dossiers : dossiersActifs;
 
