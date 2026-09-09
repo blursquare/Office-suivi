@@ -30,6 +30,10 @@ if "%DOSSIER:~0,2%"=="\\" (
   set "URL=file:///%DOSSIER_URL%/index.html"
 )
 
+rem NB : aucune parenthese dans les lignes echo ci-dessous - une parenthese
+rem non echappee a l'interieur d'un bloc if (...) casse l'analyse du script
+rem par cmd.exe (erreur "... etait inattendu a ce point"), meme dans du
+rem texte affiche. Ne pas en reintroduire ici sans les echapper (^() ^)).
 if not exist "%LocalAppData%\Google\Chrome\User Data\RegistreEcheances" (
   echo Premiere utilisation de ce lanceur.
   echo.
@@ -38,10 +42,10 @@ if not exist "%LocalAppData%\Google\Chrome\User Data\RegistreEcheances" (
   echo.
   echo Si vous avez DEJA des dossiers enregistres via un onglet Chrome classique :
   echo   1. Fermez cette fenetre.
-  echo   2. Ouvrez l'app normalement dans Chrome, cliquez sur "Exporter (JSON)".
-  echo   3. Relancez ce fichier, puis cliquez sur "Importer (JSON)" pour les retrouver ici.
+  echo   2. Ouvrez l'app normalement dans Chrome, cliquez sur le bouton d'export JSON.
+  echo   3. Relancez ce fichier, puis cliquez sur le bouton d'import JSON pour les retrouver ici.
   echo.
-  echo Sinon (premiere utilisation de l'app, ou rien a recuperer), appuyez sur une
+  echo Sinon - premiere utilisation de l'app, ou rien a recuperer - appuyez sur une
   echo touche pour continuer normalement.
   pause
 )

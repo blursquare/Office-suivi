@@ -78,11 +78,17 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
    - `--profile-directory="RegistreEcheances"` (profil nommé, **dans** le dossier Chrome existant,
      mécanisme différent de `--user-data-dir`) : **fonctionne**, y compris Chrome déjà ouvert —
      confirmé sur le poste testé. C'est la solution retenue dans `Ouvrir-en-fenetre.bat`.
-   - **`start` casse `--profile-directory`** : `start "" chrome --profile-directory=... --app=...`
-     échoue (fenêtre qui clignote, rien ne s'ouvre), alors que l'appel direct sans `start`
-     fonctionne — constaté sur le poste testé, cause exacte non identifiée. Ne pas réintroduire
-     `start` devant l'appel à `chrome.exe`/`chrome` dans ce `.bat` : appeler l'exécutable
-     directement, il rend la main de lui-même sans bloquer la fenêtre.
+   - **Piège de syntaxe batch, à ne pas reproduire** : une parenthèse non échappée dans une ligne
+     `echo` À L'INTÉRIEUR d'un bloc `if (...)` casse l'analyse du script par `cmd.exe` (erreur
+     "... était inattendu à ce point") — y compris une parenthèse dans du texte purement affiché,
+     par exemple `echo cliquez sur "Exporter (JSON)"`. Ça a d'abord fait accuser `start` à tort
+     (« `start` casse `--profile-directory` ») alors que le vrai bug était ce message de première
+     utilisation, qui contenait plusieurs parenthèses dans son texte : le symptôme (fenêtre qui
+     clignote, rien ne s'ouvre) était identique avec et sans `start`, la vraie cause commune aux
+     deux étant cette erreur de syntaxe. Corrigé en reformulant le texte sans parenthèses
+     (`%ProgramFiles(x86)%` reste sans risque : c'est un nom de variable `%...%`, pas du texte
+     brut). Avant d'ajouter le moindre message dans ce `.bat`, vérifier qu'aucune parenthèse ne
+     s'y trouve si le message est à l'intérieur d'un bloc `if (...)`.
    - Piège de diagnostic rencontré en cours de route : le code de sortie de `chrome.exe` renvoyé
      à la ligne de commande n'indique PAS si une fenêtre s'est ouverte (souvent non-nul même en
      cas de succès, le process de lancement se détachant). Seul un contrôle visuel (une fenêtre
