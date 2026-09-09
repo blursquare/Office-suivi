@@ -2,7 +2,7 @@
   "name": "Registre des échéances — Compromis de vente",
   "short_name": "Échéances",
   "description": "Suivi des échéances de compromis de vente et analyse juridique automatisée.",
-  "start_url": "./suivi-echeances.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#F4F6F8",
   "theme_color": "#16233C",
