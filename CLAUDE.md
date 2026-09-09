@@ -94,6 +94,12 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
      cas de succès, le process de lancement se détachant). Seul un contrôle visuel (une fenêtre
      apparaît-elle à l'écran ?) fait foi — ne pas se fier au code de sortie pour diagnostiquer un
      échec de lancement de Chrome.
+   - `start` **est bien nécessaire** devant l'appel à `chrome.exe`/`chrome` : sans lui, la fenêtre
+     de commande du `.bat` reste ouverte en arrière-plan tant que l'app est utilisée (`chrome.exe`
+     ne rend pas la main tout seul dans cette configuration, contrairement à ce qui avait été
+     observé lors d'un diagnostic isolé sans `--profile-directory`). Avec `start ""` devant, la
+     fenêtre de commande se referme aussitôt. Voir le point ci-dessus sur les parenthèses :
+     c'est bien elles, pas `start`, qui avaient cassé le lancement la première fois.
    **Conséquence à ne pas oublier** : ce profil dédié a sa propre sauvegarde (`localStorage`),
    séparée de celle d'un Chrome classique — les dossiers déjà enregistrés via un onglet Chrome
    normal n'apparaissent pas automatiquement dans cette fenêtre dédiée. Le `.bat` affiche donc un

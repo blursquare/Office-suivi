@@ -50,25 +50,26 @@ if not exist "%LocalAppData%\Google\Chrome\User Data\RegistreEcheances" (
   pause
 )
 
-rem Pas de "start" : appel direct de chrome.exe, seule methode confirmee
-rem fonctionner (voir CLAUDE.md - "start" combine a --profile-directory a
-rem echoue sur un poste teste, sans qu'on sache pourquoi). chrome.exe rend
-rem la main rapidement de lui-meme, cette fenetre ne reste donc pas bloquee.
+rem "start" detache le lancement de Chrome de cette fenetre de commande, pour
+rem qu'elle se referme aussitot au lieu de rester ouverte en arriere-plan
+rem pendant tout l'usage de l'app. (Une version precedente avait retire
+rem "start" en le soupconnant de casser --profile-directory - a tort : le
+rem vrai bug etait la parenthese dans le message ci-dessus, voir CLAUDE.md.)
 where chrome >nul 2>nul
 if %errorlevel%==0 (
-  chrome --profile-directory="RegistreEcheances" --start-maximized --window-position=0,0 --window-size=10000,10000 --app="%URL%"
+  start "" chrome --profile-directory="RegistreEcheances" --start-maximized --window-position=0,0 --window-size=10000,10000 --app="%URL%"
   goto :fin
 )
 if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" (
-  "%ProgramFiles%\Google\Chrome\Application\chrome.exe" --profile-directory="RegistreEcheances" --start-maximized --window-position=0,0 --window-size=10000,10000 --app="%URL%"
+  start "" "%ProgramFiles%\Google\Chrome\Application\chrome.exe" --profile-directory="RegistreEcheances" --start-maximized --window-position=0,0 --window-size=10000,10000 --app="%URL%"
   goto :fin
 )
 if exist "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" (
-  "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" --profile-directory="RegistreEcheances" --start-maximized --window-position=0,0 --window-size=10000,10000 --app="%URL%"
+  start "" "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" --profile-directory="RegistreEcheances" --start-maximized --window-position=0,0 --window-size=10000,10000 --app="%URL%"
   goto :fin
 )
 if exist "%LocalAppData%\Google\Chrome\Application\chrome.exe" (
-  "%LocalAppData%\Google\Chrome\Application\chrome.exe" --profile-directory="RegistreEcheances" --start-maximized --window-position=0,0 --window-size=10000,10000 --app="%URL%"
+  start "" "%LocalAppData%\Google\Chrome\Application\chrome.exe" --profile-directory="RegistreEcheances" --start-maximized --window-position=0,0 --window-size=10000,10000 --app="%URL%"
   goto :fin
 )
 
