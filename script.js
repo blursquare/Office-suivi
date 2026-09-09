@@ -1644,6 +1644,27 @@
     return pool.reduce((a, b) => (a.jours <= b.jours ? a : b));
   }
 
+  // Score de priorité (plus haut = plus urgent à traiter), combinant trois signaux qu'une simple
+  // date d'échéance ne capture pas : la proximité de l'échéance elle-même, l'absence d'offre de
+  // prêt (bloquant pour la suite du dossier), et un accès local perdu (empêche toute vérification
+  // automatique tant que personne ne clique pour le reconfirmer). Seuil SEUIL_PRIORITE_ELEVEE
+  // au-delà duquel le badge "Prioritaire" s'affiche (voir renderLigneTableau/renderCarteCompacte).
+  const SEUIL_PRIORITE_ELEVEE = 90;
+  function calculerPriorite(d) {
+    let score = 0;
+    const prochaine = prochaineEcheanceDetail(d);
+    if (prochaine) {
+      // Plafonné pour qu'une échéance très lointaine (ou très dépassée) ne domine pas ce que les
+      // deux autres critères ont à dire — au-delà de 60 jours ou de 30 jours de retard, l'écart
+      // supplémentaire n'ajoute plus rien au score.
+      const jours = Math.max(-30, Math.min(prochaine.jours, 60));
+      score += (60 - jours) * 2;
+    }
+    if (!d.sansPret && d.offrePretStatut === 'manquante') score += 60;
+    if (d.accesAReconfirmer) score += 40;
+    return score;
+  }
+
   function render() {
     const list = document.getElementById('dossier-list');
     const count = document.getElementById('dossier-count');
@@ -1695,6 +1716,7 @@
     const tries = dossiersAffiches.slice().sort((a, b) => {
       if (tri === 'nom') return a.nom.localeCompare(b.nom, 'fr');
       if (tri === 'responsable') return (a.responsable || '').localeCompare(b.responsable || '', 'fr');
+      if (tri === 'priorite') return calculerPriorite(b) - calculerPriorite(a);
       return calculerProchaineEcheance(a) - calculerProchaineEcheance(b);
     });
 
@@ -1728,9 +1750,10 @@
   function renderLigneTableau(d) {
     const prochaine = prochaineEcheanceDetail(d);
     const offre = !d.sansPret ? libelleOffre(d.offrePretStatut) : null;
+    const prioritaire = calculerPriorite(d) >= SEUIL_PRIORITE_ELEVEE;
     return `
       <tr class="ligne-resume${d.archive ? ' est-archive' : ''}" onclick="toggleLigneDossier('${d.id}')">
-        <td><div class="dossier-nom-tableau">${escapeHtml(d.nom)}</div></td>
+        <td><div class="dossier-nom-tableau">${escapeHtml(d.nom)}${prioritaire ? '<span class="badge-prioritaire" title="Échéance proche, offre de prêt manquante et/ou accès local à reconfirmer">🔥 Prioritaire</span>' : ''}</div></td>
         <td class="dossier-responsable-tableau">${escapeHtml(d.responsable || '—')}</td>
         <td>
           ${prochaine
@@ -1757,10 +1780,11 @@
   function renderCarteCompacte(d) {
     const prochaine = prochaineEcheanceDetail(d);
     const offre = !d.sansPret ? libelleOffre(d.offrePretStatut) : null;
+    const prioritaire = calculerPriorite(d) >= SEUIL_PRIORITE_ELEVEE;
     return `
       <div class="mini-carte${d.archive ? ' est-archive' : ''}" id="mini-${d.id}">
         <div class="mini-carte-resume" onclick="toggleCarteCompacte('${d.id}')">
-          <div class="mini-carte-nom">${escapeHtml(d.nom)}</div>
+          <div class="mini-carte-nom">${escapeHtml(d.nom)}${prioritaire ? '<span class="badge-prioritaire" title="Échéance proche, offre de prêt manquante et/ou accès local à reconfirmer">🔥 Prioritaire</span>' : ''}</div>
           <div class="mini-carte-responsable">${escapeHtml(d.responsable || '—')}</div>
           <div class="mini-carte-echeance">
             ${prochaine

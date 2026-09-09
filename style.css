@@ -1276,6 +1276,23 @@
   .mini-carte-resume { padding: 14px 16px; cursor: pointer; display: flex; flex-direction: column; gap: 6px; }
   .mini-carte-resume:hover { background: var(--paper-sunk); }
   .mini-carte-nom { font-weight: 600; color: var(--ink); font-size: 14.5px; }
+
+  /* Couleur réservée à --urgent, déjà utilisée pour les échéances proches : un dossier
+     "prioritaire" combine échéance proche, offre manquante et/ou accès à reconfirmer, donc
+     réutilise ce même code plutôt que d'en inventer un nouveau. */
+  .badge-prioritaire {
+    display: inline-flex;
+    align-items: center;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--urgent);
+    border: 1px solid var(--urgent);
+    border-radius: 20px;
+    padding: 1px 8px;
+    margin-left: 8px;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
   .mini-carte-responsable { font-size: 12.5px; color: var(--ink-soft); }
   .mini-carte-echeance { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
   .mini-carte-pied { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; padding-top: 4px; border-top: 1px solid var(--line-soft); }
