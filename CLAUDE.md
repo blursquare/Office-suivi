@@ -100,6 +100,18 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
      observé lors d'un diagnostic isolé sans `--profile-directory`). Avec `start ""` devant, la
      fenêtre de commande se referme aussitôt. Voir le point ci-dessus sur les parenthèses :
      c'est bien elles, pas `start`, qui avaient cassé le lancement la première fois.
+   - **Ouverture en plein écran automatique : abandonnée, échec sur toutes les méthodes essayées**
+     (`--start-maximized`, `--window-position`/`--window-size` surdimensionné, `start /MAX`, avec
+     et sans `start` devant l'appel à Chrome) — la fenêtre s'ouvre systématiquement à une taille
+     réduite sur le poste testé. Un rapport intermédiaire disant que `--window-size` fonctionnait
+     (sans `start`) s'est révélé être une erreur de l'étude, pas une confirmation réelle — ne pas
+     se fier à ce rapport s'il ressort d'un historique de conversation. Cohérent avec les autres
+     restrictions déjà rencontrées sur ce poste (probable politique bloquant le contrôle
+     programmatique de l'état des fenêtres). Ne pas relancer cette piste sans un moyen de
+     vérifier réellement le résultat (capture d'écran ou description explicite de ce qui
+     s'affiche) plutôt que de déduire un succès de l'absence d'erreur. En l'état,
+     `Ouvrir-en-fenetre.bat` n'essaie plus de forcer la taille de la fenêtre ; agrandir
+     manuellement (double-clic sur la barre de titre, ou Windows+Flèche du haut) reste la solution.
    **Conséquence à ne pas oublier** : ce profil dédié a sa propre sauvegarde (`localStorage`),
    séparée de celle d'un Chrome classique — les dossiers déjà enregistrés via un onglet Chrome
    normal n'apparaissent pas automatiquement dans cette fenêtre dédiée. Le `.bat` affiche donc un

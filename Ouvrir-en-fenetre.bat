@@ -17,6 +17,13 @@
 :: via un onglet Chrome normal n'apparaissent pas automatiquement ici. Le
 :: message ci-dessous ne s'affiche qu'une seule fois (tant que ce profil
 :: n'a pas encore ete cree) pour le rappeler.
+::
+:: NOTE : ouverture en plein ecran automatique tentee (--start-maximized,
+:: --window-size, start /MAX) sans succes sur le poste teste - la fenetre
+:: s'ouvre toujours a une taille reduite, quelle que soit la methode.
+:: Probablement une restriction du poste (voir CLAUDE.md). Agrandir la
+:: fenetre manuellement (double-clic sur sa barre de titre, ou Windows+Haut)
+:: reste la solution la plus fiable pour l'instant.
 setlocal
 set "DOSSIER=%~dp0"
 if "%DOSSIER:~-1%"=="\" set "DOSSIER=%DOSSIER:~0,-1%"
@@ -52,24 +59,22 @@ if not exist "%LocalAppData%\Google\Chrome\User Data\RegistreEcheances" (
 
 rem "start" detache le lancement de Chrome de cette fenetre de commande, pour
 rem qu'elle se referme aussitot au lieu de rester ouverte en arriere-plan
-rem pendant tout l'usage de l'app. (Une version precedente avait retire
-rem "start" en le soupconnant de casser --profile-directory - a tort : le
-rem vrai bug etait la parenthese dans le message ci-dessus, voir CLAUDE.md.)
+rem pendant tout l'usage de l'app.
 where chrome >nul 2>nul
 if %errorlevel%==0 (
-  start "" /MAX chrome --profile-directory="RegistreEcheances" --app="%URL%"
+  start "" chrome --profile-directory="RegistreEcheances" --app="%URL%"
   goto :fin
 )
 if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" (
-  start "" /MAX "%ProgramFiles%\Google\Chrome\Application\chrome.exe" --profile-directory="RegistreEcheances" --app="%URL%"
+  start "" "%ProgramFiles%\Google\Chrome\Application\chrome.exe" --profile-directory="RegistreEcheances" --app="%URL%"
   goto :fin
 )
 if exist "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" (
-  start "" /MAX "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" --profile-directory="RegistreEcheances" --app="%URL%"
+  start "" "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" --profile-directory="RegistreEcheances" --app="%URL%"
   goto :fin
 )
 if exist "%LocalAppData%\Google\Chrome\Application\chrome.exe" (
-  start "" /MAX "%LocalAppData%\Google\Chrome\Application\chrome.exe" --profile-directory="RegistreEcheances" --app="%URL%"
+  start "" "%LocalAppData%\Google\Chrome\Application\chrome.exe" --profile-directory="RegistreEcheances" --app="%URL%"
   goto :fin
 )
 
