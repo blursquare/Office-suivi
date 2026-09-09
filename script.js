@@ -1623,7 +1623,8 @@
             ${!d.sansPret ? `<div class="offre-pret-ligne">
               ${d.dossierLie ? `<span class="badge-offre ${libelleOffre(d.offrePretStatut).cls}">${libelleOffre(d.offrePretStatut).texte}</span>` : ''}
               ${DOSSIER_FS_SUPPORTE ? (d.dossierLie
-                  ? `<button type="button" class="lien-dossier-local" onclick="verifierOffrePret('${d.id}', true)">Revérifier</button>`
+                  ? `<button type="button" class="lien-dossier-local" onclick="verifierOffrePret('${d.id}', true)">Revérifier</button>
+                     <button type="button" class="lien-dossier-local" onclick="changerDossierLocal('${d.id}')">Changer de dossier</button>`
                   : `<button type="button" class="lien-dossier-local" onclick="lierDossierLocal('${d.id}')">🔗 Lier un dossier local</button>`) : ''}
               ${d.accesAReconfirmer ? `<span class="reconfirmer-acces" onclick="reconfirmerAcces('${d.id}')">Cliquer pour reconfirmer l'accès</span>` : ''}
             </div>` : ''}
@@ -2296,11 +2297,16 @@
     }
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
+    const etaitDejaLie = d.dossierLie;
     try {
       const handle = await window.showDirectoryPicker();
       await enregistrerHandle(id, handle);
       d.dossierLie = true;
-      ajouterHistorique(d, 'Dossier local relié pour la vérification automatique de l\u2019offre de prêt');
+      // Choisir un nouveau dossier ecrase simplement le lien precedent (put() dans
+      // enregistrerHandle) : utile si l'on s'etait trompe de dossier au premier lien.
+      ajouterHistorique(d, etaitDejaLie
+        ? 'Dossier local relié modifié (nouveau dossier choisi)'
+        : 'Dossier local relié pour la vérification automatique de l\u2019offre de prêt');
       await sauvegarder();
       render();
       await verifierOffrePret(id, true);
@@ -2317,6 +2323,12 @@
       console.error(e);
       afficherToast("Impossible d'accéder au dossier sélectionné : " + e.message, 'OK', null);
     }
+  }
+
+  // Changer de dossier réutilise lierDossierLocal : celle-ci écrase déjà le handle précédent
+  // (put() dans enregistrerHandle) et adapte son message d'historique selon d.dossierLie.
+  async function changerDossierLocal(id) {
+    await lierDossierLocal(id);
   }
 
   async function verifierOffrePret(id, viaClicUtilisateur) {

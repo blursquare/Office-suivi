@@ -189,6 +189,12 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
   chips au moment de l'import (`assignerDate()`, `ajouterAutre()`) alimentent l'apprentissage — une
   reclassification faite après coup sur un dossier déjà enregistré (`changerCategorie()`) n'est pas
   captée, faute de conserver le texte de la clause d'origine sur le dossier sauvegardé.
+- **Changer de dossier lié** : un bouton "Changer de dossier" (`changerDossierLocal()`, visible
+  uniquement quand un dossier est déjà relié) permet de corriger un dossier local mal choisi sans
+  passer par une manipulation cachée. C'est un simple alias de `lierDossierLocal()` : celle-ci
+  écrase déjà le handle précédent (`put()` dans `enregistrerHandle`) et adapte maintenant son
+  message d'historique ("... modifié (nouveau dossier choisi)" vs. le message de première liaison)
+  selon que `d.dossierLie` était déjà vrai avant l'appel.
 - **Bug corrigé : `verifierOffrePret()` ne regardait que la racine du dossier local relié**
   (`handle.entries()` n'est pas récursif). Signalé par l'étude : "je sélectionne bien le dossier
   mais il ne détecte pas l'offre" — l'offre était dans un sous-dossier ("Offres", "Pièces reçues"…),
