@@ -1369,21 +1369,48 @@
     margin: 0 0 3px;
   }
 
-  .dossier-nom-input {
+  /* Nom du dossier : affichage simple + crayon plutôt qu'un champ toujours modifiable au clic —
+     évite de déclencher une édition par un simple clic sur le nom (voir activerEditionNom()). */
+  .nom-dossier { margin: 0 0 3px -2px; }
+  .nom-affichage, .nom-edition {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .nom-affichage[hidden], .nom-edition[hidden] { display: none; }
+  .nom-texte {
     font-family: 'Poppins', 'Segoe UI', sans-serif;
     font-size: 18px;
     font-weight: 500;
     color: var(--ink);
-    border: 1px solid transparent;
-    background: transparent;
-    padding: 2px 4px;
-    margin: 0 0 3px -4px;
-    border-radius: 2px;
-    width: calc(100% + 4px);
-    max-width: 320px;
   }
-  .dossier-nom-input:hover { border-color: var(--line); }
-  .dossier-nom-input:focus { border-color: var(--focus); background: var(--paper-card); outline: none; }
+  .icon-crayon, .icon-valider {
+    font-family: inherit;
+    font-size: 12.5px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    padding: 3px 5px;
+    border-radius: 3px;
+    line-height: 1;
+  }
+  .icon-crayon { color: var(--muted); opacity: 0.75; }
+  .icon-crayon:hover { opacity: 1; color: var(--ink-soft); background: var(--paper-sunk); }
+  .icon-valider { color: var(--success); font-weight: 700; font-size: 15px; }
+  .icon-valider:hover { background: var(--success-bg); }
+
+  .dossier-nom-input {
+    font-family: 'Poppins', 'Segoe UI', sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--ink);
+    border: 1px solid var(--focus);
+    background: var(--paper-card);
+    padding: 4px 8px;
+    border-radius: 3px;
+    max-width: 280px;
+  }
+  .dossier-nom-input:focus { outline: none; }
 
   .dossier-head .addr {
     font-size: 13.5px;
@@ -1467,6 +1494,34 @@
     font-weight: 500;
     margin-bottom: 4px;
   }
+
+  /* Correction d'une date après enregistrement (erreur repérée plus tard) : même mécanisme
+     crayon → champ → valider que le nom du dossier, voir activerEditionDate(). */
+  .tab-date-affichage {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+  .tab-date-affichage[hidden] { display: none; }
+  .tab-date-affichage .tab-date { margin-bottom: 0; }
+  .tab-date-affichage .icon-crayon { font-size: 11px; padding: 2px 4px; }
+  .tab-date-edition {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+  }
+  .tab-date-edition[hidden] { display: none; }
+  .tab-date-input {
+    font-family: inherit;
+    font-size: 13px;
+    border: 1px solid var(--focus);
+    border-radius: 3px;
+    padding: 4px 6px;
+    background: var(--paper-card);
+    color: var(--ink);
+  }
+
   .tab .tab-countdown {
     font-size: 13px;
     color: var(--ink-soft);
@@ -1615,11 +1670,12 @@
     }
     .dossier:last-child { page-break-after: auto; }
     .dossier-nom-input { border: none; font-size: 18pt; padding: 0; }
+    .nom-texte { font-size: 18pt; }
     .tabs { display: block; }
     .tab { border: 1px solid #999; margin-bottom: 6pt; padding: 6pt; background: #fff !important; }
     .historique-liste { display: block !important; }
     .analyse-juridique { background: #fff; border: 1px solid #999; }
-    .icon-btn, .tab-select { display: none; }
+    .icon-btn, .tab-select, .icon-crayon, .icon-valider, .nom-edition, .tab-date-edition { display: none !important; }
   }
 
   .analyse-repliable > summary {

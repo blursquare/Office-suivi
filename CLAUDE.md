@@ -137,6 +137,22 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
 
 ## Historique des décisions importantes
 
+- **Nom et dates corrigeables après enregistrement, via crayon + validation explicite** : le nom du
+  dossier était un champ texte modifiable au clic, sans confirmation — remplacé par un affichage
+  simple + bouton crayon (`activerEditionNom()`) qui bascule vers un champ + bouton "✓" à valider
+  (`validerEditionNom()` → `renommerDossier()`, inchangée). Même mécanisme ajouté pour corriger une
+  date après coup (`activerEditionDate()` / `validerEditionDate()` dans `renderTab()`) — utile pour
+  une erreur repérée après l'enregistrement, jusque-là seule la catégorie (prêt/acte/vente) était
+  modifiable, pas la date elle-même. Une date ainsi corrigée passe automatiquement en confiance
+  "manuel" (même badge que pour une saisie initiale à la main). S'applique aussi aux échéances
+  personnalisées (`d.autres`), identifiées par leur index faute d'identifiant stable sur ces entrées.
+  **Effet de bord corrigé au passage** : les cartes/lignes de l'onglet "Suivi" étant maintenant des
+  résumés qui se déplient (voir plus bas), n'importe quelle action déclenchant `render()`
+  (archiver, changer de catégorie, et donc aussi ces nouvelles corrections) reconstruisait toute la
+  liste et refermait silencieusement la carte qu'on était en train de modifier. `dossiersDeplies`
+  (un `Set` d'identifiants) mémorise maintenant quels dossiers sont dépliés, et `render()` les
+  rouvre à chaque reconstruction — sans ce suivi, les nouvelles fonctions d'édition étaient
+  quasiment inutilisables (la carte se refermait dès la validation).
 - **Suivi des dossiers en deux onglets ("Nouveau dossier" / "Suivi des dossiers")** : demandé pour
   un volume réel d'une soixantaine de dossiers actifs en parallèle, où la liste de cartes
   complètes défilait trop longtemps pour retrouver un dossier précis. Deux pistes ont été

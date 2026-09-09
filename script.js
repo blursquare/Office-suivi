@@ -1454,10 +1454,10 @@
     ).join('');
   }
 
-  function renderTab(type, label, iso, dossierId, page, confiance) {
+  function renderTab(type, label, iso, dossierId, page, confiance, autreIndex) {
     // Les tabs Prêt / Acte / Vente d'un dossier enregistré sont recatégorisables au clic ;
     // les échéances "Autre" gardent leur libellé personnalisé (non concerné par ce sélecteur).
-    const recategorisable = dossierId && (type === 'pret' || type === 'acte' || type === 'ventebien');
+    const recategorisable = dossierId && autreIndex == null && (type === 'pret' || type === 'acte' || type === 'ventebien');
     const enTete = recategorisable
       ? `<select class="tab-select" onchange="changerCategorie('${dossierId}','${type}', this.value)">${optionsCategorie(type)}</select>`
       : `<div class="tab-name">${label}</div>`;
@@ -1473,10 +1473,27 @@
       ? `<span class="badge-confiance ${confiance}" title="${confiance === 'auto' ? 'Repérée automatiquement dans le texte' : 'Saisie ou corrigée manuellement'}">${confiance === 'auto' ? '📄 texte' : '✍️ manuel'}</span>`
       : '';
 
+    // Une date d'un dossier déjà enregistré reste corrigeable après coup (erreur repérée plus
+    // tard) : crayon → champ date natif → valider, même mécanisme que le nom du dossier. cleEdition
+    // identifie la cible de validerEditionDate() : le type directement pour pret/acte/ventebien,
+    // l'index dans d.autres pour une échéance personnalisée (pas d'id stable sur ces entrées).
+    const editable = dossierId != null;
+    const cleEdition = autreIndex != null ? 'autre-' + autreIndex : type;
+    const idBase = `tabdate-${dossierId}-${cleEdition}`;
+    const editionDate = editable ? `
+        <span class="tab-date-edition" id="${idBase}-edit" hidden>
+          <input type="date" class="tab-date-input" id="${idBase}-input" value="${iso || ''}">
+          <button type="button" class="icon-valider" onclick="validerEditionDate('${dossierId}','${cleEdition}')" title="Valider" aria-label="Valider la date">✓</button>
+        </span>` : '';
+    const crayonDate = editable
+      ? `<button type="button" class="icon-crayon" onclick="activerEditionDate('${dossierId}','${cleEdition}')" title="Corriger cette date" aria-label="Corriger cette date">✏️</button>`
+      : '';
+
     if (!iso) {
       return `<div class="tab ${type}">
         ${enTete}
-        <div class="tab-date">Non renseigné</div>
+        <span class="tab-date-affichage" id="${idBase}-aff"><div class="tab-date">Non renseigné</div>${crayonDate}</span>
+        ${editionDate}
       </div>`;
     }
     const jours = joursRestants(iso);
@@ -1494,7 +1511,8 @@
     }
     return `<div class="tab ${type}">
       ${enTete}
-      <div class="tab-date">${formatDateFr(iso)}${boutonVoir}</div>
+      <span class="tab-date-affichage" id="${idBase}-aff"><div class="tab-date">${formatDateFr(iso)}${boutonVoir}</div>${crayonDate}</span>
+      ${editionDate}
       <div class="tab-countdown ${countdownClass}">${countdownText}${badgeConfiance}</div>
     </div>`;
   }
@@ -1747,10 +1765,17 @@
     render();
   }
 
+  // Dossiers actuellement dépliés (ligne de tableau ou carte compacte) : sans ce suivi, la
+  // moindre action qui déclenche render() (renommer, corriger une date, revérifier l'offre...)
+  // reconstruit toute la liste et referme silencieusement la carte qu'on est pourtant en train
+  // de consulter — un même identifiant sert aux deux vues puisqu'une seule est affichée à la fois.
+  let dossiersDeplies = new Set();
+
   function renderLigneTableau(d) {
     const prochaine = prochaineEcheanceDetail(d);
     const offre = !d.sansPret ? libelleOffre(d.offrePretStatut) : null;
     const prioritaire = calculerPriorite(d) >= SEUIL_PRIORITE_ELEVEE;
+    const deplie = dossiersDeplies.has(d.id);
     return `
       <tr class="ligne-resume${d.archive ? ' est-archive' : ''}" onclick="toggleLigneDossier('${d.id}')">
         <td><div class="dossier-nom-tableau">${escapeHtml(d.nom)}${prioritaire ? '<span class="badge-prioritaire" title="Échéance proche, offre de prêt manquante et/ou accès local à reconfirmer">🔥 Prioritaire</span>' : ''}</div></td>
@@ -1766,13 +1791,15 @@
           ${(!d.sansPret && d.dossierLie) ? `<button type="button" class="action-rapide" onclick="event.stopPropagation(); verifierOffrePret('${d.id}', true)">Revérifier</button>` : ''}
         </td>
       </tr>
-      <tr class="ligne-detail" id="detail-${d.id}"><td colspan="4">${renderCarteDossier(d)}</td></tr>
+      <tr class="ligne-detail${deplie ? ' ouvert' : ''}" id="detail-${d.id}"><td colspan="4">${renderCarteDossier(d)}</td></tr>
     `;
   }
 
   function toggleLigneDossier(id) {
     const el = document.getElementById('detail-' + id);
-    if (el) el.classList.toggle('ouvert');
+    if (!el) return;
+    const ouvert = el.classList.toggle('ouvert');
+    if (ouvert) dossiersDeplies.add(id); else dossiersDeplies.delete(id);
   }
 
   // Vue "Cartes" compacte : un résumé par dossier (nom, responsable, échéance, offre) qui déplie
@@ -1781,8 +1808,9 @@
     const prochaine = prochaineEcheanceDetail(d);
     const offre = !d.sansPret ? libelleOffre(d.offrePretStatut) : null;
     const prioritaire = calculerPriorite(d) >= SEUIL_PRIORITE_ELEVEE;
+    const deplie = dossiersDeplies.has(d.id);
     return `
-      <div class="mini-carte${d.archive ? ' est-archive' : ''}" id="mini-${d.id}">
+      <div class="mini-carte${d.archive ? ' est-archive' : ''}${deplie ? ' ouverte' : ''}" id="mini-${d.id}">
         <div class="mini-carte-resume" onclick="toggleCarteCompacte('${d.id}')">
           <div class="mini-carte-nom">${escapeHtml(d.nom)}${prioritaire ? '<span class="badge-prioritaire" title="Échéance proche, offre de prêt manquante et/ou accès local à reconfirmer">🔥 Prioritaire</span>' : ''}</div>
           <div class="mini-carte-responsable">${escapeHtml(d.responsable || '—')}</div>
@@ -1804,7 +1832,9 @@
 
   function toggleCarteCompacte(id) {
     const el = document.getElementById('mini-' + id);
-    if (el) el.classList.toggle('ouverte');
+    if (!el) return;
+    const ouverte = el.classList.toggle('ouverte');
+    if (ouverte) dossiersDeplies.add(id); else dossiersDeplies.delete(id);
   }
 
   function renderCarteDossier(d) {
@@ -1816,7 +1846,16 @@
       <div class="dossier${d.archive ? ' est-archive' : ''}">
         <div class="dossier-head">
           <div>
-            <input type="text" class="dossier-nom-input" value="${escapeAttr(d.nom)}" aria-label="Nom du dossier" onchange="renommerDossier('${d.id}', this.value)" onkeydown="if(event.key==='Enter') this.blur()">
+            <div class="nom-dossier">
+              <span class="nom-affichage" id="nom-affichage-${d.id}">
+                <span class="nom-texte">${escapeHtml(d.nom)}</span>
+                <button type="button" class="icon-crayon" onclick="activerEditionNom('${d.id}')" title="Modifier le nom" aria-label="Modifier le nom">✏️</button>
+              </span>
+              <span class="nom-edition" id="nom-edition-${d.id}" hidden>
+                <input type="text" class="dossier-nom-input" id="nom-input-${d.id}" value="${escapeAttr(d.nom)}" aria-label="Nom du dossier" onkeydown="if(event.key==='Enter'){event.preventDefault();validerEditionNom('${d.id}');}else if(event.key==='Escape'){annulerEditionNom('${d.id}');}">
+                <button type="button" class="icon-valider" onclick="validerEditionNom('${d.id}')" title="Valider" aria-label="Valider le nom">✓</button>
+              </span>
+            </div>
             ${d.archive ? '<span class="badge-archive">Archivé</span>' : ''}
             ${d.email ? `<div class="addr">${escapeHtml(d.email)}</div>` : ''}
             ${d.responsable ? `<div class="addr">Responsable : ${escapeHtml(d.responsable)}</div>` : ''}
@@ -1839,7 +1878,7 @@
           ${renderTab('pret', 'Obtention du prêt', d.pret, d.id, d.pretPage, confiance.pret)}
           ${renderTab('acte', 'Signature de l\u2019acte', d.acte, d.id, d.actePage, confiance.acte)}
           ${d.ventebien ? renderTab('ventebien', 'Vente préalable', d.ventebien, d.id, d.ventebienPage, confiance.ventebien) : ''}
-          ${(d.autres || []).map(a => renderTab('autre', escapeHtml(a.label), a.date, null, a.page)).join('')}
+          ${(d.autres || []).map((a, i) => renderTab('autre', escapeHtml(a.label), a.date, d.id, a.page, null, i)).join('')}
         </div>
         <div class="dossier-actions">
           <button onclick="telechargerICS('${d.id}')">Télécharger les rappels (.ics)</button>
@@ -1901,11 +1940,90 @@
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
     const nom = valeur.trim();
-    if (!nom) { render(); return; } // refuse un nom vide, on réaffiche l'ancien
-    if (nom === d.nom) return;
-    ajouterHistorique(d, `Nom modifié : « ${d.nom} » → « ${nom} »`);
-    d.nom = nom;
-    sauvegarder();
+    // Toujours réafficher (via render()) même si le nom est vide ou inchangé, pour refermer
+    // l'édition dans tous les cas — pas seulement quand une modification a réellement eu lieu.
+    if (nom && nom !== d.nom) {
+      ajouterHistorique(d, `Nom modifié : « ${d.nom} » → « ${nom} »`);
+      d.nom = nom;
+      sauvegarder();
+    }
+    render();
+  }
+
+  // Bascule le nom d'un dossier enregistré entre affichage simple (+ crayon) et édition
+  // (champ texte + validation explicite), plutôt qu'un champ toujours modifiable au clic — évite
+  // de déclencher une modification par erreur en cliquant simplement sur le nom.
+  function activerEditionNom(id) {
+    const aff = document.getElementById('nom-affichage-' + id);
+    const edit = document.getElementById('nom-edition-' + id);
+    if (!aff || !edit) return;
+    aff.hidden = true;
+    edit.hidden = false;
+    const input = document.getElementById('nom-input-' + id);
+    if (input) { input.focus(); input.select(); }
+  }
+
+  function annulerEditionNom(id) {
+    const d = dossiers.find(x => x.id === id);
+    const input = document.getElementById('nom-input-' + id);
+    if (input && d) input.value = d.nom; // remet la valeur d'origine sans repasser par render()
+    const aff = document.getElementById('nom-affichage-' + id);
+    const edit = document.getElementById('nom-edition-' + id);
+    if (aff) aff.hidden = false;
+    if (edit) edit.hidden = true;
+  }
+
+  function validerEditionNom(id) {
+    const input = document.getElementById('nom-input-' + id);
+    renommerDossier(id, input ? input.value : '');
+  }
+
+  // Même principe pour corriger une date après coup (erreur repérée une fois le dossier
+  // enregistré) : crayon → champ date natif → valider. cleEdition vaut le type (pret/acte/
+  // ventebien) ou "autre-<index>" pour une échéance personnalisée — voir renderTab().
+  function activerEditionDate(dossierId, cle) {
+    const idBase = `tabdate-${dossierId}-${cle}`;
+    const aff = document.getElementById(idBase + '-aff');
+    const edit = document.getElementById(idBase + '-edit');
+    if (!aff || !edit) return;
+    aff.hidden = true;
+    edit.hidden = false;
+    const input = document.getElementById(idBase + '-input');
+    if (input) input.focus();
+  }
+
+  function annulerEditionDate(dossierId, cle) {
+    const idBase = `tabdate-${dossierId}-${cle}`;
+    const aff = document.getElementById(idBase + '-aff');
+    const edit = document.getElementById(idBase + '-edit');
+    if (aff) aff.hidden = false;
+    if (edit) edit.hidden = true;
+  }
+
+  function validerEditionDate(dossierId, cle) {
+    const idBase = `tabdate-${dossierId}-${cle}`;
+    const input = document.getElementById(idBase + '-input');
+    if (!input) return;
+    const nouvelleDate = input.value || '';
+    const d = dossiers.find(x => x.id === dossierId);
+    if (!d) return;
+
+    if (cle.indexOf('autre-') === 0) {
+      const index = parseInt(cle.slice(6), 10);
+      const item = (d.autres || [])[index];
+      if (!item) return;
+      if (nouvelleDate !== (item.date || '')) {
+        ajouterHistorique(d, `Date « ${item.label} » modifiée : ${item.date ? formatDateFr(item.date) : 'non renseignée'} → ${nouvelleDate ? formatDateFr(nouvelleDate) : 'non renseignée'}`);
+        item.date = nouvelleDate || null;
+        sauvegarder();
+      }
+    } else if (nouvelleDate !== (d[cle] || '')) {
+      ajouterHistorique(d, `« ${LIBELLES_CATEGORIE[cle]} » modifiée : ${d[cle] ? formatDateFr(d[cle]) : 'non renseignée'} → ${nouvelleDate ? formatDateFr(nouvelleDate) : 'non renseignée'}`);
+      d[cle] = nouvelleDate || '';
+      d.confiance = d.confiance || {};
+      d.confiance[cle] = 'manuel'; // corrigée à la main : à revérifier comme toute saisie manuelle
+      sauvegarder();
+    }
     render();
   }
 
