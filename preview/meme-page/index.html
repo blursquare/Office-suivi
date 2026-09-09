@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Registre des échéances — Compromis de vente</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#16233C">
+<link rel="icon" href="icone.svg">
+<link rel="apple-touch-icon" href="icone.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="layout-cols">
+<div class="wrap">
+
+  <header class="page">
+    <div class="header-top">
+      <div>
+        <div class="kicker">Suivi des transactions</div>
+        <div class="brand-bar"></div>
+      </div>
+      <div class="header-actions">
+        <button type="button" class="install-btn" id="install-btn" style="display:none;" onclick="installerApplication()">📲 Installer l'application</button>
+        <button type="button" class="theme-btn" id="theme-btn" onclick="basculerTheme()" aria-label="Basculer le thème clair/sombre">🌙</button>
+      </div>
+    </div>
+    <h1>Registre des échéances</h1>
+    <p>Importez un compromis : l'outil en extrait les échéances et les pièces à réclamer, puis génère vos rappels Outlook.</p>
+  </header>
+
+  <details class="panel" id="panel" open>
+    <summary>Nouveau dossier <span class="plus">+</span></summary>
+    <div class="panel-body">
+
+      <div class="mode-emploi">
+        <span><b>1.</b> Déposez le PDF</span>
+        <span class="me-fleche">→</span>
+        <span><b>2.</b> Vérifiez les échéances</span>
+        <span class="me-fleche">→</span>
+        <span><b>3.</b> Enregistrez et exportez vers Outlook</span>
+      </div>
+
+      <div class="etape"><span class="etape-num">1</span>Importer le compromis</div>
+
+      <div class="extract-box">
+        <label for="f-pdf">Importer le PDF du compromis</label>
+        <div class="pdf-dropzone" id="pdf-dropzone" ondragover="gererSurvolDepot(event)" ondragleave="gererQuitteDepot(event)" ondrop="gererDepotPdf(event)">
+          <div class="pdf-row">
+            <label for="f-pdf" class="file-btn">Choisir un fichier PDF</label>
+            <input type="file" id="f-pdf" accept="application/pdf" onchange="gererUploadPdf(event)">
+            <span class="pdf-dropzone-hint">ou glissez-déposez le fichier ici</span>
+          </div>
+        </div>
+        <div id="pdf-status" class="pdf-status"></div>
+        <div class="progress-bar" id="pdf-progress"><div class="progress-bar-fill" id="pdf-progress-fill"></div></div>
+
+        <div id="compromis-info" class="compromis-info" style="display:none;">
+          <span id="compromis-info-text"></span>
+          <button type="button" class="icon-btn" onclick="toggleCompromisEdit()">Corriger</button>
+          <input type="date" id="f-date-compromis" style="display:none;" onchange="corrigerDateCompromis(this.value)">
+        </div>
+
+        <div id="cash-note" class="cash-note" style="display:none;"></div>
+
+        <p class="hint">Diagnostics et dates passées sont écartés automatiquement. Cliquez sur une catégorie pour corriger un classement.</p>
+        <div class="chips" id="chips"></div>
+      </div>
+
+      <div id="analyse-juridique" class="analyse-juridique" style="display:none;">
+        <div class="analyse-titre">📋 Analyse juridique du compromis</div>
+
+        <div class="analyse-section" id="analyse-section-conditions">
+          <div class="analyse-sous-titre">Conditions suspensives et particulières <span class="analyse-compteur" id="analyse-nb-conditions"></span></div>
+          <div id="analyse-conditions-liste"></div>
+        </div>
+
+        <div class="analyse-section" id="analyse-section-engagements">
+          <div class="analyse-sous-titre">Engagements du vendeur <span class="analyse-compteur" id="analyse-nb-engagements"></span></div>
+          <div id="analyse-engagements-liste"></div>
+        </div>
+
+        <div class="analyse-section">
+          <div class="analyse-sous-titre">Documents et pièces identifiés <span class="analyse-compteur" id="analyse-nb-documents"></span></div>
+          <div id="analyse-documents-liste" class="analyse-documents-liste"></div>
+        </div>
+
+        <div id="analyse-note" class="analyse-note" style="display:none;"></div>
+      </div>
+
+      <div class="etape"><span class="etape-num">2</span>Identité du dossier</div>
+
+      <div class="field-row">
+        <div>
+          <label for="f-nom">Nom du dossier</label>
+          <input type="text" id="f-nom" placeholder="Ex. Dupont / 12 rue de la Paix">
+        </div>
+        <div>
+          <label for="f-email">Email de rappel (optionnel)</label>
+          <input type="email" id="f-email" placeholder="agence@exemple.fr" value="office.gossart@notaires.fr">
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div>
+          <label for="f-responsable">Responsable du dossier</label>
+          <select id="f-responsable">
+            <option value="">— À définir —</option>
+            <option>Bastien ANGLUMENT</option>
+            <option>Julie VASSELIN</option>
+            <option>Jérémy SAUJOT</option>
+          </select>
+        </div>
+        <div>
+          <label for="f-email-acquereur">Email de l'acquéreur (pour relance prêt)</label>
+          <input type="email" id="f-email-acquereur" placeholder="acquereur@exemple.fr">
+        </div>
+      </div>
+
+      <div class="etape"><span class="etape-num">3</span>Vérifier les échéances</div>
+
+      <fieldset>
+        <legend>Dates butoir</legend>
+
+        <div class="date-block pret" id="bloc-pret">
+          <div class="label-line">
+            <label class="switch">
+              <input type="checkbox" id="toggle-pret" checked onchange="toggleEcheance('pret', this.checked)">
+              <span class="slider"></span>
+            </label>
+            <span>Obtention du prêt (condition suspensive)</span>
+          </div>
+          <input type="date" id="f-pret">
+        </div>
+
+        <div class="date-block acte" id="bloc-acte">
+          <div class="label-line">
+            <label class="switch">
+              <input type="checkbox" id="toggle-acte" checked onchange="toggleEcheance('acte', this.checked)">
+              <span class="slider"></span>
+            </label>
+            <span>Signature de l'acte</span>
+          </div>
+          <input type="date" id="f-acte">
+        </div>
+
+        <div class="date-block ventebien inactive" id="bloc-ventebien">
+          <div class="label-line">
+            <label class="switch">
+              <input type="checkbox" id="toggle-ventebien" onchange="toggleEcheance('ventebien', this.checked)">
+              <span class="slider"></span>
+            </label>
+            <span>Vente préalable</span>
+          </div>
+          <input type="date" id="f-ventebien" disabled>
+        </div>
+
+        <div id="autres-list"></div>
+
+        <button type="button" class="secondary add-autre-btn" onclick="ajouterAutreVide()">+ Ajouter une échéance personnalisée</button>
+      </fieldset>
+
+      <div class="etape"><span class="etape-num">4</span>Rappels et enregistrement</div>
+
+      <fieldset>
+        <legend>Envoyer un rappel</legend>
+        <div class="reminder-days" id="reminder-days">
+          <label><input type="checkbox" value="15" checked> 15 jours avant</label>
+          <label><input type="checkbox" value="7" checked> 7 jours avant</label>
+          <label><input type="checkbox" value="3"> 3 jours avant</label>
+          <label><input type="checkbox" value="1"> 1 jour avant</label>
+          <label><input type="checkbox" value="0"> le jour même</label>
+        </div>
+      </fieldset>
+
+      <div id="form-error" class="form-error"></div>
+
+      <div class="actions-row">
+        <button type="button" class="secondary" onclick="reinitialiserFormulaire()">Effacer</button>
+        <button type="button" class="primary" onclick="ajouterDossier()">Ajouter le dossier</button>
+      </div>
+
+    </div>
+  </details>
+
+  <div id="dashboard" class="dashboard" style="display:none;">
+    <div class="dashboard-titre">📅 Échéances des 7 prochains jours</div>
+    <div id="dashboard-liste"></div>
+  </div>
+
+  <div class="list-heading">
+    <h2>Dossiers suivis</h2>
+    <span class="count" id="dossier-count"></span>
+  </div>
+
+  <div class="list-toolbar">
+    <label class="toolbar-item toolbar-recherche">
+      <input type="search" id="recherche-dossiers" placeholder="Rechercher un dossier ou un responsable…" oninput="render()">
+    </label>
+    <label class="toolbar-item">
+      Responsable
+      <select id="filtre-responsable" onchange="render()">
+        <option value="">Tous</option>
+        <option>Bastien ANGLUMENT</option>
+        <option>Julie VASSELIN</option>
+        <option>Jérémy SAUJOT</option>
+      </select>
+    </label>
+    <label class="toolbar-item">
+      Offre de prêt
+      <select id="filtre-offre" onchange="render()">
+        <option value="">Tous statuts</option>
+        <option value="recue">Reçue</option>
+        <option value="manquante">Introuvable</option>
+        <option value="inconnu">À vérifier</option>
+      </select>
+    </label>
+    <label class="toolbar-item">
+      Trier par
+      <select id="tri-dossiers" onchange="render()">
+        <option value="echeance">Échéance la plus proche</option>
+        <option value="nom">Nom du dossier</option>
+      </select>
+    </label>
+    <label class="toolbar-item toolbar-checkbox">
+      <input type="checkbox" id="voir-archives" onchange="render()">
+      Afficher les dossiers archivés
+    </label>
+    <div class="view-toggle" role="group" aria-label="Affichage de la liste">
+      <button type="button" id="btn-vue-cartes" class="view-toggle-btn" aria-pressed="true" onclick="definirVue('cartes')">Cartes</button>
+      <button type="button" id="btn-vue-tableau" class="view-toggle-btn" aria-pressed="false" onclick="definirVue('tableau')">Tableau</button>
+    </div>
+    <span class="toolbar-spacer"></span>
+    <span id="statut-partage" class="statut-partage" style="display:none;"></span>
+    <button type="button" class="toolbar-btn" id="btn-registre-partage" onclick="lierRegistrePartage()">🔗 Registre partagé (réseau)</button>
+    <button type="button" class="toolbar-btn" onclick="exporterDonnees()">⬇ Exporter (JSON)</button>
+    <label class="toolbar-btn toolbar-btn-label">
+      ⬆ Importer (JSON)
+      <input type="file" id="f-import" accept="application/json" onchange="importerDonnees(event)" style="display:none;">
+    </label>
+  </div>
+
+  <div id="dossier-list"></div>
+
+  <div id="toast" class="toast" style="display:none;">
+    <span id="toast-message"></span>
+    <button type="button" class="toast-undo" id="toast-undo-btn">Annuler</button>
+  </div>
+
+  <footer class="note">
+    <strong>.ics</strong> : fichier à importer dans Outlook, qui crée un événement par échéance avec ses rappels. <strong>Email</strong> : ouvre un brouillon pré-rempli dans votre messagerie.<br>
+    Seul le compromis est analysé, sans ses annexes. Le PDF reste sur votre poste, rien n'est envoyé sur internet.<br>
+    <strong>Toute date détectée automatiquement doit être vérifiée</strong>, en particulier si elle est signalée « estimée ».
+  </footer>
+
+</div>
+
+<aside class="pdf-viewer" id="pdf-viewer">
+  <div class="pdf-viewer-header">
+    <div class="pdf-viewer-title" id="pdf-viewer-title">Aperçu du compromis</div>
+  </div>
+  <div class="pdf-viewer-canvas-wrap" id="pdf-pages-container"></div>
+</aside>
+
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-box">
+    <p id="confirm-message">Confirmer cette action ?</p>
+    <div class="confirm-actions">
+      <button type="button" class="btn-annuler" onclick="annulerConfirmation()">Annuler</button>
+      <button type="button" class="btn-confirmer" id="confirm-btn-ok">Supprimer</button>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<!-- Tesseract.js : version flottante @5 (et non un numéro de patch figé comme pour pdf.js
+     ci-dessus) car cette mise à jour depuis la v1.0.17 n'a pas pu être testée en conditions
+     réelles au moment où elle a été écrite (voir CLAUDE.md, historique des décisions) — jsdelivr
+     garantit qu'une version v5.x existe à cette adresse, ce qu'un numéro de patch deviné n'aurait
+     pas garanti. Une fois une version validée sur un vrai compromis scanné, la figer ici. -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script>
+  if (window.pdfjsLib) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    // Beaucoup de compromis sont générés avec des polices TrueType incomplètes : pdf.js émet alors
+    // des « Warning: TT: undefined function », sans conséquence sur l'extraction du texte. On limite
+    // la verbosité aux vraies erreurs pour ne pas polluer la console.
+    if (pdfjsLib.VerbosityLevel) pdfjsLib.verbosity = pdfjsLib.VerbosityLevel.ERRORS;
+  }
+</script>
+<script src="script.js"></script>
+</body>
+</html>
