@@ -350,6 +350,9 @@
 
   input[type="text"], input[type="date"], input[type="email"], textarea, #f-responsable {
     width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
     font-family: inherit;
     font-size: 14.5px;
     color: var(--ink);
@@ -358,6 +361,15 @@
     border-radius: 4px;
     padding: 10px 12px;
     transition: border-color 0.15s ease;
+  }
+  /* Safari iOS ne respecte pas toujours une largeur CSS plus étroite que la taille intrinsèque
+     des segments jour/mois/année d'un <input type="date"> (surtout avec le réglage
+     d'accessibilité "Texte plus grand" activé) : sans ce garde-fou, le champ peut déborder de son
+     bloc .date-block sur iPhone alors qu'il tient normalement dans Chrome/desktop. Signalé par
+     l'étude sur les 3 champs de la section "Vérifier les échéances" — non reproductible dans cet
+     environnement de dev (pas de Safari/iOS disponible) : à reconfirmer sur un vrai iPhone. */
+  input[type="date"] {
+    -webkit-min-logical-width: 0;
   }
   input[type="text"]:hover, input[type="date"]:hover, input[type="email"]:hover, #f-responsable:hover { border-color: var(--muted); }
 
