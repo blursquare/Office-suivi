@@ -344,6 +344,19 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     par ce même badge de statut, qui couvre déjà ce cas. Couleurs réutilisées : `--success` (vert),
     `--pret` (amber, même couleur que "offre introuvable" — pas `--urgent`, réservé au blocage),
     `--urgent` (rouge), gris neutre pour l'archive — aucune couleur inventée.
+  - **Analyse juridique ancrée (onglets Aperçu / Analyse juridique)**, à la place de son ancienne
+    position inline dans le formulaire "Nouveau dossier" : une analyse fournie (beaucoup de
+    clauses/documents détectés) poussait le reste du formulaire loin en dessous, forçant à tout
+    redéfiler pour la revoir. Le panneau `#analyse-juridique` a été déplacé dans l'aside
+    `#pdf-viewer` (déjà `position: sticky`, ancré pendant que le formulaire défile), avec un petit
+    switcher d'onglets (`definirVuePdfViewer('apercu'|'analyse')`) qui bascule entre l'aperçu PDF et
+    l'analyse — jamais les deux affichés en même temps dans la même colonne. `analyseJuridiqueDisponible`
+    contrôle l'affichage des onglets (masqués si rien à montrer) ; `vuePdfViewerActuelle` revient à
+    `'apercu'` à chaque nouvel import (`traiterFichierPdf()`) pour ne pas laisser l'utilisateur
+    "coincé" sur l'analyse d'un document précédent. La version affichée sur une carte de dossier déjà
+    enregistré (`renderCarteDossier()`) n'est PAS concernée : elle est dans un `<details>` fermé par
+    défaut, qui ne pose pas ce problème d'écrasement — seule la version "live" pendant l'import
+    l'avait.
 
 ## Comment tester
 

@@ -567,17 +567,33 @@
     return `<div class="analyse-engagement-ligne">${etiquette}<span>${escapeHtml(phrase)}</span></div>`;
   }
 
+  // 'apercu' | 'analyse' — l'onglet actif du panneau ancré à droite du formulaire (voir
+  // definirVuePdfViewer). Remis à 'apercu' à chaque nouvel import (traiterFichierPdf) : l'aperçu du
+  // nouveau document prime, l'utilisateur reclique sur l'onglet analyse s'il veut la consulter.
+  let vuePdfViewerActuelle = 'apercu';
+  let analyseJuridiqueDisponible = false;
+
+  function definirVuePdfViewer(vue) {
+    vuePdfViewerActuelle = vue;
+    const tabApercu = document.getElementById('pdf-viewer-tab-apercu');
+    const tabAnalyse = document.getElementById('pdf-viewer-tab-analyse');
+    if (tabApercu) tabApercu.classList.toggle('actif', vue === 'apercu');
+    if (tabAnalyse) tabAnalyse.classList.toggle('actif', vue === 'analyse');
+    document.getElementById('pdf-pages-container').style.display = vue === 'apercu' ? 'flex' : 'none';
+    document.getElementById('analyse-juridique').style.display = (vue === 'analyse' && analyseJuridiqueDisponible) ? 'block' : 'none';
+  }
+
   function afficherAnalyseJuridique() {
-    const bloc = document.getElementById('analyse-juridique');
     const listeDocs = document.getElementById('analyse-documents-liste');
     const note = document.getElementById('analyse-note');
     const { documents, engagements, conditions = [] } = analyseJuridiqueActuelle;
 
-    if (documents.length === 0 && engagements.length === 0 && conditions.length === 0) {
-      bloc.style.display = 'none';
+    analyseJuridiqueDisponible = documents.length > 0 || engagements.length > 0 || conditions.length > 0;
+    document.getElementById('pdf-viewer-tabs').style.display = analyseJuridiqueDisponible ? 'flex' : 'none';
+    if (!analyseJuridiqueDisponible) {
+      definirVuePdfViewer(vuePdfViewerActuelle);
       return;
     }
-    bloc.style.display = 'block';
 
     // Les conditions suspensives et particulières sont reprises telles qu'elles figurent au
     // compromis, rubrique par rubrique : c'est la lecture de référence du notaire.
@@ -611,6 +627,7 @@
     } else {
       note.style.display = 'none';
     }
+    definirVuePdfViewer(vuePdfViewerActuelle);
   }
 
   // Extrait la phrase contenant la date (bornée par un maximum de caractères) plutôt qu'une simple
@@ -1167,6 +1184,7 @@
       frontieresPagesActuelles = calculerFrontieresPages(textesParPage, dernierePageUtile);
       pageParType = { pret: null, acte: null, ventebien: null };
       ambiguiteParType = { pret: false, acte: false, ventebien: false };
+      vuePdfViewerActuelle = 'apercu';
       traiterTexte(texteComplet);
 
       // Ouvre le panneau d'aperçu, à côté du formulaire, limité au compromis (annexes exclues).
