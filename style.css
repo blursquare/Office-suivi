@@ -216,6 +216,17 @@
   }
   .voir-pdf-btn:hover { opacity: 1; }
 
+  /* Même page indiquée que .voir-pdf-btn, mais sur un dossier déjà enregistré et rouvert plus
+     tard : le PDF d'origine n'est plus chargé en mémoire (jamais conservé), donc pas de clic
+     possible pour y sauter — seul le numéro de page reste affiché, à titre indicatif. */
+  .chip-page {
+    display: inline-flex;
+    align-items: center;
+    font-size: 11px;
+    color: var(--ink-soft);
+    margin-left: 6px;
+  }
+
   @media (max-width: 1100px) {
     .layout-cols { flex-direction: column; padding: 0; }
     .wrap { max-width: 880px; margin: 0 auto; padding: 48px 24px 80px; }
@@ -299,6 +310,22 @@
   @media (max-width: 720px) {
     .stats-suivi { grid-template-columns: repeat(2, 1fr); }
   }
+
+  .alerte-acces {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    background: var(--pret-bg);
+    border: 1px solid var(--pret);
+    color: var(--pret);
+    border-radius: 8px;
+    padding: 10px 16px;
+    margin-bottom: 24px;
+    font-size: 13.5px;
+  }
+  .alerte-acces .toolbar-btn { flex-shrink: 0; }
 
   header.page .kicker {
     font-size: 13px;
@@ -386,7 +413,7 @@
     margin-bottom: 5px;
   }
 
-  input[type="text"], input[type="date"], input[type="email"], textarea, #f-responsable {
+  input[type="text"], input[type="date"], input[type="email"], textarea, select {
     width: 100%;
     max-width: 100%;
     min-width: 0;
@@ -419,9 +446,9 @@
     }
     .date-block { padding-left: 10px; }
   }
-  input[type="text"]:hover, input[type="date"]:hover, input[type="email"]:hover, #f-responsable:hover { border-color: var(--muted); }
+  input[type="text"]:hover, input[type="date"]:hover, input[type="email"]:hover, select:hover { border-color: var(--muted); }
 
-  input:focus, textarea:focus, button:focus-visible, summary:focus-visible {
+  input:focus, select:focus, textarea:focus, button:focus-visible, summary:focus-visible {
     outline: 2px solid var(--focus);
     outline-offset: 1px;
   }
@@ -465,7 +492,7 @@
     margin-top: 20px;
   }
 
-  .extract-box p.hint {
+  p.hint {
     font-size: 13px;
     color: var(--ink-soft);
     margin: 8px 0 0;

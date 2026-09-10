@@ -96,6 +96,32 @@ test('estDebutPageAnnexe reconnaît une vraie page d\'annexe (titre en tête, pa
   assert.equal(app.estDebutPageAnnexe('Annexe n°1 — Extrait de plan cadastral'), true);
 });
 
+test('prochaineEcheanceDetail ignore l\'échéance de prêt une fois l\'offre reçue, au profit de la suivante', () => {
+  const app = chargerApplication();
+  const dansTroisJours = new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+  const dansVingtJours = new Date(Date.now() + 20 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+  const d = { pret: dansTroisJours, acte: dansVingtJours, offrePretStatut: 'recue' };
+  const prochaine = app.prochaineEcheanceDetail(d);
+  assert.equal(prochaine.type, 'acte');
+});
+
+test('prochaineEcheanceDetail garde l\'échéance de prêt tant que l\'offre n\'est pas confirmée reçue', () => {
+  const app = chargerApplication();
+  const dansTroisJours = new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+  const dansVingtJours = new Date(Date.now() + 20 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+  const d = { pret: dansTroisJours, acte: dansVingtJours, offrePretStatut: 'inconnu' };
+  const prochaine = app.prochaineEcheanceDetail(d);
+  assert.equal(prochaine.type, 'pret');
+});
+
+test('calculerProchaineEcheance ignore aussi l\'échéance de prêt une fois l\'offre reçue', () => {
+  const app = chargerApplication();
+  const dansTroisJours = new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+  const dansVingtJours = new Date(Date.now() + 20 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+  const d = { pret: dansTroisJours, acte: dansVingtJours, offrePretStatut: 'recue' };
+  assert.equal(app.calculerProchaineEcheance(d), 20);
+});
+
 test('statutDossier renvoie "archive" en priorité, même si le dossier a par ailleurs un blocage', () => {
   const app = chargerApplication();
   const d = { archive: true, sansPret: false, offrePretStatut: 'manquante', pret: '2099-01-01' };
@@ -146,6 +172,36 @@ test('statutDossier renvoie "pret" quand tout est en ordre', () => {
   const app = chargerApplication();
   const demain = new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 10);
   const d = { archive: false, sansPret: false, offrePretStatut: 'recue', pret: demain, confiance: { pret: 'auto' } };
+  assert.equal(app.statutDossier(d), 'pret');
+});
+
+test('statutDossier renvoie "aconfirmer" quand une pièce de la checklist manque sur un dossier relié', () => {
+  const app = chargerApplication();
+  const demain = new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 10);
+  const d = {
+    archive: false, sansPret: false, offrePretStatut: 'recue', pret: demain, confiance: { pret: 'auto' },
+    dossierLie: true, roleNotaire: 'instrumentaire', typeVente: 'maison', pieces: { titrePropriete: 'recue' }
+  };
+  assert.equal(app.statutDossier(d), 'aconfirmer');
+});
+
+test('statutDossier ignore la checklist de pièces pour un dossier non relié (rien à signaler)', () => {
+  const app = chargerApplication();
+  const demain = new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 10);
+  const d = {
+    archive: false, sansPret: false, offrePretStatut: 'recue', pret: demain, confiance: { pret: 'auto' },
+    dossierLie: false, roleNotaire: 'instrumentaire', typeVente: 'maison', pieces: {}
+  };
+  assert.equal(app.statutDossier(d), 'pret');
+});
+
+test('statutDossier ignore la checklist de pièces pour un notaire participant', () => {
+  const app = chargerApplication();
+  const demain = new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 10);
+  const d = {
+    archive: false, sansPret: false, offrePretStatut: 'recue', pret: demain, confiance: { pret: 'auto' },
+    dossierLie: true, roleNotaire: 'participant', typeVente: 'maison', pieces: {}
+  };
   assert.equal(app.statutDossier(d), 'pret');
 });
 

@@ -519,6 +519,72 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
   `!trouve`. Le statut affiché peut malgré tout repasser à "manquante" sur la fiche (non traité
   ici, l'étude n'a signalé que la relance intempestive, pas l'affichage du badge) — à revoir si
   ce second point est aussi gênant en pratique.
+- **Retours de tests en conditions réelles par l'étude, traités en une série de corrections
+  indépendantes** :
+  - **Responsable du dossier corrigeable après enregistrement**, même mécanisme et même
+    justification que le type de vente/rôle du notaire ci-dessus : `changerResponsable(id, valeur)`
+    + `<select class="select-edit">` sur la fiche, à côté des deux autres.
+  - **Bug corrigé : les `<select>` "Type de vente" et "Rôle de l'étude" (étape "Finaliser" du
+    wizard) n'avaient pas le même style que les autres champs.** La règle CSS qui donne largeur/
+    padding/bordure cohérents aux champs du formulaire ne listait que
+    `input[type="text"|"date"|"email"], textarea, #f-responsable` (ce dernier étant, à l'origine,
+    le seul `<select>` du formulaire) — les deux nouveaux `<select>` en étaient absents et
+    gardaient l'apparence native du navigateur. Remplacé par un sélecteur générique `select` (et
+    `select:hover`/`select:focus` ajoutés aux règles voisines) : tout futur `<select>` du
+    formulaire hérite maintenant du même style sans qu'on ait à penser à l'y ajouter.
+  - **Une fois l'offre de prêt reçue, l'échéance "Obtention du prêt" ne doit plus être présentée
+    comme la prochaine chose à surveiller.** `prochaineEcheanceDetail()` et
+    `calculerProchaineEcheance()` excluent maintenant cette échéance de leurs candidats dès que
+    `d.offrePretStatut === 'recue'` : le résumé (carte compacte, ligne de tableau) et le tri
+    "Échéance la plus proche" passent alors directement à la suivante (acte, vente préalable...)
+    au lieu de continuer à afficher "Obtention du prêt — J-X" pour une condition déjà résolue.
+  - **Chips de dates détectées déplacées de l'étape "Importer" vers l'étape "Vérifier"** (juste
+    au-dessus du bloc "Dates butoir"), pour permettre de comparer chaque date auto-détectée du
+    compromis aux dates finalement retenues sans changer d'étape — l'auto-avance vers l'étape 2
+    après un import réussi (voir plus haut) rendait de toute façon l'étape 1 immédiatement
+    quittée, la présence des chips y était peu utile.
+  - **`statutDossier()` tient maintenant compte de la checklist de pièces**, point volontairement
+    laissé ouvert lors de l'introduction de cette checklist (voir plus haut) : un dossier relié
+    (`d.dossierLie`), hors rôle participant, dont au moins une pièce de `checklistPieces()` n'est
+    pas encore "recue" retombe en statut "aconfirmer" plutôt que "prêt" — l'offre de prêt seule ne
+    suffit plus à afficher un dossier comme prêt si des pièces d'urbanisme manquent encore. Un
+    dossier non relié n'est toujours pas pénalisé (même principe que l'offre de prêt "inconnue").
+  - **Bug corrigé : un dossier "sans prêt" (achat comptant) ne pouvait pas être relié à un dossier
+    local**, alors que la checklist de pièces (urbanisme...) s'applique indépendamment du mode de
+    financement. Le bloc contenant les boutons "Lier un dossier local"/"Changer de dossier"/
+    "Cliquer pour reconfirmer l'accès" était entièrement conditionné à `!d.sansPret` — seul le
+    badge "Offre de prêt : ..." et le bouton "Revérifier" (spécifiques au prêt) le restent
+    désormais ; le lien vers le dossier local est proposé dans tous les cas.
+  - **Page de détection ajoutée aux engagements du vendeur**, sur le même principe que les dates
+    (`pageDepuisIndex()`, déjà utilisé par `detecterDatesDepuisTexte`) : `extraireEngagementsVendeur`
+    renvoie maintenant `{ phrase, type, page }`, et `renderEngagement()` affiche un bouton
+    "👁 p.X" cliquable (réutilise `voirDateDansPdf()`) quand le PDF d'origine est encore chargé en
+    mémoire (import en cours), ou simplement le numéro de page (`.chip-page`, non cliquable) sinon
+    — cas le plus courant en pratique : relire une clause sur un dossier rouvert plusieurs jours
+    après l'import, le PDF lui-même n'étant jamais conservé (voir le même principe déjà en place
+    pour `renderTab()`/les dates).
+  - **Bulk "Reconfirmer tous les accès"** (`reconfirmerTousLesAcces()`, bandeau `#alerte-acces`
+    au-dessus de la liste du Suivi) : Chrome ne conserve l'autorisation d'accès à un dossier local
+    que le temps de la session et la redemande systématiquement après un redémarrage du navigateur
+    — **limitation du navigateur, pas un bug applicatif** (rien côté `localStorage`/IndexedDB ne
+    permet de la contourner ; le *handle* est bien conservé, seule la *permission* associée ne
+    l'est pas durablement). Sur un portefeuille d'une soixantaine de dossiers actifs, cliquer sur
+    le lien "Cliquer pour reconfirmer l'accès" de chacun un par un était le vrai problème signalé
+    — réglé en regroupant tous les appels `requestPermission()` à la suite dans un seul
+    gestionnaire de clic (Chrome autorise plusieurs appels de ce type tant qu'ils restent proches
+    du geste utilisateur d'origine, contrairement à des API à usage unique comme
+    `requestFullscreen`). Si l'activation expire avant la fin (portefeuille très volumineux), les
+    dossiers restants gardent leur bouton individuel en repli.
+  - **Bug corrigé : des pièces d'urbanisme pourtant présentes dans le dossier local relié
+    n'étaient pas détectées.** `verifierOffrePret()` et `verifierPiecesDossier()` limitaient
+    chaque PDF lu à ses 15 premières pages — insuffisant pour un document réel de plusieurs
+    dizaines de pages (ex. un DDT ou un dossier d'urbanisme scanné en un seul fichier). Le repli
+    OCR (PDF scanné sans texte extractible) ne testait en plus que la 1ère page. Les deux
+    fonctions partagent maintenant `lireTextePdfVerification(pdf)` (nouvelle fonction commune,
+    testable — voir `tests/dossier-local.test.js`) : plafond relevé à 60 pages (aligné sur celui
+    déjà retenu pour le compromis lui-même, `PLAFOND_SECURITE` dans `extraireTextesUtiles`, plutôt
+    qu'un chiffre arbitraire à part), et repli OCR testé sur les 3 premières pages plutôt qu'une
+    seule (même principe que le repli déjà utilisé pour la date de signature du compromis).
 
 ## Comment tester
 
@@ -544,6 +610,24 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
 
 ## Ce qui reste ouvert / pas encore fait
 
+- **Condition suspensive d'obtention de prêt exprimée en délai (jours), sans date calendaire** :
+  signalé par l'étude sur ses propres promesses de vente ("condition suspensive d'obtention de
+  prêt" avec un nombre de jours à compter de la signature, sans date explicite dans la clause). La
+  détection générique de délai relatif existe déjà (`reDelai`/`reJPlus` dans
+  `detecterDatesDepuisTexte`, voir l'historique plus haut — "délai de N jours à compter de la
+  signature/ce jour/l'acte/la présente/le présent compromis/la promesse", ou `J+N`), et
+  `suggererEcheance()` classe "pret" tout contexte contenant prêt/financement/emprunt — mais
+  seulement si ces deux éléments (le compte à rebours ET le mot "prêt") tombent dans la même
+  fenêtre de contexte (`extraireContexte`, qui s'arrête au point le plus proche). Dans une
+  rédaction classique "condition suspensive de l'obtention d'un prêt de tant d'euros. Cette
+  condition devra être réalisée dans un délai de N jours à compter de..." les deux phrases sont
+  séparées par un point : le délai serait détecté mais resterait sans suggestion (chip à classer à
+  la main), ou pire mal classé si un autre mot-clé traîne à proximité. **Pas corrigé faute
+  d'exemple réel de la formulation exacte utilisée par l'étude** — resserrer une regex sur une
+  hypothèse plutôt que sur un vrai texte est exactement le genre de pari qui a déjà produit des
+  bugs silencieux par le passé (voir "Annexe n°1" et la citation de loi de 2022 ci-dessus). Fournir
+  le texte anonymisé d'une clause réelle (montants/dates neutralisés) avant de resserrer/élargir
+  quoi que ce soit ici.
 - Modèles d'email pré-rédigés différenciés selon le type de relance (prêt manquant, pièce à
   fournir, RIB) — discuté mais pas implémenté.
 - Détection d'incohérences de dates (ex. prêt après l'acte).

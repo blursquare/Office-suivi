@@ -543,7 +543,7 @@
       const cle = phrase.slice(0, 70);
       if (!vus.has(cle)) {
         vus.add(cle);
-        engagements.push({ phrase, type });
+        engagements.push({ phrase, type, page: pageDepuisIndex(m.index) });
       }
     }
     return engagements;
@@ -570,11 +570,20 @@
   function renderEngagement(e) {
     const phrase = (typeof e === 'string') ? e : e.phrase;
     const type = (typeof e === 'string') ? null : e.type;
+    const page = (typeof e === 'string') ? null : e.page;
     const libelles = { entretien: 'Entretien', travaux: 'Travaux', document: 'Document' };
     const etiquette = type
       ? `<span class="engagement-type ${type}">${libelles[type] || 'Document'}</span>`
       : '';
-    return `<div class="analyse-engagement-ligne">${etiquette}<span>${escapeHtml(phrase)}</span></div>`;
+    // Le clic pour sauter à la page (même mécanisme que creerChip/renderTab pour les dates) n'est
+    // possible que si le PDF d'origine est encore chargé en mémoire — jamais le cas sur un dossier
+    // déjà enregistré rouvert plus tard (le PDF lui-même n'est pas conservé). Le numéro de page
+    // reste malgré tout indiqué dans ce cas, à titre indicatif : c'est justement le cas d'usage le
+    // plus courant (relire une clause quelques jours après l'import du compromis).
+    const boutonVoir = !page ? '' : pdfActuel
+      ? `<button type="button" class="voir-pdf-btn" onclick="voirDateDansPdf(${page}, '${phrase.replace(/'/g, "\\'").slice(0, 80)}')">👁 p.${page}</button>`
+      : `<span class="chip-page" title="Détecté page ${page} du compromis">p.${page}</span>`;
+    return `<div class="analyse-engagement-ligne">${etiquette}<span>${escapeHtml(phrase)}</span>${boutonVoir}</div>`;
   }
 
   // 'apercu' | 'analyse' — l'onglet actif du panneau ancré à droite du formulaire (voir
@@ -1737,9 +1746,24 @@
     render();
   }
 
+  // Même motif que changerTypeVente/changerRoleNotaire : un dossier peut changer de main en cours
+  // de suivi (absence, réaffectation) sans repasser par la création.
+  function changerResponsable(id, valeur) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d || (d.responsable || '') === valeur) return;
+    ajouterHistorique(d, `Responsable modifié : ${d.responsable || '— à définir —'} → ${valeur || '— à définir —'}`);
+    d.responsable = valeur;
+    sauvegarder();
+    render();
+  }
+
   function calculerProchaineEcheance(d) {
     const autresDates = (d.autres || []).map(a => a.date);
-    const dates = [d.pret, d.acte, d.ventebien, ...autresDates].filter(Boolean).map(joursRestants);
+    // Une fois l'offre de prêt reçue, cette échéance est résolue : elle ne doit plus faire
+    // considérer le dossier comme "urgent" ni ressortir en tête de tri à sa place (voir aussi
+    // prochaineEcheanceDetail, même exclusion pour l'affichage).
+    const datePret = d.offrePretStatut === 'recue' ? null : d.pret;
+    const dates = [datePret, d.acte, d.ventebien, ...autresDates].filter(Boolean).map(joursRestants);
     const upcoming = dates.filter(j => j >= 0);
     return upcoming.length ? Math.min(...upcoming) : (dates.length ? Math.min(...dates) : 999999);
   }
@@ -1884,7 +1908,10 @@
   // type/libellé/date en plus, pas seulement le nombre de jours).
   function prochaineEcheanceDetail(d) {
     const items = [
-      { type: 'pret', label: 'Obtention du prêt', iso: d.pret },
+      // Une offre déjà reçue clôt cette échéance : la garder ici referait apparaître "Obtention du
+      // prêt" comme la prochaine chose à surveiller alors qu'il n'y a plus rien à y suivre — on
+      // passe directement à la suivante (acte, vente préalable...), voir calculerProchaineEcheance.
+      ...(d.offrePretStatut === 'recue' ? [] : [{ type: 'pret', label: 'Obtention du prêt', iso: d.pret }]),
       { type: 'acte', label: "Signature de l'acte", iso: d.acte },
       { type: 'ventebien', label: 'Vente préalable', iso: d.ventebien },
       ...(d.autres || []).map(a => ({ type: 'autre', label: a.label, iso: a.date }))
@@ -1941,8 +1968,44 @@
     // Même périmètre que la tuile "offres à vérifier" du bandeau de stats (renderStatsSuivi) :
     // un prêt actif dont l'offre n'a jamais été confirmée, qu'un dossier local soit relié ou non.
     const offreInconnue = !d.sansPret && (d.offrePretStatut || 'inconnu') === 'inconnu';
-    if (incertain || offreInconnue) return 'aconfirmer';
+    // Règle demandée par l'étude (jusque-là volontairement non branchée, voir CLAUDE.md) : un
+    // dossier ne passe "prêt" que si la checklist de pièces (urbanisme...) est complète — sinon
+    // l'offre de prêt seule masquait des pièces manquantes. Uniquement une fois le dossier relié
+    // (une pièce jamais vérifiée faute de lien n'est pas un signe de blocage en soi, voir
+    // offreInconnue ci-dessus pour le même principe côté offre de prêt) et hors rôle participant
+    // (la checklist ne le concerne pas, voir renderPiecesDossier).
+    const piecesIncompletes = d.dossierLie && d.roleNotaire !== 'participant' &&
+      checklistPieces(d.typeVente).some(p => (d.pieces || {})[p.cle] !== 'recue');
+    if (incertain || offreInconnue || piecesIncompletes) return 'aconfirmer';
     return 'pret';
+  }
+
+  // Chrome ne conserve l'autorisation d'accès à un dossier local que le temps de la session : elle
+  // est systématiquement redemandée après un redémarrage du navigateur, dossier par dossier (voir
+  // CLAUDE.md — limitation du navigateur, pas un bug applicatif). Sur un portefeuille d'une
+  // soixantaine de dossiers actifs, cliquer sur chacun est fastidieux : ce bandeau permet de tous
+  // les reconfirmer en un seul clic plutôt qu'un par dossier.
+  function renderAlerteAcces(dossiersActifs) {
+    const bloc = document.getElementById('alerte-acces');
+    if (!bloc) return;
+    const nb = dossiersActifs.filter(d => d.accesAReconfirmer).length;
+    if (nb === 0) { bloc.style.display = 'none'; return; }
+    bloc.style.display = 'flex';
+    bloc.innerHTML = `
+      <span>🔑 L'accès à ${nb} dossier${nb > 1 ? 's' : ''} local${nb > 1 ? 'aux' : ''} relié${nb > 1 ? 's' : ''} doit être reconfirmé (redemandé par le navigateur à chaque redémarrage).</span>
+      <button type="button" class="toolbar-btn" onclick="reconfirmerTousLesAcces()">Reconfirmer tous les accès</button>
+    `;
+  }
+
+  // Un seul clic déclenche une demande de permission par dossier concerné, à la suite : Chrome
+  // autorise plusieurs appels de ce type tant qu'ils restent proches du geste utilisateur d'origine
+  // (contrairement à des API à usage unique comme requestFullscreen). Si l'activation expire avant
+  // la fin (portefeuille très volumineux), les dossiers restants gardent leur bouton individuel.
+  async function reconfirmerTousLesAcces() {
+    for (const d of dossiers.filter(x => x.accesAReconfirmer)) {
+      await verifierOffrePret(d.id, true);
+      await verifierPiecesDossier(d.id, true);
+    }
   }
 
   function renderBadgeStatut(d) {
@@ -1964,6 +2027,7 @@
     const dossiersActifs = dossiers.filter(d => !d.archive);
     renderDashboard(dossiersActifs);
     renderStatsSuivi(dossiersActifs);
+    renderAlerteAcces(dossiersActifs);
 
     const dossiersVisibles = voirArchives ? dossiers : dossiersActifs;
 
@@ -2161,8 +2225,15 @@
             ${renderBadgeStatut(d)}
             ${d.roleNotaire === 'participant' ? '<span class="badge-role" title="Notaire participant / concourant : suivi limité au prêt et aux engagements du vendeur">🤝 Participant</span>' : ''}
             ${d.email ? `<div class="addr">${escapeHtml(d.email)}</div>` : ''}
-            ${d.responsable ? `<div class="addr">Responsable : ${escapeHtml(d.responsable)}</div>` : ''}
             <div class="addr dossier-classification">
+              Responsable :
+              <select class="select-edit" onchange="changerResponsable('${d.id}', this.value)" aria-label="Responsable du dossier">
+                <option value="" ${d.responsable ? '' : 'selected'}>— À définir —</option>
+                <option ${d.responsable === 'Bastien ANGLUMENT' ? 'selected' : ''}>Bastien ANGLUMENT</option>
+                <option ${d.responsable === 'Julie VASSELIN' ? 'selected' : ''}>Julie VASSELIN</option>
+                <option ${d.responsable === 'Jérémy SAUJOT' ? 'selected' : ''}>Jérémy SAUJOT</option>
+              </select>
+              ·
               Type de vente :
               <select class="select-edit" onchange="changerTypeVente('${d.id}', this.value)" aria-label="Type de vente">
                 <option value="maison" ${d.typeVente === 'copropriete' ? '' : 'selected'}>Maison</option>
@@ -2175,14 +2246,16 @@
               </select>
             </div>
             ${d.sansPret ? '<span class="badge-cash">💰 Achat comptant — sans prêt</span>' : ''}
-            ${!d.sansPret ? `<div class="offre-pret-ligne">
-              ${d.dossierLie ? `<span class="badge-offre ${libelleOffre(d.offrePretStatut).cls}">${libelleOffre(d.offrePretStatut).texte}</span>` : ''}
+            <div class="offre-pret-ligne">
+              ${(!d.sansPret && d.dossierLie) ? `<span class="badge-offre ${libelleOffre(d.offrePretStatut).cls}">${libelleOffre(d.offrePretStatut).texte}</span>` : ''}
               ${DOSSIER_FS_SUPPORTE ? (d.dossierLie
-                  ? `<button type="button" class="lien-dossier-local" onclick="verifierOffrePret('${d.id}', true)">Revérifier</button>
+                  ? `${!d.sansPret ? `<button type="button" class="lien-dossier-local" onclick="verifierOffrePret('${d.id}', true)">Revérifier</button>` : ''}
                      <button type="button" class="lien-dossier-local" onclick="changerDossierLocal('${d.id}')">Changer de dossier</button>`
+                  // Même sans prêt (achat comptant), le dossier local reste nécessaire pour suivre
+                  // la checklist de pièces (urbanisme...) — voir renderPiecesDossier ci-dessous.
                   : `<button type="button" class="lien-dossier-local" onclick="lierDossierLocal('${d.id}')">🔗 Lier un dossier local</button>`) : ''}
               ${d.accesAReconfirmer ? `<span class="reconfirmer-acces" onclick="reconfirmerAcces('${d.id}')">Cliquer pour reconfirmer l'accès</span>` : ''}
-            </div>` : ''}
+            </div>
           </div>
           <div>
             <button class="icon-btn" onclick="archiverDossier('${d.id}', ${!d.archive})">${d.archive ? 'Désarchiver' : 'Archiver'}</button>
@@ -3012,6 +3085,46 @@
     await lierDossierLocal(id);
   }
 
+  // Plafond appliqué à chaque PDF individuel lors du parcours d'un dossier local relié (offre de
+  // prêt, pièces) : identique à celui déjà retenu pour le compromis lui-même (PLAFOND_SECURITE dans
+  // extraireTextesUtiles) plutôt qu'un chiffre arbitraire à part. Les 15 pages retenues jusqu'ici
+  // ne couvraient pas certains documents réels (ex. un DDT ou un dossier d'urbanisme scanné en un
+  // seul PDF de plusieurs dizaines de pages) — signalé par l'étude, pièces bien présentes non
+  // détectées.
+  const PLAFOND_PAGES_VERIFICATION = 60;
+  // Repli OCR sur plusieurs pages (pas seulement la première) quand un PDF scanné n'a aucun texte
+  // extractible : un document scanné place parfois son intitulé après une page de garde. Même
+  // principe que le repli déjà utilisé pour la date de signature du compromis (traiterFichierPdf),
+  // borné pour ne pas ralentir le parcours de tout un dossier local.
+  const PAGES_OCR_VERIFICATION = 3;
+
+  // Texte utile d'un PDF du dossier local relié, avec repli OCR s'il n'a aucun texte extractible
+  // (scan/image) : partagé par verifierOffrePret() et verifierPiecesDossier(), qui n'ont plus qu'à
+  // tester leur(s) propre(s) motif(s) contre le texte renvoyé.
+  async function lireTextePdfVerification(pdf) {
+    let texte = '';
+    for (let p = 1; p <= Math.min(pdf.numPages, PLAFOND_PAGES_VERIFICATION); p++) {
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent();
+      texte += content.items.map(it => it.str).join(' ') + '\n';
+    }
+    if (texte.trim().length < 40) {
+      const workerVerif = await creerWorkerOcr();
+      if (workerVerif) {
+        try {
+          let texteOcr = '';
+          for (let p = 1; p <= Math.min(pdf.numPages, PAGES_OCR_VERIFICATION); p++) {
+            texteOcr += (await ocrPage(pdf, p, workerVerif)) + '\n';
+          }
+          texte = texteOcr;
+        } finally {
+          await workerVerif.terminate();
+        }
+      }
+    }
+    return texte;
+  }
+
   async function verifierOffrePret(id, viaClicUtilisateur) {
     const d = dossiers.find(x => x.id === id);
     if (!d || !d.dossierLie) return;
@@ -3044,28 +3157,8 @@
           const file = await entree.getFile();
           const buffer = await file.arrayBuffer();
           const pdf = await pdfjsLib.getDocument({ data: buffer, verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise;
-          let texte = '';
-          for (let p = 1; p <= Math.min(pdf.numPages, 15); p++) {
-            const page = await pdf.getPage(p);
-            const content = await page.getTextContent();
-            texte += content.items.map(it => it.str).join(' ') + '\n';
-          }
-          let correspond = OFFRE_PRET_RE.test(texte);
-          // Un PDF scanné (offre reçue par fax, scan ou export image) ne contient aucun texte
-          // extractible — on tente alors l'OCR sur sa première page plutôt que de conclure trop
-          // vite à une absence d'offre (même logique que pour la date de signature du compromis,
-          // voir traiterFichierPdf()).
-          if (!correspond && texte.trim().length < 40) {
-            const workerVerif = await creerWorkerOcr();
-            if (workerVerif) {
-              try {
-                const texteOcr = await ocrPage(pdf, 1, workerVerif);
-                correspond = OFFRE_PRET_RE.test(texteOcr);
-              } finally {
-                await workerVerif.terminate();
-              }
-            }
-          }
+          const texte = await lireTextePdfVerification(pdf);
+          const correspond = OFFRE_PRET_RE.test(texte);
           // Trace de diagnostic (jamais affichée à l'écran) : un extrait du texte lu par pdf.js
           // pour chaque PDF, utile en cas de désaccord entre "le mot y est bien" et "non détecté"
           // (ex. police embarquée mal encodée qui produit un texte extrait illisible malgré un
@@ -3153,18 +3246,7 @@
           const file = await entree.getFile();
           const buffer = await file.arrayBuffer();
           const pdf = await pdfjsLib.getDocument({ data: buffer, verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise;
-          let texte = '';
-          for (let p = 1; p <= Math.min(pdf.numPages, 15); p++) {
-            const page = await pdf.getPage(p);
-            const content = await page.getTextContent();
-            texte += content.items.map(it => it.str).join(' ') + '\n';
-          }
-          if (texte.trim().length < 40) {
-            const workerVerif = await creerWorkerOcr();
-            if (workerVerif) {
-              try { texte = await ocrPage(pdf, 1, workerVerif); } finally { await workerVerif.terminate(); }
-            }
-          }
+          const texte = await lireTextePdfVerification(pdf);
           for (const piece of checklist) {
             if (!aChercher.has(piece.cle)) continue;
             if (piece.motif.test(texte)) {

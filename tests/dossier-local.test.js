@@ -20,6 +20,17 @@ function creerFichierFictif(nom) {
   return { kind: 'file', name: nom };
 }
 
+// Simule un document pdf.js minimal : seules .numPages et .getPage(n).getTextContent() sont
+// utilisées par lireTextePdfVerification().
+function creerPdfFictif(numPages, texteParPage) {
+  return {
+    numPages,
+    async getPage(p) {
+      return { async getTextContent() { return { items: [{ str: texteParPage(p) }] }; } };
+    }
+  };
+}
+
 async function collecter(generateur) {
   const noms = [];
   for await (const entree of generateur) noms.push(entree.name);
@@ -139,4 +150,28 @@ test('normaliserDossierImporte valide roleNotaire et repart sur "instrumentaire"
   assert.equal(sansRole.roleNotaire, 'instrumentaire');
   const roleInvalide = app.normaliserDossierImporte({ nom: 'Test', roleNotaire: 'autre chose' }, 'test.json');
   assert.equal(roleInvalide.roleNotaire, 'instrumentaire');
+});
+
+test('lireTextePdfVerification concatène le texte de toutes les pages d\'un PDF', async () => {
+  const app = chargerApplication();
+  const pdf = creerPdfFictif(3, p => `page${p}`);
+  const texte = await app.lireTextePdfVerification(pdf);
+  assert.ok(texte.includes('page1'));
+  assert.ok(texte.includes('page2'));
+  assert.ok(texte.includes('page3'));
+});
+
+test('lireTextePdfVerification lit bien au-delà de l\'ancien plafond de 15 pages (régression : pièces d\'urbanisme non détectées dans un PDF plus long, voir CLAUDE.md), jusqu\'à un plafond de sécurité de 60', async () => {
+  const app = chargerApplication();
+  const pdf = creerPdfFictif(70, p => `page${p}`);
+  const texte = await app.lireTextePdfVerification(pdf);
+  assert.ok(texte.includes('page60'), 'les 60 premières pages doivent être lues');
+  assert.equal(texte.includes('page61'), false, 'un plafond de sécurité doit rester appliqué');
+});
+
+test('lireTextePdfVerification ne plante pas sur un PDF sans texte extractible quand l\'OCR est indisponible', async () => {
+  const app = chargerApplication();
+  const pdf = creerPdfFictif(2, () => '');
+  const texte = await app.lireTextePdfVerification(pdf);
+  assert.equal(texte.trim(), '');
 });

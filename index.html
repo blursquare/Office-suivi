@@ -75,9 +75,6 @@
           </div>
 
           <div id="cash-note" class="cash-note" style="display:none;"></div>
-
-          <p class="hint">Diagnostics et dates passées sont écartés automatiquement. Cliquez sur une catégorie pour corriger un classement.</p>
-          <div class="chips" id="chips"></div>
         </div>
 
         <div class="wizard-nav">
@@ -87,6 +84,12 @@
       </div>
 
       <div class="wizard-step" id="wizard-step-2">
+        <!-- Déplacées ici depuis l'étape "Importer" (juste au-dessus des dates retenues, pas dans
+             l'étape précédente) pour permettre de comparer chaque date auto-détectée du compromis
+             aux dates butoir finalement sélectionnées, sans changer d'étape. -->
+        <p class="hint">Diagnostics et dates passées sont écartés automatiquement. Cliquez sur une catégorie pour corriger un classement.</p>
+        <div class="chips" id="chips"></div>
+
         <fieldset>
           <legend>Dates butoir</legend>
 
@@ -245,6 +248,8 @@
 <div class="wrap-suivi" id="onglet-suivi" style="display:none;">
 
   <div class="stats-suivi" id="stats-suivi"></div>
+
+  <div id="alerte-acces" class="alerte-acces" style="display:none;"></div>
 
   <div id="dashboard" class="dashboard" style="display:none;">
     <div class="dashboard-titre">📅 Échéances des 7 prochains jours</div>
