@@ -2156,27 +2156,68 @@
   // CLAUDE.md — limitation du navigateur, pas un bug applicatif). Sur un portefeuille d'une
   // soixantaine de dossiers actifs, cliquer sur chacun est fastidieux : ce bandeau permet de tous
   // les reconfirmer en un seul clic plutôt qu'un par dossier.
+  // Message du bandeau (et de la popup de démarrage, voir plus bas) : décrit ce qu'il y a à
+  // reconfirmer, dossiers locaux et/ou registre partagé, sans jamais désigner l'un si seul l'autre
+  // est concerné.
+  function messageAccesAReconfirmer(nbDossiers, partageAConfirmer) {
+    const morceaux = [];
+    if (nbDossiers > 0) morceaux.push(`${nbDossiers} dossier${nbDossiers > 1 ? 's' : ''} local${nbDossiers > 1 ? 'aux' : ''} relié${nbDossiers > 1 ? 's' : ''}`);
+    if (partageAConfirmer) morceaux.push('le registre partagé');
+    return `🔑 L'accès à ${morceaux.join(' et à ')} doit être reconfirmé (redemandé par le navigateur à chaque redémarrage).`;
+  }
+
   function renderAlerteAcces(dossiersActifs) {
     const bloc = document.getElementById('alerte-acces');
     if (!bloc) return;
     const nb = dossiersActifs.filter(d => d.accesAReconfirmer).length;
-    if (nb === 0) { bloc.style.display = 'none'; return; }
+    const partageAConfirmer = registrePartageLie && registrePartageAccesAReconfirmer;
+    if (nb === 0 && !partageAConfirmer) { bloc.style.display = 'none'; return; }
     bloc.style.display = 'flex';
     bloc.innerHTML = `
-      <span>🔑 L'accès à ${nb} dossier${nb > 1 ? 's' : ''} local${nb > 1 ? 'aux' : ''} relié${nb > 1 ? 's' : ''} doit être reconfirmé (redemandé par le navigateur à chaque redémarrage).</span>
+      <span>${messageAccesAReconfirmer(nb, partageAConfirmer)}</span>
       <button type="button" class="toolbar-btn" onclick="reconfirmerTousLesAcces()">Reconfirmer tous les accès</button>
     `;
   }
 
-  // Un seul clic déclenche une demande de permission par dossier concerné, à la suite : Chrome
-  // autorise plusieurs appels de ce type tant qu'ils restent proches du geste utilisateur d'origine
-  // (contrairement à des API à usage unique comme requestFullscreen). Si l'activation expire avant
-  // la fin (portefeuille très volumineux), les dossiers restants gardent leur bouton individuel.
+  // Un seul clic déclenche une demande de permission par dossier concerné (et, le cas échéant, par
+  // le registre partagé), à la suite : Chrome autorise plusieurs appels de ce type tant qu'ils
+  // restent proches du geste utilisateur d'origine (contrairement à des API à usage unique comme
+  // requestFullscreen). Si l'activation expire avant la fin (portefeuille très volumineux), les
+  // dossiers restants gardent leur bouton individuel.
   async function reconfirmerTousLesAcces() {
     for (const d of dossiers.filter(x => x.accesAReconfirmer)) {
       await verifierOffrePret(d.id, true);
       await verifierPiecesDossier(d.id, true);
     }
+    if (registrePartageLie && registrePartageAccesAReconfirmer) {
+      await lireRegistrePartage(true);
+      majStatutPartage();
+    }
+    render();
+  }
+
+  // Popup de démarrage : appelée une fois que charger()/revérifierDossiersLiesAuDemarrage()/
+  // tenterReconnexionPartage() ont fini (voir tout en bas du fichier), donc une fois qu'on sait
+  // réellement si un accès a été perdu — pas de popup "au hasard" si tout est encore valide.
+  function afficherPopupAccesSiNecessaire() {
+    const nb = dossiers.filter(d => !d.archive && d.accesAReconfirmer).length;
+    const partageAConfirmer = registrePartageLie && registrePartageAccesAReconfirmer;
+    if (nb === 0 && !partageAConfirmer) return;
+    const el = document.getElementById('popup-acces-message');
+    const overlay = document.getElementById('popup-acces-overlay');
+    if (!el || !overlay) return;
+    el.textContent = messageAccesAReconfirmer(nb, partageAConfirmer);
+    overlay.style.display = 'flex';
+  }
+
+  function fermerPopupAcces() {
+    const overlay = document.getElementById('popup-acces-overlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+
+  async function reconfirmerDepuisPopup() {
+    fermerPopupAcces();
+    await reconfirmerTousLesAcces();
   }
 
   function renderBadgeStatut(d) {
@@ -2284,7 +2325,7 @@
     const deplie = dossiersDeplies.has(d.id);
     return `
       <tr class="ligne-resume${d.archive ? ' est-archive' : ''}" onclick="toggleLigneDossier('${d.id}')">
-        <td><div class="dossier-nom-tableau">${escapeHtml(d.nom)}${renderBadgeStatut(d)}${prioritaire ? '<span class="badge-prioritaire" title="Échéance proche, offre de prêt manquante et/ou accès local à reconfirmer">🔥 Prioritaire</span>' : ''}</div></td>
+        <td><div class="dossier-nom-tableau">${renderBadgeStatut(d)}${escapeHtml(d.nom)}${prioritaire ? '<span class="badge-prioritaire" title="Échéance proche, offre de prêt manquante et/ou accès local à reconfirmer">🔥 Prioritaire</span>' : ''}</div></td>
         <td class="dossier-responsable-tableau">${escapeHtml(d.responsable || '—')}</td>
         <td>
           ${prochaine
@@ -2318,7 +2359,7 @@
     return `
       <div class="mini-carte${d.archive ? ' est-archive' : ''}${deplie ? ' ouverte' : ''}" id="mini-${d.id}">
         <div class="mini-carte-resume" onclick="toggleCarteCompacte('${d.id}')">
-          <div class="mini-carte-nom">${escapeHtml(d.nom)}${renderBadgeStatut(d)}${prioritaire ? '<span class="badge-prioritaire" title="Échéance proche, offre de prêt manquante et/ou accès local à reconfirmer">🔥 Prioritaire</span>' : ''}</div>
+          <div class="mini-carte-nom">${renderBadgeStatut(d)}${escapeHtml(d.nom)}${prioritaire ? '<span class="badge-prioritaire" title="Échéance proche, offre de prêt manquante et/ou accès local à reconfirmer">🔥 Prioritaire</span>' : ''}</div>
           <div class="mini-carte-responsable">${escapeHtml(d.responsable || '—')}</div>
           <div class="mini-carte-echeance">
             ${prochaine
@@ -2381,12 +2422,18 @@
       const historique = d.historique || [];
       const analyse = d.analyseJuridique || { documents: [], engagements: [], conditions: [] };
       const analyseConditions = analyse.conditions || [];
+      const boutonsDossierLocal = DOSSIER_FS_SUPPORTE ? (d.dossierLie
+          ? `<button type="button" class="lien-dossier-local" onclick="changerDossierLocal('${d.id}')">Changer de dossier</button>`
+          // Même sans prêt (achat comptant), le dossier local reste nécessaire pour suivre
+          // la checklist de pièces (urbanisme...) — voir renderPiecesDossier ci-dessous.
+          : `<button type="button" class="lien-dossier-local" onclick="lierDossierLocal('${d.id}')">🔗 Lier un dossier local</button>`) : '';
       return `
       <div class="dossier${d.archive ? ' est-archive' : ''}">
         <div class="dossier-head">
-          <div>
+          <div class="dossier-head-principale">
             <div class="nom-dossier">
               <span class="nom-affichage" id="nom-affichage-${d.id}">
+                ${renderBadgeStatut(d)}
                 <span class="nom-texte">${escapeHtml(d.nom)}</span>
                 <button type="button" class="icon-crayon" onclick="activerEditionNom('${d.id}')" title="Modifier le nom" aria-label="Modifier le nom">✏️</button>
               </span>
@@ -2394,10 +2441,9 @@
                 <input type="text" class="dossier-nom-input" id="nom-input-${d.id}" value="${escapeAttr(d.nom)}" aria-label="Nom du dossier" onkeydown="if(event.key==='Enter'){event.preventDefault();validerEditionNom('${d.id}');}else if(event.key==='Escape'){annulerEditionNom('${d.id}');}">
                 <button type="button" class="icon-valider" onclick="validerEditionNom('${d.id}')" title="Valider" aria-label="Valider le nom">✓</button>
               </span>
+              ${boutonsDossierLocal}
             </div>
-            ${renderBadgeStatut(d)}
             ${d.roleNotaire === 'participant' ? '<span class="badge-role" title="Notaire participant / concourant : suivi limité au prêt et aux engagements du vendeur">🤝 Participant</span>' : ''}
-            ${d.email ? `<div class="addr">${escapeHtml(d.email)}</div>` : ''}
             <div class="addr dossier-classification">
               Responsable :
               <select class="select-edit" onchange="changerResponsable('${d.id}', this.value)" aria-label="Responsable du dossier">
@@ -2412,7 +2458,7 @@
                 <option value="maison" ${d.typeVente === 'copropriete' ? '' : 'selected'}>Maison</option>
                 <option value="copropriete" ${d.typeVente === 'copropriete' ? 'selected' : ''}>Copropriété</option>
               </select>
-              · Rôle :
+              · Rôle du notaire :
               <select class="select-edit" onchange="changerRoleNotaire('${d.id}', this.value)" aria-label="Rôle de l'étude sur ce dossier">
                 <option value="instrumentaire" ${d.roleNotaire === 'participant' ? '' : 'selected'}>Instrumentaire</option>
                 <option value="participant" ${d.roleNotaire === 'participant' ? 'selected' : ''}>Participant</option>
@@ -2420,31 +2466,23 @@
             </div>
             ${d.sansPret ? '<span class="badge-cash">💰 Achat comptant — sans prêt</span>' : ''}
             <div class="offre-pret-ligne">
-              ${(!d.sansPret && d.dossierLie) ? `<span class="badge-offre ${libelleOffre(d.offrePretStatut).cls}">${libelleOffre(d.offrePretStatut).texte}</span>` : ''}
-              ${DOSSIER_FS_SUPPORTE ? (d.dossierLie
-                  ? `${!d.sansPret ? `<button type="button" class="lien-dossier-local" onclick="verifierOffrePret('${d.id}', true)">Revérifier</button>` : ''}
-                     <button type="button" class="lien-dossier-local" onclick="changerDossierLocal('${d.id}')">Changer de dossier</button>`
-                  // Même sans prêt (achat comptant), le dossier local reste nécessaire pour suivre
-                  // la checklist de pièces (urbanisme...) — voir renderPiecesDossier ci-dessous.
-                  : `<button type="button" class="lien-dossier-local" onclick="lierDossierLocal('${d.id}')">🔗 Lier un dossier local</button>`) : ''}
+              ${(!d.sansPret && d.dossierLie) ? `<span class="badge-offre ${libelleOffre(d.offrePretStatut).cls}">${libelleOffre(d.offrePretStatut).texte}</span>
+                 <button type="button" class="lien-dossier-local" onclick="verifierOffrePret('${d.id}', true)">Revérifier</button>` : ''}
               ${d.accesAReconfirmer ? `<span class="reconfirmer-acces" onclick="reconfirmerAcces('${d.id}')">Cliquer pour reconfirmer l'accès</span>` : ''}
             </div>
           </div>
-          <div>
+          <div class="dossier-head-actions">
             <button class="icon-btn" onclick="archiverDossier('${d.id}', ${!d.archive})">${d.archive ? 'Désarchiver' : 'Archiver'}</button>
             <button class="icon-btn" onclick="supprimerDossier('${d.id}')">Supprimer</button>
           </div>
         </div>
+        <div class="dossier-body">
+        <div class="dossier-col-principale">
         <div class="tabs">
           ${renderTab('pret', 'Obtention du prêt', d.pret, d.id, d.pretPage, confiance.pret)}
           ${renderTab('acte', 'Signature de l\u2019acte', d.acte, d.id, d.actePage, confiance.acte)}
           ${d.ventebien ? renderTab('ventebien', 'Vente préalable', d.ventebien, d.id, d.ventebienPage, confiance.ventebien) : ''}
           ${(d.autres || []).map((a, i) => renderTab('autre', escapeHtml(a.label), a.date, d.id, a.page, null, i)).join('')}
-        </div>
-        <div class="dossier-actions">
-          <button onclick="telechargerICS('${d.id}')">Télécharger les rappels (.ics)</button>
-          <button onclick="ouvrirEmailRappel('${d.id}')">Envoyer un rappel par email</button>
-          <button onclick="imprimerFiche('${d.id}')">📄 Télécharger la fiche dossier</button>
         </div>
         ${d.roleNotaire !== 'participant' ? renderPiecesDossier(d) : ''}
         ${(analyse.documents.length > 0 || analyse.engagements.length > 0 || analyseConditions.length > 0) ? `
@@ -2472,12 +2510,21 @@
             </div>
           </details>
         ` : ''}
+        </div>
+        <div class="dossier-col-laterale">
         ${historique.length > 0 ? `
           <button type="button" class="historique-toggle" onclick="toggleHistorique('${d.id}')">Historique (${historique.length})</button>
           <div class="historique-liste" id="historique-${d.id}">
             ${historique.slice().reverse().map(h => `<div class="historique-ligne"><span class="h-date">${new Date(h.date).toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })}</span>${escapeHtml(h.texte)}</div>`).join('')}
           </div>
         ` : ''}
+        <div class="dossier-actions">
+          <button onclick="telechargerICS('${d.id}')">Télécharger les rappels (.ics)</button>
+          <button onclick="ouvrirEmailRappel('${d.id}')">Envoyer un rappel par email</button>
+          <button onclick="imprimerFiche('${d.id}')">📄 Télécharger la fiche dossier</button>
+        </div>
+        </div>
+      </div>
       </div>
     `;
   }
@@ -3522,6 +3569,11 @@
   const FICHIER_FS_SUPPORTE = typeof window.showSaveFilePicker === 'function';
   let registrePartageLie = false;
   let dernierContenuPartageEcrit = null; // null = "aucune référence encore connue dans cette session"
+  // Même limite que l'accès à un dossier local (voir accesAReconfirmer) : la permission au fichier
+  // partagé n'est pas conservée d'une session à l'autre. Mis à jour à chaque vérification
+  // (silencieuse ou via clic) dans obtenirHandlePartage(), pour que "Reconfirmer tous les accès"
+  // et la popup de démarrage puissent aussi couvrir ce cas, pas seulement les dossiers locaux.
+  let registrePartageAccesAReconfirmer = false;
 
   function majStatutPartage() {
     const el = document.getElementById('statut-partage');
@@ -3577,6 +3629,7 @@
     if (permission !== 'granted' && viaClicUtilisateur) {
       permission = await handle.requestPermission({ mode: 'readwrite' });
     }
+    registrePartageAccesAReconfirmer = permission !== 'granted';
     return permission === 'granted' ? handle : null;
   }
 
@@ -3752,7 +3805,11 @@
 
   chargerTheme();
   chargerApprentissage();
-  charger().then(() => { revérifierDossiersLiesAuDemarrage(); tenterReconnexionPartage(); });
+  charger().then(async () => {
+    await revérifierDossiersLiesAuDemarrage();
+    await tenterReconnexionPartage();
+    afficherPopupAccesSiNecessaire();
+  });
   renderChips();
   // L'analyse juridique est une étape du wizard toujours visible (voir definirEtapeWizard) : sans
   // cet appel initial, ses sections restaient affichées vides (ni contenu ni message d'état) tant

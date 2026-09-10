@@ -410,6 +410,20 @@
   </div>
 </div>
 
+<!-- Popup affichée au démarrage quand un accès (dossier local ou registre partagé) doit être
+     reconfirmé — évite de compter sur le collaborateur pour remarquer le bandeau #alerte-acces,
+     visible seulement dans l'onglet "Suivi des dossiers". Reconfirmer y déclenche une vraie
+     demande de permission navigateur, ce qui exige ce clic explicite (voir reconfirmerTousLesAcces). -->
+<div class="confirm-overlay" id="popup-acces-overlay" style="display:none;">
+  <div class="confirm-box">
+    <p id="popup-acces-message">🔑 L'accès à des dossiers reliés doit être reconfirmé.</p>
+    <div class="confirm-actions">
+      <button type="button" class="btn-annuler" onclick="fermerPopupAcces()">Plus tard</button>
+      <button type="button" class="btn-confirmer" onclick="reconfirmerDepuisPopup()">Reconfirmer maintenant</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <!-- Tesseract.js : version flottante @5 (et non un numéro de patch figé comme pour pdf.js
      ci-dessus) car cette mise à jour depuis la v1.0.17 n'a pas pu être testée en conditions

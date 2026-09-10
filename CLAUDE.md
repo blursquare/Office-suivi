@@ -720,6 +720,65 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     la section "Documents et pièces identifiés" n'avait pas d'`id` propre et restait affichée vide
     même sans analyse (ajout de `id="analyse-section-documents"`, géré comme les deux autres
     sections dans les deux branches de `afficherAnalyseJuridique()`).
+- **Réorganisation de la fiche dossier (onglet Suivi)**, sur retour détaillé de l'étude (ordre des
+  informations, actions mal placées, email de l'office affiché sans besoin) :
+  - **Badge de statut avant le nom** (au lieu d'après, sur sa propre ligne) : `renderBadgeStatut(d)`
+    déplacé à l'intérieur du `<span class="nom-affichage">`, avant `.nom-texte`, dans les trois
+    endroits qui affichent un nom de dossier (`renderCarteDossier`, `renderCarteCompacte`,
+    `renderLigneTableau`) — cohérence entre résumé et fiche dépliée. `.badge-statut` passe de
+    `margin-left` à `margin-right` en conséquence (seul usage de cette règle dans tout l'outil).
+  - **"Lier un dossier local" / "Changer de dossier" à côté du nom**, plutôt que plus bas dans
+    `.offre-pret-ligne` : nouvelle variable `boutonsDossierLocal` calculée une fois en tête de
+    `renderCarteDossier()`, insérée juste après le `<span class="nom-edition">`. `.offre-pret-ligne`
+    ne garde que ce qui concerne spécifiquement l'offre de prêt (badge + "Revérifier") et le lien
+    "reconfirmer l'accès" — cohérent avec son nom.
+  - **Email de rappel de l'office retiré de l'affichage carte/tableau** (`d.email`, le champ
+    "Email de rappel" du formulaire — pas l'email de l'acquéreur) : simple métadonnée technique
+    utilisée comme adresse `to:` par `ouvrirEmailRappel()`, sans intérêt à afficher sur chaque
+    fiche/carte/ligne de tableau. La donnée reste stockée et utilisée, seul son affichage disparaît.
+  - **Responsable / Type de vente / Rôle du notaire sur une seule ligne** : déjà groupés dans un
+    même `<div class="dossier-classification">`, mais chaque `<select class="select-edit">`
+    héritait malgré tout de `width: 100%` depuis la règle générique `select { width: 100% }`
+    (ajoutée pour les champs du formulaire, voir plus haut) — cette dernière ne fixe cette propriété
+    nulle part que `.select-edit` puisse écraser, donc chaque champ prenait toute la largeur
+    disponible et retombait à la ligne. Corrigé en réinitialisant explicitement `width: auto` (et
+    `max-width`/`min-width`/`display`) dans `.select-edit`. Au passage, le libellé "Rôle" devient
+    "Rôle du notaire" (demandé explicitement, pour éviter toute ambiguïté avec un futur "rôle" côté
+    acquéreur/vendeur).
+  - **Fiche dépliée en deux colonnes** (`div.dossier-body`, grid CSS `2fr / minmax(220px,1fr)`,
+    empilée en une colonne sous 720px) : colonne principale = échéances (`.tabs`), pièces du
+    dossier, analyse juridique ; colonne latérale = historique puis, dessous, les trois boutons
+    d'action (`Télécharger les rappels`, `Envoyer un rappel par email`, `Télécharger la fiche`),
+    déplacés depuis leur ancienne position juste sous les échéances. Reprend la demande "passer les
+    cartes dossier ouverte en deux colonnes" en profitant de la largeur disponible (les fiches ne
+    sont plus contraintes à `.wrap` 680px depuis l'introduction de l'onglet Suivi pleine largeur,
+    voir plus haut). Les surcharges existantes pour le détail compact (`.ligne-detail .dossier`,
+    `.mini-carte.ouverte .mini-carte-detail .dossier`) n'ont pas eu besoin d'être retouchées : elles
+    ciblent des classes internes inchangées (`.tabs`, `.dossier-actions`...), pas la structure des
+    colonnes elle-même. Impression (`window.print()`, pas `imprimerFiche()`) repassée en un seul
+    bloc via `.dossier-body { display: block }` dans `@media print` — une mise en page à deux
+    colonnes n'a pas de sens sur une feuille A4 imprimée dossier par dossier.
+- **Registre partagé pris en compte par "Reconfirmer tous les accès" et popup au démarrage**,
+  signalé par l'étude : le bouton groupé (voir plus haut, introduit pour éviter 60 clics
+  individuels) ne couvrait que les dossiers locaux reliés, jamais le fichier réseau partagé — si sa
+  permission expirait, rien ne le signalait ni ne permettait de la reconfirmer autrement qu'en
+  rouvrant manuellement le sélecteur de fichier.
+  - `obtenirHandlePartage()` alimente maintenant `registrePartageAccesAReconfirmer` (nouvel état,
+    même rôle que `d.accesAReconfirmer` par dossier) à chaque vérification de permission, qu'elle
+    soit silencieuse (relecture périodique, reconnexion au démarrage) ou déclenchée par un clic.
+    `renderAlerteAcces()` et `reconfirmerTousLesAcces()` l'incluent désormais aux côtés des
+    dossiers locaux (message commun factorisé dans `messageAccesAReconfirmer()`, qui ne mentionne
+    que ce qui est réellement concerné — dossiers seuls, registre seul, ou les deux).
+  - **Popup au démarrage** (`#popup-acces-overlay`, même structure que `#confirm-overlay` — voir
+    `demanderConfirmation()`) plutôt que de compter sur le collaborateur pour remarquer le bandeau
+    `#alerte-acces`, qui n'existe que dans l'onglet "Suivi des dossiers" : si l'outil s'ouvre sur le
+    tableau de bord (onglet par défaut), un accès perdu pouvait rester invisible jusqu'à ce qu'on
+    change d'onglet. `afficherPopupAccesSiNecessaire()` est appelée une fois que `charger()`,
+    `revérifierDossiersLiesAuDemarrage()` et `tenterReconnexionPartage()` ont tous fini (désormais
+    enchaînés avec `await` plutôt que lancés sans attendre) — pas de popup prématurée avant de
+    savoir si un accès est réellement perdu. Bouton "Reconfirmer maintenant" (clic explicite,
+    requis par le navigateur pour qu'une demande de permission fichier aboutisse) ou "Plus tard"
+    (ferme la popup sans rien changer ; le bandeau reste disponible ensuite dans l'onglet Suivi).
 
 ## Comment tester
 

@@ -1353,7 +1353,7 @@
     font-weight: 600;
     padding: 2px 8px;
     border-radius: 10px;
-    margin-left: 8px;
+    margin-right: 8px;
     vertical-align: middle;
     white-space: nowrap;
   }
@@ -1666,6 +1666,30 @@
     margin-bottom: 16px;
   }
 
+  .dossier-head-principale { min-width: 0; flex: 1; }
+  .dossier-head-actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+  /* Carte ouverte en deux colonnes (échéances/pièces/analyse à gauche, historique + actions à
+     droite) — demandé pour profiter de la largeur disponible plutôt qu'un long défilement vertical
+     unique. Empile en une seule colonne sous la largeur d'une carte compacte/mobile. */
+  .dossier-body {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(220px, 1fr);
+    gap: 24px;
+    align-items: start;
+  }
+  .dossier-col-laterale {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-left: 20px;
+    border-left: 1px solid var(--line-soft);
+  }
+  @media (max-width: 720px) {
+    .dossier-body { grid-template-columns: 1fr; }
+    .dossier-col-laterale { padding-left: 0; border-left: none; padding-top: 12px; border-top: 1px solid var(--line-soft); }
+  }
+
   .dossier-head h3 {
     font-size: 18px;
     font-weight: 500;
@@ -1720,6 +1744,10 @@
     color: var(--ink-soft);
   }
   .dossier-classification { margin-top: 2px; }
+  /* La règle générique `select { width: 100% }` (styles du formulaire) ne fixe pas cette propriété
+     ici : sans ce reset, .select-edit hérite quand même de cette largeur pleine ligne et fait
+     passer chaque champ (Responsable/Type de vente/Rôle) à la ligne, alors qu'ils doivent tenir
+     sur une seule ligne sur la fiche dossier. */
   .select-edit {
     font-family: inherit;
     font-size: 13px;
@@ -1728,6 +1756,10 @@
     border: none;
     border-bottom: 1px dashed var(--line);
     padding: 0 2px;
+    width: auto;
+    max-width: none;
+    min-width: 0;
+    display: inline;
     cursor: pointer;
   }
   .select-edit:hover { color: var(--ink); border-bottom-color: var(--ink-soft); }
@@ -1974,6 +2006,8 @@
     .dossier:last-child { page-break-after: auto; }
     .dossier-nom-input { border: none; font-size: 18pt; padding: 0; }
     .nom-texte { font-size: 18pt; }
+    .dossier-body { display: block; }
+    .dossier-col-laterale { border: none; padding: 0; }
     .tabs { display: block; }
     .tab { border: 1px solid #999; margin-bottom: 6pt; padding: 6pt; background: #fff !important; }
     .historique-liste { display: block !important; }
