@@ -495,6 +495,18 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     par défaut/majoritaire, n'affiche rien, comme `.badge-cash` qui ne s'affiche que pour
     l'exception "sans prêt") et filtre "Rôle" (`#filtre-role`) dans la barre d'outils de l'onglet
     "Suivi", à côté des filtres Responsable/Échéance/Offre de prêt déjà existants.
+- **Type de vente et rôle du notaire corrigeables après enregistrement** : demandé juste après leur
+  introduction (voir ci-dessus), pour le cas où l'un des deux a été mal renseigné à la création ou
+  change en cours de dossier. `changerTypeVente(id, valeur)` / `changerRoleNotaire(id, valeur)`
+  (avec entrée d'historique) via deux `<select class="select-edit">` sur la fiche du dossier
+  (ligne "Type de vente : ... · Rôle : ..."). Volontairement un simple `<select>` plutôt que le
+  mécanisme crayon+validation utilisé pour le nom/les dates : ce sont des choix fermés à deux
+  valeurs, pas du texte libre où un clic accidentel risquerait d'effacer quelque chose — le motif
+  est le même que `changerCategorie()`/`.tab-select`, déjà utilisé pour recatégoriser une échéance.
+  Changer de type de vente ne retouche pas `d.pieces` : `checklistPieces()` est recalculée à
+  l'affichage à partir de `d.typeVente`, donc les pièces déjà reconnues sous une clé commune aux
+  deux types (ex. `titrePropriete`) restent valables, et celles propres à l'ancien type restent en
+  mémoire sans s'afficher, sans risque si l'étude revient un jour au type précédent.
 
 ## Comment tester
 

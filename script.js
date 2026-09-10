@@ -1707,6 +1707,36 @@
     render();
   }
 
+  // Corrections après coup du type de vente et du rôle de l'étude — utile quand l'un des deux a
+  // été mal renseigné à la création, ou change en cours de dossier (ex. l'étude devient
+  // instrumentaire après avoir démarré en participant). Un simple <select> suffit ici (pas besoin
+  // du mécanisme crayon+validation utilisé pour le nom/les dates) : ce sont des choix fermés à deux
+  // valeurs, pas du texte libre où un clic accidentel risquerait de tout effacer.
+  function changerTypeVente(id, valeur) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d || d.typeVente === valeur) return;
+    const libelle = (v) => v === 'copropriete' ? 'copropriété' : 'maison';
+    ajouterHistorique(d, `Type de vente modifié : ${libelle(d.typeVente)} → ${libelle(valeur)}`);
+    // La checklist de pièces (checklistPieces) est recalculée à partir de d.typeVente à chaque
+    // affichage : pas besoin de retoucher d.pieces ici. Les pièces déjà reconnues sous une clé
+    // commune aux deux types (ex. titrePropriete) restent valables ; celles propres à l'ancien type
+    // (ex. etatDate en quittant la copropriété) restent en mémoire mais ne s'affichent plus,
+    // inoffensif si l'étude revient un jour au type précédent.
+    d.typeVente = valeur;
+    sauvegarder();
+    render();
+  }
+
+  function changerRoleNotaire(id, valeur) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d || d.roleNotaire === valeur) return;
+    const libelle = (v) => v === 'participant' ? 'participant' : 'instrumentaire';
+    ajouterHistorique(d, `Rôle de l'étude modifié : ${libelle(d.roleNotaire)} → ${libelle(valeur)}`);
+    d.roleNotaire = valeur;
+    sauvegarder();
+    render();
+  }
+
   function calculerProchaineEcheance(d) {
     const autresDates = (d.autres || []).map(a => a.date);
     const dates = [d.pret, d.acte, d.ventebien, ...autresDates].filter(Boolean).map(joursRestants);
@@ -2132,6 +2162,18 @@
             ${d.roleNotaire === 'participant' ? '<span class="badge-role" title="Notaire participant / concourant : suivi limité au prêt et aux engagements du vendeur">🤝 Participant</span>' : ''}
             ${d.email ? `<div class="addr">${escapeHtml(d.email)}</div>` : ''}
             ${d.responsable ? `<div class="addr">Responsable : ${escapeHtml(d.responsable)}</div>` : ''}
+            <div class="addr dossier-classification">
+              Type de vente :
+              <select class="select-edit" onchange="changerTypeVente('${d.id}', this.value)" aria-label="Type de vente">
+                <option value="maison" ${d.typeVente === 'copropriete' ? '' : 'selected'}>Maison</option>
+                <option value="copropriete" ${d.typeVente === 'copropriete' ? 'selected' : ''}>Copropriété</option>
+              </select>
+              · Rôle :
+              <select class="select-edit" onchange="changerRoleNotaire('${d.id}', this.value)" aria-label="Rôle de l'étude sur ce dossier">
+                <option value="instrumentaire" ${d.roleNotaire === 'participant' ? '' : 'selected'}>Instrumentaire</option>
+                <option value="participant" ${d.roleNotaire === 'participant' ? 'selected' : ''}>Participant</option>
+              </select>
+            </div>
             ${d.sansPret ? '<span class="badge-cash">💰 Achat comptant — sans prêt</span>' : ''}
             ${!d.sansPret ? `<div class="offre-pret-ligne">
               ${d.dossierLie ? `<span class="badge-offre ${libelleOffre(d.offrePretStatut).cls}">${libelleOffre(d.offrePretStatut).texte}</span>` : ''}

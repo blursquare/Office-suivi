@@ -1542,6 +1542,19 @@
     font-size: 13.5px;
     color: var(--ink-soft);
   }
+  .dossier-classification { margin-top: 2px; }
+  .select-edit {
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--ink-soft);
+    background: transparent;
+    border: none;
+    border-bottom: 1px dashed var(--line);
+    padding: 0 2px;
+    cursor: pointer;
+  }
+  .select-edit:hover { color: var(--ink); border-bottom-color: var(--ink-soft); }
+  .select-edit:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
   .badge-cash {
     display: inline-block;
@@ -1785,7 +1798,7 @@
     .tab { border: 1px solid #999; margin-bottom: 6pt; padding: 6pt; background: #fff !important; }
     .historique-liste { display: block !important; }
     .analyse-juridique { background: #fff; border: 1px solid #999; }
-    .icon-btn, .tab-select, .icon-crayon, .icon-valider, .nom-edition, .tab-date-edition { display: none !important; }
+    .icon-btn, .tab-select, .icon-crayon, .icon-valider, .nom-edition, .tab-date-edition, .select-edit { display: none !important; }
   }
 
   .analyse-repliable > summary {
