@@ -74,3 +74,32 @@ test('joursRestants calcule un compte à rebours cohérent', () => {
   const demain = new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 10);
   assert.equal(app.joursRestants(demain), 1);
 });
+
+test('estDebutPageAnnexe ignore un renvoi "Annexe n°1" cité en milieu de clause', () => {
+  // Régression : une promesse LD Notaires de 52 pages voyait son extraction tronquée dès la
+  // page 6 à cause de ce renvoi page 7 ("Un extrait de plan cadastral est annexé. Annexe n°1"),
+  // alors que le corps de l'acte se poursuivait jusqu'à la signature, page 52 — aucune pièce
+  // jointe n'était en réalité annexée au même PDF.
+  const app = chargerApplication();
+  const texteClause = `
+    Il est ici précisé que le PROMETTANT déclare que le BIEN n'a fait l'objet d'aucune division
+    de propriété depuis son acquisition, sans aucune exception ni réserve.
+    Un extrait de plan cadastral est annexé. Annexe n°1
+    Un extrait de plan Géoportail avec vue aérienne est annexé. Annexe n°2
+    HISTORIQUE DE LA PROPRIETE
+  `;
+  assert.equal(app.estDebutPageAnnexe(texteClause), false);
+});
+
+test('estDebutPageAnnexe reconnaît une vraie page d\'annexe (titre en tête, page quasi vide)', () => {
+  const app = chargerApplication();
+  assert.equal(app.estDebutPageAnnexe('Annexe n°1 — Extrait de plan cadastral'), true);
+});
+
+test('estDebutPageAnnexe reconnaît une page de scan courte même si le titre n\'est pas tout en tête', () => {
+  const app = chargerApplication();
+  // Le titre arrive après 120 caractères, mais la page reste courte dans l'ensemble (< 300) :
+  // cas d'un scan avec un bref cartouche avant le titre de l'annexe.
+  const texteScan = 'x'.repeat(150) + ' Annexe n°1';
+  assert.equal(app.estDebutPageAnnexe(texteScan), true);
+});

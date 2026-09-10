@@ -280,6 +280,17 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
   les sous-dossiers (jusqu'à `PROFONDEUR_MAX_RECHERCHE_PDF`, avec un plafond
   `MAX_FICHIERS_PARCOURUS` en garde-fou). Un repli OCR sur la première page a aussi été ajouté pour
   les PDF scannés sans texte extractible (même logique que pour la date de signature du compromis).
+- **Bug corrigé : `extraireTextesUtiles()` tronquait l'import dès qu'un simple renvoi « Annexe n°1 »
+  apparaissait dans une clause du corps de l'acte**, sans qu'aucune pièce jointe ne soit réellement
+  annexée au même PDF. Signalé par l'étude sur une vraie promesse (trame LD Notaires, 52 pages) :
+  une clause page 7 (« Un extrait de plan cadastral est annexé. Annexe n°1 ») déclenchait l'arrêt
+  dès la page 6, alors que le corps de l'acte se poursuivait jusqu'à la signature page 52 — la
+  numérotation des annexes repart même à 1 plusieurs fois dans le document, une fois par thème
+  (plan cadastral, urbanisme...), ce n'est pas une liste unique en fin d'acte. La détection
+  (extraite dans `estDebutPageAnnexe()`, testable, voir `tests/divers.test.js`) ne considère
+  maintenant une page comme un vrai début de pièce jointe que si la mention arrive en tout début de
+  page ou si la page est globalement courte (scan avec peu de texte extractible) — pas si elle est
+  citée en milieu d'une clause de plusieurs milliers de caractères.
 
 ## Comment tester
 

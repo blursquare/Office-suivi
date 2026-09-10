@@ -920,9 +920,26 @@
     }
   }
 
-  // Isole le compromis lui-même (+ sa page de signatures) et s'arrête dès la première annexe :
-  // un dossier signé électroniquement peut compter plusieurs centaines de pages de diagnostics
-  // et autres pièces jointes qui ne nous intéressent ni pour la détection, ni pour l'aperçu.
+  // Un simple renvoi « Annexe n°1 » au fil d'une clause (ex. LD Notaires : « Un extrait de plan
+  // cadastral est annexé. Annexe n°1 », en milieu de page, au milieu du corps de l'acte) ne marque
+  // PAS le début des pages d'annexes elles-mêmes : beaucoup de trames listent ainsi, dans le corps
+  // même de l'acte, les pièces qui accompagnent la vente — sans que ces pièces soient jointes au
+  // même PDF (cas réel signalé : le corps allait jusqu'à la signature page 52, mais l'extraction
+  // s'arrêtait dès la page 6 à cause d'un renvoi de ce type page 7 — la numérotation des annexes
+  // remet même à 1 plusieurs fois dans le document, une par thème). Une page qui commence
+  // réellement une pièce jointe (scan de plan, diagnostic…) porte cette mention en tout début de
+  // page et contient très peu d'autre texte extractible — à l'inverse d'une clause de plusieurs
+  // milliers de caractères qui la cite juste en passant.
+  function estDebutPageAnnexe(texteBrut) {
+    const m = texteBrut.match(/annexe\s*n[°ºo]?\s*1\b/i);
+    if (!m) return false;
+    return m.index < 120 || texteBrut.trim().length < 300;
+  }
+
+  // Isole le compromis lui-même (+ sa page de signatures) et s'arrête dès la première vraie page
+  // d'annexe (voir estDebutPageAnnexe ci-dessus) : un dossier signé électroniquement peut compter
+  // plusieurs centaines de pages de diagnostics et autres pièces jointes qui ne nous intéressent
+  // ni pour la détection, ni pour l'aperçu.
   async function extraireTextesUtiles(pdf) {
     const textesParPage = [];
     let dernierePageNumerotee = null;
@@ -942,8 +959,8 @@
         if (mPage && mPage[1] === mPage[2]) dernierePageNumerotee = i;
       }
 
-      // Dès qu'une annexe commence, tout ce qui suit est écarté (diagnostics, plans…).
-      if (/annexe\s*n[°ºo]?\s*1\b/i.test(texteBrut)) {
+      // Dès qu'une vraie page d'annexe commence, tout ce qui suit est écarté (diagnostics, plans…).
+      if (estDebutPageAnnexe(texteBrut)) {
         return { textesParPage, dernierePageUtile: Math.max(1, i - 1) };
       }
 
