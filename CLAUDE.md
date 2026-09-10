@@ -1,5 +1,10 @@
 # Registre des échéances — Compromis de vente
 
+**Nom affiché dans l'interface : CLAIRE.** Le nom de fichier/dépôt et ce document restent
+"Registre des échéances" (identité historique du projet, inchangée) mais l'UI (titre de la page,
+`<title>`, manifest PWA, sidebar) porte désormais la marque "CLAIRE" — voir la section refonte
+visuelle ci-dessous pour le contexte de ce choix.
+
 Outil interne de l'étude notariale pour suivre les échéances d'un compromis de vente (obtention
 du prêt, signature de l'acte, vente préalable), extraire automatiquement les documents et
 engagements du vendeur, et générer des rappels.
@@ -605,6 +610,68 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
   (badge "≈ estimée", les deux portant "au plus tard") mais le premier candidat par ordre
   chronologique reste retenu par défaut, qui est ici le bon (60 jours, pas 70). Voir le test de
   régression dans `tests/dates.test.js` (texte réel, boilerplate sans donnée personnelle).
+- **Refonte visuelle "CLAIRE" (branche `claude/refonte-design-claire`, séparée de la branche
+  principale de suivi des échéances)** : demande explicite de repenser tout le design ("éviter
+  l'IA slop", "webdesign 2026", sidebar, logo, meilleure lecture/productivité), avec deux
+  références fournies — une capture d'un dashboard de suivi de transactions (dont seul le langage
+  visuel a été repris : cartes épurées, badges de statut colorés, navigation latérale — pas son
+  domaine métier, sans rapport avec le notariat) et notiplus.com. `www.notiplus.com` est bloqué par
+  le proxy réseau de cet environnement (`WebFetch` → `EGRESS_BLOCKED`) ; recherche web de repli
+  utilisée à la place — Notiplus s'est révélé être **un concurrent direct** ("L'espace notarial
+  tout-en-un") : suivi de dossier avec échéances/prochaines étapes toujours visibles, relances
+  automatiques "qui savent s'arrêter d'elles-mêmes" (même principe que le correctif
+  `relancerSiOffreManquante()`/`etaitRecue` ci-dessus, découvert indépendamment), portail
+  multi-intervenants, collecte de pièces par questionnaires adaptatifs, gestion multi-office. Seule
+  l'organisation de l'information (clarté sur "quoi faire et quand") a servi d'inspiration pour le
+  nouveau tableau de bord ci-dessous — le portail client, la collecte de pièces par questionnaire
+  et le multi-office n'ont pas été ajoutés : ce sont des fonctionnalités serveur/multi-utilisateur,
+  hors du périmètre volontairement local et sans backend de l'outil (voir contraintes
+  fondamentales n°1 et l'historique "décision explicite de rester en local" plus haut) — à
+  reconsidérer seulement si l'étude le demande explicitement, pas déduit d'une inspiration
+  concurrentielle.
+  - **Nom "CLAIRE"** choisi pour l'UI (voir note en tête de ce document) : évoque la clarté sur
+    l'état de chaque dossier, cohérent avec le tableau de bord ajouté. Nouveau logo
+    (`icone.svg`) : anneau ouvert (lettre "C" stylisée / aperture) avec un marqueur plein à
+    l'ouverture, une seule couleur d'accent sur une tuile graphite — délibérément plat et
+    géométrique (pas de dégradé, pas d'effet glossy/3D) pour éviter l'esthétique "IA générique".
+    Repris en inline dans la sidebar (`index.html`) en plus du fichier `.svg` (favicon/PWA), avec
+    une version teintée pour le mode sombre (`#5B9DF9`, même token `--focus` que le reste de
+    l'accent bleu) plutôt qu'une seconde couleur inventée.
+  - **Navigation en sidebar** (`.sidebar`, `index.html`/`style.css`) remplace l'ancien bandeau
+    `header.page` + onglets horizontaux (`.app-tabs`, code CSS mort supprimé). Un **troisième
+    espace de travail "Tableau de bord"** s'ajoute aux deux existants (`definirOnglet()` accepte
+    maintenant `'dashboard'` en plus de `'nouveau'`/`'suivi'`, et devient l'onglet par défaut à
+    l'ouverture — un outil de suivi de dossiers doit ouvrir sur une vue d'ensemble, pas sur le
+    formulaire de création). Sidebar repliable en dessous de 900px (`toggleSidebarMobile()`,
+    bouton "☰" + scrim), fermée automatiquement à chaque changement d'onglet.
+  - **Tableau de bord** (`onglet-dashboard`) : reprend le principe demandé ("statut d'avancement,
+    actions urgentes, KPI, présentation claire et épurée") sans dupliquer de logique existante :
+    - `calculerStatsPortefeuille()` (nouvelle fonction, extraite de l'ancien `renderStatsSuivi()`)
+      centralise les chiffres du portefeuille ; `renderStatsSuivi()` (bandeau de l'onglet Suivi) et
+      `renderKpisDashboard()` (5 tuiles du tableau de bord, avec en plus les dossiers à pièces
+      manquantes) l'utilisent tous les deux — un seul calcul, deux présentations.
+    - `renderActionsUrgentes()` liste les dossiers en "blocage" ou de score `calculerPriorite()`
+      élevé (même seuil `SEUIL_PRIORITE_ELEVEE` que le badge "🔥 Prioritaire" déjà utilisé sur les
+      résumés du Suivi — un seul critère d'urgence dans tout l'outil). Chaque ligne
+      (`ouvrirDossierDepuisDashboard()`) bascule vers le Suivi et déplie directement la carte
+      concernée (même mécanisme `dossiersDeplies` que le dépliage manuel).
+    - Le widget "Échéances des 7 prochains jours" (`renderDashboard()`, déjà existant) est
+      simplement déplacé de l'onglet Suivi vers le Tableau de bord, sans changement de logique —
+      c'est un widget d'aperçu, sa place naturelle est sur la vue d'ensemble.
+  - **Typographie** : Fraunces (serif éditoriale) ajoutée pour les titres (`h1`/`h2`/`h3`, marque
+    "CLAIRE", nom de dossier, en-tête du panneau "Nouveau dossier") en remplacement de Poppins
+    (abandonnée, plus chargée dans `index.html`) ; le reste de l'interface (boutons, tableaux,
+    badges, formulaires) reste en Inter — la retouche vise un peu de caractère sur les titres, pas
+    une refonte totale de la lecture dense de l'outil.
+  - **Bug corrigé en cours de route** : `appliquerTheme()` écrivait l'emoji du bouton de thème via
+    `textContent`, ce qui écrasait le libellé "Mode sombre"/"Mode clair" ajouté à côté de l'icône
+    dans la sidebar (le bouton n'affichait plus que l'emoji seul). Remplacé par `innerHTML` avec la
+    même structure icône+libellé que les autres liens de la sidebar.
+  - Palette et tokens CSS (`--focus`, catégories `--pret`/`--acte`/`--ventebien`, mode sombre gris
+    neutre) **non retouchés** : la refonte porte sur la structure (sidebar, tableau de bord) et la
+    typographie, pas sur les couleurs déjà validées par l'étude lors de la précédente refonte
+    visuelle (voir plus haut) — aucune raison de les changer, et le bleu existant se prêtait déjà
+    bien au nouveau logo.
 
 ## Comment tester
 

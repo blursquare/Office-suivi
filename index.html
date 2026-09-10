@@ -3,38 +3,85 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Registre des échéances — Compromis de vente</title>
+<title>CLAIRE — Registre des échéances notariales</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#16233C">
+<meta name="theme-color" content="#12181F">
 <link rel="icon" href="icone.svg">
 <link rel="apple-touch-icon" href="icone.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<header class="page">
-  <div class="header-top">
-    <div>
-      <div class="kicker">Suivi des transactions</div>
-      <div class="brand-bar"></div>
+<div class="app-shell">
+
+  <button type="button" class="sidebar-burger" id="sidebar-burger" onclick="toggleSidebarMobile()" aria-label="Ouvrir le menu">☰</button>
+  <div class="sidebar-scrim" id="sidebar-scrim" onclick="toggleSidebarMobile(false)"></div>
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 192 192" width="30" height="30">
+          <rect width="192" height="192" rx="44" fill="#12181F"/>
+          <path d="M129.7 124.3 A44 44 0 1 1 129.7 67.7" fill="none" stroke="#5B9DF9" stroke-width="18" stroke-linecap="round"/>
+          <circle cx="140" cy="96" r="14" fill="#5B9DF9"/>
+        </svg>
+      </span>
+      <span class="brand-word">CLAIRE</span>
     </div>
-    <div class="header-actions">
-      <button type="button" class="install-btn" id="install-btn" style="display:none;" onclick="installerApplication()">📲 Installer l'application</button>
-      <button type="button" class="theme-btn" id="theme-btn" onclick="basculerTheme()" aria-label="Basculer le thème clair/sombre">🌙</button>
+    <p class="sidebar-tagline">La clarté sur chaque dossier.</p>
+
+    <nav class="sidebar-nav" role="tablist" aria-label="Sections de l'application">
+      <button type="button" id="tab-dashboard" class="sidebar-link actif" role="tab" aria-selected="true" onclick="definirOnglet('dashboard')">
+        <span class="sidebar-link-icone" aria-hidden="true">◧</span>Tableau de bord
+      </button>
+      <button type="button" id="tab-nouveau" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('nouveau')">
+        <span class="sidebar-link-icone" aria-hidden="true">＋</span>Nouveau dossier
+      </button>
+      <button type="button" id="tab-suivi" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('suivi')">
+        <span class="sidebar-link-icone" aria-hidden="true">☰</span>Suivi des dossiers
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button type="button" class="sidebar-link install-btn" id="install-btn" style="display:none;" onclick="installerApplication()">
+        <span class="sidebar-link-icone" aria-hidden="true">⇩</span>Installer l'application
+      </button>
+      <button type="button" class="sidebar-link" id="theme-btn" onclick="basculerTheme()" aria-label="Basculer le thème clair/sombre">
+        <span class="sidebar-link-icone" aria-hidden="true">🌙</span>Mode sombre
+      </button>
+    </div>
+  </aside>
+
+  <main class="app-main">
+
+<div class="onglet-panel" id="onglet-dashboard">
+  <div class="dash-header">
+    <div>
+      <div class="dash-eyebrow">Tableau de bord</div>
+      <h1 class="dash-titre">Vue d'ensemble du portefeuille</h1>
+    </div>
+    <button type="button" class="primary" onclick="definirOnglet('nouveau')">+ Nouveau dossier</button>
+  </div>
+
+  <div class="kpis-dashboard" id="kpis-dashboard"></div>
+
+  <div class="dash-grid">
+    <div class="dash-col">
+      <div class="dash-section-titre">🔥 Actions urgentes</div>
+      <div id="actions-urgentes" class="actions-urgentes"></div>
+    </div>
+    <div class="dash-col">
+      <div id="dashboard" class="dashboard" style="display:none;">
+        <div class="dashboard-titre">📅 Échéances des 7 prochains jours</div>
+        <div id="dashboard-liste"></div>
+      </div>
     </div>
   </div>
-  <h1>Registre des échéances</h1>
-  <p>Importez un compromis : l'outil en extrait les échéances et les pièces à réclamer, puis génère vos rappels Outlook.</p>
-</header>
+</div>
 
-<nav class="app-tabs" role="tablist" aria-label="Sections de l'application">
-  <button type="button" id="tab-nouveau" class="app-tab" role="tab" aria-selected="true" onclick="definirOnglet('nouveau')">Nouveau dossier</button>
-  <button type="button" id="tab-suivi" class="app-tab" role="tab" aria-selected="false" onclick="definirOnglet('suivi')">Suivi des dossiers</button>
-</nav>
-
-<div class="layout-cols" id="onglet-nouveau">
+<div class="layout-cols" id="onglet-nouveau" style="display:none;">
 <div class="wrap">
 
   <details class="panel" id="panel" open>
@@ -251,11 +298,6 @@
 
   <div id="alerte-acces" class="alerte-acces" style="display:none;"></div>
 
-  <div id="dashboard" class="dashboard" style="display:none;">
-    <div class="dashboard-titre">📅 Échéances des 7 prochains jours</div>
-    <div id="dashboard-liste"></div>
-  </div>
-
   <div class="list-heading">
     <h2>Dossiers suivis</h2>
     <span class="count" id="dossier-count"></span>
@@ -338,6 +380,9 @@
     <strong>Toute date détectée automatiquement doit être vérifiée</strong>, en particulier si elle est signalée « estimée ».
   </footer>
 
+</div>
+
+  </main>
 </div>
 
 <div id="toast" class="toast" style="display:none;">

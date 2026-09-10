@@ -67,8 +67,13 @@
     transition: background-color 0.2s ease, color 0.2s ease;
   }
 
-  h1, h2, h3, .serif {
-    font-family: 'Poppins', 'Segoe UI', sans-serif;
+  /* Fraunces (display serif) réservée aux titres — CLAIRE, "Tableau de bord", "Nouveau dossier",
+     "Dossiers suivis" — pour donner un peu de caractère éditorial sans en abuser : le reste de
+     l'interface (boutons, tableaux, badges) reste en Inter pour rester dense et lisible. */
+  h1, h2, h3, .serif, .brand-word {
+    font-family: 'Fraunces', 'Poppins', 'Segoe UI', serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
   }
 
   a { color: var(--focus); }
@@ -79,14 +84,13 @@
     gap: 32px;
     max-width: 1680px;
     margin: 0 auto;
-    padding: 0 32px;
   }
 
   .wrap {
     flex: 1 1 560px;
     max-width: 680px;
     margin: 0;
-    padding: 48px 0 80px;
+    padding: 0 0 60px;
     min-width: 0;
   }
 
@@ -98,7 +102,6 @@
     min-width: 0;
     position: sticky;
     top: 24px;
-    margin-top: 48px;
     background: var(--paper-card);
     border: 1px solid var(--line);
     border-radius: 6px;
@@ -228,8 +231,8 @@
   }
 
   @media (max-width: 1100px) {
-    .layout-cols { flex-direction: column; padding: 0; }
-    .wrap { max-width: 880px; margin: 0 auto; padding: 48px 24px 80px; }
+    .layout-cols { flex-direction: column; }
+    .wrap { max-width: 880px; margin: 0 auto; padding: 0 0 60px; }
     .pdf-viewer {
       order: -1;
       position: static;
@@ -240,45 +243,249 @@
     }
   }
 
-  header.page {
-    max-width: 1680px;
-    margin: 0 auto 0;
-    padding: 32px 32px 28px;
-    border-bottom: 1px solid var(--line);
+  /* ==== Structure générale : sidebar + contenu (remplace l'ancien header pleine page +
+     onglets horizontaux) ====
+     Un rail fixe à gauche porte la marque CLAIRE, la navigation entre les trois espaces de
+     travail (Tableau de bord / Nouveau dossier / Suivi des dossiers) et les actions globales
+     (thème, installation) — le contenu à droite n'a donc plus besoin d'un grand bandeau de titre
+     au-dessus de chaque onglet. */
+  .app-shell {
+    display: flex;
+    align-items: stretch;
+    min-height: 100vh;
   }
 
-  /* ---- onglets « Nouveau dossier » / « Suivi des dossiers » : remplacent la page unique
-     (formulaire + liste toujours visibles l'un sous l'autre) par deux espaces de travail
-     séparés — la liste peut alors occuper toute la largeur, sans la colonne d'aperçu PDF. ---- */
-  .app-tabs {
+  .sidebar {
+    flex: 0 0 252px;
     display: flex;
+    flex-direction: column;
     gap: 4px;
-    max-width: 1680px;
-    margin: 20px auto 0;
-    padding: 0 32px;
-    border-bottom: 1px solid var(--line);
+    padding: 22px 16px;
+    background: var(--paper-card);
+    border-right: 1px solid var(--line);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
   }
-  .app-tab {
-    font-family: 'Poppins', 'Segoe UI', sans-serif;
-    font-size: 14.5px;
+
+  .sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 8px 2px;
+  }
+  .brand-mark { display: inline-flex; flex-shrink: 0; }
+  .brand-word {
+    font-size: 21px;
+    color: var(--ink);
+    letter-spacing: 0.01em;
+  }
+  .sidebar-tagline {
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin: 2px 0 20px;
+    padding: 0 8px;
+  }
+
+  .sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    width: 100%;
+    font-family: inherit;
+    font-size: 14px;
     font-weight: 500;
     color: var(--ink-soft);
     background: none;
     border: none;
-    border-bottom: 2px solid transparent;
-    padding: 12px 4px;
-    margin-bottom: -1px;
+    border-radius: 8px;
+    padding: 10px 10px;
+    text-align: left;
     cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
   }
-  .app-tab + .app-tab { margin-left: 22px; }
-  .app-tab:hover { color: var(--ink); }
-  .app-tab[aria-selected="true"] { color: var(--acte); border-bottom-color: var(--acte); }
+  .sidebar-link-icone {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    flex-shrink: 0;
+    font-size: 14px;
+    opacity: 0.85;
+  }
+  .sidebar-link:hover { background: var(--paper-sunk); color: var(--ink); }
+  .sidebar-link.actif { background: var(--focus); color: #fff; }
+  .sidebar-link.actif .sidebar-link-icone { opacity: 1; }
 
-  .wrap-suivi {
-    max-width: 1680px;
-    margin: 0 auto;
-    padding: 32px 32px 80px;
+  .sidebar-footer {
+    margin-top: auto;
+    padding-top: 14px;
+    border-top: 1px solid var(--line-soft);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
   }
+
+  .sidebar-burger, .sidebar-scrim { display: none; }
+
+  .app-main {
+    flex: 1;
+    min-width: 0;
+    padding: 30px 32px 40px;
+  }
+
+  .onglet-panel { max-width: 1680px; margin: 0 auto; }
+
+  /* ---- Tableau de bord : synthèse du portefeuille avant même d'ouvrir un dossier (KPI,
+     actions urgentes, échéances proches) — voir renderKpisDashboard/renderActionsUrgentes. ---- */
+  .dash-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+  }
+  .dash-eyebrow {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--focus);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 4px;
+  }
+  .dash-titre { font-size: 26px; margin: 0; }
+
+  .kpis-dashboard {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .kpi-tile {
+    background: var(--paper-card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 16px 16px 14px;
+    box-shadow: var(--shadow-card);
+  }
+  .kpi-icone { font-size: 15px; opacity: 0.8; }
+  .kpi-num {
+    font-size: 26px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.3;
+  }
+  .kpi-num.c-urgent { color: var(--urgent); }
+  .kpi-num.c-pret { color: var(--pret); }
+  .kpi-num.c-neutre { color: var(--ink); }
+  .kpi-label { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+
+  .dash-grid {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+  .dash-section-titre {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 10px;
+  }
+  .actions-urgentes {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .actions-urgentes-vide {
+    background: var(--success-bg);
+    color: var(--success);
+    border-radius: 8px;
+    padding: 16px;
+    font-size: 13.5px;
+  }
+  .action-urgente-ligne {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    font-family: inherit;
+    font-size: 13.5px;
+    text-align: left;
+    background: var(--paper-card);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 14px;
+    cursor: pointer;
+    box-shadow: var(--shadow-card);
+  }
+  .action-urgente-ligne:hover { border-color: var(--focus); }
+  .action-urgente-nom { font-weight: 600; color: var(--ink); flex-shrink: 0; }
+  .action-urgente-raison { color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .action-urgente-fleche { margin-left: auto; color: var(--muted); flex-shrink: 0; }
+
+  @media (max-width: 1300px) {
+    .kpis-dashboard { grid-template-columns: repeat(3, 1fr); }
+    .dash-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 640px) {
+    .kpis-dashboard { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (max-width: 900px) {
+    .sidebar-burger {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: fixed;
+      top: 14px;
+      left: 14px;
+      z-index: 40;
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--paper-card);
+      color: var(--ink);
+      font-size: 18px;
+      cursor: pointer;
+      box-shadow: var(--shadow-card);
+    }
+    .sidebar {
+      position: fixed;
+      z-index: 41;
+      top: 0;
+      left: 0;
+      transform: translateX(-100%);
+      box-shadow: var(--shadow-float);
+      transition: transform 0.2s ease;
+    }
+    .sidebar.ouverte { transform: translateX(0); }
+    .sidebar-scrim {
+      display: block;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 39;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+    .sidebar-scrim.visible { opacity: 1; pointer-events: auto; }
+    .app-main { padding-top: 68px; }
+  }
+
+  .wrap-suivi { max-width: 1680px; margin: 0 auto; }
 
   /* ---- bandeau de statistiques en tête du suivi : reprend la palette existante, la couleur
      restant réservée aux catégories d'échéance (urgent/prêt) plutôt qu'un code inventé. ---- */
@@ -296,7 +503,6 @@
     box-shadow: var(--shadow-card);
   }
   .stat-num {
-    font-family: 'Poppins', sans-serif;
     font-size: 26px;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
@@ -327,36 +533,6 @@
   }
   .alerte-acces .toolbar-btn { flex-shrink: 0; }
 
-  header.page .kicker {
-    font-size: 13px;
-    color: var(--acte);
-    font-weight: 500;
-    letter-spacing: 0.02em;
-    margin-bottom: 10px;
-  }
-
-  header.page .brand-bar {
-    width: 44px;
-    height: 4px;
-    border-radius: 2px;
-    background: linear-gradient(90deg, var(--pret), var(--ventebien), var(--acte));
-    margin-bottom: 14px;
-  }
-
-  header.page h1 {
-    font-size: 32px;
-    font-weight: 700;
-    margin: 0 0 10px;
-    letter-spacing: -0.01em;
-  }
-
-  header.page p {
-    max-width: 60ch;
-    color: var(--ink-soft);
-    margin: 0;
-    font-size: 15px;
-  }
-
   /* ---- new dossier panel ---- */
 
   .panel {
@@ -374,8 +550,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-family: 'Poppins', 'Segoe UI', sans-serif;
-    font-size: 17px;
+    font-family: 'Fraunces', 'Poppins', 'Segoe UI', serif;
+    font-size: 19px;
     font-weight: 600;
   }
 
@@ -654,7 +830,6 @@
     border-radius: 6px;
   }
   .analyse-titre {
-    font-family: 'Poppins', sans-serif;
     font-size: 14px;
     font-weight: 600;
     color: var(--ink);
@@ -724,7 +899,6 @@
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
-    font-family: 'Poppins', sans-serif;
     font-size: 13px;
     font-weight: 600;
     color: var(--ink);
@@ -1017,7 +1191,6 @@
     box-shadow: var(--shadow-card);
   }
   .dashboard-titre {
-    font-family: 'Poppins', sans-serif;
     font-size: 15px;
     font-weight: 600;
     color: var(--ink);
@@ -1532,9 +1705,9 @@
   }
   .nom-affichage[hidden], .nom-edition[hidden] { display: none; }
   .nom-texte {
-    font-family: 'Poppins', 'Segoe UI', sans-serif;
-    font-size: 18px;
-    font-weight: 500;
+    font-family: 'Fraunces', 'Poppins', 'Segoe UI', serif;
+    font-size: 19px;
+    font-weight: 600;
     color: var(--ink);
   }
   .icon-crayon, .icon-valider {
@@ -1553,7 +1726,7 @@
   .icon-valider:hover { background: var(--success-bg); }
 
   .dossier-nom-input {
-    font-family: 'Poppins', 'Segoe UI', sans-serif;
+    font-family: 'Fraunces', 'Poppins', 'Segoe UI', serif;
     font-size: 16px;
     font-weight: 500;
     color: var(--ink);
@@ -1807,7 +1980,10 @@
   @media print {
     body { background: #fff; color: #000; font-size: 11pt; }
     .panel, .pdf-viewer, .list-toolbar, .dossier-actions, .theme-btn,
-    .confirm-overlay, .toast, footer.note, .historique-toggle, .dashboard { display: none !important; }
+    .confirm-overlay, .toast, footer.note, .historique-toggle, .dashboard,
+    .sidebar, .sidebar-burger, .sidebar-scrim, .dash-header, .kpis-dashboard, .actions-urgentes,
+    .dash-section-titre { display: none !important; }
+    .app-main { padding: 0; }
     .layout-cols { display: block; }
     .wrap { max-width: 100%; padding: 0; }
     .dossier {

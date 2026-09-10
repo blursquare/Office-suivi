@@ -1830,12 +1830,11 @@
     `).join('');
   }
 
-  // Bandeau de synthèse en tête de l'onglet "Suivi des dossiers" : donne un état global du
-  // portefeuille (dossiers actifs, hors filtres/recherche de la liste) avant de la parcourir.
-  function renderStatsSuivi(dossiersActifs) {
-    const bloc = document.getElementById('stats-suivi');
-    if (!bloc) return;
-
+  // Chiffres de synthèse du portefeuille (dossiers actifs, hors filtres/recherche de la liste) —
+  // calculés une seule fois, partagés par le bandeau de l'onglet "Suivi" (renderStatsSuivi) et les
+  // tuiles KPI du "Tableau de bord" (renderKpisDashboard), pour ne jamais faire diverger ces deux
+  // lectures d'un même portefeuille.
+  function calculerStatsPortefeuille(dossiersActifs) {
     const urgents = dossiersActifs.filter(d => {
       const prochaine = prochaineEcheanceDetail(d);
       return prochaine && prochaine.jours <= 7;
@@ -1843,9 +1842,21 @@
     const avecPret = dossiersActifs.filter(d => !d.sansPret);
     const manquantes = avecPret.filter(d => d.offrePretStatut === 'manquante').length;
     const aVerifier = avecPret.filter(d => (d.offrePretStatut || 'inconnu') === 'inconnu').length;
+    // Même condition que statutDossier() : uniquement une fois relié, hors rôle participant.
+    const piecesIncompletes = dossiersActifs.filter(d => d.dossierLie && d.roleNotaire !== 'participant' &&
+      checklistPieces(d.typeVente).some(p => (d.pieces || {})[p.cle] !== 'recue')).length;
+    return { actifs: dossiersActifs.length, urgents, manquantes, aVerifier, piecesIncompletes };
+  }
 
+  // Bandeau de synthèse en tête de l'onglet "Suivi des dossiers" : donne un état global du
+  // portefeuille (dossiers actifs, hors filtres/recherche de la liste) avant de la parcourir.
+  function renderStatsSuivi(dossiersActifs) {
+    const bloc = document.getElementById('stats-suivi');
+    if (!bloc) return;
+
+    const { actifs, urgents, manquantes, aVerifier } = calculerStatsPortefeuille(dossiersActifs);
     const tuiles = [
-      ['c-neutre', dossiersActifs.length, dossiersActifs.length > 1 ? 'dossiers actifs' : 'dossier actif'],
+      ['c-neutre', actifs, actifs > 1 ? 'dossiers actifs' : 'dossier actif'],
       ['c-urgent', urgents, 'échéances ≤ 7 jours'],
       ['c-pret', manquantes, 'offres de prêt introuvables'],
       ['c-neutre', aVerifier, 'offres à vérifier']
@@ -1853,6 +1864,69 @@
     bloc.innerHTML = tuiles.map(([cls, valeur, libelle]) =>
       `<div class="stat-tile"><div class="stat-num ${cls}">${valeur}</div><div class="stat-label">${libelle}</div></div>`
     ).join('');
+  }
+
+  // Tuiles KPI du "Tableau de bord" : mêmes chiffres que renderStatsSuivi (calculerStatsPortefeuille),
+  // avec une 5e tuile propre au tableau de bord (pièces manquantes) — l'aperçu d'ensemble le plus
+  // synthétique de l'outil, avant même d'ouvrir un dossier.
+  function renderKpisDashboard(dossiersActifs) {
+    const bloc = document.getElementById('kpis-dashboard');
+    if (!bloc) return;
+    const { actifs, urgents, manquantes, aVerifier, piecesIncompletes } = calculerStatsPortefeuille(dossiersActifs);
+    const tuiles = [
+      ['c-neutre', actifs, actifs > 1 ? 'dossiers actifs' : 'dossier actif', '📁'],
+      ['c-urgent', urgents, 'échéances ≤ 7 jours', '⏱️'],
+      ['c-pret', manquantes, 'offres de prêt introuvables', '⚠️'],
+      ['c-neutre', aVerifier, 'offres à vérifier', '🔎'],
+      ['c-pret', piecesIncompletes, 'dossiers avec pièces manquantes', '📋']
+    ];
+    bloc.innerHTML = tuiles.map(([cls, valeur, libelle, emoji]) =>
+      `<div class="kpi-tile"><span class="kpi-icone">${emoji}</span><div class="kpi-num ${cls}">${valeur}</div><div class="kpi-label">${libelle}</div></div>`
+    ).join('');
+  }
+
+  // "Actions urgentes" du tableau de bord : les dossiers qui méritent une attention immédiate,
+  // au même sens que le score de calculerPriorite() et le badge "🔥 Prioritaire" déjà utilisés sur
+  // les résumés du Suivi — un seul et même critère d'urgence dans tout l'outil, pas une seconde
+  // définition inventée pour le tableau de bord.
+  function renderActionsUrgentes(dossiersActifs) {
+    const bloc = document.getElementById('actions-urgentes');
+    if (!bloc) return;
+    const urgents = dossiersActifs
+      .filter(d => statutDossier(d) === 'blocage' || calculerPriorite(d) >= SEUIL_PRIORITE_ELEVEE)
+      .sort((a, b) => calculerPriorite(b) - calculerPriorite(a))
+      .slice(0, 6);
+
+    if (urgents.length === 0) {
+      bloc.innerHTML = '<div class="actions-urgentes-vide">✓ Aucune action urgente pour le moment.</div>';
+      return;
+    }
+    bloc.innerHTML = urgents.map(d => {
+      const prochaine = prochaineEcheanceDetail(d);
+      let raison;
+      if (d.accesAReconfirmer) raison = "Accès au dossier local à reconfirmer";
+      else if (!d.sansPret && d.offrePretStatut === 'manquante') raison = "Offre de prêt introuvable";
+      else if (prochaine && prochaine.jours < 0) raison = "Échéance dépassée";
+      else if (prochaine) raison = `${escapeHtml(prochaine.label)} — J-${prochaine.jours}`;
+      else raison = "À vérifier";
+      return `
+        <button type="button" class="action-urgente-ligne" onclick="ouvrirDossierDepuisDashboard('${d.id}')">
+          ${renderBadgeStatut(d)}
+          <span class="action-urgente-nom">${escapeHtml(d.nom)}</span>
+          <span class="action-urgente-raison">${raison}</span>
+          <span class="action-urgente-fleche">→</span>
+        </button>`;
+    }).join('');
+  }
+
+  // Ouvre un dossier depuis le tableau de bord : bascule vers le Suivi et déplie directement la
+  // carte concernée (dossiersDeplies avant le render() suivant, même mécanisme que le dépliage
+  // manuel d'une carte/ligne — voir toggleCarteCompacte/toggleLigneDossier).
+  function ouvrirDossierDepuisDashboard(id) {
+    dossiersDeplies.add(id);
+    definirOnglet('suivi');
+    const cible = document.getElementById('mini-' + id) || document.getElementById('detail-' + id);
+    if (cible) cible.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
   // Bascule entre les deux espaces de travail : « Nouveau dossier » (formulaire + aperçu PDF) et
@@ -1900,12 +1974,29 @@
     `;
   }
 
+  // Sidebar repliée hors écran sous ~900px (voir style.css) : ce bouton/scrim la fait glisser à
+  // l'écran sans changer sa structure ni dupliquer la navigation pour mobile.
+  function toggleSidebarMobile(forcerOuvert) {
+    const sidebar = document.getElementById('sidebar');
+    const scrim = document.getElementById('sidebar-scrim');
+    const ouverte = typeof forcerOuvert === 'boolean' ? forcerOuvert : !sidebar.classList.contains('ouverte');
+    sidebar.classList.toggle('ouverte', ouverte);
+    scrim.classList.toggle('visible', ouverte);
+  }
+
   function definirOnglet(nom) {
+    // Sur mobile, choisir une section referme la sidebar repliable (voir toggleSidebarMobile).
+    toggleSidebarMobile(false);
+    document.getElementById('onglet-dashboard').style.display = nom === 'dashboard' ? '' : 'none';
     document.getElementById('onglet-nouveau').style.display = nom === 'nouveau' ? '' : 'none';
     document.getElementById('onglet-suivi').style.display = nom === 'suivi' ? '' : 'none';
+    document.getElementById('tab-dashboard').setAttribute('aria-selected', String(nom === 'dashboard'));
     document.getElementById('tab-nouveau').setAttribute('aria-selected', String(nom === 'nouveau'));
     document.getElementById('tab-suivi').setAttribute('aria-selected', String(nom === 'suivi'));
-    if (nom === 'suivi') render();
+    document.getElementById('tab-dashboard').classList.toggle('actif', nom === 'dashboard');
+    document.getElementById('tab-nouveau').classList.toggle('actif', nom === 'nouveau');
+    document.getElementById('tab-suivi').classList.toggle('actif', nom === 'suivi');
+    if (nom === 'suivi' || nom === 'dashboard') render();
   }
 
   // État d'affichage de la liste (recherche, filtres, vue) : réinitialisé à chaque rechargement de
@@ -2043,6 +2134,8 @@
     renderDashboard(dossiersActifs);
     renderStatsSuivi(dossiersActifs);
     renderAlerteAcces(dossiersActifs);
+    renderKpisDashboard(dossiersActifs);
+    renderActionsUrgentes(dossiersActifs);
 
     const dossiersVisibles = voirArchives ? dossiers : dossiersActifs;
 
@@ -3478,7 +3571,13 @@
   async function appliquerTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
     const btn = document.getElementById('theme-btn');
-    if (btn) btn.textContent = (theme === 'dark') ? '☀️' : '🌙';
+    // innerHTML (pas textContent) : le bouton reprend la même structure icône+libellé que les
+    // autres liens de la sidebar (.sidebar-link-icone), pas un simple emoji seul comme avant.
+    if (btn) {
+      btn.innerHTML = theme === 'dark'
+        ? '<span class="sidebar-link-icone" aria-hidden="true">☀️</span>Mode clair'
+        : '<span class="sidebar-link-icone" aria-hidden="true">🌙</span>Mode sombre';
+    }
     try {
       if (window.storage) { await window.storage.set(CLE_THEME, theme, false); return; }
     } catch (e) { /* on tente le repli ci-dessous */ }
