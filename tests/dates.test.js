@@ -116,6 +116,19 @@ test('detecterDateCompromis reconnaît un bloc de signature électronique par pa
   assert.equal(app.detecterDateCompromis(texte), '2026-07-22');
 });
 
+test('detecterDateCompromis ne backtracke pas à travers une phrase entière jusqu\'au "le" suivant', () => {
+  // Régression découverte en ajoutant la détection de délais relatifs : [^,\n] (sans exclure le
+  // point) dans le groupe "à ..." du motif "a signé à ... le" laissait le moteur de regex, faute de
+  // trouver un "le" valide assez vite, backtracker à travers toute la phrase suivante pour aller
+  // choper un "le" plus loin — ici jusque dans "Le vendeur s'engage à produire ce document", pris
+  // à tort pour la date de signature. Pire qu'une non-détection : une date de signature fausse
+  // désactive silencieusement le filtre anti-dates-antérieures pour tout le reste de l'extraction.
+  const app = chargerApplication();
+  const texte = "Mme X a signé à BLOIS le 22 juillet 2026. " +
+    "Le vendeur s'engage à produire ce document dans un délai de 30 jours à compter de la signature.";
+  assert.equal(app.detecterDateCompromis(texte), '2026-07-22');
+});
+
 test('detecterDatesDepuisTexte écarte une date de citation de loi malgré un vocabulaire de prêt à proximité', () => {
   // Régression réelle : "Un extrait ... en vertu de la loi numéro 2022-270 du 28 février 2022"
   // (clause d'information sur l'assurance emprunteur) était classée "pret" à cause des mots
@@ -164,4 +177,61 @@ test('meilleureCandidateEcheance ne signale pas d\'ambiguïté avec une seule ca
   const { candidat, ambigu } = app.meilleureCandidateEcheance(detectedDates, 'acte');
   assert.equal(candidat.iso, '2025-06-15');
   assert.equal(ambigu, false);
+});
+
+test('detecterDatesDepuisTexte résout une date arrondie en fin de mois ("fin septembre 2026")', () => {
+  const app = chargerApplication();
+  const texte = "La condition suspensive d'obtention du prêt devra être réalisée avant fin septembre 2026.";
+  const dates = app.detecterDatesDepuisTexte(texte, '');
+  assert.equal(dates.length, 1);
+  assert.equal(dates[0].iso, '2026-09-30');
+  assert.equal(dates[0].approx, true);
+  assert.equal(dates[0].suggestion, 'pret');
+});
+
+test('detecterDatesDepuisTexte résout "fin février" sur une année bissextile au 29', () => {
+  const app = chargerApplication();
+  const dates = app.detecterDatesDepuisTexte('Travaux à réaliser avant fin février 2028.', '');
+  assert.equal(dates.length, 1);
+  assert.equal(dates[0].iso, '2028-02-29');
+});
+
+test('detecterDatesDepuisTexte résout un délai relatif à la signature ("délai de 30 jours à compter de la signature")', () => {
+  const app = chargerApplication();
+  const dateCompromis = '2026-07-22';
+  // Reproduit l'arithmétique en heure locale d'addDays() dans script.js : passer par toISOString()
+  // (UTC) déraillerait selon le fuseau horaire de la machine qui exécute les tests.
+  const attendu = new Date(2026, 6, 22);
+  attendu.setDate(attendu.getDate() + 30);
+  const pad2 = (n) => String(n).padStart(2, '0');
+  const isoAttendu = `${attendu.getFullYear()}-${pad2(attendu.getMonth() + 1)}-${pad2(attendu.getDate())}`;
+
+  const texte = "Le vendeur s'engage à produire ce document dans un délai de 30 jours à compter de la signature.";
+  const dates = app.detecterDatesDepuisTexte(texte, dateCompromis);
+  assert.equal(dates.length, 1);
+  assert.equal(dates[0].iso, isoAttendu);
+  assert.equal(dates[0].approx, true);
+});
+
+test('detecterDatesDepuisTexte résout un délai écrit en notation "J+30"', () => {
+  const app = chargerApplication();
+  const dateCompromis = '2026-07-22';
+  // Reproduit l'arithmétique en heure locale d'addDays() dans script.js : passer par toISOString()
+  // (UTC) déraillerait selon le fuseau horaire de la machine qui exécute les tests.
+  const attendu = new Date(2026, 6, 22);
+  attendu.setDate(attendu.getDate() + 30);
+  const pad2 = (n) => String(n).padStart(2, '0');
+  const isoAttendu = `${attendu.getFullYear()}-${pad2(attendu.getMonth() + 1)}-${pad2(attendu.getDate())}`;
+
+  const dates = app.detecterDatesDepuisTexte('Offre de prêt attendue à J+30.', dateCompromis);
+  assert.equal(dates.length, 1);
+  assert.equal(dates[0].iso, isoAttendu);
+  assert.equal(dates[0].approx, true);
+});
+
+test('detecterDatesDepuisTexte n\'invente pas de délai relatif sans date de signature connue', () => {
+  // Sans ancre fiable (dateCompromis vide), on ne devine pas à partir de quoi compter le délai.
+  const app = chargerApplication();
+  const dates = app.detecterDatesDepuisTexte("Ce document sera fourni dans un délai de 30 jours à compter de la signature.", '');
+  assert.equal(dates.length, 0);
 });

@@ -389,6 +389,40 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     texte libre) et les 4 `<div class="etape">` numérotés sont supprimés, remplacés par le stepper
     cliquable lui-même — code CSS mort nettoyé en même temps (`.mode-emploi`, `.etape`, `.etape-num`).
     Dernier chantier de la refonte visuelle demandée par l'étude — les 4 sont maintenant en place.
+- **Détection de dates arrondies/relatives** ("avant fin septembre 2026", "délai de 30 jours à
+  compter de la signature", "J+30"), suite à un retour signalant que le détecteur ratait ces
+  formulations (il ne reconnaissait que des dates calendaires explicites). Deux nouveaux motifs
+  dans `detecterDatesDepuisTexte()` :
+  - **Fin de mois** (`fin <mois> <année>`) résolue au dernier jour civil du mois. L'année doit être
+    écrite explicitement dans le texte — sans elle, il faudrait deviner entre l'année du compromis
+    et la suivante selon le mois, exactement le genre de supposition qui a déjà produit une
+    mauvaise date silencieuse (voir les bugs "Annexe n°1" et citation de loi plus haut) : non
+    trouvée → non ajoutée, l'utilisateur la saisit à la main comme pour tout ce que l'outil ne
+    reconnaît pas.
+  - **Délai relatif à la signature** (`délai de N jours à compter de/à partir de la signature/ce
+    jour/l'acte/la présente/le présent compromis/la promesse`, ou son équivalent chiffré `J+N`) —
+    calculé via `addDays()` (déjà utilisé pour l'export `.ics`) à partir de `dateCompromis`.
+    Uniquement si cette date de signature a été trouvée : sans ancre fiable, on ne devine pas à
+    partir de quoi compter.
+  - Les deux sont marquées `approx: true` sur le chip détecté, propagée jusqu'à l'enregistrement du
+    dossier via un nouveau niveau de confiance **"estime"** (badge `≈ estimée`, quatrième valeur à
+    côté de `auto`/`incertain`/`manuel` — voir `LIBELLES_CONFIANCE` dans `renderTab()` et le badge
+    équivalent sur le chip lui-même dans `creerChip()`). `statutDossier()` traite "estime" comme
+    "incertain" (même mérite de vigilance : dans les deux cas la date affichée n'est pas une simple
+    lecture directe du texte). Nouvel état `approxParType`, même cycle de vie que `ambiguiteParType`
+    (remis à zéro par import de PDF, écrasé par un clic explicite sur un chip dans `assignerDate()`
+    — le caractère approximatif de la date suit alors le chip choisi, il ne disparaît pas).
+  - **Bug latent découvert en testant ce nouveau code, dans du code déjà en place** :
+    `detecterDateCompromis()` backtrackait à travers une phrase entière jusqu'au "le" suivant
+    quand le "le" attendu n'était pas trouvé assez vite, à cause d'un `[^,\n]{0,40}` qui n'excluait
+    pas le point dans le groupe "à ..." de plusieurs motifs (`fait à ...`, `a signé à ...`, `le
+    présent compromis ... à ...`). Sur un texte réel du type « Mme X a signé à BLOIS le 22 juillet
+    2026. Le vendeur s'engage à produire ce document dans un délai de 30 jours à compter de la
+    signature. », le motif "a signé" capturait "vendeur s'engage à produire ce document" comme si
+    c'était la date de signature — pire qu'une non-détection, puisqu'une fausse date de signature
+    désactive silencieusement le filtre anti-dates-antérieures pour tout le reste de l'extraction.
+    Corrigé en excluant aussi le point (`[^,.\n]`) dans ces trois groupes. Voir le test de
+    régression dans `tests/dates.test.js` (texte minimal reproduisant le bug).
 
 ## Comment tester
 

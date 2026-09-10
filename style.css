@@ -1098,6 +1098,9 @@
   }
   .badge-confiance.auto { background: var(--success-bg); color: var(--success); }
   .badge-confiance.manuel { background: var(--pret-bg); color: var(--pret); }
+  /* Calculée (fin de mois arrondie, délai relatif) plutôt que lue telle quelle dans le texte : même
+     amber que "manuel" (une date à vérifier reste une date à vérifier), pas une couleur inventée. */
+  .badge-confiance.estime { background: var(--pret-bg); color: var(--pret); }
   /* Choisie parmi plusieurs dates candidates de même catégorie (ex. une échéance de prêt et une
      citation de loi toutes deux au fil du texte) : contrairement à "auto", aucune clause au futur
      ("au plus tard le"...) ne permettait de trancher sans ambiguïté — à vérifier avant les autres.
@@ -1130,6 +1133,16 @@
     border-radius: 8px;
     background: var(--line-soft);
     color: var(--ink-soft);
+    white-space: nowrap;
+  }
+  .badge-approx {
+    display: inline-block;
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 8px;
+    background: var(--pret-bg);
+    color: var(--pret);
     white-space: nowrap;
   }
 

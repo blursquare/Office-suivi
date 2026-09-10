@@ -128,6 +128,13 @@ test('statutDossier renvoie "aconfirmer" quand une échéance a été choisie pa
   assert.equal(app.statutDossier(d), 'aconfirmer');
 });
 
+test('statutDossier renvoie "aconfirmer" quand une échéance est une date estimée (fin de mois, délai relatif)', () => {
+  const app = chargerApplication();
+  const demain = new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 10);
+  const d = { archive: false, sansPret: true, acte: demain, confiance: { acte: 'estime' } };
+  assert.equal(app.statutDossier(d), 'aconfirmer');
+});
+
 test('statutDossier renvoie "aconfirmer" quand l\'offre de prêt n\'a jamais été confirmée', () => {
   const app = chargerApplication();
   const demain = new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 10);

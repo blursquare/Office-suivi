@@ -17,6 +17,10 @@
   // formulation de délai permettant de trancher (voir meilleureCandidateEcheance) — confiance
   // "incertain" plutôt que "auto" au moment d'enregistrer le dossier.
   let ambiguiteParType = { pret: false, acte: false, ventebien: false };
+  // Vrai quand la date pré-remplie a été calculée à partir d'une formulation approximative
+  // ("fin septembre 2026", "délai de 30 jours à compter de la signature", "J+30") plutôt que lue
+  // telle quelle — confiance "estime" plutôt que "auto" (voir detecterDatesDepuisTexte).
+  let approxParType = { pret: false, acte: false, ventebien: false };
   let analyseJuridiqueActuelle = { documents: [], engagements: [], conditions: [] };
 
   const MOIS = {
@@ -57,8 +61,14 @@
   // lui est antérieur (diagnostics, actes précédents…).
   function detecterDateCompromis(texte) {
     const patterns = [
-      /fait\s+(?:à|a)\s+[^,\n]{0,60},?\s*le\s+([^\n,.;]{6,40})/gi,
-      /le\s+pr[ée]sent\s+(?:compromis|promesse)(?:\s+de\s+vente)?\s+(?:est\s+)?(?:sign[ée]|[ée]tabli|conclu)\s+(?:à\s+[^,\n]{0,40},?\s*)?le\s+([^\n,.;]{6,40})/gi,
+      // [^,.\n] (et non [^,\n]) dans les groupes qui précèdent un "le" obligatoire : un nom de lieu
+      // ou une clause courte ne contient jamais de point, alors qu'un [^,\n] permissif laisse le
+      // moteur de regex backtracker À TRAVERS une phrase entière pour aller chercher un "le" plus
+      // loin dans le texte (ex. « ... à compter de la signature. Le vendeur s'engage... ») — cas
+      // réel rencontré : le motif "a signé" ci-dessous capturait alors "vendeur s'engage à produire
+      // ce document" comme si c'était la date de signature, un bug bien pire que ne rien détecter.
+      /fait\s+(?:à|a)\s+[^,.\n]{0,60},?\s*le\s+([^\n,.;]{6,40})/gi,
+      /le\s+pr[ée]sent\s+(?:compromis|promesse)(?:\s+de\s+vente)?\s+(?:est\s+)?(?:sign[ée]|[ée]tabli|conclu)\s+(?:à\s+[^,.\n]{0,40},?\s*)?le\s+([^\n,.;]{6,40})/gi,
       /(?:compromis|promesse)\s+de\s+vente\s+en\s+date\s+du\s+([^\n,.;]{6,40})/gi,
       /sign[ée]\s+[ée]lectroniquement\s+le\s+([^\n,.;]{6,40})/gi,
       /date\s+de\s+signature(?:\s+[ée]lectronique)?\s*:?\s*([^\n,.;]{6,40})/gi,
@@ -68,7 +78,7 @@
       // répété une fois par signataire. Cas réel : sans ce motif, aucune des dates ci-dessus ne
       // matchait, et `dateCompromis` restait vide — désactivant le filtre "écarte tout ce qui est
       // antérieur à la signature" pour tout le reste de l'extraction (voir detecterDatesDepuisTexte).
-      /\ba\s+sign[ée]\s+(?:[àa]\s+[^,\n]{0,40}\s+)?le\s+([^\n,.;]{6,40})/gi
+      /\ba\s+sign[ée]\s+(?:[àa]\s+[^,.\n]{0,40}\s+)?le\s+([^\n,.;]{6,40})/gi
     ];
     const dates = [];
     for (const re of patterns) {
@@ -655,7 +665,7 @@
     const resultats = [];
     const seen = new Set();
 
-    function ajouter(iso, label, index, longueur) {
+    function ajouter(iso, label, index, longueur, approx) {
       if (seen.has(iso)) return;
       // Écarte toute date antérieure ou égale à la signature du compromis (diagnostics, actes précédents…).
       if (dateCompromis && iso <= dateCompromis) return;
@@ -669,7 +679,8 @@
       seen.add(iso);
       resultats.push({
         iso, label, contexte, suggestion, active: !!suggestion, page: pageDepuisIndex(index),
-        apprise: !!apprise, libelleAppris: apprise ? apprise.libelle : null
+        apprise: !!apprise, libelleAppris: apprise ? apprise.libelle : null,
+        approx: !!approx
       });
     }
 
@@ -692,6 +703,37 @@
       const y = parseInt(m[3], 10);
       if (MOIS.hasOwnProperty(moKey)) {
         ajouter(toISO(y, MOIS[moKey], d), m[0], m.index, m[0].length);
+      }
+    }
+
+    // Date arrondie à la fin d'un mois ("avant fin septembre 2026", "d'ici fin septembre 2026") :
+    // résolue au dernier jour civil de ce mois, marquée "approx" (badge "≈ estimée" côté chip/
+    // confiance) plutôt que traitée comme une date lue telle quelle. L'année doit être écrite
+    // explicitement dans le texte : sans elle, il faudrait deviner entre l'année du compromis et la
+    // suivante selon le mois — exactement le genre de supposition qui a déjà produit une mauvaise
+    // date silencieuse (voir l'historique des bugs corrigés dans CLAUDE.md). Pas trouvée → pas
+    // ajoutée, l'utilisateur la saisit à la main comme pour tout ce que l'outil ne reconnaît pas.
+    const reFinMois = new RegExp(`\\bfin\\s+(${moisNoms})\\s+(\\d{4})\\b`, 'gi');
+    while ((m = reFinMois.exec(texte)) !== null) {
+      const moKey = m[1].toLowerCase();
+      const y = parseInt(m[2], 10);
+      if (MOIS.hasOwnProperty(moKey)) {
+        const dernierJour = new Date(y, MOIS[moKey] + 1, 0).getDate();
+        ajouter(toISO(y, MOIS[moKey], dernierJour), m[0], m.index, m[0].length, true);
+      }
+    }
+
+    // Délai relatif à la signature ("délai de 30 jours à compter de la signature", "J+30") :
+    // seulement calculable si la date de signature du compromis a été trouvée (dateCompromis) — sans
+    // ancre fiable, on ne devine pas à partir de quoi compter, on laisse l'utilisateur l'ajouter lui-même.
+    if (dateCompromis) {
+      const reDelai = /d[ée]lai\s+de\s+(\d{1,3})\s*jours?\s+(?:[àa]\s+compter|[àa]\s+partir)\s+de\s+(?:la\s+signature|ce\s+jour|l['’]acte|la\s+pr[ée]sente|le\s+pr[ée]sent\s+(?:compromis|acte)|la\s+promesse)/gi;
+      while ((m = reDelai.exec(texte)) !== null) {
+        ajouter(addDays(dateCompromis, parseInt(m[1], 10)), m[0], m.index, m[0].length, true);
+      }
+      const reJPlus = /\bJ\s*\+\s*(\d{1,3})\b/g;
+      while ((m = reJPlus.exec(texte)) !== null) {
+        ajouter(addDays(dateCompromis, parseInt(m[1], 10)), m[0], m.index, m[0].length, true);
       }
     }
 
@@ -785,6 +827,7 @@
         definirEcheanceActive(type, true);
         pageParType[type] = candidat.page;
         ambiguiteParType[type] = ambigu;
+        approxParType[type] = !!candidat.approx;
       }
     });
 
@@ -827,6 +870,12 @@
     const badgeApprise = item.apprise
       ? `<span class="badge-apprise" title="Classé d'après une correction déjà faite sur une clause très proche — à vérifier comme toute suggestion automatique">🧠 appris</span>`
       : '';
+    // Date calculée (fin de mois arrondie, délai relatif) plutôt que lue telle quelle dans le
+    // texte — voir ajouter() dans detecterDatesDepuisTexte. Visible dès l'étape "Vérifier", avant
+    // même l'enregistrement (où le même statut réapparaît via badge-confiance "estime").
+    const badgeApprox = item.approx
+      ? `<span class="badge-approx" title="Date calculée à partir d'une formulation approximative (fin de mois, délai relatif...) — à vérifier précisément">≈ estimée</span>`
+      : '';
     chip.innerHTML = `
       <div class="chip-top">
         <label class="switch small">
@@ -835,6 +884,7 @@
         </label>
         <span class="date-text">${escapeHtml(item.label)}</span>
         ${badgeApprise}
+        ${badgeApprox}
         ${boutonVoir}
       </div>
       <span class="ctx">${escapeHtml(item.contexte)}</span>
@@ -900,9 +950,12 @@
       item.suggestion = type;
       item.active = true;
       // Un clic explicite sur un chip lève l'ambiguïté : l'utilisateur vient de trancher lui-même.
+      // Le caractère approximatif de la date, lui, reste (voir ajouter() dans detecterDatesDepuisTexte) :
+      // choisir la catégorie ne rend pas une date calculée plus précise.
       if (type === 'pret' || type === 'acte' || type === 'ventebien') {
         pageParType[type] = item.page;
         ambiguiteParType[type] = false;
+        approxParType[type] = !!item.approx;
       }
       renderChips();
     }
@@ -1184,6 +1237,7 @@
       frontieresPagesActuelles = calculerFrontieresPages(textesParPage, dernierePageUtile);
       pageParType = { pret: null, acte: null, ventebien: null };
       ambiguiteParType = { pret: false, acte: false, ventebien: false };
+      approxParType = { pret: false, acte: false, ventebien: false };
       vuePdfViewerActuelle = 'apercu';
       traiterTexte(texteComplet);
       // Bascule automatiquement vers l'étape "Vérifier" : les dates/chips sont déjà là, plus besoin
@@ -1396,10 +1450,12 @@
     // "auto" = date reprise d'un chip détecté dans le texte ; "manuel" = saisie/correction à la
     // main ; "incertain" = choisie automatiquement parmi plusieurs candidates de même catégorie
     // sans formulation de délai pour trancher (voir meilleureCandidateEcheance) — à vérifier avant
-    // les autres dates "auto".
+    // les autres dates "auto" ; "estime" = calculée à partir d'une formulation approximative
+    // ("fin septembre", délai relatif...) plutôt que lue telle quelle dans le texte.
     function confianceType(valeur, type) {
       if (!valeur) return null;
       if (!pageParType[type]) return 'manuel';
+      if (approxParType[type]) return 'estime';
       return ambiguiteParType[type] ? 'incertain' : 'auto';
     }
     const confiance = {
@@ -1556,6 +1612,7 @@
     // priorité — voir meilleureCandidateEcheance), ou vient d'une saisie/correction manuelle.
     const LIBELLES_CONFIANCE = {
       auto: { titre: 'Repérée automatiquement dans le texte', texte: '📄 texte' },
+      estime: { titre: 'Calculée à partir d’une formulation approximative ("fin septembre", délai relatif...) — à vérifier précisément', texte: '≈ estimée' },
       incertain: { titre: 'Choisie parmi plusieurs dates possibles dans le texte — à vérifier en priorité', texte: '⚠️ à vérifier' },
       manuel: { titre: 'Saisie ou corrigée manuellement', texte: '✍️ manuel' }
     };
@@ -1805,7 +1862,10 @@
       return 'blocage';
     }
     const confiance = d.confiance || {};
-    const incertain = ['pret', 'acte', 'ventebien'].some(t => confiance[t] === 'incertain');
+    // "estime" (date calculée à partir d'une formulation approximative) mérite la même vigilance
+    // que "incertain" (choisie parmi plusieurs candidates) : dans les deux cas, la date affichée
+    // n'est pas une simple lecture directe du texte.
+    const incertain = ['pret', 'acte', 'ventebien'].some(t => confiance[t] === 'incertain' || confiance[t] === 'estime');
     // Même périmètre que la tuile "offres à vérifier" du bandeau de stats (renderStatsSuivi) :
     // un prêt actif dont l'offre n'a jamais été confirmée, qu'un dossier local soit relié ou non.
     const offreInconnue = !d.sansPret && (d.offrePretStatut || 'inconnu') === 'inconnu';
