@@ -235,3 +235,40 @@ test('detecterDatesDepuisTexte n\'invente pas de délai relatif sans date de sig
   const dates = app.detecterDatesDepuisTexte("Ce document sera fourni dans un délai de 30 jours à compter de la signature.", '');
   assert.equal(dates.length, 0);
 });
+
+test('detecterDatesDepuisTexte résout "au plus tard dans les N jours" (condition suspensive de prêt sans date calendaire, sans ancre explicite)', () => {
+  // Texte réel (boilerplate, anonymisé de fait — clause type sans nom de partie) fourni par
+  // l'étude : contrairement à reDelai (« délai de N jours à compter de... »), cette formulation
+  // ne porte aucune ancre explicite — elle compte implicitement depuis la signature de la
+  // promesse elle-même (« la présente convention... »), voir CLAUDE.md.
+  const app = chargerApplication();
+  const dateCompromis = '2026-07-08';
+  const texte = "Conformément aux dispositions des articles L.313-1 et suivants du Code de la " +
+    "consommation, la présente convention est soumise à la condition suspensive d'obtention de " +
+    "ces prêts, aux conditions ci-dessus, au plus tard dans les 60 jours, et selon les modalités " +
+    "ci-après définies, faute de quoi la condition suspensive sera considérée comme non réalisée.";
+  const dates = app.detecterDatesDepuisTexte(texte, dateCompromis);
+  assert.equal(dates.length, 1);
+  assert.equal(dates[0].iso, '2026-09-06'); // 8 juillet + 60 jours
+  assert.equal(dates[0].suggestion, 'pret');
+  assert.equal(dates[0].approx, true);
+});
+
+test('meilleureCandidateEcheance retient le délai de prêt (60 jours) plutôt que le délai de notification (70 jours) de la même promesse', () => {
+  // Reproduit le cas réel complet : la même promesse porte deux délais en "au plus tard dans les
+  // N jours" avec le mot "prêt" à proximité des deux (l'un la condition de prêt elle-même, l'autre
+  // la notification du refus/de l'offre au notaire) — meilleureCandidateEcheance() doit rester
+  // prudente (ambiguïté signalée) tout en retenant par défaut la bonne date (la plus proche
+  // chronologiquement, donc le délai de la condition elle-même).
+  const app = chargerApplication();
+  const dateCompromis = '2026-07-08';
+  const texte = "la présente convention est soumise à la condition suspensive d'obtention de ces " +
+    "prêts, aux conditions ci-dessus, au plus tard dans les 60 jours, et selon les modalités. " +
+    "Il s'oblige également à notifier audit notaire, au plus tard dans les 70 jours, les offres " +
+    "à lui faites ou le refus opposé aux demandes de prêt.";
+  const dates = app.detecterDatesDepuisTexte(texte, dateCompromis);
+  assert.equal(dates.length, 2);
+  const { candidat, ambigu } = app.meilleureCandidateEcheance(dates, 'pret');
+  assert.equal(ambigu, true);
+  assert.equal(candidat.iso, '2026-09-06'); // 60 jours, pas 70
+});

@@ -744,6 +744,21 @@
       while ((m = reJPlus.exec(texte)) !== null) {
         ajouter(addDays(dateCompromis, parseInt(m[1], 10)), m[0], m.index, m[0].length, true);
       }
+      // "au plus tard dans les 60 jours" (ou "dans un délai de 60 jours") : formulation réelle
+      // d'une condition suspensive d'obtention de prêt (voir CLAUDE.md — texte anonymisé fourni
+      // par l'étude), sans date calendaire NI ancre explicite ("à compter de..." absent ici,
+      // contrairement à reDelai ci-dessus). Compté à partir de la signature de la promesse elle-
+      // même (« la présente convention… ») faute d'autre point de départ indiqué dans la clause —
+      // même convention implicite que les ancres "la présente"/"ce jour" déjà acceptées par
+      // reDelai. Une même promesse notarie souvent aussi un délai de notification distinct (ex.
+      // "70 jours" pour notifier le refus de prêt) avec la même tournure "au plus tard dans les N
+      // jours" : les deux sont détectés, meilleureCandidateEcheance() départage déjà ce cas (ambigu
+      // si les deux portent une formulation de délai, premier candidat par ordre chronologique
+      // gardé par défaut — ici le bon, la condition de prêt tombant avant celle de notification).
+      const reAuPlusTardDelai = /au\s+plus\s+tard\s+dans\s+(?:les?|un\s+d[ée]lai\s+de)\s+(\d{1,3})\s*jours?/gi;
+      while ((m = reAuPlusTardDelai.exec(texte)) !== null) {
+        ajouter(addDays(dateCompromis, parseInt(m[1], 10)), m[0], m.index, m[0].length, true);
+      }
     }
 
     resultats.sort((a, b) => a.iso.localeCompare(b.iso));

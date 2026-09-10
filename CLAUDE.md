@@ -585,6 +585,26 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     déjà retenu pour le compromis lui-même, `PLAFOND_SECURITE` dans `extraireTextesUtiles`, plutôt
     qu'un chiffre arbitraire à part), et repli OCR testé sur les 3 premières pages plutôt qu'une
     seule (même principe que le repli déjà utilisé pour la date de signature du compromis).
+- **Condition suspensive d'obtention de prêt exprimée en délai (jours), sans date calendaire** :
+  point resté ouvert plus haut faute d'exemple réel, corrigé une fois le texte fourni par l'étude
+  (promesse réelle, clause "PROTECTION DE L'EMPRUNTEUR IMMOBILIER — CONDITION SUSPENSIVE
+  D'OBTENTION DE PRÊT"). Formulation effective, différente de ce qui était anticipé : **« au plus
+  tard dans les 60 jours »** — ni "délai de N jours", ni ancre explicite ("à compter de..." absent).
+  Nouveau motif `reAuPlusTardDelai` dans `detecterDatesDepuisTexte()`
+  (`au\s+plus\s+tard\s+dans\s+(?:les?|un\s+d[ée]lai\s+de)\s+(\d{1,3})\s*jours?`), compté depuis
+  `dateCompromis` faute d'autre ancre dans la clause — même convention implicite que les ancres
+  "la présente"/"ce jour" déjà acceptées par `reDelai` (la clause dit littéralement "la présente
+  convention est soumise à la condition suspensive..."). Le mot "prêt" est bien dans la même
+  phrase que le délai ici (contrairement à l'hypothèse de rédaction en deux phrases distinctes
+  envisagée avant d'avoir le texte réel), donc `suggererEcheance()` classe correctement "pret" sans
+  qu'il ait fallu élargir `extraireContexte()`. **Piège réel rencontré dans ce même document** : une
+  seconde clause, quelques lignes plus loin, porte un délai distinct avec la même tournure ("au
+  plus tard dans les 70 jours", pour notifier au notaire le refus/l'octroi du prêt) et le mot
+  "prêt" est aussi à proximité — les deux sont donc détectés et suggérés "pret" à la fois.
+  `meilleureCandidateEcheance()` (déjà en place) gère ce cas sans modification : ambiguïté signalée
+  (badge "≈ estimée", les deux portant "au plus tard") mais le premier candidat par ordre
+  chronologique reste retenu par défaut, qui est ici le bon (60 jours, pas 70). Voir le test de
+  régression dans `tests/dates.test.js` (texte réel, boilerplate sans donnée personnelle).
 
 ## Comment tester
 
@@ -610,24 +630,6 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
 
 ## Ce qui reste ouvert / pas encore fait
 
-- **Condition suspensive d'obtention de prêt exprimée en délai (jours), sans date calendaire** :
-  signalé par l'étude sur ses propres promesses de vente ("condition suspensive d'obtention de
-  prêt" avec un nombre de jours à compter de la signature, sans date explicite dans la clause). La
-  détection générique de délai relatif existe déjà (`reDelai`/`reJPlus` dans
-  `detecterDatesDepuisTexte`, voir l'historique plus haut — "délai de N jours à compter de la
-  signature/ce jour/l'acte/la présente/le présent compromis/la promesse", ou `J+N`), et
-  `suggererEcheance()` classe "pret" tout contexte contenant prêt/financement/emprunt — mais
-  seulement si ces deux éléments (le compte à rebours ET le mot "prêt") tombent dans la même
-  fenêtre de contexte (`extraireContexte`, qui s'arrête au point le plus proche). Dans une
-  rédaction classique "condition suspensive de l'obtention d'un prêt de tant d'euros. Cette
-  condition devra être réalisée dans un délai de N jours à compter de..." les deux phrases sont
-  séparées par un point : le délai serait détecté mais resterait sans suggestion (chip à classer à
-  la main), ou pire mal classé si un autre mot-clé traîne à proximité. **Pas corrigé faute
-  d'exemple réel de la formulation exacte utilisée par l'étude** — resserrer une regex sur une
-  hypothèse plutôt que sur un vrai texte est exactement le genre de pari qui a déjà produit des
-  bugs silencieux par le passé (voir "Annexe n°1" et la citation de loi de 2022 ci-dessus). Fournir
-  le texte anonymisé d'une clause réelle (montants/dates neutralisés) avant de resserrer/élargir
-  quoi que ce soit ici.
 - Modèles d'email pré-rédigés différenciés selon le type de relance (prêt manquant, pièce à
   fournir, RIB) — discuté mais pas implémenté.
 - Détection d'incohérences de dates (ex. prêt après l'acte).
