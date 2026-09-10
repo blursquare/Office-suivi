@@ -25,6 +25,14 @@
     --focus-hover: #1D4ED8;
     --shadow-card: 0 1px 2px rgba(22,35,60,0.04), 0 2px 8px rgba(22,35,60,0.04);
     --shadow-float: 0 8px 28px rgba(22,35,60,0.16);
+    /* Panneau "verre" de la sidebar : dégradé légèrement teinté (pas un simple à-plat de
+       --paper-card) + flou derrière ce qui défile sous elle en mobile (voir .sidebar-burger /
+       .sidebar en position fixed) — la seule vraie translucidité visible, la sidebar desktop étant
+       en flux normal sans rien en dessous. */
+    --sidebar-bg: linear-gradient(165deg, rgba(255,255,255,0.94) 0%, rgba(246,248,251,0.88) 55%, rgba(228,236,247,0.85) 100%);
+    --sidebar-border: rgba(22,35,60,0.08);
+    --sidebar-shadow: 4px 0 28px rgba(22,35,60,0.07);
+    --sidebar-highlight: rgba(255,255,255,0.7);
   }
 
   [data-theme="dark"] {
@@ -52,6 +60,10 @@
     --focus-hover: #7FB4FB;
     --shadow-card: 0 1px 2px rgba(0,0,0,0.3), 0 2px 8px rgba(0,0,0,0.2);
     --shadow-float: 0 8px 28px rgba(0,0,0,0.5);
+    --sidebar-bg: linear-gradient(165deg, rgba(46,46,46,0.94) 0%, rgba(30,30,30,0.9) 55%, rgba(36,44,58,0.88) 100%);
+    --sidebar-border: rgba(255,255,255,0.07);
+    --sidebar-shadow: 4px 0 32px rgba(0,0,0,0.4);
+    --sidebar-highlight: rgba(255,255,255,0.09);
   }
 
   * { box-sizing: border-box; }
@@ -225,18 +237,33 @@
     min-height: 100vh;
   }
 
+  /* Sidebar "verre" : dégradé + flou (visible surtout en mobile, où elle passe en overlay fixe
+     par-dessus le contenu, voir @media 900px) + ombre portée et liseré de lumière en tête, plutôt
+     qu'un aplat uni + bordure plate — demandé pour donner de la profondeur au menu. */
   .sidebar {
     flex: 0 0 252px;
     display: flex;
     flex-direction: column;
     gap: 4px;
     padding: 22px 16px;
-    background: var(--paper-card);
-    border-right: 1px solid var(--line);
+    background: var(--sidebar-bg);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border-right: 1px solid var(--sidebar-border);
+    box-shadow: var(--sidebar-shadow);
     position: sticky;
     top: 0;
     height: 100vh;
     overflow-y: auto;
+    z-index: 2;
+  }
+  .sidebar::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--sidebar-highlight), transparent);
+    pointer-events: none;
   }
 
   .sidebar-brand {
@@ -279,7 +306,7 @@
     padding: 10px 10px;
     text-align: left;
     cursor: pointer;
-    transition: background-color 0.15s ease, color 0.15s ease;
+    transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
   }
   .sidebar-link-icone {
     display: inline-flex;
@@ -290,8 +317,15 @@
     font-size: 14px;
     opacity: 0.85;
   }
-  .sidebar-link:hover { background: var(--paper-sunk); color: var(--ink); }
-  .sidebar-link.actif { background: var(--focus); color: #fff; }
+  .sidebar-link:hover { background: var(--paper-sunk); color: var(--ink); transform: translateX(1px); }
+  /* Lien actif en "pilule de verre" (dégradé + liseré clair en haut + ombre portée teintée) plutôt
+     qu'un simple aplat --focus : cohérent avec le reste de la sidebar, et lisible dans les deux
+     thèmes puisque le dégradé reste dans la même famille de bleu que --focus/--focus-hover. */
+  .sidebar-link.actif {
+    background: linear-gradient(155deg, var(--focus) 0%, var(--focus-hover) 100%);
+    color: #fff;
+    box-shadow: 0 4px 14px -2px rgba(37,99,235,0.45), inset 0 1px 0 rgba(255,255,255,0.3);
+  }
   .sidebar-link.actif .sidebar-link-icone { opacity: 1; }
 
   .sidebar-footer {
@@ -423,14 +457,18 @@
       z-index: 40;
       width: 40px;
       height: 40px;
-      border-radius: 8px;
-      border: 1px solid var(--line);
-      background: var(--paper-card);
+      border-radius: 10px;
+      border: 1px solid var(--sidebar-border);
+      background: var(--sidebar-bg);
+      backdrop-filter: blur(14px) saturate(160%);
+      -webkit-backdrop-filter: blur(14px) saturate(160%);
       color: var(--ink);
       font-size: 18px;
       cursor: pointer;
-      box-shadow: var(--shadow-card);
+      box-shadow: var(--shadow-float);
     }
+    /* Overlay fixe par-dessus le contenu (contrairement au flux normal en desktop) : c'est ici que
+       le flou de .sidebar (voir plus haut) devient réellement visible, sur ce qui défile dessous. */
     .sidebar {
       position: fixed;
       z-index: 41;

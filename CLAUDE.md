@@ -779,6 +779,24 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     savoir si un accès est réellement perdu. Bouton "Reconfirmer maintenant" (clic explicite,
     requis par le navigateur pour qu'une demande de permission fichier aboutisse) ou "Plus tard"
     (ferme la popup sans rien changer ; le bandeau reste disponible ensuite dans l'onglet Suivi).
+- **Sidebar "verre" (profondeur, couleur, ombre)**, demandé explicitement pour casser l'aplat de
+  la première version de la sidebar (simple `--paper-card` + bordure droite). Nouveaux tokens
+  `--sidebar-bg` (dégradé diagonal légèrement teinté de bleu, pas un à-plat), `--sidebar-border`,
+  `--sidebar-shadow`, `--sidebar-highlight` (liseré clair en tête de panneau), déclinés clair/sombre
+  comme les autres tokens de thème.
+  - `.sidebar` : `background: var(--sidebar-bg)` + `backdrop-filter: blur(20px) saturate(160%)` +
+    `box-shadow: var(--sidebar-shadow)` + un `::before` en liseré de lumière horizontal en haut du
+    panneau. Le flou n'a d'effet visuel réel qu'en mobile (`@media 900px`), seul contexte où la
+    sidebar passe en overlay `position: fixed` par-dessus le contenu qui défile dessous — en
+    desktop, en flux normal, rien ne se trouve derrière elle, mais le déclarer ne coûte rien et
+    prépare le terrain si la mise en page venait à changer.
+  - **Lien actif en "pilule de verre"** plutôt qu'un aplat `--focus` uni : dégradé diagonal
+    `--focus` → `--focus-hover`, ombre portée teintée bleue + liseré clair interne
+    (`inset 0 1px 0 rgba(255,255,255,0.3)`) pour simuler un reflet. Reste dans la même famille de
+    bleu que les autres accents (`--focus`/`--focus-hover`), donc lisible dans les deux thèmes sans
+    couleur inventée pour l'occasion.
+  - Bouton burger (mobile) aligné sur le même traitement (`--sidebar-bg` + flou), cohérent avec le
+    panneau qu'il ouvre plutôt qu'un simple bouton `--paper-card` plat comme avant.
 
 ## Comment tester
 
