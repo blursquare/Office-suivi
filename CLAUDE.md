@@ -853,6 +853,23 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     texte, uniquement si `!d.sansPret && d.offrePretStatut === 'recue'` et que prix/montant sont
     tous les deux connus — pas affiché tant que l'offre n'a pas été confirmée reçue (cohérent avec
     la demande initiale : comparer "lors de la réception de l'offre").
+- **Bouton "🔍 Comparer au prix du marché"** (`comparerPrixMarche()`), à côté du champ adresse dès
+  qu'une adresse est renseignée : demandé pour situer le prix du bien par rapport au marché local
+  (l'étude a évoqué "Pappers" comme piste — en réalité un site de données SIREN/SIRET d'entreprises,
+  sans rapport avec l'immobilier résidentiel, précision faite avant d'implémenter autre chose).
+  - **Seule l'adresse du bien est transmise, jamais le nom du dossier ni l'identité des parties** —
+    confirmé explicitement acceptable par l'étude, à la différence du reste de l'outil qui ne
+    transmet strictement rien à l'extérieur (voir "décision explicite de rester en local"). Un clic
+    utilisateur explicite déclenche l'ouverture (`window.open` dans un nouvel onglet), jamais un
+    appel automatique en arrière-plan — même principe que le `mailto:` des relances, qui n'envoie
+    jamais rien tout seul.
+  - Pointe vers une recherche web généraliste (`https://www.google.com/search?q=...`) plutôt qu'un
+    lien profond vers un site immobilier précis (DVF/etalab, MeilleursAgents...) : impossible de
+    garantir la stabilité du format de leurs URLs de recherche par adresse sans l'avoir testé en
+    conditions réelles, alors qu'une recherche généraliste fonctionne toujours et laisse
+    l'utilisateur choisir le résultat pertinent (DVF en particulier reste la source officielle à
+    privilégier une fois cliqué). À remplacer par un lien direct si l'étude confirme un site
+    précis dont le format d'URL est vérifié.
 
 ## Comment tester
 

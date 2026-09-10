@@ -182,6 +182,21 @@
     return { montant, pourcentage, niveau };
   }
 
+  // Comparaison au prix du marché : ouvre un onglet vers une recherche publique sur la seule
+  // adresse du bien — jamais le nom du dossier ni l'identité des parties, en accord avec le
+  // principe général de l'outil ("rien n'est envoyé sur internet" sans un clic explicite de
+  // l'utilisateur, voir le mailto: des relances). Un clic direct sur un bouton, jamais un appel
+  // automatique en arrière-plan : jusque-là aucune donnée ne quittait le poste sans ce geste,
+  // ce bouton respecte la même règle. Passe par une recherche web généraliste plutôt qu'un lien
+  // profond vers un site précis (DVF, MeilleursAgents...) dont on ne peut pas garantir la stabilité
+  // du format d'URL de recherche par adresse — l'utilisateur choisit ensuite le résultat pertinent.
+  function comparerPrixMarche(id) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d || !d.adresseBien) return;
+    const requete = encodeURIComponent(`prix immobilier au m2 ${d.adresseBien}`);
+    window.open(`https://www.google.com/search?q=${requete}`, '_blank', 'noopener');
+  }
+
   // Repère les noms de famille du VENDEUR et de l'ACQUÉREUR (un ou plusieurs de chaque côté) pour
   // préremplir le nom du dossier, au format "NOM1 / NOM2 & NOM3" (en majuscules).
   //
@@ -2583,6 +2598,7 @@
             <div class="addr dossier-adresse-prix">
               📍 <input type="text" class="input-inline champ-adresse-bien" value="${escapeAttr(d.adresseBien || '')}" placeholder="Adresse du bien non détectée" aria-label="Adresse du bien" onblur="changerAdresseBien('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
               · 💶 <input type="text" class="input-inline champ-prix-vente" value="${d.prixVente ? formaterPrix(d.prixVente) : ''}" placeholder="Prix non détecté" aria-label="Prix de vente" onblur="changerPrixVente('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
+              ${d.adresseBien ? `<button type="button" class="lien-dossier-local" onclick="comparerPrixMarche('${d.id}')" title="Ouvre une recherche dans un nouvel onglet — seule l'adresse du bien est transmise, jamais le nom du dossier ni des parties">🔍 Comparer au prix du marché</button>` : ''}
             </div>
             ${d.sansPret ? '<span class="badge-cash">💰 Achat comptant — sans prêt</span>' : ''}
             <div class="offre-pret-ligne">
