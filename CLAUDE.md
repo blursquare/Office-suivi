@@ -492,3 +492,30 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
     foncière, titre de propriété.
 
   **Vente de terrain nu :** liste pas encore fournie par l'étude.
+
+- **Arborescence réelle des dossiers de l'étude, par type d'affaire** (reçue sous forme d'un
+  modèle de dossier vide "DOSSIER TYPE.rar", sans données client — noms de sous-dossiers
+  génériques uniquement). **Retenu pour plus tard**, pas encore exploité : `fichiersPdfRecursifs()`
+  parcourt déjà tous les sous-dossiers sans distinction de nom (voir l'historique des décisions),
+  donc rien à changer côté détection tant qu'une fonctionnalité n'a pas explicitement besoin de
+  cibler un sous-dossier précis par son nom (ex. une future détection par type de pièce attendue,
+  liée à la checklist ci-dessus).
+
+  - **MAISON** : `0 - COMPTABILITE - PRET` (avec un sous-dossier `PRET`), `1 - Vendeur`,
+    `2 - Acquéreur`, `3 - Titre de propriété`, `4 - Diagnostics`, `5 - Environnement`,
+    `6 - Situation hypothécaire`, `7 - Travaux`, `8 - SRU`, `9 - AAE`.
+  - **COPRO** : mêmes rubriques 0 à 7 que MAISON, puis `8 - COPRO et ETAT DATE` (avec deux
+    sous-dossiers `ETAT DATE` et `PRE ETAT DATE`), `9 - SRU`, `10 - AAE`.
+  - **TERRAIN** : `0 - COMPTABILITE - PRET`, `1 - Vendeur`, `2 - Acquéreur`,
+    `3 - Titre de propriété`, `4 - Environnement`, `5 - Construction`,
+    `6 - Situation hypothécaire`, `7 - SRU`, `8 - AAE` (pas de rubrique "Diagnostics" ni
+    "Travaux" distincte, contrairement à MAISON/COPRO — cohérent avec un terrain nu).
+  - **SUCC** (succession) : `0- COMPTABILITE`, `1- PROCURATIONS`, `2- ETAT CIVIL`,
+    `3- AUTORISATIONS DE TRANSFERT - CLOTURE`, `4- IMMEUBLES` (avec deux sous-dossiers
+    `ESTIMATIONS` et `TITRES`).
+  - **CESSION DE FONDS** (fonds de commerce) : `1 - COMPTABILITE`, `2 - SOCIAL`, `3 - PRENEUR`,
+    `4 - CONTRAT`, `6 - BAIL`, `7 - DIAGNOSTICS`, `8 - AAE`.
+
+  "AAE" (présent dans MAISON, COPRO, TERRAIN, CESSION DE FONDS) désigne vraisemblablement une
+  catégorie de pièce ou de document propre à l'étude — sens exact non confirmé, ne pas deviner ni
+  développer de logique dessus sans demander confirmation à l'étude.
