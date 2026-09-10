@@ -13,6 +13,10 @@
   let pdfDernierePageUtile = 1;
   let frontieresPagesActuelles = null; // découpage du texte concaténé par page, pour retrouver la page d'une date
   let pageParType = { pret: null, acte: null, ventebien: null }; // page où chaque échéance a été repérée
+  // Vrai quand la date pré-remplie a été choisie parmi plusieurs candidates de même catégorie sans
+  // formulation de délai permettant de trancher (voir meilleureCandidateEcheance) — confiance
+  // "incertain" plutôt que "auto" au moment d'enregistrer le dossier.
+  let ambiguiteParType = { pret: false, acte: false, ventebien: false };
   let analyseJuridiqueActuelle = { documents: [], engagements: [], conditions: [] };
 
   const MOIS = {
@@ -230,6 +234,23 @@
     if (/acte\s+authentique|r[ée]it[ée]ration|signature\s+de\s+l.acte/.test(c)) return 'acte';
     if (/acte\s+de\s+vente|notaire/.test(c) && CUE_FUTUR_RE.test(c)) return 'acte';
     return null;
+  }
+
+  // Quand plusieurs dates détectées partagent la même catégorie suggérée (ex. une vraie échéance
+  // de prêt et une citation de loi qui mentionne aussi "prêteur"), on ne peut pas se contenter de
+  // prendre la première par ordre chronologique : cas réel rencontré où cela remontait une date de
+  // loi de 2022 avant la vraie échéance de 2026. Une clause qui porte une formulation de délai
+  // ("au plus tard le", "avant le"...) fait presque toujours foi sur une simple mention en passant
+  // — si elle est la seule du lot à en porter une, elle est retenue sans marquer d'ambiguïté.
+  // Sinon (aucune, ou plusieurs), le premier candidat est gardé par défaut mais signalé "ambigu" :
+  // c'est à l'utilisateur de vérifier, pas à l'outil de deviner en silence.
+  function meilleureCandidateEcheance(detectedDates, type) {
+    const candidats = detectedDates.filter(d => d.suggestion === type);
+    if (candidats.length === 0) return { candidat: null, ambigu: false };
+    if (candidats.length === 1) return { candidat: candidats[0], ambigu: false };
+    const avecEcheance = candidats.filter(d => CUE_FUTUR_RE.test(d.contexte));
+    if (avecEcheance.length === 1) return { candidat: avecEcheance[0], ambigu: false };
+    return { candidat: candidats[0], ambigu: true };
   }
 
   // Propose un intitulé plus parlant qu'"Autre échéance" quand le contexte le permet.
@@ -741,11 +762,12 @@
     // fiable, au lieu de laisser la date en attente dans l'encart : sinon, l'échéance est bien
     // repérée mais reste invisible tant qu'on n'a pas cliqué sur son bouton de catégorie.
     ['pret', 'acte', 'ventebien'].forEach(type => {
-      const candidat = detectedDates.find(d => d.suggestion === type);
+      const { candidat, ambigu } = meilleureCandidateEcheance(detectedDates, type);
       if (candidat) {
         document.getElementById('f-' + type).value = candidat.iso;
         definirEcheanceActive(type, true);
         pageParType[type] = candidat.page;
+        ambiguiteParType[type] = ambigu;
       }
     });
 
@@ -860,7 +882,11 @@
       if (item.suggestion !== type) memoriserCorrection(item.contexte, type, null);
       item.suggestion = type;
       item.active = true;
-      if (type === 'pret' || type === 'acte' || type === 'ventebien') pageParType[type] = item.page;
+      // Un clic explicite sur un chip lève l'ambiguïté : l'utilisateur vient de trancher lui-même.
+      if (type === 'pret' || type === 'acte' || type === 'ventebien') {
+        pageParType[type] = item.page;
+        ambiguiteParType[type] = false;
+      }
       renderChips();
     }
   }
@@ -1140,6 +1166,7 @@
       const texteComplet = textesParPage.slice(0, dernierePageUtile).join('\n');
       frontieresPagesActuelles = calculerFrontieresPages(textesParPage, dernierePageUtile);
       pageParType = { pret: null, acte: null, ventebien: null };
+      ambiguiteParType = { pret: false, acte: false, ventebien: false };
       traiterTexte(texteComplet);
 
       // Ouvre le panneau d'aperçu, à côté du formulaire, limité au compromis (annexes exclues).
@@ -1342,12 +1369,19 @@
     if (!pret && !acte && !ventebien && autres.length === 0) { afficherErreurFormulaire('Renseignez au moins une date butoir active.'); return; }
     masquerErreurFormulaire();
 
-    // "auto" = date reprise d'un chip détecté dans le texte ; "manuel" = saisie/correction à la main,
-    // à vérifier avec un peu plus d'attention.
+    // "auto" = date reprise d'un chip détecté dans le texte ; "manuel" = saisie/correction à la
+    // main ; "incertain" = choisie automatiquement parmi plusieurs candidates de même catégorie
+    // sans formulation de délai pour trancher (voir meilleureCandidateEcheance) — à vérifier avant
+    // les autres dates "auto".
+    function confianceType(valeur, type) {
+      if (!valeur) return null;
+      if (!pageParType[type]) return 'manuel';
+      return ambiguiteParType[type] ? 'incertain' : 'auto';
+    }
     const confiance = {
-      pret: pret ? (pageParType.pret ? 'auto' : 'manuel') : null,
-      acte: acte ? (pageParType.acte ? 'auto' : 'manuel') : null,
-      ventebien: ventebien ? (pageParType.ventebien ? 'auto' : 'manuel') : null
+      pret: confianceType(pret, 'pret'),
+      acte: confianceType(acte, 'acte'),
+      ventebien: confianceType(ventebien, 'ventebien')
     };
 
     const dossier = {
@@ -1493,10 +1527,16 @@
       ? `<button type="button" class="voir-pdf-btn" onclick="voirDateDansPdf(${page}, '${iso.split('-')[0]}')">👁 Voir p.${page}</button>`
       : '';
 
-    // Indique si la date vient du texte détecté automatiquement (fiable) ou d'une saisie/correction
-    // manuelle (à vérifier avec un peu plus d'attention).
-    const badgeConfiance = confiance
-      ? `<span class="badge-confiance ${confiance}" title="${confiance === 'auto' ? 'Repérée automatiquement dans le texte' : 'Saisie ou corrigée manuellement'}">${confiance === 'auto' ? '📄 texte' : '✍️ manuel'}</span>`
+    // Indique si la date vient du texte détecté automatiquement sans ambiguïté (fiable), a été
+    // choisie parmi plusieurs candidates sans formulation de délai pour trancher (à vérifier en
+    // priorité — voir meilleureCandidateEcheance), ou vient d'une saisie/correction manuelle.
+    const LIBELLES_CONFIANCE = {
+      auto: { titre: 'Repérée automatiquement dans le texte', texte: '📄 texte' },
+      incertain: { titre: 'Choisie parmi plusieurs dates possibles dans le texte — à vérifier en priorité', texte: '⚠️ à vérifier' },
+      manuel: { titre: 'Saisie ou corrigée manuellement', texte: '✍️ manuel' }
+    };
+    const badgeConfiance = (confiance && LIBELLES_CONFIANCE[confiance])
+      ? `<span class="badge-confiance ${confiance}" title="${LIBELLES_CONFIANCE[confiance].titre}">${LIBELLES_CONFIANCE[confiance].texte}</span>`
       : '';
 
     // Une date d'un dossier déjà enregistré reste corrigeable après coup (erreur repérée plus

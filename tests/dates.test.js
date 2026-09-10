@@ -132,3 +132,36 @@ test('detecterDatesDepuisTexte écarte une date de citation de loi malgré un vo
   assert.equal(pret.length, 1, `une seule échéance "pret" attendue, obtenu: ${JSON.stringify(pret)}`);
   assert.equal(pret[0].iso, '2026-09-30');
 });
+
+test('meilleureCandidateEcheance retient la seule candidate portant une formulation de délai', () => {
+  // Cas réel : sans EXCLUSION_RE pour les citations de loi, les deux dates cohabitent encore parmi
+  // les candidates "pret" — meilleureCandidateEcheance doit à elle seule écarter la mauvaise grâce
+  // à "au plus tard le", présent seulement sur la vraie échéance.
+  const app = chargerApplication();
+  const detectedDates = [
+    { iso: '2022-02-28', suggestion: 'pret', contexte: "en vertu de la loi numéro 2022-270 du 28 février 2022, sur l'assurance emprunteur" },
+    { iso: '2026-09-30', suggestion: 'pret', contexte: "offre écrite de prêt aux conditions sus-indiquées au plus tard le 30 septembre 2026" }
+  ];
+  const { candidat, ambigu } = app.meilleureCandidateEcheance(detectedDates, 'pret');
+  assert.equal(candidat.iso, '2026-09-30');
+  assert.equal(ambigu, false);
+});
+
+test('meilleureCandidateEcheance signale une ambiguïté quand aucune formulation de délai ne permet de trancher', () => {
+  const app = chargerApplication();
+  const detectedDates = [
+    { iso: '2025-05-01', suggestion: 'pret', contexte: "la banque prêteuse a précisé le 1 mai 2025 les conditions du prêt envisagé" },
+    { iso: '2025-06-15', suggestion: 'pret', contexte: "le prêt sollicité auprès de l'organisme prêteur porte sur ce montant depuis le 15 juin 2025" }
+  ];
+  const { candidat, ambigu } = app.meilleureCandidateEcheance(detectedDates, 'pret');
+  assert.equal(candidat.iso, '2025-05-01', 'garde le premier candidat par défaut, faute de mieux');
+  assert.equal(ambigu, true);
+});
+
+test('meilleureCandidateEcheance ne signale pas d\'ambiguïté avec une seule candidate', () => {
+  const app = chargerApplication();
+  const detectedDates = [{ iso: '2025-06-15', suggestion: 'acte', contexte: "signature de l'acte authentique le 15 juin 2025" }];
+  const { candidat, ambigu } = app.meilleureCandidateEcheance(detectedDates, 'acte');
+  assert.equal(candidat.iso, '2025-06-15');
+  assert.equal(ambigu, false);
+});

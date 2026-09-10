@@ -1060,6 +1060,11 @@
   }
   .badge-confiance.auto { background: var(--success-bg); color: var(--success); }
   .badge-confiance.manuel { background: var(--pret-bg); color: var(--pret); }
+  /* Choisie parmi plusieurs dates candidates de même catégorie (ex. une échéance de prêt et une
+     citation de loi toutes deux au fil du texte) : contrairement à "auto", aucune clause au futur
+     ("au plus tard le"...) ne permettait de trancher sans ambiguïté — à vérifier avant les autres.
+     Même couleur que --urgent (déjà réservée à l'alerte), sans fond inventé pour l'occasion. */
+  .badge-confiance.incertain { background: transparent; color: var(--urgent); border: 1px solid var(--urgent); }
 
   .badge-apprise {
     display: inline-block;

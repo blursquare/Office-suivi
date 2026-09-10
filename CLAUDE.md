@@ -309,6 +309,21 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     d'une citation de loi (`loi\s+(?:n[°ºo]|num[ée]ro)\s*[\d\-]+`) — motif générique, pas spécifique
     à cette loi de 2022. Voir les tests de régression dans `tests/dates.test.js` (texte réel de la
     clause, anonymisé).
+- **Badge de confiance "⚠️ à vérifier" (troisième niveau, entre "auto" et "manuel")** : les deux
+  bugs ci-dessus (annexe, citation de loi) ont un point commun — une échéance mal choisie parmi
+  plusieurs dates candidates, sans que rien ne le signale à l'utilisateur (le champ semblait aussi
+  fiable qu'une détection sans ambiguïté). Plutôt que de continuer à ne corriger qu'au cas par cas
+  chaque nouveau piège de formulation (l'étude traite aussi des compromis d'agence et des promesses
+  d'achat, dont les tournures varient), `meilleureCandidateEcheance()` (testable, voir
+  `tests/dates.test.js`) rend le choix visible quand il est incertain : quand plusieurs dates du
+  texte partagent la même catégorie suggérée (prêt/acte/vente), une formulation de délai ("au plus
+  tard le", "avant le"...) tranche si elle n'appartient qu'à une seule d'entre elles ; sinon la
+  première est gardée par défaut mais la confiance passe à "incertain" plutôt que "auto"
+  (`ambiguiteParType`, remis à zéro par import de PDF et par tout clic explicite sur un chip dans
+  `assignerDate()` — l'utilisateur vient alors de trancher lui-même). Le badge est délibérément
+  coloré comme `--urgent` (déjà réservé à l'alerte, voir `.badge-prioritaire`), pas une couleur
+  inventée pour l'occasion. Ne remplace pas les corrections ciblées de regex quand un cas précis et
+  récurrent est identifié : les deux approches sont complémentaires.
 
 ## Comment tester
 
