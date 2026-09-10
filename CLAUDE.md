@@ -357,6 +357,19 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     enregistré (`renderCarteDossier()`) n'est PAS concernée : elle est dans un `<details>` fermé par
     défaut, qui ne pose pas ce problème d'écrasement — seule la version "live" pendant l'import
     l'avait.
+  - **Palette bleue professionnelle**, sans revenir sur les surfaces neutres du mode sombre. Tout
+    l'outil utilisait déjà un unique token `--focus` pour l'ensemble des accents interactifs (boutons
+    primaires, liens, focus, onglet actif, action rapide "Revérifier"...) — il suffisait donc de
+    changer sa valeur pour retoucher tout l'outil de façon cohérente, sans toucher des dizaines de
+    règles une par une. Bleu plus affirmé qu'avant (`#2472B0` clair / `#6FAEDB` sombre, jugés
+    "datés") : `#2563EB` (hover `#1D4ED8`) en clair, `#5B9DF9` (hover `#7FB4FB`) en sombre — et un
+    nouveau token `--focus-hover` remplace un hover jusque-là codé en dur (`#1B5A87`) dans
+    `button.primary:hover`. Volontairement **découplé** de `--acte` (couleur réservée à la catégorie
+    d'échéance "acte", qui partageait la même valeur par coïncidence, pas par conception) : `--acte`
+    n'a pas changé, seul `--focus` a été retouché — les deux peuvent maintenant diverger sans que
+    l'un change accidentellement l'autre. Les surfaces du mode sombre (`--paper`, `--paper-card`,
+    `--ink`...) restent inchangées : gris neutres, toujours pas de navy, décision non remise en
+    cause par cet ajout d'accent.
 
 ## Comment tester
 

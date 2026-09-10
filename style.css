@@ -18,7 +18,11 @@
     --success: #2F8F5B;
     --success-bg: #E4F3EB;
     --muted: #8A93A9;
-    --focus: #2472B0;
+    /* Bleu d'action (boutons primaires, liens, focus, onglet actif) — distinct de --acte (couleur
+       réservée à la catégorie d'échéance "acte", ne pas les recoupler même s'ils se ressemblent) :
+       demandé par l'étude pour un rendu plus "professionnel" que l'ancien bleu terne (#2472B0). */
+    --focus: #2563EB;
+    --focus-hover: #1D4ED8;
     --shadow-card: 0 1px 2px rgba(22,35,60,0.04), 0 2px 8px rgba(22,35,60,0.04);
     --shadow-float: 0 8px 28px rgba(22,35,60,0.16);
   }
@@ -41,7 +45,11 @@
     --success: #5FBF87;
     --success-bg: #223026;
     --muted: #8C8C8C;
-    --focus: #6FAEDB;
+    /* Surfaces (fond, cartes, encres) restent en gris neutre — décision explicite, voir plus bas
+       ("Palette bleue professionnelle"). Seul cet accent devient un bleu plus affirmé que l'ancien
+       #6FAEDB, pour rester lisible et "professionnel" sur fond sombre sans virer au navy. */
+    --focus: #5B9DF9;
+    --focus-hover: #7FB4FB;
     --shadow-card: 0 1px 2px rgba(0,0,0,0.3), 0 2px 8px rgba(0,0,0,0.2);
     --shadow-float: 0 8px 28px rgba(0,0,0,0.5);
   }
@@ -883,7 +891,7 @@
     color: #fff;
     border: 1px solid var(--focus);
   }
-  button.primary:hover { background: #1B5A87; }
+  button.primary:hover { background: var(--focus-hover); border-color: var(--focus-hover); }
 
   button.secondary {
     background: transparent;
