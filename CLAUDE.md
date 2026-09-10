@@ -291,6 +291,24 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
   maintenant une page comme un vrai début de pièce jointe que si la mention arrive en tout début de
   page ou si la page est globalement courte (scan avec peu de texte extractible) — pas si elle est
   citée en milieu d'une clause de plusieurs milliers de caractères.
+- **Bug corrigé : le champ "Obtention du prêt" se remplissait avec une date de citation de loi
+  (28/02/2022) au lieu de la vraie échéance de l'offre de prêt (30/09/2026)**, sur la même
+  promesse LD Notaires de 52 pages. Deux causes cumulées, corrigées ensemble :
+  - `detecterDateCompromis()` ne reconnaissait aucun des motifs existants sur cette promesse : son
+    bloc de signature électronique nomme chaque partie séparément (« Mme X a signé à BLOIS le 22
+    juillet 2026 »), sans les mots "compromis", "promesse" ni "signé électroniquement" que les
+    motifs cherchaient. `dateCompromisDetectee` restait donc vide, ce qui désactivait silencieusement
+    le filtre "écarte toute date antérieure ou égale à la signature" pour le reste de l'extraction
+    — un patron `a\s+sign[ée]\s+...\s+le` a été ajouté, et les motifs existants acceptent
+    maintenant "promesse" en plus de "compromis".
+  - Même une fois ce filtre actif, une clause d'information sur l'assurance emprunteur (« ... en
+    vertu de la loi numéro 2022-270 du 28 février 2022 ») reste après cette date et est classée
+    "pret" à cause du vocabulaire "prêteur"/"emprunteur" à proximité — `traiterTexte()` remplit le
+    champ avec la PREMIÈRE date ayant cette suggestion une fois les dates triées chronologiquement,
+    donc la plus ancienne, pas la bonne. `EXCLUSION_RE` écarte maintenant toute date accompagnée
+    d'une citation de loi (`loi\s+(?:n[°ºo]|num[ée]ro)\s*[\d\-]+`) — motif générique, pas spécifique
+    à cette loi de 2022. Voir les tests de régression dans `tests/dates.test.js` (texte réel de la
+    clause, anonymisé).
 
 ## Comment tester
 

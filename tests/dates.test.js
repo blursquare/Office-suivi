@@ -100,3 +100,35 @@ test('detecterFinancementComptant ignore le faux ami "paiement comptant" (règle
   // solde du prix à la signature, pas l'absence de prêt.
   assert.equal(app.detecterFinancementComptant('Le prix sera payé comptant le jour de la signature.'), false);
 });
+
+test('detecterDateCompromis reconnaît un bloc de signature électronique par partie (Yousign/DocuSign), sans le mot "compromis" ni "promesse"', () => {
+  // Régression : une promesse LD Notaires de 52 pages n'était reconnue par aucun des motifs
+  // existants ("compromis", "signé électroniquement"...) — son bloc de signature nomme chaque
+  // partie séparément ("Mme X a signé à BLOIS le ..."). dateCompromis restait alors vide, ce qui
+  // désactivait le filtre "écarte tout ce qui est antérieur à la signature" pour toute la suite de
+  // l'extraction (voir le test suivant).
+  const app = chargerApplication();
+  const texte = `
+    Mme MOKADEM Imane a signé à BLOIS le 22 juillet 2026
+    Mme DE SOUSA MARTINS Jennifer a signé à BLOIS le 22 juillet 2026
+    et le notaire Me DENIS LAURA a signé à BLOIS
+  `;
+  assert.equal(app.detecterDateCompromis(texte), '2026-07-22');
+});
+
+test('detecterDatesDepuisTexte écarte une date de citation de loi malgré un vocabulaire de prêt à proximité', () => {
+  // Régression réelle : "Un extrait ... en vertu de la loi numéro 2022-270 du 28 février 2022"
+  // (clause d'information sur l'assurance emprunteur) était classée "pret" à cause des mots
+  // "prêteur"/"emprunteur" dans la même phrase, et remontait avant la vraie échéance (2026-09-30)
+  // une fois les dates triées par ordre chronologique — le champ "Obtention du prêt" se retrouvait
+  // rempli avec 2022-02-28 au lieu de la vraie date limite de l'offre de prêt.
+  const app = chargerApplication();
+  const texte = "Elle peut être souscrite auprès de l'établissement prêteur ou d'un organisme " +
+    "d'assurance externe qu'il aura choisi en vertu de la loi numéro 2022-270 du 28 février 2022. " +
+    "La condition suspensive sera réalisée en cas d'obtention par le BENEFICIAIRE d'une offre " +
+    "écrite de prêt aux conditions sus-indiquées au plus tard le 30 septembre 2026.";
+  const dates = app.detecterDatesDepuisTexte(texte, '');
+  const pret = dates.filter(d => d.suggestion === 'pret');
+  assert.equal(pret.length, 1, `une seule échéance "pret" attendue, obtenu: ${JSON.stringify(pret)}`);
+  assert.equal(pret[0].iso, '2026-09-30');
+});
