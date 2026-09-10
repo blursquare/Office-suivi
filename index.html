@@ -41,130 +41,147 @@
     <summary>Nouveau dossier <span class="plus">+</span></summary>
     <div class="panel-body">
 
-      <div class="mode-emploi">
-        <span><b>1.</b> Déposez le PDF</span>
-        <span class="me-fleche">→</span>
-        <span><b>2.</b> Vérifiez les échéances</span>
-        <span class="me-fleche">→</span>
-        <span><b>3.</b> Enregistrez et exportez vers Outlook</span>
+      <div class="wizard-stepper" id="wizard-stepper">
+        <button type="button" class="wizard-step-btn actif" id="wizard-step-btn-1" onclick="definirEtapeWizard(1)">
+          <span class="wizard-step-num">1</span>Importer
+        </button>
+        <span class="wizard-step-trait"></span>
+        <button type="button" class="wizard-step-btn" id="wizard-step-btn-2" onclick="definirEtapeWizard(2)">
+          <span class="wizard-step-num">2</span>Vérifier
+        </button>
+        <span class="wizard-step-trait"></span>
+        <button type="button" class="wizard-step-btn" id="wizard-step-btn-3" onclick="definirEtapeWizard(3)">
+          <span class="wizard-step-num">3</span>Finaliser
+        </button>
       </div>
 
-      <div class="etape"><span class="etape-num">1</span>Importer le compromis</div>
-
-      <div class="extract-box">
-        <label for="f-pdf">Importer le PDF du compromis</label>
-        <div class="pdf-dropzone" id="pdf-dropzone" ondragover="gererSurvolDepot(event)" ondragleave="gererQuitteDepot(event)" ondrop="gererDepotPdf(event)">
-          <div class="pdf-row">
-            <label for="f-pdf" class="file-btn">Choisir un fichier PDF</label>
-            <input type="file" id="f-pdf" accept="application/pdf" onchange="gererUploadPdf(event)">
-            <span class="pdf-dropzone-hint">ou glissez-déposez le fichier ici</span>
+      <div class="wizard-step actif" id="wizard-step-1">
+        <div class="extract-box">
+          <label for="f-pdf">Importer le PDF du compromis</label>
+          <div class="pdf-dropzone" id="pdf-dropzone" ondragover="gererSurvolDepot(event)" ondragleave="gererQuitteDepot(event)" ondrop="gererDepotPdf(event)">
+            <div class="pdf-row">
+              <label for="f-pdf" class="file-btn">Choisir un fichier PDF</label>
+              <input type="file" id="f-pdf" accept="application/pdf" onchange="gererUploadPdf(event)">
+              <span class="pdf-dropzone-hint">ou glissez-déposez le fichier ici</span>
+            </div>
           </div>
+          <div id="pdf-status" class="pdf-status"></div>
+          <div class="progress-bar" id="pdf-progress"><div class="progress-bar-fill" id="pdf-progress-fill"></div></div>
+
+          <div id="compromis-info" class="compromis-info" style="display:none;">
+            <span id="compromis-info-text"></span>
+            <button type="button" class="icon-btn" onclick="toggleCompromisEdit()">Corriger</button>
+            <input type="date" id="f-date-compromis" style="display:none;" onchange="corrigerDateCompromis(this.value)">
+          </div>
+
+          <div id="cash-note" class="cash-note" style="display:none;"></div>
+
+          <p class="hint">Diagnostics et dates passées sont écartés automatiquement. Cliquez sur une catégorie pour corriger un classement.</p>
+          <div class="chips" id="chips"></div>
         </div>
-        <div id="pdf-status" class="pdf-status"></div>
-        <div class="progress-bar" id="pdf-progress"><div class="progress-bar-fill" id="pdf-progress-fill"></div></div>
 
-        <div id="compromis-info" class="compromis-info" style="display:none;">
-          <span id="compromis-info-text"></span>
-          <button type="button" class="icon-btn" onclick="toggleCompromisEdit()">Corriger</button>
-          <input type="date" id="f-date-compromis" style="display:none;" onchange="corrigerDateCompromis(this.value)">
-        </div>
-
-        <div id="cash-note" class="cash-note" style="display:none;"></div>
-
-        <p class="hint">Diagnostics et dates passées sont écartés automatiquement. Cliquez sur une catégorie pour corriger un classement.</p>
-        <div class="chips" id="chips"></div>
-      </div>
-
-      <div class="etape"><span class="etape-num">2</span>Identité du dossier</div>
-
-      <div class="field-row">
-        <div>
-          <label for="f-nom">Nom du dossier</label>
-          <input type="text" id="f-nom" placeholder="Ex. Dupont / 12 rue de la Paix">
-        </div>
-        <div>
-          <label for="f-email">Email de rappel (optionnel)</label>
-          <input type="email" id="f-email" placeholder="agence@exemple.fr" value="office.gossart@notaires.fr">
-        </div>
-      </div>
-
-      <div class="field-row">
-        <div>
-          <label for="f-responsable">Responsable du dossier</label>
-          <select id="f-responsable">
-            <option value="">— À définir —</option>
-            <option>Bastien ANGLUMENT</option>
-            <option>Julie VASSELIN</option>
-            <option>Jérémy SAUJOT</option>
-          </select>
-        </div>
-        <div>
-          <label for="f-email-acquereur">Email de l'acquéreur (pour relance prêt)</label>
-          <input type="email" id="f-email-acquereur" placeholder="acquereur@exemple.fr">
+        <div class="wizard-nav">
+          <span></span>
+          <button type="button" class="primary" onclick="definirEtapeWizard(2)">Suivant : Vérifier →</button>
         </div>
       </div>
 
-      <div class="etape"><span class="etape-num">3</span>Vérifier les échéances</div>
+      <div class="wizard-step" id="wizard-step-2">
+        <fieldset>
+          <legend>Dates butoir</legend>
 
-      <fieldset>
-        <legend>Dates butoir</legend>
-
-        <div class="date-block pret" id="bloc-pret">
-          <div class="label-line">
-            <label class="switch">
-              <input type="checkbox" id="toggle-pret" checked onchange="toggleEcheance('pret', this.checked)">
-              <span class="slider"></span>
-            </label>
-            <span>Obtention du prêt (condition suspensive)</span>
+          <div class="date-block pret" id="bloc-pret">
+            <div class="label-line">
+              <label class="switch">
+                <input type="checkbox" id="toggle-pret" checked onchange="toggleEcheance('pret', this.checked)">
+                <span class="slider"></span>
+              </label>
+              <span>Obtention du prêt (condition suspensive)</span>
+            </div>
+            <input type="date" id="f-pret">
           </div>
-          <input type="date" id="f-pret">
-        </div>
 
-        <div class="date-block acte" id="bloc-acte">
-          <div class="label-line">
-            <label class="switch">
-              <input type="checkbox" id="toggle-acte" checked onchange="toggleEcheance('acte', this.checked)">
-              <span class="slider"></span>
-            </label>
-            <span>Signature de l'acte</span>
+          <div class="date-block acte" id="bloc-acte">
+            <div class="label-line">
+              <label class="switch">
+                <input type="checkbox" id="toggle-acte" checked onchange="toggleEcheance('acte', this.checked)">
+                <span class="slider"></span>
+              </label>
+              <span>Signature de l'acte</span>
+            </div>
+            <input type="date" id="f-acte">
           </div>
-          <input type="date" id="f-acte">
-        </div>
 
-        <div class="date-block ventebien inactive" id="bloc-ventebien">
-          <div class="label-line">
-            <label class="switch">
-              <input type="checkbox" id="toggle-ventebien" onchange="toggleEcheance('ventebien', this.checked)">
-              <span class="slider"></span>
-            </label>
-            <span>Vente préalable</span>
+          <div class="date-block ventebien inactive" id="bloc-ventebien">
+            <div class="label-line">
+              <label class="switch">
+                <input type="checkbox" id="toggle-ventebien" onchange="toggleEcheance('ventebien', this.checked)">
+                <span class="slider"></span>
+              </label>
+              <span>Vente préalable</span>
+            </div>
+            <input type="date" id="f-ventebien" disabled>
           </div>
-          <input type="date" id="f-ventebien" disabled>
+
+          <div id="autres-list"></div>
+
+          <button type="button" class="secondary add-autre-btn" onclick="ajouterAutreVide()">+ Ajouter une échéance personnalisée</button>
+        </fieldset>
+
+        <div class="wizard-nav">
+          <button type="button" class="secondary" onclick="definirEtapeWizard(1)">← Précédent</button>
+          <button type="button" class="primary" onclick="definirEtapeWizard(3)">Suivant : Finaliser →</button>
+        </div>
+      </div>
+
+      <div class="wizard-step" id="wizard-step-3">
+        <div class="field-row">
+          <div>
+            <label for="f-nom">Nom du dossier</label>
+            <input type="text" id="f-nom" placeholder="Ex. Dupont / 12 rue de la Paix">
+          </div>
+          <div>
+            <label for="f-email">Email de rappel (optionnel)</label>
+            <input type="email" id="f-email" placeholder="agence@exemple.fr" value="office.gossart@notaires.fr">
+          </div>
         </div>
 
-        <div id="autres-list"></div>
-
-        <button type="button" class="secondary add-autre-btn" onclick="ajouterAutreVide()">+ Ajouter une échéance personnalisée</button>
-      </fieldset>
-
-      <div class="etape"><span class="etape-num">4</span>Rappels et enregistrement</div>
-
-      <fieldset>
-        <legend>Envoyer un rappel</legend>
-        <div class="reminder-days" id="reminder-days">
-          <label><input type="checkbox" value="15" checked> 15 jours avant</label>
-          <label><input type="checkbox" value="7" checked> 7 jours avant</label>
-          <label><input type="checkbox" value="3"> 3 jours avant</label>
-          <label><input type="checkbox" value="1"> 1 jour avant</label>
-          <label><input type="checkbox" value="0"> le jour même</label>
+        <div class="field-row">
+          <div>
+            <label for="f-responsable">Responsable du dossier</label>
+            <select id="f-responsable">
+              <option value="">— À définir —</option>
+              <option>Bastien ANGLUMENT</option>
+              <option>Julie VASSELIN</option>
+              <option>Jérémy SAUJOT</option>
+            </select>
+          </div>
+          <div>
+            <label for="f-email-acquereur">Email de l'acquéreur (pour relance prêt)</label>
+            <input type="email" id="f-email-acquereur" placeholder="acquereur@exemple.fr">
+          </div>
         </div>
-      </fieldset>
 
-      <div id="form-error" class="form-error"></div>
+        <fieldset>
+          <legend>Envoyer un rappel</legend>
+          <div class="reminder-days" id="reminder-days">
+            <label><input type="checkbox" value="15" checked> 15 jours avant</label>
+            <label><input type="checkbox" value="7" checked> 7 jours avant</label>
+            <label><input type="checkbox" value="3"> 3 jours avant</label>
+            <label><input type="checkbox" value="1"> 1 jour avant</label>
+            <label><input type="checkbox" value="0"> le jour même</label>
+          </div>
+        </fieldset>
 
-      <div class="actions-row">
-        <button type="button" class="secondary" onclick="reinitialiserFormulaire()">Effacer</button>
-        <button type="button" class="primary" onclick="ajouterDossier()">Ajouter le dossier</button>
+        <div id="form-error" class="form-error"></div>
+
+        <div class="wizard-nav">
+          <button type="button" class="secondary" onclick="definirEtapeWizard(2)">← Précédent</button>
+          <div class="actions-row">
+            <button type="button" class="secondary" onclick="reinitialiserFormulaire()">Effacer</button>
+            <button type="button" class="primary" onclick="ajouterDossier()">Ajouter le dossier</button>
+          </div>
+        </div>
       </div>
 
     </div>

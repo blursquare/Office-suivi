@@ -370,6 +370,25 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     l'un change accidentellement l'autre. Les surfaces du mode sombre (`--paper`, `--paper-card`,
     `--ink`...) restent inchangées : gris neutres, toujours pas de navy, décision non remise en
     cause par cet ajout d'accent.
+  - **Wizard 3 étapes pour "Nouveau dossier" (Importer → Vérifier → Finaliser)**, à la place de
+    l'ancien formulaire à défilement unique (4 sections numérotées visibles d'un coup, ce qui le
+    rendait dense). Concerne UNIQUEMENT la création : l'onglet "Suivi des dossiers" reste le
+    dashboard continu, pas concerné par un parcours linéaire — voir la tension notée plus haut entre
+    un wizard et un dossier suivi pendant des mois. Regroupement (avec un léger réordonnancement) :
+    Étape 1 *Importer* = dropzone PDF + statut + chips (ex-« étape 1 ») ; Étape 2 *Vérifier* = les
+    dates butoir prêt/acte/vente + échéances personnalisées (ex-« étape 3 », déjà appelée "VÉRIFIER
+    LES ÉCHÉANCES" dans l'app) ; Étape 3 *Finaliser* = identité du dossier + rappels + enregistrement
+    (fusion des ex-« étapes 2 et 4 » : nommer/assigner un dossier vient naturellement après avoir
+    vérifié ses dates, pas avant). `definirEtapeWizard(n)` bascule un simple `display:block/none`
+    sur 3 `.wizard-step` — **aucune étape n'est verrouillée** : on peut toujours avancer, reculer, ou
+    directement cliquer "Ajouter le dossier" sans jamais avoir importé de PDF, exactement comme
+    avant ce découpage (un dossier 100% saisi à la main doit rester possible). Bascule automatique
+    vers l'étape 2 dès qu'un import PDF réussit (`traiterFichierPdf()`), pour éviter un clic
+    "Suivant" superflu juste après avoir vu les chips apparaître. `reinitialiserFormulaire()` (appelé
+    après `ajouterDossier()`) remet le wizard à l'étape 1. L'ancien bandeau `.mode-emploi` (1→2→3 en
+    texte libre) et les 4 `<div class="etape">` numérotés sont supprimés, remplacés par le stepper
+    cliquable lui-même — code CSS mort nettoyé en même temps (`.mode-emploi`, `.etape`, `.etape-num`).
+    Dernier chantier de la refonte visuelle demandée par l'étude — les 4 sont maintenant en place.
 
 ## Comment tester
 

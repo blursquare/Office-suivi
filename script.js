@@ -1186,6 +1186,9 @@
       ambiguiteParType = { pret: false, acte: false, ventebien: false };
       vuePdfViewerActuelle = 'apercu';
       traiterTexte(texteComplet);
+      // Bascule automatiquement vers l'étape "Vérifier" : les dates/chips sont déjà là, plus besoin
+      // de cliquer soi-même sur "Suivant" après un import qui vient de réussir.
+      definirEtapeWizard(2);
 
       // Ouvre le panneau d'aperçu, à côté du formulaire, limité au compromis (annexes exclues).
       pdfActuel = pdf;
@@ -1348,10 +1351,13 @@
     detectedDates = [];
     autresEnCours = [];
     analyseJuridiqueActuelle = { documents: [], engagements: [], conditions: [] };
-    document.getElementById('analyse-juridique').style.display = 'none';
+    analyseJuridiqueDisponible = false;
+    document.getElementById('pdf-viewer-tabs').style.display = 'none';
+    definirVuePdfViewer('apercu');
     reinitialiserRappelsParDefaut();
     renderChips();
     renderAutres();
+    definirEtapeWizard(1);
   }
 
   // Les cases de rappel gardaient l'état du dossier précédent : on les remet explicitement sur
@@ -1711,6 +1717,21 @@
   // « Suivi des dossiers » (liste complète, en pleine largeur). Choix non persisté : l'app rouvre
   // toujours sur « Nouveau dossier », cohérent avec le panneau replié/déplié qui n'est pas non
   // plus mémorisé d'une session à l'autre.
+  // Les 3 étapes du formulaire "Nouveau dossier" (Importer / Vérifier / Finaliser) sont de simples
+  // panneaux affichés un par un — aucune étape n'est verrouillée tant que la précédente n'est pas
+  // remplie : un dossier peut toujours être créé entièrement à la main, sans jamais importer de PDF,
+  // exactement comme avant ce découpage en étapes. Seule la présentation change.
+  let etapeWizardActuelle = 1;
+  function definirEtapeWizard(n) {
+    etapeWizardActuelle = n;
+    for (let i = 1; i <= 3; i++) {
+      document.getElementById('wizard-step-' + i).classList.toggle('actif', i === n);
+      document.getElementById('wizard-step-btn-' + i).classList.toggle('actif', i === n);
+    }
+    const wrap = document.querySelector('.wrap');
+    if (wrap) wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   function definirOnglet(nom) {
     document.getElementById('onglet-nouveau').style.display = nom === 'nouveau' ? '' : 'none';
     document.getElementById('onglet-suivi').style.display = nom === 'suivi' ? '' : 'none';

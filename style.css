@@ -1647,36 +1647,6 @@
   }
   .theme-btn:hover { border-color: var(--focus); transform: scale(1.05); }
 
-  /* ---- étapes numérotées ---- */
-  .etape {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-family: 'Poppins', sans-serif;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--ink);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    margin: 28px 0 14px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--line-soft);
-  }
-  .etape:first-child { margin-top: 0; }
-  .etape-num {
-    flex: 0 0 auto;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background: var(--focus);
-    color: #fff;
-    font-size: 11.5px;
-    font-weight: 700;
-    letter-spacing: 0;
-  }
 
   /* ---- barre de progression (lecture PDF / OCR) ---- */
   .progress-bar {
@@ -1743,21 +1713,63 @@
   }
   .analyse-repliable[open] > summary::after { content: " ▾"; }
 
-  .mode-emploi {
+  /* ---- wizard "Nouveau dossier" (Importer / Vérifier / Finaliser) ---- */
+  .wizard-stepper {
     display: flex;
     align-items: center;
-    flex-wrap: wrap;
     gap: 10px;
-    padding: 12px 16px;
-    margin-bottom: 8px;
-    background: var(--paper-sunk);
-    border: 1px solid var(--line-soft);
-    border-radius: 6px;
-    font-size: 13px;
-    color: var(--ink-soft);
+    padding: 4px 0 20px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--line-soft);
   }
-  .mode-emploi b { color: var(--focus); }
-  .me-fleche { color: var(--muted); }
+  .wizard-step-trait {
+    flex: 1 1 24px;
+    max-width: 40px;
+    height: 1px;
+    background: var(--line);
+  }
+  .wizard-step-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    background: none;
+    border: none;
+    padding: 6px 2px;
+    cursor: pointer;
+  }
+  .wizard-step-btn:hover { color: var(--ink-soft); }
+  .wizard-step-btn.actif { color: var(--ink); }
+  .wizard-step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--line-soft);
+    color: var(--muted);
+    font-size: 11.5px;
+    font-weight: 700;
+    flex: 0 0 auto;
+  }
+  .wizard-step-btn.actif .wizard-step-num { background: var(--focus); color: #fff; }
+
+  .wizard-step { display: none; }
+  .wizard-step.actif { display: block; }
+
+  .wizard-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--line-soft);
+  }
+  .wizard-nav .actions-row { margin-top: 0; }
 
   /* Ajustements de contraste en mode sombre : les éléments qui reposaient sur un fond blanc
      (boutons secondaires, bulles, badges pâles) deviennent illisibles sans ces reprises. */
