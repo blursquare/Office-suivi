@@ -148,6 +148,13 @@
 
         <div class="field-row">
           <div>
+            <label for="f-type-vente">Type de vente</label>
+            <select id="f-type-vente" onchange="majApercuPieces()">
+              <option value="maison">Maison</option>
+              <option value="copropriete">Copropriété (lot)</option>
+            </select>
+          </div>
+          <div>
             <label for="f-responsable">Responsable du dossier</label>
             <select id="f-responsable">
               <option value="">— À définir —</option>
@@ -156,11 +163,16 @@
               <option>Jérémy SAUJOT</option>
             </select>
           </div>
+        </div>
+
+        <div class="field-row">
           <div>
             <label for="f-email-acquereur">Email de l'acquéreur (pour relance prêt)</label>
             <input type="email" id="f-email-acquereur" placeholder="acquereur@exemple.fr">
           </div>
         </div>
+
+        <div class="pieces-apercu" id="pieces-apercu"></div>
 
         <fieldset>
           <legend>Envoyer un rappel</legend>

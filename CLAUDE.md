@@ -432,6 +432,45 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
   `reinitialiserFormulaire()` masque maintenant `#pdf-viewer`, vide `#pdf-pages-container` et
   réinitialise `pdfActuel`/`pdfDernierePageUtile`/`frontieresPagesActuelles` — sans quoi un vieux
   PDF resterait aussi référencé en mémoire pour rien.
+- **Suivi des pièces du dossier, sur le modèle de l'offre de prêt** : demandé par l'étude à partir
+  des listes maison/copropriété qu'elle avait fournies. Un sélecteur "Type de vente" (maison /
+  copropriété, `#f-type-vente`, étape "Finaliser" du wizard) détermine la checklist applicable via
+  `checklistPieces(typeVente)` (voir `PIECES_URBANISME`/`PIECES_AUTRES`/`PIECES_COPROPRIETE`,
+  section "suivi des pièces du dossier" dans `script.js`) ; un aperçu en lecture seule
+  (`majApercuPieces()`, `#pieces-apercu`) montre la liste dès qu'on choisit le type, avant même
+  d'enregistrer le dossier. Distinct de `DOCUMENTS_VENDEUR_CONNUS` (qui détecte des documents à
+  partir des clauses d'engagement *lues dans le compromis*) : cette checklist-ci liste ce que
+  l'étude doit réunir pour CE TYPE de vente, indépendamment de ce que le compromis mentionne.
+  - `verifierPiecesDossier(id, viaClicUtilisateur)` reprend l'infrastructure de
+    `verifierOffrePret()` (mêmes `fichiersPdfRecursifs()`/repli OCR/gestion des permissions) mais
+    teste TOUTES les pièces encore manquantes contre chaque PDF lu, au lieu de s'arrêter au premier
+    document reconnu — une checklist multi-pièces, pas un simple oui/non. S'arrête dès que toutes
+    les pièces sont trouvées, inutile de lire le reste des PDF. Appelée automatiquement après
+    `lierDossierLocal()` et à chaque revérification périodique
+    (`revérifierDossiersLiesAuDemarrage()`), comme l'offre de prêt.
+  - Les motifs de reconnaissance (`PIECES_*`) sont un premier jet à partir du seul intitulé de
+    chaque pièce, pas encore confronté à de vrais titres de documents contrairement à
+    `OFFRE_PRET_RE` — à resserrer/élargir dès qu'un vrai dossier fait remonter un problème. Piège
+    déjà anticipé : "ERP" désigne aussi bien "état des risques et pollutions" (la pièce recherchée)
+    qu'un "Établissement Recevant du Public" (sans rapport) — le motif s'appuie sur l'intitulé
+    complet ("état des risques...") plutôt que sur le sigle seul.
+  - `renderPiecesDossier(d)` affiche la checklist sur la fiche du dossier (toujours visible, pas
+    dans un `<details>` — contrairement à l'analyse juridique, c'est un suivi actif comme les
+    échéances, pas une lecture ponctuelle) : un badge par pièce (✓ reçue / ✕ manquante / ? pas
+    encore vérifié — ce dernier n'est PAS une anomalie tant que le dossier n'a jamais été relié à
+    un dossier local), un compteur "X/Y" (vert si complet, amber sinon), et un bouton "Revérifier
+    les pièces" si un dossier local est relié. N'apparaît PAS sur les résumés compacts
+    (carte/tableau) — seulement sur la fiche dépliée, pour ne pas alourdir la vue de synthèse déjà
+    dense (bandeau de stats, badge de statut, badge de priorité).
+  - `d.typeVente` ('maison' par défaut) et `d.pieces` (objet `{cle: 'recue'|'manquante'}`, absence
+    de clé = "pas encore vérifié") ajoutés au modèle du dossier, gérés dans
+    `normaliserDossierImporte()` (typeVente validé/conservé à l'import, pieces repart à `{}` — même
+    logique que `offrePretStatut`, qui repart aussi à `'inconnu'` : un statut dérivé de PDF locaux
+    ne doit pas être importé tel quel d'une autre machine sans revérification).
+  - Volontairement **pas** branché sur `statutDossier()`/`calculerPriorite()` : une pièce jamais
+    vérifiée (dossier non relié) n'est pas un signal de blocage comme l'offre de prêt introuvable
+    l'est, ce serait pénaliser tous les dossiers non reliés sans raison. Reste ouvert si l'étude le
+    demande explicitement, avec une règle claire à définir (ex. seulement une fois relié).
 
 ## Comment tester
 
@@ -469,29 +508,13 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
 - Un panneau pour consulter/vider la mémoire des corrections apprises (`correctionsApprises`)
   serait utile si elle venait à accumuler des erreurs (ex. une correction faite par erreur) —
   aujourd'hui seul un vidage du `localStorage` du navigateur permet de la réinitialiser.
-- **Checklist de constitution d'un dossier, variable selon le type de vente** (idée du brainstorm
-  "détection automatique de pièces manquantes" — voir plus haut) : l'étude a fourni les listes
-  réelles pour deux types de vente sur trois. Pas encore implémenté — **retenu pour plus tard**,
-  attendre au minimum la liste "terrain nu" avant de s'y mettre (la checklist doit couvrir les
-  trois types, pas juste deux). Distinct de `DOCUMENTS_VENDEUR_CONNUS` dans `script.js` (qui
-  détecte des documents à partir des clauses d'engagement *lues dans le compromis*) : cette
-  checklist-ci liste ce que l'étude doit réunir pour CE TYPE de vente, indépendamment de ce que le
-  compromis mentionne ou non — un point de départ fixe, pas une extraction.
-
-  **Vente de maison :**
-  - Urbanisme : certificat d'urbanisme, certificat d'alignement, certificat de numérotage, courrier
-    réponse assainissement, renonciation au droit de préemption.
-  - Autres pièces : diagnostics techniques, ERP (état des risques et pollution), avis de taxe
-    foncière, titre de propriété.
-
-  **Vente de lot en copropriété :**
-  - Urbanisme : certificat d'urbanisme, certificat d'alignement, certificat de numérotage, courrier
-    réponse assainissement, renonciation au droit de préemption (même liste que pour une maison).
-  - Pièces liées à la copropriété : état daté, article 20-II, RIB de la copropriété.
-  - Autres pièces : diagnostics techniques, ERP (état des risques et pollution), avis de taxe
-    foncière, titre de propriété.
-
-  **Vente de terrain nu :** liste pas encore fournie par l'étude.
+- **Checklist de pièces par type de vente (terrain nu)** : la checklist de constitution du dossier
+  (voir l'historique des décisions plus haut) couvre maison et copropriété, pas encore terrain nu —
+  l'étude n'a fourni que les deux premières listes. Le jour où elle fournit la troisième, ajouter un
+  tableau `PIECES_TERRAIN` (même forme que `PIECES_URBANISME`/`PIECES_AUTRES`), une option
+  `<option value="terrain">` dans `#f-type-vente`, et une branche dans `checklistPieces()` — pas
+  besoin de restructurer le reste (voir `renderPiecesDossier()`/`verifierPiecesDossier()`, déjà
+  écrits pour un nombre de pièces variable).
 
 - **Arborescence réelle des dossiers de l'étude, par type d'affaire** (reçue sous forme d'un
   modèle de dossier vide "DOSSIER TYPE.rar", sans données client — noms de sous-dossiers

@@ -1386,6 +1386,8 @@
     masquerErreurFormulaire();
     document.getElementById('f-nom').value = '';
     document.getElementById('f-responsable').value = '';
+    document.getElementById('f-type-vente').value = 'maison';
+    majApercuPieces();
     document.getElementById('f-email-acquereur').value = '';
     document.getElementById('f-email').value = EMAIL_RAPPEL_DEFAUT;
     document.getElementById('f-pret').value = '';
@@ -1442,6 +1444,7 @@
   async function ajouterDossier() {
     const nom = document.getElementById('f-nom').value.trim();
     const email = document.getElementById('f-email').value.trim();
+    const typeVente = document.getElementById('f-type-vente').value;
     const responsable = document.getElementById('f-responsable').value.trim();
     const emailAcquereur = document.getElementById('f-email-acquereur').value.trim();
     const pret = echeanceActive.pret ? document.getElementById('f-pret').value : '';
@@ -1475,6 +1478,8 @@
     const dossier = {
       id: (crypto.randomUUID ? crypto.randomUUID() : 'd-' + Date.now() + '-' + Math.random().toString(16).slice(2)),
       nom, email, responsable, emailAcquereur,
+      typeVente,
+      pieces: {},
       dossierLie: false,
       offrePretStatut: 'inconnu',
       accesAReconfirmer: false,
@@ -1793,8 +1798,26 @@
       document.getElementById('wizard-step-' + i).classList.toggle('actif', i === n);
       document.getElementById('wizard-step-btn-' + i).classList.toggle('actif', i === n);
     }
+    if (n === 3) majApercuPieces();
     const wrap = document.querySelector('.wrap');
     if (wrap) wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // Aperçu (lecture seule) de la checklist de pièces attendue pour le type de vente choisi à
+  // l'étape "Finaliser" — avant même l'enregistrement du dossier, pour que le type de vente ne
+  // soit pas un choix fait à l'aveugle. Les vraies pièces ne sont vérifiées qu'une fois le dossier
+  // enregistré et relié à un dossier local (voir renderPiecesDossier/verifierPiecesDossier).
+  function majApercuPieces() {
+    const select = document.getElementById('f-type-vente');
+    const bloc = document.getElementById('pieces-apercu');
+    if (!select || !bloc) return;
+    const checklist = checklistPieces(select.value);
+    bloc.innerHTML = `
+      <div class="pieces-apercu-titre">Pièces attendues pour ce type de vente (${checklist.length}) :</div>
+      <div class="pieces-liste">
+        ${checklist.map(p => `<span class="piece-item inconnu"><span class="piece-icone">?</span>${escapeHtml(p.label)}</span>`).join('')}
+      </div>
+    `;
   }
 
   function definirOnglet(nom) {
@@ -2040,6 +2063,39 @@
     if (ouverte) dossiersDeplies.add(id); else dossiersDeplies.delete(id);
   }
 
+  function libellePiece(statut) {
+    if (statut === 'recue') return { texte: '✓', cls: 'recue', titre: 'Pièce reçue' };
+    if (statut === 'manquante') return { texte: '✕', cls: 'manquante', titre: 'Pièce manquante' };
+    return { texte: '?', cls: 'inconnu', titre: "Pas encore vérifié — reliez un dossier local et cliquez sur \"Revérifier les pièces\"" };
+  }
+
+  // Checklist de constitution du dossier (voir CLAUDE.md) : contrairement à l'analyse juridique
+  // (déduite des clauses du compromis), c'est une liste fixe déterminée par le type de vente, pas
+  // une extraction — un dossier peut très bien n'avoir aucune pièce reconnue sans que ce soit une
+  // anomalie tant qu'il n'a pas été relié à un dossier local (statut "inconnu", pas "manquante").
+  function renderPiecesDossier(d) {
+    const checklist = checklistPieces(d.typeVente);
+    const pieces = d.pieces || {};
+    const nbRecues = checklist.filter(p => pieces[p.cle] === 'recue').length;
+    const complet = nbRecues === checklist.length;
+    const libelleType = d.typeVente === 'copropriete' ? 'copropriété' : 'maison';
+    return `
+      <div class="pieces-dossier">
+        <div class="pieces-dossier-titre">
+          <span>📁 Pièces du dossier (${libelleType})</span>
+          <span class="pieces-compteur${complet ? ' complet' : ''}">${nbRecues}/${checklist.length}</span>
+          ${(DOSSIER_FS_SUPPORTE && d.dossierLie) ? `<button type="button" class="action-rapide" onclick="verifierPiecesDossier('${d.id}', true)">Revérifier les pièces</button>` : ''}
+        </div>
+        <div class="pieces-liste">
+          ${checklist.map(p => {
+            const s = libellePiece(pieces[p.cle] || 'inconnu');
+            return `<span class="piece-item ${s.cls}" title="${escapeAttr(s.titre)}"><span class="piece-icone">${s.texte}</span>${escapeHtml(p.label)}</span>`;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  }
+
   function renderCarteDossier(d) {
       const confiance = d.confiance || {};
       const historique = d.historique || [];
@@ -2088,6 +2144,7 @@
           <button onclick="ouvrirEmailRappel('${d.id}')">Envoyer un rappel par email</button>
           <button onclick="imprimerFiche('${d.id}')">📄 Télécharger la fiche dossier</button>
         </div>
+        ${renderPiecesDossier(d)}
         ${(analyse.documents.length > 0 || analyse.engagements.length > 0 || analyseConditions.length > 0) ? `
           <details class="analyse-juridique analyse-repliable" style="margin-top:14px;">
             <summary class="analyse-titre">📋 Analyse juridique du compromis</summary>
@@ -2520,6 +2577,7 @@
       actePage: Number.isInteger(d.actePage) ? d.actePage : null,
       ventebienPage: Number.isInteger(d.ventebienPage) ? d.ventebienPage : null,
       sansPret: d.sansPret === true,
+      typeVente: d.typeVente === 'copropriete' ? 'copropriete' : 'maison',
       archive: d.archive === true,
       reminderDays: Array.isArray(d.reminderDays) && d.reminderDays.every(Number.isInteger) ? d.reminderDays : [15, 7],
       confiance: (d.confiance && typeof d.confiance === 'object') ? d.confiance : {},
@@ -2533,6 +2591,7 @@
       // sur ce point, la personne devra relier le dossier depuis ce navigateur si besoin.
       dossierLie: false,
       offrePretStatut: 'inconnu',
+      pieces: {},
       accesAReconfirmer: false,
       derniereRelanceAuto: null
     };
@@ -2750,6 +2809,44 @@
   // - La vérification ne tourne que pendant que cet onglet est ouvert, pas en tâche de fond.
 
   const DOSSIER_FS_SUPPORTE = typeof window.showDirectoryPicker === 'function';
+
+  // ---- suivi des pièces du dossier (checklist de constitution, selon le type de vente) ----
+  //
+  // Listes fournies par l'étude (voir CLAUDE.md, "Checklist de constitution d'un dossier") — deux
+  // types de vente sur trois pour l'instant (maison, copropriété ; pas encore "terrain nu", à
+  // ajouter le jour où l'étude fournit sa liste). Les motifs de reconnaissance sont un premier jet
+  // à partir du seul intitulé de chaque pièce (pas encore confronté à de vrais titres de documents,
+  // contrairement à OFFRE_PRET_RE qui a déjà été affiné sur des cas réels) : à resserrer ou élargir
+  // dès qu'un vrai dossier fait remonter un faux positif/négatif, comme pour toute regex du fichier.
+  // var (pas const) : mêmes raisons que OFFRE_PRET_RE, pour rester testable depuis les tests.
+  var PIECES_URBANISME = [
+    { cle: 'certificatUrbanisme', label: "Certificat d'urbanisme", motif: /certificat\s+d[’']urbanisme/i },
+    { cle: 'certificatAlignement', label: "Certificat d'alignement", motif: /certificat\s+d[’']alignement/i },
+    { cle: 'certificatNumerotage', label: 'Certificat de numérotage', motif: /certificat\s+de\s+num[ée]rotage/i },
+    { cle: 'reponseAssainissement', label: 'Courrier réponse assainissement', motif: /assainissement/i },
+    { cle: 'renonciationPreemption', label: 'Renonciation au droit de préemption', motif: /pr[ée]emption/i }
+  ];
+  var PIECES_AUTRES = [
+    { cle: 'diagnosticsTechniques', label: 'Diagnostics techniques', motif: /dossier\s+de\s+diagnostic\s+technique|diagnostics?\s+techniques?|\bDDT\b/i },
+    // "ERP" est ambigu (aussi "Établissement Recevant du Public") : on s'appuie sur l'intitulé
+    // complet et ses anciens noms plutôt que sur le sigle seul, trop sujet aux faux positifs.
+    { cle: 'erp', label: 'ERP (état des risques et pollution)', motif: /[ée]tat\s+des\s+risques(?:\s+et\s+pollutions?|\s+naturels?)?|\bERNMT\b|\bESRIS\b/i },
+    { cle: 'avisTaxeFonciere', label: 'Avis de taxe foncière', motif: /(?:avis\s+de\s+)?taxe\s+fonci[èe]re/i },
+    { cle: 'titrePropriete', label: 'Titre de propriété', motif: /titre\s+de\s+propri[ée]t[ée]/i }
+  ];
+  var PIECES_COPROPRIETE = [
+    { cle: 'etatDate', label: 'État daté', motif: /[ée]tat\s+dat[ée]/i },
+    { cle: 'article20', label: 'Article 20-II', motif: /article\s*20[\s.-]*(?:ii|2)\b/i },
+    { cle: 'ribCopro', label: 'RIB de la copropriété', motif: /\bRIB\b[^\n]{0,50}(?:copropri[ée]t[ée]|syndic)|(?:copropri[ée]t[ée]|syndic)[^\n]{0,50}\bRIB\b/i }
+  ];
+
+  // Ordre d'affichage = ordre des listes fournies par l'étude : urbanisme (commun aux deux types),
+  // puis les pièces propres à la copropriété si applicable, puis le reste.
+  function checklistPieces(typeVente) {
+    return typeVente === 'copropriete'
+      ? [...PIECES_URBANISME, ...PIECES_COPROPRIETE, ...PIECES_AUTRES]
+      : [...PIECES_URBANISME, ...PIECES_AUTRES];
+  }
   // "Offre de crédit (immobilier)" est une formulation bancaire tout aussi courante que "offre de
   // prêt" pour désigner le même document (signalé par l'étude : une offre réelle intitulée ainsi
   // n'était pas détectée) — à ne pas retirer sans revérifier ce cas.
@@ -2836,6 +2933,7 @@
       await sauvegarder();
       render();
       await verifierOffrePret(id, true);
+      await verifierPiecesDossier(id, true);
     } catch (e) {
       if (!e) return;
       if (e.name === 'AbortError') return; // fenêtre de sélection fermée : rien à signaler
@@ -2949,6 +3047,103 @@
     if (!trouve) relancerSiOffreManquante(d);
   }
 
+  // Même principe que verifierOffrePret(), mais teste TOUTES les pièces encore manquantes contre
+  // chaque PDF plutôt que de s'arrêter au premier document reconnu (checklist multi-pièces, pas un
+  // simple oui/non). PROFONDEUR_MAX_RECHERCHE_PDF / MAX_FICHIERS_PARCOURUS / fichiersPdfRecursifs
+  // et le repli OCR sont réutilisés tels quels.
+  async function verifierPiecesDossier(id, viaClicUtilisateur) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d || !d.dossierLie) return;
+    const checklist = checklistPieces(d.typeVente);
+    d.pieces = d.pieces || {};
+
+    const handle = await recupererHandle(id);
+    if (!handle) {
+      d.dossierLie = false;
+      render();
+      return;
+    }
+
+    let permission = await handle.queryPermission({ mode: 'read' });
+    if (permission !== 'granted' && viaClicUtilisateur) {
+      permission = await handle.requestPermission({ mode: 'read' });
+    }
+    if (permission !== 'granted') {
+      d.accesAReconfirmer = true;
+      render();
+      return;
+    }
+    d.accesAReconfirmer = false;
+
+    // Pièces déjà trouvées lors d'une vérification précédente : inutile de les rechercher à
+    // nouveau, seules celles encore manquantes/inconnues sont testées sur chaque PDF.
+    const aChercher = new Set(checklist.filter(p => d.pieces[p.cle] !== 'recue').map(p => p.cle));
+    const fichierParPiece = {};
+    let nbAnalyses = 0;
+    try {
+      const compteur = { n: 0 };
+      for await (const entree of fichiersPdfRecursifs(handle, 0, compteur)) {
+        if (aChercher.size === 0) break; // tout est déjà trouvé, inutile de continuer à lire des PDF
+        nbAnalyses++;
+        try {
+          const file = await entree.getFile();
+          const buffer = await file.arrayBuffer();
+          const pdf = await pdfjsLib.getDocument({ data: buffer, verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise;
+          let texte = '';
+          for (let p = 1; p <= Math.min(pdf.numPages, 15); p++) {
+            const page = await pdf.getPage(p);
+            const content = await page.getTextContent();
+            texte += content.items.map(it => it.str).join(' ') + '\n';
+          }
+          if (texte.trim().length < 40) {
+            const workerVerif = await creerWorkerOcr();
+            if (workerVerif) {
+              try { texte = await ocrPage(pdf, 1, workerVerif); } finally { await workerVerif.terminate(); }
+            }
+          }
+          for (const piece of checklist) {
+            if (!aChercher.has(piece.cle)) continue;
+            if (piece.motif.test(texte)) {
+              fichierParPiece[piece.cle] = entree.name;
+              aChercher.delete(piece.cle);
+            }
+          }
+        } catch (e) { console.error('Lecture impossible pour', entree.name, e); }
+      }
+    } catch (e) {
+      console.error('Parcours du dossier local impossible (pièces)', e);
+      if (viaClicUtilisateur) afficherToast("Impossible de parcourir le dossier local relié : " + e.message, 'OK', null);
+      render();
+      return;
+    }
+
+    let nbTrouvees = 0;
+    checklist.forEach(piece => {
+      if (fichierParPiece[piece.cle]) {
+        d.pieces[piece.cle] = 'recue';
+        nbTrouvees++;
+      } else if (d.pieces[piece.cle] !== 'recue') {
+        d.pieces[piece.cle] = 'manquante';
+      } else {
+        nbTrouvees++; // déjà reconnue lors d'une vérification précédente
+      }
+    });
+
+    if (viaClicUtilisateur) {
+      const manquantes = checklist.length - nbTrouvees;
+      if (manquantes === 0) {
+        afficherToast(`Dossier complet : les ${checklist.length} pièces attendues ont été reconnues.`, 'OK', null);
+      } else if (nbAnalyses === 0 && nbTrouvees === 0) {
+        afficherToast("Aucun PDF trouvé dans le dossier relié (ni ses sous-dossiers) — vérifiez que les pièces ont bien été enregistrées à cet endroit.", 'OK', null);
+      } else {
+        afficherToast(`${nbTrouvees}/${checklist.length} pièces reconnues — ${manquantes} manquante${manquantes > 1 ? 's' : ''} (voir le détail sur la fiche du dossier).`, 'OK', null);
+      }
+    }
+
+    await sauvegarder();
+    render();
+  }
+
   // Ouvre automatiquement une relance pré-rédigée si l'échéance approche et qu'aucune offre n'a
   // été trouvée — au plus une fois par jour et par dossier, pour ne pas rouvrir un brouillon à
   // chaque vérification. L'envoi final reste un geste volontaire de l'utilisateur.
@@ -2987,7 +3182,10 @@
   // silencieusement ; sinon un bandeau invite à cliquer pour le reconfirmer.
   async function revérifierDossiersLiesAuDemarrage() {
     for (const d of dossiers) {
-      if (d.dossierLie) await verifierOffrePret(d.id, false);
+      if (d.dossierLie) {
+        await verifierOffrePret(d.id, false);
+        await verifierPiecesDossier(d.id, false);
+      }
     }
   }
   setInterval(() => { revérifierDossiersLiesAuDemarrage(); }, 5 * 60 * 1000);

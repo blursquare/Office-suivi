@@ -683,6 +683,68 @@
     border-radius: 14px;
   }
   .analyse-doc-badge::before { content: "✓"; color: var(--ventebien); font-weight: 700; }
+
+  /* ---- pièces du dossier (checklist de constitution, selon le type de vente) ---- */
+  .pieces-dossier {
+    margin-top: 14px;
+    padding: 14px 16px;
+    background: var(--paper-sunk);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+  }
+  .pieces-dossier-titre {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-family: 'Poppins', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 10px;
+  }
+  .pieces-compteur {
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 1px 8px;
+    border-radius: 9px;
+    background: var(--pret-bg);
+    color: var(--pret);
+  }
+  .pieces-compteur.complet { background: var(--success-bg); color: var(--success); }
+  .pieces-liste {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .piece-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--paper-card);
+    border: 1px solid var(--line-soft);
+    color: var(--ink-soft);
+    font-size: 12.5px;
+    padding: 4px 10px;
+    border-radius: 14px;
+  }
+  .piece-icone { font-weight: 700; }
+  .piece-item.recue { border-color: var(--success); color: var(--ink); }
+  .piece-item.recue .piece-icone { color: var(--success); }
+  .piece-item.manquante { border-color: var(--pret); color: var(--ink); }
+  .piece-item.manquante .piece-icone { color: var(--pret); }
+  .piece-item.inconnu .piece-icone { color: var(--muted); }
+
+  /* Aperçu de la checklist à l'étape "Finaliser" du wizard, avant l'enregistrement du dossier —
+     mêmes puces .piece-item que le suivi réel, mais sans compteur ni bouton (rien à vérifier
+     encore, juste montrer ce qui sera attendu selon le type de vente choisi). */
+  .pieces-apercu { margin: 4px 0 20px; }
+  .pieces-apercu-titre {
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    margin-bottom: 8px;
+  }
+
   .analyse-vide {
     font-size: 13px;
     color: var(--ink-soft);

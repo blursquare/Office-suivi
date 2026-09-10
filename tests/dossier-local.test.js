@@ -69,3 +69,64 @@ test('OFFRE_PRET_RE reconnaît les formulations bancaires courantes', () => {
   assert.ok(app.OFFRE_PRET_RE.test('Offre de financement'));
   assert.equal(app.OFFRE_PRET_RE.test("Attestation d'entretien de chaudière"), false);
 });
+
+test('checklistPieces("maison") ne contient pas les pièces propres à la copropriété', () => {
+  const app = chargerApplication();
+  // Le tableau vient d'un autre contexte vm (autre réalisation d'Array) : on le convertit avant de
+  // le comparer, comme pour reminderDays ailleurs dans les tests.
+  const cles = [...app.checklistPieces('maison').map(p => p.cle)];
+  assert.deepEqual(cles, [
+    'certificatUrbanisme', 'certificatAlignement', 'certificatNumerotage',
+    'reponseAssainissement', 'renonciationPreemption',
+    'diagnosticsTechniques', 'erp', 'avisTaxeFonciere', 'titrePropriete'
+  ]);
+});
+
+test('checklistPieces("copropriete") ajoute état daté, article 20-II et RIB de la copropriété', () => {
+  const app = chargerApplication();
+  const cles = app.checklistPieces('copropriete').map(p => p.cle);
+  assert.ok(cles.includes('etatDate'));
+  assert.ok(cles.includes('article20'));
+  assert.ok(cles.includes('ribCopro'));
+  // Les pièces urbanisme/autres restent identiques entre les deux types.
+  assert.equal(cles.length, app.checklistPieces('maison').length + 3);
+});
+
+test('les motifs de la checklist reconnaissent un intitulé plausible pour chaque pièce', () => {
+  const app = chargerApplication();
+  const exemples = {
+    certificatUrbanisme: "Certificat d'urbanisme opérationnel",
+    certificatAlignement: "Certificat d'alignement de voirie",
+    certificatNumerotage: 'Certificat de numérotage délivré par la mairie',
+    reponseAssainissement: "Rapport de contrôle de l'installation d'assainissement non collectif",
+    renonciationPreemption: 'La commune renonce à exercer son droit de préemption urbain',
+    diagnosticsTechniques: 'Dossier de Diagnostic Technique (DDT)',
+    erp: 'État des risques et pollutions',
+    avisTaxeFonciere: 'Avis de taxe foncière 2025',
+    titrePropriete: 'Titre de propriété du 12 mars 2010',
+    etatDate: 'État daté établi par le syndic',
+    article20: 'Attestation article 20-II loi SRU',
+    ribCopro: 'RIB du syndicat des copropriétaires'
+  };
+  for (const piece of app.checklistPieces('copropriete')) {
+    assert.ok(piece.motif.test(exemples[piece.cle]), `motif "${piece.cle}" ne reconnaît pas "${exemples[piece.cle]}"`);
+  }
+});
+
+test('le motif "erp" ignore un établissement recevant du public sans lien avec l\'état des risques', () => {
+  // Ambiguïté réelle : "ERP" désigne aussi un Établissement Recevant du Public, sans rapport avec
+  // la pièce recherchée (état des risques et pollutions) — d'où l'appui sur l'intitulé complet.
+  const app = chargerApplication();
+  const piece = app.checklistPieces('maison').find(p => p.cle === 'erp');
+  assert.equal(piece.motif.test('Le local est classé établissement recevant du public (ERP) de type M'), false);
+});
+
+test('normaliserDossierImporte valide typeVente et repart sur "maison" par défaut', () => {
+  const app = chargerApplication();
+  const copro = app.normaliserDossierImporte({ nom: 'Test', typeVente: 'copropriete' }, 'test.json');
+  assert.equal(copro.typeVente, 'copropriete');
+  const sansType = app.normaliserDossierImporte({ nom: 'Test' }, 'test.json');
+  assert.equal(sansType.typeVente, 'maison');
+  const typeInvalide = app.normaliserDossierImporte({ nom: 'Test', typeVente: "n'importe quoi" }, 'test.json');
+  assert.equal(typeInvalide.typeVente, 'maison');
+});
