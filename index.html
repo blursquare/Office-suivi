@@ -233,6 +233,17 @@
 
         <div class="field-row">
           <div>
+            <label for="f-adresse-bien">Adresse du bien (détectée automatiquement)</label>
+            <input type="text" id="f-adresse-bien" placeholder="Ex. 12 rue de la République, 45000 Orléans">
+          </div>
+          <div>
+            <label for="f-prix-vente">Prix de vente (détecté automatiquement)</label>
+            <input type="text" id="f-prix-vente" inputmode="numeric" placeholder="Ex. 250000">
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div>
             <label for="f-type-vente">Type de vente</label>
             <select id="f-type-vente" onchange="majApercuPieces()">
               <option value="maison">Maison</option>

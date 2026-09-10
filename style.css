@@ -1803,6 +1803,34 @@
   .select-edit:hover { color: var(--ink); border-bottom-color: var(--ink-soft); }
   .select-edit:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
+  /* Champs texte libres (adresse/prix, détectés automatiquement — voir CLAUDE.md) : même habillage
+     discret que .select-edit (soulignement en tirets, pas de cadre plein) mais en curseur texte,
+     pas pointeur, et une largeur propre à chacun plutôt que la largeur intrinsèque d'un <select>.
+     Sélecteur préfixé par `input` (pas juste `.input-inline`) : la règle générique
+     `input[type="text"], ... { width:100%; ... }` combine élément+attribut, une spécificité qu'une
+     simple classe seule ne bat pas (contrairement à `select { width:100% }`, un simple sélecteur de
+     type, que `.select-edit` bat sans ce préfixe) — d'où ce piège différent de celui du formulaire. */
+  input.input-inline {
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--ink-soft);
+    background: transparent;
+    border: none;
+    border-bottom: 1px dashed var(--line);
+    padding: 0 2px;
+    width: auto;
+    max-width: none;
+    min-width: 0;
+    display: inline;
+    cursor: text;
+  }
+  input.input-inline:hover { color: var(--ink); border-bottom-color: var(--ink-soft); }
+  input.input-inline:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  input.input-inline::placeholder { color: var(--muted); font-style: italic; }
+  input.champ-adresse-bien { width: 260px; max-width: 100%; }
+  input.champ-prix-vente { width: 100px; }
+  .dossier-adresse-prix { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+
   .badge-cash {
     display: inline-block;
     margin-top: 6px;

@@ -126,6 +126,40 @@ test('detecterEmailAcquereur renvoie null si aucun email n\'est proche d\'une me
   assert.equal(app.detecterEmailAcquereur(texte), null);
 });
 
+test('detecterAdresseBien reconnaît une désignation "sis à ... (code postal)"', () => {
+  const app = chargerApplication();
+  const texte = "Un ensemble immobilier sis à ORLEANS (45000), 12 rue de la République.";
+  assert.equal(app.detecterAdresseBien(texte), 'ORLEANS (45000), 12 rue de la République');
+});
+
+test('detecterAdresseBien reconnaît "située dans la commune de"', () => {
+  const app = chargerApplication();
+  const texte = "Une maison d'habitation située dans la commune de BLOIS (41000), 5 avenue du Maréchal Foch.";
+  assert.equal(app.detecterAdresseBien(texte), 'BLOIS (41000), 5 avenue du Maréchal Foch');
+});
+
+test('detecterAdresseBien renvoie null sans code postal à proximité', () => {
+  const app = chargerApplication();
+  assert.equal(app.detecterAdresseBien("Un bien sis à Orléans, dont la désignation suit."), null);
+});
+
+test('detecterPrixVente lit le montant chiffré entre parenthèses après "prix"', () => {
+  const app = chargerApplication();
+  const texte = "La vente est consentie moyennant le prix principal de CENT MILLE EUROS (100 000 €).";
+  assert.equal(app.detecterPrixVente(texte), 100000);
+});
+
+test('detecterPrixVente gère les centimes en décimale et le prix de vente explicite', () => {
+  const app = chargerApplication();
+  const texte = "Le prix de vente s'élève à la somme de DEUX CENT CINQUANTE MILLE EUROS (250 000,00 €).";
+  assert.equal(app.detecterPrixVente(texte), 250000);
+});
+
+test('detecterPrixVente renvoie null sans montant entre parenthèses proche de "prix"', () => {
+  const app = chargerApplication();
+  assert.equal(app.detecterPrixVente("Le prix sera versé le jour de la signature de l'acte authentique."), null);
+});
+
 test('detecterDateCompromis reconnaît un bloc de signature électronique par partie (Yousign/DocuSign), sans le mot "compromis" ni "promesse"', () => {
   // Régression : une promesse LD Notaires de 52 pages n'était reconnue par aucun des motifs
   // existants ("compromis", "signé électroniquement"...) — son bloc de signature nomme chaque

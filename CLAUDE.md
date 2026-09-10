@@ -797,6 +797,40 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     couleur inventée pour l'occasion.
   - Bouton burger (mobile) aligné sur le même traitement (`--sidebar-bg` + flou), cohérent avec le
     panneau qu'il ouvre plutôt qu'un simple bouton `--paper-card` plat comme avant.
+- **Extraction de l'adresse du bien et du prix de vente** (`detecterAdresseBien`/`detecterPrixVente`,
+  premier jet — comme `PIECES_*` en leur temps, pas encore confronté à beaucoup de vrais compromis
+  autres que ceux déjà vus pour les dates/engagements) :
+  - `ADRESSE_BIEN_RE` s'ancre sur un code postal français (5 chiffres, marqueur fiable et rare
+    ailleurs dans l'acte) précédé de "sis(e) à/au" ou "situé(e) à/au/dans la commune de" — tournures
+    notariales courantes pour introduire la désignation du bien. Capture le fragment jusqu'au code
+    postal puis un peu après (la ville), borné à la phrase courante comme les autres détecteurs du
+    fichier. N'écrase jamais une valeur déjà saisie (même logique que l'email de l'acquéreur).
+  - `PRIX_VENTE_RE` s'appuie sur un usage notarial quasi systématique : le montant écrit en lettres
+    est répété en chiffres entre parenthèses juste après ("CENT MILLE EUROS (100 000 €)") — bien
+    plus fiable à parser que le nombre en toutes lettres. Cherche "prix" puis, dans la même clause
+    (jusqu'à 120 caractères, sans dépasser un point), un montant entre parenthèses suivi de
+    €/euros. Un seuil (`>= 1000`) écarte les faux positifs évidents (un numéro d'article capturé par
+    erreur près du mot "prix"). Affichage via `formaterPrix()` (`Intl.NumberFormat('fr-FR', {style:
+    'currency', ...})`).
+  - `d.adresseBien` (texte) et `d.prixVente` (entier ou `null`) ajoutés au modèle du dossier, gérés
+    dans `normaliserDossierImporte()` comme les autres champs texte/numériques. Deux nouveaux champs
+    dans l'étape "Finaliser" du wizard (`#f-adresse-bien`, `#f-prix-vente`), préremplis par la
+    détection mais librement modifiables — nécessaire puisque ce sont des regex non encore
+    éprouvées, contrairement à des motifs déjà resserrés sur de vrais dossiers.
+  - Affichés sur la fiche dossier (`renderCarteDossier`) via deux `<input class="input-inline">`
+    directement éditables (`changerAdresseBien`/`changerPrixVente`, avec entrée d'historique comme
+    les autres champs corrigeables) plutôt que le mécanisme crayon+validation du nom/des dates : un
+    champ toujours visible en édition directe convient mieux ici, la valeur pouvant être fausse ou
+    absente bien plus souvent qu'un nom de dossier saisi par l'utilisateur. **Piège de spécificité
+    CSS rencontré** (même famille que celui déjà documenté pour `.select-edit`, mais inversé) : la
+    règle générique `input[type="text"], ... { width: 100%; ... }` (élément + attribut) a une
+    spécificité plus élevée qu'une simple classe (`.input-inline` seule perdait sur width **et**
+    tout le reste — bordure, fond, padding — pas seulement la largeur comme pour `.select-edit`, où
+    la règle concurrente `select { ... }` n'est qu'un sélecteur de type, plus faible qu'une classe).
+    Corrigé en préfixant `input.input-inline`/`input.champ-adresse-bien`/`input.champ-prix-vente`
+    (élément + classe) pour au moins égaler cette spécificité, l'ordre dans la feuille de style
+    tranchant ensuite en leur faveur. À vérifier avant tout nouveau champ `<input>` stylé
+    "discrètement" sur une fiche dossier : un simple sélecteur de classe ne suffit pas forcément.
 
 ## Comment tester
 

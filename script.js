@@ -113,6 +113,45 @@
     return COPROPRIETE_RE.test(texte);
   }
 
+  // Adresse du bien : ancrée sur un code postal français (5 chiffres, marqueur fiable et rare
+  // ailleurs dans l'acte) précédé de "sis(e) à/au" ou "situé(e) à/au/dans la commune de" — les
+  // tournures notariales courantes pour introduire la désignation du bien. Capture tout le
+  // fragment jusqu'au code postal puis un peu après (ville), sans dépasser la phrase (borne au
+  // point suivant, comme extraireContexte) : un premier jet, pas encore confronté à de vrais
+  // compromis autres que ceux déjà vus pour les dates/engagements — à resserrer si un vrai dossier
+  // fait remonter un faux positif ou une capture tronquée.
+  const ADRESSE_BIEN_RE = /(?:sis|sise|situ[ée]e?)\s+(?:à|a|au|dans\s+la\s+commune\s+de|commune\s+de)\s+([^.\n]{3,120}?\d{5}[^.\n]{0,40})/i;
+
+  function detecterAdresseBien(texte) {
+    const m = ADRESSE_BIEN_RE.exec(texte);
+    if (!m) return null;
+    return m[1].replace(/\s+/g, ' ').trim().replace(/[,\s]+$/, '');
+  }
+
+  // Prix de vente : le montant en lettres est presque toujours suivi de sa forme chiffrée entre
+  // parenthèses (usage notarial constant, ex. "CENT MILLE EUROS (100 000 €)") — bien plus fiable à
+  // parser que le nombre écrit en toutes lettres. Cherche "prix" puis, dans les 120 caractères
+  // suivants (hors point/retour à la ligne, pour rester dans la même clause), un montant entre
+  // parenthèses suivi de €/euros.
+  const PRIX_VENTE_RE = /prix[^(.\n]{0,120}\(\s*([\d](?:[\d\s.]{0,14})?(?:,\d{2})?)\s*(?:€|euros?)\s*\)/i;
+
+  function detecterPrixVente(texte) {
+    const m = PRIX_VENTE_RE.exec(texte);
+    if (!m) return null;
+    const partieEntiere = m[1].split(',')[0].replace(/[\s.]/g, '');
+    const valeur = parseInt(partieEntiere, 10);
+    // Un prix de vente immobilier réel ne descend jamais sous 1000 € : filtre les faux positifs
+    // (un numéro d'article, une référence de loi capturée par erreur près du mot "prix").
+    return Number.isFinite(valeur) && valeur >= 1000 ? valeur : null;
+  }
+
+  // Affichage français ("250 000 €", pas de décimales : un prix notarié est toujours un compte
+  // rond en euros dans ce contexte). Intl.NumberFormat plutôt qu'un formatage manuel des milliers.
+  const FORMAT_PRIX = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+  function formaterPrix(valeur) {
+    return FORMAT_PRIX.format(valeur);
+  }
+
   // Repère les noms de famille du VENDEUR et de l'ACQUÉREUR (un ou plusieurs de chaque côté) pour
   // préremplir le nom du dossier, au format "NOM1 / NOM2 & NOM3" (en majuscules).
   //
@@ -933,6 +972,17 @@
     }
     majApercuPieces();
 
+    const champAdresse = document.getElementById('f-adresse-bien');
+    if (!champAdresse.value.trim()) {
+      const adresseDetectee = detecterAdresseBien(texte);
+      if (adresseDetectee) champAdresse.value = adresseDetectee;
+    }
+    const champPrix = document.getElementById('f-prix-vente');
+    if (!champPrix.value.trim()) {
+      const prixDetecte = detecterPrixVente(texte);
+      if (prixDetecte) champPrix.value = String(prixDetecte);
+    }
+
     // Les documents sont déduits des seules clauses d'engagement du vendeur, et non de l'ensemble
     // du compromis : c'est ainsi qu'un notaire lit l'acte, et cela évite les faux positifs.
     const engagements = extraireEngagementsVendeur(texte);
@@ -1477,6 +1527,8 @@
     majApercuPieces();
     document.getElementById('f-email-acquereur').value = '';
     document.getElementById('f-email').value = EMAIL_RAPPEL_DEFAUT;
+    document.getElementById('f-adresse-bien').value = '';
+    document.getElementById('f-prix-vente').value = '';
     document.getElementById('f-pret').value = '';
     document.getElementById('f-acte').value = '';
     document.getElementById('f-pdf').value = '';
@@ -1533,6 +1585,9 @@
     const roleNotaire = document.getElementById('f-role-notaire').value;
     const responsable = document.getElementById('f-responsable').value.trim();
     const emailAcquereur = document.getElementById('f-email-acquereur').value.trim();
+    const adresseBien = document.getElementById('f-adresse-bien').value.trim();
+    const prixVenteBrut = document.getElementById('f-prix-vente').value.trim();
+    const prixVente = prixVenteBrut ? parseInt(prixVenteBrut.replace(/[^\d]/g, ''), 10) : null;
     const pret = echeanceActive.pret ? document.getElementById('f-pret').value : '';
     const acte = echeanceActive.acte ? document.getElementById('f-acte').value : '';
     const ventebien = echeanceActive.ventebien ? document.getElementById('f-ventebien').value : '';
@@ -1564,6 +1619,8 @@
     const dossier = {
       id: (crypto.randomUUID ? crypto.randomUUID() : 'd-' + Date.now() + '-' + Math.random().toString(16).slice(2)),
       nom, email, responsable, emailAcquereur,
+      adresseBien,
+      prixVente: Number.isFinite(prixVente) && prixVente > 0 ? prixVente : null,
       typeVente,
       roleNotaire,
       pieces: {},
@@ -1830,6 +1887,34 @@
     if (!d || (d.responsable || '') === valeur) return;
     ajouterHistorique(d, `Responsable modifié : ${d.responsable || '— à définir —'} → ${valeur || '— à définir —'}`);
     d.responsable = valeur;
+    sauvegarder();
+    render();
+  }
+
+  // Adresse et prix : détectés automatiquement à l'import (voir detecterAdresseBien/
+  // detecterPrixVente, premier jet sur des regex pas encore éprouvées sur beaucoup de compromis
+  // réels), donc corrigeables directement sur la fiche — mêmes principes que Responsable/Type de
+  // vente ci-dessus, mais en champ texte libre plutôt qu'un choix fermé.
+  function changerAdresseBien(id, valeur) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    const nouvelle = valeur.trim();
+    if (nouvelle === (d.adresseBien || '')) return;
+    ajouterHistorique(d, `Adresse du bien modifiée`);
+    d.adresseBien = nouvelle;
+    sauvegarder();
+    render();
+  }
+
+  function changerPrixVente(id, valeur) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    const chiffres = valeur.replace(/[^\d]/g, '');
+    const nouveau = chiffres ? parseInt(chiffres, 10) : null;
+    const normalise = Number.isFinite(nouveau) && nouveau > 0 ? nouveau : null;
+    if (normalise === (d.prixVente || null)) { render(); return; }
+    ajouterHistorique(d, `Prix de vente modifié : ${d.prixVente ? formaterPrix(d.prixVente) : '—'} → ${normalise ? formaterPrix(normalise) : '—'}`);
+    d.prixVente = normalise;
     sauvegarder();
     render();
   }
@@ -2464,6 +2549,10 @@
                 <option value="participant" ${d.roleNotaire === 'participant' ? 'selected' : ''}>Participant</option>
               </select>
             </div>
+            <div class="addr dossier-adresse-prix">
+              📍 <input type="text" class="input-inline champ-adresse-bien" value="${escapeAttr(d.adresseBien || '')}" placeholder="Adresse du bien non détectée" aria-label="Adresse du bien" onblur="changerAdresseBien('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
+              · 💶 <input type="text" class="input-inline champ-prix-vente" value="${d.prixVente ? formaterPrix(d.prixVente) : ''}" placeholder="Prix non détecté" aria-label="Prix de vente" onblur="changerPrixVente('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
+            </div>
             ${d.sansPret ? '<span class="badge-cash">💰 Achat comptant — sans prêt</span>' : ''}
             <div class="offre-pret-ligne">
               ${(!d.sansPret && d.dossierLie) ? `<span class="badge-offre ${libelleOffre(d.offrePretStatut).cls}">${libelleOffre(d.offrePretStatut).texte}</span>
@@ -2915,6 +3004,8 @@
       email: typeof d.email === 'string' ? d.email : '',
       responsable: typeof d.responsable === 'string' ? d.responsable : '',
       emailAcquereur: typeof d.emailAcquereur === 'string' ? d.emailAcquereur : '',
+      adresseBien: typeof d.adresseBien === 'string' ? d.adresseBien : '',
+      prixVente: Number.isFinite(d.prixVente) && d.prixVente > 0 ? d.prixVente : null,
       pret: dateValide(d.pret),
       acte: dateValide(d.acte),
       ventebien: dateValide(d.ventebien),
