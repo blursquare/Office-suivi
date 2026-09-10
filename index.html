@@ -98,7 +98,11 @@
         </button>
         <span class="wizard-step-trait"></span>
         <button type="button" class="wizard-step-btn" id="wizard-step-btn-3" onclick="definirEtapeWizard(3)">
-          <span class="wizard-step-num">3</span>Finaliser
+          <span class="wizard-step-num">3</span>Analyse juridique
+        </button>
+        <span class="wizard-step-trait"></span>
+        <button type="button" class="wizard-step-btn" id="wizard-step-btn-4" onclick="definirEtapeWizard(4)">
+          <span class="wizard-step-num">4</span>Finaliser
         </button>
       </div>
 
@@ -180,11 +184,42 @@
 
         <div class="wizard-nav">
           <button type="button" class="secondary" onclick="definirEtapeWizard(1)">← Précédent</button>
-          <button type="button" class="primary" onclick="definirEtapeWizard(3)">Suivant : Finaliser →</button>
+          <button type="button" class="primary" onclick="definirEtapeWizard(3)">Suivant : Analyse juridique →</button>
         </div>
       </div>
 
       <div class="wizard-step" id="wizard-step-3">
+        <div id="analyse-juridique" class="analyse-juridique">
+          <div id="analyse-vide-etat" class="analyse-vide-etat" style="display:none;">
+            Aucune analyse disponible pour l'instant — importez un PDF à l'étape « Importer » pour
+            extraire automatiquement les conditions, les engagements du vendeur et les documents
+            attendus. Cette étape reste consultable même sans PDF importé.
+          </div>
+          <div class="analyse-section" id="analyse-section-conditions">
+            <div class="analyse-sous-titre">Conditions suspensives et particulières <span class="analyse-compteur" id="analyse-nb-conditions"></span></div>
+            <div id="analyse-conditions-liste"></div>
+          </div>
+
+          <div class="analyse-section" id="analyse-section-engagements">
+            <div class="analyse-sous-titre">Engagements du vendeur <span class="analyse-compteur" id="analyse-nb-engagements"></span></div>
+            <div id="analyse-engagements-liste"></div>
+          </div>
+
+          <div class="analyse-section" id="analyse-section-documents">
+            <div class="analyse-sous-titre">Documents et pièces identifiés <span class="analyse-compteur" id="analyse-nb-documents"></span></div>
+            <div id="analyse-documents-liste" class="analyse-documents-liste"></div>
+          </div>
+
+          <div id="analyse-note" class="analyse-note" style="display:none;"></div>
+        </div>
+
+        <div class="wizard-nav">
+          <button type="button" class="secondary" onclick="definirEtapeWizard(2)">← Précédent</button>
+          <button type="button" class="primary" onclick="definirEtapeWizard(4)">Suivant : Finaliser →</button>
+        </div>
+      </div>
+
+      <div class="wizard-step" id="wizard-step-4">
         <div class="field-row">
           <div>
             <label for="f-nom">Nom du dossier</label>
@@ -231,7 +266,7 @@
 
         <div class="pieces-apercu" id="pieces-apercu"></div>
 
-        <fieldset>
+        <fieldset id="rappel-fieldset">
           <legend>Envoyer un rappel</legend>
           <div class="reminder-days" id="reminder-days">
             <label><input type="checkbox" value="15" checked> 15 jours avant</label>
@@ -245,7 +280,7 @@
         <div id="form-error" class="form-error"></div>
 
         <div class="wizard-nav">
-          <button type="button" class="secondary" onclick="definirEtapeWizard(2)">← Précédent</button>
+          <button type="button" class="secondary" onclick="definirEtapeWizard(3)">← Précédent</button>
           <div class="actions-row">
             <button type="button" class="secondary" onclick="reinitialiserFormulaire()">Effacer</button>
             <button type="button" class="primary" onclick="ajouterDossier()">Ajouter le dossier</button>
@@ -262,32 +297,7 @@
   <div class="pdf-viewer-header">
     <div class="pdf-viewer-title" id="pdf-viewer-title">Aperçu du compromis</div>
   </div>
-  <div class="pdf-viewer-tabs" id="pdf-viewer-tabs" style="display:none;">
-    <button type="button" class="pdf-viewer-tab actif" id="pdf-viewer-tab-apercu" onclick="definirVuePdfViewer('apercu')">📄 Aperçu</button>
-    <button type="button" class="pdf-viewer-tab" id="pdf-viewer-tab-analyse" onclick="definirVuePdfViewer('analyse')">📋 Analyse juridique</button>
-  </div>
   <div class="pdf-viewer-canvas-wrap" id="pdf-pages-container"></div>
-  <!-- Panneau toujours visible (ancré comme l'aperçu PDF, ne défile pas avec le formulaire) plutôt
-       qu'inline dans le flux du formulaire : une analyse fournie (beaucoup de clauses/documents)
-       poussait le reste du formulaire loin en dessous et forçait à tout redéfiler pour la revoir. -->
-  <div id="analyse-juridique" class="analyse-juridique analyse-juridique-panel" style="display:none;">
-    <div class="analyse-section" id="analyse-section-conditions">
-      <div class="analyse-sous-titre">Conditions suspensives et particulières <span class="analyse-compteur" id="analyse-nb-conditions"></span></div>
-      <div id="analyse-conditions-liste"></div>
-    </div>
-
-    <div class="analyse-section" id="analyse-section-engagements">
-      <div class="analyse-sous-titre">Engagements du vendeur <span class="analyse-compteur" id="analyse-nb-engagements"></span></div>
-      <div id="analyse-engagements-liste"></div>
-    </div>
-
-    <div class="analyse-section">
-      <div class="analyse-sous-titre">Documents et pièces identifiés <span class="analyse-compteur" id="analyse-nb-documents"></span></div>
-      <div id="analyse-documents-liste" class="analyse-documents-liste"></div>
-    </div>
-
-    <div id="analyse-note" class="analyse-note" style="display:none;"></div>
-  </div>
 </aside>
 
 </div>

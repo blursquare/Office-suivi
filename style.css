@@ -141,36 +141,6 @@
     scroll-behavior: smooth;
   }
 
-  /* Bascule Aperçu / Analyse juridique dans la même colonne ancrée (voir .pdf-viewer) : l'analyse
-     ne défile plus avec le formulaire et ne pousse plus le reste des champs hors de vue quand elle
-     est fournie (beaucoup de clauses/documents détectés). */
-  .pdf-viewer-tabs {
-    display: flex;
-    gap: 4px;
-    margin-bottom: 10px;
-    border-bottom: 1px solid var(--line);
-  }
-  .pdf-viewer-tab {
-    font-family: inherit;
-    font-size: 12.5px;
-    font-weight: 600;
-    color: var(--ink-soft);
-    background: none;
-    border: none;
-    border-bottom: 2px solid transparent;
-    padding: 7px 4px 8px;
-    cursor: pointer;
-  }
-  .pdf-viewer-tab.actif { color: var(--focus); border-bottom-color: var(--focus); }
-  .pdf-viewer-tab:not(.actif):hover { color: var(--ink); }
-
-  .analyse-juridique-panel {
-    flex: 1;
-    overflow-y: auto;
-    margin-top: 0;
-    min-height: 400px;
-  }
-
   .pdf-page-bloc {
     position: relative;
     flex-shrink: 0;
@@ -365,7 +335,7 @@
 
   .kpis-dashboard {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(6, 1fr);
     gap: 12px;
     margin-bottom: 28px;
   }
@@ -834,6 +804,13 @@
     font-weight: 600;
     color: var(--ink);
     margin-bottom: 14px;
+  }
+
+  .analyse-vide-etat {
+    color: var(--ink-soft);
+    font-size: 13.5px;
+    line-height: 1.6;
+    padding: 8px 2px;
   }
 
   .analyse-section {

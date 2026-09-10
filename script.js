@@ -104,6 +104,15 @@
     return CASH_RE.test(texte);
   }
 
+  // Marqueurs juridiques propres à une vente de lot en copropriété (statut de la loi du 10 juillet
+  // 1965), plutôt qu'une simple mention isolée de "copropriété" qui pourrait apparaître pour
+  // d'autres raisons (ex. un diagnostic mentionnant un immeuble voisin).
+  const COPROPRIETE_RE = /lot\s+(?:de\s+)?copropri[ée]t[ée]|r[èe]glement\s+de\s+copropri[ée]t[ée]|syndicat\s+des\s+copropri[ée]taires|[ée]tat\s+descriptif\s+de\s+division|statut\s+de\s+la\s+copropri[ée]t[ée]|loi\s+(?:n[°ºo]\s*)?65-557|loi\s+du\s+10\s+juillet\s+1965/i;
+
+  function detecterTypeVenteCopropriete(texte) {
+    return COPROPRIETE_RE.test(texte);
+  }
+
   // Repère les noms de famille du VENDEUR et de l'ACQUÉREUR (un ou plusieurs de chaque côté) pour
   // préremplir le nom du dossier, au format "NOM1 / NOM2 & NOM3" (en majuscules).
   //
@@ -206,6 +215,32 @@
   // ACHETEUR ou BÉNÉFICIAIRE (promesse unilatérale de vente réitérée par acte authentique).
   const RE_ROLE_VENDEUR = /vendeu?rs?|promettants?/i;
   const RE_ROLE_ACQUEREUR = /acqu[ée]reurs?|acheteurs?|b[ée]n[ée]ficiaires?/i;
+
+  // Cherche une adresse email au voisinage de chaque mention de l'acquéreur/bénéficiaire (utile
+  // pour préremplir "Email de l'acquéreur", utilisé pour la relance automatique de l'offre de
+  // prêt — voir relancerSiOffreManquante). Ancré sur le rôle plutôt qu'un simple "premier email du
+  // document" : un compromis contient aussi l'email du vendeur, de l'agence ou du notaire, et rien
+  // ne garantit que l'acquéreur soit cité en premier.
+  const EMAIL_RE = /[\w.+-]+@[\w-]+\.[a-z]{2,}/i;
+  function detecterEmailAcquereur(texte) {
+    const roleRe = new RegExp(RE_ROLE_ACQUEREUR.source, 'gi');
+    let m;
+    while ((m = roleRe.exec(texte)) !== null) {
+      // Recul borné à la phrase courante (s'arrête au point précédent, comme extraireContexte) :
+      // sans ça, l'email du VENDEUR cité juste avant dans le document pouvait être capté à la
+      // place de celui de l'ACQUEREUR sur un simple recul à distance fixe.
+      let debut = m.index;
+      let n = 0;
+      while (debut > 0 && n < 150) {
+        if (texte[debut - 1] === '.') break;
+        debut--; n++;
+      }
+      const fenetre = texte.slice(debut, m.index + 300);
+      const em = fenetre.match(EMAIL_RE);
+      if (em) return em[0];
+    }
+    return null;
+  }
 
   function detecterNomDossier(texte) {
     const blocVendeur = extraireBlocPartie(texte, RE_ROLE_VENDEUR, 0);
@@ -586,33 +621,27 @@
     return `<div class="analyse-engagement-ligne">${etiquette}<span>${escapeHtml(phrase)}</span>${boutonVoir}</div>`;
   }
 
-  // 'apercu' | 'analyse' — l'onglet actif du panneau ancré à droite du formulaire (voir
-  // definirVuePdfViewer). Remis à 'apercu' à chaque nouvel import (traiterFichierPdf) : l'aperçu du
-  // nouveau document prime, l'utilisateur reclique sur l'onglet analyse s'il veut la consulter.
-  let vuePdfViewerActuelle = 'apercu';
-  let analyseJuridiqueDisponible = false;
-
-  function definirVuePdfViewer(vue) {
-    vuePdfViewerActuelle = vue;
-    const tabApercu = document.getElementById('pdf-viewer-tab-apercu');
-    const tabAnalyse = document.getElementById('pdf-viewer-tab-analyse');
-    if (tabApercu) tabApercu.classList.toggle('actif', vue === 'apercu');
-    if (tabAnalyse) tabAnalyse.classList.toggle('actif', vue === 'analyse');
-    document.getElementById('pdf-pages-container').style.display = vue === 'apercu' ? 'flex' : 'none';
-    document.getElementById('analyse-juridique').style.display = (vue === 'analyse' && analyseJuridiqueDisponible) ? 'block' : 'none';
-  }
-
+  // L'analyse juridique est sa propre étape du wizard (étape 3, voir definirEtapeWizard) — plus un
+  // onglet superposé à l'aperçu PDF : aucune étape n'étant verrouillée, elle reste accessible même
+  // sans rien à montrer (message d'état vide ci-dessous), pas besoin de la cacher.
   function afficherAnalyseJuridique() {
     const listeDocs = document.getElementById('analyse-documents-liste');
     const note = document.getElementById('analyse-note');
+    const vide = document.getElementById('analyse-vide-etat');
     const { documents, engagements, conditions = [] } = analyseJuridiqueActuelle;
 
-    analyseJuridiqueDisponible = documents.length > 0 || engagements.length > 0 || conditions.length > 0;
-    document.getElementById('pdf-viewer-tabs').style.display = analyseJuridiqueDisponible ? 'flex' : 'none';
+    const analyseJuridiqueDisponible = documents.length > 0 || engagements.length > 0 || conditions.length > 0;
+    if (vide) vide.style.display = analyseJuridiqueDisponible ? 'none' : 'block';
     if (!analyseJuridiqueDisponible) {
-      definirVuePdfViewer(vuePdfViewerActuelle);
+      document.getElementById('analyse-section-conditions').style.display = 'none';
+      document.getElementById('analyse-section-engagements').style.display = 'none';
+      const sectionDocuments = document.getElementById('analyse-section-documents');
+      if (sectionDocuments) sectionDocuments.style.display = 'none';
+      note.style.display = 'none';
       return;
     }
+    const sectionDocumentsVisible = document.getElementById('analyse-section-documents');
+    if (sectionDocumentsVisible) sectionDocumentsVisible.style.display = 'block';
 
     // Les conditions suspensives et particulières sont reprises telles qu'elles figurent au
     // compromis, rubrique par rubrique : c'est la lecture de référence du notaire.
@@ -646,7 +675,6 @@
     } else {
       note.style.display = 'none';
     }
-    definirVuePdfViewer(vuePdfViewerActuelle);
   }
 
   // Extrait la phrase contenant la date (bornée par un maximum de caractères) plutôt qu'une simple
@@ -750,13 +778,21 @@
       // contrairement à reDelai ci-dessus). Compté à partir de la signature de la promesse elle-
       // même (« la présente convention… ») faute d'autre point de départ indiqué dans la clause —
       // même convention implicite que les ancres "la présente"/"ce jour" déjà acceptées par
-      // reDelai. Une même promesse notarie souvent aussi un délai de notification distinct (ex.
-      // "70 jours" pour notifier le refus de prêt) avec la même tournure "au plus tard dans les N
-      // jours" : les deux sont détectés, meilleureCandidateEcheance() départage déjà ce cas (ambigu
-      // si les deux portent une formulation de délai, premier candidat par ordre chronologique
-      // gardé par défaut — ici le bon, la condition de prêt tombant avant celle de notification).
+      // reDelai.
+      //
+      // Bug corrigé : la même promesse porte presque toujours un second délai, avec la même
+      // tournure, pour la notification du refus/de l'octroi au notaire (ex. "au plus tard dans les
+      // 70 jours, les offres à lui faites ou le refus opposé aux demandes de prêt") — ce n'est PAS
+      // la condition elle-même, seulement une formalité de communication qui la suit. Signalé par
+      // l'étude : garder les deux (même en signalant une ambiguïté) polluait le champ avec un choix
+      // à trancher alors que le bon candidat est déterministe ici — le délai de notification est
+      // systématiquement associé à "notifier"/"notification" dans les ~200 caractères qui précèdent
+      // (voir la clause réelle ci-dessus), on l'écarte donc totalement plutôt que de le détecter
+      // pour ensuite le désambiguïser.
       const reAuPlusTardDelai = /au\s+plus\s+tard\s+dans\s+(?:les?|un\s+d[ée]lai\s+de)\s+(\d{1,3})\s*jours?/gi;
       while ((m = reAuPlusTardDelai.exec(texte)) !== null) {
+        const avant = texte.slice(Math.max(0, m.index - 200), m.index);
+        if (/notifier|notification/i.test(avant)) continue;
         ajouter(addDays(dateCompromis, parseInt(m[1], 10)), m[0], m.index, m[0].length, true);
       }
     }
@@ -815,6 +851,16 @@
     bloc.classList.toggle('inactive', !actif);
     input.disabled = !actif;
     if (!actif) input.value = '';
+    if (type === 'pret') majVisibiliteRappels();
+  }
+
+  // Demandé par l'étude : sans condition d'obtention de prêt (achat comptant), la section rappels
+  // ne concerne plus ce dossier — retirée de l'étape Finaliser plutôt que laissée visible mais
+  // sans effet. `getSelectedReminderDays()` n'est de toute façon plus lue dans ce cas (voir
+  // ajouterDossier), ce masquage évite seulement de laisser des cases à cocher trompeuses.
+  function majVisibiliteRappels() {
+    const fieldset = document.getElementById('rappel-fieldset');
+    if (fieldset) fieldset.style.display = echeanceActive.pret ? '' : 'none';
   }
 
   function definirEcheanceActive(type, actif) {
@@ -869,6 +915,23 @@
       const nomDetecte = detecterNomDossier(texte);
       if (nomDetecte) champNom.value = nomDetecte;
     }
+
+    // Uniquement utile s'il y a une condition d'obtention de prêt à relancer (voir le champ
+    // lui-même, "pour relance prêt") — inutile de préremplir sans ça.
+    const champEmailAcquereur = document.getElementById('f-email-acquereur');
+    if (echeanceActive.pret && !champEmailAcquereur.value.trim()) {
+      const emailDetecte = detecterEmailAcquereur(texte);
+      if (emailDetecte) champEmailAcquereur.value = emailDetecte;
+    }
+
+    // Ne bascule que dans un sens (maison → copropriété) : l'absence de ces marqueurs ne prouve
+    // pas l'inverse (une vente de maison individuelle ne les mentionne simplement jamais), donc on
+    // ne force jamais "maison" par défaut ici, on ne fait que corriger vers "copropriété" quand
+    // c'en est manifestement une.
+    if (detecterTypeVenteCopropriete(texte)) {
+      document.getElementById('f-type-vente').value = 'copropriete';
+    }
+    majApercuPieces();
 
     // Les documents sont déduits des seules clauses d'engagement du vendeur, et non de l'ensemble
     // du compromis : c'est ainsi qu'un notaire lit l'acte, et cela évite les faux positifs.
@@ -1262,7 +1325,6 @@
       pageParType = { pret: null, acte: null, ventebien: null };
       ambiguiteParType = { pret: false, acte: false, ventebien: false };
       approxParType = { pret: false, acte: false, ventebien: false };
-      vuePdfViewerActuelle = 'apercu';
       traiterTexte(texteComplet);
       // Bascule automatiquement vers l'étape "Vérifier" : les dates/chips sont déjà là, plus besoin
       // de cliquer soi-même sur "Suivant" après un import qui vient de réussir.
@@ -1432,9 +1494,7 @@
     detectedDates = [];
     autresEnCours = [];
     analyseJuridiqueActuelle = { documents: [], engagements: [], conditions: [] };
-    analyseJuridiqueDisponible = false;
-    document.getElementById('pdf-viewer-tabs').style.display = 'none';
-    definirVuePdfViewer('apercu');
+    afficherAnalyseJuridique();
     // Referme entièrement le panneau d'aperçu : sans ça, le PDF du dossier qu'on vient d'enregistrer
     // restait affiché à côté d'un formulaire pourtant vide, prêt pour un nouvel import.
     document.getElementById('pdf-viewer').style.display = 'none';
@@ -1517,7 +1577,9 @@
       ventebienPage: ventebien ? pageParType.ventebien : null,
       pdfNumPages: pdfDernierePageUtile,
       sansPret: !echeanceActive.pret,
-      reminderDays: getSelectedReminderDays(),
+      // Pas de section rappels sans condition de prêt (voir majVisibiliteRappels) : aucun rappel
+      // pour ce dossier, plutôt que de lire des cases à cocher restées invisibles/non pertinentes.
+      reminderDays: echeanceActive.pret ? getSelectedReminderDays() : [],
       confiance,
       archive: false,
       analyseJuridique: {
@@ -1835,17 +1897,19 @@
   // tuiles KPI du "Tableau de bord" (renderKpisDashboard), pour ne jamais faire diverger ces deux
   // lectures d'un même portefeuille.
   function calculerStatsPortefeuille(dossiersActifs) {
-    const urgents = dossiersActifs.filter(d => {
+    const dansNJours = (n) => dossiersActifs.filter(d => {
       const prochaine = prochaineEcheanceDetail(d);
-      return prochaine && prochaine.jours <= 7;
+      return prochaine && prochaine.jours <= n;
     }).length;
+    const urgents = dansNJours(7);
+    const urgents15 = dansNJours(15);
     const avecPret = dossiersActifs.filter(d => !d.sansPret);
     const manquantes = avecPret.filter(d => d.offrePretStatut === 'manquante').length;
     const aVerifier = avecPret.filter(d => (d.offrePretStatut || 'inconnu') === 'inconnu').length;
     // Même condition que statutDossier() : uniquement une fois relié, hors rôle participant.
     const piecesIncompletes = dossiersActifs.filter(d => d.dossierLie && d.roleNotaire !== 'participant' &&
       checklistPieces(d.typeVente).some(p => (d.pieces || {})[p.cle] !== 'recue')).length;
-    return { actifs: dossiersActifs.length, urgents, manquantes, aVerifier, piecesIncompletes };
+    return { actifs: dossiersActifs.length, urgents, urgents15, manquantes, aVerifier, piecesIncompletes };
   }
 
   // Bandeau de synthèse en tête de l'onglet "Suivi des dossiers" : donne un état global du
@@ -1872,10 +1936,11 @@
   function renderKpisDashboard(dossiersActifs) {
     const bloc = document.getElementById('kpis-dashboard');
     if (!bloc) return;
-    const { actifs, urgents, manquantes, aVerifier, piecesIncompletes } = calculerStatsPortefeuille(dossiersActifs);
+    const { actifs, urgents, urgents15, manquantes, aVerifier, piecesIncompletes } = calculerStatsPortefeuille(dossiersActifs);
     const tuiles = [
       ['c-neutre', actifs, actifs > 1 ? 'dossiers actifs' : 'dossier actif', '📁'],
       ['c-urgent', urgents, 'échéances ≤ 7 jours', '⏱️'],
+      ['c-urgent', urgents15, 'échéances ≤ 15 jours', '📅'],
       ['c-pret', manquantes, 'offres de prêt introuvables', '⚠️'],
       ['c-neutre', aVerifier, 'offres à vérifier', '🔎'],
       ['c-pret', piecesIncompletes, 'dossiers avec pièces manquantes', '📋']
@@ -1940,11 +2005,11 @@
   let etapeWizardActuelle = 1;
   function definirEtapeWizard(n) {
     etapeWizardActuelle = n;
-    for (let i = 1; i <= 3; i++) {
+    for (let i = 1; i <= 4; i++) {
       document.getElementById('wizard-step-' + i).classList.toggle('actif', i === n);
       document.getElementById('wizard-step-btn-' + i).classList.toggle('actif', i === n);
     }
-    if (n === 3) majApercuPieces();
+    if (n === 4) majApercuPieces();
     const wrap = document.querySelector('.wrap');
     if (wrap) wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -3689,3 +3754,7 @@
   chargerApprentissage();
   charger().then(() => { revérifierDossiersLiesAuDemarrage(); tenterReconnexionPartage(); });
   renderChips();
+  // L'analyse juridique est une étape du wizard toujours visible (voir definirEtapeWizard) : sans
+  // cet appel initial, ses sections restaient affichées vides (ni contenu ni message d'état) tant
+  // qu'aucun PDF n'avait encore été importé dans la session.
+  afficherAnalyseJuridique();

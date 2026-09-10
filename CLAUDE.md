@@ -672,6 +672,54 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     typographie, pas sur les couleurs déjà validées par l'étude lors de la précédente refonte
     visuelle (voir plus haut) — aucune raison de les changer, et le bleu existant se prêtait déjà
     bien au nouveau logo.
+- **Nouvelle série de retours de l'étude après la refonte visuelle, traités indépendamment** :
+  - **Condition de prêt à délai : le motif "au plus tard dans les 70 jours" (notification du
+    prêteur au notaire) ne doit plus être détecté comme une échéance, seul le "60 jours" (condition
+    suspensive elle-même) doit l'être.** Avant ce correctif, `meilleureCandidateEcheance()` gérait
+    déjà l'ambiguïté entre les deux (badge "≈ estimée") mais l'étude a demandé plus simple : ne
+    détecter que la bonne clause. `reAuPlusTardDelai` regarde maintenant les 200 caractères
+    précédant chaque occurrence et ignore le délai si "notifier"/"notification" y apparaît — ces mots
+    sont propres à la clause de notification, absents de la clause de condition suspensive
+    elle-même. Test réécrit dans `tests/dates.test.js` : une seule date détectée (60 jours), plus
+    d'ambiguïté à signaler pour ce cas précis.
+  - **Auto-sélection du type de vente "copropriété"** : `detecterTypeVenteCopropriete(texte)`
+    (nouveau `COPROPRIETE_RE`) reconnaît "lot de copropriété", "syndicat des copropriétaires",
+    "règlement de copropriété", "loi du 10 juillet 1965" dans le texte importé. Si détecté,
+    `traiterTexte()` force `#f-type-vente` sur "copropriete" — évite de laisser "Maison" par défaut
+    (donc la mauvaise checklist de pièces, voir la checklist de pièces plus haut) sur un dossier de
+    copropriété manifeste. Reste modifiable manuellement ensuite (`changerTypeVente()`), comme
+    n'importe quelle détection automatique de l'outil.
+  - **Section "Envoyer un rappel" masquée quand il n'y a pas de condition de prêt** : demandé par
+    l'étude — relancer une échéance de prêt qui n'existe pas pour ce dossier n'a pas de sens.
+    `toggleEcheance('pret', actif)` appelle maintenant `majVisibiliteRappels()`, qui bascule
+    `display` sur `#rappel-fieldset` (nouvel id) selon `echeanceActive.pret`. `ajouterDossier()`
+    n'enregistre `reminderDays` que si le prêt est actif (`[]` sinon) — cohérent avec le champ
+    masqué à l'écran, pas de rappels fantômes programmés pour un dossier sans prêt.
+  - **Détection de l'email de l'acquéreur dans le texte du compromis**, pour préremplir le champ
+    "Email de l'acquéreur (pour relance prêt)" sans ressaisie manuelle. `detecterEmailAcquereur(texte)`
+    (nouveau `EMAIL_RE`) cherche une adresse email dans le voisinage du rôle acquéreur/bénéficiaire
+    (`RE_ROLE_ACQUEREUR`), avec un remontée arrière bornée à la phrase précédente (s'arrête au
+    premier point rencontré, plafonnée à 150 caractères — même principe que `extraireContexte()`)
+    pour éviter de capturer l'email du vendeur cité plus haut dans un document à deux parties.
+    N'écrase jamais une valeur déjà saisie à la main dans `#f-email-acquereur`.
+  - **Wizard porté de 3 à 4 étapes : Importer → Vérifier → Analyse juridique → Finaliser.**
+    L'analyse juridique (conditions suspensives, engagements du vendeur, documents identifiés)
+    quittait sa position "collée" au visualiseur PDF (voir plus haut, "Analyse juridique ancrée")
+    pour devenir une étape à part entière du wizard, sur demande de l'étude — plus simple à situer
+    qu'un onglet à bascule dans l'aside. `afficherAnalyseJuridique()` simplifiée : elle ne fait plus
+    que peupler `#wizard-step-3` (montrer/masquer `#analyse-vide-etat` et les trois
+    `#analyse-section-*`), sans plus jamais toucher à un système d'onglets — `vuePdfViewerActuelle`,
+    `analyseJuridiqueDisponible` et `definirVuePdfViewer()` supprimés, devenus inutiles.
+    `#pdf-viewer` (aside) est réduit à l'aperçu PDF seul. `definirEtapeWizard(n)` gère maintenant 4
+    étapes (boucle `<= 4`, `majApercuPieces()` déclenché à `n === 4`) ; toujours **aucune étape
+    verrouillée**, principe déjà établi conservé à l'identique. **Deux bugs corrigés pendant la
+    vérification visuelle** (Playwright, capture d'écran après chaque étape — seule méthode fiable
+    pour ce genre de restructuration DOM, voir "Comment tester" ci-dessous) : l'état vide de
+    l'étape 3 ("Aucune analyse disponible") ne s'affichait pas au premier chargement, faute d'appel
+    initial à `afficherAnalyseJuridique()` (ajouté dans la séquence d'init, après `renderChips()`) ;
+    la section "Documents et pièces identifiés" n'avait pas d'`id` propre et restait affichée vide
+    même sans analyse (ajout de `id="analyse-section-documents"`, géré comme les deux autres
+    sections dans les deux branches de `afficherAnalyseJuridique()`).
 
 ## Comment tester
 
