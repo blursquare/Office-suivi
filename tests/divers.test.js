@@ -96,6 +96,52 @@ test('estDebutPageAnnexe reconnaît une vraie page d\'annexe (titre en tête, pa
   assert.equal(app.estDebutPageAnnexe('Annexe n°1 — Extrait de plan cadastral'), true);
 });
 
+test('statutDossier renvoie "archive" en priorité, même si le dossier a par ailleurs un blocage', () => {
+  const app = chargerApplication();
+  const d = { archive: true, sansPret: false, offrePretStatut: 'manquante', pret: '2099-01-01' };
+  assert.equal(app.statutDossier(d), 'archive');
+});
+
+test('statutDossier renvoie "blocage" quand l\'offre de prêt est introuvable', () => {
+  const app = chargerApplication();
+  const d = { archive: false, sansPret: false, offrePretStatut: 'manquante', pret: '2099-01-01' };
+  assert.equal(app.statutDossier(d), 'blocage');
+});
+
+test('statutDossier renvoie "blocage" quand l\'accès au dossier local est à reconfirmer', () => {
+  const app = chargerApplication();
+  const d = { archive: false, sansPret: true, accesAReconfirmer: true, pret: '' };
+  assert.equal(app.statutDossier(d), 'blocage');
+});
+
+test('statutDossier renvoie "blocage" quand toutes les échéances sont dépassées', () => {
+  const app = chargerApplication();
+  const hier = new Date(Date.now() - 24 * 3600 * 1000).toISOString().slice(0, 10);
+  const d = { archive: false, sansPret: true, acte: hier };
+  assert.equal(app.statutDossier(d), 'blocage');
+});
+
+test('statutDossier renvoie "aconfirmer" quand une échéance a été choisie parmi plusieurs candidates ambiguës', () => {
+  const app = chargerApplication();
+  const demain = new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 10);
+  const d = { archive: false, sansPret: true, acte: demain, confiance: { acte: 'incertain' } };
+  assert.equal(app.statutDossier(d), 'aconfirmer');
+});
+
+test('statutDossier renvoie "aconfirmer" quand l\'offre de prêt n\'a jamais été confirmée', () => {
+  const app = chargerApplication();
+  const demain = new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 10);
+  const d = { archive: false, sansPret: false, offrePretStatut: 'inconnu', pret: demain };
+  assert.equal(app.statutDossier(d), 'aconfirmer');
+});
+
+test('statutDossier renvoie "pret" quand tout est en ordre', () => {
+  const app = chargerApplication();
+  const demain = new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 10);
+  const d = { archive: false, sansPret: false, offrePretStatut: 'recue', pret: demain, confiance: { pret: 'auto' } };
+  assert.equal(app.statutDossier(d), 'pret');
+});
+
 test('estDebutPageAnnexe reconnaît une page de scan courte même si le titre n\'est pas tout en tête', () => {
   const app = chargerApplication();
   // Le titre arrive après 120 caractères, mais la page reste courte dans l'ensemble (< 300) :

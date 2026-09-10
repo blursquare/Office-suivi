@@ -324,6 +324,26 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
   coloré comme `--urgent` (déjà réservé à l'alerte, voir `.badge-prioritaire`), pas une couleur
   inventée pour l'occasion. Ne remplace pas les corrections ciblées de regex quand un cas précis et
   récurrent est identifié : les deux approches sont complémentaires.
+- **Refonte visuelle demandée par l'étude (navigation, densité, statut d'un coup d'œil)** : point de
+  départ, un retour détaillé jugeant l'outil "fonctionnel mais daté", proposant entre autres un
+  wizard 3 étapes, un dashboard, l'analyse juridique toujours visible, des badges de statut, et une
+  palette bleue. Deux points ont été signalés comme entrant en tension avec des décisions déjà
+  prises avant de se lancer : un wizard linéaire ne correspond pas à un dossier suivi pendant des
+  mois avec ~60 dossiers actifs en parallèle (d'où les deux onglets, pas un chantier à défaire sans
+  y réfléchir) ; le bleu contredit la palette sombre "gris neutres, pas de navy". L'étude a confirmé
+  vouloir tout malgré ça ("fait tout") — traité par sous-chantiers indépendants, chacun testé et
+  commité séparément :
+  - **Badges de statut visuels (vert/jaune/rouge/verrou)** (`statutDossier()`, testable, voir
+    `tests/divers.test.js`) : synthèse "où en est ce dossier ?", distincte du score
+    `calculerPriorite()` qui sert au tri (l'un classe, l'autre répond d'un coup d'œil). Le plus
+    sévère l'emporte : `archive` (dossier archivé) > `blocage` (offre de prêt introuvable, accès
+    local à reconfirmer, ou plus aucune échéance à venir — toutes dépassées) > `aconfirmer` (une
+    échéance choisie par `meilleureCandidateEcheance` avec confiance "incertain", ou un prêt actif
+    dont l'offre n'a jamais été confirmée — même périmètre que la tuile "offres à vérifier" du
+    bandeau de stats) > `pret`. Remplace l'ancien badge "Archivé" ad hoc (`badge-archive`, supprimé)
+    par ce même badge de statut, qui couvre déjà ce cas. Couleurs réutilisées : `--success` (vert),
+    `--pret` (amber, même couleur que "offre introuvable" — pas `--urgent`, réservé au blocage),
+    `--urgent` (rouge), gris neutre pour l'archive — aucune couleur inventée.
 
 ## Comment tester
 

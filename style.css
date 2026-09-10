@@ -1066,6 +1066,24 @@
      Même couleur que --urgent (déjà réservée à l'alerte), sans fond inventé pour l'occasion. */
   .badge-confiance.incertain { background: transparent; color: var(--urgent); border: 1px solid var(--urgent); }
 
+  /* ---- badge de statut du dossier (synthèse "où en est ce dossier ?") ---- */
+  .badge-statut {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-left: 8px;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  .badge-statut.statut-pret { background: var(--success-bg); color: var(--success); }
+  /* Même amber que .badge-offre.manquante : "à surveiller", pas encore "--urgent" (réservé au
+     blocage et aux échéances proches). */
+  .badge-statut.statut-aconfirmer { background: var(--pret-bg); color: var(--pret); }
+  .badge-statut.statut-blocage { background: transparent; color: var(--urgent); border: 1px solid var(--urgent); }
+  .badge-statut.statut-archive { background: var(--line-soft); color: var(--ink-soft); }
+
   .badge-apprise {
     display: inline-block;
     font-size: 10.5px;
@@ -1105,16 +1123,6 @@
   .historique-ligne .h-date { color: var(--muted); margin-right: 6px; }
 
   /* ---- archive ---- */
-  .badge-archive {
-    display: inline-block;
-    font-size: 11px;
-    font-weight: 600;
-    padding: 2px 8px;
-    border-radius: 10px;
-    background: var(--line-soft);
-    color: var(--ink-soft);
-    margin-left: 8px;
-  }
   .dossier.est-archive { opacity: 0.65; }
 
   .offre-pret-ligne {
@@ -1740,7 +1748,6 @@
   [data-theme="dark"] .toast-undo { color: #8FCBFF; }
   [data-theme="dark"] .switch .slider { background-color: #454545; }
   [data-theme="dark"] .analyse-doc-badge { background: #2E2E2E; color: var(--ink); }
-  [data-theme="dark"] .badge-archive { background: #333333; color: var(--ink-soft); }
   [data-theme="dark"] .tab { background: #2A2A2A; }
   [data-theme="dark"] .pdf-viewer-canvas-wrap { background: #171717; }
   [data-theme="dark"] .theme-btn { background: #2E2E2E; }

@@ -1749,6 +1749,36 @@
     return score;
   }
 
+  // Statut de synthèse ("où en est ce dossier ?"), distinct du score de priorité qui sert au tri :
+  // celui-ci répond d'un coup d'œil plutôt que de classer. Le plus sévère l'emporte quand plusieurs
+  // signaux coexistent (ex. offre introuvable ET échéance dépassée reste "blocage", pas cumulé).
+  const LIBELLES_STATUT = {
+    pret: { emoji: '🟢', texte: 'Prêt', cls: 'statut-pret' },
+    aconfirmer: { emoji: '🟡', texte: 'À confirmer', cls: 'statut-aconfirmer' },
+    blocage: { emoji: '🔴', texte: 'Blocage', cls: 'statut-blocage' },
+    archive: { emoji: '🔒', texte: 'Archivé', cls: 'statut-archive' }
+  };
+  function statutDossier(d) {
+    if (d.archive) return 'archive';
+    const prochaine = prochaineEcheanceDetail(d);
+    const echeanceDepassee = !!(prochaine && prochaine.jours < 0);
+    if ((!d.sansPret && d.offrePretStatut === 'manquante') || d.accesAReconfirmer || echeanceDepassee) {
+      return 'blocage';
+    }
+    const confiance = d.confiance || {};
+    const incertain = ['pret', 'acte', 'ventebien'].some(t => confiance[t] === 'incertain');
+    // Même périmètre que la tuile "offres à vérifier" du bandeau de stats (renderStatsSuivi) :
+    // un prêt actif dont l'offre n'a jamais été confirmée, qu'un dossier local soit relié ou non.
+    const offreInconnue = !d.sansPret && (d.offrePretStatut || 'inconnu') === 'inconnu';
+    if (incertain || offreInconnue) return 'aconfirmer';
+    return 'pret';
+  }
+
+  function renderBadgeStatut(d) {
+    const s = LIBELLES_STATUT[statutDossier(d)];
+    return `<span class="badge-statut ${s.cls}" title="Statut du dossier : ${s.texte}">${s.emoji} ${s.texte}</span>`;
+  }
+
   function render() {
     const list = document.getElementById('dossier-list');
     const count = document.getElementById('dossier-count');
@@ -1844,7 +1874,7 @@
     const deplie = dossiersDeplies.has(d.id);
     return `
       <tr class="ligne-resume${d.archive ? ' est-archive' : ''}" onclick="toggleLigneDossier('${d.id}')">
-        <td><div class="dossier-nom-tableau">${escapeHtml(d.nom)}${prioritaire ? '<span class="badge-prioritaire" title="Échéance proche, offre de prêt manquante et/ou accès local à reconfirmer">🔥 Prioritaire</span>' : ''}</div></td>
+        <td><div class="dossier-nom-tableau">${escapeHtml(d.nom)}${renderBadgeStatut(d)}${prioritaire ? '<span class="badge-prioritaire" title="Échéance proche, offre de prêt manquante et/ou accès local à reconfirmer">🔥 Prioritaire</span>' : ''}</div></td>
         <td class="dossier-responsable-tableau">${escapeHtml(d.responsable || '—')}</td>
         <td>
           ${prochaine
@@ -1878,7 +1908,7 @@
     return `
       <div class="mini-carte${d.archive ? ' est-archive' : ''}${deplie ? ' ouverte' : ''}" id="mini-${d.id}">
         <div class="mini-carte-resume" onclick="toggleCarteCompacte('${d.id}')">
-          <div class="mini-carte-nom">${escapeHtml(d.nom)}${prioritaire ? '<span class="badge-prioritaire" title="Échéance proche, offre de prêt manquante et/ou accès local à reconfirmer">🔥 Prioritaire</span>' : ''}</div>
+          <div class="mini-carte-nom">${escapeHtml(d.nom)}${renderBadgeStatut(d)}${prioritaire ? '<span class="badge-prioritaire" title="Échéance proche, offre de prêt manquante et/ou accès local à reconfirmer">🔥 Prioritaire</span>' : ''}</div>
           <div class="mini-carte-responsable">${escapeHtml(d.responsable || '—')}</div>
           <div class="mini-carte-echeance">
             ${prochaine
@@ -1922,7 +1952,7 @@
                 <button type="button" class="icon-valider" onclick="validerEditionNom('${d.id}')" title="Valider" aria-label="Valider le nom">✓</button>
               </span>
             </div>
-            ${d.archive ? '<span class="badge-archive">Archivé</span>' : ''}
+            ${renderBadgeStatut(d)}
             ${d.email ? `<div class="addr">${escapeHtml(d.email)}</div>` : ''}
             ${d.responsable ? `<div class="addr">Responsable : ${escapeHtml(d.responsable)}</div>` : ''}
             ${d.sansPret ? '<span class="badge-cash">💰 Achat comptant — sans prêt</span>' : ''}
