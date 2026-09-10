@@ -507,6 +507,18 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
   l'affichage à partir de `d.typeVente`, donc les pièces déjà reconnues sous une clé commune aux
   deux types (ex. `titrePropriete`) restent valables, et celles propres à l'ancien type restent en
   mémoire sans s'afficher, sans risque si l'étude revient un jour au type précédent.
+- **Bug corrigé : une offre de prêt déjà marquée reçue pouvait redéclencher une relance
+  automatique** (`relancerSiOffreManquante()`, brouillon `mailto:` pré-rédigé ouvert seul par
+  l'application). Signalé par l'étude en testant le suivi. `verifierOffrePret()` relance chaque
+  dossier lié (au démarrage via `revérifierDossiersLiesAuDemarrage()`, et après tout nouveau
+  lien) : si l'offre déjà confirmée reçue lors d'un scan précédent n'est plus retrouvée lors d'un
+  scan ultérieur (PDF déplacé/archivé/renommé une fois le dossier traité, ou tout autre aléa de
+  parcours), ce n'est pas un signe que l'offre manque réellement — l'étude l'a déjà en main. Un
+  nouveau garde-fou (`etaitRecue`, capturé avant d'écraser `d.offrePretStatut`) empêche désormais
+  `relancerSiOffreManquante()` de s'exécuter dans ce cas, en plus de la condition déjà existante
+  `!trouve`. Le statut affiché peut malgré tout repasser à "manquante" sur la fiche (non traité
+  ici, l'étude n'a signalé que la relance intempestive, pas l'affichage du badge) — à revoir si
+  ce second point est aussi gênant en pratique.
 
 ## Comment tester
 

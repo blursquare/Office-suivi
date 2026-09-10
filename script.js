@@ -3092,6 +3092,7 @@
     }
 
     const etaitManquante = d.offrePretStatut === 'manquante';
+    const etaitRecue = d.offrePretStatut === 'recue';
     d.offrePretStatut = trouve ? 'recue' : 'manquante';
     await sauvegarder();
     render();
@@ -3101,7 +3102,10 @@
       await sauvegarder();
     }
 
-    if (!trouve) relancerSiOffreManquante(d);
+    // Une offre déjà confirmée reçue ne doit jamais redéclencher une relance automatique même si
+    // une vérification ultérieure ne la retrouve plus (fichier déplacé/archivé/renommé une fois
+    // traité) : ce n'est pas un signe que l'offre manque réellement, l'étude l'a déjà en main.
+    if (!trouve && !etaitRecue) relancerSiOffreManquante(d);
   }
 
   // Même principe que verifierOffrePret(), mais teste TOUTES les pièces encore manquantes contre
