@@ -469,3 +469,26 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
 - Un panneau pour consulter/vider la mémoire des corrections apprises (`correctionsApprises`)
   serait utile si elle venait à accumuler des erreurs (ex. une correction faite par erreur) —
   aujourd'hui seul un vidage du `localStorage` du navigateur permet de la réinitialiser.
+- **Checklist de constitution d'un dossier, variable selon le type de vente** (idée du brainstorm
+  "détection automatique de pièces manquantes" — voir plus haut) : l'étude a fourni les listes
+  réelles pour deux types de vente sur trois. Pas encore implémenté — **retenu pour plus tard**,
+  attendre au minimum la liste "terrain nu" avant de s'y mettre (la checklist doit couvrir les
+  trois types, pas juste deux). Distinct de `DOCUMENTS_VENDEUR_CONNUS` dans `script.js` (qui
+  détecte des documents à partir des clauses d'engagement *lues dans le compromis*) : cette
+  checklist-ci liste ce que l'étude doit réunir pour CE TYPE de vente, indépendamment de ce que le
+  compromis mentionne ou non — un point de départ fixe, pas une extraction.
+
+  **Vente de maison :**
+  - Urbanisme : certificat d'urbanisme, certificat d'alignement, certificat de numérotage, courrier
+    réponse assainissement, renonciation au droit de préemption.
+  - Autres pièces : diagnostics techniques, ERP (état des risques et pollution), avis de taxe
+    foncière, titre de propriété.
+
+  **Vente de lot en copropriété :**
+  - Urbanisme : certificat d'urbanisme, certificat d'alignement, certificat de numérotage, courrier
+    réponse assainissement, renonciation au droit de préemption (même liste que pour une maison).
+  - Pièces liées à la copropriété : état daté, article 20-II, RIB de la copropriété.
+  - Autres pièces : diagnostics techniques, ERP (état des risques et pollution), avis de taxe
+    foncière, titre de propriété.
+
+  **Vente de terrain nu :** liste pas encore fournie par l'étude.
