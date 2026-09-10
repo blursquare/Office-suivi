@@ -1408,6 +1408,14 @@
     analyseJuridiqueDisponible = false;
     document.getElementById('pdf-viewer-tabs').style.display = 'none';
     definirVuePdfViewer('apercu');
+    // Referme entièrement le panneau d'aperçu : sans ça, le PDF du dossier qu'on vient d'enregistrer
+    // restait affiché à côté d'un formulaire pourtant vide, prêt pour un nouvel import.
+    document.getElementById('pdf-viewer').style.display = 'none';
+    document.getElementById('pdf-viewer-title').textContent = 'Aperçu du compromis';
+    document.getElementById('pdf-pages-container').innerHTML = '';
+    pdfActuel = null;
+    pdfDernierePageUtile = 1;
+    frontieresPagesActuelles = null;
     reinitialiserRappelsParDefaut();
     renderChips();
     renderAutres();

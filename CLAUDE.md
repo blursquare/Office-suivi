@@ -423,6 +423,15 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     désactive silencieusement le filtre anti-dates-antérieures pour tout le reste de l'extraction.
     Corrigé en excluant aussi le point (`[^,.\n]`) dans ces trois groupes. Voir le test de
     régression dans `tests/dates.test.js` (texte minimal reproduisant le bug).
+- **Bug corrigé : après "Ajouter le dossier", l'aperçu PDF du compromis qu'on venait d'enregistrer
+  restait affiché** à côté du formulaire "Nouveau dossier" pourtant vide et revenu à l'étape 1,
+  prêt pour un nouvel import. Signalé par l'étude. `reinitialiserFormulaire()` remettait bien le
+  wizard à l'étape 1 mais n'avait jamais fermé l'aside `#pdf-viewer` lui-même ni vidé
+  `#pdf-pages-container` — seul l'ajout du wizard avait introduit le remède partiel (retour à
+  l'étape 1), sans traiter la cause : le panneau d'aperçu vit dans l'aside, pas dans le wizard.
+  `reinitialiserFormulaire()` masque maintenant `#pdf-viewer`, vide `#pdf-pages-container` et
+  réinitialise `pdfActuel`/`pdfDernierePageUtile`/`frontieresPagesActuelles` — sans quoi un vieux
+  PDF resterait aussi référencé en mémoire pour rien.
 
 ## Comment tester
 
