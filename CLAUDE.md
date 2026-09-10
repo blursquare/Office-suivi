@@ -831,6 +831,28 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     (élément + classe) pour au moins égaler cette spécificité, l'ordre dans la feuille de style
     tranchant ensuite en leur faveur. À vérifier avant tout nouveau champ `<input>` stylé
     "discrètement" sur une fiche dossier : un simple sélecteur de classe ne suffit pas forcément.
+- **Apport estimé une fois l'offre de prêt reçue** (montant du prêt comparé au prix de vente) :
+  - `detecterMontantPret(texte)` (nouveau `MONTANT_PRET_RE`) lit le montant emprunté directement
+    dans le texte de l'**offre de prêt**, pas le compromis — même heuristique que `PRIX_VENTE_RE`
+    (le montant en lettres est répété en chiffres entre parenthèses, usage constant des
+    établissements prêteurs), ancrée sur "montant du prêt"/"capital emprunté"/"somme prêtée" plutôt
+    que "prix". Appelé dans `verifierOffrePret()` sur le même texte déjà lu pour reconnaître l'offre
+    elle-même (`OFFRE_PRET_RE`) — pas de second passage de lecture/OCR pour ça. N'écrase jamais une
+    valeur déjà connue par un échec de détection (`d.montantPret` conservé si `detecterMontantPret`
+    ne trouve rien lors d'une revérification ultérieure).
+  - `d.montantPret` (entier ou `null`) ajouté au modèle du dossier — comme `offrePretStatut`, dérivé
+    d'un PDF local et jamais importé tel quel d'une autre machine (`normaliserDossierImporte()` le
+    remet à `null`, à revérifier sur ce poste).
+  - `calculerApport(d)` (testable, voir `tests/divers.test.js`) : `montant = prixVente -
+    montantPret`, `pourcentage = montant / prixVente` — volontairement simple (ne compte pas les
+    frais de notaire ni les coûts annexes), purement informatif, aucune règle métier derrière.
+    Trois niveaux réutilisant des couleurs déjà réservées ailleurs (aucune couleur inventée) :
+    `success` (apport ≥ 10 %), `pret`/amber (apport positif mais < 10 %, à surveiller — même amber
+    que "offre introuvable"), `urgent` (apport négatif, le prêt dépasse le prix). Affiché sur la
+    fiche dossier (`renderCarteDossier`) sous forme d'un petit cercle coloré (`.apport-cercle`) +
+    texte, uniquement si `!d.sansPret && d.offrePretStatut === 'recue'` et que prix/montant sont
+    tous les deux connus — pas affiché tant que l'offre n'a pas été confirmée reçue (cohérent avec
+    la demande initiale : comparer "lors de la réception de l'offre").
 
 ## Comment tester
 

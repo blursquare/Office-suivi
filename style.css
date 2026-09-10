@@ -1829,6 +1829,20 @@
   input.input-inline::placeholder { color: var(--muted); font-style: italic; }
   input.champ-adresse-bien { width: 260px; max-width: 100%; }
   input.champ-prix-vente { width: 100px; }
+
+  /* Apport estimé (voir calculerApport) : petit cercle coloré + texte, même logique de couleur que
+     .badge-statut (succès/pret-amber/urgent, aucune couleur inventée pour l'occasion). */
+  .apport-ligne { margin-top: 4px; display: flex; align-items: center; gap: 6px; }
+  .apport-cercle {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .apport-cercle.apport-success { background: var(--success); }
+  .apport-cercle.apport-pret { background: var(--pret); }
+  .apport-cercle.apport-urgent { background: var(--urgent); }
   .dossier-adresse-prix { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 
   .badge-cash {

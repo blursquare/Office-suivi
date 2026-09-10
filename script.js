@@ -152,6 +152,36 @@
     return FORMAT_PRIX.format(valeur);
   }
 
+  // Montant emprunté, lu dans le texte de l'offre de prêt elle-même (pas le compromis) une fois
+  // celle-ci retrouvée dans le dossier local relié — voir l'appel dans verifierOffrePret(). Même
+  // heuristique que PRIX_VENTE_RE (le montant en lettres est répété en chiffres entre parenthèses,
+  // usage constant des établissements prêteurs), ancrée sur le vocabulaire d'une offre de prêt
+  // ("montant du prêt", "capital emprunté"...) plutôt que sur "prix", qui n'y apparaît jamais dans
+  // ce sens.
+  const MONTANT_PRET_RE = /(?:montant\s+(?:du\s+)?(?:pr[êe]t|financement|emprunt[ée]?)|capital\s+emprunt[ée]|somme\s+pr[êe]t[ée]e?)[^(.\n]{0,120}\(\s*([\d](?:[\d\s.]{0,14})?(?:,\d{2})?)\s*(?:€|euros?)\s*\)/i;
+
+  function detecterMontantPret(texte) {
+    const m = MONTANT_PRET_RE.exec(texte);
+    if (!m) return null;
+    const partieEntiere = m[1].split(',')[0].replace(/[\s.]/g, '');
+    const valeur = parseInt(partieEntiere, 10);
+    return Number.isFinite(valeur) && valeur >= 1000 ? valeur : null;
+  }
+
+  // Apport estimé une fois l'offre de prêt reçue : ce que le prêt ne couvre pas dans le prix total
+  // (frais de notaire et autres coûts annexes non comptés — comparaison volontairement simple,
+  // prix du bien contre montant emprunté). Purement informatif, aucune règle métier derrière.
+  // Seuils arbitraires mais seules les couleurs déjà réservées ailleurs sont réutilisées : succès
+  // (apport confortable), pret/amber (apport faible, à surveiller), urgent (prêt ≥ prix, aucun
+  // apport ou financement des frais inclus).
+  function calculerApport(d) {
+    if (!d.prixVente || !d.montantPret) return null;
+    const montant = d.prixVente - d.montantPret;
+    const pourcentage = Math.round((montant / d.prixVente) * 100);
+    const niveau = pourcentage < 0 ? 'urgent' : (pourcentage < 10 ? 'pret' : 'success');
+    return { montant, pourcentage, niveau };
+  }
+
   // Repère les noms de famille du VENDEUR et de l'ACQUÉREUR (un ou plusieurs de chaque côté) pour
   // préremplir le nom du dossier, au format "NOM1 / NOM2 & NOM3" (en majuscules).
   //
@@ -1621,6 +1651,7 @@
       nom, email, responsable, emailAcquereur,
       adresseBien,
       prixVente: Number.isFinite(prixVente) && prixVente > 0 ? prixVente : null,
+      montantPret: null,
       typeVente,
       roleNotaire,
       pieces: {},
@@ -2559,6 +2590,13 @@
                  <button type="button" class="lien-dossier-local" onclick="verifierOffrePret('${d.id}', true)">Revérifier</button>` : ''}
               ${d.accesAReconfirmer ? `<span class="reconfirmer-acces" onclick="reconfirmerAcces('${d.id}')">Cliquer pour reconfirmer l'accès</span>` : ''}
             </div>
+            ${(!d.sansPret && d.offrePretStatut === 'recue' && calculerApport(d)) ? (() => {
+              const apport = calculerApport(d);
+              return `<div class="addr apport-ligne">
+                <span class="apport-cercle apport-${apport.niveau}"></span>
+                Apport estimé : <strong>${formaterPrix(apport.montant)}</strong> (${apport.pourcentage}% du prix de ${formaterPrix(d.prixVente)}, prêt de ${formaterPrix(d.montantPret)})
+              </div>`;
+            })() : ''}
           </div>
           <div class="dossier-head-actions">
             <button class="icon-btn" onclick="archiverDossier('${d.id}', ${!d.archive})">${d.archive ? 'Désarchiver' : 'Archiver'}</button>
@@ -3006,6 +3044,9 @@
       emailAcquereur: typeof d.emailAcquereur === 'string' ? d.emailAcquereur : '',
       adresseBien: typeof d.adresseBien === 'string' ? d.adresseBien : '',
       prixVente: Number.isFinite(d.prixVente) && d.prixVente > 0 ? d.prixVente : null,
+      // Comme offrePretStatut : dérivé d'un PDF local, jamais importé tel quel d'une autre machine
+      // sans revérification (voir le commentaire déjà existant sur offrePretStatut ci-dessous).
+      montantPret: null,
       pret: dateValide(d.pret),
       acte: dateValide(d.acte),
       ventebien: dateValide(d.ventebien),
@@ -3475,7 +3516,15 @@
           // (ex. police embarquée mal encodée qui produit un texte extrait illisible malgré un
           // PDF visuellement normal et sélectionnable).
           console.log('[vérification offre de prêt]', entree.name, '→', correspond ? 'correspond' : 'ne correspond pas', '| extrait :', JSON.stringify(texte.trim().slice(0, 200)));
-          if (correspond) { trouve = true; fichierTrouve = entree.name; break; }
+          if (correspond) {
+            trouve = true;
+            fichierTrouve = entree.name;
+            // Lu dans le même PDF, à ce même passage : inutile de rouvrir le fichier plus tard
+            // pour ça. Ne remplace jamais une valeur déjà connue par un échec de détection.
+            const montant = detecterMontantPret(texte);
+            if (montant) d.montantPret = montant;
+            break;
+          }
         } catch (e) { console.error('Lecture impossible pour', entree.name, e); }
       }
     } catch (e) {

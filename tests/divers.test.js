@@ -212,3 +212,48 @@ test('estDebutPageAnnexe reconnaît une page de scan courte même si le titre n\
   const texteScan = 'x'.repeat(150) + ' Annexe n°1';
   assert.equal(app.estDebutPageAnnexe(texteScan), true);
 });
+
+test('detecterMontantPret lit le montant chiffré entre parenthèses après "montant du prêt"', () => {
+  const app = chargerApplication();
+  const texte = "Le montant du prêt accordé est de CENT QUATRE-VINGT MILLE EUROS (180 000 €), remboursable sur 20 ans.";
+  assert.equal(app.detecterMontantPret(texte), 180000);
+});
+
+test('detecterMontantPret reconnaît aussi "capital emprunté"', () => {
+  const app = chargerApplication();
+  const texte = "Le capital emprunté s'élève à la somme de (150 000,00 €).";
+  assert.equal(app.detecterMontantPret(texte), 150000);
+});
+
+test('detecterMontantPret renvoie null sans montant entre parenthèses proche du vocabulaire attendu', () => {
+  const app = chargerApplication();
+  assert.equal(app.detecterMontantPret("Le prêt sera versé au notaire avant la signature de l'acte."), null);
+});
+
+test('calculerApport renvoie null tant que le prix ou le montant du prêt manque', () => {
+  const app = chargerApplication();
+  assert.equal(app.calculerApport({ prixVente: 250000, montantPret: null }), null);
+  assert.equal(app.calculerApport({ prixVente: null, montantPret: 200000 }), null);
+});
+
+test('calculerApport calcule le montant et le pourcentage, avec un niveau "success" pour un apport confortable', () => {
+  const app = chargerApplication();
+  const apport = app.calculerApport({ prixVente: 250000, montantPret: 200000 });
+  assert.equal(apport.montant, 50000);
+  assert.equal(apport.pourcentage, 20);
+  assert.equal(apport.niveau, 'success');
+});
+
+test('calculerApport renvoie un niveau "pret" (à surveiller) pour un apport faible mais positif', () => {
+  const app = chargerApplication();
+  const apport = app.calculerApport({ prixVente: 250000, montantPret: 240000 });
+  assert.equal(apport.pourcentage, 4);
+  assert.equal(apport.niveau, 'pret');
+});
+
+test('calculerApport renvoie un niveau "urgent" quand le prêt dépasse le prix (apport négatif)', () => {
+  const app = chargerApplication();
+  const apport = app.calculerApport({ prixVente: 250000, montantPret: 260000 });
+  assert.equal(apport.montant, -10000);
+  assert.equal(apport.niveau, 'urgent');
+});
