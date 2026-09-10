@@ -1554,6 +1554,20 @@
     color: var(--pret);
   }
 
+  /* Rôle de l'étude sur le dossier (notaire instrumentaire, par défaut, n'affiche rien — seule
+     l'exception "participant" est signalée, comme .badge-cash ne s'affiche que pour l'exception
+     "sans prêt"). Gris neutre : simple métadonnée, pas une alerte. */
+  .badge-role {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-left: 8px;
+    background: var(--line-soft);
+    color: var(--ink-soft);
+  }
+
   .icon-btn {
     background: none;
     border: none;

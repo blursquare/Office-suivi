@@ -130,3 +130,13 @@ test('normaliserDossierImporte valide typeVente et repart sur "maison" par défa
   const typeInvalide = app.normaliserDossierImporte({ nom: 'Test', typeVente: "n'importe quoi" }, 'test.json');
   assert.equal(typeInvalide.typeVente, 'maison');
 });
+
+test('normaliserDossierImporte valide roleNotaire et repart sur "instrumentaire" par défaut', () => {
+  const app = chargerApplication();
+  const participant = app.normaliserDossierImporte({ nom: 'Test', roleNotaire: 'participant' }, 'test.json');
+  assert.equal(participant.roleNotaire, 'participant');
+  const sansRole = app.normaliserDossierImporte({ nom: 'Test' }, 'test.json');
+  assert.equal(sansRole.roleNotaire, 'instrumentaire');
+  const roleInvalide = app.normaliserDossierImporte({ nom: 'Test', roleNotaire: 'autre chose' }, 'test.json');
+  assert.equal(roleInvalide.roleNotaire, 'instrumentaire');
+});

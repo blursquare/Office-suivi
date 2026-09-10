@@ -170,6 +170,13 @@
             <label for="f-email-acquereur">Email de l'acquéreur (pour relance prêt)</label>
             <input type="email" id="f-email-acquereur" placeholder="acquereur@exemple.fr">
           </div>
+          <div>
+            <label for="f-role-notaire">Rôle de l'étude sur ce dossier</label>
+            <select id="f-role-notaire" onchange="majApercuPieces()">
+              <option value="instrumentaire">Notaire instrumentaire (dossier complet)</option>
+              <option value="participant">Notaire participant / concourant (prêt + engagements vendeur)</option>
+            </select>
+          </div>
         </div>
 
         <div class="pieces-apercu" id="pieces-apercu"></div>
@@ -278,6 +285,14 @@
         <option value="recue">Reçue</option>
         <option value="manquante">Introuvable</option>
         <option value="inconnu">À vérifier</option>
+      </select>
+    </label>
+    <label class="toolbar-item">
+      Rôle
+      <select id="filtre-role" onchange="render()">
+        <option value="">Tous</option>
+        <option value="instrumentaire">Instrumentaire</option>
+        <option value="participant">Participant</option>
       </select>
     </label>
     <label class="toolbar-item">

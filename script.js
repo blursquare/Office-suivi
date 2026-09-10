@@ -1387,6 +1387,7 @@
     document.getElementById('f-nom').value = '';
     document.getElementById('f-responsable').value = '';
     document.getElementById('f-type-vente').value = 'maison';
+    document.getElementById('f-role-notaire').value = 'instrumentaire';
     majApercuPieces();
     document.getElementById('f-email-acquereur').value = '';
     document.getElementById('f-email').value = EMAIL_RAPPEL_DEFAUT;
@@ -1445,6 +1446,7 @@
     const nom = document.getElementById('f-nom').value.trim();
     const email = document.getElementById('f-email').value.trim();
     const typeVente = document.getElementById('f-type-vente').value;
+    const roleNotaire = document.getElementById('f-role-notaire').value;
     const responsable = document.getElementById('f-responsable').value.trim();
     const emailAcquereur = document.getElementById('f-email-acquereur').value.trim();
     const pret = echeanceActive.pret ? document.getElementById('f-pret').value : '';
@@ -1479,6 +1481,7 @@
       id: (crypto.randomUUID ? crypto.randomUUID() : 'd-' + Date.now() + '-' + Math.random().toString(16).slice(2)),
       nom, email, responsable, emailAcquereur,
       typeVente,
+      roleNotaire,
       pieces: {},
       dossierLie: false,
       offrePretStatut: 'inconnu',
@@ -1809,8 +1812,16 @@
   // enregistré et relié à un dossier local (voir renderPiecesDossier/verifierPiecesDossier).
   function majApercuPieces() {
     const select = document.getElementById('f-type-vente');
+    const roleSelect = document.getElementById('f-role-notaire');
     const bloc = document.getElementById('pieces-apercu');
     if (!select || !bloc) return;
+    // Notaire participant/concourant : l'étude ne constitue pas le dossier complet, seuls le prêt
+    // et les engagements du vendeur (analyse juridique) la concernent — la checklist de pièces ne
+    // s'applique qu'au notaire instrumentaire, qui reçoit l'acte.
+    if (roleSelect && roleSelect.value === 'participant') {
+      bloc.innerHTML = `<div class="pieces-apercu-titre">Notaire participant : pas de checklist de pièces — seuls l'offre de prêt et les engagements du vendeur seront suivis.</div>`;
+      return;
+    }
     const checklist = checklistPieces(select.value);
     bloc.innerHTML = `
       <div class="pieces-apercu-titre">Pièces attendues pour ce type de vente (${checklist.length}) :</div>
@@ -1918,6 +1929,7 @@
     const filtreResponsable = document.getElementById('filtre-responsable').value;
     const filtreOffre = document.getElementById('filtre-offre').value;
     const filtreType = document.getElementById('filtre-type').value;
+    const filtreRole = document.getElementById('filtre-role').value;
 
     const dossiersActifs = dossiers.filter(d => !d.archive);
     renderDashboard(dossiersActifs);
@@ -1947,6 +1959,7 @@
         const prochaine = prochaineEcheanceDetail(d);
         if (!prochaine || prochaine.type !== filtreType) return false;
       }
+      if (filtreRole && (d.roleNotaire || 'instrumentaire') !== filtreRole) return false;
       return true;
     });
 
@@ -2116,6 +2129,7 @@
               </span>
             </div>
             ${renderBadgeStatut(d)}
+            ${d.roleNotaire === 'participant' ? '<span class="badge-role" title="Notaire participant / concourant : suivi limité au prêt et aux engagements du vendeur">🤝 Participant</span>' : ''}
             ${d.email ? `<div class="addr">${escapeHtml(d.email)}</div>` : ''}
             ${d.responsable ? `<div class="addr">Responsable : ${escapeHtml(d.responsable)}</div>` : ''}
             ${d.sansPret ? '<span class="badge-cash">💰 Achat comptant — sans prêt</span>' : ''}
@@ -2144,7 +2158,7 @@
           <button onclick="ouvrirEmailRappel('${d.id}')">Envoyer un rappel par email</button>
           <button onclick="imprimerFiche('${d.id}')">📄 Télécharger la fiche dossier</button>
         </div>
-        ${renderPiecesDossier(d)}
+        ${d.roleNotaire !== 'participant' ? renderPiecesDossier(d) : ''}
         ${(analyse.documents.length > 0 || analyse.engagements.length > 0 || analyseConditions.length > 0) ? `
           <details class="analyse-juridique analyse-repliable" style="margin-top:14px;">
             <summary class="analyse-titre">📋 Analyse juridique du compromis</summary>
@@ -2578,6 +2592,7 @@
       ventebienPage: Number.isInteger(d.ventebienPage) ? d.ventebienPage : null,
       sansPret: d.sansPret === true,
       typeVente: d.typeVente === 'copropriete' ? 'copropriete' : 'maison',
+      roleNotaire: d.roleNotaire === 'participant' ? 'participant' : 'instrumentaire',
       archive: d.archive === true,
       reminderDays: Array.isArray(d.reminderDays) && d.reminderDays.every(Number.isInteger) ? d.reminderDays : [15, 7],
       confiance: (d.confiance && typeof d.confiance === 'object') ? d.confiance : {},
@@ -3054,6 +3069,9 @@
   async function verifierPiecesDossier(id, viaClicUtilisateur) {
     const d = dossiers.find(x => x.id === id);
     if (!d || !d.dossierLie) return;
+    // Notaire participant/concourant : la checklist de pièces ne s'affiche pas (voir
+    // renderCarteDossier) et ne concerne pas ce rôle — inutile de scanner le dossier local pour ça.
+    if (d.roleNotaire === 'participant') return;
     const checklist = checklistPieces(d.typeVente);
     d.pieces = d.pieces || {};
 

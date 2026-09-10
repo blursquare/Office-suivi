@@ -471,6 +471,30 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     vérifiée (dossier non relié) n'est pas un signal de blocage comme l'offre de prêt introuvable
     l'est, ce serait pénaliser tous les dossiers non reliés sans raison. Reste ouvert si l'étude le
     demande explicitement, avec une règle claire à définir (ex. seulement une fois relié).
+- **Rôle de l'étude sur le dossier : notaire instrumentaire ou participant/concourant.** Un même
+  dossier notarial peut être suivi par deux offices : celui qui reçoit l'acte (instrumentaire, suivi
+  complet) et celui qui représente l'autre partie (participant/concourant, dont les besoins de
+  suivi sont volontairement plus restreints). Sélecteur `#f-role-notaire` à l'étape "Finaliser" du
+  wizard (avec `instrumentaire` par défaut), stocké dans `d.roleNotaire`, validé/conservé à l'import
+  dans `normaliserDossierImporte()` (repli sur `instrumentaire` si absent ou invalide — même logique
+  que `typeVente`).
+  - **Notaire participant** : suivi volontairement réduit à l'offre de prêt et aux engagements du
+    vendeur (déjà extraits automatiquement dans l'analyse juridique, indépendamment du rôle) —
+    exactement les deux points demandés par l'étude. La checklist de pièces (`renderPiecesDossier`)
+    ne s'affiche pas pour ce rôle (`d.roleNotaire !== 'participant'` conditionne son rendu dans
+    `renderCarteDossier()`), et `verifierPiecesDossier()` s'arrête tôt sur un dossier participant
+    (retour anticipé en tête de fonction) pour ne pas scanner le dossier local pour rien. L'aperçu
+    de la checklist à l'étape "Finaliser" (`majApercuPieces()`) affiche à la place une note
+    expliquant que seuls le prêt et les engagements du vendeur seront suivis.
+  - Volontairement **pas** de verrouillage des échéances acte/vente préalable pour un dossier
+    participant : les cases à cocher existantes (`toggle-acte`/`toggle-ventebien`) restent la seule
+    source de vérité sur ce qui est actif, cohérent avec "aucune étape n'est verrouillée" déjà
+    appliqué au reste du wizard — le rôle ne fait que masquer la checklist de pièces, il ne force
+    rien d'autre.
+  - Badge "🤝 Participant" sur la fiche du dossier (uniquement pour ce rôle — l'instrumentaire, cas
+    par défaut/majoritaire, n'affiche rien, comme `.badge-cash` qui ne s'affiche que pour
+    l'exception "sans prêt") et filtre "Rôle" (`#filtre-role`) dans la barre d'outils de l'onglet
+    "Suivi", à côté des filtres Responsable/Échéance/Offre de prêt déjà existants.
 
 ## Comment tester
 
