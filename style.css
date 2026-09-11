@@ -1952,10 +1952,6 @@
     color: var(--muted);
     font-style: italic;
   }
-  .tab .tab-countdown.recue {
-    color: var(--success);
-    font-weight: 600;
-  }
 
   /* Statut de l'offre de prêt + "Revérifier", sous la date/le décompte de la carte "Obtention du
      prêt" (déplacé depuis l'en-tête du dossier, demandé par l'étude — plus proche de l'échéance

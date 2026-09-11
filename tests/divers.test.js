@@ -158,6 +158,29 @@ test('estDebutPageAnnexe ignore une clause qui cite un diagnostic en passant, en
   assert.equal(app.estDebutPageAnnexe(texte), false);
 });
 
+test('detecteSignatureActe reconnaît les formulations usuelles de fin d\'acte', () => {
+  const app = chargerApplication();
+  assert.equal(app.detecteSignatureActe('Fait à Blois, le 3 mars 2026, signé électroniquement.'), true);
+  assert.equal(app.detecteSignatureActe('DATE ET SIGNATURES'), true);
+  assert.equal(app.detecteSignatureActe('Dont acte, fait et passé les jour, mois et an susdits.'), true);
+  assert.equal(app.detecteSignatureActe('En foi de quoi les parties ont signé le présent acte.'), true);
+  assert.equal(app.detecteSignatureActe("Il est ici précisé que le bien est desservi par les réseaux."), false);
+});
+
+test('calculerDernierePageUtile retient le repère le plus tôt parmi ceux trouvés', () => {
+  const app = chargerApplication();
+  // Aucun repère trouvé : tout le document est gardé (comportement historique, filet de sécurité).
+  assert.equal(app.calculerDernierePageUtile(null, null, null, 80), 80);
+  // Seule la signature est trouvée (cas réel signalé : ni "Page X sur Y", ni titre d'annexe
+  // reconnu) — c'est elle qui doit fixer la coupure, pas la longueur totale du PDF.
+  assert.equal(app.calculerDernierePageUtile(null, 12, null, 80), 14);
+  // Un vrai début d'annexe détecté avant toute signature (mise en page inhabituelle) l'emporte.
+  assert.equal(app.calculerDernierePageUtile(9, 12, null, 80), 8);
+  // La pagination interne ("Page X sur Y") reste utilisée si elle est plus stricte que la
+  // signature (ex. une page de garde de signature électronique en avance sur la pagination).
+  assert.equal(app.calculerDernierePageUtile(null, 40, 10, 80), 13);
+});
+
 test('prochaineEcheanceDetail ignore l\'échéance de prêt une fois l\'offre reçue, au profit de la suivante', () => {
   const app = chargerApplication();
   const dansTroisJours = new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString().slice(0, 10);

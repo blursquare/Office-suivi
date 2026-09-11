@@ -1063,6 +1063,35 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     de confiance (`≈ estimée`/`⚠️ à vérifier`/...) est déplacé au même moment à côté du crayon
     d'édition de la date (dans `.tab-date-affichage`) plutôt qu'à côté du décompte J-X, sur la
     même demande.
+- **Bug corrigé : des dates d'annexes continuaient à remonter dans les échéances butoir**, malgré
+  le correctif précédent (voir plus haut). Cause de fond identifiée : `extraireTextesUtiles()`
+  n'avait que deux garde-fous pour couper avant les annexes — un titre de pièce jointe reconnu
+  (`estDebutPageAnnexe`) ou une pagination interne "Page X sur Y" (`dernierePageNumerotee`) — si
+  le document n'avait NI l'un NI l'autre (beaucoup de trames réelles, notamment sans pagination
+  explicite), `dernierePageUtile` retombait sur la longueur totale du PDF : aucune coupure, tout
+  le dossier (annexes comprises, parfois des centaines de pages) servait à la détection de dates.
+  Ajout d'un troisième repère, bien plus universel que les deux précédents : la signature de
+  l'acte lui-même. Quel que soit le modèle, un compromis/promesse se termine TOUJOURS par un bloc
+  de signatures avant toute pièce jointe — jamais l'inverse. `detecteSignatureActe()` (nouveau
+  `RE_SIGNATURE_ACTE`, élargi à partir du motif déjà utilisé pour le repli OCR de la date de
+  signature : signé électroniquement, date et signatures, dont acte, en foi de quoi, lu et
+  approuvé, bon pour accord, fait et signé, signature des parties, paraphé et signé) repère la
+  PREMIÈRE page portant un tel marqueur en parcourant le PDF — la signature de l'acte est
+  nécessairement la première rencontrée, un mandat ou une AG annexés plus loin ayant aussi leur
+  propre bloc de signature mais bien après. `calculerDernierePageUtile()` (testable, voir
+  `tests/divers.test.js`) combine les trois repères disponibles (annexe, signature, pagination) en
+  retenant le PLUS TÔT d'entre eux : mieux vaut couper trop tôt (une date à saisir à la main) que
+  trop tard (une date d'annexe glissée dans les échéances butoir), décision déjà actée deux fois
+  par l'étude. La boucle de lecture du PDF s'arrête dès que la signature est trouvée (+2 pages de
+  tampon pour un éventuel certificat/dernière signature électronique), sans lire inutilement le
+  reste d'un PDF qui peut compter des centaines de pages d'annexes après coup.
+- **Bug corrigé : le tab "Obtention du prêt" affichait deux fois le même statut** une fois l'offre
+  reçue — le décompte (`.tab-countdown`) affichait "✓ Offre reçue" et le badge `offreBloc` juste en
+  dessous affichait "✓ Offre de prêt reçue" (voir l'entrée juste au-dessus sur son déplacement dans
+  le tab). Signalé par l'étude. Le décompte est maintenant masqué entièrement quand l'offre est
+  reçue (`decompteMasque`) : `offreBloc` porte déjà cette information, plus complète (bouton
+  cliquable pour rouvrir le fichier, bouton Revérifier) — rien à ajouter en double juste au-dessus.
+  `.tab-countdown.recue` (règle CSS devenue inutile) supprimée.
 
 ## Comment tester
 
