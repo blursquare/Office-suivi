@@ -939,18 +939,48 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     tous les chemins de retour de `verifierOffrePret`/`verifierPiecesDossier`) remplace ensuite ce
     bouton par un rendu à jour, pas besoin de restaurer son texte d'origine à la main.
   - **Investigué et volontairement non implémenté : rendre cliquable le numéro de page de l'analyse
-    juridique pour un dossier déjà enregistré et rouvert.** Ça fonctionne déjà pendant l'import
-    (PDF encore en mémoire, voir `voirDateDansPdf()`), mais pas après enregistrement : le compromis
-    est importé via un simple `<input type="file">` (`#f-pdf`), qui ne fournit qu'un `File`
-    éphémère, pas un `FileSystemFileHandle` persistable comme pour un dossier local relié. Rendre
-    ça possible demanderait de basculer l'import du compromis sur `showOpenFilePicker()` (avec
-    repli sur `<input type="file">` pour les navigateurs qui ne le supportent pas — Firefox,
-    Safari), de conserver le handle obtenu sous une clé dérivée de l'id du dossier une fois celui-ci
-    créé (le picker s'ouvre avant que l'id existe), et d'étendre le mécanisme de reconfirmation
-    d'accès déjà en place pour les dossiers locaux/le registre partagé à cette troisième catégorie
-    de handle. Changement non trivial sur un chemin d'import critique et déjà largement testé (OCR,
-    détection de dates, frontières de pages...) — pas engagé sans une demande explicite, mais la
-    voie est balisée ici si l'étude la souhaite.
+    juridique pour un dossier déjà enregistré et rouvert.** Ça ne peut fonctionner que pendant
+    l'import (PDF encore en mémoire, voir `voirDateDansPdf()`/`allerALaPageDuPdf()` ci-dessus), pas
+    après enregistrement : le compromis est importé via un simple `<input type="file">` (`#f-pdf`),
+    qui ne fournit qu'un `File` éphémère, pas un `FileSystemFileHandle` persistable comme pour un
+    dossier local relié. Rendre ça possible demanderait de basculer l'import du compromis sur
+    `showOpenFilePicker()` (avec repli sur `<input type="file">` pour les navigateurs qui ne le
+    supportent pas — Firefox, Safari), de conserver le handle obtenu sous une clé dérivée de l'id
+    du dossier une fois celui-ci créé (le picker s'ouvre avant que l'id existe), et d'étendre le
+    mécanisme de reconfirmation d'accès déjà en place pour les dossiers locaux/le registre partagé
+    à cette troisième catégorie de handle. Changement non trivial sur un chemin d'import critique et
+    déjà largement testé (OCR, détection de dates, frontières de pages...) — pas engagé sans une
+    demande explicite, mais la voie est balisée ici si l'étude la souhaite.
+  - **Bug corrigé, en creusant le point précédent : le bouton "👁 p.X" d'un engagement du vendeur ne
+    ramenait jamais dans le PDF, même pendant l'import lui-même** (l'étude a précisé viser ce cas,
+    pas seulement le cas "dossier rouvert" ci-dessus). Cause réelle, sans rapport avec le
+    `<input type="file">` : dans `traiterFichierPdf()`, `traiterTexte()` (qui calcule l'analyse
+    juridique et appelle `afficherAnalyseJuridique()` pour l'afficher) s'exécute **avant** que
+    `pdfActuel = pdf` soit renseigné plus bas dans la même fonction — chaque `renderEngagement()`
+    évaluait donc `pdfActuel` comme encore `null` (ou l'ancienne valeur) et retombait sur le simple
+    numéro de page non cliquable, sans jamais se remettre à jour ensuite (rien d'autre ne
+    re-render l'analyse après coup). Un second appel à `afficherAnalyseJuridique()` ajouté juste
+    après que `pdfActuel`/`pdfDernierePageUtile` sont connus régénère l'analyse déjà calculée avec
+    les bons boutons — appel sans risque, `afficherAnalyseJuridique()` est un simple rendu piloté
+    par `analyseJuridiqueActuelle`, sans effet de bord à dupliquer.
+  - **Corrigé au passage : `renderEngagement()` cherchait à surligner la phrase de l'engagement
+    dans le PDF en réutilisant `voirDateDansPdf()`**, conçue pour une date courte (elle cherche le
+    dernier "mot" du texte fourni — l'année, un ancrage fiable). Appliqué à une clause de texte
+    libre tronquée à 80 caractères, le "dernier mot" tombe au hasard (souvent un mot coupé en plein
+    milieu) et ne se retrouve presque jamais tel quel sur la page — la recherche échouait
+    silencieusement à chaque fois. L'échappement de la phrase pour l'attribut `onclick`
+    (`phrase.replace(/'/g, "\\'").slice(0, 80)`, tronqué **après** l'échappement) risquait aussi de
+    couper un `\'` en deux, produisant un attribut malformé. Nouvelle fonction dédiée
+    `allerALaPageDuPdf(numeroPage)` : fait uniquement défiler jusqu'à la page, sans tenter de
+    surligner un passage précis ni interpoler la phrase dans l'attribut — plus simple, plus fiable,
+    et le seul besoin réel exprimé ("m'amener sur la bonne page").
+  - **Non vérifié en conditions réelles dans cet environnement** : `pdf.js`/`tesseract.js`
+    (cdnjs.cloudflare.com / cdn.jsdelivr.net) sont bloqués par le proxy réseau de cet environnement
+    de développement (`ERR_TUNNEL_CONNECTION_FAILED`), empêchant tout import réel de PDF pendant le
+    développement — d'où l'absence de test Playwright de bout en bout pour ce correctif précis
+    (contrairement aux vérifications visuelles habituelles). Fondé sur une lecture attentive du
+    code (ordre d'exécution confirmé ligne par ligne) et sur la suite `npm test` (101 tests, tous
+    verts) plutôt que sur un import réel — à confirmer par l'étude en conditions réelles.
 
 ## Comment tester
 

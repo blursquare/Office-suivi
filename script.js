@@ -693,7 +693,7 @@
     // reste malgré tout indiqué dans ce cas, à titre indicatif : c'est justement le cas d'usage le
     // plus courant (relire une clause quelques jours après l'import du compromis).
     const boutonVoir = !page ? '' : pdfActuel
-      ? `<button type="button" class="voir-pdf-btn" onclick="voirDateDansPdf(${page}, '${phrase.replace(/'/g, "\\'").slice(0, 80)}')">👁 p.${page}</button>`
+      ? `<button type="button" class="voir-pdf-btn" onclick="allerALaPageDuPdf(${page})">👁 p.${page}</button>`
       : `<span class="chip-page" title="Détecté page ${page} du compromis">p.${page}</span>`;
     return `<div class="analyse-engagement-ligne">${etiquette}<span>${escapeHtml(phrase)}</span>${boutonVoir}</div>`;
   }
@@ -1310,6 +1310,20 @@
     }
   }
 
+  // Fait simplement défiler l'aperçu jusqu'à la page indiquée, sans tenter de surligner un passage
+  // précis — utilisé pour les engagements du vendeur (renderEngagement), dont la phrase détectée
+  // fait plusieurs dizaines/centaines de caractères de texte libre : contrairement à une date
+  // (voir voirDateDansPdf ci-dessous, qui cherche le dernier "mot" du texte fourni, en général
+  // l'année, un ancrage fiable), il n'y a pas de mot de fin fiable à chercher dans un extrait de
+  // clause tronqué à 80 caractères — le tenter produisait une recherche qui échouait presque
+  // toujours silencieusement, et risquait même de mal échapper la phrase dans l'attribut onclick.
+  function allerALaPageDuPdf(numeroPage) {
+    if (!pdfActuel || !numeroPage) return;
+    const bloc = document.getElementById('pdf-page-bloc-' + numeroPage);
+    if (!bloc) return;
+    bloc.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
   // Fait défiler l'aperçu jusqu'à la page indiquée et surligne brièvement le texte de la date
   // (ex. "5 novembre 2026") pour la retrouver immédiatement dans le document original.
   async function voirDateDansPdf(numeroPage, texteDate) {
@@ -1425,6 +1439,12 @@
       document.getElementById('pdf-viewer-title').textContent =
         `${file.name} — compromis (${dernierePageUtile} page${dernierePageUtile > 1 ? 's' : ''} sur ${pdf.numPages}, annexes non affichées)`;
       await chargerToutesLesPagesPdf();
+      // Bug corrigé : traiterTexte() (donc afficherAnalyseJuridique()) tourne plus haut, avant que
+      // pdfActuel soit renseigné — chaque bouton "👁 p.X" d'un engagement du vendeur (voir
+      // renderEngagement) évaluait alors pdfActuel comme encore null et retombait sur le simple
+      // numéro de page non cliquable, sans jamais se remettre à jour ensuite. Un second passage ici,
+      // une fois pdfActuel connu, régénère l'analyse déjà calculée avec les bons boutons.
+      afficherAnalyseJuridique();
 
       // Si la date de signature n'a pas été trouvée dans le texte, elle est peut-être manuscrite
       // ou intégrée en image (cas fréquent : bloc de signature électronique Yousign/DocuSign en
