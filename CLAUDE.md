@@ -1092,6 +1092,41 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
   reçue (`decompteMasque`) : `offreBloc` porte déjà cette information, plus complète (bouton
   cliquable pour rouvrir le fichier, bouton Revérifier) — rien à ajouter en double juste au-dessus.
   `.tab-countdown.recue` (règle CSS devenue inutile) supprimée.
+- **Passe de finition typographique, inspirée d'une maquette fournie par l'étude** (un prototype
+  "CLAIRE" complet : registre en tableau, calendrier, écran d'extraction, tiroir de fiche dossier,
+  rapports). Seule la **facture** de la maquette a été reprise, pas son identité : la maquette pose
+  un fond indigo `#161826` et un accent violet `#9184d9`, qui contredisent tous les deux des
+  décisions déjà prises et validées (« mode sombre en gris neutres, pas de navy » et le bleu
+  `--focus` retenu lors de la refonte précédente) — ni l'un ni l'autre n'a été adopté. Trois
+  détails de fabrication en ont en revanche été repris, applicables quelle que soit la palette :
+  - **Étiquettes de section en petites capitales espacées** (`.section-eyebrow` : 10px, `0.1em`,
+    `--muted`), un seul registre d'étiquette pour toute l'application. Reprise à l'identique par
+    `.kpi-label`/`.stat-label`, et appliquée aux intitulés « Pièces du dossier » et « Historique »
+    de la fiche dossier (ce dernier perd son soulignement, devenu redondant avec l'étiquette).
+  - **Tuiles de chiffres retournées** : le libellé passe AU-DESSUS du chiffre (on lit ce que c'est,
+    puis combien) et le chiffre passe à 30px/`line-height: 1`. `min-height: 28px` sur le libellé
+    (deux lignes) garde les chiffres alignés d'une tuile à l'autre même quand un libellé long passe
+    à la ligne — sans quoi les tuiles d'une même rangée ne se lisaient plus comme un seul objet.
+  - **Filets de tableau qui s'estompent aux deux extrémités** : le trait entre deux lignes n'est
+    plus une `border-bottom` de cellule mais un dégradé de 1px peint par la LIGNE
+    (`background-image` calé en bas, transparent sur les 44 premiers/derniers pixels). Le tableau
+    se lit comme une liste aérée plutôt qu'une grille. **Conséquence à ne pas oublier** : toute
+    couleur de fond posée ensuite sur une ligne doit venir en SECONDE couche de `background-image`
+    (voir `.ligne-resume:hover`, qui superpose le filet puis `--paper-sunk`), sinon elle recouvre le
+    filet — c'est pour ça que `.ligne-detail` garde, lui, un `background` raccourci classique : il
+    n'a pas de filet à préserver.
+  - Au passage : `font-variant-numeric: tabular-nums` sur les décomptes d'échéance et les dates
+    d'historique (les colonnes de chiffres s'alignent), et `button.secondary:hover` passe d'un
+    simple changement de couleur de bordure à un aplat discret (`--line-soft`), plus proche du
+    survol « teinté » de la maquette.
+  - **Volontairement non repris** : le tiroir latéral (la maquette ouvre la fiche dossier dans un
+    panneau de 480px à droite plutôt qu'en dépliant la ligne du tableau). L'idée est bonne sur un
+    portefeuille de 60 dossiers — la liste ne se décale plus sous le clic — mais c'est un chantier
+    structurel (`renderCarteDossier` à sortir du tableau, `dossiersDeplies` à passer à un seul
+    dossier ouvert, mise en page deux colonnes à repenser pour 480px, styles d'impression à
+    reprendre) sur une fiche que l'étude vient justement de faire réorganiser trois fois. À ne
+    lancer que sur demande explicite. Même raisonnement pour le calendrier mensuel et la vue
+    « échéancier » groupée de la maquette : ce sont des fonctionnalités, pas du design.
 
 ## Comment tester
 

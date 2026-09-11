@@ -2174,7 +2174,7 @@
       ['c-neutre', aVerifier, 'offres à vérifier']
     ];
     bloc.innerHTML = tuiles.map(([cls, valeur, libelle]) =>
-      `<div class="stat-tile"><div class="stat-num ${cls}">${valeur}</div><div class="stat-label">${libelle}</div></div>`
+      `<div class="stat-tile"><div class="stat-label">${libelle}</div><div class="stat-num ${cls}">${valeur}</div></div>`
     ).join('');
   }
 
@@ -2209,7 +2209,7 @@
       ['c-pret', piecesIncompletes, 'dossiers avec pièces manquantes', '<span class="kpi-icone">📋</span>']
     ];
     bloc.innerHTML = tuiles.map(([cls, valeur, libelle, iconeHtml]) =>
-      `<div class="kpi-tile">${iconeHtml}<div class="kpi-num ${cls}">${valeur}</div><div class="kpi-label">${libelle}</div></div>`
+      `<div class="kpi-tile"><div class="kpi-label">${iconeHtml}${libelle}</div><div class="kpi-num ${cls}">${valeur}</div></div>`
     ).join('');
   }
 
@@ -2655,7 +2655,7 @@
     return `
       <div class="pieces-dossier">
         <div class="pieces-dossier-titre">
-          <span>📁 Pièces du dossier (${libelleType})</span>
+          <span class="section-eyebrow">📁 Pièces du dossier (${libelleType})</span>
           <span class="pieces-compteur${complet ? ' complet' : ''}">${nbRecues}/${checklist.length}</span>
           ${(DOSSIER_FS_SUPPORTE && d.dossierLie) ? `<button type="button" class="action-rapide" onclick="verifierPiecesDossierDepuisBouton('${d.id}', this)">Revérifier les pièces</button>` : ''}
         </div>
@@ -2785,7 +2785,7 @@
         </div>
         <div class="dossier-col-laterale">
         ${historique.length > 0 ? `
-          <button type="button" class="historique-toggle" onclick="toggleHistorique('${d.id}')">Historique (${historique.length})</button>
+          <button type="button" class="historique-toggle section-eyebrow" onclick="toggleHistorique('${d.id}')">Historique (${historique.length})</button>
           <div class="historique-liste" id="historique-${d.id}">
             ${historique.slice().reverse().map(h => `<div class="historique-ligne"><span class="h-date">${new Date(h.date).toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })}</span>${escapeHtml(h.texte)}</div>`).join('')}
           </div>
