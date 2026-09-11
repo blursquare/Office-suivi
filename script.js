@@ -104,6 +104,88 @@
     return CASH_RE.test(texte);
   }
 
+  // Marqueurs juridiques propres à une vente de lot en copropriété (statut de la loi du 10 juillet
+  // 1965), plutôt qu'une simple mention isolée de "copropriété" qui pourrait apparaître pour
+  // d'autres raisons (ex. un diagnostic mentionnant un immeuble voisin).
+  // Bug corrigé : signalé par l'étude, une vraie vente de lot restait classée "maison" par défaut
+  // — la formulation la plus courante ("soumis au régime de la copropriété", juste avant la mention
+  // du lot sous le tableau parcellaire) n'était pas reconnue, seul "statut de la copropriété"
+  // l'était. "régime de la copropriété" ajouté en conséquence.
+  const COPROPRIETE_RE = /lot\s+(?:de\s+)?copropri[ée]t[ée]|r[èe]glement\s+de\s+copropri[ée]t[ée]|syndicat\s+des\s+copropri[ée]taires|[ée]tat\s+descriptif\s+de\s+division|(?:statut|r[ée]gime)\s+de\s+la\s+copropri[ée]t[ée]|loi\s+(?:n[°ºo]\s*)?65-557|loi\s+du\s+10\s+juillet\s+1965/i;
+
+  function detecterTypeVenteCopropriete(texte) {
+    return COPROPRIETE_RE.test(texte);
+  }
+
+  // Adresse du bien : ancrée sur un code postal français (5 chiffres, marqueur fiable et rare
+  // ailleurs dans l'acte) précédé de "sis(e) à/au" ou "situé(e) à/au/dans la commune de" — les
+  // tournures notariales courantes pour introduire la désignation du bien. Capture tout le
+  // fragment jusqu'au code postal puis un peu après (ville), sans dépasser la phrase (borne au
+  // point suivant, comme extraireContexte) : un premier jet, pas encore confronté à de vrais
+  // compromis autres que ceux déjà vus pour les dates/engagements — à resserrer si un vrai dossier
+  // fait remonter un faux positif ou une capture tronquée.
+  const ADRESSE_BIEN_RE = /(?:sis|sise|situ[ée]e?)\s+(?:à|a|au|dans\s+la\s+commune\s+de|commune\s+de)\s+([^.\n]{3,120}?\d{5}[^.\n]{0,40})/i;
+
+  function detecterAdresseBien(texte) {
+    const m = ADRESSE_BIEN_RE.exec(texte);
+    if (!m) return null;
+    return m[1].replace(/\s+/g, ' ').trim().replace(/[,\s]+$/, '');
+  }
+
+  // Prix de vente : le montant en lettres est presque toujours suivi de sa forme chiffrée entre
+  // parenthèses (usage notarial constant, ex. "CENT MILLE EUROS (100 000 €)") — bien plus fiable à
+  // parser que le nombre écrit en toutes lettres. Cherche "prix" puis, dans les 120 caractères
+  // suivants (hors point/retour à la ligne, pour rester dans la même clause), un montant entre
+  // parenthèses suivi de €/euros.
+  const PRIX_VENTE_RE = /prix[^(.\n]{0,120}\(\s*([\d](?:[\d\s.]{0,14})?(?:,\d{2})?)\s*(?:€|euros?)\s*\)/i;
+
+  function detecterPrixVente(texte) {
+    const m = PRIX_VENTE_RE.exec(texte);
+    if (!m) return null;
+    const partieEntiere = m[1].split(',')[0].replace(/[\s.]/g, '');
+    const valeur = parseInt(partieEntiere, 10);
+    // Un prix de vente immobilier réel ne descend jamais sous 1000 € : filtre les faux positifs
+    // (un numéro d'article, une référence de loi capturée par erreur près du mot "prix").
+    return Number.isFinite(valeur) && valeur >= 1000 ? valeur : null;
+  }
+
+  // Affichage français ("250 000 €", pas de décimales : un prix notarié est toujours un compte
+  // rond en euros dans ce contexte). Intl.NumberFormat plutôt qu'un formatage manuel des milliers.
+  const FORMAT_PRIX = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+  function formaterPrix(valeur) {
+    return FORMAT_PRIX.format(valeur);
+  }
+
+  // Montant emprunté, lu dans le texte de l'offre de prêt elle-même (pas le compromis) une fois
+  // celle-ci retrouvée dans le dossier local relié — voir l'appel dans verifierOffrePret(). Même
+  // heuristique que PRIX_VENTE_RE (le montant en lettres est répété en chiffres entre parenthèses,
+  // usage constant des établissements prêteurs), ancrée sur le vocabulaire d'une offre de prêt
+  // ("montant du prêt", "capital emprunté"...) plutôt que sur "prix", qui n'y apparaît jamais dans
+  // ce sens.
+  const MONTANT_PRET_RE = /(?:montant\s+(?:du\s+)?(?:pr[êe]t|financement|emprunt[ée]?)|capital\s+emprunt[ée]|somme\s+pr[êe]t[ée]e?)[^(.\n]{0,120}\(\s*([\d](?:[\d\s.]{0,14})?(?:,\d{2})?)\s*(?:€|euros?)\s*\)/i;
+
+  function detecterMontantPret(texte) {
+    const m = MONTANT_PRET_RE.exec(texte);
+    if (!m) return null;
+    const partieEntiere = m[1].split(',')[0].replace(/[\s.]/g, '');
+    const valeur = parseInt(partieEntiere, 10);
+    return Number.isFinite(valeur) && valeur >= 1000 ? valeur : null;
+  }
+
+  // Apport estimé une fois l'offre de prêt reçue : ce que le prêt ne couvre pas dans le prix total
+  // (frais de notaire et autres coûts annexes non comptés — comparaison volontairement simple,
+  // prix du bien contre montant emprunté). Purement informatif, aucune règle métier derrière.
+  // Seuils arbitraires mais seules les couleurs déjà réservées ailleurs sont réutilisées : succès
+  // (apport confortable), pret/amber (apport faible, à surveiller), urgent (prêt ≥ prix, aucun
+  // apport ou financement des frais inclus).
+  function calculerApport(d) {
+    if (!d.prixVente || !d.montantPret) return null;
+    const montant = d.prixVente - d.montantPret;
+    const pourcentage = Math.round((montant / d.prixVente) * 100);
+    const niveau = pourcentage < 0 ? 'urgent' : (pourcentage < 10 ? 'pret' : 'success');
+    return { montant, pourcentage, niveau };
+  }
+
   // Repère les noms de famille du VENDEUR et de l'ACQUÉREUR (un ou plusieurs de chaque côté) pour
   // préremplir le nom du dossier, au format "NOM1 / NOM2 & NOM3" (en majuscules).
   //
@@ -206,6 +288,32 @@
   // ACHETEUR ou BÉNÉFICIAIRE (promesse unilatérale de vente réitérée par acte authentique).
   const RE_ROLE_VENDEUR = /vendeu?rs?|promettants?/i;
   const RE_ROLE_ACQUEREUR = /acqu[ée]reurs?|acheteurs?|b[ée]n[ée]ficiaires?/i;
+
+  // Cherche une adresse email au voisinage de chaque mention de l'acquéreur/bénéficiaire (utile
+  // pour préremplir "Email de l'acquéreur", utilisé pour la relance automatique de l'offre de
+  // prêt — voir relancerSiOffreManquante). Ancré sur le rôle plutôt qu'un simple "premier email du
+  // document" : un compromis contient aussi l'email du vendeur, de l'agence ou du notaire, et rien
+  // ne garantit que l'acquéreur soit cité en premier.
+  const EMAIL_RE = /[\w.+-]+@[\w-]+\.[a-z]{2,}/i;
+  function detecterEmailAcquereur(texte) {
+    const roleRe = new RegExp(RE_ROLE_ACQUEREUR.source, 'gi');
+    let m;
+    while ((m = roleRe.exec(texte)) !== null) {
+      // Recul borné à la phrase courante (s'arrête au point précédent, comme extraireContexte) :
+      // sans ça, l'email du VENDEUR cité juste avant dans le document pouvait être capté à la
+      // place de celui de l'ACQUEREUR sur un simple recul à distance fixe.
+      let debut = m.index;
+      let n = 0;
+      while (debut > 0 && n < 150) {
+        if (texte[debut - 1] === '.') break;
+        debut--; n++;
+      }
+      const fenetre = texte.slice(debut, m.index + 300);
+      const em = fenetre.match(EMAIL_RE);
+      if (em) return em[0];
+    }
+    return null;
+  }
 
   function detecterNomDossier(texte) {
     const blocVendeur = extraireBlocPartie(texte, RE_ROLE_VENDEUR, 0);
@@ -336,7 +444,11 @@
 
   // Thèmes explicitement exclus de l'analyse : ils relèvent du suivi notarial classique et non
   // des pièces ou travaux à réclamer au vendeur dans le cadre de ce suivi.
-  const EXCLUSION_ENGAGEMENT_RE = /urbanisme|permis\s+de\s+construire|d[ée]claration\s+pr[ée]alable|droit\s+de\s+pr[ée]emption|\bdia\b|bornage|servitude|cadastr|copropri[ée]t[ée]|syndic|assembl[ée]e\s+g[ée]n[ée]rale|[ée]tat\s+dat[ée]|fonds\s+de\s+travaux|charges\s+de\s+copropri[ée]t[ée]|taxe\s+fonci[èe]re|imp[ôo]t\s+foncier|quitus\s+fiscal|hypoth[ée]|mainlev[ée]e|certificat\s+de\s+radiation|privil[èe]ge\s+de\s+pr[êe]teur/i;
+  // "demande de visite" ajoutée sur retour de l'étude : une clause standard sur l'organisation de
+  // visites du bien avant la vente (accès du bien à l'acquéreur/aux diagnostiqueurs...) ne
+  // constitue pas un engagement à réclamer après coup, contrairement à une clause de travaux/
+  // documents/entretien — elle ne doit jamais ressortir dans les obligations du vendeur.
+  const EXCLUSION_ENGAGEMENT_RE = /urbanisme|permis\s+de\s+construire|d[ée]claration\s+pr[ée]alable|droit\s+de\s+pr[ée]emption|\bdia\b|bornage|servitude|cadastr|copropri[ée]t[ée]|syndic|assembl[ée]e\s+g[ée]n[ée]rale|[ée]tat\s+dat[ée]|fonds\s+de\s+travaux|charges\s+de\s+copropri[ée]t[ée]|taxe\s+fonci[èe]re|imp[ôo]t\s+foncier|quitus\s+fiscal|hypoth[ée]|mainlev[ée]e|certificat\s+de\s+radiation|privil[èe]ge\s+de\s+pr[êe]teur|demande\s+de\s+visite/i;
 
   // Clauses purement hypothétiques : « SI le bien VENAIT À se trouver en zone contaminée, le
   // vendeur s'engage à fournir un état parasitaire ». Rien n'est dû tant que l'hypothèse ne se
@@ -581,38 +693,32 @@
     // reste malgré tout indiqué dans ce cas, à titre indicatif : c'est justement le cas d'usage le
     // plus courant (relire une clause quelques jours après l'import du compromis).
     const boutonVoir = !page ? '' : pdfActuel
-      ? `<button type="button" class="voir-pdf-btn" onclick="voirDateDansPdf(${page}, '${phrase.replace(/'/g, "\\'").slice(0, 80)}')">👁 p.${page}</button>`
+      ? `<button type="button" class="voir-pdf-btn" onclick="allerALaPageDuPdf(${page})">👁 p.${page}</button>`
       : `<span class="chip-page" title="Détecté page ${page} du compromis">p.${page}</span>`;
     return `<div class="analyse-engagement-ligne">${etiquette}<span>${escapeHtml(phrase)}</span>${boutonVoir}</div>`;
   }
 
-  // 'apercu' | 'analyse' — l'onglet actif du panneau ancré à droite du formulaire (voir
-  // definirVuePdfViewer). Remis à 'apercu' à chaque nouvel import (traiterFichierPdf) : l'aperçu du
-  // nouveau document prime, l'utilisateur reclique sur l'onglet analyse s'il veut la consulter.
-  let vuePdfViewerActuelle = 'apercu';
-  let analyseJuridiqueDisponible = false;
-
-  function definirVuePdfViewer(vue) {
-    vuePdfViewerActuelle = vue;
-    const tabApercu = document.getElementById('pdf-viewer-tab-apercu');
-    const tabAnalyse = document.getElementById('pdf-viewer-tab-analyse');
-    if (tabApercu) tabApercu.classList.toggle('actif', vue === 'apercu');
-    if (tabAnalyse) tabAnalyse.classList.toggle('actif', vue === 'analyse');
-    document.getElementById('pdf-pages-container').style.display = vue === 'apercu' ? 'flex' : 'none';
-    document.getElementById('analyse-juridique').style.display = (vue === 'analyse' && analyseJuridiqueDisponible) ? 'block' : 'none';
-  }
-
+  // L'analyse juridique est sa propre étape du wizard (étape 3, voir definirEtapeWizard) — plus un
+  // onglet superposé à l'aperçu PDF : aucune étape n'étant verrouillée, elle reste accessible même
+  // sans rien à montrer (message d'état vide ci-dessous), pas besoin de la cacher.
   function afficherAnalyseJuridique() {
     const listeDocs = document.getElementById('analyse-documents-liste');
     const note = document.getElementById('analyse-note');
+    const vide = document.getElementById('analyse-vide-etat');
     const { documents, engagements, conditions = [] } = analyseJuridiqueActuelle;
 
-    analyseJuridiqueDisponible = documents.length > 0 || engagements.length > 0 || conditions.length > 0;
-    document.getElementById('pdf-viewer-tabs').style.display = analyseJuridiqueDisponible ? 'flex' : 'none';
+    const analyseJuridiqueDisponible = documents.length > 0 || engagements.length > 0 || conditions.length > 0;
+    if (vide) vide.style.display = analyseJuridiqueDisponible ? 'none' : 'block';
     if (!analyseJuridiqueDisponible) {
-      definirVuePdfViewer(vuePdfViewerActuelle);
+      document.getElementById('analyse-section-conditions').style.display = 'none';
+      document.getElementById('analyse-section-engagements').style.display = 'none';
+      const sectionDocuments = document.getElementById('analyse-section-documents');
+      if (sectionDocuments) sectionDocuments.style.display = 'none';
+      note.style.display = 'none';
       return;
     }
+    const sectionDocumentsVisible = document.getElementById('analyse-section-documents');
+    if (sectionDocumentsVisible) sectionDocumentsVisible.style.display = 'block';
 
     // Les conditions suspensives et particulières sont reprises telles qu'elles figurent au
     // compromis, rubrique par rubrique : c'est la lecture de référence du notaire.
@@ -646,7 +752,6 @@
     } else {
       note.style.display = 'none';
     }
-    definirVuePdfViewer(vuePdfViewerActuelle);
   }
 
   // Extrait la phrase contenant la date (bornée par un maximum de caractères) plutôt qu'une simple
@@ -750,13 +855,21 @@
       // contrairement à reDelai ci-dessus). Compté à partir de la signature de la promesse elle-
       // même (« la présente convention… ») faute d'autre point de départ indiqué dans la clause —
       // même convention implicite que les ancres "la présente"/"ce jour" déjà acceptées par
-      // reDelai. Une même promesse notarie souvent aussi un délai de notification distinct (ex.
-      // "70 jours" pour notifier le refus de prêt) avec la même tournure "au plus tard dans les N
-      // jours" : les deux sont détectés, meilleureCandidateEcheance() départage déjà ce cas (ambigu
-      // si les deux portent une formulation de délai, premier candidat par ordre chronologique
-      // gardé par défaut — ici le bon, la condition de prêt tombant avant celle de notification).
+      // reDelai.
+      //
+      // Bug corrigé : la même promesse porte presque toujours un second délai, avec la même
+      // tournure, pour la notification du refus/de l'octroi au notaire (ex. "au plus tard dans les
+      // 70 jours, les offres à lui faites ou le refus opposé aux demandes de prêt") — ce n'est PAS
+      // la condition elle-même, seulement une formalité de communication qui la suit. Signalé par
+      // l'étude : garder les deux (même en signalant une ambiguïté) polluait le champ avec un choix
+      // à trancher alors que le bon candidat est déterministe ici — le délai de notification est
+      // systématiquement associé à "notifier"/"notification" dans les ~200 caractères qui précèdent
+      // (voir la clause réelle ci-dessus), on l'écarte donc totalement plutôt que de le détecter
+      // pour ensuite le désambiguïser.
       const reAuPlusTardDelai = /au\s+plus\s+tard\s+dans\s+(?:les?|un\s+d[ée]lai\s+de)\s+(\d{1,3})\s*jours?/gi;
       while ((m = reAuPlusTardDelai.exec(texte)) !== null) {
+        const avant = texte.slice(Math.max(0, m.index - 200), m.index);
+        if (/notifier|notification/i.test(avant)) continue;
         ajouter(addDays(dateCompromis, parseInt(m[1], 10)), m[0], m.index, m[0].length, true);
       }
     }
@@ -815,6 +928,16 @@
     bloc.classList.toggle('inactive', !actif);
     input.disabled = !actif;
     if (!actif) input.value = '';
+    if (type === 'pret') majVisibiliteRappels();
+  }
+
+  // Demandé par l'étude : sans condition d'obtention de prêt (achat comptant), la section rappels
+  // ne concerne plus ce dossier — retirée de l'étape Finaliser plutôt que laissée visible mais
+  // sans effet. `getSelectedReminderDays()` n'est de toute façon plus lue dans ce cas (voir
+  // ajouterDossier), ce masquage évite seulement de laisser des cases à cocher trompeuses.
+  function majVisibiliteRappels() {
+    const fieldset = document.getElementById('rappel-fieldset');
+    if (fieldset) fieldset.style.display = echeanceActive.pret ? '' : 'none';
   }
 
   function definirEcheanceActive(type, actif) {
@@ -868,6 +991,34 @@
     if (!champNom.value.trim()) {
       const nomDetecte = detecterNomDossier(texte);
       if (nomDetecte) champNom.value = nomDetecte;
+    }
+
+    // Uniquement utile s'il y a une condition d'obtention de prêt à relancer (voir le champ
+    // lui-même, "pour relance prêt") — inutile de préremplir sans ça.
+    const champEmailAcquereur = document.getElementById('f-email-acquereur');
+    if (echeanceActive.pret && !champEmailAcquereur.value.trim()) {
+      const emailDetecte = detecterEmailAcquereur(texte);
+      if (emailDetecte) champEmailAcquereur.value = emailDetecte;
+    }
+
+    // Ne bascule que dans un sens (maison → copropriété) : l'absence de ces marqueurs ne prouve
+    // pas l'inverse (une vente de maison individuelle ne les mentionne simplement jamais), donc on
+    // ne force jamais "maison" par défaut ici, on ne fait que corriger vers "copropriété" quand
+    // c'en est manifestement une.
+    if (detecterTypeVenteCopropriete(texte)) {
+      document.getElementById('f-type-vente').value = 'copropriete';
+    }
+    majApercuPieces();
+
+    const champAdresse = document.getElementById('f-adresse-bien');
+    if (!champAdresse.value.trim()) {
+      const adresseDetectee = detecterAdresseBien(texte);
+      if (adresseDetectee) champAdresse.value = adresseDetectee;
+    }
+    const champPrix = document.getElementById('f-prix-vente');
+    if (!champPrix.value.trim()) {
+      const prixDetecte = detecterPrixVente(texte);
+      if (prixDetecte) champPrix.value = String(prixDetecte);
     }
 
     // Les documents sont déduits des seules clauses d'engagement du vendeur, et non de l'ensemble
@@ -1059,8 +1210,17 @@
   // réellement une pièce jointe (scan de plan, diagnostic…) porte cette mention en tout début de
   // page et contient très peu d'autre texte extractible — à l'inverse d'une clause de plusieurs
   // milliers de caractères qui la cite juste en passant.
+  //
+  // Décision explicite de l'étude : les dates butoir (prêt/acte/vente) ne doivent JAMAIS être
+  // puisées dans les annexes, uniquement dans l'avant-contrat lui-même (compromis/promesse) — le
+  // motif ci-dessus (limité à "annexe n°1", chiffre obligatoire) ratait deux cas réels fréquents :
+  // une page "ANNEXES" sans numéro qui introduit la liste des pièces jointes, et une pièce jointe
+  // qui n'a même pas de renvoi "annexe" et ne se reconnaît qu'à son propre titre de document
+  // (diagnostic, plan cadastral...). Les deux gardent le même garde-fou position/longueur.
+  const RE_DEBUT_ANNEXE = /\bannexes?\b(?:\s*n[°ºo]?\s*\d+)?|\bpi[èe]ces?\s+annexe(?:s|[ée]s)?\b/i;
+  const RE_TITRE_PIECE_JOINTE = /^\s*(?:dossier\s+de\s+diagnostic\s+technique|diagnostic\s+de\s+performance\s+[ée]nerg[ée]tique|[ée]tat\s+des\s+risques(?:\s+et\s+pollutions)?|constat\s+de\s+risque\s+d.exposition\s+au\s+plomb|[ée]tat\s+relatif\s+[àa]\s+la\s+pr[ée]sence\s+de\s+termites|certificat\s+d.urbanisme|r[èe]glement\s+de\s+copropri[ée]t[ée]|extrait\s+(?:du\s+)?plan\s+cadastral|proc[èe]s-verbal\s+d.assembl[ée]e\s+g[ée]n[ée]rale|[ée]tat\s+dat[ée])/i;
   function estDebutPageAnnexe(texteBrut) {
-    const m = texteBrut.match(/annexe\s*n[°ºo]?\s*1\b/i);
+    const m = texteBrut.match(RE_DEBUT_ANNEXE) || texteBrut.match(RE_TITRE_PIECE_JOINTE);
     if (!m) return false;
     return m.index < 120 || texteBrut.trim().length < 300;
   }
@@ -1157,6 +1317,20 @@
       const ctx = canvas.getContext('2d');
       await page.render({ canvasContext: ctx, viewport }).promise;
     }
+  }
+
+  // Fait simplement défiler l'aperçu jusqu'à la page indiquée, sans tenter de surligner un passage
+  // précis — utilisé pour les engagements du vendeur (renderEngagement), dont la phrase détectée
+  // fait plusieurs dizaines/centaines de caractères de texte libre : contrairement à une date
+  // (voir voirDateDansPdf ci-dessous, qui cherche le dernier "mot" du texte fourni, en général
+  // l'année, un ancrage fiable), il n'y a pas de mot de fin fiable à chercher dans un extrait de
+  // clause tronqué à 80 caractères — le tenter produisait une recherche qui échouait presque
+  // toujours silencieusement, et risquait même de mal échapper la phrase dans l'attribut onclick.
+  function allerALaPageDuPdf(numeroPage) {
+    if (!pdfActuel || !numeroPage) return;
+    const bloc = document.getElementById('pdf-page-bloc-' + numeroPage);
+    if (!bloc) return;
+    bloc.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
   // Fait défiler l'aperçu jusqu'à la page indiquée et surligne brièvement le texte de la date
@@ -1262,7 +1436,6 @@
       pageParType = { pret: null, acte: null, ventebien: null };
       ambiguiteParType = { pret: false, acte: false, ventebien: false };
       approxParType = { pret: false, acte: false, ventebien: false };
-      vuePdfViewerActuelle = 'apercu';
       traiterTexte(texteComplet);
       // Bascule automatiquement vers l'étape "Vérifier" : les dates/chips sont déjà là, plus besoin
       // de cliquer soi-même sur "Suivant" après un import qui vient de réussir.
@@ -1275,6 +1448,12 @@
       document.getElementById('pdf-viewer-title').textContent =
         `${file.name} — compromis (${dernierePageUtile} page${dernierePageUtile > 1 ? 's' : ''} sur ${pdf.numPages}, annexes non affichées)`;
       await chargerToutesLesPagesPdf();
+      // Bug corrigé : traiterTexte() (donc afficherAnalyseJuridique()) tourne plus haut, avant que
+      // pdfActuel soit renseigné — chaque bouton "👁 p.X" d'un engagement du vendeur (voir
+      // renderEngagement) évaluait alors pdfActuel comme encore null et retombait sur le simple
+      // numéro de page non cliquable, sans jamais se remettre à jour ensuite. Un second passage ici,
+      // une fois pdfActuel connu, régénère l'analyse déjà calculée avec les bons boutons.
+      afficherAnalyseJuridique();
 
       // Si la date de signature n'a pas été trouvée dans le texte, elle est peut-être manuscrite
       // ou intégrée en image (cas fréquent : bloc de signature électronique Yousign/DocuSign en
@@ -1415,6 +1594,8 @@
     majApercuPieces();
     document.getElementById('f-email-acquereur').value = '';
     document.getElementById('f-email').value = EMAIL_RAPPEL_DEFAUT;
+    document.getElementById('f-adresse-bien').value = '';
+    document.getElementById('f-prix-vente').value = '';
     document.getElementById('f-pret').value = '';
     document.getElementById('f-acte').value = '';
     document.getElementById('f-pdf').value = '';
@@ -1432,9 +1613,7 @@
     detectedDates = [];
     autresEnCours = [];
     analyseJuridiqueActuelle = { documents: [], engagements: [], conditions: [] };
-    analyseJuridiqueDisponible = false;
-    document.getElementById('pdf-viewer-tabs').style.display = 'none';
-    definirVuePdfViewer('apercu');
+    afficherAnalyseJuridique();
     // Referme entièrement le panneau d'aperçu : sans ça, le PDF du dossier qu'on vient d'enregistrer
     // restait affiché à côté d'un formulaire pourtant vide, prêt pour un nouvel import.
     document.getElementById('pdf-viewer').style.display = 'none';
@@ -1473,6 +1652,9 @@
     const roleNotaire = document.getElementById('f-role-notaire').value;
     const responsable = document.getElementById('f-responsable').value.trim();
     const emailAcquereur = document.getElementById('f-email-acquereur').value.trim();
+    const adresseBien = document.getElementById('f-adresse-bien').value.trim();
+    const prixVenteBrut = document.getElementById('f-prix-vente').value.trim();
+    const prixVente = prixVenteBrut ? parseInt(prixVenteBrut.replace(/[^\d]/g, ''), 10) : null;
     const pret = echeanceActive.pret ? document.getElementById('f-pret').value : '';
     const acte = echeanceActive.acte ? document.getElementById('f-acte').value : '';
     const ventebien = echeanceActive.ventebien ? document.getElementById('f-ventebien').value : '';
@@ -1504,6 +1686,9 @@
     const dossier = {
       id: (crypto.randomUUID ? crypto.randomUUID() : 'd-' + Date.now() + '-' + Math.random().toString(16).slice(2)),
       nom, email, responsable, emailAcquereur,
+      adresseBien,
+      prixVente: Number.isFinite(prixVente) && prixVente > 0 ? prixVente : null,
+      montantPret: null,
       typeVente,
       roleNotaire,
       pieces: {},
@@ -1517,7 +1702,9 @@
       ventebienPage: ventebien ? pageParType.ventebien : null,
       pdfNumPages: pdfDernierePageUtile,
       sansPret: !echeanceActive.pret,
-      reminderDays: getSelectedReminderDays(),
+      // Pas de section rappels sans condition de prêt (voir majVisibiliteRappels) : aucun rappel
+      // pour ce dossier, plutôt que de lire des cases à cocher restées invisibles/non pertinentes.
+      reminderDays: echeanceActive.pret ? getSelectedReminderDays() : [],
       confiance,
       archive: false,
       analyseJuridique: {
@@ -1634,7 +1821,7 @@
     ).join('');
   }
 
-  function renderTab(type, label, iso, dossierId, page, confiance, autreIndex) {
+  function renderTab(type, label, iso, dossierId, page, confiance, autreIndex, offrePretRecue) {
     // Les tabs Prêt / Acte / Vente d'un dossier enregistré sont recatégorisables au clic ;
     // les échéances "Autre" gardent leur libellé personnalisé (non concerné par ce sélecteur).
     const recategorisable = dossierId && autreIndex == null && (type === 'pret' || type === 'acte' || type === 'ventebien');
@@ -1686,7 +1873,13 @@
     const jours = joursRestants(iso);
     let countdownClass = '';
     let countdownText = '';
-    if (jours < 0) {
+    // Une fois l'offre de prêt confirmée reçue, la date de cette échéance n'a plus lieu d'être
+    // signalée comme "dépassée" (condition résolue, pas un retard) — signalé par l'étude sur la
+    // fiche dépliée d'un dossier avec offre reçue.
+    if (offrePretRecue) {
+      countdownClass = 'recue';
+      countdownText = '✓ Offre reçue';
+    } else if (jours < 0) {
       countdownClass = 'passed';
       countdownText = 'Échéance dépassée';
     } else if (jours === 0) {
@@ -1772,6 +1965,34 @@
     render();
   }
 
+  // Adresse et prix : détectés automatiquement à l'import (voir detecterAdresseBien/
+  // detecterPrixVente, premier jet sur des regex pas encore éprouvées sur beaucoup de compromis
+  // réels), donc corrigeables directement sur la fiche — mêmes principes que Responsable/Type de
+  // vente ci-dessus, mais en champ texte libre plutôt qu'un choix fermé.
+  function changerAdresseBien(id, valeur) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    const nouvelle = valeur.trim();
+    if (nouvelle === (d.adresseBien || '')) return;
+    ajouterHistorique(d, `Adresse du bien modifiée`);
+    d.adresseBien = nouvelle;
+    sauvegarder();
+    render();
+  }
+
+  function changerPrixVente(id, valeur) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    const chiffres = valeur.replace(/[^\d]/g, '');
+    const nouveau = chiffres ? parseInt(chiffres, 10) : null;
+    const normalise = Number.isFinite(nouveau) && nouveau > 0 ? nouveau : null;
+    if (normalise === (d.prixVente || null)) { render(); return; }
+    ajouterHistorique(d, `Prix de vente modifié : ${d.prixVente ? formaterPrix(d.prixVente) : '—'} → ${normalise ? formaterPrix(normalise) : '—'}`);
+    d.prixVente = normalise;
+    sauvegarder();
+    render();
+  }
+
   function calculerProchaineEcheance(d) {
     const autresDates = (d.autres || []).map(a => a.date);
     // Une fois l'offre de prêt reçue, cette échéance est résolue : elle ne doit plus faire
@@ -1830,22 +2051,35 @@
     `).join('');
   }
 
+  // Chiffres de synthèse du portefeuille (dossiers actifs, hors filtres/recherche de la liste) —
+  // calculés une seule fois, partagés par le bandeau de l'onglet "Suivi" (renderStatsSuivi) et les
+  // tuiles KPI du "Tableau de bord" (renderKpisDashboard), pour ne jamais faire diverger ces deux
+  // lectures d'un même portefeuille.
+  function calculerStatsPortefeuille(dossiersActifs) {
+    const dansNJours = (n) => dossiersActifs.filter(d => {
+      const prochaine = prochaineEcheanceDetail(d);
+      return prochaine && prochaine.jours <= n;
+    }).length;
+    const urgents = dansNJours(7);
+    const urgents15 = dansNJours(15);
+    const avecPret = dossiersActifs.filter(d => !d.sansPret);
+    const manquantes = avecPret.filter(d => d.offrePretStatut === 'manquante').length;
+    const aVerifier = avecPret.filter(d => (d.offrePretStatut || 'inconnu') === 'inconnu').length;
+    // Même condition que statutDossier() : uniquement une fois relié, hors rôle participant.
+    const piecesIncompletes = dossiersActifs.filter(d => d.dossierLie && d.roleNotaire !== 'participant' &&
+      checklistPieces(d.typeVente).some(p => (d.pieces || {})[p.cle] !== 'recue')).length;
+    return { actifs: dossiersActifs.length, urgents, urgents15, manquantes, aVerifier, piecesIncompletes };
+  }
+
   // Bandeau de synthèse en tête de l'onglet "Suivi des dossiers" : donne un état global du
   // portefeuille (dossiers actifs, hors filtres/recherche de la liste) avant de la parcourir.
   function renderStatsSuivi(dossiersActifs) {
     const bloc = document.getElementById('stats-suivi');
     if (!bloc) return;
 
-    const urgents = dossiersActifs.filter(d => {
-      const prochaine = prochaineEcheanceDetail(d);
-      return prochaine && prochaine.jours <= 7;
-    }).length;
-    const avecPret = dossiersActifs.filter(d => !d.sansPret);
-    const manquantes = avecPret.filter(d => d.offrePretStatut === 'manquante').length;
-    const aVerifier = avecPret.filter(d => (d.offrePretStatut || 'inconnu') === 'inconnu').length;
-
+    const { actifs, urgents, manquantes, aVerifier } = calculerStatsPortefeuille(dossiersActifs);
     const tuiles = [
-      ['c-neutre', dossiersActifs.length, dossiersActifs.length > 1 ? 'dossiers actifs' : 'dossier actif'],
+      ['c-neutre', actifs, actifs > 1 ? 'dossiers actifs' : 'dossier actif'],
       ['c-urgent', urgents, 'échéances ≤ 7 jours'],
       ['c-pret', manquantes, 'offres de prêt introuvables'],
       ['c-neutre', aVerifier, 'offres à vérifier']
@@ -1853,6 +2087,85 @@
     bloc.innerHTML = tuiles.map(([cls, valeur, libelle]) =>
       `<div class="stat-tile"><div class="stat-num ${cls}">${valeur}</div><div class="stat-label">${libelle}</div></div>`
     ).join('');
+  }
+
+  // Tuiles KPI du "Tableau de bord" : mêmes chiffres que renderStatsSuivi (calculerStatsPortefeuille),
+  // avec une 5e tuile propre au tableau de bord (pièces manquantes) — l'aperçu d'ensemble le plus
+  // synthétique de l'outil, avant même d'ouvrir un dossier.
+  // Icône calendrier commune aux deux tuiles d'échéances (7j/15j) avec le seuil incrusté dedans,
+  // plutôt que deux emojis différents (⏱️/📅) sans lien visuel entre les deux — demandé par
+  // l'étude pour rendre évident que ce sont deux variantes de la même mesure. Un vrai SVG dessiné à
+  // la main, pas l'emoji 📅 : ce dernier porte déjà son propre numéro de jour selon la plateforme
+  // (souvent "17"), qui se superposait de façon illisible à celui qu'on voulait y afficher.
+  function iconeCalendrierSeuil(jours) {
+    return `<svg class="kpi-icone kpi-icone-calendrier" viewBox="0 0 16 16" aria-hidden="true">
+      <rect x="1" y="2.3" width="14" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.3"/>
+      <rect x="1" y="2.3" width="14" height="3.4" rx="1.1" fill="currentColor" opacity="0.28" stroke="none"/>
+      <line x1="4.3" y1="1" x2="4.3" y2="3.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+      <line x1="11.7" y1="1" x2="11.7" y2="3.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+      <text x="8" y="12.3" text-anchor="middle" font-size="6.6" font-weight="800" fill="currentColor">${jours}</text>
+    </svg>`;
+  }
+
+  function renderKpisDashboard(dossiersActifs) {
+    const bloc = document.getElementById('kpis-dashboard');
+    if (!bloc) return;
+    const { actifs, urgents, urgents15, manquantes, aVerifier, piecesIncompletes } = calculerStatsPortefeuille(dossiersActifs);
+    const tuiles = [
+      ['c-neutre', actifs, actifs > 1 ? 'dossiers actifs' : 'dossier actif', '<span class="kpi-icone">📁</span>'],
+      ['c-urgent', urgents, 'échéances ≤ 7 jours', iconeCalendrierSeuil(7)],
+      ['c-urgent', urgents15, 'échéances ≤ 15 jours', iconeCalendrierSeuil(15)],
+      ['c-pret', manquantes, 'offres de prêt introuvables', '<span class="kpi-icone">⚠️</span>'],
+      ['c-neutre', aVerifier, 'offres à vérifier', '<span class="kpi-icone">🔎</span>'],
+      ['c-pret', piecesIncompletes, 'dossiers avec pièces manquantes', '<span class="kpi-icone">📋</span>']
+    ];
+    bloc.innerHTML = tuiles.map(([cls, valeur, libelle, iconeHtml]) =>
+      `<div class="kpi-tile">${iconeHtml}<div class="kpi-num ${cls}">${valeur}</div><div class="kpi-label">${libelle}</div></div>`
+    ).join('');
+  }
+
+  // "Actions urgentes" du tableau de bord : les dossiers qui méritent une attention immédiate,
+  // au même sens que le score de calculerPriorite() et le badge "🔥 Prioritaire" déjà utilisés sur
+  // les résumés du Suivi — un seul et même critère d'urgence dans tout l'outil, pas une seconde
+  // définition inventée pour le tableau de bord.
+  function renderActionsUrgentes(dossiersActifs) {
+    const bloc = document.getElementById('actions-urgentes');
+    if (!bloc) return;
+    const urgents = dossiersActifs
+      .filter(d => statutDossier(d) === 'blocage' || calculerPriorite(d) >= SEUIL_PRIORITE_ELEVEE)
+      .sort((a, b) => calculerPriorite(b) - calculerPriorite(a))
+      .slice(0, 6);
+
+    if (urgents.length === 0) {
+      bloc.innerHTML = '<div class="actions-urgentes-vide">✓ Aucune action urgente pour le moment.</div>';
+      return;
+    }
+    bloc.innerHTML = urgents.map(d => {
+      const prochaine = prochaineEcheanceDetail(d);
+      let raison;
+      if (d.accesAReconfirmer) raison = "Accès au dossier local à reconfirmer";
+      else if (!d.sansPret && d.offrePretStatut === 'manquante') raison = "Offre de prêt introuvable";
+      else if (prochaine && prochaine.jours < 0) raison = "Échéance dépassée";
+      else if (prochaine) raison = `${escapeHtml(prochaine.label)} — J-${prochaine.jours}`;
+      else raison = "À vérifier";
+      return `
+        <button type="button" class="action-urgente-ligne" onclick="ouvrirDossierDepuisDashboard('${d.id}')">
+          ${renderBadgeStatut(d)}
+          <span class="action-urgente-nom">${escapeHtml(d.nom)}</span>
+          <span class="action-urgente-raison">${raison}</span>
+          <span class="action-urgente-fleche">→</span>
+        </button>`;
+    }).join('');
+  }
+
+  // Ouvre un dossier depuis le tableau de bord : bascule vers le Suivi et déplie directement la
+  // ligne concernée (dossiersDeplies avant le render() suivant, même mécanisme que le dépliage
+  // manuel d'une ligne — voir toggleLigneDossier).
+  function ouvrirDossierDepuisDashboard(id) {
+    dossiersDeplies.add(id);
+    definirOnglet('suivi');
+    const cible = document.getElementById('mini-' + id) || document.getElementById('detail-' + id);
+    if (cible) cible.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
   // Bascule entre les deux espaces de travail : « Nouveau dossier » (formulaire + aperçu PDF) et
@@ -1866,11 +2179,11 @@
   let etapeWizardActuelle = 1;
   function definirEtapeWizard(n) {
     etapeWizardActuelle = n;
-    for (let i = 1; i <= 3; i++) {
+    for (let i = 1; i <= 4; i++) {
       document.getElementById('wizard-step-' + i).classList.toggle('actif', i === n);
       document.getElementById('wizard-step-btn-' + i).classList.toggle('actif', i === n);
     }
-    if (n === 3) majApercuPieces();
+    if (n === 4) majApercuPieces();
     const wrap = document.querySelector('.wrap');
     if (wrap) wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -1900,22 +2213,29 @@
     `;
   }
 
-  function definirOnglet(nom) {
-    document.getElementById('onglet-nouveau').style.display = nom === 'nouveau' ? '' : 'none';
-    document.getElementById('onglet-suivi').style.display = nom === 'suivi' ? '' : 'none';
-    document.getElementById('tab-nouveau').setAttribute('aria-selected', String(nom === 'nouveau'));
-    document.getElementById('tab-suivi').setAttribute('aria-selected', String(nom === 'suivi'));
-    if (nom === 'suivi') render();
+  // Sidebar repliée hors écran sous ~900px (voir style.css) : ce bouton/scrim la fait glisser à
+  // l'écran sans changer sa structure ni dupliquer la navigation pour mobile.
+  function toggleSidebarMobile(forcerOuvert) {
+    const sidebar = document.getElementById('sidebar');
+    const scrim = document.getElementById('sidebar-scrim');
+    const ouverte = typeof forcerOuvert === 'boolean' ? forcerOuvert : !sidebar.classList.contains('ouverte');
+    sidebar.classList.toggle('ouverte', ouverte);
+    scrim.classList.toggle('visible', ouverte);
   }
 
-  // État d'affichage de la liste (recherche, filtres, vue) : réinitialisé à chaque rechargement de
-  // la page, comme le tri ou l'affichage des archives — pas besoin de le persister.
-  let vueDossiers = 'cartes';
-  function definirVue(v) {
-    vueDossiers = v;
-    document.getElementById('btn-vue-cartes').setAttribute('aria-pressed', String(v === 'cartes'));
-    document.getElementById('btn-vue-tableau').setAttribute('aria-pressed', String(v === 'tableau'));
-    render();
+  function definirOnglet(nom) {
+    // Sur mobile, choisir une section referme la sidebar repliable (voir toggleSidebarMobile).
+    toggleSidebarMobile(false);
+    document.getElementById('onglet-dashboard').style.display = nom === 'dashboard' ? '' : 'none';
+    document.getElementById('onglet-nouveau').style.display = nom === 'nouveau' ? '' : 'none';
+    document.getElementById('onglet-suivi').style.display = nom === 'suivi' ? '' : 'none';
+    document.getElementById('tab-dashboard').setAttribute('aria-selected', String(nom === 'dashboard'));
+    document.getElementById('tab-nouveau').setAttribute('aria-selected', String(nom === 'nouveau'));
+    document.getElementById('tab-suivi').setAttribute('aria-selected', String(nom === 'suivi'));
+    document.getElementById('tab-dashboard').classList.toggle('actif', nom === 'dashboard');
+    document.getElementById('tab-nouveau').classList.toggle('actif', nom === 'nouveau');
+    document.getElementById('tab-suivi').classList.toggle('actif', nom === 'suivi');
+    if (nom === 'suivi' || nom === 'dashboard') render();
   }
 
   // Détermine, parmi les échéances d'un dossier, la plus proche à afficher en un coup d'œil dans
@@ -1942,7 +2262,7 @@
   // date d'échéance ne capture pas : la proximité de l'échéance elle-même, l'absence d'offre de
   // prêt (bloquant pour la suite du dossier), et un accès local perdu (empêche toute vérification
   // automatique tant que personne ne clique pour le reconfirmer). Seuil SEUIL_PRIORITE_ELEVEE
-  // au-delà duquel le badge "Prioritaire" s'affiche (voir renderLigneTableau/renderCarteCompacte).
+  // au-delà duquel le badge "Prioritaire" s'affiche (voir renderLigneTableau).
   const SEUIL_PRIORITE_ELEVEE = 90;
   function calculerPriorite(d) {
     let score = 0;
@@ -2000,27 +2320,94 @@
   // CLAUDE.md — limitation du navigateur, pas un bug applicatif). Sur un portefeuille d'une
   // soixantaine de dossiers actifs, cliquer sur chacun est fastidieux : ce bandeau permet de tous
   // les reconfirmer en un seul clic plutôt qu'un par dossier.
+  // Message du bandeau (et de la popup de démarrage, voir plus bas) : décrit ce qu'il y a à
+  // reconfirmer, dossiers locaux et/ou registre partagé, sans jamais désigner l'un si seul l'autre
+  // est concerné.
+  function messageAccesAReconfirmer(nbDossiers, partageAConfirmer) {
+    const morceaux = [];
+    if (nbDossiers > 0) morceaux.push(`${nbDossiers} dossier${nbDossiers > 1 ? 's' : ''} local${nbDossiers > 1 ? 'aux' : ''} relié${nbDossiers > 1 ? 's' : ''}`);
+    if (partageAConfirmer) morceaux.push('le registre partagé');
+    return `🔑 L'accès à ${morceaux.join(' et à ')} doit être reconfirmé (redemandé par le navigateur à chaque redémarrage).`;
+  }
+
   function renderAlerteAcces(dossiersActifs) {
     const bloc = document.getElementById('alerte-acces');
     if (!bloc) return;
     const nb = dossiersActifs.filter(d => d.accesAReconfirmer).length;
-    if (nb === 0) { bloc.style.display = 'none'; return; }
+    const partageAConfirmer = registrePartageLie && registrePartageAccesAReconfirmer;
+    if (nb === 0 && !partageAConfirmer) { bloc.style.display = 'none'; return; }
     bloc.style.display = 'flex';
     bloc.innerHTML = `
-      <span>🔑 L'accès à ${nb} dossier${nb > 1 ? 's' : ''} local${nb > 1 ? 'aux' : ''} relié${nb > 1 ? 's' : ''} doit être reconfirmé (redemandé par le navigateur à chaque redémarrage).</span>
+      <span>${messageAccesAReconfirmer(nb, partageAConfirmer)}</span>
       <button type="button" class="toolbar-btn" onclick="reconfirmerTousLesAcces()">Reconfirmer tous les accès</button>
     `;
   }
 
-  // Un seul clic déclenche une demande de permission par dossier concerné, à la suite : Chrome
-  // autorise plusieurs appels de ce type tant qu'ils restent proches du geste utilisateur d'origine
-  // (contrairement à des API à usage unique comme requestFullscreen). Si l'activation expire avant
-  // la fin (portefeuille très volumineux), les dossiers restants gardent leur bouton individuel.
+  // Un seul clic déclenche une demande de permission par dossier concerné (et, le cas échéant, par
+  // le registre partagé), à la suite : Chrome autorise plusieurs appels de ce type tant qu'ils
+  // restent proches du geste utilisateur d'origine (contrairement à des API à usage unique comme
+  // requestFullscreen). Si l'activation expire avant la fin (portefeuille très volumineux), les
+  // dossiers restants gardent leur bouton individuel.
+  //
+  // Bug corrigé : signalé par l'étude, le clic redemandait malgré tout l'accès "dossier par
+  // dossier" au lieu d'un seul geste pour tous. Cause réelle : la version précédente demandait la
+  // permission d'UN dossier PUIS lisait aussitôt tous ses PDF (potentiellement plusieurs secondes,
+  // OCR compris) avant de passer au dossier suivant — largement de quoi épuiser la fenêtre de
+  // "user activation" du clic d'origine, qui expire en quelques secondes. Chrome refusait alors
+  // silencieusement les requestPermission() suivants, chacun nécessitant un nouveau clic. Corrigé
+  // en séparant strictement les deux phases : (1) demander toutes les permissions à la suite, sans
+  // rien faire d'autre entre deux — cette phase seule reste assez rapide pour tenir dans la
+  // fenêtre d'activation d'un portefeuille réaliste — puis (2) lire les PDF de ce qui a été
+  // accordé, qui peut prendre tout le temps voulu une fois la permission acquise.
   async function reconfirmerTousLesAcces() {
-    for (const d of dossiers.filter(x => x.accesAReconfirmer)) {
-      await verifierOffrePret(d.id, true);
-      await verifierPiecesDossier(d.id, true);
+    const dossiersAConfirmer = dossiers.filter(x => x.accesAReconfirmer);
+    const idsAccordes = [];
+    for (const d of dossiersAConfirmer) {
+      const handle = await recupererHandle(d.id);
+      if (!handle) { d.dossierLie = false; continue; }
+      const permission = await handle.requestPermission({ mode: 'read' });
+      if (permission === 'granted') {
+        d.accesAReconfirmer = false;
+        idsAccordes.push(d.id);
+      }
     }
+    const partageHandle = (registrePartageLie && registrePartageAccesAReconfirmer)
+      ? await obtenirHandlePartage(true) : null;
+    render();
+
+    for (const id of idsAccordes) {
+      await verifierOffrePret(id, false);
+      await verifierPiecesDossier(id, false);
+    }
+    if (partageHandle) {
+      await lireRegistrePartage(false);
+      majStatutPartage();
+    }
+    render();
+  }
+
+  // Popup de démarrage : appelée une fois que charger()/revérifierDossiersLiesAuDemarrage()/
+  // tenterReconnexionPartage() ont fini (voir tout en bas du fichier), donc une fois qu'on sait
+  // réellement si un accès a été perdu — pas de popup "au hasard" si tout est encore valide.
+  function afficherPopupAccesSiNecessaire() {
+    const nb = dossiers.filter(d => !d.archive && d.accesAReconfirmer).length;
+    const partageAConfirmer = registrePartageLie && registrePartageAccesAReconfirmer;
+    if (nb === 0 && !partageAConfirmer) return;
+    const el = document.getElementById('popup-acces-message');
+    const overlay = document.getElementById('popup-acces-overlay');
+    if (!el || !overlay) return;
+    el.textContent = messageAccesAReconfirmer(nb, partageAConfirmer);
+    overlay.style.display = 'flex';
+  }
+
+  function fermerPopupAcces() {
+    const overlay = document.getElementById('popup-acces-overlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+
+  async function reconfirmerDepuisPopup() {
+    fermerPopupAcces();
+    await reconfirmerTousLesAcces();
   }
 
   function renderBadgeStatut(d) {
@@ -2043,6 +2430,8 @@
     renderDashboard(dossiersActifs);
     renderStatsSuivi(dossiersActifs);
     renderAlerteAcces(dossiersActifs);
+    renderKpisDashboard(dossiersActifs);
+    renderActionsUrgentes(dossiersActifs);
 
     const dossiersVisibles = voirArchives ? dossiers : dossiersActifs;
 
@@ -2086,24 +2475,22 @@
       return calculerProchaineEcheance(a) - calculerProchaineEcheance(b);
     });
 
-    if (vueDossiers === 'tableau') {
-      const flechesTri = { nom: '', responsable: '', echeance: '' };
-      flechesTri[tri] = ' <span class="tri-actif">▾</span>';
-      list.innerHTML = `
-        <div class="table-scroll">
-          <table class="dossiers-table">
-            <thead><tr>
-              <th class="th-triable" onclick="definirTri('nom')">Dossier${flechesTri.nom}</th>
-              <th class="th-triable" onclick="definirTri('responsable')">Responsable${flechesTri.responsable}</th>
-              <th class="th-triable" onclick="definirTri('echeance')">Prochaine échéance${flechesTri.echeance}</th>
-              <th>Offre de prêt</th>
-            </tr></thead>
-            <tbody>${tries.map(renderLigneTableau).join('')}</tbody>
-          </table>
-        </div>`;
-    } else {
-      list.innerHTML = `<div class="cartes-grid">${tries.map(renderCarteCompacte).join('')}</div>`;
-    }
+    // Vue "Cartes" retirée sur demande de l'étude (préférence pour la vue tableau, plus dense sur
+    // un portefeuille d'une soixantaine de dossiers) : le tableau est désormais la seule vue.
+    const flechesTri = { nom: '', responsable: '', echeance: '' };
+    flechesTri[tri] = ' <span class="tri-actif">▾</span>';
+    list.innerHTML = `
+      <div class="table-scroll">
+        <table class="dossiers-table">
+          <thead><tr>
+            <th class="th-triable" onclick="definirTri('nom')">Dossier${flechesTri.nom}</th>
+            <th class="th-triable" onclick="definirTri('responsable')">Responsable${flechesTri.responsable}</th>
+            <th class="th-triable" onclick="definirTri('echeance')">Prochaine échéance${flechesTri.echeance}</th>
+            <th>Offre de prêt</th>
+          </tr></thead>
+          <tbody>${tries.map(renderLigneTableau).join('')}</tbody>
+        </table>
+      </div>`;
   }
 
   // Change le tri depuis un clic sur un en-tête de colonne : répercuté sur le menu "Trier par"
@@ -2126,7 +2513,7 @@
     const deplie = dossiersDeplies.has(d.id);
     return `
       <tr class="ligne-resume${d.archive ? ' est-archive' : ''}" onclick="toggleLigneDossier('${d.id}')">
-        <td><div class="dossier-nom-tableau">${escapeHtml(d.nom)}${renderBadgeStatut(d)}${prioritaire ? '<span class="badge-prioritaire" title="Échéance proche, offre de prêt manquante et/ou accès local à reconfirmer">🔥 Prioritaire</span>' : ''}</div></td>
+        <td><div class="dossier-nom-tableau">${renderBadgeStatut(d)}${escapeHtml(d.nom)}${prioritaire ? '<span class="badge-prioritaire" title="Prioritaire : échéance proche, offre de prêt manquante et/ou accès local à reconfirmer">🔥</span>' : ''}</div></td>
         <td class="dossier-responsable-tableau">${escapeHtml(d.responsable || '—')}</td>
         <td>
           ${prochaine
@@ -2136,7 +2523,7 @@
         </td>
         <td>
           ${d.sansPret ? '<span class="echeance-jours calme">Comptant — sans prêt</span>' : `<span class="badge-offre ${offre.cls}">${offre.texte}</span>`}
-          ${(!d.sansPret && d.dossierLie) ? `<button type="button" class="action-rapide" onclick="event.stopPropagation(); verifierOffrePret('${d.id}', true)">Revérifier</button>` : ''}
+          ${(!d.sansPret && d.dossierLie) ? `<button type="button" class="action-rapide" onclick="event.stopPropagation(); verifierOffrePretDepuisBouton('${d.id}', this)">Revérifier</button>` : ''}
         </td>
       </tr>
       <tr class="ligne-detail${deplie ? ' ouvert' : ''}" id="detail-${d.id}"><td colspan="4">${renderCarteDossier(d)}</td></tr>
@@ -2148,41 +2535,6 @@
     if (!el) return;
     const ouvert = el.classList.toggle('ouvert');
     if (ouvert) dossiersDeplies.add(id); else dossiersDeplies.delete(id);
-  }
-
-  // Vue "Cartes" compacte : un résumé par dossier (nom, responsable, échéance, offre) qui déplie
-  // au clic la même carte complète que la vue tableau — ni logique ni markup d'action dupliqués.
-  function renderCarteCompacte(d) {
-    const prochaine = prochaineEcheanceDetail(d);
-    const offre = !d.sansPret ? libelleOffre(d.offrePretStatut) : null;
-    const prioritaire = calculerPriorite(d) >= SEUIL_PRIORITE_ELEVEE;
-    const deplie = dossiersDeplies.has(d.id);
-    return `
-      <div class="mini-carte${d.archive ? ' est-archive' : ''}${deplie ? ' ouverte' : ''}" id="mini-${d.id}">
-        <div class="mini-carte-resume" onclick="toggleCarteCompacte('${d.id}')">
-          <div class="mini-carte-nom">${escapeHtml(d.nom)}${renderBadgeStatut(d)}${prioritaire ? '<span class="badge-prioritaire" title="Échéance proche, offre de prêt manquante et/ou accès local à reconfirmer">🔥 Prioritaire</span>' : ''}</div>
-          <div class="mini-carte-responsable">${escapeHtml(d.responsable || '—')}</div>
-          <div class="mini-carte-echeance">
-            ${prochaine
-              ? `<span class="type-pill ${prochaine.type}"><span class="dot"></span>${escapeHtml(prochaine.label)}</span>
-                 <span class="echeance-jours ${prochaine.jours <= 3 ? 'urgent' : 'calme'}">${prochaine.jours < 0 ? 'dépassée' : prochaine.jours === 0 ? "aujourd'hui" : 'J-' + prochaine.jours}</span>`
-              : '<span class="echeance-jours calme">Aucune échéance</span>'}
-          </div>
-          <div class="mini-carte-pied">
-            ${d.sansPret ? '<span class="echeance-jours calme">Comptant — sans prêt</span>' : `<span class="badge-offre ${offre.cls}">${offre.texte}</span>`}
-            ${(!d.sansPret && d.dossierLie) ? `<button type="button" class="action-rapide" onclick="event.stopPropagation(); verifierOffrePret('${d.id}', true)">Revérifier</button>` : ''}
-          </div>
-        </div>
-        <div class="mini-carte-detail" id="detail-carte-${d.id}">${renderCarteDossier(d)}</div>
-      </div>
-    `;
-  }
-
-  function toggleCarteCompacte(id) {
-    const el = document.getElementById('mini-' + id);
-    if (!el) return;
-    const ouverte = el.classList.toggle('ouverte');
-    if (ouverte) dossiersDeplies.add(id); else dossiersDeplies.delete(id);
   }
 
   function libellePiece(statut) {
@@ -2206,12 +2558,17 @@
         <div class="pieces-dossier-titre">
           <span>📁 Pièces du dossier (${libelleType})</span>
           <span class="pieces-compteur${complet ? ' complet' : ''}">${nbRecues}/${checklist.length}</span>
-          ${(DOSSIER_FS_SUPPORTE && d.dossierLie) ? `<button type="button" class="action-rapide" onclick="verifierPiecesDossier('${d.id}', true)">Revérifier les pièces</button>` : ''}
+          ${(DOSSIER_FS_SUPPORTE && d.dossierLie) ? `<button type="button" class="action-rapide" onclick="verifierPiecesDossierDepuisBouton('${d.id}', this)">Revérifier les pièces</button>` : ''}
         </div>
         <div class="pieces-liste">
           ${checklist.map(p => {
             const s = libellePiece(pieces[p.cle] || 'inconnu');
-            return `<span class="piece-item ${s.cls}" title="${escapeAttr(s.titre)}"><span class="piece-icone">${s.texte}</span>${escapeHtml(p.label)}</span>`;
+            // Une pièce reçue est cliquable pour rouvrir directement le fichier local où elle a
+            // été trouvée (voir ouvrirPieceTrouvee) — les autres statuts (manquante/inconnu)
+            // restent un simple badge, rien à ouvrir.
+            return s.cls === 'recue'
+              ? `<button type="button" class="piece-item ${s.cls}" title="Cliquer pour ouvrir le fichier trouvé" onclick="ouvrirPieceTrouvee('${d.id}', '${p.cle}')"><span class="piece-icone">${s.texte}</span>${escapeHtml(p.label)}</button>`
+              : `<span class="piece-item ${s.cls}" title="${escapeAttr(s.titre)}"><span class="piece-icone">${s.texte}</span>${escapeHtml(p.label)}</span>`;
           }).join('')}
         </div>
       </div>
@@ -2223,12 +2580,18 @@
       const historique = d.historique || [];
       const analyse = d.analyseJuridique || { documents: [], engagements: [], conditions: [] };
       const analyseConditions = analyse.conditions || [];
+      const boutonsDossierLocal = DOSSIER_FS_SUPPORTE ? (d.dossierLie
+          ? `<button type="button" class="lien-dossier-local" onclick="changerDossierLocal('${d.id}')">Changer de dossier</button>`
+          // Même sans prêt (achat comptant), le dossier local reste nécessaire pour suivre
+          // la checklist de pièces (urbanisme...) — voir renderPiecesDossier ci-dessous.
+          : `<button type="button" class="lien-dossier-local" onclick="lierDossierLocal('${d.id}')">🔗 Lier un dossier local</button>`) : '';
       return `
       <div class="dossier${d.archive ? ' est-archive' : ''}">
         <div class="dossier-head">
-          <div>
+          <div class="dossier-head-principale">
             <div class="nom-dossier">
               <span class="nom-affichage" id="nom-affichage-${d.id}">
+                ${renderBadgeStatut(d)}
                 <span class="nom-texte">${escapeHtml(d.nom)}</span>
                 <button type="button" class="icon-crayon" onclick="activerEditionNom('${d.id}')" title="Modifier le nom" aria-label="Modifier le nom">✏️</button>
               </span>
@@ -2236,10 +2599,9 @@
                 <input type="text" class="dossier-nom-input" id="nom-input-${d.id}" value="${escapeAttr(d.nom)}" aria-label="Nom du dossier" onkeydown="if(event.key==='Enter'){event.preventDefault();validerEditionNom('${d.id}');}else if(event.key==='Escape'){annulerEditionNom('${d.id}');}">
                 <button type="button" class="icon-valider" onclick="validerEditionNom('${d.id}')" title="Valider" aria-label="Valider le nom">✓</button>
               </span>
+              ${boutonsDossierLocal}
             </div>
-            ${renderBadgeStatut(d)}
             ${d.roleNotaire === 'participant' ? '<span class="badge-role" title="Notaire participant / concourant : suivi limité au prêt et aux engagements du vendeur">🤝 Participant</span>' : ''}
-            ${d.email ? `<div class="addr">${escapeHtml(d.email)}</div>` : ''}
             <div class="addr dossier-classification">
               Responsable :
               <select class="select-edit" onchange="changerResponsable('${d.id}', this.value)" aria-label="Responsable du dossier">
@@ -2254,39 +2616,44 @@
                 <option value="maison" ${d.typeVente === 'copropriete' ? '' : 'selected'}>Maison</option>
                 <option value="copropriete" ${d.typeVente === 'copropriete' ? 'selected' : ''}>Copropriété</option>
               </select>
-              · Rôle :
+              · Rôle du notaire :
               <select class="select-edit" onchange="changerRoleNotaire('${d.id}', this.value)" aria-label="Rôle de l'étude sur ce dossier">
                 <option value="instrumentaire" ${d.roleNotaire === 'participant' ? '' : 'selected'}>Instrumentaire</option>
                 <option value="participant" ${d.roleNotaire === 'participant' ? 'selected' : ''}>Participant</option>
               </select>
             </div>
+            <div class="addr dossier-adresse-prix">
+              📍 <input type="text" class="input-inline champ-adresse-bien" value="${escapeAttr(d.adresseBien || '')}" placeholder="Adresse du bien non détectée" aria-label="Adresse du bien" onblur="changerAdresseBien('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
+              · 💶 <input type="text" class="input-inline champ-prix-vente" value="${d.prixVente ? formaterPrix(d.prixVente) : ''}" placeholder="Prix non détecté" aria-label="Prix de vente" onblur="changerPrixVente('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
+            </div>
             ${d.sansPret ? '<span class="badge-cash">💰 Achat comptant — sans prêt</span>' : ''}
             <div class="offre-pret-ligne">
-              ${(!d.sansPret && d.dossierLie) ? `<span class="badge-offre ${libelleOffre(d.offrePretStatut).cls}">${libelleOffre(d.offrePretStatut).texte}</span>` : ''}
-              ${DOSSIER_FS_SUPPORTE ? (d.dossierLie
-                  ? `${!d.sansPret ? `<button type="button" class="lien-dossier-local" onclick="verifierOffrePret('${d.id}', true)">Revérifier</button>` : ''}
-                     <button type="button" class="lien-dossier-local" onclick="changerDossierLocal('${d.id}')">Changer de dossier</button>`
-                  // Même sans prêt (achat comptant), le dossier local reste nécessaire pour suivre
-                  // la checklist de pièces (urbanisme...) — voir renderPiecesDossier ci-dessous.
-                  : `<button type="button" class="lien-dossier-local" onclick="lierDossierLocal('${d.id}')">🔗 Lier un dossier local</button>`) : ''}
+              ${(!d.sansPret && d.dossierLie) ? `${d.offrePretStatut === 'recue'
+                  ? `<button type="button" class="badge-offre ${libelleOffre(d.offrePretStatut).cls}" title="Cliquer pour ouvrir le fichier trouvé" onclick="ouvrirOffreTrouvee('${d.id}')">${libelleOffre(d.offrePretStatut).texte}</button>`
+                  : `<span class="badge-offre ${libelleOffre(d.offrePretStatut).cls}">${libelleOffre(d.offrePretStatut).texte}</span>`}
+                 <button type="button" class="lien-dossier-local" onclick="verifierOffrePretDepuisBouton('${d.id}', this)">Revérifier</button>` : ''}
               ${d.accesAReconfirmer ? `<span class="reconfirmer-acces" onclick="reconfirmerAcces('${d.id}')">Cliquer pour reconfirmer l'accès</span>` : ''}
             </div>
+            ${(!d.sansPret && d.offrePretStatut === 'recue' && calculerApport(d)) ? (() => {
+              const apport = calculerApport(d);
+              return `<div class="addr apport-ligne">
+                <span class="apport-cercle apport-${apport.niveau}"></span>
+                Apport estimé : <strong>${formaterPrix(apport.montant)}</strong> (${apport.pourcentage}% du prix de ${formaterPrix(d.prixVente)}, prêt de ${formaterPrix(d.montantPret)})
+              </div>`;
+            })() : ''}
           </div>
-          <div>
+          <div class="dossier-head-actions">
             <button class="icon-btn" onclick="archiverDossier('${d.id}', ${!d.archive})">${d.archive ? 'Désarchiver' : 'Archiver'}</button>
             <button class="icon-btn" onclick="supprimerDossier('${d.id}')">Supprimer</button>
           </div>
         </div>
+        <div class="dossier-body">
+        <div class="dossier-col-principale">
         <div class="tabs">
-          ${renderTab('pret', 'Obtention du prêt', d.pret, d.id, d.pretPage, confiance.pret)}
+          ${renderTab('pret', 'Obtention du prêt', d.pret, d.id, d.pretPage, confiance.pret, null, d.offrePretStatut === 'recue')}
           ${renderTab('acte', 'Signature de l\u2019acte', d.acte, d.id, d.actePage, confiance.acte)}
           ${d.ventebien ? renderTab('ventebien', 'Vente préalable', d.ventebien, d.id, d.ventebienPage, confiance.ventebien) : ''}
           ${(d.autres || []).map((a, i) => renderTab('autre', escapeHtml(a.label), a.date, d.id, a.page, null, i)).join('')}
-        </div>
-        <div class="dossier-actions">
-          <button onclick="telechargerICS('${d.id}')">Télécharger les rappels (.ics)</button>
-          <button onclick="ouvrirEmailRappel('${d.id}')">Envoyer un rappel par email</button>
-          <button onclick="imprimerFiche('${d.id}')">📄 Télécharger la fiche dossier</button>
         </div>
         ${d.roleNotaire !== 'participant' ? renderPiecesDossier(d) : ''}
         ${(analyse.documents.length > 0 || analyse.engagements.length > 0 || analyseConditions.length > 0) ? `
@@ -2314,12 +2681,21 @@
             </div>
           </details>
         ` : ''}
+        </div>
+        <div class="dossier-col-laterale">
         ${historique.length > 0 ? `
           <button type="button" class="historique-toggle" onclick="toggleHistorique('${d.id}')">Historique (${historique.length})</button>
           <div class="historique-liste" id="historique-${d.id}">
             ${historique.slice().reverse().map(h => `<div class="historique-ligne"><span class="h-date">${new Date(h.date).toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })}</span>${escapeHtml(h.texte)}</div>`).join('')}
           </div>
         ` : ''}
+        <div class="dossier-actions">
+          <button onclick="telechargerICS('${d.id}')">Télécharger les rappels (.ics)</button>
+          <button onclick="ouvrirEmailRappel('${d.id}')">Envoyer un rappel par email</button>
+          <button onclick="imprimerFiche('${d.id}')">📄 Télécharger la fiche dossier</button>
+        </div>
+        </div>
+      </div>
       </div>
     `;
   }
@@ -2710,6 +3086,11 @@
       email: typeof d.email === 'string' ? d.email : '',
       responsable: typeof d.responsable === 'string' ? d.responsable : '',
       emailAcquereur: typeof d.emailAcquereur === 'string' ? d.emailAcquereur : '',
+      adresseBien: typeof d.adresseBien === 'string' ? d.adresseBien : '',
+      prixVente: Number.isFinite(d.prixVente) && d.prixVente > 0 ? d.prixVente : null,
+      // Comme offrePretStatut : dérivé d'un PDF local, jamais importé tel quel d'une autre machine
+      // sans revérification (voir le commentaire déjà existant sur offrePretStatut ci-dessous).
+      montantPret: null,
       pret: dateValide(d.pret),
       acte: dateValide(d.acte),
       ventebien: dateValide(d.ventebien),
@@ -3028,6 +3409,14 @@
     });
   }
 
+  // Clés dérivées pour conserver, en plus du handle du dossier local lui-même, celui du fichier
+  // PDF précis où l'offre de prêt (ou une pièce de la checklist) a été trouvée — même magasin
+  // IndexedDB que les dossiers (enregistrerHandle/recupererHandle acceptent n'importe quelle
+  // chaîne comme identifiant), pour rouvrir directement ce fichier d'un clic plutôt que de
+  // reparcourir tout le dossier local. Voir ouvrirPieceTrouvee().
+  const CLE_HANDLE_OFFRE = (id) => `${id}::offre`;
+  const CLE_HANDLE_PIECE = (id, cle) => `${id}::piece::${cle}`;
+
   async function enregistrerHandle(id, handle) {
     handlesEnMemoire[id] = handle;
     try {
@@ -3140,6 +3529,23 @@
     return texte;
   }
 
+  // Retour visuel pendant le parcours du dossier local (peut prendre plusieurs secondes sur un
+  // dossier volumineux/beaucoup de PDF/repli OCR) : sans ça, le bouton restait silencieux jusqu'au
+  // résultat final, ce qui pouvait laisser croire à un clic sans effet — signalé par l'étude.
+  // render() (appelé à la fin de verifierOffrePret/verifierPiecesDossier dans tous les cas)
+  // remplace de toute façon ce bouton par un rendu à jour, donc pas besoin de remettre son texte
+  // d'origine ici si tout se passe bien ; seul le cas où le bouton n'existe plus dans le DOM au
+  // moment du clic (rare) est à ignorer sans casser l'appel.
+  async function verifierOffrePretDepuisBouton(id, btn) {
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Recherche…'; }
+    await verifierOffrePret(id, true);
+  }
+
+  async function verifierPiecesDossierDepuisBouton(id, btn) {
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Recherche en cours…'; }
+    await verifierPiecesDossier(id, true);
+  }
+
   async function verifierOffrePret(id, viaClicUtilisateur) {
     const d = dossiers.find(x => x.id === id);
     if (!d || !d.dossierLie) return;
@@ -3179,7 +3585,19 @@
           // (ex. police embarquée mal encodée qui produit un texte extrait illisible malgré un
           // PDF visuellement normal et sélectionnable).
           console.log('[vérification offre de prêt]', entree.name, '→', correspond ? 'correspond' : 'ne correspond pas', '| extrait :', JSON.stringify(texte.trim().slice(0, 200)));
-          if (correspond) { trouve = true; fichierTrouve = entree.name; break; }
+          if (correspond) {
+            trouve = true;
+            fichierTrouve = entree.name;
+            // Lu dans le même PDF, à ce même passage : inutile de rouvrir le fichier plus tard
+            // pour ça. Ne remplace jamais une valeur déjà connue par un échec de détection.
+            const montant = detecterMontantPret(texte);
+            if (montant) d.montantPret = montant;
+            // Conserve le handle du fichier trouvé (même mécanisme IndexedDB que le dossier local
+            // lui-même) pour permettre de le rouvrir en un clic depuis la fiche, sans avoir à
+            // reparcourir tout le dossier — voir ouvrirPieceTrouvee().
+            await enregistrerHandle(CLE_HANDLE_OFFRE(id), entree);
+            break;
+          }
         } catch (e) { console.error('Lecture impossible pour', entree.name, e); }
       }
     } catch (e) {
@@ -3265,7 +3683,7 @@
           for (const piece of checklist) {
             if (!aChercher.has(piece.cle)) continue;
             if (piece.motif.test(texte)) {
-              fichierParPiece[piece.cle] = entree.name;
+              fichierParPiece[piece.cle] = entree;
               aChercher.delete(piece.cle);
             }
           }
@@ -3279,16 +3697,19 @@
     }
 
     let nbTrouvees = 0;
-    checklist.forEach(piece => {
+    for (const piece of checklist) {
       if (fichierParPiece[piece.cle]) {
         d.pieces[piece.cle] = 'recue';
         nbTrouvees++;
+        // Handle conservé pour rouvrir directement ce fichier depuis la fiche (voir
+        // ouvrirPieceTrouvee()), sans reparcourir tout le dossier local.
+        await enregistrerHandle(CLE_HANDLE_PIECE(id, piece.cle), fichierParPiece[piece.cle]);
       } else if (d.pieces[piece.cle] !== 'recue') {
         d.pieces[piece.cle] = 'manquante';
       } else {
         nbTrouvees++; // déjà reconnue lors d'une vérification précédente
       }
-    });
+    }
 
     if (viaClicUtilisateur) {
       const manquantes = checklist.length - nbTrouvees;
@@ -3303,6 +3724,41 @@
 
     await sauvegarder();
     render();
+  }
+
+  // Rouvre directement le fichier PDF local où une pièce (ou l'offre de prêt) a été reconnue,
+  // plutôt que de se contenter d'un badge "reçue" sans rien de plus derrière — demandé par
+  // l'étude. Le handle du fichier a été conservé au moment de la détection (voir
+  // verifierOffrePret()/verifierPiecesDossier()) : pas besoin de reparcourir tout le dossier.
+  // La permission déjà accordée sur le dossier couvre aussi ce fichier individuel.
+  async function ouvrirFichierTrouve(cleHandle) {
+    try {
+      const handle = await recupererHandle(cleHandle);
+      if (!handle) {
+        afficherToast("Ce fichier n'a pas été mémorisé (détecté avant cette fonctionnalité) — cliquez sur \"Revérifier\" pour le retrouver.", 'OK', null);
+        return;
+      }
+      const permission = await handle.queryPermission({ mode: 'read' }) === 'granted'
+        ? 'granted'
+        : await handle.requestPermission({ mode: 'read' });
+      if (permission !== 'granted') {
+        afficherToast("Accès refusé à ce fichier.", 'OK', null);
+        return;
+      }
+      const file = await handle.getFile();
+      window.open(URL.createObjectURL(file), '_blank');
+    } catch (e) {
+      console.error(e);
+      afficherToast("Impossible d'ouvrir ce fichier (déplacé ou supprimé depuis sa détection ?) : " + e.message, 'OK', null);
+    }
+  }
+
+  function ouvrirPieceTrouvee(id, cle) {
+    ouvrirFichierTrouve(CLE_HANDLE_PIECE(id, cle));
+  }
+
+  function ouvrirOffreTrouvee(id) {
+    ouvrirFichierTrouve(CLE_HANDLE_OFFRE(id));
   }
 
   // Ouvre automatiquement une relance pré-rédigée si l'échéance approche et qu'aucune offre n'a
@@ -3338,12 +3794,26 @@
     return { texte: 'Offre de prêt : à vérifier', cls: 'inconnu' };
   }
 
+  // Un dossier dont l'offre de prêt est déjà confirmée reçue ET toutes les pièces de la checklist
+  // déjà reçues n'a plus rien à apprendre d'un nouveau parcours du dossier local — l'y soumettre
+  // quand même à chaque démarrage/toutes les 5 minutes ne fait que ralentir l'outil pour rien sur
+  // un portefeuille volumineux. Signalé par l'étude.
+  function dossierEntierementComplet(d) {
+    const offreOk = d.sansPret || d.offrePretStatut === 'recue';
+    const piecesOk = d.roleNotaire === 'participant' ||
+      checklistPieces(d.typeVente).every(p => (d.pieces || {})[p.cle] === 'recue');
+    return offreOk && piecesOk;
+  }
+
   // Revérifie les dossiers reliés à l'ouverture, sans exiger de clic (queryPermission seul, qui
   // n'affiche jamais de demande d'autorisation) : si l'accès est toujours accordé, tout se fait
-  // silencieusement ; sinon un bandeau invite à cliquer pour le reconfirmer.
+  // silencieusement ; sinon un bandeau invite à cliquer pour le reconfirmer. Ne concerne que les
+  // vérifications automatiques (démarrage, minuteur) — un clic explicite sur "Revérifier" doit
+  // toujours fonctionner, même sur un dossier déjà complet (l'étude peut vouloir confirmer après
+  // un doute, ou un document a pu être retiré du dossier local entre-temps).
   async function revérifierDossiersLiesAuDemarrage() {
     for (const d of dossiers) {
-      if (d.dossierLie) {
+      if (d.dossierLie && !dossierEntierementComplet(d)) {
         await verifierOffrePret(d.id, false);
         await verifierPiecesDossier(d.id, false);
       }
@@ -3364,6 +3834,11 @@
   const FICHIER_FS_SUPPORTE = typeof window.showSaveFilePicker === 'function';
   let registrePartageLie = false;
   let dernierContenuPartageEcrit = null; // null = "aucune référence encore connue dans cette session"
+  // Même limite que l'accès à un dossier local (voir accesAReconfirmer) : la permission au fichier
+  // partagé n'est pas conservée d'une session à l'autre. Mis à jour à chaque vérification
+  // (silencieuse ou via clic) dans obtenirHandlePartage(), pour que "Reconfirmer tous les accès"
+  // et la popup de démarrage puissent aussi couvrir ce cas, pas seulement les dossiers locaux.
+  let registrePartageAccesAReconfirmer = false;
 
   function majStatutPartage() {
     const el = document.getElementById('statut-partage');
@@ -3419,6 +3894,7 @@
     if (permission !== 'granted' && viaClicUtilisateur) {
       permission = await handle.requestPermission({ mode: 'readwrite' });
     }
+    registrePartageAccesAReconfirmer = permission !== 'granted';
     return permission === 'granted' ? handle : null;
   }
 
@@ -3478,7 +3954,16 @@
   async function appliquerTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
     const btn = document.getElementById('theme-btn');
-    if (btn) btn.textContent = (theme === 'dark') ? '☀️' : '🌙';
+    // Icône seule (sans libellé "Mode sombre"/"Mode clair" à côté) — demandé par l'étude ; le
+    // libellé accessible reste porté par aria-label/title, pas visible à l'écran.
+    if (btn) {
+      const theTitle = theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre';
+      btn.setAttribute('aria-label', theTitle);
+      btn.setAttribute('title', theTitle);
+      btn.innerHTML = theme === 'dark'
+        ? '<span class="sidebar-link-icone" aria-hidden="true">☀️</span>'
+        : '<span class="sidebar-link-icone" aria-hidden="true">🌙</span>';
+    }
     try {
       if (window.storage) { await window.storage.set(CLE_THEME, theme, false); return; }
     } catch (e) { /* on tente le repli ci-dessous */ }
@@ -3588,5 +4073,13 @@
 
   chargerTheme();
   chargerApprentissage();
-  charger().then(() => { revérifierDossiersLiesAuDemarrage(); tenterReconnexionPartage(); });
+  charger().then(async () => {
+    await revérifierDossiersLiesAuDemarrage();
+    await tenterReconnexionPartage();
+    afficherPopupAccesSiNecessaire();
+  });
   renderChips();
+  // L'analyse juridique est une étape du wizard toujours visible (voir definirEtapeWizard) : sans
+  // cet appel initial, ses sections restaient affichées vides (ni contenu ni message d'état) tant
+  // qu'aucun PDF n'avait encore été importé dans la session.
+  afficherAnalyseJuridique();

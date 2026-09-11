@@ -3,38 +3,85 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Registre des échéances — Compromis de vente</title>
+<title>CLAIRE — Registre des échéances notariales</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#16233C">
+<meta name="theme-color" content="#12181F">
 <link rel="icon" href="icone.svg">
 <link rel="apple-touch-icon" href="icone.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<header class="page">
-  <div class="header-top">
-    <div>
-      <div class="kicker">Suivi des transactions</div>
-      <div class="brand-bar"></div>
+<div class="app-shell">
+
+  <button type="button" class="sidebar-burger" id="sidebar-burger" onclick="toggleSidebarMobile()" aria-label="Ouvrir le menu">☰</button>
+  <div class="sidebar-scrim" id="sidebar-scrim" onclick="toggleSidebarMobile(false)"></div>
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 192 192" width="30" height="30">
+          <rect width="192" height="192" rx="44" fill="#12181F"/>
+          <path d="M129.7 124.3 A44 44 0 1 1 129.7 67.7" fill="none" stroke="#5B9DF9" stroke-width="18" stroke-linecap="round"/>
+          <circle cx="140" cy="96" r="14" fill="#5B9DF9"/>
+        </svg>
+      </span>
+      <span class="brand-word">CLAIRE</span>
     </div>
-    <div class="header-actions">
-      <button type="button" class="install-btn" id="install-btn" style="display:none;" onclick="installerApplication()">📲 Installer l'application</button>
-      <button type="button" class="theme-btn" id="theme-btn" onclick="basculerTheme()" aria-label="Basculer le thème clair/sombre">🌙</button>
+    <p class="sidebar-tagline">La clarté sur chaque dossier.</p>
+
+    <nav class="sidebar-nav" role="tablist" aria-label="Sections de l'application">
+      <button type="button" id="tab-dashboard" class="sidebar-link actif" role="tab" aria-selected="true" onclick="definirOnglet('dashboard')">
+        <span class="sidebar-link-icone" aria-hidden="true">◧</span>Tableau de bord
+      </button>
+      <button type="button" id="tab-nouveau" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('nouveau')">
+        <span class="sidebar-link-icone" aria-hidden="true">＋</span>Nouveau dossier
+      </button>
+      <button type="button" id="tab-suivi" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('suivi')">
+        <span class="sidebar-link-icone" aria-hidden="true">☰</span>Suivi des dossiers
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button type="button" class="sidebar-link install-btn" id="install-btn" style="display:none;" onclick="installerApplication()">
+        <span class="sidebar-link-icone" aria-hidden="true">⇩</span>Installer l'application
+      </button>
+      <button type="button" class="sidebar-link sidebar-link-icone-seule" id="theme-btn" onclick="basculerTheme()" aria-label="Basculer le thème clair/sombre" title="Basculer le thème clair/sombre">
+        <span class="sidebar-link-icone" aria-hidden="true">🌙</span>
+      </button>
+    </div>
+  </aside>
+
+  <main class="app-main">
+
+<div class="onglet-panel" id="onglet-dashboard">
+  <div class="dash-header">
+    <div>
+      <div class="dash-eyebrow">Tableau de bord</div>
+      <h1 class="dash-titre">Vue d'ensemble du portefeuille</h1>
+    </div>
+    <button type="button" class="primary" onclick="definirOnglet('nouveau')">+ Nouveau dossier</button>
+  </div>
+
+  <div class="kpis-dashboard" id="kpis-dashboard"></div>
+
+  <div class="dash-grid">
+    <div class="dash-col">
+      <div class="dash-section-titre">🔥 Actions urgentes</div>
+      <div id="actions-urgentes" class="actions-urgentes"></div>
+    </div>
+    <div class="dash-col">
+      <div id="dashboard" class="dashboard" style="display:none;">
+        <div class="dashboard-titre">📅 Échéances des 7 prochains jours</div>
+        <div id="dashboard-liste"></div>
+      </div>
     </div>
   </div>
-  <h1>Registre des échéances</h1>
-  <p>Importez un compromis : l'outil en extrait les échéances et les pièces à réclamer, puis génère vos rappels Outlook.</p>
-</header>
+</div>
 
-<nav class="app-tabs" role="tablist" aria-label="Sections de l'application">
-  <button type="button" id="tab-nouveau" class="app-tab" role="tab" aria-selected="true" onclick="definirOnglet('nouveau')">Nouveau dossier</button>
-  <button type="button" id="tab-suivi" class="app-tab" role="tab" aria-selected="false" onclick="definirOnglet('suivi')">Suivi des dossiers</button>
-</nav>
-
-<div class="layout-cols" id="onglet-nouveau">
+<div class="layout-cols" id="onglet-nouveau" style="display:none;">
 <div class="wrap">
 
   <details class="panel" id="panel" open>
@@ -51,7 +98,11 @@
         </button>
         <span class="wizard-step-trait"></span>
         <button type="button" class="wizard-step-btn" id="wizard-step-btn-3" onclick="definirEtapeWizard(3)">
-          <span class="wizard-step-num">3</span>Finaliser
+          <span class="wizard-step-num">3</span>Analyse juridique
+        </button>
+        <span class="wizard-step-trait"></span>
+        <button type="button" class="wizard-step-btn" id="wizard-step-btn-4" onclick="definirEtapeWizard(4)">
+          <span class="wizard-step-num">4</span>Finaliser
         </button>
       </div>
 
@@ -133,11 +184,42 @@
 
         <div class="wizard-nav">
           <button type="button" class="secondary" onclick="definirEtapeWizard(1)">← Précédent</button>
-          <button type="button" class="primary" onclick="definirEtapeWizard(3)">Suivant : Finaliser →</button>
+          <button type="button" class="primary" onclick="definirEtapeWizard(3)">Suivant : Analyse juridique →</button>
         </div>
       </div>
 
       <div class="wizard-step" id="wizard-step-3">
+        <div id="analyse-juridique" class="analyse-juridique">
+          <div id="analyse-vide-etat" class="analyse-vide-etat" style="display:none;">
+            Aucune analyse disponible pour l'instant — importez un PDF à l'étape « Importer » pour
+            extraire automatiquement les conditions, les engagements du vendeur et les documents
+            attendus. Cette étape reste consultable même sans PDF importé.
+          </div>
+          <div class="analyse-section" id="analyse-section-conditions">
+            <div class="analyse-sous-titre">Conditions suspensives et particulières <span class="analyse-compteur" id="analyse-nb-conditions"></span></div>
+            <div id="analyse-conditions-liste"></div>
+          </div>
+
+          <div class="analyse-section" id="analyse-section-engagements">
+            <div class="analyse-sous-titre">Engagements du vendeur <span class="analyse-compteur" id="analyse-nb-engagements"></span></div>
+            <div id="analyse-engagements-liste"></div>
+          </div>
+
+          <div class="analyse-section" id="analyse-section-documents">
+            <div class="analyse-sous-titre">Documents et pièces identifiés <span class="analyse-compteur" id="analyse-nb-documents"></span></div>
+            <div id="analyse-documents-liste" class="analyse-documents-liste"></div>
+          </div>
+
+          <div id="analyse-note" class="analyse-note" style="display:none;"></div>
+        </div>
+
+        <div class="wizard-nav">
+          <button type="button" class="secondary" onclick="definirEtapeWizard(2)">← Précédent</button>
+          <button type="button" class="primary" onclick="definirEtapeWizard(4)">Suivant : Finaliser →</button>
+        </div>
+      </div>
+
+      <div class="wizard-step" id="wizard-step-4">
         <div class="field-row">
           <div>
             <label for="f-nom">Nom du dossier</label>
@@ -146,6 +228,17 @@
           <div>
             <label for="f-email">Email de rappel (optionnel)</label>
             <input type="email" id="f-email" placeholder="agence@exemple.fr" value="office.gossart@notaires.fr">
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div>
+            <label for="f-adresse-bien">Adresse du bien (détectée automatiquement)</label>
+            <input type="text" id="f-adresse-bien" placeholder="Ex. 12 rue de la République, 45000 Orléans">
+          </div>
+          <div>
+            <label for="f-prix-vente">Prix de vente (détecté automatiquement)</label>
+            <input type="text" id="f-prix-vente" inputmode="numeric" placeholder="Ex. 250000">
           </div>
         </div>
 
@@ -184,7 +277,7 @@
 
         <div class="pieces-apercu" id="pieces-apercu"></div>
 
-        <fieldset>
+        <fieldset id="rappel-fieldset">
           <legend>Envoyer un rappel</legend>
           <div class="reminder-days" id="reminder-days">
             <label><input type="checkbox" value="15" checked> 15 jours avant</label>
@@ -198,7 +291,7 @@
         <div id="form-error" class="form-error"></div>
 
         <div class="wizard-nav">
-          <button type="button" class="secondary" onclick="definirEtapeWizard(2)">← Précédent</button>
+          <button type="button" class="secondary" onclick="definirEtapeWizard(3)">← Précédent</button>
           <div class="actions-row">
             <button type="button" class="secondary" onclick="reinitialiserFormulaire()">Effacer</button>
             <button type="button" class="primary" onclick="ajouterDossier()">Ajouter le dossier</button>
@@ -215,32 +308,7 @@
   <div class="pdf-viewer-header">
     <div class="pdf-viewer-title" id="pdf-viewer-title">Aperçu du compromis</div>
   </div>
-  <div class="pdf-viewer-tabs" id="pdf-viewer-tabs" style="display:none;">
-    <button type="button" class="pdf-viewer-tab actif" id="pdf-viewer-tab-apercu" onclick="definirVuePdfViewer('apercu')">📄 Aperçu</button>
-    <button type="button" class="pdf-viewer-tab" id="pdf-viewer-tab-analyse" onclick="definirVuePdfViewer('analyse')">📋 Analyse juridique</button>
-  </div>
   <div class="pdf-viewer-canvas-wrap" id="pdf-pages-container"></div>
-  <!-- Panneau toujours visible (ancré comme l'aperçu PDF, ne défile pas avec le formulaire) plutôt
-       qu'inline dans le flux du formulaire : une analyse fournie (beaucoup de clauses/documents)
-       poussait le reste du formulaire loin en dessous et forçait à tout redéfiler pour la revoir. -->
-  <div id="analyse-juridique" class="analyse-juridique analyse-juridique-panel" style="display:none;">
-    <div class="analyse-section" id="analyse-section-conditions">
-      <div class="analyse-sous-titre">Conditions suspensives et particulières <span class="analyse-compteur" id="analyse-nb-conditions"></span></div>
-      <div id="analyse-conditions-liste"></div>
-    </div>
-
-    <div class="analyse-section" id="analyse-section-engagements">
-      <div class="analyse-sous-titre">Engagements du vendeur <span class="analyse-compteur" id="analyse-nb-engagements"></span></div>
-      <div id="analyse-engagements-liste"></div>
-    </div>
-
-    <div class="analyse-section">
-      <div class="analyse-sous-titre">Documents et pièces identifiés <span class="analyse-compteur" id="analyse-nb-documents"></span></div>
-      <div id="analyse-documents-liste" class="analyse-documents-liste"></div>
-    </div>
-
-    <div id="analyse-note" class="analyse-note" style="display:none;"></div>
-  </div>
 </aside>
 
 </div>
@@ -250,11 +318,6 @@
   <div class="stats-suivi" id="stats-suivi"></div>
 
   <div id="alerte-acces" class="alerte-acces" style="display:none;"></div>
-
-  <div id="dashboard" class="dashboard" style="display:none;">
-    <div class="dashboard-titre">📅 Échéances des 7 prochains jours</div>
-    <div id="dashboard-liste"></div>
-  </div>
 
   <div class="list-heading">
     <h2>Dossiers suivis</h2>
@@ -313,10 +376,6 @@
       <input type="checkbox" id="voir-archives" onchange="render()">
       Afficher les dossiers archivés
     </label>
-    <div class="view-toggle" role="group" aria-label="Affichage de la liste">
-      <button type="button" id="btn-vue-cartes" class="view-toggle-btn" aria-pressed="true" onclick="definirVue('cartes')">Cartes</button>
-      <button type="button" id="btn-vue-tableau" class="view-toggle-btn" aria-pressed="false" onclick="definirVue('tableau')">Tableau</button>
-    </div>
     <span class="toolbar-spacer"></span>
     <span id="statut-partage" class="statut-partage" style="display:none;"></span>
     <button type="button" class="toolbar-btn" id="btn-registre-partage" onclick="lierRegistrePartage()">🔗 Registre partagé (réseau)</button>
@@ -340,6 +399,9 @@
 
 </div>
 
+  </main>
+</div>
+
 <div id="toast" class="toast" style="display:none;">
   <span id="toast-message"></span>
   <button type="button" class="toast-undo" id="toast-undo-btn">Annuler</button>
@@ -351,6 +413,20 @@
     <div class="confirm-actions">
       <button type="button" class="btn-annuler" onclick="annulerConfirmation()">Annuler</button>
       <button type="button" class="btn-confirmer" id="confirm-btn-ok">Supprimer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Popup affichée au démarrage quand un accès (dossier local ou registre partagé) doit être
+     reconfirmé — évite de compter sur le collaborateur pour remarquer le bandeau #alerte-acces,
+     visible seulement dans l'onglet "Suivi des dossiers". Reconfirmer y déclenche une vraie
+     demande de permission navigateur, ce qui exige ce clic explicite (voir reconfirmerTousLesAcces). -->
+<div class="confirm-overlay" id="popup-acces-overlay" style="display:none;">
+  <div class="confirm-box">
+    <p id="popup-acces-message">🔑 L'accès à des dossiers reliés doit être reconfirmé.</p>
+    <div class="confirm-actions">
+      <button type="button" class="btn-annuler" onclick="fermerPopupAcces()">Plus tard</button>
+      <button type="button" class="btn-confirmer" onclick="reconfirmerDepuisPopup()">Reconfirmer maintenant</button>
     </div>
   </div>
 </div>

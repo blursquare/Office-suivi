@@ -101,6 +101,74 @@ test('detecterFinancementComptant ignore le faux ami "paiement comptant" (règle
   assert.equal(app.detecterFinancementComptant('Le prix sera payé comptant le jour de la signature.'), false);
 });
 
+test('detecterTypeVenteCopropriete reconnaît les marqueurs juridiques d\'une vente de lot', () => {
+  const app = chargerApplication();
+  assert.equal(app.detecterTypeVenteCopropriete("Le bien vendu constitue le lot de copropriété numéro 12."), true);
+  assert.equal(app.detecterTypeVenteCopropriete("Le syndicat des copropriétaires a été informé de la vente."), true);
+  assert.equal(app.detecterTypeVenteCopropriete("Bien soumis au statut de la copropriété (loi du 10 juillet 1965)."), true);
+});
+
+test('detecterTypeVenteCopropriete ne se déclenche pas pour une maison individuelle', () => {
+  const app = chargerApplication();
+  assert.equal(app.detecterTypeVenteCopropriete("Une maison individuelle avec jardin, sise à Blois."), false);
+});
+
+test('detecterTypeVenteCopropriete reconnaît "soumis au régime de la copropriété"', () => {
+  // Régression : formulation la plus courante dans les faits (juste avant la mention du lot sous
+  // le tableau parcellaire), pas encore reconnue avant ce correctif — un vrai dossier de
+  // copropriété restait classé "maison" par défaut.
+  const app = chargerApplication();
+  const texte = "L'immeuble est soumis au régime de la copropriété. LOT NUMÉRO 5 : Un appartement...";
+  assert.equal(app.detecterTypeVenteCopropriete(texte), true);
+});
+
+test('detecterEmailAcquereur trouve l\'email au voisinage de la mention du rôle', () => {
+  const app = chargerApplication();
+  const texte = "Le VENDEUR : Monsieur Jean DUPONT, email jean.dupont@vendeur.fr. " +
+    "L'ACQUEREUR : Madame Alice MARTIN, joignable à alice.martin@exemple.fr pour toute question.";
+  assert.equal(app.detecterEmailAcquereur(texte), 'alice.martin@exemple.fr');
+});
+
+test('detecterEmailAcquereur renvoie null si aucun email n\'est proche d\'une mention du rôle', () => {
+  const app = chargerApplication();
+  const texte = "L'ACQUEREUR, Madame Alice MARTIN, née le 2 février 1985 à Lyon, ci-après dénommée.";
+  assert.equal(app.detecterEmailAcquereur(texte), null);
+});
+
+test('detecterAdresseBien reconnaît une désignation "sis à ... (code postal)"', () => {
+  const app = chargerApplication();
+  const texte = "Un ensemble immobilier sis à ORLEANS (45000), 12 rue de la République.";
+  assert.equal(app.detecterAdresseBien(texte), 'ORLEANS (45000), 12 rue de la République');
+});
+
+test('detecterAdresseBien reconnaît "située dans la commune de"', () => {
+  const app = chargerApplication();
+  const texte = "Une maison d'habitation située dans la commune de BLOIS (41000), 5 avenue du Maréchal Foch.";
+  assert.equal(app.detecterAdresseBien(texte), 'BLOIS (41000), 5 avenue du Maréchal Foch');
+});
+
+test('detecterAdresseBien renvoie null sans code postal à proximité', () => {
+  const app = chargerApplication();
+  assert.equal(app.detecterAdresseBien("Un bien sis à Orléans, dont la désignation suit."), null);
+});
+
+test('detecterPrixVente lit le montant chiffré entre parenthèses après "prix"', () => {
+  const app = chargerApplication();
+  const texte = "La vente est consentie moyennant le prix principal de CENT MILLE EUROS (100 000 €).";
+  assert.equal(app.detecterPrixVente(texte), 100000);
+});
+
+test('detecterPrixVente gère les centimes en décimale et le prix de vente explicite', () => {
+  const app = chargerApplication();
+  const texte = "Le prix de vente s'élève à la somme de DEUX CENT CINQUANTE MILLE EUROS (250 000,00 €).";
+  assert.equal(app.detecterPrixVente(texte), 250000);
+});
+
+test('detecterPrixVente renvoie null sans montant entre parenthèses proche de "prix"', () => {
+  const app = chargerApplication();
+  assert.equal(app.detecterPrixVente("Le prix sera versé le jour de la signature de l'acte authentique."), null);
+});
+
 test('detecterDateCompromis reconnaît un bloc de signature électronique par partie (Yousign/DocuSign), sans le mot "compromis" ni "promesse"', () => {
   // Régression : une promesse LD Notaires de 52 pages n'était reconnue par aucun des motifs
   // existants ("compromis", "signé électroniquement"...) — son bloc de signature nomme chaque
@@ -254,12 +322,11 @@ test('detecterDatesDepuisTexte résout "au plus tard dans les N jours" (conditio
   assert.equal(dates[0].approx, true);
 });
 
-test('meilleureCandidateEcheance retient le délai de prêt (60 jours) plutôt que le délai de notification (70 jours) de la même promesse', () => {
+test('detecterDatesDepuisTexte écarte le délai de notification (70 jours) et ne garde que celui de la condition de prêt (60 jours)', () => {
   // Reproduit le cas réel complet : la même promesse porte deux délais en "au plus tard dans les
-  // N jours" avec le mot "prêt" à proximité des deux (l'un la condition de prêt elle-même, l'autre
-  // la notification du refus/de l'offre au notaire) — meilleureCandidateEcheance() doit rester
-  // prudente (ambiguïté signalée) tout en retenant par défaut la bonne date (la plus proche
-  // chronologiquement, donc le délai de la condition elle-même).
+  // N jours" (l'un la condition de prêt elle-même, l'autre la notification du refus/de l'offre au
+  // notaire). Signalé par l'étude : le second n'est pas une vraie candidate concurrente, il ne
+  // doit même pas être détecté (voir le garde-fou "notifier"/"notification" dans le code).
   const app = chargerApplication();
   const dateCompromis = '2026-07-08';
   const texte = "la présente convention est soumise à la condition suspensive d'obtention de ces " +
@@ -267,8 +334,7 @@ test('meilleureCandidateEcheance retient le délai de prêt (60 jours) plutôt q
     "Il s'oblige également à notifier audit notaire, au plus tard dans les 70 jours, les offres " +
     "à lui faites ou le refus opposé aux demandes de prêt.";
   const dates = app.detecterDatesDepuisTexte(texte, dateCompromis);
-  assert.equal(dates.length, 2);
-  const { candidat, ambigu } = app.meilleureCandidateEcheance(dates, 'pret');
-  assert.equal(ambigu, true);
-  assert.equal(candidat.iso, '2026-09-06'); // 60 jours, pas 70
+  assert.equal(dates.length, 1);
+  assert.equal(dates[0].iso, '2026-09-06'); // 60 jours, pas 70
+  assert.equal(dates[0].suggestion, 'pret');
 });

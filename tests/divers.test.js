@@ -96,6 +96,34 @@ test('estDebutPageAnnexe reconnaît une vraie page d\'annexe (titre en tête, pa
   assert.equal(app.estDebutPageAnnexe('Annexe n°1 — Extrait de plan cadastral'), true);
 });
 
+test('estDebutPageAnnexe reconnaît une page "ANNEXES" sans numéro (liste de pièces jointes)', () => {
+  // Décision de l'étude : les dates butoir ne doivent venir que de l'avant-contrat lui-même —
+  // l'ancien motif exigeait un chiffre ("annexe n°1"), ratant une simple page de titre "ANNEXES".
+  const app = chargerApplication();
+  assert.equal(app.estDebutPageAnnexe('ANNEXES'), true);
+});
+
+test('estDebutPageAnnexe reconnaît une pièce jointe reconnue par son propre titre, même sur une page longue', () => {
+  // Certaines pièces jointes n'ont aucun renvoi "annexe" et ne se reconnaissent qu'à leur propre
+  // titre de document (ici un DPE) — doit compter même si le reste de la page dépasse 300
+  // caractères, tant que le titre est bien en tout début de page.
+  const app = chargerApplication();
+  const texte = 'DIAGNOSTIC DE PERFORMANCE ENERGETIQUE\n' +
+    'Texte du diagnostic proprement dit qui continue sur plusieurs lignes pour dépasser le seuil '.repeat(4);
+  assert.equal(app.estDebutPageAnnexe(texte), true);
+});
+
+test('estDebutPageAnnexe ignore une clause qui cite un diagnostic en passant, en milieu de page longue', () => {
+  // Le titre de document (voir test ci-dessus) n'est reconnu qu'en tout début de page — une
+  // clause du corps de l'acte qui mentionne un diagnostic en passant ne doit pas déclencher la
+  // coupure (déjà couvert pour "annexe n°1" par le premier test de ce bloc, ici pour les titres).
+  const app = chargerApplication();
+  const texte = 'Il est précisé que le vendeur remettra à l\'acquéreur le diagnostic de performance ' +
+    'énergétique du bien avant la signature, ainsi que les autres diagnostics obligatoires. '.repeat(3) +
+    'HISTORIQUE DE LA PROPRIETE';
+  assert.equal(app.estDebutPageAnnexe(texte), false);
+});
+
 test('prochaineEcheanceDetail ignore l\'échéance de prêt une fois l\'offre reçue, au profit de la suivante', () => {
   const app = chargerApplication();
   const dansTroisJours = new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString().slice(0, 10);
@@ -185,6 +213,21 @@ test('statutDossier renvoie "aconfirmer" quand une pièce de la checklist manque
   assert.equal(app.statutDossier(d), 'aconfirmer');
 });
 
+test('statutDossier renvoie "pret" une fois l\'offre reçue et toutes les pièces de la checklist reçues', () => {
+  // Signalé par l'étude comme restant bloqué en "à confirmer" (orange) en conditions réelles :
+  // logique déjà correcte à ce niveau une fois testée isolément (voir CLAUDE.md — la cause réelle
+  // était très probablement une mauvaise classification du type de vente, corrigée séparément).
+  const app = chargerApplication();
+  const demain = new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 10);
+  const pieces = {};
+  app.checklistPieces('maison').forEach(p => { pieces[p.cle] = 'recue'; });
+  const d = {
+    archive: false, sansPret: false, offrePretStatut: 'recue', pret: demain, confiance: { pret: 'auto' },
+    dossierLie: true, roleNotaire: 'instrumentaire', typeVente: 'maison', pieces
+  };
+  assert.equal(app.statutDossier(d), 'pret');
+});
+
 test('statutDossier ignore la checklist de pièces pour un dossier non relié (rien à signaler)', () => {
   const app = chargerApplication();
   const demain = new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 10);
@@ -211,4 +254,49 @@ test('estDebutPageAnnexe reconnaît une page de scan courte même si le titre n\
   // cas d'un scan avec un bref cartouche avant le titre de l'annexe.
   const texteScan = 'x'.repeat(150) + ' Annexe n°1';
   assert.equal(app.estDebutPageAnnexe(texteScan), true);
+});
+
+test('detecterMontantPret lit le montant chiffré entre parenthèses après "montant du prêt"', () => {
+  const app = chargerApplication();
+  const texte = "Le montant du prêt accordé est de CENT QUATRE-VINGT MILLE EUROS (180 000 €), remboursable sur 20 ans.";
+  assert.equal(app.detecterMontantPret(texte), 180000);
+});
+
+test('detecterMontantPret reconnaît aussi "capital emprunté"', () => {
+  const app = chargerApplication();
+  const texte = "Le capital emprunté s'élève à la somme de (150 000,00 €).";
+  assert.equal(app.detecterMontantPret(texte), 150000);
+});
+
+test('detecterMontantPret renvoie null sans montant entre parenthèses proche du vocabulaire attendu', () => {
+  const app = chargerApplication();
+  assert.equal(app.detecterMontantPret("Le prêt sera versé au notaire avant la signature de l'acte."), null);
+});
+
+test('calculerApport renvoie null tant que le prix ou le montant du prêt manque', () => {
+  const app = chargerApplication();
+  assert.equal(app.calculerApport({ prixVente: 250000, montantPret: null }), null);
+  assert.equal(app.calculerApport({ prixVente: null, montantPret: 200000 }), null);
+});
+
+test('calculerApport calcule le montant et le pourcentage, avec un niveau "success" pour un apport confortable', () => {
+  const app = chargerApplication();
+  const apport = app.calculerApport({ prixVente: 250000, montantPret: 200000 });
+  assert.equal(apport.montant, 50000);
+  assert.equal(apport.pourcentage, 20);
+  assert.equal(apport.niveau, 'success');
+});
+
+test('calculerApport renvoie un niveau "pret" (à surveiller) pour un apport faible mais positif', () => {
+  const app = chargerApplication();
+  const apport = app.calculerApport({ prixVente: 250000, montantPret: 240000 });
+  assert.equal(apport.pourcentage, 4);
+  assert.equal(apport.niveau, 'pret');
+});
+
+test('calculerApport renvoie un niveau "urgent" quand le prêt dépasse le prix (apport négatif)', () => {
+  const app = chargerApplication();
+  const apport = app.calculerApport({ prixVente: 250000, montantPret: 260000 });
+  assert.equal(apport.montant, -10000);
+  assert.equal(apport.niveau, 'urgent');
 });

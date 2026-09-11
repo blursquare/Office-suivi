@@ -25,6 +25,14 @@
     --focus-hover: #1D4ED8;
     --shadow-card: 0 1px 2px rgba(22,35,60,0.04), 0 2px 8px rgba(22,35,60,0.04);
     --shadow-float: 0 8px 28px rgba(22,35,60,0.16);
+    /* Panneau "verre" de la sidebar : dégradé légèrement teinté (pas un simple à-plat de
+       --paper-card) + flou derrière ce qui défile sous elle en mobile (voir .sidebar-burger /
+       .sidebar en position fixed) — la seule vraie translucidité visible, la sidebar desktop étant
+       en flux normal sans rien en dessous. */
+    --sidebar-bg: linear-gradient(165deg, rgba(255,255,255,0.94) 0%, rgba(246,248,251,0.88) 55%, rgba(228,236,247,0.85) 100%);
+    --sidebar-border: rgba(22,35,60,0.08);
+    --sidebar-shadow: 4px 0 28px rgba(22,35,60,0.07);
+    --sidebar-highlight: rgba(255,255,255,0.7);
   }
 
   [data-theme="dark"] {
@@ -52,6 +60,10 @@
     --focus-hover: #7FB4FB;
     --shadow-card: 0 1px 2px rgba(0,0,0,0.3), 0 2px 8px rgba(0,0,0,0.2);
     --shadow-float: 0 8px 28px rgba(0,0,0,0.5);
+    --sidebar-bg: linear-gradient(165deg, rgba(46,46,46,0.94) 0%, rgba(30,30,30,0.9) 55%, rgba(36,44,58,0.88) 100%);
+    --sidebar-border: rgba(255,255,255,0.07);
+    --sidebar-shadow: 4px 0 32px rgba(0,0,0,0.4);
+    --sidebar-highlight: rgba(255,255,255,0.09);
   }
 
   * { box-sizing: border-box; }
@@ -67,8 +79,13 @@
     transition: background-color 0.2s ease, color 0.2s ease;
   }
 
-  h1, h2, h3, .serif {
-    font-family: 'Poppins', 'Segoe UI', sans-serif;
+  /* Fraunces (display serif) réservée aux titres — CLAIRE, "Tableau de bord", "Nouveau dossier",
+     "Dossiers suivis" — pour donner un peu de caractère éditorial sans en abuser : le reste de
+     l'interface (boutons, tableaux, badges) reste en Inter pour rester dense et lisible. */
+  h1, h2, h3, .serif, .brand-word {
+    font-family: 'Fraunces', 'Poppins', 'Segoe UI', serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
   }
 
   a { color: var(--focus); }
@@ -79,14 +96,13 @@
     gap: 32px;
     max-width: 1680px;
     margin: 0 auto;
-    padding: 0 32px;
   }
 
   .wrap {
     flex: 1 1 560px;
     max-width: 680px;
     margin: 0;
-    padding: 48px 0 80px;
+    padding: 0 0 60px;
     min-width: 0;
   }
 
@@ -98,7 +114,6 @@
     min-width: 0;
     position: sticky;
     top: 24px;
-    margin-top: 48px;
     background: var(--paper-card);
     border: 1px solid var(--line);
     border-radius: 6px;
@@ -136,36 +151,6 @@
     align-items: center;
     gap: 14px;
     scroll-behavior: smooth;
-  }
-
-  /* Bascule Aperçu / Analyse juridique dans la même colonne ancrée (voir .pdf-viewer) : l'analyse
-     ne défile plus avec le formulaire et ne pousse plus le reste des champs hors de vue quand elle
-     est fournie (beaucoup de clauses/documents détectés). */
-  .pdf-viewer-tabs {
-    display: flex;
-    gap: 4px;
-    margin-bottom: 10px;
-    border-bottom: 1px solid var(--line);
-  }
-  .pdf-viewer-tab {
-    font-family: inherit;
-    font-size: 12.5px;
-    font-weight: 600;
-    color: var(--ink-soft);
-    background: none;
-    border: none;
-    border-bottom: 2px solid transparent;
-    padding: 7px 4px 8px;
-    cursor: pointer;
-  }
-  .pdf-viewer-tab.actif { color: var(--focus); border-bottom-color: var(--focus); }
-  .pdf-viewer-tab:not(.actif):hover { color: var(--ink); }
-
-  .analyse-juridique-panel {
-    flex: 1;
-    overflow-y: auto;
-    margin-top: 0;
-    min-height: 400px;
   }
 
   .pdf-page-bloc {
@@ -228,8 +213,8 @@
   }
 
   @media (max-width: 1100px) {
-    .layout-cols { flex-direction: column; padding: 0; }
-    .wrap { max-width: 880px; margin: 0 auto; padding: 48px 24px 80px; }
+    .layout-cols { flex-direction: column; }
+    .wrap { max-width: 880px; margin: 0 auto; padding: 0 0 60px; }
     .pdf-viewer {
       order: -1;
       position: static;
@@ -240,45 +225,287 @@
     }
   }
 
-  header.page {
-    max-width: 1680px;
-    margin: 0 auto 0;
-    padding: 32px 32px 28px;
-    border-bottom: 1px solid var(--line);
+  /* ==== Structure générale : sidebar + contenu (remplace l'ancien header pleine page +
+     onglets horizontaux) ====
+     Un rail fixe à gauche porte la marque CLAIRE, la navigation entre les trois espaces de
+     travail (Tableau de bord / Nouveau dossier / Suivi des dossiers) et les actions globales
+     (thème, installation) — le contenu à droite n'a donc plus besoin d'un grand bandeau de titre
+     au-dessus de chaque onglet. */
+  .app-shell {
+    display: flex;
+    align-items: stretch;
+    min-height: 100vh;
   }
 
-  /* ---- onglets « Nouveau dossier » / « Suivi des dossiers » : remplacent la page unique
-     (formulaire + liste toujours visibles l'un sous l'autre) par deux espaces de travail
-     séparés — la liste peut alors occuper toute la largeur, sans la colonne d'aperçu PDF. ---- */
-  .app-tabs {
+  /* Sidebar "verre" : dégradé + flou (visible surtout en mobile, où elle passe en overlay fixe
+     par-dessus le contenu, voir @media 900px) + ombre portée et liseré de lumière en tête, plutôt
+     qu'un aplat uni + bordure plate — demandé pour donner de la profondeur au menu. */
+  .sidebar {
+    flex: 0 0 252px;
     display: flex;
+    flex-direction: column;
     gap: 4px;
-    max-width: 1680px;
-    margin: 20px auto 0;
-    padding: 0 32px;
-    border-bottom: 1px solid var(--line);
+    padding: 22px 16px;
+    background: var(--sidebar-bg);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border-right: 1px solid var(--sidebar-border);
+    box-shadow: var(--sidebar-shadow);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    z-index: 2;
   }
-  .app-tab {
-    font-family: 'Poppins', 'Segoe UI', sans-serif;
-    font-size: 14.5px;
+  .sidebar::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--sidebar-highlight), transparent);
+    pointer-events: none;
+  }
+
+  .sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 8px 2px;
+  }
+  .brand-mark { display: inline-flex; flex-shrink: 0; }
+  .brand-word {
+    font-size: 21px;
+    color: var(--ink);
+    letter-spacing: 0.01em;
+  }
+  .sidebar-tagline {
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin: 2px 0 20px;
+    padding: 0 8px;
+  }
+
+  .sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    width: 100%;
+    font-family: inherit;
+    font-size: 14px;
     font-weight: 500;
     color: var(--ink-soft);
     background: none;
     border: none;
-    border-bottom: 2px solid transparent;
-    padding: 12px 4px;
-    margin-bottom: -1px;
+    border-radius: 8px;
+    padding: 10px 10px;
+    text-align: left;
     cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
   }
-  .app-tab + .app-tab { margin-left: 22px; }
-  .app-tab:hover { color: var(--ink); }
-  .app-tab[aria-selected="true"] { color: var(--acte); border-bottom-color: var(--acte); }
+  .sidebar-link-icone {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    flex-shrink: 0;
+    font-size: 14px;
+    opacity: 0.85;
+  }
+  .sidebar-link:hover { background: var(--paper-sunk); color: var(--ink); transform: translateX(1px); }
+  /* Bouton sans libellé texte (mode sombre) : centrer l'icône plutôt que la laisser plaquée à
+     gauche d'une rangée sinon vide. */
+  .sidebar-link-icone-seule { width: auto; justify-content: center; }
+  .sidebar-link-icone-seule .sidebar-link-icone { width: auto; font-size: 17px; }
+  /* Lien actif en "pilule de verre" (dégradé + liseré clair en haut + ombre portée teintée) plutôt
+     qu'un simple aplat --focus : cohérent avec le reste de la sidebar, et lisible dans les deux
+     thèmes puisque le dégradé reste dans la même famille de bleu que --focus/--focus-hover. */
+  .sidebar-link.actif {
+    background: linear-gradient(155deg, var(--focus) 0%, var(--focus-hover) 100%);
+    color: #fff;
+    box-shadow: 0 4px 14px -2px rgba(37,99,235,0.45), inset 0 1px 0 rgba(255,255,255,0.3);
+  }
+  .sidebar-link.actif .sidebar-link-icone { opacity: 1; }
 
-  .wrap-suivi {
-    max-width: 1680px;
-    margin: 0 auto;
-    padding: 32px 32px 80px;
+  .sidebar-footer {
+    margin-top: auto;
+    padding-top: 14px;
+    border-top: 1px solid var(--line-soft);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
   }
+
+  .sidebar-burger, .sidebar-scrim { display: none; }
+
+  .app-main {
+    flex: 1;
+    min-width: 0;
+    padding: 30px 32px 40px;
+  }
+
+  .onglet-panel { max-width: 1680px; margin: 0 auto; }
+
+  /* ---- Tableau de bord : synthèse du portefeuille avant même d'ouvrir un dossier (KPI,
+     actions urgentes, échéances proches) — voir renderKpisDashboard/renderActionsUrgentes. ---- */
+  .dash-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+  }
+  .dash-eyebrow {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--focus);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 4px;
+  }
+  .dash-titre { font-size: 26px; margin: 0; }
+
+  .kpis-dashboard {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .kpi-tile {
+    background: var(--paper-card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 16px 16px 14px;
+    box-shadow: var(--shadow-card);
+  }
+  .kpi-icone { font-size: 15px; opacity: 0.8; }
+  /* Icône calendrier SVG partagée par les deux tuiles d'échéances (7j/15j), le seuil dessiné dans
+     le corps du calendrier plutôt que deux emojis différents sans lien visuel entre eux. */
+  .kpi-icone-calendrier {
+    width: 17px;
+    height: 17px;
+    color: var(--ink-soft);
+    vertical-align: -3px;
+  }
+  .kpi-num {
+    font-size: 26px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.3;
+  }
+  .kpi-num.c-urgent { color: var(--urgent); }
+  .kpi-num.c-pret { color: var(--pret); }
+  .kpi-num.c-neutre { color: var(--ink); }
+  .kpi-label { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+
+  .dash-grid {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+  .dash-section-titre {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 10px;
+  }
+  .actions-urgentes {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .actions-urgentes-vide {
+    background: var(--success-bg);
+    color: var(--success);
+    border-radius: 8px;
+    padding: 16px;
+    font-size: 13.5px;
+  }
+  .action-urgente-ligne {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    font-family: inherit;
+    font-size: 13.5px;
+    text-align: left;
+    background: var(--paper-card);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 14px;
+    cursor: pointer;
+    box-shadow: var(--shadow-card);
+  }
+  .action-urgente-ligne:hover { border-color: var(--focus); }
+  .action-urgente-nom { font-weight: 600; color: var(--ink); flex-shrink: 0; }
+  .action-urgente-raison { color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .action-urgente-fleche { margin-left: auto; color: var(--muted); flex-shrink: 0; }
+
+  @media (max-width: 1300px) {
+    .kpis-dashboard { grid-template-columns: repeat(3, 1fr); }
+    .dash-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 640px) {
+    .kpis-dashboard { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (max-width: 900px) {
+    .sidebar-burger {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: fixed;
+      top: 14px;
+      left: 14px;
+      z-index: 40;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      border: 1px solid var(--sidebar-border);
+      background: var(--sidebar-bg);
+      backdrop-filter: blur(14px) saturate(160%);
+      -webkit-backdrop-filter: blur(14px) saturate(160%);
+      color: var(--ink);
+      font-size: 18px;
+      cursor: pointer;
+      box-shadow: var(--shadow-float);
+    }
+    /* Overlay fixe par-dessus le contenu (contrairement au flux normal en desktop) : c'est ici que
+       le flou de .sidebar (voir plus haut) devient réellement visible, sur ce qui défile dessous. */
+    .sidebar {
+      position: fixed;
+      z-index: 41;
+      top: 0;
+      left: 0;
+      transform: translateX(-100%);
+      box-shadow: var(--shadow-float);
+      transition: transform 0.2s ease;
+    }
+    .sidebar.ouverte { transform: translateX(0); }
+    .sidebar-scrim {
+      display: block;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 39;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+    .sidebar-scrim.visible { opacity: 1; pointer-events: auto; }
+    .app-main { padding-top: 68px; }
+  }
+
+  .wrap-suivi { max-width: 1680px; margin: 0 auto; }
 
   /* ---- bandeau de statistiques en tête du suivi : reprend la palette existante, la couleur
      restant réservée aux catégories d'échéance (urgent/prêt) plutôt qu'un code inventé. ---- */
@@ -296,7 +523,6 @@
     box-shadow: var(--shadow-card);
   }
   .stat-num {
-    font-family: 'Poppins', sans-serif;
     font-size: 26px;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
@@ -327,36 +553,6 @@
   }
   .alerte-acces .toolbar-btn { flex-shrink: 0; }
 
-  header.page .kicker {
-    font-size: 13px;
-    color: var(--acte);
-    font-weight: 500;
-    letter-spacing: 0.02em;
-    margin-bottom: 10px;
-  }
-
-  header.page .brand-bar {
-    width: 44px;
-    height: 4px;
-    border-radius: 2px;
-    background: linear-gradient(90deg, var(--pret), var(--ventebien), var(--acte));
-    margin-bottom: 14px;
-  }
-
-  header.page h1 {
-    font-size: 32px;
-    font-weight: 700;
-    margin: 0 0 10px;
-    letter-spacing: -0.01em;
-  }
-
-  header.page p {
-    max-width: 60ch;
-    color: var(--ink-soft);
-    margin: 0;
-    font-size: 15px;
-  }
-
   /* ---- new dossier panel ---- */
 
   .panel {
@@ -374,8 +570,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-family: 'Poppins', 'Segoe UI', sans-serif;
-    font-size: 17px;
+    font-family: 'Fraunces', 'Poppins', 'Segoe UI', serif;
+    font-size: 19px;
     font-weight: 600;
   }
 
@@ -654,11 +850,17 @@
     border-radius: 6px;
   }
   .analyse-titre {
-    font-family: 'Poppins', sans-serif;
     font-size: 14px;
     font-weight: 600;
     color: var(--ink);
     margin-bottom: 14px;
+  }
+
+  .analyse-vide-etat {
+    color: var(--ink-soft);
+    font-size: 13.5px;
+    line-height: 1.6;
+    padding: 8px 2px;
   }
 
   .analyse-section {
@@ -724,7 +926,6 @@
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
-    font-family: 'Poppins', sans-serif;
     font-size: 13px;
     font-weight: 600;
     color: var(--ink);
@@ -756,7 +957,16 @@
     border-radius: 14px;
   }
   .piece-icone { font-weight: 700; }
-  .piece-item.recue { border-color: var(--success); color: var(--ink); }
+  /* .recue est un <button> (les autres statuts restent un <span>, rien à ouvrir) — reset des
+     styles natifs de bouton pour garder l'apparence d'une simple puce, avec juste un curseur et
+     un hover qui trahissent qu'elle est cliquable (voir ouvrirPieceTrouvee). */
+  .piece-item.recue {
+    border-color: var(--success);
+    color: var(--ink);
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .piece-item.recue:hover { background: var(--success-bg); }
   .piece-item.recue .piece-icone { color: var(--success); }
   .piece-item.manquante { border-color: var(--pret); color: var(--ink); }
   .piece-item.manquante .piece-icone { color: var(--pret); }
@@ -1017,7 +1227,6 @@
     box-shadow: var(--shadow-card);
   }
   .dashboard-titre {
-    font-family: 'Poppins', sans-serif;
     font-size: 15px;
     font-weight: 600;
     color: var(--ink);
@@ -1105,24 +1314,6 @@
   }
   .toolbar-recherche input:focus { outline: none; border-color: var(--focus); }
 
-  .view-toggle {
-    display: flex;
-    border: 1px solid var(--line);
-    border-radius: 2px;
-    overflow: hidden;
-  }
-  .view-toggle-btn {
-    font-family: inherit;
-    font-size: 13px;
-    border: none;
-    background: var(--paper-card);
-    color: var(--ink-soft);
-    padding: 6px 12px;
-    cursor: pointer;
-  }
-  .view-toggle-btn + .view-toggle-btn { border-left: 1px solid var(--line); }
-  .view-toggle-btn[aria-pressed="true"] { background: var(--acte-bg); color: var(--acte); }
-
   .toolbar-btn {
     font-family: inherit;
     font-size: 13px;
@@ -1203,7 +1394,7 @@
     font-weight: 600;
     padding: 2px 8px;
     border-radius: 10px;
-    margin-left: 8px;
+    margin-right: 8px;
     vertical-align: middle;
     white-space: nowrap;
   }
@@ -1285,6 +1476,11 @@
   .badge-offre.recue { background: var(--success-bg); color: var(--success); }
   .badge-offre.manquante { background: var(--pret-bg); color: var(--pret); }
   .badge-offre.inconnu { background: var(--line-soft); color: var(--muted); }
+  /* .recue est un <button> quand un fichier a été trouvé (voir ouvrirOffreTrouvee) : reset des
+     styles natifs de bouton pour garder l'apparence du badge, avec juste un curseur/hover qui
+     trahissent qu'il est cliquable. */
+  button.badge-offre.recue { border: none; font-family: inherit; cursor: pointer; }
+  button.badge-offre.recue:hover { background: var(--success); color: #fff; }
 
   .lien-dossier-local {
     font-size: 12px;
@@ -1411,25 +1607,6 @@
   .ligne-detail td { padding: 18px; border-bottom: 1px solid var(--line-soft); }
   .ligne-detail .dossier { margin-bottom: 0; box-shadow: none; }
 
-  /* ---- vue "Cartes" compacte : grille de résumés qui se déplient en place (grid-column: 1/-1)
-     vers la même carte complète que la vue tableau, sans casser l'alignement des autres cartes. ---- */
-  .cartes-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 12px;
-    align-items: start;
-  }
-  .mini-carte {
-    background: var(--paper-card);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    box-shadow: var(--shadow-card);
-  }
-  .mini-carte.est-archive { opacity: 0.65; }
-  .mini-carte-resume { padding: 14px 16px; cursor: pointer; display: flex; flex-direction: column; gap: 6px; }
-  .mini-carte-resume:hover { background: var(--paper-sunk); }
-  .mini-carte-nom { font-weight: 600; color: var(--ink); font-size: 14.5px; }
-
   /* Couleur réservée à --urgent, déjà utilisée pour les échéances proches : un dossier
      "prioritaire" combine échéance proche, offre manquante et/ou accès à reconfirmer, donc
      réutilise ce même code plutôt que d'en inventer un nouveau. */
@@ -1446,65 +1623,45 @@
     vertical-align: middle;
     white-space: nowrap;
   }
-  .mini-carte-responsable { font-size: 12.5px; color: var(--ink-soft); }
-  .mini-carte-echeance { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
-  .mini-carte-pied { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; padding-top: 4px; border-top: 1px solid var(--line-soft); }
 
-  .mini-carte-detail { display: none; }
-  .mini-carte.ouverte { grid-column: 1 / -1; }
-  .mini-carte.ouverte .mini-carte-resume { border-bottom: 1px solid var(--line-soft); }
-  .mini-carte.ouverte .mini-carte-detail { display: block; padding: 16px; }
-  .mini-carte.ouverte .mini-carte-detail .dossier { margin-bottom: 0; box-shadow: none; border: none; padding: 0; }
-
-  /* ---- présentation compacte du détail déplié (ligne de tableau ou carte) : un seul dossier
-     ouvert à la fois dans un contexte déjà condensé n'a plus besoin de la respiration prévue à
-     l'origine pour une liste de cartes complètes toujours affichées. ---- */
-  .ligne-detail .dossier,
-  .mini-carte.ouverte .mini-carte-detail .dossier {
+  /* ---- présentation compacte du détail déplié dans la vue tableau : un seul dossier ouvert à la
+     fois dans un contexte déjà condensé n'a plus besoin de la respiration prévue à l'origine pour
+     une liste de cartes complètes toujours affichées. ---- */
+  .ligne-detail .dossier {
     padding: 16px 18px;
   }
-  .ligne-detail .dossier-head,
-  .mini-carte.ouverte .mini-carte-detail .dossier-head {
+  .ligne-detail .dossier-head {
     margin-bottom: 10px;
   }
-  .ligne-detail .dossier-nom-input,
-  .mini-carte.ouverte .mini-carte-detail .dossier-nom-input {
+  .ligne-detail .dossier-nom-input {
     font-size: 15px;
   }
-  .ligne-detail .tabs,
-  .mini-carte.ouverte .mini-carte-detail .tabs {
+  .ligne-detail .tabs {
     gap: 8px;
   }
-  .ligne-detail .tab,
-  .mini-carte.ouverte .mini-carte-detail .tab {
+  .ligne-detail .tab {
     padding: 8px 10px;
     border-radius: 0 0 3px 3px;
   }
-  .ligne-detail .tab .tab-date,
-  .mini-carte.ouverte .mini-carte-detail .tab .tab-date {
+  .ligne-detail .tab .tab-date {
     font-size: 13px;
     margin-bottom: 2px;
   }
-  .ligne-detail .tab .tab-countdown,
-  .mini-carte.ouverte .mini-carte-detail .tab .tab-countdown {
+  .ligne-detail .tab .tab-countdown {
     font-size: 12px;
   }
-  .ligne-detail .dossier-actions,
-  .mini-carte.ouverte .mini-carte-detail .dossier-actions {
+  .ligne-detail .dossier-actions {
     gap: 6px;
     margin-top: 12px;
   }
-  .ligne-detail .dossier-actions button,
-  .mini-carte.ouverte .mini-carte-detail .dossier-actions button {
+  .ligne-detail .dossier-actions button {
     padding: 5px 10px;
     font-size: 12px;
   }
-  .ligne-detail .analyse-juridique,
-  .mini-carte.ouverte .mini-carte-detail .analyse-juridique {
+  .ligne-detail .analyse-juridique {
     margin-top: 10px !important;
   }
-  .ligne-detail .historique-toggle,
-  .mini-carte.ouverte .mini-carte-detail .historique-toggle {
+  .ligne-detail .historique-toggle {
     margin-top: 8px;
   }
 
@@ -1514,6 +1671,30 @@
     align-items: flex-start;
     gap: 12px;
     margin-bottom: 16px;
+  }
+
+  .dossier-head-principale { min-width: 0; flex: 1; }
+  .dossier-head-actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+  /* Carte ouverte en deux colonnes (échéances/pièces/analyse à gauche, historique + actions à
+     droite) — demandé pour profiter de la largeur disponible plutôt qu'un long défilement vertical
+     unique. Empile en une seule colonne sous la largeur d'une carte compacte/mobile. */
+  .dossier-body {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(220px, 1fr);
+    gap: 24px;
+    align-items: start;
+  }
+  .dossier-col-laterale {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-left: 20px;
+    border-left: 1px solid var(--line-soft);
+  }
+  @media (max-width: 720px) {
+    .dossier-body { grid-template-columns: 1fr; }
+    .dossier-col-laterale { padding-left: 0; border-left: none; padding-top: 12px; border-top: 1px solid var(--line-soft); }
   }
 
   .dossier-head h3 {
@@ -1532,9 +1713,9 @@
   }
   .nom-affichage[hidden], .nom-edition[hidden] { display: none; }
   .nom-texte {
-    font-family: 'Poppins', 'Segoe UI', sans-serif;
-    font-size: 18px;
-    font-weight: 500;
+    font-family: 'Fraunces', 'Poppins', 'Segoe UI', serif;
+    font-size: 19px;
+    font-weight: 600;
     color: var(--ink);
   }
   .icon-crayon, .icon-valider {
@@ -1553,7 +1734,7 @@
   .icon-valider:hover { background: var(--success-bg); }
 
   .dossier-nom-input {
-    font-family: 'Poppins', 'Segoe UI', sans-serif;
+    font-family: 'Fraunces', 'Poppins', 'Segoe UI', serif;
     font-size: 16px;
     font-weight: 500;
     color: var(--ink);
@@ -1570,18 +1751,71 @@
     color: var(--ink-soft);
   }
   .dossier-classification { margin-top: 2px; }
+  /* La règle générique `select { width: 100% }` (styles du formulaire) ne fixe pas cette propriété
+     ici : sans ce reset, .select-edit hérite quand même de cette largeur pleine ligne et fait
+     passer chaque champ (Responsable/Type de vente/Rôle) à la ligne, alors qu'ils doivent tenir
+     sur une seule ligne sur la fiche dossier. */
+  /* Même taille que .dossier-head .addr (13.5px) : ces select partagent une ligne avec ce texte
+     ("Responsable : [select] · Type de vente : [select]...") et un écart de 0.5px suffisait à
+     rendre la ligne visuellement inégale — signalé par l'étude. */
   .select-edit {
     font-family: inherit;
-    font-size: 13px;
+    font-size: 13.5px;
     color: var(--ink-soft);
     background: transparent;
     border: none;
     border-bottom: 1px dashed var(--line);
     padding: 0 2px;
+    width: auto;
+    max-width: none;
+    min-width: 0;
+    display: inline;
     cursor: pointer;
   }
   .select-edit:hover { color: var(--ink); border-bottom-color: var(--ink-soft); }
   .select-edit:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  /* Champs texte libres (adresse/prix, détectés automatiquement — voir CLAUDE.md) : même habillage
+     discret que .select-edit (soulignement en tirets, pas de cadre plein) mais en curseur texte,
+     pas pointeur, et une largeur propre à chacun plutôt que la largeur intrinsèque d'un <select>.
+     Sélecteur préfixé par `input` (pas juste `.input-inline`) : la règle générique
+     `input[type="text"], ... { width:100%; ... }` combine élément+attribut, une spécificité qu'une
+     simple classe seule ne bat pas (contrairement à `select { width:100% }`, un simple sélecteur de
+     type, que `.select-edit` bat sans ce préfixe) — d'où ce piège différent de celui du formulaire. */
+  input.input-inline {
+    font-family: inherit;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    background: transparent;
+    border: none;
+    border-bottom: 1px dashed var(--line);
+    padding: 0 2px;
+    width: auto;
+    max-width: none;
+    min-width: 0;
+    display: inline;
+    cursor: text;
+  }
+  input.input-inline:hover { color: var(--ink); border-bottom-color: var(--ink-soft); }
+  input.input-inline:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  input.input-inline::placeholder { color: var(--muted); font-style: italic; }
+  input.champ-adresse-bien { width: 260px; max-width: 100%; }
+  input.champ-prix-vente { width: 100px; }
+
+  /* Apport estimé (voir calculerApport) : petit cercle coloré + texte, même logique de couleur que
+     .badge-statut (succès/pret-amber/urgent, aucune couleur inventée pour l'occasion). */
+  .apport-ligne { margin-top: 4px; display: flex; align-items: center; gap: 6px; }
+  .apport-cercle {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .apport-cercle.apport-success { background: var(--success); }
+  .apport-cercle.apport-pret { background: var(--pret); }
+  .apport-cercle.apport-urgent { background: var(--urgent); }
+  .dossier-adresse-prix { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 
   .badge-cash {
     display: inline-block;
@@ -1714,6 +1948,10 @@
     color: var(--muted);
     font-style: italic;
   }
+  .tab .tab-countdown.recue {
+    color: var(--success);
+    font-weight: 600;
+  }
 
   .dossier-actions {
     display: flex;
@@ -1807,7 +2045,10 @@
   @media print {
     body { background: #fff; color: #000; font-size: 11pt; }
     .panel, .pdf-viewer, .list-toolbar, .dossier-actions, .theme-btn,
-    .confirm-overlay, .toast, footer.note, .historique-toggle, .dashboard { display: none !important; }
+    .confirm-overlay, .toast, footer.note, .historique-toggle, .dashboard,
+    .sidebar, .sidebar-burger, .sidebar-scrim, .dash-header, .kpis-dashboard, .actions-urgentes,
+    .dash-section-titre { display: none !important; }
+    .app-main { padding: 0; }
     .layout-cols { display: block; }
     .wrap { max-width: 100%; padding: 0; }
     .dossier {
@@ -1821,6 +2062,8 @@
     .dossier:last-child { page-break-after: auto; }
     .dossier-nom-input { border: none; font-size: 18pt; padding: 0; }
     .nom-texte { font-size: 18pt; }
+    .dossier-body { display: block; }
+    .dossier-col-laterale { border: none; padding: 0; }
     .tabs { display: block; }
     .tab { border: 1px solid #999; margin-bottom: 6pt; padding: 6pt; background: #fff !important; }
     .historique-liste { display: block !important; }

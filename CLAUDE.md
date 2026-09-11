@@ -1,5 +1,10 @@
 # Registre des échéances — Compromis de vente
 
+**Nom affiché dans l'interface : CLAIRE.** Le nom de fichier/dépôt et ce document restent
+"Registre des échéances" (identité historique du projet, inchangée) mais l'UI (titre de la page,
+`<title>`, manifest PWA, sidebar) porte désormais la marque "CLAIRE" — voir la section refonte
+visuelle ci-dessous pour le contexte de ce choix.
+
 Outil interne de l'étude notariale pour suivre les échéances d'un compromis de vente (obtention
 du prêt, signature de l'acte, vente préalable), extraire automatiquement les documents et
 engagements du vendeur, et générer des rappels.
@@ -605,6 +610,394 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
   (badge "≈ estimée", les deux portant "au plus tard") mais le premier candidat par ordre
   chronologique reste retenu par défaut, qui est ici le bon (60 jours, pas 70). Voir le test de
   régression dans `tests/dates.test.js` (texte réel, boilerplate sans donnée personnelle).
+- **Refonte visuelle "CLAIRE" (branche `claude/refonte-design-claire`, séparée de la branche
+  principale de suivi des échéances)** : demande explicite de repenser tout le design ("éviter
+  l'IA slop", "webdesign 2026", sidebar, logo, meilleure lecture/productivité), avec deux
+  références fournies — une capture d'un dashboard de suivi de transactions (dont seul le langage
+  visuel a été repris : cartes épurées, badges de statut colorés, navigation latérale — pas son
+  domaine métier, sans rapport avec le notariat) et notiplus.com. `www.notiplus.com` est bloqué par
+  le proxy réseau de cet environnement (`WebFetch` → `EGRESS_BLOCKED`) ; recherche web de repli
+  utilisée à la place — Notiplus s'est révélé être **un concurrent direct** ("L'espace notarial
+  tout-en-un") : suivi de dossier avec échéances/prochaines étapes toujours visibles, relances
+  automatiques "qui savent s'arrêter d'elles-mêmes" (même principe que le correctif
+  `relancerSiOffreManquante()`/`etaitRecue` ci-dessus, découvert indépendamment), portail
+  multi-intervenants, collecte de pièces par questionnaires adaptatifs, gestion multi-office. Seule
+  l'organisation de l'information (clarté sur "quoi faire et quand") a servi d'inspiration pour le
+  nouveau tableau de bord ci-dessous — le portail client, la collecte de pièces par questionnaire
+  et le multi-office n'ont pas été ajoutés : ce sont des fonctionnalités serveur/multi-utilisateur,
+  hors du périmètre volontairement local et sans backend de l'outil (voir contraintes
+  fondamentales n°1 et l'historique "décision explicite de rester en local" plus haut) — à
+  reconsidérer seulement si l'étude le demande explicitement, pas déduit d'une inspiration
+  concurrentielle.
+  - **Nom "CLAIRE"** choisi pour l'UI (voir note en tête de ce document) : évoque la clarté sur
+    l'état de chaque dossier, cohérent avec le tableau de bord ajouté. Nouveau logo
+    (`icone.svg`) : anneau ouvert (lettre "C" stylisée / aperture) avec un marqueur plein à
+    l'ouverture, une seule couleur d'accent sur une tuile graphite — délibérément plat et
+    géométrique (pas de dégradé, pas d'effet glossy/3D) pour éviter l'esthétique "IA générique".
+    Repris en inline dans la sidebar (`index.html`) en plus du fichier `.svg` (favicon/PWA), avec
+    une version teintée pour le mode sombre (`#5B9DF9`, même token `--focus` que le reste de
+    l'accent bleu) plutôt qu'une seconde couleur inventée.
+  - **Navigation en sidebar** (`.sidebar`, `index.html`/`style.css`) remplace l'ancien bandeau
+    `header.page` + onglets horizontaux (`.app-tabs`, code CSS mort supprimé). Un **troisième
+    espace de travail "Tableau de bord"** s'ajoute aux deux existants (`definirOnglet()` accepte
+    maintenant `'dashboard'` en plus de `'nouveau'`/`'suivi'`, et devient l'onglet par défaut à
+    l'ouverture — un outil de suivi de dossiers doit ouvrir sur une vue d'ensemble, pas sur le
+    formulaire de création). Sidebar repliable en dessous de 900px (`toggleSidebarMobile()`,
+    bouton "☰" + scrim), fermée automatiquement à chaque changement d'onglet.
+  - **Tableau de bord** (`onglet-dashboard`) : reprend le principe demandé ("statut d'avancement,
+    actions urgentes, KPI, présentation claire et épurée") sans dupliquer de logique existante :
+    - `calculerStatsPortefeuille()` (nouvelle fonction, extraite de l'ancien `renderStatsSuivi()`)
+      centralise les chiffres du portefeuille ; `renderStatsSuivi()` (bandeau de l'onglet Suivi) et
+      `renderKpisDashboard()` (5 tuiles du tableau de bord, avec en plus les dossiers à pièces
+      manquantes) l'utilisent tous les deux — un seul calcul, deux présentations.
+    - `renderActionsUrgentes()` liste les dossiers en "blocage" ou de score `calculerPriorite()`
+      élevé (même seuil `SEUIL_PRIORITE_ELEVEE` que le badge "🔥 Prioritaire" déjà utilisé sur les
+      résumés du Suivi — un seul critère d'urgence dans tout l'outil). Chaque ligne
+      (`ouvrirDossierDepuisDashboard()`) bascule vers le Suivi et déplie directement la carte
+      concernée (même mécanisme `dossiersDeplies` que le dépliage manuel).
+    - Le widget "Échéances des 7 prochains jours" (`renderDashboard()`, déjà existant) est
+      simplement déplacé de l'onglet Suivi vers le Tableau de bord, sans changement de logique —
+      c'est un widget d'aperçu, sa place naturelle est sur la vue d'ensemble.
+  - **Typographie** : Fraunces (serif éditoriale) ajoutée pour les titres (`h1`/`h2`/`h3`, marque
+    "CLAIRE", nom de dossier, en-tête du panneau "Nouveau dossier") en remplacement de Poppins
+    (abandonnée, plus chargée dans `index.html`) ; le reste de l'interface (boutons, tableaux,
+    badges, formulaires) reste en Inter — la retouche vise un peu de caractère sur les titres, pas
+    une refonte totale de la lecture dense de l'outil.
+  - **Bug corrigé en cours de route** : `appliquerTheme()` écrivait l'emoji du bouton de thème via
+    `textContent`, ce qui écrasait le libellé "Mode sombre"/"Mode clair" ajouté à côté de l'icône
+    dans la sidebar (le bouton n'affichait plus que l'emoji seul). Remplacé par `innerHTML` avec la
+    même structure icône+libellé que les autres liens de la sidebar.
+  - Palette et tokens CSS (`--focus`, catégories `--pret`/`--acte`/`--ventebien`, mode sombre gris
+    neutre) **non retouchés** : la refonte porte sur la structure (sidebar, tableau de bord) et la
+    typographie, pas sur les couleurs déjà validées par l'étude lors de la précédente refonte
+    visuelle (voir plus haut) — aucune raison de les changer, et le bleu existant se prêtait déjà
+    bien au nouveau logo.
+- **Nouvelle série de retours de l'étude après la refonte visuelle, traités indépendamment** :
+  - **Condition de prêt à délai : le motif "au plus tard dans les 70 jours" (notification du
+    prêteur au notaire) ne doit plus être détecté comme une échéance, seul le "60 jours" (condition
+    suspensive elle-même) doit l'être.** Avant ce correctif, `meilleureCandidateEcheance()` gérait
+    déjà l'ambiguïté entre les deux (badge "≈ estimée") mais l'étude a demandé plus simple : ne
+    détecter que la bonne clause. `reAuPlusTardDelai` regarde maintenant les 200 caractères
+    précédant chaque occurrence et ignore le délai si "notifier"/"notification" y apparaît — ces mots
+    sont propres à la clause de notification, absents de la clause de condition suspensive
+    elle-même. Test réécrit dans `tests/dates.test.js` : une seule date détectée (60 jours), plus
+    d'ambiguïté à signaler pour ce cas précis.
+  - **Auto-sélection du type de vente "copropriété"** : `detecterTypeVenteCopropriete(texte)`
+    (nouveau `COPROPRIETE_RE`) reconnaît "lot de copropriété", "syndicat des copropriétaires",
+    "règlement de copropriété", "loi du 10 juillet 1965" dans le texte importé. Si détecté,
+    `traiterTexte()` force `#f-type-vente` sur "copropriete" — évite de laisser "Maison" par défaut
+    (donc la mauvaise checklist de pièces, voir la checklist de pièces plus haut) sur un dossier de
+    copropriété manifeste. Reste modifiable manuellement ensuite (`changerTypeVente()`), comme
+    n'importe quelle détection automatique de l'outil.
+  - **Section "Envoyer un rappel" masquée quand il n'y a pas de condition de prêt** : demandé par
+    l'étude — relancer une échéance de prêt qui n'existe pas pour ce dossier n'a pas de sens.
+    `toggleEcheance('pret', actif)` appelle maintenant `majVisibiliteRappels()`, qui bascule
+    `display` sur `#rappel-fieldset` (nouvel id) selon `echeanceActive.pret`. `ajouterDossier()`
+    n'enregistre `reminderDays` que si le prêt est actif (`[]` sinon) — cohérent avec le champ
+    masqué à l'écran, pas de rappels fantômes programmés pour un dossier sans prêt.
+  - **Détection de l'email de l'acquéreur dans le texte du compromis**, pour préremplir le champ
+    "Email de l'acquéreur (pour relance prêt)" sans ressaisie manuelle. `detecterEmailAcquereur(texte)`
+    (nouveau `EMAIL_RE`) cherche une adresse email dans le voisinage du rôle acquéreur/bénéficiaire
+    (`RE_ROLE_ACQUEREUR`), avec un remontée arrière bornée à la phrase précédente (s'arrête au
+    premier point rencontré, plafonnée à 150 caractères — même principe que `extraireContexte()`)
+    pour éviter de capturer l'email du vendeur cité plus haut dans un document à deux parties.
+    N'écrase jamais une valeur déjà saisie à la main dans `#f-email-acquereur`.
+  - **Wizard porté de 3 à 4 étapes : Importer → Vérifier → Analyse juridique → Finaliser.**
+    L'analyse juridique (conditions suspensives, engagements du vendeur, documents identifiés)
+    quittait sa position "collée" au visualiseur PDF (voir plus haut, "Analyse juridique ancrée")
+    pour devenir une étape à part entière du wizard, sur demande de l'étude — plus simple à situer
+    qu'un onglet à bascule dans l'aside. `afficherAnalyseJuridique()` simplifiée : elle ne fait plus
+    que peupler `#wizard-step-3` (montrer/masquer `#analyse-vide-etat` et les trois
+    `#analyse-section-*`), sans plus jamais toucher à un système d'onglets — `vuePdfViewerActuelle`,
+    `analyseJuridiqueDisponible` et `definirVuePdfViewer()` supprimés, devenus inutiles.
+    `#pdf-viewer` (aside) est réduit à l'aperçu PDF seul. `definirEtapeWizard(n)` gère maintenant 4
+    étapes (boucle `<= 4`, `majApercuPieces()` déclenché à `n === 4`) ; toujours **aucune étape
+    verrouillée**, principe déjà établi conservé à l'identique. **Deux bugs corrigés pendant la
+    vérification visuelle** (Playwright, capture d'écran après chaque étape — seule méthode fiable
+    pour ce genre de restructuration DOM, voir "Comment tester" ci-dessous) : l'état vide de
+    l'étape 3 ("Aucune analyse disponible") ne s'affichait pas au premier chargement, faute d'appel
+    initial à `afficherAnalyseJuridique()` (ajouté dans la séquence d'init, après `renderChips()`) ;
+    la section "Documents et pièces identifiés" n'avait pas d'`id` propre et restait affichée vide
+    même sans analyse (ajout de `id="analyse-section-documents"`, géré comme les deux autres
+    sections dans les deux branches de `afficherAnalyseJuridique()`).
+- **Réorganisation de la fiche dossier (onglet Suivi)**, sur retour détaillé de l'étude (ordre des
+  informations, actions mal placées, email de l'office affiché sans besoin) :
+  - **Badge de statut avant le nom** (au lieu d'après, sur sa propre ligne) : `renderBadgeStatut(d)`
+    déplacé à l'intérieur du `<span class="nom-affichage">`, avant `.nom-texte`, dans les trois
+    endroits qui affichent un nom de dossier (`renderCarteDossier`, `renderCarteCompacte`,
+    `renderLigneTableau`) — cohérence entre résumé et fiche dépliée. `.badge-statut` passe de
+    `margin-left` à `margin-right` en conséquence (seul usage de cette règle dans tout l'outil).
+  - **"Lier un dossier local" / "Changer de dossier" à côté du nom**, plutôt que plus bas dans
+    `.offre-pret-ligne` : nouvelle variable `boutonsDossierLocal` calculée une fois en tête de
+    `renderCarteDossier()`, insérée juste après le `<span class="nom-edition">`. `.offre-pret-ligne`
+    ne garde que ce qui concerne spécifiquement l'offre de prêt (badge + "Revérifier") et le lien
+    "reconfirmer l'accès" — cohérent avec son nom.
+  - **Email de rappel de l'office retiré de l'affichage carte/tableau** (`d.email`, le champ
+    "Email de rappel" du formulaire — pas l'email de l'acquéreur) : simple métadonnée technique
+    utilisée comme adresse `to:` par `ouvrirEmailRappel()`, sans intérêt à afficher sur chaque
+    fiche/carte/ligne de tableau. La donnée reste stockée et utilisée, seul son affichage disparaît.
+  - **Responsable / Type de vente / Rôle du notaire sur une seule ligne** : déjà groupés dans un
+    même `<div class="dossier-classification">`, mais chaque `<select class="select-edit">`
+    héritait malgré tout de `width: 100%` depuis la règle générique `select { width: 100% }`
+    (ajoutée pour les champs du formulaire, voir plus haut) — cette dernière ne fixe cette propriété
+    nulle part que `.select-edit` puisse écraser, donc chaque champ prenait toute la largeur
+    disponible et retombait à la ligne. Corrigé en réinitialisant explicitement `width: auto` (et
+    `max-width`/`min-width`/`display`) dans `.select-edit`. Au passage, le libellé "Rôle" devient
+    "Rôle du notaire" (demandé explicitement, pour éviter toute ambiguïté avec un futur "rôle" côté
+    acquéreur/vendeur).
+  - **Fiche dépliée en deux colonnes** (`div.dossier-body`, grid CSS `2fr / minmax(220px,1fr)`,
+    empilée en une colonne sous 720px) : colonne principale = échéances (`.tabs`), pièces du
+    dossier, analyse juridique ; colonne latérale = historique puis, dessous, les trois boutons
+    d'action (`Télécharger les rappels`, `Envoyer un rappel par email`, `Télécharger la fiche`),
+    déplacés depuis leur ancienne position juste sous les échéances. Reprend la demande "passer les
+    cartes dossier ouverte en deux colonnes" en profitant de la largeur disponible (les fiches ne
+    sont plus contraintes à `.wrap` 680px depuis l'introduction de l'onglet Suivi pleine largeur,
+    voir plus haut). Les surcharges existantes pour le détail compact (`.ligne-detail .dossier`,
+    `.mini-carte.ouverte .mini-carte-detail .dossier`) n'ont pas eu besoin d'être retouchées : elles
+    ciblent des classes internes inchangées (`.tabs`, `.dossier-actions`...), pas la structure des
+    colonnes elle-même. Impression (`window.print()`, pas `imprimerFiche()`) repassée en un seul
+    bloc via `.dossier-body { display: block }` dans `@media print` — une mise en page à deux
+    colonnes n'a pas de sens sur une feuille A4 imprimée dossier par dossier.
+- **Registre partagé pris en compte par "Reconfirmer tous les accès" et popup au démarrage**,
+  signalé par l'étude : le bouton groupé (voir plus haut, introduit pour éviter 60 clics
+  individuels) ne couvrait que les dossiers locaux reliés, jamais le fichier réseau partagé — si sa
+  permission expirait, rien ne le signalait ni ne permettait de la reconfirmer autrement qu'en
+  rouvrant manuellement le sélecteur de fichier.
+  - `obtenirHandlePartage()` alimente maintenant `registrePartageAccesAReconfirmer` (nouvel état,
+    même rôle que `d.accesAReconfirmer` par dossier) à chaque vérification de permission, qu'elle
+    soit silencieuse (relecture périodique, reconnexion au démarrage) ou déclenchée par un clic.
+    `renderAlerteAcces()` et `reconfirmerTousLesAcces()` l'incluent désormais aux côtés des
+    dossiers locaux (message commun factorisé dans `messageAccesAReconfirmer()`, qui ne mentionne
+    que ce qui est réellement concerné — dossiers seuls, registre seul, ou les deux).
+  - **Popup au démarrage** (`#popup-acces-overlay`, même structure que `#confirm-overlay` — voir
+    `demanderConfirmation()`) plutôt que de compter sur le collaborateur pour remarquer le bandeau
+    `#alerte-acces`, qui n'existe que dans l'onglet "Suivi des dossiers" : si l'outil s'ouvre sur le
+    tableau de bord (onglet par défaut), un accès perdu pouvait rester invisible jusqu'à ce qu'on
+    change d'onglet. `afficherPopupAccesSiNecessaire()` est appelée une fois que `charger()`,
+    `revérifierDossiersLiesAuDemarrage()` et `tenterReconnexionPartage()` ont tous fini (désormais
+    enchaînés avec `await` plutôt que lancés sans attendre) — pas de popup prématurée avant de
+    savoir si un accès est réellement perdu. Bouton "Reconfirmer maintenant" (clic explicite,
+    requis par le navigateur pour qu'une demande de permission fichier aboutisse) ou "Plus tard"
+    (ferme la popup sans rien changer ; le bandeau reste disponible ensuite dans l'onglet Suivi).
+- **Sidebar "verre" (profondeur, couleur, ombre)**, demandé explicitement pour casser l'aplat de
+  la première version de la sidebar (simple `--paper-card` + bordure droite). Nouveaux tokens
+  `--sidebar-bg` (dégradé diagonal légèrement teinté de bleu, pas un à-plat), `--sidebar-border`,
+  `--sidebar-shadow`, `--sidebar-highlight` (liseré clair en tête de panneau), déclinés clair/sombre
+  comme les autres tokens de thème.
+  - `.sidebar` : `background: var(--sidebar-bg)` + `backdrop-filter: blur(20px) saturate(160%)` +
+    `box-shadow: var(--sidebar-shadow)` + un `::before` en liseré de lumière horizontal en haut du
+    panneau. Le flou n'a d'effet visuel réel qu'en mobile (`@media 900px`), seul contexte où la
+    sidebar passe en overlay `position: fixed` par-dessus le contenu qui défile dessous — en
+    desktop, en flux normal, rien ne se trouve derrière elle, mais le déclarer ne coûte rien et
+    prépare le terrain si la mise en page venait à changer.
+  - **Lien actif en "pilule de verre"** plutôt qu'un aplat `--focus` uni : dégradé diagonal
+    `--focus` → `--focus-hover`, ombre portée teintée bleue + liseré clair interne
+    (`inset 0 1px 0 rgba(255,255,255,0.3)`) pour simuler un reflet. Reste dans la même famille de
+    bleu que les autres accents (`--focus`/`--focus-hover`), donc lisible dans les deux thèmes sans
+    couleur inventée pour l'occasion.
+  - Bouton burger (mobile) aligné sur le même traitement (`--sidebar-bg` + flou), cohérent avec le
+    panneau qu'il ouvre plutôt qu'un simple bouton `--paper-card` plat comme avant.
+- **Extraction de l'adresse du bien et du prix de vente** (`detecterAdresseBien`/`detecterPrixVente`,
+  premier jet — comme `PIECES_*` en leur temps, pas encore confronté à beaucoup de vrais compromis
+  autres que ceux déjà vus pour les dates/engagements) :
+  - `ADRESSE_BIEN_RE` s'ancre sur un code postal français (5 chiffres, marqueur fiable et rare
+    ailleurs dans l'acte) précédé de "sis(e) à/au" ou "situé(e) à/au/dans la commune de" — tournures
+    notariales courantes pour introduire la désignation du bien. Capture le fragment jusqu'au code
+    postal puis un peu après (la ville), borné à la phrase courante comme les autres détecteurs du
+    fichier. N'écrase jamais une valeur déjà saisie (même logique que l'email de l'acquéreur).
+  - `PRIX_VENTE_RE` s'appuie sur un usage notarial quasi systématique : le montant écrit en lettres
+    est répété en chiffres entre parenthèses juste après ("CENT MILLE EUROS (100 000 €)") — bien
+    plus fiable à parser que le nombre en toutes lettres. Cherche "prix" puis, dans la même clause
+    (jusqu'à 120 caractères, sans dépasser un point), un montant entre parenthèses suivi de
+    €/euros. Un seuil (`>= 1000`) écarte les faux positifs évidents (un numéro d'article capturé par
+    erreur près du mot "prix"). Affichage via `formaterPrix()` (`Intl.NumberFormat('fr-FR', {style:
+    'currency', ...})`).
+  - `d.adresseBien` (texte) et `d.prixVente` (entier ou `null`) ajoutés au modèle du dossier, gérés
+    dans `normaliserDossierImporte()` comme les autres champs texte/numériques. Deux nouveaux champs
+    dans l'étape "Finaliser" du wizard (`#f-adresse-bien`, `#f-prix-vente`), préremplis par la
+    détection mais librement modifiables — nécessaire puisque ce sont des regex non encore
+    éprouvées, contrairement à des motifs déjà resserrés sur de vrais dossiers.
+  - Affichés sur la fiche dossier (`renderCarteDossier`) via deux `<input class="input-inline">`
+    directement éditables (`changerAdresseBien`/`changerPrixVente`, avec entrée d'historique comme
+    les autres champs corrigeables) plutôt que le mécanisme crayon+validation du nom/des dates : un
+    champ toujours visible en édition directe convient mieux ici, la valeur pouvant être fausse ou
+    absente bien plus souvent qu'un nom de dossier saisi par l'utilisateur. **Piège de spécificité
+    CSS rencontré** (même famille que celui déjà documenté pour `.select-edit`, mais inversé) : la
+    règle générique `input[type="text"], ... { width: 100%; ... }` (élément + attribut) a une
+    spécificité plus élevée qu'une simple classe (`.input-inline` seule perdait sur width **et**
+    tout le reste — bordure, fond, padding — pas seulement la largeur comme pour `.select-edit`, où
+    la règle concurrente `select { ... }` n'est qu'un sélecteur de type, plus faible qu'une classe).
+    Corrigé en préfixant `input.input-inline`/`input.champ-adresse-bien`/`input.champ-prix-vente`
+    (élément + classe) pour au moins égaler cette spécificité, l'ordre dans la feuille de style
+    tranchant ensuite en leur faveur. À vérifier avant tout nouveau champ `<input>` stylé
+    "discrètement" sur une fiche dossier : un simple sélecteur de classe ne suffit pas forcément.
+- **Apport estimé une fois l'offre de prêt reçue** (montant du prêt comparé au prix de vente) :
+  - `detecterMontantPret(texte)` (nouveau `MONTANT_PRET_RE`) lit le montant emprunté directement
+    dans le texte de l'**offre de prêt**, pas le compromis — même heuristique que `PRIX_VENTE_RE`
+    (le montant en lettres est répété en chiffres entre parenthèses, usage constant des
+    établissements prêteurs), ancrée sur "montant du prêt"/"capital emprunté"/"somme prêtée" plutôt
+    que "prix". Appelé dans `verifierOffrePret()` sur le même texte déjà lu pour reconnaître l'offre
+    elle-même (`OFFRE_PRET_RE`) — pas de second passage de lecture/OCR pour ça. N'écrase jamais une
+    valeur déjà connue par un échec de détection (`d.montantPret` conservé si `detecterMontantPret`
+    ne trouve rien lors d'une revérification ultérieure).
+  - `d.montantPret` (entier ou `null`) ajouté au modèle du dossier — comme `offrePretStatut`, dérivé
+    d'un PDF local et jamais importé tel quel d'une autre machine (`normaliserDossierImporte()` le
+    remet à `null`, à revérifier sur ce poste).
+  - `calculerApport(d)` (testable, voir `tests/divers.test.js`) : `montant = prixVente -
+    montantPret`, `pourcentage = montant / prixVente` — volontairement simple (ne compte pas les
+    frais de notaire ni les coûts annexes), purement informatif, aucune règle métier derrière.
+    Trois niveaux réutilisant des couleurs déjà réservées ailleurs (aucune couleur inventée) :
+    `success` (apport ≥ 10 %), `pret`/amber (apport positif mais < 10 %, à surveiller — même amber
+    que "offre introuvable"), `urgent` (apport négatif, le prêt dépasse le prix). Affiché sur la
+    fiche dossier (`renderCarteDossier`) sous forme d'un petit cercle coloré (`.apport-cercle`) +
+    texte, uniquement si `!d.sansPret && d.offrePretStatut === 'recue'` et que prix/montant sont
+    tous les deux connus — pas affiché tant que l'offre n'a pas été confirmée reçue (cohérent avec
+    la demande initiale : comparer "lors de la réception de l'offre").
+- **Bouton "🔍 Comparer au prix du marché" : ajouté puis retiré.** Implémenté pour situer le prix
+  du bien par rapport au marché local (recherche web généraliste sur l'adresse seule, ouverte dans
+  un nouvel onglet sur clic explicite — jamais le nom du dossier ni l'identité des parties). Retiré
+  entièrement (`comparerPrixMarche()` et le bouton associé supprimés) après test en conditions
+  réelles par l'étude : "ça ne me plaît pas". **Ne pas réimplémenter sans nouvelle demande
+  explicite.** Le calcul de l'apport (`calculerApport()`, montant du prêt comparé au prix), lui,
+  reste en place — seule la comparaison au marché externe a été retirée, ce sont deux
+  fonctionnalités distinctes.
+- **Série de correctifs remontés par l'étude après un test approfondi en conditions réelles**
+  (dossier téléchargé depuis GitHub et ouvert en local, pas seulement l'aperçu) :
+  - **Bug corrigé : une vraie copropriété restait classée "maison" par défaut.** `COPROPRIETE_RE`
+    ne reconnaissait pas la formulation la plus courante dans les faits — "soumis au régime de la
+    copropriété", juste avant la mention du lot sous le tableau parcellaire — seul "statut de la
+    copropriété" l'était. Motif "régime de la copropriété" ajouté. Voir le test de régression dans
+    `tests/dates.test.js`.
+  - **Bug corrigé : "Reconfirmer tous les accès" redemandait malgré tout dossier par dossier**,
+    contrairement à l'intention du bouton groupé. Cause réelle : la version précédente demandait la
+    permission d'UN dossier PUIS lisait aussitôt tous ses PDF (potentiellement plusieurs secondes,
+    OCR compris) avant de passer au suivant — largement de quoi épuiser la fenêtre de "user
+    activation" du clic d'origine (qui expire en quelques secondes), après quoi Chrome refuse
+    silencieusement les `requestPermission()` suivants, chacun nécessitant alors un nouveau clic.
+    `reconfirmerTousLesAcces()` sépare maintenant strictement les deux phases : (1) demander toutes
+    les permissions à la suite, sans rien faire d'autre entre deux, puis (2) lire les PDF de ce qui
+    a été accordé, qui peut prendre tout le temps voulu une fois la permission acquise.
+  - **`statutDossier()` vérifié sur le cas "offre reçue + toutes les pièces reçues" → repasse bien
+    en "prêt"** (voir le nouveau test dans `tests/divers.test.js`) : la logique était déjà correcte
+    une fois isolée — le blocage observé en conditions réelles était très probablement dû à la
+    mauvaise classification du type de vente ci-dessus (des pièces de copropriété jamais
+    trouvables sur une vraie maison), pas à un bug de `statutDossier()` lui-même.
+  - **Bug corrigé : le tab "Obtention du prêt" affichait "Échéance dépassée" même une fois l'offre
+    confirmée reçue**, ce qui donnait l'impression trompeuse d'un retard sur une condition pourtant
+    résolue. `renderTab()` accepte un nouveau paramètre `offrePretRecue` (passé uniquement pour le
+    tab "pret") qui remplace alors l'affichage par "✓ Offre reçue" (`--success`), sans toucher au
+    calcul du compteur pour les autres tabs.
+  - **Un dossier entièrement complet (offre reçue + toutes les pièces) n'est plus rescanné
+    automatiquement** (`dossierEntierementComplet()`) : `revérifierDossiersLiesAuDemarrage()`
+    (démarrage + minuteur 5 min) saute désormais ces dossiers — inutile de relire des dizaines de
+    PDF pour un dossier qui n'a plus rien à apprendre. Un clic explicite sur "Revérifier" continue
+    de fonctionner sur un dossier déjà complet (l'étude peut vouloir confirmer après un doute, ou
+    un fichier a pu être retiré du dossier local entre-temps).
+  - **Icônes des tuiles KPI "échéances ≤ 7/15 jours" unifiées** : un même petit calendrier SVG
+    dessiné à la main (`iconeCalendrierSeuil()`), avec le seuil (7 ou 15) inscrit dans le corps du
+    calendrier, remplace les deux emojis différents (⏱️/📅) sans lien visuel entre eux. **Piège
+    rencontré** : un premier essai superposait juste le chiffre en surimpression sur l'emoji 📅
+    natif — celui-ci porte déjà son propre numéro de jour selon la plateforme (souvent "17" sur
+    Chrome/Noto), ce qui produisait un rendu illisible ("177"). Un vrai SVG (rectangle + attaches +
+    `<text>`) résout le problème en donnant un contrôle total sur ce qui s'affiche.
+  - **Bouton mode sombre réduit à l'icône seule** (plus de texte "Mode sombre"/"Mode clair" à côté)
+    — le libellé accessible reste porté par `aria-label`/`title`, pas visible à l'écran.
+    `.sidebar-link-icone-seule` centre l'icône plutôt que la laisser plaquée à gauche d'une rangée
+    sinon vide.
+  - **Bug corrigé : taille de police incohérente sur la ligne "Responsable : ... · Type de vente :
+    ... · Rôle du notaire : ..."** — le texte (`.dossier-head .addr`, 13.5px) et les `<select>`
+    (`.select-edit`, 13px) différaient de 0.5px, rendant la ligne visuellement inégale. Alignés à
+    13.5px (`.select-edit` et `.input-inline`, ce dernier pour l'adresse/le prix par cohérence).
+  - **Badge "🔥 Prioritaire" réduit à l'emoji seul** (le texte reste en `title`, pas affiché) —
+    demandé pour alléger la ligne de tableau.
+  - **Vue "Cartes" retirée entièrement** du Suivi ("je préfère la vue tableau, la vue carte, ça ne
+    va pas") : bouton de bascule Cartes/Tableau, `renderCarteCompacte()`/`toggleCarteCompacte()`,
+    `.cartes-grid`/`.mini-carte*` supprimés. Le tableau (`renderLigneTableau()`) est désormais la
+    seule vue de la liste des dossiers — les surcharges CSS du détail compact (`.ligne-detail ...`)
+    ont perdu leur pendant `.mini-carte.ouverte ...` associé, simplifiées en conséquence.
+  - **Clause "en cas de demande de visite" exclue des engagements du vendeur** : cette clause
+    standard sur l'organisation de visites du bien avant la vente ressortait à tort comme une
+    obligation à réclamer après coup. Ajoutée à `EXCLUSION_ENGAGEMENT_RE`.
+  - **Cliquer sur une pièce reçue (ou l'offre de prêt reçue) rouvre directement le fichier local où
+    elle a été trouvée**, plutôt que de se contenter d'un badge sans rien derrière.
+    `verifierOffrePret()`/`verifierPiecesDossier()` conservent désormais le `FileSystemFileHandle`
+    du fichier trouvé (même mécanisme IndexedDB que le handle du dossier local lui-même —
+    `enregistrerHandle`/`recupererHandle` acceptent n'importe quelle chaîne comme clé), sous
+    `${id}::offre` ou `${id}::piece::${cle}` (`CLE_HANDLE_OFFRE`/`CLE_HANDLE_PIECE`).
+    `ouvrirFichierTrouve()` (via `ouvrirPieceTrouvee()`/`ouvrirOffreTrouvee()`) récupère ce handle,
+    revérifie la permission et ouvre le fichier dans un nouvel onglet (`URL.createObjectURL`). Un
+    fichier détecté avant l'ajout de cette fonctionnalité n'a pas de handle mémorisé : message
+    clair invitant à cliquer sur "Revérifier" plutôt qu'un échec silencieux. La pastille "reçue"
+    devient un vrai `<button>` (reset des styles natifs pour garder l'apparence d'un badge) ; les
+    autres statuts (manquante/inconnu) restent un simple `<span>`, rien à ouvrir.
+  - **Indicateur visuel pendant la recherche dans le dossier local** : les boutons "Revérifier"
+    (offre) et "Revérifier les pièces" passaient jusque-là de leur état initial au résultat final
+    sans aucun signe intermédiaire, ce qui pouvait laisser croire à un clic sans effet sur un
+    dossier volumineux (beaucoup de PDF, repli OCR). `verifierOffrePretDepuisBouton()`/
+    `verifierPiecesDossierDepuisBouton()` désactivent le bouton et changent son texte
+    ("⏳ Recherche…") de façon synchrone avant l'appel asynchrone — `render()` (déjà appelé dans
+    tous les chemins de retour de `verifierOffrePret`/`verifierPiecesDossier`) remplace ensuite ce
+    bouton par un rendu à jour, pas besoin de restaurer son texte d'origine à la main.
+  - **Investigué et volontairement non implémenté : rendre cliquable le numéro de page de l'analyse
+    juridique pour un dossier déjà enregistré et rouvert.** Ça ne peut fonctionner que pendant
+    l'import (PDF encore en mémoire, voir `voirDateDansPdf()`/`allerALaPageDuPdf()` ci-dessus), pas
+    après enregistrement : le compromis est importé via un simple `<input type="file">` (`#f-pdf`),
+    qui ne fournit qu'un `File` éphémère, pas un `FileSystemFileHandle` persistable comme pour un
+    dossier local relié. Rendre ça possible demanderait de basculer l'import du compromis sur
+    `showOpenFilePicker()` (avec repli sur `<input type="file">` pour les navigateurs qui ne le
+    supportent pas — Firefox, Safari), de conserver le handle obtenu sous une clé dérivée de l'id
+    du dossier une fois celui-ci créé (le picker s'ouvre avant que l'id existe), et d'étendre le
+    mécanisme de reconfirmation d'accès déjà en place pour les dossiers locaux/le registre partagé
+    à cette troisième catégorie de handle. Changement non trivial sur un chemin d'import critique et
+    déjà largement testé (OCR, détection de dates, frontières de pages...) — pas engagé sans une
+    demande explicite, mais la voie est balisée ici si l'étude la souhaite.
+  - **Bug corrigé, en creusant le point précédent : le bouton "👁 p.X" d'un engagement du vendeur ne
+    ramenait jamais dans le PDF, même pendant l'import lui-même** (l'étude a précisé viser ce cas,
+    pas seulement le cas "dossier rouvert" ci-dessus). Cause réelle, sans rapport avec le
+    `<input type="file">` : dans `traiterFichierPdf()`, `traiterTexte()` (qui calcule l'analyse
+    juridique et appelle `afficherAnalyseJuridique()` pour l'afficher) s'exécute **avant** que
+    `pdfActuel = pdf` soit renseigné plus bas dans la même fonction — chaque `renderEngagement()`
+    évaluait donc `pdfActuel` comme encore `null` (ou l'ancienne valeur) et retombait sur le simple
+    numéro de page non cliquable, sans jamais se remettre à jour ensuite (rien d'autre ne
+    re-render l'analyse après coup). Un second appel à `afficherAnalyseJuridique()` ajouté juste
+    après que `pdfActuel`/`pdfDernierePageUtile` sont connus régénère l'analyse déjà calculée avec
+    les bons boutons — appel sans risque, `afficherAnalyseJuridique()` est un simple rendu piloté
+    par `analyseJuridiqueActuelle`, sans effet de bord à dupliquer.
+  - **Corrigé au passage : `renderEngagement()` cherchait à surligner la phrase de l'engagement
+    dans le PDF en réutilisant `voirDateDansPdf()`**, conçue pour une date courte (elle cherche le
+    dernier "mot" du texte fourni — l'année, un ancrage fiable). Appliqué à une clause de texte
+    libre tronquée à 80 caractères, le "dernier mot" tombe au hasard (souvent un mot coupé en plein
+    milieu) et ne se retrouve presque jamais tel quel sur la page — la recherche échouait
+    silencieusement à chaque fois. L'échappement de la phrase pour l'attribut `onclick`
+    (`phrase.replace(/'/g, "\\'").slice(0, 80)`, tronqué **après** l'échappement) risquait aussi de
+    couper un `\'` en deux, produisant un attribut malformé. Nouvelle fonction dédiée
+    `allerALaPageDuPdf(numeroPage)` : fait uniquement défiler jusqu'à la page, sans tenter de
+    surligner un passage précis ni interpoler la phrase dans l'attribut — plus simple, plus fiable,
+    et le seul besoin réel exprimé ("m'amener sur la bonne page").
+  - **Non vérifié en conditions réelles dans cet environnement** : `pdf.js`/`tesseract.js`
+    (cdnjs.cloudflare.com / cdn.jsdelivr.net) sont bloqués par le proxy réseau de cet environnement
+    de développement (`ERR_TUNNEL_CONNECTION_FAILED`), empêchant tout import réel de PDF pendant le
+    développement — d'où l'absence de test Playwright de bout en bout pour ce correctif précis
+    (contrairement aux vérifications visuelles habituelles). Fondé sur une lecture attentive du
+    code (ordre d'exécution confirmé ligne par ligne) et sur la suite `npm test` (101 tests, tous
+    verts) plutôt que sur un import réel — à confirmer par l'étude en conditions réelles.
+- **Décision explicite avant merge dans `main` : les dates butoir (prêt/acte/vente) ne doivent
+  jamais être puisées dans les annexes, uniquement dans l'avant-contrat lui-même (compromis,
+  promesse).** `estDebutPageAnnexe()` (voir `extraireTextesUtiles()` plus haut, qui l'utilise pour
+  isoler le texte du compromis avant toute détection de dates) ne reconnaissait qu'un renvoi
+  explicite « Annexe n°1 » (chiffre obligatoire) — insuffisant pour deux formulations réelles
+  fréquentes : une page "ANNEXES" servant de simple intercalaire sans numéro, et une pièce jointe
+  qui n'a même pas de renvoi "annexe" et ne se reconnaît qu'à son propre titre de document (DPE,
+  ERP, plan cadastral, règlement de copropriété, procès-verbal d'AG, certificat d'urbanisme, état
+  daté...). `RE_DEBUT_ANNEXE` reconnaît maintenant "annexe(s)" avec ou sans numéro ainsi que
+  "pièce(s) annexe(s)" ; `RE_TITRE_PIECE_JOINTE` (ancrée en tout début de texte de page) reconnaît
+  les titres de documents joints les plus courants. Les deux gardent le même garde-fou déjà en
+  place (mention dans les 120 premiers caractères de la page, ou page globalement courte — scan
+  avec peu de texte extractible) pour ne pas se déclencher sur une simple mention en passant dans
+  une clause du corps de l'acte (voir le test de régression LD Notaires, toujours vert). Comme la
+  détection de dates ne tourne que sur le texte jusqu'à `dernierePageUtile` (voir
+  `traiterFichierPdf()`), toute page ainsi reconnue comme début d'annexe — et tout ce qui suit —
+  est désormais exclue de la détection des dates butoir, pas seulement de l'aperçu PDF.
 
 ## Comment tester
 
