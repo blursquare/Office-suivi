@@ -122,6 +122,30 @@ test('detecterTypeVenteCopropriete reconnaît "soumis au régime de la copropri�
   assert.equal(app.detecterTypeVenteCopropriete(texte), true);
 });
 
+test('detecterTypeVenteCopropriete ignore une clause qui écarte explicitement ce statut', () => {
+  // Régression : une vraie maison individuelle ressortait classée "copropriété" — la désignation
+  // comportait la clause standard « Le bien vendu n'est pas soumis au statut de la copropriété »,
+  // ajoutée précisément pour lever toute ambiguïté sur une maison, mais qui contient elle-même le
+  // motif recherché (statut/régime de la copropriété), déclenchant à tort la détection.
+  const app = chargerApplication();
+  assert.equal(app.detecterTypeVenteCopropriete(
+    "Le bien vendu est une maison d'habitation. Il n'est pas soumis au statut de la copropriété."
+  ), false);
+  assert.equal(app.detecterTypeVenteCopropriete(
+    "Le bien, une maison individuelle, ne relève pas du régime de la copropriété."
+  ), false);
+});
+
+test('detecterTypeVenteCopropriete reste vrai si une seconde mention, non niée, confirme la copropriété', () => {
+  // La négation ne doit écarter que l'occurrence qu'elle précède réellement — si le même texte
+  // contient par ailleurs une vraie mention positive (lot, syndicat...), la détection doit rester
+  // positive.
+  const app = chargerApplication();
+  const texte = "Ce lotissement n'est pas soumis au statut de la copropriété au sens de la loi de 1965 " +
+    "pour ses espaces verts, mais le bien vendu constitue le lot de copropriété numéro 3 de la résidence.";
+  assert.equal(app.detecterTypeVenteCopropriete(texte), true);
+});
+
 test('detecterEmailAcquereur trouve l\'email au voisinage de la mention du rôle', () => {
   const app = chargerApplication();
   const texte = "Le VENDEUR : Monsieur Jean DUPONT, email jean.dupont@vendeur.fr. " +

@@ -1558,7 +1558,9 @@
   .ligne-resume:hover { background: var(--paper-sunk); }
   .ligne-resume.est-archive { opacity: 0.65; }
   .ligne-resume .dossier-nom-tableau { font-weight: 600; color: var(--ink); }
-  .ligne-resume .dossier-responsable-tableau { color: var(--ink-soft); }
+  /* Même taille que .echeance-jours (12px) sur la même ligne — demandé par l'étude, le nom du
+     responsable ressortait visuellement plus gros que les dates à côté. */
+  .ligne-resume .dossier-responsable-tableau { color: var(--ink-soft); font-size: 12px; }
 
   .th-triable { cursor: pointer; }
   .th-triable:hover { color: var(--ink-soft); }
@@ -1750,7 +1752,10 @@
     font-size: 13.5px;
     color: var(--ink-soft);
   }
-  .dossier-classification { margin-top: 2px; }
+  /* Adresse, prix, type de vente, rôle du notaire et responsable regroupés sur une seule ligne
+     (ordre demandé par l'étude) — flex-wrap reprise de l'ancienne .dossier-adresse-prix, fusionnée
+     ici depuis que les deux lignes n'en forment plus qu'une. */
+  .dossier-classification { margin-top: 2px; display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
   /* La règle générique `select { width: 100% }` (styles du formulaire) ne fixe pas cette propriété
      ici : sans ce reset, .select-edit hérite quand même de cette largeur pleine ligne et fait
      passer chaque champ (Responsable/Type de vente/Rôle) à la ligne, alors qu'ils doivent tenir
@@ -1815,7 +1820,6 @@
   .apport-cercle.apport-success { background: var(--success); }
   .apport-cercle.apport-pret { background: var(--pret); }
   .apport-cercle.apport-urgent { background: var(--urgent); }
-  .dossier-adresse-prix { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 
   .badge-cash {
     display: inline-block;
@@ -1952,6 +1956,13 @@
     color: var(--success);
     font-weight: 600;
   }
+
+  /* Statut de l'offre de prêt + "Revérifier", sous la date/le décompte de la carte "Obtention du
+     prêt" (déplacé depuis l'en-tête du dossier, demandé par l'étude — plus proche de l'échéance
+     qu'il concerne). .badge-offre garde son margin-left d'origine (utilisé ailleurs sur la même
+     ligne qu'un texte) ; annulé ici, premier élément de sa propre ligne. */
+  .tab-offre-pret { margin-top: 6px; }
+  .tab-offre-pret .badge-offre { margin-left: 0; }
 
   .dossier-actions {
     display: flex;

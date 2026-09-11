@@ -113,8 +113,24 @@
   // l'était. "régime de la copropriété" ajouté en conséquence.
   const COPROPRIETE_RE = /lot\s+(?:de\s+)?copropri[ée]t[ée]|r[èe]glement\s+de\s+copropri[ée]t[ée]|syndicat\s+des\s+copropri[ée]taires|[ée]tat\s+descriptif\s+de\s+division|(?:statut|r[ée]gime)\s+de\s+la\s+copropri[ée]t[ée]|loi\s+(?:n[°ºo]\s*)?65-557|loi\s+du\s+10\s+juillet\s+1965/i;
 
+  // Bug corrigé : signalé par l'étude, une vraie maison individuelle (pas de division en lots)
+  // ressortait classée "copropriété". La désignation d'une maison comporte très souvent une clause
+  // qui écarte explicitement ce statut, précisément pour lever toute ambiguïté — ex. « Le bien
+  // vendu n'est pas soumis au statut de la copropriété » — et cette négation contient elle-même le
+  // motif recherché par COPROPRIETE_RE, qui se déclenchait donc à tort. À l'inverse, une vraie
+  // copropriété décrit le bien par son numéro de lot ET sa quote-part de parties communes
+  // (tantièmes/millièmes) — une maison n'a ni l'un ni l'autre. Vérifie donc, pour chaque occurrence
+  // de COPROPRIETE_RE, qu'elle n'est pas précédée d'une formule de négation.
+  const NEGATION_COPROPRIETE_RE = /(?:n['’]est|n['’]en\s+est|ne\s+sont)\s+pas\s+soumis|non\s+soumis|ne\s+rel[èe]ve(?:nt)?\s+pas|[àa]\s+l['’]exclusion\s+du\s+statut/i;
+
   function detecterTypeVenteCopropriete(texte) {
-    return COPROPRIETE_RE.test(texte);
+    const re = new RegExp(COPROPRIETE_RE.source, 'gi');
+    let m;
+    while ((m = re.exec(texte)) !== null) {
+      const avant = texte.slice(Math.max(0, m.index - 60), m.index);
+      if (!NEGATION_COPROPRIETE_RE.test(avant)) return true;
+    }
+    return false;
   }
 
   // Adresse du bien : ancrée sur un code postal français (5 chiffres, marqueur fiable et rare
@@ -263,11 +279,16 @@
     return resultat;
   }
 
-  // Repère le style "…ci-après dénommé(e) « le Vendeur »" : un guillemet (et souvent l'article
-  // le/la/l') juste avant le mot-clé signale que le nom est à chercher AVANT, pas après.
+  // Repère le style "…ci-après dénommé(e) « le Vendeur »" — avec OU SANS guillemets, formulation
+  // tout aussi fréquente ("ci-après dénommé le Vendeur" sans aucune ponctuation particulière) —
+  // où le nom de la personne est à chercher AVANT le mot-clé de rôle, pas après : la personne est
+  // présentée puis étiquetée, contrairement au style "en-tête" ("LE VENDEUR : M. X né le..."), où
+  // le nom suit. Bug corrigé : seul le cas avec guillemets était reconnu, un « ci-après dénommé »
+  // sans guillemets retombait à tort sur une recherche en avant.
   function estStyleLabelEntreGuillemets(texte, index) {
-    const avant = texte.slice(Math.max(0, index - 25), index);
-    return /["«'’]\s*(?:le|la|l['’]|du|des)?\s*$/i.test(avant);
+    const avant = texte.slice(Math.max(0, index - 60), index);
+    return /["«'’]\s*(?:le|la|l['’]|du|des)?\s*$/i.test(avant) ||
+      /ci-apr[èe]s\s+d[ée]nomm[ée]e?\s+(?:le|la|l['’])?\s*$/i.test(avant);
   }
 
   function extraireNomsRepli(texte, motRe) {
@@ -315,15 +336,42 @@
     return null;
   }
 
+  // Pour un rôle donné, trouve le nom de la personne ET le point où s'arrête sa présentation
+  // (utile pour ne pas repartir dedans en cherchant l'autre partie). Deux styles rencontrés dans
+  // les vrais compromis/promesses :
+  //  - "en-tête" : "LE VENDEUR : M. X né le ..." — le nom suit le mot-clé, dans un bloc borné par
+  //    le prochain "ci-après dénommé" (voir extraireBlocPartie).
+  //  - "étiquette finale" : "M. X né le ..., ci-après dénommé LE PROMETTANT" — le nom est AVANT
+  //    le mot-clé. Bug corrigé : en appliquant malgré tout la méthode "en-tête" à ce style, le
+  //    bloc borné par le PROCHAIN "ci-après dénommé" empiétait sur la présentation de l'AUTRE
+  //    partie (son propre "ci-après dénommé"), ce qui remontait son nom à la place du bon —
+  //    reproduit sur une promesse réelle signalée par l'étude (le résultat sortait "NOM / NOM"
+  //    avec deux fois le même nom, celui du bénéficiaire). Reconnaître ce style dès ce premier
+  //    mot-clé (voir estStyleLabelEntreGuillemets) et chercher directement en arrière l'évite.
+  function nomsEtFinPourRole(texte, motRe, apresIndex) {
+    const zone = texte.slice(apresIndex);
+    const m = zone.match(motRe);
+    if (!m) return { noms: [], finAbsolue: apresIndex };
+    const indexAbsolu = apresIndex + m.index;
+    const finAbsolue = indexAbsolu + m[0].length;
+    if (estStyleLabelEntreGuillemets(texte, indexAbsolu)) {
+      const fenetreAvant = texte.slice(Math.max(0, indexAbsolu - 250), indexAbsolu);
+      const r = trouverNomDansFenetre(fenetreAvant, 'last');
+      return { noms: r ? [r.nom] : [], finAbsolue };
+    }
+    const bloc = extraireBlocPartie(texte, motRe, apresIndex);
+    const noms = bloc ? extraireNomsParNaissance(bloc.texte) : [];
+    return { noms, finAbsolue: bloc ? bloc.finAbsolue : finAbsolue };
+  }
+
   function detecterNomDossier(texte) {
-    const blocVendeur = extraireBlocPartie(texte, RE_ROLE_VENDEUR, 0);
-    let nomsVendeur = blocVendeur ? extraireNomsParNaissance(blocVendeur.texte) : [];
-    const finVendeur = blocVendeur ? blocVendeur.finAbsolue : 0;
+    const resVendeur = nomsEtFinPourRole(texte, RE_ROLE_VENDEUR, 0);
+    let nomsVendeur = resVendeur.noms;
 
-    const blocAcquereur = extraireBlocPartie(texte, RE_ROLE_ACQUEREUR, finVendeur);
-    let nomsAcquereur = blocAcquereur ? extraireNomsParNaissance(blocAcquereur.texte) : [];
+    const resAcquereur = nomsEtFinPourRole(texte, RE_ROLE_ACQUEREUR, resVendeur.finAbsolue);
+    let nomsAcquereur = resAcquereur.noms;
 
-    // Repli si le modèle de document n'utilise pas "né(e) le" pour présenter les parties.
+    // Repli si aucun des deux styles ci-dessus n'a donné de résultat (autre mise en forme).
     if (nomsVendeur.length === 0) nomsVendeur = extraireNomsRepli(texte, RE_ROLE_VENDEUR);
     if (nomsAcquereur.length === 0) nomsAcquereur = extraireNomsRepli(texte, RE_ROLE_ACQUEREUR);
 
@@ -1821,7 +1869,7 @@
     ).join('');
   }
 
-  function renderTab(type, label, iso, dossierId, page, confiance, autreIndex, offrePretRecue) {
+  function renderTab(type, label, iso, dossierId, page, confiance, autreIndex, offrePretRecue, offreBloc) {
     // Les tabs Prêt / Acte / Vente d'un dossier enregistré sont recatégorisables au clic ;
     // les échéances "Autre" gardent leur libellé personnalisé (non concerné par ce sélecteur).
     const recategorisable = dossierId && autreIndex == null && (type === 'pret' || type === 'acte' || type === 'ventebien');
@@ -1866,8 +1914,9 @@
     if (!iso) {
       return `<div class="tab ${type}">
         ${enTete}
-        <span class="tab-date-affichage" id="${idBase}-aff"><div class="tab-date">Non renseigné</div>${crayonDate}</span>
+        <span class="tab-date-affichage" id="${idBase}-aff"><div class="tab-date">Non renseigné</div>${crayonDate}${badgeConfiance}</span>
         ${editionDate}
+        ${offreBloc || ''}
       </div>`;
     }
     const jours = joursRestants(iso);
@@ -1891,9 +1940,10 @@
     }
     return `<div class="tab ${type}">
       ${enTete}
-      <span class="tab-date-affichage" id="${idBase}-aff"><div class="tab-date">${formatDateFr(iso)}${boutonVoir}</div>${crayonDate}</span>
+      <span class="tab-date-affichage" id="${idBase}-aff"><div class="tab-date">${formatDateFr(iso)}${boutonVoir}</div>${crayonDate}${badgeConfiance}</span>
       ${editionDate}
-      <div class="tab-countdown ${countdownClass}">${countdownText}${badgeConfiance}</div>
+      <div class="tab-countdown ${countdownClass}">${countdownText}</div>
+      ${offreBloc || ''}
     </div>`;
   }
 
@@ -2280,39 +2330,49 @@
   }
 
   // Statut de synthèse ("où en est ce dossier ?"), distinct du score de priorité qui sert au tri :
-  // celui-ci répond d'un coup d'œil plutôt que de classer. Le plus sévère l'emporte quand plusieurs
-  // signaux coexistent (ex. offre introuvable ET échéance dépassée reste "blocage", pas cumulé).
+  // celui-ci répond d'un coup d'œil plutôt que de classer.
   const LIBELLES_STATUT = {
     pret: { emoji: '🟢', texte: 'Prêt', cls: 'statut-pret' },
     aconfirmer: { emoji: '🟡', texte: 'À confirmer', cls: 'statut-aconfirmer' },
     blocage: { emoji: '🔴', texte: 'Blocage', cls: 'statut-blocage' },
     archive: { emoji: '🔒', texte: 'Archivé', cls: 'statut-archive' }
   };
+  // Logique donnée explicitement par l'étude, fondée uniquement sur les documents effectivement
+  // retrouvés (offre de prêt + checklist de pièces), pas sur les échéances ni la confiance des
+  // dates détectées (ces deux derniers signaux restent visibles ailleurs — bandeau "accès à
+  // reconfirmer", badge "⚠️ à vérifier"/"≈ estimée" sur la date elle-même — la synthèse ne les
+  // duplique plus) :
+  //   🟢 vert    : toutes les pièces attendues sont trouvées — on peut signer.
+  //   🟡 orange  : il en manque encore (offre, urbanisme...) — état intermédiaire.
+  //   🔴 rouge   : aucun document n'a été trouvé.
+  // Un dossier jamais relié à un dossier local (rien n'a pu être vérifié) n'est pas pénalisé pour
+  // autant : on ne peut pas dire "rien trouvé" tant que rien n'a été cherché — même principe déjà
+  // appliqué à l'offre de prêt "inconnue" ailleurs dans l'outil (voir renderStatsSuivi). Un dossier
+  // sans rien à vérifier (achat comptant + rôle participant, qui ne suit pas la checklist de
+  // pièces) est trivialement "prêt".
   function statutDossier(d) {
     if (d.archive) return 'archive';
-    const prochaine = prochaineEcheanceDetail(d);
-    const echeanceDepassee = !!(prochaine && prochaine.jours < 0);
-    if ((!d.sansPret && d.offrePretStatut === 'manquante') || d.accesAReconfirmer || echeanceDepassee) {
-      return 'blocage';
+
+    // Chaque pièce attendue porte l'un de trois états — pas un simple booléen — pour distinguer
+    // "jamais cherchée" de "cherchée et confirmée absente" : seul ce second cas doit compter pour
+    // le rouge, le premier ne doit pas pénaliser un dossier qu'on n'a pas encore eu l'occasion de
+    // vérifier (même principe déjà appliqué à l'offre de prêt "inconnue" ailleurs dans l'outil).
+    const items = [];
+    if (!d.sansPret) {
+      items.push(d.offrePretStatut === 'recue' ? 'recue' : (d.offrePretStatut === 'manquante' ? 'manquante' : 'inconnu'));
     }
-    const confiance = d.confiance || {};
-    // "estime" (date calculée à partir d'une formulation approximative) mérite la même vigilance
-    // que "incertain" (choisie parmi plusieurs candidates) : dans les deux cas, la date affichée
-    // n'est pas une simple lecture directe du texte.
-    const incertain = ['pret', 'acte', 'ventebien'].some(t => confiance[t] === 'incertain' || confiance[t] === 'estime');
-    // Même périmètre que la tuile "offres à vérifier" du bandeau de stats (renderStatsSuivi) :
-    // un prêt actif dont l'offre n'a jamais été confirmée, qu'un dossier local soit relié ou non.
-    const offreInconnue = !d.sansPret && (d.offrePretStatut || 'inconnu') === 'inconnu';
-    // Règle demandée par l'étude (jusque-là volontairement non branchée, voir CLAUDE.md) : un
-    // dossier ne passe "prêt" que si la checklist de pièces (urbanisme...) est complète — sinon
-    // l'offre de prêt seule masquait des pièces manquantes. Uniquement une fois le dossier relié
-    // (une pièce jamais vérifiée faute de lien n'est pas un signe de blocage en soi, voir
-    // offreInconnue ci-dessus pour le même principe côté offre de prêt) et hors rôle participant
-    // (la checklist ne le concerne pas, voir renderPiecesDossier).
-    const piecesIncompletes = d.dossierLie && d.roleNotaire !== 'participant' &&
-      checklistPieces(d.typeVente).some(p => (d.pieces || {})[p.cle] !== 'recue');
-    if (incertain || offreInconnue || piecesIncompletes) return 'aconfirmer';
-    return 'pret';
+    // La checklist de pièces ne compte que si le dossier a déjà été relié à un dossier local au
+    // moins une fois : sur un dossier jamais relié, aucune pièce n'a pu être recherchée — ce n'est
+    // pas une absence, juste une vérification qui n'a pas encore eu lieu.
+    if (d.dossierLie && d.roleNotaire !== 'participant') {
+      checklistPieces(d.typeVente).forEach(p => items.push((d.pieces || {})[p.cle] || 'inconnu'));
+    }
+    if (items.length === 0 || items.every(s => s === 'recue')) return 'pret';
+
+    const verifies = items.filter(s => s !== 'inconnu');
+    if (verifies.length === 0) return 'aconfirmer';
+    if (verifies.every(s => s === 'manquante')) return 'blocage';
+    return 'aconfirmer';
   }
 
   // Chrome ne conserve l'autorisation d'accès à un dossier local que le temps de la session : elle
@@ -2585,6 +2645,16 @@
           // Même sans prêt (achat comptant), le dossier local reste nécessaire pour suivre
           // la checklist de pièces (urbanisme...) — voir renderPiecesDossier ci-dessous.
           : `<button type="button" class="lien-dossier-local" onclick="lierDossierLocal('${d.id}')">🔗 Lier un dossier local</button>`) : '';
+      // Statut de l'offre + "Revérifier", affiché directement sous la date dans la carte "Obtention
+      // du prêt" (voir renderTab, paramètre offreBloc) — demandé par l'étude, plutôt que sa position
+      // précédente dans l'en-tête, éloignée de l'échéance qu'elle concerne.
+      const offreBloc = (!d.sansPret && d.dossierLie) ? `
+        <div class="tab-offre-pret">
+          ${d.offrePretStatut === 'recue'
+              ? `<button type="button" class="badge-offre ${libelleOffre(d.offrePretStatut).cls}" title="Cliquer pour ouvrir le fichier trouvé" onclick="ouvrirOffreTrouvee('${d.id}')">${libelleOffre(d.offrePretStatut).texte}</button>`
+              : `<span class="badge-offre ${libelleOffre(d.offrePretStatut).cls}">${libelleOffre(d.offrePretStatut).texte}</span>`}
+          <button type="button" class="lien-dossier-local" onclick="verifierOffrePretDepuisBouton('${d.id}', this)">Revérifier</button>
+        </div>` : '';
       return `
       <div class="dossier${d.archive ? ' est-archive' : ''}">
         <div class="dossier-head">
@@ -2603,13 +2673,8 @@
             </div>
             ${d.roleNotaire === 'participant' ? '<span class="badge-role" title="Notaire participant / concourant : suivi limité au prêt et aux engagements du vendeur">🤝 Participant</span>' : ''}
             <div class="addr dossier-classification">
-              Responsable :
-              <select class="select-edit" onchange="changerResponsable('${d.id}', this.value)" aria-label="Responsable du dossier">
-                <option value="" ${d.responsable ? '' : 'selected'}>— À définir —</option>
-                <option ${d.responsable === 'Bastien ANGLUMENT' ? 'selected' : ''}>Bastien ANGLUMENT</option>
-                <option ${d.responsable === 'Julie VASSELIN' ? 'selected' : ''}>Julie VASSELIN</option>
-                <option ${d.responsable === 'Jérémy SAUJOT' ? 'selected' : ''}>Jérémy SAUJOT</option>
-              </select>
+              📍 <input type="text" class="input-inline champ-adresse-bien" value="${escapeAttr(d.adresseBien || '')}" placeholder="Adresse du bien non détectée" aria-label="Adresse du bien" onblur="changerAdresseBien('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
+              · 💶 <input type="text" class="input-inline champ-prix-vente" value="${d.prixVente ? formaterPrix(d.prixVente) : ''}" placeholder="Prix non détecté" aria-label="Prix de vente" onblur="changerPrixVente('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
               ·
               Type de vente :
               <select class="select-edit" onchange="changerTypeVente('${d.id}', this.value)" aria-label="Type de vente">
@@ -2621,19 +2686,16 @@
                 <option value="instrumentaire" ${d.roleNotaire === 'participant' ? '' : 'selected'}>Instrumentaire</option>
                 <option value="participant" ${d.roleNotaire === 'participant' ? 'selected' : ''}>Participant</option>
               </select>
-            </div>
-            <div class="addr dossier-adresse-prix">
-              📍 <input type="text" class="input-inline champ-adresse-bien" value="${escapeAttr(d.adresseBien || '')}" placeholder="Adresse du bien non détectée" aria-label="Adresse du bien" onblur="changerAdresseBien('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
-              · 💶 <input type="text" class="input-inline champ-prix-vente" value="${d.prixVente ? formaterPrix(d.prixVente) : ''}" placeholder="Prix non détecté" aria-label="Prix de vente" onblur="changerPrixVente('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
+              · Responsable :
+              <select class="select-edit" onchange="changerResponsable('${d.id}', this.value)" aria-label="Responsable du dossier">
+                <option value="" ${d.responsable ? '' : 'selected'}>— À définir —</option>
+                <option ${d.responsable === 'Bastien ANGLUMENT' ? 'selected' : ''}>Bastien ANGLUMENT</option>
+                <option ${d.responsable === 'Julie VASSELIN' ? 'selected' : ''}>Julie VASSELIN</option>
+                <option ${d.responsable === 'Jérémy SAUJOT' ? 'selected' : ''}>Jérémy SAUJOT</option>
+              </select>
             </div>
             ${d.sansPret ? '<span class="badge-cash">💰 Achat comptant — sans prêt</span>' : ''}
-            <div class="offre-pret-ligne">
-              ${(!d.sansPret && d.dossierLie) ? `${d.offrePretStatut === 'recue'
-                  ? `<button type="button" class="badge-offre ${libelleOffre(d.offrePretStatut).cls}" title="Cliquer pour ouvrir le fichier trouvé" onclick="ouvrirOffreTrouvee('${d.id}')">${libelleOffre(d.offrePretStatut).texte}</button>`
-                  : `<span class="badge-offre ${libelleOffre(d.offrePretStatut).cls}">${libelleOffre(d.offrePretStatut).texte}</span>`}
-                 <button type="button" class="lien-dossier-local" onclick="verifierOffrePretDepuisBouton('${d.id}', this)">Revérifier</button>` : ''}
-              ${d.accesAReconfirmer ? `<span class="reconfirmer-acces" onclick="reconfirmerAcces('${d.id}')">Cliquer pour reconfirmer l'accès</span>` : ''}
-            </div>
+            ${d.accesAReconfirmer ? `<div class="offre-pret-ligne"><span class="reconfirmer-acces" onclick="reconfirmerAcces('${d.id}')">Cliquer pour reconfirmer l'accès</span></div>` : ''}
             ${(!d.sansPret && d.offrePretStatut === 'recue' && calculerApport(d)) ? (() => {
               const apport = calculerApport(d);
               return `<div class="addr apport-ligne">
@@ -2650,7 +2712,7 @@
         <div class="dossier-body">
         <div class="dossier-col-principale">
         <div class="tabs">
-          ${renderTab('pret', 'Obtention du prêt', d.pret, d.id, d.pretPage, confiance.pret, null, d.offrePretStatut === 'recue')}
+          ${renderTab('pret', 'Obtention du prêt', d.pret, d.id, d.pretPage, confiance.pret, null, d.offrePretStatut === 'recue', offreBloc)}
           ${renderTab('acte', 'Signature de l\u2019acte', d.acte, d.id, d.actePage, confiance.acte)}
           ${d.ventebien ? renderTab('ventebien', 'Vente préalable', d.ventebien, d.id, d.ventebienPage, confiance.ventebien) : ''}
           ${(d.autres || []).map((a, i) => renderTab('autre', escapeHtml(a.label), a.date, d.id, a.page, null, i)).join('')}

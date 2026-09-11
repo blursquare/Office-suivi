@@ -998,6 +998,71 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
   détection de dates ne tourne que sur le texte jusqu'à `dernierePageUtile` (voir
   `traiterFichierPdf()`), toute page ainsi reconnue comme début d'annexe — et tout ce qui suit —
   est désormais exclue de la détection des dates butoir, pas seulement de l'aperçu PDF.
+- **Série de retours de l'étude après un nouveau test réel (une vraie promesse de vente
+  téléchargée, ouverte en local)**, traités indépendamment :
+  - **Bug corrigé : une vraie maison individuelle ressortait classée "copropriété".**
+    `COPROPRIETE_RE` se déclenchait sur une clause de négation standard, ajoutée précisément pour
+    lever toute ambiguïté sur une maison — « Le bien vendu n'est pas soumis au statut de la
+    copropriété » — qui contient elle-même le motif recherché (statut/régime de la copropriété).
+    Renseignement pris sur la différence de désignation notariale entre les deux : une copropriété
+    décrit toujours le bien par un numéro de LOT et une quote-part de parties communes (tantièmes/
+    millièmes), qu'une maison individuelle n'a ni l'un ni l'autre — d'où les motifs positifs déjà
+    en place (lot de copropriété, syndicat des copropriétaires, état descriptif de division...),
+    qui restaient corrects en soi. `detecterTypeVenteCopropriete()` (nouveau `NEGATION_COPROPRIETE_RE`)
+    vérifie maintenant, pour CHAQUE occurrence de `COPROPRIETE_RE` prise séparément (plus un simple
+    `.test()` global), qu'elle n'est pas précédée d'une formule de négation (« n'est pas soumis »,
+    « ne relève pas », « à l'exclusion du statut »...) dans les 60 caractères qui la précèdent —
+    une seconde occurrence non niée dans le même texte reste positive (cas d'un lotissement dont
+    seuls les espaces verts sont hors copropriété, mais dont un lot est bien en copropriété).
+  - **Bug corrigé : le nom de dossier d'une promesse ressortait "NOM / NOM"**, avec deux fois le
+    nom du bénéficiaire. Cause : `detecterNomDossier()` ne gérait bien que le style "en-tête" (« LE
+    PROMETTANT : M. X né le... ») où le nom suit le mot-clé de rôle — le bloc du promettant était
+    alors borné par le PROCHAIN "ci-après dénommé" rencontré dans le texte pour savoir où
+    s'arrêter. Sur une vraie promesse, seul le style "étiquette finale" était utilisé (« M. X né
+    le ..., ci-après dénommé le PROMETTANT » — le nom vient AVANT le mot-clé, sans bloc "en-tête"
+    séparé) : le "prochain ci-après dénommé" rencontré était alors celui du BÉNÉFICIAIRE lui-même,
+    et le bloc avalait donc sa présentation à la place de celle du promettant. `detecterNomDossier()`
+    reconnaît maintenant ce style dès la première occurrence du mot-clé de rôle (réutilise
+    `estStyleLabelEntreGuillemets`, voir juste en dessous) et va chercher le nom directement en
+    arrière dans ce cas, sans passer par le découpage en bloc qui causait le problème. Format
+    résultant inchangé et déjà correct par construction : `RE_ROLE_VENDEUR`/`RE_ROLE_ACQUEREUR`
+    reconnaissent déjà "promettant"/"bénéficiaire" en plus de "vendeur"/"acquéreur", donc l'ordre
+    obtenu est bien PROMETTANT / BÉNÉFICIAIRE pour une promesse (comme VENDEUR / ACQUÉREUR pour un
+    compromis) — demandé explicitement par l'étude, sans qu'aucun changement de format n'ait été
+    nécessaire, seulement ce correctif d'extraction.
+  - **Bug corrigé au passage : `estStyleLabelEntreGuillemets()` ne reconnaissait que le style AVEC
+    guillemets** (« ci-après dénommé « le Vendeur » »), retombant à tort sur une recherche en avant
+    pour la formulation, tout aussi fréquente, sans aucune ponctuation particulière ("ci-après
+    dénommé le Vendeur"). Reconnaît maintenant aussi ce cas.
+  - **Taille de police du responsable dans le tableau Suivi** alignée sur celle des dates de la
+    même ligne (`.echeance-jours`, 12px) — le nom du collaborateur ressortait plus gros que le
+    reste de la ligne.
+  - **Logique des badges de statut vert/orange/rouge redéfinie explicitement par l'étude**, plus
+    simple que l'ancienne combinaison de signaux (offre manquante, accès à reconfirmer, échéance
+    dépassée, confiance de la date) : 🟢 vert = toutes les pièces attendues (offre + checklist)
+    sont trouvées, on peut signer ; 🟡 orange = état intermédiaire (pièces encore manquantes, ou
+    rien n'a encore pu être vérifié) ; 🔴 rouge = aucun document n'a été trouvé parmi ce qui a
+    réellement été cherché. `statutDossier()` réécrite en conséquence : chaque pièce attendue porte
+    un statut à trois valeurs (`recue`/`manquante`/`inconnu`, pas un simple booléen) pour distinguer
+    "jamais cherchée" de "cherchée et confirmée absente" — seul ce second cas compte pour le rouge,
+    le premier ne pénalise pas un dossier qu'on n'a pas encore eu l'occasion de vérifier (même
+    principe déjà appliqué à l'offre de prêt "inconnue" ailleurs dans l'outil). L'accès à
+    reconfirmer, l'échéance dépassée et la confiance de la date n'influencent plus ce badge — ils
+    restent visibles ailleurs (bandeau "accès à reconfirmer", badge "⚠️ à vérifier"/"≈ estimée" sur
+    la date elle-même), la synthèse ne les duplique plus.
+  - **Fiche dossier dépliée : adresse, prix, type de vente, rôle du notaire et responsable
+    regroupés sur une seule ligne**, dans cet ordre précis (demandé par l'étude) — les deux `<div>`
+    distincts (`.dossier-classification` et l'ancienne `.dossier-adresse-prix`, supprimée) ont été
+    fusionnés en un seul `.dossier-classification` (flex-wrap repris de l'ancienne règle).
+  - **Statut de l'offre de prêt + "Revérifier" déplacés dans la carte "Obtention du prêt"**, sous
+    la date/le décompte, plutôt que dans l'en-tête du dossier (position jugée trop éloignée de
+    l'échéance concernée). `renderTab()` accepte un nouveau paramètre `offreBloc` (HTML déjà
+    construit, passé uniquement pour le tab "pret") inséré en fin de carte ; `renderCarteDossier()`
+    ne garde dans son ancien emplacement (`.offre-pret-ligne`) que le lien "reconfirmer l'accès",
+    qui concerne le dossier local dans son ensemble, pas spécifiquement l'offre de prêt. Le badge
+    de confiance (`≈ estimée`/`⚠️ à vérifier`/...) est déplacé au même moment à côté du crayon
+    d'édition de la date (dans `.tab-date-affichage`) plutôt qu'à côté du décompte J-X, sur la
+    même demande.
 
 ## Comment tester
 
