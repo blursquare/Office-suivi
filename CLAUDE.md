@@ -981,6 +981,23 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     (contrairement aux vérifications visuelles habituelles). Fondé sur une lecture attentive du
     code (ordre d'exécution confirmé ligne par ligne) et sur la suite `npm test` (101 tests, tous
     verts) plutôt que sur un import réel — à confirmer par l'étude en conditions réelles.
+- **Décision explicite avant merge dans `main` : les dates butoir (prêt/acte/vente) ne doivent
+  jamais être puisées dans les annexes, uniquement dans l'avant-contrat lui-même (compromis,
+  promesse).** `estDebutPageAnnexe()` (voir `extraireTextesUtiles()` plus haut, qui l'utilise pour
+  isoler le texte du compromis avant toute détection de dates) ne reconnaissait qu'un renvoi
+  explicite « Annexe n°1 » (chiffre obligatoire) — insuffisant pour deux formulations réelles
+  fréquentes : une page "ANNEXES" servant de simple intercalaire sans numéro, et une pièce jointe
+  qui n'a même pas de renvoi "annexe" et ne se reconnaît qu'à son propre titre de document (DPE,
+  ERP, plan cadastral, règlement de copropriété, procès-verbal d'AG, certificat d'urbanisme, état
+  daté...). `RE_DEBUT_ANNEXE` reconnaît maintenant "annexe(s)" avec ou sans numéro ainsi que
+  "pièce(s) annexe(s)" ; `RE_TITRE_PIECE_JOINTE` (ancrée en tout début de texte de page) reconnaît
+  les titres de documents joints les plus courants. Les deux gardent le même garde-fou déjà en
+  place (mention dans les 120 premiers caractères de la page, ou page globalement courte — scan
+  avec peu de texte extractible) pour ne pas se déclencher sur une simple mention en passant dans
+  une clause du corps de l'acte (voir le test de régression LD Notaires, toujours vert). Comme la
+  détection de dates ne tourne que sur le texte jusqu'à `dernierePageUtile` (voir
+  `traiterFichierPdf()`), toute page ainsi reconnue comme début d'annexe — et tout ce qui suit —
+  est désormais exclue de la détection des dates butoir, pas seulement de l'aperçu PDF.
 
 ## Comment tester
 

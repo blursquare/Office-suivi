@@ -96,6 +96,34 @@ test('estDebutPageAnnexe reconnaît une vraie page d\'annexe (titre en tête, pa
   assert.equal(app.estDebutPageAnnexe('Annexe n°1 — Extrait de plan cadastral'), true);
 });
 
+test('estDebutPageAnnexe reconnaît une page "ANNEXES" sans numéro (liste de pièces jointes)', () => {
+  // Décision de l'étude : les dates butoir ne doivent venir que de l'avant-contrat lui-même —
+  // l'ancien motif exigeait un chiffre ("annexe n°1"), ratant une simple page de titre "ANNEXES".
+  const app = chargerApplication();
+  assert.equal(app.estDebutPageAnnexe('ANNEXES'), true);
+});
+
+test('estDebutPageAnnexe reconnaît une pièce jointe reconnue par son propre titre, même sur une page longue', () => {
+  // Certaines pièces jointes n'ont aucun renvoi "annexe" et ne se reconnaissent qu'à leur propre
+  // titre de document (ici un DPE) — doit compter même si le reste de la page dépasse 300
+  // caractères, tant que le titre est bien en tout début de page.
+  const app = chargerApplication();
+  const texte = 'DIAGNOSTIC DE PERFORMANCE ENERGETIQUE\n' +
+    'Texte du diagnostic proprement dit qui continue sur plusieurs lignes pour dépasser le seuil '.repeat(4);
+  assert.equal(app.estDebutPageAnnexe(texte), true);
+});
+
+test('estDebutPageAnnexe ignore une clause qui cite un diagnostic en passant, en milieu de page longue', () => {
+  // Le titre de document (voir test ci-dessus) n'est reconnu qu'en tout début de page — une
+  // clause du corps de l'acte qui mentionne un diagnostic en passant ne doit pas déclencher la
+  // coupure (déjà couvert pour "annexe n°1" par le premier test de ce bloc, ici pour les titres).
+  const app = chargerApplication();
+  const texte = 'Il est précisé que le vendeur remettra à l\'acquéreur le diagnostic de performance ' +
+    'énergétique du bien avant la signature, ainsi que les autres diagnostics obligatoires. '.repeat(3) +
+    'HISTORIQUE DE LA PROPRIETE';
+  assert.equal(app.estDebutPageAnnexe(texte), false);
+});
+
 test('prochaineEcheanceDetail ignore l\'échéance de prêt une fois l\'offre reçue, au profit de la suivante', () => {
   const app = chargerApplication();
   const dansTroisJours = new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString().slice(0, 10);

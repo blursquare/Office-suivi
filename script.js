@@ -1210,8 +1210,17 @@
   // réellement une pièce jointe (scan de plan, diagnostic…) porte cette mention en tout début de
   // page et contient très peu d'autre texte extractible — à l'inverse d'une clause de plusieurs
   // milliers de caractères qui la cite juste en passant.
+  //
+  // Décision explicite de l'étude : les dates butoir (prêt/acte/vente) ne doivent JAMAIS être
+  // puisées dans les annexes, uniquement dans l'avant-contrat lui-même (compromis/promesse) — le
+  // motif ci-dessus (limité à "annexe n°1", chiffre obligatoire) ratait deux cas réels fréquents :
+  // une page "ANNEXES" sans numéro qui introduit la liste des pièces jointes, et une pièce jointe
+  // qui n'a même pas de renvoi "annexe" et ne se reconnaît qu'à son propre titre de document
+  // (diagnostic, plan cadastral...). Les deux gardent le même garde-fou position/longueur.
+  const RE_DEBUT_ANNEXE = /\bannexes?\b(?:\s*n[°ºo]?\s*\d+)?|\bpi[èe]ces?\s+annexe(?:s|[ée]s)?\b/i;
+  const RE_TITRE_PIECE_JOINTE = /^\s*(?:dossier\s+de\s+diagnostic\s+technique|diagnostic\s+de\s+performance\s+[ée]nerg[ée]tique|[ée]tat\s+des\s+risques(?:\s+et\s+pollutions)?|constat\s+de\s+risque\s+d.exposition\s+au\s+plomb|[ée]tat\s+relatif\s+[àa]\s+la\s+pr[ée]sence\s+de\s+termites|certificat\s+d.urbanisme|r[èe]glement\s+de\s+copropri[ée]t[ée]|extrait\s+(?:du\s+)?plan\s+cadastral|proc[èe]s-verbal\s+d.assembl[ée]e\s+g[ée]n[ée]rale|[ée]tat\s+dat[ée])/i;
   function estDebutPageAnnexe(texteBrut) {
-    const m = texteBrut.match(/annexe\s*n[°ºo]?\s*1\b/i);
+    const m = texteBrut.match(RE_DEBUT_ANNEXE) || texteBrut.match(RE_TITRE_PIECE_JOINTE);
     if (!m) return false;
     return m.index < 120 || texteBrut.trim().length < 300;
   }
