@@ -29,6 +29,40 @@ test('detecterNomDossier fonctionne avec les rôles Promettant / Bénéficiaire'
   assert.equal(app.detecterNomDossier(texte), 'BERNARD / PETIT');
 });
 
+test('detecterNomDossier gère le style "étiquette finale" (nom avant le rôle, pas de bloc en-tête)', () => {
+  // Régression : une vraie promesse remontait "PETIT / PETIT" (le nom du bénéficiaire recopié des
+  // deux côtés). Cause : sans bloc "LE PROMETTANT :" en tête, le bloc du promettant était borné
+  // par le PROCHAIN "ci-après dénommé" rencontré — celui du bénéficiaire — et avalait donc sa
+  // présentation à la place de la bonne.
+  const app = chargerApplication();
+  const texte = `
+    ENTRE LES SOUSSIGNES :
+
+    Monsieur Paul BERNARD, né le 1 janvier 1960 à Nice,
+    ci-après dénommé le "PROMETTANT",
+
+    D'une part,
+
+    ET :
+
+    Madame Julie PETIT, née le 3 mars 1990 à Metz,
+    ci-après dénommée le "BENEFICIAIRE",
+
+    D'autre part,
+  `;
+  assert.equal(app.detecterNomDossier(texte), 'BERNARD / PETIT');
+});
+
+test('detecterNomDossier gère l\'étiquette finale même sans aucune ponctuation autour du rôle', () => {
+  const app = chargerApplication();
+  const texte = `
+    Monsieur Marc ROUSSEAU né le 10 juin 1965 à Lille, ci-après dénommé le Vendeur,
+    et Madame Sophie LEFEBVRE née le 12 août 1978 à Reims, ci-après dénommée l'Acquéreur,
+    sont convenus de ce qui suit.
+  `;
+  assert.equal(app.detecterNomDossier(texte), 'ROUSSEAU / LEFEBVRE');
+});
+
 test('suggererEcheance classe une clause de prêt', () => {
   const app = chargerApplication();
   assert.equal(app.suggererEcheance("condition suspensive d'obtention d'un prêt immobilier"), 'pret');
@@ -162,31 +196,30 @@ test('statutDossier renvoie "blocage" quand l\'offre de prêt est introuvable', 
   assert.equal(app.statutDossier(d), 'blocage');
 });
 
-test('statutDossier renvoie "blocage" quand l\'accès au dossier local est à reconfirmer', () => {
-  const app = chargerApplication();
-  const d = { archive: false, sansPret: true, accesAReconfirmer: true, pret: '' };
-  assert.equal(app.statutDossier(d), 'blocage');
-});
-
-test('statutDossier renvoie "blocage" quand toutes les échéances sont dépassées', () => {
+test('statutDossier n\'est plus influencé par l\'accès à reconfirmer, l\'échéance dépassée ou la confiance de la date', () => {
+  // Décision explicite de l'étude : la synthèse vert/orange/rouge ne porte plus que sur les
+  // documents effectivement retrouvés (offre + pièces) — ces trois signaux restent visibles
+  // ailleurs (bandeau "accès à reconfirmer", badge "⚠️ à vérifier"/"≈ estimée" sur la date), mais
+  // n'affectent plus ce badge. Un dossier sans rien à vérifier (ici sans prêt, jamais relié) est
+  // trivialement "prêt" quel que soit l'état de ces trois signaux.
   const app = chargerApplication();
   const hier = new Date(Date.now() - 24 * 3600 * 1000).toISOString().slice(0, 10);
-  const d = { archive: false, sansPret: true, acte: hier };
+  const d = { archive: false, sansPret: true, accesAReconfirmer: true, acte: hier, confiance: { acte: 'incertain' } };
+  assert.equal(app.statutDossier(d), 'pret');
+});
+
+test('statutDossier renvoie "blocage" quand le dossier est relié mais qu\'aucune pièce n\'a été trouvée', () => {
+  // Rouge = "aucun document trouvé", pas seulement l'offre de prêt : ici l'offre ET toute la
+  // checklist de pièces ont été cherchées (dossier relié) et confirmées manquantes.
+  const app = chargerApplication();
+  const demain = new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 10);
+  const pieces = {};
+  app.checklistPieces('maison').forEach(p => { pieces[p.cle] = 'manquante'; });
+  const d = {
+    archive: false, sansPret: false, offrePretStatut: 'manquante', pret: demain,
+    dossierLie: true, roleNotaire: 'instrumentaire', typeVente: 'maison', pieces
+  };
   assert.equal(app.statutDossier(d), 'blocage');
-});
-
-test('statutDossier renvoie "aconfirmer" quand une échéance a été choisie parmi plusieurs candidates ambiguës', () => {
-  const app = chargerApplication();
-  const demain = new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 10);
-  const d = { archive: false, sansPret: true, acte: demain, confiance: { acte: 'incertain' } };
-  assert.equal(app.statutDossier(d), 'aconfirmer');
-});
-
-test('statutDossier renvoie "aconfirmer" quand une échéance est une date estimée (fin de mois, délai relatif)', () => {
-  const app = chargerApplication();
-  const demain = new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 10);
-  const d = { archive: false, sansPret: true, acte: demain, confiance: { acte: 'estime' } };
-  assert.equal(app.statutDossier(d), 'aconfirmer');
 });
 
 test('statutDossier renvoie "aconfirmer" quand l\'offre de prêt n\'a jamais été confirmée', () => {
