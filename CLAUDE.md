@@ -853,23 +853,104 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     texte, uniquement si `!d.sansPret && d.offrePretStatut === 'recue'` et que prix/montant sont
     tous les deux connus — pas affiché tant que l'offre n'a pas été confirmée reçue (cohérent avec
     la demande initiale : comparer "lors de la réception de l'offre").
-- **Bouton "🔍 Comparer au prix du marché"** (`comparerPrixMarche()`), à côté du champ adresse dès
-  qu'une adresse est renseignée : demandé pour situer le prix du bien par rapport au marché local
-  (l'étude a évoqué "Pappers" comme piste — en réalité un site de données SIREN/SIRET d'entreprises,
-  sans rapport avec l'immobilier résidentiel, précision faite avant d'implémenter autre chose).
-  - **Seule l'adresse du bien est transmise, jamais le nom du dossier ni l'identité des parties** —
-    confirmé explicitement acceptable par l'étude, à la différence du reste de l'outil qui ne
-    transmet strictement rien à l'extérieur (voir "décision explicite de rester en local"). Un clic
-    utilisateur explicite déclenche l'ouverture (`window.open` dans un nouvel onglet), jamais un
-    appel automatique en arrière-plan — même principe que le `mailto:` des relances, qui n'envoie
-    jamais rien tout seul.
-  - Pointe vers une recherche web généraliste (`https://www.google.com/search?q=...`) plutôt qu'un
-    lien profond vers un site immobilier précis (DVF/etalab, MeilleursAgents...) : impossible de
-    garantir la stabilité du format de leurs URLs de recherche par adresse sans l'avoir testé en
-    conditions réelles, alors qu'une recherche généraliste fonctionne toujours et laisse
-    l'utilisateur choisir le résultat pertinent (DVF en particulier reste la source officielle à
-    privilégier une fois cliqué). À remplacer par un lien direct si l'étude confirme un site
-    précis dont le format d'URL est vérifié.
+- **Bouton "🔍 Comparer au prix du marché" : ajouté puis retiré.** Implémenté pour situer le prix
+  du bien par rapport au marché local (recherche web généraliste sur l'adresse seule, ouverte dans
+  un nouvel onglet sur clic explicite — jamais le nom du dossier ni l'identité des parties). Retiré
+  entièrement (`comparerPrixMarche()` et le bouton associé supprimés) après test en conditions
+  réelles par l'étude : "ça ne me plaît pas". **Ne pas réimplémenter sans nouvelle demande
+  explicite.** Le calcul de l'apport (`calculerApport()`, montant du prêt comparé au prix), lui,
+  reste en place — seule la comparaison au marché externe a été retirée, ce sont deux
+  fonctionnalités distinctes.
+- **Série de correctifs remontés par l'étude après un test approfondi en conditions réelles**
+  (dossier téléchargé depuis GitHub et ouvert en local, pas seulement l'aperçu) :
+  - **Bug corrigé : une vraie copropriété restait classée "maison" par défaut.** `COPROPRIETE_RE`
+    ne reconnaissait pas la formulation la plus courante dans les faits — "soumis au régime de la
+    copropriété", juste avant la mention du lot sous le tableau parcellaire — seul "statut de la
+    copropriété" l'était. Motif "régime de la copropriété" ajouté. Voir le test de régression dans
+    `tests/dates.test.js`.
+  - **Bug corrigé : "Reconfirmer tous les accès" redemandait malgré tout dossier par dossier**,
+    contrairement à l'intention du bouton groupé. Cause réelle : la version précédente demandait la
+    permission d'UN dossier PUIS lisait aussitôt tous ses PDF (potentiellement plusieurs secondes,
+    OCR compris) avant de passer au suivant — largement de quoi épuiser la fenêtre de "user
+    activation" du clic d'origine (qui expire en quelques secondes), après quoi Chrome refuse
+    silencieusement les `requestPermission()` suivants, chacun nécessitant alors un nouveau clic.
+    `reconfirmerTousLesAcces()` sépare maintenant strictement les deux phases : (1) demander toutes
+    les permissions à la suite, sans rien faire d'autre entre deux, puis (2) lire les PDF de ce qui
+    a été accordé, qui peut prendre tout le temps voulu une fois la permission acquise.
+  - **`statutDossier()` vérifié sur le cas "offre reçue + toutes les pièces reçues" → repasse bien
+    en "prêt"** (voir le nouveau test dans `tests/divers.test.js`) : la logique était déjà correcte
+    une fois isolée — le blocage observé en conditions réelles était très probablement dû à la
+    mauvaise classification du type de vente ci-dessus (des pièces de copropriété jamais
+    trouvables sur une vraie maison), pas à un bug de `statutDossier()` lui-même.
+  - **Bug corrigé : le tab "Obtention du prêt" affichait "Échéance dépassée" même une fois l'offre
+    confirmée reçue**, ce qui donnait l'impression trompeuse d'un retard sur une condition pourtant
+    résolue. `renderTab()` accepte un nouveau paramètre `offrePretRecue` (passé uniquement pour le
+    tab "pret") qui remplace alors l'affichage par "✓ Offre reçue" (`--success`), sans toucher au
+    calcul du compteur pour les autres tabs.
+  - **Un dossier entièrement complet (offre reçue + toutes les pièces) n'est plus rescanné
+    automatiquement** (`dossierEntierementComplet()`) : `revérifierDossiersLiesAuDemarrage()`
+    (démarrage + minuteur 5 min) saute désormais ces dossiers — inutile de relire des dizaines de
+    PDF pour un dossier qui n'a plus rien à apprendre. Un clic explicite sur "Revérifier" continue
+    de fonctionner sur un dossier déjà complet (l'étude peut vouloir confirmer après un doute, ou
+    un fichier a pu être retiré du dossier local entre-temps).
+  - **Icônes des tuiles KPI "échéances ≤ 7/15 jours" unifiées** : un même petit calendrier SVG
+    dessiné à la main (`iconeCalendrierSeuil()`), avec le seuil (7 ou 15) inscrit dans le corps du
+    calendrier, remplace les deux emojis différents (⏱️/📅) sans lien visuel entre eux. **Piège
+    rencontré** : un premier essai superposait juste le chiffre en surimpression sur l'emoji 📅
+    natif — celui-ci porte déjà son propre numéro de jour selon la plateforme (souvent "17" sur
+    Chrome/Noto), ce qui produisait un rendu illisible ("177"). Un vrai SVG (rectangle + attaches +
+    `<text>`) résout le problème en donnant un contrôle total sur ce qui s'affiche.
+  - **Bouton mode sombre réduit à l'icône seule** (plus de texte "Mode sombre"/"Mode clair" à côté)
+    — le libellé accessible reste porté par `aria-label`/`title`, pas visible à l'écran.
+    `.sidebar-link-icone-seule` centre l'icône plutôt que la laisser plaquée à gauche d'une rangée
+    sinon vide.
+  - **Bug corrigé : taille de police incohérente sur la ligne "Responsable : ... · Type de vente :
+    ... · Rôle du notaire : ..."** — le texte (`.dossier-head .addr`, 13.5px) et les `<select>`
+    (`.select-edit`, 13px) différaient de 0.5px, rendant la ligne visuellement inégale. Alignés à
+    13.5px (`.select-edit` et `.input-inline`, ce dernier pour l'adresse/le prix par cohérence).
+  - **Badge "🔥 Prioritaire" réduit à l'emoji seul** (le texte reste en `title`, pas affiché) —
+    demandé pour alléger la ligne de tableau.
+  - **Vue "Cartes" retirée entièrement** du Suivi ("je préfère la vue tableau, la vue carte, ça ne
+    va pas") : bouton de bascule Cartes/Tableau, `renderCarteCompacte()`/`toggleCarteCompacte()`,
+    `.cartes-grid`/`.mini-carte*` supprimés. Le tableau (`renderLigneTableau()`) est désormais la
+    seule vue de la liste des dossiers — les surcharges CSS du détail compact (`.ligne-detail ...`)
+    ont perdu leur pendant `.mini-carte.ouverte ...` associé, simplifiées en conséquence.
+  - **Clause "en cas de demande de visite" exclue des engagements du vendeur** : cette clause
+    standard sur l'organisation de visites du bien avant la vente ressortait à tort comme une
+    obligation à réclamer après coup. Ajoutée à `EXCLUSION_ENGAGEMENT_RE`.
+  - **Cliquer sur une pièce reçue (ou l'offre de prêt reçue) rouvre directement le fichier local où
+    elle a été trouvée**, plutôt que de se contenter d'un badge sans rien derrière.
+    `verifierOffrePret()`/`verifierPiecesDossier()` conservent désormais le `FileSystemFileHandle`
+    du fichier trouvé (même mécanisme IndexedDB que le handle du dossier local lui-même —
+    `enregistrerHandle`/`recupererHandle` acceptent n'importe quelle chaîne comme clé), sous
+    `${id}::offre` ou `${id}::piece::${cle}` (`CLE_HANDLE_OFFRE`/`CLE_HANDLE_PIECE`).
+    `ouvrirFichierTrouve()` (via `ouvrirPieceTrouvee()`/`ouvrirOffreTrouvee()`) récupère ce handle,
+    revérifie la permission et ouvre le fichier dans un nouvel onglet (`URL.createObjectURL`). Un
+    fichier détecté avant l'ajout de cette fonctionnalité n'a pas de handle mémorisé : message
+    clair invitant à cliquer sur "Revérifier" plutôt qu'un échec silencieux. La pastille "reçue"
+    devient un vrai `<button>` (reset des styles natifs pour garder l'apparence d'un badge) ; les
+    autres statuts (manquante/inconnu) restent un simple `<span>`, rien à ouvrir.
+  - **Indicateur visuel pendant la recherche dans le dossier local** : les boutons "Revérifier"
+    (offre) et "Revérifier les pièces" passaient jusque-là de leur état initial au résultat final
+    sans aucun signe intermédiaire, ce qui pouvait laisser croire à un clic sans effet sur un
+    dossier volumineux (beaucoup de PDF, repli OCR). `verifierOffrePretDepuisBouton()`/
+    `verifierPiecesDossierDepuisBouton()` désactivent le bouton et changent son texte
+    ("⏳ Recherche…") de façon synchrone avant l'appel asynchrone — `render()` (déjà appelé dans
+    tous les chemins de retour de `verifierOffrePret`/`verifierPiecesDossier`) remplace ensuite ce
+    bouton par un rendu à jour, pas besoin de restaurer son texte d'origine à la main.
+  - **Investigué et volontairement non implémenté : rendre cliquable le numéro de page de l'analyse
+    juridique pour un dossier déjà enregistré et rouvert.** Ça fonctionne déjà pendant l'import
+    (PDF encore en mémoire, voir `voirDateDansPdf()`), mais pas après enregistrement : le compromis
+    est importé via un simple `<input type="file">` (`#f-pdf`), qui ne fournit qu'un `File`
+    éphémère, pas un `FileSystemFileHandle` persistable comme pour un dossier local relié. Rendre
+    ça possible demanderait de basculer l'import du compromis sur `showOpenFilePicker()` (avec
+    repli sur `<input type="file">` pour les navigateurs qui ne le supportent pas — Firefox,
+    Safari), de conserver le handle obtenu sous une clé dérivée de l'id du dossier une fois celui-ci
+    créé (le picker s'ouvre avant que l'id existe), et d'étendre le mécanisme de reconfirmation
+    d'accès déjà en place pour les dossiers locaux/le registre partagé à cette troisième catégorie
+    de handle. Changement non trivial sur un chemin d'import critique et déjà largement testé (OCR,
+    détection de dates, frontières de pages...) — pas engagé sans une demande explicite, mais la
+    voie est balisée ici si l'étude la souhaite.
 
 ## Comment tester
 

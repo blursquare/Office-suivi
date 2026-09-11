@@ -56,6 +56,15 @@ test('extraireEngagementsVendeur écarte un thème hors périmètre (urbanisme, 
   assert.equal(engagements.length, 0);
 });
 
+test('extraireEngagementsVendeur écarte la clause standard de demande de visite', () => {
+  // Signalé par l'étude : cette clause d'organisation des visites du bien avant la vente
+  // ressortait à tort comme un engagement/obligation à réclamer après coup.
+  const app = chargerApplication();
+  const texte = "Le vendeur s'engage à faciliter l'accès au bien en cas de demande de visite formulée par l'acquéreur ou ses mandataires.";
+  const engagements = app.extraireEngagementsVendeur(texte);
+  assert.equal(engagements.length, 0);
+});
+
 test('detecterDocumentsAFournir reconnaît un type de document courant dans les clauses', () => {
   const app = chargerApplication();
   const engagements = app.extraireEngagementsVendeur("Le vendeur s'engage à remettre un justificatif de ramonage de la cheminée.");

@@ -48,8 +48,8 @@
       <button type="button" class="sidebar-link install-btn" id="install-btn" style="display:none;" onclick="installerApplication()">
         <span class="sidebar-link-icone" aria-hidden="true">⇩</span>Installer l'application
       </button>
-      <button type="button" class="sidebar-link" id="theme-btn" onclick="basculerTheme()" aria-label="Basculer le thème clair/sombre">
-        <span class="sidebar-link-icone" aria-hidden="true">🌙</span>Mode sombre
+      <button type="button" class="sidebar-link sidebar-link-icone-seule" id="theme-btn" onclick="basculerTheme()" aria-label="Basculer le thème clair/sombre" title="Basculer le thème clair/sombre">
+        <span class="sidebar-link-icone" aria-hidden="true">🌙</span>
       </button>
     </div>
   </aside>
@@ -376,10 +376,6 @@
       <input type="checkbox" id="voir-archives" onchange="render()">
       Afficher les dossiers archivés
     </label>
-    <div class="view-toggle" role="group" aria-label="Affichage de la liste">
-      <button type="button" id="btn-vue-cartes" class="view-toggle-btn" aria-pressed="true" onclick="definirVue('cartes')">Cartes</button>
-      <button type="button" id="btn-vue-tableau" class="view-toggle-btn" aria-pressed="false" onclick="definirVue('tableau')">Tableau</button>
-    </div>
     <span class="toolbar-spacer"></span>
     <span id="statut-partage" class="statut-partage" style="display:none;"></span>
     <button type="button" class="toolbar-btn" id="btn-registre-partage" onclick="lierRegistrePartage()">🔗 Registre partagé (réseau)</button>

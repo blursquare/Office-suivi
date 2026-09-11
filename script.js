@@ -107,7 +107,11 @@
   // Marqueurs juridiques propres à une vente de lot en copropriété (statut de la loi du 10 juillet
   // 1965), plutôt qu'une simple mention isolée de "copropriété" qui pourrait apparaître pour
   // d'autres raisons (ex. un diagnostic mentionnant un immeuble voisin).
-  const COPROPRIETE_RE = /lot\s+(?:de\s+)?copropri[ée]t[ée]|r[èe]glement\s+de\s+copropri[ée]t[ée]|syndicat\s+des\s+copropri[ée]taires|[ée]tat\s+descriptif\s+de\s+division|statut\s+de\s+la\s+copropri[ée]t[ée]|loi\s+(?:n[°ºo]\s*)?65-557|loi\s+du\s+10\s+juillet\s+1965/i;
+  // Bug corrigé : signalé par l'étude, une vraie vente de lot restait classée "maison" par défaut
+  // — la formulation la plus courante ("soumis au régime de la copropriété", juste avant la mention
+  // du lot sous le tableau parcellaire) n'était pas reconnue, seul "statut de la copropriété"
+  // l'était. "régime de la copropriété" ajouté en conséquence.
+  const COPROPRIETE_RE = /lot\s+(?:de\s+)?copropri[ée]t[ée]|r[èe]glement\s+de\s+copropri[ée]t[ée]|syndicat\s+des\s+copropri[ée]taires|[ée]tat\s+descriptif\s+de\s+division|(?:statut|r[ée]gime)\s+de\s+la\s+copropri[ée]t[ée]|loi\s+(?:n[°ºo]\s*)?65-557|loi\s+du\s+10\s+juillet\s+1965/i;
 
   function detecterTypeVenteCopropriete(texte) {
     return COPROPRIETE_RE.test(texte);
@@ -180,21 +184,6 @@
     const pourcentage = Math.round((montant / d.prixVente) * 100);
     const niveau = pourcentage < 0 ? 'urgent' : (pourcentage < 10 ? 'pret' : 'success');
     return { montant, pourcentage, niveau };
-  }
-
-  // Comparaison au prix du marché : ouvre un onglet vers une recherche publique sur la seule
-  // adresse du bien — jamais le nom du dossier ni l'identité des parties, en accord avec le
-  // principe général de l'outil ("rien n'est envoyé sur internet" sans un clic explicite de
-  // l'utilisateur, voir le mailto: des relances). Un clic direct sur un bouton, jamais un appel
-  // automatique en arrière-plan : jusque-là aucune donnée ne quittait le poste sans ce geste,
-  // ce bouton respecte la même règle. Passe par une recherche web généraliste plutôt qu'un lien
-  // profond vers un site précis (DVF, MeilleursAgents...) dont on ne peut pas garantir la stabilité
-  // du format d'URL de recherche par adresse — l'utilisateur choisit ensuite le résultat pertinent.
-  function comparerPrixMarche(id) {
-    const d = dossiers.find(x => x.id === id);
-    if (!d || !d.adresseBien) return;
-    const requete = encodeURIComponent(`prix immobilier au m2 ${d.adresseBien}`);
-    window.open(`https://www.google.com/search?q=${requete}`, '_blank', 'noopener');
   }
 
   // Repère les noms de famille du VENDEUR et de l'ACQUÉREUR (un ou plusieurs de chaque côté) pour
@@ -455,7 +444,11 @@
 
   // Thèmes explicitement exclus de l'analyse : ils relèvent du suivi notarial classique et non
   // des pièces ou travaux à réclamer au vendeur dans le cadre de ce suivi.
-  const EXCLUSION_ENGAGEMENT_RE = /urbanisme|permis\s+de\s+construire|d[ée]claration\s+pr[ée]alable|droit\s+de\s+pr[ée]emption|\bdia\b|bornage|servitude|cadastr|copropri[ée]t[ée]|syndic|assembl[ée]e\s+g[ée]n[ée]rale|[ée]tat\s+dat[ée]|fonds\s+de\s+travaux|charges\s+de\s+copropri[ée]t[ée]|taxe\s+fonci[èe]re|imp[ôo]t\s+foncier|quitus\s+fiscal|hypoth[ée]|mainlev[ée]e|certificat\s+de\s+radiation|privil[èe]ge\s+de\s+pr[êe]teur/i;
+  // "demande de visite" ajoutée sur retour de l'étude : une clause standard sur l'organisation de
+  // visites du bien avant la vente (accès du bien à l'acquéreur/aux diagnostiqueurs...) ne
+  // constitue pas un engagement à réclamer après coup, contrairement à une clause de travaux/
+  // documents/entretien — elle ne doit jamais ressortir dans les obligations du vendeur.
+  const EXCLUSION_ENGAGEMENT_RE = /urbanisme|permis\s+de\s+construire|d[ée]claration\s+pr[ée]alable|droit\s+de\s+pr[ée]emption|\bdia\b|bornage|servitude|cadastr|copropri[ée]t[ée]|syndic|assembl[ée]e\s+g[ée]n[ée]rale|[ée]tat\s+dat[ée]|fonds\s+de\s+travaux|charges\s+de\s+copropri[ée]t[ée]|taxe\s+fonci[èe]re|imp[ôo]t\s+foncier|quitus\s+fiscal|hypoth[ée]|mainlev[ée]e|certificat\s+de\s+radiation|privil[èe]ge\s+de\s+pr[êe]teur|demande\s+de\s+visite/i;
 
   // Clauses purement hypothétiques : « SI le bien VENAIT À se trouver en zone contaminée, le
   // vendeur s'engage à fournir un état parasitaire ». Rien n'est dû tant que l'hypothèse ne se
@@ -1799,7 +1792,7 @@
     ).join('');
   }
 
-  function renderTab(type, label, iso, dossierId, page, confiance, autreIndex) {
+  function renderTab(type, label, iso, dossierId, page, confiance, autreIndex, offrePretRecue) {
     // Les tabs Prêt / Acte / Vente d'un dossier enregistré sont recatégorisables au clic ;
     // les échéances "Autre" gardent leur libellé personnalisé (non concerné par ce sélecteur).
     const recategorisable = dossierId && autreIndex == null && (type === 'pret' || type === 'acte' || type === 'ventebien');
@@ -1851,7 +1844,13 @@
     const jours = joursRestants(iso);
     let countdownClass = '';
     let countdownText = '';
-    if (jours < 0) {
+    // Une fois l'offre de prêt confirmée reçue, la date de cette échéance n'a plus lieu d'être
+    // signalée comme "dépassée" (condition résolue, pas un retard) — signalé par l'étude sur la
+    // fiche dépliée d'un dossier avec offre reçue.
+    if (offrePretRecue) {
+      countdownClass = 'recue';
+      countdownText = '✓ Offre reçue';
+    } else if (jours < 0) {
       countdownClass = 'passed';
       countdownText = 'Échéance dépassée';
     } else if (jours === 0) {
@@ -2064,20 +2063,35 @@
   // Tuiles KPI du "Tableau de bord" : mêmes chiffres que renderStatsSuivi (calculerStatsPortefeuille),
   // avec une 5e tuile propre au tableau de bord (pièces manquantes) — l'aperçu d'ensemble le plus
   // synthétique de l'outil, avant même d'ouvrir un dossier.
+  // Icône calendrier commune aux deux tuiles d'échéances (7j/15j) avec le seuil incrusté dedans,
+  // plutôt que deux emojis différents (⏱️/📅) sans lien visuel entre les deux — demandé par
+  // l'étude pour rendre évident que ce sont deux variantes de la même mesure. Un vrai SVG dessiné à
+  // la main, pas l'emoji 📅 : ce dernier porte déjà son propre numéro de jour selon la plateforme
+  // (souvent "17"), qui se superposait de façon illisible à celui qu'on voulait y afficher.
+  function iconeCalendrierSeuil(jours) {
+    return `<svg class="kpi-icone kpi-icone-calendrier" viewBox="0 0 16 16" aria-hidden="true">
+      <rect x="1" y="2.3" width="14" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.3"/>
+      <rect x="1" y="2.3" width="14" height="3.4" rx="1.1" fill="currentColor" opacity="0.28" stroke="none"/>
+      <line x1="4.3" y1="1" x2="4.3" y2="3.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+      <line x1="11.7" y1="1" x2="11.7" y2="3.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+      <text x="8" y="12.3" text-anchor="middle" font-size="6.6" font-weight="800" fill="currentColor">${jours}</text>
+    </svg>`;
+  }
+
   function renderKpisDashboard(dossiersActifs) {
     const bloc = document.getElementById('kpis-dashboard');
     if (!bloc) return;
     const { actifs, urgents, urgents15, manquantes, aVerifier, piecesIncompletes } = calculerStatsPortefeuille(dossiersActifs);
     const tuiles = [
-      ['c-neutre', actifs, actifs > 1 ? 'dossiers actifs' : 'dossier actif', '📁'],
-      ['c-urgent', urgents, 'échéances ≤ 7 jours', '⏱️'],
-      ['c-urgent', urgents15, 'échéances ≤ 15 jours', '📅'],
-      ['c-pret', manquantes, 'offres de prêt introuvables', '⚠️'],
-      ['c-neutre', aVerifier, 'offres à vérifier', '🔎'],
-      ['c-pret', piecesIncompletes, 'dossiers avec pièces manquantes', '📋']
+      ['c-neutre', actifs, actifs > 1 ? 'dossiers actifs' : 'dossier actif', '<span class="kpi-icone">📁</span>'],
+      ['c-urgent', urgents, 'échéances ≤ 7 jours', iconeCalendrierSeuil(7)],
+      ['c-urgent', urgents15, 'échéances ≤ 15 jours', iconeCalendrierSeuil(15)],
+      ['c-pret', manquantes, 'offres de prêt introuvables', '<span class="kpi-icone">⚠️</span>'],
+      ['c-neutre', aVerifier, 'offres à vérifier', '<span class="kpi-icone">🔎</span>'],
+      ['c-pret', piecesIncompletes, 'dossiers avec pièces manquantes', '<span class="kpi-icone">📋</span>']
     ];
-    bloc.innerHTML = tuiles.map(([cls, valeur, libelle, emoji]) =>
-      `<div class="kpi-tile"><span class="kpi-icone">${emoji}</span><div class="kpi-num ${cls}">${valeur}</div><div class="kpi-label">${libelle}</div></div>`
+    bloc.innerHTML = tuiles.map(([cls, valeur, libelle, iconeHtml]) =>
+      `<div class="kpi-tile">${iconeHtml}<div class="kpi-num ${cls}">${valeur}</div><div class="kpi-label">${libelle}</div></div>`
     ).join('');
   }
 
@@ -2116,8 +2130,8 @@
   }
 
   // Ouvre un dossier depuis le tableau de bord : bascule vers le Suivi et déplie directement la
-  // carte concernée (dossiersDeplies avant le render() suivant, même mécanisme que le dépliage
-  // manuel d'une carte/ligne — voir toggleCarteCompacte/toggleLigneDossier).
+  // ligne concernée (dossiersDeplies avant le render() suivant, même mécanisme que le dépliage
+  // manuel d'une ligne — voir toggleLigneDossier).
   function ouvrirDossierDepuisDashboard(id) {
     dossiersDeplies.add(id);
     definirOnglet('suivi');
@@ -2195,16 +2209,6 @@
     if (nom === 'suivi' || nom === 'dashboard') render();
   }
 
-  // État d'affichage de la liste (recherche, filtres, vue) : réinitialisé à chaque rechargement de
-  // la page, comme le tri ou l'affichage des archives — pas besoin de le persister.
-  let vueDossiers = 'cartes';
-  function definirVue(v) {
-    vueDossiers = v;
-    document.getElementById('btn-vue-cartes').setAttribute('aria-pressed', String(v === 'cartes'));
-    document.getElementById('btn-vue-tableau').setAttribute('aria-pressed', String(v === 'tableau'));
-    render();
-  }
-
   // Détermine, parmi les échéances d'un dossier, la plus proche à afficher en un coup d'œil dans
   // la vue tableau (celle déjà retenue pour le tri par calculerProchaineEcheance, mais avec son
   // type/libellé/date en plus, pas seulement le nombre de jours).
@@ -2229,7 +2233,7 @@
   // date d'échéance ne capture pas : la proximité de l'échéance elle-même, l'absence d'offre de
   // prêt (bloquant pour la suite du dossier), et un accès local perdu (empêche toute vérification
   // automatique tant que personne ne clique pour le reconfirmer). Seuil SEUIL_PRIORITE_ELEVEE
-  // au-delà duquel le badge "Prioritaire" s'affiche (voir renderLigneTableau/renderCarteCompacte).
+  // au-delà duquel le badge "Prioritaire" s'affiche (voir renderLigneTableau).
   const SEUIL_PRIORITE_ELEVEE = 90;
   function calculerPriorite(d) {
     let score = 0;
@@ -2315,13 +2319,39 @@
   // restent proches du geste utilisateur d'origine (contrairement à des API à usage unique comme
   // requestFullscreen). Si l'activation expire avant la fin (portefeuille très volumineux), les
   // dossiers restants gardent leur bouton individuel.
+  //
+  // Bug corrigé : signalé par l'étude, le clic redemandait malgré tout l'accès "dossier par
+  // dossier" au lieu d'un seul geste pour tous. Cause réelle : la version précédente demandait la
+  // permission d'UN dossier PUIS lisait aussitôt tous ses PDF (potentiellement plusieurs secondes,
+  // OCR compris) avant de passer au dossier suivant — largement de quoi épuiser la fenêtre de
+  // "user activation" du clic d'origine, qui expire en quelques secondes. Chrome refusait alors
+  // silencieusement les requestPermission() suivants, chacun nécessitant un nouveau clic. Corrigé
+  // en séparant strictement les deux phases : (1) demander toutes les permissions à la suite, sans
+  // rien faire d'autre entre deux — cette phase seule reste assez rapide pour tenir dans la
+  // fenêtre d'activation d'un portefeuille réaliste — puis (2) lire les PDF de ce qui a été
+  // accordé, qui peut prendre tout le temps voulu une fois la permission acquise.
   async function reconfirmerTousLesAcces() {
-    for (const d of dossiers.filter(x => x.accesAReconfirmer)) {
-      await verifierOffrePret(d.id, true);
-      await verifierPiecesDossier(d.id, true);
+    const dossiersAConfirmer = dossiers.filter(x => x.accesAReconfirmer);
+    const idsAccordes = [];
+    for (const d of dossiersAConfirmer) {
+      const handle = await recupererHandle(d.id);
+      if (!handle) { d.dossierLie = false; continue; }
+      const permission = await handle.requestPermission({ mode: 'read' });
+      if (permission === 'granted') {
+        d.accesAReconfirmer = false;
+        idsAccordes.push(d.id);
+      }
     }
-    if (registrePartageLie && registrePartageAccesAReconfirmer) {
-      await lireRegistrePartage(true);
+    const partageHandle = (registrePartageLie && registrePartageAccesAReconfirmer)
+      ? await obtenirHandlePartage(true) : null;
+    render();
+
+    for (const id of idsAccordes) {
+      await verifierOffrePret(id, false);
+      await verifierPiecesDossier(id, false);
+    }
+    if (partageHandle) {
+      await lireRegistrePartage(false);
       majStatutPartage();
     }
     render();
@@ -2416,24 +2446,22 @@
       return calculerProchaineEcheance(a) - calculerProchaineEcheance(b);
     });
 
-    if (vueDossiers === 'tableau') {
-      const flechesTri = { nom: '', responsable: '', echeance: '' };
-      flechesTri[tri] = ' <span class="tri-actif">▾</span>';
-      list.innerHTML = `
-        <div class="table-scroll">
-          <table class="dossiers-table">
-            <thead><tr>
-              <th class="th-triable" onclick="definirTri('nom')">Dossier${flechesTri.nom}</th>
-              <th class="th-triable" onclick="definirTri('responsable')">Responsable${flechesTri.responsable}</th>
-              <th class="th-triable" onclick="definirTri('echeance')">Prochaine échéance${flechesTri.echeance}</th>
-              <th>Offre de prêt</th>
-            </tr></thead>
-            <tbody>${tries.map(renderLigneTableau).join('')}</tbody>
-          </table>
-        </div>`;
-    } else {
-      list.innerHTML = `<div class="cartes-grid">${tries.map(renderCarteCompacte).join('')}</div>`;
-    }
+    // Vue "Cartes" retirée sur demande de l'étude (préférence pour la vue tableau, plus dense sur
+    // un portefeuille d'une soixantaine de dossiers) : le tableau est désormais la seule vue.
+    const flechesTri = { nom: '', responsable: '', echeance: '' };
+    flechesTri[tri] = ' <span class="tri-actif">▾</span>';
+    list.innerHTML = `
+      <div class="table-scroll">
+        <table class="dossiers-table">
+          <thead><tr>
+            <th class="th-triable" onclick="definirTri('nom')">Dossier${flechesTri.nom}</th>
+            <th class="th-triable" onclick="definirTri('responsable')">Responsable${flechesTri.responsable}</th>
+            <th class="th-triable" onclick="definirTri('echeance')">Prochaine échéance${flechesTri.echeance}</th>
+            <th>Offre de prêt</th>
+          </tr></thead>
+          <tbody>${tries.map(renderLigneTableau).join('')}</tbody>
+        </table>
+      </div>`;
   }
 
   // Change le tri depuis un clic sur un en-tête de colonne : répercuté sur le menu "Trier par"
@@ -2456,7 +2484,7 @@
     const deplie = dossiersDeplies.has(d.id);
     return `
       <tr class="ligne-resume${d.archive ? ' est-archive' : ''}" onclick="toggleLigneDossier('${d.id}')">
-        <td><div class="dossier-nom-tableau">${renderBadgeStatut(d)}${escapeHtml(d.nom)}${prioritaire ? '<span class="badge-prioritaire" title="Échéance proche, offre de prêt manquante et/ou accès local à reconfirmer">🔥 Prioritaire</span>' : ''}</div></td>
+        <td><div class="dossier-nom-tableau">${renderBadgeStatut(d)}${escapeHtml(d.nom)}${prioritaire ? '<span class="badge-prioritaire" title="Prioritaire : échéance proche, offre de prêt manquante et/ou accès local à reconfirmer">🔥</span>' : ''}</div></td>
         <td class="dossier-responsable-tableau">${escapeHtml(d.responsable || '—')}</td>
         <td>
           ${prochaine
@@ -2466,7 +2494,7 @@
         </td>
         <td>
           ${d.sansPret ? '<span class="echeance-jours calme">Comptant — sans prêt</span>' : `<span class="badge-offre ${offre.cls}">${offre.texte}</span>`}
-          ${(!d.sansPret && d.dossierLie) ? `<button type="button" class="action-rapide" onclick="event.stopPropagation(); verifierOffrePret('${d.id}', true)">Revérifier</button>` : ''}
+          ${(!d.sansPret && d.dossierLie) ? `<button type="button" class="action-rapide" onclick="event.stopPropagation(); verifierOffrePretDepuisBouton('${d.id}', this)">Revérifier</button>` : ''}
         </td>
       </tr>
       <tr class="ligne-detail${deplie ? ' ouvert' : ''}" id="detail-${d.id}"><td colspan="4">${renderCarteDossier(d)}</td></tr>
@@ -2478,41 +2506,6 @@
     if (!el) return;
     const ouvert = el.classList.toggle('ouvert');
     if (ouvert) dossiersDeplies.add(id); else dossiersDeplies.delete(id);
-  }
-
-  // Vue "Cartes" compacte : un résumé par dossier (nom, responsable, échéance, offre) qui déplie
-  // au clic la même carte complète que la vue tableau — ni logique ni markup d'action dupliqués.
-  function renderCarteCompacte(d) {
-    const prochaine = prochaineEcheanceDetail(d);
-    const offre = !d.sansPret ? libelleOffre(d.offrePretStatut) : null;
-    const prioritaire = calculerPriorite(d) >= SEUIL_PRIORITE_ELEVEE;
-    const deplie = dossiersDeplies.has(d.id);
-    return `
-      <div class="mini-carte${d.archive ? ' est-archive' : ''}${deplie ? ' ouverte' : ''}" id="mini-${d.id}">
-        <div class="mini-carte-resume" onclick="toggleCarteCompacte('${d.id}')">
-          <div class="mini-carte-nom">${renderBadgeStatut(d)}${escapeHtml(d.nom)}${prioritaire ? '<span class="badge-prioritaire" title="Échéance proche, offre de prêt manquante et/ou accès local à reconfirmer">🔥 Prioritaire</span>' : ''}</div>
-          <div class="mini-carte-responsable">${escapeHtml(d.responsable || '—')}</div>
-          <div class="mini-carte-echeance">
-            ${prochaine
-              ? `<span class="type-pill ${prochaine.type}"><span class="dot"></span>${escapeHtml(prochaine.label)}</span>
-                 <span class="echeance-jours ${prochaine.jours <= 3 ? 'urgent' : 'calme'}">${prochaine.jours < 0 ? 'dépassée' : prochaine.jours === 0 ? "aujourd'hui" : 'J-' + prochaine.jours}</span>`
-              : '<span class="echeance-jours calme">Aucune échéance</span>'}
-          </div>
-          <div class="mini-carte-pied">
-            ${d.sansPret ? '<span class="echeance-jours calme">Comptant — sans prêt</span>' : `<span class="badge-offre ${offre.cls}">${offre.texte}</span>`}
-            ${(!d.sansPret && d.dossierLie) ? `<button type="button" class="action-rapide" onclick="event.stopPropagation(); verifierOffrePret('${d.id}', true)">Revérifier</button>` : ''}
-          </div>
-        </div>
-        <div class="mini-carte-detail" id="detail-carte-${d.id}">${renderCarteDossier(d)}</div>
-      </div>
-    `;
-  }
-
-  function toggleCarteCompacte(id) {
-    const el = document.getElementById('mini-' + id);
-    if (!el) return;
-    const ouverte = el.classList.toggle('ouverte');
-    if (ouverte) dossiersDeplies.add(id); else dossiersDeplies.delete(id);
   }
 
   function libellePiece(statut) {
@@ -2536,12 +2529,17 @@
         <div class="pieces-dossier-titre">
           <span>📁 Pièces du dossier (${libelleType})</span>
           <span class="pieces-compteur${complet ? ' complet' : ''}">${nbRecues}/${checklist.length}</span>
-          ${(DOSSIER_FS_SUPPORTE && d.dossierLie) ? `<button type="button" class="action-rapide" onclick="verifierPiecesDossier('${d.id}', true)">Revérifier les pièces</button>` : ''}
+          ${(DOSSIER_FS_SUPPORTE && d.dossierLie) ? `<button type="button" class="action-rapide" onclick="verifierPiecesDossierDepuisBouton('${d.id}', this)">Revérifier les pièces</button>` : ''}
         </div>
         <div class="pieces-liste">
           ${checklist.map(p => {
             const s = libellePiece(pieces[p.cle] || 'inconnu');
-            return `<span class="piece-item ${s.cls}" title="${escapeAttr(s.titre)}"><span class="piece-icone">${s.texte}</span>${escapeHtml(p.label)}</span>`;
+            // Une pièce reçue est cliquable pour rouvrir directement le fichier local où elle a
+            // été trouvée (voir ouvrirPieceTrouvee) — les autres statuts (manquante/inconnu)
+            // restent un simple badge, rien à ouvrir.
+            return s.cls === 'recue'
+              ? `<button type="button" class="piece-item ${s.cls}" title="Cliquer pour ouvrir le fichier trouvé" onclick="ouvrirPieceTrouvee('${d.id}', '${p.cle}')"><span class="piece-icone">${s.texte}</span>${escapeHtml(p.label)}</button>`
+              : `<span class="piece-item ${s.cls}" title="${escapeAttr(s.titre)}"><span class="piece-icone">${s.texte}</span>${escapeHtml(p.label)}</span>`;
           }).join('')}
         </div>
       </div>
@@ -2598,12 +2596,13 @@
             <div class="addr dossier-adresse-prix">
               📍 <input type="text" class="input-inline champ-adresse-bien" value="${escapeAttr(d.adresseBien || '')}" placeholder="Adresse du bien non détectée" aria-label="Adresse du bien" onblur="changerAdresseBien('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
               · 💶 <input type="text" class="input-inline champ-prix-vente" value="${d.prixVente ? formaterPrix(d.prixVente) : ''}" placeholder="Prix non détecté" aria-label="Prix de vente" onblur="changerPrixVente('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
-              ${d.adresseBien ? `<button type="button" class="lien-dossier-local" onclick="comparerPrixMarche('${d.id}')" title="Ouvre une recherche dans un nouvel onglet — seule l'adresse du bien est transmise, jamais le nom du dossier ni des parties">🔍 Comparer au prix du marché</button>` : ''}
             </div>
             ${d.sansPret ? '<span class="badge-cash">💰 Achat comptant — sans prêt</span>' : ''}
             <div class="offre-pret-ligne">
-              ${(!d.sansPret && d.dossierLie) ? `<span class="badge-offre ${libelleOffre(d.offrePretStatut).cls}">${libelleOffre(d.offrePretStatut).texte}</span>
-                 <button type="button" class="lien-dossier-local" onclick="verifierOffrePret('${d.id}', true)">Revérifier</button>` : ''}
+              ${(!d.sansPret && d.dossierLie) ? `${d.offrePretStatut === 'recue'
+                  ? `<button type="button" class="badge-offre ${libelleOffre(d.offrePretStatut).cls}" title="Cliquer pour ouvrir le fichier trouvé" onclick="ouvrirOffreTrouvee('${d.id}')">${libelleOffre(d.offrePretStatut).texte}</button>`
+                  : `<span class="badge-offre ${libelleOffre(d.offrePretStatut).cls}">${libelleOffre(d.offrePretStatut).texte}</span>`}
+                 <button type="button" class="lien-dossier-local" onclick="verifierOffrePretDepuisBouton('${d.id}', this)">Revérifier</button>` : ''}
               ${d.accesAReconfirmer ? `<span class="reconfirmer-acces" onclick="reconfirmerAcces('${d.id}')">Cliquer pour reconfirmer l'accès</span>` : ''}
             </div>
             ${(!d.sansPret && d.offrePretStatut === 'recue' && calculerApport(d)) ? (() => {
@@ -2622,7 +2621,7 @@
         <div class="dossier-body">
         <div class="dossier-col-principale">
         <div class="tabs">
-          ${renderTab('pret', 'Obtention du prêt', d.pret, d.id, d.pretPage, confiance.pret)}
+          ${renderTab('pret', 'Obtention du prêt', d.pret, d.id, d.pretPage, confiance.pret, null, d.offrePretStatut === 'recue')}
           ${renderTab('acte', 'Signature de l\u2019acte', d.acte, d.id, d.actePage, confiance.acte)}
           ${d.ventebien ? renderTab('ventebien', 'Vente préalable', d.ventebien, d.id, d.ventebienPage, confiance.ventebien) : ''}
           ${(d.autres || []).map((a, i) => renderTab('autre', escapeHtml(a.label), a.date, d.id, a.page, null, i)).join('')}
@@ -3381,6 +3380,14 @@
     });
   }
 
+  // Clés dérivées pour conserver, en plus du handle du dossier local lui-même, celui du fichier
+  // PDF précis où l'offre de prêt (ou une pièce de la checklist) a été trouvée — même magasin
+  // IndexedDB que les dossiers (enregistrerHandle/recupererHandle acceptent n'importe quelle
+  // chaîne comme identifiant), pour rouvrir directement ce fichier d'un clic plutôt que de
+  // reparcourir tout le dossier local. Voir ouvrirPieceTrouvee().
+  const CLE_HANDLE_OFFRE = (id) => `${id}::offre`;
+  const CLE_HANDLE_PIECE = (id, cle) => `${id}::piece::${cle}`;
+
   async function enregistrerHandle(id, handle) {
     handlesEnMemoire[id] = handle;
     try {
@@ -3493,6 +3500,23 @@
     return texte;
   }
 
+  // Retour visuel pendant le parcours du dossier local (peut prendre plusieurs secondes sur un
+  // dossier volumineux/beaucoup de PDF/repli OCR) : sans ça, le bouton restait silencieux jusqu'au
+  // résultat final, ce qui pouvait laisser croire à un clic sans effet — signalé par l'étude.
+  // render() (appelé à la fin de verifierOffrePret/verifierPiecesDossier dans tous les cas)
+  // remplace de toute façon ce bouton par un rendu à jour, donc pas besoin de remettre son texte
+  // d'origine ici si tout se passe bien ; seul le cas où le bouton n'existe plus dans le DOM au
+  // moment du clic (rare) est à ignorer sans casser l'appel.
+  async function verifierOffrePretDepuisBouton(id, btn) {
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Recherche…'; }
+    await verifierOffrePret(id, true);
+  }
+
+  async function verifierPiecesDossierDepuisBouton(id, btn) {
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Recherche en cours…'; }
+    await verifierPiecesDossier(id, true);
+  }
+
   async function verifierOffrePret(id, viaClicUtilisateur) {
     const d = dossiers.find(x => x.id === id);
     if (!d || !d.dossierLie) return;
@@ -3539,6 +3563,10 @@
             // pour ça. Ne remplace jamais une valeur déjà connue par un échec de détection.
             const montant = detecterMontantPret(texte);
             if (montant) d.montantPret = montant;
+            // Conserve le handle du fichier trouvé (même mécanisme IndexedDB que le dossier local
+            // lui-même) pour permettre de le rouvrir en un clic depuis la fiche, sans avoir à
+            // reparcourir tout le dossier — voir ouvrirPieceTrouvee().
+            await enregistrerHandle(CLE_HANDLE_OFFRE(id), entree);
             break;
           }
         } catch (e) { console.error('Lecture impossible pour', entree.name, e); }
@@ -3626,7 +3654,7 @@
           for (const piece of checklist) {
             if (!aChercher.has(piece.cle)) continue;
             if (piece.motif.test(texte)) {
-              fichierParPiece[piece.cle] = entree.name;
+              fichierParPiece[piece.cle] = entree;
               aChercher.delete(piece.cle);
             }
           }
@@ -3640,16 +3668,19 @@
     }
 
     let nbTrouvees = 0;
-    checklist.forEach(piece => {
+    for (const piece of checklist) {
       if (fichierParPiece[piece.cle]) {
         d.pieces[piece.cle] = 'recue';
         nbTrouvees++;
+        // Handle conservé pour rouvrir directement ce fichier depuis la fiche (voir
+        // ouvrirPieceTrouvee()), sans reparcourir tout le dossier local.
+        await enregistrerHandle(CLE_HANDLE_PIECE(id, piece.cle), fichierParPiece[piece.cle]);
       } else if (d.pieces[piece.cle] !== 'recue') {
         d.pieces[piece.cle] = 'manquante';
       } else {
         nbTrouvees++; // déjà reconnue lors d'une vérification précédente
       }
-    });
+    }
 
     if (viaClicUtilisateur) {
       const manquantes = checklist.length - nbTrouvees;
@@ -3664,6 +3695,41 @@
 
     await sauvegarder();
     render();
+  }
+
+  // Rouvre directement le fichier PDF local où une pièce (ou l'offre de prêt) a été reconnue,
+  // plutôt que de se contenter d'un badge "reçue" sans rien de plus derrière — demandé par
+  // l'étude. Le handle du fichier a été conservé au moment de la détection (voir
+  // verifierOffrePret()/verifierPiecesDossier()) : pas besoin de reparcourir tout le dossier.
+  // La permission déjà accordée sur le dossier couvre aussi ce fichier individuel.
+  async function ouvrirFichierTrouve(cleHandle) {
+    try {
+      const handle = await recupererHandle(cleHandle);
+      if (!handle) {
+        afficherToast("Ce fichier n'a pas été mémorisé (détecté avant cette fonctionnalité) — cliquez sur \"Revérifier\" pour le retrouver.", 'OK', null);
+        return;
+      }
+      const permission = await handle.queryPermission({ mode: 'read' }) === 'granted'
+        ? 'granted'
+        : await handle.requestPermission({ mode: 'read' });
+      if (permission !== 'granted') {
+        afficherToast("Accès refusé à ce fichier.", 'OK', null);
+        return;
+      }
+      const file = await handle.getFile();
+      window.open(URL.createObjectURL(file), '_blank');
+    } catch (e) {
+      console.error(e);
+      afficherToast("Impossible d'ouvrir ce fichier (déplacé ou supprimé depuis sa détection ?) : " + e.message, 'OK', null);
+    }
+  }
+
+  function ouvrirPieceTrouvee(id, cle) {
+    ouvrirFichierTrouve(CLE_HANDLE_PIECE(id, cle));
+  }
+
+  function ouvrirOffreTrouvee(id) {
+    ouvrirFichierTrouve(CLE_HANDLE_OFFRE(id));
   }
 
   // Ouvre automatiquement une relance pré-rédigée si l'échéance approche et qu'aucune offre n'a
@@ -3699,12 +3765,26 @@
     return { texte: 'Offre de prêt : à vérifier', cls: 'inconnu' };
   }
 
+  // Un dossier dont l'offre de prêt est déjà confirmée reçue ET toutes les pièces de la checklist
+  // déjà reçues n'a plus rien à apprendre d'un nouveau parcours du dossier local — l'y soumettre
+  // quand même à chaque démarrage/toutes les 5 minutes ne fait que ralentir l'outil pour rien sur
+  // un portefeuille volumineux. Signalé par l'étude.
+  function dossierEntierementComplet(d) {
+    const offreOk = d.sansPret || d.offrePretStatut === 'recue';
+    const piecesOk = d.roleNotaire === 'participant' ||
+      checklistPieces(d.typeVente).every(p => (d.pieces || {})[p.cle] === 'recue');
+    return offreOk && piecesOk;
+  }
+
   // Revérifie les dossiers reliés à l'ouverture, sans exiger de clic (queryPermission seul, qui
   // n'affiche jamais de demande d'autorisation) : si l'accès est toujours accordé, tout se fait
-  // silencieusement ; sinon un bandeau invite à cliquer pour le reconfirmer.
+  // silencieusement ; sinon un bandeau invite à cliquer pour le reconfirmer. Ne concerne que les
+  // vérifications automatiques (démarrage, minuteur) — un clic explicite sur "Revérifier" doit
+  // toujours fonctionner, même sur un dossier déjà complet (l'étude peut vouloir confirmer après
+  // un doute, ou un document a pu être retiré du dossier local entre-temps).
   async function revérifierDossiersLiesAuDemarrage() {
     for (const d of dossiers) {
-      if (d.dossierLie) {
+      if (d.dossierLie && !dossierEntierementComplet(d)) {
         await verifierOffrePret(d.id, false);
         await verifierPiecesDossier(d.id, false);
       }
@@ -3845,12 +3925,15 @@
   async function appliquerTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
     const btn = document.getElementById('theme-btn');
-    // innerHTML (pas textContent) : le bouton reprend la même structure icône+libellé que les
-    // autres liens de la sidebar (.sidebar-link-icone), pas un simple emoji seul comme avant.
+    // Icône seule (sans libellé "Mode sombre"/"Mode clair" à côté) — demandé par l'étude ; le
+    // libellé accessible reste porté par aria-label/title, pas visible à l'écran.
     if (btn) {
+      const theTitle = theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre';
+      btn.setAttribute('aria-label', theTitle);
+      btn.setAttribute('title', theTitle);
       btn.innerHTML = theme === 'dark'
-        ? '<span class="sidebar-link-icone" aria-hidden="true">☀️</span>Mode clair'
-        : '<span class="sidebar-link-icone" aria-hidden="true">🌙</span>Mode sombre';
+        ? '<span class="sidebar-link-icone" aria-hidden="true">☀️</span>'
+        : '<span class="sidebar-link-icone" aria-hidden="true">🌙</span>';
     }
     try {
       if (window.storage) { await window.storage.set(CLE_THEME, theme, false); return; }

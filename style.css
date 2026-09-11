@@ -318,6 +318,10 @@
     opacity: 0.85;
   }
   .sidebar-link:hover { background: var(--paper-sunk); color: var(--ink); transform: translateX(1px); }
+  /* Bouton sans libellé texte (mode sombre) : centrer l'icône plutôt que la laisser plaquée à
+     gauche d'une rangée sinon vide. */
+  .sidebar-link-icone-seule { width: auto; justify-content: center; }
+  .sidebar-link-icone-seule .sidebar-link-icone { width: auto; font-size: 17px; }
   /* Lien actif en "pilule de verre" (dégradé + liseré clair en haut + ombre portée teintée) plutôt
      qu'un simple aplat --focus : cohérent avec le reste de la sidebar, et lisible dans les deux
      thèmes puisque le dégradé reste dans la même famille de bleu que --focus/--focus-hover. */
@@ -381,6 +385,14 @@
     box-shadow: var(--shadow-card);
   }
   .kpi-icone { font-size: 15px; opacity: 0.8; }
+  /* Icône calendrier SVG partagée par les deux tuiles d'échéances (7j/15j), le seuil dessiné dans
+     le corps du calendrier plutôt que deux emojis différents sans lien visuel entre eux. */
+  .kpi-icone-calendrier {
+    width: 17px;
+    height: 17px;
+    color: var(--ink-soft);
+    vertical-align: -3px;
+  }
   .kpi-num {
     font-size: 26px;
     font-weight: 700;
@@ -945,7 +957,16 @@
     border-radius: 14px;
   }
   .piece-icone { font-weight: 700; }
-  .piece-item.recue { border-color: var(--success); color: var(--ink); }
+  /* .recue est un <button> (les autres statuts restent un <span>, rien à ouvrir) — reset des
+     styles natifs de bouton pour garder l'apparence d'une simple puce, avec juste un curseur et
+     un hover qui trahissent qu'elle est cliquable (voir ouvrirPieceTrouvee). */
+  .piece-item.recue {
+    border-color: var(--success);
+    color: var(--ink);
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .piece-item.recue:hover { background: var(--success-bg); }
   .piece-item.recue .piece-icone { color: var(--success); }
   .piece-item.manquante { border-color: var(--pret); color: var(--ink); }
   .piece-item.manquante .piece-icone { color: var(--pret); }
@@ -1293,24 +1314,6 @@
   }
   .toolbar-recherche input:focus { outline: none; border-color: var(--focus); }
 
-  .view-toggle {
-    display: flex;
-    border: 1px solid var(--line);
-    border-radius: 2px;
-    overflow: hidden;
-  }
-  .view-toggle-btn {
-    font-family: inherit;
-    font-size: 13px;
-    border: none;
-    background: var(--paper-card);
-    color: var(--ink-soft);
-    padding: 6px 12px;
-    cursor: pointer;
-  }
-  .view-toggle-btn + .view-toggle-btn { border-left: 1px solid var(--line); }
-  .view-toggle-btn[aria-pressed="true"] { background: var(--acte-bg); color: var(--acte); }
-
   .toolbar-btn {
     font-family: inherit;
     font-size: 13px;
@@ -1473,6 +1476,11 @@
   .badge-offre.recue { background: var(--success-bg); color: var(--success); }
   .badge-offre.manquante { background: var(--pret-bg); color: var(--pret); }
   .badge-offre.inconnu { background: var(--line-soft); color: var(--muted); }
+  /* .recue est un <button> quand un fichier a été trouvé (voir ouvrirOffreTrouvee) : reset des
+     styles natifs de bouton pour garder l'apparence du badge, avec juste un curseur/hover qui
+     trahissent qu'il est cliquable. */
+  button.badge-offre.recue { border: none; font-family: inherit; cursor: pointer; }
+  button.badge-offre.recue:hover { background: var(--success); color: #fff; }
 
   .lien-dossier-local {
     font-size: 12px;
@@ -1599,25 +1607,6 @@
   .ligne-detail td { padding: 18px; border-bottom: 1px solid var(--line-soft); }
   .ligne-detail .dossier { margin-bottom: 0; box-shadow: none; }
 
-  /* ---- vue "Cartes" compacte : grille de résumés qui se déplient en place (grid-column: 1/-1)
-     vers la même carte complète que la vue tableau, sans casser l'alignement des autres cartes. ---- */
-  .cartes-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 12px;
-    align-items: start;
-  }
-  .mini-carte {
-    background: var(--paper-card);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    box-shadow: var(--shadow-card);
-  }
-  .mini-carte.est-archive { opacity: 0.65; }
-  .mini-carte-resume { padding: 14px 16px; cursor: pointer; display: flex; flex-direction: column; gap: 6px; }
-  .mini-carte-resume:hover { background: var(--paper-sunk); }
-  .mini-carte-nom { font-weight: 600; color: var(--ink); font-size: 14.5px; }
-
   /* Couleur réservée à --urgent, déjà utilisée pour les échéances proches : un dossier
      "prioritaire" combine échéance proche, offre manquante et/ou accès à reconfirmer, donc
      réutilise ce même code plutôt que d'en inventer un nouveau. */
@@ -1634,65 +1623,45 @@
     vertical-align: middle;
     white-space: nowrap;
   }
-  .mini-carte-responsable { font-size: 12.5px; color: var(--ink-soft); }
-  .mini-carte-echeance { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
-  .mini-carte-pied { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; padding-top: 4px; border-top: 1px solid var(--line-soft); }
 
-  .mini-carte-detail { display: none; }
-  .mini-carte.ouverte { grid-column: 1 / -1; }
-  .mini-carte.ouverte .mini-carte-resume { border-bottom: 1px solid var(--line-soft); }
-  .mini-carte.ouverte .mini-carte-detail { display: block; padding: 16px; }
-  .mini-carte.ouverte .mini-carte-detail .dossier { margin-bottom: 0; box-shadow: none; border: none; padding: 0; }
-
-  /* ---- présentation compacte du détail déplié (ligne de tableau ou carte) : un seul dossier
-     ouvert à la fois dans un contexte déjà condensé n'a plus besoin de la respiration prévue à
-     l'origine pour une liste de cartes complètes toujours affichées. ---- */
-  .ligne-detail .dossier,
-  .mini-carte.ouverte .mini-carte-detail .dossier {
+  /* ---- présentation compacte du détail déplié dans la vue tableau : un seul dossier ouvert à la
+     fois dans un contexte déjà condensé n'a plus besoin de la respiration prévue à l'origine pour
+     une liste de cartes complètes toujours affichées. ---- */
+  .ligne-detail .dossier {
     padding: 16px 18px;
   }
-  .ligne-detail .dossier-head,
-  .mini-carte.ouverte .mini-carte-detail .dossier-head {
+  .ligne-detail .dossier-head {
     margin-bottom: 10px;
   }
-  .ligne-detail .dossier-nom-input,
-  .mini-carte.ouverte .mini-carte-detail .dossier-nom-input {
+  .ligne-detail .dossier-nom-input {
     font-size: 15px;
   }
-  .ligne-detail .tabs,
-  .mini-carte.ouverte .mini-carte-detail .tabs {
+  .ligne-detail .tabs {
     gap: 8px;
   }
-  .ligne-detail .tab,
-  .mini-carte.ouverte .mini-carte-detail .tab {
+  .ligne-detail .tab {
     padding: 8px 10px;
     border-radius: 0 0 3px 3px;
   }
-  .ligne-detail .tab .tab-date,
-  .mini-carte.ouverte .mini-carte-detail .tab .tab-date {
+  .ligne-detail .tab .tab-date {
     font-size: 13px;
     margin-bottom: 2px;
   }
-  .ligne-detail .tab .tab-countdown,
-  .mini-carte.ouverte .mini-carte-detail .tab .tab-countdown {
+  .ligne-detail .tab .tab-countdown {
     font-size: 12px;
   }
-  .ligne-detail .dossier-actions,
-  .mini-carte.ouverte .mini-carte-detail .dossier-actions {
+  .ligne-detail .dossier-actions {
     gap: 6px;
     margin-top: 12px;
   }
-  .ligne-detail .dossier-actions button,
-  .mini-carte.ouverte .mini-carte-detail .dossier-actions button {
+  .ligne-detail .dossier-actions button {
     padding: 5px 10px;
     font-size: 12px;
   }
-  .ligne-detail .analyse-juridique,
-  .mini-carte.ouverte .mini-carte-detail .analyse-juridique {
+  .ligne-detail .analyse-juridique {
     margin-top: 10px !important;
   }
-  .ligne-detail .historique-toggle,
-  .mini-carte.ouverte .mini-carte-detail .historique-toggle {
+  .ligne-detail .historique-toggle {
     margin-top: 8px;
   }
 
@@ -1786,9 +1755,12 @@
      ici : sans ce reset, .select-edit hérite quand même de cette largeur pleine ligne et fait
      passer chaque champ (Responsable/Type de vente/Rôle) à la ligne, alors qu'ils doivent tenir
      sur une seule ligne sur la fiche dossier. */
+  /* Même taille que .dossier-head .addr (13.5px) : ces select partagent une ligne avec ce texte
+     ("Responsable : [select] · Type de vente : [select]...") et un écart de 0.5px suffisait à
+     rendre la ligne visuellement inégale — signalé par l'étude. */
   .select-edit {
     font-family: inherit;
-    font-size: 13px;
+    font-size: 13.5px;
     color: var(--ink-soft);
     background: transparent;
     border: none;
@@ -1812,7 +1784,7 @@
      type, que `.select-edit` bat sans ce préfixe) — d'où ce piège différent de celui du formulaire. */
   input.input-inline {
     font-family: inherit;
-    font-size: 13px;
+    font-size: 13.5px;
     color: var(--ink-soft);
     background: transparent;
     border: none;
@@ -1975,6 +1947,10 @@
   .tab .tab-countdown.passed {
     color: var(--muted);
     font-style: italic;
+  }
+  .tab .tab-countdown.recue {
+    color: var(--success);
+    font-weight: 600;
   }
 
   .dossier-actions {

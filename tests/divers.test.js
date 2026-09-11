@@ -185,6 +185,21 @@ test('statutDossier renvoie "aconfirmer" quand une pièce de la checklist manque
   assert.equal(app.statutDossier(d), 'aconfirmer');
 });
 
+test('statutDossier renvoie "pret" une fois l\'offre reçue et toutes les pièces de la checklist reçues', () => {
+  // Signalé par l'étude comme restant bloqué en "à confirmer" (orange) en conditions réelles :
+  // logique déjà correcte à ce niveau une fois testée isolément (voir CLAUDE.md — la cause réelle
+  // était très probablement une mauvaise classification du type de vente, corrigée séparément).
+  const app = chargerApplication();
+  const demain = new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 10);
+  const pieces = {};
+  app.checklistPieces('maison').forEach(p => { pieces[p.cle] = 'recue'; });
+  const d = {
+    archive: false, sansPret: false, offrePretStatut: 'recue', pret: demain, confiance: { pret: 'auto' },
+    dossierLie: true, roleNotaire: 'instrumentaire', typeVente: 'maison', pieces
+  };
+  assert.equal(app.statutDossier(d), 'pret');
+});
+
 test('statutDossier ignore la checklist de pièces pour un dossier non relié (rien à signaler)', () => {
   const app = chargerApplication();
   const demain = new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 10);

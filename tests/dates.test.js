@@ -113,6 +113,15 @@ test('detecterTypeVenteCopropriete ne se déclenche pas pour une maison individu
   assert.equal(app.detecterTypeVenteCopropriete("Une maison individuelle avec jardin, sise à Blois."), false);
 });
 
+test('detecterTypeVenteCopropriete reconnaît "soumis au régime de la copropriété"', () => {
+  // Régression : formulation la plus courante dans les faits (juste avant la mention du lot sous
+  // le tableau parcellaire), pas encore reconnue avant ce correctif — un vrai dossier de
+  // copropriété restait classé "maison" par défaut.
+  const app = chargerApplication();
+  const texte = "L'immeuble est soumis au régime de la copropriété. LOT NUMÉRO 5 : Un appartement...";
+  assert.equal(app.detecterTypeVenteCopropriete(texte), true);
+});
+
 test('detecterEmailAcquereur trouve l\'email au voisinage de la mention du rôle', () => {
   const app = chargerApplication();
   const texte = "Le VENDEUR : Monsieur Jean DUPONT, email jean.dupont@vendeur.fr. " +
