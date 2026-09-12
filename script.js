@@ -2948,17 +2948,24 @@
                 <input type="text" class="dossier-nom-input" id="nom-input-${d.id}" value="${escapeAttr(d.nom)}" aria-label="Nom du dossier" onkeydown="if(event.key==='Enter'){event.preventDefault();validerEditionNom('${d.id}');}else if(event.key==='Escape'){annulerEditionNom('${d.id}');}">
                 <button type="button" class="icon-valider" onclick="validerEditionNom('${d.id}')" title="Valider" aria-label="Valider le nom">✓</button>
               </span>
-              ${boutonsDossierLocal}
             </div>
-            ${d.roleNotaire === 'participant' ? '<span class="dot-label dl-neutre badge-role" title="Notaire participant / concourant : suivi limité au prêt et aux engagements du vendeur"><span class="dot"></span>Participant</span>' : ''}
+            <!-- Sur sa propre ligne, séparée de .nom-affichage : mélangée au nom (voir historique
+                 de ce fichier), sa position dépendait de la longueur du nom — tantôt collée à côté,
+                 tantôt repoussée à la ligne suivante selon l'espace restant. Signalé par l'étude
+                 ("se balade"). Ici, toujours au même endroit, quel que soit le nom du dossier. -->
+            ${boutonsDossierLocal ? `<div class="dossier-lien-local-ligne">${boutonsDossierLocal}</div>` : ''}
             <!-- Chaque couple libellé + champ est un .classif-item indivisible : dans la largeur du
                  tiroir la ligne passe forcément à plusieurs lignes, et sans ce groupage un libellé
                  se retrouvait séparé de son champ ("Type de vente :" en fin de ligne, la liste
                  déroulante à la ligne suivante). L'espacement remplace les anciens séparateurs "·",
                  qui se seraient retrouvés en début de ligne au retour à la ligne. -->
             <div class="addr dossier-classification">
-              <span class="classif-item">${icone('map-pin')} <input type="text" class="input-inline champ-adresse-bien" value="${escapeAttr(d.adresseBien || '')}" placeholder="Adresse du bien non détectée" aria-label="Adresse du bien" onblur="changerAdresseBien('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"></span>
-              <span class="classif-item">${icone('banknote')} <input type="text" class="input-inline champ-prix-vente" value="${d.prixVente ? formaterPrix(d.prixVente) : ''}" placeholder="Prix non détecté" aria-label="Prix de vente" onblur="changerPrixVente('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"></span>
+              <span class="classif-item">Adresse :
+                <input type="text" class="input-inline champ-adresse-bien" value="${escapeAttr(d.adresseBien || '')}" placeholder="non détectée" aria-label="Adresse du bien" onblur="changerAdresseBien('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
+              </span>
+              <span class="classif-item">Prix de vente :
+                <input type="text" class="input-inline champ-prix-vente" value="${d.prixVente ? formaterPrix(d.prixVente) : ''}" placeholder="non détecté" aria-label="Prix de vente" onblur="changerPrixVente('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
+              </span>
               <span class="classif-item">Type de vente :
                 <select class="select-edit" onchange="changerTypeVente('${d.id}', this.value)" aria-label="Type de vente">
                   <option value="maison" ${d.typeVente === 'copropriete' ? '' : 'selected'}>Maison</option>

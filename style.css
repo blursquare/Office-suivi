@@ -321,21 +321,17 @@
     padding: 6px 8px 2px;
   }
   .brand-mark { display: inline-flex; flex-shrink: 0; }
-  /* Logo "CLAIRE" seul : Bodoni Moda (display serif à fort contraste, inspiration fournie par
-     l'étude — un logotype éditorial haut de gamme) pour distinguer la MARQUE du reste de
-     l'interface, passée en sans-serif partout ailleurs (voir h1/h2/h3 en tête de fichier).
-     font-optical-sizing à 'none' + un opsz forcé haut (font-variation-settings) : à la taille
-     réduite du logo dans la sidebar (23px), le choix "auto" du navigateur retomberait sur une
-     coupe proche du texte courant et perdrait le contraste marqué qui fait l'intérêt de cette
-     police en logotype. */
+  /* Logo "CLAIRE" seul : Montserrat (choisie explicitement par l'étude, après un premier essai en
+     Bodoni Moda inspiré d'une référence "Sage" fournie plus tôt) — un sans-serif géométrique, pour
+     une marque plus affirmée/moderne que le reste de l'interface, déjà en Inter partout ailleurs
+     (voir h1/h2/h3 en tête de fichier). Majuscules resserrées (letter-spacing négatif) : Montserrat
+     en gras/tout-capitales a tendance à paraître un peu large sans ce resserrement. */
   .brand-word {
-    font-family: 'Bodoni Moda', 'Didot', 'Georgia', serif;
-    font-optical-sizing: none;
-    font-variation-settings: 'opsz' 90;
+    font-family: 'Montserrat', 'Inter', -apple-system, 'Segoe UI', sans-serif;
     font-weight: 700;
-    font-size: 23px;
+    font-size: 22px;
     color: var(--ink);
-    letter-spacing: 0.01em;
+    letter-spacing: -0.01em;
   }
   .sidebar-tagline {
     font-size: 12px;
@@ -1872,9 +1868,13 @@
   .nom-affichage, .nom-edition {
     display: inline-flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 6px;
   }
   .nom-affichage[hidden], .nom-edition[hidden] { display: none; }
+  /* Toujours sur sa propre ligne sous le nom, jamais mélangée à .nom-affichage (voir CLAUDE.md,
+     "se balade" signalé par l'étude) : sa position ne dépend plus de la longueur du nom. */
+  .dossier-lien-local-ligne { margin: 2px 0 0; }
   .nom-texte {
     font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif;
     font-size: 19px;
@@ -1986,12 +1986,12 @@
   .apport-cercle.apport-pret { background: var(--pret); }
   .apport-cercle.apport-urgent { background: var(--urgent); }
 
-  /* "Achat comptant" (.badge-cash) et "Participant" (.badge-role) : simples métadonnées, pas des
-     alertes — .dot-label dl-neutre (voir plus haut), pas de fond inventé pour l'occasion. Marge
-     de séparation propre à leur position dans la classification, portée par ces classes plutôt
-     que par .dot-label lui-même. */
+  /* "Achat comptant" (.badge-cash) : simple métadonnée, pas une alerte — .dot-label dl-neutre
+     (voir plus haut), pas de fond inventé pour l'occasion. Marge de séparation propre à sa
+     position dans la classification, portée par cette classe plutôt que par .dot-label lui-même.
+     ("Participant", même traitement à l'origine, retiré : redondant avec le sélecteur "Rôle du
+     notaire" toujours visible juste en dessous, incohérent puisqu'absent pour "Instrumentaire". */
   .badge-cash { margin-top: 6px; }
-  .badge-role { margin-left: 4px; }
 
   .icon-btn {
     background: none;

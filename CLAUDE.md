@@ -1539,6 +1539,40 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
       depuis un CDN bloqué par le proxy réseau de développement ici (même limitation déjà
       documentée pour d'autres fonctionnalités liées à pdf.js/tesseract.js) — à confirmer par
       l'étude sur un compromis réel.
+- **Nouvelle série de retouches sur la fiche dossier (tiroir), remontées par l'étude en testant
+  les changements précédents en conditions réelles** :
+  - **Champs "Adresse"/"Prix de vente" alignés sur le style des autres champs de la
+    classification** : ils n'affichaient qu'une icône (`map-pin`/`banknote`) sans libellé, alors
+    que "Type de vente", "Rôle du notaire" et "Responsable" affichent tous un texte ("Type de
+    vente : ..."). Cette dissymétrie devenait particulièrement visible une fois la ligne repliée
+    sur plusieurs lignes dans la largeur étroite du tiroir (~520px) : deux items "orphelins" (une
+    icône seule) au milieu d'items étiquetés. Remplacés par "Adresse :"/"Prix de vente :", mêmes
+    icônes retirées — cohérent avec le reste de la ligne, plus rien à deviner à partir d'une seule
+    icône.
+  - **Badge "🤝 Participant" retiré entièrement** de l'en-tête de la fiche : il ne s'affichait que
+    pour ce rôle (l'instrumentaire, cas par défaut, n'affichait rien à cet endroit) — signalé par
+    l'étude comme visuellement incohérent ("parfois il y a Participant avec un point gris mais pour
+    instrumentaire non"). Redondant de toute façon avec le sélecteur "Rôle du notaire :
+    Instrumentaire/Participant" déjà présent et toujours visible juste en dessous, qui couvre déjà
+    l'information dans les deux cas sans ce trou. `.badge-role` (CSS) supprimée avec lui.
+  - **Bug corrigé : la position du bouton "Changer de dossier"/"Lier un dossier local" dépendait
+    de la longueur du nom du dossier** ("tout est à la suite [et] ça se balade", signalé par
+    l'étude) — il vivait comme second élément inline à l'intérieur de `.nom-dossier`, à la suite du
+    badge de statut + nom + crayon (`.nom-affichage`, `display: inline-flex`) : selon que le nom
+    prenait une ou deux lignes, le bouton se retrouvait tantôt collé juste après le nom, tantôt
+    repoussé à la ligne suivante, sans position stable. Déplacé dans son propre bloc
+    (`.dossier-lien-local-ligne`) juste après `.nom-dossier`, toujours sur sa propre ligne sous le
+    nom quelle que soit sa longueur. `flex-wrap: wrap` ajouté à `.nom-affichage`/`.nom-edition` au
+    passage (le nom pouvait sinon rester sur une seule ligne flex et déborder au lieu de passer
+    normalement à la ligne pour un nom long).
+- **Logo "CLAIRE" : police du mot-symbole changée de Bodoni Moda vers Montserrat**, à la demande
+  explicite de l'étude après le premier essai (voir plus haut, inspiré d'une référence "Sage").
+  `index.html` charge Montserrat (600/700) à la place de Bodoni Moda dans le lien Google Fonts ;
+  `.brand-word` passe à `font-family: 'Montserrat', 'Inter', ...` en gras, avec un `letter-spacing`
+  légèrement négatif (Montserrat en gras/capitales a tendance à paraître large sans ce
+  resserrement). Les réglages spécifiques à Bodoni Moda (`font-optical-sizing`,
+  `font-variation-settings: 'opsz' 90`, propres à cette police à axes variables) sont retirés,
+  sans objet pour Montserrat. Le reste de l'interface (Inter partout ailleurs) reste inchangé.
 
 ## Comment tester
 
