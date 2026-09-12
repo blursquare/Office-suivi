@@ -2254,6 +2254,47 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     Logique de correspondance vérifiée par une simulation Node ad hoc (substring insensible à la
     casse sur un nom de fichier réel) avant de committer ; `npm test` reste vert (129 tests, aucun
     changement dans les fonctions pures testables).
+- **Mode diagnostic du dernier parcours du dossier local**, demandé par l'étude après une série de
+  bugs invisibles à l'œil (accents Unicode NFD, ordre de parcours en profondeur, pièce
+  personnalisée jamais rerecherchée...) qui ont chacun nécessité une relecture complète du code
+  pour être compris : plutôt que de continuer à diagnostiquer chaque nouveau cas par une session de
+  travail, un panneau repliable sur la fiche dossier montre directement à l'étude quels fichiers ont
+  été lus lors du dernier "Revérifier" et pourquoi une pièce reste "manquante" — avant de solliciter
+  un nouveau diagnostic.
+  - `verifierDossierLocal()` construit maintenant, pendant le même parcours qui met déjà à jour
+    `d.pieces`/`d.offrePretStatut`, un objet diagnostic stocké dans `dernierDiagnosticParcours[id]`
+    (nouvel état, un objet clé/dossier) : un `journal` (une ligne par événement notable —
+    correspondance trouvée par nom, contenu lu avec son résultat, erreur de lecture — PAS une ligne
+    par fichier rencontré, ce qui serait illisible sur un dossier de plusieurs centaines de PDF sans
+    rien ajouter d'utile) et un `resume` (nombre de fichiers rencontrés/ouverts, statut de l'offre,
+    compteur et liste des pièces encore manquantes). Les trois sorties anticipées de la fonction
+    (dossier délié, permission refusée, erreur de parcours) alimentent aussi un diagnostic minimal
+    (`resume.erreur`), pour que le panneau explique le blocage même quand le scan n'a pas pu aller
+    au bout.
+  - **Volontairement en mémoire uniquement** (pas dans `localStorage`/le modèle du dossier) : c'est
+    une aide ponctuelle sur le TOUT DERNIER parcours depuis que la page est ouverte, pas une donnée
+    à conserver d'une session à l'autre — perdu au rechargement, comme `pdfActuel` pendant un
+    import. Écrasé à chaque nouveau parcours (bouton "Revérifier", nouveau lien, revérification
+    périodique), y compris lors d'un changement de dossier lié (`lierDossierLocal()` appelle déjà
+    `verifierDossierLocal()` juste après avoir relié un nouveau dossier).
+  - **Jamais d'extrait du texte d'un PDF dans le journal visible** (contrairement à la trace
+    `console.log` déjà existante pour l'offre de prêt, réservée à la console) : uniquement des noms
+    de fichiers, déjà visibles par l'étude dans son propre explorateur de fichiers — pas de PII
+    supplémentaire exposée à l'écran au-delà de ce que l'étude voit déjà en ouvrant le dossier.
+  - `renderDiagnosticParcours(d)` (nouvelle fonction, script.js) affiche le panneau — repliable et
+    **fermé par défaut** (`.diagnostic-parcours`, style.css), contrairement aux pièces du
+    dossier/l'analyse juridique toujours visibles : c'est un outil de dépannage ponctuel, pas un
+    suivi actif de la fiche. Inséré juste après "Pièces du dossier" dans le tiroir. N'affiche rien
+    tant qu'aucun parcours n'a eu lieu (fonction retourne une chaîne vide) ; masqué à l'impression
+    comme les autres contrôles d'édition.
+  - Pas de nouveau test unitaire, pour la même raison que les correctifs précédents sur
+    `verifierDossierLocal()` : dépend de `dossiers` (invisible depuis les tests) et de l'API File
+    System Access. **Vérifié visuellement avec Playwright** (clair et sombre) en injectant un
+    dossier synthétique et un diagnostic fabriqué à la main directement dans
+    `dernierDiagnosticParcours` (contournant pdf.js/File System Access, tous deux indisponibles
+    dans cet environnement de développement) : le résumé, le journal et le cas d'erreur s'affichent
+    tous correctement, dans les deux thèmes. `npm test` reste vert (129 tests, aucune fonction pure
+    ajoutée par ce chantier — la logique dépend entièrement de `dossiers`/du DOM).
 
 ## Comment tester
 

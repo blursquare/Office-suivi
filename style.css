@@ -1372,6 +1372,51 @@
   }
   .ajout-piece-form input[type="text"] { flex: 1 1 auto; }
 
+  /* ---- diagnostic du dernier parcours du dossier local (voir renderDiagnosticParcours) ----
+     Repliable et FERMÉ par défaut (contrairement à .pieces-dossier/.analyse-juridique, toujours
+     visibles) : c'est un outil de dépannage ponctuel à ouvrir au besoin, pas un suivi actif de la
+     fiche — l'afficher ouvert par défaut alourdirait une fiche déjà dense pour un usage occasionnel. */
+  .diagnostic-parcours {
+    margin-top: 14px;
+    padding: 10px 14px;
+    background: var(--paper-sunk);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+  }
+  .diagnostic-parcours > summary { cursor: pointer; list-style: none; }
+  .diagnostic-parcours > summary::-webkit-details-marker { display: none; }
+  .diagnostic-parcours > summary::after { content: " ▸"; color: var(--muted); }
+  .diagnostic-parcours[open] > summary::after { content: " ▾"; }
+  .diagnostic-corps { margin-top: 10px; }
+  .diagnostic-resume {
+    margin: 0 0 8px;
+    padding-left: 18px;
+    font-size: 12.5px;
+    color: var(--ink);
+    line-height: 1.6;
+  }
+  .diagnostic-journal {
+    margin: 0;
+    padding: 8px 10px;
+    max-height: 220px;
+    overflow-y: auto;
+    list-style: none;
+    background: var(--paper-card);
+    border: 1px solid var(--line-soft);
+    border-radius: 5px;
+    font-size: 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color: var(--ink-soft);
+    line-height: 1.7;
+  }
+  .diagnostic-vide, .diagnostic-erreur {
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    font-style: italic;
+    margin: 0;
+  }
+  .diagnostic-erreur { color: var(--urgent); font-style: normal; }
+
   /* Aperçu de la checklist à l'étape "Finaliser" du wizard, avant l'enregistrement du dossier —
      mêmes puces .piece-item que le suivi réel, mais sans compteur ni bouton (rien à vérifier
      encore, juste montrer ce qui sera attendu selon le type de vente choisi). Padding symétrique
@@ -2567,7 +2612,7 @@
     .tab { border: 1px solid #999; margin-bottom: 6pt; padding: 6pt; background: #fff !important; }
     .historique-liste { display: block !important; }
     .analyse-juridique { background: #fff; border: 1px solid #999; }
-    .icon-btn, .tab-select, .icon-crayon, .icon-valider, .nom-edition, .tab-date-edition, .select-classif, .tab-suppr, .ajout-echeance-btn, .ajout-echeance-form, .piece-suppr, .ajout-piece-btn, .ajout-piece-form { display: none !important; }
+    .icon-btn, .tab-select, .icon-crayon, .icon-valider, .nom-edition, .tab-date-edition, .select-classif, .tab-suppr, .ajout-echeance-btn, .ajout-echeance-form, .piece-suppr, .ajout-piece-btn, .ajout-piece-form, .diagnostic-parcours { display: none !important; }
   }
 
   .analyse-repliable > summary {

@@ -3138,6 +3138,19 @@
   // tiroir, un simple booléen suffit, remis à false à chaque ouverture/fermeture.
   let ajoutPieceOuvert = false;
 
+  // Détail du dernier parcours du dossier local par dossier (voir verifierDossierLocal), pour un
+  // panneau de diagnostic repliable sur la fiche (renderDiagnosticParcours) — demandé après une
+  // série de bugs invisibles à l'œil (accents en Unicode NFD, ordre de parcours en profondeur...)
+  // qui ont chacun nécessité une relecture complète du code pour être compris : un même panneau,
+  // visible directement dans l'outil, permettrait à l'étude de voir elle-même QUELS fichiers ont
+  // été lus et POURQUOI une pièce reste "manquante" (jamais rencontrée vs. rencontrée mais aucun
+  // nom ne correspond), avant de solliciter un nouveau diagnostic. Volontairement **en mémoire
+  // seulement** (pas dans localStorage) : c'est une aide ponctuelle sur le tout dernier parcours,
+  // pas une donnée du dossier à conserver d'une session à l'autre — perdu au rechargement de la
+  // page, comme `pdfActuel` pendant un import. Clé = id du dossier, valeur = objet diagnostic
+  // construit par verifierDossierLocal().
+  let dernierDiagnosticParcours = {};
+
   // Checklist de constitution du dossier (voir CLAUDE.md) : contrairement à l'analyse juridique
   // (déduite des clauses du compromis), c'est une liste fixe déterminée par le type de vente, pas
   // une extraction — un dossier peut très bien n'avoir aucune pièce reconnue sans que ce soit une
@@ -3202,6 +3215,50 @@
         <button type="button" class="icon-valider" onclick="ajouterPiecePersonnalisee('${d.id}')" title="Ajouter" aria-label="Ajouter la pièce">✓</button>
         <button type="button" class="icon-btn" onclick="masquerFormAjoutPiece()">Annuler</button>
       </div>
+    `;
+  }
+
+  // Panneau de diagnostic du DERNIER parcours du dossier local (voir dernierDiagnosticParcours,
+  // construit par verifierDossierLocal) — répond directement à une série de bugs invisibles à l'œil
+  // (accents en Unicode NFD, ordre de parcours en profondeur, pièce personnalisée jamais
+  // rerecherchée...) qui ont chacun nécessité une relecture complète du code pour être compris :
+  // l'étude peut désormais voir elle-même quels fichiers ont été lus et pourquoi une pièce reste
+  // "manquante" (jamais rencontrée vs. rencontrée mais aucun nom ne correspond), avant de solliciter
+  // un nouveau diagnostic. Repliable et FERMÉ par défaut (voir .diagnostic-parcours dans style.css) :
+  // c'est un outil de dépannage ponctuel, pas un suivi actif comme les pièces/l'analyse juridique.
+  // N'affiche rien tant qu'aucun parcours n'a eu lieu depuis l'ouverture de la page (état en
+  // mémoire uniquement, jamais persisté — voir dernierDiagnosticParcours).
+  function renderDiagnosticParcours(d) {
+    const diag = dernierDiagnosticParcours[d.id];
+    if (!diag) return '';
+    const heure = new Date(diag.horodatage).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    if (diag.resume.erreur) {
+      return `
+        <details class="diagnostic-parcours">
+          <summary><span class="section-eyebrow">Diagnostic du dernier parcours (${heure})</span></summary>
+          <div class="diagnostic-corps"><p class="diagnostic-erreur">${escapeHtml(diag.resume.erreur)}</p></div>
+        </details>
+      `;
+    }
+    const r = diag.resume;
+    const lignesResume = [];
+    lignesResume.push(`${r.nbFichiersRencontres} fichier${r.nbFichiersRencontres > 1 ? 's' : ''} PDF rencontré${r.nbFichiersRencontres > 1 ? 's' : ''} (sous-dossiers compris), ${r.nbAnalyses} ouvert${r.nbAnalyses > 1 ? 's' : ''} pour lire son contenu.`);
+    if (r.offre) {
+      lignesResume.push(`Offre de prêt : ${r.offre.trouvee ? `reconnue (${escapeHtml(r.offre.fichier)})` : 'non reconnue.'}`);
+    }
+    if (r.pieces) {
+      lignesResume.push(`${r.pieces.trouvees}/${r.pieces.total} pièce(s) reconnue(s)${r.pieces.manquantes.length ? ' — manquante(s) : ' + r.pieces.manquantes.map(escapeHtml).join(', ') + '.' : '.'}`);
+    }
+    return `
+      <details class="diagnostic-parcours">
+        <summary><span class="section-eyebrow">Diagnostic du dernier parcours (${heure})</span></summary>
+        <div class="diagnostic-corps">
+          <ul class="diagnostic-resume">${lignesResume.map(l => `<li>${l}</li>`).join('')}</ul>
+          ${diag.journal.length
+            ? `<ul class="diagnostic-journal">${diag.journal.map(l => `<li>${escapeHtml(l)}</li>`).join('')}</ul>`
+            : '<p class="diagnostic-vide">Aucune correspondance par nom, ni lecture de contenu, lors de ce parcours.</p>'}
+        </div>
+      </details>
     `;
   }
 
@@ -3432,6 +3489,7 @@
         </div>
         ${renderAjoutEcheance(d)}
         ${d.roleNotaire !== 'participant' ? renderPiecesDossier(d) : ''}
+        ${renderDiagnosticParcours(d)}
         ${(analyse.documents.length > 0 || analyse.engagements.length > 0 || analyseConditions.length > 0) ? `
           <details class="analyse-juridique analyse-repliable" style="margin-top:14px;" open>
             <summary class="analyse-titre">Analyse juridique du compromis</summary>
@@ -4570,6 +4628,7 @@
     const handle = await recupererHandle(id);
     if (!handle) {
       d.dossierLie = false; // le lien a été perdu (base vidée, autre navigateur…) : on l'indique
+      dernierDiagnosticParcours[id] = { horodatage: new Date().toISOString(), journal: [], resume: { erreur: 'Aucun dossier local relié (le lien a été perdu — base vidée, ou dossier ouvert depuis un autre navigateur).' } };
       render();
       return;
     }
@@ -4580,6 +4639,7 @@
     }
     if (permission !== 'granted') {
       d.accesAReconfirmer = true;
+      dernierDiagnosticParcours[id] = { horodatage: new Date().toISOString(), journal: [], resume: { erreur: "Accès au dossier local non accordé — cliquez sur \"reconfirmer l'accès\" puis relancez la vérification." } };
       render();
       return;
     }
@@ -4596,6 +4656,14 @@
     let fichierOffre = null;
     let nbAnalyses = 0; // fichiers réellement ouverts/lus (contenu) — sert seulement au log interne
     let nbFichiersRencontres = 0; // tous les PDF croisés, ouverts ou non (voir le toast plus bas)
+    // Journal du parcours (voir dernierDiagnosticParcours/renderDiagnosticParcours) : une ligne par
+    // événement notable (correspondance trouvée, contenu lu, erreur de lecture) — pas une ligne par
+    // fichier rencontré, ce qui rendrait le journal illisible sur un dossier de plusieurs centaines
+    // de PDF sans rien ajouter (le compteur global couvre déjà "combien de fichiers au total").
+    // Jamais d'extrait du texte du PDF ici (contrairement à la trace console existante, réservée à
+    // la console) : uniquement des noms de fichiers, déjà visibles par l'étude dans son propre
+    // explorateur de fichiers — pas de PII supplémentaire exposée à l'écran.
+    const diagnosticJournal = [];
 
     try {
       const compteur = { n: 0 };
@@ -4624,10 +4692,12 @@
             if (nomNormalise.toLowerCase().includes(piece.label.toLowerCase())) {
               fichierParPiece[piece.cle] = entree;
               aChercher.delete(piece.cle);
+              diagnosticJournal.push(`${entree.name} → pièce trouvée par nom : « ${piece.label} »`);
             }
           } else if (piece.motifNom && piece.motifNom.test(nomNormalise)) {
             fichierParPiece[piece.cle] = entree;
             aChercher.delete(piece.cle);
+            diagnosticJournal.push(`${entree.name} → pièce trouvée par nom : « ${piece.label} »`);
           }
         }
         if ((!chercherOffre || offreTrouvee) && aChercher.size === 0) break;
@@ -4652,11 +4722,14 @@
 
           if (chercherOffre && !offreTrouvee) {
             const correspond = OFFRE_PRET_RE.test(texte);
-            // Trace de diagnostic (jamais affichée à l'écran) : un extrait du texte lu par pdf.js
-            // pour chaque PDF, utile en cas de désaccord entre "le mot y est bien" et "non détecté"
-            // (ex. police embarquée mal encodée qui produit un texte extrait illisible malgré un
-            // PDF visuellement normal et sélectionnable).
+            // Trace de diagnostic console (jamais affichée à l'écran, contrairement au journal
+            // ci-dessous) : un extrait du texte lu par pdf.js pour chaque PDF, utile en cas de
+            // désaccord entre "le mot y est bien" et "non détecté" (ex. police embarquée mal
+            // encodée qui produit un texte extrait illisible malgré un PDF visuellement normal et
+            // sélectionnable) — jamais dans le journal visible : ce serait exposer un extrait du
+            // texte du document à l'écran, au-delà de ce que l'étude voit déjà en ouvrant le PDF.
             console.log('[vérification offre de prêt]', entree.name, '→', correspond ? 'correspond' : 'ne correspond pas', '| extrait :', JSON.stringify(texte.trim().slice(0, 200)));
+            diagnosticJournal.push(`${entree.name} → offre de prêt : ${correspond ? 'reconnue' : 'non reconnue'} dans le contenu`);
             if (correspond) {
               offreTrouvee = true;
               fichierOffre = entree.name;
@@ -4679,13 +4752,18 @@
             if (piece.motif && motifPieceTrouve(piece.motif, texte)) {
               fichierParPiece[piece.cle] = entree;
               aChercher.delete(piece.cle);
+              diagnosticJournal.push(`${entree.name} → pièce trouvée dans le contenu : « ${piece.label} »`);
             }
           }
-        } catch (e) { console.error('Lecture impossible pour', entree.name, e); }
+        } catch (e) {
+          console.error('Lecture impossible pour', entree.name, e);
+          diagnosticJournal.push(`${entree.name} → erreur de lecture : ${e.message}`);
+        }
       }
     } catch (e) {
       console.error('Parcours du dossier local impossible', e);
       if (viaClicUtilisateur) afficherToast("Impossible de parcourir le dossier local relié : " + e.message, 'OK', null);
+      dernierDiagnosticParcours[id] = { horodatage: new Date().toISOString(), journal: diagnosticJournal, resume: { erreur: 'Erreur pendant le parcours du dossier local : ' + e.message } };
       render();
       return;
     }
@@ -4704,6 +4782,24 @@
         nbPiecesTrouvees++; // déjà reconnue lors d'une vérification précédente
       }
     }
+
+    // Résultat complet du parcours, pour le panneau de diagnostic (voir renderDiagnosticParcours) —
+    // construit ici, une fois d.pieces à jour, plutôt que pendant la boucle : la liste des pièces
+    // "encore manquantes" doit refléter l'état final, pas un instantané pris en cours de parcours.
+    dernierDiagnosticParcours[id] = {
+      horodatage: new Date().toISOString(),
+      journal: diagnosticJournal,
+      resume: {
+        nbFichiersRencontres,
+        nbAnalyses,
+        offre: !chercherOffre ? null : { trouvee: offreTrouvee, fichier: fichierOffre },
+        pieces: !chercherPieces ? null : {
+          total: checklist.length,
+          trouvees: nbPiecesTrouvees,
+          manquantes: checklist.filter(p => d.pieces[p.cle] !== 'recue').map(p => p.label)
+        }
+      }
+    };
 
     if (viaClicUtilisateur) {
       const messages = [];
