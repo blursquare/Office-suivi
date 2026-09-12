@@ -1368,6 +1368,18 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     vérifié du tout) attend maintenant `'arelier'` plutôt que `'aconfirmer'` ; le cas "pièce
     manquante sur dossier relié avec offre déjà reçue" (mélange trouvé/pas encore vérifié) reste
     inchangé, toujours `'aconfirmer'`.
+- **Bug corrigé : cliquer sur une pièce/l'offre "reçue" pour rouvrir le fichier local affichait le
+  contenu binaire brut du PDF comme du texte** ("%PDF-1.6 ... stream ... FlateDecode...") au lieu
+  de l'ouvrir dans le lecteur PDF intégré de Chrome. Signalé par l'étude avec une capture du texte
+  affiché. Cause : `ouvrirFichierTrouve()` passait directement le `File` obtenu via
+  `handle.getFile()` à `URL.createObjectURL()` — si ce `File` a un `.type` vide ou incorrect (peut
+  arriver selon la façon dont l'OS/Chrome associe l'extension `.pdf`, indépendamment du contenu
+  réel du fichier), le navigateur ne sait pas qu'il doit afficher un PDF et retombe sur un rendu
+  texte brut. Corrigé en reconstruisant un `Blob` avec un type MIME forcé à `application/pdf`
+  quand celui du `File` ne l'est pas déjà (`new Blob([file], { type: 'application/pdf' })`) — sans
+  risque, ces fichiers sont toujours des PDF par construction (seule extension retenue par
+  `fichiersPdfRecursifs()`). Vérifié avec un `File` sans type MIME (cas reproduit) via Playwright :
+  la popup ouverte porte bien `document.contentType === 'application/pdf'` après le correctif.
 
 ## Comment tester
 

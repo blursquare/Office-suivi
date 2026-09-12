@@ -3981,7 +3981,13 @@
         return;
       }
       const file = await handle.getFile();
-      window.open(URL.createObjectURL(file), '_blank');
+      // Bug corrigé : File.type peut arriver vide (ou incorrect) selon la façon dont l'OS/Chrome
+      // associe l'extension .pdf — le navigateur affichait alors le contenu binaire brut du PDF
+      // comme du texte ("%PDF-1.6 ... stream ...") au lieu de l'ouvrir dans son lecteur PDF
+      // intégré. Ces fichiers sont toujours des PDF (seule extension retenue par
+      // fichiersPdfRecursifs()) : on force le type MIME plutôt que de se fier à celui détecté.
+      const blob = file.type === 'application/pdf' ? file : new Blob([file], { type: 'application/pdf' });
+      window.open(URL.createObjectURL(blob), '_blank');
     } catch (e) {
       console.error(e);
       afficherToast("Impossible d'ouvrir ce fichier (déplacé ou supprimé depuis sa détection ?) : " + e.message, 'OK', null);
