@@ -2194,6 +2194,41 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     vérifications de regex toutes correctes, le bon réflexe est de relire la fonction de parcours
     dans son ensemble (ordre, plafonds, limites) plutôt que de re-tester la même regex une fois de
     plus — la regex n'était jamais le problème ici.
+- **Deuxième cause, distincte, du même symptôme "toujours bugué" sur "Certificat alignement et
+  numérotage"/"Avis de Taxes foncières" : un vrai dossier envoyé par l'étude ("NEW_DOSSIER.zip",
+  contenant un dossier `__MACOSX` et un `.DS_Store` — donc constitué sur un Mac) a révélé que le
+  correctif de parcours ci-dessus ne suffisait pas non plus, l'arborescence de ce dossier étant en
+  réalité PLATE (aucun sous-dossier).** Cause réelle, trouvée en inspectant les CODEPOINTS Unicode
+  du nom de fichier réel plutôt qu'en relisant sa représentation texte (identique à l'œil dans
+  n'importe quel outil) : macOS écrit couramment les noms de fichiers en **Unicode NFD** (forme
+  décomposée) — "foncières" y est stocké comme "f", "o", "n", "c", "i", "e", puis un caractère
+  **ACCENT GRAVE COMBINANT séparé** (U+0300), puis "r", "e", "s" — et non comme un seul caractère
+  "è" (U+00E8, forme NFC) que `motifNom` (écrit avec `[èe]`) attend. Les deux formes s'affichent de
+  façon RIGOUREUSEMENT IDENTIQUE partout (explorateur de fichiers, éditeur, `console.log`) —
+  indiscernable d'une regex mal écrite sans aller jusqu'à comparer les points de code un par un.
+  C'est ce qui a fait échouer TROIS revérifications successives du motif (toutes concluant, à
+  raison, que la regex elle-même était correcte) sans que le symptôme ne disparaisse chez l'étude.
+  - `normaliserNomPourMotif(nom)` appelle désormais `nom.normalize('NFC')` avant de remplacer
+    underscores/tirets par des espaces — recompose toute lettre accentuée décomposée en un seul
+    caractère avant le test de `motifNom`. Sans effet sur un nom déjà en NFC (cas normal d'un
+    fichier nommé sous Windows, l'environnement réel de l'étude au quotidien) : aucune régression
+    possible sur les dossiers déjà correctement détectés jusqu'ici.
+  - Nouveau test dans `tests/dossier-local.test.js` qui construit explicitement la forme NFD du nom
+    réel (`'foncières'`) et vérifie `avisTaxeFonciere.motifNom` — le test échouait avant ce
+    correctif, passe après. `npm test` reste vert (129 tests).
+  - **Pourquoi ce dossier de test était en NFD alors que les dossiers réels de l'étude sont sur un
+    poste Windows/lecteur réseau** : le zip envoyé pour ce diagnostic a lui-même été constitué sur
+    un Mac (présence de `__MACOSX`/`.DS_Store`), donc pas nécessairement représentatif du poste de
+    travail quotidien de l'étude. Le correctif est néanmoins gardé tel quel : `.normalize('NFC')`
+    est inoffensif sur un nom déjà en NFC, et le risque existe dès qu'un seul maillon de la chaîne
+    (scanner/MFP, synchronisation cloud, transfert par un tiers utilisant un Mac) réintroduit une
+    normalisation NFD avant que le fichier n'arrive dans le dossier local relié à l'outil — un
+    correctif défensif à coût nul valait mieux que de supposer l'environnement Windows étanche à
+    ce risque sans l'avoir vérifié.
+  - **Leçon supplémentaire** : quand un nom de fichier "évidemment correct" ne matche toujours pas
+    après plusieurs vérifications textuelles, comparer les CODEPOINTS Unicode un par un
+    (`[...chaine].map(c => c.codePointAt(0).toString(16))`) plutôt que de continuer à relire la
+    chaîne affichée — un caractère combinant invisible ne se voit jamais autrement.
 
 ## Comment tester
 

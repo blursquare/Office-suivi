@@ -260,6 +260,23 @@ test('motifNom (taxe foncière, titre de propriété) tolère aussi un mot coup�
   assert.ok(titrePropriete.motifNom.test(app.normaliserNomPourMotif('Titre_de_proprie_te.pdf')));
 });
 
+test('normaliserNomPourMotif recompose les accents en NFD (dossier zippé/synchronisé depuis un Mac)', () => {
+  // Bug réel, trouvé en ouvrant un vrai dossier envoyé par l'étude (zip contenant un dossier
+  // __MACOSX + .DS_Store, donc constitué sur un Mac) : macOS écrit couramment les noms de fichiers
+  // en Unicode NFD (accents décomposés — "è" stocké comme "e" + U+0300 ACCENT GRAVE COMBINANT
+  // séparé) plutôt qu'en NFC (un seul caractère composé, la forme que \s?/[èe] de motifNom
+  // attendent). Les deux formes s'affichent de façon rigoureusement identique dans un explorateur
+  // de fichiers, un éditeur de texte ou un console.log — invisible à l'œil, indiscernable d'un
+  // motif mal écrit. C'est ce qui a fait échouer trois revérifications successives du motif
+  // "avisTaxeFonciere" sur un nom de fichier ("Avis de Taxes foncières.pdf") en apparence
+  // parfaitement correct. Reproduit ici en construisant explicitement la forme NFD du nom réel.
+  const app = chargerApplication();
+  const nomNfd = 'Avis de Taxes foncières.pdf'; // "è" décomposé : "e" + U+0300
+  assert.notEqual(nomNfd, nomNfd.normalize('NFC'), 'le nom construit doit être réellement en NFD pour que ce test ait un sens');
+  const avisTaxeFonciere = app.checklistPieces('maison').find(p => p.cle === 'avisTaxeFonciere');
+  assert.ok(avisTaxeFonciere.motifNom.test(app.normaliserNomPourMotif(nomNfd)));
+});
+
 // Historique : ces deux tests ciblaient à l'origine certificatNumerotage/certificatAlignement
 // (puis reponseAssainissement) via `piece.motif`. Plus aucune pièce de la checklist n'a de motif
 // de contenu désormais (voir le test structurel plus haut) : verifierDossierLocal() n'appelle donc

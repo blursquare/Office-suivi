@@ -4316,8 +4316,20 @@
   // matcherait jamais un tel nom. Testé UNIQUEMENT contre motifNom (le nom de fichier), jamais
   // contre motif (le contenu du PDF, un vrai texte qui n'a pas ce problème). Signalé par l'étude
   // sur un fichier réel qui ne remontait pas.
+  // Bug corrigé : un dossier zippé/synchronisé depuis un Mac (confirmé sur un vrai dossier envoyé
+  // par l'étude, "NEW_DOSSIER.zip", dossier __MACOSX + .DS_Store) nomme ses fichiers en Unicode
+  // NFD (décomposé) plutôt que NFC (composé) : "foncières" y est stocké comme "e" + un caractère
+  // ACCENT GRAVE COMBINANT séparé (U+0300), pas le seul caractère "è" (U+00E8) que motifNom
+  // attend. Invisible à l'œil (le nom s'affiche identique dans n'importe quel explorateur de
+  // fichiers/éditeur/console.log) et donc indiscernable d'un motif mal écrit — exactement ce qui
+  // a fait echouer TROIS revérifications successives de `avisTaxeFonciere.motifNom` sur des noms
+  // de fichiers en apparence corrects ("Avis de Taxes foncières.pdf" ne matchait jamais, alors que
+  // la regex elle-même était juste). `.normalize('NFC')` recompose chaque lettre accentuée en un
+  // seul caractère avant tout test de motifNom — sans effet sur un nom déjà en NFC (cas normal
+  // d'un fichier nommé sous Windows, l'environnement réel de l'étude), donc aucune régression
+  // possible sur les dossiers déjà correctement détectés.
   function normaliserNomPourMotif(nom) {
-    return nom.replace(/[_-]+/g, ' ');
+    return nom.normalize('NFC').replace(/[_-]+/g, ' ');
   }
 
   // Ordre d'affichage = ordre des listes fournies par l'étude : urbanisme (commun aux trois types),
