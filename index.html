@@ -22,10 +22,9 @@
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
       <span class="brand-mark" aria-hidden="true">
-        <svg viewBox="0 0 192 192" width="30" height="30">
-          <rect width="192" height="192" rx="44" fill="#12181F"/>
-          <path d="M129.7 124.3 A44 44 0 1 1 129.7 67.7" fill="none" stroke="#5B9DF9" stroke-width="18" stroke-linecap="round"/>
-          <circle cx="140" cy="96" r="14" fill="#5B9DF9"/>
+        <svg width="30" height="30" viewBox="0 0 48 48" fill="none">
+          <path d="M33 12a15 15 0 1 0 0 24" stroke="var(--focus)" stroke-width="1.8" stroke-linecap="round"/>
+          <line x1="30" y1="24" x2="39" y2="24" stroke="var(--focus-hover)" stroke-width="1.8" stroke-linecap="round"/>
         </svg>
       </span>
       <span class="brand-word">CLAIRE</span>
@@ -43,7 +42,7 @@
         <span class="sidebar-link-icone" id="icon-nav-suivi" aria-hidden="true"></span>Suivi des dossiers
       </button>
       <button type="button" id="tab-calculateur" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('calculateur')">
-        <span class="sidebar-link-icone" id="icon-nav-calculateur" aria-hidden="true"></span>Frais d'acte
+        <span class="sidebar-link-icone" id="icon-nav-calculateur" aria-hidden="true"></span>Simulateur provision sur frais
       </button>
     </nav>
 
@@ -446,8 +445,8 @@
         <div class="calc-champ">
           <label>Acquéreur</label>
           <div class="calc-radios">
-            <label><input type="radio" name="calc-first" value="yes" checked onchange="calculerFraisActe()"> Primo-accédant</label>
-            <label><input type="radio" name="calc-first" value="no" onchange="calculerFraisActe()"> Non primo-accédant</label>
+            <label><input type="radio" name="calc-first" value="no" checked onchange="calculerFraisActe()"> Non primo-accédant</label>
+            <label><input type="radio" name="calc-first" value="yes" onchange="calculerFraisActe()"> Primo-accédant</label>
           </div>
         </div>
         <div class="calc-champ">
@@ -474,6 +473,7 @@
         <div class="calc-tag" id="calc-tag"></div>
         <div class="calc-total" id="calc-total"></div>
         <div class="calc-small">Total provisionnel, arrondi à l'euro près.</div>
+        <div class="calc-lcbft">LCB-FT COMPRIS</div>
         <div class="calc-ratebox">
           <div class="calc-pill"><span>Taux départemental de droit commun</span><strong id="calc-base-rate"></strong></div>
           <div class="calc-pill"><span>Taux départemental appliqué</span><strong id="calc-applied-rate"></strong></div>
@@ -483,7 +483,7 @@
       </div>
       <table class="calc-table">
         <tr><td>Émoluments issus du tableau</td><td id="calc-emol"></td></tr>
-        <tr><td>Provision complémentaire ajoutée aux émoluments</td><td>200 €</td></tr>
+        <tr><td>Taxes : LCB-FT</td><td>200 €</td></tr>
         <tr><td>Trésor / droits et taxes</td><td id="calc-tre"></td></tr>
         <tr><td>Débours (selon le tableau)</td><td>200 €</td></tr>
         <tr><td><strong>Total provisionnel</strong></td><td id="calc-total2"></td></tr>

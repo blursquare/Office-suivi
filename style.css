@@ -591,6 +591,14 @@
     letter-spacing: -0.02em;
   }
   .calc-small { font-size: 12.5px; color: var(--ink-soft); line-height: 1.55; }
+  .calc-lcbft {
+    color: var(--success);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 4px;
+  }
   .calc-ratebox { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 16px; }
   .calc-pill {
     background: var(--paper-card);

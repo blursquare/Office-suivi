@@ -1450,6 +1450,95 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     (primo-accédant → non primo-accédant : le taux appliqué passe bien de 4,50 % à 5,00 % et le
     total se met à jour) — cohérent avec `fonts.googleapis.com` bloqué dans cet environnement de
     dev (voir l'entrée juste au-dessus), sans lien avec cette fonctionnalité elle-même.
+- **Série de retouches demandées par l'étude sur le calculateur, le tiroir dossier et la
+  détection des pièces**, traitées indépendamment :
+  - **Calculateur** : "Non primo-accédant" devient l'option par défaut du groupe "Acquéreur"
+    (`checked` déplacé sur ce radio, ordre des deux options inversé pour que l'option cochée reste
+    la première) — repli le plus courant en pratique, l'étude préfère ne pas présumer du statut
+    primo-accédant par défaut. Ajout de "LCB-FT COMPRIS" (`.calc-lcbft`, vert `--success`) juste
+    sous "Total provisionnel, arrondi à l'euro près.". La ligne "Provision complémentaire ajoutée
+    aux émoluments" du tableau de détail est renommée "Taxes : LCB-FT" (montant 200 € inchangé,
+    seul l'intitulé change — LCB-FT = lutte contre le blanchiment de capitaux et le financement du
+    terrorisme). Lien de sidebar renommé "Frais d'acte" → "Simulateur provision sur frais".
+  - **Analyse juridique toujours dépliée dans le tiroir** : le `<details class="analyse-juridique
+    analyse-repliable">` (voir plus haut, "Analyse juridique ancrée") porte maintenant l'attribut
+    `open` en dur. Comme `render()` reconstruit le tiroir à chaque action, une fermeture manuelle
+    ne "tient" pas d'un rendu à l'autre — effet recherché, l'étude veut la voir en permanence
+    plutôt que d'avoir à la redéplier après chaque action sur le dossier.
+  - **Bug corrigé : `statutDossier()` marquait "Prêt" un dossier "sans prêt" (achat comptant)
+    jamais relié**, alors que sa checklist de pièces d'urbanisme n'avait jamais été vérifiée.
+    Cause : la checklist de pièces n'était comptée que si `d.dossierLie` était vrai ; pour un
+    dossier sans condition de prêt, c'est pourtant le SEUL signal qui existe (pas d'offre à
+    suivre) — ne pas la compter avant tout lien revenait à dire "rien à vérifier" par défaut. La
+    condition devient `d.roleNotaire !== 'participant' && (d.dossierLie || d.sansPret)` : la
+    checklist compte désormais aussi pour un dossier sans prêt jamais relié (renvoie "arelier",
+    pas "pret"), sans rien changer pour un dossier AVEC prêt jamais relié (toujours ignorée tant
+    que non relié, cas déjà couvert par un test existant) ni pour un rôle participant (toujours
+    exclue). Voir les deux tests ajoutés dans `tests/divers.test.js`.
+  - **Badge de confiance "manuel" (Corrigée à la main) retiré entièrement** de
+    `.tab-date-affichage` dans le tiroir — jugé redondant à côté du bouton crayon
+    (`icon-crayon`), qui porte déjà cette information à lui seul. Traitement identique à "auto"
+    (aucune entrée dans `LIBELLES_CONFIANCE`, donc aucun badge affiché) ; "estime" et "incertain"
+    restent inchangés, ce sont de vrais signaux de vigilance.
+  - **Une fois un dossier relié pour la première fois, ses pièces partent à "manquante" plutôt
+    que de rester à "inconnu"** le temps que `verifierPiecesDossier()` parcoure effectivement le
+    dossier local (`lierDossierLocal()`, uniquement sur le tout premier lien, `!etaitDejaLie`) :
+    sans ce préremplissage, le badge de statut affichait "À relier" (gris, neutre) juste après
+    avoir relié un dossier, ce qui n'a plus de sens puisqu'il vient justement d'être relié — "Aucun
+    document" (rouge) reflète mieux ce point de départ pessimiste, corrigé pièce par pièce dès que
+    le scan retrouve quelque chose dans les secondes qui suivent.
+  - **Détection des pièces d'urbanisme et diagnostics par le NOM DU FICHIER PDF, en plus du
+    contenu** : signalée par l'étude comme peu fiable par contenu seul pour ces pièces précises.
+    Nouveau champ `motifNom` (regex testée sur `entree.name`, avant même d'ouvrir le PDF — voir
+    `verifierPiecesDossier()`) sur les pièces `certificatUrbanisme` (reconnaît aussi le raccourci
+    interne "CU a)"), `certificatAlignement`, `certificatNumerotage` et `diagnosticsTechniques`
+    (reconnaît aussi "DDT"). Les deux motifs se complètent : `motifNom` est tenté en premier pour
+    chaque fichier (évite même de l'ouvrir si le nom suffit), `motif` (contenu) reste le repli pour
+    un fichier au nom ambigu — aucune régression pour les dossiers déjà reconnus par leur contenu.
+    Voir le nouveau test dans `tests/dossier-local.test.js`.
+  - **Logo "CLAIRE" retouché** (mark de la sidebar, `.brand-mark` dans `index.html`) à partir d'un
+    exemple fourni par l'étude : un anneau ouvert en trait fin (`path` d'arc) avec un petit trait
+    horizontal à l'ouverture (`line`), plutôt que l'ancienne tuile graphite pleine avec un point
+    plein — mark plus discret, sans fond, coloré via `var(--focus)`/`var(--focus-hover)` (jamais
+    les couleurs de l'exemple fourni, qui ne correspondaient pas à la charte déjà en place). Le
+    favicon/icône PWA (`icone.svg`, fichier séparé sans accès aux variables CSS) reprend le même
+    changement de motif (le point plein devient un trait), en gardant sa tuile graphite pleine et
+    ses couleurs fixes déjà correctes — un favicon a besoin de rester lisible en très petite taille
+    quel que soit le fond de la barre d'onglets, contrairement au mark inline de la sidebar.
+    Typographie du mot "CLAIRE" (Bodoni Moda) non retouchée : seuls les couleurs/motif du symbole
+    ont été demandés, pas la police déjà validée juste avant (voir l'entrée "Fraunces retirée..."
+    ci-dessus) — à confirmer si l'étude souhaite aussi essayer une autre police pour le mot.
+  - **Surlignage des engagements du vendeur dans l'aperçu PDF**, sur le même principe que les
+    dates (`voirDateDansPdf`) mais pour une phrase complète : demandé par l'étude après le retrait
+    précédent de cette fonctionnalité (voir plus haut, "Corrigé au passage : `renderEngagement()`
+    cherchait à surligner..."), qui avait échoué car ancrée sur le "dernier mot" d'une phrase
+    tronquée à 80 caractères — une ancre bien trop peu fiable sur du texte libre. Nouvelle fonction
+    `voirEngagementDansPdf(numeroPage, phraseB64)`, plus robuste :
+    - Reconstruit le texte concaténé de la page à partir de `content.items` (pdf.js), en mémorisant
+      pour chaque caractère l'item d'origine — une phrase peut être répartie sur plusieurs items
+      (typiquement un par ligne), il faut donc pouvoir surligner PLUSIEURS items, pas un seul.
+    - Recherche un préfixe de la phrase (jusqu'à 60 caractères, réduit par paliers de 10 jusqu'à
+      15 si le préfixe complet ne matche pas) dans une version normalisée (espaces multiples
+      réduits à un seul, casse ignorée) du texte de la page — la phrase mémorisée a déjà ses
+      espaces normalisés à l'extraction (voir `extraireEngagementsVendeur`), pas forcément
+      identiques à la mise en page réelle. La normalisation conserve un mapping vers les index du
+      texte d'origine (indispensable pour ensuite localiser les items concernés).
+    - Une fois la position d'ancrage trouvée, la zone à surligner s'étend sur la longueur de LA
+      PHRASE ENTIÈRE (pas seulement le préfixe ayant servi à l'ancrer) : sans ça, une phrase de
+      plusieurs lignes n'aurait été surlignée que sur ses deux premières lignes. Un highlight est
+      posé par item concerné (plusieurs rectangles empilés pour une phrase multi-lignes), pas un
+      seul rectangle englobant — plus simple et fidèle à la mise en page réelle.
+    - Phrase transmise à la fonction via `codifierPourAttribut()`/`decoderAttribut()` (base64,
+      `btoa(unescape(encodeURIComponent(...)))`) plutôt qu'interpolée telle quelle dans l'attribut
+      `onclick` : élimine tout risque d'échappement de guillemets/apostrophes cassant l'attribut
+      HTML ou l'appel JS (cause du bug déjà rencontré et documenté sur l'ancienne implémentation).
+    - **Logique de correspondance vérifiée isolément** (script Node ad hoc, sans dépendre de
+      pdf.js/canvas — voir ci-dessous) sur trois cas : phrase répartie sur 3 items/lignes, phrase
+      avec espacement irrégulier dans le PDF source, phrase absente de la page (ne doit pas
+      planter). **Non vérifié avec un vrai rendu PDF dans cet environnement** : pdf.js est chargé
+      depuis un CDN bloqué par le proxy réseau de développement ici (même limitation déjà
+      documentée pour d'autres fonctionnalités liées à pdf.js/tesseract.js) — à confirmer par
+      l'étude sur un compromis réel.
 
 ## Comment tester
 

@@ -223,11 +223,13 @@ test('statutDossier n\'est plus influencé par l\'accès à reconfirmer, l\'éch
   // Décision explicite de l'étude : la synthèse vert/orange/rouge ne porte plus que sur les
   // documents effectivement retrouvés (offre + pièces) — ces trois signaux restent visibles
   // ailleurs (bandeau "accès à reconfirmer", badge "⚠️ à vérifier"/"≈ estimée" sur la date), mais
-  // n'affectent plus ce badge. Un dossier sans rien à vérifier (ici sans prêt, jamais relié) est
-  // trivialement "prêt" quel que soit l'état de ces trois signaux.
+  // n'affectent plus ce badge. Un dossier sans rien à vérifier (ici sans prêt ET rôle participant,
+  // qui ne suit pas non plus la checklist de pièces — voir le test dédié plus bas pour le cas
+  // "sans prêt" seul, qui N'EST PLUS trivialement "prêt" depuis le correctif signalé par l'étude)
+  // est trivialement "prêt" quel que soit l'état de ces trois signaux.
   const app = chargerApplication();
   const hier = new Date(Date.now() - 24 * 3600 * 1000).toISOString().slice(0, 10);
-  const d = { archive: false, sansPret: true, accesAReconfirmer: true, acte: hier, confiance: { acte: 'incertain' } };
+  const d = { archive: false, sansPret: true, roleNotaire: 'participant', accesAReconfirmer: true, acte: hier, confiance: { acte: 'incertain' } };
   assert.equal(app.statutDossier(d), 'pret');
 });
 
@@ -300,6 +302,33 @@ test('statutDossier ignore la checklist de pièces pour un notaire participant',
   const d = {
     archive: false, sansPret: false, offrePretStatut: 'recue', pret: demain, confiance: { pret: 'auto' },
     dossierLie: true, roleNotaire: 'participant', typeVente: 'maison', pieces: {}
+  };
+  assert.equal(app.statutDossier(d), 'pret');
+});
+
+test('statutDossier ne renvoie plus "pret" pour un dossier sans prêt jamais relié : les pièces d\'urbanisme restent à vérifier', () => {
+  // Bug signalé par l'étude : un dossier "sans prêt" (achat comptant) jamais relié tombait dans le
+  // cas trivial `items.length === 0` (offre exclue car sansPret, pièces exclues car pas encore
+  // relié) et affichait "Prêt" alors que la checklist de pièces (urbanisme...) n'a jamais été
+  // vérifiée. Contrairement au test ci-dessus (avec prêt, offre déjà confirmée reçue), un dossier
+  // sans prêt n'a aucun autre signal que cette checklist — elle doit donc compter même non relié.
+  const app = chargerApplication();
+  const demain = new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 10);
+  const d = {
+    archive: false, sansPret: true, acte: demain,
+    dossierLie: false, roleNotaire: 'instrumentaire', typeVente: 'maison', pieces: {}
+  };
+  assert.equal(app.statutDossier(d), 'arelier');
+});
+
+test('statutDossier reste "pret" pour un dossier sans prêt et rôle participant, même jamais relié', () => {
+  // Seul vrai cas "rien à vérifier" pour un dossier sans prêt : le rôle participant ne suit de
+  // toute façon jamais la checklist de pièces.
+  const app = chargerApplication();
+  const demain = new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 10);
+  const d = {
+    archive: false, sansPret: true, acte: demain,
+    dossierLie: false, roleNotaire: 'participant', typeVente: 'maison', pieces: {}
   };
   assert.equal(app.statutDossier(d), 'pret');
 });

@@ -124,6 +124,26 @@ test('les motifs de la checklist reconnaissent un intitulé plausible pour chaqu
   }
 });
 
+test('motifNom reconnaît le nom de fichier conventionnel des pièces urbanisme/diagnostics', () => {
+  // Signalé par l'étude : la détection par contenu seul (motif) ne fonctionne pas bien pour ces
+  // pièces, dont l'intitulé de fichier est en pratique conventionnel dans les dossiers de
+  // l'étude — voir verifierPiecesDossier(), qui teste maintenant motifNom sur le nom du fichier
+  // avant même d'en lire le contenu.
+  const app = chargerApplication();
+  const exemplesNoms = {
+    certificatUrbanisme: ['Certificat urbanisme.pdf', 'CU a) réponse mairie.pdf'],
+    certificatAlignement: ["Certificat d'alignement.pdf", "Certificat d'alignement et numérotage.pdf"],
+    certificatNumerotage: ['Certificat de numérotage.pdf', "Certificat d'alignement et numérotage.pdf"],
+    diagnosticsTechniques: ['Diagnostics.pdf', 'DDT.pdf']
+  };
+  for (const [cle, noms] of Object.entries(exemplesNoms)) {
+    const piece = app.checklistPieces('maison').find(p => p.cle === cle);
+    for (const nom of noms) {
+      assert.ok(piece.motifNom.test(nom), `motifNom "${cle}" ne reconnaît pas le nom de fichier "${nom}"`);
+    }
+  }
+});
+
 test('le motif "erp" ignore un établissement recevant du public sans lien avec l\'état des risques', () => {
   // Ambiguïté réelle : "ERP" désigne aussi un Établissement Recevant du Public, sans rapport avec
   // la pièce recherchée (état des risques et pollutions) — d'où l'appui sur l'intitulé complet.

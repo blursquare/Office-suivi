@@ -778,13 +778,14 @@
     const etiquette = type
       ? `<span class="engagement-type ${type}">${libelles[type] || 'Document'}</span>`
       : '';
-    // Le clic pour sauter à la page (même mécanisme que creerChip/renderTab pour les dates) n'est
-    // possible que si le PDF d'origine est encore chargé en mémoire — jamais le cas sur un dossier
-    // déjà enregistré rouvert plus tard (le PDF lui-même n'est pas conservé). Le numéro de page
-    // reste malgré tout indiqué dans ce cas, à titre indicatif : c'est justement le cas d'usage le
-    // plus courant (relire une clause quelques jours après l'import du compromis).
+    // Le clic pour sauter à la page ET surligner la phrase (voir voirEngagementDansPdf, même
+    // esprit que voirDateDansPdf pour les dates — demandé par l'étude) n'est possible que si le
+    // PDF d'origine est encore chargé en mémoire — jamais le cas sur un dossier déjà enregistré
+    // rouvert plus tard (le PDF lui-même n'est pas conservé). Le numéro de page reste malgré tout
+    // indiqué dans ce cas, à titre indicatif : c'est justement le cas d'usage le plus courant
+    // (relire une clause quelques jours après l'import du compromis).
     const boutonVoir = !page ? '' : pdfActuel
-      ? `<button type="button" class="voir-pdf-btn" onclick="allerALaPageDuPdf(${page})">${icone('eye')} p.${page}</button>`
+      ? `<button type="button" class="voir-pdf-btn" onclick="voirEngagementDansPdf(${page}, '${codifierPourAttribut(phrase)}')">${icone('eye')} p.${page}</button>`
       : `<span class="chip-page" title="Détecté page ${page} du compromis">p.${page}</span>`;
     return `<div class="analyse-engagement-ligne">${etiquette}<span>${escapeHtml(phrase)}</span>${boutonVoir}</div>`;
   }
@@ -1519,6 +1520,111 @@
     }
   }
 
+  // Encode/décode un texte libre (guillemets, apostrophes, accents...) pour le faire transiter
+  // sans risque à travers un attribut onclick="...('...')" — un essai précédent interpolait la
+  // phrase directement en échappant ses apostrophes à la main (voir CLAUDE.md, "renderEngagement()
+  // cherchait à surligner..." ) : tronquer APRÈS avoir échappé pouvait couper un \' en deux et
+  // produire un attribut malformé. Le texte transite ici en base64, jamais interpolé tel quel :
+  // aucun caractère de la phrase ne peut casser l'attribut ou l'appel JS, quel qu'il soit.
+  function codifierPourAttribut(texte) {
+    return btoa(unescape(encodeURIComponent(texte)));
+  }
+  function decoderAttribut(b64) {
+    return decodeURIComponent(escape(atob(b64)));
+  }
+
+  // Surligne un ENGAGEMENT (obligation ou document à fournir par le vendeur) dans l'aperçu PDF,
+  // sur le même principe que voirDateDansPdf() mais adapté à une phrase complète plutôt qu'un seul
+  // mot ancré (l'année d'une date) : la phrase peut être répartie sur plusieurs "items" pdf.js (un
+  // par ligne/segment de mise en page), il faut donc retrouver TOUS les items concernés, pas un
+  // seul. Demandé par l'étude après une première tentative abandonnée (voir CLAUDE.md) qui
+  // cherchait le "dernier mot" de la phrase, une ancre bien trop peu fiable sur du texte libre.
+  async function voirEngagementDansPdf(numeroPage, phraseB64) {
+    if (!pdfActuel || !numeroPage) return;
+    const bloc = document.getElementById('pdf-page-bloc-' + numeroPage);
+    const canvas = document.getElementById('pdf-page-' + numeroPage);
+    if (!bloc || !canvas) return;
+    bloc.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    try {
+      const phrase = decoderAttribut(phraseB64);
+      const page = await pdfActuel.getPage(numeroPage);
+      const content = await page.getTextContent();
+      const echelle = canvas.width / page.getViewport({ scale: 1 }).width;
+      const viewport = page.getViewport({ scale: echelle });
+
+      // Texte concaténé de la page, en mémorisant pour chaque caractère l'item pdf.js d'origine
+      // (-1 pour les espaces insérés entre deux items, non rattachés à un item précis) — nécessaire
+      // pour retrouver ensuite QUELS items surligner une fois la position du passage repérée.
+      let texte = '';
+      const origines = [];
+      content.items.forEach((item, i) => {
+        for (const ch of item.str) { texte += ch; origines.push(i); }
+        texte += ' '; origines.push(-1);
+      });
+
+      // Normalise en conservant, pour chaque caractère du résultat, l'index correspondant dans le
+      // texte d'origine — la phrase mémorisée a déjà ses espaces multiples réduits à un seul au
+      // moment de l'extraction (voir extraireEngagementsVendeur), pas forcément identique à la
+      // mise en page réelle de la page ; la casse peut aussi différer.
+      function normaliserAvecIndex(s) {
+        let res = '';
+        const idx = [];
+        let dernierEspace = true;
+        for (let i = 0; i < s.length; i++) {
+          const c = s[i];
+          if (/\s/.test(c)) {
+            if (!dernierEspace) { res += ' '; idx.push(i); dernierEspace = true; }
+          } else { res += c.toLowerCase(); idx.push(i); dernierEspace = false; }
+        }
+        return { texte: res, index: idx };
+      }
+
+      const { texte: texteNorm, index: indexOrigine } = normaliserAvecIndex(texte);
+      const cibleNorm = normaliserAvecIndex(phrase).texte;
+      // Un préfixe assez long pour être unique sur la page, réduit par paliers si le préfixe
+      // complet ne matche pas telle quelle (la phrase peut légèrement différer de la mise en page
+      // réelle, ex. un saut de ligne au milieu d'un mot) — jamais toute la phrase, qui peut
+      // dépasser la fin de la page ou du texte réellement extrait.
+      let longueur = Math.min(60, cibleNorm.length);
+      let pos = -1;
+      while (longueur >= 15 && pos === -1) {
+        pos = texteNorm.indexOf(cibleNorm.slice(0, longueur));
+        if (pos === -1) longueur -= 10;
+      }
+      if (pos === -1) return; // repérage impossible : le défilement vers la page reste fait
+
+      // La borne de fin se cale sur la longueur de la PHRASE ENTIÈRE (cibleNorm.length), pas sur
+      // le préfixe réduit ayant servi à l'ancrer (`longueur`) : sans ça, seuls les premiers items
+      // couvrant ce préfixe seraient surlignés, coupant une phrase de plusieurs lignes en plein
+      // milieu au lieu de la couvrir en entier.
+      const debutOrig = indexOrigine[pos];
+      const finOrig = indexOrigine[Math.min(pos + cibleNorm.length - 1, indexOrigine.length - 1)];
+      const itemsConcernes = new Set();
+      for (let i = debutOrig; i <= finOrig; i++) { if (origines[i] >= 0) itemsConcernes.add(origines[i]); }
+      if (itemsConcernes.size === 0) return;
+
+      document.querySelectorAll('.pdf-highlight').forEach(h => h.remove());
+      itemsConcernes.forEach(i => {
+        const item = content.items[i];
+        const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
+        const hauteur = Math.hypot(tx[2], tx[3]) || 14;
+        const largeur = (item.width || 0) * echelle;
+        const surlignage = document.createElement('div');
+        surlignage.className = 'pdf-highlight';
+        surlignage.style.left = Math.max(0, tx[4] - 4) + 'px';
+        surlignage.style.top = Math.max(0, tx[5] - hauteur - 2) + 'px';
+        surlignage.style.width = (largeur + 8) + 'px';
+        surlignage.style.height = (hauteur + 6) + 'px';
+        bloc.appendChild(surlignage);
+      });
+      setTimeout(() => document.querySelectorAll('.pdf-highlight').forEach(h => h.classList.add('fondu')), 3000);
+      setTimeout(() => document.querySelectorAll('.pdf-highlight').forEach(h => h.remove()), 3700);
+    } catch (e) {
+      console.error('Surlignage impossible', e);
+    }
+  }
+
   async function gererUploadPdf(event) {
     const file = event.target.files[0];
     if (file) await traiterFichierPdf(file);
@@ -1987,11 +2093,10 @@
     // du texte, le cas normal ; lui donner le même traitement visuel que les trois exceptions
     // ci-dessous revenait à mettre un badge sur chaque date de chaque dossier, qui finissait par
     // n'attirer l'attention sur rien de particulier.
+    // "manuel" (saisie/corrigée à la main) n'a plus d'entrée du tout, comme "auto" : le bouton
+    // crayon juste à côté (icon-crayon) porte déjà cette information à lui seul — signalé par
+    // l'étude comme redondant à côté du crayon dans le dossier ouvert.
     const LIBELLES_CONFIANCE = {
-      // Pas d'icône crayon ici : le vrai bouton de correction (icon-crayon, juste à côté dans
-      // .tab-date-affichage) en porte déjà une — les deux côte à côte étaient redondants et
-      // prêtaient à confusion (signalé par l'étude). Un point neutre suffit, comme "estime".
-      manuel: { titre: 'Saisie ou corrigée manuellement', texte: 'Corrigée à la main', dl: 'dl-neutre' },
       estime: { titre: 'Calculée à partir d’une formulation approximative ("fin septembre", délai relatif...) — à vérifier précisément', texte: 'Estimée', dl: 'dl-pret' },
       incertain: { titre: 'Choisie parmi plusieurs dates possibles dans le texte — à vérifier en priorité', texte: 'À vérifier', dl: 'dl-alerte', icone: 'alert-triangle' }
     };
@@ -2488,10 +2593,14 @@
     if (!d.sansPret) {
       items.push(d.offrePretStatut === 'recue' ? 'recue' : (d.offrePretStatut === 'manquante' ? 'manquante' : 'inconnu'));
     }
-    // La checklist de pièces ne compte que si le dossier a déjà été relié à un dossier local au
-    // moins une fois : sur un dossier jamais relié, aucune pièce n'a pu être recherchée — ce n'est
-    // pas une absence, juste une vérification qui n'a pas encore eu lieu.
-    if (d.dossierLie && d.roleNotaire !== 'participant') {
+    // La checklist de pièces compte dès que le dossier a été relié au moins une fois — sur un
+    // dossier jamais relié, aucune pièce n'a pu être recherchée, ce n'est pas une absence, juste
+    // une vérification qui n'a pas encore eu lieu (même traitement que l'offre "inconnue"
+    // ci-dessus). Elle compte AUSSI pour un dossier "sans prêt" jamais relié (`|| d.sansPret`) :
+    // sans condition de prêt, cette checklist est le seul signal qui existe pour ce dossier — le
+    // laisser de côté tant qu'il n'est pas relié ferait apparaître "Prêt" par défaut alors que les
+    // pièces d'urbanisme restent entièrement à vérifier. Signalé par l'étude.
+    if (d.roleNotaire !== 'participant' && (d.dossierLie || d.sansPret)) {
       checklistPieces(d.typeVente).forEach(p => items.push((d.pieces || {})[p.cle] || 'inconnu'));
     }
     if (items.length === 0 || items.every(s => s === 'recue')) return 'pret';
@@ -2895,7 +3004,7 @@
         </div>
         ${d.roleNotaire !== 'participant' ? renderPiecesDossier(d) : ''}
         ${(analyse.documents.length > 0 || analyse.engagements.length > 0 || analyseConditions.length > 0) ? `
-          <details class="analyse-juridique analyse-repliable" style="margin-top:14px;">
+          <details class="analyse-juridique analyse-repliable" style="margin-top:14px;" open>
             <summary class="analyse-titre">Analyse juridique du compromis</summary>
             ${analyseConditions.length > 0 ? `
               <div class="analyse-section">
@@ -3583,15 +3692,23 @@
   // contrairement à OFFRE_PRET_RE qui a déjà été affiné sur des cas réels) : à resserrer ou élargir
   // dès qu'un vrai dossier fait remonter un faux positif/négatif, comme pour toute regex du fichier.
   // var (pas const) : mêmes raisons que OFFRE_PRET_RE, pour rester testable depuis les tests.
+  // motifNom (optionnel) : testé sur le NOM DU FICHIER PDF, avant même d'en lire le contenu — plus
+  // fiable que `motif` (testé sur le texte extrait) pour ces pièces, dont l'intitulé de fichier
+  // est conventionnellement explicite dans les dossiers de l'étude (ex. "CU a) réponse.pdf",
+  // "Diagnostics.pdf", "Certificat d'alignement et numérotage.pdf"), contrairement à leur contenu
+  // qui peut être un scan peu lisible ou une mise en page qui n'emploie pas l'intitulé complet.
+  // Signalé par l'étude : la détection par contenu seul ne fonctionnait pas bien sur ces pièces.
+  // Les deux motifs se complètent (voir verifierPiecesDossier) plutôt que `motifNom` ne remplace
+  // `motif` : un fichier au nom ambigu reste détectable par son contenu comme avant.
   var PIECES_URBANISME = [
-    { cle: 'certificatUrbanisme', label: "Certificat d'urbanisme", motif: /certificat\s+d[’']urbanisme/i },
-    { cle: 'certificatAlignement', label: "Certificat d'alignement", motif: /certificat\s+d[’']alignement/i },
-    { cle: 'certificatNumerotage', label: 'Certificat de numérotage', motif: /certificat\s+de\s+num[ée]rotage/i },
+    { cle: 'certificatUrbanisme', label: "Certificat d'urbanisme", motif: /certificat\s+d[’']urbanisme/i, motifNom: /certificat\s+d?[’']?\s*urbanisme|\bCU\s*a\)/i },
+    { cle: 'certificatAlignement', label: "Certificat d'alignement", motif: /certificat\s+d[’']alignement/i, motifNom: /certificat\s+d[’']alignement/i },
+    { cle: 'certificatNumerotage', label: 'Certificat de numérotage', motif: /certificat\s+de\s+num[ée]rotage/i, motifNom: /num[ée]rotage/i },
     { cle: 'reponseAssainissement', label: 'Courrier réponse assainissement', motif: /assainissement/i },
     { cle: 'renonciationPreemption', label: 'Renonciation au droit de préemption', motif: /pr[ée]emption/i }
   ];
   var PIECES_AUTRES = [
-    { cle: 'diagnosticsTechniques', label: 'Diagnostics techniques', motif: /dossier\s+de\s+diagnostic\s+technique|diagnostics?\s+techniques?|\bDDT\b/i },
+    { cle: 'diagnosticsTechniques', label: 'Diagnostics techniques', motif: /dossier\s+de\s+diagnostic\s+technique|diagnostics?\s+techniques?|\bDDT\b/i, motifNom: /diagnostics?|\bDDT\b/i },
     // "ERP" est ambigu (aussi "Établissement Recevant du Public") : on s'appuie sur l'intitulé
     // complet et ses anciens noms plutôt que sur le sigle seul, trop sujet aux faux positifs.
     { cle: 'erp', label: 'ERP (état des risques et pollution)', motif: /[ée]tat\s+des\s+risques(?:\s+et\s+pollutions?|\s+naturels?)?|\bERNMT\b|\bESRIS\b/i },
@@ -3697,6 +3814,17 @@
       const handle = await window.showDirectoryPicker();
       await enregistrerHandle(id, handle);
       d.dossierLie = true;
+      // Premier lien seulement : préremplit la checklist de pièces à "manquante" plutôt que de la
+      // laisser telle quelle (statut "inconnu") le temps que verifierPiecesDossier() ci-dessous
+      // parcoure effectivement le dossier — sans quoi le badge affichait "À relier" (gris,
+      // neutre) juste après avoir relié, ce qui n'a plus de sens une fois le dossier relié.
+      // "Aucun document" (rouge) reflète mieux ce point de départ pessimiste, corrigé pièce par
+      // pièce dès que le scan retrouve quelque chose. Sans effet pour un rôle participant, qui
+      // ne suit pas cette checklist (voir statutDossier).
+      if (!etaitDejaLie && d.roleNotaire !== 'participant') {
+        d.pieces = d.pieces || {};
+        checklistPieces(d.typeVente).forEach(p => { if (!d.pieces[p.cle]) d.pieces[p.cle] = 'manquante'; });
+      }
       // Choisir un nouveau dossier ecrase simplement le lien precedent (put() dans
       // enregistrerHandle) : utile si l'on s'etait trompe de dossier au premier lien.
       ajouterHistorique(d, etaitDejaLie
@@ -3912,6 +4040,16 @@
       const compteur = { n: 0 };
       for await (const entree of fichiersPdfRecursifs(handle, 0, compteur)) {
         if (aChercher.size === 0) break; // tout est déjà trouvé, inutile de continuer à lire des PDF
+        // Nom du fichier testé en premier (voir motifNom sur les pièces concernées) : plus fiable
+        // que le contenu extrait pour les pièces dont l'intitulé de fichier est conventionnel dans
+        // les dossiers de l'étude, et ça évite d'ouvrir/lire le PDF quand le nom suffit déjà.
+        for (const piece of checklist) {
+          if (aChercher.has(piece.cle) && piece.motifNom && piece.motifNom.test(entree.name)) {
+            fichierParPiece[piece.cle] = entree;
+            aChercher.delete(piece.cle);
+          }
+        }
+        if (aChercher.size === 0) break;
         nbAnalyses++;
         try {
           const file = await entree.getFile();
