@@ -1343,6 +1343,31 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
   `corrigerDateCompromis()` ciblent déjà l'élément par son id, aucun changement côté `script.js`.
   L'étape 1 ne garde plus que la dropzone d'import, le statut et la note "sans prêt". Vérifié
   visuellement (Playwright) : absent de l'étape 1, bien affiché en tête de l'étape 2.
+- **Badge de statut : ajout d'un quatrième niveau gris "À relier", et renommage de deux libellés
+  existants** — demandé par l'étude pour distinguer un dossier qu'on n'a simplement pas encore pu
+  vérifier (rien d'alarmant) d'un dossier où la recherche a réellement échoué (un vrai signal).
+  Avant ce correctif, ces deux cas très différents partageaient le même statut `aconfirmer`.
+  - `statutDossier()` (script.js) : la branche `if (verifies.length === 0) return 'aconfirmer'`
+    devient `return 'arelier'` — cas où RIEN n'a encore été vérifié (dossier jamais relié à un
+    dossier local, ou pièces jamais recherchées). Le cas `aconfirmer` restant ne couvre plus que
+    l'état réellement intermédiaire : une partie de ce qui a été recherché est trouvée, une autre
+    partie manque encore (ou reste à vérifier) — d'où son nouveau libellé.
+  - `LIBELLES_STATUT` : nouvelle entrée `arelier: { texte: 'À relier', dl: 'dl-neutre' }` (même
+    couleur neutre que "Archivé", distingué de lui par l'absence d'icône cadenas — un point de
+    couleur pour "À relier", un cadenas pour "Archivé", même principe déjà en place). `aconfirmer`
+    renommé de "À confirmer" à **"Réception de pièces"** (décrit l'action en cours plutôt qu'un état
+    vague) ; `blocage` renommé de "Blocage" à **"Aucun document"** (nomme précisément ce qui a été
+    constaté — aucun document trouvé parmi ce qui a été cherché — plutôt qu'un mot qui pouvait
+    laisser croire à un blocage juridique). Les clés internes (`arelier`/`aconfirmer`/`blocage`)
+    sont inchangées ou nouvelles mais jamais réutilisées pour un autre sens : seul le texte affiché
+    change pour les deux existantes.
+  - Aucun autre point de l'outil ne référence ces statuts par leur texte affiché (vérifié par
+    recherche) : le bloc "Actions urgentes" du tableau de bord (`renderActionsUrgentes()`)
+    continue de filtrer sur la clé `'blocage'`, inchangée, donc pas d'effet de bord.
+  - Test mis à jour dans `tests/divers.test.js` : le cas "offre de prêt jamais confirmée" (rien
+    vérifié du tout) attend maintenant `'arelier'` plutôt que `'aconfirmer'` ; le cas "pièce
+    manquante sur dossier relié avec offre déjà reçue" (mélange trouvé/pas encore vérifié) reste
+    inchangé, toujours `'aconfirmer'`.
 
 ## Comment tester
 

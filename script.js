@@ -2453,8 +2453,9 @@
   // l'est plus — un cadenas marque sans ambiguïté un état "hors service", pas une couleur de plus.
   const LIBELLES_STATUT = {
     pret: { texte: 'Prêt', dl: 'dl-success' },
-    aconfirmer: { texte: 'À confirmer', dl: 'dl-pret' },
-    blocage: { texte: 'Blocage', dl: 'dl-urgent' },
+    arelier: { texte: 'À relier', dl: 'dl-neutre' },
+    aconfirmer: { texte: 'Réception de pièces', dl: 'dl-pret' },
+    blocage: { texte: 'Aucun document', dl: 'dl-urgent' },
     archive: { texte: 'Archivé', dl: 'dl-neutre', icone: 'lock' }
   };
   // Logique donnée explicitement par l'étude, fondée uniquement sur les documents effectivement
@@ -2463,13 +2464,16 @@
   // reconfirmer", badge "⚠️ à vérifier"/"≈ estimée" sur la date elle-même — la synthèse ne les
   // duplique plus) :
   //   🟢 vert    : toutes les pièces attendues sont trouvées — on peut signer.
-  //   🟡 orange  : il en manque encore (offre, urbanisme...) — état intermédiaire.
-  //   🔴 rouge   : aucun document n'a été trouvé.
-  // Un dossier jamais relié à un dossier local (rien n'a pu être vérifié) n'est pas pénalisé pour
-  // autant : on ne peut pas dire "rien trouvé" tant que rien n'a été cherché — même principe déjà
-  // appliqué à l'offre de prêt "inconnue" ailleurs dans l'outil (voir renderStatsSuivi). Un dossier
-  // sans rien à vérifier (achat comptant + rôle participant, qui ne suit pas la checklist de
-  // pièces) est trivialement "prêt".
+  //   ⚪ gris    : rien n'a encore pu être vérifié (dossier jamais relié, ou pièces jamais
+  //                recherchées) — pas un signal d'alarme, juste "pas encore su" ("À relier").
+  //   🟡 orange  : une partie a été vérifiée et trouvée, il en manque encore d'autres — état
+  //                intermédiaire ("Réception de pièces").
+  //   🔴 rouge   : tout ce qui a été recherché a été confirmé absent ("Aucun document").
+  // Un dossier jamais relié à un dossier local n'est donc plus confondu avec un dossier dont la
+  // recherche a échoué : le premier est neutre (gris), le second est un vrai signal (rouge) — même
+  // principe déjà appliqué à l'offre de prêt "inconnue" ailleurs dans l'outil (voir
+  // renderStatsSuivi). Un dossier sans rien à vérifier (achat comptant + rôle participant, qui ne
+  // suit pas la checklist de pièces) est trivialement "prêt".
   function statutDossier(d) {
     if (d.archive) return 'archive';
 
@@ -2490,7 +2494,7 @@
     if (items.length === 0 || items.every(s => s === 'recue')) return 'pret';
 
     const verifies = items.filter(s => s !== 'inconnu');
-    if (verifies.length === 0) return 'aconfirmer';
+    if (verifies.length === 0) return 'arelier';
     if (verifies.every(s => s === 'manquante')) return 'blocage';
     return 'aconfirmer';
   }

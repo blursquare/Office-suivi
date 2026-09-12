@@ -245,11 +245,11 @@ test('statutDossier renvoie "blocage" quand le dossier est relié mais qu\'aucun
   assert.equal(app.statutDossier(d), 'blocage');
 });
 
-test('statutDossier renvoie "aconfirmer" quand l\'offre de prêt n\'a jamais été confirmée', () => {
+test('statutDossier renvoie "arelier" quand l\'offre de prêt n\'a jamais été confirmée (rien vérifié)', () => {
   const app = chargerApplication();
   const demain = new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 10);
   const d = { archive: false, sansPret: false, offrePretStatut: 'inconnu', pret: demain };
-  assert.equal(app.statutDossier(d), 'aconfirmer');
+  assert.equal(app.statutDossier(d), 'arelier');
 });
 
 test('statutDossier renvoie "pret" quand tout est en ordre', () => {
