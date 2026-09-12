@@ -3728,20 +3728,39 @@
   // Signalé par l'étude : la détection par contenu seul ne fonctionnait pas bien sur ces pièces.
   // Les deux motifs se complètent (voir verifierPiecesDossier) plutôt que `motifNom` ne remplace
   // `motif` : un fichier au nom ambigu reste détectable par son contenu comme avant.
+  // Listes de noms de fichiers données par l'étude pour ces 4 pièces (voir CLAUDE.md) :
+  // ERP → "ERP", "état des risques et pollution" ; assainissement → "rapport assainissement",
+  // "courrier assainissement", "SPANC", "assainissement" ; taxe foncière → "TF", "taxes foncières"
+  // (parfois suivi de l'année) ; titre de propriété → "Titre", "titre de propriété",
+  // "titre vendeur". Chaque motifNom tolère les fautes de frappe/variantes les plus plausibles
+  // (accent absent ou mal placé, double lettre oubliée) SANS pour autant devenir assez large pour
+  // qu'un mot commun avec une AUTRE pièce la valide par erreur (ex. "certificat d'urbanisme" qui
+  // mentionnerait l'alignement en passant ne doit pas valider "Certificat d'alignement", d'où
+  // l'exigence de la phrase complète "certificat d'alignement" plutôt que le mot seul,
+  // demandé explicitement par l'étude et généralisé ici à toutes les pièces).
   var PIECES_URBANISME = [
     { cle: 'certificatUrbanisme', label: "Certificat d'urbanisme", motif: /certificat\s+d[’']urbanisme/i, motifNom: /certificat\s+d?[’']?\s*urbanisme|\bCU\s*a\)/i },
     { cle: 'certificatAlignement', label: "Certificat d'alignement", motif: /certificat\s+d[’']alignement/i, motifNom: /certificat\s+d[’']alignement/i },
     { cle: 'certificatNumerotage', label: 'Certificat de numérotage', motif: /certificat\s+de\s+num[ée]rotage/i, motifNom: /num[ée]rotage/i },
-    { cle: 'reponseAssainissement', label: 'Courrier réponse assainissement', motif: /assainissement/i },
+    // ass?ainissement : tolère "asainissement" (un seul "s"), faute de frappe courante.
+    { cle: 'reponseAssainissement', label: 'Courrier réponse assainissement', motif: /assainissement/i, motifNom: /ass?ainissement|\bSPANC\b/i },
     { cle: 'renonciationPreemption', label: 'Renonciation au droit de préemption', motif: /pr[ée]emption/i }
   ];
   var PIECES_AUTRES = [
     { cle: 'diagnosticsTechniques', label: 'Diagnostics techniques', motif: /dossier\s+de\s+diagnostic\s+technique|diagnostics?\s+techniques?|\bDDT\b/i, motifNom: /diagnostics?|\bDDT\b/i },
-    // "ERP" est ambigu (aussi "Établissement Recevant du Public") : on s'appuie sur l'intitulé
-    // complet et ses anciens noms plutôt que sur le sigle seul, trop sujet aux faux positifs.
-    { cle: 'erp', label: 'ERP (état des risques et pollution)', motif: /[ée]tat\s+des\s+risques(?:\s+et\s+pollutions?|\s+naturels?)?|\bERNMT\b|\bESRIS\b/i },
-    { cle: 'avisTaxeFonciere', label: 'Avis de taxe foncière', motif: /(?:avis\s+de\s+)?taxe\s+fonci[èe]re/i },
-    { cle: 'titrePropriete', label: 'Titre de propriété', motif: /titre\s+de\s+propri[ée]t[ée]/i }
+    // "ERP" est ambigu dans le CORPS DU TEXTE (aussi "Établissement Recevant du Public" — d'où
+    // `motif` qui s'appuie sur l'intitulé complet, jamais le sigle seul). Dans un NOM DE FICHIER
+    // d'un dossier de vente d'une maison en revanche, "ERP.pdf" désigne sans ambiguïté l'état des
+    // risques et pollutions (un ERP au sens accessibilité n'a pas sa place dans ce type de vente) —
+    // motifNom peut donc se permettre le sigle seul, contrairement à motif.
+    { cle: 'erp', label: 'ERP (état des risques et pollution)', motif: /[ée]tat\s+des\s+risques(?:\s+et\s+pollutions?|\s+naturels?)?|\bERNMT\b|\bESRIS\b/i, motifNom: /\bERP\b|[ée]tat\s+des\s+risques(?:\s+et\s+pollutions?)?/i },
+    // \bTF\b avant les chiffres d'une année éventuelle ("TF 2024.pdf") : pas besoin de motif
+    // spécifique, \b ne consomme aucun caractère et laisse la suite du nom de fichier de côté.
+    { cle: 'avisTaxeFonciere', label: 'Avis de taxe foncière', motif: /(?:avis\s+de\s+)?taxe\s+fonci[èe]re/i, motifNom: /\bTF\b|taxes?\s+fonci[èe]re/i },
+    // "titre" seul valide déjà (fichier couramment nommé juste "Titre.pdf" dans les dossiers de
+    // l'étude) ; le groupe optionnel ne fait qu'accepter EN PLUS "titre de propriété"/"titre
+    // vendeur" sans les exiger.
+    { cle: 'titrePropriete', label: 'Titre de propriété', motif: /titre\s+de\s+propri[ée]t[ée]/i, motifNom: /titre(?:\s+de\s+propri[ée]t[ée]|\s+vendeur)?/i }
   ];
   var PIECES_COPROPRIETE = [
     { cle: 'etatDate', label: 'État daté', motif: /[ée]tat\s+dat[ée]/i },

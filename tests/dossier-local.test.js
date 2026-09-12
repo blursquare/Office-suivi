@@ -134,7 +134,11 @@ test('motifNom reconnaît le nom de fichier conventionnel des pièces urbanisme/
     certificatUrbanisme: ['Certificat urbanisme.pdf', 'CU a) réponse mairie.pdf'],
     certificatAlignement: ["Certificat d'alignement.pdf", "Certificat d'alignement et numérotage.pdf"],
     certificatNumerotage: ['Certificat de numérotage.pdf', "Certificat d'alignement et numérotage.pdf"],
-    diagnosticsTechniques: ['Diagnostics.pdf', 'DDT.pdf']
+    diagnosticsTechniques: ['Diagnostics.pdf', 'DDT.pdf'],
+    reponseAssainissement: ['Rapport assainissement.pdf', 'Courrier assainissement.pdf', 'SPANC.pdf', 'Asainissement.pdf'],
+    erp: ['ERP.pdf', 'État des risques et pollution.pdf'],
+    avisTaxeFonciere: ['TF 2024.pdf', 'Taxes foncières.pdf'],
+    titrePropriete: ['Titre.pdf', 'Titre de propriété.pdf', 'Titre vendeur.pdf']
   };
   for (const [cle, noms] of Object.entries(exemplesNoms)) {
     const piece = app.checklistPieces('maison').find(p => p.cle === cle);
@@ -142,6 +146,14 @@ test('motifNom reconnaît le nom de fichier conventionnel des pièces urbanisme/
       assert.ok(piece.motifNom.test(nom), `motifNom "${cle}" ne reconnaît pas le nom de fichier "${nom}"`);
     }
   }
+});
+
+test('motifNom ne confond pas un certificat d\'urbanisme mentionnant "alignement" en passant avec le certificat d\'alignement lui-même', () => {
+  // Demandé explicitement par l'étude : un document ne doit pas être marqué reçu pour une pièce
+  // simplement parce qu'il partage un mot avec elle, si ce n'est pas réellement cette pièce.
+  const app = chargerApplication();
+  const alignement = app.checklistPieces('maison').find(p => p.cle === 'certificatAlignement');
+  assert.equal(alignement.motifNom.test("Certificat d'urbanisme - réponse alignement voirie.pdf"), false);
 });
 
 test('le motif "erp" ignore un établissement recevant du public sans lien avec l\'état des risques', () => {

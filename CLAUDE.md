@@ -1618,6 +1618,26 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
   largeur vient à manquer (mobile). Le passage de 520px à 620px profite aussi à la grille de
   classification (Type de vente/Rôle du notaire/Responsable, voir l'entrée juste au-dessus) : plus
   de marge avant que ses 3 colonnes ne rebasculent à 2.
+- **`motifNom` (détection par nom de fichier, voir plus haut) étendu à 4 pièces supplémentaires**,
+  à partir de vraies conventions de nommage données par l'étude : `reponseAssainissement`
+  ("rapport assainissement", "courrier assainissement", "SPANC", "assainissement" — tolère aussi
+  "asainissement", faute de frappe courante sur le double "s"), `erp` ("ERP" seul ou "état des
+  risques et pollution" — le sigle seul n'est autorisé QUE dans `motifNom` : dans le corps du texte
+  `motif` reste sur l'intitulé complet, "ERP" y étant ambigu avec "Établissement Recevant du
+  Public", ambiguïté qui ne se pose pas dans un nom de fichier d'un dossier de vente de maison),
+  `avisTaxeFonciere` ("TF", éventuellement suivi de l'année — "TF 2024.pdf" — ou "taxes foncières"
+  en toutes lettres) et `titrePropriete` ("Titre" seul, "titre de propriété" ou "titre vendeur").
+  - **Principe explicitement demandé par l'étude, généralisé à toutes les pièces** : un document ne
+    doit jamais être marqué reçu pour une pièce simplement parce qu'il partage un mot avec elle —
+    ex. un certificat d'urbanisme qui mentionnerait "alignement" en passant (courrier de réponse de
+    la mairie évoquant l'alignement de la voirie) ne doit pas valider "Certificat d'alignement".
+    Déjà le cas pour cette pièce précise (`motifNom` exige la phrase complète "certificat
+    d'alignement", jamais le mot seul) — vérifié explicitement par un nouveau test de non-régression
+    (`tests/dossier-local.test.js`). Les 4 nouveaux motifs ont été écrits avec le même principe : les
+    sigles courts autorisés bruts ("TF", "SPANC", "ERP", "Titre") sont ceux que l'étude a
+    elle-même désignés comme des noms de fichiers complets et déjà spécifiques dans ses dossiers,
+    pas des mots susceptibles d'apparaître incidemment dans le nom d'un autre document du même
+    dossier.
 
 ## Comment tester
 
