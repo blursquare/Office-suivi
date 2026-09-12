@@ -1662,6 +1662,43 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     ne déclenche plus ni `certificatNumerotage` ni `certificatAlignement` ; un vrai certificat
     d'alignement (texte de délivrance, sans renvoi) reste bien détecté — la correction ne devait
     pas rendre la détection insensible aux vrais documents.
+- **Changer de dossier lié remet tout à zéro, et l'offre de prêt/les pièces d'urbanisme sont
+  désormais cherchées dans le MÊME parcours du dossier local**, deux bugs liés signalés par
+  l'étude en une seule fois :
+  - **Statuts non remis à zéro en changeant de dossier lié.** `lierDossierLocal()` ne préremplissait
+    la checklist de pièces à "manquante" qu'au tout premier lien (`if (!etaitDejaLie && ...)`) —
+    en choisissant ensuite un AUTRE dossier local (`changerDossierLocal()`, simple alias de
+    `lierDossierLocal()`, voir son historique plus haut), les statuts "reçue"/"manquante" de
+    l'ANCIEN dossier restaient affichés tels quels le temps qu'une nouvelle vérification les
+    corrige un par un, ce qui pouvait laisser croire à tort qu'une pièce était déjà trouvée dans le
+    nouveau dossier. Le garde-fou `!etaitDejaLie` est supprimé : `d.pieces` repart entièrement à
+    `'manquante'` (plus un simple complément des clés manquantes) et `d.offrePretStatut`/
+    `d.montantPret` repartent à `'inconnu'`/`null` à CHAQUE lien, premier ou non — cohérent avec le
+    principe déjà appliqué à l'import d'un dossier d'une autre machine dans
+    `normaliserDossierImporte()` ("un statut dérivé de PDF locaux ne doit pas être conservé sans
+    revérification").
+  - **Les deux recherches (offre de prêt, pièces d'urbanisme) devaient être "liées" dans un même
+    parcours**, pas deux parcours indépendants du dossier local : `verifierOffrePret()`
+    s'arrêtait (`break`) dès la première offre de prêt reconnue, y compris si c'était le tout
+    premier PDF lu — la recherche des pièces d'urbanisme, faite ensuite par un second appel
+    (`verifierPiecesDossier()`) séparé, repartait alors de zéro sur le même dossier au lieu de
+    profiter du parcours déjà en cours. Les deux fonctions sont fusionnées en une seule,
+    `verifierDossierLocal(id, viaClicUtilisateur)` : un seul parcours de `fichiersPdfRecursifs()`
+    teste l'offre de prêt (si `!d.sansPret`) ET chaque pièce encore manquante (si
+    `d.roleNotaire !== 'participant'`) sur chaque fichier lu, et ne s'arrête que quand les DEUX
+    sont résolus (ou le dossier entièrement parcouru) — trouver l'offre tôt ne coupe plus court à
+    la recherche des pièces restantes, et réciproquement. `lireTextePdfVerification()` (déjà
+    partagée) n'est appelée qu'une fois par fichier pour les deux recherches, comme avant.
+    `verifierOffrePretDepuisBouton`/`verifierPiecesDossierDepuisBouton` sont remplacées par un seul
+    `verifierDossierLocalDepuisBouton(id, btn)`, branché aux trois endroits qui déclenchaient l'une
+    ou l'autre (bouton rapide de la ligne de tableau, "Revérifier les pièces" dans le tiroir,
+    "Revérifier" dans la carte "Obtention du prêt"), ainsi qu'à `reconfirmerAcces()`,
+    `reconfirmerTousLesAcces()` et `revérifierDossiersLiesAuDemarrage()`, qui appelaient
+    jusque-là les deux anciennes fonctions l'une après l'autre. Le toast de résultat combine
+    maintenant les deux messages (offre + pièces) en un seul, plutôt que d'en afficher deux à la
+    suite. Vérifié visuellement (Playwright, dossier synthétique relié) : les trois boutons
+    rendent bien `verifierDossierLocalDepuisBouton` dans le DOM généré, `npm test` reste vert
+    (115 tests).
 
 ## Comment tester
 

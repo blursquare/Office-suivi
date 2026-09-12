@@ -216,7 +216,7 @@
   }
 
   // Montant emprunté, lu dans le texte de l'offre de prêt elle-même (pas le compromis) une fois
-  // celle-ci retrouvée dans le dossier local relié — voir l'appel dans verifierOffrePret(). Même
+  // celle-ci retrouvée dans le dossier local relié — voir l'appel dans verifierDossierLocal(). Même
   // heuristique que PRIX_VENTE_RE (le montant en lettres est répété en chiffres entre parenthèses,
   // usage constant des établissements prêteurs), ancrée sur le vocabulaire d'une offre de prêt
   // ("montant du prêt", "capital emprunté"...) plutôt que sur "prix", qui n'y apparaît jamais dans
@@ -2672,8 +2672,7 @@
     render();
 
     for (const id of idsAccordes) {
-      await verifierOffrePret(id, false);
-      await verifierPiecesDossier(id, false);
+      await verifierDossierLocal(id, false);
     }
     if (partageHandle) {
       await lireRegistrePartage(false);
@@ -2824,7 +2823,7 @@
         </td>
         <td>
           ${d.sansPret ? '<span class="echeance-jours calme">Comptant — sans prêt</span>' : `<span class="dot-label ${offre.dl}"><span class="dot"></span>${offre.texte}</span>`}
-          ${(!d.sansPret && d.dossierLie) ? `<button type="button" class="action-rapide" onclick="event.stopPropagation(); verifierOffrePretDepuisBouton('${d.id}', this)">Revérifier</button>` : ''}
+          ${(!d.sansPret && d.dossierLie) ? `<button type="button" class="action-rapide" onclick="event.stopPropagation(); verifierDossierLocalDepuisBouton('${d.id}', this)">Revérifier</button>` : ''}
         </td>
       </tr>
     `;
@@ -2889,7 +2888,7 @@
         <div class="pieces-dossier-titre">
           <span class="section-eyebrow">Pièces du dossier (${libelleType})</span>
           <span class="pieces-compteur${complet ? ' complet' : ''}">${nbRecues}/${checklist.length}</span>
-          ${(DOSSIER_FS_SUPPORTE && d.dossierLie) ? `<button type="button" class="action-rapide" onclick="verifierPiecesDossierDepuisBouton('${d.id}', this)">Revérifier les pièces</button>` : ''}
+          ${(DOSSIER_FS_SUPPORTE && d.dossierLie) ? `<button type="button" class="action-rapide" onclick="verifierDossierLocalDepuisBouton('${d.id}', this)">Revérifier les pièces</button>` : ''}
         </div>
         <div class="pieces-liste">
           ${checklist.map(p => {
@@ -2931,7 +2930,7 @@
               ? `<button type="button" class="dot-label ${offreStatut.dl}" title="Offre de prêt reçue — cliquer pour ouvrir le fichier trouvé" onclick="ouvrirOffreTrouvee('${d.id}')"><span class="dot"></span>Ouvrir le fichier</button>`
               : `<span class="dot-label ${offreStatut.dl}" title="${d.dossierLie ? escapeAttr(offreStatut.texte) : 'Aucun dossier local relié : l’offre n’a pas encore pu être cherchée'}"><span class="dot"></span>${offreStatut.texte}</span>`}
           ${DOSSIER_FS_SUPPORTE ? (d.dossierLie
-              ? `<button type="button" class="lien-dossier-local" onclick="verifierOffrePretDepuisBouton('${d.id}', this)">Revérifier</button>`
+              ? `<button type="button" class="lien-dossier-local" onclick="verifierDossierLocalDepuisBouton('${d.id}', this)">Revérifier</button>`
               : `<button type="button" class="lien-dossier-local" onclick="lierDossierLocal('${d.id}')">${icone('link')} Lier un dossier local</button>`) : ''}
         </div>` : '';
       return `
@@ -3888,16 +3887,19 @@
       const handle = await window.showDirectoryPicker();
       await enregistrerHandle(id, handle);
       d.dossierLie = true;
-      // Premier lien seulement : préremplit la checklist de pièces à "manquante" plutôt que de la
-      // laisser telle quelle (statut "inconnu") le temps que verifierPiecesDossier() ci-dessous
-      // parcoure effectivement le dossier — sans quoi le badge affichait "À relier" (gris,
-      // neutre) juste après avoir relié, ce qui n'a plus de sens une fois le dossier relié.
-      // "Aucun document" (rouge) reflète mieux ce point de départ pessimiste, corrigé pièce par
-      // pièce dès que le scan retrouve quelque chose. Sans effet pour un rôle participant, qui
-      // ne suit pas cette checklist (voir statutDossier).
-      if (!etaitDejaLie && d.roleNotaire !== 'participant') {
-        d.pieces = d.pieces || {};
-        checklistPieces(d.typeVente).forEach(p => { if (!d.pieces[p.cle]) d.pieces[p.cle] = 'manquante'; });
+      // Remis à zéro à CHAQUE lien (pas seulement le premier) : changer de dossier lié doit
+      // relancer une recherche complètement fraîche, sans conserver les statuts "reçue"/
+      // "manquante" de l'ancien dossier — sans quoi une pièce marquée reçue dans l'ancien
+      // dossier restait affichée comme telle après avoir choisi un nouveau dossier qui ne la
+      // contient peut-être pas. "Aucun document" (rouge)/"inconnu" (prêt) reflètent ce point de
+      // départ pessimiste, corrigés dès que le scan ci-dessous retrouve quelque chose. Sans
+      // effet sur les pièces pour un rôle participant, qui ne suit pas cette checklist (voir
+      // statutDossier).
+      d.offrePretStatut = 'inconnu';
+      d.montantPret = null;
+      if (d.roleNotaire !== 'participant') {
+        d.pieces = {};
+        checklistPieces(d.typeVente).forEach(p => { d.pieces[p.cle] = 'manquante'; });
       }
       // Choisir un nouveau dossier ecrase simplement le lien precedent (put() dans
       // enregistrerHandle) : utile si l'on s'etait trompe de dossier au premier lien.
@@ -3906,8 +3908,7 @@
         : 'Dossier local relié pour la vérification automatique de l\u2019offre de prêt');
       await sauvegarder();
       render();
-      await verifierOffrePret(id, true);
-      await verifierPiecesDossier(id, true);
+      await verifierDossierLocal(id, true);
     } catch (e) {
       if (!e) return;
       if (e.name === 'AbortError') return; // fenêtre de sélection fermée : rien à signaler
@@ -3943,8 +3944,8 @@
   const PAGES_OCR_VERIFICATION = 3;
 
   // Texte utile d'un PDF du dossier local relié, avec repli OCR s'il n'a aucun texte extractible
-  // (scan/image) : partagé par verifierOffrePret() et verifierPiecesDossier(), qui n'ont plus qu'à
-  // tester leur(s) propre(s) motif(s) contre le texte renvoyé.
+  // (scan/image) : partagé par verifierDossierLocal(), qui n'a plus qu'à tester l'offre de prêt
+  // et les pièces encore manquantes contre le texte renvoyé.
   async function lireTextePdfVerification(pdf) {
     let texte = '';
     for (let p = 1; p <= Math.min(pdf.numPages, PLAFOND_PAGES_VERIFICATION); p++) {
@@ -3972,23 +3973,32 @@
   // Retour visuel pendant le parcours du dossier local (peut prendre plusieurs secondes sur un
   // dossier volumineux/beaucoup de PDF/repli OCR) : sans ça, le bouton restait silencieux jusqu'au
   // résultat final, ce qui pouvait laisser croire à un clic sans effet — signalé par l'étude.
-  // render() (appelé à la fin de verifierOffrePret/verifierPiecesDossier dans tous les cas)
-  // remplace de toute façon ce bouton par un rendu à jour, donc pas besoin de remettre son texte
-  // d'origine ici si tout se passe bien ; seul le cas où le bouton n'existe plus dans le DOM au
-  // moment du clic (rare) est à ignorer sans casser l'appel.
-  async function verifierOffrePretDepuisBouton(id, btn) {
+  // render() (appelé à la fin de verifierDossierLocal dans tous les cas) remplace de toute façon ce
+  // bouton par un rendu à jour, donc pas besoin de remettre son texte d'origine ici si tout se
+  // passe bien ; seul le cas où le bouton n'existe plus dans le DOM au moment du clic (rare) est à
+  // ignorer sans casser l'appel.
+  async function verifierDossierLocalDepuisBouton(id, btn) {
     if (btn) { btn.disabled = true; btn.innerHTML = `${icone('spinner', null, true)} Recherche…`; }
-    await verifierOffrePret(id, true);
+    await verifierDossierLocal(id, true);
   }
 
-  async function verifierPiecesDossierDepuisBouton(id, btn) {
-    if (btn) { btn.disabled = true; btn.innerHTML = `${icone('spinner', null, true)} Recherche en cours…`; }
-    await verifierPiecesDossier(id, true);
-  }
-
-  async function verifierOffrePret(id, viaClicUtilisateur) {
+  // Fusion de deux anciennes fonctions (verifierOffrePret()/verifierPiecesDossier()) en UN SEUL
+  // parcours du dossier local relié, qui teste l'offre de prêt ET les pièces encore manquantes
+  // pendant le même passage — signalé par l'étude : trouver l'offre de prêt tôt dans le parcours
+  // (ex. premier fichier lu) arrêtait la recherche avant d'avoir eu la moindre chance de reconnaître
+  // les pièces d'urbanisme se trouvant plus loin dans l'arborescence, alors que les deux documents
+  // se trouvent dans le même dossier local relié. Le parcours ne s'arrête plus tôt que si tout ce
+  // qu'on cherche (offre comprise) est déjà résolu, ou si le dossier est entièrement parcouru.
+  async function verifierDossierLocal(id, viaClicUtilisateur) {
     const d = dossiers.find(x => x.id === id);
     if (!d || !d.dossierLie) return;
+    // Achat comptant (sans prêt) : rien à chercher côté offre, seul le nom de la fonction reste
+    // générique. Notaire participant/concourant : la checklist de pièces ne le concerne pas (voir
+    // renderCarteDossier/statutDossier) — inutile de tester quoi que ce soit dessus.
+    const chercherOffre = !d.sansPret;
+    const chercherPieces = d.roleNotaire !== 'participant';
+    if (!chercherOffre && !chercherPieces) return;
+
     const handle = await recupererHandle(id);
     if (!handle) {
       d.dossierLie = false; // le lien a été perdu (base vidée, autre navigateur…) : on l'indique
@@ -4007,129 +4017,61 @@
     }
     d.accesAReconfirmer = false;
 
-    let trouve = false;
-    let fichierTrouve = null;
-    let nbAnalyses = 0;
-    try {
-      const compteur = { n: 0 };
-      for await (const entree of fichiersPdfRecursifs(handle, 0, compteur)) {
-        nbAnalyses++;
-        try {
-          const file = await entree.getFile();
-          const buffer = await file.arrayBuffer();
-          const pdf = await pdfjsLib.getDocument({ data: buffer, verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise;
-          const texte = await lireTextePdfVerification(pdf);
-          const correspond = OFFRE_PRET_RE.test(texte);
-          // Trace de diagnostic (jamais affichée à l'écran) : un extrait du texte lu par pdf.js
-          // pour chaque PDF, utile en cas de désaccord entre "le mot y est bien" et "non détecté"
-          // (ex. police embarquée mal encodée qui produit un texte extrait illisible malgré un
-          // PDF visuellement normal et sélectionnable).
-          console.log('[vérification offre de prêt]', entree.name, '→', correspond ? 'correspond' : 'ne correspond pas', '| extrait :', JSON.stringify(texte.trim().slice(0, 200)));
-          if (correspond) {
-            trouve = true;
-            fichierTrouve = entree.name;
-            // Lu dans le même PDF, à ce même passage : inutile de rouvrir le fichier plus tard
-            // pour ça. Ne remplace jamais une valeur déjà connue par un échec de détection.
-            const montant = detecterMontantPret(texte);
-            if (montant) d.montantPret = montant;
-            // Conserve le handle du fichier trouvé (même mécanisme IndexedDB que le dossier local
-            // lui-même) pour permettre de le rouvrir en un clic depuis la fiche, sans avoir à
-            // reparcourir tout le dossier — voir ouvrirPieceTrouvee().
-            await enregistrerHandle(CLE_HANDLE_OFFRE(id), entree);
-            break;
-          }
-        } catch (e) { console.error('Lecture impossible pour', entree.name, e); }
-      }
-    } catch (e) {
-      console.error('Parcours du dossier local impossible', e);
-      if (viaClicUtilisateur) afficherToast("Impossible de parcourir le dossier local relié : " + e.message, 'OK', null);
-      render();
-      return;
-    }
-
-    if (viaClicUtilisateur) {
-      if (trouve) {
-        afficherToast(`Offre de prêt trouvée (${fichierTrouve}).`, 'OK', null);
-      } else if (nbAnalyses === 0) {
-        afficherToast("Aucun PDF trouvé dans le dossier relié (ni ses sous-dossiers) — vérifiez que les pièces ont bien été enregistrées à cet endroit.", 'OK', null);
-      } else {
-        afficherToast(`${nbAnalyses} PDF analysé(s) dans le dossier : offre de prêt non reconnue dans leur contenu. Voir la console (F12) pour le détail de ce qui a été lu dans chaque fichier.`, 'OK', null);
-      }
-    }
-
-    const etaitManquante = d.offrePretStatut === 'manquante';
-    const etaitRecue = d.offrePretStatut === 'recue';
-    d.offrePretStatut = trouve ? 'recue' : 'manquante';
-    await sauvegarder();
-    render();
-
-    if (trouve && etaitManquante) {
-      ajouterHistorique(d, 'Offre de prêt retrouvée dans le dossier local');
-      await sauvegarder();
-    }
-
-    // Une offre déjà confirmée reçue ne doit jamais redéclencher une relance automatique même si
-    // une vérification ultérieure ne la retrouve plus (fichier déplacé/archivé/renommé une fois
-    // traité) : ce n'est pas un signe que l'offre manque réellement, l'étude l'a déjà en main.
-    if (!trouve && !etaitRecue) relancerSiOffreManquante(d);
-  }
-
-  // Même principe que verifierOffrePret(), mais teste TOUTES les pièces encore manquantes contre
-  // chaque PDF plutôt que de s'arrêter au premier document reconnu (checklist multi-pièces, pas un
-  // simple oui/non). PROFONDEUR_MAX_RECHERCHE_PDF / MAX_FICHIERS_PARCOURUS / fichiersPdfRecursifs
-  // et le repli OCR sont réutilisés tels quels.
-  async function verifierPiecesDossier(id, viaClicUtilisateur) {
-    const d = dossiers.find(x => x.id === id);
-    if (!d || !d.dossierLie) return;
-    // Notaire participant/concourant : la checklist de pièces ne s'affiche pas (voir
-    // renderCarteDossier) et ne concerne pas ce rôle — inutile de scanner le dossier local pour ça.
-    if (d.roleNotaire === 'participant') return;
-    const checklist = checklistPieces(d.typeVente);
+    const checklist = chercherPieces ? checklistPieces(d.typeVente) : [];
     d.pieces = d.pieces || {};
-
-    const handle = await recupererHandle(id);
-    if (!handle) {
-      d.dossierLie = false;
-      render();
-      return;
-    }
-
-    let permission = await handle.queryPermission({ mode: 'read' });
-    if (permission !== 'granted' && viaClicUtilisateur) {
-      permission = await handle.requestPermission({ mode: 'read' });
-    }
-    if (permission !== 'granted') {
-      d.accesAReconfirmer = true;
-      render();
-      return;
-    }
-    d.accesAReconfirmer = false;
-
     // Pièces déjà trouvées lors d'une vérification précédente : inutile de les rechercher à
     // nouveau, seules celles encore manquantes/inconnues sont testées sur chaque PDF.
     const aChercher = new Set(checklist.filter(p => d.pieces[p.cle] !== 'recue').map(p => p.cle));
     const fichierParPiece = {};
+
+    let offreTrouvee = false;
+    let fichierOffre = null;
     let nbAnalyses = 0;
+
     try {
       const compteur = { n: 0 };
       for await (const entree of fichiersPdfRecursifs(handle, 0, compteur)) {
-        if (aChercher.size === 0) break; // tout est déjà trouvé, inutile de continuer à lire des PDF
-        // Nom du fichier testé en premier (voir motifNom sur les pièces concernées) : plus fiable
-        // que le contenu extrait pour les pièces dont l'intitulé de fichier est conventionnel dans
-        // les dossiers de l'étude, et ça évite d'ouvrir/lire le PDF quand le nom suffit déjà.
+        if ((!chercherOffre || offreTrouvee) && aChercher.size === 0) break; // tout est déjà résolu
+
+        // Nom du fichier testé en premier pour les pièces (voir motifNom) : plus fiable que le
+        // contenu extrait pour les pièces dont l'intitulé de fichier est conventionnel dans les
+        // dossiers de l'étude, et ça évite d'ouvrir/lire le PDF quand le nom seul suffit déjà.
         for (const piece of checklist) {
           if (aChercher.has(piece.cle) && piece.motifNom && piece.motifNom.test(entree.name)) {
             fichierParPiece[piece.cle] = entree;
             aChercher.delete(piece.cle);
           }
         }
-        if (aChercher.size === 0) break;
+        if ((!chercherOffre || offreTrouvee) && aChercher.size === 0) break;
+
         nbAnalyses++;
         try {
           const file = await entree.getFile();
           const buffer = await file.arrayBuffer();
           const pdf = await pdfjsLib.getDocument({ data: buffer, verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise;
           const texte = await lireTextePdfVerification(pdf);
+
+          if (chercherOffre && !offreTrouvee) {
+            const correspond = OFFRE_PRET_RE.test(texte);
+            // Trace de diagnostic (jamais affichée à l'écran) : un extrait du texte lu par pdf.js
+            // pour chaque PDF, utile en cas de désaccord entre "le mot y est bien" et "non détecté"
+            // (ex. police embarquée mal encodée qui produit un texte extrait illisible malgré un
+            // PDF visuellement normal et sélectionnable).
+            console.log('[vérification offre de prêt]', entree.name, '→', correspond ? 'correspond' : 'ne correspond pas', '| extrait :', JSON.stringify(texte.trim().slice(0, 200)));
+            if (correspond) {
+              offreTrouvee = true;
+              fichierOffre = entree.name;
+              // Lu dans le même PDF, à ce même passage : inutile de rouvrir le fichier plus tard
+              // pour ça. Ne remplace jamais une valeur déjà connue par un échec de détection.
+              const montant = detecterMontantPret(texte);
+              if (montant) d.montantPret = montant;
+              // Conserve le handle du fichier trouvé (même mécanisme IndexedDB que le dossier local
+              // lui-même) pour permettre de le rouvrir en un clic depuis la fiche, sans avoir à
+              // reparcourir tout le dossier — voir ouvrirOffreTrouvee().
+              await enregistrerHandle(CLE_HANDLE_OFFRE(id), entree);
+            }
+          }
+
           for (const piece of checklist) {
             if (!aChercher.has(piece.cle)) continue;
             if (motifPieceTrouve(piece.motif, texte)) {
@@ -4140,46 +4082,72 @@
         } catch (e) { console.error('Lecture impossible pour', entree.name, e); }
       }
     } catch (e) {
-      console.error('Parcours du dossier local impossible (pièces)', e);
+      console.error('Parcours du dossier local impossible', e);
       if (viaClicUtilisateur) afficherToast("Impossible de parcourir le dossier local relié : " + e.message, 'OK', null);
       render();
       return;
     }
 
-    let nbTrouvees = 0;
+    let nbPiecesTrouvees = 0;
     for (const piece of checklist) {
       if (fichierParPiece[piece.cle]) {
         d.pieces[piece.cle] = 'recue';
-        nbTrouvees++;
+        nbPiecesTrouvees++;
         // Handle conservé pour rouvrir directement ce fichier depuis la fiche (voir
         // ouvrirPieceTrouvee()), sans reparcourir tout le dossier local.
         await enregistrerHandle(CLE_HANDLE_PIECE(id, piece.cle), fichierParPiece[piece.cle]);
       } else if (d.pieces[piece.cle] !== 'recue') {
         d.pieces[piece.cle] = 'manquante';
       } else {
-        nbTrouvees++; // déjà reconnue lors d'une vérification précédente
+        nbPiecesTrouvees++; // déjà reconnue lors d'une vérification précédente
       }
     }
 
     if (viaClicUtilisateur) {
-      const manquantes = checklist.length - nbTrouvees;
-      if (manquantes === 0) {
-        afficherToast(`Dossier complet : les ${checklist.length} pièces attendues ont été reconnues.`, 'OK', null);
-      } else if (nbAnalyses === 0 && nbTrouvees === 0) {
+      const messages = [];
+      if (chercherOffre) {
+        messages.push(offreTrouvee ? `Offre de prêt trouvée (${fichierOffre}).` : "Offre de prêt non reconnue.");
+      }
+      if (chercherPieces) {
+        const manquantes = checklist.length - nbPiecesTrouvees;
+        messages.push(manquantes === 0
+          ? `Les ${checklist.length} pièces attendues ont été reconnues.`
+          : `${nbPiecesTrouvees}/${checklist.length} pièces reconnues (${manquantes} manquante${manquantes > 1 ? 's' : ''}).`);
+      }
+      if (nbAnalyses === 0) {
         afficherToast("Aucun PDF trouvé dans le dossier relié (ni ses sous-dossiers) — vérifiez que les pièces ont bien été enregistrées à cet endroit.", 'OK', null);
       } else {
-        afficherToast(`${nbTrouvees}/${checklist.length} pièces reconnues — ${manquantes} manquante${manquantes > 1 ? 's' : ''} (voir le détail sur la fiche du dossier).`, 'OK', null);
+        afficherToast(messages.join(' '), 'OK', null);
       }
+    }
+
+    let offreEtaitManquante = false;
+    let offreEtaitRecue = false;
+    if (chercherOffre) {
+      offreEtaitManquante = d.offrePretStatut === 'manquante';
+      offreEtaitRecue = d.offrePretStatut === 'recue';
+      d.offrePretStatut = offreTrouvee ? 'recue' : 'manquante';
     }
 
     await sauvegarder();
     render();
+
+    if (chercherOffre && offreTrouvee && offreEtaitManquante) {
+      ajouterHistorique(d, 'Offre de prêt retrouvée dans le dossier local');
+      await sauvegarder();
+    }
+
+    // Une offre déjà confirmée reçue ne doit jamais redéclencher une relance automatique même si
+    // une vérification ultérieure ne la retrouve plus (fichier déplacé/archivé/renommé une fois
+    // traité) : ce n'est pas un signe que l'offre manque réellement, l'étude l'a déjà en main.
+    // relancerSiOffreManquante() écarte déjà elle-même le rôle participant.
+    if (chercherOffre && !offreTrouvee && !offreEtaitRecue) relancerSiOffreManquante(d);
   }
 
   // Rouvre directement le fichier PDF local où une pièce (ou l'offre de prêt) a été reconnue,
   // plutôt que de se contenter d'un badge "reçue" sans rien de plus derrière — demandé par
   // l'étude. Le handle du fichier a été conservé au moment de la détection (voir
-  // verifierOffrePret()/verifierPiecesDossier()) : pas besoin de reparcourir tout le dossier.
+  // verifierDossierLocal()) : pas besoin de reparcourir tout le dossier.
   // La permission déjà accordée sur le dossier couvre aussi ce fichier individuel.
   async function ouvrirFichierTrouve(cleHandle) {
     try {
@@ -4246,7 +4214,7 @@
   // Reconfirmation d'accès déclenchée par un clic (obligatoire : le navigateur refuse
   // d'accorder une permission de fichiers hors d'une interaction explicite de l'utilisateur).
   function reconfirmerAcces(id) {
-    verifierOffrePret(id, true);
+    verifierDossierLocal(id, true);
   }
 
   // Statut de l'offre de prêt à afficher, dans le même vocabulaire court partout où il apparaît
@@ -4283,8 +4251,7 @@
   async function revérifierDossiersLiesAuDemarrage() {
     for (const d of dossiers) {
       if (d.dossierLie && !dossierEntierementComplet(d)) {
-        await verifierOffrePret(d.id, false);
-        await verifierPiecesDossier(d.id, false);
+        await verifierDossierLocal(d.id, false);
       }
     }
   }
