@@ -2229,6 +2229,31 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     après plusieurs vérifications textuelles, comparer les CODEPOINTS Unicode un par un
     (`[...chaine].map(c => c.codePointAt(0).toString(16))`) plutôt que de continuer à relire la
     chaîne affichée — un caractère combinant invisible ne se voit jamais autrement.
+- **Bug corrigé : une pièce personnalisée ajoutée via "+ Ajouter une pièce" ne pouvait plus jamais
+  être retrouvée par "Revérifier"**, seulement au moment précis de son ajout. Signalé par l'étude :
+  un document ("M1", un libellé personnalisé sans rapport avec la checklist standard) placé dans le
+  dossier local APRÈS avoir changé de dossier lié restait "à vérifier" indéfiniment, même après
+  plusieurs clics sur "Revérifier". Cause : une pièce personnalisée n'a volontairement pas de
+  `motifNom` (nom libre saisi par l'étude, pas de regex à écrire — voir "Pièces personnalisables par
+  dossier" plus haut) ; seule `ajouterPiecePersonnalisee()` la recherchait, une seule fois, au moment
+  de la création (`chercherFichierParNom()`). `verifierDossierLocal()` (appelée par "Revérifier",
+  par tout nouveau lien, et par la revérification périodique) ne testait chaque fichier que contre
+  `piece.motifNom` — un garde-fou qui exclut par construction toute pièce qui n'en a pas, donc TOUTE
+  pièce personnalisée, à chaque appel suivant l'ajout initial.
+  - La boucle de correspondance par nom de fichier dans `verifierDossierLocal()` teste maintenant
+    aussi les pièces personnalisées (`piece.personnalisee === true`) par la même logique que
+    `chercherFichierParNom()` : sous-chaîne du libellé, insensible à la casse, sur le nom de fichier
+    normalisé (underscores/tirets → espaces, accents NFC — voir les deux correctifs juste au-dessus).
+    Une pièce personnalisée profite donc désormais du même mécanisme que les pièces standard : un
+    fichier ajouté après coup, ou trouvé seulement après avoir changé de dossier lié, est repéré au
+    prochain "Revérifier" — pas seulement à l'instant de la création de la pièce.
+  - Pas de nouveau test unitaire : `verifierDossierLocal()` dépend de `dossiers` (variable `let` de
+    premier niveau, invisible depuis les tests — voir la limite déjà documentée dans
+    `tests/helpers/load-app.js`) et de l'API File System Access, comme les autres fonctions de
+    mutation de ce fichier (`ajouterPiecePersonnalisee()`, `basculerStatutPiecePersonnalisee()`...).
+    Logique de correspondance vérifiée par une simulation Node ad hoc (substring insensible à la
+    casse sur un nom de fichier réel) avant de committer ; `npm test` reste vert (129 tests, aucun
+    changement dans les fonctions pures testables).
 
 ## Comment tester
 

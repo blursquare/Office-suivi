@@ -4610,7 +4610,22 @@
         // les motifNom sont écrits avec \s+ comme séparateur, un vrai nom de fichier de l'étude non.
         const nomNormalise = normaliserNomPourMotif(entree.name);
         for (const piece of checklist) {
-          if (aChercher.has(piece.cle) && piece.motifNom && piece.motifNom.test(nomNormalise)) {
+          if (!aChercher.has(piece.cle)) continue;
+          // Pièce personnalisée (voir checklistPieces/ajouterPiecePersonnalisee) : pas de motifNom
+          // (nom libre saisi par l'étude, aucune regex à écrire). Bug corrigé : jusqu'ici, seule la
+          // recherche ponctuelle faite à l'AJOUT de la pièce (chercherFichierParNom) pouvait la
+          // trouver — "Revérifier" l'ignorait ensuite silencieusement (le garde-fou `piece.motifNom`
+          // ci-dessous exclut par construction toute pièce sans motif). Signalé par l'étude : un
+          // fichier ajouté au dossier local APRÈS la création de la pièce (ou après avoir changé de
+          // dossier lié) restait "à vérifier" indéfiniment, même en reclique sur "Revérifier". Même
+          // logique de correspondance que `chercherFichierParNom()` (sous-chaîne insensible à la
+          // casse du libellé dans le nom normalisé), réutilisée ici pour rester cohérente.
+          if (piece.personnalisee) {
+            if (nomNormalise.toLowerCase().includes(piece.label.toLowerCase())) {
+              fichierParPiece[piece.cle] = entree;
+              aChercher.delete(piece.cle);
+            }
+          } else if (piece.motifNom && piece.motifNom.test(nomNormalise)) {
             fichierParPiece[piece.cle] = entree;
             aChercher.delete(piece.cle);
           }
