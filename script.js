@@ -2396,12 +2396,15 @@
     document.getElementById('onglet-dashboard').style.display = nom === 'dashboard' ? '' : 'none';
     document.getElementById('onglet-nouveau').style.display = nom === 'nouveau' ? '' : 'none';
     document.getElementById('onglet-suivi').style.display = nom === 'suivi' ? '' : 'none';
+    document.getElementById('onglet-calculateur').style.display = nom === 'calculateur' ? '' : 'none';
     document.getElementById('tab-dashboard').setAttribute('aria-selected', String(nom === 'dashboard'));
     document.getElementById('tab-nouveau').setAttribute('aria-selected', String(nom === 'nouveau'));
     document.getElementById('tab-suivi').setAttribute('aria-selected', String(nom === 'suivi'));
+    document.getElementById('tab-calculateur').setAttribute('aria-selected', String(nom === 'calculateur'));
     document.getElementById('tab-dashboard').classList.toggle('actif', nom === 'dashboard');
     document.getElementById('tab-nouveau').classList.toggle('actif', nom === 'nouveau');
     document.getElementById('tab-suivi').classList.toggle('actif', nom === 'suivi');
+    document.getElementById('tab-calculateur').classList.toggle('actif', nom === 'calculateur');
     if (nom === 'suivi' || nom === 'dashboard') render();
   }
 
@@ -4328,6 +4331,105 @@
     evenementInstallation = null;
   });
 
+
+  // ---- Calculateur de provision sur frais d'acte (onglet indépendant, pas lié à un dossier) ----
+  // Demandé par l'étude pour estimer rapidement la provision à demander au client avant signature,
+  // à partir du barème notarial 2026 et des taux départementaux de DMTO — indépendant du suivi des
+  // échéances, accessible depuis son propre onglet de la sidebar (voir definirOnglet('calculateur')).
+  // Barème/taux repris tels quels d'une maquette fournie par l'étude, pas recalculés : les données
+  // fiscales/tarifaires ne sont pas du ressort de cet outil, seule la mise en forme change.
+  const DEPARTEMENTS_FRAIS_ACTE = {'01':{name:'Ain',base:0.045,temp:0.05},'02':{name:'Aisne',base:0.045,temp:0.05},'03':{name:'Allier',base:0.045,temp:0.05},'04':{name:'Alpes-de-Haute-Provence',base:0.045,temp:0.05},'05':{name:'Hautes-Alpes',base:0.045,temp:0.045},'06':{name:'Alpes-Maritimes',base:0.045,temp:0.045},'07':{name:'Ardèche',base:0.045,temp:0.045},'08':{name:'Ardennes',base:0.045,temp:0.05},'09':{name:'Ariège',base:0.045,temp:0.05},'10':{name:'Aube',base:0.045,temp:0.05},'11':{name:'Aude',base:0.045,temp:0.05},'12':{name:'Aveyron',base:0.045,temp:0.05},'13':{name:'Bouches-du-Rhône',base:0.045,temp:0.05},'14':{name:'Calvados',base:0.045,temp:0.05},'15':{name:'Cantal',base:0.045,temp:0.05},'16':{name:'Charente',base:0.045,temp:0.045},'17':{name:'Charente-Maritime',base:0.045,temp:0.05},'18':{name:'Cher',base:0.045,temp:0.05},'19':{name:'Corrèze',base:0.045,temp:0.05},'20':{name:'Corse',base:0.045,temp:0.05},'21':{name:"Côte-d'Or",base:0.045,temp:0.05},'22':{name:"Côtes-d'Armor",base:0.045,temp:0.05},'23':{name:'Creuse',base:0.045,temp:0.05},'24':{name:'Dordogne',base:0.045,temp:0.05},'25':{name:'Doubs',base:0.045,temp:0.05},'26':{name:'Drôme',base:0.045,temp:0.045},'27':{name:'Eure',base:0.045,temp:0.05},'28':{name:'Eure-et-Loir',base:0.045,temp:0.05},'29':{name:'Finistère',base:0.045,temp:0.05},'30':{name:'Gard',base:0.045,temp:0.05},'31':{name:'Haute-Garonne',base:0.045,temp:0.05},'32':{name:'Gers',base:0.045,temp:0.05},'33':{name:'Gironde',base:0.045,temp:0.05},'34':{name:'Hérault',base:0.045,temp:0.05},'35':{name:'Ille-et-Vilaine',base:0.045,temp:0.05},'36':{name:'Indre',base:0.038,temp:0.038},'37':{name:'Indre-et-Loire',base:0.045,temp:0.05},'38':{name:'Isère',base:0.045,temp:0.05},'39':{name:'Jura',base:0.045,temp:0.05},'40':{name:'Landes',base:0.045,temp:0.05},'41':{name:'Loir-et-Cher',base:0.045,temp:0.05},'42':{name:'Loire',base:0.045,temp:0.05},'43':{name:'Haute-Loire',base:0.045,temp:0.05},'44':{name:'Loire-Atlantique',base:0.045,temp:0.05},'45':{name:'Loiret',base:0.045,temp:0.05},'46':{name:'Lot',base:0.045,temp:0.05},'47':{name:'Lot-et-Garonne',base:0.045,temp:0.05},'48':{name:'Lozère',base:0.045,temp:0.045},'49':{name:'Maine-et-Loire',base:0.045,temp:0.05},'50':{name:'Manche',base:0.045,temp:0.05},'51':{name:'Marne',base:0.045,temp:0.05},'52':{name:'Haute-Marne',base:0.045,temp:0.05},'53':{name:'Mayenne',base:0.045,temp:0.05},'54':{name:'Meurthe-et-Moselle',base:0.045,temp:0.05},'55':{name:'Meuse',base:0.045,temp:0.05},'56':{name:'Morbihan',base:0.045,temp:0.05},'57':{name:'Moselle',base:0.045,temp:0.05},'58':{name:'Nièvre',base:0.045,temp:0.05},'59':{name:'Nord',base:0.045,temp:0.05},'60':{name:'Oise',base:0.045,temp:0.045},'61':{name:'Orne',base:0.045,temp:0.05},'62':{name:'Pas-de-Calais',base:0.045,temp:0.05},'63':{name:'Puy-de-Dôme',base:0.045,temp:0.05},'64':{name:'Pyrénées-Atlantiques',base:0.045,temp:0.05},'65':{name:'Hautes-Pyrénées',base:0.038,temp:0.045},'66':{name:'Pyrénées-Orientales',base:0.045,temp:0.05},'67/68':{name:'Alsace',base:0.045,temp:0.05},'69A':{name:'Métropole de Lyon',base:0.045,temp:0.05},'69B':{name:'Rhône (hors Métropole de Lyon)',base:0.045,temp:0.05},'70':{name:'Haute-Saône',base:0.045,temp:0.05},'71':{name:'Saône-et-Loire',base:0.045,temp:0.05},'72':{name:'Sarthe',base:0.045,temp:0.05},'73':{name:'Savoie',base:0.045,temp:0.05},'74':{name:'Haute-Savoie',base:0.045,temp:0.05},'75':{name:'Paris',base:0.045,temp:0.05},'76':{name:'Seine-Maritime',base:0.045,temp:0.05},'77':{name:'Seine-et-Marne',base:0.045,temp:0.05},'78':{name:'Yvelines',base:0.045,temp:0.05},'79':{name:'Deux-Sèvres',base:0.045,temp:0.05},'80':{name:'Somme',base:0.045,temp:0.05},'81':{name:'Tarn',base:0.045,temp:0.05},'82':{name:'Tarn-et-Garonne',base:0.045,temp:0.05},'83':{name:'Var',base:0.045,temp:0.05},'84':{name:'Vaucluse',base:0.045,temp:0.05},'85':{name:'Vendée',base:0.045,temp:0.05},'86':{name:'Vienne',base:0.045,temp:0.05},'87':{name:'Haute-Vienne',base:0.045,temp:0.05},'88':{name:'Vosges',base:0.045,temp:0.05},'89':{name:'Yonne',base:0.045,temp:0.05},'90':{name:'Territoire-de-Belfort',base:0.045,temp:0.05},'91':{name:'Essonne',base:0.045,temp:0.05},'92':{name:'Hauts-de-Seine',base:0.045,temp:0.05},'93':{name:'Seine-Saint-Denis',base:0.045,temp:0.05},'94':{name:'Val-de-Marne',base:0.045,temp:0.05},'95':{name:"Val-d'Oise",base:0.045,temp:0.05},'971':{name:'Guadeloupe',base:0.045,temp:0.045},'972':{name:'Martinique',base:0.045,temp:0.05},'973':{name:'Guyane',base:0.045,temp:0.05},'974':{name:'La Réunion',base:0.045,temp:0.05},'976':{name:'Mayotte',base:0.038,temp:0.045}};
+  // Pour chaque type de bien, un barème {palier de prix: [émoluments, trésor à 4,5 %]} — les mêmes
+  // paliers que le tableau fourni par l'étude, interpolés linéairement entre deux paliers connus
+  // (voir interpolerBaremeFraisActe). Trésor à un taux départemental différent de 4,5 % : voir
+  // calculerFraisActe(), qui interpole entre la colonne à 4,5 % et une colonne à 5 % reconstituée.
+  const BAREME_FRAIS_ACTE = {"house":{"500":[90,70],"1000":[100,100],"1500":[150,140],"2250":[230,200],"3000":[300,250],"3750":[380,310],"4500":[450,370],"5250":[530,430],"6000":[600,490],"6750":[680,550],"7500":[750,610],"8250":[830,660],"9000":[900,720],"9750":[980,780],"10500":[1050,840],"11250":[1130,900],"12000":[1200,960],"12750":[1280,1020],"13500":[1310,1060],"14250":[1320,1110],"15000":[1330,1160],"16500":[1360,1250],"18000":[1370,1340],"19500":[1390,1430],"21000":[1410,1530],"22500":[1420,1620],"24000":[1440,1710],"25500":[1450,1800],"27000":[1470,1890],"28500":[1490,1980],"30000":[1500,2080],"32000":[1520,2200],"34000":[1540,2320],"36000":[1570,2440],"38000":[1590,2570],"40000":[1610,2690],"42000":[1630,2810],"44000":[1650,2930],"46000":[1670,3060],"48000":[1690,3180],"50000":[1720,3300],"52000":[1740,3420],"54000":[1760,3550],"56000":[1780,3670],"58000":[1800,3790],"60000":[1820,3910],"62000":[1840,4030],"64000":[1850,4160],"66000":[1870,4280],"68000":[1890,4400],"70000":[1900,4520],"72000":[1920,4640],"74000":[1930,4760],"76000":[1950,4880],"78000":[1970,5000],"80000":[1980,5130],"83000":[2010,5310],"86000":[2030,5490],"89000":[2050,5670],"92000":[2080,5850],"95000":[2100,6040],"100000":[2140,6340],"105000":[2180,6640],"110000":[2220,6950],"115000":[2260,7250],"120000":[2300,7550],"125000":[2340,7860],"130000":[2380,8160],"135000":[2420,8460],"140000":[2460,8770],"150000":[2540,9370],"165000":[2660,10280],"180000":[2780,11190],"195000":[2900,12100],"210000":[3020,13010],"225000":[3140,13920],"240000":[3260,14830],"255000":[3380,15740],"270000":[3500,16650],"285000":[3620,17560],"300000":[3740,18470],"315000":[3860,19380],"330000":[3980,20290],"345000":[4100,21200],"360000":[4220,22110],"375000":[4340,23020],"390000":[4460,23930],"405000":[4580,24840],"420000":[4700,25750],"435000":[4820,26660],"450000":[4940,27570],"480000":[5180,29390],"510000":[5420,31210],"540000":[5660,33030],"570000":[5900,34850],"600000":[6140,36670],"630000":[6380,38490],"660000":[6620,40310],"690000":[6860,42130],"720000":[7100,43950],"750000":[7330,45770],"825000":[7930,50320],"900000":[8530,54870],"975000":[9130,59420],"1050000":[9730,63970],"1125000":[10330,68520],"1200000":[10930,73070],"1275000":[11530,77620],"1350000":[12130,82170],"1425000":[12730,86720],"1500000":[13330,91270],"1750000":[15320,106440],"2000000":[17320,121600]},"condo":{"500":[90,70],"1000":[100,100],"1500":[150,140],"2250":[230,200],"3000":[300,250],"3750":[380,310],"4500":[450,370],"5250":[530,430],"6000":[600,490],"6750":[680,550],"7500":[750,610],"8250":[830,660],"9000":[900,720],"9750":[980,780],"10500":[1050,840],"11250":[1130,900],"12000":[1200,960],"12750":[1280,1020],"13500":[1350,1070],"14250":[1430,1130],"15000":[1460,1180],"16500":[1480,1270],"18000":[1500,1370],"19500":[1520,1460],"21000":[1530,1550],"22500":[1550,1640],"24000":[1560,1730],"25500":[1580,1830],"27000":[1600,1920],"28500":[1610,2010],"30000":[1630,2100],"32000":[1650,2220],"34000":[1670,2350],"36000":[1690,2470],"38000":[1710,2590],"40000":[1730,2710],"42000":[1750,2840],"44000":[1780,2960],"46000":[1800,3080],"48000":[1820,3200],"50000":[1840,3330],"52000":[1860,3450],"54000":[1880,3570],"56000":[1900,3690],"58000":[1920,3810],"60000":[1950,3940],"62000":[1960,4060],"64000":[1980,4180],"66000":[1990,4300],"68000":[2010,4420],"70000":[2030,4540],"72000":[2040,4670],"74000":[2060,4790],"76000":[2070,4910],"78000":[2090,5030],"80000":[2110,5150],"83000":[2130,5330],"86000":[2150,5510],"89000":[2180,5700],"92000":[2200,5880],"95000":[2230,6060],"100000":[2270,6360],"105000":[2310,6670],"110000":[2350,6970],"115000":[2390,7270],"120000":[2430,7580],"125000":[2470,7880],"130000":[2510,8180],"135000":[2550,8490],"140000":[2590,8790],"150000":[2670,9400],"165000":[2790,10310],"180000":[2910,11220],"195000":[3020,12130],"210000":[3140,13040],"225000":[3260,13950],"240000":[3380,14860],"255000":[3500,15770],"270000":[3620,16680],"285000":[3740,17590],"300000":[3860,18500],"315000":[3980,19410],"330000":[4100,20320],"345000":[4220,21230],"360000":[4340,22140],"375000":[4460,23050],"390000":[4580,23960],"405000":[4700,24870],"420000":[4820,25780],"435000":[4940,26690],"450000":[5060,27600],"480000":[5300,29420],"510000":[5540,31240],"540000":[5780,33060],"570000":[6020,34880],"600000":[6260,36700],"630000":[6500,38520],"660000":[6740,40340],"690000":[6980,42160],"720000":[7220,43980],"750000":[7460,45800],"825000":[8060,50350],"900000":[8660,54900],"975000":[9260,59450],"1050000":[9860,64000],"1125000":[10460,68550],"1200000":[11050,73100],"1275000":[11650,77650],"1350000":[12250,82190],"1425000":[12850,86670],"1500000":[13450,91220],"1750000":[15090,106390],"2000000":[17090,121560]},"land":{"500":[90,70],"1000":[100,100],"1500":[150,140],"2250":[230,200],"3000":[300,250],"3750":[380,310],"4500":[450,370],"5250":[530,430],"6000":[600,490],"6750":[680,550],"7500":[750,610],"8250":[830,660],"9000":[900,720],"9750":[980,780],"10500":[1030,830],"11250":[1040,880],"12000":[1050,930],"12750":[1070,970],"13500":[1080,1020],"14250":[1090,1060],"15000":[1100,1110],"16500":[1130,1200],"18000":[1140,1300],"19500":[1160,1390],"21000":[1180,1480],"22500":[1190,1570],"24000":[1210,1660],"25500":[1220,1760],"27000":[1240,1850],"28500":[1260,1940],"30000":[1270,2030],"32000":[1290,2150],"34000":[1310,2280],"36000":[1340,2400],"38000":[1360,2520],"40000":[1380,2640],"42000":[1400,2760],"44000":[1420,2890],"46000":[1440,3010],"48000":[1460,3130],"50000":[1480,3250],"52000":[1510,3380],"54000":[1530,3500],"56000":[1550,3620],"58000":[1570,3740],"60000":[1590,3870],"62000":[1610,3990],"64000":[1620,4110],"66000":[1640,4230],"68000":[1660,4350],"70000":[1670,4470],"72000":[1690,4590],"74000":[1700,4720],"76000":[1720,4840],"78000":[1740,4960],"80000":[1750,5080],"83000":[1780,5260],"86000":[1800,5440],"89000":[1820,5630],"92000":[1850,5810],"95000":[1870,5990],"100000":[1910,6290],"105000":[1950,6600],"110000":[1990,6900],"115000":[2030,7200],"120000":[2070,7510],"125000":[2110,7810],"130000":[2150,8110],"135000":[2190,8420],"140000":[2230,8720],"150000":[2310,9330],"165000":[2430,10240],"180000":[2550,11150],"195000":[2670,12060],"240000":[3030,14790],"255000":[3150,15700],"270000":[3270,16610],"285000":[3390,17520],"300000":[3510,18430],"315000":[3630,19340],"330000":[3750,20250],"345000":[3870,21160],"360000":[3990,22070],"375000":[4110,22980],"390000":[4230,23890],"405000":[4350,24800],"420000":[4470,25710],"435000":[4590,26620],"450000":[4710,27530],"480000":[4950,29350],"510000":[5190,31170],"540000":[5430,32990],"570000":[5670,34810],"600000":[5910,36630],"630000":[6150,38450],"660000":[6390,40270],"690000":[6630,42090],"720000":[6860,43910],"750000":[7100,45730],"825000":[7700,50270],"900000":[8300,54820],"975000":[8900,59370],"1050000":[9500,63920],"1125000":[10100,68470],"1200000":[10700,73020],"1275000":[11300,77570],"1350000":[11900,82120],"1425000":[12500,86670],"1500000":[13100,91220],"1750000":[15090,106390],"2000000":[17090,121560]}};
+
+  function interpolerBaremeFraisActe(table, prix) {
+    const paliers = Object.keys(table).map(Number).sort((a, b) => a - b);
+    if (prix <= paliers[0]) return table[paliers[0]];
+    if (prix >= paliers[paliers.length - 1]) return table[paliers[paliers.length - 1]];
+    for (let i = 1; i < paliers.length; i++) {
+      if (prix <= paliers[i]) {
+        const bas = paliers[i - 1], haut = paliers[i];
+        const t = (prix - bas) / (haut - bas);
+        return table[bas] + (table[haut] - table[bas]) * t;
+      }
+    }
+  }
+
+  function formaterPourcentageFraisActe(x) {
+    return (x * 100).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 5 }) + ' %';
+  }
+
+  // Recalculée à chaque changement de champ (voir les attributs oninput/onchange sur
+  // #onglet-calculateur dans index.html) — aucune sauvegarde, purement une estimation à la volée.
+  function calculerFraisActe() {
+    const prixEl = document.getElementById('calc-price');
+    const deptEl = document.getElementById('calc-dept');
+    const typeEl = document.getElementById('calc-type');
+    if (!prixEl || !deptEl || !typeEl || !deptEl.value) return;
+
+    const prix = Math.max(1, Number(prixEl.value) || 1);
+    const primoAccedant = document.querySelector('input[name="calc-first"]:checked').value === 'yes';
+    const residencePrincipale = document.querySelector('input[name="calc-rp"]:checked').value === 'yes';
+    const type = typeEl.value;
+    const dept = DEPARTEMENTS_FRAIS_ACTE[deptEl.value];
+    const bareme = BAREME_FRAIS_ACTE[type];
+
+    // Hausse temporaire du taux départemental (loi de finances 2025, jusqu'à 5 %) non appliquée au
+    // primo-accédant achetant sa résidence principale (art. L. 31-10-3 du CCH) — voir la note
+    // affichée sous le résultat.
+    const eligiblePrimoAccedant = primoAccedant && residencePrincipale;
+    const tauxApplique = eligiblePrimoAccedant ? dept.base : dept.temp;
+
+    const emoluments = interpolerBaremeFraisActe(Object.fromEntries(Object.entries(bareme).map(([k, v]) => [k, v[0]])), prix);
+    const tresor45 = interpolerBaremeFraisActe(Object.fromEntries(Object.entries(bareme).map(([k, v]) => [k, v[1]])), prix);
+    const tresor50 = tresor45 + prix * 0.0051185;
+    const tresor = tresor45 + ((tauxApplique - 0.045) / 0.005) * (tresor50 - tresor45);
+    const total = emoluments + 200 + tresor + 200;
+    const dmto = tauxApplique + 0.012 + tauxApplique * 0.0237;
+
+    const libelleType = type === 'house' ? 'Immeuble hors copropriété' : type === 'condo' ? 'Immeuble en copropriété' : 'Terrain à bâtir';
+    document.getElementById('calc-tag').textContent = libelleType + ' · ' + (eligiblePrimoAccedant ? 'Primo-accédant éligible' : 'Régime sans exonération de la hausse');
+    document.getElementById('calc-emol').textContent = formaterPrix(emoluments);
+    document.getElementById('calc-tre').textContent = formaterPrix(tresor);
+    document.getElementById('calc-total2').textContent = formaterPrix(total);
+    document.getElementById('calc-total').textContent = formaterPrix(total);
+    document.getElementById('calc-base-rate').textContent = formaterPourcentageFraisActe(dept.base);
+    document.getElementById('calc-applied-rate').textContent = formaterPourcentageFraisActe(tauxApplique);
+    document.getElementById('calc-dmt-rate').textContent = formaterPourcentageFraisActe(dmto);
+
+    const economie = (dept.temp - dept.base) * prix * 1.0237;
+    document.getElementById('calc-saving').textContent = (eligiblePrimoAccedant && dept.temp > dept.base)
+      ? 'Économie liée à la non-application de la hausse départementale : environ ' + formaterPrix(economie) + '.'
+      : '';
+    document.getElementById('calc-regime').textContent = eligiblePrimoAccedant
+      ? 'Primo-accédant : taux départemental de droit commun ' + formaterPourcentageFraisActe(dept.base) + ' ; la hausse temporaire de ' + formaterPourcentageFraisActe(dept.temp - dept.base) + ' n’est pas appliquée.'
+      : 'Taux départemental appliqué : ' + formaterPourcentageFraisActe(dept.temp) + ' au 1er juin 2026.';
+  }
+
+  // Peuple le <select> des départements une seule fois au démarrage (le calculateur est toujours
+  // dans le DOM, comme les autres onglets — voir definirOnglet) et calcule un premier résultat par
+  // défaut, visible dès le premier passage sur l'onglet. Un simple drapeau plutôt qu'une lecture de
+  // `deptEl.options` : le faux document des tests (tests/helpers/load-app.js) ne modélise pas les
+  // `<select>`/`<option>` du DOM réel, `.options` y est `undefined`.
+  let calculateurFraisActeInitialise = false;
+  function initCalculateurFraisActe() {
+    if (calculateurFraisActeInitialise) return;
+    const deptEl = document.getElementById('calc-dept');
+    if (!deptEl) return;
+    for (const [code, d] of Object.entries(DEPARTEMENTS_FRAIS_ACTE)) {
+      const option = document.createElement('option');
+      option.value = code;
+      option.textContent = code + ' — ' + d.name;
+      if (code === '41') option.selected = true;
+      deptEl.appendChild(option);
+    }
+    calculateurFraisActeInitialise = true;
+    calculerFraisActe();
+  }
+
   // Remplit les emplacements d'icônes du HTML statique (sidebar, burger mobile, dropzone) — le
   // reste de l'application est déjà rendu depuis script.js, ce point d'entrée unique évite de
   // dupliquer le dessin des icônes entre le HTML et ICONES.
@@ -4343,7 +4445,8 @@
       'icon-intro-doc': 'file-text',
       'icon-intro-pieces': 'folder',
       'icon-intro-mail': 'mail',
-      'icon-intro-adresse': 'map-pin'
+      'icon-intro-adresse': 'map-pin',
+      'icon-nav-calculateur': 'banknote'
     };
     for (const [id, nom] of Object.entries(cibles)) {
       const el = document.getElementById(id);
@@ -4351,6 +4454,7 @@
     }
   }
   initIconesStatiques();
+  initCalculateurFraisActe();
 
   chargerTheme();
   chargerApprentissage();

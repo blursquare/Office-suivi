@@ -1409,6 +1409,47 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     correctes (`getComputedStyle` confirme les bonnes familles de police appliquées aux bons
     éléments) et la mise en page ne casse pas avec les polices de repli (capture d'écran) — à
     confirmer par l'étude avec les vraies polices chargées (poste réel ou GitHub Pages).
+- **Calculateur de provision sur frais d'acte, nouvel onglet indépendant du suivi des dossiers**
+  (`#onglet-calculateur`, lien "Frais d'acte" dans la sidebar) : demandé par l'étude à partir de
+  deux maquettes qu'elle avait fait produire (une version "classique" et une version "moderne"),
+  la seconde retenue comme base — mais uniquement pour sa STRUCTURE (mise en page en deux colonnes
+  paramètres/résultat, tuiles de taux, tableau de détail) : sa propre palette bordeaux/or et ses
+  styles CSS ont été entièrement jetés au profit des tokens déjà en place dans l'outil (`--focus`,
+  `--paper-card`, `--line`, `--success`...) — même principe que pour le reste de CLAIRE, un seul
+  système de couleurs, pas un second par écran. Sans dossier associé : un simple outil de calcul
+  à la volée, rien n'est enregistré.
+  - **Barème et taux repris tels quels** de la maquette fournie (`DEPARTEMENTS_FRAIS_ACTE`,
+    100 départements avec taux de droit commun/temporaire ; `BAREME_FRAIS_ACTE`, trois tableaux
+    émoluments+trésor par type de bien) — données fiscales/tarifaires hors du ressort de cet
+    outil, non recalculées ni vérifiées ; seule la mise en forme a changé. `interpolerBaremeFraisActe()`
+    interpole linéairement entre deux paliers de prix connus du tableau, comme dans la maquette.
+  - `calculerFraisActe()` recalcule à chaque changement de champ (`oninput`/`onchange` inline,
+    même convention que le reste de l'outil) : prix, département, statut primo-accédant, résidence
+    principale, nature du bien. Réutilise `formaterPrix()` (déjà utilisée pour `d.prixVente`) au
+    lieu d'une fonction de formatage monétaire dupliquée — seul un nouvel helper
+    `formaterPourcentageFraisActe()` était nécessaire (aucun équivalent existant dans l'outil).
+  - `initCalculateurFraisActe()` peuple le `<select>` des départements une seule fois au démarrage
+    (appelée dans la séquence d'init, comme `initIconesStatiques()`) — le calculateur est toujours
+    présent dans le DOM, comme les autres onglets, pas construit à la demande.
+  - **Bug corrigé avant commit, repéré par la suite de tests** : `initCalculateurFraisActe()`
+    testait `deptEl.options.length` pour éviter de repeupler le `<select>` deux fois — le faux
+    `document` de `tests/helpers/load-app.js` ne modélise pas les `<select>`/`<option>` du DOM réel
+    (`.options` y est `undefined`), donc `.length` levait une exception à CHAQUE test (script.js
+    est rechargé dans un nouveau contexte à chaque appel de `chargerApplication()`, qui exécute
+    aussi la séquence d'init de bas de fichier). Remplacé par un simple drapeau
+    (`calculateurFraisActeInitialise`), sans dépendre d'une structure DOM que le harnais de test ne
+    reproduit pas — cohérent avec la note déjà présente dans `load-app.js` ("le faux document doit
+    rester silencieusement inoffensif face à n'importe quel accès DOM plausible").
+  - **`input[type="number"]` ajouté aux sélecteurs génériques de style des champs de formulaire**
+    (`input[type="text"], input[type="date"], input[type="email"]...`) : absent jusqu'ici faute
+    d'avoir eu besoin d'un champ numérique ailleurs dans l'outil — le champ "Prix / valeur
+    d'assiette" du calculateur en est le premier usage.
+  - Icône de navigation : `banknote` (déjà dans `ICONES`, utilisée ailleurs pour les montants),
+    pas une nouvelle icône dessinée pour l'occasion.
+  - Vérifié visuellement (Playwright, clair et sombre) et par un changement de paramètre
+    (primo-accédant → non primo-accédant : le taux appliqué passe bien de 4,50 % à 5,00 % et le
+    total se met à jour) — cohérent avec `fonts.googleapis.com` bloqué dans cet environnement de
+    dev (voir l'entrée juste au-dessus), sans lien avec cette fonctionnalité elle-même.
 
 ## Comment tester
 

@@ -42,6 +42,9 @@
       <button type="button" id="tab-suivi" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('suivi')">
         <span class="sidebar-link-icone" id="icon-nav-suivi" aria-hidden="true"></span>Suivi des dossiers
       </button>
+      <button type="button" id="tab-calculateur" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('calculateur')">
+        <span class="sidebar-link-icone" id="icon-nav-calculateur" aria-hidden="true"></span>Frais d'acte
+      </button>
     </nav>
 
     <div class="sidebar-footer">
@@ -418,6 +421,88 @@
     <strong>Toute date détectée automatiquement doit être vérifiée</strong>, en particulier si elle est signalée « estimée ».
   </footer>
 
+</div>
+
+<div class="onglet-panel" id="onglet-calculateur" style="display:none;">
+  <div class="dash-header">
+    <div>
+      <div class="dash-eyebrow">Frais d'acte</div>
+      <h1 class="dash-titre">Calculateur de provision</h1>
+    </div>
+  </div>
+
+  <div class="dash-grid">
+    <div class="calc-card">
+      <div class="dash-section-titre">Paramètres de l'acquisition</div>
+      <div class="calc-champs">
+        <div class="calc-champ">
+          <label for="calc-price">Prix / valeur d'assiette (€)</label>
+          <input type="number" id="calc-price" min="1" step="1" value="250000" oninput="calculerFraisActe()">
+        </div>
+        <div class="calc-champ">
+          <label for="calc-dept">Département de situation du bien</label>
+          <select id="calc-dept" onchange="calculerFraisActe()"></select>
+        </div>
+        <div class="calc-champ">
+          <label>Acquéreur</label>
+          <div class="calc-radios">
+            <label><input type="radio" name="calc-first" value="yes" checked onchange="calculerFraisActe()"> Primo-accédant</label>
+            <label><input type="radio" name="calc-first" value="no" onchange="calculerFraisActe()"> Non primo-accédant</label>
+          </div>
+        </div>
+        <div class="calc-champ">
+          <label>Destination</label>
+          <div class="calc-radios">
+            <label><input type="radio" name="calc-rp" value="yes" checked onchange="calculerFraisActe()"> Résidence principale</label>
+            <label><input type="radio" name="calc-rp" value="no" onchange="calculerFraisActe()"> Autre destination</label>
+          </div>
+        </div>
+        <div class="calc-champ">
+          <label for="calc-type">Nature du bien</label>
+          <select id="calc-type" onchange="calculerFraisActe()">
+            <option value="house">Immeuble hors copropriété</option>
+            <option value="condo">Immeuble en copropriété</option>
+            <option value="land">Terrain à bâtir</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="calc-card">
+      <div class="dash-section-titre">Résultat de la provision</div>
+      <div class="calc-resultat">
+        <div class="calc-tag" id="calc-tag"></div>
+        <div class="calc-total" id="calc-total"></div>
+        <div class="calc-small">Total provisionnel, arrondi à l'euro près.</div>
+        <div class="calc-ratebox">
+          <div class="calc-pill"><span>Taux départemental de droit commun</span><strong id="calc-base-rate"></strong></div>
+          <div class="calc-pill"><span>Taux départemental appliqué</span><strong id="calc-applied-rate"></strong></div>
+          <div class="calc-pill"><span>DMTO + taxes additionnelles</span><strong id="calc-dmt-rate"></strong></div>
+        </div>
+        <div class="calc-saving" id="calc-saving"></div>
+      </div>
+      <table class="calc-table">
+        <tr><td>Émoluments issus du tableau</td><td id="calc-emol"></td></tr>
+        <tr><td>Provision complémentaire ajoutée aux émoluments</td><td>200 €</td></tr>
+        <tr><td>Trésor / droits et taxes</td><td id="calc-tre"></td></tr>
+        <tr><td>Débours (selon le tableau)</td><td>200 €</td></tr>
+        <tr><td><strong>Total provisionnel</strong></td><td id="calc-total2"></td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="calc-card calc-card-notes">
+    <div class="dash-section-titre">Régime appliqué</div>
+    <p id="calc-regime"></p>
+    <p>Pour un département à 5,00 %, le non-primo-accédant utilise la colonne 6,3185 % du tableau fourni et le primo-accédant éligible la colonne 5,80665 %. Si le département est resté à 4,50 %, les deux régimes utilisent la colonne 5,80665 %. Pour un département à 3,80 %, le montant « Trésor » est extrapolé à partir des deux colonnes du tableau.</p>
+  </div>
+
+  <div class="calc-card calc-card-notes">
+    <div class="dash-section-titre">Règles et références</div>
+    <p><strong>Primo-accédant :</strong> la hausse temporaire du taux départemental ne s'applique pas lorsque le bien constitue la première propriété de l'acquéreur et est destiné à sa résidence principale (art. L. 31-10-3 du CCH).</p>
+    <p><strong>Barème :</strong> taux départementaux DGFiP applicables au 1er juin 2026. Le tarif réglementé des notaires est fixé pour la période du 1er mars 2026 au 29 février 2028 (art. A444-91 du Code de commerce). L'article 116 de la loi de finances pour 2025 permet une hausse temporaire du taux départemental jusqu'à 5 % du 1er avril 2025 au 31 mars 2028, avec exception pour les primo-accédants achetant leur résidence principale (condition de première propriété appréciée notamment sur les deux années précédentes, cf. BOFiP).</p>
+    <p>Outil indicatif de provision — vérifier les paramètres fiscaux et les débours propres au dossier avant émission.</p>
+  </div>
 </div>
 
   </main>

@@ -532,6 +532,84 @@
     .kpis-dashboard { grid-template-columns: repeat(2, 1fr); }
   }
 
+  /* ---- Calculateur de provision sur frais d'acte (onglet indépendant) ----
+     Repris d'une maquette fournie par l'étude, mais entièrement réhabillé avec les tokens déjà en
+     place (--focus, --paper-card, --line...) plutôt que sa propre palette bordeaux/or — même
+     principe que le reste de l'outil : un seul système de couleurs, pas un second par écran.
+     .dash-grid (déjà définie ci-dessus pour le tableau de bord) est réutilisée telle quelle pour
+     la disposition à deux colonnes paramètres/résultat. */
+  .calc-card {
+    background: var(--paper-card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 18px;
+    box-shadow: var(--shadow-card);
+  }
+  .calc-card-notes { font-size: 13px; }
+  .calc-card-notes p { margin: 0 0 10px; }
+  .calc-card-notes p:last-child { margin-bottom: 0; }
+  .calc-champs { display: flex; flex-direction: column; gap: 16px; }
+  .calc-champ label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 7px; }
+  .calc-radios { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .calc-radios label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid var(--line);
+    background: var(--paper-sunk);
+    padding: 10px 11px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    margin: 0;
+  }
+  .calc-radios label:has(input:checked) { border-color: var(--focus); }
+  .calc-radios input { width: auto; accent-color: var(--focus); }
+  /* Résultat : léger fond teinté --focus (color-mix, même technique que .kpi-tile/.dot-label
+     ailleurs dans l'outil) pour distinguer le total du reste de la carte sans inventer de couleur. */
+  .calc-resultat {
+    background: color-mix(in srgb, var(--focus) 6%, var(--paper-sunk));
+    border: 1px solid color-mix(in srgb, var(--focus) 18%, var(--line));
+    border-radius: 8px;
+    padding: 18px;
+  }
+  .calc-tag {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .calc-total {
+    font-size: 36px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--focus);
+    margin: 4px 0;
+    letter-spacing: -0.02em;
+  }
+  .calc-small { font-size: 12.5px; color: var(--ink-soft); line-height: 1.55; }
+  .calc-ratebox { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 16px; }
+  .calc-pill {
+    background: var(--paper-card);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 9px 10px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .calc-pill strong { display: block; color: var(--ink); font-size: 13.5px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .calc-saving { color: var(--success); font-weight: 600; font-size: 12.5px; margin-top: 12px; }
+  .calc-table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 13px; }
+  .calc-table td { padding: 10px 2px; border-bottom: 1px solid var(--line-soft); }
+  .calc-table td:last-child { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .calc-table tr:last-child td { border-bottom: 0; padding-top: 14px; font-size: 14.5px; }
+  @media (max-width: 640px) {
+    .calc-radios, .calc-ratebox { grid-template-columns: 1fr; }
+  }
+
   @media (max-width: 900px) {
     .sidebar-burger {
       display: flex;
@@ -692,7 +770,7 @@
     margin-bottom: 5px;
   }
 
-  input[type="text"], input[type="date"], input[type="email"], textarea, select {
+  input[type="text"], input[type="date"], input[type="email"], input[type="number"], textarea, select {
     width: 100%;
     max-width: 100%;
     min-width: 0;
@@ -725,7 +803,7 @@
     }
     .date-block { padding-left: 10px; }
   }
-  input[type="text"]:hover, input[type="date"]:hover, input[type="email"]:hover, select:hover { border-color: var(--muted); }
+  input[type="text"]:hover, input[type="date"]:hover, input[type="email"]:hover, input[type="number"]:hover, select:hover { border-color: var(--muted); }
 
   input:focus, select:focus, textarea:focus, button:focus-visible, summary:focus-visible {
     outline: 2px solid var(--focus);
