@@ -1611,6 +1611,13 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     (Playwright, avant/après ce changement de seuil).
   - Vérifié visuellement (Playwright, clair et sombre) sur le dossier utilisé comme exemple par
     l'étude dans sa maquette (mêmes nom/adresse/prix).
+- **Tiroir élargi à 620px (`.drawer-panneau`), adresse et prix remis côte à côte** : demandé juste
+  après la refonte ci-dessus. `.dossier-adresse-prix` passe de `flex-direction: column` à une
+  ligne (`flex-wrap: wrap`, chaque `.dossier-info-ligne` en `flex: 1 1 200px`) — les deux tiennent
+  côte à côte dans la largeur désormais disponible, et repassent l'un sous l'autre seulement si la
+  largeur vient à manquer (mobile). Le passage de 520px à 620px profite aussi à la grille de
+  classification (Type de vente/Rôle du notaire/Responsable, voir l'entrée juste au-dessus) : plus
+  de marge avant que ses 3 colonnes ne rebasculent à 2.
 
 ## Comment tester
 
