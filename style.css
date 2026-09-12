@@ -90,13 +90,14 @@
     transition: background-color 0.2s ease, color 0.2s ease;
   }
 
-  /* Fraunces (display serif) réservée aux titres — CLAIRE, "Tableau de bord", "Nouveau dossier",
-     "Dossiers suivis" — pour donner un peu de caractère éditorial sans en abuser : le reste de
-     l'interface (boutons, tableaux, badges) reste en Inter pour rester dense et lisible. */
-  h1, h2, h3, .serif, .brand-word {
-    font-family: 'Fraunces', 'Poppins', 'Segoe UI', serif;
-    font-weight: 600;
-    letter-spacing: -0.01em;
+  /* Fraunces (display serif) retirée de partout SAUF le logo "CLAIRE" (.brand-word, voir plus
+     bas) : jugée pas assez professionnelle par l'étude sur les titres/noms de dossier. Les titres
+     ("Tableau de bord", "Nouveau dossier", nom de dossier...) restent en Inter, en plus gras que
+     le corps de texte pour garder une hiérarchie visuelle, sans changer de famille de police. */
+  h1, h2, h3, .serif {
+    font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.015em;
   }
 
   a { color: var(--focus); }
@@ -171,7 +172,7 @@
      contenu réel plutôt qu'un habillage : ce que l'outil détecte effectivement. */
   .pdf-viewer.nouveau-intro { display: flex; gap: 4px; }
   .nouveau-intro-titre {
-    font-family: 'Fraunces', 'Poppins', 'Segoe UI', serif;
+    font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif;
     font-weight: 600;
     font-size: 17px;
     margin-bottom: 8px;
@@ -320,8 +321,19 @@
     padding: 6px 8px 2px;
   }
   .brand-mark { display: inline-flex; flex-shrink: 0; }
+  /* Logo "CLAIRE" seul : Bodoni Moda (display serif à fort contraste, inspiration fournie par
+     l'étude — un logotype éditorial haut de gamme) pour distinguer la MARQUE du reste de
+     l'interface, passée en sans-serif partout ailleurs (voir h1/h2/h3 en tête de fichier).
+     font-optical-sizing à 'none' + un opsz forcé haut (font-variation-settings) : à la taille
+     réduite du logo dans la sidebar (23px), le choix "auto" du navigateur retomberait sur une
+     coupe proche du texte courant et perdrait le contraste marqué qui fait l'intérêt de cette
+     police en logotype. */
   .brand-word {
-    font-size: 21px;
+    font-family: 'Bodoni Moda', 'Didot', 'Georgia', serif;
+    font-optical-sizing: none;
+    font-variation-settings: 'opsz' 90;
+    font-weight: 700;
+    font-size: 23px;
     color: var(--ink);
     letter-spacing: 0.01em;
   }
@@ -641,7 +653,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-family: 'Fraunces', 'Poppins', 'Segoe UI', serif;
+    font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif;
     font-size: 19px;
     font-weight: 600;
   }
@@ -1615,7 +1627,7 @@
      réserver aux titres de page — le nom du dossier est justement ce qu'on lit en premier sur
      l'écran le plus consulté de l'outil. */
   .ligne-resume .dossier-nom-tableau {
-    font-family: 'Fraunces', 'Poppins', 'Segoe UI', serif;
+    font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif;
     font-weight: 600;
     font-size: 15px;
     color: var(--ink);
@@ -1778,7 +1790,7 @@
   }
   .nom-affichage[hidden], .nom-edition[hidden] { display: none; }
   .nom-texte {
-    font-family: 'Fraunces', 'Poppins', 'Segoe UI', serif;
+    font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif;
     font-size: 19px;
     font-weight: 600;
     color: var(--ink);
@@ -1799,7 +1811,7 @@
   .icon-valider:hover { background: var(--success-bg); }
 
   .dossier-nom-input {
-    font-family: 'Fraunces', 'Poppins', 'Segoe UI', serif;
+    font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif;
     font-size: 16px;
     font-weight: 500;
     color: var(--ink);

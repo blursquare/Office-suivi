@@ -1380,6 +1380,35 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
   risque, ces fichiers sont toujours des PDF par construction (seule extension retenue par
   `fichiersPdfRecursifs()`). Vérifié avec un `File` sans type MIME (cas reproduit) via Playwright :
   la popup ouverte porte bien `document.contentType === 'application/pdf'` après le correctif.
+- **Fraunces retirée de partout sauf le logo "CLAIRE"** : jugée pas assez professionnelle par
+  l'étude sur les titres/noms de dossier ("je n'aime pas la typo, change pour quelque chose de
+  plus professionnel sans serif"). Référence fournie pour le logo lui-même : une capture d'un
+  logotype "Sage" (serif éditorial à très fort contraste, esprit mode/beauté) — appliquée
+  UNIQUEMENT au mot "CLAIRE" de la sidebar (clarifié explicitement avec l'étude avant de tout
+  changer, la référence étant un serif alors que la demande générale portait sur du sans-serif) :
+  - `h1, h2, h3, .serif` (titres de page, en-têtes de panneau) passent en **Inter** (déjà chargée
+    pour le corps de texte, aucune police supplémentaire à charger) à `font-weight: 700` et
+    `letter-spacing: -0.015em` — un poids plus marqué que le corps de texte (400/500) suffit à
+    garder une hiérarchie visuelle sans changer de famille.
+  - Tous les autres usages ponctuels de Fraunces sont remplacés à l'identique par Inter : le nom
+    de dossier dans le tableau du Suivi (`.ligne-resume .dossier-nom-tableau`) et dans la fiche
+    dépliée du tiroir (`.nom-texte`, `.dossier-nom-input`), l'en-tête du panneau "Nouveau dossier"
+    (`.panel summary`) et le titre du panneau d'introduction (`.nouveau-intro-titre`).
+  - **`.brand-word` (le mot "CLAIRE" dans la sidebar) passe à Bodoni Moda**, chargée à la place de
+    Fraunces dans le lien Google Fonts (`index.html`) — un display serif à très fort contraste,
+    dans le même esprit éditorial que la référence "Sage" fournie, réservé à la MARQUE pour la
+    distinguer du reste de l'interface (désormais entièrement sans-serif). `font-optical-sizing:
+    none` + `font-variation-settings: 'opsz' 90` : à la taille réduite du logo dans la sidebar
+    (23px), le choix "auto" du navigateur retomberait sur une coupe proche du texte courant et
+    perdrait le contraste marqué qui fait l'intérêt de cette police en logotype — il faut forcer
+    l'axe optique vers le haut de son échelle (6..96) indépendamment de la taille de rendu réelle.
+  - **Non vérifié visuellement dans cet environnement** : `fonts.googleapis.com` est bloqué par le
+    proxy réseau de développement (`ERR_TUNNEL_CONNECTION_FAILED`), comme déjà documenté pour
+    pdf.js/tesseract.js — Bodoni Moda et Inter retombent sur leurs polices de repli système
+    (Georgia/Segoe UI) pendant le développement ici. Les règles CSS elles-mêmes sont vérifiées
+    correctes (`getComputedStyle` confirme les bonnes familles de police appliquées aux bons
+    éléments) et la mise en page ne casse pas avec les polices de repli (capture d'écran) — à
+    confirmer par l'étude avec les vraies polices chargées (poste réel ou GitHub Pages).
 
 ## Comment tester
 
