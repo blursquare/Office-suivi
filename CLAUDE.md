@@ -1926,6 +1926,77 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     "dupont" sur le Tableau de bord ouvrant bien le tiroir du bon dossier, grille de 5 tuiles KPI
     sans case vide, bandeau Suivi avec la nouvelle tuile — `npm test` reste vert (119 tests, aucune
     fonction pure testable modifiée par ce chantier).
+- **Sélection manuelle de texte dans l'aperçu du compromis, pour ajouter à la main un engagement du
+  vendeur que la détection automatique a manqué.** Réponse directe au point resté ouvert juste
+  au-dessus ("à confirmer par l'étude si son attente portait spécifiquement sur..." — l'étude a
+  répondu "Oui" puis précisé le besoin réel, plus simple que le chantier `showOpenFilePicker()`
+  envisagé : pouvoir sélectionner soi-même le texte d'une clause dans le compromis affiché, pendant
+  l'import, plutôt que de la ressaisir ailleurs sans laisser de trace dans l'analyse juridique.
+  - **Couche de texte invisible mais sélectionnable posée sur chaque page** (`construireCoucheTexte()`,
+    appelée depuis `chargerToutesLesPagesPdf()` juste après le rendu du canvas de chaque page) :
+    un `<span>` transparent par item `getTextContent()` de pdf.js, positionné via la même
+    transformation déjà utilisée par `voirDateDansPdf()`/`voirEngagementDansPdf()` pour poser un
+    surlignage ponctuel — appliquée ici à TOUS les items d'une page plutôt qu'à un seul passage
+    recherché après coup. C'est une version simplifiée du `TextLayerBuilder` natif de pdf.js,
+    réécrite à la main plutôt que de charger son module dédié (non inclus dans le seul `pdf.min.js`
+    déjà chargé depuis cdnjs). L'alignement horizontal (largeur du glyphe du PDF vs largeur rendue
+    par la police de repli du navigateur) est corrigé après coup par un `scaleX()` calculé sur la
+    largeur réellement rendue de chaque `<span>` — sans ça, la fin d'une sélection dériverait de
+    plus en plus loin du texte visible au fil d'une ligne. Le texte reste invisible
+    (`color: transparent` dans `.pdf-text-layer`, voir style.css) : seule la sélection du
+    navigateur doit être visible (`::selection`), jamais le texte lui-même par-dessus le rendu déjà
+    net du canvas.
+  - **Barre flottante** (`#pdf-selection-toolbar`, `gererSelectionPdf()` branchée sur un
+    `mouseup` global) : dès qu'une sélection non vide se trouve dans `#pdf-pages-container` (une
+    sélection ailleurs dans l'outil, ex. dans le tableau du Suivi, est ignorée — vérifié), elle
+    propose directement les trois catégories déjà utilisées pour les engagements détectés
+    automatiquement (Entretien / Travaux / Document, mêmes clés que `libelles` dans
+    `renderEngagement()`), sans étape intermédiaire "+ Ajouter" : un clic sur une catégorie suffit.
+    Positionnée en `position: fixed` au-dessus du milieu de la sélection (le rectangle de la
+    sélection est déjà en coordonnées viewport, pas besoin de le recalculer). Numéro de page déduit
+    du `.pdf-page-bloc-N` ancêtre du nœud de départ de la sélection.
+  - `ajouterEngagementManuel(type)` pousse `{phrase, type, page, manuel: true}` dans
+    `analyseJuridiqueActuelle.engagements` — même tableau, même format `{phrase, type, page}` que
+    les engagements détectés automatiquement (`manuel: true` en plus), donc `ajouterDossier()` les
+    enregistre sans aucun changement : ils sont indiscernables des engagements automatiques une
+    fois le dossier créé, sauf ce drapeau. `afficherAnalyseJuridique()` est simplement rappelée
+    pour rafraîchir la liste (elle est déjà un simple rendu piloté par l'état, sans effet de bord à
+    dupliquer — même principe que documenté plus haut pour son second appel après `pdfActuel`).
+  - `renderEngagement()` affiche "Ajouté manuellement" (texte simple, pas d'icône — volontairement
+    différent du badge de confiance "≈ estimée"/"⚠️ à vérifier" des dates, qui reste réservé aux
+    dates) à côté d'un engagement ainsi ajouté, avec un bouton ✕ (`supprimerEngagementManuel(index)`)
+    pour le retirer en cas d'erreur de catégorie/sélection — SEULS les engagements manuels sont
+    retirables ainsi : corriger un engagement détecté automatiquement reste l'affaire de la regex
+    (`extraireEngagementsVendeur`/`EXCLUSION_ENGAGEMENT_RE`), pas d'un retrait au cas par cas qui
+    masquerait un vrai problème de détection au lieu de le corriger pour tous les prochains
+    compromis.
+  - Toolbar masquée (`masquerBoutonAjoutEngagement()`) à l'ouverture d'un nouvel import
+    (`chargerToutesLesPagesPdf()`, avant de reconstruire les pages), après enregistrement du
+    dossier (`reinitialiserFormulaire()`, aux côtés de la remise à zéro déjà existante de
+    `analyseJuridiqueActuelle`), et sur Échap (nouvelle branche dans le gestionnaire clavier
+    existant, entre la boîte de confirmation et le tiroir de fiche dossier dans l'ordre de
+    superposition visuelle).
+  - **Portée : fonctionne pendant l'import en cours** (le PDF doit être chargé dans
+    `pdfActuel`/rendu dans `#pdf-pages-container`), **pas sur un dossier déjà enregistré et
+    rouvert** — même limitation déjà documentée pour `voirEngagementDansPdf()` (le compromis est
+    importé via un `<input type="file">` éphémère, jamais conservé). C'est délibérément resté ainsi
+    ici : le besoin exprimé ("sélectionner nous-même le texte... quand on détecte une clause que tu
+    n'as pas trouvée") se pose naturellement au moment où l'étude regarde l'aperçu pendant l'import,
+    pas plusieurs jours après sur un dossier rouvert — le chantier `showOpenFilePicker()` pour
+    étendre ça aux dossiers déjà enregistrés reste balisé mais non engagé (voir plus haut) si
+    l'étude le demande un jour explicitement pour CE cas précis.
+  - **Non vérifié avec un vrai rendu PDF dans cet environnement** : `pdf.js` est chargé depuis un
+    CDN bloqué par le proxy réseau de développement ici, comme déjà documenté pour plusieurs
+    fonctionnalités liées à pdf.js/tesseract.js — impossible d'importer un vrai compromis pour
+    tester la sélection en conditions réelles. Vérifié à la place (Playwright) : l'ajout/le retrait
+    d'un engagement "manuel" simulé directement en mémoire s'affiche et se comporte correctement
+    dans les deux thèmes (marqueur, bouton ✕, compteur mis à jour) ; sélectionner du texte AILLEURS
+    dans l'outil (ex. le titre du tableau de bord) laisse bien la barre flottante masquée ; aucune
+    erreur JS dans la console en dehors des échecs de chargement CDN déjà connus. `npm test` reste
+    vert (119 tests, aucune fonction pure testable ajoutée par ce chantier — la logique ajoutée
+    dépend entièrement du DOM/de pdf.js). À confirmer par l'étude sur un compromis réel : que la
+    zone de sélection suit correctement le texte affiché ligne par ligne, en particulier sur des
+    polices embarquées inhabituelles (voir l'historique des PDF aux polices mal encodées plus haut).
 
 ## Comment tester
 

@@ -519,6 +519,18 @@
   <button type="button" class="toast-undo" id="toast-undo-btn">Annuler</button>
 </div>
 
+<!-- Barre flottante affichée quand on sélectionne du texte dans l'aperçu du compromis (import en
+     cours) : permet d'ajouter manuellement une clause comme engagement du vendeur quand la
+     détection automatique n'a rien trouvé pour elle — voir gererSelectionPdf()/
+     ajouterEngagementManuel() dans script.js. -->
+<div id="pdf-selection-toolbar" class="pdf-selection-toolbar" style="display:none;">
+  <span class="pdf-selection-label">Ajouter comme engagement du vendeur :</span>
+  <button type="button" onclick="ajouterEngagementManuel('entretien')">Entretien</button>
+  <button type="button" onclick="ajouterEngagementManuel('travaux')">Travaux</button>
+  <button type="button" onclick="ajouterEngagementManuel('document')">Document</button>
+  <button type="button" class="pdf-selection-annuler" onclick="masquerBoutonAjoutEngagement()" aria-label="Annuler" title="Annuler">✕</button>
+</div>
+
 <div class="confirm-overlay" id="confirm-overlay">
   <div class="confirm-box">
     <p id="confirm-message">Confirmer cette action ?</p>

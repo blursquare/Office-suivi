@@ -783,10 +783,14 @@
 
   // Accepte aussi bien le nouveau format {phrase, type} que l'ancien (simple chaîne), pour que
   // les dossiers enregistrés avant cette évolution continuent de s'afficher correctement.
-  function renderEngagement(e) {
+  // `index` (position dans analyseJuridiqueActuelle.engagements) n'est utile que pour les
+  // engagements ajoutés à la main (voir ajouterEngagementManuel) : seuls eux sont retirables via
+  // supprimerEngagementManuel(), les engagements détectés automatiquement n'ont pas ce besoin.
+  function renderEngagement(e, index) {
     const phrase = (typeof e === 'string') ? e : e.phrase;
     const type = (typeof e === 'string') ? null : e.type;
     const page = (typeof e === 'string') ? null : e.page;
+    const manuel = typeof e === 'object' && e.manuel === true;
     const libelles = { entretien: 'Entretien', travaux: 'Travaux', document: 'Document' };
     const etiquette = type
       ? `<span class="engagement-type ${type}">${libelles[type] || 'Document'}</span>`
@@ -800,7 +804,15 @@
     const boutonVoir = !page ? '' : pdfActuel
       ? `<button type="button" class="voir-pdf-btn" onclick="voirEngagementDansPdf(${page}, '${codifierPourAttribut(phrase)}')">${icone('eye')} p.${page}</button>`
       : `<span class="chip-page" title="Détecté page ${page} du compromis">p.${page}</span>`;
-    return `<div class="analyse-engagement-ligne">${etiquette}<span>${escapeHtml(phrase)}</span>${boutonVoir}</div>`;
+    // Sélectionnée à la main dans l'aperçu PDF (voir gererSelectionPdf) plutôt que trouvée par
+    // extraireEngagementsVendeur() : marquée comme telle, et seule celle-ci peut être retirée d'un
+    // clic — corriger un engagement détecté automatiquement passe par la regex, pas par un retrait
+    // au cas par cas.
+    const marqueurManuel = manuel ? '<span class="engagement-manuel">Ajouté manuellement</span>' : '';
+    const boutonSupprimer = manuel
+      ? `<button type="button" class="engagement-suppr" onclick="supprimerEngagementManuel(${index})" title="Retirer cet engagement" aria-label="Retirer cet engagement">${icone('x')}</button>`
+      : '';
+    return `<div class="analyse-engagement-ligne">${etiquette}<span>${escapeHtml(phrase)}</span>${marqueurManuel}${boutonVoir}${boutonSupprimer}</div>`;
   }
 
   // L'analyse juridique est sa propre étape du wizard (étape 3, voir definirEtapeWizard) — plus un
@@ -838,7 +850,7 @@
     sectionEngagements.style.display = engagements.length > 0 ? 'block' : 'none';
     document.getElementById('analyse-nb-engagements').textContent = engagements.length || '';
     document.getElementById('analyse-engagements-liste').innerHTML = engagements
-      .map(e => renderEngagement(e))
+      .map((e, i) => renderEngagement(e, i))
       .join('');
 
     document.getElementById('analyse-nb-documents').textContent = documents.length || '';
@@ -1452,6 +1464,7 @@
     if (!pdfActuel) return;
     const conteneur = document.getElementById('pdf-pages-container');
     conteneur.innerHTML = '';
+    masquerBoutonAjoutEngagement();
     const largeurDispo = (conteneur.clientWidth || 360) - 20;
 
     for (let numero = 1; numero <= pdfDernierePageUtile; numero++) {
@@ -1479,7 +1492,117 @@
 
       const ctx = canvas.getContext('2d');
       await page.render({ canvasContext: ctx, viewport }).promise;
+
+      const content = await page.getTextContent();
+      construireCoucheTexte(content, viewport, bloc, canvas);
     }
+  }
+
+  // Couche de texte invisible mais sélectionnable posée par-dessus le canvas d'une page rendue —
+  // permet à l'utilisateur de sélectionner une clause à la souris (comme dans un vrai lecteur PDF)
+  // pour l'ajouter manuellement comme engagement du vendeur quand la détection automatique n'a rien
+  // trouvé pour elle (voir gererSelectionPdf()/ajouterEngagementManuel() ci-dessous). Repose sur la
+  // même transformation de position que voirDateDansPdf()/voirEngagementDansPdf() (déjà utilisée
+  // pour positionner un surlignage ponctuel), appliquée ici à CHAQUE item de la page plutôt qu'à un
+  // seul passage recherché après coup — une version simplifiée du TextLayerBuilder de pdf.js,
+  // réécrite ici plutôt que d'en charger le module dédié (non inclus dans le seul pdf.min.js déjà
+  // chargé). L'alignement horizontal (largeur réelle du glyphe vs largeur du <span>) n'a pas besoin
+  // d'être pixel-parfait : seule la SÉLECTION doit correspondre au bon texte, le texte lui-même
+  // reste transparent (voir .pdf-text-layer dans style.css) et n'est jamais affiché tel quel.
+  function construireCoucheTexte(content, viewport, bloc, canvas) {
+    const couche = document.createElement('div');
+    couche.className = 'pdf-text-layer';
+    couche.style.width = canvas.width + 'px';
+    couche.style.height = canvas.height + 'px';
+    bloc.appendChild(couche);
+
+    content.items.forEach(item => {
+      if (!item.str) return;
+      const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
+      const angleRad = Math.atan2(tx[1], tx[0]);
+      const hauteur = Math.hypot(tx[2], tx[3]) || 1;
+      const largeurCible = (item.width || 0) * (viewport.scale || 1);
+
+      const span = document.createElement('span');
+      span.textContent = item.str;
+      span.style.left = tx[4] + 'px';
+      span.style.top = (tx[5] - hauteur) + 'px';
+      span.style.fontSize = hauteur + 'px';
+      couche.appendChild(span);
+
+      // Ajuste après coup la largeur rendue (police de repli du navigateur, pas celle du PDF) sur
+      // la largeur réelle du glyphe dans le document — sans quoi la fin d'une sélection dériverait
+      // de plus en plus loin de ce qui est visuellement affiché au fil d'une ligne.
+      const largeurRendue = span.getBoundingClientRect().width;
+      const transforme = angleRad ? `rotate(${angleRad}rad)` : '';
+      if (largeurCible > 0 && largeurRendue > 0) {
+        span.style.transform = `${transforme} scaleX(${largeurCible / largeurRendue})`.trim();
+      } else if (transforme) {
+        span.style.transform = transforme;
+      }
+    });
+  }
+
+  // Sélection de texte dans l'aperçu du compromis (voir construireCoucheTexte() ci-dessus) : dès
+  // qu'une sélection non vide se trouve dans #pdf-pages-container, une petite barre flottante
+  // propose de l'ajouter comme engagement du vendeur, catégorisé comme n'importe quel engagement
+  // détecté automatiquement (entretien/travaux/document) — utile quand une clause réelle échappe
+  // aux motifs de detecterEngagementsVendeur/EXCLUSION_ENGAGEMENT_RE, plutôt que de la ressaisir à
+  // la main ailleurs sans aucune trace dans l'analyse juridique.
+  let selectionEngagementEnCours = null;
+
+  function gererSelectionPdf() {
+    const toolbar = document.getElementById('pdf-selection-toolbar');
+    if (!toolbar) return;
+    const selection = window.getSelection();
+    const texte = selection && !selection.isCollapsed ? selection.toString().trim() : '';
+    const conteneur = document.getElementById('pdf-pages-container');
+    const ancre = selection && selection.anchorNode;
+    const ancreDansPdf = ancre && conteneur && conteneur.contains(ancre);
+
+    if (!texte || !ancreDansPdf) {
+      toolbar.style.display = 'none';
+      selectionEngagementEnCours = null;
+      return;
+    }
+
+    const noeudElement = ancre.nodeType === 1 ? ancre : ancre.parentElement;
+    const blocPage = noeudElement ? noeudElement.closest('.pdf-page-bloc') : null;
+    const page = blocPage ? parseInt(blocPage.id.replace('pdf-page-bloc-', ''), 10) || null : null;
+
+    selectionEngagementEnCours = { phrase: texte.replace(/\s+/g, ' ').trim(), page };
+
+    const rect = selection.getRangeAt(0).getBoundingClientRect();
+    toolbar.style.display = 'flex';
+    toolbar.style.left = (rect.left + rect.width / 2) + 'px';
+    toolbar.style.top = (rect.top - 8) + 'px';
+  }
+
+  function ajouterEngagementManuel(type) {
+    if (!selectionEngagementEnCours) return;
+    analyseJuridiqueActuelle.engagements.push({
+      phrase: selectionEngagementEnCours.phrase,
+      type,
+      page: selectionEngagementEnCours.page,
+      manuel: true
+    });
+    afficherAnalyseJuridique();
+    masquerBoutonAjoutEngagement();
+    afficherToast('Engagement ajouté à l’analyse juridique.', 'OK', null);
+  }
+
+  function masquerBoutonAjoutEngagement() {
+    const toolbar = document.getElementById('pdf-selection-toolbar');
+    if (toolbar) toolbar.style.display = 'none';
+    selectionEngagementEnCours = null;
+    const selection = window.getSelection();
+    if (selection) selection.removeAllRanges();
+  }
+
+  function supprimerEngagementManuel(index) {
+    if (!analyseJuridiqueActuelle.engagements[index]) return;
+    analyseJuridiqueActuelle.engagements.splice(index, 1);
+    afficherAnalyseJuridique();
   }
 
   // Fait simplement défiler l'aperçu jusqu'à la page indiquée, sans tenter de surligner un passage
@@ -1883,6 +2006,7 @@
     autresEnCours = [];
     analyseJuridiqueActuelle = { documents: [], engagements: [], conditions: [] };
     afficherAnalyseJuridique();
+    masquerBoutonAjoutEngagement();
     // Referme entièrement le panneau d'aperçu : sans ça, le PDF du dossier qu'on vient d'enregistrer
     // restait affiché à côté d'un formulaire pourtant vide, prêt pour un nouvel import.
     document.getElementById('pdf-viewer').style.display = 'none';
@@ -4635,15 +4759,23 @@
 
   // ---- raccourcis clavier ----
 
+  // Sélection de texte dans l'aperçu du compromis (voir construireCoucheTexte()/
+  // gererSelectionPdf() plus haut) : la barre flottante se met à jour à chaque relâchement du
+  // clic, qu'une sélection existe (la montrer au bon endroit) ou plus (la masquer).
+  document.addEventListener('mouseup', gererSelectionPdf);
+
   document.addEventListener('keydown', (e) => {
-    // Échap ferme la boîte de confirmation ouverte, sinon le tiroir de fiche dossier. Dans cet
-    // ordre : la confirmation s'ouvre PAR-DESSUS le tiroir (supprimer/archiver depuis la fiche),
-    // c'est donc elle qu'on attend de voir se fermer en premier.
+    // Échap ferme la boîte de confirmation ouverte, sinon la barre de sélection PDF, sinon le
+    // tiroir de fiche dossier — dans cet ordre de superposition visuelle.
     if (e.key === 'Escape') {
       const overlay = document.getElementById('confirm-overlay');
+      const barreSelection = document.getElementById('pdf-selection-toolbar');
       if (overlay && overlay.style.display === 'flex') {
         e.preventDefault();
         annulerConfirmation();
+      } else if (barreSelection && barreSelection.style.display !== 'none') {
+        e.preventDefault();
+        masquerBoutonAjoutEngagement();
       } else if (dossierOuvert) {
         e.preventDefault();
         fermerDossierDrawer();

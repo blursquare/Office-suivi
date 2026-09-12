@@ -237,6 +237,88 @@
   }
   .pdf-highlight.fondu { opacity: 0; }
 
+  /* Couche de texte invisible mais sélectionnable, posée par-dessus chaque page rendue en canvas
+     (voir construireCoucheTexte()/chargerToutesLesPagesPdf() dans script.js) : permet de
+     sélectionner une clause à la souris comme dans un vrai lecteur PDF, pour l'ajouter manuellement
+     comme engagement du vendeur quand la détection automatique l'a manquée. Chaque <span> reprend
+     la position/taille d'un "item" pdf.js (texte transparent, seule la sélection doit être
+     visible) — même technique que le lecteur PDF natif de pdf.js (TextLayerBuilder), réécrite ici
+     en plus simple faute de charger son module dédié.
+  */
+  .pdf-text-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    overflow: hidden;
+    line-height: 1;
+  }
+  .pdf-text-layer span {
+    position: absolute;
+    color: transparent;
+    white-space: pre;
+    transform-origin: 0% 0%;
+    cursor: text;
+  }
+  .pdf-text-layer span::selection { background: rgba(37, 99, 235, 0.35); }
+
+  .pdf-selection-toolbar {
+    position: fixed;
+    z-index: 40;
+    display: none;
+    align-items: center;
+    gap: 4px;
+    transform: translate(-50%, -100%);
+    background: var(--paper-card);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: var(--shadow-card);
+    padding: 5px 6px;
+    font-size: 12px;
+  }
+  .pdf-selection-label { color: var(--muted); padding: 0 4px 0 2px; white-space: nowrap; }
+  .pdf-selection-toolbar button {
+    font-family: inherit;
+    font-size: 12px;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 6px;
+    padding: 4px 8px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .pdf-selection-toolbar button:hover { border-color: var(--focus); color: var(--focus); }
+  .pdf-selection-annuler {
+    border: none !important;
+    background: none !important;
+    color: var(--muted) !important;
+    padding: 4px 6px !important;
+  }
+
+  .engagement-manuel {
+    flex: 0 0 auto;
+    font-size: 10.5px;
+    font-style: italic;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .engagement-suppr {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: none;
+    background: none;
+    border-radius: 5px;
+    color: var(--ink-soft);
+    cursor: pointer;
+  }
+  .engagement-suppr:hover { background: var(--paper-sunk); color: var(--urgent); }
+  .engagement-suppr .icone { width: 11px; height: 11px; }
+
   .voir-pdf-btn {
     display: inline-flex;
     align-items: center;
