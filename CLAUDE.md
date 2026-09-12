@@ -1127,6 +1127,55 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     reprendre) sur une fiche que l'étude vient justement de faire réorganiser trois fois. À ne
     lancer que sur demande explicite. Même raisonnement pour le calendrier mensuel et la vue
     « échéancier » groupée de la maquette : ce sont des fonctionnalités, pas du design.
+- **Fiche dossier en tiroir latéral** (le point ci-dessus, finalement demandé par l'étude : « tu
+  peux, et change la mise en page »). La fiche ne se déplie plus dans le tableau, elle s'ouvre dans
+  un panneau de 520px à droite (`#dossier-drawer-overlay` dans `index.html`) : sur une soixantaine
+  de dossiers, dérouler une ligne poussait toutes les suivantes plusieurs centaines de pixels plus
+  bas et faisait perdre sa place dans la liste, qui reste maintenant strictement immobile.
+  - `dossiersDeplies` (un `Set`) est remplacé par `dossierOuvert`, un identifiant unique ou `null` :
+    le tiroir est une fenêtre sur LE dossier consulté, pas une liste d'éléments dépliés.
+    `ouvrirDossierDrawer()`/`fermerDossierDrawer()` passent toutes les deux par `render()` (et non
+    par `renderDrawer()` seul) — la liste doit se redessiner pour poser ou retirer le liseré
+    `.ligne-active`, et `render()` rafraîchit le tiroir au passage. Oubli commis puis corrigé en
+    vérification visuelle : sans ce `render()`, le tiroir s'ouvrait mais aucune ligne n'était
+    marquée comme active.
+  - `renderDrawer()` est appelée par `render()` **avant** ses retours anticipés sur liste vide :
+    un dossier supprimé pendant qu'il était ouvert doit refermer le tiroir, pas laisser un panneau
+    orphelin. Comme toute action menée dans la fiche déclenche `render()` (renommer, corriger une
+    date, revérifier une pièce...), le tiroir se reconstruit à chaque fois sans se refermer — même
+    problème de fond que celui qui avait motivé `dossiersDeplies` à l'époque du dépliage.
+  - Fermeture : croix, clic sur le voile, ou Échap. Le gestionnaire Échap traite d'abord la boîte
+    de confirmation puis le tiroir, dans cet ordre — la confirmation (Supprimer/Archiver) s'ouvre
+    par-dessus le tiroir, c'est donc elle qu'on attend de voir se fermer en premier.
+  - `body.drawer-ouvert { overflow: hidden }` : sans ça, arrivée en bout de course dans le tiroir,
+    la molette repart sur la liste derrière et fait perdre la position qu'on cherchait justement à
+    préserver.
+  - **Mise en page de la fiche revue pour la colonne étroite** : les deux colonnes
+    (`.dossier-col-principale`/`.dossier-col-laterale`, supprimées) n'auraient plus tenu en 520px.
+    `.dossier-body` devient une simple colonne où l'ordre de lecture porte la hiérarchie :
+    échéances → les trois boutons d'action (remontés juste sous les dates, ce sont eux qu'on vient
+    chercher après avoir lu une échéance) → pièces du dossier → analyse juridique → historique, ces
+    deux derniers repliés. `.tabs` passe à `minmax(200px, 1fr)` dans le tiroir (deux échéances par
+    rangée : à 150px il en tassait trois, alors que l'échéance « prêt » porte en plus le statut de
+    l'offre et son bouton Revérifier).
+  - **Ligne « adresse · prix · type · rôle · responsable » regroupée par paires** : chaque couple
+    libellé + champ est désormais un `.classif-item` indivisible (`white-space: nowrap`). Dans la
+    largeur du tiroir la ligne passe forcément sur plusieurs lignes, et sans ce groupage un libellé
+    se retrouvait séparé de son champ (« Type de vente : » en fin de ligne, la liste déroulante à la
+    suivante). Les anciens séparateurs « · » disparaissent au profit de l'espacement — ils se
+    seraient retrouvés en début de ligne à chaque retour à la ligne. L'ordre demandé par l'étude est
+    inchangé.
+  - **Bouton de fermeture dans sa propre barre collante** (`.drawer-barre`) plutôt qu'en flottant :
+    en `float: right`, la croix empiétait sur la première ligne de la fiche (nom du dossier +
+    Archiver/Supprimer) — constaté en capture d'écran. La barre reste visible pendant le défilement.
+  - **Impression** (`window.print()`, pas `imprimerFiche()`) : la fiche n'étant plus dans le flux de
+    la page, `@media print` remet le tiroir en statique, masque `.app-shell` et n'imprime que la
+    fiche ouverte. Les sélecteurs sont ancrés sur `body.drawer-ouvert` pour que le tiroir fermé
+    (masqué par un style inline) n'imprime pas un panneau vide.
+  - **Liseré d'accent sur la ligne ouverte** (`.ligne-resume.ligne-active`) : seul lien visuel qui
+    subsiste entre le tiroir et la ligne dont il vient. Peint en `background-image` comme le filet
+    de ligne (voir la passe typographique ci-dessus) et non en `border-left`, qui décalerait le
+    contenu de la cellule d'un pixel à l'ouverture.
 
 ## Comment tester
 

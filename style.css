@@ -1399,6 +1399,9 @@
     border-radius: 8px;
     margin-left: 6px;
     vertical-align: middle;
+    /* La pastille passe entière à la ligne plutôt que de couper son libellé en deux : dans la
+       largeur d'une échéance du tiroir, « ⚠️ à vérifier » se scindait en « ⚠️ à » / « vérifier ». */
+    white-space: nowrap;
   }
   .badge-confiance.auto { background: var(--success-bg); color: var(--success); }
   .badge-confiance.manuel { background: var(--pret-bg); color: var(--pret); }
@@ -1663,10 +1666,18 @@
   .echeance-jours.urgent { color: var(--urgent); font-weight: 600; }
   .echeance-jours.calme { color: var(--ink-soft); }
 
-  .ligne-detail { display: none; background: var(--paper-sunk); }
-  .ligne-detail.ouvert { display: table-row; }
-  .ligne-detail td { padding: 18px; border-bottom: 1px solid var(--line-soft); }
-  .ligne-detail .dossier { margin-bottom: 0; box-shadow: none; }
+  /* Ligne dont la fiche est ouverte dans le tiroir : un liseré d'accent à gauche relie le tiroir
+     à la ligne d'où il vient, seul repère qui subsiste puisque la ligne ne se déplie plus.
+     Peint en background-image comme le filet de ligne (voir .dossiers-table tbody tr) — une
+     bordure gauche décalerait le contenu de la cellule d'un pixel à l'ouverture. */
+  .ligne-resume.ligne-active {
+    background-image:
+      linear-gradient(to right, transparent, var(--line-soft) 44px, var(--line-soft) calc(100% - 44px), transparent),
+      linear-gradient(to right, var(--focus) 0 3px, transparent 3px),
+      linear-gradient(var(--paper-sunk), var(--paper-sunk));
+    background-size: 100% 1px, 100% 100%, 100% 100%;
+    background-position: bottom, 0 0, 0 0;
+  }
 
   /* Couleur réservée à --urgent, déjà utilisée pour les échéances proches : un dossier
      "prioritaire" combine échéance proche, offre manquante et/ou accès à reconfirmer, donc
@@ -1685,46 +1696,83 @@
     white-space: nowrap;
   }
 
-  /* ---- présentation compacte du détail déplié dans la vue tableau : un seul dossier ouvert à la
-     fois dans un contexte déjà condensé n'a plus besoin de la respiration prévue à l'origine pour
-     une liste de cartes complètes toujours affichées. ---- */
-  .ligne-detail .dossier {
-    padding: 16px 18px;
+  /* ---- tiroir latéral de la fiche dossier ----
+     Remplace l'ancien dépliage de la ligne du tableau : sur une soixantaine de dossiers, ouvrir
+     une fiche in situ poussait toutes les lignes suivantes plusieurs centaines de pixels plus bas.
+     Ici la liste ne bouge pas, et un seul dossier est ouvert à la fois (voir dossierOuvert). */
+  .drawer-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 900;
+    background: rgba(22,35,60,0.35);
+    justify-content: flex-end;
   }
-  .ligne-detail .dossier-head {
-    margin-bottom: 10px;
+  [data-theme="dark"] .drawer-overlay { background: rgba(0,0,0,0.55); }
+
+  .drawer-panneau {
+    position: relative;
+    width: min(520px, 100%);
+    height: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: var(--paper-card);
+    border-left: 1px solid var(--line);
+    box-shadow: var(--shadow-float);
+    padding: 20px 22px 40px;
+    animation: drawer-entre 0.18s ease-out;
   }
-  .ligne-detail .dossier-nom-input {
+  @keyframes drawer-entre {
+    from { transform: translateX(24px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .drawer-panneau { animation: none; }
+  }
+
+  /* Le tiroir défile sur toute sa hauteur : la croix reste accessible sans remonter. Elle occupe
+     sa propre barre collante plutôt que de flotter au-dessus du contenu — en flottant, elle
+     empiétait sur la première ligne de la fiche (nom du dossier + Archiver/Supprimer). */
+  .drawer-barre {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    justify-content: flex-end;
+    background: var(--paper-card);
+    padding-bottom: 8px;
+  }
+  .drawer-fermer {
+    font-family: inherit;
     font-size: 15px;
+    line-height: 1;
+    color: var(--ink-soft);
+    background: var(--paper-card);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 6px 9px;
+    cursor: pointer;
   }
-  .ligne-detail .tabs {
-    gap: 8px;
+  .drawer-fermer:hover { color: var(--ink); background: var(--line-soft); }
+
+  /* Le tiroir gère son propre défilement : sans ça, arrivé en bout de course, la molette continue
+     sur la liste derrière et l'utilisateur perd la position qu'on cherchait justement à préserver. */
+  body.drawer-ouvert { overflow: hidden; }
+
+  /* La fiche remplit le tiroir : elle n'a plus besoin de son propre cadre (carte dans une carte)
+     ni de la respiration prévue quand elle s'affichait au milieu d'une liste. */
+  .drawer-panneau .dossier {
+    margin-bottom: 0;
+    padding: 0;
+    border: none;
+    box-shadow: none;
+    background: transparent;
   }
-  .ligne-detail .tab {
-    padding: 8px 10px;
-    border-radius: 0 0 3px 3px;
-  }
-  .ligne-detail .tab .tab-date {
-    font-size: 13px;
-    margin-bottom: 2px;
-  }
-  .ligne-detail .tab .tab-countdown {
-    font-size: 12px;
-  }
-  .ligne-detail .dossier-actions {
-    gap: 6px;
-    margin-top: 12px;
-  }
-  .ligne-detail .dossier-actions button {
-    padding: 5px 10px;
-    font-size: 12px;
-  }
-  .ligne-detail .analyse-juridique {
-    margin-top: 10px !important;
-  }
-  .ligne-detail .historique-toggle {
-    margin-top: 8px;
-  }
+  .drawer-panneau .dossier-head { margin-bottom: 12px; }
+  .drawer-panneau .dossier-head h3 { font-size: 20px; }
+  /* Deux échéances par rangée dans la largeur du tiroir (la valeur par défaut, 150px, en tasserait
+     trois et l'échéance "prêt" porte en plus le statut de l'offre et son bouton Revérifier). */
+  .drawer-panneau .tabs { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
 
   .dossier-head {
     display: flex;
@@ -1740,22 +1788,15 @@
   /* Carte ouverte en deux colonnes (échéances/pièces/analyse à gauche, historique + actions à
      droite) — demandé pour profiter de la largeur disponible plutôt qu'un long défilement vertical
      unique. Empile en une seule colonne sous la largeur d'une carte compacte/mobile. */
+  /* Fiche en une seule colonne : elle vit maintenant dans le tiroir latéral (~520px), où les deux
+     colonnes d'avant n'auraient plus tenu. L'ordre de lecture porte la hiérarchie à la place des
+     colonnes — échéances, puis les trois actions (remontées juste dessous, ce sont elles qu'on
+     vient chercher après avoir lu une date), puis les pièces, l'analyse et l'historique, ces deux
+     derniers repliés. */
   .dossier-body {
-    display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(220px, 1fr);
-    gap: 24px;
-    align-items: start;
-  }
-  .dossier-col-laterale {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    padding-left: 20px;
-    border-left: 1px solid var(--line-soft);
-  }
-  @media (max-width: 720px) {
-    .dossier-body { grid-template-columns: 1fr; }
-    .dossier-col-laterale { padding-left: 0; border-left: none; padding-top: 12px; border-top: 1px solid var(--line-soft); }
+    align-items: stretch;
   }
 
   .dossier-head h3 {
@@ -1814,7 +1855,11 @@
   /* Adresse, prix, type de vente, rôle du notaire et responsable regroupés sur une seule ligne
      (ordre demandé par l'étude) — flex-wrap reprise de l'ancienne .dossier-adresse-prix, fusionnée
      ici depuis que les deux lignes n'en forment plus qu'une. */
-  .dossier-classification { margin-top: 2px; display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+  .dossier-classification { margin-top: 2px; display: flex; align-items: center; flex-wrap: wrap; gap: 3px 14px; }
+  /* nowrap : c'est l'item entier qui passe à la ligne, jamais son libellé — sans ça « Responsable : »
+     se coupait avant les deux-points sur les petites largeurs. Les champs qu'il contient ont leur
+     propre largeur et ne sont pas concernés par cette règle. */
+  .classif-item { display: inline-flex; align-items: center; gap: 5px; min-width: 0; white-space: nowrap; }
   /* La règle générique `select { width: 100% }` (styles du formulaire) ne fixe pas cette propriété
      ici : sans ce reset, .select-edit hérite quand même de cette largeur pleine ligne et fait
      passer chaque champ (Responsable/Type de vente/Rôle) à la ligne, alors qu'ils doivent tenir
@@ -2129,7 +2174,27 @@
     .dossier-nom-input { border: none; font-size: 18pt; padding: 0; }
     .nom-texte { font-size: 18pt; }
     .dossier-body { display: block; }
-    .dossier-col-laterale { border: none; padding: 0; }
+    /* La fiche n'est plus dans le flux de la page mais dans un tiroir fixe : à l'impression on le
+       remet dans le flux, on masque tout le reste de l'application, et on imprime la seule fiche
+       ouverte. Le sélecteur est ancré sur body.drawer-ouvert pour que le tiroir fermé (masqué par
+       un style inline) reste masqué au lieu d'imprimer un panneau vide. */
+    body.drawer-ouvert { overflow: visible; }
+    body.drawer-ouvert .app-shell { display: none !important; }
+    body.drawer-ouvert .drawer-overlay {
+      display: block !important;
+      position: static;
+      background: none;
+    }
+    .drawer-panneau {
+      width: 100%;
+      height: auto;
+      overflow: visible;
+      border: none;
+      box-shadow: none;
+      padding: 0;
+      animation: none;
+    }
+    .drawer-barre { display: none !important; }
     .tabs { display: block; }
     .tab { border: 1px solid #999; margin-bottom: 6pt; padding: 6pt; background: #fff !important; }
     .historique-liste { display: block !important; }

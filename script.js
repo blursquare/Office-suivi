@@ -2247,14 +2247,11 @@
     }).join('');
   }
 
-  // Ouvre un dossier depuis le tableau de bord : bascule vers le Suivi et déplie directement la
-  // ligne concernée (dossiersDeplies avant le render() suivant, même mécanisme que le dépliage
-  // manuel d'une ligne — voir toggleLigneDossier).
+  // Ouvre un dossier depuis le tableau de bord : bascule vers le Suivi et ouvre sa fiche dans le
+  // tiroir latéral, exactement comme un clic sur sa ligne (même chemin, voir ouvrirDossierDrawer).
   function ouvrirDossierDepuisDashboard(id) {
-    dossiersDeplies.add(id);
     definirOnglet('suivi');
-    const cible = document.getElementById('mini-' + id) || document.getElementById('detail-' + id);
-    if (cible) cible.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    ouvrirDossierDrawer(id);
   }
 
   // Bascule entre les deux espaces de travail : « Nouveau dossier » (formulaire + aperçu PDF) et
@@ -2531,6 +2528,10 @@
     renderAlerteAcces(dossiersActifs);
     renderKpisDashboard(dossiersActifs);
     renderActionsUrgentes(dossiersActifs);
+    // Avant les retours anticipés sur liste vide ci-dessous : le tiroir doit se rafraîchir (ou se
+    // refermer, si son dossier vient d'être supprimé) dans tous les cas, pas seulement quand la
+    // liste a des lignes à afficher.
+    renderDrawer();
 
     const dossiersVisibles = voirArchives ? dossiers : dossiersActifs;
 
@@ -2599,19 +2600,20 @@
     render();
   }
 
-  // Dossiers actuellement dépliés (ligne de tableau ou carte compacte) : sans ce suivi, la
-  // moindre action qui déclenche render() (renommer, corriger une date, revérifier l'offre...)
-  // reconstruit toute la liste et referme silencieusement la carte qu'on est pourtant en train
-  // de consulter — un même identifiant sert aux deux vues puisqu'une seule est affichée à la fois.
-  let dossiersDeplies = new Set();
+  // Identifiant du dossier affiché dans le tiroir latéral, ou null si aucun. Un seul à la fois :
+  // le tiroir est une fenêtre sur LE dossier consulté, pas une liste d'éléments dépliés (c'est
+  // justement ce qui remplace l'ancien Set de lignes dépliées, dont chaque ouverture décalait
+  // toute la suite du tableau). Conservé en mémoire pour que render() — déclenché par la moindre
+  // action de la fiche : renommer, corriger une date, revérifier l'offre... — puisse reconstruire
+  // le contenu du tiroir sans le refermer sous les doigts de l'utilisateur.
+  let dossierOuvert = null;
 
   function renderLigneTableau(d) {
     const prochaine = prochaineEcheanceDetail(d);
     const offre = !d.sansPret ? libelleOffre(d.offrePretStatut) : null;
     const prioritaire = calculerPriorite(d) >= SEUIL_PRIORITE_ELEVEE;
-    const deplie = dossiersDeplies.has(d.id);
     return `
-      <tr class="ligne-resume${d.archive ? ' est-archive' : ''}" onclick="toggleLigneDossier('${d.id}')">
+      <tr class="ligne-resume${d.archive ? ' est-archive' : ''}${dossierOuvert === d.id ? ' ligne-active' : ''}" onclick="ouvrirDossierDrawer('${d.id}')">
         <td><div class="dossier-nom-tableau">${renderBadgeStatut(d)}${escapeHtml(d.nom)}${prioritaire ? '<span class="badge-prioritaire" title="Prioritaire : échéance proche, offre de prêt manquante et/ou accès local à reconfirmer">🔥</span>' : ''}</div></td>
         <td class="dossier-responsable-tableau">${escapeHtml(d.responsable || '—')}</td>
         <td>
@@ -2625,15 +2627,45 @@
           ${(!d.sansPret && d.dossierLie) ? `<button type="button" class="action-rapide" onclick="event.stopPropagation(); verifierOffrePretDepuisBouton('${d.id}', this)">Revérifier</button>` : ''}
         </td>
       </tr>
-      <tr class="ligne-detail${deplie ? ' ouvert' : ''}" id="detail-${d.id}"><td colspan="4">${renderCarteDossier(d)}</td></tr>
     `;
   }
 
-  function toggleLigneDossier(id) {
-    const el = document.getElementById('detail-' + id);
-    if (!el) return;
-    const ouvert = el.classList.toggle('ouvert');
-    if (ouvert) dossiersDeplies.add(id); else dossiersDeplies.delete(id);
+  // Les deux passent par render() plutôt que par renderDrawer() seul : la liste doit se redessiner
+  // pour poser (ou retirer) le liseré .ligne-active sur la ligne concernée, et render() rafraîchit
+  // le tiroir au passage.
+  function ouvrirDossierDrawer(id) {
+    dossierOuvert = id;
+    render();
+  }
+
+  function fermerDossierDrawer() {
+    if (!dossierOuvert) return;
+    dossierOuvert = null;
+    render();
+  }
+
+  // Reconstruit le contenu du tiroir depuis l'état courant. Appelée par render() (pour que toute
+  // action menée DANS la fiche — renommer, corriger une date, revérifier — se répercute sans
+  // refermer le tiroir) autant que par l'ouverture/fermeture elles-mêmes. Un dossier supprimé ou
+  // devenu invisible pendant qu'il était ouvert referme le tiroir plutôt que d'afficher un vide.
+  function renderDrawer() {
+    const overlay = document.getElementById('dossier-drawer-overlay');
+    const contenu = document.getElementById('dossier-drawer-contenu');
+    if (!overlay || !contenu) return;
+
+    const d = dossierOuvert ? dossiers.find(x => x.id === dossierOuvert) : null;
+    if (!d) {
+      dossierOuvert = null;
+      overlay.style.display = 'none';
+      document.body.classList.remove('drawer-ouvert');
+      contenu.innerHTML = '';
+      return;
+    }
+    contenu.innerHTML = renderCarteDossier(d);
+    overlay.style.display = 'flex';
+    // Empêche la page derrière le tiroir de défiler en même temps que lui (sinon la molette
+    // emporte la liste dès que le contenu du tiroir arrive en bout de course).
+    document.body.classList.add('drawer-ouvert');
   }
 
   function libellePiece(statut) {
@@ -2711,27 +2743,34 @@
               ${boutonsDossierLocal}
             </div>
             ${d.roleNotaire === 'participant' ? '<span class="badge-role" title="Notaire participant / concourant : suivi limité au prêt et aux engagements du vendeur">🤝 Participant</span>' : ''}
+            <!-- Chaque couple libellé + champ est un .classif-item indivisible : dans la largeur du
+                 tiroir la ligne passe forcément à plusieurs lignes, et sans ce groupage un libellé
+                 se retrouvait séparé de son champ ("Type de vente :" en fin de ligne, la liste
+                 déroulante à la ligne suivante). L'espacement remplace les anciens séparateurs "·",
+                 qui se seraient retrouvés en début de ligne au retour à la ligne. -->
             <div class="addr dossier-classification">
-              📍 <input type="text" class="input-inline champ-adresse-bien" value="${escapeAttr(d.adresseBien || '')}" placeholder="Adresse du bien non détectée" aria-label="Adresse du bien" onblur="changerAdresseBien('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
-              · 💶 <input type="text" class="input-inline champ-prix-vente" value="${d.prixVente ? formaterPrix(d.prixVente) : ''}" placeholder="Prix non détecté" aria-label="Prix de vente" onblur="changerPrixVente('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
-              ·
-              Type de vente :
-              <select class="select-edit" onchange="changerTypeVente('${d.id}', this.value)" aria-label="Type de vente">
-                <option value="maison" ${d.typeVente === 'copropriete' ? '' : 'selected'}>Maison</option>
-                <option value="copropriete" ${d.typeVente === 'copropriete' ? 'selected' : ''}>Copropriété</option>
-              </select>
-              · Rôle du notaire :
-              <select class="select-edit" onchange="changerRoleNotaire('${d.id}', this.value)" aria-label="Rôle de l'étude sur ce dossier">
-                <option value="instrumentaire" ${d.roleNotaire === 'participant' ? '' : 'selected'}>Instrumentaire</option>
-                <option value="participant" ${d.roleNotaire === 'participant' ? 'selected' : ''}>Participant</option>
-              </select>
-              · Responsable :
-              <select class="select-edit" onchange="changerResponsable('${d.id}', this.value)" aria-label="Responsable du dossier">
-                <option value="" ${d.responsable ? '' : 'selected'}>— À définir —</option>
-                <option ${d.responsable === 'Bastien ANGLUMENT' ? 'selected' : ''}>Bastien ANGLUMENT</option>
-                <option ${d.responsable === 'Julie VASSELIN' ? 'selected' : ''}>Julie VASSELIN</option>
-                <option ${d.responsable === 'Jérémy SAUJOT' ? 'selected' : ''}>Jérémy SAUJOT</option>
-              </select>
+              <span class="classif-item">📍 <input type="text" class="input-inline champ-adresse-bien" value="${escapeAttr(d.adresseBien || '')}" placeholder="Adresse du bien non détectée" aria-label="Adresse du bien" onblur="changerAdresseBien('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"></span>
+              <span class="classif-item">💶 <input type="text" class="input-inline champ-prix-vente" value="${d.prixVente ? formaterPrix(d.prixVente) : ''}" placeholder="Prix non détecté" aria-label="Prix de vente" onblur="changerPrixVente('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"></span>
+              <span class="classif-item">Type de vente :
+                <select class="select-edit" onchange="changerTypeVente('${d.id}', this.value)" aria-label="Type de vente">
+                  <option value="maison" ${d.typeVente === 'copropriete' ? '' : 'selected'}>Maison</option>
+                  <option value="copropriete" ${d.typeVente === 'copropriete' ? 'selected' : ''}>Copropriété</option>
+                </select>
+              </span>
+              <span class="classif-item">Rôle du notaire :
+                <select class="select-edit" onchange="changerRoleNotaire('${d.id}', this.value)" aria-label="Rôle de l'étude sur ce dossier">
+                  <option value="instrumentaire" ${d.roleNotaire === 'participant' ? '' : 'selected'}>Instrumentaire</option>
+                  <option value="participant" ${d.roleNotaire === 'participant' ? 'selected' : ''}>Participant</option>
+                </select>
+              </span>
+              <span class="classif-item">Responsable :
+                <select class="select-edit" onchange="changerResponsable('${d.id}', this.value)" aria-label="Responsable du dossier">
+                  <option value="" ${d.responsable ? '' : 'selected'}>— À définir —</option>
+                  <option ${d.responsable === 'Bastien ANGLUMENT' ? 'selected' : ''}>Bastien ANGLUMENT</option>
+                  <option ${d.responsable === 'Julie VASSELIN' ? 'selected' : ''}>Julie VASSELIN</option>
+                  <option ${d.responsable === 'Jérémy SAUJOT' ? 'selected' : ''}>Jérémy SAUJOT</option>
+                </select>
+              </span>
             </div>
             ${d.sansPret ? '<span class="badge-cash">💰 Achat comptant — sans prêt</span>' : ''}
             ${d.accesAReconfirmer ? `<div class="offre-pret-ligne"><span class="reconfirmer-acces" onclick="reconfirmerAcces('${d.id}')">Cliquer pour reconfirmer l'accès</span></div>` : ''}
@@ -2749,12 +2788,16 @@
           </div>
         </div>
         <div class="dossier-body">
-        <div class="dossier-col-principale">
         <div class="tabs">
           ${renderTab('pret', 'Obtention du prêt', d.pret, d.id, d.pretPage, confiance.pret, null, d.offrePretStatut === 'recue', offreBloc)}
           ${renderTab('acte', 'Signature de l\u2019acte', d.acte, d.id, d.actePage, confiance.acte)}
           ${d.ventebien ? renderTab('ventebien', 'Vente préalable', d.ventebien, d.id, d.ventebienPage, confiance.ventebien) : ''}
           ${(d.autres || []).map((a, i) => renderTab('autre', escapeHtml(a.label), a.date, d.id, a.page, null, i)).join('')}
+        </div>
+        <div class="dossier-actions">
+          <button onclick="telechargerICS('${d.id}')">Télécharger les rappels (.ics)</button>
+          <button onclick="ouvrirEmailRappel('${d.id}')">Envoyer un rappel par email</button>
+          <button onclick="imprimerFiche('${d.id}')">📄 Télécharger la fiche dossier</button>
         </div>
         ${d.roleNotaire !== 'participant' ? renderPiecesDossier(d) : ''}
         ${(analyse.documents.length > 0 || analyse.engagements.length > 0 || analyseConditions.length > 0) ? `
@@ -2782,20 +2825,12 @@
             </div>
           </details>
         ` : ''}
-        </div>
-        <div class="dossier-col-laterale">
         ${historique.length > 0 ? `
           <button type="button" class="historique-toggle section-eyebrow" onclick="toggleHistorique('${d.id}')">Historique (${historique.length})</button>
           <div class="historique-liste" id="historique-${d.id}">
             ${historique.slice().reverse().map(h => `<div class="historique-ligne"><span class="h-date">${new Date(h.date).toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })}</span>${escapeHtml(h.texte)}</div>`).join('')}
           </div>
         ` : ''}
-        <div class="dossier-actions">
-          <button onclick="telechargerICS('${d.id}')">Télécharger les rappels (.ics)</button>
-          <button onclick="ouvrirEmailRappel('${d.id}')">Envoyer un rappel par email</button>
-          <button onclick="imprimerFiche('${d.id}')">📄 Télécharger la fiche dossier</button>
-        </div>
-        </div>
       </div>
       </div>
     `;
@@ -4115,12 +4150,17 @@
   // ---- raccourcis clavier ----
 
   document.addEventListener('keydown', (e) => {
-    // Échap ferme la boîte de confirmation ouverte.
+    // Échap ferme la boîte de confirmation ouverte, sinon le tiroir de fiche dossier. Dans cet
+    // ordre : la confirmation s'ouvre PAR-DESSUS le tiroir (supprimer/archiver depuis la fiche),
+    // c'est donc elle qu'on attend de voir se fermer en premier.
     if (e.key === 'Escape') {
       const overlay = document.getElementById('confirm-overlay');
       if (overlay && overlay.style.display === 'flex') {
         e.preventDefault();
         annulerConfirmation();
+      } else if (dossierOuvert) {
+        e.preventDefault();
+        fermerDossierDrawer();
       }
       return;
     }

@@ -431,6 +431,19 @@
   </div>
 </div>
 
+<!-- Fiche dossier en tiroir latéral plutôt qu'en dépliant la ligne du tableau : sur une
+     soixantaine de dossiers, déplier une ligne poussait toutes les suivantes plusieurs centaines
+     de pixels plus bas et faisait perdre sa place dans la liste. Le tableau reste immobile, un
+     seul dossier est ouvert à la fois (voir dossierOuvert dans script.js). -->
+<div class="drawer-overlay" id="dossier-drawer-overlay" style="display:none;" onclick="fermerDossierDrawer()">
+  <aside class="drawer-panneau" id="dossier-drawer" role="dialog" aria-modal="true" aria-label="Fiche du dossier" onclick="event.stopPropagation()">
+    <div class="drawer-barre">
+      <button type="button" class="drawer-fermer" onclick="fermerDossierDrawer()" aria-label="Fermer la fiche" title="Fermer (Échap)">✕</button>
+    </div>
+    <div id="dossier-drawer-contenu"></div>
+  </aside>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <!-- Tesseract.js : version flottante @5 (et non un numéro de patch figé comme pour pdf.js
      ci-dessus) car cette mise à jour depuis la v1.0.17 n'a pas pu être testée en conditions
