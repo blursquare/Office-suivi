@@ -2371,7 +2371,7 @@
     const tuiles = [
       ['c-neutre', actifs, actifs > 1 ? 'dossiers actifs' : 'dossier actif'],
       ['c-urgent', urgents, 'échéances ≤ 7 jours'],
-      ['c-pret', manquantes, 'offres de prêt introuvables'],
+      ['c-pret', manquantes, 'offres de prêts en attente'],
       ['c-neutre', aVerifier, 'offres à vérifier']
     ];
     bloc.innerHTML = tuiles.map(([cls, valeur, libelle]) =>

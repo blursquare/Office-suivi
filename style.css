@@ -33,6 +33,10 @@
     --sidebar-border: rgba(22,35,60,0.08);
     --sidebar-shadow: 4px 0 28px rgba(22,35,60,0.07);
     --sidebar-highlight: rgba(255,255,255,0.7);
+    /* Onglet de navigation actif (Tableau de bord/Suivi/Simulateur) : gris foncé neutre, PAS le
+       bleu --focus — réservé exclusivement à .sidebar-cta ("Nouveau dossier") pour que ce raccourci
+       de création reste le seul élément bleu de la sidebar, demandé explicitement par l'étude. */
+    --sidebar-actif-bg: linear-gradient(155deg, #4B5157 0%, #363A3F 100%);
   }
 
   [data-theme="dark"] {
@@ -64,6 +68,8 @@
     --sidebar-border: rgba(255,255,255,0.07);
     --sidebar-shadow: 4px 0 32px rgba(0,0,0,0.4);
     --sidebar-highlight: rgba(255,255,255,0.09);
+    /* Un peu plus clair qu'en mode clair pour rester visible sur le fond de sidebar déjà sombre. */
+    --sidebar-actif-bg: linear-gradient(155deg, #5C6369 0%, #454A50 100%);
   }
 
   * { box-sizing: border-box; }
@@ -377,13 +383,19 @@
      gauche d'une rangée sinon vide. */
   .sidebar-link-icone-seule { width: auto; justify-content: center; }
   .sidebar-link-icone-seule .sidebar-link-icone { width: auto; font-size: 17px; }
-  /* Lien actif en "pilule de verre" (dégradé + liseré clair en haut + ombre portée teintée) plutôt
-     qu'un simple aplat --focus : cohérent avec le reste de la sidebar, et lisible dans les deux
-     thèmes puisque le dégradé reste dans la même famille de bleu que --focus/--focus-hover.
-     .sidebar-cta ("Nouveau dossier") partage exactement le même traitement, mais en permanence —
-     pas seulement quand cet onglet est sélectionné — pour rester un raccourci de création toujours
+  /* Lien actif en "pilule de verre" (dégradé + liseré clair en haut + ombre portée) : gris foncé
+     neutre (--sidebar-actif-bg), PAS le bleu --focus — l'étude a demandé de réserver le bleu au
+     seul bouton "Nouveau dossier" (.sidebar-cta juste après), pour qu'il reste le repère visuel
+     unique de la sidebar plutôt qu'une couleur partagée avec l'onglet simplement sélectionné. */
+  .sidebar-link.actif {
+    background: var(--sidebar-actif-bg);
+    color: #fff;
+    box-shadow: 0 4px 14px -2px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.22);
+  }
+  /* .sidebar-cta ("Nouveau dossier") garde le bleu --focus/--focus-hover, en permanence — pas
+     seulement quand cet onglet est sélectionné — pour rester un raccourci de création toujours
      visible dans la sidebar, demandé par l'étude. */
-  .sidebar-link.actif, .sidebar-link.sidebar-cta {
+  .sidebar-link.sidebar-cta {
     background: linear-gradient(155deg, var(--focus) 0%, var(--focus-hover) 100%);
     color: #fff;
     box-shadow: 0 4px 14px -2px rgba(37,99,235,0.45), inset 0 1px 0 rgba(255,255,255,0.3);

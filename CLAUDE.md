@@ -1835,9 +1835,10 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     de suivre l'onglet réellement affiché) — les deux classes cohabitent sans conflit visuel
     puisqu'elles produisent le même rendu.
   - **"Simulateur provision sur frais" renommé "Simulateur de provision"** dans la sidebar, et
-    **"Offres de prêt introuvables" renommé "Offres de prêts en attente"** sur la tuile KPI du
-    Tableau de bord UNIQUEMENT (`renderKpisDashboard()`) — le bandeau de stats de l'onglet Suivi
-    (`renderStatsSuivi()`) garde son libellé d'origine, pas concerné par la demande.
+    **"Offres de prêt introuvables" renommé "Offres de prêts en attente"** — d'abord sur la seule
+    tuile KPI du Tableau de bord (`renderKpisDashboard()`), puis étendu sur demande explicite au
+    bandeau de stats de l'onglet Suivi (`renderStatsSuivi()`) : les deux portent maintenant le
+    même libellé, une seule formulation pour ce chiffre dans tout l'outil.
   - **Ajout d'une échéance personnalisée après l'enregistrement du dossier**, jusqu'ici possible
     uniquement à la création (`autresEnCours`/`renderAutres()`, étape "Vérifier" du wizard). Un
     bouton "+ Ajouter une échéance" sous la grille `.tabs` du tiroir (`renderAjoutEcheance()`)
@@ -1872,6 +1873,24 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     indépendamment de la recherche de l'offre de prêt. Rien à changer côté code ; à confirmer par
     l'étude si le comportement observé en pratique diffère malgré tout (auquel cas fournir un cas
     précis plutôt qu'une description générale, comme pour tout bug de ce fichier).
+  - **Renommage "Offres de prêt introuvables" → "Offres de prêts en attente" étendu au bandeau de
+    stats de l'onglet Suivi** (`renderStatsSuivi()`), volontairement laissé de côté au premier
+    passage (voir plus haut, qui ne touchait que la tuile KPI du Tableau de bord) — l'étude a
+    ensuite demandé le même renommage aux deux endroits.
+  - **Couleur de l'onglet actif de la sidebar : bleu → gris foncé neutre, le bleu réservé
+    exclusivement à "Nouveau dossier".** Avant ce correctif, `.sidebar-link.actif` et
+    `.sidebar-link.sidebar-cta` (voir juste au-dessus) partageaient la même règle CSS et donc la
+    même couleur bleue — l'étude a demandé de les distinguer pour que le bleu ne signale plus QUE
+    "Nouveau dossier", un onglet simplement sélectionné (Tableau de bord/Suivi/Simulateur) devenant
+    gris foncé. Nouveau token `--sidebar-actif-bg` (dégradé graphite neutre, `#4B5157`→`#363A3F` en
+    clair, légèrement éclairci en sombre `#5C6369`→`#454A50` pour rester visible sur le fond de
+    sidebar déjà sombre) — délibérément un gris neutre sans teinte bleue, cohérent avec la décision
+    de longue date "palette du mode sombre en gris neutres, pas de navy". Les deux règles
+    (`.actif`/`.sidebar-cta`), jusque-là fusionnées en une seule, sont séparées ; l'ombre portée de
+    `.actif` perd aussi sa teinte bleue (`rgba(37,99,235,...)` → `rgba(0,0,0,...)`), celle de
+    `.sidebar-cta` reste inchangée. Vérifié visuellement (Playwright, clair et sombre) : "Nouveau
+    dossier" reste bleu en permanence, l'onglet sélectionné (testé sur "Suivi des dossiers") est
+    bien gris foncé dans les deux thèmes.
 
 ## Comment tester
 
