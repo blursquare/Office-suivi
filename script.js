@@ -2838,7 +2838,7 @@
         <div class="dossier-actions">
           <button onclick="telechargerICS('${d.id}')" title="Télécharger les rappels (.ics)">📅 Rappels (.ics)</button>
           <button onclick="ouvrirEmailRappel('${d.id}')" title="Envoyer un rappel par email">✉️ Rappel email</button>
-          <button onclick="imprimerFiche('${d.id}')" title="Télécharger la fiche dossier">📄 Fiche dossier</button>
+          <button onclick="imprimerFiche('${d.id}')" title="Télécharger la fiche dossier imprimable">📄 Imprimer</button>
         </div>
         ${historique.length > 0 ? `
           <button type="button" class="historique-toggle section-eyebrow" onclick="toggleHistorique('${d.id}')">Historique (${historique.length})</button>

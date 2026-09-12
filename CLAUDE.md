@@ -1176,7 +1176,7 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     échéances → pièces du dossier → analyse juridique → les trois boutons d'action → historique,
     ces deux derniers repliés. (Les actions ont d'abord été placées juste sous les échéances ; sur
     retour de l'étude elles sont redescendues au-dessus de l'historique, et leurs libellés ont été
-    raccourcis — « 📅 Rappels (.ics) », « ✉️ Rappel email », « 📄 Fiche dossier », intitulé complet
+    raccourcis — « 📅 Rappels (.ics) », « ✉️ Rappel email », « 📄 Imprimer », intitulé complet
     conservé en infobulle — pour tenir sur une seule ligne comme demandé : `.dossier-actions` passe
     en `flex-wrap: nowrap` avec trois boutons à largeurs égales, ce qui les fait aussi lire comme un
     bloc plutôt que trois pastilles de longueurs disparates.) `.tabs` passe à `minmax(200px, 1fr)` dans le tiroir (deux échéances par
