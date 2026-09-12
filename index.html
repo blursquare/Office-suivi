@@ -16,7 +16,7 @@
 
 <div class="app-shell">
 
-  <button type="button" class="sidebar-burger" id="sidebar-burger" onclick="toggleSidebarMobile()" aria-label="Ouvrir le menu">☰</button>
+  <button type="button" class="sidebar-burger" id="sidebar-burger" onclick="toggleSidebarMobile()" aria-label="Ouvrir le menu"><span id="icon-burger"></span></button>
   <div class="sidebar-scrim" id="sidebar-scrim" onclick="toggleSidebarMobile(false)"></div>
 
   <aside class="sidebar" id="sidebar">
@@ -34,22 +34,22 @@
 
     <nav class="sidebar-nav" role="tablist" aria-label="Sections de l'application">
       <button type="button" id="tab-dashboard" class="sidebar-link actif" role="tab" aria-selected="true" onclick="definirOnglet('dashboard')">
-        <span class="sidebar-link-icone" aria-hidden="true">◧</span>Tableau de bord
+        <span class="sidebar-link-icone" id="icon-nav-dashboard" aria-hidden="true"></span>Tableau de bord
       </button>
       <button type="button" id="tab-nouveau" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('nouveau')">
-        <span class="sidebar-link-icone" aria-hidden="true">＋</span>Nouveau dossier
+        <span class="sidebar-link-icone" id="icon-nav-nouveau" aria-hidden="true"></span>Nouveau dossier
       </button>
       <button type="button" id="tab-suivi" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('suivi')">
-        <span class="sidebar-link-icone" aria-hidden="true">☰</span>Suivi des dossiers
+        <span class="sidebar-link-icone" id="icon-nav-suivi" aria-hidden="true"></span>Suivi des dossiers
       </button>
     </nav>
 
     <div class="sidebar-footer">
       <button type="button" class="sidebar-link install-btn" id="install-btn" style="display:none;" onclick="installerApplication()">
-        <span class="sidebar-link-icone" aria-hidden="true">⇩</span>Installer l'application
+        <span class="sidebar-link-icone" id="icon-install" aria-hidden="true"></span>Installer l'application
       </button>
       <button type="button" class="sidebar-link sidebar-link-icone-seule" id="theme-btn" onclick="basculerTheme()" aria-label="Basculer le thème clair/sombre" title="Basculer le thème clair/sombre">
-        <span class="sidebar-link-icone" aria-hidden="true">🌙</span>
+        <span class="sidebar-link-icone" id="icon-theme" aria-hidden="true"></span>
       </button>
     </div>
   </aside>
@@ -69,12 +69,12 @@
 
   <div class="dash-grid">
     <div class="dash-col">
-      <div class="dash-section-titre">🔥 Actions urgentes</div>
+      <div class="dash-section-titre">Actions urgentes</div>
       <div id="actions-urgentes" class="actions-urgentes"></div>
     </div>
     <div class="dash-col">
       <div id="dashboard" class="dashboard" style="display:none;">
-        <div class="dashboard-titre">📅 Échéances des 7 prochains jours</div>
+        <div class="dashboard-titre">Échéances des 7 prochains jours</div>
         <div id="dashboard-liste"></div>
       </div>
     </div>
@@ -110,11 +110,10 @@
         <div class="extract-box">
           <label for="f-pdf">Importer le PDF du compromis</label>
           <div class="pdf-dropzone" id="pdf-dropzone" ondragover="gererSurvolDepot(event)" ondragleave="gererQuitteDepot(event)" ondrop="gererDepotPdf(event)">
-            <div class="pdf-row">
-              <label for="f-pdf" class="file-btn">Choisir un fichier PDF</label>
-              <input type="file" id="f-pdf" accept="application/pdf" onchange="gererUploadPdf(event)">
-              <span class="pdf-dropzone-hint">ou glissez-déposez le fichier ici</span>
-            </div>
+            <span class="pdf-dropzone-icone" id="icon-dropzone" aria-hidden="true"></span>
+            <label for="f-pdf" class="file-btn">Choisir un fichier PDF</label>
+            <input type="file" id="f-pdf" accept="application/pdf" onchange="gererUploadPdf(event)">
+            <span class="pdf-dropzone-hint">ou glissez-déposez le fichier ici</span>
           </div>
           <div id="pdf-status" class="pdf-status"></div>
           <div class="progress-bar" id="pdf-progress"><div class="progress-bar-fill" id="pdf-progress-fill"></div></div>
@@ -304,6 +303,23 @@
 
 </div>
 
+<!-- Visible tant qu'aucun PDF n'a été importé (l'aperçu #pdf-viewer, sinon vide et masqué, prend
+     alors sa place — voir traiterFichierPdf()/reinitialiserFormulaire() dans script.js) : sans ce
+     panneau, la colonne de droite restait entièrement nue sur tout écran large avant le premier
+     import, ce qui donnait l'impression d'une page inachevée plutôt que sobre. Contenu réel (ce
+     que l'outil détecte effectivement), pas un habillage décoratif. -->
+<aside class="pdf-viewer nouveau-intro" id="nouveau-intro">
+  <div class="nouveau-intro-titre">Ce que CLAIRE repère automatiquement</div>
+  <ul class="nouveau-intro-liste">
+    <li><span class="nouveau-intro-icone" id="icon-intro-dates" aria-hidden="true"></span>Les dates butoir (prêt, acte, vente préalable)</li>
+    <li><span class="nouveau-intro-icone" id="icon-intro-doc" aria-hidden="true"></span>Les engagements et documents attendus du vendeur</li>
+    <li><span class="nouveau-intro-icone" id="icon-intro-pieces" aria-hidden="true"></span>Le type de vente, pour la checklist de pièces à réunir</li>
+    <li><span class="nouveau-intro-icone" id="icon-intro-mail" aria-hidden="true"></span>L'email de l'acquéreur, pour les relances</li>
+    <li><span class="nouveau-intro-icone" id="icon-intro-adresse" aria-hidden="true"></span>L'adresse du bien et le prix de vente</li>
+  </ul>
+  <p class="nouveau-intro-note">Chaque valeur reste à vérifier et modifiable avant l'enregistrement. Seul le compromis est lu, sans ses annexes ; le PDF reste sur ce poste.</p>
+</aside>
+
 <aside class="pdf-viewer" id="pdf-viewer">
   <div class="pdf-viewer-header">
     <div class="pdf-viewer-title" id="pdf-viewer-title">Aperçu du compromis</div>
@@ -378,7 +394,7 @@
     </label>
     <span class="toolbar-spacer"></span>
     <span id="statut-partage" class="statut-partage" style="display:none;"></span>
-    <button type="button" class="toolbar-btn" id="btn-registre-partage" onclick="lierRegistrePartage()">🔗 Registre partagé (réseau)</button>
+    <button type="button" class="toolbar-btn" id="btn-registre-partage" onclick="lierRegistrePartage()">Registre partagé (réseau)</button>
   </div>
 
   <div id="dossier-list"></div>
@@ -423,7 +439,7 @@
      demande de permission navigateur, ce qui exige ce clic explicite (voir reconfirmerTousLesAcces). -->
 <div class="confirm-overlay" id="popup-acces-overlay" style="display:none;">
   <div class="confirm-box">
-    <p id="popup-acces-message">🔑 L'accès à des dossiers reliés doit être reconfirmé.</p>
+    <p id="popup-acces-message">L'accès à des dossiers reliés doit être reconfirmé.</p>
     <div class="confirm-actions">
       <button type="button" class="btn-annuler" onclick="fermerPopupAcces()">Plus tard</button>
       <button type="button" class="btn-confirmer" onclick="reconfirmerDepuisPopup()">Reconfirmer maintenant</button>

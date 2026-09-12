@@ -1200,6 +1200,102 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     subsiste entre le tiroir et la ligne dont il vient. Peint en `background-image` comme le filet
     de ligne (voir la passe typographique ci-dessus) et non en `border-left`, qui décalerait le
     contenu de la cellule d'un pixel à l'ouverture.
+- **Refonte visuelle complète, demandée explicitement par l'étude après un avis critique honnête
+  sur quatre points ("Que penses-tu de notre dernière version, côté design ?")** : trop d'emoji en
+  guise d'icônes, empilement de badges à fond plein qui finissaient par ne plus rien faire
+  ressortir, du vide non maîtrisé sur écran large, et une typographie de caractère (Fraunces)
+  presque invisible en dehors de deux titres de page. Demande explicite : "prends tes propres
+  décisions, pas d'IA slop, design propre/cohérent/aligné/moderne 2026, tu peux changer la
+  disposition". Traité en un seul chantier plutôt qu'en sous-tâches séparées, les quatre points
+  se recoupant (retirer un emoji est aussi souvent retirer un badge).
+  - **Un seul jeu d'icônes SVG, dessiné à la main** (`ICONES`/`icone(nom, cls, spin)` dans
+    `script.js`, tout en haut du fichier) remplace l'ensemble des emoji utilisés comme icônes dans
+    l'interface (🔥 🔒 ⚠️ 📄 ✉️ 🔗 💰 📍 🧠 👁 📋 🤝 ☰ ⏳ ✏️ 🌙 ☀️ 📁 🔎 🔑 📲 ⇩ ＋ ◧...), qui n'ont ni la
+    même épaisseur de trait ni le même dessin d'un système d'exploitation à l'autre. Grille 16x16,
+    trait 1.4, extrémités arrondies — même recette que `iconeCalendrierSeuil()` (déjà en place, non
+    retouchée) pour ne pas juxtaposer deux langages graphiques. `.icone` (style.css) les dimensionne
+    en `1em` : une icône suit la taille de police du bouton/texte qui la contient, sans réglage au
+    cas par cas à chaque usage. `.icone-spin` (rotation continue, respecte
+    `prefers-reduced-motion`) remplace l'emoji ⏳ sur les boutons "Revérifier" en cours de recherche
+    par un vrai indicateur de chargement.
+    - Les icônes statiques du HTML (sidebar, burger mobile, dropzone, panneau d'introduction)
+      passent par des emplacements vides (`<span id="icon-...">`) remplis au chargement par
+      `initIconesStatiques()` — un point d'entrée unique, pour ne jamais dupliquer le dessin d'une
+      icône entre le HTML et `ICONES`. Tout le reste de l'interface étant déjà rendu depuis
+      `script.js` (voir la structure du projet en tête de ce document), c'est cohérent avec
+      l'architecture existante plutôt qu'une exception.
+    - Deux caractères conservés tels quels, volontairement : ✓/✕ (coche et croix typographiques,
+      pas des pictogrammes photoréalistes, déjà cohérents entre eux et avec le reste) et € (symbole
+      monétaire, pas une icône). Le "+"/"←"/"→" des boutons et libellés restent aussi du texte brut
+      — ce sont des caractères ASCII/flèches ordinaires, pas le genre de pictogramme visé par la
+      critique initiale.
+  - **`.dot-label` : un seul langage de statut dans tout l'outil**, remplaçant l'empilement de
+    composants qui disaient chacun la même chose à leur façon (`badge-statut`, `badge-offre`,
+    `type-pill`, `badge-confiance`, `badge-apprise`, `badge-approx`, `badge-role`, `badge-cash`,
+    chacun avec sa propre pastille à fond plein). Un point de couleur (ou une icône) + un mot, sans
+    fond ni contour par défaut : sur une ligne du tableau Suivi, empiler 3-4 pastilles pleines
+    finissait par ne plus rien faire ressortir, alors qu'un point de couleur + texte se lit d'un
+    coup d'œil sans rivaliser avec ses voisins. Né de `.offre-puce` (déjà construit sur ce principe
+    pour le statut de l'offre de prêt dans le tiroir), généralisé ici à tous les autres badges de
+    l'outil plutôt que dupliqué pour chacun — `.offre-puce`/`.offre-point` disparaissent, remplacés
+    partout par `.dot-label`/`.dot` (modificateurs `dl-pret`/`dl-acte`/`dl-ventebien`/
+    `dl-success`/`dl-urgent`/`dl-neutre`/`dl-autre`).
+    - **Un seul cas garde un fond plein** (`.dl-alerte`, amber-urgent) : la date choisie parmi
+      plusieurs candidates sans formulation permettant de trancher ("incertain"/"à vérifier") doit
+      rester la chose qui saute aux yeux — décolorer ce signal-là en même temps que les autres
+      aurait perdu l'intention initiale du badge "⚠️ à vérifier" (voir son historique plus haut).
+    - **Le badge de confiance "auto" (date repérée sans ambiguïté) est retiré entièrement**, pas
+      seulement redessiné : c'était le cas par défaut, affiché sur quasiment CHAQUE date de CHAQUE
+      dossier ("📄 texte" en fond vert). Lui donner le même traitement visuel que les trois
+      exceptions réelles (manuel/estimée/incertaine) revenait à mettre un badge sur tout, ce qui
+      n'attire l'attention sur rien de particulier — la meilleure façon de désencombrer une
+      information qui ne dit rien d'anormal est de ne pas l'afficher, pas de la redessiner plus
+      discrètement.
+    - **Le badge de priorité (🔥, sur la ligne du tableau) est retiré, pas seulement redessiné en
+      icône** : trois autres signaux couvrent déjà exactement ce que lui seul signalait — le badge
+      de statut "Blocage" (rouge), le tri "Priorité (recommandé)" déjà proposé dans le menu, et le
+      bloc "Actions urgentes" du tableau de bord qui liste déjà les dossiers de score élevé avec la
+      raison. `calculerPriorite()`/`SEUIL_PRIORITE_ELEVEE` restent utilisés par ces deux derniers,
+      seul l'affichage redondant sur la ligne disparaît.
+    - **`statutOffreAffichage(d)`** (script.js, remplace `libelleOffre()`) unifie le texte affiché
+      pour le statut de l'offre de prêt entre la ligne de tableau et la carte "Obtention du prêt"
+      du tiroir — avant cette fonction, chacun formulait le même fait à sa façon ("Offre de prêt :
+      à vérifier" en phrase complète d'un côté, "Non vérifiée" en point + mot de l'autre). Elle
+      applique aussi au tableau la distinction déjà présente dans le tiroir entre "jamais relié"
+      (gris, "Non vérifiée") et "relié mais introuvable" (amber, "Introuvable") — le tableau ne
+      faisait pas cette différence avant, une correction de cohérence au passage.
+    - `renderBadgeStatut()` garde un cas particulier pour l'archive : un point de couleur dirait
+      "actif" alors que le dossier ne l'est plus, donc ce statut affiche l'icône `lock` plutôt
+      qu'un point — seule exception au principe "point de couleur" du composant.
+  - **Deux endroits où le vide n'était pas maîtrisé, sur un écran large** :
+    - **Étape "Importer" du wizard "Nouveau dossier"** : avant tout import de PDF, la colonne de
+      droite (`#pdf-viewer`, masquée tant qu'aucun document n'est chargé) restait entièrement nue.
+      `#nouveau-intro` (nouveau panneau statique dans `index.html`, classe `.pdf-viewer.nouveau-intro`
+      pour hériter du même gabarit sticky/carte) occupe cette place tant qu'aucun PDF n'est
+      importé : une liste de ce que l'outil détecte effectivement (dates, engagements, type de
+      vente, email, adresse/prix), pas un habillage décoratif. Basculé par `traiterFichierPdf()`
+      (masqué dès qu'un PDF est chargé) et `reinitialiserFormulaire()` (réaffiché après
+      enregistrement), aux deux mêmes points qui géraient déjà `#pdf-viewer`.
+    - **Dropzone** : reconstruite en zone verticale centrée (icône `upload` dans un cercle, bouton,
+      indication du glisser-déposer, padding généreux) plutôt que l'ancienne ligne compacte
+      (bouton + texte côte à côte), qui laissait la carte "Nouveau dossier" visuellement à moitié
+      vide dès le premier écran. `.pdf-row` (devenu inutile) supprimé.
+    - **Bug corrigé au passage, trouvé en re-régénérant les captures d'écran des deux thèmes** :
+      `.extract-box` (le cadre autour de la dropzone) utilisait un beige fixe `#F4F5F0` jamais
+      recouvert par un override dark — en mode sombre, ce panneau restait clair, seul îlot du genre
+      dans tout l'outil. Remplacé par `var(--paper-sunk)`, qui suit le thème comme les autres
+      panneaux enfoncés (`.pieces-dossier`...).
+  - **Le nom du dossier dans la ligne de tableau passe en Fraunces** (`.ligne-resume
+    .dossier-nom-tableau`), comme il l'était déjà dans la fiche dépliée du tiroir (`.nom-texte`,
+    imbriqué dans un `<h3>`) : la police de caractère de l'identité "CLAIRE" ne portait jusqu'ici
+    que sur deux titres de page, quasi invisible dans l'usage réel de l'outil (consulter la liste
+    des dossiers). C'est justement ce qu'on lit en premier sur l'écran le plus consulté.
+  - **Volontairement non touché** : la palette (accent bleu `--focus`, couleurs de catégorie
+    `--pret`/`--acte`/`--ventebien`, gris neutres du mode sombre), déjà validée par l'étude lors des
+    deux refontes précédentes — la demande portait sur la facture (icônes, badges, espace,
+    typographie), pas sur les couleurs. Le tiroir latéral, la mise en page de la fiche dossier et
+    le wizard 4 étapes ne sont pas non plus restructurés, seulement leurs éléments visuels
+    (badges, icônes) mis à jour en place.
 
 ## Comment tester
 

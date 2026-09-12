@@ -68,6 +68,17 @@
 
   * { box-sizing: border-box; }
 
+  /* ---- icônes ----
+     Un seul jeu (voir ICONES/icone() dans script.js) : dimensionnées en 1em pour suivre la taille
+     de police du bouton/texte qui les contient, -0.15em pour recentrer verticalement sur la ligne
+     de base du texte voisin (un SVG s'aligne sinon sur son propre bas, plus bas que le texte). */
+  .icone { width: 1em; height: 1em; flex: none; vertical-align: -0.15em; }
+  .icone-spin { animation: icone-spin 0.8s linear infinite; }
+  @keyframes icone-spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) {
+    .icone-spin { animation-duration: 2.4s; }
+  }
+
   body {
     margin: 0;
     background: var(--paper);
@@ -151,6 +162,42 @@
     align-items: center;
     gap: 14px;
     scroll-behavior: smooth;
+  }
+
+  /* ---- panneau d'introduction (étape "Importer", avant tout PDF chargé) ----
+     Occupe la même colonne que l'aperçu PDF (#pdf-viewer, voir juste au-dessus), affiché tant
+     qu'aucun document n'a été importé — sans lui cette colonne restait entièrement vide sur un
+     écran large, ce qui se lisait comme une page inachevée plutôt que sobre (voir CLAUDE.md). Un
+     contenu réel plutôt qu'un habillage : ce que l'outil détecte effectivement. */
+  .pdf-viewer.nouveau-intro { display: flex; gap: 4px; }
+  .nouveau-intro-titre {
+    font-family: 'Fraunces', 'Poppins', 'Segoe UI', serif;
+    font-weight: 600;
+    font-size: 17px;
+    margin-bottom: 8px;
+  }
+  .nouveau-intro-liste { list-style: none; margin: 0 0 14px; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+  .nouveau-intro-liste li { display: flex; align-items: flex-start; gap: 10px; font-size: 13.5px; color: var(--ink-soft); line-height: 1.4; }
+  .nouveau-intro-icone {
+    display: inline-flex;
+    flex: none;
+    width: 26px;
+    height: 26px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 7px;
+    background: var(--acte-bg);
+    color: var(--acte);
+    font-size: 13px;
+    margin-top: 1px;
+  }
+  .nouveau-intro-note {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+    padding-top: 12px;
+    border-top: 1px solid var(--line-soft);
+    margin: auto 0 0;
   }
 
   .pdf-page-bloc {
@@ -705,10 +752,13 @@
   }
 
   .extract-box {
-    background: #F4F5F0;
-    border: 1px dashed var(--line);
-    border-radius: 3px;
-    padding: 14px 16px;
+    /* Fond neutre dérivé du thème (var(--paper-sunk)) plutôt que le beige fixe #F4F5F0 d'origine :
+       ce dernier ne changeait jamais avec le thème et tranchait sur le mode sombre — un panneau
+       clair flottant sur fond sombre, jamais corrigé faute de dark override dédié. */
+    background: var(--paper-sunk);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 20px;
     margin-top: 20px;
   }
 
@@ -798,22 +848,37 @@
   .mini-btn.suggested.ventebien { background: var(--ventebien-bg); border-color: var(--ventebien); color: var(--ventebien); font-weight: 600; }
   .mini-btn.suggested.autre { background: var(--line-soft); border-color: var(--muted); color: var(--ink-soft); font-weight: 600; }
 
-  .pdf-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-
+  /* Dropzone verticale et centrée (icône, bouton, indication du glisser-déposer) plutôt que la
+     ligne compacte d'origine (bouton + texte côte à côte) : une zone de dépôt trop petite pour ce
+     qu'elle représente ne se lit pas comme une cible, et laissait la carte "Nouveau dossier" à
+     moitié vide au premier coup d'œil. */
   .pdf-dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    text-align: center;
     border: 2px dashed var(--line);
-    border-radius: 4px;
-    padding: 14px;
+    border-radius: 8px;
+    padding: 36px 20px;
+    background: var(--paper-card);
     transition: border-color 0.15s, background 0.15s;
   }
   .pdf-dropzone.survol {
     border-color: var(--focus);
     background: var(--acte-bg);
+  }
+  .pdf-dropzone-icone {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--acte-bg);
+    color: var(--focus);
+    font-size: 19px;
+    margin-bottom: 4px;
   }
 
   .pdf-dropzone-hint {
@@ -1390,68 +1455,12 @@
   }
   .toast-undo:hover { text-decoration: underline; }
 
-  /* ---- badges de confiance ---- */
-  .badge-confiance {
-    display: inline-block;
-    font-size: 10.5px;
-    font-weight: 600;
-    padding: 1px 6px;
-    border-radius: 8px;
-    margin-left: 6px;
-    vertical-align: middle;
-    /* La pastille passe entière à la ligne plutôt que de couper son libellé en deux : dans la
-       largeur d'une échéance du tiroir, « ⚠️ à vérifier » se scindait en « ⚠️ à » / « vérifier ». */
-    white-space: nowrap;
-  }
-  .badge-confiance.auto { background: var(--success-bg); color: var(--success); }
-  .badge-confiance.manuel { background: var(--pret-bg); color: var(--pret); }
-  /* Calculée (fin de mois arrondie, délai relatif) plutôt que lue telle quelle dans le texte : même
-     amber que "manuel" (une date à vérifier reste une date à vérifier), pas une couleur inventée. */
-  .badge-confiance.estime { background: var(--pret-bg); color: var(--pret); }
-  /* Choisie parmi plusieurs dates candidates de même catégorie (ex. une échéance de prêt et une
-     citation de loi toutes deux au fil du texte) : contrairement à "auto", aucune clause au futur
-     ("au plus tard le"...) ne permettait de trancher sans ambiguïté — à vérifier avant les autres.
-     Même couleur que --urgent (déjà réservée à l'alerte), sans fond inventé pour l'occasion. */
-  .badge-confiance.incertain { background: transparent; color: var(--urgent); border: 1px solid var(--urgent); }
-
-  /* ---- badge de statut du dossier (synthèse "où en est ce dossier ?") ---- */
-  .badge-statut {
-    display: inline-block;
-    font-size: 11px;
-    font-weight: 600;
-    padding: 2px 8px;
-    border-radius: 10px;
-    margin-right: 8px;
-    vertical-align: middle;
-    white-space: nowrap;
-  }
-  .badge-statut.statut-pret { background: var(--success-bg); color: var(--success); }
-  /* Même amber que .badge-offre.manquante : "à surveiller", pas encore "--urgent" (réservé au
-     blocage et aux échéances proches). */
-  .badge-statut.statut-aconfirmer { background: var(--pret-bg); color: var(--pret); }
-  .badge-statut.statut-blocage { background: transparent; color: var(--urgent); border: 1px solid var(--urgent); }
-  .badge-statut.statut-archive { background: var(--line-soft); color: var(--ink-soft); }
-
-  .badge-apprise {
-    display: inline-block;
-    font-size: 10.5px;
-    font-weight: 600;
-    padding: 1px 6px;
-    border-radius: 8px;
-    background: var(--line-soft);
-    color: var(--ink-soft);
-    white-space: nowrap;
-  }
-  .badge-approx {
-    display: inline-block;
-    font-size: 10.5px;
-    font-weight: 600;
-    padding: 1px 6px;
-    border-radius: 8px;
-    background: var(--pret-bg);
-    color: var(--pret);
-    white-space: nowrap;
-  }
+  /* ---- badges de confiance / statut du dossier / appris / estimé ----
+     Tous en .dot-label désormais (voir sa définition plus bas, section "tab-offre-pret") : ce
+     bloc n'a donc plus besoin de dupliquer taille/graisse/fond pour chacun. `.dossier-nom-tableau`
+     et `.nom-affichage` placent le badge de statut juste avant le nom du dossier — la marge qui
+     séparait les deux vient d'eux, pas du badge lui-même. */
+  .dossier-nom-tableau .dot-label, .nom-affichage .dot-label { margin-right: 8px; }
 
   /* Intitulé de section en petites capitales espacées, partagé par les blocs de la fiche dossier
      (pièces, historique) et les tuiles de chiffres (.kpi-label / .stat-label reprennent la même
@@ -1504,19 +1513,6 @@
     margin-top: 4px;
   }
 
-  .badge-offre {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 11px;
-    font-weight: 600;
-    padding: 2px 9px;
-    border-radius: 10px;
-    margin-left: 8px;
-  }
-  .badge-offre.recue { background: var(--success-bg); color: var(--success); }
-  .badge-offre.manquante { background: var(--pret-bg); color: var(--pret); }
-  .badge-offre.inconnu { background: var(--line-soft); color: var(--muted); }
 
   .lien-dossier-local {
     font-size: 12px;
@@ -1614,7 +1610,16 @@
     background-position: bottom, 0 0;
   }
   .ligne-resume.est-archive { opacity: 0.65; }
-  .ligne-resume .dossier-nom-tableau { font-weight: 600; color: var(--ink); }
+  /* Même famille que .nom-texte (fiche dépliée dans le tiroir) : la seule occasion, dans tout le
+     tableau, de faire porter un peu de caractère éditorial à l'identité "CLAIRE" plutôt que de la
+     réserver aux titres de page — le nom du dossier est justement ce qu'on lit en premier sur
+     l'écran le plus consulté de l'outil. */
+  .ligne-resume .dossier-nom-tableau {
+    font-family: 'Fraunces', 'Poppins', 'Segoe UI', serif;
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--ink);
+  }
   /* Même taille que .echeance-jours (12px) sur la même ligne — demandé par l'étude, le nom du
      responsable ressortait visuellement plus gros que les dates à côté. */
   .ligne-resume .dossier-responsable-tableau { color: var(--ink-soft); font-size: 12px; }
@@ -1637,26 +1642,6 @@
   }
   .action-rapide:hover { border-color: var(--focus); color: var(--focus); }
 
-  .type-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 11.5px;
-    font-weight: 600;
-    padding: 2px 8px 2px 6px;
-    border-radius: 20px;
-    white-space: nowrap;
-  }
-  .type-pill .dot { width: 6px; height: 6px; border-radius: 50%; }
-  .type-pill.pret { background: var(--pret-bg); color: var(--pret); }
-  .type-pill.pret .dot { background: var(--pret); }
-  .type-pill.acte { background: var(--acte-bg); color: var(--acte); }
-  .type-pill.acte .dot { background: var(--acte); }
-  .type-pill.ventebien { background: var(--ventebien-bg); color: var(--ventebien); }
-  .type-pill.ventebien .dot { background: var(--ventebien); }
-  .type-pill.autre { background: var(--line-soft); color: var(--muted); }
-  .type-pill.autre .dot { background: var(--muted); }
-
   .echeance-jours { font-size: 12px; margin-left: 6px; font-variant-numeric: tabular-nums; }
   .echeance-jours.urgent { color: var(--urgent); font-weight: 600; }
   .echeance-jours.calme { color: var(--ink-soft); }
@@ -1672,23 +1657,6 @@
       linear-gradient(var(--paper-sunk), var(--paper-sunk));
     background-size: 100% 1px, 100% 100%, 100% 100%;
     background-position: bottom, 0 0, 0 0;
-  }
-
-  /* Couleur réservée à --urgent, déjà utilisée pour les échéances proches : un dossier
-     "prioritaire" combine échéance proche, offre manquante et/ou accès à reconfirmer, donc
-     réutilise ce même code plutôt que d'en inventer un nouveau. */
-  .badge-prioritaire {
-    display: inline-flex;
-    align-items: center;
-    font-size: 10.5px;
-    font-weight: 700;
-    color: var(--urgent);
-    border: 1px solid var(--urgent);
-    border-radius: 20px;
-    padding: 1px 8px;
-    margin-left: 8px;
-    vertical-align: middle;
-    white-space: nowrap;
   }
 
   /* ---- tiroir latéral de la fiche dossier ----
@@ -1920,30 +1888,12 @@
   .apport-cercle.apport-pret { background: var(--pret); }
   .apport-cercle.apport-urgent { background: var(--urgent); }
 
-  .badge-cash {
-    display: inline-block;
-    margin-top: 6px;
-    font-size: 12px;
-    font-weight: 600;
-    padding: 2px 9px;
-    border-radius: 10px;
-    background: var(--pret-bg);
-    color: var(--pret);
-  }
-
-  /* Rôle de l'étude sur le dossier (notaire instrumentaire, par défaut, n'affiche rien — seule
-     l'exception "participant" est signalée, comme .badge-cash ne s'affiche que pour l'exception
-     "sans prêt"). Gris neutre : simple métadonnée, pas une alerte. */
-  .badge-role {
-    display: inline-block;
-    font-size: 11px;
-    font-weight: 600;
-    padding: 2px 8px;
-    border-radius: 10px;
-    margin-left: 8px;
-    background: var(--line-soft);
-    color: var(--ink-soft);
-  }
+  /* "Achat comptant" (.badge-cash) et "Participant" (.badge-role) : simples métadonnées, pas des
+     alertes — .dot-label dl-neutre (voir plus haut), pas de fond inventé pour l'occasion. Marge
+     de séparation propre à leur position dans la classification, portée par ces classes plutôt
+     que par .dot-label lui-même. */
+  .badge-cash { margin-top: 6px; }
+  .badge-role { margin-left: 4px; }
 
   .icon-btn {
     background: none;
@@ -2063,35 +2013,52 @@
      qu'il concerne que son ancienne place dans l'en-tête du dossier. */
   .tab-offre-pret { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 
-  /* Statut de l'offre sous la date : une puce colorée + un mot, pas la phrase complète du badge
-     `.badge-offre` utilisé ailleurs — le décompte juste au-dessus dit déjà "✓ Offre reçue", et
-     répéter la phrase en dessous était le doublon signalé par l'étude. Reçue : c'est un <button>
-     (ouvre le fichier trouvé) ; les autres statuts, un <span> — rien à ouvrir. */
-  .offre-puce {
+  /* ---- .dot-label : langage unique de statut dans tout l'outil ----
+     Un point (ou une icône) coloré + un mot, jamais de fond ni de contour par défaut — remplace
+     l'empilement de composants qui disaient chacun la même chose à leur façon (badge-statut,
+     badge-offre, type-pill, badge-confiance, badge-apprise, badge-role, badge-cash, chacun avec
+     sa propre pastille pleine). Sur une ligne du tableau, empiler 3-4 pastilles à fond plein finit
+     par ne plus rien faire ressortir ; un point de couleur + texte se lit d'un coup d'œil sans
+     rivaliser avec ses voisins. Un seul cas garde un fond plein (.dl-alerte) : l'ambiguïté à
+     vérifier en priorité doit rester la chose qui saute aux yeux sur la ligne.
+     Née de .offre-puce (statut de l'offre de prêt, voir .tab-offre-pret ci-dessus), généralisée
+     ici à tous les autres badges de statut de l'outil plutôt que dupliquée pour chacun. */
+  .dot-label {
     display: inline-flex;
     align-items: center;
     gap: 6px;
     font-family: inherit;
-    font-size: 11.5px;
+    font-size: 12px;
     font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
     color: var(--ink-soft);
     background: none;
     border: none;
     padding: 0;
   }
-  button.offre-puce { cursor: pointer; }
-  button.offre-puce:hover { text-decoration: underline; text-underline-offset: 2px; }
-  .offre-point {
-    width: 8px;
-    height: 8px;
+  button.dot-label { cursor: pointer; }
+  button.dot-label:hover { text-decoration: underline; text-underline-offset: 2px; }
+  .dot-label .dot {
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
     flex: none;
-    background: var(--muted);
+    background: currentColor;
   }
-  .offre-puce.recue .offre-point { background: var(--success); }
-  .offre-puce.recue { color: var(--success); }
-  .offre-puce.manquante .offre-point { background: var(--pret); }
-  .offre-puce.manquante { color: var(--pret); }
+  .dot-label .icone { flex: none; }
+  .dot-label.dl-neutre, .dot-label.dl-autre { color: var(--muted); }
+  .dot-label.dl-pret { color: var(--pret); }
+  .dot-label.dl-acte { color: var(--acte); }
+  .dot-label.dl-ventebien { color: var(--ventebien); }
+  .dot-label.dl-success { color: var(--success); }
+  .dot-label.dl-urgent { color: var(--urgent); }
+  .dot-label.dl-alerte {
+    color: var(--urgent);
+    background: color-mix(in srgb, var(--urgent) 12%, transparent);
+    padding: 2px 8px 2px 6px;
+    border-radius: 10px;
+  }
 
   /* Les trois actions tiennent sur une seule ligne (demandé par l'étude), à largeurs égales :
      flex-wrap est désactivé et chaque bouton prend le tiers de la place, ce qui les fait aussi

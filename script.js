@@ -23,6 +23,49 @@
   let approxParType = { pret: false, acte: false, ventebien: false };
   let analyseJuridiqueActuelle = { documents: [], engagements: [], conditions: [] };
 
+  // ---- icônes ----
+  // Un seul jeu d'icônes, dessiné à la main, pour toute l'application — remplace les emoji semés
+  // au fil des évolutions successives (🔥 🔒 ⚠️ 📄 ✉️ 🔗 💰 📍 🧠 👁 📋 🤝 ☰ ⏳...), qui n'ont ni la
+  // même épaisseur de trait ni le même style entre eux et changent de dessin d'un système
+  // d'exploitation à l'autre. Grille 16x16, trait 1.4, extrémités arrondies — même recette que
+  // iconeCalendrierSeuil() (déjà en place, voir plus bas) pour ne pas juxtaposer deux langages
+  // graphiques. Dimensionnées en 1em (voir .icone dans style.css) : une icône suit la taille de
+  // police du texte/bouton qui la contient, sans réglage au cas par cas à chaque usage.
+  const ICONES = {
+    layout: '<rect x="1.5" y="2" width="13" height="12" rx="1.6"/><line x1="6" y1="2" x2="6" y2="14"/>',
+    plus: '<line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/>',
+    list: '<circle cx="2.3" cy="4" r="0.9" fill="currentColor" stroke="none"/><line x1="5.4" y1="4" x2="14" y2="4"/><circle cx="2.3" cy="8" r="0.9" fill="currentColor" stroke="none"/><line x1="5.4" y1="8" x2="14" y2="8"/><circle cx="2.3" cy="12" r="0.9" fill="currentColor" stroke="none"/><line x1="5.4" y1="12" x2="14" y2="12"/>',
+    menu: '<line x1="2.4" y1="4.5" x2="13.6" y2="4.5"/><line x1="2.4" y1="8" x2="13.6" y2="8"/><line x1="2.4" y1="11.5" x2="13.6" y2="11.5"/>',
+    download: '<path d="M8 2v8"/><path d="M4.5 7 8 10.5 11.5 7"/><path d="M3 13.5h10"/>',
+    sun: '<circle cx="8" cy="8" r="3"/><line x1="8" y1="1.2" x2="8" y2="3"/><line x1="8" y1="13" x2="8" y2="14.8"/><line x1="1.2" y1="8" x2="3" y2="8"/><line x1="13" y1="8" x2="14.8" y2="8"/><line x1="3.3" y1="3.3" x2="4.5" y2="4.5"/><line x1="11.5" y1="11.5" x2="12.7" y2="12.7"/><line x1="3.3" y1="12.7" x2="4.5" y2="11.5"/><line x1="11.5" y1="4.5" x2="12.7" y2="3.3"/>',
+    moon: '<path d="M13.6 9.9A5.8 5.8 0 1 1 6.1 2.4a4.6 4.6 0 0 0 7.5 7.5Z" stroke-linejoin="round"/>',
+    search: '<circle cx="7" cy="7" r="4.3"/><line x1="10.2" y1="10.2" x2="14" y2="14"/>',
+    'alert-triangle': '<path d="M8 2.3 14.4 13.2a0.9 0.9 0 0 1-0.8 1.3H2.4a0.9 0.9 0 0 1-0.8-1.3L8 2.3Z" stroke-linejoin="round"/><line x1="8" y1="6" x2="8" y2="9.3"/><circle cx="8" cy="11.5" r="0.8" fill="currentColor" stroke="none"/>',
+    'file-text': '<path d="M4 2h5.5L12 4.5V14H4Z" stroke-linejoin="round"/><path d="M9.5 2v2.5H12"/><line x1="6" y1="8" x2="10" y2="8"/><line x1="6" y1="10.5" x2="9" y2="10.5"/>',
+    mail: '<rect x="1.4" y="3.5" width="13.2" height="9" rx="1.4"/><path d="M2 4.3 8 9l6-4.7"/>',
+    calendar: '<rect x="1.5" y="2.8" width="13" height="11.2" rx="1.7"/><rect x="1.5" y="2.8" width="13" height="3" rx="1" fill="currentColor" opacity="0.22" stroke="none"/><line x1="4.6" y1="1.3" x2="4.6" y2="3.6"/><line x1="11.4" y1="1.3" x2="11.4" y2="3.6"/>',
+    link: '<path d="M6.6 9.4 9.4 6.6"/><path d="M7 4.2 8.3 2.9a2.6 2.6 0 0 1 3.7 3.7L9.7 8"/><path d="M9 11.8 7.7 13.1a2.6 2.6 0 0 1-3.7-3.7L6.3 8"/>',
+    eye: '<path d="M1.3 8S3.8 3.3 8 3.3 14.7 8 14.7 8 12.2 12.7 8 12.7 1.3 8 1.3 8Z" stroke-linejoin="round"/><circle cx="8" cy="8" r="2.1"/>',
+    folder: '<path d="M1.6 4.3a1 1 0 0 1 1-1h3.2l1.3 1.6h6.3a1 1 0 0 1 1 1v7.2a1 1 0 0 1-1 1H2.6a1 1 0 0 1-1-1V4.3Z" stroke-linejoin="round"/>',
+    clipboard: '<rect x="3" y="2.8" width="10" height="11.7" rx="1.4"/><rect x="5.8" y="1.5" width="4.4" height="2.3" rx="0.8" fill="currentColor" stroke="none"/><line x1="5.5" y1="7.5" x2="10.5" y2="7.5"/><line x1="5.5" y1="10" x2="10.5" y2="10"/>',
+    sparkle: '<path d="M8 1.8 9 6l4.2 1-4.2 1L8 12.2 7 8 2.8 7 7 6 8 1.8Z" stroke-linejoin="round"/>',
+    lock: '<rect x="3.3" y="7.2" width="9.4" height="7" rx="1.4"/><path d="M5.3 7.2V5a2.7 2.7 0 0 1 5.4 0v2.2"/>',
+    upload: '<path d="M8 10.3V2.3"/><path d="M4.6 5.7 8 2.3l3.4 3.4"/><path d="M2.4 13.5h11.2"/>',
+    key: '<circle cx="5.2" cy="5.2" r="2.8"/><path d="M7.2 7.2 13.5 13.5"/><path d="M11 10 12.6 8.4"/>',
+    spinner: '<path d="M14 8a6 6 0 1 1-2-4.5"/>',
+    banknote: '<rect x="1.3" y="4.3" width="13.4" height="7.4" rx="1.4"/><circle cx="8" cy="8" r="1.9"/>',
+    'map-pin': '<path d="M8 14.3S13 9.7 13 6.2A5 5 0 0 0 3 6.2C3 9.7 8 14.3 8 14.3Z" stroke-linejoin="round"/><circle cx="8" cy="6.2" r="1.7"/>',
+    pencil: '<path d="M11.1 2.3a1.5 1.5 0 0 1 2.1 2.1L5.4 12.2l-2.9.7.7-2.9 7.9-7.7Z" stroke-linejoin="round"/>',
+    x: '<line x1="3.5" y1="3.5" x2="12.5" y2="12.5"/><line x1="12.5" y1="3.5" x2="3.5" y2="12.5"/>'
+  };
+  // `cls` porte les classes de mise en page (taille via font-size hérité, marge...) ; `spin` anime
+  // une rotation continue (voir @keyframes icone-spin) pour les icônes d'attente (ex. "spinner").
+  function icone(nom, cls, spin) {
+    const chemin = ICONES[nom];
+    if (!chemin) return '';
+    return `<svg class="icone${cls ? ' ' + cls : ''}${spin ? ' icone-spin' : ''}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${chemin}</svg>`;
+  }
+
   const MOIS = {
     'janvier':0,'février':1,'fevrier':1,'mars':2,'avril':3,'mai':4,'juin':5,
     'juillet':6,'août':7,'aout':7,'septembre':8,'octobre':9,'novembre':10,
@@ -741,7 +784,7 @@
     // reste malgré tout indiqué dans ce cas, à titre indicatif : c'est justement le cas d'usage le
     // plus courant (relire une clause quelques jours après l'import du compromis).
     const boutonVoir = !page ? '' : pdfActuel
-      ? `<button type="button" class="voir-pdf-btn" onclick="allerALaPageDuPdf(${page})">👁 p.${page}</button>`
+      ? `<button type="button" class="voir-pdf-btn" onclick="allerALaPageDuPdf(${page})">${icone('eye')} p.${page}</button>`
       : `<span class="chip-page" title="Détecté page ${page} du compromis">p.${page}</span>`;
     return `<div class="analyse-engagement-ligne">${etiquette}<span>${escapeHtml(phrase)}</span>${boutonVoir}</div>`;
   }
@@ -794,9 +837,11 @@
     // pièce sort de cette liste. On le signale plutôt que de laisser croire à une liste exhaustive.
     if (engagements.length > documents.length) {
       note.style.display = 'block';
+      // Le liseré ambre de .analyse-note (voir style.css) porte déjà l'avertissement : un préfixe
+      // "⚠️" en plus ne faisait que répéter ce que la couleur dit déjà.
       note.textContent = documents.length === 0
-        ? `⚠️ ${engagements.length} clause${engagements.length > 1 ? 's' : ''} d'engagement relevée${engagements.length > 1 ? 's' : ''}, mais aucun document type reconnu : lisez les clauses ci-dessus pour identifier les pièces attendues.`
-        : `⚠️ Liste possiblement incomplète : ${engagements.length} clauses d'engagement relevées pour ${documents.length} document${documents.length > 1 ? 's' : ''} identifié${documents.length > 1 ? 's' : ''}. Relisez les clauses ci-dessus.`;
+        ? `${engagements.length} clause${engagements.length > 1 ? 's' : ''} d'engagement relevée${engagements.length > 1 ? 's' : ''}, mais aucun document type reconnu : lisez les clauses ci-dessus pour identifier les pièces attendues.`
+        : `Liste possiblement incomplète : ${engagements.length} clauses d'engagement relevées pour ${documents.length} document${documents.length > 1 ? 's' : ''} identifié${documents.length > 1 ? 's' : ''}. Relisez les clauses ci-dessus.`;
     } else {
       note.style.display = 'none';
     }
@@ -1088,16 +1133,17 @@
     const couleur = item.suggestion ? ' chip-' + item.suggestion : '';
     chip.className = 'chip' + couleur + (item.active ? '' : ' inactive');
     const boutonVoir = (pdfActuel && item.page)
-      ? `<button type="button" class="voir-pdf-btn" onclick="voirDateDansPdf(${item.page}, '${item.label.replace(/'/g, "\\'")}')">👁 p.${item.page}</button>`
+      ? `<button type="button" class="voir-pdf-btn" onclick="voirDateDansPdf(${item.page}, '${item.label.replace(/'/g, "\\'")}')">${icone('eye')} p.${item.page}</button>`
       : '';
     const badgeApprise = item.apprise
-      ? `<span class="badge-apprise" title="Classé d'après une correction déjà faite sur une clause très proche — à vérifier comme toute suggestion automatique">🧠 appris</span>`
+      ? `<span class="dot-label dl-neutre" title="Classé d'après une correction déjà faite sur une clause très proche — à vérifier comme toute suggestion automatique">${icone('sparkle')}Appris</span>`
       : '';
     // Date calculée (fin de mois arrondie, délai relatif) plutôt que lue telle quelle dans le
     // texte — voir ajouter() dans detecterDatesDepuisTexte. Visible dès l'étape "Vérifier", avant
-    // même l'enregistrement (où le même statut réapparaît via badge-confiance "estime").
+    // même l'enregistrement (où le même statut réapparaît via LIBELLES_CONFIANCE.estime, même
+    // libellé "Estimée" — un seul vocabulaire pour la même réalité, import et dossier enregistré).
     const badgeApprox = item.approx
-      ? `<span class="badge-approx" title="Date calculée à partir d'une formulation approximative (fin de mois, délai relatif...) — à vérifier précisément">≈ estimée</span>`
+      ? `<span class="dot-label dl-pret" title="Date calculée à partir d'une formulation approximative (fin de mois, délai relatif...) — à vérifier précisément"><span class="dot"></span>Estimée</span>`
       : '';
     chip.innerHTML = `
       <div class="chip-top">
@@ -1530,6 +1576,7 @@
       // Ouvre le panneau d'aperçu, à côté du formulaire, limité au compromis (annexes exclues).
       pdfActuel = pdf;
       pdfDernierePageUtile = dernierePageUtile;
+      document.getElementById('nouveau-intro').style.display = 'none';
       document.getElementById('pdf-viewer').style.display = 'flex';
       document.getElementById('pdf-viewer-title').textContent =
         `${file.name} — compromis (${dernierePageUtile} page${dernierePageUtile > 1 ? 's' : ''} sur ${pdf.numPages}, annexes non affichées)`;
@@ -1705,6 +1752,7 @@
     document.getElementById('pdf-viewer').style.display = 'none';
     document.getElementById('pdf-viewer-title').textContent = 'Aperçu du compromis';
     document.getElementById('pdf-pages-container').innerHTML = '';
+    document.getElementById('nouveau-intro').style.display = 'flex';
     pdfActuel = null;
     pdfDernierePageUtile = 1;
     frontieresPagesActuelles = null;
@@ -1917,20 +1965,24 @@
 
     // Retrouve la date dans l'aperçu PDF (uniquement si le PDF encore chargé est bien celui d'origine).
     const boutonVoir = (iso && page && pdfActuel)
-      ? `<button type="button" class="voir-pdf-btn" onclick="voirDateDansPdf(${page}, '${iso.split('-')[0]}')">👁 Voir p.${page}</button>`
+      ? `<button type="button" class="voir-pdf-btn" onclick="voirDateDansPdf(${page}, '${iso.split('-')[0]}')">${icone('eye')} Voir p.${page}</button>`
       : '';
 
-    // Indique si la date vient du texte détecté automatiquement sans ambiguïté (fiable), a été
-    // choisie parmi plusieurs candidates sans formulation de délai pour trancher (à vérifier en
-    // priorité — voir meilleureCandidateEcheance), ou vient d'une saisie/correction manuelle.
+    // Indique si la date a été choisie parmi plusieurs candidates sans formulation de délai pour
+    // trancher (à vérifier en priorité — voir meilleureCandidateEcheance), calculée à partir d'une
+    // formulation approximative, ou vient d'une saisie/correction manuelle. Le cas par défaut
+    // ("auto" : repérée sans ambiguïté) n'affiche volontairement RIEN — c'est la lecture directe
+    // du texte, le cas normal ; lui donner le même traitement visuel que les trois exceptions
+    // ci-dessous revenait à mettre un badge sur chaque date de chaque dossier, qui finissait par
+    // n'attirer l'attention sur rien de particulier.
     const LIBELLES_CONFIANCE = {
-      auto: { titre: 'Repérée automatiquement dans le texte', texte: '📄 texte' },
-      estime: { titre: 'Calculée à partir d’une formulation approximative ("fin septembre", délai relatif...) — à vérifier précisément', texte: '≈ estimée' },
-      incertain: { titre: 'Choisie parmi plusieurs dates possibles dans le texte — à vérifier en priorité', texte: '⚠️ à vérifier' },
-      manuel: { titre: 'Saisie ou corrigée manuellement', texte: '✍️ manuel' }
+      manuel: { titre: 'Saisie ou corrigée manuellement', texte: 'Corrigée à la main', dl: 'dl-neutre', icone: 'pencil' },
+      estime: { titre: 'Calculée à partir d’une formulation approximative ("fin septembre", délai relatif...) — à vérifier précisément', texte: 'Estimée', dl: 'dl-pret' },
+      incertain: { titre: 'Choisie parmi plusieurs dates possibles dans le texte — à vérifier en priorité', texte: 'À vérifier', dl: 'dl-alerte', icone: 'alert-triangle' }
     };
-    const badgeConfiance = (confiance && LIBELLES_CONFIANCE[confiance])
-      ? `<span class="badge-confiance ${confiance}" title="${LIBELLES_CONFIANCE[confiance].titre}">${LIBELLES_CONFIANCE[confiance].texte}</span>`
+    const infoConfiance = confiance && LIBELLES_CONFIANCE[confiance];
+    const badgeConfiance = infoConfiance
+      ? `<span class="dot-label ${infoConfiance.dl}" title="${infoConfiance.titre}">${infoConfiance.icone ? icone(infoConfiance.icone) : '<span class="dot"></span>'}${infoConfiance.texte}</span>`
       : '';
 
     // Une date d'un dossier déjà enregistré reste corrigeable après coup (erreur repérée plus
@@ -1946,7 +1998,7 @@
           <button type="button" class="icon-valider" onclick="validerEditionDate('${dossierId}','${cleEdition}')" title="Valider" aria-label="Valider la date">✓</button>
         </span>` : '';
     const crayonDate = editable
-      ? `<button type="button" class="icon-crayon" onclick="activerEditionDate('${dossierId}','${cleEdition}')" title="Corriger cette date" aria-label="Corriger cette date">✏️</button>`
+      ? `<button type="button" class="icon-crayon" onclick="activerEditionDate('${dossierId}','${cleEdition}')" title="Corriger cette date" aria-label="Corriger cette date">${icone('pencil')}</button>`
       : '';
 
     if (!iso) {
@@ -2203,22 +2255,24 @@
     if (!bloc) return;
     const { actifs, urgents, urgents15, manquantes, aVerifier, piecesIncompletes } = calculerStatsPortefeuille(dossiersActifs);
     const tuiles = [
-      ['c-neutre', actifs, actifs > 1 ? 'dossiers actifs' : 'dossier actif', '<span class="kpi-icone">📁</span>'],
+      ['c-neutre', actifs, actifs > 1 ? 'dossiers actifs' : 'dossier actif', icone('folder', 'kpi-icone')],
       ['c-urgent', urgents, 'échéances ≤ 7 jours', iconeCalendrierSeuil(7)],
       ['c-urgent', urgents15, 'échéances ≤ 15 jours', iconeCalendrierSeuil(15)],
-      ['c-pret', manquantes, 'offres de prêt introuvables', '<span class="kpi-icone">⚠️</span>'],
-      ['c-neutre', aVerifier, 'offres à vérifier', '<span class="kpi-icone">🔎</span>'],
-      ['c-pret', piecesIncompletes, 'dossiers avec pièces manquantes', '<span class="kpi-icone">📋</span>']
+      ['c-pret', manquantes, 'offres de prêt introuvables', icone('alert-triangle', 'kpi-icone')],
+      ['c-neutre', aVerifier, 'offres à vérifier', icone('search', 'kpi-icone')],
+      ['c-pret', piecesIncompletes, 'dossiers avec pièces manquantes', icone('clipboard', 'kpi-icone')]
     ];
     bloc.innerHTML = tuiles.map(([cls, valeur, libelle, iconeHtml]) =>
       `<div class="kpi-tile"><div class="kpi-label">${iconeHtml}${libelle}</div><div class="kpi-num ${cls}">${valeur}</div></div>`
     ).join('');
   }
 
-  // "Actions urgentes" du tableau de bord : les dossiers qui méritent une attention immédiate,
-  // au même sens que le score de calculerPriorite() et le badge "🔥 Prioritaire" déjà utilisés sur
-  // les résumés du Suivi — un seul et même critère d'urgence dans tout l'outil, pas une seconde
-  // définition inventée pour le tableau de bord.
+  // "Actions urgentes" du tableau de bord : les dossiers qui méritent une attention immédiate, au
+  // même sens que le score de calculerPriorite() (voir SEUIL_PRIORITE_ELEVEE) — un seul et même
+  // critère d'urgence dans tout l'outil, pas une seconde définition inventée pour le tableau de
+  // bord. Seule vue restante à s'appuyer sur ce score depuis le retrait du badge "🔥 Prioritaire"
+  // de la ligne de tableau (refonte visuelle, voir CLAUDE.md) : le statut "Blocage" (rouge) et ce
+  // bloc couvrent déjà ce que ce badge signalait seul.
   function renderActionsUrgentes(dossiersActifs) {
     const bloc = document.getElementById('actions-urgentes');
     if (!bloc) return;
@@ -2369,11 +2423,14 @@
 
   // Statut de synthèse ("où en est ce dossier ?"), distinct du score de priorité qui sert au tri :
   // celui-ci répond d'un coup d'œil plutôt que de classer.
+  // dl : modificateur de couleur du composant .dot-label commun (voir style.css) ; icone :
+  // uniquement pour "archive", où un point de couleur dirait "actif" alors que le dossier ne
+  // l'est plus — un cadenas marque sans ambiguïté un état "hors service", pas une couleur de plus.
   const LIBELLES_STATUT = {
-    pret: { emoji: '🟢', texte: 'Prêt', cls: 'statut-pret' },
-    aconfirmer: { emoji: '🟡', texte: 'À confirmer', cls: 'statut-aconfirmer' },
-    blocage: { emoji: '🔴', texte: 'Blocage', cls: 'statut-blocage' },
-    archive: { emoji: '🔒', texte: 'Archivé', cls: 'statut-archive' }
+    pret: { texte: 'Prêt', dl: 'dl-success' },
+    aconfirmer: { texte: 'À confirmer', dl: 'dl-pret' },
+    blocage: { texte: 'Blocage', dl: 'dl-urgent' },
+    archive: { texte: 'Archivé', dl: 'dl-neutre', icone: 'lock' }
   };
   // Logique donnée explicitement par l'étude, fondée uniquement sur les documents effectivement
   // retrouvés (offre de prêt + checklist de pièces), pas sur les échéances ni la confiance des
@@ -2425,7 +2482,7 @@
     const morceaux = [];
     if (nbDossiers > 0) morceaux.push(`${nbDossiers} dossier${nbDossiers > 1 ? 's' : ''} local${nbDossiers > 1 ? 'aux' : ''} relié${nbDossiers > 1 ? 's' : ''}`);
     if (partageAConfirmer) morceaux.push('le registre partagé');
-    return `🔑 L'accès à ${morceaux.join(' et à ')} doit être reconfirmé (redemandé par le navigateur à chaque redémarrage).`;
+    return `${icone('key')} L'accès à ${morceaux.join(' et à ')} doit être reconfirmé (redemandé par le navigateur à chaque redémarrage).`;
   }
 
   function renderAlerteAcces(dossiersActifs) {
@@ -2494,7 +2551,7 @@
     const el = document.getElementById('popup-acces-message');
     const overlay = document.getElementById('popup-acces-overlay');
     if (!el || !overlay) return;
-    el.textContent = messageAccesAReconfirmer(nb, partageAConfirmer);
+    el.innerHTML = messageAccesAReconfirmer(nb, partageAConfirmer);
     overlay.style.display = 'flex';
   }
 
@@ -2510,7 +2567,8 @@
 
   function renderBadgeStatut(d) {
     const s = LIBELLES_STATUT[statutDossier(d)];
-    return `<span class="badge-statut ${s.cls}" title="Statut du dossier : ${s.texte}">${s.emoji} ${s.texte}</span>`;
+    const marqueur = s.icone ? icone(s.icone) : '<span class="dot"></span>';
+    return `<span class="dot-label ${s.dl}" title="Statut du dossier : ${s.texte}">${marqueur}${s.texte}</span>`;
   }
 
   function render() {
@@ -2612,20 +2670,19 @@
 
   function renderLigneTableau(d) {
     const prochaine = prochaineEcheanceDetail(d);
-    const offre = !d.sansPret ? libelleOffre(d.offrePretStatut) : null;
-    const prioritaire = calculerPriorite(d) >= SEUIL_PRIORITE_ELEVEE;
+    const offre = !d.sansPret ? statutOffreAffichage(d) : null;
     return `
       <tr class="ligne-resume${d.archive ? ' est-archive' : ''}${dossierOuvert === d.id ? ' ligne-active' : ''}" onclick="ouvrirDossierDrawer('${d.id}')">
-        <td><div class="dossier-nom-tableau">${renderBadgeStatut(d)}${escapeHtml(d.nom)}${prioritaire ? '<span class="badge-prioritaire" title="Prioritaire : échéance proche, offre de prêt manquante et/ou accès local à reconfirmer">🔥</span>' : ''}</div></td>
+        <td><div class="dossier-nom-tableau">${renderBadgeStatut(d)}${escapeHtml(d.nom)}</div></td>
         <td class="dossier-responsable-tableau">${escapeHtml(d.responsable || '—')}</td>
         <td>
           ${prochaine
-            ? `<span class="type-pill ${prochaine.type}"><span class="dot"></span>${escapeHtml(prochaine.label)}</span>
+            ? `<span class="dot-label dl-${prochaine.type}"><span class="dot"></span>${escapeHtml(prochaine.label)}</span>
                <span class="echeance-jours ${prochaine.jours <= 3 ? 'urgent' : 'calme'}">${formatDateFr(prochaine.iso)} (${prochaine.jours < 0 ? 'dépassée' : prochaine.jours === 0 ? "aujourd'hui" : 'J-' + prochaine.jours})</span>`
             : '<span class="echeance-jours calme">—</span>'}
         </td>
         <td>
-          ${d.sansPret ? '<span class="echeance-jours calme">Comptant — sans prêt</span>' : `<span class="badge-offre ${offre.cls}">${offre.texte}</span>`}
+          ${d.sansPret ? '<span class="echeance-jours calme">Comptant — sans prêt</span>' : `<span class="dot-label ${offre.dl}"><span class="dot"></span>${offre.texte}</span>`}
           ${(!d.sansPret && d.dossierLie) ? `<button type="button" class="action-rapide" onclick="event.stopPropagation(); verifierOffrePretDepuisBouton('${d.id}', this)">Revérifier</button>` : ''}
         </td>
       </tr>
@@ -2689,7 +2746,7 @@
     return `
       <div class="pieces-dossier">
         <div class="pieces-dossier-titre">
-          <span class="section-eyebrow">📁 Pièces du dossier (${libelleType})</span>
+          <span class="section-eyebrow">Pièces du dossier (${libelleType})</span>
           <span class="pieces-compteur${complet ? ' complet' : ''}">${nbRecues}/${checklist.length}</span>
           ${(DOSSIER_FS_SUPPORTE && d.dossierLie) ? `<button type="button" class="action-rapide" onclick="verifierPiecesDossierDepuisBouton('${d.id}', this)">Revérifier les pièces</button>` : ''}
         </div>
@@ -2717,26 +2774,24 @@
           ? `<button type="button" class="lien-dossier-local" onclick="changerDossierLocal('${d.id}')">Changer de dossier</button>`
           // Même sans prêt (achat comptant), le dossier local reste nécessaire pour suivre
           // la checklist de pièces (urbanisme...) — voir renderPiecesDossier ci-dessous.
-          : `<button type="button" class="lien-dossier-local" onclick="lierDossierLocal('${d.id}')">🔗 Lier un dossier local</button>`) : '';
-      // Statut de l'offre + "Revérifier", affiché directement sous la date dans la carte "Obtention
-      // du prêt" (voir renderTab, paramètre offreBloc) — demandé par l'étude, plutôt que sa position
-      // précédente dans l'en-tête, éloignée de l'échéance qu'elle concerne.
+          : `<button type="button" class="lien-dossier-local" onclick="lierDossierLocal('${d.id}')">${icone('link')} Lier un dossier local</button>`) : '';
       // Statut de l'offre sous la date de la carte "Obtention du prêt" (voir renderTab, paramètre
       // offreBloc). Une puce de couleur plutôt qu'une phrase : le décompte juste au-dessus dit déjà
       // "✓ Offre reçue" en toutes lettres, la puce ne fait que confirmer d'un coup d'œil sans
-      // répéter — c'est ce doublon de phrases qui avait été signalé. Couleurs déjà en service
-      // (--success reçue, --pret introuvable, gris neutre pas encore vérifié), aucune inventée.
+      // répéter — c'est ce doublon de phrases qui avait été signalé. Même texte/couleur que le
+      // badge équivalent de la ligne de tableau (voir statutOffreAffichage) : les deux affichent le
+      // même fait, ils le disent maintenant de la même façon.
       // Affiché même quand aucun dossier local n'est relié : c'est justement là qu'il faut proposer
       // de le relier, sans quoi la carte ne dit rien de l'offre et n'offre aucun moyen d'agir.
-      const offreStatut = libelleOffre(d.offrePretStatut);
+      const offreStatut = statutOffreAffichage(d);
       const offreBloc = !d.sansPret ? `
         <div class="tab-offre-pret">
           ${(d.dossierLie && d.offrePretStatut === 'recue')
-              ? `<button type="button" class="offre-puce ${offreStatut.cls}" title="Offre de prêt reçue — cliquer pour ouvrir le fichier trouvé" onclick="ouvrirOffreTrouvee('${d.id}')"><span class="offre-point"></span>Ouvrir le fichier</button>`
-              : `<span class="offre-puce ${d.dossierLie ? offreStatut.cls : 'inconnu'}" title="${d.dossierLie ? escapeAttr(offreStatut.texte) : 'Aucun dossier local relié : l’offre n’a pas encore pu être cherchée'}"><span class="offre-point"></span>${d.dossierLie ? (d.offrePretStatut === 'manquante' ? 'Introuvable' : 'À vérifier') : 'Non vérifiée'}</span>`}
+              ? `<button type="button" class="dot-label ${offreStatut.dl}" title="Offre de prêt reçue — cliquer pour ouvrir le fichier trouvé" onclick="ouvrirOffreTrouvee('${d.id}')"><span class="dot"></span>Ouvrir le fichier</button>`
+              : `<span class="dot-label ${offreStatut.dl}" title="${d.dossierLie ? escapeAttr(offreStatut.texte) : 'Aucun dossier local relié : l’offre n’a pas encore pu être cherchée'}"><span class="dot"></span>${offreStatut.texte}</span>`}
           ${DOSSIER_FS_SUPPORTE ? (d.dossierLie
               ? `<button type="button" class="lien-dossier-local" onclick="verifierOffrePretDepuisBouton('${d.id}', this)">Revérifier</button>`
-              : `<button type="button" class="lien-dossier-local" onclick="lierDossierLocal('${d.id}')">🔗 Lier un dossier local</button>`) : ''}
+              : `<button type="button" class="lien-dossier-local" onclick="lierDossierLocal('${d.id}')">${icone('link')} Lier un dossier local</button>`) : ''}
         </div>` : '';
       return `
       <div class="dossier${d.archive ? ' est-archive' : ''}">
@@ -2746,7 +2801,7 @@
               <span class="nom-affichage" id="nom-affichage-${d.id}">
                 ${renderBadgeStatut(d)}
                 <span class="nom-texte">${escapeHtml(d.nom)}</span>
-                <button type="button" class="icon-crayon" onclick="activerEditionNom('${d.id}')" title="Modifier le nom" aria-label="Modifier le nom">✏️</button>
+                <button type="button" class="icon-crayon" onclick="activerEditionNom('${d.id}')" title="Modifier le nom" aria-label="Modifier le nom">${icone('pencil')}</button>
               </span>
               <span class="nom-edition" id="nom-edition-${d.id}" hidden>
                 <input type="text" class="dossier-nom-input" id="nom-input-${d.id}" value="${escapeAttr(d.nom)}" aria-label="Nom du dossier" onkeydown="if(event.key==='Enter'){event.preventDefault();validerEditionNom('${d.id}');}else if(event.key==='Escape'){annulerEditionNom('${d.id}');}">
@@ -2754,15 +2809,15 @@
               </span>
               ${boutonsDossierLocal}
             </div>
-            ${d.roleNotaire === 'participant' ? '<span class="badge-role" title="Notaire participant / concourant : suivi limité au prêt et aux engagements du vendeur">🤝 Participant</span>' : ''}
+            ${d.roleNotaire === 'participant' ? '<span class="dot-label dl-neutre badge-role" title="Notaire participant / concourant : suivi limité au prêt et aux engagements du vendeur"><span class="dot"></span>Participant</span>' : ''}
             <!-- Chaque couple libellé + champ est un .classif-item indivisible : dans la largeur du
                  tiroir la ligne passe forcément à plusieurs lignes, et sans ce groupage un libellé
                  se retrouvait séparé de son champ ("Type de vente :" en fin de ligne, la liste
                  déroulante à la ligne suivante). L'espacement remplace les anciens séparateurs "·",
                  qui se seraient retrouvés en début de ligne au retour à la ligne. -->
             <div class="addr dossier-classification">
-              <span class="classif-item">📍 <input type="text" class="input-inline champ-adresse-bien" value="${escapeAttr(d.adresseBien || '')}" placeholder="Adresse du bien non détectée" aria-label="Adresse du bien" onblur="changerAdresseBien('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"></span>
-              <span class="classif-item">💶 <input type="text" class="input-inline champ-prix-vente" value="${d.prixVente ? formaterPrix(d.prixVente) : ''}" placeholder="Prix non détecté" aria-label="Prix de vente" onblur="changerPrixVente('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"></span>
+              <span class="classif-item">${icone('map-pin')} <input type="text" class="input-inline champ-adresse-bien" value="${escapeAttr(d.adresseBien || '')}" placeholder="Adresse du bien non détectée" aria-label="Adresse du bien" onblur="changerAdresseBien('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"></span>
+              <span class="classif-item">${icone('banknote')} <input type="text" class="input-inline champ-prix-vente" value="${d.prixVente ? formaterPrix(d.prixVente) : ''}" placeholder="Prix non détecté" aria-label="Prix de vente" onblur="changerPrixVente('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"></span>
               <span class="classif-item">Type de vente :
                 <select class="select-edit" onchange="changerTypeVente('${d.id}', this.value)" aria-label="Type de vente">
                   <option value="maison" ${d.typeVente === 'copropriete' ? '' : 'selected'}>Maison</option>
@@ -2784,7 +2839,7 @@
                 </select>
               </span>
             </div>
-            ${d.sansPret ? '<span class="badge-cash">💰 Achat comptant — sans prêt</span>' : ''}
+            ${d.sansPret ? `<span class="dot-label dl-pret badge-cash">${icone('banknote')}Achat comptant — sans prêt</span>` : ''}
             ${d.accesAReconfirmer ? `<div class="offre-pret-ligne"><span class="reconfirmer-acces" onclick="reconfirmerAcces('${d.id}')">Cliquer pour reconfirmer l'accès</span></div>` : ''}
             ${(!d.sansPret && d.offrePretStatut === 'recue' && calculerApport(d)) ? (() => {
               const apport = calculerApport(d);
@@ -2809,7 +2864,7 @@
         ${d.roleNotaire !== 'participant' ? renderPiecesDossier(d) : ''}
         ${(analyse.documents.length > 0 || analyse.engagements.length > 0 || analyseConditions.length > 0) ? `
           <details class="analyse-juridique analyse-repliable" style="margin-top:14px;">
-            <summary class="analyse-titre">📋 Analyse juridique du compromis</summary>
+            <summary class="analyse-titre">Analyse juridique du compromis</summary>
             ${analyseConditions.length > 0 ? `
               <div class="analyse-section">
                 <div class="analyse-sous-titre">Conditions suspensives et particulières <span class="analyse-compteur">${analyseConditions.length}</span></div>
@@ -2836,9 +2891,9 @@
              ces trois actions sur une seule ligne, ce que "Télécharger les rappels (.ics)" et ses
              voisins ne permettaient pas dans la largeur du tiroir. -->
         <div class="dossier-actions">
-          <button onclick="telechargerICS('${d.id}')" title="Télécharger les rappels (.ics)">📅 Rappels (.ics)</button>
-          <button onclick="ouvrirEmailRappel('${d.id}')" title="Envoyer un rappel par email">✉️ Rappel email</button>
-          <button onclick="imprimerFiche('${d.id}')" title="Télécharger la fiche dossier imprimable">📄 Imprimer</button>
+          <button onclick="telechargerICS('${d.id}')" title="Télécharger les rappels (.ics)">${icone('calendar')} Rappels (.ics)</button>
+          <button onclick="ouvrirEmailRappel('${d.id}')" title="Envoyer un rappel par email">${icone('mail')} Rappel email</button>
+          <button onclick="imprimerFiche('${d.id}')" title="Télécharger la fiche dossier imprimable">${icone('file-text')} Imprimer</button>
         </div>
         ${historique.length > 0 ? `
           <button type="button" class="historique-toggle section-eyebrow" onclick="toggleHistorique('${d.id}')">Historique (${historique.length})</button>
@@ -3688,12 +3743,12 @@
   // d'origine ici si tout se passe bien ; seul le cas où le bouton n'existe plus dans le DOM au
   // moment du clic (rare) est à ignorer sans casser l'appel.
   async function verifierOffrePretDepuisBouton(id, btn) {
-    if (btn) { btn.disabled = true; btn.textContent = '⏳ Recherche…'; }
+    if (btn) { btn.disabled = true; btn.innerHTML = `${icone('spinner', null, true)} Recherche…`; }
     await verifierOffrePret(id, true);
   }
 
   async function verifierPiecesDossierDepuisBouton(id, btn) {
-    if (btn) { btn.disabled = true; btn.textContent = '⏳ Recherche en cours…'; }
+    if (btn) { btn.disabled = true; btn.innerHTML = `${icone('spinner', null, true)} Recherche en cours…`; }
     await verifierPiecesDossier(id, true);
   }
 
@@ -3939,10 +3994,18 @@
     verifierOffrePret(id, true);
   }
 
-  function libelleOffre(statut) {
-    if (statut === 'recue') return { texte: '✓ Offre de prêt reçue', cls: 'recue' };
-    if (statut === 'manquante') return { texte: '⚠ Offre de prêt introuvable', cls: 'manquante' };
-    return { texte: 'Offre de prêt : à vérifier', cls: 'inconnu' };
+  // Statut de l'offre de prêt à afficher, dans le même vocabulaire court partout où il apparaît
+  // (ligne de tableau, carte "Obtention du prêt" du tiroir) : avant cette fonction, chaque endroit
+  // formulait le même fait à sa façon ("Offre de prêt : à vérifier" en phrase complète ici,
+  // "Non vérifiée" en point + mot juste à côté) — une seule source, un seul texte. La distinction
+  // "jamais relié" / "relié mais introuvable" (déjà utilisée dans le tiroir) s'applique désormais
+  // aussi au tableau : un dossier jamais relié n'a pas plus "à vérifier" qu'un dossier relié où
+  // l'offre reste introuvable, ce sont deux réalités différentes.
+  function statutOffreAffichage(d) {
+    if (!d.dossierLie) return { texte: 'Non vérifiée', dl: 'dl-neutre' };
+    if (d.offrePretStatut === 'recue') return { texte: 'Reçue', dl: 'dl-success' };
+    if (d.offrePretStatut === 'manquante') return { texte: 'Introuvable', dl: 'dl-pret' };
+    return { texte: 'À vérifier', dl: 'dl-neutre' };
   }
 
   // Un dossier dont l'offre de prêt est déjà confirmée reçue ET toutes les pièces de la checklist
@@ -4000,10 +4063,10 @@
       el.style.display = 'flex';
       el.className = 'statut-partage actif';
       el.textContent = 'Registre partagé actif';
-      btn.textContent = '🔗 Registre partagé (relié)';
+      btn.innerHTML = `${icone('link')} Registre partagé (relié)`;
     } else {
       el.style.display = 'none';
-      btn.textContent = '🔗 Registre partagé (réseau)';
+      btn.innerHTML = `${icone('link')} Registre partagé (réseau)`;
     }
   }
 
@@ -4111,9 +4174,7 @@
       const theTitle = theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre';
       btn.setAttribute('aria-label', theTitle);
       btn.setAttribute('title', theTitle);
-      btn.innerHTML = theme === 'dark'
-        ? '<span class="sidebar-link-icone" aria-hidden="true">☀️</span>'
-        : '<span class="sidebar-link-icone" aria-hidden="true">🌙</span>';
+      btn.innerHTML = `<span class="sidebar-link-icone" aria-hidden="true">${icone(theme === 'dark' ? 'sun' : 'moon')}</span>`;
     }
     try {
       if (window.storage) { await window.storage.set(CLE_THEME, theme, false); return; }
@@ -4226,6 +4287,30 @@
     if (btn) btn.style.display = 'none';
     evenementInstallation = null;
   });
+
+  // Remplit les emplacements d'icônes du HTML statique (sidebar, burger mobile, dropzone) — le
+  // reste de l'application est déjà rendu depuis script.js, ce point d'entrée unique évite de
+  // dupliquer le dessin des icônes entre le HTML et ICONES.
+  function initIconesStatiques() {
+    const cibles = {
+      'icon-burger': 'menu',
+      'icon-nav-dashboard': 'layout',
+      'icon-nav-nouveau': 'plus',
+      'icon-nav-suivi': 'list',
+      'icon-install': 'download',
+      'icon-dropzone': 'upload',
+      'icon-intro-dates': 'calendar',
+      'icon-intro-doc': 'file-text',
+      'icon-intro-pieces': 'folder',
+      'icon-intro-mail': 'mail',
+      'icon-intro-adresse': 'map-pin'
+    };
+    for (const [id, nom] of Object.entries(cibles)) {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = icone(nom);
+    }
+  }
+  initIconesStatiques();
 
   chargerTheme();
   chargerApprentissage();
