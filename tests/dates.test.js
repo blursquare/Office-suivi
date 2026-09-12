@@ -385,3 +385,29 @@ test('detecterDatesDepuisTexte écarte le délai de notification (70 jours) et n
   assert.equal(dates[0].iso, '2026-09-06'); // 60 jours, pas 70
   assert.equal(dates[0].suggestion, 'pret');
 });
+
+test('detecterDatesDepuisTexte écarte une date introduite par "à compter du" sans lien avec la réitération de l\'acte', () => {
+  // Signalé par l'étude avec l'exemple réel "à compter du 1er Janvier 2028." : cette clause porte
+  // sur une prise d'effet (ici des intérêts de retard), pas une échéance — même si le paragraphe
+  // mentionne par ailleurs l'acte authentique, ce qui aurait autrement fait classer cette date
+  // "acte" par suggererEcheance sans rapport réel avec cette date précise.
+  const app = chargerApplication();
+  const dateCompromis = '2026-01-01';
+  const texte = "Le prix de vente sera payable au comptant. L'acte authentique sera reçu par le " +
+    "notaire soussigné. Les intérêts de retard courront à compter du 1er Janvier 2028.";
+  const dates = app.detecterDatesDepuisTexte(texte, dateCompromis);
+  assert.equal(dates.length, 0);
+});
+
+test('detecterDatesDepuisTexte garde une date "à compter du" quand la clause parle de la réitération de l\'acte de vente', () => {
+  // Seule exception : si "à compter du" introduit précisément la date à laquelle l'acte sera
+  // réitéré, c'est bien la bonne échéance — à ne pas écarter comme le cas ci-dessus.
+  const app = chargerApplication();
+  const dateCompromis = '2026-01-01';
+  const texte = "En cas de défaillance de l'acquéreur, l'acte authentique sera réitéré à compter " +
+    "du 1er Janvier 2028.";
+  const dates = app.detecterDatesDepuisTexte(texte, dateCompromis);
+  assert.equal(dates.length, 1);
+  assert.equal(dates[0].iso, '2028-01-01');
+  assert.equal(dates[0].suggestion, 'acte');
+});

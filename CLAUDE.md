@@ -1726,6 +1726,26 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     pour couvrir "Certificat_alignement" (sans "d'" du tout) comme ce fichier réel.
   - Quatre nouveaux tests dans `tests/dossier-local.test.js`, dont un avec le nom de fichier exact
     fourni par l'étude — `npm test` reste vert (118 tests).
+- **Date introduite par "à compter du/de" écartée des échéances, sauf si la clause parle de la
+  réitération de l'acte de vente lui-même** : signalé par l'étude avec un exemple réel ("à compter
+  du 1er Janvier 2028."). Cause : `suggererEcheance()` classe "acte" toute date dont le contexte
+  (jusqu'à ~480 caractères, borné par les points) contient "acte authentique"/"réitération"/
+  "signature de l'acte" — sans regarder si CETTE date précise a un rapport réel avec l'acte. Une
+  clause de prise d'effet (intérêts de retard, taux, prorata de taxe foncière, garantie...)
+  partageant son paragraphe avec une simple mention de l'acte authentique se faisait donc
+  classer "acte" à tort, alors que "à compter du/de" introduit une date de PRISE D'EFFET, pas une
+  échéance à respecter (contrairement à "au plus tard le"/"avant le", déjà couvertes par
+  `CUE_FUTUR_RE`). Nouveau garde-fou dans `detecterDatesDepuisTexte()` (fonction interne
+  `ajouter()`) : une date immédiatement précédée de "à compter du/de" (`A_COMPTER_RE`, testé sur
+  les ~30 caractères juste avant, pas sur tout le contexte) est écartée d'office — SAUF si le
+  contexte de la clause mentionne la réitération de l'acte (`\br[ée]it[ée]r`, qui couvre aussi bien
+  le verbe "sera réitéré" que le nom "réitération"), seul cas où "à compter du" désigne réellement
+  la date de réitération de l'acte, une vraie échéance à garder. Ne s'applique qu'aux dates
+  calendaires détectées directement dans le texte (`reNum`/`reTexte`) : les délais relatifs déjà en
+  place (`reDelai`, qui exige lui-même "à compter de"/"à partir de" DANS son propre motif) ne sont
+  pas concernés, la phrase "à compter du/de" y fait partie intégrante du motif recherché, pas d'un
+  contexte à écarter. Deux tests de régression dans `tests/dates.test.js` (le cas à écarter, et le
+  cas à garder avec réitération) — `npm test` reste vert (120 tests).
 
 ## Comment tester
 

@@ -433,6 +433,19 @@
   // Formulations qui indiquent une échéance à venir plutôt qu'une date déjà passée.
   const CUE_FUTUR_RE = /au\s+plus\s+tard|avant\s+le|jusqu.au|date\s+limite|d[ée]lai\s+(?:expirant|fix[ée])|sera\s+(sign[ée]e?|r[ée]alis[ée]e?|conclu(e)?)|pr[ée]vue?\s+(le|pour|au)|fix[ée]e?\s+(au|le)|au\s+plus\s+tôt/i;
 
+  // "à compter du/de <date>" introduit une date de PRISE D'EFFET (loyer, garantie, taux d'intérêt,
+  // jouissance différée, prorata de taxe foncière...), pas une échéance à respecter — contrairement
+  // à "au plus tard le"/"avant le" (CUE_FUTUR_RE), qui annoncent une vraie limite. Signalé par
+  // l'étude avec un exemple réel ("à compter du 1er Janvier 2028.") : la clause se trouvait par
+  // ailleurs dans le même paragraphe qu'une mention de l'acte authentique, ce qui suffisait à faire
+  // classer cette date "acte" par suggererEcheance (voir sa ligne "acte authentique|réitération...",
+  // qui ne regarde que la présence du mot dans tout le contexte, pas son lien réel avec la date).
+  // Seule exception : si la clause parle explicitement de la RÉITÉRATION de l'acte de vente
+  // lui-même (verbe "réitéré(e)" ou nom "réitération", voir \br[ée]it[ée]r au point d'appel),
+  // "à compter du" peut alors désigner la date à laquelle l'acte sera effectivement réitéré —
+  // cette date-là reste une vraie échéance, à ne pas écarter.
+  const A_COMPTER_RE = /[àa]\s+compter\s+d[eu]\s*$/i;
+
   function suggererEcheance(contexte) {
     const c = contexte.toLowerCase();
     if (/vente(?:.{0,60})?d.un\s+(?:autre\s+)?bien|condition\s+suspensive\s+de\s+vente\s+(?:d.un\s+bien|immobili[èe]re)|avant-contrat(?:.{0,150})?(?:vente|bien\s+(?:lui\s+)?appartenant)/.test(c)) return 'ventebien';
@@ -879,6 +892,11 @@
       if (dateCompromis && iso <= dateCompromis) return;
       const contexte = extraireContexte(texte, index, longueur);
       if (EXCLUSION_RE.test(contexte.toLowerCase())) return;
+      // Voir A_COMPTER_RE ci-dessus : une date immédiatement introduite par "à compter du/de" est
+      // une prise d'effet, pas une échéance — sauf si la clause parle de la réitération de l'acte
+      // de vente lui-même, seul cas où cette date-là EST la bonne échéance. \br[ée]it[ée]r couvre
+      // aussi bien le verbe ("sera réitéré") que le nom ("réitération"), pas seulement ce dernier.
+      if (A_COMPTER_RE.test(texte.slice(Math.max(0, index - 30), index)) && !/\br[ée]it[ée]r/i.test(contexte)) return;
       let suggestion = suggererEcheance(contexte);
       // Une correction déjà faite par un(e) collaborateur(rice) sur une clause très proche
       // l'emporte sur la suggestion par mots-clés (voir la section "apprentissage" plus bas).
