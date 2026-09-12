@@ -1997,6 +1997,30 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     dépend entièrement du DOM/de pdf.js). À confirmer par l'étude sur un compromis réel : que la
     zone de sélection suit correctement le texte affiché ligne par ligne, en particulier sur des
     polices embarquées inhabituelles (voir l'historique des PDF aux polices mal encodées plus haut).
+- **Bug corrigé : le champ de recherche du Tableau de bord ne respectait pas la charte graphique**
+  (apparence native du navigateur — pas de bordure/fond/rayon cohérents avec le reste de l'outil).
+  Cause : `input[type="search"]` était absent de la règle générique qui donne leur style à tous les
+  champs de formulaire (`input[type="text"], input[type="date"], input[type="email"],
+  input[type="number"], textarea, select`) — `.dash-recherche` ne posait de son côté que
+  `width`/`box-sizing`, rien d'autre. Ajouté à cette règle (et à son pendant `:hover`), même
+  principe que l'ajout de `input[type="number"]` en son temps pour le calculateur : un futur champ
+  `type="search"` hérite désormais du style commun sans avoir à y penser. `#recherche-dossiers`
+  (Suivi) n'est pas concerné : il garde son propre habillage via `.toolbar-recherche input`, plus
+  spécifique, qui l'emportait déjà.
+  - **Champ déplacé en haut, regroupé avec "+ Nouveau dossier"** (`.dash-header-actions`, nouveau
+    conteneur flex dans `index.html`) plutôt que de flotter seul entre le titre et le bouton (l'un
+    à l'extrême droite, l'autre au milieu, via le seul `justify-content: space-between` de
+    `.dash-header`) — l'étude voulait les deux actions lisibles comme un seul bloc, en haut à
+    droite de l'en-tête. `.dash-recherche` passe d'un `flex: 1 1 260px` (pensé pour occuper l'espace
+    central disponible) à une largeur fixe de 260px à l'intérieur de ce nouveau groupe ; sous
+    1300px, `.dash-header-actions` passe en pleine largeur et le champ s'étire à côté du bouton
+    plutôt que de garder sa largeur fixe (repris de l'ancien réglage `.dash-recherche { max-width:
+    none }`, adapté au nouveau conteneur).
+  - Vérifié visuellement (Playwright, clair/sombre, et à 700px de large) : le champ affiche
+    maintenant la même bordure/le même fond que tous les autres champs de l'outil, reste collé au
+    bouton "+ Nouveau dossier" à toutes les largeurs testées, et le menu de résultats s'aligne
+    toujours correctement sous le champ (dossier synthétique injecté, recherche "dup"). `npm test`
+    reste vert (119 tests).
 
 ## Comment tester
 

@@ -66,11 +66,13 @@
       <div class="dash-eyebrow">Tableau de bord</div>
       <h1 class="dash-titre">Vue d'ensemble</h1>
     </div>
-    <div class="dash-recherche">
-      <input type="search" id="recherche-dashboard" placeholder="Rechercher un dossier ou un responsable…" oninput="render()" autocomplete="off">
-      <div class="dash-recherche-resultats" id="dash-recherche-resultats" style="display:none;"></div>
+    <div class="dash-header-actions">
+      <div class="dash-recherche">
+        <input type="search" id="recherche-dashboard" placeholder="Rechercher un dossier ou un responsable…" oninput="render()" autocomplete="off">
+        <div class="dash-recherche-resultats" id="dash-recherche-resultats" style="display:none;"></div>
+      </div>
+      <button type="button" class="primary" onclick="definirOnglet('nouveau')">+ Nouveau dossier</button>
     </div>
-    <button type="button" class="primary" onclick="definirOnglet('nouveau')">+ Nouveau dossier</button>
   </div>
 
   <div class="kpis-dashboard" id="kpis-dashboard"></div>

@@ -527,18 +527,26 @@
   }
   .dash-titre { font-size: 26px; margin: 0; }
 
-  /* Recherche de dossier depuis le tableau de bord : contrairement au Suivi (recherche-dossiers,
-     qui filtre une liste déjà affichée), le tableau de bord ne montre jamais tous les dossiers —
-     un menu de résultats s'ouvre donc sous le champ, chaque ligne menant directement au tiroir du
-     dossier (même chemin que "Actions urgentes", voir ouvrirDossierDepuisDashboard). */
+  /* Recherche de dossier depuis le tableau de bord, regroupée avec "+ Nouveau dossier" (même
+     rangée, en haut à droite de l'en-tête) plutôt que flottant seule entre le titre et le bouton —
+     demandé par l'étude pour que les deux actions se lisent comme un seul bloc. Contrairement au
+     Suivi (recherche-dossiers, qui filtre une liste déjà affichée), le tableau de bord ne montre
+     jamais tous les dossiers — un menu de résultats s'ouvre donc sous le champ, chaque ligne menant
+     directement au tiroir du dossier (même chemin que "Actions urgentes", voir
+     ouvrirDossierDepuisDashboard). Le champ lui-même n'a plus de style propre : il hérite de la
+     règle générique des champs de formulaire (voir plus bas, `input[type="search"]` y a été ajouté
+     au même titre que `input[type="number"]` en son temps) plutôt qu'une apparence bricolée à part.
+  */
+  .dash-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
   .dash-recherche {
     position: relative;
-    flex: 1 1 260px;
-    max-width: 340px;
-  }
-  .dash-recherche input[type="search"] {
-    width: 100%;
-    box-sizing: border-box;
+    width: 260px;
+    max-width: 100%;
   }
   .dash-recherche-resultats {
     position: absolute;
@@ -672,7 +680,8 @@
   @media (max-width: 1300px) {
     .kpis-dashboard { grid-template-columns: repeat(3, 1fr); }
     .dash-grid { grid-template-columns: 1fr; }
-    .dash-recherche { max-width: none; flex-basis: 100%; }
+    .dash-header-actions { width: 100%; }
+    .dash-recherche { flex: 1 1 auto; width: auto; }
   }
   @media (max-width: 640px) {
     .kpis-dashboard { grid-template-columns: repeat(2, 1fr); }
@@ -924,7 +933,7 @@
     margin-bottom: 5px;
   }
 
-  input[type="text"], input[type="date"], input[type="email"], input[type="number"], textarea, select {
+  input[type="text"], input[type="date"], input[type="email"], input[type="number"], input[type="search"], textarea, select {
     width: 100%;
     max-width: 100%;
     min-width: 0;
@@ -957,7 +966,7 @@
     }
     .date-block { padding-left: 10px; }
   }
-  input[type="text"]:hover, input[type="date"]:hover, input[type="email"]:hover, input[type="number"]:hover, select:hover { border-color: var(--muted); }
+  input[type="text"]:hover, input[type="date"]:hover, input[type="email"]:hover, input[type="number"]:hover, input[type="search"]:hover, select:hover { border-color: var(--muted); }
 
   input:focus, select:focus, textarea:focus, button:focus-visible, summary:focus-visible {
     outline: 2px solid var(--focus);
