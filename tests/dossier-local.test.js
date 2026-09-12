@@ -64,10 +64,32 @@ test("fichiersPdfRecursifs s'arrête au-delà de la profondeur maximale", async 
 test('fichiersPdfRecursifs applique un plafond de sécurité sur le nombre de fichiers', async () => {
   const app = chargerApplication();
   const enfants = [];
-  for (let i = 0; i < 305; i++) enfants.push(creerFichierFictif(`doc-${i}.pdf`));
+  for (let i = 0; i < 3005; i++) enfants.push(creerFichierFictif(`doc-${i}.pdf`));
   const racine = creerDossierFictif('racine', enfants);
   const noms = await collecter(app.fichiersPdfRecursifs(racine, 0, { n: 0 }));
-  assert.equal(noms.length, 300);
+  assert.equal(noms.length, 3000);
+});
+
+test('fichiersPdfRecursifs parcourt en largeur : les rubriques suivantes sont explorées même si un sous-dossier de la première déborde du plafond', async () => {
+  const app = chargerApplication();
+  // Reproduit l'arborescence réelle de l'étude : plusieurs rubriques numérotées à la racine, la
+  // première ("0 - COMPTABILITE - PRET", avec son propre sous-dossier "PRET" contenant à lui seul
+  // plus de PDF que le plafond de sécurité — relevés bancaires, historique de prêt...). L'ancien
+  // parcours en PROFONDEUR descendait entièrement dans "PRET" avant même de regarder les rubriques
+  // suivantes ("1 - Vendeur", "3 - Titre de propriété"...) : leurs pièces n'étaient alors jamais
+  // atteintes, quel que soit leur nom de fichier — bug réel signalé par l'étude, voir CLAUDE.md.
+  // Le nouveau parcours en LARGEUR doit avoir déjà trouvé les fichiers des rubriques suivantes
+  // avant de s'enfoncer dans "PRET".
+  const beaucoupDeReleves = [];
+  for (let i = 0; i < 3005; i++) beaucoupDeReleves.push(creerFichierFictif(`releve-${i}.pdf`));
+  const sousDossierPret = creerDossierFictif('PRET', beaucoupDeReleves);
+  const rubrique0 = creerDossierFictif('0 - COMPTABILITE - PRET', [sousDossierPret]);
+  const rubrique1 = creerDossierFictif('1 - Vendeur', [creerFichierFictif('carte-identite.pdf')]);
+  const rubrique3 = creerDossierFictif('3 - Titre de propriété', [creerFichierFictif('Titre.pdf')]);
+  const racine = creerDossierFictif('racine', [rubrique0, rubrique1, rubrique3]);
+  const noms = await collecter(app.fichiersPdfRecursifs(racine, 0, { n: 0 }));
+  assert.ok(noms.includes('carte-identite.pdf'));
+  assert.ok(noms.includes('Titre.pdf'));
 });
 
 test('OFFRE_PRET_RE reconnaît les formulations bancaires courantes', () => {

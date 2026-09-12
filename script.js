@@ -4352,15 +4352,33 @@
   // reçues"…), jamais à la racine — s'arrêter au premier niveau (comme le faisait cette fonction
   // avant) manquait donc systématiquement l'offre de prêt dans ce cas, le cas le plus courant.
   const PROFONDEUR_MAX_RECHERCHE_PDF = 4;
-  const MAX_FICHIERS_PARCOURUS = 300; // filet de sécurité sur un dossier réseau volumineux
+  const MAX_FICHIERS_PARCOURUS = 3000; // filet de sécurité sur un dossier réseau volumineux
+  // Bug corrigé : parcours en LARGEUR (file FIFO), plus en profondeur comme avant. L'arborescence
+  // réelle de l'étude range un dossier client en rubriques numérotées à la racine ("0 -
+  // COMPTABILITE - PRET", "1 - Vendeur", "3 - Titre de propriété"...). L'ancien parcours en
+  // profondeur (yield* récursif) épuisait MAX_FICHIERS_PARCOURUS sur la TOUTE PREMIÈRE rubrique
+  // rencontrée (et ses propres sous-dossiers) si elle contenait à elle seule beaucoup de PDF
+  // (relevés bancaires, historique de prêt...) — les pièces des rubriques suivantes (titre,
+  // diagnostics, environnement...) n'étaient alors jamais atteintes, quel que soit leur nom de
+  // fichier : un vrai bug structurel, pas une regex de détection à corriger (signalé par l'étude
+  // comme "toujours bugué" sur des pièces au nom pourtant correct, après plusieurs vérifications
+  // de motifNom n'ayant rien trouvé d'anormal). Une file FIFO garantit que toutes les rubriques de
+  // premier niveau sont explorées (leurs fichiers PDF directs) avant de descendre dans les
+  // sous-dossiers d'une seule d'entre elles. Plafond relevé en même temps (300 → 3000) par
+  // sécurité supplémentaire : il ne compte que des PDF, pour UN SEUL dossier client, pas tout le
+  // lecteur réseau de l'étude.
   async function* fichiersPdfRecursifs(handleDossier, profondeur, compteur) {
-    if (profondeur > PROFONDEUR_MAX_RECHERCHE_PDF) return;
-    for await (const [nom, entree] of handleDossier.entries()) {
-      if (compteur.n >= MAX_FICHIERS_PARCOURUS) return;
-      if (entree.kind === 'file') {
-        if (/\.pdf$/i.test(nom)) { compteur.n++; yield entree; }
-      } else if (entree.kind === 'directory') {
-        yield* fichiersPdfRecursifs(entree, profondeur + 1, compteur);
+    const file = [{ handle: handleDossier, profondeur }];
+    while (file.length > 0) {
+      const { handle, profondeur: p } = file.shift();
+      if (p > PROFONDEUR_MAX_RECHERCHE_PDF) continue;
+      for await (const [nom, entree] of handle.entries()) {
+        if (compteur.n >= MAX_FICHIERS_PARCOURUS) return;
+        if (entree.kind === 'file') {
+          if (/\.pdf$/i.test(nom)) { compteur.n++; yield entree; }
+        } else if (entree.kind === 'directory') {
+          file.push({ handle: entree, profondeur: p + 1 });
+        }
       }
     }
   }

@@ -2152,6 +2152,48 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
   que les autres pièces) pour rester cliquable/ouvrable, et un toast confirme le fichier trouvé. Pas
   trouvé → la pièce reste "à vérifier" comme avant cette évolution, sans message d'échec superflu (le
   cas normal reste "je tape un nom avant même d'avoir le document").
+- **Bug corrigé, cette fois un vrai bug STRUCTUREL de parcours et non une regex de détection :
+  l'étude a signalé à plusieurs reprises ("toujours bugué") que "Certificat alignement et
+  numérotage" et "Avis de Taxes foncières" n'étaient jamais validés, alors que trois vérifications
+  indépendantes du code (y compris sur les fichiers PDF réels envoyés par l'étude, nom de fichier
+  exact) confirmaient que `motifNom` les reconnaissait correctement.** Cause réelle, trouvée en
+  relisant `fichiersPdfRecursifs()` en entier plutôt qu'en re-testant la regex une quatrième fois :
+  la fonction parcourait le dossier local **en profondeur** (récursion `yield*` immédiate dans
+  chaque sous-dossier rencontré). Sur l'arborescence réelle de l'étude (voir "Ce qui reste ouvert"
+  plus bas : rubriques numérotées à la racine d'un dossier client — `0 - COMPTABILITE - PRET`
+  ayant lui-même un sous-dossier `PRET`, puis `1 - Vendeur`, `2 - Acquéreur`, `3 - Titre de
+  propriété`...), un parcours en profondeur descend ENTIÈREMENT dans `0 - COMPTABILITE - PRET`
+  (donc dans son sous-dossier `PRET`, potentiellement des dizaines de relevés bancaires/pièces de
+  prêt scannées) avant même de regarder `1 - Vendeur` ou `3 - Titre de propriété` : si cette toute
+  première rubrique contient à elle seule plus de `MAX_FICHIERS_PARCOURUS` PDF, le plafond de
+  sécurité coupe le parcours avant d'avoir jamais atteint les rubriques suivantes — les pièces
+  qu'elles contiennent ne sont alors JAMAIS testées, quel que soit leur nom de fichier. C'est un
+  problème d'ORDRE DE PARCOURS, pas de détection : aucune regex ne pouvait le corriger, d'où les
+  trois vérifications précédentes toutes correctes sans que le symptôme disparaisse chez l'étude.
+  - `fichiersPdfRecursifs()` réécrite en parcours **en largeur** (file FIFO de dossiers à visiter,
+    plutôt que récursion immédiate) : toutes les rubriques de premier niveau d'un dossier client
+    sont désormais explorées (leurs fichiers PDF directs) avant de descendre dans les sous-dossiers
+    d'une seule d'entre elles. Une rubrique volumineuse peut toujours, à elle seule, épuiser le
+    plafond si ses fichiers sont directement à son propre niveau (le parcours en largeur ne protège
+    que contre l'effet d'engloutissement d'un SOUS-dossier plus profond) — cohérent avec
+    l'arborescence réelle où le volume (relevés, historique de prêt) est presque toujours dans un
+    sous-dossier dédié (`PRET`, `ETAT DATE`...), pas à la racine de la rubrique elle-même.
+  - `MAX_FICHIERS_PARCOURUS` relevé de 300 à 3000 par sécurité supplémentaire, en plus du correctif
+    d'ordre : le plafond ne compte que des PDF, pour UN SEUL dossier client (pas tout le lecteur
+    réseau de l'étude), un dossier ancien avec beaucoup d'annexes/scans/courriers PDF individuels
+    pouvait légitimement s'approcher de l'ancien plafond.
+  - Signature externe de la fonction inchangée (`fichiersPdfRecursifs(handle, 0, compteur)`), les
+    deux points d'appel existants (`chercherFichierParNom`, `verifierDossierLocal`) n'ont pas eu à
+    être modifiés.
+  - Deux tests dans `tests/dossier-local.test.js` : le plafond de sécurité (adapté à 3000), et un
+    nouveau test qui reproduit précisément l'arborescence en cause (une rubrique dont le
+    SOUS-dossier dépasse le plafond à lui seul) et vérifie que les rubriques suivantes sont malgré
+    tout trouvées — le test échouait avec l'ancienne implémentation en profondeur, passe avec la
+    nouvelle. `npm test` reste vert (128 tests).
+  - **Leçon pour la suite** : face à un signalement répété du même symptôme après plusieurs
+    vérifications de regex toutes correctes, le bon réflexe est de relire la fonction de parcours
+    dans son ensemble (ordre, plafonds, limites) plutôt que de re-tester la même regex une fois de
+    plus — la regex n'était jamais le problème ici.
 
 ## Comment tester
 
