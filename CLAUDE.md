@@ -1063,6 +1063,70 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     de confiance (`≈ estimée`/`⚠️ à vérifier`/...) est déplacé au même moment à côté du crayon
     d'édition de la date (dans `.tab-date-affichage`) plutôt qu'à côté du décompte J-X, sur la
     même demande.
+- **Bug corrigé : des dates d'annexes continuaient à remonter dans les échéances butoir**, malgré
+  le correctif précédent (voir plus haut). Cause de fond identifiée : `extraireTextesUtiles()`
+  n'avait que deux garde-fous pour couper avant les annexes — un titre de pièce jointe reconnu
+  (`estDebutPageAnnexe`) ou une pagination interne "Page X sur Y" (`dernierePageNumerotee`) — si
+  le document n'avait NI l'un NI l'autre (beaucoup de trames réelles, notamment sans pagination
+  explicite), `dernierePageUtile` retombait sur la longueur totale du PDF : aucune coupure, tout
+  le dossier (annexes comprises, parfois des centaines de pages) servait à la détection de dates.
+  Ajout d'un troisième repère, bien plus universel que les deux précédents : la signature de
+  l'acte lui-même. Quel que soit le modèle, un compromis/promesse se termine TOUJOURS par un bloc
+  de signatures avant toute pièce jointe — jamais l'inverse. `detecteSignatureActe()` (nouveau
+  `RE_SIGNATURE_ACTE`, élargi à partir du motif déjà utilisé pour le repli OCR de la date de
+  signature : signé électroniquement, date et signatures, dont acte, en foi de quoi, lu et
+  approuvé, bon pour accord, fait et signé, signature des parties, paraphé et signé) repère la
+  PREMIÈRE page portant un tel marqueur en parcourant le PDF — la signature de l'acte est
+  nécessairement la première rencontrée, un mandat ou une AG annexés plus loin ayant aussi leur
+  propre bloc de signature mais bien après. `calculerDernierePageUtile()` (testable, voir
+  `tests/divers.test.js`) combine les trois repères disponibles (annexe, signature, pagination) en
+  retenant le PLUS TÔT d'entre eux : mieux vaut couper trop tôt (une date à saisir à la main) que
+  trop tard (une date d'annexe glissée dans les échéances butoir), décision déjà actée deux fois
+  par l'étude. La boucle de lecture du PDF s'arrête dès que la signature est trouvée (+2 pages de
+  tampon pour un éventuel certificat/dernière signature électronique), sans lire inutilement le
+  reste d'un PDF qui peut compter des centaines de pages d'annexes après coup.
+- **Bug corrigé : le tab "Obtention du prêt" affichait deux fois le même statut** une fois l'offre
+  reçue — le décompte (`.tab-countdown`) affichait "✓ Offre reçue" et le badge `offreBloc` juste en
+  dessous affichait "✓ Offre de prêt reçue" (voir l'entrée juste au-dessus sur son déplacement dans
+  le tab). Signalé par l'étude. Le décompte est maintenant masqué entièrement quand l'offre est
+  reçue (`decompteMasque`) : `offreBloc` porte déjà cette information, plus complète (bouton
+  cliquable pour rouvrir le fichier, bouton Revérifier) — rien à ajouter en double juste au-dessus.
+  `.tab-countdown.recue` (règle CSS devenue inutile) supprimée.
+- **Passe de finition typographique, inspirée d'une maquette fournie par l'étude** (un prototype
+  "CLAIRE" complet : registre en tableau, calendrier, écran d'extraction, tiroir de fiche dossier,
+  rapports). Seule la **facture** de la maquette a été reprise, pas son identité : la maquette pose
+  un fond indigo `#161826` et un accent violet `#9184d9`, qui contredisent tous les deux des
+  décisions déjà prises et validées (« mode sombre en gris neutres, pas de navy » et le bleu
+  `--focus` retenu lors de la refonte précédente) — ni l'un ni l'autre n'a été adopté. Trois
+  détails de fabrication en ont en revanche été repris, applicables quelle que soit la palette :
+  - **Étiquettes de section en petites capitales espacées** (`.section-eyebrow` : 10px, `0.1em`,
+    `--muted`), un seul registre d'étiquette pour toute l'application. Reprise à l'identique par
+    `.kpi-label`/`.stat-label`, et appliquée aux intitulés « Pièces du dossier » et « Historique »
+    de la fiche dossier (ce dernier perd son soulignement, devenu redondant avec l'étiquette).
+  - **Tuiles de chiffres retournées** : le libellé passe AU-DESSUS du chiffre (on lit ce que c'est,
+    puis combien) et le chiffre passe à 30px/`line-height: 1`. `min-height: 28px` sur le libellé
+    (deux lignes) garde les chiffres alignés d'une tuile à l'autre même quand un libellé long passe
+    à la ligne — sans quoi les tuiles d'une même rangée ne se lisaient plus comme un seul objet.
+  - **Filets de tableau qui s'estompent aux deux extrémités** : le trait entre deux lignes n'est
+    plus une `border-bottom` de cellule mais un dégradé de 1px peint par la LIGNE
+    (`background-image` calé en bas, transparent sur les 44 premiers/derniers pixels). Le tableau
+    se lit comme une liste aérée plutôt qu'une grille. **Conséquence à ne pas oublier** : toute
+    couleur de fond posée ensuite sur une ligne doit venir en SECONDE couche de `background-image`
+    (voir `.ligne-resume:hover`, qui superpose le filet puis `--paper-sunk`), sinon elle recouvre le
+    filet — c'est pour ça que `.ligne-detail` garde, lui, un `background` raccourci classique : il
+    n'a pas de filet à préserver.
+  - Au passage : `font-variant-numeric: tabular-nums` sur les décomptes d'échéance et les dates
+    d'historique (les colonnes de chiffres s'alignent), et `button.secondary:hover` passe d'un
+    simple changement de couleur de bordure à un aplat discret (`--line-soft`), plus proche du
+    survol « teinté » de la maquette.
+  - **Volontairement non repris** : le tiroir latéral (la maquette ouvre la fiche dossier dans un
+    panneau de 480px à droite plutôt qu'en dépliant la ligne du tableau). L'idée est bonne sur un
+    portefeuille de 60 dossiers — la liste ne se décale plus sous le clic — mais c'est un chantier
+    structurel (`renderCarteDossier` à sortir du tableau, `dossiersDeplies` à passer à un seul
+    dossier ouvert, mise en page deux colonnes à repenser pour 480px, styles d'impression à
+    reprendre) sur une fiche que l'étude vient justement de faire réorganiser trois fois. À ne
+    lancer que sur demande explicite. Même raisonnement pour le calendrier mensuel et la vue
+    « échéancier » groupée de la maquette : ce sont des fonctionnalités, pas du design.
 
 ## Comment tester
 

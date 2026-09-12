@@ -1273,6 +1273,34 @@
     return m.index < 120 || texteBrut.trim().length < 300;
   }
 
+  // Bug corrigé, signalé deux fois par l'étude : ces deux motifs (annexe/titre de pièce jointe) ne
+  // couvrent pas toutes les trames réelles — sans "Page X sur Y" (voir dernierePageNumerotee dans
+  // extraireTextesUtiles) NI titre d'annexe reconnu, aucune coupure ne se déclenchait et le PDF
+  // entier (annexes comprises, parfois des centaines de pages) était utilisé pour la détection de
+  // dates. La signature de l'acte est un repère bien plus universel qu'un titre de document : quel
+  // que soit le modèle, un compromis/promesse se termine TOUJOURS par un bloc de signatures avant
+  // toute pièce jointe — jamais l'inverse. Repris et élargi à partir du motif déjà utilisé par
+  // ailleurs (voir plus bas, repli OCR de la date de signature) pour rester cohérent.
+  const RE_SIGNATURE_ACTE = /sign[ée]\s+[ée]lectroniquement|date\s+et\s+signatures?|dont\s+acte|en\s+foi\s+de\s+quoi|lu\s+et\s+approuv[ée]|bon\s+pour\s+accord|fait\s+et\s+sign[ée]|signature\s+des\s+parties|paraph[ée]\s+et\s+sign[ée]/i;
+  function detecteSignatureActe(texteBrut) {
+    return RE_SIGNATURE_ACTE.test(texteBrut);
+  }
+
+  // Combine les trois repères de fin d'acte trouvés en parcourant le PDF (voir
+  // extraireTextesUtiles) — chacun peut manquer selon le modèle de document, mais dès qu'un seul
+  // est trouvé, il vaut mieux couper trop tôt (au pire, revérifier une date à la main) que trop
+  // tard (une date d'annexe glissée dans les échéances butoir, décision explicite de l'étude). Le
+  // plus tôt des repères disponibles l'emporte donc systématiquement.
+  function calculerDernierePageUtile(pageAnnexe, pageSignature, dernierePageNumerotee, totalPages) {
+    const TAMPON_SIGNATURE = 2; // pages de certificat/signature complémentaires après le repère
+    const TAMPON_NUMEROTEE = 3; // même tampon que l'ancien comportement, inchangé
+    const candidats = [];
+    if (pageAnnexe != null) candidats.push(Math.max(1, pageAnnexe - 1));
+    if (pageSignature != null) candidats.push(Math.min(pageSignature + TAMPON_SIGNATURE, totalPages));
+    if (dernierePageNumerotee != null) candidats.push(Math.min(dernierePageNumerotee + TAMPON_NUMEROTEE, totalPages));
+    return candidats.length ? Math.min(...candidats) : totalPages;
+  }
+
   // Isole le compromis lui-même (+ sa page de signatures) et s'arrête dès la première vraie page
   // d'annexe (voir estDebutPageAnnexe ci-dessus) : un dossier signé électroniquement peut compter
   // plusieurs centaines de pages de diagnostics et autres pièces jointes qui ne nous intéressent
@@ -1280,7 +1308,10 @@
   async function extraireTextesUtiles(pdf) {
     const textesParPage = [];
     let dernierePageNumerotee = null;
+    let pageAnnexe = null;
+    let pageSignature = null;
     const PLAFOND_SECURITE = 60;
+    const TAMPON_SIGNATURE = 2; // doit rester cohérent avec calculerDernierePageUtile
 
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
@@ -1296,17 +1327,24 @@
         if (mPage && mPage[1] === mPage[2]) dernierePageNumerotee = i;
       }
 
-      // Dès qu'une vraie page d'annexe commence, tout ce qui suit est écarté (diagnostics, plans…).
+      // Dès qu'une vraie page d'annexe commence, inutile de lire plus loin (diagnostics, plans…
+      // potentiellement des centaines de pages) : c'est déjà le repère le plus tôt possible.
       if (estDebutPageAnnexe(texteBrut)) {
-        return { textesParPage, dernierePageUtile: Math.max(1, i - 1) };
+        pageAnnexe = i;
+        break;
       }
 
-      if (i >= PLAFOND_SECURITE * 2) break; // filet de sécurité pour un document sans annexe repérable
+      if (pageSignature === null && detecteSignatureActe(texteBrut)) pageSignature = i;
+
+      // Une fois la signature de l'acte repérée, quelques pages de plus (certificat, dernière
+      // signature électronique...) peuvent encore lui appartenir — au-delà, plus la peine de
+      // continuer à lire un PDF qui peut compter des centaines de pages d'annexes après coup.
+      if (pageSignature !== null && i >= pageSignature + TAMPON_SIGNATURE) break;
+
+      if (i >= PLAFOND_SECURITE * 2) break; // filet de sécurité pour un document sans repère trouvé
     }
 
-    const dernierePageUtile = dernierePageNumerotee
-      ? Math.min(dernierePageNumerotee + 3, textesParPage.length) // + quelques pages de certificat/signature
-      : textesParPage.length;
+    const dernierePageUtile = calculerDernierePageUtile(pageAnnexe, pageSignature, dernierePageNumerotee, textesParPage.length);
     return { textesParPage, dernierePageUtile };
   }
 
@@ -1507,7 +1545,7 @@
       // ou intégrée en image (cas fréquent : bloc de signature électronique Yousign/DocuSign en
       // image, sur la page qui suit immédiatement la mention « Fait à … signé électroniquement »).
       if (!dateCompromisDetectee) {
-        const idxSignature = textesParPage.findIndex(t => /sign[ée]\s+[ée]lectroniquement|date\s+et\s+signatures/i.test(t));
+        const idxSignature = textesParPage.findIndex(detecteSignatureActe);
         let pagesACiber = [];
         if (idxSignature !== -1) {
           const pageDepart = idxSignature + 1; // 1-based pour pdf.js
@@ -1924,11 +1962,12 @@
     let countdownText = '';
     // Une fois l'offre de prêt confirmée reçue, la date de cette échéance n'a plus lieu d'être
     // signalée comme "dépassée" (condition résolue, pas un retard) — signalé par l'étude sur la
-    // fiche dépliée d'un dossier avec offre reçue.
-    if (offrePretRecue) {
-      countdownClass = 'recue';
-      countdownText = '✓ Offre reçue';
-    } else if (jours < 0) {
+    // fiche dépliée d'un dossier avec offre reçue. Bug corrigé : le décompte affichait alors
+    // "✓ Offre reçue" ET offreBloc affichait juste en dessous le même statut en toutes lettres
+    // ("✓ Offre de prêt reçue") — doublon signalé par l'étude. Le décompte est masqué dans ce cas
+    // (rien à ajouter à ce que dit déjà offreBloc), plutôt que de répéter l'information.
+    const decompteMasque = offrePretRecue;
+    if (jours < 0) {
       countdownClass = 'passed';
       countdownText = 'Échéance dépassée';
     } else if (jours === 0) {
@@ -1942,7 +1981,7 @@
       ${enTete}
       <span class="tab-date-affichage" id="${idBase}-aff"><div class="tab-date">${formatDateFr(iso)}${boutonVoir}</div>${crayonDate}${badgeConfiance}</span>
       ${editionDate}
-      <div class="tab-countdown ${countdownClass}">${countdownText}</div>
+      ${decompteMasque ? '' : `<div class="tab-countdown ${countdownClass}">${countdownText}</div>`}
       ${offreBloc || ''}
     </div>`;
   }
@@ -2135,7 +2174,7 @@
       ['c-neutre', aVerifier, 'offres à vérifier']
     ];
     bloc.innerHTML = tuiles.map(([cls, valeur, libelle]) =>
-      `<div class="stat-tile"><div class="stat-num ${cls}">${valeur}</div><div class="stat-label">${libelle}</div></div>`
+      `<div class="stat-tile"><div class="stat-label">${libelle}</div><div class="stat-num ${cls}">${valeur}</div></div>`
     ).join('');
   }
 
@@ -2170,7 +2209,7 @@
       ['c-pret', piecesIncompletes, 'dossiers avec pièces manquantes', '<span class="kpi-icone">📋</span>']
     ];
     bloc.innerHTML = tuiles.map(([cls, valeur, libelle, iconeHtml]) =>
-      `<div class="kpi-tile">${iconeHtml}<div class="kpi-num ${cls}">${valeur}</div><div class="kpi-label">${libelle}</div></div>`
+      `<div class="kpi-tile"><div class="kpi-label">${iconeHtml}${libelle}</div><div class="kpi-num ${cls}">${valeur}</div></div>`
     ).join('');
   }
 
@@ -2616,7 +2655,7 @@
     return `
       <div class="pieces-dossier">
         <div class="pieces-dossier-titre">
-          <span>📁 Pièces du dossier (${libelleType})</span>
+          <span class="section-eyebrow">📁 Pièces du dossier (${libelleType})</span>
           <span class="pieces-compteur${complet ? ' complet' : ''}">${nbRecues}/${checklist.length}</span>
           ${(DOSSIER_FS_SUPPORTE && d.dossierLie) ? `<button type="button" class="action-rapide" onclick="verifierPiecesDossierDepuisBouton('${d.id}', this)">Revérifier les pièces</button>` : ''}
         </div>
@@ -2746,7 +2785,7 @@
         </div>
         <div class="dossier-col-laterale">
         ${historique.length > 0 ? `
-          <button type="button" class="historique-toggle" onclick="toggleHistorique('${d.id}')">Historique (${historique.length})</button>
+          <button type="button" class="historique-toggle section-eyebrow" onclick="toggleHistorique('${d.id}')">Historique (${historique.length})</button>
           <div class="historique-liste" id="historique-${d.id}">
             ${historique.slice().reverse().map(h => `<div class="historique-ligne"><span class="h-date">${new Date(h.date).toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })}</span>${escapeHtml(h.texte)}</div>`).join('')}
           </div>

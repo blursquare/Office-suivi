@@ -384,25 +384,40 @@
     padding: 16px 16px 14px;
     box-shadow: var(--shadow-card);
   }
-  .kpi-icone { font-size: 15px; opacity: 0.8; }
+  .kpi-icone { font-size: 13px; line-height: 1; flex: none; opacity: 0.8; }
   /* Icône calendrier SVG partagée par les deux tuiles d'échéances (7j/15j), le seuil dessiné dans
      le corps du calendrier plutôt que deux emojis différents sans lien visuel entre eux. */
   .kpi-icone-calendrier {
-    width: 17px;
-    height: 17px;
+    width: 15px;
+    height: 15px;
     color: var(--ink-soft);
-    vertical-align: -3px;
   }
   .kpi-num {
-    font-size: 26px;
+    font-size: 30px;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
-    line-height: 1.3;
+    line-height: 1;
+    margin-top: 8px;
   }
   .kpi-num.c-urgent { color: var(--urgent); }
   .kpi-num.c-pret { color: var(--pret); }
   .kpi-num.c-neutre { color: var(--ink); }
-  .kpi-label { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+  /* Libellé au-dessus du chiffre (on lit ce que c'est, puis combien), en petites capitales
+     espacées : la même "étiquette" que les intitulés de section de la fiche dossier, pour que
+     toutes les tuiles se lisent d'un coup d'œil. La hauteur minimale vaut deux lignes afin que
+     les chiffres restent alignés d'une tuile à l'autre même quand un libellé passe à la ligne. */
+  .kpi-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    line-height: 1.4;
+    min-height: 28px;
+    color: var(--muted);
+  }
 
   .dash-grid {
     display: grid;
@@ -523,15 +538,24 @@
     box-shadow: var(--shadow-card);
   }
   .stat-num {
-    font-size: 26px;
+    font-size: 30px;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
-    line-height: 1.1;
+    line-height: 1;
+    margin-top: 8px;
   }
   .stat-num.c-urgent { color: var(--urgent); }
   .stat-num.c-pret { color: var(--pret); }
   .stat-num.c-neutre { color: var(--ink); }
-  .stat-label { font-size: 12px; color: var(--ink-soft); margin-top: 4px; }
+  .stat-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    line-height: 1.4;
+    min-height: 28px;
+    color: var(--muted);
+  }
 
   @media (max-width: 720px) {
     .stats-suivi { grid-template-columns: repeat(2, 1fr); }
@@ -1197,7 +1221,7 @@
     color: var(--ink-soft);
     border: 1px solid var(--line);
   }
-  button.secondary:hover { color: var(--ink); border-color: var(--ink-soft); }
+  button.secondary:hover { color: var(--ink); background: var(--line-soft); border-color: var(--line); }
 
   /* ---- dossier list ---- */
 
@@ -1426,18 +1450,28 @@
     white-space: nowrap;
   }
 
+  /* Intitulé de section en petites capitales espacées, partagé par les blocs de la fiche dossier
+     (pièces, historique) et les tuiles de chiffres (.kpi-label / .stat-label reprennent la même
+     recette) : un seul registre d'étiquette dans tout l'outil, au lieu d'un style de titre par
+     bloc. */
+  .section-eyebrow {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
   /* ---- historique ---- */
   .historique-toggle {
     font-family: inherit;
-    font-size: 12px;
     color: var(--muted);
     background: none;
     border: none;
     cursor: pointer;
     padding: 0;
     margin-top: 10px;
-    text-decoration: underline;
-    text-underline-offset: 2px;
+    align-self: flex-start;
   }
   .historique-toggle:hover { color: var(--ink-soft); }
   .historique-liste {
@@ -1451,7 +1485,11 @@
   }
   .historique-liste.ouvert { display: block; }
   .historique-ligne { padding: 3px 0; }
-  .historique-ligne .h-date { color: var(--muted); margin-right: 6px; }
+  .historique-ligne .h-date {
+    color: var(--muted);
+    margin-right: 6px;
+    font-variant-numeric: tabular-nums;
+  }
 
   /* ---- archive ---- */
   .dossier.est-archive { opacity: 0.65; }
@@ -1540,22 +1578,43 @@
   .dossiers-table { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 720px; }
   .dossiers-table thead th {
     text-align: left;
-    font-size: 11.5px;
+    font-size: 11px;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.08em;
     color: var(--muted);
     font-weight: 600;
     padding: 10px 14px;
-    border-bottom: 1px solid var(--line);
     white-space: nowrap;
   }
   .dossiers-table tbody td {
     padding: 10px 14px;
-    border-bottom: 1px solid var(--line-soft);
     vertical-align: middle;
   }
+  /* Le filet entre deux lignes est peint par la LIGNE (un dégradé de 1px calé en bas), pas par une
+     bordure de cellule : il peut ainsi s'estomper à ses deux extrémités au lieu de buter net sur
+     le bord du tableau — le tableau se lit comme une liste aérée plutôt que comme une grille.
+     Conséquence à garder en tête : toute couleur de fond posée sur une ligne doit passer par
+     background-image en SECONDE couche (voir .ligne-resume:hover), sinon elle recouvre le filet. */
+  .dossiers-table thead tr,
+  .dossiers-table tbody tr {
+    background-repeat: no-repeat;
+    background-position: bottom;
+    background-size: 100% 1px;
+  }
+  .dossiers-table thead tr {
+    background-image: linear-gradient(to right, transparent, var(--line) 44px, var(--line) calc(100% - 44px), transparent);
+  }
+  .dossiers-table tbody tr {
+    background-image: linear-gradient(to right, transparent, var(--line-soft) 44px, var(--line-soft) calc(100% - 44px), transparent);
+  }
   .ligne-resume { cursor: pointer; }
-  .ligne-resume:hover { background: var(--paper-sunk); }
+  .ligne-resume:hover {
+    background-image:
+      linear-gradient(to right, transparent, var(--line-soft) 44px, var(--line-soft) calc(100% - 44px), transparent),
+      linear-gradient(var(--paper-sunk), var(--paper-sunk));
+    background-size: 100% 1px, 100% 100%;
+    background-position: bottom, 0 0;
+  }
   .ligne-resume.est-archive { opacity: 0.65; }
   .ligne-resume .dossier-nom-tableau { font-weight: 600; color: var(--ink); }
   /* Même taille que .echeance-jours (12px) sur la même ligne — demandé par l'étude, le nom du
@@ -1600,7 +1659,7 @@
   .type-pill.autre { background: var(--line-soft); color: var(--muted); }
   .type-pill.autre .dot { background: var(--muted); }
 
-  .echeance-jours { font-size: 12px; margin-left: 6px; }
+  .echeance-jours { font-size: 12px; margin-left: 6px; font-variant-numeric: tabular-nums; }
   .echeance-jours.urgent { color: var(--urgent); font-weight: 600; }
   .echeance-jours.calme { color: var(--ink-soft); }
 
@@ -1951,10 +2010,6 @@
   .tab .tab-countdown.passed {
     color: var(--muted);
     font-style: italic;
-  }
-  .tab .tab-countdown.recue {
-    color: var(--success);
-    font-weight: 600;
   }
 
   /* Statut de l'offre de prêt + "Revérifier", sous la date/le décompte de la carte "Obtention du
