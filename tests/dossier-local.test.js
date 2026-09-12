@@ -156,6 +156,39 @@ test('motifNom ne confond pas un certificat d\'urbanisme mentionnant "alignement
   assert.equal(alignement.motifNom.test("Certificat d'urbanisme - réponse alignement voirie.pdf"), false);
 });
 
+test('normaliserNomPourMotif remplace underscores/tirets par des espaces pour un vrai nom de fichier de l\'étude', () => {
+  const app = chargerApplication();
+  assert.equal(
+    app.normaliserNomPourMotif('Certificat_alignement_et_nume_rotage_DI_132.pdf'),
+    'Certificat alignement et nume rotage DI 132.pdf'
+  );
+  assert.equal(app.normaliserNomPourMotif('Titre-de-propriete.pdf'), 'Titre de propriete.pdf');
+});
+
+test('motifNom reconnaît un vrai nom de fichier de l\'étude avec underscores et un mot coupé par l\'accent', () => {
+  // Bug réel signalé par l'étude : "Certificat_alignement_et_nume_rotage_DI_132.pdf" n'était
+  // détecté ni comme certificat d'alignement ni comme certificat de numérotage. Deux causes
+  // cumulées : les underscores remplacent les espaces (motifNom écrit avec \s+), et "numérotage"
+  // est coupé en deux par un underscore au niveau de l'accent ("nume_rotage") — voir CLAUDE.md.
+  const app = chargerApplication();
+  const nomNormalise = app.normaliserNomPourMotif('Certificat_alignement_et_nume_rotage_DI_132.pdf');
+  const alignement = app.checklistPieces('maison').find(p => p.cle === 'certificatAlignement');
+  const numerotage = app.checklistPieces('maison').find(p => p.cle === 'certificatNumerotage');
+  assert.ok(alignement.motifNom.test(nomNormalise), 'certificatAlignement devrait reconnaître ce nom de fichier une fois normalisé');
+  assert.ok(numerotage.motifNom.test(nomNormalise), 'certificatNumerotage devrait reconnaître ce nom de fichier une fois normalisé');
+});
+
+test('motifNom (taxe foncière, titre de propriété) tolère aussi un mot coupé au niveau de l\'accent', () => {
+  // Même mécanisme que "numérotage" ci-dessus : un nom de fichier de l'étude peut couper le mot
+  // juste après la lettre accentuée transcrite ("foncière" → "foncie_re", "propriété" →
+  // "proprie_te") plutôt que de garder le mot accolé.
+  const app = chargerApplication();
+  const avisTaxeFonciere = app.checklistPieces('maison').find(p => p.cle === 'avisTaxeFonciere');
+  const titrePropriete = app.checklistPieces('maison').find(p => p.cle === 'titrePropriete');
+  assert.ok(avisTaxeFonciere.motifNom.test(app.normaliserNomPourMotif('Taxes_foncie_re_2024.pdf')));
+  assert.ok(titrePropriete.motifNom.test(app.normaliserNomPourMotif('Titre_de_proprie_te.pdf')));
+});
+
 test('motifPieceTrouve écarte un certificat d\'urbanisme qui renvoie vers d\'autres certificats sans être lui-même l\'un d\'eux', () => {
   // Bug réel signalé par l'étude : un certificat d'urbanisme explique couramment, dans son propre
   // texte, où demander le certificat de numérotage/alignement, sans être lui-même ce document —

@@ -3739,8 +3739,13 @@
   // demandé explicitement par l'étude et généralisé ici à toutes les pièces).
   var PIECES_URBANISME = [
     { cle: 'certificatUrbanisme', label: "Certificat d'urbanisme", motif: /certificat\s+d[’']urbanisme/i, motifNom: /certificat\s+d?[’']?\s*urbanisme|\bCU\s*a\)/i },
-    { cle: 'certificatAlignement', label: "Certificat d'alignement", motif: /certificat\s+d[’']alignement/i, motifNom: /certificat\s+d[’']alignement/i },
-    { cle: 'certificatNumerotage', label: 'Certificat de numérotage', motif: /certificat\s+de\s+num[ée]rotage/i, motifNom: /num[ée]rotage/i },
+    // "d'" rendu optionnel (comme certificatUrbanisme ci-dessus) : un vrai nom de fichier de
+    // l'étude ("Certificat_alignement...") ne le porte pas forcément — voir CLAUDE.md.
+    { cle: 'certificatAlignement', label: "Certificat d'alignement", motif: /certificat\s+d[’']alignement/i, motifNom: /certificat\s+d?[’']?\s*alignement/i },
+    // \s? après l'accent : un fichier réel de l'étude a été nommé "...nume_rotage..." (le mot
+    // "numérotage" coupé en deux à l'endroit de l'accent, très probablement une frappe accidentelle
+    // d'espace dans "numé rotage" avant conversion espace→underscore) — voir CLAUDE.md.
+    { cle: 'certificatNumerotage', label: 'Certificat de numérotage', motif: /certificat\s+de\s+num[ée]rotage/i, motifNom: /num[ée]\s?rotage/i },
     // ass?ainissement : tolère "asainissement" (un seul "s"), faute de frappe courante.
     { cle: 'reponseAssainissement', label: 'Courrier réponse assainissement', motif: /assainissement/i, motifNom: /ass?ainissement|\bSPANC\b/i },
     { cle: 'renonciationPreemption', label: 'Renonciation au droit de préemption', motif: /pr[ée]emption/i }
@@ -3755,11 +3760,13 @@
     { cle: 'erp', label: 'ERP (état des risques et pollution)', motif: /[ée]tat\s+des\s+risques(?:\s+et\s+pollutions?|\s+naturels?)?|\bERNMT\b|\bESRIS\b/i, motifNom: /\bERP\b|[ée]tat\s+des\s+risques(?:\s+et\s+pollutions?)?/i },
     // \bTF\b avant les chiffres d'une année éventuelle ("TF 2024.pdf") : pas besoin de motif
     // spécifique, \b ne consomme aucun caractère et laisse la suite du nom de fichier de côté.
-    { cle: 'avisTaxeFonciere', label: 'Avis de taxe foncière', motif: /(?:avis\s+de\s+)?taxe\s+fonci[èe]re/i, motifNom: /\bTF\b|taxes?\s+fonci[èe]re/i },
+    // \s? après l'accent de "foncière" : même précaution que "numérotage" ci-dessus.
+    { cle: 'avisTaxeFonciere', label: 'Avis de taxe foncière', motif: /(?:avis\s+de\s+)?taxe\s+fonci[èe]re/i, motifNom: /\bTF\b|taxes?\s+fonci[èe]\s?re/i },
     // "titre" seul valide déjà (fichier couramment nommé juste "Titre.pdf" dans les dossiers de
     // l'étude) ; le groupe optionnel ne fait qu'accepter EN PLUS "titre de propriété"/"titre
-    // vendeur" sans les exiger.
-    { cle: 'titrePropriete', label: 'Titre de propriété', motif: /titre\s+de\s+propri[ée]t[ée]/i, motifNom: /titre(?:\s+de\s+propri[ée]t[ée]|\s+vendeur)?/i }
+    // vendeur" sans les exiger. \s? après chaque accent de "propriété" : même précaution que
+    // "numérotage"/"foncière" ci-dessus (deux positions ici, "propri[é]" et "t[é]").
+    { cle: 'titrePropriete', label: 'Titre de propriété', motif: /titre\s+de\s+propri[ée]t[ée]/i, motifNom: /titre(?:\s+de\s+propri[ée]\s?t[ée]\s?|\s+vendeur)?/i }
   ];
   var PIECES_COPROPRIETE = [
     { cle: 'etatDate', label: 'État daté', motif: /[ée]tat\s+dat[ée]/i },
@@ -3792,6 +3799,16 @@
       if (re.lastIndex === m.index) re.lastIndex++; // motif pouvant matcher une chaîne vide : évite une boucle infinie
     }
     return false;
+  }
+
+  // Les motifNom ci-dessus utilisent \s+ (espace) comme séparateur naturel du français, mais les
+  // vrais noms de fichiers de l'étude remplacent couramment les espaces par des underscores/tirets
+  // (ex. "Certificat_alignement_et_nume_rotage_DI_132.pdf") — sans cette normalisation, \s+ ne
+  // matcherait jamais un tel nom. Testé UNIQUEMENT contre motifNom (le nom de fichier), jamais
+  // contre motif (le contenu du PDF, un vrai texte qui n'a pas ce problème). Signalé par l'étude
+  // sur un fichier réel qui ne remontait pas.
+  function normaliserNomPourMotif(nom) {
+    return nom.replace(/[_-]+/g, ' ');
   }
 
   // Ordre d'affichage = ordre des listes fournies par l'étude : urbanisme (commun aux deux types),
@@ -4036,8 +4053,11 @@
         // Nom du fichier testé en premier pour les pièces (voir motifNom) : plus fiable que le
         // contenu extrait pour les pièces dont l'intitulé de fichier est conventionnel dans les
         // dossiers de l'étude, et ça évite d'ouvrir/lire le PDF quand le nom seul suffit déjà.
+        // Normalisé (underscores/tirets → espaces, voir normaliserNomPourMotif) avant le test :
+        // les motifNom sont écrits avec \s+ comme séparateur, un vrai nom de fichier de l'étude non.
+        const nomNormalise = normaliserNomPourMotif(entree.name);
         for (const piece of checklist) {
-          if (aChercher.has(piece.cle) && piece.motifNom && piece.motifNom.test(entree.name)) {
+          if (aChercher.has(piece.cle) && piece.motifNom && piece.motifNom.test(nomNormalise)) {
             fichierParPiece[piece.cle] = entree;
             aChercher.delete(piece.cle);
           }

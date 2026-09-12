@@ -1699,6 +1699,33 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     suite. Vérifié visuellement (Playwright, dossier synthétique relié) : les trois boutons
     rendent bien `verifierDossierLocalDepuisBouton` dans le DOM généré, `npm test` reste vert
     (115 tests).
+- **Bug corrigé : un vrai fichier de l'étude ("Certificat_alignement_et_nume_rotage_DI_132.pdf")
+  n'était détecté ni comme certificat d'alignement ni comme certificat de numérotage**, malgré les
+  `motifNom` déjà en place pour ces deux pièces. Deux causes cumulées, corrigées ensemble et
+  généralisées à TOUTE la checklist (pas seulement ces deux pièces, demandé explicitement) :
+  - **Underscores/tirets au lieu d'espaces.** Les `motifNom` sont tous écrits avec `\s+` comme
+    séparateur naturel du français, mais un vrai nom de fichier de l'étude remplace couramment les
+    espaces par des underscores ("Certificat_alignement...") — `\s+` ne matche jamais un
+    underscore. Nouvelle fonction `normaliserNomPourMotif(nom)` (remplace `[_-]+` par un espace),
+    appelée sur `entree.name` dans `verifierDossierLocal()` juste avant de tester chaque
+    `motifNom` — jamais sur `motif` (le contenu du PDF, un vrai texte qui n'a pas ce problème).
+    S'applique automatiquement à TOUTES les pièces de la checklist, sans toucher aux regex
+    elles-mêmes : underscores et tirets sont désormais transparents pour n'importe quel `motifNom`
+    présent ou futur.
+  - **Un mot coupé par l'outil de nommage au niveau de sa lettre accentuée.** Même une fois les
+    underscores ramenés à des espaces, "numérotage" restait introuvable : le nom réel contenait
+    "nume_rotage", soit le mot coupé en deux pile après la lettre accentuée transcrite (é → "e"
+    puis séparateur inséré). Motif générique reconnu (vraisemblablement une conséquence du même
+    outil/de la même convention de nommage que le problème d'underscore ci-dessus, pas un accident
+    isolé) : chaque `motifNom` contenant une lettre accentuée EN PLEIN MILIEU d'un mot (pas en
+    tête) tolère désormais un `\s?` optionnel juste après cette lettre — `certificatNumerotage`
+    (`num[ée]\s?rotage`), `avisTaxeFonciere` (`fonci[èe]\s?re`), `titrePropriete`
+    (`propri[ée]\s?t[ée]\s?`, deux positions). `certificatAlignement` n'avait pas cet accent mais
+    exigeait strictement "d'alignement" avec l'apostrophe — assoupli en rendant "d'" optionnel
+    (`certificat\s+d?['’]?\s*alignement`), même schéma que `certificatUrbanisme` qui l'était déjà,
+    pour couvrir "Certificat_alignement" (sans "d'" du tout) comme ce fichier réel.
+  - Quatre nouveaux tests dans `tests/dossier-local.test.js`, dont un avec le nom de fichier exact
+    fourni par l'étude — `npm test` reste vert (118 tests).
 
 ## Comment tester
 
