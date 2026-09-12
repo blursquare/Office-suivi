@@ -2328,6 +2328,27 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     affichée correctement, fermeture par Échap confirmée (`display: none` après la touche), rendu
     correct dans les deux thèmes et à largeur téléphone. `npm test` reste vert (129 tests, aucune
     fonction pure ajoutée par ce chantier — uniquement de l'affichage).
+- **Versionning affiné à la minute + historique récent dans "À propos"** : demandé juste après
+  l'ajout de l'écran ci-dessus — une simple date (`AAAA-MM-JJ`) ne permet pas de distinguer
+  plusieurs versions publiées le même jour, ce qui est le cas courant pour cet outil (plusieurs
+  corrections indépendantes traitées à la suite dans une même session).
+  - `VERSION_APP` passe au format `AAAA-MM-JJ HH:MM` (précision à la minute). **Procédure de mise à
+    jour, à ne pas sauter à chaque commit qui change le comportement de l'outil** : lancer
+    `date '+%Y-%m-%d %H:%M'` en shell pour obtenir l'heure RÉELLE du moment (ne jamais deviner ou
+    recopier l'heure du commit précédent), puis reporter cette valeur dans `VERSION_APP` **et**
+    ajouter une nouvelle entrée en tête de `HISTORIQUE_VERSIONS` avec un court résumé (une phrase)
+    du changement — jamais l'un sans l'autre, les deux doivent toujours désigner le même instant.
+  - `HISTORIQUE_VERSIONS` (nouveau tableau, juste après `VERSION_APP`) : les ~8 dernières entrées
+    `{version, resume}`, la plus récente en tête (au-delà, l'historique complet reste dans ce
+    fichier CLAUDE.md — pas la peine de dupliquer indéfiniment). Affiché sous le numéro de version
+    dans l'écran "À propos" (`#apropos-historique-liste`, peuplé par `ouvrirAPropos()`) : le numéro
+    seul dit "ce n'est pas la même copie", cette liste dit en plus CE QUI A CHANGÉ, pour que l'étude
+    puisse vérifier qu'elle a bien reçu un correctif précis sans avoir à me redemander. Liste dans
+    un encart défilant (`max-height` + `overflow-y`) plutôt que de pousser le reste de la fenêtre
+    vers le bas si elle s'allonge.
+  - Vérifié visuellement (Playwright, clair et sombre) : version et historique s'affichent
+    correctement, dans l'ordre attendu, l'encart défile sans déborder de la fenêtre modale.
+    `npm test` reste vert (129 tests, aucune fonction pure ajoutée — uniquement de l'affichage).
 
 ## Comment tester
 
@@ -2353,10 +2374,11 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
 
 ## Ce qui reste ouvert / pas encore fait
 
-- **Ne pas oublier de mettre à jour `VERSION_APP`** (tout en haut de `script.js`, date
-  `AAAA-MM-JJ`) à chaque commit qui change le comportement de l'outil — affichée dans l'écran "À
-  propos" (voir son historique ci-dessus), c'est actuellement le seul moyen pour l'étude de
-  vérifier qu'elle a bien la dernière copie avant de resignaler un bug déjà corrigé.
+- **Ne pas oublier de mettre à jour `VERSION_APP` ET `HISTORIQUE_VERSIONS`** (tout en haut de
+  `script.js`, format `AAAA-MM-JJ HH:MM` — voir leur historique ci-dessus) à CHAQUE commit qui
+  change le comportement de l'outil, avec l'heure réelle (`date '+%Y-%m-%d %H:%M'`) : affichés dans
+  l'écran "À propos", c'est actuellement le seul moyen pour l'étude de vérifier qu'elle a bien la
+  dernière copie (et de voir CE QUI a changé) avant de resignaler un bug déjà corrigé.
 - Deux autres idées côté identité de marque, proposées en même temps que l'écran "À propos" mais
   non engagées : un favicon/onglet dynamique reflétant l'urgence du portefeuille (pastille rouge/
   verte selon les dossiers en blocage), et un en-tête "CLAIRE" discret sur la fiche imprimée

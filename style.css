@@ -2819,6 +2819,25 @@
     border-radius: 3px;
   }
   .apropos-note { font-style: italic; }
+  .apropos-historique-titre { margin: 0 0 8px; }
+  .apropos-historique-liste {
+    margin: 0 0 16px;
+    padding: 8px 10px;
+    max-height: 160px;
+    overflow-y: auto;
+    list-style: none;
+    background: var(--paper-sunk);
+    border: 1px solid var(--line-soft);
+    border-radius: 5px;
+    font-size: 12px;
+    color: var(--ink-soft);
+    line-height: 1.7;
+  }
+  .apropos-historique-date {
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+    font-weight: 600;
+  }
 
   /* Lien "À propos" en bas de la sidebar : volontairement discret (plus petit, muted) par rapport
      aux autres liens du pied de sidebar (installer l'app, thème) — une aide occasionnelle, pas une

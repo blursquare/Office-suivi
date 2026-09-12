@@ -1,13 +1,33 @@
 
-  // Affichée dans l'écran "À propos" (voir ouvrirAPropos ci-dessous) — permet à l'étude de vérifier
-  // en un coup d'œil qu'elle a bien la dernière copie retéléchargée depuis le dépôt avant de
-  // resignaler un bug déjà corrigé : l'outil n'a pas de mise à jour automatique (pas de build, pas
-  // de serveur — voir contrainte n°1 de CLAUDE.md), et plusieurs signalements de cette session se
-  // sont révélés être une copie obsolète testée par erreur. À mettre à jour manuellement à chaque
-  // commit qui modifie le comportement de l'outil (date du jour au format AAAA-MM-JJ) — ne PAS
-  // automatiser via un numéro de commit git : ces 3 fichiers sont utilisés hors de tout dépôt une
-  // fois déposés chez l'étude, aucune information git n'est disponible à l'exécution.
-  const VERSION_APP = '2026-09-12';
+  // Affichées dans l'écran "À propos" (voir ouvrirAPropos ci-dessous) — permet à l'étude de
+  // vérifier en un coup d'œil qu'elle a bien la dernière copie retéléchargée depuis le dépôt avant
+  // de resignaler un bug déjà corrigé : l'outil n'a pas de mise à jour automatique (pas de build,
+  // pas de serveur — voir contrainte n°1 de CLAUDE.md), et plusieurs signalements de cette session
+  // se sont révélés être une copie obsolète testée par erreur.
+  // Format DATE + HEURE (pas seulement la date) : plusieurs versions peuvent se succéder dans la
+  // même journée (plusieurs corrections l'une après l'autre) — une simple date ne permettrait pas
+  // de les distinguer. À METTRE À JOUR MANUELLEMENT à chaque commit qui modifie le comportement de
+  // l'outil, avec l'heure RÉELLE au moment du commit (`date '+%Y-%m-%d %H:%M'` en shell) — ne PAS
+  // deviner ni recopier l'heure d'un commit précédent, et ne pas automatiser via un numéro de
+  // commit git : ces 3 fichiers sont utilisés hors de tout dépôt une fois déposés chez l'étude,
+  // aucune information git n'est disponible à l'exécution.
+  const VERSION_APP = '2026-09-12 21:29';
+
+  // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
+  // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
+  // liste dit en plus CE QUI A CHANGÉ, ce qui permet à l'étude de vérifier qu'elle a bien reçu un
+  // correctif précis sans avoir à me redemander. Garder au plus les ~8 entrées les plus récentes
+  // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
+  // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
+  const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-12 21:29', resume: 'Écran "À propos" : version datée à la minute + historique récent' },
+    { version: '2026-09-12 21:19', resume: 'Panneau de diagnostic du dernier parcours du dossier local' },
+    { version: '2026-09-12 20:49', resume: 'Pièce personnalisée enfin retrouvée par "Revérifier"' },
+    { version: '2026-09-12 20:39', resume: 'Détection de pièces : accents Unicode NFD (dossiers zippés depuis un Mac)' },
+    { version: '2026-09-12 20:28', resume: 'Parcours du dossier local en largeur (bug structurel, plus fiable sur les gros dossiers)' },
+    { version: '2026-09-12 20:07', resume: 'Tendance du nombre de dossiers actifs ; recherche auto à l’ajout d’une pièce' },
+    { version: '2026-09-12 19:40', resume: 'Type de vente "Terrain à bâtir" ; pièces personnalisables par dossier' }
+  ];
 
   const STORAGE_KEY = 'dossiers';
   let dossiers = [];
@@ -2967,12 +2987,19 @@
     await reconfirmerTousLesAcces();
   }
 
-  // Écran "À propos" (voir VERSION_APP en tête de fichier) : peuple la version à chaque ouverture
-  // plutôt qu'une fois au chargement, au cas — improbable mais sans coût à couvrir — où le libellé
-  // serait un jour recalculé dynamiquement plutôt qu'une simple constante figée.
+  // Écran "À propos" (voir VERSION_APP/HISTORIQUE_VERSIONS en tête de fichier) : peuple la version
+  // et l'historique à chaque ouverture plutôt qu'une fois au chargement, au cas — improbable mais
+  // sans coût à couvrir — où ces libellés seraient un jour recalculés dynamiquement plutôt que de
+  // simples constantes figées.
   function ouvrirAPropos() {
     const valeur = document.getElementById('apropos-version-valeur');
     if (valeur) valeur.textContent = VERSION_APP;
+    const liste = document.getElementById('apropos-historique-liste');
+    if (liste) {
+      liste.innerHTML = HISTORIQUE_VERSIONS.map(h =>
+        `<li><span class="apropos-historique-date">${escapeHtml(h.version)}</span> — ${escapeHtml(h.resume)}</li>`
+      ).join('');
+    }
     const overlay = document.getElementById('apropos-overlay');
     if (overlay) overlay.style.display = 'flex';
   }
