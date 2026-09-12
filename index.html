@@ -118,12 +118,6 @@
           <div id="pdf-status" class="pdf-status"></div>
           <div class="progress-bar" id="pdf-progress"><div class="progress-bar-fill" id="pdf-progress-fill"></div></div>
 
-          <div id="compromis-info" class="compromis-info" style="display:none;">
-            <span id="compromis-info-text"></span>
-            <button type="button" class="icon-btn" onclick="toggleCompromisEdit()">Corriger</button>
-            <input type="date" id="f-date-compromis" style="display:none;" onchange="corrigerDateCompromis(this.value)">
-          </div>
-
           <div id="cash-note" class="cash-note" style="display:none;"></div>
         </div>
 
@@ -134,9 +128,20 @@
       </div>
 
       <div class="wizard-step" id="wizard-step-2">
-        <!-- Déplacées ici depuis l'étape "Importer" (juste au-dessus des dates retenues, pas dans
-             l'étape précédente) pour permettre de comparer chaque date auto-détectée du compromis
-             aux dates butoir finalement sélectionnées, sans changer d'étape. -->
+        <!-- Date de signature du compromis, déplacée ici depuis l'étape "Importer" : c'est la date
+             de référence à partir de laquelle sont calculées les échéances exprimées en délai
+             (voir reDelai/reAuPlusTardDelai/reAuPlusTardApres) — elle se vérifie et se corrige
+             avec les autres dates retenues, pas en amont dans un écran qu'on quitte aussitôt
+             l'import terminé. -->
+        <div id="compromis-info" class="compromis-info" style="display:none;">
+          <span id="compromis-info-text"></span>
+          <button type="button" class="icon-btn" onclick="toggleCompromisEdit()">Corriger</button>
+          <input type="date" id="f-date-compromis" style="display:none;" onchange="corrigerDateCompromis(this.value)">
+        </div>
+        <!-- Chips de dates détectées, déplacées ici depuis l'étape "Importer" (juste au-dessus des
+             dates retenues, pas dans l'étape précédente) pour permettre de comparer chaque date
+             auto-détectée du compromis aux dates butoir finalement sélectionnées, sans changer
+             d'étape. -->
         <p class="hint">Diagnostics et dates passées sont écartés automatiquement. Cliquez sur une catégorie pour corriger un classement.</p>
         <div class="chips" id="chips"></div>
 

@@ -1331,6 +1331,18 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     dans `majApercuPieces()` — déjà le gestionnaire de changement de rôle pour l'aperçu des pièces,
     pas besoin d'un second point d'entrée) et se vide au passage, pour ne pas garder une adresse
     enregistrée sans jamais s'en servir. Réapparaît si le rôle repasse à Instrumentaire.
+- **Date de signature du compromis détectée déplacée de l'étape "Importer" vers l'étape
+  "Vérifier"** du wizard : demandé par l'étude. `#compromis-info` (le bandeau "Date de signature
+  détectée : ... · Corriger") vivait dans `.extract-box` de l'étape 1, un écran qu'on quitte
+  aussitôt l'import terminé (bascule automatique vers l'étape 2, voir plus haut) — la seule vraie
+  utilité de cette date, servir d'ancre aux échéances exprimées en délai (`reDelai`,
+  `reAuPlusTardDelai`, `reAuPlusTardApres`), se vérifie et se corrige naturellement à côté des
+  dates butoir elles-mêmes, pas en amont sur un écran de passage. Simple déplacement dans
+  `index.html` (le bloc HTML, inchangé, est maintenant le premier enfant de `#wizard-step-2`,
+  au-dessus des chips) : `majAffichageCompromis()`/`toggleCompromisEdit()`/
+  `corrigerDateCompromis()` ciblent déjà l'élément par son id, aucun changement côté `script.js`.
+  L'étape 1 ne garde plus que la dropzone d'import, le statut et la note "sans prêt". Vérifié
+  visuellement (Playwright) : absent de l'étape 1, bien affiché en tête de l'étape 2.
 
 ## Comment tester
 
