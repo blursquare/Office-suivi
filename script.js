@@ -3743,8 +3743,6 @@
   // "Diagnostics.pdf", "Certificat d'alignement et numérotage.pdf"), contrairement à leur contenu
   // qui peut être un scan peu lisible ou une mise en page qui n'emploie pas l'intitulé complet.
   // Signalé par l'étude : la détection par contenu seul ne fonctionnait pas bien sur ces pièces.
-  // Les deux motifs se complètent (voir verifierPiecesDossier) plutôt que `motifNom` ne remplace
-  // `motif` : un fichier au nom ambigu reste détectable par son contenu comme avant.
   // Listes de noms de fichiers données par l'étude pour ces 4 pièces (voir CLAUDE.md) :
   // ERP → "ERP", "état des risques et pollution" ; assainissement → "rapport assainissement",
   // "courrier assainissement", "SPANC", "assainissement" ; taxe foncière → "TF", "taxes foncières"
@@ -3755,18 +3753,47 @@
   // mentionnerait l'alignement en passant ne doit pas valider "Certificat d'alignement", d'où
   // l'exigence de la phrase complète "certificat d'alignement" plutôt que le mot seul,
   // demandé explicitement par l'étude et généralisé ici à toutes les pièces).
+  //
+  // Bug corrigé, structurel cette fois (pas une clause précise à exclure) : signalé par l'étude
+  // avec plusieurs clauses réelles de compromis DIFFÉRENTS (donc pas un cas isolé à patcher une
+  // regex à la fois — "chaque agence a des clauses différentes, il y en a des centaines"). Un
+  // compromis contient TOUJOURS, en boilerplate, des clauses de "condition suspensive" qui
+  // DÉCRIVENT ces pièces (ce qu'un certificat d'urbanisme ne doit pas révéler, ce qui se passe en
+  // cas d'exercice du droit de préemption, ce que les titres de propriété ne doivent pas révéler)
+  // — que la pièce ait été réellement obtenue ou non. `motif` (recherche dans le contenu d'un PDF
+  // quelconque du dossier local, y compris le compromis lui-même s'il y est enregistré) validait
+  // donc ces pièces dès la lecture du compromis, sans qu'aucun document distinct n'existe. Aucune
+  // formulation-piège ponctuelle ne peut résoudre ça : le problème n'est pas le libellé d'une
+  // clause précise, c'est que CE TYPE de pièce (une condition juridique, pas un simple fait
+  // constaté) est par nature toujours mentionné dans le compromis, quelle que soit l'étude.
+  // Solution structurelle plutôt que du cas par cas : `certificatUrbanisme`, `certificatAlignement`,
+  // `certificatNumerotage`, `renonciationPreemption` et `titrePropriete` n'ont plus de `motif`
+  // (recherche dans le contenu) DU TOUT — seul `motifNom` (le nom du fichier lui-même) les
+  // détecte désormais. Une vraie pièce administrative distincte a, dans la pratique de l'étude déjà
+  // observée sur des noms de fichiers réels (voir CLAUDE.md), un nom explicite ("Certificat
+  // d'urbanisme.pdf", "TF 2024.pdf", "Titre.pdf"...) — s'appuyer uniquement là-dessus est moins
+  // sensible que d'essayer de deviner, clause par clause, ce qui relève d'une condition juridique
+  // générique plutôt que d'un document réellement produit. ERP/diagnostics/taxe foncière/
+  // assainissement gardent leur `motif` : l'étude les a explicitement jugés moins problématiques
+  // ("pourquoi pas"), leur mention dans un compromis étant plus rarement une simple clause de
+  // condition suspensive répétée partout.
   var PIECES_URBANISME = [
-    { cle: 'certificatUrbanisme', label: "Certificat d'urbanisme", motif: /certificat\s+d[’']urbanisme/i, motifNom: /certificat\s+d?[’']?\s*urbanisme|\bCU\s*a\)/i },
+    // "réponse urbanisme"/"réponse d'urbanisme" (alias courant côté étude pour ce même document)
+    // ajouté au motifNom, en plus de "certificat d'urbanisme"/"CU a)".
+    { cle: 'certificatUrbanisme', label: "Certificat d'urbanisme", motifNom: /certificat\s+d?[’']?\s*urbanisme|\bCU\s*a\)|r[ée]ponse\s+(?:d[’']?\s*)?urbanisme/i },
     // "d'" rendu optionnel (comme certificatUrbanisme ci-dessus) : un vrai nom de fichier de
     // l'étude ("Certificat_alignement...") ne le porte pas forcément — voir CLAUDE.md.
-    { cle: 'certificatAlignement', label: "Certificat d'alignement", motif: /certificat\s+d[’']alignement/i, motifNom: /certificat\s+d?[’']?\s*alignement/i },
+    { cle: 'certificatAlignement', label: "Certificat d'alignement", motifNom: /certificat\s+d?[’']?\s*alignement/i },
     // \s? après l'accent : un fichier réel de l'étude a été nommé "...nume_rotage..." (le mot
     // "numérotage" coupé en deux à l'endroit de l'accent, très probablement une frappe accidentelle
     // d'espace dans "numé rotage" avant conversion espace→underscore) — voir CLAUDE.md.
-    { cle: 'certificatNumerotage', label: 'Certificat de numérotage', motif: /certificat\s+de\s+num[ée]rotage/i, motifNom: /num[ée]\s?rotage/i },
+    { cle: 'certificatNumerotage', label: 'Certificat de numérotage', motifNom: /num[ée]\s?rotage/i },
     // ass?ainissement : tolère "asainissement" (un seul "s"), faute de frappe courante.
     { cle: 'reponseAssainissement', label: 'Courrier réponse assainissement', motif: /assainissement/i, motifNom: /ass?ainissement|\bSPANC\b/i },
-    { cle: 'renonciationPreemption', label: 'Renonciation au droit de préemption', motif: /pr[ée]emption/i }
+    // Pas de motif de contenu (voir le commentaire structurel ci-dessus) : "préemption" seul
+    // apparaît quasi systématiquement dans le corps du compromis (clause sur les conséquences
+    // d'un exercice du droit de préemption), sans rapport avec une vraie renonciation obtenue.
+    { cle: 'renonciationPreemption', label: 'Renonciation au droit de préemption', motifNom: /pr[ée]emption/i }
   ];
   var PIECES_AUTRES = [
     { cle: 'diagnosticsTechniques', label: 'Diagnostics techniques', motif: /dossier\s+de\s+diagnostic\s+technique|diagnostics?\s+techniques?|\bDDT\b/i, motifNom: /diagnostics?|\bDDT\b/i },
@@ -3780,11 +3807,14 @@
     // spécifique, \b ne consomme aucun caractère et laisse la suite du nom de fichier de côté.
     // \s? après l'accent de "foncière" : même précaution que "numérotage" ci-dessus.
     { cle: 'avisTaxeFonciere', label: 'Avis de taxe foncière', motif: /(?:avis\s+de\s+)?taxe\s+fonci[èe]re/i, motifNom: /\bTF\b|taxes?\s+fonci[èe]\s?re/i },
+    // Pas de motif de contenu (voir le commentaire structurel plus haut) : "les titres de
+    // propriété ne devront révéler aucune charge..." est une clause de condition suspensive
+    // quasi systématique du compromis, sans rapport avec la production réelle des titres.
     // "titre" seul valide déjà (fichier couramment nommé juste "Titre.pdf" dans les dossiers de
     // l'étude) ; le groupe optionnel ne fait qu'accepter EN PLUS "titre de propriété"/"titre
     // vendeur" sans les exiger. \s? après chaque accent de "propriété" : même précaution que
     // "numérotage"/"foncière" ci-dessus (deux positions ici, "propri[é]" et "t[é]").
-    { cle: 'titrePropriete', label: 'Titre de propriété', motif: /titre\s+de\s+propri[ée]t[ée]/i, motifNom: /titre(?:\s+de\s+propri[ée]\s?t[ée]\s?|\s+vendeur)?/i }
+    { cle: 'titrePropriete', label: 'Titre de propriété', motifNom: /titre(?:\s+de\s+propri[ée]\s?t[ée]\s?|\s+vendeur)?/i }
   ];
   var PIECES_COPROPRIETE = [
     { cle: 'etatDate', label: 'État daté', motif: /[ée]tat\s+dat[ée]/i },
@@ -4112,7 +4142,10 @@
 
           for (const piece of checklist) {
             if (!aChercher.has(piece.cle)) continue;
-            if (motifPieceTrouve(piece.motif, texte)) {
+            // Certaines pièces (conditions juridiques quasi systématiquement décrites dans le
+            // compromis lui-même — voir PIECES_URBANISME/PIECES_AUTRES) n'ont plus de `motif` du
+            // tout, volontairement : seul motifNom (déjà testé plus haut) les détecte.
+            if (piece.motif && motifPieceTrouve(piece.motif, texte)) {
               fichierParPiece[piece.cle] = entree;
               aChercher.delete(piece.cle);
             }

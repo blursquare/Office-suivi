@@ -1746,6 +1746,50 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
   pas concernés, la phrase "à compter du/de" y fait partie intégrante du motif recherché, pas d'un
   contexte à écarter. Deux tests de régression dans `tests/dates.test.js` (le cas à écarter, et le
   cas à garder avec réitération) — `npm test` reste vert (120 tests).
+- **Bug corrigé, cette fois de façon STRUCTURELLE plutôt que clause par clause : des pièces
+  d'urbanisme/préemption/titre de propriété étaient marquées "reçues" alors qu'aucun document
+  distinct n'existait dans le dossier local — le système avait seulement trouvé le mot dans le
+  COMPROMIS lui-même** (une copie du compromis se trouve elle-même dans le dossier local relié,
+  et `verifierDossierLocal()` lit tous les PDF sans distinguer le compromis des vraies pièces
+  annexées). Signalé par l'étude avec TROIS clauses réelles de compromis différents (certificat
+  d'urbanisme, article L.410-1 a), droit de préemption) — l'étude a explicitement prévenu que
+  fournir une clause à exclure à chaque fois n'était pas soutenable ("chaque agence a des clauses
+  différentes, il y en a des centaines"). Diagnostic : ces trois clauses (et la toute première
+  clause fournie plus haut sur les titres de propriété) sont toutes des clauses de CONDITION
+  SUSPENSIVE qui DÉCRIVENT la pièce (ce qu'elle ne doit pas révéler, ce qui se passe si elle est
+  exercée) — un boilerplate quasi systématique de N'IMPORTE QUEL compromis, que la pièce ait été
+  réellement obtenue ou non. Le problème n'est donc pas une formulation précise à exclure au cas
+  par cas (`RE_SIMPLE_RENVOI_PIECE`/`motifPieceTrouve`, déjà en place, corrige un piège de
+  rédaction différent — un document qui renvoie vers un autre sans être lui-même annexé) : c'est
+  que ce TYPE de pièce (une condition juridique générique) est structurellement toujours mentionné
+  dans le compromis, quelle que soit l'étude ou sa formulation.
+  - **Solution structurelle, pas une regex de plus** : `certificatUrbanisme`, `certificatAlignement`,
+    `certificatNumerotage`, `renonciationPreemption` et `titrePropriete` (voir
+    `PIECES_URBANISME`/`PIECES_AUTRES` dans `script.js`) n'ont plus de `motif` (recherche dans le
+    CONTENU d'un PDF) DU TOUT — seul `motifNom` (le NOM du fichier) les détecte désormais. Une
+    vraie pièce administrative distincte a, dans la pratique déjà observée sur des noms de
+    fichiers réels de l'étude (voir les entrées précédentes de cet historique), un nom explicite
+    ("Certificat d'urbanisme.pdf", "TF 2024.pdf", "Titre.pdf"...) — s'appuyer uniquement sur le nom
+    est plus fiable que d'essayer de deviner, clause par clause et agence par agence, ce qui
+    relève d'une condition juridique générique plutôt que d'un document réellement produit et
+    joint au dossier.
+  - `verifierDossierLocal()` (la boucle de test du contenu) garde désormais `if (piece.motif && ...)`
+    avant d'appeler `motifPieceTrouve()` : certaines pièces de la checklist n'ont simplement plus
+    de motif de contenu à tester.
+  - **ERP/diagnostics/taxe foncière/assainissement gardent leur `motif`**, volontairement : l'étude
+    les a explicitement jugés moins problématiques ("pourquoi pas") — leur mention dans un
+    compromis est plus rarement une clause de condition suspensive répétée systématiquement,
+    contrairement aux cinq pièces ci-dessus.
+  - `certificatUrbanisme.motifNom` élargi pour reconnaître aussi l'alias "réponse urbanisme"/
+    "réponse d'urbanisme" (terme utilisé par l'étude pour désigner le même document) ; un
+    `motifNom` (`pr[ée]emption`) a été ajouté à `renonciationPreemption`, qui n'en avait pas
+    jusqu'ici puisque son seul signal était le contenu, désormais retiré.
+  - Tests mis à jour dans `tests/dossier-local.test.js` : un nouveau test vérifie explicitement que
+    ces 5 pièces n'ont plus de `motif` (et gardent bien un `motifNom`) ; les deux anciens tests de
+    `motifPieceTrouve` ciblant certificatNumerotage/certificatAlignement (devenu un cas qui ne peut
+    plus se produire pour elles, par construction) sont reformulés sur `reponseAssainissement`, qui
+    garde un motif de contenu — le comportement générique de `motifPieceTrouve` (écarter un renvoi,
+    rester sensible à une vraie mention) reste ainsi testé. `npm test` reste vert (121 tests).
 
 ## Comment tester
 
