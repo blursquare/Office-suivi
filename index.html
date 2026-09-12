@@ -55,6 +55,9 @@
       <button type="button" class="sidebar-link sidebar-link-icone-seule" id="theme-btn" onclick="basculerTheme()" aria-label="Basculer le thème clair/sombre" title="Basculer le thème clair/sombre">
         <span class="sidebar-link-icone" id="icon-theme" aria-hidden="true"></span>
       </button>
+      <button type="button" class="sidebar-link sidebar-link-apropos" onclick="ouvrirAPropos()">
+        <span class="sidebar-link-icone" id="icon-apropos" aria-hidden="true"></span>À propos
+      </button>
     </div>
   </aside>
 
@@ -554,6 +557,41 @@
     <div class="confirm-actions">
       <button type="button" class="btn-annuler" onclick="fermerPopupAcces()">Plus tard</button>
       <button type="button" class="btn-confirmer" onclick="reconfirmerDepuisPopup()">Reconfirmer maintenant</button>
+    </div>
+  </div>
+</div>
+
+<!-- Écran "À propos" : demandé pour donner à l'outil une identité un peu plus posée qu'un simple
+     fichier local, mais surtout pour répondre à un vrai problème rencontré à plusieurs reprises
+     (l'étude testant une copie d'index.html/script.js/style.css obsolète sans le savoir, l'outil
+     n'ayant pas de mise à jour automatique — voir CLAUDE.md) : la version/date affichée ici permet
+     de vérifier en un coup d'œil qu'on a bien la dernière copie avant de rouvrir un signalement de
+     bug déjà corrigé. -->
+<div class="confirm-overlay" id="apropos-overlay" style="display:none;" onclick="fermerAPropos()">
+  <div class="confirm-box apropos-box" onclick="event.stopPropagation()">
+    <div class="apropos-header">
+      <span class="brand-mark" aria-hidden="true">
+        <svg width="34" height="34" viewBox="0 0 48 48" fill="none">
+          <path d="M33 12a15 15 0 1 0 0 24" stroke="var(--focus)" stroke-width="1.8" stroke-linecap="round"/>
+          <line x1="30" y1="24" x2="39" y2="24" stroke="var(--focus-hover)" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span class="brand-word">CLAIRE</span>
+    </div>
+    <p class="apropos-tagline">La clarté sur chaque dossier.</p>
+    <p class="apropos-version">Version <strong id="apropos-version-valeur"></strong></p>
+    <p class="apropos-desc">
+      Registre des échéances de compromis de vente — 100&nbsp;% local, sans serveur : vos dossiers
+      restent sur ce poste ou ce lecteur réseau, jamais transmis ailleurs.
+    </p>
+    <p class="apropos-desc apropos-note">
+      Si un correctif signalé récemment ne semble « toujours pas » actif, comparez cette version
+      avec celle du dépôt avant de resignaler le même bug : retélécharger
+      <code>index.html</code>/<code>script.js</code>/<code>style.css</code> depuis le dépôt suffit
+      généralement à recevoir un correctif déjà publié.
+    </p>
+    <div class="confirm-actions">
+      <button type="button" class="btn-annuler" onclick="fermerAPropos()">Fermer</button>
     </div>
   </div>
 </div>

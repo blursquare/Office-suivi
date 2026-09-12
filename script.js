@@ -1,4 +1,14 @@
 
+  // Affichée dans l'écran "À propos" (voir ouvrirAPropos ci-dessous) — permet à l'étude de vérifier
+  // en un coup d'œil qu'elle a bien la dernière copie retéléchargée depuis le dépôt avant de
+  // resignaler un bug déjà corrigé : l'outil n'a pas de mise à jour automatique (pas de build, pas
+  // de serveur — voir contrainte n°1 de CLAUDE.md), et plusieurs signalements de cette session se
+  // sont révélés être une copie obsolète testée par erreur. À mettre à jour manuellement à chaque
+  // commit qui modifie le comportement de l'outil (date du jour au format AAAA-MM-JJ) — ne PAS
+  // automatiser via un numéro de commit git : ces 3 fichiers sont utilisés hors de tout dépôt une
+  // fois déposés chez l'étude, aucune information git n'est disponible à l'exécution.
+  const VERSION_APP = '2026-09-12';
+
   const STORAGE_KEY = 'dossiers';
   let dossiers = [];
   let detectedDates = []; // {iso, label, contexte, suggestion}
@@ -58,7 +68,8 @@
     pencil: '<path d="M11.1 2.3a1.5 1.5 0 0 1 2.1 2.1L5.4 12.2l-2.9.7.7-2.9 7.9-7.7Z" stroke-linejoin="round"/>',
     x: '<line x1="3.5" y1="3.5" x2="12.5" y2="12.5"/><line x1="12.5" y1="3.5" x2="3.5" y2="12.5"/>',
     'trend-up': '<path d="M2.5 12 6.8 7.7 9.3 10.2 13.5 6"/><path d="M9.5 6h4v4"/>',
-    'trend-down': '<path d="M2.5 4 6.8 8.3 9.3 5.8 13.5 10"/><path d="M9.5 10h4v-4"/>'
+    'trend-down': '<path d="M2.5 4 6.8 8.3 9.3 5.8 13.5 10"/><path d="M9.5 10h4v-4"/>',
+    info: '<circle cx="8" cy="8" r="6.2"/><line x1="8" y1="7.2" x2="8" y2="11.3"/><circle cx="8" cy="4.9" r="0.9" fill="currentColor" stroke="none"/>'
   };
   // `cls` porte les classes de mise en page (taille via font-size hérité, marge...) ; `spin` anime
   // une rotation continue (voir @keyframes icone-spin) pour les icônes d'attente (ex. "spinner").
@@ -2956,6 +2967,21 @@
     await reconfirmerTousLesAcces();
   }
 
+  // Écran "À propos" (voir VERSION_APP en tête de fichier) : peuple la version à chaque ouverture
+  // plutôt qu'une fois au chargement, au cas — improbable mais sans coût à couvrir — où le libellé
+  // serait un jour recalculé dynamiquement plutôt qu'une simple constante figée.
+  function ouvrirAPropos() {
+    const valeur = document.getElementById('apropos-version-valeur');
+    if (valeur) valeur.textContent = VERSION_APP;
+    const overlay = document.getElementById('apropos-overlay');
+    if (overlay) overlay.style.display = 'flex';
+  }
+
+  function fermerAPropos() {
+    const overlay = document.getElementById('apropos-overlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+
   function renderBadgeStatut(d) {
     const s = LIBELLES_STATUT[statutDossier(d)];
     const marqueur = s.icone ? icone(s.icone) : '<span class="dot"></span>';
@@ -5151,12 +5177,18 @@
   document.addEventListener('mouseup', gererSelectionPdf);
 
   document.addEventListener('keydown', (e) => {
-    // Échap ferme la boîte de confirmation ouverte, sinon la barre de sélection PDF, sinon le
-    // tiroir de fiche dossier — dans cet ordre de superposition visuelle.
+    // Échap ferme l'écran "À propos" s'il est ouvert, sinon la boîte de confirmation, sinon la
+    // barre de sélection PDF, sinon le tiroir de fiche dossier — dans cet ordre de superposition
+    // visuelle ("À propos" est un simple écran d'information, jamais ouvert en même temps qu'un
+    // autre panneau, mais autant le garder en tête de liste par cohérence).
     if (e.key === 'Escape') {
+      const aproposOverlay = document.getElementById('apropos-overlay');
       const overlay = document.getElementById('confirm-overlay');
       const barreSelection = document.getElementById('pdf-selection-toolbar');
-      if (overlay && overlay.style.display === 'flex') {
+      if (aproposOverlay && aproposOverlay.style.display === 'flex') {
+        e.preventDefault();
+        fermerAPropos();
+      } else if (overlay && overlay.style.display === 'flex') {
         e.preventDefault();
         annulerConfirmation();
       } else if (barreSelection && barreSelection.style.display !== 'none') {
@@ -5331,7 +5363,8 @@
       'icon-intro-pieces': 'folder',
       'icon-intro-mail': 'mail',
       'icon-intro-adresse': 'map-pin',
-      'icon-nav-calculateur': 'banknote'
+      'icon-nav-calculateur': 'banknote',
+      'icon-apropos': 'info'
     };
     for (const [id, nom] of Object.entries(cibles)) {
       const el = document.getElementById(id);

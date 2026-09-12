@@ -2777,3 +2777,51 @@
     color: #fff;
   }
   .confirm-box .btn-confirmer:hover { background: #b85e08; }
+
+  /* ---- écran "À propos" (voir ouvrirAPropos dans script.js) ----
+     Réutilise .confirm-overlay/.confirm-box (même fond, même carte centrée) pour rester cohérent
+     avec le reste des fenêtres modales de l'outil, avec un contenu propre plutôt qu'un simple
+     message + deux boutons. */
+  .apropos-box { max-width: 400px; }
+  .apropos-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+  .apropos-tagline {
+    margin: 0 0 14px;
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+  .apropos-version {
+    display: inline-block;
+    margin: 0 0 16px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    background: var(--paper-sunk);
+    border: 1px solid var(--line-soft);
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+  .apropos-version strong { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .apropos-desc {
+    margin: 0 0 14px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--ink-soft);
+  }
+  .apropos-desc code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    background: var(--paper-sunk);
+    padding: 1px 4px;
+    border-radius: 3px;
+  }
+  .apropos-note { font-style: italic; }
+
+  /* Lien "À propos" en bas de la sidebar : volontairement discret (plus petit, muted) par rapport
+     aux autres liens du pied de sidebar (installer l'app, thème) — une aide occasionnelle, pas une
+     action fréquente. */
+  .sidebar-link-apropos { font-size: 12.5px; color: var(--muted); padding: 8px 10px; }
+  .sidebar-link-apropos .sidebar-link-icone { font-size: 13px; opacity: 0.75; }

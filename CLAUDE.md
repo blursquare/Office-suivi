@@ -2295,6 +2295,39 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     dans cet environnement de développement) : le résumé, le journal et le cas d'erreur s'affichent
     tous correctement, dans les deux thèmes. `npm test` reste vert (129 tests, aucune fonction pure
     ajoutée par ce chantier — la logique dépend entièrement de `dossiers`/du DOM).
+- **Écran "À propos"**, une des trois idées proposées côté identité de marque lors d'un échange sur
+  les pistes d'amélioration du service — retenue en premier (les deux autres, un favicon dynamique
+  reflétant l'urgence du portefeuille et un en-tête "CLAIRE" discret sur la fiche imprimée, restent
+  de simples pistes non engagées). Répond aussi à un vrai problème rencontré à plusieurs reprises
+  cette session : l'étude testant, sans le savoir, une copie d'`index.html`/`script.js`/`style.css`
+  obsolète (l'outil n'a pas de mise à jour automatique) et resignalant un bug déjà corrigé.
+  - `VERSION_APP` (nouvelle constante, tout en haut de `script.js`) : une date `AAAA-MM-JJ` figée
+    dans le code, **à mettre à jour manuellement à chaque commit qui change le comportement de
+    l'outil** — impossible d'en déduire une automatiquement (numéro de commit git, date de
+    modification de fichier...) puisque ces 3 fichiers sont utilisés hors de tout dépôt une fois
+    déposés chez l'étude, sans aucune information git disponible à l'exécution. **Point de
+    vigilance pour la suite** : penser à l'incrémenter à chaque nouvelle session de travail, sans
+    quoi le panneau perd sa seule utilité (distinguer une copie à jour d'une copie obsolète).
+  - Lien "À propos" tout en bas de la sidebar (`.sidebar-link-apropos`, sous le bouton de thème),
+    volontairement **discret** (police plus petite, couleur `--muted`) par rapport aux autres liens
+    du pied de sidebar — une aide occasionnelle, pas une action fréquente. Ouvre `#apropos-overlay`
+    (`ouvrirAPropos()`/`fermerAPropos()` dans script.js), qui réutilise le patron
+    `.confirm-overlay`/`.confirm-box` déjà en place (popup de confirmation, popup d'accès à
+    reconfirmer) plutôt que d'inventer un second système de fenêtre modale — seul le contenu de la
+    carte change (logo + mot "CLAIRE" repris de la sidebar, tagline, pastille de version, un
+    paragraphe expliquant le fonctionnement 100% local, et une note qui pointe explicitement vers
+    le retéléchargement des 3 fichiers en cas de bug "déjà corrigé mais toujours présent"). Fermeture
+    par le bouton "Fermer" (`.btn-annuler`, neutre — `.btn-confirmer` aurait affiché un bouton rouge
+    "danger" inapproprié pour une simple fermeture), par un clic sur le fond, ou par Échap (ajouté
+    en tête du gestionnaire clavier existant : "À propos" n'est jamais ouvert en même temps qu'un
+    autre panneau en pratique, mais autant le garder cohérent avec le reste de l'ordre de fermeture
+    déjà établi).
+  - Nouvelle icône `info` dans `ICONES` (cercle + point + barre, même recette 16×16 que les autres),
+    posée par `initIconesStatiques()` comme les autres icônes statiques du HTML.
+  - Vérifié visuellement (Playwright, clair/sombre, desktop et mobile — sidebar repliable) : version
+    affichée correctement, fermeture par Échap confirmée (`display: none` après la touche), rendu
+    correct dans les deux thèmes et à largeur téléphone. `npm test` reste vert (129 tests, aucune
+    fonction pure ajoutée par ce chantier — uniquement de l'affichage).
 
 ## Comment tester
 
@@ -2320,6 +2353,14 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
 
 ## Ce qui reste ouvert / pas encore fait
 
+- **Ne pas oublier de mettre à jour `VERSION_APP`** (tout en haut de `script.js`, date
+  `AAAA-MM-JJ`) à chaque commit qui change le comportement de l'outil — affichée dans l'écran "À
+  propos" (voir son historique ci-dessus), c'est actuellement le seul moyen pour l'étude de
+  vérifier qu'elle a bien la dernière copie avant de resignaler un bug déjà corrigé.
+- Deux autres idées côté identité de marque, proposées en même temps que l'écran "À propos" mais
+  non engagées : un favicon/onglet dynamique reflétant l'urgence du portefeuille (pastille rouge/
+  verte selon les dossiers en blocage), et un en-tête "CLAIRE" discret sur la fiche imprimée
+  (`imprimerFiche()`) — à ne lancer que sur demande explicite.
 - Modèles d'email pré-rédigés différenciés selon le type de relance (prêt manquant, pièce à
   fournir, RIB) — discuté mais pas implémenté.
 - Détection d'incohérences de dates (ex. prêt après l'acte).
