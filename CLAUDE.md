@@ -2021,6 +2021,102 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     bouton "+ Nouveau dossier" à toutes les largeurs testées, et le menu de résultats s'aligne
     toujours correctement sous le champ (dossier synthétique injecté, recherche "dup"). `npm test`
     reste vert (119 tests).
+- **Nouvelle série de demandes de l'étude, traitées indépendamment** :
+  - **`certificatAlignement.motifNom` élargi : l'alignement et le numérotage sont parfois réunis
+    dans UN SEUL document**, nommé "Alignement et numérotage"/"Certificat d'alignement et
+    numérotage" ou une variante proche, SANS le mot "certificat" devant "alignement" dans ce cas —
+    l'ancien motif (`certificat\s+d?['’]?\s*alignement`) l'aurait manqué puisqu'il exigeait ce mot.
+    Une seconde alternative accepte désormais "alignement" sans "certificat" devant, mais
+    UNIQUEMENT à proximité immédiate (20 caractères) du mot "numérotage" (dans un ordre ou l'autre)
+    — pas un "alignement" nu n'importe où, ce qui aurait réintroduit le faux positif déjà corrigé
+    une fois (un certificat d'urbanisme qui mentionne "réponse alignement voirie" en passant, voir
+    le test de non-régression existant, toujours vert). Nouveau test dans
+    `tests/dossier-local.test.js` pour "Alignement et numérotage.pdf"/"Numérotage et
+    alignement.pdf", dans les deux sens.
+  - **`avisTaxeFonciere` vérifié plutôt que retouché** : le motif déjà en place
+    (`\bTF\b|taxes?\s+fonci[èe]\s?re`) reconnaissait déjà "Avis de taxes foncières" et ses variantes
+    (singulier/pluriel, avec/sans accent, underscores) sans modification — confirmé par un test
+    Node ad hoc avant de toucher au code, pour éviter une retouche inutile d'une regex déjà
+    correcte. Le cas "Avis de taxes foncières.pdf" a simplement été ajouté à la liste d'exemples
+    déjà testée dans `tests/dossier-local.test.js`, pour que cette couverture reste explicite.
+  - **Tendance du nombre de dossiers actifs sur le Tableau de bord**, demandé par l'étude : "vs mois
+    dernier"/"vs an dernier" sous la tuile KPI "dossier(s) actif(s)" (`.kpi-tendances`, deux petites
+    lignes avec une flèche haut/bas + le delta signé). Calculée RÉTROACTIVEMENT
+    (`calculerEvolutionPortefeuille()`/`compterDossiersActifsA()`/`etaitDossierActifA()`, toutes
+    testables — voir `tests/divers.test.js`) à partir de l'historique déjà stocké sur chaque
+    dossier (l'entrée "Dossier créé" à la création, "Dossier archivé"/"Dossier désarchivé" à chaque
+    archivage — voir `archiverDossier()`), plutôt que via un nouveau mécanisme de relevé
+    périodique : ce dernier n'aurait donné aucune profondeur historique avant plusieurs mois
+    d'usage, alors que l'historique existant permet une réponse immédiate. Calcul mené sur `dossiers`
+    en entier (pas seulement les actifs) : un dossier archivé aujourd'hui a pu être actif il y a un
+    mois ou un an, l'exclure fausserait la comparaison. Un dossier supprimé (pas seulement archivé)
+    n'a plus aucune trace, comme partout ailleurs dans l'outil — limite acceptée, cohérente avec le
+    reste de l'application. Volontairement **aucune couleur succès/alerte** sur la hausse ou la
+    baisse (`formaterTendance()`) : un nombre de dossiers actifs qui augmente n'est ni bon ni
+    mauvais en soi pour l'étude (plus de charge, pas un indicateur de performance) — seule une
+    flèche (icônes `trend-up`/`trend-down`, nouvelles dans `ICONES`) porte le sens de la variation,
+    en gris neutre. Vérifié visuellement (Playwright, dossiers synthétiques avec des dates
+    d'historique différentes, clair et sombre) : "= vs mois dernier"/"+1 vs an dernier" affichés
+    correctement, cohérents avec le calcul attendu à la main sur le même jeu de données.
+  - **Nouveau type de vente "Terrain à bâtir"** (`PIECES_TERRAIN_AUTRES`, dérivée de `PIECES_AUTRES`
+    par substitution — `diagnosticsTechniques` remplacé par `etudeSol` — plutôt que recopiée à la
+    main : les trois autres pièces (ERP, taxe foncière, titre de propriété) restent automatiquement
+    synchronisées si `PIECES_AUTRES` est un jour retouchée). `checklistPieces()` gagne une branche
+    `typeVente === 'terrain'` ; nouvelle option dans `#f-type-vente` (wizard) et dans le `<select>`
+    "Type de vente" du tiroir (dont les trois `<option>` testent maintenant chacune explicitement
+    `d.typeVente === valeur`, plutôt que l'ancien "maison par défaut sinon" qui aurait affiché
+    "Maison" sélectionné à tort pour un dossier "terrain"). `normaliserDossierImporte()` accepte
+    "terrain" comme valeur valide au même titre que "copropriete".
+  - **Pièces personnalisables par dossier** (checklist "à la carte", demandé par l'étude) :
+    `checklistPieces(typeVente, d)` accepte maintenant un second paramètre optionnel — absent avant
+    l'enregistrement du dossier (voir `majApercuPieces()`, qui continue d'appeler
+    `checklistPieces(select.value)` sans dossier), fourni partout ailleurs où un dossier existe déjà
+    (`statutDossier()`, `renderPiecesDossier()`, `lierDossierLocal()`, `verifierDossierLocal()`,
+    `dossierEntierementComplet()`, `calculerStatsPortefeuille()`). Avec un dossier fourni :
+    `d.piecesRetirees` (tableau de clés) masque des pièces STANDARD non pertinentes pour ce dossier
+    précis (impossible de les retirer des listes `PIECES_*`, partagées par tous les dossiers du même
+    type de vente) ; `d.piecesPersonnalisees` (tableau de `{cle, label}`) ajoute des pièces propres à
+    ce dossier. Chaque pièce personnalisée reçoit une clé générée à la création
+    (`perso-<horodatage>-<aléatoire>`) plutôt qu'un index de tableau (contrairement à `d.autres`,
+    identifiées par leur position faute d'identifiant stable) : retirer une pièce personnalisée du
+    milieu de la liste ne doit pas décaler le statut de celles qui suivent.
+    - Une croix (`.piece-suppr`) sur CHAQUE pièce de la checklist (standard ou personnalisée)
+      retire la pièce pour ce dossier (`retirerPieceStandard()`/`supprimerPiecePersonnalisee()`,
+      tous deux gardés par `demanderConfirmation()` — même filet de sécurité qu'une échéance
+      personnalisée supprimée). Un bouton "+ Ajouter une pièce" (`renderAjoutPiece()`, même
+      mini-formulaire inline que `renderAjoutEcheance()` pour les échéances : un champ texte, pas
+      de duplication du style) l'ajoute (`ajouterPiecePersonnalisee()`).
+    - **Une pièce personnalisée n'a pas de `motifNom`** (nom libre saisi par l'étude, aucune
+      détection fiable possible dans un dossier local) : son statut se corrige uniquement à la main,
+      en cliquant sur son badge (`basculerStatutPiecePersonnalisee()`, cycle inconnu → manquante →
+      reçue → inconnu, sans entrée d'historique — une case à cocher répétée n'a pas besoin d'être
+      journalisée, contrairement à un changement structurel du dossier). `verifierDossierLocal()`
+      n'a pas eu besoin d'être modifiée : son garde-fou déjà existant (`if (piece.motifNom && ...)`)
+      ignore déjà silencieusement toute pièce sans `motifNom`.
+    - **Piège HTML évité** : `.piece-item` (la puce) ne peut plus être elle-même un `<button>`
+      comme avant (une pièce reçue l'était, pour ouvrir le fichier trouvé) puisqu'elle doit
+      maintenant porter DEUX zones cliquables indépendantes (le badge lui-même, et la croix de
+      suppression) — deux `<button>` imbriqués seraient invalides et casseraient la délimitation
+      des clics. `.piece-item` reste un simple `<span>` conteneur ; `.piece-label` (le badge, un
+      `<button>` seulement quand il est réellement cliquable — reçue ou personnalisée) et
+      `.piece-suppr` (toujours un `<button>`) en sont désormais deux enfants distincts, côte à côte.
+    - Vérifié visuellement (Playwright, clair et sombre) : dossier "terrain à bâtir" synthétique
+      affichant bien "Étude de sol" à la place des diagnostics, ajout d'une pièce personnalisée
+      ("Attestation loi Carrez", compteur passé de 9 à 10), puis bascule de son statut par clic
+      (inconnu → manquante) — comportement conforme à chaque étape. `npm test` reste vert
+      (127 tests, dont 5 nouveaux couvrant `checklistPieces('terrain')` et la personnalisation par
+      dossier — les fonctions de mutation elles-mêmes, comme `basculerStatutPiecePersonnalisee()`,
+      ne sont pas unitairement testables : elles lisent/écrivent le tableau `dossiers`, une
+      variable `let` de premier niveau invisible depuis l'extérieur du contexte `vm` des tests,
+      contrairement aux `function` — voir `tests/helpers/load-app.js`).
+  - **Investigué, pas encore corrigé : un retour signalant que "les noms de dossier ne vont pas"
+    parfois, sur des compromis dont l'état civil du vendeur/promettant précède celui de
+    l'acquéreur/bénéficiaire** (l'ordre déjà supposé par `detecterNomDossier()`). Sans exemple de
+    texte réel reproduisant l'échec, aucune correction n'a été tentée : cette fonction a déjà
+    régressé plusieurs fois par le passé sur des suppositions de format non vérifiées (voir son
+    historique — le bug "NOM / NOM", le style "étiquette finale" sans guillemets...). À reprendre
+    dès qu'un exemple de compromis (ou un extrait anonymisé du bloc d'état civil concerné) est
+    fourni.
 
 ## Comment tester
 
@@ -2058,13 +2154,15 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
 - Un panneau pour consulter/vider la mémoire des corrections apprises (`correctionsApprises`)
   serait utile si elle venait à accumuler des erreurs (ex. une correction faite par erreur) —
   aujourd'hui seul un vidage du `localStorage` du navigateur permet de la réinitialiser.
-- **Checklist de pièces par type de vente (terrain nu)** : la checklist de constitution du dossier
-  (voir l'historique des décisions plus haut) couvre maison et copropriété, pas encore terrain nu —
-  l'étude n'a fourni que les deux premières listes. Le jour où elle fournit la troisième, ajouter un
-  tableau `PIECES_TERRAIN` (même forme que `PIECES_URBANISME`/`PIECES_AUTRES`), une option
-  `<option value="terrain">` dans `#f-type-vente`, et une branche dans `checklistPieces()` — pas
-  besoin de restructurer le reste (voir `renderPiecesDossier()`/`verifierPiecesDossier()`, déjà
-  écrits pour un nombre de pièces variable).
+- ~~Checklist de pièces par type de vente (terrain nu)~~ — **fait** (voir l'historique des décisions
+  plus haut, "Nouveau type de vente 'Terrain à bâtir'") : `PIECES_TERRAIN_AUTRES`, option
+  `<option value="terrain">` dans `#f-type-vente`, branche dans `checklistPieces()`.
+- **Bug non corrigé, faute d'exemple concret** : un retour de l'étude signale que "les noms de
+  dossier ne vont pas" parfois, sur des compromis où l'état civil du vendeur/promettant est
+  présenté avant celui de l'acquéreur/bénéficiaire — voir l'entrée correspondante dans l'historique
+  des décisions ci-dessus. `detecterNomDossier()` a déjà régressé plusieurs fois sur des
+  suppositions de format non vérifiées ; ne pas retoucher cette fonction sans un exemple de texte
+  réel (ou un extrait anonymisé) reproduisant l'échec.
 
 - **Arborescence réelle des dossiers de l'étude, par type d'affaire** (reçue sous forme d'un
   modèle de dossier vide "DOSSIER TYPE.rar", sans données client — noms de sous-dossiers

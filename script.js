@@ -56,7 +56,9 @@
     banknote: '<rect x="1.3" y="4.3" width="13.4" height="7.4" rx="1.4"/><circle cx="8" cy="8" r="1.9"/>',
     'map-pin': '<path d="M8 14.3S13 9.7 13 6.2A5 5 0 0 0 3 6.2C3 9.7 8 14.3 8 14.3Z" stroke-linejoin="round"/><circle cx="8" cy="6.2" r="1.7"/>',
     pencil: '<path d="M11.1 2.3a1.5 1.5 0 0 1 2.1 2.1L5.4 12.2l-2.9.7.7-2.9 7.9-7.7Z" stroke-linejoin="round"/>',
-    x: '<line x1="3.5" y1="3.5" x2="12.5" y2="12.5"/><line x1="12.5" y1="3.5" x2="3.5" y2="12.5"/>'
+    x: '<line x1="3.5" y1="3.5" x2="12.5" y2="12.5"/><line x1="12.5" y1="3.5" x2="3.5" y2="12.5"/>',
+    'trend-up': '<path d="M2.5 12 6.8 7.7 9.3 10.2 13.5 6"/><path d="M9.5 6h4v4"/>',
+    'trend-down': '<path d="M2.5 4 6.8 8.3 9.3 5.8 13.5 10"/><path d="M9.5 10h4v-4"/>'
   };
   // `cls` porte les classes de mise en page (taille via font-size hérité, marge...) ; `spin` anime
   // une rotation continue (voir @keyframes icone-spin) pour les icônes d'attente (ex. "spinner").
@@ -2346,7 +2348,7 @@
   function changerTypeVente(id, valeur) {
     const d = dossiers.find(x => x.id === id);
     if (!d || d.typeVente === valeur) return;
-    const libelle = (v) => v === 'copropriete' ? 'copropriété' : 'maison';
+    const libelle = (v) => v === 'copropriete' ? 'copropriété' : v === 'terrain' ? 'terrain à bâtir' : 'maison';
     ajouterHistorique(d, `Type de vente modifié : ${libelle(d.typeVente)} → ${libelle(valeur)}`);
     // La checklist de pièces (checklistPieces) est recalculée à partir de d.typeVente à chaque
     // affichage : pas besoin de retoucher d.pieces ici. Les pièces déjà reconnues sous une clé
@@ -2465,6 +2467,59 @@
     `).join('');
   }
 
+  // Évolution du nombre de dossiers actifs dans le temps, demandée par l'étude pour le Tableau de
+  // bord ("comparer avec le mois précédent... suivi par rapport au mois précédent et à l'année
+  // précédente"). Calculée RÉTROACTIVEMENT à partir de l'historique déjà stocké sur chaque dossier
+  // (l'entrée "Dossier créé" ajoutée par ajouterDossier(), "Dossier archivé"/"Dossier désarchivé"
+  // ajoutées par archiverDossier()) plutôt que via un nouveau mécanisme de relevé périodique à
+  // mettre en place : ce dernier n'aurait donné aucune profondeur historique avant plusieurs mois
+  // d'usage, alors que l'historique existant permet une réponse immédiate. Un dossier supprimé
+  // (plutôt qu'archivé) n'a plus aucune trace, comme partout ailleurs dans l'outil — une suppression
+  // reste définitive, y compris pour ce calcul rétroactif.
+  function etaitDossierActifA(d, dateRef) {
+    const historique = (d.historique || []).slice().sort((a, b) => new Date(a.date) - new Date(b.date));
+    const creation = historique.find(h => h.texte === 'Dossier créé');
+    // Dossier pas encore créé à la date de référence : n'existait pas, donc pas "actif".
+    if (creation && new Date(creation.date) > dateRef) return false;
+    let archive = false;
+    for (const h of historique) {
+      if (new Date(h.date) > dateRef) break;
+      if (h.texte === 'Dossier archivé') archive = true;
+      else if (h.texte === 'Dossier désarchivé') archive = false;
+    }
+    return !archive;
+  }
+
+  function compterDossiersActifsA(listeDossiers, dateRef) {
+    return listeDossiers.filter(d => etaitDossierActifA(d, dateRef)).length;
+  }
+
+  // `maintenant` (optionnel, par défaut la date du jour) permet de fixer une référence stable dans
+  // les tests plutôt que de dépendre de `new Date()` au moment de l'exécution.
+  function calculerEvolutionPortefeuille(listeDossiers, maintenant) {
+    const ref = maintenant || new Date();
+    const actuel = listeDossiers.filter(d => !d.archive).length;
+    const ilYAUnMois = new Date(ref);
+    ilYAUnMois.setMonth(ilYAUnMois.getMonth() - 1);
+    const ilYAUnAn = new Date(ref);
+    ilYAUnAn.setFullYear(ilYAUnAn.getFullYear() - 1);
+    const moisDernier = compterDossiersActifsA(listeDossiers, ilYAUnMois);
+    const anDernier = compterDossiersActifsA(listeDossiers, ilYAUnAn);
+    return { actuel, moisDernier, ecartMois: actuel - moisDernier, anDernier, ecartAn: actuel - anDernier };
+  }
+
+  // Petite flèche + chiffre signé pour un écart, réutilisée pour les deux comparaisons (mois/an) —
+  // un seul rendu pour ne pas décrire deux fois la même logique. Volontairement pas de couleur
+  // "succès"/"alerte" sur la hausse/la baisse : un nombre de dossiers actifs qui augmente n'est pas
+  // en soi une bonne ou une mauvaise nouvelle pour l'étude (plus de dossiers = plus de charge), donc
+  // aucun jugement de valeur n'est encodé dans la couleur — même principe que partout ailleurs dans
+  // l'outil ("aucune couleur inventée pour l'occasion").
+  function formaterTendance(ecart) {
+    if (ecart > 0) return { icone: icone('trend-up', 'kpi-tendance-icone'), texte: `+${ecart}` };
+    if (ecart < 0) return { icone: icone('trend-down', 'kpi-tendance-icone'), texte: `${ecart}` };
+    return { icone: '', texte: '=' };
+  }
+
   // Chiffres de synthèse du portefeuille (dossiers actifs, hors filtres/recherche de la liste) —
   // calculés une seule fois, partagés par le bandeau de l'onglet "Suivi" (renderStatsSuivi) et les
   // tuiles KPI du "Tableau de bord" (renderKpisDashboard), pour ne jamais faire diverger ces deux
@@ -2481,7 +2536,7 @@
     const aVerifier = avecPret.filter(d => (d.offrePretStatut || 'inconnu') === 'inconnu').length;
     // Même condition que statutDossier() : uniquement une fois relié, hors rôle participant.
     const piecesIncompletes = dossiersActifs.filter(d => d.dossierLie && d.roleNotaire !== 'participant' &&
-      checklistPieces(d.typeVente).some(p => (d.pieces || {})[p.cle] !== 'recue')).length;
+      checklistPieces(d.typeVente, d).some(p => (d.pieces || {})[p.cle] !== 'recue')).length;
     return { actifs: dossiersActifs.length, urgents, urgents15, manquantes, aVerifier, piecesIncompletes };
   }
 
@@ -2525,15 +2580,26 @@
     const bloc = document.getElementById('kpis-dashboard');
     if (!bloc) return;
     const { actifs, urgents, urgents15, manquantes, piecesIncompletes } = calculerStatsPortefeuille(dossiersActifs);
+    // Tendance du nombre de dossiers actifs (voir calculerEvolutionPortefeuille) : sur TOUS les
+    // dossiers (dossiers, pas dossiersActifs) puisqu'un dossier archivé aujourd'hui a pu être actif
+    // il y a un mois ou un an — l'exclure fausserait la comparaison.
+    const evolution = calculerEvolutionPortefeuille(dossiers);
+    const tMois = formaterTendance(evolution.ecartMois);
+    const tAn = formaterTendance(evolution.ecartAn);
+    const tendanceActifs = `
+      <div class="kpi-tendances">
+        <span class="kpi-tendance" title="${evolution.actuel} aujourd'hui contre ${evolution.moisDernier} il y a un mois">${tMois.icone}${tMois.texte} vs mois dernier</span>
+        <span class="kpi-tendance" title="${evolution.actuel} aujourd'hui contre ${evolution.anDernier} il y a un an">${tAn.icone}${tAn.texte} vs an dernier</span>
+      </div>`;
     const tuiles = [
-      ['c-neutre', actifs, actifs > 1 ? 'dossiers actifs' : 'dossier actif', icone('folder', 'kpi-icone')],
-      ['c-urgent', urgents, 'échéances ≤ 7 jours', iconeCalendrierSeuil(7)],
-      ['c-urgent', urgents15, 'échéances ≤ 15 jours', iconeCalendrierSeuil(15)],
-      ['c-pret', manquantes, 'offres de prêts en attente', icone('alert-triangle', 'kpi-icone')],
-      ['c-pret', piecesIncompletes, 'dossiers avec pièces manquantes', icone('clipboard', 'kpi-icone')]
+      ['c-neutre', actifs, actifs > 1 ? 'dossiers actifs' : 'dossier actif', icone('folder', 'kpi-icone'), tendanceActifs],
+      ['c-urgent', urgents, 'échéances ≤ 7 jours', iconeCalendrierSeuil(7), ''],
+      ['c-urgent', urgents15, 'échéances ≤ 15 jours', iconeCalendrierSeuil(15), ''],
+      ['c-pret', manquantes, 'offres de prêts en attente', icone('alert-triangle', 'kpi-icone'), ''],
+      ['c-pret', piecesIncompletes, 'dossiers avec pièces manquantes', icone('clipboard', 'kpi-icone'), '']
     ];
-    bloc.innerHTML = tuiles.map(([cls, valeur, libelle, iconeHtml]) =>
-      `<div class="kpi-tile"><div class="kpi-label">${iconeHtml}${libelle}</div><div class="kpi-num ${cls}">${valeur}</div></div>`
+    bloc.innerHTML = tuiles.map(([cls, valeur, libelle, iconeHtml, extra]) =>
+      `<div class="kpi-tile"><div class="kpi-label">${iconeHtml}${libelle}</div><div class="kpi-num ${cls}">${valeur}</div>${extra}</div>`
     ).join('');
   }
 
@@ -2787,7 +2853,7 @@
     // laisser de côté tant qu'il n'est pas relié ferait apparaître "Prêt" par défaut alors que les
     // pièces d'urbanisme restent entièrement à vérifier. Signalé par l'étude.
     if (d.roleNotaire !== 'participant' && (d.dossierLie || d.sansPret)) {
-      checklistPieces(d.typeVente).forEach(p => items.push((d.pieces || {})[p.cle] || 'inconnu'));
+      checklistPieces(d.typeVente, d).forEach(p => items.push((d.pieces || {})[p.cle] || 'inconnu'));
     }
     if (items.length === 0 || items.every(s => s === 'recue')) return 'pret';
 
@@ -3026,6 +3092,7 @@
   function ouvrirDossierDrawer(id) {
     dossierOuvert = id;
     ajoutEcheanceOuvert = false;
+    ajoutPieceOuvert = false;
     render();
   }
 
@@ -3033,6 +3100,7 @@
     if (!dossierOuvert) return;
     dossierOuvert = null;
     ajoutEcheanceOuvert = false;
+    ajoutPieceOuvert = false;
     render();
   }
 
@@ -3066,16 +3134,24 @@
     return { texte: '?', cls: 'inconnu', titre: "Pas encore vérifié — reliez un dossier local et cliquez sur \"Revérifier les pièces\"" };
   }
 
+  // Formulaire d'ajout d'une pièce personnalisée à la checklist (voir renderAjoutPiece) : même
+  // principe qu'ajoutEcheanceOuvert pour les échéances — un seul dossier ouvert à la fois dans le
+  // tiroir, un simple booléen suffit, remis à false à chaque ouverture/fermeture.
+  let ajoutPieceOuvert = false;
+
   // Checklist de constitution du dossier (voir CLAUDE.md) : contrairement à l'analyse juridique
   // (déduite des clauses du compromis), c'est une liste fixe déterminée par le type de vente, pas
   // une extraction — un dossier peut très bien n'avoir aucune pièce reconnue sans que ce soit une
   // anomalie tant qu'il n'a pas été relié à un dossier local (statut "inconnu", pas "manquante").
+  // Personnalisable pour CE dossier (voir checklistPieces) : une pièce standard non pertinente peut
+  // être retirée, une pièce propre au dossier peut être ajoutée — demandé par l'étude plutôt que de
+  // subir la liste standard telle quelle dans les cas particuliers.
   function renderPiecesDossier(d) {
-    const checklist = checklistPieces(d.typeVente);
+    const checklist = checklistPieces(d.typeVente, d);
     const pieces = d.pieces || {};
     const nbRecues = checklist.filter(p => pieces[p.cle] === 'recue').length;
-    const complet = nbRecues === checklist.length;
-    const libelleType = d.typeVente === 'copropriete' ? 'copropriété' : 'maison';
+    const complet = checklist.length > 0 && nbRecues === checklist.length;
+    const libelleType = d.typeVente === 'copropriete' ? 'copropriété' : d.typeVente === 'terrain' ? 'terrain à bâtir' : 'maison';
     return `
       <div class="pieces-dossier">
         <div class="pieces-dossier-titre">
@@ -3086,16 +3162,110 @@
         <div class="pieces-liste">
           ${checklist.map(p => {
             const s = libellePiece(pieces[p.cle] || 'inconnu');
-            // Une pièce reçue est cliquable pour rouvrir directement le fichier local où elle a
-            // été trouvée (voir ouvrirPieceTrouvee) — les autres statuts (manquante/inconnu)
-            // restent un simple badge, rien à ouvrir.
-            return s.cls === 'recue'
-              ? `<button type="button" class="piece-item ${s.cls}" title="Cliquer pour ouvrir le fichier trouvé" onclick="ouvrirPieceTrouvee('${d.id}', '${p.cle}')"><span class="piece-icone">${s.texte}</span>${escapeHtml(p.label)}</button>`
-              : `<span class="piece-item ${s.cls}" title="${escapeAttr(s.titre)}"><span class="piece-icone">${s.texte}</span>${escapeHtml(p.label)}</span>`;
+            const boutonSuppr = `<button type="button" class="piece-suppr" onclick="${p.personnalisee ? `supprimerPiecePersonnalisee('${d.id}', '${p.cle}')` : `retirerPieceStandard('${d.id}', '${p.cle}', '${escapeAttr(p.label)}')`}" title="Retirer cette pièce de la checklist de ce dossier" aria-label="Retirer cette pièce">${icone('x')}</button>`;
+            let contenu;
+            if (p.personnalisee) {
+              // Aucun motifNom (nom libre saisi par l'étude, pas de détection fiable possible) :
+              // le statut se corrige à la main en cliquant dessus, contrairement aux pièces
+              // standard, détectées automatiquement par leur nom de fichier.
+              contenu = `<button type="button" class="piece-label" title="Pièce ajoutée manuellement — cliquer pour changer le statut" onclick="basculerStatutPiecePersonnalisee('${d.id}', '${p.cle}')"><span class="piece-icone">${s.texte}</span>${escapeHtml(p.label)}</button>`;
+            } else if (s.cls === 'recue') {
+              // Cliquable pour rouvrir directement le fichier local où la pièce a été trouvée.
+              contenu = `<button type="button" class="piece-label" title="Cliquer pour ouvrir le fichier trouvé" onclick="ouvrirPieceTrouvee('${d.id}', '${p.cle}')"><span class="piece-icone">${s.texte}</span>${escapeHtml(p.label)}</button>`;
+            } else {
+              contenu = `<span class="piece-label" title="${escapeAttr(s.titre)}"><span class="piece-icone">${s.texte}</span>${escapeHtml(p.label)}</span>`;
+            }
+            return `<span class="piece-item ${s.cls}">${contenu}${boutonSuppr}</span>`;
           }).join('')}
         </div>
+        ${renderAjoutPiece(d)}
       </div>
     `;
+  }
+
+  function afficherFormAjoutPiece() {
+    ajoutPieceOuvert = true;
+    render();
+  }
+
+  function masquerFormAjoutPiece() {
+    ajoutPieceOuvert = false;
+    render();
+  }
+
+  function renderAjoutPiece(d) {
+    if (!ajoutPieceOuvert) {
+      return `<button type="button" class="action-rapide ajout-piece-btn" onclick="afficherFormAjoutPiece()">+ Ajouter une pièce</button>`;
+    }
+    return `
+      <div class="ajout-piece-form">
+        <input type="text" id="nouvelle-piece-label" placeholder="Nom de la pièce (ex. Attestation de surface loi Carrez)">
+        <button type="button" class="icon-valider" onclick="ajouterPiecePersonnalisee('${d.id}')" title="Ajouter" aria-label="Ajouter la pièce">✓</button>
+        <button type="button" class="icon-btn" onclick="masquerFormAjoutPiece()">Annuler</button>
+      </div>
+    `;
+  }
+
+  // Ajoutée avec une clé unique générée ici (pas un index de tableau, contrairement à d.autres) :
+  // une pièce personnalisée peut être retirée sans décaler le statut des autres, qui restent
+  // repérées par leur propre clé stable plutôt que par leur position dans la liste.
+  function ajouterPiecePersonnalisee(dossierId) {
+    const d = dossiers.find(x => x.id === dossierId);
+    if (!d) return;
+    const input = document.getElementById('nouvelle-piece-label');
+    const label = input ? input.value.trim() : '';
+    if (!label) { if (input) input.focus(); return; }
+    d.piecesPersonnalisees = d.piecesPersonnalisees || [];
+    const cle = 'perso-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    d.piecesPersonnalisees.push({ cle, label });
+    ajouterHistorique(d, `Pièce ajoutée à la checklist : « ${label} »`);
+    ajoutPieceOuvert = false;
+    sauvegarder();
+    render();
+  }
+
+  function supprimerPiecePersonnalisee(dossierId, cle) {
+    const d = dossiers.find(x => x.id === dossierId);
+    if (!d || !d.piecesPersonnalisees) return;
+    const item = d.piecesPersonnalisees.find(p => p.cle === cle);
+    if (!item) return;
+    demanderConfirmation(`Retirer la pièce « ${item.label} » de la checklist de ce dossier ?`, () => {
+      d.piecesPersonnalisees = d.piecesPersonnalisees.filter(p => p.cle !== cle);
+      if (d.pieces) delete d.pieces[cle];
+      ajouterHistorique(d, `Pièce retirée de la checklist : « ${item.label} »`);
+      sauvegarder();
+      render();
+    });
+  }
+
+  // Une pièce STANDARD ne peut pas être supprimée des listes PIECES_* (partagées par tous les
+  // dossiers du même type de vente) : la "retirer" pour ce dossier précis l'ajoute simplement à
+  // d.piecesRetirees, qui la masque de checklistPieces() pour ce seul dossier — voir son
+  // historique dans CLAUDE.md.
+  function retirerPieceStandard(dossierId, cle, label) {
+    const d = dossiers.find(x => x.id === dossierId);
+    if (!d) return;
+    demanderConfirmation(`Retirer la pièce « ${label} » de la checklist de ce dossier ?`, () => {
+      d.piecesRetirees = d.piecesRetirees || [];
+      if (!d.piecesRetirees.includes(cle)) d.piecesRetirees.push(cle);
+      ajouterHistorique(d, `Pièce retirée de la checklist : « ${label} »`);
+      sauvegarder();
+      render();
+    });
+  }
+
+  // Cycle inconnu → manquante → reçue → inconnu, sans entrée d'historique (une simple case à
+  // cocher répétée n'a pas besoin d'être journalisée, contrairement à un changement structurel du
+  // dossier) — seul mécanisme de mise à jour possible pour une pièce personnalisée, qui n'a pas de
+  // motifNom permettant une détection automatique dans le dossier local.
+  function basculerStatutPiecePersonnalisee(dossierId, cle) {
+    const d = dossiers.find(x => x.id === dossierId);
+    if (!d) return;
+    d.pieces = d.pieces || {};
+    const actuel = d.pieces[cle] || 'inconnu';
+    d.pieces[cle] = actuel === 'inconnu' ? 'manquante' : actuel === 'manquante' ? 'recue' : 'inconnu';
+    sauvegarder();
+    render();
   }
 
   function renderCarteDossier(d) {
@@ -3183,8 +3353,9 @@
             <div class="classif-champ">
               <label for="tv-${d.id}">Type de vente</label>
               <select id="tv-${d.id}" class="select-classif" onchange="changerTypeVente('${d.id}', this.value)">
-                <option value="maison" ${d.typeVente === 'copropriete' ? '' : 'selected'}>Maison</option>
+                <option value="maison" ${d.typeVente === 'maison' || !d.typeVente ? 'selected' : ''}>Maison</option>
                 <option value="copropriete" ${d.typeVente === 'copropriete' ? 'selected' : ''}>Copropriété</option>
+                <option value="terrain" ${d.typeVente === 'terrain' ? 'selected' : ''}>Terrain à bâtir</option>
               </select>
             </div>
             <div class="classif-champ">
@@ -3734,8 +3905,16 @@
       actePage: Number.isInteger(d.actePage) ? d.actePage : null,
       ventebienPage: Number.isInteger(d.ventebienPage) ? d.ventebienPage : null,
       sansPret: d.sansPret === true,
-      typeVente: d.typeVente === 'copropriete' ? 'copropriete' : 'maison',
+      typeVente: (d.typeVente === 'copropriete' || d.typeVente === 'terrain') ? d.typeVente : 'maison',
       roleNotaire: d.roleNotaire === 'participant' ? 'participant' : 'instrumentaire',
+      // Choix de l'étude sur QUELLES pièces suivre pour ce dossier précis (pas dérivé d'un scan de
+      // PDF local, contrairement à `pieces` juste en dessous, qui repart bien à {}) : conservés tels
+      // quels à l'import, comme `autres` ci-dessus.
+      piecesRetirees: Array.isArray(d.piecesRetirees) ? d.piecesRetirees.filter(c => typeof c === 'string') : [],
+      piecesPersonnalisees: Array.isArray(d.piecesPersonnalisees)
+        ? d.piecesPersonnalisees.filter(p => p && typeof p === 'object' && typeof p.cle === 'string' && typeof p.label === 'string')
+            .map(p => ({ cle: p.cle, label: p.label }))
+        : [],
       archive: d.archive === true,
       reminderDays: Array.isArray(d.reminderDays) && d.reminderDays.every(Number.isInteger) ? d.reminderDays : [15, 7],
       confiance: (d.confiance && typeof d.confiance === 'object') ? d.confiance : {},
@@ -4010,9 +4189,17 @@
     // "réponse urbanisme"/"réponse d'urbanisme" (alias courant côté étude pour ce même document)
     // ajouté au motifNom, en plus de "certificat d'urbanisme"/"CU a)".
     { cle: 'certificatUrbanisme', label: "Certificat d'urbanisme", motifNom: /certificat\s+d?[’']?\s*urbanisme|\bCU\s*a\)|r[ée]ponse\s+(?:d[’']?\s*)?urbanisme/i },
-    // "d'" rendu optionnel (comme certificatUrbanisme ci-dessus) : un vrai nom de fichier de
-    // l'étude ("Certificat_alignement...") ne le porte pas forcément — voir CLAUDE.md.
-    { cle: 'certificatAlignement', label: "Certificat d'alignement", motifNom: /certificat\s+d?[’']?\s*alignement/i },
+    // Deuxième alternative ajoutée : l'alignement et le numérotage sont parfois réunis dans UN SEUL
+    // document, nommé "Alignement et numérotage"/"Certificat d'alignement et numérotage" ou une
+    // variante proche — sans le mot "certificat" devant "alignement" dans ce cas, ce que la
+    // première alternative (déjà en place) n'accepte pas seule. Ne PAS se contenter d'un "alignement"
+    // nu pour autant : ça réintroduirait le faux positif déjà corrigé une fois (un certificat
+    // d'urbanisme qui mentionne "réponse alignement voirie" en passant, voir le test de
+    // non-régression juste en dessous) — la seconde alternative n'accepte donc "alignement" SANS
+    // "certificat" devant que s'il est à proximité immédiate (20 caractères) du mot "numérotage",
+    // dans un ordre ou l'autre : c'est spécifiquement le document combiné qui est visé, pas
+    // n'importe quel fichier mentionnant "alignement".
+    { cle: 'certificatAlignement', label: "Certificat d'alignement", motifNom: /certificat\s+d?[’']?\s*alignement|alignement.{0,20}num[ée]\s?rotage|num[ée]\s?rotage.{0,20}alignement/i },
     // \s? après l'accent : un fichier réel de l'étude a été nommé "...nume_rotage..." (le mot
     // "numérotage" coupé en deux à l'endroit de l'accent, très probablement une frappe accidentelle
     // d'espace dans "numé rotage" avant conversion espace→underscore) — voir CLAUDE.md.
@@ -4049,6 +4236,15 @@
     { cle: 'article20', label: 'Article 20-II', motifNom: /article\s*20[\s.-]*(?:ii|2)\b/i },
     { cle: 'ribCopro', label: 'RIB de la copropriété', motifNom: /\bRIB\b[^\n]{0,50}(?:copropri[ée]t[ée]|syndic)|(?:copropri[ée]t[ée]|syndic)[^\n]{0,50}\bRIB\b/i }
   ];
+  // Pour un terrain à bâtir : mêmes pièces "autres" qu'une maison (ERP, taxe foncière, titre de
+  // propriété — voir PIECES_AUTRES ci-dessus), à une exception près demandée par l'étude : pas de
+  // diagnostics techniques (DPE, plomb...), qui n'ont pas de sens sur un terrain nu, remplacés par
+  // une étude de sol. Dérivée de PIECES_AUTRES par substitution plutôt que recopiée à la main : les
+  // trois autres pièces restent automatiquement synchronisées si elles sont un jour retouchées
+  // là-bas, pas besoin d'y penser une seconde fois ici.
+  var PIECES_TERRAIN_AUTRES = PIECES_AUTRES.map(p => p.cle === 'diagnosticsTechniques'
+    ? { cle: 'etudeSol', label: 'Étude de sol', motifNom: /[ée]tude\s+de\s+sol|\bG1\b|\bG2\b/i }
+    : p);
 
   // Bug corrigé : signalé par l'étude, un certificat d'urbanisme mentionne couramment dans son
   // PROPRE texte l'existence d'autres certificats ("Le certificat de numérotage est à demander à
@@ -4087,12 +4283,24 @@
     return nom.replace(/[_-]+/g, ' ');
   }
 
-  // Ordre d'affichage = ordre des listes fournies par l'étude : urbanisme (commun aux deux types),
+  // Ordre d'affichage = ordre des listes fournies par l'étude : urbanisme (commun aux trois types),
   // puis les pièces propres à la copropriété si applicable, puis le reste.
-  function checklistPieces(typeVente) {
-    return typeVente === 'copropriete'
+  // `d` (optionnel, absent avant l'enregistrement du dossier — voir majApercuPieces) permet de
+  // personnaliser la checklist standard pour CE dossier précis, demandé par l'étude : `d.piecesRetirees`
+  // (tableau de clés) masque des pièces standard non pertinentes pour ce dossier ;
+  // `d.piecesPersonnalisees` (tableau de {cle, label}) ajoute des pièces propres à ce dossier, sans
+  // toucher aux listes PIECES_* partagées par tous les autres dossiers du même type de vente.
+  function checklistPieces(typeVente, d) {
+    const base = typeVente === 'copropriete'
       ? [...PIECES_URBANISME, ...PIECES_COPROPRIETE, ...PIECES_AUTRES]
-      : [...PIECES_URBANISME, ...PIECES_AUTRES];
+      : typeVente === 'terrain'
+        ? [...PIECES_URBANISME, ...PIECES_TERRAIN_AUTRES]
+        : [...PIECES_URBANISME, ...PIECES_AUTRES];
+    if (!d) return base;
+    const retirees = new Set(d.piecesRetirees || []);
+    const standard = base.filter(p => !retirees.has(p.cle));
+    const perso = (d.piecesPersonnalisees || []).map(p => ({ cle: p.cle, label: p.label, personnalisee: true }));
+    return [...standard, ...perso];
   }
   // "Offre de crédit (immobilier)" est une formulation bancaire tout aussi courante que "offre de
   // prêt" pour désigner le même document (signalé par l'étude : une offre réelle intitulée ainsi
@@ -4192,7 +4400,7 @@
       d.montantPret = null;
       if (d.roleNotaire !== 'participant') {
         d.pieces = {};
-        checklistPieces(d.typeVente).forEach(p => { d.pieces[p.cle] = 'manquante'; });
+        checklistPieces(d.typeVente, d).forEach(p => { d.pieces[p.cle] = 'manquante'; });
       }
       // Choisir un nouveau dossier ecrase simplement le lien precedent (put() dans
       // enregistrerHandle) : utile si l'on s'etait trompe de dossier au premier lien.
@@ -4310,7 +4518,7 @@
     }
     d.accesAReconfirmer = false;
 
-    const checklist = chercherPieces ? checklistPieces(d.typeVente) : [];
+    const checklist = chercherPieces ? checklistPieces(d.typeVente, d) : [];
     d.pieces = d.pieces || {};
     // Pièces déjà trouvées lors d'une vérification précédente : inutile de les rechercher à
     // nouveau, seules celles encore manquantes/inconnues sont testées sur chaque PDF.
@@ -4550,7 +4758,7 @@
   function dossierEntierementComplet(d) {
     const offreOk = d.sansPret || d.offrePretStatut === 'recue';
     const piecesOk = d.roleNotaire === 'participant' ||
-      checklistPieces(d.typeVente).every(p => (d.pieces || {})[p.cle] === 'recue');
+      checklistPieces(d.typeVente, d).every(p => (d.pieces || {})[p.cle] === 'recue');
     return offreOk && piecesOk;
   }
 

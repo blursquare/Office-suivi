@@ -614,6 +614,26 @@
   .kpi-num.c-urgent { color: var(--urgent); }
   .kpi-num.c-pret { color: var(--pret); }
   .kpi-num.c-neutre { color: var(--ink); }
+  /* Tendance du nombre de dossiers actifs vs mois/année précédente (voir
+     calculerEvolutionPortefeuille dans script.js), sous le chiffre de la tuile "dossier actif"
+     uniquement. Pas de couleur succès/alerte sur la hausse ou la baisse : plus de dossiers n'est ni
+     bon ni mauvais en soi pour l'étude (juste plus de charge), donc gris neutre dans les deux sens
+     — seule l'icône (flèche haut/bas) porte le sens de variation, pas une teinte de jugement. */
+  .kpi-tendances {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 8px;
+  }
+  .kpi-tendance {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .kpi-tendance-icone { width: 11px; height: 11px; flex: none; }
   /* Libellé au-dessus du chiffre (on lit ce que c'est, puis combien), en petites capitales
      espacées : la même "étiquette" que les intitulés de section de la fiche dossier, pour que
      toutes les tuiles se lisent d'un coup d'œil. La hauteur minimale vaut deux lignes afin que
@@ -1290,34 +1310,72 @@
   .piece-item {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 2px;
     background: var(--paper-card);
     border: 1px solid var(--line-soft);
     color: var(--ink-soft);
     font-size: 12.5px;
-    padding: 4px 10px;
+    padding: 4px 4px 4px 10px;
     border-radius: 14px;
   }
   .piece-icone { font-weight: 700; }
-  /* .recue est un <button> (les autres statuts restent un <span>, rien à ouvrir) — reset des
-     styles natifs de bouton pour garder l'apparence d'une simple puce, avec juste un curseur et
-     un hover qui trahissent qu'elle est cliquable (voir ouvrirPieceTrouvee). */
-  .piece-item.recue {
-    border-color: var(--success);
-    color: var(--ink);
-    font-family: inherit;
-    cursor: pointer;
+  /* .piece-label porte le contenu (icône + libellé) : un <button> quand la pièce est cliquable
+     (reçue → ouvrirPieceTrouvee ; personnalisée → basculerStatutPiecePersonnalisee, faute de
+     motifNom pour la détecter automatiquement), un simple <span> sinon (manquante/inconnu et pas
+     personnalisée, rien à faire au clic). .piece-suppr (croix) est un second élément de la même
+     puce, jamais imbriqué dans .piece-label — deux <button> l'un dans l'autre serait invalide et
+     casserait la délimitation des clics. */
+  .piece-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: none;
+    font: inherit;
+    color: inherit;
+    padding: 0;
   }
+  button.piece-label { cursor: pointer; }
+  .piece-item.recue { border-color: var(--success); color: var(--ink); }
   .piece-item.recue:hover { background: var(--success-bg); }
   .piece-item.recue .piece-icone { color: var(--success); }
   .piece-item.manquante { border-color: var(--pret); color: var(--ink); }
   .piece-item.manquante .piece-icone { color: var(--pret); }
   .piece-item.inconnu .piece-icone { color: var(--muted); }
+  .piece-suppr {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: none;
+    background: none;
+    border-radius: 50%;
+    color: var(--muted);
+    cursor: pointer;
+    flex: none;
+  }
+  .piece-suppr:hover { background: var(--paper-sunk); color: var(--urgent); }
+  .piece-suppr .icone { width: 9px; height: 9px; }
+
+  .ajout-piece-btn { margin-top: 10px; }
+  .ajout-piece-form {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .ajout-piece-form input[type="text"] { flex: 1 1 auto; }
 
   /* Aperçu de la checklist à l'étape "Finaliser" du wizard, avant l'enregistrement du dossier —
      mêmes puces .piece-item que le suivi réel, mais sans compteur ni bouton (rien à vérifier
-     encore, juste montrer ce qui sera attendu selon le type de vente choisi). */
+     encore, juste montrer ce qui sera attendu selon le type de vente choisi). Padding symétrique
+     restauré ici : sans croix de suppression (dossier pas encore créé, rien à personnaliser), le
+     padding asymétrique de .piece-item (pensé pour laisser la place à .piece-suppr) déséquilibrerait
+     visuellement la puce. */
   .pieces-apercu { margin: 4px 0 20px; }
+  .pieces-apercu .piece-item { padding: 4px 10px; }
   .pieces-apercu-titre {
     font-size: 12.5px;
     color: var(--ink-soft);
@@ -2505,7 +2563,7 @@
     .tab { border: 1px solid #999; margin-bottom: 6pt; padding: 6pt; background: #fff !important; }
     .historique-liste { display: block !important; }
     .analyse-juridique { background: #fff; border: 1px solid #999; }
-    .icon-btn, .tab-select, .icon-crayon, .icon-valider, .nom-edition, .tab-date-edition, .select-classif, .tab-suppr, .ajout-echeance-btn, .ajout-echeance-form { display: none !important; }
+    .icon-btn, .tab-select, .icon-crayon, .icon-valider, .nom-edition, .tab-date-edition, .select-classif, .tab-suppr, .ajout-echeance-btn, .ajout-echeance-form, .piece-suppr, .ajout-piece-btn, .ajout-piece-form { display: none !important; }
   }
 
   .analyse-repliable > summary {

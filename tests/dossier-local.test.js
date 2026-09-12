@@ -103,6 +103,37 @@ test('checklistPieces("copropriete") ajoute état daté, article 20-II et RIB de
   assert.equal(cles.length, app.checklistPieces('maison').length + 3);
 });
 
+test('checklistPieces("terrain") reprend la liste "maison" en remplaçant les diagnostics par une étude de sol', () => {
+  const app = chargerApplication();
+  const clesMaison = app.checklistPieces('maison').map(p => p.cle);
+  const clesTerrain = app.checklistPieces('terrain').map(p => p.cle);
+  assert.equal(clesTerrain.length, clesMaison.length, 'même nombre de pièces que pour une maison');
+  assert.ok(!clesTerrain.includes('diagnosticsTechniques'), 'pas de diagnostics techniques pour un terrain nu');
+  assert.ok(clesTerrain.includes('etudeSol'), 'une étude de sol à la place');
+  // Toutes les autres pièces (urbanisme, ERP, taxe foncière, titre...) restent identiques.
+  const communes = clesMaison.filter(c => c !== 'diagnosticsTechniques');
+  communes.forEach(c => assert.ok(clesTerrain.includes(c), `${c} devrait rester présent pour un terrain`));
+});
+
+test('checklistPieces(typeVente, d) masque les pièces retirées et ajoute les pièces personnalisées du dossier', () => {
+  const app = chargerApplication();
+  const d = {
+    typeVente: 'maison',
+    piecesRetirees: ['renonciationPreemption'],
+    piecesPersonnalisees: [{ cle: 'perso-1', label: 'Attestation loi Carrez' }]
+  };
+  const checklist = app.checklistPieces('maison', d);
+  const cles = checklist.map(p => p.cle);
+  assert.ok(!cles.includes('renonciationPreemption'), 'la pièce retirée ne doit plus apparaître');
+  assert.ok(cles.includes('perso-1'), 'la pièce personnalisée doit apparaître');
+  const perso = checklist.find(p => p.cle === 'perso-1');
+  assert.equal(perso.label, 'Attestation loi Carrez');
+  assert.equal(perso.personnalisee, true);
+  // Sans dossier fourni, la checklist standard reste intacte (utilisée avant l'enregistrement du
+  // dossier, voir majApercuPieces).
+  assert.ok(app.checklistPieces('maison').map(p => p.cle).includes('renonciationPreemption'));
+});
+
 test('aucune pièce de la checklist n\'a plus de motif de contenu — seul motifNom les détecte', () => {
   // Décision explicite de l'étude, après une série de faux positifs par contenu qui n'étaient pas
   // tous réductibles à une clause précise à exclure (ex. les clauses de condition suspensive sur
@@ -134,7 +165,7 @@ test('motifNom reconnaît le nom de fichier conventionnel de chaque pièce de la
     reponseAssainissement: ['Rapport assainissement.pdf', 'Courrier assainissement.pdf', 'SPANC.pdf', 'Asainissement.pdf'],
     renonciationPreemption: ['Renonciation préemption.pdf', 'Réponse préemption mairie.pdf'],
     erp: ['ERP.pdf', 'État des risques et pollution.pdf'],
-    avisTaxeFonciere: ['TF 2024.pdf', 'Taxes foncières.pdf'],
+    avisTaxeFonciere: ['TF 2024.pdf', 'Taxes foncières.pdf', 'Avis de taxes foncières.pdf'],
     titrePropriete: ['Titre.pdf', 'Titre de propriété.pdf', 'Titre vendeur.pdf'],
     etatDate: ['État daté.pdf', 'Etat date syndic.pdf'],
     article20: ['Article 20-II.pdf', 'Article 20 II loi SRU.pdf'],
@@ -154,6 +185,24 @@ test('motifNom ne confond pas un certificat d\'urbanisme mentionnant "alignement
   const app = chargerApplication();
   const alignement = app.checklistPieces('maison').find(p => p.cle === 'certificatAlignement');
   assert.equal(alignement.motifNom.test("Certificat d'urbanisme - réponse alignement voirie.pdf"), false);
+});
+
+test('motifNom reconnaît alignement + numérotage réunis dans un seul document, même sans le mot "certificat"', () => {
+  // Signalé par l'étude : les deux pièces sont parfois réunies dans UN SEUL fichier, nommé
+  // "Alignement et numérotage" (ou une variante proche) sans que le mot "certificat" apparaisse
+  // devant "alignement" — contrairement au cas déjà couvert plus haut ("Certificat d'alignement et
+  // numérotage.pdf"), où "certificat d'alignement" est une sous-chaîne littérale du nom. La seconde
+  // alternative de certificatAlignement.motifNom (voir script.js) n'accepte "alignement" sans
+  // "certificat" devant que s'il est à proximité du mot "numérotage" — le test de non-régression
+  // juste au-dessus (un certificat d'urbanisme mentionnant "alignement" en passant, sans aucun
+  // "numérotage" dans le nom) reste donc correctement écarté.
+  const app = chargerApplication();
+  const alignement = app.checklistPieces('maison').find(p => p.cle === 'certificatAlignement');
+  const numerotage = app.checklistPieces('maison').find(p => p.cle === 'certificatNumerotage');
+  for (const nom of ['Alignement et numérotage.pdf', 'Numérotage et alignement.pdf']) {
+    assert.ok(alignement.motifNom.test(nom), `certificatAlignement devrait reconnaître "${nom}"`);
+    assert.ok(numerotage.motifNom.test(nom), `certificatNumerotage devrait reconnaître "${nom}"`);
+  }
 });
 
 test('normaliserNomPourMotif remplace underscores/tirets par des espaces pour un vrai nom de fichier de l\'étude', () => {

@@ -385,3 +385,61 @@ test('calculerApport renvoie un niveau "urgent" quand le prêt dépasse le prix 
   assert.equal(apport.montant, -10000);
   assert.equal(apport.niveau, 'urgent');
 });
+
+test('etaitDossierActifA reconnaît un dossier jamais archivé comme actif à toute date postérieure à sa création', () => {
+  const app = chargerApplication();
+  const d = { historique: [{ date: '2025-01-10T09:00:00.000Z', texte: 'Dossier créé' }] };
+  assert.equal(app.etaitDossierActifA(d, new Date('2025-06-01')), true);
+});
+
+test('etaitDossierActifA renvoie faux avant la date de création du dossier', () => {
+  const app = chargerApplication();
+  const d = { historique: [{ date: '2025-06-10T09:00:00.000Z', texte: 'Dossier créé' }] };
+  assert.equal(app.etaitDossierActifA(d, new Date('2025-01-01')), false);
+});
+
+test('etaitDossierActifA tient compte des allers-retours archivé/désarchivé, dans l\'ordre chronologique', () => {
+  const app = chargerApplication();
+  const d = {
+    historique: [
+      { date: '2025-01-01T00:00:00.000Z', texte: 'Dossier créé' },
+      { date: '2025-03-01T00:00:00.000Z', texte: 'Dossier archivé' },
+      { date: '2025-05-01T00:00:00.000Z', texte: 'Dossier désarchivé' }
+    ]
+  };
+  assert.equal(app.etaitDossierActifA(d, new Date('2025-02-01')), true, 'avant l\'archivage : actif');
+  assert.equal(app.etaitDossierActifA(d, new Date('2025-04-01')), false, 'entre archivage et désarchivage : inactif');
+  assert.equal(app.etaitDossierActifA(d, new Date('2025-06-01')), true, 'après le désarchivage : actif de nouveau');
+});
+
+test('calculerEvolutionPortefeuille compare le nombre de dossiers actifs à un mois et un an d\'écart', () => {
+  const app = chargerApplication();
+  const maintenant = new Date('2025-06-15T12:00:00.000Z'); // ilYAUnMois: 2025-05-15, ilYAUnAn: 2024-06-15
+  const dossiers = [
+    // Actif depuis plusieurs années, jamais archivé : compte dans les trois relevés.
+    { archive: false, historique: [{ date: '2020-01-01T00:00:00.000Z', texte: 'Dossier créé' }] },
+    // Créé le 1er juin 2025 : actif aujourd'hui, mais n'existait pas encore il y a un mois/un an.
+    { archive: false, historique: [{ date: '2025-06-01T00:00:00.000Z', texte: 'Dossier créé' }] },
+    // Créé le 5 juin 2025, même situation que le précédent.
+    { archive: false, historique: [{ date: '2025-06-05T00:00:00.000Z', texte: 'Dossier créé' }] },
+    // Ancien dossier archivé il y a 5 jours seulement : inactif aujourd'hui, mais était bien actif
+    // il y a un mois et un an — c'est justement ce que le calcul rétroactif doit reconstituer.
+    { archive: true, historique: [
+      { date: '2022-01-01T00:00:00.000Z', texte: 'Dossier créé' },
+      { date: '2025-06-10T00:00:00.000Z', texte: 'Dossier archivé' }
+    ] }
+  ];
+  const evolution = app.calculerEvolutionPortefeuille(dossiers, maintenant);
+  assert.equal(evolution.actuel, 3, 'les 3 dossiers non archivés comptent aujourd\'hui');
+  assert.equal(evolution.moisDernier, 2, 'seuls les dossiers 1 et 4 existaient déjà, tous deux actifs à cette date');
+  assert.equal(evolution.anDernier, 2, 'même chiffre un an plus tôt : les dossiers 2 et 3 n\'existaient pas encore');
+  assert.equal(evolution.ecartMois, 1);
+  assert.equal(evolution.ecartAn, 1);
+});
+
+test('formaterTendance affiche un signe explicite pour une hausse/une baisse, et "=" pour une stabilité', () => {
+  const app = chargerApplication();
+  assert.equal(app.formaterTendance(3).texte, '+3');
+  assert.equal(app.formaterTendance(-2).texte, '-2');
+  assert.equal(app.formaterTendance(0).texte, '=');
+});
