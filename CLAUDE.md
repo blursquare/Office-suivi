@@ -1573,6 +1573,44 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
   resserrement). Les réglages spécifiques à Bodoni Moda (`font-optical-sizing`,
   `font-variation-settings: 'opsz' 90`, propres à cette police à axes variables) sont retirés,
   sans objet pour Montserrat. Le reste de l'interface (Inter partout ailleurs) reste inchangé.
+- **Refonte de l'en-tête de la fiche dossier (tiroir)**, à partir d'une maquette complète fournie
+  par l'étude (fichier "Fiche_Dossier_standalone.html", un artefact "Nocturne" empaqueté — extrait
+  via son manifeste JSON pour en lire le HTML/CSS source). Reprise pour sa STRUCTURE uniquement :
+  la maquette utilise sa propre palette indigo/violette (`--color-bg: #161826`, `--color-accent:
+  #9184d9`), explicitement écartée — même principe que pour le logo "Sage"/la finition
+  typographique "Nocturne" précédentes, aucune couleur de la maquette reprise telle quelle,
+  uniquement nos tokens déjà en place.
+  - **Nouvel ordre, en une seule colonne verticale** (`renderCarteDossier()`) : badge de statut +
+    "Archiver"/"Supprimer" d'abord regroupés sur une même ligne (`.dossier-head-barre`), puis le
+    nom + crayon, puis "Changer de dossier"/"Lier un dossier local", un filet de séparation
+    (`.dossier-head-divider`), l'adresse et le prix (chacun sur sa propre ligne avec une icône —
+    `.dossier-info-ligne`), un second filet, puis la grille Type de vente/Rôle du
+    notaire/Responsable. Remplace l'ancien découpage en deux zones côte à côte
+    (`.dossier-head-principale` à gauche, `.dossier-head-actions` à droite, classes supprimées) :
+    le badge de statut vivait auparavant dans le nom et Archiver/Supprimer à l'opposé de la fiche,
+    loin l'un de l'autre pour deux informations qui répondent à la même question ("où en est ce
+    dossier, qu'est-ce que je peux en faire").
+  - **Adresse/prix reviennent à une icône sans libellé texte** (`map-pin`/`banknote`, retirés puis
+    remis dans la session — voir l'entrée "Champs 'Adresse'/'Prix de vente' alignés..." plus haut) :
+    contrairement à cette tentative précédente où l'icône seule posait problème en se retrouvant
+    coincée au milieu d'items textuels sur une ligne qui se repliait de façon inégale, chaque champ
+    a maintenant sa PROPRE ligne pleine largeur (`.dossier-adresse-prix`/`.dossier-info-ligne`) :
+    assez de place pour qu'une icône reste lisible sans ambiguïté, plus besoin du texte "Adresse :"/
+    "Prix de vente :" en plus.
+  - **Type de vente / Rôle du notaire / Responsable passent d'un libellé-en-ligne
+    (`.select-edit`, soulignement en tirets) à une grille avec libellé AU-DESSUS du champ**
+    (`.dossier-classification-grid`/`.classif-champ`/`.select-classif`, `<select>` avec bordure et
+    fond `--paper-sunk`, plus proche visuellement d'un vrai champ de formulaire) — repris de la
+    maquette. `.select-edit`/`.classif-item`/`.dossier-classification` (classes désormais inutilisées)
+    supprimées ; la règle d'impression qui masquait `.select-edit` référence maintenant
+    `.select-classif`, même comportement (ces trois champs ne s'impriment pas, déjà le cas avant).
+  - **Grille à `minmax(165px, 1fr)`, pas 140px** : à 140px, la grille tenait sur 3 colonnes dans la
+    largeur du tiroir (~520px) mais tronquait le nom le plus long de la liste des responsables
+    ("Bastien ANGLUMENT") dans son `<select>`. À 165px elle bascule à 2 colonnes, "Responsable"
+    prend sa propre ligne pleine largeur et le nom n'est plus coupé — vérifié visuellement
+    (Playwright, avant/après ce changement de seuil).
+  - Vérifié visuellement (Playwright, clair et sombre) sur le dossier utilisé comme exemple par
+    l'étude dans sa maquette (mêmes nom/adresse/prix).
 
 ## Comment tester
 

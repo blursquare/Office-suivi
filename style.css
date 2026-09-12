@@ -1831,16 +1831,66 @@
      trois et l'échéance "prêt" porte en plus le statut de l'offre et son bouton Revérifier). */
   .drawer-panneau .tabs { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
 
+  /* En-tête en une seule colonne verticale (repris d'une maquette fournie par l'étude, recolorée
+     avec nos tokens) : badge de statut + Archiver/Supprimer d'abord, puis le nom, "Changer de
+     dossier", adresse/prix et la classification — un seul ordre de lecture de haut en bas, plus de
+     répartition gauche (nom) / droite (actions) qui plaçait ces deux zones loin l'une de l'autre. */
   .dossier-head {
     display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 12px;
+    flex-direction: column;
+    gap: 4px;
     margin-bottom: 16px;
   }
 
-  .dossier-head-principale { min-width: 0; flex: 1; }
-  .dossier-head-actions { display: flex; gap: 4px; flex-shrink: 0; }
+  .dossier-head-barre {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 2px;
+  }
+
+  /* Filets fins entre les sections de l'en-tête (nom, adresse/prix, classification) : un simple
+     trait, pas de dégradé comme .table (les rangées d'un tableau) — ici trois blocs bien distincts
+     à séparer clairement, pas une liste de lignes similaires. */
+  .dossier-head-divider { height: 1px; background: var(--line); margin: 8px 0; }
+
+  .dossier-adresse-prix { display: flex; flex-direction: column; gap: 8px; }
+  .dossier-info-ligne { display: flex; align-items: center; gap: 8px; color: var(--ink-soft); }
+  .dossier-info-ligne .icone { flex: none; color: var(--muted); }
+  .dossier-info-ligne input.input-inline { flex: 1; min-width: 0; }
+
+  /* Type de vente / Rôle du notaire / Responsable : libellé au-dessus du champ, en grille plutôt
+     qu'une ligne de libellés-en-ligne qui se repliait de façon inégale dans la largeur du tiroir. */
+  /* minmax à 165px (pas 140) : dans la largeur du tiroir (~520px), 140px laissait passer 3
+     colonnes mais tronquait le nom le plus long de la liste des responsables ("Bastien
+     ANGLUMENT") dans son <select> — à 165px la grille passe à 2 colonnes, le champ Responsable
+     prend sa propre ligne pleine largeur et n'est plus coupé. */
+  .dossier-classification-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+    gap: 10px;
+  }
+  .classif-champ { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .classif-champ label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .select-classif {
+    font-family: inherit;
+    font-size: 13.5px;
+    color: var(--ink);
+    background: var(--paper-sunk);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 6px 8px;
+    cursor: pointer;
+    width: 100%;
+  }
+  .select-classif:hover { border-color: var(--muted); }
+  .select-classif:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 
   /* Carte ouverte en deux colonnes (échéances/pièces/analyse à gauche, historique + actions à
      droite) — demandé pour profiter de la largeur disponible plutôt qu'un long défilement vertical
@@ -1913,45 +1963,13 @@
     font-size: 13.5px;
     color: var(--ink-soft);
   }
-  /* Adresse, prix, type de vente, rôle du notaire et responsable regroupés sur une seule ligne
-     (ordre demandé par l'étude) — flex-wrap reprise de l'ancienne .dossier-adresse-prix, fusionnée
-     ici depuis que les deux lignes n'en forment plus qu'une. */
-  .dossier-classification { margin-top: 2px; display: flex; align-items: center; flex-wrap: wrap; gap: 3px 14px; }
-  /* nowrap : c'est l'item entier qui passe à la ligne, jamais son libellé — sans ça « Responsable : »
-     se coupait avant les deux-points sur les petites largeurs. Les champs qu'il contient ont leur
-     propre largeur et ne sont pas concernés par cette règle. */
-  .classif-item { display: inline-flex; align-items: center; gap: 5px; min-width: 0; white-space: nowrap; }
-  /* La règle générique `select { width: 100% }` (styles du formulaire) ne fixe pas cette propriété
-     ici : sans ce reset, .select-edit hérite quand même de cette largeur pleine ligne et fait
-     passer chaque champ (Responsable/Type de vente/Rôle) à la ligne, alors qu'ils doivent tenir
-     sur une seule ligne sur la fiche dossier. */
-  /* Même taille que .dossier-head .addr (13.5px) : ces select partagent une ligne avec ce texte
-     ("Responsable : [select] · Type de vente : [select]...") et un écart de 0.5px suffisait à
-     rendre la ligne visuellement inégale — signalé par l'étude. */
-  .select-edit {
-    font-family: inherit;
-    font-size: 13.5px;
-    color: var(--ink-soft);
-    background: transparent;
-    border: none;
-    border-bottom: 1px dashed var(--line);
-    padding: 0 2px;
-    width: auto;
-    max-width: none;
-    min-width: 0;
-    display: inline;
-    cursor: pointer;
-  }
-  .select-edit:hover { color: var(--ink); border-bottom-color: var(--ink-soft); }
-  .select-edit:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
-  /* Champs texte libres (adresse/prix, détectés automatiquement — voir CLAUDE.md) : même habillage
-     discret que .select-edit (soulignement en tirets, pas de cadre plein) mais en curseur texte,
-     pas pointeur, et une largeur propre à chacun plutôt que la largeur intrinsèque d'un <select>.
+  /* Champs texte libres (adresse/prix, détectés automatiquement — voir CLAUDE.md) : soulignement en
+     tirets, pas de cadre plein, curseur texte. Chacun occupe sa propre ligne (voir
+     .dossier-info-ligne) et s'étire donc pleine largeur, plus de largeur fixe par champ.
      Sélecteur préfixé par `input` (pas juste `.input-inline`) : la règle générique
      `input[type="text"], ... { width:100%; ... }` combine élément+attribut, une spécificité qu'une
-     simple classe seule ne bat pas (contrairement à `select { width:100% }`, un simple sélecteur de
-     type, que `.select-edit` bat sans ce préfixe) — d'où ce piège différent de celui du formulaire. */
+     simple classe seule ne bat pas — sans ce préfixe, .input-inline perdrait bordure/fond/padding. */
   input.input-inline {
     font-family: inherit;
     font-size: 13.5px;
@@ -1969,8 +1987,6 @@
   input.input-inline:hover { color: var(--ink); border-bottom-color: var(--ink-soft); }
   input.input-inline:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
   input.input-inline::placeholder { color: var(--muted); font-style: italic; }
-  input.champ-adresse-bien { width: 260px; max-width: 100%; }
-  input.champ-prix-vente { width: 100px; }
 
   /* Apport estimé (voir calculerApport) : petit cercle coloré + texte, même logique de couleur que
      .badge-statut (succès/pret-amber/urgent, aucune couleur inventée pour l'occasion). */
@@ -2299,7 +2315,7 @@
     .tab { border: 1px solid #999; margin-bottom: 6pt; padding: 6pt; background: #fff !important; }
     .historique-liste { display: block !important; }
     .analyse-juridique { background: #fff; border: 1px solid #999; }
-    .icon-btn, .tab-select, .icon-crayon, .icon-valider, .nom-edition, .tab-date-edition, .select-edit { display: none !important; }
+    .icon-btn, .tab-select, .icon-crayon, .icon-valider, .nom-edition, .tab-date-edition, .select-classif { display: none !important; }
   }
 
   .analyse-repliable > summary {

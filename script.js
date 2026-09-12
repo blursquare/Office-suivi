@@ -2937,70 +2937,91 @@
       return `
       <div class="dossier${d.archive ? ' est-archive' : ''}">
         <div class="dossier-head">
-          <div class="dossier-head-principale">
-            <div class="nom-dossier">
-              <span class="nom-affichage" id="nom-affichage-${d.id}">
-                ${renderBadgeStatut(d)}
-                <span class="nom-texte">${escapeHtml(d.nom)}</span>
-                <button type="button" class="icon-crayon" onclick="activerEditionNom('${d.id}')" title="Modifier le nom" aria-label="Modifier le nom">${icone('pencil')}</button>
-              </span>
-              <span class="nom-edition" id="nom-edition-${d.id}" hidden>
-                <input type="text" class="dossier-nom-input" id="nom-input-${d.id}" value="${escapeAttr(d.nom)}" aria-label="Nom du dossier" onkeydown="if(event.key==='Enter'){event.preventDefault();validerEditionNom('${d.id}');}else if(event.key==='Escape'){annulerEditionNom('${d.id}');}">
-                <button type="button" class="icon-valider" onclick="validerEditionNom('${d.id}')" title="Valider" aria-label="Valider le nom">✓</button>
-              </span>
-            </div>
-            <!-- Sur sa propre ligne, séparée de .nom-affichage : mélangée au nom (voir historique
-                 de ce fichier), sa position dépendait de la longueur du nom — tantôt collée à côté,
-                 tantôt repoussée à la ligne suivante selon l'espace restant. Signalé par l'étude
-                 ("se balade"). Ici, toujours au même endroit, quel que soit le nom du dossier. -->
-            ${boutonsDossierLocal ? `<div class="dossier-lien-local-ligne">${boutonsDossierLocal}</div>` : ''}
-            <!-- Chaque couple libellé + champ est un .classif-item indivisible : dans la largeur du
-                 tiroir la ligne passe forcément à plusieurs lignes, et sans ce groupage un libellé
-                 se retrouvait séparé de son champ ("Type de vente :" en fin de ligne, la liste
-                 déroulante à la ligne suivante). L'espacement remplace les anciens séparateurs "·",
-                 qui se seraient retrouvés en début de ligne au retour à la ligne. -->
-            <div class="addr dossier-classification">
-              <span class="classif-item">Adresse :
-                <input type="text" class="input-inline champ-adresse-bien" value="${escapeAttr(d.adresseBien || '')}" placeholder="non détectée" aria-label="Adresse du bien" onblur="changerAdresseBien('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
-              </span>
-              <span class="classif-item">Prix de vente :
-                <input type="text" class="input-inline champ-prix-vente" value="${d.prixVente ? formaterPrix(d.prixVente) : ''}" placeholder="non détecté" aria-label="Prix de vente" onblur="changerPrixVente('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
-              </span>
-              <span class="classif-item">Type de vente :
-                <select class="select-edit" onchange="changerTypeVente('${d.id}', this.value)" aria-label="Type de vente">
-                  <option value="maison" ${d.typeVente === 'copropriete' ? '' : 'selected'}>Maison</option>
-                  <option value="copropriete" ${d.typeVente === 'copropriete' ? 'selected' : ''}>Copropriété</option>
-                </select>
-              </span>
-              <span class="classif-item">Rôle du notaire :
-                <select class="select-edit" onchange="changerRoleNotaire('${d.id}', this.value)" aria-label="Rôle de l'étude sur ce dossier">
-                  <option value="instrumentaire" ${d.roleNotaire === 'participant' ? '' : 'selected'}>Instrumentaire</option>
-                  <option value="participant" ${d.roleNotaire === 'participant' ? 'selected' : ''}>Participant</option>
-                </select>
-              </span>
-              <span class="classif-item">Responsable :
-                <select class="select-edit" onchange="changerResponsable('${d.id}', this.value)" aria-label="Responsable du dossier">
-                  <option value="" ${d.responsable ? '' : 'selected'}>— À définir —</option>
-                  <option ${d.responsable === 'Bastien ANGLUMENT' ? 'selected' : ''}>Bastien ANGLUMENT</option>
-                  <option ${d.responsable === 'Julie VASSELIN' ? 'selected' : ''}>Julie VASSELIN</option>
-                  <option ${d.responsable === 'Jérémy SAUJOT' ? 'selected' : ''}>Jérémy SAUJOT</option>
-                </select>
-              </span>
-            </div>
-            ${d.sansPret ? `<span class="dot-label dl-pret badge-cash">${icone('banknote')}Achat comptant — sans prêt</span>` : ''}
-            ${d.accesAReconfirmer ? `<div class="offre-pret-ligne"><span class="reconfirmer-acces" onclick="reconfirmerAcces('${d.id}')">Cliquer pour reconfirmer l'accès</span></div>` : ''}
-            ${(!d.sansPret && d.offrePretStatut === 'recue' && calculerApport(d)) ? (() => {
-              const apport = calculerApport(d);
-              return `<div class="addr apport-ligne">
-                <span class="apport-cercle apport-${apport.niveau}"></span>
-                Apport estimé : <strong>${formaterPrix(apport.montant)}</strong> (${apport.pourcentage}% du prix de ${formaterPrix(d.prixVente)}, prêt de ${formaterPrix(d.montantPret)})
-              </div>`;
-            })() : ''}
-          </div>
-          <div class="dossier-head-actions">
+          <!-- Badge de statut + Archiver/Supprimer regroupés sur une même ligne, en tête de fiche
+               (repris d'une maquette fournie par l'étude, recolorée avec nos propres tokens — pas
+               la palette indigo/violette de la maquette). Auparavant le badge vivait dans le nom
+               et Archiver/Supprimer sur le côté opposé de la fiche : rassemblés ici, plus rien à
+               regarder à deux endroits différents pour savoir où en est le dossier et agir dessus. -->
+          <div class="dossier-head-barre">
+            ${renderBadgeStatut(d)}
             <button class="icon-btn" onclick="archiverDossier('${d.id}', ${!d.archive})">${d.archive ? 'Désarchiver' : 'Archiver'}</button>
             <button class="icon-btn" onclick="supprimerDossier('${d.id}')">Supprimer</button>
           </div>
+          <div class="nom-dossier">
+            <span class="nom-affichage" id="nom-affichage-${d.id}">
+              <span class="nom-texte">${escapeHtml(d.nom)}</span>
+              <button type="button" class="icon-crayon" onclick="activerEditionNom('${d.id}')" title="Modifier le nom" aria-label="Modifier le nom">${icone('pencil')}</button>
+            </span>
+            <span class="nom-edition" id="nom-edition-${d.id}" hidden>
+              <input type="text" class="dossier-nom-input" id="nom-input-${d.id}" value="${escapeAttr(d.nom)}" aria-label="Nom du dossier" onkeydown="if(event.key==='Enter'){event.preventDefault();validerEditionNom('${d.id}');}else if(event.key==='Escape'){annulerEditionNom('${d.id}');}">
+              <button type="button" class="icon-valider" onclick="validerEditionNom('${d.id}')" title="Valider" aria-label="Valider le nom">✓</button>
+            </span>
+          </div>
+          <!-- Sur sa propre ligne, séparée de .nom-affichage : mélangée au nom (voir historique
+               de ce fichier), sa position dépendait de la longueur du nom — tantôt collée à côté,
+               tantôt repoussée à la ligne suivante selon l'espace restant. Signalé par l'étude
+               ("se balade"). Ici, toujours au même endroit, quel que soit le nom du dossier. -->
+          ${boutonsDossierLocal ? `<div class="dossier-lien-local-ligne">${boutonsDossierLocal}</div>` : ''}
+
+          <div class="dossier-head-divider"></div>
+
+          <!-- Adresse/prix : une ligne icône + champ chacun, plutôt que mêlés à la grille de
+               classification en dessous — assez de place sur leur propre ligne pour qu'une icône
+               seule (sans libellé texte) reste lisible, contrairement à la ligne de classification
+               ci-dessous où plusieurs champs se partagent l'espace. -->
+          <div class="dossier-adresse-prix">
+            <div class="dossier-info-ligne">
+              ${icone('map-pin')}
+              <input type="text" class="input-inline champ-adresse-bien" value="${escapeAttr(d.adresseBien || '')}" placeholder="Adresse non détectée" aria-label="Adresse du bien" onblur="changerAdresseBien('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
+            </div>
+            <div class="dossier-info-ligne">
+              ${icone('banknote')}
+              <input type="text" class="input-inline champ-prix-vente" value="${d.prixVente ? formaterPrix(d.prixVente) : ''}" placeholder="Prix non détecté" aria-label="Prix de vente" onblur="changerPrixVente('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
+            </div>
+          </div>
+
+          <div class="dossier-head-divider"></div>
+
+          <!-- Type de vente / Rôle du notaire / Responsable : grille avec libellé au-dessus du
+               champ (plutôt que libellé + <select> en ligne, ancien style .select-edit) — reprend
+               la présentation de la maquette fournie, plus lisible qu'une ligne de libellés et de
+               champs mélangés qui se repliait sur plusieurs lignes inégales dans la largeur du
+               tiroir. -->
+          <div class="dossier-classification-grid">
+            <div class="classif-champ">
+              <label for="tv-${d.id}">Type de vente</label>
+              <select id="tv-${d.id}" class="select-classif" onchange="changerTypeVente('${d.id}', this.value)">
+                <option value="maison" ${d.typeVente === 'copropriete' ? '' : 'selected'}>Maison</option>
+                <option value="copropriete" ${d.typeVente === 'copropriete' ? 'selected' : ''}>Copropriété</option>
+              </select>
+            </div>
+            <div class="classif-champ">
+              <label for="rn-${d.id}">Rôle du notaire</label>
+              <select id="rn-${d.id}" class="select-classif" onchange="changerRoleNotaire('${d.id}', this.value)">
+                <option value="instrumentaire" ${d.roleNotaire === 'participant' ? '' : 'selected'}>Instrumentaire</option>
+                <option value="participant" ${d.roleNotaire === 'participant' ? 'selected' : ''}>Participant</option>
+              </select>
+            </div>
+            <div class="classif-champ">
+              <label for="resp-${d.id}">Responsable</label>
+              <select id="resp-${d.id}" class="select-classif" onchange="changerResponsable('${d.id}', this.value)">
+                <option value="" ${d.responsable ? '' : 'selected'}>— À définir —</option>
+                <option ${d.responsable === 'Bastien ANGLUMENT' ? 'selected' : ''}>Bastien ANGLUMENT</option>
+                <option ${d.responsable === 'Julie VASSELIN' ? 'selected' : ''}>Julie VASSELIN</option>
+                <option ${d.responsable === 'Jérémy SAUJOT' ? 'selected' : ''}>Jérémy SAUJOT</option>
+              </select>
+            </div>
+          </div>
+
+          ${d.sansPret ? `<span class="dot-label dl-pret badge-cash">${icone('banknote')}Achat comptant — sans prêt</span>` : ''}
+          ${d.accesAReconfirmer ? `<div class="offre-pret-ligne"><span class="reconfirmer-acces" onclick="reconfirmerAcces('${d.id}')">Cliquer pour reconfirmer l'accès</span></div>` : ''}
+          ${(!d.sansPret && d.offrePretStatut === 'recue' && calculerApport(d)) ? (() => {
+            const apport = calculerApport(d);
+            return `<div class="addr apport-ligne">
+              <span class="apport-cercle apport-${apport.niveau}"></span>
+              Apport estimé : <strong>${formaterPrix(apport.montant)}</strong> (${apport.pourcentage}% du prix de ${formaterPrix(d.prixVente)}, prêt de ${formaterPrix(d.montantPret)})
+            </div>`;
+          })() : ''}
         </div>
         <div class="dossier-body">
         <div class="tabs">
