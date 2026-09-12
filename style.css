@@ -2093,17 +2093,23 @@
   .offre-puce.manquante .offre-point { background: var(--pret); }
   .offre-puce.manquante { color: var(--pret); }
 
+  /* Les trois actions tiennent sur une seule ligne (demandé par l'étude), à largeurs égales :
+     flex-wrap est désactivé et chaque bouton prend le tiers de la place, ce qui les fait aussi
+     lire comme un seul bloc plutôt que trois pastilles de longueurs disparates. */
   .dossier-actions {
     display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
+    flex-wrap: nowrap;
+    gap: 8px;
     margin-top: 16px;
   }
 
   .dossier-actions button {
+    flex: 1 1 0;
+    min-width: 0;
+    white-space: nowrap;
     font-family: inherit;
     font-size: 13px;
-    padding: 7px 14px;
+    padding: 7px 10px;
     border-radius: 20px;
     border: 1px solid var(--line);
     background: var(--paper-card);

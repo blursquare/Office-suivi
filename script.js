@@ -2806,11 +2806,6 @@
           ${d.ventebien ? renderTab('ventebien', 'Vente préalable', d.ventebien, d.id, d.ventebienPage, confiance.ventebien) : ''}
           ${(d.autres || []).map((a, i) => renderTab('autre', escapeHtml(a.label), a.date, d.id, a.page, null, i)).join('')}
         </div>
-        <div class="dossier-actions">
-          <button onclick="telechargerICS('${d.id}')">Télécharger les rappels (.ics)</button>
-          <button onclick="ouvrirEmailRappel('${d.id}')">Envoyer un rappel par email</button>
-          <button onclick="imprimerFiche('${d.id}')">📄 Télécharger la fiche dossier</button>
-        </div>
         ${d.roleNotaire !== 'participant' ? renderPiecesDossier(d) : ''}
         ${(analyse.documents.length > 0 || analyse.engagements.length > 0 || analyseConditions.length > 0) ? `
           <details class="analyse-juridique analyse-repliable" style="margin-top:14px;">
@@ -2837,6 +2832,14 @@
             </div>
           </details>
         ` : ''}
+        <!-- Libellés volontairement courts (l'intitulé complet reste en infobulle) : l'étude veut
+             ces trois actions sur une seule ligne, ce que "Télécharger les rappels (.ics)" et ses
+             voisins ne permettaient pas dans la largeur du tiroir. -->
+        <div class="dossier-actions">
+          <button onclick="telechargerICS('${d.id}')" title="Télécharger les rappels (.ics)">📅 Rappels (.ics)</button>
+          <button onclick="ouvrirEmailRappel('${d.id}')" title="Envoyer un rappel par email">✉️ Rappel email</button>
+          <button onclick="imprimerFiche('${d.id}')" title="Télécharger la fiche dossier">📄 Fiche dossier</button>
+        </div>
         ${historique.length > 0 ? `
           <button type="button" class="historique-toggle section-eyebrow" onclick="toggleHistorique('${d.id}')">Historique (${historique.length})</button>
           <div class="historique-liste" id="historique-${d.id}">

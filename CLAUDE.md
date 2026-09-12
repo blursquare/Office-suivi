@@ -1173,9 +1173,13 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
   - **Mise en page de la fiche revue pour la colonne étroite** : les deux colonnes
     (`.dossier-col-principale`/`.dossier-col-laterale`, supprimées) n'auraient plus tenu en 520px.
     `.dossier-body` devient une simple colonne où l'ordre de lecture porte la hiérarchie :
-    échéances → les trois boutons d'action (remontés juste sous les dates, ce sont eux qu'on vient
-    chercher après avoir lu une échéance) → pièces du dossier → analyse juridique → historique, ces
-    deux derniers repliés. `.tabs` passe à `minmax(200px, 1fr)` dans le tiroir (deux échéances par
+    échéances → pièces du dossier → analyse juridique → les trois boutons d'action → historique,
+    ces deux derniers repliés. (Les actions ont d'abord été placées juste sous les échéances ; sur
+    retour de l'étude elles sont redescendues au-dessus de l'historique, et leurs libellés ont été
+    raccourcis — « 📅 Rappels (.ics) », « ✉️ Rappel email », « 📄 Fiche dossier », intitulé complet
+    conservé en infobulle — pour tenir sur une seule ligne comme demandé : `.dossier-actions` passe
+    en `flex-wrap: nowrap` avec trois boutons à largeurs égales, ce qui les fait aussi lire comme un
+    bloc plutôt que trois pastilles de longueurs disparates.) `.tabs` passe à `minmax(200px, 1fr)` dans le tiroir (deux échéances par
     rangée : à 150px il en tassait trois, alors que l'échéance « prêt » porte en plus le statut de
     l'offre et son bouton Revérifier).
   - **Ligne « adresse · prix · type · rôle · responsable » regroupée par paires** : chaque couple
