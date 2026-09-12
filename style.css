@@ -1517,11 +1517,6 @@
   .badge-offre.recue { background: var(--success-bg); color: var(--success); }
   .badge-offre.manquante { background: var(--pret-bg); color: var(--pret); }
   .badge-offre.inconnu { background: var(--line-soft); color: var(--muted); }
-  /* .recue est un <button> quand un fichier a été trouvé (voir ouvrirOffreTrouvee) : reset des
-     styles natifs de bouton pour garder l'apparence du badge, avec juste un curseur/hover qui
-     trahissent qu'il est cliquable. */
-  button.badge-offre.recue { border: none; font-family: inherit; cursor: pointer; }
-  button.badge-offre.recue:hover { background: var(--success); color: #fff; }
 
   .lien-dossier-local {
     font-size: 12px;
@@ -2056,13 +2051,47 @@
     color: var(--muted);
     font-style: italic;
   }
+  /* Offre confirmée reçue : la condition est résolue, le décompte le dit à la place d'un
+     "Échéance dépassée" qui laisserait croire à un retard. */
+  .tab .tab-countdown.recue {
+    color: var(--success);
+    font-weight: 600;
+  }
 
-  /* Statut de l'offre de prêt + "Revérifier", sous la date/le décompte de la carte "Obtention du
-     prêt" (déplacé depuis l'en-tête du dossier, demandé par l'étude — plus proche de l'échéance
-     qu'il concerne). .badge-offre garde son margin-left d'origine (utilisé ailleurs sur la même
-     ligne qu'un texte) ; annulé ici, premier élément de sa propre ligne. */
-  .tab-offre-pret { margin-top: 6px; }
-  .tab-offre-pret .badge-offre { margin-left: 0; }
+  /* Statut de l'offre de prêt + action (Revérifier, ou Lier un dossier local si aucun n'est
+     relié), sous la date/le décompte de la carte "Obtention du prêt" — plus proche de l'échéance
+     qu'il concerne que son ancienne place dans l'en-tête du dossier. */
+  .tab-offre-pret { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+
+  /* Statut de l'offre sous la date : une puce colorée + un mot, pas la phrase complète du badge
+     `.badge-offre` utilisé ailleurs — le décompte juste au-dessus dit déjà "✓ Offre reçue", et
+     répéter la phrase en dessous était le doublon signalé par l'étude. Reçue : c'est un <button>
+     (ouvre le fichier trouvé) ; les autres statuts, un <span> — rien à ouvrir. */
+  .offre-puce {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: inherit;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    background: none;
+    border: none;
+    padding: 0;
+  }
+  button.offre-puce { cursor: pointer; }
+  button.offre-puce:hover { text-decoration: underline; text-underline-offset: 2px; }
+  .offre-point {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex: none;
+    background: var(--muted);
+  }
+  .offre-puce.recue .offre-point { background: var(--success); }
+  .offre-puce.recue { color: var(--success); }
+  .offre-puce.manquante .offre-point { background: var(--pret); }
+  .offre-puce.manquante { color: var(--pret); }
 
   .dossier-actions {
     display: flex;

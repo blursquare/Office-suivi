@@ -1085,13 +1085,33 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
   par l'étude. La boucle de lecture du PDF s'arrête dès que la signature est trouvée (+2 pages de
   tampon pour un éventuel certificat/dernière signature électronique), sans lire inutilement le
   reste d'un PDF qui peut compter des centaines de pages d'annexes après coup.
-- **Bug corrigé : le tab "Obtention du prêt" affichait deux fois le même statut** une fois l'offre
-  reçue — le décompte (`.tab-countdown`) affichait "✓ Offre reçue" et le badge `offreBloc` juste en
-  dessous affichait "✓ Offre de prêt reçue" (voir l'entrée juste au-dessus sur son déplacement dans
-  le tab). Signalé par l'étude. Le décompte est maintenant masqué entièrement quand l'offre est
-  reçue (`decompteMasque`) : `offreBloc` porte déjà cette information, plus complète (bouton
-  cliquable pour rouvrir le fichier, bouton Revérifier) — rien à ajouter en double juste au-dessus.
-  `.tab-countdown.recue` (règle CSS devenue inutile) supprimée.
+- **Doublon "offre reçue" dans le tab "Obtention du prêt" : corrigé, puis corrigé DANS L'AUTRE
+  SENS.** Premier signalement de l'étude : une fois l'offre reçue, le décompte (`.tab-countdown`)
+  affichait "✓ Offre reçue" et le bloc juste en dessous répétait "✓ Offre de prêt reçue" — le
+  décompte a donc été masqué entièrement dans ce cas (`decompteMasque`). **Mauvais choix** : c'est
+  la ligne qui portait aussi l'information de date/délai, et l'étude est revenue dessus ("la date ne
+  s'affiche plus, je t'ai mal expliqué, remets comme avant"). Le décompte est rétabli, et c'est le
+  bloc du dessous qui est raccourci — le doublon était bien réel, il fallait le régler de ce
+  côté-là :
+  - `.tab-countdown.recue` (rétablie) affiche "✓ Offre reçue" en vert à la place de "Échéance
+    dépassée", qui laisserait croire à un retard sur une condition pourtant résolue.
+  - `offreBloc` n'est plus une phrase mais une **puce de couleur + un mot** (`.offre-puce` /
+    `.offre-point`) : vert "Ouvrir le fichier" (un vrai `<button>`, voir `ouvrirOffreTrouvee`),
+    amber "Introuvable", gris "Non vérifiée". Le libellé du cas "reçue" nomme délibérément l'ACTION
+    plutôt que le statut — sinon les deux lignes rediraient les mêmes mots, ce qui était exactement
+    la remarque initiale.
+  - **`offreBloc` s'affiche désormais même sans dossier local relié** (il était conditionné à
+    `d.dossierLie`) : c'est justement dans ce cas qu'il faut pouvoir agir, la carte ne disait
+    jusqu'ici rien de l'offre et n'offrait aucun moyen de relier un dossier. Le bouton devient
+    "🔗 Lier un dossier local" au lieu de "Revérifier". Demandé explicitement par l'étude.
+  - `button.badge-offre.recue` (CSS) supprimée, devenue morte : `.badge-offre` n'est plus rendu
+    qu'en `<span>` dans la ligne de tableau du Suivi.
+  - **Piège de banc d'essai rencontré en diagnostiquant ce point** : avec des dossiers synthétiques
+    injectés dans `localStorage`, `offreBloc` semblait ne jamais s'afficher. Ce n'était pas un bug
+    applicatif — `revérifierDossiersLiesAuDemarrage()` remet `d.dossierLie = false` quand aucun
+    handle correspondant n'existe dans IndexedDB, ce qui est le comportement voulu et se produit
+    forcément sur des données fabriquées à la main. Pour observer cet état en test, rétablir les
+    drapeaux **après** la séquence de démarrage puis appeler `render()`.
 - **Passe de finition typographique, inspirée d'une maquette fournie par l'étude** (un prototype
   "CLAIRE" complet : registre en tableau, calendrier, écran d'extraction, tiroir de fiche dossier,
   rapports). Seule la **facture** de la maquette a été reprise, pas son identité : la maquette pose

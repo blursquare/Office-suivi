@@ -1960,14 +1960,16 @@
     const jours = joursRestants(iso);
     let countdownClass = '';
     let countdownText = '';
-    // Une fois l'offre de prêt confirmée reçue, la date de cette échéance n'a plus lieu d'être
-    // signalée comme "dépassée" (condition résolue, pas un retard) — signalé par l'étude sur la
-    // fiche dépliée d'un dossier avec offre reçue. Bug corrigé : le décompte affichait alors
-    // "✓ Offre reçue" ET offreBloc affichait juste en dessous le même statut en toutes lettres
-    // ("✓ Offre de prêt reçue") — doublon signalé par l'étude. Le décompte est masqué dans ce cas
-    // (rien à ajouter à ce que dit déjà offreBloc), plutôt que de répéter l'information.
-    const decompteMasque = offrePretRecue;
-    if (jours < 0) {
+    // Une fois l'offre de prêt confirmée reçue, la date n'a plus lieu d'être signalée comme
+    // "dépassée" (condition résolue, pas un retard) : le décompte le dit à la place. Il a été un
+    // temps masqué entièrement dans ce cas, pour éviter de répéter ce que disait déjà offreBloc en
+    // toutes lettres ("✓ Offre de prêt reçue") — l'étude a demandé de revenir en arrière, la carte
+    // se retrouvait trop vide. Le doublon est réglé de l'autre côté : offreBloc est maintenant une
+    // puce de couleur compacte, plus une phrase (voir renderCarteDossier).
+    if (offrePretRecue) {
+      countdownClass = 'recue';
+      countdownText = '✓ Offre reçue';
+    } else if (jours < 0) {
       countdownClass = 'passed';
       countdownText = 'Échéance dépassée';
     } else if (jours === 0) {
@@ -1981,7 +1983,7 @@
       ${enTete}
       <span class="tab-date-affichage" id="${idBase}-aff"><div class="tab-date">${formatDateFr(iso)}${boutonVoir}</div>${crayonDate}${badgeConfiance}</span>
       ${editionDate}
-      ${decompteMasque ? '' : `<div class="tab-countdown ${countdownClass}">${countdownText}</div>`}
+      <div class="tab-countdown ${countdownClass}">${countdownText}</div>
       ${offreBloc || ''}
     </div>`;
   }
@@ -2719,12 +2721,22 @@
       // Statut de l'offre + "Revérifier", affiché directement sous la date dans la carte "Obtention
       // du prêt" (voir renderTab, paramètre offreBloc) — demandé par l'étude, plutôt que sa position
       // précédente dans l'en-tête, éloignée de l'échéance qu'elle concerne.
-      const offreBloc = (!d.sansPret && d.dossierLie) ? `
+      // Statut de l'offre sous la date de la carte "Obtention du prêt" (voir renderTab, paramètre
+      // offreBloc). Une puce de couleur plutôt qu'une phrase : le décompte juste au-dessus dit déjà
+      // "✓ Offre reçue" en toutes lettres, la puce ne fait que confirmer d'un coup d'œil sans
+      // répéter — c'est ce doublon de phrases qui avait été signalé. Couleurs déjà en service
+      // (--success reçue, --pret introuvable, gris neutre pas encore vérifié), aucune inventée.
+      // Affiché même quand aucun dossier local n'est relié : c'est justement là qu'il faut proposer
+      // de le relier, sans quoi la carte ne dit rien de l'offre et n'offre aucun moyen d'agir.
+      const offreStatut = libelleOffre(d.offrePretStatut);
+      const offreBloc = !d.sansPret ? `
         <div class="tab-offre-pret">
-          ${d.offrePretStatut === 'recue'
-              ? `<button type="button" class="badge-offre ${libelleOffre(d.offrePretStatut).cls}" title="Cliquer pour ouvrir le fichier trouvé" onclick="ouvrirOffreTrouvee('${d.id}')">${libelleOffre(d.offrePretStatut).texte}</button>`
-              : `<span class="badge-offre ${libelleOffre(d.offrePretStatut).cls}">${libelleOffre(d.offrePretStatut).texte}</span>`}
-          <button type="button" class="lien-dossier-local" onclick="verifierOffrePretDepuisBouton('${d.id}', this)">Revérifier</button>
+          ${(d.dossierLie && d.offrePretStatut === 'recue')
+              ? `<button type="button" class="offre-puce ${offreStatut.cls}" title="Offre de prêt reçue — cliquer pour ouvrir le fichier trouvé" onclick="ouvrirOffreTrouvee('${d.id}')"><span class="offre-point"></span>Ouvrir le fichier</button>`
+              : `<span class="offre-puce ${d.dossierLie ? offreStatut.cls : 'inconnu'}" title="${d.dossierLie ? escapeAttr(offreStatut.texte) : 'Aucun dossier local relié : l’offre n’a pas encore pu être cherchée'}"><span class="offre-point"></span>${d.dossierLie ? (d.offrePretStatut === 'manquante' ? 'Introuvable' : 'À vérifier') : 'Non vérifiée'}</span>`}
+          ${DOSSIER_FS_SUPPORTE ? (d.dossierLie
+              ? `<button type="button" class="lien-dossier-local" onclick="verifierOffrePretDepuisBouton('${d.id}', this)">Revérifier</button>`
+              : `<button type="button" class="lien-dossier-local" onclick="lierDossierLocal('${d.id}')">🔗 Lier un dossier local</button>`) : ''}
         </div>` : '';
       return `
       <div class="dossier${d.archive ? ' est-archive' : ''}">
