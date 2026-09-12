@@ -1296,6 +1296,41 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     typographie), pas sur les couleurs. Le tiroir latéral, la mise en page de la fiche dossier et
     le wizard 4 étapes ne sont pas non plus restructurés, seulement leurs éléments visuels
     (badges, icônes) mis à jour en place.
+  - **Bug corrigé, trouvé par l'étude en conditions réelles juste après cette refonte : deux
+    crayons côte à côte sur une date corrigée à la main** ("Obtention du prêt — 11 novembre 2026
+    ✏️ ✏️ Corrigée à la main"). Cause : le passage aux icônes SVG (voir ci-dessus) a donné à la
+    confiance "manuel" (`LIBELLES_CONFIANCE.manuel`) la même icône `pencil` que le vrai bouton de
+    correction (`icon-crayon`, `activerEditionDate()`) juste à côté dans `.tab-date-affichage` —
+    les deux rendaient alors la même icône l'une contre l'autre. Le badge de confiance "manuel"
+    n'a plus d'icône du tout (juste un point neutre, comme "estime") : le bouton de correction est
+    la seule icône crayon légitime à cet endroit.
+- **Condition suspensive de prêt exprimée en délai, avec un point de départ explicite** ("au plus
+  tard 60 jours **après** la signature des présentes") : troisième formulation réelle rencontrée
+  pour la même clause, fournie par l'étude. Distincte des deux motifs déjà en place :
+  - `reDelai` : "délai de N jours à compter de/à partir de..." (ancre explicite, mot "délai").
+  - `reAuPlusTardDelai` : "au plus tard dans les/un délai de N jours" (ancre implicite = signature
+    de la promesse, pas de mot "après").
+  - **`reAuPlusTardApres`** (nouveau) : "au plus tard N jours après \<ancre\>" — ancre explicite
+    comme `reDelai`, mais sans le mot "délai" ni "à compter de/à partir de" comme `reAuPlusTardDelai`.
+    Mêmes ancres acceptées que `reDelai` (la signature, ce jour, l'acte, la présente, le présent
+    compromis/acte, la promesse), même garde-fou contre la clause de notification du refus/de
+    l'octroi au notaire (souvent un second délai similaire quelques lignes plus loin, à ne pas
+    détecter — voir l'historique de `reAuPlusTardDelai`). Classification "pret" automatique sans
+    élargir `suggererEcheance()`/`extraireContexte()` : le mot "prêt" apparaît déjà dans la même
+    phrase ("réception de cette ou de ces offres de prêt..."). Voir le test de régression dans
+    `tests/dates.test.js` (texte réel, clause "RÉALISATION DE LA CONDITION").
+- **Relance à l'acquéreur masquée pour un notaire participant/concourant** : demandé explicitement
+  par l'étude, cohérent avec le périmètre déjà réduit de ce rôle (prêt + engagements du vendeur
+  uniquement, voir son historique plus haut) — relancer l'acquéreur reste un geste du notaire
+  instrumentaire, celui qui reçoit l'acte et porte la relation avec lui.
+  - `relancerSiOffreManquante()` retourne tôt si `d.roleNotaire === 'participant'`, même garde-fou
+    que `verifierPiecesDossier()` pour ce rôle — la relance automatique (offre de prêt introuvable
+    à l'approche de l'échéance) ne se déclenche plus pour ces dossiers.
+  - Le champ "Email de l'acquéreur (pour relance prêt)" (étape "Finaliser" du wizard) se masque
+    dès que "Rôle de l'étude sur ce dossier" passe à Participant (`#champ-email-acquereur`, basculé
+    dans `majApercuPieces()` — déjà le gestionnaire de changement de rôle pour l'aperçu des pièces,
+    pas besoin d'un second point d'entrée) et se vide au passage, pour ne pas garder une adresse
+    enregistrée sans jamais s'en servir. Réapparaît si le rôle repasse à Instrumentaire.
 
 ## Comment tester
 

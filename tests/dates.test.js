@@ -346,6 +346,29 @@ test('detecterDatesDepuisTexte résout "au plus tard dans les N jours" (conditio
   assert.equal(dates[0].approx, true);
 });
 
+test('detecterDatesDepuisTexte résout "au plus tard N jours après la signature des présentes" (autre formulation réelle de la même condition de prêt en délai)', () => {
+  // Texte réel fourni par l'étude (clause "RÉALISATION DE LA CONDITION" d'un compromis) :
+  // contrairement au test précédent ("au plus tard dans les N jours", ancre implicite), cette
+  // formulation porte un point de départ EXPLICITE ("après la signature des présentes") — voir
+  // reAuPlusTardApres, distinct de reAuPlusTardDelai qui suppose la signature sans le dire.
+  const app = chargerApplication();
+  const dateCompromis = '2026-07-08';
+  const texte = "REALISATION DE LA CONDITION Chaque prêt sera réputé obtenu et la condition " +
+    "suspensive sera réalisée par l'envoi par la banque à l'ACQUEREUR d'une offre écrite, ferme " +
+    "et sans réserve, de consentir le crédit aux conditions principales sus-énoncées dans le " +
+    "délai de réalisation des présentes et, le cas échéant, par l'obtention de l'agrément " +
+    "définitif de l'emprunteur par une compagnie d'assurance aux conditions exigées par la " +
+    "banque. La réception de cette ou de ces offres de prêt devra intervenir au plus tard 60 " +
+    "jours après la signature des présentes. L'ACQUEREUR s'oblige à en informer sans délai " +
+    "l'AGENCE par tout moyen constituant un support durable, laquelle en informera à son tour " +
+    "le VENDEUR.";
+  const dates = app.detecterDatesDepuisTexte(texte, dateCompromis);
+  assert.equal(dates.length, 1);
+  assert.equal(dates[0].iso, '2026-09-06'); // 8 juillet + 60 jours
+  assert.equal(dates[0].suggestion, 'pret');
+  assert.equal(dates[0].approx, true);
+});
+
 test('detecterDatesDepuisTexte écarte le délai de notification (70 jours) et ne garde que celui de la condition de prêt (60 jours)', () => {
   // Reproduit le cas réel complet : la même promesse porte deux délais en "au plus tard dans les
   // N jours" (l'un la condition de prêt elle-même, l'autre la notification du refus/de l'offre au

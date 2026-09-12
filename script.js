@@ -965,6 +965,18 @@
         if (/notifier|notification/i.test(avant)) continue;
         ajouter(addDays(dateCompromis, parseInt(m[1], 10)), m[0], m.index, m[0].length, true);
       }
+      // "au plus tard 60 jours après la signature des présentes" : autre formulation réelle de la
+      // même condition suspensive de prêt exprimée en délai (fournie par l'étude), avec cette
+      // fois un point de départ explicite ("après <ancre>") plutôt qu'implicite comme
+      // reAuPlusTardDelai ci-dessus. Mêmes ancres que reDelai, même garde-fou contre la clause
+      // de notification (le refus/l'octroi communiqué au notaire porte souvent un second délai,
+      // distinct de la condition elle-même — voir reAuPlusTardDelai).
+      const reAuPlusTardApres = /au\s+plus\s+tard\s+(\d{1,3})\s*jours?\s+apr[èe]s\s+(?:la\s+signature|ce\s+jour|l['’]acte|la\s+pr[ée]sente|le\s+pr[ée]sent\s+(?:compromis|acte)|la\s+promesse)/gi;
+      while ((m = reAuPlusTardApres.exec(texte)) !== null) {
+        const avant = texte.slice(Math.max(0, m.index - 200), m.index);
+        if (/notifier|notification/i.test(avant)) continue;
+        ajouter(addDays(dateCompromis, parseInt(m[1], 10)), m[0], m.index, m[0].length, true);
+      }
     }
 
     resultats.sort((a, b) => a.iso.localeCompare(b.iso));
@@ -1976,7 +1988,10 @@
     // ci-dessous revenait à mettre un badge sur chaque date de chaque dossier, qui finissait par
     // n'attirer l'attention sur rien de particulier.
     const LIBELLES_CONFIANCE = {
-      manuel: { titre: 'Saisie ou corrigée manuellement', texte: 'Corrigée à la main', dl: 'dl-neutre', icone: 'pencil' },
+      // Pas d'icône crayon ici : le vrai bouton de correction (icon-crayon, juste à côté dans
+      // .tab-date-affichage) en porte déjà une — les deux côte à côte étaient redondants et
+      // prêtaient à confusion (signalé par l'étude). Un point neutre suffit, comme "estime".
+      manuel: { titre: 'Saisie ou corrigée manuellement', texte: 'Corrigée à la main', dl: 'dl-neutre' },
       estime: { titre: 'Calculée à partir d’une formulation approximative ("fin septembre", délai relatif...) — à vérifier précisément', texte: 'Estimée', dl: 'dl-pret' },
       incertain: { titre: 'Choisie parmi plusieurs dates possibles dans le texte — à vérifier en priorité', texte: 'À vérifier', dl: 'dl-alerte', icone: 'alert-triangle' }
     };
@@ -2338,6 +2353,16 @@
     const select = document.getElementById('f-type-vente');
     const roleSelect = document.getElementById('f-role-notaire');
     const bloc = document.getElementById('pieces-apercu');
+    // Relancer l'acquéreur (email + relance automatique si l'offre tarde, voir
+    // relancerSiOffreManquante) reste un geste du notaire instrumentaire, celui qui reçoit l'acte
+    // et porte la relation avec lui — pas de l'étude en simple participation/concours, dont le
+    // suivi se limite au prêt et aux engagements du vendeur. Demandé explicitement par l'étude.
+    const champEmailAcquereur = document.getElementById('champ-email-acquereur');
+    if (champEmailAcquereur) {
+      const estParticipant = roleSelect && roleSelect.value === 'participant';
+      champEmailAcquereur.style.display = estParticipant ? 'none' : '';
+      if (estParticipant) document.getElementById('f-email-acquereur').value = '';
+    }
     if (!select || !bloc) return;
     // Notaire participant/concourant : l'étude ne constitue pas le dossier complet, seuls le prêt
     // et les engagements du vendeur (analyse juridique) la concernent — la checklist de pièces ne
@@ -3971,6 +3996,11 @@
   // été trouvée — au plus une fois par jour et par dossier, pour ne pas rouvrir un brouillon à
   // chaque vérification. L'envoi final reste un geste volontaire de l'utilisateur.
   function relancerSiOffreManquante(d) {
+    // Notaire participant/concourant : suivi volontairement limité au prêt et aux engagements du
+    // vendeur (voir renderCarteDossier/verifierPiecesDossier, même garde-fou) — relancer
+    // l'acquéreur reste un geste du notaire instrumentaire, celui qui reçoit l'acte et porte la
+    // relation avec lui, pas de l'étude en simple concours. Demandé explicitement par l'étude.
+    if (d.roleNotaire === 'participant') return;
     if (!d.emailAcquereur || !d.pret) return;
     const jours = joursRestants(d.pret);
     if (jours === null || jours < 0 || jours > 15) return;
