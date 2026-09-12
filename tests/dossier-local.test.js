@@ -103,52 +103,28 @@ test('checklistPieces("copropriete") ajoute état daté, article 20-II et RIB de
   assert.equal(cles.length, app.checklistPieces('maison').length + 3);
 });
 
-test('les motifs de contenu de la checklist reconnaissent un intitulé plausible pour chaque pièce qui en a un', () => {
-  // certificatUrbanisme/certificatAlignement/certificatNumerotage/renonciationPreemption/
-  // titrePropriete n'ont plus de `motif` du tout (voir le test dédié plus bas) — exclues ici.
+test('aucune pièce de la checklist n\'a plus de motif de contenu — seul motifNom les détecte', () => {
+  // Décision explicite de l'étude, après une série de faux positifs par contenu qui n'étaient pas
+  // tous réductibles à une clause précise à exclure (ex. les clauses de condition suspensive sur
+  // le certificat d'urbanisme/la préemption/les titres de propriété, systématiquement présentes
+  // dans le compromis lui-même que la pièce existe ou non — voir CLAUDE.md). Plutôt que d'attendre
+  // un signalement pièce par pièce pour ERP/diagnostics/taxe foncière/assainissement/pièces de
+  // copropriété (même risque en germe), l'étude a demandé de généraliser tout de suite : plus
+  // aucun `motif` (contenu) nulle part dans PIECES_URBANISME/PIECES_AUTRES/PIECES_COPROPRIETE,
+  // uniquement `motifNom` (nom du fichier). Bénéfice secondaire : verifierDossierLocal() peut alors
+  // éviter d'ouvrir un PDF juste pour vérifier une pièce, ce qui accélère un parcours de dossier
+  // volumineux (voir l'entrée CLAUDE.md correspondante).
   const app = chargerApplication();
-  const exemples = {
-    reponseAssainissement: "Rapport de contrôle de l'installation d'assainissement non collectif",
-    diagnosticsTechniques: 'Dossier de Diagnostic Technique (DDT)',
-    erp: 'État des risques et pollutions',
-    avisTaxeFonciere: 'Avis de taxe foncière 2025',
-    etatDate: 'État daté établi par le syndic',
-    article20: 'Attestation article 20-II loi SRU',
-    ribCopro: 'RIB du syndicat des copropriétaires'
-  };
   for (const piece of app.checklistPieces('copropriete')) {
-    if (!(piece.cle in exemples)) continue;
-    assert.ok(piece.motif.test(exemples[piece.cle]), `motif "${piece.cle}" ne reconnaît pas "${exemples[piece.cle]}"`);
+    assert.equal(piece.motif, undefined, `${piece.cle} ne devrait plus avoir de motif de contenu`);
+    assert.ok(piece.motifNom, `${piece.cle} doit être détectable par son nom de fichier`);
   }
 });
 
-test('certificatUrbanisme/certificatAlignement/certificatNumerotage/renonciationPreemption/titrePropriete n\'ont plus de motif de contenu', () => {
-  // Bug structurel signalé par l'étude avec plusieurs clauses réelles de compromis DIFFÉRENTS :
-  // ces pièces sont des CONDITIONS juridiques quasi systématiquement décrites en boilerplate dans
-  // le compromis lui-même (ex. « Les titres de propriété ne devront révéler aucune charge
-  // réelle... », « Qu'il soit délivré un certificat d'urbanisme... qui ne révèle pas de
-  // servitudes... », « En cas d'exercice d'un droit de préemption... son bénéficiaire sera
-  // subrogé... »), que la pièce ait été réellement obtenue ou non — aucune regex de contenu ne
-  // peut distinguer ça de façon fiable, et l'étude ne peut pas fournir une clause à exclure pour
-  // chacune des centaines de formulations possibles d'agence en agence. Seul motifNom (le nom du
-  // fichier) les détecte désormais — voir PIECES_URBANISME/PIECES_AUTRES dans script.js.
-  const app = chargerApplication();
-  const clesSansMotifDeContenu = [
-    'certificatUrbanisme', 'certificatAlignement', 'certificatNumerotage',
-    'renonciationPreemption', 'titrePropriete'
-  ];
-  for (const cle of clesSansMotifDeContenu) {
-    const piece = app.checklistPieces('maison').find(p => p.cle === cle);
-    assert.equal(piece.motif, undefined, `${cle} ne devrait plus avoir de motif de contenu`);
-    assert.ok(piece.motifNom, `${cle} doit toujours être détectable par son nom de fichier`);
-  }
-});
-
-test('motifNom reconnaît le nom de fichier conventionnel des pièces urbanisme/diagnostics', () => {
-  // Signalé par l'étude : la détection par contenu seul (motif) ne fonctionne pas bien pour ces
-  // pièces, dont l'intitulé de fichier est en pratique conventionnel dans les dossiers de
-  // l'étude — voir verifierPiecesDossier(), qui teste maintenant motifNom sur le nom du fichier
-  // avant même d'en lire le contenu.
+test('motifNom reconnaît le nom de fichier conventionnel de chaque pièce de la checklist', () => {
+  // Signalé par l'étude : la détection par contenu seul ne fonctionnait pas bien pour ces pièces,
+  // dont l'intitulé de fichier est en pratique conventionnel dans les dossiers de l'étude — voir
+  // verifierDossierLocal(), qui ne teste plus que motifNom sur le nom du fichier.
   const app = chargerApplication();
   const exemplesNoms = {
     certificatUrbanisme: ['Certificat urbanisme.pdf', 'CU a) réponse mairie.pdf'],
@@ -156,12 +132,16 @@ test('motifNom reconnaît le nom de fichier conventionnel des pièces urbanisme/
     certificatNumerotage: ['Certificat de numérotage.pdf', "Certificat d'alignement et numérotage.pdf"],
     diagnosticsTechniques: ['Diagnostics.pdf', 'DDT.pdf'],
     reponseAssainissement: ['Rapport assainissement.pdf', 'Courrier assainissement.pdf', 'SPANC.pdf', 'Asainissement.pdf'],
+    renonciationPreemption: ['Renonciation préemption.pdf', 'Réponse préemption mairie.pdf'],
     erp: ['ERP.pdf', 'État des risques et pollution.pdf'],
     avisTaxeFonciere: ['TF 2024.pdf', 'Taxes foncières.pdf'],
-    titrePropriete: ['Titre.pdf', 'Titre de propriété.pdf', 'Titre vendeur.pdf']
+    titrePropriete: ['Titre.pdf', 'Titre de propriété.pdf', 'Titre vendeur.pdf'],
+    etatDate: ['État daté.pdf', 'Etat date syndic.pdf'],
+    article20: ['Article 20-II.pdf', 'Article 20 II loi SRU.pdf'],
+    ribCopro: ['RIB copropriété.pdf', 'RIB syndic.pdf']
   };
   for (const [cle, noms] of Object.entries(exemplesNoms)) {
-    const piece = app.checklistPieces('maison').find(p => p.cle === cle);
+    const piece = app.checklistPieces('copropriete').find(p => p.cle === cle);
     for (const nom of noms) {
       assert.ok(piece.motifNom.test(nom), `motifNom "${cle}" ne reconnaît pas le nom de fichier "${nom}"`);
     }
@@ -210,35 +190,26 @@ test('motifNom (taxe foncière, titre de propriété) tolère aussi un mot coup�
 });
 
 // Historique : ces deux tests ciblaient à l'origine certificatNumerotage/certificatAlignement
-// avec un texte réel où un certificat d'urbanisme renvoyait vers ces deux documents sans être
-// lui-même l'un d'eux (voir RE_SIMPLE_RENVOI_PIECE). Ces deux pièces n'ont plus de motif de
-// contenu du tout (voir le test structurel plus haut) : ce cas précis ne peut plus se produire
-// pour elles, par construction. Le comportement générique de motifPieceTrouve (écarter un renvoi,
-// rester sensible à une vraie mention) reste néanmoins utile pour les pièces qui ont encore un
-// motif de contenu (reponseAssainissement, erp, diagnosticsTechniques, avisTaxeFonciere) — reformulé
-// ci-dessous sur l'une d'elles plutôt que supprimé.
+// (puis reponseAssainissement) via `piece.motif`. Plus aucune pièce de la checklist n'a de motif
+// de contenu désormais (voir le test structurel plus haut) : verifierDossierLocal() n'appelle donc
+// plus motifPieceTrouve() en pratique. La fonction elle-même reste en place (utile si une pièce
+// retrouve un jour un motif de contenu) et continue d'être exercée ici directement, sur un motif
+// ad hoc plutôt que celui d'une pièce réelle, pour ne pas perdre la couverture de son comportement
+// générique (écarter un simple renvoi, rester sensible à une vraie mention).
 test('motifPieceTrouve écarte un simple renvoi (pièce à demander ailleurs, pas produite)', () => {
   const app = chargerApplication();
+  const motif = /assainissement/i;
   const texte = "Le rapport d'assainissement est à demander au SPANC de la communauté de communes, " +
     "Service Environnement - 12 rue de la Mairie 41000 BLOIS.";
-  const assainissement = app.checklistPieces('maison').find(p => p.cle === 'reponseAssainissement');
-  assert.equal(app.motifPieceTrouve(assainissement.motif, texte), false);
+  assert.equal(app.motifPieceTrouve(motif, texte), false);
 });
 
 test('motifPieceTrouve reste sensible à une vraie mention (pas seulement un renvoi)', () => {
   const app = chargerApplication();
+  const motif = /assainissement/i;
   const texte = "Rapport de contrôle de l'installation d'assainissement non collectif réalisé le " +
     "12 mars 2024, conforme, joint en annexe.";
-  const assainissement = app.checklistPieces('maison').find(p => p.cle === 'reponseAssainissement');
-  assert.equal(app.motifPieceTrouve(assainissement.motif, texte), true);
-});
-
-test('le motif "erp" ignore un établissement recevant du public sans lien avec l\'état des risques', () => {
-  // Ambiguïté réelle : "ERP" désigne aussi un Établissement Recevant du Public, sans rapport avec
-  // la pièce recherchée (état des risques et pollutions) — d'où l'appui sur l'intitulé complet.
-  const app = chargerApplication();
-  const piece = app.checklistPieces('maison').find(p => p.cle === 'erp');
-  assert.equal(piece.motif.test('Le local est classé établissement recevant du public (ERP) de type M'), false);
+  assert.equal(app.motifPieceTrouve(motif, texte), true);
 });
 
 test('normaliserDossierImporte valide typeVente et repart sur "maison" par défaut', () => {

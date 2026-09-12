@@ -3737,46 +3737,35 @@
   // contrairement à OFFRE_PRET_RE qui a déjà été affiné sur des cas réels) : à resserrer ou élargir
   // dès qu'un vrai dossier fait remonter un faux positif/négatif, comme pour toute regex du fichier.
   // var (pas const) : mêmes raisons que OFFRE_PRET_RE, pour rester testable depuis les tests.
-  // motifNom (optionnel) : testé sur le NOM DU FICHIER PDF, avant même d'en lire le contenu — plus
-  // fiable que `motif` (testé sur le texte extrait) pour ces pièces, dont l'intitulé de fichier
-  // est conventionnellement explicite dans les dossiers de l'étude (ex. "CU a) réponse.pdf",
-  // "Diagnostics.pdf", "Certificat d'alignement et numérotage.pdf"), contrairement à leur contenu
-  // qui peut être un scan peu lisible ou une mise en page qui n'emploie pas l'intitulé complet.
-  // Signalé par l'étude : la détection par contenu seul ne fonctionnait pas bien sur ces pièces.
-  // Listes de noms de fichiers données par l'étude pour ces 4 pièces (voir CLAUDE.md) :
-  // ERP → "ERP", "état des risques et pollution" ; assainissement → "rapport assainissement",
-  // "courrier assainissement", "SPANC", "assainissement" ; taxe foncière → "TF", "taxes foncières"
-  // (parfois suivi de l'année) ; titre de propriété → "Titre", "titre de propriété",
-  // "titre vendeur". Chaque motifNom tolère les fautes de frappe/variantes les plus plausibles
-  // (accent absent ou mal placé, double lettre oubliée) SANS pour autant devenir assez large pour
-  // qu'un mot commun avec une AUTRE pièce la valide par erreur (ex. "certificat d'urbanisme" qui
-  // mentionnerait l'alignement en passant ne doit pas valider "Certificat d'alignement", d'où
-  // l'exigence de la phrase complète "certificat d'alignement" plutôt que le mot seul,
-  // demandé explicitement par l'étude et généralisé ici à toutes les pièces).
   //
-  // Bug corrigé, structurel cette fois (pas une clause précise à exclure) : signalé par l'étude
-  // avec plusieurs clauses réelles de compromis DIFFÉRENTS (donc pas un cas isolé à patcher une
-  // regex à la fois — "chaque agence a des clauses différentes, il y en a des centaines"). Un
-  // compromis contient TOUJOURS, en boilerplate, des clauses de "condition suspensive" qui
-  // DÉCRIVENT ces pièces (ce qu'un certificat d'urbanisme ne doit pas révéler, ce qui se passe en
-  // cas d'exercice du droit de préemption, ce que les titres de propriété ne doivent pas révéler)
-  // — que la pièce ait été réellement obtenue ou non. `motif` (recherche dans le contenu d'un PDF
-  // quelconque du dossier local, y compris le compromis lui-même s'il y est enregistré) validait
-  // donc ces pièces dès la lecture du compromis, sans qu'aucun document distinct n'existe. Aucune
-  // formulation-piège ponctuelle ne peut résoudre ça : le problème n'est pas le libellé d'une
-  // clause précise, c'est que CE TYPE de pièce (une condition juridique, pas un simple fait
-  // constaté) est par nature toujours mentionné dans le compromis, quelle que soit l'étude.
-  // Solution structurelle plutôt que du cas par cas : `certificatUrbanisme`, `certificatAlignement`,
-  // `certificatNumerotage`, `renonciationPreemption` et `titrePropriete` n'ont plus de `motif`
-  // (recherche dans le contenu) DU TOUT — seul `motifNom` (le nom du fichier lui-même) les
-  // détecte désormais. Une vraie pièce administrative distincte a, dans la pratique de l'étude déjà
-  // observée sur des noms de fichiers réels (voir CLAUDE.md), un nom explicite ("Certificat
-  // d'urbanisme.pdf", "TF 2024.pdf", "Titre.pdf"...) — s'appuyer uniquement là-dessus est moins
-  // sensible que d'essayer de deviner, clause par clause, ce qui relève d'une condition juridique
-  // générique plutôt que d'un document réellement produit. ERP/diagnostics/taxe foncière/
-  // assainissement gardent leur `motif` : l'étude les a explicitement jugés moins problématiques
-  // ("pourquoi pas"), leur mention dans un compromis étant plus rarement une simple clause de
-  // condition suspensive répétée partout.
+  // **Toutes les pièces sont désormais détectées UNIQUEMENT par le NOM DU FICHIER (`motifNom`),
+  // plus du tout par son contenu (`motif`, retiré partout dans ces trois listes).** Décision
+  // explicite de l'étude, après une série de faux positifs par contenu qui n'étaient pas tous
+  // réductibles à une clause précise à exclure : `certificatUrbanisme`/`certificatAlignement`/
+  // `certificatNumerotage`/`renonciationPreemption`/`titrePropriete` avaient déjà perdu leur
+  // `motif` un par un (voir l'historique dans CLAUDE.md — ce sont des conditions juridiques que le
+  // compromis décrit systématiquement en boilerplate, que la pièce existe ou non, sans qu'aucune
+  // formulation-piège ponctuelle ne puisse suivre "chaque agence a des clauses différentes, il y
+  // en a des centaines"). Le même risque existant en germe pour les pièces restantes
+  // (ERP/diagnostics/taxe foncière/assainissement/pièces de copropriété), l'étude a demandé de
+  // généraliser tout de suite plutôt que d'attendre un signalement pièce par pièce. Bénéfice
+  // secondaire, pas la motivation initiale mais réel : `verifierDossierLocal()` n'a plus besoin
+  // d'ouvrir/lire un PDF (ni d'y recourir à l'OCR) pour vérifier une pièce, seul son nom est
+  // consulté — un fichier n'est ouvert que si l'offre de prêt reste à chercher, ce qui réduit
+  // nettement le nombre de PDF réellement lus sur un dossier local volumineux.
+  // Listes de noms de fichiers données par l'étude pour les 4 premières pièces concernées (voir
+  // CLAUDE.md) : ERP → "ERP", "état des risques et pollution" ; assainissement → "rapport
+  // assainissement", "courrier assainissement", "SPANC", "assainissement" ; taxe foncière → "TF",
+  // "taxes foncières" (parfois suivi de l'année) ; titre de propriété → "Titre", "titre de
+  // propriété", "titre vendeur". Chaque motifNom tolère les fautes de frappe/variantes les plus
+  // plausibles (accent absent ou mal placé, double lettre oubliée) SANS pour autant devenir assez
+  // large pour qu'un mot commun avec une AUTRE pièce la valide par erreur (ex. "certificat
+  // d'urbanisme" qui mentionnerait l'alignement en passant ne doit pas valider "Certificat
+  // d'alignement", d'où l'exigence de la phrase complète plutôt que le mot seul). Les motifNom des
+  // pièces de copropriété (`etatDate`/`article20`/`ribCopro`) et des dernières pièces basculées
+  // (`diagnosticsTechniques`/`erp`/`avisTaxeFonciere`/`reponseAssainissement`) reprennent tels
+  // quels les anciens motifs de contenu, faute d'exemples réels de noms de fichiers pour l'instant
+  // — à resserrer/élargir dès qu'un vrai dossier en fait remonter un.
   var PIECES_URBANISME = [
     // "réponse urbanisme"/"réponse d'urbanisme" (alias courant côté étude pour ce même document)
     // ajouté au motifNom, en plus de "certificat d'urbanisme"/"CU a)".
@@ -3789,24 +3778,23 @@
     // d'espace dans "numé rotage" avant conversion espace→underscore) — voir CLAUDE.md.
     { cle: 'certificatNumerotage', label: 'Certificat de numérotage', motifNom: /num[ée]\s?rotage/i },
     // ass?ainissement : tolère "asainissement" (un seul "s"), faute de frappe courante.
-    { cle: 'reponseAssainissement', label: 'Courrier réponse assainissement', motif: /assainissement/i, motifNom: /ass?ainissement|\bSPANC\b/i },
+    { cle: 'reponseAssainissement', label: 'Courrier réponse assainissement', motifNom: /ass?ainissement|\bSPANC\b/i },
     // Pas de motif de contenu (voir le commentaire structurel ci-dessus) : "préemption" seul
     // apparaît quasi systématiquement dans le corps du compromis (clause sur les conséquences
     // d'un exercice du droit de préemption), sans rapport avec une vraie renonciation obtenue.
     { cle: 'renonciationPreemption', label: 'Renonciation au droit de préemption', motifNom: /pr[ée]emption/i }
   ];
   var PIECES_AUTRES = [
-    { cle: 'diagnosticsTechniques', label: 'Diagnostics techniques', motif: /dossier\s+de\s+diagnostic\s+technique|diagnostics?\s+techniques?|\bDDT\b/i, motifNom: /diagnostics?|\bDDT\b/i },
-    // "ERP" est ambigu dans le CORPS DU TEXTE (aussi "Établissement Recevant du Public" — d'où
-    // `motif` qui s'appuie sur l'intitulé complet, jamais le sigle seul). Dans un NOM DE FICHIER
-    // d'un dossier de vente d'une maison en revanche, "ERP.pdf" désigne sans ambiguïté l'état des
-    // risques et pollutions (un ERP au sens accessibilité n'a pas sa place dans ce type de vente) —
-    // motifNom peut donc se permettre le sigle seul, contrairement à motif.
-    { cle: 'erp', label: 'ERP (état des risques et pollution)', motif: /[ée]tat\s+des\s+risques(?:\s+et\s+pollutions?|\s+naturels?)?|\bERNMT\b|\bESRIS\b/i, motifNom: /\bERP\b|[ée]tat\s+des\s+risques(?:\s+et\s+pollutions?)?/i },
+    { cle: 'diagnosticsTechniques', label: 'Diagnostics techniques', motifNom: /diagnostics?|\bDDT\b/i },
+    // "ERP" est ambigu dans le CORPS DU TEXTE (aussi "Établissement Recevant du Public"), mais pas
+    // dans un NOM DE FICHIER d'un dossier de vente d'une maison, où "ERP.pdf" désigne sans
+    // ambiguïté l'état des risques et pollutions (un ERP au sens accessibilité n'a pas sa place
+    // dans ce type de vente) — motifNom peut donc se permettre le sigle seul.
+    { cle: 'erp', label: 'ERP (état des risques et pollution)', motifNom: /\bERP\b|[ée]tat\s+des\s+risques(?:\s+et\s+pollutions?)?/i },
     // \bTF\b avant les chiffres d'une année éventuelle ("TF 2024.pdf") : pas besoin de motif
     // spécifique, \b ne consomme aucun caractère et laisse la suite du nom de fichier de côté.
     // \s? après l'accent de "foncière" : même précaution que "numérotage" ci-dessus.
-    { cle: 'avisTaxeFonciere', label: 'Avis de taxe foncière', motif: /(?:avis\s+de\s+)?taxe\s+fonci[èe]re/i, motifNom: /\bTF\b|taxes?\s+fonci[èe]\s?re/i },
+    { cle: 'avisTaxeFonciere', label: 'Avis de taxe foncière', motifNom: /\bTF\b|taxes?\s+fonci[èe]\s?re/i },
     // Pas de motif de contenu (voir le commentaire structurel plus haut) : "les titres de
     // propriété ne devront révéler aucune charge..." est une clause de condition suspensive
     // quasi systématique du compromis, sans rapport avec la production réelle des titres.
@@ -3817,9 +3805,9 @@
     { cle: 'titrePropriete', label: 'Titre de propriété', motifNom: /titre(?:\s+de\s+propri[ée]\s?t[ée]\s?|\s+vendeur)?/i }
   ];
   var PIECES_COPROPRIETE = [
-    { cle: 'etatDate', label: 'État daté', motif: /[ée]tat\s+dat[ée]/i },
-    { cle: 'article20', label: 'Article 20-II', motif: /article\s*20[\s.-]*(?:ii|2)\b/i },
-    { cle: 'ribCopro', label: 'RIB de la copropriété', motif: /\bRIB\b[^\n]{0,50}(?:copropri[ée]t[ée]|syndic)|(?:copropri[ée]t[ée]|syndic)[^\n]{0,50}\bRIB\b/i }
+    { cle: 'etatDate', label: 'État daté', motifNom: /[ée]tat\s+dat[ée]/i },
+    { cle: 'article20', label: 'Article 20-II', motifNom: /article\s*20[\s.-]*(?:ii|2)\b/i },
+    { cle: 'ribCopro', label: 'RIB de la copropriété', motifNom: /\bRIB\b[^\n]{0,50}(?:copropri[ée]t[ée]|syndic)|(?:copropri[ée]t[ée]|syndic)[^\n]{0,50}\bRIB\b/i }
   ];
 
   // Bug corrigé : signalé par l'étude, un certificat d'urbanisme mentionne couramment dans son
@@ -4091,12 +4079,14 @@
 
     let offreTrouvee = false;
     let fichierOffre = null;
-    let nbAnalyses = 0;
+    let nbAnalyses = 0; // fichiers réellement ouverts/lus (contenu) — sert seulement au log interne
+    let nbFichiersRencontres = 0; // tous les PDF croisés, ouverts ou non (voir le toast plus bas)
 
     try {
       const compteur = { n: 0 };
       for await (const entree of fichiersPdfRecursifs(handle, 0, compteur)) {
         if ((!chercherOffre || offreTrouvee) && aChercher.size === 0) break; // tout est déjà résolu
+        nbFichiersRencontres++;
 
         // Nom du fichier testé en premier pour les pièces (voir motifNom) : plus fiable que le
         // contenu extrait pour les pièces dont l'intitulé de fichier est conventionnel dans les
@@ -4111,6 +4101,17 @@
           }
         }
         if ((!chercherOffre || offreTrouvee) && aChercher.size === 0) break;
+
+        // Plus aucune pièce n'a de motif de contenu (voir plus haut) : si l'offre de prêt est déjà
+        // résolue (trouvée, ou pas recherchée pour ce dossier), il n'y a plus rien à lire dans CE
+        // fichier — inutile de l'ouvrir (et, le cas échéant, de recourir à l'OCR) pour rien. Testé
+        // sur les pièces encore à trouver plutôt que sur toute la checklist : reste correct si une
+        // pièce retrouve un jour un motif de contenu. C'est ce qui rend le parcours d'un dossier
+        // volumineux nettement plus rapide une fois l'offre reçue (ou pour un dossier sans prêt) :
+        // la plupart des PDF ne sont jamais ouverts, seul leur nom est consulté.
+        const chercherContenuOffre = chercherOffre && !offreTrouvee;
+        const piecesRestantesAvecMotif = [...aChercher].some(cle => checklist.find(p => p.cle === cle)?.motif);
+        if (!chercherContenuOffre && !piecesRestantesAvecMotif) continue;
 
         nbAnalyses++;
         try {
@@ -4185,7 +4186,7 @@
           ? `Les ${checklist.length} pièces attendues ont été reconnues.`
           : `${nbPiecesTrouvees}/${checklist.length} pièces reconnues (${manquantes} manquante${manquantes > 1 ? 's' : ''}).`);
       }
-      if (nbAnalyses === 0) {
+      if (nbFichiersRencontres === 0) {
         afficherToast("Aucun PDF trouvé dans le dossier relié (ni ses sous-dossiers) — vérifiez que les pièces ont bien été enregistrées à cet endroit.", 'OK', null);
       } else {
         afficherToast(messages.join(' '), 'OK', null);

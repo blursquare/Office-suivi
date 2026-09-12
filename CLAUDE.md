@@ -1790,6 +1790,42 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     plus se produire pour elles, par construction) sont reformulés sur `reponseAssainissement`, qui
     garde un motif de contenu — le comportement générique de `motifPieceTrouve` (écarter un renvoi,
     rester sensible à une vraie mention) reste ainsi testé. `npm test` reste vert (121 tests).
+- **Généralisation demandée par l'étude : TOUTES les pièces de la checklist sont désormais
+  détectées uniquement par le NOM DU FICHIER (`motifNom`), plus aucune par son contenu (`motif`).**
+  Le correctif précédent (voir juste au-dessus) n'avait retiré `motif` que sur 5 pièces
+  particulièrement exposées (conditions juridiques citées en boilerplate dans le compromis).
+  L'étude a demandé de généraliser tout de suite à ERP, diagnostics, taxe foncière, assainissement
+  et aux trois pièces de copropriété (état daté, article 20-II, RIB) plutôt que d'attendre un
+  signalement pièce par pièce sur le même risque. `PIECES_URBANISME`/`PIECES_AUTRES`/
+  `PIECES_COPROPRIETE` n'ont donc plus aucun champ `motif` : `etatDate`/`article20`/`ribCopro`
+  (qui n'avaient jamais eu de `motifNom` jusqu'ici, seulement un `motif`) récupèrent l'ancienne
+  regex de contenu telle quelle comme `motifNom` — un premier jet comme les autres, faute
+  d'exemples réels de noms de fichiers pour ces trois pièces pour l'instant.
+  - **Effet secondaire notable, pas la motivation initiale mais confirmé utile** : comme plus
+    aucune pièce n'a besoin du contenu d'un PDF, `verifierDossierLocal()` peut sauter l'ouverture
+    (et l'éventuel repli OCR) d'un fichier dès que l'offre de prêt n'a plus besoin d'être
+    recherchée dans son contenu (déjà trouvée, ou non applicable — `sansPret`/rôle participant) ET
+    qu'aucune pièce encore manquante n'a de `motif` (donc jamais, dans l'état actuel). Un nouveau
+    garde-fou dans la boucle de `verifierDossierLocal()` (`chercherContenuOffre`/
+    `piecesRestantesAvecMotif`) `continue` vers le fichier suivant sans l'ouvrir dans ce cas —
+    volontairement écrit de façon générale (basé sur la présence d'un `motif` parmi les pièces
+    encore à chercher, pas sur une liste figée) pour rester correct si une pièce retrouve un jour
+    un motif de contenu, plutôt que de supprimer purement et simplement cette branche de code.
+    Concrètement : un dossier avec l'offre déjà reçue (ou sans condition de prêt) ne lit plus AUCUN
+    PDF pour vérifier ses pièces, seuls leurs noms sont consultés — un gain de vitesse net sur un
+    dossier local volumineux (beaucoup de PDF, notamment ceux nécessitant un repli OCR).
+  - **`nbAnalyses` (fichiers réellement ouverts) et un nouveau `nbFichiersRencontres` (tous les PDF
+    croisés, ouverts ou non) sont maintenant distincts** : le toast "Aucun PDF trouvé dans le
+    dossier..." se basait sur `nbAnalyses === 0`, ce qui aurait affiché ce message à tort dès que
+    plus aucun fichier n'était ouvert (cas désormais courant) alors que des PDF étaient bel et bien
+    présents et déjà vérifiés par leur nom. Le toast utilise maintenant `nbFichiersRencontres`.
+  - Tests de `tests/dossier-local.test.js` réécrits en conséquence : le test structurel sur
+    l'absence de `motif` porte maintenant sur TOUTE la checklist (pas seulement les 5 pièces du
+    correctif précédent) ; le test des noms de fichiers conventionnels couvre aussi
+    etatDate/article20/ribCopro ; les deux tests de `motifPieceTrouve` (devenue sans appelant réel
+    dans `verifierDossierLocal()` puisqu'aucune pièce n'a plus de `motif`, mais conservée pour un
+    usage futur) sont exercés sur un motif ad hoc plutôt que sur celui d'une pièce réelle, pour ne
+    pas perdre la couverture de son comportement générique. `npm test` reste vert (119 tests).
 
 ## Comment tester
 
