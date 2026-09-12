@@ -32,17 +32,19 @@
     <p class="sidebar-tagline">La clarté sur chaque dossier.</p>
 
     <nav class="sidebar-nav" role="tablist" aria-label="Sections de l'application">
+      <!-- En premier et toujours sur fond bleu (sidebar-cta), pas seulement quand cet onglet est
+           actif : un raccourci permanent vers la création, demandé par l'étude. -->
+      <button type="button" id="tab-nouveau" class="sidebar-link sidebar-cta" role="tab" aria-selected="false" onclick="definirOnglet('nouveau')">
+        <span class="sidebar-link-icone" id="icon-nav-nouveau" aria-hidden="true"></span>Nouveau dossier
+      </button>
       <button type="button" id="tab-dashboard" class="sidebar-link actif" role="tab" aria-selected="true" onclick="definirOnglet('dashboard')">
         <span class="sidebar-link-icone" id="icon-nav-dashboard" aria-hidden="true"></span>Tableau de bord
-      </button>
-      <button type="button" id="tab-nouveau" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('nouveau')">
-        <span class="sidebar-link-icone" id="icon-nav-nouveau" aria-hidden="true"></span>Nouveau dossier
       </button>
       <button type="button" id="tab-suivi" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('suivi')">
         <span class="sidebar-link-icone" id="icon-nav-suivi" aria-hidden="true"></span>Suivi des dossiers
       </button>
       <button type="button" id="tab-calculateur" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('calculateur')">
-        <span class="sidebar-link-icone" id="icon-nav-calculateur" aria-hidden="true"></span>Simulateur provision sur frais
+        <span class="sidebar-link-icone" id="icon-nav-calculateur" aria-hidden="true"></span>Simulateur de provision
       </button>
     </nav>
 

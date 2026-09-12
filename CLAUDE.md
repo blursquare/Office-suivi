@@ -1826,6 +1826,52 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     dans `verifierDossierLocal()` puisqu'aucune pièce n'a plus de `motif`, mais conservée pour un
     usage futur) sont exercés sur un motif ad hoc plutôt que sur celui d'une pièce réelle, pour ne
     pas perdre la couverture de son comportement générique. `npm test` reste vert (119 tests).
+- **Série de retouches demandées par l'étude sur la sidebar et le tiroir dossier** :
+  - **"Nouveau dossier" déplacé en tête de la sidebar et sur fond bleu en permanence**, plutôt que
+    seulement quand cet onglet est sélectionné : un raccourci de création toujours visible, sur le
+    modèle d'un bouton d'action principal. Nouvelle classe `.sidebar-cta` (même dégradé/ombre que
+    `.sidebar-link.actif`, factorisés dans une seule règle CSS) appliquée en dur dans `index.html`,
+    indépendamment de `classList.toggle('actif', ...)` dans `definirOnglet()` (inchangée, continue
+    de suivre l'onglet réellement affiché) — les deux classes cohabitent sans conflit visuel
+    puisqu'elles produisent le même rendu.
+  - **"Simulateur provision sur frais" renommé "Simulateur de provision"** dans la sidebar, et
+    **"Offres de prêt introuvables" renommé "Offres de prêts en attente"** sur la tuile KPI du
+    Tableau de bord UNIQUEMENT (`renderKpisDashboard()`) — le bandeau de stats de l'onglet Suivi
+    (`renderStatsSuivi()`) garde son libellé d'origine, pas concerné par la demande.
+  - **Ajout d'une échéance personnalisée après l'enregistrement du dossier**, jusqu'ici possible
+    uniquement à la création (`autresEnCours`/`renderAutres()`, étape "Vérifier" du wizard). Un
+    bouton "+ Ajouter une échéance" sous la grille `.tabs` du tiroir (`renderAjoutEcheance()`)
+    bascule vers un mini-formulaire inline (nom + date, réutilise `.date-block.autre`/`.autre-row`
+    du formulaire de création plutôt que de dupliquer ce style) ; `ajouterEcheanceApresCoup()`
+    pousse directement l'entrée dans `d.autres` du dossier déjà sauvegardé (pas dans un état
+    temporaire à valider plus tard, comme `autresEnCours`) et journalise l'ajout dans l'historique.
+    État d'affichage (`ajoutEcheanceOuvert`, un simple booléen puisqu'un seul dossier est ouvert à
+    la fois dans le tiroir) remis à `false` à chaque ouverture/fermeture du tiroir
+    (`ouvrirDossierDrawer`/`fermerDossierDrawer`), même principe que `dossierOuvert` lui-même.
+  - **Petite croix en haut à droite pour supprimer une échéance personnalisée**, pendant du point
+    précédent — demandé pour les mêmes raisons. Visible UNIQUEMENT sur les tabs "autre" (pas
+    Obtention du prêt/Signature de l'acte/Vente préalable, qui ont déjà leur propre mécanisme de
+    recatégorisation via `changerCategorie()` et ne sont pas de simples entrées de liste à retirer).
+    `.tab` passe à `position: relative` pour ancrer `.tab-suppr` (`position: absolute`) sans décaler
+    le contenu de la carte. `supprimerEcheanceAutre()` demande confirmation
+    (`demanderConfirmation()`, même mécanisme que Archiver/Supprimer un dossier) avant de retirer
+    l'entrée de `d.autres` par son index et de journaliser la suppression.
+  - Les deux nouveaux éléments (`.tab-suppr`, `.ajout-echeance-btn`/`.ajout-echeance-form`) sont
+    ajoutés à la liste déjà existante de sélecteurs masqués à l'impression (`@media print`), aux
+    côtés de `.icon-btn`/`.icon-crayon`/`.select-classif`... — des contrôles d'édition n'ont pas
+    leur place sur la fiche imprimée.
+  - Vérifié visuellement et fonctionnellement (Playwright) : capture de la sidebar (CTA permanent
+    en tête), ouverture du tiroir, ajout d'une échéance via le mini-formulaire (vérifié en relisant
+    `d.autres` après coup) puis suppression via la croix avec confirmation (idem) — `npm test`
+    reste vert (119 tests, aucune fonction pure testable modifiée par ce chantier).
+  - **Recherche automatique des pièces à la liaison d'un dossier local : déjà en place, vérifié
+    plutôt que redéveloppé.** Demandé par l'étude, mais `lierDossierLocal()` appelle déjà
+    `verifierDossierLocal(id, true)` sans condition dès qu'un dossier est relié (voir "Changer de
+    dossier lié remet tout à zéro..." plus haut, qui a fusionné offre et pièces dans un seul
+    parcours) — cette fonction teste la checklist de pièces dès que `d.roleNotaire !== 'participant'`,
+    indépendamment de la recherche de l'offre de prêt. Rien à changer côté code ; à confirmer par
+    l'étude si le comportement observé en pratique diffère malgré tout (auquel cas fournir un cas
+    précis plutôt qu'une description générale, comme pour tout bug de ce fichier).
 
 ## Comment tester
 

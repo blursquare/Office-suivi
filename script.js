@@ -2099,6 +2099,13 @@
       ? `<select class="tab-select" onchange="changerCategorie('${dossierId}','${type}', this.value)">${optionsCategorie(type)}</select>`
       : `<div class="tab-name">${label}</div>`;
 
+    // Petite croix en haut à droite pour retirer une échéance personnalisée ("autre" uniquement —
+    // Prêt/Acte/Vente préalable ont déjà leur propre mécanisme, voir supprimerEcheanceAutre) :
+    // demandé par l'étude comme pendant du bouton "+ Ajouter une échéance" (renderAjoutEcheance).
+    const croixSuppression = (dossierId && autreIndex != null)
+      ? `<button type="button" class="tab-suppr" onclick="supprimerEcheanceAutre('${dossierId}', ${autreIndex})" title="Supprimer cette échéance" aria-label="Supprimer cette échéance">${icone('x')}</button>`
+      : '';
+
     // Retrouve la date dans l'aperçu PDF (uniquement si le PDF encore chargé est bien celui d'origine).
     const boutonVoir = (iso && page && pdfActuel)
       ? `<button type="button" class="voir-pdf-btn" onclick="voirDateDansPdf(${page}, '${iso.split('-')[0]}')">${icone('eye')} Voir p.${page}</button>`
@@ -2141,6 +2148,7 @@
 
     if (!iso) {
       return `<div class="tab ${type}">
+        ${croixSuppression}
         ${enTete}
         <span class="tab-date-affichage" id="${idBase}-aff"><div class="tab-date">Non renseigné</div>${crayonDate}${badgeConfiance}</span>
         ${editionDate}
@@ -2170,6 +2178,7 @@
       if (jours <= 3) countdownClass = 'urgent';
     }
     return `<div class="tab ${type}">
+      ${croixSuppression}
       ${enTete}
       <span class="tab-date-affichage" id="${idBase}-aff"><div class="tab-date">${formatDateFr(iso)}${boutonVoir}</div>${crayonDate}${badgeConfiance}</span>
       ${editionDate}
@@ -2396,7 +2405,7 @@
       ['c-neutre', actifs, actifs > 1 ? 'dossiers actifs' : 'dossier actif', icone('folder', 'kpi-icone')],
       ['c-urgent', urgents, 'échéances ≤ 7 jours', iconeCalendrierSeuil(7)],
       ['c-urgent', urgents15, 'échéances ≤ 15 jours', iconeCalendrierSeuil(15)],
-      ['c-pret', manquantes, 'offres de prêt introuvables', icone('alert-triangle', 'kpi-icone')],
+      ['c-pret', manquantes, 'offres de prêts en attente', icone('alert-triangle', 'kpi-icone')],
       ['c-neutre', aVerifier, 'offres à vérifier', icone('search', 'kpi-icone')],
       ['c-pret', piecesIncompletes, 'dossiers avec pièces manquantes', icone('clipboard', 'kpi-icone')]
     ];
@@ -2825,6 +2834,10 @@
   // action de la fiche : renommer, corriger une date, revérifier l'offre... — puisse reconstruire
   // le contenu du tiroir sans le refermer sous les doigts de l'utilisateur.
   let dossierOuvert = null;
+  // Formulaire d'ajout d'une échéance personnalisée (voir renderAjoutEcheance) : un seul dossier
+  // est ouvert à la fois dans le tiroir, un simple booléen suffit donc — remis à false à chaque
+  // ouverture/fermeture pour ne pas laisser le formulaire ouvert sur le dossier suivant consulté.
+  let ajoutEcheanceOuvert = false;
 
   function renderLigneTableau(d) {
     const prochaine = prochaineEcheanceDetail(d);
@@ -2852,12 +2865,14 @@
   // le tiroir au passage.
   function ouvrirDossierDrawer(id) {
     dossierOuvert = id;
+    ajoutEcheanceOuvert = false;
     render();
   }
 
   function fermerDossierDrawer() {
     if (!dossierOuvert) return;
     dossierOuvert = null;
+    ajoutEcheanceOuvert = false;
     render();
   }
 
@@ -3047,6 +3062,7 @@
           ${d.ventebien ? renderTab('ventebien', 'Vente préalable', d.ventebien, d.id, d.ventebienPage, confiance.ventebien) : ''}
           ${(d.autres || []).map((a, i) => renderTab('autre', escapeHtml(a.label), a.date, d.id, a.page, null, i)).join('')}
         </div>
+        ${renderAjoutEcheance(d)}
         ${d.roleNotaire !== 'participant' ? renderPiecesDossier(d) : ''}
         ${(analyse.documents.length > 0 || analyse.engagements.length > 0 || analyseConditions.length > 0) ? `
           <details class="analyse-juridique analyse-repliable" style="margin-top:14px;" open>
@@ -3197,6 +3213,70 @@
       sauvegarder();
     }
     render();
+  }
+
+  // Ajouter une échéance personnalisée APRÈS l'enregistrement du dossier (pas seulement à la
+  // création, via autresEnCours/renderAutres) : demandé par l'étude, un délai/une obligation
+  // repérée après coup (ex. à la lecture d'un avenant) doit pouvoir être ajoutée sans repasser par
+  // le wizard. Un simple bouton "+ Ajouter une échéance" bascule vers un mini-formulaire inline
+  // (même structure .date-block.autre/.autre-row que le formulaire de création, réutilisée telle
+  // quelle plutôt que dupliquée) — voir renderAjoutEcheance(), appelé juste sous .tabs.
+  function afficherFormAjoutEcheance() {
+    ajoutEcheanceOuvert = true;
+    render();
+  }
+
+  function masquerFormAjoutEcheance() {
+    ajoutEcheanceOuvert = false;
+    render();
+  }
+
+  function ajouterEcheanceApresCoup(dossierId) {
+    const d = dossiers.find(x => x.id === dossierId);
+    if (!d) return;
+    const labelInput = document.getElementById('nouvelle-echeance-label');
+    const dateInput = document.getElementById('nouvelle-echeance-date');
+    const label = (labelInput && labelInput.value.trim()) || 'Autre échéance';
+    const iso = dateInput ? dateInput.value : '';
+    if (!iso) { if (dateInput) dateInput.focus(); return; } // une échéance sans date n'a pas de sens ici
+    d.autres = d.autres || [];
+    d.autres.push({ label, date: iso, page: null });
+    ajouterHistorique(d, `Échéance « ${label} » ajoutée (${formatDateFr(iso)})`);
+    ajoutEcheanceOuvert = false;
+    sauvegarder();
+    render();
+  }
+
+  // Pendant du bouton "+ Ajouter une échéance" ci-dessus : ne concerne que les échéances
+  // personnalisées (croix visible uniquement sur les tabs "autre", voir renderTab) — Obtention du
+  // prêt/Signature de l'acte/Vente préalable ont déjà leur propre mécanisme (changerCategorie,
+  // cases à cocher à la création) et ne sont pas de simples entrées de liste à retirer.
+  function supprimerEcheanceAutre(dossierId, index) {
+    const d = dossiers.find(x => x.id === dossierId);
+    if (!d || !d.autres || !d.autres[index]) return;
+    const item = d.autres[index];
+    demanderConfirmation(`Supprimer l'échéance « ${item.label || 'Autre échéance'} » ?`, () => {
+      d.autres.splice(index, 1);
+      ajouterHistorique(d, `Échéance « ${item.label || 'Autre échéance'} » supprimée`);
+      sauvegarder();
+      render();
+    });
+  }
+
+  function renderAjoutEcheance(d) {
+    if (!ajoutEcheanceOuvert) {
+      return `<button type="button" class="action-rapide ajout-echeance-btn" onclick="afficherFormAjoutEcheance()">+ Ajouter une échéance</button>`;
+    }
+    return `
+      <div class="date-block autre ajout-echeance-form">
+        <div class="autre-row">
+          <input type="text" id="nouvelle-echeance-label" placeholder="Nom de l'échéance (ex. Levée de la condition suspensive travaux)">
+          <input type="date" id="nouvelle-echeance-date">
+          <button type="button" class="icon-valider" onclick="ajouterEcheanceApresCoup('${d.id}')" title="Ajouter" aria-label="Ajouter l'échéance">✓</button>
+          <button type="button" class="icon-btn" onclick="masquerFormAjoutEcheance()">Annuler</button>
+        </div>
+      </div>
+    `;
   }
 
   // ---- ICS export ----

@@ -379,13 +379,20 @@
   .sidebar-link-icone-seule .sidebar-link-icone { width: auto; font-size: 17px; }
   /* Lien actif en "pilule de verre" (dégradé + liseré clair en haut + ombre portée teintée) plutôt
      qu'un simple aplat --focus : cohérent avec le reste de la sidebar, et lisible dans les deux
-     thèmes puisque le dégradé reste dans la même famille de bleu que --focus/--focus-hover. */
-  .sidebar-link.actif {
+     thèmes puisque le dégradé reste dans la même famille de bleu que --focus/--focus-hover.
+     .sidebar-cta ("Nouveau dossier") partage exactement le même traitement, mais en permanence —
+     pas seulement quand cet onglet est sélectionné — pour rester un raccourci de création toujours
+     visible dans la sidebar, demandé par l'étude. */
+  .sidebar-link.actif, .sidebar-link.sidebar-cta {
     background: linear-gradient(155deg, var(--focus) 0%, var(--focus-hover) 100%);
     color: #fff;
     box-shadow: 0 4px 14px -2px rgba(37,99,235,0.45), inset 0 1px 0 rgba(255,255,255,0.3);
   }
-  .sidebar-link.actif .sidebar-link-icone { opacity: 1; }
+  .sidebar-link.actif .sidebar-link-icone, .sidebar-link.sidebar-cta .sidebar-link-icone { opacity: 1; }
+  /* .sidebar-cta garde sa couleur même au survol (contrairement aux autres liens, qui basculent sur
+     --paper-sunk) : un aplat neutre casserait l'effet "toujours en avant" recherché. */
+  .sidebar-link.sidebar-cta:hover { background: linear-gradient(155deg, var(--focus-hover) 0%, var(--focus) 100%); color: #fff; }
+  .sidebar-link.sidebar-cta { margin-bottom: 6px; }
 
   .sidebar-footer {
     margin-top: auto;
@@ -1736,6 +1743,12 @@
   }
   .action-rapide:hover { border-color: var(--focus); color: var(--focus); }
 
+  /* Ajouter une échéance après coup (voir renderAjoutEcheance) : bouton sous la grille .tabs,
+     pas accolé à un élément voisin comme les autres .action-rapide (Revérifier...) — annule leur
+     margin-left par défaut. .ajout-echeance-form garde le même .date-block.autre que le
+     formulaire de création (16px de marge au-dessus), pas besoin de la retoucher ici. */
+  .ajout-echeance-btn { margin: 10px 0 0; }
+
   .echeance-jours { font-size: 12px; margin-left: 6px; font-variant-numeric: tabular-nums; }
   .echeance-jours.urgent { color: var(--urgent); font-weight: 600; }
   .echeance-jours.calme { color: var(--ink-soft); }
@@ -2038,6 +2051,7 @@
      visuel que .type-pill et .date-block (formulaire), plus proche de la maquette d'origine que
      l'ancien bloc à fond coloré, plus lourd. */
   .tab {
+    position: relative;
     border: 1px solid var(--line);
     border-left: 3px solid var(--line);
     border-radius: 6px;
@@ -2048,6 +2062,28 @@
   .tab.acte { border-left-color: var(--acte); }
   .tab.ventebien { border-left-color: var(--ventebien); }
   .tab.autre { border-left-color: var(--muted); }
+
+  /* Croix de suppression d'une échéance personnalisée (voir supprimerEcheanceAutre) : positionnée
+     en haut à droite de la carte plutôt qu'alignée avec le contenu, pour rester à l'écart du
+     crayon de correction de date (icon-crayon) juste en dessous. */
+  .tab-suppr {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: none;
+    background: none;
+    border-radius: 5px;
+    color: var(--ink-soft);
+    cursor: pointer;
+  }
+  .tab-suppr:hover { background: var(--paper-sunk); color: var(--urgent); }
+  .tab-suppr .icone { width: 12px; height: 12px; }
 
   .tab .tab-name {
     font-size: 12.5px;
@@ -2317,7 +2353,7 @@
     .tab { border: 1px solid #999; margin-bottom: 6pt; padding: 6pt; background: #fff !important; }
     .historique-liste { display: block !important; }
     .analyse-juridique { background: #fff; border: 1px solid #999; }
-    .icon-btn, .tab-select, .icon-crayon, .icon-valider, .nom-edition, .tab-date-edition, .select-classif { display: none !important; }
+    .icon-btn, .tab-select, .icon-crayon, .icon-valider, .nom-edition, .tab-date-edition, .select-classif, .tab-suppr, .ajout-echeance-btn, .ajout-echeance-form { display: none !important; }
   }
 
   .analyse-repliable > summary {
