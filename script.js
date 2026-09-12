@@ -3768,6 +3768,33 @@
     { cle: 'ribCopro', label: 'RIB de la copropriété', motif: /\bRIB\b[^\n]{0,50}(?:copropri[ée]t[ée]|syndic)|(?:copropri[ée]t[ée]|syndic)[^\n]{0,50}\bRIB\b/i }
   ];
 
+  // Bug corrigé : signalé par l'étude, un certificat d'urbanisme mentionne couramment dans son
+  // PROPRE texte l'existence d'autres certificats ("Le certificat de numérotage est à demander à
+  // l'Hôtel de Ville... Le certificat d'alignement est à demander à la même adresse...") sans être
+  // lui-même l'un d'eux — ce texte suffisait pourtant à cocher ces deux pièces comme reçues à
+  // partir du seul certificat d'urbanisme. La formulation exacte varie d'un document à l'autre
+  // (l'étude l'a confirmé), d'où un motif générique de RENVOI plutôt qu'une phrase figée : la
+  // présence de ce renvoi à proximité immédiate d'une occurrence de piece.motif empêche de
+  // retenir CETTE occurrence précise (une autre occurrence plus loin dans le même texte, sans ce
+  // renvoi à proximité, resterait valable).
+  var RE_SIMPLE_RENVOI_PIECE = /(?:est|sont)\s+à\s+demander|(?:peut|peuvent|doit|doivent)\s+[êe]tre\s+demand[ée]s?|s['’]obtiennent?|se\s+demandent?|d[ée]livr[ée]s?\s+(?:par|sur\s+demande)|sur\s+demande\s+(?:à|aupr[èe]s)/i;
+
+  // Fenêtre de 80 caractères avant/après l'occurrence (même ordre de grandeur que
+  // extraireContexte() ailleurs dans le fichier) : assez large pour couvrir "Le certificat de
+  // numérotage [...] est à demander à l'Hôtel de Ville" (le verbe de renvoi arrive après le nom du
+  // document, pas juste à côté), sans déborder sur une clause sans rapport.
+  function motifPieceTrouve(motif, texte) {
+    const re = new RegExp(motif.source, motif.flags.includes('g') ? motif.flags : motif.flags + 'g');
+    let m;
+    while ((m = re.exec(texte)) !== null) {
+      const debut = Math.max(0, m.index - 80);
+      const fin = Math.min(texte.length, m.index + m[0].length + 80);
+      if (!RE_SIMPLE_RENVOI_PIECE.test(texte.slice(debut, fin))) return true;
+      if (re.lastIndex === m.index) re.lastIndex++; // motif pouvant matcher une chaîne vide : évite une boucle infinie
+    }
+    return false;
+  }
+
   // Ordre d'affichage = ordre des listes fournies par l'étude : urbanisme (commun aux deux types),
   // puis les pièces propres à la copropriété si applicable, puis le reste.
   function checklistPieces(typeVente) {
@@ -4105,7 +4132,7 @@
           const texte = await lireTextePdfVerification(pdf);
           for (const piece of checklist) {
             if (!aChercher.has(piece.cle)) continue;
-            if (piece.motif.test(texte)) {
+            if (motifPieceTrouve(piece.motif, texte)) {
               fichierParPiece[piece.cle] = entree;
               aChercher.delete(piece.cle);
             }

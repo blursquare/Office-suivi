@@ -1638,6 +1638,30 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     elle-même désignés comme des noms de fichiers complets et déjà spécifiques dans ses dossiers,
     pas des mots susceptibles d'apparaître incidemment dans le nom d'un autre document du même
     dossier.
+- **Bug corrigé : le même problème de confusion entre documents existait aussi côté CONTENU
+  (`motif`), pas seulement côté nom de fichier (`motifNom`) traité ci-dessus.** Signalé par
+  l'étude avec un texte réel : un certificat d'urbanisme explique couramment, dans son PROPRE
+  texte, où demander d'autres certificats (« Le certificat de numérotage est à demander à l'Hôtel
+  de Ville... Le certificat d'alignement est à demander à la même adresse... ») sans être lui-même
+  l'un d'eux — ce texte suffisait pourtant à cocher `certificatNumerotage`/`certificatAlignement`
+  comme reçues à partir du seul certificat d'urbanisme. L'étude a précisé que la formulation exacte
+  varie d'un document à l'autre (pas de phrase figée à exclure) — d'où un motif générique de RENVOI
+  plutôt qu'une expression littérale :
+  - `RE_SIMPLE_RENVOI_PIECE` reconnaît le type de tournure ("est/sont à demander", "peut/doit être
+    demandé(s)", "s'obtient", "délivré par/sur demande", "sur demande à/auprès de"), pas une phrase
+    précise — plus robuste face à des variations de rédaction d'un document à l'autre.
+  - `motifPieceTrouve(motif, texte)` (nouvelle fonction, remplace l'appel direct à
+    `piece.motif.test(texte)` dans `verifierPiecesDossier()`) parcourt TOUTES les occurrences de
+    `piece.motif` dans le texte (pas seulement la première) et écarte celles précédées/suivies
+    d'un renvoi de ce type dans une fenêtre de 80 caractères (même ordre de grandeur que
+    `extraireContexte()` ailleurs dans le fichier) — une occurrence sans renvoi à proximité, plus
+    loin dans le même texte, resterait valable si elle existait. Ne remplace que ce test précis :
+    la recherche par nom de fichier (`motifNom`) et le reste de `verifierPiecesDossier()`
+    (permissions, handles, progression) restent inchangés.
+  - Deux tests de régression dans `tests/dossier-local.test.js` : le texte réel fourni par l'étude
+    ne déclenche plus ni `certificatNumerotage` ni `certificatAlignement` ; un vrai certificat
+    d'alignement (texte de délivrance, sans renvoi) reste bien détecté — la correction ne devait
+    pas rendre la détection insensible aux vrais documents.
 
 ## Comment tester
 

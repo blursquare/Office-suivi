@@ -156,6 +156,30 @@ test('motifNom ne confond pas un certificat d\'urbanisme mentionnant "alignement
   assert.equal(alignement.motifNom.test("Certificat d'urbanisme - réponse alignement voirie.pdf"), false);
 });
 
+test('motifPieceTrouve écarte un certificat d\'urbanisme qui renvoie vers d\'autres certificats sans être lui-même l\'un d\'eux', () => {
+  // Bug réel signalé par l'étude : un certificat d'urbanisme explique couramment, dans son propre
+  // texte, où demander le certificat de numérotage/alignement, sans être lui-même ce document —
+  // texte réel fourni par l'étude (formulation qui varie d'un document à l'autre, d'où le motif
+  // générique de renvoi plutôt qu'une phrase figée, voir RE_SIMPLE_RENVOI_PIECE).
+  const app = chargerApplication();
+  const texte = "Le certificat de numérotage est à demander à l'Hôtel de Ville, Service des " +
+    "Géomètres - 9 place St Louis 41000 BLOIS - Tel : 02.54.44.50.95, Le certificat d'alignement " +
+    "est à demander à la même adresse, sous réserve des indications relatives à la circulation " +
+    "routière portées dans le cadre 4.";
+  const numerotage = app.checklistPieces('maison').find(p => p.cle === 'certificatNumerotage');
+  const alignement = app.checklistPieces('maison').find(p => p.cle === 'certificatAlignement');
+  assert.equal(app.motifPieceTrouve(numerotage.motif, texte), false);
+  assert.equal(app.motifPieceTrouve(alignement.motif, texte), false);
+});
+
+test('motifPieceTrouve reste sensible à un vrai certificat d\'alignement (pas seulement un renvoi)', () => {
+  const app = chargerApplication();
+  const texte = "CERTIFICAT D'ALIGNEMENT délivré ce jour par la mairie de Blois, valable un an, " +
+    "portant sur la parcelle cadastrée section AB numéro 123.";
+  const alignement = app.checklistPieces('maison').find(p => p.cle === 'certificatAlignement');
+  assert.equal(app.motifPieceTrouve(alignement.motif, texte), true);
+});
+
 test('le motif "erp" ignore un établissement recevant du public sans lien avec l\'état des risques', () => {
   // Ambiguïté réelle : "ERP" désigne aussi un Établissement Recevant du Public, sans rapport avec
   // la pièce recherchée (état des risques et pollutions) — d'où l'appui sur l'intitulé complet.
