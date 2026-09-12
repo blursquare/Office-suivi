@@ -156,6 +156,45 @@ test('checklistPieces(typeVente, d) masque les pièces retirées et ajoute les p
   assert.ok(app.checklistPieces('maison').map(p => p.cle).includes('renonciationPreemption'));
 });
 
+test('checklistPieces(typeVente, d) ajoute une pièce auto-détectée depuis un engagement du compromis', () => {
+  // Voir PIECES_ENGAGEMENTS_AUTO/ajouterDossier() : quand le compromis mentionne un entretien de
+  // chaudière/PAC/ramonage, `d.piecesEngagementsDetectees` porte la clé correspondante et la pièce
+  // doit apparaître dans la checklist, avec un vrai motifNom (contrairement à une pièce
+  // personnalisée) puisqu'elle sera recherchée automatiquement dans le dossier local.
+  const app = chargerApplication();
+  const d = { typeVente: 'maison', piecesEngagementsDetectees: ['ramonage', 'entretienPac'] };
+  const checklist = app.checklistPieces('maison', d);
+  const ramonage = checklist.find(p => p.cle === 'ramonage');
+  const pac = checklist.find(p => p.cle === 'entretienPac');
+  assert.ok(ramonage, 'la pièce ramonage doit apparaître');
+  assert.ok(pac, 'la pièce entretien PAC doit apparaître');
+  // `instanceof RegExp` échouerait ici : le motif vient d'un autre contexte vm (autre réalisation
+  // de RegExp), comme documenté pour les tableaux ailleurs dans ces tests — on vérifie plutôt sa
+  // capacité à tester une chaîne, seule chose qui compte pour verifierDossierLocal().
+  assert.equal(typeof ramonage.motifNom.test, 'function', 'contrairement à une pièce personnalisée, un vrai motifNom doit être présent');
+  assert.equal(ramonage.autoEngagement, true);
+  assert.equal(ramonage.personnalisee, undefined, 'ne doit pas être traitée comme une pièce personnalisée');
+  // Une pièce auto-détectée non demandée pour ce dossier (chaudière ici) ne doit pas apparaître.
+  assert.ok(!checklist.some(p => p.cle === 'entretienChaudiere'));
+  // Retirable comme n'importe quelle pièce standard, via piecesRetirees.
+  const checklistSansRamonage = app.checklistPieces('maison', { ...d, piecesRetirees: ['ramonage'] });
+  assert.ok(!checklistSansRamonage.some(p => p.cle === 'ramonage'));
+});
+
+test('PIECES_ENGAGEMENTS_AUTO (ramonage/chaudière/PAC) reconnaît des noms de fichiers réels', () => {
+  const app = chargerApplication();
+  const checklist = app.checklistPieces('maison', { typeVente: 'maison', piecesEngagementsDetectees: ['ramonage', 'entretienChaudiere', 'entretienPac'] });
+  const ramonage = checklist.find(p => p.cle === 'ramonage');
+  const chaudiere = checklist.find(p => p.cle === 'entretienChaudiere');
+  const pac = checklist.find(p => p.cle === 'entretienPac');
+  assert.ok(ramonage.motifNom.test(app.normaliserNomPourMotif('Attestation de ramonage.pdf')));
+  assert.ok(ramonage.motifNom.test(app.normaliserNomPourMotif('Facture de ramonage 2024.pdf')));
+  assert.ok(chaudiere.motifNom.test(app.normaliserNomPourMotif('Entretien chaudiere.pdf')));
+  assert.ok(chaudiere.motifNom.test(app.normaliserNomPourMotif('Contrat_entretien_chaudiere.pdf')));
+  assert.ok(pac.motifNom.test(app.normaliserNomPourMotif('Entretien PAC.pdf')));
+  assert.ok(pac.motifNom.test(app.normaliserNomPourMotif('Entretien pompe a chaleur.pdf')));
+});
+
 test('aucune pièce de la checklist n\'a plus de motif de contenu — seul motifNom les détecte', () => {
   // Décision explicite de l'étude, après une série de faux positifs par contenu qui n'étaient pas
   // tous réductibles à une clause précise à exclure (ex. les clauses de condition suspensive sur

@@ -73,6 +73,25 @@ test('detecterDocumentsAFournir reconnaît un type de document courant dans les 
   assert.ok(documents.every(d => d.cat === 'entretien' || typeof d.cat === 'string'));
 });
 
+test('detecterDocumentsAFournir porte cleChecklist uniquement sur ramonage/chaudière/PAC', () => {
+  // Ces trois clés relient la détection à une pièce ajoutée automatiquement à la checklist du
+  // dossier (voir PIECES_ENGAGEMENTS_AUTO/ajouterDossier dans script.js) — demandé explicitement
+  // par l'étude, limité à ces trois types pour l'instant. Les autres documents connus
+  // (travaux, justificatifs...) ne doivent PAS avoir de cleChecklist : ce sont de simples
+  // informations dans l'analyse juridique, sans document réel à réunir dans le dossier.
+  const app = chargerApplication();
+  const texte = "Le vendeur s'engage à remettre un justificatif de ramonage de la cheminée, " +
+    "un justificatif d'entretien annuel de la chaudière, un justificatif d'entretien de la pompe " +
+    "à chaleur, et des factures des travaux réalisés.";
+  const engagements = app.extraireEngagementsVendeur(texte);
+  const documents = app.detecterDocumentsAFournir(engagements);
+  const parLabel = Object.fromEntries(documents.map(d => [d.label, d.cleChecklist]));
+  assert.equal(parLabel['Justificatif de ramonage'], 'ramonage');
+  assert.equal(parLabel["Justificatif d'entretien de la chaudière"], 'entretienChaudiere');
+  assert.equal(parLabel["Justificatif d'entretien de la pompe à chaleur"], 'entretienPac');
+  assert.equal(parLabel['Factures des travaux réalisés'], null);
+});
+
 test('extraireConditions restitue les rubriques de la section "Conditions suspensives"', () => {
   const app = chargerApplication();
   const texte = `

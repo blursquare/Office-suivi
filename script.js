@@ -11,7 +11,7 @@
   // deviner ni recopier l'heure d'un commit précédent, et ne pas automatiser via un numéro de
   // commit git : ces 3 fichiers sont utilisés hors de tout dépôt une fois déposés chez l'étude,
   // aucune information git n'est disponible à l'exécution.
-  const VERSION_APP = '2026-09-12 21:29';
+  const VERSION_APP = '2026-09-12 21:48';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-12 21:48', resume: 'Pièce checklist auto-ajoutée si entretien chaudière/PAC/ramonage détecté dans le compromis' },
     { version: '2026-09-12 21:29', resume: 'Écran "À propos" : version datée à la minute + historique récent' },
     { version: '2026-09-12 21:19', resume: 'Panneau de diagnostic du dernier parcours du dossier local' },
     { version: '2026-09-12 20:49', resume: 'Pièce personnalisée enfin retrouvée par "Revérifier"' },
@@ -522,11 +523,19 @@
 
   // Chaque entrée porte sa catégorie : un notaire distingue l'entretien courant à justifier
   // (ramonage, chaudière) des travaux à faire exécuter, et des justificatifs administratifs.
+  // `cleChecklist`, sur trois entrées seulement pour l'instant (demandé explicitement par
+  // l'étude — chaudière, PAC, ramonage), relie cette détection à une pièce de
+  // PIECES_ENGAGEMENTS_AUTO (voir plus bas, section "suivi des pièces du dossier") : un engagement
+  // d'entretien REPÉRÉ DANS LE COMPROMIS ajoute automatiquement la pièce correspondante à la
+  // checklist du dossier lors de sa création (voir ajouterDossier()), pour qu'elle soit ensuite
+  // recherchée dans le dossier local relié comme n'importe quelle autre pièce. Les autres entrées
+  // de ce tableau restent de simples informations affichées dans l'analyse juridique, sans lien
+  // avec la checklist — à étendre à d'autres types si l'étude le redemande explicitement.
   const DOCUMENTS_VENDEUR_CONNUS = [
     // Entretien courant à justifier
-    { motif: /ramonage|entretien\s+(?:de\s+la\s+)?chemin[ée]e|conduits?\s+de\s+fum[ée]e/i, label: 'Justificatif de ramonage', cat: 'entretien' },
-    { motif: /entretien\s+(?:annuel\s+)?(?:de\s+la\s+)?chaudi[èe]re|contrat\s+d.entretien\s+(?:de\s+la\s+)?chaudi[èe]re/i, label: "Justificatif d'entretien de la chaudière", cat: 'entretien' },
-    { motif: /entretien\s+(?:du\s+|de\s+la\s+)?(?:syst[èe]me\s+de\s+)?pompe\s+[àa]\s+chaleur|entretien\s+(?:de\s+la\s+)?pac\b/i, label: "Justificatif d'entretien de la pompe à chaleur", cat: 'entretien' },
+    { motif: /ramonage|entretien\s+(?:de\s+la\s+)?chemin[ée]e|conduits?\s+de\s+fum[ée]e/i, label: 'Justificatif de ramonage', cat: 'entretien', cleChecklist: 'ramonage' },
+    { motif: /entretien\s+(?:annuel\s+)?(?:de\s+la\s+)?chaudi[èe]re|contrat\s+d.entretien\s+(?:de\s+la\s+)?chaudi[èe]re/i, label: "Justificatif d'entretien de la chaudière", cat: 'entretien', cleChecklist: 'entretienChaudiere' },
+    { motif: /entretien\s+(?:du\s+|de\s+la\s+)?(?:syst[èe]me\s+de\s+)?pompe\s+[àa]\s+chaleur|entretien\s+(?:de\s+la\s+)?pac\b/i, label: "Justificatif d'entretien de la pompe à chaleur", cat: 'entretien', cleChecklist: 'entretienPac' },
     { motif: /entretien.{0,30}(?:climatisation|clim\b)/i, label: "Justificatif d'entretien de la climatisation", cat: 'entretien' },
     { motif: /vidange\s+(?:de\s+la\s+)?fosse|(?:entretien|vidange).{0,30}fosse\s+septique/i, label: 'Vidange de fosse septique', cat: 'entretien' },
     { motif: /entretien.{0,30}adoucisseur/i, label: "Entretien de l'adoucisseur d'eau", cat: 'entretien' },
@@ -560,7 +569,7 @@
     DOCUMENTS_VENDEUR_CONNUS.forEach(doc => {
       if (doc.motif.test(zonesPertinentes) && !vus.has(doc.label)) {
         vus.add(doc.label);
-        trouves.push({ label: doc.label, cat: doc.cat });
+        trouves.push({ label: doc.label, cat: doc.cat, cleChecklist: doc.cleChecklist || null });
       }
     });
     return trouves;
@@ -2110,6 +2119,15 @@
       ventebien: confianceType(ventebien, 'ventebien')
     };
 
+    // Engagements d'entretien détectés dans le compromis (chaudière, PAC, ramonage — voir
+    // cleChecklist sur DOCUMENTS_VENDEUR_CONNUS/PIECES_ENGAGEMENTS_AUTO) : ajoutés une fois pour
+    // toutes à la checklist de CE dossier, calculé ici puisque l'analyse complète du compromis
+    // (analyseJuridiqueActuelle) n'existe que pendant l'import — un dossier déjà enregistré et
+    // rouvert n'a plus accès au texte du compromis pour refaire cette détection après coup.
+    const piecesEngagementsDetectees = analyseJuridiqueActuelle.documents
+      .map(doc => doc.cleChecklist)
+      .filter(Boolean);
+
     const dossier = {
       id: (crypto.randomUUID ? crypto.randomUUID() : 'd-' + Date.now() + '-' + Math.random().toString(16).slice(2)),
       nom, email, responsable, emailAcquereur,
@@ -2119,6 +2137,7 @@
       typeVente,
       roleNotaire,
       pieces: {},
+      piecesEngagementsDetectees,
       dossierLie: false,
       offrePretStatut: 'inconnu',
       accesAReconfirmer: false,
@@ -3238,7 +3257,13 @@
               // Cliquable pour rouvrir directement le fichier local où la pièce a été trouvée.
               contenu = `<button type="button" class="piece-label" title="Cliquer pour ouvrir le fichier trouvé" onclick="ouvrirPieceTrouvee('${d.id}', '${p.cle}')"><span class="piece-icone">${s.texte}</span>${escapeHtml(p.label)}</button>`;
             } else {
-              contenu = `<span class="piece-label" title="${escapeAttr(s.titre)}"><span class="piece-icone">${s.texte}</span>${escapeHtml(p.label)}</span>`;
+              // Pièce auto-détectée depuis un engagement du compromis (voir PIECES_ENGAGEMENTS_AUTO) :
+              // infobulle dédiée tant qu'elle n'est pas reçue, pour que l'étude comprenne d'où elle
+              // vient sans avoir à deviner — elle n'a rien ajouté elle-même à cette checklist.
+              const titre = p.autoEngagement
+                ? "Détectée automatiquement : le compromis mentionne cet engagement d'entretien du vendeur."
+                : s.titre;
+              contenu = `<span class="piece-label" title="${escapeAttr(titre)}"><span class="piece-icone">${s.texte}</span>${escapeHtml(p.label)}</span>`;
             }
             return `<span class="piece-item ${s.cls}">${contenu}${boutonSuppr}</span>`;
           }).join('')}
@@ -4063,6 +4088,14 @@
         ? d.piecesPersonnalisees.filter(p => p && typeof p === 'object' && typeof p.cle === 'string' && typeof p.label === 'string')
             .map(p => ({ cle: p.cle, label: p.label }))
         : [],
+      // Comme piecesRetirees/piecesPersonnalisees ci-dessus : un choix figé pour ce dossier, pas
+      // dérivé d'un scan de PDF local, conservé tel quel à l'import. Filtré sur les clés CONNUES de
+      // PIECES_ENGAGEMENTS_AUTO plutôt que sur un simple typeof string, au cas où une future
+      // version retirerait une clé existante — une clé obsolète resterait sinon indéfiniment dans
+      // le dossier importé sans jamais correspondre à une pièce réelle affichée.
+      piecesEngagementsDetectees: Array.isArray(d.piecesEngagementsDetectees)
+        ? d.piecesEngagementsDetectees.filter(c => PIECES_ENGAGEMENTS_AUTO.some(p => p.cle === c))
+        : [],
       archive: d.archive === true,
       reminderDays: Array.isArray(d.reminderDays) && d.reminderDays.every(Number.isInteger) ? d.reminderDays : [15, 7],
       confiance: (d.confiance && typeof d.confiance === 'object') ? d.confiance : {},
@@ -4394,6 +4427,27 @@
     ? { cle: 'etudeSol', label: 'Étude de sol', motifNom: /[ée]tude\s+de\s+sol|\bG1\b|\bG2\b/i }
     : p);
 
+  // Pièces ajoutées automatiquement à la checklist d'UN dossier précis quand le compromis mentionne
+  // l'engagement d'entretien correspondant (voir `cleChecklist` sur DOCUMENTS_VENDEUR_CONNUS et
+  // `d.piecesEngagementsDetectees`, alimenté une fois à la création du dossier dans
+  // ajouterDossier()) — demandé explicitement par l'étude, limité à ces trois types pour l'instant
+  // plutôt que généralisé à tout DOCUMENTS_VENDEUR_CONNUS (les autres restent de simples
+  // informations dans l'analyse juridique, sans lien avec un document réel à réunir dans le
+  // dossier). Même forme que les autres pièces standard (`cle`/`label`/`motifNom`) : réutilisent
+  // sans aucun changement toute la mécanique déjà en place (recherche dans le dossier local par
+  // `verifierDossierLocal()`, retrait via `retirerPieceStandard()`, préremplissage à "manquante"
+  // au premier lien...) — ce ne sont PAS des pièces personnalisées (`personnalisee`), qui n'ont pas
+  // de motifNom et ne sont retrouvées que par sous-chaîne de leur libellé.
+  // `motifNom` volontairement plus permissif que le `motif` de contenu du compromis ci-dessus : un
+  // fichier réel s'appelle plus souvent "Entretien chaudière.pdf"/"Facture ramonage.pdf" que
+  // "Justificatif d'entretien de la chaudière.pdf" — même principe que les autres motifNom du
+  // fichier (voir normaliserNomPourMotif juste plus bas pour la normalisation appliquée avant test).
+  var PIECES_ENGAGEMENTS_AUTO = [
+    { cle: 'ramonage', label: 'Ramonage (attestation ou facture)', motifNom: /ramonage/i },
+    { cle: 'entretienChaudiere', label: 'Entretien de la chaudière', motifNom: /entretien.{0,20}chaudi[èe]re|chaudi[èe]re.{0,20}entretien|contrat.{0,20}chaudi[èe]re/i },
+    { cle: 'entretienPac', label: 'Entretien de la pompe à chaleur (PAC)', motifNom: /entretien.{0,20}(?:pompe\s+[àa]\s+chaleur|\bpac\b)|(?:pompe\s+[àa]\s+chaleur|\bpac\b).{0,20}entretien/i }
+  ];
+
   // Bug corrigé : signalé par l'étude, un certificat d'urbanisme mentionne couramment dans son
   // PROPRE texte l'existence d'autres certificats ("Le certificat de numérotage est à demander à
   // l'Hôtel de Ville... Le certificat d'alignement est à demander à la même adresse...") sans être
@@ -4444,12 +4498,18 @@
   }
 
   // Ordre d'affichage = ordre des listes fournies par l'étude : urbanisme (commun aux trois types),
-  // puis les pièces propres à la copropriété si applicable, puis le reste.
+  // puis les pièces propres à la copropriété si applicable, puis le reste, puis les pièces
+  // auto-détectées depuis un engagement du compromis (voir PIECES_ENGAGEMENTS_AUTO ci-dessus),
+  // puis enfin les pièces personnalisées ajoutées à la main.
   // `d` (optionnel, absent avant l'enregistrement du dossier — voir majApercuPieces) permet de
   // personnaliser la checklist standard pour CE dossier précis, demandé par l'étude : `d.piecesRetirees`
-  // (tableau de clés) masque des pièces standard non pertinentes pour ce dossier ;
+  // (tableau de clés) masque des pièces standard OU auto-détectées non pertinentes pour ce dossier ;
   // `d.piecesPersonnalisees` (tableau de {cle, label}) ajoute des pièces propres à ce dossier, sans
-  // toucher aux listes PIECES_* partagées par tous les autres dossiers du même type de vente.
+  // toucher aux listes PIECES_* partagées par tous les autres dossiers du même type de vente ;
+  // `d.piecesEngagementsDetectees` (tableau de clés de PIECES_ENGAGEMENTS_AUTO) active les pièces
+  // détectées depuis un engagement du vendeur — calculé une seule fois à la création du dossier
+  // (voir ajouterDossier()), jamais recalculé après coup (l'analyse juridique complète du compromis
+  // n'existe plus une fois le dossier enregistré).
   function checklistPieces(typeVente, d) {
     const base = typeVente === 'copropriete'
       ? [...PIECES_URBANISME, ...PIECES_COPROPRIETE, ...PIECES_AUTRES]
@@ -4459,8 +4519,11 @@
     if (!d) return base;
     const retirees = new Set(d.piecesRetirees || []);
     const standard = base.filter(p => !retirees.has(p.cle));
+    const engagementsDetectes = new Set(d.piecesEngagementsDetectees || []);
+    const auto = PIECES_ENGAGEMENTS_AUTO.filter(p => engagementsDetectes.has(p.cle) && !retirees.has(p.cle))
+      .map(p => ({ ...p, autoEngagement: true }));
     const perso = (d.piecesPersonnalisees || []).map(p => ({ cle: p.cle, label: p.label, personnalisee: true }));
-    return [...standard, ...perso];
+    return [...standard, ...auto, ...perso];
   }
   // "Offre de crédit (immobilier)" est une formulation bancaire tout aussi courante que "offre de
   // prêt" pour désigner le même document (signalé par l'étude : une offre réelle intitulée ainsi

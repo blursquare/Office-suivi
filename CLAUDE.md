@@ -2349,6 +2349,49 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
   - Vérifié visuellement (Playwright, clair et sombre) : version et historique s'affichent
     correctement, dans l'ordre attendu, l'encart défile sans déborder de la fenêtre modale.
     `npm test` reste vert (129 tests, aucune fonction pure ajoutée — uniquement de l'affichage).
+- **Un engagement d'entretien détecté dans le compromis (chaudière, PAC, ramonage) ajoute
+  automatiquement la pièce correspondante à la checklist du dossier**, demandé explicitement par
+  l'étude et limité à ces trois types pour l'instant (à étendre seulement sur nouvelle demande).
+  Fait le pont entre deux mécanismes jusqu'ici indépendants : l'analyse juridique du compromis
+  (`DOCUMENTS_VENDEUR_CONNUS`/`detecterDocumentsAFournir`, purement informative) et la checklist de
+  pièces du dossier (`PIECES_*`/`checklistPieces`, recherchée dans le dossier local).
+  - `DOCUMENTS_VENDEUR_CONNUS` gagne un champ `cleChecklist` sur SES TROIS SEULES entrées
+    concernées (`ramonage`, `entretienChaudiere`, `entretienPac`) — les autres documents connus
+    (travaux, justificatifs...) restent de simples informations affichées dans l'analyse juridique,
+    sans lien avec la checklist. `detecterDocumentsAFournir()` le propage tel quel dans son résultat
+    (`{label, cat, cleChecklist}`), sans changer son usage existant (`renderDocBadge()` continue
+    d'ignorer ce nouveau champ).
+  - Nouveau tableau `PIECES_ENGAGEMENTS_AUTO` (même forme `{cle, label, motifNom}` que les pièces
+    standard `PIECES_URBANISME`/`PIECES_AUTRES`...) : volontairement PAS des pièces personnalisées
+    (`d.piecesPersonnalisees`, texte libre sans `motifNom`, retrouvées seulement par sous-chaîne du
+    libellé) — leur nature étant connue à l'avance, elles ont un vrai `motifNom` régulier, plus
+    permissif que le `motif` de détection dans le compromis (un fichier réel s'appelle plus souvent
+    "Entretien chaudière.pdf"/"Facture ramonage.pdf" que "Justificatif d'entretien de la
+    chaudière.pdf" — voir les tests avec des noms de fichiers réalistes).
+  - `d.piecesEngagementsDetectees` (tableau de clés) : calculé UNE SEULE FOIS à la création du
+    dossier dans `ajouterDossier()`, à partir de `analyseJuridiqueActuelle.documents` (l'analyse
+    juridique n'existe que pendant l'import — un dossier déjà enregistré et rouvert ne peut pas
+    relancer cette détection après coup, même limitation déjà documentée pour d'autres détections
+    liées à l'analyse). `checklistPieces(typeVente, d)` fusionne ces pièces (marquées
+    `autoEngagement: true`) juste avant les pièces personnalisées, en respectant `d.piecesRetirees`
+    comme n'importe quelle pièce standard — retirable via le même bouton ✕/`retirerPieceStandard()`,
+    aucune nouvelle fonction de suppression nécessaire. `normaliserDossierImporte()` filtre le
+    tableau importé sur les clés réellement connues de `PIECES_ENGAGEMENTS_AUTO` (comme
+    `piecesRetirees`/`piecesPersonnalisees` juste au-dessus), pour ne pas traîner indéfiniment une
+    clé devenue obsolète si cette liste change un jour.
+  - **Aucun changement dans `verifierDossierLocal()`** : ces pièces portent un `motifNom` comme les
+    pièces standard, donc tout le mécanisme de recherche/retrait/préremplissage déjà en place les
+    gère sans un seul `if` supplémentaire — seule `checklistPieces()` change ce qu'elle retourne.
+  - Tooltip dédié sur la pièce tant qu'elle n'est pas reçue (`renderPiecesDossier()`, via le nouveau
+    flag `autoEngagement`) : "Détectée automatiquement : le compromis mentionne cet engagement
+    d'entretien du vendeur." — sans lui, l'étude n'aurait aucun moyen de comprendre pourquoi une
+    pièce qu'elle n'a pas ajoutée elle-même apparaît dans la checklist.
+  - Tests dans `tests/engagements.test.js` (le nouveau champ `cleChecklist`, présent uniquement sur
+    les trois entrées concernées) et `tests/dossier-local.test.js` (fusion dans `checklistPieces()`,
+    retrait via `piecesRetirees`, `motifNom` contre des noms de fichiers réalistes). Vérifié
+    visuellement (Playwright, dossier synthétique avec `piecesEngagementsDetectees`) : les deux
+    pièces apparaissent en fin de checklist avec le bon tooltip, le compteur passe de 9 à 11, le
+    retrait par la croix fonctionne. `npm test` reste vert (132 tests).
 
 ## Comment tester
 
