@@ -1891,6 +1891,41 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     `.sidebar-cta` reste inchangée. Vérifié visuellement (Playwright, clair et sombre) : "Nouveau
     dossier" reste bleu en permanence, l'onglet sélectionné (testé sur "Suivi des dossiers") est
     bien gris foncé dans les deux thèmes.
+- **Nouvelle demande de l'étude sur les tuiles de statistiques et la recherche** :
+  - **Tuile "offres à vérifier" remplacée par "dossiers avec pièces manquantes" dans le bandeau de
+    l'onglet Suivi** (`renderStatsSuivi()`) : `piecesIncompletes` (déjà calculée par
+    `calculerStatsPortefeuille()`, déjà utilisée par le Tableau de bord) était jusqu'ici absente de
+    ce bandeau — elle y remplace directement `aVerifier`, jugée moins utile par l'étude que le
+    signal déjà mis en avant côté Tableau de bord.
+  - **Tuile "offres à vérifier" retirée du Tableau de bord** (`renderKpisDashboard()`) : simple
+    suppression, la 5e tuile "dossiers avec pièces manquantes" (`piecesIncompletes`) existait déjà
+    séparément et reste en place. `.kpis-dashboard` passe de `repeat(6, 1fr)` à `repeat(5, 1fr)`
+    (nombre de tuiles réellement affichées, sans quoi la grille aurait laissé une case vide).
+  - **Recherche de dossier ajoutée au Tableau de bord.** Le Suivi avait déjà `#recherche-dossiers`
+    (filtre une liste déjà affichée) ; le Tableau de bord, lui, ne montre jamais tous les dossiers
+    (seulement KPI + Actions urgentes + échéances à 7 jours) — un simple filtre sur place n'aurait
+    donc rien eu à filtrer. Nouveau champ `#recherche-dashboard` dans `.dash-header`, avec un menu
+    de résultats (`renderRechercheDashboard()`, jusqu'à 8 dossiers dont le nom/responsable
+    correspond) qui s'ouvre sous le champ dès qu'on tape ; chaque résultat mène directement au
+    tiroir du dossier via `ouvrirDossierDepuisDashboardRecherche()` (vide le champ puis réutilise
+    `ouvrirDossierDepuisDashboard()`, déjà utilisée par "Actions urgentes" — même chemin,
+    bascule vers Suivi + ouverture du tiroir, pas une seconde implémentation). Recherche
+    volontairement limitée aux dossiers actifs (comme le reste du tableau de bord), pas aux
+    archivés.
+  - **Surlignage des obligations du vendeur depuis le PDF : déjà en place, vérifié plutôt que
+    redéveloppé.** Demandé par l'étude, mais `voirEngagementDansPdf()`/`renderEngagement()`
+    (bouton "👁 p.X" sur chaque engagement de l'analyse juridique) couvrent déjà exactement cette
+    fonctionnalité — voir leur historique plus haut ("Surlignage des engagements du vendeur dans
+    l'aperçu PDF"). Fonctionne pendant l'import en cours (`pdfActuel` chargé en mémoire) ; sur un
+    dossier déjà enregistré et rouvert, seul le numéro de page (non cliquable) reste affiché, pour
+    la raison déjà documentée (le compromis est importé via un `<input type="file">` éphémère, pas
+    un handle persistable) — limitation connue, pas un manque de cette demande précise. Rien à
+    changer côté code ; à confirmer par l'étude si son attente portait spécifiquement sur un
+    dossier déjà enregistré (auquel cas voir le chantier balisé mais non engagé, plus haut).
+  - Vérifié visuellement (Playwright, clair et sombre) : dossier synthétique injecté, recherche
+    "dupont" sur le Tableau de bord ouvrant bien le tiroir du bon dossier, grille de 5 tuiles KPI
+    sans case vide, bandeau Suivi avec la nouvelle tuile — `npm test` reste vert (119 tests, aucune
+    fonction pure testable modifiée par ce chantier).
 
 ## Comment tester
 

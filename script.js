@@ -2367,12 +2367,12 @@
     const bloc = document.getElementById('stats-suivi');
     if (!bloc) return;
 
-    const { actifs, urgents, manquantes, aVerifier } = calculerStatsPortefeuille(dossiersActifs);
+    const { actifs, urgents, manquantes, piecesIncompletes } = calculerStatsPortefeuille(dossiersActifs);
     const tuiles = [
       ['c-neutre', actifs, actifs > 1 ? 'dossiers actifs' : 'dossier actif'],
       ['c-urgent', urgents, 'échéances ≤ 7 jours'],
       ['c-pret', manquantes, 'offres de prêts en attente'],
-      ['c-neutre', aVerifier, 'offres à vérifier']
+      ['c-pret', piecesIncompletes, 'dossiers avec pièces manquantes']
     ];
     bloc.innerHTML = tuiles.map(([cls, valeur, libelle]) =>
       `<div class="stat-tile"><div class="stat-label">${libelle}</div><div class="stat-num ${cls}">${valeur}</div></div>`
@@ -2400,13 +2400,12 @@
   function renderKpisDashboard(dossiersActifs) {
     const bloc = document.getElementById('kpis-dashboard');
     if (!bloc) return;
-    const { actifs, urgents, urgents15, manquantes, aVerifier, piecesIncompletes } = calculerStatsPortefeuille(dossiersActifs);
+    const { actifs, urgents, urgents15, manquantes, piecesIncompletes } = calculerStatsPortefeuille(dossiersActifs);
     const tuiles = [
       ['c-neutre', actifs, actifs > 1 ? 'dossiers actifs' : 'dossier actif', icone('folder', 'kpi-icone')],
       ['c-urgent', urgents, 'échéances ≤ 7 jours', iconeCalendrierSeuil(7)],
       ['c-urgent', urgents15, 'échéances ≤ 15 jours', iconeCalendrierSeuil(15)],
       ['c-pret', manquantes, 'offres de prêts en attente', icone('alert-triangle', 'kpi-icone')],
-      ['c-neutre', aVerifier, 'offres à vérifier', icone('search', 'kpi-icone')],
       ['c-pret', piecesIncompletes, 'dossiers avec pièces manquantes', icone('clipboard', 'kpi-icone')]
     ];
     bloc.innerHTML = tuiles.map(([cls, valeur, libelle, iconeHtml]) =>
@@ -2455,6 +2454,42 @@
   function ouvrirDossierDepuisDashboard(id) {
     definirOnglet('suivi');
     ouvrirDossierDrawer(id);
+  }
+
+  // Recherche de dossier depuis le tableau de bord : contrairement au Suivi (recherche-dossiers,
+  // qui filtre une liste de lignes déjà affichée), le tableau de bord ne montre jamais tous les
+  // dossiers — un menu de résultats s'ouvre donc sous le champ dès qu'on tape, chaque résultat
+  // menant directement au tiroir du dossier via le même chemin que "Actions urgentes".
+  function renderRechercheDashboard(dossiersActifs) {
+    const input = document.getElementById('recherche-dashboard');
+    const bloc = document.getElementById('dash-recherche-resultats');
+    if (!input || !bloc) return;
+    const q = (input.value || '').trim().toLowerCase();
+    if (!q) {
+      bloc.style.display = 'none';
+      bloc.innerHTML = '';
+      return;
+    }
+    const resultats = dossiersActifs
+      .filter(d => (d.nom + ' ' + (d.responsable || '')).toLowerCase().includes(q))
+      .slice(0, 8);
+    bloc.innerHTML = resultats.length === 0
+      ? '<div class="dash-recherche-vide">Aucun dossier ne correspond.</div>'
+      : resultats.map(d => `
+        <button type="button" class="dash-recherche-ligne" onclick="ouvrirDossierDepuisDashboardRecherche('${d.id}')">
+          ${renderBadgeStatut(d)}
+          <span class="dash-recherche-nom">${escapeHtml(d.nom)}</span>
+          <span class="dash-recherche-resp">${escapeHtml(d.responsable || '')}</span>
+        </button>`).join('');
+    bloc.style.display = 'block';
+  }
+
+  // Vide le champ avant d'ouvrir le tiroir : sans ça, le menu de résultats resterait affiché
+  // (avec la même recherche) une fois revenu sur le Tableau de bord.
+  function ouvrirDossierDepuisDashboardRecherche(id) {
+    const input = document.getElementById('recherche-dashboard');
+    if (input) input.value = '';
+    ouvrirDossierDepuisDashboard(id);
   }
 
   // Bascule entre les deux espaces de travail : « Nouveau dossier » (formulaire + aperçu PDF) et
@@ -2755,6 +2790,7 @@
     renderAlerteAcces(dossiersActifs);
     renderKpisDashboard(dossiersActifs);
     renderActionsUrgentes(dossiersActifs);
+    renderRechercheDashboard(dossiersActifs);
     // Avant les retours anticipés sur liste vide ci-dessous : le tiroir doit se rafraîchir (ou se
     // refermer, si son dossier vient d'être supprimé) dans tous les cas, pas seulement quand la
     // liste a des lignes à afficher.

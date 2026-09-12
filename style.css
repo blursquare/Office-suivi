@@ -445,9 +445,57 @@
   }
   .dash-titre { font-size: 26px; margin: 0; }
 
+  /* Recherche de dossier depuis le tableau de bord : contrairement au Suivi (recherche-dossiers,
+     qui filtre une liste déjà affichée), le tableau de bord ne montre jamais tous les dossiers —
+     un menu de résultats s'ouvre donc sous le champ, chaque ligne menant directement au tiroir du
+     dossier (même chemin que "Actions urgentes", voir ouvrirDossierDepuisDashboard). */
+  .dash-recherche {
+    position: relative;
+    flex: 1 1 260px;
+    max-width: 340px;
+  }
+  .dash-recherche input[type="search"] {
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .dash-recherche-resultats {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 20;
+    background: var(--paper-card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+    max-height: 320px;
+    overflow-y: auto;
+  }
+  .dash-recherche-ligne {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    font-family: inherit;
+    font-size: 13.5px;
+    text-align: left;
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--line);
+    padding: 9px 12px;
+    cursor: pointer;
+    color: var(--ink);
+  }
+  .dash-recherche-ligne:last-child { border-bottom: none; }
+  .dash-recherche-ligne:hover { background: var(--paper-sunk); }
+  .dash-recherche-nom { font-weight: 600; flex-shrink: 0; }
+  .dash-recherche-resp { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dash-recherche-vide { padding: 12px; font-size: 13px; color: var(--muted); }
+
   .kpis-dashboard {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 12px;
     margin-bottom: 28px;
   }
@@ -542,6 +590,7 @@
   @media (max-width: 1300px) {
     .kpis-dashboard { grid-template-columns: repeat(3, 1fr); }
     .dash-grid { grid-template-columns: 1fr; }
+    .dash-recherche { max-width: none; flex-basis: 100%; }
   }
   @media (max-width: 640px) {
     .kpis-dashboard { grid-template-columns: repeat(2, 1fr); }
