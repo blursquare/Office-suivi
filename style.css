@@ -604,32 +604,36 @@
     height: 15px;
     color: var(--ink-soft);
   }
+  /* .kpi-num-ligne porte le chiffre ET sa tendance côte à côte (voir renderKpisDashboard) — un seul
+     conteneur pour toutes les tuiles, avec ou sans tendance à afficher à côté (les 4 tuiles sans
+     tendance n'ont qu'un seul enfant, sans changement visuel par rapport à l'ancien .kpi-num seul). */
+  .kpi-num-ligne {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
   .kpi-num {
     font-size: 30px;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
     line-height: 1;
-    margin-top: 8px;
   }
   .kpi-num.c-urgent { color: var(--urgent); }
   .kpi-num.c-pret { color: var(--pret); }
   .kpi-num.c-neutre { color: var(--ink); }
-  /* Tendance du nombre de dossiers actifs vs mois/année précédente (voir
-     calculerEvolutionPortefeuille dans script.js), sous le chiffre de la tuile "dossier actif"
-     uniquement. Pas de couleur succès/alerte sur la hausse ou la baisse : plus de dossiers n'est ni
-     bon ni mauvais en soi pour l'étude (juste plus de charge), donc gris neutre dans les deux sens
-     — seule l'icône (flèche haut/bas) porte le sens de variation, pas une teinte de jugement. */
-  .kpi-tendances {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    margin-top: 8px;
-  }
+  /* Tendance du nombre de dossiers actifs vs le mois précédent (voir calculerEvolutionPortefeuille
+     dans script.js), à côté du chiffre de la tuile "dossier actif" uniquement — la comparaison à
+     l'année précédente reste calculée mais n'est volontairement pas affichée pour l'instant (voir
+     renderKpisDashboard). Pas de couleur succès/alerte sur la hausse ou la baisse : plus de
+     dossiers n'est ni bon ni mauvais en soi pour l'étude (juste plus de charge), donc gris neutre
+     dans les deux sens — seule l'icône (flèche haut/bas) porte le sens de variation. */
   .kpi-tendance {
     display: flex;
     align-items: center;
     gap: 4px;
-    font-size: 11px;
+    font-size: 12px;
     color: var(--muted);
     font-variant-numeric: tabular-nums;
   }

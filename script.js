@@ -2580,26 +2580,25 @@
     const bloc = document.getElementById('kpis-dashboard');
     if (!bloc) return;
     const { actifs, urgents, urgents15, manquantes, piecesIncompletes } = calculerStatsPortefeuille(dossiersActifs);
-    // Tendance du nombre de dossiers actifs (voir calculerEvolutionPortefeuille) : sur TOUS les
-    // dossiers (dossiers, pas dossiersActifs) puisqu'un dossier archivé aujourd'hui a pu être actif
-    // il y a un mois ou un an — l'exclure fausserait la comparaison.
+    // Tendance du nombre de dossiers actifs vs le mois précédent (voir calculerEvolutionPortefeuille)
+    // affichée directement à côté du chiffre plutôt qu'en dessous — demandé par l'étude. Sur TOUS
+    // les dossiers (dossiers, pas dossiersActifs) puisqu'un dossier archivé aujourd'hui a pu être
+    // actif il y a un mois — l'exclure fausserait la comparaison. La comparaison à l'année
+    // précédente reste calculée (evolution.ecartAn) mais volontairement pas affichée pour
+    // l'instant, sur demande explicite de l'étude ("ne pas afficher l'option pour l'année pour le
+    // moment") — à réactiver ici le jour où elle le redemande, sans retoucher le calcul.
     const evolution = calculerEvolutionPortefeuille(dossiers);
     const tMois = formaterTendance(evolution.ecartMois);
-    const tAn = formaterTendance(evolution.ecartAn);
-    const tendanceActifs = `
-      <div class="kpi-tendances">
-        <span class="kpi-tendance" title="${evolution.actuel} aujourd'hui contre ${evolution.moisDernier} il y a un mois">${tMois.icone}${tMois.texte} vs mois dernier</span>
-        <span class="kpi-tendance" title="${evolution.actuel} aujourd'hui contre ${evolution.anDernier} il y a un an">${tAn.icone}${tAn.texte} vs an dernier</span>
-      </div>`;
+    const tendanceMois = `<span class="kpi-tendance" title="${evolution.actuel} aujourd'hui contre ${evolution.moisDernier} il y a un mois">${tMois.icone}${tMois.texte} vs mois dernier</span>`;
     const tuiles = [
-      ['c-neutre', actifs, actifs > 1 ? 'dossiers actifs' : 'dossier actif', icone('folder', 'kpi-icone'), tendanceActifs],
+      ['c-neutre', actifs, actifs > 1 ? 'dossiers actifs' : 'dossier actif', icone('folder', 'kpi-icone'), tendanceMois],
       ['c-urgent', urgents, 'échéances ≤ 7 jours', iconeCalendrierSeuil(7), ''],
       ['c-urgent', urgents15, 'échéances ≤ 15 jours', iconeCalendrierSeuil(15), ''],
       ['c-pret', manquantes, 'offres de prêts en attente', icone('alert-triangle', 'kpi-icone'), ''],
       ['c-pret', piecesIncompletes, 'dossiers avec pièces manquantes', icone('clipboard', 'kpi-icone'), '']
     ];
-    bloc.innerHTML = tuiles.map(([cls, valeur, libelle, iconeHtml, extra]) =>
-      `<div class="kpi-tile"><div class="kpi-label">${iconeHtml}${libelle}</div><div class="kpi-num ${cls}">${valeur}</div>${extra}</div>`
+    bloc.innerHTML = tuiles.map(([cls, valeur, libelle, iconeHtml, tendance]) =>
+      `<div class="kpi-tile"><div class="kpi-label">${iconeHtml}${libelle}</div><div class="kpi-num-ligne"><span class="kpi-num ${cls}">${valeur}</span>${tendance}</div></div>`
     ).join('');
   }
 
@@ -3209,7 +3208,21 @@
   // Ajoutée avec une clé unique générée ici (pas un index de tableau, contrairement à d.autres) :
   // une pièce personnalisée peut être retirée sans décaler le statut des autres, qui restent
   // repérées par leur propre clé stable plutôt que par leur position dans la liste.
-  function ajouterPiecePersonnalisee(dossierId) {
+  // Recherche un fichier PDF du dossier local déjà relié dont le nom contient le texte donné (sous-
+  // chaîne, insensible à la casse, sur le nom normalisé — voir normaliserNomPourMotif) : utilisée au
+  // moment d'ajouter une pièce personnalisée (voir ajouterPiecePersonnalisee), pour ne pas obliger
+  // l'étude à ressaisir un motifNom qu'elle n'a de toute façon pas les moyens d'écrire elle-même —
+  // le nom qu'elle tape pour la pièce sert directement de motif de recherche.
+  async function chercherFichierParNom(handleDossier, texteRecherche) {
+    const cible = texteRecherche.toLowerCase();
+    const compteur = { n: 0 };
+    for await (const entree of fichiersPdfRecursifs(handleDossier, 0, compteur)) {
+      if (normaliserNomPourMotif(entree.name).toLowerCase().includes(cible)) return entree;
+    }
+    return null;
+  }
+
+  async function ajouterPiecePersonnalisee(dossierId) {
     const d = dossiers.find(x => x.id === dossierId);
     if (!d) return;
     const input = document.getElementById('nouvelle-piece-label');
@@ -3222,6 +3235,30 @@
     ajoutPieceOuvert = false;
     sauvegarder();
     render();
+
+    // Recherche automatique dans le dossier local déjà relié, s'il y en a un — silencieuse si
+    // l'accès n'est pas déjà accordé (queryPermission seul, jamais requestPermission ici : ce
+    // n'est pas le geste dédié à la reconfirmation d'accès, pas la peine d'en déclencher un
+    // nouveau juste pour l'ajout d'une pièce). La pièce reste "à vérifier" dans ce cas, comme
+    // n'importe quelle pièce de la checklist avant liaison/reconfirmation.
+    if (DOSSIER_FS_SUPPORTE && d.dossierLie) {
+      try {
+        const handle = await recupererHandle(dossierId);
+        if (handle && await handle.queryPermission({ mode: 'read' }) === 'granted') {
+          const trouve = await chercherFichierParNom(handle, label);
+          if (trouve) {
+            d.pieces = d.pieces || {};
+            d.pieces[cle] = 'recue';
+            await enregistrerHandle(CLE_HANDLE_PIECE(dossierId, cle), trouve);
+            sauvegarder();
+            render();
+            afficherToast(`Pièce « ${label} » trouvée : ${trouve.name}`, 'OK', null);
+          }
+        }
+      } catch (e) {
+        console.error('Recherche automatique de la pièce personnalisée impossible', e);
+      }
+    }
   }
 
   function supprimerPiecePersonnalisee(dossierId, cle) {

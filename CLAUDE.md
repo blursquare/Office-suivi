@@ -2117,6 +2117,41 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     historique — le bug "NOM / NOM", le style "étiquette finale" sans guillemets...). À reprendre
     dès qu'un exemple de compromis (ou un extrait anonymisé du bloc d'état civil concerné) est
     fourni.
+- **Deux signalements de l'étude ("Certificat alignement et numérotage" ne coche pas les deux
+  pièces ; "Avis de Taxes foncières" jamais validé) revérifiés isolément : déjà corrigés par
+  l'entrée précédente, pas de nouveau correctif nécessaire.** Un script Node ad hoc chargeant
+  `checklistPieces()` telle quelle a confirmé que `certificatAlignement.motifNom` ET
+  `certificatNumerotage.motifNom` matchent tous les deux "Certificat alignement et numérotage.pdf"
+  (et ses variantes underscore/sans accent), et que `avisTaxeFonciere.motifNom` matche "Avis de
+  Taxes foncières.pdf" tel quel — les deux signalements décrivent exactement les cas déjà couverts
+  par le correctif précédent. Le plus probable : l'étude testait encore une copie de l'outil
+  téléchargée avant ce correctif (corriger le code sur `main` ne met pas à jour un fichier déjà
+  ouvert en local — l'étude doit retélécharger `index.html`/`script.js`/`style.css` depuis le dépôt
+  pour recevoir un correctif). À reconfirmer avec l'étude ; si le problème persiste malgré une
+  copie à jour, redemander le nom de fichier EXACT (caractère par caractère, capture d'écran de
+  l'explorateur de fichiers si besoin) plutôt que de retoucher une regex qui teste déjà juste ici.
+- **Tuile "dossier actif" du Tableau de bord : tendance déplacée à côté du chiffre, comparaison à
+  l'année retirée de l'affichage pour l'instant** — demandé par l'étude. `.kpi-num-ligne` (nouveau
+  conteneur flex, remplace le `.kpi-num` nu) regroupe le chiffre et sa tendance sur une seule ligne
+  ("2 ↗ +1 vs mois dernier") plutôt que la tendance sur sa propre ligne en dessous ; les 4 autres
+  tuiles utilisent le même conteneur mais sans second enfant, sans changement visuel pour elles.
+  `evolution.ecartAn` reste calculé par `calculerEvolutionPortefeuille()` (rien retiré du calcul,
+  seulement de l'affichage) : à réafficher facilement le jour où l'étude le redemande, sans
+  retoucher la fonction de calcul elle-même ni ses tests.
+- **Recherche automatique dans le dossier local à l'ajout d'une pièce personnalisée** : demandé par
+  l'étude pour éviter d'avoir à cliquer sur chaque pièce ajoutée pour confirmer manuellement son
+  statut. `ajouterPiecePersonnalisee()` devient asynchrone : une fois la pièce ajoutée à la
+  checklist (immédiat, comme avant), si le dossier est déjà relié à un dossier local ET que l'accès
+  est déjà accordé (`queryPermission` seul — jamais `requestPermission` ici, volontairement : ce
+  n'est pas le geste dédié à la reconfirmation d'accès, inutile d'en déclencher un nouveau juste
+  pour l'ajout d'une pièce), une recherche silencieuse (`chercherFichierParNom()`, nouvelle
+  fonction) parcourt le dossier local à la recherche d'un fichier dont le nom CONTIENT le libellé
+  tapé (simple sous-chaîne insensible à la casse sur le nom normalisé — voir
+  `normaliserNomPourMotif` — pas une regex : l'étude n'a pas à écrire un motif elle-même). Trouvé →
+  la pièce passe directement à "reçue", son handle est mémorisé (`CLE_HANDLE_PIECE`, même mécanisme
+  que les autres pièces) pour rester cliquable/ouvrable, et un toast confirme le fichier trouvé. Pas
+  trouvé → la pièce reste "à vérifier" comme avant cette évolution, sans message d'échec superflu (le
+  cas normal reste "je tape un nom avant même d'avoir le document").
 
 ## Comment tester
 
