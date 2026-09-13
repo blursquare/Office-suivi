@@ -1,0 +1,4 @@
+# Serveur intranet (branche claude/serveur-intranet) — voir server/README.md
+server/node_modules/
+server/data/*.db
+server/.env

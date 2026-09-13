@@ -1,0 +1,15 @@
+{
+  "name": "claire-serveur",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Serveur intranet pour CLAIRE (Registre des échéances) — registre partagé en temps réel, relances email automatiques, flux calendrier webcal. Voir /server/README.md pour le déploiement.",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/index.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "nodemailer": "^10.0.9"
+  }
+}
