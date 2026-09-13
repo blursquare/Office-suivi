@@ -2398,7 +2398,14 @@
     padding: 0;
     margin: -2px 0 4px -2px;
     cursor: pointer;
-    max-width: 100%;
+    /* Réservé pour .tab-suppr (20px + marge, voir juste au-dessus) posée en absolu au même coin :
+       à 100% pleine largeur, le sélecteur recouvrait la croix de suppression sur les tabs
+       Prêt/Acte/Vente préalable une fois qu'elles y sont apparues (voir supprimerDateEcheance) —
+       un clic visant la croix pouvait rouvrir le menu déroulant à la place. Appliqué en
+       permanence plutôt que seulement quand une croix est réellement affichée (pas de sélecteur
+       CSS simple pour cibler ce cas précis depuis un sibling) : la perte de largeur est
+       négligeable pour un libellé aussi court que "Obtention du prêt". */
+    max-width: calc(100% - 26px);
   }
   .tab-select:hover { text-decoration: underline; }
   .tab-select:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }

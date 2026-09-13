@@ -2538,6 +2538,19 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     seul `VEVENT` (`Obtention du prêt`) avec le nom de fichier `rappel_echeance_<nom>.ics` attendu
     (téléchargement intercepté et fichier relu). `npm test` reste vert (132 tests, aucune fonction
     pure modifiée par ce chantier).
+- **Bug corrigé : la croix de suppression d'une date (`.tab-suppr`, voir `supprimerDateEcheance()`
+  plus haut) pouvait se superposer au sélecteur de catégorie (`.tab-select`) sur les tabs Prêt/
+  Acte/Vente préalable**, signalé par l'étude juste après l'introduction de cette croix. Cause :
+  `.tab-select` avait `max-width: 100%` (pleine largeur de la carte) alors que `.tab-suppr` est
+  positionnée en `absolute` dans le même coin haut-droit (`top:6px; right:6px`, 20×20px) — un clic
+  visant la croix pouvait retomber sur le sélecteur (ou l'inverse) selon la longueur du libellé de
+  catégorie affiché ("Signature de l'acte" étant le plus long des trois). `.tab-select` réserve
+  désormais 26px à droite (`max-width: calc(100% - 26px)`), appliqué en permanence plutôt que
+  seulement quand une croix est réellement affichée (pas de sélecteur CSS simple pour cibler ce cas
+  depuis un élément sibling) — perte de largeur négligeable pour des libellés aussi courts. Vérifié
+  par mesure des rectangles réels des deux éléments (Playwright, `getBoundingClientRect`) sur les
+  trois tabs : plus aucun chevauchement, dans les deux thèmes. `npm test` reste vert (132 tests,
+  retouche CSS uniquement).
 
 ## Comment tester
 

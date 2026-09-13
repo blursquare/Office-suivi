@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-13 10:02';
+  const VERSION_APP = '2026-09-13 14:40';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,14 +23,14 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-13 14:40', resume: 'Corrige le chevauchement croix de suppression / sélecteur de catégorie sur les tabs' },
     { version: '2026-09-13 10:02', resume: 'Versionning en heure de Paris ; export .ics limité au prêt, renommé rappel_echeance_...' },
     { version: '2026-09-13 07:56', resume: 'Bouton suppression de date, "+Nouveau dossier" en haut du Suivi (taille mobile alignée)' },
     { version: '2026-09-13 07:44', resume: 'Explications .ics/email déplacées du footer vers une popup après clic' },
     { version: '2026-09-13 06:10', resume: 'Avertissement du simulateur repositionné/simplifié : "Montant à valider avant envoi."' },
     { version: '2026-09-13 06:01', resume: 'Avertissement "barème non audité" en tête du simulateur de frais d’acte' },
     { version: '2026-09-12 21:48', resume: 'Pièce checklist auto-ajoutée si entretien chaudière/PAC/ramonage détecté dans le compromis' },
-    { version: '2026-09-12 21:29', resume: 'Écran "À propos" : version datée à la minute + historique récent' },
-    { version: '2026-09-12 21:19', resume: 'Panneau de diagnostic du dernier parcours du dossier local' }
+    { version: '2026-09-12 21:29', resume: 'Écran "À propos" : version datée à la minute + historique récent' }
   ];
 
   const STORAGE_KEY = 'dossiers';
