@@ -11,7 +11,7 @@
   // deviner ni recopier l'heure d'un commit précédent, et ne pas automatiser via un numéro de
   // commit git : ces 3 fichiers sont utilisés hors de tout dépôt une fois déposés chez l'étude,
   // aucune information git n'est disponible à l'exécution.
-  const VERSION_APP = '2026-09-12 21:48';
+  const VERSION_APP = '2026-09-13 06:01';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,14 +20,14 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-13 06:01', resume: 'Avertissement "barème non audité" en tête du simulateur de frais d’acte' },
     { version: '2026-09-12 21:48', resume: 'Pièce checklist auto-ajoutée si entretien chaudière/PAC/ramonage détecté dans le compromis' },
     { version: '2026-09-12 21:29', resume: 'Écran "À propos" : version datée à la minute + historique récent' },
     { version: '2026-09-12 21:19', resume: 'Panneau de diagnostic du dernier parcours du dossier local' },
     { version: '2026-09-12 20:49', resume: 'Pièce personnalisée enfin retrouvée par "Revérifier"' },
     { version: '2026-09-12 20:39', resume: 'Détection de pièces : accents Unicode NFD (dossiers zippés depuis un Mac)' },
     { version: '2026-09-12 20:28', resume: 'Parcours du dossier local en largeur (bug structurel, plus fiable sur les gros dossiers)' },
-    { version: '2026-09-12 20:07', resume: 'Tendance du nombre de dossiers actifs ; recherche auto à l’ajout d’une pièce' },
-    { version: '2026-09-12 19:40', resume: 'Type de vente "Terrain à bâtir" ; pièces personnalisables par dossier' }
+    { version: '2026-09-12 20:07', resume: 'Tendance du nombre de dossiers actifs ; recherche auto à l’ajout d’une pièce' }
   ];
 
   const STORAGE_KEY = 'dossiers';
@@ -5454,7 +5454,8 @@
       'icon-intro-mail': 'mail',
       'icon-intro-adresse': 'map-pin',
       'icon-nav-calculateur': 'banknote',
-      'icon-apropos': 'info'
+      'icon-apropos': 'info',
+      'icon-calc-warning': 'alert-triangle'
     };
     for (const [id, nom] of Object.entries(cibles)) {
       const el = document.getElementById(id);

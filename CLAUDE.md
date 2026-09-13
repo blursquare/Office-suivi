@@ -2392,6 +2392,29 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     visuellement (Playwright, dossier synthétique avec `piecesEngagementsDetectees`) : les deux
     pièces apparaissent en fin de checklist avec le bon tooltip, le compteur passe de 9 à 11, le
     retrait par la croix fonctionne. `npm test` reste vert (132 tests).
+- **Avertissement "barème non audité" ajouté en tête du simulateur de frais d'acte**, à la demande
+  explicite de l'étude après un avis honnête donné sur l'outil dans son ensemble : le barème/les
+  taux de ce calculateur ont été repris tels quels d'une maquette fournie par l'étude (voir
+  l'entrée "Calculateur de provision..." plus haut) et n'ont jamais été recalculés ni audités
+  indépendamment — un chiffre annoncé à un client à partir de là engage l'étude, pas l'outil.
+  L'ancienne note ("Outil indicatif de provision — vérifier les paramètres...") existait déjà mais
+  reléguée tout en bas de page, dans les notes de règles/références : facile à ne jamais lire, et
+  formulée comme une précaution générique ("vérifiez VOS paramètres") plutôt que comme un avertissement
+  sur la fiabilité du barème lui-même.
+  - `.calc-avertissement` (nouveau bandeau, `index.html`/`style.css`) inséré juste sous le titre de
+    l'onglet, AVANT la grille paramètres/résultat — vu avant tout chiffre, pas après. Icône
+    `alert-triangle` (déjà dans `ICONES`, posée par `initIconesStatiques()`), teinte reprise de
+    `.dl-alerte` (`color-mix(in srgb, var(--urgent) ...)`, le seul autre endroit de l'outil qui
+    garde un fond plein pour un signal volontairement voyant) plutôt qu'une couleur inventée pour
+    l'occasion.
+  - Texte explicite sur l'ORIGINE du barème (repris tel quel d'un document fourni, sans
+    vérification indépendante) et sur la conséquence pratique (estimation de travail, à faire
+    valider par un professionnel avant toute communication à un client ou émission d'appel de
+    fonds) — pas une simple reformulation de la note existante, qui reste en place dans les notes
+    du bas comme rappel court.
+  - Vérifié visuellement (Playwright, clair et sombre) : bandeau bien positionné en tête d'onglet,
+    lisible dans les deux thèmes. `npm test` reste vert (132 tests, aucune fonction pure ajoutée —
+    uniquement de l'affichage).
 
 ## Comment tester
 
