@@ -2507,6 +2507,37 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     après clic sur chacun des deux boutons, fermeture par "Compris" fonctionnelle, footer confirmé
     sans plus aucune mention `.ics`/Email (`textContent` vérifié). `npm test` reste vert (132 tests,
     aucune fonction pure ajoutée — uniquement de l'affichage).
+- **Versionning en heure de Paris, export `.ics` limité au prêt, avertissement du simulateur encore
+  redéplacé**, trois retouches indépendantes demandées par l'étude :
+  - **`VERSION_APP`/`HISTORIQUE_VERSIONS` en heure de Paris**, pas l'heure du shell de
+    développement (UTC par défaut ici, décalée d'1h ou 2h selon l'heure d'été/hiver) — voir la
+    procédure mise à jour dans "Ce qui reste ouvert" plus bas (`TZ='Europe/Paris' date ...`).
+  - **`telechargerICS()` n'exporte plus que la date d'obtention du prêt**, demandé explicitement —
+    les événements Signature de l'acte/Vente préalable/échéances personnalisées, générés jusqu'ici
+    dans le même fichier, sont retirés de `body` (seul `buildEvent(... d.pret ...)` reste). Un
+    garde-fou a été ajouté en tête de la fonction : si `d.pret` est vide (sans prêt, ou date
+    supprimée — voir `supprimerDateEcheance()` plus haut), un `afficherToast()` l'indique et rien ne
+    se télécharge, plutôt qu'un `.ics` vide (juste l'en-tête `VCALENDAR`, sans `VEVENT`) — même
+    principe que la contrainte n°5 de ce document sur les messages invisibles.
+  - **Nom de fichier passé à `rappel_echeance_<nom du dossier>.ics`** (au lieu de
+    `echeances-<nom du dossier>.ics`), demandé explicitement — la sanitisation du nom (minuscules,
+    caractères spéciaux remplacés par des tirets) reste inchangée, seul le préfixe change.
+  - **Avertissement du simulateur ("Montant à valider avant envoi.") redéplacé une troisième fois** :
+    après le premier essai en tête d'onglet (texte détaillé) puis le second au-dessus de "Régime
+    appliqué" (voir son historique plus haut), l'étude a demandé de le placer sous "Paramètres de
+    l'acquisition" — la carte de gauche, celle du formulaire de saisie. Déplacé comme 3ᵉ enfant de
+    `.dash-grid` (grille CSS 2 colonnes `1.3fr 1fr`, déjà en place), juste après la fermeture de la
+    carte "Résultat de la provision" : la mise en page automatique de la grille (remplissage
+    ligne par ligne, 2 colonnes déjà occupées par les deux cartes de la 1ère ligne) le fait
+    naturellement retomber en 2ᵉ ligne, 1ʳᵉ colonne — sous "Paramètres de l'acquisition" et non sous
+    "Résultat de la provision" — sans le moindre `grid-column` explicite à écrire. Reste donc à la
+    largeur de cette colonne (pas pleine largeur), cohérent avec "sous CE module" plutôt qu'un
+    bandeau general repris à l'identique.
+  - Vérifié visuellement (Playwright, clair et sombre) : bandeau bien positionné sous "Paramètres de
+    l'acquisition" dans les deux thèmes ; export `.ics` d'un dossier synthétique confirmé limité à un
+    seul `VEVENT` (`Obtention du prêt`) avec le nom de fichier `rappel_echeance_<nom>.ics` attendu
+    (téléchargement intercepté et fichier relu). `npm test` reste vert (132 tests, aucune fonction
+    pure modifiée par ce chantier).
 
 ## Comment tester
 
@@ -2534,7 +2565,10 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
 
 - **Ne pas oublier de mettre à jour `VERSION_APP` ET `HISTORIQUE_VERSIONS`** (tout en haut de
   `script.js`, format `AAAA-MM-JJ HH:MM` — voir leur historique ci-dessus) à CHAQUE commit qui
-  change le comportement de l'outil, avec l'heure réelle (`date '+%Y-%m-%d %H:%M'`) : affichés dans
+  change le comportement de l'outil, avec l'heure réelle **en heure de Paris** (demandé
+  explicitement par l'étude) : `TZ='Europe/Paris' date '+%Y-%m-%d %H:%M'` en shell, jamais `date`
+  seul (l'environnement de développement tourne par défaut en UTC, décalé d'1h ou 2h selon l'heure
+  d'été/hiver — utiliser `date` seul afficherait une heure fausse pour l'étude). Affichés dans
   l'écran "À propos", c'est actuellement le seul moyen pour l'étude de vérifier qu'elle a bien la
   dernière copie (et de voir CE QUI a changé) avant de resignaler un bug déjà corrigé.
 - Deux autres idées côté identité de marque, proposées en même temps que l'écran "À propos" mais

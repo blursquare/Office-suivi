@@ -505,15 +505,17 @@
         <tr><td><strong>Total provisionnel</strong></td><td id="calc-total2"></td></tr>
       </table>
     </div>
-  </div>
 
-  <!-- Repositionné juste au-dessus de "Régime appliqué" et simplifié à la demande de l'étude
-       (un premier essai en tête d'onglet, plus détaillé, jugé trop lourd) : un rappel court plutôt
-       qu'une explication complète de l'origine du barème (celle-ci reste dans "Règles et
-       références" juste en dessous). -->
-  <div class="calc-avertissement">
-    <span id="icon-calc-warning" aria-hidden="true"></span>
-    <span><strong>Montant à valider avant envoi.</strong></span>
+    <!-- Repositionné sous "Paramètres de l'acquisition" à la demande de l'étude (deux essais
+         précédents : en tête d'onglet avec un texte détaillé, puis au-dessus de "Régime appliqué"
+         en pleine largeur — tous deux jugés mal placés). Placé ici comme 3e enfant de .dash-grid
+         (grille 2 colonnes, voir style.css) : la mise en page automatique de la grille le fait
+         retomber sous la 1ère colonne (Paramètres) plutôt que sous la 2e (Résultat), sans avoir
+         besoin d'un `grid-column` explicite. -->
+    <div class="calc-avertissement">
+      <span id="icon-calc-warning" aria-hidden="true"></span>
+      <span><strong>Montant à valider avant envoi.</strong></span>
+    </div>
   </div>
 
   <div class="calc-card calc-card-notes">

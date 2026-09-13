@@ -7,11 +7,14 @@
   // Format DATE + HEURE (pas seulement la date) : plusieurs versions peuvent se succéder dans la
   // même journée (plusieurs corrections l'une après l'autre) — une simple date ne permettrait pas
   // de les distinguer. À METTRE À JOUR MANUELLEMENT à chaque commit qui modifie le comportement de
-  // l'outil, avec l'heure RÉELLE au moment du commit (`date '+%Y-%m-%d %H:%M'` en shell) — ne PAS
-  // deviner ni recopier l'heure d'un commit précédent, et ne pas automatiser via un numéro de
-  // commit git : ces 3 fichiers sont utilisés hors de tout dépôt une fois déposés chez l'étude,
-  // aucune information git n'est disponible à l'exécution.
-  const VERSION_APP = '2026-09-13 07:56';
+  // l'outil, avec l'heure RÉELLE au moment du commit, **en heure de Paris** (celle de l'étude) —
+  // demandé explicitement, l'environnement de développement tournant par défaut en UTC. Utiliser
+  // `TZ='Europe/Paris' date '+%Y-%m-%d %H:%M'` en shell (jamais `date` seul, qui rendrait l'heure
+  // UTC — décalée d'1h ou 2h selon l'heure d'été/hiver) — ne PAS deviner ni recopier l'heure d'un
+  // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
+  // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
+  // disponible à l'exécution.
+  const VERSION_APP = '2026-09-13 10:02';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,14 +23,14 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-13 10:02', resume: 'Versionning en heure de Paris ; export .ics limité au prêt, renommé rappel_echeance_...' },
     { version: '2026-09-13 07:56', resume: 'Bouton suppression de date, "+Nouveau dossier" en haut du Suivi (taille mobile alignée)' },
     { version: '2026-09-13 07:44', resume: 'Explications .ics/email déplacées du footer vers une popup après clic' },
     { version: '2026-09-13 06:10', resume: 'Avertissement du simulateur repositionné/simplifié : "Montant à valider avant envoi."' },
     { version: '2026-09-13 06:01', resume: 'Avertissement "barème non audité" en tête du simulateur de frais d’acte' },
     { version: '2026-09-12 21:48', resume: 'Pièce checklist auto-ajoutée si entretien chaudière/PAC/ramonage détecté dans le compromis' },
     { version: '2026-09-12 21:29', resume: 'Écran "À propos" : version datée à la minute + historique récent' },
-    { version: '2026-09-12 21:19', resume: 'Panneau de diagnostic du dernier parcours du dossier local' },
-    { version: '2026-09-12 20:49', resume: 'Pièce personnalisée enfin retrouvée par "Revérifier"' }
+    { version: '2026-09-12 21:19', resume: 'Panneau de diagnostic du dernier parcours du dossier local' }
   ];
 
   const STORAGE_KEY = 'dossiers';
@@ -3860,18 +3863,23 @@
     return parties.length > 1 ? parties[1].trim() : nomDossier;
   }
 
+  // Limité à la seule date d'obtention du prêt (demandé explicitement par l'étude) : les autres
+  // échéances (acte, vente préalable, personnalisées) n'y figurent plus, contrairement à la
+  // première version de cet export qui générait un événement par échéance active du dossier.
   function telechargerICS(id) {
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
+    // Plus rien à exporter pour ce dossier (sans prêt, ou date de prêt supprimée/jamais
+    // renseignée) : un .ics vide (juste l'en-tête VCALENDAR, sans VEVENT) serait un échec
+    // silencieux — voir la contrainte n°5 de CLAUDE.md sur les messages invisibles.
+    if (!d.pret) {
+      afficherToast("Aucune date d'obtention du prêt renseignée pour ce dossier : rien à exporter.", 'OK', null);
+      return;
+    }
     const nomAcquereur = extraireNomAcquereur(d.nom);
     const suffixeTitre = ` — ${nomAcquereur} - Dossier ${d.nom}`;
     let body = 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Registre des echeances//FR\r\nCALSCALE:GREGORIAN\r\n';
     body += buildEvent(d.id + '-pret', `Obtention du prêt${suffixeTitre}`, d.pret, d.reminderDays);
-    body += buildEvent(d.id + '-acte', `Signature de l'acte${suffixeTitre}`, d.acte, d.reminderDays);
-    body += buildEvent(d.id + '-ventebien', `Vente préalable${suffixeTitre}`, d.ventebien, d.reminderDays);
-    (d.autres || []).forEach((a, i) => {
-      body += buildEvent(d.id + '-autre' + i, `${a.label}${suffixeTitre}`, a.date, d.reminderDays);
-    });
     body += 'END:VCALENDAR\r\n';
 
     const blob = new Blob([body], { type: 'text/calendar;charset=utf-8' });
@@ -3879,14 +3887,15 @@
     const a = document.createElement('a');
     const safeName = d.nom.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
     a.href = url;
-    a.download = `echeances-${safeName || 'dossier'}.ics`;
+    // Format demandé par l'étude : rappel_echeance_<nom du dossier>.ics.
+    a.download = `rappel_echeance_${safeName || 'dossier'}.ics`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     afficherInfoAction(
       'Fichier .ics téléchargé',
-      "À importer dans Outlook (ou votre agenda) : il crée un événement par échéance, avec ses rappels."
+      "À importer dans Outlook (ou votre agenda) : il crée un événement pour l'obtention du prêt, avec ses rappels."
     );
   }
 
