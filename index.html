@@ -427,7 +427,6 @@
   </div>
 
   <footer class="note">
-    <strong>.ics</strong> : fichier à importer dans Outlook, qui crée un événement par échéance avec ses rappels. <strong>Email</strong> : ouvre un brouillon pré-rempli dans votre messagerie.<br>
     Seul le compromis est analysé, sans ses annexes. Le PDF reste sur votre poste, rien n'est envoyé sur internet.<br>
     <strong>Toute date détectée automatiquement doit être vérifiée</strong>, en particulier si elle est signalée « estimée ».
   </footer>
@@ -606,6 +605,21 @@
     </p>
     <div class="confirm-actions">
       <button type="button" class="btn-annuler" onclick="fermerAPropos()">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Popup générique affichée juste après un clic sur "Rappels (.ics)" ou "Rappel email" (voir
+     telechargerICS()/ouvrirEmailRappel() dans script.js) : confirme que l'action a bien eu lieu et
+     rappelle en une phrase à quoi sert le fichier/brouillon obtenu. Remplace l'ancien texte fixe du
+     footer (visible en permanence, souvent ignoré) par un rappel qui n'apparaît qu'au moment où il
+     est utile. -->
+<div class="confirm-overlay" id="info-action-overlay" style="display:none;" onclick="fermerInfoAction()">
+  <div class="confirm-box" onclick="event.stopPropagation()">
+    <p><strong id="info-action-titre"></strong></p>
+    <p id="info-action-message"></p>
+    <div class="confirm-actions">
+      <button type="button" class="btn-annuler" onclick="fermerInfoAction()">Compris</button>
     </div>
   </div>
 </div>

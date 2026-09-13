@@ -2440,6 +2440,27 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
   Cette protection ne s'applique que si l'étude a explicitement cliqué une fois sur "Registre
   partagé (réseau)" pour le lier à un fichier du NAS — pas automatique par le seul fait que les
   fichiers `index.html`/`script.js`/`style.css` sont eux-mêmes déposés sur un partage réseau.
+- **Explications sur `.ics`/email déplacées du footer vers une popup post-clic**, demandé par
+  l'étude : le footer expliquait en permanence, sur toutes les pages, à quoi servent les boutons
+  "Rappels (.ics)" et "Rappel email" — une information rarement lue puisque affichée en dehors de
+  tout geste précis, plutôt qu'au moment où elle est utile.
+  - Nouvelle popup générique `#info-action-overlay` (`afficherInfoAction(titre, message)` /
+    `fermerInfoAction()` dans `script.js`), réutilisant le patron `.confirm-overlay`/`.confirm-box`
+    déjà en place (comme `#apropos-overlay`) plutôt qu'un second système de fenêtre modale — un
+    titre en gras, un message, un seul bouton "Compris" (pas de second bouton : l'action a déjà eu
+    lieu, ce n'est pas une confirmation à valider avant coup comme `demanderConfirmation()`).
+  - Appelée en fin de `telechargerICS()` ("À importer dans Outlook (ou votre agenda) : il crée un
+    événement par échéance, avec ses rappels.") et de `ouvrirEmailRappel()` ("L'envoi final reste
+    un clic manuel dans votre messagerie : rien n'est envoyé automatiquement.") — le texte reprend
+    presque mot pour mot l'ancien texte du footer, seul son emplacement change.
+  - Le footer ne garde que les deux lignes sans rapport (confidentialité du PDF analysé, fiabilité
+    des dates détectées) — la ligne `.ics`/Email est entièrement retirée.
+  - Ajoutée en tête du gestionnaire Échap (avant même "À propos") : cette popup s'ouvre par un clic
+    depuis le tiroir de fiche dossier, donc au-dessus de lui dans l'ordre de superposition visuelle.
+  - Vérifié visuellement (Playwright, clair et sombre) : popup correctement positionnée et stylée
+    après clic sur chacun des deux boutons, fermeture par "Compris" fonctionnelle, footer confirmé
+    sans plus aucune mention `.ics`/Email (`textContent` vérifié). `npm test` reste vert (132 tests,
+    aucune fonction pure ajoutée — uniquement de l'affichage).
 
 ## Comment tester
 
