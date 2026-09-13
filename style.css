@@ -402,6 +402,25 @@
     pointer-events: none;
   }
 
+  /* Petit badge signalant que l'outil est encore en version alpha — demandé par l'étude.
+     Positionné en absolu (.sidebar est déjà "position: sticky", donc déjà un conteneur de
+     positionnement pour ses descendants absolus, sans avoir besoin d'un position:relative en
+     plus) plutôt qu'inséré dans le flux, pour ne jamais pousser le logo/la tagline en dessous. */
+  .sidebar-alpha-badge {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 20px;
+    background: color-mix(in srgb, var(--focus) 15%, var(--paper-card));
+    border: 1px solid color-mix(in srgb, var(--focus) 40%, transparent);
+    color: var(--focus);
+    cursor: help;
+  }
   .sidebar-brand {
     display: flex;
     align-items: center;
@@ -731,20 +750,29 @@
      (color-mix sur --urgent, le seul cas de l'outil qui garde un fond plein pour un signal
      volontairement voyant) plutôt qu'une couleur inventée pour l'occasion. Une ligne courte :
      alignement centré, pas flex-start (pensé à l'origine pour un paragraphe sur plusieurs lignes). */
-  .calc-avertissement {
+  /* Petit label d'avertissement à côté du titre de la page (4e emplacement essayé pour ce message,
+     voir son historique dans CLAUDE.md) — un badge discret plutôt qu'un bandeau pleine largeur. */
+  .dash-titre-ligne {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 10px 14px;
-    margin-bottom: 18px;
-    background: color-mix(in srgb, var(--urgent) 10%, var(--paper-card));
-    border: 1px solid color-mix(in srgb, var(--urgent) 35%, transparent);
-    border-radius: 8px;
-    font-size: 13px;
-    color: var(--ink);
+    gap: 10px;
+    flex-wrap: wrap;
   }
-  .calc-avertissement .icone { color: var(--urgent); flex: none; margin-top: 2px; }
-  .calc-avertissement strong { color: var(--urgent); }
+  .calc-warning-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: color-mix(in srgb, var(--urgent) 12%, var(--paper-card));
+    border: 1px solid color-mix(in srgb, var(--urgent) 35%, transparent);
+    color: var(--urgent);
+    white-space: nowrap;
+    cursor: help;
+  }
+  .calc-warning-label .icone { width: 12px; height: 12px; flex: none; }
   .calc-card-notes { font-size: 13px; }
   .calc-card-notes p { margin: 0 0 10px; }
   .calc-card-notes p:last-child { margin-bottom: 0; }
@@ -1360,6 +1388,32 @@
     padding: 0;
   }
   button.piece-label { cursor: pointer; }
+  /* Pièce personnalisée : .piece-label redevient un simple <span> conteneur (comme .piece-item
+     lui-même) autour de DEUX <button> distincts — l'icône change le statut, le texte ouvre le
+     fichier trouvé une fois reçue (voir renderPiecesDossier). Jamais un <button> imbriqué dans un
+     autre, même piège déjà documenté pour .piece-item/.piece-suppr. */
+  .piece-icone-btn {
+    display: inline-flex;
+    align-items: center;
+    background: none;
+    border: none;
+    font: inherit;
+    color: inherit;
+    padding: 0;
+    cursor: pointer;
+    border-radius: 3px;
+  }
+  .piece-icone-btn:hover { background: var(--paper-sunk); }
+  .piece-texte-btn {
+    background: none;
+    border: none;
+    font: inherit;
+    color: inherit;
+    padding: 0;
+    cursor: pointer;
+    text-align: left;
+  }
+  .piece-texte-btn:hover { text-decoration: underline; }
   .piece-item.recue { border-color: var(--success); color: var(--ink); }
   .piece-item.recue:hover { background: var(--success-bg); }
   .piece-item.recue .piece-icone { color: var(--success); }
@@ -1800,6 +1854,16 @@
     .list-heading-nouveau { width: 100%; }
     .toolbar-recherche { width: 100%; }
     .toolbar-recherche input { width: 100%; max-width: none; }
+  }
+
+  /* Même traitement pour le Tableau de bord, demandé à la suite du Suivi ci-dessus : le champ de
+     recherche et le bouton "+ Nouveau dossier" passent tous deux en pleine largeur, empilés plutôt
+     que côte à côte (déjà le cas dès 1300px, voir plus haut, mais encore côte à côte à cette
+     largeur-là — ici les deux s'étirent chacun sur toute la largeur disponible). */
+  @media (max-width: 900px) {
+    .dash-header-actions { flex-direction: column; align-items: stretch; width: 100%; }
+    .dash-recherche { width: 100%; flex: none; max-width: none; }
+    .dash-header-nouveau { width: 100%; }
   }
 
   .toolbar-btn {
@@ -2389,29 +2453,62 @@
     margin-bottom: 4px;
   }
 
-  .tab-select {
-    font-family: inherit;
-    font-size: 12.5px;
-    font-weight: 600;
-    border: none;
-    background: transparent;
-    padding: 0;
+  /* Titre statique + petite flèche de changement de catégorie, à côté l'un de l'autre — voir
+     renderTab(). Remplace l'ancien .tab-select (le titre entier cliquable comme un menu
+     déroulant, sans rien qui l'indique visuellement avant d'y cliquer). */
+  .tab-titre-ligne {
+    display: flex;
+    align-items: center;
+    gap: 4px;
     margin: -2px 0 4px -2px;
-    cursor: pointer;
-    /* Réservé pour .tab-suppr (20px + marge, voir juste au-dessus) posée en absolu au même coin :
-       à 100% pleine largeur, le sélecteur recouvrait la croix de suppression sur les tabs
-       Prêt/Acte/Vente préalable une fois qu'elles y sont apparues (voir supprimerDateEcheance) —
-       un clic visant la croix pouvait rouvrir le menu déroulant à la place. Appliqué en
-       permanence plutôt que seulement quand une croix est réellement affichée (pas de sélecteur
-       CSS simple pour cibler ce cas précis depuis un sibling) : la perte de largeur est
-       négligeable pour un libellé aussi court que "Obtention du prêt". */
+    /* Même réserve que l'ancien .tab-select : ne pas passer sous .tab-suppr (voir plus haut),
+       posée en absolu dans le même coin haut-droit de la carte dès qu'une date est renseignée. */
     max-width: calc(100% - 26px);
   }
-  .tab-select:hover { text-decoration: underline; }
-  .tab-select:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-  .tab.pret .tab-select { color: var(--pret); }
-  .tab.acte .tab-select { color: var(--acte); }
-  .tab.ventebien .tab-select { color: var(--ventebien); }
+  .tab-titre-ligne .tab-name {
+    font-size: 12.5px;
+    font-weight: 600;
+    margin: 0;
+    color: var(--ink-soft);
+  }
+  .tab.pret .tab-titre-ligne .tab-name { color: var(--pret); }
+  .tab.acte .tab-titre-ligne .tab-name { color: var(--acte); }
+  .tab.ventebien .tab-titre-ligne .tab-name { color: var(--ventebien); }
+  .tab-select-icone-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    flex: none;
+    border-radius: 4px;
+  }
+  .tab-select-icone-wrap:hover { background: var(--paper-sunk); }
+  /* Le <select> natif reste le seul élément cliquable (fonctionnellement identique à l'ancien
+     .tab-select), rendu invisible et étiré sur toute la puce ; la flèche visible juste en dessous
+     (.tab-select-icone-chevron) est purement décorative (pointer-events: none). */
+  .tab-select-icone {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    border: none;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+  }
+  .tab-select-icone-chevron {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    color: var(--muted);
+  }
+  .tab-select-icone-chevron .icone { width: 11px; height: 11px; }
+  .tab-select-icone-wrap:hover .tab-select-icone-chevron,
+  .tab-select-icone:focus-visible ~ .tab-select-icone-chevron { color: var(--focus); }
 
   .tab .tab-date {
     font-size: 14.5px;
@@ -2658,7 +2755,7 @@
     .tab { border: 1px solid #999; margin-bottom: 6pt; padding: 6pt; background: #fff !important; }
     .historique-liste { display: block !important; }
     .analyse-juridique { background: #fff; border: 1px solid #999; }
-    .icon-btn, .tab-select, .icon-crayon, .icon-valider, .nom-edition, .tab-date-edition, .select-classif, .tab-suppr, .ajout-echeance-btn, .ajout-echeance-form, .piece-suppr, .ajout-piece-btn, .ajout-piece-form, .diagnostic-parcours { display: none !important; }
+    .icon-btn, .tab-select-icone-wrap, .icon-crayon, .icon-valider, .nom-edition, .tab-date-edition, .select-classif, .tab-suppr, .ajout-echeance-btn, .ajout-echeance-form, .piece-suppr, .ajout-piece-btn, .ajout-piece-form, .diagnostic-parcours { display: none !important; }
   }
 
   .analyse-repliable > summary {

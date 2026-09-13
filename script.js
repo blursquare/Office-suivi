@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-13 14:40';
+  const VERSION_APP = '2026-09-13 19:22';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,14 +23,14 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-13 19:22', resume: 'Sélecteur de catégorie en petite flèche, bouton "Ouvrir le compromis", recherche sans accents, pièce perso icône/texte, warning simulateur près du titre, badge Alpha' },
     { version: '2026-09-13 14:40', resume: 'Corrige le chevauchement croix de suppression / sélecteur de catégorie sur les tabs' },
     { version: '2026-09-13 10:02', resume: 'Versionning en heure de Paris ; export .ics limité au prêt, renommé rappel_echeance_...' },
     { version: '2026-09-13 07:56', resume: 'Bouton suppression de date, "+Nouveau dossier" en haut du Suivi (taille mobile alignée)' },
     { version: '2026-09-13 07:44', resume: 'Explications .ics/email déplacées du footer vers une popup après clic' },
     { version: '2026-09-13 06:10', resume: 'Avertissement du simulateur repositionné/simplifié : "Montant à valider avant envoi."' },
     { version: '2026-09-13 06:01', resume: 'Avertissement "barème non audité" en tête du simulateur de frais d’acte' },
-    { version: '2026-09-12 21:48', resume: 'Pièce checklist auto-ajoutée si entretien chaudière/PAC/ramonage détecté dans le compromis' },
-    { version: '2026-09-12 21:29', resume: 'Écran "À propos" : version datée à la minute + historique récent' }
+    { version: '2026-09-12 21:48', resume: 'Pièce checklist auto-ajoutée si entretien chaudière/PAC/ramonage détecté dans le compromis' }
   ];
 
   const STORAGE_KEY = 'dossiers';
@@ -93,7 +93,8 @@
     x: '<line x1="3.5" y1="3.5" x2="12.5" y2="12.5"/><line x1="12.5" y1="3.5" x2="3.5" y2="12.5"/>',
     'trend-up': '<path d="M2.5 12 6.8 7.7 9.3 10.2 13.5 6"/><path d="M9.5 6h4v4"/>',
     'trend-down': '<path d="M2.5 4 6.8 8.3 9.3 5.8 13.5 10"/><path d="M9.5 10h4v-4"/>',
-    info: '<circle cx="8" cy="8" r="6.2"/><line x1="8" y1="7.2" x2="8" y2="11.3"/><circle cx="8" cy="4.9" r="0.9" fill="currentColor" stroke="none"/>'
+    info: '<circle cx="8" cy="8" r="6.2"/><line x1="8" y1="7.2" x2="8" y2="11.3"/><circle cx="8" cy="4.9" r="0.9" fill="currentColor" stroke="none"/>',
+    'chevron-down': '<path d="M3.5 6 8 10.5 12.5 6"/>'
   };
   // `cls` porte les classes de mise en page (taille via font-size hérité, marge...) ; `spin` anime
   // une rotation continue (voir @keyframes icone-spin) pour les icônes d'attente (ex. "spinner").
@@ -2287,9 +2288,21 @@
   function renderTab(type, label, iso, dossierId, page, confiance, autreIndex, offrePretRecue, offreBloc) {
     // Les tabs Prêt / Acte / Vente d'un dossier enregistré sont recatégorisables au clic ;
     // les échéances "Autre" gardent leur libellé personnalisé (non concerné par ce sélecteur).
+    // Redessiné sur retour de l'étude : le titre est maintenant un texte statique (coloré selon la
+    // catégorie), avec juste une petite flèche à côté pour changer de catégorie — plutôt que le
+    // titre entier comme <select> (ambigu : rien n'indiquait qu'il s'agissait d'un menu déroulant
+    // avant d'y cliquer). Le <select> natif reste fonctionnellement identique (mêmes <option>, même
+    // onchange) mais devient invisible (opacity:0), superposé pile sur la petite flèche
+    // (.tab-select-icone-chevron, pointer-events:none) qui, elle, est purement décorative.
     const recategorisable = dossierId && autreIndex == null && (type === 'pret' || type === 'acte' || type === 'ventebien');
     const enTete = recategorisable
-      ? `<select class="tab-select" onchange="changerCategorie('${dossierId}','${type}', this.value)">${optionsCategorie(type)}</select>`
+      ? `<div class="tab-titre-ligne">
+          <div class="tab-name">${label}</div>
+          <span class="tab-select-icone-wrap" title="Changer la catégorie de cette échéance">
+            <select class="tab-select-icone" onchange="changerCategorie('${dossierId}','${type}', this.value)" aria-label="Changer la catégorie de cette échéance">${optionsCategorie(type)}</select>
+            <span class="tab-select-icone-chevron">${icone('chevron-down')}</span>
+          </span>
+        </div>`
       : `<div class="tab-name">${label}</div>`;
 
     // Petite croix en haut à droite pour retirer une échéance : "autre" passe par
@@ -2725,14 +2738,14 @@
     const input = document.getElementById('recherche-dashboard');
     const bloc = document.getElementById('dash-recherche-resultats');
     if (!input || !bloc) return;
-    const q = (input.value || '').trim().toLowerCase();
+    const q = normaliserPourRecherche(input.value.trim());
     if (!q) {
       bloc.style.display = 'none';
       bloc.innerHTML = '';
       return;
     }
     const resultats = dossiersActifs
-      .filter(d => (d.nom + ' ' + (d.responsable || '')).toLowerCase().includes(q))
+      .filter(d => normaliserPourRecherche(d.nom + ' ' + (d.responsable || '')).includes(q))
       .slice(0, 8);
     bloc.innerHTML = resultats.length === 0
       ? '<div class="dash-recherche-vide">Aucun dossier ne correspond.</div>'
@@ -3061,7 +3074,7 @@
     const count = document.getElementById('dossier-count');
     const voirArchives = document.getElementById('voir-archives').checked;
     const tri = document.getElementById('tri-dossiers').value;
-    const recherche = (document.getElementById('recherche-dossiers').value || '').trim().toLowerCase();
+    const recherche = normaliserPourRecherche(document.getElementById('recherche-dossiers').value.trim());
     const filtreResponsable = document.getElementById('filtre-responsable').value;
     const filtreOffre = document.getElementById('filtre-offre').value;
     const filtreType = document.getElementById('filtre-type').value;
@@ -3093,7 +3106,7 @@
     }
 
     const dossiersAffiches = dossiersVisibles.filter(d => {
-      if (recherche && !(d.nom + ' ' + (d.responsable || '')).toLowerCase().includes(recherche)) return false;
+      if (recherche && !normaliserPourRecherche(d.nom + ' ' + (d.responsable || '')).includes(recherche)) return false;
       if (filtreResponsable && d.responsable !== filtreResponsable) return false;
       if (filtreOffre) {
         if (d.sansPret) return false;
@@ -3272,9 +3285,19 @@
             let contenu;
             if (p.personnalisee) {
               // Aucun motifNom (nom libre saisi par l'étude, pas de détection fiable possible) :
-              // le statut se corrige à la main en cliquant dessus, contrairement aux pièces
-              // standard, détectées automatiquement par leur nom de fichier.
-              contenu = `<button type="button" class="piece-label" title="Pièce ajoutée manuellement — cliquer pour changer le statut" onclick="basculerStatutPiecePersonnalisee('${d.id}', '${p.cle}')"><span class="piece-icone">${s.texte}</span>${escapeHtml(p.label)}</button>`;
+              // le statut se corrige à la main, mais désormais via DEUX zones de clic distinctes
+              // plutôt qu'une seule sur toute la puce (demandé par l'étude) — cliquer sur l'icône
+              // change le statut (basculerStatutPiecePersonnalisee), cliquer sur le texte rouvre
+              // le fichier trouvé (ouvrirPieceTrouvee) une fois la pièce reçue (une recherche
+              // automatique a pu la trouver, voir ajouterPiecePersonnalisee/chercherFichierParNom,
+              // ou "Revérifier les pièces" ensuite) ; tant qu'elle n'est pas reçue, il n'y a pas de
+              // fichier à ouvrir, le texte reste un simple libellé non cliquable.
+              const estRecue = s.cls === 'recue';
+              const iconeBtn = `<button type="button" class="piece-icone-btn" title="Cliquer pour changer le statut" aria-label="Changer le statut de « ${escapeAttr(p.label)} »" onclick="basculerStatutPiecePersonnalisee('${d.id}', '${p.cle}')"><span class="piece-icone">${s.texte}</span></button>`;
+              const texteRendu = estRecue
+                ? `<button type="button" class="piece-texte-btn" title="Cliquer pour ouvrir le fichier trouvé" onclick="ouvrirPieceTrouvee('${d.id}', '${p.cle}')">${escapeHtml(p.label)}</button>`
+                : `<span class="piece-texte">${escapeHtml(p.label)}</span>`;
+              contenu = `<span class="piece-label">${iconeBtn}${texteRendu}</span>`;
             } else if (s.cls === 'recue') {
               // Cliquable pour rouvrir directement le fichier local où la pièce a été trouvée.
               contenu = `<button type="button" class="piece-label" title="Cliquer pour ouvrir le fichier trouvé" onclick="ouvrirPieceTrouvee('${d.id}', '${p.cle}')"><span class="piece-icone">${s.texte}</span>${escapeHtml(p.label)}</button>`;
@@ -3467,11 +3490,20 @@
       const historique = d.historique || [];
       const analyse = d.analyseJuridique || { documents: [], engagements: [], conditions: [] };
       const analyseConditions = analyse.conditions || [];
+      // "Ouvrir le compromis" et "Changer de dossier"/"Lier un dossier local" reprennent tous les
+      // deux le design de "+ Ajouter une pièce" (.action-rapide) — demandé par l'étude, cohérent
+      // avec les autres actions rapides de la fiche (Revérifier...) plutôt que l'ancien style de
+      // lien souligné (.lien-dossier-local, retiré). Voir ouvrirCompromisTrouve() : contrairement
+      // à l'offre/aux pièces, ce document n'est cherché qu'à la demande, pas par
+      // verifierDossierLocal() (le compromis n'est pas une pièce de la checklist).
+      const boutonOuvrirCompromis = DOSSIER_FS_SUPPORTE
+          ? `<button type="button" class="action-rapide" onclick="ouvrirCompromisTrouve('${d.id}', this)" title="Rechercher et ouvrir le PDF du compromis dans le dossier local relié">${icone('file-text')} Ouvrir le compromis</button>`
+          : '';
       const boutonsDossierLocal = DOSSIER_FS_SUPPORTE ? (d.dossierLie
-          ? `<button type="button" class="lien-dossier-local" onclick="changerDossierLocal('${d.id}')">Changer de dossier</button>`
+          ? `<button type="button" class="action-rapide" onclick="changerDossierLocal('${d.id}')">Changer de dossier</button>`
           // Même sans prêt (achat comptant), le dossier local reste nécessaire pour suivre
           // la checklist de pièces (urbanisme...) — voir renderPiecesDossier ci-dessous.
-          : `<button type="button" class="lien-dossier-local" onclick="lierDossierLocal('${d.id}')">${icone('link')} Lier un dossier local</button>`) : '';
+          : `<button type="button" class="action-rapide" onclick="lierDossierLocal('${d.id}')">${icone('link')} Lier un dossier local</button>`) : '';
       // Statut de l'offre sous la date de la carte "Obtention du prêt" (voir renderTab, paramètre
       // offreBloc). Une puce de couleur plutôt qu'une phrase : le décompte juste au-dessus dit déjà
       // "✓ Offre reçue" en toutes lettres, la puce ne fait que confirmer d'un coup d'œil sans
@@ -3517,7 +3549,7 @@
                de ce fichier), sa position dépendait de la longueur du nom — tantôt collée à côté,
                tantôt repoussée à la ligne suivante selon l'espace restant. Signalé par l'étude
                ("se balade"). Ici, toujours au même endroit, quel que soit le nom du dossier. -->
-          ${boutonsDossierLocal ? `<div class="dossier-lien-local-ligne">${boutonsDossierLocal}</div>` : ''}
+          ${boutonsDossierLocal ? `<div class="dossier-lien-local-ligne">${boutonOuvrirCompromis}${boutonsDossierLocal}</div>` : ''}
 
           <div class="dossier-head-divider"></div>
 
@@ -4558,6 +4590,16 @@
     return nom.normalize('NFC').replace(/[_-]+/g, ' ');
   }
 
+  // Pour les champs de recherche de dossier (Suivi, Tableau de bord) : accents et majuscules ne
+  // doivent pas empêcher de retrouver un dossier ("depont" doit trouver "Dupont", "eleonore" doit
+  // trouver "Éléonore") — demandé par l'étude. Sans rapport avec normaliserNomPourMotif() ci-dessus
+  // (qui RECOMPOSE un accent décomposé pour un test de nom de fichier exact, sans jamais le
+  // retirer) : ici on décompose au contraire chaque lettre accentuée (NFD) puis on retire les
+  // diacritiques ainsi isolés, avant de comparer en minuscules.
+  function normaliserPourRecherche(texte) {
+    return (texte || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  }
+
   // Ordre d'affichage = ordre des listes fournies par l'étude : urbanisme (commun aux trois types),
   // puis les pièces propres à la copropriété si applicable, puis le reste, puis les pièces
   // auto-détectées depuis un engagement du compromis (voir PIECES_ENGAGEMENTS_AUTO ci-dessus),
@@ -4647,6 +4689,11 @@
   // reparcourir tout le dossier local. Voir ouvrirPieceTrouvee().
   const CLE_HANDLE_OFFRE = (id) => `${id}::offre`;
   const CLE_HANDLE_PIECE = (id, cle) => `${id}::piece::${cle}`;
+  // Même mécanisme pour le compromis lui-même (voir ouvrirCompromisTrouve()) : contrairement à
+  // l'offre/aux pièces, ce handle n'est jamais rempli par verifierDossierLocal() (le compromis
+  // n'est pas une pièce de la checklist) — seule ouvrirCompromisTrouve() le renseigne, à la
+  // demande, la première fois qu'on clique sur "Ouvrir le compromis".
+  const CLE_HANDLE_COMPROMIS = (id) => `${id}::compromis`;
 
   async function enregistrerHandle(id, handle) {
     handlesEnMemoire[id] = handle;
@@ -4700,6 +4747,10 @@
       // statutDossier).
       d.offrePretStatut = 'inconnu';
       d.montantPret = null;
+      // Le handle du compromis, lui, pointait vers l'ANCIEN dossier local — jamais rescanné
+      // automatiquement (voir ouvrirCompromisTrouve()) : sans ce retrait, "Ouvrir le compromis"
+      // rouvrirait silencieusement un fichier du mauvais dossier après un changement de lien.
+      await enregistrerHandle(CLE_HANDLE_COMPROMIS(id), null);
       if (d.roleNotaire !== 'participant') {
         d.pieces = {};
         checklistPieces(d.typeVente, d).forEach(p => { d.pieces[p.cle] = 'manquante'; });
@@ -5058,6 +5109,46 @@
 
   function ouvrirOffreTrouvee(id) {
     ouvrirFichierTrouve(CLE_HANDLE_OFFRE(id));
+  }
+
+  // "Ouvrir le compromis" : contrairement à l'offre/aux pièces, ce document n'est jamais recherché
+  // par verifierDossierLocal() (ce n'est pas une pièce de la checklist) — son handle n'est donc
+  // rempli qu'à la demande, ici, la première fois qu'on clique sur le bouton. Une fois trouvé, il
+  // est mémorisé (CLE_HANDLE_COMPROMIS) comme les autres documents : un clic suivant l'ouvre
+  // directement, sans reparcourir le dossier local. "promesse" est tenté en repli, faute de
+  // "compromis" dans le nom du fichier — l'outil couvre aussi bien un compromis qu'une promesse
+  // unilatérale de vente (voir RE_ROLE_VENDEUR/RE_ROLE_ACQUEREUR).
+  async function ouvrirCompromisTrouve(dossierId, btn) {
+    const d = dossiers.find(x => x.id === dossierId);
+    if (!d) return;
+    const cle = CLE_HANDLE_COMPROMIS(dossierId);
+    const dejaTrouve = await recupererHandle(cle);
+    if (dejaTrouve) { ouvrirFichierTrouve(cle); return; }
+    if (!DOSSIER_FS_SUPPORTE || !d.dossierLie) {
+      afficherToast('Reliez d’abord un dossier local pour retrouver le compromis.', 'OK', null);
+      return;
+    }
+    const texteOriginal = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.innerHTML = `${icone('spinner', null, true)} Recherche…`; }
+    try {
+      const handleDossier = await recupererHandle(dossierId);
+      if (!handleDossier || await handleDossier.queryPermission({ mode: 'read' }) !== 'granted') {
+        afficherToast('Accès au dossier local à reconfirmer avant de rechercher le compromis.', 'OK', null);
+        return;
+      }
+      const trouve = (await chercherFichierParNom(handleDossier, 'compromis')) || (await chercherFichierParNom(handleDossier, 'promesse'));
+      if (!trouve) {
+        afficherToast('Aucun fichier contenant « compromis » ou « promesse » trouvé dans le dossier local.', 'OK', null);
+        return;
+      }
+      await enregistrerHandle(cle, trouve);
+      ouvrirFichierTrouve(cle);
+    } catch (e) {
+      console.error(e);
+      afficherToast('Recherche du compromis impossible : ' + e.message, 'OK', null);
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = texteOriginal; }
+    }
   }
 
   // Ouvre automatiquement une relance pré-rédigée si l'échéance approche et qu'aucune offre n'a

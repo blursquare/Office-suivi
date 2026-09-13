@@ -20,6 +20,7 @@
   <div class="sidebar-scrim" id="sidebar-scrim" onclick="toggleSidebarMobile(false)"></div>
 
   <aside class="sidebar" id="sidebar">
+    <span class="sidebar-alpha-badge" title="Version alpha : l'outil est encore en évolution active, des ajustements peuvent survenir d'une session à l'autre.">Alpha</span>
     <div class="sidebar-brand">
       <span class="brand-mark" aria-hidden="true">
         <svg width="30" height="30" viewBox="0 0 48 48" fill="none">
@@ -74,7 +75,7 @@
         <input type="search" id="recherche-dashboard" placeholder="Rechercher un dossier ou un responsable…" oninput="render()" autocomplete="off">
         <div class="dash-recherche-resultats" id="dash-recherche-resultats" style="display:none;"></div>
       </div>
-      <button type="button" class="primary" onclick="definirOnglet('nouveau')">+ Nouveau dossier</button>
+      <button type="button" class="primary dash-header-nouveau" onclick="definirOnglet('nouveau')">+ Nouveau dossier</button>
     </div>
   </div>
 
@@ -442,7 +443,17 @@
   <div class="dash-header">
     <div>
       <div class="dash-eyebrow">Frais d'acte</div>
-      <h1 class="dash-titre">Calculateur de provision</h1>
+      <!-- Avertissement "barème non audité" redéplacé une 4e fois, à la demande de l'étude :
+           d'un bandeau pleine largeur (en tête d'onglet, puis au-dessus de "Régime appliqué", puis
+           sous "Paramètres de l'acquisition" — voir CLAUDE.md) à un petit label directement à côté
+           du titre de la page, plus discret qu'un bandeau mais visible dès le premier coup d'œil. -->
+      <div class="dash-titre-ligne">
+        <h1 class="dash-titre">Calculateur de provision</h1>
+        <span class="calc-warning-label" title="Le barème/les taux de ce simulateur sont repris d'un document fourni par l'étude, sans audit indépendant — voir « Régime appliqué » ci-dessous.">
+          <span id="icon-calc-warning" aria-hidden="true"></span>
+          Montant à valider avant envoi
+        </span>
+      </div>
     </div>
   </div>
 
@@ -506,16 +517,6 @@
       </table>
     </div>
 
-    <!-- Repositionné sous "Paramètres de l'acquisition" à la demande de l'étude (deux essais
-         précédents : en tête d'onglet avec un texte détaillé, puis au-dessus de "Régime appliqué"
-         en pleine largeur — tous deux jugés mal placés). Placé ici comme 3e enfant de .dash-grid
-         (grille 2 colonnes, voir style.css) : la mise en page automatique de la grille le fait
-         retomber sous la 1ère colonne (Paramètres) plutôt que sous la 2e (Résultat), sans avoir
-         besoin d'un `grid-column` explicite. -->
-    <div class="calc-avertissement">
-      <span id="icon-calc-warning" aria-hidden="true"></span>
-      <span><strong>Montant à valider avant envoi.</strong></span>
-    </div>
   </div>
 
   <div class="calc-card calc-card-notes">

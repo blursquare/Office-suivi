@@ -2551,6 +2551,81 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
   par mesure des rectangles réels des deux éléments (Playwright, `getBoundingClientRect`) sur les
   trois tabs : plus aucun chevauchement, dans les deux thèmes. `npm test` reste vert (132 tests,
   retouche CSS uniquement).
+- **Série de 7 retouches demandées par l'étude, traitées indépendamment** :
+  - **Sélecteur de catégorie d'une échéance (Prêt/Acte/Vente préalable) : titre statique + petite
+    flèche à côté**, plutôt que le titre entier comme `<select>` déguisé — rien n'indiquait avant
+    ce correctif qu'il s'agissait d'un menu déroulant tant qu'on n'y avait pas cliqué. `renderTab()`
+    construit maintenant `.tab-titre-ligne` (le titre, coloré par catégorie comme avant, +
+    `.tab-select-icone-wrap`) : le `<select>` natif reste fonctionnellement identique (mêmes
+    `<option>`, même `changerCategorie()` au `onchange`) mais devient invisible (`opacity:0`),
+    étiré sur toute la petite zone, avec juste une flèche `chevron-down` (nouvelle icône) décorative
+    superposée (`pointer-events:none`) qui, elle, reste visible et réagit au survol/focus du
+    `<select>` réel via `:focus-visible ~`. `.tab-select` (l'ancienne classe, tout le titre cliquable)
+    est retirée, remplacée par `.tab-titre-ligne`/`.tab-select-icone*` — y compris dans la règle
+    `@media print` qui masquait les contrôles d'édition.
+  - **Bouton "Ouvrir le compromis"**, ajouté juste avant "Changer de dossier"/"Lier un dossier
+    local" sur la fiche : jusqu'ici, une fois le dossier enregistré, il n'existait plus aucun moyen
+    de rouvrir le PDF du compromis lui-même (contrairement à l'offre de prêt/aux pièces, qui
+    gardent leur handle de fichier). `CLE_HANDLE_COMPROMIS(id)` (même famille que
+    `CLE_HANDLE_OFFRE`/`CLE_HANDLE_PIECE`) + `ouvrirCompromisTrouve(dossierId, btn)` : si un handle
+    est déjà mémorisé (un clic précédent l'a déjà trouvé), ouvre directement
+    (`ouvrirFichierTrouve()`, réutilisé tel quel) ; sinon cherche dans le dossier local relié un
+    fichier dont le nom contient "compromis", puis "promesse" en repli
+    (`chercherFichierParNom()`, déjà utilisée pour les pièces personnalisées) — l'outil couvre
+    aussi bien un compromis qu'une promesse unilatérale (voir RE_ROLE_VENDEUR/RE_ROLE_ACQUEREUR).
+    Contrairement à l'offre/aux pièces, ce document n'est JAMAIS recherché par
+    `verifierDossierLocal()` (ce n'est pas une pièce de la checklist) : la recherche n'a lieu qu'à
+    la demande, au clic. Le handle est explicitement effacé (`enregistrerHandle(cle, null)`) dans
+    `lierDossierLocal()` à chaque (re)liaison — sans quoi, après un changement de dossier local, le
+    bouton aurait rouvert silencieusement un fichier de l'ANCIEN dossier. **Ce bouton et
+    "Changer de dossier"/"Lier un dossier local" reprennent tous les deux le design de
+    "+ Ajouter une pièce"** (`.action-rapide`, demandé explicitement) : l'ancienne classe
+    `.lien-dossier-local` (lien souligné) reste utilisée ailleurs sur la fiche (Revérifier l'offre,
+    reconfirmer l'accès), non concernée par ce changement de style.
+  - **Recherche insensible aux accents/majuscules** (`#recherche-dossiers` dans le Suivi,
+    `#recherche-dashboard` sur le Tableau de bord) : nouvelle fonction `normaliserPourRecherche()`
+    (décompose en NFD puis retire les diacritiques isolés, avant de comparer en minuscules) —
+    distincte de `normaliserNomPourMotif()` (qui RECOMPOSE en NFC pour un test de nom de fichier
+    exact, sans jamais retirer un accent). Appliquée à la fois à la saisie et au texte comparé
+    (nom + responsable) dans `render()` et `renderRechercheDashboard()` : "depont" retrouve
+    désormais "DÉPONT" aussi bien que "Dupont".
+  - **Pièce personnalisée : icône et texte cliquables indépendamment.** Avant ce correctif, toute
+    la puce (`.piece-label`, un seul `<button>`) changeait le statut au clic, quel que soit
+    l'endroit cliqué — aucun moyen de rouvrir un fichier déjà retrouvé (par la recherche
+    automatique à l'ajout, voir son historique plus haut, ou par "Revérifier les pièces" ensuite)
+    sans redescendre par un autre chemin. `renderPiecesDossier()` sépare désormais `.piece-label`
+    (redevenu un simple `<span>` conteneur, comme pour les autres pièces) en deux `<button>`
+    distincts : `.piece-icone-btn` (cycle le statut via `basculerStatutPiecePersonnalisee()`) et
+    soit `.piece-texte-btn` (ouvre le fichier trouvé via `ouvrirPieceTrouvee()`, uniquement si le
+    statut est "reçue") soit un simple `<span class="piece-texte">` sinon (rien à ouvrir tant que la
+    pièce n'est pas reçue). Même principe déjà en place pour `.piece-item`/`.piece-suppr` : deux
+    `<button>` côte à côte, jamais l'un imbriqué dans l'autre.
+  - **Avertissement "barème non audité" du simulateur : 4e repositionnement**, cette fois en petit
+    label à côté du titre plutôt qu'un bandeau pleine largeur (les trois essais précédents — tête
+    d'onglet, au-dessus de "Régime appliqué", sous "Paramètres de l'acquisition" — voir leur
+    historique plus haut). `.calc-avertissement` (bandeau) est retirée, remplacée par
+    `.dash-titre-ligne` (nouveau conteneur flex à côté du `<h1>`) + `.calc-warning-label` (petit
+    badge arrondi ambre/rouge, icône + texte court "Montant à valider avant envoi", le détail complet
+    restant en `title` et dans "Régime appliqué" plus bas).
+  - **Mobile (sous 900px) : recherche + "+ Nouveau dossier" en pleine largeur sur le Tableau de
+    bord**, même traitement que celui déjà en place sur le Suivi (voir son historique) — nouvelle
+    classe `.dash-header-nouveau` sur le bouton (pendant de `.list-heading-nouveau`) et un nouveau
+    bloc `@media (max-width: 900px)` pour `.dash-header-actions`/`.dash-recherche` (colonne, pleine
+    largeur), symétrique de celui du Suivi.
+  - **Badge "Alpha" en haut à droite de la sidebar** (`.sidebar-alpha-badge`), demandé par l'étude
+    pour signaler que l'outil reste en évolution active. Positionné en absolu directement dans
+    `<aside class="sidebar">` (déjà `position: sticky`, donc déjà un conteneur de positionnement
+    pour ses descendants absolus, sans avoir besoin d'un `position: relative` supplémentaire) —
+    n'entre jamais dans le flux, ne pousse jamais le logo/la tagline en dessous.
+  - Vérifié visuellement (Playwright, clair et sombre, desktop et mobile ~400px) : flèche de
+    catégorie fonctionnelle (changement de catégorie confirmé après clic simulé), bouton "Ouvrir le
+    compromis" au design `.action-rapide` bien positionné avant "Changer de dossier", recherche
+    "depont"/"DEPONT" retrouvant bien un dossier nommé "DÉPONT", clic sur l'icône d'une pièce
+    personnalisée confirmé changer uniquement `d.pieces[cle]` (texte inchangé), badge "Alpha"
+    et bandeau mobile Suivi/Tableau de bord conformes dans les deux thèmes. `npm test` reste vert
+    (132 tests, aucune fonction pure testable ajoutée — `normaliserPourRecherche()` est une fonction
+    pure mais appelée uniquement depuis du code DOM non couvert par la suite actuelle, comme les
+    autres fonctions de filtrage de `render()`).
 
 ## Comment tester
 
