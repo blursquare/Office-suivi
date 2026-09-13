@@ -725,22 +725,22 @@
     margin-bottom: 18px;
     box-shadow: var(--shadow-card);
   }
-  /* Avertissement "barème non audité" : en tête d'onglet plutôt que dans les notes du bas (voir
-     index.html) — c'est le point qui engage le plus l'étude sur cet écran, il doit être vu avant
-     tout chiffre, pas après. Même recette de teinte que .dl-alerte (color-mix sur --urgent, le
-     seul cas de l'outil qui garde un fond plein pour un signal volontairement voyant) plutôt
-     qu'une couleur inventée pour l'occasion. */
+  /* Avertissement sur la fiabilité du montant, juste au-dessus de "Régime appliqué" (voir
+     index.html) — un premier essai plus détaillé en tête d'onglet a été jugé trop lourd par
+     l'étude ("plus simple"), remplacé par ce rappel court. Même recette de teinte que .dl-alerte
+     (color-mix sur --urgent, le seul cas de l'outil qui garde un fond plein pour un signal
+     volontairement voyant) plutôt qu'une couleur inventée pour l'occasion. Une ligne courte :
+     alignement centré, pas flex-start (pensé à l'origine pour un paragraphe sur plusieurs lignes). */
   .calc-avertissement {
     display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 12px 16px;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
     margin-bottom: 18px;
     background: color-mix(in srgb, var(--urgent) 10%, var(--paper-card));
     border: 1px solid color-mix(in srgb, var(--urgent) 35%, transparent);
     border-radius: 8px;
     font-size: 13px;
-    line-height: 1.55;
     color: var(--ink);
   }
   .calc-avertissement .icone { color: var(--urgent); flex: none; margin-top: 2px; }

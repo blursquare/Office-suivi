@@ -2401,20 +2401,45 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
   reléguée tout en bas de page, dans les notes de règles/références : facile à ne jamais lire, et
   formulée comme une précaution générique ("vérifiez VOS paramètres") plutôt que comme un avertissement
   sur la fiabilité du barème lui-même.
-  - `.calc-avertissement` (nouveau bandeau, `index.html`/`style.css`) inséré juste sous le titre de
-    l'onglet, AVANT la grille paramètres/résultat — vu avant tout chiffre, pas après. Icône
-    `alert-triangle` (déjà dans `ICONES`, posée par `initIconesStatiques()`), teinte reprise de
-    `.dl-alerte` (`color-mix(in srgb, var(--urgent) ...)`, le seul autre endroit de l'outil qui
-    garde un fond plein pour un signal volontairement voyant) plutôt qu'une couleur inventée pour
-    l'occasion.
-  - Texte explicite sur l'ORIGINE du barème (repris tel quel d'un document fourni, sans
-    vérification indépendante) et sur la conséquence pratique (estimation de travail, à faire
-    valider par un professionnel avant toute communication à un client ou émission d'appel de
-    fonds) — pas une simple reformulation de la note existante, qui reste en place dans les notes
-    du bas comme rappel court.
-  - Vérifié visuellement (Playwright, clair et sombre) : bandeau bien positionné en tête d'onglet,
-    lisible dans les deux thèmes. `npm test` reste vert (132 tests, aucune fonction pure ajoutée —
-    uniquement de l'affichage).
+  - `.calc-avertissement` (nouveau bandeau, `index.html`/`style.css`) inséré au départ juste sous le
+    titre de l'onglet, AVANT la grille paramètres/résultat, avec un texte long expliquant l'origine
+    du barème (repris tel quel d'un document fourni, sans vérification indépendante) et la
+    conséquence pratique (à faire valider par un professionnel avant toute communication à un
+    client). Icône `alert-triangle` (déjà dans `ICONES`, posée par `initIconesStatiques()`), teinte
+    reprise de `.dl-alerte` (`color-mix(in srgb, var(--urgent) ...)`, le seul autre endroit de
+    l'outil qui garde un fond plein pour un signal volontairement voyant) plutôt qu'une couleur
+    inventée pour l'occasion.
+  - **Repositionné et simplifié juste après, sur retour direct de l'étude** ("met un avertissement
+    plus simple et au dessus de régime appliqué") : la première version, en tête d'onglet avec un
+    paragraphe complet, a été jugée trop lourde. Le bandeau est déplacé juste au-dessus de la carte
+    "Régime appliqué" (toujours avant tout chiffre affiché dans cette carte, mais après le résultat
+    principal — ce dernier n'a pas besoin d'un avertissement à côté, seule l'explication du taux
+    appliqué en avait un) et son texte réduit à une seule ligne : "Montant à valider avant envoi."
+    L'explication détaillée de l'origine du barème reste disponible juste en dessous, inchangée,
+    dans "Règles et références". `.calc-avertissement` (CSS) passe de `align-items: flex-start`
+    (pensé pour un paragraphe sur plusieurs lignes) à `center`, avec moins de padding — un message
+    court se centre verticalement avec son icône plutôt que de s'aligner en haut.
+  - Vérifié visuellement (Playwright, clair et sombre) : bandeau bien positionné juste au-dessus de
+    "Régime appliqué", lisible sur une seule ligne dans les deux thèmes. `npm test` reste vert
+    (132 tests, aucune fonction pure ajoutée — uniquement de l'affichage).
+- **Confirmé à l'étude : l'enregistrement automatique du registre et son rechargement au lancement
+  existent déjà**, sur question directe après la remarque "le logiciel est stocké sur un NAS donc
+  au moins c'est plus sûr" — l'étude semblait présumer une protection automatique du seul fait que
+  les fichiers de l'outil sont sur un lecteur réseau, ce qui n'est vrai QUE pour le "Registre
+  partagé (réseau)" (un fichier JSON explicitement lié via `showSaveFilePicker()`), jamais pour
+  `localStorage` (propre à chaque poste/profil Chrome, jamais sur le NAS). Vérification du code,
+  pas de nouveau développement : `sauvegarder()` écrit déjà sur le fichier partagé à chaque
+  modification dès que `registrePartageLie` est vrai (`ecrireRegistrePartage()`) ;
+  `tenterReconnexionPartage()`, appelée dans la séquence d'init au démarrage, relit déjà ce fichier
+  silencieusement (`lireRegistrePartage(false)`, sans redemander de permission tant qu'elle est
+  encore valable) ; un `setInterval` de 2 minutes relit aussi le fichier en continu pour absorber
+  les modifications des collègues. Seule limite réelle, déjà documentée et déjà gérée par l'outil :
+  Chrome ne conserve pas la permission d'accès à un fichier d'une session de navigateur à l'autre —
+  un redémarrage de Chrome peut donc demander UN clic de reconfirmation, couvert par la popup au
+  démarrage et le bouton groupé "Reconfirmer tous les accès" (voir leur historique plus haut).
+  Cette protection ne s'applique que si l'étude a explicitement cliqué une fois sur "Registre
+  partagé (réseau)" pour le lier à un fichier du NAS — pas automatique par le seul fait que les
+  fichiers `index.html`/`script.js`/`style.css` sont eux-mêmes déposés sur un partage réseau.
 
 ## Comment tester
 
