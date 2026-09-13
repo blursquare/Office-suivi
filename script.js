@@ -11,7 +11,7 @@
   // deviner ni recopier l'heure d'un commit précédent, et ne pas automatiser via un numéro de
   // commit git : ces 3 fichiers sont utilisés hors de tout dépôt une fois déposés chez l'étude,
   // aucune information git n'est disponible à l'exécution.
-  const VERSION_APP = '2026-09-13 07:44';
+  const VERSION_APP = '2026-09-13 07:56';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,14 +20,14 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-13 07:56', resume: 'Bouton suppression de date, "+Nouveau dossier" en haut du Suivi (taille mobile alignée)' },
     { version: '2026-09-13 07:44', resume: 'Explications .ics/email déplacées du footer vers une popup après clic' },
     { version: '2026-09-13 06:10', resume: 'Avertissement du simulateur repositionné/simplifié : "Montant à valider avant envoi."' },
     { version: '2026-09-13 06:01', resume: 'Avertissement "barème non audité" en tête du simulateur de frais d’acte' },
     { version: '2026-09-12 21:48', resume: 'Pièce checklist auto-ajoutée si entretien chaudière/PAC/ramonage détecté dans le compromis' },
     { version: '2026-09-12 21:29', resume: 'Écran "À propos" : version datée à la minute + historique récent' },
     { version: '2026-09-12 21:19', resume: 'Panneau de diagnostic du dernier parcours du dossier local' },
-    { version: '2026-09-12 20:49', resume: 'Pièce personnalisée enfin retrouvée par "Revérifier"' },
-    { version: '2026-09-12 20:39', resume: 'Détection de pièces : accents Unicode NFD (dossiers zippés depuis un Mac)' }
+    { version: '2026-09-12 20:49', resume: 'Pièce personnalisée enfin retrouvée par "Revérifier"' }
   ];
 
   const STORAGE_KEY = 'dossiers';
@@ -2289,12 +2289,17 @@
       ? `<select class="tab-select" onchange="changerCategorie('${dossierId}','${type}', this.value)">${optionsCategorie(type)}</select>`
       : `<div class="tab-name">${label}</div>`;
 
-    // Petite croix en haut à droite pour retirer une échéance personnalisée ("autre" uniquement —
-    // Prêt/Acte/Vente préalable ont déjà leur propre mécanisme, voir supprimerEcheanceAutre) :
-    // demandé par l'étude comme pendant du bouton "+ Ajouter une échéance" (renderAjoutEcheance).
+    // Petite croix en haut à droite pour retirer une échéance : "autre" passe par
+    // supprimerEcheanceAutre (retire l'entrée de d.autres) ; Prêt/Acte/Vente préalable, tant qu'une
+    // date y est renseignée, passent par supprimerDateEcheance (vide juste la date — la tab
+    // elle-même n'est jamais retirée du modèle, voir son historique). Avant ce bouton dédié, seul
+    // le crayon (vider le champ date natif puis valider) permettait de l'effacer — peu visible,
+    // demandé par l'étude sous forme d'un vrai bouton de suppression.
     const croixSuppression = (dossierId && autreIndex != null)
       ? `<button type="button" class="tab-suppr" onclick="supprimerEcheanceAutre('${dossierId}', ${autreIndex})" title="Supprimer cette échéance" aria-label="Supprimer cette échéance">${icone('x')}</button>`
-      : '';
+      : (dossierId && autreIndex == null && iso && (type === 'pret' || type === 'acte' || type === 'ventebien'))
+        ? `<button type="button" class="tab-suppr" onclick="supprimerDateEcheance('${dossierId}', '${type}')" title="Supprimer cette date" aria-label="Supprimer cette date">${icone('x')}</button>`
+        : '';
 
     // Retrouve la date dans l'aperçu PDF (uniquement si le PDF encore chargé est bien celui d'origine).
     const boutonVoir = (iso && page && pdfActuel)
@@ -3766,9 +3771,10 @@
   }
 
   // Pendant du bouton "+ Ajouter une échéance" ci-dessus : ne concerne que les échéances
-  // personnalisées (croix visible uniquement sur les tabs "autre", voir renderTab) — Obtention du
-  // prêt/Signature de l'acte/Vente préalable ont déjà leur propre mécanisme (changerCategorie,
-  // cases à cocher à la création) et ne sont pas de simples entrées de liste à retirer.
+  // personnalisées (croix visible uniquement sur les tabs "autre", voir renderTab) — une entrée de
+  // d.autres est réellement retirée du tableau. Obtention du prêt/Signature de l'acte/Vente
+  // préalable ne sont jamais retirées du modèle (voir supprimerDateEcheance juste en dessous, qui
+  // vide seulement leur date).
   function supprimerEcheanceAutre(dossierId, index) {
     const d = dossiers.find(x => x.id === dossierId);
     if (!d || !d.autres || !d.autres[index]) return;
@@ -3776,6 +3782,30 @@
     demanderConfirmation(`Supprimer l'échéance « ${item.label || 'Autre échéance'} » ?`, () => {
       d.autres.splice(index, 1);
       ajouterHistorique(d, `Échéance « ${item.label || 'Autre échéance'} » supprimée`);
+      sauvegarder();
+      render();
+    });
+  }
+
+  // Bouton de suppression dédié pour une date butoir fixe (pret/acte/ventebien), demandé par
+  // l'étude en plus de la correction déjà possible via le crayon (qui permet aussi de vider le
+  // champ date natif puis valider — mais rien n'indiquait que c'était possible, ni ne le
+  // confirmait). Contrairement à supprimerEcheanceAutre, la tab elle-même n'est pas retirée du
+  // modèle : seule sa date repart à vide (déjà le cas d'affichage pour "Non renseigné" sur un
+  // dossier créé sans cette échéance active — voir renderTab).
+  function supprimerDateEcheance(dossierId, type) {
+    const d = dossiers.find(x => x.id === dossierId);
+    if (!d || !d[type]) return;
+    demanderConfirmation(`Supprimer la date « ${LIBELLES_CATEGORIE[type]} » ?`, () => {
+      d[type] = '';
+      d.confiance = d.confiance || {};
+      d.confiance[type] = null;
+      // Supprimer la date de prêt équivaut à "sans prêt" (voir d.sansPret, déjà la seule source de
+      // vérité utilisée partout ailleurs — checklist de pièces, badges, verifierDossierLocal...) :
+      // sans ce basculement, une recherche locale de l'offre aurait continué pour une condition
+      // qui n'est plus suivie sur ce dossier (verifierDossierLocal() teste déjà `!d.sansPret`).
+      if (type === 'pret') d.sansPret = true;
+      ajouterHistorique(d, `« ${LIBELLES_CATEGORIE[type]} » supprimée`);
       sauvegarder();
       render();
     });

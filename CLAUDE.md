@@ -2440,6 +2440,52 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
   Cette protection ne s'applique que si l'étude a explicitement cliqué une fois sur "Registre
   partagé (réseau)" pour le lier à un fichier du NAS — pas automatique par le seul fait que les
   fichiers `index.html`/`script.js`/`style.css` sont eux-mêmes déposés sur un partage réseau.
+- **Série de retouches sur la sidebar mobile, le Suivi et la fiche dossier** :
+  - **Bouton "+ Nouveau dossier" du Suivi de la taille du champ de recherche en mode mobile.**
+    `.list-heading` (titre "Dossiers suivis" + compteur) est désormais un conteneur flex à deux
+    groupes (`.list-heading-titre` regroupant `<h2>`/`.count`, puis le bouton) plutôt que deux
+    enfants directs — nécessaire pour ajouter le bouton comme un troisième élément sans casser
+    `justify-content: space-between`. Sous 900px (même seuil que le repli de la sidebar en burger,
+    voir `@media` existant) : `.list-heading` passe en colonne, le bouton `.list-heading-nouveau`
+    et le champ `.toolbar-recherche input` passent tous deux en pleine largeur — même taille,
+    demandé par l'étude, plutôt qu'un gros bouton à côté d'un champ resté à `max-width: 40vw`.
+    **Piège de cascade CSS à ne pas reproduire** : `.toolbar-recherche input` est déjà défini plus
+    haut dans la feuille (hors media query) — une media query placée AVANT cette règle dans le
+    fichier perdrait face à elle à spécificité égale (le CSS départage par l'ordre du fichier, pas
+    par la position visuelle du `@media`). Le nouveau bloc `@media (max-width: 900px)` a donc été
+    ajouté juste APRÈS `.toolbar-recherche input:focus`, pas regroupé avec l'`@media` existant du
+    repli de sidebar plus haut dans le fichier.
+  - **Bouton "+ Nouveau dossier" ajouté en haut de l'onglet Suivi** (`.list-heading-nouveau`), en
+    plus du CTA permanent de la sidebar et de celui déjà présent sur le Tableau de bord — demandé
+    par l'étude, un raccourci de création directement visible sans changer d'onglet au préalable.
+  - **Bouton de suppression dédié pour une date butoir** (Obtention du prêt / Signature de l'acte /
+    Vente préalable), demandé par l'étude : avant ce correctif, seul le crayon (vider le champ date
+    natif puis valider — `validerEditionDate()` accepte déjà une valeur vide) permettait d'effacer
+    une date, sans qu'aucun bouton ne l'indique ni ne le confirme. `renderTab()` affiche désormais
+    la même croix `.tab-suppr` que les échéances "autre" (déjà existante), mais uniquement quand une
+    date est renseignée sur ces trois tabs (rien à supprimer sinon) ; `supprimerDateEcheance(id,
+    type)` (nouvelle fonction, gardée par `demanderConfirmation()` comme `supprimerEcheanceAutre()`)
+    vide la date et journalise l'action — la tab elle-même n'est jamais retirée du modèle
+    (contrairement à une échéance "autre", qui disparaît du tableau `d.autres`) : elle repasse
+    simplement à "Non renseigné", déjà l'affichage prévu pour un dossier créé sans cette échéance.
+  - **Supprimer la date "Obtention du prêt" bascule automatiquement `d.sansPret` à `true`**, ce qui
+    répond directement à une demande liée de l'étude ("s'il n'y a pas d'obtention d'offre de prêt,
+    ne pas rechercher l'offre en local") : `verifierDossierLocal()` teste déjà exclusivement
+    `!d.sansPret` pour décider de chercher l'offre (`chercherOffre`), et `d.sansPret` est déjà la
+    seule source de vérité utilisée partout ailleurs dans l'outil (badge "Achat comptant", checklist
+    de pièces, `relancerSiOffreManquante()`...) — sans ce basculement dans `supprimerDateEcheance()`,
+    supprimer la date de prêt n'aurait rien changé à ce comportement (`d.sansPret` restait figé à sa
+    valeur de création). Vérifié que le cas était déjà correctement couvert dès la CRÉATION d'un
+    dossier (décocher "Obtention du prêt" dans le wizard pose déjà `sansPret: true`, voir
+    `ajouterDossier()`) : le point resté ouvert ne concernait que la suppression après coup d'une
+    date déjà enregistrée, pas la création elle-même.
+  - Vérifié visuellement (Playwright, clair et sombre, desktop et mobile ~400px) : bouton du Suivi
+    bien positionné et de même taille que le champ de recherche en mobile, croix de suppression
+    visibles sur les trois tabs quand une date existe, confirmation avant suppression, badge "Achat
+    comptant — sans prêt" apparaissant après suppression de la date de prêt (`d.sansPret` confirmé
+    passé à `true` par script). `npm test` reste vert (132 tests, aucune fonction pure testable
+    modifiée par ce chantier — `supprimerDateEcheance()` dépend de `dossiers`, invisible depuis les
+    tests, même limite déjà documentée pour les autres fonctions de mutation de ce fichier).
 - **Explications sur `.ics`/email déplacées du footer vers une popup post-clic**, demandé par
   l'étude : le footer expliquait en permanence, sur toutes les pages, à quoi servent les boutons
   "Rappels (.ics)" et "Rappel email" — une information rarement lue puisque affichée en dehors de

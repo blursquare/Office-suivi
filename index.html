@@ -355,8 +355,13 @@
   <div id="alerte-acces" class="alerte-acces" style="display:none;"></div>
 
   <div class="list-heading">
-    <h2>Dossiers suivis</h2>
-    <span class="count" id="dossier-count"></span>
+    <div class="list-heading-titre">
+      <h2>Dossiers suivis</h2>
+      <span class="count" id="dossier-count"></span>
+    </div>
+    <!-- Raccourci de création directement en haut du Suivi, en plus du CTA permanent de la
+         sidebar et de celui du Tableau de bord — demandé par l'étude. -->
+    <button type="button" class="primary list-heading-nouveau" onclick="definirOnglet('nouveau')">+ Nouveau dossier</button>
   </div>
 
   <div class="list-toolbar">

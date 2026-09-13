@@ -1674,7 +1674,14 @@
     display: flex;
     align-items: baseline;
     justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
     margin-bottom: 14px;
+  }
+  .list-heading-titre {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
   }
   .list-heading h2 {
     font-size: 20px;
@@ -1782,6 +1789,18 @@
     max-width: 40vw;
   }
   .toolbar-recherche input:focus { outline: none; border-color: var(--focus); }
+
+  /* En mode mobile (même seuil que le repli de la sidebar, voir @media 900px plus haut) : le bouton
+     "+ Nouveau dossier" du Suivi passe en pleine largeur, à la taille du champ de recherche juste
+     en dessous (lui aussi étiré en pleine largeur ici, sans quoi les deux resteraient de tailles
+     différentes) — demandé par l'étude, pour que les deux se lisent comme des contrôles de même
+     rang plutôt qu'un gros bouton à côté d'un petit champ étroit (max 40vw en desktop). */
+  @media (max-width: 900px) {
+    .list-heading { flex-direction: column; align-items: stretch; }
+    .list-heading-nouveau { width: 100%; }
+    .toolbar-recherche { width: 100%; }
+    .toolbar-recherche input { width: 100%; max-width: none; }
+  }
 
   .toolbar-btn {
     font-family: inherit;
