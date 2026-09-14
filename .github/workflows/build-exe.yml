@@ -16,6 +16,7 @@ on:
       - 'manifest.json'
       - 'sw.js'
       - 'icone.svg'
+      - '.github/workflows/build-exe.yml'
   workflow_dispatch:
 
 permissions:
