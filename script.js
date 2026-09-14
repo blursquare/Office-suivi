@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-14 17:01';
+  const VERSION_APP = '2026-09-14 17:13';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,14 +23,14 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-14 17:13', resume: 'Détection "Renonciation au droit de préemption" élargie au sigle "DPU" dans le nom de fichier' },
     { version: '2026-09-14 17:01', resume: 'Écran de connexion : espace manquant entre le champ mot de passe et "Se connecter" ; sidebar : Mode sombre et À propos côte à côte' },
     { version: '2026-09-14 16:11', resume: "Serveur : vrai service Windows (NSSM, redémarrage auto) et calendrier connecté (abonnement webcal en lecture seule) — voir server/README.md" },
     { version: '2026-09-14 15:42', resume: "Bug corrigé : apostrophe cassait les boutons pièce (Certificat d'urbanisme...) ; suppression d'un engagement/document possible partout ; \"contrat de crédit/prêt\" reconnu pour l'offre" },
     { version: '2026-09-14 15:06', resume: "Offre de prêt détectée uniquement par nom de fichier (plus de lecture du contenu) ; réinitialiser une pièce reçue à tort" },
     { version: '2026-09-14 07:30', resume: 'Mode serveur intranet (branche claude/serveur-intranet) : registre partagé JSON/localStorage remplacé par un serveur (login, synchro par polling)' },
     { version: '2026-09-13 19:22', resume: 'Sélecteur de catégorie en petite flèche, bouton "Ouvrir le compromis", recherche sans accents, pièce perso icône/texte, warning simulateur près du titre, badge Alpha' },
-    { version: '2026-09-13 14:40', resume: 'Corrige le chevauchement croix de suppression / sélecteur de catégorie sur les tabs' },
-    { version: '2026-09-13 10:02', resume: 'Versionning en heure de Paris ; export .ics limité au prêt, renommé rappel_echeance_...' }
+    { version: '2026-09-13 14:40', resume: 'Corrige le chevauchement croix de suppression / sélecteur de catégorie sur les tabs' }
   ];
 
   const STORAGE_KEY = 'dossiers';
@@ -4773,7 +4773,10 @@
     // Pas de motif de contenu (voir le commentaire structurel ci-dessus) : "préemption" seul
     // apparaît quasi systématiquement dans le corps du compromis (clause sur les conséquences
     // d'un exercice du droit de préemption), sans rapport avec une vraie renonciation obtenue.
-    { cle: 'renonciationPreemption', label: 'Renonciation au droit de préemption', motifNom: /pr[ée]emption/i }
+    // "DPU" (Droit de Préemption Urbain) ajouté : nom de fichier réel de l'étude ("Renonciation au
+    // DPU"), sigle assez spécifique pour être accepté seul (même principe que TF/SPANC/ERP/CU —
+    // voir CLAUDE.md — pas un mot susceptible d'apparaître incidemment ailleurs dans ce contexte).
+    { cle: 'renonciationPreemption', label: 'Renonciation au droit de préemption', motifNom: /pr[ée]emption|\bDPU\b/i }
   ];
   var PIECES_AUTRES = [
     { cle: 'diagnosticsTechniques', label: 'Diagnostics techniques', motifNom: /diagnostics?|\bDDT\b/i },

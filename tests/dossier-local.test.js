@@ -246,7 +246,7 @@ test('motifNom reconnaît le nom de fichier conventionnel de chaque pièce de la
     certificatNumerotage: ['Certificat de numérotage.pdf', "Certificat d'alignement et numérotage.pdf"],
     diagnosticsTechniques: ['Diagnostics.pdf', 'DDT.pdf'],
     reponseAssainissement: ['Rapport assainissement.pdf', 'Courrier assainissement.pdf', 'SPANC.pdf', 'Asainissement.pdf'],
-    renonciationPreemption: ['Renonciation préemption.pdf', 'Réponse préemption mairie.pdf'],
+    renonciationPreemption: ['Renonciation préemption.pdf', 'Réponse préemption mairie.pdf', 'Renonciation au DPU.pdf'],
     erp: ['ERP.pdf', 'État des risques et pollution.pdf'],
     avisTaxeFonciere: ['TF 2024.pdf', 'Taxes foncières.pdf', 'Avis de taxes foncières.pdf'],
     titrePropriete: ['Titre.pdf', 'Titre de propriété.pdf', 'Titre vendeur.pdf'],
