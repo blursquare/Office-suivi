@@ -2627,6 +2627,79 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     pure mais appelée uniquement depuis du code DOM non couvert par la suite actuelle, comme les
     autres fonctions de filtrage de `render()`).
 
+## Mode serveur intranet (branche `claude/serveur-intranet`, distincte de `main`)
+
+Chantier séparé, sur sa propre branche — **`main` reste le mode 100% local décrit dans tout ce
+document ci-dessus, inchangé.** Origine : l'étude a demandé, en discutant des limites du registre
+partagé réseau (voir son historique plus haut — fichier JSON, "dernière sauvegarde gagne") et de
+l'impossibilité d'envoyer un email ou de mettre à jour un calendrier automatiquement (contraintes
+fondamentales n°1 et n°4), d'explorer un vrai serveur hébergé sur un poste du bureau de l'étude
+(réseau local, pas d'hébergement en ligne — ça ne revient pas sur la décision "rester en local"
+de `main`, ce serveur reste strictement interne au réseau de l'étude).
+
+**Décisions prises pour ce chantier** (ne pas les rouvrir sans qu'on le redemande) :
+authentification par un mot de passe partagé unique (pas de compte par collaborateur), remplacement
+complet du registre partagé JSON/`localStorage` (pas de double mode), synchro entre postes par
+sondage périodique plutôt que WebSocket (3 collaborateurs sur un LAN, pas besoin de temps réel
+avec connexion persistante). L'accès Microsoft Graph envisagé un temps pour les relances
+email/calendrier n'a finalement pas été disponible — sans conséquence pratique puisque ces deux
+fonctionnalités n'ont pas été poursuivies (voir plus bas).
+
+**Ce qui a été fait :**
+- **`server/`** (nouveau dossier autonome, son propre `package.json`/`node_modules` — jamais le
+  root `package.json`, qui reste volontairement "zéro dépendance") : un serveur Express +
+  `node:sqlite` (module intégré à Node 22, pas de compilation native — évite d'installer Visual
+  Studio Build Tools sur le poste de l'étude, seul Node.js est nécessaire). Sert lui-même
+  `index.html`/`style.css`/`script.js` (`express.static` sur la racine du dépôt) : un seul port,
+  aucune balise `<link>`/`<script src>` à changer. CRUD complet sur `/api/dossiers`
+  (`server/src/routes/dossiers.js`) avec suppression douce (`deleted_at`, backe le toast "Annuler"
+  existant côté client) et polling par curseur (`GET /api/dossiers?since=<ms>`, le curseur étant
+  un timestamp assigné par le serveur, jamais une horloge cliente). Authentification par mot de
+  passe partagé (`server/src/auth.js`) : jeton opaque en mémoire, comparaison en temps constant,
+  session valable 12h. Voir `server/README.md` pour le démarrage.
+- **`script.js`** : `charger()`/`sauvegarder()` réécrits pour parler à ce serveur via `fetch()`
+  au lieu de `localStorage`. `sauvegarder()` prend maintenant le dossier modifié en paramètre
+  (`sauvegarder(d)`, un `PUT` par dossier) — chaque site d'appel (~22, `changerCategorie`,
+  `archiverDossier`, `supprimerDateEcheance`...) avait déjà `d` en portée juste après l'avoir
+  modifié, retouche mécanique confirmée site par site avant d'être appliquée. `ajouterDossier()`
+  appelle une nouvelle `sauvegarderNouveauDossier(d)` (`POST`) ; `supprimerDossier()`/son "Annuler"
+  passent par `supprimerDossierServeur()`/`restaurerDossierServeur()` (suppression douce +
+  restauration, plus besoin de garder l'objet supprimé côté client pour l'undo). Le mécanisme
+  "registre partagé réseau" (`ecrireRegistrePartage`, `lireRegistrePartage`,
+  `tenterReconnexionPartage`, le bouton correspondant dans la toolbar du Suivi...) est
+  entièrement retiré : le serveur est toujours la source de vérité, plus de geste de liaison à un
+  fichier. Nouvel écran de connexion (`#connexion-overlay`, clone du patron `.confirm-overlay`
+  déjà utilisé par les autres popups de l'outil) qui bloque toute l'application tant que le mot de
+  passe n'a pas été validé — jamais fermable via Échap/clic sur le fond, contrairement aux autres
+  overlays. Synchro par sondage (`sondagePeriodique()`, toutes les 7 secondes, mis en pause via
+  `document.visibilitychange` quand l'onglet n'est pas visible, un sondage immédiat au retour de
+  focus) plutôt que les 2 minutes de l'ancien registre partagé.
+- **Vérifié de bout en bout** avec un vrai serveur (Playwright, deux contextes navigateur
+  simulant deux postes) : écran de connexion, mauvais mot de passe rejeté, jeton persistant après
+  connexion réussie, et la synchro elle-même — un dossier créé sur le "poste A" apparaît chez le
+  "poste B" au sondage suivant, une suppression puis sa restauration aussi. Les 132 tests existants
+  à la racine restent verts sans modification de leur propre code (un stub `fetch` a été ajouté au
+  bac à sable de `tests/helpers/load-app.js`, jamais sollicité en pratique par la suite actuelle
+  puisqu'aucun test ne pré-remplit de jeton de session dans le faux `localStorage`).
+
+**Ce qui n'a volontairement PAS été fait** (arrêté à la demande explicite de l'étude, pas un
+oubli) — à reprendre uniquement si redemandé un jour :
+- **Import automatique** des dossiers déjà enregistrés sur la version 100% locale (`main`) vers ce
+  serveur : aujourd'hui, il faudrait les recréer à la main. La piste envisagée (un endpoint
+  `POST /api/import` portant la validation de `normaliserDossierImporte()` côté serveur) reste
+  praticable si demandée.
+- **Relances email automatiques** (un vrai envoi SMTP programmé, remplaçant le `mailto:` manuel
+  actuel — `ouvrirEmailRappel()`/`relancerSiOffreManquante()`, tous deux inchangés et toujours en
+  place) et **flux calendrier** (`.ics` généré à la volée, consultable par abonnement webcal dans
+  Outlook — sans accès Microsoft Graph, on serait resté sur ce mécanisme plus simple plutôt qu'un
+  push direct, jamais mis en œuvre en pratique).
+- **Packaging en service Windows** (redémarrage automatique via NSSM, IP fixe, pare-feu) : le
+  serveur se lance aujourd'hui manuellement (`npm start`, voir `server/README.md`) et doit rester
+  dans un terminal ouvert — pas encore adapté à un usage quotidien sans surveillance.
+
+Le CLAUDE.md de la branche `main` (tout ce qui précède cette section) reste la référence pour le
+mode 100% local, qui n'a subi aucune régression de ce chantier.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à
