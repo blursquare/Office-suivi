@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-13 19:22';
+  const VERSION_APP = '2026-09-14 14:11';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,14 +23,14 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-14 14:11', resume: 'Message clair (au lieu d’un échec silencieux) quand "Lier un dossier local"/"Registre partagé" échoue depuis un chemin réseau brut' },
     { version: '2026-09-13 19:22', resume: 'Sélecteur de catégorie en petite flèche, bouton "Ouvrir le compromis", recherche sans accents, pièce perso icône/texte, warning simulateur près du titre, badge Alpha' },
     { version: '2026-09-13 14:40', resume: 'Corrige le chevauchement croix de suppression / sélecteur de catégorie sur les tabs' },
     { version: '2026-09-13 10:02', resume: 'Versionning en heure de Paris ; export .ics limité au prêt, renommé rappel_echeance_...' },
     { version: '2026-09-13 07:56', resume: 'Bouton suppression de date, "+Nouveau dossier" en haut du Suivi (taille mobile alignée)' },
     { version: '2026-09-13 07:44', resume: 'Explications .ics/email déplacées du footer vers une popup après clic' },
     { version: '2026-09-13 06:10', resume: 'Avertissement du simulateur repositionné/simplifié : "Montant à valider avant envoi."' },
-    { version: '2026-09-13 06:01', resume: 'Avertissement "barème non audité" en tête du simulateur de frais d’acte' },
-    { version: '2026-09-12 21:48', resume: 'Pièce checklist auto-ajoutée si entretien chaudière/PAC/ramonage détecté dans le compromis' }
+    { version: '2026-09-13 06:01', resume: 'Avertissement "barème non audité" en tête du simulateur de frais d’acte' }
   ];
 
   const STORAGE_KEY = 'dossiers';
@@ -4600,6 +4600,24 @@
     return (texte || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   }
 
+  // Détecte si la page est ouverte depuis un chemin réseau brut (`file://serveur/partage/...`,
+  // équivalent `\\serveur\partage\...`) plutôt qu'un disque local ou un lecteur réseau mappé —
+  // voir CLAUDE.md, contrainte fondamentale n°3 : showDirectoryPicker()/showSaveFilePicker()
+  // échouent silencieusement (AbortError, comme une annulation) dans ce cas précis, peu importe
+  // le dossier réellement choisi dans le sélecteur. Un chemin réseau brut porte un nom d'hôte
+  // dans l'URL (`file://192.168.x.x/...` ou `file://serveur/...`) ; un disque local
+  // (`file:///C:/...`) ou un lecteur mappé (`file:///Z:/...`, traité par Chrome comme un disque
+  // local) n'en portent aucun. Prend une chaîne en paramètre (pas `window.location` directement)
+  // pour rester testable — voir tests/divers.test.js.
+  function estCheminReseauBrut(href) {
+    try {
+      const url = new URL(href);
+      return url.protocol === 'file:' && url.hostname !== '';
+    } catch (e) {
+      return false;
+    }
+  }
+
   // Ordre d'affichage = ordre des listes fournies par l'étude : urbanisme (commun aux trois types),
   // puis les pièces propres à la copropriété si applicable, puis le reste, puis les pièces
   // auto-détectées depuis un engagement du compromis (voir PIECES_ENGAGEMENTS_AUTO ci-dessus),
@@ -4765,7 +4783,17 @@
       await verifierDossierLocal(id, true);
     } catch (e) {
       if (!e) return;
-      if (e.name === 'AbortError') return; // fenêtre de sélection fermée : rien à signaler
+      if (e.name === 'AbortError') {
+        // Une vraie annulation (fenêtre fermée sans choisir de dossier) ne mérite aucun message —
+        // mais Chrome déclenche exactement la même erreur, quel que soit le dossier réellement
+        // choisi, quand la page est ouverte depuis un chemin réseau brut (voir CLAUDE.md,
+        // contrainte n°3) : sans ce garde-fou, l'étude voit le sélecteur s'ouvrir, choisit un
+        // dossier, puis "rien ne se passe" sans aucune explication.
+        if (estCheminReseauBrut(location.href)) {
+          afficherToast("Impossible de lier un dossier local : l'outil est ouvert depuis un chemin réseau direct. Ouvrez-le via un lecteur réseau mappé (ex. Z:\\...\\index.html) plutôt que \\\\serveur\\partage\\...\\index.html.", 'OK', null);
+        }
+        return;
+      }
       if (e.name === 'SecurityError') {
         // Le navigateur refuse l'accès aux fichiers dans un iframe d'une autre origine — c'est le
         // cas de l'aperçu intégré à une page de discussion. Aucune parade côté code : il faut
@@ -5279,7 +5307,15 @@
       if (!recupere) await ecrireRegistrePartage();
       afficherToast('Registre partagé relié : les dossiers seront synchronisés via ce fichier.', 'OK', null);
     } catch (e) {
-      if (!e || e.name === 'AbortError') return;
+      if (!e) return;
+      if (e.name === 'AbortError') {
+        // Même cause racine que dans lierDossierLocal() : un chemin réseau brut déclenche cette
+        // même erreur quel que soit le fichier réellement choisi (voir CLAUDE.md, contrainte n°3).
+        if (estCheminReseauBrut(location.href)) {
+          afficherToast("Impossible de relier le registre partagé : l'outil est ouvert depuis un chemin réseau direct. Ouvrez-le via un lecteur réseau mappé (ex. Z:\\...\\index.html) plutôt que \\\\serveur\\partage\\...\\index.html.", 'OK', null);
+        }
+        return;
+      }
       if (e.name === 'SecurityError') {
         afficherToast("Chrome bloque le sélecteur de fichier dans cet aperçu intégré. Téléchargez le fichier et ouvrez-le directement dans votre navigateur.", 'OK', null);
         return;

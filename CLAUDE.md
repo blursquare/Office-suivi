@@ -54,7 +54,16 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
    page comme si elle venait d'un disque local. **Conséquence pour le déploiement de l'étude** :
    "Lier un dossier local" et "Registre partagé (réseau)" (même famille d'API) exigent que le
    dossier de l'app soit ouvert via un lecteur réseau mappé, pas un chemin `\\...` direct — à
-   rappeler si l'étude signale à nouveau l'un de ces deux boutons "qui ne fait rien".
+   rappeler si l'étude signale à nouveau l'un de ces deux boutons "qui ne fait rien". **Confirmé
+   en conditions réelles** (l'étude a fourni la console DevTools : `origin 'null'`, manifest
+   bloqué par CORS, `file:` traité comme une origine unique — sur `file://192.168.x.x/Commun/
+   CLAIRE/index.html`) et depuis affiché explicitement à l'utilisateur plutôt que silencieux :
+   `estCheminReseauBrut(href)` (script.js, détecte un nom d'hôte non vide dans une URL `file:`)
+   fait que le `catch` d'`AbortError` dans `lierDossierLocal()`/`lierRegistrePartage()` affiche
+   désormais un `afficherToast` expliquant la cause (chemin réseau brut) et la solution (lecteur
+   réseau mappé) au lieu de `return` silencieusement — une vraie annulation (fenêtre fermée sans
+   rien choisir) déclenche la même `AbortError` mais ne matche pas `estCheminReseauBrut()`, donc
+   reste silencieuse comme avant. Voir le test dans `tests/divers.test.js`.
 4. **Aucune page web ne peut envoyer un email automatiquement.** Les "relances automatiques"
    ouvrent un brouillon `mailto:` déjà rempli ; l'envoi final reste un clic manuel de
    l'utilisateur. Ne jamais promettre plus que ça sans ajouter un vrai backend (hors scope actuel,

@@ -443,3 +443,18 @@ test('formaterTendance affiche un signe explicite pour une hausse/une baisse, et
   assert.equal(app.formaterTendance(-2).texte, '-2');
   assert.equal(app.formaterTendance(0).texte, '=');
 });
+
+test('estCheminReseauBrut détecte un chemin réseau direct (UNC), pas un disque local ni un lecteur mappé', () => {
+  const app = chargerApplication();
+  // Chemin réseau brut (IP) : showDirectoryPicker()/showSaveFilePicker() y échouent
+  // silencieusement (voir CLAUDE.md, contrainte n°3) — c'est exactement ce cas qu'il faut détecter.
+  assert.equal(app.estCheminReseauBrut('file://192.168.60.5/Commun/CLAIRE/index.html'), true);
+  // Même chose avec un nom de serveur plutôt qu'une IP.
+  assert.equal(app.estCheminReseauBrut('file://serveur/partage/CLAIRE/index.html'), true);
+  // Disque local : aucun nom d'hôte dans l'URL.
+  assert.equal(app.estCheminReseauBrut('file:///C:/Users/etude/CLAIRE/index.html'), false);
+  // Lecteur réseau mappé : Chrome le traite comme un disque local, même absence de nom d'hôte.
+  assert.equal(app.estCheminReseauBrut('file:///Z:/CLAIRE/index.html'), false);
+  // URL non-file (ex. hébergement GitHub Pages) : jamais concerné par cette limitation.
+  assert.equal(app.estCheminReseauBrut('https://exemple.github.io/CLAIRE/index.html'), false);
+});
