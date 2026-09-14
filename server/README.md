@@ -102,6 +102,20 @@ projet, seul le pilotage via ces deux scripts l'est) :
    le dossier `data\` et l'exécutable lui-même ne sont pas touchés, seul le service Windows est
    supprimé.
 
+**Mettre à jour `CLAIRE-serveur.exe` une fois le service installé : PAS besoin de réinstaller le
+service.** NSSM ne retient qu'un CHEMIN de fichier (`CLAIRE-serveur.exe` à cet endroit précis), pas
+son contenu — remplacer le fichier suffit :
+1. Arrêter le service (`services.msc` → clic droit sur le service → **Arrêter**).
+2. Remplacer `CLAIRE-serveur.exe` par la nouvelle version, **au même endroit, sous le même nom**.
+3. Redémarrer le service (`services.msc` → **Démarrer**).
+
+`config.json` (mot de passe, jeton calendrier), le dossier `data\` (le registre des dossiers) et
+les journaux ne sont pas touchés par ces trois étapes — ils vivent à côté de l'exécutable, jamais
+dedans. Relancer `Installer-service-NSSM.bat` sur un service déjà installé ne sert à rien pour une
+simple mise à jour (le script refuse même de continuer si le service existe déjà, précisément pour
+éviter cette confusion) — il ne serait utile que pour changer les RÉGLAGES du service lui-même
+(nom, description, emplacement des journaux), jamais pour un nouveau binaire.
+
 **Non vérifié sur un vrai poste Windows dans cet environnement de développement** (aucune machine
 Windows/NSSM disponible ici pour un test réel) — les deux scripts pilotent NSSM avec sa syntaxe en
 ligne de commande documentée officiellement, mais à confirmer par l'étude : l'installation
