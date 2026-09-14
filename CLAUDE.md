@@ -2916,6 +2916,44 @@ autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` auton
     complète, liens NSSM, limites connues) ; la liste "Ce qui n'est PAS encore prêt" mise à jour en
     conséquence (les deux points sont passés de "pas fait" à "fait mais non vérifié sur un poste
     Windows réel" — les seules relances email automatiques restent non implémentées).
+- **Bug corrigé, diagnostiqué depuis la console du navigateur transmise par l'étude : le correctif
+  `escapeAttr()` (apostrophe, voir son historique plus haut dans la section `main`) ne fonctionnait
+  toujours pas sur "Certificat d'urbanisme"/"Certificat d'alignement" malgré une vérification de
+  code qui le donnait pourtant correct.** Ce qui a permis de trancher sans ambiguïté : l'étude a
+  copié-collé la console DevTools, qui montrait exactement `Uncaught SyntaxError: missing ) after
+  argument list` répété QUATRE fois au chargement de la fiche — soit exactement les 4 boutons
+  concernés (croix "Retirer" + icône "Réinitialiser", sur les 2 pièces avec apostrophe). Cette
+  signature d'erreur precise (pas une simple absence de réaction au clic) a confirmé que le
+  `CLAIRE-serveur.exe` réellement en service chez l'étude embarquait encore un `script.js`
+  antérieur au correctif — le code du dépôt, lui, était déjà correct (vérifié une seconde fois par
+  régénération du HTML de `renderPiecesDossier()`, résultat identique aux deux vérifications
+  précédentes). **Aucun changement de code cette fois** : la seule action a été de confirmer le
+  diagnostic par la trace d'erreur exacte plutôt que de retoucher une fonction déjà correcte, et de
+  pointer l'étude vers "À propos" (numéro de version affiché) pour vérifier sans ambiguïté si le
+  remplacement du `.exe` a réellement pris effet avant de reproduire un correctif existant — leçon
+  de fond identique à celle déjà tirée pour "Certificat alignement et numérotage"/"Avis de Taxes
+  foncières" sur la branche `main` (voir son historique) : un signalement répété d'un bug déjà
+  vérifié correct en code est presque toujours un problème de DÉPLOIEMENT (copie non remplacée,
+  cache navigateur), pas une raison de retoucher le code une nouvelle fois sans preuve nouvelle.
+- **Bug corrigé : le bouton "Se connecter" de l'écran de connexion venait se coller directement
+  contre le bas du champ mot de passe**, signalé par l'étude ("le bouton valider mange un peu sur
+  le champ de mot de passe"). Cause : contrairement aux autres champs de formulaire de l'outil (qui
+  vivent dans un bloc avec son propre espacement), `#connexion-mot-de-passe` est seul dans son
+  `<form>` (`display: flex; flex-direction: column`) sans aucune marge propre — la règle générique
+  `input[type="password"]` (voir son historique plus haut) pose la largeur/le padding/la bordure
+  mais jamais de `margin-bottom` — et le message d'erreur qui suit (`#connexion-erreur`) est masqué
+  par défaut (`display:none`), donc ne comble aucun espace tant qu'aucune erreur n'est affichée : le
+  bouton se retrouvait directement accolé au champ, sans le moindre espace entre les deux. Corrigé
+  par `#connexion-mot-de-passe { margin-bottom: 14px; }` — cohérent avec le `margin: -10px 0 14px`
+  déjà présent sur `#connexion-erreur` (ce -10px avait manifestement été pensé pour resserrer le
+  message d'erreur SOUS un espacement de 14px déjà existant sur le champ, jamais posé en pratique).
+- **"Mode sombre" et "À propos" placés côte à côte dans le pied de la sidebar**, demandé par
+  l'étude (auparavant empilés verticalement comme l'installation PWA/le reste des liens). Les deux
+  boutons sont regroupés dans un nouveau conteneur `.sidebar-footer-row` (`display:flex`) : le
+  bouton de thème garde sa largeur au contenu (icône seule, déjà `.sidebar-link-icone-seule`),
+  "À propos" prend le reste de la largeur disponible (`flex: 1 1 auto`). Le bouton d'installation
+  PWA (`#install-btn`, visible seulement quand le navigateur le propose) reste seul sur sa propre
+  ligne au-dessus — non concerné par cette demande, qui ne visait que mode sombre/À propos.
 
 **Ce qui n'a volontairement PAS été fait** (arrêté à la demande explicite de l'étude, pas un
 oubli) — à reprendre uniquement si redemandé un jour :

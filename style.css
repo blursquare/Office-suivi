@@ -515,6 +515,11 @@
     flex-direction: column;
     gap: 2px;
   }
+  /* Mode sombre + À propos côte à côte plutôt qu'empilés (demandé par l'étude) : le bouton de
+     thème (icône seule, voir .sidebar-link-icone-seule) garde sa largeur au contenu, "À propos"
+     prend le reste de la ligne. */
+  .sidebar-footer-row { display: flex; align-items: center; gap: 2px; }
+  .sidebar-footer-row .sidebar-link-apropos { width: auto; flex: 1 1 auto; }
 
   .sidebar-burger, .sidebar-scrim { display: none; }
 
@@ -2966,6 +2971,11 @@
      contrairement aux autres overlays qui en héritent par défaut). */
   .connexion-box { max-width: 340px; }
   .connexion-box form { display: flex; flex-direction: column; }
+  /* Contrairement aux autres champs de l'outil (dans un bloc avec son propre espacement), ce
+     champ vit seul dans le <form> : la règle générique input[type="password"] (voir plus haut) ne
+     pose pas de margin-bottom, donc sans celle-ci le bouton "Se connecter" venait se coller
+     directement contre le bas du champ (aucun espace entre les deux) — signalé par l'étude. */
+  #connexion-mot-de-passe { margin-bottom: 14px; }
   .connexion-erreur {
     color: var(--urgent);
     font-size: 13px;
