@@ -418,8 +418,6 @@
       Afficher les dossiers archivés
     </label>
     <span class="toolbar-spacer"></span>
-    <span id="statut-partage" class="statut-partage" style="display:none;"></span>
-    <button type="button" class="toolbar-btn" id="btn-registre-partage" onclick="lierRegistrePartage()">Registre partagé (réseau)</button>
   </div>
 
   <div id="dossier-list"></div>
@@ -553,6 +551,33 @@
   <button type="button" class="pdf-selection-annuler" onclick="masquerBoutonAjoutEngagement()" aria-label="Annuler" title="Annuler">✕</button>
 </div>
 
+<!-- Écran de connexion (mode serveur intranet) : bloque toute l'application tant que le mot de
+     passe partagé de l'étude n'a pas été validé auprès du serveur — voir tenterConnexion()/
+     afficherEcranConnexion() dans script.js. Contrairement aux autres overlays de cette page,
+     jamais fermable sans authentification réussie (pas de croix, pas de fermeture au clic sur le
+     fond) : c'est la seule porte d'entrée de l'outil en mode serveur. -->
+<div class="confirm-overlay" id="connexion-overlay" style="display:none;">
+  <div class="confirm-box connexion-box">
+    <div class="apropos-header">
+      <span class="brand-mark" aria-hidden="true">
+        <svg width="34" height="34" viewBox="0 0 48 48" fill="none">
+          <path d="M33 12a15 15 0 1 0 0 24" stroke="var(--focus)" stroke-width="1.8" stroke-linecap="round"/>
+          <line x1="30" y1="24" x2="39" y2="24" stroke="var(--focus-hover)" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span class="brand-word">CLAIRE</span>
+    </div>
+    <p class="apropos-tagline">Registre partagé de l'étude — connexion requise.</p>
+    <form onsubmit="event.preventDefault(); tenterConnexion();">
+      <input type="password" id="connexion-mot-de-passe" placeholder="Mot de passe de l'étude" autocomplete="current-password" required>
+      <p id="connexion-erreur" class="connexion-erreur" style="display:none;"></p>
+      <div class="confirm-actions">
+        <button type="submit" class="btn-confirmer" id="connexion-btn">Se connecter</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div class="confirm-overlay" id="confirm-overlay">
   <div class="confirm-box">
     <p id="confirm-message">Confirmer cette action ?</p>
@@ -563,10 +588,10 @@
   </div>
 </div>
 
-<!-- Popup affichée au démarrage quand un accès (dossier local ou registre partagé) doit être
-     reconfirmé — évite de compter sur le collaborateur pour remarquer le bandeau #alerte-acces,
-     visible seulement dans l'onglet "Suivi des dossiers". Reconfirmer y déclenche une vraie
-     demande de permission navigateur, ce qui exige ce clic explicite (voir reconfirmerTousLesAcces). -->
+<!-- Popup affichée au démarrage quand l'accès à un dossier local doit être reconfirmé — évite de
+     compter sur le collaborateur pour remarquer le bandeau #alerte-acces, visible seulement dans
+     l'onglet "Suivi des dossiers". Reconfirmer y déclenche une vraie demande de permission
+     navigateur, ce qui exige ce clic explicite (voir reconfirmerTousLesAcces). -->
 <div class="confirm-overlay" id="popup-acces-overlay" style="display:none;">
   <div class="confirm-box">
     <p id="popup-acces-message">L'accès à des dossiers reliés doit être reconfirmé.</p>
@@ -597,8 +622,8 @@
     <p class="apropos-tagline">La clarté sur chaque dossier.</p>
     <p class="apropos-version">Version <strong id="apropos-version-valeur"></strong></p>
     <p class="apropos-desc">
-      Registre des échéances de compromis de vente — 100&nbsp;% local, sans serveur : vos dossiers
-      restent sur ce poste ou ce lecteur réseau, jamais transmis ailleurs.
+      Registre des échéances de compromis de vente — synchronisé via le serveur intranet de
+      l'étude : vos dossiers restent sur le réseau local de l'étude, jamais transmis ailleurs.
     </p>
     <!-- Historique des dernières versions (voir HISTORIQUE_VERSIONS dans script.js) : le numéro de
          version seul dit "ce n'est pas la même copie", cette liste dit en plus CE QUI A CHANGÉ —

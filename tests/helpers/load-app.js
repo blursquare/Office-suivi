@@ -102,7 +102,14 @@ function chargerApplication() {
     Promise,
     addEventListener() {},
     removeEventListener() {},
-    matchMedia: undefined
+    matchMedia: undefined,
+    // Mode serveur intranet (voir CLAUDE.md) : script.js appelle désormais fetch() dès le
+    // démarrage (écran de connexion, polling). Aucun test ne pré-remplit le jeton dans le faux
+    // localStorage ci-dessus, donc afficherEcranConnexion() est prise à la place de
+    // demarrerApplication() et ce stub n'est en pratique jamais sollicité — gardé par prudence,
+    // au cas où un futur test manipulerait ce jeton, plutôt que de compter sur un ReferenceError
+    // implicite.
+    fetch: () => Promise.reject(new Error('fetch indisponible dans les tests'))
   };
   sandbox.window = sandbox;
   sandbox.globalThis = sandbox;

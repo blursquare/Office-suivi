@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-13 19:22';
+  const VERSION_APP = '2026-09-14 07:30';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,14 +23,14 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-14 07:30', resume: 'Mode serveur intranet (branche claude/serveur-intranet) : registre partagé JSON/localStorage remplacé par un serveur (login, synchro par polling)' },
     { version: '2026-09-13 19:22', resume: 'Sélecteur de catégorie en petite flèche, bouton "Ouvrir le compromis", recherche sans accents, pièce perso icône/texte, warning simulateur près du titre, badge Alpha' },
     { version: '2026-09-13 14:40', resume: 'Corrige le chevauchement croix de suppression / sélecteur de catégorie sur les tabs' },
     { version: '2026-09-13 10:02', resume: 'Versionning en heure de Paris ; export .ics limité au prêt, renommé rappel_echeance_...' },
     { version: '2026-09-13 07:56', resume: 'Bouton suppression de date, "+Nouveau dossier" en haut du Suivi (taille mobile alignée)' },
     { version: '2026-09-13 07:44', resume: 'Explications .ics/email déplacées du footer vers une popup après clic' },
     { version: '2026-09-13 06:10', resume: 'Avertissement du simulateur repositionné/simplifié : "Montant à valider avant envoi."' },
-    { version: '2026-09-13 06:01', resume: 'Avertissement "barème non audité" en tête du simulateur de frais d’acte' },
-    { version: '2026-09-12 21:48', resume: 'Pièce checklist auto-ajoutée si entretien chaudière/PAC/ramonage détecté dans le compromis' }
+    { version: '2026-09-13 06:01', resume: 'Avertissement "barème non audité" en tête du simulateur de frais d’acte' }
   ];
 
   const STORAGE_KEY = 'dossiers';
@@ -2165,8 +2165,12 @@
       historique: [{ date: new Date().toISOString(), texte: 'Dossier créé' }]
     };
 
+    const cree = await sauvegarderNouveauDossier(dossier);
+    if (!cree) {
+      afficherToast("Impossible d'enregistrer le dossier — vérifiez la connexion au serveur intranet.", 'OK', null);
+      return;
+    }
     dossiers.push(dossier);
-    await sauvegarder();
     reinitialiserFormulaire();
     document.getElementById('panel').open = false;
     definirOnglet('suivi');
@@ -2220,7 +2224,6 @@
     if (action) action();
   });
 
-  let dernierSupprime = null;
   let dernierSupprimeTimeout = null;
 
   function afficherToast(message, texteBouton, onUndo) {
@@ -2244,15 +2247,19 @@
     demanderConfirmation(`Supprimer « ${nom} » du registre ?`, async () => {
       const index = dossiers.findIndex(x => x.id === id);
       if (index === -1) return;
-      dernierSupprime = dossiers[index];
+      // Suppression douce côté serveur (voir supprimerDossierServeur) : la ligne reste en base,
+      // seulement marquée supprimée — "Annuler" la restaure sans avoir à la recréer de zéro.
+      const supprime = await supprimerDossierServeur(id);
+      if (!supprime) {
+        afficherToast('Suppression impossible — vérifiez la connexion au serveur.', 'OK', null);
+        return;
+      }
       dossiers = dossiers.filter(x => x.id !== id);
-      await sauvegarder();
       render();
       afficherToast(`Dossier « ${nom} » supprimé.`, 'Annuler', async () => {
-        if (dernierSupprime) {
-          dossiers.push(dernierSupprime);
-          dernierSupprime = null;
-          await sauvegarder();
+        const restaure = await restaurerDossierServeur(id);
+        if (restaure && d) {
+          dossiers.push(d);
           render();
         }
       });
@@ -2421,7 +2428,7 @@
     d.confiance[ancienType] = tempC;
 
     ajouterHistorique(d, `« ${LIBELLES_CATEGORIE[ancienType]} » recatégorisée en « ${LIBELLES_CATEGORIE[nouveauType]} »`);
-    sauvegarder();
+    sauvegarder(d);
     render();
   }
 
@@ -2441,7 +2448,7 @@
     // (ex. etatDate en quittant la copropriété) restent en mémoire mais ne s'affichent plus,
     // inoffensif si l'étude revient un jour au type précédent.
     d.typeVente = valeur;
-    sauvegarder();
+    sauvegarder(d);
     render();
   }
 
@@ -2451,7 +2458,7 @@
     const libelle = (v) => v === 'participant' ? 'participant' : 'instrumentaire';
     ajouterHistorique(d, `Rôle de l'étude modifié : ${libelle(d.roleNotaire)} → ${libelle(valeur)}`);
     d.roleNotaire = valeur;
-    sauvegarder();
+    sauvegarder(d);
     render();
   }
 
@@ -2462,7 +2469,7 @@
     if (!d || (d.responsable || '') === valeur) return;
     ajouterHistorique(d, `Responsable modifié : ${d.responsable || '— à définir —'} → ${valeur || '— à définir —'}`);
     d.responsable = valeur;
-    sauvegarder();
+    sauvegarder(d);
     render();
   }
 
@@ -2477,7 +2484,7 @@
     if (nouvelle === (d.adresseBien || '')) return;
     ajouterHistorique(d, `Adresse du bien modifiée`);
     d.adresseBien = nouvelle;
-    sauvegarder();
+    sauvegarder(d);
     render();
   }
 
@@ -2490,7 +2497,7 @@
     if (normalise === (d.prixVente || null)) { render(); return; }
     ajouterHistorique(d, `Prix de vente modifié : ${d.prixVente ? formaterPrix(d.prixVente) : '—'} → ${normalise ? formaterPrix(normalise) : '—'}`);
     d.prixVente = normalise;
-    sauvegarder();
+    sauvegarder(d);
     render();
   }
 
@@ -2515,7 +2522,7 @@
     if (!d) return;
     d.archive = archive;
     ajouterHistorique(d, archive ? 'Dossier archivé' : 'Dossier désarchivé');
-    sauvegarder();
+    sauvegarder(d);
     render();
   }
 
@@ -2953,33 +2960,29 @@
   // soixantaine de dossiers actifs, cliquer sur chacun est fastidieux : ce bandeau permet de tous
   // les reconfirmer en un seul clic plutôt qu'un par dossier.
   // Message du bandeau (et de la popup de démarrage, voir plus bas) : décrit ce qu'il y a à
-  // reconfirmer, dossiers locaux et/ou registre partagé, sans jamais désigner l'un si seul l'autre
-  // est concerné.
-  function messageAccesAReconfirmer(nbDossiers, partageAConfirmer) {
-    const morceaux = [];
-    if (nbDossiers > 0) morceaux.push(`${nbDossiers} dossier${nbDossiers > 1 ? 's' : ''} local${nbDossiers > 1 ? 'aux' : ''} relié${nbDossiers > 1 ? 's' : ''}`);
-    if (partageAConfirmer) morceaux.push('le registre partagé');
-    return `${icone('key')} L'accès à ${morceaux.join(' et à ')} doit être reconfirmé (redemandé par le navigateur à chaque redémarrage).`;
+  // reconfirmer. Ne concerne plus que les dossiers locaux depuis le passage au serveur intranet
+  // (le registre lui-même n'a plus besoin de cette reconfirmation, voir CLAUDE.md).
+  function messageAccesAReconfirmer(nbDossiers) {
+    return `${icone('key')} L'accès à ${nbDossiers} dossier${nbDossiers > 1 ? 's' : ''} local${nbDossiers > 1 ? 'aux' : ''} relié${nbDossiers > 1 ? 's' : ''} doit être reconfirmé (redemandé par le navigateur à chaque redémarrage).`;
   }
 
   function renderAlerteAcces(dossiersActifs) {
     const bloc = document.getElementById('alerte-acces');
     if (!bloc) return;
     const nb = dossiersActifs.filter(d => d.accesAReconfirmer).length;
-    const partageAConfirmer = registrePartageLie && registrePartageAccesAReconfirmer;
-    if (nb === 0 && !partageAConfirmer) { bloc.style.display = 'none'; return; }
+    if (nb === 0) { bloc.style.display = 'none'; return; }
     bloc.style.display = 'flex';
     bloc.innerHTML = `
-      <span>${messageAccesAReconfirmer(nb, partageAConfirmer)}</span>
+      <span>${messageAccesAReconfirmer(nb)}</span>
       <button type="button" class="toolbar-btn" onclick="reconfirmerTousLesAcces()">Reconfirmer tous les accès</button>
     `;
   }
 
-  // Un seul clic déclenche une demande de permission par dossier concerné (et, le cas échéant, par
-  // le registre partagé), à la suite : Chrome autorise plusieurs appels de ce type tant qu'ils
-  // restent proches du geste utilisateur d'origine (contrairement à des API à usage unique comme
-  // requestFullscreen). Si l'activation expire avant la fin (portefeuille très volumineux), les
-  // dossiers restants gardent leur bouton individuel.
+  // Un seul clic déclenche une demande de permission par dossier concerné, à la suite : Chrome
+  // autorise plusieurs appels de ce type tant qu'ils restent proches du geste utilisateur
+  // d'origine (contrairement à des API à usage unique comme requestFullscreen). Si l'activation
+  // expire avant la fin (portefeuille très volumineux), les dossiers restants gardent leur
+  // bouton individuel.
   //
   // Bug corrigé : signalé par l'étude, le clic redemandait malgré tout l'accès "dossier par
   // dossier" au lieu d'un seul geste pour tous. Cause réelle : la version précédente demandait la
@@ -3003,31 +3006,23 @@
         idsAccordes.push(d.id);
       }
     }
-    const partageHandle = (registrePartageLie && registrePartageAccesAReconfirmer)
-      ? await obtenirHandlePartage(true) : null;
     render();
 
     for (const id of idsAccordes) {
       await verifierDossierLocal(id, false);
     }
-    if (partageHandle) {
-      await lireRegistrePartage(false);
-      majStatutPartage();
-    }
     render();
   }
 
-  // Popup de démarrage : appelée une fois que charger()/revérifierDossiersLiesAuDemarrage()/
-  // tenterReconnexionPartage() ont fini (voir tout en bas du fichier), donc une fois qu'on sait
-  // réellement si un accès a été perdu — pas de popup "au hasard" si tout est encore valide.
+  // Popup de démarrage : appelée une fois que demarrerApplication() sait réellement si un accès a
+  // été perdu — pas de popup "au hasard" si tout est encore valide.
   function afficherPopupAccesSiNecessaire() {
     const nb = dossiers.filter(d => !d.archive && d.accesAReconfirmer).length;
-    const partageAConfirmer = registrePartageLie && registrePartageAccesAReconfirmer;
-    if (nb === 0 && !partageAConfirmer) return;
+    if (nb === 0) return;
     const el = document.getElementById('popup-acces-message');
     const overlay = document.getElementById('popup-acces-overlay');
     if (!el || !overlay) return;
-    el.innerHTML = messageAccesAReconfirmer(nb, partageAConfirmer);
+    el.innerHTML = messageAccesAReconfirmer(nb);
     overlay.style.display = 'flex';
   }
 
@@ -3413,7 +3408,7 @@
     d.piecesPersonnalisees.push({ cle, label });
     ajouterHistorique(d, `Pièce ajoutée à la checklist : « ${label} »`);
     ajoutPieceOuvert = false;
-    sauvegarder();
+    sauvegarder(d);
     render();
 
     // Recherche automatique dans le dossier local déjà relié, s'il y en a un — silencieuse si
@@ -3430,7 +3425,7 @@
             d.pieces = d.pieces || {};
             d.pieces[cle] = 'recue';
             await enregistrerHandle(CLE_HANDLE_PIECE(dossierId, cle), trouve);
-            sauvegarder();
+            sauvegarder(d);
             render();
             afficherToast(`Pièce « ${label} » trouvée : ${trouve.name}`, 'OK', null);
           }
@@ -3450,7 +3445,7 @@
       d.piecesPersonnalisees = d.piecesPersonnalisees.filter(p => p.cle !== cle);
       if (d.pieces) delete d.pieces[cle];
       ajouterHistorique(d, `Pièce retirée de la checklist : « ${item.label} »`);
-      sauvegarder();
+      sauvegarder(d);
       render();
     });
   }
@@ -3466,7 +3461,7 @@
       d.piecesRetirees = d.piecesRetirees || [];
       if (!d.piecesRetirees.includes(cle)) d.piecesRetirees.push(cle);
       ajouterHistorique(d, `Pièce retirée de la checklist : « ${label} »`);
-      sauvegarder();
+      sauvegarder(d);
       render();
     });
   }
@@ -3481,7 +3476,7 @@
     d.pieces = d.pieces || {};
     const actuel = d.pieces[cle] || 'inconnu';
     d.pieces[cle] = actuel === 'inconnu' ? 'manquante' : actuel === 'manquante' ? 'recue' : 'inconnu';
-    sauvegarder();
+    sauvegarder(d);
     render();
   }
 
@@ -3691,7 +3686,7 @@
     if (nom && nom !== d.nom) {
       ajouterHistorique(d, `Nom modifié : « ${d.nom} » → « ${nom} »`);
       d.nom = nom;
-      sauvegarder();
+      sauvegarder(d);
     }
     render();
   }
@@ -3761,14 +3756,14 @@
       if (nouvelleDate !== (item.date || '')) {
         ajouterHistorique(d, `Date « ${item.label} » modifiée : ${item.date ? formatDateFr(item.date) : 'non renseignée'} → ${nouvelleDate ? formatDateFr(nouvelleDate) : 'non renseignée'}`);
         item.date = nouvelleDate || null;
-        sauvegarder();
+        sauvegarder(d);
       }
     } else if (nouvelleDate !== (d[cle] || '')) {
       ajouterHistorique(d, `« ${LIBELLES_CATEGORIE[cle]} » modifiée : ${d[cle] ? formatDateFr(d[cle]) : 'non renseignée'} → ${nouvelleDate ? formatDateFr(nouvelleDate) : 'non renseignée'}`);
       d[cle] = nouvelleDate || '';
       d.confiance = d.confiance || {};
       d.confiance[cle] = 'manuel'; // corrigée à la main : à revérifier comme toute saisie manuelle
-      sauvegarder();
+      sauvegarder(d);
     }
     render();
   }
@@ -3801,7 +3796,7 @@
     d.autres.push({ label, date: iso, page: null });
     ajouterHistorique(d, `Échéance « ${label} » ajoutée (${formatDateFr(iso)})`);
     ajoutEcheanceOuvert = false;
-    sauvegarder();
+    sauvegarder(d);
     render();
   }
 
@@ -3817,7 +3812,7 @@
     demanderConfirmation(`Supprimer l'échéance « ${item.label || 'Autre échéance'} » ?`, () => {
       d.autres.splice(index, 1);
       ajouterHistorique(d, `Échéance « ${item.label || 'Autre échéance'} » supprimée`);
-      sauvegarder();
+      sauvegarder(d);
       render();
     });
   }
@@ -3841,7 +3836,7 @@
       // qui n'est plus suivie sur ce dossier (verifierDossierLocal() teste déjà `!d.sansPret`).
       if (type === 'pret') d.sansPret = true;
       ajouterHistorique(d, `« ${LIBELLES_CATEGORIE[type]} » supprimée`);
-      sauvegarder();
+      sauvegarder(d);
       render();
     });
   }
@@ -3950,54 +3945,236 @@
     );
   }
 
-  // ---- persistence ----
+  // ---- persistence (serveur intranet) ----
+  //
+  // Remplace l'ancien mécanisme localStorage + registre partagé JSON (voir l'historique dans
+  // CLAUDE.md) : le serveur (server/, branche claude/serveur-intranet) est désormais la SEULE
+  // source de vérité, avec une authentification par mot de passe partagé unique. Plus de repli
+  // local : sans serveur joignable, l'outil ne peut pas fonctionner (décision explicite, voir le
+  // plan de ce chantier).
 
-  // window.storage n'existe QUE dans l'aperçu Claude.ai : une fois le fichier ouvert directement
-  // dans le navigateur (nécessaire pour l'accès au dossier local), cette API disparaît et toute
-  // sauvegarde échouait silencieusement — d'où la perte des données à chaque fermeture. On se
-  // rabat sur localStorage, disponible dans un vrai navigateur, y compris en fichier local.
-  async function sauvegarderLocalUniquement() {
-    const contenu = JSON.stringify(dossiers);
+  const CLE_AUTH_TOKEN = 'claire-token';
+  let authToken = null;
+  // Curseur de synchro (epoch ms renvoyé par le serveur) : le polling ne redemande que ce qui a
+  // changé depuis cette valeur, jamais une horloge cliente (voir GET /api/dossiers?since=).
+  let curseurSynchro = 0;
+
+  function chargerJetonStocke() {
+    try { return localStorage.getItem(CLE_AUTH_TOKEN) || null; } catch (e) { return null; }
+  }
+
+  function stockerJeton(jeton) {
+    authToken = jeton;
     try {
-      if (window.storage) {
-        await window.storage.set(STORAGE_KEY, contenu, false);
+      if (jeton) localStorage.setItem(CLE_AUTH_TOKEN, jeton);
+      else localStorage.removeItem(CLE_AUTH_TOKEN);
+    } catch (e) { /* jeton reperdu au rechargement si le stockage échoue — sans autre conséquence */ }
+  }
+
+  // Point de passage unique pour tout appel à l'API du serveur : ajoute le jeton de session, et
+  // réaffiche l'écran de connexion dès qu'une réponse 401 signale une session expirée/invalide
+  // (mot de passe changé, jeton périmé après 12h — voir server/src/auth.js).
+  async function fetchAvecAuth(url, options = {}) {
+    const reponse = await fetch(url, {
+      ...options,
+      headers: { ...(options.headers || {}), authorization: `Bearer ${authToken}` }
+    });
+    if (reponse.status === 401) {
+      stockerJeton(null);
+      arreterPolling();
+      afficherEcranConnexion();
+      throw new Error('Session expirée — reconnexion nécessaire.');
+    }
+    return reponse;
+  }
+
+  function afficherEcranConnexion(messageErreur) {
+    const overlay = document.getElementById('connexion-overlay');
+    const erreurEl = document.getElementById('connexion-erreur');
+    if (erreurEl) {
+      erreurEl.textContent = messageErreur || '';
+      erreurEl.style.display = messageErreur ? 'block' : 'none';
+    }
+    if (overlay) overlay.style.display = 'flex';
+    const input = document.getElementById('connexion-mot-de-passe');
+    if (input) { input.value = ''; setTimeout(() => input.focus(), 0); }
+  }
+
+  function fermerEcranConnexion() {
+    const overlay = document.getElementById('connexion-overlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+
+  async function tenterConnexion() {
+    const input = document.getElementById('connexion-mot-de-passe');
+    const motDePasse = input ? input.value : '';
+    if (!motDePasse) return;
+    const btn = document.getElementById('connexion-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Connexion…'; }
+    try {
+      const reponse = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ motDePasse })
+      });
+      if (!reponse.ok) {
+        afficherEcranConnexion('Mot de passe incorrect.');
         return;
       }
+      const { jeton } = await reponse.json();
+      stockerJeton(jeton);
+      fermerEcranConnexion();
+      await demarrerApplication();
     } catch (e) {
-      console.warn('window.storage indisponible, repli sur localStorage.', e);
-    }
-    try {
-      localStorage.setItem(STORAGE_KEY, contenu);
-    } catch (e) {
-      console.warn('Sauvegarde locale impossible : les données resteront en mémoire pour cette session.', e);
+      console.error('Connexion au serveur impossible', e);
+      afficherEcranConnexion("Serveur injoignable — vérifiez la connexion au réseau de l'étude.");
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Se connecter'; }
     }
   }
 
-  async function sauvegarder() {
-    await sauvegarderLocalUniquement();
-    if (registrePartageLie) await ecrireRegistrePartage();
-  }
-
+  // Premier chargement : `since=0` renvoie tous les dossiers actifs (voir server/src/routes/
+  // dossiers.js) — jamais de tombstone à ce stade puisqu'on part d'un registre vide côté client.
   async function charger() {
-    let brut = null;
-    try {
-      if (window.storage) {
-        const res = await window.storage.get(STORAGE_KEY, false);
-        if (res && res.value) brut = JSON.parse(res.value);
-      }
-    } catch (e) { /* on tente le repli ci-dessous plutôt que d'abandonner */ }
-
-    if (brut === null) {
-      try {
-        const local = localStorage.getItem(STORAGE_KEY);
-        if (local) brut = JSON.parse(local);
-      } catch (e) { /* aucune donnée exploitable non plus ici */ }
-    }
-
-    // Un JSON valide mais mal formé (objet, chaîne…) casserait tout l'affichage : on ne retient
-    // que ce qui ressemble réellement à une liste de dossiers.
-    dossiers = Array.isArray(brut) ? brut.filter(d => d && typeof d === 'object' && d.id) : [];
+    const reponse = await fetchAvecAuth('/api/dossiers?since=0');
+    const { dossiers: recus, serverTime } = await reponse.json();
+    dossiers = recus
+      .filter(d => d && typeof d === 'object' && d.id && !d.deleted)
+      .map(({ updatedAt, ...d }) => d); // updatedAt est une métadonnée serveur, pas un champ du modèle
+    curseurSynchro = serverTime;
     render();
+  }
+
+  // Remplacement complet d'UN dossier déjà enregistré (PUT) — chaque site d'appel a déjà `d` en
+  // portée juste après l'avoir modifié, voir les ~25 call sites qui suivent dans ce fichier.
+  // N'échoue jamais bruyamment côté appelant (pas de throw) : ceux-ci font juste `sauvegarder(d);
+  // render();` sans awaiter ni intercepter d'erreur, comme au temps du localStorage — une panne
+  // réseau se retrouvera simplement rattrapée par le prochain PUT réussi (le brouillon en mémoire
+  // reste correct, seule la synchro serveur retarde).
+  async function sauvegarder(d) {
+    try {
+      const reponse = await fetchAvecAuth(`/api/dossiers/${encodeURIComponent(d.id)}`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(d)
+      });
+      if (reponse.ok) {
+        const sauvegarde = await reponse.json();
+        curseurSynchro = Math.max(curseurSynchro, sauvegarde.updatedAt || 0);
+      } else {
+        console.error('Sauvegarde refusée par le serveur', reponse.status);
+      }
+    } catch (e) {
+      console.error('Sauvegarde impossible (serveur injoignable ?)', e);
+    }
+  }
+
+  // Création (POST) — seule différence avec sauvegarder() : le serveur doit savoir qu'il s'agit
+  // d'un nouveau dossier, pas d'un remplacement. Renvoie true/false pour que l'appelant (
+  // ajouterDossier(), importerDonnees()) sache s'il doit vraiment ajouter le dossier à `dossiers`
+  // ou prévenir l'utilisateur d'un échec (id en double, serveur injoignable...).
+  async function sauvegarderNouveauDossier(d) {
+    try {
+      const reponse = await fetchAvecAuth('/api/dossiers', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(d)
+      });
+      if (reponse.ok) {
+        const sauvegarde = await reponse.json();
+        curseurSynchro = Math.max(curseurSynchro, sauvegarde.updatedAt || 0);
+        return true;
+      }
+      console.error('Création refusée par le serveur', reponse.status);
+      return false;
+    } catch (e) {
+      console.error('Création impossible (serveur injoignable ?)', e);
+      return false;
+    }
+  }
+
+  async function supprimerDossierServeur(id) {
+    try {
+      const reponse = await fetchAvecAuth(`/api/dossiers/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      return reponse.ok;
+    } catch (e) {
+      console.error('Suppression impossible (serveur injoignable ?)', e);
+      return false;
+    }
+  }
+
+  async function restaurerDossierServeur(id) {
+    try {
+      const reponse = await fetchAvecAuth(`/api/dossiers/${encodeURIComponent(id)}/undelete`, { method: 'POST' });
+      return reponse.ok;
+    } catch (e) {
+      console.error('Restauration impossible (serveur injoignable ?)', e);
+      return false;
+    }
+  }
+
+  // ---- synchro par polling (voir le plan : WebSocket écarté, 3 utilisateurs sur un LAN ne
+  // justifient pas la complexité d'une connexion persistante) ----
+
+  const INTERVALLE_POLLING_MS = 7000;
+  let intervallePolling = null;
+
+  function demarrerPolling() {
+    arreterPolling();
+    intervallePolling = setInterval(sondagePeriodique, INTERVALLE_POLLING_MS);
+  }
+
+  function arreterPolling() {
+    if (intervallePolling) { clearInterval(intervallePolling); intervallePolling = null; }
+  }
+
+  // Pas la peine de solliciter le serveur pendant qu'un onglet est masqué/minimisé — reprend
+  // aussitôt (avec un sondage immédiat, pas d'attente du prochain tick) dès qu'il redevient visible.
+  function gererVisibilitePolling() {
+    if (document.hidden) {
+      arreterPolling();
+    } else if (authToken) {
+      sondagePeriodique();
+      demarrerPolling();
+    }
+  }
+  document.addEventListener('visibilitychange', gererVisibilitePolling);
+
+  function appliquerChangementsDistants(changements) {
+    for (const item of changements) {
+      const index = dossiers.findIndex(x => x.id === item.id);
+      if (item.deleted) {
+        if (index !== -1) dossiers.splice(index, 1);
+        continue;
+      }
+      const { updatedAt, ...d } = item;
+      if (index !== -1) dossiers[index] = d; else dossiers.push(d);
+    }
+  }
+
+  async function sondagePeriodique() {
+    try {
+      const reponse = await fetchAvecAuth(`/api/dossiers?since=${curseurSynchro}`);
+      if (!reponse.ok) return;
+      const { dossiers: changements, serverTime } = await reponse.json();
+      if (changements.length > 0) {
+        appliquerChangementsDistants(changements);
+        render();
+      }
+      curseurSynchro = serverTime;
+    } catch (e) {
+      // Session expirée (déjà géré par fetchAvecAuth, qui a réaffiché l'écran de connexion) ou
+      // serveur momentanément injoignable : le prochain cycle réessaiera de lui-même.
+    }
+  }
+
+  // Séquence complète une fois authentifié : dossiers, puis les vérifications déjà existantes
+  // (dossiers locaux liés, popup d'accès à reconfirmer), puis démarrage du polling.
+  async function demarrerApplication() {
+    await charger();
+    await revérifierDossiersLiesAuDemarrage();
+    afficherPopupAccesSiNecessaire();
+    demarrerPolling();
   }
 
   // ---- apprentissage des corrections (dates) ----
@@ -4236,10 +4413,20 @@
 
       const messageIgnores = ignores > 0 ? ` (${ignores} entrée${ignores > 1 ? 's' : ''} illisible${ignores > 1 ? 's' : ''} ignorée${ignores > 1 ? 's' : ''})` : '';
       demanderConfirmation(`Importer ${importes.length} dossier${importes.length > 1 ? 's' : ''} depuis « ${file.name} »${messageIgnores} ? Ils seront ajoutés à votre registre actuel.`, async () => {
-        dossiers = dossiers.concat(importes);
-        await sauvegarder();
+        // Import en masse : chaque dossier est créé individuellement (POST) sur le serveur — pas
+        // de route "bulk" en V1 (voir M3 pour l'import serveur dédié à la migration initiale,
+        // distinct de ce bouton "Importer (JSON)" manuel). Un id déjà présent côté serveur (import
+        // d'une sauvegarde déjà partiellement importée) est simplement compté comme refusé, sans
+        // bloquer les autres.
+        let reussis = 0;
+        for (const d of importes) {
+          const ok = await sauvegarderNouveauDossier(d);
+          if (ok) { dossiers.push(d); reussis++; }
+        }
         render();
-        afficherToast(`${importes.length} dossier${importes.length > 1 ? 's' : ''} importé${importes.length > 1 ? 's' : ''}.`, 'OK', null);
+        const echoues = importes.length - reussis;
+        const messageEchoues = echoues > 0 ? ` (${echoues} refusé${echoues > 1 ? 's' : ''} par le serveur, id déjà présent ?)` : '';
+        afficherToast(`${reussis} dossier${reussis > 1 ? 's' : ''} importé${reussis > 1 ? 's' : ''}${messageEchoues}.`, 'OK', null);
       });
       event.target.value = '';
     };
@@ -4760,7 +4947,7 @@
       ajouterHistorique(d, etaitDejaLie
         ? 'Dossier local relié modifié (nouveau dossier choisi)'
         : 'Dossier local relié pour la vérification automatique de l\u2019offre de prêt');
-      await sauvegarder();
+      await sauvegarder(d);
       render();
       await verifierDossierLocal(id, true);
     } catch (e) {
@@ -5055,12 +5242,12 @@
       d.offrePretStatut = offreTrouvee ? 'recue' : 'manquante';
     }
 
-    await sauvegarder();
+    await sauvegarder(d);
     render();
 
     if (chercherOffre && offreTrouvee && offreEtaitManquante) {
       ajouterHistorique(d, 'Offre de prêt retrouvée dans le dossier local');
-      await sauvegarder();
+      await sauvegarder(d);
     }
 
     // Une offre déjà confirmée reçue ne doit jamais redéclencher une relance automatique même si
@@ -5168,7 +5355,7 @@
 
     d.derniereRelanceAuto = aujourdhui;
     ajouterHistorique(d, `Relance automatique ouverte (offre de prêt introuvable, échéance J-${jours})`);
-    sauvegarder();
+    sauvegarder(d);
 
     const subject = `Relance — Offre de prêt attendue (dossier ${d.nom})`;
     const body = `Bonjour,\n\nSauf erreur de notre part, nous n'avons pas encore reçu votre offre de prêt pour le dossier ${d.nom}.\n\nL'échéance d'obtention du prêt est fixée au ${formatDateFr(d.pret)}. Merci de nous transmettre cette offre dès réception, ou de nous indiquer où en est votre demande de financement.\n\nCordialement.`;
@@ -5223,131 +5410,6 @@
   }
   setInterval(() => { revérifierDossiersLiesAuDemarrage(); }, 5 * 60 * 1000);
 
-  // ---- registre partagé (un même fichier JSON sur le lecteur réseau de l'étude) ----
-  //
-  // Même technologie et mêmes limites que le dossier local : Chrome/Edge uniquement, permission
-  // à reconfirmer de temps en temps, aucune fusion intelligente en cas d'écriture simultanée à
-  // la seconde près (la dernière sauvegarde l'emporte). Une fois relié, ce fichier devient la
-  // source de vérité : il est relu périodiquement pour récupérer les mises à jour des collègues,
-  // et réécrit à chaque modification locale.
-
-  const CLE_HANDLE_PARTAGE = '__registre_partage__';
-  const CLE_PARTAGE_LIE = STORAGE_KEY + '-partage-lie';
-  const FICHIER_FS_SUPPORTE = typeof window.showSaveFilePicker === 'function';
-  let registrePartageLie = false;
-  let dernierContenuPartageEcrit = null; // null = "aucune référence encore connue dans cette session"
-  // Même limite que l'accès à un dossier local (voir accesAReconfirmer) : la permission au fichier
-  // partagé n'est pas conservée d'une session à l'autre. Mis à jour à chaque vérification
-  // (silencieuse ou via clic) dans obtenirHandlePartage(), pour que "Reconfirmer tous les accès"
-  // et la popup de démarrage puissent aussi couvrir ce cas, pas seulement les dossiers locaux.
-  let registrePartageAccesAReconfirmer = false;
-
-  function majStatutPartage() {
-    const el = document.getElementById('statut-partage');
-    const btn = document.getElementById('btn-registre-partage');
-    if (!el || !btn) return;
-    if (!FICHIER_FS_SUPPORTE) { el.style.display = 'none'; return; }
-    if (registrePartageLie) {
-      el.style.display = 'flex';
-      el.className = 'statut-partage actif';
-      el.textContent = 'Registre partagé actif';
-      btn.innerHTML = `${icone('link')} Registre partagé (relié)`;
-    } else {
-      el.style.display = 'none';
-      btn.innerHTML = `${icone('link')} Registre partagé (réseau)`;
-    }
-  }
-
-  async function lierRegistrePartage() {
-    if (!FICHIER_FS_SUPPORTE) {
-      afficherToast("Cette fonctionnalité nécessite Chrome ou Edge, ouverts en dehors de tout aperçu intégré.", 'OK', null);
-      return;
-    }
-    try {
-      const handle = await window.showSaveFilePicker({
-        suggestedName: 'registre-echeances-partage.json',
-        types: [{ description: 'Registre des échéances (JSON)', accept: { 'application/json': ['.json'] } }]
-      });
-      await enregistrerHandle(CLE_HANDLE_PARTAGE, handle);
-      registrePartageLie = true;
-      try { localStorage.setItem(CLE_PARTAGE_LIE, '1'); } catch (e) { /* sans conséquence */ }
-      majStatutPartage();
-
-      // Si le fichier choisi contient déjà des dossiers (créé par un collègue), on les récupère
-      // plutôt que d'écraser directement avec le registre local, potentiellement vide.
-      const recupere = await lireRegistrePartage(true);
-      if (!recupere) await ecrireRegistrePartage();
-      afficherToast('Registre partagé relié : les dossiers seront synchronisés via ce fichier.', 'OK', null);
-    } catch (e) {
-      if (!e || e.name === 'AbortError') return;
-      if (e.name === 'SecurityError') {
-        afficherToast("Chrome bloque le sélecteur de fichier dans cet aperçu intégré. Téléchargez le fichier et ouvrez-le directement dans votre navigateur.", 'OK', null);
-        return;
-      }
-      console.error(e);
-      afficherToast('Impossible de relier le registre partagé : ' + e.message, 'OK', null);
-    }
-  }
-
-  async function obtenirHandlePartage(viaClicUtilisateur) {
-    const handle = await recupererHandle(CLE_HANDLE_PARTAGE);
-    if (!handle) return null;
-    let permission = await handle.queryPermission({ mode: 'readwrite' });
-    if (permission !== 'granted' && viaClicUtilisateur) {
-      permission = await handle.requestPermission({ mode: 'readwrite' });
-    }
-    registrePartageAccesAReconfirmer = permission !== 'granted';
-    return permission === 'granted' ? handle : null;
-  }
-
-  async function ecrireRegistrePartage() {
-    if (!registrePartageLie) return;
-    const handle = await obtenirHandlePartage(false);
-    if (!handle) return; // permission perdue : la reconfirmation se fera au prochain clic manuel
-    try {
-      const contenu = JSON.stringify(dossiers, null, 2);
-      if (contenu === dernierContenuPartageEcrit) return; // rien de neuf, on épargne une écriture
-      const writable = await handle.createWritable();
-      await writable.write(contenu);
-      await writable.close();
-      dernierContenuPartageEcrit = contenu;
-    } catch (e) { console.error('Écriture du registre partagé impossible', e); }
-  }
-
-  // Relit le fichier partagé et l'adopte comme référence s'il diffère de la vue locale — c'est
-  // ainsi que les mises à jour d'un collègue apparaissent sans action de votre part.
-  async function lireRegistrePartage(viaClicUtilisateur) {
-    const handle = await obtenirHandlePartage(viaClicUtilisateur);
-    if (!handle) return false;
-    try {
-      const file = await handle.getFile();
-      const texte = await file.text();
-      if (!texte) return false;
-      if (dernierContenuPartageEcrit !== null && texte === dernierContenuPartageEcrit) return false;
-      const brut = JSON.parse(texte);
-      if (!Array.isArray(brut) || brut.length === 0) return false;
-      dossiers = brut.filter(d => d && typeof d === 'object' && d.id);
-      dernierContenuPartageEcrit = texte;
-      await sauvegarderLocalUniquement();
-      render();
-      return true;
-    } catch (e) {
-      if (e instanceof SyntaxError) return false; // fichier vide ou tout juste créé : rien à lire
-      console.error('Lecture du registre partagé impossible', e);
-      return false;
-    }
-  }
-
-  async function tenterReconnexionPartage() {
-    let lie = false;
-    try { lie = localStorage.getItem(CLE_PARTAGE_LIE) === '1'; } catch (e) { /* pas de préférence connue */ }
-    if (!lie || !FICHIER_FS_SUPPORTE) { majStatutPartage(); return; }
-    registrePartageLie = true;
-    majStatutPartage();
-    await lireRegistrePartage(false); // sans clic : silencieux si la permission est encore valable
-  }
-
-  setInterval(() => { if (registrePartageLie) lireRegistrePartage(false); }, 2 * 60 * 1000);
 
   // ---- thème clair / sombre ----
 
@@ -5625,11 +5687,17 @@
 
   chargerTheme();
   chargerApprentissage();
-  charger().then(async () => {
-    await revérifierDossiersLiesAuDemarrage();
-    await tenterReconnexionPartage();
-    afficherPopupAccesSiNecessaire();
-  });
+  // Mode serveur intranet (voir CLAUDE.md) : l'application entière est bloquée par l'écran de
+  // connexion tant que le mot de passe partagé n'a pas été validé — un jeton déjà mémorisé
+  // (localStorage, valable 12h côté serveur) permet de sauter cette étape au rechargement.
+  // demarrerApplication() gère elle-même le cas d'un jeton devenu invalide (401 → fetchAvecAuth
+  // réaffiche l'écran de connexion), pas la peine de le vérifier au préalable ici.
+  authToken = chargerJetonStocke();
+  if (authToken) {
+    demarrerApplication().catch((e) => console.error('Démarrage impossible', e));
+  } else {
+    afficherEcranConnexion();
+  }
   renderChips();
   // L'analyse juridique est une étape du wizard toujours visible (voir definirEtapeWizard) : sans
   // cet appel initial, ses sections restaient affichées vides (ni contenu ni message d'état) tant
