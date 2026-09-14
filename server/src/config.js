@@ -117,7 +117,17 @@ const config = {
   // Intervalles des tâches de fond, en millisecondes — volontairement des constantes en dur
   // plutôt que configurables via .env pour la V1 : pas de besoin exprimé de les ajuster, une
   // valeur de plus à documenter/oublier pour rien.
-  intervalleRappelsMs: 30 * 60 * 1000
+  intervalleRappelsMs: 30 * 60 * 1000,
+  // Analyse juridique par IA locale (voir routes/analyseIa.js, CLAUDE.md) : Ollama tourne EN
+  // LOCAL sur ce même serveur (jamais un service cloud — confidentialité des actes notariés), sur
+  // son port par défaut. Modèle par défaut choisi pour tourner raisonnablement sur un CPU de
+  // bureau sans GPU dédié (8B paramètres, quantifié par défaut par Ollama) — voir server/README.md
+  // pour l'installation et le choix éventuel d'un autre modèle. Les deux restent modifiables sans
+  // toucher au code, comme le reste de la configuration de ce fichier.
+  ollama: {
+    url: process.env.OLLAMA_URL || 'http://localhost:11434',
+    modele: process.env.OLLAMA_MODEL || 'llama3.1:8b'
+  }
 };
 
 // resoudreConfigExecutable/estSea exposées pour les tests uniquement — le reste du code serveur

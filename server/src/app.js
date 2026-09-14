@@ -10,6 +10,7 @@ const { creerDepot } = require('./dossiersRepo');
 const { creerRouteurAuth } = require('./routes/auth');
 const { creerRouteurDossiers } = require('./routes/dossiers');
 const { creerRouteurCalendrier } = require('./routes/calendrier');
+const { creerRouteurAnalyseIa } = require('./routes/analyseIa');
 
 // Fichier statique → nom d'asset embarqué (voir server/scripts/build-windows-exe.mjs, section
 // `assets` de sea-config.json) + type MIME à renvoyer. Tous des fichiers texte (HTML/CSS/JS/JSON/
@@ -76,6 +77,7 @@ function creerApp({ db, config }) {
   // dans un client calendrier, cohérent avec .env.example (`GET /calendrier.ics?token=...`).
   app.use(creerRouteurCalendrier(depot, config));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurDossiers(depot));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAnalyseIa(config));
 
   // Gestionnaire d'erreurs générique en dernier recours : évite qu'une exception inattendue
   // (JSON malformé, etc.) ne fasse planter le processus entier plutôt que de répondre 500.

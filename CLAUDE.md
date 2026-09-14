@@ -3005,6 +3005,80 @@ autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` auton
   - `npm test` reste vert (134 tests, aucune fonction pure modifiée par ce chantier — vérifié en
     plus par une simulation Node ad hoc du décodage HTML+JS réel sur les deux libellés concernés et
     un libellé de contrôle sans apostrophe, voir ci-dessus).
+- **Analyse juridique approfondie par IA locale (Ollama) + nouvel onglet "Analyse approfondie
+  (IA)"**, demandé explicitement par l'étude ("lance l'installation du LLM local", "créer un
+  nouvel outil d'import... comme si un notaire relisait l'acte pour trouver des incohérences").
+  Décisions prises (l'étude ayant explicitement délégué les choix d'implémentation) :
+  - **Ollama, pas une API cloud** : seule option compatible avec la confidentialité notariale déjà
+    actée dans ce document (aucune donnée client vers un service extérieur) et avec la décision de
+    longue date "rester en local, sans hébergement en ligne" — un LLM tournant sur le serveur de
+    l'étude reste dans ce périmètre, contrairement à un appel à une API OpenAI/Anthropic/etc. Ne
+    pouvait exister que sur `claude/serveur-intranet` (a besoin d'un backend pour parler à Ollama
+    en HTTP) — `main`, sans backend, n'a pas cette fonctionnalité, mais partage le même
+    `script.js` : les fonctions de cet onglet existent aussi dans le fichier sur `main`, simplement
+    jamais appelées faute de lien/onglet correspondant dans son `index.html`.
+  - **Modèle par défaut : `llama3.1:8b`**, choisi comme compromis raisonnable entre qualité
+    d'analyse et vitesse sur un CPU de bureau sans GPU dédié (l'étude n'a pas précisé le matériel
+    du futur serveur) — configurable sans toucher au code (`OLLAMA_MODEL`/`ollamaModel`, même
+    schéma de résolution à 3 niveaux que le reste de `config.js`) si un modèle plus adapté se
+    révèle nécessaire une fois testé en conditions réelles.
+  - **`server/src/llm.js`** : client HTTP minimal vers l'API Ollama (`fetch` natif, aucune
+    dépendance npm supplémentaire) — `verifierDisponibilite()` distingue "Ollama pas lancé" de
+    "modèle pas encore téléchargé" (message actionnable différent dans les deux cas, voir
+    l'interface), `generer()` utilise `format: 'json'` (contrainte de sortie propre à Ollama) et
+    une température basse (0.1) — une analyse juridique doit rester factuelle et reproductible,
+    pas créative. Timeout généreux (180s) : un modèle 7-8B sur CPU de bureau peut prendre du temps
+    sur un acte long.
+  - **`server/src/routes/analyseIa.js`** (`GET /api/analyse-ia/disponibilite`,
+    `POST /api/analyse-ia`, montées derrière `middlewareAuth` comme le reste de `/api`) : le
+    prompt (`construirePrompt()`) donne au modèle un rôle explicite de notaire relisant l'acte et
+    ses annexes, avec une liste de points de vigilance concrets (cohérence des parties/prix/
+    désignation du bien entre les documents, validité des diagnostics dans le temps, annexes
+    mentionnées mais absentes, clauses contradictoires, signatures manquantes) et la consigne
+    explicite de ne jamais inventer un fait absent du texte — un LLM local reste sujet aux
+    hallucinations, cette consigne les réduit sans les éliminer. Chaque document est tronqué à
+    `LIMITE_CARACTERES_PAR_DOCUMENT` (40 000 caractères) avant envoi — un acte de plusieurs
+    dizaines de pages plus ses annexes dépasserait largement ce qu'un modèle 7-8B sur CPU peut
+    traiter en un temps raisonnable ; l'interface signale la troncature plutôt que de laisser
+    croire à une analyse complète. `normaliserConstats()` protège contre une sortie du modèle non
+    conforme (JSON invalide → liste vide + message de diagnostic plutôt qu'un plantage ; gravité
+    hors énumération → repli sur "info" ; constat sans titre → ignoré).
+  - **Onglet "Analyse approfondie (IA)"** (sidebar, sous "Simulateur de provision") : dépose l'acte
+    ET ses annexes séparément (plusieurs PDF distincts, comme reçus par l'étude — pas un unique PDF
+    fusionné), avec un `<select>` par fichier (Acte principal / Annexe, deviné automatiquement pour
+    le premier fichier dont le nom contient "compromis"/"promesse", toujours corrigible). Le texte
+    de chaque PDF est extrait CÔTÉ CLIENT (réutilise `lireTextePdfVerification()`, déjà en place
+    pour vérifier un dossier local — texte extractible + repli OCR sur les 3 premières pages) :
+    seul ce texte est envoyé au serveur, jamais le PDF lui-même, et rien n'est enregistré (aucun
+    dossier créé, cohérent avec le principe "outil de comparaison", pas "création de dossier de
+    suivi" — distinct du wizard "Nouveau dossier" et de ses regex d'extraction de dates/champs).
+    Bandeau de disponibilité (`verifierDisponibiliteAnalyseIa()`, interrogé à chaque ouverture de
+    l'onglet) affiche tout de suite si Ollama n'est pas installé/lancé, plutôt que de laisser
+    lancer une analyse de plusieurs minutes pour découvrir l'échec à la fin. Rapport
+    (`renderRapportAnalyseIa()`) : un `.dot-label` par gravité (`dl-urgent`/critique,
+    `dl-pret`/attention, `dl-neutre`/info — mêmes tokens de couleur que le reste de l'outil, aucune
+    couleur inventée), titre, description, documents concernés.
+  - **Disclaimer explicite à deux endroits** (petit badge à côté du titre, comme
+    `.calc-warning-label` pour le simulateur de frais d'acte, + note complète en bas de page) :
+    "Suggestions à vérifier" — un LLM peut se tromper, cette analyse est une aide à la relecture,
+    jamais une validation juridique en soi. Cohérent avec le principe déjà établi pour le
+    simulateur de frais d'acte (barème non audité) : ne jamais présenter un résultat automatique
+    comme une certitude sans un signal visuel clair.
+  - Tests : `server/test/analyse-ia.test.js` (11 tests — fonctions pures `construirePrompt`/
+    `normaliserConstats`/`tronquerDocument`, et la route montée avec un FAUX serveur Ollama HTTP
+    local plutôt qu'un vrai Ollama, absent de cet environnement de développement). Vérifié côté
+    client par un script Node ad hoc (bac à sable, voir `tests/helpers/load-app.js`) : rendu HTML
+    correctement échappé (testé avec un titre contenant `<img onerror=...>`), badges de gravité
+    corrects, gestion des cas limites (aucun document exploitable, JSON invalide, document
+    tronqué) — toutes les fonctions de mutation (liste de fichiers en mémoire) restent, comme
+    ailleurs dans ce fichier, non unitairement testables (dépendent d'un état de premier niveau
+    invisible depuis le contexte `vm` des tests). `npm test` reste vert aux deux endroits (134
+    tests racine, 36 tests serveur dont les 11 nouveaux).
+  - **Non vérifié en conditions réelles** : ni Ollama ni une vraie machine Windows ne sont
+    disponibles dans cet environnement de développement — la qualité réelle des constats produits
+    sur de vrais actes, et les temps de réponse sur le matériel du futur serveur, restent à
+    confirmer par l'étude une fois Ollama installé au bureau (voir `server/README.md`, section
+    "Analyse juridique par IA locale").
 
 **Ce qui n'a volontairement PAS été fait** (arrêté à la demande explicite de l'étude, pas un
 oubli) — à reprendre uniquement si redemandé un jour :

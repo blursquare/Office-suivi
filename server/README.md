@@ -76,6 +76,59 @@ tient à jour tout seul, pour tout le portefeuille, sans jamais rouvrir l'outil.
    pas renseigné dans `.env` (voir `.env.example`) — sans jeton, `GET /calendrier.ics` répond 503
    plutôt que de générer un flux non protégé.
 
+## Analyse juridique par IA locale (Ollama)
+
+Un onglet « Analyse approfondie (IA) » (sidebar de l'outil) permet de déposer l'acte principal
+(compromis/promesse) et ses annexes séparément — chacune dans son propre PDF, comme reçues — pour
+une relecture croisée façon « un notaire relit l'acte » : cohérence du prix/de l'adresse/des dates
+entre l'acte et ses annexes, pièces mentionnées mais absentes, clauses contradictoires. Le modèle
+tourne **entièrement en local sur ce serveur** via [Ollama](https://ollama.com) (gratuit,
+open-source) — le texte des documents ne quitte JAMAIS le réseau de l'étude, cohérent avec la
+décision déjà prise de rester sans hébergement externe (voir CLAUDE.md) et avec le secret
+professionnel notarial (identité des parties, données financières).
+
+**Installation (une seule fois, sur le poste qui héberge `CLAIRE-serveur.exe`)** :
+1. Télécharger et installer Ollama pour Windows depuis <https://ollama.com/download> (installateur
+   classique, pas de configuration particulière requise).
+2. Ouvrir une invite de commandes et lancer :
+   ```
+   ollama pull llama3.1:8b
+   ```
+   Télécharge le modèle par défaut (~4-5 Go) — à faire une seule fois ; Ollama le garde ensuite
+   sur disque. Ollama démarre automatiquement en arrière-plan après l'installation (icône dans la
+   zone de notification) et écoute sur `http://localhost:11434`, jamais accessible depuis
+   l'extérieur du poste par défaut.
+3. Rien d'autre à configurer côté CLAIRE : le serveur détecte automatiquement Ollama à chaque
+   ouverture de l'onglet (bandeau vert « Modèle local disponible » ou rouge avec la cause précise
+   si Ollama n'est pas lancé/le modèle pas encore téléchargé).
+
+**Choix du modèle** : `llama3.1:8b` par défaut — un bon compromis entre qualité d'analyse et
+vitesse sur un CPU de bureau sans carte graphique dédiée (quelques dizaines de secondes à quelques
+minutes selon la longueur des documents). Pour changer de modèle (ex. un modèle plus grand si le
+poste a plus de puissance, ou plus petit s'il est modeste) : `ollama pull <autre-modele>`, puis
+définir `OLLAMA_MODEL=<autre-modele>` dans `.env` (mode développeur) ou `"ollamaModel":
+"<autre-modele>"` dans `config.json` à côté de l'exécutable (mode `.exe` — clé à ajouter à la main
+dans ce fichier JSON, jamais générée automatiquement pour ce réglage-là). `OLLAMA_URL`/`ollamaUrl`
+permet de même de pointer vers une autre adresse qu'un Ollama tournant sur ce même poste, si
+l'étude préfère l'installer sur une machine dédiée du réseau plutôt que sur le poste serveur.
+
+**Limites à connaître** :
+- Un modèle de langage peut se tromper, inventer un détail ou passer à côté d'un vrai problème —
+  chaque constat proposé est à vérifier, jamais une validation juridique en soi (rappelé dans
+  l'interface elle-même). Voir CLAUDE.md pour le choix explicite de ne jamais utiliser un service
+  IA en ligne pour cette fonctionnalité, précisément à cause de la confidentialité des actes.
+- Un document très long (plusieurs dizaines de pages) est tronqué au-delà d'un certain nombre de
+  caractères avant d'être envoyé au modèle (voir `LIMITE_CARACTERES_PAR_DOCUMENT` dans
+  `src/routes/analyseIa.js`) — l'interface le signale quand c'est le cas, l'analyse reste alors
+  partielle plutôt que d'attendre indéfiniment ou d'échouer.
+- Rien n'est jamais enregistré par cet outil : les PDF déposés et le texte qui en est extrait ne
+  vivent qu'en mémoire le temps de l'analyse, aucun dossier n'est créé.
+- **Non vérifié en conditions réelles dans cet environnement de développement** (pas de machine
+  Windows ni d'Ollama installable ici) : le client HTTP (`src/llm.js`) et la route
+  (`src/routes/analyseIa.js`) sont testés avec un faux serveur Ollama (voir
+  `test/analyse-ia.test.js`), mais la qualité réelle des constats produits par `llama3.1:8b` sur de
+  vrais actes reste à confirmer par l'étude.
+
 ## Service Windows (démarrage automatique, redémarrage seul en cas de plantage)
 
 Par défaut, `CLAIRE-serveur.exe` reste un simple exécutable : il tourne tant que sa fenêtre de
@@ -185,12 +238,13 @@ serveur en cours d'exécution pour que le registre reste accessible aux autres.
 npm test
 ```
 
-25 tests (`node:test`, aucune dépendance de test supplémentaire) couvrant l'authentification, le
+36 tests (`node:test`, aucune dépendance de test supplémentaire) couvrant l'authentification, le
 cycle complet créer/lire/modifier/supprimer/restaurer un dossier, la résolution de configuration
-du mode `.exe` (mot de passe ET jeton calendrier), le service des fichiers statiques embarqués et
-le flux calendrier connecté (`/calendrier.ics`). Indépendant de la suite de tests à la racine du
-dépôt (`npm test` depuis `Office-suivi/`, 134 tests sur les fonctions pures de `script.js`) — les
-deux peuvent tourner sans que l'un dépende des dépendances de l'autre.
+du mode `.exe` (mot de passe ET jeton calendrier), le service des fichiers statiques embarqués, le
+flux calendrier connecté (`/calendrier.ics`) et l'analyse juridique par IA locale (`/api/analyse-ia`,
+avec un faux serveur Ollama HTTP — voir `test/analyse-ia.test.js`). Indépendant de la suite de
+tests à la racine du dépôt (`npm test` depuis `Office-suivi/`, 134 tests sur les fonctions pures de
+`script.js`) — les deux peuvent tourner sans que l'un dépende des dépendances de l'autre.
 
 ## Ce qui n'est PAS encore prêt pour un usage réel au bureau
 
@@ -214,3 +268,9 @@ deux peuvent tourner sans que l'un dépende des dépendances de l'autre.
 - **`node:sqlite` est une API expérimentale** de Node.js (avertissement affiché au démarrage,
   sans conséquence connue) — `better-sqlite3` reste une option de repli si elle posait problème
   un jour sur le poste de l'étude.
+- **Analyse juridique par IA locale (Ollama) disponible mais non vérifiée sur de vrais actes** —
+  voir la section « Analyse juridique par IA locale » plus haut : le client HTTP et la route sont
+  testés avec un faux serveur Ollama, mais la qualité réelle des constats produits par le modèle
+  par défaut (`llama3.1:8b`) sur de vrais compromis/promesses reste à confirmer par l'étude, tout
+  comme les temps de réponse sur le matériel réel du poste serveur (aucun GPU dédié à prévoir dans
+  ce budget — la vitesse dépendra donc largement du CPU disponible).

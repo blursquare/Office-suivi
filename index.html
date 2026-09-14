@@ -47,6 +47,13 @@
       <button type="button" id="tab-calculateur" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('calculateur')">
         <span class="sidebar-link-icone" id="icon-nav-calculateur" aria-hidden="true"></span>Simulateur de provision
       </button>
+      <!-- Outil d'import et d'analyse juridique approfondie par IA locale (Ollama, voir
+           server/src/llm.js/CLAUDE.md) : distinct du wizard "Nouveau dossier" (qui extrait des
+           dates/champs par regex pour créer un dossier de suivi) — ici on dépose l'acte ET ses
+           annexes séparément pour une relecture croisée, sans forcément créer de dossier. -->
+      <button type="button" id="tab-analyse-ia" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('analyse-ia')">
+        <span class="sidebar-link-icone" id="icon-nav-analyse-ia" aria-hidden="true"></span>Analyse approfondie (IA)
+      </button>
     </nav>
 
     <div class="sidebar-footer">
@@ -530,6 +537,64 @@
     <p><strong>Primo-accédant :</strong> la hausse temporaire du taux départemental ne s'applique pas lorsque le bien constitue la première propriété de l'acquéreur et est destiné à sa résidence principale (art. L. 31-10-3 du CCH).</p>
     <p><strong>Barème :</strong> taux départementaux DGFiP applicables au 1er juin 2026. Le tarif réglementé des notaires est fixé pour la période du 1er mars 2026 au 29 février 2028 (art. A444-91 du Code de commerce). L'article 116 de la loi de finances pour 2025 permet une hausse temporaire du taux départemental jusqu'à 5 % du 1er avril 2025 au 31 mars 2028, avec exception pour les primo-accédants achetant leur résidence principale (condition de première propriété appréciée notamment sur les deux années précédentes, cf. BOFiP).</p>
     <p>Outil indicatif de provision — vérifier les paramètres fiscaux et les débours propres au dossier avant émission.</p>
+  </div>
+</div>
+
+<!-- Analyse juridique approfondie par IA locale : dépose l'acte (compromis/promesse) et ses
+     annexes séparées (PDF distincts, parfois plusieurs) pour une relecture croisée façon "un
+     notaire relit l'acte" — cohérences de prix/adresse/dates entre l'acte et ses annexes,
+     pièces manquantes, clauses contradictoires. Tourne entièrement sur le serveur de l'étude
+     (Ollama en local, voir server/README.md) : aucun texte de document n'est jamais envoyé à un
+     service extérieur. Onglet propre au serveur intranet — n'existe pas sur la version 100%
+     locale (main), qui n'a pas de backend pour héberger le modèle. -->
+<div class="onglet-panel" id="onglet-analyse-ia" style="display:none;">
+  <div class="dash-header">
+    <div>
+      <div class="dash-eyebrow">Analyse approfondie</div>
+      <div class="dash-titre-ligne">
+        <h1 class="dash-titre">Relecture croisée par IA locale</h1>
+        <span class="calc-warning-label" title="Les constats proposés sont générés par un modèle d'intelligence artificielle exécuté localement sur le serveur de l'étude — à vérifier systématiquement, ils ne remplacent pas la relecture juridique par un professionnel.">
+          <span id="icon-analyse-ia-warning" aria-hidden="true"></span>
+          Suggestions à vérifier
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div id="analyse-ia-dispo" class="analyse-ia-dispo" style="display:none;"></div>
+
+  <div class="dash-grid">
+    <div class="calc-card">
+      <div class="dash-section-titre">Documents à comparer</div>
+      <p class="hint">Déposez l'acte principal (compromis ou promesse) et ses annexes séparément — chacune dans son propre fichier PDF, comme reçues. Indiquez pour chacun s'il s'agit de l'acte ou d'une annexe : l'IA compare le contenu de l'acte à celui de chaque annexe.</p>
+
+      <div class="pdf-dropzone" id="analyse-ia-dropzone" ondragover="gererSurvolDepotAnalyseIa(event)" ondragleave="gererQuitteDepotAnalyseIa(event)" ondrop="gererDepotAnalyseIa(event)">
+        <span class="pdf-dropzone-icone" id="icon-analyse-ia-dropzone" aria-hidden="true"></span>
+        <label for="analyse-ia-fichiers" class="file-btn">Choisir un ou plusieurs PDF</label>
+        <input type="file" id="analyse-ia-fichiers" accept="application/pdf" multiple onchange="ajouterFichiersAnalyseIa(this.files); this.value='';">
+        <span class="pdf-dropzone-hint">ou glissez-déposez les fichiers ici</span>
+      </div>
+
+      <div id="analyse-ia-liste-fichiers" class="analyse-ia-liste-fichiers"></div>
+
+      <div class="analyse-ia-actions">
+        <button type="button" class="secondary" id="analyse-ia-vider-btn" onclick="viderAnalyseIa()" style="display:none;">Vider la liste</button>
+        <button type="button" class="primary" id="analyse-ia-lancer-btn" onclick="lancerAnalyseIa()" disabled>Lancer l'analyse</button>
+      </div>
+    </div>
+
+    <div class="calc-card">
+      <div class="dash-section-titre">Constats</div>
+      <div id="analyse-ia-rapport" class="analyse-ia-rapport">
+        <p class="hint">Aucune analyse lancée pour l'instant.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="calc-card calc-card-notes">
+    <div class="dash-section-titre">À propos de cette analyse</div>
+    <p>Le texte de chaque PDF est extrait dans votre navigateur (comme pour un import de compromis classique), puis envoyé au modèle d'IA qui tourne localement sur le serveur de l'étude (Ollama) — jamais à un service en ligne. Rien de ce que vous déposez ici n'est conservé au-delà de l'analyse : aucun dossier n'est créé, aucun fichier n'est enregistré.</p>
+    <p>Un modèle de langage peut se tromper ou passer à côté d'un problème réel — cette analyse est une aide à la relecture, pas une validation juridique. Vérifiez systématiquement chaque constat avant d'en tenir compte.</p>
   </div>
 </div>
 

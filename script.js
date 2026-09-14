@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-14 19:27';
+  const VERSION_APP = '2026-09-14 20:11';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,14 +23,14 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-14 20:11', resume: "Nouvel onglet « Analyse approfondie (IA) » : dépose l'acte + ses annexes séparées, relecture croisée par un modèle IA local (Ollama, aucune donnée envoyée en ligne) — voir server/README.md" },
     { version: '2026-09-14 19:27', resume: "Vrai correctif du bug apostrophe (Certificat d'urbanisme/d'alignement) : le précédent (&#39;) ne survivait pas au décodage HTML de l'attribut onclick, toujours cassé en pratique" },
     { version: '2026-09-14 17:13', resume: 'Détection "Renonciation au droit de préemption" élargie au sigle "DPU" dans le nom de fichier' },
     { version: '2026-09-14 17:01', resume: 'Écran de connexion : espace manquant entre le champ mot de passe et "Se connecter" ; sidebar : Mode sombre et À propos côte à côte' },
     { version: '2026-09-14 16:11', resume: "Serveur : vrai service Windows (NSSM, redémarrage auto) et calendrier connecté (abonnement webcal en lecture seule) — voir server/README.md" },
     { version: '2026-09-14 15:42', resume: "Bug corrigé : apostrophe cassait les boutons pièce (Certificat d'urbanisme...) ; suppression d'un engagement/document possible partout ; \"contrat de crédit/prêt\" reconnu pour l'offre" },
     { version: '2026-09-14 15:06', resume: "Offre de prêt détectée uniquement par nom de fichier (plus de lecture du contenu) ; réinitialiser une pièce reçue à tort" },
-    { version: '2026-09-14 07:30', resume: 'Mode serveur intranet (branche claude/serveur-intranet) : registre partagé JSON/localStorage remplacé par un serveur (login, synchro par polling)' },
-    { version: '2026-09-13 19:22', resume: 'Sélecteur de catégorie en petite flèche, bouton "Ouvrir le compromis", recherche sans accents, pièce perso icône/texte, warning simulateur près du titre, badge Alpha' }
+    { version: '2026-09-14 07:30', resume: 'Mode serveur intranet (branche claude/serveur-intranet) : registre partagé JSON/localStorage remplacé par un serveur (login, synchro par polling)' }
   ];
 
   const STORAGE_KEY = 'dossiers';
@@ -2872,15 +2872,21 @@
     document.getElementById('onglet-nouveau').style.display = nom === 'nouveau' ? '' : 'none';
     document.getElementById('onglet-suivi').style.display = nom === 'suivi' ? '' : 'none';
     document.getElementById('onglet-calculateur').style.display = nom === 'calculateur' ? '' : 'none';
+    document.getElementById('onglet-analyse-ia').style.display = nom === 'analyse-ia' ? '' : 'none';
     document.getElementById('tab-dashboard').setAttribute('aria-selected', String(nom === 'dashboard'));
     document.getElementById('tab-nouveau').setAttribute('aria-selected', String(nom === 'nouveau'));
     document.getElementById('tab-suivi').setAttribute('aria-selected', String(nom === 'suivi'));
     document.getElementById('tab-calculateur').setAttribute('aria-selected', String(nom === 'calculateur'));
+    document.getElementById('tab-analyse-ia').setAttribute('aria-selected', String(nom === 'analyse-ia'));
     document.getElementById('tab-dashboard').classList.toggle('actif', nom === 'dashboard');
     document.getElementById('tab-nouveau').classList.toggle('actif', nom === 'nouveau');
     document.getElementById('tab-suivi').classList.toggle('actif', nom === 'suivi');
     document.getElementById('tab-calculateur').classList.toggle('actif', nom === 'calculateur');
+    document.getElementById('tab-analyse-ia').classList.toggle('actif', nom === 'analyse-ia');
     if (nom === 'suivi' || nom === 'dashboard') render();
+    // Vérifiée à chaque ouverture (appel léger) plutôt qu'une fois pour toutes : Ollama a pu être
+    // installé/démarré/arrêté sur le serveur depuis la dernière visite de cet onglet.
+    if (nom === 'analyse-ia') verifierDisponibiliteAnalyseIa();
   }
 
   // Détermine, parmi les échéances d'un dossier, la plus proche à afficher en un coup d'œil dans
@@ -5775,6 +5781,243 @@
     calculerFraisActe();
   }
 
+  // ---- Analyse approfondie (IA) : import de l'acte + annexes séparées, relecture croisée par le
+  // modèle local (Ollama, voir server/src/llm.js et CLAUDE.md) ----
+  // Distinct du wizard "Nouveau dossier" : on ne crée pas de dossier de suivi ici, on compare des
+  // documents entre eux. N'existe QUE sur la branche serveur-intranet (a besoin d'un backend pour
+  // parler à Ollama) — script.js reste néanmoins un fichier unique partagé avec la branche `main`
+  // (voir CLAUDE.md) : sur `main`, ces fonctions existent mais ne sont simplement jamais appelées
+  // (pas de lien/onglet correspondant dans index.html sur cette branche).
+  // Chaque fichier déposé n'existe qu'en mémoire le temps de l'analyse — jamais enregistré, aucun
+  // dossier créé. Seul le TEXTE déjà extrait dans le navigateur est envoyé au serveur, jamais le
+  // PDF lui-même (voir lireTextePdfVerification, déjà utilisée pour vérifier un dossier local).
+  let fichiersAnalyseIa = []; // { id, file, nom, type: 'acte'|'annexe', statut, texte, erreurTexte }
+  let compteurFichierAnalyseIa = 0;
+  let analyseIaEnCours = false;
+
+  function gererSurvolDepotAnalyseIa(event) {
+    event.preventDefault();
+    document.getElementById('analyse-ia-dropzone').classList.add('survol');
+  }
+
+  function gererQuitteDepotAnalyseIa(event) {
+    event.preventDefault();
+    document.getElementById('analyse-ia-dropzone').classList.remove('survol');
+  }
+
+  function gererDepotAnalyseIa(event) {
+    event.preventDefault();
+    document.getElementById('analyse-ia-dropzone').classList.remove('survol');
+    const fichiers = event.dataTransfer && event.dataTransfer.files;
+    if (fichiers && fichiers.length) ajouterFichiersAnalyseIa(fichiers);
+  }
+
+  // Devine "acte" pour le premier PDF dont le nom évoque un compromis/une promesse, "annexe" pour
+  // tous les suivants — une simple valeur de départ pratique, toujours modifiable ensuite via le
+  // <select> de chaque ligne (voir changerTypeFichierAnalyseIa) : ce n'est jamais figé.
+  function deviserTypeAnalyseIa(nomFichier) {
+    const dejaUnActe = fichiersAnalyseIa.some(f => f.type === 'acte');
+    if (!dejaUnActe && /compromis|promesse/i.test(nomFichier)) return 'acte';
+    return 'annexe';
+  }
+
+  function ajouterFichiersAnalyseIa(fileList) {
+    const fichiers = Array.from(fileList).filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
+    if (fichiers.length === 0) {
+      afficherToast('Seuls les fichiers PDF sont acceptés.', 'OK', null);
+      return;
+    }
+    const nouvelles = fichiers.map(file => ({
+      id: `analyse-ia-${++compteurFichierAnalyseIa}`,
+      file,
+      nom: file.name,
+      type: deviserTypeAnalyseIa(file.name),
+      statut: 'lecture',
+      texte: '',
+      erreurTexte: ''
+    }));
+    fichiersAnalyseIa = fichiersAnalyseIa.concat(nouvelles);
+    renderListeFichiersAnalyseIa();
+    for (const entree of nouvelles) extraireTexteFichierAnalyseIa(entree.id);
+  }
+
+  // Réutilise lireTextePdfVerification() (déjà en place pour vérifier l'offre de prêt/les pièces
+  // d'un dossier local relié) : texte extractible + repli OCR sur les 3 premières pages si le PDF
+  // est un scan sans texte — même logique, appliquée ici à un fichier importé via <input> plutôt
+  // qu'à un FileSystemFileHandle.
+  async function extraireTexteFichierAnalyseIa(id) {
+    const entree = fichiersAnalyseIa.find(f => f.id === id);
+    if (!entree) return;
+    if (!window.pdfjsLib) {
+      entree.statut = 'erreur';
+      entree.erreurTexte = 'Lecture PDF indisponible — réessayez dans un instant.';
+      renderListeFichiersAnalyseIa();
+      return;
+    }
+    try {
+      const buffer = await entree.file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: buffer, verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise;
+      const texte = await lireTextePdfVerification(pdf);
+      if (texte.trim().length < 20) {
+        entree.statut = 'erreur';
+        entree.erreurTexte = 'Aucun texte exploitable trouvé (page vide, ou scan illisible même après OCR).';
+      } else {
+        entree.statut = 'ok';
+        entree.texte = texte;
+      }
+    } catch (e) {
+      entree.statut = 'erreur';
+      entree.erreurTexte = 'Lecture du PDF impossible.';
+      console.error('Analyse IA : échec de lecture de', entree.nom, e);
+    }
+    renderListeFichiersAnalyseIa();
+  }
+
+  function changerTypeFichierAnalyseIa(id, valeur) {
+    const entree = fichiersAnalyseIa.find(f => f.id === id);
+    if (entree) entree.type = valeur;
+  }
+
+  function retirerFichierAnalyseIa(id) {
+    fichiersAnalyseIa = fichiersAnalyseIa.filter(f => f.id !== id);
+    renderListeFichiersAnalyseIa();
+  }
+
+  // Pas de demanderConfirmation() ici, volontairement : rien n'est enregistré (voir en tête de
+  // section), vider la liste ne perd qu'un import à refaire — un impact bien moindre qu'archiver/
+  // supprimer un vrai dossier de suivi, qui garde ce garde-fou.
+  function viderAnalyseIa() {
+    fichiersAnalyseIa = [];
+    const rapport = document.getElementById('analyse-ia-rapport');
+    if (rapport) rapport.innerHTML = '<p class="hint">Aucune analyse lancée pour l\'instant.</p>';
+    renderListeFichiersAnalyseIa();
+  }
+
+  function statutFichierAnalyseIa(entree) {
+    if (entree.statut === 'lecture') return `<span class="dot-label dl-neutre">${icone('spinner', null, true)}Lecture…</span>`;
+    if (entree.statut === 'erreur') return `<span class="dot-label dl-urgent" title="${escapeAttr(entree.erreurTexte)}">${icone('alert-triangle')}Erreur</span>`;
+    return `<span class="dot-label dl-success">${icone('file-text')}Lu</span>`;
+  }
+
+  function renderListeFichiersAnalyseIa() {
+    const conteneur = document.getElementById('analyse-ia-liste-fichiers');
+    if (!conteneur) return;
+    conteneur.innerHTML = fichiersAnalyseIa.map(f => `
+      <div class="analyse-ia-fichier">
+        ${icone('file-text')}
+        <span class="analyse-ia-fichier-nom" title="${escapeAttr(f.nom)}">${escapeHtml(f.nom)}</span>
+        <select onchange="changerTypeFichierAnalyseIa('${f.id}', this.value)" aria-label="Type de document">
+          <option value="acte" ${f.type === 'acte' ? 'selected' : ''}>Acte principal</option>
+          <option value="annexe" ${f.type === 'annexe' ? 'selected' : ''}>Annexe</option>
+        </select>
+        ${statutFichierAnalyseIa(f)}
+        <button type="button" class="piece-suppr" onclick="retirerFichierAnalyseIa('${f.id}')" title="Retirer ce fichier" aria-label="Retirer ce fichier">${icone('x')}</button>
+      </div>
+    `).join('');
+
+    const viderBtn = document.getElementById('analyse-ia-vider-btn');
+    if (viderBtn) viderBtn.style.display = fichiersAnalyseIa.length ? '' : 'none';
+
+    const lancerBtn = document.getElementById('analyse-ia-lancer-btn');
+    if (lancerBtn && !analyseIaEnCours) {
+      const pretsAAnalyser = fichiersAnalyseIa.some(f => f.statut === 'ok');
+      const enCoursDeLecture = fichiersAnalyseIa.some(f => f.statut === 'lecture');
+      lancerBtn.disabled = !pretsAAnalyser || enCoursDeLecture;
+    }
+  }
+
+  // Interrogée à chaque ouverture de l'onglet (voir definirOnglet) : Ollama a pu être installé/
+  // démarré/arrêté sur le serveur depuis la dernière visite. Affiche tout de suite un message
+  // actionnable (modèle absent, Ollama non lancé...) plutôt que de laisser lancer une analyse de
+  // plusieurs minutes pour découvrir l'échec à la fin — voir server/src/routes/analyseIa.js.
+  async function verifierDisponibiliteAnalyseIa() {
+    const zone = document.getElementById('analyse-ia-dispo');
+    if (!zone) return;
+    try {
+      const reponse = await fetchAvecAuth('/api/analyse-ia/disponibilite');
+      const statut = await reponse.json();
+      zone.style.display = 'flex';
+      if (statut.disponible) {
+        zone.className = 'analyse-ia-dispo dispo-ok';
+        zone.innerHTML = `${icone('sparkle')}Modèle local « ${escapeHtml(statut.modele)} » disponible.`;
+      } else {
+        zone.className = 'analyse-ia-dispo dispo-off';
+        zone.innerHTML = `${icone('alert-triangle')}${escapeHtml(statut.raison || 'Modèle IA local indisponible.')}`;
+      }
+    } catch (e) {
+      // Session expirée : fetchAvecAuth a déjà réaffiché l'écran de connexion, rien d'autre à faire.
+    }
+  }
+
+  function libelleGraviteAnalyseIa(gravite) {
+    if (gravite === 'critique') return { dl: 'dl-urgent', icone: 'alert-triangle', texte: 'Critique' };
+    if (gravite === 'attention') return { dl: 'dl-pret', icone: 'alert-triangle', texte: 'À vérifier' };
+    return { dl: 'dl-neutre', icone: 'info', texte: 'Info' };
+  }
+
+  function renderRapportAnalyseIa(resultat) {
+    const zone = document.getElementById('analyse-ia-rapport');
+    if (!zone) return;
+    let html = '';
+    if (resultat.tronque) {
+      html += `<p class="hint">${icone('alert-triangle')} Un ou plusieurs documents étaient trop longs et n'ont été analysés que partiellement — les constats ci-dessous peuvent donc être incomplets.</p>`;
+    }
+    if (resultat.erreurAnalyse) {
+      // Le modèle n'a pas renvoyé un JSON exploitable : ce n'est pas la même chose qu'une vraie
+      // analyse "rien à signaler" — ne pas afficher les deux messages à la fois, ce serait
+      // trompeur (laisserait croire que les documents ont bien été relus sans souci trouvé).
+      html += `<p class="hint">${escapeHtml(resultat.erreurAnalyse)}</p>`;
+    } else if (!resultat.constats || resultat.constats.length === 0) {
+      html += '<p class="hint">Aucune incohérence relevée par le modèle sur les documents fournis — à vérifier malgré tout, voir la note ci-dessous.</p>';
+    } else {
+      html += resultat.constats.map(c => {
+        const g = libelleGraviteAnalyseIa(c.gravite);
+        const docs = (c.documents || []).map(d => escapeHtml(d)).join(', ');
+        return `<div class="analyse-ia-constat">
+          <div class="analyse-ia-constat-titre"><span class="dot-label ${g.dl}">${icone(g.icone)}${g.texte}</span>${escapeHtml(c.titre)}</div>
+          ${c.description ? `<p class="analyse-ia-constat-desc">${escapeHtml(c.description)}</p>` : ''}
+          ${docs ? `<div class="analyse-ia-constat-docs">Concerne : ${docs}</div>` : ''}
+        </div>`;
+      }).join('');
+    }
+    zone.innerHTML = html;
+  }
+
+  async function lancerAnalyseIa() {
+    const documents = fichiersAnalyseIa
+      .filter(f => f.statut === 'ok')
+      .map(f => ({ nom: f.nom, type: f.type, texte: f.texte }));
+    if (documents.length === 0) {
+      afficherToast('Aucun document exploitable — importez au moins un PDF dont le texte a bien été lu.', 'OK', null);
+      return;
+    }
+    analyseIaEnCours = true;
+    const btn = document.getElementById('analyse-ia-lancer-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = `${icone('spinner', null, true)} Analyse en cours…`; }
+    const rapport = document.getElementById('analyse-ia-rapport');
+    if (rapport) rapport.innerHTML = '<p class="hint">Analyse en cours — cela peut prendre une à plusieurs minutes selon la taille des documents et la puissance du serveur.</p>';
+
+    try {
+      const reponse = await fetchAvecAuth('/api/analyse-ia', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ documents })
+      });
+      const corps = await reponse.json();
+      if (!reponse.ok) {
+        if (rapport) rapport.innerHTML = `<p class="hint">${escapeHtml(corps.erreur || "Échec de l'analyse.")}</p>`;
+      } else {
+        renderRapportAnalyseIa(corps);
+      }
+    } catch (e) {
+      // Session expirée : déjà géré par fetchAvecAuth (écran de connexion réaffiché).
+    } finally {
+      analyseIaEnCours = false;
+      renderListeFichiersAnalyseIa();
+      if (btn) btn.innerHTML = "Lancer l'analyse";
+    }
+  }
+
   // Remplit les emplacements d'icônes du HTML statique (sidebar, burger mobile, dropzone) — le
   // reste de l'application est déjà rendu depuis script.js, ce point d'entrée unique évite de
   // dupliquer le dessin des icônes entre le HTML et ICONES.
@@ -5793,7 +6036,10 @@
       'icon-intro-adresse': 'map-pin',
       'icon-nav-calculateur': 'banknote',
       'icon-apropos': 'info',
-      'icon-calc-warning': 'alert-triangle'
+      'icon-calc-warning': 'alert-triangle',
+      'icon-nav-analyse-ia': 'sparkle',
+      'icon-analyse-ia-warning': 'alert-triangle',
+      'icon-analyse-ia-dropzone': 'upload'
     };
     for (const [id, nom] of Object.entries(cibles)) {
       const el = document.getElementById(id);
