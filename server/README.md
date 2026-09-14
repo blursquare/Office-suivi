@@ -42,11 +42,16 @@ Un seul fichier à déposer sur le PC du bureau, sans installer Node.js, sans te
    dans la console, ET écrit dans un fichier `mot-de-passe.txt` créé à côté de l'exécutable — à
    communiquer à tous les collaborateurs (même mot de passe pour tout le monde). Pour le changer,
    éditer `config.json` (créé au même endroit) puis relancer.
-6. Le navigateur s'ouvre automatiquement sur l'outil. Pour que les **autres postes** du bureau s'y
+6. Le navigateur s'ouvre automatiquement sur l'outil — dans une **fenêtre Chrome (ou Edge) dédiée,
+   sans onglets ni barre d'adresse** si l'un des deux est installé aux emplacements habituels, sinon
+   dans un onglet du navigateur par défaut. Pour que les **autres postes** du bureau s'y
    connectent, la console affiche aussi les adresses à leur donner (`http://<ip-du-poste>:3000/`)
    — également écrites dans `Adresses-du-serveur.txt` à côté de l'exécutable, pour les retrouver
    même une fois la fenêtre masquée. Ce poste doit rester allumé, avec le serveur lancé (fenêtre
    visible, en arrière-plan, ou en service Windows — voir plus bas), pour que les autres y accèdent.
+   Sur les postes qui **se connectent** au serveur (pas celui qui l'héberge), ouvrir l'adresse
+   donnée dans un simple onglet Chrome reste la façon normale de l'utiliser — la fenêtre applicative
+   automatique ne concerne que le poste qui vient de démarrer le serveur lui-même.
 
 ## Calendrier connecté (abonnement webcal)
 

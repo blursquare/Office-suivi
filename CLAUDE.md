@@ -3131,6 +3131,39 @@ autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` auton
     son bouton de suppression fonctionnel, dédoublonnage vérifié sur un cas positif (même clause
     reformulée) et un cas négatif (sujets différents). `npm test` reste vert aux deux endroits
     (134 tests racine, 46 tests serveur dont les 10 nouveaux).
+- **Ouverture au démarrage dans une fenêtre Chrome/Edge dédiée (sans onglets ni barre d'adresse),
+  demandé par l'étude** : `ouvrirNavigateur()` (`server/src/index.js`) lançait jusqu'ici `start ""
+  <url>` — le navigateur par défaut, dans un onglet normal. Même principe déjà confirmé
+  fonctionnel pour la version 100% locale (`Ouvrir-en-fenetre.bat`, voir contrainte n°7 plus haut) :
+  `chrome.exe --profile-directory="ClaireServeur" --app=<url>` (ou `msedge.exe` en repli).
+  - **`--profile-directory` nommé, pas `--user-data-dir`** : seule combinaison déjà confirmée ouvrir
+    une fenêtre autonome même quand Chrome tourne déjà par ailleurs (voir l'historique détaillé de
+    ces essais, contrainte n°7) — un `--app` seul rouvrirait alors un simple onglet dans la fenêtre
+    existante. Le profil dédié ("ClaireServeur", distinct de "RegistreEcheances" utilisé par la
+    version locale — deux applications différentes) n'a ici **aucune conséquence sur les données** :
+    contrairement à la version locale (`localStorage`, propre à chaque profil), tout est stocké
+    côté serveur, donc le même registre reste visible quel que soit le profil Chrome utilisé pour
+    l'ouvrir — pas de piège d'export/import à documenter comme pour `Ouvrir-en-fenetre.bat`.
+  - `resoudreCheminNavigateurApp(env, existsSync)` (nouveau, `server/src/navigateurApp.js`) cherche
+    Chrome puis Edge aux emplacements Windows usuels (`ProgramFiles`/`ProgramFiles(x86)`/
+    `LocalAppData`) — fonction pure, extraite dans son propre module plutôt que directement dans
+    `index.js` pour rester testable : `index.js` s'exécute immédiatement à l'import (appelle
+    `demarrer()` en bas de fichier, comme requis pour rester le point d'entrée réel du `.exe`), donc
+    l'importer depuis un test démarrerait un vrai serveur sur un vrai port. Repli sur `start ""
+    <url>` (navigateur par défaut, onglet normal) si ni Chrome ni Edge n'est trouvé.
+  - **Ne concerne que le poste qui héberge le serveur** (celui où `ouvrirNavigateur()` s'exécute au
+    démarrage) : les autres postes du bureau continuent de rejoindre l'outil via l'adresse IP
+    donnée, dans un onglet Chrome normal — comportement inchangé, aucune fenêtre applicative ne se
+    lance chez eux.
+  - Tests dans `server/test/navigateur-app.test.js` (6 tests — Chrome trouvé dans chaque
+    emplacement, repli sur Edge, aucun des deux trouvé, priorité à Chrome si les deux existent).
+    `npm test` (serveur) passe de 46 à 52 tests ; suite racine inchangée (134 tests, ce chantier ne
+    touche que `server/`).
+  - **Non vérifié sur un vrai poste Windows** (aucune machine Windows disponible dans cet
+    environnement de développement) — même limite déjà documentée pour le reste du serveur : la
+    syntaxe `--profile-directory`/`--app` est reprise à l'identique de celle déjà confirmée
+    fonctionnelle pour `Ouvrir-en-fenetre.bat`, mais son comportement précis au démarrage
+    automatique du serveur (pas depuis un `.bat` cliqué manuellement) reste à confirmer par l'étude.
 
 **Ce qui n'a volontairement PAS été fait** (arrêté à la demande explicite de l'étude, pas un
 oubli) — à reprendre uniquement si redemandé un jour :

@@ -11,6 +11,7 @@ const { exec } = require('node:child_process');
 const config = require('./config');
 const { ouvrirDb } = require('./db');
 const { creerApp } = require('./app');
+const { resoudreCheminNavigateurApp } = require('./navigateurApp');
 
 // Journal de secours à côté de la base (même dossier `data/`, déjà résolu correctement en mode
 // développement comme en mode exécutable autonome — voir config.js) : signalé par l'étude, le
@@ -54,10 +55,18 @@ function adressesLan() {
   return adresses;
 }
 
-// Ouvre le navigateur par défaut sur l'URL locale au démarrage — même mécanisme (`start ""`) déjà
-// confirmé fonctionnel dans Ouvrir-en-fenetre.bat (voir CLAUDE.md, contrainte n°7). Seulement sur
-// Windows : sans objet en développement sous Linux/macOS, où `npm start` est lancé par quelqu'un
-// qui sait déjà où cliquer.
+// Ouvre l'outil au démarrage dans une fenêtre Chrome/Edge dédiée, sans onglets ni barre
+// d'adresse — même rendu que `Ouvrir-en-fenetre.bat` pour la version 100% locale (voir CLAUDE.md,
+// contrainte n°7), mais ici déclenché automatiquement par le serveur lui-même (pas besoin d'un
+// script séparé, cette version n'ouvre jamais un simple fichier `file://`). `--profile-directory`
+// (nommé, PAS `--user-data-dir`) est la seule combinaison confirmée ouvrir une fenêtre autonome
+// même quand Chrome est déjà lancé par ailleurs — un `--app` seul rouvrirait alors un simple
+// onglet dans la fenêtre existante (voir l'historique détaillé de ces essais dans CLAUDE.md).
+// Le profil dédié ("ClaireServeur") n'a ici aucune conséquence sur les données : contrairement à
+// la version locale (`localStorage`, propre à chaque profil Chrome), cette version stocke tout
+// côté serveur — le même registre reste visible quel que soit le profil utilisé pour l'ouvrir.
+// Repli sur le navigateur par défaut (`start ""`, ouvert dans un onglet normal) si ni Chrome ni
+// Edge n'est trouvé aux emplacements usuels.
 function ouvrirNavigateur(url) {
   if (process.platform !== 'win32') return;
   // Un service Windows (installé via NSSM, voir server/scripts/Installer-service-NSSM.bat) tourne
@@ -69,8 +78,21 @@ function ouvrirNavigateur(url) {
     console.log('[CLAIRE] Session non interactive (service Windows) : ouverture automatique du navigateur ignorée.');
     return;
   }
-  exec(`start "" "${url}"`, (err) => {
-    if (err) console.warn('[CLAIRE] Impossible d\'ouvrir le navigateur automatiquement :', err.message);
+  const cheminNavigateur = resoudreCheminNavigateurApp(process.env, fs.existsSync);
+  const ouvrirParDefaut = () => {
+    exec(`start "" "${url}"`, (err) => {
+      if (err) console.warn('[CLAIRE] Impossible d\'ouvrir le navigateur automatiquement :', err.message);
+    });
+  };
+  if (!cheminNavigateur) {
+    ouvrirParDefaut();
+    return;
+  }
+  exec(`start "" "${cheminNavigateur}" --profile-directory="ClaireServeur" --app="${url}"`, (err) => {
+    if (err) {
+      console.warn('[CLAIRE] Ouverture en fenêtre applicative impossible, repli sur le navigateur par défaut :', err.message);
+      ouvrirParDefaut();
+    }
   });
 }
 
