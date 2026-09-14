@@ -2722,6 +2722,52 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
   autres sigles courts déjà acceptés seuls (TF, SPANC, ERP, CU) : un sigle assez spécifique au
   contexte notarial pour ne pas risquer d'apparaître incidemment dans le nom d'un autre document du
   même dossier. Cas ajouté au test existant dans `tests/dossier-local.test.js`.
+- **Vrai correctif, enfin, du bug apostrophe sur "Certificat d'urbanisme"/"Certificat
+  d'alignement" — le correctif précédent (`escapeAttr()` → `&#39;`, voir juste au-dessus) ne
+  réparait RIEN en pratique**, malgré QUATRE vérifications indépendantes toutes concluantes
+  (relecture du code, rendu en bac à sable, deux binaires `.exe` publiés sur la branche
+  `claude/serveur-intranet` inspectés octet par octet, et la réponse réseau de `script.js` relue
+  directement dans les DevTools de l'étude, cache désactivé). Cause racine, jamais identifiée par
+  aucune de ces quatre vérifications parce qu'aucune ne rejouait le comportement réel du navigateur :
+  un attribut `onclick="..."` est décodé **en deux temps** — d'abord comme du HTML (les entités
+  comme `&#39;` sont résolues en leur caractère, donc `&#39;` redevient une apostrophe BRUTE `'`),
+  **puis** le texte ainsi obtenu est exécuté comme du JS. `escapeAttr()` échappait bien l'apostrophe
+  dans le CODE SOURCE HTML (`&#39;` au lieu de `'`) — exactement ce que montraient les quatre
+  vérifications, toutes lisant le texte AVANT ce second décodage implicite — mais cette entité
+  redevient une apostrophe brute avant même que le moteur JS ne voie l'attribut, recréant très
+  exactement le `SyntaxError: missing ) after argument list` d'origine. Reproduit et confirmé par
+  une simulation Node du décodage HTML+JS réel (script ad hoc) : le code source `'Certificat
+  d&#39;urbanisme'` décode en `'Certificat d'urbanisme'` (apostrophe brute réinsérée) et lève bien
+  la `SyntaxError` — la même simulation avec le nouveau correctif ne lève rien et restitue le
+  libellé exact.
+  - Nouvelle fonction `escapeOnclickArg(s)` (script.js, juste après `escapeAttr()`), dédiée
+    exclusivement à un argument JS interpolé DANS un attribut `onclick="..."` délimité par des
+    apostrophes (`onclick="fonction('id', 'cle', '${escapeOnclickArg(p.label)}')"`) : échappe
+    l'apostrophe en séquence d'échappement JS (`\'`, backslash + apostrophe) plutôt qu'en entité
+    HTML — un antislash n'a aucun sens spécial en HTML, il traverse le premier décodage intact, et
+    forme ensuite une séquence d'échappement JS valide pour le second. Le backslash lui-même est
+    échappé en premier (`\\`) pour rester correct si un libellé venait à en contenir un. Les autres
+    caractères (`&`, `"`, `<`, `>`) restent échappés en entités HTML comme avant — eux ne sont
+    jamais le délimiteur de la chaîne JS, donc les revoir décodés en leur caractère d'origine après
+    le premier passage reste inoffensif pour le second.
+  - `escapeAttr()` elle-même reste inchangée et CORRECTE : elle sert à de vrais attributs HTML
+    (`title="..."`, `value="..."`, `aria-label="..."`) jamais réinterprétés comme du JS — seul le
+    cas précis d'un argument JS DANS un `onclick` avait besoin d'un échappement différent. Les deux
+    seuls points d'appel concernés (`.piece-suppr`/`.piece-reinit` dans `renderPiecesDossier()`,
+    les mêmes que le correctif précédent) sont passés de `escapeAttr(p.label)` à
+    `escapeOnclickArg(p.label)` ; tous les autres usages d'`escapeAttr()` dans le fichier (des
+    attributs HTML ordinaires) restent inchangés à raison.
+  - **Leçon, au-delà de celle déjà tirée sur les problèmes de déploiement** : quand un bug de
+    rendu HTML/JS généré dynamiquement résiste à une relecture du code source (même vérifiée à
+    plusieurs niveaux : source, sandbox, binaire, réseau), soupçonner un traitement IMPLICITE fait
+    par le navigateur entre "ce que le code produit" et "ce que le moteur JS exécute réellement" —
+    ici le décodage HTML d'un attribut avant son interprétation comme JS, un piège classique des
+    gestionnaires d'événements inline (`onclick="..."`) qu'aucune des vérifications précédentes
+    n'avait rejoué. Une simulation du décodage réel (quelques lignes de Node) aurait révélé le
+    problème dès la première tentative de correctif.
+  - `npm test` reste vert (135 tests, aucune fonction pure modifiée par ce chantier — vérifié en
+    plus par une simulation Node ad hoc du décodage HTML+JS réel sur les deux libellés concernés et
+    un libellé de contrôle sans apostrophe, voir ci-dessus).
 
 ## Comment tester
 

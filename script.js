@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-14 17:15';
+  const VERSION_APP = '2026-09-14 19:31';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,14 +23,14 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-14 19:31', resume: "Vrai correctif du bug apostrophe (Certificat d'urbanisme/d'alignement) : le précédent (&#39;) ne survivait pas au décodage HTML de l'attribut onclick, toujours cassé en pratique" },
     { version: '2026-09-14 17:15', resume: 'Détection "Renonciation au droit de préemption" élargie au sigle "DPU" dans le nom de fichier' },
     { version: '2026-09-14 15:47', resume: "Bug corrigé : apostrophe cassait les boutons pièce (Certificat d'urbanisme...) ; suppression d'un engagement/document possible partout ; \"contrat de crédit/prêt\" reconnu pour l'offre" },
     { version: '2026-09-14 15:13', resume: "Offre de prêt détectée uniquement par nom de fichier (plus de lecture du contenu) ; réinitialiser une pièce reçue à tort" },
     { version: '2026-09-14 14:11', resume: 'Message clair (au lieu d’un échec silencieux) quand "Lier un dossier local"/"Registre partagé" échoue depuis un chemin réseau brut' },
     { version: '2026-09-13 19:22', resume: 'Sélecteur de catégorie en petite flèche, bouton "Ouvrir le compromis", recherche sans accents, pièce perso icône/texte, warning simulateur près du titre, badge Alpha' },
     { version: '2026-09-13 14:40', resume: 'Corrige le chevauchement croix de suppression / sélecteur de catégorie sur les tabs' },
-    { version: '2026-09-13 10:02', resume: 'Versionning en heure de Paris ; export .ics limité au prêt, renommé rappel_echeance_...' },
-    { version: '2026-09-13 07:56', resume: 'Bouton suppression de date, "+Nouveau dossier" en haut du Suivi (taille mobile alignée)' }
+    { version: '2026-09-13 10:02', resume: 'Versionning en heure de Paris ; export .ics limité au prêt, renommé rappel_echeance_...' }
   ];
 
   const STORAGE_KEY = 'dossiers';
@@ -3308,13 +3308,13 @@
         <div class="pieces-liste">
           ${checklist.map(p => {
             const s = libellePiece(pieces[p.cle] || 'inconnu');
-            const boutonSuppr = `<button type="button" class="piece-suppr" onclick="${p.personnalisee ? `supprimerPiecePersonnalisee('${d.id}', '${p.cle}')` : `retirerPieceStandard('${d.id}', '${p.cle}', '${escapeAttr(p.label)}')`}" title="Retirer cette pièce de la checklist de ce dossier" aria-label="Retirer cette pièce">${icone('x')}</button>`;
+            const boutonSuppr = `<button type="button" class="piece-suppr" onclick="${p.personnalisee ? `supprimerPiecePersonnalisee('${d.id}', '${p.cle}')` : `retirerPieceStandard('${d.id}', '${p.cle}', '${escapeOnclickArg(p.label)}')`}" title="Retirer cette pièce de la checklist de ce dossier" aria-label="Retirer cette pièce">${icone('x')}</button>`;
             // Uniquement pour une pièce STANDARD reçue (motifNom) : permet de revenir en arrière
             // après une correspondance trouvée à tort ou un fichier renommé depuis — voir
             // reinitialiserStatutPieceStandard(). Une pièce personnalisée a déjà son propre cycle
             // de statut au clic sur l'icône, pas besoin de ce bouton supplémentaire pour elle.
             const boutonReinit = (!p.personnalisee && (pieces[p.cle] || 'inconnu') === 'recue')
-              ? `<button type="button" class="piece-reinit" onclick="reinitialiserStatutPieceStandard('${d.id}', '${p.cle}', '${escapeAttr(p.label)}')" title="Réinitialiser (fichier renommé, ou mauvaise correspondance)" aria-label="Réinitialiser le statut de cette pièce">${icone('rotate-ccw')}</button>`
+              ? `<button type="button" class="piece-reinit" onclick="reinitialiserStatutPieceStandard('${d.id}', '${p.cle}', '${escapeOnclickArg(p.label)}')" title="Réinitialiser (fichier renommé, ou mauvaise correspondance)" aria-label="Réinitialiser le statut de cette pièce">${icone('rotate-ccw')}</button>`
               : '';
             let contenu;
             if (p.personnalisee) {
@@ -3768,14 +3768,10 @@
   }
 
   // Échappement dédié aux attributs HTML (échappe aussi les guillemets, contrairement à
-  // escapeHtml) : nécessaire pour un champ value="" rempli avec du texte modifiable par l'utilisateur.
-  // Bug corrigé : cette fonction n'échappait pas l'apostrophe — signalé par l'étude sur "Certificat
-  // d'urbanisme" (bouton .piece-reinit/.piece-suppr sans effet). Plusieurs boutons interpolent
-  // escapeAttr(p.label) À L'INTÉRIEUR d'un argument JS délimité par des apostrophes
-  // (onclick="fonction('id', 'cle', '${escapeAttr(p.label)}')") : une apostrophe brute dans le
-  // libellé (ex. "Certificat d'urbanisme") ferme prématurément cet argument, cassant la syntaxe du
-  // gestionnaire onclick — le clic ne fait alors rien, sans erreur visible à l'écran. Touche tout
-  // libellé contenant une apostrophe, pas un cas isolé (ex. "Certificat d'alignement" aussi).
+  // escapeHtml) : pour un attribut HTML ORDINAIRE (title="...", value="...", aria-label="...") —
+  // pas pour un argument JS à l'intérieur d'un gestionnaire onclick="...", voir escapeOnclickArg()
+  // juste en dessous et l'historique du bug qui explique pourquoi les deux ne sont PAS
+  // interchangeables malgré des symptômes très proches.
   function escapeAttr(s) {
     return String(s)
       .replace(/&/g, '&amp;')
@@ -3783,6 +3779,36 @@
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/'/g, '&#39;');
+  }
+
+  // Échappement dédié à un argument JS interpolé DANS un attribut onclick="..." délimité par des
+  // apostrophes (ex. onclick="fonction('id', 'cle', '${escapeOnclickArg(p.label)}')").
+  // Bug corrigé, en deux temps : un premier correctif (voir l'historique git) avait fait
+  // remplacer l'apostrophe par l'entité HTML &#39; dans escapeAttr() — apparemment correct à
+  // toutes les vérifications faites à l'époque (relecture du code, rendu en bac à sable, deux
+  // binaires .exe publiés inspectés, et même la réponse réseau de script.js relue dans le
+  // navigateur) et pourtant TOUJOURS sans effet en conditions réelles sur "Certificat
+  // d'urbanisme"/"Certificat d'alignement" (aucune popup de confirmation au clic sur la croix).
+  // Cause réelle, jamais identifiée par ces vérifications parce qu'aucune d'elles ne rejouait le
+  // parsing du navigateur : un attribut onclick="..." est décodé EN DEUX TEMPS — d'abord comme du
+  // HTML (les entités comme &#39; sont résolues en leur caractère, ici ' à nouveau), PUIS le texte
+  // ainsi décodé est exécuté comme du JS. &#39; redevient donc une apostrophe BRUTE avant même que
+  // le moteur JS ne voie l'attribut — elle referme le même argument JS qu'avant ce premier
+  // correctif, exactement le même bug, juste masqué à la lecture du code source (qui ne montre
+  // que le texte AVANT ce second décodage HTML implicite). La seule échappement qui survit aux
+  // DEUX passes est l'échappement JS lui-même (\' — un antislash n'a aucun sens spécial en HTML,
+  // il traverse le premier décodage intact, et forme ensuite une séquence d'échappement JS valide
+  // pour le second). `escapeAttr()` reste correcte telle quelle pour un attribut HTML ORDINAIRE
+  // (title, value...) qui n'est jamais réinterprété comme du JS — seul ce cas précis (un argument
+  // JS DANS un gestionnaire onclick) a besoin de cette échappement différente.
+  function escapeOnclickArg(s) {
+    return String(s)
+      .replace(/\\/g, '\\\\')
+      .replace(/'/g, "\\'")
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
   }
 
   function renommerDossier(id, valeur) {
