@@ -1,0 +1,52 @@
+name: Construire CLAIRE-serveur.exe
+
+# L'exécutable Windows autonome (~85 Mo, voir server/README.md et server/scripts/
+# build-windows-exe.mjs) dépasse la limite de taille de fichier du chat — ce workflow le
+# reconstruit sur un runner GitHub et le publie comme release téléchargeable, pour que l'étude
+# puisse le récupérer directement depuis GitHub sans repasser par la conversation.
+
+on:
+  push:
+    branches: [claude/serveur-intranet]
+    paths:
+      - 'server/**'
+      - 'index.html'
+      - 'style.css'
+      - 'script.js'
+      - 'manifest.json'
+      - 'sw.js'
+      - 'icone.svg'
+  workflow_dispatch:
+
+permissions:
+  contents: write # nécessaire pour créer une release et y attacher l'exécutable
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.2'
+
+      - name: Installer osslsigncode (retrait propre de la signature Authenticode)
+        run: sudo apt-get update && sudo apt-get install -y osslsigncode
+
+      - name: Installer les dépendances serveur
+        working-directory: server
+        run: npm ci
+
+      - name: Construire l'exécutable Windows
+        working-directory: server
+        run: npm run build:exe
+
+      - name: Publier une release GitHub avec l'exécutable
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "serveur-exe-${{ github.run_number }}" \
+            server/build/CLAIRE-serveur.exe \
+            --title "CLAIRE-serveur.exe (build ${{ github.run_number }})" \
+            --notes "Exécutable Windows autonome du serveur intranet CLAIRE, généré automatiquement depuis le commit ${{ github.sha }}. Voir server/README.md pour l'installation et l'avertissement SmartScreen (exécutable non signé)."
