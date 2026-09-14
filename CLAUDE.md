@@ -2736,6 +2736,22 @@ autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` auton
   qu'une reconnexion. Sans effet si la cause réelle est un antivirus qui tue le processus de
   l'extérieur (aucun code JS ne peut réagir à ça) — voir `server/README.md`, qui documente les deux
   causes à vérifier dans cet ordre (historique de protection Windows, puis `crash.log`).
+- **Cause réelle trouvée ensuite, en creusant le même symptôme : l'étude fermait elle-même la
+  fenêtre de console**, pensant qu'elle ne servait à rien une fois le navigateur ouvert — ni un
+  crash ni l'antivirus. `server/src/index.js` génère désormais, au premier démarrage en mode `.exe`
+  (`config.estSea()`, jamais en `npm start`), deux scripts à côté de l'exécutable (jamais écrasés
+  s'ils existent déjà) : `Lancer-CLAIRE-en-arriere-plan.vbs` (relance le même exe sans aucune
+  fenêtre visible — `WScript.Shell.Run(..., 0, False)` — à utiliser au quotidien) et
+  `Arreter-CLAIRE.bat` (arrête ce processus caché via son PID, écrit dans `server.pid` à chaque
+  démarrage — sans lui, plus aucun moyen d'arrêter un serveur sans fenêtre autrement que par le
+  Gestionnaire des tâches). `Adresses-du-serveur.txt` (URLs pour ce poste et les autres) est aussi
+  écrit à chaque démarrage, pour rester consultable même fenêtre masquée. `server/README.md` reprend
+  cette fenêtre fermée comme PREMIÈRE cause à vérifier, avant antivirus et `crash.log`.
+- **`.toast` (notification "Offre de prêt trouvée...", etc.) passé à `z-index: 890`**, strictement
+  en retrait de `.drawer-overlay` (tiroir de fiche dossier, `z-index: 900`) — signalé par l'étude
+  comme une pop-up grise gênante après une recherche lancée depuis le tiroir. Les deux partageaient
+  jusqu'ici la même valeur par coïncidence (empilement fragile, pas explicite) ; le tiroir montre
+  déjà le même résultat dans sa checklist, ce toast n'a plus besoin de rivaliser avec son contenu.
 
 **Ce qui n'a volontairement PAS été fait** (arrêté à la demande explicite de l'étude, pas un
 oubli) — à reprendre uniquement si redemandé un jour :

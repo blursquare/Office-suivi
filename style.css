@@ -1894,7 +1894,12 @@
     align-items: center;
     gap: 16px;
     font-size: 13.5px;
-    z-index: 900;
+    /* En retrait explicite du tiroir de fiche dossier (.drawer-overlay, z-index 900) : signalé
+       par l'étude, ce toast (ex. "Offre de prêt trouvée...", déclenché par "Revérifier" DEPUIS le
+       tiroir) ne doit jamais se superposer à son contenu — la checklist déjà visible dans le
+       tiroir montre le même résultat, ce toast n'est qu'un rappel ponctuel. Les deux partageaient
+       jusqu'ici la même valeur par coïncidence, un ordre d'empilement fragile plutôt qu'explicite.*/
+    z-index: 890;
   }
   .toast-undo {
     font-family: inherit;

@@ -24,36 +24,51 @@ Un seul fichier à déposer sur le PC du bureau, sans installer Node.js, sans te
    acheté pour ce projet). Cliquer sur **« Informations complémentaires »** puis **« Exécuter
    quand même »**. Un antivirus peut aussi le signaler une première fois pour la même raison —
    l'ajouter en exception si besoin.
-4. Une fenêtre de console noire s'ouvre et reste ouverte : c'est normal, c'est le serveur qui
-   tourne. La fermer arrête le serveur pour tout le monde — la laisser ouverte tant que l'étude
-   travaille dans l'outil (comme aujourd'hui avec le fichier local, mais un seul double-clic au
-   lieu de plusieurs commandes).
+4. Une fenêtre de console noire s'ouvre : c'est le serveur qui tourne. **La fermer arrête le
+   serveur pour tout le monde** — c'est la cause la plus fréquente d'un arrêt signalé comme "ça a
+   marché quelques minutes puis plus rien" (on la ferme en pensant qu'elle ne sert à rien). Deux
+   nouveaux fichiers apparaissent à côté de l'exécutable, dès ce premier lancement, pour ne plus
+   jamais avoir à s'en soucier :
+   - **`Lancer-CLAIRE-en-arriere-plan.vbs`** : à utiliser désormais au quotidien à la place d'un
+     double-clic direct sur `CLAIRE-serveur.exe` — démarre le même serveur mais **sans aucune
+     fenêtre visible**, donc rien à fermer par erreur.
+   - **`Arreter-CLAIRE.bat`** : arrête proprement le serveur lancé ainsi (indispensable une fois
+     la fenêtre masquée — sans lui, seul le Gestionnaire des tâches permettrait de l'arrêter).
+   Un premier lancement direct sur l'exe (fenêtre visible) reste utile une fois, pour vérifier que
+   tout démarre bien et passer l'avertissement SmartScreen ci-dessous ; ensuite, place à
+   `Lancer-CLAIRE-en-arriere-plan.vbs`.
 5. **Au tout premier lancement**, un mot de passe partagé est généré automatiquement et affiché
    dans la console, ET écrit dans un fichier `mot-de-passe.txt` créé à côté de l'exécutable — à
    communiquer à tous les collaborateurs (même mot de passe pour tout le monde). Pour le changer,
    éditer `config.json` (créé au même endroit) puis relancer.
 6. Le navigateur s'ouvre automatiquement sur l'outil. Pour que les **autres postes** du bureau s'y
    connectent, la console affiche aussi les adresses à leur donner (`http://<ip-du-poste>:3000/`)
-   — ce poste doit rester allumé, avec l'exe lancé, pour que les autres y accèdent.
+   — également écrites dans `Adresses-du-serveur.txt` à côté de l'exécutable, pour les retrouver
+   même une fois la fenêtre masquée. Ce poste doit rester allumé, avec le serveur lancé (fenêtre
+   visible ou en arrière-plan), pour que les autres y accèdent.
 
 **Si le serveur s'arrête tout seul après quelques minutes** (le navigateur affiche
-`ERR_CONNECTION_REFUSED` sur `localhost` alors que ça fonctionnait juste avant) : deux causes
+`ERR_CONNECTION_REFUSED` sur `localhost` alors que ça fonctionnait juste avant) : trois causes
 possibles, à vérifier dans cet ordre.
-1. **Un antivirus/Windows Defender a discrètement mis fin au processus** après un contrôle de
+1. **La fenêtre de console a été fermée** (la cause la plus fréquente, voir le point 4 ci-dessus)
+   — passer à `Lancer-CLAIRE-en-arriere-plan.vbs` supprime le risque en supprimant la fenêtre
+   elle-même.
+2. **Un antivirus/Windows Defender a discrètement mis fin au processus** après un contrôle de
    réputation en ligne (l'exécutable n'étant pas signé, voir plus haut — un délai de quelques
    minutes avant ce verdict est courant). Vérifier Windows Sécurité → Protection contre les virus
    et menaces → Historique de protection, à l'heure de l'arrêt. Si c'est le cas, ajouter
    `CLAIRE-serveur.exe` en exception dans l'antivirus (ou demander ce réglage à l'informatique de
    l'étude) — aucun correctif côté code n'y change rien, la décision appartient à l'antivirus.
-2. **Une erreur inattendue dans le serveur lui-même** : un fichier `crash.log` est écrit à côté de
+3. **Une erreur inattendue dans le serveur lui-même** : un fichier `crash.log` est écrit à côté de
    `config.json`/`mot-de-passe.txt` dès qu'une telle erreur survient, avec la date et le détail
    technique — l'envoyer si l'arrêt se reproduit, pour un vrai diagnostic plutôt qu'une supposition.
    Le serveur essaie de continuer à tourner malgré une telle erreur plutôt que de s'arrêter, mais
-   ne peut évidemment rien faire si c'est l'antivirus qui coupe le processus de l'extérieur (cas 1).
+   ne peut évidemment rien faire si la fenêtre a été fermée ou si l'antivirus coupe le processus de
+   l'extérieur (cas 1 et 2).
 
-Ce dossier (`CLAIRE-serveur.exe` + `config.json` + `mot-de-passe.txt` + le sous-dossier `data/`
-qui apparaît après le premier lancement) forme un tout déplaçable : le copier ailleurs (autre
-disque, autre poste) conserve le registre et le mot de passe.
+Ce dossier (`CLAIRE-serveur.exe` + `config.json` + `mot-de-passe.txt` + les deux scripts assistants
++ le sous-dossier `data/` qui apparaît après le premier lancement) forme un tout déplaçable : le
+copier ailleurs (autre disque, autre poste) conserve le registre et le mot de passe.
 
 **Reconstruire ce `.exe`** (après une modification du serveur) : `npm run build:exe` depuis
 `server/` — voir `scripts/build-windows-exe.mjs`. Nécessite `osslsigncode` installé sur la machine
