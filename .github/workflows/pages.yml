@@ -1,0 +1,48 @@
+name: Aperçu GitHub Pages (version locale)
+
+# Publie les fichiers statiques du client (index.html/style.css/script.js/manifest.json/sw.js/
+# icone.svg) sur GitHub Pages, à titre d'aperçu — voir CLAUDE.md, contrainte n°1 : l'usage réel de
+# l'étude reste `index.html` ouvert directement en `file://`, cette page hébergée en HTTPS ne le
+# remplace pas. Elle sert de repli quand `file://` ne convient pas pour tester une fonctionnalité
+# (le bouton d'installation PWA n'apparaît qu'en HTTPS, voir contrainte n°7 ; pdf.js/tesseract.js
+# sont chargés depuis un CDN, bloqué dans l'environnement de développement mais pas ici) et de lien
+# à partager pour un aperçu rapide sans passer par les fichiers déposés sur le poste de l'étude.
+# Toute donnée saisie sur cette page (localStorage du navigateur, propre à cette origine
+# github.io) est distincte du registre réel de l'étude — ne pas y enregistrer de vrais dossiers.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Préparer les fichiers statiques du client
+        run: |
+          mkdir -p _site
+          cp index.html style.css script.js manifest.json sw.js icone.svg _site/
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: '_site'
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

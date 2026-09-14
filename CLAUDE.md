@@ -2768,6 +2768,20 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
   - `npm test` reste vert (135 tests, aucune fonction pure modifiée par ce chantier — vérifié en
     plus par une simulation Node ad hoc du décodage HTML+JS réel sur les deux libellés concernés et
     un libellé de contrôle sans apostrophe, voir ci-dessus).
+- **Aperçu GitHub Pages ajouté sur `main`** (`.github/workflows/pages.yml`, premier déploiement de
+  cette branche sur Pages) : publie les 6 fichiers statiques du client (`index.html`/`style.css`/
+  `script.js`/`manifest.json`/`sw.js`/`icone.svg`) à chaque push sur `main`, sur le même modèle que
+  le workflow équivalent déjà en place sur `claude/serveur-intranet` (voir plus haut) — sauf que
+  `main` n'a besoin d'aucun backend, donc cette page hébergée en HTTPS est ici PLEINEMENT
+  fonctionnelle (contrairement à celle de `claude/serveur-intranet`, qui ne peut jamais se
+  connecter sans un vrai serveur). Ne remplace pas l'usage réel de l'étude (contrainte n°1 :
+  `index.html` ouvert directement en `file://`) — sert de lien de partage rapide et de terrain de
+  test pour ce que `file://` empêche : le bouton d'installation PWA (n'apparaît qu'en HTTPS, voir
+  contrainte n°7) et le chargement de pdf.js/tesseract.js depuis un CDN (bloqué par le proxy réseau
+  de CET environnement de développement précis, pas par le `file://` réel de l'étude ni par une
+  vraie page Pages ouverte depuis un poste normal). Toute donnée saisie sur cette page vit dans le
+  `localStorage` de l'origine `github.io`, distincte du registre réel de l'étude — jamais y saisir
+  de vrais dossiers.
 
 ## Comment tester
 
