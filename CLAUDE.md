@@ -2682,6 +2682,49 @@ fonctionnalités n'ont pas été poursuivies (voir plus bas).
   bac à sable de `tests/helpers/load-app.js`, jamais sollicité en pratique par la suite actuelle
   puisqu'aucun test ne pré-remplit de jeton de session dans le faux `localStorage`).
 
+**Distribution simplifiée : `CLAIRE-serveur.exe` (exécutable Windows autonome)** — après avoir
+reçu les deux archives (locale/serveur), l'étude a trouvé l'installation du serveur (`npm
+install`, créer un `.env`, `npm start`, terminal ouvert) trop compliquée pour un usage sans
+accompagnement technique. Question posée directement à l'étude entre trois options (`.exe`
+autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` autonome.
+- **Node.js Single Executable Applications (SEA)**, pas `pkg`/`nexe` : le serveur utilise déjà
+  `node:sqlite`, un module intégré à Node (pas natif externe à recompiler) — SEA embarque le vrai
+  binaire `node`, donc `node:sqlite` fonctionne sans rien de spécial, contrairement à un bundler
+  tiers qui gérerait moins bien un module intégré aussi récent.
+- `server/src/config.js` résout maintenant le mot de passe/port/chemin de base en trois niveaux :
+  `.env`/variables d'environnement (mode développement, inchangé) → sinon, si `sea.isSea()`
+  (mode `.exe`), un `config.json` à côté de l'exécutable → sinon génération automatique d'un mot
+  de passe aléatoire au tout premier lancement, écrit dans `config.json` **et** dans
+  `mot-de-passe.txt` (facile à retrouver sans faire défiler une console). `resoudreConfigExecutable()`
+  est une fonction pure (dossier + `fs` injectables), testée dans `server/test/config.test.js`
+  sans construire de vrai `.exe`.
+- `server/src/app.js` sert `index.html`/`style.css`/`script.js`/`manifest.json`/`sw.js`/`icone.svg`
+  depuis le disque en développement (`express.static`, inchangé) ou depuis les assets embarqués du
+  blob SEA en mode `.exe` (`sea.getAsset()`, via `creerMiddlewareAssetsSea()` — testé avec un faux
+  module `sea` dans `server/test/app-assets.test.js`, sans blob réel).
+- `server/src/index.js` affiche les adresses IP locales du poste (à donner aux autres postes du
+  bureau) et ouvre automatiquement le navigateur au démarrage sur Windows (`start ""`, même
+  mécanisme déjà confirmé fonctionnel dans `Ouvrir-en-fenetre.bat` — voir la contrainte n°7 de
+  `main`).
+- **`server/scripts/build-windows-exe.mjs`** (nouveau) construit le `.exe` **dans cet
+  environnement de développement Linux**, jamais par l'étude ni sur une machine Windows : regroupe
+  le serveur en un seul fichier (esbuild), génère le blob SEA (avec les 6 fichiers statiques
+  embarqués), télécharge le binaire Node officiel pour Windows x64 (`nodejs.org`, confirmé
+  joignable via le proxy réseau de cet environnement), retire sa signature Authenticode
+  (`osslsigncode`, équivalent Linux de `signtool remove /s` — sans lui, `postject` accepte quand
+  même d'injecter avec un simple avertissement "signature corrompue", pas bloquant), puis injecte
+  le blob (`postject`). Construit et vérifié avec succès dans cet environnement (`file` confirme un
+  exécutable PE32+ Windows valide, ~85 Mo). `server/build/` (artefacts + le `.exe` lui-même)
+  gitignoré — le binaire n'est jamais commité, livré directement à l'étude.
+- **Risque assumé et documenté (`server/README.md`)** : le `.exe` produit n'est **pas signé** par
+  un éditeur reconnu (aucun certificat de signature de code acheté pour ce projet) — Windows
+  affichera très probablement un avertissement SmartScreen "Éditeur inconnu" au premier lancement
+  (un clic "Plus d'infos" → "Exécuter quand même" suffit). **Non vérifié sur un vrai poste
+  Windows** : aucune machine Windows/Wine disponible dans cet environnement de développement pour
+  confirmer le comportement réel du double-clic (avertissement exact affiché, ouverture du
+  navigateur, accès depuis un second poste via l'IP affichée) — à confirmer par l'étude, comme de
+  nombreux autres comportements Windows/Chrome déjà documentés dans ce fichier.
+
 **Ce qui n'a volontairement PAS été fait** (arrêté à la demande explicite de l'étude, pas un
 oubli) — à reprendre uniquement si redemandé un jour :
 - **Import automatique** des dossiers déjà enregistrés sur la version 100% locale (`main`) vers ce
@@ -2693,9 +2736,11 @@ oubli) — à reprendre uniquement si redemandé un jour :
   place) et **flux calendrier** (`.ics` généré à la volée, consultable par abonnement webcal dans
   Outlook — sans accès Microsoft Graph, on serait resté sur ce mécanisme plus simple plutôt qu'un
   push direct, jamais mis en œuvre en pratique).
-- **Packaging en service Windows** (redémarrage automatique via NSSM, IP fixe, pare-feu) : le
-  serveur se lance aujourd'hui manuellement (`npm start`, voir `server/README.md`) et doit rester
-  dans un terminal ouvert — pas encore adapté à un usage quotidien sans surveillance.
+- **Packaging en service Windows** (redémarrage automatique via NSSM, IP fixe, pare-feu) :
+  distinct de l'exécutable autonome ci-dessus — `CLAIRE-serveur.exe` simplifie le LANCEMENT (un
+  double-clic plutôt que `npm install`/`npm start`), mais reste un simple exécutable dans une
+  fenêtre de console qu'il faut garder ouverte, pas un service Windows qui redémarrerait seul
+  après un plantage ou un redémarrage du poste — toujours pas adapté à un usage sans surveillance.
 
 Le CLAUDE.md de la branche `main` (tout ce qui précède cette section) reste la référence pour le
 mode 100% local, qui n'a subi aucune régression de ce chantier.

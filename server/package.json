@@ -6,10 +6,15 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node --env-file-if-exists=.env src/index.js",
-    "test": "node --test"
+    "test": "node --test",
+    "build:exe": "node scripts/build-windows-exe.mjs"
   },
   "dependencies": {
     "express": "^5.2.1",
     "nodemailer": "^10.0.9"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "postject": "^1.0.0-alpha.6"
   }
 }
