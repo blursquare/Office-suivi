@@ -3079,6 +3079,58 @@ autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` auton
     sur de vrais actes, et les temps de réponse sur le matériel du futur serveur, restent à
     confirmer par l'étude une fois Ollama installé au bureau (voir `server/README.md`, section
     "Analyse juridique par IA locale").
+- **Le même modèle IA local sert aussi le wizard "Nouveau dossier"**, demandé juste après l'ajout
+  de l'outil ci-dessus ("utilise aussi le LLM pour les analyses de nouveau dossier aussi") — non
+  pas pour REMPLACER l'extraction par regex déjà en place (des dizaines de correctifs ciblés
+  documentés dans ce fichier, ne pas jeter ce travail), mais pour la COMPLÉTER : un appel en
+  arrière-plan, après `traiterTexte()` (inchangée, toujours le chemin principal et immédiat), qui
+  ne remplit que les champs qu'elle n'a pas trouvés et ne propose des engagements du vendeur qu'en
+  AJOUT, jamais en remplacement — même principe déjà appliqué partout ailleurs dans ce fichier
+  (`detecterAdresseBien()`/`detecterEmailAcquereur()`/`detecterMontantPret()` : "n'écrase jamais
+  une valeur déjà connue").
+  - **`server/src/routes/extractionIa.js`** (`POST /api/extraction-ia`, même client `llm.js` que
+    `analyseIa.js` mais un prompt et une forme de réponse dédiés — un seul document à faire parler,
+    pas une comparaison croisée) : extrait `nomDossier`/`adresseBien`/`prixVente`/`datePret`/
+    `dateActe`/`dateVentePrealable`/`engagementsVendeur`, chaque champ `null` si absent du texte
+    (consigne explicite au modèle de ne jamais inventer). `normaliserExtraction()` valide chaque
+    champ isolément (date au format AAAA-MM-JJ sinon rejetée, prix positif arrondi à l'entier
+    sinon `null`, type d'engagement hors énumération replié sur "document") — un JSON invalide ou
+    partiellement conforme du modèle ne fait jamais planter la route, juste renvoyer moins de
+    champs exploitables.
+  - **`enrichirImportAvecIa(texte, monImport)`** (script.js, appelée sans `await` juste après
+    `traiterTexte(texteComplet)` dans `traiterFichierPdf()`, donc sans jamais retarder la suite de
+    l'import — bascule d'étape du wizard, aperçu PDF...) : complète `#f-nom`/`#f-adresse-bien`/
+    `#f-prix-vente`/les trois dates butoir UNIQUEMENT s'ils sont restés vides après la détection
+    par regex, et ajoute les engagements suggérés par l'IA à `analyseJuridiqueActuelle.engagements`
+    (marqués `source: 'ia'`, rendus avec un badge "Suggéré par l'IA" — voir `renderEngagement()`,
+    déjà généralisée pour accepter n'importe quelle provenance d'engagement) après dédoublonnage
+    contre les engagements déjà détectés par regex (`engagementDejaConnu()`, réutilise
+    `similariteJaccard()`/`tokeniserApprentissage()`/`normaliserTexteApprentissage()` déjà en place
+    pour l'apprentissage des corrections — un seuil bas et volontairement prudent, 0.2, car sans
+    racinisation des mots comparés l'overlap réel entre une phrase extraite et sa reformulation par
+    le modèle reste modeste même pour la même clause ; sous-détecter un doublon ne coûte qu'un
+    clic sur la croix de suppression déjà existante, sur-détecter risquerait de faire disparaître
+    silencieusement un engagement réellement distinct). Un toast résume ce qui a été complété
+    ("IA locale : N champs et N engagement(s) du vendeur complétés... — à vérifier") — rien ne
+    s'affiche si l'IA n'a rien apporté (Ollama indisponible, ou tous les champs déjà trouvés par
+    les regex).
+  - **`generationImportActuel`** (nouveau compteur, incrémenté à chaque nouvel import dans
+    `traiterFichierPdf()` et à chaque `reinitialiserFormulaire()`) : l'appel au LLM local peut
+    prendre de quelques secondes à plusieurs dizaines de secondes, largement le temps qu'un
+    collaborateur importe un second PDF ou enregistre/réinitialise le formulaire avant que la
+    réponse n'arrive — `enrichirImportAvecIa()` compare le numéro de génération capturé à son appel
+    à sa valeur actuelle avant d'appliquer quoi que ce soit, et abandonne silencieusement si un
+    autre import a eu lieu entretemps (jamais de champ rempli pour le mauvais dossier).
+  - **N'existe QUE sur `claude/serveur-intranet`** (a besoin du backend pour parler à Ollama) —
+    `main` garde le wizard inchangé, purement basé sur les regex, comme avant ce chantier.
+  - Tests : `server/test/extraction-ia.test.js` (10 tests — fonctions pures `construirePrompt`/
+    `normaliserExtraction`, et la route avec un faux serveur Ollama HTTP). Vérifié côté client par
+    un script Node ad hoc (bac à sable) : remplissage correct des champs vides, non-écrasement
+    d'une valeur déjà saisie, garde-fou de génération périmée confirmé en déclenchant un vrai
+    `reinitialiserFormulaire()` entre deux appels, rendu de l'engagement suggéré avec son badge et
+    son bouton de suppression fonctionnel, dédoublonnage vérifié sur un cas positif (même clause
+    reformulée) et un cas négatif (sujets différents). `npm test` reste vert aux deux endroits
+    (134 tests racine, 46 tests serveur dont les 10 nouveaux).
 
 **Ce qui n'a volontairement PAS été fait** (arrêté à la demande explicite de l'étude, pas un
 oubli) — à reprendre uniquement si redemandé un jour :

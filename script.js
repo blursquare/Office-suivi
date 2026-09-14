@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-14 20:11';
+  const VERSION_APP = '2026-09-14 20:26';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,14 +23,14 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-14 20:26', resume: "Le wizard « Nouveau dossier » utilise aussi l'IA locale en arrière-plan : complète nom/adresse/prix/dates non trouvés par les regex et suggère des engagements du vendeur en plus, jamais en remplacement" },
     { version: '2026-09-14 20:11', resume: "Nouvel onglet « Analyse approfondie (IA) » : dépose l'acte + ses annexes séparées, relecture croisée par un modèle IA local (Ollama, aucune donnée envoyée en ligne) — voir server/README.md" },
     { version: '2026-09-14 19:27', resume: "Vrai correctif du bug apostrophe (Certificat d'urbanisme/d'alignement) : le précédent (&#39;) ne survivait pas au décodage HTML de l'attribut onclick, toujours cassé en pratique" },
     { version: '2026-09-14 17:13', resume: 'Détection "Renonciation au droit de préemption" élargie au sigle "DPU" dans le nom de fichier' },
     { version: '2026-09-14 17:01', resume: 'Écran de connexion : espace manquant entre le champ mot de passe et "Se connecter" ; sidebar : Mode sombre et À propos côte à côte' },
     { version: '2026-09-14 16:11', resume: "Serveur : vrai service Windows (NSSM, redémarrage auto) et calendrier connecté (abonnement webcal en lecture seule) — voir server/README.md" },
     { version: '2026-09-14 15:42', resume: "Bug corrigé : apostrophe cassait les boutons pièce (Certificat d'urbanisme...) ; suppression d'un engagement/document possible partout ; \"contrat de crédit/prêt\" reconnu pour l'offre" },
-    { version: '2026-09-14 15:06', resume: "Offre de prêt détectée uniquement par nom de fichier (plus de lecture du contenu) ; réinitialiser une pièce reçue à tort" },
-    { version: '2026-09-14 07:30', resume: 'Mode serveur intranet (branche claude/serveur-intranet) : registre partagé JSON/localStorage remplacé par un serveur (login, synchro par polling)' }
+    { version: '2026-09-14 15:06', resume: "Offre de prêt détectée uniquement par nom de fichier (plus de lecture du contenu) ; réinitialiser une pièce reçue à tort" }
   ];
 
   const STORAGE_KEY = 'dossiers';
@@ -56,6 +56,11 @@
   // telle quelle — confiance "estime" plutôt que "auto" (voir detecterDatesDepuisTexte).
   let approxParType = { pret: false, acte: false, ventebien: false };
   let analyseJuridiqueActuelle = { documents: [], engagements: [], conditions: [] };
+  // Incrémenté à chaque nouvel import (traiterFichierPdf) et à chaque reset du formulaire
+  // (reinitialiserFormulaire) — permet à enrichirImportAvecIa() de vérifier, une fois sa réponse
+  // reçue, qu'elle porte encore sur l'import en cours plutôt que sur un import précédent déjà
+  // enregistré ou abandonné (l'appel au LLM local peut prendre plusieurs dizaines de secondes).
+  let generationImportActuel = 0;
 
   // ---- icônes ----
   // Un seul jeu d'icônes, dessiné à la main, pour toute l'application — remplace les emoji semés
@@ -853,6 +858,7 @@
     const type = (typeof e === 'string') ? null : e.type;
     const page = (typeof e === 'string') ? null : e.page;
     const manuel = typeof e === 'object' && e.manuel === true;
+    const suggereParIa = typeof e === 'object' && e.source === 'ia';
     const libelles = { entretien: 'Entretien', travaux: 'Travaux', document: 'Document' };
     const etiquette = type
       ? `<span class="engagement-type ${type}">${libelles[type] || 'Document'}</span>`
@@ -869,7 +875,13 @@
     // Sélectionnée à la main dans l'aperçu PDF (voir gererSelectionPdf) plutôt que trouvée par
     // extraireEngagementsVendeur() : uniquement indicatif désormais (voir plus haut, la croix de
     // suppression s'affiche pour tous les engagements, pas seulement ceux-ci).
-    const marqueurManuel = manuel ? '<span class="engagement-manuel">Ajouté manuellement</span>' : '';
+    // Même emplacement/style que le marqueur "Ajouté manuellement" (texte simple, pas d'icône) —
+    // seul le texte change selon la provenance ; jamais les deux en même temps (source mutuellement
+    // exclusive : soit sélectionné à la main dans le PDF, soit suggéré par l'IA, soit détecté par
+    // regex sans marqueur du tout).
+    const marqueurManuel = manuel
+      ? '<span class="engagement-manuel">Ajouté manuellement</span>'
+      : (suggereParIa ? '<span class="engagement-manuel" title="Extrait par le modèle IA local — à vérifier comme toute suggestion automatique">Suggéré par l\'IA</span>' : '');
     const appelSuppr = dossierId
       ? `supprimerEngagementDossier('${dossierId}', ${index})`
       : `supprimerEngagementManuel(${index})`;
@@ -1887,6 +1899,7 @@
     status.className = 'pdf-status loading';
     status.textContent = `Lecture de « ${file.name} » en cours…`;
     majProgression(2);
+    const monImport = ++generationImportActuel;
 
     try {
       const buffer = await file.arrayBuffer();
@@ -1901,6 +1914,11 @@
       ambiguiteParType = { pret: false, acte: false, ventebien: false };
       approxParType = { pret: false, acte: false, ventebien: false };
       traiterTexte(texteComplet);
+      // Lancée EN ARRIÈRE-PLAN (jamais attendue ici) : la détection par regex ci-dessus reste le
+      // chemin principal, immédiat et déjà éprouvé — l'IA locale ne fait qu'enrichir ensuite ce
+      // qu'elle n'a pas trouvé, silencieusement si Ollama n'est pas disponible. Ne doit jamais
+      // retarder la suite de l'import (bascule d'étape, aperçu PDF...).
+      enrichirImportAvecIa(texteComplet, monImport);
       // Bascule automatiquement vers l'étape "Vérifier" : les dates/chips sont déjà là, plus besoin
       // de cliquer soi-même sur "Suivant" après un import qui vient de réussir.
       definirEtapeWizard(2);
@@ -1985,6 +2003,106 @@
     }
   }
 
+  // ---- Extraction assistée par IA locale (Ollama), en complément du wizard "Nouveau dossier" ----
+  // Voir server/src/routes/extractionIa.js et CLAUDE.md. N'existe que sur `claude/serveur-intranet`
+  // (a besoin d'un backend pour parler à Ollama) — appelée en ARRIÈRE-PLAN juste après
+  // traiterTexte() (regex, inchangée, toujours le chemin principal et immédiat) pour ne compléter
+  // QUE ce qu'elle n'a pas trouvé : jamais une valeur déjà détectée ou déjà saisie à la main n'est
+  // écrasée, même principe que detecterAdresseBien()/detecterEmailAcquereur()/detecterMontantPret()
+  // ailleurs dans ce fichier. Silencieuse si Ollama n'est pas installé/lancé sur le serveur — le
+  // wizard reste utilisable exactement comme avant l'ajout de cette fonctionnalité dans ce cas,
+  // jamais une condition bloquante pour créer un dossier.
+
+  // Nettement plus permissif que SEUIL_SIMILARITE_APPRENTISSAGE (0.6, deux formulations quasi
+  // identiques de LA MÊME clause) : ici on compare une phrase extraite telle quelle du texte à une
+  // description reformulée par le modèle, sans aucune racinisation (tokeniserApprentissage compare
+  // des mots entiers) — deux verbes de la même famille ("entretien"/"entretenir") comptent déjà
+  // comme deux tokens différents, donc l'overlap réel reste modeste même pour la même clause.
+  // Premier jet volontairement prudent : sous-détecter un doublon (une suggestion IA redondante
+  // affichée en plus d'un engagement déjà repéré par regex) coûte un simple clic sur sa croix de
+  // suppression, alors que sur-détecter risquerait de faire disparaître silencieusement un
+  // engagement réellement distinct — à resserrer si l'usage réel montre trop de redites.
+  const SEUIL_SIMILARITE_ENGAGEMENT_IA = 0.2;
+
+  function engagementDejaConnu(description, engagementsExistants) {
+    const tokensIa = tokeniserApprentissage(normaliserTexteApprentissage(description));
+    return engagementsExistants.some(e => {
+      const phrase = typeof e === 'string' ? e : e.phrase;
+      const tokensExistant = tokeniserApprentissage(normaliserTexteApprentissage(phrase || ''));
+      return similariteJaccard(tokensIa, tokensExistant) >= SEUIL_SIMILARITE_ENGAGEMENT_IA;
+    });
+  }
+
+  async function enrichirImportAvecIa(texte, monImport) {
+    let resultat;
+    try {
+      const reponse = await fetchAvecAuth('/api/extraction-ia', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ texte })
+      });
+      if (!reponse.ok) return; // Ollama indisponible/erreur : enrichissement optionnel, pas d'échec bruyant
+      resultat = await reponse.json();
+    } catch (e) {
+      return; // session expirée (déjà gérée par fetchAvecAuth) ou réseau — rien d'autre à faire ici
+    }
+    // L'utilisateur a pu importer un autre PDF, ou enregistrer/réinitialiser le formulaire, pendant
+    // les quelques dizaines de secondes qu'a pu prendre cet appel — voir generationImportActuel.
+    if (monImport !== generationImportActuel) return;
+    if (!resultat || resultat.erreurExtraction) return;
+
+    let champsCompletes = 0;
+
+    const champNom = document.getElementById('f-nom');
+    if (champNom && !champNom.value.trim() && resultat.nomDossier) {
+      champNom.value = resultat.nomDossier;
+      champsCompletes++;
+    }
+    const champAdresse = document.getElementById('f-adresse-bien');
+    if (champAdresse && !champAdresse.value.trim() && resultat.adresseBien) {
+      champAdresse.value = resultat.adresseBien;
+      champsCompletes++;
+    }
+    const champPrix = document.getElementById('f-prix-vente');
+    if (champPrix && !champPrix.value.trim() && resultat.prixVente) {
+      champPrix.value = String(resultat.prixVente);
+      champsCompletes++;
+    }
+
+    const datesParType = { pret: resultat.datePret, acte: resultat.dateActe, ventebien: resultat.dateVentePrealable };
+    for (const [type, iso] of Object.entries(datesParType)) {
+      const champ = document.getElementById('f-' + type);
+      if (champ && !champ.value && iso) {
+        champ.value = iso;
+        definirEcheanceActive(type, true);
+        champsCompletes++;
+      }
+    }
+
+    let engagementsAjoutes = 0;
+    if (Array.isArray(resultat.engagementsVendeur)) {
+      for (const suggestion of resultat.engagementsVendeur) {
+        if (engagementDejaConnu(suggestion.description, analyseJuridiqueActuelle.engagements)) continue;
+        analyseJuridiqueActuelle.engagements.push({ phrase: suggestion.description, type: suggestion.type, page: null, source: 'ia' });
+        engagementsAjoutes++;
+      }
+      if (engagementsAjoutes > 0) {
+        // Recalculée à partir de TOUS les engagements (existants + IA), comme à l'origine dans
+        // traiterTexte() — une seule fonction pure, jamais deux logiques différentes pour la même
+        // liste selon qu'elle vient d'être enrichie ou non.
+        analyseJuridiqueActuelle.documents = detecterDocumentsAFournir(analyseJuridiqueActuelle.engagements);
+        afficherAnalyseJuridique();
+      }
+    }
+
+    if (champsCompletes === 0 && engagementsAjoutes === 0) return;
+    const morceaux = [];
+    if (champsCompletes > 0) morceaux.push(`${champsCompletes} champ${champsCompletes > 1 ? 's' : ''}`);
+    if (engagementsAjoutes > 0) morceaux.push(`${engagementsAjoutes} engagement${engagementsAjoutes > 1 ? 's' : ''} du vendeur`);
+    const total = champsCompletes + engagementsAjoutes;
+    afficherToast(`IA locale : ${morceaux.join(' et ')} complété${total > 1 ? 's' : ''} en plus de la détection automatique — à vérifier.`, 'OK', null);
+  }
+
   // ---- gestion des échéances "Autre" ----
 
   function ajouterAutre(iso) {
@@ -2052,6 +2170,10 @@
 
   function reinitialiserFormulaire() {
     masquerErreurFormulaire();
+    // Périme tout enrichissement IA encore en vol depuis l'import précédent (voir
+    // enrichirImportAvecIa) : sans ça, sa réponse pourrait arriver après ce reset et remplir des
+    // champs pourtant vidés pour un tout nouvel import.
+    generationImportActuel++;
     document.getElementById('f-nom').value = '';
     document.getElementById('f-responsable').value = '';
     document.getElementById('f-type-vente').value = 'maison';
@@ -5784,10 +5906,11 @@
   // ---- Analyse approfondie (IA) : import de l'acte + annexes séparées, relecture croisée par le
   // modèle local (Ollama, voir server/src/llm.js et CLAUDE.md) ----
   // Distinct du wizard "Nouveau dossier" : on ne crée pas de dossier de suivi ici, on compare des
-  // documents entre eux. N'existe QUE sur la branche serveur-intranet (a besoin d'un backend pour
-  // parler à Ollama) — script.js reste néanmoins un fichier unique partagé avec la branche `main`
-  // (voir CLAUDE.md) : sur `main`, ces fonctions existent mais ne sont simplement jamais appelées
-  // (pas de lien/onglet correspondant dans index.html sur cette branche).
+  // documents entre eux. N'existe QUE sur `claude/serveur-intranet` (a besoin d'un backend pour
+  // parler à Ollama, jamais appelé sans `fetchAvecAuth()`/l'écran de connexion, absents de `main`)
+  // — contrairement au reste de ce fichier, cette section (et celle de l'extraction IA du wizard
+  // "Nouveau dossier", voir enrichirImportAvecIa) n'est PAS portée sur `main`, qui n'a pas de
+  // backend pour l'exécuter.
   // Chaque fichier déposé n'existe qu'en mémoire le temps de l'analyse — jamais enregistré, aucun
   // dossier créé. Seul le TEXTE déjà extrait dans le navigateur est envoyé au serveur, jamais le
   // PDF lui-même (voir lireTextePdfVerification, déjà utilisée pour vérifier un dossier local).

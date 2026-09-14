@@ -78,11 +78,21 @@ tient à jour tout seul, pour tout le portefeuille, sans jamais rouvrir l'outil.
 
 ## Analyse juridique par IA locale (Ollama)
 
-Un onglet « Analyse approfondie (IA) » (sidebar de l'outil) permet de déposer l'acte principal
-(compromis/promesse) et ses annexes séparément — chacune dans son propre PDF, comme reçues — pour
-une relecture croisée façon « un notaire relit l'acte » : cohérence du prix/de l'adresse/des dates
-entre l'acte et ses annexes, pièces mentionnées mais absentes, clauses contradictoires. Le modèle
-tourne **entièrement en local sur ce serveur** via [Ollama](https://ollama.com) (gratuit,
+Le même modèle local sert deux fonctionnalités distinctes :
+- Un onglet « Analyse approfondie (IA) » (sidebar de l'outil) permet de déposer l'acte principal
+  (compromis/promesse) et ses annexes séparément — chacune dans son propre PDF, comme reçues — pour
+  une relecture croisée façon « un notaire relit l'acte » : cohérence du prix/de l'adresse/des
+  dates entre l'acte et ses annexes, pièces mentionnées mais absentes, clauses contradictoires
+  (`POST /api/analyse-ia`).
+- Le wizard « Nouveau dossier » lui-même appelle aussi le modèle en arrière-plan, juste après
+  l'extraction habituelle par regex (inchangée, toujours le chemin principal et immédiat) : il ne
+  complète QUE les champs que les regex n'ont pas trouvés (nom du dossier, adresse, prix, dates
+  butoir) et ne propose de nouveaux engagements du vendeur qu'en ajout, jamais en remplacement —
+  aucune valeur déjà détectée ou déjà saisie n'est jamais écrasée (`POST /api/extraction-ia`).
+  Entièrement silencieux si Ollama n'est pas installé/lancé : le wizard reste alors utilisable
+  exactement comme avant l'ajout de cette fonctionnalité.
+
+Le modèle tourne **entièrement en local sur ce serveur** via [Ollama](https://ollama.com) (gratuit,
 open-source) — le texte des documents ne quitte JAMAIS le réseau de l'étude, cohérent avec la
 décision déjà prise de rester sans hébergement externe (voir CLAUDE.md) et avec le secret
 professionnel notarial (identité des parties, données financières).
@@ -238,13 +248,14 @@ serveur en cours d'exécution pour que le registre reste accessible aux autres.
 npm test
 ```
 
-36 tests (`node:test`, aucune dépendance de test supplémentaire) couvrant l'authentification, le
+46 tests (`node:test`, aucune dépendance de test supplémentaire) couvrant l'authentification, le
 cycle complet créer/lire/modifier/supprimer/restaurer un dossier, la résolution de configuration
 du mode `.exe` (mot de passe ET jeton calendrier), le service des fichiers statiques embarqués, le
-flux calendrier connecté (`/calendrier.ics`) et l'analyse juridique par IA locale (`/api/analyse-ia`,
-avec un faux serveur Ollama HTTP — voir `test/analyse-ia.test.js`). Indépendant de la suite de
-tests à la racine du dépôt (`npm test` depuis `Office-suivi/`, 134 tests sur les fonctions pures de
-`script.js`) — les deux peuvent tourner sans que l'un dépende des dépendances de l'autre.
+flux calendrier connecté (`/calendrier.ics`), l'analyse juridique par IA locale (`/api/analyse-ia`)
+et l'extraction IA pour le wizard (`/api/extraction-ia`) — ces deux dernières avec un faux serveur
+Ollama HTTP (voir `test/analyse-ia.test.js`/`test/extraction-ia.test.js`). Indépendant de la suite
+de tests à la racine du dépôt (`npm test` depuis `Office-suivi/`, 134 tests sur les fonctions pures
+de `script.js`) — les deux peuvent tourner sans que l'un dépende des dépendances de l'autre.
 
 ## Ce qui n'est PAS encore prêt pour un usage réel au bureau
 
@@ -269,8 +280,14 @@ tests à la racine du dépôt (`npm test` depuis `Office-suivi/`, 134 tests sur 
   sans conséquence connue) — `better-sqlite3` reste une option de repli si elle posait problème
   un jour sur le poste de l'étude.
 - **Analyse juridique par IA locale (Ollama) disponible mais non vérifiée sur de vrais actes** —
-  voir la section « Analyse juridique par IA locale » plus haut : le client HTTP et la route sont
-  testés avec un faux serveur Ollama, mais la qualité réelle des constats produits par le modèle
-  par défaut (`llama3.1:8b`) sur de vrais compromis/promesses reste à confirmer par l'étude, tout
-  comme les temps de réponse sur le matériel réel du poste serveur (aucun GPU dédié à prévoir dans
-  ce budget — la vitesse dépendra donc largement du CPU disponible).
+  voir la section « Analyse juridique par IA locale » plus haut : le client HTTP et les deux routes
+  (`/api/analyse-ia`, `/api/extraction-ia`) sont testées avec un faux serveur Ollama, mais la
+  qualité réelle des constats/champs produits par le modèle par défaut (`llama3.1:8b`) sur de vrais
+  compromis/promesses reste à confirmer par l'étude, tout comme les temps de réponse sur le
+  matériel réel du poste serveur (aucun GPU dédié à prévoir dans ce budget — la vitesse dépendra
+  donc largement du CPU disponible). Pour l'extraction dans le wizard "Nouveau dossier" en
+  particulier, le dédoublonnage des engagements du vendeur suggérés par l'IA (éviter de répéter un
+  engagement déjà repéré par regex, voir `engagementDejaConnu()` dans `script.js`) est un premier
+  jet volontairement prudent — sans racinisation des mots comparés, il peut laisser passer plus de
+  répétitions qu'un algorithme plus sophistiqué ne le ferait ; chaque suggestion reste de toute
+  façon retirable d'un clic.
