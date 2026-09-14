@@ -2635,6 +2635,38 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     (132 tests, aucune fonction pure testable ajoutée — `normaliserPourRecherche()` est une fonction
     pure mais appelée uniquement depuis du code DOM non couvert par la suite actuelle, comme les
     autres fonctions de filtrage de `render()`).
+- **Offre de prêt détectée uniquement par le NOM DU FICHIER, plus jamais par son contenu** :
+  demande explicite de l'étude ("trop d'erreur") — `verifierDossierLocal()` ouvrait et lisait le
+  contenu de chaque PDF pour y chercher `OFFRE_PRET_RE`, avec les mêmes limites déjà rencontrées et
+  déjà corrigées pour la checklist de pièces (polices embarquées mal encodées produisant un texte
+  extrait illisible, ou à l'inverse un autre document mentionnant l'offre en passant sans être
+  l'offre elle-même). `OFFRE_PRET_RE` sert désormais exclusivement à tester le nom de fichier
+  normalisé (`normaliserNomPourMotif` — NFC, underscores/tirets → espaces), exactement comme les
+  `motifNom` de la checklist : `\s+` devient `\s*` pour couvrir aussi un nom concaténé sans
+  séparateur ("OffreDePret.pdf"), en plus des noms espacés ou à underscores/tirets ; "accord de
+  prêt" ajouté comme variante supplémentaire. Le montant emprunté (`detecterMontantPret`, utilisé
+  par `calculerApport()`) est conservé : une fois le fichier identifié avec certitude par son nom,
+  une seule lecture best-effort de CE fichier en extrait le montant — ce n'est plus "lire le PDF
+  pour reconnaître l'offre" (ce qui a été arrêté), seulement en extraire un chiffre annexe une fois
+  le bon fichier déjà connu ; un échec de lecture/extraction laisse simplement `d.montantPret` tel
+  quel, sans jamais remettre en cause la détection de l'offre elle-même. Toute la logique de lecture
+  de contenu (OCR compris) disparaît de `verifierDossierLocal()`, qui ne fait plus qu'un seul
+  passage par nom de fichier — plus rapide sur un dossier volumineux, en plus d'être plus fiable.
+  Nouveau test dans `tests/dossier-local.test.js` (variantes espacée/underscore/concaténée/tiret,
+  et un nom sans rapport qui ne doit pas matcher) ; `npm test` reste vert (133 tests).
+- **Réinitialiser une pièce STANDARD marquée "reçue" à tort** (mauvaise correspondance de nom, ou
+  fichier renommé depuis) : signalé par l'étude — `verifierDossierLocal()` ne recherche que les
+  pièces PAS déjà `'recue'` (voir `aChercher`), donc une pièce ainsi bloquée n'était plus jamais
+  retestée par "Revérifier". Nouveau bouton `.piece-reinit` (icône `rotate-ccw`, nouvelle icône du
+  jeu SVG maison) à côté de la croix `.piece-suppr` sur chaque pièce standard reçue (pas sur une
+  pièce personnalisée, qui a déjà son propre cycle de statut au clic sur l'icône) :
+  `reinitialiserStatutPieceStandard(dossierId, cle, label)` (gardée par `demanderConfirmation()`,
+  comme `retirerPieceStandard()`) remet `d.pieces[cle]` à `'manquante'` (repasse dans `aChercher` au
+  prochain parcours) et efface le handle mémorisé du fichier trouvé à tort
+  (`enregistrerHandle(CLE_HANDLE_PIECE(...), null)`, même mécanisme que `lierDossierLocal()` qui
+  l'efface déjà à chaque nouvelle liaison) — sans quoi le bouton "ouvrir le fichier trouvé"
+  continuerait de rouvrir l'ancien fichier le temps qu'une nouvelle correspondance soit trouvée.
+  Historique journalisé, comme un retrait de pièce.
 
 ## Comment tester
 

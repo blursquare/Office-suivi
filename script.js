@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-14 14:11';
+  const VERSION_APP = '2026-09-14 15:13';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,14 +23,14 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-14 15:13', resume: "Offre de prêt détectée uniquement par nom de fichier (plus de lecture du contenu) ; réinitialiser une pièce reçue à tort" },
     { version: '2026-09-14 14:11', resume: 'Message clair (au lieu d’un échec silencieux) quand "Lier un dossier local"/"Registre partagé" échoue depuis un chemin réseau brut' },
     { version: '2026-09-13 19:22', resume: 'Sélecteur de catégorie en petite flèche, bouton "Ouvrir le compromis", recherche sans accents, pièce perso icône/texte, warning simulateur près du titre, badge Alpha' },
     { version: '2026-09-13 14:40', resume: 'Corrige le chevauchement croix de suppression / sélecteur de catégorie sur les tabs' },
     { version: '2026-09-13 10:02', resume: 'Versionning en heure de Paris ; export .ics limité au prêt, renommé rappel_echeance_...' },
     { version: '2026-09-13 07:56', resume: 'Bouton suppression de date, "+Nouveau dossier" en haut du Suivi (taille mobile alignée)' },
     { version: '2026-09-13 07:44', resume: 'Explications .ics/email déplacées du footer vers une popup après clic' },
-    { version: '2026-09-13 06:10', resume: 'Avertissement du simulateur repositionné/simplifié : "Montant à valider avant envoi."' },
-    { version: '2026-09-13 06:01', resume: 'Avertissement "barème non audité" en tête du simulateur de frais d’acte' }
+    { version: '2026-09-13 06:10', resume: 'Avertissement du simulateur repositionné/simplifié : "Montant à valider avant envoi."' }
   ];
 
   const STORAGE_KEY = 'dossiers';
@@ -94,7 +94,8 @@
     'trend-up': '<path d="M2.5 12 6.8 7.7 9.3 10.2 13.5 6"/><path d="M9.5 6h4v4"/>',
     'trend-down': '<path d="M2.5 4 6.8 8.3 9.3 5.8 13.5 10"/><path d="M9.5 10h4v-4"/>',
     info: '<circle cx="8" cy="8" r="6.2"/><line x1="8" y1="7.2" x2="8" y2="11.3"/><circle cx="8" cy="4.9" r="0.9" fill="currentColor" stroke="none"/>',
-    'chevron-down': '<path d="M3.5 6 8 10.5 12.5 6"/>'
+    'chevron-down': '<path d="M3.5 6 8 10.5 12.5 6"/>',
+    'rotate-ccw': '<path d="M13.3 8A5.3 5.3 0 1 1 10.8 3.4"/><path d="M13.6 2.6v3.6h-3.6"/>'
   };
   // `cls` porte les classes de mise en page (taille via font-size hérité, marge...) ; `spin` anime
   // une rotation continue (voir @keyframes icone-spin) pour les icônes d'attente (ex. "spinner").
@@ -3282,6 +3283,13 @@
           ${checklist.map(p => {
             const s = libellePiece(pieces[p.cle] || 'inconnu');
             const boutonSuppr = `<button type="button" class="piece-suppr" onclick="${p.personnalisee ? `supprimerPiecePersonnalisee('${d.id}', '${p.cle}')` : `retirerPieceStandard('${d.id}', '${p.cle}', '${escapeAttr(p.label)}')`}" title="Retirer cette pièce de la checklist de ce dossier" aria-label="Retirer cette pièce">${icone('x')}</button>`;
+            // Uniquement pour une pièce STANDARD reçue (motifNom) : permet de revenir en arrière
+            // après une correspondance trouvée à tort ou un fichier renommé depuis — voir
+            // reinitialiserStatutPieceStandard(). Une pièce personnalisée a déjà son propre cycle
+            // de statut au clic sur l'icône, pas besoin de ce bouton supplémentaire pour elle.
+            const boutonReinit = (!p.personnalisee && (pieces[p.cle] || 'inconnu') === 'recue')
+              ? `<button type="button" class="piece-reinit" onclick="reinitialiserStatutPieceStandard('${d.id}', '${p.cle}', '${escapeAttr(p.label)}')" title="Réinitialiser (fichier renommé, ou mauvaise correspondance)" aria-label="Réinitialiser le statut de cette pièce">${icone('rotate-ccw')}</button>`
+              : '';
             let contenu;
             if (p.personnalisee) {
               // Aucun motifNom (nom libre saisi par l'étude, pas de détection fiable possible) :
@@ -3310,7 +3318,7 @@
                 : s.titre;
               contenu = `<span class="piece-label" title="${escapeAttr(titre)}"><span class="piece-icone">${s.texte}</span>${escapeHtml(p.label)}</span>`;
             }
-            return `<span class="piece-item ${s.cls}">${contenu}${boutonSuppr}</span>`;
+            return `<span class="piece-item ${s.cls}">${contenu}${boutonReinit}${boutonSuppr}</span>`;
           }).join('')}
         </div>
         ${renderAjoutPiece(d)}
@@ -3367,7 +3375,7 @@
     const lignesResume = [];
     lignesResume.push(`${r.nbFichiersRencontres} fichier${r.nbFichiersRencontres > 1 ? 's' : ''} PDF rencontré${r.nbFichiersRencontres > 1 ? 's' : ''} (sous-dossiers compris), ${r.nbAnalyses} ouvert${r.nbAnalyses > 1 ? 's' : ''} pour lire son contenu.`);
     if (r.offre) {
-      lignesResume.push(`Offre de prêt : ${r.offre.trouvee ? `reconnue (${escapeHtml(r.offre.fichier)})` : 'non reconnue.'}`);
+      lignesResume.push(`Offre de prêt : ${r.offre.trouvee ? `reconnue (${escapeHtml(r.offre.fichier)})` : 'non reconnue par le nom de fichier — vérifiez que le fichier de l\'offre porte bien "offre de prêt" (ou une variante) dans son nom.'}`);
     }
     if (r.pieces) {
       lignesResume.push(`${r.pieces.trouvees}/${r.pieces.total} pièce(s) reconnue(s)${r.pieces.manquantes.length ? ' — manquante(s) : ' + r.pieces.manquantes.map(escapeHtml).join(', ') + '.' : '.'}`);
@@ -3450,6 +3458,30 @@
       d.piecesPersonnalisees = d.piecesPersonnalisees.filter(p => p.cle !== cle);
       if (d.pieces) delete d.pieces[cle];
       ajouterHistorique(d, `Pièce retirée de la checklist : « ${item.label} »`);
+      sauvegarder();
+      render();
+    });
+  }
+
+  // Signalé par l'étude : une pièce standard reconnue automatiquement (motifNom) par erreur, ou
+  // dont le fichier a ensuite été renommé (le vrai document ne correspond alors plus au nom
+  // mémorisé), restait bloquée "reçue" indéfiniment — verifierDossierLocal() ne recherche que les
+  // pièces PAS déjà "recue" (voir `aChercher`), donc "Revérifier" n'y touchait plus jamais. Remet
+  // la pièce à "manquante" (repasse dans `aChercher` au prochain parcours) et efface le handle
+  // mémorisé du fichier trouvé à tort (même mécanisme que lierDossierLocal() qui l'efface déjà à
+  // chaque nouvelle liaison de dossier) — sans quoi le bouton "ouvrir le fichier trouvé"
+  // continuerait de rouvrir l'ancien fichier le temps qu'une nouvelle correspondance soit trouvée.
+  // Uniquement pour une pièce à motifNom (reconnue automatiquement) : une pièce personnalisée a
+  // déjà son propre cycle de statut au clic (basculerStatutPiecePersonnalisee), pas besoin de ce
+  // bouton pour elle.
+  function reinitialiserStatutPieceStandard(dossierId, cle, label) {
+    const d = dossiers.find(x => x.id === dossierId);
+    if (!d) return;
+    demanderConfirmation(`Réinitialiser le statut de « ${label} » ? Elle repassera à "manquante" et sera recherchée à nouveau au prochain "Revérifier".`, async () => {
+      d.pieces = d.pieces || {};
+      d.pieces[cle] = 'manquante';
+      await enregistrerHandle(CLE_HANDLE_PIECE(dossierId, cle), null);
+      ajouterHistorique(d, `Pièce réinitialisée (correspondance retirée) : « ${label} »`);
       sauvegarder();
       render();
     });
@@ -4647,11 +4679,22 @@
     return [...standard, ...auto, ...perso];
   }
   // "Offre de crédit (immobilier)" est une formulation bancaire tout aussi courante que "offre de
-  // prêt" pour désigner le même document (signalé par l'étude : une offre réelle intitulée ainsi
-  // n'était pas détectée) — à ne pas retirer sans revérifier ce cas.
+  // prêt" pour désigner le même document — à ne pas retirer sans revérifier ce cas.
+  // Bug corrigé : ce motif servait jusqu'ici à reconnaître l'offre de prêt dans le CONTENU du PDF
+  // (verifierDossierLocal() ouvrait et lisait chaque fichier). Signalé par l'étude : trop d'erreurs
+  // en usage réel (polices embarquées mal encodées produisant un texte extrait illisible, ou à
+  // l'inverse un autre document mentionnant l'offre en passant sans être l'offre elle-même) — même
+  // classe de problème déjà résolue pour la checklist de pièces en abandonnant la lecture de
+  // contenu au profit du seul nom de fichier (voir CLAUDE.md, "TOUTES les pièces de la checklist
+  // sont désormais détectées uniquement par le NOM DU FICHIER"). Ce motif sert donc désormais
+  // exclusivement à tester le NOM DU FICHIER (normalisé — voir normaliserNomPourMotif), plus jamais
+  // son contenu : \s+ devient \s* pour couvrir aussi un nom concaténé sans séparateur
+  // ("OffreDePret.pdf" — la casse n'a pas d'importance, le motif est insensible à la casse), en plus
+  // des noms espacés ("Offre de prêt.pdf") ou à séparateurs underscore/tiret (déjà normalisés en
+  // espaces avant ce test). "Accord de prêt" ajouté, autre intitulé bancaire réel pour ce document.
   // var (pas const) : exposée globalement comme les fonctions du fichier, pour rester testable
   // depuis tests/helpers/load-app.js sans dupliquer le motif dans les tests.
-  var OFFRE_PRET_RE = /offre\s+de\s+pr[êe]t|offre\s+pr[ée]alable\s+de\s+cr[ée]dit|offre\s+de\s+cr[ée]dit|offre\s+de\s+financement/i;
+  var OFFRE_PRET_RE = /offre\s*de\s*pr[êe]t|offre\s*pr[ée]alable\s*de\s*cr[ée]dit|offre\s*de\s*cr[ée]dit|offre\s*de\s*financement|accord\s*de\s*pr[êe]t/i;
   let handlesEnMemoire = {}; // repli si IndexedDB est indisponible (contexte restreint)
 
   // Parcourt un dossier ET ses sous-dossiers à la recherche de fichiers PDF : les pièces d'un
@@ -4927,12 +4970,43 @@
         if ((!chercherOffre || offreTrouvee) && aChercher.size === 0) break; // tout est déjà résolu
         nbFichiersRencontres++;
 
-        // Nom du fichier testé en premier pour les pièces (voir motifNom) : plus fiable que le
-        // contenu extrait pour les pièces dont l'intitulé de fichier est conventionnel dans les
-        // dossiers de l'étude, et ça évite d'ouvrir/lire le PDF quand le nom seul suffit déjà.
-        // Normalisé (underscores/tirets → espaces, voir normaliserNomPourMotif) avant le test :
-        // les motifNom sont écrits avec \s+ comme séparateur, un vrai nom de fichier de l'étude non.
+        // Nom du fichier testé pour l'offre de prêt ET pour les pièces (voir motifNom) — plus
+        // aucune lecture de contenu PDF dans cette fonction (voir OFFRE_PRET_RE et son historique :
+        // trop d'erreurs signalées par l'étude sur la reconnaissance de l'offre par son contenu,
+        // même limite déjà rencontrée et déjà corrigée pour la checklist de pièces). Normalisé
+        // (underscores/tirets → espaces, accents NFC — voir normaliserNomPourMotif) avant le test :
+        // les motifs sont écrits avec \s* comme séparateur, un vrai nom de fichier de l'étude non.
         const nomNormalise = normaliserNomPourMotif(entree.name);
+
+        if (chercherOffre && !offreTrouvee && OFFRE_PRET_RE.test(nomNormalise)) {
+          offreTrouvee = true;
+          fichierOffre = entree.name;
+          diagnosticJournal.push(`${entree.name} → offre de prêt trouvée par nom de fichier`);
+          // Conserve le handle du fichier trouvé (même mécanisme IndexedDB que le dossier local
+          // lui-même) pour permettre de le rouvrir en un clic depuis la fiche, sans avoir à
+          // reparcourir tout le dossier — voir ouvrirOffreTrouvee().
+          await enregistrerHandle(CLE_HANDLE_OFFRE(id), entree);
+          // Montant emprunté (pour l'apport, voir calculerApport) : une seule lecture, best-effort,
+          // du SEUL fichier déjà identifié comme l'offre par son NOM — ce n'est plus "lire le PDF
+          // pour reconnaître l'offre" (ce que l'étude a demandé d'arrêter), seulement en extraire un
+          // chiffre annexe une fois le bon fichier déjà connu avec certitude. Un échec de
+          // lecture/extraction laisse simplement d.montantPret tel quel (jamais écrasé par un
+          // échec, comme ailleurs dans ce fichier), sans jamais remettre en cause offreTrouvee.
+          if (!d.montantPret) {
+            try {
+              nbAnalyses++;
+              const file = await entree.getFile();
+              const buffer = await file.arrayBuffer();
+              const pdf = await pdfjsLib.getDocument({ data: buffer, verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise;
+              const texte = await lireTextePdfVerification(pdf);
+              const montant = detecterMontantPret(texte);
+              if (montant) d.montantPret = montant;
+            } catch (e) {
+              console.error('Lecture du montant du prêt impossible pour', entree.name, e);
+            }
+          }
+        }
+
         for (const piece of checklist) {
           if (!aChercher.has(piece.cle)) continue;
           // Pièce personnalisée (voir checklistPieces/ajouterPiecePersonnalisee) : pas de motifNom
@@ -4955,65 +5029,6 @@
             aChercher.delete(piece.cle);
             diagnosticJournal.push(`${entree.name} → pièce trouvée par nom : « ${piece.label} »`);
           }
-        }
-        if ((!chercherOffre || offreTrouvee) && aChercher.size === 0) break;
-
-        // Plus aucune pièce n'a de motif de contenu (voir plus haut) : si l'offre de prêt est déjà
-        // résolue (trouvée, ou pas recherchée pour ce dossier), il n'y a plus rien à lire dans CE
-        // fichier — inutile de l'ouvrir (et, le cas échéant, de recourir à l'OCR) pour rien. Testé
-        // sur les pièces encore à trouver plutôt que sur toute la checklist : reste correct si une
-        // pièce retrouve un jour un motif de contenu. C'est ce qui rend le parcours d'un dossier
-        // volumineux nettement plus rapide une fois l'offre reçue (ou pour un dossier sans prêt) :
-        // la plupart des PDF ne sont jamais ouverts, seul leur nom est consulté.
-        const chercherContenuOffre = chercherOffre && !offreTrouvee;
-        const piecesRestantesAvecMotif = [...aChercher].some(cle => checklist.find(p => p.cle === cle)?.motif);
-        if (!chercherContenuOffre && !piecesRestantesAvecMotif) continue;
-
-        nbAnalyses++;
-        try {
-          const file = await entree.getFile();
-          const buffer = await file.arrayBuffer();
-          const pdf = await pdfjsLib.getDocument({ data: buffer, verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise;
-          const texte = await lireTextePdfVerification(pdf);
-
-          if (chercherOffre && !offreTrouvee) {
-            const correspond = OFFRE_PRET_RE.test(texte);
-            // Trace de diagnostic console (jamais affichée à l'écran, contrairement au journal
-            // ci-dessous) : un extrait du texte lu par pdf.js pour chaque PDF, utile en cas de
-            // désaccord entre "le mot y est bien" et "non détecté" (ex. police embarquée mal
-            // encodée qui produit un texte extrait illisible malgré un PDF visuellement normal et
-            // sélectionnable) — jamais dans le journal visible : ce serait exposer un extrait du
-            // texte du document à l'écran, au-delà de ce que l'étude voit déjà en ouvrant le PDF.
-            console.log('[vérification offre de prêt]', entree.name, '→', correspond ? 'correspond' : 'ne correspond pas', '| extrait :', JSON.stringify(texte.trim().slice(0, 200)));
-            diagnosticJournal.push(`${entree.name} → offre de prêt : ${correspond ? 'reconnue' : 'non reconnue'} dans le contenu`);
-            if (correspond) {
-              offreTrouvee = true;
-              fichierOffre = entree.name;
-              // Lu dans le même PDF, à ce même passage : inutile de rouvrir le fichier plus tard
-              // pour ça. Ne remplace jamais une valeur déjà connue par un échec de détection.
-              const montant = detecterMontantPret(texte);
-              if (montant) d.montantPret = montant;
-              // Conserve le handle du fichier trouvé (même mécanisme IndexedDB que le dossier local
-              // lui-même) pour permettre de le rouvrir en un clic depuis la fiche, sans avoir à
-              // reparcourir tout le dossier — voir ouvrirOffreTrouvee().
-              await enregistrerHandle(CLE_HANDLE_OFFRE(id), entree);
-            }
-          }
-
-          for (const piece of checklist) {
-            if (!aChercher.has(piece.cle)) continue;
-            // Certaines pièces (conditions juridiques quasi systématiquement décrites dans le
-            // compromis lui-même — voir PIECES_URBANISME/PIECES_AUTRES) n'ont plus de `motif` du
-            // tout, volontairement : seul motifNom (déjà testé plus haut) les détecte.
-            if (piece.motif && motifPieceTrouve(piece.motif, texte)) {
-              fichierParPiece[piece.cle] = entree;
-              aChercher.delete(piece.cle);
-              diagnosticJournal.push(`${entree.name} → pièce trouvée dans le contenu : « ${piece.label} »`);
-            }
-          }
-        } catch (e) {
-          console.error('Lecture impossible pour', entree.name, e);
-          diagnosticJournal.push(`${entree.name} → erreur de lecture : ${e.message}`);
         }
       }
     } catch (e) {
