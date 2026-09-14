@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-14 15:06';
+  const VERSION_APP = '2026-09-14 15:42';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,14 +23,14 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-14 15:42', resume: "Bug corrigé : apostrophe cassait les boutons pièce (Certificat d'urbanisme...) ; suppression d'un engagement/document possible partout ; \"contrat de crédit/prêt\" reconnu pour l'offre" },
     { version: '2026-09-14 15:06', resume: "Offre de prêt détectée uniquement par nom de fichier (plus de lecture du contenu) ; réinitialiser une pièce reçue à tort" },
     { version: '2026-09-14 07:30', resume: 'Mode serveur intranet (branche claude/serveur-intranet) : registre partagé JSON/localStorage remplacé par un serveur (login, synchro par polling)' },
     { version: '2026-09-13 19:22', resume: 'Sélecteur de catégorie en petite flèche, bouton "Ouvrir le compromis", recherche sans accents, pièce perso icône/texte, warning simulateur près du titre, badge Alpha' },
     { version: '2026-09-13 14:40', resume: 'Corrige le chevauchement croix de suppression / sélecteur de catégorie sur les tabs' },
     { version: '2026-09-13 10:02', resume: 'Versionning en heure de Paris ; export .ics limité au prêt, renommé rappel_echeance_...' },
     { version: '2026-09-13 07:56', resume: 'Bouton suppression de date, "+Nouveau dossier" en haut du Suivi (taille mobile alignée)' },
-    { version: '2026-09-13 07:44', resume: 'Explications .ics/email déplacées du footer vers une popup après clic' },
-    { version: '2026-09-13 06:10', resume: 'Avertissement du simulateur repositionné/simplifié : "Montant à valider avant envoi."' }
+    { version: '2026-09-13 07:44', resume: 'Explications .ics/email déplacées du footer vers une popup après clic' }
   ];
 
   const STORAGE_KEY = 'dossiers';
@@ -822,18 +822,33 @@
 
   // Accepte le nouveau format {label, cat} comme l'ancien (simple chaîne), pour que les dossiers
   // enregistrés avant cette évolution continuent de s'afficher.
-  function renderDocBadge(doc) {
+  // `dossierId` absent (pendant l'import, voir afficherAnalyseJuridique) → la croix retire l'entrée
+  // de analyseJuridiqueActuelle.documents (supprimerDocumentManuel) ; `dossierId` fourni (fiche
+  // d'un dossier déjà enregistré, voir renderCarteDossier) → elle retire l'entrée de
+  // d.analyseJuridique.documents avec confirmation + historique (supprimerDocumentDossier).
+  // Demandé par l'étude : jusqu'ici aucun document identifié n'était retirable, dans aucun des
+  // deux contextes.
+  function renderDocBadge(doc, index, dossierId) {
     const label = (typeof doc === 'string') ? doc : doc.label;
     const cat = (typeof doc === 'string') ? '' : (doc.cat || '');
-    return `<span class="analyse-doc-badge${cat ? ' cat-' + cat : ''}">${escapeHtml(label)}</span>`;
+    const appelSuppr = dossierId
+      ? `supprimerDocumentDossier('${dossierId}', ${index})`
+      : `supprimerDocumentManuel(${index})`;
+    const boutonSuppr = `<button type="button" class="analyse-doc-suppr" onclick="${appelSuppr}" title="Retirer ce document de la liste" aria-label="Retirer ce document">${icone('x')}</button>`;
+    return `<span class="analyse-doc-badge${cat ? ' cat-' + cat : ''}">${escapeHtml(label)}${boutonSuppr}</span>`;
   }
 
   // Accepte aussi bien le nouveau format {phrase, type} que l'ancien (simple chaîne), pour que
   // les dossiers enregistrés avant cette évolution continuent de s'afficher correctement.
-  // `index` (position dans analyseJuridiqueActuelle.engagements) n'est utile que pour les
-  // engagements ajoutés à la main (voir ajouterEngagementManuel) : seuls eux sont retirables via
-  // supprimerEngagementManuel(), les engagements détectés automatiquement n'ont pas ce besoin.
-  function renderEngagement(e, index) {
+  // Bouton de suppression désormais affiché pour TOUT engagement, plus seulement ceux ajoutés à la
+  // main — demandé par l'étude (jusqu'ici, un engagement détecté automatiquement ne pouvait être
+  // corrigé qu'en resserrant la regex, jamais retiré au cas par cas ; revu ici explicitement à sa
+  // demande). `dossierId` absent (import, voir afficherAnalyseJuridique) → retire de
+  // analyseJuridiqueActuelle.engagements (supprimerEngagementManuel, sans confirmation : pré-
+  // enregistrement, reversible en réimportant) ; `dossierId` fourni (fiche enregistrée, voir
+  // renderCarteDossier) → retire de d.analyseJuridique.engagements avec confirmation + historique
+  // (supprimerEngagementDossier).
+  function renderEngagement(e, index, dossierId) {
     const phrase = (typeof e === 'string') ? e : e.phrase;
     const type = (typeof e === 'string') ? null : e.type;
     const page = (typeof e === 'string') ? null : e.page;
@@ -852,13 +867,13 @@
       ? `<button type="button" class="voir-pdf-btn" onclick="voirEngagementDansPdf(${page}, '${codifierPourAttribut(phrase)}')">${icone('eye')} p.${page}</button>`
       : `<span class="chip-page" title="Détecté page ${page} du compromis">p.${page}</span>`;
     // Sélectionnée à la main dans l'aperçu PDF (voir gererSelectionPdf) plutôt que trouvée par
-    // extraireEngagementsVendeur() : marquée comme telle, et seule celle-ci peut être retirée d'un
-    // clic — corriger un engagement détecté automatiquement passe par la regex, pas par un retrait
-    // au cas par cas.
+    // extraireEngagementsVendeur() : uniquement indicatif désormais (voir plus haut, la croix de
+    // suppression s'affiche pour tous les engagements, pas seulement ceux-ci).
     const marqueurManuel = manuel ? '<span class="engagement-manuel">Ajouté manuellement</span>' : '';
-    const boutonSupprimer = manuel
-      ? `<button type="button" class="engagement-suppr" onclick="supprimerEngagementManuel(${index})" title="Retirer cet engagement" aria-label="Retirer cet engagement">${icone('x')}</button>`
-      : '';
+    const appelSuppr = dossierId
+      ? `supprimerEngagementDossier('${dossierId}', ${index})`
+      : `supprimerEngagementManuel(${index})`;
+    const boutonSupprimer = `<button type="button" class="engagement-suppr" onclick="${appelSuppr}" title="Retirer cet engagement" aria-label="Retirer cet engagement">${icone('x')}</button>`;
     return `<div class="analyse-engagement-ligne">${etiquette}<span>${escapeHtml(phrase)}</span>${marqueurManuel}${boutonVoir}${boutonSupprimer}</div>`;
   }
 
@@ -902,7 +917,7 @@
 
     document.getElementById('analyse-nb-documents').textContent = documents.length || '';
     listeDocs.innerHTML = documents.length > 0
-      ? documents.map(doc => renderDocBadge(doc)).join('')
+      ? documents.map((doc, i) => renderDocBadge(doc, i)).join('')
       : '<span class="analyse-vide">Aucun document type reconnu automatiquement.</span>';
 
     // La reconnaissance des documents s'appuie sur une liste de types courants : si le compromis
@@ -1646,9 +1661,20 @@
     if (selection) selection.removeAllRanges();
   }
 
+  // Nom conservé malgré la généralisation (voir renderEngagement) : retire désormais N'IMPORTE
+  // QUEL engagement pendant l'import, pas seulement ceux ajoutés à la main — sans confirmation
+  // (état pré-enregistrement, reversible en réimportant le PDF).
   function supprimerEngagementManuel(index) {
     if (!analyseJuridiqueActuelle.engagements[index]) return;
     analyseJuridiqueActuelle.engagements.splice(index, 1);
+    afficherAnalyseJuridique();
+  }
+
+  // Pendant l'import (voir renderDocBadge) : retire un document identifié de l'analyse en cours,
+  // sans confirmation, même logique que supprimerEngagementManuel() ci-dessus.
+  function supprimerDocumentManuel(index) {
+    if (!analyseJuridiqueActuelle.documents[index]) return;
+    analyseJuridiqueActuelle.documents.splice(index, 1);
     afficherAnalyseJuridique();
   }
 
@@ -3498,6 +3524,43 @@
     });
   }
 
+  // Retire un engagement du vendeur de l'analyse juridique d'un dossier DÉJÀ ENREGISTRÉ (voir
+  // renderEngagement/renderCarteDossier) — demandé par l'étude : jusqu'ici seuls les engagements
+  // ajoutés à la main pendant l'import étaient retirables (supprimerEngagementManuel), et
+  // seulement pendant l'import. Confirmation + entrée d'historique, comme retirerPieceStandard()
+  // ci-dessus : contrairement à un retrait pendant l'import (réversible en réimportant le PDF),
+  // c'est ici une modification d'un dossier déjà sauvegardé.
+  function supprimerEngagementDossier(dossierId, index) {
+    const d = dossiers.find(x => x.id === dossierId);
+    if (!d || !d.analyseJuridique || !d.analyseJuridique.engagements[index]) return;
+    const e = d.analyseJuridique.engagements[index];
+    const phrase = typeof e === 'string' ? e : e.phrase;
+    demanderConfirmation('Retirer cet engagement du vendeur de l’analyse juridique ?', () => {
+      d.analyseJuridique.engagements.splice(index, 1);
+      ajouterHistorique(d, `Engagement du vendeur retiré de l'analyse : « ${phrase.slice(0, 80)} »`);
+      sauvegarder(d);
+      render();
+    });
+  }
+
+  // Pendant du précédent pour un document identifié (voir renderDocBadge) — nouvelle capacité,
+  // rien n'était retirable de cette liste jusqu'ici, ni à l'import ni sur une fiche enregistrée.
+  // Volontairement découplé de la checklist de pièces du dossier (d.piecesEngagementsDetectees) :
+  // ce n'est qu'une liste d'affichage de l'analyse, pas la checklist elle-même, qui a déjà son
+  // propre mécanisme de retrait (retirerPieceStandard()/croix sur .piece-item).
+  function supprimerDocumentDossier(dossierId, index) {
+    const d = dossiers.find(x => x.id === dossierId);
+    if (!d || !d.analyseJuridique || !d.analyseJuridique.documents[index]) return;
+    const doc = d.analyseJuridique.documents[index];
+    const label = typeof doc === 'string' ? doc : doc.label;
+    demanderConfirmation(`Retirer « ${label} » de la liste des documents identifiés ?`, () => {
+      d.analyseJuridique.documents.splice(index, 1);
+      ajouterHistorique(d, `Document retiré de l'analyse juridique : « ${label} »`);
+      sauvegarder(d);
+      render();
+    });
+  }
+
   // Cycle inconnu → manquante → reçue → inconnu, sans entrée d'historique (une simple case à
   // cocher répétée n'a pas besoin d'être journalisée, contrairement à un changement structurel du
   // dossier) — seul mécanisme de mise à jour possible pour une pièce personnalisée, qui n'a pas de
@@ -3661,14 +3724,14 @@
             ${analyse.engagements.length > 0 ? `
               <div class="analyse-section">
                 <div class="analyse-sous-titre">Engagements du vendeur <span class="analyse-compteur">${analyse.engagements.length}</span></div>
-                ${analyse.engagements.map(e => renderEngagement(e)).join('')}
+                ${analyse.engagements.map((e, i) => renderEngagement(e, i, d.id)).join('')}
               </div>
             ` : ''}
             <div class="analyse-section">
               <div class="analyse-sous-titre">Documents et pièces identifiés <span class="analyse-compteur">${analyse.documents.length}</span></div>
               <div class="analyse-documents-liste">
                 ${analyse.documents.length > 0
-                  ? analyse.documents.map(doc => renderDocBadge(doc)).join('')
+                  ? analyse.documents.map((doc, i) => renderDocBadge(doc, i, d.id)).join('')
                   : '<span class="analyse-vide">Aucun document type reconnu automatiquement.</span>'}
               </div>
             </div>
@@ -3701,12 +3764,20 @@
 
   // Échappement dédié aux attributs HTML (échappe aussi les guillemets, contrairement à
   // escapeHtml) : nécessaire pour un champ value="" rempli avec du texte modifiable par l'utilisateur.
+  // Bug corrigé : cette fonction n'échappait pas l'apostrophe — signalé par l'étude sur "Certificat
+  // d'urbanisme" (bouton .piece-reinit/.piece-suppr sans effet). Plusieurs boutons interpolent
+  // escapeAttr(p.label) À L'INTÉRIEUR d'un argument JS délimité par des apostrophes
+  // (onclick="fonction('id', 'cle', '${escapeAttr(p.label)}')") : une apostrophe brute dans le
+  // libellé (ex. "Certificat d'urbanisme") ferme prématurément cet argument, cassant la syntaxe du
+  // gestionnaire onclick — le clic ne fait alors rien, sans erreur visible à l'écran. Touche tout
+  // libellé contenant une apostrophe, pas un cas isolé (ex. "Certificat d'alignement" aussi).
   function escapeAttr(s) {
     return String(s)
       .replace(/&/g, '&amp;')
       .replace(/"/g, '&quot;')
       .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
+      .replace(/>/g, '&gt;')
+      .replace(/'/g, '&#39;');
   }
 
   function renommerDossier(id, valeur) {
@@ -4861,9 +4932,12 @@
   // ("OffreDePret.pdf" — la casse n'a pas d'importance, le motif est insensible à la casse), en plus
   // des noms espacés ("Offre de prêt.pdf") ou à séparateurs underscore/tiret (déjà normalisés en
   // espaces avant ce test). "Accord de prêt" ajouté, autre intitulé bancaire réel pour ce document.
+  // "Contrat de crédit"/"contrat de prêt" ajoutés ensuite, sur demande de l'étude : certains
+  // établissements nomment le document remis à l'emprunteur "contrat" plutôt que "offre", une fois
+  // signé/accepté (couvre aussi "Contrat de crédit immobilier.pdf" grâce au \s* déjà en place).
   // var (pas const) : exposée globalement comme les fonctions du fichier, pour rester testable
   // depuis tests/helpers/load-app.js sans dupliquer le motif dans les tests.
-  var OFFRE_PRET_RE = /offre\s*de\s*pr[êe]t|offre\s*pr[ée]alable\s*de\s*cr[ée]dit|offre\s*de\s*cr[ée]dit|offre\s*de\s*financement|accord\s*de\s*pr[êe]t/i;
+  var OFFRE_PRET_RE = /offre\s*de\s*pr[êe]t|offre\s*pr[ée]alable\s*de\s*cr[ée]dit|offre\s*de\s*cr[ée]dit|offre\s*de\s*financement|accord\s*de\s*pr[êe]t|contrat\s*de\s*cr[ée]dit|contrat\s*de\s*pr[êe]t/i;
   let handlesEnMemoire = {}; // repli si IndexedDB est indisponible (contexte restreint)
 
   // Parcourt un dossier ET ses sous-dossiers à la recherche de fichiers PDF : les pièces d'un

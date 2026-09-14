@@ -116,6 +116,15 @@ test('OFFRE_PRET_RE reconnaît aussi un vrai NOM DE FICHIER (motifNom), plus seu
   assert.equal(app.OFFRE_PRET_RE.test(app.normaliserNomPourMotif('Titre_de_propriete.pdf')), false);
 });
 
+test('OFFRE_PRET_RE reconnaît aussi "contrat de crédit"/"contrat de prêt", et leurs dérivés', () => {
+  const app = chargerApplication();
+  // Ajouté sur demande de l'étude : certains établissements nomment le document remis à
+  // l'emprunteur "contrat" plutôt que "offre" (notamment une fois signé/accepté).
+  assert.ok(app.OFFRE_PRET_RE.test(app.normaliserNomPourMotif('Contrat de credit.pdf')));
+  assert.ok(app.OFFRE_PRET_RE.test(app.normaliserNomPourMotif('Contrat_de_pret_immobilier.pdf')));
+  assert.ok(app.OFFRE_PRET_RE.test(app.normaliserNomPourMotif('ContratDeCredit.pdf')));
+});
+
 test('checklistPieces("maison") ne contient pas les pièces propres à la copropriété', () => {
   const app = chargerApplication();
   // Le tableau vient d'un autre contexte vm (autre réalisation d'Array) : on le convertit avant de

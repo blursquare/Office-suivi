@@ -1322,10 +1322,29 @@
     border: 1px solid var(--ventebien);
     color: var(--ink);
     font-size: 12.5px;
-    padding: 4px 10px;
+    padding: 4px 4px 4px 10px;
     border-radius: 14px;
   }
   .analyse-doc-badge::before { content: "✓"; color: var(--ventebien); font-weight: 700; }
+  /* Retirer un document identifié de la liste (voir renderDocBadge) — même gabarit que
+     .piece-suppr/.engagement-suppr, jamais affiché en même temps qu'un ::before différent : le
+     bouton est un enfant réel du badge, pas de conflit avec le pseudo-élément "✓". */
+  .analyse-doc-suppr {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: none;
+    background: none;
+    border-radius: 50%;
+    color: var(--muted);
+    cursor: pointer;
+    flex: none;
+  }
+  .analyse-doc-suppr:hover { background: var(--paper-sunk); color: var(--urgent); }
+  .analyse-doc-suppr .icone { width: 9px; height: 9px; }
 
   /* ---- pièces du dossier (checklist de constitution, selon le type de vente) ---- */
   .pieces-dossier {
@@ -2769,7 +2788,7 @@
     .tab { border: 1px solid #999; margin-bottom: 6pt; padding: 6pt; background: #fff !important; }
     .historique-liste { display: block !important; }
     .analyse-juridique { background: #fff; border: 1px solid #999; }
-    .icon-btn, .tab-select-icone-wrap, .icon-crayon, .icon-valider, .nom-edition, .tab-date-edition, .select-classif, .tab-suppr, .ajout-echeance-btn, .ajout-echeance-form, .piece-suppr, .piece-reinit, .ajout-piece-btn, .ajout-piece-form, .diagnostic-parcours { display: none !important; }
+    .icon-btn, .tab-select-icone-wrap, .icon-crayon, .icon-valider, .nom-edition, .tab-date-edition, .select-classif, .tab-suppr, .ajout-echeance-btn, .ajout-echeance-form, .piece-suppr, .piece-reinit, .ajout-piece-btn, .ajout-piece-form, .diagnostic-parcours, .engagement-suppr, .analyse-doc-suppr { display: none !important; }
   }
 
   .analyse-repliable > summary {

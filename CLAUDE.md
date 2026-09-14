@@ -2662,6 +2662,56 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
   `renderPiecesDossier()` pour une pièce reçue ; la fonction de mutation elle-même n'est pas
   unit-testable pour la même raison que les autres fonctions de ce type (dépend de `dossiers`,
   invisible depuis les tests — voir `tests/helpers/load-app.js`).
+- **Bug corrigé : `escapeAttr()` n'échappait pas l'apostrophe**, signalé par l'étude — le bouton
+  `.piece-reinit` (voir juste au-dessus) et `.piece-suppr` restaient sans effet sur "Certificat
+  d'urbanisme" ("le bouton de la première ligne de Pièces du dossier n'est plus cliquable", ce
+  dernier étant le premier item de `PIECES_URBANISME`). Cause : ces boutons interpolent
+  `escapeAttr(p.label)` À L'INTÉRIEUR d'un argument JS délimité par des apostrophes
+  (`onclick="fonction('id', 'cle', '${escapeAttr(p.label)}')"`) — une apostrophe brute dans le
+  libellé ferme prématurément cet argument, cassant la syntaxe du gestionnaire `onclick` (clic sans
+  effet, erreur silencieuse en console). Touchait tout libellé de pièce avec une apostrophe, pas un
+  cas isolé ("Certificat d'alignement" aussi, en théorie — l'étude n'avait probablement testé/
+  remarqué que le premier item de la liste). Corrigé en ajoutant `.replace(/'/g, '&#39;')` à
+  `escapeAttr()` (entité HTML numérique standard, cohérent avec `&quot;` déjà géré juste avant).
+- **Suppression d'un engagement du vendeur ou d'un document identifié possible partout**, demandé
+  par l'étude — jusqu'ici, seuls les engagements ajoutés À LA MAIN (sélection de texte dans le PDF)
+  pouvaient être retirés, et seulement PENDANT L'IMPORT (`supprimerEngagementManuel()`, agit sur
+  `analyseJuridiqueActuelle`) ; aucun document identifié n'était retirable nulle part ; et sur une
+  fiche déjà enregistrée, `renderEngagement(e)` était appelé sans `index` — même un engagement
+  manuel y affichait un bouton non fonctionnel. Décision explicite de revenir sur le principe
+  précédent ("corriger un engagement détecté automatiquement reste l'affaire de la regex, pas d'un
+  retrait au cas par cas") : l'étude a demandé cette capacité explicitement, pour les deux
+  contextes.
+  - `renderEngagement(e, index, dossierId)`/`renderDocBadge(doc, index, dossierId)` : la croix de
+    suppression s'affiche désormais pour TOUT engagement (plus seulement `manuel === true`) et pour
+    tout document. `dossierId` absent (pendant l'import, voir `afficherAnalyseJuridique()`) → agit
+    sur `analyseJuridiqueActuelle` (`supprimerEngagementManuel()`, inchangée ; nouvelle
+    `supprimerDocumentManuel()`, même principe), sans confirmation — état pré-enregistrement,
+    réversible en réimportant le PDF. `dossierId` fourni (fiche d'un dossier déjà enregistré, voir
+    `renderCarteDossier()`) → nouvelles fonctions `supprimerEngagementDossier(dossierId, index)`/
+    `supprimerDocumentDossier(dossierId, index)`, gardées par `demanderConfirmation()` et
+    journalisées dans l'historique (même schéma que `retirerPieceStandard()`) : c'est ici une
+    modification d'un dossier déjà sauvegardé, pas un état d'import réversible.
+  - `renderCarteDossier()` passe maintenant `d.id` et l'index à ces deux fonctions de rendu (les
+    deux appels n'en passaient aucun jusqu'ici).
+  - **Volontairement découplé de la checklist de pièces** (`d.piecesEngagementsDetectees`/
+    `PIECES_ENGAGEMENTS_AUTO`) : retirer un "document" de cette liste d'analyse (purement
+    informative) ne touche pas la checklist de pièces du dossier, qui garde son propre mécanisme de
+    retrait (`retirerPieceStandard()`/croix sur `.piece-item`) — pas de scope creep au-delà de la
+    demande.
+  - Nouvelle classe CSS `.analyse-doc-suppr` (même gabarit que `.piece-suppr`/`.engagement-suppr`) ;
+    `.engagement-suppr` (oubliée jusqu'ici) et `.analyse-doc-suppr` ajoutées au filtre d'impression
+    existant — des contrôles d'édition n'ont pas leur place sur la fiche imprimée.
+  - Vérifié par un script Node ad hoc (bac à sable) : `renderEngagement`/`renderDocBadge` avec et
+    sans `dossierId` produisent bien l'`onclick` attendu dans chaque contexte. `npm test` reste vert
+    (134 tests, aucune fonction pure ajoutée — ces fonctions dépendent de `dossiers`/
+    `analyseJuridiqueActuelle`, même limite que pour les autres fonctions de mutation du fichier).
+- **`OFFRE_PRET_RE` étendue à "contrat de crédit"/"contrat de prêt"**, demandé par l'étude : certains
+  établissements nomment le document remis à l'emprunteur "contrat" plutôt que "offre" (notamment
+  une fois signé/accepté). Deux alternatives ajoutées au motif (qui ne teste plus que le NOM DU
+  FICHIER, voir son historique juste au-dessus) — `\s*` déjà en place couvre aussi bien "Contrat de
+  crédit.pdf" que "Contrat de crédit immobilier.pdf"/"ContratDeCredit.pdf". Nouveaux cas dans
+  `tests/dossier-local.test.js` ; `npm test` reste vert.
 
 ## Mode serveur intranet (branche `claude/serveur-intranet`, distincte de `main`)
 
