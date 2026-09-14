@@ -2717,6 +2717,11 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
   FICHIER, voir son historique juste au-dessus) — `\s*` déjà en place couvre aussi bien "Contrat de
   crédit.pdf" que "Contrat de crédit immobilier.pdf"/"ContratDeCredit.pdf". Nouveaux cas dans
   `tests/dossier-local.test.js` ; `npm test` reste vert.
+- **`renonciationPreemption.motifNom` élargi au sigle "DPU"** (Droit de Préemption Urbain), demandé
+  par l'étude à partir d'un nom de fichier réel ("Renonciation au DPU.pdf") — même principe que les
+  autres sigles courts déjà acceptés seuls (TF, SPANC, ERP, CU) : un sigle assez spécifique au
+  contexte notarial pour ne pas risquer d'apparaître incidemment dans le nom d'un autre document du
+  même dossier. Cas ajouté au test existant dans `tests/dossier-local.test.js`.
 
 ## Comment tester
 
