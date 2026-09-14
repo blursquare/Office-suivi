@@ -36,6 +36,21 @@ Un seul fichier à déposer sur le PC du bureau, sans installer Node.js, sans te
    connectent, la console affiche aussi les adresses à leur donner (`http://<ip-du-poste>:3000/`)
    — ce poste doit rester allumé, avec l'exe lancé, pour que les autres y accèdent.
 
+**Si le serveur s'arrête tout seul après quelques minutes** (le navigateur affiche
+`ERR_CONNECTION_REFUSED` sur `localhost` alors que ça fonctionnait juste avant) : deux causes
+possibles, à vérifier dans cet ordre.
+1. **Un antivirus/Windows Defender a discrètement mis fin au processus** après un contrôle de
+   réputation en ligne (l'exécutable n'étant pas signé, voir plus haut — un délai de quelques
+   minutes avant ce verdict est courant). Vérifier Windows Sécurité → Protection contre les virus
+   et menaces → Historique de protection, à l'heure de l'arrêt. Si c'est le cas, ajouter
+   `CLAIRE-serveur.exe` en exception dans l'antivirus (ou demander ce réglage à l'informatique de
+   l'étude) — aucun correctif côté code n'y change rien, la décision appartient à l'antivirus.
+2. **Une erreur inattendue dans le serveur lui-même** : un fichier `crash.log` est écrit à côté de
+   `config.json`/`mot-de-passe.txt` dès qu'une telle erreur survient, avec la date et le détail
+   technique — l'envoyer si l'arrêt se reproduit, pour un vrai diagnostic plutôt qu'une supposition.
+   Le serveur essaie de continuer à tourner malgré une telle erreur plutôt que de s'arrêter, mais
+   ne peut évidemment rien faire si c'est l'antivirus qui coupe le processus de l'extérieur (cas 1).
+
 Ce dossier (`CLAIRE-serveur.exe` + `config.json` + `mot-de-passe.txt` + le sous-dossier `data/`
 qui apparaît après le premier lancement) forme un tout déplaçable : le copier ailleurs (autre
 disque, autre poste) conserve le registre et le mot de passe.

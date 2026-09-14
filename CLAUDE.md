@@ -2724,6 +2724,18 @@ autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` auton
   confirmer le comportement réel du double-clic (avertissement exact affiché, ouverture du
   navigateur, accès depuis un second poste via l'IP affichée) — à confirmer par l'étude, comme de
   nombreux autres comportements Windows/Chrome déjà documentés dans ce fichier.
+- **Bug corrigé : le serveur s'arrêtait après quelques minutes sans aucun message visible**,
+  signalé par l'étude (`ERR_CONNECTION_REFUSED` sur `localhost`). Cause probable : la fenêtre de
+  console d'un `.exe` lancé par double-clic se ferme instantanément à la fin du processus — trop
+  vite pour lire une éventuelle pile d'erreur, qu'il s'agisse d'une exception non interceptée dans
+  le serveur ou d'un arrêt externe (antivirus). `server/src/index.js` ajoute
+  `process.on('uncaughtException'|'unhandledRejection', ...)` : journalise dans `crash.log` (à
+  côté de `config.json`/`data/`) au lieu de laisser le processus planter sans trace, et **continue
+  de tourner** plutôt que de s'arrêter — ce serveur n'a quasiment aucun état mutable en mémoire en
+  dehors de la connexion SQLite/des sessions d'authentification, perdre ces dernières ne coûte
+  qu'une reconnexion. Sans effet si la cause réelle est un antivirus qui tue le processus de
+  l'extérieur (aucun code JS ne peut réagir à ça) — voir `server/README.md`, qui documente les deux
+  causes à vérifier dans cet ordre (historique de protection Windows, puis `crash.log`).
 
 **Ce qui n'a volontairement PAS été fait** (arrêté à la demande explicite de l'étude, pas un
 oubli) — à reprendre uniquement si redemandé un jour :
