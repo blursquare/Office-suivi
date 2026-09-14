@@ -38,38 +38,56 @@ function estSea() {
   }
 }
 
-// Résout mot de passe + port pour le mode exécutable autonome. Extraite en fonction pure
-// (dossier et implémentation fs injectables) pour rester testable sans construire un vrai .exe —
-// voir server/test/config.test.js.
+// Résout mot de passe + port + jeton calendrier pour le mode exécutable autonome. Extraite en
+// fonction pure (dossier et implémentation fs injectables) pour rester testable sans construire un
+// vrai .exe — voir server/test/config.test.js.
 function resoudreConfigExecutable(dossierExe, fsImpl = fs) {
   const cheminConfig = path.join(dossierExe, 'config.json');
   if (fsImpl.existsSync(cheminConfig)) {
     const brut = JSON.parse(fsImpl.readFileSync(cheminConfig, 'utf8'));
-    return { motDePasse: brut.authPassword || '', port: brut.port || 3000, genere: false };
+    let calendrierToken = brut.calendrierToken || '';
+    // config.json généré par une version antérieure à l'ajout du calendrier connecté (voir
+    // CLAUDE.md) : complété ici avec un jeton généré à la volée plutôt que d'exiger de supprimer
+    // le fichier (ce qui régénérerait aussi le mot de passe partagé, sans rapport) pour en
+    // profiter — seul `calendrierToken` est ajouté, `authPassword`/`port` restent inchangés.
+    if (!calendrierToken) {
+      calendrierToken = crypto.randomBytes(8).toString('hex');
+      fsImpl.writeFileSync(cheminConfig, JSON.stringify({ ...brut, calendrierToken }, null, 2));
+    }
+    return { motDePasse: brut.authPassword || '', port: brut.port || 3000, calendrierToken, genere: false };
   }
-  // 8 caractères hexadécimaux : assez d'entropie pour un LAN de 3 personnes, assez court pour
-  // être retapé sans erreur depuis mot-de-passe.txt.
+  // 8 caractères hexadécimaux pour le mot de passe : assez d'entropie pour un LAN de 3 personnes,
+  // assez court pour être retapé sans erreur depuis mot-de-passe.txt. Le jeton calendrier n'a
+  // jamais besoin d'être retapé (il vit dans une URL copiée-collée une seule fois dans Outlook) :
+  // deux fois plus long, jamais montré nulle part en dehors de config.json/de cette URL.
   const motDePasse = crypto.randomBytes(4).toString('hex');
+  const calendrierToken = crypto.randomBytes(8).toString('hex');
   fsImpl.mkdirSync(dossierExe, { recursive: true });
-  fsImpl.writeFileSync(cheminConfig, JSON.stringify({ authPassword: motDePasse, port: 3000 }, null, 2));
+  fsImpl.writeFileSync(cheminConfig, JSON.stringify({ authPassword: motDePasse, port: 3000, calendrierToken }, null, 2));
   fsImpl.writeFileSync(
     path.join(dossierExe, 'mot-de-passe.txt'),
     `Mot de passe partagé CLAIRE : ${motDePasse}\r\n\r\n` +
       `À communiquer à tous les collaborateurs qui utilisent l'outil (même mot de passe pour tous).\r\n` +
       `Pour le changer : modifier "authPassword" dans config.json (à côté de cet exécutable), puis redémarrer.\r\n`
   );
-  return { motDePasse, port: 3000, genere: true };
+  return { motDePasse, port: 3000, calendrierToken, genere: true };
 }
 
 let motDePasse = process.env.AUTH_PASSWORD || '';
 let port = parseInt(process.env.PORT || '3000', 10);
 let cheminDb = process.env.CLAIRE_DB_PATH || path.join(__dirname, '..', 'data', 'claire.db');
+let jetonCalendrier = process.env.CALENDRIER_TOKEN || '';
 
 if (!motDePasse && estSea()) {
   const dossierExe = path.dirname(process.execPath);
   const resolu = resoudreConfigExecutable(dossierExe);
   motDePasse = resolu.motDePasse;
   port = resolu.port;
+  // Le jeton calendrier suit la même règle de précédence que le mot de passe : un `CALENDRIER_TOKEN`
+  // déjà présent dans l'environnement (mode développement/.env) n'est jamais écrasé par celui de
+  // config.json — cas qui ne se produit en pratique jamais en mode .exe (pas de .env dans ce mode),
+  // gardé par cohérence avec le reste du fichier plutôt que par nécessité réelle.
+  jetonCalendrier = jetonCalendrier || resolu.calendrierToken;
   cheminDb = path.join(dossierExe, 'data', 'claire.db');
   if (resolu.genere) {
     console.log(`[config] Premier lancement : mot de passe partagé généré automatiquement.`);
@@ -87,7 +105,7 @@ const config = {
   racineRepo: path.resolve(__dirname, '..', '..'),
   cheminDb,
   motDePasse,
-  jetonCalendrier: process.env.CALENDRIER_TOKEN || '',
+  jetonCalendrier,
   smtp: {
     host: process.env.SMTP_HOST || '',
     port: parseInt(process.env.SMTP_PORT || '587', 10),

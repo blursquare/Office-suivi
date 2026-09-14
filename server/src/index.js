@@ -60,6 +60,15 @@ function adressesLan() {
 // qui sait déjà où cliquer.
 function ouvrirNavigateur(url) {
   if (process.platform !== 'win32') return;
+  // Un service Windows (installé via NSSM, voir server/scripts/Installer-service-NSSM.bat) tourne
+  // dans la Session 0, sans bureau interactif : `start` y lancerait un processus fantôme (ou rien
+  // du tout) plutôt qu'un vrai navigateur visible par quelqu'un. `SESSIONNAME` n'est renseignée
+  // QUE dans une session interactive (console locale ou bureau à distance) — absente en Session 0,
+  // c'est le signal le plus simple pour distinguer les deux sans dépendance supplémentaire.
+  if (!process.env.SESSIONNAME) {
+    console.log('[CLAIRE] Session non interactive (service Windows) : ouverture automatique du navigateur ignorée.');
+    return;
+  }
   exec(`start "" "${url}"`, (err) => {
     if (err) console.warn('[CLAIRE] Impossible d\'ouvrir le navigateur automatiquement :', err.message);
   });
@@ -126,6 +135,19 @@ function demarrer() {
       console.log(`[CLAIRE] Depuis un autre poste du bureau : http://${ip}:${config.port}/`);
     }
 
+    // Adresse(s) d'abonnement du calendrier connecté (voir routes/calendrier.js) — affichées ici
+    // plutôt que dans config.js, qui ne connaît ni les IP LAN ni le port final au moment où le
+    // jeton est résolu. Rien à afficher si aucun jeton n'est configuré (mode développement sans
+    // CALENDRIER_TOKEN dans .env) : le calendrier connecté reste une fonctionnalité optionnelle,
+    // silencieuse quand elle n'est pas activée — voir server/README.md.
+    let urlsCalendrier = [];
+    if (config.jetonCalendrier) {
+      urlsCalendrier = [`http://localhost:${config.port}/calendrier.ics?token=${config.jetonCalendrier}`]
+        .concat(adresses.map((ip) => `http://${ip}:${config.port}/calendrier.ics?token=${config.jetonCalendrier}`));
+      console.log('[CLAIRE] Calendrier connecté (à coller dans Outlook > Ajouter un calendrier > À partir d\'Internet) :');
+      for (const u of urlsCalendrier) console.log(`[CLAIRE]   ${u}`);
+    }
+
     if (config.estSea()) {
       const dossierExe = path.dirname(process.execPath);
       try {
@@ -135,10 +157,18 @@ function demarrer() {
         fs.writeFileSync(path.join(dossierExe, 'server.pid'), String(process.pid));
         // Persisté en plus de la console : une fenêtre masquée (voir Lancer-CLAIRE-en-arriere-
         // plan.vbs ci-dessus) ne laisse plus jamais rien voir passer autrement.
-        fs.writeFileSync(
-          path.join(dossierExe, 'Adresses-du-serveur.txt'),
-          [`Ouvrir dans ce poste : ${url}`, ...adresses.map((ip) => `Depuis un autre poste du bureau : http://${ip}:${config.port}/`)].join('\r\n') + '\r\n'
-        );
+        const lignesAdresses = [
+          `Ouvrir dans ce poste : ${url}`,
+          ...adresses.map((ip) => `Depuis un autre poste du bureau : http://${ip}:${config.port}/`)
+        ];
+        if (urlsCalendrier.length) {
+          lignesAdresses.push(
+            '',
+            "Calendrier connecté (Outlook > Ajouter un calendrier > À partir d'Internet) :",
+            ...urlsCalendrier
+          );
+        }
+        fs.writeFileSync(path.join(dossierExe, 'Adresses-du-serveur.txt'), lignesAdresses.join('\r\n') + '\r\n');
       } catch (e) {
         console.warn('[CLAIRE] Fichiers assistants (scripts de lancement/arrêt, PID) non créés :', e.message);
       }

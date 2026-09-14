@@ -9,6 +9,7 @@ const { creerGestionnaireAuth } = require('./auth');
 const { creerDepot } = require('./dossiersRepo');
 const { creerRouteurAuth } = require('./routes/auth');
 const { creerRouteurDossiers } = require('./routes/dossiers');
+const { creerRouteurCalendrier } = require('./routes/calendrier');
 
 // Fichier statique → nom d'asset embarqué (voir server/scripts/build-windows-exe.mjs, section
 // `assets` de sea-config.json) + type MIME à renvoyer. Tous des fichiers texte (HTML/CSS/JS/JSON/
@@ -68,6 +69,12 @@ function creerApp({ db, config }) {
   app.get('/api/health', (req, res) => res.json({ ok: true }));
 
   app.use('/api', creerRouteurAuth(gestionnaireAuth));
+  // Hors du middlewareAuth par jeton de session, volontairement : un abonnement webcal
+  // (Outlook...) ne sait pas se connecter via l'écran de mot de passe, il ne suit qu'une URL — la
+  // route elle-même vérifie son propre jeton dédié (config.jetonCalendrier), voir
+  // routes/calendrier.js. Montée à la racine (pas sous /api) pour rester une URL courte à coller
+  // dans un client calendrier, cohérent avec .env.example (`GET /calendrier.ics?token=...`).
+  app.use(creerRouteurCalendrier(depot, config));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurDossiers(depot));
 
   // Gestionnaire d'erreurs générique en dernier recours : évite qu'une exception inattendue

@@ -2838,6 +2838,84 @@ autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` auton
   comme une pop-up grise gênante après une recherche lancée depuis le tiroir. Les deux partageaient
   jusqu'ici la même valeur par coïncidence (empilement fragile, pas explicite) ; le tiroir montre
   déjà le même résultat dans sa checklist, ce toast n'a plus besoin de rivaliser avec son contenu.
+- **Calendrier connecté (abonnement webcal) et vrai service Windows (NSSM)**, les deux derniers
+  points de la liste "pas encore fait" ci-dessous, demandés ensemble explicitement par l'étude
+  après un retour honnête sur l'état de cette branche (voir la discussion "que penses-tu de notre
+  version serveur ?").
+  - **`GET /calendrier.ics?token=...`** (`server/src/routes/calendrier.js`, nouveau) : génère un
+    flux `.ics` À LA DEMANDE à partir de `depot.tousActifs()` (pas de tâche de fond, contrairement
+    aux relances email envisagées un temps — un flux calendrier se régénère naturellement à chaque
+    resynchronisation du client, inutile de le précalculer). Un événement par échéance ACTIVE de
+    CHAQUE dossier actif (prêt/acte/vente préalable/`d.autres`), contrairement à l'export `.ics`
+    manuel côté client (`telechargerICS()`, volontairement limité à la seule date de prêt d'UN
+    dossier sur demande de l'étude, voir son historique plus haut) — les deux exports ont des
+    besoins différents : un export ponctuel d'un dossier précis d'un côté, un abonnement continu
+    censé refléter tout le portefeuille de l'autre. `buildEvent()`/`icsDate()`/`addDays()` sont
+    réécrites côté serveur plutôt que partagées avec `script.js` : les deux mondes (navigateur/
+    Node) n'ont pas de mécanisme de build commun dans ce projet (contrainte n°1 de la branche
+    `main`, toujours valable ici pour le code partagé), dupliquer ces quelques lignes est plus
+    simple qu'introduire un outillage juste pour ça.
+    - **Jeton dédié (`config.jetonCalendrier`), jamais le mot de passe de connexion** : un
+      abonnement webcal (Outlook...) ne sait suivre qu'une URL, sans écran de connexion ni en-tête
+      `Authorization` possible — la route est donc volontairement montée HORS du
+      `middlewareAuth` par session (`app.js`), et vérifie elle-même `req.query.token ===
+      config.jetonCalendrier`. Un mot de passe partagé resterait sinon visible en clair dans les
+      paramètres de calendrier de n'importe quel poste abonné, et le changer casserait aussi la
+      connexion de tout le monde à l'outil — deux raisons de garder les deux jetons séparés.
+    - `config.js` étend `resoudreConfigExecutable()` (déjà en place pour `authPassword`) au même
+      principe pour `calendrierToken` : généré au premier lancement du `.exe`, persisté dans
+      `config.json` à côté du mot de passe. **Cas de mise à jour explicitement géré** : un
+      `config.json` déjà existant, généré par une version antérieure à cette fonctionnalité, n'a
+      pas ce champ — plutôt que d'exiger de le supprimer (ce qui régénérerait aussi le mot de passe
+      partagé, sans rapport), `resoudreConfigExecutable()` détecte son absence et complète
+      `config.json` avec un jeton généré à la volée, sans toucher au reste. Le jeton ne vit que
+      dans `config.json`/l'URL elle-même — jamais dans `mot-de-passe.txt`, qui reste réservé au mot
+      de passe de connexion.
+    - Adresse(s) d'abonnement affichées au démarrage (`index.js`, aux côtés des adresses LAN déjà
+      affichées) et écrites dans `Adresses-du-serveur.txt` en mode `.exe` — rien à afficher si
+      `jetonCalendrier` est vide (mode développement sans `CALENDRIER_TOKEN` dans `.env` : la
+      fonctionnalité reste silencieusement désactivée, `GET /calendrier.ics` répond alors 503).
+    - Tests dans `server/test/calendrier.test.js` : `genererFluxIcs()` (fonction pure) vérifiée
+      isolément (nombre de `VEVENT`, dossier archivé exclu, échéance sans date ignorée, `d.autres`
+      inclus, repli sur le nom complet sans "/") ; la route elle-même vérifiée via un serveur réel
+      (403 sans jeton/mauvais jeton, 200 avec le bon jeton **sans aucun en-tête Authorization** —
+      le point central de cette route —, 503 quand aucun jeton n'est configuré). `npm test` (côté
+      `server/`) passe de 15 à 25 tests.
+  - **Service Windows via NSSM** (`server/scripts/Installer-service-NSSM.bat`/
+    `Desinstaller-service-NSSM.bat`, nouveaux) : contrairement au simple exécutable existant
+    (dépendant d'une fenêtre de console ou de `Lancer-CLAIRE-en-arrière-plan.vbs`, voir plus haut),
+    un service Windows démarre seul au boot du poste ET redémarre seul après un plantage — les deux
+    manques identifiés dans la section "pas encore prêt" du README. NSSM (Non-Sucking Service
+    Manager) est un outil TIERS gratuit (<https://nssm.cc/>), pas développé par ce projet ni
+    embarqué dans le dépôt (aucune URL binaire arbitraire téléchargée par un script à l'exécution) :
+    l'étude télécharge `nssm.exe` elle-même une fois, les deux `.bat` ne font que le PILOTER
+    (`nssm install`/`set`/`start`/`stop`/`remove`) avec des paramètres adaptés à `CLAIRE-serveur.exe`
+    (répertoire de travail, redémarrage automatique `AppExit Default Restart`, journaux
+    `AppStdout`/`AppStderr` avec rotation — remplacent la console pour diagnostiquer, puisqu'un
+    service n'en a justement plus).
+    - **Piège de syntaxe batch déjà documenté (voir le point ci-dessus sur `Ouvrir-en-fenetre.bat`)
+      appliqué par précaution** : aucune parenthèse non échappée dans un `echo` à l'intérieur d'un
+      bloc `if (...)`, et aucun caractère accentué (cohérent avec `Arreter-CLAIRE.bat`/
+      `Lancer-CLAIRE-en-arriere-plan.vbs`, déjà écrits sans accents) — pas un problème rencontré
+      cette fois-ci, une précaution prise en écrivant ces deux nouveaux scripts à la main plutôt
+      que générés par `index.js`.
+    - `ouvrirNavigateur()` (`index.js`) : un service Windows tourne en Session 0, sans bureau
+      interactif — y appeler `start` ouvrirait un processus fantôme (ou rien du tout) plutôt qu'un
+      navigateur visible par quelqu'un. Nouveau garde-fou : `process.env.SESSIONNAME` n'est
+      renseignée QUE dans une session interactive (console locale ou bureau à distance), jamais en
+      Session 0 — signal le plus simple pour sauter l'ouverture automatique sans dépendance
+      supplémentaire ni détection plus complexe. Sans effet sur l'usage courant (lancement direct
+      ou via le `.vbs`, tous deux dans une session interactive).
+    - **Non vérifié sur un vrai poste Windows dans cet environnement de développement** (aucune
+      machine Windows/NSSM disponible ici) : les deux scripts pilotent NSSM avec sa syntaxe
+      documentée officiellement, mais l'installation réelle, le redémarrage automatique après un
+      plantage simulé et le démarrage au boot restent à confirmer par l'étude — même limite déjà
+      assumée pour `CLAIRE-serveur.exe` lui-même (non signé, jamais testé par un vrai double-clic
+      avant livraison à l'étude).
+  - `server/README.md` : nouvelles sections "Calendrier connecté" et "Service Windows" (procédure
+    complète, liens NSSM, limites connues) ; la liste "Ce qui n'est PAS encore prêt" mise à jour en
+    conséquence (les deux points sont passés de "pas fait" à "fait mais non vérifié sur un poste
+    Windows réel" — les seules relances email automatiques restent non implémentées).
 
 **Ce qui n'a volontairement PAS été fait** (arrêté à la demande explicite de l'étude, pas un
 oubli) — à reprendre uniquement si redemandé un jour :
@@ -2847,14 +2925,10 @@ oubli) — à reprendre uniquement si redemandé un jour :
   praticable si demandée.
 - **Relances email automatiques** (un vrai envoi SMTP programmé, remplaçant le `mailto:` manuel
   actuel — `ouvrirEmailRappel()`/`relancerSiOffreManquante()`, tous deux inchangés et toujours en
-  place) et **flux calendrier** (`.ics` généré à la volée, consultable par abonnement webcal dans
-  Outlook — sans accès Microsoft Graph, on serait resté sur ce mécanisme plus simple plutôt qu'un
-  push direct, jamais mis en œuvre en pratique).
-- **Packaging en service Windows** (redémarrage automatique via NSSM, IP fixe, pare-feu) :
-  distinct de l'exécutable autonome ci-dessus — `CLAIRE-serveur.exe` simplifie le LANCEMENT (un
-  double-clic plutôt que `npm install`/`npm start`), mais reste un simple exécutable dans une
-  fenêtre de console qu'il faut garder ouverte, pas un service Windows qui redémarrerait seul
-  après un plantage ou un redémarrage du poste — toujours pas adapté à un usage sans surveillance.
+  place) — sans accès Microsoft Graph, cette fonctionnalité resterait de toute façon fondée sur un
+  simple envoi SMTP direct (`nodemailer`, déjà présent dans `server/package.json` mais jamais
+  câblé), pas un vrai flux applicatif Outlook — jamais mise en œuvre en pratique, non redemandée
+  depuis.
 
 Le CLAUDE.md de la branche `main` (tout ce qui précède cette section) reste la référence pour le
 mode 100% local, qui n'a subi aucune régression de ce chantier.

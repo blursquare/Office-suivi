@@ -5,10 +5,11 @@ version 100% locale (branche `main`) par un vrai registre partagé en temps rée
 réseau de l'étude. Voir `CLAUDE.md` à la racine du dépôt, section « Mode serveur intranet
 (branche claude/serveur-intranet) », pour le contexte complet de ce chantier.
 
-**État actuel : registre des dossiers partagé en temps réel, avec authentification par mot de
-passe partagé.** Les relances email automatiques et le flux calendrier n'ont pas été poursuivis
-(arrêtés à la demande de l'étude) — voir le plan de ce chantier si l'un de ces deux points doit
-être repris un jour.
+**État actuel : registre des dossiers partagé en temps réel (authentification par mot de passe
+partagé), calendrier connecté (abonnement webcal en lecture seule) et, en option, un vrai service
+Windows (NSSM) pour ne plus jamais dépendre d'une fenêtre de console restée ouverte.** Seules les
+relances email automatiques n'ont pas été poursuivies (arrêtées à la demande de l'étude) — voir le
+plan de ce chantier si ce point doit être repris un jour.
 
 ## Option simple : `CLAIRE-serveur.exe` (recommandé pour l'étude)
 
@@ -45,7 +46,67 @@ Un seul fichier à déposer sur le PC du bureau, sans installer Node.js, sans te
    connectent, la console affiche aussi les adresses à leur donner (`http://<ip-du-poste>:3000/`)
    — également écrites dans `Adresses-du-serveur.txt` à côté de l'exécutable, pour les retrouver
    même une fois la fenêtre masquée. Ce poste doit rester allumé, avec le serveur lancé (fenêtre
-   visible ou en arrière-plan), pour que les autres y accèdent.
+   visible, en arrière-plan, ou en service Windows — voir plus bas), pour que les autres y accèdent.
+
+## Calendrier connecté (abonnement webcal)
+
+Un flux calendrier en lecture seule, généré à la demande à partir de TOUS les dossiers actifs du
+registre (obtention du prêt, signature de l'acte, vente préalable, échéances personnalisées) —
+distinct de l'export `.ics` ponctuel d'un seul dossier depuis l'outil lui-même (bouton « Rappels
+(.ics) » sur une fiche, limité à la seule date de prêt) : celui-ci est un abonnement continu qui se
+tient à jour tout seul, pour tout le portefeuille, sans jamais rouvrir l'outil.
+
+1. Au démarrage du serveur (`.exe` ou `npm start`), la console affiche une ou plusieurs adresses
+   du type `http://<ip>:3000/calendrier.ics?token=...` — la même liste est écrite dans
+   `Adresses-du-serveur.txt` à côté de l'exécutable en mode `.exe`. Le jeton (`token=...`) est
+   généré automatiquement au premier lancement (mode `.exe`, dans `config.json`) et reste ensuite
+   inchangé — jamais le mot de passe de connexion à l'outil : un abonnement webcal ne peut pas
+   envoyer de mot de passe, ce jeton dédié en tient lieu dans l'URL elle-même.
+2. Dans Outlook : **Ajouter un calendrier → S'abonner depuis le web** (ou « À partir
+   d'Internet », selon la version), coller l'URL affichée par le serveur, valider.
+3. Outlook resynchronise cet abonnement selon **son propre calendrier interne** (typiquement
+   toutes les quelques heures, pas en temps réel) — une échéance ajoutée/modifiée dans CLAIRE
+   n'apparaît donc pas instantanément dans Outlook, contrairement à l'outil lui-même (synchronisé
+   par sondage toutes les 7 secondes entre postes). C'est une limite d'Outlook sur ce type
+   d'abonnement, pas un réglage ajustable côté serveur CLAIRE.
+4. Un dossier archivé n'apparaît plus dans ce flux (mêmes échéances qu'un dossier actif tant
+   qu'il ne l'est pas). Le flux est en LECTURE SEULE : modifier/supprimer un événement dans Outlook
+   n'a aucun effet sur le registre CLAIRE, qui reste la seule source de vérité.
+5. En mode développeur (`npm start`), ce flux reste désactivé tant que `CALENDRIER_TOKEN` n'est
+   pas renseigné dans `.env` (voir `.env.example`) — sans jeton, `GET /calendrier.ics` répond 503
+   plutôt que de générer un flux non protégé.
+
+## Service Windows (démarrage automatique, redémarrage seul en cas de plantage)
+
+Par défaut, `CLAIRE-serveur.exe` reste un simple exécutable : il tourne tant que sa fenêtre de
+console (ou `Lancer-CLAIRE-en-arrière-plan.vbs`, voir plus haut) reste active, mais rien ne le
+relance automatiquement après un plantage ou un redémarrage du poste. Pour un vrai service
+Windows, ce dossier fournit deux scripts qui pilotent
+[NSSM](https://nssm.cc/) (Non-Sucking Service Manager, outil gratuit tiers — pas développé par ce
+projet, seul le pilotage via ces deux scripts l'est) :
+
+1. Télécharger NSSM depuis <https://nssm.cc/download>, extraire `nssm.exe` (le binaire 64 bits,
+   dossier `win64\` de l'archive) et le placer **dans le même dossier** que
+   `CLAIRE-serveur.exe`.
+2. Copier `server/scripts/Installer-service-NSSM.bat` dans ce même dossier, puis l'exécuter **en
+   tant qu'administrateur** (clic droit → Exécuter en tant qu'administrateur — l'installation d'un
+   service Windows l'exige).
+3. Le service démarre immédiatement et démarre désormais tout seul à chaque redémarrage du poste,
+   sans fenêtre de console ni script `.vbs` à lancer. En cas de plantage, il redémarre seul après
+   quelques secondes. Deux journaux (`service-stdout.log`/`service-stderr.log`, à côté de l'exe)
+   remplacent la console pour diagnostiquer un problème.
+4. Pour vérifier l'état du service, l'arrêter ou le redémarrer manuellement : ouvrir `services.msc`
+   et chercher « CLAIRE - Registre des échéances (serveur intranet) ».
+5. Pour retirer complètement le service (retour à un exécutable simple) :
+   `server/scripts/Desinstaller-service-NSSM.bat`, également en administrateur — `config.json`,
+   le dossier `data\` et l'exécutable lui-même ne sont pas touchés, seul le service Windows est
+   supprimé.
+
+**Non vérifié sur un vrai poste Windows dans cet environnement de développement** (aucune machine
+Windows/NSSM disponible ici pour un test réel) — les deux scripts pilotent NSSM avec sa syntaxe en
+ligne de commande documentée officiellement, mais à confirmer par l'étude : l'installation
+elle-même, le redémarrage automatique après un `taskkill` du processus (simulant un plantage), et
+le démarrage au boot du poste.
 
 **Si le serveur s'arrête tout seul après quelques minutes** (le navigateur affiche
 `ERR_CONNECTION_REFUSED` sur `localhost` alors que ça fonctionnait juste avant) : trois causes
@@ -110,11 +171,12 @@ serveur en cours d'exécution pour que le registre reste accessible aux autres.
 npm test
 ```
 
-15 tests (`node:test`, aucune dépendance de test supplémentaire) couvrant l'authentification, le
+25 tests (`node:test`, aucune dépendance de test supplémentaire) couvrant l'authentification, le
 cycle complet créer/lire/modifier/supprimer/restaurer un dossier, la résolution de configuration
-du mode `.exe` et le service des fichiers statiques embarqués. Indépendant de la suite de tests à
-la racine du dépôt (`npm test` depuis `Office-suivi/`, 132 tests sur les fonctions pures de
-`script.js`) — les deux peuvent tourner sans que l'un dépende des dépendances de l'autre.
+du mode `.exe` (mot de passe ET jeton calendrier), le service des fichiers statiques embarqués et
+le flux calendrier connecté (`/calendrier.ics`). Indépendant de la suite de tests à la racine du
+dépôt (`npm test` depuis `Office-suivi/`, 134 tests sur les fonctions pures de `script.js`) — les
+deux peuvent tourner sans que l'un dépende des dépendances de l'autre.
 
 ## Ce qui n'est PAS encore prêt pour un usage réel au bureau
 
@@ -123,10 +185,16 @@ la racine du dépôt (`npm test` depuis `Office-suivi/`, 132 tests sur les fonct
   uniquement par construction du binaire dans cet environnement de développement (`file` confirme
   un exécutable Windows valide), **pas encore testé par un vrai double-clic sur un poste Windows
   réel** — à confirmer par l'étude (ce qui s'affiche exactement, si le navigateur s'ouvre bien).
-- **Pas de service Windows**, y compris pour `CLAIRE-serveur.exe` : reste actif tant que sa fenêtre
-  de console reste ouverte, pas de redémarrage automatique en cas de plantage ou de redémarrage du
-  poste. Voir le plan de ce chantier (section « Déploiement ») si ce point doit être traité un jour
-  (piste retenue : NSSM pour l'installer comme un vrai service Windows).
+- **Service Windows (NSSM) disponible mais non vérifié sur un vrai poste Windows** — voir la
+  section « Service Windows » plus haut : les scripts `Installer-service-NSSM.bat`/
+  `Desinstaller-service-NSSM.bat` pilotent NSSM avec sa syntaxe documentée, mais aucune machine
+  Windows n'était disponible dans cet environnement de développement pour un test réel de bout en
+  bout (installation, redémarrage automatique après plantage simulé, démarrage au boot).
+- **Calendrier connecté (webcal) disponible mais non vérifié dans un vrai Outlook** — voir la
+  section « Calendrier connecté » plus haut : le flux `.ics` généré est vérifié par des tests
+  automatisés (format, jeton, filtrage des dossiers archivés), mais son abonnement réel depuis
+  Outlook (affichage des événements, comportement de resynchronisation) reste à confirmer par
+  l'étude.
 - **Pas d'import automatique** des dossiers déjà enregistrés sur la version 100% locale (`main`) :
   il faudrait aujourd'hui recréer les dossiers à la main dans cette nouvelle version.
 - **`node:sqlite` est une API expérimentale** de Node.js (avertissement affiché au démarrage,
