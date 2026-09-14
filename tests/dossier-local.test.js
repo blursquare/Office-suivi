@@ -103,6 +103,19 @@ test('OFFRE_PRET_RE reconnaît les formulations bancaires courantes', () => {
   assert.equal(app.OFFRE_PRET_RE.test("Attestation d'entretien de chaudière"), false);
 });
 
+test('OFFRE_PRET_RE reconnaît aussi un vrai NOM DE FICHIER (motifNom), plus seulement du texte', () => {
+  const app = chargerApplication();
+  // Bug corrigé : la reconnaissance de l'offre de prêt lisait jusqu'ici le CONTENU du PDF — trop
+  // d'erreurs signalées par l'étude (polices embarquées mal encodées, faux positifs). OFFRE_PRET_RE
+  // sert désormais exclusivement à tester le NOM DU FICHIER (normalisé via normaliserNomPourMotif,
+  // comme les motifNom de la checklist de pièces) : \s* (plutôt que \s+) tolère un nom concaténé
+  // sans séparateur en plus des variantes espacées/à underscores/tirets déjà normalisées en espaces.
+  assert.ok(app.OFFRE_PRET_RE.test(app.normaliserNomPourMotif('Offre_de_pret_Credit_Agricole.pdf')));
+  assert.ok(app.OFFRE_PRET_RE.test(app.normaliserNomPourMotif('OffreDePret.pdf')));
+  assert.ok(app.OFFRE_PRET_RE.test(app.normaliserNomPourMotif('Accord-de-pret.pdf')));
+  assert.equal(app.OFFRE_PRET_RE.test(app.normaliserNomPourMotif('Titre_de_propriete.pdf')), false);
+});
+
 test('checklistPieces("maison") ne contient pas les pièces propres à la copropriété', () => {
   const app = chargerApplication();
   // Le tableau vient d'un autre contexte vm (autre réalisation d'Array) : on le convertit avant de
