@@ -32,6 +32,15 @@
     </div>
     <p class="sidebar-tagline">La clarté sur chaque dossier.</p>
 
+    <!-- État de la connexion au serveur intranet (voir sondagePeriodique()/majStatutServeur() dans
+         script.js) : distingue "le sondage réussit" de "le serveur est injoignable" (perte réseau,
+         serveur arrêté...) — sans indicateur, un dossier créé par un collègue pouvait sembler ne
+         jamais arriver sans que rien n'explique pourquoi. N'existe que sur cette branche (mode
+         serveur) : la version 100% locale (main) n'a pas de connexion à surveiller. -->
+    <div class="sidebar-statut-serveur">
+      <span id="statut-serveur-badge" class="dot-label dl-success"><span class="dot"></span>Connecté</span>
+    </div>
+
     <nav class="sidebar-nav" role="tablist" aria-label="Sections de l'application">
       <!-- En premier et toujours sur fond bleu (sidebar-cta), pas seulement quand cet onglet est
            actif : un raccourci permanent vers la création, demandé par l'étude. -->
@@ -168,6 +177,17 @@
         <p class="hint">Diagnostics et dates passées sont écartés automatiquement. Cliquez sur une catégorie pour corriger un classement.</p>
         <div class="chips" id="chips"></div>
 
+        <!-- État de la recherche du modèle IA local en arrière-plan (voir enrichirImportAvecIa()) :
+             sans lui, rien n'indiquait qu'une recherche était en cours pendant les quelques
+             secondes à dizaines de secondes que peut prendre l'appel à Ollama — silencieux avant
+             ce correctif jusqu'au toast final. Masqué par défaut, affiché uniquement pendant
+             l'appel (jamais si Ollama n'est pas disponible/configuré : l'appel échoue alors
+             immédiatement et cet état est aussitôt remasqué). -->
+        <div id="ia-enrichissement-status" class="ia-enrichissement-status" style="display:none;">
+          <span id="icon-ia-enrichissement" aria-hidden="true"></span>
+          Analyse par le modèle IA local en cours…
+        </div>
+
         <fieldset>
           <legend>Dates butoir</legend>
 
@@ -222,6 +242,26 @@
             extraire automatiquement les conditions, les engagements du vendeur et les documents
             attendus. Cette étape reste consultable même sans PDF importé.
           </div>
+
+          <!-- Ajout manuel d'un engagement du vendeur, sans passer par la sélection de texte dans
+               le PDF (voir gererSelectionPdf()) — utile quand aucun PDF n'est chargé, ou pour une
+               obligation qui n'apparaît pas littéralement dans le texte (accord oral rapporté par
+               le vendeur, par ex.). Toujours visible, y compris quand rien n'a encore été détecté
+               automatiquement — voir afficherFormAjoutEngagementManuel()/
+               ajouterEngagementDepuisFormulaire() dans script.js. -->
+          <button type="button" class="action-rapide" id="ajout-engagement-manuel-btn" onclick="afficherFormAjoutEngagementManuel()">+ Ajouter un engagement du vendeur</button>
+          <div id="ajout-engagement-manuel-form" class="ajout-engagement-manuel-form" style="display:none;">
+            <input type="text" id="nouvel-engagement-texte" placeholder="Décrire l'engagement (ex. Justifier de l'entretien annuel de la chaudière)">
+            <select id="nouvel-engagement-type">
+              <option value="entretien">Entretien</option>
+              <option value="travaux">Travaux</option>
+              <option value="document">Document</option>
+              <option value="autre">Autres</option>
+            </select>
+            <button type="button" class="icon-valider" onclick="ajouterEngagementDepuisFormulaire()" title="Ajouter" aria-label="Ajouter">✓</button>
+            <button type="button" class="secondary" onclick="masquerFormAjoutEngagementManuel()">Annuler</button>
+          </div>
+
           <div class="analyse-section" id="analyse-section-conditions">
             <div class="analyse-sous-titre">Conditions suspensives et particulières <span class="analyse-compteur" id="analyse-nb-conditions"></span></div>
             <div id="analyse-conditions-liste"></div>
@@ -615,6 +655,7 @@
   <button type="button" onclick="ajouterEngagementManuel('entretien')">Entretien</button>
   <button type="button" onclick="ajouterEngagementManuel('travaux')">Travaux</button>
   <button type="button" onclick="ajouterEngagementManuel('document')">Document</button>
+  <button type="button" onclick="ajouterEngagementManuel('autre')">Autres</button>
   <button type="button" class="pdf-selection-annuler" onclick="masquerBoutonAjoutEngagement()" aria-label="Annuler" title="Annuler">✕</button>
 </div>
 

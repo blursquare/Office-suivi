@@ -443,9 +443,12 @@
   .sidebar-tagline {
     font-size: 12px;
     color: var(--ink-soft);
-    margin: 2px 0 20px;
+    margin: 2px 0 8px;
     padding: 0 8px;
   }
+
+  .sidebar-statut-serveur { margin: 0 0 16px; padding: 0 8px; }
+  .sidebar-statut-serveur .dot-label { font-size: 12px; }
 
   .sidebar-nav {
     display: flex;
@@ -1320,6 +1323,17 @@
   .pdf-status.ok { color: var(--success); font-weight: 600; }
   .pdf-status.err { color: var(--urgent); font-weight: 500; }
 
+  /* État "Analyse par le modèle IA local en cours…" (étape "Vérifier" du wizard) — voir
+     enrichirImportAvecIa()/afficherStatutEnrichissementIa() dans script.js. */
+  .ia-enrichissement-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    color: var(--muted);
+    margin: -4px 0 10px;
+  }
+
   .compromis-info.warn {
     background: var(--pret-bg);
     border-color: var(--pret);
@@ -1698,6 +1712,7 @@
   .engagement-type.document { background: var(--acte-bg); color: var(--acte); }
   .engagement-type.entretien { background: var(--ventebien-bg); color: var(--ventebien); }
   .engagement-type.travaux { background: var(--pret-bg); color: var(--pret); }
+  .engagement-type.autre { background: var(--line-soft); color: var(--muted); }
 
   .analyse-doc-badge.cat-entretien { border-color: var(--ventebien); }
   .analyse-doc-badge.cat-travaux { border-color: var(--pret); }
@@ -1792,6 +1807,18 @@
   }
   .autre-row input[type="text"] { flex: 1 1 220px; }
   .autre-row input[type="date"] { flex: 0 0 160px; }
+
+  /* Formulaire d'ajout manuel d'un engagement du vendeur (étape "Analyse juridique" du wizard) —
+     même gabarit que .autre-row (input qui s'étire, contrôles fixes), voir index.html/script.js. */
+  .ajout-engagement-manuel-form {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+  .ajout-engagement-manuel-form input[type="text"] { flex: 1 1 260px; }
+  #ajout-engagement-manuel-btn { margin-top: 10px; }
 
   .reminder-days {
     display: flex;

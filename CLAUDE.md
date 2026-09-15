@@ -3164,6 +3164,51 @@ autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` auton
     syntaxe `--profile-directory`/`--app` est reprise à l'identique de celle déjà confirmée
     fonctionnelle pour `Ouvrir-en-fenetre.bat`, mais son comportement précis au démarrage
     automatique du serveur (pas depuis un `.bat` cliqué manuellement) reste à confirmer par l'étude.
+- **Série de correctifs remontés après une matinée de test réel**, traités indépendamment :
+  - **Indicateur de connexion au serveur dans la sidebar** (`.sidebar-statut-serveur`,
+    `majStatutServeur()`) : `sondagePeriodique()` (sondage toutes les 7s) met à jour un badge
+    `.dot-label` "Connecté"/"Hors ligne" — sans lui, un dossier créé par un collègue qui
+    n'apparaissait jamais (serveur arrêté, câble débranché...) ne se voyait qu'indirectement. Ne
+    change le DOM que si l'état a réellement changé (évite une écriture à chaque sondage). Le cas
+    401 (session expirée, déjà géré par `fetchAvecAuth` — jeton effacé, écran de connexion
+    réaffiché) n'affiche volontairement PAS "Hors ligne" par-dessus : ce n'est pas un problème
+    réseau, `authToken` redevient `null` dans ce cas précis, utilisé comme signal pour distinguer
+    les deux dans le `catch` de `sondagePeriodique()`.
+  - **Bug corrigé : achat comptant affichait "Non renseigné" sur le tab "Obtention du prêt"**,
+    comme si l'échéance avait été oubliée. `renderTab()` affiche désormais "Achat comptant — sans
+    prêt" quand `d.sansPret` est vrai et qu'aucune date n'est renseignée — le crayon reste
+    accessible (pas de tab masqué entièrement, contrairement à un premier essai) : si un prêt
+    finit par exister malgré tout, saisir une date doit rester possible. **Bug latent corrigé au
+    passage, trouvé en creusant ce point** : `validerEditionDate()` ne repassait jamais
+    `d.sansPret` à `false` en saisissant une date de prêt — symétrique de `supprimerDateEcheance()`
+    (qui le passe à `true` en vidant la date), cette dissymétrie aurait bloqué `sansPret` à `true`
+    indéfiniment même après avoir renseigné une vraie date.
+  - **Bouton "+ Ajouter un engagement du vendeur"**, indépendant de la sélection de texte dans le
+    PDF (`gererSelectionPdf()`/barre flottante, déjà existante) : utile quand aucun PDF n'est
+    chargé, ou pour un engagement qui n'apparaît pas littéralement dans l'acte (accord oral
+    rapporté par le vendeur). Toujours visible dans l'étape "Analyse juridique" du wizard, y
+    compris dans l'état vide (contrairement au reste de cette étape, masqué par
+    `afficherAnalyseJuridique()` tant que rien n'est détecté) — placé en dehors du bloc que cette
+    fonction masque/affiche, pour rester accessible même sans aucune détection automatique.
+  - **Catégorie "Autres" ajoutée aux engagements du vendeur** (barre flottante de sélection PDF ET
+    le nouveau bouton manuel ci-dessus) : les trois catégories existantes (Entretien/Travaux/
+    Document, volontairement distinctes — voir leur historique plus haut) ne couvraient pas tout
+    ce qu'un(e) collaborateur(rice) peut vouloir consigner en sélectionnant une clause. Couleur
+    neutre (`--muted`/`--line-soft`, cohérent avec `.dl-neutre` ailleurs dans l'outil) plutôt
+    qu'une couleur inventée.
+  - **Indicateur "Analyse par le modèle IA local en cours…"** pendant l'appel à
+    `/api/extraction-ia` (étape "Vérifier" du wizard, où l'auto-avance après import amène
+    l'utilisateur pendant que l'appel tourne en arrière-plan) — jusqu'ici totalement silencieux
+    jusqu'au toast final, ce qui pouvait laisser croire à un import sans effet sur un compromis
+    long (Ollama peut prendre plusieurs dizaines de secondes). `afficherStatutEnrichissementIa()`
+    est masqué au début de tout nouvel import et dans `reinitialiserFormulaire()` (sinon resterait
+    affiché indéfiniment si l'utilisateur enregistre/réinitialise avant la fin de l'appel — le
+    garde-fou `generationImportActuel` empêche déjà l'appel de modifier le MAUVAIS formulaire, mais
+    ne masquait pas cet indicateur de son côté).
+  - Vérifié par un script Node ad hoc (bac à sable) : `renderTab()` avec `sansPret` affiche bien
+    "Achat comptant — sans prêt" (et "Non renseigné" sans ce drapeau, comportement inchangé pour
+    tous les autres dossiers). `npm test` reste vert (134 tests, aucune fonction pure modifiée par
+    ce lot — uniquement de l'affichage/état DOM, comme la plupart des correctifs de ce fichier).
 
 **Ce qui n'a volontairement PAS été fait** (arrêté à la demande explicite de l'étude, pas un
 oubli) — à reprendre uniquement si redemandé un jour :

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-14 20:26';
+  const VERSION_APP = '2026-09-15 14:02';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,14 +23,14 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-15 14:02', resume: "Retours de test du matin : indicateur de connexion serveur (sidebar), achat comptant affiché clairement (plus de \"Non renseigné\"), ajout manuel d'un engagement du vendeur sans sélection PDF, catégorie \"Autres\" pour les engagements, indicateur pendant la recherche IA" },
     { version: '2026-09-14 20:26', resume: "Le wizard « Nouveau dossier » utilise aussi l'IA locale en arrière-plan : complète nom/adresse/prix/dates non trouvés par les regex et suggère des engagements du vendeur en plus, jamais en remplacement" },
     { version: '2026-09-14 20:11', resume: "Nouvel onglet « Analyse approfondie (IA) » : dépose l'acte + ses annexes séparées, relecture croisée par un modèle IA local (Ollama, aucune donnée envoyée en ligne) — voir server/README.md" },
     { version: '2026-09-14 19:27', resume: "Vrai correctif du bug apostrophe (Certificat d'urbanisme/d'alignement) : le précédent (&#39;) ne survivait pas au décodage HTML de l'attribut onclick, toujours cassé en pratique" },
     { version: '2026-09-14 17:13', resume: 'Détection "Renonciation au droit de préemption" élargie au sigle "DPU" dans le nom de fichier' },
     { version: '2026-09-14 17:01', resume: 'Écran de connexion : espace manquant entre le champ mot de passe et "Se connecter" ; sidebar : Mode sombre et À propos côte à côte' },
     { version: '2026-09-14 16:11', resume: "Serveur : vrai service Windows (NSSM, redémarrage auto) et calendrier connecté (abonnement webcal en lecture seule) — voir server/README.md" },
-    { version: '2026-09-14 15:42', resume: "Bug corrigé : apostrophe cassait les boutons pièce (Certificat d'urbanisme...) ; suppression d'un engagement/document possible partout ; \"contrat de crédit/prêt\" reconnu pour l'offre" },
-    { version: '2026-09-14 15:06', resume: "Offre de prêt détectée uniquement par nom de fichier (plus de lecture du contenu) ; réinitialiser une pièce reçue à tort" }
+    { version: '2026-09-14 15:42', resume: "Bug corrigé : apostrophe cassait les boutons pièce (Certificat d'urbanisme...) ; suppression d'un engagement/document possible partout ; \"contrat de crédit/prêt\" reconnu pour l'offre" }
   ];
 
   const STORAGE_KEY = 'dossiers';
@@ -859,9 +859,9 @@
     const page = (typeof e === 'string') ? null : e.page;
     const manuel = typeof e === 'object' && e.manuel === true;
     const suggereParIa = typeof e === 'object' && e.source === 'ia';
-    const libelles = { entretien: 'Entretien', travaux: 'Travaux', document: 'Document' };
+    const libelles = { entretien: 'Entretien', travaux: 'Travaux', document: 'Document', autre: 'Autres' };
     const etiquette = type
-      ? `<span class="engagement-type ${type}">${libelles[type] || 'Document'}</span>`
+      ? `<span class="engagement-type ${libelles[type] ? type : 'document'}">${libelles[type] || 'Document'}</span>`
       : '';
     // Le clic pour sauter à la page ET surligner la phrase (voir voirEngagementDansPdf, même
     // esprit que voirDateDansPdf pour les dates — demandé par l'étude) n'est possible que si le
@@ -1539,6 +1539,7 @@
     const conteneur = document.getElementById('pdf-pages-container');
     conteneur.innerHTML = '';
     masquerBoutonAjoutEngagement();
+    masquerFormAjoutEngagementManuel();
     const largeurDispo = (conteneur.clientWidth || 360) - 20;
 
     for (let numero = 1; numero <= pdfDernierePageUtile; numero++) {
@@ -1662,6 +1663,46 @@
     });
     afficherAnalyseJuridique();
     masquerBoutonAjoutEngagement();
+    afficherToast('Engagement ajouté à l’analyse juridique.', 'OK', null);
+  }
+
+  // Pendant du bouton flottant ci-dessus, mais sans dépendre d'une sélection de texte dans le PDF :
+  // demandé par l'étude pour saisir un engagement qui n'apparaît pas littéralement dans l'acte
+  // (accord oral rapporté, engagement verbal du vendeur...) ou simplement quand aucun PDF n'est
+  // chargé pour l'instant. Toujours accessible depuis l'étape "Analyse juridique" du wizard, jamais
+  // masqué par l'état vide (voir index.html) — un dossier sans aucune détection automatique doit
+  // pouvoir malgré tout recevoir un engagement saisi à la main.
+  function afficherFormAjoutEngagementManuel() {
+    const btn = document.getElementById('ajout-engagement-manuel-btn');
+    const form = document.getElementById('ajout-engagement-manuel-form');
+    if (btn) btn.style.display = 'none';
+    if (form) form.style.display = 'flex';
+    const texte = document.getElementById('nouvel-engagement-texte');
+    if (texte) texte.focus();
+  }
+
+  function masquerFormAjoutEngagementManuel() {
+    const btn = document.getElementById('ajout-engagement-manuel-btn');
+    const form = document.getElementById('ajout-engagement-manuel-form');
+    if (btn) btn.style.display = '';
+    if (form) form.style.display = 'none';
+    const texte = document.getElementById('nouvel-engagement-texte');
+    if (texte) texte.value = '';
+  }
+
+  function ajouterEngagementDepuisFormulaire() {
+    const texteEl = document.getElementById('nouvel-engagement-texte');
+    const typeEl = document.getElementById('nouvel-engagement-type');
+    const texte = texteEl ? texteEl.value.trim() : '';
+    if (!texte) { if (texteEl) texteEl.focus(); return; }
+    analyseJuridiqueActuelle.engagements.push({
+      phrase: texte,
+      type: typeEl ? typeEl.value : 'document',
+      page: null,
+      manuel: true
+    });
+    masquerFormAjoutEngagementManuel();
+    afficherAnalyseJuridique();
     afficherToast('Engagement ajouté à l’analyse juridique.', 'OK', null);
   }
 
@@ -1899,6 +1940,7 @@
     status.className = 'pdf-status loading';
     status.textContent = `Lecture de « ${file.name} » en cours…`;
     majProgression(2);
+    afficherStatutEnrichissementIa(false); // efface un éventuel résidu d'un import précédent
     const monImport = ++generationImportActuel;
 
     try {
@@ -2033,7 +2075,25 @@
     });
   }
 
+  // Affiche/masque l'état "Analyse par le modèle IA local en cours…" (étape "Vérifier" du wizard,
+  // voir index.html) pendant l'appel à /api/extraction-ia — sans lui, rien n'indiquait qu'une
+  // recherche était en cours pendant les quelques secondes à dizaines de secondes que peut prendre
+  // Ollama, silencieux jusqu'au toast final. N'a jamais retardé l'import lui-même (voir l'appel
+  // sans await plus bas) : seul l'affichage de CET état est synchrone avec la requête.
+  function afficherStatutEnrichissementIa(visible) {
+    const el = document.getElementById('ia-enrichissement-status');
+    if (!el) return;
+    if (visible) {
+      const iconeEl = document.getElementById('icon-ia-enrichissement');
+      if (iconeEl && !iconeEl.innerHTML) iconeEl.innerHTML = icone('spinner', null, true);
+      el.style.display = 'flex';
+    } else {
+      el.style.display = 'none';
+    }
+  }
+
   async function enrichirImportAvecIa(texte, monImport) {
+    afficherStatutEnrichissementIa(true);
     let resultat;
     try {
       const reponse = await fetchAvecAuth('/api/extraction-ia', {
@@ -2045,6 +2105,11 @@
       resultat = await reponse.json();
     } catch (e) {
       return; // session expirée (déjà gérée par fetchAvecAuth) ou réseau — rien d'autre à faire ici
+    } finally {
+      // Uniquement si on est toujours sur le MÊME import : un import suivant a déjà remis son
+      // propre statut (masqué au départ, voir traiterFichierPdf) — le masquer ici écraserait à
+      // tort l'état du nouvel import si celui-ci a démarré entretemps.
+      if (monImport === generationImportActuel) afficherStatutEnrichissementIa(false);
     }
     // L'utilisateur a pu importer un autre PDF, ou enregistrer/réinitialiser le formulaire, pendant
     // les quelques dizaines de secondes qu'a pu prendre cet appel — voir generationImportActuel.
@@ -2202,6 +2267,8 @@
     analyseJuridiqueActuelle = { documents: [], engagements: [], conditions: [] };
     afficherAnalyseJuridique();
     masquerBoutonAjoutEngagement();
+    masquerFormAjoutEngagementManuel();
+    afficherStatutEnrichissementIa(false);
     // Referme entièrement le panneau d'aperçu : sans ça, le PDF du dossier qu'on vient d'enregistrer
     // restait affiché à côté d'un formulaire pourtant vide, prêt pour un nouvel import.
     document.getElementById('pdf-viewer').style.display = 'none';
@@ -2441,7 +2508,7 @@
     ).join('');
   }
 
-  function renderTab(type, label, iso, dossierId, page, confiance, autreIndex, offrePretRecue, offreBloc) {
+  function renderTab(type, label, iso, dossierId, page, confiance, autreIndex, offrePretRecue, offreBloc, sansPret) {
     // Les tabs Prêt / Acte / Vente d'un dossier enregistré sont recatégorisables au clic ;
     // les échéances "Autre" gardent leur libellé personnalisé (non concerné par ce sélecteur).
     // Redessiné sur retour de l'étude : le titre est maintenant un texte statique (coloré selon la
@@ -2514,10 +2581,17 @@
       : '';
 
     if (!iso) {
+      // "Achat comptant — sans prêt" plutôt que "Non renseigné" : ce dernier laissait croire à un
+      // oubli sur un dossier où cette échéance ne s'applique tout simplement pas (sansPret vrai,
+      // qu'il vienne de la création ou d'une suppression de date après coup — voir
+      // supprimerDateEcheance). Le crayon reste affiché : si un prêt finit par exister malgré tout,
+      // saisir une date ici doit rester possible (voir validerEditionDate, qui repasse alors
+      // sansPret à false).
+      const texteVide = (type === 'pret' && sansPret) ? 'Achat comptant — sans prêt' : 'Non renseigné';
       return `<div class="tab ${type}">
         ${croixSuppression}
         ${enTete}
-        <span class="tab-date-affichage" id="${idBase}-aff"><div class="tab-date">Non renseigné</div>${crayonDate}${badgeConfiance}</span>
+        <span class="tab-date-affichage" id="${idBase}-aff"><div class="tab-date">${texteVide}</div>${crayonDate}${badgeConfiance}</span>
         ${editionDate}
         ${offreBloc || ''}
       </div>`;
@@ -3832,7 +3906,7 @@
         </div>
         <div class="dossier-body">
         <div class="tabs">
-          ${renderTab('pret', 'Obtention du prêt', d.pret, d.id, d.pretPage, confiance.pret, null, d.offrePretStatut === 'recue', offreBloc)}
+          ${renderTab('pret', 'Obtention du prêt', d.pret, d.id, d.pretPage, confiance.pret, null, d.offrePretStatut === 'recue', offreBloc, d.sansPret)}
           ${renderTab('acte', 'Signature de l\u2019acte', d.acte, d.id, d.actePage, confiance.acte)}
           ${d.ventebien ? renderTab('ventebien', 'Vente préalable', d.ventebien, d.id, d.ventebienPage, confiance.ventebien) : ''}
           ${(d.autres || []).map((a, i) => renderTab('autre', escapeHtml(a.label), a.date, d.id, a.page, null, i)).join('')}
@@ -4020,6 +4094,12 @@
       d[cle] = nouvelleDate || '';
       d.confiance = d.confiance || {};
       d.confiance[cle] = 'manuel'; // corrigée à la main : à revérifier comme toute saisie manuelle
+      // Symétrique de supprimerDateEcheance (qui passe sansPret à true en vidant cette date) : si
+      // une date de prêt est saisie sur un dossier jusque-là "sans prêt", le suivi de l'offre doit
+      // reprendre — sans ce basculement, d.sansPret restait bloqué à true indéfiniment, malgré une
+      // vraie date désormais renseignée (verifierDossierLocal()/la checklist continuaient d'ignorer
+      // le prêt).
+      if (cle === 'pret') d.sansPret = !nouvelleDate;
       sauvegarder(d);
     }
     render();
@@ -4409,19 +4489,40 @@
     }
   }
 
+  // Reflète dans la sidebar si le dernier sondage a bien atteint le serveur — sans ça, un serveur
+  // arrêté/injoignable (câble débranché, poste hébergeur éteint...) ne se voyait qu'indirectement,
+  // en constatant qu'un dossier créé par un collègue n'apparaissait jamais. `statutServeurConnecte`
+  // évite d'écrire dans le DOM à chaque sondage (toutes les 7s) quand rien n'a changé.
+  let statutServeurConnecte = true;
+  function majStatutServeur(connecte) {
+    if (connecte === statutServeurConnecte) return;
+    statutServeurConnecte = connecte;
+    const badge = document.getElementById('statut-serveur-badge');
+    if (!badge) return;
+    badge.className = 'dot-label ' + (connecte ? 'dl-success' : 'dl-urgent');
+    badge.innerHTML = '<span class="dot"></span>' + (connecte ? 'Connecté' : 'Hors ligne');
+    badge.title = connecte
+      ? ''
+      : 'Le serveur ne répond plus — vérifiez qu\'il tourne toujours sur le poste hébergeur. Les modifications faites ici seront synchronisées dès que la connexion revient.';
+  }
+
   async function sondagePeriodique() {
     try {
       const reponse = await fetchAvecAuth(`/api/dossiers?since=${curseurSynchro}`);
-      if (!reponse.ok) return;
+      if (!reponse.ok) { majStatutServeur(false); return; }
       const { dossiers: changements, serverTime } = await reponse.json();
       if (changements.length > 0) {
         appliquerChangementsDistants(changements);
         render();
       }
       curseurSynchro = serverTime;
+      majStatutServeur(true);
     } catch (e) {
-      // Session expirée (déjà géré par fetchAvecAuth, qui a réaffiché l'écran de connexion) ou
-      // serveur momentanément injoignable : le prochain cycle réessaiera de lui-même.
+      // Une session expirée (401) est déjà gérée par fetchAvecAuth (jeton effacé, écran de
+      // connexion réaffiché, polling arrêté) — pas la peine d'afficher "Hors ligne" par-dessus,
+      // ce n'est pas un problème de connexion réseau. authToken redevient null dans ce cas
+      // précis : ne signaler l'indisponibilité que si ce n'est PAS la cause de cet échec.
+      if (authToken) majStatutServeur(false);
     }
   }
 
@@ -5738,6 +5839,7 @@
       const aproposOverlay = document.getElementById('apropos-overlay');
       const overlay = document.getElementById('confirm-overlay');
       const barreSelection = document.getElementById('pdf-selection-toolbar');
+      const formEngagementManuel = document.getElementById('ajout-engagement-manuel-form');
       if (infoActionOverlay && infoActionOverlay.style.display === 'flex') {
         e.preventDefault();
         fermerInfoAction();
@@ -5750,6 +5852,9 @@
       } else if (barreSelection && barreSelection.style.display !== 'none') {
         e.preventDefault();
         masquerBoutonAjoutEngagement();
+      } else if (formEngagementManuel && formEngagementManuel.style.display !== 'none') {
+        e.preventDefault();
+        masquerFormAjoutEngagementManuel();
       } else if (dossierOuvert) {
         e.preventDefault();
         fermerDossierDrawer();
