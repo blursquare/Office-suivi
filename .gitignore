@@ -1,0 +1,7 @@
+# Serveur intranet (branche claude/serveur-intranet) — voir server/README.md
+server/node_modules/
+server/data/*.db
+server/.env
+# Artefacts de construction du .exe (voir server/scripts/build-windows-exe.mjs) — jamais commités,
+# le binaire produit est livré directement (voir CLAUDE.md, section "Mode serveur intranet").
+server/build/

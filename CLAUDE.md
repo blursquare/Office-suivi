@@ -2626,6 +2626,733 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     (132 tests, aucune fonction pure testable ajoutée — `normaliserPourRecherche()` est une fonction
     pure mais appelée uniquement depuis du code DOM non couvert par la suite actuelle, comme les
     autres fonctions de filtrage de `render()`).
+- **Offre de prêt détectée uniquement par le NOM DU FICHIER, plus jamais par son contenu** :
+  demande explicite de l'étude ("trop d'erreur") — `verifierDossierLocal()` ouvrait et lisait le
+  contenu de chaque PDF pour y chercher `OFFRE_PRET_RE`, avec les mêmes limites déjà rencontrées et
+  déjà corrigées pour la checklist de pièces (polices embarquées mal encodées produisant un texte
+  extrait illisible, ou à l'inverse un autre document mentionnant l'offre en passant sans être
+  l'offre elle-même). `OFFRE_PRET_RE` sert désormais exclusivement à tester le nom de fichier
+  normalisé (`normaliserNomPourMotif` — NFC, underscores/tirets → espaces), exactement comme les
+  `motifNom` de la checklist : `\s+` devient `\s*` pour couvrir aussi un nom concaténé sans
+  séparateur ("OffreDePret.pdf"), en plus des noms espacés ou à underscores/tirets ; "accord de
+  prêt" ajouté comme variante supplémentaire. Le montant emprunté (`detecterMontantPret`, utilisé
+  par `calculerApport()`) est conservé : une fois le fichier identifié avec certitude par son nom,
+  une seule lecture best-effort de CE fichier en extrait le montant — ce n'est plus "lire le PDF
+  pour reconnaître l'offre" (ce qui a été arrêté), seulement en extraire un chiffre annexe une fois
+  le bon fichier déjà connu ; un échec de lecture/extraction laisse simplement `d.montantPret` tel
+  quel, sans jamais remettre en cause la détection de l'offre elle-même. Toute la logique de lecture
+  de contenu (OCR compris) disparaît de `verifierDossierLocal()`, qui ne fait plus qu'un seul
+  passage par nom de fichier — plus rapide sur un dossier volumineux, en plus d'être plus fiable.
+  Nouveau test dans `tests/dossier-local.test.js` (variantes espacée/underscore/concaténée/tiret,
+  et un nom sans rapport qui ne doit pas matcher) ; `npm test` reste vert (133 tests).
+- **Réinitialiser une pièce STANDARD marquée "reçue" à tort** (mauvaise correspondance de nom, ou
+  fichier renommé depuis) : signalé par l'étude — `verifierDossierLocal()` ne recherche que les
+  pièces PAS déjà `'recue'` (voir `aChercher`), donc une pièce ainsi bloquée n'était plus jamais
+  retestée par "Revérifier". Nouveau bouton `.piece-reinit` (icône `rotate-ccw`, nouvelle icône du
+  jeu SVG maison) à côté de la croix `.piece-suppr` sur chaque pièce standard reçue (pas sur une
+  pièce personnalisée, qui a déjà son propre cycle de statut au clic sur l'icône) :
+  `reinitialiserStatutPieceStandard(dossierId, cle, label)` (gardée par `demanderConfirmation()`,
+  comme `retirerPieceStandard()`) remet `d.pieces[cle]` à `'manquante'` (repasse dans `aChercher` au
+  prochain parcours) et efface le handle mémorisé du fichier trouvé à tort
+  (`enregistrerHandle(CLE_HANDLE_PIECE(...), null)`, même mécanisme que `lierDossierLocal()` qui
+  l'efface déjà à chaque nouvelle liaison) — sans quoi le bouton "ouvrir le fichier trouvé"
+  continuerait de rouvrir l'ancien fichier le temps qu'une nouvelle correspondance soit trouvée.
+  Historique journalisé, comme un retrait de pièce. Vérifié par un script Node ad hoc (chargement de
+  `script.js` en bac à sable) : le bouton et son `onclick` apparaissent bien dans le HTML généré par
+  `renderPiecesDossier()` pour une pièce reçue ; la fonction de mutation elle-même n'est pas
+  unit-testable pour la même raison que les autres fonctions de ce type (dépend de `dossiers`,
+  invisible depuis les tests — voir `tests/helpers/load-app.js`).
+- **Bug corrigé : `escapeAttr()` n'échappait pas l'apostrophe**, signalé par l'étude — le bouton
+  `.piece-reinit` (voir juste au-dessus) et `.piece-suppr` restaient sans effet sur "Certificat
+  d'urbanisme" ("le bouton de la première ligne de Pièces du dossier n'est plus cliquable", ce
+  dernier étant le premier item de `PIECES_URBANISME`). Cause : ces boutons interpolent
+  `escapeAttr(p.label)` À L'INTÉRIEUR d'un argument JS délimité par des apostrophes
+  (`onclick="fonction('id', 'cle', '${escapeAttr(p.label)}')"`) — une apostrophe brute dans le
+  libellé ferme prématurément cet argument, cassant la syntaxe du gestionnaire `onclick` (clic sans
+  effet, erreur silencieuse en console). Touchait tout libellé de pièce avec une apostrophe, pas un
+  cas isolé ("Certificat d'alignement" aussi, en théorie — l'étude n'avait probablement testé/
+  remarqué que le premier item de la liste). Corrigé en ajoutant `.replace(/'/g, '&#39;')` à
+  `escapeAttr()` (entité HTML numérique standard, cohérent avec `&quot;` déjà géré juste avant).
+- **Suppression d'un engagement du vendeur ou d'un document identifié possible partout**, demandé
+  par l'étude — jusqu'ici, seuls les engagements ajoutés À LA MAIN (sélection de texte dans le PDF)
+  pouvaient être retirés, et seulement PENDANT L'IMPORT (`supprimerEngagementManuel()`, agit sur
+  `analyseJuridiqueActuelle`) ; aucun document identifié n'était retirable nulle part ; et sur une
+  fiche déjà enregistrée, `renderEngagement(e)` était appelé sans `index` — même un engagement
+  manuel y affichait un bouton non fonctionnel. Décision explicite de revenir sur le principe
+  précédent ("corriger un engagement détecté automatiquement reste l'affaire de la regex, pas d'un
+  retrait au cas par cas") : l'étude a demandé cette capacité explicitement, pour les deux
+  contextes.
+  - `renderEngagement(e, index, dossierId)`/`renderDocBadge(doc, index, dossierId)` : la croix de
+    suppression s'affiche désormais pour TOUT engagement (plus seulement `manuel === true`) et pour
+    tout document. `dossierId` absent (pendant l'import, voir `afficherAnalyseJuridique()`) → agit
+    sur `analyseJuridiqueActuelle` (`supprimerEngagementManuel()`, inchangée ; nouvelle
+    `supprimerDocumentManuel()`, même principe), sans confirmation — état pré-enregistrement,
+    réversible en réimportant le PDF. `dossierId` fourni (fiche d'un dossier déjà enregistré, voir
+    `renderCarteDossier()`) → nouvelles fonctions `supprimerEngagementDossier(dossierId, index)`/
+    `supprimerDocumentDossier(dossierId, index)`, gardées par `demanderConfirmation()` et
+    journalisées dans l'historique (même schéma que `retirerPieceStandard()`) : c'est ici une
+    modification d'un dossier déjà sauvegardé, pas un état d'import réversible.
+  - `renderCarteDossier()` passe maintenant `d.id` et l'index à ces deux fonctions de rendu (les
+    deux appels n'en passaient aucun jusqu'ici).
+  - **Volontairement découplé de la checklist de pièces** (`d.piecesEngagementsDetectees`/
+    `PIECES_ENGAGEMENTS_AUTO`) : retirer un "document" de cette liste d'analyse (purement
+    informative) ne touche pas la checklist de pièces du dossier, qui garde son propre mécanisme de
+    retrait (`retirerPieceStandard()`/croix sur `.piece-item`) — pas de scope creep au-delà de la
+    demande.
+  - Nouvelle classe CSS `.analyse-doc-suppr` (même gabarit que `.piece-suppr`/`.engagement-suppr`) ;
+    `.engagement-suppr` (oubliée jusqu'ici) et `.analyse-doc-suppr` ajoutées au filtre d'impression
+    existant — des contrôles d'édition n'ont pas leur place sur la fiche imprimée.
+  - Vérifié par un script Node ad hoc (bac à sable) : `renderEngagement`/`renderDocBadge` avec et
+    sans `dossierId` produisent bien l'`onclick` attendu dans chaque contexte. `npm test` reste vert
+    (134 tests, aucune fonction pure ajoutée — ces fonctions dépendent de `dossiers`/
+    `analyseJuridiqueActuelle`, même limite que pour les autres fonctions de mutation du fichier).
+- **`OFFRE_PRET_RE` étendue à "contrat de crédit"/"contrat de prêt"**, demandé par l'étude : certains
+  établissements nomment le document remis à l'emprunteur "contrat" plutôt que "offre" (notamment
+  une fois signé/accepté). Deux alternatives ajoutées au motif (qui ne teste plus que le NOM DU
+  FICHIER, voir son historique juste au-dessus) — `\s*` déjà en place couvre aussi bien "Contrat de
+  crédit.pdf" que "Contrat de crédit immobilier.pdf"/"ContratDeCredit.pdf". Nouveaux cas dans
+  `tests/dossier-local.test.js` ; `npm test` reste vert.
+- **`renonciationPreemption.motifNom` élargi au sigle "DPU"** (Droit de Préemption Urbain), demandé
+  par l'étude à partir d'un nom de fichier réel ("Renonciation au DPU.pdf") — même principe que les
+  autres sigles courts déjà acceptés seuls (TF, SPANC, ERP, CU) : un sigle assez spécifique au
+  contexte notarial pour ne pas risquer d'apparaître incidemment dans le nom d'un autre document du
+  même dossier. Cas ajouté au test existant dans `tests/dossier-local.test.js`.
+- **Champ de recherche dans l'aperçu du compromis** (comme le Ctrl+F d'un vrai lecteur PDF),
+  demandé par l'étude — jusqu'ici, retrouver un mot précis dans un compromis de plusieurs dizaines
+  de pages n'était possible qu'en faisant défiler visuellement l'aperçu. Fonctionnalité purement
+  côté client (aucun appel serveur), donc identique sur `main` et `claude/serveur-intranet`.
+  - `rechercherDansPdf(valeur)` (script.js, juste après `voirEngagementDansPdf()`) réutilise
+    directement la couche de texte déjà posée par `construireCoucheTexte()` pour la sélection
+    manuelle (voir son historique plus haut) — plutôt que de rappeler `pdf.js`
+    (`getTextContent()`) à chaque frappe, ce qui reparserait tout le document à chaque caractère
+    tapé : les `<span>` (un par item pdf.js, déjà positionnés pixel pour pixel sur le rendu) sont
+    déjà en place, il suffit de les parcourir et de leur ajouter une classe de surlignage. Même
+    principe de reconstruction texte+mapping d'index que `voirEngagementDansPdf()` (concaténer le
+    texte de chaque page en mémorisant, pour chaque caractère, le `<span>` d'origine) — nécessaire
+    pour retrouver une requête qui chevauche plusieurs items (ex. "offre de prêt" répartie sur 2-3
+    fragments de ligne). Insensible aux accents/majuscules via `normaliserPourRecherche()` (déjà
+    utilisée pour la recherche de dossiers dans le Suivi/le Tableau de bord) — "pret" retrouve
+    aussi bien "prêt" que "PRÊT". Logique de correspondance (mono-item, insensible casse/accents,
+    chevauchant plusieurs items, absence) vérifiée par une simulation Node ad hoc avant d'écrire le
+    code définitif.
+  - Barre de recherche (`.pdf-recherche-barre`, sous le titre "Aperçu du compromis") : un champ
+    (`oninput`, recherche en direct), un compteur "N / M" (ou "Aucun résultat"), deux boutons
+    précédent/suivant (icônes `chevron-up`/`chevron-down`, nouvelle icône `chevron-up` ajoutée au
+    jeu SVG maison). Entrée/Maj+Entrée dans le champ équivalent aux boutons suivant/précédent,
+    comme un vrai lecteur. `allerResultatPdf(index)` fait défiler jusqu'au résultat
+    (`scrollIntoView`) et bascule le style `.pdf-search-marque-active` (contour + fond plus appuyé)
+    sur les `<span>` concernés, les autres résultats restant marqués plus discrètement
+    (`.pdf-search-marque`, fond jaune translucide directement posé sur les `<span>` transparents
+    déjà en place — pas de nouvel élément à positionner).
+  - `reinitialiserRecherchePdf()` (vide le champ, le compteur, les tableaux de résultats) appelée à
+    chaque nouveau chargement de pages (`chargerToutesLesPagesPdf()`, qui détruit de toute façon les
+    `<span>` existants via `conteneur.innerHTML = ''`) et à `reinitialiserFormulaire()` — sans ça,
+    une recherche menée sur le PDF précédent resterait affichée (champ, compteur) alors que les
+    `<span>` qu'elle référence ont déjà été détruits.
+  - **Piège de spécificité CSS déjà documenté (voir `.select-edit`/`.input-inline` plus haut),
+    rencontré une troisième fois** : la règle générique des champs de formulaire
+    (`input[type="search"]`, ~ligne 1162) a la MÊME spécificité qu'un simple `input.pdf-recherche-input`
+    (élément + attribut vs élément + classe) — à spécificité égale, c'est l'ordre d'apparition dans
+    le fichier qui tranche, et cette règle générique arrive après. Corrigé avec un sélecteur composé
+    `.pdf-recherche-barre input.pdf-recherche-input` (élément + 2 classes), qui l'emporte quel que
+    soit l'ordre. Point de vigilance générique pour tout futur champ personnalisé de cet outil : un
+    simple `input.ma-classe` ne suffit pas forcément face à `input[type="..."]`, il faut au moins un
+    sélecteur composé (ou plus spécifique encore) pour être sûr de l'emporter indépendamment de
+    l'ordre du fichier.
+  - `.pdf-viewer` (l'aside tout entier) est déjà masqué à l'impression (`@media print`, règle
+    existante) : rien à ajouter pour exclure la barre de recherche de la fiche imprimée.
+  - Vérifié : `npm test` reste vert (134 tests, aucune fonction pure ajoutée — cette fonctionnalité
+    dépend entièrement du DOM/de pdf.js, comme la sélection manuelle de texte dont elle réutilise la
+    couche) ; les nouvelles fonctions confirmées exposées par un script bac à sable
+    (`tests/helpers/load-app.js`) ; la logique de correspondance (recherche/mapping d'index)
+    vérifiée séparément par simulation Node sur des cas représentatifs. **Non vérifié avec un vrai
+    rendu PDF dans cet environnement** (pdf.js chargé depuis un CDN bloqué par le proxy réseau de
+    développement ici, comme pour les autres fonctionnalités liées à la sélection/au surlignage
+    dans l'aperçu) — à confirmer par l'étude sur un compromis réel.
+
+## Mode serveur intranet (branche `claude/serveur-intranet`, distincte de `main`)
+
+Chantier séparé, sur sa propre branche — **`main` reste le mode 100% local décrit dans tout ce
+document ci-dessus, inchangé.** Origine : l'étude a demandé, en discutant des limites du registre
+partagé réseau (voir son historique plus haut — fichier JSON, "dernière sauvegarde gagne") et de
+l'impossibilité d'envoyer un email ou de mettre à jour un calendrier automatiquement (contraintes
+fondamentales n°1 et n°4), d'explorer un vrai serveur hébergé sur un poste du bureau de l'étude
+(réseau local, pas d'hébergement en ligne — ça ne revient pas sur la décision "rester en local"
+de `main`, ce serveur reste strictement interne au réseau de l'étude).
+
+**Décisions prises pour ce chantier** (ne pas les rouvrir sans qu'on le redemande) :
+authentification par un mot de passe partagé unique (pas de compte par collaborateur), remplacement
+complet du registre partagé JSON/`localStorage` (pas de double mode), synchro entre postes par
+sondage périodique plutôt que WebSocket (3 collaborateurs sur un LAN, pas besoin de temps réel
+avec connexion persistante). L'accès Microsoft Graph envisagé un temps pour les relances
+email/calendrier n'a finalement pas été disponible — sans conséquence pratique puisque ces deux
+fonctionnalités n'ont pas été poursuivies (voir plus bas).
+
+**Ce qui a été fait :**
+- **`server/`** (nouveau dossier autonome, son propre `package.json`/`node_modules` — jamais le
+  root `package.json`, qui reste volontairement "zéro dépendance") : un serveur Express +
+  `node:sqlite` (module intégré à Node 22, pas de compilation native — évite d'installer Visual
+  Studio Build Tools sur le poste de l'étude, seul Node.js est nécessaire). Sert lui-même
+  `index.html`/`style.css`/`script.js` (`express.static` sur la racine du dépôt) : un seul port,
+  aucune balise `<link>`/`<script src>` à changer. CRUD complet sur `/api/dossiers`
+  (`server/src/routes/dossiers.js`) avec suppression douce (`deleted_at`, backe le toast "Annuler"
+  existant côté client) et polling par curseur (`GET /api/dossiers?since=<ms>`, le curseur étant
+  un timestamp assigné par le serveur, jamais une horloge cliente). Authentification par mot de
+  passe partagé (`server/src/auth.js`) : jeton opaque en mémoire, comparaison en temps constant,
+  session valable 12h. Voir `server/README.md` pour le démarrage.
+- **`script.js`** : `charger()`/`sauvegarder()` réécrits pour parler à ce serveur via `fetch()`
+  au lieu de `localStorage`. `sauvegarder()` prend maintenant le dossier modifié en paramètre
+  (`sauvegarder(d)`, un `PUT` par dossier) — chaque site d'appel (~22, `changerCategorie`,
+  `archiverDossier`, `supprimerDateEcheance`...) avait déjà `d` en portée juste après l'avoir
+  modifié, retouche mécanique confirmée site par site avant d'être appliquée. `ajouterDossier()`
+  appelle une nouvelle `sauvegarderNouveauDossier(d)` (`POST`) ; `supprimerDossier()`/son "Annuler"
+  passent par `supprimerDossierServeur()`/`restaurerDossierServeur()` (suppression douce +
+  restauration, plus besoin de garder l'objet supprimé côté client pour l'undo). Le mécanisme
+  "registre partagé réseau" (`ecrireRegistrePartage`, `lireRegistrePartage`,
+  `tenterReconnexionPartage`, le bouton correspondant dans la toolbar du Suivi...) est
+  entièrement retiré : le serveur est toujours la source de vérité, plus de geste de liaison à un
+  fichier. Nouvel écran de connexion (`#connexion-overlay`, clone du patron `.confirm-overlay`
+  déjà utilisé par les autres popups de l'outil) qui bloque toute l'application tant que le mot de
+  passe n'a pas été validé — jamais fermable via Échap/clic sur le fond, contrairement aux autres
+  overlays. Synchro par sondage (`sondagePeriodique()`, toutes les 7 secondes, mis en pause via
+  `document.visibilitychange` quand l'onglet n'est pas visible, un sondage immédiat au retour de
+  focus) plutôt que les 2 minutes de l'ancien registre partagé.
+- **Vérifié de bout en bout** avec un vrai serveur (Playwright, deux contextes navigateur
+  simulant deux postes) : écran de connexion, mauvais mot de passe rejeté, jeton persistant après
+  connexion réussie, et la synchro elle-même — un dossier créé sur le "poste A" apparaît chez le
+  "poste B" au sondage suivant, une suppression puis sa restauration aussi. Les 132 tests existants
+  à la racine restent verts sans modification de leur propre code (un stub `fetch` a été ajouté au
+  bac à sable de `tests/helpers/load-app.js`, jamais sollicité en pratique par la suite actuelle
+  puisqu'aucun test ne pré-remplit de jeton de session dans le faux `localStorage`).
+
+**Distribution simplifiée : `CLAIRE-serveur.exe` (exécutable Windows autonome)** — après avoir
+reçu les deux archives (locale/serveur), l'étude a trouvé l'installation du serveur (`npm
+install`, créer un `.env`, `npm start`, terminal ouvert) trop compliquée pour un usage sans
+accompagnement technique. Question posée directement à l'étude entre trois options (`.exe`
+autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` autonome.
+- **Node.js Single Executable Applications (SEA)**, pas `pkg`/`nexe` : le serveur utilise déjà
+  `node:sqlite`, un module intégré à Node (pas natif externe à recompiler) — SEA embarque le vrai
+  binaire `node`, donc `node:sqlite` fonctionne sans rien de spécial, contrairement à un bundler
+  tiers qui gérerait moins bien un module intégré aussi récent.
+- `server/src/config.js` résout maintenant le mot de passe/port/chemin de base en trois niveaux :
+  `.env`/variables d'environnement (mode développement, inchangé) → sinon, si `sea.isSea()`
+  (mode `.exe`), un `config.json` à côté de l'exécutable → sinon génération automatique d'un mot
+  de passe aléatoire au tout premier lancement, écrit dans `config.json` **et** dans
+  `mot-de-passe.txt` (facile à retrouver sans faire défiler une console). `resoudreConfigExecutable()`
+  est une fonction pure (dossier + `fs` injectables), testée dans `server/test/config.test.js`
+  sans construire de vrai `.exe`.
+- `server/src/app.js` sert `index.html`/`style.css`/`script.js`/`manifest.json`/`sw.js`/`icone.svg`
+  depuis le disque en développement (`express.static`, inchangé) ou depuis les assets embarqués du
+  blob SEA en mode `.exe` (`sea.getAsset()`, via `creerMiddlewareAssetsSea()` — testé avec un faux
+  module `sea` dans `server/test/app-assets.test.js`, sans blob réel).
+- `server/src/index.js` affiche les adresses IP locales du poste (à donner aux autres postes du
+  bureau) et ouvre automatiquement le navigateur au démarrage sur Windows (`start ""`, même
+  mécanisme déjà confirmé fonctionnel dans `Ouvrir-en-fenetre.bat` — voir la contrainte n°7 de
+  `main`).
+- **`server/scripts/build-windows-exe.mjs`** (nouveau) construit le `.exe` **dans cet
+  environnement de développement Linux**, jamais par l'étude ni sur une machine Windows : regroupe
+  le serveur en un seul fichier (esbuild), génère le blob SEA (avec les 6 fichiers statiques
+  embarqués), télécharge le binaire Node officiel pour Windows x64 (`nodejs.org`, confirmé
+  joignable via le proxy réseau de cet environnement), retire sa signature Authenticode
+  (`osslsigncode`, équivalent Linux de `signtool remove /s` — sans lui, `postject` accepte quand
+  même d'injecter avec un simple avertissement "signature corrompue", pas bloquant), puis injecte
+  le blob (`postject`). Construit et vérifié avec succès dans cet environnement (`file` confirme un
+  exécutable PE32+ Windows valide, ~85 Mo). `server/build/` (artefacts + le `.exe` lui-même)
+  gitignoré — le binaire n'est jamais commité, livré directement à l'étude.
+- **Risque assumé et documenté (`server/README.md`)** : le `.exe` produit n'est **pas signé** par
+  un éditeur reconnu (aucun certificat de signature de code acheté pour ce projet) — Windows
+  affichera très probablement un avertissement SmartScreen "Éditeur inconnu" au premier lancement
+  (un clic "Plus d'infos" → "Exécuter quand même" suffit). **Non vérifié sur un vrai poste
+  Windows** : aucune machine Windows/Wine disponible dans cet environnement de développement pour
+  confirmer le comportement réel du double-clic (avertissement exact affiché, ouverture du
+  navigateur, accès depuis un second poste via l'IP affichée) — à confirmer par l'étude, comme de
+  nombreux autres comportements Windows/Chrome déjà documentés dans ce fichier.
+- **Bug corrigé : le serveur s'arrêtait après quelques minutes sans aucun message visible**,
+  signalé par l'étude (`ERR_CONNECTION_REFUSED` sur `localhost`). Cause probable : la fenêtre de
+  console d'un `.exe` lancé par double-clic se ferme instantanément à la fin du processus — trop
+  vite pour lire une éventuelle pile d'erreur, qu'il s'agisse d'une exception non interceptée dans
+  le serveur ou d'un arrêt externe (antivirus). `server/src/index.js` ajoute
+  `process.on('uncaughtException'|'unhandledRejection', ...)` : journalise dans `crash.log` (à
+  côté de `config.json`/`data/`) au lieu de laisser le processus planter sans trace, et **continue
+  de tourner** plutôt que de s'arrêter — ce serveur n'a quasiment aucun état mutable en mémoire en
+  dehors de la connexion SQLite/des sessions d'authentification, perdre ces dernières ne coûte
+  qu'une reconnexion. Sans effet si la cause réelle est un antivirus qui tue le processus de
+  l'extérieur (aucun code JS ne peut réagir à ça) — voir `server/README.md`, qui documente les deux
+  causes à vérifier dans cet ordre (historique de protection Windows, puis `crash.log`).
+- **Cause réelle trouvée ensuite, en creusant le même symptôme : l'étude fermait elle-même la
+  fenêtre de console**, pensant qu'elle ne servait à rien une fois le navigateur ouvert — ni un
+  crash ni l'antivirus. `server/src/index.js` génère désormais, au premier démarrage en mode `.exe`
+  (`config.estSea()`, jamais en `npm start`), deux scripts à côté de l'exécutable (jamais écrasés
+  s'ils existent déjà) : `Lancer-CLAIRE-en-arriere-plan.vbs` (relance le même exe sans aucune
+  fenêtre visible — `WScript.Shell.Run(..., 0, False)` — à utiliser au quotidien) et
+  `Arreter-CLAIRE.bat` (arrête ce processus caché via son PID, écrit dans `server.pid` à chaque
+  démarrage — sans lui, plus aucun moyen d'arrêter un serveur sans fenêtre autrement que par le
+  Gestionnaire des tâches). `Adresses-du-serveur.txt` (URLs pour ce poste et les autres) est aussi
+  écrit à chaque démarrage, pour rester consultable même fenêtre masquée. `server/README.md` reprend
+  cette fenêtre fermée comme PREMIÈRE cause à vérifier, avant antivirus et `crash.log`.
+- **`.toast` (notification "Offre de prêt trouvée...", etc.) passé à `z-index: 890`**, strictement
+  en retrait de `.drawer-overlay` (tiroir de fiche dossier, `z-index: 900`) — signalé par l'étude
+  comme une pop-up grise gênante après une recherche lancée depuis le tiroir. Les deux partageaient
+  jusqu'ici la même valeur par coïncidence (empilement fragile, pas explicite) ; le tiroir montre
+  déjà le même résultat dans sa checklist, ce toast n'a plus besoin de rivaliser avec son contenu.
+- **Calendrier connecté (abonnement webcal) et vrai service Windows (NSSM)**, les deux derniers
+  points de la liste "pas encore fait" ci-dessous, demandés ensemble explicitement par l'étude
+  après un retour honnête sur l'état de cette branche (voir la discussion "que penses-tu de notre
+  version serveur ?").
+  - **`GET /calendrier.ics?token=...`** (`server/src/routes/calendrier.js`, nouveau) : génère un
+    flux `.ics` À LA DEMANDE à partir de `depot.tousActifs()` (pas de tâche de fond, contrairement
+    aux relances email envisagées un temps — un flux calendrier se régénère naturellement à chaque
+    resynchronisation du client, inutile de le précalculer). Un événement par échéance ACTIVE de
+    CHAQUE dossier actif (prêt/acte/vente préalable/`d.autres`), contrairement à l'export `.ics`
+    manuel côté client (`telechargerICS()`, volontairement limité à la seule date de prêt d'UN
+    dossier sur demande de l'étude, voir son historique plus haut) — les deux exports ont des
+    besoins différents : un export ponctuel d'un dossier précis d'un côté, un abonnement continu
+    censé refléter tout le portefeuille de l'autre. `buildEvent()`/`icsDate()`/`addDays()` sont
+    réécrites côté serveur plutôt que partagées avec `script.js` : les deux mondes (navigateur/
+    Node) n'ont pas de mécanisme de build commun dans ce projet (contrainte n°1 de la branche
+    `main`, toujours valable ici pour le code partagé), dupliquer ces quelques lignes est plus
+    simple qu'introduire un outillage juste pour ça.
+    - **Jeton dédié (`config.jetonCalendrier`), jamais le mot de passe de connexion** : un
+      abonnement webcal (Outlook...) ne sait suivre qu'une URL, sans écran de connexion ni en-tête
+      `Authorization` possible — la route est donc volontairement montée HORS du
+      `middlewareAuth` par session (`app.js`), et vérifie elle-même `req.query.token ===
+      config.jetonCalendrier`. Un mot de passe partagé resterait sinon visible en clair dans les
+      paramètres de calendrier de n'importe quel poste abonné, et le changer casserait aussi la
+      connexion de tout le monde à l'outil — deux raisons de garder les deux jetons séparés.
+    - `config.js` étend `resoudreConfigExecutable()` (déjà en place pour `authPassword`) au même
+      principe pour `calendrierToken` : généré au premier lancement du `.exe`, persisté dans
+      `config.json` à côté du mot de passe. **Cas de mise à jour explicitement géré** : un
+      `config.json` déjà existant, généré par une version antérieure à cette fonctionnalité, n'a
+      pas ce champ — plutôt que d'exiger de le supprimer (ce qui régénérerait aussi le mot de passe
+      partagé, sans rapport), `resoudreConfigExecutable()` détecte son absence et complète
+      `config.json` avec un jeton généré à la volée, sans toucher au reste. Le jeton ne vit que
+      dans `config.json`/l'URL elle-même — jamais dans `mot-de-passe.txt`, qui reste réservé au mot
+      de passe de connexion.
+    - Adresse(s) d'abonnement affichées au démarrage (`index.js`, aux côtés des adresses LAN déjà
+      affichées) et écrites dans `Adresses-du-serveur.txt` en mode `.exe` — rien à afficher si
+      `jetonCalendrier` est vide (mode développement sans `CALENDRIER_TOKEN` dans `.env` : la
+      fonctionnalité reste silencieusement désactivée, `GET /calendrier.ics` répond alors 503).
+    - Tests dans `server/test/calendrier.test.js` : `genererFluxIcs()` (fonction pure) vérifiée
+      isolément (nombre de `VEVENT`, dossier archivé exclu, échéance sans date ignorée, `d.autres`
+      inclus, repli sur le nom complet sans "/") ; la route elle-même vérifiée via un serveur réel
+      (403 sans jeton/mauvais jeton, 200 avec le bon jeton **sans aucun en-tête Authorization** —
+      le point central de cette route —, 503 quand aucun jeton n'est configuré). `npm test` (côté
+      `server/`) passe de 15 à 25 tests.
+  - **Service Windows via NSSM** (`server/scripts/Installer-service-NSSM.bat`/
+    `Desinstaller-service-NSSM.bat`, nouveaux) : contrairement au simple exécutable existant
+    (dépendant d'une fenêtre de console ou de `Lancer-CLAIRE-en-arrière-plan.vbs`, voir plus haut),
+    un service Windows démarre seul au boot du poste ET redémarre seul après un plantage — les deux
+    manques identifiés dans la section "pas encore prêt" du README. NSSM (Non-Sucking Service
+    Manager) est un outil TIERS gratuit (<https://nssm.cc/>), pas développé par ce projet ni
+    embarqué dans le dépôt (aucune URL binaire arbitraire téléchargée par un script à l'exécution) :
+    l'étude télécharge `nssm.exe` elle-même une fois, les deux `.bat` ne font que le PILOTER
+    (`nssm install`/`set`/`start`/`stop`/`remove`) avec des paramètres adaptés à `CLAIRE-serveur.exe`
+    (répertoire de travail, redémarrage automatique `AppExit Default Restart`, journaux
+    `AppStdout`/`AppStderr` avec rotation — remplacent la console pour diagnostiquer, puisqu'un
+    service n'en a justement plus).
+    - **Piège de syntaxe batch déjà documenté (voir le point ci-dessus sur `Ouvrir-en-fenetre.bat`)
+      appliqué par précaution** : aucune parenthèse non échappée dans un `echo` à l'intérieur d'un
+      bloc `if (...)`, et aucun caractère accentué (cohérent avec `Arreter-CLAIRE.bat`/
+      `Lancer-CLAIRE-en-arriere-plan.vbs`, déjà écrits sans accents) — pas un problème rencontré
+      cette fois-ci, une précaution prise en écrivant ces deux nouveaux scripts à la main plutôt
+      que générés par `index.js`.
+    - `ouvrirNavigateur()` (`index.js`) : un service Windows tourne en Session 0, sans bureau
+      interactif — y appeler `start` ouvrirait un processus fantôme (ou rien du tout) plutôt qu'un
+      navigateur visible par quelqu'un. Nouveau garde-fou : `process.env.SESSIONNAME` n'est
+      renseignée QUE dans une session interactive (console locale ou bureau à distance), jamais en
+      Session 0 — signal le plus simple pour sauter l'ouverture automatique sans dépendance
+      supplémentaire ni détection plus complexe. Sans effet sur l'usage courant (lancement direct
+      ou via le `.vbs`, tous deux dans une session interactive).
+    - **Non vérifié sur un vrai poste Windows dans cet environnement de développement** (aucune
+      machine Windows/NSSM disponible ici) : les deux scripts pilotent NSSM avec sa syntaxe
+      documentée officiellement, mais l'installation réelle, le redémarrage automatique après un
+      plantage simulé et le démarrage au boot restent à confirmer par l'étude — même limite déjà
+      assumée pour `CLAIRE-serveur.exe` lui-même (non signé, jamais testé par un vrai double-clic
+      avant livraison à l'étude).
+  - `server/README.md` : nouvelles sections "Calendrier connecté" et "Service Windows" (procédure
+    complète, liens NSSM, limites connues) ; la liste "Ce qui n'est PAS encore prêt" mise à jour en
+    conséquence (les deux points sont passés de "pas fait" à "fait mais non vérifié sur un poste
+    Windows réel" — les seules relances email automatiques restent non implémentées).
+- **Bug corrigé, diagnostiqué depuis la console du navigateur transmise par l'étude : le correctif
+  `escapeAttr()` (apostrophe, voir son historique plus haut dans la section `main`) ne fonctionnait
+  toujours pas sur "Certificat d'urbanisme"/"Certificat d'alignement" malgré une vérification de
+  code qui le donnait pourtant correct.** Ce qui a permis de trancher sans ambiguïté : l'étude a
+  copié-collé la console DevTools, qui montrait exactement `Uncaught SyntaxError: missing ) after
+  argument list` répété QUATRE fois au chargement de la fiche — soit exactement les 4 boutons
+  concernés (croix "Retirer" + icône "Réinitialiser", sur les 2 pièces avec apostrophe). Cette
+  signature d'erreur precise (pas une simple absence de réaction au clic) a confirmé que le
+  `CLAIRE-serveur.exe` réellement en service chez l'étude embarquait encore un `script.js`
+  antérieur au correctif — le code du dépôt, lui, était déjà correct (vérifié une seconde fois par
+  régénération du HTML de `renderPiecesDossier()`, résultat identique aux deux vérifications
+  précédentes). **Aucun changement de code cette fois** : la seule action a été de confirmer le
+  diagnostic par la trace d'erreur exacte plutôt que de retoucher une fonction déjà correcte, et de
+  pointer l'étude vers "À propos" (numéro de version affiché) pour vérifier sans ambiguïté si le
+  remplacement du `.exe` a réellement pris effet avant de reproduire un correctif existant — leçon
+  de fond identique à celle déjà tirée pour "Certificat alignement et numérotage"/"Avis de Taxes
+  foncières" sur la branche `main` (voir son historique) : un signalement répété d'un bug déjà
+  vérifié correct en code est presque toujours un problème de DÉPLOIEMENT (copie non remplacée,
+  cache navigateur), pas une raison de retoucher le code une nouvelle fois sans preuve nouvelle.
+- **Bug corrigé : le bouton "Se connecter" de l'écran de connexion venait se coller directement
+  contre le bas du champ mot de passe**, signalé par l'étude ("le bouton valider mange un peu sur
+  le champ de mot de passe"). Cause : contrairement aux autres champs de formulaire de l'outil (qui
+  vivent dans un bloc avec son propre espacement), `#connexion-mot-de-passe` est seul dans son
+  `<form>` (`display: flex; flex-direction: column`) sans aucune marge propre — la règle générique
+  `input[type="password"]` (voir son historique plus haut) pose la largeur/le padding/la bordure
+  mais jamais de `margin-bottom` — et le message d'erreur qui suit (`#connexion-erreur`) est masqué
+  par défaut (`display:none`), donc ne comble aucun espace tant qu'aucune erreur n'est affichée : le
+  bouton se retrouvait directement accolé au champ, sans le moindre espace entre les deux. Corrigé
+  par `#connexion-mot-de-passe { margin-bottom: 14px; }` — cohérent avec le `margin: -10px 0 14px`
+  déjà présent sur `#connexion-erreur` (ce -10px avait manifestement été pensé pour resserrer le
+  message d'erreur SOUS un espacement de 14px déjà existant sur le champ, jamais posé en pratique).
+- **"Mode sombre" et "À propos" placés côte à côte dans le pied de la sidebar**, demandé par
+  l'étude (auparavant empilés verticalement comme l'installation PWA/le reste des liens). Les deux
+  boutons sont regroupés dans un nouveau conteneur `.sidebar-footer-row` (`display:flex`) : le
+  bouton de thème garde sa largeur au contenu (icône seule, déjà `.sidebar-link-icone-seule`),
+  "À propos" prend le reste de la largeur disponible (`flex: 1 1 auto`). Le bouton d'installation
+  PWA (`#install-btn`, visible seulement quand le navigateur le propose) reste seul sur sa propre
+  ligne au-dessus — non concerné par cette demande, qui ne visait que mode sombre/À propos.
+- **Vrai correctif, enfin, du bug apostrophe sur "Certificat d'urbanisme"/"Certificat
+  d'alignement" — le correctif précédent (`escapeAttr()` → `&#39;`) ne réparait RIEN en pratique,
+  malgré QUATRE vérifications indépendantes toutes concluantes (relecture du code, rendu en bac à
+  sable, deux binaires `.exe` publiés inspectés octet par octet, et la réponse réseau de
+  `script.js` relue directement dans les DevTools de l'étude, cache désactivé) et une entrée
+  d'historique précédente affirmant à tort le problème réglé.** Cause racine, jamais identifiée par
+  aucune de ces quatre vérifications parce qu'aucune ne rejouait le comportement réel du
+  navigateur : un attribut `onclick="..."` est décodé **en deux temps** — d'abord comme du HTML
+  (les entités comme `&#39;` sont résolues en leur caractère, donc `&#39;` redevient une apostrophe
+  BRUTE `'`), **puis** le texte ainsi obtenu est exécuté comme du JS. `escapeAttr()` échappait bien
+  l'apostrophe dans le CODE SOURCE HTML (`&#39;` au lieu de `'`) — exactement ce que montraient les
+  quatre vérifications, toutes lisant le texte AVANT ce second décodage implicite — mais cette
+  entité redevient une apostrophe brute avant même que le moteur JS ne voie l'attribut, recréant
+  très exactement le `SyntaxError: missing ) after argument list` d'origine. Reproduit et confirmé
+  par une simulation Node du décodage HTML+JS réel (script ad hoc) : le code source `'Certificat
+  d&#39;urbanisme'` décode en `'Certificat d'urbanisme'` (apostrophe brute réinsérée) et lève bien
+  la `SyntaxError` — la même simulation avec le nouveau correctif ne lève rien et restitue le
+  libellé exact.
+  - Nouvelle fonction `escapeOnclickArg(s)` (script.js, juste après `escapeAttr()`), dédiée
+    exclusivement à un argument JS interpolé DANS un attribut `onclick="..."` délimité par des
+    apostrophes (`onclick="fonction('id', 'cle', '${escapeOnclickArg(p.label)}')"`) : échappe
+    l'apostrophe en séquence d'échappement JS (`\'`, backslash + apostrophe) plutôt qu'en entité
+    HTML — un antislash n'a aucun sens spécial en HTML, il traverse le premier décodage intact, et
+    forme ensuite une séquence d'échappement JS valide pour le second. Le backslash lui-même est
+    échappé en premier (`\\`) pour rester correct si un libellé venait à en contenir un. Les autres
+    caractères (`&`, `"`, `<`, `>`) restent échappés en entités HTML comme avant — eux ne sont
+    jamais le délimiteur de la chaîne JS, donc les revoir décodés en leur caractère d'origine après
+    le premier passage reste inoffensif pour le second.
+  - `escapeAttr()` elle-même reste inchangée et CORRECTE : elle sert à de vrais attributs HTML
+    (`title="..."`, `value="..."`, `aria-label="..."`) jamais réinterprétés comme du JS — seul le
+    cas précis d'un argument JS DANS un `onclick` avait besoin d'un échappement différent. Les deux
+    seuls points d'appel concernés (`.piece-suppr`/`.piece-reinit` dans `renderPiecesDossier()`,
+    les mêmes que le correctif précédent) sont passés de `escapeAttr(p.label)` à
+    `escapeOnclickArg(p.label)` ; tous les autres usages d'`escapeAttr()` dans le fichier (des
+    attributs HTML ordinaires) restent inchangés à raison.
+  - **Leçon, au-delà de celle déjà tirée sur les problèmes de déploiement** : quand un bug de
+    rendu HTML/JS généré dynamiquement résiste à une relecture du code source (même vérifiée à
+    plusieurs niveaux : source, sandbox, binaire, réseau), soupçonner un traitement IMPLICITE fait
+    par le navigateur entre "ce que le code produit" et "ce que le moteur JS exécute réellement" —
+    ici le décodage HTML d'un attribut avant son interprétation comme JS, un piège classique des
+    gestionnaires d'événements inline (`onclick="..."`) qu'aucune des vérifications précédentes
+    n'avait rejoué. Une simulation du décodage réel (quelques lignes de Node) aurait révélé le
+    problème dès la première tentative de correctif.
+  - `npm test` reste vert (134 tests, aucune fonction pure modifiée par ce chantier — vérifié en
+    plus par une simulation Node ad hoc du décodage HTML+JS réel sur les deux libellés concernés et
+    un libellé de contrôle sans apostrophe, voir ci-dessus).
+- **Analyse juridique approfondie par IA locale (Ollama) + nouvel onglet "Analyse approfondie
+  (IA)"**, demandé explicitement par l'étude ("lance l'installation du LLM local", "créer un
+  nouvel outil d'import... comme si un notaire relisait l'acte pour trouver des incohérences").
+  Décisions prises (l'étude ayant explicitement délégué les choix d'implémentation) :
+  - **Ollama, pas une API cloud** : seule option compatible avec la confidentialité notariale déjà
+    actée dans ce document (aucune donnée client vers un service extérieur) et avec la décision de
+    longue date "rester en local, sans hébergement en ligne" — un LLM tournant sur le serveur de
+    l'étude reste dans ce périmètre, contrairement à un appel à une API OpenAI/Anthropic/etc. Ne
+    pouvait exister que sur `claude/serveur-intranet` (a besoin d'un backend pour parler à Ollama
+    en HTTP) — `main`, sans backend, n'a pas cette fonctionnalité, mais partage le même
+    `script.js` : les fonctions de cet onglet existent aussi dans le fichier sur `main`, simplement
+    jamais appelées faute de lien/onglet correspondant dans son `index.html`.
+  - **Modèle par défaut : `llama3.1:8b`**, choisi comme compromis raisonnable entre qualité
+    d'analyse et vitesse sur un CPU de bureau sans GPU dédié (l'étude n'a pas précisé le matériel
+    du futur serveur) — configurable sans toucher au code (`OLLAMA_MODEL`/`ollamaModel`, même
+    schéma de résolution à 3 niveaux que le reste de `config.js`) si un modèle plus adapté se
+    révèle nécessaire une fois testé en conditions réelles.
+  - **`server/src/llm.js`** : client HTTP minimal vers l'API Ollama (`fetch` natif, aucune
+    dépendance npm supplémentaire) — `verifierDisponibilite()` distingue "Ollama pas lancé" de
+    "modèle pas encore téléchargé" (message actionnable différent dans les deux cas, voir
+    l'interface), `generer()` utilise `format: 'json'` (contrainte de sortie propre à Ollama) et
+    une température basse (0.1) — une analyse juridique doit rester factuelle et reproductible,
+    pas créative. Timeout généreux (180s) : un modèle 7-8B sur CPU de bureau peut prendre du temps
+    sur un acte long.
+  - **`server/src/routes/analyseIa.js`** (`GET /api/analyse-ia/disponibilite`,
+    `POST /api/analyse-ia`, montées derrière `middlewareAuth` comme le reste de `/api`) : le
+    prompt (`construirePrompt()`) donne au modèle un rôle explicite de notaire relisant l'acte et
+    ses annexes, avec une liste de points de vigilance concrets (cohérence des parties/prix/
+    désignation du bien entre les documents, validité des diagnostics dans le temps, annexes
+    mentionnées mais absentes, clauses contradictoires, signatures manquantes) et la consigne
+    explicite de ne jamais inventer un fait absent du texte — un LLM local reste sujet aux
+    hallucinations, cette consigne les réduit sans les éliminer. Chaque document est tronqué à
+    `LIMITE_CARACTERES_PAR_DOCUMENT` (40 000 caractères) avant envoi — un acte de plusieurs
+    dizaines de pages plus ses annexes dépasserait largement ce qu'un modèle 7-8B sur CPU peut
+    traiter en un temps raisonnable ; l'interface signale la troncature plutôt que de laisser
+    croire à une analyse complète. `normaliserConstats()` protège contre une sortie du modèle non
+    conforme (JSON invalide → liste vide + message de diagnostic plutôt qu'un plantage ; gravité
+    hors énumération → repli sur "info" ; constat sans titre → ignoré).
+  - **Onglet "Analyse approfondie (IA)"** (sidebar, sous "Simulateur de provision") : dépose l'acte
+    ET ses annexes séparément (plusieurs PDF distincts, comme reçus par l'étude — pas un unique PDF
+    fusionné), avec un `<select>` par fichier (Acte principal / Annexe, deviné automatiquement pour
+    le premier fichier dont le nom contient "compromis"/"promesse", toujours corrigible). Le texte
+    de chaque PDF est extrait CÔTÉ CLIENT (réutilise `lireTextePdfVerification()`, déjà en place
+    pour vérifier un dossier local — texte extractible + repli OCR sur les 3 premières pages) :
+    seul ce texte est envoyé au serveur, jamais le PDF lui-même, et rien n'est enregistré (aucun
+    dossier créé, cohérent avec le principe "outil de comparaison", pas "création de dossier de
+    suivi" — distinct du wizard "Nouveau dossier" et de ses regex d'extraction de dates/champs).
+    Bandeau de disponibilité (`verifierDisponibiliteAnalyseIa()`, interrogé à chaque ouverture de
+    l'onglet) affiche tout de suite si Ollama n'est pas installé/lancé, plutôt que de laisser
+    lancer une analyse de plusieurs minutes pour découvrir l'échec à la fin. Rapport
+    (`renderRapportAnalyseIa()`) : un `.dot-label` par gravité (`dl-urgent`/critique,
+    `dl-pret`/attention, `dl-neutre`/info — mêmes tokens de couleur que le reste de l'outil, aucune
+    couleur inventée), titre, description, documents concernés.
+  - **Disclaimer explicite à deux endroits** (petit badge à côté du titre, comme
+    `.calc-warning-label` pour le simulateur de frais d'acte, + note complète en bas de page) :
+    "Suggestions à vérifier" — un LLM peut se tromper, cette analyse est une aide à la relecture,
+    jamais une validation juridique en soi. Cohérent avec le principe déjà établi pour le
+    simulateur de frais d'acte (barème non audité) : ne jamais présenter un résultat automatique
+    comme une certitude sans un signal visuel clair.
+  - Tests : `server/test/analyse-ia.test.js` (11 tests — fonctions pures `construirePrompt`/
+    `normaliserConstats`/`tronquerDocument`, et la route montée avec un FAUX serveur Ollama HTTP
+    local plutôt qu'un vrai Ollama, absent de cet environnement de développement). Vérifié côté
+    client par un script Node ad hoc (bac à sable, voir `tests/helpers/load-app.js`) : rendu HTML
+    correctement échappé (testé avec un titre contenant `<img onerror=...>`), badges de gravité
+    corrects, gestion des cas limites (aucun document exploitable, JSON invalide, document
+    tronqué) — toutes les fonctions de mutation (liste de fichiers en mémoire) restent, comme
+    ailleurs dans ce fichier, non unitairement testables (dépendent d'un état de premier niveau
+    invisible depuis le contexte `vm` des tests). `npm test` reste vert aux deux endroits (134
+    tests racine, 36 tests serveur dont les 11 nouveaux).
+  - **Non vérifié en conditions réelles** : ni Ollama ni une vraie machine Windows ne sont
+    disponibles dans cet environnement de développement — la qualité réelle des constats produits
+    sur de vrais actes, et les temps de réponse sur le matériel du futur serveur, restent à
+    confirmer par l'étude une fois Ollama installé au bureau (voir `server/README.md`, section
+    "Analyse juridique par IA locale").
+- **Le même modèle IA local sert aussi le wizard "Nouveau dossier"**, demandé juste après l'ajout
+  de l'outil ci-dessus ("utilise aussi le LLM pour les analyses de nouveau dossier aussi") — non
+  pas pour REMPLACER l'extraction par regex déjà en place (des dizaines de correctifs ciblés
+  documentés dans ce fichier, ne pas jeter ce travail), mais pour la COMPLÉTER : un appel en
+  arrière-plan, après `traiterTexte()` (inchangée, toujours le chemin principal et immédiat), qui
+  ne remplit que les champs qu'elle n'a pas trouvés et ne propose des engagements du vendeur qu'en
+  AJOUT, jamais en remplacement — même principe déjà appliqué partout ailleurs dans ce fichier
+  (`detecterAdresseBien()`/`detecterEmailAcquereur()`/`detecterMontantPret()` : "n'écrase jamais
+  une valeur déjà connue").
+  - **`server/src/routes/extractionIa.js`** (`POST /api/extraction-ia`, même client `llm.js` que
+    `analyseIa.js` mais un prompt et une forme de réponse dédiés — un seul document à faire parler,
+    pas une comparaison croisée) : extrait `nomDossier`/`adresseBien`/`prixVente`/`datePret`/
+    `dateActe`/`dateVentePrealable`/`engagementsVendeur`, chaque champ `null` si absent du texte
+    (consigne explicite au modèle de ne jamais inventer). `normaliserExtraction()` valide chaque
+    champ isolément (date au format AAAA-MM-JJ sinon rejetée, prix positif arrondi à l'entier
+    sinon `null`, type d'engagement hors énumération replié sur "document") — un JSON invalide ou
+    partiellement conforme du modèle ne fait jamais planter la route, juste renvoyer moins de
+    champs exploitables.
+  - **`enrichirImportAvecIa(texte, monImport)`** (script.js, appelée sans `await` juste après
+    `traiterTexte(texteComplet)` dans `traiterFichierPdf()`, donc sans jamais retarder la suite de
+    l'import — bascule d'étape du wizard, aperçu PDF...) : complète `#f-nom`/`#f-adresse-bien`/
+    `#f-prix-vente`/les trois dates butoir UNIQUEMENT s'ils sont restés vides après la détection
+    par regex, et ajoute les engagements suggérés par l'IA à `analyseJuridiqueActuelle.engagements`
+    (marqués `source: 'ia'`, rendus avec un badge "Suggéré par l'IA" — voir `renderEngagement()`,
+    déjà généralisée pour accepter n'importe quelle provenance d'engagement) après dédoublonnage
+    contre les engagements déjà détectés par regex (`engagementDejaConnu()`, réutilise
+    `similariteJaccard()`/`tokeniserApprentissage()`/`normaliserTexteApprentissage()` déjà en place
+    pour l'apprentissage des corrections — un seuil bas et volontairement prudent, 0.2, car sans
+    racinisation des mots comparés l'overlap réel entre une phrase extraite et sa reformulation par
+    le modèle reste modeste même pour la même clause ; sous-détecter un doublon ne coûte qu'un
+    clic sur la croix de suppression déjà existante, sur-détecter risquerait de faire disparaître
+    silencieusement un engagement réellement distinct). Un toast résume ce qui a été complété
+    ("IA locale : N champs et N engagement(s) du vendeur complétés... — à vérifier") — rien ne
+    s'affiche si l'IA n'a rien apporté (Ollama indisponible, ou tous les champs déjà trouvés par
+    les regex).
+  - **`generationImportActuel`** (nouveau compteur, incrémenté à chaque nouvel import dans
+    `traiterFichierPdf()` et à chaque `reinitialiserFormulaire()`) : l'appel au LLM local peut
+    prendre de quelques secondes à plusieurs dizaines de secondes, largement le temps qu'un
+    collaborateur importe un second PDF ou enregistre/réinitialise le formulaire avant que la
+    réponse n'arrive — `enrichirImportAvecIa()` compare le numéro de génération capturé à son appel
+    à sa valeur actuelle avant d'appliquer quoi que ce soit, et abandonne silencieusement si un
+    autre import a eu lieu entretemps (jamais de champ rempli pour le mauvais dossier).
+  - **N'existe QUE sur `claude/serveur-intranet`** (a besoin du backend pour parler à Ollama) —
+    `main` garde le wizard inchangé, purement basé sur les regex, comme avant ce chantier.
+  - Tests : `server/test/extraction-ia.test.js` (10 tests — fonctions pures `construirePrompt`/
+    `normaliserExtraction`, et la route avec un faux serveur Ollama HTTP). Vérifié côté client par
+    un script Node ad hoc (bac à sable) : remplissage correct des champs vides, non-écrasement
+    d'une valeur déjà saisie, garde-fou de génération périmée confirmé en déclenchant un vrai
+    `reinitialiserFormulaire()` entre deux appels, rendu de l'engagement suggéré avec son badge et
+    son bouton de suppression fonctionnel, dédoublonnage vérifié sur un cas positif (même clause
+    reformulée) et un cas négatif (sujets différents). `npm test` reste vert aux deux endroits
+    (134 tests racine, 46 tests serveur dont les 10 nouveaux).
+- **Ouverture au démarrage dans une fenêtre Chrome/Edge dédiée (sans onglets ni barre d'adresse),
+  demandé par l'étude** : `ouvrirNavigateur()` (`server/src/index.js`) lançait jusqu'ici `start ""
+  <url>` — le navigateur par défaut, dans un onglet normal. Même principe déjà confirmé
+  fonctionnel pour la version 100% locale (`Ouvrir-en-fenetre.bat`, voir contrainte n°7 plus haut) :
+  `chrome.exe --profile-directory="ClaireServeur" --app=<url>` (ou `msedge.exe` en repli).
+  - **`--profile-directory` nommé, pas `--user-data-dir`** : seule combinaison déjà confirmée ouvrir
+    une fenêtre autonome même quand Chrome tourne déjà par ailleurs (voir l'historique détaillé de
+    ces essais, contrainte n°7) — un `--app` seul rouvrirait alors un simple onglet dans la fenêtre
+    existante. Le profil dédié ("ClaireServeur", distinct de "RegistreEcheances" utilisé par la
+    version locale — deux applications différentes) n'a ici **aucune conséquence sur les données** :
+    contrairement à la version locale (`localStorage`, propre à chaque profil), tout est stocké
+    côté serveur, donc le même registre reste visible quel que soit le profil Chrome utilisé pour
+    l'ouvrir — pas de piège d'export/import à documenter comme pour `Ouvrir-en-fenetre.bat`.
+  - `resoudreCheminNavigateurApp(env, existsSync)` (nouveau, `server/src/navigateurApp.js`) cherche
+    Chrome puis Edge aux emplacements Windows usuels (`ProgramFiles`/`ProgramFiles(x86)`/
+    `LocalAppData`) — fonction pure, extraite dans son propre module plutôt que directement dans
+    `index.js` pour rester testable : `index.js` s'exécute immédiatement à l'import (appelle
+    `demarrer()` en bas de fichier, comme requis pour rester le point d'entrée réel du `.exe`), donc
+    l'importer depuis un test démarrerait un vrai serveur sur un vrai port. Repli sur `start ""
+    <url>` (navigateur par défaut, onglet normal) si ni Chrome ni Edge n'est trouvé.
+  - **Ne concerne que le poste qui héberge le serveur** (celui où `ouvrirNavigateur()` s'exécute au
+    démarrage) : les autres postes du bureau continuent de rejoindre l'outil via l'adresse IP
+    donnée, dans un onglet Chrome normal — comportement inchangé, aucune fenêtre applicative ne se
+    lance chez eux.
+  - Tests dans `server/test/navigateur-app.test.js` (6 tests — Chrome trouvé dans chaque
+    emplacement, repli sur Edge, aucun des deux trouvé, priorité à Chrome si les deux existent).
+    `npm test` (serveur) passe de 46 à 52 tests ; suite racine inchangée (134 tests, ce chantier ne
+    touche que `server/`).
+  - **Non vérifié sur un vrai poste Windows** (aucune machine Windows disponible dans cet
+    environnement de développement) — même limite déjà documentée pour le reste du serveur : la
+    syntaxe `--profile-directory`/`--app` est reprise à l'identique de celle déjà confirmée
+    fonctionnelle pour `Ouvrir-en-fenetre.bat`, mais son comportement précis au démarrage
+    automatique du serveur (pas depuis un `.bat` cliqué manuellement) reste à confirmer par l'étude.
+- **Série de correctifs remontés après une matinée de test réel**, traités indépendamment :
+  - **Indicateur de connexion au serveur dans la sidebar** (`.sidebar-statut-serveur`,
+    `majStatutServeur()`) : `sondagePeriodique()` (sondage toutes les 7s) met à jour un badge
+    `.dot-label` "Connecté"/"Hors ligne" — sans lui, un dossier créé par un collègue qui
+    n'apparaissait jamais (serveur arrêté, câble débranché...) ne se voyait qu'indirectement. Ne
+    change le DOM que si l'état a réellement changé (évite une écriture à chaque sondage). Le cas
+    401 (session expirée, déjà géré par `fetchAvecAuth` — jeton effacé, écran de connexion
+    réaffiché) n'affiche volontairement PAS "Hors ligne" par-dessus : ce n'est pas un problème
+    réseau, `authToken` redevient `null` dans ce cas précis, utilisé comme signal pour distinguer
+    les deux dans le `catch` de `sondagePeriodique()`.
+  - **Bug corrigé : achat comptant affichait "Non renseigné" sur le tab "Obtention du prêt"**,
+    comme si l'échéance avait été oubliée. `renderTab()` affiche désormais "Achat comptant — sans
+    prêt" quand `d.sansPret` est vrai et qu'aucune date n'est renseignée — le crayon reste
+    accessible (pas de tab masqué entièrement, contrairement à un premier essai) : si un prêt
+    finit par exister malgré tout, saisir une date doit rester possible. **Bug latent corrigé au
+    passage, trouvé en creusant ce point** : `validerEditionDate()` ne repassait jamais
+    `d.sansPret` à `false` en saisissant une date de prêt — symétrique de `supprimerDateEcheance()`
+    (qui le passe à `true` en vidant la date), cette dissymétrie aurait bloqué `sansPret` à `true`
+    indéfiniment même après avoir renseigné une vraie date.
+  - **Bouton "+ Ajouter un engagement du vendeur"**, indépendant de la sélection de texte dans le
+    PDF (`gererSelectionPdf()`/barre flottante, déjà existante) : utile quand aucun PDF n'est
+    chargé, ou pour un engagement qui n'apparaît pas littéralement dans l'acte (accord oral
+    rapporté par le vendeur). Toujours visible dans l'étape "Analyse juridique" du wizard, y
+    compris dans l'état vide (contrairement au reste de cette étape, masqué par
+    `afficherAnalyseJuridique()` tant que rien n'est détecté) — placé en dehors du bloc que cette
+    fonction masque/affiche, pour rester accessible même sans aucune détection automatique.
+  - **Catégorie "Autres" ajoutée aux engagements du vendeur** (barre flottante de sélection PDF ET
+    le nouveau bouton manuel ci-dessus) : les trois catégories existantes (Entretien/Travaux/
+    Document, volontairement distinctes — voir leur historique plus haut) ne couvraient pas tout
+    ce qu'un(e) collaborateur(rice) peut vouloir consigner en sélectionnant une clause. Couleur
+    neutre (`--muted`/`--line-soft`, cohérent avec `.dl-neutre` ailleurs dans l'outil) plutôt
+    qu'une couleur inventée.
+  - **Indicateur "Analyse par le modèle IA local en cours…"** pendant l'appel à
+    `/api/extraction-ia` (étape "Vérifier" du wizard, où l'auto-avance après import amène
+    l'utilisateur pendant que l'appel tourne en arrière-plan) — jusqu'ici totalement silencieux
+    jusqu'au toast final, ce qui pouvait laisser croire à un import sans effet sur un compromis
+    long (Ollama peut prendre plusieurs dizaines de secondes). `afficherStatutEnrichissementIa()`
+    est masqué au début de tout nouvel import et dans `reinitialiserFormulaire()` (sinon resterait
+    affiché indéfiniment si l'utilisateur enregistre/réinitialise avant la fin de l'appel — le
+    garde-fou `generationImportActuel` empêche déjà l'appel de modifier le MAUVAIS formulaire, mais
+    ne masquait pas cet indicateur de son côté).
+  - Vérifié par un script Node ad hoc (bac à sable) : `renderTab()` avec `sansPret` affiche bien
+    "Achat comptant — sans prêt" (et "Non renseigné" sans ce drapeau, comportement inchangé pour
+    tous les autres dossiers). `npm test` reste vert (134 tests, aucune fonction pure modifiée par
+    ce lot — uniquement de l'affichage/état DOM, comme la plupart des correctifs de ce fichier).
+- **Deux apprentissages supplémentaires, demandés dans la même série** : "permettre au système
+  d'apprendre" quand un document mal rattaché est corrigé, et quand une clause est ajoutée
+  manuellement dans "Nouveau dossier". Les deux questions posées à l'étude sur la portée exacte
+  (exclusion locale à un dossier vs règle apprise généralisée ; apprentissage limité au type
+  d'engagement vs "tout champ corrigé, de façon générique") ont reçu la réponse la plus large dans
+  les deux cas — traité en conséquence, avec une limite explicite documentée ci-dessous plutôt que
+  de prétendre couvrir plus que ce qui est réellement sûr à généraliser.
+  - **Pièce mal rattachée → exclusion apprise, globale à toutes les pièces/tous les dossiers.**
+    `reinitialiserStatutPieceStandard()` (bouton `.piece-reinit`, déjà en place) retrouve désormais,
+    AVANT d'effacer le handle du fichier mal reconnu, son nom réel
+    (`recupererHandle(CLE_HANDLE_PIECE(...))`, déjà mémorisé) et l'enregistre comme exclu pour cette
+    pièce via `exclureNomPourPiece(cle, nomNormalise)` — ce nom (normalisé comme pour tout test de
+    `motifNom`, voir `normaliserNomPourMotif`) ne sera alors plus jamais proposé pour CETTE pièce,
+    sur AUCUN dossier, tant que l'exclusion n'est pas explicitement retirée (aucun panneau de
+    gestion pour l'instant, voir "Ce qui reste ouvert"). `verifierDossierLocal()` teste
+    `estNomExcluPourPiece(piece.cle, nomNormalise)` juste après `piece.motifNom.test(...)`, avant
+    d'accepter une correspondance.
+    - **Nouveau mécanisme de stockage, distinct de `correctionsApprises`** (le mécanisme Jaccard
+      existant n'est pas adapté ici : un nom de fichier n'est pas une clause à comparer par
+      similarité, c'est une correspondance exacte à empêcher de se reproduire) —
+      `exclusionsMotifNom` (`{ [cle]: [nomNormalisé, ...] }`), persisté par
+      `sauvegarderExclusionsMotifNom()`/`chargerExclusionsMotifNom()`, même schéma
+      `window.storage`/`localStorage` de repli que le reste de l'apprentissage (nouvelle clé
+      `exclusions-motif-nom`). Chargé au démarrage aux côtés de `chargerApprentissage()`.
+    - Portée volontairement globale (pas seulement le dossier where l'erreur a été repérée) :
+      l'étude a explicitement choisi cette option plutôt que la version plus prudente proposée par
+      défaut — un même document mal nommé/mal classé par erreur (ex. un courrier de mairie qui
+      mentionne l'urbanisme en passant, nommé de façon ambiguë) a de bonnes chances de se
+      représenter à l'identique sur un autre dossier du même type d'affaire.
+    - Vérifié par un script Node ad hoc (bac à sable) : exclusion enregistrée pour une pièce précise
+      n'affecte ni un autre nom de fichier ni une autre pièce ; normalisation cohérente entre
+      l'enregistrement et le test (underscores/espaces).
+  - **Clause ajoutée manuellement (PDF sélectionné ou formulaire libre) → réutilise et généralise le
+    mécanisme d'apprentissage déjà en place pour les dates** (`correctionsApprises`/
+    `memoriserCorrection()`/`trouverCorrectionApprise()`, jusqu'ici réservé à la classification
+    pret/acte/ventebien/autre d'une clause de délai). Les deux fonctions gagnent un paramètre
+    `categorie` (`'date'` par défaut, valeur historique — une entrée mémorisée avant ce chantier
+    n'a pas ce champ et reste traitée comme `'date'`, sans migration nécessaire ; `'engagement'`
+    pour la nouvelle classification entretien/travaux/document/autre) : les deux espaces sont
+    filtrés séparément (`trouverCorrectionApprise(contexte, categorie)` ignore les entrées d'une
+    autre catégorie), pour qu'une clause de délai de prêt et une clause d'engagement d'entretien
+    partageant par hasard du vocabulaire ne se substituent jamais l'une à l'autre.
+    - `ajouterEngagementManuel(type)` (sélection de texte dans le PDF) et
+      `ajouterEngagementDepuisFormulaire()` (bouton "+ Ajouter un engagement du vendeur", voir plus
+      haut) appellent désormais `memoriserCorrection(phrase, type, null, 'engagement')` — une
+      clause ajoutée à la main est, par construction, une clause que la détection automatique a
+      manquée ou n'a pas su catégoriser.
+    - `extraireEngagementsVendeur()` : la branche qui abandonnait jusqu'ici toute phrase passant
+      l'ancrage strict ("le vendeur/promettant s'engage/s'oblige/devra/remettra...") mais ne
+      correspondant à AUCUN des trois motifs d'objet (`OBJET_ENTRETIEN_RE`/`OBJET_TRAVAUX_RE`/
+      `OBJET_DOCUMENT_RE`) consulte maintenant `trouverCorrectionApprise(phrase, 'engagement')`
+      avant d'abandonner — une correction apprise fournit alors le type. **Reste borné à l'ancrage
+      déjà en place** : ne s'applique jamais à une phrase qui n'aurait pas d'abord passé ce motif
+      strict, donc aucun risque d'élargir la détection à des phrases arbitraires du document — la
+      généralisation ne change QUE le sort d'une phrase déjà anchée mais jusque-là abandonnée faute
+      de mot-clé d'objet reconnu.
+    - Vérifié par un script Node ad hoc (bac à sable) : une phrase inventée (mot-clé fictif) reste
+      ignorée sans apprentissage, puis correctement classée après `memoriserCorrection(...,
+      'engagement')` sur une formulation proche ; une recherche en catégorie `'date'` sur le même
+      contexte reste `null` (les deux espaces ne se mélangent pas).
+  - **Portée explicitement PAS étendue aux champs texte libre/numériques** (nom du dossier,
+    adresse, prix, montants) malgré le choix de l'étude pour l'option la plus généralisée sur la
+    question posée : contrairement à une classification (un mot parmi un nombre fini de catégories,
+    où "rejouer" une correction apprise a un sens sûr), corriger une valeur de ce type n'a pas de
+    mécanisme de réapplication automatique sûr — deux adresses ou deux noms de compromis
+    différents peuvent se ressembler par hasard sans qu'aucune inférence n'en découle. Étendre
+    l'apprentissage à ces champs demanderait un exemple concret de ce que l'étude attend d'un tel
+    mécanisme (une suggestion affichée ? un simple journal des corrections fréquentes ?) plutôt
+    qu'une generalisation mécanique du même code — à reprendre sur demande explicite avec ce
+    besoin précisé, cohérent avec la prudence déjà appliquée ailleurs dans ce fichier
+    (`detecterNomDossier()`, jamais retouchée sans exemple réel reproduisant un échec).
+  - `npm test` reste vert (134 tests, aucune fonction pure modifiée — `trouverCorrectionApprise`/
+    `memoriserCorrection` restent des fonctions pures mais non couvertes par la suite actuelle,
+    même limite déjà notée pour `normaliserPourRecherche()` ; `estNomExcluPourPiece`/
+    `exclureNomPourPiece` de même, vérifiées par simulation Node ad hoc plutôt que par un test
+    committé — envisager de les ajouter à `tests/divers.test.js` si le temps le permet).
+
+**Ce qui n'a volontairement PAS été fait** (arrêté à la demande explicite de l'étude, pas un
+oubli) — à reprendre uniquement si redemandé un jour :
+- **Import automatique** des dossiers déjà enregistrés sur la version 100% locale (`main`) vers ce
+  serveur : aujourd'hui, il faudrait les recréer à la main. La piste envisagée (un endpoint
+  `POST /api/import` portant la validation de `normaliserDossierImporte()` côté serveur) reste
+  praticable si demandée.
+- **Relances email automatiques** (un vrai envoi SMTP programmé, remplaçant le `mailto:` manuel
+  actuel — `ouvrirEmailRappel()`/`relancerSiOffreManquante()`, tous deux inchangés et toujours en
+  place) — sans accès Microsoft Graph, cette fonctionnalité resterait de toute façon fondée sur un
+  simple envoi SMTP direct (`nodemailer`, déjà présent dans `server/package.json` mais jamais
+  câblé), pas un vrai flux applicatif Outlook — jamais mise en œuvre en pratique, non redemandée
+  depuis.
+
+Le CLAUDE.md de la branche `main` (tout ce qui précède cette section) reste la référence pour le
+mode 100% local, qui n'a subi aucune régression de ce chantier.
 
 ## Comment tester
 
@@ -2672,9 +3399,11 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
 - Étendre l'apprentissage des corrections (voir historique ci-dessus) à `changerCategorie()`
   (reclassification après enregistrement du dossier) : nécessiterait de conserver le texte de la
   clause d'origine sur le dossier sauvegardé, pas seulement la date choisie.
-- Un panneau pour consulter/vider la mémoire des corrections apprises (`correctionsApprises`)
-  serait utile si elle venait à accumuler des erreurs (ex. une correction faite par erreur) —
-  aujourd'hui seul un vidage du `localStorage` du navigateur permet de la réinitialiser.
+- Un panneau pour consulter/vider la mémoire des corrections apprises (`correctionsApprises`, et
+  désormais aussi `exclusionsMotifNom` — voir son historique plus haut, section "Mode serveur
+  intranet") serait utile si l'une des deux venait à accumuler des erreurs (ex. une exclusion
+  posée par erreur sur un vrai document) — aujourd'hui seul un vidage du `localStorage` du
+  navigateur permet de les réinitialiser.
 - ~~Checklist de pièces par type de vente (terrain nu)~~ — **fait** (voir l'historique des décisions
   plus haut, "Nouveau type de vente 'Terrain à bâtir'") : `PIECES_TERRAIN_AUTRES`, option
   `<option value="terrain">` dans `#f-type-vente`, branche dans `checklistPieces()`.

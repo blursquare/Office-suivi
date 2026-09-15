@@ -156,6 +156,66 @@
     line-height: 1.4;
   }
 
+  /* Champ de recherche dans l'aperçu du compromis (comme un vrai lecteur PDF, Ctrl+F) — voir
+     rechercherDansPdf()/allerResultatPdf() dans script.js, qui parcourent directement la couche de
+     texte déjà posée pour la sélection manuelle (.pdf-text-layer) plutôt que de re-parser pdf.js. */
+  .pdf-recherche-barre {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
+    padding: 5px 8px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--paper-sunk);
+  }
+  .pdf-recherche-icone {
+    display: inline-flex;
+    color: var(--muted);
+    flex: none;
+  }
+  .pdf-recherche-icone .icone { width: 14px; height: 14px; }
+  /* .pdf-recherche-barre input.pdf-recherche-input (composé), pas .pdf-recherche-input seule : la
+     règle générique des champs de formulaire (input[type="search"], ~ligne 1162) a une spécificité
+     égale (élément + attribut) — sans ce préfixe composé, elle l'emporterait à spécificité égale
+     puisqu'elle apparaît plus loin dans le fichier (piège déjà rencontré et documenté pour
+     .select-edit/.input-inline, voir CLAUDE.md). */
+  .pdf-recherche-barre input.pdf-recherche-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: auto;
+    max-width: none;
+    border: none;
+    background: transparent;
+    font: inherit;
+    font-size: 13px;
+    color: var(--ink);
+    padding: 2px 0;
+  }
+  .pdf-recherche-barre input.pdf-recherche-input:hover { border: none; }
+  .pdf-recherche-barre input.pdf-recherche-input:focus { outline: none; border: none; }
+  .pdf-recherche-compteur {
+    font-size: 11.5px;
+    color: var(--muted);
+    white-space: nowrap;
+    flex: none;
+  }
+  .pdf-recherche-nav {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    border-radius: 5px;
+    cursor: pointer;
+    flex: none;
+  }
+  .pdf-recherche-nav:hover { background: var(--line-soft); color: var(--ink); }
+  .pdf-recherche-nav .icone { width: 13px; height: 13px; }
+
   .pdf-viewer-canvas-wrap {
     flex: 1;
     overflow-y: auto;
@@ -260,6 +320,18 @@
     cursor: text;
   }
   .pdf-text-layer span::selection { background: rgba(37, 99, 235, 0.35); }
+
+  /* Résultats de rechercherDansPdf() : un fond posé directement sur les <span> transparents déjà
+     en place (pas de nouvel élément à positionner) — jaune discret pour tous les résultats, plus
+     appuyé + contour pour celui actuellement ciblé (allerResultatPdf()). */
+  .pdf-text-layer span.pdf-search-marque {
+    background: rgba(250, 204, 21, 0.45);
+    border-radius: 1px;
+  }
+  .pdf-text-layer span.pdf-search-marque-active {
+    background: rgba(217, 114, 10, 0.55);
+    outline: 1.5px solid var(--urgent);
+  }
 
   .pdf-selection-toolbar {
     position: fixed;
@@ -443,9 +515,12 @@
   .sidebar-tagline {
     font-size: 12px;
     color: var(--ink-soft);
-    margin: 2px 0 20px;
+    margin: 2px 0 8px;
     padding: 0 8px;
   }
+
+  .sidebar-statut-serveur { margin: 0 0 16px; padding: 0 8px; }
+  .sidebar-statut-serveur .dot-label { font-size: 12px; }
 
   .sidebar-nav {
     display: flex;
@@ -515,6 +590,11 @@
     flex-direction: column;
     gap: 2px;
   }
+  /* Mode sombre + À propos côte à côte plutôt qu'empilés (demandé par l'étude) : le bouton de
+     thème (icône seule, voir .sidebar-link-icone-seule) garde sa largeur au contenu, "À propos"
+     prend le reste de la ligne. */
+  .sidebar-footer-row { display: flex; align-items: center; gap: 2px; }
+  .sidebar-footer-row .sidebar-link-apropos { width: auto; flex: 1 1 auto; }
 
   .sidebar-burger, .sidebar-scrim { display: none; }
 
@@ -776,6 +856,81 @@
   .calc-card-notes { font-size: 13px; }
   .calc-card-notes p { margin: 0 0 10px; }
   .calc-card-notes p:last-child { margin-bottom: 0; }
+
+  /* ---- Analyse approfondie (IA) : disponibilité du modèle local, liste de documents, rapport ---
+     Même famille de tokens que le reste de l'outil (--success/--urgent/--pret via color-mix,
+     comme .dl-alerte/.calc-warning-label) — aucune couleur inventée pour cet onglet. */
+  .analyse-ia-dispo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    margin-bottom: 18px;
+  }
+  .analyse-ia-dispo .icone { flex: none; }
+  .analyse-ia-dispo.dispo-ok {
+    color: var(--success);
+    background: color-mix(in srgb, var(--success) 10%, var(--paper-card));
+    border: 1px solid color-mix(in srgb, var(--success) 30%, transparent);
+  }
+  .analyse-ia-dispo.dispo-off {
+    color: var(--urgent);
+    background: color-mix(in srgb, var(--urgent) 10%, var(--paper-card));
+    border: 1px solid color-mix(in srgb, var(--urgent) 30%, transparent);
+  }
+
+  .analyse-ia-liste-fichiers { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+  .analyse-ia-fichier {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px 8px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--paper-card);
+  }
+  .analyse-ia-fichier .icone { flex: none; color: var(--muted); }
+  .analyse-ia-fichier-nom {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+  }
+  /* La règle générique `select { width:100%; ... }` (voir plus haut) prendrait toute la largeur
+     de la ligne — même piège de spécificité déjà documenté pour .select-classif/.input-inline. */
+  .analyse-ia-fichier select {
+    width: auto;
+    min-width: 130px;
+    flex: none;
+    font-size: 12.5px;
+    padding: 5px 8px;
+  }
+  .analyse-ia-fichier .dot-label { flex: none; }
+
+  .analyse-ia-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  .analyse-ia-rapport { display: flex; flex-direction: column; gap: 10px; }
+  .analyse-ia-constat {
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--paper-card);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .analyse-ia-constat-titre { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 13.5px; }
+  .analyse-ia-constat-desc { font-size: 13px; color: var(--ink-soft); margin: 0; }
+  .analyse-ia-constat-docs { font-size: 11.5px; color: var(--muted); font-style: italic; }
   .calc-champs { display: flex; flex-direction: column; gap: 16px; }
   .calc-champ label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 7px; }
   .calc-radios { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -1005,7 +1160,7 @@
     margin-bottom: 5px;
   }
 
-  input[type="text"], input[type="date"], input[type="email"], input[type="number"], input[type="search"], textarea, select {
+  input[type="text"], input[type="date"], input[type="email"], input[type="number"], input[type="search"], input[type="password"], textarea, select {
     width: 100%;
     max-width: 100%;
     min-width: 0;
@@ -1038,7 +1193,7 @@
     }
     .date-block { padding-left: 10px; }
   }
-  input[type="text"]:hover, input[type="date"]:hover, input[type="email"]:hover, input[type="number"]:hover, input[type="search"]:hover, select:hover { border-color: var(--muted); }
+  input[type="text"]:hover, input[type="date"]:hover, input[type="email"]:hover, input[type="number"]:hover, input[type="search"]:hover, input[type="password"]:hover, select:hover { border-color: var(--muted); }
 
   input:focus, select:focus, textarea:focus, button:focus-visible, summary:focus-visible {
     outline: 2px solid var(--focus);
@@ -1240,6 +1395,17 @@
   .pdf-status.ok { color: var(--success); font-weight: 600; }
   .pdf-status.err { color: var(--urgent); font-weight: 500; }
 
+  /* État "Analyse par le modèle IA local en cours…" (étape "Vérifier" du wizard) — voir
+     enrichirImportAvecIa()/afficherStatutEnrichissementIa() dans script.js. */
+  .ia-enrichissement-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    color: var(--muted);
+    margin: -4px 0 10px;
+  }
+
   .compromis-info.warn {
     background: var(--pret-bg);
     border-color: var(--pret);
@@ -1322,10 +1488,29 @@
     border: 1px solid var(--ventebien);
     color: var(--ink);
     font-size: 12.5px;
-    padding: 4px 10px;
+    padding: 4px 4px 4px 10px;
     border-radius: 14px;
   }
   .analyse-doc-badge::before { content: "✓"; color: var(--ventebien); font-weight: 700; }
+  /* Retirer un document identifié de la liste (voir renderDocBadge) — même gabarit que
+     .piece-suppr/.engagement-suppr, jamais affiché en même temps qu'un ::before différent : le
+     bouton est un enfant réel du badge, pas de conflit avec le pseudo-élément "✓". */
+  .analyse-doc-suppr {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: none;
+    background: none;
+    border-radius: 50%;
+    color: var(--muted);
+    cursor: pointer;
+    flex: none;
+  }
+  .analyse-doc-suppr:hover { background: var(--paper-sunk); color: var(--urgent); }
+  .analyse-doc-suppr .icone { width: 9px; height: 9px; }
 
   /* ---- pièces du dossier (checklist de constitution, selon le type de vente) ---- */
   .pieces-dossier {
@@ -1436,6 +1621,25 @@
   }
   .piece-suppr:hover { background: var(--paper-sunk); color: var(--urgent); }
   .piece-suppr .icone { width: 9px; height: 9px; }
+  /* Réinitialiser une pièce STANDARD reçue à tort (mauvaise correspondance, fichier renommé depuis)
+     — même gabarit que .piece-suppr, jamais affiché en même temps pour la même pièce que la
+     couleur de survol (bleu, pas rouge comme .piece-suppr : ce n'est pas une suppression). */
+  .piece-reinit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: none;
+    background: none;
+    border-radius: 50%;
+    color: var(--muted);
+    cursor: pointer;
+    flex: none;
+  }
+  .piece-reinit:hover { background: var(--paper-sunk); color: var(--focus); }
+  .piece-reinit .icone { width: 9px; height: 9px; }
 
   .ajout-piece-btn { margin-top: 10px; }
   .ajout-piece-form {
@@ -1580,6 +1784,7 @@
   .engagement-type.document { background: var(--acte-bg); color: var(--acte); }
   .engagement-type.entretien { background: var(--ventebien-bg); color: var(--ventebien); }
   .engagement-type.travaux { background: var(--pret-bg); color: var(--pret); }
+  .engagement-type.autre { background: var(--line-soft); color: var(--muted); }
 
   .analyse-doc-badge.cat-entretien { border-color: var(--ventebien); }
   .analyse-doc-badge.cat-travaux { border-color: var(--pret); }
@@ -1674,6 +1879,18 @@
   }
   .autre-row input[type="text"] { flex: 1 1 220px; }
   .autre-row input[type="date"] { flex: 0 0 160px; }
+
+  /* Formulaire d'ajout manuel d'un engagement du vendeur (étape "Analyse juridique" du wizard) —
+     même gabarit que .autre-row (input qui s'étire, contrôles fixes), voir index.html/script.js. */
+  .ajout-engagement-manuel-form {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+  .ajout-engagement-manuel-form input[type="text"] { flex: 1 1 260px; }
+  #ajout-engagement-manuel-btn { margin-top: 10px; }
 
   .reminder-days {
     display: flex;
@@ -1879,16 +2096,6 @@
   .toolbar-btn:hover { border-color: var(--ink-soft); color: var(--ink); }
   .toolbar-btn-label { display: inline-flex; align-items: center; }
 
-  .statut-partage {
-    font-size: 12px;
-    color: var(--ink-soft);
-    display: flex;
-    align-items: center;
-    gap: 5px;
-  }
-  .statut-partage.actif::before { content: "●"; color: var(--success); }
-  .statut-partage.attente::before { content: "●"; color: var(--pret); }
-
   /* ---- toast (annuler suppression) ---- */
   .toast {
     position: fixed;
@@ -1904,7 +2111,12 @@
     align-items: center;
     gap: 16px;
     font-size: 13.5px;
-    z-index: 900;
+    /* En retrait explicite du tiroir de fiche dossier (.drawer-overlay, z-index 900) : signalé
+       par l'étude, ce toast (ex. "Offre de prêt trouvée...", déclenché par "Revérifier" DEPUIS le
+       tiroir) ne doit jamais se superposer à son contenu — la checklist déjà visible dans le
+       tiroir montre le même résultat, ce toast n'est qu'un rappel ponctuel. Les deux partageaient
+       jusqu'ici la même valeur par coïncidence, un ordre d'empilement fragile plutôt qu'explicite.*/
+    z-index: 890;
   }
   .toast-undo {
     font-family: inherit;
@@ -2755,7 +2967,7 @@
     .tab { border: 1px solid #999; margin-bottom: 6pt; padding: 6pt; background: #fff !important; }
     .historique-liste { display: block !important; }
     .analyse-juridique { background: #fff; border: 1px solid #999; }
-    .icon-btn, .tab-select-icone-wrap, .icon-crayon, .icon-valider, .nom-edition, .tab-date-edition, .select-classif, .tab-suppr, .ajout-echeance-btn, .ajout-echeance-form, .piece-suppr, .ajout-piece-btn, .ajout-piece-form, .diagnostic-parcours { display: none !important; }
+    .icon-btn, .tab-select-icone-wrap, .icon-crayon, .icon-valider, .nom-edition, .tab-date-edition, .select-classif, .tab-suppr, .ajout-echeance-btn, .ajout-echeance-form, .piece-suppr, .piece-reinit, .ajout-piece-btn, .ajout-piece-form, .diagnostic-parcours, .engagement-suppr, .analyse-doc-suppr { display: none !important; }
   }
 
   .analyse-repliable > summary {
@@ -2926,6 +3138,23 @@
      avec le reste des fenêtres modales de l'outil, avec un contenu propre plutôt qu'un simple
      message + deux boutons. */
   .apropos-box { max-width: 400px; }
+
+  /* ---- écran de connexion (mode serveur intranet, voir tenterConnexion() dans script.js) ----
+     Même patron .confirm-overlay/.confirm-box que les autres fenêtres modales, mais jamais
+     fermable sans authentification réussie (pas de croix, pas de fermeture au clic sur le fond,
+     contrairement aux autres overlays qui en héritent par défaut). */
+  .connexion-box { max-width: 340px; }
+  .connexion-box form { display: flex; flex-direction: column; }
+  /* Contrairement aux autres champs de l'outil (dans un bloc avec son propre espacement), ce
+     champ vit seul dans le <form> : la règle générique input[type="password"] (voir plus haut) ne
+     pose pas de margin-bottom, donc sans celle-ci le bouton "Se connecter" venait se coller
+     directement contre le bas du champ (aucun espace entre les deux) — signalé par l'étude. */
+  #connexion-mot-de-passe { margin-bottom: 14px; }
+  .connexion-erreur {
+    color: var(--urgent);
+    font-size: 13px;
+    margin: -10px 0 14px;
+  }
   .apropos-header {
     display: flex;
     align-items: center;

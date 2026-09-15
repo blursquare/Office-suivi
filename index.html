@@ -32,6 +32,15 @@
     </div>
     <p class="sidebar-tagline">La clarté sur chaque dossier.</p>
 
+    <!-- État de la connexion au serveur intranet (voir sondagePeriodique()/majStatutServeur() dans
+         script.js) : distingue "le sondage réussit" de "le serveur est injoignable" (perte réseau,
+         serveur arrêté...) — sans indicateur, un dossier créé par un collègue pouvait sembler ne
+         jamais arriver sans que rien n'explique pourquoi. N'existe que sur cette branche (mode
+         serveur) : la version 100% locale (main) n'a pas de connexion à surveiller. -->
+    <div class="sidebar-statut-serveur">
+      <span id="statut-serveur-badge" class="dot-label dl-success"><span class="dot"></span>Connecté</span>
+    </div>
+
     <nav class="sidebar-nav" role="tablist" aria-label="Sections de l'application">
       <!-- En premier et toujours sur fond bleu (sidebar-cta), pas seulement quand cet onglet est
            actif : un raccourci permanent vers la création, demandé par l'étude. -->
@@ -47,18 +56,27 @@
       <button type="button" id="tab-calculateur" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('calculateur')">
         <span class="sidebar-link-icone" id="icon-nav-calculateur" aria-hidden="true"></span>Simulateur de provision
       </button>
+      <!-- Outil d'import et d'analyse juridique approfondie par IA locale (Ollama, voir
+           server/src/llm.js/CLAUDE.md) : distinct du wizard "Nouveau dossier" (qui extrait des
+           dates/champs par regex pour créer un dossier de suivi) — ici on dépose l'acte ET ses
+           annexes séparément pour une relecture croisée, sans forcément créer de dossier. -->
+      <button type="button" id="tab-analyse-ia" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('analyse-ia')">
+        <span class="sidebar-link-icone" id="icon-nav-analyse-ia" aria-hidden="true"></span>Analyse approfondie (IA)
+      </button>
     </nav>
 
     <div class="sidebar-footer">
       <button type="button" class="sidebar-link install-btn" id="install-btn" style="display:none;" onclick="installerApplication()">
         <span class="sidebar-link-icone" id="icon-install" aria-hidden="true"></span>Installer l'application
       </button>
-      <button type="button" class="sidebar-link sidebar-link-icone-seule" id="theme-btn" onclick="basculerTheme()" aria-label="Basculer le thème clair/sombre" title="Basculer le thème clair/sombre">
-        <span class="sidebar-link-icone" id="icon-theme" aria-hidden="true"></span>
-      </button>
-      <button type="button" class="sidebar-link sidebar-link-apropos" onclick="ouvrirAPropos()">
-        <span class="sidebar-link-icone" id="icon-apropos" aria-hidden="true"></span>À propos
-      </button>
+      <div class="sidebar-footer-row">
+        <button type="button" class="sidebar-link sidebar-link-icone-seule" id="theme-btn" onclick="basculerTheme()" aria-label="Basculer le thème clair/sombre" title="Basculer le thème clair/sombre">
+          <span class="sidebar-link-icone" id="icon-theme" aria-hidden="true"></span>
+        </button>
+        <button type="button" class="sidebar-link sidebar-link-apropos" onclick="ouvrirAPropos()">
+          <span class="sidebar-link-icone" id="icon-apropos" aria-hidden="true"></span>À propos
+        </button>
+      </div>
     </div>
   </aside>
 
@@ -159,6 +177,17 @@
         <p class="hint">Diagnostics et dates passées sont écartés automatiquement. Cliquez sur une catégorie pour corriger un classement.</p>
         <div class="chips" id="chips"></div>
 
+        <!-- État de la recherche du modèle IA local en arrière-plan (voir enrichirImportAvecIa()) :
+             sans lui, rien n'indiquait qu'une recherche était en cours pendant les quelques
+             secondes à dizaines de secondes que peut prendre l'appel à Ollama — silencieux avant
+             ce correctif jusqu'au toast final. Masqué par défaut, affiché uniquement pendant
+             l'appel (jamais si Ollama n'est pas disponible/configuré : l'appel échoue alors
+             immédiatement et cet état est aussitôt remasqué). -->
+        <div id="ia-enrichissement-status" class="ia-enrichissement-status" style="display:none;">
+          <span id="icon-ia-enrichissement" aria-hidden="true"></span>
+          Analyse par le modèle IA local en cours…
+        </div>
+
         <fieldset>
           <legend>Dates butoir</legend>
 
@@ -213,6 +242,26 @@
             extraire automatiquement les conditions, les engagements du vendeur et les documents
             attendus. Cette étape reste consultable même sans PDF importé.
           </div>
+
+          <!-- Ajout manuel d'un engagement du vendeur, sans passer par la sélection de texte dans
+               le PDF (voir gererSelectionPdf()) — utile quand aucun PDF n'est chargé, ou pour une
+               obligation qui n'apparaît pas littéralement dans le texte (accord oral rapporté par
+               le vendeur, par ex.). Toujours visible, y compris quand rien n'a encore été détecté
+               automatiquement — voir afficherFormAjoutEngagementManuel()/
+               ajouterEngagementDepuisFormulaire() dans script.js. -->
+          <button type="button" class="action-rapide" id="ajout-engagement-manuel-btn" onclick="afficherFormAjoutEngagementManuel()">+ Ajouter un engagement du vendeur</button>
+          <div id="ajout-engagement-manuel-form" class="ajout-engagement-manuel-form" style="display:none;">
+            <input type="text" id="nouvel-engagement-texte" placeholder="Décrire l'engagement (ex. Justifier de l'entretien annuel de la chaudière)">
+            <select id="nouvel-engagement-type">
+              <option value="entretien">Entretien</option>
+              <option value="travaux">Travaux</option>
+              <option value="document">Document</option>
+              <option value="autre">Autres</option>
+            </select>
+            <button type="button" class="icon-valider" onclick="ajouterEngagementDepuisFormulaire()" title="Ajouter" aria-label="Ajouter">✓</button>
+            <button type="button" class="secondary" onclick="masquerFormAjoutEngagementManuel()">Annuler</button>
+          </div>
+
           <div class="analyse-section" id="analyse-section-conditions">
             <div class="analyse-sous-titre">Conditions suspensives et particulières <span class="analyse-compteur" id="analyse-nb-conditions"></span></div>
             <div id="analyse-conditions-liste"></div>
@@ -344,6 +393,17 @@
   <div class="pdf-viewer-header">
     <div class="pdf-viewer-title" id="pdf-viewer-title">Aperçu du compromis</div>
   </div>
+  <div class="pdf-recherche-barre">
+    <span class="pdf-recherche-icone" id="icon-pdf-recherche"></span>
+    <input type="search" id="pdf-recherche-input" class="pdf-recherche-input"
+           placeholder="Rechercher dans le PDF..." oninput="rechercherDansPdf(this.value)"
+           onkeydown="if(event.key==='Enter'){event.preventDefault(); allerResultatPdfSuivant(event.shiftKey?-1:1);}">
+    <span class="pdf-recherche-compteur" id="pdf-recherche-compteur"></span>
+    <button type="button" class="pdf-recherche-nav" onclick="allerResultatPdfSuivant(-1)"
+            title="Résultat précédent" aria-label="Résultat précédent"><span id="icon-pdf-recherche-prec"></span></button>
+    <button type="button" class="pdf-recherche-nav" onclick="allerResultatPdfSuivant(1)"
+            title="Résultat suivant" aria-label="Résultat suivant"><span id="icon-pdf-recherche-suiv"></span></button>
+  </div>
   <div class="pdf-viewer-canvas-wrap" id="pdf-pages-container"></div>
 </aside>
 
@@ -418,8 +478,6 @@
       Afficher les dossiers archivés
     </label>
     <span class="toolbar-spacer"></span>
-    <span id="statut-partage" class="statut-partage" style="display:none;"></span>
-    <button type="button" class="toolbar-btn" id="btn-registre-partage" onclick="lierRegistrePartage()">Registre partagé (réseau)</button>
   </div>
 
   <div id="dossier-list"></div>
@@ -533,6 +591,64 @@
   </div>
 </div>
 
+<!-- Analyse juridique approfondie par IA locale : dépose l'acte (compromis/promesse) et ses
+     annexes séparées (PDF distincts, parfois plusieurs) pour une relecture croisée façon "un
+     notaire relit l'acte" — cohérences de prix/adresse/dates entre l'acte et ses annexes,
+     pièces manquantes, clauses contradictoires. Tourne entièrement sur le serveur de l'étude
+     (Ollama en local, voir server/README.md) : aucun texte de document n'est jamais envoyé à un
+     service extérieur. Onglet propre au serveur intranet — n'existe pas sur la version 100%
+     locale (main), qui n'a pas de backend pour héberger le modèle. -->
+<div class="onglet-panel" id="onglet-analyse-ia" style="display:none;">
+  <div class="dash-header">
+    <div>
+      <div class="dash-eyebrow">Analyse approfondie</div>
+      <div class="dash-titre-ligne">
+        <h1 class="dash-titre">Relecture croisée par IA locale</h1>
+        <span class="calc-warning-label" title="Les constats proposés sont générés par un modèle d'intelligence artificielle exécuté localement sur le serveur de l'étude — à vérifier systématiquement, ils ne remplacent pas la relecture juridique par un professionnel.">
+          <span id="icon-analyse-ia-warning" aria-hidden="true"></span>
+          Suggestions à vérifier
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div id="analyse-ia-dispo" class="analyse-ia-dispo" style="display:none;"></div>
+
+  <div class="dash-grid">
+    <div class="calc-card">
+      <div class="dash-section-titre">Documents à comparer</div>
+      <p class="hint">Déposez l'acte principal (compromis ou promesse) et ses annexes séparément — chacune dans son propre fichier PDF, comme reçues. Indiquez pour chacun s'il s'agit de l'acte ou d'une annexe : l'IA compare le contenu de l'acte à celui de chaque annexe.</p>
+
+      <div class="pdf-dropzone" id="analyse-ia-dropzone" ondragover="gererSurvolDepotAnalyseIa(event)" ondragleave="gererQuitteDepotAnalyseIa(event)" ondrop="gererDepotAnalyseIa(event)">
+        <span class="pdf-dropzone-icone" id="icon-analyse-ia-dropzone" aria-hidden="true"></span>
+        <label for="analyse-ia-fichiers" class="file-btn">Choisir un ou plusieurs PDF</label>
+        <input type="file" id="analyse-ia-fichiers" accept="application/pdf" multiple onchange="ajouterFichiersAnalyseIa(this.files); this.value='';">
+        <span class="pdf-dropzone-hint">ou glissez-déposez les fichiers ici</span>
+      </div>
+
+      <div id="analyse-ia-liste-fichiers" class="analyse-ia-liste-fichiers"></div>
+
+      <div class="analyse-ia-actions">
+        <button type="button" class="secondary" id="analyse-ia-vider-btn" onclick="viderAnalyseIa()" style="display:none;">Vider la liste</button>
+        <button type="button" class="primary" id="analyse-ia-lancer-btn" onclick="lancerAnalyseIa()" disabled>Lancer l'analyse</button>
+      </div>
+    </div>
+
+    <div class="calc-card">
+      <div class="dash-section-titre">Constats</div>
+      <div id="analyse-ia-rapport" class="analyse-ia-rapport">
+        <p class="hint">Aucune analyse lancée pour l'instant.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="calc-card calc-card-notes">
+    <div class="dash-section-titre">À propos de cette analyse</div>
+    <p>Le texte de chaque PDF est extrait dans votre navigateur (comme pour un import de compromis classique), puis envoyé au modèle d'IA qui tourne localement sur le serveur de l'étude (Ollama) — jamais à un service en ligne. Rien de ce que vous déposez ici n'est conservé au-delà de l'analyse : aucun dossier n'est créé, aucun fichier n'est enregistré.</p>
+    <p>Un modèle de langage peut se tromper ou passer à côté d'un problème réel — cette analyse est une aide à la relecture, pas une validation juridique. Vérifiez systématiquement chaque constat avant d'en tenir compte.</p>
+  </div>
+</div>
+
   </main>
 </div>
 
@@ -550,7 +666,35 @@
   <button type="button" onclick="ajouterEngagementManuel('entretien')">Entretien</button>
   <button type="button" onclick="ajouterEngagementManuel('travaux')">Travaux</button>
   <button type="button" onclick="ajouterEngagementManuel('document')">Document</button>
+  <button type="button" onclick="ajouterEngagementManuel('autre')">Autres</button>
   <button type="button" class="pdf-selection-annuler" onclick="masquerBoutonAjoutEngagement()" aria-label="Annuler" title="Annuler">✕</button>
+</div>
+
+<!-- Écran de connexion (mode serveur intranet) : bloque toute l'application tant que le mot de
+     passe partagé de l'étude n'a pas été validé auprès du serveur — voir tenterConnexion()/
+     afficherEcranConnexion() dans script.js. Contrairement aux autres overlays de cette page,
+     jamais fermable sans authentification réussie (pas de croix, pas de fermeture au clic sur le
+     fond) : c'est la seule porte d'entrée de l'outil en mode serveur. -->
+<div class="confirm-overlay" id="connexion-overlay" style="display:none;">
+  <div class="confirm-box connexion-box">
+    <div class="apropos-header">
+      <span class="brand-mark" aria-hidden="true">
+        <svg width="34" height="34" viewBox="0 0 48 48" fill="none">
+          <path d="M33 12a15 15 0 1 0 0 24" stroke="var(--focus)" stroke-width="1.8" stroke-linecap="round"/>
+          <line x1="30" y1="24" x2="39" y2="24" stroke="var(--focus-hover)" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span class="brand-word">CLAIRE</span>
+    </div>
+    <p class="apropos-tagline">Registre partagé de l'étude — connexion requise.</p>
+    <form onsubmit="event.preventDefault(); tenterConnexion();">
+      <input type="password" id="connexion-mot-de-passe" placeholder="Mot de passe de l'étude" autocomplete="current-password" required>
+      <p id="connexion-erreur" class="connexion-erreur" style="display:none;"></p>
+      <div class="confirm-actions">
+        <button type="submit" class="btn-confirmer" id="connexion-btn">Se connecter</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <div class="confirm-overlay" id="confirm-overlay">
@@ -563,10 +707,10 @@
   </div>
 </div>
 
-<!-- Popup affichée au démarrage quand un accès (dossier local ou registre partagé) doit être
-     reconfirmé — évite de compter sur le collaborateur pour remarquer le bandeau #alerte-acces,
-     visible seulement dans l'onglet "Suivi des dossiers". Reconfirmer y déclenche une vraie
-     demande de permission navigateur, ce qui exige ce clic explicite (voir reconfirmerTousLesAcces). -->
+<!-- Popup affichée au démarrage quand l'accès à un dossier local doit être reconfirmé — évite de
+     compter sur le collaborateur pour remarquer le bandeau #alerte-acces, visible seulement dans
+     l'onglet "Suivi des dossiers". Reconfirmer y déclenche une vraie demande de permission
+     navigateur, ce qui exige ce clic explicite (voir reconfirmerTousLesAcces). -->
 <div class="confirm-overlay" id="popup-acces-overlay" style="display:none;">
   <div class="confirm-box">
     <p id="popup-acces-message">L'accès à des dossiers reliés doit être reconfirmé.</p>
@@ -597,8 +741,8 @@
     <p class="apropos-tagline">La clarté sur chaque dossier.</p>
     <p class="apropos-version">Version <strong id="apropos-version-valeur"></strong></p>
     <p class="apropos-desc">
-      Registre des échéances de compromis de vente — 100&nbsp;% local, sans serveur : vos dossiers
-      restent sur ce poste ou ce lecteur réseau, jamais transmis ailleurs.
+      Registre des échéances de compromis de vente — synchronisé via le serveur intranet de
+      l'étude : vos dossiers restent sur le réseau local de l'étude, jamais transmis ailleurs.
     </p>
     <!-- Historique des dernières versions (voir HISTORIQUE_VERSIONS dans script.js) : le numéro de
          version seul dit "ce n'est pas la même copie", cette liste dit en plus CE QUI A CHANGÉ —

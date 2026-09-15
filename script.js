@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-13 19:22';
+  const VERSION_APP = '2026-09-15 14:25';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,14 +23,14 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
-    { version: '2026-09-13 19:22', resume: 'Sélecteur de catégorie en petite flèche, bouton "Ouvrir le compromis", recherche sans accents, pièce perso icône/texte, warning simulateur près du titre, badge Alpha' },
-    { version: '2026-09-13 14:40', resume: 'Corrige le chevauchement croix de suppression / sélecteur de catégorie sur les tabs' },
-    { version: '2026-09-13 10:02', resume: 'Versionning en heure de Paris ; export .ics limité au prêt, renommé rappel_echeance_...' },
-    { version: '2026-09-13 07:56', resume: 'Bouton suppression de date, "+Nouveau dossier" en haut du Suivi (taille mobile alignée)' },
-    { version: '2026-09-13 07:44', resume: 'Explications .ics/email déplacées du footer vers une popup après clic' },
-    { version: '2026-09-13 06:10', resume: 'Avertissement du simulateur repositionné/simplifié : "Montant à valider avant envoi."' },
-    { version: '2026-09-13 06:01', resume: 'Avertissement "barème non audité" en tête du simulateur de frais d’acte' },
-    { version: '2026-09-12 21:48', resume: 'Pièce checklist auto-ajoutée si entretien chaudière/PAC/ramonage détecté dans le compromis' }
+    { version: '2026-09-15 14:25', resume: "Apprentissage : une pièce mal reconnue et réinitialisée n'est plus jamais reproposée pour cette pièce (sur aucun dossier) ; une clause ajoutée manuellement comme engagement du vendeur enrichit aussi la détection automatique des prochains imports" },
+    { version: '2026-09-15 14:13', resume: "Champ de recherche dans l'aperçu PDF (comme Ctrl+F d'un lecteur PDF), navigation résultat suivant/précédent" },
+    { version: '2026-09-15 14:02', resume: "Retours de test du matin : indicateur de connexion serveur (sidebar), achat comptant affiché clairement (plus de \"Non renseigné\"), ajout manuel d'un engagement du vendeur sans sélection PDF, catégorie \"Autres\" pour les engagements, indicateur pendant la recherche IA" },
+    { version: '2026-09-14 20:26', resume: "Le wizard « Nouveau dossier » utilise aussi l'IA locale en arrière-plan : complète nom/adresse/prix/dates non trouvés par les regex et suggère des engagements du vendeur en plus, jamais en remplacement" },
+    { version: '2026-09-14 20:11', resume: "Nouvel onglet « Analyse approfondie (IA) » : dépose l'acte + ses annexes séparées, relecture croisée par un modèle IA local (Ollama, aucune donnée envoyée en ligne) — voir server/README.md" },
+    { version: '2026-09-14 19:27', resume: "Vrai correctif du bug apostrophe (Certificat d'urbanisme/d'alignement) : le précédent (&#39;) ne survivait pas au décodage HTML de l'attribut onclick, toujours cassé en pratique" },
+    { version: '2026-09-14 17:13', resume: 'Détection "Renonciation au droit de préemption" élargie au sigle "DPU" dans le nom de fichier' },
+    { version: '2026-09-14 17:01', resume: 'Écran de connexion : espace manquant entre le champ mot de passe et "Se connecter" ; sidebar : Mode sombre et À propos côte à côte' }
   ];
 
   const STORAGE_KEY = 'dossiers';
@@ -56,6 +56,11 @@
   // telle quelle — confiance "estime" plutôt que "auto" (voir detecterDatesDepuisTexte).
   let approxParType = { pret: false, acte: false, ventebien: false };
   let analyseJuridiqueActuelle = { documents: [], engagements: [], conditions: [] };
+  // Incrémenté à chaque nouvel import (traiterFichierPdf) et à chaque reset du formulaire
+  // (reinitialiserFormulaire) — permet à enrichirImportAvecIa() de vérifier, une fois sa réponse
+  // reçue, qu'elle porte encore sur l'import en cours plutôt que sur un import précédent déjà
+  // enregistré ou abandonné (l'appel au LLM local peut prendre plusieurs dizaines de secondes).
+  let generationImportActuel = 0;
 
   // ---- icônes ----
   // Un seul jeu d'icônes, dessiné à la main, pour toute l'application — remplace les emoji semés
@@ -94,7 +99,9 @@
     'trend-up': '<path d="M2.5 12 6.8 7.7 9.3 10.2 13.5 6"/><path d="M9.5 6h4v4"/>',
     'trend-down': '<path d="M2.5 4 6.8 8.3 9.3 5.8 13.5 10"/><path d="M9.5 10h4v-4"/>',
     info: '<circle cx="8" cy="8" r="6.2"/><line x1="8" y1="7.2" x2="8" y2="11.3"/><circle cx="8" cy="4.9" r="0.9" fill="currentColor" stroke="none"/>',
-    'chevron-down': '<path d="M3.5 6 8 10.5 12.5 6"/>'
+    'chevron-down': '<path d="M3.5 6 8 10.5 12.5 6"/>',
+    'chevron-up': '<path d="M3.5 10 8 5.5 12.5 10"/>',
+    'rotate-ccw': '<path d="M13.3 8A5.3 5.3 0 1 1 10.8 3.4"/><path d="M13.6 2.6v3.6h-3.6"/>'
   };
   // `cls` porte les classes de mise en page (taille via font-size hérité, marge...) ; `spin` anime
   // une rotation continue (voir @keyframes icone-spin) pour les icônes d'attente (ex. "spinner").
@@ -793,14 +800,25 @@
       const estEntretien = OBJET_ENTRETIEN_RE.test(phrase);
       const estTravaux = OBJET_TRAVAUX_RE.test(phrase);
       const estDocument = OBJET_DOCUMENT_RE.test(phrase);
-      if (!estEntretien && !estTravaux && !estDocument) continue;
-
-      // L'entretien prime : « justifier du dernier ramonage » est un entretien à prouver, pas des
-      // travaux à faire exécuter — la distinction compte pour savoir quoi réclamer au vendeur.
-      let type = 'document';
-      if (estEntretien) type = 'entretien';
-      else if (estTravaux && !estDocument) type = 'travaux';
-      else if (estTravaux) type = 'travaux';
+      let type = null;
+      if (!estEntretien && !estTravaux && !estDocument) {
+        // La phrase correspond bien à l'ancrage strict ("le vendeur/promettant s'engage...") mais
+        // aucun des trois motifs d'objet ne la catégorise — jusqu'ici, systématiquement abandonnée
+        // (continue), même quand un(e) collaborateur(rice) avait déjà catégorisé à la main une
+        // clause très proche lors d'un import précédent (voir ajouterEngagementManuel()/
+        // ajouterEngagementDepuisFormulaire() ci-dessus). Reste borné à ce périmètre déjà anchré :
+        // ne s'applique jamais à une phrase qui n'aurait pas d'abord passé ce motif strict, donc ne
+        // risque pas d'élargir la détection à des sentences arbitraires du document.
+        const apprise = trouverCorrectionApprise(phrase, 'engagement');
+        if (!apprise) continue;
+        type = apprise.classification;
+      } else {
+        // L'entretien prime : « justifier du dernier ramonage » est un entretien à prouver, pas des
+        // travaux à faire exécuter — la distinction compte pour savoir quoi réclamer au vendeur.
+        type = 'document';
+        if (estEntretien) type = 'entretien';
+        else if (estTravaux) type = 'travaux';
+      }
 
       const cle = phrase.slice(0, 70);
       if (!vus.has(cle)) {
@@ -821,25 +839,41 @@
 
   // Accepte le nouveau format {label, cat} comme l'ancien (simple chaîne), pour que les dossiers
   // enregistrés avant cette évolution continuent de s'afficher.
-  function renderDocBadge(doc) {
+  // `dossierId` absent (pendant l'import, voir afficherAnalyseJuridique) → la croix retire l'entrée
+  // de analyseJuridiqueActuelle.documents (supprimerDocumentManuel) ; `dossierId` fourni (fiche
+  // d'un dossier déjà enregistré, voir renderCarteDossier) → elle retire l'entrée de
+  // d.analyseJuridique.documents avec confirmation + historique (supprimerDocumentDossier).
+  // Demandé par l'étude : jusqu'ici aucun document identifié n'était retirable, dans aucun des
+  // deux contextes.
+  function renderDocBadge(doc, index, dossierId) {
     const label = (typeof doc === 'string') ? doc : doc.label;
     const cat = (typeof doc === 'string') ? '' : (doc.cat || '');
-    return `<span class="analyse-doc-badge${cat ? ' cat-' + cat : ''}">${escapeHtml(label)}</span>`;
+    const appelSuppr = dossierId
+      ? `supprimerDocumentDossier('${dossierId}', ${index})`
+      : `supprimerDocumentManuel(${index})`;
+    const boutonSuppr = `<button type="button" class="analyse-doc-suppr" onclick="${appelSuppr}" title="Retirer ce document de la liste" aria-label="Retirer ce document">${icone('x')}</button>`;
+    return `<span class="analyse-doc-badge${cat ? ' cat-' + cat : ''}">${escapeHtml(label)}${boutonSuppr}</span>`;
   }
 
   // Accepte aussi bien le nouveau format {phrase, type} que l'ancien (simple chaîne), pour que
   // les dossiers enregistrés avant cette évolution continuent de s'afficher correctement.
-  // `index` (position dans analyseJuridiqueActuelle.engagements) n'est utile que pour les
-  // engagements ajoutés à la main (voir ajouterEngagementManuel) : seuls eux sont retirables via
-  // supprimerEngagementManuel(), les engagements détectés automatiquement n'ont pas ce besoin.
-  function renderEngagement(e, index) {
+  // Bouton de suppression désormais affiché pour TOUT engagement, plus seulement ceux ajoutés à la
+  // main — demandé par l'étude (jusqu'ici, un engagement détecté automatiquement ne pouvait être
+  // corrigé qu'en resserrant la regex, jamais retiré au cas par cas ; revu ici explicitement à sa
+  // demande). `dossierId` absent (import, voir afficherAnalyseJuridique) → retire de
+  // analyseJuridiqueActuelle.engagements (supprimerEngagementManuel, sans confirmation : pré-
+  // enregistrement, reversible en réimportant) ; `dossierId` fourni (fiche enregistrée, voir
+  // renderCarteDossier) → retire de d.analyseJuridique.engagements avec confirmation + historique
+  // (supprimerEngagementDossier).
+  function renderEngagement(e, index, dossierId) {
     const phrase = (typeof e === 'string') ? e : e.phrase;
     const type = (typeof e === 'string') ? null : e.type;
     const page = (typeof e === 'string') ? null : e.page;
     const manuel = typeof e === 'object' && e.manuel === true;
-    const libelles = { entretien: 'Entretien', travaux: 'Travaux', document: 'Document' };
+    const suggereParIa = typeof e === 'object' && e.source === 'ia';
+    const libelles = { entretien: 'Entretien', travaux: 'Travaux', document: 'Document', autre: 'Autres' };
     const etiquette = type
-      ? `<span class="engagement-type ${type}">${libelles[type] || 'Document'}</span>`
+      ? `<span class="engagement-type ${libelles[type] ? type : 'document'}">${libelles[type] || 'Document'}</span>`
       : '';
     // Le clic pour sauter à la page ET surligner la phrase (voir voirEngagementDansPdf, même
     // esprit que voirDateDansPdf pour les dates — demandé par l'étude) n'est possible que si le
@@ -851,13 +885,19 @@
       ? `<button type="button" class="voir-pdf-btn" onclick="voirEngagementDansPdf(${page}, '${codifierPourAttribut(phrase)}')">${icone('eye')} p.${page}</button>`
       : `<span class="chip-page" title="Détecté page ${page} du compromis">p.${page}</span>`;
     // Sélectionnée à la main dans l'aperçu PDF (voir gererSelectionPdf) plutôt que trouvée par
-    // extraireEngagementsVendeur() : marquée comme telle, et seule celle-ci peut être retirée d'un
-    // clic — corriger un engagement détecté automatiquement passe par la regex, pas par un retrait
-    // au cas par cas.
-    const marqueurManuel = manuel ? '<span class="engagement-manuel">Ajouté manuellement</span>' : '';
-    const boutonSupprimer = manuel
-      ? `<button type="button" class="engagement-suppr" onclick="supprimerEngagementManuel(${index})" title="Retirer cet engagement" aria-label="Retirer cet engagement">${icone('x')}</button>`
-      : '';
+    // extraireEngagementsVendeur() : uniquement indicatif désormais (voir plus haut, la croix de
+    // suppression s'affiche pour tous les engagements, pas seulement ceux-ci).
+    // Même emplacement/style que le marqueur "Ajouté manuellement" (texte simple, pas d'icône) —
+    // seul le texte change selon la provenance ; jamais les deux en même temps (source mutuellement
+    // exclusive : soit sélectionné à la main dans le PDF, soit suggéré par l'IA, soit détecté par
+    // regex sans marqueur du tout).
+    const marqueurManuel = manuel
+      ? '<span class="engagement-manuel">Ajouté manuellement</span>'
+      : (suggereParIa ? '<span class="engagement-manuel" title="Extrait par le modèle IA local — à vérifier comme toute suggestion automatique">Suggéré par l\'IA</span>' : '');
+    const appelSuppr = dossierId
+      ? `supprimerEngagementDossier('${dossierId}', ${index})`
+      : `supprimerEngagementManuel(${index})`;
+    const boutonSupprimer = `<button type="button" class="engagement-suppr" onclick="${appelSuppr}" title="Retirer cet engagement" aria-label="Retirer cet engagement">${icone('x')}</button>`;
     return `<div class="analyse-engagement-ligne">${etiquette}<span>${escapeHtml(phrase)}</span>${marqueurManuel}${boutonVoir}${boutonSupprimer}</div>`;
   }
 
@@ -901,7 +941,7 @@
 
     document.getElementById('analyse-nb-documents').textContent = documents.length || '';
     listeDocs.innerHTML = documents.length > 0
-      ? documents.map(doc => renderDocBadge(doc)).join('')
+      ? documents.map((doc, i) => renderDocBadge(doc, i)).join('')
       : '<span class="analyse-vide">Aucun document type reconnu automatiquement.</span>';
 
     // La reconnaissance des documents s'appuie sur une liste de types courants : si le compromis
@@ -1511,6 +1551,8 @@
     const conteneur = document.getElementById('pdf-pages-container');
     conteneur.innerHTML = '';
     masquerBoutonAjoutEngagement();
+    masquerFormAjoutEngagementManuel();
+    reinitialiserRecherchePdf();
     const largeurDispo = (conteneur.clientWidth || 360) - 20;
 
     for (let numero = 1; numero <= pdfDernierePageUtile; numero++) {
@@ -1632,8 +1674,60 @@
       page: selectionEngagementEnCours.page,
       manuel: true
     });
+    // Une clause sélectionnée à la main est, par définition, une clause que la détection
+    // automatique (extraireEngagementsVendeur) a manquée ou n'a pas su catégoriser — on la mémorise
+    // pour qu'une clause très proche soit reconnue directement au prochain import (voir
+    // trouverCorrectionApprise/memoriserCorrection, catégorie 'engagement' : même mécanisme que
+    // l'apprentissage déjà en place pour les dates, un espace de classification séparé).
+    memoriserCorrection(selectionEngagementEnCours.phrase, type, null, 'engagement');
     afficherAnalyseJuridique();
     masquerBoutonAjoutEngagement();
+    afficherToast('Engagement ajouté à l’analyse juridique.', 'OK', null);
+  }
+
+  // Pendant du bouton flottant ci-dessus, mais sans dépendre d'une sélection de texte dans le PDF :
+  // demandé par l'étude pour saisir un engagement qui n'apparaît pas littéralement dans l'acte
+  // (accord oral rapporté, engagement verbal du vendeur...) ou simplement quand aucun PDF n'est
+  // chargé pour l'instant. Toujours accessible depuis l'étape "Analyse juridique" du wizard, jamais
+  // masqué par l'état vide (voir index.html) — un dossier sans aucune détection automatique doit
+  // pouvoir malgré tout recevoir un engagement saisi à la main.
+  function afficherFormAjoutEngagementManuel() {
+    const btn = document.getElementById('ajout-engagement-manuel-btn');
+    const form = document.getElementById('ajout-engagement-manuel-form');
+    if (btn) btn.style.display = 'none';
+    if (form) form.style.display = 'flex';
+    const texte = document.getElementById('nouvel-engagement-texte');
+    if (texte) texte.focus();
+  }
+
+  function masquerFormAjoutEngagementManuel() {
+    const btn = document.getElementById('ajout-engagement-manuel-btn');
+    const form = document.getElementById('ajout-engagement-manuel-form');
+    if (btn) btn.style.display = '';
+    if (form) form.style.display = 'none';
+    const texte = document.getElementById('nouvel-engagement-texte');
+    if (texte) texte.value = '';
+  }
+
+  function ajouterEngagementDepuisFormulaire() {
+    const texteEl = document.getElementById('nouvel-engagement-texte');
+    const typeEl = document.getElementById('nouvel-engagement-type');
+    const texte = texteEl ? texteEl.value.trim() : '';
+    if (!texte) { if (texteEl) texteEl.focus(); return; }
+    const type = typeEl ? typeEl.value : 'document';
+    analyseJuridiqueActuelle.engagements.push({
+      phrase: texte,
+      type,
+      page: null,
+      manuel: true
+    });
+    // Même principe que ajouterEngagementManuel() ci-dessus (voir son commentaire) : une clause
+    // saisie ici échappe forcément à la détection automatique (elle n'a pas de PDF anchré à
+    // relire), la mémoriser reste sans risque pour tout futur import dont une clause proche
+    // passerait, elle, par le motif d'ancrage d'extraireEngagementsVendeur().
+    memoriserCorrection(texte, type, null, 'engagement');
+    masquerFormAjoutEngagementManuel();
+    afficherAnalyseJuridique();
     afficherToast('Engagement ajouté à l’analyse juridique.', 'OK', null);
   }
 
@@ -1645,9 +1739,20 @@
     if (selection) selection.removeAllRanges();
   }
 
+  // Nom conservé malgré la généralisation (voir renderEngagement) : retire désormais N'IMPORTE
+  // QUEL engagement pendant l'import, pas seulement ceux ajoutés à la main — sans confirmation
+  // (état pré-enregistrement, reversible en réimportant le PDF).
   function supprimerEngagementManuel(index) {
     if (!analyseJuridiqueActuelle.engagements[index]) return;
     analyseJuridiqueActuelle.engagements.splice(index, 1);
+    afficherAnalyseJuridique();
+  }
+
+  // Pendant l'import (voir renderDocBadge) : retire un document identifié de l'analyse en cours,
+  // sans confirmation, même logique que supprimerEngagementManuel() ci-dessus.
+  function supprimerDocumentManuel(index) {
+    if (!analyseJuridiqueActuelle.documents[index]) return;
+    analyseJuridiqueActuelle.documents.splice(index, 1);
     afficherAnalyseJuridique();
   }
 
@@ -1812,6 +1917,99 @@
     }
   }
 
+  // Recherche de texte dans l'aperçu du compromis, sur le modèle d'un vrai lecteur PDF (Ctrl+F).
+  // Réutilise directement la couche de texte déjà posée par construireCoucheTexte() pour la
+  // sélection manuelle — plutôt que de rappeler pdf.js (getTextContent()) à chaque frappe, ce qui
+  // ré-parserait tout le document à chaque caractère tapé : les <span> sont déjà en place, déjà
+  // positionnés pixel pour pixel sur le rendu, il suffit de les parcourir et de leur ajouter une
+  // classe de surlignage. Insensible aux accents/majuscules (normaliserPourRecherche(), déjà
+  // utilisée pour la recherche de dossiers) — "pret" retrouve aussi bien "prêt" que "PRÊT".
+  let resultatsRecherchePdf = [];
+  let indexResultatRecherchePdf = -1;
+
+  function rechercherDansPdf(valeur) {
+    document.querySelectorAll('.pdf-search-marque').forEach(el => {
+      el.classList.remove('pdf-search-marque', 'pdf-search-marque-active');
+    });
+    resultatsRecherchePdf = [];
+    indexResultatRecherchePdf = -1;
+    const compteurEl = document.getElementById('pdf-recherche-compteur');
+    const requeteNorm = normaliserPourRecherche(String(valeur || '').trim());
+    if (!requeteNorm) {
+      if (compteurEl) compteurEl.textContent = '';
+      return;
+    }
+
+    document.querySelectorAll('#pdf-pages-container .pdf-page-bloc').forEach(bloc => {
+      const couche = bloc.querySelector('.pdf-text-layer');
+      if (!couche) return;
+      const spans = Array.from(couche.children);
+      // Texte normalisé concaténé de la page, un espace entre chaque item (comme
+      // voirEngagementDansPdf()) — mémorise pour chaque caractère l'index du <span> d'origine,
+      // -1 pour les espaces insérés entre deux items.
+      let texte = '';
+      const origines = [];
+      spans.forEach((span, i) => {
+        const norm = normaliserPourRecherche(span.textContent || '');
+        for (const ch of norm) { texte += ch; origines.push(i); }
+        texte += ' '; origines.push(-1);
+      });
+
+      let pos = texte.indexOf(requeteNorm);
+      while (pos !== -1) {
+        const spansConcernes = new Set();
+        for (let i = pos; i < pos + requeteNorm.length && i < origines.length; i++) {
+          if (origines[i] >= 0) spansConcernes.add(origines[i]);
+        }
+        if (spansConcernes.size > 0) {
+          resultatsRecherchePdf.push({ spans: Array.from(spansConcernes).map(i => spans[i]) });
+        }
+        pos = texte.indexOf(requeteNorm, pos + 1);
+      }
+    });
+
+    resultatsRecherchePdf.forEach(r => r.spans.forEach(s => s.classList.add('pdf-search-marque')));
+
+    if (compteurEl) {
+      compteurEl.textContent = resultatsRecherchePdf.length
+        ? `1 / ${resultatsRecherchePdf.length}`
+        : 'Aucun résultat';
+    }
+    if (resultatsRecherchePdf.length) allerResultatPdf(0);
+  }
+
+  function allerResultatPdf(index) {
+    if (!resultatsRecherchePdf.length) return;
+    if (index < 0) index = resultatsRecherchePdf.length - 1;
+    if (index >= resultatsRecherchePdf.length) index = 0;
+    document.querySelectorAll('.pdf-search-marque-active').forEach(el => {
+      el.classList.remove('pdf-search-marque-active');
+    });
+    indexResultatRecherchePdf = index;
+    const resultat = resultatsRecherchePdf[index];
+    resultat.spans.forEach(s => s.classList.add('pdf-search-marque-active'));
+    resultat.spans[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const compteurEl = document.getElementById('pdf-recherche-compteur');
+    if (compteurEl) compteurEl.textContent = `${index + 1} / ${resultatsRecherchePdf.length}`;
+  }
+
+  function allerResultatPdfSuivant(direction) {
+    if (!resultatsRecherchePdf.length) return;
+    allerResultatPdf(indexResultatRecherchePdf + direction);
+  }
+
+  // Remet la recherche PDF à zéro (nouveau document chargé, ou formulaire réinitialisé) : sans ça,
+  // le champ garderait le texte/les résultats d'une recherche menée sur le PDF PRÉCÉDENT, alors que
+  // les <span> qu'elle référence viennent d'être détruits par chargerToutesLesPagesPdf().
+  function reinitialiserRecherchePdf() {
+    resultatsRecherchePdf = [];
+    indexResultatRecherchePdf = -1;
+    const input = document.getElementById('pdf-recherche-input');
+    if (input) input.value = '';
+    const compteurEl = document.getElementById('pdf-recherche-compteur');
+    if (compteurEl) compteurEl.textContent = '';
+  }
+
   async function gererUploadPdf(event) {
     const file = event.target.files[0];
     if (file) await traiterFichierPdf(file);
@@ -1860,6 +2058,8 @@
     status.className = 'pdf-status loading';
     status.textContent = `Lecture de « ${file.name} » en cours…`;
     majProgression(2);
+    afficherStatutEnrichissementIa(false); // efface un éventuel résidu d'un import précédent
+    const monImport = ++generationImportActuel;
 
     try {
       const buffer = await file.arrayBuffer();
@@ -1874,6 +2074,11 @@
       ambiguiteParType = { pret: false, acte: false, ventebien: false };
       approxParType = { pret: false, acte: false, ventebien: false };
       traiterTexte(texteComplet);
+      // Lancée EN ARRIÈRE-PLAN (jamais attendue ici) : la détection par regex ci-dessus reste le
+      // chemin principal, immédiat et déjà éprouvé — l'IA locale ne fait qu'enrichir ensuite ce
+      // qu'elle n'a pas trouvé, silencieusement si Ollama n'est pas disponible. Ne doit jamais
+      // retarder la suite de l'import (bascule d'étape, aperçu PDF...).
+      enrichirImportAvecIa(texteComplet, monImport);
       // Bascule automatiquement vers l'étape "Vérifier" : les dates/chips sont déjà là, plus besoin
       // de cliquer soi-même sur "Suivant" après un import qui vient de réussir.
       definirEtapeWizard(2);
@@ -1958,6 +2163,129 @@
     }
   }
 
+  // ---- Extraction assistée par IA locale (Ollama), en complément du wizard "Nouveau dossier" ----
+  // Voir server/src/routes/extractionIa.js et CLAUDE.md. N'existe que sur `claude/serveur-intranet`
+  // (a besoin d'un backend pour parler à Ollama) — appelée en ARRIÈRE-PLAN juste après
+  // traiterTexte() (regex, inchangée, toujours le chemin principal et immédiat) pour ne compléter
+  // QUE ce qu'elle n'a pas trouvé : jamais une valeur déjà détectée ou déjà saisie à la main n'est
+  // écrasée, même principe que detecterAdresseBien()/detecterEmailAcquereur()/detecterMontantPret()
+  // ailleurs dans ce fichier. Silencieuse si Ollama n'est pas installé/lancé sur le serveur — le
+  // wizard reste utilisable exactement comme avant l'ajout de cette fonctionnalité dans ce cas,
+  // jamais une condition bloquante pour créer un dossier.
+
+  // Nettement plus permissif que SEUIL_SIMILARITE_APPRENTISSAGE (0.6, deux formulations quasi
+  // identiques de LA MÊME clause) : ici on compare une phrase extraite telle quelle du texte à une
+  // description reformulée par le modèle, sans aucune racinisation (tokeniserApprentissage compare
+  // des mots entiers) — deux verbes de la même famille ("entretien"/"entretenir") comptent déjà
+  // comme deux tokens différents, donc l'overlap réel reste modeste même pour la même clause.
+  // Premier jet volontairement prudent : sous-détecter un doublon (une suggestion IA redondante
+  // affichée en plus d'un engagement déjà repéré par regex) coûte un simple clic sur sa croix de
+  // suppression, alors que sur-détecter risquerait de faire disparaître silencieusement un
+  // engagement réellement distinct — à resserrer si l'usage réel montre trop de redites.
+  const SEUIL_SIMILARITE_ENGAGEMENT_IA = 0.2;
+
+  function engagementDejaConnu(description, engagementsExistants) {
+    const tokensIa = tokeniserApprentissage(normaliserTexteApprentissage(description));
+    return engagementsExistants.some(e => {
+      const phrase = typeof e === 'string' ? e : e.phrase;
+      const tokensExistant = tokeniserApprentissage(normaliserTexteApprentissage(phrase || ''));
+      return similariteJaccard(tokensIa, tokensExistant) >= SEUIL_SIMILARITE_ENGAGEMENT_IA;
+    });
+  }
+
+  // Affiche/masque l'état "Analyse par le modèle IA local en cours…" (étape "Vérifier" du wizard,
+  // voir index.html) pendant l'appel à /api/extraction-ia — sans lui, rien n'indiquait qu'une
+  // recherche était en cours pendant les quelques secondes à dizaines de secondes que peut prendre
+  // Ollama, silencieux jusqu'au toast final. N'a jamais retardé l'import lui-même (voir l'appel
+  // sans await plus bas) : seul l'affichage de CET état est synchrone avec la requête.
+  function afficherStatutEnrichissementIa(visible) {
+    const el = document.getElementById('ia-enrichissement-status');
+    if (!el) return;
+    if (visible) {
+      const iconeEl = document.getElementById('icon-ia-enrichissement');
+      if (iconeEl && !iconeEl.innerHTML) iconeEl.innerHTML = icone('spinner', null, true);
+      el.style.display = 'flex';
+    } else {
+      el.style.display = 'none';
+    }
+  }
+
+  async function enrichirImportAvecIa(texte, monImport) {
+    afficherStatutEnrichissementIa(true);
+    let resultat;
+    try {
+      const reponse = await fetchAvecAuth('/api/extraction-ia', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ texte })
+      });
+      if (!reponse.ok) return; // Ollama indisponible/erreur : enrichissement optionnel, pas d'échec bruyant
+      resultat = await reponse.json();
+    } catch (e) {
+      return; // session expirée (déjà gérée par fetchAvecAuth) ou réseau — rien d'autre à faire ici
+    } finally {
+      // Uniquement si on est toujours sur le MÊME import : un import suivant a déjà remis son
+      // propre statut (masqué au départ, voir traiterFichierPdf) — le masquer ici écraserait à
+      // tort l'état du nouvel import si celui-ci a démarré entretemps.
+      if (monImport === generationImportActuel) afficherStatutEnrichissementIa(false);
+    }
+    // L'utilisateur a pu importer un autre PDF, ou enregistrer/réinitialiser le formulaire, pendant
+    // les quelques dizaines de secondes qu'a pu prendre cet appel — voir generationImportActuel.
+    if (monImport !== generationImportActuel) return;
+    if (!resultat || resultat.erreurExtraction) return;
+
+    let champsCompletes = 0;
+
+    const champNom = document.getElementById('f-nom');
+    if (champNom && !champNom.value.trim() && resultat.nomDossier) {
+      champNom.value = resultat.nomDossier;
+      champsCompletes++;
+    }
+    const champAdresse = document.getElementById('f-adresse-bien');
+    if (champAdresse && !champAdresse.value.trim() && resultat.adresseBien) {
+      champAdresse.value = resultat.adresseBien;
+      champsCompletes++;
+    }
+    const champPrix = document.getElementById('f-prix-vente');
+    if (champPrix && !champPrix.value.trim() && resultat.prixVente) {
+      champPrix.value = String(resultat.prixVente);
+      champsCompletes++;
+    }
+
+    const datesParType = { pret: resultat.datePret, acte: resultat.dateActe, ventebien: resultat.dateVentePrealable };
+    for (const [type, iso] of Object.entries(datesParType)) {
+      const champ = document.getElementById('f-' + type);
+      if (champ && !champ.value && iso) {
+        champ.value = iso;
+        definirEcheanceActive(type, true);
+        champsCompletes++;
+      }
+    }
+
+    let engagementsAjoutes = 0;
+    if (Array.isArray(resultat.engagementsVendeur)) {
+      for (const suggestion of resultat.engagementsVendeur) {
+        if (engagementDejaConnu(suggestion.description, analyseJuridiqueActuelle.engagements)) continue;
+        analyseJuridiqueActuelle.engagements.push({ phrase: suggestion.description, type: suggestion.type, page: null, source: 'ia' });
+        engagementsAjoutes++;
+      }
+      if (engagementsAjoutes > 0) {
+        // Recalculée à partir de TOUS les engagements (existants + IA), comme à l'origine dans
+        // traiterTexte() — une seule fonction pure, jamais deux logiques différentes pour la même
+        // liste selon qu'elle vient d'être enrichie ou non.
+        analyseJuridiqueActuelle.documents = detecterDocumentsAFournir(analyseJuridiqueActuelle.engagements);
+        afficherAnalyseJuridique();
+      }
+    }
+
+    if (champsCompletes === 0 && engagementsAjoutes === 0) return;
+    const morceaux = [];
+    if (champsCompletes > 0) morceaux.push(`${champsCompletes} champ${champsCompletes > 1 ? 's' : ''}`);
+    if (engagementsAjoutes > 0) morceaux.push(`${engagementsAjoutes} engagement${engagementsAjoutes > 1 ? 's' : ''} du vendeur`);
+    const total = champsCompletes + engagementsAjoutes;
+    afficherToast(`IA locale : ${morceaux.join(' et ')} complété${total > 1 ? 's' : ''} en plus de la détection automatique — à vérifier.`, 'OK', null);
+  }
+
   // ---- gestion des échéances "Autre" ----
 
   function ajouterAutre(iso) {
@@ -2025,6 +2353,10 @@
 
   function reinitialiserFormulaire() {
     masquerErreurFormulaire();
+    // Périme tout enrichissement IA encore en vol depuis l'import précédent (voir
+    // enrichirImportAvecIa) : sans ça, sa réponse pourrait arriver après ce reset et remplir des
+    // champs pourtant vidés pour un tout nouvel import.
+    generationImportActuel++;
     document.getElementById('f-nom').value = '';
     document.getElementById('f-responsable').value = '';
     document.getElementById('f-type-vente').value = 'maison';
@@ -2053,12 +2385,15 @@
     analyseJuridiqueActuelle = { documents: [], engagements: [], conditions: [] };
     afficherAnalyseJuridique();
     masquerBoutonAjoutEngagement();
+    masquerFormAjoutEngagementManuel();
+    afficherStatutEnrichissementIa(false);
     // Referme entièrement le panneau d'aperçu : sans ça, le PDF du dossier qu'on vient d'enregistrer
     // restait affiché à côté d'un formulaire pourtant vide, prêt pour un nouvel import.
     document.getElementById('pdf-viewer').style.display = 'none';
     document.getElementById('pdf-viewer-title').textContent = 'Aperçu du compromis';
     document.getElementById('pdf-pages-container').innerHTML = '';
     document.getElementById('nouveau-intro').style.display = 'flex';
+    reinitialiserRecherchePdf();
     pdfActuel = null;
     pdfDernierePageUtile = 1;
     frontieresPagesActuelles = null;
@@ -2165,8 +2500,12 @@
       historique: [{ date: new Date().toISOString(), texte: 'Dossier créé' }]
     };
 
+    const cree = await sauvegarderNouveauDossier(dossier);
+    if (!cree) {
+      afficherToast("Impossible d'enregistrer le dossier — vérifiez la connexion au serveur intranet.", 'OK', null);
+      return;
+    }
     dossiers.push(dossier);
-    await sauvegarder();
     reinitialiserFormulaire();
     document.getElementById('panel').open = false;
     definirOnglet('suivi');
@@ -2220,7 +2559,6 @@
     if (action) action();
   });
 
-  let dernierSupprime = null;
   let dernierSupprimeTimeout = null;
 
   function afficherToast(message, texteBouton, onUndo) {
@@ -2244,15 +2582,19 @@
     demanderConfirmation(`Supprimer « ${nom} » du registre ?`, async () => {
       const index = dossiers.findIndex(x => x.id === id);
       if (index === -1) return;
-      dernierSupprime = dossiers[index];
+      // Suppression douce côté serveur (voir supprimerDossierServeur) : la ligne reste en base,
+      // seulement marquée supprimée — "Annuler" la restaure sans avoir à la recréer de zéro.
+      const supprime = await supprimerDossierServeur(id);
+      if (!supprime) {
+        afficherToast('Suppression impossible — vérifiez la connexion au serveur.', 'OK', null);
+        return;
+      }
       dossiers = dossiers.filter(x => x.id !== id);
-      await sauvegarder();
       render();
       afficherToast(`Dossier « ${nom} » supprimé.`, 'Annuler', async () => {
-        if (dernierSupprime) {
-          dossiers.push(dernierSupprime);
-          dernierSupprime = null;
-          await sauvegarder();
+        const restaure = await restaurerDossierServeur(id);
+        if (restaure && d) {
+          dossiers.push(d);
           render();
         }
       });
@@ -2285,7 +2627,7 @@
     ).join('');
   }
 
-  function renderTab(type, label, iso, dossierId, page, confiance, autreIndex, offrePretRecue, offreBloc) {
+  function renderTab(type, label, iso, dossierId, page, confiance, autreIndex, offrePretRecue, offreBloc, sansPret) {
     // Les tabs Prêt / Acte / Vente d'un dossier enregistré sont recatégorisables au clic ;
     // les échéances "Autre" gardent leur libellé personnalisé (non concerné par ce sélecteur).
     // Redessiné sur retour de l'étude : le titre est maintenant un texte statique (coloré selon la
@@ -2358,10 +2700,17 @@
       : '';
 
     if (!iso) {
+      // "Achat comptant — sans prêt" plutôt que "Non renseigné" : ce dernier laissait croire à un
+      // oubli sur un dossier où cette échéance ne s'applique tout simplement pas (sansPret vrai,
+      // qu'il vienne de la création ou d'une suppression de date après coup — voir
+      // supprimerDateEcheance). Le crayon reste affiché : si un prêt finit par exister malgré tout,
+      // saisir une date ici doit rester possible (voir validerEditionDate, qui repasse alors
+      // sansPret à false).
+      const texteVide = (type === 'pret' && sansPret) ? 'Achat comptant — sans prêt' : 'Non renseigné';
       return `<div class="tab ${type}">
         ${croixSuppression}
         ${enTete}
-        <span class="tab-date-affichage" id="${idBase}-aff"><div class="tab-date">Non renseigné</div>${crayonDate}${badgeConfiance}</span>
+        <span class="tab-date-affichage" id="${idBase}-aff"><div class="tab-date">${texteVide}</div>${crayonDate}${badgeConfiance}</span>
         ${editionDate}
         ${offreBloc || ''}
       </div>`;
@@ -2421,7 +2770,7 @@
     d.confiance[ancienType] = tempC;
 
     ajouterHistorique(d, `« ${LIBELLES_CATEGORIE[ancienType]} » recatégorisée en « ${LIBELLES_CATEGORIE[nouveauType]} »`);
-    sauvegarder();
+    sauvegarder(d);
     render();
   }
 
@@ -2441,7 +2790,7 @@
     // (ex. etatDate en quittant la copropriété) restent en mémoire mais ne s'affichent plus,
     // inoffensif si l'étude revient un jour au type précédent.
     d.typeVente = valeur;
-    sauvegarder();
+    sauvegarder(d);
     render();
   }
 
@@ -2451,7 +2800,7 @@
     const libelle = (v) => v === 'participant' ? 'participant' : 'instrumentaire';
     ajouterHistorique(d, `Rôle de l'étude modifié : ${libelle(d.roleNotaire)} → ${libelle(valeur)}`);
     d.roleNotaire = valeur;
-    sauvegarder();
+    sauvegarder(d);
     render();
   }
 
@@ -2462,7 +2811,7 @@
     if (!d || (d.responsable || '') === valeur) return;
     ajouterHistorique(d, `Responsable modifié : ${d.responsable || '— à définir —'} → ${valeur || '— à définir —'}`);
     d.responsable = valeur;
-    sauvegarder();
+    sauvegarder(d);
     render();
   }
 
@@ -2477,7 +2826,7 @@
     if (nouvelle === (d.adresseBien || '')) return;
     ajouterHistorique(d, `Adresse du bien modifiée`);
     d.adresseBien = nouvelle;
-    sauvegarder();
+    sauvegarder(d);
     render();
   }
 
@@ -2490,7 +2839,7 @@
     if (normalise === (d.prixVente || null)) { render(); return; }
     ajouterHistorique(d, `Prix de vente modifié : ${d.prixVente ? formaterPrix(d.prixVente) : '—'} → ${normalise ? formaterPrix(normalise) : '—'}`);
     d.prixVente = normalise;
-    sauvegarder();
+    sauvegarder(d);
     render();
   }
 
@@ -2515,7 +2864,7 @@
     if (!d) return;
     d.archive = archive;
     ajouterHistorique(d, archive ? 'Dossier archivé' : 'Dossier désarchivé');
-    sauvegarder();
+    sauvegarder(d);
     render();
   }
 
@@ -2838,15 +3187,21 @@
     document.getElementById('onglet-nouveau').style.display = nom === 'nouveau' ? '' : 'none';
     document.getElementById('onglet-suivi').style.display = nom === 'suivi' ? '' : 'none';
     document.getElementById('onglet-calculateur').style.display = nom === 'calculateur' ? '' : 'none';
+    document.getElementById('onglet-analyse-ia').style.display = nom === 'analyse-ia' ? '' : 'none';
     document.getElementById('tab-dashboard').setAttribute('aria-selected', String(nom === 'dashboard'));
     document.getElementById('tab-nouveau').setAttribute('aria-selected', String(nom === 'nouveau'));
     document.getElementById('tab-suivi').setAttribute('aria-selected', String(nom === 'suivi'));
     document.getElementById('tab-calculateur').setAttribute('aria-selected', String(nom === 'calculateur'));
+    document.getElementById('tab-analyse-ia').setAttribute('aria-selected', String(nom === 'analyse-ia'));
     document.getElementById('tab-dashboard').classList.toggle('actif', nom === 'dashboard');
     document.getElementById('tab-nouveau').classList.toggle('actif', nom === 'nouveau');
     document.getElementById('tab-suivi').classList.toggle('actif', nom === 'suivi');
     document.getElementById('tab-calculateur').classList.toggle('actif', nom === 'calculateur');
+    document.getElementById('tab-analyse-ia').classList.toggle('actif', nom === 'analyse-ia');
     if (nom === 'suivi' || nom === 'dashboard') render();
+    // Vérifiée à chaque ouverture (appel léger) plutôt qu'une fois pour toutes : Ollama a pu être
+    // installé/démarré/arrêté sur le serveur depuis la dernière visite de cet onglet.
+    if (nom === 'analyse-ia') verifierDisponibiliteAnalyseIa();
   }
 
   // Détermine, parmi les échéances d'un dossier, la plus proche à afficher en un coup d'œil dans
@@ -2953,33 +3308,29 @@
   // soixantaine de dossiers actifs, cliquer sur chacun est fastidieux : ce bandeau permet de tous
   // les reconfirmer en un seul clic plutôt qu'un par dossier.
   // Message du bandeau (et de la popup de démarrage, voir plus bas) : décrit ce qu'il y a à
-  // reconfirmer, dossiers locaux et/ou registre partagé, sans jamais désigner l'un si seul l'autre
-  // est concerné.
-  function messageAccesAReconfirmer(nbDossiers, partageAConfirmer) {
-    const morceaux = [];
-    if (nbDossiers > 0) morceaux.push(`${nbDossiers} dossier${nbDossiers > 1 ? 's' : ''} local${nbDossiers > 1 ? 'aux' : ''} relié${nbDossiers > 1 ? 's' : ''}`);
-    if (partageAConfirmer) morceaux.push('le registre partagé');
-    return `${icone('key')} L'accès à ${morceaux.join(' et à ')} doit être reconfirmé (redemandé par le navigateur à chaque redémarrage).`;
+  // reconfirmer. Ne concerne plus que les dossiers locaux depuis le passage au serveur intranet
+  // (le registre lui-même n'a plus besoin de cette reconfirmation, voir CLAUDE.md).
+  function messageAccesAReconfirmer(nbDossiers) {
+    return `${icone('key')} L'accès à ${nbDossiers} dossier${nbDossiers > 1 ? 's' : ''} local${nbDossiers > 1 ? 'aux' : ''} relié${nbDossiers > 1 ? 's' : ''} doit être reconfirmé (redemandé par le navigateur à chaque redémarrage).`;
   }
 
   function renderAlerteAcces(dossiersActifs) {
     const bloc = document.getElementById('alerte-acces');
     if (!bloc) return;
     const nb = dossiersActifs.filter(d => d.accesAReconfirmer).length;
-    const partageAConfirmer = registrePartageLie && registrePartageAccesAReconfirmer;
-    if (nb === 0 && !partageAConfirmer) { bloc.style.display = 'none'; return; }
+    if (nb === 0) { bloc.style.display = 'none'; return; }
     bloc.style.display = 'flex';
     bloc.innerHTML = `
-      <span>${messageAccesAReconfirmer(nb, partageAConfirmer)}</span>
+      <span>${messageAccesAReconfirmer(nb)}</span>
       <button type="button" class="toolbar-btn" onclick="reconfirmerTousLesAcces()">Reconfirmer tous les accès</button>
     `;
   }
 
-  // Un seul clic déclenche une demande de permission par dossier concerné (et, le cas échéant, par
-  // le registre partagé), à la suite : Chrome autorise plusieurs appels de ce type tant qu'ils
-  // restent proches du geste utilisateur d'origine (contrairement à des API à usage unique comme
-  // requestFullscreen). Si l'activation expire avant la fin (portefeuille très volumineux), les
-  // dossiers restants gardent leur bouton individuel.
+  // Un seul clic déclenche une demande de permission par dossier concerné, à la suite : Chrome
+  // autorise plusieurs appels de ce type tant qu'ils restent proches du geste utilisateur
+  // d'origine (contrairement à des API à usage unique comme requestFullscreen). Si l'activation
+  // expire avant la fin (portefeuille très volumineux), les dossiers restants gardent leur
+  // bouton individuel.
   //
   // Bug corrigé : signalé par l'étude, le clic redemandait malgré tout l'accès "dossier par
   // dossier" au lieu d'un seul geste pour tous. Cause réelle : la version précédente demandait la
@@ -3003,31 +3354,23 @@
         idsAccordes.push(d.id);
       }
     }
-    const partageHandle = (registrePartageLie && registrePartageAccesAReconfirmer)
-      ? await obtenirHandlePartage(true) : null;
     render();
 
     for (const id of idsAccordes) {
       await verifierDossierLocal(id, false);
     }
-    if (partageHandle) {
-      await lireRegistrePartage(false);
-      majStatutPartage();
-    }
     render();
   }
 
-  // Popup de démarrage : appelée une fois que charger()/revérifierDossiersLiesAuDemarrage()/
-  // tenterReconnexionPartage() ont fini (voir tout en bas du fichier), donc une fois qu'on sait
-  // réellement si un accès a été perdu — pas de popup "au hasard" si tout est encore valide.
+  // Popup de démarrage : appelée une fois que demarrerApplication() sait réellement si un accès a
+  // été perdu — pas de popup "au hasard" si tout est encore valide.
   function afficherPopupAccesSiNecessaire() {
     const nb = dossiers.filter(d => !d.archive && d.accesAReconfirmer).length;
-    const partageAConfirmer = registrePartageLie && registrePartageAccesAReconfirmer;
-    if (nb === 0 && !partageAConfirmer) return;
+    if (nb === 0) return;
     const el = document.getElementById('popup-acces-message');
     const overlay = document.getElementById('popup-acces-overlay');
     if (!el || !overlay) return;
-    el.innerHTML = messageAccesAReconfirmer(nb, partageAConfirmer);
+    el.innerHTML = messageAccesAReconfirmer(nb);
     overlay.style.display = 'flex';
   }
 
@@ -3281,7 +3624,14 @@
         <div class="pieces-liste">
           ${checklist.map(p => {
             const s = libellePiece(pieces[p.cle] || 'inconnu');
-            const boutonSuppr = `<button type="button" class="piece-suppr" onclick="${p.personnalisee ? `supprimerPiecePersonnalisee('${d.id}', '${p.cle}')` : `retirerPieceStandard('${d.id}', '${p.cle}', '${escapeAttr(p.label)}')`}" title="Retirer cette pièce de la checklist de ce dossier" aria-label="Retirer cette pièce">${icone('x')}</button>`;
+            const boutonSuppr = `<button type="button" class="piece-suppr" onclick="${p.personnalisee ? `supprimerPiecePersonnalisee('${d.id}', '${p.cle}')` : `retirerPieceStandard('${d.id}', '${p.cle}', '${escapeOnclickArg(p.label)}')`}" title="Retirer cette pièce de la checklist de ce dossier" aria-label="Retirer cette pièce">${icone('x')}</button>`;
+            // Uniquement pour une pièce STANDARD reçue (motifNom) : permet de revenir en arrière
+            // après une correspondance trouvée à tort ou un fichier renommé depuis — voir
+            // reinitialiserStatutPieceStandard(). Une pièce personnalisée a déjà son propre cycle
+            // de statut au clic sur l'icône, pas besoin de ce bouton supplémentaire pour elle.
+            const boutonReinit = (!p.personnalisee && (pieces[p.cle] || 'inconnu') === 'recue')
+              ? `<button type="button" class="piece-reinit" onclick="reinitialiserStatutPieceStandard('${d.id}', '${p.cle}', '${escapeOnclickArg(p.label)}')" title="Réinitialiser (fichier renommé, ou mauvaise correspondance)" aria-label="Réinitialiser le statut de cette pièce">${icone('rotate-ccw')}</button>`
+              : '';
             let contenu;
             if (p.personnalisee) {
               // Aucun motifNom (nom libre saisi par l'étude, pas de détection fiable possible) :
@@ -3310,7 +3660,7 @@
                 : s.titre;
               contenu = `<span class="piece-label" title="${escapeAttr(titre)}"><span class="piece-icone">${s.texte}</span>${escapeHtml(p.label)}</span>`;
             }
-            return `<span class="piece-item ${s.cls}">${contenu}${boutonSuppr}</span>`;
+            return `<span class="piece-item ${s.cls}">${contenu}${boutonReinit}${boutonSuppr}</span>`;
           }).join('')}
         </div>
         ${renderAjoutPiece(d)}
@@ -3367,7 +3717,7 @@
     const lignesResume = [];
     lignesResume.push(`${r.nbFichiersRencontres} fichier${r.nbFichiersRencontres > 1 ? 's' : ''} PDF rencontré${r.nbFichiersRencontres > 1 ? 's' : ''} (sous-dossiers compris), ${r.nbAnalyses} ouvert${r.nbAnalyses > 1 ? 's' : ''} pour lire son contenu.`);
     if (r.offre) {
-      lignesResume.push(`Offre de prêt : ${r.offre.trouvee ? `reconnue (${escapeHtml(r.offre.fichier)})` : 'non reconnue.'}`);
+      lignesResume.push(`Offre de prêt : ${r.offre.trouvee ? `reconnue (${escapeHtml(r.offre.fichier)})` : 'non reconnue par le nom de fichier — vérifiez que le fichier de l\'offre porte bien "offre de prêt" (ou une variante) dans son nom.'}`);
     }
     if (r.pieces) {
       lignesResume.push(`${r.pieces.trouvees}/${r.pieces.total} pièce(s) reconnue(s)${r.pieces.manquantes.length ? ' — manquante(s) : ' + r.pieces.manquantes.map(escapeHtml).join(', ') + '.' : '.'}`);
@@ -3413,7 +3763,7 @@
     d.piecesPersonnalisees.push({ cle, label });
     ajouterHistorique(d, `Pièce ajoutée à la checklist : « ${label} »`);
     ajoutPieceOuvert = false;
-    sauvegarder();
+    sauvegarder(d);
     render();
 
     // Recherche automatique dans le dossier local déjà relié, s'il y en a un — silencieuse si
@@ -3430,7 +3780,7 @@
             d.pieces = d.pieces || {};
             d.pieces[cle] = 'recue';
             await enregistrerHandle(CLE_HANDLE_PIECE(dossierId, cle), trouve);
-            sauvegarder();
+            sauvegarder(d);
             render();
             afficherToast(`Pièce « ${label} » trouvée : ${trouve.name}`, 'OK', null);
           }
@@ -3450,7 +3800,39 @@
       d.piecesPersonnalisees = d.piecesPersonnalisees.filter(p => p.cle !== cle);
       if (d.pieces) delete d.pieces[cle];
       ajouterHistorique(d, `Pièce retirée de la checklist : « ${item.label} »`);
-      sauvegarder();
+      sauvegarder(d);
+      render();
+    });
+  }
+
+  // Signalé par l'étude : une pièce standard reconnue automatiquement (motifNom) par erreur, ou
+  // dont le fichier a ensuite été renommé (le vrai document ne correspond alors plus au nom
+  // mémorisé), restait bloquée "reçue" indéfiniment — verifierDossierLocal() ne recherche que les
+  // pièces PAS déjà "recue" (voir `aChercher`), donc "Revérifier" n'y touchait plus jamais. Remet
+  // la pièce à "manquante" (repasse dans `aChercher` au prochain parcours) et efface le handle
+  // mémorisé du fichier trouvé à tort (même mécanisme que lierDossierLocal() qui l'efface déjà à
+  // chaque nouvelle liaison de dossier) — sans quoi le bouton "ouvrir le fichier trouvé"
+  // continuerait de rouvrir l'ancien fichier le temps qu'une nouvelle correspondance soit trouvée.
+  // Uniquement pour une pièce à motifNom (reconnue automatiquement) : une pièce personnalisée a
+  // déjà son propre cycle de statut au clic (basculerStatutPiecePersonnalisee), pas besoin de ce
+  // bouton pour elle.
+  function reinitialiserStatutPieceStandard(dossierId, cle, label) {
+    const d = dossiers.find(x => x.id === dossierId);
+    if (!d) return;
+    demanderConfirmation(`Réinitialiser le statut de « ${label} » ? Elle repassera à "manquante" et sera recherchée à nouveau au prochain "Revérifier". Ce nom de fichier ne sera plus jamais proposé pour cette pièce, sur aucun dossier.`, async () => {
+      d.pieces = d.pieces || {};
+      d.pieces[cle] = 'manquante';
+      // Apprentissage de l'erreur (voir exclureNomPourPiece ci-dessus) : avant d'effacer le handle,
+      // on retrouve le nom du fichier mal reconnu pour ne plus jamais le reproposer pour CETTE
+      // pièce, sur AUCUN dossier — portée choisie explicitement par l'étude, plus large qu'une
+      // simple exclusion propre à ce seul dossier.
+      const ancienHandle = await recupererHandle(CLE_HANDLE_PIECE(dossierId, cle));
+      if (ancienHandle && ancienHandle.name) {
+        exclureNomPourPiece(cle, normaliserNomPourMotif(ancienHandle.name));
+      }
+      await enregistrerHandle(CLE_HANDLE_PIECE(dossierId, cle), null);
+      ajouterHistorique(d, `Pièce réinitialisée (correspondance retirée) : « ${label} »`);
+      sauvegarder(d);
       render();
     });
   }
@@ -3466,7 +3848,44 @@
       d.piecesRetirees = d.piecesRetirees || [];
       if (!d.piecesRetirees.includes(cle)) d.piecesRetirees.push(cle);
       ajouterHistorique(d, `Pièce retirée de la checklist : « ${label} »`);
-      sauvegarder();
+      sauvegarder(d);
+      render();
+    });
+  }
+
+  // Retire un engagement du vendeur de l'analyse juridique d'un dossier DÉJÀ ENREGISTRÉ (voir
+  // renderEngagement/renderCarteDossier) — demandé par l'étude : jusqu'ici seuls les engagements
+  // ajoutés à la main pendant l'import étaient retirables (supprimerEngagementManuel), et
+  // seulement pendant l'import. Confirmation + entrée d'historique, comme retirerPieceStandard()
+  // ci-dessus : contrairement à un retrait pendant l'import (réversible en réimportant le PDF),
+  // c'est ici une modification d'un dossier déjà sauvegardé.
+  function supprimerEngagementDossier(dossierId, index) {
+    const d = dossiers.find(x => x.id === dossierId);
+    if (!d || !d.analyseJuridique || !d.analyseJuridique.engagements[index]) return;
+    const e = d.analyseJuridique.engagements[index];
+    const phrase = typeof e === 'string' ? e : e.phrase;
+    demanderConfirmation('Retirer cet engagement du vendeur de l’analyse juridique ?', () => {
+      d.analyseJuridique.engagements.splice(index, 1);
+      ajouterHistorique(d, `Engagement du vendeur retiré de l'analyse : « ${phrase.slice(0, 80)} »`);
+      sauvegarder(d);
+      render();
+    });
+  }
+
+  // Pendant du précédent pour un document identifié (voir renderDocBadge) — nouvelle capacité,
+  // rien n'était retirable de cette liste jusqu'ici, ni à l'import ni sur une fiche enregistrée.
+  // Volontairement découplé de la checklist de pièces du dossier (d.piecesEngagementsDetectees) :
+  // ce n'est qu'une liste d'affichage de l'analyse, pas la checklist elle-même, qui a déjà son
+  // propre mécanisme de retrait (retirerPieceStandard()/croix sur .piece-item).
+  function supprimerDocumentDossier(dossierId, index) {
+    const d = dossiers.find(x => x.id === dossierId);
+    if (!d || !d.analyseJuridique || !d.analyseJuridique.documents[index]) return;
+    const doc = d.analyseJuridique.documents[index];
+    const label = typeof doc === 'string' ? doc : doc.label;
+    demanderConfirmation(`Retirer « ${label} » de la liste des documents identifiés ?`, () => {
+      d.analyseJuridique.documents.splice(index, 1);
+      ajouterHistorique(d, `Document retiré de l'analyse juridique : « ${label} »`);
+      sauvegarder(d);
       render();
     });
   }
@@ -3481,7 +3900,7 @@
     d.pieces = d.pieces || {};
     const actuel = d.pieces[cle] || 'inconnu';
     d.pieces[cle] = actuel === 'inconnu' ? 'manquante' : actuel === 'manquante' ? 'recue' : 'inconnu';
-    sauvegarder();
+    sauvegarder(d);
     render();
   }
 
@@ -3614,7 +4033,7 @@
         </div>
         <div class="dossier-body">
         <div class="tabs">
-          ${renderTab('pret', 'Obtention du prêt', d.pret, d.id, d.pretPage, confiance.pret, null, d.offrePretStatut === 'recue', offreBloc)}
+          ${renderTab('pret', 'Obtention du prêt', d.pret, d.id, d.pretPage, confiance.pret, null, d.offrePretStatut === 'recue', offreBloc, d.sansPret)}
           ${renderTab('acte', 'Signature de l\u2019acte', d.acte, d.id, d.actePage, confiance.acte)}
           ${d.ventebien ? renderTab('ventebien', 'Vente préalable', d.ventebien, d.id, d.ventebienPage, confiance.ventebien) : ''}
           ${(d.autres || []).map((a, i) => renderTab('autre', escapeHtml(a.label), a.date, d.id, a.page, null, i)).join('')}
@@ -3634,14 +4053,14 @@
             ${analyse.engagements.length > 0 ? `
               <div class="analyse-section">
                 <div class="analyse-sous-titre">Engagements du vendeur <span class="analyse-compteur">${analyse.engagements.length}</span></div>
-                ${analyse.engagements.map(e => renderEngagement(e)).join('')}
+                ${analyse.engagements.map((e, i) => renderEngagement(e, i, d.id)).join('')}
               </div>
             ` : ''}
             <div class="analyse-section">
               <div class="analyse-sous-titre">Documents et pièces identifiés <span class="analyse-compteur">${analyse.documents.length}</span></div>
               <div class="analyse-documents-liste">
                 ${analyse.documents.length > 0
-                  ? analyse.documents.map(doc => renderDocBadge(doc)).join('')
+                  ? analyse.documents.map((doc, i) => renderDocBadge(doc, i, d.id)).join('')
                   : '<span class="analyse-vide">Aucun document type reconnu automatiquement.</span>'}
               </div>
             </div>
@@ -3673,9 +4092,43 @@
   }
 
   // Échappement dédié aux attributs HTML (échappe aussi les guillemets, contrairement à
-  // escapeHtml) : nécessaire pour un champ value="" rempli avec du texte modifiable par l'utilisateur.
+  // escapeHtml) : pour un attribut HTML ORDINAIRE (title="...", value="...", aria-label="...") —
+  // pas pour un argument JS à l'intérieur d'un gestionnaire onclick="...", voir escapeOnclickArg()
+  // juste en dessous et l'historique du bug qui explique pourquoi les deux ne sont PAS
+  // interchangeables malgré des symptômes très proches.
   function escapeAttr(s) {
     return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/'/g, '&#39;');
+  }
+
+  // Échappement dédié à un argument JS interpolé DANS un attribut onclick="..." délimité par des
+  // apostrophes (ex. onclick="fonction('id', 'cle', '${escapeOnclickArg(p.label)}')").
+  // Bug corrigé, en deux temps : un premier correctif (voir l'historique git) avait fait
+  // remplacer l'apostrophe par l'entité HTML &#39; dans escapeAttr() — apparemment correct à
+  // toutes les vérifications faites à l'époque (relecture du code, rendu en bac à sable, deux
+  // binaires .exe publiés inspectés, et même la réponse réseau de script.js relue dans le
+  // navigateur) et pourtant TOUJOURS sans effet en conditions réelles sur "Certificat
+  // d'urbanisme"/"Certificat d'alignement" (aucune popup de confirmation au clic sur la croix).
+  // Cause réelle, jamais identifiée par ces vérifications parce qu'aucune d'elles ne rejouait le
+  // parsing du navigateur : un attribut onclick="..." est décodé EN DEUX TEMPS — d'abord comme du
+  // HTML (les entités comme &#39; sont résolues en leur caractère, ici ' à nouveau), PUIS le texte
+  // ainsi décodé est exécuté comme du JS. &#39; redevient donc une apostrophe BRUTE avant même que
+  // le moteur JS ne voie l'attribut — elle referme le même argument JS qu'avant ce premier
+  // correctif, exactement le même bug, juste masqué à la lecture du code source (qui ne montre
+  // que le texte AVANT ce second décodage HTML implicite). La seule échappement qui survit aux
+  // DEUX passes est l'échappement JS lui-même (\' — un antislash n'a aucun sens spécial en HTML,
+  // il traverse le premier décodage intact, et forme ensuite une séquence d'échappement JS valide
+  // pour le second). `escapeAttr()` reste correcte telle quelle pour un attribut HTML ORDINAIRE
+  // (title, value...) qui n'est jamais réinterprété comme du JS — seul ce cas précis (un argument
+  // JS DANS un gestionnaire onclick) a besoin de cette échappement différente.
+  function escapeOnclickArg(s) {
+    return String(s)
+      .replace(/\\/g, '\\\\')
+      .replace(/'/g, "\\'")
       .replace(/&/g, '&amp;')
       .replace(/"/g, '&quot;')
       .replace(/</g, '&lt;')
@@ -3691,7 +4144,7 @@
     if (nom && nom !== d.nom) {
       ajouterHistorique(d, `Nom modifié : « ${d.nom} » → « ${nom} »`);
       d.nom = nom;
-      sauvegarder();
+      sauvegarder(d);
     }
     render();
   }
@@ -3761,14 +4214,20 @@
       if (nouvelleDate !== (item.date || '')) {
         ajouterHistorique(d, `Date « ${item.label} » modifiée : ${item.date ? formatDateFr(item.date) : 'non renseignée'} → ${nouvelleDate ? formatDateFr(nouvelleDate) : 'non renseignée'}`);
         item.date = nouvelleDate || null;
-        sauvegarder();
+        sauvegarder(d);
       }
     } else if (nouvelleDate !== (d[cle] || '')) {
       ajouterHistorique(d, `« ${LIBELLES_CATEGORIE[cle]} » modifiée : ${d[cle] ? formatDateFr(d[cle]) : 'non renseignée'} → ${nouvelleDate ? formatDateFr(nouvelleDate) : 'non renseignée'}`);
       d[cle] = nouvelleDate || '';
       d.confiance = d.confiance || {};
       d.confiance[cle] = 'manuel'; // corrigée à la main : à revérifier comme toute saisie manuelle
-      sauvegarder();
+      // Symétrique de supprimerDateEcheance (qui passe sansPret à true en vidant cette date) : si
+      // une date de prêt est saisie sur un dossier jusque-là "sans prêt", le suivi de l'offre doit
+      // reprendre — sans ce basculement, d.sansPret restait bloqué à true indéfiniment, malgré une
+      // vraie date désormais renseignée (verifierDossierLocal()/la checklist continuaient d'ignorer
+      // le prêt).
+      if (cle === 'pret') d.sansPret = !nouvelleDate;
+      sauvegarder(d);
     }
     render();
   }
@@ -3801,7 +4260,7 @@
     d.autres.push({ label, date: iso, page: null });
     ajouterHistorique(d, `Échéance « ${label} » ajoutée (${formatDateFr(iso)})`);
     ajoutEcheanceOuvert = false;
-    sauvegarder();
+    sauvegarder(d);
     render();
   }
 
@@ -3817,7 +4276,7 @@
     demanderConfirmation(`Supprimer l'échéance « ${item.label || 'Autre échéance'} » ?`, () => {
       d.autres.splice(index, 1);
       ajouterHistorique(d, `Échéance « ${item.label || 'Autre échéance'} » supprimée`);
-      sauvegarder();
+      sauvegarder(d);
       render();
     });
   }
@@ -3841,7 +4300,7 @@
       // qui n'est plus suivie sur ce dossier (verifierDossierLocal() teste déjà `!d.sansPret`).
       if (type === 'pret') d.sansPret = true;
       ajouterHistorique(d, `« ${LIBELLES_CATEGORIE[type]} » supprimée`);
-      sauvegarder();
+      sauvegarder(d);
       render();
     });
   }
@@ -3950,54 +4409,257 @@
     );
   }
 
-  // ---- persistence ----
+  // ---- persistence (serveur intranet) ----
+  //
+  // Remplace l'ancien mécanisme localStorage + registre partagé JSON (voir l'historique dans
+  // CLAUDE.md) : le serveur (server/, branche claude/serveur-intranet) est désormais la SEULE
+  // source de vérité, avec une authentification par mot de passe partagé unique. Plus de repli
+  // local : sans serveur joignable, l'outil ne peut pas fonctionner (décision explicite, voir le
+  // plan de ce chantier).
 
-  // window.storage n'existe QUE dans l'aperçu Claude.ai : une fois le fichier ouvert directement
-  // dans le navigateur (nécessaire pour l'accès au dossier local), cette API disparaît et toute
-  // sauvegarde échouait silencieusement — d'où la perte des données à chaque fermeture. On se
-  // rabat sur localStorage, disponible dans un vrai navigateur, y compris en fichier local.
-  async function sauvegarderLocalUniquement() {
-    const contenu = JSON.stringify(dossiers);
+  const CLE_AUTH_TOKEN = 'claire-token';
+  let authToken = null;
+  // Curseur de synchro (epoch ms renvoyé par le serveur) : le polling ne redemande que ce qui a
+  // changé depuis cette valeur, jamais une horloge cliente (voir GET /api/dossiers?since=).
+  let curseurSynchro = 0;
+
+  function chargerJetonStocke() {
+    try { return localStorage.getItem(CLE_AUTH_TOKEN) || null; } catch (e) { return null; }
+  }
+
+  function stockerJeton(jeton) {
+    authToken = jeton;
     try {
-      if (window.storage) {
-        await window.storage.set(STORAGE_KEY, contenu, false);
+      if (jeton) localStorage.setItem(CLE_AUTH_TOKEN, jeton);
+      else localStorage.removeItem(CLE_AUTH_TOKEN);
+    } catch (e) { /* jeton reperdu au rechargement si le stockage échoue — sans autre conséquence */ }
+  }
+
+  // Point de passage unique pour tout appel à l'API du serveur : ajoute le jeton de session, et
+  // réaffiche l'écran de connexion dès qu'une réponse 401 signale une session expirée/invalide
+  // (mot de passe changé, jeton périmé après 12h — voir server/src/auth.js).
+  async function fetchAvecAuth(url, options = {}) {
+    const reponse = await fetch(url, {
+      ...options,
+      headers: { ...(options.headers || {}), authorization: `Bearer ${authToken}` }
+    });
+    if (reponse.status === 401) {
+      stockerJeton(null);
+      arreterPolling();
+      afficherEcranConnexion();
+      throw new Error('Session expirée — reconnexion nécessaire.');
+    }
+    return reponse;
+  }
+
+  function afficherEcranConnexion(messageErreur) {
+    const overlay = document.getElementById('connexion-overlay');
+    const erreurEl = document.getElementById('connexion-erreur');
+    if (erreurEl) {
+      erreurEl.textContent = messageErreur || '';
+      erreurEl.style.display = messageErreur ? 'block' : 'none';
+    }
+    if (overlay) overlay.style.display = 'flex';
+    const input = document.getElementById('connexion-mot-de-passe');
+    if (input) { input.value = ''; setTimeout(() => input.focus(), 0); }
+  }
+
+  function fermerEcranConnexion() {
+    const overlay = document.getElementById('connexion-overlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+
+  async function tenterConnexion() {
+    const input = document.getElementById('connexion-mot-de-passe');
+    const motDePasse = input ? input.value : '';
+    if (!motDePasse) return;
+    const btn = document.getElementById('connexion-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Connexion…'; }
+    try {
+      const reponse = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ motDePasse })
+      });
+      if (!reponse.ok) {
+        afficherEcranConnexion('Mot de passe incorrect.');
         return;
       }
+      const { jeton } = await reponse.json();
+      stockerJeton(jeton);
+      fermerEcranConnexion();
+      await demarrerApplication();
     } catch (e) {
-      console.warn('window.storage indisponible, repli sur localStorage.', e);
-    }
-    try {
-      localStorage.setItem(STORAGE_KEY, contenu);
-    } catch (e) {
-      console.warn('Sauvegarde locale impossible : les données resteront en mémoire pour cette session.', e);
+      console.error('Connexion au serveur impossible', e);
+      afficherEcranConnexion("Serveur injoignable — vérifiez la connexion au réseau de l'étude.");
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Se connecter'; }
     }
   }
 
-  async function sauvegarder() {
-    await sauvegarderLocalUniquement();
-    if (registrePartageLie) await ecrireRegistrePartage();
-  }
-
+  // Premier chargement : `since=0` renvoie tous les dossiers actifs (voir server/src/routes/
+  // dossiers.js) — jamais de tombstone à ce stade puisqu'on part d'un registre vide côté client.
   async function charger() {
-    let brut = null;
-    try {
-      if (window.storage) {
-        const res = await window.storage.get(STORAGE_KEY, false);
-        if (res && res.value) brut = JSON.parse(res.value);
-      }
-    } catch (e) { /* on tente le repli ci-dessous plutôt que d'abandonner */ }
-
-    if (brut === null) {
-      try {
-        const local = localStorage.getItem(STORAGE_KEY);
-        if (local) brut = JSON.parse(local);
-      } catch (e) { /* aucune donnée exploitable non plus ici */ }
-    }
-
-    // Un JSON valide mais mal formé (objet, chaîne…) casserait tout l'affichage : on ne retient
-    // que ce qui ressemble réellement à une liste de dossiers.
-    dossiers = Array.isArray(brut) ? brut.filter(d => d && typeof d === 'object' && d.id) : [];
+    const reponse = await fetchAvecAuth('/api/dossiers?since=0');
+    const { dossiers: recus, serverTime } = await reponse.json();
+    dossiers = recus
+      .filter(d => d && typeof d === 'object' && d.id && !d.deleted)
+      .map(({ updatedAt, ...d }) => d); // updatedAt est une métadonnée serveur, pas un champ du modèle
+    curseurSynchro = serverTime;
     render();
+  }
+
+  // Remplacement complet d'UN dossier déjà enregistré (PUT) — chaque site d'appel a déjà `d` en
+  // portée juste après l'avoir modifié, voir les ~25 call sites qui suivent dans ce fichier.
+  // N'échoue jamais bruyamment côté appelant (pas de throw) : ceux-ci font juste `sauvegarder(d);
+  // render();` sans awaiter ni intercepter d'erreur, comme au temps du localStorage — une panne
+  // réseau se retrouvera simplement rattrapée par le prochain PUT réussi (le brouillon en mémoire
+  // reste correct, seule la synchro serveur retarde).
+  async function sauvegarder(d) {
+    try {
+      const reponse = await fetchAvecAuth(`/api/dossiers/${encodeURIComponent(d.id)}`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(d)
+      });
+      if (reponse.ok) {
+        const sauvegarde = await reponse.json();
+        curseurSynchro = Math.max(curseurSynchro, sauvegarde.updatedAt || 0);
+      } else {
+        console.error('Sauvegarde refusée par le serveur', reponse.status);
+      }
+    } catch (e) {
+      console.error('Sauvegarde impossible (serveur injoignable ?)', e);
+    }
+  }
+
+  // Création (POST) — seule différence avec sauvegarder() : le serveur doit savoir qu'il s'agit
+  // d'un nouveau dossier, pas d'un remplacement. Renvoie true/false pour que l'appelant (
+  // ajouterDossier(), importerDonnees()) sache s'il doit vraiment ajouter le dossier à `dossiers`
+  // ou prévenir l'utilisateur d'un échec (id en double, serveur injoignable...).
+  async function sauvegarderNouveauDossier(d) {
+    try {
+      const reponse = await fetchAvecAuth('/api/dossiers', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(d)
+      });
+      if (reponse.ok) {
+        const sauvegarde = await reponse.json();
+        curseurSynchro = Math.max(curseurSynchro, sauvegarde.updatedAt || 0);
+        return true;
+      }
+      console.error('Création refusée par le serveur', reponse.status);
+      return false;
+    } catch (e) {
+      console.error('Création impossible (serveur injoignable ?)', e);
+      return false;
+    }
+  }
+
+  async function supprimerDossierServeur(id) {
+    try {
+      const reponse = await fetchAvecAuth(`/api/dossiers/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      return reponse.ok;
+    } catch (e) {
+      console.error('Suppression impossible (serveur injoignable ?)', e);
+      return false;
+    }
+  }
+
+  async function restaurerDossierServeur(id) {
+    try {
+      const reponse = await fetchAvecAuth(`/api/dossiers/${encodeURIComponent(id)}/undelete`, { method: 'POST' });
+      return reponse.ok;
+    } catch (e) {
+      console.error('Restauration impossible (serveur injoignable ?)', e);
+      return false;
+    }
+  }
+
+  // ---- synchro par polling (voir le plan : WebSocket écarté, 3 utilisateurs sur un LAN ne
+  // justifient pas la complexité d'une connexion persistante) ----
+
+  const INTERVALLE_POLLING_MS = 7000;
+  let intervallePolling = null;
+
+  function demarrerPolling() {
+    arreterPolling();
+    intervallePolling = setInterval(sondagePeriodique, INTERVALLE_POLLING_MS);
+  }
+
+  function arreterPolling() {
+    if (intervallePolling) { clearInterval(intervallePolling); intervallePolling = null; }
+  }
+
+  // Pas la peine de solliciter le serveur pendant qu'un onglet est masqué/minimisé — reprend
+  // aussitôt (avec un sondage immédiat, pas d'attente du prochain tick) dès qu'il redevient visible.
+  function gererVisibilitePolling() {
+    if (document.hidden) {
+      arreterPolling();
+    } else if (authToken) {
+      sondagePeriodique();
+      demarrerPolling();
+    }
+  }
+  document.addEventListener('visibilitychange', gererVisibilitePolling);
+
+  function appliquerChangementsDistants(changements) {
+    for (const item of changements) {
+      const index = dossiers.findIndex(x => x.id === item.id);
+      if (item.deleted) {
+        if (index !== -1) dossiers.splice(index, 1);
+        continue;
+      }
+      const { updatedAt, ...d } = item;
+      if (index !== -1) dossiers[index] = d; else dossiers.push(d);
+    }
+  }
+
+  // Reflète dans la sidebar si le dernier sondage a bien atteint le serveur — sans ça, un serveur
+  // arrêté/injoignable (câble débranché, poste hébergeur éteint...) ne se voyait qu'indirectement,
+  // en constatant qu'un dossier créé par un collègue n'apparaissait jamais. `statutServeurConnecte`
+  // évite d'écrire dans le DOM à chaque sondage (toutes les 7s) quand rien n'a changé.
+  let statutServeurConnecte = true;
+  function majStatutServeur(connecte) {
+    if (connecte === statutServeurConnecte) return;
+    statutServeurConnecte = connecte;
+    const badge = document.getElementById('statut-serveur-badge');
+    if (!badge) return;
+    badge.className = 'dot-label ' + (connecte ? 'dl-success' : 'dl-urgent');
+    badge.innerHTML = '<span class="dot"></span>' + (connecte ? 'Connecté' : 'Hors ligne');
+    badge.title = connecte
+      ? ''
+      : 'Le serveur ne répond plus — vérifiez qu\'il tourne toujours sur le poste hébergeur. Les modifications faites ici seront synchronisées dès que la connexion revient.';
+  }
+
+  async function sondagePeriodique() {
+    try {
+      const reponse = await fetchAvecAuth(`/api/dossiers?since=${curseurSynchro}`);
+      if (!reponse.ok) { majStatutServeur(false); return; }
+      const { dossiers: changements, serverTime } = await reponse.json();
+      if (changements.length > 0) {
+        appliquerChangementsDistants(changements);
+        render();
+      }
+      curseurSynchro = serverTime;
+      majStatutServeur(true);
+    } catch (e) {
+      // Une session expirée (401) est déjà gérée par fetchAvecAuth (jeton effacé, écran de
+      // connexion réaffiché, polling arrêté) — pas la peine d'afficher "Hors ligne" par-dessus,
+      // ce n'est pas un problème de connexion réseau. authToken redevient null dans ce cas
+      // précis : ne signaler l'indisponibilité que si ce n'est PAS la cause de cet échec.
+      if (authToken) majStatutServeur(false);
+    }
+  }
+
+  // Séquence complète une fois authentifié : dossiers, puis les vérifications déjà existantes
+  // (dossiers locaux liés, popup d'accès à reconfirmer), puis démarrage du polling.
+  async function demarrerApplication() {
+    await charger();
+    await revérifierDossiersLiesAuDemarrage();
+    afficherPopupAccesSiNecessaire();
+    demarrerPolling();
   }
 
   // ---- apprentissage des corrections (dates) ----
@@ -4078,13 +4740,23 @@
   }
 
   // Retrouve, parmi les corrections déjà apprises, la plus proche du contexte donné — ou null si
-  // aucune ne dépasse le seuil de similarité.
-  function trouverCorrectionApprise(contexte) {
+  // aucune ne dépasse le seuil de similarité. `categorie` distingue les DEUX espaces de
+  // classification qui partagent ce même mécanisme (voir memoriserCorrection ci-dessous) : 'date'
+  // (type d'échéance pret/acte/ventebien/autre — usage d'origine) et 'engagement' (type
+  // d'obligation du vendeur entretien/travaux/document/autre — généralisation demandée par
+  // l'étude, voir CLAUDE.md "Apprentissage sur les clauses ajoutées manuellement"). Sans ce filtre,
+  // une clause de délai de prêt et une clause d'engagement d'entretien pourraient se confondre par
+  // pur hasard de vocabulaire commun et se substituer l'une à l'autre — deux espaces disjoints,
+  // jamais comparés entre eux. Une entrée mémorisée AVANT cette distinction (pas de champ
+  // `categorie`) est traitée comme 'date', son seul usage jusque-là.
+  function trouverCorrectionApprise(contexte, categorie) {
+    categorie = categorie || 'date';
     if (correctionsApprises.length === 0) return null;
     const tokens = tokeniserApprentissage(normaliserTexteApprentissage(contexte));
     let meilleure = null;
     let meilleurScore = SEUIL_SIMILARITE_APPRENTISSAGE;
     for (const c of correctionsApprises) {
+      if ((c.categorie || 'date') !== categorie) continue;
       const score = similariteJaccard(tokens, new Set(c.tokens));
       if (score >= meilleurScore) { meilleure = c; meilleurScore = score; }
     }
@@ -4092,13 +4764,16 @@
   }
 
   // Enregistre (ou renforce) la correction pour que la même clause-type soit reconnue à l'avenir.
-  // classification : 'pret' | 'acte' | 'ventebien' | 'autre'. libelle : uniquement pour 'autre'.
-  function memoriserCorrection(contexte, classification, libelle) {
+  // classification : selon `categorie` — 'pret'|'acte'|'ventebien'|'autre' pour 'date',
+  // 'entretien'|'travaux'|'document'|'autre' pour 'engagement'. libelle : uniquement pour une date
+  // classée 'autre' (le nom donné à l'échéance personnalisée).
+  function memoriserCorrection(contexte, classification, libelle, categorie) {
+    categorie = categorie || 'date';
     if (!contexte || contexte.length < 15) return; // trop court pour donner une empreinte fiable
     const tokens = [...tokeniserApprentissage(normaliserTexteApprentissage(contexte))];
     if (tokens.length < 3) return; // pas assez de matière pour comparer de façon fiable
 
-    const existante = trouverCorrectionApprise(contexte);
+    const existante = trouverCorrectionApprise(contexte, categorie);
     if (existante && existante.classification === classification) {
       existante.nbConfirmations = (existante.nbConfirmations || 1) + 1;
       existante.dateMaj = new Date().toISOString();
@@ -4107,6 +4782,7 @@
         id: (crypto.randomUUID ? crypto.randomUUID() : 'c-' + Date.now() + '-' + Math.random().toString(16).slice(2)),
         tokens,
         contexteExemple: contexte.slice(0, 200),
+        categorie,
         classification,
         libelle: libelle || null,
         nbConfirmations: 1,
@@ -4120,6 +4796,59 @@
       }
     }
     sauvegarderApprentissage();
+  }
+
+  // Apprentissage d'un document mal rattaché à une pièce de la checklist (voir
+  // reinitialiserStatutPieceStandard() ci-dessous) : un fichier reconnu à tort par son NOM
+  // (`motifNom`) pour une pièce donnée ne doit plus jamais matcher CETTE pièce, sur AUCUN dossier
+  // — demandé explicitement par l'étude ("permettre au système d'apprendre de son erreur"), qui a
+  // choisi la portée la plus large (une règle apprise globale) plutôt qu'une simple exclusion
+  // locale à ce seul dossier. Stocké séparément de `correctionsApprises` (mécanisme par similarité
+  // de texte, pas adapté ici : un nom de fichier n'est pas une clause à comparer par Jaccard, c'est
+  // une correspondance exacte qu'il faut simplement empêcher de se reproduire) — un objet
+  // `{ [cle]: [nomNormalisé, ...] }`, même stockage `window.storage`/`localStorage` que le reste de
+  // l'apprentissage.
+  const CLE_EXCLUSIONS_MOTIF_NOM = 'exclusions-motif-nom';
+  let exclusionsMotifNom = {};
+
+  async function sauvegarderExclusionsMotifNom() {
+    const contenu = JSON.stringify(exclusionsMotifNom);
+    try {
+      if (window.storage) { await window.storage.set(CLE_EXCLUSIONS_MOTIF_NOM, contenu, false); return; }
+    } catch (e) { console.warn('window.storage indisponible pour les exclusions de pièces, repli sur localStorage.', e); }
+    try { localStorage.setItem(CLE_EXCLUSIONS_MOTIF_NOM, contenu); } catch (e) { console.warn('Sauvegarde des exclusions de pièces impossible.', e); }
+  }
+
+  async function chargerExclusionsMotifNom() {
+    let brut = null;
+    try {
+      if (window.storage) {
+        const res = await window.storage.get(CLE_EXCLUSIONS_MOTIF_NOM, false);
+        if (res && res.value) brut = JSON.parse(res.value);
+      }
+    } catch (e) { /* on tente le repli ci-dessous */ }
+    if (brut === null) {
+      try {
+        const local = localStorage.getItem(CLE_EXCLUSIONS_MOTIF_NOM);
+        if (local) brut = JSON.parse(local);
+      } catch (e) { /* rien d'exploitable non plus ici */ }
+    }
+    exclusionsMotifNom = (brut && typeof brut === 'object' && !Array.isArray(brut)) ? brut : {};
+  }
+
+  // Un nom de fichier déjà normalisé (voir normaliserNomPourMotif) est-il exclu pour cette pièce ?
+  function estNomExcluPourPiece(cle, nomNormalise) {
+    const liste = exclusionsMotifNom[cle];
+    return Array.isArray(liste) && liste.includes(nomNormalise);
+  }
+
+  // Enregistre l'exclusion (idempotent : un même nom ne s'ajoute jamais deux fois pour la même
+  // pièce) et persiste immédiatement.
+  function exclureNomPourPiece(cle, nomNormalise) {
+    if (!nomNormalise) return;
+    if (!Array.isArray(exclusionsMotifNom[cle])) exclusionsMotifNom[cle] = [];
+    if (!exclusionsMotifNom[cle].includes(nomNormalise)) exclusionsMotifNom[cle].push(nomNormalise);
+    sauvegarderExclusionsMotifNom();
   }
 
   // ---- export / import (sauvegarde JSON complète du registre) ----
@@ -4236,10 +4965,20 @@
 
       const messageIgnores = ignores > 0 ? ` (${ignores} entrée${ignores > 1 ? 's' : ''} illisible${ignores > 1 ? 's' : ''} ignorée${ignores > 1 ? 's' : ''})` : '';
       demanderConfirmation(`Importer ${importes.length} dossier${importes.length > 1 ? 's' : ''} depuis « ${file.name} »${messageIgnores} ? Ils seront ajoutés à votre registre actuel.`, async () => {
-        dossiers = dossiers.concat(importes);
-        await sauvegarder();
+        // Import en masse : chaque dossier est créé individuellement (POST) sur le serveur — pas
+        // de route "bulk" en V1 (voir M3 pour l'import serveur dédié à la migration initiale,
+        // distinct de ce bouton "Importer (JSON)" manuel). Un id déjà présent côté serveur (import
+        // d'une sauvegarde déjà partiellement importée) est simplement compté comme refusé, sans
+        // bloquer les autres.
+        let reussis = 0;
+        for (const d of importes) {
+          const ok = await sauvegarderNouveauDossier(d);
+          if (ok) { dossiers.push(d); reussis++; }
+        }
         render();
-        afficherToast(`${importes.length} dossier${importes.length > 1 ? 's' : ''} importé${importes.length > 1 ? 's' : ''}.`, 'OK', null);
+        const echoues = importes.length - reussis;
+        const messageEchoues = echoues > 0 ? ` (${echoues} refusé${echoues > 1 ? 's' : ''} par le serveur, id déjà présent ?)` : '';
+        afficherToast(`${reussis} dossier${reussis > 1 ? 's' : ''} importé${reussis > 1 ? 's' : ''}${messageEchoues}.`, 'OK', null);
       });
       event.target.value = '';
     };
@@ -4483,7 +5222,10 @@
     // Pas de motif de contenu (voir le commentaire structurel ci-dessus) : "préemption" seul
     // apparaît quasi systématiquement dans le corps du compromis (clause sur les conséquences
     // d'un exercice du droit de préemption), sans rapport avec une vraie renonciation obtenue.
-    { cle: 'renonciationPreemption', label: 'Renonciation au droit de préemption', motifNom: /pr[ée]emption/i }
+    // "DPU" (Droit de Préemption Urbain) ajouté : nom de fichier réel de l'étude ("Renonciation au
+    // DPU"), sigle assez spécifique pour être accepté seul (même principe que TF/SPANC/ERP/CU —
+    // voir CLAUDE.md — pas un mot susceptible d'apparaître incidemment ailleurs dans ce contexte).
+    { cle: 'renonciationPreemption', label: 'Renonciation au droit de préemption', motifNom: /pr[ée]emption|\bDPU\b/i }
   ];
   var PIECES_AUTRES = [
     { cle: 'diagnosticsTechniques', label: 'Diagnostics techniques', motifNom: /diagnostics?|\bDDT\b/i },
@@ -4629,11 +5371,25 @@
     return [...standard, ...auto, ...perso];
   }
   // "Offre de crédit (immobilier)" est une formulation bancaire tout aussi courante que "offre de
-  // prêt" pour désigner le même document (signalé par l'étude : une offre réelle intitulée ainsi
-  // n'était pas détectée) — à ne pas retirer sans revérifier ce cas.
+  // prêt" pour désigner le même document — à ne pas retirer sans revérifier ce cas.
+  // Bug corrigé : ce motif servait jusqu'ici à reconnaître l'offre de prêt dans le CONTENU du PDF
+  // (verifierDossierLocal() ouvrait et lisait chaque fichier). Signalé par l'étude : trop d'erreurs
+  // en usage réel (polices embarquées mal encodées produisant un texte extrait illisible, ou à
+  // l'inverse un autre document mentionnant l'offre en passant sans être l'offre elle-même) — même
+  // classe de problème déjà résolue pour la checklist de pièces en abandonnant la lecture de
+  // contenu au profit du seul nom de fichier (voir CLAUDE.md, "TOUTES les pièces de la checklist
+  // sont désormais détectées uniquement par le NOM DU FICHIER"). Ce motif sert donc désormais
+  // exclusivement à tester le NOM DU FICHIER (normalisé — voir normaliserNomPourMotif), plus jamais
+  // son contenu : \s+ devient \s* pour couvrir aussi un nom concaténé sans séparateur
+  // ("OffreDePret.pdf" — la casse n'a pas d'importance, le motif est insensible à la casse), en plus
+  // des noms espacés ("Offre de prêt.pdf") ou à séparateurs underscore/tiret (déjà normalisés en
+  // espaces avant ce test). "Accord de prêt" ajouté, autre intitulé bancaire réel pour ce document.
+  // "Contrat de crédit"/"contrat de prêt" ajoutés ensuite, sur demande de l'étude : certains
+  // établissements nomment le document remis à l'emprunteur "contrat" plutôt que "offre", une fois
+  // signé/accepté (couvre aussi "Contrat de crédit immobilier.pdf" grâce au \s* déjà en place).
   // var (pas const) : exposée globalement comme les fonctions du fichier, pour rester testable
   // depuis tests/helpers/load-app.js sans dupliquer le motif dans les tests.
-  var OFFRE_PRET_RE = /offre\s+de\s+pr[êe]t|offre\s+pr[ée]alable\s+de\s+cr[ée]dit|offre\s+de\s+cr[ée]dit|offre\s+de\s+financement/i;
+  var OFFRE_PRET_RE = /offre\s*de\s*pr[êe]t|offre\s*pr[ée]alable\s*de\s*cr[ée]dit|offre\s*de\s*cr[ée]dit|offre\s*de\s*financement|accord\s*de\s*pr[êe]t|contrat\s*de\s*cr[ée]dit|contrat\s*de\s*pr[êe]t/i;
   let handlesEnMemoire = {}; // repli si IndexedDB est indisponible (contexte restreint)
 
   // Parcourt un dossier ET ses sous-dossiers à la recherche de fichiers PDF : les pièces d'un
@@ -4760,7 +5516,7 @@
       ajouterHistorique(d, etaitDejaLie
         ? 'Dossier local relié modifié (nouveau dossier choisi)'
         : 'Dossier local relié pour la vérification automatique de l\u2019offre de prêt');
-      await sauvegarder();
+      await sauvegarder(d);
       render();
       await verifierDossierLocal(id, true);
     } catch (e) {
@@ -4899,12 +5655,43 @@
         if ((!chercherOffre || offreTrouvee) && aChercher.size === 0) break; // tout est déjà résolu
         nbFichiersRencontres++;
 
-        // Nom du fichier testé en premier pour les pièces (voir motifNom) : plus fiable que le
-        // contenu extrait pour les pièces dont l'intitulé de fichier est conventionnel dans les
-        // dossiers de l'étude, et ça évite d'ouvrir/lire le PDF quand le nom seul suffit déjà.
-        // Normalisé (underscores/tirets → espaces, voir normaliserNomPourMotif) avant le test :
-        // les motifNom sont écrits avec \s+ comme séparateur, un vrai nom de fichier de l'étude non.
+        // Nom du fichier testé pour l'offre de prêt ET pour les pièces (voir motifNom) — plus
+        // aucune lecture de contenu PDF dans cette fonction (voir OFFRE_PRET_RE et son historique :
+        // trop d'erreurs signalées par l'étude sur la reconnaissance de l'offre par son contenu,
+        // même limite déjà rencontrée et déjà corrigée pour la checklist de pièces). Normalisé
+        // (underscores/tirets → espaces, accents NFC — voir normaliserNomPourMotif) avant le test :
+        // les motifs sont écrits avec \s* comme séparateur, un vrai nom de fichier de l'étude non.
         const nomNormalise = normaliserNomPourMotif(entree.name);
+
+        if (chercherOffre && !offreTrouvee && OFFRE_PRET_RE.test(nomNormalise)) {
+          offreTrouvee = true;
+          fichierOffre = entree.name;
+          diagnosticJournal.push(`${entree.name} → offre de prêt trouvée par nom de fichier`);
+          // Conserve le handle du fichier trouvé (même mécanisme IndexedDB que le dossier local
+          // lui-même) pour permettre de le rouvrir en un clic depuis la fiche, sans avoir à
+          // reparcourir tout le dossier — voir ouvrirOffreTrouvee().
+          await enregistrerHandle(CLE_HANDLE_OFFRE(id), entree);
+          // Montant emprunté (pour l'apport, voir calculerApport) : une seule lecture, best-effort,
+          // du SEUL fichier déjà identifié comme l'offre par son NOM — ce n'est plus "lire le PDF
+          // pour reconnaître l'offre" (ce que l'étude a demandé d'arrêter), seulement en extraire un
+          // chiffre annexe une fois le bon fichier déjà connu avec certitude. Un échec de
+          // lecture/extraction laisse simplement d.montantPret tel quel (jamais écrasé par un
+          // échec, comme ailleurs dans ce fichier), sans jamais remettre en cause offreTrouvee.
+          if (!d.montantPret) {
+            try {
+              nbAnalyses++;
+              const file = await entree.getFile();
+              const buffer = await file.arrayBuffer();
+              const pdf = await pdfjsLib.getDocument({ data: buffer, verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise;
+              const texte = await lireTextePdfVerification(pdf);
+              const montant = detecterMontantPret(texte);
+              if (montant) d.montantPret = montant;
+            } catch (e) {
+              console.error('Lecture du montant du prêt impossible pour', entree.name, e);
+            }
+          }
+        }
+
         for (const piece of checklist) {
           if (!aChercher.has(piece.cle)) continue;
           // Pièce personnalisée (voir checklistPieces/ajouterPiecePersonnalisee) : pas de motifNom
@@ -4922,70 +5709,11 @@
               aChercher.delete(piece.cle);
               diagnosticJournal.push(`${entree.name} → pièce trouvée par nom : « ${piece.label} »`);
             }
-          } else if (piece.motifNom && piece.motifNom.test(nomNormalise)) {
+          } else if (piece.motifNom && piece.motifNom.test(nomNormalise) && !estNomExcluPourPiece(piece.cle, nomNormalise)) {
             fichierParPiece[piece.cle] = entree;
             aChercher.delete(piece.cle);
             diagnosticJournal.push(`${entree.name} → pièce trouvée par nom : « ${piece.label} »`);
           }
-        }
-        if ((!chercherOffre || offreTrouvee) && aChercher.size === 0) break;
-
-        // Plus aucune pièce n'a de motif de contenu (voir plus haut) : si l'offre de prêt est déjà
-        // résolue (trouvée, ou pas recherchée pour ce dossier), il n'y a plus rien à lire dans CE
-        // fichier — inutile de l'ouvrir (et, le cas échéant, de recourir à l'OCR) pour rien. Testé
-        // sur les pièces encore à trouver plutôt que sur toute la checklist : reste correct si une
-        // pièce retrouve un jour un motif de contenu. C'est ce qui rend le parcours d'un dossier
-        // volumineux nettement plus rapide une fois l'offre reçue (ou pour un dossier sans prêt) :
-        // la plupart des PDF ne sont jamais ouverts, seul leur nom est consulté.
-        const chercherContenuOffre = chercherOffre && !offreTrouvee;
-        const piecesRestantesAvecMotif = [...aChercher].some(cle => checklist.find(p => p.cle === cle)?.motif);
-        if (!chercherContenuOffre && !piecesRestantesAvecMotif) continue;
-
-        nbAnalyses++;
-        try {
-          const file = await entree.getFile();
-          const buffer = await file.arrayBuffer();
-          const pdf = await pdfjsLib.getDocument({ data: buffer, verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise;
-          const texte = await lireTextePdfVerification(pdf);
-
-          if (chercherOffre && !offreTrouvee) {
-            const correspond = OFFRE_PRET_RE.test(texte);
-            // Trace de diagnostic console (jamais affichée à l'écran, contrairement au journal
-            // ci-dessous) : un extrait du texte lu par pdf.js pour chaque PDF, utile en cas de
-            // désaccord entre "le mot y est bien" et "non détecté" (ex. police embarquée mal
-            // encodée qui produit un texte extrait illisible malgré un PDF visuellement normal et
-            // sélectionnable) — jamais dans le journal visible : ce serait exposer un extrait du
-            // texte du document à l'écran, au-delà de ce que l'étude voit déjà en ouvrant le PDF.
-            console.log('[vérification offre de prêt]', entree.name, '→', correspond ? 'correspond' : 'ne correspond pas', '| extrait :', JSON.stringify(texte.trim().slice(0, 200)));
-            diagnosticJournal.push(`${entree.name} → offre de prêt : ${correspond ? 'reconnue' : 'non reconnue'} dans le contenu`);
-            if (correspond) {
-              offreTrouvee = true;
-              fichierOffre = entree.name;
-              // Lu dans le même PDF, à ce même passage : inutile de rouvrir le fichier plus tard
-              // pour ça. Ne remplace jamais une valeur déjà connue par un échec de détection.
-              const montant = detecterMontantPret(texte);
-              if (montant) d.montantPret = montant;
-              // Conserve le handle du fichier trouvé (même mécanisme IndexedDB que le dossier local
-              // lui-même) pour permettre de le rouvrir en un clic depuis la fiche, sans avoir à
-              // reparcourir tout le dossier — voir ouvrirOffreTrouvee().
-              await enregistrerHandle(CLE_HANDLE_OFFRE(id), entree);
-            }
-          }
-
-          for (const piece of checklist) {
-            if (!aChercher.has(piece.cle)) continue;
-            // Certaines pièces (conditions juridiques quasi systématiquement décrites dans le
-            // compromis lui-même — voir PIECES_URBANISME/PIECES_AUTRES) n'ont plus de `motif` du
-            // tout, volontairement : seul motifNom (déjà testé plus haut) les détecte.
-            if (piece.motif && motifPieceTrouve(piece.motif, texte)) {
-              fichierParPiece[piece.cle] = entree;
-              aChercher.delete(piece.cle);
-              diagnosticJournal.push(`${entree.name} → pièce trouvée dans le contenu : « ${piece.label} »`);
-            }
-          }
-        } catch (e) {
-          console.error('Lecture impossible pour', entree.name, e);
-          diagnosticJournal.push(`${entree.name} → erreur de lecture : ${e.message}`);
         }
       }
     } catch (e) {
@@ -5055,12 +5783,12 @@
       d.offrePretStatut = offreTrouvee ? 'recue' : 'manquante';
     }
 
-    await sauvegarder();
+    await sauvegarder(d);
     render();
 
     if (chercherOffre && offreTrouvee && offreEtaitManquante) {
       ajouterHistorique(d, 'Offre de prêt retrouvée dans le dossier local');
-      await sauvegarder();
+      await sauvegarder(d);
     }
 
     // Une offre déjà confirmée reçue ne doit jamais redéclencher une relance automatique même si
@@ -5168,7 +5896,7 @@
 
     d.derniereRelanceAuto = aujourdhui;
     ajouterHistorique(d, `Relance automatique ouverte (offre de prêt introuvable, échéance J-${jours})`);
-    sauvegarder();
+    sauvegarder(d);
 
     const subject = `Relance — Offre de prêt attendue (dossier ${d.nom})`;
     const body = `Bonjour,\n\nSauf erreur de notre part, nous n'avons pas encore reçu votre offre de prêt pour le dossier ${d.nom}.\n\nL'échéance d'obtention du prêt est fixée au ${formatDateFr(d.pret)}. Merci de nous transmettre cette offre dès réception, ou de nous indiquer où en est votre demande de financement.\n\nCordialement.`;
@@ -5223,131 +5951,6 @@
   }
   setInterval(() => { revérifierDossiersLiesAuDemarrage(); }, 5 * 60 * 1000);
 
-  // ---- registre partagé (un même fichier JSON sur le lecteur réseau de l'étude) ----
-  //
-  // Même technologie et mêmes limites que le dossier local : Chrome/Edge uniquement, permission
-  // à reconfirmer de temps en temps, aucune fusion intelligente en cas d'écriture simultanée à
-  // la seconde près (la dernière sauvegarde l'emporte). Une fois relié, ce fichier devient la
-  // source de vérité : il est relu périodiquement pour récupérer les mises à jour des collègues,
-  // et réécrit à chaque modification locale.
-
-  const CLE_HANDLE_PARTAGE = '__registre_partage__';
-  const CLE_PARTAGE_LIE = STORAGE_KEY + '-partage-lie';
-  const FICHIER_FS_SUPPORTE = typeof window.showSaveFilePicker === 'function';
-  let registrePartageLie = false;
-  let dernierContenuPartageEcrit = null; // null = "aucune référence encore connue dans cette session"
-  // Même limite que l'accès à un dossier local (voir accesAReconfirmer) : la permission au fichier
-  // partagé n'est pas conservée d'une session à l'autre. Mis à jour à chaque vérification
-  // (silencieuse ou via clic) dans obtenirHandlePartage(), pour que "Reconfirmer tous les accès"
-  // et la popup de démarrage puissent aussi couvrir ce cas, pas seulement les dossiers locaux.
-  let registrePartageAccesAReconfirmer = false;
-
-  function majStatutPartage() {
-    const el = document.getElementById('statut-partage');
-    const btn = document.getElementById('btn-registre-partage');
-    if (!el || !btn) return;
-    if (!FICHIER_FS_SUPPORTE) { el.style.display = 'none'; return; }
-    if (registrePartageLie) {
-      el.style.display = 'flex';
-      el.className = 'statut-partage actif';
-      el.textContent = 'Registre partagé actif';
-      btn.innerHTML = `${icone('link')} Registre partagé (relié)`;
-    } else {
-      el.style.display = 'none';
-      btn.innerHTML = `${icone('link')} Registre partagé (réseau)`;
-    }
-  }
-
-  async function lierRegistrePartage() {
-    if (!FICHIER_FS_SUPPORTE) {
-      afficherToast("Cette fonctionnalité nécessite Chrome ou Edge, ouverts en dehors de tout aperçu intégré.", 'OK', null);
-      return;
-    }
-    try {
-      const handle = await window.showSaveFilePicker({
-        suggestedName: 'registre-echeances-partage.json',
-        types: [{ description: 'Registre des échéances (JSON)', accept: { 'application/json': ['.json'] } }]
-      });
-      await enregistrerHandle(CLE_HANDLE_PARTAGE, handle);
-      registrePartageLie = true;
-      try { localStorage.setItem(CLE_PARTAGE_LIE, '1'); } catch (e) { /* sans conséquence */ }
-      majStatutPartage();
-
-      // Si le fichier choisi contient déjà des dossiers (créé par un collègue), on les récupère
-      // plutôt que d'écraser directement avec le registre local, potentiellement vide.
-      const recupere = await lireRegistrePartage(true);
-      if (!recupere) await ecrireRegistrePartage();
-      afficherToast('Registre partagé relié : les dossiers seront synchronisés via ce fichier.', 'OK', null);
-    } catch (e) {
-      if (!e || e.name === 'AbortError') return;
-      if (e.name === 'SecurityError') {
-        afficherToast("Chrome bloque le sélecteur de fichier dans cet aperçu intégré. Téléchargez le fichier et ouvrez-le directement dans votre navigateur.", 'OK', null);
-        return;
-      }
-      console.error(e);
-      afficherToast('Impossible de relier le registre partagé : ' + e.message, 'OK', null);
-    }
-  }
-
-  async function obtenirHandlePartage(viaClicUtilisateur) {
-    const handle = await recupererHandle(CLE_HANDLE_PARTAGE);
-    if (!handle) return null;
-    let permission = await handle.queryPermission({ mode: 'readwrite' });
-    if (permission !== 'granted' && viaClicUtilisateur) {
-      permission = await handle.requestPermission({ mode: 'readwrite' });
-    }
-    registrePartageAccesAReconfirmer = permission !== 'granted';
-    return permission === 'granted' ? handle : null;
-  }
-
-  async function ecrireRegistrePartage() {
-    if (!registrePartageLie) return;
-    const handle = await obtenirHandlePartage(false);
-    if (!handle) return; // permission perdue : la reconfirmation se fera au prochain clic manuel
-    try {
-      const contenu = JSON.stringify(dossiers, null, 2);
-      if (contenu === dernierContenuPartageEcrit) return; // rien de neuf, on épargne une écriture
-      const writable = await handle.createWritable();
-      await writable.write(contenu);
-      await writable.close();
-      dernierContenuPartageEcrit = contenu;
-    } catch (e) { console.error('Écriture du registre partagé impossible', e); }
-  }
-
-  // Relit le fichier partagé et l'adopte comme référence s'il diffère de la vue locale — c'est
-  // ainsi que les mises à jour d'un collègue apparaissent sans action de votre part.
-  async function lireRegistrePartage(viaClicUtilisateur) {
-    const handle = await obtenirHandlePartage(viaClicUtilisateur);
-    if (!handle) return false;
-    try {
-      const file = await handle.getFile();
-      const texte = await file.text();
-      if (!texte) return false;
-      if (dernierContenuPartageEcrit !== null && texte === dernierContenuPartageEcrit) return false;
-      const brut = JSON.parse(texte);
-      if (!Array.isArray(brut) || brut.length === 0) return false;
-      dossiers = brut.filter(d => d && typeof d === 'object' && d.id);
-      dernierContenuPartageEcrit = texte;
-      await sauvegarderLocalUniquement();
-      render();
-      return true;
-    } catch (e) {
-      if (e instanceof SyntaxError) return false; // fichier vide ou tout juste créé : rien à lire
-      console.error('Lecture du registre partagé impossible', e);
-      return false;
-    }
-  }
-
-  async function tenterReconnexionPartage() {
-    let lie = false;
-    try { lie = localStorage.getItem(CLE_PARTAGE_LIE) === '1'; } catch (e) { /* pas de préférence connue */ }
-    if (!lie || !FICHIER_FS_SUPPORTE) { majStatutPartage(); return; }
-    registrePartageLie = true;
-    majStatutPartage();
-    await lireRegistrePartage(false); // sans clic : silencieux si la permission est encore valable
-  }
-
-  setInterval(() => { if (registrePartageLie) lireRegistrePartage(false); }, 2 * 60 * 1000);
 
   // ---- thème clair / sombre ----
 
@@ -5430,6 +6033,7 @@
       const aproposOverlay = document.getElementById('apropos-overlay');
       const overlay = document.getElementById('confirm-overlay');
       const barreSelection = document.getElementById('pdf-selection-toolbar');
+      const formEngagementManuel = document.getElementById('ajout-engagement-manuel-form');
       if (infoActionOverlay && infoActionOverlay.style.display === 'flex') {
         e.preventDefault();
         fermerInfoAction();
@@ -5442,6 +6046,9 @@
       } else if (barreSelection && barreSelection.style.display !== 'none') {
         e.preventDefault();
         masquerBoutonAjoutEngagement();
+      } else if (formEngagementManuel && formEngagementManuel.style.display !== 'none') {
+        e.preventDefault();
+        masquerFormAjoutEngagementManuel();
       } else if (dossierOuvert) {
         e.preventDefault();
         fermerDossierDrawer();
@@ -5595,6 +6202,244 @@
     calculerFraisActe();
   }
 
+  // ---- Analyse approfondie (IA) : import de l'acte + annexes séparées, relecture croisée par le
+  // modèle local (Ollama, voir server/src/llm.js et CLAUDE.md) ----
+  // Distinct du wizard "Nouveau dossier" : on ne crée pas de dossier de suivi ici, on compare des
+  // documents entre eux. N'existe QUE sur `claude/serveur-intranet` (a besoin d'un backend pour
+  // parler à Ollama, jamais appelé sans `fetchAvecAuth()`/l'écran de connexion, absents de `main`)
+  // — contrairement au reste de ce fichier, cette section (et celle de l'extraction IA du wizard
+  // "Nouveau dossier", voir enrichirImportAvecIa) n'est PAS portée sur `main`, qui n'a pas de
+  // backend pour l'exécuter.
+  // Chaque fichier déposé n'existe qu'en mémoire le temps de l'analyse — jamais enregistré, aucun
+  // dossier créé. Seul le TEXTE déjà extrait dans le navigateur est envoyé au serveur, jamais le
+  // PDF lui-même (voir lireTextePdfVerification, déjà utilisée pour vérifier un dossier local).
+  let fichiersAnalyseIa = []; // { id, file, nom, type: 'acte'|'annexe', statut, texte, erreurTexte }
+  let compteurFichierAnalyseIa = 0;
+  let analyseIaEnCours = false;
+
+  function gererSurvolDepotAnalyseIa(event) {
+    event.preventDefault();
+    document.getElementById('analyse-ia-dropzone').classList.add('survol');
+  }
+
+  function gererQuitteDepotAnalyseIa(event) {
+    event.preventDefault();
+    document.getElementById('analyse-ia-dropzone').classList.remove('survol');
+  }
+
+  function gererDepotAnalyseIa(event) {
+    event.preventDefault();
+    document.getElementById('analyse-ia-dropzone').classList.remove('survol');
+    const fichiers = event.dataTransfer && event.dataTransfer.files;
+    if (fichiers && fichiers.length) ajouterFichiersAnalyseIa(fichiers);
+  }
+
+  // Devine "acte" pour le premier PDF dont le nom évoque un compromis/une promesse, "annexe" pour
+  // tous les suivants — une simple valeur de départ pratique, toujours modifiable ensuite via le
+  // <select> de chaque ligne (voir changerTypeFichierAnalyseIa) : ce n'est jamais figé.
+  function deviserTypeAnalyseIa(nomFichier) {
+    const dejaUnActe = fichiersAnalyseIa.some(f => f.type === 'acte');
+    if (!dejaUnActe && /compromis|promesse/i.test(nomFichier)) return 'acte';
+    return 'annexe';
+  }
+
+  function ajouterFichiersAnalyseIa(fileList) {
+    const fichiers = Array.from(fileList).filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
+    if (fichiers.length === 0) {
+      afficherToast('Seuls les fichiers PDF sont acceptés.', 'OK', null);
+      return;
+    }
+    const nouvelles = fichiers.map(file => ({
+      id: `analyse-ia-${++compteurFichierAnalyseIa}`,
+      file,
+      nom: file.name,
+      type: deviserTypeAnalyseIa(file.name),
+      statut: 'lecture',
+      texte: '',
+      erreurTexte: ''
+    }));
+    fichiersAnalyseIa = fichiersAnalyseIa.concat(nouvelles);
+    renderListeFichiersAnalyseIa();
+    for (const entree of nouvelles) extraireTexteFichierAnalyseIa(entree.id);
+  }
+
+  // Réutilise lireTextePdfVerification() (déjà en place pour vérifier l'offre de prêt/les pièces
+  // d'un dossier local relié) : texte extractible + repli OCR sur les 3 premières pages si le PDF
+  // est un scan sans texte — même logique, appliquée ici à un fichier importé via <input> plutôt
+  // qu'à un FileSystemFileHandle.
+  async function extraireTexteFichierAnalyseIa(id) {
+    const entree = fichiersAnalyseIa.find(f => f.id === id);
+    if (!entree) return;
+    if (!window.pdfjsLib) {
+      entree.statut = 'erreur';
+      entree.erreurTexte = 'Lecture PDF indisponible — réessayez dans un instant.';
+      renderListeFichiersAnalyseIa();
+      return;
+    }
+    try {
+      const buffer = await entree.file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: buffer, verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise;
+      const texte = await lireTextePdfVerification(pdf);
+      if (texte.trim().length < 20) {
+        entree.statut = 'erreur';
+        entree.erreurTexte = 'Aucun texte exploitable trouvé (page vide, ou scan illisible même après OCR).';
+      } else {
+        entree.statut = 'ok';
+        entree.texte = texte;
+      }
+    } catch (e) {
+      entree.statut = 'erreur';
+      entree.erreurTexte = 'Lecture du PDF impossible.';
+      console.error('Analyse IA : échec de lecture de', entree.nom, e);
+    }
+    renderListeFichiersAnalyseIa();
+  }
+
+  function changerTypeFichierAnalyseIa(id, valeur) {
+    const entree = fichiersAnalyseIa.find(f => f.id === id);
+    if (entree) entree.type = valeur;
+  }
+
+  function retirerFichierAnalyseIa(id) {
+    fichiersAnalyseIa = fichiersAnalyseIa.filter(f => f.id !== id);
+    renderListeFichiersAnalyseIa();
+  }
+
+  // Pas de demanderConfirmation() ici, volontairement : rien n'est enregistré (voir en tête de
+  // section), vider la liste ne perd qu'un import à refaire — un impact bien moindre qu'archiver/
+  // supprimer un vrai dossier de suivi, qui garde ce garde-fou.
+  function viderAnalyseIa() {
+    fichiersAnalyseIa = [];
+    const rapport = document.getElementById('analyse-ia-rapport');
+    if (rapport) rapport.innerHTML = '<p class="hint">Aucune analyse lancée pour l\'instant.</p>';
+    renderListeFichiersAnalyseIa();
+  }
+
+  function statutFichierAnalyseIa(entree) {
+    if (entree.statut === 'lecture') return `<span class="dot-label dl-neutre">${icone('spinner', null, true)}Lecture…</span>`;
+    if (entree.statut === 'erreur') return `<span class="dot-label dl-urgent" title="${escapeAttr(entree.erreurTexte)}">${icone('alert-triangle')}Erreur</span>`;
+    return `<span class="dot-label dl-success">${icone('file-text')}Lu</span>`;
+  }
+
+  function renderListeFichiersAnalyseIa() {
+    const conteneur = document.getElementById('analyse-ia-liste-fichiers');
+    if (!conteneur) return;
+    conteneur.innerHTML = fichiersAnalyseIa.map(f => `
+      <div class="analyse-ia-fichier">
+        ${icone('file-text')}
+        <span class="analyse-ia-fichier-nom" title="${escapeAttr(f.nom)}">${escapeHtml(f.nom)}</span>
+        <select onchange="changerTypeFichierAnalyseIa('${f.id}', this.value)" aria-label="Type de document">
+          <option value="acte" ${f.type === 'acte' ? 'selected' : ''}>Acte principal</option>
+          <option value="annexe" ${f.type === 'annexe' ? 'selected' : ''}>Annexe</option>
+        </select>
+        ${statutFichierAnalyseIa(f)}
+        <button type="button" class="piece-suppr" onclick="retirerFichierAnalyseIa('${f.id}')" title="Retirer ce fichier" aria-label="Retirer ce fichier">${icone('x')}</button>
+      </div>
+    `).join('');
+
+    const viderBtn = document.getElementById('analyse-ia-vider-btn');
+    if (viderBtn) viderBtn.style.display = fichiersAnalyseIa.length ? '' : 'none';
+
+    const lancerBtn = document.getElementById('analyse-ia-lancer-btn');
+    if (lancerBtn && !analyseIaEnCours) {
+      const pretsAAnalyser = fichiersAnalyseIa.some(f => f.statut === 'ok');
+      const enCoursDeLecture = fichiersAnalyseIa.some(f => f.statut === 'lecture');
+      lancerBtn.disabled = !pretsAAnalyser || enCoursDeLecture;
+    }
+  }
+
+  // Interrogée à chaque ouverture de l'onglet (voir definirOnglet) : Ollama a pu être installé/
+  // démarré/arrêté sur le serveur depuis la dernière visite. Affiche tout de suite un message
+  // actionnable (modèle absent, Ollama non lancé...) plutôt que de laisser lancer une analyse de
+  // plusieurs minutes pour découvrir l'échec à la fin — voir server/src/routes/analyseIa.js.
+  async function verifierDisponibiliteAnalyseIa() {
+    const zone = document.getElementById('analyse-ia-dispo');
+    if (!zone) return;
+    try {
+      const reponse = await fetchAvecAuth('/api/analyse-ia/disponibilite');
+      const statut = await reponse.json();
+      zone.style.display = 'flex';
+      if (statut.disponible) {
+        zone.className = 'analyse-ia-dispo dispo-ok';
+        zone.innerHTML = `${icone('sparkle')}Modèle local « ${escapeHtml(statut.modele)} » disponible.`;
+      } else {
+        zone.className = 'analyse-ia-dispo dispo-off';
+        zone.innerHTML = `${icone('alert-triangle')}${escapeHtml(statut.raison || 'Modèle IA local indisponible.')}`;
+      }
+    } catch (e) {
+      // Session expirée : fetchAvecAuth a déjà réaffiché l'écran de connexion, rien d'autre à faire.
+    }
+  }
+
+  function libelleGraviteAnalyseIa(gravite) {
+    if (gravite === 'critique') return { dl: 'dl-urgent', icone: 'alert-triangle', texte: 'Critique' };
+    if (gravite === 'attention') return { dl: 'dl-pret', icone: 'alert-triangle', texte: 'À vérifier' };
+    return { dl: 'dl-neutre', icone: 'info', texte: 'Info' };
+  }
+
+  function renderRapportAnalyseIa(resultat) {
+    const zone = document.getElementById('analyse-ia-rapport');
+    if (!zone) return;
+    let html = '';
+    if (resultat.tronque) {
+      html += `<p class="hint">${icone('alert-triangle')} Un ou plusieurs documents étaient trop longs et n'ont été analysés que partiellement — les constats ci-dessous peuvent donc être incomplets.</p>`;
+    }
+    if (resultat.erreurAnalyse) {
+      // Le modèle n'a pas renvoyé un JSON exploitable : ce n'est pas la même chose qu'une vraie
+      // analyse "rien à signaler" — ne pas afficher les deux messages à la fois, ce serait
+      // trompeur (laisserait croire que les documents ont bien été relus sans souci trouvé).
+      html += `<p class="hint">${escapeHtml(resultat.erreurAnalyse)}</p>`;
+    } else if (!resultat.constats || resultat.constats.length === 0) {
+      html += '<p class="hint">Aucune incohérence relevée par le modèle sur les documents fournis — à vérifier malgré tout, voir la note ci-dessous.</p>';
+    } else {
+      html += resultat.constats.map(c => {
+        const g = libelleGraviteAnalyseIa(c.gravite);
+        const docs = (c.documents || []).map(d => escapeHtml(d)).join(', ');
+        return `<div class="analyse-ia-constat">
+          <div class="analyse-ia-constat-titre"><span class="dot-label ${g.dl}">${icone(g.icone)}${g.texte}</span>${escapeHtml(c.titre)}</div>
+          ${c.description ? `<p class="analyse-ia-constat-desc">${escapeHtml(c.description)}</p>` : ''}
+          ${docs ? `<div class="analyse-ia-constat-docs">Concerne : ${docs}</div>` : ''}
+        </div>`;
+      }).join('');
+    }
+    zone.innerHTML = html;
+  }
+
+  async function lancerAnalyseIa() {
+    const documents = fichiersAnalyseIa
+      .filter(f => f.statut === 'ok')
+      .map(f => ({ nom: f.nom, type: f.type, texte: f.texte }));
+    if (documents.length === 0) {
+      afficherToast('Aucun document exploitable — importez au moins un PDF dont le texte a bien été lu.', 'OK', null);
+      return;
+    }
+    analyseIaEnCours = true;
+    const btn = document.getElementById('analyse-ia-lancer-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = `${icone('spinner', null, true)} Analyse en cours…`; }
+    const rapport = document.getElementById('analyse-ia-rapport');
+    if (rapport) rapport.innerHTML = '<p class="hint">Analyse en cours — cela peut prendre une à plusieurs minutes selon la taille des documents et la puissance du serveur.</p>';
+
+    try {
+      const reponse = await fetchAvecAuth('/api/analyse-ia', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ documents })
+      });
+      const corps = await reponse.json();
+      if (!reponse.ok) {
+        if (rapport) rapport.innerHTML = `<p class="hint">${escapeHtml(corps.erreur || "Échec de l'analyse.")}</p>`;
+      } else {
+        renderRapportAnalyseIa(corps);
+      }
+    } catch (e) {
+      // Session expirée : déjà géré par fetchAvecAuth (écran de connexion réaffiché).
+    } finally {
+      analyseIaEnCours = false;
+      renderListeFichiersAnalyseIa();
+      if (btn) btn.innerHTML = "Lancer l'analyse";
+    }
+  }
+
   // Remplit les emplacements d'icônes du HTML statique (sidebar, burger mobile, dropzone) — le
   // reste de l'application est déjà rendu depuis script.js, ce point d'entrée unique évite de
   // dupliquer le dessin des icônes entre le HTML et ICONES.
@@ -5613,7 +6458,13 @@
       'icon-intro-adresse': 'map-pin',
       'icon-nav-calculateur': 'banknote',
       'icon-apropos': 'info',
-      'icon-calc-warning': 'alert-triangle'
+      'icon-calc-warning': 'alert-triangle',
+      'icon-nav-analyse-ia': 'sparkle',
+      'icon-analyse-ia-warning': 'alert-triangle',
+      'icon-analyse-ia-dropzone': 'upload',
+      'icon-pdf-recherche': 'search',
+      'icon-pdf-recherche-prec': 'chevron-up',
+      'icon-pdf-recherche-suiv': 'chevron-down'
     };
     for (const [id, nom] of Object.entries(cibles)) {
       const el = document.getElementById(id);
@@ -5625,11 +6476,18 @@
 
   chargerTheme();
   chargerApprentissage();
-  charger().then(async () => {
-    await revérifierDossiersLiesAuDemarrage();
-    await tenterReconnexionPartage();
-    afficherPopupAccesSiNecessaire();
-  });
+  chargerExclusionsMotifNom();
+  // Mode serveur intranet (voir CLAUDE.md) : l'application entière est bloquée par l'écran de
+  // connexion tant que le mot de passe partagé n'a pas été validé — un jeton déjà mémorisé
+  // (localStorage, valable 12h côté serveur) permet de sauter cette étape au rechargement.
+  // demarrerApplication() gère elle-même le cas d'un jeton devenu invalide (401 → fetchAvecAuth
+  // réaffiche l'écran de connexion), pas la peine de le vérifier au préalable ici.
+  authToken = chargerJetonStocke();
+  if (authToken) {
+    demarrerApplication().catch((e) => console.error('Démarrage impossible', e));
+  } else {
+    afficherEcranConnexion();
+  }
   renderChips();
   // L'analyse juridique est une étape du wizard toujours visible (voir definirEtapeWizard) : sans
   // cet appel initial, ses sections restaient affichées vides (ni contenu ni message d'état) tant
