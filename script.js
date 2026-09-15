@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-15 14:13';
+  const VERSION_APP = '2026-09-15 14:25';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,14 +23,14 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-15 14:25', resume: "Apprentissage : une pièce mal reconnue et réinitialisée n'est plus jamais reproposée pour cette pièce (sur aucun dossier) ; une clause ajoutée manuellement comme engagement du vendeur enrichit aussi la détection automatique des prochains imports" },
     { version: '2026-09-15 14:13', resume: "Champ de recherche dans l'aperçu PDF (comme Ctrl+F d'un lecteur PDF), navigation résultat suivant/précédent" },
     { version: '2026-09-15 14:02', resume: "Retours de test du matin : indicateur de connexion serveur (sidebar), achat comptant affiché clairement (plus de \"Non renseigné\"), ajout manuel d'un engagement du vendeur sans sélection PDF, catégorie \"Autres\" pour les engagements, indicateur pendant la recherche IA" },
     { version: '2026-09-14 20:26', resume: "Le wizard « Nouveau dossier » utilise aussi l'IA locale en arrière-plan : complète nom/adresse/prix/dates non trouvés par les regex et suggère des engagements du vendeur en plus, jamais en remplacement" },
     { version: '2026-09-14 20:11', resume: "Nouvel onglet « Analyse approfondie (IA) » : dépose l'acte + ses annexes séparées, relecture croisée par un modèle IA local (Ollama, aucune donnée envoyée en ligne) — voir server/README.md" },
     { version: '2026-09-14 19:27', resume: "Vrai correctif du bug apostrophe (Certificat d'urbanisme/d'alignement) : le précédent (&#39;) ne survivait pas au décodage HTML de l'attribut onclick, toujours cassé en pratique" },
     { version: '2026-09-14 17:13', resume: 'Détection "Renonciation au droit de préemption" élargie au sigle "DPU" dans le nom de fichier' },
-    { version: '2026-09-14 17:01', resume: 'Écran de connexion : espace manquant entre le champ mot de passe et "Se connecter" ; sidebar : Mode sombre et À propos côte à côte' },
-    { version: '2026-09-14 16:11', resume: "Serveur : vrai service Windows (NSSM, redémarrage auto) et calendrier connecté (abonnement webcal en lecture seule) — voir server/README.md" }
+    { version: '2026-09-14 17:01', resume: 'Écran de connexion : espace manquant entre le champ mot de passe et "Se connecter" ; sidebar : Mode sombre et À propos côte à côte' }
   ];
 
   const STORAGE_KEY = 'dossiers';
@@ -800,14 +800,25 @@
       const estEntretien = OBJET_ENTRETIEN_RE.test(phrase);
       const estTravaux = OBJET_TRAVAUX_RE.test(phrase);
       const estDocument = OBJET_DOCUMENT_RE.test(phrase);
-      if (!estEntretien && !estTravaux && !estDocument) continue;
-
-      // L'entretien prime : « justifier du dernier ramonage » est un entretien à prouver, pas des
-      // travaux à faire exécuter — la distinction compte pour savoir quoi réclamer au vendeur.
-      let type = 'document';
-      if (estEntretien) type = 'entretien';
-      else if (estTravaux && !estDocument) type = 'travaux';
-      else if (estTravaux) type = 'travaux';
+      let type = null;
+      if (!estEntretien && !estTravaux && !estDocument) {
+        // La phrase correspond bien à l'ancrage strict ("le vendeur/promettant s'engage...") mais
+        // aucun des trois motifs d'objet ne la catégorise — jusqu'ici, systématiquement abandonnée
+        // (continue), même quand un(e) collaborateur(rice) avait déjà catégorisé à la main une
+        // clause très proche lors d'un import précédent (voir ajouterEngagementManuel()/
+        // ajouterEngagementDepuisFormulaire() ci-dessus). Reste borné à ce périmètre déjà anchré :
+        // ne s'applique jamais à une phrase qui n'aurait pas d'abord passé ce motif strict, donc ne
+        // risque pas d'élargir la détection à des sentences arbitraires du document.
+        const apprise = trouverCorrectionApprise(phrase, 'engagement');
+        if (!apprise) continue;
+        type = apprise.classification;
+      } else {
+        // L'entretien prime : « justifier du dernier ramonage » est un entretien à prouver, pas des
+        // travaux à faire exécuter — la distinction compte pour savoir quoi réclamer au vendeur.
+        type = 'document';
+        if (estEntretien) type = 'entretien';
+        else if (estTravaux) type = 'travaux';
+      }
 
       const cle = phrase.slice(0, 70);
       if (!vus.has(cle)) {
@@ -1663,6 +1674,12 @@
       page: selectionEngagementEnCours.page,
       manuel: true
     });
+    // Une clause sélectionnée à la main est, par définition, une clause que la détection
+    // automatique (extraireEngagementsVendeur) a manquée ou n'a pas su catégoriser — on la mémorise
+    // pour qu'une clause très proche soit reconnue directement au prochain import (voir
+    // trouverCorrectionApprise/memoriserCorrection, catégorie 'engagement' : même mécanisme que
+    // l'apprentissage déjà en place pour les dates, un espace de classification séparé).
+    memoriserCorrection(selectionEngagementEnCours.phrase, type, null, 'engagement');
     afficherAnalyseJuridique();
     masquerBoutonAjoutEngagement();
     afficherToast('Engagement ajouté à l’analyse juridique.', 'OK', null);
@@ -1697,12 +1714,18 @@
     const typeEl = document.getElementById('nouvel-engagement-type');
     const texte = texteEl ? texteEl.value.trim() : '';
     if (!texte) { if (texteEl) texteEl.focus(); return; }
+    const type = typeEl ? typeEl.value : 'document';
     analyseJuridiqueActuelle.engagements.push({
       phrase: texte,
-      type: typeEl ? typeEl.value : 'document',
+      type,
       page: null,
       manuel: true
     });
+    // Même principe que ajouterEngagementManuel() ci-dessus (voir son commentaire) : une clause
+    // saisie ici échappe forcément à la détection automatique (elle n'a pas de PDF anchré à
+    // relire), la mémoriser reste sans risque pour tout futur import dont une clause proche
+    // passerait, elle, par le motif d'ancrage d'extraireEngagementsVendeur().
+    memoriserCorrection(texte, type, null, 'engagement');
     masquerFormAjoutEngagementManuel();
     afficherAnalyseJuridique();
     afficherToast('Engagement ajouté à l’analyse juridique.', 'OK', null);
@@ -3796,9 +3819,17 @@
   function reinitialiserStatutPieceStandard(dossierId, cle, label) {
     const d = dossiers.find(x => x.id === dossierId);
     if (!d) return;
-    demanderConfirmation(`Réinitialiser le statut de « ${label} » ? Elle repassera à "manquante" et sera recherchée à nouveau au prochain "Revérifier".`, async () => {
+    demanderConfirmation(`Réinitialiser le statut de « ${label} » ? Elle repassera à "manquante" et sera recherchée à nouveau au prochain "Revérifier". Ce nom de fichier ne sera plus jamais proposé pour cette pièce, sur aucun dossier.`, async () => {
       d.pieces = d.pieces || {};
       d.pieces[cle] = 'manquante';
+      // Apprentissage de l'erreur (voir exclureNomPourPiece ci-dessus) : avant d'effacer le handle,
+      // on retrouve le nom du fichier mal reconnu pour ne plus jamais le reproposer pour CETTE
+      // pièce, sur AUCUN dossier — portée choisie explicitement par l'étude, plus large qu'une
+      // simple exclusion propre à ce seul dossier.
+      const ancienHandle = await recupererHandle(CLE_HANDLE_PIECE(dossierId, cle));
+      if (ancienHandle && ancienHandle.name) {
+        exclureNomPourPiece(cle, normaliserNomPourMotif(ancienHandle.name));
+      }
       await enregistrerHandle(CLE_HANDLE_PIECE(dossierId, cle), null);
       ajouterHistorique(d, `Pièce réinitialisée (correspondance retirée) : « ${label} »`);
       sauvegarder(d);
@@ -4709,13 +4740,23 @@
   }
 
   // Retrouve, parmi les corrections déjà apprises, la plus proche du contexte donné — ou null si
-  // aucune ne dépasse le seuil de similarité.
-  function trouverCorrectionApprise(contexte) {
+  // aucune ne dépasse le seuil de similarité. `categorie` distingue les DEUX espaces de
+  // classification qui partagent ce même mécanisme (voir memoriserCorrection ci-dessous) : 'date'
+  // (type d'échéance pret/acte/ventebien/autre — usage d'origine) et 'engagement' (type
+  // d'obligation du vendeur entretien/travaux/document/autre — généralisation demandée par
+  // l'étude, voir CLAUDE.md "Apprentissage sur les clauses ajoutées manuellement"). Sans ce filtre,
+  // une clause de délai de prêt et une clause d'engagement d'entretien pourraient se confondre par
+  // pur hasard de vocabulaire commun et se substituer l'une à l'autre — deux espaces disjoints,
+  // jamais comparés entre eux. Une entrée mémorisée AVANT cette distinction (pas de champ
+  // `categorie`) est traitée comme 'date', son seul usage jusque-là.
+  function trouverCorrectionApprise(contexte, categorie) {
+    categorie = categorie || 'date';
     if (correctionsApprises.length === 0) return null;
     const tokens = tokeniserApprentissage(normaliserTexteApprentissage(contexte));
     let meilleure = null;
     let meilleurScore = SEUIL_SIMILARITE_APPRENTISSAGE;
     for (const c of correctionsApprises) {
+      if ((c.categorie || 'date') !== categorie) continue;
       const score = similariteJaccard(tokens, new Set(c.tokens));
       if (score >= meilleurScore) { meilleure = c; meilleurScore = score; }
     }
@@ -4723,13 +4764,16 @@
   }
 
   // Enregistre (ou renforce) la correction pour que la même clause-type soit reconnue à l'avenir.
-  // classification : 'pret' | 'acte' | 'ventebien' | 'autre'. libelle : uniquement pour 'autre'.
-  function memoriserCorrection(contexte, classification, libelle) {
+  // classification : selon `categorie` — 'pret'|'acte'|'ventebien'|'autre' pour 'date',
+  // 'entretien'|'travaux'|'document'|'autre' pour 'engagement'. libelle : uniquement pour une date
+  // classée 'autre' (le nom donné à l'échéance personnalisée).
+  function memoriserCorrection(contexte, classification, libelle, categorie) {
+    categorie = categorie || 'date';
     if (!contexte || contexte.length < 15) return; // trop court pour donner une empreinte fiable
     const tokens = [...tokeniserApprentissage(normaliserTexteApprentissage(contexte))];
     if (tokens.length < 3) return; // pas assez de matière pour comparer de façon fiable
 
-    const existante = trouverCorrectionApprise(contexte);
+    const existante = trouverCorrectionApprise(contexte, categorie);
     if (existante && existante.classification === classification) {
       existante.nbConfirmations = (existante.nbConfirmations || 1) + 1;
       existante.dateMaj = new Date().toISOString();
@@ -4738,6 +4782,7 @@
         id: (crypto.randomUUID ? crypto.randomUUID() : 'c-' + Date.now() + '-' + Math.random().toString(16).slice(2)),
         tokens,
         contexteExemple: contexte.slice(0, 200),
+        categorie,
         classification,
         libelle: libelle || null,
         nbConfirmations: 1,
@@ -4751,6 +4796,59 @@
       }
     }
     sauvegarderApprentissage();
+  }
+
+  // Apprentissage d'un document mal rattaché à une pièce de la checklist (voir
+  // reinitialiserStatutPieceStandard() ci-dessous) : un fichier reconnu à tort par son NOM
+  // (`motifNom`) pour une pièce donnée ne doit plus jamais matcher CETTE pièce, sur AUCUN dossier
+  // — demandé explicitement par l'étude ("permettre au système d'apprendre de son erreur"), qui a
+  // choisi la portée la plus large (une règle apprise globale) plutôt qu'une simple exclusion
+  // locale à ce seul dossier. Stocké séparément de `correctionsApprises` (mécanisme par similarité
+  // de texte, pas adapté ici : un nom de fichier n'est pas une clause à comparer par Jaccard, c'est
+  // une correspondance exacte qu'il faut simplement empêcher de se reproduire) — un objet
+  // `{ [cle]: [nomNormalisé, ...] }`, même stockage `window.storage`/`localStorage` que le reste de
+  // l'apprentissage.
+  const CLE_EXCLUSIONS_MOTIF_NOM = 'exclusions-motif-nom';
+  let exclusionsMotifNom = {};
+
+  async function sauvegarderExclusionsMotifNom() {
+    const contenu = JSON.stringify(exclusionsMotifNom);
+    try {
+      if (window.storage) { await window.storage.set(CLE_EXCLUSIONS_MOTIF_NOM, contenu, false); return; }
+    } catch (e) { console.warn('window.storage indisponible pour les exclusions de pièces, repli sur localStorage.', e); }
+    try { localStorage.setItem(CLE_EXCLUSIONS_MOTIF_NOM, contenu); } catch (e) { console.warn('Sauvegarde des exclusions de pièces impossible.', e); }
+  }
+
+  async function chargerExclusionsMotifNom() {
+    let brut = null;
+    try {
+      if (window.storage) {
+        const res = await window.storage.get(CLE_EXCLUSIONS_MOTIF_NOM, false);
+        if (res && res.value) brut = JSON.parse(res.value);
+      }
+    } catch (e) { /* on tente le repli ci-dessous */ }
+    if (brut === null) {
+      try {
+        const local = localStorage.getItem(CLE_EXCLUSIONS_MOTIF_NOM);
+        if (local) brut = JSON.parse(local);
+      } catch (e) { /* rien d'exploitable non plus ici */ }
+    }
+    exclusionsMotifNom = (brut && typeof brut === 'object' && !Array.isArray(brut)) ? brut : {};
+  }
+
+  // Un nom de fichier déjà normalisé (voir normaliserNomPourMotif) est-il exclu pour cette pièce ?
+  function estNomExcluPourPiece(cle, nomNormalise) {
+    const liste = exclusionsMotifNom[cle];
+    return Array.isArray(liste) && liste.includes(nomNormalise);
+  }
+
+  // Enregistre l'exclusion (idempotent : un même nom ne s'ajoute jamais deux fois pour la même
+  // pièce) et persiste immédiatement.
+  function exclureNomPourPiece(cle, nomNormalise) {
+    if (!nomNormalise) return;
+    if (!Array.isArray(exclusionsMotifNom[cle])) exclusionsMotifNom[cle] = [];
+    if (!exclusionsMotifNom[cle].includes(nomNormalise)) exclusionsMotifNom[cle].push(nomNormalise);
+    sauvegarderExclusionsMotifNom();
   }
 
   // ---- export / import (sauvegarde JSON complète du registre) ----
@@ -5611,7 +5709,7 @@
               aChercher.delete(piece.cle);
               diagnosticJournal.push(`${entree.name} → pièce trouvée par nom : « ${piece.label} »`);
             }
-          } else if (piece.motifNom && piece.motifNom.test(nomNormalise)) {
+          } else if (piece.motifNom && piece.motifNom.test(nomNormalise) && !estNomExcluPourPiece(piece.cle, nomNormalise)) {
             fichierParPiece[piece.cle] = entree;
             aChercher.delete(piece.cle);
             diagnosticJournal.push(`${entree.name} → pièce trouvée par nom : « ${piece.label} »`);
@@ -6378,6 +6476,7 @@
 
   chargerTheme();
   chargerApprentissage();
+  chargerExclusionsMotifNom();
   // Mode serveur intranet (voir CLAUDE.md) : l'application entière est bloquée par l'écran de
   // connexion tant que le mot de passe partagé n'a pas été validé — un jeton déjà mémorisé
   // (localStorage, valable 12h côté serveur) permet de sauter cette étape au rechargement.

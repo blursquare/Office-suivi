@@ -3261,6 +3261,82 @@ autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` auton
     "Achat comptant — sans prêt" (et "Non renseigné" sans ce drapeau, comportement inchangé pour
     tous les autres dossiers). `npm test` reste vert (134 tests, aucune fonction pure modifiée par
     ce lot — uniquement de l'affichage/état DOM, comme la plupart des correctifs de ce fichier).
+- **Deux apprentissages supplémentaires, demandés dans la même série** : "permettre au système
+  d'apprendre" quand un document mal rattaché est corrigé, et quand une clause est ajoutée
+  manuellement dans "Nouveau dossier". Les deux questions posées à l'étude sur la portée exacte
+  (exclusion locale à un dossier vs règle apprise généralisée ; apprentissage limité au type
+  d'engagement vs "tout champ corrigé, de façon générique") ont reçu la réponse la plus large dans
+  les deux cas — traité en conséquence, avec une limite explicite documentée ci-dessous plutôt que
+  de prétendre couvrir plus que ce qui est réellement sûr à généraliser.
+  - **Pièce mal rattachée → exclusion apprise, globale à toutes les pièces/tous les dossiers.**
+    `reinitialiserStatutPieceStandard()` (bouton `.piece-reinit`, déjà en place) retrouve désormais,
+    AVANT d'effacer le handle du fichier mal reconnu, son nom réel
+    (`recupererHandle(CLE_HANDLE_PIECE(...))`, déjà mémorisé) et l'enregistre comme exclu pour cette
+    pièce via `exclureNomPourPiece(cle, nomNormalise)` — ce nom (normalisé comme pour tout test de
+    `motifNom`, voir `normaliserNomPourMotif`) ne sera alors plus jamais proposé pour CETTE pièce,
+    sur AUCUN dossier, tant que l'exclusion n'est pas explicitement retirée (aucun panneau de
+    gestion pour l'instant, voir "Ce qui reste ouvert"). `verifierDossierLocal()` teste
+    `estNomExcluPourPiece(piece.cle, nomNormalise)` juste après `piece.motifNom.test(...)`, avant
+    d'accepter une correspondance.
+    - **Nouveau mécanisme de stockage, distinct de `correctionsApprises`** (le mécanisme Jaccard
+      existant n'est pas adapté ici : un nom de fichier n'est pas une clause à comparer par
+      similarité, c'est une correspondance exacte à empêcher de se reproduire) —
+      `exclusionsMotifNom` (`{ [cle]: [nomNormalisé, ...] }`), persisté par
+      `sauvegarderExclusionsMotifNom()`/`chargerExclusionsMotifNom()`, même schéma
+      `window.storage`/`localStorage` de repli que le reste de l'apprentissage (nouvelle clé
+      `exclusions-motif-nom`). Chargé au démarrage aux côtés de `chargerApprentissage()`.
+    - Portée volontairement globale (pas seulement le dossier where l'erreur a été repérée) :
+      l'étude a explicitement choisi cette option plutôt que la version plus prudente proposée par
+      défaut — un même document mal nommé/mal classé par erreur (ex. un courrier de mairie qui
+      mentionne l'urbanisme en passant, nommé de façon ambiguë) a de bonnes chances de se
+      représenter à l'identique sur un autre dossier du même type d'affaire.
+    - Vérifié par un script Node ad hoc (bac à sable) : exclusion enregistrée pour une pièce précise
+      n'affecte ni un autre nom de fichier ni une autre pièce ; normalisation cohérente entre
+      l'enregistrement et le test (underscores/espaces).
+  - **Clause ajoutée manuellement (PDF sélectionné ou formulaire libre) → réutilise et généralise le
+    mécanisme d'apprentissage déjà en place pour les dates** (`correctionsApprises`/
+    `memoriserCorrection()`/`trouverCorrectionApprise()`, jusqu'ici réservé à la classification
+    pret/acte/ventebien/autre d'une clause de délai). Les deux fonctions gagnent un paramètre
+    `categorie` (`'date'` par défaut, valeur historique — une entrée mémorisée avant ce chantier
+    n'a pas ce champ et reste traitée comme `'date'`, sans migration nécessaire ; `'engagement'`
+    pour la nouvelle classification entretien/travaux/document/autre) : les deux espaces sont
+    filtrés séparément (`trouverCorrectionApprise(contexte, categorie)` ignore les entrées d'une
+    autre catégorie), pour qu'une clause de délai de prêt et une clause d'engagement d'entretien
+    partageant par hasard du vocabulaire ne se substituent jamais l'une à l'autre.
+    - `ajouterEngagementManuel(type)` (sélection de texte dans le PDF) et
+      `ajouterEngagementDepuisFormulaire()` (bouton "+ Ajouter un engagement du vendeur", voir plus
+      haut) appellent désormais `memoriserCorrection(phrase, type, null, 'engagement')` — une
+      clause ajoutée à la main est, par construction, une clause que la détection automatique a
+      manquée ou n'a pas su catégoriser.
+    - `extraireEngagementsVendeur()` : la branche qui abandonnait jusqu'ici toute phrase passant
+      l'ancrage strict ("le vendeur/promettant s'engage/s'oblige/devra/remettra...") mais ne
+      correspondant à AUCUN des trois motifs d'objet (`OBJET_ENTRETIEN_RE`/`OBJET_TRAVAUX_RE`/
+      `OBJET_DOCUMENT_RE`) consulte maintenant `trouverCorrectionApprise(phrase, 'engagement')`
+      avant d'abandonner — une correction apprise fournit alors le type. **Reste borné à l'ancrage
+      déjà en place** : ne s'applique jamais à une phrase qui n'aurait pas d'abord passé ce motif
+      strict, donc aucun risque d'élargir la détection à des phrases arbitraires du document — la
+      généralisation ne change QUE le sort d'une phrase déjà anchée mais jusque-là abandonnée faute
+      de mot-clé d'objet reconnu.
+    - Vérifié par un script Node ad hoc (bac à sable) : une phrase inventée (mot-clé fictif) reste
+      ignorée sans apprentissage, puis correctement classée après `memoriserCorrection(...,
+      'engagement')` sur une formulation proche ; une recherche en catégorie `'date'` sur le même
+      contexte reste `null` (les deux espaces ne se mélangent pas).
+  - **Portée explicitement PAS étendue aux champs texte libre/numériques** (nom du dossier,
+    adresse, prix, montants) malgré le choix de l'étude pour l'option la plus généralisée sur la
+    question posée : contrairement à une classification (un mot parmi un nombre fini de catégories,
+    où "rejouer" une correction apprise a un sens sûr), corriger une valeur de ce type n'a pas de
+    mécanisme de réapplication automatique sûr — deux adresses ou deux noms de compromis
+    différents peuvent se ressembler par hasard sans qu'aucune inférence n'en découle. Étendre
+    l'apprentissage à ces champs demanderait un exemple concret de ce que l'étude attend d'un tel
+    mécanisme (une suggestion affichée ? un simple journal des corrections fréquentes ?) plutôt
+    qu'une generalisation mécanique du même code — à reprendre sur demande explicite avec ce
+    besoin précisé, cohérent avec la prudence déjà appliquée ailleurs dans ce fichier
+    (`detecterNomDossier()`, jamais retouchée sans exemple réel reproduisant un échec).
+  - `npm test` reste vert (134 tests, aucune fonction pure modifiée — `trouverCorrectionApprise`/
+    `memoriserCorrection` restent des fonctions pures mais non couvertes par la suite actuelle,
+    même limite déjà notée pour `normaliserPourRecherche()` ; `estNomExcluPourPiece`/
+    `exclureNomPourPiece` de même, vérifiées par simulation Node ad hoc plutôt que par un test
+    committé — envisager de les ajouter à `tests/divers.test.js` si le temps le permet).
 
 **Ce qui n'a volontairement PAS été fait** (arrêté à la demande explicite de l'étude, pas un
 oubli) — à reprendre uniquement si redemandé un jour :
@@ -3323,9 +3399,11 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
 - Étendre l'apprentissage des corrections (voir historique ci-dessus) à `changerCategorie()`
   (reclassification après enregistrement du dossier) : nécessiterait de conserver le texte de la
   clause d'origine sur le dossier sauvegardé, pas seulement la date choisie.
-- Un panneau pour consulter/vider la mémoire des corrections apprises (`correctionsApprises`)
-  serait utile si elle venait à accumuler des erreurs (ex. une correction faite par erreur) —
-  aujourd'hui seul un vidage du `localStorage` du navigateur permet de la réinitialiser.
+- Un panneau pour consulter/vider la mémoire des corrections apprises (`correctionsApprises`, et
+  désormais aussi `exclusionsMotifNom` — voir son historique plus haut, section "Mode serveur
+  intranet") serait utile si l'une des deux venait à accumuler des erreurs (ex. une exclusion
+  posée par erreur sur un vrai document) — aujourd'hui seul un vidage du `localStorage` du
+  navigateur permet de les réinitialiser.
 - ~~Checklist de pièces par type de vente (terrain nu)~~ — **fait** (voir l'historique des décisions
   plus haut, "Nouveau type de vente 'Terrain à bâtir'") : `PIECES_TERRAIN_AUTRES`, option
   `<option value="terrain">` dans `#f-type-vente`, branche dans `checklistPieces()`.
