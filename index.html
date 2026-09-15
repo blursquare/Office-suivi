@@ -393,6 +393,17 @@
   <div class="pdf-viewer-header">
     <div class="pdf-viewer-title" id="pdf-viewer-title">Aperçu du compromis</div>
   </div>
+  <div class="pdf-recherche-barre">
+    <span class="pdf-recherche-icone" id="icon-pdf-recherche"></span>
+    <input type="search" id="pdf-recherche-input" class="pdf-recherche-input"
+           placeholder="Rechercher dans le PDF..." oninput="rechercherDansPdf(this.value)"
+           onkeydown="if(event.key==='Enter'){event.preventDefault(); allerResultatPdfSuivant(event.shiftKey?-1:1);}">
+    <span class="pdf-recherche-compteur" id="pdf-recherche-compteur"></span>
+    <button type="button" class="pdf-recherche-nav" onclick="allerResultatPdfSuivant(-1)"
+            title="Résultat précédent" aria-label="Résultat précédent"><span id="icon-pdf-recherche-prec"></span></button>
+    <button type="button" class="pdf-recherche-nav" onclick="allerResultatPdfSuivant(1)"
+            title="Résultat suivant" aria-label="Résultat suivant"><span id="icon-pdf-recherche-suiv"></span></button>
+  </div>
   <div class="pdf-viewer-canvas-wrap" id="pdf-pages-container"></div>
 </aside>
 

@@ -156,6 +156,66 @@
     line-height: 1.4;
   }
 
+  /* Champ de recherche dans l'aperçu du compromis (comme un vrai lecteur PDF, Ctrl+F) — voir
+     rechercherDansPdf()/allerResultatPdf() dans script.js, qui parcourent directement la couche de
+     texte déjà posée pour la sélection manuelle (.pdf-text-layer) plutôt que de re-parser pdf.js. */
+  .pdf-recherche-barre {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
+    padding: 5px 8px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--paper-sunk);
+  }
+  .pdf-recherche-icone {
+    display: inline-flex;
+    color: var(--muted);
+    flex: none;
+  }
+  .pdf-recherche-icone .icone { width: 14px; height: 14px; }
+  /* .pdf-recherche-barre input.pdf-recherche-input (composé), pas .pdf-recherche-input seule : la
+     règle générique des champs de formulaire (input[type="search"], ~ligne 1162) a une spécificité
+     égale (élément + attribut) — sans ce préfixe composé, elle l'emporterait à spécificité égale
+     puisqu'elle apparaît plus loin dans le fichier (piège déjà rencontré et documenté pour
+     .select-edit/.input-inline, voir CLAUDE.md). */
+  .pdf-recherche-barre input.pdf-recherche-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: auto;
+    max-width: none;
+    border: none;
+    background: transparent;
+    font: inherit;
+    font-size: 13px;
+    color: var(--ink);
+    padding: 2px 0;
+  }
+  .pdf-recherche-barre input.pdf-recherche-input:hover { border: none; }
+  .pdf-recherche-barre input.pdf-recherche-input:focus { outline: none; border: none; }
+  .pdf-recherche-compteur {
+    font-size: 11.5px;
+    color: var(--muted);
+    white-space: nowrap;
+    flex: none;
+  }
+  .pdf-recherche-nav {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    border-radius: 5px;
+    cursor: pointer;
+    flex: none;
+  }
+  .pdf-recherche-nav:hover { background: var(--line-soft); color: var(--ink); }
+  .pdf-recherche-nav .icone { width: 13px; height: 13px; }
+
   .pdf-viewer-canvas-wrap {
     flex: 1;
     overflow-y: auto;
@@ -260,6 +320,18 @@
     cursor: text;
   }
   .pdf-text-layer span::selection { background: rgba(37, 99, 235, 0.35); }
+
+  /* Résultats de rechercherDansPdf() : un fond posé directement sur les <span> transparents déjà
+     en place (pas de nouvel élément à positionner) — jaune discret pour tous les résultats, plus
+     appuyé + contour pour celui actuellement ciblé (allerResultatPdf()). */
+  .pdf-text-layer span.pdf-search-marque {
+    background: rgba(250, 204, 21, 0.45);
+    border-radius: 1px;
+  }
+  .pdf-text-layer span.pdf-search-marque-active {
+    background: rgba(217, 114, 10, 0.55);
+    outline: 1.5px solid var(--urgent);
+  }
 
   .pdf-selection-toolbar {
     position: fixed;

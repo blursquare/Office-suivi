@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-15 14:02';
+  const VERSION_APP = '2026-09-15 14:13';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,14 +23,14 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-15 14:13', resume: "Champ de recherche dans l'aperçu PDF (comme Ctrl+F d'un lecteur PDF), navigation résultat suivant/précédent" },
     { version: '2026-09-15 14:02', resume: "Retours de test du matin : indicateur de connexion serveur (sidebar), achat comptant affiché clairement (plus de \"Non renseigné\"), ajout manuel d'un engagement du vendeur sans sélection PDF, catégorie \"Autres\" pour les engagements, indicateur pendant la recherche IA" },
     { version: '2026-09-14 20:26', resume: "Le wizard « Nouveau dossier » utilise aussi l'IA locale en arrière-plan : complète nom/adresse/prix/dates non trouvés par les regex et suggère des engagements du vendeur en plus, jamais en remplacement" },
     { version: '2026-09-14 20:11', resume: "Nouvel onglet « Analyse approfondie (IA) » : dépose l'acte + ses annexes séparées, relecture croisée par un modèle IA local (Ollama, aucune donnée envoyée en ligne) — voir server/README.md" },
     { version: '2026-09-14 19:27', resume: "Vrai correctif du bug apostrophe (Certificat d'urbanisme/d'alignement) : le précédent (&#39;) ne survivait pas au décodage HTML de l'attribut onclick, toujours cassé en pratique" },
     { version: '2026-09-14 17:13', resume: 'Détection "Renonciation au droit de préemption" élargie au sigle "DPU" dans le nom de fichier' },
     { version: '2026-09-14 17:01', resume: 'Écran de connexion : espace manquant entre le champ mot de passe et "Se connecter" ; sidebar : Mode sombre et À propos côte à côte' },
-    { version: '2026-09-14 16:11', resume: "Serveur : vrai service Windows (NSSM, redémarrage auto) et calendrier connecté (abonnement webcal en lecture seule) — voir server/README.md" },
-    { version: '2026-09-14 15:42', resume: "Bug corrigé : apostrophe cassait les boutons pièce (Certificat d'urbanisme...) ; suppression d'un engagement/document possible partout ; \"contrat de crédit/prêt\" reconnu pour l'offre" }
+    { version: '2026-09-14 16:11', resume: "Serveur : vrai service Windows (NSSM, redémarrage auto) et calendrier connecté (abonnement webcal en lecture seule) — voir server/README.md" }
   ];
 
   const STORAGE_KEY = 'dossiers';
@@ -100,6 +100,7 @@
     'trend-down': '<path d="M2.5 4 6.8 8.3 9.3 5.8 13.5 10"/><path d="M9.5 10h4v-4"/>',
     info: '<circle cx="8" cy="8" r="6.2"/><line x1="8" y1="7.2" x2="8" y2="11.3"/><circle cx="8" cy="4.9" r="0.9" fill="currentColor" stroke="none"/>',
     'chevron-down': '<path d="M3.5 6 8 10.5 12.5 6"/>',
+    'chevron-up': '<path d="M3.5 10 8 5.5 12.5 10"/>',
     'rotate-ccw': '<path d="M13.3 8A5.3 5.3 0 1 1 10.8 3.4"/><path d="M13.6 2.6v3.6h-3.6"/>'
   };
   // `cls` porte les classes de mise en page (taille via font-size hérité, marge...) ; `spin` anime
@@ -1540,6 +1541,7 @@
     conteneur.innerHTML = '';
     masquerBoutonAjoutEngagement();
     masquerFormAjoutEngagementManuel();
+    reinitialiserRecherchePdf();
     const largeurDispo = (conteneur.clientWidth || 360) - 20;
 
     for (let numero = 1; numero <= pdfDernierePageUtile; numero++) {
@@ -1890,6 +1892,99 @@
     } catch (e) {
       console.error('Surlignage impossible', e);
     }
+  }
+
+  // Recherche de texte dans l'aperçu du compromis, sur le modèle d'un vrai lecteur PDF (Ctrl+F).
+  // Réutilise directement la couche de texte déjà posée par construireCoucheTexte() pour la
+  // sélection manuelle — plutôt que de rappeler pdf.js (getTextContent()) à chaque frappe, ce qui
+  // ré-parserait tout le document à chaque caractère tapé : les <span> sont déjà en place, déjà
+  // positionnés pixel pour pixel sur le rendu, il suffit de les parcourir et de leur ajouter une
+  // classe de surlignage. Insensible aux accents/majuscules (normaliserPourRecherche(), déjà
+  // utilisée pour la recherche de dossiers) — "pret" retrouve aussi bien "prêt" que "PRÊT".
+  let resultatsRecherchePdf = [];
+  let indexResultatRecherchePdf = -1;
+
+  function rechercherDansPdf(valeur) {
+    document.querySelectorAll('.pdf-search-marque').forEach(el => {
+      el.classList.remove('pdf-search-marque', 'pdf-search-marque-active');
+    });
+    resultatsRecherchePdf = [];
+    indexResultatRecherchePdf = -1;
+    const compteurEl = document.getElementById('pdf-recherche-compteur');
+    const requeteNorm = normaliserPourRecherche(String(valeur || '').trim());
+    if (!requeteNorm) {
+      if (compteurEl) compteurEl.textContent = '';
+      return;
+    }
+
+    document.querySelectorAll('#pdf-pages-container .pdf-page-bloc').forEach(bloc => {
+      const couche = bloc.querySelector('.pdf-text-layer');
+      if (!couche) return;
+      const spans = Array.from(couche.children);
+      // Texte normalisé concaténé de la page, un espace entre chaque item (comme
+      // voirEngagementDansPdf()) — mémorise pour chaque caractère l'index du <span> d'origine,
+      // -1 pour les espaces insérés entre deux items.
+      let texte = '';
+      const origines = [];
+      spans.forEach((span, i) => {
+        const norm = normaliserPourRecherche(span.textContent || '');
+        for (const ch of norm) { texte += ch; origines.push(i); }
+        texte += ' '; origines.push(-1);
+      });
+
+      let pos = texte.indexOf(requeteNorm);
+      while (pos !== -1) {
+        const spansConcernes = new Set();
+        for (let i = pos; i < pos + requeteNorm.length && i < origines.length; i++) {
+          if (origines[i] >= 0) spansConcernes.add(origines[i]);
+        }
+        if (spansConcernes.size > 0) {
+          resultatsRecherchePdf.push({ spans: Array.from(spansConcernes).map(i => spans[i]) });
+        }
+        pos = texte.indexOf(requeteNorm, pos + 1);
+      }
+    });
+
+    resultatsRecherchePdf.forEach(r => r.spans.forEach(s => s.classList.add('pdf-search-marque')));
+
+    if (compteurEl) {
+      compteurEl.textContent = resultatsRecherchePdf.length
+        ? `1 / ${resultatsRecherchePdf.length}`
+        : 'Aucun résultat';
+    }
+    if (resultatsRecherchePdf.length) allerResultatPdf(0);
+  }
+
+  function allerResultatPdf(index) {
+    if (!resultatsRecherchePdf.length) return;
+    if (index < 0) index = resultatsRecherchePdf.length - 1;
+    if (index >= resultatsRecherchePdf.length) index = 0;
+    document.querySelectorAll('.pdf-search-marque-active').forEach(el => {
+      el.classList.remove('pdf-search-marque-active');
+    });
+    indexResultatRecherchePdf = index;
+    const resultat = resultatsRecherchePdf[index];
+    resultat.spans.forEach(s => s.classList.add('pdf-search-marque-active'));
+    resultat.spans[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const compteurEl = document.getElementById('pdf-recherche-compteur');
+    if (compteurEl) compteurEl.textContent = `${index + 1} / ${resultatsRecherchePdf.length}`;
+  }
+
+  function allerResultatPdfSuivant(direction) {
+    if (!resultatsRecherchePdf.length) return;
+    allerResultatPdf(indexResultatRecherchePdf + direction);
+  }
+
+  // Remet la recherche PDF à zéro (nouveau document chargé, ou formulaire réinitialisé) : sans ça,
+  // le champ garderait le texte/les résultats d'une recherche menée sur le PDF PRÉCÉDENT, alors que
+  // les <span> qu'elle référence viennent d'être détruits par chargerToutesLesPagesPdf().
+  function reinitialiserRecherchePdf() {
+    resultatsRecherchePdf = [];
+    indexResultatRecherchePdf = -1;
+    const input = document.getElementById('pdf-recherche-input');
+    if (input) input.value = '';
+    const compteurEl = document.getElementById('pdf-recherche-compteur');
+    if (compteurEl) compteurEl.textContent = '';
   }
 
   async function gererUploadPdf(event) {
@@ -2275,6 +2370,7 @@
     document.getElementById('pdf-viewer-title').textContent = 'Aperçu du compromis';
     document.getElementById('pdf-pages-container').innerHTML = '';
     document.getElementById('nouveau-intro').style.display = 'flex';
+    reinitialiserRecherchePdf();
     pdfActuel = null;
     pdfDernierePageUtile = 1;
     frontieresPagesActuelles = null;
@@ -6267,7 +6363,10 @@
       'icon-calc-warning': 'alert-triangle',
       'icon-nav-analyse-ia': 'sparkle',
       'icon-analyse-ia-warning': 'alert-triangle',
-      'icon-analyse-ia-dropzone': 'upload'
+      'icon-analyse-ia-dropzone': 'upload',
+      'icon-pdf-recherche': 'search',
+      'icon-pdf-recherche-prec': 'chevron-up',
+      'icon-pdf-recherche-suiv': 'chevron-down'
     };
     for (const [id, nom] of Object.entries(cibles)) {
       const el = document.getElementById(id);

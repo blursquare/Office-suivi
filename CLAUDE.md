@@ -2717,6 +2717,58 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
   autres sigles courts déjà acceptés seuls (TF, SPANC, ERP, CU) : un sigle assez spécifique au
   contexte notarial pour ne pas risquer d'apparaître incidemment dans le nom d'un autre document du
   même dossier. Cas ajouté au test existant dans `tests/dossier-local.test.js`.
+- **Champ de recherche dans l'aperçu du compromis** (comme le Ctrl+F d'un vrai lecteur PDF),
+  demandé par l'étude — jusqu'ici, retrouver un mot précis dans un compromis de plusieurs dizaines
+  de pages n'était possible qu'en faisant défiler visuellement l'aperçu. Fonctionnalité purement
+  côté client (aucun appel serveur), donc identique sur `main` et `claude/serveur-intranet`.
+  - `rechercherDansPdf(valeur)` (script.js, juste après `voirEngagementDansPdf()`) réutilise
+    directement la couche de texte déjà posée par `construireCoucheTexte()` pour la sélection
+    manuelle (voir son historique plus haut) — plutôt que de rappeler `pdf.js`
+    (`getTextContent()`) à chaque frappe, ce qui reparserait tout le document à chaque caractère
+    tapé : les `<span>` (un par item pdf.js, déjà positionnés pixel pour pixel sur le rendu) sont
+    déjà en place, il suffit de les parcourir et de leur ajouter une classe de surlignage. Même
+    principe de reconstruction texte+mapping d'index que `voirEngagementDansPdf()` (concaténer le
+    texte de chaque page en mémorisant, pour chaque caractère, le `<span>` d'origine) — nécessaire
+    pour retrouver une requête qui chevauche plusieurs items (ex. "offre de prêt" répartie sur 2-3
+    fragments de ligne). Insensible aux accents/majuscules via `normaliserPourRecherche()` (déjà
+    utilisée pour la recherche de dossiers dans le Suivi/le Tableau de bord) — "pret" retrouve
+    aussi bien "prêt" que "PRÊT". Logique de correspondance (mono-item, insensible casse/accents,
+    chevauchant plusieurs items, absence) vérifiée par une simulation Node ad hoc avant d'écrire le
+    code définitif.
+  - Barre de recherche (`.pdf-recherche-barre`, sous le titre "Aperçu du compromis") : un champ
+    (`oninput`, recherche en direct), un compteur "N / M" (ou "Aucun résultat"), deux boutons
+    précédent/suivant (icônes `chevron-up`/`chevron-down`, nouvelle icône `chevron-up` ajoutée au
+    jeu SVG maison). Entrée/Maj+Entrée dans le champ équivalent aux boutons suivant/précédent,
+    comme un vrai lecteur. `allerResultatPdf(index)` fait défiler jusqu'au résultat
+    (`scrollIntoView`) et bascule le style `.pdf-search-marque-active` (contour + fond plus appuyé)
+    sur les `<span>` concernés, les autres résultats restant marqués plus discrètement
+    (`.pdf-search-marque`, fond jaune translucide directement posé sur les `<span>` transparents
+    déjà en place — pas de nouvel élément à positionner).
+  - `reinitialiserRecherchePdf()` (vide le champ, le compteur, les tableaux de résultats) appelée à
+    chaque nouveau chargement de pages (`chargerToutesLesPagesPdf()`, qui détruit de toute façon les
+    `<span>` existants via `conteneur.innerHTML = ''`) et à `reinitialiserFormulaire()` — sans ça,
+    une recherche menée sur le PDF précédent resterait affichée (champ, compteur) alors que les
+    `<span>` qu'elle référence ont déjà été détruits.
+  - **Piège de spécificité CSS déjà documenté (voir `.select-edit`/`.input-inline` plus haut),
+    rencontré une troisième fois** : la règle générique des champs de formulaire
+    (`input[type="search"]`, ~ligne 1162) a la MÊME spécificité qu'un simple `input.pdf-recherche-input`
+    (élément + attribut vs élément + classe) — à spécificité égale, c'est l'ordre d'apparition dans
+    le fichier qui tranche, et cette règle générique arrive après. Corrigé avec un sélecteur composé
+    `.pdf-recherche-barre input.pdf-recherche-input` (élément + 2 classes), qui l'emporte quel que
+    soit l'ordre. Point de vigilance générique pour tout futur champ personnalisé de cet outil : un
+    simple `input.ma-classe` ne suffit pas forcément face à `input[type="..."]`, il faut au moins un
+    sélecteur composé (ou plus spécifique encore) pour être sûr de l'emporter indépendamment de
+    l'ordre du fichier.
+  - `.pdf-viewer` (l'aside tout entier) est déjà masqué à l'impression (`@media print`, règle
+    existante) : rien à ajouter pour exclure la barre de recherche de la fiche imprimée.
+  - Vérifié : `npm test` reste vert (134 tests, aucune fonction pure ajoutée — cette fonctionnalité
+    dépend entièrement du DOM/de pdf.js, comme la sélection manuelle de texte dont elle réutilise la
+    couche) ; les nouvelles fonctions confirmées exposées par un script bac à sable
+    (`tests/helpers/load-app.js`) ; la logique de correspondance (recherche/mapping d'index)
+    vérifiée séparément par simulation Node sur des cas représentatifs. **Non vérifié avec un vrai
+    rendu PDF dans cet environnement** (pdf.js chargé depuis un CDN bloqué par le proxy réseau de
+    développement ici, comme pour les autres fonctionnalités liées à la sélection/au surlignage
+    dans l'aperçu) — à confirmer par l'étude sur un compromis réel.
 
 ## Mode serveur intranet (branche `claude/serveur-intranet`, distincte de `main`)
 
