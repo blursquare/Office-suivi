@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-18 01:42';
+  const VERSION_APP = '2026-09-18 01:52';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-18 01:52', resume: "L'IA locale relit l'acte en trois passes ciblées (parties et notaires / bien et prix / échéances) au lieu d'une seule : chaque valeur qu'elle propose est vérifiée en retrouvant sa citation dans le PDF, jamais retenue sur sa seule affirmation ; quand elle contredit la détection automatique, c'est cette dernière qui reste, l'écart étant signalé dans le panneau plutôt que tranché en silence ; un délai qu'elle rapporte est calculé par l'outil, jamais par elle" },
     { version: '2026-09-18 01:42', resume: "La fiche d'un dossier garde désormais la trace de ce que l'outil avait compris de l'acte à l'import (type d'acte, parties et leurs rôles, notaires, cadastre, statut de chaque donnée) : nouveau panneau « Ce que l'outil avait compris de l'acte », replié, sous l'analyse juridique — conservé aussi lors d'un export/import de sauvegarde" },
     { version: '2026-09-18 01:37', resume: "Nouveau panneau « Ce que l'outil a compris » à l'étape Vérifier : type d'acte, parties et leurs rôles, adresse et cadastre du bien, notaires (dont celui qui reçoit l'acte) et chaque date avec son statut (confirmé / à vérifier / non trouvé), sa provenance et sa page ; alertes de cohérence (prêt après l'acte, date écrite contredite par un délai, adresse incomplète…) rappelées avant d'enregistrer ; le rôle de l'étude est pré-rempli quand le document le dit clairement" },
     { version: '2026-09-18 01:21', resume: "Noms de dossier corrigés : le type d'acte (compromis / promesse de vente / promesse d'achat) est désormais déterminé avant d'attribuer les rôles — dans une promesse d'achat le promettant est l'ACQUÉREUR, les deux parties étaient jusqu'ici interverties ; « L'ACQUÉREUR » ne ramène plus le nom du vendeur ; plusieurs vendeurs et les SCI (avec leur représentant) sont conservés" },
@@ -59,7 +60,7 @@
   let approxParType = { pret: false, acte: false, ventebien: false };
   let analyseJuridiqueActuelle = { documents: [], engagements: [], conditions: [] };
   // Incrémenté à chaque nouvel import (traiterFichierPdf) et à chaque reset du formulaire
-  // (reinitialiserFormulaire) — permet à enrichirImportAvecIa() de vérifier, une fois sa réponse
+  // (reinitialiserFormulaire) — permet à lancerExtractionIa() de vérifier, une fois sa réponse
   // reçue, qu'elle porte encore sur l'import en cours plutôt que sur un import précédent déjà
   // enregistré ou abandonné (l'appel au LLM local peut prendre plusieurs dizaines de secondes).
   let generationImportActuel = 0;
@@ -2643,9 +2644,17 @@
         ? `<button type="button" class="voir-pdf-btn" onclick="allerALaPageDuPdf(${source.page})">${icone('eye')} p.${source.page}</button>`
         : `<span class="chip-page">p.${source.page}</span>`)
       : '';
-    const valeur = champ.valeur === null || champ.valeur === undefined || champ.valeur === ''
+    // Un type d'acte s'affiche dans les mots de l'étude, pas sous sa clé interne
+    // (LIBELLES_TYPE_ACTE est un `var`, hoisté : sa déclaration vit plus bas, avec le panneau
+    // équivalent de la fiche dossier — un seul jeu de libellés pour les deux).
+    const brut = champ.valeur;
+    const valeur = brut === null || brut === undefined || brut === ''
       ? '<span class="revision-vide">—</span>'
-      : escapeHtml(String(champ.valeur));
+      : escapeHtml(String(LIBELLES_TYPE_ACTE[brut] || brut));
+    // « Calculée » plutôt que « lue dans l'acte » : au moment de vérifier, savoir qu'une date
+    // résulte d'un délai compté depuis la signature change ce qu'on va contrôler.
+    const methode = champ.methode === 'CALCULATED'
+      ? '<span class="revision-raison">Calculée à partir d’un délai compté depuis la signature.</span>' : '';
     const extrait = source && source.extrait
       ? `<div class="revision-extrait">« ${escapeHtml(String(source.extrait).slice(0, 220))} »</div>` : '';
     const raison = champ.raison ? `<div class="revision-raison">${escapeHtml(champ.raison)}</div>` : '';
@@ -2659,7 +2668,7 @@
         ${page}
       </div>
       <div class="revision-valeur">${valeur}</div>
-      ${raison}${autres}${extrait}
+      ${methode}${raison}${autres}${extrait}
     </div>`;
   }
 
@@ -3543,7 +3552,7 @@
       // chemin principal, immédiat et déjà éprouvé — l'IA locale ne fait qu'enrichir ensuite ce
       // qu'elle n'a pas trouvé, silencieusement si Ollama n'est pas disponible. Ne doit jamais
       // retarder la suite de l'import (bascule d'étape, aperçu PDF...).
-      enrichirImportAvecIa(texteComplet, monImport);
+      lancerExtractionIa(texteComplet, monImport);
       // Bascule automatiquement vers l'étape "Vérifier" : les dates/chips sont déjà là, plus besoin
       // de cliquer soi-même sur "Suivant" après un import qui vient de réussir.
       definirEtapeWizard(2);
@@ -3677,80 +3686,227 @@
     }
   }
 
-  async function enrichirImportAvecIa(texte, monImport) {
-    afficherStatutEnrichissementIa(true);
-    let resultat;
-    try {
-      const reponse = await fetchAvecAuth('/api/extraction-ia', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ texte })
+  // ==== EXTRACTION STRUCTURÉE : fusion des lots IA ====
+  //
+  // Trois règles, les mêmes pour toute donnée, quel que soit le lot :
+  //   - les regex n'ont RIEN trouvé → on prend la valeur du modèle, avec le statut que lui vaut la
+  //     vérification de son extrait (`extraitTrouve`, calculé côté serveur : sa citation figure-t-elle
+  //     littéralement dans le PDF ?) — CONFIRMED si oui, NEEDS_REVIEW sinon ;
+  //   - les deux trouvent LA MÊME chose → CONFIRMED, origine 'regex+ia' : deux méthodes
+  //     indépendantes qui convergent, c'est le meilleur signal disponible ;
+  //   - les deux trouvent des choses DIFFÉRENTES → on garde la valeur des regex (déterministes,
+  //     testées sur de vrais actes) mais le statut passe NEEDS_REVIEW et la valeur du modèle est
+  //     conservée en candidat, visible dans le panneau. Jamais de choix silencieux entre les deux.
+  //
+  // Le modèle ne calcule jamais une date : il rapporte un délai et son point de départ, le calcul
+  // est fait ici par calculerDateEcheance() — déterministe, testé (voir tests/dates-metier.test.js).
+  function fusionnerExtractionIa(extraction, lot, resultat, texte, options) {
+    if (!extraction || !resultat) return extraction;
+    const o = options || {};
+    const page = typeof o.page === 'function' ? o.page : () => null;
+
+    // Source (extrait + page) d'un élément renvoyé par le serveur, et statut qu'elle lui vaut.
+    const sourceIa = (element) => (element && element.extrait)
+      ? { extrait: element.extrait, index: element.extraitIndex === undefined ? null : element.extraitIndex, page: element.extraitTrouve ? page(element.extraitIndex) : null }
+      : null;
+    const statutIa = (element) => (element && element.extraitTrouve) ? 'CONFIRMED' : 'NEEDS_REVIEW';
+
+    // Applique les trois règles ci-dessus à un champ générique.
+    const fusionnerChamp = (champ, valeurIa, element) => {
+      const existant = champ || champExtraction(null, { statut: 'NOT_FOUND' });
+      if (valeurIa === null || valeurIa === undefined || valeurIa === '') return existant;
+      if (existant.valeur === null || existant.valeur === undefined || existant.valeur === '') {
+        return champExtraction(valeurIa, { statut: statutIa(element), origine: 'ia', source: sourceIa(element) });
+      }
+      if (String(existant.valeur) === String(valeurIa)) {
+        return Object.assign({}, existant, { statut: 'CONFIRMED', origine: 'regex+ia' });
+      }
+      return Object.assign({}, existant, {
+        statut: 'NEEDS_REVIEW',
+        origine: 'regex+ia',
+        raison: 'Le modèle local lit une autre valeur à cet endroit : c’est celle des règles de détection qui est retenue.',
+        candidats: (existant.candidats || []).concat([{ valeur: valeurIa, origine: 'ia', source: sourceIa(element) }])
       });
-      if (!reponse.ok) return; // Ollama indisponible/erreur : enrichissement optionnel, pas d'échec bruyant
-      resultat = await reponse.json();
-    } catch (e) {
-      return; // session expirée (déjà gérée par fetchAvecAuth) ou réseau — rien d'autre à faire ici
-    } finally {
-      // Uniquement si on est toujours sur le MÊME import : un import suivant a déjà remis son
-      // propre statut (masqué au départ, voir traiterFichierPdf) — le masquer ici écraserait à
-      // tort l'état du nouvel import si celui-ci a démarré entretemps.
-      if (monImport === generationImportActuel) afficherStatutEnrichissementIa(false);
-    }
-    // L'utilisateur a pu importer un autre PDF, ou enregistrer/réinitialiser le formulaire, pendant
-    // les quelques dizaines de secondes qu'a pu prendre cet appel — voir generationImportActuel.
-    if (monImport !== generationImportActuel) return;
-    if (!resultat || resultat.erreurExtraction) return;
+    };
 
-    let champsCompletes = 0;
+    if (lot === 'parties') {
+      if (resultat.typeActe && resultat.typeActe.valeur) {
+        // Un type d'acte non tranché par les regex est le cas où l'inversion vendeur/acquéreur
+        // d'une promesse d'achat passerait inaperçue : c'est exactement là que le modèle, qui lit
+        // le document en contexte, apporte le plus.
+        const actuel = extraction.typeActe || {};
+        if (!actuel.valeur || actuel.valeur === 'INCONNU') {
+          extraction.typeActe = { valeur: resultat.typeActe.valeur, statut: statutIa(resultat.typeActe), origine: 'ia', source: sourceIa(resultat.typeActe) };
+        } else if (actuel.valeur === resultat.typeActe.valeur) {
+          extraction.typeActe = Object.assign({}, actuel, { statut: 'CONFIRMED', origine: 'regex+ia' });
+        } else {
+          extraction.typeActe = Object.assign({}, actuel, {
+            statut: 'NEEDS_REVIEW', origine: 'regex+ia',
+            raison: `Le modèle local lit plutôt « ${resultat.typeActe.valeur} » : vérifiez que vendeur et acquéreur ne sont pas intervertis.`
+          });
+        }
+      }
 
-    const champNom = document.getElementById('f-nom');
-    if (champNom && !champNom.value.trim() && resultat.nomDossier) {
-      champNom.value = resultat.nomDossier;
-      champsCompletes++;
-    }
-    const champAdresse = document.getElementById('f-adresse-bien');
-    if (champAdresse && !champAdresse.value.trim() && resultat.adresseBien) {
-      champAdresse.value = resultat.adresseBien;
-      champsCompletes++;
-    }
-    const champPrix = document.getElementById('f-prix-vente');
-    if (champPrix && !champPrix.value.trim() && resultat.prixVente) {
-      champPrix.value = String(resultat.prixVente);
-      champsCompletes++;
-    }
+      if ((extraction.parties || []).length === 0 && Array.isArray(resultat.parties) && resultat.parties.length > 0) {
+        extraction.parties = resultat.parties.map(p => ({
+          nom: p.nom, qualiteActe: p.qualiteActe || '', role: p.role,
+          qualitePersonne: p.qualitePersonne || 'physique', representant: p.representant || null,
+          source: sourceIa(p)
+        }));
+        // Le nom du dossier est dérivé des parties : le recomposer ici plutôt que de laisser le
+        // modèle proposer sa propre mise en forme, qui varierait d'un acte à l'autre.
+        const vendeurs = extraction.parties.filter(p => p.role === 'VENDEUR').map(p => p.nom);
+        const acquereurs = extraction.parties.filter(p => p.role === 'ACQUEREUR').map(p => p.nom);
+        if (vendeurs.length > 0 && acquereurs.length > 0) {
+          extraction.champs.nom = fusionnerChamp(extraction.champs.nom, `${vendeurs.join(' & ')} / ${acquereurs.join(' & ')}`, resultat.parties[0]);
+        }
+      }
 
-    const datesParType = { pret: resultat.datePret, acte: resultat.dateActe, ventebien: resultat.dateVentePrealable };
-    for (const [type, iso] of Object.entries(datesParType)) {
-      const champ = document.getElementById('f-' + type);
-      if (champ && !champ.value && iso) {
-        champ.value = iso;
-        definirEcheanceActive(type, true);
-        champsCompletes++;
+      // Notaires : seulement si les regex n'en ont identifié aucun. La règle métier (41/45/37) est
+      // ensuite rejouée telle quelle sur cette liste — jamais réimplémentée ici, elle n'est
+      // déclarée qu'à un seul endroit (REGLES_NOTAIRE_INSTRUMENTAIRE).
+      const notairesActuels = (extraction.notaires && extraction.notaires.liste) || [];
+      if (notairesActuels.length === 0 && Array.isArray(resultat.notaires) && resultat.notaires.length > 0) {
+        const liste = resultat.notaires.map(n => ({
+          nom: n.nom, office: n.office || null, adresse: null,
+          codePostal: null, commune: n.office || null, departement: null,
+          cote: n.cote || 'inconnu', roleExplicite: n.roleExplicite || null,
+          source: sourceIa(n)
+        }));
+        const departement = extraction.bien && extraction.bien.adresse ? extraction.bien.adresse.departement : null;
+        extraction.notaires = determinerNotaires(liste, departement);
       }
     }
 
+    if (lot === 'bien') {
+      const adresseActuelle = (extraction.bien && extraction.bien.adresse) || null;
+      if (resultat.adresse && (!adresseActuelle || adresseActuelle.statut !== 'CONFIRMED')) {
+        const a = resultat.adresse;
+        const morceaux = [a.numero, a.typeVoie, a.nomVoie, a.lieuDit, a.codePostal, a.commune].filter(Boolean);
+        extraction.bien = extraction.bien || {};
+        extraction.bien.adresse = {
+          adresseComplete: morceaux.join(' '),
+          numero: a.numero || null, typeVoie: a.typeVoie || null, nomVoie: a.nomVoie || null,
+          lieuDit: a.lieuDit || null, codePostal: a.codePostal || null, commune: a.commune || null,
+          departement: a.codePostal ? departementDepuisCodePostal(a.codePostal) : null,
+          // Une adresse reste incomplète sans code postal ET commune, quel que soit l'aplomb du
+          // modèle : c'est du code postal qu'on déduit le département, donc le notaire.
+          statut: (a.codePostal && a.commune) ? statutIa(a) : 'NEEDS_REVIEW',
+          origine: 'ia'
+        };
+        extraction.bien.source = sourceIa(a);
+      }
+      if (resultat.cadastre && !(extraction.bien && extraction.bien.cadastre)) {
+        extraction.bien = extraction.bien || {};
+        extraction.bien.cadastre = { section: resultat.cadastre.section, numero: resultat.cadastre.numero || null };
+      }
+      if (resultat.prixVente) {
+        extraction.champs.prixVente = fusionnerChamp(extraction.champs.prixVente, resultat.prixVente.valeur, resultat.prixVente);
+      }
+      if (resultat.typeVente) {
+        extraction.champs.typeVente = fusionnerChamp(extraction.champs.typeVente, resultat.typeVente.valeur, resultat.typeVente);
+      }
+    }
+
+    if (lot === 'dates') {
+      const signature = (extraction.dates && extraction.dates.SIGNATURE_AVANT_CONTRAT && extraction.dates.SIGNATURE_AVANT_CONTRAT.valeur) || null;
+      for (const entree of (resultat.dates || [])) {
+        if (!TYPES_DATE.includes(entree.type)) continue;
+        const actuel = extraction.dates[entree.type];
+        let valeur = entree.dateExplicite || null;
+        let methode = valeur ? 'EXPLICIT' : null;
+        if (!valeur && entree.delai) {
+          // Le point de départ est rapporté par le modèle dans les mots de l'acte : on le
+          // reconnaît avec la même table que les regex, et on ne calcule QUE depuis la signature —
+          // les autres ancres (notification, purge, réalisation d'une condition) n'ont pas de date
+          // connue à l'import, la date resterait une invention.
+          const cle = pointDepartDepuisAncre(entree.delai.pointDepart || '');
+          if (pointDepartCalculable(cle) && signature) {
+            valeur = calculerDateEcheance(signature, entree.delai);
+            methode = 'CALCULATED';
+          }
+        }
+        if (!valeur) continue;
+        const fusionne = fusionnerChamp(actuel, valeur, entree);
+        // Une date lue telle quelle dans l'acte ne devient jamais « calculée » par l'effet de la
+        // fusion : la méthode d'origine prime, c'est elle qui dit à l'étude d'où vient le chiffre.
+        fusionne.methode = (actuel && actuel.methode) ? actuel.methode : methode;
+        extraction.dates[entree.type] = fusionne;
+      }
+    }
+
+    extraction.iaLots[lot] = 'ok';
+    extraction.alertes = controlerCoherence(extraction);
+    return extraction;
+  }
+
+  // Lance les trois lots EN PARALLÈLE et fusionne chaque réponse dès son arrivée : le panneau se
+  // remplit lot par lot plutôt que d'attendre le plus lent des trois. Chacun passe par le même
+  // garde-fou de génération (l'utilisateur a pu importer un autre PDF ou enregistrer le dossier
+  // entretemps) et par appliquerExtractionAuFormulaire, qui ne touche jamais un champ saisi à la
+  // main. Silencieuse si Ollama n'est pas installé/lancé : le wizard reste utilisable exactement
+  // comme sans cette passe, jamais une condition bloquante pour créer un dossier.
+  var LOTS_EXTRACTION_IA = ['parties', 'bien', 'dates'];
+
+  async function lancerExtractionIa(texte, monImport) {
+    if (!extractionActuelle) return;
+    afficherStatutEnrichissementIa(true);
+    let lotsAboutis = 0;
     let engagementsAjoutes = 0;
-    if (Array.isArray(resultat.engagementsVendeur)) {
-      for (const suggestion of resultat.engagementsVendeur) {
-        if (engagementDejaConnu(suggestion.description, analyseJuridiqueActuelle.engagements)) continue;
-        analyseJuridiqueActuelle.engagements.push({ phrase: suggestion.description, type: suggestion.type, page: null, source: 'ia' });
-        engagementsAjoutes++;
-      }
-      if (engagementsAjoutes > 0) {
-        // Recalculée à partir de TOUS les engagements (existants + IA), comme à l'origine dans
-        // traiterTexte() — une seule fonction pure, jamais deux logiques différentes pour la même
-        // liste selon qu'elle vient d'être enrichie ou non.
-        analyseJuridiqueActuelle.documents = detecterDocumentsAFournir(analyseJuridiqueActuelle.engagements);
-        afficherAnalyseJuridique();
-      }
-    }
 
-    if (champsCompletes === 0 && engagementsAjoutes === 0) return;
-    const morceaux = [];
-    if (champsCompletes > 0) morceaux.push(`${champsCompletes} champ${champsCompletes > 1 ? 's' : ''}`);
-    if (engagementsAjoutes > 0) morceaux.push(`${engagementsAjoutes} engagement${engagementsAjoutes > 1 ? 's' : ''} du vendeur`);
-    const total = champsCompletes + engagementsAjoutes;
-    afficherToast(`IA locale : ${morceaux.join(' et ')} complété${total > 1 ? 's' : ''} en plus de la détection automatique — à vérifier.`, 'OK', null);
+    const traiterLot = async (lot) => {
+      let reponse;
+      try {
+        reponse = await fetchAvecAuth('/api/extraction-ia', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ texte, lot })
+        });
+      } catch (e) {
+        return; // session expirée (gérée par fetchAvecAuth) ou réseau — passe optionnelle
+      }
+      if (!reponse.ok) return; // Ollama indisponible : pas d'échec bruyant
+      const corps = await reponse.json().catch(() => null);
+      if (!corps || !corps.resultat) return;
+      if (monImport !== generationImportActuel || !extractionActuelle) return;
+
+      fusionnerExtractionIa(extractionActuelle, lot, corps.resultat, texte, { page: pageDepuisIndex });
+      lotsAboutis++;
+
+      if (lot === 'dates') {
+        for (const suggestion of (corps.resultat.engagementsVendeur || [])) {
+          if (engagementDejaConnu(suggestion.extrait, analyseJuridiqueActuelle.engagements)) continue;
+          analyseJuridiqueActuelle.engagements.push({ phrase: suggestion.extrait, type: suggestion.type, page: null, source: 'ia' });
+          engagementsAjoutes++;
+        }
+        if ((corps.resultat.engagementsVendeur || []).length > 0) {
+          // Recalculés à partir de TOUS les engagements (regex + IA), comme dans traiterTexte() —
+          // une seule fonction pure, jamais deux logiques selon la provenance de la liste.
+          analyseJuridiqueActuelle.documents = detecterDocumentsAFournir(analyseJuridiqueActuelle.engagements);
+          afficherAnalyseJuridique();
+        }
+      }
+
+      appliquerExtractionAuFormulaire(extractionActuelle);
+      renderPanneauRevision(extractionActuelle);
+    };
+
+    await Promise.all(LOTS_EXTRACTION_IA.map(lot => traiterLot(lot).catch(() => {
+      if (extractionActuelle) extractionActuelle.iaLots[lot] = 'indisponible';
+    })));
+
+    // Un import suivant a déjà remis son propre statut (masqué au départ, voir traiterFichierPdf) :
+    // le masquer ici écraserait l'état du nouvel import.
+    if (monImport !== generationImportActuel) return;
+    afficherStatutEnrichissementIa(false);
+    for (const lot of LOTS_EXTRACTION_IA) {
+      if (extractionActuelle && extractionActuelle.iaLots[lot] === 'attente') extractionActuelle.iaLots[lot] = 'indisponible';
+    }
+    if (lotsAboutis === 0) return;
+
+    const morceaux = [`${lotsAboutis} lecture${lotsAboutis > 1 ? 's' : ''} du modèle local`];
+    if (engagementsAjoutes > 0) morceaux.push(`${engagementsAjoutes} engagement${engagementsAjoutes > 1 ? 's' : ''} du vendeur en plus`);
+    afficherToast(`IA locale : ${morceaux.join(', ')} — voir « Ce que l’outil a compris », tout reste à vérifier.`, 'OK', null);
   }
 
   // ---- gestion des échéances "Autre" ----
@@ -3821,7 +3977,7 @@
   function reinitialiserFormulaire() {
     masquerErreurFormulaire();
     // Périme tout enrichissement IA encore en vol depuis l'import précédent (voir
-    // enrichirImportAvecIa) : sans ça, sa réponse pourrait arriver après ce reset et remplir des
+    // lancerExtractionIa) : sans ça, sa réponse pourrait arriver après ce reset et remplir des
     // champs pourtant vidés pour un tout nouvel import.
     generationImportActuel++;
     document.getElementById('f-nom').value = '';
@@ -7912,7 +8068,7 @@
   // documents entre eux. N'existe QUE sur `claude/serveur-intranet` (a besoin d'un backend pour
   // parler à Ollama, jamais appelé sans `fetchAvecAuth()`/l'écran de connexion, absents de `main`)
   // — contrairement au reste de ce fichier, cette section (et celle de l'extraction IA du wizard
-  // "Nouveau dossier", voir enrichirImportAvecIa) n'est PAS portée sur `main`, qui n'a pas de
+  // "Nouveau dossier", voir lancerExtractionIa) n'est PAS portée sur `main`, qui n'a pas de
   // backend pour l'exécuter.
   // Chaque fichier déposé n'existe qu'en mémoire le temps de l'analyse — jamais enregistré, aucun
   // dossier créé. Seul le TEXTE déjà extrait dans le navigateur est envoyé au serveur, jamais le
