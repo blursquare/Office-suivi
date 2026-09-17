@@ -78,7 +78,41 @@ function creerClientOllama(config) {
     return donnees.response || '';
   }
 
-  return { verifierDisponibilite, generer, modele, url };
+  // Variante de generer() qui garantit un OBJET exploitable, pas une chaîne à parser chez
+  // l'appelant. `format: 'json'` d'Ollama assure la syntaxe mais rien du contenu : un modèle 7-8B
+  // renvoie régulièrement un JSON valide mais hors schéma (un champ manquant, une liste là où on
+  // attend un objet). `valider(objet)` renvoie une chaîne décrivant le problème, ou null si tout
+  // va bien.
+  //
+  // UNE seule relance, avec l'erreur en clair ajoutée au prompt : sur un CPU de bureau chaque
+  // tentative coûte des dizaines de secondes, et un modèle qui se trompe deux fois de suite sur le
+  // même schéma ne se corrigera pas à la troisième. Mieux vaut rendre la main et laisser l'outil
+  // fonctionner sans cette passe (les regex, elles, ont déjà répondu) que faire attendre l'étude.
+  async function genererJson(prompt, valider) {
+    const tenter = async (texteDuPrompt) => {
+      const brut = await generer(texteDuPrompt);
+      let objet;
+      try {
+        objet = JSON.parse(brut);
+      } catch (err) {
+        return { objet: null, erreur: `la réponse n'est pas un JSON valide (${err.message})` };
+      }
+      const probleme = valider ? valider(objet) : null;
+      return probleme ? { objet: null, erreur: probleme } : { objet, erreur: null };
+    };
+
+    const premier = await tenter(prompt);
+    if (!premier.erreur) return premier.objet;
+
+    const second = await tenter(
+      `${prompt}\n\nTa réponse précédente a été rejetée : ${premier.erreur}. Réponds à nouveau, ` +
+      `UNIQUEMENT avec un objet JSON respectant exactement le format demandé ci-dessus.`
+    );
+    if (!second.erreur) return second.objet;
+    throw new Error(`Le modèle local n'a pas produit de réponse exploitable (${second.erreur}).`);
+  }
+
+  return { verifierDisponibilite, generer, genererJson, modele, url };
 }
 
 module.exports = { creerClientOllama };

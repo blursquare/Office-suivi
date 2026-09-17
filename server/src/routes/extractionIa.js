@@ -2,77 +2,71 @@
 
 // Extraction assistée par IA locale pour le wizard "Nouveau dossier" (voir CLAUDE.md) : appelée en
 // arrière-plan APRÈS l'extraction par regex existante (traiterTexte(), script.js, inchangée) pour
-// ne compléter QUE les champs qu'elle n'a pas trouvés — jamais pour la remplacer ni écraser une
-// valeur déjà détectée/saisie, même principe que detecterAdresseBien()/detecterMontantPret() côté
-// client. Distincte de routes/analyseIa.js (qui compare PLUSIEURS documents entre eux pour trouver
-// des incohérences) : ici un seul document, un simple travail d'extraction de champs.
+// ne compléter QUE ce qu'elle n'a pas trouvé — jamais pour la remplacer. Distincte de
+// routes/analyseIa.js (qui compare PLUSIEURS documents entre eux pour trouver des incohérences) :
+// ici un seul document, un travail d'extraction de champs.
+//
+// TROIS LOTS plutôt qu'un appel fourre-tout (parties / bien / dates) : un modèle 7-8B tenu de
+// remplir quinze champs hétérogènes d'un coup en bâcle une partie, et surtout chaque lot reçoit un
+// CONTEXTE DIFFÉRENT — les parties et les notaires sont en tête d'acte, la désignation du bien et
+// le prix dans leurs sections propres, les échéances disséminées dans les conditions suspensives.
+// Envoyer les 40 000 premiers caractères à chaque fois faisait payer trois fois le même contexte
+// inutile sur un CPU de bureau. Le client lance les trois en parallèle et fusionne lot par lot.
 
 const express = require('express');
 const { creerClientOllama } = require('../llm');
+const { construireFenetres, verifierExtraits } = require('../extraction/extraits');
+const { construirePromptParties, construirePromptBien, construirePromptDates } = require('../extraction/prompts');
+const {
+  normaliserLotParties, normaliserLotBien, normaliserLotDates,
+  validerLotParties, validerLotBien, validerLotDates
+} = require('../extraction/normaliser');
 
-// Même ordre de grandeur que analyseIa.js — un compromis peut compter plusieurs dizaines de pages,
-// bien au-delà de ce qu'un modèle 7-8B sur CPU peut traiter en un temps raisonnable pour une simple
-// extraction de champs (contrairement à l'analyse croisée, ici on n'a pas besoin du texte en entier
-// pour trouver un prix/une adresse/des dates, presque toujours dans les premières pages de l'acte).
+// Plafond de sécurité, inchangé : au-delà, aucun modèle de cette taille ne traite l'acte en un
+// temps raisonnable sur le matériel de l'étude.
 const LIMITE_CARACTERES_TEXTE = 40000;
 
-const REGEX_ISO = /^\d{4}-\d{2}-\d{2}$/;
-const TYPES_ENGAGEMENT_VALIDES = new Set(['entretien', 'travaux', 'document']);
-
-function construirePrompt(texte) {
-  return `Tu es un clerc de notaire qui extrait les informations clés d'un compromis ou d'une promesse de vente, pour préremplir un dossier de suivi.
-
-Depuis le texte fourni, extrait :
-- Le nom du dossier au format "VENDEUR / ACQUEREUR" (noms de famille tels qu'ils apparaissent dans l'acte, en majuscules).
-- L'adresse complète du bien vendu (numéro, rue, code postal, ville).
-- Le prix de vente, en euros, sous forme d'un nombre entier (sans le symbole €, sans espace ni point de séparation de milliers).
-- La date de la condition suspensive d'obtention de prêt, au format AAAA-MM-JJ, si elle existe.
-- La date prévue de signature de l'acte authentique, au format AAAA-MM-JJ, si elle est mentionnée.
-- La date d'une éventuelle vente préalable dont dépend cette vente, au format AAAA-MM-JJ, si elle existe.
-- Les engagements du vendeur à justifier avant la vente : un entretien déjà réalisé à prouver, des travaux à faire exécuter, ou un document/justificatif à produire — pour chacun, son type ("entretien", "travaux" ou "document") et la clause EXACTE du texte qui l'exprime, recopiée mot pour mot (copier-coller, jamais résumée, reformulée ou traduite en langage courant). N'inclus jamais une phrase que tu as toi-même composée ou paraphrasée : si tu ne peux pas citer un passage exact du texte fourni, n'ajoute pas cet engagement.
-
-Ne réponds QUE ce qui figure explicitement dans le texte — utilise "null" pour tout ce que tu ne trouves pas, n'invente jamais une valeur absente du texte, et ne reformule jamais un passage : recopie-le tel quel.
-
-TEXTE :
-${texte}
-
-Réponds UNIQUEMENT avec un objet JSON valide, sans aucun texte avant ou après, au format exact :
-{"nomDossier": "..." ou null, "adresseBien": "..." ou null, "prixVente": nombre ou null, "datePret": "AAAA-MM-JJ" ou null, "dateActe": "AAAA-MM-JJ" ou null, "dateVentePrealable": "AAAA-MM-JJ" ou null, "engagementsVendeur": [{"type": "entretien"|"travaux"|"document", "description": "citation exacte du texte, mot pour mot"}]}`;
-}
-
-function normaliserExtraction(brut) {
-  let parse;
-  try {
-    parse = JSON.parse(brut);
-  } catch (err) {
-    return {
-      nomDossier: null, adresseBien: null, prixVente: null,
-      datePret: null, dateActe: null, dateVentePrealable: null,
-      engagementsVendeur: [],
-      erreurExtraction: "Le modèle n'a pas renvoyé un JSON exploitable."
-    };
+// Contexte propre à chaque lot : une tête de document (les parties et les notaires y sont
+// systématiquement présentés, c'est une convention de rédaction constante) complétée par des
+// fenêtres autour des mots-clés du lot. Si aucun mot-clé n'est trouvé, on retombe sur la tête du
+// document plutôt que sur rien.
+const LOTS = {
+  parties: {
+    prompt: construirePromptParties,
+    valider: validerLotParties,
+    normaliser: normaliserLotParties,
+    tete: 10000,
+    motif: /ma[îi]tre|notaire|recevra\s+l['’]acte|ci-apr[èe]s\s+d[ée]nomm/gi,
+    rayon: 600,
+    maxFenetres: 6000
+  },
+  bien: {
+    prompt: construirePromptBien,
+    valider: validerLotBien,
+    normaliser: normaliserLotBien,
+    tete: 4000,
+    motif: /d[ée]signation|cadastr|sis(?:e)?\s+[àa]|situ[ée]e?\s+[àa]|prix\s+(?:de\s+vente|est|convenu)|copropri[ée]t/gi,
+    rayon: 900,
+    maxFenetres: 12000
+  },
+  dates: {
+    prompt: construirePromptDates,
+    valider: validerLotDates,
+    normaliser: normaliserLotDates,
+    tete: 3000,
+    motif: /pr[êe]t|acte\s+authentique|r[ée]it[ée]r|d[ée]lai|au\s+plus\s+tard|s['’]engage|s['’]oblige/gi,
+    rayon: 800,
+    maxFenetres: 16000
   }
-  const texteOuNull = (v) => (typeof v === 'string' && v.trim()) ? v.trim() : null;
-  const dateOuNull = (v) => (typeof v === 'string' && REGEX_ISO.test(v)) ? v : null;
-  const prixOuNull = (v) => (typeof v === 'number' && Number.isFinite(v) && v > 0) ? Math.round(v) : null;
-  const engagementsVendeur = Array.isArray(parse.engagementsVendeur)
-    ? parse.engagementsVendeur
-        .filter((e) => e && typeof e.description === 'string' && e.description.trim())
-        .map((e) => ({
-          type: TYPES_ENGAGEMENT_VALIDES.has(e.type) ? e.type : 'document',
-          description: e.description.trim()
-        }))
-    : [];
+};
 
-  return {
-    nomDossier: texteOuNull(parse.nomDossier),
-    adresseBien: texteOuNull(parse.adresseBien),
-    prixVente: prixOuNull(parse.prixVente),
-    datePret: dateOuNull(parse.datePret),
-    dateActe: dateOuNull(parse.dateActe),
-    dateVentePrealable: dateOuNull(parse.dateVentePrealable),
-    engagementsVendeur
-  };
+function construireContexte(texte, lot) {
+  const config = LOTS[lot];
+  const source = texte.length > LIMITE_CARACTERES_TEXTE ? texte.slice(0, LIMITE_CARACTERES_TEXTE) : texte;
+  const tete = source.slice(0, config.tete);
+  const fenetres = construireFenetres(source, config.motif, config.rayon, config.maxFenetres);
+  if (!fenetres) return tete;
+  return `${tete}\n[...]\n${fenetres}`;
 }
 
 function creerRouteurExtractionIa(config) {
@@ -81,8 +75,13 @@ function creerRouteurExtractionIa(config) {
 
   routeur.post('/extraction-ia', async (req, res) => {
     const texte = typeof req.body.texte === 'string' ? req.body.texte.trim() : '';
+    const lot = typeof req.body.lot === 'string' ? req.body.lot : '';
     if (!texte) {
       res.status(400).json({ erreur: 'Aucun texte à analyser.' });
+      return;
+    }
+    if (!LOTS[lot]) {
+      res.status(400).json({ erreur: `Lot inconnu : attendu ${Object.keys(LOTS).join(', ')}.` });
       return;
     }
 
@@ -92,10 +91,14 @@ function creerRouteurExtractionIa(config) {
       return;
     }
 
-    const texteTronque = texte.length > LIMITE_CARACTERES_TEXTE ? texte.slice(0, LIMITE_CARACTERES_TEXTE) : texte;
+    const config = LOTS[lot];
+    const contexte = construireContexte(texte, lot);
     try {
-      const brut = await ollama.generer(construirePrompt(texteTronque));
-      res.json(normaliserExtraction(brut));
+      const brut = await ollama.genererJson(config.prompt(contexte), config.valider);
+      // Les extraits sont vérifiés contre le texte COMPLET, pas contre le contexte envoyé au
+      // modèle : c'est le texte du PDF qui fait foi, et le client a besoin d'un index dans CE
+      // texte-là pour en déduire la page (pageDepuisIndex).
+      res.json({ lot, resultat: verifierExtraits(config.normaliser(brut), texte) });
     } catch (err) {
       res.status(502).json({ erreur: `Échec de l'extraction par le modèle local : ${err.message}` });
     }
@@ -105,4 +108,4 @@ function creerRouteurExtractionIa(config) {
 }
 
 // Fonctions pures exposées pour les tests (server/test/extraction-ia.test.js).
-module.exports = { creerRouteurExtractionIa, construirePrompt, normaliserExtraction, LIMITE_CARACTERES_TEXTE };
+module.exports = { creerRouteurExtractionIa, construireContexte, LOTS, LIMITE_CARACTERES_TEXTE };

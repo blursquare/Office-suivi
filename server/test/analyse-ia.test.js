@@ -2,11 +2,11 @@
 
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const http = require('node:http');
 const os = require('node:os');
 
 const { creerApp } = require('../src/app');
 const { ouvrirDb } = require('../src/db');
+const { demarrerFauxOllama } = require('./helpers/faux-ollama');
 const {
   construirePrompt,
   normaliserConstats,
@@ -78,25 +78,6 @@ function config(ollamaUrl) {
     jetonCalendrier: '',
     ollama: { url: ollamaUrl, modele: 'llama3.1:8b' }
   };
-}
-
-async function demarrerFauxOllama(reponseGenerate) {
-  const serveur = http.createServer((req, res) => {
-    if (req.url === '/api/tags') {
-      res.setHeader('Content-Type', 'application/json');
-      res.end(JSON.stringify({ models: [{ name: 'llama3.1:8b' }] }));
-      return;
-    }
-    if (req.url === '/api/generate') {
-      res.setHeader('Content-Type', 'application/json');
-      res.end(JSON.stringify({ response: reponseGenerate }));
-      return;
-    }
-    res.statusCode = 404;
-    res.end();
-  });
-  await new Promise((resolve) => serveur.listen(0, resolve));
-  return { serveur, url: `http://127.0.0.1:${serveur.address().port}` };
 }
 
 let db, serveurApp, baseUrl, jeton, fauxOllama;
