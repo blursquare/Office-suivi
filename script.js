@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-18 01:37';
+  const VERSION_APP = '2026-09-18 01:42';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-18 01:42', resume: "La fiche d'un dossier garde désormais la trace de ce que l'outil avait compris de l'acte à l'import (type d'acte, parties et leurs rôles, notaires, cadastre, statut de chaque donnée) : nouveau panneau « Ce que l'outil avait compris de l'acte », replié, sous l'analyse juridique — conservé aussi lors d'un export/import de sauvegarde" },
     { version: '2026-09-18 01:37', resume: "Nouveau panneau « Ce que l'outil a compris » à l'étape Vérifier : type d'acte, parties et leurs rôles, adresse et cadastre du bien, notaires (dont celui qui reçoit l'acte) et chaque date avec son statut (confirmé / à vérifier / non trouvé), sa provenance et sa page ; alertes de cohérence (prêt après l'acte, date écrite contredite par un délai, adresse incomplète…) rappelées avant d'enregistrer ; le rôle de l'étude est pré-rempli quand le document le dit clairement" },
     { version: '2026-09-18 01:21', resume: "Noms de dossier corrigés : le type d'acte (compromis / promesse de vente / promesse d'achat) est désormais déterminé avant d'attribuer les rôles — dans une promesse d'achat le promettant est l'ACQUÉREUR, les deux parties étaient jusqu'ici interverties ; « L'ACQUÉREUR » ne ramène plus le nom du vendeur ; plusieurs vendeurs et les SCI (avec leur représentant) sont conservés" },
     { version: '2026-09-18 00:41', resume: "Couleurs acte/vente préalable échangées (acte en vert, vente en bleu) ; l'IA locale du wizard recopie désormais les clauses mot pour mot ; ajout/édition d'une obligation du vendeur directement sur une fiche déjà enregistrée ; colonnes du Suivi réordonnées (offre de prêt avant prochaine échéance) ; badge Alpha redescendu sous le logo, remplacé en haut à droite par l'indicateur de connexion au serveur" },
@@ -1528,6 +1529,185 @@
     }
 
     return alertes;
+  }
+
+  // ==== EXTRACTION STRUCTURÉE : enregistrement sur le dossier ====
+  //
+  // Ce qui est conservé SUR LE DOSSIER une fois celui-ci créé. Volontairement plus maigre que
+  // `extractionActuelle` : les extraits cités et les candidats concurrents n'ont d'intérêt que
+  // pendant l'import (pour vérifier une valeur PDF en main) — après coup, ce qui compte est
+  // « d'où vient cette donnée, et était-elle sûre ? ». Les champs plats du dossier
+  // (pret/acte/ventebien/adresseBien/prixVente/roleNotaire/confiance) continuent d'être alimentés
+  // exactement comme avant : tout ce qui suit est ADDITIF, aucun affichage existant n'en dépend.
+  function notairePersistable(n) {
+    if (!n || !n.nom) return null;
+    return {
+      nom: n.nom,
+      office: n.office || null,
+      codePostal: n.codePostal || null,
+      departement: n.departement || null,
+      cote: n.cote || 'inconnu'
+    };
+  }
+
+  function instantaneExtraction(extraction) {
+    if (!extraction) return null;
+    const notaires = extraction.notaires || {};
+    const adresse = (extraction.bien && extraction.bien.adresse) || null;
+    const etatChamp = (champ) => champ
+      ? {
+        statut: champ.statut || 'NOT_FOUND',
+        methode: champ.methode || null,
+        origine: champ.origine || 'regex',
+        page: (champ.source && champ.source.page) || null
+      }
+      : null;
+
+    const champs = {};
+    for (const cle of Object.keys(extraction.champs || {})) {
+      const etat = etatChamp(extraction.champs[cle]);
+      if (etat) champs[cle] = etat;
+    }
+    // Les dates sont indexées sur le NOM DU CHAMP du dossier (pret/acte/ventebien) et non sur leur
+    // type métier : c'est sous ce nom-là qu'on les retrouvera pour les afficher en face de la date
+    // effectivement enregistrée.
+    for (const typeDate of Object.keys(CHAMP_PAR_TYPE_DATE)) {
+      const etat = etatChamp((extraction.dates || {})[typeDate]);
+      if (etat) champs[CHAMP_PAR_TYPE_DATE[typeDate]] = etat;
+    }
+    if (adresse) {
+      champs.adresseBien = { statut: adresse.statut || 'NOT_FOUND', methode: null, origine: 'regex', page: (extraction.bien.source && extraction.bien.source.page) || null };
+    }
+
+    return {
+      typeActe: { valeur: extraction.typeActe ? extraction.typeActe.valeur : 'INCONNU', statut: extraction.typeActe ? extraction.typeActe.statut : 'NOT_FOUND' },
+      parties: (extraction.parties || []).map(p => ({
+        nom: p.nom, qualiteActe: p.qualiteActe, role: p.role,
+        qualitePersonne: p.qualitePersonne || 'physique',
+        representant: p.representant || null
+      })),
+      notaires: {
+        vendeur: notairePersistable(notaires.vendeur),
+        acquereur: notairePersistable(notaires.acquereur),
+        instrumentaire: notairePersistable(notaires.instrumentaire),
+        participant: notairePersistable(notaires.participant),
+        statut: notaires.statut || 'NOT_FOUND',
+        raison: notaires.raison || '',
+        roleEtude: notaires.roleEtude || null
+      },
+      bien: {
+        adresse: adresse ? {
+          adresseComplete: adresse.adresseComplete || '', numero: adresse.numero || null,
+          typeVoie: adresse.typeVoie || null, nomVoie: adresse.nomVoie || null,
+          lieuDit: adresse.lieuDit || null, codePostal: adresse.codePostal || null,
+          commune: adresse.commune || null, departement: adresse.departement || null,
+          statut: adresse.statut || 'NOT_FOUND'
+        } : null,
+        cadastre: (extraction.bien && extraction.bien.cadastre) || null
+      },
+      extraction: {
+        version: extraction.version || 1,
+        dateImport: new Date().toISOString(),
+        champs,
+        alertes: (extraction.alertes || []).map(a => ({ code: a.code, gravite: a.gravite, message: a.message }))
+      }
+    };
+  }
+
+  // Corrections apportées À LA MAIN entre ce que l'extraction proposait et ce qui est réellement
+  // enregistré. Journalisées pour pouvoir, plus tard, mesurer où l'extraction se trompe le plus
+  // souvent — JAMAIS pour réentraîner quoi que ce soit automatiquement (décision explicite de la
+  // spec) : le modèle local reste figé, seules les regex sont corrigées à la main après analyse.
+  function diffCorrectionsExtraction(extraction, valeursFinales) {
+    if (!extraction || !valeursFinales) return [];
+    const finales = valeursFinales;
+    const typeActe = extraction.typeActe ? extraction.typeActe.valeur : 'INCONNU';
+    const adresse = (extraction.bien && extraction.bien.adresse) || null;
+    const dates = extraction.dates || {};
+    const champs = extraction.champs || {};
+    const proposees = {
+      nom: (champs.nom && champs.nom.valeur) || null,
+      prixVente: (champs.prixVente && champs.prixVente.valeur) || null,
+      emailAcquereur: (champs.emailAcquereur && champs.emailAcquereur.valeur) || null,
+      adresseBien: adresse ? (adresse.adresseComplete || null) : null,
+      roleNotaire: (extraction.notaires && extraction.notaires.roleEtude) || null
+    };
+    for (const typeDate of Object.keys(CHAMP_PAR_TYPE_DATE)) {
+      proposees[CHAMP_PAR_TYPE_DATE[typeDate]] = (dates[typeDate] && dates[typeDate].valeur) || null;
+    }
+
+    const entrees = [];
+    for (const champ of Object.keys(proposees)) {
+      const extraite = proposees[champ];
+      const finale = finales[champ] === undefined || finales[champ] === '' ? null : finales[champ];
+      // Rien à apprendre d'un champ que l'extraction n'a pas trouvé ET que personne n'a rempli.
+      if (extraite === null && finale === null) continue;
+      if (String(extraite) === String(finale)) continue;
+      const objetChamp = champs[champ] || dates[Object.keys(CHAMP_PAR_TYPE_DATE).find(t => CHAMP_PAR_TYPE_DATE[t] === champ)] || null;
+      entrees.push({
+        champ,
+        valeurExtraite: extraite,
+        valeurCorrigee: finale,
+        origine: (objetChamp && objetChamp.origine) || 'regex',
+        statutExtrait: (objetChamp && objetChamp.statut) || 'NOT_FOUND',
+        typeActe,
+        extrait: (objetChamp && objetChamp.source && objetChamp.source.extrait) ? String(objetChamp.source.extrait).slice(0, 200) : null,
+        date: new Date().toISOString()
+      });
+    }
+    return entrees;
+  }
+
+  // Assainissement à l'import d'une sauvegarde JSON : on conserve ces objets s'ils ont la bonne
+  // forme, sinon on repart de rien plutôt que de propager une structure inattendue dans le rendu.
+  function normaliserExtractionImportee(d) {
+    const objet = (v) => (v && typeof v === 'object' && !Array.isArray(v)) ? v : null;
+    const source = objet(d) || {};
+    const typeActe = objet(source.typeActe);
+    const notaires = objet(source.notaires);
+    const bien = objet(source.bien);
+    const extraction = objet(source.extraction);
+    const adresse = bien ? objet(bien.adresse) : null;
+    return {
+      typeActe: typeActe && TYPES_ACTE.indexOf(typeActe.valeur) !== -1
+        ? { valeur: typeActe.valeur, statut: typeof typeActe.statut === 'string' ? typeActe.statut : 'NOT_FOUND' }
+        : null,
+      parties: Array.isArray(source.parties)
+        ? source.parties.filter(p => p && typeof p === 'object' && typeof p.nom === 'string' && (p.role === 'VENDEUR' || p.role === 'ACQUEREUR'))
+            .map(p => ({
+              nom: p.nom,
+              qualiteActe: typeof p.qualiteActe === 'string' ? p.qualiteActe : '',
+              role: p.role,
+              qualitePersonne: p.qualitePersonne === 'morale' ? 'morale' : 'physique',
+              representant: typeof p.representant === 'string' ? p.representant : null
+            }))
+        : [],
+      notaires: notaires
+        ? {
+          vendeur: notairePersistable(objet(notaires.vendeur)),
+          acquereur: notairePersistable(objet(notaires.acquereur)),
+          instrumentaire: notairePersistable(objet(notaires.instrumentaire)),
+          participant: notairePersistable(objet(notaires.participant)),
+          statut: typeof notaires.statut === 'string' ? notaires.statut : 'NOT_FOUND',
+          raison: typeof notaires.raison === 'string' ? notaires.raison : '',
+          roleEtude: (notaires.roleEtude === 'instrumentaire' || notaires.roleEtude === 'participant') ? notaires.roleEtude : null
+        }
+        : null,
+      bien: bien
+        ? { adresse: adresse || null, cadastre: objet(bien.cadastre) }
+        : null,
+      extraction: extraction
+        ? {
+          version: Number.isInteger(extraction.version) ? extraction.version : 1,
+          dateImport: typeof extraction.dateImport === 'string' ? extraction.dateImport : null,
+          champs: objet(extraction.champs) || {},
+          alertes: Array.isArray(extraction.alertes)
+            ? extraction.alertes.filter(a => a && typeof a === 'object' && typeof a.message === 'string')
+                .map(a => ({ code: String(a.code || ''), gravite: String(a.gravite || 'info'), message: a.message }))
+            : []
+        }
+        : null
+    };
   }
 
   // ==== EXTRACTION STRUCTURÉE : localisation d'un extrait dans le texte ====
@@ -3760,6 +3940,12 @@
       .map(doc => doc.cleChecklist)
       .filter(Boolean);
 
+    // Ce que l'extraction structurée a compris de l'acte (type d'acte, parties et leurs rôles,
+    // notaires, adresse/cadastre du bien, statut de chaque donnée) — conservé sur le dossier à
+    // titre de trace consultable, en plus des champs plats inchangés. Rien de tout ceci n'est
+    // recalculable après coup : le texte du compromis n'est jamais gardé (voir CLAUDE.md).
+    const instantane = instantaneExtraction(extractionActuelle);
+
     const dossier = {
       id: (crypto.randomUUID ? crypto.randomUUID() : 'd-' + Date.now() + '-' + Math.random().toString(16).slice(2)),
       nom, email, responsable, emailAcquereur,
@@ -3790,8 +3976,22 @@
         engagements: analyseJuridiqueActuelle.engagements.slice(),
         conditions: (analyseJuridiqueActuelle.conditions || []).slice()
       },
+      typeActe: instantane ? instantane.typeActe : null,
+      parties: instantane ? instantane.parties : [],
+      notaires: instantane ? instantane.notaires : null,
+      bien: instantane ? instantane.bien : null,
+      extraction: instantane ? instantane.extraction : null,
       historique: [{ date: new Date().toISOString(), texte: 'Dossier créé' }]
     };
+
+    // Ce que l'étude a corrigé à la main par rapport à ce que l'extraction proposait — journalisé
+    // pour mesurer plus tard où elle se trompe, jamais pour réentraîner automatiquement quoi que
+    // ce soit (voir journaliserCorrectionsExtraction).
+    journaliserCorrectionsExtraction(diffCorrectionsExtraction(extractionActuelle, {
+      nom, adresseBien, emailAcquereur, roleNotaire,
+      prixVente: Number.isFinite(prixVente) && prixVente > 0 ? prixVente : null,
+      pret, acte, ventebien
+    }));
 
     const cree = await sauvegarderNouveauDossier(dossier);
     if (!cree) {
@@ -5009,6 +5209,80 @@
   // c'est un outil de dépannage ponctuel, pas un suivi actif comme les pièces/l'analyse juridique.
   // N'affiche rien tant qu'aucun parcours n'a eu lieu depuis l'ouverture de la page (état en
   // mémoire uniquement, jamais persisté — voir dernierDiagnosticParcours).
+  // Trace, en lecture seule, de ce que l'extraction avait compris de l'acte au moment de l'import
+  // (voir instantaneExtraction). Volontairement REPLIÉ par défaut, contrairement à l'analyse
+  // juridique ou aux pièces : ce n'est pas un suivi actif mais une explication à consulter quand
+  // une donnée du dossier surprend — « d'où sort cette date ? est-ce que l'outil en était sûr ? ».
+  // Rien n'y est modifiable : les corrections se font dans les champs de la fiche, comme avant.
+  var LIBELLES_TYPE_ACTE = {
+    COMPROMIS_DE_VENTE: 'Compromis de vente',
+    PROMESSE_DE_VENTE: 'Promesse de vente',
+    PROMESSE_D_ACHAT: 'Promesse d’achat',
+    AUTRE: 'Autre acte',
+    INCONNU: 'Type non déterminé'
+  };
+
+  function renderExtractionDossier(d) {
+    const extraction = d.extraction;
+    const typeActe = d.typeActe;
+    const parties = Array.isArray(d.parties) ? d.parties : [];
+    const notaires = d.notaires;
+    if (!extraction && !typeActe && parties.length === 0 && !notaires) return '';
+
+    const statutBadge = (statut) => {
+      const s = LIBELLES_STATUT_EXTRACTION[statut] || LIBELLES_STATUT_EXTRACTION.NOT_FOUND;
+      return `<span class="dot-label ${s.dl}"><span class="dot"></span>${s.texte}</span>`;
+    };
+    const blocs = [];
+
+    if (typeActe) {
+      blocs.push(`<div class="extraction-ligne"><span class="extraction-libelle">Type d’acte</span>
+        <span>${escapeHtml(LIBELLES_TYPE_ACTE[typeActe.valeur] || typeActe.valeur)}</span>${statutBadge(typeActe.statut)}</div>`);
+    }
+    if (parties.length > 0) {
+      blocs.push(`<div class="extraction-ligne"><span class="extraction-libelle">Parties</span>
+        <span>${parties.map(p => `${escapeHtml(p.nom)} <em>(${p.role === 'VENDEUR' ? 'vendeur' : 'acquéreur'}${p.qualiteActe ? ', désigné « ' + escapeHtml(p.qualiteActe) + ' »' : ''})</em>`).join(' · ')}</span></div>`);
+    }
+    if (notaires && (notaires.instrumentaire || notaires.participant)) {
+      const nom = (n) => n ? `${escapeHtml(n.nom)}${n.office ? ' (' + escapeHtml(n.office) + ')' : ''}` : '—';
+      blocs.push(`<div class="extraction-ligne"><span class="extraction-libelle">Notaires</span>
+        <span>Reçoit l’acte : ${nom(notaires.instrumentaire)}${notaires.participant ? ` · Participant : ${nom(notaires.participant)}` : ''}</span>${statutBadge(notaires.statut)}</div>`);
+    }
+    const cadastre = d.bien && d.bien.cadastre;
+    if (cadastre && cadastre.section) {
+      blocs.push(`<div class="extraction-ligne"><span class="extraction-libelle">Cadastre</span>
+        <span>Section ${escapeHtml(cadastre.section)}${cadastre.numero ? ' n° ' + escapeHtml(cadastre.numero) : ''}</span></div>`);
+    }
+
+    const LIBELLES_CHAMP_EXTRACTION = {
+      nom: 'Nom du dossier', prixVente: 'Prix de vente', emailAcquereur: 'Email de l’acquéreur',
+      adresseBien: 'Adresse du bien', pret: 'Obtention du prêt', acte: 'Signature de l’acte',
+      ventebien: 'Vente préalable', typeVente: 'Type de vente'
+    };
+    const champs = (extraction && extraction.champs) || {};
+    const lignesChamps = Object.keys(champs)
+      .filter(cle => LIBELLES_CHAMP_EXTRACTION[cle])
+      .map(cle => `<div class="extraction-ligne"><span class="extraction-libelle">${LIBELLES_CHAMP_EXTRACTION[cle]}</span>
+        <span>${champs[cle].methode === 'CALCULATED' ? 'Calculée depuis un délai' : 'Lue dans l’acte'}${champs[cle].page ? ` · p.${champs[cle].page}` : ''}</span>${statutBadge(champs[cle].statut)}</div>`)
+      .join('');
+
+    const alertes = ((extraction && extraction.alertes) || []).map(a =>
+      `<div class="revision-alerte ${a.gravite === 'critique' ? 'critique' : ''}">${icone('alert-triangle')}<span>${escapeHtml(a.message)}</span></div>`
+    ).join('');
+
+    return `
+      <details class="extraction-dossier">
+        <summary><span class="section-eyebrow">Ce que l’outil avait compris de l’acte</span></summary>
+        <div class="extraction-corps">
+          ${alertes}
+          ${blocs.join('')}
+          ${lignesChamps}
+          <p class="hint">Relevé au moment de l’import, à titre d’explication : les valeurs enregistrées restent celles des champs ci-dessus, modifiables à tout moment.</p>
+        </div>
+      </details>
+    `;
+  }
+
   function renderDiagnosticParcours(d) {
     const diag = dernierDiagnosticParcours[d.id];
     if (!diag) return '';
@@ -5375,6 +5649,7 @@
             </div>
           </details>
         ` : ''}
+        ${renderExtractionDossier(d)}
         <!-- Libellés volontairement courts (l'intitulé complet reste en infobulle) : l'étude veut
              ces trois actions sur une seule ligne, ce que "Télécharger les rappels (.ics)" et ses
              voisins ne permettaient pas dans la largeur du tiroir. -->
@@ -6186,6 +6461,53 @@
   const CLE_EXCLUSIONS_MOTIF_NOM = 'exclusions-motif-nom';
   let exclusionsMotifNom = {};
 
+  // Journal des corrections apportées à la main sur ce que l'extraction avait proposé (voir
+  // diffCorrectionsExtraction). Sert UNIQUEMENT à mesurer, plus tard, où l'extraction se trompe le
+  // plus souvent — il n'alimente aucun réentraînement automatique du modèle local, décision
+  // explicite de la spec : une regex se corrige à la main après analyse, jamais par apprentissage
+  // silencieux sur des dizaines de dossiers.
+  const CLE_CORRECTIONS_EXTRACTION = 'corrections-extraction';
+  const MAX_CORRECTIONS_EXTRACTION = 500;
+  let journalCorrectionsExtraction = [];
+
+  async function sauvegarderJournalCorrections() {
+    const contenu = JSON.stringify(journalCorrectionsExtraction);
+    try {
+      if (window.storage) { await window.storage.set(CLE_CORRECTIONS_EXTRACTION, contenu, false); return; }
+    } catch (e) { console.warn('window.storage indisponible pour le journal des corrections, repli sur localStorage.', e); }
+    try { localStorage.setItem(CLE_CORRECTIONS_EXTRACTION, contenu); } catch (e) { console.warn('Sauvegarde du journal des corrections impossible.', e); }
+  }
+
+  async function chargerJournalCorrections() {
+    let brut = null;
+    try {
+      if (window.storage) {
+        const res = await window.storage.get(CLE_CORRECTIONS_EXTRACTION, false);
+        if (res && res.value) brut = JSON.parse(res.value);
+      }
+    } catch (e) { /* on tente le repli ci-dessous */ }
+    if (brut === null) {
+      try {
+        const local = localStorage.getItem(CLE_CORRECTIONS_EXTRACTION);
+        if (local) brut = JSON.parse(local);
+      } catch (e) { /* rien d'exploitable non plus ici */ }
+    }
+    journalCorrectionsExtraction = Array.isArray(brut)
+      ? brut.filter(c => c && typeof c === 'object' && typeof c.champ === 'string')
+      : [];
+  }
+
+  function journaliserCorrectionsExtraction(entrees) {
+    if (!Array.isArray(entrees) || entrees.length === 0) return;
+    journalCorrectionsExtraction.push(...entrees);
+    // On garde les plus récentes : c'est l'état actuel de l'extraction qui intéresse, pas ses
+    // erreurs d'il y a deux ans sur des regex depuis corrigées.
+    if (journalCorrectionsExtraction.length > MAX_CORRECTIONS_EXTRACTION) {
+      journalCorrectionsExtraction = journalCorrectionsExtraction.slice(-MAX_CORRECTIONS_EXTRACTION);
+    }
+    sauvegarderJournalCorrections();
+  }
+
   async function sauvegarderExclusionsMotifNom() {
     const contenu = JSON.stringify(exclusionsMotifNom);
     try {
@@ -6301,6 +6623,11 @@
         engagements: Array.isArray(d.analyseJuridique && d.analyseJuridique.engagements) ? d.analyseJuridique.engagements : [],
         conditions: Array.isArray(d.analyseJuridique && d.analyseJuridique.conditions) ? d.analyseJuridique.conditions : []
       },
+      // Trace de ce que l'extraction avait compris de l'acte : conservée à l'import (c'est une
+      // lecture du document lui-même, la même sur n'importe quel poste — contrairement à
+      // offrePretStatut/pieces, dérivés d'un dossier LOCAL propre à la machine), mais assainie :
+      // une sauvegarde produite par une version différente peut porter une structure inattendue.
+      ...normaliserExtractionImportee(d),
       historique: Array.isArray(d.historique) ? d.historique.filter(h => h && h.date && h.texte) : [],
       // Un dossier local relié sur un poste ne l'est jamais sur un autre : l'import repart de zéro
       // sur ce point, la personne devra relier le dossier depuis ce navigateur si besoin.
@@ -7854,6 +8181,7 @@
   chargerTheme();
   chargerApprentissage();
   chargerExclusionsMotifNom();
+  chargerJournalCorrections();
   // Mode serveur intranet (voir CLAUDE.md) : l'application entière est bloquée par l'écran de
   // connexion tant que le mot de passe partagé n'a pas été validé — un jeton déjà mémorisé
   // (localStorage, valable 12h côté serveur) permet de sauter cette étape au rechargement.

@@ -1754,6 +1754,40 @@
   .diagnostic-parcours > summary::after { content: " ▸"; color: var(--muted); }
   .diagnostic-parcours[open] > summary::after { content: " ▾"; }
   .diagnostic-corps { margin-top: 10px; }
+
+  /* Trace de l'extraction sur une fiche déjà enregistrée (voir renderExtractionDossier) : même
+     gabarit replié que le diagnostic ci-dessus — une explication à consulter au besoin, pas un
+     suivi actif. Réutilise .revision-alerte (panneau d'import) pour les alertes de cohérence :
+     un seul dessin pour la même information, qu'elle s'affiche avant ou après enregistrement. */
+  .extraction-dossier {
+    margin-top: 14px;
+    padding: 10px 14px;
+    background: var(--paper-sunk);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+  }
+  .extraction-dossier > summary { cursor: pointer; list-style: none; }
+  .extraction-dossier > summary::-webkit-details-marker { display: none; }
+  .extraction-dossier > summary::after { content: " ▸"; color: var(--muted); }
+  .extraction-dossier[open] > summary::after { content: " ▾"; }
+  .extraction-corps { margin-top: 10px; }
+  .extraction-ligne {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 10px;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--line-soft);
+    font-size: 12.5px;
+    line-height: 1.5;
+  }
+  .extraction-ligne:last-of-type { border-bottom: none; }
+  .extraction-libelle {
+    min-width: 130px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .extraction-ligne em { color: var(--muted); font-style: normal; }
   .diagnostic-resume {
     margin: 0 0 8px;
     padding-left: 18px;
@@ -3062,7 +3096,7 @@
     .tab { border: 1px solid #999; margin-bottom: 6pt; padding: 6pt; background: #fff !important; }
     .historique-liste { display: block !important; }
     .analyse-juridique { background: #fff; border: 1px solid #999; }
-    .icon-btn, .tab-select-icone-wrap, .icon-crayon, .icon-valider, .nom-edition, .tab-date-edition, .select-classif, .tab-suppr, .ajout-echeance-btn, .ajout-echeance-form, .piece-suppr, .piece-reinit, .ajout-piece-btn, .ajout-piece-form, .diagnostic-parcours, .engagement-suppr, .analyse-doc-suppr, .analyse-engagement-edition, .ajout-engagement-btn, .ajout-engagement-form { display: none !important; }
+    .icon-btn, .tab-select-icone-wrap, .icon-crayon, .icon-valider, .nom-edition, .tab-date-edition, .select-classif, .tab-suppr, .ajout-echeance-btn, .ajout-echeance-form, .piece-suppr, .piece-reinit, .ajout-piece-btn, .ajout-piece-form, .diagnostic-parcours, .extraction-dossier, .engagement-suppr, .analyse-doc-suppr, .analyse-engagement-edition, .ajout-engagement-btn, .ajout-engagement-form { display: none !important; }
   }
 
   .analyse-repliable > summary {
