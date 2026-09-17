@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-18 01:21';
+  const VERSION_APP = '2026-09-18 01:37';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-18 01:37', resume: "Nouveau panneau « Ce que l'outil a compris » à l'étape Vérifier : type d'acte, parties et leurs rôles, adresse et cadastre du bien, notaires (dont celui qui reçoit l'acte) et chaque date avec son statut (confirmé / à vérifier / non trouvé), sa provenance et sa page ; alertes de cohérence (prêt après l'acte, date écrite contredite par un délai, adresse incomplète…) rappelées avant d'enregistrer ; le rôle de l'étude est pré-rempli quand le document le dit clairement" },
     { version: '2026-09-18 01:21', resume: "Noms de dossier corrigés : le type d'acte (compromis / promesse de vente / promesse d'achat) est désormais déterminé avant d'attribuer les rôles — dans une promesse d'achat le promettant est l'ACQUÉREUR, les deux parties étaient jusqu'ici interverties ; « L'ACQUÉREUR » ne ramène plus le nom du vendeur ; plusieurs vendeurs et les SCI (avec leur représentant) sont conservés" },
     { version: '2026-09-18 00:41', resume: "Couleurs acte/vente préalable échangées (acte en vert, vente en bleu) ; l'IA locale du wizard recopie désormais les clauses mot pour mot ; ajout/édition d'une obligation du vendeur directement sur une fiche déjà enregistrée ; colonnes du Suivi réordonnées (offre de prêt avant prochaine échéance) ; badge Alpha redescendu sous le logo, remplacé en haut à droite par l'indicateur de connexion au serveur" },
     { version: '2026-09-15 14:25', resume: "Apprentissage : une pièce mal reconnue et réinitialisée n'est plus jamais reproposée pour cette pièce (sur aucun dossier) ; une clause ajoutée manuellement comme engagement du vendeur enrichit aussi la détection automatique des prochains imports" },
@@ -30,8 +31,7 @@
     { version: '2026-09-15 14:02', resume: "Retours de test du matin : indicateur de connexion serveur (sidebar), achat comptant affiché clairement (plus de \"Non renseigné\"), ajout manuel d'un engagement du vendeur sans sélection PDF, catégorie \"Autres\" pour les engagements, indicateur pendant la recherche IA" },
     { version: '2026-09-14 20:26', resume: "Le wizard « Nouveau dossier » utilise aussi l'IA locale en arrière-plan : complète nom/adresse/prix/dates non trouvés par les regex et suggère des engagements du vendeur en plus, jamais en remplacement" },
     { version: '2026-09-14 20:11', resume: "Nouvel onglet « Analyse approfondie (IA) » : dépose l'acte + ses annexes séparées, relecture croisée par un modèle IA local (Ollama, aucune donnée envoyée en ligne) — voir server/README.md" },
-    { version: '2026-09-14 19:27', resume: "Vrai correctif du bug apostrophe (Certificat d'urbanisme/d'alignement) : le précédent (&#39;) ne survivait pas au décodage HTML de l'attribut onclick, toujours cassé en pratique" },
-    { version: '2026-09-14 17:13', resume: 'Détection "Renonciation au droit de préemption" élargie au sigle "DPU" dans le nom de fichier' }
+    { version: '2026-09-14 19:27', resume: "Vrai correctif du bug apostrophe (Certificat d'urbanisme/d'alignement) : le précédent (&#39;) ne survivait pas au décodage HTML de l'attribut onclick, toujours cassé en pratique" }
   ];
 
   const STORAGE_KEY = 'dossiers';
@@ -2278,6 +2278,9 @@
     if (dernierTexteTraite) {
       detectedDates = detecterDatesDepuisTexte(dernierTexteTraite, dateCompromisDetectee);
       renderChips();
+      // La date de signature est l'ancre de tous les délais : la corriger recalcule les échéances
+      // calculées ET le panneau de révision, sinon celui-ci resterait sur l'ancienne ancre.
+      recalculerExtractionRegex();
     }
   }
 
@@ -2391,7 +2394,163 @@
     };
     afficherAnalyseJuridique();
 
+    // Couche d'extraction structurée : construite à partir de ce que les regex viennent de trouver,
+    // elle complète les champs restés vides (rôle de l'étude notamment) et alimente le panneau de
+    // révision. N'écrase jamais une saisie de l'utilisateur (voir appliquerValeurChamp).
+    recalculerExtractionRegex();
+
     return detectedDates.length;
+  }
+
+  // ==== EXTRACTION STRUCTURÉE : application au formulaire et panneau de révision ====
+
+  // Dernier résultat d'extraction (regex, puis complété par l'IA) et trace de ce que NOUS avons
+  // écrit dans chaque champ : un champ dont la valeur ne correspond plus à ce qu'on y avait mis a
+  // été modifié par l'utilisateur, et ne doit plus jamais être écrasé (y compris par une réponse
+  // IA qui arrive plusieurs dizaines de secondes après l'import).
+  let extractionActuelle = null;
+  let valeursAppliquees = {};
+
+  function appliquerValeurChamp(id, valeur) {
+    const champ = document.getElementById(id);
+    if (!champ || valeur === null || valeur === undefined || valeur === '') return false;
+    const actuel = (champ.value || '').trim();
+    const deriereValeur = valeursAppliquees[id] === undefined ? '' : String(valeursAppliquees[id]);
+    if (actuel !== '' && actuel !== deriereValeur) return false; // saisie de l'utilisateur : intouchable
+    champ.value = String(valeur);
+    valeursAppliquees[id] = String(valeur);
+    return true;
+  }
+
+  function appliquerExtractionAuFormulaire(extraction) {
+    if (!extraction) return;
+    const champs = extraction.champs || {};
+    if (champs.nom) appliquerValeurChamp('f-nom', champs.nom.valeur);
+    if (champs.prixVente) appliquerValeurChamp('f-prix-vente', champs.prixVente.valeur);
+    if (champs.emailAcquereur) appliquerValeurChamp('f-email-acquereur', champs.emailAcquereur.valeur);
+    const adresse = extraction.bien && extraction.bien.adresse;
+    if (adresse && adresse.adresseComplete) appliquerValeurChamp('f-adresse-bien', adresse.adresseComplete);
+
+    // Rôle de l'étude : pré-rempli UNIQUEMENT sur une déduction confirmée (mention explicite dans
+    // l'acte, ou règle métier satisfaite sans contradiction). La raison est affichée dans le
+    // panneau, et le sélecteur reste modifiable — mais on ne bascule jamais un dossier en
+    // « participant » sur une simple supposition : ce rôle masque la checklist des pièces.
+    const notaires = extraction.notaires || {};
+    if (notaires.statut === 'CONFIRMED' && notaires.roleEtude) {
+      const select = document.getElementById('f-role-notaire');
+      if (select && (!valeursAppliquees['f-role-notaire'] || select.value === valeursAppliquees['f-role-notaire'])) {
+        select.value = notaires.roleEtude;
+        valeursAppliquees['f-role-notaire'] = notaires.roleEtude;
+        majApercuPieces();
+      }
+    }
+  }
+
+  var LIBELLES_STATUT_EXTRACTION = {
+    CONFIRMED: { texte: 'Confirmé', dl: 'dl-success' },
+    NEEDS_REVIEW: { texte: 'À vérifier', dl: 'dl-alerte' },
+    NOT_FOUND: { texte: 'Non trouvé', dl: 'dl-neutre' }
+  };
+
+  function renderLigneRevision(libelle, champ) {
+    if (!champ) return '';
+    const statut = LIBELLES_STATUT_EXTRACTION[champ.statut] || LIBELLES_STATUT_EXTRACTION.NOT_FOUND;
+    const source = champ.source || null;
+    // La page n'est cliquable que si le PDF est encore chargé en mémoire (import en cours) — même
+    // principe que pour les engagements du vendeur.
+    const page = source && source.page
+      ? (pdfActuel
+        ? `<button type="button" class="voir-pdf-btn" onclick="allerALaPageDuPdf(${source.page})">${icone('eye')} p.${source.page}</button>`
+        : `<span class="chip-page">p.${source.page}</span>`)
+      : '';
+    const valeur = champ.valeur === null || champ.valeur === undefined || champ.valeur === ''
+      ? '<span class="revision-vide">—</span>'
+      : escapeHtml(String(champ.valeur));
+    const extrait = source && source.extrait
+      ? `<div class="revision-extrait">« ${escapeHtml(String(source.extrait).slice(0, 220))} »</div>` : '';
+    const raison = champ.raison ? `<div class="revision-raison">${escapeHtml(champ.raison)}</div>` : '';
+    const autres = (champ.candidats || []).length > 1
+      ? `<div class="revision-raison">Autres valeurs trouvées : ${champ.candidats.map(c => escapeHtml(String(c.valeur))).join(', ')}</div>`
+      : '';
+    return `<div class="revision-ligne">
+      <div class="revision-tete">
+        <span class="revision-libelle">${escapeHtml(libelle)}</span>
+        <span class="dot-label ${statut.dl}"><span class="dot"></span>${statut.texte}</span>
+        ${page}
+      </div>
+      <div class="revision-valeur">${valeur}</div>
+      ${raison}${autres}${extrait}
+    </div>`;
+  }
+
+  function renderPanneauRevision(extraction) {
+    const panneau = document.getElementById('panneau-revision');
+    const rappel = document.getElementById('alertes-finalisation');
+    if (!panneau) return;
+    if (!extraction) {
+      panneau.style.display = 'none';
+      panneau.innerHTML = '';
+      if (rappel) { rappel.style.display = 'none'; rappel.innerHTML = ''; }
+      return;
+    }
+
+    const dates = extraction.dates || {};
+    const notaires = extraction.notaires || {};
+    const lignes = [
+      renderLigneRevision('Type d’acte', extraction.typeActe),
+      renderLigneRevision('Nom du dossier', extraction.champs && extraction.champs.nom),
+      renderLigneRevision('Signature de l’avant-contrat', dates.SIGNATURE_AVANT_CONTRAT),
+      renderLigneRevision('Obtention du prêt', dates.BUTOIR_PRET),
+      renderLigneRevision('Réitération de l’acte', dates.REITERATION_ACTE),
+      renderLigneRevision('Vente préalable', dates.BUTOIR_VENTE_PREALABLE),
+      renderLigneRevision('Adresse du bien', {
+        valeur: extraction.bien && extraction.bien.adresse ? extraction.bien.adresse.adresseComplete : null,
+        statut: extraction.bien && extraction.bien.adresse ? extraction.bien.adresse.statut : 'NOT_FOUND',
+        source: extraction.bien ? extraction.bien.source : null,
+        raison: extraction.bien && extraction.bien.adresse && extraction.bien.adresse.departement
+          ? `Département ${extraction.bien.adresse.departement}, déduit du code postal.` : ''
+      }),
+      renderLigneRevision('Prix de vente', extraction.champs && extraction.champs.prixVente),
+      renderLigneRevision('Notaire instrumentaire', {
+        valeur: notaires.instrumentaire ? `${notaires.instrumentaire.nom} (${notaires.instrumentaire.office || '—'})` : null,
+        statut: notaires.statut || 'NOT_FOUND',
+        source: notaires.instrumentaire ? notaires.instrumentaire.source : null,
+        raison: notaires.raison || ''
+      })
+    ].filter(Boolean).join('');
+
+    const parties = (extraction.parties || []).map(p =>
+      `<li>${escapeHtml(p.nom)} — <strong>${p.role === 'VENDEUR' ? 'vendeur' : 'acquéreur'}</strong> (désigné « ${escapeHtml(p.qualiteActe)} » dans l’acte${p.qualitePersonne === 'morale' ? ', personne morale' : ''})${p.representant ? `, représenté par ${escapeHtml(p.representant)}` : ''}</li>`
+    ).join('');
+
+    const alertes = (extraction.alertes || []).map(a =>
+      `<div class="revision-alerte ${a.gravite === 'critique' ? 'critique' : ''}">${icone('alert-triangle')}<span>${escapeHtml(a.message)}</span></div>`
+    ).join('');
+
+    panneau.innerHTML = `
+      <div class="section-eyebrow">Ce que l’outil a compris</div>
+      ${alertes}
+      ${parties ? `<div class="revision-parties"><ul>${parties}</ul></div>` : ''}
+      <div class="revision-grille">${lignes}</div>
+      <p class="hint">Chaque donnée reste modifiable dans les champs du formulaire : ce panneau explique seulement d’où elle vient.</p>
+    `;
+    panneau.style.display = 'block';
+
+    // Les alertes sont rappelées à l'étape "Finaliser", au moment d'enregistrer.
+    if (rappel) {
+      rappel.innerHTML = alertes;
+      rappel.style.display = alertes ? 'block' : 'none';
+    }
+  }
+
+  // Point d'entrée UNIQUE du recalcul : appelé après un import, après une correction de la date de
+  // signature, et après un repli OCR/métadonnées — les trois endroits qui refont
+  // detecterDatesDepuisTexte. En oublier un laisserait le panneau désynchronisé du formulaire.
+  function recalculerExtractionRegex() {
+    if (!dernierTexteTraite) { renderPanneauRevision(null); return; }
+    extractionActuelle = construireExtractionRegex(dernierTexteTraite, dateCompromisDetectee, detectedDates);
+    appliquerExtractionAuFormulaire(extractionActuelle);
+    renderPanneauRevision(extractionActuelle);
   }
 
   function creerChip(item) {
@@ -3251,6 +3410,7 @@
               majAffichageCompromis();
               detectedDates = detecterDatesDepuisTexte(dernierTexteTraite, dateCompromisDetectee);
               renderChips();
+              recalculerExtractionRegex();
               break;
             }
           }
@@ -3268,6 +3428,7 @@
             majAffichageCompromis();
             detectedDates = detecterDatesDepuisTexte(dernierTexteTraite, dateCompromisDetectee);
             renderChips();
+            recalculerExtractionRegex();
           }
         }
       }
@@ -3494,6 +3655,9 @@
     document.getElementById('f-prix-vente').value = '';
     document.getElementById('f-pret').value = '';
     document.getElementById('f-acte').value = '';
+    // Oubli corrigé au passage : ce champ n'était vidé que par toggleEcheance('ventebien', false).
+    // Sans ça, valeursAppliquees le croirait modifié à la main au prochain import.
+    document.getElementById('f-ventebien').value = '';
     document.getElementById('f-pdf').value = '';
     document.getElementById('pdf-status').textContent = '';
     document.getElementById('pdf-status').className = 'pdf-status';
@@ -3509,6 +3673,9 @@
     detectedDates = [];
     autresEnCours = [];
     analyseJuridiqueActuelle = { documents: [], engagements: [], conditions: [] };
+    extractionActuelle = null;
+    valeursAppliquees = {};
+    renderPanneauRevision(null);
     afficherAnalyseJuridique();
     masquerBoutonAjoutEngagement();
     masquerFormAjoutEngagementManuel();

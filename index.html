@@ -195,6 +195,13 @@
           Analyse par le modèle IA local en cours…
         </div>
 
+        <!-- Panneau de révision (voir renderPanneauRevision() dans script.js) : une ligne par donnée
+             extraite, avec son statut, la clause d'où elle vient et sa page. Placé ici, à côté des
+             chips, parce que c'est l'étape où l'on vérifie déjà ce que l'outil a compris ; les
+             alertes de cohérence sont rappelées à l'étape "Finaliser" (#alertes-finalisation),
+             juste avant l'enregistrement. -->
+        <div id="panneau-revision" class="panneau-revision" style="display:none;"></div>
+
         <fieldset>
           <legend>Dates butoir</legend>
 
@@ -362,6 +369,11 @@
             <label><input type="checkbox" value="0"> le jour même</label>
           </div>
         </fieldset>
+
+        <!-- Rappel des alertes de cohérence juste avant l'enregistrement : le panneau complet vit à
+             l'étape "Vérifier", mais une contradiction (prêt après l'acte, parties possiblement
+             interverties…) doit se voir au moment où l'on crée le dossier. -->
+        <div id="alertes-finalisation" class="alertes-finalisation" style="display:none;"></div>
 
         <div id="form-error" class="form-error"></div>
 

@@ -1419,6 +1419,81 @@
     margin: -4px 0 10px;
   }
 
+  /* Panneau de révision : ce que l'outil a compris du compromis, donnée par donnée, avec sa source.
+     Réutilise les composants de statut déjà en place (.dot-label, .section-eyebrow) plutôt que
+     d'introduire un second langage visuel. */
+  .panneau-revision {
+    background: var(--paper-sunk);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin: 0 0 14px;
+  }
+  .revision-grille {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 10px;
+    margin-top: 8px;
+  }
+  .revision-ligne {
+    background: var(--paper-card);
+    border: 1px solid var(--line-soft);
+    border-radius: 8px;
+    padding: 8px 10px;
+  }
+  .revision-tete {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+  }
+  .revision-libelle {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    flex: 1 1 auto;
+  }
+  .revision-valeur {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .revision-vide { color: var(--muted); font-weight: 400; }
+  .revision-raison, .revision-extrait {
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    margin-top: 4px;
+  }
+  .revision-extrait { font-style: italic; color: var(--muted); }
+  .revision-parties { font-size: 13px; color: var(--ink-soft); margin: 6px 0 0; }
+  .revision-parties ul { margin: 0; padding-left: 18px; }
+  .revision-parties li { margin: 2px 0; }
+
+  /* Une alerte de cohérence garde un fond plein : c'est exactement le cas où l'information doit
+     sauter aux yeux (même principe que .dl-alerte, seul badge à fond plein de l'outil). */
+  .revision-alerte, .alertes-finalisation .revision-alerte {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 12.5px;
+    line-height: 1.45;
+    padding: 8px 10px;
+    border-radius: 8px;
+    margin-bottom: 6px;
+    background: color-mix(in srgb, var(--pret) 14%, var(--paper-card));
+    color: var(--ink);
+    border: 1px solid color-mix(in srgb, var(--pret) 40%, transparent);
+  }
+  .revision-alerte.critique {
+    background: color-mix(in srgb, var(--urgent) 14%, var(--paper-card));
+    border-color: color-mix(in srgb, var(--urgent) 45%, transparent);
+  }
+  .revision-alerte .icone { flex: none; margin-top: 1px; }
+  .alertes-finalisation { margin: 0 0 12px; }
+
   .compromis-info.warn {
     background: var(--pret-bg);
     border-color: var(--pret);
