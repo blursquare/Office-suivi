@@ -738,6 +738,195 @@
     return null;
   }
 
+  // ==== EXTRACTION STRUCTURÉE : dates métier ====
+  //
+  // Un compromis contient des dizaines de dates (naissance, diagnostics, titres antérieurs,
+  // assemblées générales…). La spec l'énonce clairement : il est interdit de prendre « la première »
+  // ou « la dernière » — chaque date doit être classée par sa FONCTION juridique, et l'outil doit
+  // pouvoir dire d'où il tient celle qu'il retient.
+
+  var TYPES_DATE = ['SIGNATURE_AVANT_CONTRAT', 'BUTOIR_PRET', 'BUTOIR_VENTE_PREALABLE', 'REITERATION_ACTE', 'AUTRE'];
+
+  // Correspondance avec les trois champs d'échéance existants de la fiche : le vocabulaire interne
+  // change, le modèle de données du dossier ne bouge pas.
+  var CHAMP_PAR_TYPE_DATE = {
+    BUTOIR_PRET: 'pret',
+    REITERATION_ACTE: 'acte',
+    BUTOIR_VENTE_PREALABLE: 'ventebien'
+  };
+
+  function uniteDelai(mot) {
+    return /mois/i.test(String(mot || '')) ? 'mois' : 'jours';
+  }
+
+  // Les actes écrivent les durées courtes en toutes lettres au moins aussi souvent qu'en chiffres
+  // (« dans les trois mois de la signature ») : ne reconnaître que les chiffres laissait ces
+  // clauses totalement invisibles.
+  var NOMBRES_EN_LETTRES = {
+    un: 1, une: 1, deux: 2, trois: 3, quatre: 4, cinq: 5, six: 6, sept: 7, huit: 8, neuf: 9,
+    dix: 10, onze: 11, douze: 12, quinze: 15, vingt: 20, trente: 30, quarante: 40,
+    cinquante: 50, soixante: 60, 'quatre-vingts': 80, 'quatre-vingt': 80, 'quatre-vingt-dix': 90, cent: 100
+  };
+
+  // Fragment réutilisé par tous les motifs de délai : un nombre en chiffres OU en lettres. Trié par
+  // longueur décroissante pour que « quatre-vingt-dix » l'emporte sur « quatre ».
+  var MOTIF_NOMBRE = '(\\d{1,3}|' + Object.keys(NOMBRES_EN_LETTRES).sort((a, b) => b.length - a.length).join('|') + ')';
+
+  function valeurNombre(mot) {
+    const brut = String(mot || '').trim().toLowerCase();
+    if (/^\d+$/.test(brut)) return parseInt(brut, 10);
+    return Object.prototype.hasOwnProperty.call(NOMBRES_EN_LETTRES, brut) ? NOMBRES_EN_LETTRES[brut] : NaN;
+  }
+
+  // Points de départ d'un délai rencontrés dans les actes. SEULE la signature a une base connue de
+  // l'outil (la date du compromis) : un délai « à compter de la notification du refus » ou « de la
+  // réalisation de la condition suspensive » dépend d'un événement dont la date n'est pas dans
+  // l'acte — la spec interdit explicitement de supposer que tout délai part de la signature.
+  var POINTS_DEPART_CONNUS = [
+    { cle: 'signature', calculable: true, re: /la\s+signature|des\s+pr[ée]sentes|ce\s+jour|l['’]acte|la\s+pr[ée]sente|le\s+pr[ée]sent\s+(?:compromis|acte)|la\s+promesse/i },
+    { cle: 'notification', calculable: false, re: /notification|r[ée]ception\s+(?:de\s+la\s+lettre|du\s+courrier|de\s+l['’]avis)/i },
+    { cle: 'realisation_condition', calculable: false, re: /r[ée]alisation\s+de\s+(?:la|cette|ladite)\s+condition|lev[ée]e\s+de\s+(?:la|cette|ladite)\s+condition|obtention\s+(?:du\s+pr[êe]t|des\s+offres)/i },
+    { cle: 'purge_preemption', calculable: false, re: /purge|droit\s+de\s+pr[ée]emption/i }
+  ];
+
+  function pointDepartDepuisAncre(ancre) {
+    const texte = String(ancre || '');
+    if (!texte.trim()) return null;
+    const trouve = POINTS_DEPART_CONNUS.find(p => p.re.test(texte));
+    return trouve ? trouve.cle : 'inconnu';
+  }
+
+  function pointDepartCalculable(cle) {
+    const trouve = POINTS_DEPART_CONNUS.find(p => p.cle === cle);
+    return !!(trouve && trouve.calculable);
+  }
+
+  // Repère TOUS les délais du texte, y compris ceux que detecterDatesDepuisTexte ne peut pas
+  // convertir en date (point de départ autre que la signature). Ne calcule rien : c'est
+  // construireDatesMetier qui décide, et NEEDS_REVIEW est un résultat légitime.
+  // Le connecteur qui introduit le point de départ ne se limite pas à « à compter de » : « dans les
+  // deux mois DE LA réalisation de la condition » est tout aussi courant.
+  var MOTIF_ANCRE_DELAI = '(?:[àa]\\s+compter\\s+d[eu]|[àa]\\s+partir\\s+d[eu]|apr[èe]s|suivant|de\\s+la|de\\s+l[\'’]|du|des)';
+
+  var RE_DELAI_GENERIQUE = new RegExp(
+    '(?:d[ée]lai\\s+de\\s+|au\\s+plus\\s+tard\\s+(?:dans\\s+(?:les?\\s+|un\\s+d[ée]lai\\s+de\\s+)?)?|dans\\s+(?:les?\\s+|un\\s+d[ée]lai\\s+de\\s+))' +
+    MOTIF_NOMBRE + '\\s*(jours?|mois)(?:\\s+' + MOTIF_ANCRE_DELAI + '\\s+([^.,;\\n]{0,80}))?',
+    'gi'
+  );
+
+  function detecterDelais(texte) {
+    const source = String(texte || '');
+    const resultats = [];
+    const re = new RegExp(RE_DELAI_GENERIQUE.source, 'gi');
+    let m;
+    while ((m = re.exec(source)) !== null) {
+      const valeur = valeurNombre(m[1]);
+      if (!Number.isFinite(valeur)) continue;
+      const contexte = extraireContexte(source, m.index, m[0].length);
+      // Même garde-fou que dans detecterDatesDepuisTexte : le délai de notification du refus au
+      // notaire n'est pas la condition suspensive elle-même (voir l'historique du 60 j / 70 j).
+      const avant = source.slice(Math.max(0, m.index - 200), m.index);
+      const ancre = m[3] || '';
+      const pointDepart = ancre ? pointDepartDepuisAncre(ancre) : 'signature';
+      resultats.push({
+        index: m.index,
+        extrait: contexte,
+        delai: { valeur, unite: uniteDelai(m[2]) },
+        // Sans ancre explicite, la convention (déjà appliquée par reAuPlusTardDelai) est de compter
+        // depuis la signature : « la présente convention est soumise à… au plus tard dans les 60
+        // jours ». On le note pour pouvoir l'expliquer à l'étude plutôt que de le taire.
+        pointDepart,
+        pointDepartImplicite: !ancre,
+        ancre: ancre.trim() || null,
+        notification: /notifier|notification/i.test(avant),
+        suggestion: suggererEcheance(contexte),
+        page: pageDepuisIndex(m.index)
+      });
+    }
+    return resultats;
+  }
+
+  function champDateVide(raison) {
+    return { valeur: null, statut: 'NOT_FOUND', methode: null, origine: 'regex', source: null, candidats: [], calcul: null, raison: raison || '' };
+  }
+
+  // Construit un objet date métier par type, à partir des candidates déjà détectées et des délais
+  // repérés. Règles issues de la spec :
+  //  - une date écrite noir sur blanc (EXPLICIT) n'est JAMAIS remplacée par une date calculée ;
+  //  - plusieurs candidates de même type sans formulation permettant de trancher → NEEDS_REVIEW,
+  //    avec les deux sources conservées, plutôt qu'un choix arbitraire silencieux ;
+  //  - un délai dont le point de départ n'est pas connu → NEEDS_REVIEW SANS valeur : on signale la
+  //    clause et son délai, on ne fabrique pas une date depuis la signature « pour faire joli ».
+  function construireDatesMetier(detectedDates, delais, dateCompromis) {
+    const candidatesToutes = Array.isArray(detectedDates) ? detectedDates : [];
+    const delaisTous = Array.isArray(delais) ? delais : [];
+    const dates = {};
+
+    dates.SIGNATURE_AVANT_CONTRAT = dateCompromis
+      ? { valeur: dateCompromis, statut: 'CONFIRMED', methode: 'EXPLICIT', origine: 'regex', source: null, candidats: [], calcul: null, raison: 'Date de signature de l’avant-contrat détectée dans le document.' }
+      : champDateVide('Aucune date de signature trouvée : les délais exprimés en jours ou en mois ne peuvent pas être calculés.');
+
+    for (const typeDate of Object.keys(CHAMP_PAR_TYPE_DATE)) {
+      const champ = CHAMP_PAR_TYPE_DATE[typeDate];
+      const toutesDuType = candidatesToutes.filter(d => d.suggestion === champ);
+      // Une date écrite noir sur blanc l'emporte sur une date calculée depuis un délai : l'acte
+      // énonce souvent les deux dans la même phrase (« au plus tard le 15 novembre 2026, soit un
+      // délai de 60 jours à compter de la signature »), et les deux diffèrent d'un jour ou deux
+      // selon la convention de computation. Sans cette priorité, la date calculée l'emportait —
+      // exactement ce que la spec interdit.
+      const explicites = toutesDuType.filter(d => !d.calcul);
+      const candidats = explicites.length > 0 ? explicites : toutesDuType;
+
+      if (candidats.length > 0) {
+        const choix = meilleureCandidateEcheance(candidats, champ);
+        const retenu = choix.candidat;
+        const calculee = !!(retenu && retenu.calcul);
+        dates[typeDate] = {
+          valeur: retenu ? retenu.iso : null,
+          statut: choix.ambigu ? 'NEEDS_REVIEW' : 'CONFIRMED',
+          methode: calculee ? 'CALCULATED' : 'EXPLICIT',
+          origine: 'regex',
+          source: retenu ? { page: retenu.page || null, extrait: retenu.contexte || null, index: typeof retenu.index === 'number' ? retenu.index : null } : null,
+          // Les concurrentes ne sont conservées QUE lorsqu'il faut trancher : sinon la fiche
+          // afficherait des « candidats » là où il n'y a jamais eu d'hésitation.
+          candidats: choix.ambigu
+            ? candidats.map(c => ({ valeur: c.iso, origine: 'regex', source: { page: c.page || null, extrait: c.contexte || null } }))
+            : [],
+          calcul: calculee ? retenu.calcul : null,
+          raison: choix.ambigu
+            ? 'Plusieurs clauses donnent une date pour cette échéance, sans formulation permettant de trancher.'
+            : (calculee ? 'Date calculée à partir d’un délai exprimé dans l’acte.' : 'Date lue directement dans l’acte.')
+        };
+        continue;
+      }
+
+      // Aucune date calendaire pour ce type : reste-t-il un délai qui s'y rapporte mais qu'on n'a
+      // pas pu convertir ? C'est le cas visé par la spec (« point de départ différent »).
+      const delaiOrphelin = delaisTous.find(d => d.suggestion === champ && !d.notification &&
+        (!pointDepartCalculable(d.pointDepart) || !dateCompromis));
+      if (delaiOrphelin) {
+        const manqueBase = !dateCompromis && pointDepartCalculable(delaiOrphelin.pointDepart);
+        dates[typeDate] = {
+          valeur: null,
+          statut: 'NEEDS_REVIEW',
+          methode: 'CALCULATED',
+          origine: 'regex',
+          source: { page: delaiOrphelin.page || null, extrait: delaiOrphelin.extrait, index: delaiOrphelin.index },
+          candidats: [],
+          calcul: { delai: delaiOrphelin.delai, pointDepart: delaiOrphelin.pointDepart, baseDate: null },
+          raison: manqueBase
+            ? 'Délai trouvé, mais la date de signature de l’avant-contrat est inconnue : à calculer une fois celle-ci renseignée.'
+            : 'Délai trouvé, mais son point de départ n’est pas une date figurant dans l’acte : à déterminer.'
+        };
+        continue;
+      }
+
+      dates[typeDate] = champDateVide('');
+    }
+
+    return dates;
+  }
+
   // ==== EXTRACTION STRUCTURÉE : adresse ====
   //
   // L'ancien detecterAdresseBien() (voir ADRESSE_BIEN_RE plus haut) renvoie un fragment BRUT, non
@@ -1499,7 +1688,10 @@
     const resultats = [];
     const seen = new Set();
 
-    function ajouter(iso, label, index, longueur, approx) {
+    function ajouter(iso, label, index, longueur, approx, calcul) {
+      // Un délai dont le point de départ est inconnu ne produit aucune date : calculerDateEcheance
+      // renvoie null plutôt que de compter depuis la signature par défaut.
+      if (!iso) return;
       if (seen.has(iso)) return;
       // Écarte toute date antérieure ou égale à la signature du compromis (diagnostics, actes précédents…).
       if (dateCompromis && iso <= dateCompromis) return;
@@ -1519,7 +1711,12 @@
       resultats.push({
         iso, label, contexte, suggestion, active: !!suggestion, page: pageDepuisIndex(index),
         apprise: !!apprise, libelleAppris: apprise ? apprise.libelle : null,
-        approx: !!approx
+        approx: !!approx,
+        // Champ additif (aucun appelant existant ne le lit) : trace de quoi la date a été déduite
+        // quand elle vient d'un délai, pour que l'objet date métier puisse afficher « calculée à
+        // partir de la signature + 60 jours » plutôt qu'une date qui semble lue dans le texte.
+        calcul: calcul || null,
+        index
       });
     }
 
@@ -1566,13 +1763,21 @@
     // seulement calculable si la date de signature du compromis a été trouvée (dateCompromis) — sans
     // ancre fiable, on ne devine pas à partir de quoi compter, on laisse l'utilisateur l'ajouter lui-même.
     if (dateCompromis) {
-      const reDelai = /d[ée]lai\s+de\s+(\d{1,3})\s*jours?\s+(?:[àa]\s+compter|[àa]\s+partir)\s+de\s+(?:la\s+signature|ce\s+jour|l['’]acte|la\s+pr[ée]sente|le\s+pr[ée]sent\s+(?:compromis|acte)|la\s+promesse)/gi;
+      // « jours » ou « mois » : un délai de réitération est très souvent exprimé en mois
+      // (« dans les trois mois de la signature ») — jusqu'ici seuls les jours étaient reconnus,
+      // et ces clauses passaient entièrement inaperçues. Le calcul passe par
+      // calculerDateEcheance (voir le socle de calcul), de quantième à quantième pour les mois.
+      const reDelai = new RegExp('d[ée]lai\\s+de\\s+' + MOTIF_NOMBRE + '\\s*(jours?|mois)\\s+(?:[àa]\\s+compter|[àa]\\s+partir)\\s+de\\s+(?:la\\s+signature|ce\\s+jour|l[\'’]acte|la\\s+pr[ée]sente|le\\s+pr[ée]sent\\s+(?:compromis|acte)|la\\s+promesse)', 'gi');
       while ((m = reDelai.exec(texte)) !== null) {
-        ajouter(addDays(dateCompromis, parseInt(m[1], 10)), m[0], m.index, m[0].length, true);
+        const delai = { valeur: valeurNombre(m[1]), unite: uniteDelai(m[2]) };
+        ajouter(calculerDateEcheance(dateCompromis, delai), m[0], m.index, m[0].length, true,
+          { delai, pointDepart: 'signature', baseDate: dateCompromis });
       }
       const reJPlus = /\bJ\s*\+\s*(\d{1,3})\b/g;
       while ((m = reJPlus.exec(texte)) !== null) {
-        ajouter(addDays(dateCompromis, parseInt(m[1], 10)), m[0], m.index, m[0].length, true);
+        const delai = { valeur: parseInt(m[1], 10), unite: 'jours' };
+        ajouter(calculerDateEcheance(dateCompromis, delai), m[0], m.index, m[0].length, true,
+          { delai, pointDepart: 'signature', baseDate: dateCompromis });
       }
       // "au plus tard dans les 60 jours" (ou "dans un délai de 60 jours") : formulation réelle
       // d'une condition suspensive d'obtention de prêt (voir CLAUDE.md — texte anonymisé fourni
@@ -1591,11 +1796,13 @@
       // systématiquement associé à "notifier"/"notification" dans les ~200 caractères qui précèdent
       // (voir la clause réelle ci-dessus), on l'écarte donc totalement plutôt que de le détecter
       // pour ensuite le désambiguïser.
-      const reAuPlusTardDelai = /au\s+plus\s+tard\s+dans\s+(?:les?|un\s+d[ée]lai\s+de)\s+(\d{1,3})\s*jours?/gi;
+      const reAuPlusTardDelai = new RegExp('au\\s+plus\\s+tard\\s+dans\\s+(?:les?|un\\s+d[ée]lai\\s+de)\\s+' + MOTIF_NOMBRE + '\\s*(jours?|mois)', 'gi');
       while ((m = reAuPlusTardDelai.exec(texte)) !== null) {
         const avant = texte.slice(Math.max(0, m.index - 200), m.index);
         if (/notifier|notification/i.test(avant)) continue;
-        ajouter(addDays(dateCompromis, parseInt(m[1], 10)), m[0], m.index, m[0].length, true);
+        const delai = { valeur: valeurNombre(m[1]), unite: uniteDelai(m[2]) };
+        ajouter(calculerDateEcheance(dateCompromis, delai), m[0], m.index, m[0].length, true,
+          { delai, pointDepart: 'signature', baseDate: dateCompromis });
       }
       // "au plus tard 60 jours après la signature des présentes" : autre formulation réelle de la
       // même condition suspensive de prêt exprimée en délai (fournie par l'étude), avec cette
@@ -1603,11 +1810,13 @@
       // reAuPlusTardDelai ci-dessus. Mêmes ancres que reDelai, même garde-fou contre la clause
       // de notification (le refus/l'octroi communiqué au notaire porte souvent un second délai,
       // distinct de la condition elle-même — voir reAuPlusTardDelai).
-      const reAuPlusTardApres = /au\s+plus\s+tard\s+(\d{1,3})\s*jours?\s+apr[èe]s\s+(?:la\s+signature|ce\s+jour|l['’]acte|la\s+pr[ée]sente|le\s+pr[ée]sent\s+(?:compromis|acte)|la\s+promesse)/gi;
+      const reAuPlusTardApres = new RegExp('au\\s+plus\\s+tard\\s+' + MOTIF_NOMBRE + '\\s*(jours?|mois)\\s+apr[èe]s\\s+(?:la\\s+signature|ce\\s+jour|l[\'’]acte|la\\s+pr[ée]sente|le\\s+pr[ée]sent\\s+(?:compromis|acte)|la\\s+promesse)', 'gi');
       while ((m = reAuPlusTardApres.exec(texte)) !== null) {
         const avant = texte.slice(Math.max(0, m.index - 200), m.index);
         if (/notifier|notification/i.test(avant)) continue;
-        ajouter(addDays(dateCompromis, parseInt(m[1], 10)), m[0], m.index, m[0].length, true);
+        const delai = { valeur: valeurNombre(m[1]), unite: uniteDelai(m[2]) };
+        ajouter(calculerDateEcheance(dateCompromis, delai), m[0], m.index, m[0].length, true,
+          { delai, pointDepart: 'signature', baseDate: dateCompromis });
       }
     }
 
