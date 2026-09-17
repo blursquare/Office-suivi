@@ -29,15 +29,15 @@ Depuis le texte fourni, extrait :
 - La date de la condition suspensive d'obtention de prêt, au format AAAA-MM-JJ, si elle existe.
 - La date prévue de signature de l'acte authentique, au format AAAA-MM-JJ, si elle est mentionnée.
 - La date d'une éventuelle vente préalable dont dépend cette vente, au format AAAA-MM-JJ, si elle existe.
-- Les engagements du vendeur à justifier avant la vente : un entretien déjà réalisé à prouver, des travaux à faire exécuter, ou un document/justificatif à produire — pour chacun, son type ("entretien", "travaux" ou "document") et une courte description.
+- Les engagements du vendeur à justifier avant la vente : un entretien déjà réalisé à prouver, des travaux à faire exécuter, ou un document/justificatif à produire — pour chacun, son type ("entretien", "travaux" ou "document") et la clause EXACTE du texte qui l'exprime, recopiée mot pour mot (copier-coller, jamais résumée, reformulée ou traduite en langage courant). N'inclus jamais une phrase que tu as toi-même composée ou paraphrasée : si tu ne peux pas citer un passage exact du texte fourni, n'ajoute pas cet engagement.
 
-Ne réponds QUE ce qui figure explicitement dans le texte — utilise "null" pour tout ce que tu ne trouves pas, n'invente jamais une valeur absente du texte.
+Ne réponds QUE ce qui figure explicitement dans le texte — utilise "null" pour tout ce que tu ne trouves pas, n'invente jamais une valeur absente du texte, et ne reformule jamais un passage : recopie-le tel quel.
 
 TEXTE :
 ${texte}
 
 Réponds UNIQUEMENT avec un objet JSON valide, sans aucun texte avant ou après, au format exact :
-{"nomDossier": "..." ou null, "adresseBien": "..." ou null, "prixVente": nombre ou null, "datePret": "AAAA-MM-JJ" ou null, "dateActe": "AAAA-MM-JJ" ou null, "dateVentePrealable": "AAAA-MM-JJ" ou null, "engagementsVendeur": [{"type": "entretien"|"travaux"|"document", "description": "..."}]}`;
+{"nomDossier": "..." ou null, "adresseBien": "..." ou null, "prixVente": nombre ou null, "datePret": "AAAA-MM-JJ" ou null, "dateActe": "AAAA-MM-JJ" ou null, "dateVentePrealable": "AAAA-MM-JJ" ou null, "engagementsVendeur": [{"type": "entretien"|"travaux"|"document", "description": "citation exacte du texte, mot pour mot"}]}`;
 }
 
 function normaliserExtraction(brut) {

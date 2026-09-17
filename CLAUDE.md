@@ -3337,6 +3337,90 @@ autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` auton
     même limite déjà notée pour `normaliserPourRecherche()` ; `estNomExcluPourPiece`/
     `exclureNomPourPiece` de même, vérifiées par simulation Node ad hoc plutôt que par un test
     committé — envisager de les ajouter à `tests/divers.test.js` si le temps le permet).
+- **Lot de 6 demandes indépendantes de l'étude, traitées ensemble** :
+  - **Couleurs de catégorie acte/vente préalable échangées** (`--acte`/`--ventebien` et leurs
+    `-bg`, clair et sombre, `style.css`) : l'acte passe au vert/teal (`#1CA39B` clair, `#4FC2B8`
+    sombre — l'ancienne valeur de `--ventebien`) et la vente préalable au bleu (`#2472B0` clair,
+    `#6FAEDB` sombre — l'ancienne valeur de `--acte`). Un simple échange de valeurs entre les deux
+    tokens (le nom du token garde son sens, seule sa couleur change) : tout l'outil s'appuie déjà
+    sur ces deux seuls tokens pour cette paire de catégories (`.dot-label.dl-acte`/`.dl-ventebien`,
+    tabs, badges...), rien à retoucher ailleurs. **Trouvé et corrigé au passage** : `imprimerFiche()`
+    dupliquait ces deux couleurs en dur dans son objet `TEINTES` (contrainte n°6, Word ignore les
+    classes CSS externes — un `<table>` avec des couleurs inline) — sans ce correctif, la fiche
+    imprimée aurait continué d'afficher l'ancien code couleur, en désaccord avec l'écran.
+  - **L'extraction par IA locale du wizard doit recopier les clauses mot pour mot, jamais les
+    résumer/interpréter.** Diagnostic : ni un bug de code ni un problème de `normaliserExtraction()`
+    (qui transmet déjà tel quel ce que le modèle renvoie) — le prompt lui-même
+    (`construirePrompt()`, `server/src/routes/extractionIa.js`) demandait "une courte description"
+    d'un engagement, ce qui invite naturellement un LLM à paraphraser. Reformulé pour exiger
+    explicitement une citation exacte ("recopiée mot pour mot... N'inclus jamais une phrase que tu
+    as toi-même composée ou paraphrasée : si tu ne peux pas citer un passage exact du texte fourni,
+    n'ajoute pas cet engagement"), et le nom du champ JSON (`"description"`) volontairement
+    conservé tel quel (juste son contenu attendu change) pour ne pas devoir retoucher
+    `normaliserExtraction()`/`server/test/extraction-ia.test.js` sans nécessité. Un correctif de
+    formulation du prompt, pas de code de traitement — cohérent avec le principe déjà établi
+    ailleurs dans ce document (consigne explicite anti-hallucination) plutôt qu'une nouvelle
+    validation côté serveur, qui ne peut de toute façon pas vérifier qu'une phrase est bien un
+    copier-coller du texte source.
+  - **Bouton "+ Ajouter une obligation du vendeur" sur une fiche DÉJÀ ENREGISTRÉE** (tiroir), en
+    plus des deux moyens déjà existants (sélection de texte dans le PDF pendant l'import, bouton
+    équivalent du wizard) qui ne fonctionnaient jamais sur un dossier rouvert plus tard — un accord
+    oral rapporté après coup, ou une clause repérée en relisant l'acte à tête reposée, doivent
+    pouvoir être consignés sans rouvrir le compromis. `renderAjoutEngagement(d)` /
+    `afficherFormAjoutEngagementDossier()` / `masquerFormAjoutEngagementDossier()` /
+    `ajouterEngagementDossierApresCoup(dossierId)` reprennent exactement le patron déjà en place
+    pour `renderAjoutEcheance`/`renderAjoutPiece` (bouton toujours visible en dehors du bloc
+    `<details>` d'analyse juridique, basculé par un simple booléen `ajoutEngagementOuvert`, remis à
+    `false` dans `ouvrirDossierDrawer()`/`fermerDossierDrawer()`). Pousse dans
+    `d.analyseJuridique.engagements` (initialisé au passage si absent — un dossier créé
+    manuellement, ou antérieur à ce champ, n'en a pas forcément), journalise dans l'historique, et
+    alimente l'apprentissage (`memoriserCorrection(phrase, type, null, 'engagement')`) comme tout
+    autre ajout manuel d'engagement. **Piège de collision d'id évité en écrivant le formulaire** :
+    le formulaire équivalent du wizard (`index.html`, étape "Analyse juridique") est TOUJOURS
+    présent dans le DOM (masqué par `style.display`, jamais retiré) avec les ids
+    `nouvel-engagement-type`/`nouvel-engagement-texte` — réutiliser ces mêmes ids pour le
+    formulaire du tiroir aurait fait retomber `getElementById()` sur le MAUVAIS formulaire (celui
+    du wizard, apparaissant en premier dans le document) dès que les deux existent en même temps
+    dans la page. Le formulaire du tiroir utilise des ids distincts
+    (`nouvelle-obligation-dossier-type`/`nouvelle-obligation-dossier-texte`).
+  - **Éditer un engagement du vendeur déjà présent (import OU fiche enregistrée), pas seulement
+    le supprimer/le recréer** — demandé pour l'ajout par sélection de texte dans le PDF ("l'option
+    de surligner"), et appliqué par cohérence à tout engagement (déjà en place pour la suppression
+    depuis le correctif précédent, "Suppression d'un engagement/document possible partout"). Un
+    seul engagement en édition à la fois (`engagementEnEdition = { dossierId, index }`, `dossierId`
+    null pendant l'import) — `renderEngagement()` bascule vers un formulaire inline (`<select>`
+    type + `<textarea>` texte, boutons Valider/Annuler) à la place de la ligne de lecture normale
+    quand elle correspond à l'entrée en édition. `activerEditionEngagement()` /
+    `annulerEditionEngagement()` / `validerEditionEngagement()` reprennent la même distinction
+    import/fiche que `supprimerEngagementManuel()`/`supprimerEngagementDossier()` (agit sur
+    `analyseJuridiqueActuelle.engagements` ou sur `d.analyseJuridique.engagements`, avec
+    historique + `sauvegarder(d)` uniquement pour une fiche enregistrée). Alimente aussi
+    l'apprentissage (`memoriserCorrection(phrase, type, null, 'engagement')`) : corriger un
+    engagement est un signal aussi utile qu'un ajout pour reconnaître une formulation proche au
+    prochain import.
+  - **Colonnes du tableau Suivi réordonnées : "Offre de prêt" avant "Prochaine échéance"**
+    (`<thead>` et `renderLigneTableau()`, un simple échange des deux `<th>`/`<td>` correspondants,
+    ordre de rendu et de lecture identiques). Demande initialement formulée de façon ambiguë
+    ("changer dans les colonnes... prochaine étape et offre de prêt") — clarifiée avec l'étude
+    (renommer les en-têtes ? changer leur contenu ? les réordonner ? les fusionner ?) avant
+    d'implémenter : elle a choisi "changer l'ordre des colonnes", plutôt que de deviner et risquer
+    un aller-retour supplémentaire sur une demande à choix multiples sans réponse évidente.
+  - **Badge "Alpha" redescendu sous le logo, remplacé en haut à droite de la sidebar par
+    l'indicateur de connexion au serveur.** Avant ce correctif, `.sidebar-alpha-badge` occupait ce
+    coin (position absolue, `.sidebar` déjà `position: sticky` sert de conteneur de positionnement
+    sans `position: relative` supplémentaire) et `.sidebar-statut-serveur` (voir son historique
+    plus haut) vivait plus bas dans le flux normal, sous la tagline. Les deux échangent leurs
+    traitements CSS : `.sidebar-statut-serveur` passe en absolu au même emplacement (`top: 14px;
+    right: 14px`, police du `.dot-label` resserrée à 11px pour rester compacte dans ce coin) ;
+    `.sidebar-alpha-badge` repasse en flux normal, juste sous `.sidebar-brand` (avant la tagline),
+    en plus petit (9px, padding réduit) — un simple label discret plutôt qu'un badge qui doit
+    attirer le regard comme l'état de connexion. `majStatutServeur()` (script.js) n'a pas eu besoin
+    d'être modifiée : elle cible déjà `#statut-serveur-badge` par id, indépendant de la position de
+    son conteneur parent.
+  - Vérifié : `node -c script.js`, `npm test` (134 tests racine, 52 tests serveur, tous verts —
+    aucune fonction pure modifiée par ce lot). Rendu des nouvelles fonctions d'ajout confirmé par un
+    script Node ad hoc (bac à sable, `tests/helpers/load-app.js`) : bouton fermé, formulaire ouvert
+    avec les bons ids, absence de collision avec les ids du formulaire équivalent du wizard.
 
 **Ce qui n'a volontairement PAS été fait** (arrêté à la demande explicite de l'étude, pas un
 oubli) — à reprendre uniquement si redemandé un jour :

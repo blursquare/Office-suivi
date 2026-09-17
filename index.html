@@ -20,7 +20,19 @@
   <div class="sidebar-scrim" id="sidebar-scrim" onclick="toggleSidebarMobile(false)"></div>
 
   <aside class="sidebar" id="sidebar">
-    <span class="sidebar-alpha-badge" title="Version alpha : l'outil est encore en évolution active, des ajustements peuvent survenir d'une session à l'autre.">Alpha</span>
+    <!-- État de la connexion au serveur intranet (voir sondagePeriodique()/majStatutServeur() dans
+         script.js) : distingue "le sondage réussit" de "le serveur est injoignable" (perte réseau,
+         serveur arrêté...) — sans indicateur, un dossier créé par un collègue pouvait sembler ne
+         jamais arriver sans que rien n'explique pourquoi. N'existe que sur cette branche (mode
+         serveur) : la version 100% locale (main) n'a pas de connexion à surveiller.
+         Prend désormais la position en haut à droite jusque-là occupée par le badge "Alpha" (voir
+         plus bas, redescendu sous le logo) : demandé par l'étude — l'état de connexion mérite le
+         coin le plus visible de la sidebar plus qu'une simple mention de maturité de l'outil.
+         Absolu directement dans <aside> (déjà position:sticky, donc déjà un conteneur de
+         positionnement pour ses descendants absolus) — n'entre jamais dans le flux. -->
+    <div class="sidebar-statut-serveur">
+      <span id="statut-serveur-badge" class="dot-label dl-success"><span class="dot"></span>Connecté</span>
+    </div>
     <div class="sidebar-brand">
       <span class="brand-mark" aria-hidden="true">
         <svg width="30" height="30" viewBox="0 0 48 48" fill="none">
@@ -30,16 +42,11 @@
       </span>
       <span class="brand-word">CLAIRE</span>
     </div>
+    <!-- Badge "Alpha" redescendu sous le logo (petit label discret), sa position en haut à droite
+         étant désormais prise par l'indicateur de connexion au serveur ci-dessus — demandé par
+         l'étude. -->
+    <span class="sidebar-alpha-badge" title="Version alpha : l'outil est encore en évolution active, des ajustements peuvent survenir d'une session à l'autre.">Alpha</span>
     <p class="sidebar-tagline">La clarté sur chaque dossier.</p>
-
-    <!-- État de la connexion au serveur intranet (voir sondagePeriodique()/majStatutServeur() dans
-         script.js) : distingue "le sondage réussit" de "le serveur est injoignable" (perte réseau,
-         serveur arrêté...) — sans indicateur, un dossier créé par un collègue pouvait sembler ne
-         jamais arriver sans que rien n'explique pourquoi. N'existe que sur cette branche (mode
-         serveur) : la version 100% locale (main) n'a pas de connexion à surveiller. -->
-    <div class="sidebar-statut-serveur">
-      <span id="statut-serveur-badge" class="dot-label dl-success"><span class="dot"></span>Connecté</span>
-    </div>
 
     <nav class="sidebar-nav" role="tablist" aria-label="Sections de l'application">
       <!-- En premier et toujours sur fond bleu (sidebar-cta), pas seulement quand cet onglet est

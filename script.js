@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-15 14:25';
+  const VERSION_APP = '2026-09-18 00:41';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,14 +23,14 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-18 00:41', resume: "Couleurs acte/vente préalable échangées (acte en vert, vente en bleu) ; l'IA locale du wizard recopie désormais les clauses mot pour mot ; ajout/édition d'une obligation du vendeur directement sur une fiche déjà enregistrée ; colonnes du Suivi réordonnées (offre de prêt avant prochaine échéance) ; badge Alpha redescendu sous le logo, remplacé en haut à droite par l'indicateur de connexion au serveur" },
     { version: '2026-09-15 14:25', resume: "Apprentissage : une pièce mal reconnue et réinitialisée n'est plus jamais reproposée pour cette pièce (sur aucun dossier) ; une clause ajoutée manuellement comme engagement du vendeur enrichit aussi la détection automatique des prochains imports" },
     { version: '2026-09-15 14:13', resume: "Champ de recherche dans l'aperçu PDF (comme Ctrl+F d'un lecteur PDF), navigation résultat suivant/précédent" },
     { version: '2026-09-15 14:02', resume: "Retours de test du matin : indicateur de connexion serveur (sidebar), achat comptant affiché clairement (plus de \"Non renseigné\"), ajout manuel d'un engagement du vendeur sans sélection PDF, catégorie \"Autres\" pour les engagements, indicateur pendant la recherche IA" },
     { version: '2026-09-14 20:26', resume: "Le wizard « Nouveau dossier » utilise aussi l'IA locale en arrière-plan : complète nom/adresse/prix/dates non trouvés par les regex et suggère des engagements du vendeur en plus, jamais en remplacement" },
     { version: '2026-09-14 20:11', resume: "Nouvel onglet « Analyse approfondie (IA) » : dépose l'acte + ses annexes séparées, relecture croisée par un modèle IA local (Ollama, aucune donnée envoyée en ligne) — voir server/README.md" },
     { version: '2026-09-14 19:27', resume: "Vrai correctif du bug apostrophe (Certificat d'urbanisme/d'alignement) : le précédent (&#39;) ne survivait pas au décodage HTML de l'attribut onclick, toujours cassé en pratique" },
-    { version: '2026-09-14 17:13', resume: 'Détection "Renonciation au droit de préemption" élargie au sigle "DPU" dans le nom de fichier' },
-    { version: '2026-09-14 17:01', resume: 'Écran de connexion : espace manquant entre le champ mot de passe et "Se connecter" ; sidebar : Mode sombre et À propos côte à côte' }
+    { version: '2026-09-14 17:13', resume: 'Détection "Renonciation au droit de préemption" élargie au sigle "DPU" dans le nom de fichier' }
   ];
 
   const STORAGE_KEY = 'dossiers';
@@ -872,6 +872,27 @@
     const manuel = typeof e === 'object' && e.manuel === true;
     const suggereParIa = typeof e === 'object' && e.source === 'ia';
     const libelles = { entretien: 'Entretien', travaux: 'Travaux', document: 'Document', autre: 'Autres' };
+
+    // Édition d'un engagement ajouté via l'option de surlignage (ou tout autre engagement) :
+    // demandé par l'étude pour corriger une clause sans devoir la supprimer puis la ressaisir en
+    // entier. `dossierId` distingue le même contexte import/fiche que la suppression ci-dessous.
+    const enEdition = engagementEnEdition
+      && engagementEnEdition.dossierId === (dossierId || null)
+      && engagementEnEdition.index === index;
+    if (enEdition) {
+      const appelValider = dossierId ? `validerEditionEngagement('${dossierId}', ${index})` : `validerEditionEngagement(null, ${index})`;
+      const appelAnnuler = dossierId ? `annulerEditionEngagement('${dossierId}')` : `annulerEditionEngagement(null)`;
+      const typeActuel = type || 'document';
+      return `<div class="analyse-engagement-ligne analyse-engagement-edition">
+        <select id="engagement-edition-type">
+          ${Object.entries(libelles).map(([val, label]) => `<option value="${val}"${typeActuel === val ? ' selected' : ''}>${label}</option>`).join('')}
+        </select>
+        <textarea id="engagement-edition-texte" rows="2">${escapeHtml(phrase)}</textarea>
+        <button type="button" class="icon-valider" onclick="${appelValider}" title="Valider" aria-label="Valider la modification">✓</button>
+        <button type="button" class="icon-btn" onclick="${appelAnnuler}">Annuler</button>
+      </div>`;
+    }
+
     const etiquette = type
       ? `<span class="engagement-type ${libelles[type] ? type : 'document'}">${libelles[type] || 'Document'}</span>`
       : '';
@@ -898,7 +919,54 @@
       ? `supprimerEngagementDossier('${dossierId}', ${index})`
       : `supprimerEngagementManuel(${index})`;
     const boutonSupprimer = `<button type="button" class="engagement-suppr" onclick="${appelSuppr}" title="Retirer cet engagement" aria-label="Retirer cet engagement">${icone('x')}</button>`;
-    return `<div class="analyse-engagement-ligne">${etiquette}<span>${escapeHtml(phrase)}</span>${marqueurManuel}${boutonVoir}${boutonSupprimer}</div>`;
+    const appelEditer = dossierId ? `activerEditionEngagement('${dossierId}', ${index})` : `activerEditionEngagement(null, ${index})`;
+    const boutonEditer = `<button type="button" class="icon-crayon" onclick="${appelEditer}" title="Modifier cet engagement" aria-label="Modifier cet engagement">${icone('pencil')}</button>`;
+    return `<div class="analyse-engagement-ligne">${etiquette}<span>${escapeHtml(phrase)}</span>${marqueurManuel}${boutonVoir}${boutonEditer}${boutonSupprimer}</div>`;
+  }
+
+  function activerEditionEngagement(dossierId, index) {
+    engagementEnEdition = { dossierId: dossierId || null, index };
+    if (dossierId) render(); else afficherAnalyseJuridique();
+  }
+
+  function annulerEditionEngagement(dossierId) {
+    engagementEnEdition = null;
+    if (dossierId) render(); else afficherAnalyseJuridique();
+  }
+
+  // Valide l'édition d'un engagement (voir activerEditionEngagement ci-dessus) : agit sur
+  // analyseJuridiqueActuelle pendant l'import (dossierId absent) ou sur d.analyseJuridique pour un
+  // dossier déjà enregistré, même distinction que supprimerEngagementManuel/supprimerEngagementDossier.
+  // Alimente aussi l'apprentissage (memoriserCorrection, catégorie 'engagement') : une correction
+  // d'engagement est un signal aussi utile qu'un ajout pour reconnaître une clause proche au
+  // prochain import (voir CLAUDE.md, "Apprentissage sur les clauses ajoutées manuellement").
+  function validerEditionEngagement(dossierId, index) {
+    const texteEl = document.getElementById('engagement-edition-texte');
+    const typeEl = document.getElementById('engagement-edition-type');
+    const phrase = texteEl ? texteEl.value.trim() : '';
+    const type = typeEl ? typeEl.value : 'document';
+    if (!phrase) { if (texteEl) texteEl.focus(); return; }
+
+    if (dossierId) {
+      const d = dossiers.find(x => x.id === dossierId);
+      const cible = d && d.analyseJuridique && d.analyseJuridique.engagements[index];
+      if (!cible) { engagementEnEdition = null; render(); return; }
+      cible.phrase = phrase;
+      cible.type = type;
+      ajouterHistorique(d, `Engagement du vendeur modifié : « ${phrase.slice(0, 80)}${phrase.length > 80 ? '…' : ''} »`);
+      memoriserCorrection(phrase, type, null, 'engagement');
+      engagementEnEdition = null;
+      sauvegarder(d);
+      render();
+    } else {
+      const cible = analyseJuridiqueActuelle.engagements[index];
+      if (!cible) { engagementEnEdition = null; afficherAnalyseJuridique(); return; }
+      cible.phrase = phrase;
+      cible.type = type;
+      memoriserCorrection(phrase, type, null, 'engagement');
+      engagementEnEdition = null;
+      afficherAnalyseJuridique();
+    }
   }
 
   // L'analyse juridique est sa propre étape du wizard (étape 3, voir definirEtapeWizard) — plus un
@@ -3487,8 +3555,8 @@
           <thead><tr>
             <th class="th-triable" onclick="definirTri('nom')">Dossier${flechesTri.nom}</th>
             <th class="th-triable" onclick="definirTri('responsable')">Responsable${flechesTri.responsable}</th>
-            <th class="th-triable" onclick="definirTri('echeance')">Prochaine échéance${flechesTri.echeance}</th>
             <th>Offre de prêt</th>
+            <th class="th-triable" onclick="definirTri('echeance')">Prochaine échéance${flechesTri.echeance}</th>
           </tr></thead>
           <tbody>${tries.map(renderLigneTableau).join('')}</tbody>
         </table>
@@ -3522,14 +3590,14 @@
         <td><div class="dossier-nom-tableau">${renderBadgeStatut(d)}${escapeHtml(d.nom)}</div></td>
         <td class="dossier-responsable-tableau">${escapeHtml(d.responsable || '—')}</td>
         <td>
+          ${d.sansPret ? '<span class="echeance-jours calme">Comptant — sans prêt</span>' : `<span class="dot-label ${offre.dl}"><span class="dot"></span>${offre.texte}</span>`}
+          ${(!d.sansPret && d.dossierLie) ? `<button type="button" class="action-rapide" onclick="event.stopPropagation(); verifierDossierLocalDepuisBouton('${d.id}', this)">Revérifier</button>` : ''}
+        </td>
+        <td>
           ${prochaine
             ? `<span class="dot-label dl-${prochaine.type}"><span class="dot"></span>${escapeHtml(prochaine.label)}</span>
                <span class="echeance-jours ${prochaine.jours <= 3 ? 'urgent' : 'calme'}">${formatDateFr(prochaine.iso)} (${prochaine.jours < 0 ? 'dépassée' : prochaine.jours === 0 ? "aujourd'hui" : 'J-' + prochaine.jours})</span>`
             : '<span class="echeance-jours calme">—</span>'}
-        </td>
-        <td>
-          ${d.sansPret ? '<span class="echeance-jours calme">Comptant — sans prêt</span>' : `<span class="dot-label ${offre.dl}"><span class="dot"></span>${offre.texte}</span>`}
-          ${(!d.sansPret && d.dossierLie) ? `<button type="button" class="action-rapide" onclick="event.stopPropagation(); verifierDossierLocalDepuisBouton('${d.id}', this)">Revérifier</button>` : ''}
         </td>
       </tr>
     `;
@@ -3542,6 +3610,8 @@
     dossierOuvert = id;
     ajoutEcheanceOuvert = false;
     ajoutPieceOuvert = false;
+    ajoutEngagementOuvert = false;
+    engagementEnEdition = null;
     render();
   }
 
@@ -3550,6 +3620,8 @@
     dossierOuvert = null;
     ajoutEcheanceOuvert = false;
     ajoutPieceOuvert = false;
+    ajoutEngagementOuvert = false;
+    engagementEnEdition = null;
     render();
   }
 
@@ -3587,6 +3659,17 @@
   // principe qu'ajoutEcheanceOuvert pour les échéances — un seul dossier ouvert à la fois dans le
   // tiroir, un simple booléen suffit, remis à false à chaque ouverture/fermeture.
   let ajoutPieceOuvert = false;
+
+  // Formulaire d'ajout d'une obligation du vendeur sur une fiche déjà enregistrée (voir
+  // renderAjoutEngagement) : même principe que ajoutEcheanceOuvert/ajoutPieceOuvert.
+  let ajoutEngagementOuvert = false;
+
+  // Édition d'un engagement du vendeur déjà présent (import OU fiche enregistrée) : un seul
+  // engagement en édition à la fois (dossierId null = pendant l'import, sur
+  // analyseJuridiqueActuelle ; dossierId fourni = fiche enregistrée, sur d.analyseJuridique) —
+  // demandé par l'étude pour corriger une clause ajoutée via l'option de surlignage sans devoir la
+  // supprimer puis la ressaisir entièrement.
+  let engagementEnEdition = null;
 
   // Détail du dernier parcours du dossier local par dossier (voir verifierDossierLocal), pour un
   // panneau de diagnostic repliable sur la fiche (renderDiagnosticParcours) — demandé après une
@@ -4041,6 +4124,7 @@
         ${renderAjoutEcheance(d)}
         ${d.roleNotaire !== 'participant' ? renderPiecesDossier(d) : ''}
         ${renderDiagnosticParcours(d)}
+        ${renderAjoutEngagement(d)}
         ${(analyse.documents.length > 0 || analyse.engagements.length > 0 || analyseConditions.length > 0) ? `
           <details class="analyse-juridique analyse-repliable" style="margin-top:14px;" open>
             <summary class="analyse-titre">Analyse juridique du compromis</summary>
@@ -4316,6 +4400,72 @@
           <input type="date" id="nouvelle-echeance-date">
           <button type="button" class="icon-valider" onclick="ajouterEcheanceApresCoup('${d.id}')" title="Ajouter" aria-label="Ajouter l'échéance">✓</button>
           <button type="button" class="icon-btn" onclick="masquerFormAjoutEcheance()">Annuler</button>
+        </div>
+      </div>
+    `;
+  }
+
+  // Ajouter une obligation du vendeur sur une fiche DÉJÀ ENREGISTRÉE, demandé par l'étude — jusqu'ici
+  // seule la sélection de texte dans le PDF (pendant l'import) ou le bouton "+ Ajouter un engagement
+  // du vendeur" du wizard permettaient d'en consigner une, jamais sur un dossier rouvert plus tard
+  // (un accord oral rapporté après coup, ou une clause repérée en relisant l'acte a posteriori).
+  // Même principe que renderAjoutEcheance/renderAjoutPiece : un bouton toujours visible qui bascule
+  // vers un mini-formulaire inline, piloté par ajoutEngagementOuvert (un seul dossier ouvert à la
+  // fois dans le tiroir, un simple booléen suffit).
+  function afficherFormAjoutEngagementDossier() {
+    ajoutEngagementOuvert = true;
+    render();
+  }
+
+  function masquerFormAjoutEngagementDossier() {
+    ajoutEngagementOuvert = false;
+    render();
+  }
+
+  // Alimente aussi l'apprentissage (memoriserCorrection, catégorie 'engagement') : une obligation
+  // ajoutée à la main sur une fiche déjà enregistrée est, comme une clause ajoutée pendant l'import,
+  // un signal utile pour reconnaître une formulation proche au prochain compromis — même principe
+  // déjà appliqué à ajouterEngagementManuel()/ajouterEngagementDepuisFormulaire() et à
+  // validerEditionEngagement().
+  function ajouterEngagementDossierApresCoup(dossierId) {
+    const d = dossiers.find(x => x.id === dossierId);
+    if (!d) return;
+    // Ids distincts du formulaire équivalent du wizard (#nouvel-engagement-type/-texte, voir
+    // index.html) : ce dernier reste en permanence dans le DOM (masqué par style.display, jamais
+    // retiré) — deux éléments partageant le même id auraient fait retomber getElementById() sur le
+    // MAUVAIS formulaire (celui du wizard, apparaissant en premier dans le document), pas sur celui
+    // réellement affiché dans le tiroir.
+    const typeEl = document.getElementById('nouvelle-obligation-dossier-type');
+    const texteEl = document.getElementById('nouvelle-obligation-dossier-texte');
+    const type = typeEl ? typeEl.value : 'document';
+    const phrase = texteEl ? texteEl.value.trim() : '';
+    if (!phrase) { if (texteEl) texteEl.focus(); return; }
+    d.analyseJuridique = d.analyseJuridique || { documents: [], engagements: [], conditions: [] };
+    d.analyseJuridique.engagements = d.analyseJuridique.engagements || [];
+    d.analyseJuridique.engagements.push({ phrase, type, page: null, manuel: true });
+    ajouterHistorique(d, `Obligation du vendeur ajoutée : « ${phrase.slice(0, 80)}${phrase.length > 80 ? '…' : ''} »`);
+    memoriserCorrection(phrase, type, null, 'engagement');
+    ajoutEngagementOuvert = false;
+    sauvegarder(d);
+    render();
+  }
+
+  function renderAjoutEngagement(d) {
+    if (!ajoutEngagementOuvert) {
+      return `<button type="button" class="action-rapide ajout-engagement-btn" onclick="afficherFormAjoutEngagementDossier()">+ Ajouter une obligation du vendeur</button>`;
+    }
+    return `
+      <div class="date-block autre ajout-engagement-form">
+        <div class="autre-row">
+          <select id="nouvelle-obligation-dossier-type">
+            <option value="entretien">Entretien</option>
+            <option value="travaux">Travaux</option>
+            <option value="document" selected>Document</option>
+            <option value="autre">Autres</option>
+          </select>
+          <textarea id="nouvelle-obligation-dossier-texte" rows="2" placeholder="Clause exacte, ou description de l'obligation"></textarea>
+          <button type="button" class="icon-valider" onclick="ajouterEngagementDossierApresCoup('${d.id}')" title="Ajouter" aria-label="Ajouter l'obligation">✓</button>
+          <button type="button" class="icon-btn" onclick="masquerFormAjoutEngagementDossier()">Annuler</button>
         </div>
       </div>
     `;
@@ -5013,10 +5163,12 @@
     // Word (et le filtre HTML de LibreOffice) ignore CSS Grid/Flexbox et, plus surprenant,
     // n'applique pas toujours les couleurs de fond définies via une classe sur une cellule de
     // tableau — seul le style inline est honoré de façon fiable à l'ouverture d'un fichier .doc.
+    // acte/vente : mêmes valeurs que --acte/--ventebien (style.css), échangées sur demande de
+    // l'étude (acte en vert/teal, vente préalable en bleu) — voir le commentaire dans style.css.
     const TEINTES = {
       pret:  { fond: '#FBEFD9', barre: '#B07A12' },
-      acte:  { fond: '#E3EEF7', barre: '#2472B0' },
-      vente: { fond: '#E1F4F2', barre: '#1CA39B' },
+      acte:  { fond: '#E1F4F2', barre: '#1CA39B' },
+      vente: { fond: '#E3EEF7', barre: '#2472B0' },
       autre: { fond: '#EEEEEE', barre: '#8A93A9' }
     };
 
