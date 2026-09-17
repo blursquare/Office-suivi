@@ -881,6 +881,10 @@
         const choix = meilleureCandidateEcheance(candidats, champ);
         const retenu = choix.candidat;
         const calculee = !!(retenu && retenu.calcul);
+        // Quand une date écrite a été préférée à une date calculée, on garde cette dernière de
+        // côté : si les deux divergent nettement, c'est que deux clauses de l'acte se contredisent
+        // (voir controlerCoherence, DATE_EXPLICITE_VS_DELAI).
+        const alternative = explicites.length > 0 ? toutesDuType.find(d => d.calcul) : null;
         dates[typeDate] = {
           valeur: retenu ? retenu.iso : null,
           statut: choix.ambigu ? 'NEEDS_REVIEW' : 'CONFIRMED',
@@ -893,6 +897,7 @@
             ? candidats.map(c => ({ valeur: c.iso, origine: 'regex', source: { page: c.page || null, extrait: c.contexte || null } }))
             : [],
           calcul: calculee ? retenu.calcul : null,
+          calculAlternatif: alternative ? alternative.iso : null,
           raison: choix.ambigu
             ? 'Plusieurs clauses donnent une date pour cette échéance, sans formulation permettant de trancher.'
             : (calculee ? 'Date calculée à partir d’un délai exprimé dans l’acte.' : 'Date lue directement dans l’acte.')
@@ -1324,6 +1329,205 @@
     if (estEtude(resultat.instrumentaire)) return 'instrumentaire';
     if ((resultat.liste || []).some(estEtude)) return 'participant';
     return null;
+  }
+
+  // ==== EXTRACTION STRUCTURÉE : adresse du bien vendu ====
+  //
+  // Un compromis contient l'adresse du vendeur, celle de l'acquéreur, celle du notaire, parfois
+  // celle d'un bien vendu par ailleurs… La spec est explicite : il ne faut SURTOUT PAS prendre la
+  // première adresse trouvée, mais identifier celle qui correspond juridiquement au bien vendu.
+
+  // Section « DÉSIGNATION » : c'est là que le bien est décrit. La chercher d'abord évite par
+  // construction de confondre avec l'adresse personnelle d'une partie.
+  var RE_SECTION_DESIGNATION = /D[ÉE]SIGNATION|IDENTIFICATION\s+DU\s+BIEN|BIEN\s+VENDU|OBJET\s+DE\s+LA\s+VENTE/i;
+  var RE_SECTION_APRES_DESIGNATION = /PRIX|ORIGINE\s+DE\s+PROPRI[ÉE]T[ÉE]|CONDITIONS\s+SUSPENSIVES|PROPRI[ÉE]T[ÉE]\s+JOUISSANCE|CHARGES\s+ET\s+CONDITIONS/i;
+
+  // Une adresse précédée de « demeurant » est celle d'une PARTIE, jamais celle du bien.
+  var RE_ADRESSE_DE_PARTIE = /demeurant|domicili[ée]|r[ée]sidant/i;
+
+  var RE_CADASTRE = /cadastr[ée]e?s?\s+(?:en\s+)?section\s+([A-Z]{1,3})\s*(?:n(?:um[ée]ro|[°ºo])?\s*)?(\d{1,4})/i;
+
+  function detecterCadastre(texte) {
+    const m = RE_CADASTRE.exec(String(texte || ''));
+    return m ? { section: m[1].toUpperCase(), numero: m[2] } : null;
+  }
+
+  // Adresse du bien, découpée en composants. Cherche d'abord dans la section désignation, puis dans
+  // tout le texte ; écarte toute capture introduite par « demeurant » (adresse d'une partie).
+  function detecterAdresseBienStructuree(texte) {
+    const source = String(texte || '');
+    const section = extraireSection(source, RE_SECTION_DESIGNATION, RE_SECTION_APRES_DESIGNATION);
+    const zones = section ? [section, source] : [source];
+
+    for (const zone of zones) {
+      const re = new RegExp(ADRESSE_BIEN_RE.source, 'gi');
+      let m;
+      while ((m = re.exec(zone)) !== null) {
+        const avant = zone.slice(Math.max(0, m.index - 80), m.index);
+        if (RE_ADRESSE_DE_PARTIE.test(avant)) continue;
+        const fragment = extraireFragmentAdresse(m[1]) || m[1];
+        const adresse = parserAdresse(fragment);
+        if (adresse.codePostal) {
+          const index = source.indexOf(m[0]);
+          return {
+            adresse,
+            source: {
+              extrait: extraireContexte(zone, m.index, m[0].length),
+              index: index === -1 ? null : index,
+              page: index === -1 ? null : pageDepuisIndex(index)
+            }
+          };
+        }
+      }
+    }
+    // Repli : la section désignation contient bien une adresse, mais sans la tournure « sis à ».
+    if (section) {
+      const fragment = extraireFragmentAdresse(section);
+      if (fragment) {
+        const adresse = parserAdresse(fragment);
+        if (adresse.codePostal) {
+          const index = source.indexOf(fragment.split(',')[0].trim());
+          return {
+            adresse,
+            source: { extrait: fragment, index: index === -1 ? null : index, page: index === -1 ? null : pageDepuisIndex(index) }
+          };
+        }
+      }
+    }
+    return { adresse: parserAdresse(''), source: null };
+  }
+
+  // ==== EXTRACTION STRUCTURÉE : objet unifié et contrôle de cohérence ====
+
+  function champExtraction(valeur, options) {
+    const o = options || {};
+    return {
+      valeur: valeur === undefined ? null : valeur,
+      statut: o.statut || (valeur ? 'CONFIRMED' : 'NOT_FOUND'),
+      methode: o.methode || null,
+      origine: o.origine || 'regex',
+      source: o.source || null,
+      candidats: o.candidats || [],
+      raison: o.raison || ''
+    };
+  }
+
+  // Rassemble tout ce que les regex savent extraire en UN objet, avec pour chaque donnée son
+  // statut, sa provenance et sa source dans le PDF. C'est ce même objet que la passe IA viendra
+  // ensuite compléter (voir fusionnerExtractionIa) : les deux passes ne parlent qu'une langue.
+  function construireExtractionRegex(texte, dateCompromis, detectedDatesFournies) {
+    const source = String(texte || '');
+    const typeActe = detecterTypeActe(source);
+    const detectedDates = Array.isArray(detectedDatesFournies)
+      ? detectedDatesFournies
+      : detecterDatesDepuisTexte(source, dateCompromis);
+    const bien = detecterAdresseBienStructuree(source);
+    const notaires = determinerNotaires(detecterNotaires(source, typeActe.valeur), bien.adresse.departement);
+
+    const extraction = {
+      version: 1,
+      typeActe,
+      parties: detecterParties(source, typeActe.valeur),
+      notaires,
+      bien: { adresse: bien.adresse, source: bien.source, cadastre: detecterCadastre(source) },
+      dates: construireDatesMetier(detectedDates, detecterDelais(source), dateCompromis),
+      champs: {
+        nom: champExtraction(detecterNomDossier(source)),
+        prixVente: champExtraction(detecterPrixVente(source)),
+        emailAcquereur: champExtraction(detecterEmailAcquereur(source, typeActe.valeur)),
+        typeVente: champExtraction(detecterTypeVenteCopropriete(source) ? 'copropriete' : null)
+      },
+      alertes: [],
+      iaLots: { parties: 'attente', bien: 'attente', dates: 'attente' }
+    };
+    extraction.alertes = controlerCoherence(extraction);
+    return extraction;
+  }
+
+  // Contrôle de cohérence : la spec demande de vérifier l'ensemble AVANT de créer le dossier, et de
+  // signaler les contradictions plutôt que de les absorber en silence. Chaque alerte nomme les
+  // champs concernés pour pouvoir être affichée en face d'eux.
+  function controlerCoherence(extraction) {
+    const alertes = [];
+    if (!extraction) return alertes;
+    const dates = extraction.dates || {};
+    const valeur = (cle) => (dates[cle] && dates[cle].valeur) || null;
+    const signature = valeur('SIGNATURE_AVANT_CONTRAT');
+    const pret = valeur('BUTOIR_PRET');
+    const acte = valeur('REITERATION_ACTE');
+    const vente = valeur('BUTOIR_VENTE_PREALABLE');
+
+    if (signature && acte && signature === acte) {
+      alertes.push({
+        code: 'SIGNATURE_EGALE_REITERATION', gravite: 'critique', champs: ['acte'],
+        message: 'La date de réitération est identique à celle de la signature de l’avant-contrat : l’une des deux est probablement mal identifiée.'
+      });
+    }
+    if (pret && acte && pret > acte) {
+      alertes.push({
+        code: 'PRET_APRES_ACTE', gravite: 'critique', champs: ['pret', 'acte'],
+        message: 'L’échéance d’obtention du prêt tombe après la signature de l’acte : la condition suspensive ne pourrait pas jouer.'
+      });
+    }
+    if (pret && vente && pret === vente) {
+      alertes.push({
+        code: 'PRET_EGALE_VENTE_PREALABLE', gravite: 'attention', champs: ['pret', 'ventebien'],
+        message: 'La même date est retenue pour l’obtention du prêt et pour la vente préalable : à vérifier, les deux clauses sont distinctes.'
+      });
+    }
+
+    // Date écrite ET délai dans l'acte, qui ne tombent pas au même endroit : l'écart d'un jour ou
+    // deux vient de la convention de computation et n'a rien d'anormal ; au-delà, c'est une vraie
+    // contradiction entre deux clauses du même acte.
+    for (const [typeDate, champ] of Object.entries(CHAMP_PAR_TYPE_DATE)) {
+      const objet = dates[typeDate];
+      if (!objet || !objet.valeur || objet.methode !== 'EXPLICIT' || !objet.calculAlternatif) continue;
+      const ecart = Math.abs((new Date(objet.valeur) - new Date(objet.calculAlternatif)) / 86400000);
+      if (ecart > 5) {
+        alertes.push({
+          code: 'DATE_EXPLICITE_VS_DELAI', gravite: 'attention', champs: [champ],
+          message: `La date écrite dans l’acte et le délai qu’il énonce ne concordent pas (${Math.round(ecart)} jours d’écart) : c’est la date écrite qui a été retenue.`
+        });
+      }
+    }
+
+    const adresse = extraction.bien && extraction.bien.adresse;
+    if (!adresse || adresse.statut !== 'CONFIRMED') {
+      alertes.push({
+        code: 'ADRESSE_INCOMPLETE', gravite: 'attention', champs: ['adresseBien'],
+        message: 'L’adresse du bien n’a pas pu être reconstituée complètement : à compléter à la main.'
+      });
+    }
+
+    const notaires = extraction.notaires || {};
+    if (notaires.instrumentaire && notaires.participant &&
+        notaires.instrumentaire.nom === notaires.participant.nom) {
+      alertes.push({
+        code: 'NOTAIRES_IDENTIQUES', gravite: 'attention', champs: ['roleNotaire'],
+        message: 'Le même notaire est identifié comme instrumentaire et comme participant : à vérifier.'
+      });
+    }
+    if (notaires.statut === 'NEEDS_REVIEW') {
+      alertes.push({
+        code: 'NOTAIRE_INSTRUMENTAIRE_INCERTAIN', gravite: 'attention', champs: ['roleNotaire'],
+        message: notaires.raison || 'Le notaire instrumentaire n’a pas pu être déterminé.'
+      });
+    }
+
+    // Le vocabulaire des parties doit correspondre au type d'acte : un compromis qui nomme ses
+    // parties « promettant »/« bénéficiaire » n'est pas anormal (promesse synallagmatique), mais un
+    // type d'acte non tranché combiné à ce vocabulaire mérite un regard — c'est exactement la
+    // situation où l'inversion vendeur/acquéreur passerait inaperçue.
+    const parties = extraction.parties || [];
+    const vocabulairePromesse = parties.some(p => p.qualiteActe === 'promettant' || p.qualiteActe === 'beneficiaire');
+    if (vocabulairePromesse && extraction.typeActe && extraction.typeActe.valeur === 'INCONNU') {
+      alertes.push({
+        code: 'TYPE_ACTE_VS_QUALITES', gravite: 'critique', champs: ['nom'],
+        message: 'L’acte nomme ses parties « promettant » et « bénéficiaire » sans que son type ait pu être établi : vérifiez que vendeur et acquéreur ne sont pas intervertis.'
+      });
+    }
+
+    return alertes;
   }
 
   // ==== EXTRACTION STRUCTURÉE : localisation d'un extrait dans le texte ====
