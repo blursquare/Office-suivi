@@ -1116,6 +1116,216 @@
     };
   }
 
+  // ==== EXTRACTION STRUCTURÉE : notaires ====
+  //
+  // Entièrement nouveau : jusqu'ici, le rôle de l'étude sur un dossier (instrumentaire ou
+  // participant) était saisi à la main, sans aucune aide du document. L'enchaînement voulu par la
+  // spec est : personne → étude → adresse → département → qualité → rôle → règle métier.
+
+  // Identité de l'étude, pour reconnaître SON propre office parmi les notaires cités et en déduire
+  // son rôle. Les deux graphies rencontrées sont tolérées (GOSSART / GOSSARD). Liste volontairement
+  // isolée ici : y ajouter un confrère associé ne demande de toucher à rien d'autre.
+  var IDENTITE_ETUDE = { motifs: [/goss?ar[dt]/i] };
+
+  // Règle métier géographique, centralisée en UN SEUL endroit (exigence explicite de la spec :
+  // « ne pas coder cette règle de manière dispersée »). Pour un bien situé dans le 41, si le
+  // notaire du vendeur est du 41, du 45 ou du 37, c'est lui qui reçoit l'acte. Ajouter un
+  // département, ou une seconde règle pour un autre département de bien, se fait ici.
+  var REGLES_NOTAIRE_INSTRUMENTAIRE = [
+    { departementBien: '41', departementsNotaireVendeur: ['41', '45', '37'] }
+  ];
+
+  // « Maître X, notaire à Y » et ses variantes (notaire associé, notaire à la résidence de…).
+  var RE_NOTAIRE = /Ma[îi]tre\s+([A-ZÀ-Ü][^,;\n()]{2,60}?)\s*,?\s*notaire\s*(?:associ[ée]e?)?\s*(?:[àa]\s+la\s+r[ée]sidence\s+d[eu]\s*|[àa]\s+|de\s+)([^,;.\n()]{2,60})/gi;
+
+  // Mention explicite du notaire qui recevra l'acte : priorité absolue sur toute règle métier.
+  var RE_ROLE_INSTRUMENTAIRE = /(?:recevra\s+l['’]acte|acte\s+(?:authentique\s+)?(?:sera\s+)?re[çc]u\s+par|r[ée]digera\s+l['’]acte|notaire\s+instrumentaire|en\s+l['’][ée]tude\s+de)/i;
+  var RE_ROLE_PARTICIPANT = /(?:avec\s+(?:la\s+)?participation\s+de|en\s+participation|notaire\s+participant|en\s+concours\s+avec|assist[ée]e?\s+de)/i;
+
+  // Rattachement d'un notaire à une partie : « notaire du vendeur », « conseil de l'acquéreur »…
+  var RE_COTE_NOTAIRE = /(?:notaire|conseil|assistant?e?|repr[ée]sentant)\s+(?:d[eu]\s+|de\s+la\s+|de\s+l['’]|des\s+)?(vendeurs?|promettants?|acqu[ée]reurs?|acheteurs?|b[ée]n[ée]ficiaires?|parties?\s+venderesses?|parties?\s+acqu[ée]reuses?)/i;
+
+  function qualiteDepuisMot(mot) {
+    const m = String(mot || '').toLowerCase();
+    if (RE_QUALITE_PROMETTANT.test(m)) return 'promettant';
+    if (RE_QUALITE_BENEFICIAIRE.test(m)) return 'beneficiaire';
+    if (RE_QUALITE_VENDEUR.test(m)) return 'vendeur';
+    if (RE_QUALITE_ACQUEREUR.test(m)) return 'acquereur';
+    return null;
+  }
+
+  // Repère les notaires cités, leur étude, leur adresse (donc leur département) et le côté auquel
+  // ils se rattachent. Plusieurs notaires du même côté sont possibles : on ne suppose jamais qu'il
+  // n'y en a qu'un.
+  // Isole le fragment d'adresse d'un texte qui en contient plus que l'adresse : on découpe en
+  // groupes séparés par des virgules, on garde celui qui porte le code postal, et le précédent s'il
+  // ressemble à une voie. Sans ce découpage, parserAdresse prenait la suite de la phrase
+  // (« …41000 BLOIS, notaire du vendeur ») et rangeait « notaire du vendeur » en commune.
+  function extraireFragmentAdresse(texte) {
+    const source = String(texte || '');
+    if (!/\b\d{5}\b/.test(source)) return null;
+    const groupes = source.split(/[,;\n]/);
+    const iCp = groupes.findIndex(g => /\b\d{5}\b/.test(g));
+    if (iCp === -1) return null;
+    const precedent = iCp > 0 ? groupes[iCp - 1] : '';
+    const garderPrecedent = /\d/.test(precedent) || RE_TYPE_VOIE.test(precedent.trim()) || RE_LIEU_DIT.test(precedent);
+    return ((garderPrecedent ? precedent + ', ' : '') + groupes[iCp]).replace(/\s+/g, ' ').trim();
+  }
+
+  // Début de la phrase courante : le rattachement d'un notaire à une partie (« Le notaire du
+  // vendeur, Maître X ») est toujours dans la MÊME phrase que sa mention.
+  function debutPhrase(texte, index) {
+    const avant = String(texte || '').slice(0, index);
+    const coupure = Math.max(avant.lastIndexOf('.'), avant.lastIndexOf('\n'));
+    return coupure === -1 ? 0 : coupure + 1;
+  }
+
+  function detecterNotaires(texte, typeActe) {
+    const source = String(texte || '');
+    if (!source) return [];
+    const type = TYPES_ACTE.includes(typeActe) ? typeActe : 'INCONNU';
+
+    // Premier passage : repérer toutes les mentions, pour pouvoir ensuite borner la fenêtre de
+    // chaque notaire par son voisin. Sans cette borne, « notaire du vendeur » écrit à la fin de la
+    // ligne précédente était attribué au notaire suivant, et une mention « qui recevra l'acte »
+    // était comptée pour les deux à la fois.
+    const mentions = [];
+    const re = new RegExp(RE_NOTAIRE.source, 'gi');
+    let m;
+    while ((m = re.exec(source)) !== null) {
+      mentions.push({ index: m.index, longueur: m[0].length, nom: m[1].replace(/\s+/g, ' ').trim(), ville: m[2].replace(/\s+/g, ' ').trim() });
+    }
+
+    const resultats = [];
+    const vus = new Set();
+    mentions.forEach((mention, i) => {
+      const cle = mention.nom.toLowerCase();
+      if (vus.has(cle)) return;
+      vus.add(cle);
+
+      const suivante = mentions[i + 1];
+      const debut = debutPhrase(source, mention.index);
+      const fin = Math.min(
+        source.length,
+        mention.index + mention.longueur + 400,
+        suivante ? suivante.index : source.length
+      );
+      const fenetre = source.slice(debut, fin);
+
+      const mCote = fenetre.match(RE_COTE_NOTAIRE);
+      const qualite = mCote ? qualiteDepuisMot(mCote[1]) : null;
+      const cote = qualite ? (roleDepuisQualite(type, qualite) === 'VENDEUR' ? 'vendeur' : 'acquereur') : 'inconnu';
+
+      let roleExplicite = null;
+      if (RE_ROLE_INSTRUMENTAIRE.test(fenetre)) roleExplicite = 'instrumentaire';
+      else if (RE_ROLE_PARTICIPANT.test(fenetre)) roleExplicite = 'participant';
+
+      // Le département vient du CODE POSTAL, jamais du seul nom de commune : deux communes de
+      // départements différents peuvent porter des noms proches (point insisté par la spec).
+      const fragment = extraireFragmentAdresse(fenetre);
+      const adresse = fragment ? parserAdresse(fragment) : null;
+      const adresseUtile = adresse && adresse.codePostal ? adresse : null;
+
+      resultats.push({
+        nom: mention.nom,
+        office: mention.ville,
+        adresse: adresseUtile,
+        codePostal: adresseUtile ? adresseUtile.codePostal : null,
+        commune: adresseUtile ? adresseUtile.commune : mention.ville,
+        departement: adresseUtile ? adresseUtile.departement : null,
+        cote,
+        roleExplicite,
+        source: { extrait: extraireContexte(source, mention.index, mention.longueur), index: mention.index, page: pageDepuisIndex(mention.index) }
+      });
+    });
+    return resultats;
+  }
+
+  function appliquerRegleInstrumentaire(notaireVendeur, departementBien) {
+    if (!notaireVendeur || !departementBien || !notaireVendeur.departement) return null;
+    const regle = REGLES_NOTAIRE_INSTRUMENTAIRE.find(r => r.departementBien === String(departementBien));
+    if (!regle) return null;
+    return regle.departementsNotaireVendeur.includes(notaireVendeur.departement) ? regle : null;
+  }
+
+  // Détermine qui reçoit l'acte. Ordre de priorité imposé par la spec :
+  //   1. mention explicite dans le document (« l'acte sera reçu par Maître X ») ;
+  //   2. à défaut, la règle métier géographique (41 + notaire vendeur en 41/45/37) ;
+  //   3. sinon, rien n'est tranché — NEEDS_REVIEW, jamais un choix arbitraire.
+  function determinerNotaires(notaires, departementBien) {
+    const liste = Array.isArray(notaires) ? notaires : [];
+    const cotesVendeur = liste.filter(n => n.cote === 'vendeur');
+    const cotesAcquereur = liste.filter(n => n.cote === 'acquereur');
+    const explicites = liste.filter(n => n.roleExplicite === 'instrumentaire');
+
+    const resultat = {
+      liste,
+      vendeur: cotesVendeur[0] || null,
+      acquereur: cotesAcquereur[0] || null,
+      instrumentaire: null,
+      participant: null,
+      statut: 'NOT_FOUND',
+      raison: '',
+      roleEtude: null
+    };
+
+    if (liste.length === 0) {
+      resultat.raison = 'Aucun notaire identifié dans le document.';
+      return resultat;
+    }
+
+    // Deux notaires désignés instrumentaires, ou deux notaires d'un même côté : on ne tranche pas.
+    if (explicites.length > 1) {
+      resultat.statut = 'NEEDS_REVIEW';
+      resultat.raison = 'Plusieurs notaires sont présentés comme recevant l’acte : à vérifier dans le document.';
+      return resultat;
+    }
+
+    if (explicites.length === 1) {
+      resultat.instrumentaire = explicites[0];
+      resultat.statut = 'CONFIRMED';
+      resultat.raison = 'Le document désigne explicitement ce notaire pour recevoir l’acte.';
+    } else {
+      const regle = appliquerRegleInstrumentaire(resultat.vendeur, departementBien);
+      if (regle) {
+        resultat.instrumentaire = resultat.vendeur;
+        resultat.statut = 'CONFIRMED';
+        resultat.raison = `Bien situé dans le ${regle.departementBien} et notaire du vendeur dans le ${resultat.vendeur.departement} : c’est lui qui reçoit l’acte (règle de l’étude).`;
+      } else {
+        resultat.statut = 'NEEDS_REVIEW';
+        resultat.raison = resultat.vendeur && resultat.vendeur.departement
+          ? 'Aucune mention explicite et la règle géographique ne s’applique pas : notaire instrumentaire à confirmer.'
+          : 'Aucune mention explicite, et le département du notaire du vendeur est inconnu : à confirmer.';
+      }
+    }
+
+    if (resultat.instrumentaire) {
+      const participantExplicite = liste.find(n => n.roleExplicite === 'participant' && n !== resultat.instrumentaire);
+      resultat.participant = participantExplicite
+        || liste.find(n => n !== resultat.instrumentaire && (n.cote === 'vendeur' || n.cote === 'acquereur'))
+        || null;
+      resultat.roleEtude = deduireRoleEtude(resultat);
+    }
+
+    return resultat;
+  }
+
+  function estEtude(notaire) {
+    if (!notaire) return false;
+    const texte = `${notaire.nom || ''} ${notaire.office || ''}`;
+    return IDENTITE_ETUDE.motifs.some(re => re.test(texte));
+  }
+
+  // Le rôle de l'étude découle de sa place parmi les notaires identifiés : si c'est elle qui reçoit
+  // l'acte, elle est instrumentaire ; si elle est citée sans recevoir l'acte, elle est participante.
+  // null = l'étude n'est pas reconnue dans le document, et le sélecteur n'est pas touché.
+  function deduireRoleEtude(resultat) {
+    if (!resultat) return null;
+    if (estEtude(resultat.instrumentaire)) return 'instrumentaire';
+    if ((resultat.liste || []).some(estEtude)) return 'participant';
+    return null;
+  }
+
   // ==== EXTRACTION STRUCTURÉE : localisation d'un extrait dans le texte ====
   //
   // Pierre angulaire de la vérification des réponses du modèle IA local : plutôt que de faire
