@@ -91,11 +91,41 @@ Le même modèle local sert deux fonctionnalités distinctes :
   (`POST /api/analyse-ia`).
 - Le wizard « Nouveau dossier » lui-même appelle aussi le modèle en arrière-plan, juste après
   l'extraction habituelle par regex (inchangée, toujours le chemin principal et immédiat) : il ne
-  complète QUE les champs que les regex n'ont pas trouvés (nom du dossier, adresse, prix, dates
-  butoir) et ne propose de nouveaux engagements du vendeur qu'en ajout, jamais en remplacement —
-  aucune valeur déjà détectée ou déjà saisie n'est jamais écrasée (`POST /api/extraction-ia`).
-  Entièrement silencieux si Ollama n'est pas installé/lancé : le wizard reste alors utilisable
-  exactement comme avant l'ajout de cette fonctionnalité.
+  complète QUE ce que les regex n'ont pas trouvé et ne propose de nouveaux engagements du vendeur
+  qu'en ajout, jamais en remplacement — aucune valeur déjà détectée ou déjà saisie n'est jamais
+  écrasée (`POST /api/extraction-ia`). Entièrement silencieux si Ollama n'est pas installé/lancé :
+  le wizard reste alors utilisable exactement comme avant l'ajout de cette fonctionnalité.
+
+  Cette seconde fonctionnalité procède en **trois appels ciblés**, lancés en parallèle par le
+  client (paramètre `lot` de la requête) plutôt qu'en un seul appel fourre-tout :
+
+  | Lot | Ce qu'il lit | Contexte envoyé au modèle |
+  |---|---|---|
+  | `parties` | type d'acte, parties et leurs rôles, notaires | 10 000 premiers caractères + fenêtres autour de « Maître », « notaire », « ci-après dénommé » |
+  | `bien` | adresse du bien, cadastre, prix, type de vente | tête du document + fenêtres autour de « désignation », « cadastr », « sis à », « prix » |
+  | `dates` | échéances par fonction juridique, engagements du vendeur | tête du document + fenêtres autour de « prêt », « acte authentique », « réitér », « délai », « au plus tard » |
+
+  Un modèle 7-8B tenu de remplir quinze champs hétérogènes d'un coup en bâcle une partie ; surtout,
+  chaque lot reçoit ainsi le passage de l'acte qui le concerne au lieu des mêmes 40 000 caractères
+  payés trois fois. **Conséquence sur le temps de réponse** : Ollama traite les requêtes les unes
+  après les autres, donc compter environ le triple du temps d'un appel unique — mais sur un
+  contexte bien plus court à chaque fois, l'écart réel est plus faible. Le formulaire se remplit
+  lot par lot, sans attendre le plus lent des trois, et l'import lui-même n'est jamais retardé.
+
+  Deux garde-fous, côté serveur puis côté client :
+  - **chaque valeur doit être accompagnée de la phrase de l'acte qui la justifie**, et le serveur
+    vérifie que cette citation figure LITTÉRALEMENT dans le PDF. C'est le seul signal fiable : le
+    score de « confiance » que renvoie un modèle de cette taille n'est calibré sur rien, une
+    citation vérifiable l'est. Citation retrouvée → la donnée est marquée confirmée et sa page est
+    affichée ; introuvable → « à vérifier », quel que soit l'aplomb du modèle ;
+  - **le modèle ne calcule jamais une date à partir d'un délai** : il rapporte le délai (« 60
+    jours ») et son point de départ tel que l'acte le nomme, et le calcul est fait par l'outil,
+    déterministe et testé — et uniquement quand le point de départ est la signature, seule date
+    connue à l'import.
+
+  Quand le modèle contredit les regex, c'est la détection par regex qui est retenue (déterministe,
+  testée sur de vrais actes) : l'écart est signalé dans le panneau « Ce que l'outil a compris » à
+  l'étape « Vérifier », jamais tranché en silence.
 
 Le modèle tourne **entièrement en local sur ce serveur** via [Ollama](https://ollama.com) (gratuit,
 open-source) — le texte des documents ne quitte JAMAIS le réseau de l'étude, cohérent avec la

@@ -3421,6 +3421,126 @@ autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` auton
     aucune fonction pure modifiée par ce lot). Rendu des nouvelles fonctions d'ajout confirmé par un
     script Node ad hoc (bac à sable, `tests/helpers/load-app.js`) : bouton fermé, formulaire ouvert
     avec les bons ids, absence de collision avec les ids du formulaire équivalent du wizard.
+- **Refonte en profondeur de la création automatique d'un dossier à partir d'un PDF (phase 1)**,
+  demandée par l'étude en deux longues specs successives (l'une sur le type d'acte/les rôles/les
+  statuts par champ, l'autre — « MODULE APPROFONDI » — sur les dates, les notaires et l'adresse du
+  bien). Principe directeur qu'elle a posé : « ne construis PAS un système qui cherche simplement
+  des mots ». Chantier mené en 8 commits successifs, chacun testé et vert avant le suivant.
+  **Principe d'architecture, à ne pas perdre de vue** : on EMPILE, on ne réécrit pas.
+  `traiterTexte()` (regex → DOM) reste le chemin principal, immédiat, éprouvé sur de vrais actes et
+  seul disponible sur `main` ; tout ce qui suit est une couche posée par-dessus, qui se contente
+  d'un objet supplémentaire quand elle ne peut rien apporter.
+  - **Type d'acte AVANT les rôles** (`detecterTypeActe`/`ROLES_PAR_TYPE_ACTE`/`detecterParties`) :
+    `RE_ROLE_VENDEUR` faisait jusqu'ici l'équation `promettant = vendeur` sans condition — vrai
+    pour une promesse de VENTE, faux pour une promesse d'ACHAT, où le promettant s'engage à
+    acheter. L'inversion est désormais pilotée par une table indexée sur le type d'acte, et testée
+    explicitement (`tests/parties.test.js`), comme la spec l'exigeait. Un type non tranché reste
+    `INCONNU` et reproduit le mapping historique (aucune régression des tests `detecterNomDossier`
+    existants), avec une alerte de cohérence quand le vocabulaire promettant/bénéficiaire apparaît
+    sans que le type soit établi — précisément la situation où l'inversion passerait inaperçue.
+    `detecterNomDossier()` devient un simple habillage de `detecterParties()`.
+    - **Bug de fond corrigé au passage, très probablement le « les noms de dossier ne vont pas »
+      resté ouvert faute d'exemple** : `estStyleLabelEntreGuillemets()` ne reconnaissait pas
+      `L'ACQUÉREUR :` comme une étiquette (l'apostrophe précédée d'une lettre n'était pas traitée
+      comme un guillemet ouvrant), la fonction retombait sur une recherche en avant et ramenait le
+      nom du VENDEUR des deux côtés.
+  - **Dates classées par fonction juridique** (`TYPES_DATE`, `construireDatesMetier`) plutôt que
+    « la première/la dernière date trouvée », interdit par la spec. Chaque date porte sa méthode :
+    `EXPLICIT` (lue telle quelle) ou `CALCULATED` (déduite d'un délai), et **une date explicite
+    n'est JAMAIS remplacée par une date calculée** — la calculée est conservée à part
+    (`calculAlternatif`) et une alerte signale l'écart au-delà de 5 jours. Nouveau socle de calcul
+    déterministe : `ajouterMois()` (quantième à quantième, borné au dernier jour du mois, art. 641
+    CPC) à côté de `addDays()`, `calculerDateEcheance()`, et `POINTS_DEPART_CONNUS` où seule la
+    signature est marquée `calculable` — un délai compté depuis une notification ou la purge d'un
+    droit de préemption n'a pas d'ancre connue à l'import, la date resterait une invention.
+    `detecterDelais()` couvre aussi les durées en toutes lettres (« trois mois ») et en mois, que
+    l'ancien détecteur ignorait entièrement.
+  - **Notaires détectés, et règle métier centralisée** (`detecterNotaires`, `determinerNotaires`,
+    `IDENTITE_ETUDE`, `REGLES_NOTAIRE_INSTRUMENTAIRE`) — le rôle de l'étude sur un dossier était
+    jusqu'ici 100 % manuel. Ordre de priorité imposé par la spec : mention explicite dans l'acte >
+    règle géographique > rien (`NEEDS_REVIEW`, jamais un choix arbitraire). La règle « bien dans le
+    41 + notaire du vendeur dans le 41/45/37 → c'est lui qui reçoit l'acte » est déclarée dans UN
+    SEUL tableau, modifiable sans toucher au code, et un test le vérifie explicitement (la spec
+    interdisait de la disperser). L'étude est reconnue sous ses deux graphies (GOSSART/GOSSARD) ;
+    `#f-role-notaire` n'est pré-rempli que sur une déduction CONFIRMED — ce sélecteur masque la
+    checklist des pièces quand il vaut « participant », on ne bascule jamais dessus sur une
+    supposition.
+  - **Adresse du bien structurée** (`parserAdresse`, `detecterAdresseBienStructuree`,
+    `TYPES_VOIE`, `departementDepuisCodePostal`) : composants séparés dans un ordre libre, lieu-dit
+    jamais transformé en voie, numéro facultatif. Surtout, elle est **distinguée de celle des
+    parties et de celle des notaires** — une capture précédée de « demeurant » est écartée d'office,
+    la section DÉSIGNATION est cherchée en priorité. Vérifié sur un acte portant quatre adresses
+    différentes (`tests/extraction.test.js`) : c'est le département de l'adresse du BIEN qui
+    déclenche ensuite la règle notaire, se tromper d'adresse se propagerait jusqu'au rôle de
+    l'étude. Cadastre relevé au passage.
+  - **Objet d'extraction unifié** (`construireExtractionRegex`) : chaque donnée porte sa valeur,
+    son statut (`CONFIRMED` / `NEEDS_REVIEW` / `NOT_FOUND`), sa méthode, son origine, sa source
+    (page + extrait) et ses candidats concurrents. `controlerCoherence()` contrôle l'ensemble AVANT
+    création du dossier (réitération = signature, prêt après l'acte, date écrite contredite par un
+    délai, adresse incomplète, notaires identiques, instrumentaire non tranché, vocabulaire de
+    promesse sans type d'acte établi).
+  - **Panneau « Ce que l'outil a compris »** à l'étape « Vérifier » (`#panneau-revision`) et
+    rappel des alertes à l'étape « Finaliser » (`#alertes-finalisation`) — emplacements choisis
+    avec l'étude. `appliquerExtractionAuFormulaire()` n'écrit dans un champ que si sa valeur est
+    encore celle que NOUS y avions mise (`valeursAppliquees`) : un champ corrigé à la main n'est
+    jamais écrasé, y compris par une réponse IA qui arrive une minute plus tard.
+    `recalculerExtractionRegex()` est le point d'entrée UNIQUE du recalcul, branché sur les trois
+    endroits qui refont déjà la détection de dates (fin de `traiterTexte`, `corrigerDateCompromis`,
+    et les deux branches de repli OCR/métadonnées) — en oublier un désynchroniserait le panneau du
+    formulaire.
+  - **Trace conservée sur le dossier** (`instantaneExtraction`) : `d.typeActe`, `d.parties`,
+    `d.notaires`, `d.bien`, `d.extraction`, tous ADDITIFS (les champs plats sont alimentés à
+    l'identique, le blob JSON côté serveur ne demande aucune migration). Volontairement maigre :
+    les extraits cités et les candidats ne sont PAS recopiés (ils n'ont d'intérêt que PDF ouvert à
+    côté, et le dossier est stocké en clair). Affichée dans un `<details>` replié sur la fiche.
+    `normaliserExtractionImportee()` assainit tout ça à l'import d'une sauvegarde.
+    `diffCorrectionsExtraction()` + journal `corrections-extraction` (localStorage, plafond 500)
+    enregistrent ce que l'étude corrige à la main — **pour mesurer plus tard où l'extraction se
+    trompe, jamais pour réentraîner automatiquement quoi que ce soit**, la spec l'interdit
+    explicitement.
+  - **Passe IA en trois lots** (`parties`/`bien`/`dates`), côté serveur
+    (`server/src/extraction/{extraits,prompts,normaliser}.js`, route `POST /api/extraction-ia` avec
+    un paramètre `lot` obligatoire) et côté client (`lancerExtractionIa` + `fusionnerExtractionIa`,
+    qui remplacent `enrichirImportAvecIa`). Voir `server/README.md` pour le détail des contextes
+    envoyés et le temps de réponse attendu. Trois décisions structurantes :
+    - **La vérification des extraits remplace la « confiance » du modèle.** Un llama 8B renvoie
+      volontiers `confidence: 0.95` sur une valeur qu'il vient d'inventer — ce score n'est calibré
+      sur rien. Le serveur vérifie donc que la phrase citée existe LITTÉRALEMENT dans le PDF
+      (`localiserExtrait`, pendant de la fonction client) : trouvée → CONFIRMED + page affichée,
+      introuvable → NEEDS_REVIEW.
+    - **`genererJson(prompt, valider)`** (`server/src/llm.js`) : `format: 'json'` d'Ollama garantit
+      la syntaxe, jamais le schéma. Une réponse hors schéma déclenche UNE relance avec l'erreur en
+      clair ajoutée au prompt, puis abandon — chaque tentative coûte des dizaines de secondes sur
+      CPU et un modèle qui se trompe deux fois ne se corrigera pas à la troisième. `generer()`
+      reste inchangée pour `analyseIa.js`.
+    - **Trois règles de fusion**, les mêmes pour toute donnée : regex muettes → valeur du modèle
+      avec le statut de son extrait ; accord → CONFIRMED (origine `regex+ia`) ; désaccord → la
+      valeur des regex est GARDÉE, le statut passe NEEDS_REVIEW et celle du modèle reste en
+      candidat visible. Jamais de choix silencieux entre les deux.
+  - **Tests** : suite racine passée de 134 à 226 (`adresse`, `dates-metier`, `extraits`, `parties`,
+    `notaires`, `extraction`, `enregistrement`, `fusion`), suite serveur de 52 à 67 — dont le faux
+    Ollama factorisé (`server/test/helpers/faux-ollama.js`, avec file de réponses et compteur
+    d'appels, sans lequel on ne saurait pas distinguer une relance réussie d'une première réponse
+    déjà valide). **Rappel du harnais** : `tests/helpers/load-app.js` ne voit que les `function` et
+    les `var` de premier niveau — toute configuration destinée à être testée doit être déclarée en
+    `var`, et deux tableaux venant de deux realms `vm` différents font échouer `assert.deepEqual`
+    (comparer des chaînes jointes à la place).
+  - **Décisions prises avec l'étude avant de commencer** (ne pas les rouvrir sans qu'elle le
+    redemande) : périmètre limité à la phase 1 ; personnes réduites aux noms + qualité + rôle +
+    représentant, **pas d'état civil complet** stocké ; identité de l'étude = Sophie GOSSART/
+    GOSSARD ; pré-remplissage du sélecteur de rôle uniquement sur CONFIRMED ; panneau à l'étape 2
+    avec rappel des alertes à l'étape 4 ; vocabulaire des dates (`SIGNATURE_AVANT_CONTRAT` = la
+    signature du compromis/de la promesse, `REITERATION_ACTE` = le champ « Signature de l'acte »).
+  - **Non vérifié en conditions réelles** : ni Ollama ni pdf.js ne sont disponibles dans cet
+    environnement de développement (CDN bloqués par le proxy réseau, modèle non installé) — la
+    qualité réelle des lots sur de vrais actes, les temps de réponse sur le matériel du poste
+    serveur et le taux de NEEDS_REVIEW restent à confirmer par l'étude. Tout le reste est couvert
+    par les tests et par des scripts de bac à sable (faux `fetch`, faux Ollama).
+  - **Phases 2 et 3, non engagées** : cadastre complet (plusieurs parcelles, contenances), prix
+    contradictoires entre plusieurs clauses, personnes morales détaillées (SIREN, siège) ; puis
+    exploitation du journal `corrections-extraction` (un écran qui montrerait où l'extraction se
+    trompe le plus) et extraction ciblée itérative (re-interroger le modèle sur un seul champ resté
+    NEEDS_REVIEW, avec une fenêtre plus large).
 
 **Ce qui n'a volontairement PAS été fait** (arrêté à la demande explicite de l'étude, pas un
 oubli) — à reprendre uniquement si redemandé un jour :
@@ -3451,10 +3571,26 @@ navigateur réel. `package.json` est un fichier d'outillage pur (le champ `scrip
 — il n'introduit aucune dépendance d'exécution et n'a aucun effet sur l'usage réel de l'outil en
 `file://`, qui reste inchangé.
 
+**Deux limites du harnais à connaître avant d'écrire un test** (toutes deux rencontrées, et chaque
+fois prises pour un bug du code testé) :
+- seules les `function` et les `var` de premier niveau de `script.js` deviennent des propriétés du
+  contexte `vm` — un `const` ou un `let` de premier niveau y est **invisible**. Toute table de
+  configuration destinée à être testée (`TYPES_ACTE`, `REGLES_NOTAIRE_INSTRUMENTAIRE`,
+  `POINTS_DEPART_CONNUS`…) doit donc être déclarée en `var`. Corollaire : les fonctions qui lisent
+  ou écrivent un état de premier niveau (`dossiers`, `analyseJuridiqueActuelle`,
+  `extractionActuelle`, `generationImportActuel`) ne sont pas testables unitairement — les vérifier
+  par un script de bac à sable, en n'observant que ce qui est observable (le DOM produit) ;
+- un tableau venant du contexte `vm` n'est pas un `Array` du realm des tests : `assert.deepEqual`
+  échoue sur deux tableaux pourtant identiques. Comparer des chaînes jointes
+  (`a.join(',') === 'x,y'`) à la place.
+
 **En ajoutant ou modifiant une regex d'extraction**, ajoutez le cas correspondant dans
 `tests/dates.test.js` ou `tests/engagements.test.js` plutôt que de vérifier à la main : c'est ce qui
 manquait jusqu'ici et qui a permis plusieurs régressions silencieuses (voir l'historique des
-décisions ci-dessus).
+décisions ci-dessus). Les fichiers de la refonte de l'extraction suivent le même découpage :
+`adresse`, `dates-metier`, `parties`, `notaires`, `extraits`, `extraction` (objet unifié et
+cohérence), `enregistrement` (ce qui est conservé sur le dossier) et `fusion` (règles de fusion
+avec la passe IA).
 
 Pour tout ce qui touche au DOM réel ou aux API navigateur (File System Access, Service Worker,
 impression), le test le plus fiable reste d'ouvrir `index.html` dans un vrai Chrome — utilise les
@@ -3491,12 +3627,19 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
 - ~~Checklist de pièces par type de vente (terrain nu)~~ — **fait** (voir l'historique des décisions
   plus haut, "Nouveau type de vente 'Terrain à bâtir'") : `PIECES_TERRAIN_AUTRES`, option
   `<option value="terrain">` dans `#f-type-vente`, branche dans `checklistPieces()`.
-- **Bug non corrigé, faute d'exemple concret** : un retour de l'étude signale que "les noms de
-  dossier ne vont pas" parfois, sur des compromis où l'état civil du vendeur/promettant est
-  présenté avant celui de l'acquéreur/bénéficiaire — voir l'entrée correspondante dans l'historique
-  des décisions ci-dessus. `detecterNomDossier()` a déjà régressé plusieurs fois sur des
-  suppositions de format non vérifiées ; ne pas retoucher cette fonction sans un exemple de texte
-  réel (ou un extrait anonymisé) reproduisant l'échec.
+- ~~**Bug non corrigé, faute d'exemple concret** : "les noms de dossier ne vont pas" parfois~~ —
+  **très probablement corrigé** par la refonte de l'extraction (voir son entrée dans l'historique
+  ci-dessus, section « Mode serveur intranet ») : `estStyleLabelEntreGuillemets()` ne reconnaissait
+  pas `L'ACQUÉREUR :` comme une étiquette de rôle et ramenait le nom du VENDEUR des deux côtés, et
+  l'inversion promettant/bénéficiaire d'une promesse d'achat est désormais pilotée par le type
+  d'acte. **À confirmer par l'étude sur le compromis qui posait problème** : faute d'exemple réel,
+  ce diagnostic reste une déduction, même s'il reproduit exactement le symptôme décrit. Si le
+  problème persiste, redemander l'extrait anonymisé du bloc d'état civil — `detecterNomDossier()` a
+  déjà régressé plusieurs fois sur des suppositions de format non vérifiées.
+- **Refonte de l'extraction, phases 2 et 3 non engagées** (voir le détail en fin d'entrée dans
+  l'historique de la section « Mode serveur intranet ») : cadastre multi-parcelles, prix
+  contradictoires, personnes morales détaillées ; puis exploitation du journal
+  `corrections-extraction` et extraction ciblée itérative sur un champ resté à vérifier.
 
 - **Arborescence réelle des dossiers de l'étude, par type d'affaire** (reçue sous forme d'un
   modèle de dossier vide "DOSSIER TYPE.rar", sans données client — noms de sous-dossiers
