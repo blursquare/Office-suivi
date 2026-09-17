@@ -530,6 +530,281 @@
     return '';
   }
 
+  // ==== EXTRACTION STRUCTURÉE : socle de calcul (dates) ====
+  //
+  // Refonte demandée par l'étude (voir CLAUDE.md) : une date d'échéance exprimée en délai doit
+  // être calculée de façon DÉTERMINISTE, côté application — jamais par le modèle IA local, dont
+  // l'arithmétique calendaire n'est pas fiable. Ces fonctions sont pures et testées
+  // (tests/dates-metier.test.js) ; elles serviront ensuite à construireDatesMetier().
+
+  // Ajoute n mois "de quantième à quantième" : le 31 janvier + 1 mois donne le 28 (ou 29) février,
+  // pas le 3 mars — c'est la règle de computation usuelle d'un délai en mois (art. 641 CPC), et
+  // c'est aussi ce qu'un notaire attend en lisant « dans les trois mois de la signature ».
+  function ajouterMois(iso, n) {
+    if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso) || !Number.isFinite(n)) return null;
+    const [annee, mois, jour] = iso.split('-').map(Number);
+    const totalMois = annee * 12 + (mois - 1) + n;
+    const anneeCible = Math.floor(totalMois / 12);
+    const moisCible = ((totalMois % 12) + 12) % 12; // 0-11, correct aussi pour un n négatif
+    // Jour 0 du mois suivant = dernier jour du mois visé (gère février et les années bissextiles).
+    const dernierJour = new Date(Date.UTC(anneeCible, moisCible + 1, 0)).getUTCDate();
+    return `${anneeCible}-${pad(moisCible + 1)}-${pad(Math.min(jour, dernierJour))}`;
+  }
+
+  // Calcule une date d'échéance à partir d'une date de départ et d'un délai {valeur, unite}.
+  // Renvoie null si la base est inconnue — cas courant et VOULU : un délai dont le point de départ
+  // n'est pas la signature ("à compter de la réalisation de la condition suspensive", "à compter
+  // de la notification") ne doit pas être calculé au petit bonheur, il doit remonter en
+  // NEEDS_REVIEW pour que l'étude tranche (voir la spec : ne jamais présenter comme certaine une
+  // date dont la convention de computation n'est pas établie par le document).
+  function calculerDateEcheance(baseIso, delai) {
+    if (!baseIso || !delai) return null;
+    const valeur = Number(delai.valeur);
+    if (!Number.isFinite(valeur) || valeur <= 0) return null;
+    if (delai.unite === 'mois') return ajouterMois(baseIso, valeur);
+    if (delai.unite === 'jours') return addDays(baseIso, valeur);
+    return null;
+  }
+
+  // ==== EXTRACTION STRUCTURÉE : adresse ====
+  //
+  // L'ancien detecterAdresseBien() (voir ADRESSE_BIEN_RE plus haut) renvoie un fragment BRUT, non
+  // découpé : impossible d'en tirer le département, qui devient pourtant une donnée pivot (règle
+  // du notaire instrumentaire 41/45/37, voir REGLES_NOTAIRE_INSTRUMENTAIRE). parserAdresse()
+  // découpe ce fragment en composants, dans un ordre quelconque : un acte écrit aussi bien
+  // « 12 rue Victor Hugo, 41000 BLOIS » que « 41000 BLOIS, 12 rue Victor Hugo » ou
+  // « Lieu-dit La Grande Maison, 41100 VENDÔME » (bien rural sans numéro ni voie).
+
+  // Liste VOLONTAIREMENT ouverte (la spec insiste : ne pas figer une liste trop restrictive) :
+  // `canonique` est la forme retenue à l'affichage, `motifs` les écritures rencontrées, y compris
+  // les abréviations. L'ordre compte : les libellés les plus longs sont essayés en premier
+  // (« route départementale » avant « route »), sinon le plus court gagnerait par préfixe.
+  var TYPES_VOIE = [
+    { canonique: 'route départementale', motifs: ['route départementale', 'route departementale', 'rd'] },
+    { canonique: 'route nationale', motifs: ['route nationale', 'route nationale', 'rn'] },
+    { canonique: 'rond-point', motifs: ['rond-point', 'rond point'] },
+    { canonique: 'boulevard', motifs: ['boulevard', 'bd', 'bld', 'boul.'] },
+    { canonique: 'avenue', motifs: ['avenue', 'av.', 'av'] },
+    { canonique: 'impasse', motifs: ['impasse', 'imp.'] },
+    { canonique: 'résidence', motifs: ['résidence', 'residence', 'rés.', 'res.'] },
+    { canonique: 'esplanade', motifs: ['esplanade'] },
+    { canonique: 'promenade', motifs: ['promenade'] },
+    { canonique: 'traverse', motifs: ['traverse'] },
+    { canonique: 'faubourg', motifs: ['faubourg', 'fbg'] },
+    { canonique: 'passage', motifs: ['passage', 'pass.'] },
+    { canonique: 'sentier', motifs: ['sentier', 'sente'] },
+    { canonique: 'venelle', motifs: ['venelle'] },
+    { canonique: 'domaine', motifs: ['domaine'] },
+    { canonique: 'hameau', motifs: ['hameau', 'ham.'] },
+    { canonique: 'montée', motifs: ['montée', 'montee'] },
+    { canonique: 'square', motifs: ['square', 'sq.'] },
+    { canonique: 'chemin', motifs: ['chemin', 'chem.', 'ch.'] },
+    { canonique: 'allée', motifs: ['allée', 'allee', 'all.'] },
+    { canonique: 'place', motifs: ['place', 'pl.'] },
+    { canonique: 'route', motifs: ['route', 'rte'] },
+    { canonique: 'cours', motifs: ['cours'] },
+    { canonique: 'côte', motifs: ['côte', 'cote'] },
+    { canonique: 'cité', motifs: ['cité', 'cite'] },
+    { canonique: 'parc', motifs: ['parc'] },
+    { canonique: 'quai', motifs: ['quai'] },
+    { canonique: 'villa', motifs: ['villa'] },
+    { canonique: 'voie', motifs: ['voie'] },
+    { canonique: 'clos', motifs: ['clos'] },
+    { canonique: 'rue', motifs: ['rue', 'r.'] }
+  ];
+
+  function echapperPourRegex(s) {
+    return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  // Alternation construite une fois depuis TYPES_VOIE, triée par longueur décroissante pour que
+  // « route départementale » l'emporte sur « route ». Ancrée en début de fragment (^) : le type de
+  // voie suit immédiatement le numéro, une fois celui-ci retiré.
+  // La borne de fin est un `(?![lettre])` et non un `\b` : une abréviation se terminant par un
+  // point (« imp. », « chem. ») ne peut PAS être suivie d'une limite de mot (le point est déjà un
+  // caractère non-mot, et l'espace qui suit non plus) — avec `\b`, ces abréviations n'étaient
+  // jamais reconnues. Le `(?![lettre])` garde par ailleurs l'effet recherché : « rue » ne doit pas
+  // matcher à l'intérieur de « ruelle ».
+  var RE_TYPE_VOIE = new RegExp(
+    '^(' + TYPES_VOIE
+      .flatMap(t => t.motifs)
+      .sort((a, b) => b.length - a.length)
+      .map(echapperPourRegex)
+      .join('|') + ')(?![a-zA-ZÀ-ÿ])[\\s.]*',
+    'i'
+  );
+
+  // Le point final fait PARTIE du motif déclaré (« imp. », « chem. ») : le retirer avant la
+  // comparaison ferait échouer toute abréviation qui n'a pas aussi de variante sans point.
+  function typeVoieCanonique(motif) {
+    const m = String(motif).toLowerCase().trim();
+    const trouve = TYPES_VOIE.find(t => t.motifs.some(x => x.toLowerCase() === m));
+    return trouve ? trouve.canonique : null;
+  }
+
+  // Un lieu-dit n'est PAS une voie : il ne doit jamais être transformé artificiellement en nom de
+  // rue (spec explicite, cas fréquent sur les biens ruraux du secteur de l'étude).
+  var RE_LIEU_DIT = /\blieu[-\s]?dit\s+(.+)$/i;
+
+  // Le département se déduit du code postal, jamais du seul nom de commune (plusieurs communes
+  // portent des noms proches d'un département à l'autre — la spec insiste sur ce point).
+  function departementDepuisCodePostal(cp) {
+    const chiffres = String(cp || '').replace(/\s/g, '');
+    if (!/^\d{5}$/.test(chiffres)) return null;
+    // Corse : le 20 se répartit entre 2A (Corse-du-Sud) et 2B (Haute-Corse).
+    if (chiffres.startsWith('20')) return parseInt(chiffres.slice(2), 10) <= 199 ? '2A' : '2B';
+    // Outre-mer : département sur trois chiffres (971 Guadeloupe … 976 Mayotte).
+    if (chiffres.startsWith('97') || chiffres.startsWith('98')) return chiffres.slice(0, 3);
+    return chiffres.slice(0, 2);
+  }
+
+  // Numéro en tête de fragment : accepte les formes complexes que la spec demande de ne pas
+  // tronquer — « 12 bis », « 12 ter », « 12 A », « 12-14 », « 12/14 ».
+  var RE_NUMERO_DEBUT = /^(\d{1,4}\s*[-\/]\s*\d{1,4}|\d{1,4}(?:\s*(?:bis|ter|quater)\b|\s+[A-Za-z]\b)?)\s*,?\s*/i;
+  // Numéro rejeté en fin de fragment : « rue Victor Hugo n°12 ».
+  var RE_NUMERO_FIN = /\bn\s*[°ºo]\s*(\d{1,4}(?:\s*(?:bis|ter|quater))?)\s*$/i;
+
+  function nettoyerBords(s) {
+    return String(s || '').replace(/^[\s,;:.\-–—]+/, '').replace(/[\s,;:.\-–—]+$/, '').trim();
+  }
+
+  // Découpe un fragment d'adresse en composants. L'ordre des éléments est libre (code postal avant
+  // ou après la voie), le numéro peut être absent, et l'adresse d'origine est TOUJOURS conservée
+  // telle quelle dans `adresseComplete` — on ne perd jamais ce que dit le document.
+  function parserAdresse(brut) {
+    const original = String(brut || '').replace(/\s+/g, ' ').trim();
+    const vide = {
+      adresseComplete: original, numero: null, typeVoie: null, nomVoie: null, lieuDit: null,
+      codePostal: null, commune: null, departement: null, statut: 'NOT_FOUND'
+    };
+    if (!original) return vide;
+
+    const mCp = original.match(/\b(\d{5})\b/);
+    if (!mCp) return { ...vide, statut: 'NEEDS_REVIEW' };
+    const codePostal = mCp[1];
+    const avant = original.slice(0, mCp.index);
+    const apres = original.slice(mCp.index + codePostal.length);
+
+    // La commune est le groupe de mots adjacent au code postal : d'abord après (cas le plus
+    // courant, « 41000 BLOIS »), borné au premier séparateur pour ne pas avaler la suite
+    // (« 41000 BLOIS, 12 rue Victor Hugo ») ; à défaut avant (« BLOIS 41000 »).
+    // Un tiret n'est un séparateur que s'il est ENTOURÉ D'ESPACES (« VENDÔME – rue Victor Hugo ») :
+    // un tiret collé appartient au nom de la commune, très fréquent en France
+    // (Romorantin-Lanthenay, Saint-Jean-de-la-Ruelle…) — le couper produisait une commune tronquée.
+    const RE_SEPARATEUR = /[,;]|\s[–—-]\s|\s\/\s/;
+    let commune = null;
+    let reste = '';
+    const apresNettoye = nettoyerBords(apres);
+    const coupeApres = apresNettoye.split(RE_SEPARATEUR)[0];
+    const candidatApres = nettoyerBords(coupeApres);
+    if (candidatApres && /[A-Za-zÀ-ÿ]/.test(candidatApres) && candidatApres.length <= 60) {
+      commune = candidatApres;
+      reste = nettoyerBords(avant) + ' ' + nettoyerBords(apresNettoye.slice(coupeApres.length));
+    } else {
+      const morceaux = nettoyerBords(avant).split(RE_SEPARATEUR);
+      const dernier = nettoyerBords(morceaux[morceaux.length - 1]);
+      if (dernier && /[A-Za-zÀ-ÿ]/.test(dernier) && dernier.length <= 60) {
+        commune = dernier;
+        morceaux.pop();
+        reste = morceaux.join(' ');
+      } else {
+        reste = nettoyerBords(avant);
+      }
+      reste += ' ' + apresNettoye;
+    }
+    reste = nettoyerBords(reste.replace(/\s+/g, ' '));
+
+    let numero = null;
+    let typeVoie = null;
+    let nomVoie = null;
+    let lieuDit = null;
+
+    const mLieuDit = reste.match(RE_LIEU_DIT);
+    if (mLieuDit) {
+      lieuDit = nettoyerBords(mLieuDit[1]);
+    } else if (reste) {
+      const mFin = reste.match(RE_NUMERO_FIN);
+      if (mFin) {
+        numero = mFin[1].replace(/\s+/g, ' ').trim();
+        reste = nettoyerBords(reste.slice(0, mFin.index));
+      }
+      const mNum = reste.match(RE_NUMERO_DEBUT);
+      if (mNum && numero === null) {
+        numero = mNum[1].replace(/\s*([-\/])\s*/g, '$1').replace(/\s+/g, ' ').trim();
+        reste = reste.slice(mNum[0].length);
+      } else if (mNum) {
+        reste = reste.slice(mNum[0].length);
+      }
+      const mType = reste.match(RE_TYPE_VOIE);
+      if (mType) {
+        typeVoie = typeVoieCanonique(mType[1]);
+        reste = reste.slice(mType[0].length);
+      }
+      nomVoie = nettoyerBords(reste) || null;
+    }
+
+    const departement = departementDepuisCodePostal(codePostal);
+    // CONFIRMED demande le minimum exploitable : où (commune + code postal) et quoi (une voie ou
+    // un lieu-dit). Sans ça, l'adresse est affichée mais signalée à vérifier.
+    const complet = !!(codePostal && commune && (nomVoie || lieuDit));
+    return {
+      adresseComplete: original,
+      numero, typeVoie, nomVoie, lieuDit,
+      codePostal, commune, departement,
+      statut: complet ? 'CONFIRMED' : 'NEEDS_REVIEW'
+    };
+  }
+
+  // ==== EXTRACTION STRUCTURÉE : localisation d'un extrait dans le texte ====
+  //
+  // Pierre angulaire de la vérification des réponses du modèle IA local : plutôt que de faire
+  // confiance à un score de "confidence" qu'un llama 8B produit sans calibration, on vérifie que
+  // l'extrait qu'il cite existe LITTÉRALEMENT dans le texte du PDF. Trouvé → on en déduit la page
+  // (pageDepuisIndex) et la donnée passe CONFIRMED ; introuvable → NEEDS_REVIEW, quel que soit
+  // l'aplomb du modèle. Extraite ici (elle vivait imbriquée dans voirEngagementDansPdf) pour être
+  // partagée, testable, et renforcée : accents et apostrophes typographiques sont désormais
+  // neutralisés, le texte d'un PDF étant systématiquement bruité de ce côté.
+  function normaliserAvecIndex(s) {
+    let res = '';
+    const idx = [];
+    let dernierEspace = true;
+    const source = String(s || '');
+    for (let i = 0; i < source.length; i++) {
+      const c = source[i];
+      if (/\s/.test(c)) {
+        if (!dernierEspace) { res += ' '; idx.push(i); dernierEspace = true; }
+        continue;
+      }
+      let normalise = c.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+      if (/['’‘´`]/.test(normalise)) normalise = "'";
+      if (/[-–—]/.test(normalise)) normalise = '-';
+      // Un caractère peut donner 0 (marque combinante isolée) ou plusieurs caractères : on pousse
+      // un index par caractère PRODUIT, sinon la table de correspondance se décale.
+      for (const ch of normalise) { res += ch; idx.push(i); }
+      if (normalise.length > 0) dernierEspace = false;
+    }
+    return { texte: res, index: idx };
+  }
+
+  // Retrouve la position d'un extrait cité dans le texte d'origine, ou -1. Le préfixe testé est
+  // réduit par paliers : un extrait peut différer légèrement de la mise en page réelle (césure,
+  // espace insécable), sans pour autant être inventé.
+  function localiserExtrait(texte, extrait) {
+    if (!texte || !extrait) return -1;
+    const source = normaliserAvecIndex(texte);
+    const cible = normaliserAvecIndex(extrait).texte.trim();
+    // Trop court pour constituer une preuve : « le 15 » se retrouverait partout.
+    if (cible.length < 12) return -1;
+    let longueur = Math.min(80, cible.length);
+    const longueurMin = Math.max(12, Math.min(20, cible.length));
+    let pos = -1;
+    while (pos === -1 && longueur >= longueurMin) {
+      pos = source.texte.indexOf(cible.slice(0, longueur));
+      if (pos === -1) longueur -= 10;
+    }
+    return pos === -1 ? -1 : source.index[pos];
+  }
+
   // ---- analyse juridique : documents que le vendeur s'engage à fournir ----
 
   // Chaque entrée porte sa catégorie : un notaire distingue l'entretien courant à justifier
@@ -1923,23 +2198,11 @@
         texte += ' '; origines.push(-1);
       });
 
-      // Normalise en conservant, pour chaque caractère du résultat, l'index correspondant dans le
-      // texte d'origine — la phrase mémorisée a déjà ses espaces multiples réduits à un seul au
-      // moment de l'extraction (voir extraireEngagementsVendeur), pas forcément identique à la
-      // mise en page réelle de la page ; la casse peut aussi différer.
-      function normaliserAvecIndex(s) {
-        let res = '';
-        const idx = [];
-        let dernierEspace = true;
-        for (let i = 0; i < s.length; i++) {
-          const c = s[i];
-          if (/\s/.test(c)) {
-            if (!dernierEspace) { res += ' '; idx.push(i); dernierEspace = true; }
-          } else { res += c.toLowerCase(); idx.push(i); dernierEspace = false; }
-        }
-        return { texte: res, index: idx };
-      }
-
+      // normaliserAvecIndex (définie au niveau racine, section « localisation d'un extrait »)
+      // conserve, pour chaque caractère du résultat, l'index correspondant dans le texte d'origine
+      // — la phrase mémorisée a déjà ses espaces multiples réduits à un seul au moment de
+      // l'extraction (voir extraireEngagementsVendeur), pas forcément identique à la mise en page
+      // réelle de la page ; casse, accents et apostrophes peuvent aussi différer.
       const { texte: texteNorm, index: indexOrigine } = normaliserAvecIndex(texte);
       const cibleNorm = normaliserAvecIndex(phrase).texte;
       // Un préfixe assez long pour être unique sur la page, réduit par paliers si le préfixe
