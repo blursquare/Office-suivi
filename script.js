@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-18 00:41';
+  const VERSION_APP = '2026-09-18 01:21';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-18 01:21', resume: "Noms de dossier corrigés : le type d'acte (compromis / promesse de vente / promesse d'achat) est désormais déterminé avant d'attribuer les rôles — dans une promesse d'achat le promettant est l'ACQUÉREUR, les deux parties étaient jusqu'ici interverties ; « L'ACQUÉREUR » ne ramène plus le nom du vendeur ; plusieurs vendeurs et les SCI (avec leur représentant) sont conservés" },
     { version: '2026-09-18 00:41', resume: "Couleurs acte/vente préalable échangées (acte en vert, vente en bleu) ; l'IA locale du wizard recopie désormais les clauses mot pour mot ; ajout/édition d'une obligation du vendeur directement sur une fiche déjà enregistrée ; colonnes du Suivi réordonnées (offre de prêt avant prochaine échéance) ; badge Alpha redescendu sous le logo, remplacé en haut à droite par l'indicateur de connexion au serveur" },
     { version: '2026-09-15 14:25', resume: "Apprentissage : une pièce mal reconnue et réinitialisée n'est plus jamais reproposée pour cette pièce (sur aucun dossier) ; une clause ajoutée manuellement comme engagement du vendeur enrichit aussi la détection automatique des prochains imports" },
     { version: '2026-09-15 14:13', resume: "Champ de recherche dans l'aperçu PDF (comme Ctrl+F d'un lecteur PDF), navigation résultat suivant/précédent" },
@@ -375,7 +376,12 @@
   // sans guillemets retombait à tort sur une recherche en avant.
   function estStyleLabelEntreGuillemets(texte, index) {
     const avant = texte.slice(Math.max(0, index - 60), index);
-    return /["«'’]\s*(?:le|la|l['’]|du|des)?\s*$/i.test(avant) ||
+    // Le guillemet ne doit pas être précédé d'une LETTRE : sans cette condition, l'apostrophe
+    // d'élision de « L'ACQUÉREUR » (formulation des plus courantes) passait pour un guillemet
+    // ouvrant, le style était pris pour une étiquette finale, et le nom était cherché EN ARRIÈRE —
+    // ramenant le nom du vendeur présenté juste avant, au lieu de celui de l'acquéreur. Bug
+    // préexistant, révélé par les textes de test des trois types d'acte.
+    return /(^|[^A-Za-zÀ-ÿ])["«'’]\s*(?:le|la|l['’]|du|des)?\s*$/i.test(avant) ||
       /ci-apr[èe]s\s+d[ée]nomm[ée]e?\s+(?:le|la|l['’])?\s*$/i.test(avant);
   }
 
@@ -404,17 +410,26 @@
   // document" : un compromis contient aussi l'email du vendeur, de l'agence ou du notaire, et rien
   // ne garantit que l'acquéreur soit cité en premier.
   const EMAIL_RE = /[\w.+-]+@[\w-]+\.[a-z]{2,}/i;
-  function detecterEmailAcquereur(texte) {
-    const roleRe = new RegExp(RE_ROLE_ACQUEREUR.source, 'gi');
+  // Ancré sur la qualité qui joue réellement le rôle d'ACQUÉREUR dans CE type d'acte : sur une
+  // promesse d'achat, « bénéficiaire » désigne le vendeur — s'y ancrer aurait rempli le champ
+  // « email de l'acquéreur » avec l'adresse du vendeur, et donc adressé les relances de prêt à la
+  // mauvaise partie. Le paramètre est optionnel : sans lui, le type est détecté à la volée.
+  function detecterEmailAcquereur(texte, typeActe) {
+    const qualite = qualitePourRole(texte, typeActe || detecterTypeActe(texte).valeur, 'ACQUEREUR');
+    const roleRe = new RegExp((qualite ? qualite.re : RE_ROLE_ACQUEREUR).source, 'gi');
     let m;
     while ((m = roleRe.exec(texte)) !== null) {
       // Recul borné à la phrase courante (s'arrête au point précédent, comme extraireContexte) :
       // sans ça, l'email du VENDEUR cité juste avant dans le document pouvait être capté à la
       // place de celui de l'ACQUEREUR sur un simple recul à distance fixe.
+      // Seul un point SUIVI D'UNE ESPACE arrête le recul : un point collé appartient à l'adresse
+      // email elle-même (« pierre.martin@… ») ou à une abréviation — s'y arrêter tronquait la
+      // fenêtre en plein milieu de l'adresse recherchée, qui était alors manquée au profit de la
+      // suivante, c'est-à-dire celle de l'autre partie.
       let debut = m.index;
       let n = 0;
       while (debut > 0 && n < 150) {
-        if (texte[debut - 1] === '.') break;
+        if (texte[debut - 1] === '.' && (debut >= texte.length || /\s/.test(texte[debut]))) break;
         debut--; n++;
       }
       const fenetre = texte.slice(debut, m.index + 300);
@@ -452,19 +467,13 @@
     return { noms, finAbsolue: bloc ? bloc.finAbsolue : finAbsolue };
   }
 
+  // Le nom de dossier reste au format « VENDEUR / ACQUÉREUR » (demandé par l'étude), mais les deux
+  // côtés sont désormais déterminés par detecterParties() en tenant compte du type d'acte : sur une
+  // promesse d'achat, le promettant est l'ACQUÉREUR, et c'est lui qui doit figurer à droite.
   function detecterNomDossier(texte) {
-    const resVendeur = nomsEtFinPourRole(texte, RE_ROLE_VENDEUR, 0);
-    let nomsVendeur = resVendeur.noms;
-
-    const resAcquereur = nomsEtFinPourRole(texte, RE_ROLE_ACQUEREUR, resVendeur.finAbsolue);
-    let nomsAcquereur = resAcquereur.noms;
-
-    // Repli si aucun des deux styles ci-dessus n'a donné de résultat (autre mise en forme).
-    if (nomsVendeur.length === 0) nomsVendeur = extraireNomsRepli(texte, RE_ROLE_VENDEUR);
-    if (nomsAcquereur.length === 0) nomsAcquereur = extraireNomsRepli(texte, RE_ROLE_ACQUEREUR);
-
-    const partieVendeur = nomsVendeur.join(' & ');
-    const partieAcquereur = nomsAcquereur.join(' & ');
+    const parties = detecterParties(texte, detecterTypeActe(texte).valeur);
+    const partieVendeur = parties.filter(p => p.role === 'VENDEUR').map(p => p.nom).join(' & ');
+    const partieAcquereur = parties.filter(p => p.role === 'ACQUEREUR').map(p => p.nom).join(' & ');
     if (partieVendeur && partieAcquereur) return `${partieVendeur} / ${partieAcquereur}`;
     return partieVendeur || partieAcquereur || null;
   }
@@ -528,6 +537,169 @@
     if (/autorisation\s+d.urbanisme|condition\s+suspensive\s+d.urbanisme/.test(c)) return "Autorisation d'urbanisme";
     if (/servitude/.test(c)) return 'Levée de servitude';
     return '';
+  }
+
+  // ==== EXTRACTION STRUCTURÉE : type d'acte et qualités des parties ====
+  //
+  // Point de départ de toute la refonte : le TYPE D'ACTE doit être déterminé AVANT d'attribuer les
+  // rôles, parce que la même qualité ne désigne pas la même partie d'un acte à l'autre.
+  //  - compromis de vente        : vendeur → VENDEUR,     acquéreur   → ACQUEREUR
+  //  - promesse de vente         : promettant → VENDEUR,  bénéficiaire → ACQUEREUR
+  //  - promesse d'ACHAT          : promettant → ACQUEREUR, bénéficiaire → VENDEUR  (inversion !)
+  // Jusqu'ici RE_ROLE_VENDEUR listait « promettant » comme simple synonyme de « vendeur », sans
+  // jamais regarder le type d'acte : une promesse d'achat ressortait donc avec vendeur et acquéreur
+  // intervertis, silencieusement.
+
+  var TYPES_ACTE = ['COMPROMIS_DE_VENTE', 'PROMESSE_DE_VENTE', 'PROMESSE_D_ACHAT', 'AUTRE', 'INCONNU'];
+
+  // Chaque type d'acte donne la correspondance qualité → rôle. Les quatre qualités sont présentes
+  // dans chaque table : un compromis peut employer le vocabulaire « promettant » (promesse
+  // synallagmatique), et une promesse peut nommer les parties « vendeur »/« acquéreur » dans ses
+  // clauses. INCONNU et AUTRE reprennent volontairement la convention historique de l'outil
+  // (promettant → vendeur) : sans type d'acte établi, on ne change rien à ce qui marchait.
+  var ROLES_PAR_TYPE_ACTE = {
+    COMPROMIS_DE_VENTE: { vendeur: 'VENDEUR', acquereur: 'ACQUEREUR', promettant: 'VENDEUR', beneficiaire: 'ACQUEREUR' },
+    PROMESSE_DE_VENTE:  { vendeur: 'VENDEUR', acquereur: 'ACQUEREUR', promettant: 'VENDEUR', beneficiaire: 'ACQUEREUR' },
+    PROMESSE_D_ACHAT:   { vendeur: 'VENDEUR', acquereur: 'ACQUEREUR', promettant: 'ACQUEREUR', beneficiaire: 'VENDEUR' },
+    AUTRE:              { vendeur: 'VENDEUR', acquereur: 'ACQUEREUR', promettant: 'VENDEUR', beneficiaire: 'ACQUEREUR' },
+    INCONNU:            { vendeur: 'VENDEUR', acquereur: 'ACQUEREUR', promettant: 'VENDEUR', beneficiaire: 'ACQUEREUR' }
+  };
+
+  function roleDepuisQualite(typeActe, qualite) {
+    const table = ROLES_PAR_TYPE_ACTE[typeActe] || ROLES_PAR_TYPE_ACTE.INCONNU;
+    return table[qualite] || null;
+  }
+
+  // Motifs de qualité, séparés (contrairement à RE_ROLE_VENDEUR/RE_ROLE_ACQUEREUR, qui fusionnaient
+  // deux qualités distinctes dans un même motif et rendaient l'inversion impossible à exprimer).
+  // « propriétaire » est volontairement ABSENT malgré la spec : le mot apparaît constamment dans la
+  // désignation du bien et les clauses de jouissance d'un compromis ordinaire, il ferait remonter
+  // des blocs de texte sans rapport avec la présentation des parties. À réintroduire seulement si
+  // un acte réel montre qu'il est le seul mot employé pour désigner le vendeur.
+  var RE_QUALITE_VENDEUR = /\bvendeurs?\b|\bparties?\s+venderesses?\b|\bc[ée]dants?\b/i;
+  var RE_QUALITE_PROMETTANT = /\bpromettants?\b/i;
+  var RE_QUALITE_ACQUEREUR = /\bacqu[ée]reurs?\b|\bacheteurs?\b|\bparties?\s+acqu[ée]reuses?\b|\bcessionnaires?\b/i;
+  var RE_QUALITE_BENEFICIAIRE = /\bb[ée]n[ée]ficiaires?\b/i;
+
+  var QUALITES_CONNUES = [
+    { qualite: 'vendeur', re: RE_QUALITE_VENDEUR },
+    { qualite: 'promettant', re: RE_QUALITE_PROMETTANT },
+    { qualite: 'acquereur', re: RE_QUALITE_ACQUEREUR },
+    { qualite: 'beneficiaire', re: RE_QUALITE_BENEFICIAIRE }
+  ];
+
+  // Zone d'analyse du type d'acte : titre + exposé, là où l'acte se nomme lui-même. Au-delà, les
+  // clauses citent couramment les autres formes (« à défaut de réitération de la présente
+  // promesse », « comme il est d'usage en matière de compromis »), ce qui brouillerait le comptage.
+  var ZONE_TYPE_ACTE = 6000;
+
+  var MOTIFS_TYPE_ACTE = [
+    { type: 'PROMESSE_D_ACHAT', re: /promesse\s+(?:unilat[ée]rale\s+)?d['’\s]*achat|offre\s+d['’\s]*achat\s+irr[ée]vocable/gi },
+    { type: 'PROMESSE_DE_VENTE', re: /promesse\s+(?:unilat[ée]rale\s+)?de\s+vente/gi },
+    { type: 'COMPROMIS_DE_VENTE', re: /compromis(?:\s+de\s+vente)?|promesse\s+synallagmatique(?:\s+de\s+vente)?/gi }
+  ];
+
+  // Classification par le contexte global plutôt que par la présence d'un mot isolé (exigence
+  // explicite de la spec) : on compte les occurrences de chaque forme dans la zone de titre et on
+  // ne déclare CONFIRMED qu'une dominance nette. À égalité, ou sans aucune occurrence, le type
+  // reste INCONNU — et les rôles retombent alors sur la convention historique, jamais sur une
+  // inversion hasardeuse.
+  function detecterTypeActe(texte) {
+    const zone = String(texte || '').slice(0, ZONE_TYPE_ACTE);
+    const mesures = MOTIFS_TYPE_ACTE.map(m => {
+      const re = new RegExp(m.re.source, 'gi');
+      let occurrences = 0;
+      let premier = null;
+      let trouve;
+      while ((trouve = re.exec(zone)) !== null) {
+        occurrences++;
+        if (premier === null) premier = trouve;
+      }
+      return { type: m.type, occurrences, premier };
+    });
+    const classees = mesures.filter(m => m.occurrences > 0).sort((a, b) => b.occurrences - a.occurrences);
+    if (classees.length === 0) return { valeur: 'INCONNU', statut: 'NOT_FOUND', source: null };
+    const gagnant = classees[0];
+    const suivant = classees[1];
+    const source = gagnant.premier
+      ? { extrait: extraireContexte(zone, gagnant.premier.index, gagnant.premier[0].length), index: gagnant.premier.index }
+      : null;
+    // Dominance nette : soit la seule forme citée, soit deux fois plus citée que la suivante.
+    const net = !suivant || gagnant.occurrences >= suivant.occurrences * 2;
+    return { valeur: gagnant.type, statut: net ? 'CONFIRMED' : 'NEEDS_REVIEW', source };
+  }
+
+  // Pour un rôle donné (VENDEUR/ACQUEREUR) et un type d'acte, retrouve la qualité effectivement
+  // employée par le document et la position de sa première mention.
+  function qualitePourRole(texte, typeActe, role) {
+    const candidats = QUALITES_CONNUES
+      .filter(q => roleDepuisQualite(typeActe, q.qualite) === role)
+      .map(q => ({ ...q, index: String(texte || '').search(q.re) }))
+      .filter(q => q.index !== -1)
+      .sort((a, b) => a.index - b.index);
+    return candidats[0] || null;
+  }
+
+  // Personne morale : la raison sociale suit la forme juridique, parfois entre guillemets. Premier
+  // jet, comme l'ont été les motifs de pièces en leur temps — à resserrer sur de vrais actes.
+  var RE_PERSONNE_MORALE = /\b(SCI|SCCV|SARL|SASU|SAS|EURL|SCP|SA|SC)\b[\s,]*(?:d[ée]nomm[ée]e?\s+)?["«'’]?\s*([A-ZÀ-Ü0-9][^,.\n«»"'’]{2,60}?)\s*["»'’]?\s*(?=,|\.|\n|$|\bau\s+capital\b|\bdont\s+le\s+si[èe]ge\b|\brepr[ée]sent)/;
+  var RE_REPRESENTANT = /repr[ée]sent[ée]e?\s+par\s+(?:Monsieur|Madame|Mademoiselle|M\.|Mme)?\s*([A-ZÀ-Ü][^,.\n]{2,60}?)(?=,|\.|\n|$|\ben\s+qualit[ée]\b|\bagissant\b)/i;
+
+  // Extrait les parties du document, chacune avec sa qualité TELLE QU'ÉCRITE dans l'acte et le rôle
+  // qui en découle POUR CE TYPE D'ACTE. Gère plusieurs vendeurs et plusieurs acquéreurs (les noms
+  // sont extraits un par un, voir extraireNomsParNaissance), ainsi qu'une personne morale avec son
+  // représentant.
+  function detecterParties(texte, typeActe) {
+    const source = String(texte || '');
+    if (!source) return [];
+    const type = TYPES_ACTE.includes(typeActe) ? typeActe : 'INCONNU';
+    const cotes = [
+      qualitePourRole(source, type, 'VENDEUR'),
+      qualitePourRole(source, type, 'ACQUEREUR')
+    ].filter(Boolean);
+    // Parcours dans l'ordre d'apparition : sur une promesse d'achat, la partie qui joue le rôle de
+    // VENDEUR (le bénéficiaire) peut être présentée après l'autre.
+    cotes.sort((a, b) => a.index - b.index);
+
+    const parties = [];
+    let curseur = 0;
+    for (const cote of cotes) {
+      const role = roleDepuisQualite(type, cote.qualite);
+      const resultat = nomsEtFinPourRole(source, cote.re, curseur);
+      let noms = resultat.noms;
+      const bloc = source.slice(cote.index, Math.min(source.length, cote.index + 1200));
+
+      // Personne morale : sa raison sociale remplace les noms de personnes physiques du bloc, qui
+      // ne sont alors que ceux du représentant.
+      const morale = bloc.match(RE_PERSONNE_MORALE);
+      if (morale) {
+        const mRepresentant = bloc.match(RE_REPRESENTANT);
+        parties.push({
+          nom: `${morale[1]} ${morale[2].trim()}`.replace(/\s+/g, ' ').trim(),
+          qualiteActe: cote.qualite,
+          role,
+          qualitePersonne: 'morale',
+          representant: mRepresentant ? mRepresentant[1].replace(/\s+/g, ' ').trim() : null,
+          source: { extrait: extraireContexte(source, cote.index, cote.qualite.length), index: cote.index }
+        });
+        curseur = resultat.finAbsolue;
+        continue;
+      }
+
+      if (noms.length === 0) noms = extraireNomsRepli(source, cote.re);
+      for (const nom of noms) {
+        parties.push({
+          nom,
+          qualiteActe: cote.qualite,
+          role,
+          qualitePersonne: 'physique',
+          representant: null,
+          source: { extrait: extraireContexte(source, cote.index, cote.qualite.length), index: cote.index }
+        });
+      }
+      curseur = resultat.finAbsolue;
+    }
+    return parties;
   }
 
   // ==== EXTRACTION STRUCTURÉE : socle de calcul (dates) ====
