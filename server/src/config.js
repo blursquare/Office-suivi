@@ -54,7 +54,16 @@ function resoudreConfigExecutable(dossierExe, fsImpl = fs) {
       calendrierToken = crypto.randomBytes(8).toString('hex');
       fsImpl.writeFileSync(cheminConfig, JSON.stringify({ ...brut, calendrierToken }, null, 2));
     }
-    return { motDePasse: brut.authPassword || '', port: brut.port || 3000, calendrierToken, genere: false };
+    return {
+      motDePasse: brut.authPassword || '',
+      port: brut.port || 3000,
+      calendrierToken,
+      // Racine du NAS (voir ../nas.js) : jamais générée automatiquement, contrairement au mot de
+      // passe et au jeton calendrier — seule l'étude sait où sont ses dossiers clients. Absente =
+      // fonctionnalité désactivée avec un message explicite, jamais un chemin deviné.
+      nasRacine: brut.nasRacine || '',
+      genere: false
+    };
   }
   // 8 caractères hexadécimaux pour le mot de passe : assez d'entropie pour un LAN de 3 personnes,
   // assez court pour être retapé sans erreur depuis mot-de-passe.txt. Le jeton calendrier n'a
@@ -63,20 +72,24 @@ function resoudreConfigExecutable(dossierExe, fsImpl = fs) {
   const motDePasse = crypto.randomBytes(4).toString('hex');
   const calendrierToken = crypto.randomBytes(8).toString('hex');
   fsImpl.mkdirSync(dossierExe, { recursive: true });
-  fsImpl.writeFileSync(cheminConfig, JSON.stringify({ authPassword: motDePasse, port: 3000, calendrierToken }, null, 2));
+  // `nasRacine` écrite vide dans le fichier généré : la clé est ainsi VISIBLE dans config.json au
+  // premier lancement, prête à être remplie par l'étude — sans ça, il faudrait deviner son
+  // existence en lisant la documentation.
+  fsImpl.writeFileSync(cheminConfig, JSON.stringify({ authPassword: motDePasse, port: 3000, calendrierToken, nasRacine: '' }, null, 2));
   fsImpl.writeFileSync(
     path.join(dossierExe, 'mot-de-passe.txt'),
     `Mot de passe partagé CLAIRE : ${motDePasse}\r\n\r\n` +
       `À communiquer à tous les collaborateurs qui utilisent l'outil (même mot de passe pour tous).\r\n` +
       `Pour le changer : modifier "authPassword" dans config.json (à côté de cet exécutable), puis redémarrer.\r\n`
   );
-  return { motDePasse, port: 3000, calendrierToken, genere: true };
+  return { motDePasse, port: 3000, calendrierToken, nasRacine: '', genere: true };
 }
 
 let motDePasse = process.env.AUTH_PASSWORD || '';
 let port = parseInt(process.env.PORT || '3000', 10);
 let cheminDb = process.env.CLAIRE_DB_PATH || path.join(__dirname, '..', 'data', 'claire.db');
 let jetonCalendrier = process.env.CALENDRIER_TOKEN || '';
+let nasRacine = process.env.NAS_RACINE || '';
 
 if (!motDePasse && estSea()) {
   const dossierExe = path.dirname(process.execPath);
@@ -88,6 +101,7 @@ if (!motDePasse && estSea()) {
   // config.json — cas qui ne se produit en pratique jamais en mode .exe (pas de .env dans ce mode),
   // gardé par cohérence avec le reste du fichier plutôt que par nécessité réelle.
   jetonCalendrier = jetonCalendrier || resolu.calendrierToken;
+  nasRacine = nasRacine || resolu.nasRacine;
   cheminDb = path.join(dossierExe, 'data', 'claire.db');
   if (resolu.genere) {
     console.log(`[config] Premier lancement : mot de passe partagé généré automatiquement.`);
@@ -106,6 +120,10 @@ const config = {
   cheminDb,
   motDePasse,
   jetonCalendrier,
+  // Dossier racine contenant les dossiers clients sur le NAS de l'étude, lu par le serveur pour
+  // tous les postes du bureau (voir nas.js). Vide = fonctionnalité désactivée, signalée comme
+  // telle dans l'interface plutôt que silencieusement inopérante.
+  nasRacine,
   smtp: {
     host: process.env.SMTP_HOST || '',
     port: parseInt(process.env.SMTP_PORT || '587', 10),

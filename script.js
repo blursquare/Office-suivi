@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-18 08:15';
+  const VERSION_APP = '2026-09-18 08:30';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-18 08:30', resume: "Les dossiers clients du NAS sont désormais lus par le SERVEUR, plus par le navigateur : tous les postes connectés par l'adresse IP peuvent enfin relier un dossier et ouvrir ses pièces, ce qui était impossible jusqu'ici. Plus aucune autorisation à reconfirmer au démarrage (la popup, le bandeau et le bouton groupé disparaissent avec le problème), un dossier relié depuis un poste l'est pour tout le monde, le dossier du NAS est proposé automatiquement d'après le nom du dossier, et un bouton « Revérifier tous les dossiers » relance le parcours en une fois. À configurer une fois : « nasRacine » dans config.json" },
     { version: '2026-09-18 08:15', resume: "Offre de prêt reconnue autrement : l'outil rouvre les PDF du dossier, écarte tout document de moins de 6 pages, lit le TITRE de la page de garde (et lui seul) puis fait confirmer par le modèle IA local qu'il s'agit bien d'une offre ou d'un contrat de prêt — sans ce modèle, le document trouvé passe en « À confirmer », distinct de « Reçue ». La ou les garanties du prêt (caution, hypothèque légale de prêteur de deniers, hypothèque conventionnelle) sont relevées au passage et affichées dans la carte « Obtention du prêt »" },
     { version: '2026-09-18 08:10', resume: "L'avant-contrat rouvert depuis une fiche est désormais celui réellement importé à la création du dossier — le nom du fichier est mémorisé, la recherche par les mots « compromis »/« promesse » ramenait souvent l'avant-contrat de la vente préalable rangé dans le même dossier. Et TOUS les documents identifiés dans l'analyse juridique (entretien, travaux, attestations…) sont maintenant recherchés dans le dossier local comme les pièces d'urbanisme, y compris sur les dossiers déjà créés" },
     { version: '2026-09-18 08:00', resume: "Nouvel onglet « Prorata & répartitions » : répartit entre vendeur et acquéreur une taxe foncière annuelle, des charges de copropriété au trimestre ou au mois, ou un loyer mensuel — jours réels, jour de l'acte à la charge de l'acquéreur, les deux parts totalisant toujours la somme appelée au centime près" },
@@ -4139,9 +4140,13 @@
       pieces: {},
       piecesEngagementsDetectees,
       dossierLie: false,
+      // Dossier client sur le NAS (chemin relatif à la racine configurée côté serveur) et
+      // chemins des fichiers déjà reconnus dedans : conservés SUR LE DOSSIER, donc valables depuis
+      // n'importe quel poste — contrairement aux anciens handles, propres à un navigateur.
+      nasDossier: null,
+      fichiersTrouves: {},
       offrePretStatut: 'inconnu',
       garantiesPret: [],
-      accesAReconfirmer: false,
       derniereRelanceAuto: null,
       pret, acte, ventebien, autres,
       pretPage: pret ? pageParType.pret : null,
@@ -4742,8 +4747,7 @@
     bloc.innerHTML = urgents.map(d => {
       const prochaine = prochaineEcheanceDetail(d);
       let raison;
-      if (d.accesAReconfirmer) raison = "Accès au dossier local à reconfirmer";
-      else if (!d.sansPret && d.offrePretStatut === 'manquante') raison = "Offre de prêt introuvable";
+      if (!d.sansPret && d.offrePretStatut === 'manquante') raison = "Offre de prêt introuvable";
       else if (prochaine && prochaine.jours < 0) raison = "Échéance dépassée";
       else if (prochaine) raison = `${escapeHtml(prochaine.label)} — J-${prochaine.jours}`;
       else raison = "À vérifier";
@@ -5022,7 +5026,6 @@
       score += (60 - jours) * 2;
     }
     if (!d.sansPret && d.offrePretStatut === 'manquante') score += 60;
-    if (d.accesAReconfirmer) score += 40;
     return score;
   }
 
@@ -5083,86 +5086,34 @@
     return 'aconfirmer';
   }
 
-  // Chrome ne conserve l'autorisation d'accès à un dossier local que le temps de la session : elle
-  // est systématiquement redemandée après un redémarrage du navigateur, dossier par dossier (voir
-  // CLAUDE.md — limitation du navigateur, pas un bug applicatif). Sur un portefeuille d'une
-  // soixantaine de dossiers actifs, cliquer sur chacun est fastidieux : ce bandeau permet de tous
-  // les reconfirmer en un seul clic plutôt qu'un par dossier.
-  // Message du bandeau (et de la popup de démarrage, voir plus bas) : décrit ce qu'il y a à
-  // reconfirmer. Ne concerne plus que les dossiers locaux depuis le passage au serveur intranet
-  // (le registre lui-même n'a plus besoin de cette reconfirmation, voir CLAUDE.md).
-  function messageAccesAReconfirmer(nbDossiers) {
-    return `${icone('key')} L'accès à ${nbDossiers} dossier${nbDossiers > 1 ? 's' : ''} local${nbDossiers > 1 ? 'aux' : ''} relié${nbDossiers > 1 ? 's' : ''} doit être reconfirmé (redemandé par le navigateur à chaque redémarrage).`;
-  }
-
-  function renderAlerteAcces(dossiersActifs) {
-    const bloc = document.getElementById('alerte-acces');
-    if (!bloc) return;
-    const nb = dossiersActifs.filter(d => d.accesAReconfirmer).length;
-    if (nb === 0) { bloc.style.display = 'none'; return; }
-    bloc.style.display = 'flex';
-    bloc.innerHTML = `
-      <span>${messageAccesAReconfirmer(nb)}</span>
-      <button type="button" class="toolbar-btn" onclick="reconfirmerTousLesAcces()">Reconfirmer tous les accès</button>
-    `;
-  }
-
-  // Un seul clic déclenche une demande de permission par dossier concerné, à la suite : Chrome
-  // autorise plusieurs appels de ce type tant qu'ils restent proches du geste utilisateur
-  // d'origine (contrairement à des API à usage unique comme requestFullscreen). Si l'activation
-  // expire avant la fin (portefeuille très volumineux), les dossiers restants gardent leur
-  // bouton individuel.
+  // « Revérifier tous les dossiers » (barre d'outils du Suivi), à la place de l'ancien bouton du
+  // registre partagé — demandé par l'étude. Remplace aussi, et rend inutiles, le bandeau
+  // « reconfirmer les accès », sa popup de démarrage et le bouton groupé qui les accompagnaient :
+  // le NAS étant lu par le SERVEUR, il n'y a plus la moindre permission de navigateur à
+  // reconfirmer (voir la section « DOSSIERS DU NAS » plus bas).
   //
-  // Bug corrigé : signalé par l'étude, le clic redemandait malgré tout l'accès "dossier par
-  // dossier" au lieu d'un seul geste pour tous. Cause réelle : la version précédente demandait la
-  // permission d'UN dossier PUIS lisait aussitôt tous ses PDF (potentiellement plusieurs secondes,
-  // OCR compris) avant de passer au dossier suivant — largement de quoi épuiser la fenêtre de
-  // "user activation" du clic d'origine, qui expire en quelques secondes. Chrome refusait alors
-  // silencieusement les requestPermission() suivants, chacun nécessitant un nouveau clic. Corrigé
-  // en séparant strictement les deux phases : (1) demander toutes les permissions à la suite, sans
-  // rien faire d'autre entre deux — cette phase seule reste assez rapide pour tenir dans la
-  // fenêtre d'activation d'un portefeuille réaliste — puis (2) lire les PDF de ce qui a été
-  // accordé, qui peut prendre tout le temps voulu une fois la permission acquise.
-  async function reconfirmerTousLesAcces() {
-    const dossiersAConfirmer = dossiers.filter(x => x.accesAReconfirmer);
-    const idsAccordes = [];
-    for (const d of dossiersAConfirmer) {
-      const handle = await recupererHandle(d.id);
-      if (!handle) { d.dossierLie = false; continue; }
-      const permission = await handle.requestPermission({ mode: 'read' });
-      if (permission === 'granted') {
-        d.accesAReconfirmer = false;
-        idsAccordes.push(d.id);
+  // Les dossiers sont revérifiés l'un après l'autre plutôt qu'en parallèle : chacun peut demander
+  // au modèle IA local de confirmer une offre de prêt (voir confirmerOffrePretIa), et Ollama
+  // sérialise de toute façon ses réponses — les lancer tous ensemble ne ferait qu'emboliser le
+  // serveur sans rien accélérer.
+  async function reverifierTousLesDossiers(btn) {
+    const aVerifier = dossiers.filter(d => !d.archive && d.dossierLie && d.nasDossier);
+    if (aVerifier.length === 0) {
+      afficherToast('Aucun dossier reli\u00e9 \u00e0 un dossier du NAS pour l\u2019instant.', 'OK', null);
+      return;
+    }
+    const texteOriginal = btn ? btn.innerHTML : '';
+    if (btn) btn.disabled = true;
+    try {
+      for (let i = 0; i < aVerifier.length; i++) {
+        if (btn) btn.innerHTML = `${icone('spinner', null, true)} ${i + 1}/${aVerifier.length}\u2026`;
+        await verifierDossierLocal(aVerifier[i].id, false);
       }
+      afficherToast(`${aVerifier.length} dossier${aVerifier.length > 1 ? 's' : ''} rev\u00e9rifi\u00e9${aVerifier.length > 1 ? 's' : ''} sur le NAS.`, 'OK', null);
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = texteOriginal; }
+      render();
     }
-    render();
-
-    for (const id of idsAccordes) {
-      await verifierDossierLocal(id, false);
-    }
-    render();
-  }
-
-  // Popup de démarrage : appelée une fois que demarrerApplication() sait réellement si un accès a
-  // été perdu — pas de popup "au hasard" si tout est encore valide.
-  function afficherPopupAccesSiNecessaire() {
-    const nb = dossiers.filter(d => !d.archive && d.accesAReconfirmer).length;
-    if (nb === 0) return;
-    const el = document.getElementById('popup-acces-message');
-    const overlay = document.getElementById('popup-acces-overlay');
-    if (!el || !overlay) return;
-    el.innerHTML = messageAccesAReconfirmer(nb);
-    overlay.style.display = 'flex';
-  }
-
-  function fermerPopupAcces() {
-    const overlay = document.getElementById('popup-acces-overlay');
-    if (overlay) overlay.style.display = 'none';
-  }
-
-  async function reconfirmerDepuisPopup() {
-    fermerPopupAcces();
-    await reconfirmerTousLesAcces();
   }
 
   // Écran "À propos" (voir VERSION_APP/HISTORIQUE_VERSIONS en tête de fichier) : peuple la version
@@ -5207,7 +5158,6 @@
     const dossiersActifs = dossiers.filter(d => !d.archive);
     renderDashboard(dossiersActifs);
     renderStatsSuivi(dossiersActifs);
-    renderAlerteAcces(dossiersActifs);
     renderKpisDashboard(dossiersActifs);
     renderActionsUrgentes(dossiersActifs);
     renderRechercheDashboard(dossiersActifs);
@@ -5486,7 +5436,7 @@
         <div class="pieces-dossier-titre">
           <span class="section-eyebrow">Pièces du dossier (${libelleType})</span>
           <span class="pieces-compteur${complet ? ' complet' : ''}">${nbRecues}/${checklist.length}</span>
-          ${(DOSSIER_FS_SUPPORTE && d.dossierLie) ? `<button type="button" class="action-rapide" onclick="verifierDossierLocalDepuisBouton('${d.id}', this)">Revérifier les pièces</button>` : ''}
+          ${d.dossierLie ? `<button type="button" class="action-rapide" onclick="verifierDossierLocalDepuisBouton('${d.id}', this)">Revérifier les pièces</button>` : ''}
         </div>
         <div class="pieces-liste">
           ${checklist.map(p => {
@@ -5683,22 +5633,17 @@
   // Ajoutée avec une clé unique générée ici (pas un index de tableau, contrairement à d.autres) :
   // une pièce personnalisée peut être retirée sans décaler le statut des autres, qui restent
   // repérées par leur propre clé stable plutôt que par leur position dans la liste.
-  // Recherche un fichier PDF du dossier local déjà relié dont le nom contient le texte donné (sous-
-  // chaîne, insensible à la casse, sur le nom normalisé — voir normaliserNomPourMotif) : utilisée au
-  // moment d'ajouter une pièce personnalisée (voir ajouterPiecePersonnalisee), pour ne pas obliger
-  // l'étude à ressaisir un motifNom qu'elle n'a de toute façon pas les moyens d'écrire elle-même —
-  // le nom qu'elle tape pour la pièce sert directement de motif de recherche.
-  async function chercherFichierParNom(handleDossier, texteRecherche) {
-    // Le texte cherché est normalisé comme les noms de fichiers auxquels il est comparé (NFC,
-    // underscores/tirets ramenés à des espaces) : sans ça, chercher un nom de fichier exact
-    // ("Compromis_DUPONT.pdf", voir ouvrirCompromisTrouve) ne matchait jamais, l'entrée du dossier
-    // ayant ses underscores déjà remplacés et pas la cible.
+  // Cherche, parmi les PDF du dossier NAS relié, le premier dont le nom contient le texte donné
+  // (sous-chaîne, insensible à la casse, sur le nom normalisé — voir normaliserNomPourMotif) :
+  // utilisée au moment d'ajouter une pièce personnalisée (voir ajouterPiecePersonnalisee), pour ne
+  // pas obliger l'étude à écrire un motifNom qu'elle n'a de toute façon pas les moyens d'écrire —
+  // le nom qu'elle tape pour la pièce sert directement de motif de recherche. Le texte cherché est
+  // normalisé comme les noms auxquels il est comparé : sans ça, un nom de fichier exact contenant
+  // des underscores ne matcherait jamais.
+  async function chercherFichierParNom(d, texteRecherche) {
     const cible = normaliserNomPourMotif(texteRecherche).toLowerCase();
-    const compteur = { n: 0 };
-    for await (const entree of fichiersPdfRecursifs(handleDossier, 0, compteur)) {
-      if (normaliserNomPourMotif(entree.name).toLowerCase().includes(cible)) return entree;
-    }
-    return null;
+    const fichiers = await listerFichiersNas(d);
+    return fichiers.find(f => normaliserNomPourMotif(f.nom).toLowerCase().includes(cible)) || null;
   }
 
   async function ajouterPiecePersonnalisee(dossierId) {
@@ -5715,24 +5660,20 @@
     sauvegarder(d);
     render();
 
-    // Recherche automatique dans le dossier local déjà relié, s'il y en a un — silencieuse si
-    // l'accès n'est pas déjà accordé (queryPermission seul, jamais requestPermission ici : ce
-    // n'est pas le geste dédié à la reconfirmation d'accès, pas la peine d'en déclencher un
-    // nouveau juste pour l'ajout d'une pièce). La pièce reste "à vérifier" dans ce cas, comme
-    // n'importe quelle pièce de la checklist avant liaison/reconfirmation.
-    if (DOSSIER_FS_SUPPORTE && d.dossierLie) {
+    // Recherche automatique dans le dossier NAS déjà relié, s'il y en a un. Plus aucune permission
+    // à vérifier depuis que le serveur lit le NAS : si le dossier est relié, il est lisible.
+    // Silencieuse en cas d'échec — la pièce reste simplement « à vérifier », cas normal quand on
+    // tape un nom avant même d'avoir le document.
+    if (d.dossierLie && d.nasDossier) {
       try {
-        const handle = await recupererHandle(dossierId);
-        if (handle && await handle.queryPermission({ mode: 'read' }) === 'granted') {
-          const trouve = await chercherFichierParNom(handle, label);
-          if (trouve) {
-            d.pieces = d.pieces || {};
-            d.pieces[cle] = 'recue';
-            await enregistrerHandle(CLE_HANDLE_PIECE(dossierId, cle), trouve);
-            sauvegarder(d);
-            render();
-            afficherToast(`Pièce « ${label} » trouvée : ${trouve.name}`, 'OK', null);
-          }
+        const trouve = await chercherFichierParNom(d, label);
+        if (trouve) {
+          d.pieces = d.pieces || {};
+          d.pieces[cle] = 'recue';
+          memoriserFichierTrouve(d, NAS_CLE_PIECE(cle), cheminNasComplet(d, trouve.chemin));
+          sauvegarder(d);
+          render();
+          afficherToast(`Pi\u00e8ce \u00ab\u00a0${label}\u00a0\u00bb trouv\u00e9e : ${trouve.nom}`, 'OK', null);
         }
       } catch (e) {
         console.error('Recherche automatique de la pièce personnalisée impossible', e);
@@ -5771,15 +5712,15 @@
     demanderConfirmation(`Réinitialiser le statut de « ${label} » ? Elle repassera à "manquante" et sera recherchée à nouveau au prochain "Revérifier". Ce nom de fichier ne sera plus jamais proposé pour cette pièce, sur aucun dossier.`, async () => {
       d.pieces = d.pieces || {};
       d.pieces[cle] = 'manquante';
-      // Apprentissage de l'erreur (voir exclureNomPourPiece ci-dessus) : avant d'effacer le handle,
-      // on retrouve le nom du fichier mal reconnu pour ne plus jamais le reproposer pour CETTE
-      // pièce, sur AUCUN dossier — portée choisie explicitement par l'étude, plus large qu'une
-      // simple exclusion propre à ce seul dossier.
-      const ancienHandle = await recupererHandle(CLE_HANDLE_PIECE(dossierId, cle));
-      if (ancienHandle && ancienHandle.name) {
-        exclureNomPourPiece(cle, normaliserNomPourMotif(ancienHandle.name));
+      // Apprentissage de l'erreur (voir exclureNomPourPiece ci-dessus) : avant d'effacer le chemin
+      // mémorisé, on retrouve le nom du fichier mal reconnu pour ne plus jamais le reproposer pour
+      // CETTE pièce, sur AUCUN dossier — portée choisie explicitement par l'étude, plus large
+      // qu'une simple exclusion propre à ce seul dossier.
+      const ancienChemin = fichierTrouve(d, NAS_CLE_PIECE(cle));
+      if (ancienChemin) {
+        exclureNomPourPiece(cle, normaliserNomPourMotif(ancienChemin.split('/').pop()));
       }
-      await enregistrerHandle(CLE_HANDLE_PIECE(dossierId, cle), null);
+      memoriserFichierTrouve(d, NAS_CLE_PIECE(cle), null);
       ajouterHistorique(d, `Pièce réinitialisée (correspondance retirée) : « ${label} »`);
       sauvegarder(d);
       render();
@@ -5868,15 +5809,15 @@
       // et le voir sans cliquer permet de repérer tout de suite un avant-contrat mal rattaché.
       const titreOuvrirCompromis = d.compromisNomFichier
         ? `Ouvrir « ${d.compromisNomFichier} », le fichier importé à la création du dossier`
-        : "Rechercher et ouvrir l'avant-contrat dans le dossier local relié (aucun nom de fichier mémorisé pour ce dossier)";
-      const boutonOuvrirCompromis = DOSSIER_FS_SUPPORTE
-          ? `<button type="button" class="action-rapide" onclick="ouvrirCompromisTrouve('${d.id}', this)" title="${escapeAttr(titreOuvrirCompromis)}">${icone('file-text')} Ouvrir le compromis</button>`
-          : '';
-      const boutonsDossierLocal = DOSSIER_FS_SUPPORTE ? (d.dossierLie
-          ? `<button type="button" class="action-rapide" onclick="changerDossierLocal('${d.id}')">Changer de dossier</button>`
-          // Même sans prêt (achat comptant), le dossier local reste nécessaire pour suivre
+        : "Rechercher et ouvrir l'avant-contrat dans le dossier NAS relié (aucun nom de fichier mémorisé pour ce dossier)";
+      const boutonOuvrirCompromis = `<button type="button" class="action-rapide" onclick="ouvrirCompromisTrouve('${d.id}', this)" title="${escapeAttr(titreOuvrirCompromis)}">${icone('file-text')} Ouvrir le compromis</button>`;
+      // Le nom du dossier NAS relié est affiché dans l'infobulle : le vérifier ne doit pas demander
+      // d'ouvrir la fenêtre de choix.
+      const boutonsDossierLocal = d.dossierLie
+          ? `<button type="button" class="action-rapide" onclick="changerDossierLocal('${d.id}')" title="${escapeAttr('Dossier NAS relié : ' + (d.nasDossier || '—'))}">Changer de dossier</button>`
+          // Même sans prêt (achat comptant), le dossier NAS reste nécessaire pour suivre
           // la checklist de pièces (urbanisme...) — voir renderPiecesDossier ci-dessous.
-          : `<button type="button" class="action-rapide" onclick="lierDossierLocal('${d.id}')">${icone('link')} Lier un dossier local</button>`) : '';
+          : `<button type="button" class="action-rapide" onclick="lierDossierLocal('${d.id}')">${icone('link')} Relier un dossier du NAS</button>`;
       // Statut de l'offre sous la date de la carte "Obtention du prêt" (voir renderTab, paramètre
       // offreBloc). Une puce de couleur plutôt qu'une phrase : le décompte juste au-dessus dit déjà
       // "✓ Offre reçue" en toutes lettres, la puce ne fait que confirmer d'un coup d'œil sans
@@ -5886,7 +5827,7 @@
       // Affiché même quand aucun dossier local n'est relié : c'est justement là qu'il faut proposer
       // de le relier, sans quoi la carte ne dit rien de l'offre et n'offre aucun moyen d'agir.
       const offreStatut = statutOffreAffichage(d);
-      // Un fichier a été retenu (et son handle mémorisé) aussi bien pour "reçue" que pour
+      // Un fichier a été retenu (et son chemin mémorisé) aussi bien pour "reçue" que pour
       // "à confirmer" : dans les deux cas il y a quelque chose à ouvrir — c'est justement en
       // l'ouvrant que l'étude tranche le second cas.
       const offreOuvrable = d.dossierLie && (d.offrePretStatut === 'recue' || d.offrePretStatut === 'aconfirmer');
@@ -5901,10 +5842,10 @@
         <div class="tab-offre-pret">
           ${offreOuvrable
               ? `<button type="button" class="dot-label ${offreStatut.dl}" title="${d.offrePretStatut === 'recue' ? 'Offre de prêt reçue — cliquer pour ouvrir le fichier trouvé' : 'Document trouvé mais non confirmé — cliquer pour l’ouvrir et vérifier'}" onclick="ouvrirOffreTrouvee('${d.id}')"><span class="dot"></span>${d.offrePretStatut === 'recue' ? 'Ouvrir le fichier' : 'À confirmer — ouvrir'}</button>`
-              : `<span class="dot-label ${offreStatut.dl}" title="${d.dossierLie ? escapeAttr(offreStatut.texte) : 'Aucun dossier local relié : l’offre n’a pas encore pu être cherchée'}"><span class="dot"></span>${offreStatut.texte}</span>`}
-          ${DOSSIER_FS_SUPPORTE ? (d.dossierLie
+              : `<span class="dot-label ${offreStatut.dl}" title="${d.dossierLie ? escapeAttr(offreStatut.texte) : 'Aucun dossier du NAS relié : l’offre n’a pas encore pu être cherchée'}"><span class="dot"></span>${offreStatut.texte}</span>`}
+          ${d.dossierLie
               ? `<button type="button" class="lien-dossier-local" onclick="verifierDossierLocalDepuisBouton('${d.id}', this)">Revérifier</button>`
-              : `<button type="button" class="lien-dossier-local" onclick="lierDossierLocal('${d.id}')">${icone('link')} Lier un dossier local</button>`) : ''}
+              : `<button type="button" class="lien-dossier-local" onclick="lierDossierLocal('${d.id}')">${icone('link')} Relier un dossier du NAS</button>`}
         </div>${garantiesBloc}` : '';
       return `
       <div class="dossier${d.archive ? ' est-archive' : ''}">
@@ -5987,7 +5928,6 @@
           </div>
 
           ${d.sansPret ? `<span class="dot-label dl-pret badge-cash">${icone('banknote')}Achat comptant — sans prêt</span>` : ''}
-          ${d.accesAReconfirmer ? `<div class="offre-pret-ligne"><span class="reconfirmer-acces" onclick="reconfirmerAcces('${d.id}')">Cliquer pour reconfirmer l'accès</span></div>` : ''}
           ${(!d.sansPret && d.offrePretStatut === 'recue' && calculerApport(d)) ? (() => {
             const apport = calculerApport(d);
             return `<div class="addr apport-ligne">
@@ -6686,12 +6626,14 @@
     }
   }
 
-  // Séquence complète une fois authentifié : dossiers, puis les vérifications déjà existantes
-  // (dossiers locaux liés, popup d'accès à reconfirmer), puis démarrage du polling.
+  // Séquence complète une fois authentifié : dossiers, état du NAS (pour savoir si la
+  // fonctionnalité est utilisable du tout), vérification des dossiers reliés, puis polling.
+  // La popup « accès à reconfirmer » qui vivait ici a disparu avec le mécanisme de permissions du
+  // navigateur : le serveur lit le NAS, il n'y a plus rien à reconfirmer.
   async function demarrerApplication() {
     await charger();
+    await chargerEtatNas();
     await revérifierDossiersLiesAuDemarrage();
-    afficherPopupAccesSiNecessaire();
     demarrerPolling();
   }
 
@@ -7022,15 +6964,18 @@
       // une sauvegarde produite par une version différente peut porter une structure inattendue.
       ...normaliserExtractionImportee(d),
       historique: Array.isArray(d.historique) ? d.historique.filter(h => h && h.date && h.texte) : [],
-      // Un dossier local relié sur un poste ne l'est jamais sur un autre : l'import repart de zéro
-      // sur ce point, la personne devra relier le dossier depuis ce navigateur si besoin.
-      dossierLie: false,
+      // Le lien vers le dossier NAS, lui, reste valable : c'est un chemin sur le serveur de
+      // l'étude, pas une autorisation propre à un navigateur comme l'était l'ancien handle. Les
+      // STATUTS qui en dérivent repartent en revanche de zéro, comme avant : la sauvegarde peut
+      // venir d'une autre installation, dont le NAS n'a pas la même arborescence.
+      nasDossier: typeof d.nasDossier === 'string' && d.nasDossier ? d.nasDossier : null,
+      dossierLie: typeof d.nasDossier === 'string' && !!d.nasDossier,
+      fichiersTrouves: {},
       offrePretStatut: 'inconnu',
       // Comme offrePretStatut/montantPret : lues dans un PDF local propre à une machine, jamais
       // importées telles quelles — à retrouver par une vérification sur ce poste.
       garantiesPret: [],
       pieces: {},
-      accesAReconfirmer: false,
       derniereRelanceAuto: null
     };
     ajouterHistorique(normalise, `Importé depuis « ${nomFichier} »`);
@@ -7258,7 +7203,6 @@
   //   pré-rédigée et ouverte automatiquement dans la messagerie, l'envoi final reste manuel.
   // - La vérification ne tourne que pendant que cet onglet est ouvert, pas en tâche de fond.
 
-  const DOSSIER_FS_SUPPORTE = typeof window.showDirectoryPicker === 'function';
 
   // ---- suivi des pièces du dossier (checklist de constitution, selon le type de vente) ----
   //
@@ -7602,109 +7546,132 @@
     }
   }
 
-  let handlesEnMemoire = {}; // repli si IndexedDB est indisponible (contexte restreint)
+  // ==== DOSSIERS DU NAS : le SERVEUR lit les fichiers, plus le navigateur ====
+  // Remplace entièrement l'ancien mécanisme fondé sur l'API File System Access
+  // (`showDirectoryPicker()` + handles conservés en IndexedDB). Raison, tranchée avec l'étude :
+  // cette API n'existe QUE dans un contexte sécurisé (localhost ou HTTPS). Les collaborateurs qui
+  // rejoignent l'outil par l'adresse IP du poste serveur — le cas normal au bureau — n'avaient donc
+  // tout simplement pas la fonction, et ne pouvaient ni relier un dossier ni consulter une pièce,
+  // alors que les dossiers clients sont sur un NAS commun visible par tous. Le serveur, lui, voit
+  // ce NAS comme un chemin de fichiers ordinaire et sert la même chose à tout le monde (voir
+  // server/src/nas.js et server/src/routes/nas.js).
+  //
+  // Trois conséquences immédiates, toutes des simplifications :
+  //   - plus AUCUNE permission à reconfirmer : Chrome redemandait l'autorisation d'accès à chaque
+  //     redémarrage (limite du navigateur, jamais contournable côté code) — c'est ce qui avait
+  //     imposé une popup au démarrage, un bandeau d'alerte et un bouton groupé, tous supprimés ;
+  //   - le lien vers le dossier NAS (`d.nasDossier`, un chemin relatif) et les fichiers déjà
+  //     trouvés (`d.fichiersTrouves`) vivent maintenant SUR LE DOSSIER, donc sur le serveur : un
+  //     dossier relié depuis un poste l'est pour tous, au lieu d'un handle local à un navigateur ;
+  //   - un seul parcours de fichiers pour tout le bureau.
+  const NAS_CLE_OFFRE = 'offre';
+  const NAS_CLE_PIECE = (cle) => `piece::${cle}`;
+  const NAS_CLE_COMPROMIS = 'compromis';
 
-  // Parcourt un dossier ET ses sous-dossiers à la recherche de fichiers PDF : les pièces d'un
-  // dossier client sont presque toujours rangées dans des sous-dossiers ("Offres", "Pièces
-  // reçues"…), jamais à la racine — s'arrêter au premier niveau (comme le faisait cette fonction
-  // avant) manquait donc systématiquement l'offre de prêt dans ce cas, le cas le plus courant.
-  const PROFONDEUR_MAX_RECHERCHE_PDF = 4;
-  const MAX_FICHIERS_PARCOURUS = 3000; // filet de sécurité sur un dossier réseau volumineux
-  // Bug corrigé : parcours en LARGEUR (file FIFO), plus en profondeur comme avant. L'arborescence
-  // réelle de l'étude range un dossier client en rubriques numérotées à la racine ("0 -
-  // COMPTABILITE - PRET", "1 - Vendeur", "3 - Titre de propriété"...). L'ancien parcours en
-  // profondeur (yield* récursif) épuisait MAX_FICHIERS_PARCOURUS sur la TOUTE PREMIÈRE rubrique
-  // rencontrée (et ses propres sous-dossiers) si elle contenait à elle seule beaucoup de PDF
-  // (relevés bancaires, historique de prêt...) — les pièces des rubriques suivantes (titre,
-  // diagnostics, environnement...) n'étaient alors jamais atteintes, quel que soit leur nom de
-  // fichier : un vrai bug structurel, pas une regex de détection à corriger (signalé par l'étude
-  // comme "toujours bugué" sur des pièces au nom pourtant correct, après plusieurs vérifications
-  // de motifNom n'ayant rien trouvé d'anormal). Une file FIFO garantit que toutes les rubriques de
-  // premier niveau sont explorées (leurs fichiers PDF directs) avant de descendre dans les
-  // sous-dossiers d'une seule d'entre elles. Plafond relevé en même temps (300 → 3000) par
-  // sécurité supplémentaire : il ne compte que des PDF, pour UN SEUL dossier client, pas tout le
-  // lecteur réseau de l'étude.
-  async function* fichiersPdfRecursifs(handleDossier, profondeur, compteur) {
-    const file = [{ handle: handleDossier, profondeur }];
-    while (file.length > 0) {
-      const { handle, profondeur: p } = file.shift();
-      if (p > PROFONDEUR_MAX_RECHERCHE_PDF) continue;
-      for await (const [nom, entree] of handle.entries()) {
-        if (compteur.n >= MAX_FICHIERS_PARCOURUS) return;
-        if (entree.kind === 'file') {
-          if (/\.pdf$/i.test(nom)) { compteur.n++; yield entree; }
-        } else if (entree.kind === 'directory') {
-          file.push({ handle: entree, profondeur: p + 1 });
-        }
-      }
+  let nasEtat = null; // { configure, racine, raison } — interrogé une fois au démarrage
+
+  async function chargerEtatNas() {
+    try {
+      const reponse = await fetchAvecAuth('/api/nas/etat');
+      nasEtat = reponse.ok ? await reponse.json() : { configure: false, raison: 'Serveur injoignable.' };
+    } catch (e) {
+      nasEtat = { configure: false, raison: e.message };
     }
+    return nasEtat;
   }
 
-  function ouvrirBaseHandles() {
-    return new Promise((resolve, reject) => {
-      if (!window.indexedDB) { resolve(null); return; }
-      const req = indexedDB.open('suivi-echeances-handles', 1);
-      req.onupgradeneeded = () => req.result.createObjectStore('handles');
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => resolve(null); // on se rabat sur la mémoire plutôt que de bloquer l'outil
-    });
+  function nasDisponible() {
+    return !!(nasEtat && nasEtat.configure);
   }
 
-  // Clés dérivées pour conserver, en plus du handle du dossier local lui-même, celui du fichier
-  // PDF précis où l'offre de prêt (ou une pièce de la checklist) a été trouvée — même magasin
-  // IndexedDB que les dossiers (enregistrerHandle/recupererHandle acceptent n'importe quelle
-  // chaîne comme identifiant), pour rouvrir directement ce fichier d'un clic plutôt que de
-  // reparcourir tout le dossier local. Voir ouvrirPieceTrouvee().
-  const CLE_HANDLE_OFFRE = (id) => `${id}::offre`;
-  const CLE_HANDLE_PIECE = (id, cle) => `${id}::piece::${cle}`;
-  // Même mécanisme pour le compromis lui-même (voir ouvrirCompromisTrouve()) : contrairement à
-  // l'offre/aux pièces, ce handle n'est jamais rempli par verifierDossierLocal() (le compromis
-  // n'est pas une pièce de la checklist) — seule ouvrirCompromisTrouve() le renseigne, à la
-  // demande, la première fois qu'on clique sur "Ouvrir le compromis".
-  const CLE_HANDLE_COMPROMIS = (id) => `${id}::compromis`;
-
-  async function enregistrerHandle(id, handle) {
-    handlesEnMemoire[id] = handle;
-    try {
-      const db = await ouvrirBaseHandles();
-      if (!db) return;
-      await new Promise((res, rej) => {
-        const tx = db.transaction('handles', 'readwrite');
-        tx.objectStore('handles').put(handle, id);
-        tx.oncomplete = res;
-        tx.onerror = rej;
-      });
-    } catch (e) { console.error('Enregistrement du dossier local impossible', e); }
+  // Chemin d'un fichier relativement à la RACINE du NAS (ce que les routes attendent), à partir
+  // d'un chemin relatif au dossier client.
+  function cheminNasComplet(d, cheminDansDossier) {
+    const base = (d.nasDossier || '').replace(/[\\/]+$/, '');
+    return base ? `${base}/${cheminDansDossier}` : cheminDansDossier;
   }
 
-  async function recupererHandle(id) {
-    try {
-      const db = await ouvrirBaseHandles();
-      if (db) {
-        const handle = await new Promise((res) => {
-          const tx = db.transaction('handles', 'readonly');
-          const r = tx.objectStore('handles').get(id);
-          r.onsuccess = () => res(r.result || null);
-          r.onerror = () => res(null);
-        });
-        if (handle) return handle;
-      }
-    } catch (e) { /* repli sur la mémoire */ }
-    return handlesEnMemoire[id] || null;
+  // Liste les PDF du dossier NAS relié, sous-dossiers compris. Le parcours en largeur et les
+  // plafonds vivent désormais côté serveur (voir server/src/nas.js) — la leçon déjà payée sur le
+  // parcours en profondeur y est reprise telle quelle.
+  async function listerFichiersNas(d) {
+    const reponse = await fetchAvecAuth('/api/nas/fichiers?dossier=' + encodeURIComponent(d.nasDossier || ''));
+    if (!reponse.ok) {
+      const corps = await reponse.json().catch(() => ({}));
+      throw new Error(corps.erreur || `erreur ${reponse.status}`);
+    }
+    const data = await reponse.json();
+    return data.fichiers || [];
   }
 
-  async function lierDossierLocal(id) {
-    if (!DOSSIER_FS_SUPPORTE) {
-      afficherToast("Cette fonctionnalité nécessite Chrome ou Edge (l'accès à un dossier local n'est pas proposé par ce navigateur).", 'OK', null);
+  // Ouvre un PDF du NAS dans un nouvel onglet. Le type MIME est forcé côté serveur, ce qui règle
+  // par construction le bug déjà rencontré une fois (contenu binaire affiché comme du texte quand
+  // le `File` local n'avait pas de type reconnu).
+  function ouvrirFichierNas(cheminComplet) {
+    if (!cheminComplet) {
+      afficherToast("Ce fichier n'a pas encore été localisé — cliquez sur « Revérifier ».", 'OK', null);
       return;
     }
+    window.open('/api/nas/fichier?chemin=' + encodeURIComponent(cheminComplet), '_blank');
+  }
+
+  function fichierTrouve(d, cle) {
+    return (d.fichiersTrouves || {})[cle] || null;
+  }
+
+  function memoriserFichierTrouve(d, cle, cheminComplet) {
+    d.fichiersTrouves = d.fichiersTrouves || {};
+    if (cheminComplet) d.fichiersTrouves[cle] = cheminComplet;
+    else delete d.fichiersTrouves[cle];
+  }
+
+  // Charge un PDF du NAS dans pdf.js. Le serveur ne fait que servir les octets : toute l'analyse
+  // (pages, titre de la page de garde, texte, OCR) reste côté client, exactement comme avant —
+  // aucune dépendance PDF n'a été ajoutée au serveur.
+  async function ouvrirPdfNas(cheminComplet) {
+    const reponse = await fetchAvecAuth('/api/nas/fichier?chemin=' + encodeURIComponent(cheminComplet));
+    if (!reponse.ok) throw new Error(`Lecture impossible (${reponse.status})`);
+    const buffer = await reponse.arrayBuffer();
+    return pdfjsLib.getDocument({ data: buffer, verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise;
+  }
+
+  // Relie un dossier CLAIRE à un sous-dossier du NAS. Le serveur propose un rapprochement par NOM
+  // (méthode choisie par l'étude, voir `rapprocherParNom` côté serveur) ; la liste complète reste
+  // affichée pour corriger à la main — une proposition, jamais une décision.
+  async function lierDossierLocal(id) {
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
-    const etaitDejaLie = d.dossierLie;
+    if (!nasDisponible()) {
+      await chargerEtatNas();
+      if (!nasDisponible()) {
+        afficherToast((nasEtat && nasEtat.raison) || "Aucun dossier NAS configuré sur le serveur.", 'OK', null);
+        return;
+      }
+    }
+    let data;
     try {
-      const handle = await window.showDirectoryPicker();
-      await enregistrerHandle(id, handle);
-      d.dossierLie = true;
+      const reponse = await fetchAvecAuth('/api/nas/dossiers?nom=' + encodeURIComponent(d.nom || ''));
+      if (!reponse.ok) throw new Error(`erreur ${reponse.status}`);
+      data = await reponse.json();
+    } catch (e) {
+      afficherToast('Lecture du NAS impossible : ' + e.message, 'OK', null);
+      return;
+    }
+    if (!data.dossiers || data.dossiers.length === 0) {
+      afficherToast('Aucun dossier trouvé à la racine configurée du NAS.', 'OK', null);
+      return;
+    }
+    ouvrirChoixDossierNas(d, data.dossiers, data.propose);
+  }
+
+  // Applique le choix, puis relance une vérification complète — même remise à zéro qu'avant : les
+  // statuts d'un dossier NAS précédent ne valent plus rien pour un autre.
+  async function definirDossierNas(id, chemin) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d || !chemin) return;
+    const etaitDejaLie = d.dossierLie;
+    d.nasDossier = chemin;
+    d.dossierLie = true;
       // Remis à zéro à CHAQUE lien (pas seulement le premier) : changer de dossier lié doit
       // relancer une recherche complètement fraîche, sans conserver les statuts "reçue"/
       // "manquante" de l'ancien dossier — sans quoi une pièce marquée reçue dans l'ancien
@@ -7716,39 +7683,54 @@
       d.offrePretStatut = 'inconnu';
       d.montantPret = null;
       d.garantiesPret = []; // lues dans l'offre de l'ancien dossier : elles ne valent plus rien ici
-      // Le handle du compromis, lui, pointait vers l'ANCIEN dossier local — jamais rescanné
-      // automatiquement (voir ouvrirCompromisTrouve()) : sans ce retrait, "Ouvrir le compromis"
-      // rouvrirait silencieusement un fichier du mauvais dossier après un changement de lien.
-      await enregistrerHandle(CLE_HANDLE_COMPROMIS(id), null);
-      if (d.roleNotaire !== 'participant') {
-        d.pieces = {};
-        checklistPieces(d.typeVente, d).forEach(p => { d.pieces[p.cle] = 'manquante'; });
-      }
-      // Choisir un nouveau dossier ecrase simplement le lien precedent (put() dans
-      // enregistrerHandle) : utile si l'on s'etait trompe de dossier au premier lien.
-      ajouterHistorique(d, etaitDejaLie
-        ? 'Dossier local relié modifié (nouveau dossier choisi)'
-        : 'Dossier local relié pour la vérification automatique de l\u2019offre de prêt');
-      await sauvegarder(d);
-      render();
-      await verifierDossierLocal(id, true);
-    } catch (e) {
-      if (!e) return;
-      if (e.name === 'AbortError') return; // fenêtre de sélection fermée : rien à signaler
-      if (e.name === 'SecurityError') {
-        // Le navigateur refuse l'accès aux fichiers dans un iframe d'une autre origine — c'est le
-        // cas de l'aperçu intégré à une page de discussion. Aucune parade côté code : il faut
-        // ouvrir le fichier .html en dehors de cet aperçu (téléchargé puis ouvert directement).
-        afficherToast("Chrome bloque le sélecteur de dossier dans cet aperçu intégré. Téléchargez le fichier et ouvrez-le directement dans votre navigateur pour utiliser cette fonctionnalité.", 'OK', null);
-        return;
-      }
-      console.error(e);
-      afficherToast("Impossible d'accéder au dossier sélectionné : " + e.message, 'OK', null);
+    // Les fichiers deja localises pointaient vers l'ANCIEN dossier : tout repart de zero, y
+    // compris le compromis (jamais rescanne automatiquement — voir ouvrirCompromisTrouve()).
+    d.fichiersTrouves = {};
+    if (d.roleNotaire !== 'participant') {
+      d.pieces = {};
+      checklistPieces(d.typeVente, d).forEach(p => { d.pieces[p.cle] = 'manquante'; });
     }
+    ajouterHistorique(d, etaitDejaLie
+      ? `Dossier NAS relié modifié : ${chemin}`
+      : `Dossier NAS relié : ${chemin}`);
+    await sauvegarder(d);
+    render();
+    await verifierDossierLocal(id, true);
   }
 
-  // Changer de dossier réutilise lierDossierLocal : celle-ci écrase déjà le handle précédent
-  // (put() dans enregistrerHandle) et adapte son message d'historique selon d.dossierLie.
+  // Petite fenêtre de choix, sur le patron .confirm-overlay déjà utilisé partout ailleurs dans
+  // l'outil (confirmation, À propos, info) plutôt qu'un second système de fenêtre modale. La liste
+  // complète reste affichée même quand un rapprochement est proposé : c'est une proposition, pas
+  // une décision — se tromper de dossier ferait chercher les pièces d'une vente dans celles d'une
+  // autre.
+  function ouvrirChoixDossierNas(d, nomsNas, propose) {
+    const overlay = document.getElementById('nas-choix-overlay');
+    const liste = document.getElementById('nas-choix-liste');
+    const intro = document.getElementById('nas-choix-intro');
+    if (!overlay || !liste) return;
+    if (intro) {
+      intro.textContent = propose
+        ? `Dossier proposé pour « ${d.nom} » d'après son nom — corrigez si ce n'est pas le bon.`
+        : `Aucun rapprochement évident avec « ${d.nom} » : choisissez le dossier client sur le NAS.`;
+    }
+    liste.innerHTML = nomsNas.map(nom => {
+      const marque = nom === d.nasDossier ? 'actuel' : (nom === propose ? 'proposé' : '');
+      return `<button type="button" class="nas-choix-item${marque ? ' ' + (marque === 'actuel' ? 'actuel' : 'propose') : ''}"`
+        + ` onclick="fermerChoixDossierNas(); definirDossierNas('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(nom)}')">`
+        + `<span class="nas-choix-nom">${escapeHtml(nom)}</span>`
+        + (marque ? `<span class="nas-choix-marque">${marque}</span>` : '')
+        + `</button>`;
+    }).join('');
+    overlay.style.display = 'flex';
+  }
+
+  function fermerChoixDossierNas() {
+    const overlay = document.getElementById('nas-choix-overlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+
+  // Changer de dossier réutilise lierDossierLocal : la même fenêtre de choix, où le dossier
+  // actuellement relié est marqué comme tel.
   async function changerDossierLocal(id) {
     await lierDossierLocal(id);
   }
@@ -7814,7 +7796,7 @@
   // qu'on cherche (offre comprise) est déjà résolu, ou si le dossier est entièrement parcouru.
   async function verifierDossierLocal(id, viaClicUtilisateur) {
     const d = dossiers.find(x => x.id === id);
-    if (!d || !d.dossierLie) return;
+    if (!d || !d.dossierLie || !d.nasDossier) return;
     // Achat comptant (sans prêt) : rien à chercher côté offre, seul le nom de la fonction reste
     // générique. Notaire participant/concourant : la checklist de pièces ne le concerne pas (voir
     // renderCarteDossier/statutDossier) — inutile de tester quoi que ce soit dessus.
@@ -7822,153 +7804,116 @@
     const chercherPieces = d.roleNotaire !== 'participant';
     if (!chercherOffre && !chercherPieces) return;
 
-    const handle = await recupererHandle(id);
-    if (!handle) {
-      d.dossierLie = false; // le lien a été perdu (base vidée, autre navigateur…) : on l'indique
-      dernierDiagnosticParcours[id] = { horodatage: new Date().toISOString(), journal: [], resume: { erreur: 'Aucun dossier local relié (le lien a été perdu — base vidée, ou dossier ouvert depuis un autre navigateur).' } };
-      render();
-      return;
-    }
-
-    let permission = await handle.queryPermission({ mode: 'read' });
-    if (permission !== 'granted' && viaClicUtilisateur) {
-      permission = await handle.requestPermission({ mode: 'read' });
-    }
-    if (permission !== 'granted') {
-      d.accesAReconfirmer = true;
-      dernierDiagnosticParcours[id] = { horodatage: new Date().toISOString(), journal: [], resume: { erreur: "Accès au dossier local non accordé — cliquez sur \"reconfirmer l'accès\" puis relancez la vérification." } };
-      render();
-      return;
-    }
-    d.accesAReconfirmer = false;
-
     const checklist = chercherPieces ? checklistPieces(d.typeVente, d) : [];
     d.pieces = d.pieces || {};
     // Pièces déjà trouvées lors d'une vérification précédente : inutile de les rechercher à
-    // nouveau, seules celles encore manquantes/inconnues sont testées sur chaque PDF.
+    // nouveau, seules celles encore manquantes/inconnues sont testées.
     const aChercher = new Set(checklist.filter(p => d.pieces[p.cle] !== 'recue').map(p => p.cle));
     const fichierParPiece = {};
 
     let offreTrouvee = false;
     let offreAConfirmer = false; // trouvée par son titre, mais sans confirmation du modèle local
     let fichierOffre = null;
-    let nbAnalyses = 0; // fichiers réellement ouverts/lus (contenu) — sert seulement au log interne
-    let nbFichiersRencontres = 0; // tous les PDF croisés, ouverts ou non (voir le toast plus bas)
+    let nbAnalyses = 0; // fichiers réellement ouverts (lus par pdf.js) — seuls les candidats offre
+    let nbFichiersRencontres = 0;
     // Journal du parcours (voir dernierDiagnosticParcours/renderDiagnosticParcours) : une ligne par
-    // événement notable (correspondance trouvée, contenu lu, erreur de lecture) — pas une ligne par
-    // fichier rencontré, ce qui rendrait le journal illisible sur un dossier de plusieurs centaines
-    // de PDF sans rien ajouter (le compteur global couvre déjà "combien de fichiers au total").
-    // Jamais d'extrait du texte du PDF ici (contrairement à la trace console existante, réservée à
-    // la console) : uniquement des noms de fichiers, déjà visibles par l'étude dans son propre
-    // explorateur de fichiers — pas de PII supplémentaire exposée à l'écran.
+    // événement notable, jamais une par fichier rencontré — illisible sur un dossier de plusieurs
+    // centaines de PDF, et sans rien ajouter au compteur global. Jamais d'extrait du TEXTE d'un PDF
+    // ici : uniquement des noms de fichiers, déjà visibles par l'étude dans son explorateur.
     const diagnosticJournal = [];
 
+    let fichiers;
     try {
-      const compteur = { n: 0 };
-      for await (const entree of fichiersPdfRecursifs(handle, 0, compteur)) {
-        if ((!chercherOffre || offreTrouvee) && aChercher.size === 0) break; // tout est déjà résolu
-        nbFichiersRencontres++;
-
-        // Nom du fichier testé pour l'offre de prêt ET pour les pièces (voir motifNom) — plus
-        // aucune lecture de contenu PDF dans cette fonction (voir OFFRE_PRET_RE et son historique :
-        // trop d'erreurs signalées par l'étude sur la reconnaissance de l'offre par son contenu,
-        // même limite déjà rencontrée et déjà corrigée pour la checklist de pièces). Normalisé
-        // (underscores/tirets → espaces, accents NFC — voir normaliserNomPourMotif) avant le test :
-        // les motifs sont écrits avec \s* comme séparateur, un vrai nom de fichier de l'étude non.
-        const nomNormalise = normaliserNomPourMotif(entree.name);
-
-        // Offre de prêt : plus par le nom du fichier, mais par le NOMBRE DE PAGES puis le TITRE de
-        // la page de garde, avec confirmation par le modèle IA local — voir MIN_PAGES_OFFRE_PRET et
-        // son commentaire pour le pourquoi de chacun des trois filtres. Le PDF n'est ouvert que
-        // tant que l'offre n'a pas été trouvée : une fois qu'elle l'est, le parcours reprend son
-        // rythme « par nom de fichier » pour les pièces restantes.
-        if (chercherOffre && !offreTrouvee) {
-          try {
-            nbAnalyses++;
-            const file = await entree.getFile();
-            const buffer = await file.arrayBuffer();
-            const pdf = await pdfjsLib.getDocument({ data: buffer, verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise;
-            if (pdf.numPages < MIN_PAGES_OFFRE_PRET) {
-              // Écarté sans même lire la page de garde : une offre de prêt fait au moins une
-              // dizaine de pages, un document d'une ou deux pages n'en est jamais une.
-              diagnosticJournal.push(`${entree.name} → écarté pour l'offre (${pdf.numPages} page${pdf.numPages > 1 ? 's' : ''}, minimum ${MIN_PAGES_OFFRE_PRET})`);
-            } else {
-              const page1 = await pdf.getPage(1);
-              const contenu = await page1.getTextContent();
-              const titre = titrePagePdf(contenu.items.map(it => it.str).join(' '));
-              if (!OFFRE_PRET_RE.test(titre)) {
-                diagnosticJournal.push(`${entree.name} → titre de page de garde sans rapport avec une offre de prêt`);
-              } else {
-                // Le titre colle : reste à faire confirmer par le modèle local qu'il s'agit bien du
-                // document de prêt lui-même, et non d'un acte qui en porte le nom en tête.
-                const confirmation = await confirmerOffrePretIa(titre);
-                if (confirmation.disponible && !confirmation.estOffrePret) {
-                  diagnosticJournal.push(`${entree.name} → titre proche, mais écarté par le modèle local${confirmation.raison ? ' : ' + confirmation.raison : ''}`);
-                } else {
-                  offreTrouvee = true;
-                  fichierOffre = entree.name;
-                  // Sans confirmation possible (modèle absent ou en panne), le document n'est pas
-                  // déclaré reçu d'office : il passe en « à confirmer », statut distinct que
-                  // l'étude tranche elle-même en ouvrant le fichier — choix explicite de sa part.
-                  offreAConfirmer = !confirmation.disponible;
-                  diagnosticJournal.push(offreAConfirmer
-                    ? `${entree.name} → offre de prêt probable (titre reconnu), à confirmer : ${confirmation.raison || 'modèle local indisponible'}`
-                    : `${entree.name} → offre de prêt confirmée (titre + modèle local)`);
-                  // Conserve le handle du fichier trouvé (même mécanisme IndexedDB que le dossier
-                  // local lui-même) pour permettre de le rouvrir en un clic depuis la fiche, sans
-                  // avoir à reparcourir tout le dossier — voir ouvrirOffreTrouvee().
-                  await enregistrerHandle(CLE_HANDLE_OFFRE(id), entree);
-                  // Le PDF est déjà ouvert : on en profite pour lire le montant emprunté (apport,
-                  // voir calculerApport) et les garanties du prêt (caution / hypothèque, demandées
-                  // par l'étude). Best-effort, et jamais d'écrasement par un échec de détection :
-                  // une valeur déjà connue est conservée si une revérification ne la retrouve pas.
-                  const texte = await lireTextePdfVerification(pdf);
-                  const montant = detecterMontantPret(texte);
-                  if (montant) d.montantPret = montant;
-                  const garanties = detecterGarantiesPret(texte);
-                  if (garanties.length) d.garantiesPret = garanties;
-                }
-              }
-            }
-          } catch (e) {
-            // Un PDF illisible (chiffré, corrompu, police exotique) ne doit jamais interrompre le
-            // parcours : il est simplement écarté pour l'offre, les pièces continuent d'être
-            // testées par leur nom de fichier juste en dessous.
-            console.error('Lecture impossible pour', entree.name, e);
-            diagnosticJournal.push(`${entree.name} → lecture impossible (${e.message})`);
-          }
-        }
-
-        for (const piece of checklist) {
-          if (!aChercher.has(piece.cle)) continue;
-          // Pièce personnalisée (voir checklistPieces/ajouterPiecePersonnalisee) : pas de motifNom
-          // (nom libre saisi par l'étude, aucune regex à écrire). Bug corrigé : jusqu'ici, seule la
-          // recherche ponctuelle faite à l'AJOUT de la pièce (chercherFichierParNom) pouvait la
-          // trouver — "Revérifier" l'ignorait ensuite silencieusement (le garde-fou `piece.motifNom`
-          // ci-dessous exclut par construction toute pièce sans motif). Signalé par l'étude : un
-          // fichier ajouté au dossier local APRÈS la création de la pièce (ou après avoir changé de
-          // dossier lié) restait "à vérifier" indéfiniment, même en reclique sur "Revérifier". Même
-          // logique de correspondance que `chercherFichierParNom()` (sous-chaîne insensible à la
-          // casse du libellé dans le nom normalisé), réutilisée ici pour rester cohérente.
-          if (piece.personnalisee) {
-            if (nomNormalise.toLowerCase().includes(piece.label.toLowerCase())) {
-              fichierParPiece[piece.cle] = entree;
-              aChercher.delete(piece.cle);
-              diagnosticJournal.push(`${entree.name} → pièce trouvée par nom : « ${piece.label} »`);
-            }
-          } else if (piece.motifNom && piece.motifNom.test(nomNormalise) && !estNomExcluPourPiece(piece.cle, nomNormalise)) {
-            fichierParPiece[piece.cle] = entree;
-            aChercher.delete(piece.cle);
-            diagnosticJournal.push(`${entree.name} → pièce trouvée par nom : « ${piece.label} »`);
-          }
-        }
-      }
+      fichiers = await listerFichiersNas(d);
     } catch (e) {
-      console.error('Parcours du dossier local impossible', e);
-      if (viaClicUtilisateur) afficherToast("Impossible de parcourir le dossier local relié : " + e.message, 'OK', null);
-      dernierDiagnosticParcours[id] = { horodatage: new Date().toISOString(), journal: diagnosticJournal, resume: { erreur: 'Erreur pendant le parcours du dossier local : ' + e.message } };
+      console.error('Lecture du dossier NAS impossible', e);
+      if (viaClicUtilisateur) afficherToast('Lecture du dossier NAS impossible : ' + e.message, 'OK', null);
+      dernierDiagnosticParcours[id] = {
+        horodatage: new Date().toISOString(), journal: [],
+        resume: { erreur: `Le serveur n'a pas pu lire « ${d.nasDossier} » sur le NAS : ${e.message}` }
+      };
       render();
       return;
+    }
+
+    for (const fichier of fichiers) {
+      if ((!chercherOffre || offreTrouvee) && aChercher.size === 0) break; // tout est déjà résolu
+      nbFichiersRencontres++;
+      const cheminComplet = cheminNasComplet(d, fichier.chemin);
+      // Nom normalisé (underscores/tirets → espaces, accents recomposés en NFC) avant tout test de
+      // motif : un vrai nom de fichier de l'étude ne s'écrit pas comme une regex française.
+      const nomNormalise = normaliserNomPourMotif(fichier.nom);
+
+      // Offre de prêt : nombre de pages, puis TITRE de la page de garde, puis confirmation par le
+      // modèle IA local — voir MIN_PAGES_OFFRE_PRET pour le pourquoi de chacun des trois filtres.
+      // Le PDF n'est ouvert que tant que l'offre n'a pas été trouvée.
+      if (chercherOffre && !offreTrouvee) {
+        try {
+          nbAnalyses++;
+          const pdf = await ouvrirPdfNas(cheminComplet);
+          if (pdf.numPages < MIN_PAGES_OFFRE_PRET) {
+            // Écarté sans même lire la page de garde : une offre de prêt fait au moins une
+            // dizaine de pages, un document d'une ou deux pages n'en est jamais une.
+            diagnosticJournal.push(`${fichier.nom} → écarté pour l'offre (${pdf.numPages} page${pdf.numPages > 1 ? 's' : ''}, minimum ${MIN_PAGES_OFFRE_PRET})`);
+          } else {
+            const page1 = await pdf.getPage(1);
+            const contenu = await page1.getTextContent();
+            const titre = titrePagePdf(contenu.items.map(it => it.str).join(' '));
+            if (!OFFRE_PRET_RE.test(titre)) {
+              diagnosticJournal.push(`${fichier.nom} → titre de page de garde sans rapport avec une offre de prêt`);
+            } else {
+              const confirmation = await confirmerOffrePretIa(titre);
+              if (confirmation.disponible && !confirmation.estOffrePret) {
+                diagnosticJournal.push(`${fichier.nom} → titre proche, mais écarté par le modèle local${confirmation.raison ? ' : ' + confirmation.raison : ''}`);
+              } else {
+                offreTrouvee = true;
+                fichierOffre = fichier.nom;
+                // Sans confirmation possible (modèle absent ou en panne), le document n'est pas
+                // déclaré reçu d'office : il passe en « à confirmer », statut distinct que l'étude
+                // tranche elle-même en ouvrant le fichier — choix explicite de sa part.
+                offreAConfirmer = !confirmation.disponible;
+                diagnosticJournal.push(offreAConfirmer
+                  ? `${fichier.nom} → offre de prêt probable (titre reconnu), à confirmer : ${confirmation.raison || 'modèle local indisponible'}`
+                  : `${fichier.nom} → offre de prêt confirmée (titre + modèle local)`);
+                memoriserFichierTrouve(d, NAS_CLE_OFFRE, cheminComplet);
+                // Le PDF est déjà ouvert : on en profite pour lire le montant emprunté (apport) et
+                // les garanties du prêt. Best-effort, et jamais d'écrasement par un échec : une
+                // valeur déjà connue est conservée si une revérification ne la retrouve pas.
+                const texte = await lireTextePdfVerification(pdf);
+                const montant = detecterMontantPret(texte);
+                if (montant) d.montantPret = montant;
+                const garanties = detecterGarantiesPret(texte);
+                if (garanties.length) d.garantiesPret = garanties;
+              }
+            }
+          }
+        } catch (e) {
+          // Un PDF illisible (chiffré, corrompu, police exotique) ne doit jamais interrompre le
+          // parcours : il est simplement écarté pour l'offre, les pièces continuent d'être testées
+          // par leur nom de fichier juste en dessous.
+          console.error('Lecture impossible pour', fichier.nom, e);
+          diagnosticJournal.push(`${fichier.nom} → lecture impossible (${e.message})`);
+        }
+      }
+
+      for (const piece of checklist) {
+        if (!aChercher.has(piece.cle)) continue;
+        // Pièce personnalisée (voir checklistPieces/ajouterPiecePersonnalisee) : pas de motifNom
+        // (nom libre saisi par l'étude), retrouvée par sous-chaîne de son libellé — même logique
+        // que chercherFichierParNom, appliquée ici pour qu'un "Revérifier" ultérieur la retrouve
+        // aussi, pas seulement la recherche ponctuelle faite à son ajout.
+        if (piece.personnalisee) {
+          if (nomNormalise.toLowerCase().includes(piece.label.toLowerCase())) {
+            fichierParPiece[piece.cle] = cheminComplet;
+            aChercher.delete(piece.cle);
+            diagnosticJournal.push(`${fichier.nom} → pièce trouvée par nom : « ${piece.label} »`);
+          }
+        } else if (piece.motifNom && piece.motifNom.test(nomNormalise) && !estNomExcluPourPiece(piece.cle, nomNormalise)) {
+          fichierParPiece[piece.cle] = cheminComplet;
+          aChercher.delete(piece.cle);
+          diagnosticJournal.push(`${fichier.nom} → pièce trouvée par nom : « ${piece.label} »`);
+        }
+      }
     }
 
     let nbPiecesTrouvees = 0;
@@ -7976,9 +7921,7 @@
       if (fichierParPiece[piece.cle]) {
         d.pieces[piece.cle] = 'recue';
         nbPiecesTrouvees++;
-        // Handle conservé pour rouvrir directement ce fichier depuis la fiche (voir
-        // ouvrirPieceTrouvee()), sans reparcourir tout le dossier local.
-        await enregistrerHandle(CLE_HANDLE_PIECE(id, piece.cle), fichierParPiece[piece.cle]);
+        memoriserFichierTrouve(d, NAS_CLE_PIECE(piece.cle), fichierParPiece[piece.cle]);
       } else if (d.pieces[piece.cle] !== 'recue') {
         d.pieces[piece.cle] = 'manquante';
       } else {
@@ -7995,6 +7938,7 @@
       resume: {
         nbFichiersRencontres,
         nbAnalyses,
+        dossierNas: d.nasDossier,
         offre: !chercherOffre ? null : { trouvee: offreTrouvee, aConfirmer: offreAConfirmer, fichier: fichierOffre },
         pieces: !chercherPieces ? null : {
           total: checklist.length,
@@ -8020,7 +7964,7 @@
           : `${nbPiecesTrouvees}/${checklist.length} pièces reconnues (${manquantes} manquante${manquantes > 1 ? 's' : ''}).`);
       }
       if (nbFichiersRencontres === 0) {
-        afficherToast("Aucun PDF trouvé dans le dossier relié (ni ses sous-dossiers) — vérifiez que les pièces ont bien été enregistrées à cet endroit.", 'OK', null);
+        afficherToast(`Aucun PDF dans « ${d.nasDossier} » (ni ses sous-dossiers) — vérifiez le dossier relié.`, 'OK', null);
       } else {
         afficherToast(messages.join(' '), 'OK', null);
       }
@@ -8040,7 +7984,7 @@
     render();
 
     if (chercherOffre && offreTrouvee && offreEtaitManquante) {
-      ajouterHistorique(d, 'Offre de prêt retrouvée dans le dossier local');
+      ajouterHistorique(d, 'Offre de prêt retrouvée dans le dossier NAS');
       await sauvegarder(d);
     }
 
@@ -8051,45 +7995,18 @@
     if (chercherOffre && !offreTrouvee && !offreEtaitRecue) relancerSiOffreManquante(d);
   }
 
-  // Rouvre directement le fichier PDF local où une pièce (ou l'offre de prêt) a été reconnue,
-  // plutôt que de se contenter d'un badge "reçue" sans rien de plus derrière — demandé par
-  // l'étude. Le handle du fichier a été conservé au moment de la détection (voir
-  // verifierDossierLocal()) : pas besoin de reparcourir tout le dossier.
-  // La permission déjà accordée sur le dossier couvre aussi ce fichier individuel.
-  async function ouvrirFichierTrouve(cleHandle) {
-    try {
-      const handle = await recupererHandle(cleHandle);
-      if (!handle) {
-        afficherToast("Ce fichier n'a pas été mémorisé (détecté avant cette fonctionnalité) — cliquez sur \"Revérifier\" pour le retrouver.", 'OK', null);
-        return;
-      }
-      const permission = await handle.queryPermission({ mode: 'read' }) === 'granted'
-        ? 'granted'
-        : await handle.requestPermission({ mode: 'read' });
-      if (permission !== 'granted') {
-        afficherToast("Accès refusé à ce fichier.", 'OK', null);
-        return;
-      }
-      const file = await handle.getFile();
-      // Bug corrigé : File.type peut arriver vide (ou incorrect) selon la façon dont l'OS/Chrome
-      // associe l'extension .pdf — le navigateur affichait alors le contenu binaire brut du PDF
-      // comme du texte ("%PDF-1.6 ... stream ...") au lieu de l'ouvrir dans son lecteur PDF
-      // intégré. Ces fichiers sont toujours des PDF (seule extension retenue par
-      // fichiersPdfRecursifs()) : on force le type MIME plutôt que de se fier à celui détecté.
-      const blob = file.type === 'application/pdf' ? file : new Blob([file], { type: 'application/pdf' });
-      window.open(URL.createObjectURL(blob), '_blank');
-    } catch (e) {
-      console.error(e);
-      afficherToast("Impossible d'ouvrir ce fichier (déplacé ou supprimé depuis sa détection ?) : " + e.message, 'OK', null);
-    }
-  }
-
+  // Rouvre directement le PDF du NAS où une pièce (ou l'offre de prêt) a été reconnue, plutôt
+  // que de se contenter d'un badge « reçue » sans rien derrière — demandé par l'étude. Le chemin du
+  // fichier a été mémorisé SUR LE DOSSIER au moment de la détection (voir verifierDossierLocal) :
+  // il est donc connu de tous les postes, contrairement à l'ancien handle propre à un navigateur.
   function ouvrirPieceTrouvee(id, cle) {
-    ouvrirFichierTrouve(CLE_HANDLE_PIECE(id, cle));
+    const d = dossiers.find(x => x.id === id);
+    if (d) ouvrirFichierNas(fichierTrouve(d, NAS_CLE_PIECE(cle)));
   }
 
   function ouvrirOffreTrouvee(id) {
-    ouvrirFichierTrouve(CLE_HANDLE_OFFRE(id));
+    const d = dossiers.find(x => x.id === id);
+    if (d) ouvrirFichierNas(fichierTrouve(d, NAS_CLE_OFFRE));
   }
 
   // "Ouvrir le compromis" : contrairement à l'offre/aux pièces, ce document n'est jamais recherché
@@ -8107,44 +8024,47 @@
   async function ouvrirCompromisTrouve(dossierId, btn) {
     const d = dossiers.find(x => x.id === dossierId);
     if (!d) return;
-    const cle = CLE_HANDLE_COMPROMIS(dossierId);
-    const dejaTrouve = await recupererHandle(cle);
-    if (dejaTrouve) { ouvrirFichierTrouve(cle); return; }
-    if (!DOSSIER_FS_SUPPORTE || !d.dossierLie) {
-      afficherToast('Reliez d’abord un dossier local pour retrouver le compromis.', 'OK', null);
+    const dejaTrouve = fichierTrouve(d, NAS_CLE_COMPROMIS);
+    if (dejaTrouve) { ouvrirFichierNas(dejaTrouve); return; }
+    if (!d.dossierLie || !d.nasDossier) {
+      afficherToast('Reliez d\u2019abord un dossier du NAS pour retrouver le compromis.', 'OK', null);
       return;
     }
     const texteOriginal = btn ? btn.innerHTML : '';
-    if (btn) { btn.disabled = true; btn.innerHTML = `${icone('spinner', null, true)} Recherche…`; }
+    if (btn) { btn.disabled = true; btn.innerHTML = `${icone('spinner', null, true)} Recherche\u2026`; }
     try {
-      const handleDossier = await recupererHandle(dossierId);
-      if (!handleDossier || await handleDossier.queryPermission({ mode: 'read' }) !== 'granted') {
-        afficherToast('Accès au dossier local à reconfirmer avant de rechercher le compromis.', 'OK', null);
-        return;
-      }
+      const fichiers = await listerFichiersNas(d);
+      // Correspondance par sous-chaîne sur le nom normalisé (underscores/tirets → espaces, accents
+      // recomposés) — la même que pour une pièce personnalisée.
+      const parNom = (cible) => {
+        const t = normaliserNomPourMotif(cible).toLowerCase();
+        return fichiers.find(f => normaliserNomPourMotif(f.nom).toLowerCase().includes(t)) || null;
+      };
       let trouve = null;
       let parRepli = false;
       if (d.compromisNomFichier) {
-        trouve = await chercherFichierParNom(handleDossier, d.compromisNomFichier);
+        trouve = parNom(d.compromisNomFichier);
         if (!trouve) {
-          afficherToast(`« ${d.compromisNomFichier} » introuvable dans le dossier local — recherche élargie.`, 'OK', null);
+          afficherToast(`\u00ab\u00a0${d.compromisNomFichier}\u00a0\u00bb introuvable dans le dossier NAS \u2014 recherche \u00e9largie.`, 'OK', null);
         }
       }
       if (!trouve) {
         parRepli = true;
-        trouve = (await chercherFichierParNom(handleDossier, 'compromis')) || (await chercherFichierParNom(handleDossier, 'promesse'));
+        trouve = parNom('compromis') || parNom('promesse');
       }
       if (!trouve) {
-        afficherToast('Aucun fichier contenant « compromis » ou « promesse » trouvé dans le dossier local.', 'OK', null);
+        afficherToast('Aucun fichier contenant \u00ab\u00a0compromis\u00a0\u00bb ou \u00ab\u00a0promesse\u00a0\u00bb dans le dossier NAS reli\u00e9.', 'OK', null);
         return;
       }
-      await enregistrerHandle(cle, trouve);
-      // Un repli peut très bien avoir ramené l'avant-contrat d'une vente préalable : le dire,
-      // plutôt que de laisser croire que c'est forcément le document importé à la création.
+      const chemin = cheminNasComplet(d, trouve.chemin);
+      memoriserFichierTrouve(d, NAS_CLE_COMPROMIS, chemin);
+      await sauvegarder(d);
+      // Un repli peut tr\u00e8s bien avoir ramen\u00e9 l'avant-contrat d'une vente pr\u00e9alable : le dire,
+      // plut\u00f4t que de laisser croire que c'est forc\u00e9ment le document import\u00e9 \u00e0 la cr\u00e9ation.
       if (parRepli) {
-        afficherToast(`Ouverture de « ${trouve.name} » — vérifiez qu'il s'agit bien du bon avant-contrat.`, 'OK', null);
+        afficherToast(`Ouverture de \u00ab\u00a0${trouve.nom}\u00a0\u00bb \u2014 v\u00e9rifiez qu'il s'agit bien du bon avant-contrat.`, 'OK', null);
       }
-      ouvrirFichierTrouve(cle);
+      ouvrirFichierNas(chemin);
     } catch (e) {
       console.error(e);
       afficherToast('Recherche du compromis impossible : ' + e.message, 'OK', null);
@@ -8177,12 +8097,6 @@
     const url = `mailto:${encodeURIComponent(d.emailAcquereur)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     afficherToast(`Relance « offre de prêt » ouverte pour ${d.nom} — vérifiez puis envoyez.`, 'OK', null);
     window.location.href = url;
-  }
-
-  // Reconfirmation d'accès déclenchée par un clic (obligatoire : le navigateur refuse
-  // d'accorder une permission de fichiers hors d'une interaction explicite de l'utilisateur).
-  function reconfirmerAcces(id) {
-    verifierDossierLocal(id, true);
   }
 
   // Statut de l'offre de prêt à afficher, dans le même vocabulaire court partout où il apparaît

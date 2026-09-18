@@ -46,7 +46,9 @@ test('config.json déjà présent avec un jeton calendrier : reprend tout sans r
   });
   const resultat = resoudreConfigExecutable('/exe', fs);
 
-  assert.deepEqual(resultat, { motDePasse: 'abc123', port: 4000, calendrierToken: 'jeton-existant', genere: false });
+  // `nasRacine` vide : jamais générée automatiquement, contrairement au mot de passe et au jeton
+  // calendrier — seule l'étude sait où sont ses dossiers clients (voir src/nas.js).
+  assert.deepEqual(resultat, { motDePasse: 'abc123', port: 4000, calendrierToken: 'jeton-existant', nasRacine: '', genere: false });
   assert.deepEqual(fs.ecritures, {}); // aucune écriture quand la config existe déjà au complet
 });
 

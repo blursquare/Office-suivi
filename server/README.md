@@ -192,6 +192,79 @@ clic, mais rien n'est validé tant que personne ne l'a regardé. Le dossier rest
 automatiquement, donc le statut se résout tout seul dès qu'Ollama est de nouveau joignable —
 aucune action n'est nécessaire de la part de l'étude.
 
+## Dossiers clients sur le NAS
+
+L'outil retrouve automatiquement l'offre de prêt et les pièces d'un dossier (urbanisme,
+diagnostics, titre de propriété…) dans le dossier client correspondant sur le NAS de l'étude.
+**C'est le SERVEUR qui lit ces fichiers**, plus le navigateur.
+
+### Pourquoi ce changement
+
+Jusqu'ici, c'est le navigateur qui ouvrait le dossier, via l'API File System Access
+(`showDirectoryPicker`). Cette API n'existe que dans un contexte sécurisé : `localhost` ou HTTPS.
+Les collaborateurs qui rejoignent l'outil par l'adresse IP du poste serveur
+(`http://192.168.x.x:3000`, le cas normal au bureau) ne l'avaient donc tout simplement pas, et ne
+pouvaient ni relier un dossier ni consulter une pièce — alors que les dossiers sont sur un NAS
+commun, visible par tout le monde.
+
+Deux bénéfices au passage :
+
+- **Plus aucune autorisation à reconfirmer.** Chrome redemandait l'accès à chaque redémarrage,
+  dossier par dossier. La popup de démarrage, le bandeau d'alerte et le bouton « Reconfirmer tous
+  les accès » ont disparu avec le problème.
+- **Un dossier relié depuis un poste l'est pour tous** : le lien est enregistré sur le dossier,
+  c'est-à-dire sur le serveur, au lieu d'être un « handle » propre à un navigateur.
+
+### Configuration
+
+Une seule chose à indiquer : le dossier qui CONTIENT les dossiers clients.
+
+- **Mode `.exe`** : ouvrir `config.json` (à côté de `CLAIRE-serveur.exe`) et renseigner
+  `"nasRacine"`, puis redémarrer le serveur. La clé y est déjà présente, vide :
+
+  ```json
+  { "authPassword": "…", "port": 3000, "calendrierToken": "…", "nasRacine": "\\\\serveur\\partage\\DOSSIERS CLIENTS" }
+  ```
+
+  Un chemin réseau s'écrit avec des antislashs DOUBLÉS dans un fichier JSON, comme ci-dessus
+  (`\\\\serveur\\partage`), sinon le fichier devient illisible. Une lettre de lecteur mappée
+  (`"Z:\\DOSSIERS CLIENTS"`) fonctionne aussi, à condition que le compte qui exécute le serveur
+  voie ce lecteur — ce qui n'est pas garanti pour un service Windows (voir la section suivante) :
+  préférer le chemin réseau complet dans ce cas.
+- **Mode développeur** : `NAS_RACINE=/chemin/vers/les/dossiers` dans `.env`.
+
+Sans cette valeur, la fonctionnalité est simplement désactivée et l'interface le dit en toutes
+lettres au moment de relier un dossier — elle n'échoue jamais en silence.
+
+### Comment un dossier est relié
+
+« Relier un dossier du NAS » sur une fiche affiche la liste des dossiers clients, avec une
+**proposition fondée sur le nom** (le dossier CLAIRE « DUPONT / MARTIN » propose
+« 2024-118 DUPONT MARTIN » : numéro de dossier, accents et ponctuation sont ignorés). La liste
+complète reste affichée et le clic est toujours explicite : c'est une proposition, pas une
+décision. Quand deux dossiers correspondent aussi bien l'un que l'autre, rien n'est proposé —
+mieux vaut choisir soi-même que chercher les pièces d'une vente dans celles d'une autre.
+
+« Revérifier tous les dossiers », dans la barre d'outils du Suivi, relance ce parcours pour tous
+les dossiers reliés en une fois.
+
+### Ce que le serveur expose, et ses limites
+
+Trois routes seulement (`server/src/routes/nas.js`), toutes derrière le mot de passe partagé :
+lister les dossiers clients, lister les PDF de l'un d'eux, servir les octets d'un PDF. Le serveur
+n'analyse aucun PDF : c'est le navigateur qui continue de le faire (pdf.js), comme avant.
+
+**Tout est borné à la racine configurée.** Un chemin arrivant d'une requête est vérifié avant
+tout accès disque, liens symboliques résolus (`resoudreCheminNas`), et seuls les fichiers `.pdf`
+sont servis — c'est la partie la plus testée de `server/test/nas.test.js`. Rien d'autre du poste
+serveur n'est accessible par ces routes.
+
+**Non vérifié sur un vrai NAS Windows** dans l'environnement de développement : la chaîne
+complète (liste, rapprochement par nom, lecture, ouverture d'un PDF) a été vérifiée de bout en
+bout avec un vrai serveur et une arborescence reproduisant celle de l'étude, mais sur un système
+de fichiers Linux — le comportement d'un chemin UNC (`\\\\serveur\\partage`) et les droits du
+compte exécutant le serveur restent à confirmer au bureau.
+
 ## Service Windows (démarrage automatique, redémarrage seul en cas de plantage)
 
 Par défaut, `CLAIRE-serveur.exe` reste un simple exécutable : il tourne tant que sa fenêtre de

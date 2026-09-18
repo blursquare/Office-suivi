@@ -1179,22 +1179,6 @@
     .stats-suivi { grid-template-columns: repeat(2, 1fr); }
   }
 
-  .alerte-acces {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap;
-    background: var(--pret-bg);
-    border: 1px solid var(--pret);
-    color: var(--pret);
-    border-radius: 8px;
-    padding: 10px 16px;
-    margin-bottom: 24px;
-    font-size: 13.5px;
-  }
-  .alerte-acces .toolbar-btn { flex-shrink: 0; }
-
   /* ---- new dossier panel ---- */
 
   .panel {
@@ -2464,17 +2448,58 @@
   }
   .lien-dossier-local:hover { color: var(--focus); }
 
-  .reconfirmer-acces {
-    display: inline-block;
-    font-size: 11.5px;
-    color: var(--pret);
-    background: var(--pret-bg);
-    border: 1px solid var(--pret);
-    border-radius: 3px;
-    padding: 2px 8px;
-    margin-left: 8px;
-    cursor: pointer;
+  /* Fenêtre de choix du dossier client sur le NAS (voir ouvrirChoixDossierNas) : la liste peut
+     compter plusieurs dizaines de dossiers, d'où l'encart défilant plutôt qu'une boîte qui
+     s'allongerait hors de l'écran — même principe que l'historique des versions dans « À propos ». */
+  .nas-choix-box { max-width: 520px; }
+
+  .nas-choix-liste {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 320px;
+    overflow-y: auto;
+    margin: 14px 0 4px;
+    padding: 4px;
+    background: var(--paper-sunk);
+    border: 1px solid var(--line-soft);
+    border-radius: 8px;
+    text-align: left;
   }
+
+  .nas-choix-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    font-family: inherit;
+    font-size: 13.5px;
+    color: var(--ink);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 8px 10px;
+    cursor: pointer;
+    text-align: left;
+  }
+  .nas-choix-item:hover { background: var(--paper-card); border-color: var(--line); }
+  /* Le dossier proposé et celui déjà relié se distinguent du reste sans pour autant être
+     présélectionnés : le clic reste toujours explicite. */
+  .nas-choix-item.propose { border-color: var(--focus); }
+  .nas-choix-item.actuel { border-color: var(--success); }
+
+  .nas-choix-nom { overflow-wrap: anywhere; }
+
+  .nas-choix-marque {
+    flex: none;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .nas-choix-item.propose .nas-choix-marque { color: var(--focus); }
+  .nas-choix-item.actuel .nas-choix-marque { color: var(--success); }
 
   .empty-state {
     border: 1px dashed var(--line);

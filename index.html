@@ -435,8 +435,6 @@
 
   <div class="stats-suivi" id="stats-suivi"></div>
 
-  <div id="alerte-acces" class="alerte-acces" style="display:none;"></div>
-
   <div class="list-heading">
     <div class="list-heading-titre">
       <h2>Dossiers suivis</h2>
@@ -502,6 +500,11 @@
       Afficher les dossiers archivés
     </label>
     <span class="toolbar-spacer"></span>
+    <!-- Relance le parcours du NAS pour TOUS les dossiers reliés, en un clic — demandé par
+         l'étude, à la place de l'ancien bouton du registre partagé. Voir
+         reverifierTousLesDossiers(). -->
+    <button type="button" class="toolbar-btn" onclick="reverifierTousLesDossiers(this)"
+            title="Relit le dossier NAS de chaque dossier relié : offre de prêt et pièces">Revérifier tous les dossiers</button>
     <!-- Bascule d'affichage de la MÊME liste (mêmes filtres, même recherche) : le tableau habituel,
          ou les mêmes dossiers regroupés par semaine d'échéance. Voir definirVueSuivi(). -->
     <div class="vue-bascule" role="group" aria-label="Mode d'affichage de la liste">
@@ -819,16 +822,18 @@
   </div>
 </div>
 
-<!-- Popup affichée au démarrage quand l'accès à un dossier local doit être reconfirmé — évite de
-     compter sur le collaborateur pour remarquer le bandeau #alerte-acces, visible seulement dans
-     l'onglet "Suivi des dossiers". Reconfirmer y déclenche une vraie demande de permission
-     navigateur, ce qui exige ce clic explicite (voir reconfirmerTousLesAcces). -->
-<div class="confirm-overlay" id="popup-acces-overlay" style="display:none;">
-  <div class="confirm-box">
-    <p id="popup-acces-message">L'accès à des dossiers reliés doit être reconfirmé.</p>
+<!-- Choix du dossier client sur le NAS, à relier au dossier CLAIRE. Le serveur propose un
+     rapprochement par NOM (voir rapprocherParNom, côté serveur) mais la liste complète reste
+     affichée : c'est une proposition, jamais une décision — se tromper de dossier ferait chercher
+     les pièces d'une vente dans celles d'une autre. Remplace l'ancienne popup « accès à
+     reconfirmer », devenue sans objet depuis que le serveur lit le NAS (plus aucune permission
+     navigateur à redemander). Même patron .confirm-overlay que les autres fenêtres de l'outil. -->
+<div class="confirm-overlay" id="nas-choix-overlay" style="display:none;">
+  <div class="confirm-box nas-choix-box">
+    <p id="nas-choix-intro"></p>
+    <div id="nas-choix-liste" class="nas-choix-liste"></div>
     <div class="confirm-actions">
-      <button type="button" class="btn-annuler" onclick="fermerPopupAcces()">Plus tard</button>
-      <button type="button" class="btn-confirmer" onclick="reconfirmerDepuisPopup()">Reconfirmer maintenant</button>
+      <button type="button" class="btn-annuler" onclick="fermerChoixDossierNas()">Annuler</button>
     </div>
   </div>
 </div>

@@ -55,6 +55,12 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
    "Lier un dossier local" et "Registre partagé (réseau)" (même famille d'API) exigent que le
    dossier de l'app soit ouvert via un lecteur réseau mappé, pas un chemin `\\...` direct — à
    rappeler si l'étude signale à nouveau l'un de ces deux boutons "qui ne fait rien".
+   **Sur la branche `claude/serveur-intranet`, ce point est devenu sans objet** : l'API File System
+   Access y a été entièrement abandonnée au profit d'une lecture du NAS PAR LE SERVEUR (voir la
+   section « Mode serveur intranet », lot 6) — non pas pour contourner les pièges ci-dessus, mais
+   parce que cette API n'existe pas du tout sur une adresse IP, donc pour aucun des postes du
+   bureau sauf celui qui héberge le serveur. Les pièges ci-dessus restent valables pour `main`.
+
 4. **Aucune page web ne peut envoyer un email automatiquement.** Les "relances automatiques"
    ouvrent un brouillon `mailto:` déjà rempli ; l'envoi final reste un clic manuel de
    l'utilisateur. Ne jamais promettre plus que ça sans ajouter un vrai backend (hors scope actuel,
@@ -3658,6 +3664,65 @@ autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` auton
       est écarté avant même sa page de garde), et il disparaîtra largement quand le serveur lira
       le NAS lui-même. Les pièces de la checklist, elles, continuent d'être reconnues par leur seul
       nom de fichier — rien n'a changé de ce côté.
+  - **Lot 6 — le SERVEUR lit le NAS, l'API File System Access est abandonnée** (le plus structurant
+    des six, gardé pour la fin : il réécrit la source des fichiers dont dépendent les lots 4 et 5).
+    - **Cause, tranchée avec l'étude** : `showDirectoryPicker()` n'existe que dans un contexte
+      sécurisé (`localhost` ou HTTPS). Les collaborateurs qui rejoignent l'outil par l'ADRESSE IP du
+      poste serveur — le cas normal au bureau — n'avaient donc tout simplement pas la fonction : ni
+      relier un dossier, ni consulter une pièce, alors que les dossiers clients sont sur un NAS
+      commun visible par tous. Option retenue parmi celles proposées : **le serveur lit le NAS
+      lui-même** et sert la même chose à tout le monde.
+    - **Côté serveur** : `server/src/nas.js` (parcours en largeur et plafonds repris tels quels de
+      la version client — la leçon déjà payée sur le parcours en profondeur est reportée ici, avec
+      son test) et `server/src/routes/nas.js` (trois routes derrière le mot de passe partagé :
+      lister les dossiers clients, lister les PDF de l'un d'eux, servir les octets d'un PDF).
+      **Aucune analyse de PDF côté serveur** : le client garde pdf.js, le serveur ne fait que servir
+      les octets — aucune dépendance PDF ajoutée. `config.nasRacine` suit la résolution à 3 niveaux
+      déjà en place (`NAS_RACINE` → `config.json` → vide), mais n'est **jamais générée
+      automatiquement** contrairement au mot de passe et au jeton calendrier : seule l'étude sait où
+      sont ses dossiers. Absente = fonctionnalité désactivée avec un message explicite (`/nas/etat`),
+      jamais un chemin deviné ni un échec silencieux.
+    - **Confinement à la racine** (`resoudreCheminNas`, la partie la plus testée du lot) : ces
+      routes transforment un paramètre d'URL en chemin de fichier sur le poste serveur. Un `..`
+      qui passe donnerait à quiconque sur le réseau du bureau l'accès à tout le disque. Les liens
+      symboliques sont résolus AVANT la vérification (un raccourci posé dans le NAS suffirait
+      sinon à la contourner), et seuls les `.pdf` sont servis.
+    - **Rapprochement automatique par NOM** (`rapprocherParNom`), méthode choisie par l'étude :
+      « DUPONT / MARTIN » propose « 2024-118 DUPONT MARTIN » (numéro de dossier, accents et
+      ponctuation ignorés ; mots trop courants écartés). **Deux candidats à égalité ne donnent
+      AUCUNE proposition** plutôt qu'un choix arbitraire — se tromper de dossier ferait chercher
+      les pièces d'une vente dans celles d'une autre. Un seul mot en commun sur un nom qui en
+      compte plusieurs ne suffit pas non plus. La liste complète reste affichée et le clic est
+      toujours explicite : c'est une proposition, jamais une décision (`#nas-choix-overlay`, sur le
+      patron `.confirm-overlay` déjà utilisé partout ailleurs).
+    - **Côté client** : `d.nasDossier` (chemin relatif) et `d.fichiersTrouves` (chemin de chaque
+      document reconnu) remplacent les handles IndexedDB. Ces deux champs vivant SUR LE DOSSIER,
+      donc sur le serveur, **un dossier relié depuis un poste l'est pour tous** — l'ancien handle
+      était propre à un navigateur. `fichiersPdfRecursifs`, `enregistrerHandle`/`recupererHandle`,
+      `ouvrirBaseHandles`, `CLE_HANDLE_*` et `DOSSIER_FS_SUPPORTE` sont supprimés.
+    - **Tout le mécanisme de permissions disparaît avec le problème qu'il compensait** : la popup
+      de démarrage, le bandeau `#alerte-acces`, le bouton groupé « Reconfirmer tous les accès »,
+      `d.accesAReconfirmer` et ses effets sur `calculerPriorite`/« Actions urgentes ». Chrome
+      redemandait l'autorisation à chaque redémarrage (limite du navigateur, jamais contournable
+      côté code) ; il n'y a plus rien à reconfirmer.
+    - **« Revérifier tous les dossiers »** (`reverifierTousLesDossiers`) dans la barre d'outils du
+      Suivi, à la place de l'ancien bouton du registre partagé — demandé par l'étude. Les dossiers
+      sont traités l'un après l'autre plutôt qu'en parallèle : chacun peut demander au modèle IA
+      local de confirmer une offre de prêt, et Ollama sérialise de toute façon ses réponses.
+    - **À l'import d'une sauvegarde, `d.nasDossier` est CONSERVÉ** (contrairement à l'ancien
+      `dossierLie`, toujours remis à `false`) : c'est un chemin sur le serveur de l'étude, pas une
+      autorisation propre à un navigateur. Les statuts qui en dérivent (`offrePretStatut`,
+      `pieces`, `fichiersTrouves`, `montantPret`, `garantiesPret`) repartent en revanche de zéro,
+      comme avant.
+    - **Tests** : `server/test/nas.test.js` (19, dont le confinement des chemins et le parcours en
+      largeur, qui reprennent la couverture des 4 tests client de `fichiersPdfRecursifs` supprimés
+      avec la fonction) — suite serveur 77 → 96, suite racine 268 → 264. **Vérifié de bout en bout**
+      avec un vrai serveur et une arborescence NAS reproduisant celle de l'étude (rubriques
+      numérotées, sous-dossiers) : état du NAS lu au démarrage, rapprochement correct proposé,
+      dossier relié, parcours lançant la reconnaissance des pièces par nom, chemins mémorisés, et
+      ouverture d'une pièce dans un onglet via `/api/nas/fichier`. **Non vérifié sur un vrai NAS
+      Windows** : chemin UNC et droits du compte exécutant le serveur restent à confirmer au
+      bureau (voir server/README.md).
 
 **Ce qui n'a volontairement PAS été fait** (arrêté à la demande explicite de l'étude, pas un
 oubli) — à reprendre uniquement si redemandé un jour :
@@ -3760,11 +3825,12 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
 
 - **Arborescence réelle des dossiers de l'étude, par type d'affaire** (reçue sous forme d'un
   modèle de dossier vide "DOSSIER TYPE.rar", sans données client — noms de sous-dossiers
-  génériques uniquement). **Retenu pour plus tard**, pas encore exploité : `fichiersPdfRecursifs()`
-  parcourt déjà tous les sous-dossiers sans distinction de nom (voir l'historique des décisions),
-  donc rien à changer côté détection tant qu'une fonctionnalité n'a pas explicitement besoin de
-  cibler un sous-dossier précis par son nom (ex. une future détection par type de pièce attendue,
-  liée à la checklist ci-dessus).
+  génériques uniquement). **Retenu pour plus tard**, pas encore exploité : le parcours des fichiers
+  (aujourd'hui `listerPdfRecursif` côté serveur sur `claude/serveur-intranet`,
+  `fichiersPdfRecursifs` côté client sur `main`) explore déjà tous les sous-dossiers sans
+  distinction de nom, donc rien à changer côté détection tant qu'une fonctionnalité n'a pas
+  explicitement besoin de cibler un sous-dossier précis par son nom (ex. une future détection par
+  type de pièce attendue, liée à la checklist ci-dessus).
 
   - **MAISON** : `0 - COMPTABILITE - PRET` (avec un sous-dossier `PRET`), `1 - Vendeur`,
     `2 - Acquéreur`, `3 - Titre de propriété`, `4 - Diagnostics`, `5 - Environnement`,
