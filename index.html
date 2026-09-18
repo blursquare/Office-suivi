@@ -875,6 +875,16 @@
          utile puisque plusieurs versions peuvent se succéder dans la même journée. -->
     <p class="section-eyebrow apropos-historique-titre">Historique récent</p>
     <ul class="apropos-historique-liste" id="apropos-historique-liste"></ul>
+    <!-- Qualité de l'extraction (voir renderQualiteExtraction/statistiquesCorrectionsExtraction
+         dans script.js) : exploite le journal des corrections apportées à la main après une
+         extraction automatique — les champs le plus souvent corrigés remontent en tête, jamais
+         transmis ni réutilisé pour réentraîner quoi que ce soit (mesuré sur ce poste uniquement). -->
+    <p class="section-eyebrow apropos-historique-titre">Qualité de l’extraction (<span id="apropos-qualite-compteur">0</span> correction(s))</p>
+    <p class="apropos-desc">Champs le plus souvent corrigés à la main après l’extraction automatique.</p>
+    <div class="qualite-extraction-liste" id="apropos-qualite-liste"></div>
+    <div class="confirm-actions apropos-qualite-actions">
+      <button type="button" class="btn-annuler" onclick="viderJournalCorrections()">Vider ce journal</button>
+    </div>
     <p class="apropos-desc apropos-note">
       Si un correctif signalé récemment ne semble « toujours pas » actif, comparez cette version
       avec celle du dépôt avant de resignaler le même bug : retélécharger

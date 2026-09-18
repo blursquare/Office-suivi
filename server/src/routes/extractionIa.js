@@ -21,6 +21,9 @@ const {
   normaliserLotParties, normaliserLotBien, normaliserLotDates,
   validerLotParties, validerLotBien, validerLotDates
 } = require('../extraction/normaliser');
+const {
+  CHAMPS_CIBLE, construireContexteCible, construirePromptCible, normaliserCible, validerCible
+} = require('../extraction/cible');
 
 // Plafond de sécurité, inchangé : au-delà, aucun modèle de cette taille ne traite l'acte en un
 // temps raisonnable sur le matériel de l'étude.
@@ -80,8 +83,37 @@ function creerRouteurExtractionIa(config) {
       res.status(400).json({ erreur: 'Aucun texte à analyser.' });
       return;
     }
+
+    // Relance ciblée sur un SEUL champ (voir extraction/cible.js) : chemin séparé des trois lots
+    // automatiques, montée dans la même route pour rester le seul point d'entrée côté client
+    // (fetchAvecAuth('/api/extraction-ia', ...)), distingué par `lot: 'cible'` + `champ`.
+    if (lot === 'cible') {
+      const champCible = typeof req.body.champ === 'string' ? req.body.champ : '';
+      if (!CHAMPS_CIBLE[champCible]) {
+        res.status(400).json({ erreur: `Champ inconnu pour une relance ciblée : attendu ${Object.keys(CHAMPS_CIBLE).join(', ')}.` });
+        return;
+      }
+      const statutCible = await ollama.verifierDisponibilite();
+      if (!statutCible.disponible) {
+        res.status(503).json({ erreur: statutCible.raison });
+        return;
+      }
+      const categorie = CHAMPS_CIBLE[champCible].categorie;
+      const contexteCible = construireContexteCible(texte, champCible);
+      try {
+        const brutCible = await ollama.genererJson(
+          construirePromptCible(champCible, contexteCible),
+          (o) => validerCible(o, categorie)
+        );
+        res.json({ lot: 'cible', champ: champCible, resultat: verifierExtraits(normaliserCible(brutCible, categorie), texte) });
+      } catch (err) {
+        res.status(502).json({ erreur: `Échec de l'extraction par le modèle local : ${err.message}` });
+      }
+      return;
+    }
+
     if (!LOTS[lot]) {
-      res.status(400).json({ erreur: `Lot inconnu : attendu ${Object.keys(LOTS).join(', ')}.` });
+      res.status(400).json({ erreur: `Lot inconnu : attendu ${Object.keys(LOTS).join(', ')}, ou cible.` });
       return;
     }
 

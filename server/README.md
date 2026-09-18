@@ -127,6 +127,13 @@ Le même modèle local sert deux fonctionnalités distinctes :
   testée sur de vrais actes) : l'écart est signalé dans le panneau « Ce que l'outil a compris » à
   l'étape « Vérifier », jamais tranché en silence.
 
+  **Un quatrième mode, ciblé** (`lot: 'cible'` + `champ`, voir `src/extraction/cible.js`) : un
+  bouton « Redemander à l'IA » sur une ligne encore floue du panneau de révision relance le modèle
+  sur CETTE SEULE donnée, avec une fenêtre de texte plus large que celle d'un lot normal (un geste
+  explicite de l'étude sur un seul champ justifie ce coût). Même garde-fous que les trois lots
+  automatiques ci-dessus (extrait vérifié, aucun calcul de date côté serveur), et même principe côté
+  client : la réponse devient une proposition avec bouton « Utiliser », jamais une écriture directe.
+
 Le modèle tourne **entièrement en local sur ce serveur** via [Ollama](https://ollama.com) (gratuit,
 open-source) — le texte des documents ne quitte JAMAIS le réseau de l'étude, cohérent avec la
 décision déjà prise de rester sans hébergement externe (voir CLAUDE.md) et avec le secret
@@ -255,6 +262,12 @@ mieux vaut choisir soi-même que chercher les pièces d'une vente dans celles d'
 
 « Revérifier tous les dossiers », dans la barre d'outils du Suivi, relance ce parcours pour tous
 les dossiers reliés en une fois.
+
+**Surveillance périodique** (`src/nasWatch.js`, démarrée par `index.js`) : toutes les 10 minutes, le
+serveur reliste les PDF de chaque dossier actif relié (noms de fichiers seulement, aucune lecture de
+contenu) et compare au dernier inventaire connu. Un fichier apparu depuis le tour précédent déclenche
+un toast au prochain sondage du client — plus besoin d'attendre un clic sur « Revérifier » pour s'en
+apercevoir. Silencieuse comme le reste des fonctionnalités NAS quand `nasRacine` n'est pas configurée.
 
 ### Ce que le serveur expose, et ses limites
 

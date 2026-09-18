@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-18 18:05';
+  const VERSION_APP = '2026-09-18 21:13';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-18 21:13', resume: "Quatre automatisations pour libérer du temps. Dans le panneau « Ce que l'outil a compris », un bouton « Redemander à l'IA » redemande UNE SEULE donnée restée floue au modèle local, avec une fenêtre de texte plus large — sans relancer les trois lectures automatiques. Un nouveau panneau « Qualité de l'extraction » (dans « À propos ») montre enfin quels champs vous corrigez le plus souvent, pour savoir où l'extraction mérite d'être resserrée. Le serveur surveille désormais le NAS toutes les dix minutes : un document qui vient d'arriver dans un dossier relié déclenche un message, au lieu d'attendre le prochain clic sur « Revérifier ». Et trois nouveaux boutons de relance par email — prêt manquant, pièces à fournir, RIB — préparent chacun le bon brouillon, adressé au client, sans avoir à le rédiger à la main à chaque fois." },
     { version: '2026-09-18 18:05', resume: "Deux corrections. Un compromis SCANNÉ est maintenant lu en entier : chaque page sans texte passe par la reconnaissance d'image, et la lecture s'arrête d'elle-même au bloc de signature des parties, sans entamer les annexes. Jusqu'ici la reconnaissance ne servait qu'à retrouver la date de signature sur trois pages, ce qui laissait un scan entièrement illisible : les deux compromis scannés que vous avez envoyés ne donnaient rien, ils donnent désormais parties, adresse, prix et dates. Comptez quelques secondes par page — le message indique la page en cours. Le calendrier connecté, ensuite : il ne se mettait pas à jour, et c'était deux manques dans le flux publié. D'abord le numéro de séquence, qu'un client calendrier exige pour accepter de remplacer un événement qu'il connaît déjà : sans lui Outlook gardait l'ancienne date butoir. Ensuite l'annulation explicite : un événement qui disparaît du flux n'est jamais supprimé par le client, il faut publier son annulation — d'où les dates de vente périmées qui restaient affichées. Les échéances effacées et les dossiers archivés sont désormais publiés comme annulés" },
     { version: '2026-09-18 17:56', resume: "Les notaires sur les sept actes lisibles du banc, contre cinq. Vous aviez raison sur les deux compromis d'agence : le notaire y est unique, Maître GOSSART seule, sans confrère en participation. L'outil en comptait trois — les deux autres étaient des notaires simplement CITÉS dans l'origine de propriété, qui avaient reçu la vente précédente ou dressé un règlement de copropriété en 1969. Un notaire cité n'intervient pas à l'acte : il est désormais retiré de la liste, et pas seulement privé de rôle, ce qui laisse enfin s'appliquer la règle du notaire unique — il représente les deux parties, et les deux champs portent son nom. Un repère générique reconnaît ces mentions : un notaire présenté avec une date est celui d'un acte antérieur, un notaire qui intervient ne l'est jamais. Et le dédoublonnage passe maintenant APRÈS ce filtre : le même notaire figure souvent d'abord dans l'origine de propriété puis, plus loin, comme rédacteur du présent acte — retenir la première mention le faisait disparaître entièrement" },
     { version: '2026-09-18 17:52', resume: "Les notaires : qui représente le vendeur, qui représente l'acquéreur, et lequel des deux rédige la vente. Cinq actes du banc d'essai sur sept le donnent maintenant, contre aucun. La règle d'attribution de la minute vient du Règlement Professionnel du Notariat que vous m'avez transmis (art. 30.4.2 : la minute revient au notaire du vendeur, sauf si seul celui de l'acquéreur exerce dans le département du bien) et du règlement de la Chambre du Val de Loire (art. 15 : entre deux notaires du ressort de la Cour d'appel d'Orléans — 41, 45, 37 — c'est toujours le notaire du vendeur). Elle remplace la règle approximative que j'avais encodée, qui portait à tort sur le département du bien. Côté lecture, quatre défauts empêchaient tout : le motif du notaire ne pouvait pas franchir la virgule d'un numéro CRPCEN, si bien que le premier nommé du préambule — celui qui détient la minute — disparaissait ; le CRPCEN, dont les deux premiers chiffres donnent le département, n'était pas lu ; l'article défini manquait à « assistant LE PROMETTANT », forme pourtant standard ; et la phrase qui introduit le second notaire faisait passer le premier pour le participant. Enfin, un notaire seul représente les deux parties, et les deux champs portent désormais son nom" },
@@ -2641,6 +2642,34 @@
     return entrees;
   }
 
+  // Libellés lisibles pour le panneau « Qualité de l'extraction » (voir renderQualiteExtraction),
+  // mêmes clés que celles produites par diffCorrectionsExtraction() ci-dessus.
+  var LIBELLES_CHAMPS_CORRECTION = {
+    nom: 'Nom du dossier', adresseBien: 'Adresse du bien', prixVente: 'Prix de vente',
+    emailAcquereur: 'Email de l’acquéreur', roleNotaire: 'Rôle de l’étude',
+    pret: 'Obtention du prêt', acte: 'Réitération de l’acte', ventebien: 'Vente préalable'
+  };
+
+  // Agrège le journal des corrections par champ, du plus corrigé au moins corrigé — c'est ce qui
+  // manquait pour EXPLOITER journalCorrectionsExtraction (voir sa déclaration plus bas) : jusqu'ici
+  // il grossissait silencieusement depuis le premier dossier créé, sans que l'étude ait aucun moyen
+  // de savoir quels champs l'extraction rate le plus souvent, sinon en resignalant chaque cas au
+  // fil de l'eau. Fonction PURE et testable : ne fait qu'agréger un tableau, aucun effet de bord.
+  function statistiquesCorrectionsExtraction(journal) {
+    const liste = Array.isArray(journal) ? journal : [];
+    const parChamp = {};
+    for (const entree of liste) {
+      if (!entree || typeof entree.champ !== 'string') continue;
+      const groupe = parChamp[entree.champ] || (parChamp[entree.champ] = { champ: entree.champ, nombre: 0, dernier: null });
+      groupe.nombre++;
+      // Le journal est alimenté dans l'ordre chronologique (push en fin de tableau, voir
+      // journaliserCorrectionsExtraction) : la dernière entrée rencontrée pour ce champ est donc la
+      // plus récente, pas besoin de comparer des dates pour le savoir.
+      groupe.dernier = entree;
+    }
+    return Object.values(parChamp).sort((a, b) => b.nombre - a.nombre);
+  }
+
   // Assainissement à l'import d'une sauvegarde JSON : on conserve ces objets s'ils ont la bonne
   // forme, sinon on repart de rien plutôt que de propager une structure inattendue dans le rendu.
   function normaliserExtractionImportee(d) {
@@ -4042,6 +4071,15 @@
           <button type="button" class="action-rapide" onclick="accepterPropositionIa('${cle}')">Utiliser</button>
           ${champ.propositionIa.extraitTrouve ? '' : '<span class="revision-raison">Le modèle cite une phrase qui ne figure pas dans le document : à traiter avec prudence.</span>'}
         </div>` : '';
+    // Relance ciblée à l'IA locale (voir redemanderChampIa) : proposée tant que la donnée n'a pas
+    // été relue, sur les seuls champs qui correspondent à une vraie lecture du texte (voir
+    // CLES_CIBLE_IA) — inutile de la proposer sur une valeur déjà saisie à la main ou déjà cochée.
+    const vide = !champ || champ.valeur === null || champ.valeur === undefined || champ.valeur === '';
+    const cibleEligible = CLES_CIBLE_IA.has(cle) && dernierTexteTraite && !verifie
+      && (vide || (champ && champ.statut === 'NEEDS_REVIEW'));
+    const boutonCible = cibleEligible
+      ? `<button type="button" class="action-rapide" id="revision-cible-${cle}" onclick="redemanderChampIa('${cle}')" title="Redemander cette seule donnée au modèle local, avec une fenêtre de texte plus large">${icone('rotate-ccw')} Redemander à l’IA</button>`
+      : '';
     return `<div class="revision-ligne${verifie ? ' revision-verifiee' : ''}">
       <div class="revision-tete">
         <span class="revision-libelle">${escapeHtml(definition.libelle)}</span>
@@ -4052,7 +4090,7 @@
         </label>
       </div>
       ${champSaisieRevision(definition, champ)}
-      ${methode}${raison}${autres}${proposition}${extrait}
+      ${methode}${raison}${autres}${proposition}${extrait}${boutonCible}
     </div>`;
   }
 
@@ -5417,6 +5455,103 @@
     afficherToast(`IA locale : ${morceaux.join(', ')} — voir « Ce que l’outil a compris », tout reste à vérifier.`, 'OK', null);
   }
 
+  // ==== EXTRACTION STRUCTURÉE : relance ciblée à l'IA locale sur UN SEUL champ ====
+  //
+  // Demandé par l'étude pour automatiser un geste répétitif : jusqu'ici, un champ resté « à
+  // vérifier » après les trois lots automatiques ne pouvait être redemandé qu'en relançant les
+  // TROIS lots (parties/bien/dates) d'un coup — coûteux sur un CPU de bureau pour une seule donnée
+  // qui pose question. `redemanderChampIa()` appelle la même route serveur avec `lot: 'cible'`,
+  // qui envoie une fenêtre de texte plus large que celle d'un lot normal (voir
+  // server/src/extraction/cible.js) — un geste explicite de l'étude sur un seul champ justifie ce
+  // coût supplémentaire, que l'automatique des trois lots en parallèle ne pouvait pas se permettre.
+  //
+  // Champs éligibles à cette relance : ceux qui correspondent à une vraie lecture du texte. Le rôle
+  // de l'étude (roleNotaire) en est exclu — il est DÉDUIT d'une règle métier sur les notaires
+  // (voir determinerNotaires), ce n'est pas une donnée que le modèle pourrait lire directement.
+  var CLES_CIBLE_IA = new Set(['typeActe', 'nom', 'signature', 'pret', 'acte', 'ventebien', 'adresseBien', 'prixVente', 'emailAcquereur']);
+
+  // Comme fusionnerExtractionIa() : la réponse du modèle ne devient jamais elle-même une valeur du
+  // formulaire, seulement une PROPOSITION affichée avec un bouton « Utiliser » (accepterPropositionIa,
+  // déjà en place). Pure vis-à-vis de l'état global : ne modifie que l'objet `extraction` reçu en
+  // paramètre, donc testable sans dépendre de `dossiers`/du DOM (voir tests/cible-ia.test.js).
+  function fusionnerCibleIa(extraction, cle, resultat, texte) {
+    if (!extraction || !resultat) return extraction;
+    const sourceIa = () => (resultat.extrait)
+      ? { extrait: resultat.extrait, index: resultat.extraitIndex === undefined ? null : resultat.extraitIndex, page: resultat.extraitTrouve ? pageDepuisIndex(resultat.extraitIndex) : null }
+      : null;
+    const proposer = (valeur) => ({ valeur, source: sourceIa(), extraitTrouve: !!resultat.extraitTrouve });
+    const raisonCible = 'Relecture ciblée demandée sur ce seul champ, avec une fenêtre de texte plus large.';
+
+    const proposerSur = (objetCible, valeur) => {
+      if (!objetCible || valeur === null || valeur === undefined || valeur === '') return;
+      if (objetCible.origine === 'manuel') return; // déjà tranché à la main : le modèle ne le rouvre pas
+      objetCible.propositionIa = proposer(valeur);
+      objetCible.raison = raisonCible;
+    };
+
+    if (cle === 'typeActe') {
+      extraction.typeActe = extraction.typeActe || champExtraction(null);
+      proposerSur(extraction.typeActe, resultat.valeur);
+    } else if (cle === 'nom' || cle === 'prixVente' || cle === 'emailAcquereur') {
+      extraction.champs = extraction.champs || {};
+      extraction.champs[cle] = extraction.champs[cle] || champExtraction(null);
+      proposerSur(extraction.champs[cle], resultat.valeur);
+    } else if (cle === 'adresseBien') {
+      extraction.bien = extraction.bien || {};
+      extraction.bien.adresse = extraction.bien.adresse || champExtraction(null);
+      if (extraction.bien.adresse.origine !== 'manuel' && resultat.valeur) {
+        extraction.bien.propositionIa = proposer(resultat.valeur);
+      }
+    } else {
+      // 'signature' n'a pas d'entrée dans CHAMP_PAR_TYPE_DATE (elle mappe une échéance BUTOIR/
+      // REITERATION vers son champ court, pas la date de signature elle-même) — traitée à part.
+      const cleDate = cle === 'signature'
+        ? 'SIGNATURE_AVANT_CONTRAT'
+        : Object.keys(CHAMP_PAR_TYPE_DATE).find(t => CHAMP_PAR_TYPE_DATE[t] === cle);
+      if (!cleDate) return extraction;
+      extraction.dates = extraction.dates || {};
+      extraction.dates[cleDate] = extraction.dates[cleDate] || champExtraction(null);
+      let valeur = resultat.dateExplicite || null;
+      if (!valeur && resultat.delai) {
+        const ptDepart = pointDepartDepuisAncre(resultat.delai.pointDepart || '');
+        const signatureVal = extraction.dates.SIGNATURE_AVANT_CONTRAT && extraction.dates.SIGNATURE_AVANT_CONTRAT.valeur;
+        if (pointDepartCalculable(ptDepart) && signatureVal) valeur = calculerDateEcheance(signatureVal, resultat.delai);
+      }
+      proposerSur(extraction.dates[cleDate], valeur);
+    }
+    extraction.alertes = controlerCoherence(extraction);
+    return extraction;
+  }
+
+  async function redemanderChampIa(cle) {
+    if (!dernierTexteTraite || !extractionActuelle) return;
+    const btn = document.getElementById('revision-cible-' + cle);
+    if (btn) { btn.disabled = true; btn.innerHTML = icone('spinner', null, true); }
+    try {
+      const reponse = await fetchAvecAuth('/api/extraction-ia', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ texte: dernierTexteTraite, lot: 'cible', champ: cle })
+      });
+      if (!reponse.ok) {
+        const corps = await reponse.json().catch(() => ({}));
+        afficherToast(corps.erreur || "L'IA locale n'a pas pu répondre pour ce champ.", 'OK', null);
+        return;
+      }
+      const corps = await reponse.json();
+      fusionnerCibleIa(extractionActuelle, cle, corps.resultat, dernierTexteTraite);
+      appliquerExtractionAuFormulaire(extractionActuelle);
+      renderPanneauRevision(extractionActuelle);
+    } catch (e) {
+      afficherToast('IA locale injoignable : ' + e.message, 'OK', null);
+    } finally {
+      // renderPanneauRevision() reconstruit tout le panneau en cas de succès (le bouton d'origine
+      // n'existe donc plus) ; en cas d'échec, il faut le réactiver soi-même.
+      const btnEncore = document.getElementById('revision-cible-' + cle);
+      if (btnEncore && btnEncore.disabled) { btnEncore.disabled = false; btnEncore.innerHTML = `${icone('rotate-ccw')} Redemander à l’IA`; }
+    }
+  }
+
   // ---- gestion des échéances "Autre" ----
 
   function ajouterAutre(iso) {
@@ -6738,6 +6873,7 @@
         `<li><span class="apropos-historique-date">${escapeHtml(h.version)}</span> — ${escapeHtml(h.resume)}</li>`
       ).join('');
     }
+    renderQualiteExtraction();
     const overlay = document.getElementById('apropos-overlay');
     if (overlay) overlay.style.display = 'flex';
   }
@@ -7658,6 +7794,7 @@
         ` : ''}
         ${renderAjoutEngagement(d)}
         ${renderExtractionDossier(d)}
+        ${renderRelancesCiblees(d)}
         <!-- Libellés volontairement courts (l'intitulé complet reste en infobulle) : l'étude veut
              ces trois actions sur une seule ligne, ce que "Télécharger les rappels (.ics)" et ses
              voisins ne permettaient pas dans la largeur du tiroir. -->
@@ -8067,6 +8204,98 @@
     );
   }
 
+  // ==== Relances ciblées, différenciées par motif ====
+  //
+  // ouvrirEmailRappel() ci-dessus reste le rappel générique "toutes les échéances", adressé à
+  // l'ÉTUDE elle-même (d.email, un pense-bête interne). Ces trois modèles-ci sont adressés au
+  // CLIENT (d.emailAcquereur, comme relancerSiOffreManquante() déjà en place) : chacun cible un
+  // motif de relance précis, pour ne plus avoir à réécrire le même email à la main selon ce qui
+  // manque réellement au dossier.
+  function construireEmailRelancePret(d) {
+    const echeance = d.pret ? ` L'échéance d'obtention du prêt est fixée au ${formatDateFr(d.pret)}.` : '';
+    return {
+      sujet: `Relance — Offre de prêt attendue (dossier ${d.nom})`,
+      corps: `Bonjour,\n\nSauf erreur de notre part, nous n'avons pas encore reçu votre offre de prêt pour le dossier ${d.nom}.${echeance}\n\nMerci de nous transmettre cette offre dès réception, ou de nous indiquer où en est votre demande de financement.\n\nCordialement.`
+    };
+  }
+
+  function construireEmailRelancePieces(d) {
+    const checklist = checklistPieces(d.typeVente, d);
+    const manquantes = checklist.filter(p => (d.pieces || {})[p.cle] !== 'recue').map(p => p.label);
+    const liste = manquantes.length > 0
+      ? manquantes.map(l => `- ${l}`).join('\n')
+      : '- (voir avec l\'étude le détail des pièces encore attendues)';
+    return {
+      sujet: `Relance — Pièces à nous transmettre (dossier ${d.nom})`,
+      corps: `Bonjour,\n\nPour poursuivre l'instruction de votre dossier ${d.nom}, il nous manque encore la ou les pièces suivantes :\n\n${liste}\n\nMerci de nous les transmettre dès que possible.\n\nCordialement.`
+    };
+  }
+
+  function construireEmailRelanceRib(d) {
+    return {
+      sujet: `Relevé d'identité bancaire — dossier ${d.nom}`,
+      corps: `Bonjour,\n\nAfin de préparer l'appel de fonds de votre dossier ${d.nom}, merci de nous transmettre un relevé d'identité bancaire (RIB) à votre nom.\n\nCordialement.`
+    };
+  }
+
+  // Une entrée par motif de relance : le libellé du bouton, le modèle d'email, et la condition qui
+  // le rend pertinent pour CE dossier (pas de relance "prêt" sur un achat comptant, pas de relance
+  // "pièces" si tout est déjà reçu) — évaluée à l'affichage par renderRelancesCiblees().
+  var MODELES_EMAIL_RELANCE = {
+    pret: { cle: 'pret', libelle: 'Prêt manquant', construire: construireEmailRelancePret, historique: 'Relance manuelle envoyée — offre de prêt' },
+    pieces: { cle: 'pieces', libelle: 'Pièce(s) à fournir', construire: construireEmailRelancePieces, historique: 'Relance manuelle envoyée — pièces manquantes' },
+    rib: { cle: 'rib', libelle: 'RIB', construire: construireEmailRelanceRib, historique: 'Relance manuelle envoyée — RIB' }
+  };
+
+  function envoyerRelanceCiblee(id, type) {
+    const d = dossiers.find(x => x.id === id);
+    const modele = MODELES_EMAIL_RELANCE[type];
+    if (!d || !modele) return;
+    if (!d.emailAcquereur) {
+      afficherToast("Aucun email d'acquéreur renseigné pour ce dossier — impossible de préparer cette relance.", 'OK', null);
+      return;
+    }
+    const { sujet, corps } = modele.construire(d);
+    ajouterHistorique(d, modele.historique);
+    sauvegarder(d);
+    const url = `mailto:${encodeURIComponent(d.emailAcquereur)}?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(corps)}`;
+    window.location.href = url;
+    afficherInfoAction(
+      "Brouillon d'email ouvert",
+      "L'envoi final reste un clic manuel dans votre messagerie : rien n'est envoyé automatiquement."
+    );
+  }
+
+  // Affichée sur la fiche dossier (voir renderCarteDossier), juste avant les trois actions
+  // génériques (.ics/rappel/impression) : un bouton par motif de relance pertinent pour CE dossier.
+  // Absente pour un notaire participant (même garde-fou que relancerSiOffreManquante/
+  // verifierDossierLocal — relancer le client reste un geste de l'instrumentaire). Sans email
+  // d'acquéreur renseigné, un message l'indique plutôt que des boutons qui échoueraient au clic.
+  function renderRelancesCiblees(d) {
+    if (d.roleNotaire === 'participant') return '';
+    if (!d.emailAcquereur) {
+      return `<div class="relances-ciblees">
+        <span class="section-eyebrow">Relancer par email</span>
+        <p class="hint">Renseignez l’email de l’acquéreur pour activer les relances ciblées (prêt, pièces, RIB).</p>
+      </div>`;
+    }
+    const boutons = [];
+    if (!d.sansPret && d.offrePretStatut !== 'recue') {
+      boutons.push(MODELES_EMAIL_RELANCE.pret);
+    }
+    const checklist = checklistPieces(d.typeVente, d);
+    if (checklist.some(p => (d.pieces || {})[p.cle] !== 'recue')) {
+      boutons.push(MODELES_EMAIL_RELANCE.pieces);
+    }
+    boutons.push(MODELES_EMAIL_RELANCE.rib);
+    return `<div class="relances-ciblees">
+      <span class="section-eyebrow">Relancer par email</span>
+      <div class="relances-boutons">
+        ${boutons.map(m => `<button type="button" class="action-rapide" onclick="envoyerRelanceCiblee('${d.id}', '${m.cle}')">${escapeHtml(m.libelle)}</button>`).join('')}
+      </div>
+    </div>`;
+  }
+
   // ---- persistence (serveur intranet) ----
   //
   // Remplace l'ancien mécanisme localStorage + registre partagé JSON (voir l'historique dans
@@ -8270,6 +8499,20 @@
         continue;
       }
       const { updatedAt, ...d } = item;
+      // Notification proactive : un nouveau PDF vient d'être détecté par la surveillance périodique
+      // du NAS (voir server/src/nasWatch.js). Le fichier était déjà repris silencieusement dans la
+      // checklist au prochain "Revérifier" automatique (toutes les 5 minutes pour un dossier non
+      // complet) — le vrai manque, c'est qu'on ne pouvait pas s'en rendre compte sans le remarquer
+      // soi-même. Comparaison sur l'horodatage : seul un `nasNouveaute` VRAIMENT NOUVEAU (absent
+      // avant, ou différent de celui déjà connu) déclenche un toast — jamais au chargement initial
+      // (charger() ne passe pas par cette fonction), qui resignalerait tous les anciens en rafale.
+      if (index !== -1 && d.nasNouveaute && (!dossiers[index].nasNouveaute || dossiers[index].nasNouveaute.at !== d.nasNouveaute.at)) {
+        const nb = (d.nasNouveaute.fichiers || []).length;
+        afficherToast(
+          `${nb > 1 ? nb + ' nouveaux documents détectés' : 'Nouveau document détecté'} dans le dossier « ${d.nom} » — pensez à revérifier.`,
+          'OK', null
+        );
+      }
       if (index !== -1) dossiers[index] = d; else dossiers.push(d);
     }
   }
@@ -8516,6 +8759,52 @@
       journalCorrectionsExtraction = journalCorrectionsExtraction.slice(-MAX_CORRECTIONS_EXTRACTION);
     }
     sauvegarderJournalCorrections();
+    // Le panneau « Qualité de l'extraction » de l'écran À propos n'est peuplé qu'à l'ouverture de
+    // cet écran (voir ouvrirAPropos) : rien à rafraîchir ici en direct, juste garder le journal à
+    // jour pour la prochaine ouverture.
+  }
+
+  // Panneau « Qualité de l'extraction » (écran "À propos", voir ouvrirAPropos) : exploite enfin ce
+  // journal, qui grossissait jusqu'ici sans que personne ne puisse voir quels champs l'extraction
+  // rate le plus souvent — l'étude n'avait d'autre moyen de le savoir que de resignaler chaque cas
+  // au fil de l'eau. Toujours mesuré sur CE POSTE uniquement (le journal est en localStorage, comme
+  // le reste de l'apprentissage) : jamais transmis, jamais réutilisé pour réentraîner quoi que ce
+  // soit (décision explicite, voir l'historique de diffCorrectionsExtraction).
+  function renderQualiteExtraction() {
+    const conteneur = document.getElementById('apropos-qualite-liste');
+    const compteur = document.getElementById('apropos-qualite-compteur');
+    if (!conteneur) return;
+    if (compteur) compteur.textContent = String(journalCorrectionsExtraction.length);
+    const stats = statistiquesCorrectionsExtraction(journalCorrectionsExtraction);
+    if (stats.length === 0) {
+      conteneur.innerHTML = '<p class="hint">Aucune correction enregistrée pour l’instant.</p>';
+      return;
+    }
+    conteneur.innerHTML = stats.map(s => {
+      const libelle = LIBELLES_CHAMPS_CORRECTION[s.champ] || s.champ;
+      const d = s.dernier;
+      const avant = d && d.valeurExtraite !== null && d.valeurExtraite !== undefined ? String(d.valeurExtraite) : '—';
+      const apres = d && d.valeurCorrigee !== null && d.valeurCorrigee !== undefined ? String(d.valeurCorrigee) : '—';
+      return `<div class="qualite-ligne">
+        <span class="qualite-champ">${escapeHtml(libelle)}</span>
+        <span class="qualite-nombre">${s.nombre}</span>
+        <span class="qualite-exemple">« ${escapeHtml(avant)} » → « ${escapeHtml(apres)} »</span>
+      </div>`;
+    }).join('');
+  }
+
+  function viderJournalCorrections() {
+    const nb = journalCorrectionsExtraction.length;
+    if (nb === 0) return;
+    demanderConfirmation(
+      `Vider le journal des corrections (${nb} entrée${nb > 1 ? 's' : ''}) ? Cette mesure repart de zéro, sans effet sur les dossiers déjà enregistrés.`,
+      () => {
+        journalCorrectionsExtraction = [];
+        sauvegarderJournalCorrections();
+        renderQualiteExtraction();
+        afficherToast('Journal des corrections vidé.', 'OK', null);
+      }
+    );
   }
 
   async function sauvegarderExclusionsMotifNom() {
@@ -8677,6 +8966,10 @@
       // importées telles quelles — à retrouver par une vérification sur ce poste.
       garantiesPret: [],
       pieces: {},
+      // nasInventaire/nasNouveaute (surveillance périodique du NAS, voir server/src/nasWatch.js)
+      // sont volontairement ABSENTS d'ici, comme fichiersTrouves/pieces ci-dessus : un simple
+      // listing de noms propre à l'arborescence de CE serveur, sans intérêt — et potentiellement
+      // trompeur — une fois importé sur une autre installation.
       derniereRelanceAuto: null
     };
     ajouterHistorique(normalise, `Importé depuis « ${nomFichier} »`);
@@ -9848,6 +10141,12 @@
       // indisponible — statut distinct demandé par l'étude, à trancher à la main), ou introuvable.
       d.offrePretStatut = offreTrouvee ? (offreAConfirmer ? 'aconfirmer' : 'recue') : 'manquante';
     }
+
+    // Ce parcours vient justement de relire le dossier NAS : la notification proactive d'un
+    // nouveau document (voir appliquerChangementsDistants/nasWatch.js) a déjà rempli son rôle une
+    // fois qu'elle a mené jusqu'ici, qu'elle vienne d'un clic explicite sur "Revérifier" ou de la
+    // revérification automatique périodique — rien à laisser affiché après coup.
+    if (d.nasNouveaute) d.nasNouveaute = null;
 
     await sauvegarder(d);
     render();

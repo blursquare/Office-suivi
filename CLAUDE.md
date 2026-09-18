@@ -4443,6 +4443,64 @@ autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` auton
   l'étude : une valeur pré-remplie se prend pour un résultat. Le prorata affichait déjà un message
   tant qu'il manque une donnée ; le simulateur de provision, lui, retombait sur un prix de 1 € et
   affichait une provision d'allure crédible — il affiche maintenant « — » et invite à saisir un prix.
+- **Quatre automatisations demandées après un bilan de session** (évaluation des dernières
+  améliorations, puis « des ajouts pour automatiser des tâches et libérer du temps ») :
+  - **Relance ciblée à l'IA locale sur un seul champ** : jusqu'ici, un champ resté « à vérifier »
+    après les trois lectures automatiques (parties/bien/dates) ne pouvait être redemandé qu'en
+    relançant les TROIS d'un coup — coûteux sur un CPU de bureau pour une seule donnée qui pose
+    question. Un bouton « Redemander à l'IA » apparaît sur chaque ligne éligible du panneau « Ce que
+    l'outil a compris » (`renderLigneRevision`) quand elle n'est pas encore vérifiée et reste vide
+    ou en désaccord (`CLES_CIBLE_IA` — le rôle de l'étude en est exclu, il est déduit d'une règle
+    métier, pas lu dans le texte). `redemanderChampIa()` appelle `POST /api/extraction-ia` avec
+    `lot: 'cible'` + le nom du champ ; côté serveur, `server/src/extraction/cible.js` construit un
+    prompt et une fenêtre de texte volontairement PLUS LARGE que celle d'un lot normal (un geste
+    explicite sur un seul champ justifie ce coût, que les trois lots en parallèle ne pouvaient pas
+    se permettre) et vérifie l'extrait cité comme les lots existants. `fusionnerCibleIa()` reprend
+    la même règle que `fusionnerExtractionIa()` : la réponse devient une PROPOSITION avec bouton
+    « Utiliser », jamais une écriture directe — une donnée déjà corrigée à la main n'est jamais
+    rouverte. Tests : `tests/cible-ia.test.js` (8) et `server/test/extraction-cible.test.js` (12).
+  - **Panneau « Qualité de l'extraction »**, dans l'écran « À propos » : agrège enfin
+    `journalCorrectionsExtraction` (voir `diffCorrectionsExtraction`, plus haut), qui grossissait
+    depuis le premier dossier créé sans que personne ne puisse voir quels champs l'extraction rate
+    le plus souvent. `statistiquesCorrectionsExtraction()` (fonction pure, testable) groupe le
+    journal par champ, du plus corrigé au moins corrigé, avec le dernier exemple observé ; un bouton
+    « Vider ce journal » remet ce compteur à zéro (sans effet sur les dossiers déjà enregistrés).
+    Toujours mesuré sur CE POSTE uniquement (localStorage), jamais transmis ni réutilisé pour
+    réentraîner quoi que ce soit — même principe déjà appliqué à `correctionsApprises`. Tests :
+    `tests/journal-corrections.test.js` (4).
+  - **Surveillance périodique du NAS** (`server/src/nasWatch.js`) : un document qui vient d'arriver
+    dans un dossier local relié ne se signalait jusqu'ici que silencieusement, au prochain
+    "Revérifier" (automatique toutes les 5 minutes côté client pour un dossier non complet, ou
+    manuel). Un tour serveur, toutes les 10 minutes (`demarrerSurveillanceNas()`, démarré dans
+    `index.js` — jamais dans `app.js`, pour ne pas déclencher ce minuteur dans les tests qui montent
+    l'app directement), reliste les PDF de chaque dossier actif relié (même parcours en largeur que
+    `listerPdfRecursif`, aucune lecture de contenu) et compare à un inventaire mémorisé sur le
+    dossier (`d.nasInventaire`, additif). Un fichier apparu pose `d.nasNouveaute = {at, fichiers}` ;
+    `appliquerChangementsDistants()` (script.js), qui reçoit ce changement au sondage suivant,
+    déclenche alors un toast — jamais au chargement initial de la page (`charger()` ne passe pas par
+    cette fonction), qui aurait resignalé en rafale tout ce qui traînait déjà. Le drapeau s'efface
+    de lui-même dès que `verifierDossierLocal()` retourne sur ce dossier (clic explicite ou
+    revérification automatique), qui vient justement de le prendre en compte. `nasInventaire`/
+    `nasNouveaute` sont exclus de `normaliserDossierImporte()`, comme les autres champs dérivés d'un
+    scan du NAS. Tests : `server/test/nas-watch.test.js` (10, dont un vrai tour contre une
+    arborescence temporaire) + un test d'import dans `tests/dossier-local.test.js`.
+  - **Modèles d'email différenciés par motif de relance** : jusqu'ici, seul `ouvrirEmailRappel()`
+    existait (un rappel générique de toutes les échéances, adressé à l'ÉTUDE elle-même via `d.email`
+    — un pense-bête interne, pas une relance au client). Trois nouveaux modèles, adressés au CLIENT
+    (`d.emailAcquereur`, comme `relancerSiOffreManquante()` déjà en place) : prêt manquant, pièce(s)
+    à fournir (liste les pièces de la checklist encore non reçues), RIB (demande générique pour
+    l'appel de fonds). `renderRelancesCiblees(d)` affiche un bouton par motif PERTINENT pour ce
+    dossier (pas de bouton « Prêt manquant » sur un achat comptant ou une offre déjà reçue, pas de
+    bouton « Pièces » si tout est déjà reçu, RIB toujours proposé) juste avant les trois actions
+    génériques de la fiche — absent pour un notaire participant (même garde-fou que
+    `relancerSiOffreManquante`), remplacé par un message d'invite si l'email de l'acquéreur n'est
+    pas renseigné. Chaque envoi est journalisé dans l'historique du dossier. Tests :
+    `tests/relances-email.test.js` (6).
+  - Vérifié : `node -c script.js`, `npm test` aux deux endroits (379 tests racine, 120 côté serveur,
+    tous verts) et plusieurs scripts de bac à sable (rendu de `renderRelancesCiblees()` sur les cas
+    limites — sans email, rôle participant, prêt/pièces déjà complets — et des fonctions du panneau
+    de révision qui touchent le DOM, `renderQualiteExtraction()`/`viderJournalCorrections()`/
+    `redemanderChampIa()` en chemin de repli sans import en cours).
 
 **Ce qui n'a volontairement PAS été fait** (arrêté à la demande explicite de l'étude, pas un
 oubli) — à reprendre uniquement si redemandé un jour :
@@ -4451,8 +4509,9 @@ oubli) — à reprendre uniquement si redemandé un jour :
   `POST /api/import` portant la validation de `normaliserDossierImporte()` côté serveur) reste
   praticable si demandée.
 - **Relances email automatiques** (un vrai envoi SMTP programmé, remplaçant le `mailto:` manuel
-  actuel — `ouvrirEmailRappel()`/`relancerSiOffreManquante()`, tous deux inchangés et toujours en
-  place) — sans accès Microsoft Graph, cette fonctionnalité resterait de toute façon fondée sur un
+  actuel — `ouvrirEmailRappel()`/`relancerSiOffreManquante()`/`envoyerRelanceCiblee()`, tous
+  inchangés sur ce point et toujours de simples brouillons ouverts dans la messagerie de l'étude) —
+  sans accès Microsoft Graph, cette fonctionnalité resterait de toute façon fondée sur un
   simple envoi SMTP direct (`nodemailer`, déjà présent dans `server/package.json` mais jamais
   câblé), pas un vrai flux applicatif Outlook — jamais mise en œuvre en pratique, non redemandée
   depuis.

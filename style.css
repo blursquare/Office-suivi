@@ -2732,6 +2732,13 @@
      parcours » quand aucune analyse juridique n'est affichée entre les deux). */
   .ajout-engagement-btn { margin: 14px 0 0; }
 
+  /* Relances ciblées par email (voir renderRelancesCiblees) : un bouton par motif pertinent pour
+     CE dossier (prêt manquant, pièces à fournir, RIB), juste avant les trois actions génériques
+     (.dossier-actions) — même famille visuelle (.action-rapide) que "Revérifier"/"Utiliser". */
+  .relances-ciblees { margin: 14px 0 0; }
+  .relances-boutons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .relances-boutons .action-rapide { margin-left: 0; }
+
   .echeance-jours { font-size: 12px; margin-left: 6px; font-variant-numeric: tabular-nums; }
   .echeance-jours.urgent { color: var(--urgent); font-weight: 600; }
   .echeance-jours.calme { color: var(--ink-soft); }
@@ -3419,7 +3426,7 @@
   /* ---- impression : une feuille A4 propre par dossier ---- */
   @media print {
     body { background: #fff; color: #000; font-size: 11pt; }
-    .panel, .pdf-viewer, .list-toolbar, .dossier-actions, .theme-btn,
+    .panel, .pdf-viewer, .list-toolbar, .dossier-actions, .relances-ciblees, .theme-btn,
     .confirm-overlay, .toast, footer.note, .historique-toggle, .dashboard,
     .sidebar, .sidebar-burger, .sidebar-scrim, .dash-header, .kpis-dashboard, .actions-urgentes,
     .dash-section-titre { display: none !important; }
@@ -3723,6 +3730,45 @@
     color: var(--ink);
     font-weight: 600;
   }
+
+  /* Panneau "Qualité de l'extraction" (voir renderQualiteExtraction dans script.js) : même gabarit
+     que .apropos-historique-liste juste au-dessus (fond enfoncé, défilement borné), une ligne par
+     champ plutôt qu'une liste à puces. */
+  .qualite-extraction-liste {
+    margin: 0 0 10px;
+    padding: 4px 10px;
+    max-height: 160px;
+    overflow-y: auto;
+    background: var(--paper-sunk);
+    border: 1px solid var(--line-soft);
+    border-radius: 5px;
+    font-size: 12px;
+  }
+  .qualite-ligne {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .qualite-ligne:last-child { border-bottom: none; }
+  .qualite-champ { color: var(--ink); font-weight: 600; flex: 0 0 auto; }
+  .qualite-nombre {
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-soft);
+    background: var(--paper-card);
+    border: 1px solid var(--line-soft);
+    border-radius: 8px;
+    padding: 0 6px;
+    flex: 0 0 auto;
+  }
+  .qualite-exemple {
+    color: var(--muted);
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .apropos-qualite-actions { margin-top: 0; margin-bottom: 16px; }
 
   /* Lien "À propos" en bas de la sidebar : volontairement discret (plus petit, muted) par rapport
      aux autres liens du pied de sidebar (installer l'app, thème) — une aide occasionnelle, pas une

@@ -365,6 +365,20 @@ test('normaliserDossierImporte valide roleNotaire et repart sur "instrumentaire"
   assert.equal(roleInvalide.roleNotaire, 'instrumentaire');
 });
 
+test('normaliserDossierImporte ne conserve pas nasInventaire/nasNouveaute (propres à une autre installation)', () => {
+  // Comme offrePretStatut/montantPret : un listing de fichiers tenu par la surveillance du NAS
+  // (server/src/nasWatch.js) n'a aucun sens une fois importé sur un autre serveur.
+  const app = chargerApplication();
+  const d = app.normaliserDossierImporte({
+    nom: 'Test', nasDossier: '2024-118 DUPONT',
+    nasInventaire: ['Offre de pret.pdf'],
+    nasNouveaute: { at: 123, fichiers: ['Offre de pret.pdf'] }
+  }, 'test.json');
+  assert.equal(d.nasInventaire, undefined);
+  assert.equal(d.nasNouveaute, undefined);
+  assert.equal(d.nasDossier, '2024-118 DUPONT'); // le chemin NAS, lui, reste valable
+});
+
 test('lireTextePdfVerification concatène le texte de toutes les pages d\'un PDF', async () => {
   const app = chargerApplication();
   const pdf = creerPdfFictif(3, p => `page${p}`);

@@ -59,6 +59,7 @@ try {
 const { ouvrirDb } = require('./db');
 const { creerApp } = require('./app');
 const { resoudreCheminNavigateurApp } = require('./navigateurApp');
+const { demarrerSurveillanceNas } = require('./nasWatch');
 
 // Journal de secours à côté de la base (même dossier `data/`, déjà résolu correctement en mode
 // développement comme en mode exécutable autonome — voir config.js) : signalé par l'étude, le
@@ -191,7 +192,13 @@ function assurerScriptsAssistants(dossierExe) {
 
 function demarrer() {
   const db = ouvrirDb(config.cheminDb);
-  const { app } = creerApp({ db, config });
+  const { app, depot } = creerApp({ db, config });
+
+  // Surveillance périodique du NAS (nouveaux documents, voir nasWatch.js) : silencieuse si
+  // `nasRacine` n'est pas configurée (comme le reste des fonctionnalités liées au NAS), et sans
+  // effet sur les tests qui montent `creerApp()` directement — ce minuteur ne démarre qu'ici, au
+  // vrai point d'entrée du serveur.
+  demarrerSurveillanceNas(depot, config);
 
   const serveur = app.listen(config.port, () => {
     const url = `http://localhost:${config.port}/`;
