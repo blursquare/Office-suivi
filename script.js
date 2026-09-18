@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-18 17:30';
+  const VERSION_APP = '2026-09-18 17:34';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-18 17:34', resume: "Trois familles de FAUSSES échéances, qui prenaient chaque fois la place de la vraie — celle-ci restant, elle, sans catégorie. Une citation de texte légal d'abord : « l'ordonnance n° 2016-131 du 10 février 2016 » devenait la date de signature de l'acte sur un compromis de 2026 ; seules les citations de LOI étaient écartées, ordonnances, décrets et arrêtés y sont désormais joints. Une citation entre guillemets ensuite : « au plus tard un mois après la signature de l'acte authentique de vente », recopié d'un article du Code, devenait la date de signature du dossier. Le versement d'une somme enfin : l'indemnité d'immobilisation, payable sous huit ou dix jours, fixait « l'obtention du prêt » dix jours après la signature sur deux promesses. Au passage, deux tournures d'échéance n'étaient pas reconnues du tout : « la signature DUDIT acte » et, sur une promesse, « la réalisation de la présente promesse », qui est pourtant la date butoir pour signer" },
     { version: '2026-09-18 17:30', resume: "Les noms de dossier, sur les sept actes lisibles du banc d'essai : sept sur sept corrects, vérifiés un par un contre les noms de vos propres fichiers. Trois causes. Un patronyme à particule — DE SOUSA MARTINS, LE GOFF, DU PONT — était rejeté d'office, la particule figurant parmi les mots interdits : un acte n'avait ainsi qu'une seule partie, son bénéficiaire restant introuvable. L'étiquette « Dénommés ci-après le PROMETTANT » n'était pas reconnue dans cet ordre de mots, et le dossier prenait le mot qui suit (« ENSEMBLE D'UNE PART » donnait « ENSEMBLE »). Enfin la recherche du nom remontait trop loin en arrière et tombait sur la comparution des notaires, qui nomme les parties qu'ils assistent : elle s'arrête désormais là où l'acte annonce lui-même sa présentation (« à la requête de : », « Entre les soussignés : »). Au passage, une ligne d'état civil (« - Monsieur à BLOIS, le 6 mai 1979 ») ne donne plus la commune comme patronyme, et la date en toutes lettres de l'en-tête, qui se glisse à la coupure de page au milieu d'une partie, n'est plus prise pour un nom" },
     { version: '2026-09-18 17:26', resume: "La date de signature de l'acte, et avec elle les trois dates butoir du dossier. Sur les neuf actes du banc d'essai, elle manquait sur quatre — et quand elle manque, TOUTES les échéances exprimées en délai disparaissent aussi, puisqu'elles se comptent depuis elle. Deux causes. D'abord, trois actes étaient coupés en plein milieu : un simple titre de clause en haut de page (« Diagnostic de performance énergétique », « État des risques de pollution des sols ») passait pour le début des annexes, et tout ce qui suivait — bloc de signature compris — devenait invisible. Une page qui parle encore la langue de l'acte (« aux présentes », « le VENDEUR », « le PROMETTANT ») est désormais reconnue comme faisant encore partie de l'acte. Ensuite, la date en toutes lettres qui ouvre tout acte authentique (« L'AN DEUX MILLE VINGT-SIX, Le VINGT TROIS JUILLET ») n'était pas lue du tout, alors que c'est la forme la plus sûre de cette famille d'actes — deux d'entre eux y renvoient d'ailleurs explicitement, leur bloc de signature n'en portant aucune. Les six actes notariés du banc ont maintenant leur date ; les deux compromis d'agence, dont le texte ne porte aucune date, gardent la date estimée du fichier" },
     { version: '2026-09-18 17:20', resume: "L'adresse du bien est enfin lue correctement. Sur les neuf actes réels que vous avez envoyés, elle ne l'était sur AUCUN — et, plus gênant, elle était présentée comme sûre : la commune ressortait « situé à BLOIS ( » et la voie « ), 74 rue des Hautes Granges ». L'outil ne savait lire que l'ordre postal (« 12 rue Victor Hugo, 41000 BLOIS ») alors que vos actes emploient l'ordre notarial (« situé à BLOIS (41000), 74 rue des Hautes Granges », « A BLOIS (LOIR-ET-CHER) 41000 1 Rue Hannah Arendt ») : commune, puis code postal, puis voie. Trois autres causes s'y ajoutaient : le premier « DÉSIGNATION » d'un acte est souvent celui du SOMMAIRE, ou un mot au fil d'une phrase qu'un retour à la ligne place en début de ligne ; le siège social de l'agence, de son assureur et du diagnostiqueur arrivent avant le bien dans un compromis d'agence, et le premier était retenu ; une élection de domicile (« aux fins de recevoir la notification ») passait aussi pour le bien vendu. Les neuf adresses sortent maintenant justes, présentées proprement : « 8 B rue Yves Genêt, 41000 BLOIS »" },
@@ -785,9 +786,11 @@
   // (dont les citations de loi, ex. « en vertu de la loi numéro 2022-270 du 28 février 2022 » —
   // une clause d'information sur l'assurance emprunteur, sans lien avec l'échéance du prêt lui-même
   // malgré le vocabulaire "prêteur"/"emprunteur" à proximité immédiate — cas réel rencontré).
-  const EXCLUSION_RE = /diagnostic|dpe\b|amiante|plomb|termite|erp\b|carrez|m[ée]trage|\bn[ée]e?\s+le\b|suivant\s+acte|acte\s+(re[çc]u|d.acquisition|de\s+propri[ée]t[ée]|notari[ée]|initial)|pr[ée]c[ée]demment|[ée]tabli(e)?\s+le|dat[ée](e)?\s+du|dat[ée](e)?\s+de\s+validit[ée]|r[ée]alis[ée](e)?\s+le|dress[ée](e)?\s+le|d[ée]livr[ée](e)?\s+le|assembl[ée]e\s+g[ée]n[ée]rale|r[èe]glement\s+de\s+copropri[ée]t[ée]|contrat\s+de\s+mariage|acte\s+de\s+naissance|cadastr|co\s*m\s*m\s*ande\s+du|p[ée]riode\s+de\s+validit[ée]|num[ée]ro\s+de\s+police|r[ée]f[ée]rence\s+interne|r[ée]f\.\s*interne|attestation\s+de\s+qualification|identifiant\s+du\s+contrat|cl[ée]\s+de\s+hachage|mandat\s+(?:écrit|ecrit)|[ée]tat\s+des\s+risques|[ée]tat\s+parasitaire|assainissement|fosse\s+septique|entretien\s+et\s+vidange|vidange\s+du|contr[ôo]le\s+d[eu]|installation\s+(?:int[ée]rieure|[ée]lectrique|de\s+gaz|gaz)|catastrophe\s+(?:naturelle|technologique)|risques?\s+(?:naturels?|miniers?|technologiques?)|sinistres?\s+indemnis[ée]s?|potentiel\s+radon|mouvement\s+de\s+terrain|recul\s+du\s+trait\s+de\s+c[ôo]te|zone\s+(?:couverte|expos[ée]e)|loi\s+(?:n[°ºo]|num[ée]ro)\s*[\d\-]+/i;
+  const EXCLUSION_RE = /diagnostic|dpe\b|amiante|plomb|termite|erp\b|carrez|m[ée]trage|\bn[ée]e?\s+le\b|suivant\s+acte|acte\s+(re[çc]u|d.acquisition|de\s+propri[ée]t[ée]|notari[ée]|initial)|pr[ée]c[ée]demment|[ée]tabli(e)?\s+le|dat[ée](e)?\s+du|dat[ée](e)?\s+de\s+validit[ée]|r[ée]alis[ée](e)?\s+le|dress[ée](e)?\s+le|d[ée]livr[ée](e)?\s+le|assembl[ée]e\s+g[ée]n[ée]rale|r[èe]glement\s+de\s+copropri[ée]t[ée]|contrat\s+de\s+mariage|acte\s+de\s+naissance|cadastr|co\s*m\s*m\s*ande\s+du|p[ée]riode\s+de\s+validit[ée]|num[ée]ro\s+de\s+police|r[ée]f[ée]rence\s+interne|r[ée]f\.\s*interne|attestation\s+de\s+qualification|identifiant\s+du\s+contrat|cl[ée]\s+de\s+hachage|mandat\s+(?:écrit|ecrit)|[ée]tat\s+des\s+risques|[ée]tat\s+parasitaire|assainissement|fosse\s+septique|entretien\s+et\s+vidange|vidange\s+du|contr[ôo]le\s+d[eu]|installation\s+(?:int[ée]rieure|[ée]lectrique|de\s+gaz|gaz)|catastrophe\s+(?:naturelle|technologique)|risques?\s+(?:naturels?|miniers?|technologiques?)|sinistres?\s+indemnis[ée]s?|potentiel\s+radon|mouvement\s+de\s+terrain|recul\s+du\s+trait\s+de\s+c[ôo]te|zone\s+(?:couverte|expos[ée]e)|(?:loi|ordonnance|d[ée]cret|arr[êe]t[ée]s?)\s+(?:n[°ºo]|num[ée]ro)\s*[\d\-]+|(?:loi|ordonnance|d[ée]cret|arr[êe]t[ée]s?)\s+du\s+\d/i;
 
   // Formulations qui indiquent une échéance à venir plutôt qu'une date déjà passée.
+  var PORTEE_CITATION = 400;
+
   const CUE_FUTUR_RE = /au\s+plus\s+tard|avant\s+le|jusqu.au|date\s+limite|d[ée]lai\s+(?:expirant|fix[ée])|sera\s+(sign[ée]e?|r[ée]alis[ée]e?|conclu(e)?)|pr[ée]vue?\s+(le|pour|au)|fix[ée]e?\s+(au|le)|au\s+plus\s+tôt/i;
 
   // "à compter du/de <date>" introduit une date de PRISE D'EFFET (loyer, garantie, taux d'intérêt,
@@ -815,8 +818,20 @@
     // Ces clauses sont de vraies échéances mais ne correspondent ni à un prêt, ni à un acte, ni à
     // une vente préalable : elles sont classées "Autre" plutôt qu'ignorées.
     if (/permis\s+de\s+construire|certificat\s+d.urbanisme|autorisation\s+d.urbanisme|condition\s+suspensive\s+d.urbanisme|servitude/.test(c)) return 'autre';
+    // Le VERSEMENT d'une somme (indemnité d'immobilisation, dépôt de garantie, acompte) porte sa
+    // propre échéance, très courte — huit jours, dix jours — et n'a rien à voir avec la condition
+    // de prêt ni avec la signature de la vente. Deux promesses réelles voyaient ainsi leur
+    // « obtention du prêt » fixée dix jours après la signature. Le verbe de versement doit être
+    // PROCHE de la formulation de délai : la vraie clause de prêt cite elle aussi un montant, et
+    // un simple test sur « verser » quelque part dans la clause l'aurait écartée à son tour.
+    if (/vers(?:er|era|ement)[^.]{0,80}au\s+plus\s+tard|au\s+plus\s+tard[^.]{0,80}vers(?:er|era|ement)|indemnit[ée]\s+d.immobilisation|d[ée]p[ôo]t\s+de\s+garantie/.test(c)) return 'autre';
     if (/pr[êe]t|financement|emprunt|offre\s+de\s+pr[êe]t/.test(c)) return 'pret';
-    if (/acte\s+authentique|r[ée]it[ée]ration|signature\s+de\s+l.acte/.test(c)) return 'acte';
+    // « signature DUDIT acte » est aussi courant que « signature de l'acte » — sans cette variante,
+    // « La signature dudit acte devra intervenir au plus tard le 15 septembre 2026 » n'était pas
+    // classée du tout, et une citation d'ordonnance du même document prenait sa place.
+    if (/acte\s+authentique|r[ée]it[ée]ration|signature\s+(?:de\s+l.|dudit\s+|du\s+dit\s+|de\s+cet\s+)acte/.test(c)) return 'acte';
+    // Sur une promesse unilatérale, la RÉALISATION de la promesse est la signature de la vente.
+    if (/r[ée]alisation\s+de\s+la\s+(?:pr[ée]sente\s+)?promesse|lev[ée]e\s+d[eu]\s*l?.?option/.test(c)) return 'acte';
     // Sur une promesse, la date d'expiration de l'option EST la date butoir pour signer la vente.
     if (/(?:promesse|option|convention)[^.]{0,80}expirant|dur[ée]e\s+expirant|rendez-vous\s+de\s+signature/.test(c)) return 'acte';
     // « notaire » TOUT SEUL ne dit rien de la nature d'une date : un acte notarié le mentionne dans
@@ -841,7 +856,7 @@
   // Déclaré à un seul endroit, comme les autres tables de règles métier de ce fichier.
   var SIGNAUX_FORTS_ECHEANCE = {
     pret: /condition\s+suspensive[^.]{0,60}pr[êe]t|offres?\s+(?:[ée]crites?\s+)?de\s+pr[êe]t/i,
-    acte: /r[ée]it[ée]ration|acte\s+authentique|dur[ée]e\s+expirant|rendez-vous\s+de\s+signature|signature\s+de\s+l.acte/i,
+    acte: /r[ée]it[ée]ration|acte\s+authentique|dur[ée]e\s+expirant|rendez-vous\s+de\s+signature|signature\s+(?:de\s+l.|dudit\s+|du\s+dit\s+|de\s+cet\s+)acte|r[ée]alisation\s+de\s+la\s+(?:pr[ée]sente\s+)?promesse/i,
     ventebien: /condition\s+suspensive\s+de\s+vente|vente\s+(?:pr[ée]alable|d.un\s+autre\s+bien)/i
   };
 
@@ -3111,6 +3126,18 @@
     const resultats = [];
     const seen = new Set();
 
+    // Un acte cite volontiers un texte de loi mot pour mot, entre guillemets. Le délai qui s'y
+    // trouve appartient au texte cité, jamais aux engagements de CE contrat : sur une promesse
+    // réelle, « au plus tard un mois après la signature de l'acte authentique de vente », citation
+    // de l'article 1331-11-1, devenait la date de signature de l'acte du dossier. Le test
+    // « le contexte cite-t-il un article de loi ? » serait bien trop large — la vraie condition
+    // suspensive de prêt cite elle aussi ses articles du Code de la consommation ; c'est bien le
+    // GUILLEMET OUVRANT non refermé qui distingue une citation d'une stipulation.
+    function estDansCitation(source, index) {
+      const avant = source.slice(Math.max(0, index - PORTEE_CITATION), index);
+      return avant.lastIndexOf('«') > avant.lastIndexOf('»');
+    }
+
     function ajouter(iso, label, index, longueur, approx, calcul) {
       // Un délai dont le point de départ est inconnu ne produit aucune date : calculerDateEcheance
       // renvoie null plutôt que de compter depuis la signature par défaut.
@@ -3120,6 +3147,7 @@
       if (dateCompromis && iso <= dateCompromis) return;
       const contexte = extraireContexte(texte, index, longueur);
       if (EXCLUSION_RE.test(contexte.toLowerCase())) return;
+      if (estDansCitation(texte, index)) return;
       // Voir A_COMPTER_RE ci-dessus : une date immédiatement introduite par "à compter du/de" est
       // une prise d'effet, pas une échéance — sauf si la clause parle de la réitération de l'acte
       // de vente lui-même, seul cas où cette date-là EST la bonne échéance. \br[ée]it[ée]r couvre

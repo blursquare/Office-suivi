@@ -565,3 +565,61 @@ test("une date de signature explicite l'emporte sur celle de l'en-tête", () => 
   const texte = "L'AN DEUX MILLE VINGT-SIX,\nLe PREMIER JUILLET\nMonsieur X a signé à BLOIS le 9 juillet 2026.";
   assert.equal(app.detecterDateCompromis(texte), '2026-07-09');
 });
+
+// ---------------------------------------------------------------------------------------------
+// Trois familles de fausses échéances, trouvées par le banc d'essai sur les actes réels : une
+// citation de texte légal, une citation entre guillemets, et le versement d'une somme. Dans les
+// trois cas, la fausse date PRENAIT LA PLACE de la vraie, qui restait, elle, sans catégorie.
+// ---------------------------------------------------------------------------------------------
+
+test('une citation d’ordonnance ou de décret n’est pas une échéance', () => {
+  // « l'ordonnance n° 2016-131 du 10 février 2016 » devenait la date de signature de l'acte, sur
+  // un compromis de 2026. Seules les citations de LOI étaient écartées jusqu'ici.
+  const app = chargerApplication();
+  const texte = [
+    "Propriété - jouissance - Conformément à l'article 1304-6 du Code civil issu de",
+    "l'ordonnance n° 2016-131 du 10 février 2016, le transfert de propriété est différé.",
+    'La signature dudit acte devra intervenir au plus tard le 15 septembre 2026.'
+  ].join('\n');
+  const dates = app.detecterDatesDepuisTexte(texte, '2026-06-29');
+  assert.equal(dates.some(d => d.iso === '2016-02-10'), false);
+  const acte = dates.find(d => d.suggestion === 'acte');
+  assert.equal(acte && acte.iso, '2026-09-15', 'échéance d’acte retenue');
+});
+
+test('un délai cité entre guillemets appartient au texte cité, pas au contrat', () => {
+  // « au plus tard un mois après la signature de l'acte authentique de vente », citation de
+  // l'article 1331-11-1, devenait la date de signature de l'acte du dossier. Le simple fait que
+  // le contexte cite un article ne suffirait pas à trancher : la vraie condition suspensive de
+  // prêt cite elle aussi ses articles du Code de la consommation.
+  const app = chargerApplication();
+  const texte = "Conformément au troisième alinéa de l’article 1331-11-1 précité, « au plus tard un mois " +
+    "après la signature de l'acte authentique de vente », le syndic est informé.";
+  const dates = app.detecterDatesDepuisTexte(texte, '2025-12-17');
+  assert.equal(dates.length, 0);
+});
+
+test('le versement d’une somme n’est ni une échéance de prêt ni une signature d’acte', () => {
+  // Deux promesses réelles voyaient leur « obtention du prêt » fixée dix jours après la signature :
+  // c'était l'indemnité d'immobilisation. Classé « autre » — c'est une vraie obligation, mais pas
+  // l'une des trois échéances suivies.
+  const app = chargerApplication();
+  assert.equal(app.suggererEcheance(
+    "le BENEFICIAIRE s'oblige à verser celle de MILLE EUROS (1 000,00 EUR) au plus tard dans les 10 jours suivant la signature"
+  ), 'autre');
+  assert.equal(app.suggererEcheance(
+    "le BENEFICIAIRE s'engage à la verser au plus tard dans les huit jours de la signature des présentes"
+  ), 'autre');
+  // La vraie condition de prêt cite elle aussi un montant : elle ne doit pas être emportée.
+  assert.equal(app.suggererEcheance(
+    "la présente convention est soumise à la condition suspensive d'obtention d'un prêt de CENT MILLE EUROS (100 000 EUR), au plus tard dans les 60 jours"
+  ), 'pret');
+});
+
+test('suggererEcheance reconnaît « signature dudit acte » et la réalisation d’une promesse', () => {
+  const app = chargerApplication();
+  assert.equal(app.suggererEcheance('La signature dudit acte devra intervenir au plus tard le 15 septembre 2026.'), 'acte');
+  assert.equal(app.suggererEcheance(
+    'La réalisation de la présente promesse pourra être demandée par le BENEFICIAIRE jusqu’au 17 mars 2026.'
+  ), 'acte');
+});
