@@ -128,6 +128,65 @@ test('la règle métier est déclarée à un seul endroit, modifiable sans touch
   assert.equal(regles[0].departementsNotaireVendeur.join(','), '41,45,37');
 });
 
+// L'étude a précisé OÙ chaque type d'acte nomme ses notaires : première page pour une promesse de
+// vente et ses dérivées, fin d'acte pour un compromis. Les quatre tests qui suivent verrouillent
+// cette distinction — chercher au mauvais endroit reviendrait à lire des notaires cités à tout
+// autre titre dans le corps de l'acte (origine de propriété, acte antérieur...).
+
+// Remplissage neutre : ni nom de notaire, ni formule de rôle, seulement de quoi éloigner deux
+// zones l'une de l'autre.
+const BOURRAGE = 'texte de clause sans notaire ni role. '.repeat(120);
+
+test('sur un COMPROMIS, ce sont les notaires de FIN d’acte qui font foi', () => {
+  const app = chargerApplication();
+  const texte = `COMPROMIS DE VENTE\n${BOURRAGE}\n`
+    + 'Maître Sophie GOSSART, notaire à BLOIS, et Maître Paul DURAND, notaire à ORLEANS.';
+  const notaires = app.detecterNotaires(texte, 'COMPROMIS_DE_VENTE');
+  assert.equal(notaires.length, 2);
+  assert.equal(notaires.every(n => n.enFin), true, 'les deux mentions sont dans la zone de fin');
+  assert.equal(notaires.some(n => n.enTete), false, 'et aucune dans l’en-tête');
+  const r = app.determinerNotaires(notaires, null, 'COMPROMIS_DE_VENTE');
+  assert.equal(r.instrumentaire.nom, 'Sophie GOSSART');
+  assert.equal(r.participant.nom, 'Paul DURAND');
+  assert.equal(r.statut, 'CONFIRMED');
+  assert.match(r.raison, /fin de compromis/);
+});
+
+test('un COMPROMIS ne tranche PAS sur des notaires nommés seulement en première page', () => {
+  // C'est la correction demandée par l'étude : la règle « en-tête » était appliquée au compromis,
+  // alors qu'il nomme ses notaires en fin d'acte. Deux noms en tête d'un compromis sont donc cités
+  // à un autre titre, et ne doivent rien décider.
+  const app = chargerApplication();
+  const texte = 'COMPROMIS DE VENTE\n'
+    + 'Maître Sophie GOSSART, notaire à BLOIS, et Maître Paul DURAND, notaire à ORLEANS.\n'
+    + BOURRAGE;
+  const notaires = app.detecterNotaires(texte, 'COMPROMIS_DE_VENTE');
+  assert.equal(notaires.every(n => n.enTete), true);
+  assert.equal(notaires.some(n => n.enFin), false);
+  const r = app.determinerNotaires(notaires, null, 'COMPROMIS_DE_VENTE');
+  assert.equal(r.statut, 'NEEDS_REVIEW');
+  assert.equal(r.instrumentaire, null);
+});
+
+test('une PROMESSE ne tranche PAS sur des notaires nommés seulement en fin d’acte', () => {
+  // Symétrique du test précédent : une promesse nomme ses notaires en première page.
+  const app = chargerApplication();
+  const texte = `PROMESSE DE VENTE\n${BOURRAGE}\n`
+    + 'Maître Sophie GOSSART, notaire à BLOIS, et Maître Paul DURAND, notaire à ORLEANS.';
+  const r = app.determinerNotaires(app.detecterNotaires(texte, 'PROMESSE_DE_VENTE'), null, 'PROMESSE_DE_VENTE');
+  assert.equal(r.statut, 'NEEDS_REVIEW');
+  assert.equal(r.instrumentaire, null);
+});
+
+test('la zone consultée est déclarée à UN SEUL endroit, par type d’acte', () => {
+  const app = chargerApplication();
+  assert.equal(app.ZONE_NOTAIRES_PAR_TYPE.PROMESSE_DE_VENTE, 'entete');
+  assert.equal(app.ZONE_NOTAIRES_PAR_TYPE.PROMESSE_D_ACHAT, 'entete');
+  assert.equal(app.ZONE_NOTAIRES_PAR_TYPE.COMPROMIS_DE_VENTE, 'fin');
+  // Un type non tranché ne consulte aucune zone : on ne devine pas où chercher.
+  assert.equal(app.ZONE_NOTAIRES_PAR_TYPE.INCONNU, undefined);
+});
+
 test('sur une promesse, l’ordre en tête de première page désigne instrumentaire puis participant', () => {
   // Convention de rédaction indiquée par l'étude. Dernier recours seulement : ni mention explicite
   // ni règle géographique applicable ici (aucune adresse de notaire, donc aucun département).

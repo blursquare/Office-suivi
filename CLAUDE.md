@@ -4037,6 +4037,46 @@ autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` auton
     mentions précédées d'un marqueur d'origine de propriété — à faire sur demande, avec un extrait
     réel pour éviter de régresser les cas légitimes.
 
+- **Correction de la règle des notaires : la zone où l'acte les nomme dépend du TYPE d'acte.**
+  L'étude a précisé, juste après la livraison de la règle « ordre en tête de première page » :
+  « le nom des notaires est toujours situé en première page pour les promesses de vente et
+  dérivées ; pour les compromis de vente plutôt en fin d'acte ». La version précédente rangeait
+  `COMPROMIS_DE_VENTE` dans la liste des types traités par l'en-tête — **une erreur d'implémentation
+  de ma part**, pas une limite du texte fourni : sur un compromis, deux noms de notaires en
+  première page sont cités à un tout autre titre (origine de propriété, acte antérieur, servitude)
+  et n'ont aucune raison de désigner l'instrumentaire.
+  - `ZONE_NOTAIRES_PAR_TYPE` (nouvelle table, remplace `ORDRE_ENTETE_PROMESSE`) déclare la zone
+    par type d'acte, à un seul endroit — même principe que `REGLES_NOTAIRE_INSTRUMENTAIRE` :
+    `PROMESSE_DE_VENTE`/`PROMESSE_D_ACHAT` → `'entete'`, `COMPROMIS_DE_VENTE` → `'fin'`. Un type
+    non tranché (`INCONNU`, `AUTRE`) n'a **aucune** entrée : on ne devine pas où chercher, la
+    règle ne s'applique simplement pas. Une « promesse synallagmatique » étant reconnue comme un
+    COMPROMIS par `detecterTypeActe()` (c'en est un), elle relève bien de la fin d'acte.
+  - `detecterNotaires()` marque désormais les DEUX zones sur chaque mention (`enTete` comme avant,
+    `enFin` pour les `ZONE_FIN_ACTE` = 3000 derniers caractères — un bloc de clôture de compromis,
+    avec la comparution des notaires et les signatures, est un peu plus étalé qu'un en-tête).
+    `determinerNotaires()` ne consulte que celle qui correspond au type. Sur un acte court, une
+    mention peut porter les deux drapeaux : sans conséquence, le type d'acte décide seul de la
+    zone lue.
+  - Le reste de la règle est inchangé : toujours le **troisième** niveau de priorité (après la
+    mention explicite et la règle géographique 41/45/37), toujours **deux notaires exigés** dans la
+    zone attendue (un seul ne dit rien d'un ordre), toujours « premier nommé = instrumentaire,
+    second = participant ». Ne peut donc rien faire régresser de ce qui était déjà tranché.
+  - **Hypothèse à confirmer, explicitement** : l'étude a indiqué l'EMPLACEMENT des noms sur un
+    compromis, pas l'ORDRE dans lequel ils y figurent. La convention « premier nommé = celui qui
+    reçoit l'acte » est reprise telle quelle de la règle des promesses. Si, en fin de compromis,
+    l'ordre suit autre chose (l'ordre de signature, l'ordre vendeur/acquéreur…), c'est ce point-là
+    qu'il faudra corriger — le reste du mécanisme tiendra.
+  - Tests : 4 nouveaux dans `tests/notaires.test.js` qui verrouillent la distinction dans les deux
+    sens — un compromis tranché par ses notaires de FIN ; un compromis qui ne tranche PAS sur des
+    notaires en première page (c'est précisément la correction) ; une promesse qui ne tranche PAS
+    sur des notaires en fin d'acte ; et la table elle-même, y compris l'absence d'entrée pour un
+    type non déterminé. Suite racine 293 → 297.
+  - **Conséquence sur le faux positif déjà signalé plus haut** (`RE_ROLE_INSTRUMENTAIRE` reconnaît
+    « acte reçu par Maître X » jusque dans une clause d'ORIGINE DE PROPRIÉTÉ) : il devient plus
+    gênant pour les compromis, puisque ceux-ci dépendent maintenant de la fin d'acte alors que
+    cette clause, en priorité 1, peut trancher depuis n'importe où dans le document. Toujours pas
+    corrigé faute d'extrait réel — à traiter en priorité au prochain exemple fourni.
+
 **Ce qui n'a volontairement PAS été fait** (arrêté à la demande explicite de l'étude, pas un
 oubli) — à reprendre uniquement si redemandé un jour :
 - **Import automatique** des dossiers déjà enregistrés sur la version 100% locale (`main`) vers ce

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-18 12:32';
+  const VERSION_APP = '2026-09-18 12:53';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-18 12:53', resume: "Notaires : l'endroit où l'outil cherche leurs noms dépend désormais du type d'acte, comme vous l'avez précisé — première page pour une promesse de vente et ses dérivées, FIN D'ACTE pour un compromis. La version précédente appliquait la règle de la première page au compromis aussi, ce qui revenait à y lire des notaires cités à tout autre titre (origine de propriété, acte antérieur). Le premier nommé dans la bonne zone reçoit l'acte, le second participe — et si la zone attendue ne contient pas deux notaires, rien n'est tranché plutôt que de deviner" },
     { version: '2026-09-18 12:32', resume: "Onze corrections. Ouvrir un PDF du NAS ne renvoie plus « Authentification requise » (l'onglet était ouvert sans jeton de session). Le panneau de diagnostic ne se referme plus tout seul. L'offre de prêt est reconnue d'abord au NOM du fichier (offre de prêt, offre de crédit, contrat de prêt…), la lecture du contenu ne servant plus que de repli — toujours au-delà de 6 pages. Sur une promesse, les deux notaires nommés en tête de première page désignent l'instrumentaire puis le participant. Le dossier NAS proposé passe en tête de liste, avec une recherche au-dessus, et une correspondance exacte du nom relie le dossier sans rien demander. La vue « Échéances » (ex-« Semaines ») devient la vue par défaut et n'affiche plus qu'UNE ligne par dossier, sa prochaine échéance en attente ; une vente préalable peut être marquée réalisée pour passer à la suivante. Bouton d'ajout d'obligation déplacé sous l'analyse juridique, filet retiré sous « En retard », badge Alpha aligné à droite sous le logo et tagline retirée" },
     { version: '2026-09-18 12:21', resume: "Panneau « Ce que l'outil a compris » repris en entier. Chaque donnée est maintenant CORRIGEABLE SUR PLACE, sans quitter l'écran où l'erreur se voit, et porte le numéro de page d'où elle sort (nom, adresse et prix n'en avaient aucun). L'outil n'annonce plus rien comme « Confirmé » : il dit seulement d'où vient la donnée — lue dans l'acte, calculée depuis un délai, apprise d'une correction précédente, proposée par l'IA — et le vert est réservé à ce que VOUS cochez comme vérifié. Les lectures du modèle local, qui invente régulièrement des termes, sont désormais proposées avec un bouton « Utiliser » et n'écrivent plus jamais d'elles-mêmes dans un champ" },
     { version: '2026-09-18 12:04', resume: "Création de dossier depuis un PDF : quatre corrections. Le nom du dossier prenait la COMMUNE de l'adresse au lieu du patronyme (« BLOIS / TOURS » au lieu de « DUPONT / MARTIN ») sur la rédaction la plus courante, celle où la partie est présentée puis étiquetée ; un acte à deux vendeurs (« ci-après dénommés LES VENDEURS ») n'était pas reconnu du tout. L'adresse du bien avalait la désignation cadastrale en la tronquant, et n'était pas détectée quand « sis » introduit directement l'adresse sans préposition. Enfin, une date de prêt exprimée en jours était bien calculée mais jamais reportée dans le champ quand seule l'intitulé de la clause nommait le prêt" },
@@ -1252,17 +1253,26 @@
   var RE_ROLE_INSTRUMENTAIRE = /(?:recevra\s+l['’]acte|acte\s+(?:authentique\s+)?(?:sera\s+)?re[çc]u\s+par|r[ée]digera\s+l['’]acte|notaire\s+instrumentaire|en\s+l['’][ée]tude\s+de)/i;
   var RE_ROLE_PARTICIPANT = /(?:avec\s+(?:la\s+)?participation\s+de|en\s+participation|notaire\s+participant|en\s+concours\s+avec|assist[ée]e?\s+de)/i;
 
-  // Zone considérée comme « l'en-tête de la première page » d'un acte. Sur une promesse (de vente,
-  // d'achat, ou synallagmatique), l'étude indique que le notaire instrumentaire et le notaire
-  // participant y sont nommés dans cet ordre — c'est la convention de rédaction de ces actes.
-  // 2500 caractères : de quoi couvrir un en-tête complet sans mordre sur le corps de l'acte, où
-  // d'autres notaires peuvent être cités à tout autre titre.
+  // OÙ les notaires sont nommés, selon le type d'acte — précisé par l'étude : « le nom des notaires
+  // est toujours situé en première page pour les promesses de vente et dérivées ; pour les
+  // compromis de vente plutôt en fin d'acte ». Les deux zones sont donc distinctes, et chercher au
+  // mauvais endroit revient à lire des notaires cités à tout autre titre dans le corps de l'acte
+  // (origine de propriété, servitude, acte antérieur...).
+  //
+  // 2500 caractères en tête : de quoi couvrir un en-tête complet sans mordre sur le corps de
+  // l'acte. 3000 en fin : le bloc de clôture d'un compromis (comparution des notaires, signature)
+  // est un peu plus étalé qu'un en-tête.
   var ZONE_ENTETE_ACTE = 2500;
+  var ZONE_FIN_ACTE = 3000;
 
-  // Types d'acte pour lesquels l'ordre de citation en tête de la première page fait foi. Déclaré
-  // ici, à un seul endroit, plutôt que dispersé dans determinerNotaires — même principe que
-  // REGLES_NOTAIRE_INSTRUMENTAIRE.
-  var ORDRE_ENTETE_PROMESSE = ['PROMESSE_DE_VENTE', 'PROMESSE_D_ACHAT', 'COMPROMIS_DE_VENTE'];
+  // Une seule table, comme REGLES_NOTAIRE_INSTRUMENTAIRE, plutôt que des tests de type dispersés
+  // dans determinerNotaires. Une « promesse synallagmatique » est reconnue comme un COMPROMIS par
+  // detecterTypeActe (c'en est un) : elle relève donc bien de la fin d'acte.
+  var ZONE_NOTAIRES_PAR_TYPE = {
+    PROMESSE_DE_VENTE: 'entete',
+    PROMESSE_D_ACHAT: 'entete',
+    COMPROMIS_DE_VENTE: 'fin'
+  };
 
   // Rattachement d'un notaire à une partie : « notaire du vendeur », « conseil de l'acquéreur »…
   var RE_COTE_NOTAIRE = /(?:notaire|conseil|assistant?e?|repr[ée]sentant)\s+(?:d[eu]\s+|de\s+la\s+|de\s+l['’]|des\s+)?(vendeurs?|promettants?|acqu[ée]reurs?|acheteurs?|b[ée]n[ée]ficiaires?|parties?\s+venderesses?|parties?\s+acqu[ée]reuses?)/i;
@@ -1357,9 +1367,13 @@
         departement: adresseUtile ? adresseUtile.departement : null,
         cote,
         roleExplicite,
-        // Cité dans l'en-tête de la première page, et à quel rang : sur une promesse, cet ordre
-        // désigne l'instrumentaire puis le participant (voir determinerNotaires, dernier recours).
+        // Dans quelle zone de l'acte cette mention tombe : c'est l'ordre de citation À L'INTÉRIEUR
+        // de la bonne zone qui désigne l'instrumentaire puis le participant (voir
+        // ZONE_NOTAIRES_PAR_TYPE et determinerNotaires, dernier recours). Un acte court peut
+        // porter les deux drapeaux sur la même mention — sans conséquence, le type d'acte décide
+        // seul de la zone consultée.
         enTete: mention.index < ZONE_ENTETE_ACTE,
+        enFin: mention.index >= source.length - ZONE_FIN_ACTE,
         source: { extrait: extraireContexte(source, mention.index, mention.longueur), index: mention.index, page: pageDepuisIndex(mention.index) }
       });
     });
@@ -1417,17 +1431,21 @@
         resultat.statut = 'CONFIRMED';
         resultat.raison = `Bien situé dans le ${regle.departementBien} et notaire du vendeur dans le ${resultat.vendeur.departement} : c’est lui qui reçoit l’acte (règle de l’étude).`;
       } else {
-        // Dernier recours, propre aux PROMESSES (de vente, d'achat, synallagmatique) : l'étude
-        // indique que leur en-tête de première page nomme le notaire instrumentaire puis le
-        // notaire participant, dans cet ordre. N'intervient qu'ici, une fois les deux règles
-        // supérieures épuisées — une mention explicite ou la règle géographique restent prioritaires,
-        // et ce cas ne peut donc rien faire régresser de ce qui était déjà tranché.
-        const enTete = liste.filter(n => n.enTete);
-        if (ORDRE_ENTETE_PROMESSE.includes(typeActe) && enTete.length >= 2) {
-          resultat.instrumentaire = enTete[0];
-          resultat.participantEnTete = enTete[1];
+        // Dernier recours : l'ordre de citation dans la zone où cet acte nomme ses notaires —
+        // première page pour une promesse, fin d'acte pour un compromis (voir
+        // ZONE_NOTAIRES_PAR_TYPE). Le premier nommé reçoit l'acte, le second participe.
+        // N'intervient qu'ici, une fois les deux règles supérieures épuisées : une mention
+        // explicite ou la règle géographique restent prioritaires, et ce cas ne peut donc rien
+        // faire régresser de ce qui était déjà tranché.
+        const zone = ZONE_NOTAIRES_PAR_TYPE[typeActe];
+        const dansZone = zone ? liste.filter(n => (zone === 'entete' ? n.enTete : n.enFin)) : [];
+        if (dansZone.length >= 2) {
+          resultat.instrumentaire = dansZone[0];
+          resultat.participantZone = dansZone[1];
           resultat.statut = 'CONFIRMED';
-          resultat.raison = 'Premier notaire nommé en tête de la première page de la promesse : c’est lui qui reçoit l’acte (le second est le notaire participant).';
+          resultat.raison = zone === 'entete'
+            ? 'Premier notaire nommé en tête de la première page de la promesse : c’est lui qui reçoit l’acte (le second est le notaire participant).'
+            : 'Premier notaire nommé en fin de compromis : c’est lui qui reçoit l’acte (le second est le notaire participant).';
         } else {
           resultat.statut = 'NEEDS_REVIEW';
           resultat.raison = resultat.vendeur && resultat.vendeur.departement
@@ -1440,10 +1458,10 @@
     if (resultat.instrumentaire) {
       const participantExplicite = liste.find(n => n.roleExplicite === 'participant' && n !== resultat.instrumentaire);
       resultat.participant = participantExplicite
-        || resultat.participantEnTete
+        || resultat.participantZone
         || liste.find(n => n !== resultat.instrumentaire && (n.cote === 'vendeur' || n.cote === 'acquereur'))
         || null;
-      delete resultat.participantEnTete;
+      delete resultat.participantZone;
       resultat.roleEtude = deduireRoleEtude(resultat);
     }
 
