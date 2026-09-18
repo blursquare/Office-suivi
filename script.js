@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-18 08:00';
+  const VERSION_APP = '2026-09-18 08:10';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-18 08:10', resume: "L'avant-contrat rouvert depuis une fiche est désormais celui réellement importé à la création du dossier — le nom du fichier est mémorisé, la recherche par les mots « compromis »/« promesse » ramenait souvent l'avant-contrat de la vente préalable rangé dans le même dossier. Et TOUS les documents identifiés dans l'analyse juridique (entretien, travaux, attestations…) sont maintenant recherchés dans le dossier local comme les pièces d'urbanisme, y compris sur les dossiers déjà créés" },
     { version: '2026-09-18 08:00', resume: "Nouvel onglet « Prorata & répartitions » : répartit entre vendeur et acquéreur une taxe foncière annuelle, des charges de copropriété au trimestre ou au mois, ou un loyer mensuel — jours réels, jour de l'acte à la charge de l'acquéreur, les deux parts totalisant toujours la somme appelée au centime près" },
     { version: '2026-09-18 07:55', resume: "Nouvelle vue « Semaines » dans le Suivi : les mêmes dossiers regroupés par semaine d'échéance, une ligne par échéance — un dossier figure donc sous chaque semaine où il a quelque chose à traiter, avec un groupe « En retard » en tête. Le tableau peut aussi être trié par statut" },
     { version: '2026-09-18 07:52', resume: "Retouches d'affichage : champs de recherche du Suivi et du Tableau de bord aux mêmes coins arrondis, espace vide supprimé au-dessus de la croix de fermeture d'une fiche, et page « Nouveau dossier » corrigée sur téléphone — la zone d'import repasse au-dessus du descriptif, les deux blocs prennent toute la largeur, et les quatre étapes du wizard ne débordent plus de l'écran" },
@@ -51,6 +52,12 @@
   const EMAIL_RAPPEL_DEFAUT = 'office.gossart@notaires.fr';
   let pdfActuel = null;
   let pdfDernierePageUtile = 1;
+  // Nom EXACT du fichier PDF importé pour créer le dossier (jamais le PDF lui-même, qui n'est pas
+  // conservé — voir CLAUDE.md). Enregistré sur le dossier (d.compromisNomFichier) et utilisé par
+  // ouvrirCompromisTrouve() pour rouvrir le bon avant-contrat : signalé par l'étude, la recherche
+  // floue "compromis"/"promesse" ramenait souvent l'avant-contrat d'une VENTE PRÉALABLE, rangé
+  // dans le même dossier local et portant lui aussi ces mots dans son nom.
+  let compromisNomFichierImporte = '';
   let frontieresPagesActuelles = null; // découpage du texte concaténé par page, pour retrouver la page d'une date
   let pageParType = { pret: null, acte: null, ventebien: null }; // page où chaque échéance a été repérée
   // Vrai quand la date pré-remplie a été choisie parmi plusieurs candidates de même catégorie sans
@@ -1780,40 +1787,41 @@
 
   // Chaque entrée porte sa catégorie : un notaire distingue l'entretien courant à justifier
   // (ramonage, chaudière) des travaux à faire exécuter, et des justificatifs administratifs.
-  // `cleChecklist`, sur trois entrées seulement pour l'instant (demandé explicitement par
-  // l'étude — chaudière, PAC, ramonage), relie cette détection à une pièce de
-  // PIECES_ENGAGEMENTS_AUTO (voir plus bas, section "suivi des pièces du dossier") : un engagement
-  // d'entretien REPÉRÉ DANS LE COMPROMIS ajoute automatiquement la pièce correspondante à la
-  // checklist du dossier lors de sa création (voir ajouterDossier()), pour qu'elle soit ensuite
-  // recherchée dans le dossier local relié comme n'importe quelle autre pièce. Les autres entrées
-  // de ce tableau restent de simples informations affichées dans l'analyse juridique, sans lien
-  // avec la checklist — à étendre à d'autres types si l'étude le redemande explicitement.
+  // `cleChecklist` relie cette détection à une pièce de PIECES_ENGAGEMENTS_AUTO (voir plus bas,
+  // section "suivi des pièces du dossier") : un document REPÉRÉ DANS LE COMPROMIS est ajouté
+  // automatiquement à la checklist du dossier, pour être ensuite recherché dans le dossier local
+  // relié comme n'importe quelle autre pièce. Limité au départ à trois entrées (chaudière, PAC,
+  // ramonage), étendu ensuite à TOUTES sur demande explicite de l'étude — un document qu'elle doit
+  // réclamer au vendeur mérite le même suivi, quelle que soit sa nature.
+  // Deux entrées pointent volontairement vers une clé DÉJÀ présente dans la checklist standard
+  // (assainissement, diagnostics) : checklistPieces() dédoublonne, la pièce standard l'emporte et
+  // rien n'apparaît deux fois.
   const DOCUMENTS_VENDEUR_CONNUS = [
     // Entretien courant à justifier
     { motif: /ramonage|entretien\s+(?:de\s+la\s+)?chemin[ée]e|conduits?\s+de\s+fum[ée]e/i, label: 'Justificatif de ramonage', cat: 'entretien', cleChecklist: 'ramonage' },
     { motif: /entretien\s+(?:annuel\s+)?(?:de\s+la\s+)?chaudi[èe]re|contrat\s+d.entretien\s+(?:de\s+la\s+)?chaudi[èe]re/i, label: "Justificatif d'entretien de la chaudière", cat: 'entretien', cleChecklist: 'entretienChaudiere' },
     { motif: /entretien\s+(?:du\s+|de\s+la\s+)?(?:syst[èe]me\s+de\s+)?pompe\s+[àa]\s+chaleur|entretien\s+(?:de\s+la\s+)?pac\b/i, label: "Justificatif d'entretien de la pompe à chaleur", cat: 'entretien', cleChecklist: 'entretienPac' },
-    { motif: /entretien.{0,30}(?:climatisation|clim\b)/i, label: "Justificatif d'entretien de la climatisation", cat: 'entretien' },
-    { motif: /vidange\s+(?:de\s+la\s+)?fosse|(?:entretien|vidange).{0,30}fosse\s+septique/i, label: 'Vidange de fosse septique', cat: 'entretien' },
-    { motif: /entretien.{0,30}adoucisseur/i, label: "Entretien de l'adoucisseur d'eau", cat: 'entretien' },
-    { motif: /d[ée]broussaill|[ée]lagage/i, label: 'Débroussaillage / élagage', cat: 'entretien' },
+    { motif: /entretien.{0,30}(?:climatisation|clim\b)/i, label: "Justificatif d'entretien de la climatisation", cat: 'entretien', cleChecklist: 'entretienClim' },
+    { motif: /vidange\s+(?:de\s+la\s+)?fosse|(?:entretien|vidange).{0,30}fosse\s+septique/i, label: 'Vidange de fosse septique', cat: 'entretien', cleChecklist: 'vidangeFosse' },
+    { motif: /entretien.{0,30}adoucisseur/i, label: "Entretien de l'adoucisseur d'eau", cat: 'entretien', cleChecklist: 'entretienAdoucisseur' },
+    { motif: /d[ée]broussaill|[ée]lagage/i, label: 'Débroussaillage / élagage', cat: 'entretien', cleChecklist: 'debroussaillage' },
 
     // Travaux à réaliser
-    { motif: /remettre\s+en\s+[ée]tat|remise\s+en\s+[ée]tat|r[ée]paration/i, label: 'Travaux de remise en état', cat: 'travaux' },
-    { motif: /r[ée]gularisation.{0,60}travaux|travaux.{0,60}r[ée]gularis|mise\s+en\s+conformit[ée]/i, label: 'Régularisation / mise en conformité', cat: 'travaux' },
-    { motif: /cuve\s+[àa]\s+(?:fioul|mazout|gaz)|citerne|d[ée]gazage|enl[èe]vement.{0,40}citerne/i, label: 'Enlèvement / neutralisation de cuve ou citerne', cat: 'travaux' },
-    { motif: /d[ée]barras|encombrants/i, label: 'Débarras des encombrants', cat: 'travaux' },
+    { motif: /remettre\s+en\s+[ée]tat|remise\s+en\s+[ée]tat|r[ée]paration/i, label: 'Travaux de remise en état', cat: 'travaux', cleChecklist: 'travauxRemiseEtat' },
+    { motif: /r[ée]gularisation.{0,60}travaux|travaux.{0,60}r[ée]gularis|mise\s+en\s+conformit[ée]/i, label: 'Régularisation / mise en conformité', cat: 'travaux', cleChecklist: 'miseEnConformite' },
+    { motif: /cuve\s+[àa]\s+(?:fioul|mazout|gaz)|citerne|d[ée]gazage|enl[èe]vement.{0,40}citerne/i, label: 'Enlèvement / neutralisation de cuve ou citerne', cat: 'travaux', cleChecklist: 'cuveCiterne' },
+    { motif: /d[ée]barras|encombrants/i, label: 'Débarras des encombrants', cat: 'travaux', cleChecklist: 'debarras' },
 
     // Justificatifs et attestations
-    { motif: /certificat\s+de\s+conformit[ée]|attestation\s+de\s+conformit[ée]|consuel/i, label: 'Attestation de conformité', cat: 'justificatif' },
-    { motif: /garantie\s+d[ée]cennale/i, label: 'Justificatif de garantie décennale', cat: 'justificatif' },
-    { motif: /dommage[- ]ouvrage/i, label: 'Assurance dommage-ouvrage', cat: 'justificatif' },
-    { motif: /factures?\s+(?:des\s+|de\s+)?travaux|justificatifs?\s+(?:des\s+)?travaux/i, label: 'Factures des travaux réalisés', cat: 'justificatif' },
-    { motif: /assainissement\s+non\s+collectif|contr[ôo]le\s+d.assainissement|spanc\b/i, label: "Contrôle d'assainissement", cat: 'justificatif' },
-    { motif: /[ée]tat\s+parasitaire|m[ée]rule/i, label: 'État parasitaire / mérule', cat: 'justificatif' },
-    { motif: /audit\s+[ée]nerg[ée]tique/i, label: 'Audit énergétique', cat: 'justificatif' },
-    { motif: /s[ée]curit[ée]\s+(?:de\s+la\s+)?piscine|alarme\s+piscine|barri[èe]re\s+de\s+protection/i, label: 'Conformité sécurité piscine', cat: 'justificatif' },
-    { motif: /r[ée]sili(?:er|ation).{0,40}contrat/i, label: 'Justificatif de résiliation de contrat', cat: 'justificatif' }
+    { motif: /certificat\s+de\s+conformit[ée]|attestation\s+de\s+conformit[ée]|consuel/i, label: 'Attestation de conformité', cat: 'justificatif', cleChecklist: 'attestationConformite' },
+    { motif: /garantie\s+d[ée]cennale/i, label: 'Justificatif de garantie décennale', cat: 'justificatif', cleChecklist: 'garantieDecennale' },
+    { motif: /dommage[- ]ouvrage/i, label: 'Assurance dommage-ouvrage', cat: 'justificatif', cleChecklist: 'dommageOuvrage' },
+    { motif: /factures?\s+(?:des\s+|de\s+)?travaux|justificatifs?\s+(?:des\s+)?travaux/i, label: 'Factures des travaux réalisés', cat: 'justificatif', cleChecklist: 'facturesTravaux' },
+    { motif: /assainissement\s+non\s+collectif|contr[ôo]le\s+d.assainissement|spanc\b/i, label: "Contrôle d'assainissement", cat: 'justificatif', cleChecklist: 'reponseAssainissement' },
+    { motif: /[ée]tat\s+parasitaire|m[ée]rule/i, label: 'État parasitaire / mérule', cat: 'justificatif', cleChecklist: 'etatParasitaire' },
+    { motif: /audit\s+[ée]nerg[ée]tique/i, label: 'Audit énergétique', cat: 'justificatif', cleChecklist: 'auditEnergetique' },
+    { motif: /s[ée]curit[ée]\s+(?:de\s+la\s+)?piscine|alarme\s+piscine|barri[èe]re\s+de\s+protection/i, label: 'Conformité sécurité piscine', cat: 'justificatif', cleChecklist: 'securitePiscine' },
+    { motif: /r[ée]sili(?:er|ation).{0,40}contrat/i, label: 'Justificatif de résiliation de contrat', cat: 'justificatif', cleChecklist: 'resiliationContrat' }
   ];
 
   // Les documents ne sont cherchés QUE dans les clauses d'engagement du vendeur et les conditions
@@ -3548,6 +3556,7 @@
     status.textContent = `Lecture de « ${file.name} » en cours…`;
     majProgression(2);
     afficherStatutEnrichissementIa(false); // efface un éventuel résidu d'un import précédent
+    compromisNomFichierImporte = file.name || '';
     const monImport = ++generationImportActuel;
 
     try {
@@ -3995,6 +4004,7 @@
     // lancerExtractionIa) : sans ça, sa réponse pourrait arriver après ce reset et remplir des
     // champs pourtant vidés pour un tout nouvel import.
     generationImportActuel++;
+    compromisNomFichierImporte = '';
     document.getElementById('f-nom').value = '';
     document.getElementById('f-responsable').value = '';
     document.getElementById('f-type-vente').value = 'maison';
@@ -4136,6 +4146,10 @@
       actePage: acte ? pageParType.acte : null,
       ventebienPage: ventebien ? pageParType.ventebien : null,
       pdfNumPages: pdfDernierePageUtile,
+      // Nom du fichier réellement importé : la seule façon de rouvrir plus tard le BON
+      // avant-contrat (voir ouvrirCompromisTrouve). Vide pour un dossier saisi entièrement à la
+      // main, qui retombe alors sur l'ancienne recherche floue.
+      compromisNomFichier: compromisNomFichierImporte || null,
       sansPret: !echeanceActive.pret,
       // Pas de section rappels sans condition de prêt (voir majVisibiliteRappels) : aucun rappel
       // pour ce dossier, plutôt que de lire des cases à cocher restées invisibles/non pertinentes.
@@ -5502,7 +5516,7 @@
               // infobulle dédiée tant qu'elle n'est pas reçue, pour que l'étude comprenne d'où elle
               // vient sans avoir à deviner — elle n'a rien ajouté elle-même à cette checklist.
               const titre = p.autoEngagement
-                ? "Détectée automatiquement : le compromis mentionne cet engagement d'entretien du vendeur."
+                ? "Détectée automatiquement : ce document est mentionné dans les engagements du vendeur de l'avant-contrat."
                 : s.titre;
               contenu = `<span class="piece-label" title="${escapeAttr(titre)}"><span class="piece-icone">${s.texte}</span>${escapeHtml(p.label)}</span>`;
             }
@@ -5664,7 +5678,11 @@
   // l'étude à ressaisir un motifNom qu'elle n'a de toute façon pas les moyens d'écrire elle-même —
   // le nom qu'elle tape pour la pièce sert directement de motif de recherche.
   async function chercherFichierParNom(handleDossier, texteRecherche) {
-    const cible = texteRecherche.toLowerCase();
+    // Le texte cherché est normalisé comme les noms de fichiers auxquels il est comparé (NFC,
+    // underscores/tirets ramenés à des espaces) : sans ça, chercher un nom de fichier exact
+    // ("Compromis_DUPONT.pdf", voir ouvrirCompromisTrouve) ne matchait jamais, l'entrée du dossier
+    // ayant ses underscores déjà remplacés et pas la cible.
+    const cible = normaliserNomPourMotif(texteRecherche).toLowerCase();
     const compteur = { n: 0 };
     for await (const entree of fichiersPdfRecursifs(handleDossier, 0, compteur)) {
       if (normaliserNomPourMotif(entree.name).toLowerCase().includes(cible)) return entree;
@@ -5835,8 +5853,13 @@
       // lien souligné (.lien-dossier-local, retiré). Voir ouvrirCompromisTrouve() : contrairement
       // à l'offre/aux pièces, ce document n'est cherché qu'à la demande, pas par
       // verifierDossierLocal() (le compromis n'est pas une pièce de la checklist).
+      // L'infobulle nomme le fichier réellement importé à la création : c'est lui qui sera rouvert,
+      // et le voir sans cliquer permet de repérer tout de suite un avant-contrat mal rattaché.
+      const titreOuvrirCompromis = d.compromisNomFichier
+        ? `Ouvrir « ${d.compromisNomFichier} », le fichier importé à la création du dossier`
+        : "Rechercher et ouvrir l'avant-contrat dans le dossier local relié (aucun nom de fichier mémorisé pour ce dossier)";
       const boutonOuvrirCompromis = DOSSIER_FS_SUPPORTE
-          ? `<button type="button" class="action-rapide" onclick="ouvrirCompromisTrouve('${d.id}', this)" title="Rechercher et ouvrir le PDF du compromis dans le dossier local relié">${icone('file-text')} Ouvrir le compromis</button>`
+          ? `<button type="button" class="action-rapide" onclick="ouvrirCompromisTrouve('${d.id}', this)" title="${escapeAttr(titreOuvrirCompromis)}">${icone('file-text')} Ouvrir le compromis</button>`
           : '';
       const boutonsDossierLocal = DOSSIER_FS_SUPPORTE ? (d.dossierLie
           ? `<button type="button" class="action-rapide" onclick="changerDossierLocal('${d.id}')">Changer de dossier</button>`
@@ -6956,8 +6979,18 @@
       archive: d.archive === true,
       reminderDays: Array.isArray(d.reminderDays) && d.reminderDays.every(Number.isInteger) ? d.reminderDays : [15, 7],
       confiance: (d.confiance && typeof d.confiance === 'object') ? d.confiance : {},
+      // Nom du PDF d'avant-contrat réellement importé à la création : une simple chaîne, la même
+      // sur n'importe quel poste (c'est le nom du fichier déposé par l'étude, pas un statut dérivé
+      // d'un scan local) — conservée telle quelle à l'import.
+      compromisNomFichier: typeof d.compromisNomFichier === 'string' && d.compromisNomFichier ? d.compromisNomFichier : null,
       analyseJuridique: {
-        documents: Array.isArray(d.analyseJuridique && d.analyseJuridique.documents) ? d.analyseJuridique.documents.filter(x => typeof x === 'string') : [],
+        // Bug corrigé : ce filtre ne gardait que les chaînes, alors que detecterDocumentsAFournir()
+        // produit des objets {label, cat, cleChecklist} depuis longtemps — importer une sauvegarde
+        // vidait donc silencieusement la liste des documents identifiés. Les deux formes sont
+        // acceptées, comme partout ailleurs dans le fichier (voir renderDocBadge).
+        documents: Array.isArray(d.analyseJuridique && d.analyseJuridique.documents)
+          ? d.analyseJuridique.documents.filter(x => typeof x === 'string' || (x && typeof x === 'object' && typeof x.label === 'string'))
+          : [],
         engagements: Array.isArray(d.analyseJuridique && d.analyseJuridique.engagements) ? d.analyseJuridique.engagements : [],
         conditions: Array.isArray(d.analyseJuridique && d.analyseJuridique.conditions) ? d.analyseJuridique.conditions : []
       },
@@ -7305,24 +7338,42 @@
     : p);
 
   // Pièces ajoutées automatiquement à la checklist d'UN dossier précis quand le compromis mentionne
-  // l'engagement d'entretien correspondant (voir `cleChecklist` sur DOCUMENTS_VENDEUR_CONNUS et
-  // `d.piecesEngagementsDetectees`, alimenté une fois à la création du dossier dans
-  // ajouterDossier()) — demandé explicitement par l'étude, limité à ces trois types pour l'instant
-  // plutôt que généralisé à tout DOCUMENTS_VENDEUR_CONNUS (les autres restent de simples
-  // informations dans l'analyse juridique, sans lien avec un document réel à réunir dans le
-  // dossier). Même forme que les autres pièces standard (`cle`/`label`/`motifNom`) : réutilisent
-  // sans aucun changement toute la mécanique déjà en place (recherche dans le dossier local par
-  // `verifierDossierLocal()`, retrait via `retirerPieceStandard()`, préremplissage à "manquante"
-  // au premier lien...) — ce ne sont PAS des pièces personnalisées (`personnalisee`), qui n'ont pas
-  // de motifNom et ne sont retrouvées que par sous-chaîne de leur libellé.
+  // le document correspondant (voir `cleChecklist` sur DOCUMENTS_VENDEUR_CONNUS). Même forme que
+  // les autres pièces standard (`cle`/`label`/`motifNom`) : réutilisent sans aucun changement toute
+  // la mécanique déjà en place (recherche dans le dossier local par `verifierDossierLocal()`,
+  // retrait via `retirerPieceStandard()`, préremplissage à "manquante" au premier lien...) — ce ne
+  // sont PAS des pièces personnalisées (`personnalisee`), qui n'ont pas de motifNom et ne sont
+  // retrouvées que par sous-chaîne de leur libellé.
   // `motifNom` volontairement plus permissif que le `motif` de contenu du compromis ci-dessus : un
   // fichier réel s'appelle plus souvent "Entretien chaudière.pdf"/"Facture ramonage.pdf" que
   // "Justificatif d'entretien de la chaudière.pdf" — même principe que les autres motifNom du
   // fichier (voir normaliserNomPourMotif juste plus bas pour la normalisation appliquée avant test).
+  // Étendu de 3 à toute la liste des documents connus sur demande explicite de l'étude : ces motifs
+  // sont un premier jet, écrits à partir du seul intitulé de chaque pièce (comme les PIECES_* en
+  // leur temps) — à resserrer/élargir dès qu'un vrai dossier fait remonter un problème. Écrits
+  // assez spécifiques pour ne pas se déclencher sur le nom d'un autre document du même dossier :
+  // "piscine" seul suffit (aucun autre document d'une vente ne le contient), "conformité" seul non
+  // (trop courant), d'où les tournures composées.
   var PIECES_ENGAGEMENTS_AUTO = [
     { cle: 'ramonage', label: 'Ramonage (attestation ou facture)', motifNom: /ramonage/i },
     { cle: 'entretienChaudiere', label: 'Entretien de la chaudière', motifNom: /entretien.{0,20}chaudi[èe]re|chaudi[èe]re.{0,20}entretien|contrat.{0,20}chaudi[èe]re/i },
-    { cle: 'entretienPac', label: 'Entretien de la pompe à chaleur (PAC)', motifNom: /entretien.{0,20}(?:pompe\s+[àa]\s+chaleur|\bpac\b)|(?:pompe\s+[àa]\s+chaleur|\bpac\b).{0,20}entretien/i }
+    { cle: 'entretienPac', label: 'Entretien de la pompe à chaleur (PAC)', motifNom: /entretien.{0,20}(?:pompe\s+[àa]\s+chaleur|\bpac\b)|(?:pompe\s+[àa]\s+chaleur|\bpac\b).{0,20}entretien/i },
+    { cle: 'entretienClim', label: 'Entretien de la climatisation', motifNom: /climatisation|\bclim\b/i },
+    { cle: 'vidangeFosse', label: 'Vidange de la fosse septique', motifNom: /fosse|vidange/i },
+    { cle: 'entretienAdoucisseur', label: "Entretien de l'adoucisseur d'eau", motifNom: /adoucisseur/i },
+    { cle: 'debroussaillage', label: 'Débroussaillage / élagage', motifNom: /d[ée]\s?broussaill|[ée]lagage/i },
+    { cle: 'travauxRemiseEtat', label: 'Travaux de remise en état', motifNom: /remise\s*en\s*[ée]\s?tat|remise\s*en\s*etat/i },
+    { cle: 'miseEnConformite', label: 'Régularisation / mise en conformité', motifNom: /mise\s*en\s*conformit[ée]|r[ée]\s?gularisation/i },
+    { cle: 'cuveCiterne', label: 'Enlèvement / neutralisation de cuve ou citerne', motifNom: /citerne|cuve\s*[àa]?\s*(?:fioul|mazout|gaz)?|d[ée]\s?gazage/i },
+    { cle: 'debarras', label: 'Débarras des encombrants', motifNom: /d[ée]\s?barras|encombrants/i },
+    { cle: 'attestationConformite', label: 'Attestation de conformité', motifNom: /consuel|(?:attestation|certificat).{0,20}conformit[ée]/i },
+    { cle: 'garantieDecennale', label: 'Garantie décennale', motifNom: /d[ée]\s?cennale/i },
+    { cle: 'dommageOuvrage', label: 'Assurance dommage-ouvrage', motifNom: /dommages?[\s-]*ouvrage/i },
+    { cle: 'facturesTravaux', label: 'Factures des travaux réalisés', motifNom: /factures?.{0,20}travaux|travaux.{0,20}factures?/i },
+    { cle: 'etatParasitaire', label: 'État parasitaire / mérule', motifNom: /parasitaire|m[ée]\s?rule|termites?/i },
+    { cle: 'auditEnergetique', label: 'Audit énergétique', motifNom: /audit\s*[ée]\s?nerg/i },
+    { cle: 'securitePiscine', label: 'Conformité sécurité piscine', motifNom: /piscine/i },
+    { cle: 'resiliationContrat', label: 'Justificatif de résiliation de contrat', motifNom: /r[ée]\s?siliation/i }
   ];
 
   // Bug corrigé : signalé par l'étude, un certificat d'urbanisme mentionne couramment dans son
@@ -7393,10 +7444,26 @@
   // (tableau de clés) masque des pièces standard OU auto-détectées non pertinentes pour ce dossier ;
   // `d.piecesPersonnalisees` (tableau de {cle, label}) ajoute des pièces propres à ce dossier, sans
   // toucher aux listes PIECES_* partagées par tous les autres dossiers du même type de vente ;
-  // `d.piecesEngagementsDetectees` (tableau de clés de PIECES_ENGAGEMENTS_AUTO) active les pièces
-  // détectées depuis un engagement du vendeur — calculé une seule fois à la création du dossier
-  // (voir ajouterDossier()), jamais recalculé après coup (l'analyse juridique complète du compromis
-  // n'existe plus une fois le dossier enregistré).
+  // Les pièces détectées depuis les documents du compromis viennent de DEUX sources réunies :
+  // `d.piecesEngagementsDetectees` (calculé une fois à la création, voir ajouterDossier) et, en
+  // plus, un recalcul à l'affichage depuis `d.analyseJuridique.documents`, lui bien conservé sur
+  // le dossier. Ce second chemin rend la fonctionnalité RÉTROACTIVE, demandé explicitement par
+  // l'étude : un dossier créé avant l'élargissement de `cleChecklist` à tous les documents (ou
+  // avant l'existence même de ce champ) voit malgré tout ses documents apparaître dans la
+  // checklist, sans avoir à le recréer.
+  function clesChecklistDepuisDocuments(documents) {
+    const cles = [];
+    (documents || []).forEach(doc => {
+      // Un document déjà porteur de sa clé (dossier récent) ; sinon on la retrouve par son
+      // libellé, qui est la seule chose stockée sur les dossiers plus anciens.
+      const cle = (doc && typeof doc === 'object' && doc.cleChecklist)
+        ? doc.cleChecklist
+        : (DOCUMENTS_VENDEUR_CONNUS.find(x => x.label === (typeof doc === 'string' ? doc : doc && doc.label)) || {}).cleChecklist;
+      if (cle && !cles.includes(cle)) cles.push(cle);
+    });
+    return cles;
+  }
+
   function checklistPieces(typeVente, d) {
     const base = typeVente === 'copropriete'
       ? [...PIECES_URBANISME, ...PIECES_COPROPRIETE, ...PIECES_AUTRES]
@@ -7406,8 +7473,15 @@
     if (!d) return base;
     const retirees = new Set(d.piecesRetirees || []);
     const standard = base.filter(p => !retirees.has(p.cle));
-    const engagementsDetectes = new Set(d.piecesEngagementsDetectees || []);
-    const auto = PIECES_ENGAGEMENTS_AUTO.filter(p => engagementsDetectes.has(p.cle) && !retirees.has(p.cle))
+    const detectees = new Set([
+      ...(d.piecesEngagementsDetectees || []),
+      ...clesChecklistDepuisDocuments(d.analyseJuridique && d.analyseJuridique.documents)
+    ]);
+    // Une clé déjà présente dans la checklist standard (assainissement, diagnostics) ne doit pas
+    // apparaître une seconde fois : la pièce standard, plus précise, l'emporte.
+    const clesStandard = new Set(standard.map(p => p.cle));
+    const auto = PIECES_ENGAGEMENTS_AUTO
+      .filter(p => detectees.has(p.cle) && !retirees.has(p.cle) && !clesStandard.has(p.cle))
       .map(p => ({ ...p, autoEngagement: true }));
     const perso = (d.piecesPersonnalisees || []).map(p => ({ cle: p.cle, label: p.label, personnalisee: true }));
     return [...standard, ...auto, ...perso];
@@ -7885,9 +7959,14 @@
   // par verifierDossierLocal() (ce n'est pas une pièce de la checklist) — son handle n'est donc
   // rempli qu'à la demande, ici, la première fois qu'on clique sur le bouton. Une fois trouvé, il
   // est mémorisé (CLE_HANDLE_COMPROMIS) comme les autres documents : un clic suivant l'ouvre
-  // directement, sans reparcourir le dossier local. "promesse" est tenté en repli, faute de
-  // "compromis" dans le nom du fichier — l'outil couvre aussi bien un compromis qu'une promesse
-  // unilatérale de vente (voir RE_ROLE_VENDEUR/RE_ROLE_ACQUEREUR).
+  // directement, sans reparcourir le dossier local.
+  // Bug corrigé, signalé par l'étude : la recherche se faisait par les seuls mots "compromis" puis
+  // "promesse", qui ramenaient souvent le MAUVAIS avant-contrat — celui de la VENTE PRÉALABLE de
+  // l'acquéreur, rangé dans le même dossier local et portant lui aussi ces mots dans son nom.
+  // C'est désormais le nom EXACT du fichier importé à la création du dossier
+  // (`d.compromisNomFichier`) qui est cherché en premier ; la recherche floue ne sert plus que de
+  // repli pour un dossier saisi entièrement à la main (ou créé avant cette évolution), et le
+  // signale alors explicitement plutôt que d'ouvrir un document au hasard sans prévenir.
   async function ouvrirCompromisTrouve(dossierId, btn) {
     const d = dossiers.find(x => x.id === dossierId);
     if (!d) return;
@@ -7906,12 +7985,28 @@
         afficherToast('Accès au dossier local à reconfirmer avant de rechercher le compromis.', 'OK', null);
         return;
       }
-      const trouve = (await chercherFichierParNom(handleDossier, 'compromis')) || (await chercherFichierParNom(handleDossier, 'promesse'));
+      let trouve = null;
+      let parRepli = false;
+      if (d.compromisNomFichier) {
+        trouve = await chercherFichierParNom(handleDossier, d.compromisNomFichier);
+        if (!trouve) {
+          afficherToast(`« ${d.compromisNomFichier} » introuvable dans le dossier local — recherche élargie.`, 'OK', null);
+        }
+      }
+      if (!trouve) {
+        parRepli = true;
+        trouve = (await chercherFichierParNom(handleDossier, 'compromis')) || (await chercherFichierParNom(handleDossier, 'promesse'));
+      }
       if (!trouve) {
         afficherToast('Aucun fichier contenant « compromis » ou « promesse » trouvé dans le dossier local.', 'OK', null);
         return;
       }
       await enregistrerHandle(cle, trouve);
+      // Un repli peut très bien avoir ramené l'avant-contrat d'une vente préalable : le dire,
+      // plutôt que de laisser croire que c'est forcément le document importé à la création.
+      if (parRepli) {
+        afficherToast(`Ouverture de « ${trouve.name} » — vérifiez qu'il s'agit bien du bon avant-contrat.`, 'OK', null);
+      }
       ouvrirFichierTrouve(cle);
     } catch (e) {
       console.error(e);

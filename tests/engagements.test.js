@@ -73,12 +73,13 @@ test('detecterDocumentsAFournir reconnaît un type de document courant dans les 
   assert.ok(documents.every(d => d.cat === 'entretien' || typeof d.cat === 'string'));
 });
 
-test('detecterDocumentsAFournir porte cleChecklist uniquement sur ramonage/chaudière/PAC', () => {
-  // Ces trois clés relient la détection à une pièce ajoutée automatiquement à la checklist du
-  // dossier (voir PIECES_ENGAGEMENTS_AUTO/ajouterDossier dans script.js) — demandé explicitement
-  // par l'étude, limité à ces trois types pour l'instant. Les autres documents connus
-  // (travaux, justificatifs...) ne doivent PAS avoir de cleChecklist : ce sont de simples
-  // informations dans l'analyse juridique, sans document réel à réunir dans le dossier.
+test('detecterDocumentsAFournir porte une cleChecklist sur TOUS les documents connus', () => {
+  // Cette clé relie la détection à une pièce ajoutée automatiquement à la checklist du dossier
+  // (voir PIECES_ENGAGEMENTS_AUTO/checklistPieces dans script.js). Limitée au départ aux trois
+  // entretiens (ramonage, chaudière, PAC), elle a été étendue à tous les documents connus sur
+  // demande explicite de l'étude : un document à réclamer au vendeur mérite le même suivi, quelle
+  // que soit sa nature — un document détecté sans clé disparaîtrait silencieusement de la
+  // checklist, ce qui est exactement le bug signalé.
   const app = chargerApplication();
   const texte = "Le vendeur s'engage à remettre un justificatif de ramonage de la cheminée, " +
     "un justificatif d'entretien annuel de la chaudière, un justificatif d'entretien de la pompe " +
@@ -89,7 +90,26 @@ test('detecterDocumentsAFournir porte cleChecklist uniquement sur ramonage/chaud
   assert.equal(parLabel['Justificatif de ramonage'], 'ramonage');
   assert.equal(parLabel["Justificatif d'entretien de la chaudière"], 'entretienChaudiere');
   assert.equal(parLabel["Justificatif d'entretien de la pompe à chaleur"], 'entretienPac');
-  assert.equal(parLabel['Factures des travaux réalisés'], null);
+  assert.equal(parLabel['Factures des travaux réalisés'], 'facturesTravaux');
+  assert.ok(documents.every(d => typeof d.cleChecklist === 'string' && d.cleChecklist));
+});
+
+test('chaque cleChecklist désigne une pièce réellement affichable', () => {
+  // Une clé sans pièce correspondante dans PIECES_ENGAGEMENTS_AUTO (ou déjà dans la checklist
+  // standard) serait détectée puis perdue en silence. Vérifié par la sortie de checklistPieces()
+  // plutôt qu'en lisant les tableaux eux-mêmes, invisibles depuis le harnais (const de premier
+  // niveau pour DOCUMENTS_VENDEUR_CONNUS) — et c'est de toute façon le comportement qui compte.
+  const app = chargerApplication();
+  const texte = "Le vendeur s'engage à remettre un justificatif de ramonage de la cheminée, " +
+    "un justificatif d'entretien de la climatisation, une attestation de conformité consuel, " +
+    "un audit énergétique, un état parasitaire, et des factures des travaux réalisés.";
+  const documents = app.detecterDocumentsAFournir(app.extraireEngagementsVendeur(texte));
+  assert.ok(documents.length >= 4);
+  const pieces = app.checklistPieces('maison', { analyseJuridique: { documents } });
+  const cles = new Set(pieces.map(p => p.cle));
+  documents.forEach(doc => {
+    assert.ok(cles.has(doc.cleChecklist), `pièce absente de la checklist pour ${doc.label}`);
+  });
 });
 
 test('extraireConditions restitue les rubriques de la section "Conditions suspensives"', () => {

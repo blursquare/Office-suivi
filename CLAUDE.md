@@ -3542,6 +3542,84 @@ autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` auton
     trompe le plus) et extraction ciblée itérative (re-interroger le modèle sur un seul champ resté
     NEEDS_REVIEW, avec une fenêtre plus large).
 
+- **Série de 12 demandes remontées par l'étude après une semaine d'usage réel** (« Quelques bug
+  détecter depuis lundi »), traitée par lots successifs, chacun testé et commité séparément. Deux
+  consignes générales posées avec la demande : garder à chaque fois la charte graphique de l'app,
+  et poser les questions de cadrage avant d'implémenter plutôt que de deviner. Les arbitrages
+  obtenus ainsi sont notés au fil des lots ci-dessous.
+  - **Lot 1 — retouches d'affichage** : champs de recherche du Suivi et du Tableau de bord aux
+    mêmes coins arrondis (8px) ; espace vide supprimé au-dessus de la croix de fermeture du tiroir
+    (`.drawer-panneau` perd son padding haut, `.drawer-barre` le porte) ; **page « Nouveau dossier »
+    corrigée sur téléphone** — nouveau `@media (max-width: 900px)` qui remet l'aperçu/le descriptif
+    (`.pdf-viewer`) SOUS le bloc d'import (`order: 0`, annulant le `order: -1` du `@media 1100px`
+    qui le faisait passer devant) et donne à chacun toute la largeur, avec une dropzone compactée.
+    Choix explicite de l'étude entre les deux ordres possibles : « import en haut, descriptif en
+    dessous — mais compacté », et **uniquement sur mobile** (desktop inchangé). Trouvé en
+    vérifiant la capture d'écran, sans avoir été signalé : les 4 étapes du wizard débordaient de
+    l'écran — chaque libellé est encapsulé (`.wizard-step-num`/`.wizard-step-libelle`) et, sous
+    640px, seul le libellé de l'étape active reste affiché.
+  - **Lot 2 — vue « Semaines » du Suivi** (`definirVueSuivi('tableau'|'semaines')`, bascule
+    `.vue-bascule` dans la barre d'outils) : les mêmes dossiers regroupés par semaine d'échéance,
+    demandé à partir d'un artefact CRM montré par l'étude. Choix tranché avec elle : **un mode de
+    l'onglet Suivi** (pas un nouvel onglet), et **une ligne par ÉCHÉANCE** (pas par dossier) — un
+    dossier figure donc sous chaque semaine où il a quelque chose à traiter, ce qui est bien la
+    charge de travail de la semaine qu'on cherche à lire. `debutSemaine(iso)` (lundi ISO, dimanche
+    ramené à 7 — le piège classique de `getDay()` qui vaut 0), `toutesEcheances(d)` (exclut le prêt
+    dès que l'offre est reçue, comme `prochaineEcheanceDetail`), `grouperEcheancesParSemaine(liste,
+    aujourdHui)` (groupe « En retard » en tête, `SEMAINES_AFFICHEES` semaines nommées, puis un seul
+    groupe « Plus tard »), `libelleSemaine`. La date du jour est toujours injectée en paramètre :
+    les fonctions restent pures et testables (`tests/semaines.test.js`, 13 tests). Tri « Statut »
+    ajouté au menu existant (`ORDRE_STATUT`, du plus bloquant au terminé).
+  - **Lot 3 — onglet « Prorata & répartitions »** (`#onglet-prorata`, lien de sidebar dédié) :
+    répartit entre vendeur et acquéreur une somme déjà appelée pour une période que la vente coupe
+    en deux — taxe foncière annuelle, charges de copropriété au trimestre ou au mois, loyer mensuel.
+    **Convention imposée par l'étude, à ne pas changer sans nouvelle demande** : jours RÉELS (365,
+    366 une année bissextile — jamais de mois forfaitaire de 30 jours), et **jour de l'acte à la
+    charge de l'ACQUÉREUR**. `joursEntre(debut, fin)` compte en UTC (une différence entre dates
+    locales n'est pas un multiple exact de 86 400 000 ms aux bascules heure d'été/hiver, et le
+    résultat perdait un jour) ; `calculerProrata()` arrondit la part de l'acquéreur puis donne au
+    vendeur le **complément**, jamais un second arrondi indépendant — deux arrondis séparés peuvent
+    faire perdre ou gagner un centime sur une somme réclamée à un client. Un acte hors de la période
+    ne rend rien (message explicite) plutôt que 0 % ou 100 %, qui n'auraient aucun sens ici.
+    `bornesPeriodeProrata()` cale automatiquement les bornes sur l'année/le trimestre/le mois de la
+    date saisie, le dernier jour étant calculé en reculant d'un jour depuis le 1er du mois suivant
+    (seule façon sûre de ne pas se tromper sur un 28/29 février). Nouveau `formaterPrixCentimes()`
+    à côté de `formaterPrix()` (laissée intacte, sans décimale, pour le prix de vente et l'apport).
+    Tests : `tests/prorata.test.js` (15 tests).
+  - **Lot 4 — avant-contrat rattaché et documents identifiés rétroactifs** :
+    - **Bug corrigé : « Ouvrir le compromis » ramenait parfois le mauvais avant-contrat.** Cause
+      confirmée par l'étude : `ouvrirCompromisTrouve()` cherchait les seuls mots « compromis » puis
+      « promesse » dans les noms de fichiers du dossier local — or l'avant-contrat de la VENTE
+      PRÉALABLE de l'acquéreur est rangé dans le même dossier et porte lui aussi ces mots.
+      `compromisNomFichierImporte` mémorise désormais le nom EXACT du PDF déposé dans
+      `traiterFichierPdf()` (jamais le PDF lui-même — voir la décision de ne rien conserver), il est
+      enregistré sur le dossier (`d.compromisNomFichier`) par `ajouterDossier()` et cherché en
+      premier ; la recherche floue ne sert plus que de repli pour un dossier saisi entièrement à la
+      main ou créé avant cette évolution, et **le signale alors par un toast** plutôt que d'ouvrir un
+      document au hasard sans prévenir. L'infobulle du bouton nomme le fichier attendu, pour repérer
+      un mauvais rattachement sans même cliquer. Choix retenu avec l'étude : mémoriser le nom du
+      fichier, **pas** stocker le PDF sur le serveur. `chercherFichierParNom()` normalise maintenant
+      aussi le texte cherché (`normaliserNomPourMotif`) — sans ça, un nom de fichier exact contenant
+      des underscores ne matchait jamais, l'entrée du dossier ayant les siens déjà remplacés.
+    - **Tous les documents de « Documents et pièces identifiés » sont désormais recherchés dans le
+      dossier local**, plus seulement les trois entretiens (chaudière, PAC, ramonage) :
+      `cleChecklist` est porté par TOUTES les entrées de `DOCUMENTS_VENDEUR_CONNUS`, et
+      `PIECES_ENGAGEMENTS_AUTO` passe de 3 à 19 pièces avec leur `motifNom` (premier jet écrit à
+      partir du seul intitulé, comme les `PIECES_*` en leur temps — à resserrer dès qu'un vrai
+      dossier fait remonter un problème). Deux clés pointent volontairement vers une pièce standard
+      existante (assainissement) : `checklistPieces()` dédoublonne et la pièce standard, plus
+      précise, l'emporte.
+    - **Rétroactif sur les dossiers déjà créés**, demandé explicitement : `checklistPieces()` ne se
+      contente plus de `d.piecesEngagementsDetectees` (figé à la création) — elle recalcule aussi les
+      clés depuis `d.analyseJuridique.documents`, lui bien conservé sur le dossier
+      (`clesChecklistDepuisDocuments()`, qui retrouve la clé par le libellé quand le document n'en
+      porte pas, cas de tous les dossiers antérieurs). Aucun dossier à recréer.
+    - **Bug latent corrigé au passage** : `normaliserDossierImporte()` filtrait
+      `analyseJuridique.documents` sur `typeof x === 'string'`, alors que `detecterDocumentsAFournir()`
+      produit des objets `{label, cat, cleChecklist}` depuis longtemps — importer une sauvegarde JSON
+      vidait donc silencieusement la liste des documents identifiés (et aurait annulé la
+      rétroactivité ci-dessus). Les deux formes sont désormais acceptées, comme partout ailleurs.
+
 **Ce qui n'a volontairement PAS été fait** (arrêté à la demande explicite de l'étude, pas un
 oubli) — à reprendre uniquement si redemandé un jour :
 - **Import automatique** des dossiers déjà enregistrés sur la version 100% locale (`main`) vers ce

@@ -217,6 +217,58 @@ test('PIECES_ENGAGEMENTS_AUTO (ramonage/chaudière/PAC) reconnaît des noms de f
   assert.ok(pac.motifNom.test(app.normaliserNomPourMotif('Entretien pompe a chaleur.pdf')));
 });
 
+test('checklistPieces recalcule les pièces depuis les documents du dossier — rétroactivement', () => {
+  // Demandé explicitement par l'étude : un dossier créé AVANT que `cleChecklist` ne couvre tous les
+  // documents (ou avant l'existence même de `d.piecesEngagementsDetectees`) doit malgré tout voir
+  // ses documents identifiés apparaître dans la checklist, sans qu'on ait à le recréer. Seul
+  // `d.analyseJuridique.documents` est conservé sur le dossier : c'est donc de lui qu'on repart.
+  const app = chargerApplication();
+  // Dossier « ancien » : aucune clé stockée, et des documents sans cleChecklist — la clé doit être
+  // retrouvée par le seul libellé.
+  const ancien = {
+    typeVente: 'maison',
+    analyseJuridique: { documents: [{ label: 'Audit énergétique', cat: 'justificatif' }] }
+  };
+  const checklist = app.checklistPieces('maison', ancien);
+  const audit = checklist.find(p => p.cle === 'auditEnergetique');
+  assert.ok(audit, "la pièce doit apparaître sans qu'aucune clé ne soit stockée sur le dossier");
+  assert.equal(audit.autoEngagement, true);
+  assert.equal(typeof audit.motifNom.test, 'function');
+  // Format historique encore plus ancien : un document stocké comme simple chaîne.
+  const tresAncien = { typeVente: 'maison', analyseJuridique: { documents: ['Audit énergétique'] } };
+  assert.ok(app.checklistPieces('maison', tresAncien).some(p => p.cle === 'auditEnergetique'));
+  // Retirable comme n'importe quelle autre pièce, y compris ainsi recalculée.
+  assert.ok(!app.checklistPieces('maison', { ...ancien, piecesRetirees: ['auditEnergetique'] })
+    .some(p => p.cle === 'auditEnergetique'));
+});
+
+test('une pièce déjà présente dans la checklist standard n’apparaît pas en double', () => {
+  // "Contrôle d'assainissement" (document du compromis) et "Courrier réponse assainissement"
+  // (pièce standard) désignent le même document : la clé est volontairement partagée, et c'est la
+  // pièce standard — au libellé et au motif plus précis — qui doit l'emporter.
+  const app = chargerApplication();
+  const d = {
+    typeVente: 'maison',
+    analyseJuridique: { documents: [{ label: "Contrôle d'assainissement", cleChecklist: 'reponseAssainissement' }] }
+  };
+  const checklist = app.checklistPieces('maison', d);
+  assert.equal(checklist.filter(p => p.cle === 'reponseAssainissement').length, 1);
+  assert.equal(checklist.find(p => p.cle === 'reponseAssainissement').autoEngagement, undefined);
+});
+
+test('clesChecklistDepuisDocuments ignore ce qu’elle ne reconnaît pas, sans doublon', () => {
+  const app = chargerApplication();
+  const cles = app.clesChecklistDepuisDocuments([
+    { label: 'Audit énergétique' },
+    { label: 'Audit énergétique', cleChecklist: 'auditEnergetique' }, // doublon
+    { label: 'Un document inventé' },
+    null,
+    'Justificatif de ramonage'
+  ]);
+  assert.equal(cles.join(','), 'auditEnergetique,ramonage');
+  assert.equal(app.clesChecklistDepuisDocuments(undefined).length, 0);
+});
+
 test('aucune pièce de la checklist n\'a plus de motif de contenu — seul motifNom les détecte', () => {
   // Décision explicite de l'étude, après une série de faux positifs par contenu qui n'étaient pas
   // tous réductibles à une clause précise à exclure (ex. les clauses de condition suspensive sur
