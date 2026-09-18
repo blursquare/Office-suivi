@@ -3800,6 +3800,74 @@ autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` auton
     couvrir la lecture de la configuration — la première chose que fait le processus, et la seule
     que l'étude modifie à la main.
 
+- **« Contrôle le nouveau système d'ajout de dossier, rien ne va » — quatre défauts trouvés en
+  rejouant un import complet dans un vrai navigateur, pas en relisant le code.** Méthode : un
+  serveur réel + Playwright, `traiterTexte()` appelé directement avec le texte d'un compromis
+  synthétique (pdf.js reste inaccessible ici, mais il n'est PAS nécessaire pour exercer toute la
+  chaîne d'extraction — c'est ce qui a permis de reproduire, là où les tests unitaires passaient
+  tous). La création 100 % manuelle, elle, fonctionnait déjà de bout en bout (dossier bien
+  enregistré côté serveur, aucune erreur JS) : le problème était entièrement dans l'extraction.
+  - **Le nom du dossier prenait la COMMUNE au lieu du patronyme.** Le plus visible des quatre :
+    « BLOIS / TOURS » au lieu de « DUPONT / MARTIN ». Dans le style « étiquette finale »
+    (« Monsieur Jean DUPONT, né le 3 mars 1970 à BLOIS, demeurant 5 rue des Lilas 41000 BLOIS,
+    ci-après dénommé LE VENDEUR » — la rédaction la plus répandue), `nomsEtFinPourRole()` prenait
+    « le dernier mot en capitales avant l'étiquette ». Or une présentation de partie se termine
+    toujours par son ADRESSE, dont la commune est en capitales : c'était structurellement la ville
+    qui remontait, jamais le nom. Nouvelle `nomsAvantLabel()` : on s'ancre sur la CIVILITÉ, comme
+    `extraireNomsParNaissance()` le fait déjà pour le style « en-tête » — le patronyme suit
+    immédiatement « Monsieur/Madame », l'adresse ne vient qu'après. Repli sur l'ancien comportement
+    si aucune civilité (société, « les époux X »).
+    - Fenêtre de recherche portée de 250 à 600 caractères — une présentation réelle (état civil,
+      nationalité, régime matrimonial, profession, adresse) dépasse largement 250, et la civilité
+      tombait alors hors fenêtre — mais désormais **bornée par `apresIndex`** : elle ne peut plus
+      empiéter sur la partie précédente, ce que les 250 caractères fixes ne garantissaient pas
+      (c'est la mécanique du vieux bug « NOM / NOM »).
+    - **C'est très probablement le fond du « les noms de dossier ne vont pas » resté ouvert depuis
+      des semaines**, et qu'une entrée précédente de ce fichier donnait pour « très probablement
+      corrigé » par la refonte de l'extraction. Ça ne l'était pas : le correctif d'alors portait sur
+      `estStyleLabelEntreGuillemets()` (reconnaître l'étiquette), pas sur la façon dont le nom est
+      ensuite cherché à l'intérieur. Leçon : ne pas clore un bug sur une déduction tant qu'on ne l'a
+      pas reproduit.
+  - **Un acte à deux vendeurs n'était pas reconnu du tout.** Trouvé en écrivant le test de
+    non-régression du couple, pas signalé : `estStyleLabelEntreGuillemets()` n'acceptait pas le
+    PLURIEL (« ci-après dénomm**és** LES VENDEURS »). L'étiquette n'étant pas reconnue, la fonction
+    retombait sur la méthode « en-tête », qui cherche le nom APRÈS le mot-clé et ramenait donc celui
+    de la partie suivante. `d[ée]nomm[ée]e?s?` et `les?` corrigent les deux formes.
+  - **L'adresse du bien avalait la désignation cadastrale, en la tronquant.** « 41100 VENDOME,
+    cadastrée section AB numéro 24 » : les 40 caractères pris après le code postal débordaient sur
+    la phrase et coupaient en plein numéro de parcelle. Deux formes notariales coexistent et
+    demandent le traitement OPPOSÉ de la virgule — « ORLEANS (45000), 12 rue de la République »
+    (code postal entre parenthèses, la rue vient après la virgule, il faut la franchir) et
+    « 14 rue du Moulin 41100 VENDOME, cadastrée… » (code postal nu, la commune termine l'adresse,
+    la virgule la borne). D'où une alternance dans `ADRESSE_BIEN_RE` plutôt qu'un motif unique. Les
+    deux tests d'adresse existants ont d'ailleurs attrapé la première tentative, qui ne traitait que
+    le second cas : ils ont fait exactement leur travail.
+  - **« Il ne détecte plus les adresses »** : la préposition était EXIGÉE après sis/sise/situé.
+    « Un immeuble **sis** 22 boulevard Gambetta 41000 BLOIS », rédaction notariale des plus
+    courantes, n'était donc pas détecté du tout. La préposition devient optionnelle (le vrai point
+    d'ancrage est le code postal dans la même phrase), et « sur la commune de » / « se trouvant à »
+    sont ajoutés. Vérifié que l'adresse d'une PARTIE (« demeurant à… ») continue de ne jamais
+    matcher — c'est le garde-fou que cet assouplissement ne devait pas ouvrir.
+  - **« Il ne calcule plus les dates d'obtention de prêt quand il y a des jours »** : la date était
+    bien calculée (signature + 60 jours) mais restait SANS CATÉGORIE, donc jamais reportée dans le
+    champ. Cause : `suggererEcheance()` ne regarde que la PHRASE, et la rédaction courante met le
+    mot « prêt » dans le seul titre de la clause (« CONDITION SUSPENSIVE D'OBTENTION DE PRÊT »),
+    la phrase du délai disant seulement « … devra obtenir son offre au plus tard dans les
+    60 jours ». La suggestion est désormais cherchée à l'échelle de la CLAUSE (600 caractères en
+    amont) **uniquement pour les dates issues d'un délai** (`calcul` renseigné) et **uniquement si
+    aucune catégorie n'a été trouvée** ; la date reste marquée « ≈ estimée ». Sans risque pour la
+    clause de notification du refus au notaire, déjà écartée en amont par le garde-fou
+    « notifier/notification ». Un test vérifie l'inverse : un délai sans vocabulaire de financement
+    dans sa clause ne reçoit toujours aucune catégorie.
+    - **Ce n'était PAS une régression de la refonte**, contrairement à ce que « ne … plus »
+      laissait entendre : vérifié en rejouant la même clause sur `script.js` du commit `c90e9d0`
+      (la version d'avant), qui donne exactement le même résultat — date calculée, jamais classée.
+      Limite ancienne, simplement rencontrée maintenant. Vérifier avant de chercher un coupable
+      dans le dernier chantier coûte deux minutes et évite de défaire du code correct.
+  - Tests : suite racine 264 → 273 (patronyme vs commune, parties d'un couple, les deux formes
+    d'adresse, « sis » sans préposition, adresse d'une partie non captée, délai de prêt classé par
+    le titre de clause, et son contre-exemple).
+
 **Ce qui n'a volontairement PAS été fait** (arrêté à la demande explicite de l'étude, pas un
 oubli) — à reprendre uniquement si redemandé un jour :
 - **Import automatique** des dossiers déjà enregistrés sur la version 100% locale (`main`) vers ce

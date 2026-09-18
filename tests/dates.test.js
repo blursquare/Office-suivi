@@ -411,3 +411,68 @@ test('detecterDatesDepuisTexte garde une date "à compter du" quand la clause pa
   assert.equal(dates[0].iso, '2028-01-01');
   assert.equal(dates[0].suggestion, 'acte');
 });
+
+// Seconde forme notariale, aussi courante que « COMMUNE (code postal), rue » ci-dessus mais qui
+// demande le traitement INVERSE de la virgule : ici la commune TERMINE l'adresse, et ce qui suit
+// la virgule appartient à la phrase (désignation cadastrale). Les 40 caractères pris après le code
+// postal l'avalaient et la tronquaient en plein numéro de parcelle — la fiche affichait
+// « 41100 VENDOME, cadastrée section AB numéro 24 ». Trouvé en rejouant un import complet dans un
+// vrai navigateur après le signalement « rien ne va » de l'étude sur la création de dossier.
+test('detecterAdresseBien : code postal nu, la commune termine l\'adresse (pas le cadastre qui suit)', () => {
+  const app = chargerApplication();
+  const texte = "Une maison d'habitation sise à 14 rue du Moulin 41100 VENDOME, cadastrée section AB numéro 245.";
+  assert.equal(app.detecterAdresseBien(texte), '14 rue du Moulin 41100 VENDOME');
+});
+
+// Délai de prêt exprimé en jours dont LA PHRASE ne nomme pas le prêt — seul le titre de la clause
+// le fait. La date était bien calculée (signature + 60 jours) mais restait sans catégorie, donc
+// n'était jamais reportée dans « Obtention du prêt » : le champ restait vide. Signalé par l'étude
+// (« il ne calcule plus les dates d'obtention de prêt quand il y a des jours ») ; vérifié que la
+// version d'avant la refonte de l'extraction se comportait déjà ainsi — limite ancienne, pas
+// régression. La suggestion est désormais cherchée à l'échelle de la clause pour ces dates-là.
+test('délai en jours : le prêt nommé dans le titre de la clause suffit à classer la date', () => {
+  const app = chargerApplication();
+  const texte = `CONDITION SUSPENSIVE D'OBTENTION DE PRET
+La présente convention est soumise à la condition suspensive de l'obtention d'un prêt.
+L'acquéreur devra déposer sa demande et obtenir son offre au plus tard dans les 60 jours.`;
+  const dates = app.detecterDatesDepuisTexte(texte, '2026-09-10');
+  assert.equal(dates.length, 1);
+  assert.equal(dates[0].iso, '2026-11-09');
+  assert.equal(dates[0].suggestion, 'pret');
+  assert.equal(dates[0].approx, true); // déduite d'un délai : reste signalée « ≈ estimée »
+});
+
+// Le garde-fou inverse : un délai sans aucun vocabulaire de financement dans sa clause ne doit
+// surtout pas être attribué au prêt — sans quoi l'élargissement ci-dessus remplirait le champ
+// « Obtention du prêt » avec n'importe quelle échéance exprimée en jours.
+test('délai en jours sans vocabulaire de prêt dans la clause : aucune catégorie attribuée', () => {
+  const app = chargerApplication();
+  const texte = `ETAT DES LIEUX
+Les parties conviennent que la visite de conformité aura lieu au plus tard dans les 30 jours.`;
+  const dates = app.detecterDatesDepuisTexte(texte, '2026-09-10');
+  assert.equal(dates.length, 1);
+  assert.equal(dates[0].suggestion, null);
+});
+
+// « sis » introduisant directement l'adresse, sans préposition : rédaction notariale des plus
+// courantes, qui n'était pas détectée du tout — la préposition était exigée. L'étude a signalé
+// « il ne détecte plus les adresses » ; ce cas fait partie des formulations qui échouaient.
+test('detecterAdresseBien : « sis » sans préposition', () => {
+  const app = chargerApplication();
+  assert.equal(app.detecterAdresseBien('Un immeuble sis 22 boulevard Gambetta 41000 BLOIS.'),
+    '22 boulevard Gambetta 41000 BLOIS');
+});
+
+test('detecterAdresseBien : « situé sur la commune de »', () => {
+  const app = chargerApplication();
+  assert.equal(app.detecterAdresseBien('Un bien situé sur la commune de VENDOME (41100), 3 rue Haute.'),
+    'VENDOME (41100), 3 rue Haute');
+});
+
+// Garde-fou : l'adresse d'une PARTIE (« demeurant à … ») ne doit jamais être prise pour celle du
+// bien. Assouplir la préposition ne devait pas ouvrir cette porte.
+test('detecterAdresseBien : l\'adresse d\'une partie n\'est pas celle du bien', () => {
+  const app = chargerApplication();
+  const texte = 'Monsieur DUPONT, demeurant à 5 rue des Lilas 41000 BLOIS, ci-après dénommé LE VENDEUR.';
+  assert.equal(app.detecterAdresseBien(texte), null);
+});

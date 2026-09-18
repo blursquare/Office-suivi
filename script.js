@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-18 10:16';
+  const VERSION_APP = '2026-09-18 12:04';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-18 12:04', resume: "Création de dossier depuis un PDF : quatre corrections. Le nom du dossier prenait la COMMUNE de l'adresse au lieu du patronyme (« BLOIS / TOURS » au lieu de « DUPONT / MARTIN ») sur la rédaction la plus courante, celle où la partie est présentée puis étiquetée ; un acte à deux vendeurs (« ci-après dénommés LES VENDEURS ») n'était pas reconnu du tout. L'adresse du bien avalait la désignation cadastrale en la tronquant, et n'était pas détectée quand « sis » introduit directement l'adresse sans préposition. Enfin, une date de prêt exprimée en jours était bien calculée mais jamais reportée dans le champ quand seule l'intitulé de la clause nommait le prêt" },
     { version: '2026-09-18 10:16', resume: "Le serveur ne disparaît plus en silence au démarrage : jusqu'ici, une faute de frappe dans config.json (typiquement un chemin réseau écrit avec des antislashs simples au lieu de doublés) faisait clignoter la fenêtre puis plus rien, sans la moindre explication. Le message est maintenant affiché, la fenêtre reste ouverte le temps de le lire, et il est enregistré dans erreur-demarrage.txt à côté de l'exécutable. Même traitement si le port est déjà occupé, avec le rappel qu'un serveur tourne peut-être déjà sans fenêtre visible" },
     { version: '2026-09-18 08:30', resume: "Les dossiers clients du NAS sont désormais lus par le SERVEUR, plus par le navigateur : tous les postes connectés par l'adresse IP peuvent enfin relier un dossier et ouvrir ses pièces, ce qui était impossible jusqu'ici. Plus aucune autorisation à reconfirmer au démarrage (la popup, le bandeau et le bouton groupé disparaissent avec le problème), un dossier relié depuis un poste l'est pour tout le monde, le dossier du NAS est proposé automatiquement d'après le nom du dossier, et un bouton « Revérifier tous les dossiers » relance le parcours en une fois. À configurer une fois : « nasRacine » dans config.json" },
     { version: '2026-09-18 08:15', resume: "Offre de prêt reconnue autrement : l'outil rouvre les PDF du dossier, écarte tout document de moins de 6 pages, lit le TITRE de la page de garde (et lui seul) puis fait confirmer par le modèle IA local qu'il s'agit bien d'une offre ou d'un contrat de prêt — sans ce modèle, le document trouvé passe en « À confirmer », distinct de « Reçue ». La ou les garanties du prêt (caution, hypothèque légale de prêteur de deniers, hypothèque conventionnelle) sont relevées au passage et affichées dans la carte « Obtention du prêt »" },
@@ -247,7 +248,24 @@
   // point suivant, comme extraireContexte) : un premier jet, pas encore confronté à de vrais
   // compromis autres que ceux déjà vus pour les dates/engagements — à resserrer si un vrai dossier
   // fait remonter un faux positif ou une capture tronquée.
-  const ADRESSE_BIEN_RE = /(?:sis|sise|situ[ée]e?)\s+(?:à|a|au|dans\s+la\s+commune\s+de|commune\s+de)\s+([^.\n]{3,120}?\d{5}[^.\n]{0,40})/i;
+  // Deux formes notariales, qui demandent deux traitements OPPOSÉS de la virgule — d'où
+  // l'alternance plutôt qu'un motif unique :
+  //  - « sis à ORLEANS (45000), 12 rue de la République » : code postal entre PARENTHÈSES, commune
+  //    d'abord, la rue vient APRÈS la virgule — il faut donc la franchir pour ne pas perdre la rue.
+  //  - « sise à 14 rue du Moulin 41100 VENDOME, cadastrée section AB numéro 245 » : code postal nu,
+  //    la commune termine l'adresse — tout ce qui suit la virgule appartient à la phrase, pas à
+  //    l'adresse. Sans cette borne, les 40 caractères pris après le code postal avalaient la
+  //    désignation cadastrale ET la tronquaient en plein numéro de parcelle (« numéro 24 »),
+  //    faute de place : la fiche affichait un mélange des deux, systématiquement coupé.
+  // La forme parenthésée est essayée en premier ; elle ne peut pas matcher la seconde (aucun code
+  // postal entre parenthèses), donc l'ordre ne crée pas d'ambiguïté.
+  // La préposition est OPTIONNELLE : « un immeuble sis 22 boulevard Gambetta 41000 BLOIS » est une
+  // rédaction notariale des plus courantes, où « sis » introduit directement l'adresse sans « à ».
+  // Elle était jusqu'ici exigée, et ces désignations-là n'étaient pas détectées du tout — l'adresse
+  // restait vide sur la fiche. « sur la commune de » et « se trouvant à » manquaient de même.
+  // Le point d'ancrage réel reste le CODE POSTAL, dans la même phrase : c'est lui qui borne la
+  // capture, la préposition ne faisait que restreindre inutilement les formulations acceptées.
+  const ADRESSE_BIEN_RE = /(?:sis|sise|situ[ée]e?|se\s+trouvant)\s+(?:(?:[àa]|au|sur\s+la\s+commune\s+de|dans\s+la\s+commune\s+de|commune\s+de)\s+)?((?:[^.\n]{3,120}?\(\d{5}\)[^.\n]{0,40})|(?:[^.\n]{3,120}?\d{5}[^.\n,;]{0,40}))/i;
 
   function detecterAdresseBien(texte) {
     const m = ADRESSE_BIEN_RE.exec(texte);
@@ -383,6 +401,40 @@
     return [...new Set(noms)];
   }
 
+  // Style « étiquette finale » : « Monsieur Jean DUPONT, né le 3 mars 1970 à BLOIS, demeurant à
+  // 5 rue des Lilas 41000 BLOIS, ci-après dénommé LE VENDEUR » — le patronyme est AVANT le mot-clé
+  // de rôle. Jusqu'ici on prenait « le dernier mot en capitales avant l'étiquette » : or une
+  // présentation de partie se termine presque toujours par son ADRESSE, dont la commune est en
+  // capitales. C'est donc la VILLE qui remontait, jamais le nom — tous les dossiers créés depuis un
+  // compromis de ce style (le plus répandu) ressortaient nommés d'après des communes
+  // (« BLOIS / TOURS »). Signalé par l'étude en conditions réelles ; c'est très probablement aussi
+  // ce que recouvrait le « les noms de dossier ne vont pas » resté longtemps ouvert faute d'exemple,
+  // et qu'un correctif précédent avait cru régler.
+  // On s'ancre désormais sur la CIVILITÉ, exactement comme extraireNomsParNaissance() le fait déjà
+  // pour le style « en-tête » : le patronyme suit immédiatement « Monsieur/Madame », l'adresse ne
+  // vient qu'après. Plusieurs civilités dans la fenêtre = plusieurs vendeurs (un couple), tous
+  // retournés, cohérent avec le style « en-tête » qui gère déjà ce cas.
+  function nomsAvantLabel(fenetre) {
+    const civiliteRe = /\b(?:Mademoiselle|Monsieur|Madame|Mlle|Mme|M\.)/gi;
+    const bornes = [];
+    let m;
+    while ((m = civiliteRe.exec(fenetre)) !== null) bornes.push({ debut: m.index, fin: m.index + m[0].length });
+    if (bornes.length === 0) return [];
+    const noms = [];
+    for (let i = 0; i < bornes.length; i++) {
+      const finSegment = i + 1 < bornes.length ? bornes[i + 1].debut : fenetre.length;
+      const segment = fenetre.slice(bornes[i].fin, finSegment);
+      // « NOM né(e) » d'abord : l'ancre la plus sûre quand la date de naissance est mentionnée
+      // (même motif que extraireNomsParNaissance). Sinon le PREMIER mot en capitales du segment,
+      // qui précède nécessairement l'adresse — c'est tout l'objet du correctif.
+      const parNaissance = segment.match(/\b([A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,}(?:[-\s][A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,})*)\s+n[ée]e?(?=\s)/);
+      if (parNaissance && estNomValide(parNaissance[1])) { noms.push(parNaissance[1]); continue; }
+      const premier = trouverNomDansFenetre(segment, 'first');
+      if (premier) noms.push(premier.nom);
+    }
+    return [...new Set(noms)];
+  }
+
   function trouverNomDansFenetre(fenetre, direction) {
     const nomRe = /\b([A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,}(?:[-\s][A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,})*)\b/g;
     let resultat = null;
@@ -408,8 +460,12 @@
     // ouvrant, le style était pris pour une étiquette finale, et le nom était cherché EN ARRIÈRE —
     // ramenant le nom du vendeur présenté juste avant, au lieu de celui de l'acquéreur. Bug
     // préexistant, révélé par les textes de test des trois types d'acte.
-    return /(^|[^A-Za-zÀ-ÿ])["«'’]\s*(?:le|la|l['’]|du|des)?\s*$/i.test(avant) ||
-      /ci-apr[èe]s\s+d[ée]nomm[ée]e?\s+(?:le|la|l['’])?\s*$/i.test(avant);
+    // Le PLURIEL doit être accepté (« ci-après dénommés LES VENDEURS ») : sans le `s?`, un acte
+    // avec deux vendeurs — un couple, cas courant — n'était pas reconnu comme étiquette finale et
+    // retombait sur la méthode « en-tête », qui va chercher le nom APRÈS le mot-clé et ramenait
+    // donc celui de la partie suivante. Trouvé en écrivant le test de non-régression du couple.
+    return /(^|[^A-Za-zÀ-ÿ])["«'’]\s*(?:les?|la|l['’]|du|des)?\s*$/i.test(avant) ||
+      /ci-apr[èe]s\s+d[ée]nomm[ée]e?s?\s+(?:les?|la|l['’])?\s*$/i.test(avant);
   }
 
   function extraireNomsRepli(texte, motRe) {
@@ -485,7 +541,17 @@
     const indexAbsolu = apresIndex + m.index;
     const finAbsolue = indexAbsolu + m[0].length;
     if (estStyleLabelEntreGuillemets(texte, indexAbsolu)) {
-      const fenetreAvant = texte.slice(Math.max(0, indexAbsolu - 250), indexAbsolu);
+      // Fenêtre élargie à 600 caractères : une présentation réelle (état civil, nationalité,
+      // régime matrimonial, profession, adresse) dépasse largement 250 caractères, et la civilité
+      // — seule ancre fiable du patronyme, voir nomsAvantLabel — tombait alors hors fenêtre. Bornée
+      // par `apresIndex` : jamais en deçà du point où commence la recherche de CETTE partie, sans
+      // quoi la fenêtre empiéterait sur la présentation de la partie précédente et ramènerait son
+      // nom (le bug « NOM / NOM » déjà rencontré, que les 250 caractères fixes ne prévenaient pas).
+      const fenetreAvant = texte.slice(Math.max(apresIndex, indexAbsolu - 600), indexAbsolu);
+      const parCivilite = nomsAvantLabel(fenetreAvant);
+      if (parCivilite.length) return { noms: parCivilite, finAbsolue };
+      // Aucune civilité (société, « les époux X »…) : on retombe sur l'ancien comportement plutôt
+      // que de ne rien renvoyer.
       const r = trouverNomDansFenetre(fenetreAvant, 'last');
       return { noms: r ? [r.nom] : [], finAbsolue };
     }
@@ -526,6 +592,12 @@
   // "à compter du" peut alors désigner la date à laquelle l'acte sera effectivement réitéré —
   // cette date-là reste une vraie échéance, à ne pas écarter.
   const A_COMPTER_RE = /[àa]\s+compter\s+d[eu]\s*$/i;
+
+  // Vocabulaire du financement, cherché à l'échelle de la CLAUSE (et non de la seule phrase) pour
+  // rattacher une date issue d'un délai à l'échéance « prêt » — voir son usage dans ajouter().
+  // `var` et non `const` : déclarée ainsi pour rester visible depuis le harnais de tests
+  // (tests/helpers/load-app.js ne voit que les `function` et les `var` de premier niveau).
+  var VOCABULAIRE_PRET_CLAUSE_RE = /\bpr[êe]ts?\b|\bemprunt|\bfinancement\b/i;
 
   function suggererEcheance(contexte) {
     const c = contexte.toLowerCase();
@@ -2324,6 +2396,24 @@
       // aussi bien le verbe ("sera réitéré") que le nom ("réitération"), pas seulement ce dernier.
       if (A_COMPTER_RE.test(texte.slice(Math.max(0, index - 30), index)) && !/\br[ée]it[ée]r/i.test(contexte)) return;
       let suggestion = suggererEcheance(contexte);
+      // Un délai ancré sur la signature dont la PHRASE ne nomme pas le prêt restait sans catégorie :
+      // la date était correctement calculée (60 jours après la signature) puis jamais reportée dans
+      // « Obtention du prêt », le champ restait vide. C'est le cas dès que la clause s'intitule
+      // « CONDITION SUSPENSIVE D'OBTENTION DE PRÊT » mais que la phrase du délai, elle, dit
+      // seulement « … devra obtenir son offre au plus tard dans les 60 jours » — rédaction
+      // courante. Signalé par l'étude (« il ne calcule plus les dates d'obtention de prêt quand il
+      // y a des jours ») ; vérifié au passage que la version d'avant la refonte de l'extraction se
+      // comportait déjà ainsi — ce n'est pas une régression, mais une limite jamais levée.
+      // On élargit donc à la CLAUSE (600 caractères en amont, l'échelle d'un paragraphe d'acte)
+      // uniquement pour ces dates-là : `calcul` n'est renseigné que pour une date issue d'un délai.
+      // Sans risque de rattraper la clause de notification du refus au notaire : celle-ci est déjà
+      // écartée en amont par le garde-fou « notifier/notification » de reAuPlusTardDelai et
+      // reAuPlusTardApres, avant même d'arriver ici. La date reste marquée « ≈ estimée », donc
+      // signalée comme à vérifier, exactement comme les autres dates déduites d'un délai.
+      if (!suggestion && calcul) {
+        const clause = texte.slice(Math.max(0, index - 600), index + longueur);
+        if (VOCABULAIRE_PRET_CLAUSE_RE.test(clause)) suggestion = 'pret';
+      }
       // Une correction déjà faite par un(e) collaborateur(rice) sur une clause très proche
       // l'emporte sur la suggestion par mots-clés (voir la section "apprentissage" plus bas).
       const apprise = trouverCorrectionApprise(contexte);

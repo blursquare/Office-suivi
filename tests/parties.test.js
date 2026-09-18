@@ -127,3 +127,47 @@ Monsieur Jean DUPONT, joignable à jean.dupont@exemple.fr, ci-après dénommé L
 La présente promesse d'achat engage le promettant.`;
   assert.equal(app.detecterEmailAcquereur(texte, 'PROMESSE_D_ACHAT'), 'pierre.martin@exemple.fr');
 });
+
+// Style « étiquette finale » avec une ADRESSE avant l'étiquette — la rédaction la plus répandue
+// dans les compromis réels, et le bug le plus visible qu'ait connu l'outil : le nom était cherché
+// comme « le dernier mot en capitales avant l'étiquette », or une présentation de partie se
+// termine par son adresse, dont la commune est en capitales. Tous les dossiers créés depuis un
+// acte de ce style ressortaient donc nommés d'après des COMMUNES (« BLOIS / TOURS » au lieu de
+// « DUPONT / MARTIN »). Signalé par l'étude (« contrôle le nouveau système d'ajout de dossier,
+// rien ne va »), reproduit en rejouant traiterTexte() dans un vrai navigateur.
+const ETIQUETTE_FINALE_AVEC_ADRESSE = `COMPROMIS DE VENTE
+
+ENTRE LES SOUSSIGNES :
+
+Monsieur Jean DUPONT, né le 3 mars 1970 à BLOIS, demeurant à 5 rue des Lilas 41000 BLOIS,
+ci-après dénommé LE VENDEUR, d'une part,
+
+ET :
+
+Madame Claire MARTIN, née le 12 juin 1985 à TOURS, demeurant à 8 avenue Victor Hugo 37000 TOURS,
+ci-après dénommée L'ACQUEREUR, d'autre part.`;
+
+test('detecterNomDossier : le patronyme l\'emporte sur la commune de l\'adresse qui le suit', () => {
+  const app = chargerApplication();
+  assert.equal(app.detecterNomDossier(ETIQUETTE_FINALE_AVEC_ADRESSE), 'DUPONT / MARTIN');
+});
+
+test('detecterParties : chaque partie garde son patronyme, pas sa ville', () => {
+  const app = chargerApplication();
+  const parties = app.detecterParties(ETIQUETTE_FINALE_AVEC_ADRESSE, 'COMPROMIS_DE_VENTE');
+  assert.equal(parties.map((p) => p.nom + ':' + p.role).join(' | '),
+    'DUPONT:VENDEUR | MARTIN:ACQUEREUR');
+});
+
+// Un couple vendeur : les deux civilités de la fenêtre doivent être relevées, comme le fait déjà
+// le style « en-tête » — sans quoi seul l'un des deux noms serait retenu.
+test('detecterParties : deux civilités avant l\'étiquette donnent les deux noms', () => {
+  const app = chargerApplication();
+  const texte = `COMPROMIS DE VENTE
+Monsieur Paul LEROY, né le 1 janvier 1960 à Blois, et Madame Anne BERTRAND, née le 2 février 1962 à Tours,
+demeurant ensemble 7 rue Haute 41000 BLOIS, ci-après dénommés LES VENDEURS.
+Monsieur Marc PETIT, né le 3 mars 1980 à Tours, demeurant 9 rue Basse 37000 TOURS,
+ci-après dénommé L'ACQUEREUR.`;
+  const noms = app.detecterParties(texte, 'COMPROMIS_DE_VENTE').map((p) => p.nom).join(',');
+  assert.equal(noms, 'LEROY,BERTRAND,PETIT');
+});
