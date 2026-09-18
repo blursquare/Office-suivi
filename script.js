@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-18 07:55';
+  const VERSION_APP = '2026-09-18 08:00';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-18 08:00', resume: "Nouvel onglet « Prorata & répartitions » : répartit entre vendeur et acquéreur une taxe foncière annuelle, des charges de copropriété au trimestre ou au mois, ou un loyer mensuel — jours réels, jour de l'acte à la charge de l'acquéreur, les deux parts totalisant toujours la somme appelée au centime près" },
     { version: '2026-09-18 07:55', resume: "Nouvelle vue « Semaines » dans le Suivi : les mêmes dossiers regroupés par semaine d'échéance, une ligne par échéance — un dossier figure donc sous chaque semaine où il a quelque chose à traiter, avec un groupe « En retard » en tête. Le tableau peut aussi être trié par statut" },
     { version: '2026-09-18 07:52', resume: "Retouches d'affichage : champs de recherche du Suivi et du Tableau de bord aux mêmes coins arrondis, espace vide supprimé au-dessus de la croix de fermeture d'une fiche, et page « Nouveau dossier » corrigée sur téléphone — la zone d'import repasse au-dessus du descriptif, les deux blocs prennent toute la largeur, et les quatre étapes du wizard ne débordent plus de l'écran" },
     { version: '2026-09-18 01:52', resume: "L'IA locale relit l'acte en trois passes ciblées (parties et notaires / bien et prix / échéances) au lieu d'une seule : chaque valeur qu'elle propose est vérifiée en retrouvant sa citation dans le PDF, jamais retenue sur sa seule affirmation ; quand elle contredit la détection automatique, c'est cette dernière qui reste, l'écart étant signalé dans le panneau plutôt que tranché en silence ; un délai qu'elle rapporte est calculé par l'outil, jamais par elle" },
@@ -106,7 +107,10 @@
     info: '<circle cx="8" cy="8" r="6.2"/><line x1="8" y1="7.2" x2="8" y2="11.3"/><circle cx="8" cy="4.9" r="0.9" fill="currentColor" stroke="none"/>',
     'chevron-down': '<path d="M3.5 6 8 10.5 12.5 6"/>',
     'chevron-up': '<path d="M3.5 10 8 5.5 12.5 10"/>',
-    'rotate-ccw': '<path d="M13.3 8A5.3 5.3 0 1 1 10.8 3.4"/><path d="M13.6 2.6v3.6h-3.6"/>'
+    'rotate-ccw': '<path d="M13.3 8A5.3 5.3 0 1 1 10.8 3.4"/><path d="M13.6 2.6v3.6h-3.6"/>',
+    // Prorata : un disque coupé en deux parts inégales — une somme répartie entre deux parties.
+    // Même grille 16x16 et même trait que le reste du jeu.
+    'part-disque': '<circle cx="8" cy="8" r="5.6"/><path d="M8 2.4V8l4 3.8"/>'
   };
   // `cls` porte les classes de mise en page (taille via font-size hérité, marge...) ; `spin` anime
   // une rotation continue (voir @keyframes icone-spin) pour les icônes d'attente (ex. "spinner").
@@ -263,6 +267,15 @@
   const FORMAT_PRIX = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
   function formaterPrix(valeur) {
     return FORMAT_PRIX.format(valeur);
+  }
+
+  // Variante AVEC les centimes, pour les montants où ils comptent — une répartition de prorata est
+  // une somme réclamée à un client, l'arrondir à l'euro ferait perdre le complément exact entre les
+  // deux parts (voir calculerProrata). Le prix de vente et l'apport, eux, restent à l'euro près :
+  // formaterPrix() est inchangée.
+  const FORMAT_PRIX_CENTIMES = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  function formaterPrixCentimes(valeur) {
+    return FORMAT_PRIX_CENTIMES.format(valeur);
   }
 
   // Montant emprunté, lu dans le texte de l'offre de prêt elle-même (pas le compromis) une fois
@@ -4838,21 +4851,26 @@
     document.getElementById('onglet-nouveau').style.display = nom === 'nouveau' ? '' : 'none';
     document.getElementById('onglet-suivi').style.display = nom === 'suivi' ? '' : 'none';
     document.getElementById('onglet-calculateur').style.display = nom === 'calculateur' ? '' : 'none';
+    document.getElementById('onglet-prorata').style.display = nom === 'prorata' ? '' : 'none';
     document.getElementById('onglet-analyse-ia').style.display = nom === 'analyse-ia' ? '' : 'none';
     document.getElementById('tab-dashboard').setAttribute('aria-selected', String(nom === 'dashboard'));
     document.getElementById('tab-nouveau').setAttribute('aria-selected', String(nom === 'nouveau'));
     document.getElementById('tab-suivi').setAttribute('aria-selected', String(nom === 'suivi'));
     document.getElementById('tab-calculateur').setAttribute('aria-selected', String(nom === 'calculateur'));
+    document.getElementById('tab-prorata').setAttribute('aria-selected', String(nom === 'prorata'));
     document.getElementById('tab-analyse-ia').setAttribute('aria-selected', String(nom === 'analyse-ia'));
     document.getElementById('tab-dashboard').classList.toggle('actif', nom === 'dashboard');
     document.getElementById('tab-nouveau').classList.toggle('actif', nom === 'nouveau');
     document.getElementById('tab-suivi').classList.toggle('actif', nom === 'suivi');
     document.getElementById('tab-calculateur').classList.toggle('actif', nom === 'calculateur');
+    document.getElementById('tab-prorata').classList.toggle('actif', nom === 'prorata');
     document.getElementById('tab-analyse-ia').classList.toggle('actif', nom === 'analyse-ia');
     if (nom === 'suivi' || nom === 'dashboard') render();
     // Vérifiée à chaque ouverture (appel léger) plutôt qu'une fois pour toutes : Ollama a pu être
     // installé/démarré/arrêté sur le serveur depuis la dernière visite de cet onglet.
     if (nom === 'analyse-ia') verifierDisponibiliteAnalyseIa();
+    // Date du jour et bornes de période posées au premier affichage seulement (voir initProrata).
+    if (nom === 'prorata') initProrata();
   }
 
   // ==== SUIVI : regroupement des échéances par semaine ====
@@ -8205,6 +8223,150 @@
       : 'Taux départemental appliqué : ' + formaterPourcentageFraisActe(dept.temp) + ' au 1er juin 2026.';
   }
 
+  // ==== SIMULATEUR DE PRORATA (taxe foncière, charges de copropriété, loyer) ====
+  //
+  // Demandé par l'étude : répartir entre vendeur et acquéreur une somme déjà appelée pour une
+  // période que la vente coupe en deux. Trois cas, une seule règle de calcul.
+  //
+  // CONVENTION IMPOSÉE PAR L'ÉTUDE, à ne pas changer sans nouvelle demande explicite :
+  //   - jours RÉELS sur la période réelle (365 jours, 366 une année bissextile — pas de mois de
+  //     30 jours ni d'année de 360) ;
+  //   - le JOUR DE L'ACTE est à la charge de l'ACQUÉREUR. Il compte donc dans sa part.
+  // Tout le reste en découle : la part du vendeur est le complément, jamais recalculée à part
+  // (sans quoi un arrondi pourrait faire que les deux parts ne totalisent plus la somme appelée).
+  //
+  // Fonctions pures, déclarées en `function`/`var` : testables depuis tests/helpers/load-app.js.
+
+  // Nombre de jours entre deux dates ISO, bornes comprises. Passe par Date.UTC plutôt que par des
+  // dates locales : sur un changement d'heure (fin mars, fin octobre en France), une différence de
+  // millisecondes entre deux dates locales ne fait pas un multiple exact de 86 400 000 et le
+  // résultat se décalait d'un jour.
+  function joursEntre(debutIso, finIso) {
+    if (!debutIso || !finIso) return null;
+    const a = new Date(debutIso + 'T00:00:00Z');
+    const b = new Date(finIso + 'T00:00:00Z');
+    if (isNaN(a) || isNaN(b)) return null;
+    return Math.round((b - a) / 86400000) + 1;
+  }
+
+  // Répartit `montant`, appelé pour la période [debut, fin], entre le vendeur et l'acquéreur à la
+  // date de l'acte. Renvoie null si les données ne permettent pas un calcul sûr — jamais un chiffre
+  // approximatif : c'est une somme qui sera réclamée à un client.
+  function calculerProrata(montant, debutIso, finIso, dateActeIso) {
+    const total = Number(montant);
+    if (!Number.isFinite(total) || total <= 0) return null;
+    const joursPeriode = joursEntre(debutIso, finIso);
+    if (!joursPeriode || joursPeriode <= 0) return null;
+    // L'acte doit tomber DANS la période : hors d'elle, il n'y a rien à répartir (la somme est
+    // entièrement à l'un ou à l'autre), et le signaler vaut mieux que de rendre 0 % ou 100 % comme
+    // si le calcul avait un sens.
+    if (dateActeIso < debutIso || dateActeIso > finIso) return null;
+
+    // Jour de l'acte inclus dans la part de l'acquéreur : sa période court de la date de l'acte à
+    // la fin, bornes comprises.
+    const joursAcquereur = joursEntre(dateActeIso, finIso);
+    const joursVendeur = joursPeriode - joursAcquereur;
+    const partAcquereur = Math.round(total * joursAcquereur / joursPeriode * 100) / 100;
+    return {
+      total,
+      joursPeriode,
+      joursVendeur,
+      joursAcquereur,
+      // Le complément, pas un second arrondi : les deux parts totalisent toujours exactement la
+      // somme appelée, ce qu'un double arrondi ne garantirait pas (écart d'un centime).
+      partVendeur: Math.round((total - partAcquereur) * 100) / 100,
+      partAcquereur,
+      pourcentageAcquereur: joursAcquereur / joursPeriode
+    };
+  }
+
+  // Périodes proposées par l'outil. La taxe foncière est annuelle et due par le propriétaire au
+  // 1er janvier (le vendeur), d'où une période calée sur l'année civile ; les charges de
+  // copropriété suivent l'appel de fonds (trimestre ou mois) ; le loyer, le mois civil.
+  var PERIODES_PRORATA = [
+    { cle: 'annee', label: 'Année civile', aide: 'Taxe foncière : due par le propriétaire au 1er janvier, l’acquéreur rembourse sa part.' },
+    { cle: 'trimestre', label: 'Trimestre civil', aide: 'Charges de copropriété appelées au trimestre.' },
+    { cle: 'mois', label: 'Mois civil', aide: 'Charges mensuelles, ou loyer du mois en cours.' }
+  ];
+
+  // Bornes de la période contenant `dateIso`, pour le découpage choisi. Le dernier jour est calculé
+  // en reculant d'un jour depuis le premier jour de la période suivante : la seule façon sûre de
+  // tomber juste sur un 28/29 février ou un mois de 30 jours.
+  function bornesPeriodeProrata(dateIso, periode) {
+    if (!dateIso) return null;
+    const d = new Date(dateIso + 'T00:00:00Z');
+    if (isNaN(d)) return null;
+    const annee = d.getUTCFullYear();
+    const mois = d.getUTCMonth();
+    let debutMois;
+    let nbMois;
+    if (periode === 'mois') { debutMois = mois; nbMois = 1; }
+    else if (periode === 'trimestre') { debutMois = Math.floor(mois / 3) * 3; nbMois = 3; }
+    else { debutMois = 0; nbMois = 12; }
+    const debut = new Date(Date.UTC(annee, debutMois, 1));
+    const finExclue = new Date(Date.UTC(annee, debutMois + nbMois, 1));
+    const fin = new Date(finExclue.getTime() - 86400000);
+    const iso = (x) => `${x.getUTCFullYear()}-${pad(x.getUTCMonth() + 1)}-${pad(x.getUTCDate())}`;
+    return { debut: iso(debut), fin: iso(fin) };
+  }
+
+  function majPeriodeProrata() {
+    const dateActe = document.getElementById('prorata-date').value;
+    const periode = document.getElementById('prorata-periode').value;
+    const bornes = bornesPeriodeProrata(dateActe, periode);
+    if (bornes) {
+      document.getElementById('prorata-debut').value = bornes.debut;
+      document.getElementById('prorata-fin').value = bornes.fin;
+    }
+    calculerProrataAffichage();
+  }
+
+  function calculerProrataAffichage() {
+    const montant = parseFloat(document.getElementById('prorata-montant').value);
+    const debut = document.getElementById('prorata-debut').value;
+    const fin = document.getElementById('prorata-fin').value;
+    const dateActe = document.getElementById('prorata-date').value;
+    const resultat = calculerProrata(montant, debut, fin, dateActe);
+    const bloc = document.getElementById('prorata-resultat');
+    const erreur = document.getElementById('prorata-erreur');
+
+    if (!resultat) {
+      bloc.style.display = 'none';
+      erreur.style.display = 'block';
+      erreur.textContent = (dateActe && debut && fin && (dateActe < debut || dateActe > fin))
+        ? 'La date de l’acte doit tomber dans la période appelée : hors d’elle, il n’y a rien à répartir.'
+        : 'Renseignez un montant, une période et une date d’acte pour obtenir la répartition.';
+      return;
+    }
+    erreur.style.display = 'none';
+    bloc.style.display = 'block';
+
+    document.getElementById('prorata-part-acquereur').textContent = formaterPrixCentimes(resultat.partAcquereur);
+    document.getElementById('prorata-part-vendeur').textContent = formaterPrixCentimes(resultat.partVendeur);
+    document.getElementById('prorata-jours-acquereur').textContent =
+      `${resultat.joursAcquereur} jour${resultat.joursAcquereur > 1 ? 's' : ''} sur ${resultat.joursPeriode}`;
+    document.getElementById('prorata-jours-vendeur').textContent =
+      `${resultat.joursVendeur} jour${resultat.joursVendeur > 1 ? 's' : ''} sur ${resultat.joursPeriode}`;
+    // formaterPourcentageFraisActe() attend un RATIO (elle multiplie par 100 elle-même) et va
+    // jusqu'à 5 décimales, utile pour un taux fiscal mais bruyant ici : deux décimales suffisent
+    // pour une part de période.
+    document.getElementById('prorata-pourcentage').textContent =
+      (resultat.pourcentageAcquereur * 100).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      + ' % de la période à la charge de l’acquéreur';
+    document.getElementById('prorata-detail').textContent =
+      `${formaterPrixCentimes(resultat.total)} × ${resultat.joursAcquereur} / ${resultat.joursPeriode} jours`;
+  }
+
+  // Positionne la date du jour et la période par défaut au premier affichage, puis calcule.
+  let prorataInitialise = false;
+  function initProrata() {
+    if (prorataInitialise) return;
+    prorataInitialise = true;
+    const champDate = document.getElementById('prorata-date');
+    if (champDate && !champDate.value) champDate.value = isoAujourdHui();
+    majPeriodeProrata();
+  }
+
   // Peuple le <select> des départements une seule fois au démarrage (le calculateur est toujours
   // dans le DOM, comme les autres onglets — voir definirOnglet) et calcule un premier résultat par
   // défaut, visible dès le premier passage sur l'onglet. Un simple drapeau plutôt qu'une lecture de
@@ -8481,6 +8643,7 @@
       'icon-intro-mail': 'mail',
       'icon-intro-adresse': 'map-pin',
       'icon-nav-calculateur': 'banknote',
+      'icon-nav-prorata': 'part-disque',
       'icon-apropos': 'info',
       'icon-calc-warning': 'alert-triangle',
       'icon-nav-analyse-ia': 'sparkle',

@@ -1049,6 +1049,45 @@
     .calc-radios, .calc-ratebox { grid-template-columns: 1fr; }
   }
 
+  /* ---- Prorata : répartition d'une somme appelée entre vendeur et acquéreur. Réutilise les
+     cartes, champs et pastilles du simulateur de provision (.calc-card/.calc-champ/.calc-pill) —
+     un seul gabarit pour les deux outils de calcul. Seuls les blocs propres aux deux parts sont
+     nouveaux. ---- */
+  .calc-champ-paire { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .prorata-parts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .prorata-part {
+    /* Même fond teinté --focus que .calc-resultat : c'est le chiffre qu'on vient chercher. */
+    background: color-mix(in srgb, var(--focus) 6%, var(--paper-sunk));
+    border: 1px solid color-mix(in srgb, var(--focus) 18%, var(--line));
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .prorata-montant {
+    font-size: 26px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--focus);
+    letter-spacing: -0.02em;
+    margin: 4px 0 2px;
+  }
+  /* La part du vendeur est le complément, pas le résultat recherché : même graisse, teinte neutre
+     — l'accent reste sur ce que l'acquéreur doit rembourser. */
+  .prorata-montant-vendeur { color: var(--ink); }
+  .prorata-jours { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .prorata-erreur {
+    font-size: 13px;
+    color: var(--ink-soft);
+    background: var(--paper-sunk);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 16px;
+    line-height: 1.55;
+  }
+  #onglet-prorata .calc-ratebox { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 640px) {
+    .calc-champ-paire, .prorata-parts, #onglet-prorata .calc-ratebox { grid-template-columns: 1fr; }
+  }
+
   @media (max-width: 900px) {
     .sidebar-burger {
       display: flex;
