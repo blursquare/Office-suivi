@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-18 16:33';
+  const VERSION_APP = '2026-09-18 17:20';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-18 17:20', resume: "L'adresse du bien est enfin lue correctement. Sur les neuf actes réels que vous avez envoyés, elle ne l'était sur AUCUN — et, plus gênant, elle était présentée comme sûre : la commune ressortait « situé à BLOIS ( » et la voie « ), 74 rue des Hautes Granges ». L'outil ne savait lire que l'ordre postal (« 12 rue Victor Hugo, 41000 BLOIS ») alors que vos actes emploient l'ordre notarial (« situé à BLOIS (41000), 74 rue des Hautes Granges », « A BLOIS (LOIR-ET-CHER) 41000 1 Rue Hannah Arendt ») : commune, puis code postal, puis voie. Trois autres causes s'y ajoutaient : le premier « DÉSIGNATION » d'un acte est souvent celui du SOMMAIRE, ou un mot au fil d'une phrase qu'un retour à la ligne place en début de ligne ; le siège social de l'agence, de son assureur et du diagnostiqueur arrivent avant le bien dans un compromis d'agence, et le premier était retenu ; une élection de domicile (« aux fins de recevoir la notification ») passait aussi pour le bien vendu. Les neuf adresses sortent maintenant justes, présentées proprement : « 8 B rue Yves Genêt, 41000 BLOIS »" },
     { version: '2026-09-18 16:33', resume: "Import d'un acte AUTHENTIQUE (promesse reçue par notaire) : cinq corrections, trouvées en rejouant le PDF que vous avez envoyé. Le document était coupé dès la page 4 — un simple renvoi « ANNEXE » en haut de page passait pour le début des annexes — et tout ce qui suit était donc invisible : ni le prix (page 9), ni la condition de prêt (page 12). Le nom du dossier prenait celui du NOTAIRE, la comparution d'ouverture se désignant elle-même par la partie qu'elle assiste ; il lit maintenant les vraies parties, même quand « né(e) » ne suit pas le patronyme, sans confondre une commune ou un ex-conjoint avec une partie. Le prix accepte « (92 000,00 EUR) » et la coupure de ligne du PDF, l'adresse n'est plus tronquée au milieu de la voie, et la date de signature de l'acte retient la clause qui la NOMME plutôt qu'une clause qui cite « l'acte » en passant. Enfin, les deux simulateurs (provision, prorata) partent d'un champ vide" },
     { version: '2026-09-18 15:45', resume: "Une condition de prêt exprimée en délai est de nouveau calculée quand la clause dit « dans un délai de 60 jours DE LA promesse » ou « du compromis » : le point de départ était perdu et l'échéance disparaissait du formulaire, alors que la panneau affichait à la fois « calculée depuis la signature » et « point de départ à déterminer » — deux phrases contradictoires. Le point de départ réel est maintenant nommé. Dans « Ce que l'outil a compris », taper une date à la main ne valide plus au premier chiffre de l'année. Les dates repérées (« Classées », « Non identifiées ») passent dans un bloc replié SOUS le panneau, qui se lit donc en premier. Vue Échéances : toutes les colonnes alignées d'une semaine à l'autre. L'origine trentenaire n'est plus comptée comme une obligation du vendeur. Alpha revient à droite de Connecté, et le bouton « Ajouter une obligation » respire enfin sous le panneau qui le précède" },
     { version: '2026-09-18 15:09', resume: "Huit points. L'adresse lue à l'étape « Vérifier » est enfin celle qui arrive à l'étape « Finaliser » : le vieux détecteur y écrivait un fragment brut que la lecture structurée n'osait plus corriger, le prenant pour votre saisie. Le dossier du NAS se relie désormais tout seul, sans clic, dès que le nom désigne un seul dossier client — à la création comme à l'ouverture de l'outil. « Rôle du notaire » et « Acte reçu par » disparaissent de la fiche : le badge « Reçoit l'acte » des deux notaires porte l'action, et le rôle de l'étude en est déduit. « Maître » précède les noms. Les échéances des 7 prochains jours ouvrent le dossier d'un clic. Les garanties ne sont plus cherchées que dans le paragraphe GARANTIES de l'offre — sans garanties, caution, hypothèque légale de prêteur de deniers, seule ou avec l'hypothèque conventionnelle — au lieu de ramasser toute mention d'hypothèque du document. Alpha passe au-dessus de Connecté. Enfin une passe d'alignement : les cinq tuiles du tableau de bord tiennent sur une seule ligne, les titres de section partagent un seul registre, les cartes un seul rayon, et les lignes d'échéance vont bien jusqu'au bord" },
@@ -1285,14 +1286,12 @@
   // caractère non-mot, et l'espace qui suit non plus) — avec `\b`, ces abréviations n'étaient
   // jamais reconnues. Le `(?![lettre])` garde par ailleurs l'effet recherché : « rue » ne doit pas
   // matcher à l'intérieur de « ruelle ».
-  var RE_TYPE_VOIE = new RegExp(
-    '^(' + TYPES_VOIE
-      .flatMap(t => t.motifs)
-      .sort((a, b) => b.length - a.length)
-      .map(echapperPourRegex)
-      .join('|') + ')(?![a-zA-ZÀ-ÿ])[\\s.]*',
-    'i'
-  );
+  var SOURCE_TYPES_VOIE = TYPES_VOIE
+    .flatMap(t => t.motifs)
+    .sort((a, b) => b.length - a.length)
+    .map(echapperPourRegex)
+    .join('|');
+  var RE_TYPE_VOIE = new RegExp('^(' + SOURCE_TYPES_VOIE + ')(?![a-zA-ZÀ-ÿ])[\\s.]*', 'i');
 
   // Le point final fait PARTIE du motif déclaré (« imp. », « chem. ») : le retirer avant la
   // comparaison ferait échouer toute abréviation qui n'a pas aussi de variante sans point.
@@ -1328,9 +1327,76 @@
     return String(s || '').replace(/^[\s,;:.\-–—]+/, '').replace(/[\s,;:.\-–—]+$/, '').trim();
   }
 
-  // Découpe un fragment d'adresse en composants. L'ordre des éléments est libre (code postal avant
-  // ou après la voie), le numéro peut être absent, et l'adresse d'origine est TOUJOURS conservée
-  // telle quelle dans `adresseComplete` — on ne perd jamais ce que dit le document.
+  // Deux ordres d'écriture coexistent, et les confondre est ce qui produisait une commune fausse
+  // ANNONCÉE COMME SÛRE (« commune : situé à BLOIS ( ») sur la totalité des actes réels du corpus :
+  //   - ordre POSTAL      : « 12 rue Victor Hugo, 41000 BLOIS »  (voie, puis code postal, puis commune)
+  //   - ordre NOTARIAL    : « situé à BLOIS (41000), 74 rue des Hautes Granges »
+  //                         « A CORMERAY (LOIR-ET-CHER) 41120 Clos des Coudres »
+  //                         (commune, puis code postal, puis voie)
+  // Trois signatures désignent l'ordre notarial sans ambiguïté : un code postal ENTRE PARENTHÈSES,
+  // un nom de DÉPARTEMENT entre parenthèses juste avant le code postal, ou un texte qui, juste
+  // après le code postal, commence par un numéro ou un type de voie. Sans l'une d'elles, on
+  // retombe sur l'ordre postal, qui reste le cas par défaut.
+  var RE_CP_ENTRE_PARENTHESES = /\(\s*\d{5}\s*\)/;
+  var RE_DEPARTEMENT_ENTRE_PARENTHESES = /\(\s*[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'’\s-]{3,28}\)\s*(?=\d{5}\b)/;
+  var RE_LIEU_DIT_PREFIXE = /^lieu[-\s]?dit\b/i;
+  var RE_LIEU_DIT_CHERCHE = /\blieu[-\s]?dit\s+([^,;.|\n]+)/i;
+
+  // Un tiret n'est un séparateur que s'il est ENTOURÉ D'ESPACES (« VENDÔME – rue Victor Hugo ») :
+  // un tiret collé appartient au nom de la commune, très fréquent en France
+  // (Romorantin-Lanthenay, Saint-Jean-de-la-Ruelle…) — le couper produisait une commune tronquée.
+  var RE_SEPARATEUR_ADRESSE = /[,;]|\s[–—-]\s|\s\/\s/;
+
+  // Amorces qui introduisent la commune dans un acte (« sis à », « située à », « Commune de »,
+  // « A BLOIS »…). On garde ce qui suit la DERNIÈRE d'entre elles : « Une maison à usage
+  // d'habitation, située à MAROLLES » en contient deux, seule la seconde annonce la commune.
+  // La borne de gauche est un `(?<![lettre])` et non un `\b` : en JavaScript, `\b` ne connaît que
+  // les caractères ASCII, donc « à » n'y est pas une lettre et `\bà` ne matche JAMAIS un « à »
+  // précédé d'une espace — c'est-à-dire le cas normal. Le piège avait déjà été rencontré ailleurs
+  // dans ce fichier (voir RE_PREPOSITION_LIEU) : sans cette borne, la commune ressortait « à BLOIS ».
+  var RE_AMORCE_COMMUNE = /(?<![A-Za-zÀ-ÿ])(?:sises?|sis|situ[ée]e?s?|se\s+trouvant|commune\s+de|[àa]|au|aux)\s+/gi;
+
+  function communeAvantCodePostal(avant) {
+    let texte = nettoyerBords(avant);
+    if (!texte) return null;
+    const re = new RegExp(RE_AMORCE_COMMUNE.source, 'gi');
+    let m, apresAmorce = 0;
+    while ((m = re.exec(texte)) !== null) apresAmorce = m.index + m[0].length;
+    if (apresAmorce) texte = texte.slice(apresAmorce);
+    const morceaux = texte.split(RE_SEPARATEUR_ADRESSE);
+    texte = nettoyerBords(morceaux[morceaux.length - 1]);
+    return texte && /[A-Za-zÀ-ÿ]/.test(texte) && texte.length <= 60 ? texte : null;
+  }
+
+  // La voie est CHERCHÉE dans le reste du fragment, jamais déduite de « tout ce qui n'est pas la
+  // commune » : les trames notariales intercalent volontiers une description entre les deux
+  // (« Commune de LANDES LE GAULOIS (41190) / Une maison d'habitation situé(e) 510 rue Pitouille »).
+  var RE_VOIE_DANS_TEXTE = new RegExp(
+    '(?:(\\d{1,4}\\s*[-\\/]\\s*\\d{1,4}|\\d{1,4}(?:\\s*(?:bis|ter|quater)\\b|\\s+[A-Za-z]\\b)?)\\s*,?\\s*)?' +
+    '\\b(' + SOURCE_TYPES_VOIE + ')(?![a-zA-ZÀ-ÿ])[\\s.]*' +
+    '([A-Za-zÀ-ÿ0-9][^,;.\\n]{1,60})',
+    'i'
+  );
+
+  function chercherVoie(zone) {
+    const m = RE_VOIE_DANS_TEXTE.exec(String(zone || ''));
+    if (!m) return null;
+    let numero = m[1] ? m[1].replace(/\s*([-\/])\s*/g, '$1').replace(/\s+/g, ' ').trim() : null;
+    let nomVoie = nettoyerBords(m[3]) || null;
+    // Numéro rejeté en fin de voie (« rue Victor Hugo n°12 »).
+    if (nomVoie) {
+      const mFin = nomVoie.match(RE_NUMERO_FIN);
+      if (mFin) {
+        if (!numero) numero = mFin[1].replace(/\s+/g, ' ').trim();
+        nomVoie = nettoyerBords(nomVoie.slice(0, mFin.index)) || null;
+      }
+    }
+    return { numero, typeVoie: typeVoieCanonique(m[2]), nomVoie };
+  }
+
+  // Découpe un fragment d'adresse en composants. L'ordre des éléments est libre (voir ci-dessus),
+  // le numéro peut être absent, et l'adresse d'origine est TOUJOURS conservée telle quelle dans
+  // `adresseComplete` — on ne perd jamais ce que dit le document.
   function parserAdresse(brut) {
     const original = String(brut || '').replace(/\s+/g, ' ').trim();
     const vide = {
@@ -1339,68 +1405,64 @@
     };
     if (!original) return vide;
 
-    const mCp = original.match(/\b(\d{5})\b/);
+    // Normalisation : le code postal est ramené hors parenthèses et le nom de département entre
+    // parenthèses est retiré. Ni l'un ni l'autre ne change le sens de l'adresse, mais les deux
+    // empêchaient le découpage ci-dessous de retrouver la commune.
+    const cpEntreParentheses = RE_CP_ENTRE_PARENTHESES.test(original);
+    let travail = original.replace(/\(\s*(\d{5})\s*\)/g, '$1');
+    const deptEntreParentheses = RE_DEPARTEMENT_ENTRE_PARENTHESES.test(travail);
+    travail = travail.replace(new RegExp(RE_DEPARTEMENT_ENTRE_PARENTHESES.source, 'g'), ' ');
+
+    const mCp = travail.match(/\b(\d{5})\b/);
     if (!mCp) return { ...vide, statut: 'NEEDS_REVIEW' };
     const codePostal = mCp[1];
-    const avant = original.slice(0, mCp.index);
-    const apres = original.slice(mCp.index + codePostal.length);
+    const avant = travail.slice(0, mCp.index);
+    const apresNettoye = nettoyerBords(travail.slice(mCp.index + codePostal.length));
 
-    // La commune est le groupe de mots adjacent au code postal : d'abord après (cas le plus
-    // courant, « 41000 BLOIS »), borné au premier séparateur pour ne pas avaler la suite
-    // (« 41000 BLOIS, 12 rue Victor Hugo ») ; à défaut avant (« BLOIS 41000 »).
-    // Un tiret n'est un séparateur que s'il est ENTOURÉ D'ESPACES (« VENDÔME – rue Victor Hugo ») :
-    // un tiret collé appartient au nom de la commune, très fréquent en France
-    // (Romorantin-Lanthenay, Saint-Jean-de-la-Ruelle…) — le couper produisait une commune tronquée.
-    const RE_SEPARATEUR = /[,;]|\s[–—-]\s|\s\/\s/;
+    const debutApres = apresNettoye.slice(0, 40);
+    const apresRessembleAVoie = /^\d/.test(debutApres) || RE_TYPE_VOIE.test(debutApres) || RE_LIEU_DIT_PREFIXE.test(debutApres);
+    const ordreNotarial = cpEntreParentheses || deptEntreParentheses || apresRessembleAVoie;
+
     let commune = null;
-    let reste = '';
-    const apresNettoye = nettoyerBords(apres);
-    const coupeApres = apresNettoye.split(RE_SEPARATEUR)[0];
-    const candidatApres = nettoyerBords(coupeApres);
-    if (candidatApres && /[A-Za-zÀ-ÿ]/.test(candidatApres) && candidatApres.length <= 60) {
-      commune = candidatApres;
-      reste = nettoyerBords(avant) + ' ' + nettoyerBords(apresNettoye.slice(coupeApres.length));
-    } else {
-      const morceaux = nettoyerBords(avant).split(RE_SEPARATEUR);
-      const dernier = nettoyerBords(morceaux[morceaux.length - 1]);
-      if (dernier && /[A-Za-zÀ-ÿ]/.test(dernier) && dernier.length <= 60) {
-        commune = dernier;
-        morceaux.pop();
-        reste = morceaux.join(' ');
-      } else {
-        reste = nettoyerBords(avant);
+    let resteAvant = nettoyerBords(avant);
+    let resteApres = apresNettoye;
+
+    if (ordreNotarial) {
+      commune = communeAvantCodePostal(avant);
+      if (commune && resteAvant.endsWith(commune)) {
+        resteAvant = nettoyerBords(resteAvant.slice(0, resteAvant.length - commune.length));
       }
-      reste += ' ' + apresNettoye;
+    } else {
+      const candidat = nettoyerBords(apresNettoye.split(RE_SEPARATEUR_ADRESSE)[0]);
+      if (candidat && /[A-Za-zÀ-ÿ]/.test(candidat) && candidat.length <= 60) {
+        commune = candidat;
+        resteApres = nettoyerBords(apresNettoye.slice(candidat.length));
+      } else {
+        commune = communeAvantCodePostal(avant);
+        if (commune && resteAvant.endsWith(commune)) {
+          resteAvant = nettoyerBords(resteAvant.slice(0, resteAvant.length - commune.length));
+        }
+      }
     }
-    reste = nettoyerBords(reste.replace(/\s+/g, ' '));
 
     let numero = null;
     let typeVoie = null;
     let nomVoie = null;
     let lieuDit = null;
 
-    const mLieuDit = reste.match(RE_LIEU_DIT);
+    // La rédaction notariale place la voie APRÈS le code postal, la rédaction postale AVANT : on
+    // regarde les deux, en commençant par le côté que l'ordre détecté désigne.
+    const zones = ordreNotarial ? [resteApres.slice(0, 90), resteAvant] : [resteAvant, resteApres.slice(0, 90)];
+    const mLieuDit = (zones[0] + ' | ' + zones[1]).match(RE_LIEU_DIT_CHERCHE);
     if (mLieuDit) {
-      lieuDit = nettoyerBords(mLieuDit[1]);
-    } else if (reste) {
-      const mFin = reste.match(RE_NUMERO_FIN);
-      if (mFin) {
-        numero = mFin[1].replace(/\s+/g, ' ').trim();
-        reste = nettoyerBords(reste.slice(0, mFin.index));
+      lieuDit = nettoyerBords(mLieuDit[1]) || null;
+    } else {
+      const voie = chercherVoie(zones[0]) || chercherVoie(zones[1]);
+      if (voie) {
+        numero = voie.numero;
+        typeVoie = voie.typeVoie;
+        nomVoie = voie.nomVoie;
       }
-      const mNum = reste.match(RE_NUMERO_DEBUT);
-      if (mNum && numero === null) {
-        numero = mNum[1].replace(/\s*([-\/])\s*/g, '$1').replace(/\s+/g, ' ').trim();
-        reste = reste.slice(mNum[0].length);
-      } else if (mNum) {
-        reste = reste.slice(mNum[0].length);
-      }
-      const mType = reste.match(RE_TYPE_VOIE);
-      if (mType) {
-        typeVoie = typeVoieCanonique(mType[1]);
-        reste = reste.slice(mType[0].length);
-      }
-      nomVoie = nettoyerBords(reste) || null;
     }
 
     const departement = departementDepuisCodePostal(codePostal);
@@ -1533,15 +1595,45 @@
   // groupes séparés par des virgules, on garde celui qui porte le code postal, et le précédent s'il
   // ressemble à une voie. Sans ce découpage, parserAdresse prenait la suite de la phrase
   // (« …41000 BLOIS, notaire du vendeur ») et rangeait « notaire du vendeur » en commune.
+  // Le fragment va d'un cran avant le code postal à un cran après : la rédaction postale place la
+  // voie AVANT, la rédaction notariale APRÈS (voir parserAdresse). Le retour à la ligne n'est
+  // surtout PAS un séparateur — un PDF coupe ses lignes où sa mise en page le veut, et couper
+  // dessus rendait « ORLEANS (LOIRET) 45000 11 Rue », sans le nom de la voie.
+  // Bornes du fragment retenu autour du code postal. Sans elles, le repli qui cherche une adresse
+  // dans TOUTE la section désignation renvoyait la section entière (tableau cadastral et
+  // description des pièces compris) comme « adresse du bien ».
+  var AVANT_CODE_POSTAL = 80;
+  var APRES_CODE_POSTAL = 90;
+
+  function fenetreAutourDuCodePostal(source) {
+    const m = source.match(/\b\d{5}\b/);
+    if (!m) return source;
+    const debutBrut = Math.max(0, m.index - AVANT_CODE_POSTAL);
+    const avant = source.slice(debutBrut, m.index);
+    // En amont, la phrase précédente s'arrête au dernier point ou deux-points.
+    const coupeAvant = Math.max(avant.lastIndexOf('. '), avant.lastIndexOf(' : '));
+    const debut = coupeAvant === -1 ? debutBrut : debutBrut + coupeAvant + 1;
+    const apres = source.slice(m.index + 5, m.index + 5 + APRES_CODE_POSTAL);
+    // En aval, l'adresse s'arrête à la fin de la phrase ou à un deux-points (« comprenant : »).
+    const coupeApres = apres.search(/[.;:]/);
+    const fin = m.index + 5 + (coupeApres === -1 ? apres.length : coupeApres);
+    return source.slice(debut, fin);
+  }
+
   function extraireFragmentAdresse(texte) {
-    const source = String(texte || '');
+    const source = fenetreAutourDuCodePostal(String(texte || '').replace(/\s+/g, ' '));
     if (!/\b\d{5}\b/.test(source)) return null;
-    const groupes = source.split(/[,;\n]/);
+    const groupes = source.split(/[,;]/);
     const iCp = groupes.findIndex(g => /\b\d{5}\b/.test(g));
     if (iCp === -1) return null;
-    const precedent = iCp > 0 ? groupes[iCp - 1] : '';
-    const garderPrecedent = /\d/.test(precedent) || RE_TYPE_VOIE.test(precedent.trim()) || RE_LIEU_DIT.test(precedent);
-    return ((garderPrecedent ? precedent + ', ' : '') + groupes[iCp]).replace(/\s+/g, ' ').trim();
+    const precedent = iCp > 0 ? groupes[iCp - 1].trim() : '';
+    const suivant = iCp + 1 < groupes.length ? groupes[iCp + 1].trim() : '';
+    const garderPrecedent = /\d/.test(precedent) || RE_TYPE_VOIE.test(precedent) || RE_LIEU_DIT_PREFIXE.test(precedent);
+    const morceaux = [];
+    if (garderPrecedent) morceaux.push(precedent);
+    morceaux.push(groupes[iCp].trim());
+    if (suivant) morceaux.push(suivant);
+    return morceaux.join(', ').replace(/\s+/g, ' ').trim();
   }
 
   // Début de la phrase courante : le rattachement d'un notaire à une partie (« Le notaire du
@@ -1814,7 +1906,16 @@
   var RE_SECTION_APRES_DESIGNATION = /PRIX|ORIGINE\s+DE\s+PROPRI[ÉE]T[ÉE]|CONDITIONS\s+SUSPENSIVES|PROPRI[ÉE]T[ÉE]\s+JOUISSANCE|CHARGES\s+ET\s+CONDITIONS/i;
 
   // Une adresse précédée de « demeurant » est celle d'une PARTIE, jamais celle du bien.
-  var RE_ADRESSE_DE_PARTIE = /demeurant|domicili[ée]|r[ée]sidant/i;
+  // Un acte est plein d'adresses qui ne sont PAS celle du bien : celle d'une partie (« demeurant
+  // à… »), celle d'un notaire, une simple élection de domicile (« … aux fins de recevoir les
+  // notifications »), et surtout le SIÈGE SOCIAL des professionnels qui interviennent — l'agence,
+  // son assureur, le diagnostiqueur. Sur un compromis d'agence réel, ces trois sièges arrivent
+  // avant la désignation du bien, et c'est le premier qui était retenu comme adresse du bien.
+  // « siège social » les couvre tous les trois d'une seule règle, plutôt qu'une exclusion par
+  // profession. Le disqualifiant peut précéder la capture comme la suivre : c'est « aux fins de
+  // recevoir la notification », placé APRÈS, qui faisait passer une élection de domicile pour le
+  // bien vendu sur un autre acte du corpus.
+  var RE_ADRESSE_HORS_BIEN = /demeurant|domicili[ée]|r[ée]sidant|notaires?\s+[àa]\b|office\s+notarial|\bSCP\b|[ée]lection\s+de\s+domicile|aux\s+fins\s+de\s+recevoir|si[èe]ge\s+(?:social\s+)?(?:est|se\s+trouve|sis)?/i;
 
   var RE_CADASTRE = /cadastr[ée]e?s?\s+(?:en\s+)?section\s+([A-Z]{1,3})\s*(?:n(?:um[ée]ro|[°ºo])?\s*)?(\d{1,4})/i;
 
@@ -1825,6 +1926,18 @@
 
   // Adresse du bien, découpée en composants. Cherche d'abord dans la section désignation, puis dans
   // tout le texte ; écarte toute capture introduite par « demeurant » (adresse d'une partie).
+  // Ce que l'étude lit dans le champ « Adresse » : une fois l'adresse correctement découpée, la
+  // recomposer vaut mieux que recopier le fragment brut du PDF, qui traîne l'amorce de la phrase
+  // (« Dans un ensemble immobilier situé à… ») et la description qui suit. Le texte d'origine
+  // reste consultable : c'est l'extrait, affiché avec sa page, dans le panneau de révision.
+  function adresseLisible(adresse) {
+    if (!adresse || adresse.statut !== 'CONFIRMED') return adresse ? adresse.adresseComplete : '';
+    const voie = adresse.lieuDit
+      ? 'lieu-dit ' + adresse.lieuDit
+      : [adresse.numero, adresse.typeVoie, adresse.nomVoie].filter(Boolean).join(' ');
+    return [voie, [adresse.codePostal, adresse.commune].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  }
+
   function detecterAdresseBienStructuree(texte) {
     const source = String(texte || '');
     const section = extraireSection(source, RE_SECTION_DESIGNATION, RE_SECTION_APRES_DESIGNATION);
@@ -1835,11 +1948,13 @@
       let m;
       while ((m = re.exec(zone)) !== null) {
         const avant = zone.slice(Math.max(0, m.index - 80), m.index);
-        if (RE_ADRESSE_DE_PARTIE.test(avant)) continue;
+        const apres = zone.slice(m.index + m[0].length, m.index + m[0].length + 60);
+        if (RE_ADRESSE_HORS_BIEN.test(avant) || RE_ADRESSE_HORS_BIEN.test(apres)) continue;
         const fragment = extraireFragmentAdresse(m[1]) || m[1];
         const adresse = parserAdresse(fragment);
         if (adresse.codePostal) {
           const index = source.indexOf(m[0]);
+          adresse.adresseComplete = adresseLisible(adresse);
           return {
             adresse,
             source: {
@@ -1858,6 +1973,7 @@
         const adresse = parserAdresse(fragment);
         if (adresse.codePostal) {
           const index = source.indexOf(fragment.split(',')[0].trim());
+          adresse.adresseComplete = adresseLisible(adresse);
           return {
             adresse,
             source: { extrait: fragment, index: index === -1 ? null : index, page: index === -1 ? null : pageDepuisIndex(index) }
@@ -2412,10 +2528,48 @@
   // particulières") découpées en rubriques titrées (CITERNE DE GAZ :, COUVERTURE :…). Les lire
   // ainsi est bien plus fiable qu'une recherche de mots-clés au fil du texte, et garantit qu'aucune
   // rubrique n'est oubliée.
+  // Une ligne de sommaire : courte, presque entièrement en majuscules, sans phrase.
+  function estLigneDeTitre(ligne) {
+    const l = String(ligne || '').trim();
+    if (!l || l.length > 60) return false;
+    const lettres = l.replace(/[^A-Za-zÀ-ÿ]/g, '');
+    if (lettres.length < 3) return false;
+    const majuscules = l.replace(/[^A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]/g, '');
+    return majuscules.length / lettres.length > 0.8;
+  }
+
+  var MIN_TITRES_POUR_SOMMAIRE = 3;
+
+  // Le premier « DÉSIGNATION » d'un acte n'est presque jamais le titre de la section recherchée :
+  // beaucoup de trames ouvrent par un SOMMAIRE qui enchaîne les titres, et le mot apparaît aussi
+  // au fil d'une phrase (« … dont la désignation suit »). Retenir la première occurrence faisait
+  // lire une table des matières à la place du bien — c'est ce qui privait la moitié du corpus
+  // d'adresse. Un vrai titre de section ouvre sa ligne et n'est pas suivi d'autres titres.
+  function estDebutDeSection(texte, index, titre) {
+    // Un titre de section est écrit EN CAPITALES dans toutes les trames rencontrées. C'est le
+    // test décisif : « être en début de ligne » ne suffit pas, un PDF coupant ses lignes où sa
+    // mise en page le veut, une phrase courante peut parfaitement commencer une ligne par
+    // « désignation suit… » — et c'est exactement ce qui faisait lire à l'outil une clause de
+    // style à la place de la désignation du bien.
+    const mot = String(titre || '');
+    if (mot !== mot.toUpperCase()) return false;
+    const debutLigne = texte.lastIndexOf('\n', index) + 1;
+    if (texte.slice(debutLigne, index).trim() !== '') return false;
+    const lignes = texte.slice(index).split('\n').slice(1).filter(l => l.trim()).slice(0, 5);
+    return lignes.filter(estLigneDeTitre).length < MIN_TITRES_POUR_SOMMAIRE;
+  }
+
   function extraireSection(texte, titreRe, titreSuivantRe) {
-    const debut = texte.search(titreRe);
+    const source = String(texte || '');
+    const re = new RegExp(titreRe.source, titreRe.flags.replace('g', '') + 'g');
+    let debut = -1;
+    let m;
+    while ((m = re.exec(source)) !== null) {
+      if (estDebutDeSection(source, m.index, m[0])) { debut = m.index; break; }
+      if (re.lastIndex === m.index) re.lastIndex++;
+    }
     if (debut === -1) return '';
-    const reste = texte.slice(debut);
+    const reste = source.slice(debut);
     const fin = titreSuivantRe ? reste.slice(20).search(titreSuivantRe) : -1;
     return fin === -1 ? reste.slice(0, 12000) : reste.slice(0, fin + 20);
   }

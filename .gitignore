@@ -5,3 +5,8 @@ server/.env
 # Artefacts de construction du .exe (voir server/scripts/build-windows-exe.mjs) — jamais commités,
 # le binaire produit est livré directement (voir CLAUDE.md, section "Mode serveur intranet").
 server/build/
+
+# Banc d'essai d'extraction : actes réels fournis par l'étude + valeurs attendues.
+# JAMAIS commité — ces PDF contiennent des données clients. Les tests de régression
+# reproduisent la STRUCTURE des trames avec des noms inventés (voir CLAUDE.md).
+banc-essai/
