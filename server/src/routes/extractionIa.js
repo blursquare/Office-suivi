@@ -3,8 +3,8 @@
 // Extraction assistée par IA locale pour le wizard "Nouveau dossier" (voir CLAUDE.md) : appelée en
 // arrière-plan APRÈS l'extraction par regex existante (traiterTexte(), script.js, inchangée) pour
 // ne compléter QUE ce qu'elle n'a pas trouvé — jamais pour la remplacer. Distincte de
-// routes/analyseIa.js (qui compare PLUSIEURS documents entre eux pour trouver des incohérences) :
-// ici un seul document, un travail d'extraction de champs.
+// routes/auditActe.js (Outil 2 — compare PLUSIEURS documents entre eux pour trouver des
+// incohérences) : ici un seul document, un travail d'extraction de champs.
 //
 // TROIS LOTS plutôt qu'un appel fourre-tout (parties / bien / dates) : un modèle 7-8B tenu de
 // remplir quinze champs hétérogènes d'un coup en bâcle une partie, et surtout chaque lot reçoit un

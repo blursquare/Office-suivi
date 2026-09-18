@@ -4519,6 +4519,156 @@ oubli) — à reprendre uniquement si redemandé un jour :
 Le CLAUDE.md de la branche `main` (tout ce qui précède cette section) reste la référence pour le
 mode 100% local, qui n'a subi aucune régression de ce chantier.
 
+- **"Analyse approfondie (IA)" devient Outil 2 — Audit intelligent des actes notariaux**, sur
+  demande explicite de l'étude : « Outil 1 : lecteur de compromis signé (l'existant, suivi
+  administratif) — Outil 2 : analyse approfondie de projet ». L'ancien outil (un seul prompt Ollama,
+  un seul type de document acte/annexe, `server/src/routes/analyseIa.js`) était pensé pour relire un
+  compromis déjà signé ; Outil 2 audite un **projet** (compromis/promesse pas encore signé, ou
+  projet d'acte de vente authentique) contre toutes les pièces disponibles, pour faire ressortir des
+  incohérences et des erreurs — une vraie analyse juridique, pas une relecture superficielle. La
+  demande est venue avec un cahier des charges détaillé en 19 sections (conservé dans l'historique
+  de session, traité comme référence permanente pour ce chantier) : identification du bien, parties,
+  prix/conditions, dates, diagnostics (jamais inventer une durée de validité), travaux (marqués
+  PRIORITAIRE), autorisations d'urbanisme, garanties/assurances, titre de propriété, urbanisme,
+  préemption, servitudes, copropriété, un mode dédié "projet d'acte de vente" qui ajoute la
+  comparaison avec le compromis/la promesse déjà signé(e), une règle absolue "ne pas inventer" (4
+  statuts : constaté / déduit / non trouvé / à vérifier), des citations obligatoires page par page,
+  4 niveaux de gravité, et un format de sortie JSON précis. L'étude a explicitement délégué les choix
+  d'architecture ("Fait ce que tu penses être le plus efficace") en ne posant que trois contraintes
+  dures : un **sélecteur de mode explicite au dépôt** (jamais deviné), une sortie qui fait
+  effectivement ressortir des incohérences, et une question sur "openlegi" (voir plus bas).
+  - **Principe directeur, fil rouge de tout le chantier : déterministe quand c'est possible, IA
+    seulement pour lire et citer.** Reprend la leçon déjà tirée sur `localiserExtrait()`
+    (l'extraction Outil 1) : la "certitude" auto-déclarée d'un llama 8B n'est calibrée sur rien. Le
+    cahier des charges demandait un champ `"certitude": 0.92` par constat — **remplacé, décision
+    assumée et documentée comme un renforcement du §14 du cahier ("ne pas inventer") plutôt qu'un
+    simple écart de format** : chaque constat porte `sourceVerifiee` (booléen), dérivé
+    mécaniquement du fait que l'extrait cité par le modèle a été retrouvé LITTÉRALEMENT dans le bon
+    document (même mécanisme que `localiserExtrait`/`verifierExtraits`, dupliqué côté audit dans
+    `server/src/audit/fusion.js` — deux mondes navigateur/Node sans build commun, même choix déjà
+    fait pour `extraction/extraits.js`). De même, la comparaison compromis → projet de vente sur les
+    champs STRUCTURÉS (parties, prix, bien, cadastre, notaire, dates) est un **diff pur côté
+    client**, jamais redemandé au modèle — et la durée de validité d'un diagnostic est un **calcul
+    JS pur** à partir de la seule date que le modèle a identifiée, jamais calculée ni inventée par
+    lui. Le "resume" (comptage par gravité) est lui aussi calculé côté serveur, jamais par le modèle
+    — une synthèse générée par lui affirmerait des chiffres qu'il n'a aucun moyen de garantir
+    cohérents avec le détail.
+  - **Sélecteur de mode, taxonomie de documents et routage** (`index.html`/`script.js`,
+    `#onglet-analyse-ia`, id HTML conservé pour limiter la casse malgré le changement de nom
+    affiché "Audit des actes (IA)" dans la sidebar) : `<select id="audit-mode">` avec deux valeurs
+    ("Projet de compromis / promesse de vente" / "Projet d'acte de vente notarié") pilote `auditMode`
+    et l'affichage du bloc de liaison à un dossier (visible seulement en mode "acte"). Le sélecteur
+    par fichier (`changerTypeFichierAnalyseIa`), auparavant limité à acte/annexe, porte désormais 10
+    valeurs (`TYPES_DOCUMENT_AUDIT`) : `principal`, `reference_compromis`, `titre`, `diagnostic`,
+    `urbanisme`, `facture`, `autorisation`, `decennale`, `copropriete`, `autre` — chacune détermine
+    quelles passes reçoivent le document (`TYPES_PAR_PASSE`, `server/src/routes/auditActe.js`),
+    gardant le contexte de chaque appel Ollama petit sur le CPU de bureau de l'étude (Core i5, sans
+    GPU — contrainte déjà établie lors du chantier d'extraction Outil 1). `deviserTypeAnalyseIa()`
+    devine "principal" pour le premier fichier (sauf s'il évoque un compromis en mode "acte", auquel
+    cas c'est une référence) et "reference_compromis" pour un fichier compromis/promesse nommé
+    ensuite en mode acte — premier jet volontairement simple (comme `motifNom` en son temps),
+    toujours corrigible via le `<select>` de chaque ligne.
+  - **Dossier CLAIRE lié, sans jamais l'écrire** (mode "acte" uniquement) : un champ de recherche
+    (`rechercherDossierAudit`, même patron que `renderRechercheDashboard` du Tableau de bord) permet
+    de lier un dossier déjà suivi — `auditDossierLie`, jamais modifié, seulement lu. Deux bénéfices
+    directs : (1) `referenceDepuisDossier(d)` fournit la comparaison structurée SANS RE-EXTRACTION,
+    ses champs ayant déjà été vérifiés à la création du dossier ; (2) `recupererTextCompromisDossier(d)`
+    va chercher le compromis/la promesse **directement sur le NAS déjà relié** (même mécanisme que
+    le bouton "Ouvrir le compromis" : `d.compromisNomFichier`/`chercherFichierParNom`/`ouvrirPdfNas`)
+    pour alimenter aussi les passes IA (travaux, urbanisme...) qui ont besoin du TEXTE, pas
+    seulement des champs structurés — évite de forcer un second import manuel du même document.
+    Silencieux en cas d'échec (nom introuvable, dossier non relié au NAS, PDF illisible) : la
+    comparaison structurée reste alors disponible seule.
+  - **Extraction page par page, nécessaire aux citations** (`lireTextePdfParPage()`, variante de
+    `lireTextePdfVerification()` qui mémorise en plus les frontières de chaque page pendant la même
+    lecture — celle-ci n'est pas touchée, ses appelants existants n'ont pas besoin de cette
+    information). `extraireTexteFichierAnalyseIa()` l'utilise et stocke `entree.pages` ; le payload
+    envoyé au serveur devient `{nom, type, texte, pages}` par document. Côté serveur,
+    `pageDepuisIndexServeur(pages, index)` (dans `server/src/audit/fusion.js`, pendant de
+    `pageDepuisIndexPages` côté client) convertit un index trouvé par `localiserExtrait` en numéro
+    de page — le §15 du cahier ("chaque constat traçable via DOCUMENT/PAGE/EXTRAIT") s'applique
+    désormais à N'IMPORTE QUEL document fourni, pas seulement au compromis en cours d'import comme
+    c'était le cas pour Outil 1 (`pageDepuisIndex`, propre à un seul PDF en mémoire).
+  - **Cinq passes serveur** (`server/src/audit/{prompts,normaliser,fusion,diagnostics}.js`,
+    `server/src/routes/auditActe.js`), regroupant les 19 sections du cahier pour rester exécutable
+    sur CPU : (1) **identification** (bien, parties, prix, dates, titre — une seule passe, toutes
+    comparent les mêmes documents entre eux) ; (2) **diagnostics** (le modèle identifie SEULEMENT
+    nature/document/date d'établissement/bien concerné — jamais une durée) ; (3) **travaux**,
+    PRIORITAIRE comme demandé, toujours exécutée avant la 4ᵉ ; (4) **urbanisme, autorisations,
+    garanties, préemption, servitudes** (regroupées : mêmes documents, reçoit en contexte les
+    titres des travaux déjà détectés par la passe 3, pour orienter sa recherche d'autorisations sans
+    lui faire relire les travaux eux-mêmes) ; (5) **copropriété**, SEULEMENT si le type de vente
+    est "copropriete" (choisi, ou auto-détecté via `detecterTypeVenteCopropriete` sur le principal
+    si laissé sur "Détection automatique") — inutile de solliciter le modèle sur une section qui ne
+    concerne pas le dossier. Chaque passe est **isolée** (`executerPasse()`, try/catch) : l'échec
+    d'une seule (JSON hors schéma deux fois de suite, seule relance permise par `genererJson`) ne
+    prive pas l'étude des quatre autres, déjà calculées après plusieurs minutes — consigné dans
+    `erreursPasses`, affiché comme tel plutôt que passé sous silence ou faisant échouer tout l'audit.
+    `preparerDocumentsPourPasse()` tronque chaque document à 20 000 caractères puis l'ensemble d'une
+    passe à 60 000 (un document entier omis plutôt que coupé en plein milieu si le plafond est déjà
+    atteint).
+  - **Format de sortie fidèle au §17 du cahier** : `{resume, constats, dates, diagnostics, travaux,
+    urbanisme, preemptions, servitudes, copropriete, erreursPasses}`. Les passes 1 et 4 couvrent
+    plusieurs sections chacune : le modèle classe chaque constat dans une `categorie` explicite
+    (`IDENTIFICATION|PARTIES|PRIX|DATES|TITRE` pour la passe 1, `URBANISME|AUTORISATION|GARANTIE|
+    PREEMPTION|SERVITUDE` pour la passe 4), et le serveur route chaque constat vers le bon tableau
+    de sortie (`DATES`→`dates`, `PREEMPTION`→`preemptions`, `SERVITUDE`→`servitudes`, le reste→
+    `constats`/`urbanisme`) — un seul appel Ollama, plusieurs sections de sortie, sans dupliquer de
+    prompt. **`piecesManquantes` du §17 n'a PAS été implémenté dans cette première version** : sa
+    version pure (diff entre documents déclarés à l'upload et engagements/documents déjà repérés
+    par les regex existantes d'Outil 1, `detecterDocumentsAFournir`) est prévue mais reportée, faute
+    de temps dans ce chantier — noté ci-dessous dans "Ce qui reste ouvert".
+  - **4 niveaux de gravité (§16) sur seulement 3 couleurs déjà réservées** (`libelleGraviteAudit()`,
+    script.js) : `CRITIQUE`→`dl-urgent` (rouge), `IMPORTANT`→`dl-pret` (ambre, icône
+    `alert-triangle`), `A_VERIFIER`→`dl-pret` (même ambre, icône `info` — distingués par le texte et
+    l'icône plutôt que par une 5ᵉ couleur non prévue dans la palette), `INFORMATION`→`dl-neutre`. Une
+    absence de document n'est jamais transformée automatiquement en `CRITIQUE` (consigne explicite
+    du prompt, `CONSIGNES_AUDIT`) — cohérent avec la mise en garde du §16.
+  - **Diagnostics : calcul de validité en JS pur** (`server/src/audit/diagnostics.js`,
+    `DUREES_VALIDITE_DIAGNOSTIC`) — reprend et complète les durées déjà en dur dans l'ancien prompt
+    (DPE 10 ans, ERP 6 mois, termites 6 mois, électricité/gaz 3 ans) ; amiante/plomb/assainissement/
+    mesurage sont volontairement laissés à "vérifier manuellement" (dépendent d'un résultat ou d'une
+    décision locale, pas d'une durée fixe) plutôt que de deviner une règle non tranchée ici — même
+    prudence que `PIECES_URBANISME` en son temps. `calculerValiditeDiagnostic()` ne calcule QUE si
+    une date d'établissement a été identifiée ; sinon un statut dédié (`DATE_MANQUANTE`) plutôt
+    qu'un silence.
+  - **Comparaison compromis → projet de vente, §13, entièrement déterministe** (script.js,
+    `comparerCompromisEtProjet(reference, projet)`, section "OUTIL 2 (AUDIT DES ACTES)") : reconstruit
+    la référence et le projet dans la MÊME forme que `construireExtractionRegex()` produit déjà pour
+    Outil 1 (aucune nouvelle fonction d'extraction), puis diffuse partie disparue/rôle changé/partie
+    nouvelle (IMPORTANT/CRITIQUE), prix différent/désignation différente/cadastre différent
+    (CRITIQUE — la désignation du bien ne peut pas être une coquille mineure), notaire instrumentaire
+    différent/date différente (A_VERIFIER — un report peut être légitime). Ces constats sont injectés
+    en tête de `corps.constats` côté client, AVANT même que la première passe IA ne réponde : résultat
+    quasi instantané, sans coût Ollama. La partie en langage libre du §13 (déclarations des vendeurs,
+    travaux, servitudes) reste du ressort des passes IA elles-mêmes : quand une `reference_compromis`
+    est présente parmi les documents, les prompts des passes 1 et 3 reçoivent une consigne
+    supplémentaire ("signale toute divergence avec le compromis fourni en référence").
+  - **openlegi (connecteur Légifrance/PISTE/RNE-INPI/EUR-Lex), question posée par l'étude : pas
+    construit dans ce chantier, décision expliquée à l'étude en conversation.** Utile seulement pour
+    vérifier des faits STATIQUES (ex. la durée de validité réelle d'un diagnostic selon le Code en
+    vigueur) via des requêtes génériques ne contenant JAMAIS de donnée client — jamais pour juger la
+    validité d'une clause ou chercher de la jurisprudence, ce qui pousserait l'outil vers un avis
+    juridique plutôt qu'une assistance à la relecture (contraire au §18). Introduit une dépendance
+    réseau nouvelle (l'outil n'en a aucune aujourd'hui) et des identifiants PISTE à obtenir. Noté en
+    "Ce qui reste ouvert", même traitement que "comparer au prix du marché" en son temps (ajouté
+    puis retiré sur retour de l'étude) : à ne construire que sur demande explicite, jamais déduit
+    d'une question ouverte.
+  - Tests : `tests/audit-comparaison.test.js` (14, `comparerCompromisEtProjet`/`referenceDepuisDossier`/
+    `pageDepuisIndexPages`), `server/test/audit-diagnostics.test.js` (10), `server/test/audit-fusion.test.js`
+    (8), `server/test/audit-normaliser.test.js` (8), `server/test/audit-acte.test.js` (13, dont le
+    routage par type, la troncature, et la route complète devant un faux Ollama — isolation d'une
+    passe en échec, passe copropriété conditionnelle). `server/test/analyse-ia.test.js` (ancien
+    outil) supprimé avec `server/src/routes/analyseIa.js` — remplacés, pas coexistants. Vérifié par
+    scripts de bac à sable (rendu HTML échappé des constats/diagnostics/résumé, mapping des 4
+    gravités, section vide → chaîne vide) faute de pdf.js/Ollama dans cet environnement de
+    développement (même limitation déjà documentée partout ailleurs dans ce fichier). `npm test`
+    vert aux deux endroits (393 tests racine, 148 côté serveur).
+  - **Non vérifié en conditions réelles** : ni Ollama ni pdf.js ne sont disponibles dans cet
+    environnement de développement — la qualité réelle des 5 passes sur de vrais projets d'actes, le
+    temps total d'un audit sur le CPU de bureau de l'étude (jusqu'à 5 appels séquentiels), et le taux
+    de citations non retrouvées restent à confirmer par l'étude avec Ollama installé.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à
@@ -4567,6 +4717,19 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
   d'été/hiver — utiliser `date` seul afficherait une heure fausse pour l'étude). Affichés dans
   l'écran "À propos", c'est actuellement le seul moyen pour l'étude de vérifier qu'elle a bien la
   dernière copie (et de voir CE QUI a changé) avant de resignaler un bug déjà corrigé.
+- **Outil 2 (Audit des actes) : `piecesManquantes` du §17 non implémenté** — sa version prévue est
+  un diff PUR (pas d'IA) entre les documents déclarés à l'upload et les engagements/documents déjà
+  repérés par les regex existantes d'Outil 1 (`detecterDocumentsAFournir`) : si le principal cite un
+  document que le compromis engage le vendeur à produire mais qu'aucun document du type correspondant
+  n'a été déposé, le signaler. Reporté faute de temps dans le chantier initial, pas une difficulté
+  technique particulière.
+- **Outil 2 : connecteur openlegi (Légifrance/PISTE/RNE-INPI/EUR-Lex)**, question posée
+  explicitement par l'étude — volontairement pas construit (voir son historique détaillé plus haut,
+  section "Mode serveur intranet") : utile uniquement pour vérifier des faits statiques (durées de
+  validité légales, texte d'un article) via des requêtes génériques sans donnée client, jamais pour
+  une recherche de jurisprudence qui pousserait l'outil vers un avis juridique. Introduit une
+  dépendance réseau nouvelle et des identifiants PISTE à obtenir — à ne construire que sur demande
+  explicite de l'étude, avec un périmètre précisé au moment de la demande.
 - Deux autres idées côté identité de marque, proposées en même temps que l'écran "À propos" mais
   non engagées : un favicon/onglet dynamique reflétant l'urgence du portefeuille (pastille rouge/
   verte selon les dossiers en blocage), et un en-tête "CLAIRE" discret sur la fiche imprimée

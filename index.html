@@ -67,7 +67,7 @@
            dates/champs par regex pour créer un dossier de suivi) — ici on dépose l'acte ET ses
            annexes séparément pour une relecture croisée, sans forcément créer de dossier. -->
       <button type="button" id="tab-analyse-ia" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('analyse-ia')">
-        <span class="sidebar-link-icone" id="icon-nav-analyse-ia" aria-hidden="true"></span>Analyse approfondie (IA)
+        <span class="sidebar-link-icone" id="icon-nav-analyse-ia" aria-hidden="true"></span>Audit des actes (IA)
       </button>
     </nav>
 
@@ -710,20 +710,22 @@
   </div>
 </div>
 
-<!-- Analyse juridique approfondie par IA locale : dépose l'acte (compromis/promesse) et ses
-     annexes séparées (PDF distincts, parfois plusieurs) pour une relecture croisée façon "un
-     notaire relit l'acte" — cohérences de prix/adresse/dates entre l'acte et ses annexes,
-     pièces manquantes, clauses contradictoires. Tourne entièrement sur le serveur de l'étude
+<!-- Outil 2 — Audit intelligent des actes notariaux (voir CLAUDE.md, section "Outil 2") :
+     remplace l'ancienne "Analyse approfondie (IA)" (un seul prompt, un seul type de document).
+     Sélecteur de MODE explicite à l'upload (projet de compromis/promesse, ou projet d'acte de
+     vente notarié — jamais deviné), documents typés qui routent chacun vers les seules passes
+     qui en ont besoin côté serveur, et 5 passes ciblées couvrant les 19 sections du cahier des
+     charges plutôt qu'un unique prompt fourre-tout. Tourne entièrement sur le serveur de l'étude
      (Ollama en local, voir server/README.md) : aucun texte de document n'est jamais envoyé à un
      service extérieur. Onglet propre au serveur intranet — n'existe pas sur la version 100%
      locale (main), qui n'a pas de backend pour héberger le modèle. -->
 <div class="onglet-panel" id="onglet-analyse-ia" style="display:none;">
   <div class="dash-header">
     <div>
-      <div class="dash-eyebrow">Analyse approfondie</div>
+      <div class="dash-eyebrow">Outil 2</div>
       <div class="dash-titre-ligne">
-        <h1 class="dash-titre">Relecture croisée par IA locale</h1>
-        <span class="calc-warning-label" title="Les constats proposés sont générés par un modèle d'intelligence artificielle exécuté localement sur le serveur de l'étude — à vérifier systématiquement, ils ne remplacent pas la relecture juridique par un professionnel.">
+        <h1 class="dash-titre">Audit intelligent des actes</h1>
+        <span class="calc-warning-label" title="Les constats proposés sont générés par un modèle d'intelligence artificielle exécuté localement sur le serveur de l'étude — à vérifier systématiquement. C'est un assistant de relecture, jamais une décision juridique : le notaire garde la décision finale.">
           <span id="icon-analyse-ia-warning" aria-hidden="true"></span>
           Suggestions à vérifier
         </span>
@@ -735,8 +737,35 @@
 
   <div class="dash-grid">
     <div class="calc-card">
-      <div class="dash-section-titre">Documents à comparer</div>
-      <p class="hint">Déposez l'acte principal (compromis ou promesse) et ses annexes séparément — chacune dans son propre fichier PDF, comme reçues. Indiquez pour chacun s'il s'agit de l'acte ou d'une annexe : l'IA compare le contenu de l'acte à celui de chaque annexe.</p>
+      <div class="dash-section-titre">Paramètres de l'audit</div>
+
+      <label for="audit-mode">Type de document principal</label>
+      <select id="audit-mode" onchange="changerAuditMode(this.value)">
+        <option value="compromis">Projet de compromis / promesse de vente</option>
+        <option value="acte">Projet d'acte de vente notarié</option>
+      </select>
+      <p class="hint">Un projet d'acte de vente ajoute la comparaison avec le compromis/la promesse déjà signé(e) — voir ci-dessous.</p>
+
+      <label for="audit-type-vente">Type de vente</label>
+      <select id="audit-type-vente" onchange="changerAuditTypeVente(this.value)">
+        <option value="auto">Détection automatique</option>
+        <option value="maison">Maison</option>
+        <option value="copropriete">Copropriété</option>
+        <option value="terrain">Terrain à bâtir</option>
+      </select>
+
+      <div id="audit-reference-bloc" style="display:none;">
+        <label for="audit-dossier-recherche">Dossier CLAIRE déjà suivi (pour la comparaison avec le compromis)</label>
+        <div class="dash-recherche" style="width:100%;">
+          <input type="search" id="audit-dossier-recherche" placeholder="Rechercher un dossier par nom ou responsable…" oninput="rechercherDossierAudit(this.value)" autocomplete="off">
+          <div id="audit-dossier-resultats" class="dash-recherche-resultats" style="display:none;"></div>
+        </div>
+        <div id="audit-dossier-pill"></div>
+        <p class="hint">Sans dossier lié, déposez le compromis/la promesse de référence ci-dessous en indiquant son type.</p>
+      </div>
+
+      <div class="dash-section-titre" style="margin-top:16px;">Documents à comparer</div>
+      <p class="hint">Déposez le projet (document « Principal ») et ses pièces séparément — chacune dans son propre fichier PDF. Indiquez le type de chacun : cela détermine quelles vérifications s'y appliquent.</p>
 
       <div class="pdf-dropzone" id="analyse-ia-dropzone" ondragover="gererSurvolDepotAnalyseIa(event)" ondragleave="gererQuitteDepotAnalyseIa(event)" ondrop="gererDepotAnalyseIa(event)">
         <span class="pdf-dropzone-icone" id="icon-analyse-ia-dropzone" aria-hidden="true"></span>
@@ -749,22 +778,22 @@
 
       <div class="analyse-ia-actions">
         <button type="button" class="secondary" id="analyse-ia-vider-btn" onclick="viderAnalyseIa()" style="display:none;">Vider la liste</button>
-        <button type="button" class="primary" id="analyse-ia-lancer-btn" onclick="lancerAnalyseIa()" disabled>Lancer l'analyse</button>
+        <button type="button" class="primary" id="analyse-ia-lancer-btn" onclick="lancerAuditActe()" disabled>Lancer l'audit</button>
       </div>
     </div>
 
     <div class="calc-card">
       <div class="dash-section-titre">Constats</div>
       <div id="analyse-ia-rapport" class="analyse-ia-rapport">
-        <p class="hint">Aucune analyse lancée pour l'instant.</p>
+        <p class="hint">Aucun audit lancé pour l'instant.</p>
       </div>
     </div>
   </div>
 
   <div class="calc-card calc-card-notes">
-    <div class="dash-section-titre">À propos de cette analyse</div>
-    <p>Le texte de chaque PDF est extrait dans votre navigateur (comme pour un import de compromis classique), puis envoyé au modèle d'IA qui tourne localement sur le serveur de l'étude (Ollama) — jamais à un service en ligne. Rien de ce que vous déposez ici n'est conservé au-delà de l'analyse : aucun dossier n'est créé, aucun fichier n'est enregistré.</p>
-    <p>Un modèle de langage peut se tromper ou passer à côté d'un problème réel — cette analyse est une aide à la relecture, pas une validation juridique. Vérifiez systématiquement chaque constat avant d'en tenir compte.</p>
+    <div class="dash-section-titre">À propos de cet audit</div>
+    <p>Le texte de chaque PDF est extrait dans votre navigateur (comme pour un import de compromis classique), puis envoyé au modèle d'IA qui tourne localement sur le serveur de l'étude (Ollama) — jamais à un service en ligne. Rien de ce que vous déposez ici n'est conservé au-delà de l'analyse : aucun dossier n'est créé, aucun fichier n'est enregistré (le dossier CLAIRE éventuellement lié n'est, lui, jamais modifié — seulement lu).</p>
+    <p>Un modèle de langage peut se tromper ou passer à côté d'un problème réel — cet audit est une aide à la relecture, pas une validation juridique. Chaque constat important doit pouvoir être vérifié dans les documents ; un constat dont la citation n'a pas été retrouvée telle quelle est signalé comme tel, jamais présenté avec la même assurance qu'une citation confirmée.</p>
   </div>
 </div>
 

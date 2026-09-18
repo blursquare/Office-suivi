@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-18 21:13';
+  const VERSION_APP = '2026-09-18 22:58';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-18 22:58', resume: "« Analyse approfondie (IA) » devient l'Outil 2 : un audit, plus une simple relecture. Un sélecteur explicite au dépôt — projet de compromis/promesse, ou projet d'acte de vente — choisit ce qui est comparé ; en projet d'acte, un dossier CLAIRE déjà suivi peut être lié (son compromis est retrouvé tout seul sur le NAS) pour comparer parties, prix, bien et dates SANS repasser par l'IA, un simple calcul. Chaque pièce déposée (titre, diagnostic, urbanisme, facture, autorisation, décennale, copropriété…) ne va plus qu'aux vérifications qui la concernent, en cinq passes au lieu d'une seule : identification/parties/prix/dates/titre, diagnostics (dont la durée de validité est calculée par l'outil, jamais par le modèle), travaux (en priorité, le point qui manquait le plus), urbanisme/autorisations/garanties/préemption/servitudes, et copropriété si besoin. Quatre niveaux de gravité, une citation vérifiée dans le bon document pour chaque constat important — jamais une confiance auto-déclarée par le modèle, qui n'a aucun moyen de la calibrer" },
     { version: '2026-09-18 21:13', resume: "Quatre automatisations pour libérer du temps. Dans le panneau « Ce que l'outil a compris », un bouton « Redemander à l'IA » redemande UNE SEULE donnée restée floue au modèle local, avec une fenêtre de texte plus large — sans relancer les trois lectures automatiques. Un nouveau panneau « Qualité de l'extraction » (dans « À propos ») montre enfin quels champs vous corrigez le plus souvent, pour savoir où l'extraction mérite d'être resserrée. Le serveur surveille désormais le NAS toutes les dix minutes : un document qui vient d'arriver dans un dossier relié déclenche un message, au lieu d'attendre le prochain clic sur « Revérifier ». Et trois nouveaux boutons de relance par email — prêt manquant, pièces à fournir, RIB — préparent chacun le bon brouillon, adressé au client, sans avoir à le rédiger à la main à chaque fois." },
     { version: '2026-09-18 18:05', resume: "Deux corrections. Un compromis SCANNÉ est maintenant lu en entier : chaque page sans texte passe par la reconnaissance d'image, et la lecture s'arrête d'elle-même au bloc de signature des parties, sans entamer les annexes. Jusqu'ici la reconnaissance ne servait qu'à retrouver la date de signature sur trois pages, ce qui laissait un scan entièrement illisible : les deux compromis scannés que vous avez envoyés ne donnaient rien, ils donnent désormais parties, adresse, prix et dates. Comptez quelques secondes par page — le message indique la page en cours. Le calendrier connecté, ensuite : il ne se mettait pas à jour, et c'était deux manques dans le flux publié. D'abord le numéro de séquence, qu'un client calendrier exige pour accepter de remplacer un événement qu'il connaît déjà : sans lui Outlook gardait l'ancienne date butoir. Ensuite l'annulation explicite : un événement qui disparaît du flux n'est jamais supprimé par le client, il faut publier son annulation — d'où les dates de vente périmées qui restaient affichées. Les échéances effacées et les dossiers archivés sont désormais publiés comme annulés" },
     { version: '2026-09-18 17:56', resume: "Les notaires sur les sept actes lisibles du banc, contre cinq. Vous aviez raison sur les deux compromis d'agence : le notaire y est unique, Maître GOSSART seule, sans confrère en participation. L'outil en comptait trois — les deux autres étaient des notaires simplement CITÉS dans l'origine de propriété, qui avaient reçu la vente précédente ou dressé un règlement de copropriété en 1969. Un notaire cité n'intervient pas à l'acte : il est désormais retiré de la liste, et pas seulement privé de rôle, ce qui laisse enfin s'appliquer la règle du notaire unique — il représente les deux parties, et les deux champs portent son nom. Un repère générique reconnaît ces mentions : un notaire présenté avec une date est celui d'un acte antérieur, un notaire qui intervient ne l'est jamais. Et le dédoublonnage passe maintenant APRÈS ce filtre : le même notaire figure souvent d'abord dans l'origine de propriété puis, plus loin, comme rédacteur du présent acte — retenir la première mention le faisait disparaître entièrement" },
@@ -2596,6 +2597,155 @@
         alertes: (extraction.alertes || []).map(a => ({ code: a.code, gravite: a.gravite, message: a.message }))
       }
     };
+  }
+
+  // ==== OUTIL 2 (AUDIT DES ACTES) : comparaison déterministe compromis/promesse → projet de vente ====
+  //
+  // §13 du cahier des charges (mode "projet d'acte de vente") : tout ce qui est un FAIT STRUCTURÉ
+  // (parties, prix, désignation du bien, cadastre, notaire instrumentaire, dates) est comparé par
+  // du code pur, jamais redemandé à l'IA locale — un diff de deux valeurs déjà extraites n'a rien à
+  // gagner à repasser par un modèle dont la "certitude" auto-déclarée n'est de toute façon pas
+  // calibrée (voir server/src/llm.js, genererJson). Seule la partie en langage libre (déclarations
+  // des vendeurs, travaux, servitudes...) reste du ressort des passes IA côté serveur
+  // (server/src/audit/), qui reçoivent alors ce même document de référence en plus du projet.
+  //
+  // La référence peut venir de deux sources, ramenées ici à LA MÊME FORME (celle que produit déjà
+  // construireExtractionRegex()) : un dossier CLAIRE déjà suivi (referenceDepuisDossier — aucune
+  // ré-extraction, ses champs ont déjà été vérifiés lors de la création du dossier), ou un
+  // compromis/promesse fraîchement uploadé dans Outil 2 (construireExtractionRegex(texte, null,
+  // null) appelée directement, sans date de compromis connue — les délais ne se calculent alors
+  // pas, mais les dates explicites et les autres champs restent détectés comme d'habitude).
+
+  function referenceDepuisDossier(d) {
+    if (!d) return null;
+    return {
+      parties: Array.isArray(d.parties) ? d.parties : [],
+      notaires: d.notaires || {},
+      bien: d.bien || { adresse: null, cadastre: null },
+      dates: {
+        BUTOIR_PRET: champExtraction(d.pret || null),
+        REITERATION_ACTE: champExtraction(d.acte || null),
+        BUTOIR_VENTE_PREALABLE: champExtraction(d.ventebien || null)
+      },
+      champs: {
+        prixVente: champExtraction(d.prixVente || null)
+      }
+    };
+  }
+
+  // Compare deux valeurs texte en ignorant accents/casse/espaces superflus — même principe que
+  // normaliserPourRecherche() (recherche de dossier), appliqué ici à un nom de partie ou une adresse.
+  function memeValeurTexte(a, b) {
+    return normaliserPourRecherche(String(a || '').trim()) === normaliserPourRecherche(String(b || '').trim());
+  }
+
+  function partieCorrespondante(partie, liste) {
+    return (liste || []).find(p => memeValeurTexte(p.nom, partie.nom));
+  }
+
+  var LIBELLES_TYPE_DATE_COMPARAISON = {
+    BUTOIR_PRET: 'Obtention du prêt', REITERATION_ACTE: 'Signature de l’acte', BUTOIR_VENTE_PREALABLE: 'Vente préalable'
+  };
+
+  // Constat pur (sans IA) : {categorie: 'COMPARAISON_COMPROMIS', gravite, titre, description,
+  // sources: []} — même forme que les constats produits par les passes IA côté serveur (voir
+  // server/src/audit/fusion.js) pour que le rapport les affiche ensemble sans traitement
+  // particulier ; `sources` reste vide, ces constats ne citent pas un extrait de texte mais deux
+  // valeurs déjà extraites (rien à vérifier via localiserExtrait ici).
+  function comparerCompromisEtProjet(reference, projet) {
+    if (!reference || !projet) return [];
+    const constats = [];
+
+    const partiesRef = reference.parties || [];
+    const partiesProjet = projet.parties || [];
+    for (const p of partiesRef) {
+      const trouvee = partieCorrespondante(p, partiesProjet);
+      if (!trouvee) {
+        constats.push({
+          categorie: 'COMPARAISON_COMPROMIS', gravite: 'IMPORTANT',
+          titre: `Partie absente du projet : ${p.nom}`,
+          description: `${p.nom} figurait dans le compromis/la promesse de référence (${p.role}) mais n’apparaît plus dans le projet de vente.`,
+          sources: []
+        });
+      } else if (trouvee.role !== p.role) {
+        constats.push({
+          categorie: 'COMPARAISON_COMPROMIS', gravite: 'CRITIQUE',
+          titre: `Rôle changé pour ${p.nom}`,
+          description: `${p.nom} était ${p.role} dans le compromis/la promesse, ${trouvee.role} dans le projet de vente.`,
+          sources: []
+        });
+      }
+    }
+    for (const p of partiesProjet) {
+      if (!partieCorrespondante(p, partiesRef)) {
+        constats.push({
+          categorie: 'COMPARAISON_COMPROMIS', gravite: 'IMPORTANT',
+          titre: `Partie nouvelle dans le projet : ${p.nom}`,
+          description: `${p.nom} (${p.role}) apparaît dans le projet de vente sans figurer dans le compromis/la promesse de référence.`,
+          sources: []
+        });
+      }
+    }
+
+    const prixRef = reference.champs && reference.champs.prixVente && reference.champs.prixVente.valeur;
+    const prixProjet = projet.champs && projet.champs.prixVente && projet.champs.prixVente.valeur;
+    if (prixRef != null && prixProjet != null && Number(prixRef) !== Number(prixProjet)) {
+      constats.push({
+        categorie: 'COMPARAISON_COMPROMIS', gravite: 'CRITIQUE',
+        titre: 'Prix de vente différent',
+        description: `Prix du compromis/de la promesse : ${prixRef} € — prix du projet de vente : ${prixProjet} €.`,
+        sources: []
+      });
+    }
+
+    const adresseRef = reference.bien && reference.bien.adresse;
+    const adresseProjet = projet.bien && projet.bien.adresse;
+    if (adresseRef && adresseProjet && !memeValeurTexte(adresseLisible(adresseRef), adresseLisible(adresseProjet))) {
+      constats.push({
+        categorie: 'COMPARAISON_COMPROMIS', gravite: 'CRITIQUE',
+        titre: 'Désignation du bien différente',
+        description: `Compromis/promesse : « ${adresseLisible(adresseRef)} » — projet de vente : « ${adresseLisible(adresseProjet)} ».`,
+        sources: []
+      });
+    }
+
+    const cadastreRef = reference.bien && reference.bien.cadastre;
+    const cadastreProjet = projet.bien && projet.bien.cadastre;
+    if (cadastreRef && cadastreProjet &&
+        (cadastreRef.section !== cadastreProjet.section || cadastreRef.numero !== cadastreProjet.numero)) {
+      constats.push({
+        categorie: 'COMPARAISON_COMPROMIS', gravite: 'CRITIQUE',
+        titre: 'Référence cadastrale différente',
+        description: `Compromis/promesse : section ${cadastreRef.section} n°${cadastreRef.numero} — projet de vente : section ${cadastreProjet.section} n°${cadastreProjet.numero}.`,
+        sources: []
+      });
+    }
+
+    const notaireRef = reference.notaires && reference.notaires.instrumentaire;
+    const notaireProjet = projet.notaires && projet.notaires.instrumentaire;
+    if (notaireRef && notaireProjet && notaireRef.nom && notaireProjet.nom && !memeValeurTexte(notaireRef.nom, notaireProjet.nom)) {
+      constats.push({
+        categorie: 'COMPARAISON_COMPROMIS', gravite: 'A_VERIFIER',
+        titre: 'Notaire instrumentaire différent',
+        description: `Compromis/promesse : ${notaireRef.nom} — projet de vente : ${notaireProjet.nom}.`,
+        sources: []
+      });
+    }
+
+    for (const type of Object.keys(LIBELLES_TYPE_DATE_COMPARAISON)) {
+      const vRef = reference.dates && reference.dates[type] && reference.dates[type].valeur;
+      const vProjet = projet.dates && projet.dates[type] && projet.dates[type].valeur;
+      if (vRef && vProjet && vRef !== vProjet) {
+        constats.push({
+          categorie: 'COMPARAISON_COMPROMIS', gravite: 'A_VERIFIER',
+          titre: `Date différente — ${LIBELLES_TYPE_DATE_COMPARAISON[type]}`,
+          description: `Compromis/promesse : ${vRef} — projet de vente : ${vProjet}. Un report peut être légitime, à confirmer.`,
+          sources: []
+        });
+      }
+    }
+
+    return constats;
   }
 
   // Corrections apportées À LA MAIN entre ce que l'extraction proposait et ce qui est réellement
@@ -9913,6 +10063,57 @@
     return texte;
   }
 
+  // Variante page par page de lireTextePdfVerification(), pour Outil 2 (Audit des actes — voir plus
+  // bas, section « Analyse approfondie (IA) ») : celui-ci doit citer une PAGE précise pour chaque
+  // document envoyé au modèle, pas seulement pour le compromis en cours d'import (pageDepuisIndex
+  // ne connaît que le PDF unique chargé dans le wizard). Même lecture, mêmes plafonds
+  // (PLAFOND_PAGES_VERIFICATION, repli OCR sur PAGES_OCR_VERIFICATION pages), mais mémorise en plus
+  // la position de chaque page dans le texte joint. lireTextePdfVerification() elle-même n'est pas
+  // touchée : ses appelants existants (vérification d'un dossier local) n'ont pas besoin des
+  // frontières de page et ne doivent pas changer de comportement.
+  async function lireTextePdfParPage(pdf) {
+    let texte = '';
+    let pages = [];
+    for (let p = 1; p <= Math.min(pdf.numPages, PLAFOND_PAGES_VERIFICATION); p++) {
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent();
+      const debut = texte.length;
+      texte += content.items.map(it => it.str).join(' ') + '\n';
+      pages.push({ numero: p, debut, fin: texte.length });
+    }
+    if (texte.trim().length < 40) {
+      const workerVerif = await creerWorkerOcr();
+      if (workerVerif) {
+        try {
+          let texteOcr = '';
+          const pagesOcr = [];
+          for (let p = 1; p <= Math.min(pdf.numPages, PAGES_OCR_VERIFICATION); p++) {
+            const debut = texteOcr.length;
+            texteOcr += (await ocrPage(pdf, p, workerVerif)) + '\n';
+            pagesOcr.push({ numero: p, debut, fin: texteOcr.length });
+          }
+          texte = texteOcr;
+          pages = pagesOcr;
+        } finally {
+          await workerVerif.terminate();
+        }
+      }
+    }
+    return { texte, pages };
+  }
+
+  // Retour la page (1-indexée) contenant l'index donné dans un texte construit par
+  // lireTextePdfParPage() — pendant analogue à pageDepuisIndex() (compromis en cours d'import) mais
+  // pour n'importe quel document d'Outil 2. Repli sur la dernière page connue si l'index dépasse
+  // (troncature du texte avant envoi au modèle, voir lancerAuditActe) plutôt qu'un numéro inventé.
+  function pageDepuisIndexPages(pages, index) {
+    if (!Array.isArray(pages) || pages.length === 0 || index == null || index < 0) return null;
+    for (const p of pages) {
+      if (index >= p.debut && index < p.fin) return p.numero;
+    }
+    return pages[pages.length - 1].numero;
+  }
+
   // Retour visuel pendant le parcours du dossier local (peut prendre plusieurs secondes sur un
   // dossier volumineux/beaucoup de PDF/repli OCR) : sans ça, le bouton restait silencieux jusqu'au
   // résultat final, ce qui pouvait laisser croire à un clic sans effet — signalé par l'étude.
@@ -10723,20 +10924,125 @@
     calculerFraisActe();
   }
 
-  // ---- Analyse approfondie (IA) : import de l'acte + annexes séparées, relecture croisée par le
-  // modèle local (Ollama, voir server/src/llm.js et CLAUDE.md) ----
-  // Distinct du wizard "Nouveau dossier" : on ne crée pas de dossier de suivi ici, on compare des
-  // documents entre eux. N'existe QUE sur `claude/serveur-intranet` (a besoin d'un backend pour
-  // parler à Ollama, jamais appelé sans `fetchAvecAuth()`/l'écran de connexion, absents de `main`)
-  // — contrairement au reste de ce fichier, cette section (et celle de l'extraction IA du wizard
-  // "Nouveau dossier", voir lancerExtractionIa) n'est PAS portée sur `main`, qui n'a pas de
-  // backend pour l'exécuter.
-  // Chaque fichier déposé n'existe qu'en mémoire le temps de l'analyse — jamais enregistré, aucun
+  // ---- Outil 2 — Audit intelligent des actes notariaux : import du projet (compromis/promesse ou
+  // acte de vente) + pièces séparées, relecture croisée par le modèle local (Ollama, voir
+  // server/src/llm.js, server/src/audit/ et CLAUDE.md, section "Outil 2") ----
+  // Distinct du wizard "Nouveau dossier" (Outil 1, qui crée/tient la fiche de suivi à partir d'un
+  // compromis SIGNÉ) : ici on compare des PROJETS de documents entre eux pour un audit, sans jamais
+  // créer ni modifier un dossier de suivi — un dossier CLAIRE peut être lié en lecture seule pour
+  // réutiliser ses données déjà vérifiées (voir auditDossierLie), jamais en écriture.
+  // N'existe QUE sur `claude/serveur-intranet` (a besoin d'un backend pour parler à Ollama, jamais
+  // appelé sans `fetchAvecAuth()`/l'écran de connexion, absents de `main`) — contrairement au reste
+  // de ce fichier, cette section (et celle de l'extraction IA du wizard "Nouveau dossier", voir
+  // lancerExtractionIa) n'est PAS portée sur `main`, qui n'a pas de backend pour l'exécuter.
+  // Chaque fichier déposé n'existe qu'en mémoire le temps de l'audit — jamais enregistré, aucun
   // dossier créé. Seul le TEXTE déjà extrait dans le navigateur est envoyé au serveur, jamais le
-  // PDF lui-même (voir lireTextePdfVerification, déjà utilisée pour vérifier un dossier local).
-  let fichiersAnalyseIa = []; // { id, file, nom, type: 'acte'|'annexe', statut, texte, erreurTexte }
+  // PDF lui-même (voir lireTextePdfParPage, déjà utilisée pour vérifier un dossier local).
+  let fichiersAnalyseIa = []; // { id, file, nom, type, statut, texte, pages, erreurTexte }
   let compteurFichierAnalyseIa = 0;
   let analyseIaEnCours = false;
+
+  // Mode choisi EXPLICITEMENT à l'upload (jamais deviné, demande explicite de l'étude) : détermine
+  // si la comparaison avec un compromis/une promesse de référence a lieu (§13 du cahier des
+  // charges). auditTypeVente ('auto'|'maison'|'copropriete'|'terrain') pilote uniquement si la passe
+  // copropriété (§12) est exécutée côté serveur. auditDossierLie (mode 'acte' seulement) évite de
+  // réuploader le compromis quand le dossier est déjà suivi dans CLAIRE — jamais modifié, lu seul.
+  let auditMode = 'compromis';
+  let auditTypeVente = 'auto';
+  let auditDossierLie = null;
+
+  // Taxonomie des documents : chaque type route le document vers les seules passes qui en ont
+  // besoin côté serveur (voir TYPES_PAR_PASSE, server/src/routes/auditActe.js) — garder le contexte
+  // de chaque appel Ollama petit sur le CPU de bureau de l'étude, sans GPU.
+  var TYPES_DOCUMENT_AUDIT = [
+    { valeur: 'principal', libelle: 'Principal (le projet lui-même)' },
+    { valeur: 'reference_compromis', libelle: 'Compromis / promesse de référence' },
+    { valeur: 'titre', libelle: 'Titre de propriété' },
+    { valeur: 'diagnostic', libelle: 'Diagnostic technique' },
+    { valeur: 'urbanisme', libelle: "Document d'urbanisme" },
+    { valeur: 'facture', libelle: 'Facture de travaux' },
+    { valeur: 'autorisation', libelle: "Autorisation d'urbanisme" },
+    { valeur: 'decennale', libelle: 'Garantie / assurance décennale' },
+    { valeur: 'copropriete', libelle: 'Document de copropriété' },
+    { valeur: 'autre', libelle: 'Autre pièce' }
+  ];
+
+  function changerAuditMode(valeur) {
+    auditMode = (valeur === 'acte') ? 'acte' : 'compromis';
+    const bloc = document.getElementById('audit-reference-bloc');
+    if (bloc) bloc.style.display = auditMode === 'acte' ? '' : 'none';
+  }
+
+  function changerAuditTypeVente(valeur) {
+    auditTypeVente = valeur;
+  }
+
+  // Recherche d'un dossier CLAIRE à lier à l'audit (mode "projet d'acte de vente" uniquement) —
+  // même patron que renderRechercheDashboard() (Tableau de bord), un menu de résultats sous le
+  // champ plutôt qu'un filtre sur une liste déjà affichée, qui n'existe pas ici.
+  function rechercherDossierAudit(valeur) {
+    const bloc = document.getElementById('audit-dossier-resultats');
+    if (!bloc) return;
+    const q = normaliserPourRecherche(String(valeur || '').trim());
+    if (!q) { bloc.style.display = 'none'; bloc.innerHTML = ''; return; }
+    const resultats = dossiers
+      .filter(d => !d.archive && normaliserPourRecherche(d.nom + ' ' + (d.responsable || '')).includes(q))
+      .slice(0, 8);
+    bloc.innerHTML = resultats.length === 0
+      ? '<div class="dash-recherche-vide">Aucun dossier ne correspond.</div>'
+      : resultats.map(d => `
+        <button type="button" class="dash-recherche-ligne" onclick="choisirDossierAudit('${d.id}')">
+          ${renderBadgeStatut(d)}
+          <span class="dash-recherche-nom">${escapeHtml(d.nom)}</span>
+          <span class="dash-recherche-resp">${escapeHtml(d.responsable || '')}</span>
+        </button>`).join('');
+    bloc.style.display = 'block';
+  }
+
+  function renderDossierLieAudit() {
+    const pill = document.getElementById('audit-dossier-pill');
+    if (!pill) return;
+    pill.innerHTML = auditDossierLie
+      ? `<span class="dot-label dl-success">${icone('link')}${escapeHtml(auditDossierLie.nom)}<button type="button" class="piece-suppr" onclick="retirerDossierAudit()" title="Ne plus lier ce dossier" aria-label="Ne plus lier ce dossier">${icone('x')}</button></span>`
+      : '';
+  }
+
+  function choisirDossierAudit(id) {
+    auditDossierLie = dossiers.find(d => d.id === id) || null;
+    const champ = document.getElementById('audit-dossier-recherche');
+    if (champ) champ.value = '';
+    const bloc = document.getElementById('audit-dossier-resultats');
+    if (bloc) { bloc.style.display = 'none'; bloc.innerHTML = ''; }
+    renderDossierLieAudit();
+  }
+
+  function retirerDossierAudit() {
+    auditDossierLie = null;
+    renderDossierLieAudit();
+  }
+
+  // Va chercher le compromis/la promesse d'un dossier CLAIRE lié DIRECTEMENT SUR LE NAS déjà relié
+  // (même mécanisme que le bouton "Ouvrir le compromis" — d.compromisNomFichier, chercherFichierParNom,
+  // ouvrirPdfNas), plutôt que de forcer un second import manuel : le dossier est déjà suivi, son
+  // compromis y est déjà. Silencieux en cas d'échec (nom introuvable, dossier non relié au NAS, PDF
+  // illisible...) : la comparaison structurée (comparerCompromisEtProjet, plus bas) reste alors
+  // disponible, seul le volet "clauses en langage libre" de la comparaison (passes IA) est absent.
+  async function recupererTextCompromisDossier(d) {
+    if (!d || !d.dossierLie || !d.nasDossier || !window.pdfjsLib) return null;
+    try {
+      const trouve = d.compromisNomFichier
+        ? await chercherFichierParNom(d, d.compromisNomFichier)
+        : (await chercherFichierParNom(d, 'compromis')) || await chercherFichierParNom(d, 'promesse');
+      if (!trouve) return null;
+      const pdf = await ouvrirPdfNas(cheminNasComplet(d, trouve.chemin));
+      const { texte, pages } = await lireTextePdfParPage(pdf);
+      if (texte.trim().length < 20) return null;
+      return { nom: trouve.nom, texte, pages };
+    } catch (e) {
+      console.error('Audit des actes : compromis du dossier lié introuvable ou illisible', e);
+      return null;
+    }
+  }
 
   function gererSurvolDepotAnalyseIa(event) {
     event.preventDefault();
@@ -10755,13 +11061,20 @@
     if (fichiers && fichiers.length) ajouterFichiersAnalyseIa(fichiers);
   }
 
-  // Devine "acte" pour le premier PDF dont le nom évoque un compromis/une promesse, "annexe" pour
-  // tous les suivants — une simple valeur de départ pratique, toujours modifiable ensuite via le
-  // <select> de chaque ligne (voir changerTypeFichierAnalyseIa) : ce n'est jamais figé.
+  // Devine "principal" pour le premier PDF (sauf s'il évoque un compromis/une promesse alors qu'on
+  // est en mode "projet d'acte de vente", auquel cas c'est une RÉFÉRENCE, pas le principal), et
+  // "reference_compromis" pour un fichier nommé compromis/promesse ensuite en mode acte — une
+  // simple valeur de départ pratique, toujours modifiable ensuite via le <select> de chaque ligne
+  // (voir changerTypeFichierAnalyseIa) : ce n'est jamais figé. Tout le reste part en "autre", faute
+  // d'un jeu de mots-clés encore éprouvé sur de vrais noms de fichiers (voir CLAUDE.md, principe
+  // déjà appliqué à PIECES_*/motifNom : premier jet, resserré sur retour réel).
   function deviserTypeAnalyseIa(nomFichier) {
-    const dejaUnActe = fichiersAnalyseIa.some(f => f.type === 'acte');
-    if (!dejaUnActe && /compromis|promesse/i.test(nomFichier)) return 'acte';
-    return 'annexe';
+    const dejaUnPrincipal = fichiersAnalyseIa.some(f => f.type === 'principal');
+    const dejaUneReference = fichiersAnalyseIa.some(f => f.type === 'reference_compromis');
+    const nommeCompromis = /compromis|promesse/i.test(nomFichier);
+    if (!dejaUnPrincipal && (auditMode !== 'acte' || !nommeCompromis)) return 'principal';
+    if (auditMode === 'acte' && nommeCompromis && !dejaUneReference) return 'reference_compromis';
+    return 'autre';
   }
 
   function ajouterFichiersAnalyseIa(fileList) {
@@ -10777,6 +11090,7 @@
       type: deviserTypeAnalyseIa(file.name),
       statut: 'lecture',
       texte: '',
+      pages: [],
       erreurTexte: ''
     }));
     fichiersAnalyseIa = fichiersAnalyseIa.concat(nouvelles);
@@ -10784,10 +11098,13 @@
     for (const entree of nouvelles) extraireTexteFichierAnalyseIa(entree.id);
   }
 
-  // Réutilise lireTextePdfVerification() (déjà en place pour vérifier l'offre de prêt/les pièces
-  // d'un dossier local relié) : texte extractible + repli OCR sur les 3 premières pages si le PDF
+  // Réutilise lireTextePdfParPage() (variante de lireTextePdfVerification, déjà en place pour
+  // vérifier l'offre de prêt/les pièces d'un dossier local relié, qui mémorise en plus les
+  // frontières de chaque page) : texte extractible + repli OCR sur les 3 premières pages si le PDF
   // est un scan sans texte — même logique, appliquée ici à un fichier importé via <input> plutôt
-  // qu'à un FileSystemFileHandle.
+  // qu'à un FileSystemFileHandle. Les frontières de page sont indispensables à Outil 2 (Audit des
+  // actes) pour citer un numéro de page précis par document, pas seulement pour le compromis en
+  // cours d'import.
   async function extraireTexteFichierAnalyseIa(id) {
     const entree = fichiersAnalyseIa.find(f => f.id === id);
     if (!entree) return;
@@ -10800,13 +11117,14 @@
     try {
       const buffer = await entree.file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: buffer, verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise;
-      const texte = await lireTextePdfVerification(pdf);
+      const { texte, pages } = await lireTextePdfParPage(pdf);
       if (texte.trim().length < 20) {
         entree.statut = 'erreur';
         entree.erreurTexte = 'Aucun texte exploitable trouvé (page vide, ou scan illisible même après OCR).';
       } else {
         entree.statut = 'ok';
         entree.texte = texte;
+        entree.pages = pages;
       }
     } catch (e) {
       entree.statut = 'erreur';
@@ -10832,7 +11150,7 @@
   function viderAnalyseIa() {
     fichiersAnalyseIa = [];
     const rapport = document.getElementById('analyse-ia-rapport');
-    if (rapport) rapport.innerHTML = '<p class="hint">Aucune analyse lancée pour l\'instant.</p>';
+    if (rapport) rapport.innerHTML = '<p class="hint">Aucun audit lancé pour l\'instant.</p>';
     renderListeFichiersAnalyseIa();
   }
 
@@ -10842,6 +11160,10 @@
     return `<span class="dot-label dl-success">${icone('file-text')}Lu</span>`;
   }
 
+  function optionsTypeDocumentAudit(typeActuel) {
+    return TYPES_DOCUMENT_AUDIT.map(t => `<option value="${t.valeur}" ${t.valeur === typeActuel ? 'selected' : ''}>${escapeHtml(t.libelle)}</option>`).join('');
+  }
+
   function renderListeFichiersAnalyseIa() {
     const conteneur = document.getElementById('analyse-ia-liste-fichiers');
     if (!conteneur) return;
@@ -10849,10 +11171,7 @@
       <div class="analyse-ia-fichier">
         ${icone('file-text')}
         <span class="analyse-ia-fichier-nom" title="${escapeAttr(f.nom)}">${escapeHtml(f.nom)}</span>
-        <select onchange="changerTypeFichierAnalyseIa('${f.id}', this.value)" aria-label="Type de document">
-          <option value="acte" ${f.type === 'acte' ? 'selected' : ''}>Acte principal</option>
-          <option value="annexe" ${f.type === 'annexe' ? 'selected' : ''}>Annexe</option>
-        </select>
+        <select onchange="changerTypeFichierAnalyseIa('${f.id}', this.value)" aria-label="Type de document">${optionsTypeDocumentAudit(f.type)}</select>
         ${statutFichierAnalyseIa(f)}
         <button type="button" class="piece-suppr" onclick="retirerFichierAnalyseIa('${f.id}')" title="Retirer ce fichier" aria-label="Retirer ce fichier">${icone('x')}</button>
       </div>
@@ -10863,21 +11182,23 @@
 
     const lancerBtn = document.getElementById('analyse-ia-lancer-btn');
     if (lancerBtn && !analyseIaEnCours) {
-      const pretsAAnalyser = fichiersAnalyseIa.some(f => f.statut === 'ok');
+      // Il faut au moins un document "principal" lu avec succès : c'est celui que toutes les
+      // passes comparent aux autres (voir server/src/routes/auditActe.js, TYPES_PAR_PASSE).
+      const principalPret = fichiersAnalyseIa.some(f => f.type === 'principal' && f.statut === 'ok');
       const enCoursDeLecture = fichiersAnalyseIa.some(f => f.statut === 'lecture');
-      lancerBtn.disabled = !pretsAAnalyser || enCoursDeLecture;
+      lancerBtn.disabled = !principalPret || enCoursDeLecture;
     }
   }
 
   // Interrogée à chaque ouverture de l'onglet (voir definirOnglet) : Ollama a pu être installé/
   // démarré/arrêté sur le serveur depuis la dernière visite. Affiche tout de suite un message
-  // actionnable (modèle absent, Ollama non lancé...) plutôt que de laisser lancer une analyse de
-  // plusieurs minutes pour découvrir l'échec à la fin — voir server/src/routes/analyseIa.js.
+  // actionnable (modèle absent, Ollama non lancé...) plutôt que de laisser lancer un audit de
+  // plusieurs minutes pour découvrir l'échec à la fin — voir server/src/routes/auditActe.js.
   async function verifierDisponibiliteAnalyseIa() {
     const zone = document.getElementById('analyse-ia-dispo');
     if (!zone) return;
     try {
-      const reponse = await fetchAvecAuth('/api/analyse-ia/disponibilite');
+      const reponse = await fetchAvecAuth('/api/audit-acte/disponibilite');
       const statut = await reponse.json();
       zone.style.display = 'flex';
       if (statut.disponible) {
@@ -10892,72 +11213,176 @@
     }
   }
 
-  function libelleGraviteAnalyseIa(gravite) {
-    if (gravite === 'critique') return { dl: 'dl-urgent', icone: 'alert-triangle', texte: 'Critique' };
-    if (gravite === 'attention') return { dl: 'dl-pret', icone: 'alert-triangle', texte: 'À vérifier' };
-    return { dl: 'dl-neutre', icone: 'info', texte: 'Info' };
+  // 4 niveaux de gravité (§16 du cahier des charges), sur seulement 3 couleurs déjà réservées dans
+  // l'outil (pas de 5ᵉ couleur inventée pour l'occasion, voir CLAUDE.md) : IMPORTANT et A_VERIFIER
+  // partagent l'ambre, distingués par leur texte et leur icône plutôt que par la couleur.
+  function libelleGraviteAudit(gravite) {
+    if (gravite === 'CRITIQUE') return { dl: 'dl-urgent', icone: 'alert-triangle', texte: 'Critique' };
+    if (gravite === 'IMPORTANT') return { dl: 'dl-pret', icone: 'alert-triangle', texte: 'Important' };
+    if (gravite === 'A_VERIFIER') return { dl: 'dl-pret', icone: 'info', texte: 'À vérifier' };
+    return { dl: 'dl-neutre', icone: 'info', texte: 'Information' };
   }
 
-  function renderRapportAnalyseIa(resultat) {
+  // Une source citée par le modèle, déjà vérifiée côté serveur (voir server/src/audit/fusion.js,
+  // verifierSources) : la page n'est affichée que si la citation a été retrouvée telle quelle dans
+  // le document — une page à côté d'une citation non vérifiée laisserait croire à une localisation
+  // fiable qu'on n'a pas.
+  function renderSourcesAudit(sources) {
+    const liste = Array.isArray(sources) ? sources : [];
+    if (liste.length === 0) return '';
+    return `<div class="analyse-ia-constat-docs">${liste.map(s => {
+      const extrait = escapeHtml(String(s.extrait || '').slice(0, 160));
+      if (s.extraitTrouve) {
+        const lieu = s.document ? `${escapeHtml(s.document)}${s.page ? ' · p.' + s.page : ''} — ` : '';
+        return `${lieu}« ${extrait} »`;
+      }
+      return `<span class="dot-label dl-neutre">${icone('alert-triangle')}Citation non retrouvée — à vérifier en priorité</span>${s.document ? ' (' + escapeHtml(s.document) + ')' : ''}`;
+    }).join('<br>')}</div>`;
+  }
+
+  // Constat générique (identification/parties/prix/dates/titre, travaux, urbanisme/autorisations/
+  // garanties, préemption, servitudes, copropriété) : même gabarit pour toutes ces sections, la
+  // seule chose qui change d'une section à l'autre est la liste passée à renderSectionAudit().
+  function renderConstatAudit(c) {
+    const g = libelleGraviteAudit(c.gravite);
+    return `<div class="analyse-ia-constat">
+      <div class="analyse-ia-constat-titre"><span class="dot-label ${g.dl}">${icone(g.icone)}${g.texte}</span>${escapeHtml(c.titre)}</div>
+      ${c.description ? `<p class="analyse-ia-constat-desc">${escapeHtml(c.description)}</p>` : ''}
+      ${c.action ? `<p class="analyse-ia-constat-desc"><em>À vérifier : ${escapeHtml(c.action)}</em></p>` : ''}
+      ${renderSourcesAudit(c.sources)}
+    </div>`;
+  }
+
+  // Diagnostics (forme différente : nature/dateEtablissement/dateExpiration/message, voir
+  // server/src/audit/fusion.js, fusionnerDiagnostics) — la durée de validité n'est jamais calculée
+  // ici ni par le modèle, seulement affichée telle que le serveur l'a établie en JS pur.
+  function renderDiagnosticAudit(d) {
+    const g = libelleGraviteAudit(d.gravite);
+    const bien = d.bienConcerne ? ` — ${escapeHtml(d.bienConcerne)}` : '';
+    return `<div class="analyse-ia-constat">
+      <div class="analyse-ia-constat-titre"><span class="dot-label ${g.dl}">${icone(g.icone)}${g.texte}</span>${escapeHtml(d.label || d.nature)}${bien}</div>
+      <p class="analyse-ia-constat-desc">${escapeHtml(d.message)}</p>
+      ${renderSourcesAudit(d.sources)}
+    </div>`;
+  }
+
+  function renderSectionAudit(titre, liste, rendreItem) {
+    const items = Array.isArray(liste) ? liste : [];
+    if (items.length === 0) return '';
+    return `<div class="dash-section-titre" style="margin-top:14px;">${escapeHtml(titre)} (${items.length})</div>${items.map(rendreItem).join('')}`;
+  }
+
+  // Comptage par gravité — calculé côté serveur (voir calculerResume, fusion.js), jamais par le
+  // modèle : une synthèse générée par le modèle affirmerait des chiffres qu'il n'a lui-même aucun
+  // moyen de garantir cohérents avec le détail.
+  function renderResumeAudit(resume) {
+    if (!resume) return '';
+    const s = resume.syntheseParGravite || {};
+    const tuile = (cle, libelle) => {
+      const g = libelleGraviteAudit(cle);
+      return `<span class="dot-label ${g.dl}">${icone(g.icone)}${s[cle] || 0} ${libelle}</span>`;
+    };
+    return `<div class="analyse-ia-resume">${tuile('CRITIQUE', 'critique(s)')}${tuile('IMPORTANT', 'important(s)')}${tuile('A_VERIFIER', 'à vérifier')}${tuile('INFORMATION', 'information(s)')}</div>`;
+  }
+
+  function renderRapportAuditActe(resultat) {
     const zone = document.getElementById('analyse-ia-rapport');
     if (!zone) return;
-    let html = '';
-    if (resultat.tronque) {
-      html += `<p class="hint">${icone('alert-triangle')} Un ou plusieurs documents étaient trop longs et n'ont été analysés que partiellement — les constats ci-dessous peuvent donc être incomplets.</p>`;
+    let html = renderResumeAudit(resultat.resume);
+
+    const erreurs = Array.isArray(resultat.erreursPasses) ? resultat.erreursPasses : [];
+    for (const e of erreurs) {
+      html += `<p class="hint">${icone('alert-triangle')} Passe « ${escapeHtml(e.passe)} » indisponible : ${escapeHtml(e.message)}</p>`;
     }
-    if (resultat.erreurAnalyse) {
-      // Le modèle n'a pas renvoyé un JSON exploitable : ce n'est pas la même chose qu'une vraie
-      // analyse "rien à signaler" — ne pas afficher les deux messages à la fois, ce serait
-      // trompeur (laisserait croire que les documents ont bien été relus sans souci trouvé).
-      html += `<p class="hint">${escapeHtml(resultat.erreurAnalyse)}</p>`;
-    } else if (!resultat.constats || resultat.constats.length === 0) {
+
+    const total = ['constats', 'dates', 'diagnostics', 'travaux', 'urbanisme', 'preemptions', 'servitudes', 'copropriete']
+      .reduce((n, cle) => n + ((resultat[cle] || []).length), 0);
+    if (total === 0) {
       html += '<p class="hint">Aucune incohérence relevée par le modèle sur les documents fournis — à vérifier malgré tout, voir la note ci-dessous.</p>';
     } else {
-      html += resultat.constats.map(c => {
-        const g = libelleGraviteAnalyseIa(c.gravite);
-        const docs = (c.documents || []).map(d => escapeHtml(d)).join(', ');
-        return `<div class="analyse-ia-constat">
-          <div class="analyse-ia-constat-titre"><span class="dot-label ${g.dl}">${icone(g.icone)}${g.texte}</span>${escapeHtml(c.titre)}</div>
-          ${c.description ? `<p class="analyse-ia-constat-desc">${escapeHtml(c.description)}</p>` : ''}
-          ${docs ? `<div class="analyse-ia-constat-docs">Concerne : ${docs}</div>` : ''}
-        </div>`;
-      }).join('');
+      html += renderSectionAudit('Identification, parties, prix, titre', resultat.constats, renderConstatAudit);
+      html += renderSectionAudit('Dates', resultat.dates, renderConstatAudit);
+      html += renderSectionAudit('Diagnostics', resultat.diagnostics, renderDiagnosticAudit);
+      html += renderSectionAudit('Travaux', resultat.travaux, renderConstatAudit);
+      html += renderSectionAudit('Urbanisme, autorisations, garanties', resultat.urbanisme, renderConstatAudit);
+      html += renderSectionAudit('Préemption', resultat.preemptions, renderConstatAudit);
+      html += renderSectionAudit('Servitudes', resultat.servitudes, renderConstatAudit);
+      html += renderSectionAudit('Copropriété', resultat.copropriete, renderConstatAudit);
     }
     zone.innerHTML = html;
   }
 
-  async function lancerAnalyseIa() {
-    const documents = fichiersAnalyseIa
-      .filter(f => f.statut === 'ok')
-      .map(f => ({ nom: f.nom, type: f.type, texte: f.texte }));
-    if (documents.length === 0) {
-      afficherToast('Aucun document exploitable — importez au moins un PDF dont le texte a bien été lu.', 'OK', null);
+  async function lancerAuditActe() {
+    const fichiersOk = fichiersAnalyseIa.filter(f => f.statut === 'ok');
+    const principal = fichiersOk.find(f => f.type === 'principal');
+    if (!principal) {
+      afficherToast('Ajoutez au moins un document « Principal » (le projet lui-même) dont le texte a bien été lu.', 'OK', null);
       return;
     }
     analyseIaEnCours = true;
     const btn = document.getElementById('analyse-ia-lancer-btn');
-    if (btn) { btn.disabled = true; btn.innerHTML = `${icone('spinner', null, true)} Analyse en cours…`; }
+    if (btn) { btn.disabled = true; btn.innerHTML = `${icone('spinner', null, true)} Audit en cours…`; }
     const rapport = document.getElementById('analyse-ia-rapport');
-    if (rapport) rapport.innerHTML = '<p class="hint">Analyse en cours — cela peut prendre une à plusieurs minutes selon la taille des documents et la puissance du serveur.</p>';
+    if (rapport) rapport.innerHTML = '<p class="hint">Audit en cours — cela peut prendre plusieurs minutes selon le nombre de documents et la puissance du serveur (5 passes au maximum, exécutées l\'une après l\'autre).</p>';
 
     try {
-      const reponse = await fetchAvecAuth('/api/analyse-ia', {
+      const referenceUploadee = fichiersOk.find(f => f.type === 'reference_compromis') || null;
+
+      // Mode "projet d'acte de vente" + dossier lié + pas de compromis réuploadé : on va le
+      // chercher automatiquement sur le NAS plutôt que d'obliger un second import manuel — voir
+      // recupererTextCompromisDossier(). Silencieux en cas d'échec.
+      let referenceAutoRecuperee = null;
+      if (auditMode === 'acte' && auditDossierLie && !referenceUploadee) {
+        referenceAutoRecuperee = await recupererTextCompromisDossier(auditDossierLie);
+      }
+
+      const documents = fichiersOk.map(f => ({ nom: f.nom, type: f.type, texte: f.texte, pages: f.pages }));
+      if (referenceAutoRecuperee) {
+        documents.push({ nom: referenceAutoRecuperee.nom, type: 'reference_compromis', texte: referenceAutoRecuperee.texte, pages: referenceAutoRecuperee.pages });
+      }
+
+      let typeVenteEnvoyee = auditTypeVente;
+      if (typeVenteEnvoyee === 'auto') {
+        typeVenteEnvoyee = detecterTypeVenteCopropriete(principal.texte) ? 'copropriete' : null;
+      }
+
+      const reponse = await fetchAvecAuth('/api/audit-acte/analyser', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ documents })
+        body: JSON.stringify({ mode: auditMode, typeVente: typeVenteEnvoyee, documents })
       });
       const corps = await reponse.json();
       if (!reponse.ok) {
-        if (rapport) rapport.innerHTML = `<p class="hint">${escapeHtml(corps.erreur || "Échec de l'analyse.")}</p>`;
-      } else {
-        renderRapportAnalyseIa(corps);
+        if (rapport) rapport.innerHTML = `<p class="hint">${escapeHtml(corps.erreur || "Échec de l'audit.")}</p>`;
+        return;
       }
+
+      // Comparaison déterministe compromis → projet de vente (§13), sans IA — voir
+      // comparerCompromisEtProjet(). Deux sources possibles pour la référence : un dossier CLAIRE
+      // lié (directement, aucune ré-extraction) ou un texte de compromis (réuploadé ou récupéré du
+      // NAS), passé par construireExtractionRegex() pour obtenir la même forme.
+      if (auditMode === 'acte') {
+        const texteReference = referenceUploadee ? referenceUploadee.texte : (referenceAutoRecuperee ? referenceAutoRecuperee.texte : null);
+        const reference = auditDossierLie
+          ? referenceDepuisDossier(auditDossierLie)
+          : (texteReference ? construireExtractionRegex(texteReference, null, null) : null);
+        if (reference) {
+          const projet = construireExtractionRegex(principal.texte, null, null);
+          const diff = comparerCompromisEtProjet(reference, projet);
+          corps.constats = Array.isArray(corps.constats) ? corps.constats : [];
+          for (const c of diff) {
+            corps.constats.unshift({ gravite: c.gravite, titre: c.titre, description: c.description, action: null, sources: [] });
+          }
+        }
+      }
+
+      renderRapportAuditActe(corps);
     } catch (e) {
       // Session expirée : déjà géré par fetchAvecAuth (écran de connexion réaffiché).
     } finally {
       analyseIaEnCours = false;
       renderListeFichiersAnalyseIa();
-      if (btn) btn.innerHTML = "Lancer l'analyse";
+      if (btn) btn.innerHTML = "Lancer l'audit";
     }
   }
 

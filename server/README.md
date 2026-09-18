@@ -83,12 +83,30 @@ tient à jour tout seul, pour tout le portefeuille, sans jamais rouvrir l'outil.
 
 ## Analyse juridique par IA locale (Ollama)
 
-Le même modèle local sert deux fonctionnalités distinctes :
-- Un onglet « Analyse approfondie (IA) » (sidebar de l'outil) permet de déposer l'acte principal
-  (compromis/promesse) et ses annexes séparément — chacune dans son propre PDF, comme reçues — pour
-  une relecture croisée façon « un notaire relit l'acte » : cohérence du prix/de l'adresse/des
-  dates entre l'acte et ses annexes, pièces mentionnées mais absentes, clauses contradictoires
-  (`POST /api/analyse-ia`).
+Le même modèle local sert plusieurs fonctionnalités distinctes :
+- Un onglet « Audit des actes (IA) » (sidebar de l'outil — anciennement « Analyse approfondie »,
+  entièrement revu, voir CLAUDE.md section « Outil 2 ») : Outil 2, distinct du reste de l'outil
+  (« Outil 1 », qui suit un dossier à partir d'un compromis SIGNÉ). Audite un PROJET (compromis/
+  promesse pas encore signé, ou projet d'acte de vente notarié — choix explicite à l'upload, jamais
+  deviné) contre toutes les pièces disponibles (titre, diagnostics, urbanisme, factures,
+  autorisations, décennales, documents de copropriété…), chacune typée pour ne router que vers les
+  vérifications qui la concernent. Cinq passes ciblées (`POST /api/audit-acte/analyser`) plutôt
+  qu'un unique prompt fourre-tout :
+
+  | Passe | Ce qu'elle couvre | Documents reçus |
+  |---|---|---|
+  | `identification` | bien, parties, prix, dates, titre de propriété | principal, titre, compromis de référence (mode « projet d'acte ») |
+  | `diagnostics` | identifie chaque diagnostic (nature, date d'établissement) — le calcul de validité est fait en JS pur, jamais par le modèle | principal, diagnostics |
+  | `travaux` | PRIORITAIRE : toute trace de travaux dans les pièces, comparée aux déclarations du projet | principal, factures, autorisations, décennales, compromis de référence |
+  | `urbanisme` | urbanisme, autorisations, garanties, préemption, servitudes (reçoit les travaux déjà détectés) | principal, urbanisme, titre, autorisations, décennales, compromis de référence |
+  | `copropriete` | uniquement si le bien est en copropriété | principal, documents de copropriété, compromis de référence |
+
+  En mode « projet d'acte de vente », un dossier CLAIRE déjà suivi peut être lié (lecture seule,
+  jamais modifié) : sa comparaison structurée avec le compromis (parties, prix, bien, dates) est un
+  simple calcul côté client, jamais un appel au modèle, et son compromis est retrouvé automatiquement
+  sur le NAS pour alimenter aussi les passes IA (pas besoin de le réuploader). Chaque constat porte 4
+  niveaux de gravité (CRITIQUE/IMPORTANT/À_VÉRIFIER/INFORMATION) et une citation vérifiée dans le bon
+  document (jamais un score de confiance auto-déclaré par le modèle).
 - Le wizard « Nouveau dossier » lui-même appelle aussi le modèle en arrière-plan, juste après
   l'extraction habituelle par regex (inchangée, toujours le chemin principal et immédiat) : il ne
   complète QUE ce que les regex n'ont pas trouvé et ne propose de nouveaux engagements du vendeur
@@ -169,17 +187,20 @@ l'étude préfère l'installer sur une machine dédiée du réseau plutôt que s
   chaque constat proposé est à vérifier, jamais une validation juridique en soi (rappelé dans
   l'interface elle-même). Voir CLAUDE.md pour le choix explicite de ne jamais utiliser un service
   IA en ligne pour cette fonctionnalité, précisément à cause de la confidentialité des actes.
-- Un document très long (plusieurs dizaines de pages) est tronqué au-delà d'un certain nombre de
-  caractères avant d'être envoyé au modèle (voir `LIMITE_CARACTERES_PAR_DOCUMENT` dans
-  `src/routes/analyseIa.js`) — l'interface le signale quand c'est le cas, l'analyse reste alors
-  partielle plutôt que d'attendre indéfiniment ou d'échouer.
+- Un document très long est tronqué au-delà d'un certain nombre de caractères avant d'être envoyé
+  au modèle, et le total d'une passe (tous documents confondus) est lui-même plafonné — voir
+  `LIMITE_CARACTERES_PAR_DOCUMENT`/`PLAFOND_CARACTERES_PASSE` dans `src/routes/auditActe.js` ; un
+  document entier est omis plutôt que coupé en plein milieu si le plafond de la passe est atteint.
 - Rien n'est jamais enregistré par cet outil : les PDF déposés et le texte qui en est extrait ne
-  vivent qu'en mémoire le temps de l'analyse, aucun dossier n'est créé.
+  vivent qu'en mémoire le temps de l'analyse, aucun dossier n'est créé (le dossier CLAIRE
+  éventuellement lié n'est jamais modifié, seulement lu).
 - **Non vérifié en conditions réelles dans cet environnement de développement** (pas de machine
   Windows ni d'Ollama installable ici) : le client HTTP (`src/llm.js`) et la route
-  (`src/routes/analyseIa.js`) sont testés avec un faux serveur Ollama (voir
-  `test/analyse-ia.test.js`), mais la qualité réelle des constats produits par `llama3.1:8b` sur de
-  vrais actes reste à confirmer par l'étude.
+  (`src/routes/auditActe.js`) sont testés avec un faux serveur Ollama (voir
+  `test/audit-acte.test.js`, `test/audit-fusion.test.js`, `test/audit-normaliser.test.js`,
+  `test/audit-diagnostics.test.js`), mais la qualité réelle des constats produits par `llama3.1:8b`
+  sur de vrais projets d'actes, et le temps total d'un audit (jusqu'à 5 appels séquentiels), restent
+  à confirmer par l'étude.
 
 ### Troisième usage du modèle : confirmer une offre de prêt
 
@@ -395,14 +416,16 @@ serveur en cours d'exécution pour que le registre reste accessible aux autres.
 npm test
 ```
 
-46 tests (`node:test`, aucune dépendance de test supplémentaire) couvrant l'authentification, le
+148 tests (`node:test`, aucune dépendance de test supplémentaire) couvrant l'authentification, le
 cycle complet créer/lire/modifier/supprimer/restaurer un dossier, la résolution de configuration
 du mode `.exe` (mot de passe ET jeton calendrier), le service des fichiers statiques embarqués, le
-flux calendrier connecté (`/calendrier.ics`), l'analyse juridique par IA locale (`/api/analyse-ia`)
-et l'extraction IA pour le wizard (`/api/extraction-ia`) — ces deux dernières avec un faux serveur
-Ollama HTTP (voir `test/analyse-ia.test.js`/`test/extraction-ia.test.js`). Indépendant de la suite
-de tests à la racine du dépôt (`npm test` depuis `Office-suivi/`, 134 tests sur les fonctions pures
-de `script.js`) — les deux peuvent tourner sans que l'un dépende des dépendances de l'autre.
+flux calendrier connecté (`/calendrier.ics`), l'extraction IA pour le wizard (`/api/extraction-ia`)
+et l'audit des actes — Outil 2 (`/api/audit-acte/*`) — ces deux dernières avec un faux serveur
+Ollama HTTP (voir `test/extraction-ia.test.js`, `test/audit-acte.test.js`,
+`test/audit-fusion.test.js`, `test/audit-normaliser.test.js`, `test/audit-diagnostics.test.js`).
+Indépendant de la suite de tests à la racine du dépôt (`npm test` depuis `Office-suivi/`, 393 tests
+sur les fonctions pures de `script.js`) — les deux peuvent tourner sans que l'un dépende des
+dépendances de l'autre.
 
 ## Ce qui n'est PAS encore prêt pour un usage réel au bureau
 
@@ -426,12 +449,12 @@ de `script.js`) — les deux peuvent tourner sans que l'un dépende des dépenda
 - **`node:sqlite` est une API expérimentale** de Node.js (avertissement affiché au démarrage,
   sans conséquence connue) — `better-sqlite3` reste une option de repli si elle posait problème
   un jour sur le poste de l'étude.
-- **Analyse juridique par IA locale (Ollama) disponible mais non vérifiée sur de vrais actes** —
-  voir la section « Analyse juridique par IA locale » plus haut : le client HTTP et les deux routes
-  (`/api/analyse-ia`, `/api/extraction-ia`) sont testées avec un faux serveur Ollama, mais la
+- **Analyse et extraction par IA locale (Ollama) disponibles mais non vérifiées sur de vrais actes**
+  — voir la section « Analyse juridique par IA locale » plus haut : le client HTTP et les routes
+  (`/api/audit-acte/*`, `/api/extraction-ia`) sont testées avec un faux serveur Ollama, mais la
   qualité réelle des constats/champs produits par le modèle par défaut (`llama3.1:8b`) sur de vrais
-  compromis/promesses reste à confirmer par l'étude, tout comme les temps de réponse sur le
-  matériel réel du poste serveur (aucun GPU dédié à prévoir dans ce budget — la vitesse dépendra
+  compromis/promesses/projets d'actes reste à confirmer par l'étude, tout comme les temps de réponse
+  sur le matériel réel du poste serveur (aucun GPU dédié à prévoir dans ce budget — la vitesse dépendra
   donc largement du CPU disponible). Pour l'extraction dans le wizard "Nouveau dossier" en
   particulier, le dédoublonnage des engagements du vendeur suggérés par l'IA (éviter de répéter un
   engagement déjà repéré par regex, voir `engagementDejaConnu()` dans `script.js`) est un premier

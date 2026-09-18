@@ -965,6 +965,9 @@
   }
 
   .analyse-ia-rapport { display: flex; flex-direction: column; gap: 10px; }
+  /* Comptage par gravité (Outil 2 — Audit des actes), calculé côté serveur : quatre .dot-label en
+     ligne, jamais un chiffre inventé par le modèle (voir renderResumeAudit, script.js). */
+  .analyse-ia-resume { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 4px; }
   .analyse-ia-constat {
     padding: 12px 14px;
     border: 1px solid var(--line);

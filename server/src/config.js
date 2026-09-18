@@ -160,7 +160,7 @@ const config = {
   // plutôt que configurables via .env pour la V1 : pas de besoin exprimé de les ajuster, une
   // valeur de plus à documenter/oublier pour rien.
   intervalleRappelsMs: 30 * 60 * 1000,
-  // Analyse juridique par IA locale (voir routes/analyseIa.js, CLAUDE.md) : Ollama tourne EN
+  // Analyse juridique par IA locale (voir routes/auditActe.js — Outil 2, CLAUDE.md) : Ollama tourne EN
   // LOCAL sur ce même serveur (jamais un service cloud — confidentialité des actes notariés), sur
   // son port par défaut. Modèle par défaut choisi pour tourner raisonnablement sur un CPU de
   // bureau sans GPU dédié (8B paramètres, quantifié par défaut par Ollama) — voir server/README.md

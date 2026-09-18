@@ -54,9 +54,9 @@ function creerClientOllama(config) {
   }
 
   // `format: 'json'` (spécifique à Ollama) contraint le modèle à produire un JSON syntaxiquement
-  // valide — le CONTENU reste sous la responsabilité du modèle (voir le prompt dans
-  // routes/analyseIa.js), mais ça évite déjà la moitié des échecs de parsing observés avec un
-  // modèle non contraint.
+  // valide — le CONTENU reste sous la responsabilité du modèle (voir les prompts dans
+  // audit/prompts.js, extraction/prompts.js), mais ça évite déjà la moitié des échecs de parsing
+  // observés avec un modèle non contraint.
   async function generer(prompt) {
     const reponse = await appelAvecTimeout('/api/generate', {
       method: 'POST',
