@@ -388,3 +388,49 @@ test('lireTextePdfVerification ne plante pas sur un PDF sans texte extractible q
   const texte = await app.lireTextePdfVerification(pdf);
   assert.equal(texte.trim(), '');
 });
+
+// ---- garanties du prêt : lues dans le seul paragraphe « GARANTIES » de l'offre ----
+
+test('les garanties sont lues dans le paragraphe GARANTIES, pas dans tout le document', () => {
+  // Le reste d'une offre parle abondamment d'hypothèque et de caution à d'autres titres (clauses
+  // générales, frais, information précontractuelle) : les y chercher remontait des garanties qui
+  // ne sont pas celles de CE prêt.
+  const app = chargerApplication();
+  const offre = `OFFRE DE PRET IMMOBILIER
+MONTANT DU PRET
+Cent mille euros (100 000 EUR).
+
+GARANTIES
+Le present pret est consenti sans garantie reelle ni personnelle.
+
+ASSURANCES
+Une hypotheque conventionnelle pourrait etre exigee en cas de defaut de paiement.`;
+  assert.equal(app.detecterGarantiesPret(offre).join(','), 'sansGarantie');
+});
+
+test('les quatre réponses possibles de l’étude sont produites', () => {
+  const app = chargerApplication();
+  const avec = (corps, suite) => `OFFRE DE PRET\nGARANTIES\n${corps}\n\nREMBOURSEMENT ANTICIPE\n${suite || ''}`;
+  const cles = (t) => app.detecterGarantiesPret(t).join(',');
+  assert.equal(cles(avec('Le pret est consenti sans garantie.')), 'sansGarantie');
+  assert.equal(cles(avec('Cautionnement solidaire de la societe CREDIT LOGEMENT.')), 'caution');
+  assert.equal(cles(avec('Hypotheque legale speciale de preteur de deniers sur le bien finance.')), 'hypothequeLegale');
+  assert.equal(
+    cles(avec('- Hypotheque legale speciale de preteur de deniers\n- Hypotheque conventionnelle pour le surplus')),
+    'hypothequeLegale,hypothequeConventionnelle');
+});
+
+test('un titre numéroté reste reconnu, et sans paragraphe on n’affirme rien', () => {
+  const app = chargerApplication();
+  const numerote = `CONTRAT DE PRET
+Article 7 - GARANTIES
+Hypotheque legale speciale de preteur de deniers.
+
+CONDITIONS GENERALES
+Une caution pourra etre sollicitee ulterieurement.`;
+  assert.equal(app.detecterGarantiesPret(numerote).join(','), 'hypothequeLegale',
+    'la caution citée dans les conditions générales ne doit pas remonter');
+  // Aucun paragraphe « GARANTIES » : ne pas savoir n'est pas « sans garantie ».
+  assert.equal(app.detecterGarantiesPret('OFFRE DE PRET\nMONTANT\nLe preteur de deniers beneficie d’un privilege legal.').length, 0);
+  assert.equal(app.detecterGarantiesPret('').length, 0);
+});

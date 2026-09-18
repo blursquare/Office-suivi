@@ -377,7 +377,7 @@ test('quand l’acte ne dit pas qui représente qui, aucun côté n’est devin�
   assert.equal(cotes.vendeur, '');
   assert.equal(cotes.acquereur, '');
   assert.equal(cotes.coteInstrumentaire, null);
-  assert.equal(cotes.detectes.map(n => n.nom).join(' | '), 'Sophie GOSSART (BLOIS) | Paul DURAND (ORLEANS)');
+  assert.equal(cotes.detectes.map(n => n.nom).join(' | '), 'Maître Sophie GOSSART (BLOIS) | Maître Paul DURAND (ORLEANS)');
   // Le rédacteur garde son rôle même sans côté : c'est ce qui permettra de poser le badge
   // « Reçoit l'acte » dès que l'étude aura affecté ce nom à l'un des deux champs.
   assert.equal(cotes.detectes[0].role, 'instrumentaire');
@@ -400,21 +400,44 @@ test('le côté de l’étude se lit dans les deux champs de la fiche, quelle qu
   assert.equal(app.coteEtudeDossier({ notaireVendeur: 'Paul DURAND', notaireAcquereur: 'Jean MARTIN' }), null);
 });
 
-test('une contradiction entre le côté qui reçoit l’acte et le rôle de l’étude est signalée', () => {
+test('le rôle de l’étude est DÉDUIT du côté qui reçoit l’acte', () => {
+  // Les sélecteurs « Rôle du notaire » et « Acte reçu par » ont été retirés de la fiche (doublon) :
+  // le rôle n'est plus un choix séparé, il découle du côté désigné.
   const app = chargerApplication();
-  const base = { notaireVendeur: 'Sophie GOSSART (BLOIS)', notaireAcquereur: 'Paul DURAND (ORLEANS)' };
-  // L'étude reçoit l'acte mais la fiche la dit participante.
-  assert.match(app.alerteRoleNotaireDossier({ ...base, coteInstrumentaire: 'vendeur', roleNotaire: 'participant' }), /Instrumentaire/);
-  // L'autre notaire reçoit l'acte mais la fiche dit l'étude instrumentaire.
-  assert.match(app.alerteRoleNotaireDossier({ ...base, coteInstrumentaire: 'acquereur', roleNotaire: 'instrumentaire' }), /Participant/);
+  const base = () => ({ notaireVendeur: 'Maître Sophie GOSSART (BLOIS)', notaireAcquereur: 'Maître Paul DURAND (ORLEANS)' });
+
+  const recoit = { ...base(), coteInstrumentaire: 'vendeur', roleNotaire: 'participant' };
+  assert.equal(app.deduireRoleNotaireDossier(recoit), true, 'la valeur a changé');
+  assert.equal(recoit.roleNotaire, 'instrumentaire');
+
+  const autre = { ...base(), coteInstrumentaire: 'acquereur', roleNotaire: 'instrumentaire' };
+  assert.equal(app.deduireRoleNotaireDossier(autre), true);
+  assert.equal(autre.roleNotaire, 'participant');
 });
 
-test('aucune alerte quand les deux concordent, ou quand il manque une information', () => {
+test('rien n’est déduit — ni écrasé — quand l’information manque', () => {
   const app = chargerApplication();
-  const base = { notaireVendeur: 'Sophie GOSSART (BLOIS)', notaireAcquereur: 'Paul DURAND (ORLEANS)' };
-  assert.equal(app.alerteRoleNotaireDossier({ ...base, coteInstrumentaire: 'vendeur', roleNotaire: 'instrumentaire' }), '');
-  assert.equal(app.alerteRoleNotaireDossier({ ...base, coteInstrumentaire: 'acquereur', roleNotaire: 'participant' }), '');
-  // Rien à comparer tant que le rédacteur n'est pas connu, ou que l'étude n'est d'aucun côté.
-  assert.equal(app.alerteRoleNotaireDossier({ ...base, coteInstrumentaire: null, roleNotaire: 'participant' }), '');
-  assert.equal(app.alerteRoleNotaireDossier({ notaireVendeur: 'Paul DURAND', notaireAcquereur: 'Jean MARTIN', coteInstrumentaire: 'vendeur', roleNotaire: 'participant' }), '');
+  // Personne ne reçoit encore l'acte.
+  const sansCote = { notaireVendeur: 'Maître Sophie GOSSART (BLOIS)', notaireAcquereur: 'Maître Paul DURAND (ORLEANS)', coteInstrumentaire: null, roleNotaire: 'participant' };
+  assert.equal(app.deduireRoleNotaireDossier(sansCote), false);
+  assert.equal(sansCote.roleNotaire, 'participant', 'le choix de l’étude est conservé');
+
+  // Notre étude n'est reconnue dans aucun des deux noms : c'est le cas où la fiche laisse le rôle
+  // cliquable (voir basculerRoleEtude) plutôt que de le deviner.
+  const sansEtude = { notaireVendeur: 'Maître Paul DURAND', notaireAcquereur: 'Maître Jean MARTIN', coteInstrumentaire: 'vendeur', roleNotaire: 'participant' };
+  assert.equal(app.deduireRoleNotaireDossier(sansEtude), false);
+  assert.equal(sansEtude.roleNotaire, 'participant');
+
+  // Déjà cohérent : aucune écriture, donc aucune sauvegarde inutile.
+  const dejaBon = { notaireVendeur: 'Maître Sophie GOSSART (BLOIS)', notaireAcquereur: 'Maître Paul DURAND (ORLEANS)', coteInstrumentaire: 'vendeur', roleNotaire: 'instrumentaire' };
+  assert.equal(app.deduireRoleNotaireDossier(dejaBon), false);
+});
+
+test('les notaires sont affichés avec « Maître » devant leur nom', () => {
+  const app = chargerApplication();
+  assert.equal(app.libelleNotaire({ nom: 'Sophie GOSSART', office: 'BLOIS' }), 'Maître Sophie GOSSART (BLOIS)');
+  assert.equal(app.libelleNotaire({ nom: 'Paul DURAND' }), 'Maître Paul DURAND');
+  // Jamais doublé sur un nom déjà saisi ainsi à la main.
+  assert.equal(app.libelleNotaire({ nom: 'Maître Paul DURAND' }), 'Maître Paul DURAND');
+  assert.equal(app.libelleNotaire(null), '');
 });

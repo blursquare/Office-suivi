@@ -4211,6 +4211,92 @@ autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` auton
     déroulante des notaires détectés, affectation à la main posant le badge et le sélecteur, tout
     relu depuis le serveur, aucune erreur JS, aucun débordement horizontal en mobile.
 
+- **Lot de huit demandes après le premier test de la fiche notaires**, traitées indépendamment :
+  - **Bug corrigé : l'adresse lue à l'étape « Vérifier » n'était pas celle reportée à l'étape
+    « Finaliser »** (« l'adresse bien détectée en 2 mais pas bien indiquée en 4 »). Cause
+    structurelle, qui touchait aussi le nom, l'email et le prix : `traiterTexte()` écrivait
+    DIRECTEMENT dans `#f-adresse-bien` le fragment BRUT du vieux `detecterAdresseBien()`, sans le
+    noter dans `valeursAppliquees`. La couche structurée qui tourne juste après
+    (`recalculerExtractionRegex` → `appliquerExtractionAuFormulaire`) prenait donc cette valeur
+    pour une saisie de l'utilisateur et refusait d'y toucher — le panneau affichait l'adresse
+    reconstruite pendant que le formulaire gardait le fragment. Les quatre champs passent
+    désormais par `appliquerValeurChamp()`, qui garde exactement le même garde-fou (ne jamais
+    écraser une saisie) mais enregistre ce que NOUS avons posé. Vérifié dans un vrai Chromium :
+    les deux valeurs coïncident, et une saisie manuelle survit toujours à un recalcul.
+    **`valeursAppliquees` n'est volontairement PAS remis à zéro à chaque import** : c'est ce qui
+    permet à un second PDF de remplacer les valeurs du premier sans toucher à ce que l'étude a tapé.
+  - **Le dossier du NAS se relie tout seul, sans clic** (`lierDossierNasAutomatique`) : à la
+    création du dossier (`ajouterDossier`) et une fois par session pour chaque dossier actif non
+    relié (`revérifierDossiersLiesAuDemarrage`, avec `tentativesLiaisonNasAuto` pour ne pas
+    relancer une requête par dossier à chaque tour du minuteur de 5 min). **Uniquement sur une
+    correspondance PARFAITE** (`rapprochementParfait` côté serveur, inchangé) : jamais sur un
+    simple `propose`, qui n'est qu'un meilleur candidat — se tromper de dossier ferait chercher les
+    pièces d'une vente dans celles d'une autre. Sans correspondance parfaite, le bouton « Relier un
+    dossier du NAS » reste là, inchangé.
+  - **« Rôle du notaire » et « Acte reçu par » retirés de la fiche** (doublon avec le bloc notaires
+    juste au-dessus, signalé par l'étude). Le badge « Reçoit l'acte » de chaque ligne DEVIENT le
+    contrôle (`basculerCoteInstrumentaire`), présent sur les deux lignes au même endroit pour que
+    désigner l'un ou l'autre soit un geste symétrique. **Le rôle de l'étude n'est plus un choix
+    séparé : il est DÉDUIT** (`deduireRoleNotaireDossier`) — notre étude du côté qui reçoit l'acte
+    → instrumentaire, sinon participante — et `d.roleNotaire` continue d'être écrit dans le
+    dossier, car tout le reste s'appuie dessus (checklist masquée pour un participant, relance à
+    l'acquéreur, filtre « Rôle » du Suivi). `alerteRoleNotaireDossier` disparaît avec les
+    sélecteurs : il ne peut plus y avoir de contradiction à signaler. **Repli conservé**
+    (`basculerRoleEtude`, une ligne cliquable) pour le seul cas où rien n'est déductible — notre
+    étude n'est reconnue dans aucun des deux noms, ou personne ne reçoit encore l'acte : sans lui,
+    un dossier en participation serait devenu impossible à marquer comme tel. Le sélecteur
+    `#f-role-notaire` du wizard n'est PAS touché : à la création, le bloc notaires n'existe pas
+    encore, il n'y a donc aucun doublon.
+  - **« Maître » devant les noms de notaires** (`libelleNotaire`) : ajouté à l'affichage et non à
+    la détection, `RE_NOTAIRE` s'ancrant justement sur ce mot pour trouver le nom (qu'elle ne
+    capture donc jamais). Jamais doublé sur un nom déjà saisi « Maître X » à la main.
+  - **Les lignes de « Échéances des 7 prochains jours » ouvrent le dossier** : chaque ligne devient
+    un `<button>` qui appelle `ouvrirDossierDepuisDashboard()` — le même chemin que « Actions
+    urgentes » et que la recherche du Tableau de bord, pas une seconde implémentation.
+  - **Garanties du prêt : lues dans le seul paragraphe « GARANTIES » de l'offre**
+    (`RE_TITRE_GARANTIES`/`extraireParagrapheGaranties`), et non plus dans tout le document —
+    demandé par l'étude, qui a aussi fixé les quatre réponses possibles. Le reste d'une offre parle
+    abondamment d'hypothèque et de caution à d'autres titres (conditions générales, frais,
+    information précontractuelle) : les y chercher remontait des garanties qui ne sont pas celles
+    de CE prêt. Les quatre réponses sont un cumul des clés existantes, plus une nouvelle
+    `sansGarantie` — **qui n'est posée que si le paragraphe existe ET n'énonce aucune garantie
+    connue** : ne pas trouver de paragraphe n'est pas « sans garantie », et la fiche n'affiche
+    alors rien plutôt qu'une affirmation fausse. Deux mises en page acceptées (titre seul sur sa
+    ligne, ou « GARANTIES : » suivi du contenu), titres numérotés tolérés (« Article 7 - GARANTIES »),
+    et le deux-points est obligatoire dans le second cas — sans quoi « les garanties sont acquises
+    au prêteur » au fil d'une clause ouvrirait un faux paragraphe.
+    **Deux pièges rencontrés en écrivant ce code** : `source.indexOf('\n', debut)` retombait sur le
+    saut de ligne PRÉCÉDANT le titre (le paragraphe avalait alors la section suivante en entier) —
+    on repart désormais de la fin du match ; et les anciens tests de `detecterGarantiesPret`
+    nourrissaient une phrase isolée sans paragraphe, c'est-à-dire exactement le comportement que
+    l'étude demande de supprimer : ils ont été réécrits, pas contournés.
+  - **Badge « Alpha » au-dessus de « Connecté »**, les deux empilés dans un seul bloc en haut à
+    droite (`.sidebar-etat`). Repassé dans le FLUX et non plus en absolu : à deux lignes, le bloc
+    absolu venait se poser par-dessus le mot CLAIRE — constaté en capture d'écran.
+  - **Passe d'alignement**, bornée aux surfaces concernées (sidebar, Tableau de bord, fiche) et
+    appuyée sur les registres déjà documentés dans ce fichier plutôt que sur des choix nouveaux :
+    un seul registre d'étiquette de section (`.dash-section-titre` passe aux valeurs de
+    `.section-eyebrow`, 10px/0.1em/--muted — il en formait un second, à 13px, juste à côté des
+    libellés de tuiles KPI qui suivaient pourtant déjà le bon) ; un seul rayon de carte de contenu
+    (10px, comme `.kpi-tile`/`.calc-card`/`.panneau-revision` — `.dashboard` était à 6px et
+    `.actions-urgentes-vide` à 8px, trois rayons différents sur le même écran) ; le titre du widget
+    « Échéances des 7 prochains jours » passe AU-DESSUS de sa carte comme celui d'« Actions
+    urgentes » (c'est la colonne entière qui se masque désormais, pour ne pas laisser une étiquette
+    orpheline) ; les cinq tuiles KPI tiennent sur une seule ligne jusqu'à 1150px au lieu de 1300px,
+    où elles retombaient en 3+2 avec un trou. **Piège CSS corrigé au passage** : un `<button>` en
+    `display:flex` garde une largeur au CONTENU sous Chromium (c'est un contrôle de formulaire, pas
+    un bloc), et `width:100%` combiné aux marges négatives décalait la ligne sans l'élargir — le
+    filet et le survol s'arrêtaient 8px avant le bord droit de la carte. Mesuré au
+    `getBoundingClientRect` avant/après : la ligne est maintenant à 9px symétriques des deux bords.
+  - Tests : 6 nouveaux (`tests/notaires.test.js` pour la déduction du rôle et « Maître » ;
+    `tests/dossier-local.test.js` et `tests/offre-pret.test.js` pour les garanties par paragraphe).
+    Suite racine 312 → 317, suite serveur inchangée (97). **Vérifié dans un vrai Chromium** (serveur
+    réel, clair et sombre, desktop et 400px) : adresse identique entre les étapes 2 et 4, saisie
+    manuelle préservée, deux sélecteurs bien disparus de la fiche, rôle affiché « déduit », badge
+    actif d'un seul côté, garanties cumulées affichées, Alpha au-dessus de Connecté sans
+    chevauchement, clic sur une échéance ouvrant le bon dossier, aucune erreur JS, aucun
+    débordement horizontal en mobile.
+
 **Ce qui n'a volontairement PAS été fait** (arrêté à la demande explicite de l'étude, pas un
 oubli) — à reprendre uniquement si redemandé un jour :
 - **Import automatique** des dossiers déjà enregistrés sur la version 100% locale (`main`) vers ce

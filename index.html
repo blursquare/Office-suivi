@@ -25,12 +25,13 @@
          serveur arrêté...) — sans indicateur, un dossier créé par un collègue pouvait sembler ne
          jamais arriver sans que rien n'explique pourquoi. N'existe que sur cette branche (mode
          serveur) : la version 100% locale (main) n'a pas de connexion à surveiller.
-         Prend désormais la position en haut à droite jusque-là occupée par le badge "Alpha" (voir
-         plus bas, redescendu sous le logo) : demandé par l'étude — l'état de connexion mérite le
-         coin le plus visible de la sidebar plus qu'une simple mention de maturité de l'outil.
-         Absolu directement dans <aside> (déjà position:sticky, donc déjà un conteneur de
-         positionnement pour ses descendants absolus) — n'entre jamais dans le flux. -->
-    <div class="sidebar-statut-serveur">
+         Empilé avec le badge "Alpha" JUSTE AU-DESSUS (demandé par l'étude) dans un seul bloc
+         calé en haut à droite : les deux disent l'état de l'outil, les séparer aux deux bouts de
+         la sidebar n'avait pas de sens. Absolu directement dans <aside> (déjà position:sticky,
+         donc déjà un conteneur de positionnement pour ses descendants absolus) — n'entre jamais
+         dans le flux, ne pousse donc jamais le logo. -->
+    <div class="sidebar-etat">
+      <span class="sidebar-alpha-badge" title="Version alpha : l'outil est encore en évolution active, des ajustements peuvent survenir d'une session à l'autre.">Alpha</span>
       <span id="statut-serveur-badge" class="dot-label dl-success"><span class="dot"></span>Connecté</span>
     </div>
     <div class="sidebar-brand">
@@ -41,12 +42,6 @@
         </svg>
       </span>
       <span class="brand-word">CLAIRE</span>
-    </div>
-    <!-- Badge "Alpha" sous le logo, aligné à DROITE (sa position en haut à droite est prise par
-         l'indicateur de connexion au serveur ci-dessus). La tagline qui suivait a été retirée à la
-         demande de l'étude. -->
-    <div class="sidebar-alpha-ligne">
-      <span class="sidebar-alpha-badge" title="Version alpha : l'outil est encore en évolution active, des ajustements peuvent survenir d'une session à l'autre.">Alpha</span>
     </div>
 
     <nav class="sidebar-nav" role="tablist" aria-label="Sections de l'application">
@@ -115,9 +110,13 @@
       <div class="dash-section-titre">Actions urgentes</div>
       <div id="actions-urgentes" class="actions-urgentes"></div>
     </div>
-    <div class="dash-col">
-      <div id="dashboard" class="dashboard" style="display:none;">
-        <div class="dashboard-titre">Échéances des 7 prochains jours</div>
+    <!-- Même structure que « Actions urgentes » à gauche : l'étiquette de section VIT AU-DESSUS
+         de la carte, elle n'est plus un titre d'un autre registre à l'intérieur. C'est la colonne
+         entière qui se masque quand il n'y a aucune échéance (voir renderDashboard), pour ne pas
+         laisser une étiquette orpheline. -->
+    <div class="dash-col" id="dashboard-col" style="display:none;">
+      <div class="dash-section-titre">Échéances des 7 prochains jours</div>
+      <div id="dashboard" class="dashboard">
         <div id="dashboard-liste"></div>
       </div>
     </div>

@@ -508,17 +508,20 @@
     pointer-events: none;
   }
 
-  /* Petit badge signalant que l'outil est encore en version alpha — demandé par l'étude.
-     Redescendu sous le logo, en petit, dans le flux normal (sa position en haut à droite de la
-     sidebar est désormais prise par l'indicateur de connexion au serveur, voir
-     .sidebar-statut-serveur juste plus bas) : un simple label discret, pas un badge qui a besoin
-     d'attirer le regard comme l'état de connexion. */
-  /* Aligné à DROITE sous le logo (demandé par l'étude), d'où la ligne flex qui le porte plutôt
-     qu'une marge gauche fixe. */
-  .sidebar-alpha-ligne { display: flex; justify-content: flex-end; padding: 0 10px; }
+  /* Badge "Alpha" + état de connexion empilés en haut à droite, Alpha AU-DESSUS (demandé par
+     l'étude) : les deux disent l'état de l'outil, les séparer aux deux bouts de la sidebar n'avait
+     pas de sens. Dans le FLUX, au-dessus du logo, et non en absolu comme l'était l'indicateur de
+     connexion seul : à deux lignes, le bloc absolu venait se poser par-dessus le mot CLAIRE. */
+  .sidebar-etat {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    padding: 0 10px 6px;
+  }
+  .sidebar-etat .dot-label { font-size: 11px; white-space: nowrap; }
   .sidebar-alpha-badge {
     display: inline-block;
-    margin: 2px 0 0;
     font-size: 9px;
     font-weight: 700;
     letter-spacing: 0.08em;
@@ -549,18 +552,6 @@
     color: var(--ink);
     letter-spacing: -0.01em;
   }
-  /* Occupe désormais la position en haut à droite de la sidebar, jusque-là celle du badge "Alpha"
-     (redescendu sous le logo, voir .sidebar-alpha-badge ci-dessus) — même technique de
-     positionnement (absolu, .sidebar déjà "position: sticky" sert de conteneur de positionnement
-     pour ses descendants absolus, sans position:relative supplémentaire) pour ne jamais pousser le
-     logo/la tagline en dessous. */
-  .sidebar-statut-serveur {
-    position: absolute;
-    top: 14px;
-    right: 14px;
-  }
-  .sidebar-statut-serveur .dot-label { font-size: 11px; white-space: nowrap; }
-
   .sidebar-nav {
     display: flex;
     flex-direction: column;
@@ -805,12 +796,15 @@
     gap: 20px;
     align-items: start;
   }
+  /* Même registre que .section-eyebrow (10px / 0.1em / --muted), le seul style d'étiquette de
+     section de l'outil : à 13px/0.04em, les titres du Tableau de bord formaient un second registre
+     concurrent, juste à côté des libellés de tuiles KPI qui suivent pourtant déjà ce registre. */
   .dash-section-titre {
-    font-size: 13px;
+    font-size: 10px;
     font-weight: 600;
-    color: var(--ink-soft);
+    color: var(--muted);
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.1em;
     margin-bottom: 10px;
   }
   .actions-urgentes {
@@ -821,7 +815,7 @@
   .actions-urgentes-vide {
     background: var(--success-bg);
     color: var(--success);
-    border-radius: 8px;
+    border-radius: 10px;
     padding: 16px;
     font-size: 13.5px;
   }
@@ -846,10 +840,15 @@
   .action-urgente-fleche { margin-left: auto; color: var(--muted); flex-shrink: 0; }
 
   @media (max-width: 1300px) {
-    .kpis-dashboard { grid-template-columns: repeat(3, 1fr); }
     .dash-grid { grid-template-columns: 1fr; }
     .dash-header-actions { width: 100%; }
     .dash-recherche { flex: 1 1 auto; width: auto; }
+  }
+  /* Les cinq tuiles restent sur UNE ligne jusqu'à 1150px : au seuil précédent (1300px) elles
+     retombaient en 3+2, laissant un trou dans la seconde rangée — la rangée ne se lisait plus
+     comme un seul objet. */
+  @media (max-width: 1150px) {
+    .kpis-dashboard { grid-template-columns: repeat(3, 1fr); }
   }
   @media (max-width: 640px) {
     .kpis-dashboard { grid-template-columns: repeat(2, 1fr); }
@@ -2224,29 +2223,44 @@
   }
 
   /* ---- tableau de bord ---- */
+  /* Même rayon (10px) et même padding (16px) que .kpi-tile/.actions-urgentes juste au-dessus :
+     trois cartes voisines du même écran avaient trois rayons différents (6, 8 et 10px). Plus de
+     margin-bottom non plus — l'espacement entre les deux colonnes est porté par le `gap` de
+     .dash-grid, le cumuler donnait un écart inégal selon la colonne. */
   .dashboard {
     background: var(--paper-card);
     border: 1px solid var(--line);
-    border-radius: 6px;
-    padding: 18px 20px;
-    margin-bottom: 28px;
+    border-radius: 10px;
+    padding: 16px;
     box-shadow: var(--shadow-card);
   }
-  .dashboard-titre {
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--ink);
-    margin-bottom: 10px;
-  }
+  /* Chaque ligne est un <button> qui ouvre le dossier : les styles natifs du bouton sont remis à
+     plat pour qu'elle se lise toujours comme une ligne de liste, pleine largeur et alignée à
+     gauche — seul le survol trahit qu'elle est cliquable. */
   .dashboard-ligne {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 6px 0;
+    /* Largeur EXPLICITE, marges négatives comprises : un <button> garde une largeur au contenu
+       même en `display:flex` (Chromium le traite comme un contrôle de formulaire, pas comme un
+       bloc), et `width:100%` seul, combiné aux marges négatives, décalait la ligne vers la gauche
+       sans l'élargir — filet et survol s'arrêtaient alors avant le bord droit de la carte. */
+    width: calc(100% + 16px);
+    padding: 7px 8px;
+    margin: 0 -8px;
+    font-family: inherit;
     font-size: 13.5px;
+    color: inherit;
+    text-align: left;
+    background: none;
+    border: none;
     border-top: 1px solid var(--line-soft);
+    border-radius: 6px;
+    cursor: pointer;
   }
   .dashboard-ligne:first-child { border-top: none; }
+  .dashboard-ligne:hover { background: var(--paper-sunk); }
+  .dashboard-ligne:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
   .dashboard-pastille {
     flex: 0 0 auto;
     width: 8px;
@@ -2877,22 +2891,48 @@
   .dossier-notaires input.input-classif:hover { border-color: var(--muted); }
   .dossier-notaires input.input-classif:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
   .dossier-notaires input.input-classif::placeholder { color: var(--muted); font-style: italic; }
-  /* Contradiction entre le côté qui reçoit l'acte et le rôle de l'étude (voir
-     alerteRoleNotaireDossier). Même teinte que .dot-label.dl-alerte — le seul signal de l'outil
-     qui garde un fond plein — mais sur plusieurs lignes : ce message est une phrase, pas un mot. */
-  .notaire-alerte {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    font-size: 12px;
-    font-weight: 600;
-    line-height: 1.4;
-    color: var(--urgent);
-    background: color-mix(in srgb, var(--urgent) 12%, transparent);
-    padding: 6px 10px;
-    border-radius: 8px;
+
+  /* Le badge « Reçoit l'acte » EST le contrôle : les sélecteurs « Rôle du notaire » et « Acte reçu
+     par » ont été retirés de la grille de classification (doublon signalé par l'étude). Présent
+     sur les deux lignes, au même endroit : désigner l'un ou l'autre est un geste symétrique et
+     rien ne se décale. Le côté inactif reste discret — c'est une action possible, pas un statut. */
+  .notaire-redacteur {
+    cursor: pointer;
+    padding: 0;
+    border: none;
+    background: none;
+    opacity: 0.45;
   }
-  .notaire-alerte .icone { flex: none; margin-top: 1px; }
+  .notaire-redacteur.actif { opacity: 1; }
+  .notaire-redacteur:hover { opacity: 1; text-decoration: underline; text-underline-offset: 2px; }
+  .notaire-redacteur:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+
+  /* Rôle de l'étude : simple texte quand il est déduit (il n'y a alors rien à choisir), bouton
+     quand il ne l'est pas — seul moyen restant de marquer un dossier en participation lorsque
+     l'acte ne nomme pas notre étude. Voir deduireRoleNotaireDossier/basculerRoleEtude. */
+  .notaire-role {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: inherit;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    background: none;
+    border: none;
+    padding: 0;
+  }
+  .notaire-role strong { color: var(--ink); font-weight: 600; }
+  .notaire-role-source {
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .notaire-role-bouton { cursor: pointer; }
+  .notaire-role-bouton .icone { color: var(--muted); }
+  .notaire-role-bouton:hover { color: var(--ink); }
+  .notaire-role-bouton:hover .icone { color: var(--focus); }
+  .notaire-role-bouton:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
 
   /* Carte ouverte en deux colonnes (échéances/pièces/analyse à gauche, historique + actions à
      droite) — demandé pour profiter de la largeur disponible plutôt qu'un long défilement vertical

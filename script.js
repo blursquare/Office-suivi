@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-18 13:37';
+  const VERSION_APP = '2026-09-18 15:09';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-18 15:09', resume: "Huit points. L'adresse lue à l'étape « Vérifier » est enfin celle qui arrive à l'étape « Finaliser » : le vieux détecteur y écrivait un fragment brut que la lecture structurée n'osait plus corriger, le prenant pour votre saisie. Le dossier du NAS se relie désormais tout seul, sans clic, dès que le nom désigne un seul dossier client — à la création comme à l'ouverture de l'outil. « Rôle du notaire » et « Acte reçu par » disparaissent de la fiche : le badge « Reçoit l'acte » des deux notaires porte l'action, et le rôle de l'étude en est déduit. « Maître » précède les noms. Les échéances des 7 prochains jours ouvrent le dossier d'un clic. Les garanties ne sont plus cherchées que dans le paragraphe GARANTIES de l'offre — sans garanties, caution, hypothèque légale de prêteur de deniers, seule ou avec l'hypothèque conventionnelle — au lieu de ramasser toute mention d'hypothèque du document. Alpha passe au-dessus de Connecté. Enfin une passe d'alignement : les cinq tuiles du tableau de bord tiennent sur une seule ligne, les titres de section partagent un seul registre, les cartes un seul rayon, et les lignes d'échéance vont bien jusqu'au bord" },
     { version: '2026-09-18 13:37', resume: "Le notaire du vendeur et celui de l'acquéreur sont détectés à l'import et affichés sur la fiche, juste sous l'adresse et le prix — deux champs libres, corrigeables à tout moment. Quand l'acte ne dit pas qui représente qui (une simple comparution en tête d'acte), rien n'est deviné : les noms relevés restent proposés dans la liste déroulante du champ, à vous de les affecter. Un badge « Reçoit l'acte » marque le côté qui rédige, et une alerte s'affiche si ce côté contredit le rôle du notaire renseigné juste en dessous" },
     { version: '2026-09-18 12:59', resume: "Notaires : c'est la FORME de l'acte qui décide désormais où l'outil cherche leurs noms, plus son nom. Un acte authentique — dont la promesse synallagmatique, reçue par notaire — les nomme en première page ; un acte sous seing privé, en fin. Une promesse synallagmatique reste un compromis pour les rôles vendeur/acquéreur, ce qui est une autre question. Piège écarté : « la vente sera réitérée par acte authentique », qui remplit les compromis sous seing privé, ne les fait plus passer pour authentiques" },
     { version: '2026-09-18 12:56', resume: "Notaires : « celui qui a rédigé » est désormais reconnu comme tel — les formes du verbe rédiger (y compris « acte rédigé par », au passé) et « notaire rédacteur » désignent l'instrumentaire, « en concours » et « notaire concourant » le second. Et surtout, la clause d'ORIGINE DE PROPRIÉTÉ est enfin écartée : elle figure dans presque tous les avant-contrats, nomme le notaire de la vente PRÉCÉDENTE (« acquis suivant acte reçu par Maître X »), et désignait jusqu'ici le mauvais notaire avec la priorité la plus haute" },
@@ -1549,10 +1550,14 @@
   // Libellé d'un notaire tel qu'il sera écrit dans le champ libre de la fiche : « Sophie GOSSART
   // (BLOIS) ». Une chaîne, pas un objet — ces deux champs sont directement éditables par l'étude
   // (elle peut corriger une lecture fausse, ou saisir un notaire que le document ne nommait pas).
+  // « Maître » est ajouté ici et pas dans la détection : RE_NOTAIRE s'ancre justement sur ce mot
+  // pour trouver le nom, qu'elle ne capture donc jamais. Le test de présence évite de le doubler
+  // sur un nom déjà saisi « Maître X » à la main par l'étude.
   function libelleNotaire(n) {
     if (!n || !n.nom) return '';
+    const nom = /^ma[îi]tre\b/i.test(n.nom.trim()) ? n.nom.trim() : `Maître ${n.nom.trim()}`;
     const office = String(n.office || n.commune || '').trim();
-    return office ? `${n.nom} (${office})` : n.nom;
+    return office ? `${nom} (${office})` : nom;
   }
 
   // Ce qui est enregistré sur le dossier à la création : le notaire de chaque côté, et de quel
@@ -1593,20 +1598,24 @@
     return null;
   }
 
-  // Couplage avec le sélecteur « Rôle du notaire » déjà présent sur la fiche : si notre étude est
-  // du côté qui rédige, elle est instrumentaire ; sinon elle est participante. On SIGNALE la
-  // contradiction, on ne corrige jamais tout seul — ce sélecteur reste une décision de l'étude, et
-  // il masque la checklist des pièces quand il vaut « participant ».
-  function alerteRoleNotaireDossier(d) {
-    if (!d) return '';
+  // Le rôle de l'étude n'est plus un choix à part : il DÉCOULE du côté qui reçoit l'acte. Si notre
+  // étude est ce côté-là, elle est instrumentaire ; sinon elle est participante. Les deux
+  // sélecteurs « Rôle du notaire » et « Acte reçu par » ont donc disparu de la grille de
+  // classification (doublon signalé par l'étude) — mais `d.roleNotaire` reste écrit dans le
+  // dossier, car tout le reste de l'outil s'appuie dessus (checklist des pièces masquée pour un
+  // participant, relance à l'acquéreur, filtre « Rôle » du Suivi).
+  // Renvoie true si la valeur a changé, pour que l'appelant sache s'il doit sauvegarder.
+  function deduireRoleNotaireDossier(d) {
+    if (!d) return false;
     const cote = coteEtudeDossier(d);
-    if (!cote || !d.coteInstrumentaire) return '';
+    // Notre étude n'est reconnue dans aucun des deux champs, ou personne ne reçoit encore l'acte :
+    // il n'y a rien à déduire, et surtout rien à écraser — le rôle reste celui que l'étude a posé
+    // elle-même (voir le repli `basculerRoleEtude`, affiché précisément dans ce cas).
+    if (!cote || !d.coteInstrumentaire) return false;
     const attendu = cote === d.coteInstrumentaire ? 'instrumentaire' : 'participant';
-    const actuel = d.roleNotaire === 'participant' ? 'participant' : 'instrumentaire';
-    if (attendu === actuel) return '';
-    return attendu === 'instrumentaire'
-      ? 'L’étude figure du côté qui reçoit l’acte : le rôle du notaire devrait être « Instrumentaire ».'
-      : 'L’acte est reçu par le notaire de l’autre partie : le rôle du notaire devrait être « Participant ».';
+    if ((d.roleNotaire === 'participant' ? 'participant' : 'instrumentaire') === attendu) return false;
+    d.roleNotaire = attendu;
+    return true;
   }
 
   // ==== EXTRACTION STRUCTURÉE : adresse du bien vendu ====
@@ -2913,19 +2922,18 @@
       cashNote.style.display = 'none';
     }
 
-    const champNom = document.getElementById('f-nom');
-    if (!champNom.value.trim()) {
-      const nomDetecte = detecterNomDossier(texte);
-      if (nomDetecte) champNom.value = nomDetecte;
-    }
+    // Ces quatre champs (nom, email, adresse, prix) passent par appliquerValeurChamp() et NON par
+    // une écriture directe : cette fonction note dans `valeursAppliquees` ce que NOUS avons posé.
+    // Sans cette trace, la couche d'extraction structurée qui tourne juste après
+    // (recalculerExtractionRegex → appliquerExtractionAuFormulaire) prenait la valeur trouvée ici
+    // pour une saisie de l'utilisateur et refusait d'y toucher : le panneau « Ce que l'outil a
+    // compris » (étape 2) affichait l'adresse structurée, propre, pendant que l'étape 4 gardait le
+    // fragment brut du vieux détecteur — exactement le décalage signalé par l'étude.
+    appliquerValeurChamp('f-nom', detecterNomDossier(texte));
 
     // Uniquement utile s'il y a une condition d'obtention de prêt à relancer (voir le champ
     // lui-même, "pour relance prêt") — inutile de préremplir sans ça.
-    const champEmailAcquereur = document.getElementById('f-email-acquereur');
-    if (echeanceActive.pret && !champEmailAcquereur.value.trim()) {
-      const emailDetecte = detecterEmailAcquereur(texte);
-      if (emailDetecte) champEmailAcquereur.value = emailDetecte;
-    }
+    if (echeanceActive.pret) appliquerValeurChamp('f-email-acquereur', detecterEmailAcquereur(texte));
 
     // Ne bascule que dans un sens (maison → copropriété) : l'absence de ces marqueurs ne prouve
     // pas l'inverse (une vente de maison individuelle ne les mentionne simplement jamais), donc on
@@ -2936,16 +2944,11 @@
     }
     majApercuPieces();
 
-    const champAdresse = document.getElementById('f-adresse-bien');
-    if (!champAdresse.value.trim()) {
-      const adresseDetectee = detecterAdresseBien(texte);
-      if (adresseDetectee) champAdresse.value = adresseDetectee;
-    }
-    const champPrix = document.getElementById('f-prix-vente');
-    if (!champPrix.value.trim()) {
-      const prixDetecte = detecterPrixVente(texte);
-      if (prixDetecte) champPrix.value = String(prixDetecte);
-    }
+    // Même remarque que pour le nom/l'email ci-dessus : c'est ici le fragment BRUT du vieux
+    // détecteur, que la passe structurée doit pouvoir remplacer par l'adresse reconstruite.
+    appliquerValeurChamp('f-adresse-bien', detecterAdresseBien(texte));
+    const prixDetecte = detecterPrixVente(texte);
+    if (prixDetecte) appliquerValeurChamp('f-prix-vente', String(prixDetecte));
 
     // Les documents sont déduits des seules clauses d'engagement du vendeur, et non de l'ensemble
     // du compromis : c'est ainsi qu'un notaire lit l'acte, et cela évite les faux positifs.
@@ -4835,6 +4838,11 @@
     reinitialiserFormulaire();
     document.getElementById('panel').open = false;
     definirOnglet('suivi');
+    // Rattachement au NAS immédiat quand le nom du dossier désigne sans ambiguïté un dossier
+    // client existant : c'est le moment où ça sert le plus, et ça évite le clic « Relier un
+    // dossier du NAS » juste après avoir créé le dossier. Jamais attendu (la fiche s'affiche tout
+    // de suite), et sans effet si aucune correspondance parfaite n'existe.
+    lierDossierNasAutomatique(dossier.id);
   }
 
   // Modale de confirmation maison : window.confirm() est souvent bloqué dans un aperçu en
@@ -5156,17 +5164,7 @@
     render();
   }
 
-  function changerRoleNotaire(id, valeur) {
-    const d = dossiers.find(x => x.id === id);
-    if (!d || d.roleNotaire === valeur) return;
-    const libelle = (v) => v === 'participant' ? 'participant' : 'instrumentaire';
-    ajouterHistorique(d, `Rôle de l'étude modifié : ${libelle(d.roleNotaire)} → ${libelle(valeur)}`);
-    d.roleNotaire = valeur;
-    sauvegarder(d);
-    render();
-  }
-
-  // Même motif que changerTypeVente/changerRoleNotaire : un dossier peut changer de main en cours
+  // Même motif que changerTypeVente : un dossier peut changer de main en cours
   // de suivi (absence, réaffectation) sans repasser par la création.
   function changerResponsable(id, valeur) {
     const d = dossiers.find(x => x.id === id);
@@ -5223,18 +5221,34 @@
       && (d.notairesDetectes || []).some(n => n.role === 'instrumentaire' && n.nom === nouveau)) {
       d.coteInstrumentaire = cote;
     }
+    deduireRoleNotaireDossier(d);
     sauvegarder(d);
     render();
   }
 
-  function changerCoteInstrumentaire(id, valeur) {
+  // Bascule le côté qui reçoit l'acte depuis le badge de la ligne concernée (il n'y a plus de
+  // sélecteur « Acte reçu par » : c'est le badge lui-même qui porte l'action, voir
+  // renderNotairesDossier). Recliquer sur le côté déjà désigné le retire.
+  function basculerCoteInstrumentaire(id, cote) {
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
-    const nouveau = (valeur === 'vendeur' || valeur === 'acquereur') ? valeur : null;
-    if (nouveau === (d.coteInstrumentaire || null)) return;
+    const nouveau = d.coteInstrumentaire === cote ? null : cote;
     const libelles = { vendeur: 'notaire du vendeur', acquereur: 'notaire de l’acquéreur' };
     ajouterHistorique(d, `Notaire qui reçoit l’acte : ${libelles[nouveau] || 'à déterminer'}`);
     d.coteInstrumentaire = nouveau;
+    deduireRoleNotaireDossier(d);
+    sauvegarder(d);
+    render();
+  }
+
+  // Repli utilisé UNIQUEMENT quand le rôle ne peut pas être déduit (notre étude n'est reconnue
+  // dans aucun des deux champs, ou personne ne reçoit encore l'acte) : sans lui, un dossier en
+  // participation deviendrait impossible à marquer comme tel, les deux sélecteurs ayant disparu.
+  function basculerRoleEtude(id) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    d.roleNotaire = d.roleNotaire === 'participant' ? 'instrumentaire' : 'participant';
+    ajouterHistorique(d, `Rôle de l’étude : ${d.roleNotaire}`);
     sauvegarder(d);
     render();
   }
@@ -5270,7 +5284,9 @@
   }
 
   function renderDashboard(dossiersActifs) {
-    const bloc = document.getElementById('dashboard');
+    // C'est la COLONNE entière qui se masque, pas seulement la carte : son étiquette de section
+    // vit au-dessus de la carte (comme « Actions urgentes »), et resterait sinon orpheline.
+    const bloc = document.getElementById('dashboard-col');
     const liste = document.getElementById('dashboard-liste');
     const echeances = [];
     dossiersActifs.forEach(d => {
@@ -5283,7 +5299,7 @@
       items.forEach(it => {
         if (!it.iso) return;
         const jours = joursRestants(it.iso);
-        if (jours >= 0 && jours <= 7) echeances.push({ ...it, jours, nomDossier: d.nom });
+        if (jours >= 0 && jours <= 7) echeances.push({ ...it, jours, nomDossier: d.nom, id: d.id });
       });
     });
     echeances.sort((a, b) => a.jours - b.jours);
@@ -5293,12 +5309,15 @@
       return;
     }
     bloc.style.display = 'block';
+    // Chaque ligne mène au dossier concerné (demandé par l'étude) — même chemin que « Actions
+    // urgentes » et que la recherche du Tableau de bord : bascule vers le Suivi et ouvre le
+    // tiroir, pas une seconde implémentation.
     liste.innerHTML = echeances.map(e => `
-      <div class="dashboard-ligne">
+      <button type="button" class="dashboard-ligne" onclick="ouvrirDossierDepuisDashboard('${e.id}')" title="Ouvrir le dossier ${escapeAttr(e.nomDossier)}">
         <span class="dashboard-pastille ${e.type}"></span>
         <span class="dashboard-jours">${e.jours === 0 ? "Auj." : 'J-' + e.jours}</span>
         <span class="dashboard-texte"><b>${escapeHtml(e.label)}</b> — ${escapeHtml(e.nomDossier)} (${formatDateFr(e.iso)})</span>
-      </div>
+      </button>
     `).join('');
   }
 
@@ -5889,17 +5908,35 @@
   function renderNotairesDossier(d) {
     const detectes = (Array.isArray(d.notairesDetectes) ? d.notairesDetectes : []).filter(n => n && n.nom);
     const listeId = `notaires-detectes-${d.id}`;
-    const champ = (cote, libelle, valeur) => `
+    // Le badge « Reçoit l'acte » EST le contrôle : les sélecteurs « Rôle du notaire » et « Acte
+    // reçu par » ont été retirés de la grille de classification (doublon signalé par l'étude).
+    // Présent sur les deux lignes, au même endroit, pour que désigner l'un ou l'autre soit un
+    // geste symétrique et que rien ne se décale à l'écran.
+    const champ = (cote, libelle, valeur) => {
+      const actif = d.coteInstrumentaire === cote;
+      return `
       <div class="classif-champ">
         <div class="classif-champ-entete">
           <label for="not-${cote}-${d.id}">${libelle}</label>
-          ${d.coteInstrumentaire === cote
-            ? `<span class="dot-label dl-success" title="C’est ce notaire qui rédige et reçoit l’acte.">${icone('check')}Reçoit l’acte</span>`
-            : ''}
+          <button type="button" class="dot-label ${actif ? 'dl-success' : 'dl-neutre'} notaire-redacteur${actif ? ' actif' : ''}"
+            onclick="basculerCoteInstrumentaire('${d.id}', '${cote}')"
+            title="${actif ? 'Ce notaire reçoit l’acte. Cliquez pour retirer.' : 'Désigner ce notaire comme celui qui reçoit l’acte.'}">${actif ? icone('check') : '<span class="dot"></span>'}Reçoit l’acte</button>
         </div>
         <input type="text" id="not-${cote}-${d.id}" class="input-classif"${detectes.length ? ` list="${listeId}"` : ''} value="${escapeAttr(valeur || '')}" placeholder="Non détecté" onblur="affecterNotaire('${d.id}', '${cote}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
       </div>`;
-    const alerte = alerteRoleNotaireDossier(d);
+    };
+
+    // Rôle de l'étude : déduit dès que notre étude est reconnue d'un côté ET qu'un côté reçoit
+    // l'acte (voir deduireRoleNotaireDossier) — affiché alors en simple texte, il n'y a plus rien
+    // à choisir. Sinon, et seulement sinon, il reste cliquable : c'est le seul moyen de marquer un
+    // dossier en participation quand l'acte ne nomme pas notre étude.
+    const role = d.roleNotaire === 'participant' ? 'Participant' : 'Instrumentaire';
+    const deduit = !!(coteEtudeDossier(d) && d.coteInstrumentaire);
+    const ligneRole = deduit
+      ? `<span class="notaire-role" title="Déduit du côté qui reçoit l’acte.">Notre étude : <strong>${role}</strong> <span class="notaire-role-source">déduit</span></span>`
+      : `<button type="button" class="notaire-role notaire-role-bouton" onclick="basculerRoleEtude('${d.id}')"
+           title="L’étude n’est reconnue dans aucun des deux notaires : cliquez pour changer son rôle.">Notre étude : <strong>${role}</strong> ${icone('pencil')}</button>`;
+
     return `
       <div class="dossier-notaires">
         <div class="dossier-classification-grid">
@@ -5907,7 +5944,7 @@
           ${champ('acquereur', 'Notaire de l’acquéreur', d.notaireAcquereur)}
         </div>
         ${detectes.length ? `<datalist id="${listeId}">${detectes.map(n => `<option value="${escapeAttr(n.nom)}"></option>`).join('')}</datalist>` : ''}
-        ${alerte ? `<div class="notaire-alerte">${icone('alert-triangle')}${escapeHtml(alerte)}</div>` : ''}
+        ${ligneRole}
       </div>`;
   }
 
@@ -6699,24 +6736,10 @@
                 <option value="terrain" ${d.typeVente === 'terrain' ? 'selected' : ''}>Terrain à bâtir</option>
               </select>
             </div>
-            <div class="classif-champ">
-              <label for="rn-${d.id}">Rôle du notaire</label>
-              <select id="rn-${d.id}" class="select-classif" onchange="changerRoleNotaire('${d.id}', this.value)">
-                <option value="instrumentaire" ${d.roleNotaire === 'participant' ? '' : 'selected'}>Instrumentaire</option>
-                <option value="participant" ${d.roleNotaire === 'participant' ? 'selected' : ''}>Participant</option>
-              </select>
-            </div>
-            <!-- Placé ici, à côté de « Rôle du notaire » : c'est le même sujet vu des deux bouts —
-                 quel notaire reçoit l'acte, et donc quel rôle joue l'étude (voir
-                 alerteRoleNotaireDossier, qui signale une contradiction entre les deux). -->
-            <div class="classif-champ">
-              <label for="ci-${d.id}">Acte reçu par</label>
-              <select id="ci-${d.id}" class="select-classif" onchange="changerCoteInstrumentaire('${d.id}', this.value)">
-                <option value="" ${d.coteInstrumentaire ? '' : 'selected'}>— À déterminer —</option>
-                <option value="vendeur" ${d.coteInstrumentaire === 'vendeur' ? 'selected' : ''}>Notaire du vendeur</option>
-                <option value="acquereur" ${d.coteInstrumentaire === 'acquereur' ? 'selected' : ''}>Notaire de l’acquéreur</option>
-              </select>
-            </div>
+            <!-- « Rôle du notaire » et « Acte reçu par » ont été retirés d'ici : les deux
+                 faisaient doublon avec le bloc notaires juste au-dessus, où le badge « Reçoit
+                 l'acte » porte désormais l'action et où le rôle de l'étude est déduit
+                 (voir renderNotairesDossier/deduireRoleNotaireDossier). -->
             <div class="classif-champ">
               <label for="resp-${d.id}">Responsable</label>
               <select id="resp-${d.id}" class="select-classif" onchange="changerResponsable('${d.id}', this.value)">
@@ -8323,15 +8346,62 @@
   // « Privilège de prêteur de deniers » est l'ancien nom de l'hypothèque légale spéciale du même
   // nom (réforme des sûretés de 2021) : les deux formulations coexistent dans les offres réelles,
   // les deux sont reconnues sous la même clé puisqu'elles désignent la même garantie.
+  // Les quatre réponses possibles données par l'étude sont un cumul de ces clés : aucune garantie,
+  // caution, hypothèque légale de prêteur de deniers, ou cette dernière AVEC l'hypothèque
+  // conventionnelle. `sansGarantie` n'a pas de motif : elle n'est jamais cherchée, elle est le
+  // résultat d'un paragraphe « GARANTIES » qui n'annonce aucune des trois autres.
   var GARANTIES_PRET = [
-    { cle: 'caution', label: 'Caution', motif: /cautionnement|soci[ée]t[ée]\s+de\s+caution|caution\s+(?:solidaire|mutuelle|bancaire)|cr[ée]dit\s+logement/i },
+    { cle: 'sansGarantie', label: 'Sans garanties', motif: null },
+    { cle: 'caution', label: 'Caution', motif: /cautionnement|soci[ée]t[ée]\s+de\s+caution|caution\s+(?:solidaire|mutuelle|bancaire)|cr[ée]dit\s+logement|\bcaution\b/i },
     { cle: 'hypothequeLegale', label: 'Hypothèque légale de prêteur de deniers', motif: /pr[êe]teur\s+de\s+deniers|privil[èe]ge\s+de\s+pr[êe]teur|h[yi]poth[èe]que\s+l[ée]gale\s+sp[ée]ciale/i },
     { cle: 'hypothequeConventionnelle', label: 'Hypothèque conventionnelle', motif: /h[yi]poth[èe]que\s+conventionnelle/i }
   ];
 
+  // Une offre de prêt porte un paragraphe intitulé « GARANTIES » (parfois « GARANTIE » /
+  // « SÛRETÉS ») qui énumère ce que le prêteur exige. Le reste du document parle abondamment
+  // d'hypothèque et de caution à d'autres titres (clauses générales, frais, informations
+  // précontractuelles) : chercher dans tout le texte remontait donc des garanties qui ne sont pas
+  // celles de CE prêt. On se limite désormais à ce paragraphe.
+  // Tolère les numérotations réelles des offres : « GARANTIES », « 7. GARANTIES »,
+  // « Article 7 - GARANTIES », « § 4 – SÛRETÉS ». Deux mises en page coexistent et sont toutes
+  // deux acceptées : le titre seul sur sa ligne, ou « GARANTIES : » suivi du contenu sur la même
+  // ligne. Toujours ancré en DÉBUT DE LIGNE, et le deux-points est obligatoire dans le second cas
+  // — sans quoi « les garanties sont acquises au prêteur » au fil d'une phrase passerait pour un
+  // titre de paragraphe.
+  var RE_TITRE_GARANTIES = /^[^\S\n]*(?:(?:article|art\.?|§)[^\S\n]*)?\d{0,2}[^\S\n]*[-–—.)]?[^\S\n]*(?:garanties?|s[ûu]ret[ée]s?)(?:[^\S\n]+(?:du[^\S\n]+pr[êe]t|exig[ée]es?|r[ée]elles?))?[^\S\n]*(?::|$)/im;
+  // Fin du paragraphe : le titre de section suivant (une ligne courte en capitales), ou à défaut
+  // une fenêtre généreuse — une énumération de garanties tient largement dedans.
+  var RE_TITRE_SECTION_SUIVANTE = /^[^\S\n]*[A-ZÀ-Ü][A-ZÀ-Ü0-9'’\s,.\-()]{4,80}[^\S\n]*$/m;
+  var LONGUEUR_MAX_PARAGRAPHE_GARANTIES = 2500;
+
+  // Extrait le paragraphe « GARANTIES » de l'offre. Renvoie '' si l'offre n'en porte pas —
+  // l'appelant retombe alors sur « Sans garanties », voir detecterGarantiesPret.
+  function extraireParagrapheGaranties(texte) {
+    const source = String(texte || '');
+    const titre = RE_TITRE_GARANTIES.exec(source);
+    if (!titre) return '';
+    // On repart de la FIN du titre, jamais du premier `\n` trouvé après son index de départ : ce
+    // dernier pouvait retomber sur le saut de ligne PRÉCÉDANT le titre, et le paragraphe avalait
+    // alors la section suivante en entier (une hypothèque citée sous « ASSURANCES » remontait
+    // ainsi comme garantie du prêt).
+    const reste = source.slice(titre.index + titre[0].length, titre.index + titre[0].length + LONGUEUR_MAX_PARAGRAPHE_GARANTIES);
+    const suivant = reste.search(RE_TITRE_SECTION_SUIVANTE);
+    return suivant > 0 ? reste.slice(0, suivant) : reste;
+  }
+
+  // Les quatre réponses possibles listées par l'étude sont un CUMUL des trois clés ci-dessus :
+  // aucune (« Sans garanties »), caution, hypothèque légale de prêteur de deniers, ou cette
+  // dernière AVEC l'hypothèque conventionnelle. On renvoie donc toujours une liste de clés, dont
+  // libellesGarantiesPret tire la phrase affichée.
   function detecterGarantiesPret(texte) {
-    if (!texte) return [];
-    return GARANTIES_PRET.filter(g => g.motif.test(texte)).map(g => g.cle);
+    const paragraphe = extraireParagrapheGaranties(texte);
+    // Aucun paragraphe « GARANTIES » : on ne sait pas, et ne pas savoir n'est pas « sans
+    // garantie » — la fiche n'affiche alors rien plutôt qu'une affirmation fausse.
+    if (!paragraphe) return [];
+    const trouvees = GARANTIES_PRET.filter(g => g.motif && g.motif.test(paragraphe)).map(g => g.cle);
+    // Le paragraphe existe mais n'énonce aucune des garanties connues : c'est une vraie réponse,
+    // la première des quatre listées par l'étude.
+    return trouvees.length ? trouvees : ['sansGarantie'];
   }
 
   function libellesGarantiesPret(cles) {
@@ -8515,6 +8585,36 @@
       return;
     }
     ouvrirChoixDossierNas(d, data.dossiers, data.propose);
+  }
+
+  // Dossiers pour lesquels une liaison automatique a déjà été tentée dans CETTE session : sans ce
+  // garde-fou, la passe périodique (toutes les 5 min) relancerait une requête par dossier non
+  // relié à chaque tour, pour un résultat qui ne change pas.
+  const tentativesLiaisonNasAuto = new Set();
+
+  // Relie le dossier au NAS sans aucun clic — demandé par l'étude (« éviter le clic pour la
+  // liaison au NAS »). SILENCIEUSE et sans fenêtre de choix : elle ne relie que sur une
+  // correspondance PARFAITE (tous les mots significatifs du nom retrouvés dans un seul dossier
+  // NAS, voir rapprochementParfait côté serveur), et ne fait rien du tout sinon. Se tromper de
+  // dossier ferait chercher les pièces d'une vente dans celles d'une autre : c'est la seule
+  // certitude sur laquelle on accepte de décider à la place de l'étude. Sans correspondance
+  // parfaite, le bouton « Relier un dossier du NAS » reste là, inchangé.
+  async function lierDossierNasAutomatique(id) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d || d.nasDossier || tentativesLiaisonNasAuto.has(id)) return false;
+    tentativesLiaisonNasAuto.add(id);
+    if (!nasDisponible()) return false;
+    try {
+      const reponse = await fetchAvecAuth('/api/nas/dossiers?nom=' + encodeURIComponent(d.nom || ''));
+      if (!reponse.ok) return false;
+      const data = await reponse.json();
+      if (!data.parfait) return false;
+      await definirDossierNas(id, data.parfait);
+      afficherToast(`Dossier NAS « ${data.parfait} » relié automatiquement.`, 'OK', null);
+      return true;
+    } catch (e) {
+      return false; // NAS injoignable : on réessaiera à la prochaine ouverture de l'outil.
+    }
   }
 
   // Applique le choix, puis relance une vérification complète — même remise à zéro qu'avant : les
@@ -9044,6 +9144,9 @@
   // un doute, ou un document a pu être retiré du dossier local entre-temps).
   async function revérifierDossiersLiesAuDemarrage() {
     for (const d of dossiers) {
+      // Un dossier actif jamais relié : on tente le rattachement au NAS tout seul, une fois par
+      // session (voir lierDossierNasAutomatique). Un dossier archivé n'a plus rien à suivre.
+      if (!d.nasDossier && !d.archive) await lierDossierNasAutomatique(d.id);
       if (d.dossierLie && !dossierEntierementComplet(d)) {
         await verifierDossierLocal(d.id, false);
       }

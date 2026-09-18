@@ -53,15 +53,17 @@ test('le seuil de pages écarte les courriers courts, sans exiger les 10 pages a
 
 test('detecterGarantiesPret reconnaît les trois garanties, seules ou cumulées', () => {
   // L'étude a explicitement dit « et/ou » : le résultat est une liste, jamais une valeur unique.
+  // Toutes lues dans le paragraphe « GARANTIES » de l'offre, jamais ailleurs dans le document.
   const app = chargerApplication();
   assert.equal(
-    app.detecterGarantiesPret("Le prêt est garanti par le cautionnement de la société Crédit Logement.").join(','),
+    app.detecterGarantiesPret("GARANTIES\nLe prêt est garanti par le cautionnement de la société Crédit Logement.").join(','),
     'caution');
+  // Mise en page tout aussi fréquente : le titre et son contenu sur la même ligne.
   assert.equal(
     app.detecterGarantiesPret("Garantie : hypothèque légale spéciale de prêteur de deniers sur le bien financé.").join(','),
     'hypothequeLegale');
   assert.equal(
-    app.detecterGarantiesPret("Le prêteur bénéficiera d'une hypothèque conventionnelle de premier rang.").join(','),
+    app.detecterGarantiesPret("GARANTIES\nLe prêteur bénéficiera d'une hypothèque conventionnelle de premier rang.").join(','),
     'hypothequeConventionnelle');
   // Cumul réel et fréquent : une partie du prêt cautionnée, l'autre hypothéquée.
   assert.equal(
@@ -74,8 +76,17 @@ test('l’ancien nom « privilège de prêteur de deniers » désigne la même g
   // les deux formulations coexistent dans les offres réelles — une seule clé pour les deux.
   const app = chargerApplication();
   assert.equal(
-    app.detecterGarantiesPret("Le prêt sera garanti par un privilège de prêteur de deniers.").join(','),
+    app.detecterGarantiesPret("GARANTIES\nLe prêt sera garanti par un privilège de prêteur de deniers.").join(','),
     'hypothequeLegale');
+});
+
+test('une phrase courante ne se fait pas passer pour un titre de paragraphe', () => {
+  // Sans l'ancrage en début de ligne + deux-points, « les garanties sont… » au fil d'une clause
+  // ouvrirait un faux paragraphe et ramènerait tout ce qui suit.
+  const app = chargerApplication();
+  assert.equal(app.detecterGarantiesPret(
+    "CONDITIONS GENERALES\nToutes les garanties sont acquises au prêteur. Une hypothèque conventionnelle peut être requise.").length,
+    0);
 });
 
 test('detecterGarantiesPret ne rend rien sur un texte sans garantie', () => {
