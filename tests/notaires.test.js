@@ -40,7 +40,13 @@ test('le rattachement à une partie ne déborde pas sur le notaire voisin', () =
   assert.equal(notaires.find(n => n.nom === 'Paul DURAND').cote, 'acquereur');
 });
 
-test('règle 41/45/37 : bien dans le 41 et notaire du vendeur dans le 45 → il reçoit l’acte', () => {
+// Attribution de la minute — source : RPN (en vigueur depuis le 1er février 2024), art. 30.4.2,
+// et règlement de la Chambre interdépartementale du Val de Loire, art. 15. La règle porte sur le
+// département des DEUX NOTAIRES, pas sur celui du bien : c'est ce que « 41/45/37 » recouvrait.
+
+test('deux notaires du ressort de la Cour d’appel d’Orléans → la minute va au notaire du vendeur', () => {
+  // Art. 15 du règlement du Val de Loire : entre notaires du ressort (41, 45, 37), l'exception
+  // départementale du RPN ne joue pas.
   const app = chargerApplication();
   const notaires = app.detecterNotaires(acte([
     "Maître Paul DURAND, notaire à Orléans, 8 rue C, 45000 ORLÉANS, notaire du vendeur.",
@@ -49,21 +55,37 @@ test('règle 41/45/37 : bien dans le 41 et notaire du vendeur dans le 45 → il 
   const r = app.determinerNotaires(notaires, '41');
   assert.equal(r.instrumentaire.nom, 'Paul DURAND');
   assert.equal(r.statut, 'CONFIRMED');
-  assert.ok(r.raison.includes('41'));
+  assert.ok(r.raison.includes('Orléans'), r.raison);
   // L'étude est alors le notaire participant.
   assert.equal(r.roleEtude, 'participant');
 });
 
-test('règle 41/45/37 : notaire du vendeur hors des trois départements → rien n’est tranché', () => {
+test('hors du ressort : seul le notaire de l’acquéreur exerce dans le département du bien → la minute lui revient', () => {
+  // Art. 30.4.2 RPN, seconde phrase. Le notaire du vendeur est à Paris, hors ressort, donc la
+  // règle régionale ne s'applique pas et l'exception départementale reprend la main.
   const app = chargerApplication();
   const notaires = app.detecterNotaires(acte([
     "Maître Paul DURAND, notaire à Paris, 8 rue C, 75008 PARIS, notaire du vendeur.",
     "Maître Sophie GOSSART, notaire à Blois, 5 rue du Commerce, 41000 BLOIS, notaire de l'acquéreur."
   ]), 'COMPROMIS_DE_VENTE');
   const r = app.determinerNotaires(notaires, '41');
-  assert.equal(r.instrumentaire, null);
-  assert.equal(r.statut, 'NEEDS_REVIEW');
-  assert.equal(r.roleEtude, null);
+  assert.equal(r.instrumentaire.nom, 'Sophie GOSSART');
+  assert.equal(r.statut, 'CONFIRMED');
+  assert.equal(r.roleEtude, 'instrumentaire');
+});
+
+test('attribuerMinute applique les trois branches de la règle', () => {
+  const app = chargerApplication();
+  // Les deux notaires dans le ressort d'Orléans : toujours le vendeur, quel que soit le bien.
+  assert.equal(app.attribuerMinute('41', '45', '37').cote, 'vendeur');
+  assert.equal(app.attribuerMinute('37', '41', '45').cote, 'vendeur');
+  // Hors ressort, seul l'acquéreur dans le département du bien : la minute lui revient.
+  assert.equal(app.attribuerMinute('75', '41', '41').cote, 'acquereur');
+  // Hors ressort, le vendeur aussi dans le département du bien : retour au principe.
+  assert.equal(app.attribuerMinute('75', '75', '75').cote, 'vendeur');
+  assert.equal(app.attribuerMinute('13', '75', '13').cote, 'vendeur');
+  // Département inconnu : on ne tranche pas.
+  assert.equal(app.attribuerMinute(null, '41', '41'), null);
 });
 
 test('une mention explicite l’emporte sur la règle géographique', () => {
@@ -120,12 +142,10 @@ test('sans notaire identifié, aucun rôle n’est inventé', () => {
   assert.equal(r.roleEtude, null);
 });
 
-test('la règle métier est déclarée à un seul endroit, modifiable sans toucher au code', () => {
+test('le ressort de la chambre interdépartementale est déclaré à un seul endroit', () => {
+  // Ressort de la Cour d'appel d'ORLÉANS : Loir-et-Cher, Loiret, Indre-et-Loire.
   const app = chargerApplication();
-  const regles = app.REGLES_NOTAIRE_INSTRUMENTAIRE;
-  assert.equal(regles.length, 1);
-  assert.equal(regles[0].departementBien, '41');
-  assert.equal(regles[0].departementsNotaireVendeur.join(','), '41,45,37');
+  assert.equal(app.RESSORT_CIN_VAL_DE_LOIRE.join(','), '41,45,37');
 });
 
 // L'étude a précisé OÙ chaque type d'acte nomme ses notaires : première page pour une promesse de
@@ -440,4 +460,73 @@ test('les notaires sont affichés avec « Maître » devant leur nom', () => {
   // Jamais doublé sur un nom déjà saisi ainsi à la main.
   assert.equal(app.libelleNotaire({ nom: 'Maître Paul DURAND' }), 'Maître Paul DURAND');
   assert.equal(app.libelleNotaire(null), '');
+});
+
+// ---------------------------------------------------------------------------------------------
+// Côtés vendeur / acquéreur : trois voies, de la plus sûre à la plus déduite.
+// ---------------------------------------------------------------------------------------------
+
+test('« assistant le PROMETTANT » désigne le côté, avec l’article défini', () => {
+  // Un seul mot manquait à l'alternance — l'article défini — et le côté restait indéterminé sur
+  // la totalité du corpus, alors que plusieurs actes le disent noir sur blanc.
+  const app = chargerApplication();
+  const texte = 'PROMESSE DE VENTE\n'
+    + 'Maître Barbara EXEMPLE, Notaire à CHATEAUDUN (28200), soussignée, CRPCEN 28038,\n'
+    + 'Notaire assistant le PROMETTANT,\n'
+    + 'Avec le concours à distance de Maître Sophie GOSSART, notaire à BLOIS (41000),\n'
+    + 'CRPCEN 41089, assistant le BENEFICIAIRE,\n'
+    + BOURRAGE;
+  const liste = app.detecterNotaires(texte, 'PROMESSE_DE_VENTE');
+  const cotes = liste.map(n => `${n.nom}:${n.cote}`).join(' | ');
+  assert.ok(cotes.includes('Barbara EXEMPLE:vendeur'), cotes);
+  assert.ok(cotes.includes('Sophie GOSSART:acquereur'), cotes);
+  // Le CRPCEN donne le département, plus sûr que le nom de commune.
+  assert.equal(liste[0].departement, '28');
+  assert.equal(liste[1].departement, '41');
+  // La phrase qui introduit le SECOND notaire ne doit pas faire passer le PREMIER pour le
+  // participant : elle se trouve, par construction, dans sa fenêtre.
+  assert.notEqual(liste[0].roleExplicite, 'participant');
+});
+
+test('le côté du second notaire se déduit par élimination', () => {
+  // Une comparution ne qualifie souvent que l'un des deux ; il n'y a que deux côtés.
+  const app = chargerApplication();
+  const texte = 'PROMESSE DE VENTE\n'
+    + 'Maître Géraldine EXEMPLE, notaire à BLOIS (41000), CRPCEN 41088, soussignée,\n'
+    + 'Avec la participation de Maître Sophie GOSSART, notaire à BLOIS (41000), CRPCEN 41089,\n'
+    + 'assistant le BENEFICIAIRE,\n'
+    + BOURRAGE;
+  const liste = app.detecterNotaires(texte, 'PROMESSE_DE_VENTE');
+  const r = app.determinerNotaires(liste, '41', 'PROMESSE_DE_VENTE',
+    app.zoneNotairesPourActe(texte, 'PROMESSE_DE_VENTE'));
+  assert.match(r.vendeur.nom, /Géraldine EXEMPLE/);
+  assert.match(r.acquereur.nom, /Sophie GOSSART/);
+});
+
+test('un notaire seul représente les deux parties', () => {
+  // Signalé par l'étude : sans confrère, le notaire reçoit l'acte pour le vendeur comme pour
+  // l'acquéreur. Les deux champs portent son nom — laisser l'un vide suggérerait qu'il manque
+  // quelqu'un.
+  const app = chargerApplication();
+  const texte = 'COMPROMIS DE VENTE\n' + BOURRAGE
+    + '\nFait à BLOIS, en l’étude de Maître Sophie GOSSART, notaire à BLOIS (41000), CRPCEN 41089.';
+  const liste = app.detecterNotaires(texte, 'COMPROMIS_DE_VENTE');
+  const r = app.determinerNotaires(liste, '41', 'COMPROMIS_DE_VENTE', 'fin');
+  assert.match(r.vendeur.nom, /GOSSART/);
+  assert.match(r.acquereur.nom, /GOSSART/);
+  assert.match(r.instrumentaire.nom, /GOSSART/);
+  assert.equal(r.participant, null);
+  assert.equal(r.roleEtude, 'instrumentaire');
+});
+
+test('coteDepuisAttribution ne déduit un côté que si la règle est vérifiable', () => {
+  const app = chargerApplication();
+  // Les deux notaires du ressort d'Orléans : le premier nommé détient la minute (art. 26.3.2),
+  // et la minute va au vendeur (art. 15) — donc le premier nommé est celui du vendeur.
+  assert.equal(app.coteDepuisAttribution('41', '45', '41').cote, 'vendeur');
+  // L'instrumentaire est le seul dans le département du bien, hors ressort : l'exception de
+  // l'art. 30.4.2 a pu jouer, il peut donc être celui de l'acquéreur — on ne tranche pas.
+  assert.equal(app.coteDepuisAttribution('75', '13', '75'), null);
+  // Département inconnu : aucune branche n'est vérifiable.
+  assert.equal(app.coteDepuisAttribution(null, '41', '41'), null);
 });

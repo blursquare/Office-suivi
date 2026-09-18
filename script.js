@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-18 17:36';
+  const VERSION_APP = '2026-09-18 17:52';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-18 17:52', resume: "Les notaires : qui représente le vendeur, qui représente l'acquéreur, et lequel des deux rédige la vente. Cinq actes du banc d'essai sur sept le donnent maintenant, contre aucun. La règle d'attribution de la minute vient du Règlement Professionnel du Notariat que vous m'avez transmis (art. 30.4.2 : la minute revient au notaire du vendeur, sauf si seul celui de l'acquéreur exerce dans le département du bien) et du règlement de la Chambre du Val de Loire (art. 15 : entre deux notaires du ressort de la Cour d'appel d'Orléans — 41, 45, 37 — c'est toujours le notaire du vendeur). Elle remplace la règle approximative que j'avais encodée, qui portait à tort sur le département du bien. Côté lecture, quatre défauts empêchaient tout : le motif du notaire ne pouvait pas franchir la virgule d'un numéro CRPCEN, si bien que le premier nommé du préambule — celui qui détient la minute — disparaissait ; le CRPCEN, dont les deux premiers chiffres donnent le département, n'était pas lu ; l'article défini manquait à « assistant LE PROMETTANT », forme pourtant standard ; et la phrase qui introduit le second notaire faisait passer le premier pour le participant. Enfin, un notaire seul représente les deux parties, et les deux champs portent désormais son nom" },
     { version: '2026-09-18 17:36', resume: "Type de vente et prix. Trois actes sur sept étaient classés « copropriété » à tort, dont un compromis qui s'intitule pourtant « BIEN HORS COPROPRIETE » : la clause de style qui écarte le statut s'écrit le plus souvent au participe présent (« ne relevANT pas du statut de la copropriété »), forme que le garde-fou ne connaissait pas ; la négation est par ailleurs souvent séparée du mot par la référence complète de la loi de 1965, trop loin pour être vue ; et une mention conditionnelle (« au Syndicat des copropriétaires s'il y a lieu », clause de style dans une liste de pouvoirs) suffisait à faire passer une maison individuelle pour une copropriété. La portée d'une négation s'arrête maintenant à sa phrase et au « mais » qui la contredit. Côté prix, un point avant la parenthèse fermante — « (290000,00 EUR.) » — empêchait la lecture : les neuf actes du banc donnent désormais leur prix" },
     { version: '2026-09-18 17:34', resume: "Trois familles de FAUSSES échéances, qui prenaient chaque fois la place de la vraie — celle-ci restant, elle, sans catégorie. Une citation de texte légal d'abord : « l'ordonnance n° 2016-131 du 10 février 2016 » devenait la date de signature de l'acte sur un compromis de 2026 ; seules les citations de LOI étaient écartées, ordonnances, décrets et arrêtés y sont désormais joints. Une citation entre guillemets ensuite : « au plus tard un mois après la signature de l'acte authentique de vente », recopié d'un article du Code, devenait la date de signature du dossier. Le versement d'une somme enfin : l'indemnité d'immobilisation, payable sous huit ou dix jours, fixait « l'obtention du prêt » dix jours après la signature sur deux promesses. Au passage, deux tournures d'échéance n'étaient pas reconnues du tout : « la signature DUDIT acte » et, sur une promesse, « la réalisation de la présente promesse », qui est pourtant la date butoir pour signer" },
     { version: '2026-09-18 17:30', resume: "Les noms de dossier, sur les sept actes lisibles du banc d'essai : sept sur sept corrects, vérifiés un par un contre les noms de vos propres fichiers. Trois causes. Un patronyme à particule — DE SOUSA MARTINS, LE GOFF, DU PONT — était rejeté d'office, la particule figurant parmi les mots interdits : un acte n'avait ainsi qu'une seule partie, son bénéficiaire restant introuvable. L'étiquette « Dénommés ci-après le PROMETTANT » n'était pas reconnue dans cet ordre de mots, et le dossier prenait le mot qui suit (« ENSEMBLE D'UNE PART » donnait « ENSEMBLE »). Enfin la recherche du nom remontait trop loin en arrière et tombait sur la comparution des notaires, qui nomme les parties qu'ils assistent : elle s'arrête désormais là où l'acte annonce lui-même sa présentation (« à la requête de : », « Entre les soussignés : »). Au passage, une ligne d'état civil (« - Monsieur à BLOIS, le 6 mai 1979 ») ne donne plus la commune comme patronyme, et la date en toutes lettres de l'en-tête, qui se glisse à la coupure de page au milieu d'une partie, n'est plus prise pour un nom" },
@@ -1653,12 +1654,108 @@
   // « ne pas coder cette règle de manière dispersée »). Pour un bien situé dans le 41, si le
   // notaire du vendeur est du 41, du 45 ou du 37, c'est lui qui reçoit l'acte. Ajouter un
   // département, ou une seconde règle pour un autre département de bien, se fait ici.
-  var REGLES_NOTAIRE_INSTRUMENTAIRE = [
-    { departementBien: '41', departementsNotaireVendeur: ['41', '45', '37'] }
-  ];
+  // ---- Attribution de la minute de l'acte de vente (qui rédige la vente) ----
+  //
+  // Source : Règlement Professionnel du Notariat, en vigueur depuis le 1er février 2024, et
+  // règlement intérieur de la Chambre interdépartementale des notaires du Val de Loire.
+  //
+  //   Art. 30.4.2 RPN — Vente de gré à gré : « En cas d'intervention de plusieurs notaires, la
+  //   minute de la vente appartient au notaire choisi par le VENDEUR. Toutefois, si SEUL le
+  //   notaire choisi par l'acquéreur exerce dans le département dans lequel le bien vendu se
+  //   situe, celui-ci détient la minute de l'acte. »
+  //
+  //   Art. 33 RPN — le règlement du conseil régional ou de la chambre interdépartementale prime
+  //   sur la seconde partie du RPN. Pour la CIN du Val de Loire (ressort de la Cour d'appel
+  //   d'ORLÉANS : Loir-et-Cher 41, Loiret 45, Indre-et-Loire 37), son article 15 maintient les
+  //   règles antérieures : « la minute de tout acte de vente dont l'établissement est confié à
+  //   des notaires exerçant au sein de la Cour d'Appel sera attribuée au NOTAIRE DU VENDEUR ».
+  //   Autrement dit, entre deux notaires du ressort, l'exception départementale du RPN ne joue
+  //   pas : c'est toujours le notaire du vendeur.
+  //
+  // C'est la règle que l'étude avait résumée par « 41/45/37 » : elle porte bien sur le
+  // département des DEUX NOTAIRES, pas sur celui du bien.
+  var RESSORT_CIN_VAL_DE_LOIRE = ['41', '45', '37'];
+
+  // Renvoie 'vendeur' | 'acquereur' | null (indéterminable faute de départements connus).
+  function attribuerMinute(departementNotaireVendeur, departementNotaireAcquereur, departementBien) {
+    const dv = departementNotaireVendeur || null;
+    const da = departementNotaireAcquereur || null;
+    // Règle régionale : deux notaires du ressort de la Cour d'appel d'Orléans → notaire du vendeur.
+    if (dv && da && RESSORT_CIN_VAL_DE_LOIRE.includes(dv) && RESSORT_CIN_VAL_DE_LOIRE.includes(da)) {
+      return { cote: 'vendeur', source: 'Val de Loire' };
+    }
+    if (!departementBien || !dv || !da) return null;
+    // Art. 30.4.2 : l'exception ne joue que si SEUL le notaire de l'acquéreur exerce dans le
+    // département du bien.
+    const vendeurDansBien = dv === departementBien;
+    const acquereurDansBien = da === departementBien;
+    if (acquereurDansBien && !vendeurDansBien) return { cote: 'acquereur', source: 'RPN 30.4.2' };
+    return { cote: 'vendeur', source: 'RPN 30.4.2' };
+  }
+
+  // L'inverse : on connaît le notaire qui détient la minute (il est nommé en PREMIER dans le
+  // préambule, art. 26.3.2 RPN) et on veut savoir de quel côté il est. Il est celui du vendeur
+  // dans tous les cas SAUF celui, unique, où l'exception de l'art. 30.4.2 a pu jouer — auquel cas
+  // on ne tranche pas plutôt que de deviner.
+  function coteDepuisAttribution(departementInstrumentaire, departementSecond, departementBien) {
+    const di = departementInstrumentaire || null;
+    const ds = departementSecond || null;
+    // Sans les deux départements, aucune branche de la règle n'est vérifiable : on ne déduit rien
+    // plutôt que d'appliquer un défaut qu'on ne peut pas contrôler. Affecter le mauvais côté
+    // ferait chercher les pièces du mauvais notaire.
+    if (!di || !ds) return null;
+    if (di && ds && RESSORT_CIN_VAL_DE_LOIRE.includes(di) && RESSORT_CIN_VAL_DE_LOIRE.includes(ds)) {
+      return { cote: 'vendeur', raison: 'Les deux notaires exercent dans le ressort de la Cour d’appel d’Orléans : la minute revient au notaire du vendeur (règlement de la Chambre du Val de Loire, art. 15).' };
+    }
+    // Cas où l'exception a pu s'appliquer : l'instrumentaire est le seul dans le département du
+    // bien. Il peut alors être le notaire de l'acquéreur — indécidable sans autre indice.
+    if (departementBien && di === departementBien && ds && ds !== departementBien) return null;
+    return { cote: 'vendeur', raison: 'À défaut de mention contraire, la minute revient au notaire du vendeur (RPN, art. 30.4.2) : le notaire nommé en premier est donc celui du vendeur.' };
+  }
 
   // « Maître X, notaire à Y » et ses variantes (notaire associé, notaire à la résidence de…).
-  var RE_NOTAIRE = /Ma[îi]tre\s+([A-ZÀ-Ü][^,;\n()]{2,60}?)\s*,?\s*notaire\s*(?:associ[ée]e?)?\s*(?:[àa]\s+la\s+r[ée]sidence\s+d[eu]\s*|[àa]\s+|de\s+)([^,;.\n()]{2,60})/gi;
+  // Le numéro CRPCEN est inséré entre le nom et la qualité dans beaucoup de trames (« Maître
+  // Sophie GOSSART, CRPCEN 41089, notaire à BLOIS »). Le groupe du nom excluant la virgule, le
+  // motif ne pouvait pas la franchir : le préambule — donc l'ordre de citation, qui désigne
+  // l'instrumentaire (art. 26.3.2 RPN) — n'était tout simplement jamais reconnu sur ces actes.
+  // Le NOM est repéré d'abord, son office et son département sont résolus ensuite, séparément.
+  // Un motif unique exigeant « Maître X, notaire à VILLE » ne couvrait qu'une partie des trames :
+  // « Maître X, CRPCEN 41089, notaire à BLOIS » (la virgule du CRPCEN bloquait le groupe du nom)
+  // et « Maître X, notaire associé, membre de la SCP …, titulaire d'un office notarial aux
+  // MONTILS » y échappaient tous les deux. Or ce notaire-là est le PREMIER NOMMÉ, donc celui qui
+  // détient la minute (art. 26.3.2 RPN) : il disparaissait purement et simplement de la liste.
+  // `Ma[îi]tre(?!s)` : le pluriel introduit la raison sociale d'une SCP (« Maîtres X et Y,
+  // notaires associés »), pas une comparution.
+  var RE_MENTION_NOTAIRE = /Ma[îi]tre(?!s)\s+([A-ZÀ-Ü][A-Za-zÀ-ÿ'’-]*(?:\s+[A-ZÀ-Ü'’][A-Za-zÀ-ÿ'’-]*){0,4})/g;
+
+  // Emplacement de l'office, sous ses formes usuelles.
+  var RE_OFFICE_NOTAIRE = /(?:notaires?\s+(?:associ[ée]e?s?\s+)?(?:[àa]\s+la\s+r[ée]sidence\s+d[eu]\s+)?[àa]\s+|office\s+notarial\s+(?:sis\s+)?(?:[àa]|aux?)\s+|si[èe]ge\s+(?:social\s+)?est\s+[àa]\s+)([A-ZÀ-Ü][^,;.\n()]{1,45})/i;
+
+  // Une occurrence de « Maître » qui ne parle pas d'un notaire (un avocat, une citation) n'est pas
+  // une comparution : la fenêtre doit porter la qualité ou le numéro d'office.
+  var RE_QUALITE_NOTAIRE = /notaire|crpcen|office\s+notarial/i;
+
+  // Le CRPCEN identifie l'office ; ses DEUX PREMIERS CHIFFRES sont le département. C'est une
+  // source bien plus sûre que le nom de la commune, qui ne s'accompagne pas toujours d'un code
+  // postal — et le département des notaires est ce qui décide de l'attribution de la minute
+  // (art. 30.4.2 RPN et règle du Val de Loire, voir attribuerMinute).
+  var RE_INTRODUCTION_NOTAIRE_SUIVANT = /avec\s+(?:le\s+concours|la\s+participation)[^.]*$/i;
+
+  var PORTEE_QUALITE_NOTAIRE = 220;
+
+  var RE_CRPCEN = /CRPCEN\s*n?[°º]?\s*:?\s*(\d{2})\d{3}\b/i;
+
+  // La capture de la commune court jusqu'à la ponctuation suivante et ramasse au passage ce qui
+  // suit (« BEAUGENCY le 23 avril 2004 », « BLOIS identifié sous le numéro CRPCEN »). On ne garde
+  // que la tête du fragment : le nom d'une commune s'arrête au premier mot de liaison.
+  var RE_SUITE_HORS_COMMUNE = /\s+(?:le|la|les|identifi|soussign|volume|num[ée]ro|en|au|aux|dont|titulaire|membre|exer[çc])/i;
+
+  function nettoyerCommuneNotaire(brut) {
+    let ville = String(brut || '').replace(/\s+/g, ' ').trim();
+    const m = ville.match(RE_SUITE_HORS_COMMUNE);
+    if (m && m.index > 0) ville = ville.slice(0, m.index);
+    return ville.trim();
+  }
 
   // Mention explicite du notaire qui reçoit l'acte : priorité absolue sur toute règle métier.
   // Définition donnée par l'étude — « le notaire instrumentaire est celui qui a RÉDIGÉ » : les
@@ -1738,7 +1835,12 @@
   }
 
   // Rattachement d'un notaire à une partie : « notaire du vendeur », « conseil de l'acquéreur »…
-  var RE_COTE_NOTAIRE = /(?:notaire|conseil|assistant?e?|repr[ée]sentant)\s+(?:d[eu]\s+|de\s+la\s+|de\s+l['’]|des\s+)?(vendeurs?|promettants?|acqu[ée]reurs?|acheteurs?|b[ée]n[ée]ficiaires?|parties?\s+venderesses?|parties?\s+acqu[ée]reuses?)/i;
+  // L'article DÉFINI manquait à l'alternance : le motif acceptait « notaire du vendeur » mais pas
+  // « assistant LE PROMETTANT » ni « assistant LE BENEFICIAIRE », qui sont pourtant la forme
+  // standard de la comparution d'un acte authentique. C'est ce seul mot qui laissait le côté de
+  // chaque notaire indéterminé sur la totalité des actes du corpus, alors que plusieurs le
+  // disaient noir sur blanc.
+  var RE_COTE_NOTAIRE = /(?:notaire|conseil|assistant?e?|repr[ée]sentant)\s+(?:d[eu]\s+|de\s+la\s+|de\s+l['’]|des\s+|les?\s+|la\s+|l['’])?(vendeurs?|promettants?|acqu[ée]reurs?|acheteurs?|b[ée]n[ée]ficiaires?|parties?\s+venderesses?|parties?\s+acqu[ée]reuses?)/i;
 
   function qualiteDepuisMot(mot) {
     const m = String(mot || '').toLowerCase();
@@ -1815,16 +1917,23 @@
     // ligne précédente était attribué au notaire suivant, et une mention « qui recevra l'acte »
     // était comptée pour les deux à la fois.
     const mentions = [];
-    const re = new RegExp(RE_NOTAIRE.source, 'gi');
+    const re = new RegExp(RE_MENTION_NOTAIRE.source, 'g');
     let m;
     while ((m = re.exec(source)) !== null) {
-      mentions.push({ index: m.index, longueur: m[0].length, nom: m[1].replace(/\s+/g, ' ').trim(), ville: m[2].replace(/\s+/g, ' ').trim() });
+      const nom = m[1].replace(/\s+/g, ' ').trim();
+      if (!estNomValide(nom)) continue;
+      // La qualité doit être portée par le voisinage immédiat, sans quoi « Maître » peut désigner
+      // un avocat ou apparaître dans une citation.
+      if (!RE_QUALITE_NOTAIRE.test(source.slice(m.index, m.index + PORTEE_QUALITE_NOTAIRE))) continue;
+      mentions.push({ index: m.index, longueur: m[0].length, nom });
     }
 
     const resultats = [];
     const vus = new Set();
     mentions.forEach((mention, i) => {
-      const cle = mention.nom.toLowerCase();
+      // Dédoublonnage sur le PATRONYME (dernier mot) : le même notaire est cité tantôt avec son
+      // prénom, tantôt sans, et chaque forme comptait pour une personne distincte.
+      const cle = normaliserMaj(mention.nom.split(/\s+/).pop());
       if (vus.has(cle)) return;
       vus.add(cle);
 
@@ -1835,7 +1944,11 @@
         mention.index + mention.longueur + 400,
         suivante ? suivante.index : source.length
       );
-      const fenetre = source.slice(debut, fin);
+      // La phrase qui introduit le notaire SUIVANT (« Avec le concours de… », « Avec la
+      // participation de… ») se trouve, par construction, avant sa mention — donc dans la fenêtre
+      // du précédent. Sans la retirer, le premier notaire de chaque acte était marqué
+      // « participant » alors que c'est le second qui l'est.
+      const fenetre = source.slice(debut, fin).replace(RE_INTRODUCTION_NOTAIRE_SUIVANT, ' ');
 
       const mCote = fenetre.match(RE_COTE_NOTAIRE);
       const qualite = mCote ? qualiteDepuisMot(mCote[1]) : null;
@@ -1852,17 +1965,29 @@
 
       // Le département vient du CODE POSTAL, jamais du seul nom de commune : deux communes de
       // départements différents peuvent porter des noms proches (point insisté par la spec).
-      const fragment = extraireFragmentAdresse(fenetre);
+      const fragment = extraireFragmentAdresse(source.slice(mention.index, fin));
       const adresse = fragment ? parserAdresse(fragment) : null;
       const adresseUtile = adresse && adresse.codePostal ? adresse : null;
+      // Le CRPCEN prime sur le code postal : il désigne l'OFFICE, alors qu'une adresse trouvée
+      // dans la même fenêtre peut être celle du bien ou d'un bureau annexe.
+      // L'office et le CRPCEN se cherchent À PARTIR DU NOM, pas depuis le début de la phrase :
+      // « PAR-DEVANT Maître A, notaire à BLOIS, et Maître B, notaire à ORLEANS » donnait sinon
+      // BLOIS aux deux, la fenêtre du second remontant jusqu'à l'office du premier. Le côté et le
+      // rôle, eux, gardent la phrase entière : ils peuvent précéder le nom (« Le notaire du
+      // vendeur, Maître X »).
+      const fenetreApresNom = source.slice(mention.index, fin);
+      const mCrpcen = fenetreApresNom.match(RE_CRPCEN);
+      const departement = mCrpcen ? mCrpcen[1] : (adresseUtile ? adresseUtile.departement : null);
+      const mOffice = fenetreApresNom.match(RE_OFFICE_NOTAIRE);
+      const ville = mOffice ? nettoyerCommuneNotaire(mOffice[1]) : '';
 
       resultats.push({
         nom: mention.nom,
-        office: mention.ville,
+        office: ville,
         adresse: adresseUtile,
         codePostal: adresseUtile ? adresseUtile.codePostal : null,
-        commune: adresseUtile ? adresseUtile.commune : mention.ville,
-        departement: adresseUtile ? adresseUtile.departement : null,
+        commune: ville || (adresseUtile ? adresseUtile.commune : null),
+        departement,
         cote,
         roleExplicite,
         // Dans quelle zone de l'acte cette mention tombe : c'est l'ordre de citation À L'INTÉRIEUR
@@ -1878,19 +2003,34 @@
     return resultats;
   }
 
-  function appliquerRegleInstrumentaire(notaireVendeur, departementBien) {
-    if (!notaireVendeur || !departementBien || !notaireVendeur.departement) return null;
-    const regle = REGLES_NOTAIRE_INSTRUMENTAIRE.find(r => r.departementBien === String(departementBien));
-    if (!regle) return null;
-    return regle.departementsNotaireVendeur.includes(notaireVendeur.departement) ? regle : null;
+  // Complète les côtés par ÉLIMINATION : il n'y en a que deux. Quand l'acte désigne le côté d'un
+  // seul notaire — cas très fréquent, la comparution ne qualifiant souvent que le second
+  // (« assistant le BENEFICIAIRE ») — celui du second s'en déduit sans rien deviner.
+  function completerCotesParElimination(liste) {
+    const connus = liste.filter(n => n.cote === 'vendeur' || n.cote === 'acquereur');
+    const inconnus = liste.filter(n => n.cote === 'inconnu');
+    if (connus.length !== 1 || inconnus.length !== 1) return;
+    inconnus[0].cote = connus[0].cote === 'vendeur' ? 'acquereur' : 'vendeur';
+    inconnus[0].coteDeduite = 'elimination';
   }
 
-  // Détermine qui reçoit l'acte. Ordre de priorité imposé par la spec :
+  // Détermine qui reçoit l'acte. Ordre de priorité :
   //   1. mention explicite dans le document (« l'acte sera reçu par Maître X ») ;
-  //   2. à défaut, la règle métier géographique (41 + notaire vendeur en 41/45/37) ;
+  //   2. l'ordre de citation dans le préambule : le notaire attributaire de la minute y est
+  //      nommé EN PREMIER (art. 26.3.2 RPN) ;
   //   3. sinon, rien n'est tranché — NEEDS_REVIEW, jamais un choix arbitraire.
+  // Les CÔTÉS (vendeur/acquéreur) se lisent d'abord dans l'acte, puis par élimination, puis se
+  // déduisent de la règle d'attribution de la minute (voir coteDepuisAttribution).
   function determinerNotaires(notaires, departementBien, typeActe, zoneFournie) {
     const liste = Array.isArray(notaires) ? notaires : [];
+    // L'élimination ne porte que sur les notaires de la COMPARUTION : eux seuls représentent une
+    // partie. Un notaire cité ailleurs dans l'acte (origine de propriété, acte antérieur) compte
+    // sinon comme un côté inconnu de plus et bloque la déduction.
+    const zoneCourante = zoneFournie || ZONE_NOTAIRES_PAR_TYPE[typeActe];
+    const comparution = zoneCourante
+      ? liste.filter(n => (zoneCourante === 'entete' ? n.enTete : n.enFin))
+      : [];
+    completerCotesParElimination(comparution.length >= 2 ? comparution : liste);
     const cotesVendeur = liste.filter(n => n.cote === 'vendeur');
     const cotesAcquereur = liste.filter(n => n.cote === 'acquereur');
     const explicites = liste.filter(n => n.roleExplicite === 'instrumentaire');
@@ -1918,25 +2058,49 @@
       return resultat;
     }
 
-    if (explicites.length === 1) {
+    // Un seul notaire intervient : il n'y a rien à répartir — les règles d'attribution ne visent
+    // que « l'intervention de plusieurs notaires » (art. 30.4.2 RPN) — et il représente LES DEUX
+    // PARTIES. Cas courant signalé par l'étude : sans confrère, le notaire reçoit l'acte pour le
+    // vendeur comme pour l'acquéreur, et les deux champs de la fiche portent donc son nom — en
+    // laisser un vide suggérerait qu'il manque quelqu'un. Traité AVANT les autres règles et non
+    // comme leur repli : une formule aussi banale que « en l'étude de Maître X » suffisait sinon à
+    // partir sur la branche « mention explicite », qui ne remplit aucun côté.
+    if (liste.length === 1) {
+      resultat.instrumentaire = liste[0];
+      resultat.participant = null;
+      resultat.vendeur = liste[0];
+      resultat.acquereur = liste[0];
+      resultat.notaireUnique = true;
+      resultat.statut = 'CONFIRMED';
+      resultat.raison = 'Un seul notaire intervient : il représente les deux parties et la minute lui revient.';
+    } else if (explicites.length === 1) {
       resultat.instrumentaire = explicites[0];
       resultat.statut = 'CONFIRMED';
       resultat.raison = 'Le document désigne explicitement ce notaire pour recevoir l’acte.';
-    } else {
-      const regle = appliquerRegleInstrumentaire(resultat.vendeur, departementBien);
-      if (regle) {
-        resultat.instrumentaire = resultat.vendeur;
+    } else if (resultat.vendeur && resultat.acquereur) {
+      // Les deux côtés sont connus : c'est exactement le cas que la règle d'attribution tranche.
+      const attribution = attribuerMinute(resultat.vendeur.departement, resultat.acquereur.departement, departementBien);
+      if (attribution) {
+        resultat.instrumentaire = attribution.cote === 'vendeur' ? resultat.vendeur : resultat.acquereur;
+        resultat.participantZone = attribution.cote === 'vendeur' ? resultat.acquereur : resultat.vendeur;
         resultat.statut = 'CONFIRMED';
-        resultat.raison = `Bien situé dans le ${regle.departementBien} et notaire du vendeur dans le ${resultat.vendeur.departement} : c’est lui qui reçoit l’acte (règle de l’étude).`;
-      } else {
-        // Dernier recours : l'ordre de citation dans la zone où cet acte nomme ses notaires —
+        resultat.raison = attribution.source === 'Val de Loire'
+          ? 'Les deux notaires exercent dans le ressort de la Cour d’appel d’Orléans : la minute revient au notaire du vendeur (règlement de la Chambre du Val de Loire, art. 15).'
+          : (attribution.cote === 'vendeur'
+            ? 'La minute de la vente revient au notaire du vendeur (RPN, art. 30.4.2).'
+            : 'Seul le notaire de l’acquéreur exerce dans le département du bien : la minute lui revient (RPN, art. 30.4.2).');
+      }
+    }
+    if (!resultat.instrumentaire && explicites.length !== 1) {
+      {
+        // À défaut : l'ordre de citation dans la zone où cet acte nomme ses notaires —
         // première page pour une promesse, fin d'acte pour un compromis (voir
         // ZONE_NOTAIRES_PAR_TYPE). Le premier nommé reçoit l'acte, le second participe.
         // N'intervient qu'ici, une fois les deux règles supérieures épuisées : une mention
         // explicite ou la règle géographique restent prioritaires, et ce cas ne peut donc rien
         // faire régresser de ce qui était déjà tranché.
-        const zone = zoneFournie || ZONE_NOTAIRES_PAR_TYPE[typeActe];
-        const dansZone = zone ? liste.filter(n => (zone === 'entete' ? n.enTete : n.enFin)) : [];
+        const zone = zoneCourante;
+        const dansZone = comparution;
         if (dansZone.length >= 2) {
           resultat.instrumentaire = dansZone[0];
           resultat.participantZone = dansZone[1];
@@ -1948,20 +2112,46 @@
             : 'Premier notaire nommé en fin de compromis : c’est lui qui a rédigé l’acte (le second intervient en participation).';
         } else {
           resultat.statut = 'NEEDS_REVIEW';
-          resultat.raison = resultat.vendeur && resultat.vendeur.departement
-            ? 'Aucune mention explicite et la règle géographique ne s’applique pas : notaire instrumentaire à confirmer.'
-            : 'Aucune mention explicite, et le département du notaire du vendeur est inconnu : à confirmer.';
+          resultat.raison = dansZone.length === 1
+            ? 'Un seul notaire est nommé dans cet acte : rien n’indique une intervention à deux.'
+            : 'Aucune mention explicite et les notaires ne sont pas identifiables dans le préambule : à confirmer.';
         }
       }
     }
 
-    if (resultat.instrumentaire) {
+    if (resultat.instrumentaire && resultat.notaireUnique) {
+      resultat.roleEtude = deduireRoleEtude(resultat);
+    } else if (resultat.instrumentaire) {
       const participantExplicite = liste.find(n => n.roleExplicite === 'participant' && n !== resultat.instrumentaire);
       resultat.participant = participantExplicite
         || resultat.participantZone
         || liste.find(n => n !== resultat.instrumentaire && (n.cote === 'vendeur' || n.cote === 'acquereur'))
         || null;
       delete resultat.participantZone;
+
+      // Les côtés ne sont toujours pas connus : les déduire de la règle d'attribution de la
+      // minute. Le notaire nommé en premier détient la minute (art. 26.3.2 RPN), et la minute
+      // revient au notaire du VENDEUR — toujours entre deux notaires du ressort de la Cour
+      // d'appel d'Orléans, par défaut ailleurs (voir coteDepuisAttribution).
+      if (!resultat.vendeur && !resultat.acquereur && resultat.instrumentaire && resultat.participant) {
+        const deduction = coteDepuisAttribution(
+          resultat.instrumentaire.departement,
+          resultat.participant.departement,
+          departementBien
+        );
+        if (deduction) {
+          const vendeur = deduction.cote === 'vendeur' ? resultat.instrumentaire : resultat.participant;
+          const acquereur = vendeur === resultat.instrumentaire ? resultat.participant : resultat.instrumentaire;
+          vendeur.cote = 'vendeur';
+          vendeur.coteDeduite = 'attribution';
+          acquereur.cote = 'acquereur';
+          acquereur.coteDeduite = 'attribution';
+          resultat.vendeur = vendeur;
+          resultat.acquereur = acquereur;
+          resultat.raisonCotes = deduction.raison;
+        }
+      }
+
       resultat.roleEtude = deduireRoleEtude(resultat);
     }
 
