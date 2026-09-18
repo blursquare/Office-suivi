@@ -7,7 +7,7 @@ name: Construire CLAIRE-serveur.exe
 
 on:
   push:
-    branches: [claude/serveur-intranet]
+    branches: [main]
     paths:
       - 'server/**'
       - 'index.html'

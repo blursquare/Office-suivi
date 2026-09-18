@@ -12,6 +12,37 @@ engagements du vendeur, et générer des rappels.
 Ce fichier donne à Claude Code tout le contexte nécessaire pour reprendre le développement sans
 avoir à redécouvrir l'historique des décisions. Lis-le entièrement avant toute modification.
 
+## Branches du dépôt (réorganisées le 18/09/2026, à la demande de l'étude)
+
+Le dépôt ne compte plus que **deux branches**, toutes les autres ayant été supprimées :
+
+- **`main`** — LA branche de travail. Elle porte désormais la **version serveur intranet**
+  (Express + `node:sqlite` + Ollama + lecture du NAS, voir la section « Mode serveur intranet »
+  plus bas) : c'est ce qui tourne réellement au bureau de l'étude via `CLAIRE-serveur.exe`.
+  Tout développement se fait ici.
+- **`sauvegarde`** — copie de `main`, destinée aux essais de l'étude. Elle ne reçoit aucun
+  développement : la resynchroniser depuis `main` quand l'étude le demande.
+
+**Piège de lecture pour tout l'historique ci-dessous** : avant cette réorganisation, le projet
+vivait sur deux branches parallèles — `main` portait la version 100 % locale (sans serveur,
+persistance `localStorage`) et `claude/serveur-intranet` la version serveur. Toutes les mentions
+de ces deux noms dans les entrées d'historique qui suivent se lisent avec ce sens **historique** :
+« sur `main` » y signifie « dans la version 100 % locale », et « sur `claude/serveur-intranet` »
+signifie « dans la version serveur, c'est-à-dire l'actuelle `main` ». Les contraintes
+fondamentales n°1 à 7 ci-dessous décrivent de même le mode 100 % local ; celles qui sont devenues
+sans objet en mode serveur le disent explicitement (voir la n°3).
+
+**La version 100 % locale n'est pas perdue** : son dernier état est le commit `c90e9d0`, conservé
+comme ancêtre de `main` par la fusion de réorganisation. La récupérer :
+`git checkout c90e9d0` (ou `git show c90e9d0:script.js` pour un seul fichier). Elle n'est plus
+maintenue — aucun correctif postérieur au 14/09/2026 ne s'y trouve.
+
+**Workflows GitHub** : `.github/workflows/build-exe.yml` (reconstruit `CLAIRE-serveur.exe` et le
+publie en release) se déclenche désormais sur un push vers `main`. L'ancien workflow d'aperçu
+GitHub Pages (`pages.yml`) a été **supprimé** : publier la version serveur sur Pages n'a aucun
+sens (sans backend, seul l'écran de connexion s'affiche et aucune connexion ne peut aboutir), et
+c'était la seule cause du check `deploy` rouge en permanence sur les PR.
+
 ## Structure du projet
 
 ```
@@ -2776,7 +2807,15 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     développement ici, comme pour les autres fonctionnalités liées à la sélection/au surlignage
     dans l'aperçu) — à confirmer par l'étude sur un compromis réel.
 
-## Mode serveur intranet (branche `claude/serveur-intranet`, distincte de `main`)
+## Mode serveur intranet (c'est désormais `main` — voir « Branches du dépôt » en tête de fichier)
+
+> **Note de relecture (18/09/2026)** : cette section a été écrite pendant que le serveur vivait
+> sur une branche séparée, `claude/serveur-intranet`, face à un `main` qui portait la version
+> 100 % locale. Depuis la réorganisation des branches, **c'est ce mode serveur qui EST `main`**,
+> et la version 100 % locale n'existe plus que dans l'historique (commit `c90e9d0`). Le texte
+> ci-dessous est conservé tel quel pour ne pas perdre le raisonnement d'origine : partout où il
+> oppose « cette branche » à « `main` », lire « la version serveur » contre « la version
+> 100 % locale ».
 
 Chantier séparé, sur sa propre branche — **`main` reste le mode 100% local décrit dans tout ce
 document ci-dessus, inchangé.** Origine : l'étude a demandé, en discutant des limites du registre
