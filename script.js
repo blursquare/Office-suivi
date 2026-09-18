@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-18 22:58';
+  const VERSION_APP = '2026-09-19 00:04';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-19 00:04', resume: "Outil 2, trois ajouts. Les OBLIGATIONS DU VENDEUR d'abord : sur un projet d'acte de vente avec un dossier CLAIRE lié, l'audit dit désormais, sans IA, si le vendeur a tenu ce à quoi le compromis l'engageait — attestation d'entretien ou de ramonage, factures de travaux, décennale… Chaque obligation ressort « tenue » (avec la pièce qui le prouve, trouvée dans le dossier client ou déposée pour l'audit), « non tenue », ou « à vérifier » quand aucune pièce type ne correspond à la clause, qui est alors citée avec sa page. Le dossier n'est jamais modifié : une facture déposée ici ne coche rien, elle sera reconnue une fois rangée sur le NAS. Ensuite une MÉMOIRE : chaque constat porte « Écarter » et « Confirmer » ; au prochain audit d'un acte similaire, un constat déjà écarté s'affiche replié (jamais supprimé), un constat confirmé remonte en tête — et « Annuler » efface la décision. Enfin, dès que le projet est lu, les dossiers dont les parties correspondent sont PROPOSÉS sous le champ de recherche, à confirmer d'un clic, jamais liés tout seuls" },
     { version: '2026-09-18 22:58', resume: "« Analyse approfondie (IA) » devient l'Outil 2 : un audit, plus une simple relecture. Un sélecteur explicite au dépôt — projet de compromis/promesse, ou projet d'acte de vente — choisit ce qui est comparé ; en projet d'acte, un dossier CLAIRE déjà suivi peut être lié (son compromis est retrouvé tout seul sur le NAS) pour comparer parties, prix, bien et dates SANS repasser par l'IA, un simple calcul. Chaque pièce déposée (titre, diagnostic, urbanisme, facture, autorisation, décennale, copropriété…) ne va plus qu'aux vérifications qui la concernent, en cinq passes au lieu d'une seule : identification/parties/prix/dates/titre, diagnostics (dont la durée de validité est calculée par l'outil, jamais par le modèle), travaux (en priorité, le point qui manquait le plus), urbanisme/autorisations/garanties/préemption/servitudes, et copropriété si besoin. Quatre niveaux de gravité, une citation vérifiée dans le bon document pour chaque constat important — jamais une confiance auto-déclarée par le modèle, qui n'a aucun moyen de la calibrer" },
     { version: '2026-09-18 21:13', resume: "Quatre automatisations pour libérer du temps. Dans le panneau « Ce que l'outil a compris », un bouton « Redemander à l'IA » redemande UNE SEULE donnée restée floue au modèle local, avec une fenêtre de texte plus large — sans relancer les trois lectures automatiques. Un nouveau panneau « Qualité de l'extraction » (dans « À propos ») montre enfin quels champs vous corrigez le plus souvent, pour savoir où l'extraction mérite d'être resserrée. Le serveur surveille désormais le NAS toutes les dix minutes : un document qui vient d'arriver dans un dossier relié déclenche un message, au lieu d'attendre le prochain clic sur « Revérifier ». Et trois nouveaux boutons de relance par email — prêt manquant, pièces à fournir, RIB — préparent chacun le bon brouillon, adressé au client, sans avoir à le rédiger à la main à chaque fois." },
     { version: '2026-09-18 18:05', resume: "Deux corrections. Un compromis SCANNÉ est maintenant lu en entier : chaque page sans texte passe par la reconnaissance d'image, et la lecture s'arrête d'elle-même au bloc de signature des parties, sans entamer les annexes. Jusqu'ici la reconnaissance ne servait qu'à retrouver la date de signature sur trois pages, ce qui laissait un scan entièrement illisible : les deux compromis scannés que vous avez envoyés ne donnaient rien, ils donnent désormais parties, adresse, prix et dates. Comptez quelques secondes par page — le message indique la page en cours. Le calendrier connecté, ensuite : il ne se mettait pas à jour, et c'était deux manques dans le flux publié. D'abord le numéro de séquence, qu'un client calendrier exige pour accepter de remplacer un événement qu'il connaît déjà : sans lui Outlook gardait l'ancienne date butoir. Ensuite l'annulation explicite : un événement qui disparaît du flux n'est jamais supprimé par le client, il faut publier son annulation — d'où les dates de vente périmées qui restaient affichées. Les échéances effacées et les dossiers archivés sont désormais publiés comme annulés" },
@@ -2746,6 +2747,151 @@
     }
 
     return constats;
+  }
+
+  // ==== OUTIL 2 : les obligations du vendeur ont-elles été tenues ? ====
+  //
+  // Demandé par l'étude pour la relecture d'un projet d'acte de vente : entre le compromis et
+  // l'acte, le vendeur s'est engagé à fournir des attestations d'entretien, des factures de
+  // travaux, une garantie décennale, à réaliser des travaux… Le dossier Outil 1 porte déjà tout
+  // ce qu'il faut pour répondre SANS IA — un croisement de trois sources, toutes déterministes :
+  //   1. les engagements lus dans le compromis à la création du dossier (d.analyseJuridique), dont
+  //      les documents reconnus alimentent la checklist (PIECES_ENGAGEMENTS_AUTO, checklistPieces) ;
+  //   2. le statut de chaque pièce de cette checklist sur le NAS (d.pieces, d.fichiersTrouves) ;
+  //   3. les documents déposés dans Outil 2 lui-même (une facture, une attestation… déposée à
+  //      l'audit compte comme fournie, même si elle n'est pas encore rangée dans le dossier NAS).
+  // Le dossier n'est jamais modifié : un document déposé ici ne coche rien dans la checklist, la
+  // pièce sera marquée reçue par le parcours NAS habituel une fois rangée dans le dossier client
+  // (choix explicite de l'étude, Outil 2 reste un outil de lecture).
+  //
+  // Une obligation dont aucune pièce type ne correspond (« le vendeur fera réparer la toiture ») ne
+  // peut pas être vérifiée par un document : elle ressort « à vérifier », avec la clause et sa page,
+  // jamais « non tenue » — l'outil ne sait pas, il ne prétend pas savoir.
+
+  // Un document déposé dans Outil 2 vaut pour une pièce type : par son TYPE déclaré quand il est
+  // sans ambiguïté (une « facture de travaux » EST la pièce facturesTravaux), sinon par son nom de
+  // fichier, avec les mêmes motifNom que le parcours NAS (normalisation identique — voir
+  // normaliserNomPourMotif — pour qu'un fichier reconnu dans le dossier client le soit aussi ici).
+  var TYPE_DEPOT_VERS_PIECE = { facture: 'facturesTravaux', decennale: 'garantieDecennale' };
+
+  function documentDeposePourPiece(piece, documentsDeposes) {
+    for (const doc of documentsDeposes || []) {
+      if (!doc || !doc.nom) continue;
+      if (TYPE_DEPOT_VERS_PIECE[doc.type] === piece.cle) return doc;
+      if (piece.motifNom && piece.motifNom.test(normaliserNomPourMotif(doc.nom))) return doc;
+    }
+    return null;
+  }
+
+  var LIBELLES_CAT_OBLIGATION = { entretien: 'Entretien', travaux: 'Travaux', justificatif: 'Justificatif', document: 'Document', autre: 'Autre' };
+
+  function verifierObligationsVendeur(d, documentsDeposes) {
+    if (!d) return [];
+    const obligations = [];
+    const pieces = d.pieces || {};
+    const fichiers = d.fichiersTrouves || {};
+    const engagements = (d.analyseJuridique && Array.isArray(d.analyseJuridique.engagements))
+      ? d.analyseJuridique.engagements : [];
+
+    // Pour chaque pièce de la checklist issue d'un engagement, la clause d'origine quand on peut la
+    // retrouver : c'est elle que l'étude veut relire, pas seulement le libellé générique.
+    const clausePourCle = {};
+    for (const e of engagements) {
+      const phrase = typeof e === 'string' ? e : (e && e.phrase);
+      if (!phrase) continue;
+      for (const doc of detecterDocumentsAFournir([phrase])) {
+        if (doc.cleChecklist && !clausePourCle[doc.cleChecklist]) {
+          clausePourCle[doc.cleChecklist] = { phrase, page: (typeof e === 'object' && e.page) || null };
+        }
+      }
+    }
+
+    const attendues = checklistPieces(d.typeVente, d).filter(p => p.autoEngagement);
+    for (const piece of attendues) {
+      const connu = DOCUMENTS_VENDEUR_CONNUS.find(x => x.cleChecklist === piece.cle);
+      const cat = connu ? connu.cat : 'document';
+      const clause = clausePourCle[piece.cle] || null;
+      const base = { cle: piece.cle, label: piece.label, cat, clause: clause ? clause.phrase : null, page: clause ? clause.page : null };
+      if (pieces[piece.cle] === 'recue') {
+        obligations.push({ ...base, statut: 'tenue', gravite: 'INFORMATION', preuve: { source: 'dossier', nom: fichiers[piece.cle] || null } });
+        continue;
+      }
+      const depose = documentDeposePourPiece(piece, documentsDeposes);
+      if (depose) {
+        obligations.push({ ...base, statut: 'tenue', gravite: 'INFORMATION', preuve: { source: 'depot', nom: depose.nom } });
+        continue;
+      }
+      // Jamais CRITIQUE sur une simple absence (§16 du cahier des charges) : IMPORTANT au plus.
+      obligations.push({ ...base, statut: 'non_tenue', gravite: 'IMPORTANT', preuve: null });
+    }
+
+    // Engagements sans pièce type : rien à cocher, mais à relire — la clause le dit mieux qu'un
+    // libellé, et sa page permet de la retrouver dans le compromis.
+    const clesCouvertes = new Set(attendues.map(p => p.cle));
+    for (const e of engagements) {
+      const phrase = typeof e === 'string' ? e : (e && e.phrase);
+      if (!phrase) continue;
+      const docs = detecterDocumentsAFournir([phrase]);
+      if (docs.some(doc => doc.cleChecklist && clesCouvertes.has(doc.cleChecklist))) continue;
+      obligations.push({
+        cle: null,
+        label: phrase.length > 140 ? phrase.slice(0, 137) + '…' : phrase,
+        cat: (typeof e === 'object' && e.type) || 'autre',
+        clause: phrase,
+        page: (typeof e === 'object' && e.page) || null,
+        statut: 'a_verifier',
+        gravite: 'A_VERIFIER',
+        preuve: null
+      });
+    }
+
+    // Les manquements d'abord : c'est ce qu'on vient chercher avant de signer.
+    const rang = { non_tenue: 0, a_verifier: 1, tenue: 2 };
+    obligations.sort((a, b) => rang[a.statut] - rang[b.statut]);
+    return obligations;
+  }
+
+  // ==== OUTIL 2 : proposer le dossier Outil 1 qui correspond au projet ====
+  //
+  // En mode « projet d'acte de vente », les parties lues dans le projet désignent presque toujours
+  // un dossier déjà suivi (le compromis a été importé dans Outil 1 des mois plus tôt). Plutôt que
+  // de faire retaper un nom, on PROPOSE les dossiers dont le nom ou les parties partagent un
+  // patronyme avec le projet — en tête de la liste, mais toujours un clic explicite (choix de
+  // l'étude, comme pour le rapprochement NAS : auditer contre le mauvais dossier ferait comparer
+  // deux ventes qui n'ont rien à voir). Jamais de liaison automatique.
+  function motsDiscriminants(texte) {
+    return normaliserPourRecherche(String(texte || ''))
+      .split(/[^a-z0-9]+/)
+      .filter(m => m.length >= 3 && !MOTS_COMMUNS_NOM_DOSSIER.has(m));
+  }
+
+  // Civilités, qualités et mots de liaison qu'un nom de dossier ou de partie peut contenir sans
+  // rien dire de l'identité ("épouse", "veuve", "sci", "monsieur"…) — un dossier proposé sur le
+  // seul mot « epouse » commun aux deux serait un faux rapprochement.
+  var MOTS_COMMUNS_NOM_DOSSIER = new Set([
+    'monsieur', 'madame', 'mademoiselle', 'mme', 'mlle', 'epouse', 'epoux', 'veuve', 'veuf', 'nee',
+    'les', 'des', 'consorts', 'societe', 'sci', 'sarl', 'sas', 'eurl', 'vendeur', 'vendeurs',
+    'acquereur', 'acquereurs', 'promettant', 'beneficiaire', 'dossier', 'vente', 'succession'
+  ]);
+
+  function proposerDossiersDepuisParties(parties, listeDossiers) {
+    const noms = (parties || []).map(p => (p && p.nom) || '').filter(Boolean);
+    if (noms.length === 0) return [];
+    const motsProjet = new Set(noms.flatMap(motsDiscriminants));
+    if (motsProjet.size === 0) return [];
+    const scores = [];
+    for (const d of listeDossiers || []) {
+      if (!d || d.archive) continue;
+      const motsDossier = new Set([
+        ...motsDiscriminants(d.nom),
+        ...((d.parties || []).flatMap(p => motsDiscriminants(p && p.nom)))
+      ]);
+      let score = 0;
+      for (const m of motsProjet) { if (motsDossier.has(m)) score++; }
+      if (score > 0) scores.push({ dossier: d, score });
+    }
+    scores.sort((a, b) => b.score - a.score);
+    return scores.map(s => s.dossier);
   }
 
   // Corrections apportées À LA MAIN entre ce que l'extraction proposait et ce qui est réellement
@@ -8997,6 +9143,120 @@
     sauvegarderExclusionsMotifNom();
   }
 
+  // ---- apprentissage des constats d'Outil 2 (Audit des actes) ----
+  // Demandé par l'étude : « un outil d'apprentissage pour l'Outil 2 ». Ce qu'il apprend, choisi
+  // avec elle : les constats qu'elle ÉCARTE (faux positifs du modèle, ou remarques sans intérêt
+  // pour sa pratique) et ceux qu'elle CONFIRME comme pertinents. Au prochain audit, un constat à
+  // formulation proche est affiché REPLIÉ « déjà écarté précédemment » — jamais supprimé en
+  // silence : le modèle local se trompe, l'étude aussi peut s'être trompée une fois, et un constat
+  // qui revient sur un autre acte n'est pas forcément le même problème — ou remonté en tête comme
+  // « confirmé lors d'un audit précédent ».
+  // Même mécanique de similarité que les corrections apprises d'Outil 1 (Jaccard sur les mots de
+  // 3 lettres et plus, dates/nombres neutralisés), sur une empreinte titre + extrait cité : l'extrait
+  // est du texte littéral de l'acte, stable d'un audit à l'autre sur une même trame, là où le titre
+  // et la description sont reformulés par le modèle à chaque appel. Seuil plus bas que pour les
+  // corrections de dates (0.5 contre 0.6) : l'effet d'une reconnaissance n'est qu'un repli ou un
+  // badge, jamais une décision prise à la place de l'étude — on peut se permettre d'être un peu
+  // plus large. Stocké à part (clé propre), jamais mélangé aux corrections de dates/engagements.
+  const CLE_MEMOIRE_AUDIT = 'audit-constats-memoire';
+  const SEUIL_SIMILARITE_AUDIT = 0.5;
+  const MAX_CONSTATS_MEMORISES = 500;
+  let memoireAuditConstats = [];
+
+  async function sauvegarderMemoireAudit() {
+    const contenu = JSON.stringify(memoireAuditConstats);
+    try {
+      if (window.storage) { await window.storage.set(CLE_MEMOIRE_AUDIT, contenu, false); return; }
+    } catch (e) { console.warn('window.storage indisponible pour la mémoire d’audit, repli sur localStorage.', e); }
+    try { localStorage.setItem(CLE_MEMOIRE_AUDIT, contenu); } catch (e) { console.warn('Sauvegarde de la mémoire d’audit impossible.', e); }
+  }
+
+  async function chargerMemoireAudit() {
+    let brut = null;
+    try {
+      if (window.storage) {
+        const res = await window.storage.get(CLE_MEMOIRE_AUDIT, false);
+        if (res && res.value) brut = JSON.parse(res.value);
+      }
+    } catch (e) { /* on tente le repli ci-dessous */ }
+    if (brut === null) {
+      try {
+        const local = localStorage.getItem(CLE_MEMOIRE_AUDIT);
+        if (local) brut = JSON.parse(local);
+      } catch (e) { /* rien d'exploitable non plus ici */ }
+    }
+    memoireAuditConstats = Array.isArray(brut)
+      ? brut.filter(c => c && typeof c === 'object' && Array.isArray(c.tokens) && (c.decision === 'ecarte' || c.decision === 'confirme'))
+      : [];
+  }
+
+  // Empreinte d'un constat : ses mots discriminants (titre + premier extrait cité, ou description
+  // à défaut d'extrait). Le titre seul serait trop court ; la description seule est réécrite par
+  // le modèle à chaque audit.
+  function empreinteConstat(constat) {
+    if (!constat) return new Set();
+    const sources = Array.isArray(constat.sources) ? constat.sources : [];
+    const extrait = sources.map(s => s && s.extrait).find(Boolean) || '';
+    const texte = [constat.titre || constat.label || '', extrait || constat.description || constat.message || ''].join(' ');
+    return tokeniserApprentissage(normaliserTexteApprentissage(texte));
+  }
+
+  // Décision mémorisée la plus proche d'un constat, ou null. `memoire` est passée explicitement
+  // (fonction pure, testable) — l'état de la page l'appelle avec memoireAuditConstats.
+  function decisionPourConstat(constat, memoire) {
+    const liste = Array.isArray(memoire) ? memoire : [];
+    if (liste.length === 0) return null;
+    const tokens = empreinteConstat(constat);
+    if (tokens.size < 3) return null;
+    let meilleure = null;
+    let meilleurScore = SEUIL_SIMILARITE_AUDIT;
+    for (const m of liste) {
+      const score = similariteJaccard(tokens, new Set(m.tokens));
+      if (score >= meilleurScore) { meilleure = m; meilleurScore = score; }
+    }
+    return meilleure;
+  }
+
+  // Enregistre (ou remplace) la décision de l'étude sur un constat, dans la mémoire passée en
+  // paramètre, qu'elle renvoie mise à jour. La DERNIÈRE décision l'emporte sur un constat déjà
+  // connu : écarter puis confirmer, c'est changer d'avis, pas cumuler deux avis contraires.
+  function memoriserDecisionDans(memoire, constat, decision) {
+    const liste = Array.isArray(memoire) ? memoire.slice() : [];
+    if (decision !== 'ecarte' && decision !== 'confirme') return liste;
+    const tokens = [...empreinteConstat(constat)];
+    if (tokens.length < 3) return liste;
+    const existante = decisionPourConstat(constat, liste);
+    if (existante) {
+      existante.decision = decision;
+      existante.nb = (existante.nb || 1) + 1;
+      existante.dateMaj = new Date().toISOString();
+      return liste;
+    }
+    liste.push({
+      id: (crypto.randomUUID ? crypto.randomUUID() : 'a-' + Date.now() + '-' + Math.random().toString(16).slice(2)),
+      tokens,
+      titreExemple: String(constat.titre || constat.label || '').slice(0, 160),
+      decision,
+      nb: 1,
+      dateMaj: new Date().toISOString()
+    });
+    if (liste.length > MAX_CONSTATS_MEMORISES) {
+      liste.sort((a, b) => (b.nb || 1) - (a.nb || 1) || String(b.dateMaj).localeCompare(String(a.dateMaj)));
+      liste.length = MAX_CONSTATS_MEMORISES;
+    }
+    return liste;
+  }
+
+  function memoriserDecisionConstat(constat, decision) {
+    memoireAuditConstats = memoriserDecisionDans(memoireAuditConstats, constat, decision);
+    sauvegarderMemoireAudit();
+  }
+
+  function oublierDecisionConstat(idMemoire) {
+    memoireAuditConstats = memoireAuditConstats.filter(m => m.id !== idMemoire);
+    sauvegarderMemoireAudit();
+  }
+
   // ---- export / import (sauvegarde JSON complète du registre) ----
 
   function exporterDonnees() {
@@ -10971,6 +11231,7 @@
     auditMode = (valeur === 'acte') ? 'acte' : 'compromis';
     const bloc = document.getElementById('audit-reference-bloc');
     if (bloc) bloc.style.display = auditMode === 'acte' ? '' : 'none';
+    calculerPropositionsDossierAudit();
   }
 
   function changerAuditTypeVente(valeur) {
@@ -10980,22 +11241,57 @@
   // Recherche d'un dossier CLAIRE à lier à l'audit (mode "projet d'acte de vente" uniquement) —
   // même patron que renderRechercheDashboard() (Tableau de bord), un menu de résultats sous le
   // champ plutôt qu'un filtre sur une liste déjà affichée, qui n'existe pas ici.
+  function ligneResultatDossierAudit(d) {
+    return `<button type="button" class="dash-recherche-ligne" onclick="choisirDossierAudit('${d.id}')">
+          ${renderBadgeStatut(d)}
+          <span class="dash-recherche-nom">${escapeHtml(d.nom)}</span>
+          <span class="dash-recherche-resp">${escapeHtml(d.responsable || '')}</span>
+        </button>`;
+  }
+
   function rechercherDossierAudit(valeur) {
     const bloc = document.getElementById('audit-dossier-resultats');
     if (!bloc) return;
     const q = normaliserPourRecherche(String(valeur || '').trim());
-    if (!q) { bloc.style.display = 'none'; bloc.innerHTML = ''; return; }
+    if (!q) { renderPropositionsDossierAudit(); return; }
     const resultats = dossiers
       .filter(d => !d.archive && normaliserPourRecherche(d.nom + ' ' + (d.responsable || '')).includes(q))
       .slice(0, 8);
     bloc.innerHTML = resultats.length === 0
       ? '<div class="dash-recherche-vide">Aucun dossier ne correspond.</div>'
-      : resultats.map(d => `
-        <button type="button" class="dash-recherche-ligne" onclick="choisirDossierAudit('${d.id}')">
-          ${renderBadgeStatut(d)}
-          <span class="dash-recherche-nom">${escapeHtml(d.nom)}</span>
-          <span class="dash-recherche-resp">${escapeHtml(d.responsable || '')}</span>
-        </button>`).join('');
+      : resultats.map(ligneResultatDossierAudit).join('');
+    bloc.style.display = 'block';
+  }
+
+  // Dossiers proposés d'après les parties lues dans le document principal (voir
+  // proposerDossiersDepuisParties) : affichés sous le champ de recherche tant qu'il est vide et
+  // qu'aucun dossier n'est lié — une proposition à confirmer d'un clic, jamais une liaison faite
+  // toute seule. Recalculés dès que le principal est lu, change de type, ou que le mode passe à
+  // « projet d'acte de vente » (le bloc n'existe pas dans l'autre mode).
+  let auditDossiersProposes = [];
+
+  function calculerPropositionsDossierAudit() {
+    auditDossiersProposes = [];
+    if (auditMode !== 'acte') { renderPropositionsDossierAudit(); return; }
+    const principal = fichiersAnalyseIa.find(f => f.type === 'principal' && f.statut === 'ok');
+    if (principal && principal.texte) {
+      const typeActe = detecterTypeActe(principal.texte);
+      const parties = detecterParties(principal.texte, typeActe && typeActe.valeur);
+      auditDossiersProposes = proposerDossiersDepuisParties(parties, dossiers).slice(0, 5);
+    }
+    renderPropositionsDossierAudit();
+  }
+
+  function renderPropositionsDossierAudit() {
+    const bloc = document.getElementById('audit-dossier-resultats');
+    if (!bloc) return;
+    if (auditDossierLie || auditDossiersProposes.length === 0) {
+      bloc.style.display = 'none';
+      bloc.innerHTML = '';
+      return;
+    }
+    bloc.innerHTML = `<div class="dash-recherche-vide">${icone('sparkle')} Dossier(s) dont les parties correspondent au projet — cliquez pour lier :</div>`
+      + auditDossiersProposes.map(ligneResultatDossierAudit).join('');
     bloc.style.display = 'block';
   }
 
@@ -11011,14 +11307,14 @@
     auditDossierLie = dossiers.find(d => d.id === id) || null;
     const champ = document.getElementById('audit-dossier-recherche');
     if (champ) champ.value = '';
-    const bloc = document.getElementById('audit-dossier-resultats');
-    if (bloc) { bloc.style.display = 'none'; bloc.innerHTML = ''; }
+    renderPropositionsDossierAudit();
     renderDossierLieAudit();
   }
 
   function retirerDossierAudit() {
     auditDossierLie = null;
     renderDossierLieAudit();
+    renderPropositionsDossierAudit();
   }
 
   // Va chercher le compromis/la promesse d'un dossier CLAIRE lié DIRECTEMENT SUR LE NAS déjà relié
@@ -11132,16 +11428,22 @@
       console.error('Analyse IA : échec de lecture de', entree.nom, e);
     }
     renderListeFichiersAnalyseIa();
+    if (entree.type === 'principal') calculerPropositionsDossierAudit();
   }
 
   function changerTypeFichierAnalyseIa(id, valeur) {
     const entree = fichiersAnalyseIa.find(f => f.id === id);
-    if (entree) entree.type = valeur;
+    if (!entree) return;
+    const etaitPrincipal = entree.type === 'principal';
+    entree.type = valeur;
+    if (etaitPrincipal || valeur === 'principal') calculerPropositionsDossierAudit();
   }
 
   function retirerFichierAnalyseIa(id) {
+    const retire = fichiersAnalyseIa.find(f => f.id === id);
     fichiersAnalyseIa = fichiersAnalyseIa.filter(f => f.id !== id);
     renderListeFichiersAnalyseIa();
+    if (retire && retire.type === 'principal') calculerPropositionsDossierAudit();
   }
 
   // Pas de demanderConfirmation() ici, volontairement : rien n'est enregistré (voir en tête de
@@ -11243,13 +11545,72 @@
   // Constat générique (identification/parties/prix/dates/titre, travaux, urbanisme/autorisations/
   // garanties, préemption, servitudes, copropriété) : même gabarit pour toutes ces sections, la
   // seule chose qui change d'une section à l'autre est la liste passée à renderSectionAudit().
+  // Décision de l'étude sur un constat (voir la mémoire d'audit, memoriserDecisionConstat) :
+  // deux boutons sur chaque constat, « Écarter » et « Confirmer », et l'état mémorisé affiché en
+  // clair — un constat déjà écarté se replie (jamais supprimé : on le voit toujours, replié), un
+  // constat déjà confirmé remonte en tête de sa section. « Annuler » retire la décision mémorisée,
+  // pour ne pas laisser une erreur d'un clic peser sur tous les audits suivants.
+  function renderDecisionAudit(c) {
+    if (!c.uid) return '';
+    const m = c.memoire;
+    if (m) {
+      const nb = m.nb > 1 ? ` (${m.nb} fois)` : '';
+      const texte = m.decision === 'ecarte' ? `Déjà écarté précédemment${nb}` : `Confirmé lors d'un audit précédent${nb}`;
+      return `<div class="analyse-ia-constat-actions">
+        <span class="dot-label ${m.decision === 'ecarte' ? 'dl-neutre' : 'dl-success'}">${icone(m.decision === 'ecarte' ? 'x' : 'check')}${texte}</span>
+        <button type="button" class="icon-btn" onclick="annulerDecisionConstatAudit('${c.uid}')" title="Oublier cette décision">${icone('rotate-ccw')} Annuler</button>
+      </div>`;
+    }
+    return `<div class="analyse-ia-constat-actions">
+      <button type="button" class="icon-btn" onclick="decisionConstatAudit('${c.uid}', 'ecarte')" title="Ne plus signaler ce constat sur les prochains audits (il restera visible, replié)">${icone('x')} Écarter</button>
+      <button type="button" class="icon-btn" onclick="decisionConstatAudit('${c.uid}', 'confirme')" title="Marquer ce constat comme pertinent : il remontera en tête sur les prochains audits">${icone('check')} Confirmer</button>
+    </div>`;
+  }
+
   function renderConstatAudit(c) {
     const g = libelleGraviteAudit(c.gravite);
-    return `<div class="analyse-ia-constat">
-      <div class="analyse-ia-constat-titre"><span class="dot-label ${g.dl}">${icone(g.icone)}${g.texte}</span>${escapeHtml(c.titre)}</div>
+    const corps = `<div class="analyse-ia-constat-titre"><span class="dot-label ${g.dl}">${icone(g.icone)}${g.texte}</span>${escapeHtml(c.titre)}</div>
       ${c.description ? `<p class="analyse-ia-constat-desc">${escapeHtml(c.description)}</p>` : ''}
       ${c.action ? `<p class="analyse-ia-constat-desc"><em>À vérifier : ${escapeHtml(c.action)}</em></p>` : ''}
       ${renderSourcesAudit(c.sources)}
+      ${renderDecisionAudit(c)}`;
+    if (c.memoire && c.memoire.decision === 'ecarte') {
+      return `<details class="analyse-ia-constat constat-ecarte">
+        <summary><span class="dot-label dl-neutre">${icone('x')}Déjà écarté</span>${escapeHtml(c.titre)}</summary>
+        ${corps}
+      </details>`;
+    }
+    return `<div class="analyse-ia-constat${c.memoire ? ' constat-confirme' : ''}">${corps}</div>`;
+  }
+
+  // Une obligation du vendeur (voir verifierObligationsVendeur) : tenue (avec la pièce qui le
+  // prouve, et d'où elle vient), non tenue, ou à vérifier à la main quand aucune pièce type ne
+  // correspond à la clause.
+  function renderObligationAudit(o) {
+    const g = libelleGraviteAudit(o.gravite);
+    const etat = o.statut === 'tenue'
+      ? `<span class="dot-label dl-success">${icone('check')}Tenue</span>`
+      : o.statut === 'non_tenue'
+        ? `<span class="dot-label ${g.dl}">${icone(g.icone)}Non tenue</span>`
+        : `<span class="dot-label ${g.dl}">${icone(g.icone)}À vérifier</span>`;
+    const cat = LIBELLES_CAT_OBLIGATION[o.cat] ? `<span class="engagement-type ${escapeAttr(o.cat)}">${LIBELLES_CAT_OBLIGATION[o.cat]}</span>` : '';
+    let preuve = '';
+    if (o.preuve && o.preuve.source === 'dossier') {
+      preuve = `<p class="analyse-ia-constat-desc">Pièce trouvée dans le dossier client${o.preuve.nom ? ' : <em>' + escapeHtml(o.preuve.nom) + '</em>' : ''}.</p>`;
+    } else if (o.preuve && o.preuve.source === 'depot') {
+      preuve = `<p class="analyse-ia-constat-desc">Document déposé pour cet audit : <em>${escapeHtml(o.preuve.nom)}</em> (non rangé dans le dossier client, à classer).</p>`;
+    } else if (o.statut === 'non_tenue') {
+      preuve = '<p class="analyse-ia-constat-desc">Aucune pièce correspondante, ni dans le dossier client ni parmi les documents déposés ici.</p>';
+    } else {
+      preuve = '<p class="analyse-ia-constat-desc">Aucune pièce type ne correspond à cet engagement : à vérifier à la main.</p>';
+    }
+    const clause = o.clause && o.cle
+      ? `<div class="analyse-ia-constat-docs">${o.page ? 'p.' + o.page + ' — ' : ''}« ${escapeHtml(o.clause.length > 200 ? o.clause.slice(0, 197) + '…' : o.clause)} »</div>`
+      : (o.page ? `<div class="analyse-ia-constat-docs">p.${o.page} du compromis</div>` : '');
+    return `<div class="analyse-ia-constat">
+      <div class="analyse-ia-constat-titre">${etat}${cat}${escapeHtml(o.label)}</div>
+      ${preuve}
+      ${clause}
     </div>`;
   }
 
@@ -11267,14 +11628,66 @@
   }
 
   function renderSectionAudit(titre, liste, rendreItem) {
-    const items = Array.isArray(liste) ? liste : [];
+    const items = Array.isArray(liste) ? liste.slice() : [];
     if (items.length === 0) return '';
+    // Confirmés en tête, écartés en queue (repliés), le reste dans l'ordre du serveur.
+    const rang = c => (c.memoire ? (c.memoire.decision === 'confirme' ? 0 : 2) : 1);
+    items.sort((a, b) => rang(a) - rang(b));
     return `<div class="dash-section-titre" style="margin-top:14px;">${escapeHtml(titre)} (${items.length})</div>${items.map(rendreItem).join('')}`;
+  }
+
+  // Le dernier rapport affiché, pour le redessiner après une décision sur un constat sans
+  // relancer l'audit ; chaque constat reçoit un identifiant de rendu (uid) et sa décision
+  // mémorisée (memoire), posés par preparerRapportAudit().
+  let dernierRapportAudit = null;
+  let constatsAuditParUid = {};
+  var SECTIONS_CONSTATS_AUDIT = ['constats', 'dates', 'diagnostics', 'travaux', 'urbanisme', 'preemptions', 'servitudes', 'copropriete'];
+
+  function preparerRapportAudit(resultat) {
+    constatsAuditParUid = {};
+    let n = 0;
+    for (const cle of SECTIONS_CONSTATS_AUDIT) {
+      for (const c of (resultat[cle] || [])) {
+        if (!c || typeof c !== 'object') continue;
+        c.uid = `k${++n}`;
+        constatsAuditParUid[c.uid] = c;
+        const m = decisionPourConstat(c, memoireAuditConstats);
+        c.memoire = m ? { id: m.id, decision: m.decision, nb: m.nb || 1 } : null;
+      }
+    }
+  }
+
+  function decisionConstatAudit(uid, decision) {
+    const c = constatsAuditParUid[uid];
+    if (!c || !dernierRapportAudit) return;
+    memoriserDecisionConstat(c, decision);
+    preparerRapportAudit(dernierRapportAudit);
+    renderRapportAuditActe(dernierRapportAudit);
+    afficherToast(decision === 'ecarte'
+      ? 'Constat écarté : il sera replié sur les prochains audits d’un acte similaire.'
+      : 'Constat confirmé : il remontera en tête sur les prochains audits d’un acte similaire.', 'OK', null);
+  }
+
+  function annulerDecisionConstatAudit(uid) {
+    const c = constatsAuditParUid[uid];
+    if (!c || !c.memoire || !dernierRapportAudit) return;
+    oublierDecisionConstat(c.memoire.id);
+    preparerRapportAudit(dernierRapportAudit);
+    renderRapportAuditActe(dernierRapportAudit);
   }
 
   // Comptage par gravité — calculé côté serveur (voir calculerResume, fusion.js), jamais par le
   // modèle : une synthèse générée par le modèle affirmerait des chiffres qu'il n'a lui-même aucun
   // moyen de garantir cohérents avec le détail.
+  // Les constats ajoutés côté client (comparaison structurée, obligations du vendeur) entrent
+  // dans le même comptage que ceux du serveur — toujours un calcul, jamais le modèle.
+  function incrementerResumeAudit(corps, gravite) {
+    if (!corps.resume) corps.resume = { syntheseParGravite: {} };
+    if (!corps.resume.syntheseParGravite) corps.resume.syntheseParGravite = {};
+    const s = corps.resume.syntheseParGravite;
+    s[gravite] = (s[gravite] || 0) + 1;
+  }
+
   function renderResumeAudit(resume) {
     if (!resume) return '';
     const s = resume.syntheseParGravite || {};
@@ -11295,8 +11708,17 @@
       html += `<p class="hint">${icone('alert-triangle')} Passe « ${escapeHtml(e.passe)} » indisponible : ${escapeHtml(e.message)}</p>`;
     }
 
-    const total = ['constats', 'dates', 'diagnostics', 'travaux', 'urbanisme', 'preemptions', 'servitudes', 'copropriete']
-      .reduce((n, cle) => n + ((resultat[cle] || []).length), 0);
+    // Obligations du vendeur (mode acte + dossier lié, voir verifierObligationsVendeur) : en
+    // tête, avant les constats du modèle — c'est un résultat sûr, calculé, pas une suggestion.
+    if (Array.isArray(resultat.obligationsVendeur)) {
+      html += resultat.obligationsVendeur.length
+        ? renderSectionAudit('Obligations du vendeur', resultat.obligationsVendeur, renderObligationAudit)
+        : '<p class="hint">Aucune obligation du vendeur relevée dans le compromis du dossier lié.</p>';
+    } else if (resultat.modeAudit === 'acte') {
+      html += '<p class="hint">Liez un dossier CLAIRE (ci-contre) pour vérifier si le vendeur a tenu ses obligations — attestations d’entretien, factures de travaux, décennale…</p>';
+    }
+
+    const total = SECTIONS_CONSTATS_AUDIT.reduce((n, cle) => n + ((resultat[cle] || []).length), 0);
     if (total === 0) {
       html += '<p class="hint">Aucune incohérence relevée par le modèle sur les documents fournis — à vérifier malgré tout, voir la note ci-dessous.</p>';
     } else {
@@ -11372,10 +11794,23 @@
           corps.constats = Array.isArray(corps.constats) ? corps.constats : [];
           for (const c of diff) {
             corps.constats.unshift({ gravite: c.gravite, titre: c.titre, description: c.description, action: null, sources: [] });
+            incrementerResumeAudit(corps, c.gravite);
+          }
+        }
+
+        // Obligations du vendeur (voir verifierObligationsVendeur) : uniquement avec un dossier
+        // lié — c'est lui qui porte les engagements lus dans le compromis et l'état des pièces.
+        if (auditDossierLie) {
+          corps.obligationsVendeur = verifierObligationsVendeur(auditDossierLie, fichiersOk.map(f => ({ nom: f.nom, type: f.type })));
+          for (const o of corps.obligationsVendeur) {
+            if (o.statut !== 'tenue') incrementerResumeAudit(corps, o.gravite);
           }
         }
       }
+      corps.modeAudit = auditMode;
 
+      dernierRapportAudit = corps;
+      preparerRapportAudit(corps);
       renderRapportAuditActe(corps);
     } catch (e) {
       // Session expirée : déjà géré par fetchAvecAuth (écran de connexion réaffiché).
@@ -11425,6 +11860,7 @@
   chargerApprentissage();
   chargerExclusionsMotifNom();
   chargerJournalCorrections();
+  chargerMemoireAudit();
   // Mode serveur intranet (voir CLAUDE.md) : l'application entière est bloquée par l'écran de
   // connexion tant que le mot de passe partagé n'a pas été validé — un jeton déjà mémorisé
   // (localStorage, valable 12h côté serveur) permet de sauter cette étape au rechargement.

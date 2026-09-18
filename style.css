@@ -977,9 +977,23 @@
     flex-direction: column;
     gap: 6px;
   }
-  .analyse-ia-constat-titre { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 13.5px; }
+  .analyse-ia-constat-titre { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 13.5px; flex-wrap: wrap; }
   .analyse-ia-constat-desc { font-size: 13px; color: var(--ink-soft); margin: 0; }
   .analyse-ia-constat-docs { font-size: 11.5px; color: var(--muted); font-style: italic; }
+  /* Décision de l'étude sur un constat (mémoire d'audit, voir renderDecisionAudit) : deux petits
+     boutons en pied de constat, ou l'état mémorisé + « Annuler ». */
+  .analyse-ia-constat-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+  .analyse-ia-constat-actions .icon-btn { font-size: 12px; display: inline-flex; align-items: center; gap: 4px; }
+  /* Constat déjà écarté lors d'un audit précédent : replié, jamais supprimé — le résumé reste
+     lisible, le détail à un clic. */
+  details.analyse-ia-constat.constat-ecarte { opacity: 0.72; gap: 0; }
+  details.analyse-ia-constat.constat-ecarte > summary {
+    cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 13px; list-style: none; flex-wrap: wrap;
+  }
+  details.analyse-ia-constat.constat-ecarte > summary::-webkit-details-marker { display: none; }
+  details.analyse-ia-constat.constat-ecarte[open] { opacity: 1; gap: 6px; }
+  details.analyse-ia-constat.constat-ecarte[open] > summary { margin-bottom: 4px; }
+  .analyse-ia-constat.constat-confirme { border-color: var(--success); }
   .calc-champs { display: flex; flex-direction: column; gap: 16px; }
   .calc-champ label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 7px; }
   .calc-radios { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -2060,7 +2074,7 @@
   .condition-badge.particuliere { background: var(--ventebien-bg); color: var(--ventebien); }
   .condition-contenu { color: var(--ink-soft); }
 
-  .engagement-type.document { background: var(--acte-bg); color: var(--acte); }
+  .engagement-type.document, .engagement-type.justificatif { background: var(--acte-bg); color: var(--acte); }
   .engagement-type.entretien { background: var(--ventebien-bg); color: var(--ventebien); }
   .engagement-type.travaux { background: var(--pret-bg); color: var(--pret); }
   .engagement-type.autre { background: var(--line-soft); color: var(--muted); }

@@ -4669,6 +4669,66 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     temps total d'un audit sur le CPU de bureau de l'étude (jusqu'à 5 appels séquentiels), et le taux
     de citations non retrouvées restent à confirmer par l'étude avec Ollama installé.
 
+- **Outil 2 : obligations du vendeur, mémoire des constats, dossier proposé** — trois demandes de
+  l'étude après les schémas de fonctionnement des deux outils (« Il faudrait aussi un outil
+  d'apprentissage pour l'outil 2 » ; « pour la relecture d'un projet d'acte de vente on vérifie si le
+  vendeur a tenu ses obligations » ; « peut-être relier les dossiers rentrés dans l'outil 1 à
+  l'outil 2 ? »). Quatre arbitrages demandés avant d'écrire une ligne, et obtenus : apprendre les
+  constats **écartés ET confirmés** ; vérifier les obligations à partir du **dossier lié + des
+  documents déposés** (pas du seul projet) ; **lecture seule** sur le dossier (un document déposé
+  dans Outil 2 ne coche rien dans la checklist Outil 1) ; dossier **proposé, clic explicite** (jamais
+  lié automatiquement). Trois chantiers, tous côté client, aucun changement serveur :
+  - **Obligations du vendeur** (`verifierObligationsVendeur(d, documentsDeposes)`, section « OUTIL 2 »
+    de script.js, testable) : croisement déterministe de trois sources déjà existantes — les
+    engagements lus dans le compromis à la création du dossier (`d.analyseJuridique.engagements`,
+    dont les documents reconnus alimentent la checklist via `PIECES_ENGAGEMENTS_AUTO`/
+    `checklistPieces(d.typeVente, d)` filtrée sur `autoEngagement`), l'état de ces pièces sur le NAS
+    (`d.pieces[cle] === 'recue'`, `d.fichiersTrouves[cle]`), et les documents déposés dans Outil 2
+    (`TYPE_DEPOT_VERS_PIECE` pour un type sans ambiguïté — facture → facturesTravaux, décennale →
+    garantieDecennale — sinon `motifNom` sur le nom de fichier, avec la même normalisation que le
+    parcours NAS). Trois statuts : `tenue` (avec la preuve et sa provenance, dossier ou dépôt),
+    `non_tenue` (IMPORTANT au plus — jamais CRITIQUE sur une simple absence, §16 du cahier),
+    `a_verifier` (un engagement sans pièce type, « le vendeur fera réparer la toiture » : l'outil ne
+    sait pas, il ne prétend pas savoir — la clause et sa page sont affichées pour la relire). Les
+    manquements d'abord. La clause d'origine est retrouvée par `detecterDocumentsAFournir([phrase])`
+    engagement par engagement. Section « Obligations du vendeur » en tête du rapport, avant les
+    constats du modèle — c'est un résultat calculé, pas une suggestion ; un mode « acte » sans
+    dossier lié affiche une invite à en lier un. Compte dans le résumé par gravité
+    (`incrementerResumeAudit`, qui couvre aussi les constats de la comparaison structurée, jusqu'ici
+    absents du comptage). Le cas sans dossier lié (dériver les obligations du seul compromis de
+    référence déposé) reste ouvert — l'étude a choisi le dossier lié.
+  - **Mémoire des constats** (`memoireAuditConstats`, clé `audit-constats-memoire`, section
+    « apprentissage des constats d'Outil 2 » de script.js) : deux boutons sur chaque constat,
+    « Écarter » et « Confirmer » (`decisionConstatAudit`), et l'état mémorisé affiché en clair au
+    prochain audit — un constat déjà écarté est **replié** (`<details>`, jamais supprimé : le modèle
+    se trompe, l'étude aussi peut s'être trompée une fois, et un constat qui revient sur un autre
+    acte n'est pas forcément le même problème), un constat déjà confirmé remonte en tête de sa
+    section avec un liseré vert. « Annuler » retire la décision (`oublierDecisionConstat`). Même
+    mécanique de similarité que les corrections apprises d'Outil 1 (Jaccard sur mots ≥ 3 lettres,
+    dates/nombres neutralisés), sur une empreinte **titre + premier extrait cité** (`empreinteConstat`)
+    : l'extrait est du texte littéral de l'acte, stable d'un audit à l'autre sur une même trame, là où
+    titre et description sont reformulés par le modèle à chaque appel. Seuil 0.5 (contre 0.6 pour
+    les dates) : l'effet n'est qu'un repli ou un badge, jamais une décision prise à la place de
+    l'étude. La dernière décision l'emporte (écarter puis confirmer = changer d'avis, pas cumuler).
+    Fonctions pures testables (`decisionPourConstat`, `memoriserDecisionDans` prennent la mémoire en
+    paramètre) ; `preparerRapportAudit` pose `uid`/`memoire` sur chaque constat et
+    `dernierRapportAudit` permet de redessiner sans relancer l'audit.
+  - **Dossier proposé depuis les parties du projet** (`proposerDossiersDepuisParties(parties,
+    dossiers)`, testable) : dès que le document principal est lu en mode « acte », ses parties
+    (`detecterTypeActe` + `detecterParties`, déjà en place) sont comparées aux noms ET aux `d.parties`
+    des dossiers actifs — mots discriminants seulement (`MOTS_COMMUNS_NOM_DOSSIER` écarte civilités,
+    qualités, « sci », « vendeur »…), score = nombre de patronymes en commun, les mieux classés en
+    tête. Affichés sous le champ de recherche tant qu'il est vide et qu'aucun dossier n'est lié
+    (`renderPropositionsDossierAudit`), recalculés à chaque lecture/retrait/changement de type du
+    principal et à chaque bascule de mode. Une proposition, jamais une liaison : auditer contre le
+    mauvais dossier ferait comparer deux ventes sans rapport — même prudence que le rapprochement
+    NAS.
+  - Tests : `tests/audit-obligations.test.js` (8), `tests/audit-memoire.test.js` (6),
+    `tests/audit-proposition.test.js` (6) — suite racine 393 → 413. Rendu vérifié en bac à sable
+    (constat avec/sans décision, écarté replié, confirmé, les trois statuts d'obligation avec
+    échappement HTML, tri de section). **Non vérifié dans un vrai navigateur** : pdf.js et Ollama
+    restent indisponibles ici, comme pour tout Outil 2.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à
@@ -4717,12 +4777,13 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
   d'été/hiver — utiliser `date` seul afficherait une heure fausse pour l'étude). Affichés dans
   l'écran "À propos", c'est actuellement le seul moyen pour l'étude de vérifier qu'elle a bien la
   dernière copie (et de voir CE QUI a changé) avant de resignaler un bug déjà corrigé.
-- **Outil 2 (Audit des actes) : `piecesManquantes` du §17 non implémenté** — sa version prévue est
-  un diff PUR (pas d'IA) entre les documents déclarés à l'upload et les engagements/documents déjà
-  repérés par les regex existantes d'Outil 1 (`detecterDocumentsAFournir`) : si le principal cite un
-  document que le compromis engage le vendeur à produire mais qu'aucun document du type correspondant
-  n'a été déposé, le signaler. Reporté faute de temps dans le chantier initial, pas une difficulté
-  technique particulière.
+- ~~**Outil 2 (Audit des actes) : `piecesManquantes` du §17 non implémenté**~~ — **fait**, sous une
+  forme plus riche que le diff prévu : la section « Obligations du vendeur » (`verifierObligationsVendeur`,
+  voir son entrée dans l'historique de la section « Mode serveur intranet ») croise les engagements
+  du dossier Outil 1 lié, l'état de ses pièces sur le NAS et les documents déposés dans Outil 2.
+  Reste ouvert : le cas SANS dossier lié (dériver les obligations du seul compromis de référence
+  déposé) — l'étude a explicitement choisi de s'appuyer sur le dossier lié, à reprendre si elle
+  demande le repli.
 - **Outil 2 : connecteur openlegi (Légifrance/PISTE/RNE-INPI/EUR-Lex)**, question posée
   explicitement par l'étude — volontairement pas construit (voir son historique détaillé plus haut,
   section "Mode serveur intranet") : utile uniquement pour vérifier des faits statiques (durées de
@@ -4743,11 +4804,13 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
 - Étendre l'apprentissage des corrections (voir historique ci-dessus) à `changerCategorie()`
   (reclassification après enregistrement du dossier) : nécessiterait de conserver le texte de la
   clause d'origine sur le dossier sauvegardé, pas seulement la date choisie.
-- Un panneau pour consulter/vider la mémoire des corrections apprises (`correctionsApprises`, et
-  désormais aussi `exclusionsMotifNom` — voir son historique plus haut, section "Mode serveur
-  intranet") serait utile si l'une des deux venait à accumuler des erreurs (ex. une exclusion
-  posée par erreur sur un vrai document) — aujourd'hui seul un vidage du `localStorage` du
-  navigateur permet de les réinitialiser.
+- Un panneau pour consulter/vider la mémoire des corrections apprises (`correctionsApprises`,
+  `exclusionsMotifNom`, et désormais `memoireAuditConstats` pour Outil 2 — voir leurs historiques
+  plus haut, section "Mode serveur intranet") serait utile si l'une d'elles venait à accumuler des
+  erreurs (ex. une exclusion posée par erreur sur un vrai document) — aujourd'hui seul un vidage du
+  `localStorage` du navigateur permet de les réinitialiser en bloc. La mémoire d'audit fait
+  exception à petite échelle : chaque constat reconnu porte un bouton « Annuler » qui retire la
+  décision mémorisée, une par une.
 - ~~Checklist de pièces par type de vente (terrain nu)~~ — **fait** (voir l'historique des décisions
   plus haut, "Nouveau type de vente 'Terrain à bâtir'") : `PIECES_TERRAIN_AUTRES`, option
   `<option value="terrain">` dans `#f-type-vente`, branche dans `checklistPieces()`.
