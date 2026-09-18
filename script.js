@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-18 15:09';
+  const VERSION_APP = '2026-09-18 15:45';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-18 15:45', resume: "Une condition de prêt exprimée en délai est de nouveau calculée quand la clause dit « dans un délai de 60 jours DE LA promesse » ou « du compromis » : le point de départ était perdu et l'échéance disparaissait du formulaire, alors que la panneau affichait à la fois « calculée depuis la signature » et « point de départ à déterminer » — deux phrases contradictoires. Le point de départ réel est maintenant nommé. Dans « Ce que l'outil a compris », taper une date à la main ne valide plus au premier chiffre de l'année. Les dates repérées (« Classées », « Non identifiées ») passent dans un bloc replié SOUS le panneau, qui se lit donc en premier. Vue Échéances : toutes les colonnes alignées d'une semaine à l'autre. L'origine trentenaire n'est plus comptée comme une obligation du vendeur. Alpha revient à droite de Connecté, et le bouton « Ajouter une obligation » respire enfin sous le panneau qui le précède" },
     { version: '2026-09-18 15:09', resume: "Huit points. L'adresse lue à l'étape « Vérifier » est enfin celle qui arrive à l'étape « Finaliser » : le vieux détecteur y écrivait un fragment brut que la lecture structurée n'osait plus corriger, le prenant pour votre saisie. Le dossier du NAS se relie désormais tout seul, sans clic, dès que le nom désigne un seul dossier client — à la création comme à l'ouverture de l'outil. « Rôle du notaire » et « Acte reçu par » disparaissent de la fiche : le badge « Reçoit l'acte » des deux notaires porte l'action, et le rôle de l'étude en est déduit. « Maître » précède les noms. Les échéances des 7 prochains jours ouvrent le dossier d'un clic. Les garanties ne sont plus cherchées que dans le paragraphe GARANTIES de l'offre — sans garanties, caution, hypothèque légale de prêteur de deniers, seule ou avec l'hypothèque conventionnelle — au lieu de ramasser toute mention d'hypothèque du document. Alpha passe au-dessus de Connecté. Enfin une passe d'alignement : les cinq tuiles du tableau de bord tiennent sur une seule ligne, les titres de section partagent un seul registre, les cartes un seul rayon, et les lignes d'échéance vont bien jusqu'au bord" },
     { version: '2026-09-18 13:37', resume: "Le notaire du vendeur et celui de l'acquéreur sont détectés à l'import et affichés sur la fiche, juste sous l'adresse et le prix — deux champs libres, corrigeables à tout moment. Quand l'acte ne dit pas qui représente qui (une simple comparution en tête d'acte), rien n'est deviné : les noms relevés restent proposés dans la liste déroulante du champ, à vous de les affecter. Un badge « Reçoit l'acte » marque le côté qui rédige, et une alerte s'affiche si ce côté contredit le rôle du notaire renseigné juste en dessous" },
     { version: '2026-09-18 12:59', resume: "Notaires : c'est la FORME de l'acte qui décide désormais où l'outil cherche leurs noms, plus son nom. Un acte authentique — dont la promesse synallagmatique, reçue par notaire — les nomme en première page ; un acte sous seing privé, en fin. Une promesse synallagmatique reste un compromis pour les rôles vendeur/acquéreur, ce qui est une autre question. Piège écarté : « la vente sera réitérée par acte authentique », qui remplit les compromis sous seing privé, ne les fait plus passer pour authentiques" },
@@ -890,17 +891,46 @@
   // réalisation de la condition suspensive » dépend d'un événement dont la date n'est pas dans
   // l'acte — la spec interdit explicitement de supposer que tout délai part de la signature.
   var POINTS_DEPART_CONNUS = [
-    { cle: 'signature', calculable: true, re: /la\s+signature|des\s+pr[ée]sentes|ce\s+jour|l['’]acte|la\s+pr[ée]sente|le\s+pr[ée]sent\s+(?:compromis|acte)|la\s+promesse/i },
+    // Les formes nues (« du compromis », « de signature », sans article) sont acceptées au même
+    // titre que les formes complètes : le connecteur du délai consomme souvent l'article.
+    { cle: 'signature', calculable: true, re: /\bsignature\b|\bpr[ée]sentes\b|ce\s+jour|l['’]acte|la\s+pr[ée]sente\b|le\s+pr[ée]sent\s+(?:compromis|acte)|\bpromesse\b|\bcompromis\b|avant[-\s]?contrat/i },
     { cle: 'notification', calculable: false, re: /notification|r[ée]ception\s+(?:de\s+la\s+lettre|du\s+courrier|de\s+l['’]avis)/i },
     { cle: 'realisation_condition', calculable: false, re: /r[ée]alisation\s+de\s+(?:la|cette|ladite)\s+condition|lev[ée]e\s+de\s+(?:la|cette|ladite)\s+condition|obtention\s+(?:du\s+pr[êe]t|des\s+offres)/i },
     { cle: 'purge_preemption', calculable: false, re: /purge|droit\s+de\s+pr[ée]emption/i }
   ];
 
+  // Le texte examiné est la clause de délai ENTIÈRE (« … dans les 60 jours de la promesse »), pas
+  // seulement ce qui suit le connecteur : celui-ci consomme justement l'article dont les motifs
+  // ci-dessus ont besoin (« de la » avalait le « la » de « la promesse », « à compter des »
+  // le « des » de « des présentes ») — le point de départ retombait alors sur « inconnu » et la
+  // date n'était plus calculée, alors que c'est bien la signature de l'acte importé.
+  // Quand plusieurs points de départ matchent (« dans les 60 jours de la réalisation de la
+  // condition prévue au présent compromis »), c'est le PREMIER rencontré qui décide : c'est celui
+  // que le connecteur introduit, le reste n'est qu'un complément de la même phrase.
   function pointDepartDepuisAncre(ancre) {
     const texte = String(ancre || '');
     if (!texte.trim()) return null;
-    const trouve = POINTS_DEPART_CONNUS.find(p => p.re.test(texte));
-    return trouve ? trouve.cle : 'inconnu';
+    let meilleur = null;
+    for (const point of POINTS_DEPART_CONNUS) {
+      const m = new RegExp(point.re.source, 'i').exec(texte);
+      if (m && (meilleur === null || m.index < meilleur.index)) meilleur = { index: m.index, cle: point.cle };
+    }
+    return meilleur ? meilleur.cle : 'inconnu';
+  }
+
+  // Libellé affiché dans le panneau de révision. Écrire « depuis la signature » quel que soit le
+  // point de départ réel était contradictoire avec la raison affichée juste en dessous (« son
+  // point de départ n'est pas une date figurant dans l'acte ») — signalé par l'étude.
+  var LIBELLES_POINT_DEPART = {
+    signature: 'depuis la signature de l’avant-contrat',
+    notification: 'à compter d’une notification (date non connue de l’acte)',
+    realisation_condition: 'à compter de la réalisation d’une condition (date non connue de l’acte)',
+    purge_preemption: 'à compter de la purge du droit de préemption (date non connue de l’acte)',
+    inconnu: 'à compter d’un point de départ non identifié'
+  };
+
+  function libellePointDepart(cle) {
+    return LIBELLES_POINT_DEPART[cle] || LIBELLES_POINT_DEPART.inconnu;
   }
 
   function pointDepartCalculable(cle) {
@@ -934,7 +964,8 @@
       // notaire n'est pas la condition suspensive elle-même (voir l'historique du 60 j / 70 j).
       const avant = source.slice(Math.max(0, m.index - 200), m.index);
       const ancre = m[3] || '';
-      const pointDepart = ancre ? pointDepartDepuisAncre(ancre) : 'signature';
+      // Classé sur la clause entière (m[0]) et non sur `ancre` seule : voir pointDepartDepuisAncre.
+      const pointDepart = ancre ? pointDepartDepuisAncre(m[0]) : 'signature';
       resultats.push({
         index: m.index,
         extrait: contexte,
@@ -1010,15 +1041,45 @@
           apprise: !!(retenu && retenu.apprise),
           raison: choix.ambigu
             ? 'Plusieurs clauses donnent une date pour cette échéance, sans formulation permettant de trancher.'
-            : (calculee ? 'Date calculée à partir d’un délai exprimé dans l’acte.' : 'Date lue directement dans l’acte.')
+            : (calculee ? '' : 'Date lue directement dans l’acte.') // calculée : la ligne « Calculée : … » du panneau le dit déjà
         };
         continue;
       }
 
       // Aucune date calendaire pour ce type : reste-t-il un délai qui s'y rapporte mais qu'on n'a
       // pas pu convertir ? C'est le cas visé par la spec (« point de départ différent »).
-      const delaiOrphelin = delaisTous.find(d => d.suggestion === champ && !d.notification &&
-        (!pointDepartCalculable(d.pointDepart) || !dateCompromis));
+      const delaisDuType = delaisTous.filter(d => d.suggestion === champ && !d.notification);
+
+      // Un délai que detecterDatesDepuisTexte n'a pas su convertir (ses motifs exigent « à compter
+      // de »/« au plus tard dans les », alors que detecterDelais reconnaît aussi « dans un délai de
+      // 60 jours DE LA promesse ») mais dont le point de départ EST la signature : on le calcule
+      // ici plutôt que de le laisser tomber. Sans ça, l'échéance disparaissait purement et
+      // simplement de la fiche — signalé par l'étude.
+      const delaiCalculable = dateCompromis
+        ? delaisDuType.find(d => pointDepartCalculable(d.pointDepart))
+        : null;
+      if (delaiCalculable) {
+        const iso = calculerDateEcheance(dateCompromis, delaiCalculable.delai);
+        if (iso) {
+          dates[typeDate] = {
+            valeur: iso,
+            statut: 'CONFIRMED',
+            methode: 'CALCULATED',
+            origine: 'regex',
+            source: { page: delaiCalculable.page || null, extrait: delaiCalculable.extrait, index: delaiCalculable.index },
+            candidats: [],
+            calcul: { delai: delaiCalculable.delai, pointDepart: delaiCalculable.pointDepart, baseDate: dateCompromis },
+            calculAlternatif: null,
+            apprise: false,
+            // Pas de raison : la ligne « Calculée : 60 jours depuis… » du panneau la dit déjà, mot
+            // pour mot — deux phrases identiques l'une sous l'autre n'apprennent rien.
+            raison: ''
+          };
+          continue;
+        }
+      }
+
+      const delaiOrphelin = delaisDuType.find(d => !pointDepartCalculable(d.pointDepart) || !dateCompromis);
       if (delaiOrphelin) {
         const manqueBase = !dateCompromis && pointDepartCalculable(delaiOrphelin.pointDepart);
         dates[typeDate] = {
@@ -2209,7 +2270,10 @@
   // visites du bien avant la vente (accès du bien à l'acquéreur/aux diagnostiqueurs...) ne
   // constitue pas un engagement à réclamer après coup, contrairement à une clause de travaux/
   // documents/entretien — elle ne doit jamais ressortir dans les obligations du vendeur.
-  const EXCLUSION_ENGAGEMENT_RE = /urbanisme|permis\s+de\s+construire|d[ée]claration\s+pr[ée]alable|droit\s+de\s+pr[ée]emption|\bdia\b|bornage|servitude|cadastr|copropri[ée]t[ée]|syndic|assembl[ée]e\s+g[ée]n[ée]rale|[ée]tat\s+dat[ée]|fonds\s+de\s+travaux|charges\s+de\s+copropri[ée]t[ée]|taxe\s+fonci[èe]re|imp[ôo]t\s+foncier|quitus\s+fiscal|hypoth[ée]|mainlev[ée]e|certificat\s+de\s+radiation|privil[èe]ge\s+de\s+pr[êe]teur|demande\s+de\s+visite/i;
+  // "trentenaire" ajoutée de même : « le vendeur doit justifier de l'origine trentenaire » est une
+  // clause de style présente dans quasiment tous les avant-contrats, et l'établissement de cette
+  // origine relève du travail du notaire sur le titre — pas d'une pièce à réclamer au vendeur.
+  const EXCLUSION_ENGAGEMENT_RE = /urbanisme|permis\s+de\s+construire|d[ée]claration\s+pr[ée]alable|droit\s+de\s+pr[ée]emption|\bdia\b|bornage|servitude|cadastr|copropri[ée]t[ée]|syndic|assembl[ée]e\s+g[ée]n[ée]rale|[ée]tat\s+dat[ée]|fonds\s+de\s+travaux|charges\s+de\s+copropri[ée]t[ée]|taxe\s+fonci[èe]re|imp[ôo]t\s+foncier|quitus\s+fiscal|hypoth[ée]|mainlev[ée]e|certificat\s+de\s+radiation|privil[èe]ge\s+de\s+pr[êe]teur|demande\s+de\s+visite|trentenaire/i;
 
   // Clauses purement hypothétiques : « SI le bien VENAIT À se trouver en zone contaminée, le
   // vendeur s'engage à fournir un état parasitaire ». Rien n'est dû tant que l'hypothèse ne se
@@ -2837,6 +2901,7 @@
 
   function corrigerDateCompromis(valeur) {
     if (!valeur) return; // un champ vidé en cours de frappe ne doit rien réinitialiser
+    if (dateIncompleteEnCoursDeSaisie(valeur)) return; // année encore en cours de frappe (an 0002…)
     dateCompromisDetectee = valeur;
     dateCompromisEstimee = false;
     // Met à jour uniquement le texte d'information, sans jamais recacher le champ : il se
@@ -2996,6 +3061,24 @@
     if (champs.emailAcquereur) appliquerValeurChamp('f-email-acquereur', champs.emailAcquereur.valeur);
     const adresse = extraction.bien && extraction.bien.adresse;
     if (adresse && adresse.adresseComplete) appliquerValeurChamp('f-adresse-bien', adresse.adresseComplete);
+
+    // Dates butoir : traiterTexte() remplit déjà les champs à partir des chips, mais l'objet
+    // d'extraction connaît aussi les échéances qui n'ont PAS donné de chip — typiquement une date
+    // calculée depuis un délai que detecterDatesDepuisTexte n'a pas su convertir (voir
+    // construireDatesMetier). Sans ce report, la date s'affichait dans « Ce que l'outil a compris »
+    // mais restait absente du formulaire, donc du dossier enregistré. appliquerValeurChamp()
+    // n'écrit jamais par-dessus une valeur déjà posée : aucun risque d'écraser le chemin existant.
+    const dates = extraction.dates || {};
+    for (const typeDate of Object.keys(CHAMP_PAR_TYPE_DATE)) {
+      const champ = CHAMP_PAR_TYPE_DATE[typeDate];
+      const objet = dates[typeDate];
+      if (!objet || !objet.valeur) continue;
+      const input = document.getElementById('f-' + champ);
+      if (!input || input.value) continue;
+      appliquerValeurChamp('f-' + champ, objet.valeur);
+      definirEcheanceActive(champ, true);
+      if (objet.methode === 'CALCULATED') approxParType[champ] = true;
+    }
 
     // Rôle de l'étude : pré-rempli UNIQUEMENT sur une déduction confirmée (mention explicite dans
     // l'acte, ou règle métier satisfaite sans contradiction). La raison est affichée dans le
@@ -3175,8 +3258,20 @@
     return extraction;
   }
 
+  // Une date dont l'année n'est pas encore entièrement saisie. Un <input type="date"> émet
+  // `change` dès que ses trois cases forment une date valide : en tapant l'année, « 2 » donne
+  // l'an 0002, la valeur est donc considérée comme complète et le panneau se redessinait au
+  // premier chiffre, faisant perdre le focus (signalé deux fois par l'étude). On ignore ces
+  // valeurs intermédiaires : l'année réelle a toujours quatre chiffres et est la dernière case
+  // saisie, la validation tombe donc naturellement à la fin de la frappe.
+  function dateIncompleteEnCoursDeSaisie(valeur) {
+    const m = /^(\d{4})-\d{2}-\d{2}$/.exec(String(valeur || ''));
+    return !!m && parseInt(m[1], 10) < 1900;
+  }
+
   function modifierDonneeRevision(cle, valeur) {
     if (!extractionActuelle) return;
+    if (dateIncompleteEnCoursDeSaisie(valeur)) return;
     const propre = typeof valeur === 'string' ? valeur.trim() : valeur;
     correctionsRevision[cle] = propre;
     verificationsRevision[cle] = true; // corriger une donnée, c'est l'avoir relue
@@ -3267,7 +3362,7 @@
     const page = boutonPageRevision(champ && champ.source);
     const verifie = !!(champ && champ.verifie);
     const methode = champ && champ.methode === 'CALCULATED' && champ.calcul
-      ? `<div class="revision-raison">Calculée : ${escapeHtml(String(champ.calcul.delai ? champ.calcul.delai.valeur + ' ' + champ.calcul.delai.unite : ''))} depuis la signature.</div>` : '';
+      ? `<div class="revision-raison">${champ.valeur ? 'Calculée' : 'Délai trouvé'} : ${escapeHtml(String(champ.calcul.delai ? champ.calcul.delai.valeur + ' ' + champ.calcul.delai.unite : ''))} ${escapeHtml(libellePointDepart(champ.calcul.pointDepart))}.</div>` : '';
     const raison = champ && champ.raison ? `<div class="revision-raison">${escapeHtml(champ.raison)}</div>` : '';
     const autres = champ && (champ.candidats || []).length > 1
       ? `<div class="revision-raison">Autres valeurs trouvées dans l’acte : ${champ.candidats.map(c => escapeHtml(String(c.valeur))).join(', ')}</div>`
@@ -6121,7 +6216,14 @@
             <span class="semaine-compteur">${n} échéance${n > 1 ? 's' : ''}</span>
           </div>
           <div class="table-scroll">
-            <table class="dossiers-table">
+            <!-- Largeurs de colonnes FIXES et identiques d'un groupe à l'autre : chaque semaine est
+                 un <table> distinct, et en largeur automatique chacun se calait sur son propre
+                 contenu — une date ou un libellé plus long dans une semaine décalait toute la
+                 colonne par rapport aux semaines voisines (signalé par l'étude). -->
+            <table class="dossiers-table echeances-table">
+              <colgroup>
+                <col class="col-echeance-date"><col class="col-echeance-type"><col><col class="col-echeance-resp">
+              </colgroup>
               <tbody>${lignes}</tbody>
             </table>
           </div>

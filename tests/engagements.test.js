@@ -126,3 +126,13 @@ DIVERS : néant.
   const conditions = app.extraireConditions(texte);
   assert.ok(conditions.some(c => c.type === 'suspensive' && /URBANISME/.test(c.titre)));
 });
+
+test('l’origine trentenaire n’est pas une obligation du vendeur à réclamer', () => {
+  // Clause de style présente dans quasiment tous les avant-contrats : établir l'origine
+  // trentenaire du bien est le travail du notaire sur le titre, pas une pièce à demander au
+  // vendeur — l'étude a demandé qu'elle ne ressorte plus dans les obligations.
+  const app = chargerApplication();
+  const e = app.extraireEngagementsVendeur(
+    "Le vendeur doit justifier de l'origine trentenaire de propriété du bien vendu.");
+  assert.equal(e.length, 0);
+});

@@ -4297,6 +4297,71 @@ autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` auton
     chevauchement, clic sur une échéance ouvrant le bon dossier, aucune erreur JS, aucun
     débordement horizontal en mobile.
 
+- **Lot de sept demandes, dont un vrai bug de calcul d'échéance**, traitées indépendamment :
+  - **Bug corrigé : une condition de prêt exprimée en délai n'était plus calculée, et le panneau se
+    contredisait.** Signalé par l'étude avec la capture des deux lignes affichées l'une sous
+    l'autre : « Calculée : 60 jours depuis la signature. » ET « Délai trouvé, mais son point de
+    départ n'est pas une date figurant dans l'acte : à déterminer. » Deux causes cumulées :
+    - `pointDepartDepuisAncre()` classait le délai sur l'ancre TRONQUÉE, c'est-à-dire ce qui suit
+      le connecteur (`MOTIF_ANCRE_DELAI`) — or ce connecteur consomme justement l'article dont les
+      motifs de `POINTS_DEPART_CONNUS` ont besoin : « de la » avale le « la » de « la promesse »,
+      « à compter des » le « des » de « des présentes », « du » celui de « du compromis ». Le point
+      de départ retombait donc sur `inconnu`, réputé non calculable, et l'échéance n'était jamais
+      calculée alors qu'elle part bien de la signature de l'acte importé. La classification se fait
+      désormais sur la clause ENTIÈRE (`m[0]`), et le motif `signature` accepte les formes nues
+      (`\bcompromis\b`, `\bpromesse\b`, `\bsignature\b`, `avant-contrat`). Quand plusieurs points
+      de départ matchent (« dans les deux mois de la réalisation de la condition prévue au présent
+      compromis »), **le premier rencontré décide** — c'est celui que le connecteur introduit, le
+      reste n'est qu'un complément de phrase ; sans cette règle, l'élargissement ci-dessus aurait
+      transformé ce délai-là en délai depuis la signature.
+    - Même le point de départ corrigé, `construireDatesMetier()` LAISSAIT TOMBER le délai :
+      `detecterDatesDepuisTexte()` (dont les motifs exigent « à compter de » / « au plus tard dans
+      les ») ne produit pas de candidate pour « dans un délai de 60 jours DE LA promesse », et la
+      branche de repli ne traitait que les délais NON calculables. Elle calcule maintenant la date
+      (`calculerDateEcheance` depuis `dateCompromis`) avant de se rabattre sur le cas « point de
+      départ inconnu ». `appliquerExtractionAuFormulaire()` reporte en plus les dates de l'objet
+      d'extraction dans `#f-pret`/`#f-acte`/`#f-ventebien` **quand le champ est vide** : sans ça,
+      une date ainsi calculée s'affichait dans le panneau mais n'atteignait ni le formulaire ni le
+      dossier enregistré (le chemin historique, les chips, reste inchangé et prioritaire).
+    - Affichage : `libellePointDepart()` nomme le point de départ réel au lieu d'écrire « depuis la
+      signature » quel que soit le cas (c'est cette phrase figée qui contredisait la raison juste
+      en dessous), et la raison « Date calculée à partir d'un délai exprimé dans l'acte. » est
+      supprimée — la ligne « Calculée : 60 jours depuis… » la disait déjà mot pour mot.
+    - Quatre tests dans `tests/dates-metier.test.js` : les quatre tournures d'ancre qui échouaient,
+      un point de départ réellement inconnu (qui doit RESTER non calculé — le correctif ne devait
+      pas rendre tout délai calculable), la règle du premier point de départ, et les libellés.
+  - **Bug corrigé : taper une date à la main dans « Ce que l'outil a compris » validait au premier
+    chiffre de l'année.** Un `<input type="date">` émet `change` dès que ses trois cases forment une
+    date valide : en tapant l'année, « 2 » donne l'an 0002, la valeur passe pour complète, le
+    panneau se redessine et le focus est perdu. `dateIncompleteEnCoursDeSaisie()` écarte ces valeurs
+    intermédiaires (année < 1900) dans `modifierDonneeRevision()` **et** dans
+    `corrigerDateCompromis()`, qui avait le même défaut. L'année réelle a toujours quatre chiffres
+    et est la dernière case saisie : la validation tombe donc naturellement en fin de frappe.
+    `onchange` est conservé (voir son historique : `oninput` ferait perdre le focus à chaque touche).
+  - **Les dates repérées passent dans un bloc replié SOUS le panneau de révision** : « Classées —
+    Prêt / Acte / Vente / Autre » et « Non identifiées, désactivées par défaut » occupaient toute la
+    hauteur au-dessus de « Ce que l'outil a compris », qui est pourtant ce qu'on vient lire en
+    premier. Simple `<details class="chips-repliable">` (fermé par défaut) dans `index.html` — rien
+    n'est perdu, le classement d'une date se corrige toujours là, une fois le bloc déplié.
+  - **Vue « Échéances » : colonnes alignées d'une semaine à l'autre.** Chaque groupe est un
+    `<table>` distinct : en largeur automatique, chacun se calait sur SON contenu et une date ou un
+    libellé plus long décalait toute la colonne par rapport aux semaines voisines. `<colgroup>` +
+    `table-layout: fixed` (date 160px, type 196px, nom auto, responsable 148px) — vérifié par mesure
+    des `getBoundingClientRect` de la première ligne de chaque groupe : positions identiques.
+  - **« Le vendeur doit justifier de l'origine trentenaire » n'est plus une obligation du vendeur**
+    (`trentenaire` ajouté à `EXCLUSION_ENGAGEMENT_RE`) : clause de style de quasiment tous les
+    avant-contrats, et l'établissement de cette origine relève du travail du notaire sur le titre,
+    pas d'une pièce à réclamer. Test dans `tests/engagements.test.js`.
+  - **Badge « Alpha » remis à DROITE de « Connecté »** (`.sidebar-etat` repasse en ligne) — l'étude
+    est revenue sur l'empilement demandé au lot précédent.
+  - **Espace sous le panneau qui précède le bouton « Ajouter une obligation du vendeur »**
+    (`.ajout-engagement-btn { margin: 14px 0 0 }`) : sans marge propre, le bouton se collait au bloc
+    précédent (« Diagnostic du dernier parcours » quand aucune analyse juridique ne s'intercale).
+  - Vérifié dans un vrai Chromium (serveur réel, clair et sombre) : délai « de la promesse » calculé
+    et reporté dans le champ avec la case cochée, année incomplète ignorée puis date complète
+    acceptée, chips repliées sous le panneau, colonnes des deux groupes de semaines alignées au
+    pixel, marge du bouton mesurée, aucune erreur JS. `npm test` : 322 tests racine, 97 serveur.
+
 **Ce qui n'a volontairement PAS été fait** (arrêté à la demande explicite de l'étude, pas un
 oubli) — à reprendre uniquement si redemandé un jour :
 - **Import automatique** des dossiers déjà enregistrés sur la version 100% locale (`main`) vers ce

@@ -31,8 +31,8 @@
          donc déjà un conteneur de positionnement pour ses descendants absolus) — n'entre jamais
          dans le flux, ne pousse donc jamais le logo. -->
     <div class="sidebar-etat">
-      <span class="sidebar-alpha-badge" title="Version alpha : l'outil est encore en évolution active, des ajustements peuvent survenir d'une session à l'autre.">Alpha</span>
       <span id="statut-serveur-badge" class="dot-label dl-success"><span class="dot"></span>Connecté</span>
+      <span class="sidebar-alpha-badge" title="Version alpha : l'outil est encore en évolution active, des ajustements peuvent survenir d'une session à l'autre.">Alpha</span>
     </div>
     <div class="sidebar-brand">
       <span class="brand-mark" aria-hidden="true">
@@ -180,13 +180,6 @@
           <button type="button" class="icon-btn" onclick="toggleCompromisEdit()">Corriger</button>
           <input type="date" id="f-date-compromis" style="display:none;" onchange="corrigerDateCompromis(this.value)">
         </div>
-        <!-- Chips de dates détectées, déplacées ici depuis l'étape "Importer" (juste au-dessus des
-             dates retenues, pas dans l'étape précédente) pour permettre de comparer chaque date
-             auto-détectée du compromis aux dates butoir finalement sélectionnées, sans changer
-             d'étape. -->
-        <p class="hint">Diagnostics et dates passées sont écartés automatiquement. Cliquez sur une catégorie pour corriger un classement.</p>
-        <div class="chips" id="chips"></div>
-
         <!-- État de la recherche du modèle IA local en arrière-plan (voir lancerExtractionIa()) :
              sans lui, rien n'indiquait qu'une recherche était en cours pendant les quelques
              secondes à dizaines de secondes que peut prendre l'appel à Ollama — silencieux avant
@@ -204,6 +197,17 @@
              alertes de cohérence sont rappelées à l'étape "Finaliser" (#alertes-finalisation),
              juste avant l'enregistrement. -->
         <div id="panneau-revision" class="panneau-revision" style="display:none;"></div>
+
+        <!-- Toutes les dates repérées dans le document, replié par défaut : c'est le détail brut de
+             la détection (dont les dates non identifiées, désactivées), pas la synthèse. Il tenait
+             auparavant toute la hauteur au-dessus du panneau « Ce que l'outil a compris », qui est
+             pourtant ce qu'on vient lire en premier — demandé par l'étude. Rien n'est perdu : le
+             classement d'une date se corrige toujours ici, une fois le bloc déplié. -->
+        <details class="chips-repliable">
+          <summary>Toutes les dates repérées dans le document</summary>
+          <p class="hint">Diagnostics et dates passées sont écartés automatiquement. Cliquez sur une catégorie pour corriger un classement.</p>
+          <div class="chips" id="chips"></div>
+        </details>
 
         <fieldset>
           <legend>Dates butoir</legend>

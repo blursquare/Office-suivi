@@ -176,3 +176,52 @@ test('la date de signature de l’avant-contrat est elle-même un objet date con
   assert.equal(d.SIGNATURE_AVANT_CONTRAT.statut, 'CONFIRMED');
   assert.equal(d.SIGNATURE_AVANT_CONTRAT.methode, 'EXPLICIT');
 });
+
+test('l’article consommé par le connecteur ne fait plus perdre le point de départ', () => {
+  // Signalé par l'étude : « Calculée : 60 jours depuis la signature » s'affichait en même temps que
+  // « son point de départ n'est pas une date figurant dans l'acte : à déterminer ». Le connecteur
+  // du délai (« de la », « à compter des », « du ») consommait l'article dont les motifs de
+  // POINTS_DEPART_CONNUS ont besoin, et le point de départ retombait sur « inconnu » — la date
+  // n'était donc jamais calculée alors qu'elle part bien de la signature de l'acte importé.
+  const app = chargerApplication();
+  for (const clause of [
+    "L'acquéreur devra obtenir son prêt dans un délai de 60 jours de la promesse.",
+    "L'acquéreur devra obtenir son prêt dans un délai de 60 jours du compromis.",
+    "L'acquéreur devra obtenir son prêt dans un délai de 60 jours à compter des présentes.",
+    "L'acquéreur devra obtenir son prêt dans un délai de 60 jours à compter de la date de signature."
+  ]) {
+    const delais = app.detecterDelais(clause);
+    assert.equal(delais.length, 1, clause);
+    assert.equal(delais[0].pointDepart, 'signature', clause);
+    const d = datesMetier(app, clause);
+    assert.equal(d.BUTOIR_PRET.valeur, '2026-11-14', clause);
+    assert.equal(d.BUTOIR_PRET.methode, 'CALCULATED', clause);
+  }
+});
+
+test('un point de départ réellement inconnu reste non calculé', () => {
+  // Le correctif ci-dessus ne doit pas rendre tout délai calculable : « à compter de la
+  // notification du refus » dépend d'un événement dont la date ne figure pas dans l'acte.
+  const app = chargerApplication();
+  const d = datesMetier(app,
+    "L'acquéreur devra obtenir son prêt dans un délai de 60 jours à compter de la notification du refus.");
+  assert.equal(d.BUTOIR_PRET.valeur, null);
+  assert.equal(d.BUTOIR_PRET.statut, 'NEEDS_REVIEW');
+});
+
+test('quand plusieurs points de départ sont cités, le premier de la clause décide', () => {
+  // « dans les deux mois de la réalisation de la condition prévue au présent compromis » : le mot
+  // « compromis » arrive après, il ne doit pas transformer ce délai en délai depuis la signature.
+  const app = chargerApplication();
+  const delais = app.detecterDelais(
+    "La réitération interviendra dans les deux mois de la réalisation de la condition prévue au présent compromis.");
+  assert.equal(delais.length, 1);
+  assert.equal(delais[0].pointDepart, 'realisation_condition');
+});
+
+test('libellePointDepart nomme le point de départ réel, jamais « la signature » par défaut', () => {
+  const app = chargerApplication();
+  assert.match(app.libellePointDepart('signature'), /signature/);
+  assert.match(app.libellePointDepart('notification'), /notification/);
+  assert.match(app.libellePointDepart('inconnu'), /non identifié/);
+});

@@ -512,11 +512,13 @@
      l'étude) : les deux disent l'état de l'outil, les séparer aux deux bouts de la sidebar n'avait
      pas de sens. Dans le FLUX, au-dessus du logo, et non en absolu comme l'était l'indicateur de
      connexion seul : à deux lignes, le bloc absolu venait se poser par-dessus le mot CLAIRE. */
+  /* Sur une seule ligne, alignés à droite : « Connecté » puis « Alpha » à sa droite. */
   .sidebar-etat {
     display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 4px;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
     padding: 0 10px 6px;
   }
   .sidebar-etat .dot-label { font-size: 11px; white-space: nowrap; }
@@ -1321,6 +1323,22 @@
   .chips {
     margin-top: 12px;
   }
+
+  /* Détail brut de la détection, replié par défaut sous le panneau de révision. Même registre
+     que .analyse-repliable : un summary discret, pas une carte de plus. */
+  .chips-repliable {
+    margin: 14px 0 0;
+    border-top: 1px solid var(--line-soft);
+    padding-top: 10px;
+  }
+  .chips-repliable > summary {
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-soft);
+  }
+  .chips-repliable > summary:hover { color: var(--focus); }
+  .chips-repliable .hint { margin-top: 8px; }
 
   .chips-groupe-titre {
     font-size: 12px;
@@ -2351,6 +2369,14 @@
      échéance, voir grouperEcheancesParSemaine). Chaque groupe réutilise .dossiers-table tel quel :
      mêmes filets, même survol, même tiroir au clic — seul l'en-tête de semaine est nouveau. ---- */
   .semaine-groupe { margin-bottom: 26px; }
+  /* Chaque semaine est un <table> à part : sans largeurs imposées, chacun se cale sur SON contenu
+     et les colonnes ne s'alignent plus d'un groupe à l'autre. Avec table-layout: fixed, les trois
+     colonnes calibrées gardent la même largeur partout et la colonne du nom prend le reste. */
+  .echeances-table { table-layout: fixed; }
+  .col-echeance-date { width: 160px; } /* « 22 septembre 2026 » tient sur une seule ligne */
+  .col-echeance-type { width: 196px; }
+  .col-echeance-resp { width: 148px; }
+  .echeances-table td { vertical-align: middle; }
   .semaine-entete {
     display: flex;
     align-items: baseline;
@@ -2702,6 +2728,9 @@
      margin-left par défaut. .ajout-echeance-form garde le même .date-block.autre que le
      formulaire de création (16px de marge au-dessus), pas besoin de la retoucher ici. */
   .ajout-echeance-btn { margin: 10px 0 0; }
+  /* Sans cette marge, le bouton se collait au panneau qui le précède (« Diagnostic du dernier
+     parcours » quand aucune analyse juridique n'est affichée entre les deux). */
+  .ajout-engagement-btn { margin: 14px 0 0; }
 
   .echeance-jours { font-size: 12px; margin-left: 6px; font-variant-numeric: tabular-nums; }
   .echeance-jours.urgent { color: var(--urgent); font-weight: 600; }
