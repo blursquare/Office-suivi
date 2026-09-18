@@ -443,3 +443,22 @@ test('formaterTendance affiche un signe explicite pour une hausse/une baisse, et
   assert.equal(app.formaterTendance(-2).texte, '-2');
   assert.equal(app.formaterTendance(0).texte, '=');
 });
+
+test('estDebutPageAnnexe ignore un renvoi "ANNEXE" de fin de clause en haut de page', () => {
+  // Trame réelle (promesse reçue par notaire) : chaque phrase citant une pièce jointe est suivie du
+  // seul mot ANNEXE. Sur une page qui s'ouvre par un titre court, ce renvoi tombait dans les 120
+  // premiers caractères et coupait TOUT le document dès la page précédente — ni le prix (page 9) ni
+  // la condition de prêt (page 12) n'étaient alors lisibles.
+  const page = ' 5 \nPlans des lots \nUne copie des plans des lots de l’état descriptif de division est annexée. \n' +
+    'ANNEXE \nLes parties déclarent que les plans correspondent à la situation ainsi qu’à la désignation ' +
+    'actuelle des lots. \nMENTION DE LA SUPERFICIE DE LA PARTIE PRIVATIVE \nLa superficie de la partie ' +
+    'privative des lots de copropriété soumis aux dispositions de l’article 46 de la loi du 10 juillet ' +
+    '1965, est de 30,68 M² pour le lot numéro VINGT-SEPT.';
+  assert.equal(chargerApplication().estDebutPageAnnexe(page), false);
+});
+
+test('estDebutPageAnnexe reconnaît une vraie page d’annexe malgré son numéro de page', () => {
+  const app = chargerApplication();
+  assert.equal(app.estDebutPageAnnexe(' 12 \nANNEXE N°1 — Extrait de plan cadastral'), true);
+  assert.equal(app.estDebutPageAnnexe('- 7 -\nDIAGNOSTIC DE PERFORMANCE ÉNERGÉTIQUE'), true);
+});

@@ -122,3 +122,11 @@ test('departementDepuisCodePostal déduit le département, Corse et outre-mer co
   assert.equal(app.departementDepuisCodePostal('7500'), null);
   assert.equal(app.departementDepuisCodePostal('abcde'), null);
 });
+
+test('l’adresse n’est plus tronquée par la coupure de ligne du PDF', () => {
+  // Cas réel : « situé à ORLEANS (LOIRET)  45000 11 Rue \nd'Escures. » — la capture s'arrêtait au
+  // retour à la ligne et rendait « … 11 Rue », sans le nom de la voie.
+  const app = chargerApplication();
+  const texte = 'IDENTIFICATION DU BIEN\nDESIGNATION\nDans un ensemble immobilier situé à ORLEANS (LOIRET)  45000 11 Rue \nd’Escures.';
+  assert.equal(app.detecterAdresseBien(texte), 'ORLEANS (LOIRET) 45000 11 Rue d’Escures');
+});

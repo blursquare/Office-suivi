@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-18 15:45';
+  const VERSION_APP = '2026-09-18 16:33';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-18 16:33', resume: "Import d'un acte AUTHENTIQUE (promesse reçue par notaire) : cinq corrections, trouvées en rejouant le PDF que vous avez envoyé. Le document était coupé dès la page 4 — un simple renvoi « ANNEXE » en haut de page passait pour le début des annexes — et tout ce qui suit était donc invisible : ni le prix (page 9), ni la condition de prêt (page 12). Le nom du dossier prenait celui du NOTAIRE, la comparution d'ouverture se désignant elle-même par la partie qu'elle assiste ; il lit maintenant les vraies parties, même quand « né(e) » ne suit pas le patronyme, sans confondre une commune ou un ex-conjoint avec une partie. Le prix accepte « (92 000,00 EUR) » et la coupure de ligne du PDF, l'adresse n'est plus tronquée au milieu de la voie, et la date de signature de l'acte retient la clause qui la NOMME plutôt qu'une clause qui cite « l'acte » en passant. Enfin, les deux simulateurs (provision, prorata) partent d'un champ vide" },
     { version: '2026-09-18 15:45', resume: "Une condition de prêt exprimée en délai est de nouveau calculée quand la clause dit « dans un délai de 60 jours DE LA promesse » ou « du compromis » : le point de départ était perdu et l'échéance disparaissait du formulaire, alors que la panneau affichait à la fois « calculée depuis la signature » et « point de départ à déterminer » — deux phrases contradictoires. Le point de départ réel est maintenant nommé. Dans « Ce que l'outil a compris », taper une date à la main ne valide plus au premier chiffre de l'année. Les dates repérées (« Classées », « Non identifiées ») passent dans un bloc replié SOUS le panneau, qui se lit donc en premier. Vue Échéances : toutes les colonnes alignées d'une semaine à l'autre. L'origine trentenaire n'est plus comptée comme une obligation du vendeur. Alpha revient à droite de Connecté, et le bouton « Ajouter une obligation » respire enfin sous le panneau qui le précède" },
     { version: '2026-09-18 15:09', resume: "Huit points. L'adresse lue à l'étape « Vérifier » est enfin celle qui arrive à l'étape « Finaliser » : le vieux détecteur y écrivait un fragment brut que la lecture structurée n'osait plus corriger, le prenant pour votre saisie. Le dossier du NAS se relie désormais tout seul, sans clic, dès que le nom désigne un seul dossier client — à la création comme à l'ouverture de l'outil. « Rôle du notaire » et « Acte reçu par » disparaissent de la fiche : le badge « Reçoit l'acte » des deux notaires porte l'action, et le rôle de l'étude en est déduit. « Maître » précède les noms. Les échéances des 7 prochains jours ouvrent le dossier d'un clic. Les garanties ne sont plus cherchées que dans le paragraphe GARANTIES de l'offre — sans garanties, caution, hypothèque légale de prêteur de deniers, seule ou avec l'hypothèque conventionnelle — au lieu de ramasser toute mention d'hypothèque du document. Alpha passe au-dessus de Connecté. Enfin une passe d'alignement : les cinq tuiles du tableau de bord tiennent sur une seule ligne, les titres de section partagent un seul registre, les cartes un seul rayon, et les lignes d'échéance vont bien jusqu'au bord" },
     { version: '2026-09-18 13:37', resume: "Le notaire du vendeur et celui de l'acquéreur sont détectés à l'import et affichés sur la fiche, juste sous l'adresse et le prix — deux champs libres, corrigeables à tout moment. Quand l'acte ne dit pas qui représente qui (une simple comparution en tête d'acte), rien n'est deviné : les noms relevés restent proposés dans la liste déroulante du champ, à vous de les affecter. Un badge « Reçoit l'acte » marque le côté qui rédige, et une alerte s'affiche si ce côté contredit le rôle du notaire renseigné juste en dessous" },
@@ -274,7 +275,7 @@
   // restait vide sur la fiche. « sur la commune de » et « se trouvant à » manquaient de même.
   // Le point d'ancrage réel reste le CODE POSTAL, dans la même phrase : c'est lui qui borne la
   // capture, la préposition ne faisait que restreindre inutilement les formulations acceptées.
-  const ADRESSE_BIEN_RE = /(?:sis|sise|situ[ée]e?|se\s+trouvant)\s+(?:(?:[àa]|au|sur\s+la\s+commune\s+de|dans\s+la\s+commune\s+de|commune\s+de)\s+)?((?:[^.\n]{3,120}?\(\d{5}\)[^.\n]{0,40})|(?:[^.\n]{3,120}?\d{5}[^.\n,;]{0,40}))/i;
+  const ADRESSE_BIEN_RE = /(?:sis|sise|situ[ée]e?|se\s+trouvant)\s+(?:(?:[àa]|au|sur\s+la\s+commune\s+de|dans\s+la\s+commune\s+de|commune\s+de)\s+)?((?:[^.\n]{3,120}?\(\d{5}\)[^.]{0,40})|(?:[^.\n]{3,120}?\d{5}[^.,;]{0,40}))/i;
 
   function detecterAdresseBien(texte) {
     const m = ADRESSE_BIEN_RE.exec(texte);
@@ -287,7 +288,14 @@
   // parser que le nombre écrit en toutes lettres. Cherche "prix" puis, dans les 120 caractères
   // suivants (hors point/retour à la ligne, pour rester dans la même clause), un montant entre
   // parenthèses suivi de €/euros.
-  const PRIX_VENTE_RE = /prix[^(.\n]{0,120}\(\s*([\d](?:[\d\s.]{0,14})?(?:,\d{2})?)\s*(?:€|euros?)\s*\)/i;
+  // Deux corrections après un vrai acte où le prix n'était pas détecté du tout
+  // (« … le prix de QUATRE-\nVINGT-DOUZE MILLE EUROS (92  000,00 EUR) ») :
+  //  - le retour à la ligne n'est plus exclu. Il l'était pour « rester dans la même clause », mais
+  //    un texte extrait d'un PDF est coupé à chaque ligne de mise en page : c'était exclure le cas
+  //    normal. Le point reste exclu, et c'est lui qui borne réellement la clause.
+  //  - « EUR » est accepté au même titre que « € » et « euros » : c'est la forme qu'emploient les
+  //    trames notariales dans la reprise chiffrée entre parenthèses.
+  const PRIX_VENTE_RE = /prix[^(.]{0,120}\(\s*([\d](?:[\d\s.]{0,14})?(?:,\d{2})?)\s*(?:€|eur(?:os?)?\b)\s*\)/i;
 
   function detecterPrixVente(texte) {
     const m = PRIX_VENTE_RE.exec(texte);
@@ -381,15 +389,91 @@
   // Isole le bloc de texte décrivant une partie (ex. tout ce qui suit "Le vendeur" jusqu'à
   // "Ci-après dénommé…"), en cherchant l'intitulé seulement après un point de départ donné
   // (utile pour ne pas retrouver deux fois le même intitulé, ou empiéter sur l'autre partie).
+  // Un acte AUTHENTIQUE s'ouvre par la comparution des notaires, qui se désignent eux-mêmes par la
+  // partie qu'ils assistent : « Maître X, notaire à …, Notaire assistant le PROMETTANT », « Avec le
+  // concours de Maître Y … assistant le BENEFICIAIRE ». Ces occurrences des mots-clés de rôle ne
+  // désignent AUCUNE partie — la première vraie mention est le titre du bloc d'état civil, plus bas.
+  // Sans ce garde-fou, le nom du dossier prenait celui du NOTAIRE : constaté sur une vraie promesse
+  // reçue par notaire, qui ressortait « GOSSART / RECU » (le nom de notre propre étude, et le verbe
+  // de « A RECU le présent acte ») au lieu de « BOURGUEIL / CHARPENTIER ».
+  var RE_COMPARUTION_NOTAIRE = /notaire|ma[îi]tre|crpcen|office\s+notarial|soussign[ée]|avec\s+le\s+concours|assistant\s+l|assist[ée]e?\s+par/i;
+  // Fenêtre VOLONTAIREMENT courte : dans une comparution, le marqueur colle au mot-clé (« Notaire
+  // assistant le PROMETTANT »). Trop large, elle mordait sur la ligne précédente et faisait rejeter
+  // le vrai titre du bloc d'état civil, qui suit de peu la comparution du second notaire.
+  var FENETRE_COMPARUTION = 45;
+
+  // Première mention d'un rôle qui désigne réellement une partie. Repli sur la toute première
+  // occurrence si elles sont TOUTES en contexte de comparution : mieux vaut l'ancien comportement
+  // qu'aucune partie du tout.
+  function chercherMentionPartie(texte, motRe, apresIndex) {
+    const zone = String(texte).slice(apresIndex);
+    const global = new RegExp(motRe.source, motRe.flags.replace('g', '') + 'g');
+    let premiere = null;
+    let m;
+    while ((m = global.exec(zone)) !== null) {
+      if (!premiere) premiere = { index: apresIndex + m.index, longueur: m[0].length };
+      const avant = zone.slice(Math.max(0, m.index - FENETRE_COMPARUTION), m.index);
+      if (!RE_COMPARUTION_NOTAIRE.test(avant)) return { index: apresIndex + m.index, longueur: m[0].length };
+      if (global.lastIndex === m.index) global.lastIndex++;
+    }
+    return premiere;
+  }
+
+  // Titre du bloc d'une AUTRE partie : en majuscules et sur sa propre ligne, comme les trames les
+  // écrivent. Exiger les majuscules évite de couper sur le mot « vendeur » employé au fil d'une
+  // phrase à l'intérieur du bloc lui-même.
+  var RE_TITRE_PARTIE_SUIVANTE = /(?:^|\n)[^\S\n]*(?:VENDEURS?|ACQU[ÉE]REURS?|PROMETTANTS?|B[ÉE]N[ÉE]FICIAIRES?|ACHETEURS?|C[ÉE]DANTS?|CESSIONNAIRES?)[^\S\n]*(?::|\n|$)/;
+
   function extraireBlocPartie(texte, motRe, apresIndex) {
     const zone = texte.slice(apresIndex);
-    const m = zone.match(motRe);
-    if (!m) return null;
-    const debut = m.index + m[0].length;
+    const mention = chercherMentionPartie(texte, motRe, apresIndex);
+    if (!mention) return null;
+    const debut = mention.index - apresIndex + mention.longueur;
     const reste = zone.slice(debut);
-    const finMatch = reste.match(/ci-apr[èe]s\s+d[ée]nomm/i);
-    const longueur = finMatch ? finMatch.index : Math.min(reste.length, 1200);
+    // Le bloc s'arrête à « ci-après dénommé » OU au titre de la partie suivante. Sans cette seconde
+    // borne, les 1200 caractères par défaut débordaient sur le bloc voisin : sur un acte où le
+    // PROMETTANT tient moins de 800 caractères, le nom du BENEFICIAIRE se retrouvait compté parmi
+    // les vendeurs.
+    const bornes = [reste.match(/ci-apr[èe]s\s+d[ée]nomm/i), reste.match(RE_TITRE_PARTIE_SUIVANTE)]
+      .filter(Boolean).map(m => m.index);
+    const longueur = bornes.length ? Math.min(...bornes) : Math.min(reste.length, 1200);
     return { texte: reste.slice(0, longueur), finAbsolue: apresIndex + debut + longueur };
+  }
+
+  // Repli quand l'ancre « né(e) » ne suit pas le patronyme. Beaucoup de trames écrivent l'état civil
+  // en deux temps : « Monsieur Jean-Loup André Roger BOURGUEIL, enseignant, et Madame …, demeurant
+  // ensemble à CHATEAUDUN. Monsieur est né à BUZANCAIS le 12 mai 1966. » — aucune majuscule ne
+  // précède alors « né », et aucun nom n'était extrait.
+  // Le patronyme est ici la première suite de MAJUSCULES qui suit la civilité et ses prénoms. Elle
+  // ne doit PAS être introduite par une préposition de lieu : sans ce garde-fou, « né à BUZANCAIS »
+  // et « demeurant à CHATEAUDUN » donneraient une commune pour un nom de famille — l'erreur déjà
+  // rencontrée et corrigée ailleurs dans ce fichier (voir nomsAvantLabel).
+  var PORTEE_NOM_APRES_CIVILITE = 90;
+  var RE_SUITE_MAJUSCULES = /[A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,}(?:[-\s][A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,})*/g;
+  var RE_PREPOSITION_LIEU = /(?:^|[\s(])(?:[àa]|au|aux|de|du|des|en|dans|sur|pr[èe]s)\s+$/i;
+  // Une civilité introduite par un lien de famille ne présente pas une partie : « Divorcé de Madame
+  // Ana DA SILVA MARTINHO », « veuve de Monsieur X ». Sans ce garde-fou, l'ex-conjoint cité dans
+  // l'état civil devenait un acquéreur.
+  var RE_LIEN_FAMILIAL = /(?:divorc[ée]e?|veuf|veuve|[ée]pou(?:x|se)|mari[ée]e?|remari[ée]e?|s[ée]par[ée]e?|pacs[ée]e?)\s+(?:de\s+|d['’]|avec\s+|[àa]\s+)?$/i;
+
+  function nomApresCivilite(segment) {
+    const s = String(segment || '');
+    const civ = s.match(/(?:Monsieur|Madame|Mademoiselle)\s+/);
+    if (!civ) return null;
+    // Seulement la proposition qui suit immédiatement la civilité : au-delà viennent les lieux de
+    // naissance, de mariage et de domicile, eux aussi en majuscules dans ces trames.
+    const debut = civ.index + civ[0].length;
+    // Borné à la virgule ou au point, JAMAIS au retour à la ligne : un texte extrait d'un PDF est
+    // coupé au gré de la mise en page, et le patronyme se retrouve régulièrement seul sur sa ligne
+    // (« et Madame Yvette Marie Annie \nFONTANEL, retraitée »).
+    const apres = s.slice(debut, debut + PORTEE_NOM_APRES_CIVILITE).split(/[,.]/)[0];
+    const re = new RegExp(RE_SUITE_MAJUSCULES.source, 'g');
+    let m;
+    while ((m = re.exec(apres)) !== null) {
+      if (RE_PREPOSITION_LIEU.test(apres.slice(0, m.index))) continue;
+      if (estNomValide(m[0])) return m[0];
+    }
+    return null;
   }
 
   // Dans le bloc d'une partie, extrait le(s) nom(s) de famille via l'ancre "né(e) le".
@@ -403,9 +487,12 @@
     const noms = [];
     const nomAvantNaissanceRe = /\b([A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,}(?:[-\s][A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,})*)\s+n[ée]e?(?=\s)/;
     for (let i = 0; i < positions.length - 1; i++) {
+      if (RE_LIEN_FAMILIAL.test(bloc.slice(Math.max(0, positions[i] - 40), positions[i]))) continue;
       const segment = bloc.slice(positions[i], positions[i + 1]);
       const nm = segment.match(nomAvantNaissanceRe);
-      if (nm && estNomValide(nm[1])) noms.push(nm[1]);
+      if (nm && estNomValide(nm[1])) { noms.push(nm[1]); continue; }
+      const repli = nomApresCivilite(segment);
+      if (repli) noms.push(repli);
     }
     return [...new Set(noms)];
   }
@@ -544,11 +631,10 @@
   //    avec deux fois le même nom, celui du bénéficiaire). Reconnaître ce style dès ce premier
   //    mot-clé (voir estStyleLabelEntreGuillemets) et chercher directement en arrière l'évite.
   function nomsEtFinPourRole(texte, motRe, apresIndex) {
-    const zone = texte.slice(apresIndex);
-    const m = zone.match(motRe);
-    if (!m) return { noms: [], finAbsolue: apresIndex };
-    const indexAbsolu = apresIndex + m.index;
-    const finAbsolue = indexAbsolu + m[0].length;
+    const mention = chercherMentionPartie(texte, motRe, apresIndex);
+    if (!mention) return { noms: [], finAbsolue: apresIndex };
+    const indexAbsolu = mention.index;
+    const finAbsolue = indexAbsolu + mention.longueur;
     if (estStyleLabelEntreGuillemets(texte, indexAbsolu)) {
       // Fenêtre élargie à 600 caractères : une présentation réelle (état civil, nationalité,
       // régime matrimonial, profession, adresse) dépasse largement 250 caractères, et la civilité
@@ -616,7 +702,15 @@
     if (/permis\s+de\s+construire|certificat\s+d.urbanisme|autorisation\s+d.urbanisme|condition\s+suspensive\s+d.urbanisme|servitude/.test(c)) return 'autre';
     if (/pr[êe]t|financement|emprunt|offre\s+de\s+pr[êe]t/.test(c)) return 'pret';
     if (/acte\s+authentique|r[ée]it[ée]ration|signature\s+de\s+l.acte/.test(c)) return 'acte';
-    if (/acte\s+de\s+vente|notaire/.test(c) && CUE_FUTUR_RE.test(c)) return 'acte';
+    // Sur une promesse, la date d'expiration de l'option EST la date butoir pour signer la vente.
+    if (/(?:promesse|option|convention)[^.]{0,80}expirant|dur[ée]e\s+expirant|rendez-vous\s+de\s+signature/.test(c)) return 'acte';
+    // « notaire » TOUT SEUL ne dit rien de la nature d'une date : un acte notarié le mentionne dans
+    // une clause sur deux. Associé à « au plus tard », il faisait passer pour la signature de l'acte
+    // le versement de l'indemnité d'immobilisation (« … au plus tard dans les dix jours … en la
+    // comptabilité du notaire rédacteur ») et la fin de la faculté de substitution — les deux
+    // constatés sur une vraie promesse. Il faut désormais que la mention du notaire soit liée à la
+    // SIGNATURE elle-même.
+    if (/acte\s+de\s+vente|sign(?:er|ature)[^.]{0,40}notaire|notaire[^.]{0,40}sign/.test(c) && CUE_FUTUR_RE.test(c)) return 'acte';
     return null;
   }
 
@@ -628,10 +722,28 @@
   // — si elle est la seule du lot à en porter une, elle est retenue sans marquer d'ambiguïté.
   // Sinon (aucune, ou plusieurs), le premier candidat est gardé par défaut mais signalé "ambigu" :
   // c'est à l'utilisateur de vérifier, pas à l'outil de deviner en silence.
+  // Vocabulaire qui désigne l'échéance ELLE-MÊME, et non une clause qui la mentionne en passant.
+  // Déclaré à un seul endroit, comme les autres tables de règles métier de ce fichier.
+  var SIGNAUX_FORTS_ECHEANCE = {
+    pret: /condition\s+suspensive[^.]{0,60}pr[êe]t|offres?\s+(?:[ée]crites?\s+)?de\s+pr[êe]t/i,
+    acte: /r[ée]it[ée]ration|acte\s+authentique|dur[ée]e\s+expirant|rendez-vous\s+de\s+signature|signature\s+de\s+l.acte/i,
+    ventebien: /condition\s+suspensive\s+de\s+vente|vente\s+(?:pr[ée]alable|d.un\s+autre\s+bien)/i
+  };
+
   function meilleureCandidateEcheance(detectedDates, type) {
     const candidats = detectedDates.filter(d => d.suggestion === type);
     if (candidats.length === 0) return { candidat: null, ambigu: false };
     if (candidats.length === 1) return { candidat: candidats[0], ambigu: false };
+    // Départage d'abord sur le SIGNAL FORT du type : une clause qui nomme l'objet même de
+    // l'échéance l'emporte sur une clause qui ne fait que citer le mot au passage. Sans ça, sur une
+    // vraie promesse, « la faculté de substitution ne pourra être exercée que jusqu'au 30 septembre
+    // 2026 … adressée au notaire chargé de rédiger l'acte de vente » était retenue comme date de
+    // signature de l'acte, devant « la promesse est consentie pour une durée expirant le 9 octobre
+    // 2026 » — qui est la vraie date butoir.
+    const forts = SIGNAUX_FORTS_ECHEANCE[type]
+      ? candidats.filter(d => SIGNAUX_FORTS_ECHEANCE[type].test(d.contexte || ''))
+      : [];
+    if (forts.length === 1) return { candidat: forts[0], ambigu: false };
     const avecEcheance = candidats.filter(d => CUE_FUTUR_RE.test(d.contexte));
     if (avecEcheance.length === 1) return { candidat: avecEcheance[0], ambigu: false };
     return { candidat: candidats[0], ambigu: true };
@@ -742,7 +854,12 @@
   function qualitePourRole(texte, typeActe, role) {
     const candidats = QUALITES_CONNUES
       .filter(q => roleDepuisQualite(typeActe, q.qualite) === role)
-      .map(q => ({ ...q, index: String(texte || '').search(q.re) }))
+      // Pas un simple `search()` : la première occurrence d'un mot-clé de rôle peut appartenir à la
+      // comparution des notaires (voir chercherMentionPartie).
+      .map(q => {
+        const mention = chercherMentionPartie(String(texte || ''), q.re, 0);
+        return { ...q, index: mention ? mention.index : -1 };
+      })
       .filter(q => q.index !== -1)
       .sort((a, b) => a.index - b.index);
     return candidats[0] || null;
@@ -795,6 +912,12 @@
       }
 
       if (noms.length === 0) noms = extraireNomsRepli(source, cote.re);
+      // Un nom déjà attribué à la partie précédente ne l'est jamais une seconde fois : le bloc d'une
+      // partie peut déborder sur une clause qui renomme l'autre (« QUOTITES VENDUES : Monsieur
+      // BOURGUEIL et Madame BOUSSELET vendent la pleine propriété »), et l'acquéreur héritait alors
+      // du nom des vendeurs.
+      const dejaVus = new Set(parties.map(p => p.nom));
+      noms = noms.filter(n => !dejaVus.has(n));
       for (const nom of noms) {
         parties.push({
           nom,
@@ -3641,10 +3764,25 @@
   // (diagnostic, plan cadastral...). Les deux gardent le même garde-fou position/longueur.
   const RE_DEBUT_ANNEXE = /\bannexes?\b(?:\s*n[°ºo]?\s*\d+)?|\bpi[èe]ces?\s+annexe(?:s|[ée]s)?\b/i;
   const RE_TITRE_PIECE_JOINTE = /^\s*(?:dossier\s+de\s+diagnostic\s+technique|diagnostic\s+de\s+performance\s+[ée]nerg[ée]tique|[ée]tat\s+des\s+risques(?:\s+et\s+pollutions)?|constat\s+de\s+risque\s+d.exposition\s+au\s+plomb|[ée]tat\s+relatif\s+[àa]\s+la\s+pr[ée]sence\s+de\s+termites|certificat\s+d.urbanisme|r[èe]glement\s+de\s+copropri[ée]t[ée]|extrait\s+(?:du\s+)?plan\s+cadastral|proc[èe]s-verbal\s+d.assembl[ée]e\s+g[ée]n[ée]rale|[ée]tat\s+dat[ée])/i;
+  // Retire le numéro de page isolé que presque toutes les trames posent en tête (« 5 », « - 12 - ») :
+  // sans ça il décale tout le reste et fausse la mesure de position ci-dessous.
+  function texteSansNumeroDePage(texteBrut) {
+    return String(texteBrut || '').replace(/^[\s ]*[-–—]?[\s ]*\d{1,3}[\s ]*[-–—]?[\s ]*/, '');
+  }
+
+  // Le marqueur doit OUVRIR la page, pas y être cité. L'ancienne tolérance de 120 caractères était
+  // trop large : sur une vraie promesse reçue par notaire, la page 5 commence par un titre court
+  // suivi d'une phrase (« Plans des lots / Une copie des plans … est annexée. ANNEXE ») — le mot
+  // ANNEXE, simple renvoi de fin de clause propre à cette trame, tombait dans les 120 premiers
+  // caractères et coupait tout le document dès la page 4. Conséquence en cascade : ni le prix
+  // (page 9) ni la condition de prêt (page 12) n'étaient plus lisibles.
+  var MAX_DEBUT_PAGE_ANNEXE = 12;
+
   function estDebutPageAnnexe(texteBrut) {
-    const m = texteBrut.match(RE_DEBUT_ANNEXE) || texteBrut.match(RE_TITRE_PIECE_JOINTE);
+    const texte = texteSansNumeroDePage(texteBrut);
+    const m = texte.match(RE_DEBUT_ANNEXE) || texte.match(RE_TITRE_PIECE_JOINTE);
     if (!m) return false;
-    return m.index < 120 || texteBrut.trim().length < 300;
+    return m.index < MAX_DEBUT_PAGE_ANNEXE || texte.trim().length < 300;
   }
 
   // Bug corrigé, signalé deux fois par l'étude : ces deux motifs (annexe/titre de pièce jointe) ne
@@ -9447,7 +9585,21 @@
     const typeEl = document.getElementById('calc-type');
     if (!prixEl || !deptEl || !typeEl || !deptEl.value) return;
 
-    const prix = Math.max(1, Number(prixEl.value) || 1);
+    // Le champ part vide (demandé par l'étude) : tant qu'aucun prix n'est saisi, on n'affiche pas
+    // un résultat calculé sur une valeur de repli — il aurait l'air d'une vraie provision.
+    const prixSaisi = Number(prixEl.value);
+    if (!prixEl.value.trim() || !Number.isFinite(prixSaisi) || prixSaisi <= 0) {
+      document.getElementById('calc-tag').textContent = '';
+      document.getElementById('calc-total').textContent = '—';
+      for (const id of ['calc-emol', 'calc-tre', 'calc-total2', 'calc-base-rate', 'calc-applied-rate', 'calc-dmt-rate']) {
+        document.getElementById(id).textContent = '—';
+      }
+      document.getElementById('calc-saving').textContent = '';
+      document.getElementById('calc-regime').textContent = 'Saisissez un prix pour obtenir la provision.';
+      return;
+    }
+
+    const prix = Math.max(1, prixSaisi);
     const primoAccedant = document.querySelector('input[name="calc-first"]:checked').value === 'yes';
     const residencePrincipale = document.querySelector('input[name="calc-rp"]:checked').value === 'yes';
     const type = typeEl.value;

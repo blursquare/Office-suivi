@@ -476,3 +476,37 @@ test('detecterAdresseBien : l\'adresse d\'une partie n\'est pas celle du bien', 
   const texte = 'Monsieur DUPONT, demeurant à 5 rue des Lilas 41000 BLOIS, ci-après dénommé LE VENDEUR.';
   assert.equal(app.detecterAdresseBien(texte), null);
 });
+
+test('detecterPrixVente lit « (92 000,00 EUR) » malgré la coupure de ligne du PDF', () => {
+  // Cas réel : le montant en lettres est coupé en deux par la mise en page, et la reprise chiffrée
+  // s'écrit « EUR » et non « € ». Aucun prix n'était détecté.
+  const app = chargerApplication();
+  const texte = 'PRIX \nLa vente, en cas de réalisation, aura lieu moyennant le prix de QUATRE-\n' +
+    'VINGT-DOUZE MILLE EUROS (92  000,00 EUR), qui sera payable comptant le jour \nde la constatation.';
+  assert.equal(app.detecterPrixVente(texte), 92000);
+});
+
+test('la clause qui nomme l’échéance l’emporte sur celle qui cite le mot en passant', () => {
+  // Cas réel : « la faculté de substitution ne pourra être exercée que jusqu'au 30 septembre 2026,
+  // … adressée au notaire chargé de rédiger l'acte de vente » était retenue comme date de signature
+  // de l'acte, devant la vraie date butoir de la promesse.
+  const app = chargerApplication();
+  const texte = 'Le présent acte est signé le 9 juillet 2026.\n' +
+    'DELAI\nLa promesse de vente est consentie pour une durée expirant le 9 octobre 2026, à seize heures.\n' +
+    'SUBSTITUTION\nCette faculté de substitution ne pourra être exercée que jusqu’au 30 septembre 2026, ' +
+    'et ce par lettre recommandée adressée au notaire chargé de rédiger l’acte de vente.';
+  const dates = app.detecterDatesDepuisTexte(texte, '2026-07-09');
+  const choix = app.meilleureCandidateEcheance(dates, 'acte');
+  assert.equal(choix.candidat.iso, '2026-10-09');
+  assert.equal(choix.ambigu, false);
+});
+
+test('le versement de l’indemnité d’immobilisation n’est pas la signature de l’acte', () => {
+  // « notaire » tout seul ne dit rien de la nature d'une date : ici il ne désigne que le compte sur
+  // lequel verser l'indemnité.
+  const app = chargerApplication();
+  const c = 'Le BENEFICIAIRE s’oblige à verser la somme de QUATRE MILLE SIX CENTS EUROS (4.600,00 EUR) ' +
+    'au plus tard dans les dix jours à compter des présentes, au moyen d’un virement bancaire en la ' +
+    'comptabilité du notaire rédacteur des présentes';
+  assert.notEqual(app.suggererEcheance(c), 'acte');
+});

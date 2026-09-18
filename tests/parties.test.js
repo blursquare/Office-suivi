@@ -171,3 +171,74 @@ ci-après dénommé L'ACQUEREUR.`;
   const noms = app.detecterParties(texte, 'COMPROMIS_DE_VENTE').map((p) => p.nom).join(',');
   assert.equal(noms, 'LEROY,BERTRAND,PETIT');
 });
+
+// Acte AUTHENTIQUE (promesse reçue par notaire) : sa première page est la comparution des notaires,
+// qui se désignent EUX-MÊMES par la partie qu'ils assistent. Sur une vraie promesse de l'étude, le
+// nom du dossier ressortait « GOSSART / RECU » — le nom du notaire, et le verbe de « A RECU le
+// présent acte » — au lieu des parties. Reproduit ici avec des noms inventés, structure identique.
+const ACTE_AUTHENTIQUE = `10740101
+BA/KC/
+
+Maître Barbara DUVAL , Notaire à CHATEAUDUN (Eure-et-Loir – 28200), 68, Rue de la
+République, soussignée, identifié sous le numéro CRPCEN 28038,
+
+Notaire assistant le PROMETTANT,
+
+Avec le concours à distance, en son office notarial, de Maître Sophie GOSSART, notaire à
+BLOIS (41000), identifié sous le numéro CRPCEN 41089, assistant le BENEFICIAIRE,
+
+A RECU le présent acte contenant PROMESSE DE VENTE à la requête de :
+
+PROMETTANT
+Monsieur Jean-Loup André Roger  LEMERCIER, enseignant, et Madame Yvette Marie Annie
+FONTANEL, retraitée, demeurant ensemble à CHATEAUDUN (28200) 6 rue de Chaulnes.
+Monsieur est né à BUZANCAIS (36500) le 12 mai 1966,
+Madame est née à VALREAS (84600) le 19 septembre 1961.
+Mariés à la mairie de RICHERENCHES (84600) le 31 juillet 1999 sous le régime de la
+participation aux acquêts.
+
+BENEFICIAIRE
+Monsieur Sébastien ROUVIERE, directeur, demeurant à MARIGNY-LES-USAGES (45760) 255 rue
+de Villevert.
+Né à VILLENEUVE-SAINT-GEORGES (94190) le 30 juin 1976.
+Divorcé de Madame Ana DA SILVA MARTINHO suivant jugement rendu par le tribunal judiciaire
+de BLOIS (41000) le 3 juillet 2007, et non remarié.
+
+Madame Julie Monique Corinne  BERTAUD, entrepreneur, demeurant à MARIGNY-LES-USAGES
+(45760) 255 rue de Villevert.
+Née à ORLEANS (45000) le 6 avril 1979.
+
+QUOTITES VENDUES
+Monsieur Jean-Loup LEMERCIER et Madame Yvette FONTANEL vendent la pleine propriété.`;
+
+test('la comparution des notaires ne fournit jamais le nom d’une partie', () => {
+  const app = chargerApplication();
+  const noms = app.detecterParties(ACTE_AUTHENTIQUE, 'PROMESSE_DE_VENTE').map(p => p.nom);
+  assert.equal(noms.includes('GOSSART'), false);
+  assert.equal(noms.includes('DUVAL'), false);
+  assert.equal(noms.includes('RECU'), false);
+});
+
+test('le patronyme est lu même quand « né(e) » ne le suit pas (état civil en deux temps)', () => {
+  const app = chargerApplication();
+  assert.equal(app.detecterNomDossier(ACTE_AUTHENTIQUE), 'LEMERCIER & FONTANEL / ROUVIERE & BERTAUD');
+});
+
+test('ni une commune ni un ex-conjoint ne passent pour une partie', () => {
+  const app = chargerApplication();
+  const noms = app.detecterParties(ACTE_AUTHENTIQUE, 'PROMESSE_DE_VENTE').map(p => p.nom).join(',');
+  // Lieux de naissance, de mariage et de domicile — tous en majuscules dans cette trame.
+  for (const lieu of ['BUZANCAIS', 'VALREAS', 'RICHERENCHES', 'CHATEAUDUN', 'MARIGNY-LES-USAGES', 'ORLEANS']) {
+    assert.equal(noms.includes(lieu), false, lieu);
+  }
+  assert.equal(noms.includes('DA SILVA MARTINHO'), false);
+});
+
+test('le bloc d’une partie ne déborde pas sur la clause qui renomme l’autre', () => {
+  // « QUOTITES VENDUES : Monsieur LEMERCIER et Madame FONTANEL vendent… » tombe dans les 1200
+  // caractères du bloc du bénéficiaire : ces deux noms ne doivent pas lui être attribués.
+  const app = chargerApplication();
+  const acquereurs = app.detecterParties(ACTE_AUTHENTIQUE, 'PROMESSE_DE_VENTE')
+    .filter(p => p.role === 'ACQUEREUR').map(p => p.nom).join(',');
+  assert.equal(acquereurs, 'ROUVIERE,BERTAUD');
+});

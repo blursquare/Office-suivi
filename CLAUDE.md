@@ -4362,6 +4362,88 @@ autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` auton
     acceptée, chips repliées sous le panneau, colonnes des deux groupes de semaines alignées au
     pixel, marge du bouton mesurée, aucune erreur JS. `npm test` : 322 tests racine, 97 serveur.
 
+- **Import d'un acte AUTHENTIQUE : cinq défauts, tous reproduits sur le PDF réel fourni par
+  l'étude** (« Copie AAE PROMESSE DE VENTE … », 41 pages, promesse reçue par notaire). L'étude
+  signalait quatre symptômes — nom de dossier « GOSSART / RECU », prix de 450 000 au lieu de
+  92 000, aucune date d'obtention de prêt, PDF coupé page 4. **Méthode : extraire le texte page par
+  page et rejouer les fonctions de l'outil dessus**, plutôt que relire les regex. Les quatre
+  symptômes sont apparus du premier coup, et trois d'entre eux n'en formaient qu'un.
+  - **La coupe page 4 causait le prix ET la date de prêt.** `estDebutPageAnnexe()` tolérait le
+    marqueur d'annexe dans les 120 premiers caractères d'une page. Or cette trame pose le mot
+    « ANNEXE » seul après CHAQUE phrase citant une pièce jointe, et la page 5 s'ouvre par un titre
+    court suivi d'une phrase : « Plans des lots / Une copie des plans … est annexée. ANNEXE » — le
+    renvoi tombait dans la fenêtre et coupait tout le document dès la page 4. Le prix (page 9) et
+    la condition suspensive de prêt (page 12) n'étaient donc jamais lus. Le marqueur doit désormais
+    OUVRIR la page (`MAX_DEBUT_PAGE_ANNEXE`, 12 caractères), après retrait du numéro de page
+    (`texteSansNumeroDePage`, qui profite aussi à `RE_TITRE_PIECE_JOINTE`, jusque-là ancrée sur un
+    `^` que le numéro de page suffisait à faire échouer). La branche « page courte » est conservée.
+  - **Le nom du dossier prenait celui du NOTAIRE.** Un acte authentique s'ouvre par la comparution
+    des notaires, qui se désignent eux-mêmes par la partie qu'ils assistent : « Notaire assistant le
+    PROMETTANT », « … assistant le BENEFICIAIRE ». C'était la PREMIÈRE occurrence des mots-clés de
+    rôle, donc celle que `qualitePourRole`/`nomsEtFinPourRole`/`extraireBlocPartie` retenaient — d'où
+    « GOSSART » (notre propre étude) et « RECU » (le verbe de « A RECU le présent acte »).
+    `chercherMentionPartie()` (nouvelle, utilisée par les trois) ignore toute occurrence précédée
+    d'un marqueur de comparution (`RE_COMPARUTION_NOTAIRE`) dans les 45 caractères qui la précèdent
+    — **fenêtre volontairement courte** : dans une comparution le marqueur colle au mot-clé, alors
+    qu'à 110 caractères elle mordait sur la ligne précédente et faisait rejeter le vrai titre du
+    bloc d'état civil, qui suit de peu la comparution du second notaire. Repli sur la première
+    occurrence si elles sont toutes en contexte de comparution.
+  - **Le patronyme n'était pas lu quand « né(e) » ne le suit pas.** Cette trame écrit l'état civil
+    en deux temps : « Monsieur Jean-Loup André Roger BOURGUEIL, enseignant, et Madame …, demeurant
+    ensemble à CHATEAUDUN. Monsieur est né à BUZANCAIS le 12 mai 1966. » `extraireNomsParNaissance`
+    exige des majuscules juste avant « né » : aucune ici. Repli `nomApresCivilite()` : la première
+    suite de majuscules qui suit la civilité, bornée à la virgule ou au point — **jamais au retour
+    à la ligne**, un texte extrait d'un PDF étant coupé au gré de la mise en page (« et Madame
+    Yvette Marie Annie \nFONTANEL »). Deux garde-fous : une suite introduite par une préposition de
+    lieu est écartée (`RE_PREPOSITION_LIEU` — sinon « né à BUZANCAIS » et « demeurant à CHATEAUDUN »
+    donnent une commune pour un nom), et une civilité introduite par un lien de famille aussi
+    (`RE_LIEN_FAMILIAL` — « Divorcé de Madame Ana DA SILVA MARTINHO » faisait de l'ex-conjointe une
+    acquéreuse).
+  - **Le bloc d'une partie débordait sur la suivante** : les 1200 caractères par défaut avalaient
+    « QUOTITES VENDUES : Monsieur BOURGUEIL et Madame FONTANEL vendent la pleine propriété », et ces
+    deux noms se retrouvaient côté acquéreur. Deux bornes ajoutées : le titre de la partie suivante
+    (`RE_TITRE_PARTIE_SUIVANTE`, en majuscules et sur sa propre ligne) et un dédoublonnage — un nom
+    déjà attribué à une partie ne l'est jamais une seconde fois.
+  - **Le prix n'était pas détecté du tout** (les 450 000 affichés venaient du modèle IA, pas des
+    regex) : `PRIX_VENTE_RE` excluait le retour à la ligne « pour rester dans la même clause », ce
+    qui revenait à exclure le cas normal — « le prix de QUATRE-\nVINGT-DOUZE MILLE EUROS » — et
+    n'acceptait pas « EUR », la forme qu'emploient ces trames dans la reprise chiffrée. Le point
+    reste exclu : c'est lui qui borne réellement la clause. **Piège rencontré** : `\b` placé après
+    l'alternative complète cassait le cas `€` (un `\b` après un caractère non-mot ne peut pas
+    matcher) — il ne va que sur l'alternative en lettres. Attrapé par les tests existants.
+  - **L'adresse était tronquée au milieu de la voie** (« ORLEANS (LOIRET) 45000 11 Rue ») : même
+    cause, `ADRESSE_BIEN_RE` s'arrêtait au retour à la ligne entre « Rue » et « d'Escures ». Seule
+    la fenêtre qui SUIT le code postal est assouplie, toujours bornée par le point.
+  - **Trouvé en vérifiant, non signalé : la date de « Signature de l'acte » était fausse** (19/07
+    puis 30/09 au lieu du 09/10). Deux causes, corrigées sans ajouter d'exclusion clause par clause
+    — ce que l'étude a explicitement demandé d'éviter :
+    - `suggererEcheance()` classait « acte » toute date accompagnée du mot **« notaire »** et d'une
+      formulation de délai. Or un acte notarié mentionne le notaire dans une clause sur deux : le
+      versement de l'indemnité d'immobilisation (« … au plus tard dans les dix jours … en la
+      comptabilité du notaire rédacteur ») passait ainsi pour la signature de la vente. La mention
+      du notaire doit maintenant être liée à la SIGNATURE elle-même. « durée expirant » et
+      « rendez-vous de signature » sont en revanche ajoutés comme signaux d'acte : sur une promesse,
+      l'expiration de l'option EST la date butoir pour signer.
+    - `meilleureCandidateEcheance()` départage désormais d'abord sur le **signal fort** du type
+      (`SIGNAUX_FORTS_ECHEANCE`, une table par type d'échéance) : une clause qui NOMME l'échéance
+      l'emporte sur une clause qui cite le mot au passage. Sans quoi « la faculté de substitution ne
+      pourra être exercée que jusqu'au 30 septembre 2026 … au notaire chargé de rédiger l'acte de
+      vente » l'emportait sur « la promesse est consentie pour une durée expirant le 9 octobre
+      2026 ». Règle appliquée uniquement quand plusieurs candidates existent : elle ne peut rien
+      changer là où il n'y a jamais eu d'hésitation.
+  - **Résultat sur l'acte réel** : nom « BOURGUEIL & BOUSSELET / CHARPENTIER & GENESTOUX », prix
+    92 000 €, signature 09/07/2026, prêt 09/09/2026, acte 09/10/2026, adresse complète, plus aucune
+    coupure. Tests : 11 nouveaux (`parties`, `divers`, `dates`, `adresse`), suite racine 322 → 332.
+    Les textes de test reprennent la STRUCTURE exacte de la trame avec des noms inventés — aucune
+    donnée client n'entre dans le dépôt.
+  - **Leçon, à rapprocher de celles déjà tirées ici** : un PDF réel vaut dix relectures de regex. Le
+    même quart d'heure d'extraction page par page a donné les quatre causes, dont trois n'en
+    faisaient qu'une — et deux défauts supplémentaires que l'étude n'avait pas encore vus.
+- **Les deux simulateurs partent d'un champ vide** (`#calc-price`, `#prorata-montant`), demandé par
+  l'étude : une valeur pré-remplie se prend pour un résultat. Le prorata affichait déjà un message
+  tant qu'il manque une donnée ; le simulateur de provision, lui, retombait sur un prix de 1 € et
+  affichait une provision d'allure crédible — il affiche maintenant « — » et invite à saisir un prix.
+
 **Ce qui n'a volontairement PAS été fait** (arrêté à la demande explicite de l'étude, pas un
 oubli) — à reprendre uniquement si redemandé un jour :
 - **Import automatique** des dossiers déjà enregistrés sur la version 100% locale (`main`) vers ce
