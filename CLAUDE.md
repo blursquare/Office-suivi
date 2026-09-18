@@ -3868,6 +3868,93 @@ autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` auton
     d'adresse, « sis » sans préposition, adresse d'une partie non captée, délai de prêt classé par
     le titre de clause, et son contre-exemple).
 
+- **Panneau « Ce que l'outil a compris » repris en entier**, sur un retour sans appel de l'étude
+  (« il y a énormément de bug et la logique n'est pas bonne », « llama hallucine souvent sur des
+  termes », « quand il met confirmé mais que c'est faux comment modifier ? », « il ne met pas les
+  références pour aller directement à la page », « c'est très confus »). Trois défauts
+  **structurels** derrière ces symptômes, pas des bugs isolés — chacun tranché avec l'étude avant
+  implémentation :
+  - **« Confirmé » ne confirmait rien.** `champExtraction()` faisait `statut: valeur ? 'CONFIRMED'
+    : 'NOT_FOUND'` : une donnée était marquée « Confirmé » **du seul fait qu'une regex avait
+    renvoyé quelque chose**. Aucun contrôle n'avait jamais eu lieu, et les propositions du modèle
+    local tombaient dans le même mot. **Décision de l'étude : l'outil dit d'où vient la donnée,
+    c'est elle qui coche « vérifié ».** Nouveau vocabulaire (`ORIGINES_REVISION`/`origineRevision()`,
+    fonction pure testable) : « Lue dans l'acte », « Calculée depuis un délai », « Appris d'une
+    correction précédente », « Plusieurs valeurs possibles », « Proposée par l'IA », « Non
+    trouvée », « Saisie à la main », « Vérifié ». **Le vert (`dl-success`) n'est accordé que par
+    une relecture humaine ou une saisie manuelle** — jamais par la seule présence d'une valeur.
+    Un compteur « N / M données vérifiées » en tête du panneau dit où en est la relecture.
+    L'ordre des cas dans `origineRevision()` EST la règle métier, et il est testé comme tel.
+    **« Appris » est délibérément conservé comme origine à part entière** (l'étude : « la notion de
+    appris était bien aussi avant ») : `construireDatesMetier()` propage désormais le drapeau
+    `apprise` des candidates jusqu'à l'objet date, qui ne le transportait pas.
+  - **Aucune référence de page, par construction.** `construireExtractionRegex()` appelait
+    `champExtraction(detecterNomDossier(source))` **sans lui passer de `source`** → `source: null`
+    → aucun bouton « p.X » sur le nom, le prix ni l'email ; seules les dates en avaient un.
+    Nouvelles fonctions `localiserValeur()` / `extraitAutour()` / `aiguillesPourValeur()` /
+    `sourcePourValeur()` : la valeur déjà extraite est retrouvée dans le texte, ce qui donne sa
+    page (`pageDepuisIndex`) et la phrase qui l'entoure. **Distinct de `localiserExtrait()`**, qui
+    vérifie une CITATION du modèle et exige pour ça au moins 12 caractères (« le 15 » se
+    retrouverait partout) : ici la valeur vient de nos propres règles, on cherche seulement à la
+    situer — et un patronyme ou un montant font souvent moins de 12 caractères, les écarter
+    revenait à n'afficher aucune page. `aiguillesPourValeur()` cherche la valeur **sous la forme
+    où elle figure réellement dans l'acte** : un nom de dossier « DUPONT / MARTIN » est une
+    composition qui n'y apparaît jamais telle quelle (on situe le premier patronyme), un prix
+    `200000` s'y écrit « 200 000 ». Vérifié en conditions réelles sur un acte de 3 pages : nom
+    → p.1, adresse et prix → p.2, dates → p.3.
+  - **Le panneau était en lecture seule** et affirmait « chaque donnée reste modifiable dans les
+    champs du formulaire » — alors que nom, adresse et prix vivent à l'**étape 4** et le panneau à
+    l'**étape 2** : corriger une valeur fausse obligeait à quitter l'écran où elle se voyait.
+    **Chaque ligne est désormais un champ de saisie** (`CHAMPS_REVISION`, `champRevision()`,
+    `ecrireChampRevision()`, `modifierDonneeRevision()`), qui écrit **en même temps** dans le champ
+    du formulaire correspondant (`synchroniserChampFormulaire()`) — une seule source de vérité.
+    **Aucun statut n'est un verrou** : une donnée « à vérifier » comme une donnée déjà relue se
+    corrige de la même façon (demande explicite de l'étude, « permettre de modifier a posteriori
+    même si c'est à vérifier ou confirmé »). Corriger une ligne la coche automatiquement comme
+    vérifiée — c'est le même geste — et **alimente la mémoire des corrections apprises**
+    (`memoriserCorrectionRevision()` → `memoriserCorrection(..., 'date')`), au même titre qu'un clic
+    sur un chip : c'est ce qui fera ressortir le badge « Appris » au prochain acte de même trame.
+    `onchange` et non `oninput` : le panneau se redessine à chaque modification, une saisie
+    caractère par caractère perdrait le focus au premier appui sur une touche.
+  - **Le modèle IA n'écrit plus jamais de lui-même** (troisième arbitrage de l'étude, face aux
+    hallucinations constatées). `fusionnerExtractionIa()` ne pose plus aucune valeur : une lecture
+    du modèle devient une `propositionIa {valeur, source, extraitTrouve}`, affichée dans le panneau
+    sous l'étiquette « Proposé par l'IA » avec un bouton « Utiliser »
+    (`accepterPropositionIa()`), et signalée explicitement quand la phrase citée ne figure pas dans
+    le document. Les trois règles de fusion deviennent : regex muettes → proposition ; accord →
+    `origine: 'regex+ia'` et rien de plus ; désaccord → valeur des regex conservée, statut
+    « à vérifier », valeur du modèle en proposition ET en candidat. Une donnée déjà corrigée à la
+    main (`origine: 'manuel'`) n'est jamais rouverte par le modèle. Les parties et les notaires
+    issus du seul modèle sont marqués `origine: 'ia'` — et ce marquage **interdit désormais le
+    pré-remplissage automatique de `#f-role-notaire`** (`appliquerExtractionAuFormulaire`) : ce
+    sélecteur masque la checklist des pièces quand il vaut « participant », le basculer sur une
+    lecture non vérifiée serait le pire cas.
+  - **Corrections et relectures survivent à un recalcul** (`correctionsRevision`/
+    `verificationsRevision` + `appliquerCorrectionsRevision()`, rejouées dans
+    `recalculerExtractionRegex()`) : corriger la date de signature reconstruit tout l'objet
+    d'extraction, sans ces deux tables le travail de relecture déjà fait était effacé à chaque
+    fois. Remises à zéro à chaque nouvel import et dans `reinitialiserFormulaire()`.
+  - **Même vocabulaire sur la fiche enregistrée** : `renderExtractionDossier()` (le `<details>`
+    « Extraction » du tiroir) utilisait `LIBELLES_STATUT_EXTRACTION`, supprimée avec le reste — elle
+    passe par `origineRevision()`, avec un drapeau `renseigne` ajouté à l'instantané
+    (`instantaneExtraction()`) puisque la valeur elle-même n'y est pas recopiée. Un seul vocabulaire
+    pour la même réalité, import et dossier enregistré — principe déjà appliqué ailleurs dans ce
+    fichier (voir `statutOffreAffichage()`).
+  - **Piège de spécificité CSS, rencontré une quatrième fois** (après `.select-edit`,
+    `.input-inline`, `.pdf-recherche-input`) : les champs du panneau sont ciblés par
+    `.revision-ligne input.revision-saisie` (élément + 2 classes), car la règle générique
+    `input[type="text"]` de la feuille a la même spécificité qu'un simple `input.revision-saisie` et
+    l'emporterait par son ordre dans le fichier.
+  - Tests : `tests/revision.test.js` (13 nouveaux — vocabulaire d'origine et son ordre, le vert
+    réservé à la relecture, « Appris » conservé, chaque clé de `CHAMPS_REVISION` résoluble, un
+    statut qui n'est pas un verrou, les références de page) et `tests/fusion.test.js` réécrit sur
+    le nouveau contrat (proposition au lieu d'écriture, donnée manuelle non rouverte, adoption
+    d'une proposition). Suite racine 273 → 288, suite serveur inchangée (97). **Vérifié dans un
+    vrai Chromium** (clair et sombre, `traiterTexte()` appelé directement, pdf.js étant bloqué par
+    le proxy de cet environnement) : plus aucun « Confirmé » affiché, 10 lignes toutes éditables et
+    toutes cochables, correction depuis le panneau répercutée dans le formulaire, compteur qui
+    suit, proposition IA sans effet jusqu'au clic sur « Utiliser », aucune erreur JS.
+
 **Ce qui n'a volontairement PAS été fait** (arrêté à la demande explicite de l'étude, pas un
 oubli) — à reprendre uniquement si redemandé un jour :
 - **Import automatique** des dossiers déjà enregistrés sur la version 100% locale (`main`) vers ce

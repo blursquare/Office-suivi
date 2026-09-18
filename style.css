@@ -1524,6 +1524,78 @@
     font-variant-numeric: tabular-nums;
   }
   .revision-vide { color: var(--muted); font-weight: 400; }
+
+  /* Chaque donnée est corrigeable SUR PLACE : le panneau montre l'extrait qui révèle l'erreur, il
+     doit aussi permettre de la corriger sans quitter l'écran. Le champ écrit en même temps dans le
+     formulaire (voir synchroniserChampFormulaire) — une seule source de vérité.
+     Sélecteur composé (2 classes) : la règle générique input[type="..."] du formulaire a la même
+     spécificité qu'un simple input.revision-saisie et l'emporterait par son ordre dans le fichier —
+     piège déjà rencontré trois fois dans cette feuille (.select-edit, .input-inline,
+     .pdf-recherche-input). */
+  .revision-ligne input.revision-saisie,
+  .revision-ligne select.revision-saisie {
+    width: 100%;
+    max-width: none;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 5px 8px;
+    box-sizing: border-box;
+  }
+  .revision-ligne input.revision-saisie:focus,
+  .revision-ligne select.revision-saisie:focus {
+    outline: 2px solid var(--focus);
+    outline-offset: 1px;
+    border-color: var(--focus);
+  }
+
+  .revision-entete {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .revision-compteur {
+    font-size: 11.5px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Seule marque verte du panneau : une donnée qu'un humain a relue. L'outil, lui, ne confirme
+     jamais rien tout seul. */
+  .revision-ligne.revision-verifiee { border-color: var(--success); }
+  .revision-coche {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--muted);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .revision-coche input { margin: 0; cursor: pointer; }
+
+  /* Proposition du modèle local : visible, attribuée, sans effet tant qu'on ne l'adopte pas. */
+  .revision-proposition {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px dashed var(--line);
+  }
+  .revision-proposition-valeur {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-soft);
+  }
+  .revision-proposition .revision-raison { margin-top: 0; flex: 1 1 100%; }
   .revision-raison, .revision-extrait {
     font-size: 11.5px;
     color: var(--ink-soft);

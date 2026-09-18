@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-18 12:04';
+  const VERSION_APP = '2026-09-18 12:21';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-18 12:21', resume: "Panneau « Ce que l'outil a compris » repris en entier. Chaque donnée est maintenant CORRIGEABLE SUR PLACE, sans quitter l'écran où l'erreur se voit, et porte le numéro de page d'où elle sort (nom, adresse et prix n'en avaient aucun). L'outil n'annonce plus rien comme « Confirmé » : il dit seulement d'où vient la donnée — lue dans l'acte, calculée depuis un délai, apprise d'une correction précédente, proposée par l'IA — et le vert est réservé à ce que VOUS cochez comme vérifié. Les lectures du modèle local, qui invente régulièrement des termes, sont désormais proposées avec un bouton « Utiliser » et n'écrivent plus jamais d'elles-mêmes dans un champ" },
     { version: '2026-09-18 12:04', resume: "Création de dossier depuis un PDF : quatre corrections. Le nom du dossier prenait la COMMUNE de l'adresse au lieu du patronyme (« BLOIS / TOURS » au lieu de « DUPONT / MARTIN ») sur la rédaction la plus courante, celle où la partie est présentée puis étiquetée ; un acte à deux vendeurs (« ci-après dénommés LES VENDEURS ») n'était pas reconnu du tout. L'adresse du bien avalait la désignation cadastrale en la tronquant, et n'était pas détectée quand « sis » introduit directement l'adresse sans préposition. Enfin, une date de prêt exprimée en jours était bien calculée mais jamais reportée dans le champ quand seule l'intitulé de la clause nommait le prêt" },
     { version: '2026-09-18 10:16', resume: "Le serveur ne disparaît plus en silence au démarrage : jusqu'ici, une faute de frappe dans config.json (typiquement un chemin réseau écrit avec des antislashs simples au lieu de doublés) faisait clignoter la fenêtre puis plus rien, sans la moindre explication. Le message est maintenant affiché, la fenêtre reste ouverte le temps de le lire, et il est enregistré dans erreur-demarrage.txt à côté de l'exécutable. Même traitement si le port est déjà occupé, avec le rappel qu'un serveur tourne peut-être déjà sans fenêtre visible" },
     { version: '2026-09-18 08:30', resume: "Les dossiers clients du NAS sont désormais lus par le SERVEUR, plus par le navigateur : tous les postes connectés par l'adresse IP peuvent enfin relier un dossier et ouvrir ses pièces, ce qui était impossible jusqu'ici. Plus aucune autorisation à reconfirmer au démarrage (la popup, le bandeau et le bouton groupé disparaissent avec le problème), un dossier relié depuis un poste l'est pour tout le monde, le dossier du NAS est proposé automatiquement d'après le nom du dossier, et un bouton « Revérifier tous les dossiers » relance le parcours en une fois. À configurer une fois : « nasRacine » dans config.json" },
@@ -997,6 +998,9 @@
             : [],
           calcul: calculee ? retenu.calcul : null,
           calculAlternatif: alternative ? alternative.iso : null,
+          // Classée d'après une correction déjà faite sur une clause très proche : l'étude tient à
+          // voir cette provenance (badge « Appris »), au même titre que sur les chips.
+          apprise: !!(retenu && retenu.apprise),
           raison: choix.ambigu
             ? 'Plusieurs clauses donnent une date pour cette échéance, sans formulation permettant de trancher.'
             : (calculee ? 'Date calculée à partir d’un délai exprimé dans l’acte.' : 'Date lue directement dans l’acte.')
@@ -1511,6 +1515,13 @@
     };
   }
 
+  // Comme champExtraction(), mais en situant au passage la valeur dans le document : sans ça
+  // aucune de ces données n'avait de page, et le panneau de révision n'offrait aucun moyen d'aller
+  // voir la phrase d'où elle sort — défaut signalé par l'étude.
+  function champAvecSource(texte, cle, valeur) {
+    return champExtraction(valeur, { source: sourcePourValeur(texte, cle, valeur) });
+  }
+
   // Rassemble tout ce que les regex savent extraire en UN objet, avec pour chaque donnée son
   // statut, sa provenance et sa source dans le PDF. C'est ce même objet que la passe IA viendra
   // ensuite compléter (voir fusionnerExtractionIa) : les deux passes ne parlent qu'une langue.
@@ -1528,12 +1539,16 @@
       typeActe,
       parties: detecterParties(source, typeActe.valeur),
       notaires,
-      bien: { adresse: bien.adresse, source: bien.source, cadastre: detecterCadastre(source) },
+      bien: {
+        adresse: bien.adresse,
+        source: bien.source || sourcePourValeur(source, 'adresseBien', bien.adresse && bien.adresse.adresseComplete),
+        cadastre: detecterCadastre(source)
+      },
       dates: construireDatesMetier(detectedDates, detecterDelais(source), dateCompromis),
       champs: {
-        nom: champExtraction(detecterNomDossier(source)),
-        prixVente: champExtraction(detecterPrixVente(source)),
-        emailAcquereur: champExtraction(detecterEmailAcquereur(source, typeActe.valeur)),
+        nom: champAvecSource(source, 'nom', detecterNomDossier(source)),
+        prixVente: champAvecSource(source, 'prixVente', detecterPrixVente(source)),
+        emailAcquereur: champAvecSource(source, 'emailAcquereur', detecterEmailAcquereur(source, typeActe.valeur)),
         typeVente: champExtraction(detecterTypeVenteCopropriete(source) ? 'copropriete' : null)
       },
       alertes: [],
@@ -1657,7 +1672,14 @@
         statut: champ.statut || 'NOT_FOUND',
         methode: champ.methode || null,
         origine: champ.origine || 'regex',
-        page: (champ.source && champ.source.page) || null
+        page: (champ.source && champ.source.page) || null,
+        // La valeur elle-même n'est pas recopiée (elle vit déjà dans le champ plat du dossier),
+        // mais ces trois drapeaux permettent à la fiche enregistrée de parler exactement la même
+        // langue que le panneau d'import (voir origineRevision) — un seul vocabulaire pour la
+        // même réalité, au lieu de « Confirmé » d'un côté et « Lue dans l'acte » de l'autre.
+        renseigne: champ.valeur !== null && champ.valeur !== undefined && champ.valeur !== '',
+        verifie: !!champ.verifie,
+        apprise: !!champ.apprise
       }
       : null;
 
@@ -1674,7 +1696,11 @@
       if (etat) champs[CHAMP_PAR_TYPE_DATE[typeDate]] = etat;
     }
     if (adresse) {
-      champs.adresseBien = { statut: adresse.statut || 'NOT_FOUND', methode: null, origine: 'regex', page: (extraction.bien.source && extraction.bien.source.page) || null };
+      champs.adresseBien = {
+        statut: adresse.statut || 'NOT_FOUND', methode: null, origine: adresse.origine || 'regex',
+        page: (extraction.bien.source && extraction.bien.source.page) || null,
+        renseigne: !!adresse.adresseComplete, verifie: !!adresse.verifie, apprise: false
+      };
     }
 
     return {
@@ -1856,6 +1882,71 @@
       if (pos === -1) longueur -= 10;
     }
     return pos === -1 ? -1 : source.index[pos];
+  }
+
+  // ==== EXTRACTION STRUCTURÉE : situer une valeur dans le document ====
+
+  // Retrouve où une valeur DÉJÀ extraite apparaît dans le texte, pour pouvoir en donner la page.
+  // Distinct de localiserExtrait(), qui vérifie une CITATION du modèle et exige pour ça au moins
+  // 12 caractères (« le 15 » se retrouverait partout) : ici la valeur vient de nos propres règles,
+  // on cherche seulement à la situer — un patronyme ou un montant font souvent moins de 12
+  // caractères, et les écarter reviendrait à n'afficher aucune page, ce qui était le défaut signalé.
+  function localiserValeur(texte, aiguille) {
+    const brut = String(aiguille === null || aiguille === undefined ? '' : aiguille).trim();
+    if (!texte || brut.length < 3) return -1;
+    const source = normaliserAvecIndex(texte);
+    const cible = normaliserAvecIndex(brut).texte.trim();
+    if (cible.length < 3) return -1;
+    const pos = source.texte.indexOf(cible);
+    return pos === -1 ? -1 : source.index[pos];
+  }
+
+  // Phrase entourant un index, pour montrer la valeur DANS son contexte plutôt que seule.
+  function extraitAutour(texte, index, longueur) {
+    const source = String(texte || '');
+    const debut = Math.max(0, index - 90);
+    const fin = Math.min(source.length, index + Math.max(Number(longueur) || 0, 20) + 90);
+    let extrait = source.slice(debut, fin).replace(/\s+/g, ' ').trim();
+    if (debut > 0) extrait = '…' + extrait;
+    if (fin < source.length) extrait += '…';
+    return extrait;
+  }
+
+  // Formes sous lesquelles une valeur peut réellement figurer dans l'acte. Un nom de dossier
+  // « DUPONT / MARTIN » n'y apparaît jamais tel quel (c'est une composition), un prix « 250000 »
+  // s'y écrit « 250 000 » : chercher la valeur telle qu'on l'affiche ne donnerait jamais rien.
+  function aiguillesPourValeur(cle, valeur) {
+    if (valeur === null || valeur === undefined || valeur === '') return [];
+    const brut = String(valeur);
+    if (cle === 'nom') {
+      return brut.split('/').map(p => p.split('&')[0].trim()).filter(p => p.length >= 3);
+    }
+    if (cle === 'prixVente') {
+      const n = Number(brut);
+      if (!Number.isFinite(n)) return [brut];
+      return [
+        String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' '),
+        String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.'),
+        String(n)
+      ];
+    }
+    if (cle === 'adresseBien') {
+      // L'adresse complète est reconstituée à partir de composants : la voie seule, sans le code
+      // postal ni la commune qui la suivent, se retrouve plus fidèlement dans le texte d'origine.
+      return [brut, brut.replace(/\(?\d{5}\)?.*$/, '').trim()].filter(x => x.length >= 3);
+    }
+    return [brut];
+  }
+
+  // Source (page + extrait) d'une valeur extraite par nos règles.
+  function sourcePourValeur(texte, cle, valeur) {
+    for (const aiguille of aiguillesPourValeur(cle, valeur)) {
+      const index = localiserValeur(texte, aiguille);
+      if (index >= 0) {
+        return { index, page: pageDepuisIndex(index), extrait: extraitAutour(texte, index, String(aiguille).length) };
+      }
+    }
+    return null;
   }
 
   // ---- analyse juridique : documents que le vendeur s'engage à fournir ----
@@ -2733,7 +2824,7 @@
     // panneau, et le sélecteur reste modifiable — mais on ne bascule jamais un dossier en
     // « participant » sur une simple supposition : ce rôle masque la checklist des pièces.
     const notaires = extraction.notaires || {};
-    if (notaires.statut === 'CONFIRMED' && notaires.roleEtude) {
+    if (notaires.statut === 'CONFIRMED' && notaires.roleEtude && notaires.origine !== 'ia') {
       const select = document.getElementById('f-role-notaire');
       if (select && (!valeursAppliquees['f-role-notaire'] || select.value === valeursAppliquees['f-role-notaire'])) {
         select.value = notaires.roleEtude;
@@ -2743,48 +2834,287 @@
     }
   }
 
-  var LIBELLES_STATUT_EXTRACTION = {
-    CONFIRMED: { texte: 'Confirmé', dl: 'dl-success' },
-    NEEDS_REVIEW: { texte: 'À vérifier', dl: 'dl-alerte' },
-    NOT_FOUND: { texte: 'Non trouvé', dl: 'dl-neutre' }
+  // ==== PANNEAU « CE QUE L'OUTIL A COMPRIS » ====
+  //
+  // L'outil ne prétend plus « confirmer » quoi que ce soit : il dit D'OÙ VIENT chaque donnée, et
+  // c'est l'étude qui coche « vérifié ». L'ancien libellé « Confirmé » était accordé du seul fait
+  // qu'une regex avait renvoyé une valeur (voir champExtraction) — il promettait un contrôle qui
+  // n'avait jamais eu lieu, et les propositions du modèle local, qui hallucine régulièrement des
+  // termes, tombaient dans le même mot. Le vert est désormais réservé à ce qu'un humain a relu.
+
+  var ORIGINES_REVISION = {
+    manuel: { texte: 'Saisie à la main', dl: 'dl-success' },
+    verifie: { texte: 'Vérifié', dl: 'dl-success' },
+    absent: { texte: 'Non trouvée', dl: 'dl-neutre' },
+    appris: { texte: 'Appris d’une correction précédente', dl: 'dl-neutre', icone: 'sparkle' },
+    calcule: { texte: 'Calculée depuis un délai', dl: 'dl-pret' },
+    arbitre: { texte: 'Plusieurs valeurs possibles', dl: 'dl-alerte' },
+    concordant: { texte: 'Lue dans l’acte, même lecture par l’IA', dl: 'dl-neutre' },
+    lu: { texte: 'Lue dans l’acte', dl: 'dl-neutre' }
   };
 
-  function renderLigneRevision(libelle, champ) {
-    if (!champ) return '';
-    const statut = LIBELLES_STATUT_EXTRACTION[champ.statut] || LIBELLES_STATUT_EXTRACTION.NOT_FOUND;
-    const source = champ.source || null;
-    // La page n'est cliquable que si le PDF est encore chargé en mémoire (import en cours) — même
-    // principe que pour les engagements du vendeur.
-    const page = source && source.page
-      ? (pdfActuel
-        ? `<button type="button" class="voir-pdf-btn" onclick="allerALaPageDuPdf(${source.page})">${icone('eye')} p.${source.page}</button>`
-        : `<span class="chip-page">p.${source.page}</span>`)
+  // Pure et testable : ne dépend que de l'objet champ. L'ordre des cas EST la règle métier — le
+  // vert ne s'obtient que par une relecture humaine, jamais par la seule présence d'une valeur.
+  function origineRevision(champ) {
+    if (!champ) return ORIGINES_REVISION.absent;
+    if (champ.origine === 'manuel') return ORIGINES_REVISION.manuel;
+    if (champ.verifie) return ORIGINES_REVISION.verifie;
+    const vide = champ.valeur === null || champ.valeur === undefined || champ.valeur === '';
+    if (vide) return ORIGINES_REVISION.absent;
+    if (champ.statut === 'NEEDS_REVIEW') return ORIGINES_REVISION.arbitre;
+    if (champ.apprise) return ORIGINES_REVISION.appris;
+    if (champ.methode === 'CALCULATED') return ORIGINES_REVISION.calcule;
+    if (champ.origine === 'regex+ia') return ORIGINES_REVISION.concordant;
+    return ORIGINES_REVISION.lu;
+  }
+
+  // Les données affichées dans le panneau, dans l'ordre de lecture, avec le champ du formulaire
+  // qu'elles pilotent. Corriger une ligne écrit dans les deux : une seule source de vérité, pas de
+  // double saisie — et surtout plus besoin de quitter l'écran où l'erreur se voit pour la corriger.
+  var CHAMPS_REVISION = [
+    { cle: 'typeActe', libelle: 'Type d’acte', type: 'select', champId: null },
+    { cle: 'nom', libelle: 'Nom du dossier', type: 'texte', champId: 'f-nom' },
+    { cle: 'signature', libelle: 'Signature de l’avant-contrat', type: 'date', champId: null },
+    { cle: 'pret', libelle: 'Obtention du prêt', type: 'date', champId: 'f-pret' },
+    { cle: 'acte', libelle: 'Réitération de l’acte', type: 'date', champId: 'f-acte' },
+    { cle: 'ventebien', libelle: 'Vente préalable', type: 'date', champId: 'f-ventebien' },
+    { cle: 'adresseBien', libelle: 'Adresse du bien', type: 'texte', champId: 'f-adresse-bien' },
+    { cle: 'prixVente', libelle: 'Prix de vente', type: 'nombre', champId: 'f-prix-vente' },
+    { cle: 'emailAcquereur', libelle: 'Email de l’acquéreur', type: 'texte', champId: 'f-email-acquereur' },
+    { cle: 'roleNotaire', libelle: 'Rôle de l’étude', type: 'select', champId: 'f-role-notaire' }
+  ];
+
+  var OPTIONS_REVISION = {
+    typeActe: [
+      { valeur: 'COMPROMIS_DE_VENTE', libelle: 'Compromis de vente' },
+      { valeur: 'PROMESSE_DE_VENTE', libelle: 'Promesse de vente' },
+      { valeur: 'PROMESSE_D_ACHAT', libelle: 'Promesse d’achat' },
+      { valeur: 'INCONNU', libelle: 'Non déterminé' }
+    ],
+    roleNotaire: [
+      { valeur: 'instrumentaire', libelle: 'Notaire instrumentaire' },
+      { valeur: 'participant', libelle: 'Notaire participant' }
+    ]
+  };
+
+  // Corrections et relectures survivent à un recalcul : corriger la date de signature reconstruit
+  // tout l'objet d'extraction (voir recalculerExtractionRegex), et sans ces deux tables le travail
+  // de relecture déjà fait serait effacé à chaque fois.
+  let correctionsRevision = {};
+  let verificationsRevision = {};
+
+  function champRevision(extraction, cle) {
+    if (!extraction) return null;
+    const dates = extraction.dates || {};
+    const champs = extraction.champs || {};
+    if (cle === 'typeActe') return extraction.typeActe || null;
+    if (cle === 'nom') return champs.nom || null;
+    if (cle === 'prixVente') return champs.prixVente || null;
+    if (cle === 'emailAcquereur') return champs.emailAcquereur || null;
+    if (cle === 'signature') return dates.SIGNATURE_AVANT_CONTRAT || null;
+    if (cle === 'pret') return dates.BUTOIR_PRET || null;
+    if (cle === 'acte') return dates.REITERATION_ACTE || null;
+    if (cle === 'ventebien') return dates.BUTOIR_VENTE_PREALABLE || null;
+    if (cle === 'adresseBien') {
+      const bien = extraction.bien || {};
+      const a = bien.adresse || null;
+      if (!a) return null;
+      // Vue normalisée : l'adresse porte sa valeur sous « adresseComplete », tout le panneau lit
+      // « valeur ». Les écritures passent par ecrireChampRevision, jamais par cette copie.
+      return {
+        valeur: a.adresseComplete || null, statut: a.statut || 'NOT_FOUND', methode: null,
+        origine: a.origine || 'regex', source: bien.source || a.source || null,
+        candidats: [], raison: a.departement ? `Département ${a.departement}, déduit du code postal.` : '',
+        verifie: !!a.verifie, propositionIa: bien.propositionIa || null
+      };
+    }
+    if (cle === 'roleNotaire') {
+      const n = extraction.notaires || {};
+      return {
+        valeur: n.roleEtude || null, statut: n.statut || 'NOT_FOUND', methode: null,
+        origine: n.origine || 'regex', source: n.instrumentaire ? n.instrumentaire.source : null,
+        candidats: [], raison: n.raison || '', verifie: !!n.verifie, propositionIa: null
+      };
+    }
+    return null;
+  }
+
+  function ecrireChampRevision(extraction, cle, valeur) {
+    if (!extraction) return;
+    const v = (valeur === '' || valeur === undefined) ? null : valeur;
+    const marquer = (objet) => {
+      if (!objet) return;
+      objet.valeur = v;
+      objet.statut = v ? 'CONFIRMED' : 'NOT_FOUND';
+      objet.origine = 'manuel';
+      objet.raison = 'Corrigée à la main.';
+      objet.candidats = [];
+      objet.propositionIa = null;
+      objet.verifie = true;
+      objet.apprise = false;
+    };
+    extraction.champs = extraction.champs || {};
+    extraction.dates = extraction.dates || {};
+    if (cle === 'typeActe') { extraction.typeActe = extraction.typeActe || champExtraction(null); marquer(extraction.typeActe); }
+    else if (cle === 'nom') { extraction.champs.nom = extraction.champs.nom || champExtraction(null); marquer(extraction.champs.nom); }
+    else if (cle === 'prixVente') { extraction.champs.prixVente = extraction.champs.prixVente || champExtraction(null); marquer(extraction.champs.prixVente); }
+    else if (cle === 'emailAcquereur') { extraction.champs.emailAcquereur = extraction.champs.emailAcquereur || champExtraction(null); marquer(extraction.champs.emailAcquereur); }
+    else if (cle === 'signature') { extraction.dates.SIGNATURE_AVANT_CONTRAT = extraction.dates.SIGNATURE_AVANT_CONTRAT || champExtraction(null); marquer(extraction.dates.SIGNATURE_AVANT_CONTRAT); }
+    else if (cle === 'pret') { extraction.dates.BUTOIR_PRET = extraction.dates.BUTOIR_PRET || champExtraction(null); marquer(extraction.dates.BUTOIR_PRET); }
+    else if (cle === 'acte') { extraction.dates.REITERATION_ACTE = extraction.dates.REITERATION_ACTE || champExtraction(null); marquer(extraction.dates.REITERATION_ACTE); }
+    else if (cle === 'ventebien') { extraction.dates.BUTOIR_VENTE_PREALABLE = extraction.dates.BUTOIR_VENTE_PREALABLE || champExtraction(null); marquer(extraction.dates.BUTOIR_VENTE_PREALABLE); }
+    else if (cle === 'adresseBien') {
+      extraction.bien = extraction.bien || {};
+      extraction.bien.adresse = extraction.bien.adresse || {};
+      const a = extraction.bien.adresse;
+      a.adresseComplete = v; a.statut = v ? 'CONFIRMED' : 'NOT_FOUND'; a.origine = 'manuel'; a.verifie = true;
+      extraction.bien.propositionIa = null;
+    } else if (cle === 'roleNotaire') {
+      extraction.notaires = extraction.notaires || {};
+      extraction.notaires.roleEtude = v;
+      extraction.notaires.statut = v ? 'CONFIRMED' : 'NOT_FOUND';
+      extraction.notaires.origine = 'manuel';
+      extraction.notaires.verifie = true;
+      extraction.notaires.raison = 'Choisi à la main.';
+    }
+  }
+
+  // Rejoue sur un objet d'extraction fraîchement reconstruit les corrections et les relectures déjà
+  // faites. Sans ça, corriger la date de signature (qui relance tout le calcul) effacerait le
+  // travail de vérification en cours.
+  function appliquerCorrectionsRevision(extraction) {
+    if (!extraction) return extraction;
+    for (const cle of Object.keys(correctionsRevision)) ecrireChampRevision(extraction, cle, correctionsRevision[cle]);
+    for (const cle of Object.keys(verificationsRevision)) {
+      if (!verificationsRevision[cle]) continue;
+      const objet = champRevision(extraction, cle);
+      if (!objet) continue;
+      if (cle === 'adresseBien' && extraction.bien && extraction.bien.adresse) extraction.bien.adresse.verifie = true;
+      else if (cle === 'roleNotaire' && extraction.notaires) extraction.notaires.verifie = true;
+      else objet.verifie = true;
+    }
+    extraction.alertes = controlerCoherence(extraction);
+    return extraction;
+  }
+
+  function modifierDonneeRevision(cle, valeur) {
+    if (!extractionActuelle) return;
+    const propre = typeof valeur === 'string' ? valeur.trim() : valeur;
+    correctionsRevision[cle] = propre;
+    verificationsRevision[cle] = true; // corriger une donnée, c'est l'avoir relue
+    ecrireChampRevision(extractionActuelle, cle, propre);
+    synchroniserChampFormulaire(cle, propre);
+    memoriserCorrectionRevision(cle, propre);
+    // La date de signature est l'ancre de tous les délais : la corriger relance tout le calcul
+    // (et donc le rendu du panneau), inutile de le refaire ici.
+    if (cle === 'signature' && propre) { corrigerDateCompromis(propre); return; }
+    extractionActuelle.alertes = controlerCoherence(extractionActuelle);
+    renderPanneauRevision(extractionActuelle);
+  }
+
+  function synchroniserChampFormulaire(cle, valeur) {
+    const definition = CHAMPS_REVISION.find(c => c.cle === cle);
+    if (!definition || !definition.champId) return;
+    const champ = document.getElementById(definition.champId);
+    if (!champ) return;
+    champ.value = valeur === null || valeur === undefined ? '' : String(valeur);
+    valeursAppliquees[definition.champId] = champ.value;
+    if (definition.champId === 'f-role-notaire') majApercuPieces();
+  }
+
+  // Une correction faite dans le panneau alimente la mémoire des corrections, au même titre qu'un
+  // clic sur un chip : c'est exactement le même geste (l'outil s'est trompé, l'étude tranche), et
+  // c'est ce qui fait ressortir le badge « Appris » au prochain compromis de même trame.
+  function memoriserCorrectionRevision(cle, valeur) {
+    if (!valeur) return;
+    const champDate = { pret: 'pret', acte: 'acte', ventebien: 'ventebien' }[cle];
+    if (!champDate) return;
+    const objet = champRevision(extractionActuelle, cle);
+    const contexte = objet && objet.source && objet.source.extrait ? objet.source.extrait : '';
+    if (contexte) memoriserCorrection(contexte, champDate, null, 'date');
+  }
+
+  function basculerVerificationRevision(cle, coche) {
+    if (!extractionActuelle) return;
+    verificationsRevision[cle] = !!coche;
+    if (cle === 'adresseBien' && extractionActuelle.bien && extractionActuelle.bien.adresse) {
+      extractionActuelle.bien.adresse.verifie = !!coche;
+    } else if (cle === 'roleNotaire' && extractionActuelle.notaires) {
+      extractionActuelle.notaires.verifie = !!coche;
+    } else {
+      const objet = champRevision(extractionActuelle, cle);
+      if (objet) objet.verifie = !!coche;
+    }
+    renderPanneauRevision(extractionActuelle);
+  }
+
+  // Adopte la valeur proposée par le modèle local. Explicite et réversible : rien de ce que le
+  // modèle propose n'atteint un champ sans ce clic.
+  function accepterPropositionIa(cle) {
+    const objet = champRevision(extractionActuelle, cle);
+    if (!objet || !objet.propositionIa) return;
+    modifierDonneeRevision(cle, objet.propositionIa.valeur);
+  }
+
+  function boutonPageRevision(source) {
+    if (!source || !source.page) return '';
+    // Cliquable seulement tant que le PDF est chargé en mémoire (import en cours) — même principe
+    // que pour les engagements du vendeur.
+    return pdfActuel
+      ? `<button type="button" class="voir-pdf-btn" onclick="allerALaPageDuPdf(${source.page})" title="Aller à la page ${source.page} du document">${icone('eye')} p.${source.page}</button>`
+      : `<span class="chip-page">p.${source.page}</span>`;
+  }
+
+  function champSaisieRevision(definition, champ) {
+    const brut = champ && champ.valeur !== null && champ.valeur !== undefined ? String(champ.valeur) : '';
+    const cle = definition.cle;
+    if (definition.type === 'select') {
+      const options = (OPTIONS_REVISION[cle] || []).map(o =>
+        `<option value="${escapeAttr(o.valeur)}"${o.valeur === brut ? ' selected' : ''}>${escapeHtml(o.libelle)}</option>`
+      ).join('');
+      return `<select class="revision-saisie" onchange="modifierDonneeRevision('${cle}', this.value)">
+        <option value=""${brut ? '' : ' selected'}>—</option>${options}</select>`;
+    }
+    const type = definition.type === 'date' ? 'date' : (definition.type === 'nombre' ? 'number' : 'text');
+    // onchange (et non oninput) : le panneau se redessine à chaque modification, une saisie
+    // caractère par caractère perdrait le focus au premier appui sur une touche.
+    return `<input type="${type}" class="revision-saisie" value="${escapeAttr(brut)}"
+      placeholder="Non renseigné" onchange="modifierDonneeRevision('${cle}', this.value)">`;
+  }
+
+  function renderLigneRevision(definition, champ) {
+    const cle = definition.cle;
+    const origine = origineRevision(champ);
+    const marque = origine.icone ? icone(origine.icone) : '<span class="dot"></span>';
+    const page = boutonPageRevision(champ && champ.source);
+    const verifie = !!(champ && champ.verifie);
+    const methode = champ && champ.methode === 'CALCULATED' && champ.calcul
+      ? `<div class="revision-raison">Calculée : ${escapeHtml(String(champ.calcul.delai ? champ.calcul.delai.valeur + ' ' + champ.calcul.delai.unite : ''))} depuis la signature.</div>` : '';
+    const raison = champ && champ.raison ? `<div class="revision-raison">${escapeHtml(champ.raison)}</div>` : '';
+    const autres = champ && (champ.candidats || []).length > 1
+      ? `<div class="revision-raison">Autres valeurs trouvées dans l’acte : ${champ.candidats.map(c => escapeHtml(String(c.valeur))).join(', ')}</div>`
       : '';
-    // Un type d'acte s'affiche dans les mots de l'étude, pas sous sa clé interne
-    // (LIBELLES_TYPE_ACTE est un `var`, hoisté : sa déclaration vit plus bas, avec le panneau
-    // équivalent de la fiche dossier — un seul jeu de libellés pour les deux).
-    const brut = champ.valeur;
-    const valeur = brut === null || brut === undefined || brut === ''
-      ? '<span class="revision-vide">—</span>'
-      : escapeHtml(String(LIBELLES_TYPE_ACTE[brut] || brut));
-    // « Calculée » plutôt que « lue dans l'acte » : au moment de vérifier, savoir qu'une date
-    // résulte d'un délai compté depuis la signature change ce qu'on va contrôler.
-    const methode = champ.methode === 'CALCULATED'
-      ? '<span class="revision-raison">Calculée à partir d’un délai compté depuis la signature.</span>' : '';
-    const extrait = source && source.extrait
-      ? `<div class="revision-extrait">« ${escapeHtml(String(source.extrait).slice(0, 220))} »</div>` : '';
-    const raison = champ.raison ? `<div class="revision-raison">${escapeHtml(champ.raison)}</div>` : '';
-    const autres = (champ.candidats || []).length > 1
-      ? `<div class="revision-raison">Autres valeurs trouvées : ${champ.candidats.map(c => escapeHtml(String(c.valeur))).join(', ')}</div>`
-      : '';
-    return `<div class="revision-ligne">
+    const extrait = champ && champ.source && champ.source.extrait
+      ? `<div class="revision-extrait">« ${escapeHtml(String(champ.source.extrait).slice(0, 240))} »</div>` : '';
+    // Proposition du modèle local : affichée, jamais appliquée d'elle-même.
+    const proposition = champ && champ.propositionIa
+      ? `<div class="revision-proposition">
+          <span class="dot-label dl-alerte"><span class="dot"></span>Proposé par l’IA</span>
+          <span class="revision-proposition-valeur">${escapeHtml(String(LIBELLES_TYPE_ACTE[champ.propositionIa.valeur] || champ.propositionIa.valeur))}</span>
+          <button type="button" class="action-rapide" onclick="accepterPropositionIa('${cle}')">Utiliser</button>
+          ${champ.propositionIa.extraitTrouve ? '' : '<span class="revision-raison">Le modèle cite une phrase qui ne figure pas dans le document : à traiter avec prudence.</span>'}
+        </div>` : '';
+    return `<div class="revision-ligne${verifie ? ' revision-verifiee' : ''}">
       <div class="revision-tete">
-        <span class="revision-libelle">${escapeHtml(libelle)}</span>
-        <span class="dot-label ${statut.dl}"><span class="dot"></span>${statut.texte}</span>
+        <span class="revision-libelle">${escapeHtml(definition.libelle)}</span>
+        <span class="dot-label ${origine.dl}">${marque}${escapeHtml(origine.texte)}</span>
         ${page}
+        <label class="revision-coche" title="Cocher une fois la donnée contrôlée dans le document">
+          <input type="checkbox"${verifie ? ' checked' : ''} onchange="basculerVerificationRevision('${cle}', this.checked)"> vérifié
+        </label>
       </div>
-      <div class="revision-valeur">${valeur}</div>
-      ${methode}${raison}${autres}${extrait}
+      ${champSaisieRevision(definition, champ)}
+      ${methode}${raison}${autres}${proposition}${extrait}
     </div>`;
   }
 
@@ -2799,45 +3129,38 @@
       return;
     }
 
-    const dates = extraction.dates || {};
-    const notaires = extraction.notaires || {};
-    const lignes = [
-      renderLigneRevision('Type d’acte', extraction.typeActe),
-      renderLigneRevision('Nom du dossier', extraction.champs && extraction.champs.nom),
-      renderLigneRevision('Signature de l’avant-contrat', dates.SIGNATURE_AVANT_CONTRAT),
-      renderLigneRevision('Obtention du prêt', dates.BUTOIR_PRET),
-      renderLigneRevision('Réitération de l’acte', dates.REITERATION_ACTE),
-      renderLigneRevision('Vente préalable', dates.BUTOIR_VENTE_PREALABLE),
-      renderLigneRevision('Adresse du bien', {
-        valeur: extraction.bien && extraction.bien.adresse ? extraction.bien.adresse.adresseComplete : null,
-        statut: extraction.bien && extraction.bien.adresse ? extraction.bien.adresse.statut : 'NOT_FOUND',
-        source: extraction.bien ? extraction.bien.source : null,
-        raison: extraction.bien && extraction.bien.adresse && extraction.bien.adresse.departement
-          ? `Département ${extraction.bien.adresse.departement}, déduit du code postal.` : ''
-      }),
-      renderLigneRevision('Prix de vente', extraction.champs && extraction.champs.prixVente),
-      renderLigneRevision('Notaire instrumentaire', {
-        valeur: notaires.instrumentaire ? `${notaires.instrumentaire.nom} (${notaires.instrumentaire.office || '—'})` : null,
-        statut: notaires.statut || 'NOT_FOUND',
-        source: notaires.instrumentaire ? notaires.instrumentaire.source : null,
-        raison: notaires.raison || ''
-      })
-    ].filter(Boolean).join('');
+    let renseignees = 0;
+    let verifiees = 0;
+    const lignes = CHAMPS_REVISION.map(definition => {
+      const champ = champRevision(extraction, definition.cle);
+      if (champ && champ.valeur !== null && champ.valeur !== undefined && champ.valeur !== '') renseignees++;
+      if (champ && champ.verifie) verifiees++;
+      return renderLigneRevision(definition, champ);
+    }).join('');
 
     const parties = (extraction.parties || []).map(p =>
-      `<li>${escapeHtml(p.nom)} — <strong>${p.role === 'VENDEUR' ? 'vendeur' : 'acquéreur'}</strong> (désigné « ${escapeHtml(p.qualiteActe)} » dans l’acte${p.qualitePersonne === 'morale' ? ', personne morale' : ''})${p.representant ? `, représenté par ${escapeHtml(p.representant)}` : ''}</li>`
+      `<li>${escapeHtml(p.nom)} — <strong>${p.role === 'VENDEUR' ? 'vendeur' : 'acquéreur'}</strong> (désigné « ${escapeHtml(p.qualiteActe)} » dans l’acte${p.qualitePersonne === 'morale' ? ', personne morale' : ''})${p.representant ? `, représenté par ${escapeHtml(p.representant)}` : ''}${p.origine === 'ia' ? ' — <em>proposé par l’IA</em>' : ''}</li>`
     ).join('');
+
+    const notaires = extraction.notaires || {};
+    const ligneNotaires = notaires.instrumentaire
+      ? `<div class="revision-raison">Notaire qui reçoit l’acte : ${escapeHtml(notaires.instrumentaire.nom)}${notaires.instrumentaire.office ? ` (${escapeHtml(notaires.instrumentaire.office)})` : ''}.</div>`
+      : '';
 
     const alertes = (extraction.alertes || []).map(a =>
       `<div class="revision-alerte ${a.gravite === 'critique' ? 'critique' : ''}">${icone('alert-triangle')}<span>${escapeHtml(a.message)}</span></div>`
     ).join('');
 
     panneau.innerHTML = `
-      <div class="section-eyebrow">Ce que l’outil a compris</div>
+      <div class="revision-entete">
+        <div class="section-eyebrow">Ce que l’outil a compris</div>
+        <span class="revision-compteur">${verifiees} / ${renseignees} donnée${renseignees > 1 ? 's' : ''} vérifiée${renseignees > 1 ? 's' : ''}</span>
+      </div>
+      <p class="hint">L’outil indique seulement d’où vient chaque donnée : il ne garantit rien. Corrigez directement ci-dessous — la valeur part aussi dans le formulaire — puis cochez « vérifié » quand vous l’avez contrôlée dans le document.</p>
       ${alertes}
       ${parties ? `<div class="revision-parties"><ul>${parties}</ul></div>` : ''}
+      ${ligneNotaires}
       <div class="revision-grille">${lignes}</div>
-      <p class="hint">Chaque donnée reste modifiable dans les champs du formulaire : ce panneau explique seulement d’où elle vient.</p>
     `;
     panneau.style.display = 'block';
 
@@ -2854,6 +3177,7 @@
   function recalculerExtractionRegex() {
     if (!dernierTexteTraite) { renderPanneauRevision(null); return; }
     extractionActuelle = construireExtractionRegex(dernierTexteTraite, dateCompromisDetectee, detectedDates);
+    appliquerCorrectionsRevision(extractionActuelle);
     appliquerExtractionAuFormulaire(extractionActuelle);
     renderPanneauRevision(extractionActuelle);
   }
@@ -3650,6 +3974,9 @@
     majProgression(2);
     afficherStatutEnrichissementIa(false); // efface un éventuel résidu d'un import précédent
     compromisNomFichierImporte = file.name || '';
+    // Un nouvel acte : les corrections et les relectures du précédent n'ont plus aucun sens.
+    correctionsRevision = {};
+    verificationsRevision = {};
     const monImport = ++generationImportActuel;
 
     try {
@@ -3828,20 +4155,37 @@
       : null;
     const statutIa = (element) => (element && element.extraitTrouve) ? 'CONFIRMED' : 'NEEDS_REVIEW';
 
-    // Applique les trois règles ci-dessus à un champ générique.
+    // Le modèle local hallucine régulièrement des termes : sa lecture n'écrit JAMAIS d'elle-même
+    // dans une donnée. Elle devient une PROPOSITION, affichée dans le panneau de révision avec un
+    // bouton « Utiliser » — décision explicite de l'étude après avoir vu des valeurs inventées
+    // s'installer dans le formulaire sous l'étiquette « Confirmé ».
+    const proposer = (element, valeurIa) => ({
+      valeur: valeurIa,
+      source: sourceIa(element),
+      extraitTrouve: !!(element && element.extraitTrouve)
+    });
+
     const fusionnerChamp = (champ, valeurIa, element) => {
       const existant = champ || champExtraction(null, { statut: 'NOT_FOUND' });
       if (valeurIa === null || valeurIa === undefined || valeurIa === '') return existant;
+      // Une donnée corrigée à la main a déjà été tranchée par l'étude : le modèle ne la rouvre pas.
+      if (existant.origine === 'manuel') return existant;
       if (existant.valeur === null || existant.valeur === undefined || existant.valeur === '') {
-        return champExtraction(valeurIa, { statut: statutIa(element), origine: 'ia', source: sourceIa(element) });
+        return Object.assign({}, existant, {
+          propositionIa: proposer(element, valeurIa),
+          raison: 'Les règles de détection n’ont rien trouvé ici ; le modèle local propose une valeur, à contrôler dans l’acte avant de l’adopter.'
+        });
       }
       if (String(existant.valeur) === String(valeurIa)) {
-        return Object.assign({}, existant, { statut: 'CONFIRMED', origine: 'regex+ia' });
+        return Object.assign({}, existant, {
+          origine: 'regex+ia', propositionIa: null,
+          raison: 'Les règles de détection et le modèle local lisent la même valeur.'
+        });
       }
       return Object.assign({}, existant, {
         statut: 'NEEDS_REVIEW',
-        origine: 'regex+ia',
-        raison: 'Le modèle local lit une autre valeur à cet endroit : c’est celle des règles de détection qui est retenue.',
+        propositionIa: proposer(element, valeurIa),
+        raison: 'Le modèle local lit une autre valeur à cet endroit : celle des règles de détection est conservée.',
         candidats: (existant.candidats || []).concat([{ valeur: valeurIa, origine: 'ia', source: sourceIa(element) }])
       });
     };
@@ -3851,15 +4195,21 @@
         // Un type d'acte non tranché par les regex est le cas où l'inversion vendeur/acquéreur
         // d'une promesse d'achat passerait inaperçue : c'est exactement là que le modèle, qui lit
         // le document en contexte, apporte le plus.
-        const actuel = extraction.typeActe || {};
-        if (!actuel.valeur || actuel.valeur === 'INCONNU') {
-          extraction.typeActe = { valeur: resultat.typeActe.valeur, statut: statutIa(resultat.typeActe), origine: 'ia', source: sourceIa(resultat.typeActe) };
+        const actuel = extraction.typeActe || champExtraction(null);
+        if (actuel.origine === 'manuel') {
+          // déjà tranché à la main
+        } else if (!actuel.valeur || actuel.valeur === 'INCONNU') {
+          extraction.typeActe = Object.assign({}, actuel, {
+            propositionIa: proposer(resultat.typeActe, resultat.typeActe.valeur),
+            raison: 'Le type d’acte n’a pas pu être établi par les règles ; le modèle local en propose un — c’est lui qui décide du sens vendeur/acquéreur, à contrôler.'
+          });
         } else if (actuel.valeur === resultat.typeActe.valeur) {
-          extraction.typeActe = Object.assign({}, actuel, { statut: 'CONFIRMED', origine: 'regex+ia' });
+          extraction.typeActe = Object.assign({}, actuel, { origine: 'regex+ia', propositionIa: null });
         } else {
           extraction.typeActe = Object.assign({}, actuel, {
-            statut: 'NEEDS_REVIEW', origine: 'regex+ia',
-            raison: `Le modèle local lit plutôt « ${resultat.typeActe.valeur} » : vérifiez que vendeur et acquéreur ne sont pas intervertis.`
+            statut: 'NEEDS_REVIEW',
+            propositionIa: proposer(resultat.typeActe, resultat.typeActe.valeur),
+            raison: 'Le modèle local lit un autre type d’acte : vérifiez que vendeur et acquéreur ne sont pas intervertis.'
           });
         }
       }
@@ -3868,7 +4218,9 @@
         extraction.parties = resultat.parties.map(p => ({
           nom: p.nom, qualiteActe: p.qualiteActe || '', role: p.role,
           qualitePersonne: p.qualitePersonne || 'physique', representant: p.representant || null,
-          source: sourceIa(p)
+          // Signalé comme venant du modèle : le panneau le dit en clair, ces noms n'ont été lus
+          // par aucune règle déterministe.
+          origine: 'ia', source: sourceIa(p)
         }));
         // Le nom du dossier est dérivé des parties : le recomposer ici plutôt que de laisser le
         // modèle proposer sa propre mise en forme, qui varierait d'un acte à l'autre.
@@ -3892,26 +4244,33 @@
         }));
         const departement = extraction.bien && extraction.bien.adresse ? extraction.bien.adresse.departement : null;
         extraction.notaires = determinerNotaires(liste, departement);
+        // Notaires lus par le seul modèle : l'origine est tracée pour que le rôle de l'étude ne
+        // soit JAMAIS pré-rempli automatiquement à partir d'eux (voir
+        // appliquerExtractionAuFormulaire) — ce sélecteur masque la checklist des pièces quand il
+        // vaut « participant », le basculer sur une lecture non vérifiée serait le pire cas.
+        extraction.notaires.origine = 'ia';
       }
     }
 
     if (lot === 'bien') {
       const adresseActuelle = (extraction.bien && extraction.bien.adresse) || null;
-      if (resultat.adresse && (!adresseActuelle || adresseActuelle.statut !== 'CONFIRMED')) {
+      if (resultat.adresse && (!adresseActuelle || adresseActuelle.origine !== 'manuel')) {
         const a = resultat.adresse;
         const morceaux = [a.numero, a.typeVoie, a.nomVoie, a.lieuDit, a.codePostal, a.commune].filter(Boolean);
+        const proposee = morceaux.join(' ');
         extraction.bien = extraction.bien || {};
-        extraction.bien.adresse = {
-          adresseComplete: morceaux.join(' '),
-          numero: a.numero || null, typeVoie: a.typeVoie || null, nomVoie: a.nomVoie || null,
-          lieuDit: a.lieuDit || null, codePostal: a.codePostal || null, commune: a.commune || null,
-          departement: a.codePostal ? departementDepuisCodePostal(a.codePostal) : null,
-          // Une adresse reste incomplète sans code postal ET commune, quel que soit l'aplomb du
-          // modèle : c'est du code postal qu'on déduit le département, donc le notaire.
-          statut: (a.codePostal && a.commune) ? statutIa(a) : 'NEEDS_REVIEW',
-          origine: 'ia'
-        };
-        extraction.bien.source = sourceIa(a);
+        const actuelle = extraction.bien.adresse && extraction.bien.adresse.adresseComplete;
+        // Proposée, pas appliquée : une adresse fausse fait dériver le département, donc la
+        // déduction du notaire instrumentaire, donc le rôle de l'étude sur le dossier.
+        if (!actuelle) {
+          extraction.bien.propositionIa = proposer(a, proposee);
+        } else if (normaliserPourRecherche(actuelle) !== normaliserPourRecherche(proposee)) {
+          extraction.bien.propositionIa = proposer(a, proposee);
+          extraction.bien.adresse.statut = 'NEEDS_REVIEW';
+        } else {
+          extraction.bien.propositionIa = null;
+          extraction.bien.adresse.origine = 'regex+ia';
+        }
       }
       if (resultat.cadastre && !(extraction.bien && extraction.bien.cadastre)) {
         extraction.bien = extraction.bien || {};
@@ -4129,6 +4488,8 @@
     analyseJuridiqueActuelle = { documents: [], engagements: [], conditions: [] };
     extractionActuelle = null;
     valeursAppliquees = {};
+    correctionsRevision = {};
+    verificationsRevision = {};
     renderPanneauRevision(null);
     afficherAnalyseJuridique();
     masquerBoutonAjoutEngagement();
@@ -5629,15 +5990,18 @@
     const notaires = d.notaires;
     if (!extraction && !typeActe && parties.length === 0 && !notaires) return '';
 
-    const statutBadge = (statut) => {
-      const s = LIBELLES_STATUT_EXTRACTION[statut] || LIBELLES_STATUT_EXTRACTION.NOT_FOUND;
-      return `<span class="dot-label ${s.dl}"><span class="dot"></span>${s.texte}</span>`;
+    // Même vocabulaire que le panneau d'import (voir origineRevision) : l'outil dit d'où vient la
+    // donnée, il ne prétend pas la confirmer. `renseigne` remplace la valeur, qui n'est pas
+    // recopiée dans l'instantané — sans lui, tout serait affiché « Non trouvée ».
+    const badgeOrigine = (etat) => {
+      const o = origineRevision(etat ? Object.assign({}, etat, { valeur: etat.renseigne === false ? null : (etat.valeur || 'x') }) : null);
+      return `<span class="dot-label ${o.dl}">${o.icone ? icone(o.icone) : '<span class="dot"></span>'}${escapeHtml(o.texte)}</span>`;
     };
     const blocs = [];
 
     if (typeActe) {
       blocs.push(`<div class="extraction-ligne"><span class="extraction-libelle">Type d’acte</span>
-        <span>${escapeHtml(LIBELLES_TYPE_ACTE[typeActe.valeur] || typeActe.valeur)}</span>${statutBadge(typeActe.statut)}</div>`);
+        <span>${escapeHtml(LIBELLES_TYPE_ACTE[typeActe.valeur] || typeActe.valeur)}</span>${badgeOrigine(typeActe)}</div>`);
     }
     if (parties.length > 0) {
       blocs.push(`<div class="extraction-ligne"><span class="extraction-libelle">Parties</span>
@@ -5646,7 +6010,7 @@
     if (notaires && (notaires.instrumentaire || notaires.participant)) {
       const nom = (n) => n ? `${escapeHtml(n.nom)}${n.office ? ' (' + escapeHtml(n.office) + ')' : ''}` : '—';
       blocs.push(`<div class="extraction-ligne"><span class="extraction-libelle">Notaires</span>
-        <span>Reçoit l’acte : ${nom(notaires.instrumentaire)}${notaires.participant ? ` · Participant : ${nom(notaires.participant)}` : ''}</span>${statutBadge(notaires.statut)}</div>`);
+        <span>Reçoit l’acte : ${nom(notaires.instrumentaire)}${notaires.participant ? ` · Participant : ${nom(notaires.participant)}` : ''}</span>${badgeOrigine({ statut: notaires.statut, origine: notaires.origine, verifie: notaires.verifie, renseigne: true })}</div>`);
     }
     const cadastre = d.bien && d.bien.cadastre;
     if (cadastre && cadastre.section) {
@@ -5663,7 +6027,7 @@
     const lignesChamps = Object.keys(champs)
       .filter(cle => LIBELLES_CHAMP_EXTRACTION[cle])
       .map(cle => `<div class="extraction-ligne"><span class="extraction-libelle">${LIBELLES_CHAMP_EXTRACTION[cle]}</span>
-        <span>${champs[cle].methode === 'CALCULATED' ? 'Calculée depuis un délai' : 'Lue dans l’acte'}${champs[cle].page ? ` · p.${champs[cle].page}` : ''}</span>${statutBadge(champs[cle].statut)}</div>`)
+        <span>${champs[cle].page ? `p.${champs[cle].page}` : '—'}</span>${badgeOrigine(champs[cle])}</div>`)
       .join('');
 
     const alertes = ((extraction && extraction.alertes) || []).map(a =>
