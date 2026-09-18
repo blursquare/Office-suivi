@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-18 17:52';
+  const VERSION_APP = '2026-09-18 17:56';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-18 17:56', resume: "Les notaires sur les sept actes lisibles du banc, contre cinq. Vous aviez raison sur les deux compromis d'agence : le notaire y est unique, Maître GOSSART seule, sans confrère en participation. L'outil en comptait trois — les deux autres étaient des notaires simplement CITÉS dans l'origine de propriété, qui avaient reçu la vente précédente ou dressé un règlement de copropriété en 1969. Un notaire cité n'intervient pas à l'acte : il est désormais retiré de la liste, et pas seulement privé de rôle, ce qui laisse enfin s'appliquer la règle du notaire unique — il représente les deux parties, et les deux champs portent son nom. Un repère générique reconnaît ces mentions : un notaire présenté avec une date est celui d'un acte antérieur, un notaire qui intervient ne l'est jamais. Et le dédoublonnage passe maintenant APRÈS ce filtre : le même notaire figure souvent d'abord dans l'origine de propriété puis, plus loin, comme rédacteur du présent acte — retenir la première mention le faisait disparaître entièrement" },
     { version: '2026-09-18 17:52', resume: "Les notaires : qui représente le vendeur, qui représente l'acquéreur, et lequel des deux rédige la vente. Cinq actes du banc d'essai sur sept le donnent maintenant, contre aucun. La règle d'attribution de la minute vient du Règlement Professionnel du Notariat que vous m'avez transmis (art. 30.4.2 : la minute revient au notaire du vendeur, sauf si seul celui de l'acquéreur exerce dans le département du bien) et du règlement de la Chambre du Val de Loire (art. 15 : entre deux notaires du ressort de la Cour d'appel d'Orléans — 41, 45, 37 — c'est toujours le notaire du vendeur). Elle remplace la règle approximative que j'avais encodée, qui portait à tort sur le département du bien. Côté lecture, quatre défauts empêchaient tout : le motif du notaire ne pouvait pas franchir la virgule d'un numéro CRPCEN, si bien que le premier nommé du préambule — celui qui détient la minute — disparaissait ; le CRPCEN, dont les deux premiers chiffres donnent le département, n'était pas lu ; l'article défini manquait à « assistant LE PROMETTANT », forme pourtant standard ; et la phrase qui introduit le second notaire faisait passer le premier pour le participant. Enfin, un notaire seul représente les deux parties, et les deux champs portent désormais son nom" },
     { version: '2026-09-18 17:36', resume: "Type de vente et prix. Trois actes sur sept étaient classés « copropriété » à tort, dont un compromis qui s'intitule pourtant « BIEN HORS COPROPRIETE » : la clause de style qui écarte le statut s'écrit le plus souvent au participe présent (« ne relevANT pas du statut de la copropriété »), forme que le garde-fou ne connaissait pas ; la négation est par ailleurs souvent séparée du mot par la référence complète de la loi de 1965, trop loin pour être vue ; et une mention conditionnelle (« au Syndicat des copropriétaires s'il y a lieu », clause de style dans une liste de pouvoirs) suffisait à faire passer une maison individuelle pour une copropriété. La portée d'une négation s'arrête maintenant à sa phrase et au « mais » qui la contredit. Côté prix, un point avant la parenthèse fermante — « (290000,00 EUR.) » — empêchait la lecture : les neuf actes du banc donnent désormais leur prix" },
     { version: '2026-09-18 17:34', resume: "Trois familles de FAUSSES échéances, qui prenaient chaque fois la place de la vraie — celle-ci restant, elle, sans catégorie. Une citation de texte légal d'abord : « l'ordonnance n° 2016-131 du 10 février 2016 » devenait la date de signature de l'acte sur un compromis de 2026 ; seules les citations de LOI étaient écartées, ordonnances, décrets et arrêtés y sont désormais joints. Une citation entre guillemets ensuite : « au plus tard un mois après la signature de l'acte authentique de vente », recopié d'un article du Code, devenait la date de signature du dossier. Le versement d'une somme enfin : l'indemnité d'immobilisation, payable sous huit ou dix jours, fixait « l'obtention du prêt » dix jours après la signature sur deux promesses. Au passage, deux tournures d'échéance n'étaient pas reconnues du tout : « la signature DUDIT acte » et, sur une promesse, « la réalisation de la présente promesse », qui est pourtant la date butoir pour signer" },
@@ -1773,7 +1774,22 @@
   // sans ce garde-fou, elle désignerait le mauvais notaire AVEC LA PRIORITÉ LA PLUS HAUTE, écrasant
   // la règle géographique et la règle de zone. Devenu indispensable en ajoutant les formes au passé
   // du verbe rédiger ci-dessus, qui sont précisément celles de ces clauses.
-  var RE_ORIGINE_PROPRIETE = /(?:origine\s+de\s+propri[ée]t[ée]|suivant\s+acte|aux\s+termes\s+d['’]un\s+acte|pour\s+l['’]avoir\s+(?:acquis|recueilli)|ant[ée]rieurement\s+acquis|service\s+de\s+la\s+publicit[ée]\s+fonci[èe]re)/i;
+  var RE_ORIGINE_PROPRIETE = /(?:origine\s+de\s+propri[ée]t[ée]|suivant\s+acte|aux\s+termes\s+d['’]un\s+acte|pour\s+l['’]avoir\s+(?:acquis|recueilli)|ant[ée]rieurement\s+acquis|service\s+de\s+la\s+publicit[ée]\s+fonci[èe]re|titre\s+de\s+propri[ée]t[ée]|effet\s+relatif|d[ée]p[ôo]t\s+au\s+rang\s+des\s+minutes|pr[ée]c[ée]dent\s+(?:vendeur|propri[ée]taire))/i;
+
+  // Un notaire présenté AVEC UNE DATE (« dressé par Maître X, notaire à BLOIS, LE 28 février
+  // 1985 ») est celui d'un acte antérieur : un notaire qui intervient au présent acte n'est jamais
+  // introduit par une date. Repère générique, qui ne dépend d'aucune formule d'origine de
+  // propriété particulière.
+  var RE_NOTAIRE_DATE_ANTERIEURE = /^[^.\n]{0,80}?,?\s*(?:en\s+date\s+d[ue]|le)\s+\d{1,2}(?:er)?\s+[a-zà-ÿ]{3,10}\s+\d{4}/i;
+
+  // Distingue un notaire QUI INTERVIENT à l'acte d'un notaire simplement CITÉ (origine de
+  // propriété, acte antérieur, règlement de copropriété dressé en 1969…). Sans cette distinction,
+  // un compromis d'agence dont le seul notaire est le nôtre ressortait avec trois « notaires »,
+  // et la règle du notaire unique — il représente alors les deux parties — ne s'appliquait jamais.
+  function estNotaireCite(fenetreAvant, fenetreApres) {
+    if (RE_ORIGINE_PROPRIETE.test(fenetreAvant) || RE_ORIGINE_PROPRIETE.test(fenetreApres)) return true;
+    return RE_NOTAIRE_DATE_ANTERIEURE.test(fenetreApres);
+  }
 
   // OÙ les notaires sont nommés, selon le type d'acte — précisé par l'étude : « le nom des notaires
   // est toujours situé en première page pour les promesses de vente et dérivées ; pour les
@@ -1931,12 +1947,6 @@
     const resultats = [];
     const vus = new Set();
     mentions.forEach((mention, i) => {
-      // Dédoublonnage sur le PATRONYME (dernier mot) : le même notaire est cité tantôt avec son
-      // prénom, tantôt sans, et chaque forme comptait pour une personne distincte.
-      const cle = normaliserMaj(mention.nom.split(/\s+/).pop());
-      if (vus.has(cle)) return;
-      vus.add(cle);
-
       const suivante = mentions[i + 1];
       const debut = debutPhrase(source, mention.index);
       const fin = Math.min(
@@ -1950,18 +1960,31 @@
       // « participant » alors que c'est le second qui l'est.
       const fenetre = source.slice(debut, fin).replace(RE_INTRODUCTION_NOTAIRE_SUIVANT, ' ');
 
+      // Un notaire simplement CITÉ (origine de propriété, acte antérieur, règlement de
+      // copropriété dressé il y a quarante ans) n'intervient pas à l'acte : il est écarté de la
+      // liste, et pas seulement privé de rôle. Sans cela, un compromis d'agence dont le seul
+      // notaire est le nôtre ressortait avec trois « notaires » — et la règle du notaire unique,
+      // qui représente alors LES DEUX PARTIES, ne pouvait jamais s'appliquer.
+      const avantMention = source.slice(debut, mention.index);
+      const apresMention = source.slice(mention.index + mention.longueur, mention.index + mention.longueur + 200);
+      if (estNotaireCite(avantMention, apresMention)) return;
+
+      // Dédoublonnage sur le PATRONYME (dernier mot) : le même notaire est cité tantôt avec son
+      // prénom, tantôt sans, et chaque forme comptait pour une personne distincte. APRÈS le filtre
+      // ci-dessus, et non avant : le même notaire figure souvent d'abord dans l'origine de
+      // propriété (il a reçu la vente précédente) puis, plus loin, comme rédacteur du présent
+      // acte — dédoublonner en premier retenait la mention citée et faisait disparaître la bonne.
+      const cle = normaliserMaj(mention.nom.split(/\s+/).pop());
+      if (vus.has(cle)) return;
+      vus.add(cle);
+
       const mCote = fenetre.match(RE_COTE_NOTAIRE);
       const qualite = mCote ? qualiteDepuisMot(mCote[1]) : null;
       const cote = qualite ? (roleDepuisQualite(type, qualite) === 'VENDEUR' ? 'vendeur' : 'acquereur') : 'inconnu';
 
-      // Aucun rôle explicite retenu depuis une clause d'origine de propriété : tout ce qu'elle dit
-      // porte sur la vente précédente. On retombe alors sur les règles suivantes (géographique,
-      // puis ordre dans la zone du type d'acte), qui regardent le présent acte.
       let roleExplicite = null;
-      if (!RE_ORIGINE_PROPRIETE.test(fenetre)) {
-        if (RE_ROLE_INSTRUMENTAIRE.test(fenetre)) roleExplicite = 'instrumentaire';
-        else if (RE_ROLE_PARTICIPANT.test(fenetre)) roleExplicite = 'participant';
-      }
+      if (RE_ROLE_INSTRUMENTAIRE.test(fenetre)) roleExplicite = 'instrumentaire';
+      else if (RE_ROLE_PARTICIPANT.test(fenetre)) roleExplicite = 'participant';
 
       // Le département vient du CODE POSTAL, jamais du seul nom de commune : deux communes de
       // départements différents peuvent porter des noms proches (point insisté par la spec).

@@ -289,9 +289,33 @@ test('une clause d’ORIGINE DE PROPRIÉTÉ ne désigne jamais le notaire de l�
     'ORIGINE DE PROPRIETE\nLe bien appartient au vendeur pour l’avoir acquis de Maître Paul DURAND, notaire à ORLEANS.'
   ]) {
     const notaires = app.detecterNotaires('COMPROMIS DE VENTE\n' + clause, 'COMPROMIS_DE_VENTE');
-    assert.equal(notaires.length, 1, clause);
-    assert.equal(notaires[0].roleExplicite, null, clause);
+    // Le notaire d'un acte antérieur n'intervient pas au présent acte : il est retiré de la
+    // liste, et pas seulement privé de rôle. Sans cela, un compromis dont le seul notaire est
+    // celui de l'étude ressortait avec plusieurs « notaires » et la règle du notaire unique —
+    // qui représente alors les deux parties — ne pouvait jamais s'appliquer.
+    assert.equal(notaires.length, 0, clause);
   }
+});
+
+test('le même notaire, cité dans l’origine de propriété PUIS rédacteur, reste retenu', () => {
+  // Cas réel : le notaire a reçu la vente précédente (clause d'origine, en tête d'acte) et rédige
+  // aussi celle-ci (clause de réitération, plus loin). Dédoublonner avant d'écarter les mentions
+  // citées retenait la première — et le faisait disparaître entièrement de l'acte.
+  const app = chargerApplication();
+  const texte = 'COMPROMIS DE VENTE\n'
+    + 'Le VENDEUR déclare être propriétaire pour les avoir acquis aux termes d’un acte reçu par\n'
+    + 'Maître Sophie GOSSART, Notaire à BLOIS (41), le 15 septembre 2020.\n'
+    + BOURRAGE
+    + '\nLes présentes seront réitérées par acte authentique au plus tard le 30 juin 2026 par\n'
+    + 'Maître Sophie GOSSART, Notaire à BLOIS (41), 3 Rue du Bout des Haies, que les PARTIES\n'
+    + 'choisissent à cet effet d’un commun accord.';
+  const notaires = app.detecterNotaires(texte, 'COMPROMIS_DE_VENTE');
+  assert.equal(notaires.length, 1);
+  assert.match(notaires[0].nom, /GOSSART/);
+  // Seul notaire de l'acte : il représente les deux parties.
+  const r = app.determinerNotaires(notaires, '41', 'COMPROMIS_DE_VENTE', 'fin');
+  assert.match(r.vendeur.nom, /GOSSART/);
+  assert.match(r.acquereur.nom, /GOSSART/);
 });
 
 test('l’origine de propriété ne fait plus trancher, on retombe sur la règle de zone', () => {
