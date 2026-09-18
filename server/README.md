@@ -174,6 +174,24 @@ l'étude préfère l'installer sur une machine dédiée du réseau plutôt que s
   `test/analyse-ia.test.js`), mais la qualité réelle des constats produits par `llama3.1:8b` sur de
   vrais actes reste à confirmer par l'étude.
 
+### Troisième usage du modèle : confirmer une offre de prêt
+
+En plus de l'analyse approfondie et de l'extraction du wizard, le modèle local sert à **confirmer
+qu'un PDF trouvé dans le dossier d'un client est bien une offre (ou un contrat) de prêt** — route
+`POST /api/offre-pret/confirmer` (`src/routes/offrePret.js`).
+
+L'outil ne lui envoie que **le haut de la première page** du document (quelques centaines de
+caractères : le titre et ce qui l'entoure), jamais le document entier. C'est le dernier des trois
+filtres de reconnaissance, après le nombre de pages et le titre lui-même — voir la section
+« OFFRE DE PRÊT » de `script.js`. L'appel est donc court, de l'ordre de quelques secondes même sur
+un CPU modeste, contrairement aux deux autres usages.
+
+**Si Ollama n'est pas disponible**, la route répond `503` et l'offre trouvée passe au statut
+« À confirmer » côté interface, distinct de « Reçue » : le document est retenu et ouvrable en un
+clic, mais rien n'est validé tant que personne ne l'a regardé. Le dossier reste rescanné
+automatiquement, donc le statut se résout tout seul dès qu'Ollama est de nouveau joignable —
+aucune action n'est nécessaire de la part de l'étude.
+
 ## Service Windows (démarrage automatique, redémarrage seul en cas de plantage)
 
 Par défaut, `CLAIRE-serveur.exe` reste un simple exécutable : il tourne tant que sa fenêtre de

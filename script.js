@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-18 08:10';
+  const VERSION_APP = '2026-09-18 08:15';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-18 08:15', resume: "Offre de prêt reconnue autrement : l'outil rouvre les PDF du dossier, écarte tout document de moins de 6 pages, lit le TITRE de la page de garde (et lui seul) puis fait confirmer par le modèle IA local qu'il s'agit bien d'une offre ou d'un contrat de prêt — sans ce modèle, le document trouvé passe en « À confirmer », distinct de « Reçue ». La ou les garanties du prêt (caution, hypothèque légale de prêteur de deniers, hypothèque conventionnelle) sont relevées au passage et affichées dans la carte « Obtention du prêt »" },
     { version: '2026-09-18 08:10', resume: "L'avant-contrat rouvert depuis une fiche est désormais celui réellement importé à la création du dossier — le nom du fichier est mémorisé, la recherche par les mots « compromis »/« promesse » ramenait souvent l'avant-contrat de la vente préalable rangé dans le même dossier. Et TOUS les documents identifiés dans l'analyse juridique (entretien, travaux, attestations…) sont maintenant recherchés dans le dossier local comme les pièces d'urbanisme, y compris sur les dossiers déjà créés" },
     { version: '2026-09-18 08:00', resume: "Nouvel onglet « Prorata & répartitions » : répartit entre vendeur et acquéreur une taxe foncière annuelle, des charges de copropriété au trimestre ou au mois, ou un loyer mensuel — jours réels, jour de l'acte à la charge de l'acquéreur, les deux parts totalisant toujours la somme appelée au centime près" },
     { version: '2026-09-18 07:55', resume: "Nouvelle vue « Semaines » dans le Suivi : les mêmes dossiers regroupés par semaine d'échéance, une ligne par échéance — un dossier figure donc sous chaque semaine où il a quelque chose à traiter, avec un groupe « En retard » en tête. Le tableau peut aussi être trié par statut" },
@@ -4139,6 +4140,7 @@
       piecesEngagementsDetectees,
       dossierLie: false,
       offrePretStatut: 'inconnu',
+      garantiesPret: [],
       accesAReconfirmer: false,
       derniereRelanceAuto: null,
       pret, acte, ventebien, autres,
@@ -4645,7 +4647,12 @@
     const urgents15 = dansNJours(15);
     const avecPret = dossiersActifs.filter(d => !d.sansPret);
     const manquantes = avecPret.filter(d => d.offrePretStatut === 'manquante').length;
-    const aVerifier = avecPret.filter(d => (d.offrePretStatut || 'inconnu') === 'inconnu').length;
+    // "À vérifier" regroupe tout ce qui n'est tranché ni dans un sens ni dans l'autre : jamais
+    // cherchée ("inconnu") comme trouvée sans confirmation ("aconfirmer", voir statutOffreAffichage).
+    const aVerifier = avecPret.filter(d => {
+      const s = d.offrePretStatut || 'inconnu';
+      return s !== 'recue' && s !== 'manquante';
+    }).length;
     // Même condition que statutDossier() : uniquement une fois relié, hors rôle participant.
     const piecesIncompletes = dossiersActifs.filter(d => d.dossierLie && d.roleNotaire !== 'participant' &&
       checklistPieces(d.typeVente, d).some(p => (d.pieces || {})[p.cle] !== 'recue')).length;
@@ -5651,7 +5658,11 @@
     const lignesResume = [];
     lignesResume.push(`${r.nbFichiersRencontres} fichier${r.nbFichiersRencontres > 1 ? 's' : ''} PDF rencontré${r.nbFichiersRencontres > 1 ? 's' : ''} (sous-dossiers compris), ${r.nbAnalyses} ouvert${r.nbAnalyses > 1 ? 's' : ''} pour lire son contenu.`);
     if (r.offre) {
-      lignesResume.push(`Offre de prêt : ${r.offre.trouvee ? `reconnue (${escapeHtml(r.offre.fichier)})` : 'non reconnue par le nom de fichier — vérifiez que le fichier de l\'offre porte bien "offre de prêt" (ou une variante) dans son nom.'}`);
+      lignesResume.push(`Offre de prêt : ${!r.offre.trouvee
+        ? `aucun PDF d'au moins ${MIN_PAGES_OFFRE_PRET} pages dont la page de garde s'intitule « offre de prêt » (ou une variante) — le détail fichier par fichier est ci-dessous.`
+        : r.offre.aConfirmer
+          ? `page de garde reconnue (${escapeHtml(r.offre.fichier)}), <strong>à confirmer</strong> : le modèle local n'a pas pu la vérifier.`
+          : `reconnue et confirmée (${escapeHtml(r.offre.fichier)})`}`);
     }
     if (r.pieces) {
       lignesResume.push(`${r.pieces.trouvees}/${r.pieces.total} pièce(s) reconnue(s)${r.pieces.manquantes.length ? ' — manquante(s) : ' + r.pieces.manquantes.map(escapeHtml).join(', ') + '.' : '.'}`);
@@ -5875,15 +5886,26 @@
       // Affiché même quand aucun dossier local n'est relié : c'est justement là qu'il faut proposer
       // de le relier, sans quoi la carte ne dit rien de l'offre et n'offre aucun moyen d'agir.
       const offreStatut = statutOffreAffichage(d);
+      // Un fichier a été retenu (et son handle mémorisé) aussi bien pour "reçue" que pour
+      // "à confirmer" : dans les deux cas il y a quelque chose à ouvrir — c'est justement en
+      // l'ouvrant que l'étude tranche le second cas.
+      const offreOuvrable = d.dossierLie && (d.offrePretStatut === 'recue' || d.offrePretStatut === 'aconfirmer');
+      // Garanties du prêt lues dans l'offre (caution, hypothèque légale de prêteur de deniers,
+      // hypothèque conventionnelle — plusieurs possibles) : affichées ici, dans la carte
+      // "Obtention du prêt", emplacement choisi par l'étude.
+      const garanties = libellesGarantiesPret(d.garantiesPret);
+      const garantiesBloc = garanties.length
+        ? `<div class="tab-garanties" title="Garantie(s) relevée(s) dans l’offre de prêt">${icone('key')} ${garanties.map(escapeHtml).join(' · ')}</div>`
+        : '';
       const offreBloc = !d.sansPret ? `
         <div class="tab-offre-pret">
-          ${(d.dossierLie && d.offrePretStatut === 'recue')
-              ? `<button type="button" class="dot-label ${offreStatut.dl}" title="Offre de prêt reçue — cliquer pour ouvrir le fichier trouvé" onclick="ouvrirOffreTrouvee('${d.id}')"><span class="dot"></span>Ouvrir le fichier</button>`
+          ${offreOuvrable
+              ? `<button type="button" class="dot-label ${offreStatut.dl}" title="${d.offrePretStatut === 'recue' ? 'Offre de prêt reçue — cliquer pour ouvrir le fichier trouvé' : 'Document trouvé mais non confirmé — cliquer pour l’ouvrir et vérifier'}" onclick="ouvrirOffreTrouvee('${d.id}')"><span class="dot"></span>${d.offrePretStatut === 'recue' ? 'Ouvrir le fichier' : 'À confirmer — ouvrir'}</button>`
               : `<span class="dot-label ${offreStatut.dl}" title="${d.dossierLie ? escapeAttr(offreStatut.texte) : 'Aucun dossier local relié : l’offre n’a pas encore pu être cherchée'}"><span class="dot"></span>${offreStatut.texte}</span>`}
           ${DOSSIER_FS_SUPPORTE ? (d.dossierLie
               ? `<button type="button" class="lien-dossier-local" onclick="verifierDossierLocalDepuisBouton('${d.id}', this)">Revérifier</button>`
               : `<button type="button" class="lien-dossier-local" onclick="lierDossierLocal('${d.id}')">${icone('link')} Lier un dossier local</button>`) : ''}
-        </div>` : '';
+        </div>${garantiesBloc}` : '';
       return `
       <div class="dossier${d.archive ? ' est-archive' : ''}">
         <div class="dossier-head">
@@ -7004,6 +7026,9 @@
       // sur ce point, la personne devra relier le dossier depuis ce navigateur si besoin.
       dossierLie: false,
       offrePretStatut: 'inconnu',
+      // Comme offrePretStatut/montantPret : lues dans un PDF local propre à une machine, jamais
+      // importées telles quelles — à retrouver par une vérification sur ce poste.
+      garantiesPret: [],
       pieces: {},
       accesAReconfirmer: false,
       derniereRelanceAuto: null
@@ -7506,6 +7531,77 @@
   // var (pas const) : exposée globalement comme les fonctions du fichier, pour rester testable
   // depuis tests/helpers/load-app.js sans dupliquer le motif dans les tests.
   var OFFRE_PRET_RE = /offre\s*de\s*pr[êe]t|offre\s*pr[ée]alable\s*de\s*cr[ée]dit|offre\s*de\s*cr[ée]dit|offre\s*de\s*financement|accord\s*de\s*pr[êe]t|contrat\s*de\s*cr[ée]dit|contrat\s*de\s*pr[êe]t/i;
+
+  // ==== OFFRE DE PRÊT : reconnaissance par le titre de la page de garde ====
+  // Troisième méthode de reconnaissance de ce document, après le contenu intégral (abandonné :
+  // polices embarquées illisibles, autres documents mentionnant l'offre en passant) puis le seul
+  // nom du fichier (abandonné à son tour, l'étude signalant « trop d'erreur » — un nom de fichier
+  // est saisi à la main et ne dit rien du contenu réel). Méthode demandée explicitement par
+  // l'étude, en trois filtres cumulés, du moins cher au plus cher :
+  //   1. NOMBRE DE PAGES — « une offre de prêt fait au minimum 10 pages, ignorer tout document de
+  //      moins de 6 pages ». Seuil volontairement placé sous les 10 pages annoncées : c'est un
+  //      filtre de sécurité destiné à écarter les courriers et attestations d'une ou deux pages,
+  //      pas à rejeter une offre un peu courte sur un prêt simple.
+  //   2. TITRE de la page de garde — et lui seul, pas tout le document : un acte qui PARLE de
+  //      l'offre de prêt n'a pas ce titre en tête de sa première page.
+  //   3. CONFIRMATION par le modèle IA local (voir confirmerOffrePretIa) — un titre peut coïncider
+  //      sans que le document en soit un ; le modèle tranche sur la page de garde entière.
+  var MIN_PAGES_OFFRE_PRET = 6;
+  var LONGUEUR_TITRE_PDF = 600; // « page de garde » retenue comme titre : le haut de la page 1
+
+  // Le texte d'une page de PDF arrive en fragments dont l'espacement ne reflète pas la mise en
+  // page : on le remet à plat avant tout test de motif, comme ailleurs dans ce fichier.
+  function titrePagePdf(textePremierePage) {
+    return (textePremierePage || '').replace(/\s+/g, ' ').trim().slice(0, LONGUEUR_TITRE_PDF);
+  }
+
+  // Garanties du prêt, lues dans le texte de l'offre une fois celle-ci identifiée (demandé par
+  // l'étude, affiché dans la carte « Obtention du prêt »). Plusieurs peuvent s'appliquer au même
+  // prêt — l'étude a explicitement dit « et/ou » : le résultat est donc une liste, jamais une
+  // valeur unique.
+  // « Privilège de prêteur de deniers » est l'ancien nom de l'hypothèque légale spéciale du même
+  // nom (réforme des sûretés de 2021) : les deux formulations coexistent dans les offres réelles,
+  // les deux sont reconnues sous la même clé puisqu'elles désignent la même garantie.
+  var GARANTIES_PRET = [
+    { cle: 'caution', label: 'Caution', motif: /cautionnement|soci[ée]t[ée]\s+de\s+caution|caution\s+(?:solidaire|mutuelle|bancaire)|cr[ée]dit\s+logement/i },
+    { cle: 'hypothequeLegale', label: 'Hypothèque légale de prêteur de deniers', motif: /pr[êe]teur\s+de\s+deniers|privil[èe]ge\s+de\s+pr[êe]teur|h[yi]poth[èe]que\s+l[ée]gale\s+sp[ée]ciale/i },
+    { cle: 'hypothequeConventionnelle', label: 'Hypothèque conventionnelle', motif: /h[yi]poth[èe]que\s+conventionnelle/i }
+  ];
+
+  function detecterGarantiesPret(texte) {
+    if (!texte) return [];
+    return GARANTIES_PRET.filter(g => g.motif.test(texte)).map(g => g.cle);
+  }
+
+  function libellesGarantiesPret(cles) {
+    return (cles || [])
+      .map(cle => (GARANTIES_PRET.find(g => g.cle === cle) || {}).label)
+      .filter(Boolean);
+  }
+
+  // Demande au modèle IA local (Ollama, via le serveur — voir server/src/routes/offrePret.js) de
+  // confirmer que la page de garde reconnue est bien celle d'une offre/d'un contrat de prêt.
+  // `disponible: false` couvre tout ce qui empêche une réponse (modèle non installé, serveur
+  // injoignable, version de l'outil sans cette route) : l'appelant en fait alors un statut « à
+  // confirmer », jamais un rejet — ne pas pouvoir demander n'est pas une réponse négative.
+  async function confirmerOffrePretIa(titre) {
+    try {
+      const reponse = await fetchAvecAuth('/api/offre-pret/confirmer', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ titre })
+      });
+      if (!reponse.ok) {
+        const corps = await reponse.json().catch(() => ({}));
+        return { disponible: false, estOffrePret: false, raison: corps.erreur || `erreur ${reponse.status}` };
+      }
+      const data = await reponse.json();
+      return { disponible: true, estOffrePret: data.estOffrePret === true, raison: data.raison || '' };
+    } catch (e) {
+      return { disponible: false, estOffrePret: false, raison: e.message };
+    }
+  }
+
   let handlesEnMemoire = {}; // repli si IndexedDB est indisponible (contexte restreint)
 
   // Parcourt un dossier ET ses sous-dossiers à la recherche de fichiers PDF : les pièces d'un
@@ -7619,6 +7715,7 @@
       // statutDossier).
       d.offrePretStatut = 'inconnu';
       d.montantPret = null;
+      d.garantiesPret = []; // lues dans l'offre de l'ancien dossier : elles ne valent plus rien ici
       // Le handle du compromis, lui, pointait vers l'ANCIEN dossier local — jamais rescanné
       // automatiquement (voir ouvrirCompromisTrouve()) : sans ce retrait, "Ouvrir le compromis"
       // rouvrirait silencieusement un fichier du mauvais dossier après un changement de lien.
@@ -7753,6 +7850,7 @@
     const fichierParPiece = {};
 
     let offreTrouvee = false;
+    let offreAConfirmer = false; // trouvée par son titre, mais sans confirmation du modèle local
     let fichierOffre = null;
     let nbAnalyses = 0; // fichiers réellement ouverts/lus (contenu) — sert seulement au log interne
     let nbFichiersRencontres = 0; // tous les PDF croisés, ouverts ou non (voir le toast plus bas)
@@ -7779,32 +7877,65 @@
         // les motifs sont écrits avec \s* comme séparateur, un vrai nom de fichier de l'étude non.
         const nomNormalise = normaliserNomPourMotif(entree.name);
 
-        if (chercherOffre && !offreTrouvee && OFFRE_PRET_RE.test(nomNormalise)) {
-          offreTrouvee = true;
-          fichierOffre = entree.name;
-          diagnosticJournal.push(`${entree.name} → offre de prêt trouvée par nom de fichier`);
-          // Conserve le handle du fichier trouvé (même mécanisme IndexedDB que le dossier local
-          // lui-même) pour permettre de le rouvrir en un clic depuis la fiche, sans avoir à
-          // reparcourir tout le dossier — voir ouvrirOffreTrouvee().
-          await enregistrerHandle(CLE_HANDLE_OFFRE(id), entree);
-          // Montant emprunté (pour l'apport, voir calculerApport) : une seule lecture, best-effort,
-          // du SEUL fichier déjà identifié comme l'offre par son NOM — ce n'est plus "lire le PDF
-          // pour reconnaître l'offre" (ce que l'étude a demandé d'arrêter), seulement en extraire un
-          // chiffre annexe une fois le bon fichier déjà connu avec certitude. Un échec de
-          // lecture/extraction laisse simplement d.montantPret tel quel (jamais écrasé par un
-          // échec, comme ailleurs dans ce fichier), sans jamais remettre en cause offreTrouvee.
-          if (!d.montantPret) {
-            try {
-              nbAnalyses++;
-              const file = await entree.getFile();
-              const buffer = await file.arrayBuffer();
-              const pdf = await pdfjsLib.getDocument({ data: buffer, verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise;
-              const texte = await lireTextePdfVerification(pdf);
-              const montant = detecterMontantPret(texte);
-              if (montant) d.montantPret = montant;
-            } catch (e) {
-              console.error('Lecture du montant du prêt impossible pour', entree.name, e);
+        // Offre de prêt : plus par le nom du fichier, mais par le NOMBRE DE PAGES puis le TITRE de
+        // la page de garde, avec confirmation par le modèle IA local — voir MIN_PAGES_OFFRE_PRET et
+        // son commentaire pour le pourquoi de chacun des trois filtres. Le PDF n'est ouvert que
+        // tant que l'offre n'a pas été trouvée : une fois qu'elle l'est, le parcours reprend son
+        // rythme « par nom de fichier » pour les pièces restantes.
+        if (chercherOffre && !offreTrouvee) {
+          try {
+            nbAnalyses++;
+            const file = await entree.getFile();
+            const buffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: buffer, verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise;
+            if (pdf.numPages < MIN_PAGES_OFFRE_PRET) {
+              // Écarté sans même lire la page de garde : une offre de prêt fait au moins une
+              // dizaine de pages, un document d'une ou deux pages n'en est jamais une.
+              diagnosticJournal.push(`${entree.name} → écarté pour l'offre (${pdf.numPages} page${pdf.numPages > 1 ? 's' : ''}, minimum ${MIN_PAGES_OFFRE_PRET})`);
+            } else {
+              const page1 = await pdf.getPage(1);
+              const contenu = await page1.getTextContent();
+              const titre = titrePagePdf(contenu.items.map(it => it.str).join(' '));
+              if (!OFFRE_PRET_RE.test(titre)) {
+                diagnosticJournal.push(`${entree.name} → titre de page de garde sans rapport avec une offre de prêt`);
+              } else {
+                // Le titre colle : reste à faire confirmer par le modèle local qu'il s'agit bien du
+                // document de prêt lui-même, et non d'un acte qui en porte le nom en tête.
+                const confirmation = await confirmerOffrePretIa(titre);
+                if (confirmation.disponible && !confirmation.estOffrePret) {
+                  diagnosticJournal.push(`${entree.name} → titre proche, mais écarté par le modèle local${confirmation.raison ? ' : ' + confirmation.raison : ''}`);
+                } else {
+                  offreTrouvee = true;
+                  fichierOffre = entree.name;
+                  // Sans confirmation possible (modèle absent ou en panne), le document n'est pas
+                  // déclaré reçu d'office : il passe en « à confirmer », statut distinct que
+                  // l'étude tranche elle-même en ouvrant le fichier — choix explicite de sa part.
+                  offreAConfirmer = !confirmation.disponible;
+                  diagnosticJournal.push(offreAConfirmer
+                    ? `${entree.name} → offre de prêt probable (titre reconnu), à confirmer : ${confirmation.raison || 'modèle local indisponible'}`
+                    : `${entree.name} → offre de prêt confirmée (titre + modèle local)`);
+                  // Conserve le handle du fichier trouvé (même mécanisme IndexedDB que le dossier
+                  // local lui-même) pour permettre de le rouvrir en un clic depuis la fiche, sans
+                  // avoir à reparcourir tout le dossier — voir ouvrirOffreTrouvee().
+                  await enregistrerHandle(CLE_HANDLE_OFFRE(id), entree);
+                  // Le PDF est déjà ouvert : on en profite pour lire le montant emprunté (apport,
+                  // voir calculerApport) et les garanties du prêt (caution / hypothèque, demandées
+                  // par l'étude). Best-effort, et jamais d'écrasement par un échec de détection :
+                  // une valeur déjà connue est conservée si une revérification ne la retrouve pas.
+                  const texte = await lireTextePdfVerification(pdf);
+                  const montant = detecterMontantPret(texte);
+                  if (montant) d.montantPret = montant;
+                  const garanties = detecterGarantiesPret(texte);
+                  if (garanties.length) d.garantiesPret = garanties;
+                }
+              }
             }
+          } catch (e) {
+            // Un PDF illisible (chiffré, corrompu, police exotique) ne doit jamais interrompre le
+            // parcours : il est simplement écarté pour l'offre, les pièces continuent d'être
+            // testées par leur nom de fichier juste en dessous.
+            console.error('Lecture impossible pour', entree.name, e);
+            diagnosticJournal.push(`${entree.name} → lecture impossible (${e.message})`);
           }
         }
 
@@ -7864,7 +7995,7 @@
       resume: {
         nbFichiersRencontres,
         nbAnalyses,
-        offre: !chercherOffre ? null : { trouvee: offreTrouvee, fichier: fichierOffre },
+        offre: !chercherOffre ? null : { trouvee: offreTrouvee, aConfirmer: offreAConfirmer, fichier: fichierOffre },
         pieces: !chercherPieces ? null : {
           total: checklist.length,
           trouvees: nbPiecesTrouvees,
@@ -7876,7 +8007,11 @@
     if (viaClicUtilisateur) {
       const messages = [];
       if (chercherOffre) {
-        messages.push(offreTrouvee ? `Offre de prêt trouvée (${fichierOffre}).` : "Offre de prêt non reconnue.");
+        messages.push(!offreTrouvee
+          ? "Offre de prêt non reconnue."
+          : offreAConfirmer
+            ? `Offre de prêt probable (${fichierOffre}) — à confirmer, le modèle local n'a pas pu la vérifier.`
+            : `Offre de prêt trouvée (${fichierOffre}).`);
       }
       if (chercherPieces) {
         const manquantes = checklist.length - nbPiecesTrouvees;
@@ -7896,7 +8031,9 @@
     if (chercherOffre) {
       offreEtaitManquante = d.offrePretStatut === 'manquante';
       offreEtaitRecue = d.offrePretStatut === 'recue';
-      d.offrePretStatut = offreTrouvee ? 'recue' : 'manquante';
+      // Trois issues, pas deux : trouvée et confirmée, trouvée mais pas confirmable (modèle local
+      // indisponible — statut distinct demandé par l'étude, à trancher à la main), ou introuvable.
+      d.offrePretStatut = offreTrouvee ? (offreAConfirmer ? 'aconfirmer' : 'recue') : 'manquante';
     }
 
     await sauvegarder(d);
@@ -8058,6 +8195,10 @@
   function statutOffreAffichage(d) {
     if (!d.dossierLie) return { texte: 'Non vérifiée', dl: 'dl-neutre' };
     if (d.offrePretStatut === 'recue') return { texte: 'Reçue', dl: 'dl-success' };
+    // Un document a bien été trouvé, mais sans la confirmation du modèle local : distinct d'une
+    // offre reçue (personne ne l'a encore validée) comme d'une offre introuvable (le document est
+    // là, il suffit de l'ouvrir pour trancher). Statut demandé explicitement par l'étude.
+    if (d.offrePretStatut === 'aconfirmer') return { texte: 'À confirmer', dl: 'dl-pret' };
     if (d.offrePretStatut === 'manquante') return { texte: 'Introuvable', dl: 'dl-pret' };
     return { texte: 'À vérifier', dl: 'dl-neutre' };
   }

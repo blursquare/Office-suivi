@@ -3619,6 +3619,45 @@ autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` auton
       produit des objets `{label, cat, cleChecklist}` depuis longtemps — importer une sauvegarde JSON
       vidait donc silencieusement la liste des documents identifiés (et aurait annulé la
       rétroactivité ci-dessus). Les deux formes sont désormais acceptées, comme partout ailleurs.
+  - **Lot 5 — reconnaissance de l'offre de prêt par le titre, et garanties du prêt** :
+    - **Troisième méthode de reconnaissance de ce document**, après le contenu intégral (abandonné :
+      polices embarquées illisibles, autres documents mentionnant l'offre en passant) puis le seul
+      nom de fichier (abandonné à son tour, l'étude signalant « trop d'erreur » — un nom de fichier
+      est saisi à la main et ne dit rien du contenu réel). Trois filtres cumulés, du moins cher au
+      plus cher, tous demandés explicitement par l'étude : **nombre de pages**
+      (`MIN_PAGES_OFFRE_PRET`, 6 — « une offre fait au minimum 10 pages », seuil placé volontairement
+      sous les 10 annoncées, c'est un filtre contre les courriers d'une ou deux pages, pas un rejet
+      d'une offre courte) ; **titre de la page de garde** et lui seul (`titrePagePdf()` remet le
+      texte de la page 1 à plat et n'en garde que le haut — un acte qui PARLE de l'offre de prêt
+      n'a pas ce titre en tête de sa première page) ; **confirmation par le modèle IA local**
+      (nouvelle route `POST /api/offre-pret/confirmer`, `server/src/routes/offrePret.js` — le
+      modèle ne voit QUE la page de garde, jamais le document entier, ce qui garde l'appel court
+      donc rapide sur le CPU d'un poste de bureau).
+    - **Nouveau statut `aconfirmer`**, distinct de `recue` et de `manquante` : choix explicite de
+      l'étude pour le cas où le modèle local est indisponible (non installé, serveur injoignable).
+      Un document trouvé mais non confirmé n'est ni reçu (personne ne l'a validé) ni introuvable
+      (il est là, il suffit de l'ouvrir) — la fiche propose donc « À confirmer — ouvrir », qui ouvre
+      directement le fichier retenu. La route répond **503** dans ce cas, jamais `false` : confondre
+      « le modèle dit non » et « le modèle n'a pas pu répondre » ferait disparaître un document
+      pourtant trouvé, c'est le point le plus testé de `server/test/offre-pret.test.js`. Un dossier
+      resté « à confirmer » n'est jamais considéré comme complet (`dossierEntierementComplet`),
+      donc il est rescanné : le statut se résout tout seul dès qu'Ollama est de nouveau là.
+    - **Garanties du prêt** (`GARANTIES_PRET`/`detecterGarantiesPret`) : caution, hypothèque légale
+      de prêteur de deniers, hypothèque conventionnelle — lues dans le texte de l'offre au moment
+      où elle est identifiée (le PDF est déjà ouvert, aucune lecture supplémentaire), affichées
+      dans la carte « Obtention du prêt » (emplacement choisi par l'étude). **Plusieurs peuvent
+      s'appliquer au même prêt** (l'étude a dit « et/ou ») : le résultat est une liste, jamais une
+      valeur unique. « Privilège de prêteur de deniers » (ancien nom, avant la réforme des sûretés
+      de 2021) et « hypothèque légale spéciale » partagent la même clé : les deux formulations
+      coexistent dans les offres réelles et désignent la même garantie. `d.garantiesPret` est
+      remis à zéro comme `offrePretStatut`/`montantPret` à chaque changement de dossier lié et à
+      l'import d'une sauvegarde — dérivé d'un PDF local, jamais transporté d'une machine à l'autre.
+    - **Conséquence assumée sur les performances** : la recherche de l'offre ouvre maintenant les
+      PDF du dossier jusqu'à la trouver, alors que la version précédente ne lisait que leurs noms.
+      Le coût reste borné (le parcours s'arrête dès l'offre trouvée, et un PDF de moins de 6 pages
+      est écarté avant même sa page de garde), et il disparaîtra largement quand le serveur lira
+      le NAS lui-même. Les pièces de la checklist, elles, continuent d'être reconnues par leur seul
+      nom de fichier — rien n'a changé de ce côté.
 
 **Ce qui n'a volontairement PAS été fait** (arrêté à la demande explicite de l'étude, pas un
 oubli) — à reprendre uniquement si redemandé un jour :

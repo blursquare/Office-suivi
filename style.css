@@ -3044,6 +3044,20 @@
      qu'il concerne que son ancienne place dans l'en-tête du dossier. */
   .tab-offre-pret { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 
+  /* Garantie(s) du prêt relevées dans l'offre (caution, hypothèque…), sous le statut de l'offre
+     dans la carte « Obtention du prêt ». Volontairement une simple ligne discrète, pas un
+     .dot-label de plus : ce n'est pas un statut à surveiller mais une caractéristique du prêt,
+     et la carte porte déjà deux signaux colorés (le décompte et le statut de l'offre). */
+  .tab-garanties {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .tab-garanties .icone { flex: none; opacity: 0.75; }
+
   /* ---- .dot-label : langage unique de statut dans tout l'outil ----
      Un point (ou une icône) coloré + un mot, jamais de fond ni de contour par défaut — remplace
      l'empilement de composants qui disaient chacun la même chose à leur façon (badge-statut,
