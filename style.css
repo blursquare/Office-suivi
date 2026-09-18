@@ -1337,6 +1337,12 @@
     margin: 8px 0 0;
   }
 
+  /* Réglages : résultat du message de test envoyé à un collaborateur (voir testerTeamsResponsable
+     dans script.js) — mêmes tokens --success/--urgent que le reste de l'outil, aucune couleur
+     inventée pour l'occasion. */
+  p.reglages-email-ok { color: var(--success); }
+  p.reglages-email-echec { color: var(--urgent); }
+
   .chips {
     margin-top: 12px;
   }

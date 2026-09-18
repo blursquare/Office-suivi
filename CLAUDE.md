@@ -4502,19 +4502,100 @@ autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` auton
     de révision qui touchent le DOM, `renderQualiteExtraction()`/`viderJournalCorrections()`/
     `redemanderChampIa()` en chemin de repli sans import en cours).
 
+- **Rappels automatiques : remplacement du déclenchement manuel par un message privé Teams**,
+  demandé par l'étude en discutant de la connexion de CLAIRE à Teams ("Au lieu d'avoir un e-mail de
+  rappel avec un message automatique envoyé au collaborateur sur teams"). Trois décisions prises
+  via `AskUserQuestion` avant d'implémenter, à ne pas rouvrir sans nouvelle demande : (1) un
+  **message privé via un flux Power Automate**, pas un message de canal partagé ni une inscription
+  d'application Azure AD/Microsoft Graph (déjà écartée pour les mêmes raisons lors des relances
+  email/calendrier — aucun consentement administrateur requis, l'étude crée le flux elle-même) ;
+  (2) ce mécanisme **remplace le déclenchement automatique** des rappels (qui n'existait
+  simplement pas jusqu'ici — voir l'ancien "Ce qui n'a volontairement pas été fait" ci-dessous,
+  aucune relance email automatique n'a jamais été câblée), le bouton "Envoyer un rappel par email"
+  sur la fiche restant, lui, un envoi ponctuel à la main, inchangé ; (3) les adresses email Teams
+  des 3 responsables et l'URL du flux sont saisies par l'étude elle-même dans un **nouvel écran
+  "Réglages" de la sidebar**, plutôt qu'un tableau figé dans le code ou un fichier de configuration
+  à éditer à la main — demande explicite de l'étude après avoir écarté mes deux premières
+  propositions.
+  - **`server/src/teams.js`** : `envoyerMessageTeams(webhookUrl, destinataireEmail, texte)`, un
+    simple `POST` JSON `{destinataire, message}` vers l'URL du flux (`fetch` natif, timeout 15s,
+    aucune dépendance npm supplémentaire — même choix que `llm.js` pour Ollama). Tout le routage
+    vers la bonne personne est fait PAR LE FLUX ("Publier un message dans un chat ou un canal", en
+    tant que Flow bot, dans un chat avec Flow bot, destinataire = contenu dynamique `destinataire`
+    du corps de la requête) — CLAIRE ne connaît que l'URL du déclencheur HTTP.
+  - **`server/src/parametresRepo.js`** (nouveau, table `parametres` ajoutée au schéma de `db.js`) :
+    un blob JSON unique sous la clé `reglages` (`{teamsWebhookUrl, teamsActif,
+    emailsResponsables}`), et non une colonne par champ — rien ici n'est filtré/trié par SQL
+    ailleurs, même principe que le blob `data` des dossiers. Volontairement dans la BASE (partagée
+    entre tous les postes), pas dans `config.json` (réservé aux réglages d'infrastructure posés une
+    fois à l'installation, par qui installe l'exécutable — mot de passe, port, racine du NAS) :
+    l'URL du flux et les emails sont une donnée métier que n'importe quel collaborateur doit pouvoir
+    modifier depuis l'écran Réglages, pas un réglage machine. `assainirReglages()` protège la
+    lecture d'un JSON malformé en base (jamais de plantage du job de rappels qui la relit toutes
+    les 30 minutes) — testé avec un JSON invalide injecté directement en base.
+  - **`server/src/jobs/rappels.js`** (nouveau dossier `server/src/jobs/`) : réutilise et étend
+    l'infrastructure déjà anticipée dans le tout premier schéma de la base mais jamais câblée
+    jusqu'ici — la table `reminder_log` (empêche un double envoi) et `config.intervalleRappelsMs`
+    (30 min) existaient déjà sans aucun appelant. `toutesEcheances()`/`echeanceValidee()` sont une
+    DUPLICATION volontaire de leurs équivalents dans `script.js` (même choix déjà documenté pour
+    `buildEvent`/`icsDate` dans `routes/calendrier.js` — pas de mécanisme de build partagé entre
+    navigateur et Node dans ce projet). **Seuils fixes `[15, 7]`, indépendants de `d.reminderDays`**
+    (propre au seul export `.ics` manuel, vide sur un dossier sans condition de prêt) : un dossier
+    `sansPret` doit quand même être rappelé pour sa signature d'acte ou sa vente préalable, ce que
+    `d.reminderDays` ne permettrait pas. `executerTacheRappels(depot, db, parametresRepo,
+    envoyerFn, aujourdHui)` (fonction testable, `envoyerFn` injectable — voir
+    `server/test/helpers/faux-ollama.js` pour le même principe côté Ollama) : silencieuse tant que
+    `teamsActif`/`teamsWebhookUrl` ne sont pas renseignés, marque chaque envoi réussi dans
+    `reminder_log` (un échec n'est jamais marqué — retenté au tour suivant), signale un
+    collaborateur sans adresse configurée sans bloquer les autres dossiers. Démarré uniquement dans
+    `index.js` (jamais `app.js`, pour ne pas déclencher ce minuteur dans les tests qui montent
+    `creerApp()` directement) — même principe déjà établi pour `demarrerSurveillanceNas()`.
+  - **`server/src/routes/reglages.js`** : `GET/PUT /api/reglages` (lecture/écriture du blob) et
+    `POST /api/reglages/tester-teams` (envoie `MESSAGE_TEST` à un responsable nommé). **Toujours
+    avec les réglages déjà ENREGISTRÉS en base, jamais un formulaire pas encore validé côté
+    client** — vérifie ce que le job de rappels utilisera réellement, pas un brouillon.
+  - **Écran "Réglages"** (`#onglet-reglages`, lien de sidebar avec une nouvelle icône `settings`
+    dessinée à la main, même recette 16×16 que le reste du jeu `ICONES`) : reprend le même gabarit
+    que les autres onglets pleine page (`.dash-header`/`.calc-card`/`.calc-champs`, comme le
+    simulateur de provision) — un seul système visuel, pas un second écran par fonctionnalité.
+    `chargerReglages()`/`enregistrerReglages()`/`testerTeamsResponsable(nom)` (script.js) ;
+    `RESPONSABLES` (nouvelle liste, reprise telle quelle de la liste fermée existante plutôt que de
+    refactoriser les `<select>` déjà en place du formulaire/de la fiche, qui n'ont pas besoin de
+    cette variable). Un bouton "Tester" par collaborateur affiche le résultat de l'envoi (succès/
+    échec) directement sous son champ email. Une procédure de création du flux Power Automate,
+    étape par étape, est intégrée directement dans l'écran (pas seulement dans `server/README.md`,
+    que l'étude au quotidien ne lit pas) : l'écran doit se suffire à lui-même pour une équipe non
+    technique.
+  - Tests : `server/test/parametresRepo.test.js` (5, dont la vérification explicite que l'upsert
+    SQLite `INSERT ... ON CONFLICT ... DO UPDATE` fonctionne bien avec `node:sqlite` — jamais
+    vérifié avant ce chantier, seul risque technique identifié à l'écriture du dépôt),
+    `server/test/teams.test.js` (5, faux serveur HTTP local), `server/test/rappels.test.js` (13,
+    dont les seuils J-15/J-7 exacts, la non-répétition via `reminder_log`, un envoi en échec jamais
+    marqué comme réussi), `server/test/reglages.test.js` (7, dont la vérification que
+    "tester-teams" utilise bien l'email enregistré en base, jamais celui d'un corps de requête).
+    Suite serveur 148 → 178 tests, suite racine inchangée (413 — ce chantier est entièrement côté
+    serveur/Node, aucune fonction pure de `script.js` n'a été ajoutée : `chargerReglages()` et
+    consorts dépendent du DOM/`fetch`, non testables depuis `tests/helpers/load-app.js`, même limite
+    déjà documentée pour `verifierDisponibiliteAnalyseIa()`).
+  - **Non vérifié en conditions réelles** : aucun flux Power Automate réel, aucun compte Teams/
+    Microsoft 365 disponibles dans cet environnement de développement — le contrat JSON
+    `{destinataire, message}` et le comportement "Publier en tant que Flow bot" sont documentés
+    d'après la documentation officielle de Power Automate, à confirmer par l'étude en créant
+    réellement le flux (voir `server/README.md`, section "Rappels automatiques vers Teams").
+
 **Ce qui n'a volontairement PAS été fait** (arrêté à la demande explicite de l'étude, pas un
 oubli) — à reprendre uniquement si redemandé un jour :
 - **Import automatique** des dossiers déjà enregistrés sur la version 100% locale (`main`) vers ce
   serveur : aujourd'hui, il faudrait les recréer à la main. La piste envisagée (un endpoint
   `POST /api/import` portant la validation de `normaliserDossierImporte()` côté serveur) reste
   praticable si demandée.
-- **Relances email automatiques** (un vrai envoi SMTP programmé, remplaçant le `mailto:` manuel
-  actuel — `ouvrirEmailRappel()`/`relancerSiOffreManquante()`/`envoyerRelanceCiblee()`, tous
-  inchangés sur ce point et toujours de simples brouillons ouverts dans la messagerie de l'étude) —
-  sans accès Microsoft Graph, cette fonctionnalité resterait de toute façon fondée sur un
-  simple envoi SMTP direct (`nodemailer`, déjà présent dans `server/package.json` mais jamais
-  câblé), pas un vrai flux applicatif Outlook — jamais mise en œuvre en pratique, non redemandée
-  depuis.
+- **Relances email automatiques par SMTP direct** (`nodemailer`, présent dans
+  `server/package.json` mais jamais câblé) : le déclenchement AUTOMATIQUE des rappels passe
+  désormais par Teams (voir l'entrée ci-dessus), qui répondait directement à la demande de
+  l'étude — un envoi SMTP direct resterait de toute façon un simple envoi brut, pas un vrai flux
+  applicatif Outlook, sans accès Microsoft Graph. `ouvrirEmailRappel()`/`relancerSiOffreManquante()`/
+  `envoyerRelanceCiblee()` restent inchangés : de simples brouillons `mailto:` pour un envoi
+  ponctuel à la main, jamais automatiques.
 
 Le CLAUDE.md de la branche `main` (tout ce qui précède cette section) reste la référence pour le
 mode 100% local, qui n'a subi aucune régression de ce chantier.

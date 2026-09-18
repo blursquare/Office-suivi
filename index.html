@@ -69,6 +69,12 @@
       <button type="button" id="tab-analyse-ia" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('analyse-ia')">
         <span class="sidebar-link-icone" id="icon-nav-analyse-ia" aria-hidden="true"></span>Audit des actes (IA)
       </button>
+      <!-- Réglages de l'étude (URL du flux Power Automate + adresse Teams de chaque collaborateur) :
+           une donnée métier que l'étude doit pouvoir modifier elle-même, sans passer par un fichier
+           de configuration ni redemander à Claude Code — voir server/src/parametresRepo.js. -->
+      <button type="button" id="tab-reglages" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('reglages')">
+        <span class="sidebar-link-icone" id="icon-nav-reglages" aria-hidden="true"></span>Réglages
+      </button>
     </nav>
 
     <div class="sidebar-footer">
@@ -794,6 +800,59 @@
     <div class="dash-section-titre">À propos de cet audit</div>
     <p>Le texte de chaque PDF est extrait dans votre navigateur (comme pour un import de compromis classique), puis envoyé au modèle d'IA qui tourne localement sur le serveur de l'étude (Ollama) — jamais à un service en ligne. Rien de ce que vous déposez ici n'est conservé au-delà de l'analyse : aucun dossier n'est créé, aucun fichier n'est enregistré (le dossier CLAIRE éventuellement lié n'est, lui, jamais modifié — seulement lu).</p>
     <p>Un modèle de langage peut se tromper ou passer à côté d'un problème réel — cet audit est une aide à la relecture, pas une validation juridique. Chaque constat important doit pouvoir être vérifié dans les documents ; un constat dont la citation n'a pas été retrouvée telle quelle est signalé comme tel, jamais présenté avec la même assurance qu'une citation confirmée.</p>
+  </div>
+</div>
+
+<!-- Réglages : URL du flux Power Automate + adresse email Teams de chaque responsable (voir
+     CLAUDE.md, "Rappels automatiques vers Teams"). Remplace le déclenchement automatique des
+     rappels — le bouton "Envoyer un rappel par email" sur la fiche dossier reste disponible pour
+     un envoi ponctuel à la main, inchangé. Chargé/enregistré via server/src/routes/reglages.js
+     (chargerReglages()/enregistrerReglages() dans script.js). -->
+<div class="onglet-panel" id="onglet-reglages" style="display:none;">
+  <div class="dash-header">
+    <div>
+      <div class="dash-eyebrow">Réglages</div>
+      <div class="dash-titre-ligne">
+        <h1 class="dash-titre">Rappels automatiques vers Teams</h1>
+      </div>
+    </div>
+  </div>
+
+  <div id="reglages-etat" class="analyse-ia-dispo" style="display:none;"></div>
+
+  <div class="calc-card">
+    <div class="dash-section-titre">Flux Power Automate</div>
+    <div class="calc-champs">
+      <label class="toolbar-checkbox" style="display:flex; align-items:center; gap:8px; font-weight:600;">
+        <input type="checkbox" id="reglages-teams-actif">
+        Activer l'envoi automatique de rappels vers Teams
+      </label>
+      <div class="calc-champ">
+        <label for="reglages-webhook-url">URL du déclencheur HTTP du flux</label>
+        <input type="text" id="reglages-webhook-url" placeholder="https://prod-00.westeurope.logic.azure.com/workflows/...">
+        <p class="hint">Collée depuis Power Automate, à l'étape "Quand une requête HTTP est reçue" (voir la procédure ci-dessous).</p>
+      </div>
+      <div>
+        <button type="button" class="primary" onclick="enregistrerReglages()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="calc-card">
+    <div class="dash-section-titre">Adresse Teams de chaque collaborateur</div>
+    <p class="hint">Utilisée pour router le message privé vers la bonne personne — c'est l'adresse email professionnelle (Microsoft 365) de son compte Teams.</p>
+    <div class="calc-champs" id="reglages-emails-liste"></div>
+  </div>
+
+  <div class="calc-card calc-card-notes">
+    <div class="dash-section-titre">Créer le flux dans Power Automate (une seule fois)</div>
+    <ol>
+      <li>Dans Power Automate, créer un flux <strong>Instantané</strong> avec le déclencheur <strong>« Quand une requête HTTP est reçue »</strong> — laisser le schéma JSON vide, il n'est pas nécessaire.</li>
+      <li>Ajouter l'action Teams <strong>« Publier un message dans un chat ou un canal »</strong> : Publier en tant que <em>Flow bot</em>, Publier dans <em>Chat avec Flow bot</em>, Destinataire = contenu dynamique <code>destinataire</code>, Message = contenu dynamique <code>message</code>.</li>
+      <li>Enregistrer le flux, puis rouvrir l'étape du déclencheur HTTP : l'URL générée s'affiche. La copier et la coller dans le champ ci-dessus, puis cliquer sur « Enregistrer ».</li>
+      <li>Cocher « Activer l'envoi automatique », enregistrer, puis utiliser le bouton « Tester » de chaque collaborateur pour vérifier que le message arrive bien sur son compte Teams.</li>
+    </ol>
+    <p>Les rappels sont envoyés automatiquement 15 puis 7 jours avant chaque échéance active d'un dossier (prêt, acte, vente préalable, échéance personnalisée), au responsable du dossier — jamais deux fois pour la même échéance. Le bouton « Envoyer un rappel par email » resté sur la fiche d'un dossier reste disponible pour un envoi ponctuel, à la main.</p>
   </div>
 </div>
 

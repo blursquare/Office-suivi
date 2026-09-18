@@ -25,6 +25,15 @@ const SCHEMA = `
     sent_at TEXT NOT NULL,
     PRIMARY KEY (dossier_id, reminder_key)
   );
+
+  -- Réglages de l'étude (voir parametresRepo.js) : clé/valeur générique plutôt qu'une table par
+  -- fonctionnalité — le premier usage est le webhook Power Automate + les emails Teams des
+  -- responsables (voir jobs/rappels.js), mais rien n'empêche d'y ranger d'autres réglages plus tard
+  -- sans nouvelle migration.
+  CREATE TABLE IF NOT EXISTS parametres (
+    cle TEXT PRIMARY KEY,
+    valeur TEXT NOT NULL
+  );
 `;
 
 function ouvrirDb(cheminDb) {

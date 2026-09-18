@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-19 00:04';
+  const VERSION_APP = '2026-09-19 01:20';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-19 01:20', resume: "Les rappels de dossier arrivent désormais sur Teams, en message privé, plutôt que par un email qu'il fallait rédiger et envoyer soi-même : à 15 puis 7 jours de chaque échéance active (prêt, acte, vente préalable, échéance personnalisée), le responsable du dossier reçoit directement un message. Ça passe par un petit flux Power Automate que vous créez vous-même (aucun service technique nécessaire, la procédure est expliquée pas à pas dans le nouvel écran « Réglages » de la sidebar), où vous collez l'adresse du flux et l'adresse Teams de chacun — avec un bouton « Tester » par personne pour vérifier avant de compter dessus. Le bouton « Envoyer un rappel par email » resté sur chaque fiche continue de fonctionner exactement comme avant, pour un envoi ponctuel à la main" },
     { version: '2026-09-19 00:04', resume: "Outil 2, trois ajouts. Les OBLIGATIONS DU VENDEUR d'abord : sur un projet d'acte de vente avec un dossier CLAIRE lié, l'audit dit désormais, sans IA, si le vendeur a tenu ce à quoi le compromis l'engageait — attestation d'entretien ou de ramonage, factures de travaux, décennale… Chaque obligation ressort « tenue » (avec la pièce qui le prouve, trouvée dans le dossier client ou déposée pour l'audit), « non tenue », ou « à vérifier » quand aucune pièce type ne correspond à la clause, qui est alors citée avec sa page. Le dossier n'est jamais modifié : une facture déposée ici ne coche rien, elle sera reconnue une fois rangée sur le NAS. Ensuite une MÉMOIRE : chaque constat porte « Écarter » et « Confirmer » ; au prochain audit d'un acte similaire, un constat déjà écarté s'affiche replié (jamais supprimé), un constat confirmé remonte en tête — et « Annuler » efface la décision. Enfin, dès que le projet est lu, les dossiers dont les parties correspondent sont PROPOSÉS sous le champ de recherche, à confirmer d'un clic, jamais liés tout seuls" },
     { version: '2026-09-18 22:58', resume: "« Analyse approfondie (IA) » devient l'Outil 2 : un audit, plus une simple relecture. Un sélecteur explicite au dépôt — projet de compromis/promesse, ou projet d'acte de vente — choisit ce qui est comparé ; en projet d'acte, un dossier CLAIRE déjà suivi peut être lié (son compromis est retrouvé tout seul sur le NAS) pour comparer parties, prix, bien et dates SANS repasser par l'IA, un simple calcul. Chaque pièce déposée (titre, diagnostic, urbanisme, facture, autorisation, décennale, copropriété…) ne va plus qu'aux vérifications qui la concernent, en cinq passes au lieu d'une seule : identification/parties/prix/dates/titre, diagnostics (dont la durée de validité est calculée par l'outil, jamais par le modèle), travaux (en priorité, le point qui manquait le plus), urbanisme/autorisations/garanties/préemption/servitudes, et copropriété si besoin. Quatre niveaux de gravité, une citation vérifiée dans le bon document pour chaque constat important — jamais une confiance auto-déclarée par le modèle, qui n'a aucun moyen de la calibrer" },
     { version: '2026-09-18 21:13', resume: "Quatre automatisations pour libérer du temps. Dans le panneau « Ce que l'outil a compris », un bouton « Redemander à l'IA » redemande UNE SEULE donnée restée floue au modèle local, avec une fenêtre de texte plus large — sans relancer les trois lectures automatiques. Un nouveau panneau « Qualité de l'extraction » (dans « À propos ») montre enfin quels champs vous corrigez le plus souvent, pour savoir où l'extraction mérite d'être resserrée. Le serveur surveille désormais le NAS toutes les dix minutes : un document qui vient d'arriver dans un dossier relié déclenche un message, au lieu d'attendre le prochain clic sur « Revérifier ». Et trois nouveaux boutons de relance par email — prêt manquant, pièces à fournir, RIB — préparent chacun le bon brouillon, adressé au client, sans avoir à le rédiger à la main à chaque fois." },
@@ -142,7 +143,9 @@
     'rotate-ccw': '<path d="M13.3 8A5.3 5.3 0 1 1 10.8 3.4"/><path d="M13.6 2.6v3.6h-3.6"/>',
     // Prorata : un disque coupé en deux parts inégales — une somme répartie entre deux parties.
     // Même grille 16x16 et même trait que le reste du jeu.
-    'part-disque': '<circle cx="8" cy="8" r="5.6"/><path d="M8 2.4V8l4 3.8"/>'
+    'part-disque': '<circle cx="8" cy="8" r="5.6"/><path d="M8 2.4V8l4 3.8"/>',
+    // Réglages : un engrenage simplifié (cercle + 4 dents), même trait que le reste du jeu.
+    settings: '<circle cx="8" cy="8" r="2.3"/><path d="M8 1.6v2M8 12.4v2M14.4 8h-2M3.6 8h-2M12.4 3.6l-1.4 1.4M5 9.6l-1.4 1.4M12.4 12.4l-1.4-1.4M5 6.4 3.6 5"/>'
   };
   // `cls` porte les classes de mise en page (taille via font-size hérité, marge...) ; `spin` anime
   // une rotation continue (voir @keyframes icone-spin) pour les icônes d'attente (ex. "spinner").
@@ -6898,22 +6901,28 @@
     document.getElementById('onglet-calculateur').style.display = nom === 'calculateur' ? '' : 'none';
     document.getElementById('onglet-prorata').style.display = nom === 'prorata' ? '' : 'none';
     document.getElementById('onglet-analyse-ia').style.display = nom === 'analyse-ia' ? '' : 'none';
+    document.getElementById('onglet-reglages').style.display = nom === 'reglages' ? '' : 'none';
     document.getElementById('tab-dashboard').setAttribute('aria-selected', String(nom === 'dashboard'));
     document.getElementById('tab-nouveau').setAttribute('aria-selected', String(nom === 'nouveau'));
     document.getElementById('tab-suivi').setAttribute('aria-selected', String(nom === 'suivi'));
     document.getElementById('tab-calculateur').setAttribute('aria-selected', String(nom === 'calculateur'));
     document.getElementById('tab-prorata').setAttribute('aria-selected', String(nom === 'prorata'));
     document.getElementById('tab-analyse-ia').setAttribute('aria-selected', String(nom === 'analyse-ia'));
+    document.getElementById('tab-reglages').setAttribute('aria-selected', String(nom === 'reglages'));
     document.getElementById('tab-dashboard').classList.toggle('actif', nom === 'dashboard');
     document.getElementById('tab-nouveau').classList.toggle('actif', nom === 'nouveau');
     document.getElementById('tab-suivi').classList.toggle('actif', nom === 'suivi');
     document.getElementById('tab-calculateur').classList.toggle('actif', nom === 'calculateur');
     document.getElementById('tab-prorata').classList.toggle('actif', nom === 'prorata');
     document.getElementById('tab-analyse-ia').classList.toggle('actif', nom === 'analyse-ia');
+    document.getElementById('tab-reglages').classList.toggle('actif', nom === 'reglages');
     if (nom === 'suivi' || nom === 'dashboard') render();
     // Vérifiée à chaque ouverture (appel léger) plutôt qu'une fois pour toutes : Ollama a pu être
     // installé/démarré/arrêté sur le serveur depuis la dernière visite de cet onglet.
     if (nom === 'analyse-ia') verifierDisponibiliteAnalyseIa();
+    // Réglages relus à chaque ouverture (un collègue a pu les modifier depuis un autre poste,
+    // même principe que la disponibilité d'Ollama ci-dessus).
+    if (nom === 'reglages') chargerReglages();
     // Date du jour et bornes de période posées au premier affichage seulement (voir initProrata).
     if (nom === 'prorata') initProrata();
   }
@@ -11821,6 +11830,107 @@
     }
   }
 
+  // ==== RÉGLAGES : rappels automatiques vers Teams (Power Automate) ====
+  //
+  // Remplace le DÉCLENCHEMENT AUTOMATIQUE des rappels (voir server/src/jobs/rappels.js) — le
+  // bouton "Envoyer un rappel par email" sur la fiche dossier reste, lui, un envoi ponctuel à la
+  // main, inchangé. L'étude a explicitement demandé un écran dans la sidebar pour saisir elle-même
+  // l'URL du flux Power Automate et l'adresse Teams de chaque collaborateur, plutôt qu'un tableau
+  // figé dans le code ou un fichier de configuration à éditer à la main.
+  //
+  // Liste fermée des 3 responsables (voir CLAUDE.md, "Responsables du dossier : liste fermée") —
+  // reprise ici telle quelle plutôt que de refactoriser les <select> existants du formulaire/de la
+  // fiche dossier, qui n'ont pas besoin de cette liste sous forme de variable.
+  var RESPONSABLES = ['Bastien ANGLUMENT', 'Julie VASSELIN', 'Jérémy SAUJOT'];
+
+  async function chargerReglages() {
+    try {
+      const reponse = await fetchAvecAuth('/api/reglages');
+      const reglages = await reponse.json();
+      document.getElementById('reglages-teams-actif').checked = !!reglages.teamsActif;
+      document.getElementById('reglages-webhook-url').value = reglages.teamsWebhookUrl || '';
+      renderReglagesEmails(reglages.emailsResponsables || {});
+      document.getElementById('reglages-etat').style.display = 'none';
+    } catch (e) {
+      // Session expirée : déjà géré par fetchAvecAuth (écran de connexion réaffiché).
+    }
+  }
+
+  function renderReglagesEmails(emailsResponsables) {
+    document.getElementById('reglages-emails-liste').innerHTML = RESPONSABLES.map((nom, i) => `
+      <div class="calc-champ">
+        <label for="reglages-email-${i}">${escapeHtml(nom)}</label>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input type="email" id="reglages-email-${i}" data-responsable="${escapeAttr(nom)}" placeholder="prenom.nom@etude.fr" value="${escapeAttr(emailsResponsables[nom] || '')}" style="flex:1;">
+          <button type="button" class="secondary" onclick="testerTeamsResponsable('${escapeOnclickArg(nom)}')">Tester</button>
+        </div>
+        <p class="hint reglages-email-resultat" id="reglages-email-resultat-${i}"></p>
+      </div>
+    `).join('');
+  }
+
+  function reglagesFormulaireVersObjet() {
+    const emailsResponsables = {};
+    RESPONSABLES.forEach((nom, i) => {
+      const champ = document.getElementById(`reglages-email-${i}`);
+      const valeur = champ ? champ.value.trim() : '';
+      if (valeur) emailsResponsables[nom] = valeur;
+    });
+    return {
+      teamsActif: document.getElementById('reglages-teams-actif').checked,
+      teamsWebhookUrl: document.getElementById('reglages-webhook-url').value.trim(),
+      emailsResponsables
+    };
+  }
+
+  async function enregistrerReglages() {
+    const zone = document.getElementById('reglages-etat');
+    try {
+      const reponse = await fetchAvecAuth('/api/reglages', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(reglagesFormulaireVersObjet())
+      });
+      const reglages = await reponse.json();
+      renderReglagesEmails(reglages.emailsResponsables || {});
+      zone.style.display = 'flex';
+      zone.className = 'analyse-ia-dispo dispo-ok';
+      zone.innerHTML = `${icone('check')}Réglages enregistrés.`;
+    } catch (e) {
+      zone.style.display = 'flex';
+      zone.className = 'analyse-ia-dispo dispo-off';
+      zone.innerHTML = `${icone('alert-triangle')}Impossible d'enregistrer — vérifiez la connexion au serveur intranet.`;
+    }
+  }
+
+  // Envoie un message de test à UN collaborateur, avec les réglages déjà ENREGISTRÉS côté serveur
+  // (voir routes/reglages.js) — pas ceux du formulaire pas encore validés : on veut vérifier ce que
+  // le job de rappels utilisera réellement. Si le formulaire contient une modification non
+  // enregistrée, on le signale plutôt que de tester une valeur qui n'est pas encore la bonne.
+  async function testerTeamsResponsable(nom) {
+    const i = RESPONSABLES.indexOf(nom);
+    const resultat = document.getElementById(`reglages-email-resultat-${i}`);
+    if (resultat) { resultat.textContent = 'Envoi du message de test…'; resultat.className = 'hint reglages-email-resultat'; }
+    try {
+      const reponse = await fetchAvecAuth('/api/reglages/tester-teams', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ responsable: nom })
+      });
+      const corps = await reponse.json();
+      if (!resultat) return;
+      if (reponse.ok && corps.ok) {
+        resultat.textContent = '✓ Message envoyé — vérifiez sur Teams.';
+        resultat.className = 'hint reglages-email-resultat reglages-email-ok';
+      } else {
+        resultat.textContent = corps.erreur || "Échec de l'envoi.";
+        resultat.className = 'hint reglages-email-resultat reglages-email-echec';
+      }
+    } catch (e) {
+      // Session expirée : déjà géré par fetchAvecAuth (écran de connexion réaffiché).
+    }
+  }
+
   // Remplit les emplacements d'icônes du HTML statique (sidebar, burger mobile, dropzone) — le
   // reste de l'application est déjà rendu depuis script.js, ce point d'entrée unique évite de
   // dupliquer le dessin des icônes entre le HTML et ICONES.
@@ -11846,7 +11956,8 @@
       'icon-analyse-ia-dropzone': 'upload',
       'icon-pdf-recherche': 'search',
       'icon-pdf-recherche-prec': 'chevron-up',
-      'icon-pdf-recherche-suiv': 'chevron-down'
+      'icon-pdf-recherche-suiv': 'chevron-down',
+      'icon-nav-reglages': 'settings'
     };
     for (const [id, nom] of Object.entries(cibles)) {
       const el = document.getElementById(id);

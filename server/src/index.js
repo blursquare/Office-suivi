@@ -60,6 +60,7 @@ const { ouvrirDb } = require('./db');
 const { creerApp } = require('./app');
 const { resoudreCheminNavigateurApp } = require('./navigateurApp');
 const { demarrerSurveillanceNas } = require('./nasWatch');
+const { demarrerTacheRappels } = require('./jobs/rappels');
 
 // Journal de secours à côté de la base (même dossier `data/`, déjà résolu correctement en mode
 // développement comme en mode exécutable autonome — voir config.js) : signalé par l'étude, le
@@ -192,13 +193,20 @@ function assurerScriptsAssistants(dossierExe) {
 
 function demarrer() {
   const db = ouvrirDb(config.cheminDb);
-  const { app, depot } = creerApp({ db, config });
+  const { app, depot, parametresRepo } = creerApp({ db, config });
 
   // Surveillance périodique du NAS (nouveaux documents, voir nasWatch.js) : silencieuse si
   // `nasRacine` n'est pas configurée (comme le reste des fonctionnalités liées au NAS), et sans
   // effet sur les tests qui montent `creerApp()` directement — ce minuteur ne démarre qu'ici, au
   // vrai point d'entrée du serveur.
   demarrerSurveillanceNas(depot, config);
+
+  // Rappels automatiques vers Teams (voir jobs/rappels.js) : silencieux tant que l'étude n'a pas
+  // activé/configuré l'envoi depuis l'écran Réglages (teamsActif/teamsWebhookUrl, table
+  // `parametres`) — même principe que la surveillance du NAS ci-dessus, et démarré au même seul
+  // endroit réel (jamais dans app.js, pour ne pas déclencher ce minuteur dans les tests qui
+  // montent creerApp() directement).
+  demarrerTacheRappels(depot, db, config, parametresRepo);
 
   const serveur = app.listen(config.port, () => {
     const url = `http://localhost:${config.port}/`;

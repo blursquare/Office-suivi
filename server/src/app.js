@@ -7,6 +7,7 @@ const express = require('express');
 
 const { creerGestionnaireAuth } = require('./auth');
 const { creerDepot } = require('./dossiersRepo');
+const { creerRepoParametres } = require('./parametresRepo');
 const { creerRouteurAuth } = require('./routes/auth');
 const { creerRouteurDossiers } = require('./routes/dossiers');
 const { creerRouteurCalendrier } = require('./routes/calendrier');
@@ -14,6 +15,7 @@ const { creerRouteurAuditActe } = require('./routes/auditActe');
 const { creerRouteurExtractionIa } = require('./routes/extractionIa');
 const { creerRouteurOffrePret } = require('./routes/offrePret');
 const { creerRouteurNas } = require('./routes/nas');
+const { creerRouteurReglages } = require('./routes/reglages');
 
 // Fichier statique → nom d'asset embarqué (voir server/scripts/build-windows-exe.mjs, section
 // `assets` de sea-config.json) + type MIME à renvoyer. Tous des fichiers texte (HTML/CSS/JS/JSON/
@@ -56,6 +58,7 @@ function estSea() {
 function creerApp({ db, config }) {
   const app = express();
   const depot = creerDepot(db);
+  const parametresRepo = creerRepoParametres(db);
   const gestionnaireAuth = creerGestionnaireAuth(config.motDePasse);
 
   app.use(express.json({ limit: '5mb' })); // un dossier avec historique/analyse juridique reste petit, 5 Mo est déjà large
@@ -84,6 +87,7 @@ function creerApp({ db, config }) {
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExtractionIa(config));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurOffrePret(config));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNas(config));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurReglages(parametresRepo));
 
   // Gestionnaire d'erreurs générique en dernier recours : évite qu'une exception inattendue
   // (JSON malformé, etc.) ne fasse planter le processus entier plutôt que de répondre 500.
@@ -92,7 +96,7 @@ function creerApp({ db, config }) {
     res.status(400).json({ erreur: 'Requête invalide.' });
   });
 
-  return { app, depot, gestionnaireAuth };
+  return { app, depot, parametresRepo, gestionnaireAuth };
 }
 
 // creerMiddlewareAssetsSea/ASSETS_STATIQUES exposées pour les tests uniquement (voir
