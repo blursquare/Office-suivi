@@ -488,6 +488,7 @@
       <select id="tri-dossiers" onchange="render()">
         <option value="priorite">Priorité (recommandé)</option>
         <option value="echeance">Échéance la plus proche</option>
+        <option value="statut">Statut</option>
         <option value="nom">Nom du dossier</option>
         <option value="responsable">Responsable</option>
       </select>
@@ -497,6 +498,12 @@
       Afficher les dossiers archivés
     </label>
     <span class="toolbar-spacer"></span>
+    <!-- Bascule d'affichage de la MÊME liste (mêmes filtres, même recherche) : le tableau habituel,
+         ou les mêmes dossiers regroupés par semaine d'échéance. Voir definirVueSuivi(). -->
+    <div class="vue-bascule" role="group" aria-label="Mode d'affichage de la liste">
+      <button type="button" class="vue-bascule-btn actif" id="vue-btn-tableau" onclick="definirVueSuivi('tableau')">Tableau</button>
+      <button type="button" class="vue-bascule-btn" id="vue-btn-semaines" onclick="definirVueSuivi('semaines')">Semaines</button>
+    </div>
   </div>
 
   <div id="dossier-list"></div>

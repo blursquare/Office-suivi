@@ -2216,6 +2216,55 @@
   .toolbar-checkbox { cursor: pointer; }
   .toolbar-spacer { flex: 1; }
 
+  /* Bascule Tableau / Semaines de la liste du Suivi : deux boutons segmentés, le mode actif en
+     accent plein. Pas de nouveau token de couleur — --focus pour l'actif, --paper-sunk pour le
+     rail, comme le reste des contrôles de cette barre. */
+  .vue-bascule {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    background: var(--paper-sunk);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+  .vue-bascule-btn {
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--muted);
+    background: none;
+    border: none;
+    border-radius: 6px;
+    padding: 5px 12px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .vue-bascule-btn:hover { color: var(--ink); }
+  .vue-bascule-btn.actif { background: var(--focus); color: #fff; }
+
+  /* ---- Vue "Semaines" : les mêmes dossiers, regroupés par semaine d'échéance (une ligne par
+     échéance, voir grouperEcheancesParSemaine). Chaque groupe réutilise .dossiers-table tel quel :
+     mêmes filets, même survol, même tiroir au clic — seul l'en-tête de semaine est nouveau. ---- */
+  .semaine-groupe { margin-bottom: 26px; }
+  .semaine-entete {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 0 6px;
+    border-bottom: 1px solid var(--line-soft);
+    margin-bottom: 4px;
+  }
+  .semaine-compteur {
+    font-size: 12px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  /* Seul groupe à porter une couleur : ce qui est en retard doit se repérer sans lire l'en-tête.
+     --urgent, déjà réservé à l'alerte partout ailleurs dans l'outil. */
+  .semaine-retard .semaine-entete { border-bottom-color: var(--urgent); }
+  .semaine-retard .section-eyebrow { color: var(--urgent); }
+
   .toolbar-recherche input {
     font-family: inherit;
     font-size: 13px;

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-18 07:52';
+  const VERSION_APP = '2026-09-18 07:55';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-18 07:55', resume: "Nouvelle vue « Semaines » dans le Suivi : les mêmes dossiers regroupés par semaine d'échéance, une ligne par échéance — un dossier figure donc sous chaque semaine où il a quelque chose à traiter, avec un groupe « En retard » en tête. Le tableau peut aussi être trié par statut" },
     { version: '2026-09-18 07:52', resume: "Retouches d'affichage : champs de recherche du Suivi et du Tableau de bord aux mêmes coins arrondis, espace vide supprimé au-dessus de la croix de fermeture d'une fiche, et page « Nouveau dossier » corrigée sur téléphone — la zone d'import repasse au-dessus du descriptif, les deux blocs prennent toute la largeur, et les quatre étapes du wizard ne débordent plus de l'écran" },
     { version: '2026-09-18 01:52', resume: "L'IA locale relit l'acte en trois passes ciblées (parties et notaires / bien et prix / échéances) au lieu d'une seule : chaque valeur qu'elle propose est vérifiée en retrouvant sa citation dans le PDF, jamais retenue sur sa seule affirmation ; quand elle contredit la détection automatique, c'est cette dernière qui reste, l'écart étant signalé dans le panneau plutôt que tranché en silence ; un délai qu'elle rapporte est calculé par l'outil, jamais par elle" },
     { version: '2026-09-18 01:42', resume: "La fiche d'un dossier garde désormais la trace de ce que l'outil avait compris de l'acte à l'import (type d'acte, parties et leurs rôles, notaires, cadastre, statut de chaque donnée) : nouveau panneau « Ce que l'outil avait compris de l'acte », replié, sous l'analyse juridique — conservé aussi lors d'un export/import de sauvegarde" },
@@ -4854,6 +4855,97 @@
     if (nom === 'analyse-ia') verifierDisponibiliteAnalyseIa();
   }
 
+  // ==== SUIVI : regroupement des échéances par semaine ====
+  //
+  // Demandé par l'étude : voir la charge de travail semaine par semaine plutôt qu'une liste plate
+  // de dossiers. Une ligne = UNE ÉCHÉANCE (choix explicite de l'étude), donc un même dossier peut
+  // figurer sous plusieurs semaines — son échéance de prêt en semaine 40, sa signature d'acte en
+  // semaine 48. C'est la charge réelle de la semaine qu'on lit, pas un simple classement des
+  // dossiers.
+  //
+  // Tout ce bloc est PUR et déclaré en `function`/`var` : testable depuis tests/helpers/load-app.js
+  // (voir la limite du harnais rappelée dans CLAUDE.md — un `const`/`let` de premier niveau y est
+  // invisible).
+
+  // Lundi de la semaine contenant cette date, au format ISO. Semaine ISO 8601 (lundi → dimanche),
+  // convention française — `getDay()` renvoyant 0 pour dimanche, on le ramène à 7 avant de reculer.
+  function debutSemaine(iso) {
+    if (!iso) return null;
+    const d = new Date(iso + 'T00:00:00');
+    if (isNaN(d)) return null;
+    const jour = d.getDay() === 0 ? 7 : d.getDay();
+    d.setDate(d.getDate() - (jour - 1));
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+
+  // Toutes les échéances ACTIVES d'un dossier, pas seulement la plus proche. Même exclusion que
+  // prochaineEcheanceDetail() pour une offre de prêt déjà reçue : la condition est résolue, la
+  // faire apparaître dans le planning de la semaine donnerait du travail qui n'existe plus.
+  function toutesEcheances(d) {
+    return [
+      ...(d.offrePretStatut === 'recue' ? [] : [{ type: 'pret', label: 'Obtention du prêt', iso: d.pret }]),
+      { type: 'acte', label: "Signature de l'acte", iso: d.acte },
+      { type: 'ventebien', label: 'Vente préalable', iso: d.ventebien },
+      ...(d.autres || []).map(a => ({ type: 'autre', label: a.label, iso: a.date }))
+    ].filter(it => it.iso);
+  }
+
+  // Nombre de semaines affichées individuellement après la semaine courante ; au-delà, tout tombe
+  // dans un unique groupe "Plus tard" — sur un portefeuille d'une soixantaine de dossiers, dérouler
+  // cinquante en-têtes de semaine vides jusqu'à l'échéance la plus lointaine n'aurait aucun intérêt.
+  var SEMAINES_AFFICHEES = 8;
+
+  // Regroupe les échéances de plusieurs dossiers par semaine. `aujourdHui` est injecté (jamais lu
+  // depuis l'horloge ici) pour que la fonction reste pure et testable à date fixe.
+  // Renvoie les groupes dans l'ordre de lecture : retard d'abord (c'est ce qui presse), puis les
+  // semaines à venir, puis le reste.
+  function grouperEcheancesParSemaine(liste, aujourdHui) {
+    const semaineCourante = debutSemaine(aujourdHui);
+    const limite = semaineCourante ? addDays(semaineCourante, SEMAINES_AFFICHEES * 7) : null;
+
+    const groupes = new Map();
+    const ajouter = (cle, rang, libelle, item) => {
+      if (!groupes.has(cle)) groupes.set(cle, { cle, rang, libelle, items: [] });
+      groupes.get(cle).items.push(item);
+    };
+
+    for (const d of liste) {
+      for (const e of toutesEcheances(d)) {
+        const semaine = debutSemaine(e.iso);
+        const item = { dossier: d, echeance: e };
+        if (!semaine) continue;
+        if (semaineCourante && semaine < semaineCourante) ajouter('retard', 0, 'En retard', item);
+        else if (limite && semaine >= limite) ajouter('plus-tard', 2, 'Plus tard', item);
+        else ajouter('s-' + semaine, 1, semaine, item);
+      }
+    }
+
+    // Tri en deux temps : le rang place retard / semaines / plus tard, puis la clé ordonne les
+    // semaines entre elles (une date ISO se trie comme une chaîne).
+    const ordonnes = [...groupes.values()].sort((a, b) => (a.rang - b.rang) || a.cle.localeCompare(b.cle));
+    for (const g of ordonnes) {
+      g.items.sort((a, b) => a.echeance.iso.localeCompare(b.echeance.iso) || a.dossier.nom.localeCompare(b.dossier.nom, 'fr'));
+    }
+    return ordonnes;
+  }
+
+  // Libellé lisible d'un groupe : "Semaine du 22 septembre" (l'année n'est rappelée que si elle
+  // diffère de celle de la semaine courante — sur un planning à huit semaines, la répéter partout
+  // n'apporte rien et allonge chaque en-tête).
+  function libelleSemaine(groupe, aujourdHui) {
+    if (groupe.cle === 'retard') return 'En retard';
+    if (groupe.cle === 'plus-tard') return 'Plus tard';
+    const debut = new Date(groupe.libelle + 'T00:00:00');
+    const memeAnnee = aujourdHui && debut.getFullYear() === new Date(aujourdHui + 'T00:00:00').getFullYear();
+    const options = memeAnnee ? { day: 'numeric', month: 'long' } : { day: 'numeric', month: 'long', year: 'numeric' };
+    return 'Semaine du ' + debut.toLocaleDateString('fr-FR', options);
+  }
+
+  // Ordre de gravité des statuts pour le tri "Statut" du tableau : ce qui bloque en premier, ce
+  // qui est terminé en dernier. Volontairement distinct de calculerPriorite() (un score combinant
+  // l'échéance et l'accès), qui répond à une autre question.
+  var ORDRE_STATUT = ['blocage', 'aconfirmer', 'arelier', 'pret', 'archive'];
+
   // Détermine, parmi les échéances d'un dossier, la plus proche à afficher en un coup d'œil dans
   // la vue tableau (celle déjà retenue pour le tri par calculerProchaineEcheance, mais avec son
   // type/libellé/date en plus, pas seulement le nombre de jours).
@@ -5124,11 +5216,26 @@
       if (tri === 'nom') return a.nom.localeCompare(b.nom, 'fr');
       if (tri === 'responsable') return (a.responsable || '').localeCompare(b.responsable || '', 'fr');
       if (tri === 'priorite') return calculerPriorite(b) - calculerPriorite(a);
+      // Par gravité du statut (ce qui bloque d'abord, ce qui est terminé en dernier), puis par
+      // échéance à l'intérieur d'un même statut — sans quoi l'ordre serait arbitraire entre deux
+      // dossiers également bloqués.
+      if (tri === 'statut') {
+        const ecart = ORDRE_STATUT.indexOf(statutDossier(a)) - ORDRE_STATUT.indexOf(statutDossier(b));
+        if (ecart !== 0) return ecart;
+        return calculerProchaineEcheance(a) - calculerProchaineEcheance(b);
+      }
       return calculerProchaineEcheance(a) - calculerProchaineEcheance(b);
     });
 
     // Vue "Cartes" retirée sur demande de l'étude (préférence pour la vue tableau, plus dense sur
-    // un portefeuille d'une soixantaine de dossiers) : le tableau est désormais la seule vue.
+    // un portefeuille d'une soixantaine de dossiers) : le tableau est désormais la seule vue de la
+    // LISTE. La vue "Semaines" ajoutée ensuite n'est pas une troisième liste mais un regroupement
+    // des mêmes dossiers par échéance — mêmes filtres, même recherche, même tiroir au clic.
+    if (vueSuivi === 'semaines') {
+      list.innerHTML = renderVueSemaines(tries);
+      return;
+    }
+
     const flechesTri = { nom: '', responsable: '', echeance: '' };
     flechesTri[tri] = ' <span class="tri-actif">▾</span>';
     list.innerHTML = `
@@ -5151,6 +5258,12 @@
     document.getElementById('tri-dossiers').value = critere;
     render();
   }
+
+  // Mode d'affichage de la liste du Suivi : le tableau habituel, ou le même contenu regroupé par
+  // semaine d'échéance (voir renderVueSemaines). En mémoire seulement, comme le reste de l'état
+  // d'affichage de cet onglet (recherche, filtres) : c'est une façon de regarder la liste à un
+  // instant donné, pas une préférence à conserver d'une session à l'autre.
+  let vueSuivi = 'tableau';
 
   // Identifiant du dossier affiché dans le tiroir latéral, ou null si aucun. Un seul à la fois :
   // le tiroir est une fenêtre sur LE dossier consulté, pas une liste d'éléments dépliés (c'est
@@ -5183,6 +5296,56 @@
         </td>
       </tr>
     `;
+  }
+
+  // Vue "Semaines" du Suivi : les mêmes dossiers (mêmes filtres, même recherche, même tiroir au
+  // clic), regroupés par semaine d'échéance. Une ligne = une échéance, donc un dossier peut
+  // apparaître plusieurs fois — voir grouperEcheancesParSemaine().
+  function renderVueSemaines(liste) {
+    const aujourdHui = isoAujourdHui();
+    const groupes = grouperEcheancesParSemaine(liste, aujourdHui);
+    if (groupes.length === 0) {
+      return '<div class="empty-state">Aucune échéance à venir sur les dossiers affichés.</div>';
+    }
+    return groupes.map(g => {
+      const lignes = g.items.map(({ dossier: d, echeance: e }) => {
+        const jours = joursRestants(e.iso);
+        return `
+          <tr class="ligne-resume${d.archive ? ' est-archive' : ''}${dossierOuvert === d.id ? ' ligne-active' : ''}" onclick="ouvrirDossierDrawer('${d.id}')">
+            <td><span class="echeance-jours ${jours <= 3 ? 'urgent' : 'calme'}">${formatDateFr(e.iso)}</span></td>
+            <td><span class="dot-label dl-${e.type}"><span class="dot"></span>${escapeHtml(e.label)}</span></td>
+            <td><div class="dossier-nom-tableau">${renderBadgeStatut(d)}${escapeHtml(d.nom)}</div></td>
+            <td class="dossier-responsable-tableau">${escapeHtml(d.responsable || '—')}</td>
+          </tr>`;
+      }).join('');
+      const n = g.items.length;
+      return `
+        <section class="semaine-groupe${g.cle === 'retard' ? ' semaine-retard' : ''}">
+          <div class="semaine-entete">
+            <span class="section-eyebrow">${escapeHtml(libelleSemaine(g, aujourdHui))}</span>
+            <span class="semaine-compteur">${n} échéance${n > 1 ? 's' : ''}</span>
+          </div>
+          <div class="table-scroll">
+            <table class="dossiers-table">
+              <tbody>${lignes}</tbody>
+            </table>
+          </div>
+        </section>`;
+    }).join('');
+  }
+
+  // Date du jour au format ISO. Isolée ici pour que les fonctions de regroupement, elles, restent
+  // pures (la date leur est passée en paramètre) et donc testables à date fixe.
+  function isoAujourdHui() {
+    const d = new Date();
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+
+  function definirVueSuivi(vue) {
+    vueSuivi = vue === 'semaines' ? 'semaines' : 'tableau';
+    document.getElementById('vue-btn-tableau').classList.toggle('actif', vueSuivi === 'tableau');
+    document.getElementById('vue-btn-semaines').classList.toggle('actif', vueSuivi === 'semaines');
+    render();
   }
 
   // Les deux passent par render() plutôt que par renderDrawer() seul : la liste doit se redessiner
