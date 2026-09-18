@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-18 17:20';
+  const VERSION_APP = '2026-09-18 17:26';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-18 17:26', resume: "La date de signature de l'acte, et avec elle les trois dates butoir du dossier. Sur les neuf actes du banc d'essai, elle manquait sur quatre — et quand elle manque, TOUTES les échéances exprimées en délai disparaissent aussi, puisqu'elles se comptent depuis elle. Deux causes. D'abord, trois actes étaient coupés en plein milieu : un simple titre de clause en haut de page (« Diagnostic de performance énergétique », « État des risques de pollution des sols ») passait pour le début des annexes, et tout ce qui suivait — bloc de signature compris — devenait invisible. Une page qui parle encore la langue de l'acte (« aux présentes », « le VENDEUR », « le PROMETTANT ») est désormais reconnue comme faisant encore partie de l'acte. Ensuite, la date en toutes lettres qui ouvre tout acte authentique (« L'AN DEUX MILLE VINGT-SIX, Le VINGT TROIS JUILLET ») n'était pas lue du tout, alors que c'est la forme la plus sûre de cette famille d'actes — deux d'entre eux y renvoient d'ailleurs explicitement, leur bloc de signature n'en portant aucune. Les six actes notariés du banc ont maintenant leur date ; les deux compromis d'agence, dont le texte ne porte aucune date, gardent la date estimée du fichier" },
     { version: '2026-09-18 17:20', resume: "L'adresse du bien est enfin lue correctement. Sur les neuf actes réels que vous avez envoyés, elle ne l'était sur AUCUN — et, plus gênant, elle était présentée comme sûre : la commune ressortait « situé à BLOIS ( » et la voie « ), 74 rue des Hautes Granges ». L'outil ne savait lire que l'ordre postal (« 12 rue Victor Hugo, 41000 BLOIS ») alors que vos actes emploient l'ordre notarial (« situé à BLOIS (41000), 74 rue des Hautes Granges », « A BLOIS (LOIR-ET-CHER) 41000 1 Rue Hannah Arendt ») : commune, puis code postal, puis voie. Trois autres causes s'y ajoutaient : le premier « DÉSIGNATION » d'un acte est souvent celui du SOMMAIRE, ou un mot au fil d'une phrase qu'un retour à la ligne place en début de ligne ; le siège social de l'agence, de son assureur et du diagnostiqueur arrivent avant le bien dans un compromis d'agence, et le premier était retenu ; une élection de domicile (« aux fins de recevoir la notification ») passait aussi pour le bien vendu. Les neuf adresses sortent maintenant justes, présentées proprement : « 8 B rue Yves Genêt, 41000 BLOIS »" },
     { version: '2026-09-18 16:33', resume: "Import d'un acte AUTHENTIQUE (promesse reçue par notaire) : cinq corrections, trouvées en rejouant le PDF que vous avez envoyé. Le document était coupé dès la page 4 — un simple renvoi « ANNEXE » en haut de page passait pour le début des annexes — et tout ce qui suit était donc invisible : ni le prix (page 9), ni la condition de prêt (page 12). Le nom du dossier prenait celui du NOTAIRE, la comparution d'ouverture se désignant elle-même par la partie qu'elle assiste ; il lit maintenant les vraies parties, même quand « né(e) » ne suit pas le patronyme, sans confondre une commune ou un ex-conjoint avec une partie. Le prix accepte « (92 000,00 EUR) » et la coupure de ligne du PDF, l'adresse n'est plus tronquée au milieu de la voie, et la date de signature de l'acte retient la clause qui la NOMME plutôt qu'une clause qui cite « l'acte » en passant. Enfin, les deux simulateurs (provision, prorata) partent d'un champ vide" },
     { version: '2026-09-18 15:45', resume: "Une condition de prêt exprimée en délai est de nouveau calculée quand la clause dit « dans un délai de 60 jours DE LA promesse » ou « du compromis » : le point de départ était perdu et l'échéance disparaissait du formulaire, alors que la panneau affichait à la fois « calculée depuis la signature » et « point de départ à déterminer » — deux phrases contradictoires. Le point de départ réel est maintenant nommé. Dans « Ce que l'outil a compris », taper une date à la main ne valide plus au premier chiffre de l'année. Les dates repérées (« Classées », « Non identifiées ») passent dans un bloc replié SOUS le panneau, qui se lit donc en premier. Vue Échéances : toutes les colonnes alignées d'une semaine à l'autre. L'origine trentenaire n'est plus comptée comme une obligation du vendeur. Alpha revient à droite de Connecté, et le bouton « Ajouter une obligation » respire enfin sous le panneau qui le précède" },
@@ -175,6 +176,70 @@
     return null;
   }
 
+  // ---- date écrite entièrement en lettres (en-tête d'un acte authentique) ----
+  //
+  // Tout acte reçu par notaire s'ouvre par sa date en toutes lettres, et par elle seule :
+  //     L'AN DEUX MILLE VINGT-SIX,
+  //     Le VINGT TROIS JUILLET
+  // C'est le marqueur de date le plus fiable qui soit sur cette famille d'actes — il est imposé
+  // par la forme authentique — et il n'était pas reconnu du tout. Sur le corpus, deux actes en
+  // renvoient même explicitement à l'en-tête pour leur date (« … aux lieu, jour, mois et an
+  // indiqués en en-tête du présent acte »), leur bloc de signature n'en portant aucune.
+  var MOTS_NOMBRES = {
+    zero: 0, un: 1, une: 1, premier: 1, deux: 2, trois: 3, quatre: 4, cinq: 5, six: 6, sept: 7,
+    huit: 8, neuf: 9, dix: 10, onze: 11, douze: 12, treize: 13, quatorze: 14, quinze: 15,
+    seize: 16, vingt: 20, trente: 30, quarante: 40, cinquante: 50, soixante: 60,
+    cent: 100, cents: 100, mille: 1000
+  };
+
+  // « VINGT TROIS » = 23, « DIX-SEPT » = 17, « TRENTE ET UN » = 31, « DEUX MILLE VINGT-SIX » = 2026.
+  // Renvoie null dès qu'un mot n'est pas un nombre : mieux vaut ne rien lire qu'inventer une date.
+  function nombreFrancaisEnChiffres(texte) {
+    const mots = String(texte || '')
+      .toLowerCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .split(/[\s-]+/)
+      .filter(mot => mot && mot !== 'et');
+    if (!mots.length) return null;
+    let total = 0;
+    let courant = 0;
+    for (const mot of mots) {
+      const valeur = MOTS_NOMBRES[mot];
+      if (valeur === undefined) return null;
+      if (valeur === 1000) { total += (courant || 1) * 1000; courant = 0; }
+      else if (valeur === 100) { courant = (courant || 1) * 100; }
+      else courant += valeur;
+    }
+    return total + courant;
+  }
+
+  // L'année et le jour sont lus en DEUX TEMPS, et non par un seul motif : en une seule passe, le
+  // groupe de l'année (paresseux, et fait des mêmes caractères que le reste) pouvait avaler le
+  // « LE » de la ligne suivante quand aucune virgule ne les séparait — l'année devenait « DEUX
+  // MIL », le jour « VINGT-CINQ LE DIX-SEPT », et la date entière était perdue. L'année s'arrête
+  // donc à la fin de sa ligne (ou à sa virgule), et le jour est cherché juste après.
+  var RE_AN_EN_LETTRES = /l['’]an\s+([A-Za-zÀ-ÿ\s-]{5,45}?)\s*(?=[,.\n])/i;
+  var RE_JOUR_MOIS_EN_LETTRES = new RegExp(
+    '\\ble\\s+([A-Za-zÀ-ÿ\\s-]{3,30}?)\\s+(' + Object.keys(MOIS).join('|') + ')\\b',
+    'i'
+  );
+  var PORTEE_JOUR_APRES_AN = 120;
+
+  function detecterDateEnToutesLettres(texte) {
+    const source = String(texte || '');
+    const mAn = RE_AN_EN_LETTRES.exec(source);
+    if (!mAn) return null;
+    const annee = nombreFrancaisEnChiffres(mAn[1]);
+    if (annee === null || annee < 1900 || annee > 2200) return null;
+    const apresAn = mAn.index + mAn[0].length;
+    const mJour = RE_JOUR_MOIS_EN_LETTRES.exec(source.slice(apresAn, apresAn + PORTEE_JOUR_APRES_AN));
+    if (!mJour) return null;
+    const jour = nombreFrancaisEnChiffres(mJour[1]);
+    const mois = MOIS[mJour[2].toLowerCase()];
+    if (jour === null || jour < 1 || jour > 31 || mois === undefined) return null;
+    return toISO(annee, mois, jour);
+  }
+
   // Détecte automatiquement la date de signature du compromis lui-même (qui peut être électronique,
   // avec une date par partie : on retient alors la plus récente), pour écarter ensuite tout ce qui
   // lui est antérieur (diagnostics, actes précédents…).
@@ -207,7 +272,11 @@
         if (iso) dates.push(iso);
       }
     }
-    if (dates.length === 0) return null;
+    // Repli : la date en toutes lettres de l'en-tête d'un acte authentique (voir
+    // detecterDateEnToutesLettres). Volontairement en REPLI et non en premier : quand un bloc de
+    // signature porte une date explicite, c'est lui qui fait foi — l'en-tête peut avoir été
+    // préparé avant la signature effective.
+    if (dates.length === 0) return detecterDateEnToutesLettres(texte);
     // Signature électronique = une date par partie : on retient la plus récente (dernière signature).
     dates.sort();
     return dates[dates.length - 1];
@@ -3932,10 +4001,21 @@
   // (page 9) ni la condition de prêt (page 12) n'étaient plus lisibles.
   var MAX_DEBUT_PAGE_ANNEXE = 12;
 
+  // Une page qui parle encore LA LANGUE DE L'ACTE (« aux présentes », « le VENDEUR », « le
+  // PROMETTANT », « le présent acte ») est encore l'acte, jamais la première page d'une pièce
+  // jointe : un document annexé — un DPE, un état des risques — ne s'adresse pas aux parties dans
+  // les termes du compromis. Sans cette règle, un simple TITRE DE CLAUSE en haut de page
+  // (« Diagnostic de performance énergétique », « État des risques de pollution des sols ») coupait
+  // l'acte en plein milieu : trois actes du corpus perdaient ainsi leur bloc de signature, donc la
+  // date qui sert d'ancre à toutes les échéances exprimées en délai — et avec elle les trois dates
+  // butoir du dossier. Le titre d'une VRAIE pièce jointe, lui, reste reconnu (voir les tests).
+  var RE_LANGAGE_DE_L_ACTE = /aux\s+pr[ée]sentes|les\s+pr[ée]sentes|pr[ée]sent\s+(?:acte|compromis|avant-contrat)|pr[ée]sente\s+(?:promesse|vente|convention)|\ble\s+VENDEUR\b|\bl['’]ACQU[ÉE]REUR\b|\ble\s+PROMETTANT\b|\ble\s+B[ÉE]N[ÉE]FICIAIRE\b/i;
+
   function estDebutPageAnnexe(texteBrut) {
     const texte = texteSansNumeroDePage(texteBrut);
     const m = texte.match(RE_DEBUT_ANNEXE) || texte.match(RE_TITRE_PIECE_JOINTE);
     if (!m) return false;
+    if (RE_LANGAGE_DE_L_ACTE.test(texte)) return false;
     return m.index < MAX_DEBUT_PAGE_ANNEXE || texte.trim().length < 300;
   }
 

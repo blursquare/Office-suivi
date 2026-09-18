@@ -510,3 +510,58 @@ test('le versement de l’indemnité d’immobilisation n’est pas la signature
     'comptabilité du notaire rédacteur des présentes';
   assert.notEqual(app.suggererEcheance(c), 'acte');
 });
+
+// ---------------------------------------------------------------------------------------------
+// Date de l'acte écrite ENTIÈREMENT EN LETTRES, en tête d'un acte authentique. C'est la forme
+// imposée par l'authenticité, donc le marqueur de date le plus fiable de cette famille d'actes —
+// et il n'était pas reconnu : sur le banc d'essai monté sur les actes réels de l'étude, la date
+// de signature manquait sur 4 actes sur 9, ce qui privait AUSSI le dossier de ses trois dates
+// butoir (toutes les échéances exprimées en délai sont comptées depuis elle).
+// ---------------------------------------------------------------------------------------------
+
+test('nombreFrancaisEnChiffres lit un nombre écrit en lettres', () => {
+  const app = chargerApplication();
+  assert.equal(app.nombreFrancaisEnChiffres('DEUX MILLE VINGT-SIX'), 2026);
+  assert.equal(app.nombreFrancaisEnChiffres('DEUX MILLE VINGT-CINQ'), 2025);
+  assert.equal(app.nombreFrancaisEnChiffres('VINGT TROIS'), 23);
+  assert.equal(app.nombreFrancaisEnChiffres('DIX-SEPT'), 17);
+  assert.equal(app.nombreFrancaisEnChiffres('TRENTE ET UN'), 31);
+  assert.equal(app.nombreFrancaisEnChiffres('PREMIER'), 1);
+  // Un mot qui n'est pas un nombre : ne rien lire plutôt qu'inventer une date.
+  assert.equal(app.nombreFrancaisEnChiffres('DEUX MIL'), null);
+  assert.equal(app.nombreFrancaisEnChiffres(''), null);
+});
+
+test("detecterDateEnToutesLettres lit l'en-tête d'un acte authentique, avec ou sans virgule", () => {
+  const app = chargerApplication();
+  // Sans virgule entre l'année et le jour : en une seule passe, le groupe de l'année avalait le
+  // « LE » de la ligne suivante et la date entière était perdue.
+  assert.equal(app.detecterDateEnToutesLettres("L'AN DEUX MILLE VINGT-CINQ \nLE DIX-SEPT DÉCEMBRE \n \nMaître"), '2025-12-17');
+  assert.equal(app.detecterDateEnToutesLettres("L'AN DEUX MILLE VINGT-SIX,\nLe VINGT TROIS JUILLET\nA BLOIS"), '2026-07-23');
+  assert.equal(app.detecterDateEnToutesLettres("L'AN DEUX MILLE VINGT-SIX,\nLe PREMIER JANVIER"), '2026-01-01');
+  assert.equal(app.detecterDateEnToutesLettres('Le bien est vendu en l’état.'), null);
+});
+
+test("detecterDateCompromis retombe sur l'en-tête quand le bloc de signature ne porte aucune date", () => {
+  // Trame réelle : « DONT ACTE … visualisé sur support électronique aux lieu, jour, mois et an
+  // indiqués en en-tête du présent acte » — l'acte renvoie lui-même à son en-tête.
+  const app = chargerApplication();
+  const texte = [
+    "L'AN DEUX MILLE VINGT-SIX,",
+    'Le VINGT TROIS JUILLET',
+    "A BLOIS (Loir et Cher), en l'Office Notarial,",
+    'PROMESSE UNILATERALE DE VENTE',
+    'DONT ACTE sans renvoi',
+    "Généré en l'office notarial et visualisé sur support électronique aux lieu, jour, mois et an",
+    'indiqués en en-tête du présent acte.'
+  ].join('\n');
+  assert.equal(app.detecterDateCompromis(texte), '2026-07-23');
+});
+
+test("une date de signature explicite l'emporte sur celle de l'en-tête", () => {
+  // L'en-tête peut avoir été préparé avant la signature effective : quand un bloc de signature
+  // porte une date, c'est lui qui fait foi.
+  const app = chargerApplication();
+  const texte = "L'AN DEUX MILLE VINGT-SIX,\nLe PREMIER JUILLET\nMonsieur X a signé à BLOIS le 9 juillet 2026.";
+  assert.equal(app.detecterDateCompromis(texte), '2026-07-09');
+});

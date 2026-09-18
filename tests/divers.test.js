@@ -462,3 +462,24 @@ test('estDebutPageAnnexe reconnaît une vraie page d’annexe malgré son numér
   assert.equal(app.estDebutPageAnnexe(' 12 \nANNEXE N°1 — Extrait de plan cadastral'), true);
   assert.equal(app.estDebutPageAnnexe('- 7 -\nDIAGNOSTIC DE PERFORMANCE ÉNERGÉTIQUE'), true);
 });
+
+test("estDebutPageAnnexe : une page qui parle encore la langue de l'acte est encore l'acte", () => {
+  // Trois actes du corpus réel étaient coupés en plein milieu par un simple TITRE DE CLAUSE en
+  // haut de page — ils perdaient ainsi leur bloc de signature, donc la date qui sert d'ancre à
+  // toutes les échéances exprimées en délai, donc les trois dates butoir du dossier.
+  const app = chargerApplication();
+  const clause = 'Diagnostic de performance énergétique\n' +
+    'Le VENDEUR a fourni un diagnostic de performance énergétique en date du 22 mai 2020 annexé\n' +
+    'aux présentes. Les Parties sont informées de sa valeur informative. '.repeat(6);
+  assert.equal(app.estDebutPageAnnexe(clause), false);
+
+  const clauseRisques = "État des risques de pollution des sols\n" +
+    "Un état des risques de pollution des sols est annexé à l'état des risques.\n" +
+    "Le PROMETTANT déclare que le terrain n'est pas concerné. ".repeat(6);
+  assert.equal(app.estDebutPageAnnexe(clauseRisques), false);
+
+  // La vraie pièce jointe, elle, reste reconnue : elle ne s'adresse pas aux parties.
+  const vraieAnnexe = 'DIAGNOSTIC DE PERFORMANCE ENERGETIQUE\n' +
+    'Numéro ADEME : 2141E0123456X. Classe énergie : D. Classe climat : B. '.repeat(6);
+  assert.equal(app.estDebutPageAnnexe(vraieAnnexe), true);
+});
