@@ -44,7 +44,31 @@ function estSea() {
 function resoudreConfigExecutable(dossierExe, fsImpl = fs) {
   const cheminConfig = path.join(dossierExe, 'config.json');
   if (fsImpl.existsSync(cheminConfig)) {
-    const brut = JSON.parse(fsImpl.readFileSync(cheminConfig, 'utf8'));
+    // `config.json` est édité À LA MAIN par l'étude (mot de passe, port, racine du NAS) : une
+    // faute de frappe y est donc un cas NORMAL, pas un incident exceptionnel. Sans ce try/catch,
+    // `JSON.parse` remontait telle quelle une erreur du type « Bad escaped character in JSON at
+    // position 87 » — pendant le `require('./config')`, donc avant même que index.js ait installé
+    // son journal de crash : la fenêtre de console du .exe se refermait instantanément, sans que
+    // rien nulle part n'explique pourquoi. Signalé par l'étude après avoir renseigné `nasRacine`
+    // (un chemin réseau écrit avec des antislashs simples, la faute la plus probable ici, d'où sa
+    // mention explicite dans le message).
+    let brut;
+    try {
+      brut = JSON.parse(fsImpl.readFileSync(cheminConfig, 'utf8'));
+    } catch (e) {
+      const err = new Error(
+        `Le fichier config.json est illisible : ${e.message}\n\n` +
+          `Fichier concerné : ${cheminConfig}\n\n` +
+          `Cause la plus fréquente : un chemin Windows écrit avec des antislashs SIMPLES. Dans un\n` +
+          `fichier JSON, chaque antislash doit être DOUBLÉ :\n\n` +
+          `  correct   : "nasRacine": "\\\\\\\\SERVEUR\\\\Partage\\\\DOSSIERS CLIENTS"\n` +
+          `  incorrect : "nasRacine": "\\\\SERVEUR\\Partage\\DOSSIERS CLIENTS"\n\n` +
+          `Vérifiez aussi qu'aucune virgule ne manque entre deux lignes, et qu'il n'y en a pas\n` +
+          `après la dernière. Corrigez le fichier, puis relancez le serveur.`
+      );
+      err.configIllisible = true;
+      throw err;
+    }
     let calendrierToken = brut.calendrierToken || '';
     // config.json généré par une version antérieure à l'ajout du calendrier connecté (voir
     // CLAUDE.md) : complété ici avec un jeton généré à la volée plutôt que d'exiger de supprimer

@@ -3763,6 +3763,43 @@ autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` auton
       Windows** : chemin UNC et droits du compte exécutant le serveur restent à confirmer au
       bureau (voir server/README.md).
 
+- **Bug corrigé : le serveur ne démarrait plus du tout après modification de `config.json` — la
+  fenêtre de console « clignotait puis rien ».** Signalé par l'étude juste après avoir renseigné
+  `nasRacine` (lot 6 ci-dessus). Cause : `resoudreConfigExecutable()` appelait `JSON.parse()` sans
+  aucun filet, et un chemin réseau collé depuis l'explorateur Windows s'écrit avec des antislashs
+  SIMPLES — illégal en JSON (`Bad escaped character`). L'exception remontait pendant le
+  `require('./config')` en tête de `index.js`, **avant** l'installation des gestionnaires
+  `uncaughtException`/`crash.log` quelques lignes plus bas : rien n'était journalisé nulle part, et
+  la console d'un `.exe` à double-clic se referme instantanément à la fin du processus. De
+  l'extérieur, le serveur disparaissait sans un mot.
+  - `config.js` : le `JSON.parse` est encadré, et l'erreur levée nomme le fichier concerné, montre
+    la forme correcte ET incorrecte sur `nasRacine` (la faute la plus probable), et rappelle le
+    piège des virgules. Le fichier n'est jamais réécrit quand il n'a pas pu être lu — écraser une
+    configuration qu'on ne comprend pas ferait perdre le mot de passe partagé avec.
+  - `index.js` : `signalerEchecDemarrage()` est défini **avant** le `require('./config')`, qui est
+    lui-même encadré. Le message part vers trois canaux : la console, un fichier
+    `erreur-demarrage.txt` à côté de l'exécutable (seul canal qui survive à la fermeture de la
+    fenêtre — même raisonnement que `crash.log`, mais pour un échec qui survient trop tôt pour
+    lui), et une attente de touche qui maintient la fenêtre ouverte. Cette attente est conditionnée
+    à `process.stdout.isTTY && process.stdin.isTTY` : sans ce garde-fou, un lancement sans fenêtre
+    (`Lancer-CLAIRE-en-arriere-plan.vbs`, service NSSM) resterait bloqué indéfiniment sur une
+    invite que personne ne voit.
+  - `demarrer()` est encadrée de la même façon, et `serveur.on('error')` traite le port déjà
+    occupé — un `listen` échoue de façon ASYNCHRONE, donc hors de tout try/catch. Sans ce
+    gestionnaire, l'erreur retombait dans `uncaughtException`, qui journalise puis **laisse
+    tourner** un processus qui n'écoute rien : le pire des deux mondes. Le message renvoie
+    explicitement vers `Arreter-CLAIRE.bat`, le cas le plus probable étant un serveur déjà lancé
+    sans fenêtre visible.
+  - Test dans `server/test/config.test.js` construit avec la faute EXACTE de l'étude (antislashs
+    simples dans `nasRacine`) : vérifie le drapeau `configIllisible`, le chemin du fichier dans le
+    message, la mention des antislashs, et surtout qu'aucune écriture n'a lieu. Suite serveur :
+    96 → 97 tests. Suite racine inchangée (264).
+  - **Leçon, à rapprocher de celle déjà tirée sur le décodage HTML des attributs `onclick`** : un
+    filet posé APRÈS l'endroit qui peut tomber ne protège rien. `crash.log` avait été ajouté pour
+    exactement ce symptôme (« le serveur s'arrête sans message ») mais s'installait trop tard pour
+    couvrir la lecture de la configuration — la première chose que fait le processus, et la seule
+    que l'étude modifie à la main.
+
 **Ce qui n'a volontairement PAS été fait** (arrêté à la demande explicite de l'étude, pas un
 oubli) — à reprendre uniquement si redemandé un jour :
 - **Import automatique** des dossiers déjà enregistrés sur la version 100% locale (`main`) vers ce

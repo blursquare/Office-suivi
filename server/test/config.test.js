@@ -77,3 +77,28 @@ test('config.json présent sans port : replie sur 3000 par défaut', () => {
 
   assert.equal(resultat.port, 3000);
 });
+
+// Le cas le plus probable en pratique : l'étude renseigne `nasRacine` à la main (voir
+// server/README.md) et y colle un chemin réseau tel que l'explorateur Windows l'affiche, avec des
+// antislashs simples. Avant ce correctif, `JSON.parse` remontait son erreur brute PENDANT le
+// `require('./config')` — donc avant que index.js ait installé quoi que ce soit : la fenêtre du
+// .exe se refermait instantanément, sans trace nulle part. Signalé par l'étude (« la fenêtre
+// clignote puis rien ne se passe »).
+test('config.json illisible : erreur explicite nommant le fichier et la règle des antislashs doublés', () => {
+  const fs = creerFsFictif({
+    '/exe/config.json': '{ "authPassword": "abc", "nasRacine": "\\\\SERVEUR\\Partage\\DOSSIERS" }'
+  });
+
+  assert.throws(
+    () => resoudreConfigExecutable('/exe', fs),
+    (err) => {
+      assert.equal(err.configIllisible, true); // consommé par index.js pour un affichage sans pile
+      assert.match(err.message, /config\.json est illisible/);
+      assert.match(err.message, /\/exe\/config\.json/); // le chemin exact du fichier à corriger
+      assert.match(err.message, /antislashs SIMPLES/); // la cause probable, pas juste « JSON invalide »
+      assert.match(err.message, /nasRacine/); // l'exemple correct/incorrect est donné sur ce champ
+      return true;
+    }
+  );
+  assert.deepEqual(fs.ecritures, {}); // surtout : ne jamais réécrire par-dessus un fichier qu'on n'a pas su lire
+});

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-18 08:30';
+  const VERSION_APP = '2026-09-18 10:16';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-18 10:16', resume: "Le serveur ne disparaît plus en silence au démarrage : jusqu'ici, une faute de frappe dans config.json (typiquement un chemin réseau écrit avec des antislashs simples au lieu de doublés) faisait clignoter la fenêtre puis plus rien, sans la moindre explication. Le message est maintenant affiché, la fenêtre reste ouverte le temps de le lire, et il est enregistré dans erreur-demarrage.txt à côté de l'exécutable. Même traitement si le port est déjà occupé, avec le rappel qu'un serveur tourne peut-être déjà sans fenêtre visible" },
     { version: '2026-09-18 08:30', resume: "Les dossiers clients du NAS sont désormais lus par le SERVEUR, plus par le navigateur : tous les postes connectés par l'adresse IP peuvent enfin relier un dossier et ouvrir ses pièces, ce qui était impossible jusqu'ici. Plus aucune autorisation à reconfirmer au démarrage (la popup, le bandeau et le bouton groupé disparaissent avec le problème), un dossier relié depuis un poste l'est pour tout le monde, le dossier du NAS est proposé automatiquement d'après le nom du dossier, et un bouton « Revérifier tous les dossiers » relance le parcours en une fois. À configurer une fois : « nasRacine » dans config.json" },
     { version: '2026-09-18 08:15', resume: "Offre de prêt reconnue autrement : l'outil rouvre les PDF du dossier, écarte tout document de moins de 6 pages, lit le TITRE de la page de garde (et lui seul) puis fait confirmer par le modèle IA local qu'il s'agit bien d'une offre ou d'un contrat de prêt — sans ce modèle, le document trouvé passe en « À confirmer », distinct de « Reçue ». La ou les garanties du prêt (caution, hypothèque légale de prêteur de deniers, hypothèque conventionnelle) sont relevées au passage et affichées dans la carte « Obtention du prêt »" },
     { version: '2026-09-18 08:10', resume: "L'avant-contrat rouvert depuis une fiche est désormais celui réellement importé à la création du dossier — le nom du fichier est mémorisé, la recherche par les mots « compromis »/« promesse » ramenait souvent l'avant-contrat de la vente préalable rangé dans le même dossier. Et TOUS les documents identifiés dans l'analyse juridique (entretien, travaux, attestations…) sont maintenant recherchés dans le dossier local comme les pièces d'urbanisme, y compris sur les dossiers déjà créés" },

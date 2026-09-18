@@ -8,7 +8,54 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { exec } = require('node:child_process');
 
-const config = require('./config');
+// Un échec AU DÉMARRAGE (config.json illisible, port déjà pris, base inaccessible) survient avant
+// que quoi que ce soit ait pu être journalisé, et la fenêtre de console d'un .exe à double-clic se
+// referme dans la seconde : de l'extérieur, « la fenêtre clignote puis rien ». Signalé par l'étude
+// après avoir renseigné `nasRacine` dans config.json. Le message est donc écrit dans un FICHIER à
+// côté de l'exécutable — seul canal qui survive à la fermeture de la fenêtre — et la console est
+// maintenue ouverte quand il y en a une, pour qui a lancé l'exe depuis une invite de commandes.
+function estSea() {
+  try {
+    return require('node:sea').isSea();
+  } catch (_) {
+    return false;
+  }
+}
+
+function signalerEchecDemarrage(erreur) {
+  const message = erreur && erreur.configIllisible ? erreur.message : (erreur && erreur.stack) || String(erreur);
+  const texte =
+    `CLAIRE n'a pas pu démarrer.\r\n` +
+    `[${new Date().toISOString()}]\r\n\r\n` +
+    message.replace(/\n/g, '\r\n') +
+    `\r\n`;
+  console.error(`\n[CLAIRE] ÉCHEC AU DÉMARRAGE\n\n${message}\n`);
+  if (estSea()) {
+    try {
+      const cible = path.join(path.dirname(process.execPath), 'erreur-demarrage.txt');
+      fs.writeFileSync(cible, texte);
+      console.error(`[CLAIRE] Ce message est aussi enregistré dans : ${cible}`);
+    } catch (_) { /* rien à faire de plus : la console garde la trace */ }
+  }
+  // Sans ça, la fenêtre se referme avant qu'on ait pu lire quoi que ce soit. `isTTY` distingue une
+  // vraie console d'un lancement sans fenêtre (Lancer-CLAIRE-en-arriere-plan.vbs, service NSSM) :
+  // y attendre une touche bloquerait le processus indéfiniment sans que personne ne le voie.
+  if (process.stdout.isTTY && process.stdin.isTTY) {
+    console.error('[CLAIRE] Appuyez sur Entrée pour fermer cette fenêtre.');
+    try {
+      fs.readSync(0, Buffer.alloc(1), 0, 1, null);
+    } catch (_) { /* pas de saisie possible — on sort quand même */ }
+  }
+  process.exit(1);
+}
+
+let config;
+try {
+  config = require('./config');
+} catch (err) {
+  signalerEchecDemarrage(err);
+}
+
 const { ouvrirDb } = require('./db');
 const { creerApp } = require('./app');
 const { resoudreCheminNavigateurApp } = require('./navigateurApp');
@@ -146,7 +193,7 @@ function demarrer() {
   const db = ouvrirDb(config.cheminDb);
   const { app } = creerApp({ db, config });
 
-  app.listen(config.port, () => {
+  const serveur = app.listen(config.port, () => {
     const url = `http://localhost:${config.port}/`;
     const adresses = adressesLan();
     console.log(`[CLAIRE] Serveur intranet démarré sur le port ${config.port}.`);
@@ -198,6 +245,32 @@ function demarrer() {
 
     ouvrirNavigateur(url);
   });
+
+  // Port déjà occupé (un serveur CLAIRE déjà lancé, masqué par Lancer-CLAIRE-en-arriere-plan.vbs,
+  // ou un autre logiciel sur le 3000) : `listen` échoue de façon asynchrone, donc HORS du
+  // try/catch de `demarrer()`. Sans ce gestionnaire, l'exception remonte en `uncaughtException`,
+  // qui journalise puis LAISSE TOURNER un processus qui n'écoute rien — le pire des deux mondes.
+  serveur.on('error', (err) => {
+    if (err && err.code === 'EADDRINUSE') {
+      signalerEchecDemarrage(
+        new Error(
+          `Le port ${config.port} est déjà utilisé.\n\n` +
+            `CLAIRE est probablement DÉJÀ en cours d'exécution sur ce poste, sans fenêtre visible\n` +
+            `(voir Lancer-CLAIRE-en-arriere-plan.vbs). Ouvrez http://localhost:${config.port}/ pour\n` +
+            `le vérifier. Pour le relancer malgré tout, lancez d'abord Arreter-CLAIRE.bat.`
+        )
+      );
+      return;
+    }
+    signalerEchecDemarrage(err);
+  });
 }
 
-demarrer();
+try {
+  demarrer();
+} catch (err) {
+  // Échec synchrone : base de données inaccessible (dossier `data/` en lecture seule, disque
+  // plein, fichier verrouillé par une sauvegarde), module natif manquant… Même traitement que
+  // pour config.json — un message lisible qui survit à la fermeture de la fenêtre.
+  signalerEchecDemarrage(err);
+}

@@ -236,6 +236,14 @@ Une seule chose à indiquer : le dossier qui CONTIENT les dossiers clients.
 Sans cette valeur, la fonctionnalité est simplement désactivée et l'interface le dit en toutes
 lettres au moment de relier un dossier — elle n'échoue jamais en silence.
 
+**Si la fenêtre du serveur clignote puis se referme après avoir modifié `config.json`**, c'est ce
+fichier qui est en cause : une virgule manquante, une virgule en trop après la dernière ligne, ou
+des antislashs simples. Le serveur affiche désormais un message expliquant précisément quoi
+corriger, garde la fenêtre ouverte le temps de le lire, et l'écrit dans `erreur-demarrage.txt` à
+côté de l'exécutable — c'est le premier fichier à ouvrir en cas de démarrage impossible. Pour voir
+le message vous-même : ouvrir une invite de commandes dans le dossier de l'exécutable et lancer
+`CLAIRE-serveur.exe` depuis là, la fenêtre ne se fermera pas.
+
 ### Comment un dossier est relié
 
 « Relier un dossier du NAS » sur une fiche affiche la liste des dossiers clients, avec une
