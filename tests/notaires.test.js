@@ -287,3 +287,61 @@ test('l’origine de propriété ne fait plus trancher, on retombe sur la règle
   assert.equal(r.participant.nom, 'Paul DURAND');
   assert.match(r.raison, /fin de compromis/);
 });
+
+// Ce qui décide de l'emplacement des notaires, c'est la FORME de l'acte — précision de l'étude :
+// « la promesse synallagmatique est à traiter comme une promesse de vente car acte authentique
+// reçu par notaire et pas un acte sous seing privé ». Le nom de l'acte n'est qu'un repli.
+
+test('une PROMESSE SYNALLAGMATIQUE est authentique, donc ses notaires sont en première page', () => {
+  // Le cas corrigé : elle reste typée COMPROMIS (les deux parties sont engagées, c'est ce qui
+  // décide des rôles), mais sa FORME est authentique — les notaires comparaissent en tête.
+  const app = chargerApplication();
+  const texte = 'PROMESSE SYNALLAGMATIQUE DE VENTE\n'
+    + 'Maître Sophie GOSSART, notaire à BLOIS, et Maître Paul DURAND, notaire à ORLEANS.\n'
+    + BOURRAGE;
+  assert.equal(app.detecterTypeActe(texte).valeur, 'COMPROMIS_DE_VENTE', 'type inchangé : c’est bien un compromis pour les rôles');
+  assert.equal(app.detecterFormeActe(texte), 'authentique');
+  assert.equal(app.zoneNotairesPourActe(texte, 'COMPROMIS_DE_VENTE'), 'entete', 'mais la zone suit la forme, pas le type');
+
+  const r = app.determinerNotaires(
+    app.detecterNotaires(texte, 'COMPROMIS_DE_VENTE'), null, 'COMPROMIS_DE_VENTE',
+    app.zoneNotairesPourActe(texte, 'COMPROMIS_DE_VENTE'));
+  assert.equal(r.instrumentaire.nom, 'Sophie GOSSART');
+  assert.equal(r.participant.nom, 'Paul DURAND');
+});
+
+test('« PAR-DEVANT Maître » ouvre un acte authentique : notaires en première page', () => {
+  const app = chargerApplication();
+  const texte = 'PAR-DEVANT Maître Sophie GOSSART, notaire à BLOIS, et Maître Paul DURAND, notaire à ORLEANS.\n'
+    + BOURRAGE;
+  assert.equal(app.detecterFormeActe(texte), 'authentique');
+  assert.equal(app.zoneNotairesPourActe(texte, 'COMPROMIS_DE_VENTE'), 'entete');
+});
+
+test('un acte déclaré SOUS SEING PRIVÉ nomme ses notaires en fin', () => {
+  const app = chargerApplication();
+  const texte = 'COMPROMIS DE VENTE sous seing privé\n' + BOURRAGE;
+  assert.equal(app.detecterFormeActe(texte), 'sous-seing-prive');
+  assert.equal(app.zoneNotairesPourActe(texte, 'COMPROMIS_DE_VENTE'), 'fin');
+});
+
+test('l’acte authentique À VENIR ne fait pas passer un compromis pour authentique', () => {
+  // Le piège principal : un compromis sous seing privé parle constamment de l'acte authentique
+  // qui viendra. Seul l'EN-TÊTE est lu, et « réitéré par acte authentique » n'y est pas un
+  // marqueur de forme.
+  const app = chargerApplication();
+  const texte = 'COMPROMIS DE VENTE\n'
+    + 'La vente sera réitérée par acte authentique au plus tard le 31 janvier 2027.\n'
+    + BOURRAGE;
+  assert.equal(app.detecterFormeActe(texte), null, 'aucune forme déclarée');
+  assert.equal(app.zoneNotairesPourActe(texte, 'COMPROMIS_DE_VENTE'), 'fin', 'repli sur le type');
+});
+
+test('sans forme déclarée, le type d’acte sert de repli', () => {
+  const app = chargerApplication();
+  const neutre = 'Entre les soussignés, il a été convenu ce qui suit.\n' + BOURRAGE;
+  assert.equal(app.detecterFormeActe(neutre), null);
+  assert.equal(app.zoneNotairesPourActe(neutre, 'PROMESSE_DE_VENTE'), 'entete');
+  assert.equal(app.zoneNotairesPourActe(neutre, 'COMPROMIS_DE_VENTE'), 'fin');
+  assert.equal(app.zoneNotairesPourActe(neutre, 'INCONNU'), null, 'type non tranché : aucune zone, on ne devine pas');
+});

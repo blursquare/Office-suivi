@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-18 12:56';
+  const VERSION_APP = '2026-09-18 12:59';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-18 12:59', resume: "Notaires : c'est la FORME de l'acte qui décide désormais où l'outil cherche leurs noms, plus son nom. Un acte authentique — dont la promesse synallagmatique, reçue par notaire — les nomme en première page ; un acte sous seing privé, en fin. Une promesse synallagmatique reste un compromis pour les rôles vendeur/acquéreur, ce qui est une autre question. Piège écarté : « la vente sera réitérée par acte authentique », qui remplit les compromis sous seing privé, ne les fait plus passer pour authentiques" },
     { version: '2026-09-18 12:56', resume: "Notaires : « celui qui a rédigé » est désormais reconnu comme tel — les formes du verbe rédiger (y compris « acte rédigé par », au passé) et « notaire rédacteur » désignent l'instrumentaire, « en concours » et « notaire concourant » le second. Et surtout, la clause d'ORIGINE DE PROPRIÉTÉ est enfin écartée : elle figure dans presque tous les avant-contrats, nomme le notaire de la vente PRÉCÉDENTE (« acquis suivant acte reçu par Maître X »), et désignait jusqu'ici le mauvais notaire avec la priorité la plus haute" },
     { version: '2026-09-18 12:53', resume: "Notaires : l'endroit où l'outil cherche leurs noms dépend désormais du type d'acte, comme vous l'avez précisé — première page pour une promesse de vente et ses dérivées, FIN D'ACTE pour un compromis. La version précédente appliquait la règle de la première page au compromis aussi, ce qui revenait à y lire des notaires cités à tout autre titre (origine de propriété, acte antérieur). Le premier nommé dans la bonne zone reçoit l'acte, le second participe — et si la zone attendue ne contient pas deux notaires, rien n'est tranché plutôt que de deviner" },
     { version: '2026-09-18 12:32', resume: "Onze corrections. Ouvrir un PDF du NAS ne renvoie plus « Authentification requise » (l'onglet était ouvert sans jeton de session). Le panneau de diagnostic ne se referme plus tout seul. L'offre de prêt est reconnue d'abord au NOM du fichier (offre de prêt, offre de crédit, contrat de prêt…), la lecture du contenu ne servant plus que de repli — toujours au-delà de 6 pages. Sur une promesse, les deux notaires nommés en tête de première page désignent l'instrumentaire puis le participant. Le dossier NAS proposé passe en tête de liste, avec une recherche au-dessus, et une correspondance exacte du nom relie le dossier sans rien demander. La vue « Échéances » (ex-« Semaines ») devient la vue par défaut et n'affiche plus qu'UNE ligne par dossier, sa prochaine échéance en attente ; une vente préalable peut être marquée réalisée pour passer à la suivante. Bouton d'ajout d'obligation déplacé sous l'analyse juridique, filet retiré sous « En retard », badge Alpha aligné à droite sous le logo et tagline retirée" },
@@ -1280,14 +1281,52 @@
   var ZONE_ENTETE_ACTE = 2500;
   var ZONE_FIN_ACTE = 3000;
 
-  // Une seule table, comme REGLES_NOTAIRE_INSTRUMENTAIRE, plutôt que des tests de type dispersés
-  // dans determinerNotaires. Une « promesse synallagmatique » est reconnue comme un COMPROMIS par
-  // detecterTypeActe (c'en est un) : elle relève donc bien de la fin d'acte.
+  // Ce qui décide vraiment de l'emplacement, c'est la FORME de l'acte, pas son nom — précision de
+  // l'étude : « la promesse synallagmatique est à traiter comme une promesse de vente car acte
+  // authentique reçu par notaire et pas un acte sous seing privé ». Un acte AUTHENTIQUE s'ouvre
+  // par la comparution des notaires (« PAR-DEVANT Maître X… »), donc en première page ; un acte
+  // SOUS SEING PRIVÉ (le compromis d'agence, le cas courant) ne les nomme qu'en fin, au moment de
+  // désigner qui recevra la vente.
+  //
+  // À ne pas confondre avec le TYPE d'acte, qui répond à une autre question (qui s'engage à quoi,
+  // donc les rôles vendeur/acquéreur) : une promesse synallagmatique reste un COMPROMIS pour les
+  // parties — les deux y sont engagées — tout en étant authentique pour la forme. Les deux
+  // notions sont donc séparées plutôt que déduites l'une de l'autre.
+  var RE_FORME_AUTHENTIQUE = /par[-\s]devant\s+(?:ma[îi]tre|nous|les?\s+notaires?)|re[çc]u\s+en\s+la\s+forme\s+authentique|demeurera?\s+en\s+minute|promesse\s+synallagmatique/i;
+  var RE_FORME_SOUS_SEING_PRIVE = /sous\s+seing\s+priv[ée]|sous\s+signatures?\s+priv[ée]e?s?/i;
+
+  // Forme de l'acte, lue dans son EN-TÊTE uniquement : « PAR-DEVANT Maître » ouvre un acte
+  // authentique, et « sous seing privé » se déclare de même en tête. Chercher dans tout le
+  // document confondrait cette déclaration avec les innombrables mentions de l'acte authentique À
+  // VENIR (« la vente sera réitérée par acte authentique »), qui remplissent justement les
+  // compromis sous seing privé — c'est le piège principal ici.
+  //
+  // « promesse synallagmatique » figure parmi les marqueurs d'authenticité non comme une forme,
+  // mais parce que l'étude a indiqué que ce type d'acte est toujours reçu par notaire.
+  function detecterFormeActe(texte) {
+    const entete = String(texte || '').slice(0, ZONE_ENTETE_ACTE);
+    if (RE_FORME_AUTHENTIQUE.test(entete)) return 'authentique';
+    if (RE_FORME_SOUS_SEING_PRIVE.test(entete)) return 'sous-seing-prive';
+    return null;
+  }
+
+  // Repli quand la forme n'est pas déclarée lisiblement : le nom de l'acte reste le meilleur
+  // indice disponible (une promesse est reçue par notaire, un compromis est en général l'acte
+  // d'agence sous seing privé). Une seule table, comme REGLES_NOTAIRE_INSTRUMENTAIRE.
   var ZONE_NOTAIRES_PAR_TYPE = {
     PROMESSE_DE_VENTE: 'entete',
     PROMESSE_D_ACHAT: 'entete',
     COMPROMIS_DE_VENTE: 'fin'
   };
+
+  // Zone où chercher les notaires : la FORME d'abord (ce qui décide réellement), le type d'acte
+  // seulement en repli.
+  function zoneNotairesPourActe(texte, typeActe) {
+    const forme = detecterFormeActe(texte);
+    if (forme === 'authentique') return 'entete';
+    if (forme === 'sous-seing-prive') return 'fin';
+    return ZONE_NOTAIRES_PAR_TYPE[typeActe] || null;
+  }
 
   // Rattachement d'un notaire à une partie : « notaire du vendeur », « conseil de l'acquéreur »…
   var RE_COTE_NOTAIRE = /(?:notaire|conseil|assistant?e?|repr[ée]sentant)\s+(?:d[eu]\s+|de\s+la\s+|de\s+l['’]|des\s+)?(vendeurs?|promettants?|acqu[ée]reurs?|acheteurs?|b[ée]n[ée]ficiaires?|parties?\s+venderesses?|parties?\s+acqu[ée]reuses?)/i;
@@ -1411,7 +1450,7 @@
   //   1. mention explicite dans le document (« l'acte sera reçu par Maître X ») ;
   //   2. à défaut, la règle métier géographique (41 + notaire vendeur en 41/45/37) ;
   //   3. sinon, rien n'est tranché — NEEDS_REVIEW, jamais un choix arbitraire.
-  function determinerNotaires(notaires, departementBien, typeActe) {
+  function determinerNotaires(notaires, departementBien, typeActe, zoneFournie) {
     const liste = Array.isArray(notaires) ? notaires : [];
     const cotesVendeur = liste.filter(n => n.cote === 'vendeur');
     const cotesAcquereur = liste.filter(n => n.cote === 'acquereur');
@@ -1457,7 +1496,7 @@
         // N'intervient qu'ici, une fois les deux règles supérieures épuisées : une mention
         // explicite ou la règle géographique restent prioritaires, et ce cas ne peut donc rien
         // faire régresser de ce qui était déjà tranché.
-        const zone = ZONE_NOTAIRES_PAR_TYPE[typeActe];
+        const zone = zoneFournie || ZONE_NOTAIRES_PAR_TYPE[typeActe];
         const dansZone = zone ? liste.filter(n => (zone === 'entete' ? n.enTete : n.enFin)) : [];
         if (dansZone.length >= 2) {
           resultat.instrumentaire = dansZone[0];
@@ -1604,7 +1643,7 @@
       ? detectedDatesFournies
       : detecterDatesDepuisTexte(source, dateCompromis);
     const bien = detecterAdresseBienStructuree(source);
-    const notaires = determinerNotaires(detecterNotaires(source, typeActe.valeur), bien.adresse.departement, typeActe.valeur);
+    const notaires = determinerNotaires(detecterNotaires(source, typeActe.valeur), bien.adresse.departement, typeActe.valeur, zoneNotairesPourActe(source, typeActe.valeur));
 
     const extraction = {
       version: 1,
@@ -4315,7 +4354,7 @@
           source: sourceIa(n)
         }));
         const departement = extraction.bien && extraction.bien.adresse ? extraction.bien.adresse.departement : null;
-        extraction.notaires = determinerNotaires(liste, departement, extraction.typeActe && extraction.typeActe.valeur);
+        extraction.notaires = determinerNotaires(liste, departement, extraction.typeActe && extraction.typeActe.valeur, zoneNotairesPourActe(texte, extraction.typeActe && extraction.typeActe.valeur));
         // Notaires lus par le seul modèle : l'origine est tracée pour que le rôle de l'étude ne
         // soit JAMAIS pré-rempli automatiquement à partir d'eux (voir
         // appliquerExtractionAuFormulaire) — ce sélecteur masque la checklist des pièces quand il
