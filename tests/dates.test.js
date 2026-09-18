@@ -623,3 +623,31 @@ test('suggererEcheance reconnaît « signature dudit acte » et la réalisation 
     'La réalisation de la présente promesse pourra être demandée par le BENEFICIAIRE jusqu’au 17 mars 2026.'
   ), 'acte');
 });
+
+test('detecterTypeVenteCopropriete : négation au participe présent et mention conditionnelle', () => {
+  // Trois faux positifs du banc d'essai : la forme la plus courante de la clause de style est le
+  // PARTICIPE PRÉSENT (« ne relevANT pas »), la négation est souvent séparée du motif par la
+  // référence complète du texte de loi, et une mention conditionnelle ne dit rien du bien vendu.
+  const app = chargerApplication();
+  assert.equal(app.detecterTypeVenteCopropriete(
+    "Un bâtiment à usage d'habitation individuel ne relevant pas du statut de la copropriété."
+  ), false);
+  assert.equal(app.detecterTypeVenteCopropriete(
+    "des logements ne relevant pas de la loi n° 65-557 du 10 juillet 1965 fixant le statut de la copropriété des immeubles bâtis"
+  ), false);
+  assert.equal(app.detecterTypeVenteCopropriete(
+    "participations dans toutes les charges communes au Syndicat des copropriétaires s'il y a lieu"
+  ), false);
+  // La vraie copropriété reste détectée.
+  assert.equal(app.detecterTypeVenteCopropriete(
+    "Le bien constitue le lot de copropriété numéro 3 de la résidence."
+  ), true);
+});
+
+test('detecterPrixVente accepte un point avant la parenthèse fermante', () => {
+  // « (290000,00 EUR.) » : un seul caractère empêchait la lecture du prix d'un acte réel.
+  const app = chargerApplication();
+  assert.equal(app.detecterPrixVente(
+    'aura lieu moyennant le prix principal de : DEUX CENT QUATRE-VINGT-DIX MILLE EUROS (290000,00 EUR.)'
+  ), 290000);
+});

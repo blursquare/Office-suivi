@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-18 17:34';
+  const VERSION_APP = '2026-09-18 17:36';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-18 17:36', resume: "Type de vente et prix. Trois actes sur sept étaient classés « copropriété » à tort, dont un compromis qui s'intitule pourtant « BIEN HORS COPROPRIETE » : la clause de style qui écarte le statut s'écrit le plus souvent au participe présent (« ne relevANT pas du statut de la copropriété »), forme que le garde-fou ne connaissait pas ; la négation est par ailleurs souvent séparée du mot par la référence complète de la loi de 1965, trop loin pour être vue ; et une mention conditionnelle (« au Syndicat des copropriétaires s'il y a lieu », clause de style dans une liste de pouvoirs) suffisait à faire passer une maison individuelle pour une copropriété. La portée d'une négation s'arrête maintenant à sa phrase et au « mais » qui la contredit. Côté prix, un point avant la parenthèse fermante — « (290000,00 EUR.) » — empêchait la lecture : les neuf actes du banc donnent désormais leur prix" },
     { version: '2026-09-18 17:34', resume: "Trois familles de FAUSSES échéances, qui prenaient chaque fois la place de la vraie — celle-ci restant, elle, sans catégorie. Une citation de texte légal d'abord : « l'ordonnance n° 2016-131 du 10 février 2016 » devenait la date de signature de l'acte sur un compromis de 2026 ; seules les citations de LOI étaient écartées, ordonnances, décrets et arrêtés y sont désormais joints. Une citation entre guillemets ensuite : « au plus tard un mois après la signature de l'acte authentique de vente », recopié d'un article du Code, devenait la date de signature du dossier. Le versement d'une somme enfin : l'indemnité d'immobilisation, payable sous huit ou dix jours, fixait « l'obtention du prêt » dix jours après la signature sur deux promesses. Au passage, deux tournures d'échéance n'étaient pas reconnues du tout : « la signature DUDIT acte » et, sur une promesse, « la réalisation de la présente promesse », qui est pourtant la date butoir pour signer" },
     { version: '2026-09-18 17:30', resume: "Les noms de dossier, sur les sept actes lisibles du banc d'essai : sept sur sept corrects, vérifiés un par un contre les noms de vos propres fichiers. Trois causes. Un patronyme à particule — DE SOUSA MARTINS, LE GOFF, DU PONT — était rejeté d'office, la particule figurant parmi les mots interdits : un acte n'avait ainsi qu'une seule partie, son bénéficiaire restant introuvable. L'étiquette « Dénommés ci-après le PROMETTANT » n'était pas reconnue dans cet ordre de mots, et le dossier prenait le mot qui suit (« ENSEMBLE D'UNE PART » donnait « ENSEMBLE »). Enfin la recherche du nom remontait trop loin en arrière et tombait sur la comparution des notaires, qui nomme les parties qu'ils assistent : elle s'arrête désormais là où l'acte annonce lui-même sa présentation (« à la requête de : », « Entre les soussignés : »). Au passage, une ligne d'état civil (« - Monsieur à BLOIS, le 6 mai 1979 ») ne donne plus la commune comme patronyme, et la date en toutes lettres de l'en-tête, qui se glisse à la coupure de page au milieu d'une partie, n'est plus prise pour un nom" },
     { version: '2026-09-18 17:26', resume: "La date de signature de l'acte, et avec elle les trois dates butoir du dossier. Sur les neuf actes du banc d'essai, elle manquait sur quatre — et quand elle manque, TOUTES les échéances exprimées en délai disparaissent aussi, puisqu'elles se comptent depuis elle. Deux causes. D'abord, trois actes étaient coupés en plein milieu : un simple titre de clause en haut de page (« Diagnostic de performance énergétique », « État des risques de pollution des sols ») passait pour le début des annexes, et tout ce qui suivait — bloc de signature compris — devenait invisible. Une page qui parle encore la langue de l'acte (« aux présentes », « le VENDEUR », « le PROMETTANT ») est désormais reconnue comme faisant encore partie de l'acte. Ensuite, la date en toutes lettres qui ouvre tout acte authentique (« L'AN DEUX MILLE VINGT-SIX, Le VINGT TROIS JUILLET ») n'était pas lue du tout, alors que c'est la forme la plus sûre de cette famille d'actes — deux d'entre eux y renvoient d'ailleurs explicitement, leur bloc de signature n'en portant aucune. Les six actes notariés du banc ont maintenant leur date ; les deux compromis d'agence, dont le texte ne porte aucune date, gardent la date estimée du fichier" },
@@ -311,14 +312,45 @@
   // copropriété décrit le bien par son numéro de lot ET sa quote-part de parties communes
   // (tantièmes/millièmes) — une maison n'a ni l'un ni l'autre. Vérifie donc, pour chaque occurrence
   // de COPROPRIETE_RE, qu'elle n'est pas précédée d'une formule de négation.
-  const NEGATION_COPROPRIETE_RE = /(?:n['’]est|n['’]en\s+est|ne\s+sont)\s+pas\s+soumis|non\s+soumis|ne\s+rel[èe]ve(?:nt)?\s+pas|[àa]\s+l['’]exclusion\s+du\s+statut/i;
+  // Le PARTICIPE PRÉSENT (« ne relevANT pas du statut de la copropriété ») manquait, alors que
+  // c'est la forme la plus courante de cette clause de style dans les actes réels du corpus.
+  const NEGATION_COPROPRIETE_RE = /(?:n['’]est|n['’]en\s+est|ne\s+sont)\s+pas\s+soumis|non\s+soumis|ne\s+rel[èe]v(?:e|ent|ant)\s+pas|ne\s+d[ée]pend(?:ent|ant)?\s+pas|hors\s+copropri[ée]t[ée]|[àa]\s+l['’]exclusion\s+du\s+statut/i;
+
+  // Une mention CONDITIONNELLE (« … au Syndicat des copropriétaires s'il y a lieu ») ne dit rien
+  // du bien vendu : c'est une clause de style qui prévoit le cas où il y en aurait un. Elle
+  // faisait passer une maison individuelle pour une copropriété.
+  const CONDITIONNEL_COPROPRIETE_RE = /^\s*(?:s['’]il\s+y\s+a\s+lieu|le\s+cas\s+[ée]ch[ée]ant|[ée]ventuel)/i;
+
+  // Fenêtre élargie à 140 caractères : la négation et le motif sont souvent séparés par la
+  // référence complète du texte de loi (« ne relevant pas de la loi n° 65-557 du 10 juillet 1965
+  // fixant le statut de la copropriété »), qui à elle seule dépasse les 60 caractères d'origine.
+  var FENETRE_NEGATION_COPROPRIETE = 140;
+  var FENETRE_CONDITIONNEL_COPROPRIETE = 30;
+
+  // Une négation cesse de porter à la fin de sa phrase, et surtout à l'adversative qui la
+  // contredit : « Ce lotissement n'est pas soumis au statut de la copropriété …, MAIS le bien
+  // vendu constitue le lot de copropriété numéro 3 ». Sans cette borne, élargir la fenêtre pour
+  // laisser passer une référence de loi complète faisait retomber la négation sur la mention
+  // positive qui la suit.
+  var RE_FIN_PORTEE_NEGATION = /[.\n;]|\bmais\b|\btoutefois\b|\ben\s+revanche\b|\bcependant\b|\bn[ée]anmoins\b/gi;
+
+  function porteeNegation(avant) {
+    const re = new RegExp(RE_FIN_PORTEE_NEGATION.source, 'gi');
+    let coupure = 0;
+    let m;
+    while ((m = re.exec(avant)) !== null) coupure = m.index + m[0].length;
+    return avant.slice(coupure);
+  }
 
   function detecterTypeVenteCopropriete(texte) {
     const re = new RegExp(COPROPRIETE_RE.source, 'gi');
     let m;
     while ((m = re.exec(texte)) !== null) {
-      const avant = texte.slice(Math.max(0, m.index - 60), m.index);
-      if (!NEGATION_COPROPRIETE_RE.test(avant)) return true;
+      const avant = porteeNegation(texte.slice(Math.max(0, m.index - FENETRE_NEGATION_COPROPRIETE), m.index));
+      if (NEGATION_COPROPRIETE_RE.test(avant)) continue;
+      const apres = texte.slice(m.index + m[0].length, m.index + m[0].length + FENETRE_CONDITIONNEL_COPROPRIETE);
+      if (CONDITIONNEL_COPROPRIETE_RE.test(apres)) continue;
+      return true;
     }
     return false;
   }
@@ -367,7 +399,7 @@
   //    normal. Le point reste exclu, et c'est lui qui borne réellement la clause.
   //  - « EUR » est accepté au même titre que « € » et « euros » : c'est la forme qu'emploient les
   //    trames notariales dans la reprise chiffrée entre parenthèses.
-  const PRIX_VENTE_RE = /prix[^(.]{0,120}\(\s*([\d](?:[\d\s.]{0,14})?(?:,\d{2})?)\s*(?:€|eur(?:os?)?\b)\s*\)/i;
+  const PRIX_VENTE_RE = /prix[^(.]{0,120}\(\s*([\d](?:[\d\s.]{0,14})?(?:,\d{2})?)\s*(?:€|eur(?:os?)?\b)\s*\.?\s*\)/i;
 
   function detecterPrixVente(texte) {
     const m = PRIX_VENTE_RE.exec(texte);
