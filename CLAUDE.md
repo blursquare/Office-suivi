@@ -4049,8 +4049,10 @@ autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` auton
     par type d'acte, à un seul endroit — même principe que `REGLES_NOTAIRE_INSTRUMENTAIRE` :
     `PROMESSE_DE_VENTE`/`PROMESSE_D_ACHAT` → `'entete'`, `COMPROMIS_DE_VENTE` → `'fin'`. Un type
     non tranché (`INCONNU`, `AUTRE`) n'a **aucune** entrée : on ne devine pas où chercher, la
-    règle ne s'applique simplement pas. Une « promesse synallagmatique » étant reconnue comme un
-    COMPROMIS par `detecterTypeActe()` (c'en est un), elle relève bien de la fin d'acte.
+    règle ne s'applique simplement pas. **Corrigé juste après** (voir l'entrée « la FORME de
+    l'acte » plus bas) : cette table n'est plus le critère principal mais un simple repli, et le
+    cas « promesse synallagmatique », rangé ici du côté « fin d'acte », était faux — cet acte est
+    authentique, donc ses notaires sont en première page.
   - `detecterNotaires()` marque désormais les DEUX zones sur chaque mention (`enTete` comme avant,
     `enFin` pour les `ZONE_FIN_ACTE` = 3000 derniers caractères — un bloc de clôture de compromis,
     avec la comparution des notaires et les signatures, est un peu plus étalé qu'un en-tête).
@@ -4111,6 +4113,47 @@ autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` auton
     deux du concours, les trois formes d'origine de propriété qui ne doivent RIEN désigner, et un
     test de bout en bout (notaire de la vente précédente cité au milieu d'un compromis, vrais
     notaires en fin d'acte : c'est bien la fin qui décide). Suite racine 297 → 301.
+
+- **Ce qui décide de l'emplacement des notaires, c'est la FORME de l'acte, pas son nom.**
+  Troisième précision de l'étude sur ce même point, et la plus structurante : « la promesse
+  synallagmatique est à traiter comme une promesse de vente car acte authentique reçu par notaire
+  et pas un acte sous seing privé ». Elle invalide le critère que j'avais retenu (promesse vs
+  compromis) et donne la vraie raison : un acte **authentique** s'ouvre par la comparution des
+  notaires (« PAR-DEVANT Maître X, notaire à… »), donc en première page ; un acte **sous seing
+  privé** — le compromis d'agence, cas courant — ne les nomme qu'en fin, au moment de désigner qui
+  recevra la vente. « Promesse » et « compromis » n'étaient qu'un proxy statistique de cette
+  distinction-là.
+  - **Deux notions désormais séparées, et à ne pas reconfondre** : le TYPE d'acte répond à « qui
+    s'engage à quoi » (donc les rôles vendeur/acquéreur) ; la FORME répond à « authentique ou sous
+    seing privé » (donc où les notaires sont nommés). Une promesse synallagmatique est les deux à
+    la fois : un COMPROMIS pour les parties — les deux y sont engagées, `detecterTypeActe()` la
+    classe donc toujours ainsi, à raison — et un acte AUTHENTIQUE pour la forme. Déduire l'une de
+    l'autre était exactement l'erreur.
+  - `detecterFormeActe(texte)` (nouveau) renvoie `'authentique'` / `'sous-seing-prive'` / `null`,
+    et `zoneNotairesPourActe(texte, typeActe)` en tire la zone, avec `ZONE_NOTAIRES_PAR_TYPE`
+    rétrogradée au rang de **repli** quand la forme n'est pas déclarée lisiblement.
+    `determinerNotaires()` accepte un 4ᵉ paramètre `zoneFournie` — le texte n'est pas disponible
+    dans cette fonction, et lui faire prendre le document entier pour ça aurait brouillé son rôle ;
+    sans ce paramètre elle retombe sur la table par type, ce qui la garde testable seule.
+  - **La forme n'est lue QUE dans l'en-tête, et c'est le point critique.** Un compromis sous seing
+    privé parle constamment de l'acte authentique À VENIR (« la vente sera réitérée par acte
+    authentique au plus tard le… ») : chercher « acte authentique » dans tout le document ferait
+    passer pour authentique précisément les actes qui ne le sont pas. Les marqueurs retenus sont
+    ceux d'une DÉCLARATION de forme en tête (`par-devant Maître/nous/les notaires`, `reçu en la
+    forme authentique`, `demeurera en minute`) et non la simple mention du mot.
+  - `promesse synallagmatique` figure parmi les marqueurs d'authenticité non parce que c'est une
+    forme, mais parce que l'étude a indiqué que ce type d'acte est toujours reçu par notaire —
+    c'est noté comme tel dans le commentaire, pour qu'on ne le prenne pas plus tard pour une
+    déduction de l'outil.
+  - Tests : 5 nouveaux dans `tests/notaires.test.js` — la promesse synallagmatique (type COMPROMIS
+    **et** zone en-tête, les deux assertions dans le même test pour que la distinction reste
+    lisible), « PAR-DEVANT Maître », un acte déclaré sous seing privé, le piège de l'acte
+    authentique à venir, et le repli par type quand aucune forme n'est déclarée. Suite racine
+    301 → 306.
+  - **Leçon** : trois allers-retours ont été nécessaires sur ce seul point (ordre en tête →
+    distinction promesse/compromis → forme authentique/SSP), chacun parce que j'avais encodé le
+    SYMPTÔME donné plutôt que de demander la règle sous-jacente. Sur un point de droit notarial,
+    demander « pourquoi » avant d'implémenter aurait fait gagner deux tours.
 
 **Ce qui n'a volontairement PAS été fait** (arrêté à la demande explicite de l'étude, pas un
 oubli) — à reprendre uniquement si redemandé un jour :
