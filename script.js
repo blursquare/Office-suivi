@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-18 17:26';
+  const VERSION_APP = '2026-09-18 17:30';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-18 17:30', resume: "Les noms de dossier, sur les sept actes lisibles du banc d'essai : sept sur sept corrects, vérifiés un par un contre les noms de vos propres fichiers. Trois causes. Un patronyme à particule — DE SOUSA MARTINS, LE GOFF, DU PONT — était rejeté d'office, la particule figurant parmi les mots interdits : un acte n'avait ainsi qu'une seule partie, son bénéficiaire restant introuvable. L'étiquette « Dénommés ci-après le PROMETTANT » n'était pas reconnue dans cet ordre de mots, et le dossier prenait le mot qui suit (« ENSEMBLE D'UNE PART » donnait « ENSEMBLE »). Enfin la recherche du nom remontait trop loin en arrière et tombait sur la comparution des notaires, qui nomme les parties qu'ils assistent : elle s'arrête désormais là où l'acte annonce lui-même sa présentation (« à la requête de : », « Entre les soussignés : »). Au passage, une ligne d'état civil (« - Monsieur à BLOIS, le 6 mai 1979 ») ne donne plus la commune comme patronyme, et la date en toutes lettres de l'en-tête, qui se glisse à la coupure de page au milieu d'une partie, n'est plus prise pour un nom" },
     { version: '2026-09-18 17:26', resume: "La date de signature de l'acte, et avec elle les trois dates butoir du dossier. Sur les neuf actes du banc d'essai, elle manquait sur quatre — et quand elle manque, TOUTES les échéances exprimées en délai disparaissent aussi, puisqu'elles se comptent depuis elle. Deux causes. D'abord, trois actes étaient coupés en plein milieu : un simple titre de clause en haut de page (« Diagnostic de performance énergétique », « État des risques de pollution des sols ») passait pour le début des annexes, et tout ce qui suivait — bloc de signature compris — devenait invisible. Une page qui parle encore la langue de l'acte (« aux présentes », « le VENDEUR », « le PROMETTANT ») est désormais reconnue comme faisant encore partie de l'acte. Ensuite, la date en toutes lettres qui ouvre tout acte authentique (« L'AN DEUX MILLE VINGT-SIX, Le VINGT TROIS JUILLET ») n'était pas lue du tout, alors que c'est la forme la plus sûre de cette famille d'actes — deux d'entre eux y renvoient d'ailleurs explicitement, leur bloc de signature n'en portant aucune. Les six actes notariés du banc ont maintenant leur date ; les deux compromis d'agence, dont le texte ne porte aucune date, gardent la date estimée du fichier" },
     { version: '2026-09-18 17:20', resume: "L'adresse du bien est enfin lue correctement. Sur les neuf actes réels que vous avez envoyés, elle ne l'était sur AUCUN — et, plus gênant, elle était présentée comme sûre : la commune ressortait « situé à BLOIS ( » et la voie « ), 74 rue des Hautes Granges ». L'outil ne savait lire que l'ordre postal (« 12 rue Victor Hugo, 41000 BLOIS ») alors que vos actes emploient l'ordre notarial (« situé à BLOIS (41000), 74 rue des Hautes Granges », « A BLOIS (LOIR-ET-CHER) 41000 1 Rue Hannah Arendt ») : commune, puis code postal, puis voie. Trois autres causes s'y ajoutaient : le premier « DÉSIGNATION » d'un acte est souvent celui du SOMMAIRE, ou un mot au fil d'une phrase qu'un retour à la ligne place en début de ligne ; le siège social de l'agence, de son assureur et du diagnostiqueur arrivent avant le bien dans un compromis d'agence, et le premier était retenu ; une élection de domicile (« aux fins de recevoir la notification ») passait aussi pour le bien vendu. Les neuf adresses sortent maintenant justes, présentées proprement : « 8 B rue Yves Genêt, 41000 BLOIS »" },
     { version: '2026-09-18 16:33', resume: "Import d'un acte AUTHENTIQUE (promesse reçue par notaire) : cinq corrections, trouvées en rejouant le PDF que vous avez envoyé. Le document était coupé dès la page 4 — un simple renvoi « ANNEXE » en haut de page passait pour le début des annexes — et tout ce qui suit était donc invisible : ni le prix (page 9), ni la condition de prêt (page 12). Le nom du dossier prenait celui du NOTAIRE, la comparution d'ouverture se désignant elle-même par la partie qu'elle assiste ; il lit maintenant les vraies parties, même quand « né(e) » ne suit pas le patronyme, sans confondre une commune ou un ex-conjoint avec une partie. Le prix accepte « (92 000,00 EUR) » et la coupure de ligne du PDF, l'adresse n'est plus tronquée au milieu de la voie, et la date de signature de l'acte retient la clause qui la NOMME plutôt qu'une clause qui cite « l'acte » en passant. Enfin, les deux simulateurs (provision, prorata) partent d'un champ vide" },
@@ -434,9 +435,17 @@
   // Repli : si aucune date de naissance n'est trouvée (autre modèle de document), on retombe sur
   // une recherche du nom en MAJUSCULES le plus proche de l'intitulé "Vendeur"/"Acquéreur".
 
+  // Les PARTICULES d'un nom composé (« DE SOUSA MARTINS », « LE GOFF », « DU PONT ») ne
+  // disqualifient un candidat que s'il n'est fait QUE d'elles. Tant qu'elles figuraient dans la
+  // liste stricte ci-dessous, tout patronyme à particule était rejeté — un acte réel du corpus
+  // n'avait ainsi qu'une seule partie, son bénéficiaire (« DE SOUSA MARTINS ») étant introuvable.
+  // « ET » reste volontairement dans la liste STRICTE : aucun patronyme ne le contient, alors
+  // qu'une capture « DUPONT ET MARTIN » en majuscules est un risque réel.
+  const PARTICULES_NOM = new Set(['LE', 'LA', 'LES', 'DE', 'DU', 'DES', 'D']);
+
   const MOTS_EXCLUS_NOM = new Set([
     'SCI','SARL','SAS','EURL','DPE','ERP','CDC','TVA','SRU','M','MME','MLLE',
-    'LE','LA','LES','ET','DE','DU','DES','MONSIEUR','MADAME','MADEMOISELLE',
+    'ET','MONSIEUR','MADAME','MADEMOISELLE','ENSEMBLE','PART','AGISSANT','SOLIDAIREMENT','AN',
     'VENDEUR','VENDEURS','ACQUEREUR','ACQUEREURS','ACHETEUR','ACHETEURS',
     'PROMETTANT','PROMETTANTS','BENEFICIAIRE','BENEFICIAIRES','PROMESSE',
     'ENTRE','SOUSSIGNES','SOUSSIGNE','COMPROMIS','VENTE','PRESENT','PRESENTS','FAIT',
@@ -453,7 +462,14 @@
 
   function estNomValide(candidat) {
     const mots = candidat.split(/[\s-]+/).map(normaliserMaj);
-    return candidat.length >= 2 && !mots.some(m => MOTS_EXCLUS_NOM.has(m));
+    if (candidat.length < 2) return false;
+    if (mots.some(m => MOTS_EXCLUS_NOM.has(m))) return false;
+    // Un mot-nombre n'est jamais un patronyme. La date en toutes lettres de l'en-tête d'un acte
+    // authentique (« L'AN DEUX MILLE VINGT-TROIS ») se glisse entre deux paragraphes à la coupure
+    // de page, en plein milieu de la présentation d'une partie — elle ressortait comme son nom.
+    if (mots.some(m => MOTS_NOMBRES[m.toLowerCase()] !== undefined)) return false;
+    // Un candidat fait uniquement de particules (« DE », « LE », « DES ») n'est pas un nom.
+    return !mots.every(m => PARTICULES_NOM.has(m));
   }
 
   // Isole le bloc de texte décrivant une partie (ex. tout ce qui suit "Le vendeur" jusqu'à
@@ -580,6 +596,18 @@
   // pour le style « en-tête » : le patronyme suit immédiatement « Monsieur/Madame », l'adresse ne
   // vient qu'après. Plusieurs civilités dans la fenêtre = plusieurs vendeurs (un couple), tous
   // retournés, cohérent avec le style « en-tête » qui gère déjà ce cas.
+  // Repères par lesquels un acte annonce lui-même le début de la présentation des parties. Tout ce
+  // qui les précède (comparution des notaires, en-tête, date) n'appartient à aucune partie.
+  var RE_DEBUT_PRESENTATION_PARTIES = /[àa]\s+la\s+requ[êe]te\s+de\s*:?|entre\s+les\s+soussign[ée]s\s*:?|lesquels?\s+ont\s+requis|a\s+re[çc]u\s+le\s+pr[ée]sent\s+acte/gi;
+
+  function dernierIndexPresentationParties(fenetre) {
+    const re = new RegExp(RE_DEBUT_PRESENTATION_PARTIES.source, 'gi');
+    let dernier = -1;
+    let m;
+    while ((m = re.exec(fenetre)) !== null) dernier = m.index + m[0].length;
+    return dernier;
+  }
+
   function nomsAvantLabel(fenetre) {
     const civiliteRe = /\b(?:Mademoiselle|Monsieur|Madame|Mlle|Mme|M\.)/gi;
     const bornes = [];
@@ -607,6 +635,10 @@
     let nm;
     while ((nm = nomRe.exec(fenetre)) !== null) {
       if (!estNomValide(nm[1])) continue;
+      // Même garde-fou que nomApresCivilite : un groupe en capitales précédé d'une préposition de
+      // lieu est une COMMUNE, pas un patronyme. Une ligne d'état civil (« - Monsieur à BLOIS
+      // (41000), le 6 mai 1979 ») donnait sinon « BLOIS » comme nom de partie.
+      if (RE_PREPOSITION_LIEU.test(fenetre.slice(0, nm.index))) continue;
       resultat = { nom: nm[1], idx: nm.index };
       if (direction === 'first') break;
     }
@@ -631,7 +663,11 @@
     // retombait sur la méthode « en-tête », qui va chercher le nom APRÈS le mot-clé et ramenait
     // donc celui de la partie suivante. Trouvé en écrivant le test de non-régression du couple.
     return /(^|[^A-Za-zÀ-ÿ])["«'’]\s*(?:les?|la|l['’]|du|des)?\s*$/i.test(avant) ||
-      /ci-apr[èe]s\s+d[ée]nomm[ée]e?s?\s+(?:les?|la|l['’])?\s*$/i.test(avant);
+      /ci-apr[èe]s\s+d[ée]nomm[ée]e?s?\s+(?:les?|la|l['’])?\s*$/i.test(avant) ||
+      // Ordre des mots inversé, tout aussi courant : « Dénommés ci-après le PROMETTANT ». Sans
+      // cette variante, l'étiquette n'était pas reconnue, le nom était cherché APRÈS le mot-clé,
+      // et le dossier prenait le mot structurel qui suit (« ENSEMBLE D'UNE PART » → « ENSEMBLE »).
+      /d[ée]nomm[ée]e?s?\s+ci-apr[èe]s\s+(?:les?|la|l['’])?\s*$/i.test(avant);
   }
 
   function extraireNomsRepli(texte, motRe) {
@@ -712,7 +748,16 @@
       // par `apresIndex` : jamais en deçà du point où commence la recherche de CETTE partie, sans
       // quoi la fenêtre empiéterait sur la présentation de la partie précédente et ramènerait son
       // nom (le bug « NOM / NOM » déjà rencontré, que les 250 caractères fixes ne prévenaient pas).
-      const fenetreAvant = texte.slice(Math.max(apresIndex, indexAbsolu - 600), indexAbsolu);
+      // La fenêtre passe à 1200 caractères : sur une trame réelle, la présentation d'un couple
+      // (état civil, professions, PACS, adresse, lieux et dates de naissance, déclarations) dépasse
+      // largement 600, et les civilités — seule ancre fiable du patronyme — tombaient hors fenêtre.
+      // Élargir seul ne suffisait pas : la comparution des notaires, juste avant, NOMME les parties
+      // qu'ils assistent (« assistant : - Monsieur X, - Monsieur Y ») et ces noms-là remontaient
+      // pour la mauvaise partie. La fenêtre est donc coupée à l'endroit où l'acte annonce lui-même
+      // le début de la présentation (« à la requête de : », « Entre les soussignés : »).
+      let fenetreAvant = texte.slice(Math.max(apresIndex, indexAbsolu - 1200), indexAbsolu);
+      const debutPresentation = dernierIndexPresentationParties(fenetreAvant);
+      if (debutPresentation !== -1) fenetreAvant = fenetreAvant.slice(debutPresentation);
       const parCivilite = nomsAvantLabel(fenetreAvant);
       if (parCivilite.length) return { noms: parCivilite, finAbsolue };
       // Aucune civilité (société, « les époux X »…) : on retombe sur l'ancien comportement plutôt

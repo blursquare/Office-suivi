@@ -242,3 +242,81 @@ test('le bloc d’une partie ne déborde pas sur la clause qui renomme l’autre
     .filter(p => p.role === 'ACQUEREUR').map(p => p.nom).join(',');
   assert.equal(acquereurs, 'ROUVIERE,BERTAUD');
 });
+
+// ---------------------------------------------------------------------------------------------
+// Trois défauts de nommage trouvés par le banc d'essai sur les actes réels de l'étude. Structure
+// des trames reproduite à l'identique, noms INVENTÉS — aucune donnée client dans le dépôt.
+// ---------------------------------------------------------------------------------------------
+
+test('un patronyme à particule est un nom valide (DE SOUSA, LE GOFF, DU PONT)', () => {
+  // Les particules figuraient dans la liste stricte des mots exclus : tout patronyme composé était
+  // rejeté. Un acte du corpus n'avait ainsi qu'UNE seule partie, son bénéficiaire étant introuvable.
+  const app = chargerApplication();
+  assert.equal(app.estNomValide('DE SOUSA MARTINS'), true);
+  assert.equal(app.estNomValide('LE GOFF'), true);
+  assert.equal(app.estNomValide('DE LA TOUR'), true);
+  // Une particule seule, en revanche, n'est pas un nom — et « ET » reste exclu, un patronyme n'en
+  // contient jamais alors qu'une capture « DUPONT ET MARTIN » est un risque réel.
+  assert.equal(app.estNomValide('DE'), false);
+  assert.equal(app.estNomValide('LES'), false);
+  assert.equal(app.estNomValide('DUPONT ET MARTIN'), false);
+});
+
+test('un mot structurel ou un nombre écrit en lettres n’est jamais un nom de partie', () => {
+  // « ENSEMBLE D'UNE PART » suit l'étiquette de rôle dans certaines trames ; et la date en toutes
+  // lettres de l'en-tête d'un acte authentique se glisse entre deux paragraphes à la coupure de
+  // page, en plein milieu de la présentation d'une partie.
+  const app = chargerApplication();
+  assert.equal(app.estNomValide('ENSEMBLE'), false);
+  assert.equal(app.estNomValide('AN DEUX MILLE VINGT-TROIS'), false);
+  assert.equal(app.estNomValide('DUPONT'), true);
+});
+
+test('l’étiquette de rôle est reconnue dans les deux ordres de mots', () => {
+  // « Dénommés ci-après le PROMETTANT » est aussi courant que « ci-après dénommés le PROMETTANT ».
+  const app = chargerApplication();
+  const texte = [
+    'A reçu le présent acte authentique contenant Promesse unilatérale de vente à la requête de :',
+    'Monsieur Chris, Martin LEMERCIER, cadre, et Madame Laëtitia, Laure VANTOUR, gestionnaire,',
+    'ayant conclu ensemble un pacte civil de solidarité et demeurant ensemble à BLOIS (41000),',
+    '510 rue Pitouille.',
+    'Nés savoir :',
+    '- Monsieur à BLOIS (41000), le 6 mai 1979.',
+    '- Madame à BLOIS (41000), le 30 septembre 1980.',
+    'AGISSANT SOLIDAIREMENT',
+    'Dénommés ci-après le PROMETTANT',
+    "ENSEMBLE D'UNE PART",
+    '1°) Monsieur Julien, Raymond ROUVIERE, ingénieur, célibataire majeur,',
+    'demeurant à VALENCISSE (41190), 3 Clos d’Andillon.',
+    'Né à BLOIS (41000), le 2 février 1984.',
+    '2°) Monsieur Héléna, Yolande BERTAUD, responsable, célibataire majeur,',
+    'demeurant à VALENCISSE (41190), 3 Clos d’Andillon.',
+    'Né à SAINT CALAIS (72120), le 13 octobre 1985.',
+    'AGISSANT SOLIDAIREMENT',
+    'Dénommés ci-après le BENEFICIAIRE',
+    "ENSEMBLE D'AUTRE PART"
+  ].join('\n');
+  assert.equal(app.detecterNomDossier(texte), 'LEMERCIER & VANTOUR / ROUVIERE & BERTAUD');
+});
+
+test('la comparution des notaires ne fournit jamais le nom d’une partie', () => {
+  // Le notaire en concours NOMME les parties qu'il assiste : sans borner la fenêtre de recherche
+  // au début annoncé de la présentation (« à la requête de : »), ces noms-là remontaient pour la
+  // mauvaise partie.
+  const app = chargerApplication();
+  const texte = [
+    "L'AN DEUX MILLE VINGT-TROIS",
+    'LE VINGT-TROIS JUIN',
+    "Maître Aurélien EXEMPLE, notaire associé aux MONTILS (Loir et Cher), soussigné,",
+    'Avec la participation de Maître Sophie GOSSART, notaire à BLOIS (41000), assistant :',
+    '- Monsieur Héléna BERTAUD,',
+    '- Monsieur Julien ROUVIERE.',
+    'A reçu le présent acte authentique contenant Promesse unilatérale de vente à la requête de :',
+    'Monsieur Chris LEMERCIER, cadre, demeurant à LANDES LE GAULOIS (41190), 510 rue Pitouille.',
+    'Né à BLOIS (41000), le 6 mai 1979.',
+    'Dénommé ci-après le PROMETTANT'
+  ].join('\n');
+  const parties = app.detecterParties(texte, 'PROMESSE_DE_VENTE');
+  const vendeurs = parties.filter(p => p.role === 'VENDEUR').map(p => p.nom);
+  assert.equal(vendeurs.join(' & '), 'LEMERCIER');
+});
