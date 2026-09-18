@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-18 01:52';
+  const VERSION_APP = '2026-09-18 07:52';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-18 07:52', resume: "Retouches d'affichage : champs de recherche du Suivi et du Tableau de bord aux mêmes coins arrondis, espace vide supprimé au-dessus de la croix de fermeture d'une fiche, et page « Nouveau dossier » corrigée sur téléphone — la zone d'import repasse au-dessus du descriptif, les deux blocs prennent toute la largeur, et les quatre étapes du wizard ne débordent plus de l'écran" },
     { version: '2026-09-18 01:52', resume: "L'IA locale relit l'acte en trois passes ciblées (parties et notaires / bien et prix / échéances) au lieu d'une seule : chaque valeur qu'elle propose est vérifiée en retrouvant sa citation dans le PDF, jamais retenue sur sa seule affirmation ; quand elle contredit la détection automatique, c'est cette dernière qui reste, l'écart étant signalé dans le panneau plutôt que tranché en silence ; un délai qu'elle rapporte est calculé par l'outil, jamais par elle" },
     { version: '2026-09-18 01:42', resume: "La fiche d'un dossier garde désormais la trace de ce que l'outil avait compris de l'acte à l'import (type d'acte, parties et leurs rôles, notaires, cadastre, statut de chaque donnée) : nouveau panneau « Ce que l'outil avait compris de l'acte », replié, sous l'analyse juridique — conservé aussi lors d'un export/import de sauvegarde" },
     { version: '2026-09-18 01:37', resume: "Nouveau panneau « Ce que l'outil a compris » à l'étape Vérifier : type d'acte, parties et leurs rôles, adresse et cadastre du bien, notaires (dont celui qui reçoit l'acte) et chaque date avec son statut (confirmé / à vérifier / non trouvé), sa provenance et sa page ; alertes de cohérence (prêt après l'acte, date écrite contredite par un délai, adresse incomplète…) rappelées avant d'enregistrer ; le rôle de l'étude est pré-rempli quand le document le dit clairement" },

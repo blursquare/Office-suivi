@@ -437,6 +437,36 @@
     }
   }
 
+  /* Téléphone (même seuil que le repli de la sidebar en burger) : deux corrections demandées par
+     l'étude sur l'onglet "Nouveau dossier".
+     1. L'ORDRE DES BLOCS EST INVERSÉ par rapport au réglage 1100px ci-dessus. Celui-ci remonte
+        l'aside (`order: -1`) pour que l'aperçu du PDF soit lisible au-dessus du formulaire sur une
+        tablette — mais avant tout import, cet aside porte le panneau descriptif (#nouveau-intro,
+        "ce que l'outil détecte"), qui se retrouvait donc en tête d'écran sur téléphone, repoussant
+        la zone de dépôt sous une page entière de texte. On rétablit ici l'ordre naturel : on
+        importe d'abord, on lit le descriptif ensuite.
+     2. LES DEUX BLOCS PRENNENT TOUTE LA LARGEUR, avec le seul gouttière de 16px du reste de
+        l'application — le `calc(100% - 48px)` du réglage tablette gaspille une marge précieuse sur
+        un écran de 360px. */
+  @media (max-width: 900px) {
+    .layout-cols { gap: 0; }
+    .wrap { max-width: none; width: 100%; padding: 0 0 40px; }
+    .pdf-viewer {
+      order: 0;
+      width: 100%;
+      max-width: none;
+      margin: 18px 0 0;
+      max-height: 70vh;
+    }
+    /* Zone de dépôt resserrée : à 36px de padding vertical plus une pastille de 44px, elle
+       occupait à elle seule une bonne moitié de l'écran d'un téléphone et repoussait tout le
+       reste hors du premier écran. */
+    .pdf-dropzone { padding: 18px 14px; gap: 8px; }
+    .pdf-dropzone-icone { width: 34px; height: 34px; font-size: 16px; margin-bottom: 0; }
+    .pdf-dropzone-hint { font-size: 12px; }
+    .extract-box { padding: 14px; margin-top: 14px; }
+  }
+
   /* ==== Structure générale : sidebar + contenu (remplace l'ancien header pleine page +
      onglets horizontaux) ====
      Un rail fixe à gauche porte la marque CLAIRE, la navigation entre les trois espaces de
@@ -660,6 +690,12 @@
     width: 260px;
     max-width: 100%;
   }
+  /* Même arrondi que le champ de recherche du Suivi (voir .toolbar-recherche input) : les deux
+     champs de recherche de dossier doivent se lire comme un seul contrôle d'un écran à l'autre.
+     Sélecteur composé (classe + élément + attribut) pour l'emporter à coup sûr sur la règle
+     générique `input[type="search"]` et son rayon de 4px — piège de spécificité déjà rencontré
+     trois fois dans ce fichier, voir .select-edit/.input-inline/.pdf-recherche-input. */
+  .dash-recherche input[type="search"] { border-radius: 8px; }
   .dash-recherche-resultats {
     position: absolute;
     top: calc(100% + 6px);
@@ -1057,7 +1093,10 @@
       transition: opacity 0.2s ease;
     }
     .sidebar-scrim.visible { opacity: 1; pointer-events: auto; }
-    .app-main { padding-top: 68px; }
+    /* Gouttière latérale ramenée de 32px à 16px : sur un écran de 360px, l'ancienne valeur
+       mangeait 64px de largeur utile, ce qui suffisait à tasser les cartes et le tableau du Suivi.
+       Le retrait en haut, lui, reste celui qui dégage le bouton burger flottant. */
+    .app-main { padding: 68px 16px 32px; }
   }
 
   .wrap-suivi { max-width: 1680px; margin: 0 auto; }
@@ -2185,6 +2224,12 @@
     padding: 5px 10px;
     background: var(--paper-card);
     color: var(--ink);
+    /* Coins nettement arrondis, demandés par l'étude, et repris à l'identique sur le champ
+       équivalent du Tableau de bord (voir .dash-recherche input plus haut) : les deux champs de
+       recherche de dossier se lisent comme un seul et même contrôle d'un écran à l'autre. Valeur
+       choisie dans la famille déjà en place (le menu de résultats du Tableau de bord est à 10px),
+       plutôt qu'une pilule qui trancherait avec les autres champs de la barre d'outils. */
+    border-radius: 8px;
     width: 220px;
     max-width: 40vw;
   }
@@ -2492,7 +2537,10 @@
     background: var(--paper-card);
     border-left: 1px solid var(--line);
     box-shadow: var(--shadow-float);
-    padding: 20px 22px 40px;
+    /* Aucun padding en haut : c'est lui qui créait l'espace vide au-dessus de la croix de
+       fermeture (signalé par l'étude). La barre collante qui la porte apporte désormais son
+       propre retrait, juste assez pour que la croix ne soit pas collée au bord de la fenêtre. */
+    padding: 0 22px 40px;
     animation: drawer-entre 0.18s ease-out;
   }
   @keyframes drawer-entre {
@@ -2513,7 +2561,7 @@
     display: flex;
     justify-content: flex-end;
     background: var(--paper-card);
-    padding-bottom: 8px;
+    padding: 6px 0 8px;
   }
   .drawer-fermer {
     font-family: inherit;
@@ -3157,6 +3205,23 @@
     flex: 0 0 auto;
   }
   .wizard-step-btn.actif .wizard-step-num { background: var(--focus); color: #fff; }
+
+  /* Sur téléphone, les quatre étapes ne tiennent pas côte à côte : la quatrière ("Finaliser")
+     débordait, coupée par le bord de l'écran. On ne garde alors que le libellé de l'étape EN COURS
+     — les autres sont réduites à leur pastille numérotée, qui reste cliquable pour y revenir. Les
+     traits de liaison disparaissent, ils n'ont plus de place à jouer une fois les libellés
+     masqués. */
+  @media (max-width: 640px) {
+    .wizard-stepper { gap: 8px; justify-content: space-between; }
+    .wizard-step-trait { display: none; }
+    .wizard-step-btn { font-size: 12px; padding: 6px 0; min-width: 0; }
+    .wizard-step-btn:not(.actif) .wizard-step-libelle { display: none; }
+    .wizard-step-btn.actif .wizard-step-libelle {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
 
   .wizard-step { display: none; }
   .wizard-step.actif { display: block; }
