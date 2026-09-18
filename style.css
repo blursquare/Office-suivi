@@ -2850,6 +2850,50 @@
   .select-classif:hover { border-color: var(--muted); }
   .select-classif:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 
+  /* Notaire du vendeur / de l'acquéreur : même gabarit que la grille de classification ci-dessus
+     (libellé au-dessus, champ encadré) — deux champs voisins qu'une icône seule ne distinguerait
+     pas, contrairement à l'adresse et au prix qui ont chacun leur ligne pleine largeur. Le badge
+     « Reçoit l'acte » vit sur la ligne du libellé, pas dans le champ : il qualifie le côté, pas la
+     valeur saisie. */
+  .dossier-notaires { display: flex; flex-direction: column; gap: 8px; }
+  .classif-champ-entete { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  /* Sélecteur composé (2 classes + élément) : la règle générique `input[type="text"], …` combine
+     élément+attribut, une spécificité qu'un simple `input.input-classif` ne bat pas — à égalité
+     c'est l'ordre du fichier qui tranche, piège déjà rencontré quatre fois dans cette feuille
+     (.select-edit, .input-inline, .pdf-recherche-input, .revision-saisie). */
+  .dossier-notaires input.input-classif {
+    font-family: inherit;
+    font-size: 13.5px;
+    color: var(--ink);
+    background: var(--paper-sunk);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 6px 8px;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    cursor: text;
+  }
+  .dossier-notaires input.input-classif:hover { border-color: var(--muted); }
+  .dossier-notaires input.input-classif:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .dossier-notaires input.input-classif::placeholder { color: var(--muted); font-style: italic; }
+  /* Contradiction entre le côté qui reçoit l'acte et le rôle de l'étude (voir
+     alerteRoleNotaireDossier). Même teinte que .dot-label.dl-alerte — le seul signal de l'outil
+     qui garde un fond plein — mais sur plusieurs lignes : ce message est une phrase, pas un mot. */
+  .notaire-alerte {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: var(--urgent);
+    background: color-mix(in srgb, var(--urgent) 12%, transparent);
+    padding: 6px 10px;
+    border-radius: 8px;
+  }
+  .notaire-alerte .icone { flex: none; margin-top: 1px; }
+
   /* Carte ouverte en deux colonnes (échéances/pièces/analyse à gauche, historique + actions à
      droite) — demandé pour profiter de la largeur disponible plutôt qu'un long défilement vertical
      unique. Empile en une seule colonne sous la largeur d'une carte compacte/mobile. */

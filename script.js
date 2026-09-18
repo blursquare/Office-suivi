@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-18 12:59';
+  const VERSION_APP = '2026-09-18 13:37';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-18 13:37', resume: "Le notaire du vendeur et celui de l'acquéreur sont détectés à l'import et affichés sur la fiche, juste sous l'adresse et le prix — deux champs libres, corrigeables à tout moment. Quand l'acte ne dit pas qui représente qui (une simple comparution en tête d'acte), rien n'est deviné : les noms relevés restent proposés dans la liste déroulante du champ, à vous de les affecter. Un badge « Reçoit l'acte » marque le côté qui rédige, et une alerte s'affiche si ce côté contredit le rôle du notaire renseigné juste en dessous" },
     { version: '2026-09-18 12:59', resume: "Notaires : c'est la FORME de l'acte qui décide désormais où l'outil cherche leurs noms, plus son nom. Un acte authentique — dont la promesse synallagmatique, reçue par notaire — les nomme en première page ; un acte sous seing privé, en fin. Une promesse synallagmatique reste un compromis pour les rôles vendeur/acquéreur, ce qui est une autre question. Piège écarté : « la vente sera réitérée par acte authentique », qui remplit les compromis sous seing privé, ne les fait plus passer pour authentiques" },
     { version: '2026-09-18 12:56', resume: "Notaires : « celui qui a rédigé » est désormais reconnu comme tel — les formes du verbe rédiger (y compris « acte rédigé par », au passé) et « notaire rédacteur » désignent l'instrumentaire, « en concours » et « notaire concourant » le second. Et surtout, la clause d'ORIGINE DE PROPRIÉTÉ est enfin écartée : elle figure dans presque tous les avant-contrats, nomme le notaire de la vente PRÉCÉDENTE (« acquis suivant acte reçu par Maître X »), et désignait jusqu'ici le mauvais notaire avec la priorité la plus haute" },
     { version: '2026-09-18 12:53', resume: "Notaires : l'endroit où l'outil cherche leurs noms dépend désormais du type d'acte, comme vous l'avez précisé — première page pour une promesse de vente et ses dérivées, FIN D'ACTE pour un compromis. La version précédente appliquait la règle de la première page au compromis aussi, ce qui revenait à y lire des notaires cités à tout autre titre (origine de propriété, acte antérieur). Le premier nommé dans la bonne zone reçoit l'acte, le second participe — et si la zone attendue ne contient pas deux notaires, rien n'est tranché plutôt que de deviner" },
@@ -1543,6 +1544,69 @@
     if (estEtude(resultat.instrumentaire)) return 'instrumentaire';
     if ((resultat.liste || []).some(estEtude)) return 'participant';
     return null;
+  }
+
+  // Libellé d'un notaire tel qu'il sera écrit dans le champ libre de la fiche : « Sophie GOSSART
+  // (BLOIS) ». Une chaîne, pas un objet — ces deux champs sont directement éditables par l'étude
+  // (elle peut corriger une lecture fausse, ou saisir un notaire que le document ne nommait pas).
+  function libelleNotaire(n) {
+    if (!n || !n.nom) return '';
+    const office = String(n.office || n.commune || '').trim();
+    return office ? `${n.nom} (${office})` : n.nom;
+  }
+
+  // Ce qui est enregistré sur le dossier à la création : le notaire de chaque côté, et de quel
+  // côté se trouve celui qui rédige l'acte. Quand l'acte ne dit PAS de quel côté intervient chaque
+  // notaire (comparution simple en tête d'acte authentique, cas fréquent), les deux champs restent
+  // VIDES plutôt que devinés — les noms détectés restent proposés dans la liste déroulante du
+  // champ (`detectes`), à l'étude de les affecter. Choix explicite de l'étude.
+  function cotesNotairesPourDossier(notaires) {
+    const vide = { vendeur: '', acquereur: '', coteInstrumentaire: null, detectes: [] };
+    if (!notaires) return vide;
+    const liste = Array.isArray(notaires.liste) ? notaires.liste : [];
+    const memeNotaire = (a, b) => !!(a && b && a.nom && b.nom && a.nom === b.nom);
+    const detectes = liste.map(n => ({
+      nom: libelleNotaire(n),
+      // Le rédacteur repéré à l'import garde son rôle même sans côté : une fois que l'étude aura
+      // affecté ce nom à l'un des deux champs, le badge « Reçoit l'acte » pourra enfin se poser
+      // (voir affecterNotaire) sans qu'on ait à redemander quoi que ce soit.
+      role: memeNotaire(n, notaires.instrumentaire) ? 'instrumentaire'
+        : (memeNotaire(n, notaires.participant) ? 'participant' : null)
+    })).filter(x => x.nom);
+
+    const vendeur = libelleNotaire(notaires.vendeur);
+    const acquereur = libelleNotaire(notaires.acquereur);
+    let coteInstrumentaire = null;
+    if (notaires.instrumentaire) {
+      if (vendeur && memeNotaire(notaires.vendeur, notaires.instrumentaire)) coteInstrumentaire = 'vendeur';
+      else if (acquereur && memeNotaire(notaires.acquereur, notaires.instrumentaire)) coteInstrumentaire = 'acquereur';
+    }
+    return { vendeur, acquereur, coteInstrumentaire, detectes };
+  }
+
+  // De quel côté intervient NOTRE étude, d'après les deux champs de la fiche (voir estEtude, qui
+  // tolère les deux graphies GOSSART/GOSSARD).
+  function coteEtudeDossier(d) {
+    if (!d) return null;
+    if (d.notaireVendeur && estEtude({ nom: d.notaireVendeur })) return 'vendeur';
+    if (d.notaireAcquereur && estEtude({ nom: d.notaireAcquereur })) return 'acquereur';
+    return null;
+  }
+
+  // Couplage avec le sélecteur « Rôle du notaire » déjà présent sur la fiche : si notre étude est
+  // du côté qui rédige, elle est instrumentaire ; sinon elle est participante. On SIGNALE la
+  // contradiction, on ne corrige jamais tout seul — ce sélecteur reste une décision de l'étude, et
+  // il masque la checklist des pièces quand il vaut « participant ».
+  function alerteRoleNotaireDossier(d) {
+    if (!d) return '';
+    const cote = coteEtudeDossier(d);
+    if (!cote || !d.coteInstrumentaire) return '';
+    const attendu = cote === d.coteInstrumentaire ? 'instrumentaire' : 'participant';
+    const actuel = d.roleNotaire === 'participant' ? 'participant' : 'instrumentaire';
+    if (attendu === actuel) return '';
+    return attendu === 'instrumentaire'
+      ? 'L’étude figure du côté qui reçoit l’acte : le rôle du notaire devrait être « Instrumentaire ».'
+      : 'L’acte est reçu par le notaire de l’autre partie : le rôle du notaire devrait être « Participant ».';
   }
 
   // ==== EXTRACTION STRUCTURÉE : adresse du bien vendu ====
@@ -4691,6 +4755,11 @@
     // titre de trace consultable, en plus des champs plats inchangés. Rien de tout ceci n'est
     // recalculable après coup : le texte du compromis n'est jamais gardé (voir CLAUDE.md).
     const instantane = instantaneExtraction(extractionActuelle);
+    // Notaire de chaque côté + celui qui reçoit l'acte. Calculé ici plutôt que repris de
+    // `instantane.notaires` : cotesNotairesPourDossier a besoin de la LISTE complète des notaires
+    // détectés (que l'instantané ne conserve pas) pour proposer ceux dont l'acte ne dit pas de
+    // quel côté ils interviennent.
+    const cotesNotaires = cotesNotairesPourDossier(extractionActuelle ? extractionActuelle.notaires : null);
 
     const dossier = {
       id: (crypto.randomUUID ? crypto.randomUUID() : 'd-' + Date.now() + '-' + Math.random().toString(16).slice(2)),
@@ -4700,6 +4769,13 @@
       montantPret: null,
       typeVente,
       roleNotaire,
+      // Champs libres, corrigeables à tout moment sur la fiche (voir affecterNotaire) : vides
+      // quand l'acte ne dit pas qui représente qui — les noms détectés restent alors proposés
+      // dans notairesDetectes, à l'étude de les affecter.
+      notaireVendeur: cotesNotaires.vendeur,
+      notaireAcquereur: cotesNotaires.acquereur,
+      coteInstrumentaire: cotesNotaires.coteInstrumentaire,
+      notairesDetectes: cotesNotaires.detectes,
       pieces: {},
       piecesEngagementsDetectees,
       dossierLie: false,
@@ -5125,6 +5201,40 @@
     if (normalise === (d.prixVente || null)) { render(); return; }
     ajouterHistorique(d, `Prix de vente modifié : ${d.prixVente ? formaterPrix(d.prixVente) : '—'} → ${normalise ? formaterPrix(normalise) : '—'}`);
     d.prixVente = normalise;
+    sauvegarder(d);
+    render();
+  }
+
+  // Affecte un notaire à un côté depuis la fiche. Champ libre : l'étude peut corriger une lecture
+  // fausse, ou saisir un notaire que l'acte ne nommait pas du tout.
+  function affecterNotaire(id, cote, valeur) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    const champ = cote === 'vendeur' ? 'notaireVendeur' : 'notaireAcquereur';
+    const nouveau = String(valeur || '').trim();
+    if (nouveau === (d[champ] || '')) return;
+    d[champ] = nouveau;
+    ajouterHistorique(d, `${cote === 'vendeur' ? 'Notaire du vendeur' : 'Notaire de l’acquéreur'} : ${nouveau || '—'}`);
+    // Le rédacteur repéré à l'import n'avait pas de côté tant qu'aucun des deux champs ne portait
+    // son nom (acte qui nomme ses notaires sans dire qui représente qui) : dès que l'étude l'y
+    // affecte, le badge « Reçoit l'acte » peut se poser — mais jamais par-dessus un côté déjà
+    // choisi à la main.
+    if (!d.coteInstrumentaire && nouveau
+      && (d.notairesDetectes || []).some(n => n.role === 'instrumentaire' && n.nom === nouveau)) {
+      d.coteInstrumentaire = cote;
+    }
+    sauvegarder(d);
+    render();
+  }
+
+  function changerCoteInstrumentaire(id, valeur) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    const nouveau = (valeur === 'vendeur' || valeur === 'acquereur') ? valeur : null;
+    if (nouveau === (d.coteInstrumentaire || null)) return;
+    const libelles = { vendeur: 'notaire du vendeur', acquereur: 'notaire de l’acquéreur' };
+    ajouterHistorique(d, `Notaire qui reçoit l’acte : ${libelles[nouveau] || 'à déterminer'}`);
+    d.coteInstrumentaire = nouveau;
     sauvegarder(d);
     render();
   }
@@ -5768,6 +5878,37 @@
     const s = LIBELLES_STATUT[statutDossier(d)];
     const marqueur = s.icone ? icone(s.icone) : '<span class="dot"></span>';
     return `<span class="dot-label ${s.dl}" title="Statut du dossier : ${s.texte}">${marqueur}${s.texte}</span>`;
+  }
+
+  // Notaire du vendeur / de l'acquéreur, sous l'adresse et le prix (demande explicite de l'étude).
+  // Deux champs LIBRES et une liste déroulante des notaires détectés à l'import : l'acte ne dit pas
+  // toujours qui représente qui, et quand il ne le dit pas on n'affecte rien — c'est l'étude qui
+  // tranche. Présentés comme la grille de classification juste en dessous (libellé au-dessus du
+  // champ) : deux champs voisins qu'une icône seule ne suffirait pas à distinguer, contrairement à
+  // l'adresse et au prix qui ont chacun leur propre ligne pleine largeur.
+  function renderNotairesDossier(d) {
+    const detectes = (Array.isArray(d.notairesDetectes) ? d.notairesDetectes : []).filter(n => n && n.nom);
+    const listeId = `notaires-detectes-${d.id}`;
+    const champ = (cote, libelle, valeur) => `
+      <div class="classif-champ">
+        <div class="classif-champ-entete">
+          <label for="not-${cote}-${d.id}">${libelle}</label>
+          ${d.coteInstrumentaire === cote
+            ? `<span class="dot-label dl-success" title="C’est ce notaire qui rédige et reçoit l’acte.">${icone('check')}Reçoit l’acte</span>`
+            : ''}
+        </div>
+        <input type="text" id="not-${cote}-${d.id}" class="input-classif"${detectes.length ? ` list="${listeId}"` : ''} value="${escapeAttr(valeur || '')}" placeholder="Non détecté" onblur="affecterNotaire('${d.id}', '${cote}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
+      </div>`;
+    const alerte = alerteRoleNotaireDossier(d);
+    return `
+      <div class="dossier-notaires">
+        <div class="dossier-classification-grid">
+          ${champ('vendeur', 'Notaire du vendeur', d.notaireVendeur)}
+          ${champ('acquereur', 'Notaire de l’acquéreur', d.notaireAcquereur)}
+        </div>
+        ${detectes.length ? `<datalist id="${listeId}">${detectes.map(n => `<option value="${escapeAttr(n.nom)}"></option>`).join('')}</datalist>` : ''}
+        ${alerte ? `<div class="notaire-alerte">${icone('alert-triangle')}${escapeHtml(alerte)}</div>` : ''}
+      </div>`;
   }
 
   function render() {
@@ -6540,6 +6681,10 @@
 
           <div class="dossier-head-divider"></div>
 
+          ${renderNotairesDossier(d)}
+
+          <div class="dossier-head-divider"></div>
+
           <!-- Type de vente / Rôle du notaire / Responsable : grille avec libellé au-dessus du
                champ (plutôt que libellé + <select> en ligne, ancien style .select-edit) — reprend
                la présentation de la maquette fournie, plus lisible qu'une ligne de libellés et de
@@ -6559,6 +6704,17 @@
               <select id="rn-${d.id}" class="select-classif" onchange="changerRoleNotaire('${d.id}', this.value)">
                 <option value="instrumentaire" ${d.roleNotaire === 'participant' ? '' : 'selected'}>Instrumentaire</option>
                 <option value="participant" ${d.roleNotaire === 'participant' ? 'selected' : ''}>Participant</option>
+              </select>
+            </div>
+            <!-- Placé ici, à côté de « Rôle du notaire » : c'est le même sujet vu des deux bouts —
+                 quel notaire reçoit l'acte, et donc quel rôle joue l'étude (voir
+                 alerteRoleNotaireDossier, qui signale une contradiction entre les deux). -->
+            <div class="classif-champ">
+              <label for="ci-${d.id}">Acte reçu par</label>
+              <select id="ci-${d.id}" class="select-classif" onchange="changerCoteInstrumentaire('${d.id}', this.value)">
+                <option value="" ${d.coteInstrumentaire ? '' : 'selected'}>— À déterminer —</option>
+                <option value="vendeur" ${d.coteInstrumentaire === 'vendeur' ? 'selected' : ''}>Notaire du vendeur</option>
+                <option value="acquereur" ${d.coteInstrumentaire === 'acquereur' ? 'selected' : ''}>Notaire de l’acquéreur</option>
               </select>
             </div>
             <div class="classif-champ">
@@ -7575,6 +7731,16 @@
         : {},
       typeVente: (d.typeVente === 'copropriete' || d.typeVente === 'terrain') ? d.typeVente : 'maison',
       roleNotaire: d.roleNotaire === 'participant' ? 'participant' : 'instrumentaire',
+      // Notaires des deux parties : une lecture de l'acte lui-même (ou une saisie de l'étude), la
+      // même sur n'importe quel poste — conservés tels quels à l'import, comme adresseBien, et
+      // contrairement aux statuts dérivés d'un scan du NAS.
+      notaireVendeur: typeof d.notaireVendeur === 'string' ? d.notaireVendeur : '',
+      notaireAcquereur: typeof d.notaireAcquereur === 'string' ? d.notaireAcquereur : '',
+      coteInstrumentaire: (d.coteInstrumentaire === 'vendeur' || d.coteInstrumentaire === 'acquereur') ? d.coteInstrumentaire : null,
+      notairesDetectes: Array.isArray(d.notairesDetectes)
+        ? d.notairesDetectes.filter(n => n && typeof n === 'object' && typeof n.nom === 'string' && n.nom)
+            .map(n => ({ nom: n.nom, role: (n.role === 'instrumentaire' || n.role === 'participant') ? n.role : null }))
+        : [],
       // Choix de l'étude sur QUELLES pièces suivre pour ce dossier précis (pas dérivé d'un scan de
       // PDF local, contrairement à `pieces` juste en dessous, qui repart bien à {}) : conservés tels
       // quels à l'import, comme `autres` ci-dessus.

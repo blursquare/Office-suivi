@@ -4155,6 +4155,62 @@ autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` auton
     SYMPTÔME donné plutôt que de demander la règle sous-jacente. Sur un point de droit notarial,
     demander « pourquoi » avant d'implémenter aurait fait gagner deux tours.
 
+- **Notaire du vendeur et notaire de l'acquéreur sur la fiche dossier**, demandés par l'étude :
+  « détecter les notaires vendeur et acquéreur ou représentant le promettant ou le bénéficiaire
+  lors de l'import du PDF, à insérer dans la fiche dossier sous l'adresse et le prix. Coupler cela
+  avec l'option déjà présente du rôle du notaire. À pouvoir modifier par la suite. » Toute la
+  détection existait déjà (`detecterNotaires`/`determinerNotaires`, voir les quatre entrées
+  ci-dessus) mais ne servait qu'à pré-remplir le sélecteur « Rôle du notaire » : les noms
+  eux-mêmes n'étaient visibles nulle part, sinon dans le `<details>` « Extraction » en lecture
+  seule. **Mesuré avant de promettre quoi que ce soit** (script de bac à sable sur six formes
+  d'acte réalistes) : le côté de chaque notaire ne se résout que si l'acte le dit explicitement
+  (« notaire du vendeur », « conseil de l'acquéreur ») — une comparution simple en tête d'acte
+  authentique, pourtant fréquente, ne le dit pas. D'où les deux arbitrages demandés à l'étude
+  avant d'écrire une ligne :
+  - **Côté non résolu → les deux noms restent proposés, côté VIDE, à l'étude de les affecter**
+    (son choix, contre « affecter dans l'ordre de citation »). `cotesNotairesPourDossier()`
+    (testable) ne remplit `notaireVendeur`/`notaireAcquereur` que si l'acte a réellement rattaché
+    chaque notaire à une partie ; sinon les deux champs sortent vides et les noms relevés vivent
+    dans `d.notairesDetectes` (`[{nom, role}]`), servis comme `<datalist>` du champ. Affecter un
+    dossier au mauvais notaire ferait chercher les pièces d'une autre vente — même raisonnement
+    que le refus, déjà en place, de deviner l'instrumentaire quand rien ne le désigne.
+  - **Couplage avec « Rôle du notaire » : badge « Reçoit l'acte » + alerte si contradiction**
+    (son choix, contre une correction automatique du sélecteur). `coteEtudeDossier(d)` repère
+    notre étude dans l'un des deux champs (via `estEtude`, qui tolère déjà GOSSART/GOSSARD) ;
+    `alerteRoleNotaireDossier(d)` compare le côté qui reçoit l'acte au rôle renseigné et affiche
+    une phrase quand les deux se contredisent. On SIGNALE, on ne corrige jamais tout seul : ce
+    sélecteur masque la checklist des pièces quand il vaut « participant », le basculer sur une
+    déduction serait le pire cas (même prudence que le pré-remplissage, réservé à CONFIRMED).
+  - **Nouveaux champs du dossier** : `d.notaireVendeur`, `d.notaireAcquereur` (chaînes libres —
+    l'étude peut corriger une lecture fausse ou saisir un notaire que l'acte ne nommait pas),
+    `d.coteInstrumentaire` (`'vendeur'|'acquereur'|null`) et `d.notairesDetectes`. Une petite
+    énumération plutôt que le nom du rédacteur, pour que le badge survive à une correction du
+    texte du champ. `normaliserDossierImporte()` les CONSERVE à l'import d'une sauvegarde : c'est
+    une lecture de l'acte lui-même (ou une saisie de l'étude), la même sur n'importe quel poste,
+    comme `adresseBien` — contrairement aux statuts dérivés d'un scan du NAS.
+  - **Affectation qui pose le badge après coup** : le rédacteur repéré à l'import garde son rôle
+    dans `d.notairesDetectes` même sans côté ; dès que l'étude affecte ce nom à l'un des deux
+    champs, `affecterNotaire()` pose `coteInstrumentaire` — mais jamais par-dessus un côté déjà
+    choisi à la main (`changerCoteInstrumentaire()`, nouveau `<select>` « Acte reçu par », placé
+    dans la grille de classification à côté de « Rôle du notaire » : c'est le même sujet vu des
+    deux bouts).
+  - **Présentation** : `renderNotairesDossier()` reprend le gabarit de la grille de classification
+    juste en dessous (libellé au-dessus, champ encadré) plutôt que celui de l'adresse et du prix
+    (icône seule, sans libellé) — deux champs voisins qu'une icône ne suffirait pas à distinguer,
+    alors que l'adresse et le prix ont chacun leur ligne pleine largeur. **Piège de spécificité CSS
+    rencontré une cinquième fois** (après `.select-edit`, `.input-inline`, `.pdf-recherche-input`,
+    `.revision-saisie`) : `.dossier-notaires input.input-classif` (élément + 2 classes), un simple
+    `input.input-classif` étant à égalité avec la règle générique `input[type="text"]`.
+    `.notaire-alerte` reprend la teinte de `.dot-label.dl-alerte` — le seul signal de l'outil qui
+    garde un fond plein — mais sur plusieurs lignes, ce message étant une phrase et non un mot.
+  - Tests : 6 nouveaux dans `tests/notaires.test.js` (côtés remplis quand l'acte le dit, rien de
+    deviné sinon avec le rédacteur conservé dans les propositions, aucun notaire détecté, le côté
+    de l'étude dans les deux graphies, les deux sens de la contradiction, et les quatre cas sans
+    alerte). Suite racine 306 → 312. **Vérifié dans un vrai Chromium** (serveur réel, clair et
+    sombre, desktop et 400px) : alerte affichée puis disparue après correction du rôle, liste
+    déroulante des notaires détectés, affectation à la main posant le badge et le sélecteur, tout
+    relu depuis le serveur, aucune erreur JS, aucun débordement horizontal en mobile.
+
 **Ce qui n'a volontairement PAS été fait** (arrêté à la demande explicite de l'étude, pas un
 oubli) — à reprendre uniquement si redemandé un jour :
 - **Import automatique** des dossiers déjà enregistrés sur la version 100% locale (`main`) vers ce

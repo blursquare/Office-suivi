@@ -345,3 +345,76 @@ test('sans forme déclarée, le type d’acte sert de repli', () => {
   assert.equal(app.zoneNotairesPourActe(neutre, 'COMPROMIS_DE_VENTE'), 'fin');
   assert.equal(app.zoneNotairesPourActe(neutre, 'INCONNU'), null, 'type non tranché : aucune zone, on ne devine pas');
 });
+
+// ---- les deux côtés tels qu'ils arrivent sur la fiche dossier ----
+
+test('un acte qui dit qui représente qui remplit les deux côtés', () => {
+  const app = chargerApplication();
+  const texte = 'PROMESSE DE VENTE\n'
+    + 'Maître Sophie GOSSART, notaire à BLOIS, conseil du promettant.\n'
+    + 'Maître Paul DURAND, notaire à ORLEANS, notaire du bénéficiaire.\n'
+    + BOURRAGE;
+  const liste = app.detecterNotaires(texte, 'PROMESSE_DE_VENTE');
+  const r = app.determinerNotaires(liste, null, 'PROMESSE_DE_VENTE',
+    app.zoneNotairesPourActe(texte, 'PROMESSE_DE_VENTE'));
+  const cotes = app.cotesNotairesPourDossier(r);
+  assert.match(cotes.vendeur, /Sophie GOSSART/);
+  assert.match(cotes.acquereur, /Paul DURAND/);
+  // La promesse nomme ses notaires en tête : le premier rédige (ordre confirmé par l'étude).
+  assert.equal(cotes.coteInstrumentaire, 'vendeur');
+});
+
+test('quand l’acte ne dit pas qui représente qui, aucun côté n’est deviné', () => {
+  // Choix explicite de l'étude : les deux noms restent proposés, côté vide, à elle de les
+  // affecter — une affectation devinée ferait chercher les pièces du mauvais côté.
+  const app = chargerApplication();
+  const texte = 'PAR-DEVANT Maître Sophie GOSSART, notaire à BLOIS, et Maître Paul DURAND, notaire à ORLEANS.\n'
+    + BOURRAGE;
+  const liste = app.detecterNotaires(texte, 'PROMESSE_DE_VENTE');
+  const r = app.determinerNotaires(liste, null, 'PROMESSE_DE_VENTE',
+    app.zoneNotairesPourActe(texte, 'PROMESSE_DE_VENTE'));
+  const cotes = app.cotesNotairesPourDossier(r);
+  assert.equal(cotes.vendeur, '');
+  assert.equal(cotes.acquereur, '');
+  assert.equal(cotes.coteInstrumentaire, null);
+  assert.equal(cotes.detectes.map(n => n.nom).join(' | '), 'Sophie GOSSART (BLOIS) | Paul DURAND (ORLEANS)');
+  // Le rédacteur garde son rôle même sans côté : c'est ce qui permettra de poser le badge
+  // « Reçoit l'acte » dès que l'étude aura affecté ce nom à l'un des deux champs.
+  assert.equal(cotes.detectes[0].role, 'instrumentaire');
+});
+
+test('aucun notaire détecté ne produit ni champ ni proposition', () => {
+  const app = chargerApplication();
+  const cotes = app.cotesNotairesPourDossier(app.determinerNotaires([], null, 'COMPROMIS_DE_VENTE'));
+  assert.equal(cotes.vendeur, '');
+  assert.equal(cotes.detectes.length, 0);
+  assert.equal(app.cotesNotairesPourDossier(null).coteInstrumentaire, null);
+});
+
+// ---- couplage avec le sélecteur « Rôle du notaire » de la fiche ----
+
+test('le côté de l’étude se lit dans les deux champs de la fiche, quelle que soit la graphie', () => {
+  const app = chargerApplication();
+  assert.equal(app.coteEtudeDossier({ notaireVendeur: 'Sophie GOSSARD (BLOIS)', notaireAcquereur: 'Paul DURAND (ORLEANS)' }), 'vendeur');
+  assert.equal(app.coteEtudeDossier({ notaireVendeur: 'Paul DURAND (ORLEANS)', notaireAcquereur: 'Sophie GOSSART (BLOIS)' }), 'acquereur');
+  assert.equal(app.coteEtudeDossier({ notaireVendeur: 'Paul DURAND', notaireAcquereur: 'Jean MARTIN' }), null);
+});
+
+test('une contradiction entre le côté qui reçoit l’acte et le rôle de l’étude est signalée', () => {
+  const app = chargerApplication();
+  const base = { notaireVendeur: 'Sophie GOSSART (BLOIS)', notaireAcquereur: 'Paul DURAND (ORLEANS)' };
+  // L'étude reçoit l'acte mais la fiche la dit participante.
+  assert.match(app.alerteRoleNotaireDossier({ ...base, coteInstrumentaire: 'vendeur', roleNotaire: 'participant' }), /Instrumentaire/);
+  // L'autre notaire reçoit l'acte mais la fiche dit l'étude instrumentaire.
+  assert.match(app.alerteRoleNotaireDossier({ ...base, coteInstrumentaire: 'acquereur', roleNotaire: 'instrumentaire' }), /Participant/);
+});
+
+test('aucune alerte quand les deux concordent, ou quand il manque une information', () => {
+  const app = chargerApplication();
+  const base = { notaireVendeur: 'Sophie GOSSART (BLOIS)', notaireAcquereur: 'Paul DURAND (ORLEANS)' };
+  assert.equal(app.alerteRoleNotaireDossier({ ...base, coteInstrumentaire: 'vendeur', roleNotaire: 'instrumentaire' }), '');
+  assert.equal(app.alerteRoleNotaireDossier({ ...base, coteInstrumentaire: 'acquereur', roleNotaire: 'participant' }), '');
+  // Rien à comparer tant que le rédacteur n'est pas connu, ou que l'étude n'est d'aucun côté.
+  assert.equal(app.alerteRoleNotaireDossier({ ...base, coteInstrumentaire: null, roleNotaire: 'participant' }), '');
+  assert.equal(app.alerteRoleNotaireDossier({ notaireVendeur: 'Paul DURAND', notaireAcquereur: 'Jean MARTIN', coteInstrumentaire: 'vendeur', roleNotaire: 'participant' }), '');
+});
