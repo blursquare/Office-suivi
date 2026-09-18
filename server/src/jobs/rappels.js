@@ -3,9 +3,9 @@
 // Rappels automatiques vers Teams — remplace le DÉCLENCHEMENT AUTOMATIQUE des rappels
 // (auparavant : rien, en pratique — voir CLAUDE.md, "Ce qui n'a volontairement pas été fait" :
 // aucune relance email automatique n'a jamais été câblée, seul un mailto manuel existait). Le
-// bouton "Envoyer un rappel par email" sur la fiche reste disponible pour un envoi ponctuel à la
-// main, inchangé — ce job ne fait qu'ajouter le déclenchement automatique qui manquait, vers Teams
-// plutôt que vers un email qu'il faudrait de toute façon composer/envoyer manuellement.
+// rappel générique par email ("Rappel email" sur la fiche, `ouvrirEmailRappel()` côté client) a
+// depuis été retiré DÉFINITIVEMENT, à la demande explicite de l'étude — ce job, avec sa copie
+// systématique (voir `reglages.teamsCopieEmail` ci-dessous), le remplace entièrement.
 //
 // Aux seuils J-15/J-7 (RAPPELS_PAR_DEFAUT côté client), sur TOUTES les échéances actives d'un
 // dossier (prêt, acte, vente préalable, personnalisées) — pas seulement le prêt comme l'export
@@ -88,6 +88,15 @@ function texteRappel(r) {
 // collaborateur a une adresse configurée, et marque chaque envoi réussi dans reminder_log pour ne
 // jamais le renvoyer. `envoyerFn` injectable (voir server/test/rappels.test.js) — la vraie fonction
 // par défaut est envoyerMessageTeams().
+//
+// `reglages.teamsCopieEmail` (voir parametresRepo.js) reçoit un DOUBLE de chaque message
+// effectivement envoyé au responsable — demandé explicitement par l'étude, pour être tenue au
+// courant de tous les envois sans dépendre du fait qu'elle soit elle-même responsable du dossier
+// concerné. Envoyée uniquement APRÈS un envoi principal réussi (jamais à sa place, jamais si le
+// responsable n'a pas d'adresse configurée — rien n'a alors été envoyé du tout), et jamais en
+// double si la copie coïncide avec l'adresse du responsable lui-même. Un échec de la copie est
+// consigné dans `erreurs` mais ne remet jamais en cause le marquage du rappel principal comme
+// envoyé : c'est lui qui compte pour ne pas relancer le collaborateur concerné.
 async function executerTacheRappels(depot, db, parametresRepo, envoyerFn, aujourdHui) {
   const resultat = { rappelsDus: 0, rappelsEnvoyes: 0, erreurs: [] };
   const reglages = parametresRepo.lireReglages();
@@ -113,10 +122,17 @@ async function executerTacheRappels(depot, db, parametresRepo, envoyerFn, aujour
       resultat.erreurs.push(`${r.responsable} : aucune adresse email Teams configurée (voir Réglages).`);
       continue;
     }
-    const envoi = await envoyer(reglages.teamsWebhookUrl, email, texteRappel(r));
+    const texte = texteRappel(r);
+    const envoi = await envoyer(reglages.teamsWebhookUrl, email, texte);
     if (envoi.ok) {
       resultat.rappelsEnvoyes++;
       marquerStmt.run(r.dossierId, r.reminderKey, new Date().toISOString());
+      if (reglages.teamsCopieEmail && reglages.teamsCopieEmail !== email) {
+        const copie = await envoyer(reglages.teamsWebhookUrl, reglages.teamsCopieEmail, texte);
+        if (!copie.ok) {
+          resultat.erreurs.push(`Copie (${reglages.teamsCopieEmail}) pour ${r.nomDossier} — ${r.libelle} : ${copie.erreur}`);
+        }
+      }
     } else {
       resultat.erreurs.push(`${r.nomDossier} — ${r.libelle} : ${envoi.erreur}`);
     }

@@ -2756,7 +2756,7 @@
   .ajout-engagement-btn { margin: 14px 0 0; }
 
   /* Relances ciblées par email (voir renderRelancesCiblees) : un bouton par motif pertinent pour
-     CE dossier (prêt manquant, pièces à fournir, RIB), juste avant les trois actions génériques
+     CE dossier (prêt manquant, pièces à fournir, RIB), juste avant les actions génériques
      (.dossier-actions) — même famille visuelle (.action-rapide) que "Revérifier"/"Utiliser". */
   .relances-ciblees { margin: 14px 0 0; }
   .relances-boutons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
@@ -3352,9 +3352,11 @@
     border-radius: 10px;
   }
 
-  /* Les trois actions tiennent sur une seule ligne (demandé par l'étude), à largeurs égales :
-     flex-wrap est désactivé et chaque bouton prend le tiers de la place, ce qui les fait aussi
-     lire comme un seul bloc plutôt que trois pastilles de longueurs disparates. */
+  /* Les actions tiennent sur une seule ligne (demandé par l'étude), à largeurs égales :
+     flex-wrap est désactivé et chaque bouton se partage la place, ce qui les fait aussi lire
+     comme un seul bloc plutôt que des pastilles de longueurs disparates. Réduites à deux boutons
+     (Rappels .ics / Imprimer) depuis le retrait définitif du rappel par email générique, remplacé
+     par les rappels automatiques Teams — voir CLAUDE.md. */
   .dossier-actions {
     display: flex;
     flex-wrap: nowrap;

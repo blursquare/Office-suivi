@@ -84,11 +84,19 @@ tient à jour tout seul, pour tout le portefeuille, sans jamais rouvrir l'outil.
 ## Rappels automatiques vers Teams
 
 Remplace le déclenchement automatique des rappels (auparavant : rien, en pratique — seul un
-brouillon `mailto:` manuel existait, voir le bouton « Envoyer un rappel par email » sur une fiche
-dossier, qui reste disponible pour un envoi ponctuel à la main). Aux seuils J-15/J-7, sur toutes
-les échéances actives d'un dossier (prêt, acte, vente préalable, échéance personnalisée), CLAIRE
-envoie un **message privé Teams** au responsable du dossier — jamais deux fois pour la même
-échéance.
+brouillon `mailto:` manuel existait, voir l'ancien bouton « Envoyer un rappel par email » sur une
+fiche dossier, **retiré définitivement** depuis que cette copie Teams couvre le même besoin — voir
+plus bas). Aux seuils J-15/J-7, sur toutes les échéances actives d'un dossier (prêt, acte, vente
+préalable, échéance personnalisée), CLAIRE envoie un **message privé Teams** au responsable du
+dossier — jamais deux fois pour la même échéance.
+
+**Copie systématique à une adresse de contrôle** (champ « Adresse Teams recevant une copie de tous
+les rappels » dans Réglages, sous l'URL du flux) : si renseignée, cette adresse reçoit un DOUBLE de
+CHAQUE rappel envoyé, quel que soit le responsable du dossier concerné — un moyen de vérifier que
+les rappels partent bien sans avoir à surveiller chaque collaborateur. Envoyée uniquement après un
+envoi principal réussi (jamais à sa place), jamais dupliquée si elle coïncide avec l'adresse du
+responsable lui-même, et son propre échec n'empêche jamais le marquage du rappel principal comme
+envoyé — c'est ce marquage qui compte pour ne pas relancer le collaborateur concerné.
 
 Choix technique : un flux **Power Automate** déclenché par une simple requête HTTP, plutôt qu'une
 inscription d'application Azure AD/Microsoft Graph (écartée pour les mêmes raisons que pour les
@@ -109,8 +117,8 @@ main. Procédure, à faire une seule fois :
 3. Enregistrer le flux, puis rouvrir l'étape du déclencheur HTTP : l'URL générée s'affiche.
 4. Dans CLAIRE, ouvrir **Réglages** (sidebar), coller cette URL dans « URL du déclencheur HTTP du
    flux », saisir l'adresse email professionnelle (compte Microsoft 365/Teams) de chaque
-   collaborateur, cocher **« Activer l'envoi automatique de rappels vers Teams »**, puis
-   **Enregistrer**.
+   collaborateur, optionnellement une adresse de copie (voir ci-dessus), cocher
+   **« Activer l'envoi automatique de rappels vers Teams »**, puis **Enregistrer**.
 5. Utiliser le bouton **« Tester »** à côté de chaque collaborateur pour vérifier que le message
    arrive bien sur son compte Teams avant de compter dessus.
 

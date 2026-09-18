@@ -314,14 +314,14 @@
       </div>
 
       <div class="wizard-step" id="wizard-step-4">
+        <!-- Le champ "Email de rappel" (envoi manuel générique, voir ouvrirEmailRappel() dans
+             CLAUDE.md) a été retiré définitivement — les rappels automatiques vers Teams, avec
+             copie systématique à l'étude (voir Réglages), le remplacent. Le nom du dossier occupe
+             donc seul cette ligne, sur toute sa largeur. -->
         <div class="field-row">
-          <div>
+          <div style="grid-column: 1 / -1;">
             <label for="f-nom">Nom du dossier</label>
             <input type="text" id="f-nom" placeholder="Ex. Dupont / 12 rue de la Paix">
-          </div>
-          <div>
-            <label for="f-email">Email de rappel (optionnel)</label>
-            <input type="email" id="f-email" placeholder="agence@exemple.fr" value="office.gossart@notaires.fr">
           </div>
         </div>
 
@@ -832,6 +832,11 @@
         <input type="text" id="reglages-webhook-url" placeholder="https://prod-00.westeurope.logic.azure.com/workflows/...">
         <p class="hint">Collée depuis Power Automate, à l'étape "Quand une requête HTTP est reçue" (voir la procédure ci-dessous).</p>
       </div>
+      <div class="calc-champ">
+        <label for="reglages-copie-email">Adresse Teams recevant une copie de tous les rappels</label>
+        <input type="email" id="reglages-copie-email" placeholder="prenom.nom@etude.fr">
+        <p class="hint">Reçoit un double de CHAQUE rappel envoyé, quel que soit le responsable du dossier concerné. Laisser vide pour ne recevoir aucune copie.</p>
+      </div>
       <div>
         <button type="button" class="primary" onclick="enregistrerReglages()">Enregistrer</button>
       </div>
@@ -852,7 +857,7 @@
       <li>Enregistrer le flux, puis rouvrir l'étape du déclencheur HTTP : l'URL générée s'affiche. La copier et la coller dans le champ ci-dessus, puis cliquer sur « Enregistrer ».</li>
       <li>Cocher « Activer l'envoi automatique », enregistrer, puis utiliser le bouton « Tester » de chaque collaborateur pour vérifier que le message arrive bien sur son compte Teams.</li>
     </ol>
-    <p>Les rappels sont envoyés automatiquement 15 puis 7 jours avant chaque échéance active d'un dossier (prêt, acte, vente préalable, échéance personnalisée), au responsable du dossier — jamais deux fois pour la même échéance. Le bouton « Envoyer un rappel par email » resté sur la fiche d'un dossier reste disponible pour un envoi ponctuel, à la main.</p>
+    <p>Les rappels sont envoyés automatiquement 15 puis 7 jours avant chaque échéance active d'un dossier (prêt, acte, vente préalable, échéance personnalisée), au responsable du dossier — jamais deux fois pour la même échéance. L'adresse de copie ci-dessus, si renseignée, reçoit le même message pour chaque envoi. Il n'existe plus de rappel par email manuel : ce mécanisme le remplace entièrement.</p>
   </div>
 </div>
 
@@ -985,11 +990,13 @@
   </div>
 </div>
 
-<!-- Popup générique affichée juste après un clic sur "Rappels (.ics)" ou "Rappel email" (voir
-     telechargerICS()/ouvrirEmailRappel() dans script.js) : confirme que l'action a bien eu lieu et
-     rappelle en une phrase à quoi sert le fichier/brouillon obtenu. Remplace l'ancien texte fixe du
-     footer (visible en permanence, souvent ignoré) par un rappel qui n'apparaît qu'au moment où il
-     est utile. -->
+<!-- Popup générique affichée juste après un clic sur "Rappels (.ics)" ou l'une des relances
+     ciblées par email (voir telechargerICS()/envoyerRelanceCiblee() dans script.js) : confirme que
+     l'action a bien eu lieu et rappelle en une phrase à quoi sert le fichier/brouillon obtenu.
+     Remplace l'ancien texte fixe du footer (visible en permanence, souvent ignoré) par un rappel
+     qui n'apparaît qu'au moment où il est utile. Le rappel générique par email
+     (ouvrirEmailRappel()) qui l'utilisait aussi a été retiré définitivement, remplacé par les
+     rappels automatiques Teams. -->
 <div class="confirm-overlay" id="info-action-overlay" style="display:none;" onclick="fermerInfoAction()">
   <div class="confirm-box" onclick="event.stopPropagation()">
     <p><strong id="info-action-titre"></strong></p>

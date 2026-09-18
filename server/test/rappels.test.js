@@ -168,3 +168,95 @@ test('executerTacheRappels : un envoi en échec n\'est jamais marqué comme envo
 
   db.close();
 });
+
+// ---- teamsCopieEmail : une copie de CHAQUE rappel envoyé, demandée explicitement par l'étude ----
+
+test('executerTacheRappels : teamsCopieEmail reçoit un double de chaque rappel envoyé au responsable', async () => {
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  const parametresRepo = creerRepoParametres(db);
+  depot.creer({ id: 'd1', nom: 'DUPONT / MARTIN', responsable: 'Bastien ANGLUMENT', pret: '2026-11-11' });
+  depot.creer({ id: 'd2', nom: 'A / B', responsable: 'Julie VASSELIN', acte: '2026-11-03' });
+  parametresRepo.ecrireReglages({
+    teamsActif: true, teamsWebhookUrl: 'https://x.test', teamsCopieEmail: 'gossart@etude.fr',
+    emailsResponsables: { 'Bastien ANGLUMENT': 'b@etude.fr', 'Julie VASSELIN': 'j@etude.fr' }
+  });
+
+  const envois = [];
+  const envoyerFn = async (url, email, texte) => { envois.push({ email, texte }); return { ok: true }; };
+
+  const r = await executerTacheRappels(depot, db, parametresRepo, envoyerFn, '2026-10-27');
+  assert.equal(r.rappelsEnvoyes, 2);
+  // Un envoi au responsable + une copie, pour CHACUN des deux rappels dus.
+  assert.equal(envois.length, 4);
+  assert.equal(envois.filter((e) => e.email === 'gossart@etude.fr').length, 2);
+  assert.equal(envois.filter((e) => e.email === 'b@etude.fr').length, 1);
+  assert.equal(envois.filter((e) => e.email === 'j@etude.fr').length, 1);
+  // La copie porte exactement le même texte que l'envoi principal correspondant.
+  const principal = envois.find((e) => e.email === 'b@etude.fr');
+  const copie = envois.filter((e) => e.email === 'gossart@etude.fr').find((e) => e.texte === principal.texte);
+  assert.ok(copie, 'la copie doit porter le même texte que le rappel envoyé au responsable');
+
+  db.close();
+});
+
+test('executerTacheRappels : sans teamsCopieEmail configuré, aucune copie n\'est envoyée', async () => {
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  const parametresRepo = creerRepoParametres(db);
+  depot.creer({ id: 'd1', nom: 'X / Y', responsable: 'Bastien ANGLUMENT', pret: '2026-11-11' });
+  parametresRepo.ecrireReglages({ teamsActif: true, teamsWebhookUrl: 'https://x.test', emailsResponsables: { 'Bastien ANGLUMENT': 'b@etude.fr' } });
+
+  const envois = [];
+  const envoyerFn = async (url, email) => { envois.push(email); return { ok: true }; };
+
+  await executerTacheRappels(depot, db, parametresRepo, envoyerFn, '2026-10-27');
+  assert.deepEqual(envois, ['b@etude.fr']);
+
+  db.close();
+});
+
+test('executerTacheRappels : teamsCopieEmail identique à l\'adresse du responsable n\'est jamais envoyé deux fois', async () => {
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  const parametresRepo = creerRepoParametres(db);
+  depot.creer({ id: 'd1', nom: 'X / Y', responsable: 'Bastien ANGLUMENT', pret: '2026-11-11' });
+  parametresRepo.ecrireReglages({
+    teamsActif: true, teamsWebhookUrl: 'https://x.test', teamsCopieEmail: 'b@etude.fr',
+    emailsResponsables: { 'Bastien ANGLUMENT': 'b@etude.fr' }
+  });
+
+  const envois = [];
+  const envoyerFn = async (url, email) => { envois.push(email); return { ok: true }; };
+
+  await executerTacheRappels(depot, db, parametresRepo, envoyerFn, '2026-10-27');
+  assert.deepEqual(envois, ['b@etude.fr']);
+
+  db.close();
+});
+
+test('executerTacheRappels : un échec de la copie n\'empêche pas le rappel principal d\'être marqué envoyé', async () => {
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  const parametresRepo = creerRepoParametres(db);
+  depot.creer({ id: 'd1', nom: 'X / Y', responsable: 'Bastien ANGLUMENT', pret: '2026-11-11' });
+  parametresRepo.ecrireReglages({
+    teamsActif: true, teamsWebhookUrl: 'https://x.test', teamsCopieEmail: 'gossart@etude.fr',
+    emailsResponsables: { 'Bastien ANGLUMENT': 'b@etude.fr' }
+  });
+
+  const envoyerFn = async (url, email) => (
+    email === 'gossart@etude.fr' ? { ok: false, erreur: 'Copie injoignable' } : { ok: true }
+  );
+
+  const r1 = await executerTacheRappels(depot, db, parametresRepo, envoyerFn, '2026-10-27');
+  assert.equal(r1.rappelsEnvoyes, 1);
+  assert.equal(r1.erreurs.length, 1);
+  assert.match(r1.erreurs[0], /Copie/);
+
+  // Le rappel principal reste marqué envoyé malgré l'échec de la copie : pas de renvoi au tour suivant.
+  const r2 = await executerTacheRappels(depot, db, parametresRepo, envoyerFn, '2026-10-27');
+  assert.equal(r2.rappelsDus, 0);
+
+  db.close();
+});

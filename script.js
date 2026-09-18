@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-19 01:20';
+  const VERSION_APP = '2026-09-19 01:37';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-19 01:37', resume: "Vous serez désormais vous-même en copie, sur Teams, de CHAQUE rappel envoyé à un collaborateur — quel que soit le dossier ou le responsable concerné (nouveau champ dans « Réglages », sous l'adresse du flux). Et le bouton « Rappel email » générique de la fiche dossier, celui qui préparait un brouillon à vous-même avec toutes les échéances, est retiré : cette copie automatique le remplace, plus rien à cliquer. Les trois boutons de relance ciblée par email (prêt manquant, pièces à fournir, RIB), eux, restent inchangés — ils s'adressent au client, pas à vous" },
     { version: '2026-09-19 01:20', resume: "Les rappels de dossier arrivent désormais sur Teams, en message privé, plutôt que par un email qu'il fallait rédiger et envoyer soi-même : à 15 puis 7 jours de chaque échéance active (prêt, acte, vente préalable, échéance personnalisée), le responsable du dossier reçoit directement un message. Ça passe par un petit flux Power Automate que vous créez vous-même (aucun service technique nécessaire, la procédure est expliquée pas à pas dans le nouvel écran « Réglages » de la sidebar), où vous collez l'adresse du flux et l'adresse Teams de chacun — avec un bouton « Tester » par personne pour vérifier avant de compter dessus. Le bouton « Envoyer un rappel par email » resté sur chaque fiche continue de fonctionner exactement comme avant, pour un envoi ponctuel à la main" },
     { version: '2026-09-19 00:04', resume: "Outil 2, trois ajouts. Les OBLIGATIONS DU VENDEUR d'abord : sur un projet d'acte de vente avec un dossier CLAIRE lié, l'audit dit désormais, sans IA, si le vendeur a tenu ce à quoi le compromis l'engageait — attestation d'entretien ou de ramonage, factures de travaux, décennale… Chaque obligation ressort « tenue » (avec la pièce qui le prouve, trouvée dans le dossier client ou déposée pour l'audit), « non tenue », ou « à vérifier » quand aucune pièce type ne correspond à la clause, qui est alors citée avec sa page. Le dossier n'est jamais modifié : une facture déposée ici ne coche rien, elle sera reconnue une fois rangée sur le NAS. Ensuite une MÉMOIRE : chaque constat porte « Écarter » et « Confirmer » ; au prochain audit d'un acte similaire, un constat déjà écarté s'affiche replié (jamais supprimé), un constat confirmé remonte en tête — et « Annuler » efface la décision. Enfin, dès que le projet est lu, les dossiers dont les parties correspondent sont PROPOSÉS sous le champ de recherche, à confirmer d'un clic, jamais liés tout seuls" },
     { version: '2026-09-18 22:58', resume: "« Analyse approfondie (IA) » devient l'Outil 2 : un audit, plus une simple relecture. Un sélecteur explicite au dépôt — projet de compromis/promesse, ou projet d'acte de vente — choisit ce qui est comparé ; en projet d'acte, un dossier CLAIRE déjà suivi peut être lié (son compromis est retrouvé tout seul sur le NAS) pour comparer parties, prix, bien et dates SANS repasser par l'IA, un simple calcul. Chaque pièce déposée (titre, diagnostic, urbanisme, facture, autorisation, décennale, copropriété…) ne va plus qu'aux vérifications qui la concernent, en cinq passes au lieu d'une seule : identification/parties/prix/dates/titre, diagnostics (dont la durée de validité est calculée par l'outil, jamais par le modèle), travaux (en priorité, le point qui manquait le plus), urbanisme/autorisations/garanties/préemption/servitudes, et copropriété si besoin. Quatre niveaux de gravité, une citation vérifiée dans le bon document pour chaque constat important — jamais une confiance auto-déclarée par le modèle, qui n'a aucun moyen de la calibrer" },
@@ -74,7 +75,6 @@
   let dernierTexteTraite = '';
   let compteurAutre = 0;
   let echeanceActive = { pret: true, acte: true, ventebien: false };
-  const EMAIL_RAPPEL_DEFAUT = 'office.gossart@notaires.fr';
   let pdfActuel = null;
   let pdfDernierePageUtile = 1;
   // Nom EXACT du fichier PDF importé pour créer le dossier (jamais le PDF lui-même, qui n'est pas
@@ -5929,7 +5929,6 @@
     document.getElementById('f-role-notaire').value = 'instrumentaire';
     majApercuPieces();
     document.getElementById('f-email-acquereur').value = '';
-    document.getElementById('f-email').value = EMAIL_RAPPEL_DEFAUT;
     document.getElementById('f-adresse-bien').value = '';
     document.getElementById('f-prix-vente').value = '';
     document.getElementById('f-pret').value = '';
@@ -5996,7 +5995,6 @@
 
   async function ajouterDossier() {
     const nom = document.getElementById('f-nom').value.trim();
-    const email = document.getElementById('f-email').value.trim();
     const typeVente = document.getElementById('f-type-vente').value;
     const roleNotaire = document.getElementById('f-role-notaire').value;
     const responsable = document.getElementById('f-responsable').value.trim();
@@ -6054,7 +6052,7 @@
 
     const dossier = {
       id: (crypto.randomUUID ? crypto.randomUUID() : 'd-' + Date.now() + '-' + Math.random().toString(16).slice(2)),
-      nom, email, responsable, emailAcquereur,
+      nom, responsable, emailAcquereur,
       adresseBien,
       prixVente: Number.isFinite(prixVente) && prixVente > 0 ? prixVente : null,
       montantPret: null,
@@ -6161,10 +6159,10 @@
     document.getElementById('confirm-overlay').style.display = 'none';
   }
 
-  // Popup d'info post-action (voir telechargerICS()/ouvrirEmailRappel()) : confirme que l'action a
-  // eu lieu et rappelle en une phrase à quoi sert le fichier/brouillon obtenu, à la place de
-  // l'ancien texte fixe du footer (retiré, voir index.html) qui expliquait ça en permanence sans
-  // rapport avec un geste précis de l'utilisateur.
+  // Popup d'info post-action (voir telechargerICS()/envoyerRelanceCiblee()) : confirme que
+  // l'action a eu lieu et rappelle en une phrase à quoi sert le fichier/brouillon obtenu, à la
+  // place de l'ancien texte fixe du footer (retiré, voir index.html) qui expliquait ça en
+  // permanence sans rapport avec un geste précis de l'utilisateur.
   function afficherInfoAction(titre, message) {
     document.getElementById('info-action-titre').textContent = titre;
     document.getElementById('info-action-message').textContent = message;
@@ -8101,11 +8099,12 @@
         ${renderExtractionDossier(d)}
         ${renderRelancesCiblees(d)}
         <!-- Libellés volontairement courts (l'intitulé complet reste en infobulle) : l'étude veut
-             ces trois actions sur une seule ligne, ce que "Télécharger les rappels (.ics)" et ses
-             voisins ne permettaient pas dans la largeur du tiroir. -->
+             ces actions sur une seule ligne, ce que "Télécharger les rappels (.ics)" et son voisin
+             ne permettaient pas dans la largeur du tiroir. Le rappel par email générique
+             ("Rappel email") a été retiré définitivement : les rappels automatiques vers Teams
+             (voir jobs/rappels.js), avec copie systématique à l'étude, le remplacent. -->
         <div class="dossier-actions">
           <button onclick="telechargerICS('${d.id}')" title="Télécharger les rappels (.ics)">${icone('calendar')} Rappels (.ics)</button>
-          <button onclick="ouvrirEmailRappel('${d.id}')" title="Envoyer un rappel par email">${icone('mail')} Rappel email</button>
           <button onclick="imprimerFiche('${d.id}')" title="Télécharger la fiche dossier imprimable">${icone('file-text')} Imprimer</button>
         </div>
         ${historique.length > 0 ? `
@@ -8490,32 +8489,15 @@
     );
   }
 
-  function ouvrirEmailRappel(id) {
-    const d = dossiers.find(x => x.id === id);
-    if (!d) return;
-    const lignes = [];
-    if (d.pret) lignes.push(`- Obtention du prêt : ${formatDateFr(d.pret)}`);
-    if (d.acte) lignes.push(`- Signature de l'acte : ${formatDateFr(d.acte)}`);
-    if (d.ventebien) lignes.push(`- Vente préalable : ${formatDateFr(d.ventebien)}`);
-    (d.autres || []).forEach(a => lignes.push(`- ${a.label} : ${formatDateFr(a.date)}`));
-    const subject = `Rappel — Échéances du dossier ${d.nom}`;
-    const bodyText = `Bonjour,\n\nUn rappel concernant les échéances du dossier ${d.nom} :\n\n${lignes.join('\n')}\n\nMerci de vérifier l'avancement de ce dossier.`;
-    const to = d.email || '';
-    const url = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
-    window.location.href = url;
-    afficherInfoAction(
-      "Brouillon d'email ouvert",
-      "L'envoi final reste un clic manuel dans votre messagerie : rien n'est envoyé automatiquement."
-    );
-  }
-
   // ==== Relances ciblées, différenciées par motif ====
   //
-  // ouvrirEmailRappel() ci-dessus reste le rappel générique "toutes les échéances", adressé à
-  // l'ÉTUDE elle-même (d.email, un pense-bête interne). Ces trois modèles-ci sont adressés au
-  // CLIENT (d.emailAcquereur, comme relancerSiOffreManquante() déjà en place) : chacun cible un
-  // motif de relance précis, pour ne plus avoir à réécrire le même email à la main selon ce qui
-  // manque réellement au dossier.
+  // Le rappel générique "toutes les échéances" adressé à l'ÉTUDE elle-même (ouvrirEmailRappel(),
+  // un pense-bête interne par mailto) a été retiré définitivement : les rappels automatiques vers
+  // Teams (voir jobs/rappels.js), avec copie systématique à l'étude (voir teamsCopieEmail dans
+  // l'écran Réglages), couvrent désormais ce besoin sans geste manuel. Ces trois modèles-ci restent
+  // en revanche adressés au CLIENT (d.emailAcquereur, comme relancerSiOffreManquante() déjà en
+  // place) : chacun cible un motif de relance précis, pour ne plus avoir à réécrire le même email
+  // à la main selon ce qui manque réellement au dossier — un usage distinct, non couvert par Teams.
   function construireEmailRelancePret(d) {
     const echeance = d.pret ? ` L'échéance d'obtention du prêt est fixée au ${formatDateFr(d.pret)}.` : '';
     return {
@@ -9296,7 +9278,6 @@
     const normalise = {
       id: (crypto.randomUUID ? crypto.randomUUID() : 'd-' + Date.now() + '-' + Math.random().toString(16).slice(2)),
       nom,
-      email: typeof d.email === 'string' ? d.email : '',
       responsable: typeof d.responsable === 'string' ? d.responsable : '',
       emailAcquereur: typeof d.emailAcquereur === 'string' ? d.emailAcquereur : '',
       adresseBien: typeof d.adresseBien === 'string' ? d.adresseBien : '',
@@ -11833,10 +11814,19 @@
   // ==== RÉGLAGES : rappels automatiques vers Teams (Power Automate) ====
   //
   // Remplace le DÉCLENCHEMENT AUTOMATIQUE des rappels (voir server/src/jobs/rappels.js) — le
-  // bouton "Envoyer un rappel par email" sur la fiche dossier reste, lui, un envoi ponctuel à la
-  // main, inchangé. L'étude a explicitement demandé un écran dans la sidebar pour saisir elle-même
-  // l'URL du flux Power Automate et l'adresse Teams de chaque collaborateur, plutôt qu'un tableau
-  // figé dans le code ou un fichier de configuration à éditer à la main.
+  // rappel générique par email ("Rappel email" sur la fiche dossier, `ouvrirEmailRappel()`) a
+  // depuis été retiré définitivement, à la demande de l'étude : les rappels Teams, avec copie
+  // systématique vers `teamsCopieEmail`, couvrent désormais ce besoin sans geste manuel. L'étude a
+  // explicitement demandé un écran dans la sidebar pour saisir elle-même l'URL du flux Power
+  // Automate et l'adresse Teams de chaque collaborateur, plutôt qu'un tableau figé dans le code ou
+  // un fichier de configuration à éditer à la main.
+  //
+  // `teamsCopieEmail` (adresse Teams recevant une copie de CHAQUE rappel envoyé, quel que soit le
+  // responsable destinataire) a été ajouté sur la même demande : l'étude veut être tenue au
+  // courant de tous les envois, pas seulement ceux qui lui sont personnellement adressés en tant
+  // que responsable d'un dossier. Envoyée par `executerTacheRappels()` en plus du destinataire
+  // habituel, jamais à sa place — un échec d'envoi de la copie n'empêche jamais le rappel
+  // principal d'être marqué comme envoyé (voir jobs/rappels.js).
   //
   // Liste fermée des 3 responsables (voir CLAUDE.md, "Responsables du dossier : liste fermée") —
   // reprise ici telle quelle plutôt que de refactoriser les <select> existants du formulaire/de la
@@ -11849,6 +11839,7 @@
       const reglages = await reponse.json();
       document.getElementById('reglages-teams-actif').checked = !!reglages.teamsActif;
       document.getElementById('reglages-webhook-url').value = reglages.teamsWebhookUrl || '';
+      document.getElementById('reglages-copie-email').value = reglages.teamsCopieEmail || '';
       renderReglagesEmails(reglages.emailsResponsables || {});
       document.getElementById('reglages-etat').style.display = 'none';
     } catch (e) {
@@ -11879,6 +11870,7 @@
     return {
       teamsActif: document.getElementById('reglages-teams-actif').checked,
       teamsWebhookUrl: document.getElementById('reglages-webhook-url').value.trim(),
+      teamsCopieEmail: document.getElementById('reglages-copie-email').value.trim(),
       emailsResponsables
     };
   }

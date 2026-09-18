@@ -63,11 +63,11 @@ test('GET /api/reglages sans authentification : 401', async () => {
 
 test('GET /api/reglages renvoie les valeurs par défaut au premier appel', async () => {
   const corps = await (await appeler('/api/reglages')).json();
-  assert.deepEqual(corps, { teamsActif: false, teamsWebhookUrl: '', emailsResponsables: {} });
+  assert.deepEqual(corps, { teamsActif: false, teamsWebhookUrl: '', teamsCopieEmail: '', emailsResponsables: {} });
 });
 
-test('PUT /api/reglages enregistre, GET relit la même chose ensuite', async () => {
-  const envoye = { teamsActif: true, teamsWebhookUrl: 'https://exemple.test/flux', emailsResponsables: { 'Bastien ANGLUMENT': 'bastien@etude.fr' } };
+test('PUT /api/reglages enregistre, GET relit la même chose ensuite (y compris la copie)', async () => {
+  const envoye = { teamsActif: true, teamsWebhookUrl: 'https://exemple.test/flux', teamsCopieEmail: 'gossart@etude.fr', emailsResponsables: { 'Bastien ANGLUMENT': 'bastien@etude.fr' } };
   const corpsEcrit = await (await appeler('/api/reglages', { method: 'PUT', body: JSON.stringify(envoye) })).json();
   assert.deepEqual(corpsEcrit, envoye);
 

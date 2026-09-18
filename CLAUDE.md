@@ -4583,6 +4583,45 @@ autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` auton
     d'après la documentation officielle de Power Automate, à confirmer par l'étude en créant
     réellement le flux (voir `server/README.md`, section "Rappels automatiques vers Teams").
 
+- **Copie systématique des rappels Teams à l'étude, et suppression définitive du rappel par email
+  générique** — deux demandes de l'étude reçues ensemble, juste après la livraison du chantier
+  Teams ci-dessus : « Il faut que je sois en copie aussi de tous les envois de rappel dans mon
+  teams » et « Supprimer l'option rappel e-mail définitivement par cela ».
+  - **`teamsCopieEmail`** (nouveau champ des réglages, `server/src/parametresRepo.js`) : une
+    adresse Teams qui reçoit un DOUBLE de CHAQUE rappel envoyé, quel que soit le responsable
+    destinataire — pas seulement les dossiers dont l'étude est elle-même responsable. Saisie dans
+    l'écran Réglages (nouveau champ juste sous l'URL du flux, dans la même carte "Flux Power
+    Automate" : c'est un réglage global, pas propre à un collaborateur, il n'a pas sa place dans
+    la liste "Adresse Teams de chaque collaborateur"). `executerTacheRappels()`
+    (`server/src/jobs/rappels.js`) envoie la copie **après** un envoi principal réussi, jamais à sa
+    place ni si le responsable n'a pas d'adresse configurée (rien n'a alors été envoyé du tout à
+    personne) — et jamais deux fois si la copie coïncide avec l'adresse du responsable lui-même.
+    Un échec de la copie est consigné dans les erreurs du tour mais ne remet jamais en cause le
+    marquage du rappel principal comme envoyé dans `reminder_log` : c'est ce marquage qui compte
+    pour ne pas relancer le collaborateur concerné, la copie est secondaire.
+  - **`ouvrirEmailRappel()` (le bouton "Rappel email" générique sur la fiche dossier, un brouillon
+    `mailto:` manuel adressé à l'ÉTUDE elle-même) est retiré ENTIÈREMENT** — plus de fonction, plus
+    de bouton dans `.dossier-actions` (qui ne garde plus que "Rappels (.ics)"/"Imprimer"), plus de
+    champ `#f-email` ("Email de rappel") à l'étape "Finaliser" du wizard, plus de champ `d.email`
+    sur le modèle du dossier (retiré de `ajouterDossier()` et de `normaliserDossierImporte()`).
+    Le champ "Nom du dossier", qui partageait sa ligne avec "Email de rappel", occupe désormais
+    seul toute la largeur de cette ligne (`grid-column: 1 / -1`) plutôt que de laisser un vide à
+    droite. **Décision cohérente avec la copie ci-dessus** : ce bouton manuel n'avait plus de
+    raison d'être dès lors que l'étude reçoit maintenant automatiquement, sur Teams, un double de
+    chaque rappel envoyé — le geste manuel qu'il proposait est désormais couvert sans clic. Les
+    trois modèles de relance ciblée par email (`renderRelancesCiblees()` — prêt manquant, pièces à
+    fournir, RIB, adressés au CLIENT via `d.emailAcquereur`) restent inchangés : c'est un usage
+    différent, non couvert par les rappels Teams (adressés au CLIENT, pas à l'étude, et pour un
+    motif précis plutôt qu'un récapitulatif de toutes les échéances).
+  - Tests : `server/test/parametresRepo.test.js` (+2, dont l'assainissement de `teamsCopieEmail`
+    absent/vide), `server/test/reglages.test.js` (assertions existantes étendues au nouveau champ),
+    `server/test/rappels.test.js` (+4 : la copie envoyée pour chaque rappel dû avec le même texte,
+    aucune copie sans adresse configurée, aucun doublon quand copie = adresse du responsable, un
+    échec de la copie qui n'empêche pas le marquage du rappel principal). Suite serveur 178 → 183 ;
+    suite racine inchangée (413 — `ajouterDossier()`/`normaliserDossierImporte()` restent des
+    fonctions de mutation non testables unitairement, même limite déjà documentée pour le reste de
+    ce fichier).
+
 **Ce qui n'a volontairement PAS été fait** (arrêté à la demande explicite de l'étude, pas un
 oubli) — à reprendre uniquement si redemandé un jour :
 - **Import automatique** des dossiers déjà enregistrés sur la version 100% locale (`main`) vers ce
@@ -4593,9 +4632,10 @@ oubli) — à reprendre uniquement si redemandé un jour :
   `server/package.json` mais jamais câblé) : le déclenchement AUTOMATIQUE des rappels passe
   désormais par Teams (voir l'entrée ci-dessus), qui répondait directement à la demande de
   l'étude — un envoi SMTP direct resterait de toute façon un simple envoi brut, pas un vrai flux
-  applicatif Outlook, sans accès Microsoft Graph. `ouvrirEmailRappel()`/`relancerSiOffreManquante()`/
-  `envoyerRelanceCiblee()` restent inchangés : de simples brouillons `mailto:` pour un envoi
-  ponctuel à la main, jamais automatiques.
+  applicatif Outlook, sans accès Microsoft Graph. Le rappel générique par email
+  (`ouvrirEmailRappel()`) a depuis été retiré définitivement (voir l'entrée ci-dessus) ;
+  `relancerSiOffreManquante()`/`envoyerRelanceCiblee()` restent inchangés : de simples brouillons
+  `mailto:` adressés au client pour un envoi ponctuel à la main, jamais automatiques.
 
 Le CLAUDE.md de la branche `main` (tout ce qui précède cette section) reste la référence pour le
 mode 100% local, qui n'a subi aucune régression de ce chantier.

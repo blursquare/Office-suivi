@@ -14,6 +14,7 @@ const CLE_REGLAGES = 'reglages';
 const REGLAGES_PAR_DEFAUT = Object.freeze({
   teamsWebhookUrl: '',
   teamsActif: false,
+  teamsCopieEmail: '',
   emailsResponsables: {}
 });
 
@@ -33,6 +34,10 @@ function assainirReglages(brut) {
   return {
     teamsWebhookUrl: typeof b.teamsWebhookUrl === 'string' ? b.teamsWebhookUrl.trim() : '',
     teamsActif: b.teamsActif === true,
+    // Adresse Teams recevant une copie de CHAQUE rappel envoyé, quel que soit le responsable
+    // destinataire — demandé explicitement par l'étude, pour rester informée de tous les envois
+    // sans dépendre du fait qu'elle soit elle-même responsable du dossier concerné.
+    teamsCopieEmail: typeof b.teamsCopieEmail === 'string' ? b.teamsCopieEmail.trim() : '',
     emailsResponsables: emailsPropres
   };
 }
