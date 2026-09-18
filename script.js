@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-18 17:56';
+  const VERSION_APP = '2026-09-18 18:05';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-18 18:05', resume: "Deux corrections. Un compromis SCANNÉ est maintenant lu en entier : chaque page sans texte passe par la reconnaissance d'image, et la lecture s'arrête d'elle-même au bloc de signature des parties, sans entamer les annexes. Jusqu'ici la reconnaissance ne servait qu'à retrouver la date de signature sur trois pages, ce qui laissait un scan entièrement illisible : les deux compromis scannés que vous avez envoyés ne donnaient rien, ils donnent désormais parties, adresse, prix et dates. Comptez quelques secondes par page — le message indique la page en cours. Le calendrier connecté, ensuite : il ne se mettait pas à jour, et c'était deux manques dans le flux publié. D'abord le numéro de séquence, qu'un client calendrier exige pour accepter de remplacer un événement qu'il connaît déjà : sans lui Outlook gardait l'ancienne date butoir. Ensuite l'annulation explicite : un événement qui disparaît du flux n'est jamais supprimé par le client, il faut publier son annulation — d'où les dates de vente périmées qui restaient affichées. Les échéances effacées et les dossiers archivés sont désormais publiés comme annulés" },
     { version: '2026-09-18 17:56', resume: "Les notaires sur les sept actes lisibles du banc, contre cinq. Vous aviez raison sur les deux compromis d'agence : le notaire y est unique, Maître GOSSART seule, sans confrère en participation. L'outil en comptait trois — les deux autres étaient des notaires simplement CITÉS dans l'origine de propriété, qui avaient reçu la vente précédente ou dressé un règlement de copropriété en 1969. Un notaire cité n'intervient pas à l'acte : il est désormais retiré de la liste, et pas seulement privé de rôle, ce qui laisse enfin s'appliquer la règle du notaire unique — il représente les deux parties, et les deux champs portent son nom. Un repère générique reconnaît ces mentions : un notaire présenté avec une date est celui d'un acte antérieur, un notaire qui intervient ne l'est jamais. Et le dédoublonnage passe maintenant APRÈS ce filtre : le même notaire figure souvent d'abord dans l'origine de propriété puis, plus loin, comme rédacteur du présent acte — retenir la première mention le faisait disparaître entièrement" },
     { version: '2026-09-18 17:52', resume: "Les notaires : qui représente le vendeur, qui représente l'acquéreur, et lequel des deux rédige la vente. Cinq actes du banc d'essai sur sept le donnent maintenant, contre aucun. La règle d'attribution de la minute vient du Règlement Professionnel du Notariat que vous m'avez transmis (art. 30.4.2 : la minute revient au notaire du vendeur, sauf si seul celui de l'acquéreur exerce dans le département du bien) et du règlement de la Chambre du Val de Loire (art. 15 : entre deux notaires du ressort de la Cour d'appel d'Orléans — 41, 45, 37 — c'est toujours le notaire du vendeur). Elle remplace la règle approximative que j'avais encodée, qui portait à tort sur le département du bien. Côté lecture, quatre défauts empêchaient tout : le motif du notaire ne pouvait pas franchir la virgule d'un numéro CRPCEN, si bien que le premier nommé du préambule — celui qui détient la minute — disparaissait ; le CRPCEN, dont les deux premiers chiffres donnent le département, n'était pas lu ; l'article défini manquait à « assistant LE PROMETTANT », forme pourtant standard ; et la phrase qui introduit le second notaire faisait passer le premier pour le participant. Enfin, un notaire seul représente les deux parties, et les deux champs portent désormais son nom" },
     { version: '2026-09-18 17:36', resume: "Type de vente et prix. Trois actes sur sept étaient classés « copropriété » à tort, dont un compromis qui s'intitule pourtant « BIEN HORS COPROPRIETE » : la clause de style qui écarte le statut s'écrit le plus souvent au participe présent (« ne relevANT pas du statut de la copropriété »), forme que le garde-fou ne connaissait pas ; la négation est par ailleurs souvent séparée du mot par la référence complète de la loi de 1965, trop loin pour être vue ; et une mention conditionnelle (« au Syndicat des copropriétaires s'il y a lieu », clause de style dans une liste de pouvoirs) suffisait à faire passer une maison individuelle pour une copropriété. La portée d'une négation s'arrête maintenant à sa phrase et au « mais » qui la contredit. Côté prix, un point avant la parenthèse fermante — « (290000,00 EUR.) » — empêchait la lecture : les neuf actes du banc donnent désormais leur prix" },
@@ -4369,22 +4370,66 @@
   // d'annexe (voir estDebutPageAnnexe ci-dessus) : un dossier signé électroniquement peut compter
   // plusieurs centaines de pages de diagnostics et autres pièces jointes qui ne nous intéressent
   // ni pour la détection, ni pour l'aperçu.
-  async function extraireTextesUtiles(pdf) {
+  // En dessous de ce seuil, une page ne porte pas de texte extractible : c'est une IMAGE. Un
+  // compromis scanné n'en porte aucun sur toutes ses pages ; un compromis électronique peut n'en
+  // avoir qu'une ou deux (une page signée à la main, insérée en image).
+  var MIN_CARACTERES_PAGE_TEXTE = 40;
+  // Plafond de pages passées à l'OCR pour un même import. Quelques secondes par page : sans
+  // plafond, un dossier scanné de plusieurs centaines de pages bloquerait l'import très longtemps.
+  // La coupure au bloc de signature (voir detecteSignatureActe) intervient presque toujours avant.
+  var MAX_PAGES_OCR_IMPORT = 60;
+
+  // `options.surPage(numero, total, mode)` permet à l'appelant d'afficher où en est la lecture —
+  // indispensable pour un compromis scanné, où l'OCR prend quelques secondes PAR PAGE et où un
+  // import sans le moindre signe de vie passerait pour un blocage.
+  async function extraireTextesUtiles(pdf, options) {
+    const surPage = (options && options.surPage) || function () {};
     const textesParPage = [];
     let dernierePageNumerotee = null;
     let pageAnnexe = null;
     let pageSignature = null;
+    let workerOcr = null;
+    let ocrIndisponible = false;
+    let pagesOcr = 0;
+    let ocrPlafonne = false;
     const PLAFOND_SECURITE = 60;
     const TAMPON_SIGNATURE = 2; // doit rester cohérent avec calculerDernierePageUtile
+    const totalAffiche = Math.min(pdf.numPages, PLAFOND_SECURITE);
 
+    try {
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
       const content = await page.getTextContent();
-      const texteBrut = content.items.map(it => it.str).join(' ');
+      let texteBrut = content.items.map(it => it.str).join(' ');
+
+      // Page sans texte extractible : on la lit en OCR. La boucle s'arrête d'elle-même au bloc de
+      // signature des parties (voir plus bas), donc un compromis scanné est passé à l'OCR « jusqu'à
+      // la signature », sans jamais entamer les annexes qui suivent — c'est exactement ce que
+      // l'étude demande, et l'OCR ne servait jusqu'ici qu'à retrouver la date de signature sur
+      // trois pages, ce qui laissait un compromis scanné entièrement illisible.
+      if (texteBrut.trim().length < MIN_CARACTERES_PAGE_TEXTE && !ocrIndisponible) {
+        if (pagesOcr >= MAX_PAGES_OCR_IMPORT) {
+          ocrPlafonne = true;
+        } else {
+          if (!workerOcr) {
+            surPage(i, totalAffiche, 'init');
+            workerOcr = await creerWorkerOcr();
+            if (!workerOcr) ocrIndisponible = true;
+          }
+          if (workerOcr) {
+            surPage(i, totalAffiche, 'ocr');
+            const texteOcr = await ocrPage(pdf, i, workerOcr);
+            if (texteOcr && texteOcr.trim()) {
+              texteBrut = texteOcr;
+              pagesOcr++;
+            }
+          }
+        }
+      } else {
+        surPage(i, totalAffiche, 'texte');
+      }
+
       textesParPage.push(texteBrut);
-      // Le compromis fait rarement plus de 60 pages : on rapporte la progression à ce repère
-      // plutôt qu'au total du dossier (qui peut compter des centaines de pages d'annexes).
-      majProgression(Math.min(95, (i / Math.min(pdf.numPages, PLAFOND_SECURITE)) * 100));
 
       if (!dernierePageNumerotee) {
         const mPage = texteBrut.match(/page\s+(\d+)\s+sur\s+(\d+)/i);
@@ -4407,9 +4452,14 @@
 
       if (i >= PLAFOND_SECURITE * 2) break; // filet de sécurité pour un document sans repère trouvé
     }
+    } finally {
+      // Le worker est créé une seule fois pour tout le document et libéré ici, quoi qu'il arrive :
+      // le modèle de langue française n'est donc chargé qu'une fois, même sur soixante pages.
+      if (workerOcr) await workerOcr.terminate();
+    }
 
     const dernierePageUtile = calculerDernierePageUtile(pageAnnexe, pageSignature, dernierePageNumerotee, textesParPage.length);
-    return { textesParPage, dernierePageUtile };
+    return { textesParPage, dernierePageUtile, pagesOcr, ocrPlafonne, ocrIndisponible };
   }
 
   // ---- visualiseur PDF (aperçu du compromis à côté du formulaire, en défilement continu) ----
@@ -4948,7 +4998,23 @@
         data: buffer,
         verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0)
       }).promise;
-      const { textesParPage, dernierePageUtile } = await extraireTextesUtiles(pdf);
+      const { textesParPage, dernierePageUtile, pagesOcr, ocrPlafonne, ocrIndisponible } =
+        await extraireTextesUtiles(pdf, {
+          surPage(numero, total, mode) {
+            if (mode === 'texte') {
+              majProgression(Math.min(95, (numero / total) * 100));
+              return;
+            }
+            // L'OCR ne donne aucune progression exploitable : barre indéterminée, et un message qui
+            // dit CE QUI se passe. Sans lui, un compromis scanné de vingt-cinq pages donne une
+            // minute et demie d'attente muette, qu'on prend pour un blocage.
+            majProgression(null);
+            status.className = 'pdf-status loading';
+            status.textContent = mode === 'init'
+              ? 'Document scanné : préparation de la reconnaissance de texte…'
+              : `Document scanné : lecture de l’image, page ${numero} sur ${total} (quelques secondes par page)…`;
+          }
+        });
       const texteComplet = textesParPage.slice(0, dernierePageUtile).join('\n');
       frontieresPagesActuelles = calculerFrontieresPages(textesParPage, dernierePageUtile);
       pageParType = { pret: null, acte: null, ventebien: null };
@@ -5032,7 +5098,10 @@
       majProgression(-1);
       const nbFinal = detectedDates.length;
       let suffixe = '';
-      if (!dateCompromisDetectee) suffixe = ' — date de signature à renseigner';
+      if (pagesOcr) suffixe += ` — ${pagesOcr} page${pagesOcr > 1 ? 's' : ''} lue${pagesOcr > 1 ? 's' : ''} en reconnaissance d’image`;
+      if (ocrPlafonne) suffixe += ` (limite de ${MAX_PAGES_OCR_IMPORT} pages atteinte : la suite n’a pas été lue)`;
+      if (ocrIndisponible) suffixe += ' — reconnaissance d’image indisponible, le document scanné n’a pas pu être lu';
+      if (!dateCompromisDetectee) suffixe += ' — date de signature à renseigner';
       else if (dateCompromisEstimee) suffixe = ' — date de signature à vérifier';
       status.className = 'pdf-status ok';
       status.textContent = `✓ ${dernierePageUtile} page${dernierePageUtile > 1 ? 's' : ''} lue${dernierePageUtile > 1 ? 's' : ''} (annexes ignorées) — ${nbFinal} échéance${nbFinal > 1 ? 's' : ''} détectée${nbFinal > 1 ? 's' : ''}${suffixe}.`;

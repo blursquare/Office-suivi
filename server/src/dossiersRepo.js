@@ -80,8 +80,11 @@ function creerDepot(db) {
   // Dossiers actifs (non supprimés) avec leur objet JSON complet déjà parsé — utilisé par les
   // tâches de fond (relances, flux calendrier) qui doivent lire `pieces`/`offrePretStatut`/etc.
   // depuis le blob JSON, pas seulement les colonnes promues.
+  // `updatedAt` est joint au dossier : le flux calendrier s'en sert comme numéro de SEQUENCE
+  // iCalendar (voir routes/calendrier.js), sans quoi un client ne remplace jamais un événement
+  // qu'il connaît déjà. Ajout purement additif pour les autres appelants.
   function tousActifs() {
-    return tousActifsStmt.all().map((ligne) => JSON.parse(ligne.data));
+    return tousActifsStmt.all().map((ligne) => ({ ...JSON.parse(ligne.data), updatedAt: ligne.updated_at }));
   }
 
   // Y compris les lignes supprimées — uniquement pour un diagnostic/export complet, pas utilisé

@@ -22,14 +22,46 @@ test('genererFluxIcs : un dossier actif avec les trois échéances produit trois
   assert.equal((body.match(/BEGIN:VEVENT/g) || []).length, 3);
 });
 
-test('genererFluxIcs : ignore un dossier archivé', () => {
+// Un client calendrier ne supprime PAS un événement qui disparaît du flux : il faut publier son
+// annulation. Omettre l'événement — ce que faisait la version précédente — laissait une échéance
+// périmée affichée indéfiniment chez l'étude.
+
+test('genererFluxIcs : un dossier archivé voit ses échéances ANNULÉES, pas omises', () => {
   const body = genererFluxIcs([{ id: 'd1', nom: 'X / Y', archive: true, pret: '2026-11-11' }]);
-  assert.doesNotMatch(body, /BEGIN:VEVENT/);
+  assert.match(body, /UID:d1-pret@claire-calendrier/);
+  assert.match(body, /STATUS:CANCELLED/);
+  assert.doesNotMatch(body, /STATUS:CONFIRMED/);
 });
 
-test('genererFluxIcs : une échéance sans date ne produit pas de VEVENT', () => {
+test('genererFluxIcs : une échéance sans date est ANNULÉE, pas omise', () => {
   const body = genererFluxIcs([{ id: 'd1', nom: 'X / Y', pret: '', acte: null, ventebien: undefined }]);
-  assert.doesNotMatch(body, /BEGIN:VEVENT/);
+  for (const cle of ['pret', 'acte', 'ventebien']) {
+    assert.match(body, new RegExp(`UID:d1-${cle}@claire-calendrier`), cle);
+  }
+  assert.equal((body.match(/STATUS:CANCELLED/g) || []).length, 3);
+});
+
+test('genererFluxIcs : chaque événement porte un SEQUENCE croissant avec la modification', () => {
+  // Sans SEQUENCE, un client ne remplace jamais un événement qu'il connaît déjà : une date butoir
+  // corrigée dans CLAIRE n'arrivait donc jamais dans Outlook.
+  const dossier = (maj, pret) => ({ id: 'd1', nom: 'X / Y', pret, updatedAt: maj });
+  const avant = genererFluxIcs([dossier(Date.UTC(2026, 8, 1), '2026-11-11')]);
+  const apres = genererFluxIcs([dossier(Date.UTC(2026, 8, 18), '2026-12-01')]);
+  const seq = (body) => Number(/SEQUENCE:(\d+)/.exec(body)[1]);
+  assert.ok(seq(apres) > seq(avant), `${seq(apres)} doit dépasser ${seq(avant)}`);
+  assert.match(apres, /DTSTART;VALUE=DATE:20261201/);
+});
+
+test('sequenceDepuisMaj reste un entier raisonnable et croissant', () => {
+  const { sequenceDepuisMaj } = require('../src/routes/calendrier.js');
+  const a = sequenceDepuisMaj(Date.UTC(2026, 0, 1));
+  const b = sequenceDepuisMaj(Date.UTC(2026, 0, 2));
+  assert.ok(b > a);
+  // Doit tenir dans un entier 32 bits, que tous les clients acceptent.
+  assert.ok(b < 2147483647, String(b));
+  // Un horodatage absent ou invalide ne doit pas produire NaN dans le flux.
+  assert.equal(sequenceDepuisMaj(undefined), 0);
+  assert.equal(sequenceDepuisMaj('abc'), 0);
 });
 
 test('genererFluxIcs : inclut les échéances personnalisées (d.autres)', () => {
