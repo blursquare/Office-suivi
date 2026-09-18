@@ -229,3 +229,61 @@ L'acte authentique sera reçu par Maître Sophie GOSSART, notaire à BLOIS.`;
   assert.equal(r.instrumentaire.nom, 'Sophie GOSSART');
   assert.match(r.raison, /explicitement/);
 });
+
+// L'étude a défini le rôle : « le notaire instrumentaire est celui qui a RÉDIGÉ, et celui en
+// participation ou en concours est celui qui est en second ». Les formes du verbe rédiger — y
+// compris au passé — valent donc désignation explicite, au même titre que « recevra l'acte ».
+
+test('« rédigé par » et « notaire rédacteur » désignent l’instrumentaire', () => {
+  const app = chargerApplication();
+  for (const clause of [
+    'Le présent acte sera rédigé par Maître Sophie GOSSART, notaire à BLOIS.',
+    'Maître Sophie GOSSART, notaire à BLOIS, notaire rédacteur du présent acte.',
+    'Acte dressé par Maître Sophie GOSSART, notaire à BLOIS.'
+  ]) {
+    const notaires = app.detecterNotaires('PROMESSE DE VENTE\n' + clause, 'PROMESSE_DE_VENTE');
+    assert.equal(notaires.length, 1, clause);
+    assert.equal(notaires[0].roleExplicite, 'instrumentaire', clause);
+  }
+});
+
+test('« en concours » et « notaire concourant » désignent le second notaire', () => {
+  const app = chargerApplication();
+  for (const clause of [
+    'Maître Paul DURAND, notaire à ORLEANS, notaire concourant.',
+    'Intervient en concours Maître Paul DURAND, notaire à ORLEANS.'
+  ]) {
+    const notaires = app.detecterNotaires('PROMESSE DE VENTE\n' + clause, 'PROMESSE_DE_VENTE');
+    assert.equal(notaires[0].roleExplicite, 'participant', clause);
+  }
+});
+
+test('une clause d’ORIGINE DE PROPRIÉTÉ ne désigne jamais le notaire de l’acte en cours', () => {
+  // Faux positif signalé deux fois dans CLAUDE.md, devenu bloquant en acceptant « rédigé par » au
+  // passé : cette clause figure dans presque tous les avant-contrats et nomme le notaire de la
+  // vente PRÉCÉDENTE, avec la priorité la plus haute s'il n'est pas écarté.
+  const app = chargerApplication();
+  for (const clause of [
+    'Le bien a été acquis suivant acte reçu par Maître Paul DURAND, notaire à ORLEANS, le 12 mars 2010.',
+    'Aux termes d’un acte rédigé par Maître Paul DURAND, notaire à ORLEANS, en date du 3 mai 2008.',
+    'ORIGINE DE PROPRIETE\nLe bien appartient au vendeur pour l’avoir acquis de Maître Paul DURAND, notaire à ORLEANS.'
+  ]) {
+    const notaires = app.detecterNotaires('COMPROMIS DE VENTE\n' + clause, 'COMPROMIS_DE_VENTE');
+    assert.equal(notaires.length, 1, clause);
+    assert.equal(notaires[0].roleExplicite, null, clause);
+  }
+});
+
+test('l’origine de propriété ne fait plus trancher, on retombe sur la règle de zone', () => {
+  // Bout en bout : le notaire de la vente précédente est cité au milieu de l'acte, les deux vrais
+  // notaires sont en fin de compromis. C'est ce dernier bloc qui doit décider.
+  const app = chargerApplication();
+  const texte = 'COMPROMIS DE VENTE\n'
+    + 'Le bien a été acquis suivant acte reçu par Maître Jean ANCIEN, notaire à TOURS, le 12 mars 2010.\n'
+    + BOURRAGE
+    + '\nMaître Sophie GOSSART, notaire à BLOIS, et Maître Paul DURAND, notaire à ORLEANS.';
+  const r = app.determinerNotaires(app.detecterNotaires(texte, 'COMPROMIS_DE_VENTE'), null, 'COMPROMIS_DE_VENTE');
+  assert.equal(r.instrumentaire.nom, 'Sophie GOSSART');
+  assert.equal(r.participant.nom, 'Paul DURAND');
+  assert.match(r.raison, /fin de compromis/);
+});

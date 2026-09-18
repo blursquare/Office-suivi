@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-18 12:53';
+  const VERSION_APP = '2026-09-18 12:56';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-18 12:56', resume: "Notaires : « celui qui a rédigé » est désormais reconnu comme tel — les formes du verbe rédiger (y compris « acte rédigé par », au passé) et « notaire rédacteur » désignent l'instrumentaire, « en concours » et « notaire concourant » le second. Et surtout, la clause d'ORIGINE DE PROPRIÉTÉ est enfin écartée : elle figure dans presque tous les avant-contrats, nomme le notaire de la vente PRÉCÉDENTE (« acquis suivant acte reçu par Maître X »), et désignait jusqu'ici le mauvais notaire avec la priorité la plus haute" },
     { version: '2026-09-18 12:53', resume: "Notaires : l'endroit où l'outil cherche leurs noms dépend désormais du type d'acte, comme vous l'avez précisé — première page pour une promesse de vente et ses dérivées, FIN D'ACTE pour un compromis. La version précédente appliquait la règle de la première page au compromis aussi, ce qui revenait à y lire des notaires cités à tout autre titre (origine de propriété, acte antérieur). Le premier nommé dans la bonne zone reçoit l'acte, le second participe — et si la zone attendue ne contient pas deux notaires, rien n'est tranché plutôt que de deviner" },
     { version: '2026-09-18 12:32', resume: "Onze corrections. Ouvrir un PDF du NAS ne renvoie plus « Authentification requise » (l'onglet était ouvert sans jeton de session). Le panneau de diagnostic ne se referme plus tout seul. L'offre de prêt est reconnue d'abord au NOM du fichier (offre de prêt, offre de crédit, contrat de prêt…), la lecture du contenu ne servant plus que de repli — toujours au-delà de 6 pages. Sur une promesse, les deux notaires nommés en tête de première page désignent l'instrumentaire puis le participant. Le dossier NAS proposé passe en tête de liste, avec une recherche au-dessus, et une correspondance exacte du nom relie le dossier sans rien demander. La vue « Échéances » (ex-« Semaines ») devient la vue par défaut et n'affiche plus qu'UNE ligne par dossier, sa prochaine échéance en attente ; une vente préalable peut être marquée réalisée pour passer à la suivante. Bouton d'ajout d'obligation déplacé sous l'analyse juridique, filet retiré sous « En retard », badge Alpha aligné à droite sous le logo et tagline retirée" },
     { version: '2026-09-18 12:21', resume: "Panneau « Ce que l'outil a compris » repris en entier. Chaque donnée est maintenant CORRIGEABLE SUR PLACE, sans quitter l'écran où l'erreur se voit, et porte le numéro de page d'où elle sort (nom, adresse et prix n'en avaient aucun). L'outil n'annonce plus rien comme « Confirmé » : il dit seulement d'où vient la donnée — lue dans l'acte, calculée depuis un délai, apprise d'une correction précédente, proposée par l'IA — et le vert est réservé à ce que VOUS cochez comme vérifié. Les lectures du modèle local, qui invente régulièrement des termes, sont désormais proposées avec un bouton « Utiliser » et n'écrivent plus jamais d'elles-mêmes dans un champ" },
@@ -1249,9 +1250,23 @@
   // « Maître X, notaire à Y » et ses variantes (notaire associé, notaire à la résidence de…).
   var RE_NOTAIRE = /Ma[îi]tre\s+([A-ZÀ-Ü][^,;\n()]{2,60}?)\s*,?\s*notaire\s*(?:associ[ée]e?)?\s*(?:[àa]\s+la\s+r[ée]sidence\s+d[eu]\s*|[àa]\s+|de\s+)([^,;.\n()]{2,60})/gi;
 
-  // Mention explicite du notaire qui recevra l'acte : priorité absolue sur toute règle métier.
-  var RE_ROLE_INSTRUMENTAIRE = /(?:recevra\s+l['’]acte|acte\s+(?:authentique\s+)?(?:sera\s+)?re[çc]u\s+par|r[ée]digera\s+l['’]acte|notaire\s+instrumentaire|en\s+l['’][ée]tude\s+de)/i;
-  var RE_ROLE_PARTICIPANT = /(?:avec\s+(?:la\s+)?participation\s+de|en\s+participation|notaire\s+participant|en\s+concours\s+avec|assist[ée]e?\s+de)/i;
+  // Mention explicite du notaire qui reçoit l'acte : priorité absolue sur toute règle métier.
+  // Définition donnée par l'étude — « le notaire instrumentaire est celui qui a RÉDIGÉ » : les
+  // formes du verbe rédiger sont donc reconnues au même titre que « recevra l'acte », y compris au
+  // PASSÉ (« acte rédigé par »), et « notaire rédacteur », terme notarial courant pour le désigner.
+  var RE_ROLE_INSTRUMENTAIRE = /(?:recevra\s+l['’]acte|acte\s+(?:authentique\s+)?(?:sera\s+)?re[çc]u\s+par|r[ée]dig(?:era|[ée]e?)\s+(?:par|l['’]acte)|notaire\s+r[ée]dacteur|acte\s+(?:sera\s+)?dress[ée]\s+par|notaire\s+instrumentaire|en\s+l['’][ée]tude\s+de)/i;
+  // « participant » et « en concours » désignent le même rôle (le second notaire), comme l'étude
+  // l'a confirmé — les deux vocabulaires coexistent dans les actes.
+  var RE_ROLE_PARTICIPANT = /(?:avec\s+(?:la\s+)?participation\s+de|en\s+participation|notaire\s+(?:participant|concourant)|en\s+concours(?:\s+avec)?|assist[ée]e?\s+de)/i;
+
+  // Clause d'ORIGINE DE PROPRIÉTÉ : elle décrit l'acte PRÉCÉDENT par lequel le vendeur est devenu
+  // propriétaire, et nomme donc le notaire de la vente d'AVANT — jamais celui de l'acte en cours.
+  // Elle figure dans presque tous les avant-contrats, avec exactement le vocabulaire que
+  // RE_ROLE_INSTRUMENTAIRE cherche (« suivant acte reçu par Maître X », « acte rédigé par… ») :
+  // sans ce garde-fou, elle désignerait le mauvais notaire AVEC LA PRIORITÉ LA PLUS HAUTE, écrasant
+  // la règle géographique et la règle de zone. Devenu indispensable en ajoutant les formes au passé
+  // du verbe rédiger ci-dessus, qui sont précisément celles de ces clauses.
+  var RE_ORIGINE_PROPRIETE = /(?:origine\s+de\s+propri[ée]t[ée]|suivant\s+acte|aux\s+termes\s+d['’]un\s+acte|pour\s+l['’]avoir\s+(?:acquis|recueilli)|ant[ée]rieurement\s+acquis|service\s+de\s+la\s+publicit[ée]\s+fonci[èe]re)/i;
 
   // OÙ les notaires sont nommés, selon le type d'acte — précisé par l'étude : « le nom des notaires
   // est toujours situé en première page pour les promesses de vente et dérivées ; pour les
@@ -1348,9 +1363,14 @@
       const qualite = mCote ? qualiteDepuisMot(mCote[1]) : null;
       const cote = qualite ? (roleDepuisQualite(type, qualite) === 'VENDEUR' ? 'vendeur' : 'acquereur') : 'inconnu';
 
+      // Aucun rôle explicite retenu depuis une clause d'origine de propriété : tout ce qu'elle dit
+      // porte sur la vente précédente. On retombe alors sur les règles suivantes (géographique,
+      // puis ordre dans la zone du type d'acte), qui regardent le présent acte.
       let roleExplicite = null;
-      if (RE_ROLE_INSTRUMENTAIRE.test(fenetre)) roleExplicite = 'instrumentaire';
-      else if (RE_ROLE_PARTICIPANT.test(fenetre)) roleExplicite = 'participant';
+      if (!RE_ORIGINE_PROPRIETE.test(fenetre)) {
+        if (RE_ROLE_INSTRUMENTAIRE.test(fenetre)) roleExplicite = 'instrumentaire';
+        else if (RE_ROLE_PARTICIPANT.test(fenetre)) roleExplicite = 'participant';
+      }
 
       // Le département vient du CODE POSTAL, jamais du seul nom de commune : deux communes de
       // départements différents peuvent porter des noms proches (point insisté par la spec).
@@ -1443,9 +1463,11 @@
           resultat.instrumentaire = dansZone[0];
           resultat.participantZone = dansZone[1];
           resultat.statut = 'CONFIRMED';
+          // Ordre confirmé par l'étude : « le notaire instrumentaire est celui qui a rédigé, et
+          // celui en participation ou en concours est celui qui est en second ».
           resultat.raison = zone === 'entete'
-            ? 'Premier notaire nommé en tête de la première page de la promesse : c’est lui qui reçoit l’acte (le second est le notaire participant).'
-            : 'Premier notaire nommé en fin de compromis : c’est lui qui reçoit l’acte (le second est le notaire participant).';
+            ? 'Premier notaire nommé en tête de la première page de la promesse : c’est lui qui a rédigé l’acte (le second intervient en participation).'
+            : 'Premier notaire nommé en fin de compromis : c’est lui qui a rédigé l’acte (le second intervient en participation).';
         } else {
           resultat.statut = 'NEEDS_REVIEW';
           resultat.raison = resultat.vendeur && resultat.vendeur.departement

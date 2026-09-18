@@ -4061,11 +4061,10 @@ autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` auton
     mention explicite et la règle géographique 41/45/37), toujours **deux notaires exigés** dans la
     zone attendue (un seul ne dit rien d'un ordre), toujours « premier nommé = instrumentaire,
     second = participant ». Ne peut donc rien faire régresser de ce qui était déjà tranché.
-  - **Hypothèse à confirmer, explicitement** : l'étude a indiqué l'EMPLACEMENT des noms sur un
-    compromis, pas l'ORDRE dans lequel ils y figurent. La convention « premier nommé = celui qui
-    reçoit l'acte » est reprise telle quelle de la règle des promesses. Si, en fin de compromis,
-    l'ordre suit autre chose (l'ordre de signature, l'ordre vendeur/acquéreur…), c'est ce point-là
-    qu'il faudra corriger — le reste du mécanisme tiendra.
+  - **Hypothèse levée depuis** : l'ordre était supposé ici (repris de la règle des promesses), il
+    a été **confirmé explicitement par l'étude** dans la foulée — « le notaire instrumentaire est
+    celui qui a rédigé, et celui en participation ou en concours est celui qui est en second ».
+    Voir l'entrée suivante.
   - Tests : 4 nouveaux dans `tests/notaires.test.js` qui verrouillent la distinction dans les deux
     sens — un compromis tranché par ses notaires de FIN ; un compromis qui ne tranche PAS sur des
     notaires en première page (c'est précisément la correction) ; une promesse qui ne tranche PAS
@@ -4076,6 +4075,42 @@ autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` auton
     gênant pour les compromis, puisque ceux-ci dépendent maintenant de la fin d'acte alors que
     cette clause, en priorité 1, peut trancher depuis n'importe où dans le document. Toujours pas
     corrigé faute d'extrait réel — à traiter en priorité au prochain exemple fourni.
+
+- **Définition des deux rôles donnée par l'étude, et faux positif de l'origine de propriété enfin
+  corrigé.** Précision reçue : « le notaire instrumentaire est celui qui a RÉDIGÉ, et celui en
+  participation ou en concours est celui qui est en second ». Deux conséquences, la seconde
+  découlant directement de la première :
+  - **`RE_ROLE_INSTRUMENTAIRE` reconnaît maintenant le verbe RÉDIGER**, qui définit le rôle :
+    `rédigera l'acte` (déjà là) rejoint par `rédigé par` / `rédigée par` (**au passé**),
+    `notaire rédacteur` (terme notarial courant pour le désigner) et `acte dressé par`.
+    `RE_ROLE_PARTICIPANT` gagne `notaire concourant` et `en concours` sans complément — l'étude
+    nomme ce rôle indifféremment « participant » ou « en concours », les deux vocabulaires
+    coexistent dans les actes.
+  - **`RE_ORIGINE_PROPRIETE` (nouveau) écarte la clause d'origine de propriété** — le faux positif
+    signalé deux fois dans ce fichier et laissé ouvert faute d'exemple réel. Il n'était plus tenable
+    de le laisser : accepter `rédigé par` AU PASSÉ, c'est accepter exactement la tournure de ces
+    clauses (« Le bien a été acquis suivant acte reçu par Maître X », « Aux termes d'un acte rédigé
+    par Maître Y en date du… »). Ces clauses figurent dans presque tous les avant-contrats et
+    nomment le notaire de la vente **précédente** — jamais celui de l'acte en cours — et
+    `roleExplicite` étant la priorité 1, elles écrasaient la règle géographique ET la règle de zone
+    avec le mauvais notaire. Le motif reconnaît les amorces (`origine de propriété`,
+    `suivant acte`, `aux termes d'un acte`, `pour l'avoir acquis/recueilli`,
+    `antérieurement acquis`, `service de la publicité foncière`) et, quand il matche la fenêtre
+    d'un notaire, **aucun rôle explicite n'est retenu pour lui** — ni instrumentaire ni
+    participant, tout ce que dit cette clause portant sur la vente d'avant. On retombe alors sur
+    les règles suivantes (géographique, puis ordre dans la zone du type d'acte), qui regardent le
+    présent acte.
+  - **Pourquoi l'asymétrie justifie d'avoir tranché sans exemple réel**, contrairement à la
+    prudence habituelle de ce fichier : ne pas écarter la clause = désigner le mauvais notaire avec
+    la confiance maximale ; l'écarter à tort = retomber sur la règle de zone, qui est de toute façon
+    la bonne réponse dans l'immense majorité des actes. Le coût des deux erreurs n'est pas du même
+    ordre. **À surveiller malgré tout** : si un acte réel désigne son notaire dans une phrase
+    contenant l'une de ces amorces, la désignation serait perdue — le signalement serait « le rôle
+    du notaire n'est plus détecté », et c'est ici qu'il faudrait regarder.
+  - Tests : 4 nouveaux dans `tests/notaires.test.js` — les trois formulations du rédacteur, les
+    deux du concours, les trois formes d'origine de propriété qui ne doivent RIEN désigner, et un
+    test de bout en bout (notaire de la vente précédente cité au milieu d'un compromis, vrais
+    notaires en fin d'acte : c'est bien la fin qui décide). Suite racine 297 → 301.
 
 **Ce qui n'a volontairement PAS été fait** (arrêté à la demande explicite de l'étude, pas un
 oubli) — à reprendre uniquement si redemandé un jour :
