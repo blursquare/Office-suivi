@@ -1,10 +1,11 @@
 'use strict';
 
-// Regroupement des échéances par semaine pour la vue "Semaines" du Suivi (voir la section
+// Regroupement des échéances par semaine pour la vue "Échéances" du Suivi (voir la section
 // « SUIVI : regroupement des échéances par semaine » dans script.js). Le point qui compte :
-// UNE LIGNE = UNE ÉCHÉANCE, choix explicite de l'étude — un même dossier apparaît sous plusieurs
-// semaines si ses échéances y tombent, parce que c'est la charge de travail de la semaine qu'on
-// lit, pas un classement de dossiers.
+// UNE LIGNE = UN DOSSIER, à sa prochaine échéance EN ATTENTE. La première version listait toutes
+// les échéances de chaque dossier, qui figurait donc sous chaque semaine où il avait une date —
+// l'étude a demandé l'inverse : on ne montre que ce qu'il y a à faire maintenant, la suivante
+// apparaît quand celle-ci est passée ou validée (voir echeanceValidee).
 //
 // La date du jour est toujours injectée : les fonctions restent pures et les tests reproductibles.
 
@@ -54,17 +55,35 @@ test('une offre de prêt déjà reçue retire son échéance du planning', () =>
   assert.equal(app.toutesEcheances(d).map(e => e.type).join(','), 'acte');
 });
 
-test('un dossier apparaît dans plusieurs semaines si ses échéances y tombent', () => {
+test('un dossier n’apparaît QU’UNE fois, à sa prochaine échéance en attente', () => {
+  // Règle posée par l'étude : tant que la date butoir en attente n'est pas passée, le dossier ne
+  // doit pas figurer une seconde fois plus loin. La première version listait toutes ses échéances.
   const app = chargerApplication();
   const d = dossier('DUPONT / MARTIN', { pret: '2026-09-17', acte: '2026-09-24' });
   const groupes = app.grouperEcheancesParSemaine([d], AUJOURDHUI);
-  assert.equal(groupes.length, 2);
+  assert.equal(groupes.length, 1);
   assert.equal(groupes[0].items.length, 1);
-  assert.equal(groupes[1].items.length, 1);
-  // Le même dossier des deux côtés, avec deux échéances différentes.
-  assert.equal(groupes[0].items[0].dossier.nom, 'DUPONT / MARTIN');
-  assert.equal(groupes[1].items[0].dossier.nom, 'DUPONT / MARTIN');
-  assert.equal(groupes[0].items[0].echeance.type + '/' + groupes[1].items[0].echeance.type, 'pret/acte');
+  assert.equal(groupes[0].items[0].echeance.type, 'pret');
+});
+
+test('valider une échéance fait apparaître la suivante', () => {
+  const app = chargerApplication();
+  const d = dossier('DUPONT / MARTIN', { ventebien: '2026-09-17', acte: '2026-09-24' });
+  assert.equal(app.grouperEcheancesParSemaine([d], AUJOURDHUI)[0].items[0].echeance.type, 'ventebien');
+  // Réalisée : la date reste au dossier pour mémoire, mais ce n'est plus ce qu'il y a à surveiller.
+  d.echeancesValidees = { ventebien: true };
+  const apres = app.grouperEcheancesParSemaine([d], AUJOURDHUI);
+  assert.equal(apres[0].items[0].echeance.type, 'acte');
+  assert.equal(app.toutesEcheances(d).map(e => e.type).join(','), 'acte');
+  assert.equal(app.prochaineEcheanceDetail(d).type, 'acte');
+});
+
+test('une offre de prêt reçue vaut échéance validée, sans drapeau supplémentaire', () => {
+  // Le mécanisme générique ne double pas celui qui existait déjà pour le prêt.
+  const app = chargerApplication();
+  const d = dossier('X', { pret: '2026-09-18', offrePretStatut: 'recue' });
+  assert.equal(app.echeanceValidee(d, 'pret'), true);
+  assert.equal(app.echeanceValidee(d, 'acte'), false);
 });
 
 test('les échéances passées tombent dans « En retard », en tête', () => {

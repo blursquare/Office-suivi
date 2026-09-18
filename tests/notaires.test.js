@@ -127,3 +127,46 @@ test('la règle métier est déclarée à un seul endroit, modifiable sans touch
   assert.equal(regles[0].departementBien, '41');
   assert.equal(regles[0].departementsNotaireVendeur.join(','), '41,45,37');
 });
+
+test('sur une promesse, l’ordre en tête de première page désigne instrumentaire puis participant', () => {
+  // Convention de rédaction indiquée par l'étude. Dernier recours seulement : ni mention explicite
+  // ni règle géographique applicable ici (aucune adresse de notaire, donc aucun département).
+  const app = chargerApplication();
+  const texte = `PROMESSE DE VENTE
+Reçue par Maître Sophie GOSSART, notaire à BLOIS,
+avec Maître Paul DURAND, notaire à ORLEANS.
+
+Entre les soussignés, il a été convenu ce qui suit.`;
+  const notaires = app.detecterNotaires(texte, 'PROMESSE_DE_VENTE');
+  assert.equal(notaires.length, 2);
+  assert.equal(notaires.every(n => n.enTete), true);
+  const r = app.determinerNotaires(notaires, null, 'PROMESSE_DE_VENTE');
+  assert.equal(r.instrumentaire.nom, 'Sophie GOSSART');
+  assert.equal(r.participant.nom, 'Paul DURAND');
+  assert.equal(r.statut, 'CONFIRMED');
+  assert.match(r.raison, /tête de la première page/);
+});
+
+test('l’ordre en tête ne s’applique pas à un notaire cité loin dans le corps de l’acte', () => {
+  const app = chargerApplication();
+  // Texte volontairement neutre pour le second notaire : on teste ici la BORNE de l'en-tête, pas
+  // la reconnaissance d'une mention explicite (qui, elle, primerait — voir le test suivant).
+  const texte = 'PROMESSE DE VENTE\nMaître Sophie GOSSART, notaire à BLOIS.\n'
+    + 'x '.repeat(app.ZONE_ENTETE_ACTE)
+    + '\nLe bien jouxte celui de Maître Paul DURAND, notaire à ORLEANS.';
+  const notaires = app.detecterNotaires(texte, 'PROMESSE_DE_VENTE');
+  assert.equal(notaires.filter(n => n.enTete).length, 1, 'un seul notaire est dans l’en-tête');
+  const r = app.determinerNotaires(notaires, null, 'PROMESSE_DE_VENTE');
+  // Un seul notaire en tête : l'ordre ne dit rien, on ne tranche pas plutôt que de deviner.
+  assert.equal(r.statut, 'NEEDS_REVIEW');
+});
+
+test('une mention explicite garde la priorité sur l’ordre en tête', () => {
+  const app = chargerApplication();
+  const texte = `PROMESSE DE VENTE
+Maître Paul DURAND, notaire à ORLEANS, et Maître Sophie GOSSART, notaire à BLOIS.
+L'acte authentique sera reçu par Maître Sophie GOSSART, notaire à BLOIS.`;
+  const r = app.determinerNotaires(app.detecterNotaires(texte, 'PROMESSE_DE_VENTE'), null, 'PROMESSE_DE_VENTE');
+  assert.equal(r.instrumentaire.nom, 'Sophie GOSSART');
+  assert.match(r.raison, /explicitement/);
+});

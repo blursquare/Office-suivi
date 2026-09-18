@@ -3955,6 +3955,88 @@ autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` auton
     toutes cochables, correction depuis le panneau répercutée dans le formulaire, compteur qui
     suit, proposition IA sans effet jusqu'au clic sur « Utiliser », aucune erreur JS.
 
+- **Lot de onze demandes après une matinée d'usage réel**, traitées indépendamment :
+  - **Bug corrigé : ouvrir un PDF du NAS affichait `{"erreur":"Authentification requise ou
+    expirée."}` au lieu du document.** `ouvrirFichierNas()` faisait un `window.open()` DIRECT sur
+    `/api/nas/fichier` — une navigation ordinaire du navigateur, qui ne porte aucun en-tête
+    `Authorization` : le serveur la rejetait donc systématiquement, et l'onglet n'affichait que le
+    JSON d'erreur. Les octets sont désormais récupérés par `fetchAvecAuth` (qui porte le jeton de
+    session) puis présentés via une URL d'objet locale. **L'onglet est ouvert AVANT l'await**, tant
+    que le clic est encore actif : ouvert après, il serait bloqué comme une fenêtre surgissante
+    (même contrainte d'activation que celle déjà documentée pour `requestPermission`).
+  - **Bug corrigé : le panneau « Diagnostic du dernier parcours » se refermait tout seul.**
+    `render()` reconstruit le tiroir à chaque action (revérifier une pièce, corriger une date…) et
+    le `<details>`, sans attribut `open`, repartait fermé en plein milieu de la lecture du journal.
+    Son état est mémorisé dans `diagnosticParcoursOuvert` (un booléen suffit : un seul dossier est
+    ouvert à la fois), posé par `ontoggle` et remis à `false` à l'ouverture/fermeture du tiroir —
+    même mécanisme que `ajoutEngagementOuvert`.
+  - **Offre de prêt : le NOM du fichier redevient le premier critère, la lecture du contenu n'est
+    plus qu'un repli.** Troisième révision de cette reconnaissance (contenu seul → nom seul →
+    titre de page de garde + IA — voir leur historique), demandée ainsi par l'étude : si le nom du
+    fichier dit « offre de prêt » / « offre de crédit » / « contrat de prêt »… le document est
+    validé **sans lire son contenu ni solliciter le modèle local** (un collaborateur qui nomme
+    ainsi un fichier a déjà fait le travail d'identification, et faire dépendre ce cas d'un modèle
+    absent ferait retomber en « à confirmer » un document parfaitement identifié) ; sinon, on
+    retombe sur le titre de la page de garde puis la confirmation par le modèle, comme avant. Le
+    filtre des **6 pages minimum s'applique aux deux voies** (« toujours pour ceux de plus de
+    6 pages »). `OFFRE_PRET_RE` couvrait déjà « offre de crédit » : c'est son application au nom du
+    fichier qui manquait, pas le motif.
+  - **Sur une promesse, l'ordre des notaires en tête de première page fait foi** (convention de
+    rédaction indiquée par l'étude : l'instrumentaire est nommé le premier, le participant ensuite).
+    `detecterNotaires()` marque `enTete` toute mention située dans les `ZONE_ENTETE_ACTE` (2500)
+    premiers caractères ; `determinerNotaires()` gagne un paramètre `typeActe` et un **troisième
+    niveau de priorité**, après la mention explicite et la règle géographique 41/45/37 — il
+    n'intervient donc que là où rien n'était tranché jusqu'ici (NEEDS_REVIEW) et ne peut rien faire
+    régresser. Exige **deux** notaires dans l'en-tête : un seul ne dit rien d'un ordre. Les types
+    concernés sont déclarés dans `ORDRE_ENTETE_PROMESSE`, à un seul endroit, comme
+    `REGLES_NOTAIRE_INSTRUMENTAIRE`.
+  - **Bouton « Ajouter une obligation du vendeur » déplacé SOUS l'analyse juridique** dans le
+    tiroir : on ajoute une obligation après avoir lu celles qui ont été détectées, pas avant. Rendu
+    hors du `<details>` pour rester accessible même quand l'analyse est vide (elle n'est alors pas
+    affichée du tout).
+  - **Choix du dossier NAS : proposition en tête, recherche, et connexion automatique sur
+    correspondance exacte.** Le dossier proposé (et celui déjà relié) remontent en tête de liste —
+    les marquer sans les remonter obligeait à les chercher au milieu de centaines d'entrées. Un
+    champ de recherche (`#nas-choix-recherche`, insensible aux accents via `normaliserPourRecherche`)
+    filtre la liste. Côté serveur, nouvelle fonction `rapprochementParfait()` : **tous** les mots
+    significatifs du nom du dossier se retrouvent dans un **seul** dossier NAS — c'est le seul
+    niveau auquel `lierDossierLocal()` relie tout seul, sans ouvrir la fenêtre. Jamais sur un simple
+    `propose` (meilleur candidat, pas certitude) : se tromper de dossier ferait chercher les pièces
+    d'une vente dans celles d'une autre. Le lien reste défaisable par « Changer de dossier » et est
+    journalisé comme tout autre rattachement.
+  - **Vue « Semaines » renommée « Échéances », devenue la vue par défaut du Suivi**, et surtout
+    **une seule ligne par dossier** : sa prochaine échéance EN ATTENTE, plus toutes ses dates. La
+    première version listait chaque échéance, si bien qu'un dossier figurait sous chaque semaine où
+    il avait quelque chose — y compris une signature d'acte à trois mois alors que sa condition de
+    prêt n'était pas levée. On ne montre que ce qu'il y a à faire maintenant.
+  - **Une échéance peut être déclarée RÉALISÉE** (`echeanceValidee()` / `validerEcheance()` /
+    `devaliderEcheance()`, état `d.echeancesValidees` indexé par type) : la date reste au dossier
+    pour mémoire, mais elle sort du planning et la suivante remonte — exactement le rôle que jouait
+    déjà `offrePretStatut === 'recue'` pour le prêt, que `echeanceValidee()` réutilise sans le
+    doubler. Bouton « Marquer réalisée » affiché uniquement sur la **vente préalable** (seul cas
+    demandé), mais l'état est stocké par type pour que l'étendre ne demande rien de plus qu'un
+    bouton. **Conservé à l'import d'une sauvegarde**, contrairement aux statuts dérivés des PDF du
+    NAS : c'est une décision prise par l'étude, pas une lecture de fichier.
+  - **Filet retiré sous l'en-tête « En retard »** de la vue Échéances (la couleur du libellé suffit
+    à repérer le groupe) ; **badge « Alpha » aligné à droite sous le logo** (`.sidebar-alpha-ligne`)
+    et **tagline « La clarté sur chaque dossier. » retirée** avec sa règle CSS devenue morte.
+  - Tests : `tests/semaines.test.js` réécrit sur « une ligne par dossier » (+ validation d'échéance,
+    + équivalence avec l'offre reçue) et 3 nouveaux dans `tests/notaires.test.js` (ordre en tête,
+    borne de l'en-tête, priorité de la mention explicite). Suite racine 288 → 293, serveur 97.
+    **Vérifié dans un vrai Chromium** (clair et sombre, dossiers synthétiques via l'API, serveur
+    réel) : vue Échéances active par défaut, aucun doublon de dossier, validation d'une vente
+    préalable faisant remonter la signature de l'acte, « ✓ Réalisée » et « Annuler la validation »
+    sur la carte, bouton d'ajout d'obligation bien placé après l'analyse, diagnostic resté ouvert
+    après plusieurs `render()`, liste NAS triée avec le proposé en tête et filtrée par la recherche,
+    aucune erreur JS.
+  - **Trouvé en écrivant les tests, non corrigé (hors demande) :** `RE_ROLE_INSTRUMENTAIRE`
+    reconnaît « acte reçu par Maître X » — y compris dans une clause d'ORIGINE DE PROPRIÉTÉ
+    (« Le bien a été acquis suivant acte reçu par Maître X »), très fréquente, où ce notaire est
+    celui de la vente PRÉCÉDENTE et non de l'acte en cours. Le motif désignerait alors le mauvais
+    notaire instrumentaire, avec une priorité 1 qui écrase tout le reste. À corriger en excluant les
+    mentions précédées d'un marqueur d'origine de propriété — à faire sur demande, avec un extrait
+    réel pour éviter de régresser les cas légitimes.
+
 **Ce qui n'a volontairement PAS été fait** (arrêté à la demande explicite de l'étude, pas un
 oubli) — à reprendre uniquement si redemandé un jour :
 - **Import automatique** des dossiers déjà enregistrés sur la version 100% locale (`main`) vers ce

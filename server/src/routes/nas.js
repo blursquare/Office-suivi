@@ -17,7 +17,7 @@
 const express = require('express');
 const fs = require('node:fs');
 const path = require('node:path');
-const { listerPdfRecursif, listerSousDossiers, resoudreCheminNas, rapprocherParNom } = require('../nas');
+const { listerPdfRecursif, listerSousDossiers, resoudreCheminNas, rapprocherParNom, rapprochementParfait } = require('../nas');
 
 function creerRouteurNas(config) {
   const routeur = express.Router();
@@ -48,7 +48,10 @@ function creerRouteurNas(config) {
     // Le rapprochement est proposé ici quand le client fournit un nom : le serveur a déjà la liste
     // sous la main, inutile de la renvoyer pour que le client refasse le même calcul.
     const propose = req.query.nom ? rapprocherParNom(String(req.query.nom), dossiers) : null;
-    res.json({ dossiers, propose });
+    // `parfait` autorise le client à relier sans demander : tous les mots du nom du dossier se
+    // retrouvent dans ce seul dossier NAS (voir rapprochementParfait).
+    const parfait = req.query.nom ? rapprochementParfait(String(req.query.nom), dossiers) : null;
+    res.json({ dossiers, propose, parfait });
   });
 
   routeur.get('/nas/fichiers', (req, res) => {

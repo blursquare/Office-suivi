@@ -513,9 +513,12 @@
      sidebar est désormais prise par l'indicateur de connexion au serveur, voir
      .sidebar-statut-serveur juste plus bas) : un simple label discret, pas un badge qui a besoin
      d'attirer le regard comme l'état de connexion. */
+  /* Aligné à DROITE sous le logo (demandé par l'étude), d'où la ligne flex qui le porte plutôt
+     qu'une marge gauche fixe. */
+  .sidebar-alpha-ligne { display: flex; justify-content: flex-end; padding: 0 10px; }
   .sidebar-alpha-badge {
     display: inline-block;
-    margin: 2px 0 0 8px;
+    margin: 2px 0 0;
     font-size: 9px;
     font-weight: 700;
     letter-spacing: 0.08em;
@@ -546,13 +549,6 @@
     color: var(--ink);
     letter-spacing: -0.01em;
   }
-  .sidebar-tagline {
-    font-size: 12px;
-    color: var(--ink-soft);
-    margin: 2px 0 8px;
-    padding: 0 8px;
-  }
-
   /* Occupe désormais la position en haut à droite de la sidebar, jusque-là celle du badge "Alpha"
      (redescendu sous le logo, voir .sidebar-alpha-badge ci-dessus) — même technique de
      positionnement (absolu, .sidebar déjà "position: sticky" sert de conteneur de positionnement
@@ -2357,7 +2353,9 @@
   }
   /* Seul groupe à porter une couleur : ce qui est en retard doit se repérer sans lire l'en-tête.
      --urgent, déjà réservé à l'alerte partout ailleurs dans l'outil. */
-  .semaine-retard .semaine-entete { border-bottom-color: var(--urgent); }
+  /* Pas de filet sous « En retard » : retiré à la demande de l'étude — la couleur du libellé
+     suffit à repérer le groupe, le trait rouge en plus alourdissait la vue. */
+  .semaine-retard .semaine-entete { border-bottom: none; }
   .semaine-retard .section-eyebrow { color: var(--urgent); }
 
   .toolbar-recherche input {
@@ -2525,6 +2523,15 @@
      s'allongerait hors de l'écran — même principe que l'historique des versions dans « À propos ». */
   .nas-choix-box { max-width: 520px; }
 
+  /* Sélecteur composé (2 classes) : la règle générique input[type="search"] du formulaire a la
+     même spécificité qu'un simple input.nas-choix-recherche et l'emporterait par son ordre dans le
+     fichier — piège déjà rencontré plusieurs fois dans cette feuille. */
+  .nas-choix-box input.nas-choix-recherche {
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0 0 10px;
+  }
+  .nas-choix-vide { font-size: 13px; color: var(--muted); margin: 8px 0; }
   .nas-choix-liste {
     display: flex;
     flex-direction: column;

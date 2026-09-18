@@ -42,11 +42,12 @@
       </span>
       <span class="brand-word">CLAIRE</span>
     </div>
-    <!-- Badge "Alpha" redescendu sous le logo (petit label discret), sa position en haut à droite
-         étant désormais prise par l'indicateur de connexion au serveur ci-dessus — demandé par
-         l'étude. -->
-    <span class="sidebar-alpha-badge" title="Version alpha : l'outil est encore en évolution active, des ajustements peuvent survenir d'une session à l'autre.">Alpha</span>
-    <p class="sidebar-tagline">La clarté sur chaque dossier.</p>
+    <!-- Badge "Alpha" sous le logo, aligné à DROITE (sa position en haut à droite est prise par
+         l'indicateur de connexion au serveur ci-dessus). La tagline qui suivait a été retirée à la
+         demande de l'étude. -->
+    <div class="sidebar-alpha-ligne">
+      <span class="sidebar-alpha-badge" title="Version alpha : l'outil est encore en évolution active, des ajustements peuvent survenir d'une session à l'autre.">Alpha</span>
+    </div>
 
     <nav class="sidebar-nav" role="tablist" aria-label="Sections de l'application">
       <!-- En premier et toujours sur fond bleu (sidebar-cta), pas seulement quand cet onglet est
@@ -508,8 +509,8 @@
     <!-- Bascule d'affichage de la MÊME liste (mêmes filtres, même recherche) : le tableau habituel,
          ou les mêmes dossiers regroupés par semaine d'échéance. Voir definirVueSuivi(). -->
     <div class="vue-bascule" role="group" aria-label="Mode d'affichage de la liste">
-      <button type="button" class="vue-bascule-btn actif" id="vue-btn-tableau" onclick="definirVueSuivi('tableau')">Tableau</button>
-      <button type="button" class="vue-bascule-btn" id="vue-btn-semaines" onclick="definirVueSuivi('semaines')">Semaines</button>
+      <button type="button" class="vue-bascule-btn" id="vue-btn-tableau" onclick="definirVueSuivi('tableau')">Tableau</button>
+      <button type="button" class="vue-bascule-btn actif" id="vue-btn-semaines" onclick="definirVueSuivi('semaines')">Échéances</button>
     </div>
   </div>
 
@@ -831,6 +832,11 @@
 <div class="confirm-overlay" id="nas-choix-overlay" style="display:none;">
   <div class="confirm-box nas-choix-box">
     <p id="nas-choix-intro"></p>
+    <!-- Recherche au-dessus de la liste (demandée par l'étude) : le NAS peut compter des centaines
+         de dossiers clients, dérouler la liste entière pour en trouver un n'est pas tenable. -->
+    <input type="search" id="nas-choix-recherche" class="nas-choix-recherche"
+           placeholder="Rechercher un dossier sur le NAS…" oninput="filtrerChoixDossierNas(this.value)"
+           aria-label="Rechercher un dossier sur le NAS">
     <div id="nas-choix-liste" class="nas-choix-liste"></div>
     <div class="confirm-actions">
       <button type="button" class="btn-annuler" onclick="fermerChoixDossierNas()">Annuler</button>

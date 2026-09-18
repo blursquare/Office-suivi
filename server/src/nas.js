@@ -126,7 +126,22 @@ function rapprocherParNom(nomDossier, nomsNas) {
   // Un seul mot en commun sur un nom qui en compte plusieurs est un indice trop faible : mieux vaut
   // laisser l'étude choisir que proposer un rapprochement qu'elle devra défaire.
   const suffisant = meilleurScore >= Math.min(2, attendus.length);
-  return (!exAequo && suffisant) ? meilleur : null;
+  if (exAequo || !suffisant) return null;
+  return meilleur;
+}
+
+// Correspondance PARFAITE : tous les mots significatifs du nom du dossier se retrouvent dans le nom
+// du dossier NAS, et un seul candidat est dans ce cas. C'est le seul niveau auquel le rapprochement
+// est appliqué TOUT SEUL, sans demander confirmation (demandé par l'étude) — en dessous, la fenêtre
+// de choix s'ouvre avec la proposition en tête de liste.
+function rapprochementParfait(nomDossier, nomsNas) {
+  const attendus = motsSignificatifs(nomDossier);
+  if (attendus.length === 0) return null;
+  const complets = (nomsNas || []).filter((candidat) => {
+    const motsCandidat = normaliserNomRapprochement(candidat).split(' ');
+    return attendus.every((mot) => motsCandidat.includes(mot));
+  });
+  return complets.length === 1 ? complets[0] : null;
 }
 
 // SEUL point de passage d'un chemin venant d'une requête HTTP vers le système de fichiers.
@@ -160,6 +175,7 @@ module.exports = {
   normaliserNomRapprochement,
   motsSignificatifs,
   rapprocherParNom,
+  rapprochementParfait,
   resoudreCheminNas,
   PROFONDEUR_MAX,
   MAX_FICHIERS

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-18 12:21';
+  const VERSION_APP = '2026-09-18 12:32';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-18 12:32', resume: "Onze corrections. Ouvrir un PDF du NAS ne renvoie plus « Authentification requise » (l'onglet était ouvert sans jeton de session). Le panneau de diagnostic ne se referme plus tout seul. L'offre de prêt est reconnue d'abord au NOM du fichier (offre de prêt, offre de crédit, contrat de prêt…), la lecture du contenu ne servant plus que de repli — toujours au-delà de 6 pages. Sur une promesse, les deux notaires nommés en tête de première page désignent l'instrumentaire puis le participant. Le dossier NAS proposé passe en tête de liste, avec une recherche au-dessus, et une correspondance exacte du nom relie le dossier sans rien demander. La vue « Échéances » (ex-« Semaines ») devient la vue par défaut et n'affiche plus qu'UNE ligne par dossier, sa prochaine échéance en attente ; une vente préalable peut être marquée réalisée pour passer à la suivante. Bouton d'ajout d'obligation déplacé sous l'analyse juridique, filet retiré sous « En retard », badge Alpha aligné à droite sous le logo et tagline retirée" },
     { version: '2026-09-18 12:21', resume: "Panneau « Ce que l'outil a compris » repris en entier. Chaque donnée est maintenant CORRIGEABLE SUR PLACE, sans quitter l'écran où l'erreur se voit, et porte le numéro de page d'où elle sort (nom, adresse et prix n'en avaient aucun). L'outil n'annonce plus rien comme « Confirmé » : il dit seulement d'où vient la donnée — lue dans l'acte, calculée depuis un délai, apprise d'une correction précédente, proposée par l'IA — et le vert est réservé à ce que VOUS cochez comme vérifié. Les lectures du modèle local, qui invente régulièrement des termes, sont désormais proposées avec un bouton « Utiliser » et n'écrivent plus jamais d'elles-mêmes dans un champ" },
     { version: '2026-09-18 12:04', resume: "Création de dossier depuis un PDF : quatre corrections. Le nom du dossier prenait la COMMUNE de l'adresse au lieu du patronyme (« BLOIS / TOURS » au lieu de « DUPONT / MARTIN ») sur la rédaction la plus courante, celle où la partie est présentée puis étiquetée ; un acte à deux vendeurs (« ci-après dénommés LES VENDEURS ») n'était pas reconnu du tout. L'adresse du bien avalait la désignation cadastrale en la tronquant, et n'était pas détectée quand « sis » introduit directement l'adresse sans préposition. Enfin, une date de prêt exprimée en jours était bien calculée mais jamais reportée dans le champ quand seule l'intitulé de la clause nommait le prêt" },
     { version: '2026-09-18 10:16', resume: "Le serveur ne disparaît plus en silence au démarrage : jusqu'ici, une faute de frappe dans config.json (typiquement un chemin réseau écrit avec des antislashs simples au lieu de doublés) faisait clignoter la fenêtre puis plus rien, sans la moindre explication. Le message est maintenant affiché, la fenêtre reste ouverte le temps de le lire, et il est enregistré dans erreur-demarrage.txt à côté de l'exécutable. Même traitement si le port est déjà occupé, avec le rappel qu'un serveur tourne peut-être déjà sans fenêtre visible" },
@@ -114,6 +115,7 @@
     'map-pin': '<path d="M8 14.3S13 9.7 13 6.2A5 5 0 0 0 3 6.2C3 9.7 8 14.3 8 14.3Z" stroke-linejoin="round"/><circle cx="8" cy="6.2" r="1.7"/>',
     pencil: '<path d="M11.1 2.3a1.5 1.5 0 0 1 2.1 2.1L5.4 12.2l-2.9.7.7-2.9 7.9-7.7Z" stroke-linejoin="round"/>',
     x: '<line x1="3.5" y1="3.5" x2="12.5" y2="12.5"/><line x1="12.5" y1="3.5" x2="3.5" y2="12.5"/>',
+    check: '<path d="M3 8.4 6.4 11.8 13 4.6" stroke-linejoin="round"/>',
     'trend-up': '<path d="M2.5 12 6.8 7.7 9.3 10.2 13.5 6"/><path d="M9.5 6h4v4"/>',
     'trend-down': '<path d="M2.5 4 6.8 8.3 9.3 5.8 13.5 10"/><path d="M9.5 10h4v-4"/>',
     info: '<circle cx="8" cy="8" r="6.2"/><line x1="8" y1="7.2" x2="8" y2="11.3"/><circle cx="8" cy="4.9" r="0.9" fill="currentColor" stroke="none"/>',
@@ -1250,6 +1252,18 @@
   var RE_ROLE_INSTRUMENTAIRE = /(?:recevra\s+l['’]acte|acte\s+(?:authentique\s+)?(?:sera\s+)?re[çc]u\s+par|r[ée]digera\s+l['’]acte|notaire\s+instrumentaire|en\s+l['’][ée]tude\s+de)/i;
   var RE_ROLE_PARTICIPANT = /(?:avec\s+(?:la\s+)?participation\s+de|en\s+participation|notaire\s+participant|en\s+concours\s+avec|assist[ée]e?\s+de)/i;
 
+  // Zone considérée comme « l'en-tête de la première page » d'un acte. Sur une promesse (de vente,
+  // d'achat, ou synallagmatique), l'étude indique que le notaire instrumentaire et le notaire
+  // participant y sont nommés dans cet ordre — c'est la convention de rédaction de ces actes.
+  // 2500 caractères : de quoi couvrir un en-tête complet sans mordre sur le corps de l'acte, où
+  // d'autres notaires peuvent être cités à tout autre titre.
+  var ZONE_ENTETE_ACTE = 2500;
+
+  // Types d'acte pour lesquels l'ordre de citation en tête de la première page fait foi. Déclaré
+  // ici, à un seul endroit, plutôt que dispersé dans determinerNotaires — même principe que
+  // REGLES_NOTAIRE_INSTRUMENTAIRE.
+  var ORDRE_ENTETE_PROMESSE = ['PROMESSE_DE_VENTE', 'PROMESSE_D_ACHAT', 'COMPROMIS_DE_VENTE'];
+
   // Rattachement d'un notaire à une partie : « notaire du vendeur », « conseil de l'acquéreur »…
   var RE_COTE_NOTAIRE = /(?:notaire|conseil|assistant?e?|repr[ée]sentant)\s+(?:d[eu]\s+|de\s+la\s+|de\s+l['’]|des\s+)?(vendeurs?|promettants?|acqu[ée]reurs?|acheteurs?|b[ée]n[ée]ficiaires?|parties?\s+venderesses?|parties?\s+acqu[ée]reuses?)/i;
 
@@ -1343,6 +1357,9 @@
         departement: adresseUtile ? adresseUtile.departement : null,
         cote,
         roleExplicite,
+        // Cité dans l'en-tête de la première page, et à quel rang : sur une promesse, cet ordre
+        // désigne l'instrumentaire puis le participant (voir determinerNotaires, dernier recours).
+        enTete: mention.index < ZONE_ENTETE_ACTE,
         source: { extrait: extraireContexte(source, mention.index, mention.longueur), index: mention.index, page: pageDepuisIndex(mention.index) }
       });
     });
@@ -1360,7 +1377,7 @@
   //   1. mention explicite dans le document (« l'acte sera reçu par Maître X ») ;
   //   2. à défaut, la règle métier géographique (41 + notaire vendeur en 41/45/37) ;
   //   3. sinon, rien n'est tranché — NEEDS_REVIEW, jamais un choix arbitraire.
-  function determinerNotaires(notaires, departementBien) {
+  function determinerNotaires(notaires, departementBien, typeActe) {
     const liste = Array.isArray(notaires) ? notaires : [];
     const cotesVendeur = liste.filter(n => n.cote === 'vendeur');
     const cotesAcquereur = liste.filter(n => n.cote === 'acquereur');
@@ -1400,18 +1417,33 @@
         resultat.statut = 'CONFIRMED';
         resultat.raison = `Bien situé dans le ${regle.departementBien} et notaire du vendeur dans le ${resultat.vendeur.departement} : c’est lui qui reçoit l’acte (règle de l’étude).`;
       } else {
-        resultat.statut = 'NEEDS_REVIEW';
-        resultat.raison = resultat.vendeur && resultat.vendeur.departement
-          ? 'Aucune mention explicite et la règle géographique ne s’applique pas : notaire instrumentaire à confirmer.'
-          : 'Aucune mention explicite, et le département du notaire du vendeur est inconnu : à confirmer.';
+        // Dernier recours, propre aux PROMESSES (de vente, d'achat, synallagmatique) : l'étude
+        // indique que leur en-tête de première page nomme le notaire instrumentaire puis le
+        // notaire participant, dans cet ordre. N'intervient qu'ici, une fois les deux règles
+        // supérieures épuisées — une mention explicite ou la règle géographique restent prioritaires,
+        // et ce cas ne peut donc rien faire régresser de ce qui était déjà tranché.
+        const enTete = liste.filter(n => n.enTete);
+        if (ORDRE_ENTETE_PROMESSE.includes(typeActe) && enTete.length >= 2) {
+          resultat.instrumentaire = enTete[0];
+          resultat.participantEnTete = enTete[1];
+          resultat.statut = 'CONFIRMED';
+          resultat.raison = 'Premier notaire nommé en tête de la première page de la promesse : c’est lui qui reçoit l’acte (le second est le notaire participant).';
+        } else {
+          resultat.statut = 'NEEDS_REVIEW';
+          resultat.raison = resultat.vendeur && resultat.vendeur.departement
+            ? 'Aucune mention explicite et la règle géographique ne s’applique pas : notaire instrumentaire à confirmer.'
+            : 'Aucune mention explicite, et le département du notaire du vendeur est inconnu : à confirmer.';
+        }
       }
     }
 
     if (resultat.instrumentaire) {
       const participantExplicite = liste.find(n => n.roleExplicite === 'participant' && n !== resultat.instrumentaire);
       resultat.participant = participantExplicite
+        || resultat.participantEnTete
         || liste.find(n => n !== resultat.instrumentaire && (n.cote === 'vendeur' || n.cote === 'acquereur'))
         || null;
+      delete resultat.participantEnTete;
       resultat.roleEtude = deduireRoleEtude(resultat);
     }
 
@@ -1532,7 +1564,7 @@
       ? detectedDatesFournies
       : detecterDatesDepuisTexte(source, dateCompromis);
     const bien = detecterAdresseBienStructuree(source);
-    const notaires = determinerNotaires(detecterNotaires(source, typeActe.valeur), bien.adresse.departement);
+    const notaires = determinerNotaires(detecterNotaires(source, typeActe.valeur), bien.adresse.departement, typeActe.valeur);
 
     const extraction = {
       version: 1,
@@ -4243,7 +4275,7 @@
           source: sourceIa(n)
         }));
         const departement = extraction.bien && extraction.bien.adresse ? extraction.bien.adresse.departement : null;
-        extraction.notaires = determinerNotaires(liste, departement);
+        extraction.notaires = determinerNotaires(liste, departement, extraction.typeActe && extraction.typeActe.valeur);
         // Notaires lus par le seul modèle : l'origine est tracée pour que le rôle de l'étude ne
         // soit JAMAIS pré-rempli automatiquement à partir d'eux (voir
         // appliquerExtractionAuFormulaire) — ce sélecteur masque la checklist des pièces quand il
@@ -4610,6 +4642,8 @@
       // main, qui retombe alors sur l'ancienne recherche floue.
       compromisNomFichier: compromisNomFichierImporte || null,
       sansPret: !echeanceActive.pret,
+      // Échéances déclarées réalisées (voir echeanceValidee/validerEcheance) : vide à la création.
+      echeancesValidees: {},
       // Pas de section rappels sans condition de prêt (voir majVisibiliteRappels) : aucun rappel
       // pour ce dossier, plutôt que de lire des cases à cocher restées invisibles/non pertinentes.
       reminderDays: echeanceActive.pret ? getSelectedReminderDays() : [],
@@ -4764,7 +4798,7 @@
     ).join('');
   }
 
-  function renderTab(type, label, iso, dossierId, page, confiance, autreIndex, offrePretRecue, offreBloc, sansPret) {
+  function renderTab(type, label, iso, dossierId, page, confiance, autreIndex, offrePretRecue, offreBloc, sansPret, validee) {
     // Les tabs Prêt / Acte / Vente d'un dossier enregistré sont recatégorisables au clic ;
     // les échéances "Autre" gardent leur libellé personnalisé (non concerné par ce sélecteur).
     // Redessiné sur retour de l'étude : le titre est maintenant un texte statique (coloré selon la
@@ -4852,6 +4886,16 @@
         ${offreBloc || ''}
       </div>`;
     }
+    // Échéance déclarée réalisée : la date reste affichée (elle fait partie du dossier) mais le
+    // décompte n'a plus de sens, et la carte porte de quoi revenir en arrière. L'étude l'a demandé
+    // pour la vente préalable — une fois la vente de l'acquéreur faite, c'est l'échéance suivante
+    // qu'il faut voir remonter dans la vue Échéances (voir echeanceValidee/toutesEcheances).
+    const boutonValidation = (dossierId && iso && type === 'ventebien')
+      ? (validee
+        ? `<button type="button" class="lien-dossier-local" onclick="devaliderEcheance('${dossierId}','${type}')">Annuler la validation</button>`
+        : `<button type="button" class="action-rapide" onclick="validerEcheance('${dossierId}','${type}')" title="La vente préalable est réalisée : passer à l’échéance suivante">${icone('check')} Marquer réalisée</button>`)
+      : '';
+
     const jours = joursRestants(iso);
     let countdownClass = '';
     let countdownText = '';
@@ -4864,6 +4908,9 @@
     if (offrePretRecue) {
       countdownClass = 'recue';
       countdownText = '✓ Offre reçue';
+    } else if (validee) {
+      countdownClass = 'recue';
+      countdownText = '✓ Réalisée';
     } else if (jours < 0) {
       countdownClass = 'passed';
       countdownText = 'Échéance dépassée';
@@ -4880,8 +4927,31 @@
       <span class="tab-date-affichage" id="${idBase}-aff"><div class="tab-date">${formatDateFr(iso)}${boutonVoir}</div>${crayonDate}${badgeConfiance}</span>
       ${editionDate}
       <div class="tab-countdown ${countdownClass}">${countdownText}</div>
+      ${boutonValidation}
       ${offreBloc || ''}
     </div>`;
+  }
+
+  // Marque une échéance comme réalisée (ou revient en arrière). La date n'est jamais effacée —
+  // c'est la différence avec supprimerDateEcheance : le dossier garde la trace de la date butoir,
+  // seule sa présence dans le planning change.
+  function validerEcheance(id, type) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    d.echeancesValidees = d.echeancesValidees || {};
+    d.echeancesValidees[type] = true;
+    ajouterHistorique(d, `${LIBELLES_CATEGORIE[type] || type} marquée réalisée`);
+    sauvegarder(d);
+    render();
+  }
+
+  function devaliderEcheance(id, type) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d || !d.echeancesValidees) return;
+    delete d.echeancesValidees[type];
+    ajouterHistorique(d, `${LIBELLES_CATEGORIE[type] || type} : validation annulée`);
+    sauvegarder(d);
+    render();
   }
 
   // Échange le contenu de deux échéances fixes d'un dossier (aucune perte de données : si la
@@ -4985,8 +5055,13 @@
     // Une fois l'offre de prêt reçue, cette échéance est résolue : elle ne doit plus faire
     // considérer le dossier comme "urgent" ni ressortir en tête de tri à sa place (voir aussi
     // prochaineEcheanceDetail, même exclusion pour l'affichage).
-    const datePret = d.offrePretStatut === 'recue' ? null : d.pret;
-    const dates = [datePret, d.acte, d.ventebien, ...autresDates].filter(Boolean).map(joursRestants);
+    const datePret = echeanceValidee(d, 'pret') ? null : d.pret;
+    const dates = [
+      datePret,
+      echeanceValidee(d, 'acte') ? null : d.acte,
+      echeanceValidee(d, 'ventebien') ? null : d.ventebien,
+      ...autresDates
+    ].filter(Boolean).map(joursRestants);
     const upcoming = dates.filter(j => j >= 0);
     return upcoming.length ? Math.min(...upcoming) : (dates.length ? Math.min(...dates) : 999999);
   }
@@ -5378,10 +5453,11 @@
   // faire apparaître dans le planning de la semaine donnerait du travail qui n'existe plus.
   function toutesEcheances(d) {
     return [
-      ...(d.offrePretStatut === 'recue' ? [] : [{ type: 'pret', label: 'Obtention du prêt', iso: d.pret }]),
-      { type: 'acte', label: "Signature de l'acte", iso: d.acte },
-      { type: 'ventebien', label: 'Vente préalable', iso: d.ventebien },
-      ...(d.autres || []).map(a => ({ type: 'autre', label: a.label, iso: a.date }))
+      ...(echeanceValidee(d, 'pret') ? [] : [{ type: 'pret', label: 'Obtention du prêt', iso: d.pret }]),
+      ...(echeanceValidee(d, 'acte') ? [] : [{ type: 'acte', label: "Signature de l'acte", iso: d.acte }]),
+      ...(echeanceValidee(d, 'ventebien') ? [] : [{ type: 'ventebien', label: 'Vente préalable', iso: d.ventebien }]),
+      ...(d.autres || []).map((a, i) => ({ type: 'autre', label: a.label, iso: a.date, index: i }))
+        .filter(it => !echeanceValidee(d, 'autre-' + it.index))
     ].filter(it => it.iso);
   }
 
@@ -5405,14 +5481,21 @@
     };
 
     for (const d of liste) {
-      for (const e of toutesEcheances(d)) {
-        const semaine = debutSemaine(e.iso);
-        const item = { dossier: d, echeance: e };
-        if (!semaine) continue;
-        if (semaineCourante && semaine < semaineCourante) ajouter('retard', 0, 'En retard', item);
-        else if (limite && semaine >= limite) ajouter('plus-tard', 2, 'Plus tard', item);
-        else ajouter('s-' + semaine, 1, semaine, item);
-      }
+      // UNE SEULE échéance par dossier : la plus proche encore en attente. Demandé par l'étude —
+      // la première version listait toutes les échéances d'un dossier, qui apparaissait donc sous
+      // chaque semaine où il avait quelque chose, y compris pour une signature d'acte dans trois
+      // mois alors que sa condition de prêt n'était pas encore levée. On ne montre que ce qu'il y a
+      // à faire maintenant ; la suivante apparaît quand celle-ci est passée ou validée (voir
+      // echeanceValidee / validerEcheance).
+      const echeances = toutesEcheances(d).sort((x, y) => x.iso.localeCompare(y.iso));
+      const e = echeances[0];
+      if (!e) continue;
+      const semaine = debutSemaine(e.iso);
+      const item = { dossier: d, echeance: e };
+      if (!semaine) continue;
+      if (semaineCourante && semaine < semaineCourante) ajouter('retard', 0, 'En retard', item);
+      else if (limite && semaine >= limite) ajouter('plus-tard', 2, 'Plus tard', item);
+      else ajouter('s-' + semaine, 1, semaine, item);
     }
 
     // Tri en deux temps : le rang place retard / semaines / plus tard, puis la clé ordonne les
@@ -5444,15 +5527,27 @@
   // Détermine, parmi les échéances d'un dossier, la plus proche à afficher en un coup d'œil dans
   // la vue tableau (celle déjà retenue pour le tri par calculerProchaineEcheance, mais avec son
   // type/libellé/date en plus, pas seulement le nombre de jours).
+  // Une échéance peut être déclarée RÉALISÉE sans être supprimée : la vente préalable de
+  // l'acquéreur s'est faite, la date reste au dossier pour mémoire, mais elle ne doit plus
+  // ressortir comme la prochaine chose à surveiller — exactement le rôle que joue déjà
+  // `offrePretStatut === 'recue'` pour l'obtention du prêt. Demandé par l'étude pour la vente
+  // préalable ; l'état est stocké par TYPE (et non sous un booléen dédié) pour que l'étendre à une
+  // autre échéance ne demande rien de plus qu'un bouton.
+  function echeanceValidee(d, type) {
+    if (type === 'pret') return d.offrePretStatut === 'recue';
+    return !!(d.echeancesValidees && d.echeancesValidees[type]);
+  }
+
   function prochaineEcheanceDetail(d) {
     const items = [
       // Une offre déjà reçue clôt cette échéance : la garder ici referait apparaître "Obtention du
       // prêt" comme la prochaine chose à surveiller alors qu'il n'y a plus rien à y suivre — on
       // passe directement à la suivante (acte, vente préalable...), voir calculerProchaineEcheance.
-      ...(d.offrePretStatut === 'recue' ? [] : [{ type: 'pret', label: 'Obtention du prêt', iso: d.pret }]),
-      { type: 'acte', label: "Signature de l'acte", iso: d.acte },
-      { type: 'ventebien', label: 'Vente préalable', iso: d.ventebien },
-      ...(d.autres || []).map(a => ({ type: 'autre', label: a.label, iso: a.date }))
+      ...(echeanceValidee(d, 'pret') ? [] : [{ type: 'pret', label: 'Obtention du prêt', iso: d.pret }]),
+      ...(echeanceValidee(d, 'acte') ? [] : [{ type: 'acte', label: "Signature de l'acte", iso: d.acte }]),
+      ...(echeanceValidee(d, 'ventebien') ? [] : [{ type: 'ventebien', label: 'Vente préalable', iso: d.ventebien }]),
+      ...(d.autres || []).map((a, i) => ({ type: 'autre', label: a.label, iso: a.date, index: i }))
+        .filter(it => !echeanceValidee(d, 'autre-' + it.index))
     ].filter(it => it.iso);
     if (!items.length) return null;
     const avecJours = items.map(it => ({ ...it, jours: joursRestants(it.iso) }));
@@ -5704,7 +5799,9 @@
   // semaine d'échéance (voir renderVueSemaines). En mémoire seulement, comme le reste de l'état
   // d'affichage de cet onglet (recherche, filtres) : c'est une façon de regarder la liste à un
   // instant donné, pas une préférence à conserver d'une session à l'autre.
-  let vueSuivi = 'tableau';
+  // Vue par défaut : « Échéances » (le regroupement par semaine), et non le tableau plat —
+  // demandé par l'étude : ce qu'on ouvre le matin, c'est la charge de travail de la semaine.
+  let vueSuivi = 'semaines';
 
   // Identifiant du dossier affiché dans le tiroir latéral, ou null si aucun. Un seul à la fois :
   // le tiroir est une fenêtre sur LE dossier consulté, pas une liste d'éléments dépliés (c'est
@@ -5739,14 +5836,14 @@
     `;
   }
 
-  // Vue "Semaines" du Suivi : les mêmes dossiers (mêmes filtres, même recherche, même tiroir au
-  // clic), regroupés par semaine d'échéance. Une ligne = une échéance, donc un dossier peut
-  // apparaître plusieurs fois — voir grouperEcheancesParSemaine().
+  // Vue "Échéances" du Suivi : les mêmes dossiers (mêmes filtres, même recherche, même tiroir au
+  // clic), regroupés par semaine. UNE ligne par dossier — sa prochaine échéance en attente, pas
+  // toutes ses dates — voir grouperEcheancesParSemaine().
   function renderVueSemaines(liste) {
     const aujourdHui = isoAujourdHui();
     const groupes = grouperEcheancesParSemaine(liste, aujourdHui);
     if (groupes.length === 0) {
-      return '<div class="empty-state">Aucune échéance à venir sur les dossiers affichés.</div>';
+      return '<div class="empty-state">Aucune échéance en attente sur les dossiers affichés.</div>';
     }
     return groupes.map(g => {
       const lignes = g.items.map(({ dossier: d, echeance: e }) => {
@@ -5798,6 +5895,7 @@
     ajoutPieceOuvert = false;
     ajoutEngagementOuvert = false;
     engagementEnEdition = null;
+    diagnosticParcoursOuvert = false;
     render();
   }
 
@@ -5808,6 +5906,7 @@
     ajoutPieceOuvert = false;
     ajoutEngagementOuvert = false;
     engagementEnEdition = null;
+    diagnosticParcoursOuvert = false;
     render();
   }
 
@@ -5849,6 +5948,7 @@
   // Formulaire d'ajout d'une obligation du vendeur sur une fiche déjà enregistrée (voir
   // renderAjoutEngagement) : même principe que ajoutEcheanceOuvert/ajoutPieceOuvert.
   let ajoutEngagementOuvert = false;
+  let diagnosticParcoursOuvert = false;
 
   // Édition d'un engagement du vendeur déjà présent (import OU fiche enregistrée) : un seul
   // engagement en édition à la fois (dossierId null = pendant l'import, sur
@@ -6047,13 +6147,24 @@
     `;
   }
 
+  // Bug corrigé : ce panneau se refermait tout seul. `render()` reconstruit le tiroir à chaque
+  // action (revérifier une pièce, corriger une date…) et le `<details>` repartait donc fermé, en
+  // plein milieu de la lecture du journal. Son état est désormais mémorisé, comme celui du tiroir
+  // lui-même (`dossierOuvert`) — un seul dossier étant ouvert à la fois, un booléen suffit.
+  // Remis à `false` à l'ouverture/fermeture du tiroir : le diagnostic d'un dossier ne présume pas
+  // de l'intérêt qu'on porte à celui du suivant.
+  function basculerDiagnosticParcours(ouvert) {
+    diagnosticParcoursOuvert = !!ouvert;
+  }
+
   function renderDiagnosticParcours(d) {
     const diag = dernierDiagnosticParcours[d.id];
     if (!diag) return '';
+    const ouvert = diagnosticParcoursOuvert ? ' open' : '';
     const heure = new Date(diag.horodatage).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
     if (diag.resume.erreur) {
       return `
-        <details class="diagnostic-parcours">
+        <details class="diagnostic-parcours"${ouvert} ontoggle="basculerDiagnosticParcours(this.open)">
           <summary><span class="section-eyebrow">Diagnostic du dernier parcours (${heure})</span></summary>
           <div class="diagnostic-corps"><p class="diagnostic-erreur">${escapeHtml(diag.resume.erreur)}</p></div>
         </details>
@@ -6064,7 +6175,7 @@
     lignesResume.push(`${r.nbFichiersRencontres} fichier${r.nbFichiersRencontres > 1 ? 's' : ''} PDF rencontré${r.nbFichiersRencontres > 1 ? 's' : ''} (sous-dossiers compris), ${r.nbAnalyses} ouvert${r.nbAnalyses > 1 ? 's' : ''} pour lire son contenu.`);
     if (r.offre) {
       lignesResume.push(`Offre de prêt : ${!r.offre.trouvee
-        ? `aucun PDF d'au moins ${MIN_PAGES_OFFRE_PRET} pages dont la page de garde s'intitule « offre de prêt » (ou une variante) — le détail fichier par fichier est ci-dessous.`
+        ? `aucun PDF d'au moins ${MIN_PAGES_OFFRE_PRET} pages dont le NOM ou le titre de la page de garde évoque une offre de prêt (ou une variante : offre de crédit, contrat de prêt…) — le détail fichier par fichier est ci-dessous.`
         : r.offre.aConfirmer
           ? `page de garde reconnue (${escapeHtml(r.offre.fichier)}), <strong>à confirmer</strong> : le modèle local n'a pas pu la vérifier.`
           : `reconnue et confirmée (${escapeHtml(r.offre.fichier)})`}`);
@@ -6073,7 +6184,7 @@
       lignesResume.push(`${r.pieces.trouvees}/${r.pieces.total} pièce(s) reconnue(s)${r.pieces.manquantes.length ? ' — manquante(s) : ' + r.pieces.manquantes.map(escapeHtml).join(', ') + '.' : '.'}`);
     }
     return `
-      <details class="diagnostic-parcours">
+      <details class="diagnostic-parcours"${ouvert} ontoggle="basculerDiagnosticParcours(this.open)">
         <summary><span class="section-eyebrow">Diagnostic du dernier parcours (${heure})</span></summary>
         <div class="diagnostic-corps">
           <ul class="diagnostic-resume">${lignesResume.map(l => `<li>${l}</li>`).join('')}</ul>
@@ -6395,13 +6506,12 @@
         <div class="tabs">
           ${renderTab('pret', 'Obtention du prêt', d.pret, d.id, d.pretPage, confiance.pret, null, d.offrePretStatut === 'recue', offreBloc, d.sansPret)}
           ${renderTab('acte', 'Signature de l\u2019acte', d.acte, d.id, d.actePage, confiance.acte)}
-          ${d.ventebien ? renderTab('ventebien', 'Vente préalable', d.ventebien, d.id, d.ventebienPage, confiance.ventebien) : ''}
+          ${d.ventebien ? renderTab('ventebien', 'Vente préalable', d.ventebien, d.id, d.ventebienPage, confiance.ventebien, null, false, '', false, echeanceValidee(d, 'ventebien')) : ''}
           ${(d.autres || []).map((a, i) => renderTab('autre', escapeHtml(a.label), a.date, d.id, a.page, null, i)).join('')}
         </div>
         ${renderAjoutEcheance(d)}
         ${d.roleNotaire !== 'participant' ? renderPiecesDossier(d) : ''}
         ${renderDiagnosticParcours(d)}
-        ${renderAjoutEngagement(d)}
         ${(analyse.documents.length > 0 || analyse.engagements.length > 0 || analyseConditions.length > 0) ? `
           <details class="analyse-juridique analyse-repliable" style="margin-top:14px;" open>
             <summary class="analyse-titre">Analyse juridique du compromis</summary>
@@ -6427,6 +6537,7 @@
             </div>
           </details>
         ` : ''}
+        ${renderAjoutEngagement(d)}
         ${renderExtractionDossier(d)}
         <!-- Libellés volontairement courts (l'intitulé complet reste en infobulle) : l'étude veut
              ces trois actions sur une seule ligne, ce que "Télécharger les rappels (.ics)" et ses
@@ -7377,6 +7488,12 @@
       actePage: Number.isInteger(d.actePage) ? d.actePage : null,
       ventebienPage: Number.isInteger(d.ventebienPage) ? d.ventebienPage : null,
       sansPret: d.sansPret === true,
+      // Conservé à l'import (contrairement aux statuts dérivés des PDF du NAS, remis à zéro) :
+      // « la vente préalable est faite » est une décision prise par l'étude, pas une lecture de
+      // fichier — la réimporter à zéro lui redemanderait de refaire ce travail.
+      echeancesValidees: (d.echeancesValidees && typeof d.echeancesValidees === 'object' && !Array.isArray(d.echeancesValidees))
+        ? Object.fromEntries(Object.entries(d.echeancesValidees).filter(([, v]) => v === true))
+        : {},
       typeVente: (d.typeVente === 'copropriete' || d.typeVente === 'terrain') ? d.typeVente : 'maison',
       roleNotaire: d.roleNotaire === 'participant' ? 'participant' : 'instrumentaire',
       // Choix de l'étude sur QUELLES pièces suivre pour ce dossier précis (pas dérivé d'un scan de
@@ -8062,12 +8179,37 @@
   // Ouvre un PDF du NAS dans un nouvel onglet. Le type MIME est forcé côté serveur, ce qui règle
   // par construction le bug déjà rencontré une fois (contenu binaire affiché comme du texte quand
   // le `File` local n'avait pas de type reconnu).
-  function ouvrirFichierNas(cheminComplet) {
+  //
+  // Bug corrigé : cette fonction faisait un `window.open()` DIRECT sur /api/nas/fichier — une
+  // navigation ordinaire du navigateur, qui ne porte aucun en-tête `Authorization`. Le serveur la
+  // rejetait donc systématiquement, et l'onglet n'affichait que le JSON
+  // `{"erreur":"Authentification requise ou expirée."}` : jamais le PDF. Les octets sont désormais
+  // récupérés par `fetchAvecAuth` (qui, elle, porte le jeton de session) puis présentés via une URL
+  // d'objet locale.
+  //
+  // L'onglet est ouvert AVANT l'await, tant que le clic de l'utilisateur est encore actif :
+  // ouvert après, il serait bloqué comme une fenêtre surgissante (même contrainte d'activation que
+  // celle déjà documentée pour requestPermission).
+  async function ouvrirFichierNas(cheminComplet) {
     if (!cheminComplet) {
       afficherToast("Ce fichier n'a pas encore été localisé — cliquez sur « Revérifier ».", 'OK', null);
       return;
     }
-    window.open('/api/nas/fichier?chemin=' + encodeURIComponent(cheminComplet), '_blank');
+    const onglet = window.open('', '_blank');
+    try {
+      const reponse = await fetchAvecAuth('/api/nas/fichier?chemin=' + encodeURIComponent(cheminComplet));
+      if (!reponse.ok) throw new Error('statut ' + reponse.status);
+      const octets = await reponse.blob();
+      const url = URL.createObjectURL(octets.type === 'application/pdf' ? octets : new Blob([octets], { type: 'application/pdf' }));
+      if (onglet) onglet.location = url;
+      else window.open(url, '_blank'); // onglet bloqué : dernière chance, sans garantie
+      // L'onglet a besoin de l'URL le temps de charger le document ; la révoquer trop tôt donnerait
+      // une page blanche.
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (e) {
+      if (onglet) onglet.close();
+      afficherToast("Impossible d'ouvrir ce fichier depuis le NAS : " + e.message, 'OK', null);
+    }
   }
 
   function fichierTrouve(d, cle) {
@@ -8114,6 +8256,17 @@
     }
     if (!data.dossiers || data.dossiers.length === 0) {
       afficherToast('Aucun dossier trouvé à la racine configurée du NAS.', 'OK', null);
+      return;
+    }
+    // Correspondance PARFAITE (tous les mots du nom du dossier retrouvés dans un seul dossier NAS,
+    // voir rapprochementParfait côté serveur) : on relie directement, sans ouvrir la fenêtre de
+    // choix — demandé par l'étude. Le lien reste défaisable par « Changer de dossier », et il est
+    // journalisé comme tout autre rattachement. Jamais sur un simple « propose », qui n'est qu'un
+    // meilleur candidat : se tromper de dossier ferait chercher les pièces d'une vente dans celles
+    // d'une autre.
+    if (data.parfait && data.parfait !== d.nasDossier) {
+      afficherToast(`Dossier NAS « ${data.parfait} » relié automatiquement (correspondance exacte du nom).`, 'OK', null);
+      await definirDossierNas(id, data.parfait);
       return;
     }
     ouvrirChoixDossierNas(d, data.dossiers, data.propose);
@@ -8168,20 +8321,51 @@
         ? `Dossier proposé pour « ${d.nom} » d'après son nom — corrigez si ce n'est pas le bon.`
         : `Aucun rapprochement évident avec « ${d.nom} » : choisissez le dossier client sur le NAS.`;
     }
-    liste.innerHTML = nomsNas.map(nom => {
-      const marque = nom === d.nasDossier ? 'actuel' : (nom === propose ? 'proposé' : '');
+    // Le dossier proposé (et celui déjà relié) passent EN TÊTE de liste — demandé par l'étude :
+    // les marquer sans les remonter obligeait à les chercher au milieu de centaines d'entrées.
+    const rang = (nom) => (nom === d.nasDossier ? 0 : (nom === propose ? 1 : 2));
+    const ordonnes = nomsNas.slice().sort((a, b) => rang(a) - rang(b) || a.localeCompare(b, 'fr'));
+    choixDossierNasEnCours = { dossierId: d.id, noms: ordonnes, propose, actuel: d.nasDossier || null };
+    const recherche = document.getElementById('nas-choix-recherche');
+    if (recherche) recherche.value = '';
+    renderChoixDossierNas('');
+    overlay.style.display = 'flex';
+    if (recherche) recherche.focus();
+  }
+
+  // Liste et filtre de la fenêtre de choix du dossier NAS. L'état vit ici plutôt que dans le DOM :
+  // filtrer reconstruit la liste, il faut donc garder les noms complets quelque part.
+  let choixDossierNasEnCours = null;
+
+  function renderChoixDossierNas(filtre) {
+    const liste = document.getElementById('nas-choix-liste');
+    if (!liste || !choixDossierNasEnCours) return;
+    const { dossierId, noms, propose, actuel } = choixDossierNasEnCours;
+    // Insensible aux accents et à la casse, comme la recherche de dossiers du Suivi.
+    const cible = normaliserPourRecherche(filtre || '');
+    const visibles = cible ? noms.filter(n => normaliserPourRecherche(n).includes(cible)) : noms;
+    if (visibles.length === 0) {
+      liste.innerHTML = '<p class="nas-choix-vide">Aucun dossier du NAS ne correspond à cette recherche.</p>';
+      return;
+    }
+    liste.innerHTML = visibles.map(nom => {
+      const marque = nom === actuel ? 'actuel' : (nom === propose ? 'proposé' : '');
       return `<button type="button" class="nas-choix-item${marque ? ' ' + (marque === 'actuel' ? 'actuel' : 'propose') : ''}"`
-        + ` onclick="fermerChoixDossierNas(); definirDossierNas('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(nom)}')">`
+        + ` onclick="fermerChoixDossierNas(); definirDossierNas('${escapeOnclickArg(dossierId)}', '${escapeOnclickArg(nom)}')">`
         + `<span class="nas-choix-nom">${escapeHtml(nom)}</span>`
         + (marque ? `<span class="nas-choix-marque">${marque}</span>` : '')
         + `</button>`;
     }).join('');
-    overlay.style.display = 'flex';
+  }
+
+  function filtrerChoixDossierNas(valeur) {
+    renderChoixDossierNas(valeur);
   }
 
   function fermerChoixDossierNas() {
     const overlay = document.getElementById('nas-choix-overlay');
     if (overlay) overlay.style.display = 'none';
+    choixDossierNasEnCours = null;
   }
 
   // Changer de dossier réutilise lierDossierLocal : la même fenêtre de choix, où le dossier
@@ -8307,17 +8491,39 @@
           nbAnalyses++;
           const pdf = await ouvrirPdfNas(cheminComplet);
           if (pdf.numPages < MIN_PAGES_OFFRE_PRET) {
-            // Écarté sans même lire la page de garde : une offre de prêt fait au moins une
-            // dizaine de pages, un document d'une ou deux pages n'en est jamais une.
+            // Écarté sans rien lire d'autre : une offre de prêt fait au moins une dizaine de
+            // pages, un document d'une ou deux pages n'en est jamais une. Ce filtre s'applique aux
+            // DEUX voies de reconnaissance ci-dessous, y compris quand le nom du fichier est
+            // parfaitement explicite — demandé ainsi par l'étude (« toujours pour ceux de plus de
+            // 6 pages »).
             diagnosticJournal.push(`${fichier.nom} → écarté pour l'offre (${pdf.numPages} page${pdf.numPages > 1 ? 's' : ''}, minimum ${MIN_PAGES_OFFRE_PRET})`);
           } else {
-            const page1 = await pdf.getPage(1);
-            const contenu = await page1.getTextContent();
-            const titre = titrePagePdf(contenu.items.map(it => it.str).join(' '));
-            if (!OFFRE_PRET_RE.test(titre)) {
-              diagnosticJournal.push(`${fichier.nom} → titre de page de garde sans rapport avec une offre de prêt`);
-            } else {
-              const confirmation = await confirmerOffrePretIa(titre);
+            // Deux voies, dans cet ordre (demandé par l'étude après avoir vu les deux méthodes
+            // échouer chacune de son côté — voir l'historique de OFFRE_PRET_RE dans CLAUDE.md,
+            // passée du contenu seul au nom seul puis au titre seul) :
+            //   1. le NOM du fichier dit « offre de prêt » / « offre de crédit » / … → validé, sans
+            //      lire le contenu ni solliciter le modèle : un collaborateur qui nomme ainsi un
+            //      fichier a déjà fait le travail d'identification ;
+            //   2. sinon (nom muet ou ambigu) → TITRE de la page de garde, puis confirmation par
+            //      le modèle IA local, comme avant.
+            const nomDitOffre = OFFRE_PRET_RE.test(nomNormalise);
+            let titre = '';
+            let reconnu = nomDitOffre;
+            let parLeNom = nomDitOffre;
+            if (!reconnu) {
+              const page1 = await pdf.getPage(1);
+              const contenu = await page1.getTextContent();
+              titre = titrePagePdf(contenu.items.map(it => it.str).join(' '));
+              reconnu = OFFRE_PRET_RE.test(titre);
+              if (!reconnu) diagnosticJournal.push(`${fichier.nom} → ni le nom du fichier ni le titre de la page de garde n'évoquent une offre de prêt`);
+            }
+            if (reconnu) {
+              // Le modèle n'est sollicité que sur la voie « contenu » : quand le nom du fichier
+              // l'annonce, il n'y a pas de doute à lever, et faire dépendre ce cas d'un modèle
+              // absent ferait retomber en « à confirmer » un document parfaitement identifié.
+              const confirmation = parLeNom
+                ? { disponible: true, estOffrePret: true, raison: '' }
+                : await confirmerOffrePretIa(titre);
               if (confirmation.disponible && !confirmation.estOffrePret) {
                 diagnosticJournal.push(`${fichier.nom} → titre proche, mais écarté par le modèle local${confirmation.raison ? ' : ' + confirmation.raison : ''}`);
               } else {
@@ -8327,9 +8533,11 @@
                 // déclaré reçu d'office : il passe en « à confirmer », statut distinct que l'étude
                 // tranche elle-même en ouvrant le fichier — choix explicite de sa part.
                 offreAConfirmer = !confirmation.disponible;
-                diagnosticJournal.push(offreAConfirmer
-                  ? `${fichier.nom} → offre de prêt probable (titre reconnu), à confirmer : ${confirmation.raison || 'modèle local indisponible'}`
-                  : `${fichier.nom} → offre de prêt confirmée (titre + modèle local)`);
+                diagnosticJournal.push(parLeNom
+                  ? `${fichier.nom} → offre de prêt reconnue au nom du fichier`
+                  : offreAConfirmer
+                    ? `${fichier.nom} → offre de prêt probable (titre de page de garde reconnu), à confirmer : ${confirmation.raison || 'modèle local indisponible'}`
+                    : `${fichier.nom} → offre de prêt confirmée (titre de page de garde + modèle local)`);
                 memoriserFichierTrouve(d, NAS_CLE_OFFRE, cheminComplet);
                 // Le PDF est déjà ouvert : on en profite pour lire le montant emprunté (apport) et
                 // les garanties du prêt. Best-effort, et jamais d'écrasement par un échec : une
