@@ -4973,6 +4973,12 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
   - **CESSION DE FONDS** (fonds de commerce) : `1 - COMPTABILITE`, `2 - SOCIAL`, `3 - PRENEUR`,
     `4 - CONTRAT`, `6 - BAIL`, `7 - DIAGNOSTICS`, `8 - AAE`.
 
-  "AAE" (présent dans MAISON, COPRO, TERRAIN, CESSION DE FONDS) désigne vraisemblablement une
-  catégorie de pièce ou de document propre à l'étude — sens exact non confirmé, ne pas deviner ni
-  développer de logique dessus sans demander confirmation à l'étude.
+  **"AAE" = Acte Authentique Électronique** (confirmé par l'étude le 19/09/2026) : l'acte a été
+  reçu par un notaire sous forme électronique. C'est donc la rubrique qui contient l'acte
+  authentique lui-même (la promesse ou la vente reçue par l'étude), pas une pièce annexe — cohérent
+  avec le nom du PDF réel déjà rejoué plus haut (« Copie AAE PROMESSE DE VENTE … », 41 pages, un
+  acte authentique). Deux usages possibles, aucun engagé pour l'instant : (1) un nom de fichier ou
+  de rubrique commençant par « AAE » est un indice fiable de FORME authentique, utilisable en
+  complément de `detecterFormeActe()` (qui ne lit que l'en-tête du texte) ; (2) pour retrouver
+  l'avant-contrat sur le NAS (`ouvrirCompromisTrouve`, Outil 2), cette rubrique est l'endroit le
+  plus probable. À brancher seulement sur demande, avec un cas réel.
