@@ -4667,6 +4667,54 @@ autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` auton
     qui touche `listerFichiersNas`, à confirmer par l'étude sur un dossier réel dont la rubrique
     AAE contient l'acte.
 
+- **Démarrage automatique de CLAIRE à l'ouverture de la session Windows**, demandé par l'étude
+  (« Lorsque le PC se lance, ouvrir automatiquement le serveur et le logiciel avec le fichier
+  vbs »). Les deux gestes du matin — lancer le serveur caché via `Lancer-CLAIRE-en-arriere-plan.vbs`,
+  puis le logiciel — existaient déjà, le second étant fait par le serveur lui-même
+  (`ouvrirNavigateur()` ouvre la fenêtre Chrome/Edge dédiée au démarrage) : il ne manquait que de
+  déclencher le premier à l'ouverture de session.
+  - **`server/src/scriptsAssistants.js`** (nouveau module) : `assurerScriptsAssistants(dossierExe,
+    fs)` sort de `index.js` pour devenir une fonction pure testable (dossier + `fs` injectables,
+    même principe que `resoudreConfigExecutable()`/`resoudreCheminNavigateurApp()` — `index.js`
+    démarre un vrai serveur dès son import, impossible à charger depuis un test). Les deux scripts
+    existants y sont repris à l'identique, et deux nouveaux s'ajoutent, toujours créés au premier
+    démarrage en mode `.exe` et jamais écrasés s'ils existent :
+    - **`Demarrer-CLAIRE-avec-Windows.vbs`** : pose un raccourci `CLAIRE-serveur.lnk` dans le
+      dossier « Démarrage » de la session (`WScript.Shell.SpecialFolders("Startup")`, soit
+      `shell:startup`) visant `wscript.exe` avec le chemin du lanceur en argument — pas le `.vbs`
+      directement, dont l'ouverture dépendrait de l'association de fichiers du poste, alors que
+      `wscript.exe` (`GetSpecialFolder(1)` = System32) existe partout. Refuse d'agir si le lanceur
+      est absent (l'exe n'a jamais été lancé dans ce dossier). Une `MsgBox` confirme et nomme le
+      script d'annulation.
+    - **`Ne-plus-demarrer-CLAIRE-avec-Windows.vbs`** : supprime ce même raccourci. Ne touche pas à
+      un serveur en cours (`Arreter-CLAIRE.bat` reste le geste pour ça).
+  - **Démarrage AVEC la session, pas un service** : le raccourci ne joue qu'après la saisie du mot
+    de passe Windows, sur le poste qui héberge le serveur. C'est exactement ce que l'étude a demandé
+    (« avec le fichier vbs »), sans outil tiers ni droits administrateur — contrairement à NSSM,
+    qui reste la réponse pour un serveur actif avant toute ouverture de session ou qui se relance
+    seul après un plantage. **Les deux ne doivent pas être installés ensemble** : le second à
+    démarrer trouverait le port occupé et s'arrêterait (chemin déjà géré par `serveur.on('error')`,
+    qui écrit `erreur-demarrage.txt` — lancé sans fenêtre, c'est la seule trace). Noté dans le
+    README, section « Service Windows », désormais présentée comme l'option avancée derrière ce
+    démarrage de session.
+  - **Textes affichés SANS accent** dans les deux nouveaux scripts (`MsgBox`, `Description` du
+    raccourci) : wscript lit un `.vbs` en ANSI, et un « é » écrit en UTF-8 par `writeFileSync`
+    s'afficherait en deux caractères parasites — le lanceur existant porte des accents dans ses
+    seuls commentaires, jamais affichés, ce qui n'a pas ce problème. Un test le verrouille.
+  - `index.js` journalise désormais les scripts effectivement créés (`assurerScriptsAssistants`
+    retourne leurs noms), pour que le premier lancement dise à l'étude ce qui vient d'apparaître à
+    côté de l'exe.
+  - Tests : `server/test/scripts-assistants.test.js` (6 — les quatre scripts créés, aucun script
+    existant réécrit, le raccourci vise bien le lanceur dans le dossier Démarrage via `wscript.exe`,
+    le retrait supprime le même raccourci sans toucher au serveur, textes sans accent, CRLF).
+    Suite serveur 183 → 189, suite racine inchangée (425). **Non vérifié sur un vrai poste
+    Windows** (aucune machine Windows ici, comme pour tout le reste du `.exe`) : la syntaxe
+    `CreateShortcut`/`SpecialFolders("Startup")` est celle documentée par Microsoft, mais
+    l'ouverture effective du navigateur à l'ouverture de session (Chrome doit être prêt quand le
+    serveur appelle `start`) reste à confirmer par l'étude — si la fenêtre du logiciel ne
+    s'ouvrait pas alors que le serveur tourne, le point à regarder est `ouvrirNavigateur()`, pas le
+    raccourci.
+
 **Ce qui n'a volontairement PAS été fait** (arrêté à la demande explicite de l'étude, pas un
 oubli) — à reprendre uniquement si redemandé un jour :
 - **Import automatique** des dossiers déjà enregistrés sur la version 100% locale (`main`) vers ce

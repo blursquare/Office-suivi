@@ -35,6 +35,16 @@ Un seul fichier à déposer sur le PC du bureau, sans installer Node.js, sans te
      fenêtre visible**, donc rien à fermer par erreur.
    - **`Arreter-CLAIRE.bat`** : arrête proprement le serveur lancé ainsi (indispensable une fois
      la fenêtre masquée — sans lui, seul le Gestionnaire des tâches permettrait de l'arrêter).
+   - **`Demarrer-CLAIRE-avec-Windows.vbs`** : à double-cliquer UNE fois pour que CLAIRE démarre
+     tout seul à chaque ouverture de votre session Windows — le serveur repart sans fenêtre (via le
+     lanceur ci-dessus) et ouvre lui-même le logiciel dans le navigateur, sans plus rien à cliquer
+     le matin. Concrètement, un raccourci est posé dans le dossier « Démarrage » de votre session
+     (`shell:startup`), une boîte de message confirme. Ça démarre AVEC la session (après la saisie
+     du mot de passe Windows), pas avant : pour un serveur qui tourne dès l'allumage du poste sans
+     personne connecté, ou qui se relance seul après un plantage, c'est le service Windows (voir
+     plus bas) qu'il faut — et pas les deux à la fois.
+   - **`Ne-plus-demarrer-CLAIRE-avec-Windows.vbs`** : annule le précédent (retire le raccourci).
+     N'arrête pas un serveur déjà lancé — pour ça, `Arreter-CLAIRE.bat`.
    Un premier lancement direct sur l'exe (fenêtre visible) reste utile une fois, pour vérifier que
    tout démarre bien et passer l'avertissement SmartScreen ci-dessous ; ensuite, place à
    `Lancer-CLAIRE-en-arriere-plan.vbs`.
@@ -369,8 +379,13 @@ compte exécutant le serveur restent à confirmer au bureau.
 ## Service Windows (démarrage automatique, redémarrage seul en cas de plantage)
 
 Par défaut, `CLAIRE-serveur.exe` reste un simple exécutable : il tourne tant que sa fenêtre de
-console (ou `Lancer-CLAIRE-en-arrière-plan.vbs`, voir plus haut) reste active, mais rien ne le
-relance automatiquement après un plantage ou un redémarrage du poste. Pour un vrai service
+console (ou `Lancer-CLAIRE-en-arriere-plan.vbs`, voir plus haut) reste active, mais rien ne le
+relance automatiquement après un plantage. **Pour le seul démarrage automatique à l'ouverture de
+session, `Demarrer-CLAIRE-avec-Windows.vbs` (voir plus haut) suffit et n'exige aucun outil
+tiers** — c'est le réglage recommandé pour le poste du bureau où quelqu'un ouvre une session
+chaque matin. Le service ci-dessous ne vaut que pour un serveur qui doit tourner AVANT toute
+ouverture de session ou se relancer seul après un plantage ; ne pas installer les deux en même
+temps (le second à démarrer trouverait le port déjà pris et s'arrêterait). Pour un vrai service
 Windows, ce dossier fournit deux scripts qui pilotent
 [NSSM](https://nssm.cc/) (Non-Sucking Service Manager, outil gratuit tiers — pas développé par ce
 projet, seul le pilotage via ces deux scripts l'est) :
@@ -431,7 +446,7 @@ possibles, à vérifier dans cet ordre.
    ne peut évidemment rien faire si la fenêtre a été fermée ou si l'antivirus coupe le processus de
    l'extérieur (cas 1 et 2).
 
-Ce dossier (`CLAIRE-serveur.exe` + `config.json` + `mot-de-passe.txt` + les deux scripts assistants
+Ce dossier (`CLAIRE-serveur.exe` + `config.json` + `mot-de-passe.txt` + les quatre scripts assistants
 + le sous-dossier `data/` qui apparaît après le premier lancement) forme un tout déplaçable : le
 copier ailleurs (autre disque, autre poste) conserve le registre et le mot de passe.
 

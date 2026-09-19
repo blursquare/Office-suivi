@@ -145,51 +145,9 @@ function ouvrirNavigateur(url) {
   });
 }
 
-// Signalé par l'étude : fermer la fenêtre de console (en pensant qu'elle ne sert à rien) arrête le
-// serveur pour tout le monde — confondu un temps avec un plantage. Plutôt que d'exiger de ne
-// jamais la fermer, on fournit de quoi ne plus jamais avoir besoin de la voir : au premier
-// démarrage en mode exécutable autonome, deux scripts sont créés à côté de l'exe (jamais écrasés
-// s'ils existent déjà, pour ne pas effacer une éventuelle modification) :
-// - `Lancer-CLAIRE-en-arriere-plan.vbs` relance CLAIRE-serveur.exe sans aucune fenêtre visible
-//   (`WScript.Shell.Run(..., 0, False)`) — à utiliser au quotidien à la place d'un double-clic
-//   direct sur l'exe.
-// - `Arreter-CLAIRE.bat` arrête proprement ce processus caché (via son PID, écrit dans
-//   `server.pid` à chaque démarrage — voir plus bas) : sans fenêtre visible, il n'existe sinon
-//   plus aucun moyen d'arrêter le serveur autrement que par le Gestionnaire des tâches.
-// Uniquement en mode `.exe` (`config.estSea()`) : en développement (`npm start`), la console reste
-// le terminal normal de qui a lancé la commande, pas un fichier à générer dans le dépôt.
-function assurerScriptsAssistants(dossierExe) {
-  const cheminLancer = path.join(dossierExe, 'Lancer-CLAIRE-en-arriere-plan.vbs');
-  if (!fs.existsSync(cheminLancer)) {
-    fs.writeFileSync(cheminLancer, [
-      "' Lance le serveur CLAIRE sans afficher de fenêtre — à utiliser au quotidien plutôt que",
-      "' de double-cliquer directement sur CLAIRE-serveur.exe (dont la fenêtre, si fermée par",
-      "' erreur, arrête le serveur pour tout le monde). Pour arrêter le serveur ensuite, utiliser",
-      "' Arreter-CLAIRE.bat, pas le Gestionnaire des tâches.",
-      'Set oFso = CreateObject("Scripting.FileSystemObject")',
-      'Set oShell = CreateObject("WScript.Shell")',
-      'oShell.CurrentDirectory = oFso.GetParentFolderName(WScript.ScriptFullName)',
-      'oShell.Run """CLAIRE-serveur.exe""", 0, False'
-    ].join('\r\n') + '\r\n');
-  }
-  const cheminArreter = path.join(dossierExe, 'Arreter-CLAIRE.bat');
-  if (!fs.existsSync(cheminArreter)) {
-    fs.writeFileSync(cheminArreter, [
-      '@echo off',
-      'chcp 65001 >nul',
-      'if not exist server.pid (',
-      "  echo Aucun serveur CLAIRE ne semble en cours d'execution ^(fichier server.pid absent^).",
-      '  pause',
-      '  exit /b',
-      ')',
-      'set /p PID=<server.pid',
-      'taskkill /PID %PID% /F >nul 2>&1',
-      'del server.pid >nul 2>&1',
-      'echo Serveur CLAIRE arrete.',
-      'pause'
-    ].join('\r\n') + '\r\n');
-  }
-}
+// Scripts assistants (lanceur sans fenêtre, arrêt, démarrage avec la session Windows) : voir
+// scriptsAssistants.js, module séparé pour rester testable sans exécutable réel.
+const { assurerScriptsAssistants } = require('./scriptsAssistants');
 
 function demarrer() {
   const db = ouvrirDb(config.cheminDb);
@@ -235,7 +193,8 @@ function demarrer() {
     if (config.estSea()) {
       const dossierExe = path.dirname(process.execPath);
       try {
-        assurerScriptsAssistants(dossierExe);
+        const crees = assurerScriptsAssistants(dossierExe);
+        if (crees.length) console.log(`[CLAIRE] Scripts assistants créés à côté de l'exécutable : ${crees.join(', ')}`);
         // PID écrit à chaque démarrage (jamais supprimé au préalable) : Arreter-CLAIRE.bat en a
         // besoin pour cibler le bon processus, y compris s'il y a plusieurs node.exe sur le poste.
         fs.writeFileSync(path.join(dossierExe, 'server.pid'), String(process.pid));
