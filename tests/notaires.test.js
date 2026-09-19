@@ -381,6 +381,25 @@ test('l’acte authentique À VENIR ne fait pas passer un compromis pour authent
   assert.equal(app.zoneNotairesPourActe(texte, 'COMPROMIS_DE_VENTE'), 'fin', 'repli sur le type');
 });
 
+test('« AAE » dans le nom du fichier (Acte Authentique Électronique) vaut forme authentique quand l’en-tête ne dit rien', () => {
+  // Convention de l'étude, confirmée par elle : tout acte reçu par notaire est rangé sous
+  // « AAE ». L'en-tête du texte reste lu en premier ; le nom ne tranche que s'il est muet.
+  const app = chargerApplication();
+  const neutre = 'Entre les soussignés, il a été convenu ce qui suit.\n' + BOURRAGE;
+  assert.equal(app.detecterFormeActe(neutre, 'Copie AAE PROMESSE DE VENTE DUPONT.pdf'), 'authentique');
+  assert.equal(app.detecterFormeActe(neutre, 'Copie_AAE_promesse.pdf'), 'authentique', 'underscores tolérés');
+  assert.equal(app.zoneNotairesPourActe(neutre, 'COMPROMIS_DE_VENTE', 'Copie AAE PROMESSE.pdf'), 'entete',
+    'un compromis reçu par notaire nomme ses notaires en première page, comme tout acte authentique');
+  assert.equal(app.detecterFormeActe(neutre, 'Compromis agence DUPONT.pdf'), null, 'sans AAE, rien ne change');
+  assert.equal(app.detecterFormeActe(neutre, 'BAAE.pdf'), null, 'le sigle doit être un mot entier');
+});
+
+test('l’en-tête du texte prime sur l’indice « AAE » du nom de fichier', () => {
+  const app = chargerApplication();
+  const ssp = 'COMPROMIS DE VENTE sous seing privé\n' + BOURRAGE;
+  assert.equal(app.detecterFormeActe(ssp, 'AAE compromis.pdf'), 'sous-seing-prive');
+});
+
 test('sans forme déclarée, le type d’acte sert de repli', () => {
   const app = chargerApplication();
   const neutre = 'Entre les soussignés, il a été convenu ce qui suit.\n' + BOURRAGE;

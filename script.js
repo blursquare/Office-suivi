@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-19 01:37';
+  const VERSION_APP = '2026-09-19 08:10';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-19 08:10', resume: "La mention « AAE » (Acte Authentique Électronique) est désormais comprise par l'outil, à deux endroits. À l'import d'un PDF dont le nom porte « AAE » (« Copie AAE PROMESSE DE VENTE… »), l'acte est reconnu comme authentique même quand son texte ne le déclare pas lisiblement en tête — donc ses notaires sont cherchés en première page, là où un acte reçu par notaire les nomme. Et le bouton « Ouvrir le compromis » (comme l'audit d'Outil 2, quand il retrouve le compromis d'un dossier lié) regarde d'abord dans la rubrique « AAE » du dossier NAS : c'est ce qui le distingue enfin de l'avant-contrat de la VENTE PRÉALABLE de l'acquéreur, rangé ailleurs mais portant les mêmes mots « compromis »/« promesse ». Le nom exact du PDF importé à la création reste toujours cherché en premier ; tout autre choix est signalé comme une recherche élargie" },
     { version: '2026-09-19 01:37', resume: "Vous serez désormais vous-même en copie, sur Teams, de CHAQUE rappel envoyé à un collaborateur — quel que soit le dossier ou le responsable concerné (nouveau champ dans « Réglages », sous l'adresse du flux). Et le bouton « Rappel email » générique de la fiche dossier, celui qui préparait un brouillon à vous-même avec toutes les échéances, est retiré : cette copie automatique le remplace, plus rien à cliquer. Les trois boutons de relance ciblée par email (prêt manquant, pièces à fournir, RIB), eux, restent inchangés — ils s'adressent au client, pas à vous" },
     { version: '2026-09-19 01:20', resume: "Les rappels de dossier arrivent désormais sur Teams, en message privé, plutôt que par un email qu'il fallait rédiger et envoyer soi-même : à 15 puis 7 jours de chaque échéance active (prêt, acte, vente préalable, échéance personnalisée), le responsable du dossier reçoit directement un message. Ça passe par un petit flux Power Automate que vous créez vous-même (aucun service technique nécessaire, la procédure est expliquée pas à pas dans le nouvel écran « Réglages » de la sidebar), où vous collez l'adresse du flux et l'adresse Teams de chacun — avec un bouton « Tester » par personne pour vérifier avant de compter dessus. Le bouton « Envoyer un rappel par email » resté sur chaque fiche continue de fonctionner exactement comme avant, pour un envoi ponctuel à la main" },
     { version: '2026-09-19 00:04', resume: "Outil 2, trois ajouts. Les OBLIGATIONS DU VENDEUR d'abord : sur un projet d'acte de vente avec un dossier CLAIRE lié, l'audit dit désormais, sans IA, si le vendeur a tenu ce à quoi le compromis l'engageait — attestation d'entretien ou de ramonage, factures de travaux, décennale… Chaque obligation ressort « tenue » (avec la pièce qui le prouve, trouvée dans le dossier client ou déposée pour l'audit), « non tenue », ou « à vérifier » quand aucune pièce type ne correspond à la clause, qui est alors citée avec sa page. Le dossier n'est jamais modifié : une facture déposée ici ne coche rien, elle sera reconnue une fois rangée sur le NAS. Ensuite une MÉMOIRE : chaque constat porte « Écarter » et « Confirmer » ; au prochain audit d'un acte similaire, un constat déjà écarté s'affiche replié (jamais supprimé), un constat confirmé remonte en tête — et « Annuler » efface la décision. Enfin, dès que le projet est lu, les dossiers dont les parties correspondent sont PROPOSÉS sous le champ de recherche, à confirmer d'un clic, jamais liés tout seuls" },
@@ -1832,10 +1833,23 @@
   //
   // « promesse synallagmatique » figure parmi les marqueurs d'authenticité non comme une forme,
   // mais parce que l'étude a indiqué que ce type d'acte est toujours reçu par notaire.
-  function detecterFormeActe(texte) {
+  //
+  // Second indice, porté par le NOM du fichier : l'étude range tout acte reçu par notaire sous la
+  // mention « AAE » — Acte Authentique Électronique, sens confirmé par elle le 19/09/2026 — dans le
+  // nom du PDF (« Copie AAE PROMESSE DE VENTE … ») comme dans la rubrique du NAS qui le contient
+  // (« 9 - AAE »). Un fichier ainsi nommé est authentique par construction. L'en-tête du texte
+  // reste lu en premier (une déclaration de forme dans l'acte vaut plus qu'une convention de
+  // nommage) ; le nom ne tranche que là où l'en-tête ne dit rien.
+  var RE_NOM_AAE = /\bAAE\b|acte\s+authentique\s+[ée]lectronique/i;
+  function estNomFichierAAE(nom) {
+    return RE_NOM_AAE.test(normaliserNomPourMotif(String(nom || '')));
+  }
+
+  function detecterFormeActe(texte, nomFichier) {
     const entete = String(texte || '').slice(0, ZONE_ENTETE_ACTE);
     if (RE_FORME_AUTHENTIQUE.test(entete)) return 'authentique';
     if (RE_FORME_SOUS_SEING_PRIVE.test(entete)) return 'sous-seing-prive';
+    if (nomFichier && estNomFichierAAE(nomFichier)) return 'authentique';
     return null;
   }
 
@@ -1850,8 +1864,8 @@
 
   // Zone où chercher les notaires : la FORME d'abord (ce qui décide réellement), le type d'acte
   // seulement en repli.
-  function zoneNotairesPourActe(texte, typeActe) {
-    const forme = detecterFormeActe(texte);
+  function zoneNotairesPourActe(texte, typeActe, nomFichier) {
+    const forme = detecterFormeActe(texte, nomFichier);
     if (forme === 'authentique') return 'entete';
     if (forme === 'sous-seing-prive') return 'fin';
     return ZONE_NOTAIRES_PAR_TYPE[typeActe] || null;
@@ -2390,14 +2404,16 @@
   // Rassemble tout ce que les regex savent extraire en UN objet, avec pour chaque donnée son
   // statut, sa provenance et sa source dans le PDF. C'est ce même objet que la passe IA viendra
   // ensuite compléter (voir fusionnerExtractionIa) : les deux passes ne parlent qu'une langue.
-  function construireExtractionRegex(texte, dateCompromis, detectedDatesFournies) {
+  // `nomFichier` (facultatif) : le nom du PDF d'origine, un indice de forme quand l'en-tête du
+  // texte n'en déclare aucune (voir detecterFormeActe — « AAE » dans le nom = acte authentique).
+  function construireExtractionRegex(texte, dateCompromis, detectedDatesFournies, nomFichier) {
     const source = String(texte || '');
     const typeActe = detecterTypeActe(source);
     const detectedDates = Array.isArray(detectedDatesFournies)
       ? detectedDatesFournies
       : detecterDatesDepuisTexte(source, dateCompromis);
     const bien = detecterAdresseBienStructuree(source);
-    const notaires = determinerNotaires(detecterNotaires(source, typeActe.valeur), bien.adresse.departement, typeActe.valeur, zoneNotairesPourActe(source, typeActe.valeur));
+    const notaires = determinerNotaires(detecterNotaires(source, typeActe.valeur), bien.adresse.departement, typeActe.valeur, zoneNotairesPourActe(source, typeActe.valeur, nomFichier));
 
     const extraction = {
       version: 1,
@@ -4451,7 +4467,7 @@
   // detecterDatesDepuisTexte. En oublier un laisserait le panneau désynchronisé du formulaire.
   function recalculerExtractionRegex() {
     if (!dernierTexteTraite) { renderPanneauRevision(null); return; }
-    extractionActuelle = construireExtractionRegex(dernierTexteTraite, dateCompromisDetectee, detectedDates);
+    extractionActuelle = construireExtractionRegex(dernierTexteTraite, dateCompromisDetectee, detectedDates, compromisNomFichierImporte);
     appliquerCorrectionsRevision(extractionActuelle);
     appliquerExtractionAuFormulaire(extractionActuelle);
     renderPanneauRevision(extractionActuelle);
@@ -5612,7 +5628,7 @@
           source: sourceIa(n)
         }));
         const departement = extraction.bien && extraction.bien.adresse ? extraction.bien.adresse.departement : null;
-        extraction.notaires = determinerNotaires(liste, departement, extraction.typeActe && extraction.typeActe.valeur, zoneNotairesPourActe(texte, extraction.typeActe && extraction.typeActe.valeur));
+        extraction.notaires = determinerNotaires(liste, departement, extraction.typeActe && extraction.typeActe.valeur, zoneNotairesPourActe(texte, extraction.typeActe && extraction.typeActe.valeur, o.nomFichier));
         // Notaires lus par le seul modèle : l'origine est tracée pour que le rôle de l'étude ne
         // soit JAMAIS pré-rempli automatiquement à partir d'eux (voir
         // appliquerExtractionAuFormulaire) — ce sélecteur masque la checklist des pièces quand il
@@ -5715,7 +5731,7 @@
       if (!corps || !corps.resultat) return;
       if (monImport !== generationImportActuel || !extractionActuelle) return;
 
-      fusionnerExtractionIa(extractionActuelle, lot, corps.resultat, texte, { page: pageDepuisIndex });
+      fusionnerExtractionIa(extractionActuelle, lot, corps.resultat, texte, { page: pageDepuisIndex, nomFichier: compromisNomFichierImporte });
       lotsAboutis++;
 
       if (lot === 'dates') {
@@ -10032,6 +10048,47 @@
     return base ? `${base}/${cheminDansDossier}` : cheminDansDossier;
   }
 
+  // Un PDF rangé dans une rubrique « AAE » du dossier client (« 9 - AAE », « 8 - AAE »… selon le
+  // type d'affaire — voir l'arborescence de l'étude dans CLAUDE.md) : c'est là que vit l'acte
+  // reçu par notaire. Seuls les DOSSIERS du chemin comptent, jamais le nom du fichier lui-même
+  // (estNomFichierAAE s'en charge séparément). Séparateurs Windows et Unix acceptés : le chemin
+  // vient de path.relative() côté serveur, qui écrit des antislashs sur un poste Windows.
+  function estDansRubriqueAAE(chemin) {
+    const segments = String(chemin || '').split(/[\\/]+/);
+    segments.pop();
+    return segments.some(estNomFichierAAE);
+  }
+
+  // Choisit l'avant-contrat parmi les PDF d'un dossier NAS. Par ordre de confiance décroissant :
+  //   1. le nom EXACT du PDF importé à la création (`d.compromisNomFichier`) — s'il existe en
+  //      double, celui de la rubrique AAE l'emporte ;
+  //   2. un nom qui dit « compromis » puis « promesse », d'abord dans la rubrique AAE (ou portant
+  //      lui-même « AAE »), puis n'importe où — l'avant-contrat de la VENTE PRÉALABLE de l'acquéreur
+  //      porte les mêmes mots mais n'est pas rangé sous AAE, c'est ce qui les départage ;
+  //   3. la rubrique AAE ne contenant qu'UN SEUL PDF : c'est lui, quel que soit son nom.
+  // Tout ce qui n'est pas la méthode 1 est un repli à signaler à l'étude, jamais une certitude.
+  // Fonction pure (liste `{nom, chemin}` en entrée), testable — voir tests/nas-avant-contrat.test.js.
+  var RE_NOM_COMPROMIS = /compromis/i;
+  var RE_NOM_PROMESSE = /promesse/i;
+  function choisirAvantContratNas(fichiers, nomAttendu) {
+    const liste = Array.isArray(fichiers) ? fichiers : [];
+    const nomNormalise = f => normaliserNomPourMotif(String(f.nom || '')).toLowerCase();
+    const sousAAE = f => estDansRubriqueAAE(f.chemin) || estNomFichierAAE(f.nom);
+    if (nomAttendu) {
+      const cible = normaliserNomPourMotif(nomAttendu).toLowerCase();
+      const exacts = liste.filter(f => nomNormalise(f).includes(cible));
+      if (exacts.length) return { fichier: exacts.find(sousAAE) || exacts[0], methode: 'nom-exact' };
+    }
+    const parNom = liste.filter(f => RE_NOM_COMPROMIS.test(nomNormalise(f)))
+      .concat(liste.filter(f => RE_NOM_PROMESSE.test(nomNormalise(f)) && !RE_NOM_COMPROMIS.test(nomNormalise(f))));
+    const parNomAAE = parNom.find(sousAAE);
+    if (parNomAAE) return { fichier: parNomAAE, methode: 'aae-nom' };
+    if (parNom.length) return { fichier: parNom[0], methode: 'nom' };
+    const dansAAE = liste.filter(sousAAE);
+    if (dansAAE.length === 1) return { fichier: dansAAE[0], methode: 'aae-seul' };
+    return { fichier: null, methode: null };
+  }
+
   // Liste les PDF du dossier NAS relié, sous-dossiers compris. Le parcours en largeur et les
   // plafonds vivent désormais côté serveur (voir server/src/nas.js) — la leçon déjà payée sur le
   // parcours en profondeur y est reprise telle quelle.
@@ -10653,26 +10710,16 @@
     if (btn) { btn.disabled = true; btn.innerHTML = `${icone('spinner', null, true)} Recherche\u2026`; }
     try {
       const fichiers = await listerFichiersNas(d);
-      // Correspondance par sous-chaîne sur le nom normalisé (underscores/tirets → espaces, accents
-      // recomposés) — la même que pour une pièce personnalisée.
-      const parNom = (cible) => {
-        const t = normaliserNomPourMotif(cible).toLowerCase();
-        return fichiers.find(f => normaliserNomPourMotif(f.nom).toLowerCase().includes(t)) || null;
-      };
-      let trouve = null;
-      let parRepli = false;
-      if (d.compromisNomFichier) {
-        trouve = parNom(d.compromisNomFichier);
-        if (!trouve) {
-          afficherToast(`\u00ab\u00a0${d.compromisNomFichier}\u00a0\u00bb introuvable dans le dossier NAS \u2014 recherche \u00e9largie.`, 'OK', null);
-        }
+      // Nom exact d'abord, rubrique AAE ensuite, mots « compromis »/« promesse » en dernier — voir
+      // choisirAvantContratNas() pour l'ordre complet et ce qu'il départage.
+      const choix = choisirAvantContratNas(fichiers, d.compromisNomFichier);
+      const trouve = choix.fichier;
+      const parRepli = choix.methode !== 'nom-exact';
+      if (d.compromisNomFichier && parRepli) {
+        afficherToast(`\u00ab\u00a0${d.compromisNomFichier}\u00a0\u00bb introuvable dans le dossier NAS \u2014 recherche \u00e9largie.`, 'OK', null);
       }
       if (!trouve) {
-        parRepli = true;
-        trouve = parNom('compromis') || parNom('promesse');
-      }
-      if (!trouve) {
-        afficherToast('Aucun fichier contenant \u00ab\u00a0compromis\u00a0\u00bb ou \u00ab\u00a0promesse\u00a0\u00bb dans le dossier NAS reli\u00e9.', 'OK', null);
+        afficherToast('Aucun avant-contrat trouv\u00e9 dans le dossier NAS reli\u00e9 : ni rubrique \u00ab\u00a0AAE\u00a0\u00bb, ni fichier contenant \u00ab\u00a0compromis\u00a0\u00bb ou \u00ab\u00a0promesse\u00a0\u00bb.', 'OK', null);
         return;
       }
       const chemin = cheminNasComplet(d, trouve.chemin);
@@ -11316,9 +11363,9 @@
   async function recupererTextCompromisDossier(d) {
     if (!d || !d.dossierLie || !d.nasDossier || !window.pdfjsLib) return null;
     try {
-      const trouve = d.compromisNomFichier
-        ? await chercherFichierParNom(d, d.compromisNomFichier)
-        : (await chercherFichierParNom(d, 'compromis')) || await chercherFichierParNom(d, 'promesse');
+      // Même ordre de préférence que le bouton « Ouvrir le compromis » (choisirAvantContratNas) :
+      // nom exact, puis rubrique AAE, puis mots « compromis »/« promesse ».
+      const trouve = choisirAvantContratNas(await listerFichiersNas(d), d.compromisNomFichier).fichier;
       if (!trouve) return null;
       const pdf = await ouvrirPdfNas(cheminNasComplet(d, trouve.chemin));
       const { texte, pages } = await lireTextePdfParPage(pdf);
@@ -11775,11 +11822,12 @@
       // NAS), passé par construireExtractionRegex() pour obtenir la même forme.
       if (auditMode === 'acte') {
         const texteReference = referenceUploadee ? referenceUploadee.texte : (referenceAutoRecuperee ? referenceAutoRecuperee.texte : null);
+        const nomReference = referenceUploadee ? referenceUploadee.nom : (referenceAutoRecuperee ? referenceAutoRecuperee.nom : null);
         const reference = auditDossierLie
           ? referenceDepuisDossier(auditDossierLie)
-          : (texteReference ? construireExtractionRegex(texteReference, null, null) : null);
+          : (texteReference ? construireExtractionRegex(texteReference, null, null, nomReference) : null);
         if (reference) {
-          const projet = construireExtractionRegex(principal.texte, null, null);
+          const projet = construireExtractionRegex(principal.texte, null, null, principal.nom);
           const diff = comparerCompromisEtProjet(reference, projet);
           corps.constats = Array.isArray(corps.constats) ? corps.constats : [];
           for (const c of diff) {

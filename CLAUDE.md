@@ -4622,6 +4622,51 @@ autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` auton
     fonctions de mutation non testables unitairement, même limite déjà documentée pour le reste de
     ce fichier).
 
+- **La mention « AAE » exploitée à deux endroits : indice de forme authentique à l'import, et
+  rubrique regardée en premier pour retrouver l'avant-contrat sur le NAS.** Après avoir donné le
+  sens du sigle (Acte Authentique Électronique — voir la note en fin de « Ce qui reste ouvert »),
+  l'étude a demandé de brancher les deux usages que j'avais proposés (« C'est deux point sont à
+  intégrer »). Tout côté client, aucun changement serveur.
+  - **Forme de l'acte** : `detecterFormeActe(texte, nomFichier)` accepte un second paramètre. Si
+    l'en-tête du texte ne déclare rien (ni « par-devant Maître », ni « sous seing privé »), un nom
+    de fichier portant « AAE » (`estNomFichierAAE`, mot entier — `BAAE` ne compte pas — ou « acte
+    authentique électronique » en toutes lettres, testé sur le nom normalisé par
+    `normaliserNomPourMotif`, donc underscores tolérés) rend `'authentique'`. **L'en-tête reste lu
+    en premier** : une déclaration de forme dans l'acte vaut plus qu'une convention de nommage, et
+    un en-tête « sous seing privé » l'emporte sur un nom « AAE » (testé). Conséquence directe :
+    `zoneNotairesPourActe()` renvoie `'entete'` pour un tel fichier même quand le type d'acte est
+    un compromis, donc les notaires sont cherchés en première page — là où un acte reçu par notaire
+    les nomme (voir « la FORME de l'acte » plus haut). Le nom du PDF importé
+    (`compromisNomFichierImporte`, déjà mémorisé pour « Ouvrir le compromis ») est propagé jusqu'à
+    `construireExtractionRegex(texte, dateCompromis, dates, nomFichier)` via
+    `recalculerExtractionRegex()`, à la branche notaires de `fusionnerExtractionIa()` (option
+    `nomFichier`), et dans Outil 2 au nom du document principal et de la référence (uploadée ou
+    récupérée du dossier lié).
+  - **Avant-contrat sur le NAS** : `choisirAvantContratNas(fichiers, nomAttendu)` (fonction pure,
+    `tests/nas-avant-contrat.test.js`) remplace les deux appels successifs à
+    `chercherFichierParNom(d, 'compromis')` puis `'promesse'` dans `ouvrirCompromisTrouve()` et
+    `recupererTextCompromisDossier()` (Outil 2). Ordre de confiance : (1) le nom EXACT du PDF importé
+    à la création — s'il existe en double, la copie sous AAE est préférée ; (2) un nom disant
+    « compromis » puis « promesse », d'abord dans la rubrique AAE ou portant lui-même « AAE »
+    (`methode: 'aae-nom'`), puis n'importe où (`'nom'`) ; (3) la rubrique AAE ne contenant qu'UN
+    SEUL PDF, quel que soit son nom (`'aae-seul'`) — plusieurs PDF sous AAE sans nom parlant ne
+    donnent rien plutôt qu'un choix arbitraire, même prudence que le rapprochement NAS. C'est le
+    point 2 qui règle le bug déjà corrigé une première fois par le nom exact (voir lot 4 de la
+    « série de 12 demandes ») pour les dossiers créés à la main ou avant cette mémorisation :
+    l'avant-contrat de la VENTE PRÉALABLE de l'acquéreur porte les mêmes mots mais n'est pas rangé
+    sous AAE. `estDansRubriqueAAE(chemin)` ne regarde que les DOSSIERS du chemin (jamais le nom du
+    fichier, `estNomFichierAAE` s'en charge à part) et accepte antislashs et barres obliques — le
+    chemin vient de `path.relative()` côté serveur, qui écrit des antislashs sur Windows. Tout ce
+    qui n'est pas `'nom-exact'` reste un repli signalé par le toast « recherche élargie » déjà en
+    place ; le toast d'échec nomme désormais les trois choses cherchées (rubrique AAE, « compromis »,
+    « promesse »). `chercherFichierParNom()` reste utilisée par `ajouterPiecePersonnalisee()`.
+  - Tests : 2 nouveaux dans `tests/notaires.test.js` (indice de forme, priorité de l'en-tête) et
+    10 dans `tests/nas-avant-contrat.test.js` (rubrique vs nom de fichier, chaque niveau de
+    l'ordre de confiance, doublon sous AAE, aucune proposition sur ambiguïté, listes vides). Suite
+    racine 413 → 425, suite serveur inchangée (183). **Non vérifié sur un vrai NAS** : comme tout ce
+    qui touche `listerFichiersNas`, à confirmer par l'étude sur un dossier réel dont la rubrique
+    AAE contient l'acte.
+
 **Ce qui n'a volontairement PAS été fait** (arrêté à la demande explicite de l'étude, pas un
 oubli) — à reprendre uniquement si redemandé un jour :
 - **Import automatique** des dossiers déjà enregistrés sur la version 100% locale (`main`) vers ce
@@ -4977,8 +5022,9 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
   reçu par un notaire sous forme électronique. C'est donc la rubrique qui contient l'acte
   authentique lui-même (la promesse ou la vente reçue par l'étude), pas une pièce annexe — cohérent
   avec le nom du PDF réel déjà rejoué plus haut (« Copie AAE PROMESSE DE VENTE … », 41 pages, un
-  acte authentique). Deux usages possibles, aucun engagé pour l'instant : (1) un nom de fichier ou
-  de rubrique commençant par « AAE » est un indice fiable de FORME authentique, utilisable en
-  complément de `detecterFormeActe()` (qui ne lit que l'en-tête du texte) ; (2) pour retrouver
-  l'avant-contrat sur le NAS (`ouvrirCompromisTrouve`, Outil 2), cette rubrique est l'endroit le
-  plus probable. À brancher seulement sur demande, avec un cas réel.
+  acte authentique). Deux usages, **tous deux branchés le 19/09/2026 à la demande de l'étude**
+  (« C'est deux point sont à intégrer » — voir l'entrée « La mention AAE… » dans l'historique de la
+  section « Mode serveur intranet ») : (1) un nom de fichier ou de rubrique portant « AAE » est un
+  indice de FORME authentique, en complément de `detecterFormeActe()` (qui ne lit que l'en-tête du
+  texte) ; (2) pour retrouver l'avant-contrat sur le NAS (`ouvrirCompromisTrouve`, Outil 2), cette
+  rubrique est l'endroit regardé en premier (`choisirAvantContratNas`).
