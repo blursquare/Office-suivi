@@ -965,6 +965,21 @@
   }
 
   .analyse-ia-rapport { display: flex; flex-direction: column; gap: 10px; }
+  /* Alerte de couverture de lecture (Outil 2) : n'apparaît que si au moins un document a été
+     tronqué par un plafond de pages (voir renderCouvertureAudit/lireTextePdfParPage, script.js) —
+     même teinte que .dl-alerte/.calc-warning-label (color-mix sur --pret, pas --urgent : une
+     lecture partielle appelle une vigilance, ce n'est pas en soi une erreur constatée). */
+  .analyse-ia-couverture-alerte {
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    color: var(--pret);
+    background: color-mix(in srgb, var(--pret) 10%, var(--paper-card));
+    border: 1px solid color-mix(in srgb, var(--pret) 30%, transparent);
+  }
+  .analyse-ia-couverture-alerte p { margin: 0 0 6px; display: flex; align-items: center; gap: 6px; }
+  .analyse-ia-couverture-alerte .icone { flex: none; }
+  .analyse-ia-couverture-alerte ul { margin: 0; padding-left: 22px; }
   /* Comptage par gravité (Outil 2 — Audit des actes), calculé côté serveur : quatre .dot-label en
      ligne, jamais un chiffre inventé par le modèle (voir renderResumeAudit, script.js). */
   .analyse-ia-resume { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 4px; }

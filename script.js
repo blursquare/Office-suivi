@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-19 08:35';
+  const VERSION_APP = '2026-09-19 08:55';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-19 08:55', resume: "Outil 2 (Audit des actes) : un document scanné est désormais lu en entier, pas seulement ses 3 premières pages. Cette limite servait bien pour reconnaître un document du dossier client par son titre, mais pour l'AUDITER — chercher une incohérence n'importe où dans le texte — il fallait le lire au complet, comme pour un compromis à l'import. La liste de documents et le rapport final indiquent maintenant, pour chaque pièce, combien de pages ont réellement été lues (et si la lecture est passée par la reconnaissance d'image) ; une lecture malgré tout coupée par un document exceptionnellement long est signalée en clair plutôt que passée sous silence. La vérification d'un dossier local (offre de prêt, pièces) n'est pas concernée, elle reste sur 3 pages, ce qui lui suffit" },
     { version: '2026-09-19 08:35', resume: "Correction sur « Ouvrir le compromis » (et le compromis de référence d'Outil 2) : l'avant-contrat signé est désormais cherché à la RACINE du dossier client ou dans la rubrique « SRU », là où vous le rangez réellement — plus dans « 9 - AAE », qui contient les pièces réunies entre le compromis et la vente (urbanisme, entretien…), pas l'acte. La version de ce matin regardait au mauvais endroit. Le nom exact du PDF importé reste cherché en premier ; « AAE » dans le NOM d'un PDF continue de signaler un acte authentique à l'import, ce point-là était juste" },
     { version: '2026-09-19 08:14', resume: "CLAIRE peut démarrer tout seul à l'ouverture de votre session Windows. Deux nouveaux fichiers apparaissent à côté de CLAIRE-serveur.exe au prochain lancement : « Demarrer-CLAIRE-avec-Windows.vbs » (à double-cliquer une seule fois — le serveur repartira ensuite sans fenêtre à chaque ouverture de session et ouvrira lui-même le logiciel dans le navigateur, plus rien à cliquer le matin) et « Ne-plus-demarrer-CLAIRE-avec-Windows.vbs » pour annuler. Concerne le poste qui héberge le serveur ; les autres postes continuent d'ouvrir l'adresse habituelle" },
     { version: '2026-09-19 08:10', resume: "La mention « AAE » (Acte Authentique Électronique) est désormais comprise par l'outil, à deux endroits. À l'import d'un PDF dont le nom porte « AAE » (« Copie AAE PROMESSE DE VENTE… »), l'acte est reconnu comme authentique même quand son texte ne le déclare pas lisiblement en tête — donc ses notaires sont cherchés en première page, là où un acte reçu par notaire les nomme. Et le bouton « Ouvrir le compromis » (comme l'audit d'Outil 2, quand il retrouve le compromis d'un dossier lié) regarde d'abord dans la rubrique « AAE » du dossier NAS : c'est ce qui le distingue enfin de l'avant-contrat de la VENTE PRÉALABLE de l'acquéreur, rangé ailleurs mais portant les mêmes mots « compromis »/« promesse ». Le nom exact du PDF importé à la création reste toujours cherché en premier ; tout autre choix est signalé comme une recherche élargie" },
@@ -10360,6 +10361,15 @@
   // principe que le repli déjà utilisé pour la date de signature du compromis (traiterFichierPdf),
   // borné pour ne pas ralentir le parcours de tout un dossier local.
   const PAGES_OCR_VERIFICATION = 3;
+  // Repli OCR dédié à Outil 2 (Audit des actes, voir lireTextePdfParPage juste en dessous) :
+  // PAGES_OCR_VERIFICATION (3 pages) suffit à RECONNAÎTRE un document scanné par son titre — c'est
+  // tout ce que demande verifierDossierLocal() — mais Outil 2 doit ANALYSER l'intégralité d'un
+  // document scanné pour y détecter des incohérences, pas seulement l'identifier. Repli signalé par
+  // l'étude ("comment le document peut être analysé après si seulement 3 pages sont lu") : alignée
+  // sur PLAFOND_PAGES_VERIFICATION, la même limite que la lecture texte, pour qu'un document scanné
+  // reçoive la même couverture qu'un document au texte extractible. Coût assumé : jusqu'à ~30s/page
+  // (DELAI_MAX_OCR) sur un document entièrement scanné, contre quelques secondes pour 3 pages.
+  const PAGES_OCR_AUDIT = PLAFOND_PAGES_VERIFICATION;
 
   // Texte utile d'un PDF du dossier local relié, avec repli OCR s'il n'a aucun texte extractible
   // (scan/image) : partagé par verifierDossierLocal(), qui n'a plus qu'à tester l'offre de prêt
@@ -10391,40 +10401,48 @@
   // Variante page par page de lireTextePdfVerification(), pour Outil 2 (Audit des actes — voir plus
   // bas, section « Analyse approfondie (IA) ») : celui-ci doit citer une PAGE précise pour chaque
   // document envoyé au modèle, pas seulement pour le compromis en cours d'import (pageDepuisIndex
-  // ne connaît que le PDF unique chargé dans le wizard). Même lecture, mêmes plafonds
-  // (PLAFOND_PAGES_VERIFICATION, repli OCR sur PAGES_OCR_VERIFICATION pages), mais mémorise en plus
-  // la position de chaque page dans le texte joint. lireTextePdfVerification() elle-même n'est pas
-  // touchée : ses appelants existants (vérification d'un dossier local) n'ont pas besoin des
-  // frontières de page et ne doivent pas changer de comportement.
+  // ne connaît que le PDF unique chargé dans le wizard). Même lecture texte
+  // (PLAFOND_PAGES_VERIFICATION), mais repli OCR élargi (PAGES_OCR_AUDIT, voir sa déclaration
+  // ci-dessus) : contrairement à lireTextePdfVerification(), qui n'a besoin que de RECONNAÎTRE un
+  // document par son titre, Outil 2 doit pouvoir ANALYSER l'intégralité d'un document scanné.
+  // Mémorise en plus la position de chaque page dans le texte joint, et un résumé de couverture
+  // (pagesLues/pagesTotal/viaOcr/tronque) pour que l'audit puisse signaler qu'une lecture a été
+  // coupée plutôt que de le laisser silencieux. lireTextePdfVerification() elle-même n'est pas
+  // touchée : ses appelants existants (vérification d'un dossier local) n'ont pas besoin de tout
+  // ça et ne doivent pas changer de comportement (ni de temps de traitement).
   async function lireTextePdfParPage(pdf) {
     let texte = '';
     let pages = [];
-    for (let p = 1; p <= Math.min(pdf.numPages, PLAFOND_PAGES_VERIFICATION); p++) {
+    const pagesTotal = pdf.numPages;
+    for (let p = 1; p <= Math.min(pagesTotal, PLAFOND_PAGES_VERIFICATION); p++) {
       const page = await pdf.getPage(p);
       const content = await page.getTextContent();
       const debut = texte.length;
       texte += content.items.map(it => it.str).join(' ') + '\n';
       pages.push({ numero: p, debut, fin: texte.length });
     }
+    let viaOcr = false;
     if (texte.trim().length < 40) {
       const workerVerif = await creerWorkerOcr();
       if (workerVerif) {
         try {
           let texteOcr = '';
           const pagesOcr = [];
-          for (let p = 1; p <= Math.min(pdf.numPages, PAGES_OCR_VERIFICATION); p++) {
+          for (let p = 1; p <= Math.min(pagesTotal, PAGES_OCR_AUDIT); p++) {
             const debut = texteOcr.length;
             texteOcr += (await ocrPage(pdf, p, workerVerif)) + '\n';
             pagesOcr.push({ numero: p, debut, fin: texteOcr.length });
           }
           texte = texteOcr;
           pages = pagesOcr;
+          viaOcr = true;
         } finally {
           await workerVerif.terminate();
         }
       }
     }
-    return { texte, pages };
+    const pagesLues = pages.length;
+    return { texte, pages, pagesLues, pagesTotal, viaOcr, tronque: pagesLues < pagesTotal };
   }
 
   // Retour la page (1-indexée) contenant l'index donné dans un texte construit par
@@ -11386,9 +11404,9 @@
       const trouve = choisirAvantContratNas(await listerFichiersNas(d), d.compromisNomFichier).fichier;
       if (!trouve) return null;
       const pdf = await ouvrirPdfNas(cheminNasComplet(d, trouve.chemin));
-      const { texte, pages } = await lireTextePdfParPage(pdf);
+      const { texte, pages, pagesLues, pagesTotal, viaOcr, tronque } = await lireTextePdfParPage(pdf);
       if (texte.trim().length < 20) return null;
-      return { nom: trouve.nom, texte, pages };
+      return { nom: trouve.nom, texte, pages, pagesLues, pagesTotal, viaOcr, tronque };
     } catch (e) {
       console.error('Audit des actes : compromis du dossier lié introuvable ou illisible', e);
       return null;
@@ -11442,7 +11460,11 @@
       statut: 'lecture',
       texte: '',
       pages: [],
-      erreurTexte: ''
+      erreurTexte: '',
+      pagesLues: null,
+      pagesTotal: null,
+      viaOcr: false,
+      tronque: false
     }));
     fichiersAnalyseIa = fichiersAnalyseIa.concat(nouvelles);
     renderListeFichiersAnalyseIa();
@@ -11468,7 +11490,7 @@
     try {
       const buffer = await entree.file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: buffer, verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise;
-      const { texte, pages } = await lireTextePdfParPage(pdf);
+      const { texte, pages, pagesLues, pagesTotal, viaOcr, tronque } = await lireTextePdfParPage(pdf);
       if (texte.trim().length < 20) {
         entree.statut = 'erreur';
         entree.erreurTexte = 'Aucun texte exploitable trouvé (page vide, ou scan illisible même après OCR).';
@@ -11476,6 +11498,10 @@
         entree.statut = 'ok';
         entree.texte = texte;
         entree.pages = pages;
+        entree.pagesLues = pagesLues;
+        entree.pagesTotal = pagesTotal;
+        entree.viaOcr = viaOcr;
+        entree.tronque = tronque;
       }
     } catch (e) {
       entree.statut = 'erreur';
@@ -11511,10 +11537,27 @@
     renderListeFichiersAnalyseIa();
   }
 
+  // Résumé lisible de la couverture de lecture d'un document (pages effectivement lues sur le
+  // total, et si la lecture est passée par l'OCR) — voir lireTextePdfParPage(). Signalé par
+  // l'étude : sans ce résumé, rien n'indiquait qu'un document scanné volumineux n'avait été lu
+  // qu'en partie, ce qui pouvait laisser croire à une analyse complète alors qu'elle ne portait
+  // que sur les premières pages. Fonction pure, réutilisée par le badge de la liste de fichiers et
+  // par le rapport d'audit final.
+  function libelleCouverturePages(entree) {
+    if (!entree || entree.pagesTotal == null) return '';
+    const via = entree.viaOcr ? ' (OCR)' : '';
+    if (!entree.tronque) return `p.${entree.pagesLues}/${entree.pagesTotal}${via}`;
+    return `p.${entree.pagesLues}/${entree.pagesTotal}${via} — lecture incomplète`;
+  }
+
   function statutFichierAnalyseIa(entree) {
     if (entree.statut === 'lecture') return `<span class="dot-label dl-neutre">${icone('spinner', null, true)}Lecture…</span>`;
     if (entree.statut === 'erreur') return `<span class="dot-label dl-urgent" title="${escapeAttr(entree.erreurTexte)}">${icone('alert-triangle')}Erreur</span>`;
-    return `<span class="dot-label dl-success">${icone('file-text')}Lu</span>`;
+    const couverture = libelleCouverturePages(entree);
+    if (entree.tronque) {
+      return `<span class="dot-label dl-pret" title="Seules les ${entree.pagesLues} premières pages sur ${entree.pagesTotal} ont été lues — le reste du document n'a pas pu être analysé.">${icone('alert-triangle')}Lu partiellement (${couverture})</span>`;
+    }
+    return `<span class="dot-label dl-success" title="${escapeAttr(couverture)}">${icone('file-text')}Lu (${couverture})</span>`;
   }
 
   function optionsTypeDocumentAudit(typeActuel) {
@@ -11753,6 +11796,22 @@
     return `<div class="analyse-ia-resume">${tuile('CRITIQUE', 'critique(s)')}${tuile('IMPORTANT', 'important(s)')}${tuile('A_VERIFIER', 'à vérifier')}${tuile('INFORMATION', 'information(s)')}</div>`;
   }
 
+  // Alerte de couverture de lecture, affichée UNIQUEMENT s'il y a quelque chose à signaler
+  // (au moins un document dont la lecture a été coupée par un plafond de pages) — sur un audit où
+  // tous les documents ont été lus intégralement, ce qui est le cas courant, cette section reste
+  // silencieuse plutôt que d'ajouter une ligne de bruit à chaque audit. Voir
+  // lireTextePdfParPage()/libelleCouverturePages() : un constat basé sur un document tronqué peut
+  // être incomplet, pas seulement le rapport lui-même.
+  function renderCouvertureAudit(couverture) {
+    const liste = Array.isArray(couverture) ? couverture.filter(c => c && c.tronque) : [];
+    if (liste.length === 0) return '';
+    const lignes = liste.map(c => `<li>${escapeHtml(c.nom)} — ${escapeHtml(libelleCouverturePages(c))}</li>`).join('');
+    return `<div class="analyse-ia-couverture-alerte">
+      <p>${icone('alert-triangle')} Lecture incomplète sur ${liste.length} document(s) — au-delà de la page indiquée, le contenu n'a pas pu être analysé :</p>
+      <ul>${lignes}</ul>
+    </div>`;
+  }
+
   function renderRapportAuditActe(resultat) {
     const zone = document.getElementById('analyse-ia-rapport');
     if (!zone) return;
@@ -11762,6 +11821,8 @@
     for (const e of erreurs) {
       html += `<p class="hint">${icone('alert-triangle')} Passe « ${escapeHtml(e.passe)} » indisponible : ${escapeHtml(e.message)}</p>`;
     }
+
+    html += renderCouvertureAudit(resultat.couvertureDocuments);
 
     // Obligations du vendeur (mode acte + dossier lié, voir verifierObligationsVendeur) : en
     // tête, avant les constats du modèle — c'est un résultat sûr, calculé, pas une suggestion.
@@ -11818,6 +11879,15 @@
         documents.push({ nom: referenceAutoRecuperee.nom, type: 'reference_compromis', texte: referenceAutoRecuperee.texte, pages: referenceAutoRecuperee.pages });
       }
 
+      // Couverture de lecture par document (voir lireTextePdfParPage/libelleCouverturePages) :
+      // affichée dans le rapport pour que l'étude sache si un document scanné volumineux a été lu
+      // dans son intégralité ou seulement en partie, plutôt que de le découvrir en silence — signalé
+      // par l'étude ("comment le document peut être analysé après si seulement 3 pages sont lu").
+      const couvertureDocuments = fichiersOk.map(f => ({ nom: f.nom, pagesLues: f.pagesLues, pagesTotal: f.pagesTotal, viaOcr: f.viaOcr, tronque: f.tronque }));
+      if (referenceAutoRecuperee) {
+        couvertureDocuments.push({ nom: referenceAutoRecuperee.nom, pagesLues: referenceAutoRecuperee.pagesLues, pagesTotal: referenceAutoRecuperee.pagesTotal, viaOcr: referenceAutoRecuperee.viaOcr, tronque: referenceAutoRecuperee.tronque });
+      }
+
       let typeVenteEnvoyee = auditTypeVente;
       if (typeVenteEnvoyee === 'auto') {
         typeVenteEnvoyee = detecterTypeVenteCopropriete(principal.texte) ? 'copropriete' : null;
@@ -11833,6 +11903,7 @@
         if (rapport) rapport.innerHTML = `<p class="hint">${escapeHtml(corps.erreur || "Échec de l'audit.")}</p>`;
         return;
       }
+      corps.couvertureDocuments = couvertureDocuments;
 
       // Comparaison déterministe compromis → projet de vente (§13), sans IA — voir
       // comparerCompromisEtProjet(). Deux sources possibles pour la référence : un dossier CLAIRE

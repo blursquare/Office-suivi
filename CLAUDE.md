@@ -4964,6 +4964,44 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     échappement HTML, tri de section). **Non vérifié dans un vrai navigateur** : pdf.js et Ollama
     restent indisponibles ici, comme pour tout Outil 2.
 
+- **Bug corrigé : Outil 2 (Audit des actes) n'analysait qu'une petite partie d'un document
+  scanné.** L'étude a posé la question directement : « Comment le document peut être analysé
+  après si seulement 3 pages sont lu ». `lireTextePdfParPage()` — utilisée à la fois pour les
+  fichiers déposés dans Outil 2 (`extraireTexteFichierAnalyseIa`) et pour le compromis auto-
+  récupéré d'un dossier lié (`recupererTextCompromisDossier`) — réutilisait telle quelle le repli
+  OCR de `lireTextePdfVerification()` (`PAGES_OCR_VERIFICATION = 3`), pensé pour un usage
+  totalement différent : `verifierDossierLocal()` n'a besoin que de RECONNAÎTRE un document par
+  son titre (offre de prêt, pièce de la checklist), 3 pages y suffisent largement. Outil 2 doit au
+  contraire ANALYSER l'intégralité d'un document pour y trouver une incohérence n'importe où dans
+  le texte — un titre de propriété ou un diagnostic scanné de 20 pages n'était donc audité que sur
+  ses 3 premières, en silence.
+  - Nouvelle constante `PAGES_OCR_AUDIT` (alignée sur `PLAFOND_PAGES_VERIFICATION`, donc 60 pages
+    comme la lecture texte) utilisée UNIQUEMENT dans `lireTextePdfParPage()` — `lireTextePdfVerification()`
+    et son `PAGES_OCR_VERIFICATION` restent à 3 pages, strictement inchangés : le bon réglage pour
+    son usage ne devait pas être remis en cause par un problème qui ne le concernait pas.
+  - `lireTextePdfParPage()` renvoie désormais aussi `pagesLues`/`pagesTotal`/`viaOcr`/`tronque` en
+    plus de `{texte, pages}` — un résumé de couverture, pas seulement la lecture elle-même. Propagé
+    sur chaque entrée de `fichiersAnalyseIa` et sur le retour de `recupererTextCompromisDossier()`.
+  - **Signalé à deux endroits, pour que la limite reste visible plutôt que silencieuse** :
+    `libelleCouverturePages()` (fonction commune) alimente le badge de chaque fichier dans la liste
+    d'upload (`statutFichierAnalyseIa()` — « Lu (p.12/12) » ou « Lu partiellement (p.60/90) » avec
+    une icône d'alerte) et une nouvelle section `renderCouvertureAudit()` dans le rapport final,
+    qui **n'apparaît que s'il y a quelque chose à signaler** (au moins un document tronqué) — sur
+    l'immense majorité des audits, où tout est lu intégralement, cette section reste silencieuse
+    plutôt que d'ajouter une ligne de bruit à chaque fois.
+  - Coût assumé, documenté dans le commentaire du code : jusqu'à ~30 secondes par page
+    (`DELAI_MAX_OCR`) sur un document entièrement scanné de plusieurs dizaines de pages, contre
+    quelques secondes pour 3 pages — accepté explicitement par l'étude ("Oui" au plan proposé),
+    cohérent avec le principe déjà établi qu'Outil 2 peut prendre plusieurs minutes par audit.
+  - Vérifié par script de bac à sable (`tests/helpers/load-app.js`, pdf.js indisponible dans cet
+    environnement de développement, comme documenté partout ailleurs pour Outil 2) : badge de
+    fichier et section de couverture rendus correctement pour un document tronqué, section absente
+    quand tout est lu intégralement, échappement HTML correct, aucun changement de comportement de
+    `lireTextePdfVerification()`. `npm test` reste vert aux deux endroits (425 tests racine — le
+    même nombre qu'avant, ces fonctions dépendant du DOM/de pdf.js et n'étant pas testables
+    unitairement, même limite déjà documentée pour le reste d'Outil 2 ; 189 côté serveur, chantier
+    entièrement côté client).
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à
