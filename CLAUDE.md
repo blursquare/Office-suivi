@@ -4645,27 +4645,16 @@ autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` auton
   - **Avant-contrat sur le NAS** : `choisirAvantContratNas(fichiers, nomAttendu)` (fonction pure,
     `tests/nas-avant-contrat.test.js`) remplace les deux appels successifs à
     `chercherFichierParNom(d, 'compromis')` puis `'promesse'` dans `ouvrirCompromisTrouve()` et
-    `recupererTextCompromisDossier()` (Outil 2). Ordre de confiance : (1) le nom EXACT du PDF importé
-    à la création — s'il existe en double, la copie sous AAE est préférée ; (2) un nom disant
-    « compromis » puis « promesse », d'abord dans la rubrique AAE ou portant lui-même « AAE »
-    (`methode: 'aae-nom'`), puis n'importe où (`'nom'`) ; (3) la rubrique AAE ne contenant qu'UN
-    SEUL PDF, quel que soit son nom (`'aae-seul'`) — plusieurs PDF sous AAE sans nom parlant ne
-    donnent rien plutôt qu'un choix arbitraire, même prudence que le rapprochement NAS. C'est le
-    point 2 qui règle le bug déjà corrigé une première fois par le nom exact (voir lot 4 de la
-    « série de 12 demandes ») pour les dossiers créés à la main ou avant cette mémorisation :
-    l'avant-contrat de la VENTE PRÉALABLE de l'acquéreur porte les mêmes mots mais n'est pas rangé
-    sous AAE. `estDansRubriqueAAE(chemin)` ne regarde que les DOSSIERS du chemin (jamais le nom du
-    fichier, `estNomFichierAAE` s'en charge à part) et accepte antislashs et barres obliques — le
-    chemin vient de `path.relative()` côté serveur, qui écrit des antislashs sur Windows. Tout ce
-    qui n'est pas `'nom-exact'` reste un repli signalé par le toast « recherche élargie » déjà en
-    place ; le toast d'échec nomme désormais les trois choses cherchées (rubrique AAE, « compromis »,
-    « promesse »). `chercherFichierParNom()` reste utilisée par `ajouterPiecePersonnalisee()`.
+    `recupererTextCompromisDossier()` (Outil 2). **Première version, corrigée le jour même** (voir
+    l'entrée « Correction : l'avant-contrat n'est pas dans la rubrique AAE » plus bas) : elle
+    regardait d'abord dans la rubrique « AAE », sur une déduction fausse de ma part — l'étude a
+    précisé que cette rubrique contient les pièces réunies entre le compromis et la vente, jamais
+    l'avant-contrat, rangé à la racine du dossier ou sous « SRU ». L'ordre de confiance actuel est
+    décrit dans cette entrée corrective. `chercherFichierParNom()` reste utilisée par
+    `ajouterPiecePersonnalisee()`.
   - Tests : 2 nouveaux dans `tests/notaires.test.js` (indice de forme, priorité de l'en-tête) et
-    10 dans `tests/nas-avant-contrat.test.js` (rubrique vs nom de fichier, chaque niveau de
-    l'ordre de confiance, doublon sous AAE, aucune proposition sur ambiguïté, listes vides). Suite
-    racine 413 → 425, suite serveur inchangée (183). **Non vérifié sur un vrai NAS** : comme tout ce
-    qui touche `listerFichiersNas`, à confirmer par l'étude sur un dossier réel dont la rubrique
-    AAE contient l'acte.
+    10 dans `tests/nas-avant-contrat.test.js` (réécrits par l'entrée corrective). Suite racine
+    413 → 425, suite serveur inchangée (183).
 
 - **Démarrage automatique de CLAIRE à l'ouverture de la session Windows**, demandé par l'étude
   (« Lorsque le PC se lance, ouvrir automatiquement le serveur et le logiciel avec le fichier
@@ -4714,6 +4703,38 @@ autonome, `.bat` tout-en-un, abandon du serveur) : elle a choisi le `.exe` auton
     serveur appelle `start`) reste à confirmer par l'étude — si la fenêtre du logiciel ne
     s'ouvrait pas alors que le serveur tourne, le point à regarder est `ouvrirNavigateur()`, pas le
     raccourci.
+
+- **Correction : l'avant-contrat n'est pas dans la rubrique AAE, il est à la racine du dossier ou
+  sous « SRU ».** L'étude est revenue sur ce qu'elle m'avait dit le matin même (« je t'ai mal
+  informé sur un point ») : « AAE » dans le NOM d'un PDF signifie bien acte authentique — d'une
+  promesse comme d'un acte de vente — mais le sous-dossier « 9 - AAE » sert à ranger les pièces
+  constituées ENTRE la signature de l'avant-contrat et la vente (urbanisme, entretien…), qui
+  deviennent ensuite les annexes de l'acte de vente. Le compromis ou la promesse signé est « soit à
+  la racine du dossier client, soit dans le sous-dossier SRU ». La version livrée deux heures plus
+  tôt cherchait donc l'avant-contrat exactement là où il n'est jamais.
+  - **Ce qui reste juste** : l'indice de forme à l'import (`detecterFormeActe(texte, nomFichier)`
+    / `estNomFichierAAE`) ne regardait déjà que le NOM du PDF, jamais sa rubrique — inchangé, seul
+    son commentaire est corrigé. `estDansRubriqueAAE()` (qui n'était utilisée que par le choix sur
+    le NAS) est supprimée.
+  - **Nouvel ordre de confiance de `choisirAvantContratNas()`** : (1) le nom EXACT du PDF importé —
+    en double, la copie à la racine ou sous SRU l'emporte ; (2) un nom disant « compromis » puis
+    « promesse », d'abord à la racine ou sous SRU (`methode: 'emplacement-nom'`), puis n'importe
+    où (`'nom'`) — l'avant-contrat de la VENTE PRÉALABLE de l'acquéreur porte les mêmes mots mais
+    vit dans sa rubrique « 2 - Acquéreur », c'est l'emplacement qui départage ; (3) la rubrique
+    SRU ne contenant qu'UN SEUL PDF (`'sru-seul'`) — pas d'équivalent pour la racine, qui peut
+    contenir n'importe quoi. Un « compromis » rangé sous AAE ne l'emporte plus jamais sur un
+    autre bien placé (testé). `estEmplacementAvantContrat(chemin)` = `estALaRacineDossier` ou
+    `estDansRubriqueSRU` (mot entier `SRU` dans un segment de DOSSIER du chemin, antislashs et
+    barres obliques acceptés). Le toast d'échec ne mentionne plus la rubrique AAE.
+  - Tests : `tests/nas-avant-contrat.test.js` réécrit (10 tests — emplacements reconnus, chaque
+    niveau de l'ordre, un compromis sous AAE qui ne gagne pas, un seul PDF sous SRU, la racine
+    seule qui ne suffit pas). Suite racine inchangée à 425, serveur 189.
+  - **Leçon** : « AAE » vaut pour la FORME (le nom du fichier) et pas pour l'EMPLACEMENT (la
+    rubrique). J'avais déduit le second du premier sans le demander — même erreur que sur la
+    zone des notaires (voir « la FORME de l'acte »), déduire une règle métier d'un indice au lieu
+    de la faire confirmer. **Retenu pour plus tard** : la rubrique AAE est l'endroit où chercher
+    les pièces d'urbanisme/d'entretien de la checklist, une information exploitable si la
+    recherche par nom de fichier venait à remonter des faux positifs depuis d'autres rubriques.
 
 **Ce qui n'a volontairement PAS été fait** (arrêté à la demande explicite de l'étude, pas un
 oubli) — à reprendre uniquement si redemandé un jour :
@@ -5066,13 +5087,16 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
   - **CESSION DE FONDS** (fonds de commerce) : `1 - COMPTABILITE`, `2 - SOCIAL`, `3 - PRENEUR`,
     `4 - CONTRAT`, `6 - BAIL`, `7 - DIAGNOSTICS`, `8 - AAE`.
 
-  **"AAE" = Acte Authentique Électronique** (confirmé par l'étude le 19/09/2026) : l'acte a été
-  reçu par un notaire sous forme électronique. C'est donc la rubrique qui contient l'acte
-  authentique lui-même (la promesse ou la vente reçue par l'étude), pas une pièce annexe — cohérent
-  avec le nom du PDF réel déjà rejoué plus haut (« Copie AAE PROMESSE DE VENTE … », 41 pages, un
-  acte authentique). Deux usages, **tous deux branchés le 19/09/2026 à la demande de l'étude**
-  (« C'est deux point sont à intégrer » — voir l'entrée « La mention AAE… » dans l'historique de la
-  section « Mode serveur intranet ») : (1) un nom de fichier ou de rubrique portant « AAE » est un
-  indice de FORME authentique, en complément de `detecterFormeActe()` (qui ne lit que l'en-tête du
-  texte) ; (2) pour retrouver l'avant-contrat sur le NAS (`ouvrirCompromisTrouve`, Outil 2), cette
-  rubrique est l'endroit regardé en premier (`choisirAvantContratNas`).
+  **"AAE" = Acte Authentique Électronique** (confirmé par l'étude le 19/09/2026, puis précisé
+  par elle le même jour). Deux sens à ne PAS confondre :
+  - dans le NOM d'un PDF (« Copie AAE PROMESSE DE VENTE … », 41 pages, déjà rejoué plus haut),
+    « AAE » signifie que l'acte a été reçu par un notaire sous forme électronique — promesse
+    comme acte de vente. Exploité comme indice de FORME authentique à l'import
+    (`detecterFormeActe(texte, nomFichier)`, voir « La mention AAE… » dans l'historique de la
+    section « Mode serveur intranet »).
+  - la RUBRIQUE « 9 - AAE » (« 8 - AAE », « 10 - AAE » selon le type d'affaire) ne contient PAS
+    l'acte : elle range les pièces constituées entre la signature de l'avant-contrat et la vente
+    (urbanisme, entretien…), futures annexes de l'acte de vente. **L'avant-contrat signé est à la
+    racine du dossier client ou dans la rubrique « SRU »** — c'est là que `choisirAvantContratNas`
+    le cherche (voir l'entrée corrective du même jour). Une première version l'avait cherché sous
+    AAE, à tort.

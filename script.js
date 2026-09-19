@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-19 08:14';
+  const VERSION_APP = '2026-09-19 08:35';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-19 08:35', resume: "Correction sur « Ouvrir le compromis » (et le compromis de référence d'Outil 2) : l'avant-contrat signé est désormais cherché à la RACINE du dossier client ou dans la rubrique « SRU », là où vous le rangez réellement — plus dans « 9 - AAE », qui contient les pièces réunies entre le compromis et la vente (urbanisme, entretien…), pas l'acte. La version de ce matin regardait au mauvais endroit. Le nom exact du PDF importé reste cherché en premier ; « AAE » dans le NOM d'un PDF continue de signaler un acte authentique à l'import, ce point-là était juste" },
     { version: '2026-09-19 08:14', resume: "CLAIRE peut démarrer tout seul à l'ouverture de votre session Windows. Deux nouveaux fichiers apparaissent à côté de CLAIRE-serveur.exe au prochain lancement : « Demarrer-CLAIRE-avec-Windows.vbs » (à double-cliquer une seule fois — le serveur repartira ensuite sans fenêtre à chaque ouverture de session et ouvrira lui-même le logiciel dans le navigateur, plus rien à cliquer le matin) et « Ne-plus-demarrer-CLAIRE-avec-Windows.vbs » pour annuler. Concerne le poste qui héberge le serveur ; les autres postes continuent d'ouvrir l'adresse habituelle" },
     { version: '2026-09-19 08:10', resume: "La mention « AAE » (Acte Authentique Électronique) est désormais comprise par l'outil, à deux endroits. À l'import d'un PDF dont le nom porte « AAE » (« Copie AAE PROMESSE DE VENTE… »), l'acte est reconnu comme authentique même quand son texte ne le déclare pas lisiblement en tête — donc ses notaires sont cherchés en première page, là où un acte reçu par notaire les nomme. Et le bouton « Ouvrir le compromis » (comme l'audit d'Outil 2, quand il retrouve le compromis d'un dossier lié) regarde d'abord dans la rubrique « AAE » du dossier NAS : c'est ce qui le distingue enfin de l'avant-contrat de la VENTE PRÉALABLE de l'acquéreur, rangé ailleurs mais portant les mêmes mots « compromis »/« promesse ». Le nom exact du PDF importé à la création reste toujours cherché en premier ; tout autre choix est signalé comme une recherche élargie" },
     { version: '2026-09-19 01:37', resume: "Vous serez désormais vous-même en copie, sur Teams, de CHAQUE rappel envoyé à un collaborateur — quel que soit le dossier ou le responsable concerné (nouveau champ dans « Réglages », sous l'adresse du flux). Et le bouton « Rappel email » générique de la fiche dossier, celui qui préparait un brouillon à vous-même avec toutes les échéances, est retiré : cette copie automatique le remplace, plus rien à cliquer. Les trois boutons de relance ciblée par email (prêt manquant, pièces à fournir, RIB), eux, restent inchangés — ils s'adressent au client, pas à vous" },
@@ -1835,12 +1836,14 @@
   // « promesse synallagmatique » figure parmi les marqueurs d'authenticité non comme une forme,
   // mais parce que l'étude a indiqué que ce type d'acte est toujours reçu par notaire.
   //
-  // Second indice, porté par le NOM du fichier : l'étude range tout acte reçu par notaire sous la
-  // mention « AAE » — Acte Authentique Électronique, sens confirmé par elle le 19/09/2026 — dans le
-  // nom du PDF (« Copie AAE PROMESSE DE VENTE … ») comme dans la rubrique du NAS qui le contient
-  // (« 9 - AAE »). Un fichier ainsi nommé est authentique par construction. L'en-tête du texte
-  // reste lu en premier (une déclaration de forme dans l'acte vaut plus qu'une convention de
-  // nommage) ; le nom ne tranche que là où l'en-tête ne dit rien.
+  // Second indice, porté par le NOM du fichier : l'étude fait figurer « AAE » — Acte Authentique
+  // Électronique, sens confirmé par elle le 19/09/2026 — dans le nom du PDF de tout acte reçu par
+  // notaire, promesse comme acte de vente (« Copie AAE PROMESSE DE VENTE … »). Un fichier ainsi
+  // nommé est authentique par construction. (La rubrique « 9 - AAE » du NAS, elle, n'a rien à voir
+  // avec la forme de l'acte : elle range les pièces réunies entre le compromis et la vente — voir
+  // estEmplacementAvantContrat.) L'en-tête du texte reste lu en premier (une déclaration de forme
+  // dans l'acte vaut plus qu'une convention de nommage) ; le nom ne tranche que là où l'en-tête ne
+  // dit rien.
   var RE_NOM_AAE = /\bAAE\b|acte\s+authentique\s+[ée]lectronique/i;
   function estNomFichierAAE(nom) {
     return RE_NOM_AAE.test(normaliserNomPourMotif(String(nom || '')));
@@ -10049,24 +10052,38 @@
     return base ? `${base}/${cheminDansDossier}` : cheminDansDossier;
   }
 
-  // Un PDF rangé dans une rubrique « AAE » du dossier client (« 9 - AAE », « 8 - AAE »… selon le
-  // type d'affaire — voir l'arborescence de l'étude dans CLAUDE.md) : c'est là que vit l'acte
-  // reçu par notaire. Seuls les DOSSIERS du chemin comptent, jamais le nom du fichier lui-même
-  // (estNomFichierAAE s'en charge séparément). Séparateurs Windows et Unix acceptés : le chemin
-  // vient de path.relative() côté serveur, qui écrit des antislashs sur un poste Windows.
-  function estDansRubriqueAAE(chemin) {
-    const segments = String(chemin || '').split(/[\\/]+/);
+  // Où l'étude range l'avant-contrat SIGNÉ dans un dossier client (précisé par elle le
+  // 19/09/2026) : à la RACINE du dossier, ou dans la rubrique « SRU » (« 8 - SRU », « 9 - SRU »…
+  // selon le type d'affaire — voir l'arborescence dans CLAUDE.md). Jamais dans « AAE » : cette
+  // rubrique-là contient les pièces constituées ENTRE le compromis et la vente (urbanisme,
+  // entretien…), futures annexes de l'acte de vente — une première version de ce code y cherchait
+  // l'avant-contrat, à tort. Seuls les DOSSIERS du chemin comptent, jamais le nom du fichier.
+  // Séparateurs Windows et Unix acceptés : le chemin vient de path.relative() côté serveur, qui
+  // écrit des antislashs sur un poste Windows.
+  function segmentsDossier(chemin) {
+    const segments = String(chemin || '').split(/[\\/]+/).filter(Boolean);
     segments.pop();
-    return segments.some(estNomFichierAAE);
+    return segments;
+  }
+  function estALaRacineDossier(chemin) {
+    return String(chemin || '').length > 0 && segmentsDossier(chemin).length === 0;
+  }
+  var RE_RUBRIQUE_SRU = /\bSRU\b/i;
+  function estDansRubriqueSRU(chemin) {
+    return segmentsDossier(chemin).some(seg => RE_RUBRIQUE_SRU.test(seg));
+  }
+  function estEmplacementAvantContrat(chemin) {
+    return estALaRacineDossier(chemin) || estDansRubriqueSRU(chemin);
   }
 
   // Choisit l'avant-contrat parmi les PDF d'un dossier NAS. Par ordre de confiance décroissant :
   //   1. le nom EXACT du PDF importé à la création (`d.compromisNomFichier`) — s'il existe en
-  //      double, celui de la rubrique AAE l'emporte ;
-  //   2. un nom qui dit « compromis » puis « promesse », d'abord dans la rubrique AAE (ou portant
-  //      lui-même « AAE »), puis n'importe où — l'avant-contrat de la VENTE PRÉALABLE de l'acquéreur
-  //      porte les mêmes mots mais n'est pas rangé sous AAE, c'est ce qui les départage ;
-  //   3. la rubrique AAE ne contenant qu'UN SEUL PDF : c'est lui, quel que soit son nom.
+  //      double, la copie à la racine ou sous SRU l'emporte ;
+  //   2. un nom qui dit « compromis » puis « promesse », d'abord à la racine ou sous SRU, puis
+  //      n'importe où — l'avant-contrat de la VENTE PRÉALABLE de l'acquéreur porte les mêmes mots
+  //      mais est rangé ailleurs (rubrique Acquéreur), c'est l'emplacement qui les départage ;
+  //   3. la rubrique SRU ne contenant qu'UN SEUL PDF : c'est lui, quel que soit son nom (la
+  //      racine, elle, peut contenir n'importe quoi — pas de repli équivalent).
   // Tout ce qui n'est pas la méthode 1 est un repli à signaler à l'étude, jamais une certitude.
   // Fonction pure (liste `{nom, chemin}` en entrée), testable — voir tests/nas-avant-contrat.test.js.
   var RE_NOM_COMPROMIS = /compromis/i;
@@ -10074,19 +10091,19 @@
   function choisirAvantContratNas(fichiers, nomAttendu) {
     const liste = Array.isArray(fichiers) ? fichiers : [];
     const nomNormalise = f => normaliserNomPourMotif(String(f.nom || '')).toLowerCase();
-    const sousAAE = f => estDansRubriqueAAE(f.chemin) || estNomFichierAAE(f.nom);
+    const bienPlace = f => estEmplacementAvantContrat(f.chemin);
     if (nomAttendu) {
       const cible = normaliserNomPourMotif(nomAttendu).toLowerCase();
       const exacts = liste.filter(f => nomNormalise(f).includes(cible));
-      if (exacts.length) return { fichier: exacts.find(sousAAE) || exacts[0], methode: 'nom-exact' };
+      if (exacts.length) return { fichier: exacts.find(bienPlace) || exacts[0], methode: 'nom-exact' };
     }
     const parNom = liste.filter(f => RE_NOM_COMPROMIS.test(nomNormalise(f)))
       .concat(liste.filter(f => RE_NOM_PROMESSE.test(nomNormalise(f)) && !RE_NOM_COMPROMIS.test(nomNormalise(f))));
-    const parNomAAE = parNom.find(sousAAE);
-    if (parNomAAE) return { fichier: parNomAAE, methode: 'aae-nom' };
+    const parNomBienPlace = parNom.find(bienPlace);
+    if (parNomBienPlace) return { fichier: parNomBienPlace, methode: 'emplacement-nom' };
     if (parNom.length) return { fichier: parNom[0], methode: 'nom' };
-    const dansAAE = liste.filter(sousAAE);
-    if (dansAAE.length === 1) return { fichier: dansAAE[0], methode: 'aae-seul' };
+    const dansSRU = liste.filter(f => estDansRubriqueSRU(f.chemin));
+    if (dansSRU.length === 1) return { fichier: dansSRU[0], methode: 'sru-seul' };
     return { fichier: null, methode: null };
   }
 
@@ -10711,8 +10728,8 @@
     if (btn) { btn.disabled = true; btn.innerHTML = `${icone('spinner', null, true)} Recherche\u2026`; }
     try {
       const fichiers = await listerFichiersNas(d);
-      // Nom exact d'abord, rubrique AAE ensuite, mots « compromis »/« promesse » en dernier — voir
-      // choisirAvantContratNas() pour l'ordre complet et ce qu'il départage.
+      // Nom exact d'abord, puis racine/rubrique SRU, mots « compromis »/« promesse » en dernier —
+      // voir choisirAvantContratNas() pour l'ordre complet et ce qu'il départage.
       const choix = choisirAvantContratNas(fichiers, d.compromisNomFichier);
       const trouve = choix.fichier;
       const parRepli = choix.methode !== 'nom-exact';
@@ -10720,7 +10737,7 @@
         afficherToast(`\u00ab\u00a0${d.compromisNomFichier}\u00a0\u00bb introuvable dans le dossier NAS \u2014 recherche \u00e9largie.`, 'OK', null);
       }
       if (!trouve) {
-        afficherToast('Aucun avant-contrat trouv\u00e9 dans le dossier NAS reli\u00e9 : ni rubrique \u00ab\u00a0AAE\u00a0\u00bb, ni fichier contenant \u00ab\u00a0compromis\u00a0\u00bb ou \u00ab\u00a0promesse\u00a0\u00bb.', 'OK', null);
+        afficherToast('Aucun avant-contrat trouv\u00e9 dans le dossier NAS reli\u00e9 : ni fichier contenant \u00ab\u00a0compromis\u00a0\u00bb ou \u00ab\u00a0promesse\u00a0\u00bb.', 'OK', null);
         return;
       }
       const chemin = cheminNasComplet(d, trouve.chemin);
@@ -11365,7 +11382,7 @@
     if (!d || !d.dossierLie || !d.nasDossier || !window.pdfjsLib) return null;
     try {
       // Même ordre de préférence que le bouton « Ouvrir le compromis » (choisirAvantContratNas) :
-      // nom exact, puis rubrique AAE, puis mots « compromis »/« promesse ».
+      // nom exact, puis racine/rubrique SRU, puis mots « compromis »/« promesse ».
       const trouve = choisirAvantContratNas(await listerFichiersNas(d), d.compromisNomFichier).fichier;
       if (!trouve) return null;
       const pdf = await ouvrirPdfNas(cheminNasComplet(d, trouve.chemin));
