@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-20 22:07';
+  const VERSION_APP = '2026-09-20 22:18';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-20 22:18', resume: "Nouveau bouton « Questionnaire de satisfaction » sur la fiche dossier : un clic prépare le brouillon d'email à l'acquéreur (ou au notaire de l'acquéreur s'il est en participation) ET archive automatiquement le dossier. Le texte de l'email est un modèle PROVISOIRE en attendant que l'étude fournisse le texte définitif — un rappel a été programmé pour le briefing de demain matin, il ne reste alors qu'à le remplacer dans construireEmailQuestionnaireSatisfaction()" },
     { version: '2026-09-20 22:07', resume: "Le message de rappel Teams envoyé à un responsable liste désormais, sous l'échéance elle-même, les pièces déjà reçues et celles encore manquantes pour ce dossier (checklist urbanisme/copropriété/terrain, pièces auto-détectées et personnalisées, selon le type de vente) — plus besoin de rouvrir la fiche pour savoir ce qu'il reste à réclamer. Rien pour un dossier au rôle « participant », dont la checklist n'est de toute façon pas suivie" },
     { version: '2026-09-20 21:55', resume: "Quand l'acquéreur est représenté par un notaire d'un office distinct du nôtre (« en participation »), l'étude ne doit plus lui envoyer d'email directement : un champ « Email du notaire de l'acquéreur » apparaît sur la fiche dans ce cas précis, et les relances (prêt manquant, RIB, provision) lui sont désormais adressées à sa place — le même garde-fou s'applique dès l'import du compromis, qui ne propose plus de saisir l'email personnel de l'acquéreur si un tel notaire est détecté. Nouveau bouton de relance « Provision + pièce d'identité » : confirme la réception de l'avant-contrat signé (en nommant l'agence immobilière si détectée dans le compromis — nouveau champ « Agence immobilière », éditable comme les autres), demande la provision de 100,00 € et une copie de pièce d'identité, et rappelle l'offre de prêt si la condition est encore active. Le nom de chaque dossier affiche maintenant « VENTE » devant (tableau, tiroir, tableau de bord, fiche imprimée). Le titre « Analyse juridique du compromis » reprend le même style que « Pièces du dossier » ; le bandeau « Outil 2 » devient « Lecture de projet ». Espace agrandi au-dessus et en dessous du logo CLAIRE dans la sidebar. Sur la fiche : le panneau « Ce que l'outil avait compris de l'acte » est déplacé juste au-dessus de l'historique, et un titre « Exporter » identifie enfin les boutons Rappels (.ics)/Imprimer, comme « Relancer par email » identifie déjà les siens" },
     { version: '2026-09-20 19:25', resume: "Huit retouches d'interface. Le bouton de relance « Pièce(s) à fournir » disparaît (jugé redondant avec la checklist déjà visible sur la fiche) — restent « Prêt manquant » et « RIB », désormais à la même taille que « Rappels (.ics) »/« Imprimer » juste en dessous. Dans la sidebar : le bouton « Nouveau dossier » est retiré (toujours accessible depuis le Tableau de bord et le Suivi), le badge « Alpha » devient un petit repère à côté du logo CLAIRE, et l'indicateur « Connecté »/« Hors ligne » déménage dans l'écran « À propos », lui-même élargi. L'icône de « Réglages » devient une vraie roue crantée (anneau + trou + dents) plutôt qu'un glyphe en étoile. Et l'exemple du champ « Nom du dossier », resté sur un très vieux format mêlant nom et adresse, montre maintenant le bon format vendeur / acquéreur (« DUPONT / MARTIN »)" },
@@ -8210,6 +8211,7 @@
         ` : ''}
         ${renderAjoutEngagement(d)}
         ${renderRelancesCiblees(d)}
+        ${renderQuestionnaireSatisfaction(d)}
         <!-- Libellés volontairement courts (l'intitulé complet reste en infobulle) : l'étude veut
              ces actions sur une seule ligne, ce que "Télécharger les rappels (.ics)" et son voisin
              ne permettaient pas dans la largeur du tiroir. Le rappel par email générique
@@ -8712,6 +8714,71 @@
       ${notaireParticipant ? '<p class="hint">L’acquéreur est représenté par un office distinct : ces relances seront adressées à son notaire, jamais directement à l’acquéreur.</p>' : ''}
       <div class="relances-boutons">
         ${boutons.map(m => `<button type="button" class="action-rapide" onclick="envoyerRelanceCiblee('${d.id}', '${m.cle}')">${escapeHtml(m.libelle)}</button>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  // ==== Questionnaire de satisfaction + archivage automatique (clôture du dossier) ====
+  //
+  // Demandé par l'étude : un clic prépare le brouillon d'email ET archive le dossier — la vente
+  // est alors terminée, plus rien à suivre. Même destinataire que les relances ciblées ci-dessus
+  // (emailDestinataireRelance : le client, ou le notaire de l'acquéreur s'il est en participation).
+  //
+  // MODÈLE PROVISOIRE : l'étude doit fournir le texte définitif du questionnaire (un rappel est
+  // programmé pour le briefing du lendemain de cette entrée). REMPLACER le sujet/corps ci-dessous
+  // dès réception — ne rien changer d'autre dans cette fonction.
+  function construireEmailQuestionnaireSatisfaction(d) {
+    return {
+      sujet: `Votre avis sur votre accompagnement — dossier ${d.nom}`,
+      corps: `Bonjour,\n\n[MODÈLE PROVISOIRE — à remplacer par le texte fourni par l’étude]\n\nVotre dossier ${d.nom} est maintenant finalisé. Nous serions ravis de recueillir votre avis sur l’accompagnement de notre étude tout au long de cette vente.\n\nMerci de nous faire part de vos remarques par retour de ce message.\n\nCordialement.`
+    };
+  }
+
+  function envoyerQuestionnaireSatisfaction(id) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    const destinataire = emailDestinataireRelance(d);
+    if (!destinataire) {
+      const message = notaireParticipantRepresenteAcquereur(d)
+        ? "Aucun email renseigné pour le notaire de l'acquéreur — impossible de préparer le questionnaire."
+        : "Aucun email d'acquéreur renseigné pour ce dossier — impossible de préparer le questionnaire.";
+      afficherToast(message, 'OK', null);
+      return;
+    }
+    const { sujet, corps } = construireEmailQuestionnaireSatisfaction(d);
+    ajouterHistorique(d, 'Questionnaire de satisfaction envoyé');
+    d.archive = true;
+    ajouterHistorique(d, 'Dossier archivé automatiquement (questionnaire de satisfaction envoyé)');
+    sauvegarder(d);
+    render();
+    const url = `mailto:${encodeURIComponent(destinataire)}?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(corps)}`;
+    window.location.href = url;
+    afficherInfoAction(
+      "Brouillon d'email ouvert, dossier archivé",
+      "L'envoi final reste un clic manuel dans votre messagerie. Le texte utilisé est un modèle PROVISOIRE, à remplacer dès que l'étude aura fourni le texte définitif du questionnaire."
+    );
+  }
+
+  // Affichée juste après "Relancer par email" : absente pour un dossier déjà archivé (l'action n'a
+  // plus de sens) ou un rôle participant (même garde-fou que les relances ciblées — ce n'est pas à
+  // un office en participation de solliciter l'avis du client sur l'ensemble de la transaction).
+  function renderQuestionnaireSatisfaction(d) {
+    if (d.roleNotaire === 'participant' || d.archive) return '';
+    const notaireParticipant = notaireParticipantRepresenteAcquereur(d);
+    if (!emailDestinataireRelance(d)) {
+      const hint = notaireParticipant
+        ? 'Renseignez l’email du notaire de l’acquéreur (ci-dessus) pour activer l’envoi du questionnaire de satisfaction.'
+        : 'Renseignez l’email de l’acquéreur pour activer l’envoi du questionnaire de satisfaction.';
+      return `<div class="relances-ciblees">
+        <span class="section-eyebrow">Clôturer le dossier</span>
+        <p class="hint">${hint}</p>
+      </div>`;
+    }
+    return `<div class="relances-ciblees">
+      <span class="section-eyebrow">Clôturer le dossier</span>
+      <p class="hint">Envoie le questionnaire de satisfaction à l’acquéreur et archive automatiquement ce dossier.</p>
+      <div class="relances-boutons">
+        <button type="button" class="action-rapide" onclick="envoyerQuestionnaireSatisfaction('${d.id}')">${icone('mail')} Questionnaire de satisfaction</button>
       </div>
     </div>`;
   }

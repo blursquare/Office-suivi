@@ -5170,6 +5170,45 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     `executerTacheRappels` qui les contient). Suite serveur 188 → 200 tests, suite racine inchangée
     (428, chantier entièrement côté serveur).
 
+- **Bouton « Questionnaire de satisfaction » + archivage automatique**, demandé par l'étude :
+  un clic doit à la fois préparer le brouillon d'email et clôturer le dossier, sans étape
+  intermédiaire — la vente est alors terminée, plus rien à suivre.
+  - `construireEmailQuestionnaireSatisfaction(d)` construit le sujet/corps. **Le texte est un
+    modèle PROVISOIRE** : l'étude n'a pas encore fourni le texte définitif du questionnaire
+    ("je te donnerai le modèle demain"). Le corps le signale explicitement
+    (`[MODÈLE PROVISOIRE — à remplacer par le texte fourni par l'étude]`) pour qu'un envoi par
+    erreur avant remplacement reste reconnaissable. **À faire dès réception du texte réel** : ne
+    modifier QUE le `sujet`/`corps` de cette fonction, rien d'autre autour. Un rappel a été
+    programmé pour le briefing du lendemain de cette entrée, précisément pour ce remplacement.
+  - `envoyerQuestionnaireSatisfaction(id)` : construit l'email, journalise
+    "Questionnaire de satisfaction envoyé" dans l'historique, passe `d.archive = true` avec une
+    seconde entrée d'historique dédiée ("Dossier archivé automatiquement..." — distincte du
+    message générique d'`archiverDossier()`, pour qu'on sache après coup POURQUOI ce dossier a été
+    archivé), sauvegarde, redessine, puis ouvre le brouillon `mailto:` — même ordre que
+    `envoyerRelanceCiblee()`, dont cette fonction reprend le squelette. **Destinataire** :
+    `emailDestinataireRelance(d)`, comme les relances ciblées déjà en place — l'acquéreur, ou le
+    notaire de l'acquéreur s'il est en participation (même garde-fou de déontologie, voir son
+    historique plus haut). Sans destinataire connu, un toast l'indique plutôt qu'un clic sans
+    effet ; le nom du message distingue les deux cas (acquéreur vs notaire de l'acquéreur).
+  - `renderQuestionnaireSatisfaction(d)` (affichée juste après "Relancer par email" sur la fiche) :
+    absente pour un dossier déjà archivé (l'action n'a alors plus de sens) et pour un rôle
+    participant (même principe que les relances ciblées — solliciter l'avis du client sur
+    l'ensemble de la transaction reste un geste de l'instrumentaire). Sans email connu, une invite
+    à le renseigner plutôt que le bouton, cohérent avec `renderRelancesCiblees()`.
+  - **Décision volontaire : pas de popup de confirmation avant l'archivage**, contrairement à
+    `archiverDossier()`/`supprimerDossier()` — l'étude a explicitement demandé un geste en un seul
+    clic ("un clique... + archive automatiquement"), et l'archivage reste réversible en un clic
+    ("Désarchiver") si déclenché par erreur.
+  - Tests : `tests/relances-email.test.js` (+5 : le sujet/corps mentionnent le dossier et le
+    caractère provisoire du texte, le bouton absent pour un dossier archivé ou un rôle
+    participant, l'invite affichée sans email connu, le bouton affiché dès qu'un destinataire
+    existe, le routage vers le notaire de l'acquéreur en participation). Suite racine 428 → 433
+    tests, suite serveur inchangée (200, chantier entièrement côté client).
+    `envoyerQuestionnaireSatisfaction()` elle-même n'est pas unitairement testable (dépend de
+    `dossiers`, invisible depuis le contexte `vm` des tests — même limite déjà documentée pour
+    `envoyerRelanceCiblee()`/`archiverDossier()`) ; vérifiée par un script Node ad hoc (bac à
+    sable) qu'un id inconnu ne plante jamais (retour silencieux).
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

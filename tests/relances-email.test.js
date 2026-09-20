@@ -69,3 +69,45 @@ test('construireEmailRelanceProvision relance aussi l’offre de prêt si la con
   const { corps: corpsRecue } = app.construireEmailRelanceProvision(offreRecue);
   assert.doesNotMatch(corpsRecue, /offre de prêt/i);
 });
+
+// ---- Questionnaire de satisfaction + archivage automatique (clôture du dossier) ----
+// Le texte est un modèle PROVISOIRE (voir son commentaire dans script.js) : ces tests ne
+// vérifient que la structure (sujet/corps mentionnent le dossier), pas un texte définitif encore
+// non fourni par l'étude.
+
+test('construireEmailQuestionnaireSatisfaction mentionne le dossier et signale un texte provisoire', () => {
+  const app = chargerApplication();
+  const d = dossierBase(app, {});
+  const { sujet, corps } = app.construireEmailQuestionnaireSatisfaction(d);
+  assert.match(sujet, /DUPONT \/ MARTIN/);
+  assert.match(corps, /DUPONT \/ MARTIN/);
+  assert.match(corps, /PROVISOIRE/);
+});
+
+test('renderQuestionnaireSatisfaction : absent pour un dossier archivé ou un rôle participant', () => {
+  const app = chargerApplication();
+  assert.equal(app.renderQuestionnaireSatisfaction(dossierBase(app, { archive: true })), '');
+  assert.equal(app.renderQuestionnaireSatisfaction(dossierBase(app, { roleNotaire: 'participant' })), '');
+});
+
+test('renderQuestionnaireSatisfaction : invite à renseigner un email tant qu’aucun destinataire n’est connu', () => {
+  const app = chargerApplication();
+  const html = app.renderQuestionnaireSatisfaction(dossierBase(app, { emailAcquereur: '' }));
+  assert.match(html, /Renseignez l.email de l.acquéreur/);
+  assert.doesNotMatch(html, /envoyerQuestionnaireSatisfaction/);
+});
+
+test('renderQuestionnaireSatisfaction : affiche le bouton dès qu’un destinataire est connu', () => {
+  const app = chargerApplication();
+  const html = app.renderQuestionnaireSatisfaction(dossierBase(app, {}));
+  assert.match(html, /envoyerQuestionnaireSatisfaction\('d1'\)/);
+  assert.match(html, /Questionnaire de satisfaction/);
+});
+
+test('renderQuestionnaireSatisfaction : route vers le notaire de l’acquéreur quand il est en participation', () => {
+  const app = chargerApplication();
+  const html = app.renderQuestionnaireSatisfaction(dossierBase(app, {
+    emailAcquereur: '', notaireAcquereur: 'Maître AUTRE', emailNotaireParticipant: 'autre@office.fr'
+  }));
+  assert.match(html, /envoyerQuestionnaireSatisfaction\('d1'\)/);
+});
