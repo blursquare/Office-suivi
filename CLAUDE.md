@@ -5042,6 +5042,13 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
 
 ## Ce qui reste ouvert / pas encore fait
 
+- **Banc d'essai d'extraction (mesure de qualité par corpus annoté)** : chantier délégué à un
+  data scientist, cadré dans `docs/spec-banc-essai-extraction.md` (point d'entrée
+  `construireExtractionRegex()`, format du corpus, règle de confidentialité — aucune vraie donnée
+  client, uniquement du texte synthétique reprenant la structure d'actes réels — définition
+  précise de précision/rappel par champ, séparation claire des rôles : le data scientist construit
+  le corpus et le harnais de mesure, les correctifs de regex restent traités comme le reste de ce
+  fichier). Pas encore engagé au moment de la rédaction de cette entrée.
 - **Ne pas oublier de mettre à jour `VERSION_APP` ET `HISTORIQUE_VERSIONS`** (tout en haut de
   `script.js`, format `AAAA-MM-JJ HH:MM` — voir leur historique ci-dessus) à CHAQUE commit qui
   change le comportement de l'outil, avec l'heure réelle **en heure de Paris** (demandé
