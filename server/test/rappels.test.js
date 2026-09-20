@@ -76,6 +76,32 @@ test('texteRappel accorde "jour"/"jours" et nomme le dossier et l\'échéance', 
   assert.match(texteRappel({ libelle: "Signature de l'acte", nomDossier: 'X / Y', seuil: 7, iso: '2026-11-04' }), /7 jours/);
 });
 
+test('texteRappel : ajoute la liste des pièces reçues/manquantes quand elle est fournie', () => {
+  const r = {
+    libelle: 'Obtention du prêt', nomDossier: 'X / Y', seuil: 15, iso: '2026-11-11',
+    pieces: { recues: ["Certificat d'urbanisme"], manquantes: ['ERP (état des risques et pollution)'] }
+  };
+  const texte = texteRappel(r);
+  assert.match(texte, /Pièces reçues \(1\) : Certificat d'urbanisme/);
+  assert.match(texte, /Pièces manquantes \(1\) : ERP/);
+});
+
+test('texteRappel : aucune ligne de pièces quand il n\'y en a aucune (dossier participant, ou champ absent)', () => {
+  const texte = texteRappel({ libelle: 'Vente préalable', nomDossier: 'X / Y', seuil: 7, iso: '2026-11-04', pieces: { recues: [], manquantes: [] } });
+  assert.doesNotMatch(texte, /Pièces/);
+});
+
+test('calculerRappelsDus : attache les pièces reçues/manquantes du dossier à chaque rappel dû', () => {
+  const d = {
+    id: 'd1', nom: 'DUPONT / MARTIN', responsable: 'Julie VASSELIN', pret: '2026-11-11',
+    typeVente: 'maison', pieces: { certificatUrbanisme: 'recue' }
+  };
+  const dus = calculerRappelsDus([d], '2026-10-27', new Set());
+  assert.equal(dus.length, 1);
+  assert.ok(dus[0].pieces.recues.includes("Certificat d'urbanisme"));
+  assert.ok(dus[0].pieces.manquantes.length > 0);
+});
+
 // ---- executerTacheRappels : un tour complet, avec un envoi injecté ----
 
 function config() {
@@ -117,6 +143,7 @@ test('executerTacheRappels : envoie le rappel dû, le marque dans reminder_log, 
   assert.equal(envois.length, 1);
   assert.equal(envois[0].email, 'b@etude.fr');
   assert.match(envois[0].texte, /DUPONT \/ MARTIN/);
+  assert.match(envois[0].texte, /Pièces (reçues|manquantes)/, 'la liste des pièces doit accompagner le rappel');
 
   // Un second tour LE MÊME JOUR (le job tourne toutes les 30 minutes) : déjà marqué, pas de renvoi.
   const r2 = await executerTacheRappels(depot, db, parametresRepo, envoyerFn, '2026-10-27');

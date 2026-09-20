@@ -5130,6 +5130,46 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     connu, préfixe "VENTE" sur la ligne de tableau, ordre Exporter → extraction → historique
     confirmé par position dans le HTML généré.
 
+- **Liste des pièces reçues/manquantes ajoutée au message de rappel Teams**, demandé par l'étude
+  juste après la mise en service du job de rappels (voir son historique plus haut, section
+  "Rappels automatiques vers Teams") : savoir qu'une échéance approche ne dit rien de ce qu'il reste
+  à réclamer, il fallait déjà rouvrir la fiche pour ça.
+  - **`server/src/piecesChecklist.js`** (nouveau) : duplication volontaire, côté serveur, d'un
+    SOUS-ENSEMBLE de `checklistPieces()` (script.js) — même choix déjà documenté dans ce projet pour
+    `buildEvent`/`icsDate` (`routes/calendrier.js`) et `toutesEcheances`/`echeanceValidee`
+    (`jobs/rappels.js`) : pas de mécanisme de build partagé entre navigateur et Node. Ne reprend que
+    les libellés (`cle`+`label`) de `PIECES_URBANISME`/`PIECES_AUTRES`/`PIECES_COPROPRIETE`/
+    `PIECES_TERRAIN_AUTRES`/`PIECES_ENGAGEMENTS_AUTO` — jamais les `motifNom` (inutiles ici, la
+    reconnaissance par nom de fichier reste l'affaire du parcours NAS côté client ; ce module ne
+    fait que relire le statut déjà calculé sur `d.pieces`). `checklistPieces(typeVente, d)` reprend
+    la même logique de composition (pièces retirées, pièces auto-détectées, pièces personnalisées)
+    que son équivalent client. Volontairement **pas** de reprise de
+    `clesChecklistDepuisDocuments()` (rétroactivité pour un dossier créé avant l'existence de
+    `cleChecklist` sur `DOCUMENTS_VENDEUR_CONNUS`) : cas de compatibilité ascendante mineur, sans
+    conséquence sur l'utilité du message pour l'immense majorité des dossiers, qui portent déjà
+    `d.piecesEngagementsDetectees`.
+  - `piecesRecuesEtManquantes(d)` : sépare la checklist du dossier en deux listes de libellés,
+    « reçues » (`d.pieces[cle] === 'recue'`) et « manquantes » (tout le reste, y compris une pièce
+    **jamais encore vérifiée** — absence de clé dans `d.pieces`, voir la convention documentée plus
+    haut) — du point de vue du responsable relancé, une pièce jamais vérifiée est aussi une pièce à
+    réclamer/confirmer, pas une anomalie à distinguer dans ce message. Rien pour un dossier au rôle
+    « participant » (même garde-fou que `renderPiecesDossier()` côté client : la checklist ne
+    s'affiche pas non plus sur la fiche pour ce rôle) ni pour un dossier/objet absent — jamais
+    d'exception levée.
+  - `calculerRappelsDus()` (`jobs/rappels.js`) calcule ces deux listes **une fois par dossier**
+    (pas par échéance/seuil, ce sont les mêmes pièces quelle que soit l'échéance qui déclenche le
+    rappel) et les attache à chaque rappel dû (`r.pieces`). `texteRappel(r)` ajoute alors deux
+    lignes au message, sous l'échéance elle-même — `Pièces reçues (N) : ...` /
+    `Pièces manquantes (N) : ...` — **uniquement si la checklist n'est pas vide** (jamais deux
+    lignes "(0) : aucune" pour un dossier participant ou pour un `r` de test sans champ `pieces`,
+    ce qui aurait ajouté du bruit sans rien dire).
+  - Tests : `server/test/pieces-checklist.test.js` (8, dont chaque type de vente, le retrait/l'ajout
+    de pièce, la séparation reçues/manquantes avec le cas "jamais vérifié", le rôle participant, les
+    entrées vides) et `server/test/rappels.test.js` (+4 : `texteRappel` avec et sans pièces,
+    `calculerRappelsDus` qui attache bien les deux listes, le message envoyé par
+    `executerTacheRappels` qui les contient). Suite serveur 188 → 200 tests, suite racine inchangée
+    (428, chantier entièrement côté serveur).
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

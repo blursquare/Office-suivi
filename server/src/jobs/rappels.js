@@ -21,6 +21,7 @@
 // l'une des deux, vérifier si l'autre a besoin du même changement.
 
 const { envoyerMessageTeams } = require('../teams');
+const { piecesRecuesEtManquantes } = require('../piecesChecklist');
 
 const SEUILS_RAPPELS = [15, 7];
 
@@ -57,6 +58,9 @@ function calculerRappelsDus(dossiers, aujourdHui, dejaEnvoyes) {
   const dus = [];
   for (const d of dossiers || []) {
     if (!d || d.archive || !d.responsable) continue;
+    // Calculé une fois par dossier (pas par échéance/seuil) : ce sont les mêmes pièces quelle que
+    // soit l'échéance qui déclenche le rappel.
+    const pieces = piecesRecuesEtManquantes(d);
     for (const e of toutesEcheances(d)) {
       const j = joursRestants(e.iso, aujourdHui);
       for (const seuil of SEUILS_RAPPELS) {
@@ -71,7 +75,8 @@ function calculerRappelsDus(dossiers, aujourdHui, dejaEnvoyes) {
           libelle: e.label || 'Échéance',
           iso: e.iso,
           seuil,
-          reminderKey
+          reminderKey,
+          pieces
         });
       }
     }
@@ -79,9 +84,19 @@ function calculerRappelsDus(dossiers, aujourdHui, dejaEnvoyes) {
   return dus;
 }
 
+// Les pièces reçues/manquantes (voir piecesChecklist.js) sont ajoutées au message SEULEMENT si le
+// dossier a une checklist applicable (jamais pour un rôle "participant", voir la fonction) — sans
+// quoi le message afficherait deux lignes vides "(0) : aucune" sur chaque rappel de ce type de
+// dossier, du bruit plutôt qu'une information.
 function texteRappel(r) {
   const jour = r.seuil === 1 ? 'jour' : 'jours';
-  return `📌 CLAIRE — Rappel : « ${r.libelle} » du dossier ${r.nomDossier} arrive à échéance dans ${r.seuil} ${jour} (le ${r.iso}).`;
+  let texte = `📌 CLAIRE — Rappel : « ${r.libelle} » du dossier ${r.nomDossier} arrive à échéance dans ${r.seuil} ${jour} (le ${r.iso}).`;
+  const { recues, manquantes } = r.pieces || { recues: [], manquantes: [] };
+  if (recues.length || manquantes.length) {
+    texte += `\n\nPièces reçues (${recues.length}) : ${recues.length ? recues.join(', ') : 'aucune'}`;
+    texte += `\nPièces manquantes (${manquantes.length}) : ${manquantes.length ? manquantes.join(', ') : 'aucune'}`;
+  }
+  return texte;
 }
 
 // Un seul tour : lit les réglages (webhook + emails), calcule les rappels dus, envoie ceux dont le
