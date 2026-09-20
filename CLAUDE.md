@@ -5386,6 +5386,42 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     reste à confirmer par l'étude, comme pour Teams/Ollama/pdf.js déjà documentés ailleurs dans ce
     fichier.
 
+- **Nouveau logo**, retenu par l'étude après une proposition soumise pour avis (voir plus haut,
+  refontes visuelles successives) : un aperçu de trois pistes a été construit dans un artefact privé
+  séparé pour comparaison, à partir d'une référence externe fournie par l'étude (une planche de
+  marque "Enterline" — un monogramme en aplats géométriques anguleux façon ruban plié, dont la barre
+  centrale de la lettre est entièrement remplacée par une coche, jamais de dégradé). Seule la
+  **construction** de cette référence a été reprise (aplats plats, coche intégrée au monogramme,
+  mot-symbole en sans-serif très gras), jamais ses couleurs (l'exemple est en noir et blanc) ni son
+  identité — CLAIRE garde son bleu `--focus`/`--focus-hover` déjà validé lors des refontes
+  précédentes. L'étude a choisi le concept "A" (bracket facetté, deux teintes) parmi les trois
+  proposés.
+  - **Nouveau motif** (`.brand-mark`, `index.html`, aux trois endroits où il apparaît — sidebar,
+    écran de connexion, écran "À propos") : une échine verticale (teinte `--focus`) + deux bras qui
+    s'ouvrent vers la droite, taillés en biseau (teinte `--focus-hover`) — évolution directe de
+    l'ancien anneau ouvert en trait fin (même idée de forme ouverte à droite, mais en aplats épais
+    plutôt qu'un tracé au trait). Une coche (même teinte `--focus-hover`) occupe exactement le creux
+    central laissé par les deux bras, remplaçant ce qui aurait été la barre horizontale d'un "C" — le
+    même principe que la référence fournie, appliqué à la forme déjà associée à CLAIRE plutôt qu'à
+    une lettre différente.
+  - **`icone.svg` (favicon/PWA)** reprend le même motif mais en aplat UNIQUE (une seule couleur
+    `#2563EB`, comme l'ancien favicon) sur la tuile graphite pleine déjà en place (`#12181F`,
+    inchangée) — un favicon a besoin de rester lisible en très petite taille quel que soit le fond de
+    la barre d'onglets, un favicon ne peut pas dépendre des variables CSS `--focus`/`--focus-hover`
+    (fichier séparé, sans accès à la feuille de style de la page) : même raisonnement déjà appliqué
+    aux refontes précédentes du logo.
+  - **Le mot "CLAIRE" devient "Claire"** (seule la première lettre en majuscule), aux trois mêmes
+    endroits (`.brand-word`) — demandé explicitement par l'étude au moment de choisir le concept A.
+    `.brand-word` n'a pas de `text-transform` en CSS (vérifié) : le texte HTML est la seule source,
+    changer la casse dans `index.html` suffit, rien à toucher côté style.
+  - Volontairement **pas étendu** aux autres mentions du nom "CLAIRE" dans l'outil (`<title>` de la
+    page, textes descriptifs — "Ce que CLAIRE repère automatiquement", "Dossier CLAIRE déjà
+    suivi"...) : la demande portait sur le logo (le mot-symbole à côté du mark), pas sur une
+    campagne de renommage de toutes les mentions du produit dans l'interface — à étendre seulement
+    sur demande explicite si l'étude le souhaite.
+  - `npm test` reste vert (448 tests, aucune fonction pure modifiée — un changement purement visuel,
+    HTML/SVG).
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à
