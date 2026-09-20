@@ -5227,6 +5227,73 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     l'acquéreur" est remplacé par "absent quand l'acquéreur est représenté par un notaire distinct
     (jamais adressé au confrère)". Suite racine toujours à 433 tests (un test réécrit, pas
     ajouté), suite serveur inchangée (200).
+- **Deux nouvelles échéances (« Appel de fonds », « Rendez-vous de signature ») et validation
+  manuelle généralisée à N'IMPORTE QUELLE échéance**, trois demandes traitées ensemble : « Rajouter
+  une étape « Appel de fonds » juste avant signature de l'acte une fois que le dossier est complet.
+  Permettre aussi de valider n'importe quelle date d'échéance et rajouter une catégorie :
+  Rendez-vous de signature (indique la date du rendez-vous définitif de signature à l'office,
+  parfois différent de la date butoir indiqué dans l'avant contrat qui est juste indicative) ».
+  **Décision de cadrage, avant d'écrire une ligne** : les trois échéances déjà en place
+  (`pret`/`acte`/`ventebien`) sont profondément couplées au pipeline d'extraction automatique
+  (`suggererEcheance`, `CHAMPS_REVISION`, `construireExtractionRegex`, `controlerCoherence`, les
+  chips du wizard, `optionsCategorie`/`changerCategorie`, `CLES_CIBLE_IA`) — les deux nouvelles
+  échéances n'y touchent pas du tout : ce sont des dates purement manuelles, ajoutées/corrigées
+  après coup sur un dossier déjà enregistré, jamais extraites d'un PDF ni recatégorisables entre
+  elles ou avec les trois premières.
+  - **« Appel de fonds »** : nouveau champ `d.appelFonds`, affiché juste avant « Signature de
+    l'acte » dans la grille `.tabs` **uniquement quand `dossierEntierementComplet(d)` est vrai**
+    (offre de prêt reçue ou achat comptant, ET checklist de pièces entièrement reçue, ou rôle
+    participant) — la fonction existait déjà (elle sert à sauter le rescan périodique d'un dossier
+    qui n'a plus rien à apprendre), il suffisait de la réutiliser comme condition d'affichage :
+    demander une provision n'a de sens qu'une fois le dossier prêt à signer.
+  - **« Rendez-vous de signature »** : nouveau champ `d.rendezVousSignature`, toujours affiché,
+    juste après « Signature de l'acte » — la distinction demandée par l'étude entre la date BUTOIR
+    de l'avant-contrat (indicative, lue dans le compromis, sert de garde-fou juridique) et la date
+    RÉELLE du rendez-vous pris à l'office (souvent différente, décidée après coup avec le
+    notaire/les parties). Les deux dates coexistent sur la fiche sans jamais se recatégoriser l'une
+    vers l'autre.
+  - `LIBELLES_CATEGORIE` étendu aux deux nouvelles clés ; nouvelle fonction
+    `libelleEcheancePourHistorique(d, type)` (résout aussi les clés `autre-N`, absentes de
+    `LIBELLES_CATEGORIE` puisqu'une échéance personnalisée porte son propre libellé) utilisée par
+    `validerEcheance`/`devaliderEcheance` pour l'entrée d'historique.
+  - **Validation manuelle généralisée** (`renderTab()`, bouton "Marquer réalisée"/"Annuler la
+    validation") : jusqu'ici réservé à la seule vente préalable (`type === 'ventebien'`), la
+    condition devient `dossierId && iso && modifiableManuellement` — n'importe quelle échéance avec
+    une date renseignée peut être déclarée réalisée, y compris une échéance personnalisée
+    (`cleEdition`, déjà calculée pour l'édition de date, sert aussi de clé de validation : `type`
+    directement pour pret/acte/ventebien/appelFonds/rendezVousSignature, `autre-N` pour une entrée
+    de `d.autres`). **Un seul garde-fou** : `modifiableManuellement = !(type === 'pret' &&
+    offrePretRecue)` — une fois l'offre de prêt confirmée reçue via le parcours NAS, c'est ce
+    statut qui fait foi (voir `echeanceValidee`), afficher "Annuler la validation" à cet endroit
+    n'annulerait rien et laisserait croire à un bouton mort.
+  - `echeanceValidee(d, type)` : la branche `'pret'` accepte désormais AUSSI le drapeau manuel
+    (`d.offrePretStatut === 'recue' || d.echeancesValidees.pret`) — un dossier sans parcours NAS (ou
+    dont le prêt est confirmé par un autre moyen) peut ainsi être marqué réalisé comme n'importe
+    quelle autre échéance, sans que ce nouveau chemin n'entre en conflit avec le statut déjà en
+    place (les deux signaux sont simplement additionnés par un `||`).
+  - **Duplication serveur mise à jour à l'identique** (déjà documentée comme un choix assumé, ce
+    projet n'a pas de mécanisme de build partagé navigateur/Node) : `echeanceValidee`/
+    `toutesEcheances` dans `server/src/jobs/rappels.js` (rappels Teams J-15/J-7, désormais aussi sur
+    l'appel de fonds et le rendez-vous de signature, et le prêt validé manuellement n'est plus
+    rappelé) ; le tableau `standard` de `genererFluxIcs()` dans `server/src/routes/calendrier.js`
+    (flux webcal, symétriquement étendu aux deux nouveaux types — cette route ne filtrait déjà pas
+    sur `echeanceValidee` pour pret/acte/ventebien, gap pré-existant non corrigé ici, les deux
+    nouveaux types suivent simplement le même comportement que leurs voisins).
+  - `normaliserDossierImporte()` : `appelFonds`/`rendezVousSignature` conservés à l'import comme
+    `pret`/`acte`/`ventebien` (une saisie de l'étude, pas un statut dérivé d'un scan) ;
+    `echeancesValidees` était déjà générique (n'importe quelle clé à `true`), rien à changer là.
+  - Fiche imprimée (`imprimerFiche()`) : `appelFonds` reprend la teinte neutre `--muted` (comme les
+    échéances "autre"), `rendezVousSignature` reprend celle de `--acte` (dont il est la précision) —
+    aucune couleur inventée pour l'occasion.
+  - Tests : `tests/echeances-appel-fonds.test.js` (11, nouveau fichier — libellés d'historique,
+    validation manuelle du prêt, visibilité pilotée par `dossierEntierementComplet`, rendu de
+    `renderTab` sur les deux nouveaux types et sur une clé `autre-N`, absence du bouton mort quand
+    le prêt est déjà auto-confirmé, couverture de `toutesEcheances`/`prochaineEcheanceDetail`/
+    `normaliserDossierImporte`), `server/test/rappels.test.js` (+2), `server/test/calendrier.test.js`
+    (2 tests existants adaptés au passage de 3 à 5 échéances fixes). Suite racine 433 → 444 tests,
+    suite serveur 200 → 202. Vérifié en plus par un script Node ad hoc (bac à sable) : ordre réel
+    des tabs dans le HTML généré (pret → appelFonds → acte → rendezVousSignature → ventebien →
+    autres), confirmé correct.
 
 ## Comment tester
 

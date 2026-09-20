@@ -28,6 +28,13 @@ test('echeanceValidee : le prêt est "validé" dès que l\'offre est reçue, les
   assert.equal(echeanceValidee({}, 'acte'), false);
 });
 
+// "Permettre de valider n'importe quelle date d'échéance" (voir script.js) doit aussi arrêter les
+// rappels Teams sur le prêt quand la validation vient d'un clic manuel plutôt que du parcours NAS.
+test('echeanceValidee : le prêt est aussi "validé" par la validation manuelle (echeancesValidees.pret)', () => {
+  assert.equal(echeanceValidee({ offrePretStatut: 'inconnu', echeancesValidees: { pret: true } }, 'pret'), true);
+  assert.equal(echeanceValidee({ offrePretStatut: 'inconnu' }, 'pret'), false);
+});
+
 test('toutesEcheances : exclut le prêt une fois l\'offre reçue, inclut les échéances personnalisées non validées', () => {
   const d = {
     pret: '2026-11-11', acte: '2026-12-01', ventebien: '',
@@ -39,6 +46,13 @@ test('toutesEcheances : exclut le prêt une fois l\'offre reçue, inclut les éc
   assert.ok(types.includes('acte'));
   assert.ok(!types.includes('ventebien'), 'sans date, une échéance ne doit jamais être rappelée');
   assert.ok(types.includes('autre-0'));
+});
+
+test('toutesEcheances : couvre aussi l\'appel de fonds et le rendez-vous de signature, exclus une fois validés', () => {
+  const d = { appelFonds: '2026-11-20', rendezVousSignature: '2026-12-05' };
+  assert.deepEqual(toutesEcheances(d).map((e) => e.type).sort(), ['appelFonds', 'rendezVousSignature']);
+  const validees = { ...d, echeancesValidees: { appelFonds: true, rendezVousSignature: true } };
+  assert.deepEqual(toutesEcheances(validees), []);
 });
 
 test('toutesEcheances : un dossier sans prêt (sansPret) garde ses autres échéances', () => {

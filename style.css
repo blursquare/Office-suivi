@@ -2308,7 +2308,9 @@
     border-radius: 50%;
   }
   .dashboard-pastille.pret { background: var(--pret); }
+  .dashboard-pastille.appelFonds { background: var(--muted); }
   .dashboard-pastille.acte { background: var(--acte); }
+  .dashboard-pastille.rendezVousSignature { background: var(--acte); }
   .dashboard-pastille.ventebien { background: var(--ventebien); }
   .dashboard-pastille.autre { background: var(--muted); }
   .dashboard-jours {
@@ -3150,7 +3152,9 @@
     background: var(--paper-card);
   }
   .tab.pret { border-left-color: var(--pret); }
+  .tab.appelFonds { border-left-color: var(--muted); }
   .tab.acte { border-left-color: var(--acte); }
+  .tab.rendezVousSignature { border-left-color: var(--acte); }
   .tab.ventebien { border-left-color: var(--ventebien); }
   .tab.autre { border-left-color: var(--muted); }
 

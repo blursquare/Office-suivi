@@ -25,8 +25,11 @@ const { piecesRecuesEtManquantes } = require('../piecesChecklist');
 
 const SEUILS_RAPPELS = [15, 7];
 
+// Le prêt reste avant tout piloté par offrePretStatut (parcours NAS), mais la validation manuelle
+// (voir echeancesValidees.pret, script.js) doit aussi être prise en compte ici — sans quoi un
+// dossier marqué réalisé côté client continuerait de recevoir des rappels Teams sur cette échéance.
 function echeanceValidee(d, type) {
-  if (type === 'pret') return d.offrePretStatut === 'recue';
+  if (type === 'pret') return d.offrePretStatut === 'recue' || !!(d.echeancesValidees && d.echeancesValidees.pret);
   return !!(d.echeancesValidees && d.echeancesValidees[type]);
 }
 
@@ -36,7 +39,9 @@ function toutesEcheances(d) {
     .filter((it) => !echeanceValidee(d, it.type));
   return [
     ...(echeanceValidee(d, 'pret') ? [] : [{ type: 'pret', label: 'Obtention du prêt', iso: d.pret }]),
+    ...(echeanceValidee(d, 'appelFonds') ? [] : [{ type: 'appelFonds', label: 'Appel de fonds', iso: d.appelFonds }]),
     ...(echeanceValidee(d, 'acte') ? [] : [{ type: 'acte', label: "Signature de l'acte", iso: d.acte }]),
+    ...(echeanceValidee(d, 'rendezVousSignature') ? [] : [{ type: 'rendezVousSignature', label: 'Rendez-vous de signature', iso: d.rendezVousSignature }]),
     ...(echeanceValidee(d, 'ventebien') ? [] : [{ type: 'ventebien', label: 'Vente préalable', iso: d.ventebien }]),
     ...autres
   ].filter((it) => it.iso);

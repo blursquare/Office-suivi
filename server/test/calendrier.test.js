@@ -10,16 +10,21 @@ const { genererFluxIcs } = require('../src/routes/calendrier');
 
 // ---- genererFluxIcs() : fonction pure, testée directement sans monter de serveur ----
 
-test('genererFluxIcs : un dossier actif avec les trois échéances produit trois VEVENT', () => {
+test('genererFluxIcs : un dossier actif avec les cinq échéances fixes produit cinq VEVENT', () => {
   const body = genererFluxIcs([
-    { id: 'd1', nom: 'DUPONT / MARTIN', pret: '2026-11-11', acte: '2026-12-01', ventebien: '2026-10-05' }
+    {
+      id: 'd1', nom: 'DUPONT / MARTIN', pret: '2026-11-11', appelFonds: '2026-11-20',
+      acte: '2026-12-01', rendezVousSignature: '2026-12-01', ventebien: '2026-10-05'
+    }
   ]);
   assert.match(body, /BEGIN:VCALENDAR/);
   assert.match(body, /UID:d1-pret@claire-calendrier/);
+  assert.match(body, /UID:d1-appelFonds@claire-calendrier/);
   assert.match(body, /UID:d1-acte@claire-calendrier/);
+  assert.match(body, /UID:d1-rendezVousSignature@claire-calendrier/);
   assert.match(body, /UID:d1-ventebien@claire-calendrier/);
   assert.match(body, /Obtention du prêt — MARTIN - Dossier DUPONT \/ MARTIN/);
-  assert.equal((body.match(/BEGIN:VEVENT/g) || []).length, 3);
+  assert.equal((body.match(/BEGIN:VEVENT/g) || []).length, 5);
 });
 
 // Un client calendrier ne supprime PAS un événement qui disparaît du flux : il faut publier son
@@ -35,10 +40,10 @@ test('genererFluxIcs : un dossier archivé voit ses échéances ANNULÉES, pas o
 
 test('genererFluxIcs : une échéance sans date est ANNULÉE, pas omise', () => {
   const body = genererFluxIcs([{ id: 'd1', nom: 'X / Y', pret: '', acte: null, ventebien: undefined }]);
-  for (const cle of ['pret', 'acte', 'ventebien']) {
+  for (const cle of ['pret', 'appelFonds', 'acte', 'rendezVousSignature', 'ventebien']) {
     assert.match(body, new RegExp(`UID:d1-${cle}@claire-calendrier`), cle);
   }
-  assert.equal((body.match(/STATUS:CANCELLED/g) || []).length, 3);
+  assert.equal((body.match(/STATUS:CANCELLED/g) || []).length, 5);
 });
 
 test('genererFluxIcs : chaque événement porte un SEQUENCE croissant avec la modification', () => {

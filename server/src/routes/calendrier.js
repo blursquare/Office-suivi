@@ -126,7 +126,9 @@ function genererFluxIcs(dossiers) {
     const repli = d.pret || d.acte || d.ventebien || aujourdHui;
     const standard = [
       { cle: 'pret', libelle: 'Obtention du prêt', iso: d.pret },
+      { cle: 'appelFonds', libelle: 'Appel de fonds', iso: d.appelFonds },
       { cle: 'acte', libelle: "Signature de l'acte", iso: d.acte },
+      { cle: 'rendezVousSignature', libelle: 'Rendez-vous de signature', iso: d.rendezVousSignature },
       { cle: 'ventebien', libelle: 'Vente préalable', iso: d.ventebien }
     ];
     for (const e of standard) {

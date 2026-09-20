@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-20 22:25';
+  const VERSION_APP = '2026-09-20 22:58';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-20 22:58', resume: "Nouvelle échéance « Appel de fonds » (visible une fois le dossier complet, juste avant la signature de l'acte) et « Rendez-vous de signature » (le rendez-vous réel pris à l'office, distinct de la date butoir indicative de l'avant-contrat). « Marquer réalisée »/« Annuler la validation » fonctionne désormais sur n'importe quelle échéance (prêt, acte, vente préalable, personnalisée), plus seulement la vente préalable" },
     { version: '2026-09-20 22:25', resume: "Le bouton « Questionnaire de satisfaction » n'est plus jamais proposé ni adressé au notaire de l'acquéreur quand celui-ci est en participation — il porte sur le ressenti du client envers notre étude, ça n'a pas de sens de le demander au confrère. Il reste réservé à l'acquéreur lui-même (email direct)" },
     { version: '2026-09-20 22:18', resume: "Nouveau bouton « Questionnaire de satisfaction » sur la fiche dossier : un clic prépare le brouillon d'email à l'acquéreur (ou au notaire de l'acquéreur s'il est en participation) ET archive automatiquement le dossier. Le texte de l'email est un modèle PROVISOIRE en attendant que l'étude fournisse le texte définitif — un rappel a été programmé pour le briefing de demain matin, il ne reste alors qu'à le remplacer dans construireEmailQuestionnaireSatisfaction()" },
     { version: '2026-09-20 22:07', resume: "Le message de rappel Teams envoyé à un responsable liste désormais, sous l'échéance elle-même, les pièces déjà reçues et celles encore manquantes pour ce dossier (checklist urbanisme/copropriété/terrain, pièces auto-détectées et personnalisées, selon le type de vente) — plus besoin de rouvrir la fiche pour savoir ce qu'il reste à réclamer. Rien pour un dossier au rôle « participant », dont la checklist n'est de toute façon pas suivie" },
@@ -6349,7 +6350,7 @@
     // demandé par l'étude sous forme d'un vrai bouton de suppression.
     const croixSuppression = (dossierId && autreIndex != null)
       ? `<button type="button" class="tab-suppr" onclick="supprimerEcheanceAutre('${dossierId}', ${autreIndex})" title="Supprimer cette échéance" aria-label="Supprimer cette échéance">${icone('x')}</button>`
-      : (dossierId && autreIndex == null && iso && (type === 'pret' || type === 'acte' || type === 'ventebien'))
+      : (dossierId && autreIndex == null && iso && (type === 'pret' || type === 'acte' || type === 'ventebien' || type === 'appelFonds' || type === 'rendezVousSignature'))
         ? `<button type="button" class="tab-suppr" onclick="supprimerDateEcheance('${dossierId}', '${type}')" title="Supprimer cette date" aria-label="Supprimer cette date">${icone('x')}</button>`
         : '';
 
@@ -6410,13 +6411,18 @@
       </div>`;
     }
     // Échéance déclarée réalisée : la date reste affichée (elle fait partie du dossier) mais le
-    // décompte n'a plus de sens, et la carte porte de quoi revenir en arrière. L'étude l'a demandé
-    // pour la vente préalable — une fois la vente de l'acquéreur faite, c'est l'échéance suivante
-    // qu'il faut voir remonter dans la vue Échéances (voir echeanceValidee/toutesEcheances).
-    const boutonValidation = (dossierId && iso && type === 'ventebien')
+    // décompte n'a plus de sens, et la carte porte de quoi revenir en arrière. D'abord réservé à la
+    // vente préalable, généralisé ensuite (demandé explicitement) à N'IMPORTE QUELLE échéance —
+    // fixe (pret/acte/ventebien/appelFonds/rendezVousSignature) ou personnalisée (cleEdition vaut
+    // alors "autre-N", voir libelleEcheancePourHistorique). Seule exception : le prêt une fois
+    // effectivement confirmé reçu (offrePretRecue) — la source de vérité est alors le parcours NAS,
+    // afficher "Annuler la validation" à cet endroit n'annulerait rien (voir echeanceValidee) et
+    // laisserait croire à un bouton sans effet.
+    const modifiableManuellement = !(type === 'pret' && offrePretRecue);
+    const boutonValidation = (dossierId && iso && modifiableManuellement)
       ? (validee
-        ? `<button type="button" class="lien-dossier-local" onclick="devaliderEcheance('${dossierId}','${type}')">Annuler la validation</button>`
-        : `<button type="button" class="action-rapide" onclick="validerEcheance('${dossierId}','${type}')" title="La vente préalable est réalisée : passer à l’échéance suivante">${icone('check')} Marquer réalisée</button>`)
+        ? `<button type="button" class="lien-dossier-local" onclick="devaliderEcheance('${dossierId}','${cleEdition}')">Annuler la validation</button>`
+        : `<button type="button" class="action-rapide" onclick="validerEcheance('${dossierId}','${cleEdition}')" title="Marquer cette échéance comme réalisée">${icone('check')} Marquer réalisée</button>`)
       : '';
 
     const jours = joursRestants(iso);
@@ -6457,13 +6463,15 @@
 
   // Marque une échéance comme réalisée (ou revient en arrière). La date n'est jamais effacée —
   // c'est la différence avec supprimerDateEcheance : le dossier garde la trace de la date butoir,
-  // seule sa présence dans le planning change.
+  // seule sa présence dans le planning change. `type` peut être une clé fixe (pret/acte/ventebien/
+  // appelFonds/rendezVousSignature) ou "autre-N" pour une échéance personnalisée — voir cleEdition
+  // dans renderTab() et libelleEcheancePourHistorique() juste en dessous.
   function validerEcheance(id, type) {
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
     d.echeancesValidees = d.echeancesValidees || {};
     d.echeancesValidees[type] = true;
-    ajouterHistorique(d, `${LIBELLES_CATEGORIE[type] || type} marquée réalisée`);
+    ajouterHistorique(d, `${libelleEcheancePourHistorique(d, type)} marquée réalisée`);
     sauvegarder(d);
     render();
   }
@@ -6472,14 +6480,32 @@
     const d = dossiers.find(x => x.id === id);
     if (!d || !d.echeancesValidees) return;
     delete d.echeancesValidees[type];
-    ajouterHistorique(d, `${LIBELLES_CATEGORIE[type] || type} : validation annulée`);
+    ajouterHistorique(d, `${libelleEcheancePourHistorique(d, type)} : validation annulée`);
     sauvegarder(d);
     render();
   }
 
   // Échange le contenu de deux échéances fixes d'un dossier (aucune perte de données : si la
   // catégorie cible avait déjà une date, elle prend la place de l'ancienne).
-  const LIBELLES_CATEGORIE = { pret: 'Obtention du prêt', acte: "Signature de l'acte", ventebien: 'Vente préalable' };
+  const LIBELLES_CATEGORIE = {
+    pret: 'Obtention du prêt', acte: "Signature de l'acte", ventebien: 'Vente préalable',
+    appelFonds: 'Appel de fonds', rendezVousSignature: 'Rendez-vous de signature'
+  };
+
+  // Résout le libellé d'une échéance pour un message d'historique — les trois/cinq types fixes
+  // via LIBELLES_CATEGORIE, une échéance personnalisée ("autre-N", sans libellé fixe puisqu'elle
+  // porte le sien propre) via son label dans d.autres. Utilisée uniquement pour la validation
+  // (validerEcheance/devaliderEcheance), généralisée à TOUS les types d'échéance — les autres
+  // messages d'historique (changerCategorie, supprimerDateEcheance...) restent limités aux trois
+  // types recatégorisables/fixes butoir et n'ont pas besoin de ce repli sur "autre-N".
+  function libelleEcheancePourHistorique(d, type) {
+    if (LIBELLES_CATEGORIE[type]) return LIBELLES_CATEGORIE[type];
+    if (type.indexOf('autre-') === 0) {
+      const item = (d.autres || [])[parseInt(type.slice(6), 10)];
+      return item ? item.label : 'Échéance personnalisée';
+    }
+    return type;
+  }
 
   function ajouterHistorique(d, texte) {
     d.historique = d.historique || [];
@@ -6636,7 +6662,9 @@
     const datePret = echeanceValidee(d, 'pret') ? null : d.pret;
     const dates = [
       datePret,
+      echeanceValidee(d, 'appelFonds') ? null : d.appelFonds,
       echeanceValidee(d, 'acte') ? null : d.acte,
+      echeanceValidee(d, 'rendezVousSignature') ? null : d.rendezVousSignature,
       echeanceValidee(d, 'ventebien') ? null : d.ventebien,
       ...autresDates
     ].filter(Boolean).map(joursRestants);
@@ -6667,7 +6695,9 @@
     dossiersActifs.forEach(d => {
       const items = [
         { type: 'pret', label: 'Obtention du prêt', iso: d.pret },
+        { type: 'appelFonds', label: 'Appel de fonds', iso: d.appelFonds },
         { type: 'acte', label: "Signature de l'acte", iso: d.acte },
+        { type: 'rendezVousSignature', label: 'Rendez-vous de signature', iso: d.rendezVousSignature },
         { type: 'ventebien', label: 'Vente préalable', iso: d.ventebien },
         ...(d.autres || []).map(a => ({ type: 'autre', label: a.label, iso: a.date }))
       ];
@@ -7048,7 +7078,9 @@
   function toutesEcheances(d) {
     return [
       ...(echeanceValidee(d, 'pret') ? [] : [{ type: 'pret', label: 'Obtention du prêt', iso: d.pret }]),
+      ...(echeanceValidee(d, 'appelFonds') ? [] : [{ type: 'appelFonds', label: 'Appel de fonds', iso: d.appelFonds }]),
       ...(echeanceValidee(d, 'acte') ? [] : [{ type: 'acte', label: "Signature de l'acte", iso: d.acte }]),
+      ...(echeanceValidee(d, 'rendezVousSignature') ? [] : [{ type: 'rendezVousSignature', label: 'Rendez-vous de signature', iso: d.rendezVousSignature }]),
       ...(echeanceValidee(d, 'ventebien') ? [] : [{ type: 'ventebien', label: 'Vente préalable', iso: d.ventebien }]),
       ...(d.autres || []).map((a, i) => ({ type: 'autre', label: a.label, iso: a.date, index: i }))
         .filter(it => !echeanceValidee(d, 'autre-' + it.index))
@@ -7127,8 +7159,14 @@
   // `offrePretStatut === 'recue'` pour l'obtention du prêt. Demandé par l'étude pour la vente
   // préalable ; l'état est stocké par TYPE (et non sous un booléen dédié) pour que l'étendre à une
   // autre échéance ne demande rien de plus qu'un bouton.
+  // Le prêt reste avant tout piloté par le statut dérivé du parcours NAS (offrePretStatut) — mais
+  // "permettre de valider n'importe quelle date d'échéance" (demandé explicitement) doit aussi
+  // couvrir un dossier où cette confirmation automatique n'a pas lieu (prêt confirmé par un autre
+  // moyen, dossier non relié au NAS...). Le drapeau manuel n'intervient qu'en complément : dès que
+  // l'offre est effectivement reçue, c'est ce statut-là qui fait foi (voir aussi renderTab, qui
+  // évite d'afficher un bouton "Annuler la validation" sans effet dans ce cas).
   function echeanceValidee(d, type) {
-    if (type === 'pret') return d.offrePretStatut === 'recue';
+    if (type === 'pret') return d.offrePretStatut === 'recue' || !!(d.echeancesValidees && d.echeancesValidees.pret);
     return !!(d.echeancesValidees && d.echeancesValidees[type]);
   }
 
@@ -7138,7 +7176,9 @@
       // prêt" comme la prochaine chose à surveiller alors qu'il n'y a plus rien à y suivre — on
       // passe directement à la suivante (acte, vente préalable...), voir calculerProchaineEcheance.
       ...(echeanceValidee(d, 'pret') ? [] : [{ type: 'pret', label: 'Obtention du prêt', iso: d.pret }]),
+      ...(echeanceValidee(d, 'appelFonds') ? [] : [{ type: 'appelFonds', label: 'Appel de fonds', iso: d.appelFonds }]),
       ...(echeanceValidee(d, 'acte') ? [] : [{ type: 'acte', label: "Signature de l'acte", iso: d.acte }]),
+      ...(echeanceValidee(d, 'rendezVousSignature') ? [] : [{ type: 'rendezVousSignature', label: 'Rendez-vous de signature', iso: d.rendezVousSignature }]),
       ...(echeanceValidee(d, 'ventebien') ? [] : [{ type: 'ventebien', label: 'Vente préalable', iso: d.ventebien }]),
       ...(d.autres || []).map((a, i) => ({ type: 'autre', label: a.label, iso: a.date, index: i }))
         .filter(it => !echeanceValidee(d, 'autre-' + it.index))
@@ -8177,10 +8217,12 @@
         </div>
         <div class="dossier-body">
         <div class="tabs">
-          ${renderTab('pret', 'Obtention du prêt', d.pret, d.id, d.pretPage, confiance.pret, null, d.offrePretStatut === 'recue', offreBloc, d.sansPret)}
-          ${renderTab('acte', 'Signature de l\u2019acte', d.acte, d.id, d.actePage, confiance.acte)}
+          ${renderTab('pret', 'Obtention du prêt', d.pret, d.id, d.pretPage, confiance.pret, null, d.offrePretStatut === 'recue', offreBloc, d.sansPret, echeanceValidee(d, 'pret'))}
+          ${dossierEntierementComplet(d) ? renderTab('appelFonds', 'Appel de fonds', d.appelFonds, d.id, null, null, null, false, '', false, echeanceValidee(d, 'appelFonds')) : ''}
+          ${renderTab('acte', 'Signature de l\u2019acte', d.acte, d.id, d.actePage, confiance.acte, null, false, '', false, echeanceValidee(d, 'acte'))}
+          ${renderTab('rendezVousSignature', 'Rendez-vous de signature', d.rendezVousSignature, d.id, null, null, null, false, '', false, echeanceValidee(d, 'rendezVousSignature'))}
           ${d.ventebien ? renderTab('ventebien', 'Vente préalable', d.ventebien, d.id, d.ventebienPage, confiance.ventebien, null, false, '', false, echeanceValidee(d, 'ventebien')) : ''}
-          ${(d.autres || []).map((a, i) => renderTab('autre', escapeHtml(a.label), a.date, d.id, a.page, null, i)).join('')}
+          ${(d.autres || []).map((a, i) => renderTab('autre', escapeHtml(a.label), a.date, d.id, a.page, null, i, false, '', false, echeanceValidee(d, 'autre-' + i))).join('')}
         </div>
         ${renderAjoutEcheance(d)}
         ${d.roleNotaire !== 'participant' ? renderPiecesDossier(d) : ''}
@@ -9486,7 +9528,12 @@
       // sans revérification (voir le commentaire déjà existant sur offrePretStatut ci-dessous).
       montantPret: null,
       pret: dateValide(d.pret),
+      // Comme pret/acte/ventebien : une lecture/saisie conservée telle quelle à l'import, jamais un
+      // statut dérivé d'un scan à revérifier — l'appel de fonds et le rendez-vous de signature sont
+      // ajoutés après coup par l'étude, pas extraits automatiquement du compromis.
+      appelFonds: dateValide(d.appelFonds),
       acte: dateValide(d.acte),
+      rendezVousSignature: dateValide(d.rendezVousSignature),
       ventebien: dateValide(d.ventebien),
       autres: Array.isArray(d.autres)
         ? d.autres.filter(a => a && typeof a === 'object' && dateValide(a.date))
@@ -9655,16 +9702,24 @@
     // tableau — seul le style inline est honoré de façon fiable à l'ouverture d'un fichier .doc.
     // acte/vente : mêmes valeurs que --acte/--ventebien (style.css), échangées sur demande de
     // l'étude (acte en vert/teal, vente préalable en bleu) — voir le commentaire dans style.css.
+    // appelFonds/rendezVous : pas de couleur de catégorie dédiée (échéances manuelles, hors de
+    // l'extraction) — appelFonds reprend la teinte neutre "autre" (--muted), rendezVous reprend
+    // celle de "acte" (--acte), dont il est la précision (le rendez-vous EST la signature, juste
+    // daté précisément) — aucune couleur inventée pour l'occasion.
     const TEINTES = {
       pret:  { fond: '#FBEFD9', barre: '#B07A12' },
       acte:  { fond: '#E1F4F2', barre: '#1CA39B' },
       vente: { fond: '#E3EEF7', barre: '#2472B0' },
-      autre: { fond: '#EEEEEE', barre: '#8A93A9' }
+      autre: { fond: '#EEEEEE', barre: '#8A93A9' },
+      appelFonds: { fond: '#EEEEEE', barre: '#8A93A9' },
+      rendezVous: { fond: '#E1F4F2', barre: '#1CA39B' }
     };
 
     const cases = [
       d.pret ? { cls: 'pret', label: 'Obtention du prêt', date: d.pret } : null,
+      d.appelFonds ? { cls: 'appelFonds', label: 'Appel de fonds', date: d.appelFonds } : null,
       d.acte ? { cls: 'acte', label: "Signature de l'acte", date: d.acte } : null,
+      d.rendezVousSignature ? { cls: 'rendezVous', label: 'Rendez-vous de signature', date: d.rendezVousSignature } : null,
       d.ventebien ? { cls: 'vente', label: 'Vente préalable', date: d.ventebien } : null,
       ...(d.autres || []).map(a => ({ cls: 'autre', label: a.label, date: a.date }))
     ].filter(Boolean);
