@@ -5001,6 +5001,50 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     même nombre qu'avant, ces fonctions dépendant du DOM/de pdf.js et n'étant pas testables
     unitairement, même limite déjà documentée pour le reste d'Outil 2 ; 189 côté serveur, chantier
     entièrement côté client).
+- **Lot de huit retouches d'interface, remontées pendant un test réel sur un Mac personnel** :
+  - **Exemple du champ « Nom du dossier » corrigé** : le placeholder affichait « Ex. Dupont / 12
+    rue de la Paix », un très vieux format mêlant nom et adresse — le champ adresse ayant depuis
+    longtemps son propre champ dédié (`#f-adresse-bien`). L'exemple montre désormais le vrai format
+    vendeur/acquéreur produit par `detecterNomDossier()` (« Ex. DUPONT / MARTIN (vendeur /
+    acquéreur) ») — ce dernier séparait déjà correctement les deux parties par un « / », rien à
+    changer côté extraction ; seul l'exemple affiché à l'écran était trompeur.
+  - **Bouton de relance « Pièce(s) à fournir » retiré** de `renderRelancesCiblees()` (et
+    `construireEmailRelancePieces()`/l'entrée `pieces` de `MODELES_EMAIL_RELANCE` supprimées avec
+    lui) — jugé redondant par l'étude avec la checklist déjà visible sur la fiche. Restent « Prêt
+    manquant » et « RIB ».
+  - **Boutons de relance alignés sur la taille de « Rappels (.ics) »/« Imprimer »** :
+    `.relances-boutons .action-rapide` (Prêt manquant, RIB) reprend désormais le `font-size`/
+    `padding` de `.dossier-actions button` juste en dessous, au lieu de la petite pastille
+    `.action-rapide` générique (11px) partagée avec « Revérifier »/« Ouvrir le compromis » ailleurs
+    sur la fiche — ceux-là restent inchangés, seul le contexte des relances ciblées est concerné.
+  - **Indicateur « Connecté »/« Hors ligne » déplacé de la sidebar vers l'écran « À propos »** :
+    `#statut-serveur-badge` (toujours mis à jour par `majStatutServeur()`, code JS inchangé) vit
+    désormais sous la tagline de la popup plutôt que dans un bloc séparé en haut de la sidebar —
+    c'est un état technique de diagnostic, sa place est dans cet écran plutôt qu'affiché en
+    permanence à l'écran.
+  - **Badge « Alpha » réduit et déplacé à côté du logo « CLAIRE »**, dans `.sidebar-brand` — avant,
+    il vivait empilé avec l'indicateur de connexion dans un bloc `.sidebar-etat` séparé (calé en
+    haut à droite de la sidebar, supprimé avec ce chantier) ; désormais un simple repère discret
+    (8px, contre 9px) à côté de la marque.
+  - **Icône « Réglages » redessinée en vraie roue crantée** (`ICONES.settings`) : l'ancien glyphe
+    (cercle central + 8 rayons, sans anneau) se lisait plus comme un soleil/astérisque qu'un
+    engrenage — remplacé par un anneau + un trou central + 8 dents courtes, même grille 16×16/trait
+    1.4 que le reste du jeu d'icônes.
+  - **Bouton « Nouveau dossier » retiré de la sidebar** (`#tab-nouveau`/`.sidebar-cta`, ainsi que
+    les règles CSS `.sidebar-cta` devenues mortes) : la création reste accessible via le bouton
+    « + Nouveau dossier » déjà présent sur le Tableau de bord et sur le Suivi. `definirOnglet()`
+    perd ses deux références à `tab-nouveau` (l'élément n'existe plus) ; `initIconesStatiques()`
+    n'avait pas besoin d'être touchée, déjà gardée par un `if (el)`.
+  - **Écran « À propos » élargi** (`.apropos-box`, 400px → 480px) : plus de place pour l'indicateur
+    de connexion qui vient d'y être déplacé, et pour la liste « Historique récent »/« Qualité de
+    l'extraction » déjà présentes.
+  - Tests : `tests/relances-email.test.js` mis à jour (les deux tests de
+    `construireEmailRelancePieces()`, fonction supprimée, retirés ; `MODELES_EMAIL_RELANCE` attendu
+    sur ses deux motifs restants). Suite racine 425 → 423 tests, suite serveur inchangée (189,
+    chantier entièrement côté client). Vérifié par lecture de code (aucune référence orpheline à
+    `tab-nouveau`/`icon-nav-nouveau`/`sidebar-cta`/`sidebar-etat` dans script.js/index.html/
+    style.css) plutôt que par capture d'écran — l'étude testait en direct sur son propre Mac
+    pendant ce chantier et a pu vérifier elle-même le rendu réel.
 
 ## Comment tester
 

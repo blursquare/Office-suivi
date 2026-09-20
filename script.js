@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-19 08:55';
+  const VERSION_APP = '2026-09-20 19:25';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-20 19:25', resume: "Huit retouches d'interface. Le bouton de relance « Pièce(s) à fournir » disparaît (jugé redondant avec la checklist déjà visible sur la fiche) — restent « Prêt manquant » et « RIB », désormais à la même taille que « Rappels (.ics) »/« Imprimer » juste en dessous. Dans la sidebar : le bouton « Nouveau dossier » est retiré (toujours accessible depuis le Tableau de bord et le Suivi), le badge « Alpha » devient un petit repère à côté du logo CLAIRE, et l'indicateur « Connecté »/« Hors ligne » déménage dans l'écran « À propos », lui-même élargi. L'icône de « Réglages » devient une vraie roue crantée (anneau + trou + dents) plutôt qu'un glyphe en étoile. Et l'exemple du champ « Nom du dossier », resté sur un très vieux format mêlant nom et adresse, montre maintenant le bon format vendeur / acquéreur (« DUPONT / MARTIN »)" },
     { version: '2026-09-19 08:55', resume: "Outil 2 (Audit des actes) : un document scanné est désormais lu en entier, pas seulement ses 3 premières pages. Cette limite servait bien pour reconnaître un document du dossier client par son titre, mais pour l'AUDITER — chercher une incohérence n'importe où dans le texte — il fallait le lire au complet, comme pour un compromis à l'import. La liste de documents et le rapport final indiquent maintenant, pour chaque pièce, combien de pages ont réellement été lues (et si la lecture est passée par la reconnaissance d'image) ; une lecture malgré tout coupée par un document exceptionnellement long est signalée en clair plutôt que passée sous silence. La vérification d'un dossier local (offre de prêt, pièces) n'est pas concernée, elle reste sur 3 pages, ce qui lui suffit" },
     { version: '2026-09-19 08:35', resume: "Correction sur « Ouvrir le compromis » (et le compromis de référence d'Outil 2) : l'avant-contrat signé est désormais cherché à la RACINE du dossier client ou dans la rubrique « SRU », là où vous le rangez réellement — plus dans « 9 - AAE », qui contient les pièces réunies entre le compromis et la vente (urbanisme, entretien…), pas l'acte. La version de ce matin regardait au mauvais endroit. Le nom exact du PDF importé reste cherché en premier ; « AAE » dans le NOM d'un PDF continue de signaler un acte authentique à l'import, ce point-là était juste" },
     { version: '2026-09-19 08:14', resume: "CLAIRE peut démarrer tout seul à l'ouverture de votre session Windows. Deux nouveaux fichiers apparaissent à côté de CLAIRE-serveur.exe au prochain lancement : « Demarrer-CLAIRE-avec-Windows.vbs » (à double-cliquer une seule fois — le serveur repartira ensuite sans fenêtre à chaque ouverture de session et ouvrira lui-même le logiciel dans le navigateur, plus rien à cliquer le matin) et « Ne-plus-demarrer-CLAIRE-avec-Windows.vbs » pour annuler. Concerne le poste qui héberge le serveur ; les autres postes continuent d'ouvrir l'adresse habituelle" },
@@ -148,8 +149,10 @@
     // Prorata : un disque coupé en deux parts inégales — une somme répartie entre deux parties.
     // Même grille 16x16 et même trait que le reste du jeu.
     'part-disque': '<circle cx="8" cy="8" r="5.6"/><path d="M8 2.4V8l4 3.8"/>',
-    // Réglages : un engrenage simplifié (cercle + 4 dents), même trait que le reste du jeu.
-    settings: '<circle cx="8" cy="8" r="2.3"/><path d="M8 1.6v2M8 12.4v2M14.4 8h-2M3.6 8h-2M12.4 3.6l-1.4 1.4M5 9.6l-1.4 1.4M12.4 12.4l-1.4-1.4M5 6.4 3.6 5"/>'
+    // Réglages : une vraie roue crantée (anneau + trou central + 8 dents), demandée par l'étude
+    // à la place de l'ancien glyphe en étoile (cercle + rayons, sans anneau — trop proche d'un
+    // soleil qu'd'un engrenage). Même trait que le reste du jeu.
+    settings: '<circle cx="8" cy="8" r="4.6"/><circle cx="8" cy="8" r="1.6"/><line x1="12.6" y1="8" x2="14.1" y2="8"/><line x1="11.3" y1="4.7" x2="12.3" y2="3.7"/><line x1="8" y1="3.4" x2="8" y2="1.9"/><line x1="4.7" y1="4.7" x2="3.7" y2="3.7"/><line x1="3.4" y1="8" x2="1.9" y2="8"/><line x1="4.7" y1="11.3" x2="3.7" y2="12.3"/><line x1="8" y1="12.6" x2="8" y2="14.1"/><line x1="11.3" y1="11.3" x2="12.3" y2="12.3"/>'
   };
   // `cls` porte les classes de mise en page (taille via font-size hérité, marge...) ; `spin` anime
   // une rotation continue (voir @keyframes icone-spin) pour les icônes d'attente (ex. "spinner").
@@ -6922,14 +6925,12 @@
     document.getElementById('onglet-analyse-ia').style.display = nom === 'analyse-ia' ? '' : 'none';
     document.getElementById('onglet-reglages').style.display = nom === 'reglages' ? '' : 'none';
     document.getElementById('tab-dashboard').setAttribute('aria-selected', String(nom === 'dashboard'));
-    document.getElementById('tab-nouveau').setAttribute('aria-selected', String(nom === 'nouveau'));
     document.getElementById('tab-suivi').setAttribute('aria-selected', String(nom === 'suivi'));
     document.getElementById('tab-calculateur').setAttribute('aria-selected', String(nom === 'calculateur'));
     document.getElementById('tab-prorata').setAttribute('aria-selected', String(nom === 'prorata'));
     document.getElementById('tab-analyse-ia').setAttribute('aria-selected', String(nom === 'analyse-ia'));
     document.getElementById('tab-reglages').setAttribute('aria-selected', String(nom === 'reglages'));
     document.getElementById('tab-dashboard').classList.toggle('actif', nom === 'dashboard');
-    document.getElementById('tab-nouveau').classList.toggle('actif', nom === 'nouveau');
     document.getElementById('tab-suivi').classList.toggle('actif', nom === 'suivi');
     document.getElementById('tab-calculateur').classList.toggle('actif', nom === 'calculateur');
     document.getElementById('tab-prorata').classList.toggle('actif', nom === 'prorata');
@@ -8527,18 +8528,6 @@
     };
   }
 
-  function construireEmailRelancePieces(d) {
-    const checklist = checklistPieces(d.typeVente, d);
-    const manquantes = checklist.filter(p => (d.pieces || {})[p.cle] !== 'recue').map(p => p.label);
-    const liste = manquantes.length > 0
-      ? manquantes.map(l => `- ${l}`).join('\n')
-      : '- (voir avec l\'étude le détail des pièces encore attendues)';
-    return {
-      sujet: `Relance — Pièces à nous transmettre (dossier ${d.nom})`,
-      corps: `Bonjour,\n\nPour poursuivre l'instruction de votre dossier ${d.nom}, il nous manque encore la ou les pièces suivantes :\n\n${liste}\n\nMerci de nous les transmettre dès que possible.\n\nCordialement.`
-    };
-  }
-
   function construireEmailRelanceRib(d) {
     return {
       sujet: `Relevé d'identité bancaire — dossier ${d.nom}`,
@@ -8551,7 +8540,6 @@
   // "pièces" si tout est déjà reçu) — évaluée à l'affichage par renderRelancesCiblees().
   var MODELES_EMAIL_RELANCE = {
     pret: { cle: 'pret', libelle: 'Prêt manquant', construire: construireEmailRelancePret, historique: 'Relance manuelle envoyée — offre de prêt' },
-    pieces: { cle: 'pieces', libelle: 'Pièce(s) à fournir', construire: construireEmailRelancePieces, historique: 'Relance manuelle envoyée — pièces manquantes' },
     rib: { cle: 'rib', libelle: 'RIB', construire: construireEmailRelanceRib, historique: 'Relance manuelle envoyée — RIB' }
   };
 
@@ -8579,21 +8567,19 @@
   // Absente pour un notaire participant (même garde-fou que relancerSiOffreManquante/
   // verifierDossierLocal — relancer le client reste un geste de l'instrumentaire). Sans email
   // d'acquéreur renseigné, un message l'indique plutôt que des boutons qui échoueraient au clic.
+  // Le motif "pièces à fournir" a été retiré sur demande de l'étude (bouton jugé redondant avec la
+  // checklist déjà visible sur la fiche) — seuls "Prêt manquant" et "RIB" restent proposés.
   function renderRelancesCiblees(d) {
     if (d.roleNotaire === 'participant') return '';
     if (!d.emailAcquereur) {
       return `<div class="relances-ciblees">
         <span class="section-eyebrow">Relancer par email</span>
-        <p class="hint">Renseignez l’email de l’acquéreur pour activer les relances ciblées (prêt, pièces, RIB).</p>
+        <p class="hint">Renseignez l’email de l’acquéreur pour activer les relances ciblées (prêt, RIB).</p>
       </div>`;
     }
     const boutons = [];
     if (!d.sansPret && d.offrePretStatut !== 'recue') {
       boutons.push(MODELES_EMAIL_RELANCE.pret);
-    }
-    const checklist = checklistPieces(d.typeVente, d);
-    if (checklist.some(p => (d.pieces || {})[p.cle] !== 'recue')) {
-      boutons.push(MODELES_EMAIL_RELANCE.pieces);
     }
     boutons.push(MODELES_EMAIL_RELANCE.rib);
     return `<div class="relances-ciblees">
@@ -12067,7 +12053,6 @@
     const cibles = {
       'icon-burger': 'menu',
       'icon-nav-dashboard': 'layout',
-      'icon-nav-nouveau': 'plus',
       'icon-nav-suivi': 'list',
       'icon-install': 'download',
       'icon-dropzone': 'upload',

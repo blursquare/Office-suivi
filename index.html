@@ -20,20 +20,6 @@
   <div class="sidebar-scrim" id="sidebar-scrim" onclick="toggleSidebarMobile(false)"></div>
 
   <aside class="sidebar" id="sidebar">
-    <!-- État de la connexion au serveur intranet (voir sondagePeriodique()/majStatutServeur() dans
-         script.js) : distingue "le sondage réussit" de "le serveur est injoignable" (perte réseau,
-         serveur arrêté...) — sans indicateur, un dossier créé par un collègue pouvait sembler ne
-         jamais arriver sans que rien n'explique pourquoi. N'existe que sur cette branche (mode
-         serveur) : la version 100% locale (main) n'a pas de connexion à surveiller.
-         Empilé avec le badge "Alpha" JUSTE AU-DESSUS (demandé par l'étude) dans un seul bloc
-         calé en haut à droite : les deux disent l'état de l'outil, les séparer aux deux bouts de
-         la sidebar n'avait pas de sens. Absolu directement dans <aside> (déjà position:sticky,
-         donc déjà un conteneur de positionnement pour ses descendants absolus) — n'entre jamais
-         dans le flux, ne pousse donc jamais le logo. -->
-    <div class="sidebar-etat">
-      <span id="statut-serveur-badge" class="dot-label dl-success"><span class="dot"></span>Connecté</span>
-      <span class="sidebar-alpha-badge" title="Version alpha : l'outil est encore en évolution active, des ajustements peuvent survenir d'une session à l'autre.">Alpha</span>
-    </div>
     <div class="sidebar-brand">
       <span class="brand-mark" aria-hidden="true">
         <svg width="30" height="30" viewBox="0 0 48 48" fill="none">
@@ -42,14 +28,12 @@
         </svg>
       </span>
       <span class="brand-word">CLAIRE</span>
+      <!-- Déplacé ici (petit, à côté du logo) depuis un bloc séparé en haut à droite de la sidebar,
+           demandé par l'étude. -->
+      <span class="sidebar-alpha-badge" title="Version alpha : l'outil est encore en évolution active, des ajustements peuvent survenir d'une session à l'autre.">Alpha</span>
     </div>
 
     <nav class="sidebar-nav" role="tablist" aria-label="Sections de l'application">
-      <!-- En premier et toujours sur fond bleu (sidebar-cta), pas seulement quand cet onglet est
-           actif : un raccourci permanent vers la création, demandé par l'étude. -->
-      <button type="button" id="tab-nouveau" class="sidebar-link sidebar-cta" role="tab" aria-selected="false" onclick="definirOnglet('nouveau')">
-        <span class="sidebar-link-icone" id="icon-nav-nouveau" aria-hidden="true"></span>Nouveau dossier
-      </button>
       <button type="button" id="tab-dashboard" class="sidebar-link actif" role="tab" aria-selected="true" onclick="definirOnglet('dashboard')">
         <span class="sidebar-link-icone" id="icon-nav-dashboard" aria-hidden="true"></span>Tableau de bord
       </button>
@@ -321,7 +305,7 @@
         <div class="field-row">
           <div style="grid-column: 1 / -1;">
             <label for="f-nom">Nom du dossier</label>
-            <input type="text" id="f-nom" placeholder="Ex. Dupont / 12 rue de la Paix">
+            <input type="text" id="f-nom" placeholder="Ex. DUPONT / MARTIN (vendeur / acquéreur)">
           </div>
         </div>
 
@@ -958,6 +942,12 @@
       <span class="brand-word">CLAIRE</span>
     </div>
     <p class="apropos-tagline">La clarté sur chaque dossier.</p>
+    <!-- État de la connexion au serveur intranet (voir sondagePeriodique()/majStatutServeur() dans
+         script.js) : distingue "le sondage réussit" de "le serveur est injoignable" (perte réseau,
+         serveur arrêté...). Déplacé ici depuis la sidebar (demandé par l'étude) — c'est un état
+         technique, sa place naturelle est dans cet écran de diagnostic plutôt qu'affiché en
+         permanence à l'écran. -->
+    <p id="statut-serveur-badge" class="dot-label dl-success"><span class="dot"></span>Connecté</p>
     <p class="apropos-version">Version <strong id="apropos-version-valeur"></strong></p>
     <p class="apropos-desc">
       Registre des échéances de compromis de vente — synchronisé via le serveur intranet de

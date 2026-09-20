@@ -37,9 +37,8 @@
     --sidebar-border: rgba(22,35,60,0.08);
     --sidebar-shadow: 4px 0 28px rgba(22,35,60,0.07);
     --sidebar-highlight: rgba(255,255,255,0.7);
-    /* Onglet de navigation actif (Tableau de bord/Suivi/Simulateur) : gris foncé neutre, PAS le
-       bleu --focus — réservé exclusivement à .sidebar-cta ("Nouveau dossier") pour que ce raccourci
-       de création reste le seul élément bleu de la sidebar, demandé explicitement par l'étude. */
+    /* Onglet de navigation actif (Tableau de bord/Suivi/Simulateur) : gris foncé neutre, cohérent
+       avec la palette mode sombre déjà en gris neutres — pas de bleu --focus dans la sidebar. */
     --sidebar-actif-bg: linear-gradient(155deg, #4B5157 0%, #363A3F 100%);
   }
 
@@ -508,27 +507,19 @@
     pointer-events: none;
   }
 
-  /* Badge "Alpha" + état de connexion empilés en haut à droite, Alpha AU-DESSUS (demandé par
-     l'étude) : les deux disent l'état de l'outil, les séparer aux deux bouts de la sidebar n'avait
-     pas de sens. Dans le FLUX, au-dessus du logo, et non en absolu comme l'était l'indicateur de
-     connexion seul : à deux lignes, le bloc absolu venait se poser par-dessus le mot CLAIRE. */
-  /* Sur une seule ligne, alignés à droite : « Connecté » puis « Alpha » à sa droite. */
-  .sidebar-etat {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 6px;
-    padding: 0 10px 6px;
-  }
-  .sidebar-etat .dot-label { font-size: 11px; white-space: nowrap; }
+  /* Badge "Alpha" : déplacé à côté du logo "CLAIRE" (demandé par l'étude), en plus petit qu'avant
+     (il vivait seul dans un bloc calé en haut à droite de la sidebar) — un simple repère discret
+     à côté de la marque plutôt qu'un second bloc d'état. L'indicateur de connexion au serveur, qui
+     partageait ce bloc, a lui été déplacé dans l'écran "À propos" (voir .apropos-box). */
   .sidebar-alpha-badge {
     display: inline-block;
-    font-size: 9px;
+    align-self: flex-start;
+    margin-top: 2px;
+    font-size: 8px;
     font-weight: 700;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
-    padding: 1px 6px;
+    padding: 1px 5px;
     border-radius: 20px;
     background: color-mix(in srgb, var(--focus) 15%, var(--paper-card));
     border: 1px solid color-mix(in srgb, var(--focus) 40%, transparent);
@@ -538,7 +529,7 @@
   .sidebar-brand {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     padding: 6px 8px 2px;
   }
   .brand-mark { display: inline-flex; flex-shrink: 0; }
@@ -592,27 +583,13 @@
   .sidebar-link-icone-seule { width: auto; justify-content: center; }
   .sidebar-link-icone-seule .sidebar-link-icone { width: auto; font-size: 17px; }
   /* Lien actif en "pilule de verre" (dégradé + liseré clair en haut + ombre portée) : gris foncé
-     neutre (--sidebar-actif-bg), PAS le bleu --focus — l'étude a demandé de réserver le bleu au
-     seul bouton "Nouveau dossier" (.sidebar-cta juste après), pour qu'il reste le repère visuel
-     unique de la sidebar plutôt qu'une couleur partagée avec l'onglet simplement sélectionné. */
+     neutre (--sidebar-actif-bg), pas de bleu dans la sidebar. */
   .sidebar-link.actif {
     background: var(--sidebar-actif-bg);
     color: #fff;
     box-shadow: 0 4px 14px -2px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.22);
   }
-  /* .sidebar-cta ("Nouveau dossier") garde le bleu --focus/--focus-hover, en permanence — pas
-     seulement quand cet onglet est sélectionné — pour rester un raccourci de création toujours
-     visible dans la sidebar, demandé par l'étude. */
-  .sidebar-link.sidebar-cta {
-    background: linear-gradient(155deg, var(--focus) 0%, var(--focus-hover) 100%);
-    color: #fff;
-    box-shadow: 0 4px 14px -2px rgba(37,99,235,0.45), inset 0 1px 0 rgba(255,255,255,0.3);
-  }
-  .sidebar-link.actif .sidebar-link-icone, .sidebar-link.sidebar-cta .sidebar-link-icone { opacity: 1; }
-  /* .sidebar-cta garde sa couleur même au survol (contrairement aux autres liens, qui basculent sur
-     --paper-sunk) : un aplat neutre casserait l'effet "toujours en avant" recherché. */
-  .sidebar-link.sidebar-cta:hover { background: linear-gradient(155deg, var(--focus-hover) 0%, var(--focus) 100%); color: #fff; }
-  .sidebar-link.sidebar-cta { margin-bottom: 6px; }
+  .sidebar-link.actif .sidebar-link-icone { opacity: 1; }
 
   .sidebar-footer {
     margin-top: auto;
@@ -2771,11 +2748,17 @@
   .ajout-engagement-btn { margin: 14px 0 0; }
 
   /* Relances ciblées par email (voir renderRelancesCiblees) : un bouton par motif pertinent pour
-     CE dossier (prêt manquant, pièces à fournir, RIB), juste avant les actions génériques
-     (.dossier-actions) — même famille visuelle (.action-rapide) que "Revérifier"/"Utiliser". */
+     CE dossier (prêt manquant, RIB), juste avant les actions génériques (.dossier-actions). Taille
+     alignée sur .dossier-actions button (Rappels .ics/Imprimer, juste en dessous) plutôt que la
+     petite pastille .action-rapide générique (Revérifier...) : demandé par l'étude pour que tous
+     les boutons d'action de la fiche se lisent au même gabarit. */
   .relances-ciblees { margin: 14px 0 0; }
-  .relances-boutons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-  .relances-boutons .action-rapide { margin-left: 0; }
+  .relances-boutons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+  .relances-boutons .action-rapide {
+    margin-left: 0;
+    font-size: 13px;
+    padding: 7px 14px;
+  }
 
   .echeance-jours { font-size: 12px; margin-left: 6px; font-variant-numeric: tabular-nums; }
   .echeance-jours.urgent { color: var(--urgent); font-weight: 600; }
@@ -3696,8 +3679,12 @@
   /* ---- écran "À propos" (voir ouvrirAPropos dans script.js) ----
      Réutilise .confirm-overlay/.confirm-box (même fond, même carte centrée) pour rester cohérent
      avec le reste des fenêtres modales de l'outil, avec un contenu propre plutôt qu'un simple
-     message + deux boutons. */
-  .apropos-box { max-width: 400px; }
+     message + deux boutons. Élargie (400px → 480px, demandé par l'étude) : l'historique des
+     versions et la liste "Qualité de l'extraction" gagnent en lisibilité sur une ligne plus large. */
+  .apropos-box { max-width: 480px; }
+  /* État de connexion au serveur, déplacé ici depuis la sidebar (demandé par l'étude) : un peu
+     d'espace de chaque côté, comme .apropos-version juste en dessous. */
+  #statut-serveur-badge.dot-label { margin: 0 0 10px; }
 
   /* ---- écran de connexion (mode serveur intranet, voir tenterConnexion() dans script.js) ----
      Même patron .confirm-overlay/.confirm-box que les autres fenêtres modales, mais jamais
