@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-20 22:58';
+  const VERSION_APP = '2026-09-20 23:28';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-20 23:28', resume: "Sidebar réorganisée en catégories (Dossier / Outils / Admin, « Tableau de bord » seul en tête). Nouveau système de notification quand une pièce est trouvée sur un dossier : un badge à côté de « Suivi des dossiers » compte les pièces reçues pas encore vues, un indicateur « N nouvelle(s) pièce(s) » apparaît sur la ligne du dossier concerné (Suivi comme vue Échéances), et un repère « Nouveau » identifie la pièce (ou l'offre de prêt) précise dans la fiche — jusqu'à ce que le tiroir soit refermé, ce qui vaut pour « vu ». Plusieurs pièces trouvées en même temps sur un dossier ne déclenchent qu'UN seul message, envoyé sur Teams au responsable du dossier (avec la même copie systématique à l'étude que les rappels d'échéance). Une notification navigateur/Windows, optionnelle (case dans « Réglages »), peut aussi s'afficher — mais seulement si l'onglet n'est pas déjà au premier plan, pour ne pas doubler ce qui est déjà visible à l'écran" },
     { version: '2026-09-20 22:58', resume: "Nouvelle échéance « Appel de fonds » (visible une fois le dossier complet, juste avant la signature de l'acte) et « Rendez-vous de signature » (le rendez-vous réel pris à l'office, distinct de la date butoir indicative de l'avant-contrat). « Marquer réalisée »/« Annuler la validation » fonctionne désormais sur n'importe quelle échéance (prêt, acte, vente préalable, personnalisée), plus seulement la vente préalable" },
     { version: '2026-09-20 22:25', resume: "Le bouton « Questionnaire de satisfaction » n'est plus jamais proposé ni adressé au notaire de l'acquéreur quand celui-ci est en participation — il porte sur le ressenti du client envers notre étude, ça n'a pas de sens de le demander au confrère. Il reste réservé à l'acquéreur lui-même (email direct)" },
     { version: '2026-09-20 22:18', resume: "Nouveau bouton « Questionnaire de satisfaction » sur la fiche dossier : un clic prépare le brouillon d'email à l'acquéreur (ou au notaire de l'acquéreur s'il est en participation) ET archive automatiquement le dossier. Le texte de l'email est un modèle PROVISOIRE en attendant que l'étude fournisse le texte définitif — un rappel a été programmé pour le briefing de demain matin, il ne reste alors qu'à le remplacer dans construireEmailQuestionnaireSatisfaction()" },
@@ -6141,6 +6142,9 @@
       // relances (prêt, RIB) doivent transiter par son confrère. Jamais préremplie automatiquement.
       emailNotaireParticipant: '',
       pieces: {},
+      // Notifications "nouvelle pièce trouvée" non encore vues (voir verifierDossierLocal/
+      // fermerDossierDrawer) : vide à la création, rien n'a encore été cherché.
+      piecesNotifications: [],
       piecesEngagementsDetectees,
       dossierLie: false,
       // Dossier client sur le NAS (chemin relatif à la racine configurée côté serveur) et
@@ -7413,6 +7417,7 @@
     renderKpisDashboard(dossiersActifs);
     renderActionsUrgentes(dossiersActifs);
     renderRechercheDashboard(dossiersActifs);
+    majBadgeNotificationsSidebar();
     // Avant les retours anticipés sur liste vide ci-dessous : le tiroir doit se rafraîchir (ou se
     // refermer, si son dossier vient d'être supprimé) dans tous les cas, pas seulement quand la
     // liste a des lignes à afficher.
@@ -7520,12 +7525,21 @@
   // ouverture/fermeture pour ne pas laisser le formulaire ouvert sur le dossier suivant consulté.
   let ajoutEcheanceOuvert = false;
 
+  // Indicateur "dossier mis à jour" sur une ligne du Suivi (tableau ou vue Échéances) : le même
+  // .dot-label dl-success que la fiche/l'offre de prêt, pas un composant à part — demandé par
+  // l'étude ("identifier le dossier mis à jour"). Vide tant que rien de nouveau n'est à voir.
+  function tagNotificationsDossier(d) {
+    const n = (d.piecesNotifications || []).length;
+    if (!n) return '';
+    return `<span class="dot-label dl-success notif-nouveau-tag" title="${n} document${n > 1 ? 's' : ''} nouvellement trouvé${n > 1 ? 's' : ''} — ouvrez la fiche pour les voir"><span class="dot"></span>${n} nouvelle${n > 1 ? 's' : ''} pièce${n > 1 ? 's' : ''}</span>`;
+  }
+
   function renderLigneTableau(d) {
     const prochaine = prochaineEcheanceDetail(d);
     const offre = !d.sansPret ? statutOffreAffichage(d) : null;
     return `
       <tr class="ligne-resume${d.archive ? ' est-archive' : ''}${dossierOuvert === d.id ? ' ligne-active' : ''}" onclick="ouvrirDossierDrawer('${d.id}')">
-        <td><div class="dossier-nom-tableau">${renderBadgeStatut(d)}${escapeHtml(libelleDossierAffiche(d))}</div></td>
+        <td><div class="dossier-nom-tableau">${renderBadgeStatut(d)}${escapeHtml(libelleDossierAffiche(d))}${tagNotificationsDossier(d)}</div></td>
         <td class="dossier-responsable-tableau">${escapeHtml(d.responsable || '—')}</td>
         <td>
           ${d.sansPret ? '<span class="echeance-jours calme">Comptant — sans prêt</span>' : `<span class="dot-label ${offre.dl}"><span class="dot"></span>${offre.texte}</span>`}
@@ -7557,7 +7571,7 @@
           <tr class="ligne-resume${d.archive ? ' est-archive' : ''}${dossierOuvert === d.id ? ' ligne-active' : ''}" onclick="ouvrirDossierDrawer('${d.id}')">
             <td><span class="echeance-jours ${jours <= 3 ? 'urgent' : 'calme'}">${formatDateFr(e.iso)}</span></td>
             <td><span class="dot-label dl-${e.type}"><span class="dot"></span>${escapeHtml(e.label)}</span></td>
-            <td><div class="dossier-nom-tableau">${renderBadgeStatut(d)}${escapeHtml(libelleDossierAffiche(d))}</div></td>
+            <td><div class="dossier-nom-tableau">${renderBadgeStatut(d)}${escapeHtml(libelleDossierAffiche(d))}${tagNotificationsDossier(d)}</div></td>
             <td class="dossier-responsable-tableau">${escapeHtml(d.responsable || '—')}</td>
           </tr>`;
       }).join('');
@@ -7613,6 +7627,14 @@
 
   function fermerDossierDrawer() {
     if (!dossierOuvert) return;
+    // "Une fois vu, désactiver la notification" (demandé par l'étude) : on la retire à la
+    // FERMETURE, pas à l'ouverture — sinon le tag "Nouveau"/le tiroir n'auraient jamais eu
+    // l'occasion de s'afficher, la pièce venant d'être marquée vue avant même le premier rendu.
+    const d = dossiers.find(x => x.id === dossierOuvert);
+    if (d && (d.piecesNotifications || []).length) {
+      d.piecesNotifications = [];
+      sauvegarder(d);
+    }
     dossierOuvert = null;
     ajoutEcheanceOuvert = false;
     ajoutPieceOuvert = false;
@@ -7705,6 +7727,11 @@
         <div class="pieces-liste">
           ${checklist.map(p => {
             const s = libellePiece(pieces[p.cle] || 'inconnu');
+            // Voir d.piecesNotifications/fermerDossierDrawer : une pièce trouvée depuis le dernier
+            // passage dans cette fiche reste marquée "Nouveau" tant que le tiroir n'a pas été
+            // refermé (c'est ce qui vaut pour "vue").
+            const estNouvelle = (d.piecesNotifications || []).includes(p.cle);
+            const tagNouveau = estNouvelle ? '<span class="dot-label dl-success notif-nouveau-tag">Nouveau</span>' : '';
             const boutonSuppr = `<button type="button" class="piece-suppr" onclick="${p.personnalisee ? `supprimerPiecePersonnalisee('${d.id}', '${p.cle}')` : `retirerPieceStandard('${d.id}', '${p.cle}', '${escapeOnclickArg(p.label)}')`}" title="Retirer cette pièce de la checklist de ce dossier" aria-label="Retirer cette pièce">${icone('x')}</button>`;
             // Uniquement pour une pièce STANDARD reçue (motifNom) : permet de revenir en arrière
             // après une correspondance trouvée à tort ou un fichier renommé depuis — voir
@@ -7741,7 +7768,7 @@
                 : s.titre;
               contenu = `<span class="piece-label" title="${escapeAttr(titre)}"><span class="piece-icone">${s.texte}</span>${escapeHtml(p.label)}</span>`;
             }
-            return `<span class="piece-item ${s.cls}">${contenu}${boutonReinit}${boutonSuppr}</span>`;
+            return `<span class="piece-item ${s.cls}">${contenu}${tagNouveau}${boutonReinit}${boutonSuppr}</span>`;
           }).join('')}
         </div>
         ${renderAjoutPiece(d)}
@@ -8116,11 +8143,15 @@
       const garantiesBloc = garanties.length
         ? `<div class="tab-garanties" title="Garantie(s) relevée(s) dans l’offre de prêt">${icone('key')} ${garanties.map(escapeHtml).join(' · ')}</div>`
         : '';
+      // Voir d.piecesNotifications/fermerDossierDrawer : l'offre de prêt partage le même
+      // mécanisme "Nouveau" que les pièces de la checklist (pseudo-cle CLE_NOTIF_OFFRE_PRET).
+      const offreEstNouvelle = (d.piecesNotifications || []).includes(CLE_NOTIF_OFFRE_PRET);
       const offreBloc = !d.sansPret ? `
         <div class="tab-offre-pret">
           ${offreOuvrable
               ? `<button type="button" class="dot-label ${offreStatut.dl}" title="${d.offrePretStatut === 'recue' ? 'Offre de prêt reçue — cliquer pour ouvrir le fichier trouvé' : 'Document trouvé mais non confirmé — cliquer pour l’ouvrir et vérifier'}" onclick="ouvrirOffreTrouvee('${d.id}')"><span class="dot"></span>${d.offrePretStatut === 'recue' ? 'Ouvrir le fichier' : 'À confirmer — ouvrir'}</button>`
               : `<span class="dot-label ${offreStatut.dl}" title="${d.dossierLie ? escapeAttr(offreStatut.texte) : 'Aucun dossier du NAS relié : l’offre n’a pas encore pu être cherchée'}"><span class="dot"></span>${offreStatut.texte}</span>`}
+          ${offreEstNouvelle ? '<span class="dot-label dl-success notif-nouveau-tag">Nouveau</span>' : ''}
           ${d.dossierLie
               ? `<button type="button" class="lien-dossier-local" onclick="verifierDossierLocalDepuisBouton('${d.id}', this)">Revérifier</button>`
               : `<button type="button" class="lien-dossier-local" onclick="lierDossierLocal('${d.id}')">${icone('link')} Relier un dossier du NAS</button>`}
@@ -9616,6 +9647,10 @@
       // importées telles quelles — à retrouver par une vérification sur ce poste.
       garantiesPret: [],
       pieces: {},
+      // Comme pieces/fichiersTrouves ci-dessus : une notification "nouvelle pièce trouvée" n'a de
+      // sens que sur le poste qui vient de faire le scan qui l'a déclenchée, jamais importée telle
+      // quelle d'une autre installation.
+      piecesNotifications: [],
       // nasInventaire/nasNouveaute (surveillance périodique du NAS, voir server/src/nasWatch.js)
       // sont volontairement ABSENTS d'ici, comme fichiersTrouves/pieces ci-dessus : un simple
       // listing de noms propre à l'arborescence de CE serveur, sans intérêt — et potentiellement
@@ -10267,6 +10302,100 @@
   const NAS_CLE_PIECE = (cle) => `piece::${cle}`;
   const NAS_CLE_COMPROMIS = 'compromis';
 
+  // ==== NOTIFICATIONS "NOUVELLE PIÈCE TROUVÉE" ====
+  // Distinct de la surveillance périodique du NAS côté serveur (nasWatch.js, `d.nasNouveaute`) :
+  // celle-ci ne sait détecter qu'un NOM DE FICHIER apparu, sans savoir à quelle pièce de la
+  // checklist il correspond (aucun test de motifNom côté serveur) — un simple toast éphémère,
+  // effacé dès que verifierDossierLocal() relit le dossier. ICI, on sait PRÉCISÉMENT quelle(s)
+  // pièce(s) viennent de passer à "reçue" (le diff est fait dans verifierDossierLocal, qui a déjà
+  // tout ce qu'il faut : d.pieces avant/après le parcours) — un signal plus riche, persisté sur le
+  // dossier (d.piecesNotifications, un tableau de clés) jusqu'à ce que la fiche soit consultée puis
+  // refermée (voir fermerDossierDrawer). CLE_NOTIF_OFFRE_PRET est un pseudo-"cle" de checklist pour
+  // que l'offre de prêt (qui n'est pas dans checklistPieces) partage le même mécanisme plutôt que
+  // d'en avoir un second à côté.
+  var CLE_NOTIF_OFFRE_PRET = 'offre-pret';
+
+  // Libellé humain d'une clé de notification, pour l'affichage (fiche, sidebar) et le message
+  // Teams envoyé au responsable — un seul endroit qui sait résoudre les deux familles de clés
+  // possibles (checklist de pièces, ou le pseudo-cle de l'offre).
+  function libelleNotificationPiece(d, cle) {
+    if (cle === CLE_NOTIF_OFFRE_PRET) return 'Offre de prêt';
+    const piece = checklistPieces(d.typeVente, d).find(p => p.cle === cle);
+    return piece ? piece.label : cle;
+  }
+
+  // Nombre total de notifications non vues, tous dossiers actifs confondus — affiché en badge dans
+  // la sidebar à côté de "Suivi des dossiers" (voir majBadgeNotificationsSidebar). Un dossier
+  // archivé n'est jamais compté : rien à signaler sur un dossier qu'on ne consulte plus.
+  function totalNotificationsPieces() {
+    return dossiers
+      .filter(d => !d.archive)
+      .reduce((total, d) => total + ((d.piecesNotifications || []).length), 0);
+  }
+
+  // Met à jour le badge numérique de la sidebar — appelée depuis render(), comme les autres
+  // synthèses de portefeuille (renderStatsSuivi, renderKpisDashboard...). Masqué à zéro plutôt
+  // qu'affiché à "0", cohérent avec les autres compteurs de l'outil.
+  function majBadgeNotificationsSidebar() {
+    const el = document.getElementById('badge-notif-suivi');
+    if (!el) return;
+    const n = totalNotificationsPieces();
+    if (n > 0) {
+      el.textContent = n > 99 ? '99+' : String(n);
+      el.style.display = 'inline-flex';
+    } else {
+      el.style.display = 'none';
+    }
+  }
+
+  // Prévient le collaborateur responsable sur Teams qu'une ou plusieurs pièces viennent d'être
+  // trouvées — un seul message par dossier par parcours, JAMAIS un par pièce (demandé explicitement
+  // par l'étude : "grouper les notifications si plusieurs pièces trouvées en même temps"), ce que
+  // le diff calculé dans verifierDossierLocal() donne déjà naturellement (toutes les pièces
+  // nouvellement reçues lors de CE parcours arrivent ici en un seul appel). Fire-and-forget,
+  // volontairement : un webhook Teams indisponible ne doit jamais faire échouer la vérification du
+  // dossier elle-même, qui a déjà eu lieu et a déjà mis à jour l'écran. Le serveur lui-même
+  // n'envoie rien si les réglages Teams ne sont pas activés (voir routes/notifications.js) — pas de
+  // vérification redondante ici.
+  async function notifierNouvellesPiecesTrouvees(d, cles) {
+    try {
+      const pieces = cles.map(cle => libelleNotificationPiece(d, cle));
+      await fetchAvecAuth('/api/notifications/pieces-recues', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ dossierNom: d.nom, responsable: d.responsable || null, pieces })
+      });
+    } catch (e) {
+      console.warn('Notification Teams (pièces reçues) impossible :', e.message);
+    }
+  }
+
+  // Notification navigateur/Windows (Notification API), opt-in — voir l'écran Réglages
+  // (#reglages-notif-navigateur). Réglage PROPRE À CE POSTE (localStorage), pas un réglage partagé
+  // de l'étude (parametresRepo) : la permission Notification elle-même est déjà propre au
+  // navigateur, ça n'aurait aucun sens de la piloter depuis un réglage serveur commun à tout le
+  // bureau. Ne se déclenche QUE si l'onglet n'est pas au premier plan (`document.hidden`) : sinon
+  // ce serait un doublon pur avec le badge sidebar/l'indicateur Suivi/le tag sur la fiche, déjà
+  // visibles à l'écran — c'est justement l'excès de redondance que l'étude a demandé d'éviter.
+  const CLE_LOCALSTORAGE_NOTIF_NAVIGATEUR = 'claire-notif-navigateur';
+  function notificationsNavigateurActivees() {
+    try { return localStorage.getItem(CLE_LOCALSTORAGE_NOTIF_NAVIGATEUR) === '1'; } catch (e) { return false; }
+  }
+  function notifierNavigateurPieces(d, cles) {
+    try {
+      if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+      if (!notificationsNavigateurActivees() || !document.hidden) return;
+      const labels = cles.map(cle => libelleNotificationPiece(d, cle));
+      new Notification('CLAIRE — Nouvelle(s) pièce(s) trouvée(s)', {
+        body: `${d.nom} : ${labels.join(', ')}`,
+        tag: 'claire-piece-' + d.id
+      });
+    } catch (e) {
+      // Une Notification peut lever (permission révoquée entre-temps, navigateur non supporté...) —
+      // jamais bloquant pour la vérification du dossier elle-même.
+    }
+  }
+
   let nasEtat = null; // { configure, racine, raison } — interrogé une fois au démarrage
 
   async function chargerEtatNas() {
@@ -10725,6 +10854,9 @@
 
     const checklist = chercherPieces ? checklistPieces(d.typeVente, d) : [];
     d.pieces = d.pieces || {};
+    // Instantané AVANT le parcours (voir notifierNouvellesPiecesTrouvees plus bas) : un simple
+    // objet copié, jamais la même référence que d.pieces qui va être modifiée juste en dessous.
+    const piecesAvant = Object.assign({}, d.pieces);
     // Pièces déjà trouvées lors d'une vérification précédente : inutile de les rechercher à
     // nouveau, seules celles encore manquantes/inconnues sont testées.
     const aChercher = new Set(checklist.filter(p => d.pieces[p.cle] !== 'recue').map(p => p.cle));
@@ -10921,6 +11053,23 @@
       // Trois issues, pas deux : trouvée et confirmée, trouvée mais pas confirmable (modèle local
       // indisponible — statut distinct demandé par l'étude, à trancher à la main), ou introuvable.
       d.offrePretStatut = offreTrouvee ? (offreAConfirmer ? 'aconfirmer' : 'recue') : 'manquante';
+    }
+
+    // Diff pièces/offre AVANT → APRÈS ce parcours (voir piecesAvant/offreEtaitRecue plus haut) :
+    // ce sont EXACTEMENT les documents qui viennent d'être trouvés lors de CE scan, groupés en une
+    // seule notification par dossier — jamais une par pièce (demandé explicitement par l'étude).
+    // L'offre "à confirmer" n'est volontairement pas comptée : rien n'est encore "reçu" tant que
+    // l'étude (ou le modèle local) ne l'a pas confirmé.
+    const nouvellesPieces = checklist
+      .filter(p => d.pieces[p.cle] === 'recue' && piecesAvant[p.cle] !== 'recue')
+      .map(p => p.cle);
+    if (chercherOffre && offreTrouvee && !offreAConfirmer && !offreEtaitRecue) {
+      nouvellesPieces.push(CLE_NOTIF_OFFRE_PRET);
+    }
+    if (nouvellesPieces.length) {
+      d.piecesNotifications = Array.from(new Set([...(d.piecesNotifications || []), ...nouvellesPieces]));
+      notifierNouvellesPiecesTrouvees(d, nouvellesPieces);
+      notifierNavigateurPieces(d, nouvellesPieces);
     }
 
     // Ce parcours vient justement de relire le dossier NAS : la notification proactive d'un
@@ -12209,6 +12358,7 @@
   var RESPONSABLES = ['Bastien ANGLUMENT', 'Julie VASSELIN', 'Jérémy SAUJOT'];
 
   async function chargerReglages() {
+    initReglagesNotifNavigateur();
     try {
       const reponse = await fetchAvecAuth('/api/reglages');
       const reglages = await reponse.json();
@@ -12220,6 +12370,45 @@
     } catch (e) {
       // Session expirée : déjà géré par fetchAvecAuth (écran de connexion réaffiché).
     }
+  }
+
+  // Case à cocher "Notifications sur ce poste" : reflète à la fois le choix de l'étude
+  // (localStorage) et l'état RÉEL de la permission navigateur, qui peut avoir été révoquée depuis
+  // en dehors de CLAIRE (réglages Chrome) — sans ce second contrôle, la case resterait cochée alors
+  // que plus aucune notification ne peut réellement s'afficher.
+  function initReglagesNotifNavigateur() {
+    const cb = document.getElementById('reglages-notif-navigateur');
+    const etat = document.getElementById('reglages-notif-navigateur-etat');
+    if (!cb) return;
+    const supporte = typeof Notification !== 'undefined';
+    cb.disabled = !supporte;
+    cb.checked = supporte && notificationsNavigateurActivees() && Notification.permission === 'granted';
+    if (etat) {
+      etat.textContent = !supporte
+        ? "Ce navigateur ne prend pas en charge les notifications."
+        : Notification.permission === 'denied'
+          ? "Autorisation refusée dans les réglages du navigateur — à réactiver manuellement (icône à gauche de l'adresse) pour utiliser cette option."
+          : '';
+    }
+  }
+
+  function basculerNotifNavigateur(active) {
+    const etat = document.getElementById('reglages-notif-navigateur-etat');
+    if (!active) {
+      try { localStorage.removeItem(CLE_LOCALSTORAGE_NOTIF_NAVIGATEUR); } catch (e) { /* pas bloquant */ }
+      if (etat) etat.textContent = '';
+      return;
+    }
+    if (typeof Notification === 'undefined') return;
+    Notification.requestPermission().then((permission) => {
+      if (permission === 'granted') {
+        try { localStorage.setItem(CLE_LOCALSTORAGE_NOTIF_NAVIGATEUR, '1'); } catch (e) { /* pas bloquant */ }
+        if (etat) etat.textContent = '✓ Notifications activées sur ce poste.';
+      } else {
+        document.getElementById('reglages-notif-navigateur').checked = false;
+        if (etat) etat.textContent = "Autorisation refusée — rien ne sera notifié tant qu'elle n'est pas accordée.";
+      }
+    });
   }
 
   function renderReglagesEmails(emailsResponsables) {

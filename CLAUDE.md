@@ -5294,6 +5294,97 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     suite serveur 200 → 202. Vérifié en plus par un script Node ad hoc (bac à sable) : ordre réel
     des tabs dans le HTML généré (pret → appelFonds → acte → rendezVousSignature → ventebien →
     autres), confirmé correct.
+- **Sidebar réorganisée en catégories, et système de notification "nouvelle pièce trouvée"** —
+  deux demandes traitées ensemble, la seconde nettement plus structurante :
+  - **Sidebar** (`index.html`) : les six liens existants sont regroupés sous trois en-têtes de
+    catégorie (`.sidebar-nav-titre`, même registre que `.section-eyebrow` — 10px/0.1em/`--muted`,
+    aucun style inventé) — "Tableau de bord" reste seul, sans en-tête, en tête de nav (c'est la vue
+    d'ensemble, elle n'appartient à aucune catégorie) ; **DOSSIER** regroupe "Suivi des dossiers" et
+    "Audit des actes (IA)" ; **OUTILS** regroupe "Simulateur de provision" et
+    "Prorata & répartitions" ; **ADMIN** ne contient que "Réglages". Un simple réordonnancement +
+    des `<span>` insérés entre les boutons existants : `definirOnglet()` ne dépend d'aucune
+    structure/imbrication de ces boutons (uniquement des `getElementById` par id), aucun changement
+    de ce côté.
+  - **Notification "nouvelle pièce trouvée"** : jusqu'ici, une pièce qui passait à "reçue" pendant
+    un parcours NAS (`verifierDossierLocal()`) se voyait seulement au prochain coup d'œil sur la
+    fiche — rien ne le signalait activement. Distinct de la surveillance déjà en place côté serveur
+    (`nasWatch.js`/`d.nasNouveaute`, voir son historique plus haut) : celle-ci ne sait détecter
+    qu'un NOM DE FICHIER apparu sur le NAS (aucun test de `motifNom` côté serveur), un simple toast
+    éphémère effacé dès que `verifierDossierLocal()` relit le dossier — le nouveau mécanisme sait
+    PRÉCISÉMENT quelle(s) pièce(s) de la checklist (ou l'offre de prêt) viennent d'être trouvées, et
+    le garde jusqu'à ce que la fiche ait été consultée.
+    - `d.piecesNotifications` (nouveau champ, un tableau de clés — de checklist, ou le pseudo-cle
+      `CLE_NOTIF_OFFRE_PRET` pour l'offre de prêt, qui n'est pas dans `checklistPieces`) : calculé
+      par un diff AVANT/APRÈS dans `verifierDossierLocal()` (`piecesAvant`, un instantané de
+      `d.pieces` pris avant le parcours, comparé à l'état final — l'offre réutilise
+      `offreEtaitRecue`, déjà calculée pour le garde-fou de `relancerSiOffreManquante`). **Un seul
+      diff par PARCOURS, jamais par pièce** : toutes les pièces nouvellement reçues lors d'un même
+      appel sont ajoutées d'un coup à `d.piecesNotifications` — c'est ce qui garantit le groupage
+      demandé explicitement par l'étude ("grouper les notifications si plusieurs pièces trouvées en
+      même temps"), sans le moindre mécanisme de file d'attente à construire : le diff, fait une
+      fois par parcours, produit déjà la bonne granularité. L'offre "à confirmer" n'est jamais
+      comptée : rien n'est "reçu" tant que l'étude ou le modèle local n'a pas confirmé.
+    - **Trois surfaces d'affichage, un seul composant visuel** (`.dot-label dl-success`, jamais un
+      badge inventé — cohérent avec le principe déjà établi pour ce composant) :
+      `majBadgeNotificationsSidebar()` (compteur numérique, `.sidebar-badge-notif`, pastille pleine
+      verte — SEUL badge à fond plein de la sidebar, volontairement, pour rester le signal le plus
+      visible) à côté de "Suivi des dossiers", mis à jour à chaque `render()` ;
+      `tagNotificationsDossier(d)` ("N nouvelle(s) pièce(s)") sur la ligne du dossier concerné, dans
+      le tableau (`renderLigneTableau`) comme dans la vue Échéances (`renderVueSemaines`) ; et une
+      étiquette "Nouveau" sur la pièce elle-même dans `renderPiecesDossier()` (à l'intérieur de
+      `.piece-item`) et sur l'offre de prêt dans le bloc `.tab-offre-pret` de `renderCarteDossier()`
+      (`offreEstNouvelle`, testé sur `CLE_NOTIF_OFFRE_PRET`).
+    - **Dismissal : à la FERMETURE du tiroir, pas à l'ouverture** (`fermerDossierDrawer()`, qui
+      capture le dossier ouvert AVANT de remettre `dossierOuvert` à `null`) — nettoyer à l'ouverture
+      aurait vidé `d.piecesNotifications` avant même le premier rendu du tiroir, empêchant le tag
+      "Nouveau" de jamais s'afficher : "une fois VU" (l'étude) veut dire "après avoir eu l'occasion
+      de le voir en consultant la fiche", pas "au moment d'y entrer".
+    - **Teams, en réutilisant l'infrastructure des rappels d'échéance, pas un second mécanisme
+      d'envoi** : `notifierNouvellesPiecesTrouvees(d, cles)` (script.js, fire-and-forget — un
+      webhook Teams indisponible ne doit jamais faire échouer une vérification de dossier qui a déjà
+      eu lieu et déjà mis à jour l'écran) appelle `POST /api/notifications/pieces-recues`
+      (`server/src/routes/notifications.js`, nouveau routeur, monté dans `app.js` comme les autres),
+      qui réutilise tel quel `envoyerMessageTeams()` (`teams.js`) et `parametresRepo.lireReglages()`
+      — même client, mêmes réglages, même schéma de copie systématique à l'étude
+      (`reglages.teamsCopieEmail`) que `executerTacheRappels()` dans `jobs/rappels.js`. Le serveur
+      lui-même ignore la requête (`{ok:true, ignore:true}`) si les réglages Teams ne sont pas
+      activés — le client n'a pas à le vérifier avant d'appeler la route, même principe déjà en
+      place pour les rappels.
+    - **Notification navigateur/Windows, opt-in, volontairement peu bavarde** : nouvelle case
+      "Notifications sur ce poste" dans l'écran Réglages (`initReglagesNotifNavigateur()`/
+      `basculerNotifNavigateur()`), stockée en **`localStorage`** (`CLE_LOCALSTORAGE_NOTIF_NAVIGATEUR`)
+      et non dans `parametresRepo` côté serveur : la permission `Notification` du navigateur est
+      déjà propre à ce poste/ce profil Chrome, un réglage partagé n'aurait aucun sens. La case
+      reflète aussi l'état RÉEL de la permission (`Notification.permission`), qui peut avoir été
+      révoquée depuis les réglages du navigateur sans passer par CLAIRE. `notifierNavigateurPieces()`
+      ne déclenche une vraie `Notification` que si l'onglet **n'est pas déjà au premier plan**
+      (`document.hidden`) — c'est le point central de la consigne explicite de l'étude ("un système
+      complet mais pas trop redondant") : afficher une notification système par-dessus un onglet
+      déjà regardé ferait doublon pur avec les trois indicateurs déjà visibles à l'écran (badge,
+      ligne du Suivi, tag sur la fiche).
+    - `d.piecesNotifications` initialisé à `[]` dans `ajouterDossier()` et remis à `[]` dans
+      `normaliserDossierImporte()` — comme `pieces`/`fichiersTrouves`, un signal dérivé d'un scan du
+      NAS de CE poste, sans intérêt (et potentiellement trompeur) une fois importé ailleurs.
+  - Tests : `server/test/notifications.test.js` (8 — `texteNotificationPieces` pure, 401 sans
+    jeton, 400 sur `dossierNom`/`pieces` manquants, Teams désactivé → `ignore:true` sans aucun
+    envoi, responsable sans adresse → erreur listée sans envoi, un seul message groupant plusieurs
+    pièces, la copie systématique dans les deux sens — envoyée, puis jamais dédoublée quand elle
+    coïncide avec le destinataire principal) et `tests/notifications-pieces.test.js` (4 —
+    `libelleNotificationPiece` sur le pseudo-cle de l'offre, sur une clé de checklist réelle, en
+    repli sur la clé elle-même si elle a disparu de la checklist ; `tagNotificationsDossier` vide/
+    singulier/pluriel). `totalNotificationsPieces()`/`majBadgeNotificationsSidebar()` ne sont pas
+    unitairement testables (dépendent de `dossiers`, un `let` de premier niveau invisible du
+    contexte `vm` des tests — même limite déjà documentée ailleurs dans ce fichier) ; vérifiées par
+    un script Node ad hoc (bac à sable) qui appelle directement `renderPiecesDossier`/
+    `renderCarteDossier`/`renderLigneTableau` sur un dossier fabriqué avec des `piecesNotifications`
+    non vides — les trois tags "Nouveau" et le badge de ligne sont bien présents dans le HTML rendu,
+    dans les deux occurrences attendues (une pièce + l'offre) sur la fiche complète. Suite racine
+    444 → 448, suite serveur 202 → 210.
+  - **Non vérifié en conditions réelles** : ni un vrai flux Power Automate ni un navigateur avec de
+    vraies notifications système ne sont disponibles dans cet environnement de développement — le
+    déclenchement effectif d'une notification Windows/Chrome (icône, son, centre de notifications)
+    reste à confirmer par l'étude, comme pour Teams/Ollama/pdf.js déjà documentés ailleurs dans ce
+    fichier.
 
 ## Comment tester
 

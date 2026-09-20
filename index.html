@@ -33,18 +33,22 @@
       <span class="sidebar-alpha-badge" title="Version alpha : l'outil est encore en évolution active, des ajustements peuvent survenir d'une session à l'autre.">Alpha</span>
     </div>
 
+    <!-- Liens groupés par catégorie (demandé par l'étude) : "Tableau de bord" reste seul, sans
+         titre, en tête — c'est la vue d'ensemble, elle n'appartient à aucune catégorie particulière.
+         definirOnglet() ne dépend d'aucun ordre/imbrication structurelle de ces boutons (uniquement
+         des getElementById par id) : les regrouper sous des <span> d'en-tête ne change rien à son
+         fonctionnement. -->
     <nav class="sidebar-nav" role="tablist" aria-label="Sections de l'application">
       <button type="button" id="tab-dashboard" class="sidebar-link actif" role="tab" aria-selected="true" onclick="definirOnglet('dashboard')">
         <span class="sidebar-link-icone" id="icon-nav-dashboard" aria-hidden="true"></span>Tableau de bord
       </button>
+
+      <span class="sidebar-nav-titre">Dossier</span>
       <button type="button" id="tab-suivi" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('suivi')">
         <span class="sidebar-link-icone" id="icon-nav-suivi" aria-hidden="true"></span>Suivi des dossiers
-      </button>
-      <button type="button" id="tab-calculateur" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('calculateur')">
-        <span class="sidebar-link-icone" id="icon-nav-calculateur" aria-hidden="true"></span>Simulateur de provision
-      </button>
-      <button type="button" id="tab-prorata" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('prorata')">
-        <span class="sidebar-link-icone" id="icon-nav-prorata" aria-hidden="true"></span>Prorata & répartitions
+        <!-- Compteur de pièces reçues pas encore vues (voir majBadgeNotificationsSidebar/
+             d.piecesNotifications dans script.js) : masqué tant qu'il n'y a rien à signaler. -->
+        <span class="sidebar-badge-notif" id="badge-notif-suivi" style="display:none;"></span>
       </button>
       <!-- Outil d'import et d'analyse juridique approfondie par IA locale (Ollama, voir
            server/src/llm.js/CLAUDE.md) : distinct du wizard "Nouveau dossier" (qui extrait des
@@ -53,6 +57,16 @@
       <button type="button" id="tab-analyse-ia" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('analyse-ia')">
         <span class="sidebar-link-icone" id="icon-nav-analyse-ia" aria-hidden="true"></span>Audit des actes (IA)
       </button>
+
+      <span class="sidebar-nav-titre">Outils</span>
+      <button type="button" id="tab-calculateur" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('calculateur')">
+        <span class="sidebar-link-icone" id="icon-nav-calculateur" aria-hidden="true"></span>Simulateur de provision
+      </button>
+      <button type="button" id="tab-prorata" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('prorata')">
+        <span class="sidebar-link-icone" id="icon-nav-prorata" aria-hidden="true"></span>Prorata & répartitions
+      </button>
+
+      <span class="sidebar-nav-titre">Admin</span>
       <!-- Réglages de l'étude (URL du flux Power Automate + adresse Teams de chaque collaborateur) :
            une donnée métier que l'étude doit pouvoir modifier elle-même, sans passer par un fichier
            de configuration ni redemander à Claude Code — voir server/src/parametresRepo.js. -->
@@ -795,10 +809,10 @@
 </div>
 
 <!-- Réglages : URL du flux Power Automate + adresse email Teams de chaque responsable (voir
-     CLAUDE.md, "Rappels automatiques vers Teams"). Remplace le déclenchement automatique des
-     rappels — le bouton "Envoyer un rappel par email" sur la fiche dossier reste disponible pour
-     un envoi ponctuel à la main, inchangé. Chargé/enregistré via server/src/routes/reglages.js
-     (chargerReglages()/enregistrerReglages() dans script.js). -->
+     CLAUDE.md, "Rappels automatiques vers Teams") — chargé/enregistré via
+     server/src/routes/reglages.js (chargerReglages()/enregistrerReglages() dans script.js) — et,
+     en tête, l'opt-in "Notifications sur ce poste" (Notification API du navigateur), un réglage
+     LOCAL au poste, jamais transmis au serveur. -->
 <div class="onglet-panel" id="onglet-reglages" style="display:none;">
   <div class="dash-header">
     <div>
@@ -810,6 +824,22 @@
   </div>
 
   <div id="reglages-etat" class="analyse-ia-dispo" style="display:none;"></div>
+
+  <!-- Réglage PROPRE À CE POSTE (localStorage, jamais dans parametresRepo côté serveur) : la
+       permission Notification du navigateur est elle-même propre à ce poste/ce profil Chrome, un
+       réglage partagé n'aurait aucun sens ici. Voir notifierNavigateurPieces()/
+       CLE_LOCALSTORAGE_NOTIF_NAVIGATEUR dans script.js. -->
+  <div class="calc-card">
+    <div class="dash-section-titre">Notifications sur ce poste</div>
+    <div class="calc-champs">
+      <label class="toolbar-checkbox" style="display:flex; align-items:center; gap:8px; font-weight:600;">
+        <input type="checkbox" id="reglages-notif-navigateur" onchange="basculerNotifNavigateur(this.checked)">
+        Recevoir une notification du navigateur/Windows pour une nouvelle pièce trouvée
+      </label>
+      <p class="hint">Ne se déclenche que si cet onglet n'est pas déjà au premier plan — les indicateurs déjà visibles dans la sidebar, le Suivi et la fiche dossier suffisent pendant que vous regardez CLAIRE. Demande une autorisation au navigateur au premier clic ; propre à ce poste, à réactiver sur chaque poste concerné.</p>
+      <p class="hint" id="reglages-notif-navigateur-etat"></p>
+    </div>
+  </div>
 
   <div class="calc-card">
     <div class="dash-section-titre">Flux Power Automate</div>
