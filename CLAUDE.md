@@ -5046,6 +5046,90 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     style.css) plutôt que par capture d'écran — l'étude testait en direct sur son propre Mac
     pendant ce chantier et a pu vérifier elle-même le rendu réel.
 
+- **Notaire de l'acquéreur en participation : relances routées vers son office, plus jamais vers
+  l'acquéreur lui-même** — demandé par l'étude sur un cas de déontologie précis : quand un office
+  DISTINCT du nôtre représente l'acquéreur (« en participation »/« en concours »), le notaire
+  instrumentaire ne doit pas le contacter directement, les demandes doivent transiter par son
+  confrère. `notaireParticipantRepresenteAcquereur(d)` (testable en théorie mais dépend de
+  `estEtude()`, déjà couvert par les tests de notaires) détecte ce cas : `d.notaireAcquereur`
+  renseigné et différent de notre étude — **indépendant** de `d.roleNotaire`/`d.coteInstrumentaire`
+  (qui répondent à « qui reçoit l'acte », pas à « qui représente l'acquéreur ») : notre étude peut
+  très bien être instrumentaire tout en ayant un confrère en face pour l'acquéreur, c'est
+  exactement le scénario décrit. `emailDestinataireRelance(d)` bascule alors les trois relances
+  ciblées (prêt manquant, RIB, provision — voir plus bas) et la relance automatique
+  (`relancerSiOffreManquante`) vers `d.emailNotaireParticipant` (nouveau champ, texte libre, jamais
+  deviné) au lieu de `d.emailAcquereur`.
+  - **Nouveau champ sur la fiche** (`renderNotairesDossier`, dans la grille notaires) : « Email du
+    notaire de l'acquéreur », affiché UNIQUEMENT quand `notaireParticipantRepresenteAcquereur(d)`
+    est vrai — `changerEmailNotaireParticipant()` suit exactement le patron d'`affecterNotaire()`
+    (historique + `sauvegarder`). `renderRelancesCiblees()` affiche un rappel explicite
+    ("l'acquéreur est représenté par un office distinct...") quand ce cas s'applique, et son
+    message d'invite (email manquant) distingue les deux destinataires possibles.
+  - **Même règle appliquée dès l'étape "Finaliser" du wizard** (`majApercuPieces()`) : le champ
+    "Email de l'acquéreur" se masque désormais aussi (en plus du cas déjà existant "notre étude est
+    participante") dès que `cotesNotairesPourDossier(extractionActuelle.notaires)` montre un
+    notaire de l'acquéreur distinct de notre étude — cohérent avec la demande explicite de l'étude
+    ("il ne faut donc pas mettre son adresse email").
+- **Nouveau bouton de relance « Provision + pièce d'identité »**, et nouveau champ « Agence
+  immobilière » : demandés ensemble par l'étude. `construireEmailRelanceProvision(d)` confirme la
+  réception de l'avant-contrat signé (« avec l'agence X » si `d.nomAgence` est connu, sinon
+  formulation générique « avec votre agence immobilière »), demande la provision de 100,00 € et une
+  copie de pièce d'identité, et ajoute une ligne sur l'offre de prêt UNIQUEMENT si la condition est
+  encore active pour ce dossier (`!d.sansPret && d.offrePretStatut !== 'recue'`) — inutile de la
+  réclamer sur un achat comptant ou une offre déjà reçue. Ajouté en tête de `MODELES_EMAIL_RELANCE`
+  (avant « Prêt manquant »/« RIB »), toujours proposé dès qu'un destinataire est connu — c'est
+  l'email de démarrage du dossier, le premier envoyé en pratique.
+  - `detecterNomAgence()` (nouveau `AGENCE_RE`) : premier jet, comme `motifNom` en son temps —
+    ancré sur une tournure d'intermédiation explicite (« par l'intermédiaire de l'agence... »,
+    « négocié par l'agence... », « par l'entremise de... », « mandaté à l'agence... »), jamais sur
+    le seul mot « agence » (trop ambigu : agence bancaire, agence France Travail...). Intégré au
+    même pipeline que `emailAcquereur`/`adresseBien` (objet `champs` de
+    `construireExtractionRegex()`, `appliquerExtractionAuFormulaire()`, `CHAMPS_REVISION`,
+    `champRevision()`/`ecrireChampRevision()`) : apparaît donc aussi dans le panneau « Ce que
+    l'outil a compris », éditable comme les autres champs. Nouveau champ `#f-nom-agence` à l'étape
+    "Finaliser" du wizard, `d.nomAgence` sur le modèle du dossier (conservé à l'import, comme
+    `adresseBien` — une lecture de l'acte, pas un statut dérivé d'un scan).
+- **« VENTE » ajouté devant le nom de chaque dossier, à l'affichage uniquement** —
+  `libelleDossierAffiche(d)` (= `'VENTE ' + d.nom`) est utilisée partout où le nom sert de TITRE
+  visible (ligne de tableau du Suivi et de la vue Échéances, tiroir de fiche, résultats de
+  recherche du Tableau de bord et d'Outil 2, widget "Échéances des 7 prochains jours", "Actions
+  urgentes", fiche imprimée) — **jamais** `d.nom` lui-même, qui reste la valeur brute utilisée pour
+  l'édition du champ (renommage), les emails, le nom de fichier exporté, l'historique et la
+  correspondance de recherche (modifier ces usages-là aurait cassé la recherche/le renommage/les
+  exports pour un simple ajout d'affichage).
+- **Trois retouches visuelles indépendantes** :
+  - **Titre "Analyse juridique du compromis" aligné sur "Pièces du dossier (...)"** : `.analyse-titre`
+    (CSS) reprend exactement les propriétés de `.section-eyebrow` (10px/600/uppercase/letter-spacing
+    0.1em/`--muted`) au lieu de son ancien style (14px/600/`--ink`) — un seul registre d'étiquette
+    de section entre les deux blocs voisins de la fiche.
+  - **"Outil 2" renommé "Lecture de projet"** : seul le petit intitulé au-dessus du titre de page
+    (`.dash-eyebrow`, dans `index.html`) change — le titre `<h1>` "Audit intelligent des actes" et
+    le lien de sidebar "Audit des actes (IA)" restent inchangés.
+  - **Espace agrandi au-dessus et en dessous du logo CLAIRE** : `.sidebar-brand` passe de
+    `padding: 6px 8px 2px` à `padding: 16px 8px 18px` — porté sur ce seul bloc (pas sur le `gap`
+    général de `.sidebar`) pour ne pas espacer aussi le reste de la sidebar (nav, pied de page) sans
+    raison.
+- **Fiche dossier : panneau d'extraction déplacé au-dessus de l'historique, et titre "Exporter"
+  ajouté au-dessus de Rappels/Imprimer** — les deux demandés ensemble. `renderExtractionDossier(d)`
+  (déjà le fameux `<details>` "Ce que l'outil avait compris de l'acte", jusque-là positionné juste
+  après "+ Ajouter une obligation du vendeur") est déplacé pour s'afficher juste avant le bloc
+  Historique, après les boutons d'export. Un `<span class="section-eyebrow
+  dossier-actions-titre">Exporter</span>` est ajouté avant `.dossier-actions` (Rappels .ics/
+  Imprimer), même registre que "Relancer par email" juste au-dessus (`.dossier-actions-titre`
+  reprend le schéma d'espacement 14px/6px de `.relances-ciblees`/`.relances-boutons`) — ces deux
+  boutons n'avaient jusqu'ici aucune étiquette. Les deux nouveaux éléments sont ajoutés au filtre
+  d'impression existant (`.dossier-actions-titre` aux côtés de `.dossier-actions`) — l'étiquette ne
+  doit pas apparaître sur la fiche imprimée, cohérent avec les boutons qu'elle nomme.
+  - Tests : `tests/relances-email.test.js` (+3 : le motif "provision" dans `MODELES_EMAIL_RELANCE`,
+    mention de l'agence avec repli générique, ligne de rappel du prêt conditionnelle) et
+    `tests/dates.test.js` (+3 : `detecterNomAgence` sur les tournures reconnues et son absence de
+    faux positif). Suite racine 425 → 428 tests, suite serveur inchangée (189, chantier entièrement
+    côté client). Vérifié par script de bac à sable (`tests/helpers/load-app.js`,
+    `renderCarteDossier`/`renderLigneTableau`/`libelleDossierAffiche`) : champ email du notaire
+    participant affiché seulement quand pertinent, bouton "Provision" présent dès qu'un email est
+    connu, préfixe "VENTE" sur la ligne de tableau, ordre Exporter → extraction → historique
+    confirmé par position dans le HTML généré.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

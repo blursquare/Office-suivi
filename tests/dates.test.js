@@ -477,6 +477,25 @@ test('detecterAdresseBien : l\'adresse d\'une partie n\'est pas celle du bien', 
   assert.equal(app.detecterAdresseBien(texte), null);
 });
 
+// Nom de l'agence immobilière (voir construireEmailRelanceProvision) : premier jet ancré sur une
+// tournure d'intermédiation explicite, jamais sur le seul mot "agence" (trop ambigu).
+test('detecterNomAgence reconnaît "par l\'intermédiaire de l\'agence..."', () => {
+  const app = chargerApplication();
+  const texte = "La vente est intervenue par l'intermédiaire de l'agence CENTURY 21 Les Tilleuls, sise à Blois.";
+  assert.equal(app.detecterNomAgence(texte), 'CENTURY 21 Les Tilleuls');
+});
+
+test('detecterNomAgence reconnaît "négocié par l\'agence..."', () => {
+  const app = chargerApplication();
+  const texte = "Le bien a été négocié par l'agence IMMOBILIER PLUS, dont le siège est situé à Tours.";
+  assert.equal(app.detecterNomAgence(texte), 'IMMOBILIER PLUS');
+});
+
+test('detecterNomAgence renvoie null sans tournure d\'intermédiation reconnue', () => {
+  const app = chargerApplication();
+  assert.equal(app.detecterNomAgence('Sans mention d’agence dans ce texte.'), null);
+});
+
 test('detecterPrixVente lit « (92 000,00 EUR) » malgré la coupure de ligne du PDF', () => {
   // Cas réel : le montant en lettres est coupé en deux par la mise en page, et la reprise chiffrée
   // s'écrit « EUR » et non « € ». Aucun prix n'était détecté.

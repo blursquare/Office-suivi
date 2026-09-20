@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-20 19:25';
+  const VERSION_APP = '2026-09-20 21:55';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-20 21:55', resume: "Quand l'acquéreur est représenté par un notaire d'un office distinct du nôtre (« en participation »), l'étude ne doit plus lui envoyer d'email directement : un champ « Email du notaire de l'acquéreur » apparaît sur la fiche dans ce cas précis, et les relances (prêt manquant, RIB, provision) lui sont désormais adressées à sa place — le même garde-fou s'applique dès l'import du compromis, qui ne propose plus de saisir l'email personnel de l'acquéreur si un tel notaire est détecté. Nouveau bouton de relance « Provision + pièce d'identité » : confirme la réception de l'avant-contrat signé (en nommant l'agence immobilière si détectée dans le compromis — nouveau champ « Agence immobilière », éditable comme les autres), demande la provision de 100,00 € et une copie de pièce d'identité, et rappelle l'offre de prêt si la condition est encore active. Le nom de chaque dossier affiche maintenant « VENTE » devant (tableau, tiroir, tableau de bord, fiche imprimée). Le titre « Analyse juridique du compromis » reprend le même style que « Pièces du dossier » ; le bandeau « Outil 2 » devient « Lecture de projet ». Espace agrandi au-dessus et en dessous du logo CLAIRE dans la sidebar. Sur la fiche : le panneau « Ce que l'outil avait compris de l'acte » est déplacé juste au-dessus de l'historique, et un titre « Exporter » identifie enfin les boutons Rappels (.ics)/Imprimer, comme « Relancer par email » identifie déjà les siens" },
     { version: '2026-09-20 19:25', resume: "Huit retouches d'interface. Le bouton de relance « Pièce(s) à fournir » disparaît (jugé redondant avec la checklist déjà visible sur la fiche) — restent « Prêt manquant » et « RIB », désormais à la même taille que « Rappels (.ics) »/« Imprimer » juste en dessous. Dans la sidebar : le bouton « Nouveau dossier » est retiré (toujours accessible depuis le Tableau de bord et le Suivi), le badge « Alpha » devient un petit repère à côté du logo CLAIRE, et l'indicateur « Connecté »/« Hors ligne » déménage dans l'écran « À propos », lui-même élargi. L'icône de « Réglages » devient une vraie roue crantée (anneau + trou + dents) plutôt qu'un glyphe en étoile. Et l'exemple du champ « Nom du dossier », resté sur un très vieux format mêlant nom et adresse, montre maintenant le bon format vendeur / acquéreur (« DUPONT / MARTIN »)" },
     { version: '2026-09-19 08:55', resume: "Outil 2 (Audit des actes) : un document scanné est désormais lu en entier, pas seulement ses 3 premières pages. Cette limite servait bien pour reconnaître un document du dossier client par son titre, mais pour l'AUDITER — chercher une incohérence n'importe où dans le texte — il fallait le lire au complet, comme pour un compromis à l'import. La liste de documents et le rapport final indiquent maintenant, pour chaque pièce, combien de pages ont réellement été lues (et si la lecture est passée par la reconnaissance d'image) ; une lecture malgré tout coupée par un document exceptionnellement long est signalée en clair plutôt que passée sous silence. La vérification d'un dossier local (offre de prêt, pièces) n'est pas concernée, elle reste sur 3 pages, ce qui lui suffit" },
     { version: '2026-09-19 08:35', resume: "Correction sur « Ouvrir le compromis » (et le compromis de référence d'Outil 2) : l'avant-contrat signé est désormais cherché à la RACINE du dossier client ou dans la rubrique « SRU », là où vous le rangez réellement — plus dans « 9 - AAE », qui contient les pièces réunies entre le compromis et la vente (urbanisme, entretien…), pas l'acte. La version de ce matin regardait au mauvais endroit. Le nom exact du PDF importé reste cherché en premier ; « AAE » dans le NOM d'un PDF continue de signaler un acte authentique à l'import, ce point-là était juste" },
@@ -399,6 +400,21 @@
 
   function detecterAdresseBien(texte) {
     const m = ADRESSE_BIEN_RE.exec(texte);
+    if (!m) return null;
+    return m[1].replace(/\s+/g, ' ').trim().replace(/[,\s]+$/, '');
+  }
+
+  // Nom de l'agence immobilière ayant fait signer le compromis — demandé par l'étude pour pouvoir
+  // la mentionner dans l'email de "Demande de provision" envoyé à l'acquéreur (voir
+  // construireEmailRelanceProvision). Premier jet, comme motifNom en son temps : pas encore
+  // confronté à beaucoup de formulations réelles, à resserrer sur retour de l'étude. Ancré sur une
+  // tournure d'intermédiation explicite ("par l'intermédiaire de l'agence...", "par l'entremise
+  // de...") — jamais sur le seul mot "agence", trop ambigu (agence bancaire, agence France
+  // Travail...) pour être un signal fiable à lui seul.
+  const AGENCE_RE = /(?:l['’]interm[ée]diaire\s+de\s+(?:l['’]agence\s+)?|par\s+l['’]entremise\s+de\s+(?:l['’]agence\s+)?|n[ée]goci[ée]e?\s+par\s+(?:l['’]agence\s+)?|mandat[ée]?e?\s+[àa]\s+l['’]agence\s+|l['’]agence\s+immobili[èe]re\s+)([A-Z0-9][^,.\n(;]{1,60}?)(?=\s*[,.;\n(]|\s+(?:sise|situ[ée]e?|dont|repr[ée]sent[ée]e?|immatricul[ée]e?)\b)/i;
+
+  function detecterNomAgence(texte) {
+    const m = AGENCE_RE.exec(texte);
     if (!m) return null;
     return m[1].replace(/\s+/g, ' ').trim().replace(/[,\s]+$/, '');
   }
@@ -2297,6 +2313,23 @@
     return true;
   }
 
+  // L'acquéreur est-il représenté par un office DISTINCT du nôtre (« en participation »/« en
+  // concours ») ? Pas seulement « un nom est renseigné » : si ce nom EST notre étude (nous
+  // représentons nous-mêmes l'acquéreur), rien de spécial à faire, c'est le cas normal. Sinon, la
+  // déontologie interdit au notaire instrumentaire de contacter directement le client d'un confrère
+  // — les demandes doivent transiter par son office. Demandé explicitement par l'étude.
+  function notaireParticipantRepresenteAcquereur(d) {
+    return !!(d && d.notaireAcquereur && !estEtude({ nom: d.notaireAcquereur }));
+  }
+
+  // Email à utiliser pour toute relance normalement adressée à l'acquéreur (prêt manquant, RIB) :
+  // celui du notaire qui le représente si un office distinct a été identifié (jamais l'adresse
+  // personnelle du client dans ce cas), sinon l'email de l'acquéreur lui-même.
+  function emailDestinataireRelance(d) {
+    if (notaireParticipantRepresenteAcquereur(d)) return d.emailNotaireParticipant || '';
+    return d.emailAcquereur || '';
+  }
+
   // ==== EXTRACTION STRUCTURÉE : adresse du bien vendu ====
   //
   // Un compromis contient l'adresse du vendeur, celle de l'acquéreur, celle du notaire, parfois
@@ -2438,6 +2471,7 @@
         nom: champAvecSource(source, 'nom', detecterNomDossier(source)),
         prixVente: champAvecSource(source, 'prixVente', detecterPrixVente(source)),
         emailAcquereur: champAvecSource(source, 'emailAcquereur', detecterEmailAcquereur(source, typeActe.valeur)),
+        nomAgence: champAvecSource(source, 'nomAgence', detecterNomAgence(source)),
         typeVente: champExtraction(detecterTypeVenteCopropriete(source) ? 'copropriete' : null)
       },
       alertes: [],
@@ -2936,6 +2970,7 @@
       nom: (champs.nom && champs.nom.valeur) || null,
       prixVente: (champs.prixVente && champs.prixVente.valeur) || null,
       emailAcquereur: (champs.emailAcquereur && champs.emailAcquereur.valeur) || null,
+      nomAgence: (champs.nomAgence && champs.nomAgence.valeur) || null,
       adresseBien: adresse ? (adresse.adresseComplete || null) : null,
       roleNotaire: (extraction.notaires && extraction.notaires.roleEtude) || null
     };
@@ -4076,6 +4111,7 @@
     if (champs.nom) appliquerValeurChamp('f-nom', champs.nom.valeur);
     if (champs.prixVente) appliquerValeurChamp('f-prix-vente', champs.prixVente.valeur);
     if (champs.emailAcquereur) appliquerValeurChamp('f-email-acquereur', champs.emailAcquereur.valeur);
+    if (champs.nomAgence) appliquerValeurChamp('f-nom-agence', champs.nomAgence.valeur);
     const adresse = extraction.bien && extraction.bien.adresse;
     if (adresse && adresse.adresseComplete) appliquerValeurChamp('f-adresse-bien', adresse.adresseComplete);
 
@@ -4159,6 +4195,7 @@
     { cle: 'adresseBien', libelle: 'Adresse du bien', type: 'texte', champId: 'f-adresse-bien' },
     { cle: 'prixVente', libelle: 'Prix de vente', type: 'nombre', champId: 'f-prix-vente' },
     { cle: 'emailAcquereur', libelle: 'Email de l’acquéreur', type: 'texte', champId: 'f-email-acquereur' },
+    { cle: 'nomAgence', libelle: 'Agence immobilière', type: 'texte', champId: 'f-nom-agence' },
     { cle: 'roleNotaire', libelle: 'Rôle de l’étude', type: 'select', champId: 'f-role-notaire' }
   ];
 
@@ -4189,6 +4226,7 @@
     if (cle === 'nom') return champs.nom || null;
     if (cle === 'prixVente') return champs.prixVente || null;
     if (cle === 'emailAcquereur') return champs.emailAcquereur || null;
+    if (cle === 'nomAgence') return champs.nomAgence || null;
     if (cle === 'signature') return dates.SIGNATURE_AVANT_CONTRAT || null;
     if (cle === 'pret') return dates.BUTOIR_PRET || null;
     if (cle === 'acte') return dates.REITERATION_ACTE || null;
@@ -4237,6 +4275,7 @@
     else if (cle === 'nom') { extraction.champs.nom = extraction.champs.nom || champExtraction(null); marquer(extraction.champs.nom); }
     else if (cle === 'prixVente') { extraction.champs.prixVente = extraction.champs.prixVente || champExtraction(null); marquer(extraction.champs.prixVente); }
     else if (cle === 'emailAcquereur') { extraction.champs.emailAcquereur = extraction.champs.emailAcquereur || champExtraction(null); marquer(extraction.champs.emailAcquereur); }
+    else if (cle === 'nomAgence') { extraction.champs.nomAgence = extraction.champs.nomAgence || champExtraction(null); marquer(extraction.champs.nomAgence); }
     else if (cle === 'signature') { extraction.dates.SIGNATURE_AVANT_CONTRAT = extraction.dates.SIGNATURE_AVANT_CONTRAT || champExtraction(null); marquer(extraction.dates.SIGNATURE_AVANT_CONTRAT); }
     else if (cle === 'pret') { extraction.dates.BUTOIR_PRET = extraction.dates.BUTOIR_PRET || champExtraction(null); marquer(extraction.dates.BUTOIR_PRET); }
     else if (cle === 'acte') { extraction.dates.REITERATION_ACTE = extraction.dates.REITERATION_ACTE || champExtraction(null); marquer(extraction.dates.REITERATION_ACTE); }
@@ -5953,6 +5992,7 @@
     document.getElementById('f-role-notaire').value = 'instrumentaire';
     majApercuPieces();
     document.getElementById('f-email-acquereur').value = '';
+    document.getElementById('f-nom-agence').value = '';
     document.getElementById('f-adresse-bien').value = '';
     document.getElementById('f-prix-vente').value = '';
     document.getElementById('f-pret').value = '';
@@ -6023,6 +6063,7 @@
     const roleNotaire = document.getElementById('f-role-notaire').value;
     const responsable = document.getElementById('f-responsable').value.trim();
     const emailAcquereur = document.getElementById('f-email-acquereur').value.trim();
+    const nomAgence = document.getElementById('f-nom-agence').value.trim();
     const adresseBien = document.getElementById('f-adresse-bien').value.trim();
     const prixVenteBrut = document.getElementById('f-prix-vente').value.trim();
     const prixVente = prixVenteBrut ? parseInt(prixVenteBrut.replace(/[^\d]/g, ''), 10) : null;
@@ -6077,6 +6118,7 @@
     const dossier = {
       id: (crypto.randomUUID ? crypto.randomUUID() : 'd-' + Date.now() + '-' + Math.random().toString(16).slice(2)),
       nom, responsable, emailAcquereur,
+      nomAgence,
       adresseBien,
       prixVente: Number.isFinite(prixVente) && prixVente > 0 ? prixVente : null,
       montantPret: null,
@@ -6089,6 +6131,11 @@
       notaireAcquereur: cotesNotaires.acquereur,
       coteInstrumentaire: cotesNotaires.coteInstrumentaire,
       notairesDetectes: cotesNotaires.detectes,
+      // Email de l'office du notaire de l'acquéreur, à renseigner UNIQUEMENT quand cet office est
+      // distinct du nôtre (voir notaireParticipantRepresenteAcquereur/emailDestinataireRelance) :
+      // la déontologie interdit alors à l'instrumentaire de contacter directement l'acquéreur, les
+      // relances (prêt, RIB) doivent transiter par son confrère. Jamais préremplie automatiquement.
+      emailNotaireParticipant: '',
       pieces: {},
       piecesEngagementsDetectees,
       dossierLie: false,
@@ -6536,6 +6583,21 @@
     render();
   }
 
+  // Email de l'office du notaire de l'acquéreur, saisi/corrigé sur la fiche (voir
+  // renderNotairesDossier) — n'apparaît que quand notaireParticipantRepresenteAcquereur(d) est vrai
+  // (un office distinct du nôtre représente l'acquéreur) : la déontologie interdit alors à
+  // l'instrumentaire de contacter directement l'acquéreur, les relances passent par ce champ.
+  function changerEmailNotaireParticipant(id, valeur) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    const nouveau = String(valeur || '').trim();
+    if (nouveau === (d.emailNotaireParticipant || '')) return;
+    d.emailNotaireParticipant = nouveau;
+    ajouterHistorique(d, `Email du notaire de l’acquéreur : ${nouveau || '—'}`);
+    sauvegarder(d);
+    render();
+  }
+
   // Bascule le côté qui reçoit l'acte depuis le badge de la ligne concernée (il n'y a plus de
   // sélecteur « Acte reçu par » : c'est le badge lui-même qui porte l'action, voir
   // renderNotairesDossier). Recliquer sur le côté déjà désigné le retire.
@@ -6609,7 +6671,7 @@
       items.forEach(it => {
         if (!it.iso) return;
         const jours = joursRestants(it.iso);
-        if (jours >= 0 && jours <= 7) echeances.push({ ...it, jours, nomDossier: d.nom, id: d.id });
+        if (jours >= 0 && jours <= 7) echeances.push({ ...it, jours, nomDossier: libelleDossierAffiche(d), id: d.id });
       });
     });
     echeances.sort((a, b) => a.jours - b.jours);
@@ -6799,7 +6861,7 @@
       return `
         <button type="button" class="action-urgente-ligne" onclick="ouvrirDossierDepuisDashboard('${d.id}')">
           ${renderBadgeStatut(d)}
-          <span class="action-urgente-nom">${escapeHtml(d.nom)}</span>
+          <span class="action-urgente-nom">${escapeHtml(libelleDossierAffiche(d))}</span>
           <span class="action-urgente-raison">${raison}</span>
           <span class="action-urgente-fleche">→</span>
         </button>`;
@@ -6835,7 +6897,7 @@
       : resultats.map(d => `
         <button type="button" class="dash-recherche-ligne" onclick="ouvrirDossierDepuisDashboardRecherche('${d.id}')">
           ${renderBadgeStatut(d)}
-          <span class="dash-recherche-nom">${escapeHtml(d.nom)}</span>
+          <span class="dash-recherche-nom">${escapeHtml(libelleDossierAffiche(d))}</span>
           <span class="dash-recherche-resp">${escapeHtml(d.responsable || '')}</span>
         </button>`).join('');
     bloc.style.display = 'block';
@@ -6884,8 +6946,15 @@
     const champEmailAcquereur = document.getElementById('champ-email-acquereur');
     if (champEmailAcquereur) {
       const estParticipant = roleSelect && roleSelect.value === 'participant';
-      champEmailAcquereur.style.display = estParticipant ? 'none' : '';
-      if (estParticipant) document.getElementById('f-email-acquereur').value = '';
+      // Même règle déontologique que ci-dessus, mais pour le cas où c'est l'ACQUÉREUR qui est
+      // représenté par un office distinct du nôtre (voir notaireParticipantRepresenteAcquereur,
+      // appliquée ici à l'acte en cours d'import plutôt qu'à un dossier déjà enregistré) : dans ce
+      // cas non plus, on ne doit pas collecter l'email personnel de l'acquéreur.
+      const cotesWizard = cotesNotairesPourDossier(extractionActuelle ? extractionActuelle.notaires : null);
+      const acquereurRepresenteParAutre = !!(cotesWizard.acquereur && !estEtude({ nom: cotesWizard.acquereur }));
+      const masquer = estParticipant || acquereurRepresenteParAutre;
+      champEmailAcquereur.style.display = masquer ? 'none' : '';
+      if (masquer) document.getElementById('f-email-acquereur').value = '';
     }
     if (!select || !bloc) return;
     // Notaire participant/concourant : l'étude ne constitue pas le dossier complet, seuls le prêt
@@ -7214,6 +7283,14 @@
     return `<span class="dot-label ${s.dl}" title="Statut du dossier : ${s.texte}">${marqueur}${s.texte}</span>`;
   }
 
+  // Nom du dossier tel qu'affiché à l'écran (« VENTE DUPONT / MARTIN »), demandé par l'étude —
+  // uniquement pour l'affichage (titres, lignes de tableau, résultats de recherche) : jamais dans
+  // d.nom lui-même, qui reste la valeur brute utilisée pour l'édition du champ, les emails, les
+  // noms de fichiers exportés, l'historique et la correspondance de recherche.
+  function libelleDossierAffiche(d) {
+    return 'VENTE ' + ((d && d.nom) || '');
+  }
+
   // Notaire du vendeur / de l'acquéreur, sous l'adresse et le prix (demande explicite de l'étude).
   // Deux champs LIBRES et une liste déroulante des notaires détectés à l'import : l'acte ne dit pas
   // toujours qui représente qui, et quand il ne le dit pas on n'affecte rien — c'est l'étude qui
@@ -7252,11 +7329,24 @@
       : `<button type="button" class="notaire-role notaire-role-bouton" onclick="basculerRoleEtude('${d.id}')"
            title="L’étude n’est reconnue dans aucun des deux notaires : cliquez pour changer son rôle.">Notre étude : <strong>${role}</strong> ${icone('pencil')}</button>`;
 
+    // L'acquéreur est représenté par un office distinct du nôtre : la déontologie interdit à
+    // l'instrumentaire de le contacter directement (voir notaireParticipantRepresenteAcquereur) —
+    // un champ dédié permet de renseigner l'email de CET office, utilisé à la place de l'email de
+    // l'acquéreur par les relances ciblées (voir emailDestinataireRelance/renderRelancesCiblees).
+    const blocEmailParticipant = notaireParticipantRepresenteAcquereur(d) ? `
+        <div class="classif-champ">
+          <div class="classif-champ-entete">
+            <label for="not-email-participant-${d.id}">Email du notaire de l’acquéreur</label>
+          </div>
+          <input type="email" id="not-email-participant-${d.id}" class="input-classif" value="${escapeAttr(d.emailNotaireParticipant || '')}" placeholder="Non renseigné" title="Les relances (prêt, RIB) seront adressées à cette adresse plutôt qu'à l'acquéreur lui-même." onblur="changerEmailNotaireParticipant('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
+        </div>` : '';
+
     return `
       <div class="dossier-notaires">
         <div class="dossier-classification-grid">
           ${champ('vendeur', 'Notaire du vendeur', d.notaireVendeur)}
           ${champ('acquereur', 'Notaire de l’acquéreur', d.notaireAcquereur)}
+          ${blocEmailParticipant}
         </div>
         ${detectes.length ? `<datalist id="${listeId}">${detectes.map(n => `<option value="${escapeAttr(n.nom)}"></option>`).join('')}</datalist>` : ''}
         ${ligneRole}
@@ -7392,7 +7482,7 @@
     const offre = !d.sansPret ? statutOffreAffichage(d) : null;
     return `
       <tr class="ligne-resume${d.archive ? ' est-archive' : ''}${dossierOuvert === d.id ? ' ligne-active' : ''}" onclick="ouvrirDossierDrawer('${d.id}')">
-        <td><div class="dossier-nom-tableau">${renderBadgeStatut(d)}${escapeHtml(d.nom)}</div></td>
+        <td><div class="dossier-nom-tableau">${renderBadgeStatut(d)}${escapeHtml(libelleDossierAffiche(d))}</div></td>
         <td class="dossier-responsable-tableau">${escapeHtml(d.responsable || '—')}</td>
         <td>
           ${d.sansPret ? '<span class="echeance-jours calme">Comptant — sans prêt</span>' : `<span class="dot-label ${offre.dl}"><span class="dot"></span>${offre.texte}</span>`}
@@ -7424,7 +7514,7 @@
           <tr class="ligne-resume${d.archive ? ' est-archive' : ''}${dossierOuvert === d.id ? ' ligne-active' : ''}" onclick="ouvrirDossierDrawer('${d.id}')">
             <td><span class="echeance-jours ${jours <= 3 ? 'urgent' : 'calme'}">${formatDateFr(e.iso)}</span></td>
             <td><span class="dot-label dl-${e.type}"><span class="dot"></span>${escapeHtml(e.label)}</span></td>
-            <td><div class="dossier-nom-tableau">${renderBadgeStatut(d)}${escapeHtml(d.nom)}</div></td>
+            <td><div class="dossier-nom-tableau">${renderBadgeStatut(d)}${escapeHtml(libelleDossierAffiche(d))}</div></td>
             <td class="dossier-responsable-tableau">${escapeHtml(d.responsable || '—')}</td>
           </tr>`;
       }).join('');
@@ -8007,7 +8097,7 @@
           </div>
           <div class="nom-dossier">
             <span class="nom-affichage" id="nom-affichage-${d.id}">
-              <span class="nom-texte">${escapeHtml(d.nom)}</span>
+              <span class="nom-texte">${escapeHtml(libelleDossierAffiche(d))}</span>
               <button type="button" class="icon-crayon" onclick="activerEditionNom('${d.id}')" title="Modifier le nom" aria-label="Modifier le nom">${icone('pencil')}</button>
             </span>
             <span class="nom-edition" id="nom-edition-${d.id}" hidden>
@@ -8118,17 +8208,23 @@
           </details>
         ` : ''}
         ${renderAjoutEngagement(d)}
-        ${renderExtractionDossier(d)}
         ${renderRelancesCiblees(d)}
         <!-- Libellés volontairement courts (l'intitulé complet reste en infobulle) : l'étude veut
              ces actions sur une seule ligne, ce que "Télécharger les rappels (.ics)" et son voisin
              ne permettaient pas dans la largeur du tiroir. Le rappel par email générique
              ("Rappel email") a été retiré définitivement : les rappels automatiques vers Teams
-             (voir jobs/rappels.js), avec copie systématique à l'étude, le remplacent. -->
+             (voir jobs/rappels.js), avec copie systématique à l'étude, le remplacent. Le titre
+             "EXPORTER" (même registre que "Relancer par email" juste au-dessus) a été demandé pour
+             nommer ce bloc de boutons, jusque-là sans étiquette. -->
+        <span class="section-eyebrow dossier-actions-titre">Exporter</span>
         <div class="dossier-actions">
           <button onclick="telechargerICS('${d.id}')" title="Télécharger les rappels (.ics)">${icone('calendar')} Rappels (.ics)</button>
           <button onclick="imprimerFiche('${d.id}')" title="Télécharger la fiche dossier imprimable">${icone('file-text')} Imprimer</button>
         </div>
+        <!-- "Ce que l'outil a compris" (voir renderExtractionDossier) placé juste au-dessus de
+             l'historique, demandé par l'étude : c'est la dernière chose lue avant de consulter
+             l'historique des modifications du dossier. -->
+        ${renderExtractionDossier(d)}
         ${historique.length > 0 ? `
           <button type="button" class="historique-toggle section-eyebrow" onclick="toggleHistorique('${d.id}')">Historique (${historique.length})</button>
           <div class="historique-liste" id="historique-${d.id}">
@@ -8516,10 +8612,10 @@
   // Le rappel générique "toutes les échéances" adressé à l'ÉTUDE elle-même (ouvrirEmailRappel(),
   // un pense-bête interne par mailto) a été retiré définitivement : les rappels automatiques vers
   // Teams (voir jobs/rappels.js), avec copie systématique à l'étude (voir teamsCopieEmail dans
-  // l'écran Réglages), couvrent désormais ce besoin sans geste manuel. Ces trois modèles-ci restent
-  // en revanche adressés au CLIENT (d.emailAcquereur, comme relancerSiOffreManquante() déjà en
-  // place) : chacun cible un motif de relance précis, pour ne plus avoir à réécrire le même email
-  // à la main selon ce qui manque réellement au dossier — un usage distinct, non couvert par Teams.
+  // l'écran Réglages), couvrent désormais ce besoin sans geste manuel. Ces modèles-ci restent en
+  // revanche adressés au CLIENT (d.emailAcquereur, comme relancerSiOffreManquante() déjà en place)
+  // : chacun cible un motif de relance précis, pour ne plus avoir à réécrire le même email à la
+  // main selon ce qui manque réellement au dossier — un usage distinct, non couvert par Teams.
   function construireEmailRelancePret(d) {
     const echeance = d.pret ? ` L'échéance d'obtention du prêt est fixée au ${formatDateFr(d.pret)}.` : '';
     return {
@@ -8535,10 +8631,28 @@
     };
   }
 
+  // Email de "démarrage" du dossier, demandé par l'étude : confirme la bonne réception de
+  // l'avant-contrat signé (transmis par l'agence — mentionnée par son nom si détectée, voir
+  // detecterNomAgence(), sinon formulée de façon générique), et demande la provision sur frais de
+  // 100,00 € ainsi qu'une copie de pièce d'identité. Ajoute une ligne sur l'offre de prêt
+  // UNIQUEMENT si une condition de prêt est active et pas encore levée pour ce dossier — inutile
+  // de la réclamer sur un achat comptant ou une offre déjà reçue.
+  function construireEmailRelanceProvision(d) {
+    const viaAgence = d.nomAgence ? `avec l’agence ${d.nomAgence}` : 'avec votre agence immobilière';
+    const relancePret = (!d.sansPret && d.offrePretStatut !== 'recue')
+      ? "\n\nSi votre acquisition est soumise à l'obtention d'un prêt, merci également de nous transmettre votre offre de prêt dès que vous l'aurez reçue."
+      : '';
+    return {
+      sujet: `Demande de provision sur frais et pièce d'identité — dossier ${d.nom}`,
+      corps: `Bonjour,\n\nNous vous confirmons la bonne réception de votre avant-contrat signé ${viaAgence} pour le dossier ${d.nom}.\n\nAfin de poursuivre la constitution de votre dossier, merci de nous adresser :\n- une provision sur frais de 100,00 € ;\n- une copie de votre pièce d'identité en cours de validité.${relancePret}\n\nCordialement.`
+    };
+  }
+
   // Une entrée par motif de relance : le libellé du bouton, le modèle d'email, et la condition qui
   // le rend pertinent pour CE dossier (pas de relance "prêt" sur un achat comptant, pas de relance
   // "pièces" si tout est déjà reçu) — évaluée à l'affichage par renderRelancesCiblees().
   var MODELES_EMAIL_RELANCE = {
+    provision: { cle: 'provision', libelle: 'Provision + pièce d’identité', construire: construireEmailRelanceProvision, historique: 'Relance manuelle envoyée — provision sur frais et pièce d’identité' },
     pret: { cle: 'pret', libelle: 'Prêt manquant', construire: construireEmailRelancePret, historique: 'Relance manuelle envoyée — offre de prêt' },
     rib: { cle: 'rib', libelle: 'RIB', construire: construireEmailRelanceRib, historique: 'Relance manuelle envoyée — RIB' }
   };
@@ -8547,14 +8661,18 @@
     const d = dossiers.find(x => x.id === id);
     const modele = MODELES_EMAIL_RELANCE[type];
     if (!d || !modele) return;
-    if (!d.emailAcquereur) {
-      afficherToast("Aucun email d'acquéreur renseigné pour ce dossier — impossible de préparer cette relance.", 'OK', null);
+    const destinataire = emailDestinataireRelance(d);
+    if (!destinataire) {
+      const message = notaireParticipantRepresenteAcquereur(d)
+        ? "Aucun email renseigné pour le notaire de l'acquéreur — impossible de préparer cette relance."
+        : "Aucun email d'acquéreur renseigné pour ce dossier — impossible de préparer cette relance.";
+      afficherToast(message, 'OK', null);
       return;
     }
     const { sujet, corps } = modele.construire(d);
     ajouterHistorique(d, modele.historique);
     sauvegarder(d);
-    const url = `mailto:${encodeURIComponent(d.emailAcquereur)}?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(corps)}`;
+    const url = `mailto:${encodeURIComponent(destinataire)}?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(corps)}`;
     window.location.href = url;
     afficherInfoAction(
       "Brouillon d'email ouvert",
@@ -8565,25 +8683,32 @@
   // Affichée sur la fiche dossier (voir renderCarteDossier), juste avant les trois actions
   // génériques (.ics/rappel/impression) : un bouton par motif de relance pertinent pour CE dossier.
   // Absente pour un notaire participant (même garde-fou que relancerSiOffreManquante/
-  // verifierDossierLocal — relancer le client reste un geste de l'instrumentaire). Sans email
-  // d'acquéreur renseigné, un message l'indique plutôt que des boutons qui échoueraient au clic.
+  // verifierDossierLocal — relancer le client reste un geste de l'instrumentaire). Sans destinataire
+  // connu, un message l'indique plutôt que des boutons qui échoueraient au clic — le destinataire
+  // n'est pas toujours l'acquéreur lui-même : voir emailDestinataireRelance().
   // Le motif "pièces à fournir" a été retiré sur demande de l'étude (bouton jugé redondant avec la
-  // checklist déjà visible sur la fiche) — seuls "Prêt manquant" et "RIB" restent proposés.
+  // checklist déjà visible sur la fiche) — restent "Provision + pièce d'identité" (envoi de
+  // démarrage, voir construireEmailRelanceProvision), "Prêt manquant" et "RIB".
   function renderRelancesCiblees(d) {
     if (d.roleNotaire === 'participant') return '';
-    if (!d.emailAcquereur) {
+    const notaireParticipant = notaireParticipantRepresenteAcquereur(d);
+    if (!emailDestinataireRelance(d)) {
+      const hint = notaireParticipant
+        ? 'Renseignez l’email du notaire de l’acquéreur (ci-dessus) pour activer les relances ciblées (provision, prêt, RIB) — l’acquéreur étant représenté par un office distinct, l’étude ne doit pas le contacter directement.'
+        : 'Renseignez l’email de l’acquéreur pour activer les relances ciblées (provision, prêt, RIB).';
       return `<div class="relances-ciblees">
         <span class="section-eyebrow">Relancer par email</span>
-        <p class="hint">Renseignez l’email de l’acquéreur pour activer les relances ciblées (prêt, RIB).</p>
+        <p class="hint">${hint}</p>
       </div>`;
     }
-    const boutons = [];
+    const boutons = [MODELES_EMAIL_RELANCE.provision];
     if (!d.sansPret && d.offrePretStatut !== 'recue') {
       boutons.push(MODELES_EMAIL_RELANCE.pret);
     }
     boutons.push(MODELES_EMAIL_RELANCE.rib);
     return `<div class="relances-ciblees">
       <span class="section-eyebrow">Relancer par email</span>
+      ${notaireParticipant ? '<p class="hint">L’acquéreur est représenté par un office distinct : ces relances seront adressées à son notaire, jamais directement à l’acquéreur.</p>' : ''}
       <div class="relances-boutons">
         ${boutons.map(m => `<button type="button" class="action-rapide" onclick="envoyerRelanceCiblee('${d.id}', '${m.cle}')">${escapeHtml(m.libelle)}</button>`).join('')}
       </div>
@@ -9288,6 +9413,7 @@
       responsable: typeof d.responsable === 'string' ? d.responsable : '',
       emailAcquereur: typeof d.emailAcquereur === 'string' ? d.emailAcquereur : '',
       adresseBien: typeof d.adresseBien === 'string' ? d.adresseBien : '',
+      nomAgence: typeof d.nomAgence === 'string' ? d.nomAgence : '',
       prixVente: Number.isFinite(d.prixVente) && d.prixVente > 0 ? d.prixVente : null,
       // Comme offrePretStatut : dérivé d'un PDF local, jamais importé tel quel d'une autre machine
       // sans revérification (voir le commentaire déjà existant sur offrePretStatut ci-dessous).
@@ -9316,6 +9442,9 @@
       // contrairement aux statuts dérivés d'un scan du NAS.
       notaireVendeur: typeof d.notaireVendeur === 'string' ? d.notaireVendeur : '',
       notaireAcquereur: typeof d.notaireAcquereur === 'string' ? d.notaireAcquereur : '',
+      // Même logique que notaireVendeur/notaireAcquereur ci-dessus : une saisie de l'étude, pas un
+      // statut dérivé d'un scan, donc conservée telle quelle à l'import.
+      emailNotaireParticipant: typeof d.emailNotaireParticipant === 'string' ? d.emailNotaireParticipant : '',
       coteInstrumentaire: (d.coteInstrumentaire === 'vendeur' || d.coteInstrumentaire === 'acquereur') ? d.coteInstrumentaire : null,
       notairesDetectes: Array.isArray(d.notairesDetectes)
         ? d.notairesDetectes.filter(n => n && typeof n === 'object' && typeof n.nom === 'string' && n.nom)
@@ -9501,7 +9630,7 @@
     )}</table>`;
 
     const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
-<title>Fiche dossier — ${escapeHtml(d.nom)}</title>
+<title>Fiche dossier — ${escapeHtml(libelleDossierAffiche(d))}</title>
 <style>
   @page { size: A4 portrait; margin: 8mm 11mm; }
   * { box-sizing: border-box; }
@@ -9544,7 +9673,7 @@
 </style></head><body>
 
   <table class="head-table"><tr>
-    <td><h1>${escapeHtml(d.nom)}</h1></td>
+    <td><h1>${escapeHtml(libelleDossierAffiche(d))}</h1></td>
     <td class="meta">
       ${d.responsable ? 'Responsable : <b>' + escapeHtml(d.responsable) + '</b> · ' : ''}
       ${d.sansPret ? '<b>Achat comptant</b> · ' : ''}
@@ -10770,7 +10899,8 @@
     // l'acquéreur reste un geste du notaire instrumentaire, celui qui reçoit l'acte et porte la
     // relation avec lui, pas de l'étude en simple concours. Demandé explicitement par l'étude.
     if (d.roleNotaire === 'participant') return;
-    if (!d.emailAcquereur || !d.pret) return;
+    const destinataire = emailDestinataireRelance(d);
+    if (!destinataire || !d.pret) return;
     const jours = joursRestants(d.pret);
     if (jours === null || jours < 0 || jours > 15) return;
     const aujourdhui = new Date().toISOString().slice(0, 10);
@@ -10782,7 +10912,7 @@
 
     const subject = `Relance — Offre de prêt attendue (dossier ${d.nom})`;
     const body = `Bonjour,\n\nSauf erreur de notre part, nous n'avons pas encore reçu votre offre de prêt pour le dossier ${d.nom}.\n\nL'échéance d'obtention du prêt est fixée au ${formatDateFr(d.pret)}. Merci de nous transmettre cette offre dès réception, ou de nous indiquer où en est votre demande de financement.\n\nCordialement.`;
-    const url = `mailto:${encodeURIComponent(d.emailAcquereur)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    const url = `mailto:${encodeURIComponent(destinataire)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     afficherToast(`Relance « offre de prêt » ouverte pour ${d.nom} — vérifiez puis envoyez.`, 'OK', null);
     window.location.href = url;
   }
@@ -11303,7 +11433,7 @@
   function ligneResultatDossierAudit(d) {
     return `<button type="button" class="dash-recherche-ligne" onclick="choisirDossierAudit('${d.id}')">
           ${renderBadgeStatut(d)}
-          <span class="dash-recherche-nom">${escapeHtml(d.nom)}</span>
+          <span class="dash-recherche-nom">${escapeHtml(libelleDossierAffiche(d))}</span>
           <span class="dash-recherche-resp">${escapeHtml(d.responsable || '')}</span>
         </button>`;
   }

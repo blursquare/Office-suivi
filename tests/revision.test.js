@@ -72,7 +72,7 @@ test('chaque donnée du panneau est lisible et pilote un champ du formulaire ou 
   const app = chargerApplication();
   const e = app.construireExtractionRegex(ACTE, '2026-09-15');
   const cles = app.CHAMPS_REVISION.map(c => c.cle).join(',');
-  assert.equal(cles, 'typeActe,nom,signature,pret,acte,ventebien,adresseBien,prixVente,emailAcquereur,roleNotaire');
+  assert.equal(cles, 'typeActe,nom,signature,pret,acte,ventebien,adresseBien,prixVente,emailAcquereur,nomAgence,roleNotaire');
   for (const definition of app.CHAMPS_REVISION) {
     // champRevision doit savoir résoudre CHAQUE clé déclarée : une entrée de la table sans
     // résolution afficherait une ligne morte, impossible à corriger.

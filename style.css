@@ -530,7 +530,10 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 6px 8px 2px;
+    /* Espace au-dessus ET en dessous du logo, par rapport au menu de navigation juste en dessous
+       (demandé par l'étude) — porté ici plutôt que sur le gap général de .sidebar, qui espacerait
+       aussi tous les autres blocs de la sidebar (nav, pied de page) sans raison. */
+    padding: 16px 8px 18px;
   }
   .brand-mark { display: inline-flex; flex-shrink: 0; }
   /* Logo "CLAIRE" seul : Montserrat (choisie explicitement par l'étude, après un premier essai en
@@ -1679,10 +1682,14 @@
     border: 1px solid var(--line);
     border-radius: 6px;
   }
+  /* Même registre que .section-eyebrow (voir sa définition plus bas) — demandé par l'étude pour
+     que ce titre s'aligne sur celui de "Pièces du dossier (...)" juste au-dessus sur la fiche. */
   .analyse-titre {
-    font-size: 14px;
+    font-size: 10px;
     font-weight: 600;
-    color: var(--ink);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
     margin-bottom: 14px;
   }
 
@@ -3350,6 +3357,10 @@
     border-radius: 10px;
   }
 
+  /* Étiquette "Exporter" au-dessus des deux boutons, même registre que "Relancer par email"
+     juste au-dessus (voir .relances-ciblees/.relances-boutons, même schéma 14px/6px). */
+  .dossier-actions-titre { display: block; margin: 14px 0 6px; }
+
   /* Les actions tiennent sur une seule ligne (demandé par l'étude), à largeurs égales :
      flex-wrap est désactivé et chaque bouton se partage la place, ce qui les fait aussi lire
      comme un seul bloc plutôt que des pastilles de longueurs disparates. Réduites à deux boutons
@@ -3359,7 +3370,6 @@
     display: flex;
     flex-wrap: nowrap;
     gap: 8px;
-    margin-top: 16px;
   }
 
   .dossier-actions button {
@@ -3449,7 +3459,7 @@
   /* ---- impression : une feuille A4 propre par dossier ---- */
   @media print {
     body { background: #fff; color: #000; font-size: 11pt; }
-    .panel, .pdf-viewer, .list-toolbar, .dossier-actions, .relances-ciblees, .theme-btn,
+    .panel, .pdf-viewer, .list-toolbar, .dossier-actions, .dossier-actions-titre, .relances-ciblees, .theme-btn,
     .confirm-overlay, .toast, footer.note, .historique-toggle, .dashboard,
     .sidebar, .sidebar-burger, .sidebar-scrim, .dash-header, .kpis-dashboard, .actions-urgentes,
     .dash-section-titre { display: none !important; }
