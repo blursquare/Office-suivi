@@ -104,10 +104,10 @@ test('renderQuestionnaireSatisfaction : affiche le bouton dès qu’un destinata
   assert.match(html, /Questionnaire de satisfaction/);
 });
 
-test('renderQuestionnaireSatisfaction : route vers le notaire de l’acquéreur quand il est en participation', () => {
+test('renderQuestionnaireSatisfaction : absent quand l’acquéreur est représenté par un notaire distinct (jamais adressé au confrère)', () => {
   const app = chargerApplication();
   const html = app.renderQuestionnaireSatisfaction(dossierBase(app, {
-    emailAcquereur: '', notaireAcquereur: 'Maître AUTRE', emailNotaireParticipant: 'autre@office.fr'
+    notaireAcquereur: 'Maître AUTRE', emailNotaireParticipant: 'autre@office.fr'
   }));
-  assert.match(html, /envoyerQuestionnaireSatisfaction\('d1'\)/);
+  assert.equal(html, '');
 });

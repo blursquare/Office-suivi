@@ -5185,16 +5185,15 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     seconde entrée d'historique dédiée ("Dossier archivé automatiquement..." — distincte du
     message générique d'`archiverDossier()`, pour qu'on sache après coup POURQUOI ce dossier a été
     archivé), sauvegarde, redessine, puis ouvre le brouillon `mailto:` — même ordre que
-    `envoyerRelanceCiblee()`, dont cette fonction reprend le squelette. **Destinataire** :
-    `emailDestinataireRelance(d)`, comme les relances ciblées déjà en place — l'acquéreur, ou le
-    notaire de l'acquéreur s'il est en participation (même garde-fou de déontologie, voir son
-    historique plus haut). Sans destinataire connu, un toast l'indique plutôt qu'un clic sans
-    effet ; le nom du message distingue les deux cas (acquéreur vs notaire de l'acquéreur).
+    `envoyerRelanceCiblee()`, dont cette fonction reprend le squelette. **Destinataire :
+    `d.emailAcquereur` directement, jamais `emailDestinataireRelance(d)`** — voir la correction
+    ci-dessous, ce point a changé par rapport à la version livrée initialement.
   - `renderQuestionnaireSatisfaction(d)` (affichée juste après "Relancer par email" sur la fiche) :
-    absente pour un dossier déjà archivé (l'action n'a alors plus de sens) et pour un rôle
+    absente pour un dossier déjà archivé (l'action n'a alors plus de sens), pour un rôle
     participant (même principe que les relances ciblées — solliciter l'avis du client sur
-    l'ensemble de la transaction reste un geste de l'instrumentaire). Sans email connu, une invite
-    à le renseigner plutôt que le bouton, cohérent avec `renderRelancesCiblees()`.
+    l'ensemble de la transaction reste un geste de l'instrumentaire), et pour un notaire de
+    l'acquéreur distinct du nôtre (voir la correction ci-dessous). Sans email connu, une invite à
+    le renseigner plutôt que le bouton, cohérent avec `renderRelancesCiblees()`.
   - **Décision volontaire : pas de popup de confirmation avant l'archivage**, contrairement à
     `archiverDossier()`/`supprimerDossier()` — l'étude a explicitement demandé un geste en un seul
     clic ("un clique... + archive automatiquement"), et l'archivage reste réversible en un clic
@@ -5202,12 +5201,32 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   - Tests : `tests/relances-email.test.js` (+5 : le sujet/corps mentionnent le dossier et le
     caractère provisoire du texte, le bouton absent pour un dossier archivé ou un rôle
     participant, l'invite affichée sans email connu, le bouton affiché dès qu'un destinataire
-    existe, le routage vers le notaire de l'acquéreur en participation). Suite racine 428 → 433
-    tests, suite serveur inchangée (200, chantier entièrement côté client).
-    `envoyerQuestionnaireSatisfaction()` elle-même n'est pas unitairement testable (dépend de
-    `dossiers`, invisible depuis le contexte `vm` des tests — même limite déjà documentée pour
-    `envoyerRelanceCiblee()`/`archiverDossier()`) ; vérifiée par un script Node ad hoc (bac à
-    sable) qu'un id inconnu ne plante jamais (retour silencieux).
+    existe, le routage vers le notaire de l'acquéreur en participation — ce dernier cas a changé
+    de sens depuis, voir la correction ci-dessous). Suite racine 428 → 433 tests, suite serveur
+    inchangée (200, chantier entièrement côté client). `envoyerQuestionnaireSatisfaction()`
+    elle-même n'est pas unitairement testable (dépend de `dossiers`, invisible depuis le contexte
+    `vm` des tests — même limite déjà documentée pour `envoyerRelanceCiblee()`/`archiverDossier()`)
+    ; vérifiée par un script Node ad hoc (bac à sable) qu'un id inconnu ne plante jamais (retour
+    silencieux).
+- **Correction, demandée aussitôt après : le questionnaire de satisfaction ne doit JAMAIS être
+  proposé ni adressé au confrère.** ("Pas de questionnaire satisfaction pour le confrère".) Ce
+  bouton avait été construit sur le même patron que les relances ciblées (`emailDestinataireRelance()`),
+  qui routent volontairement vers le notaire de l'acquéreur quand il est en participation — bonne
+  règle pour une relance administrative (prêt manquant, RIB, provision), mauvaise ici : ce
+  questionnaire porte sur le ressenti du client envers NOTRE étude, le demander à un confrère n'a
+  aucun sens.
+  - `envoyerQuestionnaireSatisfaction(id)` : le destinataire est désormais **toujours
+    `d.emailAcquereur` directement**, plus jamais `emailDestinataireRelance(d)`. Un garde-fou
+    supplémentaire en tête de fonction (`notaireParticipantRepresenteAcquereur(d)` → retour
+    silencieux) protège aussi un appel direct qui contournerait l'interface.
+  - `renderQuestionnaireSatisfaction(d)` : le bouton (et son invite à renseigner un email) sont
+    désormais **absents** dès que `notaireParticipantRepresenteAcquereur(d)` est vrai — avant, un
+    email manquant affichait une invite à renseigner celui du confrère, ce qui n'a plus lieu
+    d'être puisque l'action ne le concerne plus jamais.
+  - Test mis à jour dans `tests/relances-email.test.js` : l'ancien test "route vers le notaire de
+    l'acquéreur" est remplacé par "absent quand l'acquéreur est représenté par un notaire distinct
+    (jamais adressé au confrère)". Suite racine toujours à 433 tests (un test réécrit, pas
+    ajouté), suite serveur inchangée (200).
 
 ## Comment tester
 

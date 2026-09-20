@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-20 22:18';
+  const VERSION_APP = '2026-09-20 22:25';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-20 22:25', resume: "Le bouton « Questionnaire de satisfaction » n'est plus jamais proposé ni adressé au notaire de l'acquéreur quand celui-ci est en participation — il porte sur le ressenti du client envers notre étude, ça n'a pas de sens de le demander au confrère. Il reste réservé à l'acquéreur lui-même (email direct)" },
     { version: '2026-09-20 22:18', resume: "Nouveau bouton « Questionnaire de satisfaction » sur la fiche dossier : un clic prépare le brouillon d'email à l'acquéreur (ou au notaire de l'acquéreur s'il est en participation) ET archive automatiquement le dossier. Le texte de l'email est un modèle PROVISOIRE en attendant que l'étude fournisse le texte définitif — un rappel a été programmé pour le briefing de demain matin, il ne reste alors qu'à le remplacer dans construireEmailQuestionnaireSatisfaction()" },
     { version: '2026-09-20 22:07', resume: "Le message de rappel Teams envoyé à un responsable liste désormais, sous l'échéance elle-même, les pièces déjà reçues et celles encore manquantes pour ce dossier (checklist urbanisme/copropriété/terrain, pièces auto-détectées et personnalisées, selon le type de vente) — plus besoin de rouvrir la fiche pour savoir ce qu'il reste à réclamer. Rien pour un dossier au rôle « participant », dont la checklist n'est de toute façon pas suivie" },
     { version: '2026-09-20 21:55', resume: "Quand l'acquéreur est représenté par un notaire d'un office distinct du nôtre (« en participation »), l'étude ne doit plus lui envoyer d'email directement : un champ « Email du notaire de l'acquéreur » apparaît sur la fiche dans ce cas précis, et les relances (prêt manquant, RIB, provision) lui sont désormais adressées à sa place — le même garde-fou s'applique dès l'import du compromis, qui ne propose plus de saisir l'email personnel de l'acquéreur si un tel notaire est détecté. Nouveau bouton de relance « Provision + pièce d'identité » : confirme la réception de l'avant-contrat signé (en nommant l'agence immobilière si détectée dans le compromis — nouveau champ « Agence immobilière », éditable comme les autres), demande la provision de 100,00 € et une copie de pièce d'identité, et rappelle l'offre de prêt si la condition est encore active. Le nom de chaque dossier affiche maintenant « VENTE » devant (tableau, tiroir, tableau de bord, fiche imprimée). Le titre « Analyse juridique du compromis » reprend le même style que « Pièces du dossier » ; le bandeau « Outil 2 » devient « Lecture de projet ». Espace agrandi au-dessus et en dessous du logo CLAIRE dans la sidebar. Sur la fiche : le panneau « Ce que l'outil avait compris de l'acte » est déplacé juste au-dessus de l'historique, et un titre « Exporter » identifie enfin les boutons Rappels (.ics)/Imprimer, comme « Relancer par email » identifie déjà les siens" },
@@ -8721,8 +8722,11 @@
   // ==== Questionnaire de satisfaction + archivage automatique (clôture du dossier) ====
   //
   // Demandé par l'étude : un clic prépare le brouillon d'email ET archive le dossier — la vente
-  // est alors terminée, plus rien à suivre. Même destinataire que les relances ciblées ci-dessus
-  // (emailDestinataireRelance : le client, ou le notaire de l'acquéreur s'il est en participation).
+  // est alors terminée, plus rien à suivre. **Jamais adressé au confrère** : contrairement aux
+  // relances ciblées (prêt/RIB/provision, voir emailDestinataireRelance), qui transitent par le
+  // notaire de l'acquéreur quand il est en participation, ce questionnaire porte sur le RESSENTI
+  // du client vis-à-vis de NOTRE étude — demandé explicitement à un office en participation n'a
+  // aucun sens. Toujours `d.emailAcquereur` directement, jamais `emailDestinataireRelance(d)`.
   //
   // MODÈLE PROVISOIRE : l'étude doit fournir le texte définitif du questionnaire (un rappel est
   // programmé pour le briefing du lendemain de cette entrée). REMPLACER le sujet/corps ci-dessous
@@ -8736,13 +8740,10 @@
 
   function envoyerQuestionnaireSatisfaction(id) {
     const d = dossiers.find(x => x.id === id);
-    if (!d) return;
-    const destinataire = emailDestinataireRelance(d);
+    if (!d || notaireParticipantRepresenteAcquereur(d)) return;
+    const destinataire = d.emailAcquereur || '';
     if (!destinataire) {
-      const message = notaireParticipantRepresenteAcquereur(d)
-        ? "Aucun email renseigné pour le notaire de l'acquéreur — impossible de préparer le questionnaire."
-        : "Aucun email d'acquéreur renseigné pour ce dossier — impossible de préparer le questionnaire.";
-      afficherToast(message, 'OK', null);
+      afficherToast("Aucun email d'acquéreur renseigné pour ce dossier — impossible de préparer le questionnaire.", 'OK', null);
       return;
     }
     const { sujet, corps } = construireEmailQuestionnaireSatisfaction(d);
@@ -8760,18 +8761,16 @@
   }
 
   // Affichée juste après "Relancer par email" : absente pour un dossier déjà archivé (l'action n'a
-  // plus de sens) ou un rôle participant (même garde-fou que les relances ciblées — ce n'est pas à
-  // un office en participation de solliciter l'avis du client sur l'ensemble de la transaction).
+  // plus de sens), un rôle participant (même garde-fou que les relances ciblées) et — demandé
+  // explicitement par l'étude — dès que l'acquéreur est représenté par un notaire distinct du
+  // nôtre : ce questionnaire ne doit JAMAIS être proposé/adressé au confrère, contrairement aux
+  // autres relances ciblées qui, elles, transitent par lui dans ce cas.
   function renderQuestionnaireSatisfaction(d) {
-    if (d.roleNotaire === 'participant' || d.archive) return '';
-    const notaireParticipant = notaireParticipantRepresenteAcquereur(d);
-    if (!emailDestinataireRelance(d)) {
-      const hint = notaireParticipant
-        ? 'Renseignez l’email du notaire de l’acquéreur (ci-dessus) pour activer l’envoi du questionnaire de satisfaction.'
-        : 'Renseignez l’email de l’acquéreur pour activer l’envoi du questionnaire de satisfaction.';
+    if (d.roleNotaire === 'participant' || d.archive || notaireParticipantRepresenteAcquereur(d)) return '';
+    if (!d.emailAcquereur) {
       return `<div class="relances-ciblees">
         <span class="section-eyebrow">Clôturer le dossier</span>
-        <p class="hint">${hint}</p>
+        <p class="hint">Renseignez l’email de l’acquéreur pour activer l’envoi du questionnaire de satisfaction.</p>
       </div>`;
     }
     return `<div class="relances-ciblees">
