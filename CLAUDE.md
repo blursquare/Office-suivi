@@ -5723,6 +5723,74 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     relu depuis le serveur avec ses deux valeurs, correction depuis la fiche avec sa ligne
     d'historique, aucune erreur JS, aucun débordement horizontal en mobile.
 
+- **Les rappels automatiques passent de Teams à l'EMAIL**, suite à un changement fait par l'étude
+  dans son flux Power Automate (« on a modifié l'envoi des notifications sur Teams par un envoi
+  d'email, il va falloir modifier la configuration dans les réglages »). **Rien n'avait été poussé
+  sur le dépôt** : le changement portait sur l'ACTION INTERNE du flux (« Publier un message dans un
+  chat ou un canal » → « Envoyer un e-mail (V2) »), pas sur du code — vérifié en cherchant une
+  branche ou un commit correspondant avant de toucher quoi que ce soit.
+  - **Question de cadrage posée avant d'écrire une ligne**, les trois implémentations possibles
+    n'ayant rien de commun : (a) le flux envoie l'email, CLAIRE poste le même JSON ; (b) SMTP
+    direct depuis le serveur (`nodemailer`, présent dans `server/package.json` mais toujours jamais
+    câblé) ; (c) autre chose. L'étude a confirmé (a). SMTP direct reste écarté pour deux raisons à
+    garder en tête si le sujet revient : un mot de passe de messagerie devrait être stocké dans la
+    base, et Microsoft 365 désactive SMTP AUTH par défaut.
+  - `server/src/teams.js` → **`server/src/envoiEmail.js`**, `envoyerMessageTeams(url, destinataire,
+    texte)` → `envoyerEmail(url, destinataire, sujet, texte)`. Le POST devient
+    `{destinataire, sujet, message}`. **`sujet` est toujours présent, même vide** (jamais absent) :
+    l'action « Envoyer un e-mail (V2) » recevrait sinon un Objet null et le flux échouerait côté
+    Power Automate — un test le verrouille.
+  - **Le champ `sujet` est la seule vraie addition fonctionnelle** : un message Teams n'a pas
+    d'objet, une boîte de réception ne se lit pas sans. `sujetRappel(r)` (`jobs/rappels.js`) et
+    `sujetNotificationPieces()` (`routes/notifications.js`), toutes deux pures et testées, sont
+    volontairement en UNE ligne et sans emoji — c'est ce qui s'affiche dans une liste de messages,
+    et un tri par objet doit y rester lisible. **Les CORPS (`texteRappel`,
+    `texteNotificationPieces`) sont laissés strictement inchangés** : ils étaient déjà autonomes,
+    les répéter dans l'objet n'aurait rien apporté et aurait fait bouger des tests sans raison.
+  - **Clés de réglages renommées** : `teamsWebhookUrl`/`teamsActif`/`teamsCopieEmail` →
+    `fluxEmailUrl`/`emailActif`/`copieEmail` (`emailsResponsables` inchangée, son nom convenait
+    déjà). Garder `teamsWebhookUrl` pour un flux qui envoie des emails aurait induit en erreur la
+    prochaine session.
+  - **Reprise des anciennes valeurs, décision importante** : `assainirReglages()`
+    (`parametresRepo.js`) lit l'ancienne clé quand la nouvelle est absente. L'URL du flux n'a PAS
+    changé (seule son action interne a bougé) — faire recoller à l'étude une URL déjà saisie, et
+    recocher l'activation, aurait été une régression pure. Le premier enregistrement depuis l'écran
+    Réglages persiste la forme nouvelle et fait disparaître l'ancienne, `ecrireReglages()` écrivant
+    l'objet assaini tel quel. **La nouvelle clé l'emporte toujours quand les deux sont présentes**,
+    sinon décocher l'activation ou vider l'adresse de copie ne tiendrait pas (testé dans les deux
+    sens). Même principe que la reprise d'un `config.json` antérieur au jeton de calendrier.
+  - Route `POST /api/reglages/tester-teams` → **`/api/reglages/tester-email`** ; côté client
+    `testerTeamsResponsable()` → `testerEnvoiResponsable()`, ids `reglages-teams-actif`/
+    `reglages-webhook-url` → `reglages-envoi-actif`/`reglages-flux-url` (`reglages-copie-email`
+    inchangé). `reglages-email-actif` a été écarté comme nom : trop proche des
+    `reglages-email-${i}` des trois collaborateurs, qui vivent dans le même écran.
+  - **Écran Réglages** : titre « Rappels automatiques vers Teams » → « par email », « Adresse Teams
+    de chaque collaborateur » → « Adresse email », procédure réécrite (action Outlook au lieu de
+    l'action Teams, schéma JSON du déclencheur étendu à `"sujet"`), et **un paragraphe dédié à la
+    migration** — ce que l'étude doit changer dans son flux existant (remplacer l'action, ajouter
+    `"sujet"` au schéma) et ce qu'elle n'a PAS à refaire (l'URL, les adresses).
+  - **Piège rencontré en lançant la suite serveur** : `npm test` restait bloqué sans rien afficher,
+    au lieu d'échouer. Cause : deux tests de `reglages.test.js` démarrent un faux webhook puis
+    appellent `faux.serveur.close()` en DERNIÈRE ligne — la route ayant été renommée, l'assertion
+    échouait avant, le serveur restait ouvert et gardait le processus en vie indéfiniment. À
+    retenir : un test qui ferme une ressource à la fin de son corps (plutôt que dans un `after`)
+    transforme n'importe quel échec en blocage. Diagnostiqué en relançant les fichiers un par un
+    avec `timeout`, pas en attendant `npm test`.
+  - Tests : `server/test/teams.test.js` → `envoi-email.test.js` (réécrit sur la nouvelle signature,
+    + le cas « sujet omis → chaîne vide »), et 5 ajoutés (reprise des anciennes clés Teams dans les
+    deux sens, `sujetRappel` singulier/pluriel et sans retour à la ligne, objet ET corps transmis
+    au flux). Suite serveur 213 → 219 ; suite racine inchangée (467 — ce chantier ne touche aucune
+    fonction pure de `script.js`, seulement du code DOM/`fetch`). **Vérifié dans un vrai Chromium**
+    (serveur réel + un faux flux Power Automate en écoute) : réglages saisis, enregistrés, relus
+    depuis la base sous les nouvelles clés, bouton « Tester » envoyant bien
+    `{destinataire, sujet, message}` au flux, formulaire correctement repeuplé après changement
+    d'onglet, clair et sombre, aucune erreur JS, aucun débordement en mobile. Reprise d'une
+    configuration Teams existante vérifiée à part, en injectant l'ancien blob directement en base.
+  - **Non vérifié en conditions réelles** : aucun flux Power Automate ni compte Microsoft 365 dans
+    cet environnement — le rendu réel de l'email (objet, corps, adresse d'expédition utilisée par
+    l'action « Envoyer un e-mail (V2) ») reste à confirmer par l'étude, comme déjà noté pour la
+    version Teams.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

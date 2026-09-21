@@ -27,7 +27,7 @@ const SCHEMA = `
   );
 
   -- Réglages de l'étude (voir parametresRepo.js) : clé/valeur générique plutôt qu'une table par
-  -- fonctionnalité — le premier usage est le webhook Power Automate + les emails Teams des
+  -- fonctionnalité — le premier usage est le flux Power Automate + les adresses email des
   -- responsables (voir jobs/rappels.js), mais rien n'empêche d'y ranger d'autres réglages plus tard
   -- sans nouvelle migration.
   CREATE TABLE IF NOT EXISTS parametres (

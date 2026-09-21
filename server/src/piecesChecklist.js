@@ -3,7 +3,7 @@
 // Duplication volontaire, côté serveur, d'un SOUS-ENSEMBLE de checklistPieces() (script.js) — même
 // choix déjà documenté dans ce projet pour buildEvent/icsDate (calendrier.js) et
 // toutesEcheances/echeanceValidee (jobs/rappels.js) : pas de mécanisme de build partagé entre le
-// navigateur et Node. Ne reprend QUE ce qu'il faut pour lister, dans un message Teams, les pièces
+// navigateur et Node. Ne reprend QUE ce qu'il faut pour lister, dans un email de rappel, les pièces
 // déjà reçues et celles encore manquantes d'un dossier — les libellés (cle + label), jamais les
 // `motifNom` (inutiles ici : la reconnaissance par nom de fichier reste l'affaire du parcours NAS
 // côté client, ce module ne fait que relire le statut déjà calculé sur `d.pieces`).

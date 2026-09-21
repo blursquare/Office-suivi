@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-21 11:54';
+  const VERSION_APP = '2026-09-21 14:29';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-21 14:29', resume: "Les rappels automatiques partent désormais par EMAIL et non plus en message privé Teams, suite au changement du flux Power Automate. L'écran Réglages a été mis à jour en conséquence : libellés, procédure de création du flux (action « Envoyer un e-mail (V2) » au lieu de « Publier un message »), et un champ « sujet » ajouté à ce que CLAIRE envoie au flux — un email sans objet est illisible dans une boîte de réception. Si vous aviez déjà configuré les rappels Teams, rien à ressaisir : l'URL du flux et les adresses déjà enregistrées sont reprises telles quelles. Il reste deux choses à faire côté Power Automate, rappelées dans l'écran : remplacer l'action Teams par l'action email, et ajouter « sujet » au schéma JSON du déclencheur" },
     { version: '2026-09-21 11:54', resume: "À la création d'un dossier, l'outil lit maintenant dans l'avant-contrat le DÉPÔT DE GARANTIE (ou l'acompte sur le prix, ou l'indemnité d'immobilisation d'une promesse) que l'acquéreur doit verser, ET entre les mains de qui il est versé — l'office, l'agence, la CARPA. Les deux apparaissent dans « Ce que l'outil a compris » avec leur page, dans l'étape Finaliser, et sur la fiche du dossier où ils restent corrigeables à tout moment. Le séquestre n'est cherché qu'autour de la clause de dépôt : « entre les mains du notaire » se rencontre aussi dans des clauses sans rapport, et il valait mieux ne rien proposer que de prendre un nom au hasard ailleurs dans l'acte" },
     { version: '2026-09-21 11:41', resume: "Écran Réglages : la procédure de création du flux Power Automate donne désormais le schéma JSON à coller dans le déclencheur HTTP. Sans lui le flux fonctionne quand même, mais les champs « destinataire » et « message » n'apparaissent pas dans la liste de contenu dynamique à l'étape Teams — il fallait les saisir en expression, ce que la procédure ne disait pas" },
     { version: '2026-09-21 11:28', resume: "Récupération de deux demandes faites ce matin depuis l'autre projet, et écartées par erreur lors d'une fusion. Le QUESTIONNAIRE DE SATISFACTION utilise enfin le texte et le PDF que vous avez fournis : un clic télécharge le questionnaire (à joindre à la main au brouillon — un email préparé par une page web ne peut pas porter de pièce jointe) et ouvre l'email définitif, avec le lien vers la page d'avis Google de l'office. Le bouton n'apparaît qu'une fois la date de signature de l'acte renseignée, et indique ensuite qu'il a déjà été envoyé, avec la date, en laissant la possibilité de renvoyer. Deuxième récupération : une pièce marquée « reçue » dont le fichier a été supprimé, déplacé ou renommé sur le NAS repasse maintenant à « manquante » au parcours suivant, avec une ligne d'historique — jusqu'ici elle restait « reçue » pour toujours, plus aucun scan ne la revérifiant. Garde-fou : jamais de remise à zéro si le dossier NAS n'a pu être lu du tout" },
@@ -7358,7 +7359,7 @@
   //    date est rentrée la date butoir n'a plus lieu d'être, mais reste indicative pour savoir si
   //    on signe avant ou après ». Elle continue donc de s'afficher sur la fiche (avec l'écart, voir
   //    renderTab/butoirRemplacePar), mais elle sort du planning : plus de décompte à surveiller,
-  //    plus de rappel Teams, plus de « prochaine échéance ». Le rendez-vous réel prend le relais.
+  //    plus de rappel automatique, plus de « prochaine échéance ». Le rendez-vous réel prend le relais.
   function echeanceValidee(d, type) {
     if (type === 'pret') return d.offrePretStatut === 'recue' || !!(d.echeancesValidees && d.echeancesValidees.pret);
     if (type === 'acte') return !!d.rendezVousSignature || !!(d.echeancesValidees && d.echeancesValidees.acte);
@@ -8503,7 +8504,7 @@
         <!-- Libellés volontairement courts (l'intitulé complet reste en infobulle) : l'étude veut
              ces actions sur une seule ligne, ce que "Télécharger les rappels (.ics)" et son voisin
              ne permettaient pas dans la largeur du tiroir. Le rappel par email générique
-             ("Rappel email") a été retiré définitivement : les rappels automatiques vers Teams
+             ("Rappel email") a été retiré définitivement : les rappels automatiques par email
              (voir jobs/rappels.js), avec copie systématique à l'étude, le remplacent. Le titre
              "EXPORTER" (même registre que "Relancer par email" juste au-dessus) a été demandé pour
              nommer ce bloc de boutons, jusque-là sans étiquette. -->
@@ -8901,12 +8902,13 @@
   // ==== Relances ciblées, différenciées par motif ====
   //
   // Le rappel générique "toutes les échéances" adressé à l'ÉTUDE elle-même (ouvrirEmailRappel(),
-  // un pense-bête interne par mailto) a été retiré définitivement : les rappels automatiques vers
-  // Teams (voir jobs/rappels.js), avec copie systématique à l'étude (voir teamsCopieEmail dans
-  // l'écran Réglages), couvrent désormais ce besoin sans geste manuel. Ces modèles-ci restent en
-  // revanche adressés au CLIENT (d.emailAcquereur, comme relancerSiOffreManquante() déjà en place)
-  // : chacun cible un motif de relance précis, pour ne plus avoir à réécrire le même email à la
-  // main selon ce qui manque réellement au dossier — un usage distinct, non couvert par Teams.
+  // un pense-bête interne par mailto) a été retiré définitivement : les rappels automatiques
+  // envoyés par le serveur (voir jobs/rappels.js), avec copie systématique à l'étude (voir
+  // copieEmail dans l'écran Réglages), couvrent désormais ce besoin sans geste manuel. Ces
+  // modèles-ci restent en revanche adressés au CLIENT (d.emailAcquereur, comme
+  // relancerSiOffreManquante() déjà en place) : chacun cible un motif de relance précis, pour ne
+  // plus avoir à réécrire le même email à la main selon ce qui manque réellement au dossier — un
+  // usage distinct, non couvert par les rappels automatiques.
   function construireEmailRelancePret(d) {
     const echeance = d.pret ? ` L'échéance d'obtention du prêt est fixée au ${formatDateFr(d.pret)}.` : '';
     return {
@@ -10685,8 +10687,8 @@
   // d'en avoir un second à côté.
   var CLE_NOTIF_OFFRE_PRET = 'offre-pret';
 
-  // Libellé humain d'une clé de notification, pour l'affichage (fiche, sidebar) et le message
-  // Teams envoyé au responsable — un seul endroit qui sait résoudre les deux familles de clés
+  // Libellé humain d'une clé de notification, pour l'affichage (fiche, sidebar) et l'email
+  // envoyé au responsable — un seul endroit qui sait résoudre les deux familles de clés
   // possibles (checklist de pièces, ou le pseudo-cle de l'offre).
   function libelleNotificationPiece(d, cle) {
     if (cle === CLE_NOTIF_OFFRE_PRET) return 'Offre de prêt';
@@ -10718,15 +10720,15 @@
     }
   }
 
-  // Prévient le collaborateur responsable sur Teams qu'une ou plusieurs pièces viennent d'être
+  // Prévient par email le collaborateur responsable qu'une ou plusieurs pièces viennent d'être
   // trouvées — un seul message par dossier par parcours, JAMAIS un par pièce (demandé explicitement
   // par l'étude : "grouper les notifications si plusieurs pièces trouvées en même temps"), ce que
   // le diff calculé dans verifierDossierLocal() donne déjà naturellement (toutes les pièces
   // nouvellement reçues lors de CE parcours arrivent ici en un seul appel). Fire-and-forget,
-  // volontairement : un webhook Teams indisponible ne doit jamais faire échouer la vérification du
-  // dossier elle-même, qui a déjà eu lieu et a déjà mis à jour l'écran. Le serveur lui-même
-  // n'envoie rien si les réglages Teams ne sont pas activés (voir routes/notifications.js) — pas de
-  // vérification redondante ici.
+  // volontairement : un flux Power Automate indisponible ne doit jamais faire échouer la
+  // vérification du dossier elle-même, qui a déjà eu lieu et a déjà mis à jour l'écran. Le serveur
+  // lui-même n'envoie rien si l'envoi par email n'est pas activé (voir routes/notifications.js) —
+  // pas de vérification redondante ici.
   async function notifierNouvellesPiecesTrouvees(d, cles) {
     try {
       const pieces = cles.map(cle => libelleNotificationPiece(d, cle));
@@ -10736,7 +10738,7 @@
         body: JSON.stringify({ dossierNom: d.nom, responsable: d.responsable || null, pieces })
       });
     } catch (e) {
-      console.warn('Notification Teams (pièces reçues) impossible :', e.message);
+      console.warn('Notification par email (pièces reçues) impossible :', e.message);
     }
   }
 
@@ -12723,22 +12725,30 @@
     }
   }
 
-  // ==== RÉGLAGES : rappels automatiques vers Teams (Power Automate) ====
+  // ==== RÉGLAGES : rappels automatiques par email (Power Automate) ====
   //
   // Remplace le DÉCLENCHEMENT AUTOMATIQUE des rappels (voir server/src/jobs/rappels.js) — le
   // rappel générique par email ("Rappel email" sur la fiche dossier, `ouvrirEmailRappel()`) a
-  // depuis été retiré définitivement, à la demande de l'étude : les rappels Teams, avec copie
-  // systématique vers `teamsCopieEmail`, couvrent désormais ce besoin sans geste manuel. L'étude a
-  // explicitement demandé un écran dans la sidebar pour saisir elle-même l'URL du flux Power
-  // Automate et l'adresse Teams de chaque collaborateur, plutôt qu'un tableau figé dans le code ou
+  // depuis été retiré définitivement, à la demande de l'étude : ces rappels automatiques, avec
+  // copie systématique vers `copieEmail`, couvrent désormais ce besoin sans geste manuel. L'étude
+  // a explicitement demandé un écran dans la sidebar pour saisir elle-même l'URL du flux Power
+  // Automate et l'adresse email de chaque collaborateur, plutôt qu'un tableau figé dans le code ou
   // un fichier de configuration à éditer à la main.
   //
-  // `teamsCopieEmail` (adresse Teams recevant une copie de CHAQUE rappel envoyé, quel que soit le
-  // responsable destinataire) a été ajouté sur la même demande : l'étude veut être tenue au
-  // courant de tous les envois, pas seulement ceux qui lui sont personnellement adressés en tant
-  // que responsable d'un dossier. Envoyée par `executerTacheRappels()` en plus du destinataire
-  // habituel, jamais à sa place — un échec d'envoi de la copie n'empêche jamais le rappel
-  // principal d'être marqué comme envoyé (voir jobs/rappels.js).
+  // Les rappels sont d'abord partis en message privé Teams ; l'étude a ensuite basculé le flux
+  // Power Automate sur un envoi d'email (action « Envoyer un e-mail (V2) » à la place de « Publier
+  // un message »). Côté CLAIRE, seule la forme du POST a bougé — un champ `sujet` s'y ajoute, un
+  // email sans objet étant illisible dans une boîte de réception — et les clés de réglages ont été
+  // renommées (`teamsWebhookUrl`/`teamsActif`/`teamsCopieEmail` → `fluxEmailUrl`/`emailActif`/
+  // `copieEmail`), avec reprise des anciennes valeurs côté serveur pour ne rien faire ressaisir
+  // (voir assainirReglages dans parametresRepo.js).
+  //
+  // `copieEmail` (adresse recevant une copie de CHAQUE rappel envoyé, quel que soit le
+  // responsable destinataire) a été ajoutée sur une demande antérieure : l'étude veut être tenue
+  // au courant de tous les envois, pas seulement ceux qui lui sont personnellement adressés en
+  // tant que responsable d'un dossier. Envoyée par `executerTacheRappels()` en plus du
+  // destinataire habituel, jamais à sa place — un échec d'envoi de la copie n'empêche jamais le
+  // rappel principal d'être marqué comme envoyé (voir jobs/rappels.js).
   //
   // Liste fermée des 3 responsables (voir CLAUDE.md, "Responsables du dossier : liste fermée") —
   // reprise ici telle quelle plutôt que de refactoriser les <select> existants du formulaire/de la
@@ -12750,9 +12760,9 @@
     try {
       const reponse = await fetchAvecAuth('/api/reglages');
       const reglages = await reponse.json();
-      document.getElementById('reglages-teams-actif').checked = !!reglages.teamsActif;
-      document.getElementById('reglages-webhook-url').value = reglages.teamsWebhookUrl || '';
-      document.getElementById('reglages-copie-email').value = reglages.teamsCopieEmail || '';
+      document.getElementById('reglages-envoi-actif').checked = !!reglages.emailActif;
+      document.getElementById('reglages-flux-url').value = reglages.fluxEmailUrl || '';
+      document.getElementById('reglages-copie-email').value = reglages.copieEmail || '';
       renderReglagesEmails(reglages.emailsResponsables || {});
       document.getElementById('reglages-etat').style.display = 'none';
     } catch (e) {
@@ -12805,7 +12815,7 @@
         <label for="reglages-email-${i}">${escapeHtml(nom)}</label>
         <div style="display:flex; gap:8px; align-items:center;">
           <input type="email" id="reglages-email-${i}" data-responsable="${escapeAttr(nom)}" placeholder="prenom.nom@etude.fr" value="${escapeAttr(emailsResponsables[nom] || '')}" style="flex:1;">
-          <button type="button" class="secondary" onclick="testerTeamsResponsable('${escapeOnclickArg(nom)}')">Tester</button>
+          <button type="button" class="secondary" onclick="testerEnvoiResponsable('${escapeOnclickArg(nom)}')">Tester</button>
         </div>
         <p class="hint reglages-email-resultat" id="reglages-email-resultat-${i}"></p>
       </div>
@@ -12820,9 +12830,9 @@
       if (valeur) emailsResponsables[nom] = valeur;
     });
     return {
-      teamsActif: document.getElementById('reglages-teams-actif').checked,
-      teamsWebhookUrl: document.getElementById('reglages-webhook-url').value.trim(),
-      teamsCopieEmail: document.getElementById('reglages-copie-email').value.trim(),
+      emailActif: document.getElementById('reglages-envoi-actif').checked,
+      fluxEmailUrl: document.getElementById('reglages-flux-url').value.trim(),
+      copieEmail: document.getElementById('reglages-copie-email').value.trim(),
       emailsResponsables
     };
   }
@@ -12851,12 +12861,12 @@
   // (voir routes/reglages.js) — pas ceux du formulaire pas encore validés : on veut vérifier ce que
   // le job de rappels utilisera réellement. Si le formulaire contient une modification non
   // enregistrée, on le signale plutôt que de tester une valeur qui n'est pas encore la bonne.
-  async function testerTeamsResponsable(nom) {
+  async function testerEnvoiResponsable(nom) {
     const i = RESPONSABLES.indexOf(nom);
     const resultat = document.getElementById(`reglages-email-resultat-${i}`);
     if (resultat) { resultat.textContent = 'Envoi du message de test…'; resultat.className = 'hint reglages-email-resultat'; }
     try {
-      const reponse = await fetchAvecAuth('/api/reglages/tester-teams', {
+      const reponse = await fetchAvecAuth('/api/reglages/tester-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ responsable: nom })
@@ -12864,7 +12874,7 @@
       const corps = await reponse.json();
       if (!resultat) return;
       if (reponse.ok && corps.ok) {
-        resultat.textContent = '✓ Message envoyé — vérifiez sur Teams.';
+        resultat.textContent = '✓ Message envoyé — vérifiez la boîte de réception.';
         resultat.className = 'hint reglages-email-resultat reglages-email-ok';
       } else {
         resultat.textContent = corps.erreur || "Échec de l'envoi.";

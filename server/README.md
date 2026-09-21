@@ -91,16 +91,26 @@ tient à jour tout seul, pour tout le portefeuille, sans jamais rouvrir l'outil.
    pas renseigné dans `.env` (voir `.env.example`) — sans jeton, `GET /calendrier.ics` répond 503
    plutôt que de générer un flux non protégé.
 
-## Rappels automatiques vers Teams
+## Rappels automatiques par email
 
 Remplace le déclenchement automatique des rappels (auparavant : rien, en pratique — seul un
 brouillon `mailto:` manuel existait, voir l'ancien bouton « Envoyer un rappel par email » sur une
-fiche dossier, **retiré définitivement** depuis que cette copie Teams couvre le même besoin — voir
+fiche dossier, **retiré définitivement** depuis que ce mécanisme couvre le même besoin — voir
 plus bas). Aux seuils J-15/J-7, sur toutes les échéances actives d'un dossier (prêt, acte, vente
-préalable, échéance personnalisée), CLAIRE envoie un **message privé Teams** au responsable du
-dossier — jamais deux fois pour la même échéance.
+préalable, échéance personnalisée), CLAIRE envoie un **email** au responsable du dossier — jamais
+deux fois pour la même échéance.
 
-**Copie systématique à une adresse de contrôle** (champ « Adresse Teams recevant une copie de tous
+> **Ces rappels sont d'abord partis en message privé Teams.** L'étude a ensuite basculé le flux
+> Power Automate sur un envoi d'email : dans le flux, l'action « Publier un message dans un chat
+> ou un canal » a été remplacée par « Envoyer un e-mail (V2) ». Côté CLAIRE, l'URL du flux ne
+> change pas ; seuls un champ `sujet` s'ajoute au POST (un email sans objet est illisible dans une
+> boîte de réception) et les clés de réglages ont été renommées
+> (`teamsWebhookUrl`/`teamsActif`/`teamsCopieEmail` → `fluxEmailUrl`/`emailActif`/`copieEmail`).
+> **Une configuration déjà en place est reprise telle quelle** : `assainirReglages()`
+> (`src/parametresRepo.js`) lit les anciennes clés quand les nouvelles sont absentes, donc rien à
+> ressaisir — seul le schéma JSON du déclencheur doit gagner `"sujet"` côté Power Automate.
+
+**Copie systématique à une adresse de contrôle** (champ « Adresse recevant une copie de tous
 les rappels » dans Réglages, sous l'URL du flux) : si renseignée, cette adresse reçoit un DOUBLE de
 CHAQUE rappel envoyé, quel que soit le responsable du dossier concerné — un moyen de vérifier que
 les rappels partent bien sans avoir à surveiller chaque collaborateur. Envoyée uniquement après un
@@ -112,42 +122,51 @@ Choix technique : un flux **Power Automate** déclenché par une simple requête
 inscription d'application Azure AD/Microsoft Graph (écartée pour les mêmes raisons que pour les
 relances email/calendrier — aucun consentement administrateur nécessaire, l'étude crée elle-même
 le flux en quelques minutes dans l'interface Power Automate). CLAIRE ne fait qu'un `POST` JSON vers
-l'URL de ce flux ; c'est LE FLUX qui route le message vers la bonne personne.
+l'URL de ce flux ; c'est LE FLUX qui envoie réellement l'email. Choisi aussi plutôt qu'un envoi
+SMTP direct (`nodemailer`) : aucun mot de passe de messagerie à stocker dans la base, et Microsoft
+365 désactive SMTP AUTH par défaut.
 
 **Tout se configure depuis l'écran « Réglages » de la sidebar** — aucun fichier à éditer à la
 main. Procédure, à faire une seule fois :
 
 1. Dans [Power Automate](https://make.powerautomate.com/), créer un flux **Instantané** avec le
-   déclencheur **« Quand une requête HTTP est reçue »** (laisser le schéma JSON vide).
-2. Ajouter l'action Teams **« Publier un message dans un chat ou un canal »** :
-   - Publier en tant que : **Flow bot**
-   - Publier dans : **Chat avec Flow bot**
-   - Destinataire : contenu dynamique **`destinataire`** (issu du corps de la requête HTTP)
-   - Message : contenu dynamique **`message`**
+   déclencheur **« Quand une requête HTTP est reçue »**, et coller dans *Schéma JSON du corps de
+   la requête* :
+   ```json
+   { "type": "object", "properties": { "destinataire": { "type": "string" }, "sujet": { "type": "string" }, "message": { "type": "string" } } }
+   ```
+   Sans ce schéma le flux fonctionne quand même, mais les trois champs n'apparaissent pas dans la
+   liste de contenu dynamique à l'étape suivante — il faudrait les saisir en expression.
+2. Ajouter l'action Outlook **« Envoyer un e-mail (V2) »** :
+   - À : contenu dynamique **`destinataire`** (issu du corps de la requête HTTP)
+   - Objet : contenu dynamique **`sujet`**
+   - Corps : contenu dynamique **`message`**
 3. Enregistrer le flux, puis rouvrir l'étape du déclencheur HTTP : l'URL générée s'affiche.
 4. Dans CLAIRE, ouvrir **Réglages** (sidebar), coller cette URL dans « URL du déclencheur HTTP du
-   flux », saisir l'adresse email professionnelle (compte Microsoft 365/Teams) de chaque
-   collaborateur, optionnellement une adresse de copie (voir ci-dessus), cocher
-   **« Activer l'envoi automatique de rappels vers Teams »**, puis **Enregistrer**.
-5. Utiliser le bouton **« Tester »** à côté de chaque collaborateur pour vérifier que le message
-   arrive bien sur son compte Teams avant de compter dessus.
+   flux », saisir l'adresse email professionnelle de chaque collaborateur, optionnellement une
+   adresse de copie (voir ci-dessus), cocher **« Activer l'envoi automatique de rappels par
+   email »**, puis **Enregistrer**.
+5. Utiliser le bouton **« Tester »** à côté de chaque collaborateur pour vérifier que l'email
+   arrive bien dans sa boîte de réception avant de compter dessus.
 
 Le contrat JSON envoyé par le serveur (utile pour dépanner le flux si besoin) :
 ```json
-{ "destinataire": "prenom.nom@etude.fr", "message": "📌 CLAIRE — Rappel : « ... »" }
+{ "destinataire": "prenom.nom@etude.fr", "sujet": "CLAIRE — Obtention du prêt dans 15 jours — DUPONT / MARTIN", "message": "📌 CLAIRE — Rappel : « ... »" }
 ```
+`sujet` est toujours présent dans le corps, même vide — jamais absent : l'action « Envoyer un
+e-mail (V2) » recevrait sinon un Objet null et l'exécution du flux échouerait côté Power Automate.
 
 Détails d'implémentation, pour qui retouche ce code :
-- `src/teams.js` : client HTTP (POST JSON, timeout 15s, `fetch` natif — aucune dépendance npm).
+- `src/envoiEmail.js` : client HTTP (POST JSON, timeout 15s, `fetch` natif — aucune dépendance npm).
 - `src/parametresRepo.js` : réglages persistés dans la table `parametres` (blob JSON sous la clé
   `reglages`), partagés entre tous les postes puisqu'ils vivent dans la même base que les dossiers
   — pas dans `config.json`, réservé aux réglages d'infrastructure posés une fois à l'installation.
 - `src/jobs/rappels.js` : un tour toutes les 30 minutes (`config.intervalleRappelsMs`), silencieux
-  tant que `teamsActif`/`teamsWebhookUrl` ne sont pas renseignés. `reminder_log` (même table que le
+  tant que `emailActif`/`fluxEmailUrl` ne sont pas renseignés. `reminder_log` (même table que le
   schéma initial de la base) empêche un double envoi le même jour, y compris entre deux tours du
   minuteur. Un dossier sans condition de prêt (`sansPret`) est quand même rappelé pour ses autres
   échéances — ce mécanisme ne dépend pas de `d.reminderDays` (propre au seul export `.ics` manuel).
-- `src/routes/reglages.js` : `GET/PUT /api/reglages` + `POST /api/reglages/tester-teams` (envoie
+- `src/routes/reglages.js` : `GET/PUT /api/reglages` + `POST /api/reglages/tester-email` (envoie
   toujours avec les réglages déjà **enregistrés** en base, jamais un formulaire non validé).
 
 ## Analyse juridique par IA locale (Ollama)
@@ -494,12 +513,12 @@ npm test
 cycle complet créer/lire/modifier/supprimer/restaurer un dossier, la résolution de configuration
 du mode `.exe` (mot de passe ET jeton calendrier), le service des fichiers statiques embarqués, le
 flux calendrier connecté (`/calendrier.ics`), l'extraction IA pour le wizard (`/api/extraction-ia`),
-l'audit des actes — Outil 2 (`/api/audit-acte/*`) — et les rappels automatiques vers Teams
+l'audit des actes — Outil 2 (`/api/audit-acte/*`) — et les rappels automatiques par email
 (réglages, client Power Automate, job de rappels avec un envoi injecté) — les trois premières avec
 un faux serveur Ollama HTTP, la dernière avec un faux webhook HTTP local (voir
 `test/extraction-ia.test.js`, `test/audit-acte.test.js`, `test/audit-fusion.test.js`,
 `test/audit-normaliser.test.js`, `test/audit-diagnostics.test.js`, `test/parametresRepo.test.js`,
-`test/teams.test.js`, `test/rappels.test.js`, `test/reglages.test.js`).
+`test/envoi-email.test.js`, `test/rappels.test.js`, `test/reglages.test.js`).
 Indépendant de la suite de tests à la racine du dépôt (`npm test` depuis `Office-suivi/`, 413 tests
 sur les fonctions pures de `script.js`) — les deux peuvent tourner sans que l'un dépende des
 dépendances de l'autre.
@@ -523,11 +542,11 @@ dépendances de l'autre.
   l'étude.
 - **Pas d'import automatique** des dossiers déjà enregistrés sur la version 100% locale (`main`) :
   il faudrait aujourd'hui recréer les dossiers à la main dans cette nouvelle version.
-- **Rappels automatiques vers Teams disponibles mais non vérifiés avec un vrai flux Power
-  Automate** — voir la section « Rappels automatiques vers Teams » plus haut : le client HTTP, le
+- **Rappels automatiques par email disponibles mais non vérifiés avec un vrai flux Power
+  Automate** — voir la section « Rappels automatiques par email » plus haut : le client HTTP, le
   job de rappels et les routes sont testés avec un faux webhook local, mais la création réelle du
-  flux dans Power Automate, le rendu du message dans Teams et la fiabilité de la reconnaissance du
-  destinataire par email (selon la configuration Microsoft 365 de l'étude) restent à confirmer.
+  flux dans Power Automate et le rendu réel de l'email (objet, corps, expéditeur utilisé par
+  l'action « Envoyer un e-mail (V2) ») restent à confirmer par l'étude.
 - **`node:sqlite` est une API expérimentale** de Node.js (avertissement affiché au démarrage,
   sans conséquence connue) — `better-sqlite3` reste une option de repli si elle posait problème
   un jour sur le poste de l'étude.

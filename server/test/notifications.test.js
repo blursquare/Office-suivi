@@ -3,8 +3,8 @@
 // Route /api/notifications/pieces-recues (voir src/routes/notifications.js) : appelée par
 // script.js (verifierDossierLocal/notifierNouvellesPiecesTrouvees) une fois par dossier à chaque
 // parcours qui trouve de nouvelles pièces — jamais une fois par pièce (voir le commentaire dans
-// la route sur le groupage). Réutilise exactement l'infrastructure Teams des rappels d'échéance
-// (envoyerMessageTeams, parametresRepo, teamsCopieEmail).
+// la route sur le groupage). Réutilise exactement l'infrastructure des rappels d'échéance
+// (envoyerEmail, parametresRepo, copieEmail).
 
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
@@ -83,16 +83,16 @@ test('pieces manquantes ou vides : 400', async () => {
   assert.equal(reponse.status, 400);
 });
 
-test('Teams désactivé : ok mais rien n\'est envoyé (ignore: true)', async () => {
-  await appeler('/api/reglages', { method: 'PUT', body: JSON.stringify({ teamsActif: false, teamsWebhookUrl: '', emailsResponsables: {} }) });
+test('Envoi par email désactivé : ok mais rien n\'est envoyé (ignore: true)', async () => {
+  await appeler('/api/reglages', { method: 'PUT', body: JSON.stringify({ emailActif: false, fluxEmailUrl: '', emailsResponsables: {} }) });
   const reponse = await appeler('/api/notifications/pieces-recues', { method: 'POST', body: JSON.stringify({ dossierNom: 'DUPONT / MARTIN', responsable: 'Bastien ANGLUMENT', pieces: ['ERP'] }) });
   assert.equal(reponse.status, 200);
   assert.deepEqual(await reponse.json(), { ok: true, ignore: true });
 });
 
-test('Teams actif, responsable sans adresse configurée : ok mais erreur listée, aucun envoi', async () => {
+test('Envoi actif, responsable sans adresse configurée : ok mais erreur listée, aucun envoi', async () => {
   const faux = await demarrerFauxWebhook(200);
-  await appeler('/api/reglages', { method: 'PUT', body: JSON.stringify({ teamsActif: true, teamsWebhookUrl: faux.url, emailsResponsables: {} }) });
+  await appeler('/api/reglages', { method: 'PUT', body: JSON.stringify({ emailActif: true, fluxEmailUrl: faux.url, emailsResponsables: {} }) });
   const reponse = await appeler('/api/notifications/pieces-recues', { method: 'POST', body: JSON.stringify({ dossierNom: 'DUPONT / MARTIN', responsable: 'Julie VASSELIN', pieces: ['ERP'] }) });
   const corps = await reponse.json();
   assert.equal(corps.envoyeResponsable, false);
@@ -101,9 +101,9 @@ test('Teams actif, responsable sans adresse configurée : ok mais erreur listée
   faux.serveur.close();
 });
 
-test('Teams actif, responsable connu : un seul message envoyé, groupant toutes les pièces', async () => {
+test('Envoi actif, responsable connu : un seul message envoyé, groupant toutes les pièces', async () => {
   const faux = await demarrerFauxWebhook(200);
-  await appeler('/api/reglages', { method: 'PUT', body: JSON.stringify({ teamsActif: true, teamsWebhookUrl: faux.url, emailsResponsables: { 'Bastien ANGLUMENT': 'bastien@etude.fr' } }) });
+  await appeler('/api/reglages', { method: 'PUT', body: JSON.stringify({ emailActif: true, fluxEmailUrl: faux.url, emailsResponsables: { 'Bastien ANGLUMENT': 'bastien@etude.fr' } }) });
   const reponse = await appeler('/api/notifications/pieces-recues', { method: 'POST', body: JSON.stringify({ dossierNom: 'DUPONT / MARTIN', responsable: 'Bastien ANGLUMENT', pieces: ['ERP', 'Titre de propriété'] }) });
   const corps = await reponse.json();
   assert.equal(corps.envoyeResponsable, true);
@@ -113,11 +113,11 @@ test('Teams actif, responsable connu : un seul message envoyé, groupant toutes 
   faux.serveur.close();
 });
 
-test('teamsCopieEmail : reçoit un double, jamais si elle coïncide avec le destinataire principal', async () => {
+test('copieEmail : reçoit un double, jamais si elle coïncide avec le destinataire principal', async () => {
   const faux = await demarrerFauxWebhook(200);
   await appeler('/api/reglages', {
     method: 'PUT',
-    body: JSON.stringify({ teamsActif: true, teamsWebhookUrl: faux.url, teamsCopieEmail: 'gossart@etude.fr', emailsResponsables: { 'Bastien ANGLUMENT': 'bastien@etude.fr' } })
+    body: JSON.stringify({ emailActif: true, fluxEmailUrl: faux.url, copieEmail: 'gossart@etude.fr', emailsResponsables: { 'Bastien ANGLUMENT': 'bastien@etude.fr' } })
   });
   await appeler('/api/notifications/pieces-recues', { method: 'POST', body: JSON.stringify({ dossierNom: 'DUPONT / MARTIN', responsable: 'Bastien ANGLUMENT', pieces: ['ERP'] }) });
   assert.equal(faux.requetes.length, 2);
@@ -128,7 +128,7 @@ test('teamsCopieEmail : reçoit un double, jamais si elle coïncide avec le dest
   const faux2 = await demarrerFauxWebhook(200);
   await appeler('/api/reglages', {
     method: 'PUT',
-    body: JSON.stringify({ teamsActif: true, teamsWebhookUrl: faux2.url, teamsCopieEmail: 'bastien@etude.fr', emailsResponsables: { 'Bastien ANGLUMENT': 'bastien@etude.fr' } })
+    body: JSON.stringify({ emailActif: true, fluxEmailUrl: faux2.url, copieEmail: 'bastien@etude.fr', emailsResponsables: { 'Bastien ANGLUMENT': 'bastien@etude.fr' } })
   });
   await appeler('/api/notifications/pieces-recues', { method: 'POST', body: JSON.stringify({ dossierNom: 'DUPONT / MARTIN', responsable: 'Bastien ANGLUMENT', pieces: ['ERP'] }) });
   assert.equal(faux2.requetes.length, 1);

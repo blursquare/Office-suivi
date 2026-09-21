@@ -67,7 +67,7 @@
       </button>
 
       <span class="sidebar-nav-titre">Admin</span>
-      <!-- Réglages de l'étude (URL du flux Power Automate + adresse Teams de chaque collaborateur) :
+      <!-- Réglages de l'étude (URL du flux Power Automate + adresse email de chaque collaborateur) :
            une donnée métier que l'étude doit pouvoir modifier elle-même, sans passer par un fichier
            de configuration ni redemander à Claude Code — voir server/src/parametresRepo.js. -->
       <button type="button" id="tab-reglages" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('reglages')">
@@ -313,7 +313,7 @@
 
       <div class="wizard-step" id="wizard-step-4">
         <!-- Le champ "Email de rappel" (envoi manuel générique, voir ouvrirEmailRappel() dans
-             CLAUDE.md) a été retiré définitivement — les rappels automatiques vers Teams, avec
+             CLAUDE.md) a été retiré définitivement — les rappels automatiques par email, avec
              copie systématique à l'étude (voir Réglages), le remplacent. Le nom du dossier occupe
              donc seul cette ligne, sur toute sa largeur. -->
         <div class="field-row">
@@ -819,8 +819,8 @@
   </div>
 </div>
 
-<!-- Réglages : URL du flux Power Automate + adresse email Teams de chaque responsable (voir
-     CLAUDE.md, "Rappels automatiques vers Teams") — chargé/enregistré via
+<!-- Réglages : URL du flux Power Automate + adresse email de chaque responsable (voir
+     CLAUDE.md, "Rappels automatiques par email") — chargé/enregistré via
      server/src/routes/reglages.js (chargerReglages()/enregistrerReglages() dans script.js) — et,
      en tête, l'opt-in "Notifications sur ce poste" (Notification API du navigateur), un réglage
      LOCAL au poste, jamais transmis au serveur. -->
@@ -829,7 +829,7 @@
     <div>
       <div class="dash-eyebrow">Réglages</div>
       <div class="dash-titre-ligne">
-        <h1 class="dash-titre">Rappels automatiques vers Teams</h1>
+        <h1 class="dash-titre">Rappels automatiques par email</h1>
       </div>
     </div>
   </div>
@@ -856,16 +856,16 @@
     <div class="dash-section-titre">Flux Power Automate</div>
     <div class="calc-champs">
       <label class="toolbar-checkbox" style="display:flex; align-items:center; gap:8px; font-weight:600;">
-        <input type="checkbox" id="reglages-teams-actif">
-        Activer l'envoi automatique de rappels vers Teams
+        <input type="checkbox" id="reglages-envoi-actif">
+        Activer l'envoi automatique de rappels par email
       </label>
       <div class="calc-champ">
-        <label for="reglages-webhook-url">URL du déclencheur HTTP du flux</label>
-        <input type="text" id="reglages-webhook-url" placeholder="https://prod-00.westeurope.logic.azure.com/workflows/...">
-        <p class="hint">Collée depuis Power Automate, à l'étape "Quand une requête HTTP est reçue" (voir la procédure ci-dessous).</p>
+        <label for="reglages-flux-url">URL du déclencheur HTTP du flux</label>
+        <input type="text" id="reglages-flux-url" placeholder="https://prod-00.westeurope.logic.azure.com/workflows/...">
+        <p class="hint">Collée depuis Power Automate, à l'étape "Quand une requête HTTP est reçue" (voir la procédure ci-dessous). Si vous aviez déjà configuré les rappels Teams, l'adresse du flux est la même : rien à recoller.</p>
       </div>
       <div class="calc-champ">
-        <label for="reglages-copie-email">Adresse Teams recevant une copie de tous les rappels</label>
+        <label for="reglages-copie-email">Adresse recevant une copie de tous les rappels</label>
         <input type="email" id="reglages-copie-email" placeholder="prenom.nom@etude.fr">
         <p class="hint">Reçoit un double de CHAQUE rappel envoyé, quel que soit le responsable du dossier concerné. Laisser vide pour ne recevoir aucune copie.</p>
       </div>
@@ -876,8 +876,8 @@
   </div>
 
   <div class="calc-card">
-    <div class="dash-section-titre">Adresse Teams de chaque collaborateur</div>
-    <p class="hint">Utilisée pour router le message privé vers la bonne personne — c'est l'adresse email professionnelle (Microsoft 365) de son compte Teams.</p>
+    <div class="dash-section-titre">Adresse email de chaque collaborateur</div>
+    <p class="hint">Destinataire du rappel : l'adresse email professionnelle de la personne responsable du dossier.</p>
     <div class="calc-champs" id="reglages-emails-liste"></div>
   </div>
 
@@ -885,13 +885,14 @@
     <div class="dash-section-titre">Créer le flux dans Power Automate (une seule fois)</div>
     <ol>
       <li>Dans Power Automate, créer un flux <strong>Instantané</strong> avec le déclencheur <strong>« Quand une requête HTTP est reçue »</strong>, et coller ce schéma dans <em>Schéma JSON du corps de la requête</em> :<br>
-        <code class="code-bloc">{ "type": "object", "properties": { "destinataire": { "type": "string" }, "message": { "type": "string" } } }</code><br>
-        Le flux marche aussi sans ce schéma, mais alors les champs <code>destinataire</code> et <code>message</code> n'apparaissent pas dans la liste de contenu dynamique à l'étape suivante — il faudrait les saisir en expression. Autant le coller.</li>
-      <li>Ajouter l'action Teams <strong>« Publier un message dans un chat ou un canal »</strong> : Publier en tant que <em>Flow bot</em>, Publier dans <em>Chat avec Flow bot</em>, Destinataire = contenu dynamique <code>destinataire</code>, Message = contenu dynamique <code>message</code>.</li>
+        <code class="code-bloc">{ "type": "object", "properties": { "destinataire": { "type": "string" }, "sujet": { "type": "string" }, "message": { "type": "string" } } }</code><br>
+        Le flux marche aussi sans ce schéma, mais alors les champs <code>destinataire</code>, <code>sujet</code> et <code>message</code> n'apparaissent pas dans la liste de contenu dynamique à l'étape suivante — il faudrait les saisir en expression. Autant le coller.</li>
+      <li>Ajouter l'action Outlook <strong>« Envoyer un e-mail (V2) »</strong> : À = contenu dynamique <code>destinataire</code>, Objet = contenu dynamique <code>sujet</code>, Corps = contenu dynamique <code>message</code>.</li>
       <li>Enregistrer le flux, puis rouvrir l'étape du déclencheur HTTP : l'URL générée s'affiche. La copier et la coller dans le champ ci-dessus, puis cliquer sur « Enregistrer ».</li>
-      <li>Cocher « Activer l'envoi automatique », enregistrer, puis utiliser le bouton « Tester » de chaque collaborateur pour vérifier que le message arrive bien sur son compte Teams.</li>
+      <li>Cocher « Activer l'envoi automatique », enregistrer, puis utiliser le bouton « Tester » de chaque collaborateur pour vérifier que l'email arrive bien dans sa boîte de réception.</li>
     </ol>
-    <p>Les rappels sont envoyés automatiquement 15 puis 7 jours avant chaque échéance active d'un dossier (prêt, acte, vente préalable, échéance personnalisée), au responsable du dossier — jamais deux fois pour la même échéance. L'adresse de copie ci-dessus, si renseignée, reçoit le même message pour chaque envoi. Il n'existe plus de rappel par email manuel : ce mécanisme le remplace entièrement.</p>
+    <p><strong>Vous aviez déjà configuré les rappels Teams ?</strong> Il suffit d'ouvrir le flux existant, de remplacer l'action « Publier un message dans un chat ou un canal » par « Envoyer un e-mail (V2) », et d'ajouter <code>"sujet"</code> au schéma JSON du déclencheur (étape 1 ci-dessus). L'URL du flux ne change pas, et les adresses déjà saisies ici sont conservées.</p>
+    <p>Les rappels sont envoyés automatiquement 15 puis 7 jours avant chaque échéance active d'un dossier (prêt, acte, vente préalable, échéance personnalisée), au responsable du dossier — jamais deux fois pour la même échéance. L'adresse de copie ci-dessus, si renseignée, reçoit le même message pour chaque envoi. Il n'existe plus de rappel par email manuel à envoyer soi-même : ce mécanisme le remplace entièrement.</p>
   </div>
 </div>
 
@@ -1036,7 +1037,7 @@
      Remplace l'ancien texte fixe du footer (visible en permanence, souvent ignoré) par un rappel
      qui n'apparaît qu'au moment où il est utile. Le rappel générique par email
      (ouvrirEmailRappel()) qui l'utilisait aussi a été retiré définitivement, remplacé par les
-     rappels automatiques Teams. -->
+     rappels automatiques par email. -->
 <div class="confirm-overlay" id="info-action-overlay" style="display:none;" onclick="fermerInfoAction()">
   <div class="confirm-box" onclick="event.stopPropagation()">
     <p><strong id="info-action-titre"></strong></p>

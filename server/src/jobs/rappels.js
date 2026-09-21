@@ -1,11 +1,11 @@
 'use strict';
 
-// Rappels automatiques vers Teams — remplace le DÉCLENCHEMENT AUTOMATIQUE des rappels
+// Rappels automatiques par email — remplace le DÉCLENCHEMENT AUTOMATIQUE des rappels
 // (auparavant : rien, en pratique — voir CLAUDE.md, "Ce qui n'a volontairement pas été fait" :
 // aucune relance email automatique n'a jamais été câblée, seul un mailto manuel existait). Le
 // rappel générique par email ("Rappel email" sur la fiche, `ouvrirEmailRappel()` côté client) a
 // depuis été retiré DÉFINITIVEMENT, à la demande explicite de l'étude — ce job, avec sa copie
-// systématique (voir `reglages.teamsCopieEmail` ci-dessous), le remplace entièrement.
+// systématique (voir `reglages.copieEmail` ci-dessous), le remplace entièrement.
 //
 // Aux seuils J-15/J-7 (RAPPELS_PAR_DEFAUT côté client), sur TOUTES les échéances actives d'un
 // dossier (prêt, acte, vente préalable, personnalisées) — pas seulement le prêt comme l'export
@@ -20,14 +20,14 @@
 // (même choix déjà documenté pour buildEvent/icsDate dans routes/calendrier.js) — en modifiant
 // l'une des deux, vérifier si l'autre a besoin du même changement.
 
-const { envoyerMessageTeams } = require('../teams');
+const { envoyerEmail } = require('../envoiEmail');
 const { piecesRecuesEtManquantes } = require('../piecesChecklist');
 
 const SEUILS_RAPPELS = [15, 7];
 
 // Le prêt reste avant tout piloté par offrePretStatut (parcours NAS), mais la validation manuelle
 // (voir echeancesValidees.pret, script.js) doit aussi être prise en compte ici — sans quoi un
-// dossier marqué réalisé côté client continuerait de recevoir des rappels Teams sur cette échéance.
+// dossier marqué réalisé côté client continuerait de recevoir des rappels sur cette échéance.
 // Miroir de echeanceValidee() côté client (duplication assumée : pas de build partagé entre le
 // navigateur et Node dans ce projet — même choix que buildEvent/icsDate dans routes/calendrier.js).
 // Deux faits du dossier closent une échéance sans décision manuelle : l'offre de prêt reçue pour
@@ -101,6 +101,16 @@ function calculerRappelsDus(dossiers, aujourdHui, dejaEnvoyes) {
 // dossier a une checklist applicable (jamais pour un rôle "participant", voir la fonction) — sans
 // quoi le message afficherait deux lignes vides "(0) : aucune" sur chaque rappel de ce type de
 // dossier, du bruit plutôt qu'une information.
+// Objet de l'email. Apparu avec le passage de Teams à l'email : un message Teams n'a pas d'objet,
+// une boîte de réception ne se lit pas sans. Volontairement en une ligne et sans emoji — c'est ce
+// qui s'affiche dans la liste des messages, et un tri par objet doit y rester lisible. Le CORPS
+// (texteRappel ci-dessous) est laissé inchangé : il était déjà autonome, et le répéter ici
+// n'apporterait rien.
+function sujetRappel(r) {
+  const jour = r.seuil === 1 ? 'jour' : 'jours';
+  return `CLAIRE — ${r.libelle} dans ${r.seuil} ${jour} — ${r.nomDossier}`;
+}
+
 function texteRappel(r) {
   const jour = r.seuil === 1 ? 'jour' : 'jours';
   let texte = `📌 CLAIRE — Rappel : « ${r.libelle} » du dossier ${r.nomDossier} arrive à échéance dans ${r.seuil} ${jour} (le ${r.iso}).`;
@@ -115,9 +125,9 @@ function texteRappel(r) {
 // Un seul tour : lit les réglages (webhook + emails), calcule les rappels dus, envoie ceux dont le
 // collaborateur a une adresse configurée, et marque chaque envoi réussi dans reminder_log pour ne
 // jamais le renvoyer. `envoyerFn` injectable (voir server/test/rappels.test.js) — la vraie fonction
-// par défaut est envoyerMessageTeams().
+// par défaut est envoyerEmail().
 //
-// `reglages.teamsCopieEmail` (voir parametresRepo.js) reçoit un DOUBLE de chaque message
+// `reglages.copieEmail` (voir parametresRepo.js) reçoit un DOUBLE de chaque message
 // effectivement envoyé au responsable — demandé explicitement par l'étude, pour être tenue au
 // courant de tous les envois sans dépendre du fait qu'elle soit elle-même responsable du dossier
 // concerné. Envoyée uniquement APRÈS un envoi principal réussi (jamais à sa place, jamais si le
@@ -128,7 +138,7 @@ function texteRappel(r) {
 async function executerTacheRappels(depot, db, parametresRepo, envoyerFn, aujourdHui) {
   const resultat = { rappelsDus: 0, rappelsEnvoyes: 0, erreurs: [] };
   const reglages = parametresRepo.lireReglages();
-  if (!reglages.teamsActif || !reglages.teamsWebhookUrl) return resultat;
+  if (!reglages.emailActif || !reglages.fluxEmailUrl) return resultat;
 
   const jour = aujourdHui || new Date().toISOString().slice(0, 10);
   const dossiers = depot.tousActifs();
@@ -142,23 +152,24 @@ async function executerTacheRappels(depot, db, parametresRepo, envoyerFn, aujour
   resultat.rappelsDus = dus.length;
 
   const marquerStmt = db.prepare('INSERT OR IGNORE INTO reminder_log (dossier_id, reminder_key, sent_at) VALUES (?, ?, ?)');
-  const envoyer = envoyerFn || envoyerMessageTeams;
+  const envoyer = envoyerFn || envoyerEmail;
 
   for (const r of dus) {
     const email = reglages.emailsResponsables[r.responsable];
     if (!email) {
-      resultat.erreurs.push(`${r.responsable} : aucune adresse email Teams configurée (voir Réglages).`);
+      resultat.erreurs.push(`${r.responsable} : aucune adresse email configurée (voir Réglages).`);
       continue;
     }
     const texte = texteRappel(r);
-    const envoi = await envoyer(reglages.teamsWebhookUrl, email, texte);
+    const sujet = sujetRappel(r);
+    const envoi = await envoyer(reglages.fluxEmailUrl, email, sujet, texte);
     if (envoi.ok) {
       resultat.rappelsEnvoyes++;
       marquerStmt.run(r.dossierId, r.reminderKey, new Date().toISOString());
-      if (reglages.teamsCopieEmail && reglages.teamsCopieEmail !== email) {
-        const copie = await envoyer(reglages.teamsWebhookUrl, reglages.teamsCopieEmail, texte);
+      if (reglages.copieEmail && reglages.copieEmail !== email) {
+        const copie = await envoyer(reglages.fluxEmailUrl, reglages.copieEmail, sujet, texte);
         if (!copie.ok) {
-          resultat.erreurs.push(`Copie (${reglages.teamsCopieEmail}) pour ${r.nomDossier} — ${r.libelle} : ${copie.erreur}`);
+          resultat.erreurs.push(`Copie (${reglages.copieEmail}) pour ${r.nomDossier} — ${r.libelle} : ${copie.erreur}`);
         }
       }
     } else {
@@ -174,7 +185,7 @@ async function executerTacheRappels(depot, db, parametresRepo, envoyerFn, aujour
 function demarrerTacheRappels(depot, db, config, parametresRepo, envoyerFn) {
   const tour = () => {
     executerTacheRappels(depot, db, parametresRepo, envoyerFn).catch((e) => {
-      console.warn('[CLAIRE] Tâche de rappels Teams interrompue :', e.message);
+      console.warn('[CLAIRE] Tâche de rappels par email interrompue :', e.message);
     });
   };
   tour(); // un premier passage tout de suite, pas seulement dans trente minutes
@@ -183,5 +194,5 @@ function demarrerTacheRappels(depot, db, config, parametresRepo, envoyerFn) {
 
 module.exports = {
   SEUILS_RAPPELS, echeanceValidee, toutesEcheances, joursRestants,
-  calculerRappelsDus, texteRappel, executerTacheRappels, demarrerTacheRappels
+  calculerRappelsDus, sujetRappel, texteRappel, executerTacheRappels, demarrerTacheRappels
 };

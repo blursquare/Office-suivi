@@ -12,9 +12,9 @@
 const CLE_REGLAGES = 'reglages';
 
 const REGLAGES_PAR_DEFAUT = Object.freeze({
-  teamsWebhookUrl: '',
-  teamsActif: false,
-  teamsCopieEmail: '',
+  fluxEmailUrl: '',
+  emailActif: false,
+  copieEmail: '',
   emailsResponsables: {}
 });
 
@@ -31,13 +31,24 @@ function assainirReglages(brut) {
       emailsPropres[nom] = email.trim();
     }
   }
+  // Reprise des anciennes clés Teams (teamsWebhookUrl/teamsActif/teamsCopieEmail) quand les
+  // nouvelles sont absentes : le passage de Teams à l'email n'a changé que l'ACTION INTERNE du flux
+  // Power Automate, pas son URL de déclenchement — l'étude n'a donc aucune raison de recoller une
+  // URL déjà saisie, ni de recocher l'activation. Le premier enregistrement depuis l'écran
+  // Réglages persiste les nouvelles clés et fait disparaître les anciennes, cet objet étant écrit
+  // tel quel par ecrireReglages(). Même principe que la reprise d'un config.json antérieur au
+  // jeton de calendrier (voir config.js).
+  const texte = (nouvelle, ancienne) => {
+    if (typeof nouvelle === 'string') return nouvelle.trim();
+    return typeof ancienne === 'string' ? ancienne.trim() : '';
+  };
   return {
-    teamsWebhookUrl: typeof b.teamsWebhookUrl === 'string' ? b.teamsWebhookUrl.trim() : '',
-    teamsActif: b.teamsActif === true,
-    // Adresse Teams recevant une copie de CHAQUE rappel envoyé, quel que soit le responsable
+    fluxEmailUrl: texte(b.fluxEmailUrl, b.teamsWebhookUrl),
+    emailActif: b.emailActif === true || (b.emailActif === undefined && b.teamsActif === true),
+    // Adresse recevant une copie de CHAQUE rappel envoyé, quel que soit le responsable
     // destinataire — demandé explicitement par l'étude, pour rester informée de tous les envois
     // sans dépendre du fait qu'elle soit elle-même responsable du dossier concerné.
-    teamsCopieEmail: typeof b.teamsCopieEmail === 'string' ? b.teamsCopieEmail.trim() : '',
+    copieEmail: texte(b.copieEmail, b.teamsCopieEmail),
     emailsResponsables: emailsPropres
   };
 }

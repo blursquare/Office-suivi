@@ -124,7 +124,7 @@ function genererFluxIcs(dossiers) {
     // non simplement omise : un client calendrier garderait sinon l'ancien événement pour
     // toujours. Le repli de date n'a pas d'importance pour un événement annulé.
     const repli = d.pret || d.acte || d.ventebien || aujourdHui;
-    // Ordre métier du dossier (voir CLAUDE.md). Contrairement aux rappels Teams, le flux publie
+    // Ordre métier du dossier (voir CLAUDE.md). Contrairement aux rappels par email, le flux publie
     // TOUTES les échéances datées, y compris la date butoir une fois le rendez-vous fixé : elle
     // reste indicative dans l'agenda, et la retirer demanderait de publier son annulation.
     const standard = [

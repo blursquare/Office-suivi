@@ -1,15 +1,15 @@
 'use strict';
 
-// Client d'envoi vers Power Automate (voir src/teams.js) : un simple POST JSON
-// {destinataire, message} vers l'URL du flux — tout le routage vers la bonne personne est fait
-// PAR LE FLUX (voir server/README.md). Testé contre un faux serveur HTTP local, jamais un vrai
-// flux Power Automate.
+// Client d'envoi vers Power Automate (voir src/envoiEmail.js) : un simple POST JSON
+// {destinataire, sujet, message} vers l'URL du flux — tout l'envoi de l'email est fait PAR LE FLUX
+// (voir server/README.md). Testé contre un faux serveur HTTP local, jamais un vrai flux Power
+// Automate.
 
 const { test, after } = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
 
-const { envoyerMessageTeams } = require('../src/teams');
+const { envoyerEmail } = require('../src/envoiEmail');
 
 function demarrerFauxWebhook(statut, corpsAttendu) {
   return new Promise((resolve) => {
@@ -31,38 +31,52 @@ function demarrerFauxWebhook(statut, corpsAttendu) {
 let serveursOuverts = [];
 after(() => { serveursOuverts.forEach((s) => s.close()); });
 
-test('sans URL de webhook : erreur explicite, aucune requête réseau', async () => {
-  const resultat = await envoyerMessageTeams('', 'bastien@etude.fr', 'Test');
+test('sans URL de flux : erreur explicite, aucune requête réseau', async () => {
+  const resultat = await envoyerEmail('', 'bastien@etude.fr', 'Objet', 'Test');
   assert.equal(resultat.ok, false);
   assert.match(resultat.erreur, /Réglages/);
 });
 
 test('sans adresse destinataire : erreur explicite', async () => {
-  const resultat = await envoyerMessageTeams('https://exemple.test/flux', '', 'Test');
+  const resultat = await envoyerEmail('https://exemple.test/flux', '', 'Objet', 'Test');
   assert.equal(resultat.ok, false);
   assert.match(resultat.erreur, /collaborateur/);
 });
 
-test('envoi réussi : POST JSON {destinataire, message} vers l\'URL du webhook', async () => {
+test('envoi réussi : POST JSON {destinataire, sujet, message} vers l\'URL du flux', async () => {
   const faux = await demarrerFauxWebhook(200);
   serveursOuverts.push(faux.serveur);
-  const resultat = await envoyerMessageTeams(faux.url, 'bastien@etude.fr', 'Rappel de test');
+  const resultat = await envoyerEmail(faux.url, 'bastien@etude.fr', 'CLAIRE — Objet de test', 'Rappel de test');
   assert.equal(resultat.ok, true);
   assert.equal(faux.requetes.length, 1);
   assert.equal(faux.requetes[0].headers['content-type'], 'application/json');
-  assert.deepEqual(faux.requetes[0].corps, { destinataire: 'bastien@etude.fr', message: 'Rappel de test' });
+  assert.deepEqual(faux.requetes[0].corps, {
+    destinataire: 'bastien@etude.fr',
+    sujet: 'CLAIRE — Objet de test',
+    message: 'Rappel de test'
+  });
+});
+
+// Le flux Power Automate attend trois propriétés déclarées dans son schéma JSON : `sujet` doit
+// toujours être présent dans le corps, même vide, plutôt qu'absent — sans quoi l'action "Envoyer
+// un e-mail (V2)" reçoit un Objet null et l'exécution du flux échoue côté Power Automate.
+test('sujet omis : la propriété est quand même envoyée, en chaîne vide', async () => {
+  const faux = await demarrerFauxWebhook(200);
+  serveursOuverts.push(faux.serveur);
+  await envoyerEmail(faux.url, 'bastien@etude.fr', undefined, 'Corps');
+  assert.equal(faux.requetes[0].corps.sujet, '');
 });
 
 test('le flux répond une erreur HTTP : ok=false avec le statut dans le message', async () => {
   const faux = await demarrerFauxWebhook(500);
   serveursOuverts.push(faux.serveur);
-  const resultat = await envoyerMessageTeams(faux.url, 'bastien@etude.fr', 'Test');
+  const resultat = await envoyerEmail(faux.url, 'bastien@etude.fr', 'Objet', 'Test');
   assert.equal(resultat.ok, false);
   assert.match(resultat.erreur, /500/);
 });
 
 test('URL injoignable : ok=false, ne lève jamais d\'exception', async () => {
-  const resultat = await envoyerMessageTeams('http://127.0.0.1:1/injoignable', 'bastien@etude.fr', 'Test');
+  const resultat = await envoyerEmail('http://127.0.0.1:1/injoignable', 'bastien@etude.fr', 'Objet', 'Test');
   assert.equal(resultat.ok, false);
   assert.match(resultat.erreur, /Impossible de joindre/);
 });

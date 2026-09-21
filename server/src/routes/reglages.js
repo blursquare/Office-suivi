@@ -1,14 +1,15 @@
 'use strict';
 
 // Écran « Réglages » (sidebar, script.js) : l'étude y saisit elle-même l'URL du flux Power
-// Automate et l'adresse email Teams de chaque responsable — une donnée métier, pas un réglage
+// Automate et l'adresse email de chaque responsable — une donnée métier, pas un réglage
 // d'infrastructure (voir parametresRepo.js). Montée derrière le middleware d'authentification
 // comme le reste de /api (voir app.js) : ces réglages ne sont pas plus sensibles qu'un dossier,
 // même mot de passe partagé pour les consulter/modifier.
 
 const express = require('express');
-const { envoyerMessageTeams } = require('../teams');
+const { envoyerEmail } = require('../envoiEmail');
 
+const SUJET_TEST = 'CLAIRE — Message de test';
 const MESSAGE_TEST = "📌 CLAIRE — Message de test. Si vous recevez ceci, les rappels automatiques sont bien configurés.";
 
 function creerRouteurReglages(parametresRepo) {
@@ -25,10 +26,10 @@ function creerRouteurReglages(parametresRepo) {
   // Envoie un message de test au collaborateur désigné, avec les réglages déjà ENREGISTRÉS en base
   // (jamais ceux d'un formulaire pas encore validé) : ça vérifie ce qui sera réellement utilisé par
   // le job de rappels, pas un brouillon.
-  routeur.post('/reglages/tester-teams', async (req, res) => {
+  routeur.post('/reglages/tester-email', async (req, res) => {
     const responsable = typeof req.body.responsable === 'string' ? req.body.responsable : '';
     const reglages = parametresRepo.lireReglages();
-    if (!reglages.teamsWebhookUrl) {
+    if (!reglages.fluxEmailUrl) {
       res.status(400).json({ erreur: "Aucune URL de flux Power Automate enregistrée — enregistrez d'abord les réglages." });
       return;
     }
@@ -37,7 +38,7 @@ function creerRouteurReglages(parametresRepo) {
       res.status(400).json({ erreur: `Aucune adresse email enregistrée pour ${responsable || 'ce collaborateur'}.` });
       return;
     }
-    const resultat = await envoyerMessageTeams(reglages.teamsWebhookUrl, email, MESSAGE_TEST);
+    const resultat = await envoyerEmail(reglages.fluxEmailUrl, email, SUJET_TEST, MESSAGE_TEST);
     if (resultat.ok) res.json({ ok: true });
     else res.status(502).json({ erreur: resultat.erreur });
   });
@@ -45,4 +46,4 @@ function creerRouteurReglages(parametresRepo) {
   return routeur;
 }
 
-module.exports = { creerRouteurReglages, MESSAGE_TEST };
+module.exports = { creerRouteurReglages, SUJET_TEST, MESSAGE_TEST };
