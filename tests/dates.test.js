@@ -670,3 +670,57 @@ test('detecterPrixVente accepte un point avant la parenthèse fermante', () => {
     'aura lieu moyennant le prix principal de : DEUX CENT QUATRE-VINGT-DIX MILLE EUROS (290000,00 EUR.)'
   ), 290000);
 });
+
+// Dépôt de garantie / acompte sur le prix (et son séquestre) : la somme que l'acquéreur verse à
+// la signature de l'avant-contrat, l'une des premières choses que l'étude doit réclamer et suivre.
+// Sur une promesse unilatérale, la somme équivalente s'appelle « indemnité d'immobilisation ».
+test('detecterDepotGarantie lit la reprise chiffrée entre parenthèses', () => {
+  const app = chargerApplication();
+  const texte = "L’ACQUÉREUR versera ce jour un dépôt de garantie de DIX MILLE EUROS (10 000,00 €) entre les mains du notaire soussigné.";
+  assert.equal(app.detecterDepotGarantie(texte), 10000);
+});
+
+test('detecterDepotGarantie lit un montant écrit directement en chiffres', () => {
+  const app = chargerApplication();
+  const texte = "Il est versé un dépôt de garantie de 15 000 € à la signature des présentes.";
+  assert.equal(app.detecterDepotGarantie(texte), 15000);
+});
+
+test('detecterDepotGarantie reconnaît « acompte sur le prix » et « indemnité d’immobilisation »', () => {
+  const app = chargerApplication();
+  assert.equal(app.detecterDepotGarantie("un acompte sur le prix de CINQ MILLE EUROS (5 000 €) sera versé"), 5000);
+  assert.equal(app.detecterDepotGarantie("une indemnité d’immobilisation de 8 000 euros restera acquise au promettant"), 8000);
+});
+
+test('detecterDepotGarantie ne retient pas un pourcentage ni un montant absent', () => {
+  const app = chargerApplication();
+  // « 5 % » ne porte pas de symbole monétaire : rien à retenir plutôt qu'un 5 fantaisiste.
+  assert.equal(app.detecterDepotGarantie("un dépôt de garantie de 5 % du prix de vente"), null);
+  assert.equal(app.detecterDepotGarantie("Le prix de vente est de CENT MILLE EUROS (100 000 €)."), null);
+});
+
+test('detecterSequestreDepot nomme le destinataire du dépôt', () => {
+  const app = chargerApplication();
+  assert.equal(
+    app.detecterSequestreDepot("un dépôt de garantie de DIX MILLE EUROS (10 000 €) versé entre les mains du notaire soussigné, qui en donnera quittance."),
+    'notaire soussigné'
+  );
+  assert.equal(
+    app.detecterSequestreDepot("L’acompte sur le prix sera séquestré entre les mains de l’agence CENTURY 21 Les Tilleuls."),
+    'agence CENTURY 21 Les Tilleuls'
+  );
+  assert.equal(
+    app.detecterSequestreDepot("Le dépôt de garantie est versé à la CARPA d’Orléans."),
+    'CARPA d’Orléans'
+  );
+});
+
+test('detecterSequestreDepot ne ramène rien sans clause de dépôt', () => {
+  const app = chargerApplication();
+  // « entre les mains du notaire » apparaît aussi dans des clauses sans rapport (appel de fonds,
+  // indemnité de retard) : sans clause de dépôt, on ne prend pas un nom au hasard ailleurs.
+  assert.equal(
+    app.detecterSequestreDepot("Les fonds nécessaires à la vente seront versés entre les mains du notaire rédacteur avant la signature."),
+    null
+  );
+});

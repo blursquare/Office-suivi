@@ -3000,6 +3000,7 @@
      c'est l'ordre du fichier qui tranche, piège déjà rencontré quatre fois dans cette feuille
      (.select-edit, .input-inline, .pdf-recherche-input, .revision-saisie). */
   .dossier-notaires input.input-classif,
+  .dossier-depot input.input-classif,
   .champ-email-relance input.input-classif {
     font-family: inherit;
     font-size: 13.5px;
@@ -3014,10 +3015,13 @@
     cursor: text;
   }
   .dossier-notaires input.input-classif:hover,
+  .dossier-depot input.input-classif:hover,
   .champ-email-relance input.input-classif:hover { border-color: var(--muted); }
   .dossier-notaires input.input-classif:focus-visible,
+  .dossier-depot input.input-classif:focus-visible,
   .champ-email-relance input.input-classif:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
   .dossier-notaires input.input-classif::placeholder,
+  .dossier-depot input.input-classif::placeholder,
   .champ-email-relance input.input-classif::placeholder { color: var(--muted); font-style: italic; }
 
   /* Le badge « Reçoit l'acte » EST le contrôle : les sélecteurs « Rôle du notaire » et « Acte reçu

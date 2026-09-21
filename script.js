@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-21 11:41';
+  const VERSION_APP = '2026-09-21 11:54';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-21 11:54', resume: "À la création d'un dossier, l'outil lit maintenant dans l'avant-contrat le DÉPÔT DE GARANTIE (ou l'acompte sur le prix, ou l'indemnité d'immobilisation d'une promesse) que l'acquéreur doit verser, ET entre les mains de qui il est versé — l'office, l'agence, la CARPA. Les deux apparaissent dans « Ce que l'outil a compris » avec leur page, dans l'étape Finaliser, et sur la fiche du dossier où ils restent corrigeables à tout moment. Le séquestre n'est cherché qu'autour de la clause de dépôt : « entre les mains du notaire » se rencontre aussi dans des clauses sans rapport, et il valait mieux ne rien proposer que de prendre un nom au hasard ailleurs dans l'acte" },
     { version: '2026-09-21 11:41', resume: "Écran Réglages : la procédure de création du flux Power Automate donne désormais le schéma JSON à coller dans le déclencheur HTTP. Sans lui le flux fonctionne quand même, mais les champs « destinataire » et « message » n'apparaissent pas dans la liste de contenu dynamique à l'étape Teams — il fallait les saisir en expression, ce que la procédure ne disait pas" },
     { version: '2026-09-21 11:28', resume: "Récupération de deux demandes faites ce matin depuis l'autre projet, et écartées par erreur lors d'une fusion. Le QUESTIONNAIRE DE SATISFACTION utilise enfin le texte et le PDF que vous avez fournis : un clic télécharge le questionnaire (à joindre à la main au brouillon — un email préparé par une page web ne peut pas porter de pièce jointe) et ouvre l'email définitif, avec le lien vers la page d'avis Google de l'office. Le bouton n'apparaît qu'une fois la date de signature de l'acte renseignée, et indique ensuite qu'il a déjà été envoyé, avec la date, en laissant la possibilité de renvoyer. Deuxième récupération : une pièce marquée « reçue » dont le fichier a été supprimé, déplacé ou renommé sur le NAS repasse maintenant à « manquante » au parcours suivant, avec une ligne d'historique — jusqu'ici elle restait « reçue » pour toujours, plus aucun scan ne la revérifiant. Garde-fou : jamais de remise à zéro si le dossier NAS n'a pu être lu du tout" },
     { version: '2026-09-21 11:15', resume: "Les étapes d'un dossier suivent maintenant votre ordre métier — compromis signé, vente préalable, obtention du prêt, date butoir de réitération, appel de fonds, rendez-vous de signature — partout où elles apparaissent ensemble (fiche, planning, rappels Teams, agenda connecté). Cet ordre ne départage que les échéances SANS date : les autres restent classées par date. Et dès qu'un rendez-vous de signature est saisi, la date butoir cesse de piloter le dossier : elle ne déclenche plus de rappel et n'est plus annoncée comme la prochaine échéance, mais reste affichée sur la fiche avec l'écart — « signature 5 j APRÈS ce butoir » en rouge, « 3 j avant » en vert — pour dire d'un coup d'œil si on signe avant ou après" },
@@ -453,6 +454,68 @@
     // Un prix de vente immobilier réel ne descend jamais sous 1000 € : filtre les faux positifs
     // (un numéro d'article, une référence de loi capturée par erreur près du mot "prix").
     return Number.isFinite(valeur) && valeur >= 1000 ? valeur : null;
+  }
+
+  // Dépôt de garantie / acompte sur le prix : la somme que l'acquéreur verse à la signature de
+  // l'avant-contrat, et surtout ENTRE LES MAINS DE QUI (l'office, l'agence, la CARPA) — les deux
+  // font partie de ce que l'étude doit réclamer et suivre dès la création du dossier. Sur une
+  // promesse unilatérale, la somme équivalente s'appelle « indemnité d'immobilisation » : même
+  // rôle, vocabulaire différent, les deux sont reconnus.
+  //
+  // Deux formes acceptées, dans cet ordre de confiance :
+  //  1. la reprise chiffrée entre parenthèses derrière le montant en lettres (usage notarial
+  //     constant, même heuristique que PRIX_VENTE_RE/MONTANT_PRET_RE) ;
+  //  2. le montant écrit directement en chiffres ("un dépôt de garantie de 10 000 €"), fréquent
+  //     dans les trames d'agence, plus court donc plus exposé à un faux positif — d'où une
+  //     fenêtre volontairement courte entre le mot-clé et le montant.
+  // Premier jet, comme AGENCE_RE en son temps : à resserrer sur retour réel de l'étude.
+  const DEPOT_ANCRE_RE = /d[ée]p[ôo]t\s+de\s+garantie|acompte\s+sur\s+(?:le\s+)?prix|indemnit[ée]\s+d['’]immobilisation/i;
+  const DEPOT_GARANTIE_PARENTHESES_RE = /(?:d[ée]p[ôo]t\s+de\s+garantie|acompte\s+sur\s+(?:le\s+)?prix|indemnit[ée]\s+d['’]immobilisation)[^(.]{0,150}\(\s*([\d](?:[\d\s.]{0,14})?(?:,\d{2})?)\s*(?:€|eur(?:os?)?\b)\s*\.?\s*\)/i;
+  const DEPOT_GARANTIE_CHIFFRES_RE = /(?:d[ée]p[ôo]t\s+de\s+garantie|acompte\s+sur\s+(?:le\s+)?prix|indemnit[ée]\s+d['’]immobilisation)[^(.]{0,60}?(?:de\s+(?:la\s+somme\s+de\s+)?|soit\s+|:\s*)([\d][\d\s.]{2,14}(?:,\d{2})?)\s*(?:€|eur(?:os?)?\b)/i;
+
+  function montantDepuisCapture(brut) {
+    const partieEntiere = String(brut).split(',')[0].replace(/[\s.]/g, '');
+    const valeur = parseInt(partieEntiere, 10);
+    // Un dépôt de garantie réel n'est jamais inférieur à quelques centaines d'euros : filtre les
+    // faux positifs (un pourcentage, un numéro d'article capturé par erreur).
+    return Number.isFinite(valeur) && valeur >= 100 ? valeur : null;
+  }
+
+  function detecterDepotGarantie(texte) {
+    const source = String(texte || '');
+    const parenthese = DEPOT_GARANTIE_PARENTHESES_RE.exec(source);
+    if (parenthese) {
+      const valeur = montantDepuisCapture(parenthese[1]);
+      if (valeur !== null) return valeur;
+    }
+    const chiffres = DEPOT_GARANTIE_CHIFFRES_RE.exec(source);
+    if (chiffres) return montantDepuisCapture(chiffres[1]);
+    return null;
+  }
+
+  // À QUI l'acquéreur verse ce dépôt. Cherché UNIQUEMENT dans la fenêtre qui entoure la clause de
+  // dépôt (200 caractères avant le mot-clé, 600 après) : « entre les mains du notaire soussigné »
+  // apparaît aussi dans des clauses sans rapport (indemnité de retard, appel de fonds), le chercher
+  // dans tout l'acte ramènerait n'importe laquelle d'entre elles. Aucune clause de dépôt détectée
+  // = aucun séquestre renvoyé, plutôt qu'un nom pris ailleurs au hasard.
+  const FENETRE_SEQUESTRE_AVANT = 200;
+  const FENETRE_SEQUESTRE_APRES = 600;
+  const SEQUESTRE_RE = /(?:entre\s+les\s+mains\s+d[eu]\s*(?:la\s+|l['’])?|s[ée]questr[ée]?e?\s+(?:aupr[èe]s\s+d[eu]\s*(?:la\s+|l['’])?|chez\s+|entre\s+les\s+mains\s+d[eu]\s*(?:la\s+|l['’])?)|en\s+la\s+comptabilit[ée]\s+d[eu]\s*(?:la\s+|l['’])?|vers[ée]e?\s+[àa]\s+(?:la\s+|l['’])?)([^,.;:\n(]{2,70})/i;
+
+  function detecterSequestreDepot(texte) {
+    const source = String(texte || '');
+    const ancre = DEPOT_ANCRE_RE.exec(source);
+    if (!ancre) return null;
+    const debut = Math.max(0, ancre.index - FENETRE_SEQUESTRE_AVANT);
+    const fenetre = source.slice(debut, ancre.index + FENETRE_SEQUESTRE_APRES);
+    const m = SEQUESTRE_RE.exec(fenetre);
+    if (!m) return null;
+    const nom = m[1].replace(/\s+/g, ' ').trim()
+      // Coupe une proposition relative qui suivrait ("... du notaire soussigné qui en donnera
+      // quittance") : seul le destinataire nous intéresse.
+      .replace(/\s+(?:qui|lequel|laquelle|auquel|dont|en\s+sa\s+qualit[ée])\b.*$/i, '')
+      .replace(/[,\s]+$/, '');
+    return nom.length >= 2 ? nom : null;
   }
 
   // Affichage français ("250 000 €", pas de décimales : un prix notarié est toujours un compte
@@ -2484,6 +2547,8 @@
         prixVente: champAvecSource(source, 'prixVente', detecterPrixVente(source)),
         emailAcquereur: champAvecSource(source, 'emailAcquereur', detecterEmailAcquereur(source, typeActe.valeur)),
         nomAgence: champAvecSource(source, 'nomAgence', detecterNomAgence(source)),
+        depotGarantie: champAvecSource(source, 'depotGarantie', detecterDepotGarantie(source)),
+        sequestreDepot: champAvecSource(source, 'sequestreDepot', detecterSequestreDepot(source)),
         typeVente: champExtraction(detecterTypeVenteCopropriete(source) ? 'copropriete' : null)
       },
       alertes: [],
@@ -2983,6 +3048,8 @@
       prixVente: (champs.prixVente && champs.prixVente.valeur) || null,
       emailAcquereur: (champs.emailAcquereur && champs.emailAcquereur.valeur) || null,
       nomAgence: (champs.nomAgence && champs.nomAgence.valeur) || null,
+      depotGarantie: (champs.depotGarantie && champs.depotGarantie.valeur) || null,
+      sequestreDepot: (champs.sequestreDepot && champs.sequestreDepot.valeur) || null,
       adresseBien: adresse ? (adresse.adresseComplete || null) : null,
       roleNotaire: (extraction.notaires && extraction.notaires.roleEtude) || null
     };
@@ -3179,7 +3246,7 @@
     if (cle === 'nom') {
       return brut.split('/').map(p => p.split('&')[0].trim()).filter(p => p.length >= 3);
     }
-    if (cle === 'prixVente') {
+    if (cle === 'prixVente' || cle === 'depotGarantie') {
       const n = Number(brut);
       if (!Number.isFinite(n)) return [brut];
       return [
@@ -4124,6 +4191,8 @@
     if (champs.prixVente) appliquerValeurChamp('f-prix-vente', champs.prixVente.valeur);
     if (champs.emailAcquereur) appliquerValeurChamp('f-email-acquereur', champs.emailAcquereur.valeur);
     if (champs.nomAgence) appliquerValeurChamp('f-nom-agence', champs.nomAgence.valeur);
+    if (champs.depotGarantie) appliquerValeurChamp('f-depot-garantie', champs.depotGarantie.valeur);
+    if (champs.sequestreDepot) appliquerValeurChamp('f-sequestre-depot', champs.sequestreDepot.valeur);
     const adresse = extraction.bien && extraction.bien.adresse;
     if (adresse && adresse.adresseComplete) appliquerValeurChamp('f-adresse-bien', adresse.adresseComplete);
 
@@ -4208,6 +4277,8 @@
     { cle: 'prixVente', libelle: 'Prix de vente', type: 'nombre', champId: 'f-prix-vente' },
     { cle: 'emailAcquereur', libelle: 'Email de l’acquéreur', type: 'texte', champId: 'f-email-acquereur' },
     { cle: 'nomAgence', libelle: 'Agence immobilière', type: 'texte', champId: 'f-nom-agence' },
+    { cle: 'depotGarantie', libelle: 'Dépôt de garantie / acompte', type: 'nombre', champId: 'f-depot-garantie' },
+    { cle: 'sequestreDepot', libelle: 'Dépôt versé à', type: 'texte', champId: 'f-sequestre-depot' },
     { cle: 'roleNotaire', libelle: 'Rôle de l’étude', type: 'select', champId: 'f-role-notaire' }
   ];
 
@@ -4239,6 +4310,8 @@
     if (cle === 'prixVente') return champs.prixVente || null;
     if (cle === 'emailAcquereur') return champs.emailAcquereur || null;
     if (cle === 'nomAgence') return champs.nomAgence || null;
+    if (cle === 'depotGarantie') return champs.depotGarantie || null;
+    if (cle === 'sequestreDepot') return champs.sequestreDepot || null;
     if (cle === 'signature') return dates.SIGNATURE_AVANT_CONTRAT || null;
     if (cle === 'pret') return dates.BUTOIR_PRET || null;
     if (cle === 'acte') return dates.REITERATION_ACTE || null;
@@ -4288,6 +4361,8 @@
     else if (cle === 'prixVente') { extraction.champs.prixVente = extraction.champs.prixVente || champExtraction(null); marquer(extraction.champs.prixVente); }
     else if (cle === 'emailAcquereur') { extraction.champs.emailAcquereur = extraction.champs.emailAcquereur || champExtraction(null); marquer(extraction.champs.emailAcquereur); }
     else if (cle === 'nomAgence') { extraction.champs.nomAgence = extraction.champs.nomAgence || champExtraction(null); marquer(extraction.champs.nomAgence); }
+    else if (cle === 'depotGarantie') { extraction.champs.depotGarantie = extraction.champs.depotGarantie || champExtraction(null); marquer(extraction.champs.depotGarantie); }
+    else if (cle === 'sequestreDepot') { extraction.champs.sequestreDepot = extraction.champs.sequestreDepot || champExtraction(null); marquer(extraction.champs.sequestreDepot); }
     else if (cle === 'signature') { extraction.dates.SIGNATURE_AVANT_CONTRAT = extraction.dates.SIGNATURE_AVANT_CONTRAT || champExtraction(null); marquer(extraction.dates.SIGNATURE_AVANT_CONTRAT); }
     else if (cle === 'pret') { extraction.dates.BUTOIR_PRET = extraction.dates.BUTOIR_PRET || champExtraction(null); marquer(extraction.dates.BUTOIR_PRET); }
     else if (cle === 'acte') { extraction.dates.REITERATION_ACTE = extraction.dates.REITERATION_ACTE || champExtraction(null); marquer(extraction.dates.REITERATION_ACTE); }
@@ -6079,6 +6154,9 @@
     const adresseBien = document.getElementById('f-adresse-bien').value.trim();
     const prixVenteBrut = document.getElementById('f-prix-vente').value.trim();
     const prixVente = prixVenteBrut ? parseInt(prixVenteBrut.replace(/[^\d]/g, ''), 10) : null;
+    const depotBrut = document.getElementById('f-depot-garantie').value.trim();
+    const depotGarantie = depotBrut ? parseInt(depotBrut.replace(/[^\d]/g, ''), 10) : null;
+    const sequestreDepot = document.getElementById('f-sequestre-depot').value.trim();
     const pret = echeanceActive.pret ? document.getElementById('f-pret').value : '';
     const acte = echeanceActive.acte ? document.getElementById('f-acte').value : '';
     const ventebien = echeanceActive.ventebien ? document.getElementById('f-ventebien').value : '';
@@ -6134,6 +6212,11 @@
       nomAgence,
       adresseBien,
       prixVente: Number.isFinite(prixVente) && prixVente > 0 ? prixVente : null,
+      // Dépôt de garantie / acompte sur le prix versé par l'acquéreur à la signature de
+      // l'avant-contrat, et l'office/l'agence qui le séquestre (voir detecterDepotGarantie) :
+      // une lecture de l'acte, corrigeable sur la fiche comme l'adresse ou le prix.
+      depotGarantie: Number.isFinite(depotGarantie) && depotGarantie > 0 ? depotGarantie : null,
+      sequestreDepot,
       montantPret: null,
       typeVente,
       roleNotaire,
@@ -6197,8 +6280,9 @@
     // pour mesurer plus tard où elle se trompe, jamais pour réentraîner automatiquement quoi que
     // ce soit (voir journaliserCorrectionsExtraction).
     journaliserCorrectionsExtraction(diffCorrectionsExtraction(extractionActuelle, {
-      nom, adresseBien, emailAcquereur, roleNotaire,
+      nom, adresseBien, emailAcquereur, roleNotaire, nomAgence, sequestreDepot,
       prixVente: Number.isFinite(prixVente) && prixVente > 0 ? prixVente : null,
+      depotGarantie: Number.isFinite(depotGarantie) && depotGarantie > 0 ? depotGarantie : null,
       pret, acte, ventebien
     }));
 
@@ -6645,6 +6729,32 @@
     if (nouvelle === (d.adresseBien || '')) return;
     ajouterHistorique(d, `Adresse du bien modifiée`);
     d.adresseBien = nouvelle;
+    sauvegarder(d);
+    render();
+  }
+
+  // Dépôt de garantie / acompte : même mécanique que le prix de vente (saisie libre, chiffres
+  // seuls retenus, historique journalisé) — et le séquestre, texte libre comme l'adresse.
+  function changerDepotGarantie(id, valeur) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    const chiffres = valeur.replace(/[^\d]/g, '');
+    const nouveau = chiffres ? parseInt(chiffres, 10) : null;
+    const normalise = Number.isFinite(nouveau) && nouveau > 0 ? nouveau : null;
+    if (normalise === (d.depotGarantie || null)) { render(); return; }
+    ajouterHistorique(d, `Dépôt de garantie modifié : ${d.depotGarantie ? formaterPrix(d.depotGarantie) : '—'} → ${normalise ? formaterPrix(normalise) : '—'}`);
+    d.depotGarantie = normalise;
+    sauvegarder(d);
+    render();
+  }
+
+  function changerSequestreDepot(id, valeur) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    const nouveau = valeur.trim();
+    if (nouveau === (d.sequestreDepot || '')) return;
+    ajouterHistorique(d, `Séquestre du dépôt modifié : ${nouveau || '—'}`);
+    d.sequestreDepot = nouveau;
     sauvegarder(d);
     render();
   }
@@ -7428,6 +7538,27 @@
   // tranche. Présentés comme la grille de classification juste en dessous (libellé au-dessus du
   // champ) : deux champs voisins qu'une icône seule ne suffirait pas à distinguer, contrairement à
   // l'adresse et au prix qui ont chacun leur propre ligne pleine largeur.
+  // Dépôt de garantie / acompte sur le prix versé par l'acquéreur à la signature, et l'office ou
+  // l'agence qui le séquestre. Présenté comme la grille de classification (libellé AU-DESSUS du
+  // champ) et non comme l'adresse/le prix (icône seule) : deux champs voisins qu'une icône ne
+  // suffirait pas à distinguer — c'est exactement la dissymétrie déjà corrigée une fois sur
+  // l'adresse et le prix (voir CLAUDE.md).
+  function renderDepotGarantieDossier(d) {
+    return `
+      <div class="dossier-depot">
+        <div class="dossier-classification-grid">
+          <div class="classif-champ">
+            <label for="depot-${d.id}">Dépôt de garantie / acompte</label>
+            <input type="text" id="depot-${d.id}" class="input-classif" inputmode="numeric" value="${d.depotGarantie ? formaterPrix(d.depotGarantie) : ''}" placeholder="Non détecté" onblur="changerDepotGarantie('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
+          </div>
+          <div class="classif-champ">
+            <label for="sequestre-${d.id}">Versé à (séquestre)</label>
+            <input type="text" id="sequestre-${d.id}" class="input-classif" value="${escapeAttr(d.sequestreDepot || '')}" placeholder="Non détecté" title="Entre les mains de qui l'acquéreur verse le dépôt : l'office, l'agence, la CARPA…" onblur="changerSequestreDepot('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
+          </div>
+        </div>
+      </div>`;
+  }
+
   function renderNotairesDossier(d) {
     const detectes = (Array.isArray(d.notairesDetectes) ? d.notairesDetectes : []).filter(n => n && n.nom);
     const listeId = `notaires-detectes-${d.id}`;
@@ -8285,6 +8416,10 @@
               <input type="text" class="input-inline champ-prix-vente" value="${d.prixVente ? formaterPrix(d.prixVente) : ''}" placeholder="Prix non détecté" aria-label="Prix de vente" onblur="changerPrixVente('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
             </div>
           </div>
+
+          <div class="dossier-head-divider"></div>
+
+          ${renderDepotGarantieDossier(d)}
 
           <div class="dossier-head-divider"></div>
 
@@ -9725,6 +9860,11 @@
       adresseBien: typeof d.adresseBien === 'string' ? d.adresseBien : '',
       nomAgence: typeof d.nomAgence === 'string' ? d.nomAgence : '',
       prixVente: Number.isFinite(d.prixVente) && d.prixVente > 0 ? d.prixVente : null,
+      // Comme adresseBien/prixVente : une lecture de l'acte (ou une saisie de l'étude), identique
+      // sur n'importe quel poste — conservée telle quelle, contrairement aux statuts dérivés d'un
+      // scan du NAS juste en dessous.
+      depotGarantie: Number.isFinite(d.depotGarantie) && d.depotGarantie > 0 ? d.depotGarantie : null,
+      sequestreDepot: typeof d.sequestreDepot === 'string' ? d.sequestreDepot : '',
       // Comme offrePretStatut : dérivé d'un PDF local, jamais importé tel quel d'une autre machine
       // sans revérification (voir le commentaire déjà existant sur offrePretStatut ci-dessous).
       montantPret: null,

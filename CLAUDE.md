@@ -5666,6 +5666,63 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     des deux retirée du dossier → elle repasse à « manquante » avec sa ligne d'historique, l'autre
     reste reçue ; PDF du questionnaire bien chargé dans la page ; aucune erreur JS.
 
+- **Dépôt de garantie / acompte sur le prix détecté à la création du dossier, et son séquestre**
+  (« Détecter dans l'ajout d'un nouveau dossier le montant de l'acompte sur prix/Dépôt de garantie
+  que l'acquéreur doit verser et à qui »). Deux données, pas une : le montant seul ne dit pas quoi
+  réclamer à qui.
+  - **Montant** (`detecterDepotGarantie`, `DEPOT_GARANTIE_PARENTHESES_RE`/`DEPOT_GARANTIE_CHIFFRES_RE`)
+    reconnu sous ses trois noms — « dépôt de garantie », « acompte sur le prix », et
+    « indemnité d'immobilisation », son équivalent sur une promesse unilatérale. Deux formes de
+    montant, dans cet ordre de confiance : la reprise chiffrée entre parenthèses derrière le
+    montant en lettres (même heuristique que `PRIX_VENTE_RE`/`MONTANT_PRET_RE`), puis le montant
+    écrit directement en chiffres (« un dépôt de garantie de 15 000 € »), fréquent dans les trames
+    d'agence — plus court, donc plus exposé à un faux positif, d'où une fenêtre volontairement
+    courte entre le mot-clé et le montant. Plancher à 100 € et symbole monétaire obligatoire :
+    « un dépôt de garantie de 5 % du prix » ne rend rien plutôt qu'un « 5 » fantaisiste.
+  - **Séquestre** (`detecterSequestreDepot`, `SEQUESTRE_RE`) : « entre les mains de… »,
+    « séquestré auprès de… », « en la comptabilité de… », « versé à… », ce qui couvre aussi bien
+    l'office que l'agence ou la CARPA. **Cherché uniquement dans la fenêtre qui entoure la clause
+    de dépôt** (200 caractères avant le mot-clé, 600 après) : « entre les mains du notaire » se
+    rencontre aussi dans des clauses sans rapport (appel de fonds, indemnité de retard), le
+    chercher dans tout l'acte ramènerait n'importe laquelle d'entre elles. Aucune clause de dépôt
+    détectée = rien proposé, plutôt qu'un nom pris ailleurs au hasard. Une proposition relative qui
+    suivrait (« … du notaire soussigné **qui en donnera quittance** ») est coupée.
+  - **Champ libre, pas une liste fermée** (notaire / agence / CARPA) : la formulation varie trop
+    d'une trame à l'autre pour qu'une énumération couvre les cas réels, et se tromper de catégorie
+    coûterait plus qu'un texte à relire. Même premier jet que `AGENCE_RE`/`PIECES_*` en leur temps,
+    à resserrer sur retour de l'étude.
+  - **Branchés dans le pipeline d'extraction unifié**, exactement comme `emailAcquereur`/
+    `nomAgence`/`adresseBien` — aucun chemin parallèle : `construireExtractionRegex` (avec leur
+    page via `champAvecSource`), `appliquerExtractionAuFormulaire`, `CHAMPS_REVISION`,
+    `champRevision`/`ecrireChampRevision` (donc éditables et cochables dans « Ce que l'outil a
+    compris »), `diffCorrectionsExtraction`, et `instantaneExtraction`, qui itère déjà sur toutes
+    les clés de `extraction.champs` et les a repris sans une ligne de plus. `aiguillesPourValeur`
+    traite `depotGarantie` comme `prixVente` (un montant se retrouve dans le texte sous la forme
+    « 10 000 », pas « 10000 »).
+  - `d.depotGarantie` (entier ou `null`) et `d.sequestreDepot` (texte) ajoutés au modèle du
+    dossier, **conservés à l'import d'une sauvegarde** comme `adresseBien`/`prixVente` : une
+    lecture de l'acte (ou une saisie de l'étude), identique sur n'importe quel poste — jamais un
+    statut dérivé d'un scan du NAS. Deux champs à l'étape « Finaliser » du wizard, et sur la fiche
+    (`renderDepotGarantieDossier`, `changerDepotGarantie`/`changerSequestreDepot`, historique
+    journalisé) juste sous l'adresse et le prix.
+  - **Présentés comme la grille de classification** (libellé AU-DESSUS du champ, `.input-classif`)
+    et non comme l'adresse/le prix (icône seule) : deux champs voisins qu'une icône ne suffirait
+    pas à distinguer — exactement la dissymétrie déjà corrigée une fois sur l'adresse et le prix
+    (voir son historique plus haut).
+  - **Corrigé au passage** : `nomAgence` figurait dans les valeurs attendues par
+    `diffCorrectionsExtraction` mais n'était pas passé par l'appelant — une agence détectée était
+    donc journalisée à chaque création comme « vidée à la main ». Les trois champs sont maintenant
+    transmis.
+  - Tests : 6 nouveaux dans `tests/dates.test.js` (les deux formes de montant, les trois
+    vocabulaires, le pourcentage et le prix de vente qui ne doivent rien rendre, les trois
+    destinataires, et l'absence de séquestre sans clause de dépôt) ; la liste attendue des lignes
+    du panneau de révision mise à jour dans `tests/revision.test.js`. Suite racine 461 → 467,
+    serveur inchangée (213 — chantier entièrement côté client). **Vérifié dans un vrai Chromium**
+    (serveur réel, clair et sombre, desktop et 400px) : les deux champs préremplis à l'étape
+    Finaliser, les deux lignes dans « Ce que l'outil a compris » avec leur extrait, le dossier
+    relu depuis le serveur avec ses deux valeurs, correction depuis la fiche avec sa ligne
+    d'historique, aucune erreur JS, aucun débordement horizontal en mobile.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à
