@@ -32,6 +32,10 @@ const ASSETS_STATIQUES = {
   // embarqués du .exe : sans ça le <script src> d'index.html fait un 404 et le téléchargement du
   // questionnaire échoue silencieusement.
   '/questionnaire-satisfaction-pdf.js': { fichier: 'questionnaire-satisfaction-pdf.js', type: 'application/javascript; charset=utf-8' },
+  // Modèle Word + images de l'en-tête de l'étude pour le générateur d'appel de fonds, encodés en
+  // base64 dans un fichier à part chargé à la demande (voir chargerModeleAppelFonds). Même piège
+  // que la ligne ci-dessus : à déclarer ici ET dans les assets embarqués du .exe.
+  '/appel-de-fonds-modele.js': { fichier: 'appel-de-fonds-modele.js', type: 'application/javascript; charset=utf-8' },
   '/manifest.json': { fichier: 'manifest.json', type: 'application/manifest+json; charset=utf-8' },
   '/sw.js': { fichier: 'sw.js', type: 'application/javascript; charset=utf-8' },
   '/icone.svg': { fichier: 'icone.svg', type: 'image/svg+xml; charset=utf-8' }

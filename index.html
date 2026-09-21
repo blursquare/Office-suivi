@@ -9,7 +9,7 @@
 <link rel="icon" href="icone.svg">
 <link rel="apple-touch-icon" href="icone.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -64,6 +64,12 @@
       </button>
       <button type="button" id="tab-prorata" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('prorata')">
         <span class="sidebar-link-icone" id="icon-nav-prorata" aria-hidden="true"></span>Prorata & répartitions
+      </button>
+      <!-- Générateur d'appel de fonds : la convocation au rendez-vous de signature, avec le
+           décompte des sommes à virer. Relié à Outil 1 — « Préparer l'appel de fonds » sur une
+           fiche dossier ouvre cet onglet déjà prérempli (voir prefillAppelFonds). -->
+      <button type="button" id="tab-appel-fonds" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('appel-fonds')">
+        <span class="sidebar-link-icone" id="icon-nav-appel-fonds" aria-hidden="true"></span>Appel de fonds
       </button>
 
       <span class="sidebar-nav-titre">Admin</span>
@@ -729,6 +735,216 @@
     <p>Le <strong>jour de l'acte est à la charge de l'acquéreur</strong> : il est compté dans sa part.</p>
     <p>La part du vendeur est le complément exact de celle de l'acquéreur, de sorte que les deux totalisent toujours la somme appelée au centime près.</p>
     <p><strong>Taxe foncière :</strong> elle reste due par le propriétaire au 1<sup>er</sup> janvier, donc par le vendeur ; ce calcul donne la somme que l'acquéreur lui rembourse. Cette répartition est conventionnelle entre les parties, elle n'est pas opposable à l'administration fiscale.</p>
+  </div>
+</div>
+
+<!-- Générateur d'appel de fonds (voir CLAUDE.md, "Générateur d'appel de fonds"). Deux moitiés
+     au traitement délibérément différent : à gauche le CHROME (formulaire), sur les jetons de
+     CLAIRE comme le simulateur de provision ; à droite l'APERÇU DU COURRIER, qui garde
+     l'identité papier de l'étude (bordeaux, Lora, les vrais logos) — c'est le fac-similé de ce
+     qui sortira de l'imprimante, le repeindre en bleu CLAIRE ferait mentir l'aperçu. Même
+     principe que imprimerFiche(), dont les couleurs inline ne suivent pas non plus le thème. -->
+<div class="onglet-panel" id="onglet-appel-fonds" style="display:none;">
+  <div class="dash-header">
+    <div>
+      <div class="dash-eyebrow">Appel de fonds</div>
+      <div class="dash-titre-ligne">
+        <h1 class="dash-titre">Convocation au rendez-vous de signature</h1>
+      </div>
+    </div>
+    <div class="dash-header-actions">
+      <button type="button" class="secondary" onclick="reinitialiserAppelFonds()">Effacer</button>
+      <button type="button" class="primary" id="af-telecharger" onclick="telechargerAppelFondsDocx(this)">Télécharger le courrier (.docx)</button>
+    </div>
+  </div>
+
+  <div class="af-grid">
+    <!-- ---------- Colonne de gauche : le formulaire, aux couleurs de CLAIRE ---------- -->
+    <div class="calc-card af-form">
+
+      <div class="dash-section-titre">1 · Dossier suivi</div>
+      <div class="calc-champs">
+        <div class="calc-champ">
+          <label for="af-dossier-recherche">Reprendre les données d'un dossier</label>
+          <div class="dash-recherche" style="width:100%;">
+            <input type="search" id="af-dossier-recherche" placeholder="Rechercher un dossier par nom ou responsable…" oninput="rechercherDossierAppelFonds(this.value)" autocomplete="off">
+            <div id="af-dossier-resultats" class="dash-recherche-resultats" style="display:none;"></div>
+          </div>
+          <div id="af-dossier-pill"></div>
+        </div>
+        <div id="af-recap-prefill" class="af-recap"></div>
+      </div>
+
+      <div class="dash-section-titre" style="margin-top:18px;">2 · Décompte du confrère</div>
+      <p class="hint">Quand le décompte vient d'un confrère (étude en participation), collez-le ou déposez son PDF : ses lignes remplissent le tableau du courrier, et les prorata écrits sous forme de formule sont recalculés pour contrôle.</p>
+      <div class="pdf-dropzone af-dropzone" id="af-dropzone" ondragover="gererSurvolDepotAppelFonds(event)" ondragleave="gererQuitteDepotAppelFonds(event)" ondrop="gererDepotAppelFonds(event)">
+        <span class="pdf-dropzone-icone" id="icon-af-dropzone" aria-hidden="true"></span>
+        <label for="af-fichier" class="file-btn">Choisir le PDF du décompte</label>
+        <input type="file" id="af-fichier" accept="application/pdf" onchange="importerDecompteAppelFonds(this.files && this.files[0]); this.value='';">
+        <span class="pdf-dropzone-hint">ou glissez-déposez le fichier ici</span>
+      </div>
+      <details class="af-coller">
+        <summary>Coller le texte du décompte</summary>
+        <textarea id="af-coller-texte" rows="6" placeholder="Collez ici les lignes du décompte, une par ligne."></textarea>
+        <button type="button" class="secondary" onclick="importerDecompteColle()">Lire ce texte</button>
+      </details>
+      <div id="af-rapport-parse" class="af-rapport"></div>
+
+      <div class="dash-section-titre" style="margin-top:18px;">3 · Client(s)</div>
+      <div id="af-clients"></div>
+      <button type="button" class="action-rapide" onclick="ajouterClientAppelFonds()">+ Ajouter un client</button>
+      <div class="calc-champs" style="margin-top:10px;">
+        <div class="calc-champ">
+          <label for="af-adresse-clients">Adresse des clients</label>
+          <textarea id="af-adresse-clients" rows="2" placeholder="Numéro et rue&#10;Code postal VILLE" oninput="majApercuAppelFonds()"></textarea>
+        </div>
+      </div>
+
+      <div class="dash-section-titre" style="margin-top:18px;">4 · Rendez-vous</div>
+      <div class="calc-champs">
+        <div class="calc-champ">
+          <label for="af-ref">Référence du dossier</label>
+          <input type="text" id="af-ref" placeholder="Référence portée en tête du courrier" oninput="majApercuAppelFonds()">
+        </div>
+        <div class="calc-champ">
+          <label for="af-date-lettre">Date de la lettre</label>
+          <input type="date" id="af-date-lettre" onchange="majApercuAppelFonds()">
+        </div>
+        <div class="calc-champ calc-champ-paire">
+          <div>
+            <label for="af-date-rdv">Date du rendez-vous</label>
+            <input type="date" id="af-date-rdv" onchange="majApercuAppelFonds()">
+          </div>
+          <div>
+            <label for="af-heure-rdv">Heure</label>
+            <input type="time" id="af-heure-rdv" onchange="majApercuAppelFonds()">
+          </div>
+        </div>
+        <div class="calc-champ">
+          <label for="af-lieu">Lieu</label>
+          <select id="af-lieu" onchange="majLieuAppelFonds()">
+            <option value="en l'étude">En l'étude</option>
+            <option value="par visioconférence">Par visioconférence</option>
+            <option value="__autre">Autre — préciser…</option>
+          </select>
+          <input type="text" id="af-lieu-autre" placeholder="Préciser le lieu" style="display:none;margin-top:8px;" oninput="majApercuAppelFonds()">
+        </div>
+      </div>
+
+      <div class="dash-section-titre" style="margin-top:18px;">5 · Bien vendu</div>
+      <div class="calc-champs">
+        <div class="calc-champ">
+          <label for="af-designation">Désignation</label>
+          <input type="text" id="af-designation" placeholder="une maison, un lot de copropriété…" oninput="majApercuAppelFonds()">
+        </div>
+        <div class="calc-champ">
+          <label for="af-adresse-bien">Adresse du bien</label>
+          <textarea id="af-adresse-bien" rows="2" placeholder="Numéro et rue, Code postal VILLE" oninput="majApercuAppelFonds()"></textarea>
+        </div>
+      </div>
+
+      <div class="dash-section-titre" style="margin-top:18px;">6 · Financement</div>
+      <div class="calc-champs">
+        <label class="af-checkline"><input type="checkbox" id="af-pret-hypothecaire" onchange="majApercuAppelFonds()"> Prêt garanti par une hypothèque (acte de prêt à recevoir)</label>
+        <p class="hint">Un prêt cautionné (Crédit Logement…) ne donne lieu à aucun acte notarié, donc à aucun frais d'acte de prêt à appeler. CLAIRE coche cette case toute seule quand elle a lu une garantie hypothécaire dans l'offre de prêt du dossier.</p>
+      </div>
+
+      <p class="hint" style="margin-top:16px;">Le courrier ci-contre se modifie directement : cliquez dans un texte ou un montant pour le corriger. Le <code>.docx</code> téléchargé reprend l'en-tête réel de l'étude.</p>
+    </div>
+
+    <!-- ---------- Colonne de droite : l'aperçu du courrier, identité papier de l'étude ---------- -->
+    <div class="af-apercu">
+      <div class="af-apercu-barre">
+        <span class="hint">Aperçu — cliquez pour modifier un texte ou un montant, double-cliquez une ligne du tableau pour la supprimer.</span>
+      </div>
+
+      <div class="af-lettre" id="af-lettre" contenteditable="true" spellcheck="false">
+        <div class="af-topbar" contenteditable="false">
+          <img class="af-logo-notaires" id="af-logo-notaires" alt="Notaires de France">
+          <div class="af-office-id">
+            <img class="af-logo-office" id="af-logo-office" alt="Me Sophie GOSSART — Office notarial de la Salamandre">
+            <div class="af-office-addr">3 RUE DU BOUT DES HAIES – 41000 BLOIS</div>
+          </div>
+        </div>
+
+        <div class="af-lettre-grid">
+          <aside class="af-lettre-aside" contenteditable="false">
+            <div class="af-aside-bloc af-aside-visio">
+              <img id="af-icone-visio" alt="">
+              <div class="af-aside-visio-texte">OFFICE ÉQUIPÉ<br>DE LA VISIOCONFÉRENCE<br>DE LA PROFESSION</div>
+            </div>
+            <div class="af-aside-bloc">
+              <div class="af-aside-titre">NOUS CONTACTER</div>
+              <div class="af-aside-ligne">02 54 78 61 70</div>
+              <div class="af-aside-ligne"><span class="af-aside-lien">office.gossart@notaires.fr</span></div>
+              <div class="af-aside-ligne"><span class="af-aside-lien">sophie-gossart-blois.notaires.fr</span></div>
+              <div class="af-aside-ligne">3 rue du Bout des Haies<br>41000 BLOIS</div>
+              <div class="af-aside-social"><img id="af-icone-facebook" alt="Facebook"> @bloisnotaire</div>
+              <div class="af-aside-social"><img id="af-icone-instagram" alt="Instagram"> @bloisnotairegossart</div>
+            </div>
+            <div class="af-aside-bloc">
+              <div class="af-aside-ligne">Nos Réf : <span class="af-champ" id="af-p-ref">RÉF. DOSSIER</span></div>
+            </div>
+            <div class="af-aside-bloc">
+              <div class="af-aside-titre">HORAIRES</div>
+              <div class="af-aside-ligne">Ouvert au public</div>
+              <div class="af-aside-ligne">du LUNDI au VENDREDI</div>
+              <div class="af-aside-ligne">de 9 h à 12 h</div>
+              <div class="af-aside-ligne">et de 14 h à 18 h.</div>
+              <div class="af-aside-ligne">SAMEDI matin :</div>
+              <div class="af-aside-ligne">sur rendez-vous.</div>
+              <div class="af-aside-ligne">PARKING</div>
+            </div>
+          </aside>
+
+          <div class="af-lettre-corps">
+            <div class="af-adresse-bloc"><div id="af-p-adresse"><u>Destinataire à compléter</u></div></div>
+
+            <div class="af-date-ligne"><u><span class="af-champ" id="af-p-ville">Blois</span>, le <span class="af-champ" id="af-p-datelettre"></span></u></div>
+
+            <p><span class="af-champ" id="af-p-salut1">Madame, Monsieur,</span></p>
+
+            <p>J'ai le plaisir de vous confirmer le rendez-vous pour la signature de l'acte de <u>vente</u>, à votre profit, portant sur <span class="af-champ" id="af-p-designation">un bien</span> situé à <u><span class="af-champ" id="af-p-adressebien">adresse à compléter</span></u>, <b><u><span class="af-champ" id="af-p-rdv">date à fixer</span></u></b>.</p>
+
+            <p>Votre décompte prévisionnel s'établit comme suit :</p>
+
+            <table class="af-table" id="af-table">
+              <colgroup><col><col class="af-col-montant"><col class="af-col-montant"></colgroup>
+              <tbody id="af-tbody-debit"></tbody>
+              <tbody id="af-tbody-credit"></tbody>
+              <tbody>
+                <tr class="af-solde"><td>Solde à verser</td><td class="af-montant"></td><td class="af-montant" id="af-p-solde">0,00 €</td></tr>
+              </tbody>
+            </table>
+            <div class="af-table-actions" contenteditable="false">
+              <button type="button" class="af-ajout-ligne" onclick="ajouterLigneAppelFonds('debit')">+ Ligne au débit</button>
+              <button type="button" class="af-ajout-ligne" onclick="ajouterLigneAppelFonds('credit')">+ Ligne à déduire</button>
+            </div>
+
+            <p style="margin-top:20px"><b>ATTENTION : Les paiements effectués ou reçus par un notaire doivent être assurés par virement (article L.112-6-1 du Code monétaire et financier).</b></p>
+
+            <p><b>À cet effet, vous trouverez ci-joint le R.I.B. de l'étude et je vous remercie de prendre toutes dispositions pour que le compte de l'étude soit crédité, au plus tard, <u>2 jours ouvrés avant la date de signature</u>. Je vous invite à vous rapprocher de votre établissement bancaire afin de faire le point sur le déblocage de votre prêt (total ou partiel si vous financez des travaux), ainsi que sur le virement du solde correspondant à votre apport personnel.</b></p>
+
+            <p><b>Par ailleurs, conformément à la réglementation en vigueur et aux directives de notre profession, je vous remercie de bien vouloir vous munir d'une <u>pièce d'identité</u>, d'un <u>RIB</u> et d'une <u>attestation émanant de la banque</u> qui aura émis le virement justifiant de l'origine des fonds.</b></p>
+
+            <p>Je vous rappelle enfin que vous devez, préalablement à la signature :</p>
+            <p>&nbsp;&nbsp;- effectuer une visite du bien ;<br>
+            &nbsp;&nbsp;- procéder à un relevé contradictoire des compteurs ;<br>
+            &nbsp;&nbsp;- le cas échéant, vous assurer de la bonne libération de l'immeuble et de la présence du mobilier repris ;<br>
+            &nbsp;&nbsp;- souscrire une assurance habitation.</p>
+
+            <p>Dans l'attente du plaisir de notre rencontre, et avec mes remerciements anticipés, je vous prie d'agréer, <span class="af-champ" id="af-p-salut2">Madame, Monsieur,</span> mes salutations distinguées.</p>
+
+            <div class="af-signature">M<sup>e</sup> <span class="af-champ" id="af-p-notaire">Sophie GOSSART</span></div>
+          </div>
+        </div>
+
+        <div class="af-lettre-pied" contenteditable="false">
+          <p>Toute somme supérieure à 3.000 € qui nous est versée en vue d'un acte destiné à la publicité foncière doit nous parvenir <u>obligatoirement</u> par <u>virement anticipé</u>. (Article L 112-6-1 du code monétaire et financier)</p>
+          <p>Membre d'une association agréée – Le règlement des honoraires par chèque est accepté</p>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 

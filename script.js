@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-21 18:04';
+  const VERSION_APP = '2026-09-21 21:36';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-21 21:36', resume: "Nouvel outil « Appel de fonds » dans la sidebar : il produit la convocation au rendez-vous de signature avec le décompte des sommes à virer, et la télécharge en .docx à l'en-tête de l'étude. Relié au suivi — un bouton « Préparer l'appel de fonds » sur la fiche d'un dossier ouvre l'outil déjà rempli avec les acquéreurs, l'adresse et la désignation du bien, la date du rendez-vous et le prix ; il dit aussi, en clair, ce qu'il n'a PAS pu remplir. Le dépôt de garantie n'est porté en déduction que s'il est séquestré à l'étude, et les frais d'acte de prêt ne sont appelés que si l'offre porte une garantie hypothécaire. Le décompte d'un confrère peut être déposé en PDF ou collé : ses lignes remplissent le tableau, et ses prorata écrits sous forme de formule sont recalculés pour contrôle" },
     { version: '2026-09-21 18:04', resume: "Deux changements de couleur demandés : les notifications de nouveau document (le compteur de la sidebar, la mention sur la ligne du Suivi et le repère « Nouveau » sur la pièce) passent au ROUGE, qui se remarque mieux que l'ancien vert — lequel disait par ailleurs la même chose que le statut « reçu » affiché juste à côté. Et l'échéance « Signature de l'acte » passe au BLEU NUIT, partout où elle apparaît, y compris sur la fiche imprimée. Corrigé au passage sur le Tableau de bord : les pastilles « Appel de fonds » et « Rendez-vous de signature » du widget des 7 prochains jours ne prenaient pas la couleur de leur catégorie — le rendez-vous s'y affichait même dans la couleur de la date butoir, ce qui rendait les deux indiscernables" },
     { version: '2026-09-21 17:43', resume: "Calendrier connecté : les échéances s'affichaient par deux ou trois dans Outlook, puis plus rien. Le fichier produit devenait invalide dès le deuxième événement et le lecteur abandonnait le reste en silence. Trois défauts corrigés : une propriété d'annulation placée dans l'événement au lieu du calendrier, des lignes trop longues jamais repliées (les titres dépassent largement la limite de la norme dès que le nom du dossier est long), et les virgules ou points-virgules des noms de dossier non échappés. Rien à refaire de votre côté que resynchroniser le calendrier : l'abonnement et son adresse ne changent pas" },
     { version: '2026-09-21 15:48', resume: "Réglages d'envoi précisés après vérification du DNS de l'étude : le courrier du domaine passe par une passerelle de filtrage et l'enregistrement SPF interdit tout envoi depuis une autre adresse — l'envoi sans compte, recommandé une heure plus tôt, n'est donc pas praticable. L'écran demande désormais un compte SMTP (smtp.office365.com, port 587, mot de passe d'application) et explique comment l'autoriser côté administrateur Microsoft 365. Corrigé au passage : avec un compte, l'expéditeur par défaut est désormais ce compte et non la boîte-passerelle — Microsoft refuse tout autre expéditeur, avec un message d'erreur peu parlant" },
@@ -7212,18 +7213,24 @@
     document.getElementById('onglet-suivi').style.display = nom === 'suivi' ? '' : 'none';
     document.getElementById('onglet-calculateur').style.display = nom === 'calculateur' ? '' : 'none';
     document.getElementById('onglet-prorata').style.display = nom === 'prorata' ? '' : 'none';
+    document.getElementById('onglet-appel-fonds').style.display = nom === 'appel-fonds' ? '' : 'none';
     document.getElementById('onglet-analyse-ia').style.display = nom === 'analyse-ia' ? '' : 'none';
     document.getElementById('onglet-reglages').style.display = nom === 'reglages' ? '' : 'none';
     document.getElementById('tab-dashboard').setAttribute('aria-selected', String(nom === 'dashboard'));
     document.getElementById('tab-suivi').setAttribute('aria-selected', String(nom === 'suivi'));
     document.getElementById('tab-calculateur').setAttribute('aria-selected', String(nom === 'calculateur'));
     document.getElementById('tab-prorata').setAttribute('aria-selected', String(nom === 'prorata'));
+    document.getElementById('tab-appel-fonds').setAttribute('aria-selected', String(nom === 'appel-fonds'));
     document.getElementById('tab-analyse-ia').setAttribute('aria-selected', String(nom === 'analyse-ia'));
     document.getElementById('tab-reglages').setAttribute('aria-selected', String(nom === 'reglages'));
     document.getElementById('tab-dashboard').classList.toggle('actif', nom === 'dashboard');
     document.getElementById('tab-suivi').classList.toggle('actif', nom === 'suivi');
     document.getElementById('tab-calculateur').classList.toggle('actif', nom === 'calculateur');
     document.getElementById('tab-prorata').classList.toggle('actif', nom === 'prorata');
+    document.getElementById('tab-appel-fonds').classList.toggle('actif', nom === 'appel-fonds');
+    // Ctrl+P depuis cet onglet doit sortir la FEUILLE, pas l'application autour (voir @media
+    // print dans style.css) — un onglet n'ayant pas de classe sur <body>, on la pose ici.
+    document.body.classList.toggle('onglet-appel-fonds-actif', nom === 'appel-fonds');
     document.getElementById('tab-analyse-ia').classList.toggle('actif', nom === 'analyse-ia');
     document.getElementById('tab-reglages').classList.toggle('actif', nom === 'reglages');
     if (nom === 'suivi' || nom === 'dashboard') render();
@@ -7235,6 +7242,9 @@
     if (nom === 'reglages') chargerReglages();
     // Date du jour et bornes de période posées au premier affichage seulement (voir initProrata).
     if (nom === 'prorata') initProrata();
+    // Date du jour, tableau vierge et chargement du modèle Word au premier affichage (voir
+    // initAppelFonds) — puis seulement le chargement du modèle aux visites suivantes.
+    if (nom === 'appel-fonds') initAppelFonds();
   }
 
   // ==== SUIVI : regroupement des échéances par semaine ====
@@ -8508,6 +8518,7 @@
         ${renderAjoutEngagement(d)}
         ${renderRelancesCiblees(d)}
         ${renderQuestionnaireSatisfaction(d)}
+        ${renderAppelFondsDossier(d)}
         <!-- Libellés volontairement courts (l'intitulé complet reste en infobulle) : l'étude veut
              ces actions sur une seule ligne, ce que "Télécharger les rappels (.ics)" et son voisin
              ne permettaient pas dans la largeur du tiroir. Le rappel par email générique
@@ -9162,6 +9173,27 @@
       <p class="hint">Envoie le questionnaire de satisfaction à l’acquéreur et archive automatiquement ce dossier.</p>
       <div class="relances-boutons">
         <button type="button" class="action-rapide" onclick="envoyerQuestionnaireSatisfaction('${d.id}')">${icone('mail')} Questionnaire de satisfaction</button>
+      </div>
+    </div>`;
+  }
+
+  // Passerelle de la fiche vers le générateur d'appel de fonds : bascule d'onglet avec le dossier
+  // déjà repris (voir preparerAppelFondsDepuisDossier). Proposé sur tout dossier actif, y compris
+  // en participation — c'est même là que l'outil sert le plus, le décompte venant alors du
+  // confrère et devant être relayé au client. Le courrier lui-même n'est jamais envoyé d'ici : on
+  // prépare un .docx, l'étude le relit et l'envoie.
+  function renderAppelFondsDossier(d) {
+    if (d.archive) return '';
+    // Ce qui manquera au courrier, dit AVANT le clic plutôt que découvert sur l'écran suivant.
+    const manques = [];
+    if (!d.rendezVousSignature) manques.push('la date du rendez-vous');
+    if (!d.prixVente) manques.push('le prix');
+    if (!d.adresseBien) manques.push("l'adresse du bien");
+    return `<div class="relances-ciblees">
+      <span class="section-eyebrow">Appel de fonds</span>
+      <p class="hint">Prépare la convocation au rendez-vous de signature avec le décompte des sommes à virer, à partir des données de ce dossier.${manques.length ? ` Il restera à saisir ${escapeHtml(manques.join(', '))}.` : ''}</p>
+      <div class="relances-boutons">
+        <button type="button" class="action-rapide" onclick="preparerAppelFondsDepuisDossier('${d.id}')">${icone('mail')} Préparer l'appel de fonds</button>
       </div>
     </div>`;
   }
@@ -12732,6 +12764,865 @@
     }
   }
 
+
+  // ==== GÉNÉRATEUR D'APPEL DE FONDS ====
+  //
+  // Produit la « Convocation au rendez-vous contenant l'appel de fonds » : le courrier que
+  // l'étude adresse à l'acquéreur pour lui annoncer la date de signature et le décompte des
+  // sommes à virer. Porté d'un artefact fourni par l'étude, avec deux partis pris :
+  //
+  // 1. **Le CHROME (formulaire, boutons, champs) prend les jetons de CLAIRE** — même gabarit que
+  //    le simulateur de provision. **L'APERÇU DE LA LETTRE garde, lui, l'identité PAPIER de
+  //    l'étude** (bordeaux #6D2332, Lora, les vrais logos, la colonne de contact) : c'est le
+  //    fac-similé d'un document réellement envoyé, et le .docx téléchargé a cet en-tête-là.
+  //    Le repeindre en bleu CLAIRE ferait mentir l'aperçu sur ce qui sortira de l'imprimante.
+  //    Même principe que imprimerFiche(), dont les couleurs inline ne suivent pas non plus le
+  //    thème de l'application.
+  // 2. **Rien n'est inventé à partir du dossier.** Le préremplissage ne pose que ce que CLAIRE
+  //    sait vraiment (voir prefillAppelFonds), et dit à l'écran ce qu'il n'a pas pu remplir.
+  //
+  // Tout ce qui suit jusqu'à « fin du socle pur » est PUR et déclaré en `function`/`var` :
+  // testable depuis tests/helpers/load-app.js (voir la limite du harnais dans CLAUDE.md).
+
+  // --- montants -----------------------------------------------------------------------------
+  // Un décompte de confrère écrit « 1 234,56 € », parfois avec une espace insécable comme
+  // séparateur de milliers. parseFloat() ne sait lire ni l'un ni l'autre.
+  function montantDepuisTexteFr(texte) {
+    if (texte == null) return null;
+    const nettoye = String(texte).replace(/[€\s ]/g, '').replace(/\./g, '').replace(',', '.');
+    const n = parseFloat(nettoye);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function montantVersTexteFr(n) {
+    if (n == null || !Number.isFinite(n)) return '';
+    return formaterPrixCentimes(n);
+  }
+
+  // --- parseur du décompte du confrère --------------------------------------------------------
+  //
+  // Quand l'étude est notaire PARTICIPANT, le décompte vient du confrère sous forme de PDF et
+  // n'a aucune structure exploitable : un tableau mis à plat, une ligne de texte par ligne du
+  // tableau. Ces motifs ont été écrits sur de vrais décomptes — ne pas les resserrer sans
+  // relire les tests correspondants (tests/appel-de-fonds.test.js), même consigne que pour les
+  // regex de détection de dates.
+  var AF_MONTANT_FIN_RE = /([0-9]{1,3}(?:[.\s ][0-9]{3})*,[0-9]{2})\s*€\s*$/;
+  var AF_EURO_SEUL_RE = /€\s*$/;
+  // « Offerts », « Néant », « pour mémoire »… : une ligne complète, mais sans chiffre.
+  var AF_SANS_MONTANT_RE = /[(]?\b(offerts?|n[ée]ant|directement\s+au\s+syndic|sans\s+objet|non\s+concern[ée]|(?:pour\s+)?m[ée]moire)\b[)]?\s*$/i;
+  var AF_MEMOIRE_RE = /\bm[ée]moire\b/i;
+  // Prorata : « 913 € x 92 jours / 365 jours », ou sa forme compacte « 1829x203/365 ».
+  var AF_FORMULE_RE = /^\s*([0-9]+(?:[.\s ][0-9]{3})*(?:,[0-9]+)?)\s*€?\s*(?:jours?)?\s*[x×*]\s*([0-9]{1,4})\s*(?:jours?)?\s*\/\s*([0-9]{1,4})\s*(?:jours?)?\s*$/i;
+  var AF_BASCULE_DEBIT_RE = /^(frais\s+(a|à)\s+ajouter|a\s*ajouter|a\s*payer)\b/i;
+  var AF_BASCULE_CREDIT_RE = /^(a\s*d[ée]duire|sommes?\s+(a|à)\s+d[ée]duire|sous\s+d[ée]duction)\b/i;
+  // Lignes de sous-total du confrère : ce sont des CONTRÔLES, pas des lignes du décompte —
+  // les reprendre comme lignes compterait deux fois les mêmes sommes.
+  var AF_SOUS_TOTAL_RE = /^(ensemble|total(\s+des\s+d[ée]penses)?|soit\s+au\s+total|total\s+a\s+(payer|d[ée]duire)|reste\s+(a|à)\s+verser(\s+a\s+la\s+signature)?|versement\s+(a|à)\s+la\s+signature|solde(\s+(a|à)\s+(verser|payer))?|solde\s+prix\s+de\s+vente)\b/i;
+  var AF_LIGNE_PRIX_RE = /^prix\s+(de\s+vente|d'acquisition)\b/i;
+
+  function afIdLigne() { return 'af' + Math.random().toString(36).slice(2, 9); }
+
+  function afExtraireFormule(libelle) {
+    const m = /\(([^()]*)\)\s*$/.exec(libelle);
+    if (m && AF_FORMULE_RE.test(m[1].trim())) {
+      return { libelle: libelle.slice(0, m.index).trim(), formule: m[1].trim() };
+    }
+    return { libelle, formule: null };
+  }
+
+  // « Ensemble 3 400,00 € 3 400,00 € » : deux montants sur la même ligne = un sous-total reporté.
+  function afDeuxMontants(ligne) {
+    const m1 = AF_MONTANT_FIN_RE.exec(ligne);
+    if (!m1) return null;
+    const reste = ligne.slice(0, m1.index).trim().replace(/-\s*$/, '').trim();
+    const m2 = AF_MONTANT_FIN_RE.exec(reste);
+    if (!m2 || m2.index + m2[0].length !== reste.length) return null;
+    return { libelle: reste.slice(0, m2.index).trim(), second: montantDepuisTexteFr(m1[1]) };
+  }
+
+  function afMajusculeInitiale(s) {
+    s = String(s || '').trim();
+    return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  }
+
+  function parserDecompteConfrere(texte) {
+    const lignes = String(texte || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const brut = [];
+    const meta = { soldeDeclare: null, refTrouvee: null, avertissements: [] };
+    const candidatsPrix = [];
+    let signe = 1;
+    let libelleEnAttente = null;
+    let ligneHorsPrixVue = false;
+
+    // Un décompte répète parfois le prix (une fois en tête, une fois dans le corps) : on ne garde
+    // que la DERNIÈRE occurrence rencontrée avant la première vraie ligne de frais, et on le dit.
+    const viderCandidatsPrix = () => {
+      if (!candidatsPrix.length) return;
+      if (candidatsPrix.length > 1) {
+        meta.avertissements.push(`Plusieurs lignes de prix détectées (${candidatsPrix.map(c => c.libelle).join(' / ')}) — seule « ${candidatsPrix[candidatsPrix.length - 1].libelle} » a été retenue.`);
+      }
+      const garde = candidatsPrix[candidatsPrix.length - 1];
+      brut.push({ libelle: garde.libelle, montant: garde.montant, signe: 1, formule: null, id: afIdLigne() });
+      candidatsPrix.length = 0;
+    };
+
+    for (const ligne of lignes) {
+      if (AF_BASCULE_DEBIT_RE.test(ligne)) { viderCandidatsPrix(); signe = 1; libelleEnAttente = null; continue; }
+      if (AF_BASCULE_CREDIT_RE.test(ligne)) { viderCandidatsPrix(); signe = -1; libelleEnAttente = null; continue; }
+      if (/^(votre\s+d[ée]compte|d[ée]compte\s+(pr[ée]visionnel|acqu[ée]reur))/i.test(ligne)) continue;
+
+      const mRef = /^r[ée]f[ée]rences?\s+dossier\s*:\s*(.+)$/i.exec(ligne);
+      if (mRef) { meta.refTrouvee = mRef[1].trim(); continue; }
+
+      const deux = afDeuxMontants(ligne);
+      if (deux && (AF_SOUS_TOTAL_RE.test(deux.libelle) || deux.libelle === '')) {
+        viderCandidatsPrix();
+        meta.soldeDeclare = deux.second;
+        libelleEnAttente = null;
+        continue;
+      }
+
+      const mMontant = AF_MONTANT_FIN_RE.exec(ligne);
+      if (!mMontant) {
+        if (AF_EURO_SEUL_RE.test(ligne) || AF_SANS_MONTANT_RE.test(ligne)) {
+          const estMemoire = AF_MEMOIRE_RE.test(ligne);
+          const libelle = ligne.replace(AF_EURO_SEUL_RE, '').replace(AF_SANS_MONTANT_RE, '').replace(/^-+\s*/, '').trim();
+          viderCandidatsPrix();
+          ligneHorsPrixVue = true;
+          brut.push({ libelle: libelle || '(ligne)', montant: 0, signe, formule: null, id: afIdLigne(), memoire: estMemoire });
+          libelleEnAttente = null;
+          continue;
+        }
+        // Pas de montant : c'est un libellé dont le montant est sur la ligne suivante.
+        libelleEnAttente = libelleEnAttente ? (libelleEnAttente + ' ' + ligne) : ligne;
+        continue;
+      }
+
+      const montant = montantDepuisTexteFr(mMontant[1]);
+      const avantMontant = ligne.slice(0, mMontant.index).trim().replace(/^-+\s*/, '');
+      let formule = null;
+      let libelle;
+      if (/^[(（]/.test(avantMontant) && libelleEnAttente) {
+        // Ligne de continuation : « ((913 € x 92 jours) / 365 jours)   230,13 € »
+        formule = avantMontant.replace(/[()）（]/g, '').trim();
+        libelle = libelleEnAttente;
+      } else {
+        libelle = avantMontant || libelleEnAttente || '(ligne)';
+      }
+      libelleEnAttente = null;
+
+      if (!formule) {
+        const ex = afExtraireFormule(libelle);
+        libelle = ex.libelle;
+        formule = ex.formule;
+      }
+
+      if (AF_SOUS_TOTAL_RE.test(libelle)) { viderCandidatsPrix(); meta.soldeDeclare = montant; continue; }
+      if (AF_LIGNE_PRIX_RE.test(libelle) && !ligneHorsPrixVue) { candidatsPrix.push({ libelle, montant }); continue; }
+
+      viderCandidatsPrix();
+      ligneHorsPrixVue = true;
+      brut.push({ libelle, montant, signe, formule, id: afIdLigne() });
+    }
+    viderCandidatsPrix();
+
+    const lignesFinales = { debit: [], credit: [] };
+    for (const it of brut) {
+      (it.signe >= 0 ? lignesFinales.debit : lignesFinales.credit).push({
+        libelle: afMajusculeInitiale(it.libelle), montant: it.montant,
+        formule: it.formule, id: it.id, memoire: !!it.memoire
+      });
+    }
+    return { lignes: lignesFinales, meta };
+  }
+
+  // Recalcule un prorata annoncé par le confrère. Un écart de plus de 2 centimes est signalé :
+  // c'est la seule vérification que l'outil peut faire sur un décompte qu'il n'a pas produit.
+  function verifierProrataLigne(ligne) {
+    if (!ligne || !ligne.formule) return { statut: 'non-verifiable' };
+    const m = AF_FORMULE_RE.exec(ligne.formule);
+    if (!m) return { statut: 'non-verifiable' };
+    const base = montantDepuisTexteFr(m[1]);
+    const num = parseFloat(m[2]);
+    const den = parseFloat(m[3]);
+    if (base == null || !num || !den) return { statut: 'non-verifiable' };
+    const attendu = Math.round((base * num / den) * 100) / 100;
+    return Math.abs(attendu - ligne.montant) <= 0.02
+      ? { statut: 'ok', attendu }
+      : { statut: 'ecart', attendu };
+  }
+
+  // --- clients et formule d'appel ---------------------------------------------------------------
+  // La formule d'appel dépend de la civilité de CHAQUE destinataire : c'est pour ça que la
+  // civilité est un champ à part entière et jamais devinée depuis un prénom.
+  function salutationAppelFonds(clients) {
+    const liste = Array.isArray(clients) ? clients : [];
+    // Une personne morale n'a pas de civilité : on s'adresse à son gérant, sans présumer son genre.
+    if (liste.some(c => c && c.civilite === 'SCI')) return 'Cher Monsieur/Madame le gérant,';
+    const civilites = liste.map(c => (c && c.civilite) || 'M');
+    if (liste.length <= 1) {
+      const c = civilites[0] || 'M';
+      return (c === 'Mme' || c === 'Mlle') ? 'Chère Madame,' : 'Cher Monsieur,';
+    }
+    const hommes = civilites.includes('M');
+    const femmes = civilites.some(c => c === 'Mme' || c === 'Mlle');
+    if (hommes && femmes) return 'Chers Monsieur et Madame,';
+    return hommes ? 'Chers Messieurs,' : 'Chères Mesdames,';
+  }
+
+  function ligneClientComplete(c) {
+    if (!c) return '';
+    if (c.civilite === 'SCI') return String(c.nom || '').trim();
+    const civLong = c.civilite === 'M' ? 'Monsieur' : (c.civilite === 'Mlle' ? 'Mademoiselle' : 'Madame');
+    return [civLong, c.prenom, c.nom].filter(Boolean).join(' ').trim();
+  }
+
+  // --- ce que CLAIRE sait du dossier ------------------------------------------------------------
+  //
+  // Les acquéreurs du dossier, sous la forme attendue par le générateur. **La civilité et le
+  // prénom ne sont PAS devinés** : l'extraction du compromis ne retient que le patronyme (voir
+  // detecterParties), et se tromper de civilité produit un courrier qui appelle « Monsieur » une
+  // cliente. `aCompleter` dit à l'écran ce qu'il reste à saisir plutôt que de le masquer.
+  function clientsDepuisDossier(d) {
+    if (!d) return [];
+    const parties = Array.isArray(d.parties) ? d.parties.filter(p => p && p.role === 'acquereur') : [];
+    if (parties.length) {
+      return parties.map(p => p.qualitePersonne === 'morale'
+        ? { civilite: 'SCI', prenom: '', nom: p.nom || '', aCompleter: false }
+        : { civilite: 'M', prenom: '', nom: p.nom || '', aCompleter: true });
+    }
+    // Repli pour un dossier créé à la main ou antérieur à l'extraction structurée : le nom du
+    // dossier est « VENDEUR / ACQUÉREUR », les couples séparés par « & ».
+    const nom = String(d.nom || '');
+    const cote = nom.includes('/') ? nom.split('/').pop() : '';
+    return cote.split('&').map(s => s.trim()).filter(Boolean)
+      .map(n => ({ civilite: 'M', prenom: '', nom: n, aCompleter: true }));
+  }
+
+  // La désignation du bien telle qu'elle s'écrit dans le courrier. « Copropriété » ne veut pas
+  // dire « appartement » (un garage, une cave ou un local se vendent aussi en lots) : on reste
+  // sur le vocabulaire notarial exact.
+  function designationDepuisTypeVente(typeVente) {
+    if (typeVente === 'copropriete') return 'un lot de copropriété';
+    if (typeVente === 'terrain') return 'un terrain à bâtir';
+    if (typeVente === 'maison') return 'une maison';
+    return '';
+  }
+
+  // Le dépôt de garantie n'est déductible du virement de l'acquéreur QUE s'il est séquestré chez
+  // NOUS. Séquestré à l'agence, il se règle entre l'agence et le vendeur : le déduire ferait
+  // réclamer au client un montant trop faible — une erreur qui se voit le jour de la signature.
+  // D'où trois réponses, dont une franchement indéterminée, plutôt qu'un pari dans les deux sens.
+  var AF_SEQUESTRE_ETUDE_RE = /\b(notaire|[ée]tude|office\s+notarial|comptabilit[ée]\s+(?:de\s+l['’])?[ée]tude|CARPA|s[ée]questre\s+notari[ée])\b/i;
+  var AF_SEQUESTRE_TIERS_RE = /\b(agence|agent\s+immobilier|cabinet|n[ée]gociateur|mandataire)\b/i;
+
+  function depotDeductible(d) {
+    if (!d || !d.depotGarantie) return { deductible: false, motif: 'absent' };
+    const sequestre = String(d.sequestreDepot || '').trim();
+    if (!sequestre) return { deductible: false, motif: 'indetermine' };
+    // L'agence est testée EN PREMIER : « versé à l'agence qui en donnera quittance au notaire »
+    // contient les deux mots, et c'est bien l'agence qui détient les fonds.
+    if (AF_SEQUESTRE_TIERS_RE.test(sequestre)) return { deductible: false, motif: 'tiers' };
+    if (AF_SEQUESTRE_ETUDE_RE.test(sequestre)) return { deductible: true, motif: 'etude' };
+    return { deductible: false, motif: 'indetermine' };
+  }
+
+  // Le courrier ne parle de frais d'acte de prêt que si le prêt est GARANTI PAR UNE HYPOTHÈQUE :
+  // un prêt cautionné (Crédit Logement…) ne donne lieu à aucun acte notarié, donc à aucun frais
+  // supplémentaire à appeler. CLAIRE lit déjà ces garanties dans l'offre (voir GARANTIES_PRET).
+  function pretHypothecaireDossier(d) {
+    if (!d || d.sansPret) return false;
+    const garanties = Array.isArray(d.garantiesPret) ? d.garantiesPret : [];
+    if (!garanties.length) return null; // garanties inconnues : ni oui ni non, l'étude tranche
+    return garanties.some(g => g === 'hypothequeLegale' || g === 'hypothequeConventionnelle');
+  }
+
+  // Assemble tout ce que le dossier permet de préremplir, et surtout ce qu'il NE permet PAS :
+  // `aCompleter` alimente le récapitulatif affiché à l'écran, pour que l'étude sache exactement
+  // ce qui a été repris et ce qui reste à sa charge. Fonction pure, testable.
+  function prefillAppelFonds(d) {
+    if (!d) return null;
+    const clients = clientsDepuisDossier(d);
+    const depot = depotDeductible(d);
+    const hypo = pretHypothecaireDossier(d);
+    const repris = [];
+    const aCompleter = [];
+
+    if (clients.length) {
+      repris.push(clients.length > 1 ? `${clients.length} acquéreurs` : 'Acquéreur');
+      if (clients.some(c => c.aCompleter)) aCompleter.push('Civilité et prénom de chaque client — l’acte n’en donne que le nom.');
+    } else {
+      aCompleter.push('Nom du ou des acquéreurs — aucun n’a pu être lu sur ce dossier.');
+    }
+
+    if (d.adresseBien) repris.push('Adresse du bien'); else aCompleter.push('Adresse du bien.');
+    if (designationDepuisTypeVente(d.typeVente)) repris.push('Désignation du bien');
+    if (d.rendezVousSignature) repris.push('Date du rendez-vous de signature');
+    else aCompleter.push('Date du rendez-vous — aucune n’est encore fixée sur le dossier.');
+    if (d.prixVente) repris.push('Prix d’acquisition'); else aCompleter.push('Prix d’acquisition.');
+
+    if (depot.deductible) repris.push('Dépôt de garantie séquestré à l’étude, porté en déduction');
+    else if (depot.motif === 'tiers') aCompleter.push(`Dépôt de garantie non déduit : il est séquestré hors de l’étude (${d.sequestreDepot}). À vérifier avant envoi.`);
+    else if (depot.motif === 'indetermine' && d.depotGarantie) aCompleter.push('Dépôt de garantie non déduit : le dossier ne dit pas clairement qui le détient.');
+
+    if (hypo === true) repris.push('Prêt garanti par une hypothèque : frais d’acte de prêt à appeler');
+    else if (hypo === null) aCompleter.push('Garanties du prêt inconnues : à cocher vous-même si un acte de prêt est à recevoir.');
+
+    aCompleter.push('Montant des frais et droits de l’acte de vente — à reprendre de votre provision.');
+
+    return {
+      dossierId: d.id,
+      dossierNom: d.nom || '',
+      clients,
+      adresseBien: d.adresseBien || '',
+      designation: designationDepuisTypeVente(d.typeVente),
+      dateRdv: d.rendezVousSignature || '',
+      prixVente: d.prixVente || null,
+      depotGarantie: depot.deductible ? d.depotGarantie : null,
+      pretHypothecaire: hypo === true,
+      repris,
+      aCompleter
+    };
+  }
+
+  // Les lignes du décompte déduites du dossier. Une ligne à zéro reste affichée : c'est un
+  // emplacement à remplir, pas une ligne vide à masquer — la retirer ferait oublier les frais.
+  function lignesDecompteDepuisPrefill(p) {
+    const debit = [
+      { libelle: "Prix d'acquisition", montant: (p && p.prixVente) || 0, formule: null, id: afIdLigne() },
+      { libelle: "Montant des frais et droits de l'acte de vente", montant: 0, formule: null, id: afIdLigne() }
+    ];
+    if (p && p.pretHypothecaire) {
+      debit.push({ libelle: "Frais d'acte de prêt", montant: 0, formule: null, id: afIdLigne() });
+    }
+    const credit = [];
+    if (p && p.depotGarantie) {
+      credit.push({ libelle: "Acompte sur prix versé à l'étude", montant: p.depotGarantie, formule: null, id: afIdLigne() });
+    }
+    credit.push({ libelle: "Acompte sur frais versé à l'étude", montant: 0, formule: null, id: afIdLigne() });
+    return { debit, credit };
+  }
+  // --- fin du socle pur -------------------------------------------------------------------------
+
+  // --- état de l'écran (non persisté : cet outil ne crée ni ne modifie aucun dossier) ---------
+  var afDossierLie = null;        // id du dossier CLAIRE repris, ou null
+  var afClients = [];             // [{civilite, prenom, nom}]
+  var afLignes = { debit: [], credit: [] };
+  var afModeleCharge = false;     // le modèle .docx + les images ont-ils été chargés ?
+  var afModeleEnCours = null;     // promesse de chargement en cours, pour ne pas la lancer deux fois
+
+  var AF_CIVILITES = ['M', 'Mme', 'SCI', 'Indivision'];
+
+  // Le nom de fichier du .docx : « Convocation … - DUPONT et MARTIN.docx ». Les caractères
+  // interdits par Windows sont remplacés plutôt que retirés — « M/Mme » ne doit pas devenir
+  // « MMme ».
+  function afNomFichierDocx(clients) {
+    const noms = (clients || []).map(c => (c.civilite === 'SCI' || c.civilite === 'Indivision')
+      ? String(c.nom || '').trim()
+      : String(c.nom || '').trim().toUpperCase()).filter(Boolean);
+    const base = noms.join(' et ') || 'CLIENT';
+    return "Convocation au rendez-vous contenant l'appel de fonds - " + base.replace(/[\\/:*?"<>|]/g, '-') + '.docx';
+  }
+
+  // La phrase du rendez-vous telle qu'elle s'écrit dans le courrier : « le mardi 29 septembre, à
+  // 11 heures, en l'étude ». Sans date, on écrit ce qu'on sait plutôt qu'une date inventée.
+  function phraseRdvAppelFonds(iso, heure, lieu) {
+    const lieuTexte = String(lieu || '').trim();
+    if (!iso) return lieuTexte ? 'à une date à fixer, ' + lieuTexte : 'à une date à fixer';
+    const d = new Date(iso + 'T00:00:00');
+    const jour = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    let phrase = 'le ' + jour;
+    if (heure) {
+      const [h, m] = String(heure).split(':');
+      const hn = parseInt(h, 10);
+      phrase += ', à ' + hn + (m && m !== '00' ? ' h ' + m : ' heures');
+    }
+    if (lieuTexte) phrase += ', ' + lieuTexte;
+    return phrase;
+  }
+
+  function afEl(id) { return document.getElementById(id); }
+  function afValeur(id) { const e = afEl(id); return e ? String(e.value || '').trim() : ''; }
+
+  // --- lien vers un dossier suivi (Outil 1) ---------------------------------------------------
+  //
+  // Lecture SEULE du dossier : cet outil ne l'écrit jamais, il n'en reprend que ce qui est déjà
+  // vérifié. Même patron de recherche que le Tableau de bord et Outil 2 (normaliserPourRecherche,
+  // dossiers actifs uniquement, 8 résultats).
+  function rechercherDossierAppelFonds(valeur) {
+    const boite = afEl('af-dossier-resultats');
+    if (!boite) return;
+    const q = normaliserPourRecherche(String(valeur || '').trim());
+    if (!q) { boite.style.display = 'none'; boite.innerHTML = ''; return; }
+    const trouves = dossiers.filter(d => !d.archive &&
+      (normaliserPourRecherche(d.nom || '').includes(q) || normaliserPourRecherche(d.responsable || '').includes(q)))
+      .slice(0, 8);
+    if (!trouves.length) {
+      boite.innerHTML = '<div class="dash-recherche-vide">Aucun dossier ne correspond.</div>';
+      boite.style.display = 'block';
+      return;
+    }
+    boite.innerHTML = trouves.map(d => `<button type="button" class="dash-recherche-item" onclick="choisirDossierAppelFonds('${escapeOnclickArg(d.id)}')">
+      <span class="dash-recherche-nom">${escapeHtml(libelleDossierAffiche(d))}</span>
+      <span class="dash-recherche-meta">${escapeHtml(d.responsable || '')}</span>
+    </button>`).join('');
+    boite.style.display = 'block';
+  }
+
+  function choisirDossierAppelFonds(id) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    const champ = afEl('af-dossier-recherche');
+    if (champ) champ.value = '';
+    const boite = afEl('af-dossier-resultats');
+    if (boite) { boite.style.display = 'none'; boite.innerHTML = ''; }
+    appliquerPrefillAppelFonds(d);
+  }
+
+  function retirerDossierAppelFonds() {
+    afDossierLie = null;
+    renderPillDossierAppelFonds();
+    const recap = afEl('af-recap-prefill');
+    if (recap) { recap.className = 'af-recap'; recap.innerHTML = ''; }
+  }
+
+  function renderPillDossierAppelFonds() {
+    const cible = afEl('af-dossier-pill');
+    if (!cible) return;
+    const d = afDossierLie ? dossiers.find(x => x.id === afDossierLie) : null;
+    if (!d) { cible.innerHTML = ''; return; }
+    cible.innerHTML = `<div class="dash-recherche-pill">
+      <span class="dot-label dl-success"><span class="dot"></span>${escapeHtml(libelleDossierAffiche(d))}</span>
+      <button type="button" class="action-rapide" onclick="retirerDossierAppelFonds()">Détacher</button>
+    </div>`;
+  }
+
+  // Écrit dans le formulaire tout ce que le dossier permet, puis AFFICHE ce qu'il n'a pas permis.
+  // Le second point est le plus important : un champ laissé vide sur un courrier adressé à un
+  // client se voit, et rien dans l'outil ne dirait pourquoi sans ce récapitulatif.
+  function appliquerPrefillAppelFonds(d) {
+    const p = prefillAppelFonds(d);
+    if (!p) return;
+    afDossierLie = p.dossierId;
+
+    afClients = p.clients.map(c => ({ civilite: c.civilite, prenom: c.prenom, nom: c.nom }));
+    if (!afClients.length) afClients = [{ civilite: 'M', prenom: '', nom: '' }];
+
+    const ecrire = (id, v) => { const e = afEl(id); if (e && v) e.value = v; };
+    ecrire('af-ref', p.dossierNom);
+    ecrire('af-designation', p.designation);
+    ecrire('af-adresse-bien', p.adresseBien);
+    ecrire('af-date-rdv', p.dateRdv);
+    const casePret = afEl('af-pret-hypothecaire');
+    if (casePret) casePret.checked = !!p.pretHypothecaire;
+
+    afLignes = lignesDecompteDepuisPrefill(p);
+
+    renderPillDossierAppelFonds();
+    renderClientsAppelFonds();
+    renderTableAppelFonds();
+    majApercuAppelFonds();
+
+    const recap = afEl('af-recap-prefill');
+    if (recap) {
+      const bloc = (titre, items, cls) => items.length
+        ? `<div class="af-recap-bloc"><div class="af-recap-titre">${titre}</div><ul class="${cls}">${items.map(t => `<li>${escapeHtml(t)}</li>`).join('')}</ul></div>`
+        : '';
+      recap.innerHTML = bloc('Repris du dossier', p.repris, '') + bloc('À compléter vous-même', p.aCompleter, 'af-recap-manquant');
+      recap.className = 'af-recap af-recap-visible';
+    }
+  }
+
+  // Bouton « Préparer l'appel de fonds » de la fiche dossier : bascule vers l'onglet avec le
+  // dossier déjà repris. Le tiroir se ferme — on quitte le Suivi, le laisser ouvert par-dessus un
+  // autre écran n'aurait pas de sens.
+  function preparerAppelFondsDepuisDossier(id) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    fermerDossierDrawer();
+    definirOnglet('appel-fonds');
+    appliquerPrefillAppelFonds(d);
+  }
+
+  // --- clients ---------------------------------------------------------------------------------
+  function renderClientsAppelFonds() {
+    const cible = afEl('af-clients');
+    if (!cible) return;
+    if (!afClients.length) afClients = [{ civilite: 'M', prenom: '', nom: '' }];
+    cible.innerHTML = afClients.map((c, i) => `<div class="af-client">
+      <select onchange="changerClientAppelFonds(${i}, 'civilite', this.value)">
+        ${AF_CIVILITES.map(v => `<option value="${v}"${c.civilite === v ? ' selected' : ''}>${v}</option>`).join('')}
+      </select>
+      <input type="text" placeholder="Prénom" value="${escapeAttr(c.prenom || '')}" oninput="changerClientAppelFonds(${i}, 'prenom', this.value)">
+      <input type="text" placeholder="Nom" value="${escapeAttr(c.nom || '')}" oninput="changerClientAppelFonds(${i}, 'nom', this.value)">
+      <button type="button" class="af-client-suppr" title="Retirer ce client" onclick="supprimerClientAppelFonds(${i})">${icone('x')}</button>
+    </div>`).join('');
+  }
+
+  function changerClientAppelFonds(i, champ, valeur) {
+    if (!afClients[i]) return;
+    afClients[i][champ] = valeur;
+    majApercuAppelFonds();
+  }
+
+  function ajouterClientAppelFonds() {
+    afClients.push({ civilite: 'M', prenom: '', nom: '' });
+    renderClientsAppelFonds();
+    majApercuAppelFonds();
+  }
+
+  function supprimerClientAppelFonds(i) {
+    afClients.splice(i, 1);
+    if (!afClients.length) afClients = [{ civilite: 'M', prenom: '', nom: '' }];
+    renderClientsAppelFonds();
+    majApercuAppelFonds();
+  }
+
+  // --- tableau du décompte ---------------------------------------------------------------------
+  //
+  // Trois colonnes comme sur le courrier papier : libellé | à déduire | débit. Chaque ligne ne
+  // remplit que la colonne de son côté, l'autre reste vide — c'est la mise en page du modèle,
+  // pas une colonne oubliée.
+  function renderTableAppelFonds() {
+    const rendu = (section) => {
+      const tbody = afEl(section === 'debit' ? 'af-tbody-debit' : 'af-tbody-credit');
+      if (!tbody) return 0;
+      let html = '';
+      if (section === 'credit') html += '<tr><td colspan="3" style="padding:2px"></td></tr><tr><td>À déduire</td><td></td><td></td></tr>';
+      let total = 0;
+      afLignes[section].forEach((l, i) => {
+        if (!l.memoire) total += (l.montant || 0);
+        const v = (!l.memoire && l.formule) ? verifierProrataLigne(l) : null;
+        let badge = '';
+        if (v && v.statut === 'ok') badge = '<span class="af-verif af-verif-ok" title="Prorata recalculé : conforme">✓ prorata vérifié</span>';
+        else if (v && v.statut === 'ecart') badge = `<span class="af-verif af-verif-ecart" title="Recalcul attendu : ${escapeAttr(montantVersTexteFr(v.attendu))}">⚠ écart de calcul</span>`;
+        const montantTexte = l.memoire ? 'Mémoire' : montantVersTexteFr(l.montant || 0);
+        const cellMontant = `<span class="af-champ" data-af-section="${section}" data-af-index="${i}" oninput="modifierMontantAppelFonds(this)">${escapeHtml(montantTexte)}</span>`;
+        const cellLibelle = `<td><span class="af-champ" data-af-section="${section}" data-af-index="${i}" oninput="modifierLibelleAppelFonds(this)">${escapeHtml(l.libelle)}</span>${badge}${l.formule ? `<span class="af-formule">${escapeHtml(l.formule)}</span>` : ''}</td>`;
+        html += `<tr title="Double-cliquez pour supprimer cette ligne" ondblclick="supprimerLigneAppelFonds('${section}', ${i})">` + (section === 'debit'
+          ? `${cellLibelle}<td class="af-montant"></td><td class="af-montant">${cellMontant}</td>`
+          : `${cellLibelle}<td class="af-montant">${cellMontant}</td><td class="af-montant"></td>`) + '</tr>';
+      });
+      html += `<tr class="af-sous-total">` + (section === 'debit'
+        ? `<td>Soit au total</td><td class="af-montant"></td><td class="af-montant">${escapeHtml(montantVersTexteFr(total))}</td>`
+        : `<td>Soit au total</td><td class="af-montant">${escapeHtml(montantVersTexteFr(total))}</td><td class="af-montant"></td>`) + '</tr>';
+      tbody.innerHTML = html;
+      return total;
+    };
+    const debit = rendu('debit');
+    const credit = rendu('credit');
+    const solde = afEl('af-p-solde');
+    if (solde) solde.textContent = montantVersTexteFr(debit - credit);
+  }
+
+  // Le montant est modifié DANS le tableau : on met le modèle à jour et on recalcule les totaux,
+  // sans redessiner le tableau — un redraw ferait perdre le curseur en pleine frappe.
+  function modifierMontantAppelFonds(span) {
+    const section = span.getAttribute('data-af-section');
+    const i = parseInt(span.getAttribute('data-af-index'), 10);
+    const ligne = afLignes[section] && afLignes[section][i];
+    if (!ligne) return;
+    const texte = span.textContent || '';
+    if (AF_MEMOIRE_RE.test(texte)) { ligne.memoire = true; ligne.montant = 0; }
+    else { ligne.memoire = false; ligne.montant = montantDepuisTexteFr(texte) || 0; }
+    recalculerTotauxAppelFonds();
+  }
+
+  function modifierLibelleAppelFonds(span) {
+    const section = span.getAttribute('data-af-section');
+    const i = parseInt(span.getAttribute('data-af-index'), 10);
+    if (afLignes[section] && afLignes[section][i]) afLignes[section][i].libelle = span.textContent || '';
+  }
+
+  function recalculerTotauxAppelFonds() {
+    const somme = (section) => afLignes[section].reduce((t, l) => t + (l.memoire ? 0 : (l.montant || 0)), 0);
+    const debit = somme('debit');
+    const credit = somme('credit');
+    const majSousTotal = (id, colonne, valeur) => {
+      const tbody = afEl(id);
+      if (!tbody) return;
+      const tr = tbody.querySelector('tr.af-sous-total');
+      if (!tr) return;
+      const cellules = tr.querySelectorAll('td');
+      if (cellules[colonne]) cellules[colonne].textContent = montantVersTexteFr(valeur);
+    };
+    majSousTotal('af-tbody-debit', 2, debit);
+    majSousTotal('af-tbody-credit', 1, credit);
+    const solde = afEl('af-p-solde');
+    if (solde) solde.textContent = montantVersTexteFr(debit - credit);
+  }
+
+  function ajouterLigneAppelFonds(section) {
+    afLignes[section].push({ libelle: 'Nouvelle ligne', montant: 0, formule: null, id: afIdLigne() });
+    renderTableAppelFonds();
+  }
+
+  function supprimerLigneAppelFonds(section, i) {
+    if (!afLignes[section] || !afLignes[section][i]) return;
+    afLignes[section].splice(i, 1);
+    renderTableAppelFonds();
+  }
+
+  // --- report du formulaire vers le courrier ---------------------------------------------------
+  function majLieuAppelFonds() {
+    const select = afEl('af-lieu');
+    const autre = afEl('af-lieu-autre');
+    if (select && autre) autre.style.display = select.value === '__autre' ? 'block' : 'none';
+    majApercuAppelFonds();
+  }
+
+  function lieuAppelFonds() {
+    const select = afEl('af-lieu');
+    if (!select) return "en l'étude";
+    return select.value === '__autre' ? afValeur('af-lieu-autre') : select.value;
+  }
+
+  function majApercuAppelFonds() {
+    const poser = (id, texte) => { const e = afEl(id); if (e && texte) e.textContent = texte; };
+
+    const clientsRemplis = afClients.filter(c => String(c.nom || '').trim());
+    const adresse = afValeur('af-adresse-clients');
+    const bloc = afEl('af-p-adresse');
+    if (bloc) {
+      const lignes = clientsRemplis.map(ligneClientComplete).filter(Boolean);
+      if (adresse) adresse.split('\n').forEach(l => { if (l.trim()) lignes.push(l.trim()); });
+      bloc.innerHTML = lignes.length ? '<u>' + lignes.map(escapeHtml).join('<br>') + '</u>' : '<u>Destinataire à compléter</u>';
+    }
+
+    const salut = salutationAppelFonds(clientsRemplis);
+    poser('af-p-salut1', salut);
+    poser('af-p-salut2', salut);
+    poser('af-p-ref', afValeur('af-ref') || 'RÉF. DOSSIER');
+    poser('af-p-datelettre', formatDateFr(afValeur('af-date-lettre')));
+    poser('af-p-designation', afValeur('af-designation') || 'un bien');
+    poser('af-p-adressebien', afValeur('af-adresse-bien').replace(/\n+/g, ', ') || 'adresse à compléter');
+    poser('af-p-rdv', phraseRdvAppelFonds(afValeur('af-date-rdv'), afValeur('af-heure-rdv'), lieuAppelFonds()));
+  }
+
+  // --- import du décompte du confrère -----------------------------------------------------------
+  function gererSurvolDepotAppelFonds(e) { e.preventDefault(); const z = afEl('af-dropzone'); if (z) z.classList.add('dragover'); }
+  function gererQuitteDepotAppelFonds(e) { e.preventDefault(); const z = afEl('af-dropzone'); if (z) z.classList.remove('dragover'); }
+  function gererDepotAppelFonds(e) {
+    e.preventDefault();
+    const z = afEl('af-dropzone');
+    if (z) z.classList.remove('dragover');
+    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) importerDecompteAppelFonds(f);
+  }
+
+  async function importerDecompteAppelFonds(fichier) {
+    if (!fichier) return;
+    if (typeof pdfjsLib === 'undefined') { afficherToast('Le lecteur PDF n\'est pas disponible.', 'OK', null); return; }
+    afficherRapportAppelFonds('Lecture du PDF…', [], false);
+    try {
+      const buffer = await fichier.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+      const lu = await lireTextePdfVerification(pdf);
+      appliquerDecompteAppelFonds(lu.texte || '');
+    } catch (e) {
+      console.error(e);
+      afficherRapportAppelFonds('Ce PDF n\'a pas pu être lu.', ['Collez son texte dans le champ ci-dessous.'], true);
+    }
+  }
+
+  function importerDecompteColle() {
+    const zone = afEl('af-coller-texte');
+    if (!zone) return;
+    appliquerDecompteAppelFonds(zone.value || '');
+  }
+
+  // Les lignes du confrère REMPLACENT le tableau : mélanger son décompte avec celui déduit du
+  // dossier ferait compter deux fois le prix ou les frais.
+  function appliquerDecompteAppelFonds(texte) {
+    const res = parserDecompteConfrere(texte);
+    const total = res.lignes.debit.length + res.lignes.credit.length;
+    if (!total) {
+      afficherRapportAppelFonds('Aucune ligne de décompte reconnue dans ce document.', res.meta.avertissements, true);
+      return;
+    }
+    afLignes = res.lignes;
+    renderTableAppelFonds();
+    const notes = res.meta.avertissements.slice();
+    if (res.meta.refTrouvee) {
+      const champ = afEl('af-ref');
+      if (champ && !champ.value) { champ.value = res.meta.refTrouvee; majApercuAppelFonds(); }
+    }
+    // Le solde annoncé par le confrère sert de CONTRÔLE, jamais de valeur reprise : s'il diffère
+    // du recalcul, c'est une ligne mal lue — le dire plutôt que de recopier son chiffre.
+    if (res.meta.soldeDeclare != null) {
+      const somme = (s) => res.lignes[s].reduce((t, l) => t + (l.memoire ? 0 : (l.montant || 0)), 0);
+      const recalcul = somme('debit') - somme('credit');
+      if (Math.abs(recalcul - res.meta.soldeDeclare) > 0.02) {
+        notes.push(`Le solde annoncé par le confrère (${montantVersTexteFr(res.meta.soldeDeclare)}) ne correspond pas au recalcul (${montantVersTexteFr(recalcul)}) : une ligne a probablement été mal lue.`);
+      }
+    }
+    afficherRapportAppelFonds(`${total} ligne(s) reprises du décompte.`, notes, notes.length > 0);
+  }
+
+  function afficherRapportAppelFonds(titre, notes, alerte) {
+    const cible = afEl('af-rapport-parse');
+    if (!cible) return;
+    cible.className = 'af-rapport af-rapport-visible ' + (alerte ? 'af-rapport-alerte' : 'af-rapport-ok');
+    cible.innerHTML = `<strong>${escapeHtml(titre)}</strong>` +
+      ((notes && notes.length) ? `<ul>${notes.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul>` : '');
+  }
+
+  // --- modèle Word, chargé à la demande ---------------------------------------------------------
+  //
+  // Le modèle (≈350 Ko) et les deux bibliothèques ne servent qu'à cet écran : les charger dans
+  // index.html ralentirait CHAQUE ouverture de CLAIRE pour rien.
+  function afChargerScript(src) {
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = resolve;
+      s.onerror = () => reject(new Error('Chargement impossible : ' + src));
+      document.head.appendChild(s);
+    });
+  }
+
+  function chargerModeleAppelFonds() {
+    if (afModeleCharge) return Promise.resolve();
+    if (afModeleEnCours) return afModeleEnCours;
+    afModeleEnCours = (async () => {
+      if (!window.APPEL_FONDS_MODELE) await afChargerScript('appel-de-fonds-modele.js');
+      // Les logos sont posés DÈS QUE le modèle est là, avant les deux bibliothèques : celles-ci
+      // viennent d'un CDN, et un poste sans accès internet afficherait sinon un aperçu sans
+      // en-tête alors que les images, elles, sont servies par le serveur de l'étude.
+      appliquerImagesAppelFonds();
+      if (!window.PizZip) await afChargerScript('https://cdn.jsdelivr.net/npm/pizzip@3/dist/pizzip.js');
+      if (!window.docxtemplater) await afChargerScript('https://cdn.jsdelivr.net/npm/docxtemplater@3/build/docxtemplater.js');
+      afModeleCharge = true;
+    })();
+    afModeleEnCours.catch(() => { afModeleEnCours = null; });
+    return afModeleEnCours;
+  }
+
+  // Les logos de l'en-tête viennent du même fichier que le modèle Word : l'aperçu n'a donc ses
+  // images qu'une fois ce fichier chargé. Sans lui, la mise en page tient quand même (les <img>
+  // restent vides), ce qui vaut mieux qu'un aperçu qui refuse de s'afficher.
+  function appliquerImagesAppelFonds() {
+    const a = window.APPEL_FONDS_MODELE && window.APPEL_FONDS_MODELE.assets;
+    if (!a) return;
+    const poser = (id, src) => { const e = afEl(id); if (e && src) e.src = src; };
+    poser('af-logo-notaires', a.logoNotaires);
+    poser('af-logo-office', a.logoOffice);
+    poser('af-icone-visio', a.iconVisio);
+    poser('af-icone-facebook', a.iconFacebook);
+    poser('af-icone-instagram', a.iconInstagram);
+  }
+
+  // Relit le courrier TEL QU'IL EST AFFICHÉ (et non le modèle interne) : une correction faite
+  // directement dans l'aperçu doit se retrouver dans le .docx.
+  function donneesCourrierAppelFonds() {
+    const lire = (id) => { const e = afEl(id); return e ? e.textContent.trim() : ''; };
+    const lignes = (id) => {
+      const tbody = afEl(id);
+      if (!tbody) return [];
+      return [...tbody.querySelectorAll('tr')].map(tr => {
+        if (tr.classList.contains('af-sous-total')) return null;
+        const champs = tr.querySelectorAll('.af-champ');
+        if (champs.length < 2) return null;
+        const formule = tr.querySelector('.af-formule');
+        return { label: champs[0].textContent.trim(), formula: formule ? formule.textContent.trim() : undefined, amount: champs[1].textContent.trim() };
+      }).filter(Boolean);
+    };
+    const sousTotal = (id, colonne) => {
+      const tr = afEl(id) && afEl(id).querySelector('tr.af-sous-total');
+      if (!tr) return '';
+      const c = tr.querySelectorAll('td')[colonne];
+      return c ? c.textContent.trim() : '';
+    };
+    const blocAdresse = afEl('af-p-adresse');
+    return {
+      ref: afValeur('af-ref'),
+      addrLines: blocAdresse ? blocAdresse.innerHTML.split('<br>').map(s => s.replace(/<[^>]+>/g, '').trim()).filter(Boolean).join('\n') : '',
+      ville: lire('af-p-ville'),
+      dateLettre: lire('af-p-datelettre'),
+      salut1: lire('af-p-salut1'),
+      designation: lire('af-p-designation'),
+      adresseBien: lire('af-p-adressebien'),
+      rdvPhrase: lire('af-p-rdv'),
+      debitRows: lignes('af-tbody-debit'),
+      totalDebit: sousTotal('af-tbody-debit', 2),
+      creditRows: lignes('af-tbody-credit'),
+      totalCredit: sousTotal('af-tbody-credit', 1),
+      solde: lire('af-p-solde'),
+      salut2: lire('af-p-salut2'),
+      notaire: lire('af-p-notaire')
+    };
+  }
+
+  function afBase64VersOctets(b64) {
+    const bin = atob(b64);
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return arr;
+  }
+
+  async function telechargerAppelFondsDocx(btn) {
+    const libelleInitial = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Génération…'; }
+    try {
+      await chargerModeleAppelFonds();
+      const Ctor = window.docxtemplater.default || window.docxtemplater;
+      const zip = new window.PizZip(afBase64VersOctets(window.APPEL_FONDS_MODELE.docxB64));
+      const doc = new Ctor(zip, { paragraphLoop: true, linebreaks: true });
+      doc.render(donneesCourrierAppelFonds());
+      const blob = doc.getZip().generate({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = afNomFichierDocx(afClients.filter(c => String(c.nom || '').trim()));
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch (e) {
+      console.error(e);
+      afficherToast('Le courrier n\'a pas pu être généré. Vérifiez que le poste a accès au réseau la première fois (deux bibliothèques sont téléchargées une seule fois).', 'OK', null);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = libelleInitial; }
+    }
+  }
+
+  function reinitialiserAppelFonds() {
+    afDossierLie = null;
+    afClients = [{ civilite: 'M', prenom: '', nom: '' }];
+    afLignes = lignesDecompteDepuisPrefill(null);
+    ['af-ref', 'af-designation', 'af-adresse-bien', 'af-adresse-clients', 'af-date-rdv', 'af-heure-rdv', 'af-lieu-autre', 'af-coller-texte'].forEach(id => {
+      const e = afEl(id);
+      if (e) e.value = '';
+    });
+    const casePret = afEl('af-pret-hypothecaire');
+    if (casePret) casePret.checked = false;
+    const lieu = afEl('af-lieu');
+    if (lieu) lieu.value = "en l'étude";
+    const rapport = afEl('af-rapport-parse');
+    if (rapport) { rapport.className = 'af-rapport'; rapport.innerHTML = ''; }
+    const recap = afEl('af-recap-prefill');
+    if (recap) { recap.className = 'af-recap'; recap.innerHTML = ''; }
+    renderPillDossierAppelFonds();
+    renderClientsAppelFonds();
+    renderTableAppelFonds();
+    majLieuAppelFonds();
+  }
+
+  var appelFondsInitialise = false;
+  function initAppelFonds() {
+    // Le modèle est chargé dès l'arrivée sur l'onglet (et non au clic sur « Télécharger ») : les
+    // logos de l'en-tête en viennent aussi, l'aperçu serait sinon sans images jusqu'au premier
+    // téléchargement. Un échec de chargement est silencieux ici — la mise en page tient sans les
+    // images, et le message d'erreur a sa place au moment où on demande vraiment le fichier.
+    chargerModeleAppelFonds().catch(() => {});
+    if (appelFondsInitialise) return;
+    appelFondsInitialise = true;
+    const dateLettre = afEl('af-date-lettre');
+    if (dateLettre && !dateLettre.value) dateLettre.value = new Date().toISOString().slice(0, 10);
+    afLignes = lignesDecompteDepuisPrefill(null);
+    renderClientsAppelFonds();
+    renderTableAppelFonds();
+    majApercuAppelFonds();
+  }
+
   // ==== RÉGLAGES : rappels automatiques par email ====
   //
   // Remplace le DÉCLENCHEMENT AUTOMATIQUE des rappels (voir server/src/jobs/rappels.js) — le
@@ -12936,6 +13827,8 @@
       'icon-intro-adresse': 'map-pin',
       'icon-nav-calculateur': 'banknote',
       'icon-nav-prorata': 'part-disque',
+      'icon-nav-appel-fonds': 'mail',
+      'icon-af-dropzone': 'upload',
       'icon-apropos': 'info',
       'icon-calc-warning': 'alert-triangle',
       'icon-nav-analyse-ia': 'sparkle',

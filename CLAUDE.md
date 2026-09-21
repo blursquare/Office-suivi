@@ -6023,8 +6023,131 @@ Pour tout ce qui touche au DOM réel ou aux API navigateur (File System Access, 
 impression), le test le plus fiable reste d'ouvrir `index.html` dans un vrai Chrome — utilise les
 outils de navigateur si disponibles dans cet environnement plutôt que de tout re-simuler à la main.
 
+- **Générateur d'appel de fonds** (`#onglet-appel-fonds`, lien « Appel de fonds » dans la section
+  **Outils** de la sidebar) : produit la « Convocation au rendez-vous contenant l'appel de fonds »
+  — le courrier qui annonce à l'acquéreur la date de signature et le décompte des sommes à virer —
+  et la télécharge en `.docx` à l'en-tête réel de l'étude. Porté d'un artefact fourni par l'étude,
+  avec la consigne « respecter la charte graphique de CLAIRE, relier à l'Outil 1, et réfléchir à
+  quelque chose d'intelligent ».
+  - **Deux moitiés au traitement délibérément différent, c'est le parti pris central du portage** :
+    le CHROME (colonne de gauche, boutons, champs) prend les jetons de CLAIRE et le gabarit du
+    simulateur de provision (`.dash-header`/`.calc-card`/`.calc-champ`/`.hint`), tandis que
+    l'APERÇU DU COURRIER garde l'identité PAPIER de l'étude — bordeaux `#6D2332`, Lora, les vrais
+    logos, la colonne de contact, couleurs en dur et **hors du thème**. C'est le fac-similé de ce
+    qui sortira de l'imprimante : le repeindre en bleu CLAIRE, ou le faire basculer en blanc sur
+    noir en mode sombre, ferait mentir l'aperçu sur le `.docx` téléchargé. Même raisonnement que
+    `imprimerFiche()`, dont les couleurs inline ne suivent pas non plus le thème de l'application.
+    Lora est la seule police ajoutée au lien Google Fonts ; le sans-serif de l'en-tête et du pied
+    de page reprend Inter, déjà chargée, plutôt que l'IBM Plex Sans de l'artefact.
+  - **Ce qui vient du dossier, et ce qui ne vient JAMAIS de l'outil**
+    (`prefillAppelFonds(d)`, pure et testable) : les acquéreurs (`d.parties` filtrées sur
+    `role === 'acquereur'`, une personne morale devenant une civilité « SCI »), l'adresse du bien,
+    la désignation déduite du type de vente, la date du rendez-vous de signature et le prix. Deux
+    déductions moins évidentes, qui sont l'essentiel de « l'intelligence » demandée :
+    - **le dépôt de garantie n'est porté en déduction QUE s'il est séquestré à l'étude**
+      (`depotDeductible(d)`, qui lit `d.sequestreDepot`). Séquestré à l'agence, il se règle entre
+      l'agence et le vendeur : le déduire ferait réclamer au client une somme trop faible, erreur
+      qui ne se voit que le jour de la signature. Trois réponses, dont une franchement
+      indéterminée, plutôt qu'un pari dans les deux sens. **L'agence est testée AVANT l'étude** :
+      « versé à l'agence qui en donnera quittance au notaire » contient les deux mots, et c'est
+      bien l'agence qui détient les fonds (test de régression dédié) ;
+    - **les frais d'acte de prêt ne sont appelés que si le prêt est garanti par une hypothèque**
+      (`pretHypothecaireDossier(d)`, qui lit `d.garantiesPret` — voir `GARANTIES_PRET`). Un prêt
+      cautionné (Crédit Logement…) ne donne lieu à aucun acte notarié, donc à aucun frais
+      supplémentaire. La fonction distingue « pas d'hypothèque » (`false`) de « garanties pas
+      encore lues » (`null`) : dans le second cas l'outil ne coche rien et le dit.
+  - **Ce qu'il n'a PAS pu remplir est affiché, et c'est aussi important que le reste**
+    (`p.aCompleter`, rendu dans `.af-recap`) : un champ laissé vide sur un courrier adressé à un
+    client se voit, et rien dans l'outil n'en dirait la raison sans ce récapitulatif. La civilité
+    et le prénom y figurent systématiquement — l'extraction du compromis ne retient que le
+    patronyme (voir `detecterParties`), et se tromper de civilité produit un courrier qui appelle
+    « Monsieur » une cliente.
+  - **Les frais et droits de l'acte de vente ne sont VOLONTAIREMENT pas repris du simulateur de
+    provision** : son barème n'a jamais été audité (avertissement explicite sur cet écran, voir son
+    historique), et un chiffre annoncé à un client engage l'étude. La ligne est créée à zéro, avec
+    une mention dans « à compléter ». À revoir seulement si l'étude fait auditer ce barème.
+  - **Bouton « Préparer l'appel de fonds » sur la fiche dossier** (`renderAppelFondsDossier(d)`,
+    après le questionnaire de satisfaction, avant « Exporter ») : ferme le tiroir, bascule vers
+    l'onglet et applique le préremplissage. Proposé sur tout dossier actif, **y compris en
+    participation** — c'est même là que l'outil sert le plus, le décompte venant alors du confrère
+    et devant être relayé au client. Ce qui manquera au courrier (date de rendez-vous, prix,
+    adresse) est annoncé AVANT le clic plutôt que découvert sur l'écran suivant.
+  - **Lecture du décompte d'un confrère** (`parserDecompteConfrere`, pure et testable) : un PDF
+    déposé ou du texte collé, mis à plat une ligne par ligne de tableau. Les motifs ont été écrits
+    sur de vrais décomptes — les resserrer sans relire `tests/appel-de-fonds.test.js` ferait perdre
+    le cas réel que chacun couvre. Quatre décisions à ne pas défaire :
+    - les **sous-totaux du confrère sont des CONTRÔLES, pas des lignes** (`AF_SOUS_TOTAL_RE`) : les
+      reprendre compterait deux fois les mêmes sommes. Le solde qu'ils annoncent sert à VÉRIFIER le
+      recalcul, jamais à le remplacer — un écart de plus de 2 centimes signale une ligne mal lue ;
+    - une ligne **sans montant chiffré** (« Offerts », « Néant », « pour mémoire ») est gardée à
+      zéro, jamais masquée : elle existe sur le décompte, la faire disparaître ferait croire à un
+      oubli ;
+    - un **prorata écrit sous forme de formule** (« 913 € x 92 jours / 365 jours ») est recalculé
+      (`verifierProrataLigne`) et le résultat affiché en pastille sur la ligne — la seule
+      vérification que l'outil puisse faire sur un décompte qu'il n'a pas produit ;
+    - les lignes du confrère **REMPLACENT** le tableau déduit du dossier : les mélanger ferait
+      compter deux fois le prix ou les frais.
+  - **`appel-de-fonds-modele.js`** (nouveau fichier racine, ~350 Ko) porte le modèle Word en base64
+    et les images de l'en-tête en data-URI — même mécanisme que `questionnaire-satisfaction-pdf.js`
+    (la voie `sea.getAsset(fichier, 'utf8')` du `.exe` ne sert que du texte, un PNG brut ne peut
+    pas y passer). Chargé **à la demande** au premier passage sur l'onglet, jamais dans
+    `index.html` : le charger au démarrage ralentirait CHAQUE ouverture de CLAIRE pour un écran
+    rarement utilisé. **À NE PAS OUBLIER** : déclaré dans `ASSETS_STATIQUES` (`server/src/app.js`)
+    **et** dans les assets embarqués du `.exe` (`server/scripts/build-windows-exe.mjs`) — sans les
+    deux, le chargement fait un 404 et la génération échoue, exactement le piège déjà documenté
+    pour le questionnaire.
+  - **Les logos sont posés dès que CE fichier est là, avant les deux bibliothèques**
+    (`pizzip`/`docxtemplater`, chargées depuis cdn.jsdelivr.net comme tesseract.js) : celles-ci
+    viennent d'un CDN, et un poste sans accès internet afficherait sinon un aperçu sans en-tête
+    alors que les images, elles, sont servies par le serveur de l'étude. Défaut trouvé en
+    vérification (le CDN est bloqué dans cet environnement de développement, ce qui a rendu le
+    problème visible tout de suite) ; l'ordre inverse aurait passé inaperçu ici jusqu'à ce que
+    l'étude soit hors ligne.
+  - **Le `.docx` est rempli depuis le courrier TEL QU'IL EST AFFICHÉ**
+    (`donneesCourrierAppelFonds`), pas depuis l'état interne : l'aperçu est `contenteditable`, une
+    correction faite directement dedans doit se retrouver dans le fichier. Les noms de champ du
+    modèle (`ref`, `addrLines`, `ville`, `dateLettre`, `salut1`, `designation`, `adresseBien`,
+    `rdvPhrase`, `debitRows`/`creditRows` avec `label`/`formula`/`amount`, `totalDebit`,
+    `totalCredit`, `solde`, `salut2`, `notaire`) sont ceux du modèle Word — les changer ici sans
+    changer le modèle casserait silencieusement la génération.
+  - **Volontairement PAS repris de l'artefact**, deux points :
+    - **l'aperçu de pagination A4** (la coupure visuelle « page 2 » quand le courrier déborde) :
+      utile, mais calé sur les marges réelles du modèle Word par un ratio mesuré, donc fragile, et
+      sans effet sur le fichier produit. À reprendre si l'étude le demande ;
+    - **l'autocomplétion d'adresse via `api-adresse.data.gouv.fr`** : un appel réseau vers un
+      service tiers depuis un outil d'intranet notarial, que le reste de CLAIRE n'a nulle part, et
+      dont l'adresse vient de toute façon du dossier. À ne construire que sur demande explicite.
+  - **Piège de grille CSS rencontré** : `.af-grid` passe en une seule colonne sous 1100px, mais la
+    page débordait quand même en largeur sur téléphone — une piste `1fr` a un minimum automatique
+    de `auto`, pas de zéro, et ne descend donc pas sous la largeur min-content de son contenu (ici
+    la ligne de saisie d'un client et le tableau du courrier). Corrigé par `.af-grid > * {
+    min-width: 0 }`. Mesuré avant/après (`scrollWidth` 470 → 400 à 400px de large), pas déduit.
+  - Tests : `tests/appel-de-fonds.test.js` (18 — les deux sens du parseur, les sous-totaux écartés,
+    la ligne « pour mémoire », le recalcul de prorata et sa tolérance, la formule d'appel selon les
+    civilités, le dépôt séquestré à l'agence vs à l'étude dont le cas mixte, la distinction
+    `false`/`null` sur les garanties, ce que `prefillAppelFonds` déclare à compléter). Suite racine
+    467 → 485, suite serveur inchangée (233 — ce chantier est entièrement côté client, à
+    l'exception des deux déclarations d'asset). **Vérifié dans un vrai Chromium** (serveur réel,
+    dossier synthétique, clair et sombre, 1400px et 400px) : lien de sidebar dans la bonne section,
+    bouton de la fiche menant à l'onglet prérempli, récapitulatif « repris / à compléter » conforme
+    au dossier, décompte de confrère collé produisant 5 lignes avec son prorata vérifié et son
+    solde recalculé, logos chargés, aucune erreur JS, aucun débordement horizontal.
+  - **Non vérifié en conditions réelles** : la génération du `.docx` elle-même n'a pas pu être
+    exercée ici, `cdn.jsdelivr.net` étant bloqué par le proxy réseau de cet environnement de
+    développement (même limite déjà documentée pour pdf.js/tesseract.js) — le modèle, ses noms de
+    champ et la mécanique docxtemplater sont repris à l'identique de l'artefact, où l'étude les a
+    déjà utilisés, mais le fichier produit reste à ouvrir dans Word par l'étude pour confirmation.
+
 ## Ce qui reste ouvert / pas encore fait
 
+- **Générateur d'appel de fonds : deux éléments de l'artefact volontairement non repris** (voir
+  son entrée d'historique) — l'aperçu de pagination A4 (coupure visuelle « page 2 »), et
+  l'autocomplétion d'adresse via `api-adresse.data.gouv.fr` (un appel réseau vers un service tiers
+  que le reste de l'outil n'a nulle part). À ne construire que sur demande explicite.
+- **Générateur d'appel de fonds : les frais et droits de l'acte de vente restent à saisir à la
+  main.** Les reprendre de `calculerFraisActe()` serait immédiat côté code, mais le barème de ce
+  simulateur n'a jamais été audité (avertissement explicite sur cet écran) et le chiffre partirait
+  cette fois dans un courrier au client. À rouvrir si l'étude fait auditer ce barème.
 - **Banc d'essai d'extraction (mesure de qualité par corpus annoté)** : chantier délégué à un
   data scientist, cadré dans `docs/spec-banc-essai-extraction.md` (point d'entrée
   `construireExtractionRegex()`, format du corpus, règle de confidentialité — aucune vraie donnée
