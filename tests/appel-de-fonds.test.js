@@ -324,3 +324,26 @@ test('adressesDepuisReponseDataGouv lit le GeoJSON et écarte ce qui n’est pas
   assert.strictEqual(app.adressesDepuisReponseDataGouv({}).length, 0);
   assert.strictEqual(app.adressesDepuisReponseDataGouv({ features: 'pas un tableau' }).length, 0);
 });
+
+test('composerAdresseCourrier place la mention d envoi en tete du bloc destinataire', () => {
+  const app = chargerApplication();
+  const adresse = 'Monsieur Jean DUPONT\n12 rue des Lilas\n41000 BLOIS';
+  const combine = app.composerAdresseCourrier('Envoi par e-mail uniquement', adresse);
+  assert.equal(combine.split('\n')[0], 'Envoi par e-mail uniquement');
+  assert.equal(combine.split('\n').length, 4);
+});
+
+test('composerAdresseCourrier omet la mention si elle a ete effacee dans l apercu', () => {
+  const app = chargerApplication();
+  const adresse = 'Monsieur Jean DUPONT\n41000 BLOIS';
+  assert.equal(app.composerAdresseCourrier('', adresse), adresse);
+  assert.equal(app.composerAdresseCourrier('   ', adresse), adresse);
+  assert.equal(app.composerAdresseCourrier(null, adresse), adresse);
+});
+
+test('composerAdresseCourrier tient sans adresse, et la mention par defaut est celle attendue', () => {
+  const app = chargerApplication();
+  assert.equal(app.composerAdresseCourrier('Envoi par e-mail uniquement', ''), 'Envoi par e-mail uniquement');
+  assert.equal(app.composerAdresseCourrier('', ''), '');
+  assert.equal(app.MENTION_ENVOI_APPEL_FONDS, 'Envoi par e-mail uniquement');
+});

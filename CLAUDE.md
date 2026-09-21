@@ -6268,12 +6268,43 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
     dès la retouche, menu de recherche de dossier enfin stylé, aucune erreur JS, aucun débordement
     horizontal. Service réellement injoignable : champ conservé, aucun menu, aucune erreur.
 
+- **Mention « Envoi par e-mail uniquement » en tête du bloc destinataire de l'appel de fonds**
+  (« met un texte automatique editable »). Posée à chaque courrier, corrigeable dans l'aperçu comme
+  le reste du texte — l'étude peut la remplacer par « Envoi recommandé avec AR » ou l'effacer, et
+  elle suit dans le fichier téléchargé.
+  - **Le point qui a décidé de l'implémentation : un texte qui n'existe que dans l'aperçu ne part
+    pas dans le `.docx`.** Le modèle Word est stocké en base64 dans `appel-de-fonds-modele.js` et
+    sa liste de placeholders est FERMÉE (voir l'entrée du générateur plus haut : « les changer ici
+    sans changer le modèle casserait silencieusement la génération ») — un `{mentionEnvoi}` dédié
+    aurait obligé à régénérer ce blob. `addrLines` est le seul champ qui accepte des lignes libres
+    (il est reconstruit depuis `#af-p-adresse` et rendu avec `linebreaks: true`) : la mention y est
+    donc simplement ajoutée en première ligne par `composerAdresseCourrier(mention, lignesAdresse)`
+    (pure, testable), appelée dans `donneesCourrierAppelFonds()`. Aucun changement de modèle.
+  - **La mention vit HORS de `#af-p-adresse`, dans `.af-adresse-bloc`** : `majApercuAppelFonds()`
+    réécrit `bloc.innerHTML` en entier à chaque frappe (clients + adresse), une mention placée
+    dedans serait donc effacée dès la saisie suivante. Vérifié explicitement en navigateur : le
+    texte édité à la main survit à une modification de l'adresse.
+  - Effacée dans l'aperçu → absente du `.docx` (aucune ligne vide ajoutée) ; « Effacer » la remet à
+    `MENTION_ENVOI_APPEL_FONDS`, comme n'importe quel autre champ du formulaire.
+  - Placée AU-DESSUS de l'adresse et en italique (`.af-mention-envoi`), alignée sur les lignes du
+    destinataire — la convention du courrier français pour une mention de mode d'envoi. Comme tout
+    l'aperçu, elle garde l'identité PAPIER de l'étude et ne suit pas le thème de l'application.
+  - Tests : 3 nouveaux dans `tests/appel-de-fonds.test.js` (mention en tête, mention vide/blanche/
+    nulle omise, adresse absente, valeur par défaut). Suite racine 495 → 498, serveur inchangée
+    (233 — chantier entièrement côté client). **Vérifié dans un vrai Chromium** (serveur réel,
+    clair et sombre, 1600px et 400px) : mention affichée d'office, présente en tête de `addrLines`,
+    édition reportée, survie à une mise à jour de l'aperçu, disparition une fois effacée, retour à
+    la valeur par défaut après « Effacer », position et alignement mesurés, aucune erreur JS, aucun
+    débordement horizontal.
+
 ## Ce qui reste ouvert / pas encore fait
 
-- **Générateur d'appel de fonds : deux éléments de l'artefact volontairement non repris** (voir
-  son entrée d'historique) — l'aperçu de pagination A4 (coupure visuelle « page 2 »), et
-  l'autocomplétion d'adresse via `api-adresse.data.gouv.fr` (un appel réseau vers un service tiers
-  que le reste de l'outil n'a nulle part). À ne construire que sur demande explicite.
+- **Générateur d'appel de fonds : l'aperçu de pagination A4 de l'artefact n'est pas repris**
+  (la coupure visuelle « page 2 » quand le courrier déborde) — calé sur les marges réelles du
+  modèle Word par un ratio mesuré, donc fragile, et sans effet sur le fichier produit. À ne
+  construire que sur demande explicite. (L'autre élément non repris à l'origine, l'autocomplétion
+  d'adresse via `api-adresse.data.gouv.fr`, a depuis été demandée explicitement par l'étude et
+  construite — voir son entrée d'historique.)
 - **Générateur d'appel de fonds : les frais et droits de l'acte de vente restent à saisir à la
   main.** Les reprendre de `calculerFraisActe()` serait immédiat côté code, mais le barème de ce
   simulateur n'a jamais été audité (avertissement explicite sur cet écran) et le chiffre partirait
