@@ -131,34 +131,54 @@ responsable lui-même, et son propre échec n'empêche jamais le marquage du rap
 envoyé — c'est ce marquage qui compte pour ne pas relancer le collaborateur concerné.
 
 Choix technique : **SMTP direct** (`nodemailer`, déjà dans `package.json` mais jamais câblé jusqu'à
-cette version) est désormais le seul transport possible — un job de fond qui tourne toutes les 30
-minutes, sans personne devant l'écran, ne peut pas passer par un brouillon `mailto:`. La raison qui
-l'avait fait écarter jusque-là (des identifiants de messagerie à stocker) est traitée plutôt
-qu'ignorée : **l'envoi direct Microsoft 365 n'en demande aucun**, et s'il faut malgré tout en poser,
-ils ne redescendent jamais au navigateur.
+cette version) est le seul transport possible — un job de fond qui tourne toutes les 30 minutes,
+sans personne devant l'écran, ne peut pas passer par un brouillon `mailto:`.
 
 **Tout se configure depuis l'écran « Réglages » de la sidebar** — aucun fichier à éditer à la main.
 
-1. **Serveur d'envoi, sans compte ni mot de passe (recommandé).** Microsoft 365 accepte les emails
-   envoyés depuis le réseau du bureau vers une adresse du domaine de l'étude (*direct send*). Le
-   serveur à indiquer est celui de l'enregistrement MX du domaine — dans une invite de commandes
-   Windows :
-   ```
-   nslookup -type=mx votredomaine.fr
-   ```
-   Il renvoie un nom de la forme `domaine-avec-tirets.mail.protection.outlook.com`. Port **25**,
-   compte et mot de passe laissés **vides**, « Connexion chiffrée dès l'ouverture » décochée
-   (nodemailer négocie STARTTLS de lui-même).
-2. **Si cet envoi est refusé** — certains locataires Microsoft 365 bloquent le *direct send* —
-   renseigner un compte : serveur `smtp.office365.com`, port **587**, l'adresse d'une boîte de
-   l'étude comme compte, et un **mot de passe d'application**. L'authentification SMTP doit être
-   autorisée pour cette boîte côté administrateur Microsoft 365.
-3. Renseigner la **boîte-passerelle** (celle sur laquelle le flux est déclenché), l'adresse
-   d'expédition, l'adresse email de chaque collaborateur, optionnellement une adresse de copie,
-   cocher **« Activer l'envoi automatique de rappels »**, puis **Enregistrer**.
-4. Utiliser le bouton **« Tester »** à côté de chaque collaborateur : un message de test doit
-   arriver dans son Teams. S'il n'arrive pas, l'historique du flux dans Power Automate indique s'il
-   s'est déclenché (l'email est-il arrivé ?) ou non (le problème est alors côté envoi SMTP).
+### Quel mode d'envoi ?
+
+Deux modes existent, et **le DNS du domaine décide lequel est praticable** — le vérifier avant de
+configurer quoi que ce soit, dans une invite de commandes Windows :
+
+```
+nslookup -type=mx votredomaine.fr
+nslookup -type=txt votredomaine.fr
+```
+
+- **Envoi sans compte** (« direct send ») : Microsoft 365 accepte les emails envoyés depuis le
+  réseau du bureau vers une adresse du domaine. Le serveur à indiquer est alors
+  `domaine-avec-tirets.mail.protection.outlook.com`, port 25, compte et mot de passe vides.
+  **Praticable seulement si l'enregistrement SPF du domaine autorise l'adresse IP de sortie du
+  bureau.** Un SPF qui se termine par `-all` en ne listant qu'un prestataire de filtrage
+  (Retarus, Proofpoint, Mailinblack…) l'interdit : l'envoi serait rejeté ou mis en quarantaine.
+  À noter : quand le MX pointe vers un tel prestataire, l'endpoint Microsoft existe quand même,
+  il n'est simplement plus publié dans le MX — le centre d'administration Microsoft 365 (Paramètres
+  → Domaines → le domaine) donne sa valeur exacte.
+- **Envoi avec compte** (le cas courant, et le seul possible dès que le SPF est fermé) : serveur
+  `smtp.office365.com`, port **587**, « Connexion chiffrée dès l'ouverture » **décochée** (STARTTLS
+  est négocié en cours de connexion sur ce port), compte = l'adresse d'une boîte de l'étude,
+  mot de passe = un **mot de passe d'application** si cette boîte est protégée par authentification
+  à deux facteurs. Deux prérequis côté administrateur Microsoft 365 : **SMTP authentifié** autorisé
+  pour cette boîte (Utilisateurs → la boîte → Courrier → Gérer les applications de messagerie),
+  et l'authentification SMTP non bloquée au niveau du locataire.
+  Le SPF ne gêne pas ce mode : le message part de la boîte elle-même, et le destinataire étant une
+  boîte du même locataire, la remise est interne.
+
+**Adresse d'expédition : la laisser vide.** Microsoft 365 exige que l'expéditeur soit le compte
+authentifié, sauf droit « Envoyer en tant que » accordé à ce compte — un autre nom se solde par un
+refus `5.7.60 Client does not have permissions to send as this sender`. Laissée vide, elle prend la
+valeur du compte SMTP (ou, en envoi sans compte, celle de la boîte-passerelle).
+
+### Puis
+
+1. Renseigner la **boîte-passerelle** (celle sur laquelle le flux est déclenché), l'adresse email
+   de chaque collaborateur, optionnellement une adresse de copie, cocher **« Activer l'envoi
+   automatique de rappels »**, puis **Enregistrer**.
+2. Utiliser le bouton **« Tester »** à côté de chaque collaborateur : un message de test doit
+   arriver dans son Teams. S'il n'arrive pas, l'historique du flux dans Power Automate départage —
+   email arrivé mais pas de message Teams : le problème est dans le flux ; aucune trace : le
+   problème est côté envoi, et le message d'erreur affiché sous le bouton le précise.
 
 **Le mot de passe SMTP ne ressort jamais de la base** : `GET /api/reglages` le retire de la réponse
 et le remplace par un booléen `smtpMotDePasseEnregistre`. Le champ reste donc vide à l'ouverture de
@@ -562,8 +582,8 @@ dépendances de l'autre.
   job de rappels et les routes sont testés avec un transport injecté, et le chemin complet
   (navigateur → serveur → SMTP) a été vérifié contre un faux serveur SMTP local, qui a bien reçu
   `To: <passerelle>`, `Subject: <destinataire>` et le message en corps. Restent à confirmer par
-  l'étude : que Microsoft 365 accepte l'envoi depuis le poste serveur (direct send autorisé ou
-  compte SMTP à renseigner), et que le flux se déclenche bien à l'arrivée de l'email.
+  l'étude : que le compte SMTP renseigné soit bien autorisé à l'authentification SMTP côté
+  administrateur Microsoft 365, et que le flux se déclenche bien à l'arrivée de l'email.
 - **`node:sqlite` est une API expérimentale** de Node.js (avertissement affiché au démarrage,
   sans conséquence connue) — `better-sqlite3` reste une option de repli si elle posait problème
   un jour sur le poste de l'étude.

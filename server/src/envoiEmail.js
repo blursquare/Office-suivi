@@ -72,10 +72,13 @@ async function envoyerEmail(reglages, destinataireEmail, texte, creerTransportFn
   try {
     const transport = creer(optionsTransport(r));
     await transport.sendMail({
-      // L'expéditeur doit être une adresse que le locataire accepte : en envoi direct, une adresse
-      // du domaine de l'étude. À défaut, la boîte-passerelle elle-même fait l'affaire (le flux ne
-      // répond jamais à ces messages, aucun risque de boucle).
-      from: `"CLAIRE" <${r.smtpExpediteur || r.emailPasserelle}>`,
+      // L'expéditeur doit être une adresse que le serveur accepte. Avec un compte SMTP, Microsoft
+      // 365 EXIGE que l'expéditeur soit le compte authentifié lui-même (sauf droit « Envoyer en
+      // tant que ») : un autre nom se solde par un refus « 5.7.60 Client does not have permissions
+      // to send as this sender », illisible pour qui n'attend pas ce détail. Le repli par défaut
+      // est donc le compte, et seulement à défaut la boîte-passerelle (cas de l'envoi anonyme, où
+      // il n'y a pas de compte). Le flux ne répond jamais à ces messages : aucun risque de boucle.
+      from: `"CLAIRE" <${r.smtpExpediteur || r.smtpUtilisateur || r.emailPasserelle}>`,
       to: r.emailPasserelle,
       subject: destinataireEmail, // routage lu par le flux — voir la convention en tête de fichier
       text: texte

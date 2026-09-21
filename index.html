@@ -870,13 +870,13 @@
       </div>
       <div class="calc-champ">
         <label for="reglages-smtp-hote">Serveur d'envoi (SMTP)</label>
-        <input type="text" id="reglages-smtp-hote" placeholder="exemple-fr.mail.protection.outlook.com">
-        <p class="hint">Pour Microsoft 365 sans compte ni mot de passe, utiliser le nom donné par l'enregistrement MX du domaine de l'étude — de la forme <code>domaine-avec-tirets.mail.protection.outlook.com</code> (voir la procédure plus bas).</p>
+        <input type="text" id="reglages-smtp-hote" placeholder="smtp.office365.com">
+        <p class="hint">Pour Microsoft 365 : <code>smtp.office365.com</code>, port 587, avec un compte et un mot de passe d'application (voir la procédure plus bas). L'envoi sans compte n'est possible que si l'enregistrement SPF du domaine autorise l'adresse IP du bureau — ce n'est pas le cas quand le courrier passe par une passerelle de filtrage.</p>
       </div>
       <div class="calc-champ">
         <label for="reglages-smtp-port">Port</label>
         <input type="number" id="reglages-smtp-port" min="1" max="65535" value="25">
-        <p class="hint">25 pour l'envoi direct Microsoft 365, 587 pour un envoi avec compte, 465 pour un serveur en TLS direct.</p>
+        <p class="hint">587 pour un envoi avec compte (le cas courant), 25 pour un envoi sans compte, 465 pour un serveur en TLS direct.</p>
       </div>
       <label class="toolbar-checkbox" style="display:flex; align-items:center; gap:8px;">
         <input type="checkbox" id="reglages-smtp-securise">
@@ -884,18 +884,18 @@
       </label>
       <div class="calc-champ">
         <label for="reglages-smtp-expediteur">Adresse d'expédition</label>
-        <input type="email" id="reglages-smtp-expediteur" placeholder="claire@etude.fr">
-        <p class="hint">Doit appartenir au domaine de l'étude. Laisser vide pour utiliser la boîte-passerelle ci-dessus.</p>
+        <input type="email" id="reglages-smtp-expediteur" placeholder="Laisser vide : le compte SMTP ci-dessous sera utilisé">
+        <p class="hint">Microsoft 365 exige que l'expéditeur soit le compte SMTP lui-même, sauf droit « Envoyer en tant que » accordé à ce compte. Laisser vide est le plus sûr : le compte sert alors d'expéditeur.</p>
       </div>
       <div class="calc-champ">
-        <label for="reglages-smtp-utilisateur">Compte SMTP (facultatif)</label>
-        <input type="text" id="reglages-smtp-utilisateur" placeholder="Laisser vide pour un envoi sans compte">
-        <p class="hint">Inutile en envoi direct Microsoft 365, qui autorise l'envoi d'après l'adresse IP du bureau. À ne renseigner que si l'envoi direct est refusé.</p>
+        <label for="reglages-smtp-utilisateur">Compte SMTP</label>
+        <input type="text" id="reglages-smtp-utilisateur" placeholder="prenom.nom@etude.fr">
+        <p class="hint">La boîte aux lettres qui envoie les messages. L'authentification SMTP doit être autorisée pour elle côté administrateur Microsoft 365. Laisser vide uniquement pour un envoi sans compte, si le SPF du domaine l'autorise.</p>
       </div>
       <div class="calc-champ">
         <label for="reglages-smtp-motdepasse">Mot de passe du compte SMTP</label>
-        <input type="password" id="reglages-smtp-motdepasse" autocomplete="new-password" placeholder="Laisser vide pour un envoi sans compte">
-        <p class="hint">N'est jamais réaffiché une fois enregistré : laisser ce champ vide conserve celui déjà en place. Stocké sur le serveur de l'étude, dans le fichier de la base — raison de plus de préférer l'envoi direct, qui n'en demande aucun.</p>
+        <input type="password" id="reglages-smtp-motdepasse" autocomplete="new-password" placeholder="Mot de passe d'application">
+        <p class="hint">Un <strong>mot de passe d'application</strong> si le compte est protégé par authentification à deux facteurs. N'est jamais réaffiché une fois enregistré : laisser ce champ vide conserve celui déjà en place. Stocké sur le serveur de l'étude, dans le fichier de la base.</p>
       </div>
       <div class="calc-champ">
         <label for="reglages-copie-email">Adresse recevant une copie de tous les rappels</label>
@@ -921,11 +921,14 @@
 
     <div class="dash-section-titre" style="margin-top:14px;">Renseigner le serveur d'envoi</div>
     <ol>
-      <li><strong>Sans compte ni mot de passe (recommandé)</strong> — Microsoft 365 accepte les emails envoyés depuis le réseau du bureau vers une adresse du domaine de l'étude. Le serveur à indiquer est celui de l'enregistrement MX du domaine : dans un invite de commandes Windows, <code class="code-bloc">nslookup -type=mx votredomaine.fr</code> donne un nom de la forme <code>domaine-avec-tirets.mail.protection.outlook.com</code>. Port 25, compte et mot de passe laissés vides.</li>
-      <li><strong>Si cet envoi est refusé</strong> (certains locataires Microsoft 365 le bloquent), renseigner un compte SMTP : serveur <code>smtp.office365.com</code>, port 587, l'adresse d'une boîte de l'étude comme compte, et un mot de passe d'application. L'authentification SMTP doit être autorisée pour cette boîte côté administrateur Microsoft 365.</li>
-      <li>Renseigner la boîte-passerelle, cocher « Activer l'envoi automatique », puis <strong>Enregistrer</strong>.</li>
-      <li>Utiliser le bouton <strong>« Tester »</strong> de chaque collaborateur : un message de test doit arriver dans son Teams. S'il n'arrive pas, l'historique du flux dans Power Automate indique s'il s'est déclenché.</li>
+      <li><strong>Autoriser l'authentification SMTP</strong> pour la boîte qui enverra les messages : centre d'administration Microsoft 365 → Utilisateurs → la boîte concernée → Courrier → Gérer les applications de messagerie → cocher <strong>SMTP authentifié</strong>. Ce réglage est souvent désactivé pour tout le locataire par défaut : l'administrateur doit alors l'autoriser au moins pour cette boîte.</li>
+      <li><strong>Créer un mot de passe d'application</strong> si ce compte est protégé par authentification à deux facteurs (le cas habituel) : le mot de passe habituel ne fonctionne pas pour SMTP.</li>
+      <li>Remplir ci-dessus : serveur <code>smtp.office365.com</code>, port <strong>587</strong>, « Connexion chiffrée dès l'ouverture » <strong>décochée</strong> (le chiffrement est négocié en cours de connexion sur ce port), compte = l'adresse de la boîte, mot de passe = le mot de passe d'application. Laisser l'adresse d'expédition vide.</li>
+      <li>Renseigner la <strong>boîte-passerelle</strong> (celle sur laquelle le flux est déclenché), l'adresse email de chaque collaborateur, optionnellement une adresse de copie, cocher <strong>« Activer l'envoi automatique de rappels »</strong>, puis <strong>Enregistrer</strong>.</li>
+      <li>Utiliser le bouton <strong>« Tester »</strong> à côté de chaque collaborateur : un message de test doit arriver dans son Teams. S'il n'arrive pas, l'historique du flux dans Power Automate indique s'il s'est déclenché — email bien arrivé mais pas de message Teams : le problème est dans le flux ; aucune trace : le problème est côté envoi, et le message d'erreur affiché sous le bouton le précise.</li>
     </ol>
+    <p><strong>Pourquoi un compte est nécessaire ici.</strong> Microsoft 365 accepte aussi un envoi sans compte depuis le réseau du bureau, mais seulement si l'enregistrement SPF du domaine autorise l'adresse IP de sortie du bureau. Quand le courrier du domaine passe par une passerelle de filtrage — c'est le cas de cette étude, dont le SPF n'autorise que le prestataire de filtrage et refuse tout le reste — un envoi depuis le bureau serait rejeté ou mis en quarantaine. Le compte authentifié contourne entièrement ce point : le message part de la boîte elle-même, et le destinataire étant une boîte du même locataire, la remise est interne.</p>
+
     <p>Les rappels sont envoyés automatiquement 15 puis 7 jours avant chaque échéance active d'un dossier (vente préalable, prêt, date butoir, appel de fonds, rendez-vous de signature, échéance personnalisée), au responsable du dossier — jamais deux fois pour la même échéance. L'adresse de copie ci-dessus, si renseignée, reçoit le même message pour chaque envoi. Il n'existe plus de rappel par email manuel à envoyer soi-même : ce mécanisme le remplace entièrement.</p>
   </div>
 </div>

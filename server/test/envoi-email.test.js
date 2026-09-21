@@ -125,3 +125,21 @@ test('envoiConfigure : exige activation, serveur SMTP et passerelle', () => {
   assert.equal(envoiConfigure({ ...REGLAGES, emailPasserelle: '' }), false);
   assert.equal(envoiConfigure(null), false);
 });
+
+// Microsoft 365 refuse un expéditeur différent du compte authentifié (« 5.7.60 »). Le repli doit
+// donc désigner le compte AVANT la boîte-passerelle, sans quoi tout envoi authentifié partirait
+// au nom de la passerelle et serait rejeté.
+test('compte SMTP sans expéditeur explicite : le compte sert d\'expéditeur, pas la passerelle', async () => {
+  const espion = transportEspion();
+  const avecCompte = { ...REGLAGES, smtpExpediteur: '', smtpUtilisateur: 'claire@etude.fr', smtpMotDePasse: 'jeton' };
+  await envoyerEmail(avecCompte, 'bastien@etude.fr', 'Test', espion.creer);
+  assert.match(espion.envois[0].from, /claire@etude\.fr/);
+  assert.ok(!espion.envois[0].from.includes('passerelle@etude.fr'));
+});
+
+test('expéditeur explicite : il l\'emporte sur le compte', async () => {
+  const espion = transportEspion();
+  const r = { ...REGLAGES, smtpExpediteur: 'notifications@etude.fr', smtpUtilisateur: 'claire@etude.fr' };
+  await envoyerEmail(r, 'bastien@etude.fr', 'Test', espion.creer);
+  assert.match(espion.envois[0].from, /notifications@etude\.fr/);
+});

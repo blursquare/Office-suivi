@@ -5856,6 +5856,48 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     poste serveur (envoi direct autorisé, ou compte SMTP à renseigner) et que le flux se déclenche
     bien à l'arrivée de l'email.
 
+- **L'envoi sans compte (« direct send ») n'est PAS praticable pour ce domaine — le DNS l'a
+  tranché.** Recommandé une heure plus tôt (voir l'entrée précédente), il a été invalidé dès que
+  l'étude a lancé le `nslookup -type=mx` demandé par la procédure. Ce que le DNS de
+  `gossart.notaires.fr` dit réellement :
+  - **MX = `mx-55162650.mail.eu.retarus.com`** : le courrier entrant passe par **Retarus**, une
+    passerelle de filtrage, pas directement par Microsoft. La procédure disait « le MX vous donne
+    `domaine-avec-tirets.mail.protection.outlook.com` » — faux dès qu'un prestataire est devant.
+  - L'endpoint Microsoft **existe quand même** (`gossart-notaires-fr.mail.protection.outlook.com`
+    résout vers 52.101.166.x, la plage EOP) : le locataire est bien Microsoft 365, l'endpoint n'est
+    simplement plus publié dans le MX. Il se retrouve dans le centre d'administration (Paramètres →
+    Domaines), pas par un `nslookup MX`.
+  - **SPF = `v=SPF1 include:_spf.retarus.com -all`** : c'est ce qui condamne l'envoi direct. Seul
+    Retarus est autorisé à émettre pour ce domaine, et le `-all` est un refus ferme — un message
+    parti de l'adresse IP du bureau serait rejeté ou mis en quarantaine.
+  - **Vérifié ici** par résolution DNS directe (`node:dns`, `resolve4`/`resolveMx`/`resolveTxt`)
+    plutôt qu'en croyant sur parole la sortie collée : c'est ce qui a fait apparaître le SPF, que
+    l'étude n'avait pas demandé et qui était le point décisif.
+  - **Conclusion, et nouveau contenu de la doc** : le compte SMTP authentifié
+    (`smtp.office365.com:587`, mot de passe d'application) n'est plus « la variante si l'envoi
+    direct est refusé » mais le mode principal ; l'envoi sans compte devient le cas particulier,
+    avec sa condition écrite noir sur blanc (le SPF doit autoriser l'IP du bureau). Le SPF ne gêne
+    pas le mode authentifié : le message part de la boîte elle-même et le destinataire étant une
+    boîte du même locataire, la remise est interne. Deux prérequis administrateur sont maintenant
+    nommés dans l'écran et le README : **SMTP authentifié autorisé pour la boîte** (Utilisateurs →
+    la boîte → Courrier → Gérer les applications de messagerie), et un **mot de passe
+    d'application** si cette boîte porte l'authentification à deux facteurs.
+  - **Bug corrigé au passage, qui se serait manifesté au premier test réel** : `envoyerEmail()`
+    prenait `smtpExpediteur || emailPasserelle` comme expéditeur. Avec un compte authentifié,
+    Microsoft 365 **exige** que l'expéditeur soit ce compte (sauf droit « Envoyer en tant que ») —
+    tout envoi serait parti au nom de la boîte-passerelle et aurait été refusé par un
+    `5.7.60 Client does not have permissions to send as this sender`, message assez opaque pour
+    coûter une session de diagnostic. Le repli devient
+    `smtpExpediteur || smtpUtilisateur || emailPasserelle`, et l'écran conseille désormais de
+    laisser le champ vide. Deux tests le verrouillent (`server/test/envoi-email.test.js`).
+  - Suite serveur 225 → 227 ; suite racine inchangée (467). Vérifié dans un vrai Chromium (écran
+    Réglages relu, aucune erreur JS, aucun débordement à 400px).
+  - **Leçon, à rapprocher de celle déjà tirée sur les PDF réels et les codepoints Unicode** : une
+    procédure qui dit « lancez cette commande et prenez ce qu'elle renvoie » suppose une réponse
+    d'une forme donnée. Ici la réponse avait une tout autre forme, et c'est une SECONDE donnée non
+    demandée (le SPF) qui portait la vraie contrainte. Vérifier soi-même l'environnement réel, quand
+    c'est possible à coût nul, vaut mieux qu'une procédure écrite en aveugle.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à
