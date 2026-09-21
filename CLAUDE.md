@@ -5610,6 +5610,62 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     01/08 → 01/09 → 25/09 → 01/10 → 06/10, « Signature 5 j APRÈS ce butoir » en rouge sur la carte
     du butoir, et « Appel de fonds » annoncé comme prochaine échéance à la place de l'acte.
 
+- **Récupération de deux demandes écartées par erreur lors d'une fusion.** L'étude avait formulé
+  ses demandes du matin depuis un AUTRE projet ; la session qui en est née a bien travaillé sur ce
+  dépôt et poussé `claude/pensive-mccarthy-k4lbkc`, mais la fusion `9059689` l'a résolue « en
+  faveur de main sur toute la ligne », en jugeant ses apports déjà réimplémentés ici. C'était vrai
+  pour deux d'entre eux (notification de nouvelle pièce, réordonnancement des échéances), **faux
+  pour deux autres**, restés perdus jusqu'à ce que l'étude signale la méprise.
+  - **Leçon** : une fusion « résolue en faveur d'un côté sur toute la ligne » doit être précédée
+    d'une lecture commit par commit de ce qu'on écarte. Ici, le message de fusion affirmait une
+    équivalence qui n'a jamais été vérifiée dans le détail — et un PDF fourni par l'étude est passé
+    à la trappe.
+  - **Questionnaire de satisfaction : texte et PDF définitifs.** Le modèle provisoire
+    (`[MODÈLE PROVISOIRE — …]`) est retiré. `construireEmailQuestionnaireSatisfaction()` porte le
+    texte fourni par l'étude, avec `LIEN_AVIS_GOOGLE_OFFICE` (page d'avis de l'office) ;
+    `questionnaire-satisfaction-pdf.js` (nouveau fichier, ~197 Ko, base64) porte le PDF de
+    l'enquête, téléchargé par `telechargerPdfQuestionnaire()` au même clic que l'ouverture du
+    brouillon — les deux actions doivent rester dans le geste utilisateur d'origine. **Une page web
+    ne peut pas joindre un fichier à un `mailto:`** (contrainte fondamentale n°4) : le PDF est donc
+    téléchargé à côté et l'infobulle post-clic rappelle de le joindre à la main.
+    - **`questionnaire-satisfaction-pdf.js` DOIT figurer dans les deux listes de fichiers statiques
+      du serveur** : `ASSETS_STATIQUES` (`server/src/app.js`) et les assets embarqués du `.exe`
+      (`server/scripts/build-windows-exe.mjs`). La branche d'origine visait l'ancienne version
+      `file://`, qui n'avait pas cette contrainte — sans ces deux ajouts, le `<script src>`
+      d'`index.html` fait un 404 et le téléchargement échoue **silencieusement**. Vérifié par un
+      `curl` sur `/questionnaire-satisfaction-pdf.js` (200) et par la taille du base64 réellement
+      chargée dans la page.
+    - Deux décisions de l'étude fusionnées plutôt que l'une écrasant l'autre : le bouton n'apparaît
+      **qu'une fois `d.acte` renseignée** (demandé dans l'autre projet) ET **archive
+      automatiquement le dossier** (demandé ici) ; il n'est toujours **jamais** proposé au confrère
+      (`notaireParticipantRepresenteAcquereur`, demandé ici).
+    - `d.questionnaireEnvoyeLe` (nouveau champ, date ISO) : la fiche affiche ensuite « envoyé le
+      … » avec un bouton « Renvoyer ». Affiché **même sur un dossier archivé** — l'envoi archive
+      justement le dossier, masquer la trace à l'instant où elle devient utile n'aurait pas de
+      sens. Conservé à l'import (`normaliserDossierImporte`), contrairement aux statuts dérivés
+      d'un scan du NAS : c'est un fait accompli par l'utilisateur, pas une déduction.
+  - **Désynchronisation d'une pièce dont le fichier a disparu du NAS.** `verifierDossierLocal()`
+    ne cherchait que les pièces PAS déjà `'recue'` (`aChercher`) : une pièce dont le fichier était
+    ensuite supprimé, déplacé ou renommé restait « reçue » indéfiniment, plus aucun scan ne la
+    revérifiant. `aChercher` couvre désormais TOUTE la checklist, et une pièce jusque-là reçue mais
+    introuvable repasse à `'manquante'`, son chemin mémorisé est effacé
+    (`memoriserFichierTrouve(..., null)` — sinon « ouvrir le fichier » rouvrirait un fichier
+    disparu) et une ligne d'historique le consigne. **Ne coûte rien** : depuis que la checklist est
+    reconnue par le seul NOM de fichier, re-tester une pièce déjà trouvée n'ouvre aucun PDF.
+    - **Garde-fou explicite** : la remise à `'manquante'` n'a lieu que si `nbFichiersRencontres > 0`.
+      Un dossier NAS temporairement vide ou injoignable (partage démonté, chemin renommé) ne doit
+      jamais vider d'un coup tous les statuts déjà acquis d'un dossier.
+  - **Non repris de cette branche** : le réordonnancement « Prêt → Vente préalable → Acte », rendu
+    caduc par le tri chronologique et l'ordre métier complet (voir les deux entrées précédentes) ;
+    et `notes-idees.html`, ajouté puis retiré dans la même branche (l'outil de notes vit en
+    artefact).
+  - Tests : 3 réécrits et 2 ajoutés dans `tests/relances-email.test.js` (texte définitif et lien
+    Google, absence du bouton tant que `d.acte` manque, état « déjà envoyé » y compris archivé).
+    Suite racine 459 → 461, serveur 213 (inchangée). **Vérifié de bout en bout** dans un vrai
+    Chromium avec un vrai serveur et une arborescence NAS : les deux pièces reconnues, puis l'une
+    des deux retirée du dossier → elle repasse à « manquante » avec sa ligne d'historique, l'autre
+    reste reçue ; PDF du questionnaire bien chargé dans la page ; aucune erreur JS.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

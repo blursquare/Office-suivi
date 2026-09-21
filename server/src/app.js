@@ -27,6 +27,11 @@ const ASSETS_STATIQUES = {
   '/index.html': { fichier: 'index.html', type: 'text/html; charset=utf-8' },
   '/style.css': { fichier: 'style.css', type: 'text/css; charset=utf-8' },
   '/script.js': { fichier: 'script.js', type: 'application/javascript; charset=utf-8' },
+  // PDF du questionnaire de satisfaction, encodé en base64 dans un fichier à part (voir
+  // construireEmailQuestionnaireSatisfaction). À NE PAS OUBLIER ici ni dans la liste des assets
+  // embarqués du .exe : sans ça le <script src> d'index.html fait un 404 et le téléchargement du
+  // questionnaire échoue silencieusement.
+  '/questionnaire-satisfaction-pdf.js': { fichier: 'questionnaire-satisfaction-pdf.js', type: 'application/javascript; charset=utf-8' },
   '/manifest.json': { fichier: 'manifest.json', type: 'application/manifest+json; charset=utf-8' },
   '/sw.js': { fichier: 'sw.js', type: 'application/javascript; charset=utf-8' },
   '/icone.svg': { fichier: 'icone.svg', type: 'image/svg+xml; charset=utf-8' }

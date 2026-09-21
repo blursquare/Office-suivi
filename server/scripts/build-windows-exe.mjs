@@ -89,6 +89,7 @@ async function main() {
       'index.html': '../index.html',
       'style.css': '../style.css',
       'script.js': '../script.js',
+      'questionnaire-satisfaction-pdf.js': '../questionnaire-satisfaction-pdf.js',
       'manifest.json': '../manifest.json',
       'sw.js': '../sw.js',
       'icone.svg': '../icone.svg'

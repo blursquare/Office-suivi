@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-21 11:15';
+  const VERSION_APP = '2026-09-21 11:28';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-21 11:28', resume: "Récupération de deux demandes faites ce matin depuis l'autre projet, et écartées par erreur lors d'une fusion. Le QUESTIONNAIRE DE SATISFACTION utilise enfin le texte et le PDF que vous avez fournis : un clic télécharge le questionnaire (à joindre à la main au brouillon — un email préparé par une page web ne peut pas porter de pièce jointe) et ouvre l'email définitif, avec le lien vers la page d'avis Google de l'office. Le bouton n'apparaît qu'une fois la date de signature de l'acte renseignée, et indique ensuite qu'il a déjà été envoyé, avec la date, en laissant la possibilité de renvoyer. Deuxième récupération : une pièce marquée « reçue » dont le fichier a été supprimé, déplacé ou renommé sur le NAS repasse maintenant à « manquante » au parcours suivant, avec une ligne d'historique — jusqu'ici elle restait « reçue » pour toujours, plus aucun scan ne la revérifiant. Garde-fou : jamais de remise à zéro si le dossier NAS n'a pu être lu du tout" },
     { version: '2026-09-21 11:15', resume: "Les étapes d'un dossier suivent maintenant votre ordre métier — compromis signé, vente préalable, obtention du prêt, date butoir de réitération, appel de fonds, rendez-vous de signature — partout où elles apparaissent ensemble (fiche, planning, rappels Teams, agenda connecté). Cet ordre ne départage que les échéances SANS date : les autres restent classées par date. Et dès qu'un rendez-vous de signature est saisi, la date butoir cesse de piloter le dossier : elle ne déclenche plus de rappel et n'est plus annoncée comme la prochaine échéance, mais reste affichée sur la fiche avec l'écart — « signature 5 j APRÈS ce butoir » en rouge, « 3 j avant » en vert — pour dire d'un coup d'œil si on signe avant ou après" },
     { version: '2026-09-21 11:08', resume: "Sur la fiche dossier, les échéances sont désormais classées par DATE, de la plus proche à la plus lointaine, au lieu d'un ordre fixe qui ne disait rien de ce qui arrive en premier (une échéance sans date passe en fin de liste). Un champ « Email de l'acquéreur » apparaît au-dessus des boutons de relance : l'adresse détectée à l'import y est enfin visible, corrigeable, et peut être saisie après coup — jusqu'ici un email manquant n'affichait qu'un message sans moyen d'y répondre. « Rendez-vous de signature » passe en vert et « Appel de fonds » reçoit sa propre couleur (violet) : leurs pastilles restaient incolores dans le Suivi, contrairement aux trois autres catégories. Enfin, une offre de prêt cautionnée seule n'affiche plus « Caution · Hypothèque conventionnelle » : le paragraphe GARANTIES débordait sur la section suivante (« 8. ASSURANCES » et « Article 8 - … » n'étaient pas reconnus comme titres), et une hypothèque citée en simple alternative (« à défaut d'accord de la caution… ») était comptée comme une garantie du prêt" },
     { version: '2026-09-21 07:47', resume: "Dans la sidebar, le mot « Claire » est rapproché de son symbole, et le mot « ALPHA » est recentré dans sa pilule (il était visiblement remonté : les capitales laissent sous elles la place des jambages, que la pilule comptait quand même)" },
@@ -6128,6 +6129,7 @@
     const dossier = {
       id: (crypto.randomUUID ? crypto.randomUUID() : 'd-' + Date.now() + '-' + Math.random().toString(16).slice(2)),
       nom, responsable, emailAcquereur,
+      questionnaireEnvoyeLe: null,
       nomAgence,
       adresseBien,
       prixVente: Number.isFinite(prixVente) && prixVente > 0 ? prixVente : null,
@@ -8918,11 +8920,40 @@
   // MODÈLE PROVISOIRE : l'étude doit fournir le texte définitif du questionnaire (un rappel est
   // programmé pour le briefing du lendemain de cette entrée). REMPLACER le sujet/corps ci-dessous
   // dès réception — ne rien changer d'autre dans cette fonction.
+  // Page d'avis de l'office, à joindre à l'email — fournie par l'étude avec le questionnaire.
+  var LIEN_AVIS_GOOGLE_OFFICE = 'https://www.google.com/maps/place/Office+Notarial+de+Ma%C3%AEtre+Sophie+Gossart';
+
+  // Texte DÉFINITIF fourni par l'étude (le modèle provisoire précédent est retiré). Le
+  // questionnaire lui-même est un PDF, également fourni : il est téléchargé au même clic, à
+  // joindre à la main au brouillon — une page web ne peut pas attacher un fichier à un mailto
+  // (contrainte fondamentale n°4).
   function construireEmailQuestionnaireSatisfaction(d) {
     return {
-      sujet: `Votre avis sur votre accompagnement — dossier ${d.nom}`,
-      corps: `Bonjour,\n\n[MODÈLE PROVISOIRE — à remplacer par le texte fourni par l’étude]\n\nVotre dossier ${d.nom} est maintenant finalisé. Nous serions ravis de recueillir votre avis sur l’accompagnement de notre étude tout au long de cette vente.\n\nMerci de nous faire part de vos remarques par retour de ce message.\n\nCordialement.`
+      sujet: 'Questionnaire de satisfaction',
+      corps: `Bonjour,\n\nMaintenant que votre dossier est finalisé, nous serions heureux de recueillir votre avis sur notre accompagnement.\n\nVous trouverez ci-joint notre questionnaire de satisfaction. N'hésitez pas à le compléter et à nous le retourner.\n\nSi vous avez apprécié notre accompagnement, nous vous serions également reconnaissants de laisser un avis sur notre page Google : ${LIEN_AVIS_GOOGLE_OFFICE}\n\nNous vous remercions par avance du temps que vous accepterez de nous consacrer.\n\nCordialement.`
     };
+  }
+
+  // Déclenche le téléchargement du PDF du questionnaire (QUESTIONNAIRE_SATISFACTION_PDF_BASE64,
+  // chargé par questionnaire-satisfaction-pdf.js). Doit rester dans le même geste utilisateur que
+  // le mailto qui suit : les deux actions ont besoin de l'activation du clic d'origine.
+  function telechargerPdfQuestionnaire() {
+    try {
+      if (typeof QUESTIONNAIRE_SATISFACTION_PDF_BASE64 !== 'string') return false;
+      const octets = atob(QUESTIONNAIRE_SATISFACTION_PDF_BASE64);
+      const tableau = new Uint8Array(octets.length);
+      for (let i = 0; i < octets.length; i++) tableau[i] = octets.charCodeAt(i);
+      const lien = document.createElement('a');
+      lien.href = URL.createObjectURL(new Blob([tableau], { type: 'application/pdf' }));
+      lien.download = 'Enquete_satisfaction.pdf';
+      document.body.appendChild(lien);
+      lien.click();
+      document.body.removeChild(lien);
+      return true;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
   }
 
   function envoyerQuestionnaireSatisfaction(id) {
@@ -8934,6 +8965,9 @@
       return;
     }
     const { sujet, corps } = construireEmailQuestionnaireSatisfaction(d);
+    const pdfOk = telechargerPdfQuestionnaire();
+    // Mémorisé sur le dossier : le bouton dit ensuite qu'il a déjà été envoyé, et à quelle date.
+    d.questionnaireEnvoyeLe = new Date().toISOString().slice(0, 10);
     ajouterHistorique(d, 'Questionnaire de satisfaction envoyé');
     d.archive = true;
     ajouterHistorique(d, 'Dossier archivé automatiquement (questionnaire de satisfaction envoyé)');
@@ -8943,7 +8977,9 @@
     window.location.href = url;
     afficherInfoAction(
       "Brouillon d'email ouvert, dossier archivé",
-      "L'envoi final reste un clic manuel dans votre messagerie. Le texte utilisé est un modèle PROVISOIRE, à remplacer dès que l'étude aura fourni le texte définitif du questionnaire."
+      pdfOk
+        ? "Le questionnaire (PDF) vient d'être téléchargé : pensez à le JOINDRE au brouillon avant de l'envoyer — une page web ne peut pas attacher un fichier toute seule. L'envoi final reste un clic manuel dans votre messagerie."
+        : "L'envoi final reste un clic manuel dans votre messagerie. Le PDF du questionnaire n'a pas pu être téléchargé : vérifiez que le fichier questionnaire-satisfaction-pdf.js est bien présent à côté de index.html."
     );
   }
 
@@ -8953,7 +8989,23 @@
   // nôtre : ce questionnaire ne doit JAMAIS être proposé/adressé au confrère, contrairement aux
   // autres relances ciblées qui, elles, transitent par lui dans ce cas.
   function renderQuestionnaireSatisfaction(d) {
-    if (d.roleNotaire === 'participant' || d.archive || notaireParticipantRepresenteAcquereur(d)) return '';
+    if (d.roleNotaire === 'participant' || notaireParticipantRepresenteAcquereur(d)) return '';
+    // Déjà envoyé : on le dit, avec la date, et on laisse la possibilité de renvoyer. Affiché même
+    // sur un dossier archivé (l'envoi archive le dossier, voir envoyerQuestionnaireSatisfaction) —
+    // sinon la trace disparaîtrait à l'instant même où elle devient utile.
+    if (d.questionnaireEnvoyeLe) {
+      return `<div class="relances-ciblees">
+        <span class="section-eyebrow">Clôturer le dossier</span>
+        <p class="hint">${icone('check')} Questionnaire de satisfaction envoyé le ${formatDateFr(d.questionnaireEnvoyeLe)}.</p>
+        ${d.emailAcquereur ? `<div class="relances-boutons">
+          <button type="button" class="action-rapide" onclick="envoyerQuestionnaireSatisfaction('${d.id}')">${icone('mail')} Renvoyer</button>
+        </div>` : ''}
+      </div>`;
+    }
+    if (d.archive) return '';
+    // Demandé par l'étude : proposé seulement une fois la date de signature de l'acte renseignée —
+    // avant, le dossier n'est pas fini et le questionnaire n'a pas d'objet.
+    if (!d.acte) return '';
     if (!d.emailAcquereur) {
       return `<div class="relances-ciblees">
         <span class="section-eyebrow">Clôturer le dossier</span>
@@ -9666,6 +9718,9 @@
       nom,
       responsable: typeof d.responsable === 'string' ? d.responsable : '',
       emailAcquereur: typeof d.emailAcquereur === 'string' ? d.emailAcquereur : '',
+      // Contrairement aux statuts dérivés d'un scan du NAS (offrePretStatut, pieces...), l'envoi du
+      // questionnaire est un fait réel déjà accompli par l'utilisateur : conservé tel quel.
+      questionnaireEnvoyeLe: typeof d.questionnaireEnvoyeLe === 'string' ? d.questionnaireEnvoyeLe : null,
       adresseBien: typeof d.adresseBien === 'string' ? d.adresseBien : '',
       nomAgence: typeof d.nomAgence === 'string' ? d.nomAgence : '',
       prixVente: Number.isFinite(d.prixVente) && d.prixVente > 0 ? d.prixVente : null,
@@ -11031,9 +11086,12 @@
     // Instantané AVANT le parcours (voir notifierNouvellesPiecesTrouvees plus bas) : un simple
     // objet copié, jamais la même référence que d.pieces qui va être modifiée juste en dessous.
     const piecesAvant = Object.assign({}, d.pieces);
-    // Pièces déjà trouvées lors d'une vérification précédente : inutile de les rechercher à
-    // nouveau, seules celles encore manquantes/inconnues sont testées.
-    const aChercher = new Set(checklist.filter(p => d.pieces[p.cle] !== 'recue').map(p => p.cle));
+    // TOUTES les pièces sont recherchées à chaque parcours, y compris celles déjà "reçues" —
+    // sinon une pièce dont le fichier a été supprimé, déplacé ou renommé sur le NAS restait
+    // "reçue" pour toujours, plus aucun scan ne la revérifiant (signalé par l'étude). Ne coûte
+    // rien : depuis que la checklist est reconnue par le seul NOM de fichier, une pièce déjà
+    // trouvée se re-teste sans ouvrir le moindre PDF.
+    const aChercher = new Set(checklist.map(p => p.cle));
     const fichierParPiece = {};
 
     let offreTrouvee = false;
@@ -11166,16 +11224,31 @@
     }
 
     let nbPiecesTrouvees = 0;
+    const desynchronisees = [];
     for (const piece of checklist) {
       if (fichierParPiece[piece.cle]) {
         d.pieces[piece.cle] = 'recue';
         nbPiecesTrouvees++;
         memoriserFichierTrouve(d, NAS_CLE_PIECE(piece.cle), fichierParPiece[piece.cle]);
-      } else if (d.pieces[piece.cle] !== 'recue') {
-        d.pieces[piece.cle] = 'manquante';
+      } else if (d.pieces[piece.cle] === 'recue') {
+        // Elle était reçue et son fichier n'est plus là : désynchronisée. Garde-fou explicite — on
+        // ne remet une pièce à "manquante" QUE si le parcours a effectivement vu des fichiers.
+        // Un dossier NAS temporairement vide ou injoignable (partage démonté, chemin renommé) ne
+        // doit jamais vider d'un coup tous les statuts déjà acquis d'un dossier.
+        if (nbFichiersRencontres > 0) {
+          d.pieces[piece.cle] = 'manquante';
+          memoriserFichierTrouve(d, NAS_CLE_PIECE(piece.cle), null);
+          desynchronisees.push(piece.label);
+          diagnosticJournal.push(`Pièce « ${piece.label} » : fichier introuvable dans le dossier, repassée à manquante`);
+        } else {
+          nbPiecesTrouvees++; // statut conservé faute d'avoir pu vérifier quoi que ce soit
+        }
       } else {
-        nbPiecesTrouvees++; // déjà reconnue lors d'une vérification précédente
+        d.pieces[piece.cle] = 'manquante';
       }
+    }
+    if (desynchronisees.length) {
+      ajouterHistorique(d, `Pièce(s) devenue(s) introuvable(s) sur le NAS : ${desynchronisees.join(', ')}`);
     }
 
     // Résultat complet du parcours, pour le panneau de diagnostic (voir renderDiagnosticParcours) —

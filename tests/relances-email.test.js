@@ -71,17 +71,19 @@ test('construireEmailRelanceProvision relance aussi l’offre de prêt si la con
 });
 
 // ---- Questionnaire de satisfaction + archivage automatique (clôture du dossier) ----
-// Le texte est un modèle PROVISOIRE (voir son commentaire dans script.js) : ces tests ne
-// vérifient que la structure (sujet/corps mentionnent le dossier), pas un texte définitif encore
-// non fourni par l'étude.
+// Texte DÉFINITIF fourni par l'étude (le modèle provisoire précédent est retiré), avec le lien
+// vers la page d'avis Google de l'office. Le questionnaire lui-même est un PDF téléchargé au même
+// clic, à joindre à la main — un mailto ne peut pas porter de pièce jointe.
 
-test('construireEmailQuestionnaireSatisfaction mentionne le dossier et signale un texte provisoire', () => {
+test('construireEmailQuestionnaireSatisfaction reprend le texte fourni par l\'étude', () => {
   const app = chargerApplication();
-  const d = dossierBase(app, {});
-  const { sujet, corps } = app.construireEmailQuestionnaireSatisfaction(d);
-  assert.match(sujet, /DUPONT \/ MARTIN/);
-  assert.match(corps, /DUPONT \/ MARTIN/);
-  assert.match(corps, /PROVISOIRE/);
+  const { sujet, corps } = app.construireEmailQuestionnaireSatisfaction(dossierBase(app, {}));
+  assert.equal(sujet, 'Questionnaire de satisfaction');
+  assert.match(corps, /questionnaire de satisfaction/i);
+  assert.match(corps, /page Google/);
+  assert.match(corps, /google\.com\/maps/);
+  // Plus aucune mention de modèle provisoire.
+  assert.doesNotMatch(corps, /PROVISOIRE/);
 });
 
 test('renderQuestionnaireSatisfaction : absent pour un dossier archivé ou un rôle participant', () => {
@@ -90,16 +92,32 @@ test('renderQuestionnaireSatisfaction : absent pour un dossier archivé ou un r�
   assert.equal(app.renderQuestionnaireSatisfaction(dossierBase(app, { roleNotaire: 'participant' })), '');
 });
 
+// Demandé par l'étude : proposé seulement une fois la date de signature de l'acte renseignée.
+test('renderQuestionnaireSatisfaction : absent tant que la date de signature de l’acte manque', () => {
+  const app = chargerApplication();
+  assert.equal(app.renderQuestionnaireSatisfaction(dossierBase(app, { acte: '' })), '');
+});
+
+test('renderQuestionnaireSatisfaction : une fois envoyé, affiche la date et propose de renvoyer', () => {
+  const app = chargerApplication();
+  // Affiché même sur un dossier archivé : l'envoi archive justement le dossier.
+  const html = app.renderQuestionnaireSatisfaction(dossierBase(app, {
+    acte: '2026-10-01', archive: true, questionnaireEnvoyeLe: '2026-09-21'
+  }));
+  assert.match(html, /envoyé le 21 septembre 2026/);
+  assert.match(html, /Renvoyer/);
+});
+
 test('renderQuestionnaireSatisfaction : invite à renseigner un email tant qu’aucun destinataire n’est connu', () => {
   const app = chargerApplication();
-  const html = app.renderQuestionnaireSatisfaction(dossierBase(app, { emailAcquereur: '' }));
+  const html = app.renderQuestionnaireSatisfaction(dossierBase(app, { acte: '2026-10-01', emailAcquereur: '' }));
   assert.match(html, /Renseignez l.email de l.acquéreur/);
   assert.doesNotMatch(html, /envoyerQuestionnaireSatisfaction/);
 });
 
 test('renderQuestionnaireSatisfaction : affiche le bouton dès qu’un destinataire est connu', () => {
   const app = chargerApplication();
-  const html = app.renderQuestionnaireSatisfaction(dossierBase(app, {}));
+  const html = app.renderQuestionnaireSatisfaction(dossierBase(app, { acte: '2026-10-01' }));
   assert.match(html, /envoyerQuestionnaireSatisfaction\('d1'\)/);
   assert.match(html, /Questionnaire de satisfaction/);
 });
