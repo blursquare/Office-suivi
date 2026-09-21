@@ -166,17 +166,6 @@
             <input type="date" id="f-pret">
           </div>
 
-          <div class="date-block acte" id="bloc-acte">
-            <div class="label-line">
-              <label class="switch">
-                <input type="checkbox" id="toggle-acte" checked onchange="toggleEcheance('acte', this.checked)">
-                <span class="slider"></span>
-              </label>
-              <span>Signature de l'acte</span>
-            </div>
-            <input type="date" id="f-acte">
-          </div>
-
           <div class="date-block ventebien inactive" id="bloc-ventebien">
             <div class="label-line">
               <label class="switch">
@@ -186,6 +175,17 @@
               <span>Vente préalable</span>
             </div>
             <input type="date" id="f-ventebien" disabled>
+          </div>
+
+          <div class="date-block acte" id="bloc-acte">
+            <div class="label-line">
+              <label class="switch">
+                <input type="checkbox" id="toggle-acte" checked onchange="toggleEcheance('acte', this.checked)">
+                <span class="slider"></span>
+              </label>
+              <span>Signature de l'acte</span>
+            </div>
+            <input type="date" id="f-acte">
           </div>
 
           <div id="autres-list"></div>
@@ -370,8 +370,8 @@
       <select id="filtre-type" onchange="render()">
         <option value="">Toutes</option>
         <option value="pret">Obtention du prêt</option>
-        <option value="acte">Signature de l'acte</option>
         <option value="ventebien">Vente préalable</option>
+        <option value="acte">Signature de l'acte</option>
       </select>
     </label>
     <label class="toolbar-item">

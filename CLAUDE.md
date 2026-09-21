@@ -1740,6 +1740,20 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
   - `.dossier-actions` passe de `flex-wrap: nowrap` à `wrap` : avec 3 boutons (cas le plus courant,
     sans `d.acte`) rien ne change, mais le 4ᵉ bouton conditionnel peut désormais repasser à la
     ligne suivante dans la largeur du tiroir plutôt que d'écraser les trois autres.
+- **Ordre des trois échéances principales changé : Obtention du prêt → Vente préalable → Signature
+  de l'acte** (auparavant Prêt → Acte → Vente préalable), demandé par l'étude, aussi bien dans le
+  wizard "Nouveau dossier" que sur la fiche dossier. Clarifié avec l'étude que la demande portait
+  uniquement sur l'ordre d'affichage des 3 échéances existantes, pas sur un nouveau champ distinct
+  ("Rendez-vous de signature" reste le même événement que "Signature de l'acte", libellé inchangé).
+  Réordonné à l'identique partout où les trois apparaissent ensemble, pour ne garder qu'un seul
+  ordre dans tout l'outil plutôt qu'un ordre différent par écran : blocs "Dates butoir" du wizard
+  (`index.html`), `<option>` du filtre "Échéance" de l'onglet Suivi, `optionsCategorie()` (menu de
+  recatégorisation d'un chip), `renderDashboard()`/`prochaineEcheanceDetail()` (widgets du tableau
+  de bord), les onglets `.tabs` de la fiche dossier (`renderCarteDossier()`), l'export `.ics`
+  (`telechargerICS()`), le corps de l'email de rappel (`ouvrirEmailRappel()`), et le mini-calendrier
+  de la ligne de tableau. Simple réordonnancement de littéraux dans le code (aucune migration de
+  données : `d.pret`/`d.ventebien`/`d.acte` restent les mêmes clés) — `npm test` reste vert sans
+  modification des tests, ces derniers ne dépendant pas de l'ordre d'affichage.
 
 ## Comment tester
 

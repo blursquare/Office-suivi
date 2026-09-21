@@ -2069,8 +2069,8 @@
   function optionsCategorie(typeActuel) {
     const options = [
       ['pret', 'Obtention du prêt'],
-      ['acte', "Signature de l'acte"],
-      ['ventebien', 'Vente préalable']
+      ['ventebien', 'Vente préalable'],
+      ['acte', "Signature de l'acte"]
     ];
     return options.map(([val, texte]) =>
       `<option value="${val}" ${val === typeActuel ? 'selected' : ''}>${texte}</option>`
@@ -2292,8 +2292,8 @@
     dossiersActifs.forEach(d => {
       const items = [
         { type: 'pret', label: 'Obtention du prêt', iso: d.pret },
-        { type: 'acte', label: "Signature de l'acte", iso: d.acte },
         { type: 'ventebien', label: 'Vente préalable', iso: d.ventebien },
+        { type: 'acte', label: "Signature de l'acte", iso: d.acte },
         ...(d.autres || []).map(a => ({ type: 'autre', label: a.label, iso: a.date }))
       ];
       items.forEach(it => {
@@ -2560,8 +2560,8 @@
       // prêt" comme la prochaine chose à surveiller alors qu'il n'y a plus rien à y suivre — on
       // passe directement à la suivante (acte, vente préalable...), voir calculerProchaineEcheance.
       ...(d.offrePretStatut === 'recue' ? [] : [{ type: 'pret', label: 'Obtention du prêt', iso: d.pret }]),
-      { type: 'acte', label: "Signature de l'acte", iso: d.acte },
       { type: 'ventebien', label: 'Vente préalable', iso: d.ventebien },
+      { type: 'acte', label: "Signature de l'acte", iso: d.acte },
       ...(d.autres || []).map(a => ({ type: 'autre', label: a.label, iso: a.date }))
     ].filter(it => it.iso);
     if (!items.length) return null;
@@ -3082,8 +3082,8 @@
         <div class="dossier-body">
         <div class="tabs">
           ${renderTab('pret', 'Obtention du prêt', d.pret, d.id, d.pretPage, confiance.pret, null, d.offrePretStatut === 'recue', offreBloc)}
-          ${renderTab('acte', 'Signature de l\u2019acte', d.acte, d.id, d.actePage, confiance.acte)}
           ${d.ventebien ? renderTab('ventebien', 'Vente préalable', d.ventebien, d.id, d.ventebienPage, confiance.ventebien) : ''}
+          ${renderTab('acte', 'Signature de l\u2019acte', d.acte, d.id, d.actePage, confiance.acte)}
           ${(d.autres || []).map((a, i) => renderTab('autre', escapeHtml(a.label), a.date, d.id, a.page, null, i)).join('')}
         </div>
         ${d.roleNotaire !== 'participant' ? renderPiecesDossier(d) : ''}
@@ -3281,8 +3281,8 @@
     const suffixeTitre = ` — ${nomAcquereur} - Dossier ${d.nom}`;
     let body = 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Registre des echeances//FR\r\nCALSCALE:GREGORIAN\r\n';
     body += buildEvent(d.id + '-pret', `Obtention du prêt${suffixeTitre}`, d.pret, d.reminderDays);
-    body += buildEvent(d.id + '-acte', `Signature de l'acte${suffixeTitre}`, d.acte, d.reminderDays);
     body += buildEvent(d.id + '-ventebien', `Vente préalable${suffixeTitre}`, d.ventebien, d.reminderDays);
+    body += buildEvent(d.id + '-acte', `Signature de l'acte${suffixeTitre}`, d.acte, d.reminderDays);
     (d.autres || []).forEach((a, i) => {
       body += buildEvent(d.id + '-autre' + i, `${a.label}${suffixeTitre}`, a.date, d.reminderDays);
     });
@@ -3305,8 +3305,8 @@
     if (!d) return;
     const lignes = [];
     if (d.pret) lignes.push(`- Obtention du prêt : ${formatDateFr(d.pret)}`);
-    if (d.acte) lignes.push(`- Signature de l'acte : ${formatDateFr(d.acte)}`);
     if (d.ventebien) lignes.push(`- Vente préalable : ${formatDateFr(d.ventebien)}`);
+    if (d.acte) lignes.push(`- Signature de l'acte : ${formatDateFr(d.acte)}`);
     (d.autres || []).forEach(a => lignes.push(`- ${a.label} : ${formatDateFr(a.date)}`));
     const subject = `Rappel — Échéances du dossier ${d.nom}`;
     const bodyText = `Bonjour,\n\nUn rappel concernant les échéances du dossier ${d.nom} :\n\n${lignes.join('\n')}\n\nMerci de vérifier l'avancement de ce dossier.`;
@@ -3637,8 +3637,8 @@
 
     const cases = [
       d.pret ? { cls: 'pret', label: 'Obtention du prêt', date: d.pret } : null,
-      d.acte ? { cls: 'acte', label: "Signature de l'acte", date: d.acte } : null,
       d.ventebien ? { cls: 'vente', label: 'Vente préalable', date: d.ventebien } : null,
+      d.acte ? { cls: 'acte', label: "Signature de l'acte", date: d.acte } : null,
       ...(d.autres || []).map(a => ({ cls: 'autre', label: a.label, date: a.date }))
     ].filter(Boolean);
 
