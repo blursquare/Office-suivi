@@ -520,6 +520,42 @@
   .action-urgente-raison { color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .action-urgente-fleche { margin-left: auto; color: var(--muted); flex-shrink: 0; }
 
+  /* Liste "Nouvelles pièces reçues" du tableau de bord (voir renderNouvellesPieces) — même
+     habillage que .action-urgente-ligne (carte cliquable, ouvre le dossier), avec une puce rouge
+     plutôt que le badge de statut du dossier : ce qui distingue chaque ligne ici, c'est la pièce
+     reçue, pas l'état global du dossier. */
+  .nouvelles-pieces {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .piece-recente-ligne {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    font-family: inherit;
+    font-size: 13.5px;
+    text-align: left;
+    background: var(--paper-card);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 14px;
+    cursor: pointer;
+    box-shadow: var(--shadow-card);
+  }
+  .piece-recente-ligne:hover { border-color: var(--focus); }
+  .piece-recente-puce {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--urgent);
+    flex-shrink: 0;
+  }
+  .piece-recente-texte { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .piece-recente-texte b { font-weight: 600; }
+  .piece-recente-date { margin-left: auto; color: var(--muted); flex-shrink: 0; font-size: 12.5px; }
+
   @media (max-width: 1300px) {
     .kpis-dashboard { grid-template-columns: repeat(3, 1fr); }
     .dash-grid { grid-template-columns: 1fr; }
@@ -1129,6 +1165,7 @@
     gap: 8px;
   }
   .piece-item {
+    position: relative;
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -1154,6 +1191,20 @@
   .piece-item.manquante { border-color: var(--pret); color: var(--ink); }
   .piece-item.manquante .piece-icone { color: var(--pret); }
   .piece-item.inconnu .piece-icone { color: var(--muted); }
+  /* Point rouge signalant une pièce reçue depuis la dernière visite de la fiche (voir
+     d.piecesNouvelles / acquitterPieceNouvelle) — même couleur --urgent que le reste des
+     notifications de l'outil, pas une couleur inventée pour l'occasion. */
+  .piece-item.nouveau::after {
+    content: '';
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--urgent);
+    border: 1.5px solid var(--paper-card);
+  }
 
   /* Aperçu de la checklist à l'étape "Finaliser" du wizard, avant l'enregistrement du dossier —
      mêmes puces .piece-item que le suivi réel, mais sans compteur ni bouton (rien à vérifier
@@ -2276,7 +2327,7 @@
     .panel, .pdf-viewer, .list-toolbar, .dossier-actions, .theme-btn,
     .confirm-overlay, .toast, footer.note, .historique-toggle, .dashboard,
     .sidebar, .sidebar-burger, .sidebar-scrim, .dash-header, .kpis-dashboard, .actions-urgentes,
-    .dash-section-titre { display: none !important; }
+    .dash-section-titre, #nouvelles-pieces-section { display: none !important; }
     .app-main { padding: 0; }
     .layout-cols { display: block; }
     .wrap { max-width: 100%; padding: 0; }

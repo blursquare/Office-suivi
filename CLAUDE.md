@@ -1662,6 +1662,43 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     ne déclenche plus ni `certificatNumerotage` ni `certificatAlignement` ; un vrai certificat
     d'alignement (texte de délivrance, sans renvoi) reste bien détecté — la correction ne devait
     pas rendre la détection insensible aux vrais documents.
+- **Notification des nouvelles pièces reçues (point rouge), désynchronisation d'une pièce dont le
+  fichier a été supprimé du dossier local, et liste "Nouvelles pièces reçues" sur le Dashboard** :
+  demandé par l'étude après avoir constaté qu'une pièce marquée "reçue" une fois ne redevenait
+  jamais "manquante" même si le fichier correspondant disparaissait ensuite du dossier local, et
+  qu'aucune vue ne permettait de voir d'un coup d'œil ce qui venait d'être reçu sur l'ensemble du
+  portefeuille sans rouvrir chaque dossier un par un.
+  - `d.piecesNouvelles` (nouveau champ du modèle dossier, `{ cle: dateISO }`, comme `d.pieces`)
+    enregistre chaque pièce venant de passer de manquante/inconnue à reçue, avec la date de
+    détection — alimenté dans `verifierPiecesDossier()` au moment où une pièce est reconnue pour la
+    première fois (pas à chaque revérification d'une pièce déjà reçue). Reste à `{}` à l'import
+    (`normaliserDossierImporte()`), même logique que `d.pieces`/`offrePretStatut` : un statut dérivé
+    d'un scan de dossier local ne doit pas être importé tel quel d'une autre machine.
+  - `renderPiecesDossier()` affiche un petit point rouge (`--urgent`, même couleur que les autres
+    notifications de l'outil) sur le badge d'une pièce présente dans `d.piecesNouvelles` — visible
+    directement sur la fiche du dossier, sans qu'il faille comparer soi-même l'ancien et le nouveau
+    statut de chaque pièce. `acquitterPieceNouvelle(id, cle)` retire l'entrée correspondante ; appelée
+    automatiquement au clic sur la pièce (qui ouvre déjà le fichier trouvé, voir `ouvrirPieceTrouvee`)
+    — consulter la pièce suffit à acquitter sa notification, pas de bouton "tout marquer comme lu"
+    séparé à chercher.
+  - **Bug corrigé au passage, à l'origine de la demande** : une pièce marquée "reçue" restait ainsi
+    indéfiniment même si son fichier était ensuite supprimé ou déplacé hors du dossier local, car
+    `verifierPiecesDossier()` exclut volontairement les pièces déjà reçues de sa recherche à chaque
+    revérification (pour ne pas relire inutilement des PDF déjà reconnus) — rien ne revérifiait donc
+    plus jamais leur présence réelle. Avant de construire cette recherche, chaque pièce marquée
+    "reçue" est maintenant testée via le handle de fichier mémorisé lors de sa détection (voir
+    `CLE_HANDLE_PIECE`, déjà utilisé par `ouvrirPieceTrouvee`) : si `handle.getFile()` échoue (fichier
+    supprimé/déplacé), la pièce repasse à "manquante" et à sa notification "nouvelle pièce" est
+    retirée — elle rentre alors naturellement dans la recherche du reste du scan en cours, sans passe
+    supplémentaire. Une pièce détectée avant l'introduction de ce handle (jamais mémorisé) n'est pas
+    vérifiable de cette façon et reste telle quelle, comme pour `ouvrirPieceTrouvee()` dans le même cas.
+  - `renderNouvellesPieces()` (nouvelle fonction, appelée dans `render()` comme les autres widgets du
+    Dashboard) liste, tous dossiers actifs confondus, les pièces présentes dans un `d.piecesNouvelles`
+    non vide — triées de la plus récente à la plus ancienne, plafonnées à 8 lignes. Nouvelle section
+    `#nouvelles-pieces-section` dans `index.html`, sous la grille "Actions urgentes"/"Échéances",
+    masquée quand la liste est vide (même principe que le widget "Échéances des 7 prochains jours").
+    Chaque ligne (`.piece-recente-ligne`, même habillage que `.action-urgente-ligne`) ouvre le dossier
+    concerné au clic (`ouvrirDossierDepuisDashboard`) et acquitte au passage sa notification.
 
 ## Comment tester
 

@@ -1944,6 +1944,7 @@
       typeVente,
       roleNotaire,
       pieces: {},
+      piecesNouvelles: {},
       dossierLie: false,
       offrePretStatut: 'inconnu',
       accesAReconfirmer: false,
@@ -2423,6 +2424,40 @@
     }).join('');
   }
 
+  // "Nouvelles pièces reçues" du tableau de bord : toutes les pièces passées à "recue" depuis la
+  // dernière visite de leur fiche (voir d.piecesNouvelles, alimenté par verifierPiecesDossier),
+  // tous dossiers actifs confondus — pour voir d'un coup d'œil ce qui vient d'arriver sans rouvrir
+  // chaque dossier un par un. Une entrée disparaît de cette liste dès qu'on clique sur la pièce
+  // correspondante (ici ou sur la fiche du dossier, voir acquitterPieceNouvelle) : pas de bouton
+  // "tout marquer comme lu" séparé.
+  function renderNouvellesPieces(dossiersActifs) {
+    const section = document.getElementById('nouvelles-pieces-section');
+    const bloc = document.getElementById('nouvelles-pieces');
+    if (!section || !bloc) return;
+    const items = [];
+    dossiersActifs.forEach(d => {
+      if (!d.piecesNouvelles) return;
+      const checklist = checklistPieces(d.typeVente);
+      Object.keys(d.piecesNouvelles).forEach(cle => {
+        const piece = checklist.find(p => p.cle === cle);
+        if (!piece) return;
+        items.push({ dossierId: d.id, dossierNom: d.nom, cle, label: piece.label, iso: d.piecesNouvelles[cle] });
+      });
+    });
+    if (items.length === 0) {
+      section.style.display = 'none';
+      return;
+    }
+    section.style.display = '';
+    items.sort((a, b) => b.iso.localeCompare(a.iso));
+    bloc.innerHTML = items.slice(0, 8).map(it => `
+      <button type="button" class="piece-recente-ligne" onclick="acquitterPieceNouvelle('${it.dossierId}', '${it.cle}'); ouvrirDossierDepuisDashboard('${it.dossierId}')">
+        <span class="piece-recente-puce"></span>
+        <span class="piece-recente-texte"><b>${escapeHtml(it.label)}</b> — ${escapeHtml(it.dossierNom)}</span>
+        <span class="piece-recente-date">${formatDateFr(it.iso.slice(0, 10))}</span>
+      </button>`).join('');
+  }
+
   // Ouvre un dossier depuis le tableau de bord : bascule vers le Suivi et ouvre sa fiche dans le
   // tiroir latéral, exactement comme un clic sur sa ligne (même chemin, voir ouvrirDossierDrawer).
   function ouvrirDossierDepuisDashboard(id) {
@@ -2729,6 +2764,7 @@
     renderAlerteAcces(dossiersActifs);
     renderKpisDashboard(dossiersActifs);
     renderActionsUrgentes(dossiersActifs);
+    renderNouvellesPieces(dossiersActifs);
     // Avant les retours anticipés sur liste vide ci-dessous : le tiroir doit se rafraîchir (ou se
     // refermer, si son dossier vient d'être supprimé) dans tous les cas, pas seulement quand la
     // liste a des lignes à afficher.
@@ -2894,16 +2930,33 @@
         <div class="pieces-liste">
           ${checklist.map(p => {
             const s = libellePiece(pieces[p.cle] || 'inconnu');
+            // Pièce reconnue depuis la dernière fois que l'étude a ouvert cette fiche/cliqué dessus
+            // (voir d.piecesNouvelles, alimenté par verifierPiecesDossier) : petit point rouge, dans
+            // le même vocabulaire de couleur que le reste de l'outil (--urgent), pour la repérer
+            // sans avoir à comparer soi-même l'ancien et le nouveau statut de chaque pièce.
+            const estNouvelle = s.cls === 'recue' && d.piecesNouvelles && d.piecesNouvelles[p.cle];
             // Une pièce reçue est cliquable pour rouvrir directement le fichier local où elle a
             // été trouvée (voir ouvrirPieceTrouvee) — les autres statuts (manquante/inconnu)
-            // restent un simple badge, rien à ouvrir.
+            // restent un simple badge, rien à ouvrir. Le clic acquitte aussi la notification
+            // "nouvelle pièce" (voir acquitterPieceNouvelle) : la consulter suffit à la marquer vue.
             return s.cls === 'recue'
-              ? `<button type="button" class="piece-item ${s.cls}" title="Cliquer pour ouvrir le fichier trouvé" onclick="ouvrirPieceTrouvee('${d.id}', '${p.cle}')"><span class="piece-icone">${s.texte}</span>${escapeHtml(p.label)}</button>`
+              ? `<button type="button" class="piece-item ${s.cls}${estNouvelle ? ' nouveau' : ''}" title="${estNouvelle ? 'Pièce reçue depuis la dernière visite — ' : ''}Cliquer pour ouvrir le fichier trouvé" onclick="acquitterPieceNouvelle('${d.id}', '${p.cle}'); ouvrirPieceTrouvee('${d.id}', '${p.cle}')"><span class="piece-icone">${s.texte}</span>${escapeHtml(p.label)}</button>`
               : `<span class="piece-item ${s.cls}" title="${escapeAttr(s.titre)}"><span class="piece-icone">${s.texte}</span>${escapeHtml(p.label)}</span>`;
           }).join('')}
         </div>
       </div>
     `;
+  }
+
+  // Acquitte la notification "nouvelle pièce" (point rouge, voir renderPiecesDossier et
+  // renderNouvellesPieces sur le Dashboard) : consulter la pièce (clic sur son badge) suffit à la
+  // marquer vue, pas de bouton "tout marquer comme lu" séparé à chercher.
+  function acquitterPieceNouvelle(id, cle) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d || !d.piecesNouvelles || !d.piecesNouvelles[cle]) return;
+    delete d.piecesNouvelles[cle];
+    sauvegarder();
+    render();
   }
 
   function renderCarteDossier(d) {
@@ -3493,6 +3546,7 @@
       dossierLie: false,
       offrePretStatut: 'inconnu',
       pieces: {},
+      piecesNouvelles: {},
       accesAReconfirmer: false,
       derniereRelanceAuto: null
     };
@@ -4086,6 +4140,10 @@
     if (d.roleNotaire === 'participant') return;
     const checklist = checklistPieces(d.typeVente);
     d.pieces = d.pieces || {};
+    // Pièces reconnues depuis la dernière visite (voir renderPiecesDossier/renderNouvellesPieces) —
+    // { cle: dateISO } d'une pièce venant de passer à "recue", effacée quand l'étude clique dessus
+    // pour l'ouvrir (voir acquitterPieceNouvelle).
+    d.piecesNouvelles = d.piecesNouvelles || {};
 
     const handle = await recupererHandle(id);
     if (!handle) {
@@ -4104,6 +4162,25 @@
       return;
     }
     d.accesAReconfirmer = false;
+
+    // Bug corrigé : une pièce marquée "reçue" restait ainsi pour toujours, même si son fichier a
+    // ensuite été supprimé/déplacé du dossier local — plus aucun scan ne la revérifiait puisque
+    // aChercher (juste en dessous) exclut volontairement les pièces déjà reçues, pour ne pas relire
+    // des PDF pour rien. On vérifie donc ici, avant de construire aChercher, que le fichier retrouvé
+    // au dernier scan existe toujours (son handle est mémorisé, voir CLE_HANDLE_PIECE) — sinon la
+    // pièce est désynchronisée : remise à "manquante" pour repasser dans aChercher et être
+    // recherchée à nouveau dans ce même passage.
+    for (const piece of checklist) {
+      if (d.pieces[piece.cle] !== 'recue') continue;
+      const handlePiece = await recupererHandle(CLE_HANDLE_PIECE(id, piece.cle));
+      if (!handlePiece) continue; // détectée avant l'introduction de ce handle : pas vérifiable, on la laisse
+      try {
+        await handlePiece.getFile();
+      } catch (e) {
+        d.pieces[piece.cle] = 'manquante';
+        delete d.piecesNouvelles[piece.cle];
+      }
+    }
 
     // Pièces déjà trouvées lors d'une vérification précédente : inutile de les rechercher à
     // nouveau, seules celles encore manquantes/inconnues sont testées sur chaque PDF.
@@ -4149,6 +4226,9 @@
     let nbTrouvees = 0;
     for (const piece of checklist) {
       if (fichierParPiece[piece.cle]) {
+        // Transition manquante/inconnu → reçue : une vraie nouvelle pièce, pas seulement une
+        // pièce reçue depuis longtemps qu'on revérifie — voir renderNouvellesPieces (Dashboard).
+        if (d.pieces[piece.cle] !== 'recue') d.piecesNouvelles[piece.cle] = new Date().toISOString();
         d.pieces[piece.cle] = 'recue';
         nbTrouvees++;
         // Handle conservé pour rouvrir directement ce fichier depuis la fiche (voir
