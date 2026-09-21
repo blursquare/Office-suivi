@@ -6138,6 +6138,78 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
     champ et la mécanique docxtemplater sont repris à l'identique de l'artefact, où l'étude les a
     déjà utilisés, mais le fichier produit reste à ouvrir dans Word par l'étude pour confirmation.
 
+- **Générateur d'appel de fonds : trois retouches après le premier essai de l'étude**, dont une qui
+  REVIENT SUR une décision prise la veille — l'entrée précédente de ce fichier documentait
+  soigneusement le contraire, et c'est cette documentation qui était fausse :
+  - **Le dépôt de garantie est déduit même lorsqu'il est séquestré à l'AGENCE.** La version livrée
+    la veille refusait de le déduire dans ce cas, sur l'idée que ce dépôt se réglait directement
+    entre l'agence et le vendeur ; l'étude a corrigé : « l'agence nous reverse la somme », elle
+    arrive donc bien dans la comptabilité de l'étude et l'acquéreur ne doit pas la virer une
+    seconde fois. Le raisonnement était mauvais dans le sens qui coûte le plus cher — il faisait
+    réclamer au client une somme trop FORTE, vue seulement le jour de la signature.
+    `depotDeductible()` renvoie maintenant `deductible: true` dans tous les cas où un dépôt existe
+    (y compris détenteur illisible ou absent du dossier — le dépôt revient à l'étude dans les deux
+    cas connus), et `motif` continue de nommer le détenteur : il décide de ce que l'étude a à faire
+    AVANT la signature. Un dépôt détenu par un tiers produit donc une ligne « à compléter » (« à
+    réclamer avant la signature, il est déjà déduit du virement demandé ») plutôt qu'un simple
+    « repris », et le libellé de la ligne de crédit devient « Acompte sur prix déjà versé » au lieu
+    d'affirmer qu'il a été versé à l'étude. Le commentaire du code garde les deux raisonnements,
+    l'ancien et pourquoi il était faux, pour qu'on ne le rétablisse pas par inadvertance.
+  - **Bloc destinataire aligné à droite dans l'aperçu** (`.af-adresse-bloc`) : `margin-left: auto`
+    + `width: max-content`, mais **`text-align: left`** — ses LIGNES restent alignées entre elles,
+    une adresse en drapeau à droite ne se lit pas comme une adresse. Repasse pleine largeur sous
+    700px, où 55 % de la colonne ne suffisent plus à tenir une ligne d'adresse sans la couper.
+  - **Contrôle de la ligne « frais et droits de l'acte de vente » contre le barème du simulateur**,
+    pendant du contrôle de prorata déjà en place — la SECONDE chose que l'outil peut vérifier sur un
+    décompte qu'il n'a pas produit. Quatre décisions :
+    - **La formule de calcul est PARTAGÉE avec le simulateur de provision** : `estimerFraisActe(prix,
+      cleDepartement, typeBien, eligiblePrimoAccedant)` est extraite de `calculerFraisActe()` (qui
+      lit le DOM et ne pouvait donc pas être réutilisée), et cette dernière la consomme désormais.
+      Deux copies de la même arithmétique auraient fini par diverger, et le contrôle aurait alors
+      signalé un écart sur un montant pourtant conforme à ce que l'écran d'à côté affiche.
+      `DEPARTEMENTS_FRAIS_ACTE`/`BAREME_FRAIS_ACTE` passent de `const` à `var` pour rester
+      testables (limite connue du harnais, voir « Comment tester »).
+    - **Le dossier ne dit pas si l'acquéreur est primo-accédant**, et le total change selon le
+      régime (hausse départementale temporaire appliquée ou non). `fourchetteFraisActe()` calcule
+      donc les DEUX bornes et `verifierFraisActeLigne()` ne signale que ce qui en sort — parier sur
+      un régime produirait un faux écart une fois sur deux.
+    - **Le contrôle est indicatif, il ne remplit JAMAIS la ligne** : ce barème n'a jamais été
+      audité (avertissement déjà affiché sur le simulateur), et un chiffre annoncé à un client
+      engage l'étude. Décision déjà prise en construisant l'outil, maintenue ici.
+    - **Le libellé doit désigner l'acte de VENTE** (`estLigneFraisActeVente`) : « frais d'acte de
+      prêt », « frais de mainlevée », « frais de négociation » relèvent d'autres barèmes, les
+      contrôler contre celui-ci signalerait un écart sur une ligne parfaitement juste.
+    - Deux `<select>` (département, nature du bien) dans la section « Bien vendu », **préremplis
+      seulement quand le dossier tranche** : `cleBaremeDepuisDepartement()` mappe le code postal du
+      bien sur les clés du barème (Corse regroupée sous « 20 », Alsace sous « 67/68 ») et rend
+      `null` pour le 69, scindé entre Métropole de Lyon et Rhône — indiscernables depuis un code
+      postal. Sans département choisi, aucun contrôle n'est affiché : mieux vaut ne rien dire que
+      comparer au barème du mauvais département. Tolérance de 1 % (au moins 50 €) au-delà de la
+      fourchette, le barème étant interpolé entre deux paliers et ne couvrant pas les débours
+      variables.
+  - **Trou trouvé en VÉRIFIANT le contrôle de prorata** (l'étude demandait de le vérifier, pas de
+    le supposer correct) : il fonctionne sur les trois mises en page parenthésées déjà testées,
+    mais une formule écrite **sans parenthèses** à la suite du libellé (« Prorata taxe foncière
+    913 € x 92 jours / 365 jours     230,13 € ») sortait `formule: null` — aucun recalcul n'était
+    tenté, silencieusement. Nouveau motif `AF_FORMULE_FIN_RE`, ancré en FIN de libellé et sur le
+    motif complet (montant × jours / jours) : un libellé ne se termine pas par cette suite-là par
+    hasard.
+    - **Faux positif de ma propre vérification, à ne pas reproduire** : un cas de test donnait
+      « écart attendu 1017,22 € » sur une formule `(1829x203/365)` — le recalcul à la main donne
+      1017,2164, c'est le chiffre ATTENDU que j'avais mal calculé, pas l'outil. Vérifier
+      l'arithmétique du cas de test avant de conclure à un bug.
+  - Tests : 7 nouveaux dans `tests/appel-de-fonds.test.js` (formule sans parenthèses,
+    `estLigneFraisActeVente` sur les libellés voisins, `cleBaremeDepuisDepartement` sur les cas
+    regroupés/ambigus, `estimerFraisActe` par régime, la fourchette, les trois verdicts du
+    contrôle et son silence à zéro, le préremplissage) ; les trois assertions du dépôt réécrites
+    sur le nouveau contrat. Suite racine 486 → 493, serveur inchangée (233 — chantier entièrement
+    côté client). **Vérifié dans un vrai Chromium** (serveur réel, dossier synthétique dont le
+    dépôt est chez l'agence, clair et sombre, 1500px et 400px) : acompte de 9 000 € bien déduit
+    avec sa ligne « à réclamer », bloc destinataire à 0px du bord droit avec ses lignes alignées à
+    gauche, badge « conforme au barème » à 15 000 €, « 3 713,33 € sous le barème » à 11 000 €,
+    « 6 339,74 € au-dessus » à 22 000 €, aucun badge à 0 € ni sans département choisi, aucun badge
+    sur la ligne de frais d'acte de prêt, aucune erreur JS, aucun débordement horizontal.
+
 ## Ce qui reste ouvert / pas encore fait
 
 - **Générateur d'appel de fonds : deux éléments de l'artefact volontairement non repris** (voir

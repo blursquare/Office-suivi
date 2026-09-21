@@ -4025,7 +4025,12 @@
 .af-champ { border-bottom: 1px dotted #c9c9c9; padding: 0 1px; }
 .af-champ:focus { outline: none; background: rgba(109, 35, 50, 0.08); }
 .af-date-ligne { text-align: right; margin: 6px 0 20px; }
-.af-adresse-bloc { margin: 0 0 24px; }
+/* Le bloc destinataire est poussé à droite, comme sur un courrier réel — mais ses LIGNES restent
+   alignées à gauche entre elles (`text-align: left` + `width: max-content`) : une adresse en
+   drapeau à droite ne se lit pas comme une adresse. Repasse pleine largeur sous 700px, où 55 %
+   de la colonne ne suffisent plus à tenir une ligne d'adresse sans la couper. */
+.af-adresse-bloc { margin: 0 0 24px auto; width: max-content; max-width: 55%; text-align: left; }
+@media (max-width: 700px) { .af-adresse-bloc { margin-left: 0; max-width: 100%; } }
 .af-signature { margin-top: 26px; text-align: right; }
 
 .af-lettre-pied {

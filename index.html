@@ -841,6 +841,22 @@
           <label for="af-adresse-bien">Adresse du bien</label>
           <textarea id="af-adresse-bien" rows="2" placeholder="Numéro et rue, Code postal VILLE" oninput="majApercuAppelFonds()"></textarea>
         </div>
+        <div class="calc-champ calc-champ-paire">
+          <div>
+            <label for="af-frais-departement">Département du bien</label>
+            <select id="af-frais-departement" onchange="renderTableAppelFonds()"></select>
+          </div>
+          <div>
+            <label for="af-frais-type">Nature du bien</label>
+            <select id="af-frais-type" onchange="renderTableAppelFonds()">
+              <option value="">— à choisir —</option>
+              <option value="house">Maison, immeuble</option>
+              <option value="condo">Appartement, lot</option>
+              <option value="land">Terrain</option>
+            </select>
+          </div>
+        </div>
+        <p class="hint">Sert uniquement à <b>contrôler</b> la ligne « frais et droits de l'acte de vente » du décompte : CLAIRE dit si le montant saisi est au-dessus ou en dessous de son barème, elle ne le remplit jamais. Ce barème n'a pas été audité — le chiffre reste le vôtre.</p>
       </div>
 
       <div class="dash-section-titre" style="margin-top:18px;">6 · Financement</div>

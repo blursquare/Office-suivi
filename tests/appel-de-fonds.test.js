@@ -117,17 +117,22 @@ test('designationDepuisTypeVente reste sur le vocabulaire notarial', () => {
   assert.strictEqual(app.designationDepuisTypeVente(undefined), '');
 });
 
-test('depotDeductible ne déduit que ce qui est séquestré à l’étude', () => {
-  // Déduire un dépôt détenu par l'agence ferait réclamer au client une somme trop faible —
-  // une erreur qui ne se voit que le jour de la signature.
-  assert.strictEqual(app.depotDeductible({ depotGarantie: 10000, sequestreDepot: "en la comptabilité de l'étude" }).deductible, true);
+test('depotDeductible déduit le dépôt quel que soit son détenteur, mais le nomme', () => {
+  // L'agence REVERSE le dépôt à l'étude (règle donnée par l'étude) : ne pas le déduire ferait
+  // virer la somme une seconde fois au client. Le détenteur reste distingué par `motif`, parce
+  // qu'il décide de ce que l'étude a à faire avant la signature.
+  assert.strictEqual(app.depotDeductible({ depotGarantie: 10000, sequestreDepot: "en la comptabilité de l'étude" }).motif, 'etude');
   assert.strictEqual(app.depotDeductible({ depotGarantie: 10000, sequestreDepot: "entre les mains du notaire" }).deductible, true);
-  assert.strictEqual(app.depotDeductible({ depotGarantie: 10000, sequestreDepot: "versé à l'agence" }).deductible, false);
+  const agence = app.depotDeductible({ depotGarantie: 10000, sequestreDepot: "versé à l'agence" });
+  assert.strictEqual(agence.deductible, true);
+  assert.strictEqual(agence.motif, 'tiers');
   // Piège réel : la phrase nomme l'agence ET le notaire, mais c'est l'agence qui détient.
   const mixte = app.depotDeductible({ depotGarantie: 10000, sequestreDepot: "versé à l'agence qui en donnera quittance au notaire" });
-  assert.strictEqual(mixte.deductible, false);
+  assert.strictEqual(mixte.deductible, true);
   assert.strictEqual(mixte.motif, 'tiers');
   assert.strictEqual(app.depotDeductible({ depotGarantie: 10000, sequestreDepot: '' }).motif, 'indetermine');
+  // Pas de dépôt du tout : rien à déduire, c'est le seul cas où `deductible` est faux.
+  assert.strictEqual(app.depotDeductible({ depotGarantie: null }).deductible, false);
   assert.strictEqual(app.depotDeductible({ depotGarantie: null }).motif, 'absent');
 });
 
@@ -158,12 +163,20 @@ test('prefillAppelFonds dit aussi ce qu’il n’a PAS pu remplir', () => {
   assert.ok(p.aCompleter.some(t => t.includes('Civilité')));
 });
 
-test('prefillAppelFonds signale un dépôt séquestré hors de l’étude au lieu de le déduire', () => {
+test('prefillAppelFonds déduit un dépôt détenu par l’agence et rappelle de le réclamer', () => {
   const p = app.prefillAppelFonds({
     id: 'd2', nom: 'A / B', depotGarantie: 9000, sequestreDepot: "séquestré à l'agence"
   });
-  assert.strictEqual(p.depotGarantie, null);
-  assert.ok(p.aCompleter.some(t => t.includes('séquestré hors de l’étude')));
+  assert.strictEqual(p.depotGarantie, 9000);
+  assert.strictEqual(p.depotMotif, 'tiers');
+  assert.ok(p.repris.some(t => t.includes('Dépôt de garantie')));
+  assert.ok(p.aCompleter.some(t => t.includes('à réclamer avant la signature')));
+});
+
+test('prefillAppelFonds déduit un dépôt au détenteur illisible, mais le signale', () => {
+  const p = app.prefillAppelFonds({ id: 'd3', nom: 'A / B', depotGarantie: 5000, sequestreDepot: '' });
+  assert.strictEqual(p.depotGarantie, 5000);
+  assert.ok(p.aCompleter.some(t => t.includes('qui le détient')));
 });
 
 test('lignesDecompteDepuisPrefill garde une ligne à zéro plutôt que de la masquer', () => {
@@ -200,4 +213,84 @@ test('ligneClientComplete développe la civilité, sauf pour une société', () 
   assert.strictEqual(app.ligneClientComplete({ civilite: 'M', prenom: 'Jean', nom: 'DUPONT' }), 'Monsieur Jean DUPONT');
   assert.strictEqual(app.ligneClientComplete({ civilite: 'Mme', prenom: '', nom: 'MARTIN' }), 'Madame MARTIN');
   assert.strictEqual(app.ligneClientComplete({ civilite: 'SCI', nom: 'SCI LES TILLEULS' }), 'SCI LES TILLEULS');
+});
+
+test('afExtraireFormule lit aussi un prorata écrit sans parenthèses', () => {
+  // Mise en page rencontrée en vérifiant le contrôle de bout en bout : sans ce cas, la formule
+  // était bien sur la ligne mais aucun recalcul n'était tenté.
+  const r = app.parserDecompteConfrere('Prorata taxe foncière 913 € x 92 jours / 365 jours    230,13 €');
+  assert.strictEqual(r.lignes.debit.length, 1);
+  assert.strictEqual(r.lignes.debit[0].libelle, 'Prorata taxe foncière');
+  assert.ok(r.lignes.debit[0].formule.includes('913'));
+  assert.strictEqual(app.verifierProrataLigne(r.lignes.debit[0]).statut, 'ok');
+});
+
+test('estLigneFraisActeVente ne retient que les frais de l’acte de VENTE', () => {
+  // Les frais d'acte de prêt, de mainlevée ou de négociation relèvent d'autres barèmes :
+  // les contrôler contre celui-ci signalerait un écart sur une ligne parfaitement juste.
+  assert.strictEqual(app.estLigneFraisActeVente("Montant des frais et droits de l'acte de vente"), true);
+  assert.strictEqual(app.estLigneFraisActeVente("Frais d'acte"), true);
+  assert.strictEqual(app.estLigneFraisActeVente('Provision sur frais'), true);
+  assert.strictEqual(app.estLigneFraisActeVente("Frais d'acte de prêt"), false);
+  assert.strictEqual(app.estLigneFraisActeVente('Frais de mainlevée'), false);
+  assert.strictEqual(app.estLigneFraisActeVente('Frais de négociation'), false);
+  assert.strictEqual(app.estLigneFraisActeVente("Prix d'acquisition"), false);
+});
+
+test('cleBaremeDepuisDepartement ne devine pas ce que le code postal ne dit pas', () => {
+  // Corse et Alsace sont regroupées dans le barème ; le 69 y est scindé entre Métropole de Lyon
+  // et Rhône, indiscernables depuis un code postal — rien n'est proposé plutôt qu'un pari.
+  assert.strictEqual(app.cleBaremeDepuisDepartement('41'), '41');
+  assert.strictEqual(app.cleBaremeDepuisDepartement('2A'), '20');
+  assert.strictEqual(app.cleBaremeDepuisDepartement('2B'), '20');
+  assert.strictEqual(app.cleBaremeDepuisDepartement('67'), '67/68');
+  assert.strictEqual(app.cleBaremeDepuisDepartement('69'), null);
+  assert.strictEqual(app.cleBaremeDepuisDepartement('975'), null);
+  assert.strictEqual(app.cleBaremeDepuisDepartement(null), null);
+});
+
+test('estimerFraisActe applique le taux départemental selon le régime', () => {
+  const primo = app.estimerFraisActe(185000, '41', 'house', true);
+  const plein = app.estimerFraisActe(185000, '41', 'house', false);
+  assert.strictEqual(primo.tauxApplique, 0.045);
+  assert.strictEqual(plein.tauxApplique, 0.05);
+  // La hausse départementale temporaire coûte forcément plus cher.
+  assert.ok(plein.total > primo.total);
+  // Un département ou un type inconnu ne rend rien plutôt qu'un chiffre inventé.
+  assert.strictEqual(app.estimerFraisActe(185000, '2A', 'house', false), null);
+  assert.strictEqual(app.estimerFraisActe(0, '41', 'house', false), null);
+});
+
+test('fourchetteFraisActe encadre les deux régimes possibles', () => {
+  // Le dossier ne dit pas si l'acquéreur est primo-accédant : on encadre au lieu de parier.
+  const f = app.fourchetteFraisActe(185000, '41', 'house');
+  assert.ok(f.min < f.max);
+  assert.strictEqual(app.fourchetteFraisActe(185000, '', 'house'), null);
+});
+
+test('verifierFraisActeLigne dit au-dessus, en dessous, ou conforme', () => {
+  const f = app.fourchetteFraisActe(185000, '41', 'house');
+  assert.strictEqual(app.verifierFraisActeLigne((f.min + f.max) / 2, f).statut, 'ok');
+  // Les deux bornes du régime restent conformes : c'est tout l'intérêt de la fourchette.
+  assert.strictEqual(app.verifierFraisActeLigne(f.min, f).statut, 'ok');
+  assert.strictEqual(app.verifierFraisActeLigne(f.max, f).statut, 'ok');
+  const sous = app.verifierFraisActeLigne(f.min - 3000, f);
+  assert.strictEqual(sous.statut, 'sous');
+  assert.ok(sous.ecart > 2900);
+  assert.strictEqual(app.verifierFraisActeLigne(f.max + 3000, f).statut, 'sur');
+  // Une ligne à zéro (le cas par défaut, à remplir) ne doit rien signaler du tout.
+  assert.strictEqual(app.verifierFraisActeLigne(0, f).statut, 'non-verifiable');
+  assert.strictEqual(app.verifierFraisActeLigne(14000, null).statut, 'non-verifiable');
+});
+
+test('prefillAppelFonds propose le département et le type de bien du contrôle', () => {
+  const p = app.prefillAppelFonds({
+    id: 'd4', nom: 'A / B', typeVente: 'copropriete',
+    adresseBien: '3 rue Haute, 41000 BLOIS'
+  });
+  assert.strictEqual(p.departementFrais, '41');
+  assert.strictEqual(p.typeBienFrais, 'condo');
+  // Adresse sans code postal : rien n'est proposé, le contrôle reste silencieux.
+  const sans = app.prefillAppelFonds({ id: 'd5', nom: 'A / B', adresseBien: 'lieu-dit Les Vignes' });
+  assert.strictEqual(sans.departementFrais, null);
 });

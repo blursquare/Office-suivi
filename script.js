@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-21 21:36';
+  const VERSION_APP = '2026-09-21 22:02';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-21 22:02', resume: "Appel de fonds, trois retouches. Le bloc destinataire du courrier est aligné à droite dans l'aperçu, comme sur le papier. Le dépôt de garantie versé à l'agence est désormais DÉDUIT du virement demandé, l'agence reversant la somme à l'étude — la version de ce matin ne le déduisait pas, ce qui faisait réclamer au client une somme trop forte ; la fiche rappelle de réclamer ces fonds avant la signature. Enfin, la ligne « frais et droits de l'acte de vente » est contrôlée contre le barème du simulateur, comme les prorata l'étaient déjà : CLAIRE dit si le montant est au-dessus ou en dessous, sans jamais le remplir — ce barème n'a pas été audité. Corrigé au passage : un prorata écrit sans parenthèses n'était pas recalculé du tout" },
     { version: '2026-09-21 21:36', resume: "Nouvel outil « Appel de fonds » dans la sidebar : il produit la convocation au rendez-vous de signature avec le décompte des sommes à virer, et la télécharge en .docx à l'en-tête de l'étude. Relié au suivi — un bouton « Préparer l'appel de fonds » sur la fiche d'un dossier ouvre l'outil déjà rempli avec les acquéreurs, l'adresse et la désignation du bien, la date du rendez-vous et le prix ; il dit aussi, en clair, ce qu'il n'a PAS pu remplir. Le dépôt de garantie n'est porté en déduction que s'il est séquestré à l'étude, et les frais d'acte de prêt ne sont appelés que si l'offre porte une garantie hypothécaire. Le décompte d'un confrère peut être déposé en PDF ou collé : ses lignes remplissent le tableau, et ses prorata écrits sous forme de formule sont recalculés pour contrôle" },
     { version: '2026-09-21 18:04', resume: "Deux changements de couleur demandés : les notifications de nouveau document (le compteur de la sidebar, la mention sur la ligne du Suivi et le repère « Nouveau » sur la pièce) passent au ROUGE, qui se remarque mieux que l'ancien vert — lequel disait par ailleurs la même chose que le statut « reçu » affiché juste à côté. Et l'échéance « Signature de l'acte » passe au BLEU NUIT, partout où elle apparaît, y compris sur la fiche imprimée. Corrigé au passage sur le Tableau de bord : les pastilles « Appel de fonds » et « Rendez-vous de signature » du widget des 7 prochains jours ne prenaient pas la couleur de leur catégorie — le rendez-vous s'y affichait même dans la couleur de la date butoir, ce qui rendait les deux indiscernables" },
     { version: '2026-09-21 17:43', resume: "Calendrier connecté : les échéances s'affichaient par deux ou trois dans Outlook, puis plus rien. Le fichier produit devenait invalide dès le deuxième événement et le lecteur abandonnait le reste en silence. Trois défauts corrigés : une propriété d'annulation placée dans l'événement au lieu du calendrier, des lignes trop longues jamais repliées (les titres dépassent largement la limite de la norme dès que le nom du dossier est long), et les virgules ou points-virgules des noms de dossier non échappés. Rien à refaire de votre côté que resynchroniser le calendrier : l'abonnement et son adresse ne changent pas" },
@@ -11823,12 +11824,12 @@
   // échéances, accessible depuis son propre onglet de la sidebar (voir definirOnglet('calculateur')).
   // Barème/taux repris tels quels d'une maquette fournie par l'étude, pas recalculés : les données
   // fiscales/tarifaires ne sont pas du ressort de cet outil, seule la mise en forme change.
-  const DEPARTEMENTS_FRAIS_ACTE = {'01':{name:'Ain',base:0.045,temp:0.05},'02':{name:'Aisne',base:0.045,temp:0.05},'03':{name:'Allier',base:0.045,temp:0.05},'04':{name:'Alpes-de-Haute-Provence',base:0.045,temp:0.05},'05':{name:'Hautes-Alpes',base:0.045,temp:0.045},'06':{name:'Alpes-Maritimes',base:0.045,temp:0.045},'07':{name:'Ardèche',base:0.045,temp:0.045},'08':{name:'Ardennes',base:0.045,temp:0.05},'09':{name:'Ariège',base:0.045,temp:0.05},'10':{name:'Aube',base:0.045,temp:0.05},'11':{name:'Aude',base:0.045,temp:0.05},'12':{name:'Aveyron',base:0.045,temp:0.05},'13':{name:'Bouches-du-Rhône',base:0.045,temp:0.05},'14':{name:'Calvados',base:0.045,temp:0.05},'15':{name:'Cantal',base:0.045,temp:0.05},'16':{name:'Charente',base:0.045,temp:0.045},'17':{name:'Charente-Maritime',base:0.045,temp:0.05},'18':{name:'Cher',base:0.045,temp:0.05},'19':{name:'Corrèze',base:0.045,temp:0.05},'20':{name:'Corse',base:0.045,temp:0.05},'21':{name:"Côte-d'Or",base:0.045,temp:0.05},'22':{name:"Côtes-d'Armor",base:0.045,temp:0.05},'23':{name:'Creuse',base:0.045,temp:0.05},'24':{name:'Dordogne',base:0.045,temp:0.05},'25':{name:'Doubs',base:0.045,temp:0.05},'26':{name:'Drôme',base:0.045,temp:0.045},'27':{name:'Eure',base:0.045,temp:0.05},'28':{name:'Eure-et-Loir',base:0.045,temp:0.05},'29':{name:'Finistère',base:0.045,temp:0.05},'30':{name:'Gard',base:0.045,temp:0.05},'31':{name:'Haute-Garonne',base:0.045,temp:0.05},'32':{name:'Gers',base:0.045,temp:0.05},'33':{name:'Gironde',base:0.045,temp:0.05},'34':{name:'Hérault',base:0.045,temp:0.05},'35':{name:'Ille-et-Vilaine',base:0.045,temp:0.05},'36':{name:'Indre',base:0.038,temp:0.038},'37':{name:'Indre-et-Loire',base:0.045,temp:0.05},'38':{name:'Isère',base:0.045,temp:0.05},'39':{name:'Jura',base:0.045,temp:0.05},'40':{name:'Landes',base:0.045,temp:0.05},'41':{name:'Loir-et-Cher',base:0.045,temp:0.05},'42':{name:'Loire',base:0.045,temp:0.05},'43':{name:'Haute-Loire',base:0.045,temp:0.05},'44':{name:'Loire-Atlantique',base:0.045,temp:0.05},'45':{name:'Loiret',base:0.045,temp:0.05},'46':{name:'Lot',base:0.045,temp:0.05},'47':{name:'Lot-et-Garonne',base:0.045,temp:0.05},'48':{name:'Lozère',base:0.045,temp:0.045},'49':{name:'Maine-et-Loire',base:0.045,temp:0.05},'50':{name:'Manche',base:0.045,temp:0.05},'51':{name:'Marne',base:0.045,temp:0.05},'52':{name:'Haute-Marne',base:0.045,temp:0.05},'53':{name:'Mayenne',base:0.045,temp:0.05},'54':{name:'Meurthe-et-Moselle',base:0.045,temp:0.05},'55':{name:'Meuse',base:0.045,temp:0.05},'56':{name:'Morbihan',base:0.045,temp:0.05},'57':{name:'Moselle',base:0.045,temp:0.05},'58':{name:'Nièvre',base:0.045,temp:0.05},'59':{name:'Nord',base:0.045,temp:0.05},'60':{name:'Oise',base:0.045,temp:0.045},'61':{name:'Orne',base:0.045,temp:0.05},'62':{name:'Pas-de-Calais',base:0.045,temp:0.05},'63':{name:'Puy-de-Dôme',base:0.045,temp:0.05},'64':{name:'Pyrénées-Atlantiques',base:0.045,temp:0.05},'65':{name:'Hautes-Pyrénées',base:0.038,temp:0.045},'66':{name:'Pyrénées-Orientales',base:0.045,temp:0.05},'67/68':{name:'Alsace',base:0.045,temp:0.05},'69A':{name:'Métropole de Lyon',base:0.045,temp:0.05},'69B':{name:'Rhône (hors Métropole de Lyon)',base:0.045,temp:0.05},'70':{name:'Haute-Saône',base:0.045,temp:0.05},'71':{name:'Saône-et-Loire',base:0.045,temp:0.05},'72':{name:'Sarthe',base:0.045,temp:0.05},'73':{name:'Savoie',base:0.045,temp:0.05},'74':{name:'Haute-Savoie',base:0.045,temp:0.05},'75':{name:'Paris',base:0.045,temp:0.05},'76':{name:'Seine-Maritime',base:0.045,temp:0.05},'77':{name:'Seine-et-Marne',base:0.045,temp:0.05},'78':{name:'Yvelines',base:0.045,temp:0.05},'79':{name:'Deux-Sèvres',base:0.045,temp:0.05},'80':{name:'Somme',base:0.045,temp:0.05},'81':{name:'Tarn',base:0.045,temp:0.05},'82':{name:'Tarn-et-Garonne',base:0.045,temp:0.05},'83':{name:'Var',base:0.045,temp:0.05},'84':{name:'Vaucluse',base:0.045,temp:0.05},'85':{name:'Vendée',base:0.045,temp:0.05},'86':{name:'Vienne',base:0.045,temp:0.05},'87':{name:'Haute-Vienne',base:0.045,temp:0.05},'88':{name:'Vosges',base:0.045,temp:0.05},'89':{name:'Yonne',base:0.045,temp:0.05},'90':{name:'Territoire-de-Belfort',base:0.045,temp:0.05},'91':{name:'Essonne',base:0.045,temp:0.05},'92':{name:'Hauts-de-Seine',base:0.045,temp:0.05},'93':{name:'Seine-Saint-Denis',base:0.045,temp:0.05},'94':{name:'Val-de-Marne',base:0.045,temp:0.05},'95':{name:"Val-d'Oise",base:0.045,temp:0.05},'971':{name:'Guadeloupe',base:0.045,temp:0.045},'972':{name:'Martinique',base:0.045,temp:0.05},'973':{name:'Guyane',base:0.045,temp:0.05},'974':{name:'La Réunion',base:0.045,temp:0.05},'976':{name:'Mayotte',base:0.038,temp:0.045}};
+  var DEPARTEMENTS_FRAIS_ACTE = {'01':{name:'Ain',base:0.045,temp:0.05},'02':{name:'Aisne',base:0.045,temp:0.05},'03':{name:'Allier',base:0.045,temp:0.05},'04':{name:'Alpes-de-Haute-Provence',base:0.045,temp:0.05},'05':{name:'Hautes-Alpes',base:0.045,temp:0.045},'06':{name:'Alpes-Maritimes',base:0.045,temp:0.045},'07':{name:'Ardèche',base:0.045,temp:0.045},'08':{name:'Ardennes',base:0.045,temp:0.05},'09':{name:'Ariège',base:0.045,temp:0.05},'10':{name:'Aube',base:0.045,temp:0.05},'11':{name:'Aude',base:0.045,temp:0.05},'12':{name:'Aveyron',base:0.045,temp:0.05},'13':{name:'Bouches-du-Rhône',base:0.045,temp:0.05},'14':{name:'Calvados',base:0.045,temp:0.05},'15':{name:'Cantal',base:0.045,temp:0.05},'16':{name:'Charente',base:0.045,temp:0.045},'17':{name:'Charente-Maritime',base:0.045,temp:0.05},'18':{name:'Cher',base:0.045,temp:0.05},'19':{name:'Corrèze',base:0.045,temp:0.05},'20':{name:'Corse',base:0.045,temp:0.05},'21':{name:"Côte-d'Or",base:0.045,temp:0.05},'22':{name:"Côtes-d'Armor",base:0.045,temp:0.05},'23':{name:'Creuse',base:0.045,temp:0.05},'24':{name:'Dordogne',base:0.045,temp:0.05},'25':{name:'Doubs',base:0.045,temp:0.05},'26':{name:'Drôme',base:0.045,temp:0.045},'27':{name:'Eure',base:0.045,temp:0.05},'28':{name:'Eure-et-Loir',base:0.045,temp:0.05},'29':{name:'Finistère',base:0.045,temp:0.05},'30':{name:'Gard',base:0.045,temp:0.05},'31':{name:'Haute-Garonne',base:0.045,temp:0.05},'32':{name:'Gers',base:0.045,temp:0.05},'33':{name:'Gironde',base:0.045,temp:0.05},'34':{name:'Hérault',base:0.045,temp:0.05},'35':{name:'Ille-et-Vilaine',base:0.045,temp:0.05},'36':{name:'Indre',base:0.038,temp:0.038},'37':{name:'Indre-et-Loire',base:0.045,temp:0.05},'38':{name:'Isère',base:0.045,temp:0.05},'39':{name:'Jura',base:0.045,temp:0.05},'40':{name:'Landes',base:0.045,temp:0.05},'41':{name:'Loir-et-Cher',base:0.045,temp:0.05},'42':{name:'Loire',base:0.045,temp:0.05},'43':{name:'Haute-Loire',base:0.045,temp:0.05},'44':{name:'Loire-Atlantique',base:0.045,temp:0.05},'45':{name:'Loiret',base:0.045,temp:0.05},'46':{name:'Lot',base:0.045,temp:0.05},'47':{name:'Lot-et-Garonne',base:0.045,temp:0.05},'48':{name:'Lozère',base:0.045,temp:0.045},'49':{name:'Maine-et-Loire',base:0.045,temp:0.05},'50':{name:'Manche',base:0.045,temp:0.05},'51':{name:'Marne',base:0.045,temp:0.05},'52':{name:'Haute-Marne',base:0.045,temp:0.05},'53':{name:'Mayenne',base:0.045,temp:0.05},'54':{name:'Meurthe-et-Moselle',base:0.045,temp:0.05},'55':{name:'Meuse',base:0.045,temp:0.05},'56':{name:'Morbihan',base:0.045,temp:0.05},'57':{name:'Moselle',base:0.045,temp:0.05},'58':{name:'Nièvre',base:0.045,temp:0.05},'59':{name:'Nord',base:0.045,temp:0.05},'60':{name:'Oise',base:0.045,temp:0.045},'61':{name:'Orne',base:0.045,temp:0.05},'62':{name:'Pas-de-Calais',base:0.045,temp:0.05},'63':{name:'Puy-de-Dôme',base:0.045,temp:0.05},'64':{name:'Pyrénées-Atlantiques',base:0.045,temp:0.05},'65':{name:'Hautes-Pyrénées',base:0.038,temp:0.045},'66':{name:'Pyrénées-Orientales',base:0.045,temp:0.05},'67/68':{name:'Alsace',base:0.045,temp:0.05},'69A':{name:'Métropole de Lyon',base:0.045,temp:0.05},'69B':{name:'Rhône (hors Métropole de Lyon)',base:0.045,temp:0.05},'70':{name:'Haute-Saône',base:0.045,temp:0.05},'71':{name:'Saône-et-Loire',base:0.045,temp:0.05},'72':{name:'Sarthe',base:0.045,temp:0.05},'73':{name:'Savoie',base:0.045,temp:0.05},'74':{name:'Haute-Savoie',base:0.045,temp:0.05},'75':{name:'Paris',base:0.045,temp:0.05},'76':{name:'Seine-Maritime',base:0.045,temp:0.05},'77':{name:'Seine-et-Marne',base:0.045,temp:0.05},'78':{name:'Yvelines',base:0.045,temp:0.05},'79':{name:'Deux-Sèvres',base:0.045,temp:0.05},'80':{name:'Somme',base:0.045,temp:0.05},'81':{name:'Tarn',base:0.045,temp:0.05},'82':{name:'Tarn-et-Garonne',base:0.045,temp:0.05},'83':{name:'Var',base:0.045,temp:0.05},'84':{name:'Vaucluse',base:0.045,temp:0.05},'85':{name:'Vendée',base:0.045,temp:0.05},'86':{name:'Vienne',base:0.045,temp:0.05},'87':{name:'Haute-Vienne',base:0.045,temp:0.05},'88':{name:'Vosges',base:0.045,temp:0.05},'89':{name:'Yonne',base:0.045,temp:0.05},'90':{name:'Territoire-de-Belfort',base:0.045,temp:0.05},'91':{name:'Essonne',base:0.045,temp:0.05},'92':{name:'Hauts-de-Seine',base:0.045,temp:0.05},'93':{name:'Seine-Saint-Denis',base:0.045,temp:0.05},'94':{name:'Val-de-Marne',base:0.045,temp:0.05},'95':{name:"Val-d'Oise",base:0.045,temp:0.05},'971':{name:'Guadeloupe',base:0.045,temp:0.045},'972':{name:'Martinique',base:0.045,temp:0.05},'973':{name:'Guyane',base:0.045,temp:0.05},'974':{name:'La Réunion',base:0.045,temp:0.05},'976':{name:'Mayotte',base:0.038,temp:0.045}};
   // Pour chaque type de bien, un barème {palier de prix: [émoluments, trésor à 4,5 %]} — les mêmes
   // paliers que le tableau fourni par l'étude, interpolés linéairement entre deux paliers connus
   // (voir interpolerBaremeFraisActe). Trésor à un taux départemental différent de 4,5 % : voir
   // calculerFraisActe(), qui interpole entre la colonne à 4,5 % et une colonne à 5 % reconstituée.
-  const BAREME_FRAIS_ACTE = {"house":{"500":[90,70],"1000":[100,100],"1500":[150,140],"2250":[230,200],"3000":[300,250],"3750":[380,310],"4500":[450,370],"5250":[530,430],"6000":[600,490],"6750":[680,550],"7500":[750,610],"8250":[830,660],"9000":[900,720],"9750":[980,780],"10500":[1050,840],"11250":[1130,900],"12000":[1200,960],"12750":[1280,1020],"13500":[1310,1060],"14250":[1320,1110],"15000":[1330,1160],"16500":[1360,1250],"18000":[1370,1340],"19500":[1390,1430],"21000":[1410,1530],"22500":[1420,1620],"24000":[1440,1710],"25500":[1450,1800],"27000":[1470,1890],"28500":[1490,1980],"30000":[1500,2080],"32000":[1520,2200],"34000":[1540,2320],"36000":[1570,2440],"38000":[1590,2570],"40000":[1610,2690],"42000":[1630,2810],"44000":[1650,2930],"46000":[1670,3060],"48000":[1690,3180],"50000":[1720,3300],"52000":[1740,3420],"54000":[1760,3550],"56000":[1780,3670],"58000":[1800,3790],"60000":[1820,3910],"62000":[1840,4030],"64000":[1850,4160],"66000":[1870,4280],"68000":[1890,4400],"70000":[1900,4520],"72000":[1920,4640],"74000":[1930,4760],"76000":[1950,4880],"78000":[1970,5000],"80000":[1980,5130],"83000":[2010,5310],"86000":[2030,5490],"89000":[2050,5670],"92000":[2080,5850],"95000":[2100,6040],"100000":[2140,6340],"105000":[2180,6640],"110000":[2220,6950],"115000":[2260,7250],"120000":[2300,7550],"125000":[2340,7860],"130000":[2380,8160],"135000":[2420,8460],"140000":[2460,8770],"150000":[2540,9370],"165000":[2660,10280],"180000":[2780,11190],"195000":[2900,12100],"210000":[3020,13010],"225000":[3140,13920],"240000":[3260,14830],"255000":[3380,15740],"270000":[3500,16650],"285000":[3620,17560],"300000":[3740,18470],"315000":[3860,19380],"330000":[3980,20290],"345000":[4100,21200],"360000":[4220,22110],"375000":[4340,23020],"390000":[4460,23930],"405000":[4580,24840],"420000":[4700,25750],"435000":[4820,26660],"450000":[4940,27570],"480000":[5180,29390],"510000":[5420,31210],"540000":[5660,33030],"570000":[5900,34850],"600000":[6140,36670],"630000":[6380,38490],"660000":[6620,40310],"690000":[6860,42130],"720000":[7100,43950],"750000":[7330,45770],"825000":[7930,50320],"900000":[8530,54870],"975000":[9130,59420],"1050000":[9730,63970],"1125000":[10330,68520],"1200000":[10930,73070],"1275000":[11530,77620],"1350000":[12130,82170],"1425000":[12730,86720],"1500000":[13330,91270],"1750000":[15320,106440],"2000000":[17320,121600]},"condo":{"500":[90,70],"1000":[100,100],"1500":[150,140],"2250":[230,200],"3000":[300,250],"3750":[380,310],"4500":[450,370],"5250":[530,430],"6000":[600,490],"6750":[680,550],"7500":[750,610],"8250":[830,660],"9000":[900,720],"9750":[980,780],"10500":[1050,840],"11250":[1130,900],"12000":[1200,960],"12750":[1280,1020],"13500":[1350,1070],"14250":[1430,1130],"15000":[1460,1180],"16500":[1480,1270],"18000":[1500,1370],"19500":[1520,1460],"21000":[1530,1550],"22500":[1550,1640],"24000":[1560,1730],"25500":[1580,1830],"27000":[1600,1920],"28500":[1610,2010],"30000":[1630,2100],"32000":[1650,2220],"34000":[1670,2350],"36000":[1690,2470],"38000":[1710,2590],"40000":[1730,2710],"42000":[1750,2840],"44000":[1780,2960],"46000":[1800,3080],"48000":[1820,3200],"50000":[1840,3330],"52000":[1860,3450],"54000":[1880,3570],"56000":[1900,3690],"58000":[1920,3810],"60000":[1950,3940],"62000":[1960,4060],"64000":[1980,4180],"66000":[1990,4300],"68000":[2010,4420],"70000":[2030,4540],"72000":[2040,4670],"74000":[2060,4790],"76000":[2070,4910],"78000":[2090,5030],"80000":[2110,5150],"83000":[2130,5330],"86000":[2150,5510],"89000":[2180,5700],"92000":[2200,5880],"95000":[2230,6060],"100000":[2270,6360],"105000":[2310,6670],"110000":[2350,6970],"115000":[2390,7270],"120000":[2430,7580],"125000":[2470,7880],"130000":[2510,8180],"135000":[2550,8490],"140000":[2590,8790],"150000":[2670,9400],"165000":[2790,10310],"180000":[2910,11220],"195000":[3020,12130],"210000":[3140,13040],"225000":[3260,13950],"240000":[3380,14860],"255000":[3500,15770],"270000":[3620,16680],"285000":[3740,17590],"300000":[3860,18500],"315000":[3980,19410],"330000":[4100,20320],"345000":[4220,21230],"360000":[4340,22140],"375000":[4460,23050],"390000":[4580,23960],"405000":[4700,24870],"420000":[4820,25780],"435000":[4940,26690],"450000":[5060,27600],"480000":[5300,29420],"510000":[5540,31240],"540000":[5780,33060],"570000":[6020,34880],"600000":[6260,36700],"630000":[6500,38520],"660000":[6740,40340],"690000":[6980,42160],"720000":[7220,43980],"750000":[7460,45800],"825000":[8060,50350],"900000":[8660,54900],"975000":[9260,59450],"1050000":[9860,64000],"1125000":[10460,68550],"1200000":[11050,73100],"1275000":[11650,77650],"1350000":[12250,82190],"1425000":[12850,86670],"1500000":[13450,91220],"1750000":[15090,106390],"2000000":[17090,121560]},"land":{"500":[90,70],"1000":[100,100],"1500":[150,140],"2250":[230,200],"3000":[300,250],"3750":[380,310],"4500":[450,370],"5250":[530,430],"6000":[600,490],"6750":[680,550],"7500":[750,610],"8250":[830,660],"9000":[900,720],"9750":[980,780],"10500":[1030,830],"11250":[1040,880],"12000":[1050,930],"12750":[1070,970],"13500":[1080,1020],"14250":[1090,1060],"15000":[1100,1110],"16500":[1130,1200],"18000":[1140,1300],"19500":[1160,1390],"21000":[1180,1480],"22500":[1190,1570],"24000":[1210,1660],"25500":[1220,1760],"27000":[1240,1850],"28500":[1260,1940],"30000":[1270,2030],"32000":[1290,2150],"34000":[1310,2280],"36000":[1340,2400],"38000":[1360,2520],"40000":[1380,2640],"42000":[1400,2760],"44000":[1420,2890],"46000":[1440,3010],"48000":[1460,3130],"50000":[1480,3250],"52000":[1510,3380],"54000":[1530,3500],"56000":[1550,3620],"58000":[1570,3740],"60000":[1590,3870],"62000":[1610,3990],"64000":[1620,4110],"66000":[1640,4230],"68000":[1660,4350],"70000":[1670,4470],"72000":[1690,4590],"74000":[1700,4720],"76000":[1720,4840],"78000":[1740,4960],"80000":[1750,5080],"83000":[1780,5260],"86000":[1800,5440],"89000":[1820,5630],"92000":[1850,5810],"95000":[1870,5990],"100000":[1910,6290],"105000":[1950,6600],"110000":[1990,6900],"115000":[2030,7200],"120000":[2070,7510],"125000":[2110,7810],"130000":[2150,8110],"135000":[2190,8420],"140000":[2230,8720],"150000":[2310,9330],"165000":[2430,10240],"180000":[2550,11150],"195000":[2670,12060],"240000":[3030,14790],"255000":[3150,15700],"270000":[3270,16610],"285000":[3390,17520],"300000":[3510,18430],"315000":[3630,19340],"330000":[3750,20250],"345000":[3870,21160],"360000":[3990,22070],"375000":[4110,22980],"390000":[4230,23890],"405000":[4350,24800],"420000":[4470,25710],"435000":[4590,26620],"450000":[4710,27530],"480000":[4950,29350],"510000":[5190,31170],"540000":[5430,32990],"570000":[5670,34810],"600000":[5910,36630],"630000":[6150,38450],"660000":[6390,40270],"690000":[6630,42090],"720000":[6860,43910],"750000":[7100,45730],"825000":[7700,50270],"900000":[8300,54820],"975000":[8900,59370],"1050000":[9500,63920],"1125000":[10100,68470],"1200000":[10700,73020],"1275000":[11300,77570],"1350000":[11900,82120],"1425000":[12500,86670],"1500000":[13100,91220],"1750000":[15090,106390],"2000000":[17090,121560]}};
+  var BAREME_FRAIS_ACTE = {"house":{"500":[90,70],"1000":[100,100],"1500":[150,140],"2250":[230,200],"3000":[300,250],"3750":[380,310],"4500":[450,370],"5250":[530,430],"6000":[600,490],"6750":[680,550],"7500":[750,610],"8250":[830,660],"9000":[900,720],"9750":[980,780],"10500":[1050,840],"11250":[1130,900],"12000":[1200,960],"12750":[1280,1020],"13500":[1310,1060],"14250":[1320,1110],"15000":[1330,1160],"16500":[1360,1250],"18000":[1370,1340],"19500":[1390,1430],"21000":[1410,1530],"22500":[1420,1620],"24000":[1440,1710],"25500":[1450,1800],"27000":[1470,1890],"28500":[1490,1980],"30000":[1500,2080],"32000":[1520,2200],"34000":[1540,2320],"36000":[1570,2440],"38000":[1590,2570],"40000":[1610,2690],"42000":[1630,2810],"44000":[1650,2930],"46000":[1670,3060],"48000":[1690,3180],"50000":[1720,3300],"52000":[1740,3420],"54000":[1760,3550],"56000":[1780,3670],"58000":[1800,3790],"60000":[1820,3910],"62000":[1840,4030],"64000":[1850,4160],"66000":[1870,4280],"68000":[1890,4400],"70000":[1900,4520],"72000":[1920,4640],"74000":[1930,4760],"76000":[1950,4880],"78000":[1970,5000],"80000":[1980,5130],"83000":[2010,5310],"86000":[2030,5490],"89000":[2050,5670],"92000":[2080,5850],"95000":[2100,6040],"100000":[2140,6340],"105000":[2180,6640],"110000":[2220,6950],"115000":[2260,7250],"120000":[2300,7550],"125000":[2340,7860],"130000":[2380,8160],"135000":[2420,8460],"140000":[2460,8770],"150000":[2540,9370],"165000":[2660,10280],"180000":[2780,11190],"195000":[2900,12100],"210000":[3020,13010],"225000":[3140,13920],"240000":[3260,14830],"255000":[3380,15740],"270000":[3500,16650],"285000":[3620,17560],"300000":[3740,18470],"315000":[3860,19380],"330000":[3980,20290],"345000":[4100,21200],"360000":[4220,22110],"375000":[4340,23020],"390000":[4460,23930],"405000":[4580,24840],"420000":[4700,25750],"435000":[4820,26660],"450000":[4940,27570],"480000":[5180,29390],"510000":[5420,31210],"540000":[5660,33030],"570000":[5900,34850],"600000":[6140,36670],"630000":[6380,38490],"660000":[6620,40310],"690000":[6860,42130],"720000":[7100,43950],"750000":[7330,45770],"825000":[7930,50320],"900000":[8530,54870],"975000":[9130,59420],"1050000":[9730,63970],"1125000":[10330,68520],"1200000":[10930,73070],"1275000":[11530,77620],"1350000":[12130,82170],"1425000":[12730,86720],"1500000":[13330,91270],"1750000":[15320,106440],"2000000":[17320,121600]},"condo":{"500":[90,70],"1000":[100,100],"1500":[150,140],"2250":[230,200],"3000":[300,250],"3750":[380,310],"4500":[450,370],"5250":[530,430],"6000":[600,490],"6750":[680,550],"7500":[750,610],"8250":[830,660],"9000":[900,720],"9750":[980,780],"10500":[1050,840],"11250":[1130,900],"12000":[1200,960],"12750":[1280,1020],"13500":[1350,1070],"14250":[1430,1130],"15000":[1460,1180],"16500":[1480,1270],"18000":[1500,1370],"19500":[1520,1460],"21000":[1530,1550],"22500":[1550,1640],"24000":[1560,1730],"25500":[1580,1830],"27000":[1600,1920],"28500":[1610,2010],"30000":[1630,2100],"32000":[1650,2220],"34000":[1670,2350],"36000":[1690,2470],"38000":[1710,2590],"40000":[1730,2710],"42000":[1750,2840],"44000":[1780,2960],"46000":[1800,3080],"48000":[1820,3200],"50000":[1840,3330],"52000":[1860,3450],"54000":[1880,3570],"56000":[1900,3690],"58000":[1920,3810],"60000":[1950,3940],"62000":[1960,4060],"64000":[1980,4180],"66000":[1990,4300],"68000":[2010,4420],"70000":[2030,4540],"72000":[2040,4670],"74000":[2060,4790],"76000":[2070,4910],"78000":[2090,5030],"80000":[2110,5150],"83000":[2130,5330],"86000":[2150,5510],"89000":[2180,5700],"92000":[2200,5880],"95000":[2230,6060],"100000":[2270,6360],"105000":[2310,6670],"110000":[2350,6970],"115000":[2390,7270],"120000":[2430,7580],"125000":[2470,7880],"130000":[2510,8180],"135000":[2550,8490],"140000":[2590,8790],"150000":[2670,9400],"165000":[2790,10310],"180000":[2910,11220],"195000":[3020,12130],"210000":[3140,13040],"225000":[3260,13950],"240000":[3380,14860],"255000":[3500,15770],"270000":[3620,16680],"285000":[3740,17590],"300000":[3860,18500],"315000":[3980,19410],"330000":[4100,20320],"345000":[4220,21230],"360000":[4340,22140],"375000":[4460,23050],"390000":[4580,23960],"405000":[4700,24870],"420000":[4820,25780],"435000":[4940,26690],"450000":[5060,27600],"480000":[5300,29420],"510000":[5540,31240],"540000":[5780,33060],"570000":[6020,34880],"600000":[6260,36700],"630000":[6500,38520],"660000":[6740,40340],"690000":[6980,42160],"720000":[7220,43980],"750000":[7460,45800],"825000":[8060,50350],"900000":[8660,54900],"975000":[9260,59450],"1050000":[9860,64000],"1125000":[10460,68550],"1200000":[11050,73100],"1275000":[11650,77650],"1350000":[12250,82190],"1425000":[12850,86670],"1500000":[13450,91220],"1750000":[15090,106390],"2000000":[17090,121560]},"land":{"500":[90,70],"1000":[100,100],"1500":[150,140],"2250":[230,200],"3000":[300,250],"3750":[380,310],"4500":[450,370],"5250":[530,430],"6000":[600,490],"6750":[680,550],"7500":[750,610],"8250":[830,660],"9000":[900,720],"9750":[980,780],"10500":[1030,830],"11250":[1040,880],"12000":[1050,930],"12750":[1070,970],"13500":[1080,1020],"14250":[1090,1060],"15000":[1100,1110],"16500":[1130,1200],"18000":[1140,1300],"19500":[1160,1390],"21000":[1180,1480],"22500":[1190,1570],"24000":[1210,1660],"25500":[1220,1760],"27000":[1240,1850],"28500":[1260,1940],"30000":[1270,2030],"32000":[1290,2150],"34000":[1310,2280],"36000":[1340,2400],"38000":[1360,2520],"40000":[1380,2640],"42000":[1400,2760],"44000":[1420,2890],"46000":[1440,3010],"48000":[1460,3130],"50000":[1480,3250],"52000":[1510,3380],"54000":[1530,3500],"56000":[1550,3620],"58000":[1570,3740],"60000":[1590,3870],"62000":[1610,3990],"64000":[1620,4110],"66000":[1640,4230],"68000":[1660,4350],"70000":[1670,4470],"72000":[1690,4590],"74000":[1700,4720],"76000":[1720,4840],"78000":[1740,4960],"80000":[1750,5080],"83000":[1780,5260],"86000":[1800,5440],"89000":[1820,5630],"92000":[1850,5810],"95000":[1870,5990],"100000":[1910,6290],"105000":[1950,6600],"110000":[1990,6900],"115000":[2030,7200],"120000":[2070,7510],"125000":[2110,7810],"130000":[2150,8110],"135000":[2190,8420],"140000":[2230,8720],"150000":[2310,9330],"165000":[2430,10240],"180000":[2550,11150],"195000":[2670,12060],"240000":[3030,14790],"255000":[3150,15700],"270000":[3270,16610],"285000":[3390,17520],"300000":[3510,18430],"315000":[3630,19340],"330000":[3750,20250],"345000":[3870,21160],"360000":[3990,22070],"375000":[4110,22980],"390000":[4230,23890],"405000":[4350,24800],"420000":[4470,25710],"435000":[4590,26620],"450000":[4710,27530],"480000":[4950,29350],"510000":[5190,31170],"540000":[5430,32990],"570000":[5670,34810],"600000":[5910,36630],"630000":[6150,38450],"660000":[6390,40270],"690000":[6630,42090],"720000":[6860,43910],"750000":[7100,45730],"825000":[7700,50270],"900000":[8300,54820],"975000":[8900,59370],"1050000":[9500,63920],"1125000":[10100,68470],"1200000":[10700,73020],"1275000":[11300,77570],"1350000":[11900,82120],"1425000":[12500,86670],"1500000":[13100,91220],"1750000":[15090,106390],"2000000":[17090,121560]}};
 
   function interpolerBaremeFraisActe(table, prix) {
     const paliers = Object.keys(table).map(Number).sort((a, b) => a - b);
@@ -11841,6 +11842,24 @@
         return table[bas] + (table[haut] - table[bas]) * t;
       }
     }
+  }
+
+  // Le calcul de provision, extrait de calculerFraisActe() (qui lit le DOM) pour être réutilisable
+  // et testable : le générateur d'appel de fonds s'en sert pour CONTRÔLER le montant de frais
+  // annoncé sur un décompte. Une seule formule pour les deux usages — deux copies divergeraient.
+  // `eligiblePrimoAccedant` : primo-accédant ET résidence principale, seul cas où la hausse
+  // départementale temporaire ne s'applique pas (voir la note affichée sous le simulateur).
+  function estimerFraisActe(prix, cleDepartement, typeBien, eligiblePrimoAccedant) {
+    const dept = DEPARTEMENTS_FRAIS_ACTE[cleDepartement];
+    const bareme = BAREME_FRAIS_ACTE[typeBien];
+    const montant = Number(prix);
+    if (!dept || !bareme || !Number.isFinite(montant) || montant <= 0) return null;
+    const tauxApplique = eligiblePrimoAccedant ? dept.base : dept.temp;
+    const emoluments = interpolerBaremeFraisActe(Object.fromEntries(Object.entries(bareme).map(([k, v]) => [k, v[0]])), montant);
+    const tresor45 = interpolerBaremeFraisActe(Object.fromEntries(Object.entries(bareme).map(([k, v]) => [k, v[1]])), montant);
+    const tresor50 = tresor45 + montant * 0.0051185;
+    const tresor = tresor45 + ((tauxApplique - 0.045) / 0.005) * (tresor50 - tresor45);
+    return { emoluments, tresor, tauxApplique, total: emoluments + 200 + tresor + 200 };
   }
 
   function formaterPourcentageFraisActe(x) {
@@ -11874,19 +11893,14 @@
     const residencePrincipale = document.querySelector('input[name="calc-rp"]:checked').value === 'yes';
     const type = typeEl.value;
     const dept = DEPARTEMENTS_FRAIS_ACTE[deptEl.value];
-    const bareme = BAREME_FRAIS_ACTE[type];
 
     // Hausse temporaire du taux départemental (loi de finances 2025, jusqu'à 5 %) non appliquée au
     // primo-accédant achetant sa résidence principale (art. L. 31-10-3 du CCH) — voir la note
     // affichée sous le résultat.
     const eligiblePrimoAccedant = primoAccedant && residencePrincipale;
-    const tauxApplique = eligiblePrimoAccedant ? dept.base : dept.temp;
-
-    const emoluments = interpolerBaremeFraisActe(Object.fromEntries(Object.entries(bareme).map(([k, v]) => [k, v[0]])), prix);
-    const tresor45 = interpolerBaremeFraisActe(Object.fromEntries(Object.entries(bareme).map(([k, v]) => [k, v[1]])), prix);
-    const tresor50 = tresor45 + prix * 0.0051185;
-    const tresor = tresor45 + ((tauxApplique - 0.045) / 0.005) * (tresor50 - tresor45);
-    const total = emoluments + 200 + tresor + 200;
+    const estimation = estimerFraisActe(prix, deptEl.value, type, eligiblePrimoAccedant);
+    if (!estimation) return;
+    const { emoluments, tresor, tauxApplique, total } = estimation;
     const dmto = tauxApplique + 0.012 + tauxApplique * 0.0237;
 
     const libelleType = type === 'house' ? 'Immeuble hors copropriété' : type === 'condo' ? 'Immeuble en copropriété' : 'Terrain à bâtir';
@@ -12071,6 +12085,28 @@
     }
     calculateurFraisActeInitialise = true;
     calculerFraisActe();
+  }
+
+  // Le même barème sert au CONTRÔLE de la ligne de frais du décompte d'appel de fonds. Le select
+  // y part volontairement vide (« — à choisir — ») et non sur le 41 comme le simulateur : tant
+  // qu'aucun département n'est choisi, aucun contrôle n'est affiché — mieux vaut ne rien dire que
+  // de comparer au barème du mauvais département.
+  var selectDepartementAppelFondsInitialise = false;
+  function initSelectDepartementAppelFonds() {
+    if (selectDepartementAppelFondsInitialise) return;
+    const el = document.getElementById('af-frais-departement');
+    if (!el) return;
+    const vide = document.createElement('option');
+    vide.value = '';
+    vide.textContent = '— à choisir —';
+    el.appendChild(vide);
+    for (const [code, d] of Object.entries(DEPARTEMENTS_FRAIS_ACTE)) {
+      const option = document.createElement('option');
+      option.value = code;
+      option.textContent = code + ' — ' + d.name;
+      el.appendChild(option);
+    }
+    selectDepartementAppelFondsInitialise = true;
   }
 
   // ---- Outil 2 — Audit intelligent des actes notariaux : import du projet (compromis/promesse ou
@@ -12813,6 +12849,8 @@
   var AF_MEMOIRE_RE = /\bm[ée]moire\b/i;
   // Prorata : « 913 € x 92 jours / 365 jours », ou sa forme compacte « 1829x203/365 ».
   var AF_FORMULE_RE = /^\s*([0-9]+(?:[.\s ][0-9]{3})*(?:,[0-9]+)?)\s*€?\s*(?:jours?)?\s*[x×*]\s*([0-9]{1,4})\s*(?:jours?)?\s*\/\s*([0-9]{1,4})\s*(?:jours?)?\s*$/i;
+  // Même motif que AF_FORMULE_RE mais cherché en FIN de libellé plutôt que sur la ligne entière.
+  var AF_FORMULE_FIN_RE = /([0-9]+(?:[.\s\u00a0][0-9]{3})*(?:,[0-9]+)?)\s*\u20ac?\s*(?:jours?)?\s*[x\u00d7*]\s*([0-9]{1,4})\s*(?:jours?)?\s*\/\s*([0-9]{1,4})\s*(?:jours?)?\s*$/i;
   var AF_BASCULE_DEBIT_RE = /^(frais\s+(a|à)\s+ajouter|a\s*ajouter|a\s*payer)\b/i;
   var AF_BASCULE_CREDIT_RE = /^(a\s*d[ée]duire|sommes?\s+(a|à)\s+d[ée]duire|sous\s+d[ée]duction)\b/i;
   // Lignes de sous-total du confrère : ce sont des CONTRÔLES, pas des lignes du décompte —
@@ -12826,6 +12864,15 @@
     const m = /\(([^()]*)\)\s*$/.exec(libelle);
     if (m && AF_FORMULE_RE.test(m[1].trim())) {
       return { libelle: libelle.slice(0, m.index).trim(), formule: m[1].trim() };
+    }
+    // Sans parenthèses : « Prorata taxe foncière 913 € x 92 jours / 365 jours ». Mise en page
+    // rencontrée en vérifiant le contrôle de prorata de bout en bout — la formule était bien là,
+    // mais sortait `null`, donc aucun recalcul n'était tenté. Ancré en FIN de libellé et sur le
+    // motif complet (montant × jours / jours) : un libellé ne finit pas par cette suite-là par
+    // hasard.
+    const nu = AF_FORMULE_FIN_RE.exec(libelle);
+    if (nu) {
+      return { libelle: libelle.slice(0, nu.index).trim(), formule: nu[0].trim() };
     }
     return { libelle, formule: null };
   }
@@ -12952,6 +12999,66 @@
       : { statut: 'ecart', attendu };
   }
 
+  // Le contrôle des frais d'acte, pendant de verifierProrataLigne ci-dessus : la SECONDE chose que
+  // l'outil peut vérifier sur un décompte qu'il n'a pas produit. Il compare le montant annoncé au
+  // barème du simulateur de provision (via estimerFraisActe, la formule partagée) et dit seulement
+  // s'il est au-dessus, en dessous, ou dans la fourchette — il ne REMPLIT jamais la ligne :
+  // ce barème n'a jamais été audité (voir l'avertissement du simulateur), et un chiffre annoncé
+  // à un client engage l'étude.
+  //
+  // Le libellé doit désigner les frais de l'acte de VENTE. « Frais d'acte de prêt », « frais de
+  // mainlevée », « frais de négociation » relèvent d'autres barèmes : les contrôler contre
+  // celui-ci ferait croire à un écart sur une ligne parfaitement juste.
+  var AF_FRAIS_ACTE_RE = /\b(?:frais\s+et\s+droits|frais\s+d['\u2019]?\s*acte|frais\s+de\s+notaire|frais\s+notari[ée]s|[ée]moluments\s+et\s+droits|provision\s+sur\s+frais)\b/i;
+  var AF_FRAIS_HORS_VENTE_RE = /\b(pr[êe]t|mainlev[ée]e|n[ée]gociation|hypoth[èe]que|caution|copropri[ée]t[ée]|syndic|bancaires?|garantie|succession)\b/i;
+
+  function estLigneFraisActeVente(libelle) {
+    const t = String(libelle || '');
+    return AF_FRAIS_ACTE_RE.test(t) && !AF_FRAIS_HORS_VENTE_RE.test(t);
+  }
+
+  // Le code postal donne un département, mais les clés du barème ne suivent pas toutes cette
+  // découpe : la Corse y est regroupée sous « 20 », l'Alsace sous « 67/68 », et le 69 est scindé
+  // entre Métropole de Lyon et Rhône — impossible à trancher depuis un code postal seul, donc
+  // rien n'est proposé dans ce cas plutôt qu'un département pris au hasard entre les deux.
+  function cleBaremeDepuisDepartement(dept) {
+    if (!dept) return null;
+    if (dept === '2A' || dept === '2B') return '20';
+    if (dept === '67' || dept === '68') return '67/68';
+    if (dept === '69') return null;
+    return DEPARTEMENTS_FRAIS_ACTE[dept] ? dept : null;
+  }
+
+  var AF_TYPE_BIEN_PAR_TYPE_VENTE = { maison: 'house', copropriete: 'condo', terrain: 'land' };
+
+  // Le dossier ne dit pas si l'acquéreur est primo-accédant, et le total change selon le régime
+  // (hausse départementale temporaire appliquée ou non). Plutôt que de parier, on calcule les
+  // DEUX bornes : un montant qui tombe entre les deux est conforme, quel que soit le régime réel.
+  function fourchetteFraisActe(prix, cleDepartement, typeBien) {
+    const avantage = estimerFraisActe(prix, cleDepartement, typeBien, true);
+    const plein = estimerFraisActe(prix, cleDepartement, typeBien, false);
+    if (!avantage || !plein) return null;
+    return {
+      min: Math.min(avantage.total, plein.total),
+      max: Math.max(avantage.total, plein.total)
+    };
+  }
+
+  // Tolérance au-delà de la fourchette : 1 % du montant attendu, au moins 50 €. Le barème est
+  // interpolé entre deux paliers et ne couvre pas les débours variables (copies, formalités) —
+  // signaler un écart de quelques dizaines d'euros ferait du bruit sans rien apprendre.
+  function verifierFraisActeLigne(montant, fourchette) {
+    if (!fourchette || !Number.isFinite(montant) || montant <= 0) return { statut: 'non-verifiable' };
+    const tolerance = Math.max(50, fourchette.max * 0.01);
+    if (montant < fourchette.min - tolerance) {
+      return { statut: 'sous', ecart: Math.round((fourchette.min - montant) * 100) / 100, min: fourchette.min, max: fourchette.max };
+    }
+    if (montant > fourchette.max + tolerance) {
+      return { statut: 'sur', ecart: Math.round((montant - fourchette.max) * 100) / 100, min: fourchette.min, max: fourchette.max };
+    }
+    return { statut: 'ok', min: fourchette.min, max: fourchette.max };
+  }
+
   // --- clients et formule d'appel ---------------------------------------------------------------
   // La formule d'appel dépend de la civilité de CHAQUE destinataire : c'est pour ça que la
   // civilité est un champ à part entière et jamais devinée depuis un prénom.
@@ -13009,22 +13116,27 @@
     return '';
   }
 
-  // Le dépôt de garantie n'est déductible du virement de l'acquéreur QUE s'il est séquestré chez
-  // NOUS. Séquestré à l'agence, il se règle entre l'agence et le vendeur : le déduire ferait
-  // réclamer au client un montant trop faible — une erreur qui se voit le jour de la signature.
-  // D'où trois réponses, dont une franchement indéterminée, plutôt qu'un pari dans les deux sens.
+  // Le dépôt de garantie est DÉDUIT du virement de l'acquéreur, qu'il soit séquestré à l'étude ou
+  // à l'agence. **Corrigé sur retour de l'étude** : la première version excluait le dépôt détenu
+  // par l'agence, sur l'idée qu'il se réglait directement entre l'agence et le vendeur. C'est faux
+  // — « l'agence nous reverse la somme », donc elle arrive bien dans la comptabilité de l'étude et
+  // l'acquéreur ne doit pas la virer une seconde fois. Le DÉTENTEUR reste distingué (`motif`) et
+  // affiché dans le récapitulatif : c'est une somme que l'étude devra réclamer à l'agence avant la
+  // signature, pas un détail sans conséquence.
   var AF_SEQUESTRE_ETUDE_RE = /\b(notaire|[ée]tude|office\s+notarial|comptabilit[ée]\s+(?:de\s+l['’])?[ée]tude|CARPA|s[ée]questre\s+notari[ée])\b/i;
   var AF_SEQUESTRE_TIERS_RE = /\b(agence|agent\s+immobilier|cabinet|n[ée]gociateur|mandataire)\b/i;
 
   function depotDeductible(d) {
     if (!d || !d.depotGarantie) return { deductible: false, motif: 'absent' };
     const sequestre = String(d.sequestreDepot || '').trim();
-    if (!sequestre) return { deductible: false, motif: 'indetermine' };
     // L'agence est testée EN PREMIER : « versé à l'agence qui en donnera quittance au notaire »
     // contient les deux mots, et c'est bien l'agence qui détient les fonds.
-    if (AF_SEQUESTRE_TIERS_RE.test(sequestre)) return { deductible: false, motif: 'tiers' };
+    if (AF_SEQUESTRE_TIERS_RE.test(sequestre)) return { deductible: true, motif: 'tiers' };
     if (AF_SEQUESTRE_ETUDE_RE.test(sequestre)) return { deductible: true, motif: 'etude' };
-    return { deductible: false, motif: 'indetermine' };
+    // Détenteur illisible ou absent du dossier : déduit quand même (le dépôt existe et revient à
+    // l'étude dans les deux cas connus), mais signalé comme à confirmer — c'est le seul point
+    // vraiment incertain.
+    return { deductible: true, motif: 'indetermine' };
   }
 
   // Le courrier ne parle de frais d'acte de prêt que si le prêt est GARANTI PAR UNE HYPOTHÈQUE :
@@ -13061,14 +13173,26 @@
     else aCompleter.push('Date du rendez-vous — aucune n’est encore fixée sur le dossier.');
     if (d.prixVente) repris.push('Prix d’acquisition'); else aCompleter.push('Prix d’acquisition.');
 
-    if (depot.deductible) repris.push('Dépôt de garantie séquestré à l’étude, porté en déduction');
-    else if (depot.motif === 'tiers') aCompleter.push(`Dépôt de garantie non déduit : il est séquestré hors de l’étude (${d.sequestreDepot}). À vérifier avant envoi.`);
-    else if (depot.motif === 'indetermine' && d.depotGarantie) aCompleter.push('Dépôt de garantie non déduit : le dossier ne dit pas clairement qui le détient.');
+    // Le dépôt est déduit dans tous les cas (voir depotDeductible), mais son DÉTENTEUR change ce que
+    // l'étude a à faire avant la signature : rien si elle le détient déjà, réclamer les fonds à
+    // l'agence sinon — d'où une ligne dans « à compléter » plutôt qu'un simple « repris ».
+    if (depot.deductible) {
+      repris.push('Dépôt de garantie porté en déduction');
+      if (depot.motif === 'tiers') aCompleter.push(`Dépôt de garantie détenu par un tiers (${d.sequestreDepot}) : à réclamer avant la signature, il est déjà déduit du virement demandé.`);
+      else if (depot.motif === 'indetermine') aCompleter.push('Dépôt de garantie déduit, mais le dossier ne dit pas clairement qui le détient — à confirmer avant envoi.');
+    }
 
     if (hypo === true) repris.push('Prêt garanti par une hypothèque : frais d’acte de prêt à appeler');
     else if (hypo === null) aCompleter.push('Garanties du prêt inconnues : à cocher vous-même si un acte de prêt est à recevoir.');
 
     aCompleter.push('Montant des frais et droits de l’acte de vente — à reprendre de votre provision.');
+
+    // Pour le CONTRÔLE des frais (jamais pour les remplir) : le département vient du code postal du
+    // bien, le type de bien du type de vente. Ni l'un ni l'autre n'est deviné quand le dossier ne
+    // permet pas de trancher (Corse/Alsace regroupées, 69 scindé — voir cleBaremeDepuisDepartement).
+    const cpBien = (String(d.adresseBien || '').match(/\b\d{5}\b/) || [null])[0];
+    const departementFrais = cleBaremeDepuisDepartement(departementDepuisCodePostal(cpBien));
+    const typeBienFrais = AF_TYPE_BIEN_PAR_TYPE_VENTE[d.typeVente] || null;
 
     return {
       dossierId: d.id,
@@ -13079,6 +13203,9 @@
       dateRdv: d.rendezVousSignature || '',
       prixVente: d.prixVente || null,
       depotGarantie: depot.deductible ? d.depotGarantie : null,
+      depotMotif: depot.motif,
+      departementFrais,
+      typeBienFrais,
       pretHypothecaire: hypo === true,
       repris,
       aCompleter
@@ -13097,7 +13224,12 @@
     }
     const credit = [];
     if (p && p.depotGarantie) {
-      credit.push({ libelle: "Acompte sur prix versé à l'étude", montant: p.depotGarantie, formule: null, id: afIdLigne() });
+      // Le dépôt est déduit quel que soit son détenteur (voir depotDeductible), mais le libellé ne
+      // doit pas affirmer qu'il a été versé à l'étude quand il est chez l'agence.
+      const libelleAcompte = p.depotMotif === 'etude'
+        ? "Acompte sur prix versé à l'étude"
+        : 'Acompte sur prix déjà versé';
+      credit.push({ libelle: libelleAcompte, montant: p.depotGarantie, formule: null, id: afIdLigne() });
     }
     credit.push({ libelle: "Acompte sur frais versé à l'étude", montant: 0, formule: null, id: afIdLigne() });
     return { debit, credit };
@@ -13215,6 +13347,10 @@
     ecrire('af-date-rdv', p.dateRdv);
     const casePret = afEl('af-pret-hypothecaire');
     if (casePret) casePret.checked = !!p.pretHypothecaire;
+    // Préremplis seulement quand le dossier tranche : un département ambigu (69) ou un type de
+    // vente absent laisse le select vide, donc le contrôle silencieux, plutôt qu'un barème deviné.
+    ecrire('af-frais-departement', p.departementFrais);
+    ecrire('af-frais-type', p.typeBienFrais);
 
     afLignes = lignesDecompteDepuisPrefill(p);
 
@@ -13283,7 +13419,26 @@
   // Trois colonnes comme sur le courrier papier : libellé | à déduire | débit. Chaque ligne ne
   // remplit que la colonne de son côté, l'autre reste vide — c'est la mise en page du modèle,
   // pas une colonne oubliée.
+  // Base du contrôle des frais : la ligne de PRIX du décompte affiché — celle du dossier comme
+  // celle d'un décompte de confrère collé, toutes deux nommées « prix ». Prendre le prix du
+  // dossier lié ne conviendrait pas : le courrier peut avoir été corrigé à la main entre-temps.
+  function prixPourControleFraisActe() {
+    const ligne = afLignes.debit.find(l => /\bprix\b/i.test(l.libelle || '') && (l.montant || 0) > 0);
+    return ligne ? ligne.montant : null;
+  }
+
+  // La fourchette applicable à l'état actuel du formulaire, ou null si l'étude n'a pas encore
+  // choisi le département et la nature du bien — sans eux, aucun contrôle n'est affiché.
+  function fourchetteFraisActeFormulaire() {
+    const dept = afValeur('af-frais-departement');
+    const type = afValeur('af-frais-type');
+    const prix = prixPourControleFraisActe();
+    if (!dept || !type || !prix) return null;
+    return fourchetteFraisActe(prix, dept, type);
+  }
+
   function renderTableAppelFonds() {
+    const fourchette = fourchetteFraisActeFormulaire();
     const rendu = (section) => {
       const tbody = afEl(section === 'debit' ? 'af-tbody-debit' : 'af-tbody-credit');
       if (!tbody) return 0;
@@ -13296,6 +13451,14 @@
         let badge = '';
         if (v && v.statut === 'ok') badge = '<span class="af-verif af-verif-ok" title="Prorata recalculé : conforme">✓ prorata vérifié</span>';
         else if (v && v.statut === 'ecart') badge = `<span class="af-verif af-verif-ecart" title="Recalcul attendu : ${escapeAttr(montantVersTexteFr(v.attendu))}">⚠ écart de calcul</span>`;
+        // Contrôle des frais d'acte : indicatif, jamais une correction automatique du montant.
+        if (!badge && section === 'debit' && !l.memoire && fourchette && estLigneFraisActeVente(l.libelle)) {
+          const f = verifierFraisActeLigne(l.montant || 0, fourchette);
+          const plage = `Barème CLAIRE pour ce bien : de ${montantVersTexteFr(f.min || 0)} à ${montantVersTexteFr(f.max || 0)} selon le régime de l'acquéreur.`;
+          if (f.statut === 'ok') badge = `<span class="af-verif af-verif-ok" title="${escapeAttr(plage)}">✓ conforme au barème</span>`;
+          else if (f.statut === 'sous') badge = `<span class="af-verif af-verif-ecart" title="${escapeAttr(plage)}">↓ ${escapeHtml(montantVersTexteFr(f.ecart))} sous le barème</span>`;
+          else if (f.statut === 'sur') badge = `<span class="af-verif af-verif-ecart" title="${escapeAttr(plage)}">↑ ${escapeHtml(montantVersTexteFr(f.ecart))} au-dessus du barème</span>`;
+        }
         const montantTexte = l.memoire ? 'Mémoire' : montantVersTexteFr(l.montant || 0);
         const cellMontant = `<span class="af-champ" data-af-section="${section}" data-af-index="${i}" oninput="modifierMontantAppelFonds(this)">${escapeHtml(montantTexte)}</span>`;
         const cellLibelle = `<td><span class="af-champ" data-af-section="${section}" data-af-index="${i}" oninput="modifierLibelleAppelFonds(this)">${escapeHtml(l.libelle)}</span>${badge}${l.formule ? `<span class="af-formule">${escapeHtml(l.formule)}</span>` : ''}</td>`;
@@ -13588,7 +13751,7 @@
     afDossierLie = null;
     afClients = [{ civilite: 'M', prenom: '', nom: '' }];
     afLignes = lignesDecompteDepuisPrefill(null);
-    ['af-ref', 'af-designation', 'af-adresse-bien', 'af-adresse-clients', 'af-date-rdv', 'af-heure-rdv', 'af-lieu-autre', 'af-coller-texte'].forEach(id => {
+    ['af-ref', 'af-designation', 'af-adresse-bien', 'af-adresse-clients', 'af-date-rdv', 'af-heure-rdv', 'af-lieu-autre', 'af-coller-texte', 'af-frais-departement', 'af-frais-type'].forEach(id => {
       const e = afEl(id);
       if (e) e.value = '';
     });
@@ -13846,6 +14009,7 @@
   }
   initIconesStatiques();
   initCalculateurFraisActe();
+  initSelectDepartementAppelFonds();
 
   chargerTheme();
   chargerApprentissage();
