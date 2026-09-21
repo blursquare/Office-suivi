@@ -4,41 +4,38 @@
 // d'emails et envoi d'un message de test à UN collaborateur, toujours à partir de ce qui est déjà
 // enregistré en base — jamais d'un formulaire pas encore validé (voir le commentaire dans la
 // route).
+//
+// La couche d'envoi est INJECTÉE dans creerApp (`envoyerEmailFn`) : aucun serveur SMTP ni HTTP
+// n'est démarré ici. Un faux serveur laissé ouvert par un test qui échoue fait pendre toute la
+// suite — déjà rencontré sur la version précédente de ce fichier.
 
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const os = require('node:os');
-const http = require('node:http');
 
 const { creerApp } = require('../src/app');
 const { ouvrirDb } = require('../src/db');
-const { SUJET_TEST, MESSAGE_TEST } = require('../src/routes/reglages');
+const { MESSAGE_TEST } = require('../src/routes/reglages');
 
 function config() {
   return { motDePasse: 'mdp-test', racineRepo: os.tmpdir(), port: 0, jetonCalendrier: '' };
 }
 
-function demarrerFauxWebhook(statut) {
-  return new Promise((resolve) => {
-    const requetes = [];
-    const serveur = http.createServer((req, res) => {
-      let corps = '';
-      req.on('data', (c) => { corps += c; });
-      req.on('end', () => {
-        requetes.push(JSON.parse(corps || '{}'));
-        res.statusCode = statut || 200;
-        res.end('{}');
-      });
-    });
-    serveur.listen(0, () => resolve({ serveur, requetes, url: `http://127.0.0.1:${serveur.address().port}/flux` }));
-  });
-}
+// Réglages SMTP complets, réutilisés par la plupart des tests.
+const SMTP = { smtpHote: 'smtp.test', emailPasserelle: 'passerelle@etude.fr' };
+
+const envois = [];
+let reponseEnvoi = { ok: true, erreur: null };
+const envoyerEmailFn = async (reglages, destinataire, texte) => {
+  envois.push({ reglages, destinataire, texte });
+  return reponseEnvoi;
+};
 
 let db, serveurApp, baseUrl, jeton;
 
 before(async () => {
   db = ouvrirDb(':memory:');
-  const { app, gestionnaireAuth } = creerApp({ db, config: config() });
+  const { app, gestionnaireAuth } = creerApp({ db, config: config(), envoyerEmailFn });
   jeton = gestionnaireAuth.creerSession();
   serveurApp = app.listen(0);
   await new Promise((resolve) => serveurApp.once('listening', resolve));
@@ -64,53 +61,97 @@ test('GET /api/reglages sans authentification : 401', async () => {
 
 test('GET /api/reglages renvoie les valeurs par défaut au premier appel', async () => {
   const corps = await (await appeler('/api/reglages')).json();
-  assert.deepEqual(corps, { emailActif: false, fluxEmailUrl: '', copieEmail: '', emailsResponsables: {} });
+  assert.deepEqual(corps, {
+    emailActif: false, emailPasserelle: '', smtpHote: '', smtpPort: 25, smtpSecurise: false,
+    smtpUtilisateur: '', smtpExpediteur: '', copieEmail: '', emailsResponsables: {},
+    smtpMotDePasseEnregistre: false
+  });
 });
 
 test('PUT /api/reglages enregistre, GET relit la même chose ensuite (y compris la copie)', async () => {
-  const envoye = { emailActif: true, fluxEmailUrl: 'https://exemple.test/flux', copieEmail: 'gossart@etude.fr', emailsResponsables: { 'Bastien ANGLUMENT': 'bastien@etude.fr' } };
+  const envoye = {
+    emailActif: true, ...SMTP, smtpPort: 587, smtpSecurise: false,
+    smtpUtilisateur: '', smtpExpediteur: 'claire@etude.fr',
+    copieEmail: 'gossart@etude.fr', emailsResponsables: { 'Bastien ANGLUMENT': 'bastien@etude.fr' }
+  };
+  const attendu = { ...envoye, smtpMotDePasseEnregistre: false };
   const corpsEcrit = await (await appeler('/api/reglages', { method: 'PUT', body: JSON.stringify(envoye) })).json();
-  assert.deepEqual(corpsEcrit, envoye);
+  assert.deepEqual(corpsEcrit, attendu);
 
   const corpsRelu = await (await appeler('/api/reglages')).json();
-  assert.deepEqual(corpsRelu, envoye);
+  assert.deepEqual(corpsRelu, attendu);
 });
 
-test('POST /api/reglages/tester-email sans webhook enregistré : 400 explicite', async () => {
-  await appeler('/api/reglages', { method: 'PUT', body: JSON.stringify({ emailActif: false, fluxEmailUrl: '', emailsResponsables: {} }) });
+// Un mot de passe de messagerie n'a aucune raison de retraverser le réseau du bureau à chaque
+// ouverture de l'écran Réglages : la route ne renvoie qu'un booléen, et un enregistrement qui ne
+// le réémet pas ne doit surtout pas l'effacer au passage.
+test('GET/PUT /api/reglages : le mot de passe SMTP ne ressort jamais, et survit à un enregistrement', async () => {
+  await appeler('/api/reglages', {
+    method: 'PUT',
+    body: JSON.stringify({ emailActif: true, ...SMTP, smtpUtilisateur: 'claire@etude.fr', smtpMotDePasse: 'jeton-applicatif', emailsResponsables: {} })
+  });
+  const corps = await (await appeler('/api/reglages')).json();
+  assert.equal(corps.smtpMotDePasse, undefined);
+  assert.equal(corps.smtpMotDePasseEnregistre, true);
+
+  // Le formulaire réenregistre sans le renvoyer : il reste en place.
+  await appeler('/api/reglages', {
+    method: 'PUT',
+    body: JSON.stringify({ emailActif: true, ...SMTP, smtpUtilisateur: 'claire@etude.fr', copieEmail: 'gossart@etude.fr', emailsResponsables: {} })
+  });
+  const relu = await (await appeler('/api/reglages')).json();
+  assert.equal(relu.smtpMotDePasseEnregistre, true);
+  assert.equal(relu.copieEmail, 'gossart@etude.fr');
+
+  // Une chaîne vide explicite l'efface (retour à l'envoi anonyme).
+  await appeler('/api/reglages', {
+    method: 'PUT',
+    body: JSON.stringify({ emailActif: true, ...SMTP, smtpUtilisateur: '', smtpMotDePasse: '', emailsResponsables: {} })
+  });
+  assert.equal((await (await appeler('/api/reglages')).json()).smtpMotDePasseEnregistre, false);
+});
+
+test('POST /api/reglages/tester-email sans serveur SMTP enregistré : 400 explicite', async () => {
+  await appeler('/api/reglages', { method: 'PUT', body: JSON.stringify({ emailActif: false, smtpHote: '', emailPasserelle: '', emailsResponsables: {} }) });
   const reponse = await appeler('/api/reglages/tester-email', { method: 'POST', body: JSON.stringify({ responsable: 'Bastien ANGLUMENT' }) });
   assert.equal(reponse.status, 400);
-  assert.match((await reponse.json()).erreur, /flux Power Automate/);
+  assert.match((await reponse.json()).erreur, /passerelle/i);
 });
 
 test('POST /api/reglages/tester-email : sans email pour ce responsable, 400', async () => {
-  await appeler('/api/reglages', { method: 'PUT', body: JSON.stringify({ emailActif: true, fluxEmailUrl: 'https://exemple.test/flux', emailsResponsables: {} }) });
+  await appeler('/api/reglages', { method: 'PUT', body: JSON.stringify({ emailActif: true, ...SMTP, emailsResponsables: {} }) });
   const reponse = await appeler('/api/reglages/tester-email', { method: 'POST', body: JSON.stringify({ responsable: 'Julie VASSELIN' }) });
   assert.equal(reponse.status, 400);
   assert.match((await reponse.json()).erreur, /Julie VASSELIN/);
 });
 
 test('POST /api/reglages/tester-email : envoie bien le MESSAGE_TEST à l\'adresse enregistrée en base (pas celle du corps de la requête)', async () => {
-  const faux = await demarrerFauxWebhook(200);
+  envois.length = 0;
+  reponseEnvoi = { ok: true, erreur: null };
   await appeler('/api/reglages', {
     method: 'PUT',
-    body: JSON.stringify({ emailActif: true, fluxEmailUrl: faux.url, emailsResponsables: { 'Jérémy SAUJOT': 'jeremy@etude.fr' } })
+    body: JSON.stringify({ emailActif: true, ...SMTP, emailsResponsables: { 'Jérémy SAUJOT': 'jeremy@etude.fr' } })
   });
   const reponse = await appeler('/api/reglages/tester-email', { method: 'POST', body: JSON.stringify({ responsable: 'Jérémy SAUJOT' }) });
   assert.equal(reponse.status, 200);
   assert.deepEqual(await reponse.json(), { ok: true });
-  assert.equal(faux.requetes.length, 1);
-  assert.deepEqual(faux.requetes[0], { destinataire: 'jeremy@etude.fr', sujet: SUJET_TEST, message: MESSAGE_TEST });
-  faux.serveur.close();
+  assert.equal(envois.length, 1);
+  assert.equal(envois[0].destinataire, 'jeremy@etude.fr');
+  assert.equal(envois[0].texte, MESSAGE_TEST);
+  // Les réglages complets sont transmis : sans eux, la couche d'envoi n'aurait ni serveur ni
+  // passerelle.
+  assert.equal(envois[0].reglages.smtpHote, 'smtp.test');
+  assert.equal(envois[0].reglages.emailPasserelle, 'passerelle@etude.fr');
 });
 
-test('POST /api/reglages/tester-email : le flux répond une erreur → 502', async () => {
-  const faux = await demarrerFauxWebhook(500);
+test('POST /api/reglages/tester-email : un envoi en échec → 502', async () => {
+  reponseEnvoi = { ok: false, erreur: 'Envoi SMTP impossible (550 relay denied).' };
   await appeler('/api/reglages', {
     method: 'PUT',
-    body: JSON.stringify({ emailActif: true, fluxEmailUrl: faux.url, emailsResponsables: { 'Jérémy SAUJOT': 'jeremy@etude.fr' } })
+    body: JSON.stringify({ emailActif: true, ...SMTP, emailsResponsables: { 'Jérémy SAUJOT': 'jeremy@etude.fr' } })
   });
   const reponse = await appeler('/api/reglages/tester-email', { method: 'POST', body: JSON.stringify({ responsable: 'Jérémy SAUJOT' }) });
   assert.equal(reponse.status, 502);
-  faux.serveur.close();
+  assert.match((await reponse.json()).erreur, /550 relay denied/);
+  reponseEnvoi = { ok: true, erreur: null };
 });

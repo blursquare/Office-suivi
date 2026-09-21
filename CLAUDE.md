@@ -5791,6 +5791,71 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     l'action « Envoyer un e-mail (V2) ») reste à confirmer par l'étude, comme déjà noté pour la
     version Teams.
 
+- **Troisième et dernière architecture d'envoi des rappels : CLAIRE ENVOIE l'email elle-même, son
+  ARRIVÉE déclenche le flux, qui poste dans Teams.** L'étude avait refait son flux Power Automate
+  sans le dire dans le dépôt : « le design HTTP + schéma JSON + Envoyer un e-mail est obsolète, le
+  flux final (déclencheur e-mail Outlook → action Teams) est déjà activé, il ne reste que le code
+  d'envoi côté CLAIRE à adapter (Objet = destinataire, Corps = message, vers
+  Bastien.ANGLUMENT@gossart.notaires.fr) ». **Rien n'avait été poussé** (vérifié avant de toucher
+  au code : `git fetch --all`, branches inspectées, `list_sessions`) — le changement portait
+  uniquement sur le flux lui-même. Récapitulatif des trois générations, pour ne réintroduire aucune
+  des deux mortes :
+  1. `POST` JSON vers un déclencheur HTTP Power Automate → message privé Teams ;
+  2. le même `POST`, l'action interne du flux passée à « Envoyer un e-mail (V2) » ;
+  3. **(en service)** email SMTP de CLAIRE vers la boîte-passerelle → déclencheur « Quand un nouvel
+     e-mail arrive » → action Teams.
+  - **Convention imposée par le flux, à ne pas changer d'un côté sans l'autre** : `À` = la
+    boîte-passerelle (toujours la même), **`Objet` = l'adresse du vrai destinataire** (le flux la
+    lit pour router le message Teams), `Corps` = le message. C'est ce détournement de l'objet qui a
+    fait **disparaître `sujetRappel()`/`sujetNotificationPieces()`**, nées la veille avec
+    l'architecture n°2 : la place d'un objet lisible n'existe plus, et les corps de message étaient
+    déjà autonomes — ils ne faisaient que répéter cet objet. Un test verrouille explicitement le
+    sens (inverser `À` et `Objet` enverrait le rappel au collaborateur sans jamais déclencher le
+    flux, donc sans message Teams).
+  - **SMTP direct (`nodemailer`) devient le transport**, après avoir été écarté deux fois. La
+    raison qui l'écartait (des identifiants de messagerie à stocker) est traitée plutôt qu'ignorée :
+    l'**envoi direct Microsoft 365** (serveur de l'enregistrement MX du domaine, port 25, aucun
+    compte — autorisé d'après l'adresse IP du bureau) n'en demande aucun, et c'est le mode
+    recommandé dans l'écran Réglages comme dans `server/README.md` ; un compte SMTP
+    (`smtp.office365.com:587` + mot de passe d'application) n'est à renseigner que si le locataire
+    bloque l'envoi direct. Aucun autre transport n'était possible : un job de fond qui tourne toutes
+    les 30 minutes, sans personne devant l'écran, ne peut pas passer par un brouillon `mailto:`.
+  - **Le mot de passe SMTP ne ressort jamais de la base.** `reglagesPublics()`
+    (`server/src/routes/reglages.js`) le retire de toute réponse et le remplace par un booléen
+    `smtpMotDePasseEnregistre` ; `assainirReglages(brut, precedent)` le reprend des réglages
+    précédents quand la requête ne le porte pas (clé absente ou `null`), le remplace sur une chaîne
+    non vide, et l'efface sur une chaîne vide explicite. Côté client, le champ n'est envoyé que si
+    quelqu'un y a réellement tapé quelque chose — sans ce soin, un enregistrement ordinaire
+    l'aurait effacé à chaque fois. Il reste stocké en clair dans le fichier de la base, sur le
+    serveur de l'étude : c'est dit dans l'écran et dans le README, comme argument de plus en faveur
+    de l'envoi direct.
+  - **Réglages renommés** : `fluxEmailUrl` disparaît (le déclencheur HTTP n'existe plus), remplacé
+    par `emailPasserelle`/`smtpHote`/`smtpPort`/`smtpSecurise`/`smtpUtilisateur`/`smtpMotDePasse`/
+    `smtpExpediteur`. `emailActif`/`copieEmail`/`emailsResponsables` sont inchangés, et la reprise
+    des toutes premières clés Teams (`teamsActif`/`teamsCopieEmail`) est **conservée** : ces deux
+    réglages gardent exactement le même sens d'une architecture à l'autre, les faire ressaisir
+    serait une régression silencieuse. Nouvelle fonction `envoiConfigure(reglages)`, source de
+    vérité unique de « l'envoi est-il configuré ? », partagée par le job de rappels, la route de
+    notification de pièces et la route de test — trois endroits qui doivent rester d'accord.
+  - **Les tests n'ouvrent plus aucun serveur** : le transport est injectable
+    (`envoyerEmail(reglages, destinataire, texte, creerTransportFn)`) et `creerApp()` accepte un
+    `envoyerEmailFn`, ce qui a permis de supprimer les faux serveurs HTTP de `envoi-email`,
+    `notifications` et `reglages`. **C'est aussi la correction du piège rencontré la veille** : ces
+    tests appelaient `faux.serveur.close()` en DERNIÈRE ligne de leur corps, si bien qu'une
+    assertion en échec laissait le serveur ouvert et faisait PENDRE `npm test` au lieu d'échouer
+    (diagnostiqué en relançant les fichiers un par un avec `timeout`, pas en attendant la suite).
+  - **Vérifié de bout en bout dans un vrai Chromium** (serveur réel + faux serveur SMTP maison en
+    TCP brut, capturant le message réellement émis) : réglages saisis, enregistrés, relus depuis la
+    base, champ mot de passe vide avec son invite correcte, bouton « Tester » produisant un vrai
+    message `From: CLAIRE <claire@etude.fr>` / `To: passerelle@etude.fr` /
+    `Subject: bastien@etude.fr` avec le message en corps — exactement la convention du flux. Clair
+    et sombre, aucun débordement horizontal à 400px, aucune erreur JS nouvelle. `npm test` : 467
+    tests racine (inchangés, chantier entièrement serveur/DOM) et 225 côté serveur (219 → 225).
+  - **Non vérifié en conditions réelles** : ni flux Power Automate ni locataire Microsoft 365 dans
+    cet environnement — restent à confirmer par l'étude que Microsoft 365 accepte l'envoi depuis le
+    poste serveur (envoi direct autorisé, ou compte SMTP à renseigner) et que le flux se déclenche
+    bien à l'arrivée de l'email.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

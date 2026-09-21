@@ -20,7 +20,7 @@
 // (même choix déjà documenté pour buildEvent/icsDate dans routes/calendrier.js) — en modifiant
 // l'une des deux, vérifier si l'autre a besoin du même changement.
 
-const { envoyerEmail } = require('../envoiEmail');
+const { envoyerEmail, envoiConfigure } = require('../envoiEmail');
 const { piecesRecuesEtManquantes } = require('../piecesChecklist');
 
 const SEUILS_RAPPELS = [15, 7];
@@ -101,16 +101,10 @@ function calculerRappelsDus(dossiers, aujourdHui, dejaEnvoyes) {
 // dossier a une checklist applicable (jamais pour un rôle "participant", voir la fonction) — sans
 // quoi le message afficherait deux lignes vides "(0) : aucune" sur chaque rappel de ce type de
 // dossier, du bruit plutôt qu'une information.
-// Objet de l'email. Apparu avec le passage de Teams à l'email : un message Teams n'a pas d'objet,
-// une boîte de réception ne se lit pas sans. Volontairement en une ligne et sans emoji — c'est ce
-// qui s'affiche dans la liste des messages, et un tri par objet doit y rester lisible. Le CORPS
-// (texteRappel ci-dessous) est laissé inchangé : il était déjà autonome, et le répéter ici
-// n'apporterait rien.
-function sujetRappel(r) {
-  const jour = r.seuil === 1 ? 'jour' : 'jours';
-  return `CLAIRE — ${r.libelle} dans ${r.seuil} ${jour} — ${r.nomDossier}`;
-}
-
+// Un seul texte par rappel, sans objet séparé : l'objet de l'email transporte désormais l'adresse
+// du destinataire, lue par le flux pour router le message Teams (voir envoiEmail.js). L'ancien
+// `sujetRappel()` a disparu avec l'architecture qui l'avait fait naître — il ne faisait de toute
+// façon que répéter la première phrase de ce corps, déjà autonome.
 function texteRappel(r) {
   const jour = r.seuil === 1 ? 'jour' : 'jours';
   let texte = `📌 CLAIRE — Rappel : « ${r.libelle} » du dossier ${r.nomDossier} arrive à échéance dans ${r.seuil} ${jour} (le ${r.iso}).`;
@@ -122,7 +116,7 @@ function texteRappel(r) {
   return texte;
 }
 
-// Un seul tour : lit les réglages (webhook + emails), calcule les rappels dus, envoie ceux dont le
+// Un seul tour : lit les réglages (SMTP + passerelle + emails), calcule les rappels dus, envoie ceux dont le
 // collaborateur a une adresse configurée, et marque chaque envoi réussi dans reminder_log pour ne
 // jamais le renvoyer. `envoyerFn` injectable (voir server/test/rappels.test.js) — la vraie fonction
 // par défaut est envoyerEmail().
@@ -138,7 +132,7 @@ function texteRappel(r) {
 async function executerTacheRappels(depot, db, parametresRepo, envoyerFn, aujourdHui) {
   const resultat = { rappelsDus: 0, rappelsEnvoyes: 0, erreurs: [] };
   const reglages = parametresRepo.lireReglages();
-  if (!reglages.emailActif || !reglages.fluxEmailUrl) return resultat;
+  if (!envoiConfigure(reglages)) return resultat;
 
   const jour = aujourdHui || new Date().toISOString().slice(0, 10);
   const dossiers = depot.tousActifs();
@@ -161,13 +155,12 @@ async function executerTacheRappels(depot, db, parametresRepo, envoyerFn, aujour
       continue;
     }
     const texte = texteRappel(r);
-    const sujet = sujetRappel(r);
-    const envoi = await envoyer(reglages.fluxEmailUrl, email, sujet, texte);
+    const envoi = await envoyer(reglages, email, texte);
     if (envoi.ok) {
       resultat.rappelsEnvoyes++;
       marquerStmt.run(r.dossierId, r.reminderKey, new Date().toISOString());
       if (reglages.copieEmail && reglages.copieEmail !== email) {
-        const copie = await envoyer(reglages.fluxEmailUrl, reglages.copieEmail, sujet, texte);
+        const copie = await envoyer(reglages, reglages.copieEmail, texte);
         if (!copie.ok) {
           resultat.erreurs.push(`Copie (${reglages.copieEmail}) pour ${r.nomDossier} — ${r.libelle} : ${copie.erreur}`);
         }
@@ -194,5 +187,5 @@ function demarrerTacheRappels(depot, db, config, parametresRepo, envoyerFn) {
 
 module.exports = {
   SEUILS_RAPPELS, echeanceValidee, toutesEcheances, joursRestants,
-  calculerRappelsDus, sujetRappel, texteRappel, executerTacheRappels, demarrerTacheRappels
+  calculerRappelsDus, texteRappel, executerTacheRappels, demarrerTacheRappels
 };

@@ -1,82 +1,127 @@
 'use strict';
 
-// Client d'envoi vers Power Automate (voir src/envoiEmail.js) : un simple POST JSON
-// {destinataire, sujet, message} vers l'URL du flux — tout l'envoi de l'email est fait PAR LE FLUX
-// (voir server/README.md). Testé contre un faux serveur HTTP local, jamais un vrai flux Power
-// Automate.
+// Couche d'envoi (voir src/envoiEmail.js) : un email SMTP vers la boîte-passerelle, dont l'OBJET
+// porte l'adresse du vrai destinataire — c'est ce que le flux Power Automate lit pour router le
+// message Teams. Le transport est injecté : aucun serveur SMTP, aucun serveur HTTP n'est démarré
+// ici (un faux serveur laissé ouvert par un test qui échoue fait pendre toute la suite — déjà
+// rencontré sur la version précédente de ce fichier).
 
-const { test, after } = require('node:test');
+const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const http = require('node:http');
 
-const { envoyerEmail } = require('../src/envoiEmail');
+const { envoyerEmail, envoiConfigure, optionsTransport } = require('../src/envoiEmail');
 
-function demarrerFauxWebhook(statut, corpsAttendu) {
-  return new Promise((resolve) => {
-    const requetes = [];
-    const serveur = http.createServer((req, res) => {
-      let corps = '';
-      req.on('data', (c) => { corps += c; });
-      req.on('end', () => {
-        requetes.push({ headers: req.headers, corps: JSON.parse(corps || '{}') });
-        res.statusCode = statut || 200;
-        res.setHeader('Content-Type', 'application/json');
-        res.end(corpsAttendu ? JSON.stringify(corpsAttendu) : '{}');
-      });
-    });
-    serveur.listen(0, () => resolve({ serveur, requetes, url: `http://127.0.0.1:${serveur.address().port}/flux` }));
-  });
+const REGLAGES = Object.freeze({
+  emailActif: true,
+  emailPasserelle: 'passerelle@etude.fr',
+  smtpHote: 'smtp.test',
+  smtpPort: 25,
+  smtpSecurise: false,
+  smtpUtilisateur: '',
+  smtpMotDePasse: '',
+  smtpExpediteur: 'claire@etude.fr'
+});
+
+// Capture ce qui aurait été envoyé, sans jamais ouvrir de connexion.
+function transportEspion(resultat) {
+  const envois = [];
+  const options = [];
+  const creer = (opts) => {
+    options.push(opts);
+    return {
+      sendMail: async (message) => {
+        envois.push(message);
+        if (resultat instanceof Error) throw resultat;
+        return { messageId: 'test' };
+      }
+    };
+  };
+  return { creer, envois, options };
 }
 
-let serveursOuverts = [];
-after(() => { serveursOuverts.forEach((s) => s.close()); });
+test('sans serveur SMTP : erreur explicite, aucun envoi tenté', async () => {
+  const espion = transportEspion();
+  const r = await envoyerEmail({ ...REGLAGES, smtpHote: '' }, 'bastien@etude.fr', 'Test', espion.creer);
+  assert.equal(r.ok, false);
+  assert.match(r.erreur, /Réglages/);
+  assert.equal(espion.envois.length, 0);
+});
 
-test('sans URL de flux : erreur explicite, aucune requête réseau', async () => {
-  const resultat = await envoyerEmail('', 'bastien@etude.fr', 'Objet', 'Test');
-  assert.equal(resultat.ok, false);
-  assert.match(resultat.erreur, /Réglages/);
+test('sans boîte-passerelle : erreur explicite, aucun envoi tenté', async () => {
+  const espion = transportEspion();
+  const r = await envoyerEmail({ ...REGLAGES, emailPasserelle: '' }, 'bastien@etude.fr', 'Test', espion.creer);
+  assert.equal(r.ok, false);
+  assert.match(r.erreur, /passerelle/i);
+  assert.equal(espion.envois.length, 0);
 });
 
 test('sans adresse destinataire : erreur explicite', async () => {
-  const resultat = await envoyerEmail('https://exemple.test/flux', '', 'Objet', 'Test');
-  assert.equal(resultat.ok, false);
-  assert.match(resultat.erreur, /collaborateur/);
+  const espion = transportEspion();
+  const r = await envoyerEmail(REGLAGES, '', 'Test', espion.creer);
+  assert.equal(r.ok, false);
+  assert.match(r.erreur, /collaborateur/);
+  assert.equal(espion.envois.length, 0);
 });
 
-test('envoi réussi : POST JSON {destinataire, sujet, message} vers l\'URL du flux', async () => {
-  const faux = await demarrerFauxWebhook(200);
-  serveursOuverts.push(faux.serveur);
-  const resultat = await envoyerEmail(faux.url, 'bastien@etude.fr', 'CLAIRE — Objet de test', 'Rappel de test');
-  assert.equal(resultat.ok, true);
-  assert.equal(faux.requetes.length, 1);
-  assert.equal(faux.requetes[0].headers['content-type'], 'application/json');
-  assert.deepEqual(faux.requetes[0].corps, {
-    destinataire: 'bastien@etude.fr',
-    sujet: 'CLAIRE — Objet de test',
-    message: 'Rappel de test'
-  });
+// Le cœur de la convention imposée par le flux : l'email part TOUJOURS vers la passerelle, et
+// c'est l'objet qui désigne le destinataire réel. Inverser les deux enverrait le rappel au
+// collaborateur sans jamais déclencher le flux — donc sans message Teams.
+test('envoi réussi : destinataire en OBJET, passerelle en À, message en corps', async () => {
+  const espion = transportEspion();
+  const r = await envoyerEmail(REGLAGES, 'bastien@etude.fr', 'Rappel de test', espion.creer);
+  assert.equal(r.ok, true);
+  assert.equal(espion.envois.length, 1);
+  const msg = espion.envois[0];
+  assert.equal(msg.to, 'passerelle@etude.fr');
+  assert.equal(msg.subject, 'bastien@etude.fr');
+  assert.equal(msg.text, 'Rappel de test');
+  assert.match(msg.from, /claire@etude\.fr/);
 });
 
-// Le flux Power Automate attend trois propriétés déclarées dans son schéma JSON : `sujet` doit
-// toujours être présent dans le corps, même vide, plutôt qu'absent — sans quoi l'action "Envoyer
-// un e-mail (V2)" reçoit un Objet null et l'exécution du flux échoue côté Power Automate.
-test('sujet omis : la propriété est quand même envoyée, en chaîne vide', async () => {
-  const faux = await demarrerFauxWebhook(200);
-  serveursOuverts.push(faux.serveur);
-  await envoyerEmail(faux.url, 'bastien@etude.fr', undefined, 'Corps');
-  assert.equal(faux.requetes[0].corps.sujet, '');
+test("expéditeur non renseigné : la passerelle sert d'adresse d'expédition", async () => {
+  const espion = transportEspion();
+  await envoyerEmail({ ...REGLAGES, smtpExpediteur: '' }, 'bastien@etude.fr', 'Corps', espion.creer);
+  assert.match(espion.envois[0].from, /passerelle@etude\.fr/);
 });
 
-test('le flux répond une erreur HTTP : ok=false avec le statut dans le message', async () => {
-  const faux = await demarrerFauxWebhook(500);
-  serveursOuverts.push(faux.serveur);
-  const resultat = await envoyerEmail(faux.url, 'bastien@etude.fr', 'Objet', 'Test');
-  assert.equal(resultat.ok, false);
-  assert.match(resultat.erreur, /500/);
+test('échec du serveur SMTP : erreur remontée, jamais une exception', async () => {
+  const espion = transportEspion(new Error('550 relay denied'));
+  const r = await envoyerEmail(REGLAGES, 'bastien@etude.fr', 'Test', espion.creer);
+  assert.equal(r.ok, false);
+  assert.match(r.erreur, /550 relay denied/);
 });
 
-test('URL injoignable : ok=false, ne lève jamais d\'exception', async () => {
-  const resultat = await envoyerEmail('http://127.0.0.1:1/injoignable', 'bastien@etude.fr', 'Objet', 'Test');
-  assert.equal(resultat.ok, false);
-  assert.match(resultat.erreur, /Impossible de joindre/);
+// Sans compte renseigné, nodemailer ne doit recevoir AUCUN bloc `auth` : c'est le mode d'envoi
+// direct Microsoft 365, autorisé par l'adresse IP du bureau et non par un compte.
+test('sans compte SMTP : aucun bloc auth transmis au transport', async () => {
+  const espion = transportEspion();
+  await envoyerEmail(REGLAGES, 'bastien@etude.fr', 'Test', espion.creer);
+  assert.equal(espion.options[0].auth, undefined);
+  assert.equal(espion.options[0].host, 'smtp.test');
+  assert.equal(espion.options[0].port, 25);
+  assert.equal(espion.options[0].secure, false);
+});
+
+test('avec un compte SMTP : le bloc auth est transmis', async () => {
+  const espion = transportEspion();
+  const avecCompte = { ...REGLAGES, smtpUtilisateur: 'claire@etude.fr', smtpMotDePasse: 'jeton-applicatif' };
+  await envoyerEmail(avecCompte, 'bastien@etude.fr', 'Test', espion.creer);
+  assert.equal(espion.options[0].auth.user, 'claire@etude.fr');
+  assert.equal(espion.options[0].auth.pass, 'jeton-applicatif');
+});
+
+test('port 465 déclaré sécurisé : TLS implicite transmis au transport', () => {
+  const opts = optionsTransport({ ...REGLAGES, smtpPort: 465, smtpSecurise: true });
+  assert.equal(opts.port, 465);
+  assert.equal(opts.secure, true);
+});
+
+// envoiConfigure() est la condition partagée par le job de rappels, la route de notification et la
+// route de test : les trois doivent rester d'accord sur « l'envoi est-il configuré ? ».
+test('envoiConfigure : exige activation, serveur SMTP et passerelle', () => {
+  assert.equal(envoiConfigure(REGLAGES), true);
+  assert.equal(envoiConfigure({ ...REGLAGES, emailActif: false }), false);
+  assert.equal(envoiConfigure({ ...REGLAGES, smtpHote: '' }), false);
+  assert.equal(envoiConfigure({ ...REGLAGES, emailPasserelle: '' }), false);
+  assert.equal(envoiConfigure(null), false);
 });

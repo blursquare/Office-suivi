@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-21 14:29';
+  const VERSION_APP = '2026-09-21 15:37';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-21 15:37', resume: "Les rappels automatiques sont alignés sur le flux définitif que vous avez activé : CLAIRE ENVOIE elle-même l'email vers la boîte-passerelle, et c'est son arrivée qui déclenche le flux, qui poste ensuite le message dans Teams. L'objet de cet email porte l'adresse du collaborateur à prévenir — c'est ce que le flux lit pour savoir à qui poster — et son corps porte le message. L'écran Réglages n'a donc plus de champ « URL du flux » : il demande à la place le serveur d'envoi et la boîte-passerelle, avec la marche à suivre pour Microsoft 365 (le plus souvent sans compte ni mot de passe, l'envoi étant autorisé depuis le réseau du bureau). Les adresses des collaborateurs, l'adresse de copie et l'activation déjà enregistrées sont conservées. Un mot de passe, s'il en faut un, n'est jamais réaffiché une fois enregistré" },
     { version: '2026-09-21 14:29', resume: "Les rappels automatiques partent désormais par EMAIL et non plus en message privé Teams, suite au changement du flux Power Automate. L'écran Réglages a été mis à jour en conséquence : libellés, procédure de création du flux (action « Envoyer un e-mail (V2) » au lieu de « Publier un message »), et un champ « sujet » ajouté à ce que CLAIRE envoie au flux — un email sans objet est illisible dans une boîte de réception. Si vous aviez déjà configuré les rappels Teams, rien à ressaisir : l'URL du flux et les adresses déjà enregistrées sont reprises telles quelles. Il reste deux choses à faire côté Power Automate, rappelées dans l'écran : remplacer l'action Teams par l'action email, et ajouter « sujet » au schéma JSON du déclencheur" },
     { version: '2026-09-21 11:54', resume: "À la création d'un dossier, l'outil lit maintenant dans l'avant-contrat le DÉPÔT DE GARANTIE (ou l'acompte sur le prix, ou l'indemnité d'immobilisation d'une promesse) que l'acquéreur doit verser, ET entre les mains de qui il est versé — l'office, l'agence, la CARPA. Les deux apparaissent dans « Ce que l'outil a compris » avec leur page, dans l'étape Finaliser, et sur la fiche du dossier où ils restent corrigeables à tout moment. Le séquestre n'est cherché qu'autour de la clause de dépôt : « entre les mains du notaire » se rencontre aussi dans des clauses sans rapport, et il valait mieux ne rien proposer que de prendre un nom au hasard ailleurs dans l'acte" },
     { version: '2026-09-21 11:41', resume: "Écran Réglages : la procédure de création du flux Power Automate donne désormais le schéma JSON à coller dans le déclencheur HTTP. Sans lui le flux fonctionne quand même, mais les champs « destinataire » et « message » n'apparaissent pas dans la liste de contenu dynamique à l'étape Teams — il fallait les saisir en expression, ce que la procédure ne disait pas" },
@@ -12725,23 +12726,25 @@
     }
   }
 
-  // ==== RÉGLAGES : rappels automatiques par email (Power Automate) ====
+  // ==== RÉGLAGES : rappels automatiques par email ====
   //
   // Remplace le DÉCLENCHEMENT AUTOMATIQUE des rappels (voir server/src/jobs/rappels.js) — le
   // rappel générique par email ("Rappel email" sur la fiche dossier, `ouvrirEmailRappel()`) a
   // depuis été retiré définitivement, à la demande de l'étude : ces rappels automatiques, avec
   // copie systématique vers `copieEmail`, couvrent désormais ce besoin sans geste manuel. L'étude
-  // a explicitement demandé un écran dans la sidebar pour saisir elle-même l'URL du flux Power
-  // Automate et l'adresse email de chaque collaborateur, plutôt qu'un tableau figé dans le code ou
-  // un fichier de configuration à éditer à la main.
+  // a explicitement demandé un écran dans la sidebar pour saisir elle-même ces réglages, plutôt
+  // qu'un tableau figé dans le code ou un fichier de configuration à éditer à la main.
   //
-  // Les rappels sont d'abord partis en message privé Teams ; l'étude a ensuite basculé le flux
-  // Power Automate sur un envoi d'email (action « Envoyer un e-mail (V2) » à la place de « Publier
-  // un message »). Côté CLAIRE, seule la forme du POST a bougé — un champ `sujet` s'y ajoute, un
-  // email sans objet étant illisible dans une boîte de réception — et les clés de réglages ont été
-  // renommées (`teamsWebhookUrl`/`teamsActif`/`teamsCopieEmail` → `fluxEmailUrl`/`emailActif`/
-  // `copieEmail`), avec reprise des anciennes valeurs côté serveur pour ne rien faire ressaisir
-  // (voir assainirReglages dans parametresRepo.js).
+  // TROISIÈME architecture d'envoi, et la seule en service (voir server/src/envoiEmail.js pour le
+  // détail) : CLAIRE envoie elle-même un email SMTP vers une boîte-passerelle, dont l'ARRIVÉE
+  // déclenche le flux Power Automate qui poste ensuite le message dans Teams. Le déclencheur HTTP
+  // des deux versions précédentes n'existe plus — d'où la disparition du champ « URL du flux » de
+  // cet écran, remplacé par le serveur d'envoi SMTP et la boîte-passerelle.
+  //
+  // Le mot de passe SMTP (quand l'étude en pose un — l'envoi direct Microsoft 365 n'en demande
+  // aucun) ne redescend JAMAIS ici : la route renvoie `smtpMotDePasseEnregistre`, un simple
+  // booléen. Le champ reste donc vide à l'ouverture, et n'est envoyé au serveur que si quelqu'un y
+  // tape réellement quelque chose — sans quoi un enregistrement ordinaire l'effacerait.
   //
   // `copieEmail` (adresse recevant une copie de CHAQUE rappel envoyé, quel que soit le
   // responsable destinataire) a été ajoutée sur une demande antérieure : l'étude veut être tenue
@@ -12761,7 +12764,19 @@
       const reponse = await fetchAvecAuth('/api/reglages');
       const reglages = await reponse.json();
       document.getElementById('reglages-envoi-actif').checked = !!reglages.emailActif;
-      document.getElementById('reglages-flux-url').value = reglages.fluxEmailUrl || '';
+      document.getElementById('reglages-passerelle').value = reglages.emailPasserelle || '';
+      document.getElementById('reglages-smtp-hote').value = reglages.smtpHote || '';
+      document.getElementById('reglages-smtp-port').value = reglages.smtpPort || 25;
+      document.getElementById('reglages-smtp-securise').checked = !!reglages.smtpSecurise;
+      document.getElementById('reglages-smtp-utilisateur').value = reglages.smtpUtilisateur || '';
+      document.getElementById('reglages-smtp-expediteur').value = reglages.smtpExpediteur || '';
+      // Jamais la valeur elle-même : le serveur ne la renvoie pas. Le champ reste vide, et son
+      // texte d'invite dit si un mot de passe est déjà en place.
+      const champSecret = document.getElementById('reglages-smtp-motdepasse');
+      champSecret.value = '';
+      champSecret.placeholder = reglages.smtpMotDePasseEnregistre
+        ? 'Déjà enregistré — laisser vide pour le conserver'
+        : 'Laisser vide pour un envoi sans compte';
       document.getElementById('reglages-copie-email').value = reglages.copieEmail || '';
       renderReglagesEmails(reglages.emailsResponsables || {});
       document.getElementById('reglages-etat').style.display = 'none';
@@ -12829,12 +12844,25 @@
       const valeur = champ ? champ.value.trim() : '';
       if (valeur) emailsResponsables[nom] = valeur;
     });
-    return {
+    const objet = {
       emailActif: document.getElementById('reglages-envoi-actif').checked,
-      fluxEmailUrl: document.getElementById('reglages-flux-url').value.trim(),
+      emailPasserelle: document.getElementById('reglages-passerelle').value.trim(),
+      smtpHote: document.getElementById('reglages-smtp-hote').value.trim(),
+      smtpPort: parseInt(document.getElementById('reglages-smtp-port').value, 10) || 25,
+      smtpSecurise: document.getElementById('reglages-smtp-securise').checked,
+      smtpUtilisateur: document.getElementById('reglages-smtp-utilisateur').value.trim(),
+      smtpExpediteur: document.getElementById('reglages-smtp-expediteur').value.trim(),
       copieEmail: document.getElementById('reglages-copie-email').value.trim(),
       emailsResponsables
     };
+    // Le mot de passe n'accompagne l'enregistrement QUE si quelqu'un vient d'en taper un : la clé
+    // absente veut dire « garde celui qui est en base » (voir assainirReglages côté serveur).
+    // Deux exceptions où on l'envoie vide, pour l'effacer explicitement : quand le compte SMTP est
+    // lui-même vidé (retour à l'envoi anonyme, un mot de passe orphelin n'aurait plus de sens).
+    const secret = document.getElementById('reglages-smtp-motdepasse').value;
+    if (secret) objet.smtpMotDePasse = secret;
+    else if (!objet.smtpUtilisateur) objet.smtpMotDePasse = '';
+    return objet;
   }
 
   async function enregistrerReglages() {

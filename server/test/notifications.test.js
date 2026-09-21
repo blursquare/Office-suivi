@@ -4,12 +4,15 @@
 // script.js (verifierDossierLocal/notifierNouvellesPiecesTrouvees) une fois par dossier à chaque
 // parcours qui trouve de nouvelles pièces — jamais une fois par pièce (voir le commentaire dans
 // la route sur le groupage). Réutilise exactement l'infrastructure des rappels d'échéance
-// (envoyerEmail, parametresRepo, copieEmail).
+// (envoiEmail, parametresRepo, copieEmail).
+//
+// La couche d'envoi est INJECTÉE dans creerApp (`envoyerEmailFn`) : aucun serveur SMTP ni HTTP
+// n'est démarré ici. Un faux serveur laissé ouvert par un test qui échoue fait pendre toute la
+// suite — déjà rencontré sur la version précédente de ce fichier.
 
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const os = require('node:os');
-const http = require('node:http');
 
 const { creerApp } = require('../src/app');
 const { ouvrirDb } = require('../src/db');
@@ -19,21 +22,12 @@ function config() {
   return { motDePasse: 'mdp-test', racineRepo: os.tmpdir(), port: 0, jetonCalendrier: '' };
 }
 
-function demarrerFauxWebhook(statut) {
-  return new Promise((resolve) => {
-    const requetes = [];
-    const serveur = http.createServer((req, res) => {
-      let corps = '';
-      req.on('data', (c) => { corps += c; });
-      req.on('end', () => {
-        requetes.push(JSON.parse(corps || '{}'));
-        res.statusCode = statut || 200;
-        res.end('{}');
-      });
-    });
-    serveur.listen(0, () => resolve({ serveur, requetes, url: `http://127.0.0.1:${serveur.address().port}/flux` }));
-  });
-}
+// Capture ce que la route demande d'envoyer, sans ouvrir la moindre connexion.
+const envois = [];
+const envoyerEmailFn = async (reglages, destinataire, texte) => {
+  envois.push({ destinataire, texte });
+  return { ok: true, erreur: null };
+};
 
 test('texteNotificationPieces : singulier/pluriel et liste des pièces', () => {
   assert.match(texteNotificationPieces('DUPONT / MARTIN', ['Titre de propriété']), /Nouvelle pièce trouvée/);
@@ -47,7 +41,7 @@ let db, serveurApp, baseUrl, jeton;
 
 before(async () => {
   db = ouvrirDb(':memory:');
-  const { app, gestionnaireAuth } = creerApp({ db, config: config() });
+  const { app, gestionnaireAuth } = creerApp({ db, config: config(), envoyerEmailFn });
   jeton = gestionnaireAuth.creerSession();
   serveurApp = app.listen(0);
   await new Promise((resolve) => serveurApp.once('listening', resolve));
@@ -84,53 +78,49 @@ test('pieces manquantes ou vides : 400', async () => {
 });
 
 test('Envoi par email désactivé : ok mais rien n\'est envoyé (ignore: true)', async () => {
-  await appeler('/api/reglages', { method: 'PUT', body: JSON.stringify({ emailActif: false, fluxEmailUrl: '', emailsResponsables: {} }) });
+  await appeler('/api/reglages', { method: 'PUT', body: JSON.stringify({ emailActif: false, smtpHote: '', emailsResponsables: {} }) });
   const reponse = await appeler('/api/notifications/pieces-recues', { method: 'POST', body: JSON.stringify({ dossierNom: 'DUPONT / MARTIN', responsable: 'Bastien ANGLUMENT', pieces: ['ERP'] }) });
   assert.equal(reponse.status, 200);
   assert.deepEqual(await reponse.json(), { ok: true, ignore: true });
 });
 
 test('Envoi actif, responsable sans adresse configurée : ok mais erreur listée, aucun envoi', async () => {
-  const faux = await demarrerFauxWebhook(200);
-  await appeler('/api/reglages', { method: 'PUT', body: JSON.stringify({ emailActif: true, fluxEmailUrl: faux.url, emailsResponsables: {} }) });
+  envois.length = 0;
+  await appeler('/api/reglages', { method: 'PUT', body: JSON.stringify({ emailActif: true, smtpHote: 'smtp.test', emailPasserelle: 'passerelle@etude.fr', emailsResponsables: {} }) });
   const reponse = await appeler('/api/notifications/pieces-recues', { method: 'POST', body: JSON.stringify({ dossierNom: 'DUPONT / MARTIN', responsable: 'Julie VASSELIN', pieces: ['ERP'] }) });
   const corps = await reponse.json();
   assert.equal(corps.envoyeResponsable, false);
   assert.match(corps.erreurs[0], /Julie VASSELIN/);
-  assert.equal(faux.requetes.length, 0);
-  faux.serveur.close();
+  assert.equal(envois.length, 0);
 });
 
 test('Envoi actif, responsable connu : un seul message envoyé, groupant toutes les pièces', async () => {
-  const faux = await demarrerFauxWebhook(200);
-  await appeler('/api/reglages', { method: 'PUT', body: JSON.stringify({ emailActif: true, fluxEmailUrl: faux.url, emailsResponsables: { 'Bastien ANGLUMENT': 'bastien@etude.fr' } }) });
+  envois.length = 0;
+  await appeler('/api/reglages', { method: 'PUT', body: JSON.stringify({ emailActif: true, smtpHote: 'smtp.test', emailPasserelle: 'passerelle@etude.fr', emailsResponsables: { 'Bastien ANGLUMENT': 'bastien@etude.fr' } }) });
   const reponse = await appeler('/api/notifications/pieces-recues', { method: 'POST', body: JSON.stringify({ dossierNom: 'DUPONT / MARTIN', responsable: 'Bastien ANGLUMENT', pieces: ['ERP', 'Titre de propriété'] }) });
   const corps = await reponse.json();
   assert.equal(corps.envoyeResponsable, true);
-  assert.equal(faux.requetes.length, 1);
-  assert.equal(faux.requetes[0].destinataire, 'bastien@etude.fr');
-  assert.match(faux.requetes[0].message, /ERP, Titre de propriété/);
-  faux.serveur.close();
+  assert.equal(envois.length, 1);
+  assert.equal(envois[0].destinataire, 'bastien@etude.fr');
+  assert.match(envois[0].texte, /ERP, Titre de propriété/);
 });
 
 test('copieEmail : reçoit un double, jamais si elle coïncide avec le destinataire principal', async () => {
-  const faux = await demarrerFauxWebhook(200);
+  envois.length = 0;
   await appeler('/api/reglages', {
     method: 'PUT',
-    body: JSON.stringify({ emailActif: true, fluxEmailUrl: faux.url, copieEmail: 'gossart@etude.fr', emailsResponsables: { 'Bastien ANGLUMENT': 'bastien@etude.fr' } })
+    body: JSON.stringify({ emailActif: true, smtpHote: 'smtp.test', emailPasserelle: 'passerelle@etude.fr', copieEmail: 'gossart@etude.fr', emailsResponsables: { 'Bastien ANGLUMENT': 'bastien@etude.fr' } })
   });
   await appeler('/api/notifications/pieces-recues', { method: 'POST', body: JSON.stringify({ dossierNom: 'DUPONT / MARTIN', responsable: 'Bastien ANGLUMENT', pieces: ['ERP'] }) });
-  assert.equal(faux.requetes.length, 2);
-  assert.deepEqual(faux.requetes.map((r) => r.destinataire).sort(), ['bastien@etude.fr', 'gossart@etude.fr']);
-  faux.serveur.close();
+  assert.equal(envois.length, 2);
+  assert.deepEqual(envois.map((e) => e.destinataire).sort(), ['bastien@etude.fr', 'gossart@etude.fr']);
 
   // Copie == responsable lui-même (ex. l'étude est elle-même la responsable du dossier) : un seul envoi.
-  const faux2 = await demarrerFauxWebhook(200);
+  envois.length = 0;
   await appeler('/api/reglages', {
     method: 'PUT',
-    body: JSON.stringify({ emailActif: true, fluxEmailUrl: faux2.url, copieEmail: 'bastien@etude.fr', emailsResponsables: { 'Bastien ANGLUMENT': 'bastien@etude.fr' } })
+    body: JSON.stringify({ emailActif: true, smtpHote: 'smtp.test', emailPasserelle: 'passerelle@etude.fr', copieEmail: 'bastien@etude.fr', emailsResponsables: { 'Bastien ANGLUMENT': 'bastien@etude.fr' } })
   });
   await appeler('/api/notifications/pieces-recues', { method: 'POST', body: JSON.stringify({ dossierNom: 'DUPONT / MARTIN', responsable: 'Bastien ANGLUMENT', pieces: ['ERP'] }) });
-  assert.equal(faux2.requetes.length, 1);
-  faux2.serveur.close();
+  assert.equal(envois.length, 1);
 });

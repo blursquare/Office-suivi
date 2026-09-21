@@ -160,7 +160,7 @@ function demarrer() {
   demarrerSurveillanceNas(depot, config);
 
   // Rappels automatiques par email (voir jobs/rappels.js) : silencieux tant que l'étude n'a pas
-  // activé/configuré l'envoi depuis l'écran Réglages (emailActif/fluxEmailUrl, table
+  // activé/configuré l'envoi depuis l'écran Réglages (emailActif/smtpHote/emailPasserelle, table
   // `parametres`) — même principe que la surveillance du NAS ci-dessus, et démarré au même seul
   // endroit réel (jamais dans app.js, pour ne pas déclencher ce minuteur dans les tests qui
   // montent creerApp() directement).

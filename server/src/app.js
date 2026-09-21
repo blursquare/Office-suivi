@@ -61,7 +61,9 @@ function estSea() {
   }
 }
 
-function creerApp({ db, config }) {
+// `envoyerEmailFn` : injection de la couche d'envoi (voir envoiEmail.js), utilisée uniquement par
+// les tests — sans elle, vérifier les routes qui notifient demanderait un vrai serveur SMTP.
+function creerApp({ db, config, envoyerEmailFn }) {
   const app = express();
   const depot = creerDepot(db);
   const parametresRepo = creerRepoParametres(db);
@@ -93,8 +95,8 @@ function creerApp({ db, config }) {
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExtractionIa(config));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurOffrePret(config));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNas(config));
-  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurReglages(parametresRepo));
-  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNotifications(parametresRepo));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurReglages(parametresRepo, envoyerEmailFn));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNotifications(parametresRepo, envoyerEmailFn));
 
   // Gestionnaire d'erreurs générique en dernier recours : évite qu'une exception inattendue
   // (JSON malformé, etc.) ne fasse planter le processus entier plutôt que de répondre 500.

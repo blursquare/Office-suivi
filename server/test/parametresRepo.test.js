@@ -9,7 +9,20 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 
 const { ouvrirDb } = require('../src/db');
-const { creerRepoParametres, assainirReglages, REGLAGES_PAR_DEFAUT } = require('../src/parametresRepo');
+const { creerRepoParametres, assainirReglages, REGLAGES_PAR_DEFAUT, PORT_SMTP_PAR_DEFAUT } = require('../src/parametresRepo');
+
+const REGLAGES_TEST = Object.freeze({
+  emailActif: true,
+  emailPasserelle: 'passerelle@etude.fr',
+  smtpHote: 'smtp.test',
+  smtpPort: 587,
+  smtpSecurise: false,
+  smtpUtilisateur: '',
+  smtpMotDePasse: '',
+  smtpExpediteur: 'claire@etude.fr',
+  copieEmail: 'gossart@etude.fr',
+  emailsResponsables: { 'Bastien ANGLUMENT': 'bastien@etude.fr' }
+});
 
 test('lireReglages() renvoie les valeurs par défaut quand rien n\'a jamais été écrit', () => {
   const db = ouvrirDb(':memory:');
@@ -21,24 +34,19 @@ test('lireReglages() renvoie les valeurs par défaut quand rien n\'a jamais ét�
 test('ecrireReglages() puis lireReglages() : l\'upsert SQLite (INSERT ... ON CONFLICT) fonctionne bien avec node:sqlite', () => {
   const db = ouvrirDb(':memory:');
   const repo = creerRepoParametres(db);
-  repo.ecrireReglages({ emailActif: true, fluxEmailUrl: 'https://exemple.test/flux', copieEmail: 'gossart@etude.fr', emailsResponsables: { 'Bastien ANGLUMENT': 'bastien@etude.fr' } });
-  assert.deepEqual(repo.lireReglages(), {
-    emailActif: true,
-    fluxEmailUrl: 'https://exemple.test/flux',
-    copieEmail: 'gossart@etude.fr',
-    emailsResponsables: { 'Bastien ANGLUMENT': 'bastien@etude.fr' }
-  });
+  repo.ecrireReglages(REGLAGES_TEST);
+  assert.deepEqual(repo.lireReglages(), REGLAGES_TEST);
   db.close();
 });
 
 test('un second ecrireReglages() REMPLACE la valeur (l\'upsert met bien à jour, pas doublon)', () => {
   const db = ouvrirDb(':memory:');
   const repo = creerRepoParametres(db);
-  repo.ecrireReglages({ emailActif: false, fluxEmailUrl: 'https://a.test', emailsResponsables: {} });
-  repo.ecrireReglages({ emailActif: true, fluxEmailUrl: 'https://b.test', copieEmail: 'gossart@etude.fr', emailsResponsables: { 'Julie VASSELIN': 'julie@etude.fr' } });
+  repo.ecrireReglages({ ...REGLAGES_TEST, emailActif: false, smtpHote: 'a.test', emailsResponsables: {} });
+  repo.ecrireReglages({ ...REGLAGES_TEST, smtpHote: 'b.test', emailsResponsables: { 'Julie VASSELIN': 'julie@etude.fr' } });
   const lu = repo.lireReglages();
   assert.equal(lu.emailActif, true);
-  assert.equal(lu.fluxEmailUrl, 'https://b.test');
+  assert.equal(lu.smtpHote, 'b.test');
   assert.equal(lu.copieEmail, 'gossart@etude.fr');
   assert.deepEqual(lu.emailsResponsables, { 'Julie VASSELIN': 'julie@etude.fr' });
   // Une seule ligne en base pour cette clé, pas un doublon accumulé par l'upsert.
@@ -58,39 +66,85 @@ test('un JSON malformé en base ne fait jamais planter la lecture — repli sur 
 
 test('assainirReglages() écarte tout ce qui n\'a pas la bonne forme', () => {
   assert.deepEqual(assainirReglages(null), REGLAGES_PAR_DEFAUT);
-  assert.deepEqual(assainirReglages({ fluxEmailUrl: 42, emailActif: 'oui', copieEmail: 7, emailsResponsables: ['a'] }), REGLAGES_PAR_DEFAUT);
   assert.deepEqual(
-    assainirReglages({ fluxEmailUrl: '  https://x.test  ', emailActif: true, copieEmail: '  gossart@etude.fr  ', emailsResponsables: { A: '  a@b.fr  ', B: '', C: 42 } }),
-    { fluxEmailUrl: 'https://x.test', emailActif: true, copieEmail: 'gossart@etude.fr', emailsResponsables: { A: 'a@b.fr' } }
+    assainirReglages({ smtpHote: 42, emailActif: 'oui', copieEmail: 7, emailsResponsables: ['a'] }),
+    REGLAGES_PAR_DEFAUT
+  );
+  assert.deepEqual(
+    assainirReglages({
+      smtpHote: '  smtp.test  ', emailPasserelle: '  passerelle@etude.fr ', emailActif: true,
+      copieEmail: '  gossart@etude.fr  ', emailsResponsables: { A: '  a@b.fr  ', B: '', C: 42 }
+    }),
+    {
+      ...REGLAGES_PAR_DEFAUT,
+      emailActif: true, emailPasserelle: 'passerelle@etude.fr', smtpHote: 'smtp.test',
+      copieEmail: 'gossart@etude.fr', emailsResponsables: { A: 'a@b.fr' }
+    }
   );
 });
 
-// Passage de Teams à l'email : seule l'ACTION INTERNE du flux Power Automate a changé, pas son URL
-// de déclenchement — un réglage déjà enregistré sous les anciennes clés doit donc continuer de
-// fonctionner tel quel, sans que l'étude ait à recoller l'URL ni à recocher l'activation.
+// Un port hors bornes viendrait d'une saisie fautive, pas d'une intention : mieux vaut le port
+// standard qu'un transport configuré sur un numéro impossible, qui échouerait sans rien expliquer.
+test('assainirReglages() : le port SMTP est un entier valide, sinon la valeur par défaut', () => {
+  assert.equal(assainirReglages({ smtpPort: '587' }).smtpPort, 587);
+  assert.equal(assainirReglages({ smtpPort: 0 }).smtpPort, PORT_SMTP_PAR_DEFAUT);
+  assert.equal(assainirReglages({ smtpPort: 99999 }).smtpPort, PORT_SMTP_PAR_DEFAUT);
+  assert.equal(assainirReglages({ smtpPort: 'vingt-cinq' }).smtpPort, PORT_SMTP_PAR_DEFAUT);
+  assert.equal(assainirReglages({}).smtpPort, PORT_SMTP_PAR_DEFAUT);
+});
+
+// Le mot de passe SMTP ne redescend jamais au navigateur (voir routes/reglages.js) : le formulaire
+// ne peut donc pas le réémettre à l'enregistrement, et un enregistrement ordinaire ne doit surtout
+// pas l'effacer au passage.
+test('assainirReglages() : le mot de passe SMTP absent est repris des réglages précédents', () => {
+  const precedent = { smtpMotDePasse: 'jeton-applicatif' };
+  assert.equal(assainirReglages({ smtpHote: 'smtp.test' }, precedent).smtpMotDePasse, 'jeton-applicatif');
+  assert.equal(assainirReglages({ smtpMotDePasse: null }, precedent).smtpMotDePasse, 'jeton-applicatif');
+  // Une chaîne explicite, elle, remplace — et une chaîne vide efface (retour à l'envoi anonyme).
+  assert.equal(assainirReglages({ smtpMotDePasse: 'nouveau' }, precedent).smtpMotDePasse, 'nouveau');
+  assert.equal(assainirReglages({ smtpMotDePasse: '' }, precedent).smtpMotDePasse, '');
+});
+
+test('ecrireReglages() conserve le mot de passe SMTP déjà en base quand il n\'est pas renvoyé', () => {
+  const db = ouvrirDb(':memory:');
+  const repo = creerRepoParametres(db);
+  repo.ecrireReglages({ ...REGLAGES_TEST, smtpUtilisateur: 'claire@etude.fr', smtpMotDePasse: 'jeton-applicatif' });
+  // Le formulaire renvoie tout SAUF le mot de passe (la clé est absente, pas vide) : la copie
+  // change, le compte reste utilisable.
+  const sansMotDePasse = { ...REGLAGES_TEST, smtpUtilisateur: 'claire@etude.fr', copieEmail: 'autre@etude.fr' };
+  delete sansMotDePasse.smtpMotDePasse;
+  repo.ecrireReglages(sansMotDePasse);
+  const lu = repo.lireReglages();
+  assert.equal(lu.smtpMotDePasse, 'jeton-applicatif');
+  assert.equal(lu.copieEmail, 'autre@etude.fr');
+  db.close();
+});
+
+// Deux générations d'architecture en arrière (message privé Teams, puis flux HTTP qui envoyait
+// l'email) : `teamsActif`/`teamsCopieEmail` gardent exactement le même sens aujourd'hui, les faire
+// ressaisir serait une régression silencieuse. Rien à reprendre en revanche du déclencheur HTTP,
+// qui n'existe plus — le serveur SMTP et la passerelle sont à saisir, eux.
 test('assainirReglages() : reprend les anciennes clés Teams quand les nouvelles sont absentes', () => {
   const repris = assainirReglages({
-    teamsWebhookUrl: 'https://exemple.test/flux',
     teamsActif: true,
     teamsCopieEmail: 'gossart@etude.fr',
     emailsResponsables: { 'Bastien ANGLUMENT': 'bastien@etude.fr' }
   });
-  assert.equal(repris.fluxEmailUrl, 'https://exemple.test/flux');
   assert.equal(repris.emailActif, true);
   assert.equal(repris.copieEmail, 'gossart@etude.fr');
+  assert.deepEqual(repris.emailsResponsables, { 'Bastien ANGLUMENT': 'bastien@etude.fr' });
   // Les anciennes clés ne ressortent jamais : le premier enregistrement depuis l'écran Réglages
-  // persiste la forme nouvelle et fait disparaître l'ancienne.
-  assert.equal(repris.teamsWebhookUrl, undefined);
+  // persiste la forme actuelle et fait disparaître l'ancienne.
   assert.equal(repris.teamsActif, undefined);
+  assert.equal(repris.teamsWebhookUrl, undefined);
+  assert.equal(repris.fluxEmailUrl, undefined);
 });
 
-test('assainirReglages() : la nouvelle clé l\'emporte toujours sur l\'ancienne', () => {
+test('assainirReglages() : la clé actuelle l\'emporte toujours sur l\'ancienne', () => {
   const r = assainirReglages({
-    fluxEmailUrl: 'https://nouveau.test/flux', teamsWebhookUrl: 'https://ancien.test/flux',
     emailActif: false, teamsActif: true,
     copieEmail: '', teamsCopieEmail: 'ancien@etude.fr'
   });
-  assert.equal(r.fluxEmailUrl, 'https://nouveau.test/flux');
   // Décocher l'activation doit tenir, même si l'ancienne clé dit encore `true`.
   assert.equal(r.emailActif, false);
   // Vider l'adresse de copie doit tenir aussi, pour la même raison.

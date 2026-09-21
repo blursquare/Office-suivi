@@ -852,17 +852,50 @@
     </div>
   </div>
 
+  <!-- CLAIRE envoie elle-même un email vers la boîte-passerelle : c'est son ARRIVÉE qui déclenche
+       le flux Power Automate, lequel poste ensuite le message dans Teams. L'objet de cet email
+       porte l'adresse du destinataire réel, que le flux lit pour savoir à qui poster — voir
+       server/src/envoiEmail.js pour la convention complète. -->
   <div class="calc-card">
-    <div class="dash-section-titre">Flux Power Automate</div>
+    <div class="dash-section-titre">Envoi des messages</div>
     <div class="calc-champs">
       <label class="toolbar-checkbox" style="display:flex; align-items:center; gap:8px; font-weight:600;">
         <input type="checkbox" id="reglages-envoi-actif">
-        Activer l'envoi automatique de rappels par email
+        Activer l'envoi automatique de rappels
       </label>
       <div class="calc-champ">
-        <label for="reglages-flux-url">URL du déclencheur HTTP du flux</label>
-        <input type="text" id="reglages-flux-url" placeholder="https://prod-00.westeurope.logic.azure.com/workflows/...">
-        <p class="hint">Collée depuis Power Automate, à l'étape "Quand une requête HTTP est reçue" (voir la procédure ci-dessous). Si vous aviez déjà configuré les rappels Teams, l'adresse du flux est la même : rien à recoller.</p>
+        <label for="reglages-passerelle">Boîte aux lettres qui déclenche le flux</label>
+        <input type="email" id="reglages-passerelle" placeholder="prenom.nom@etude.fr">
+        <p class="hint">Tous les messages de CLAIRE sont envoyés à cette adresse. C'est leur arrivée qui déclenche le flux Power Automate, qui poste ensuite le message dans Teams à la personne concernée.</p>
+      </div>
+      <div class="calc-champ">
+        <label for="reglages-smtp-hote">Serveur d'envoi (SMTP)</label>
+        <input type="text" id="reglages-smtp-hote" placeholder="exemple-fr.mail.protection.outlook.com">
+        <p class="hint">Pour Microsoft 365 sans compte ni mot de passe, utiliser le nom donné par l'enregistrement MX du domaine de l'étude — de la forme <code>domaine-avec-tirets.mail.protection.outlook.com</code> (voir la procédure plus bas).</p>
+      </div>
+      <div class="calc-champ">
+        <label for="reglages-smtp-port">Port</label>
+        <input type="number" id="reglages-smtp-port" min="1" max="65535" value="25">
+        <p class="hint">25 pour l'envoi direct Microsoft 365, 587 pour un envoi avec compte, 465 pour un serveur en TLS direct.</p>
+      </div>
+      <label class="toolbar-checkbox" style="display:flex; align-items:center; gap:8px;">
+        <input type="checkbox" id="reglages-smtp-securise">
+        Connexion chiffrée dès l'ouverture (port 465 uniquement)
+      </label>
+      <div class="calc-champ">
+        <label for="reglages-smtp-expediteur">Adresse d'expédition</label>
+        <input type="email" id="reglages-smtp-expediteur" placeholder="claire@etude.fr">
+        <p class="hint">Doit appartenir au domaine de l'étude. Laisser vide pour utiliser la boîte-passerelle ci-dessus.</p>
+      </div>
+      <div class="calc-champ">
+        <label for="reglages-smtp-utilisateur">Compte SMTP (facultatif)</label>
+        <input type="text" id="reglages-smtp-utilisateur" placeholder="Laisser vide pour un envoi sans compte">
+        <p class="hint">Inutile en envoi direct Microsoft 365, qui autorise l'envoi d'après l'adresse IP du bureau. À ne renseigner que si l'envoi direct est refusé.</p>
+      </div>
+      <div class="calc-champ">
+        <label for="reglages-smtp-motdepasse">Mot de passe du compte SMTP</label>
+        <input type="password" id="reglages-smtp-motdepasse" autocomplete="new-password" placeholder="Laisser vide pour un envoi sans compte">
+        <p class="hint">N'est jamais réaffiché une fois enregistré : laisser ce champ vide conserve celui déjà en place. Stocké sur le serveur de l'étude, dans le fichier de la base — raison de plus de préférer l'envoi direct, qui n'en demande aucun.</p>
       </div>
       <div class="calc-champ">
         <label for="reglages-copie-email">Adresse recevant une copie de tous les rappels</label>
@@ -882,17 +915,18 @@
   </div>
 
   <div class="calc-card calc-card-notes">
-    <div class="dash-section-titre">Créer le flux dans Power Automate (une seule fois)</div>
+    <div class="dash-section-titre">Comment ça marche</div>
+    <p>CLAIRE envoie un email à la boîte-passerelle. Son <strong>objet</strong> contient l'adresse du collaborateur à prévenir, son <strong>corps</strong> le message. Le flux Power Automate, déclenché par l'arrivée de cet email, lit l'objet pour savoir à qui poster le message dans Teams.</p>
+    <p><strong>Le flux est déjà créé et activé</strong> (déclencheur « Quand un nouvel e-mail arrive » sur cette boîte, puis action Teams). Il n'y a rien à refaire dans Power Automate : seuls les réglages d'envoi ci-dessus sont à renseigner.</p>
+
+    <div class="dash-section-titre" style="margin-top:14px;">Renseigner le serveur d'envoi</div>
     <ol>
-      <li>Dans Power Automate, créer un flux <strong>Instantané</strong> avec le déclencheur <strong>« Quand une requête HTTP est reçue »</strong>, et coller ce schéma dans <em>Schéma JSON du corps de la requête</em> :<br>
-        <code class="code-bloc">{ "type": "object", "properties": { "destinataire": { "type": "string" }, "sujet": { "type": "string" }, "message": { "type": "string" } } }</code><br>
-        Le flux marche aussi sans ce schéma, mais alors les champs <code>destinataire</code>, <code>sujet</code> et <code>message</code> n'apparaissent pas dans la liste de contenu dynamique à l'étape suivante — il faudrait les saisir en expression. Autant le coller.</li>
-      <li>Ajouter l'action Outlook <strong>« Envoyer un e-mail (V2) »</strong> : À = contenu dynamique <code>destinataire</code>, Objet = contenu dynamique <code>sujet</code>, Corps = contenu dynamique <code>message</code>.</li>
-      <li>Enregistrer le flux, puis rouvrir l'étape du déclencheur HTTP : l'URL générée s'affiche. La copier et la coller dans le champ ci-dessus, puis cliquer sur « Enregistrer ».</li>
-      <li>Cocher « Activer l'envoi automatique », enregistrer, puis utiliser le bouton « Tester » de chaque collaborateur pour vérifier que l'email arrive bien dans sa boîte de réception.</li>
+      <li><strong>Sans compte ni mot de passe (recommandé)</strong> — Microsoft 365 accepte les emails envoyés depuis le réseau du bureau vers une adresse du domaine de l'étude. Le serveur à indiquer est celui de l'enregistrement MX du domaine : dans un invite de commandes Windows, <code class="code-bloc">nslookup -type=mx votredomaine.fr</code> donne un nom de la forme <code>domaine-avec-tirets.mail.protection.outlook.com</code>. Port 25, compte et mot de passe laissés vides.</li>
+      <li><strong>Si cet envoi est refusé</strong> (certains locataires Microsoft 365 le bloquent), renseigner un compte SMTP : serveur <code>smtp.office365.com</code>, port 587, l'adresse d'une boîte de l'étude comme compte, et un mot de passe d'application. L'authentification SMTP doit être autorisée pour cette boîte côté administrateur Microsoft 365.</li>
+      <li>Renseigner la boîte-passerelle, cocher « Activer l'envoi automatique », puis <strong>Enregistrer</strong>.</li>
+      <li>Utiliser le bouton <strong>« Tester »</strong> de chaque collaborateur : un message de test doit arriver dans son Teams. S'il n'arrive pas, l'historique du flux dans Power Automate indique s'il s'est déclenché.</li>
     </ol>
-    <p><strong>Vous aviez déjà configuré les rappels Teams ?</strong> Il suffit d'ouvrir le flux existant, de remplacer l'action « Publier un message dans un chat ou un canal » par « Envoyer un e-mail (V2) », et d'ajouter <code>"sujet"</code> au schéma JSON du déclencheur (étape 1 ci-dessus). L'URL du flux ne change pas, et les adresses déjà saisies ici sont conservées.</p>
-    <p>Les rappels sont envoyés automatiquement 15 puis 7 jours avant chaque échéance active d'un dossier (prêt, acte, vente préalable, échéance personnalisée), au responsable du dossier — jamais deux fois pour la même échéance. L'adresse de copie ci-dessus, si renseignée, reçoit le même message pour chaque envoi. Il n'existe plus de rappel par email manuel à envoyer soi-même : ce mécanisme le remplace entièrement.</p>
+    <p>Les rappels sont envoyés automatiquement 15 puis 7 jours avant chaque échéance active d'un dossier (vente préalable, prêt, date butoir, appel de fonds, rendez-vous de signature, échéance personnalisée), au responsable du dossier — jamais deux fois pour la même échéance. L'adresse de copie ci-dessus, si renseignée, reçoit le même message pour chaque envoi. Il n'existe plus de rappel par email manuel à envoyer soi-même : ce mécanisme le remplace entièrement.</p>
   </div>
 </div>
 

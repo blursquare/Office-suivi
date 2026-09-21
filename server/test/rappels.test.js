@@ -11,7 +11,7 @@ const assert = require('node:assert/strict');
 
 const {
   SEUILS_RAPPELS, echeanceValidee, toutesEcheances, joursRestants,
-  calculerRappelsDus, sujetRappel, texteRappel, executerTacheRappels
+  calculerRappelsDus, texteRappel, executerTacheRappels
 } = require('../src/jobs/rappels');
 const { ouvrirDb } = require('../src/db');
 const { creerDepot } = require('../src/dossiersRepo');
@@ -122,7 +122,7 @@ function config() {
   return { intervalleRappelsMs: 30 * 60 * 1000 };
 }
 
-test('executerTacheRappels : ne fait rien si emailActif est faux ou l\'URL absente', async () => {
+test('executerTacheRappels : ne fait rien si emailActif est faux ou le serveur SMTP absent', async () => {
   const db = ouvrirDb(':memory:');
   const depot = creerDepot(db);
   const parametresRepo = creerRepoParametres(db);
@@ -130,11 +130,11 @@ test('executerTacheRappels : ne fait rien si emailActif est faux ou l\'URL absen
   let appels = 0;
   const envoyerFn = async () => { appels += 1; return { ok: true }; };
 
-  parametresRepo.ecrireReglages({ emailActif: false, fluxEmailUrl: 'https://x.test', emailsResponsables: { 'Bastien ANGLUMENT': 'b@etude.fr' } });
+  parametresRepo.ecrireReglages({ emailActif: false, smtpHote: 'smtp.test', emailPasserelle: 'passerelle@etude.fr', emailsResponsables: { 'Bastien ANGLUMENT': 'b@etude.fr' } });
   await executerTacheRappels(depot, db, parametresRepo, envoyerFn, '2026-10-27');
   assert.equal(appels, 0);
 
-  parametresRepo.ecrireReglages({ emailActif: true, fluxEmailUrl: '', emailsResponsables: { 'Bastien ANGLUMENT': 'b@etude.fr' } });
+  parametresRepo.ecrireReglages({ emailActif: true, smtpHote: '', emailsResponsables: { 'Bastien ANGLUMENT': 'b@etude.fr' } });
   await executerTacheRappels(depot, db, parametresRepo, envoyerFn, '2026-10-27');
   assert.equal(appels, 0);
 
@@ -146,10 +146,10 @@ test('executerTacheRappels : envoie le rappel dû, le marque dans reminder_log, 
   const depot = creerDepot(db);
   const parametresRepo = creerRepoParametres(db);
   depot.creer({ id: 'd1', nom: 'DUPONT / MARTIN', responsable: 'Bastien ANGLUMENT', pret: '2026-11-11' });
-  parametresRepo.ecrireReglages({ emailActif: true, fluxEmailUrl: 'https://x.test', emailsResponsables: { 'Bastien ANGLUMENT': 'b@etude.fr' } });
+  parametresRepo.ecrireReglages({ emailActif: true, smtpHote: 'smtp.test', emailPasserelle: 'passerelle@etude.fr', emailsResponsables: { 'Bastien ANGLUMENT': 'b@etude.fr' } });
 
   const envois = [];
-  const envoyerFn = async (url, email, sujet, texte) => { envois.push({ url, email, texte }); return { ok: true }; };
+  const envoyerFn = async (reglages, email, texte) => { envois.push({ email, texte }); return { ok: true }; };
 
   const r1 = await executerTacheRappels(depot, db, parametresRepo, envoyerFn, '2026-10-27');
   assert.equal(r1.rappelsDus, 1);
@@ -173,10 +173,10 @@ test('executerTacheRappels : un collaborateur sans adresse configurée est signa
   const parametresRepo = creerRepoParametres(db);
   depot.creer({ id: 'd1', nom: 'A / B', responsable: 'Julie VASSELIN', pret: '2026-11-11' });
   depot.creer({ id: 'd2', nom: 'C / D', responsable: 'Jérémy SAUJOT', acte: '2026-11-11' });
-  parametresRepo.ecrireReglages({ emailActif: true, fluxEmailUrl: 'https://x.test', emailsResponsables: { 'Jérémy SAUJOT': 'jeremy@etude.fr' } });
+  parametresRepo.ecrireReglages({ emailActif: true, smtpHote: 'smtp.test', emailPasserelle: 'passerelle@etude.fr', emailsResponsables: { 'Jérémy SAUJOT': 'jeremy@etude.fr' } });
 
   const envois = [];
-  const envoyerFn = async (url, email, sujet, texte) => { envois.push(email); return { ok: true }; };
+  const envoyerFn = async (reglages, email, texte) => { envois.push(email); return { ok: true }; };
 
   const r = await executerTacheRappels(depot, db, parametresRepo, envoyerFn, '2026-10-27');
   assert.equal(r.rappelsDus, 2);
@@ -194,7 +194,7 @@ test('executerTacheRappels : un envoi en échec n\'est jamais marqué comme envo
   const depot = creerDepot(db);
   const parametresRepo = creerRepoParametres(db);
   depot.creer({ id: 'd1', nom: 'X / Y', responsable: 'Bastien ANGLUMENT', pret: '2026-11-11' });
-  parametresRepo.ecrireReglages({ emailActif: true, fluxEmailUrl: 'https://x.test', emailsResponsables: { 'Bastien ANGLUMENT': 'b@etude.fr' } });
+  parametresRepo.ecrireReglages({ emailActif: true, smtpHote: 'smtp.test', emailPasserelle: 'passerelle@etude.fr', emailsResponsables: { 'Bastien ANGLUMENT': 'b@etude.fr' } });
 
   let appels = 0;
   const envoyerFn = async () => { appels += 1; return { ok: false, erreur: 'Flux injoignable' }; };
@@ -210,31 +210,24 @@ test('executerTacheRappels : un envoi en échec n\'est jamais marqué comme envo
   db.close();
 });
 
-// ---- Objet de l'email (apparu avec le passage de Teams à l'email) ----
+// ---- Ce qui est transmis à la couche d'envoi ----
 
-test('sujetRappel : une ligne, sans emoji, qui nomme l\'échéance, le délai et le dossier', () => {
-  const sujet = sujetRappel({ libelle: 'Obtention du prêt', seuil: 15, nomDossier: 'DUPONT / MARTIN', iso: '2026-10-01' });
-  assert.equal(sujet, 'CLAIRE — Obtention du prêt dans 15 jours — DUPONT / MARTIN');
-  // Ce qui s'affiche dans une liste de messages doit tenir sur une ligne : jamais de retour à la
-  // ligne, contrairement au corps qui liste les pièces reçues/manquantes.
-  assert.ok(!sujet.includes('\n'));
-});
-
-test('sujetRappel : « 1 jour » au singulier', () => {
-  assert.match(sujetRappel({ libelle: 'Signature de l\'acte', seuil: 1, nomDossier: 'X / Y' }), /dans 1 jour —/);
-});
-
-test('executerTacheRappels : l\'objet ET le corps sont transmis au flux', async () => {
+// L'objet de l'email n'est plus construit ici : il transporte l'adresse du destinataire, posée par
+// envoiEmail.js (voir la convention du flux). Ce qui doit arriver jusque-là, c'est l'objet de
+// réglages COMPLET — sans lui, la couche d'envoi n'aurait ni serveur SMTP ni passerelle.
+test('executerTacheRappels : les réglages complets et le corps sont transmis à la couche d\'envoi', async () => {
   const db = ouvrirDb(':memory:');
   const depot = creerDepot(db);
   const parametresRepo = creerRepoParametres(db);
-  depot.creer({ id: 'dsujet', nom: 'DUPONT / MARTIN', responsable: 'Bastien ANGLUMENT', pret: '2026-11-11' });
-  parametresRepo.ecrireReglages({ emailActif: true, fluxEmailUrl: 'https://x.test', emailsResponsables: { 'Bastien ANGLUMENT': 'b@etude.fr' } });
+  depot.creer({ id: 'denvoi', nom: 'DUPONT / MARTIN', responsable: 'Bastien ANGLUMENT', pret: '2026-11-11' });
+  parametresRepo.ecrireReglages({ emailActif: true, smtpHote: 'smtp.test', emailPasserelle: 'passerelle@etude.fr', emailsResponsables: { 'Bastien ANGLUMENT': 'b@etude.fr' } });
   const envois = [];
-  const envoyerFn = async (url, email, sujet, texte) => { envois.push({ sujet, texte }); return { ok: true }; };
+  const envoyerFn = async (reglages, email, texte) => { envois.push({ reglages, email, texte }); return { ok: true }; };
   await executerTacheRappels(depot, db, parametresRepo, envoyerFn, '2026-10-27');
   assert.equal(envois.length, 1);
-  assert.match(envois[0].sujet, /Obtention du prêt dans 15 jours — DUPONT \/ MARTIN/);
+  assert.equal(envois[0].reglages.smtpHote, 'smtp.test');
+  assert.equal(envois[0].reglages.emailPasserelle, 'passerelle@etude.fr');
+  assert.equal(envois[0].email, 'b@etude.fr');
   assert.match(envois[0].texte, /arrive à échéance dans 15 jours/);
   db.close();
 });
@@ -248,12 +241,12 @@ test('executerTacheRappels : copieEmail reçoit un double de chaque rappel envoy
   depot.creer({ id: 'd1', nom: 'DUPONT / MARTIN', responsable: 'Bastien ANGLUMENT', pret: '2026-11-11' });
   depot.creer({ id: 'd2', nom: 'A / B', responsable: 'Julie VASSELIN', acte: '2026-11-03' });
   parametresRepo.ecrireReglages({
-    emailActif: true, fluxEmailUrl: 'https://x.test', copieEmail: 'gossart@etude.fr',
+    emailActif: true, smtpHote: 'smtp.test', emailPasserelle: 'passerelle@etude.fr', copieEmail: 'gossart@etude.fr',
     emailsResponsables: { 'Bastien ANGLUMENT': 'b@etude.fr', 'Julie VASSELIN': 'j@etude.fr' }
   });
 
   const envois = [];
-  const envoyerFn = async (url, email, sujet, texte) => { envois.push({ email, texte }); return { ok: true }; };
+  const envoyerFn = async (reglages, email, texte) => { envois.push({ email, texte }); return { ok: true }; };
 
   const r = await executerTacheRappels(depot, db, parametresRepo, envoyerFn, '2026-10-27');
   assert.equal(r.rappelsEnvoyes, 2);
@@ -275,10 +268,10 @@ test('executerTacheRappels : sans copieEmail configuré, aucune copie n\'est env
   const depot = creerDepot(db);
   const parametresRepo = creerRepoParametres(db);
   depot.creer({ id: 'd1', nom: 'X / Y', responsable: 'Bastien ANGLUMENT', pret: '2026-11-11' });
-  parametresRepo.ecrireReglages({ emailActif: true, fluxEmailUrl: 'https://x.test', emailsResponsables: { 'Bastien ANGLUMENT': 'b@etude.fr' } });
+  parametresRepo.ecrireReglages({ emailActif: true, smtpHote: 'smtp.test', emailPasserelle: 'passerelle@etude.fr', emailsResponsables: { 'Bastien ANGLUMENT': 'b@etude.fr' } });
 
   const envois = [];
-  const envoyerFn = async (url, email) => { envois.push(email); return { ok: true }; };
+  const envoyerFn = async (reglages, email) => { envois.push(email); return { ok: true }; };
 
   await executerTacheRappels(depot, db, parametresRepo, envoyerFn, '2026-10-27');
   assert.deepEqual(envois, ['b@etude.fr']);
@@ -292,12 +285,12 @@ test('executerTacheRappels : copieEmail identique à l\'adresse du responsable n
   const parametresRepo = creerRepoParametres(db);
   depot.creer({ id: 'd1', nom: 'X / Y', responsable: 'Bastien ANGLUMENT', pret: '2026-11-11' });
   parametresRepo.ecrireReglages({
-    emailActif: true, fluxEmailUrl: 'https://x.test', copieEmail: 'b@etude.fr',
+    emailActif: true, smtpHote: 'smtp.test', emailPasserelle: 'passerelle@etude.fr', copieEmail: 'b@etude.fr',
     emailsResponsables: { 'Bastien ANGLUMENT': 'b@etude.fr' }
   });
 
   const envois = [];
-  const envoyerFn = async (url, email) => { envois.push(email); return { ok: true }; };
+  const envoyerFn = async (reglages, email) => { envois.push(email); return { ok: true }; };
 
   await executerTacheRappels(depot, db, parametresRepo, envoyerFn, '2026-10-27');
   assert.deepEqual(envois, ['b@etude.fr']);
@@ -311,11 +304,11 @@ test('executerTacheRappels : un échec de la copie n\'empêche pas le rappel pri
   const parametresRepo = creerRepoParametres(db);
   depot.creer({ id: 'd1', nom: 'X / Y', responsable: 'Bastien ANGLUMENT', pret: '2026-11-11' });
   parametresRepo.ecrireReglages({
-    emailActif: true, fluxEmailUrl: 'https://x.test', copieEmail: 'gossart@etude.fr',
+    emailActif: true, smtpHote: 'smtp.test', emailPasserelle: 'passerelle@etude.fr', copieEmail: 'gossart@etude.fr',
     emailsResponsables: { 'Bastien ANGLUMENT': 'b@etude.fr' }
   });
 
-  const envoyerFn = async (url, email) => (
+  const envoyerFn = async (reglages, email) => (
     email === 'gossart@etude.fr' ? { ok: false, erreur: 'Copie injoignable' } : { ok: true }
   );
 

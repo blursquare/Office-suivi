@@ -13,15 +13,14 @@
 // projet, pas un second à côté.
 
 const express = require('express');
-const { envoyerEmail } = require('../envoiEmail');
+const { envoyerEmail, envoiConfigure } = require('../envoiEmail');
 
-// Fonctions pures et testables : l'objet et le corps du message, séparés de l'envoi lui-même.
+// Fonction pure et testable : le corps du message, séparé de l'envoi lui-même. Pas d'objet à
+// construire — celui de l'email transporte l'adresse du destinataire, lue par le flux pour router
+// le message Teams (voir envoiEmail.js) ; l'ancien `sujetNotificationPieces()` a disparu avec
+// l'architecture qui l'avait fait naître.
 function libelleNouvellesPieces(nombre) {
   return nombre > 1 ? 'Nouvelles pièces trouvées' : 'Nouvelle pièce trouvée';
-}
-
-function sujetNotificationPieces(dossierNom, pieces) {
-  return `CLAIRE — ${libelleNouvellesPieces(pieces.length)} — ${dossierNom}`;
 }
 
 function texteNotificationPieces(dossierNom, pieces) {
@@ -44,15 +43,14 @@ function creerRouteurNotifications(parametresRepo, envoyerFn) {
     const reglages = parametresRepo.lireReglages();
     // Envoi par email non activé : rien à envoyer, ce n'est pas une erreur — le client n'a pas à
     // vérifier lui-même cet état avant d'appeler la route (même principe que le job de rappels).
-    if (!reglages.emailActif || !reglages.fluxEmailUrl) return res.json({ ok: true, ignore: true });
+    if (!envoiConfigure(reglages)) return res.json({ ok: true, ignore: true });
 
     const texte = texteNotificationPieces(dossierNom, pieces);
-    const sujet = sujetNotificationPieces(dossierNom, pieces);
     const email = responsable ? reglages.emailsResponsables[responsable] : null;
     const resultat = { ok: true, envoyeResponsable: false, envoyeCopie: false, erreurs: [] };
 
     if (email) {
-      const envoi = await envoyer(reglages.fluxEmailUrl, email, sujet, texte);
+      const envoi = await envoyer(reglages, email, texte);
       resultat.envoyeResponsable = envoi.ok;
       if (!envoi.ok) resultat.erreurs.push(envoi.erreur);
     } else if (responsable) {
@@ -63,7 +61,7 @@ function creerRouteurNotifications(parametresRepo, envoyerFn) {
     // l'absence de responsable connu, elle reste le seul message envoyé), jamais en double si elle
     // coïncide avec l'adresse déjà notifiée.
     if (reglages.copieEmail && reglages.copieEmail !== email) {
-      const copie = await envoyer(reglages.fluxEmailUrl, reglages.copieEmail, sujet, texte);
+      const copie = await envoyer(reglages, reglages.copieEmail, texte);
       resultat.envoyeCopie = copie.ok;
       if (!copie.ok) resultat.erreurs.push(copie.erreur);
     }
@@ -74,4 +72,4 @@ function creerRouteurNotifications(parametresRepo, envoyerFn) {
   return router;
 }
 
-module.exports = { creerRouteurNotifications, sujetNotificationPieces, texteNotificationPieces };
+module.exports = { creerRouteurNotifications, texteNotificationPieces };
