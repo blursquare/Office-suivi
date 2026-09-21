@@ -207,29 +207,24 @@ Détails d'implémentation, pour qui retouche ce code :
 ## Analyse juridique par IA locale (Ollama)
 
 Le même modèle local sert plusieurs fonctionnalités distinctes :
-- Un onglet « Audit des actes (IA) » (sidebar de l'outil — anciennement « Analyse approfondie »,
-  entièrement revu, voir CLAUDE.md section « Outil 2 ») : Outil 2, distinct du reste de l'outil
-  (« Outil 1 », qui suit un dossier à partir d'un compromis SIGNÉ). Audite un PROJET (compromis/
-  promesse pas encore signé, ou projet d'acte de vente notarié — choix explicite à l'upload, jamais
-  deviné) contre toutes les pièces disponibles (titre, diagnostics, urbanisme, factures,
-  autorisations, décennales, documents de copropriété…), chacune typée pour ne router que vers les
-  vérifications qui la concernent. Cinq passes ciblées (`POST /api/audit-acte/analyser`) plutôt
-  qu'un unique prompt fourre-tout :
+- L'onglet « Audit des actes (IA) » (sidebar de l'outil) — Outil 2, « Relecture d'un acte » —
+  **n'utilise PLUS le modèle pour produire son rapport.** Refait de zéro le 21/09/2026 après un
+  test de l'étude (« c'est inutilisable, c'est trop long ») : la version précédente enchaînait
+  cinq appels Ollama en série avant le moindre affichage, soit plusieurs minutes sur le CPU d'un
+  poste de bureau, et un échec en cours de route faisait tout perdre. Le rapport est désormais
+  calculé **entièrement dans le navigateur**, instantanément, par des règles (voir CLAUDE.md,
+  « Outil 2 refait de zéro ») — aucune route serveur n'est appelée pour l'obtenir.
 
-  | Passe | Ce qu'elle couvre | Documents reçus |
-  |---|---|---|
-  | `identification` | bien, parties, prix, dates, titre de propriété | principal, titre, compromis de référence (mode « projet d'acte ») |
-  | `diagnostics` | identifie chaque diagnostic (nature, date d'établissement) — le calcul de validité est fait en JS pur, jamais par le modèle | principal, diagnostics |
-  | `travaux` | PRIORITAIRE : toute trace de travaux dans les pièces, comparée aux déclarations du projet | principal, factures, autorisations, décennales, compromis de référence |
-  | `urbanisme` | urbanisme, autorisations, garanties, préemption, servitudes (reçoit les travaux déjà détectés) | principal, urbanisme, titre, autorisations, décennales, compromis de référence |
-  | `copropriete` | uniquement si le bien est en copropriété | principal, documents de copropriété, compromis de référence |
+  Le modèle ne sert plus qu'au bouton facultatif **« Approfondir avec l'IA locale »**, sous le
+  rapport : **une seule** requête (`POST /api/audit-acte/approfondir`), courte, jamais bloquante.
+  Le prompt lui donne ce que les règles ont déjà trouvé et ne lui demande QUE ce qui leur échappe
+  (clause inhabituelle, contradiction entre deux passages) ; un constat dont la citation n'est pas
+  retrouvée littéralement dans le document est marqué comme tel, jamais présenté au même rang
+  qu'une citation confirmée. Son échec ne coûte rien : le rapport est déjà à l'écran.
 
-  En mode « projet d'acte de vente », un dossier CLAIRE déjà suivi peut être lié (lecture seule,
-  jamais modifié) : sa comparaison structurée avec le compromis (parties, prix, bien, dates) est un
-  simple calcul côté client, jamais un appel au modèle, et son compromis est retrouvé automatiquement
-  sur le NAS pour alimenter aussi les passes IA (pas besoin de le réuploader). Chaque constat porte 4
-  niveaux de gravité (CRITIQUE/IMPORTANT/À_VÉRIFIER/INFORMATION) et une citation vérifiée dans le bon
-  document (jamais un score de confiance auto-déclaré par le modèle).
+  `GET /api/audit-acte/disponibilite` reste utilisée à l'ouverture de l'onglet pour dire tout de
+  suite si Ollama est installé et le modèle téléchargé. `POST /api/audit-acte/analyser` et le
+  dossier `src/audit/` n'existent plus.
 - Le wizard « Nouveau dossier » lui-même appelle aussi le modèle en arrière-plan, juste après
   l'extraction habituelle par regex (inchangée, toujours le chemin principal et immédiat) : il ne
   complète QUE ce que les regex n'ont pas trouvé et ne propose de nouveaux engagements du vendeur
@@ -319,11 +314,10 @@ l'étude préfère l'installer sur une machine dédiée du réseau plutôt que s
   éventuellement lié n'est jamais modifié, seulement lu).
 - **Non vérifié en conditions réelles dans cet environnement de développement** (pas de machine
   Windows ni d'Ollama installable ici) : le client HTTP (`src/llm.js`) et la route
-  (`src/routes/auditActe.js`) sont testés avec un faux serveur Ollama (voir
-  `test/audit-acte.test.js`, `test/audit-fusion.test.js`, `test/audit-normaliser.test.js`,
-  `test/audit-diagnostics.test.js`), mais la qualité réelle des constats produits par `llama3.1:8b`
-  sur de vrais projets d'actes, et le temps total d'un audit (jusqu'à 5 appels séquentiels), restent
-  à confirmer par l'étude.
+  d'approfondissement (`src/routes/auditActe.js`) sont testés avec un faux serveur Ollama (voir
+  `test/audit-approfondir.test.js`), mais la qualité réelle des constats produits par `llama3.1:8b`
+  reste à confirmer par l'étude. Le rapport principal d'Outil 2, lui, ne dépend plus d'Ollama du
+  tout : il s'affiche même sur un poste où le modèle n'est pas installé.
 
 ### Troisième usage du modèle : confirmer une offre de prêt
 
@@ -548,13 +542,12 @@ npm test
 cycle complet créer/lire/modifier/supprimer/restaurer un dossier, la résolution de configuration
 du mode `.exe` (mot de passe ET jeton calendrier), le service des fichiers statiques embarqués, le
 flux calendrier connecté (`/calendrier.ics`), l'extraction IA pour le wizard (`/api/extraction-ia`),
-l'audit des actes — Outil 2 (`/api/audit-acte/*`) — et les rappels automatiques par email
+l'approfondissement facultatif d'Outil 2 (`/api/audit-acte/approfondir`) et les rappels par email
 (réglages, client Power Automate, job de rappels avec un envoi injecté) — les trois premières avec
 un faux serveur Ollama HTTP, la dernière avec un faux webhook HTTP local (voir
-`test/extraction-ia.test.js`, `test/audit-acte.test.js`, `test/audit-fusion.test.js`,
-`test/audit-normaliser.test.js`, `test/audit-diagnostics.test.js`, `test/parametresRepo.test.js`,
+`test/extraction-ia.test.js`, `test/audit-approfondir.test.js`, `test/parametresRepo.test.js`,
 `test/envoi-email.test.js`, `test/rappels.test.js`, `test/reglages.test.js`).
-Indépendant de la suite de tests à la racine du dépôt (`npm test` depuis `Office-suivi/`, 413 tests
+Indépendant de la suite de tests à la racine du dépôt (`npm test` depuis `Office-suivi/`, 526 tests
 sur les fonctions pures de `script.js`) — les deux peuvent tourner sans que l'un dépende des
 dépendances de l'autre.
 

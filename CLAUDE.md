@@ -4754,6 +4754,18 @@ oubli) — à reprendre uniquement si redemandé un jour :
 Le CLAUDE.md de la branche `main` (tout ce qui précède cette section) reste la référence pour le
 mode 100% local, qui n'a subi aucune régression de ce chantier.
 
+- **⚠️ ARCHITECTURE PÉRIMÉE — les trois entrées qui suivent (« devient Outil 2 », « obligations du
+  vendeur, mémoire des constats, dossier proposé », « n'analysait qu'une petite partie d'un
+  document scanné ») décrivent l'Outil 2 à cinq passes Ollama, refait de zéro le 21/09/2026
+  après un test de l'étude (« c'est inutilisable, c'est trop long, il n'a jamais réussi à me
+  sortir quelque chose »).** Voir l'entrée « Outil 2 refait de zéro » en fin de section pour
+  l'architecture réellement en service. Elles sont conservées parce qu'elles portent des décisions
+  toujours valables (la vérification de citation à la place d'un score de confiance auto-déclaré,
+  la mémoire des constats, la proposition de dossier, la couverture de lecture page par page) et
+  des pièges déjà payés. Ce qui n'existe plus : `server/src/audit/`, les cinq passes,
+  `POST /api/audit-acte/analyser`, `verifierObligationsVendeur()`, la taxonomie à dix types de
+  documents et le sélecteur « Type de vente » de cet écran.
+
 - **"Analyse approfondie (IA)" devient Outil 2 — Audit intelligent des actes notariaux**, sur
   demande explicite de l'étude : « Outil 1 : lecteur de compromis signé (l'existant, suivi
   administratif) — Outil 2 : analyse approfondie de projet ». L'ancien outil (un seul prompt Ollama,
@@ -6307,6 +6319,111 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
     défaut après « Effacer », position et alignement mesurés, aucune erreur JS, aucun débordement
     horizontal.
 
+- **Outil 2 refait de zéro : « Relecture d'un acte », déterministe et instantané.** L'étude a
+  testé la version précédente et tranché : « c'est inutilisable, c'est trop long, il n'a jamais
+  réussi à me sortir quelque chose, il faut reprendre de zéro ». Cause : cinq appels Ollama en
+  SÉRIE sur le CPU d'un poste de bureau avant le moindre affichage — plusieurs minutes, et un
+  échec en cours de route faisait tout perdre. Le périmètre qu'elle a redonné dans la foulée est
+  beaucoup plus étroit que le cahier des charges en 19 sections d'origine, et surtout il ne
+  demande pas de modèle de langage : « il faut la même chose que pour l'outil 1 mais en plus
+  poussé ». C'est exactement ce que le nouvel outil fait — des règles, comme Outil 1.
+  - **Trois arbitrages demandés avant d'écrire une ligne** (via `AskUserQuestion`, l'étude ayant
+    posé comme consigne générale de ne pas deviner) : l'IA locale est **gardée en option, APRÈS le
+    résultat** ; en mode compromis on dépose **le compromis ET les justificatifs** ; le rapport se
+    limite **strictement aux quatre thèmes** demandés (préemption, servitudes et urbanisme général
+    sont explicitement hors périmètre — « un rapport court se lit, un inventaire ne se lit pas »).
+  - **Le rapport est calculé CÔTÉ CLIENT, synchrone, sans aucun appel réseau** (`analyserCompromisOutil2`,
+    `analyserProjetVenteOutil2`, script.js, deux sections « OUTIL 2 »). C'est toute la refonte : il
+    s'affiche à l'instant où les PDF sont lus. Le modèle local ne sert plus qu'au bouton
+    « Approfondir avec l'IA locale », sous le rapport — **une** requête, jamais bloquante, dont
+    l'échec ne coûte rien puisque le résultat est déjà à l'écran.
+  - **Mode « compromis / promesse » : quatre thèmes, et seulement ceux-là.**
+    1. **Travaux DÉJÀ réalisés** (`detecterTravauxRealises`) — un travail n'est retenu que s'il
+       porte un marqueur de réalisation PASSÉE (`RE_TRAVAUX_PASSES`), ce qui le distingue d'un
+       engagement futur (thème 4, déjà couvert par `extraireEngagementsVendeur`). Deux exclusions
+       indispensables : la clause de style « aucun travaux n'a été réalisé »
+       (`RE_AUCUN_TRAVAUX` — la retenir produirait un danger sur CHAQUE compromis, même piège que
+       la négation de copropriété déjà documentée) et les formulations d'engagement
+       (`RE_TRAVAUX_FUTURS`). Un travail intérieur sans incidence sur la structure ne produit
+       **aucun** constat : seuls le gros œuvre (`RE_TRAVAUX_GROS_OEUVRE`) et l'extérieur
+       (`RE_TRAVAUX_EXTERIEUR`) en produisent — autorisation d'urbanisme exigible, et garantie
+       décennale encore en cours si les travaux ont moins de dix ans (année lue dans la clause).
+    2. **Diagnostics périmés** — `DOCUMENTS_VALIDITE_OUTIL2` déclare la durée de chacun et
+       `calculerValiditeDocumentOutil2()` la compare à la date du jour, en JS pur. Plomb, amiante
+       et mesurage restent explicitement « non calculable » (leur durée dépend d'un résultat ou
+       d'une décision locale) plutôt que de deviner une règle : même prudence que `PIECES_*` en
+       leur temps.
+    3. **Entretiens et documents à obtenir** et 4. **travaux à faire avant la vente** —
+       `extraireEngagementsVendeur()` d'Outil 1, réutilisée TELLE QUELLE (c'est le « la même chose
+       que l'outil 1 » de la demande) ; le « plus poussé » est le rapprochement avec les
+       justificatifs déposés et le contrôle de leur date.
+  - **Mode « projet de vente » : comparer, et vérifier les dates** (`verifierEngagementsTenus`).
+    Une obligation n'est tenue que si une preuve existe ET que sa date est encore valable — c'est
+    le cas que l'étude a nommé mot pour mot (« entretien de chaudière fourni, mais a-t-il bien
+    moins d'un an ? »). Trois sources de preuve, dans cet ordre : le justificatif déposé (sa date
+    est lue), le projet lui-même quand il vise le document avec sa date, puis — en dernier
+    recours — la pièce déjà rangée sur le NAS du dossier CLAIRE lié. Cette dernière prouve que le
+    document EXISTE, jamais qu'il est valable (son fichier n'est pas lu ici) : d'où un statut
+    distinct, `tenue_non_datee` (« Au dossier, date non contrôlée »), plutôt que de la compter
+    comme tenue. Les clés de `DOCUMENTS_VALIDITE_OUTIL2` sont volontairement les MÊMES que celles
+    de `PIECES_ENGAGEMENTS_AUTO` : aucune table de correspondance à tenir à jour.
+  - **Date d'un justificatif** (`dateDuJustificatif`) : cherchée d'abord derrière un marqueur
+    explicite (« établi le », « date d'intervention »…), et seulement à défaut comme première date
+    du document — la toute première date d'un PDF est souvent sa date d'impression.
+  - **Dédoublonnage, trouvé en vérification visuelle et pas en relisant le code** : un document
+    cité DANS une clause d'engagement était détecté deux fois — une fois par
+    `detecterDocumentsDatesOutil2` (qui ne voit que la mention et sa date) et une fois par
+    `constatsEngagementsVendeur` (qui sait en plus si un justificatif a été déposé). Le rapport
+    affichait « entretien de la chaudière : date non trouvée » juste sous « entretien de la
+    chaudière fourni mais PÉRIMÉ ». Le second dit tout ce que dit le premier, et mieux : les clés
+    déjà couvertes par un engagement sont désormais retirées avant `constatsDocumentsDates`.
+    Produire deux fois le même constat est exactement le contraire de ce que l'étude demandait.
+  - **Ce qui disparaît** : `server/src/audit/{prompts,normaliser,fusion,diagnostics}.js` et leurs
+    quatre fichiers de tests, `POST /api/audit-acte/analyser`, `verifierObligationsVendeur()` et
+    `tests/audit-obligations.test.js` (la vérification part maintenant du TEXTE de l'avant-contrat,
+    comme l'étude l'a demandé, plus de l'état du dossier), le sélecteur « Type de vente » de cet
+    écran (il ne pilotait que la passe copropriété, supprimée) et la taxonomie à dix types de
+    documents, ramenée à quatre (`principal`, `reference_compromis`, `justificatif`, `autre`) — les
+    distinguer plus finement n'apporte rien, le rapprochement se faisant par le contenu et le nom
+    du fichier, pas par ce sélecteur.
+  - **Ce qui est conservé du chantier précédent** : la mémoire des constats (écarter/confirmer,
+    `empreinteConstat` étendue à `constat.phrase`, la clause littérale des règles, plus stable
+    qu'un titre reformulé), la proposition de dossier depuis les parties, la couverture de lecture
+    page par page (`lireTextePdfParPage`, `renderCouvertureAudit`), la comparaison structurée
+    (`comparerCompromisEtProjet`) et la vérification de citation côté serveur pour les seuls
+    constats du modèle.
+  - **`server/src/routes/auditActe.js` réécrit** : une seule route utile,
+    `POST /api/audit-acte/approfondir`. Le prompt reçoit ce que les règles ont DÉJÀ trouvé et
+    demande uniquement ce qui leur échappe — sans ça le modèle repasse son temps à redire les
+    mêmes choses. Un constat dont la citation n'est pas retrouvée LITTÉRALEMENT dans le document
+    est marqué comme tel (`extraitVerifie`), jamais présenté au même rang qu'une citation
+    confirmée. **Piège corrigé en écrivant ce module** : `localiserExtrait` renvoie `-1` et non
+    `null` quand la citation est introuvable — tester la nullité aurait marqué TOUTES les
+    citations inventées comme vérifiées.
+  - **Piège JavaScript rencontré, valable pour tout ce fichier** : `\b` est défini sur
+    `\w = [A-Za-z0-9_]`, une lettre ACCENTUÉE n'en fait pas partie. `\bÉtat` ne matche donc
+    JAMAIS (espace et É sont tous deux « non-mot », il n'y a aucune frontière entre eux) — c'est
+    ce qui faisait échouer silencieusement la détection de l'ERP. Toute alternative qui COMMENCE
+    par une lettre accentuée doit se passer du `\b` initial ; noté en commentaire au-dessus de
+    `DOCUMENTS_VALIDITE_OUTIL2`.
+  - **Corrigé au passage dans Outil 1** : `OBJET_TRAVAUX_RE` portait le nom « réparation » mais pas
+    le verbe, si bien que « le vendeur fera réparer le portail » ne ressortait pas comme un
+    engagement de travaux. Élargi à `\br[ée]par` (le `\b` évite de matcher « irréparable »), avec
+    un test de régression — c'est une vraie amélioration d'Outil 1, pas seulement d'Outil 2.
+  - Tests : `tests/outil2-dangers.test.js` (35) et `server/test/audit-approfondir.test.js` (8) ;
+    `tests/audit-obligations.test.js` et les quatre fichiers de tests des passes supprimés avec le
+    code qu'ils couvraient. Suite racine 526, serveur 202. **Vérifié dans un vrai Chromium**
+    (serveur réel, clair et sombre, 1500px et 400px) sur un compromis synthétique portant les
+    quatre thèmes : sept constats sans doublon, chacun titré par ce qu'il nomme et cité avec sa
+    page, quatre sections dans l'ordre, résumé par gravité cohérent avec le détail, « Écarter »
+    repliant bien le constat sans le supprimer, mode projet de vente affichant les trois statuts
+    d'obligation attendus, aucune erreur JS, aucun débordement horizontal.
+  - **Non vérifié en conditions réelles** : ni Ollama ni pdf.js ne sont disponibles dans cet
+    environnement de développement — la lecture d'un vrai PDF et la qualité du bouton
+    « Approfondir » restent à confirmer par l'étude. Le rapport déterministe, lui, a été exercé de
+    bout en bout sur du texte réaliste ; ce sont les REGEX qu'il faudra resserrer sur retour réel,
+    au même titre que celles d'Outil 1 (premier jet, comme `PIECES_*` en leur temps).
+
 ## Ce qui reste ouvert / pas encore fait
 
 - **Générateur d'appel de fonds : l'aperçu de pagination A4 de l'artefact n'est pas repris**
@@ -6334,13 +6451,13 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
   d'été/hiver — utiliser `date` seul afficherait une heure fausse pour l'étude). Affichés dans
   l'écran "À propos", c'est actuellement le seul moyen pour l'étude de vérifier qu'elle a bien la
   dernière copie (et de voir CE QUI a changé) avant de resignaler un bug déjà corrigé.
-- ~~**Outil 2 (Audit des actes) : `piecesManquantes` du §17 non implémenté**~~ — **fait**, sous une
-  forme plus riche que le diff prévu : la section « Obligations du vendeur » (`verifierObligationsVendeur`,
-  voir son entrée dans l'historique de la section « Mode serveur intranet ») croise les engagements
-  du dossier Outil 1 lié, l'état de ses pièces sur le NAS et les documents déposés dans Outil 2.
-  Reste ouvert : le cas SANS dossier lié (dériver les obligations du seul compromis de référence
-  déposé) — l'étude a explicitement choisi de s'appuyer sur le dossier lié, à reprendre si elle
-  demande le repli.
+- **Outil 2 : le cahier des charges en 19 sections n'est plus le périmètre.** L'étude l'a
+  volontairement réduit à quatre thèmes après avoir testé la version qui le suivait (voir
+  « Outil 2 refait de zéro »). Les sections abandonnées — préemption, servitudes, urbanisme
+  général, copropriété, titre de propriété, identification croisée — ne sont PAS à réintroduire
+  sans une demande explicite : « un rapport court se lit, un inventaire ne se lit pas ». Le
+  `piecesManquantes` du §17, jamais implémenté comme tel, est couvert autrement par la section
+  « Obligations du vendeur » du mode projet de vente.
 - **Outil 2 : connecteur openlegi (Légifrance/PISTE/RNE-INPI/EUR-Lex)**, question posée
   explicitement par l'étude — volontairement pas construit (voir son historique détaillé plus haut,
   section "Mode serveur intranet") : utile uniquement pour vérifier des faits statiques (durées de

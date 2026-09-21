@@ -136,3 +136,12 @@ test('l’origine trentenaire n’est pas une obligation du vendeur à réclamer
     "Le vendeur doit justifier de l'origine trentenaire de propriété du bien vendu.");
   assert.equal(e.length, 0);
 });
+
+test('le verbe « réparer » vaut engagement de travaux, comme le nom « réparation »', () => {
+  const app = chargerApplication();
+  // « faire réparer » est une tournure au moins aussi fréquente que « réparation » dans ces
+  // clauses ; OBJET_TRAVAUX_RE ne connaissait que le nom, la clause était donc abandonnée.
+  const e = app.extraireEngagementsVendeur("Le VENDEUR s'engage à faire réparer le portail du garage avant la vente.");
+  assert.equal(e.length, 1);
+  assert.equal(e[0].type, 'travaux');
+});

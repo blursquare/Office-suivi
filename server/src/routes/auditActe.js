@@ -1,191 +1,154 @@
 'use strict';
 
-// Outil 2 — Audit intelligent des actes notariaux (voir CLAUDE.md, section "Outil 2"). Remplace
-// l'ancienne "Analyse approfondie (IA)" (un seul prompt, un seul type de document) : ici, un
-// sélecteur de MODE choisi explicitement à l'upload (projet de compromis/promesse, ou projet
-// d'acte de vente notarié — jamais deviné), une taxonomie de documents qui route chacun vers les
-// seules passes qui en ont besoin (garder chaque appel Ollama petit sur un CPU de bureau sans GPU),
-// et cinq passes ciblées plutôt qu'un unique prompt fourre-tout couvrant les 19 sections du cahier
-// des charges.
+// Outil 2 — approfondissement OPTIONNEL par le modèle local.
 //
-// Tout ce qui PEUT être un calcul déterministe l'est : la comparaison compromis → projet de vente
-// sur les champs structurés (parties, prix, bien, dates) est un diff pur côté client
-// (comparerCompromisEtProjet, script.js — jamais redemandé au modèle), et la durée de validité
-// d'un diagnostic est calculée ici en JS pur (diagnostics.js) à partir de la seule date que le
-// modèle a identifiée. L'IA locale n'intervient que pour ce qui reste : lire des clauses en langage
-// libre à travers plusieurs documents et signaler une incohérence, toujours avec citation vérifiée.
+// Refonte complète, sur retour de l'étude : « j'ai testé l'outil 2 et c'est inutilisable, c'est
+// trop long, il n'a jamais réussi à me sortir quelque chose ». La version précédente enchaînait
+// CINQ appels Ollama en série (identification, diagnostics, travaux, urbanisme, copropriété) avant
+// d'afficher quoi que ce soit — plusieurs minutes sur le CPU d'un poste de bureau, et un échec en
+// cours de route faisait tout perdre.
+//
+// Le rapport est désormais calculé CÔTÉ CLIENT, instantanément et sans aucun appel réseau (voir
+// analyserCompromisOutil2 / analyserProjetVenteOutil2 dans script.js). Ce module ne sert plus qu'au
+// bouton « Approfondir avec l'IA », lancé par l'étude APRÈS avoir lu ce rapport : UNE seule requête,
+// jamais bloquante, dont l'échec ne coûte rien puisque le résultat déterministe est déjà à l'écran.
+//
+// Le modèle n'a plus du tout la charge de l'analyse : on lui donne ce que les règles ont DÉJÀ
+// trouvé et on lui demande uniquement ce qui leur échappe. C'est le seul usage où il apporte
+// quelque chose qu'une regex ne sait pas faire — lire une clause en langage libre — et le seul où
+// une erreur de sa part est sans conséquence, le rapport principal ne dépendant pas de lui.
 
 const express = require('express');
 const { creerClientOllama } = require('../llm');
-const { construirePromptIdentification, construirePromptDiagnostics, construirePromptTravaux,
-  construirePromptUrbanisme, construirePromptCopropriete } = require('../audit/prompts');
-const { normaliserPasseIdentification, normaliserPasseDiagnostics, normaliserPasseTravaux,
-  normaliserPasseUrbanisme, normaliserPasseCopropriete,
-  validerPasseIdentification, validerPasseDiagnostics, validerPasseTravaux,
-  validerPasseUrbanisme, validerPasseCopropriete, NATURES_DIAGNOSTIC } = require('../audit/normaliser');
-const { verifierConstats, fusionnerDiagnostics, calculerResume } = require('../audit/fusion');
+const { localiserExtrait } = require('../extraction/extraits');
 
-// Un diagnostic, une facture, un titre de propriété... tiennent largement dans cette limite ; un
-// projet d'acte lui-même (toujours du type "principal") peut être plus long, d'où la limite propre
-// à chaque document plutôt qu'un seul plafond global brutal.
-const LIMITE_CARACTERES_PAR_DOCUMENT = 20000;
-// Total toutes pièces confondues pour UNE SEULE passe : une passe qui recevrait dix diagnostics de
-// 20 000 caractères chacun resterait ingérable sur un CPU de bureau — au-delà, les documents
-// suivants sont simplement omis de cette passe (jamais coupés au milieu, voir preparerDocuments).
-const PLAFOND_CARACTERES_PASSE = 60000;
+// Un seul document, tronqué : l'appel doit rester court, c'est toute la raison de cette refonte.
+const LIMITE_CARACTERES_DOCUMENT = 18000;
+const MAX_CONSTATS_IA = 8;
 
-// Type de document déclaré à l'upload (voir script.js, ajouterFichiersAnalyseIa/
-// changerTypeFichierAnalyseIa) → passes qui en ont besoin. "principal" (le projet lui-même) figure
-// dans toutes les passes : c'est le document que chaque section compare aux autres.
-const TYPES_PAR_PASSE = {
-  identification: ['principal', 'titre', 'reference_compromis'],
-  diagnostics: ['principal', 'diagnostic'],
-  travaux: ['principal', 'facture', 'autorisation', 'decennale', 'reference_compromis'],
-  urbanisme: ['principal', 'urbanisme', 'titre', 'autorisation', 'decennale', 'reference_compromis'],
-  copropriete: ['principal', 'copropriete', 'reference_compromis']
-};
+const GRAVITES = ['CRITIQUE', 'IMPORTANT', 'A_VERIFIER', 'INFORMATION'];
 
-function documentsPourPasse(documents, passe) {
-  const types = TYPES_PAR_PASSE[passe];
-  return documents.filter((d) => types.includes(d.type));
+function tronquer(texte, limite) {
+  const t = String(texte || '');
+  if (t.length <= limite) return { texte: t, tronque: false };
+  return { texte: t.slice(0, limite), tronque: true };
 }
 
-// Tronque chaque document à LIMITE_CARACTERES_PAR_DOCUMENT, puis l'ensemble à
-// PLAFOND_CARACTERES_PASSE (un document entier omis plutôt que coupé en plein milieu si le plafond
-// est déjà atteint) — c'est ce texte-là qui va au modèle ; la vérification des citations, elle, se
-// fait toujours contre le texte COMPLET d'origine (voir fusion.js).
-function preparerDocumentsPourPasse(documents) {
-  const resultat = [];
-  let total = 0;
-  for (const d of documents) {
-    if (total >= PLAFOND_CARACTERES_PASSE) break;
-    const brut = String(d.texte || '');
-    const tronqueParDocument = brut.length > LIMITE_CARACTERES_PAR_DOCUMENT;
-    let texte = tronqueParDocument ? brut.slice(0, LIMITE_CARACTERES_PAR_DOCUMENT) : brut;
-    const disponible = PLAFOND_CARACTERES_PASSE - total;
-    const tronqueParPlafond = texte.length > disponible;
-    if (tronqueParPlafond) texte = texte.slice(0, disponible);
-    if (!texte) continue;
-    resultat.push({ nom: d.nom, texte, tronque: tronqueParDocument || tronqueParPlafond });
-    total += texte.length;
+// Le prompt dit explicitement ce que les règles couvrent déjà : sans ça, le modèle repasse son
+// temps à redire les mêmes choses, ce qui allonge la réponse sans rien apporter.
+function construirePromptApprofondissement(entree) {
+  const constatsConnus = (entree.constatsDejaTrouves || [])
+    .slice(0, 20)
+    .map(c => `- ${c}`)
+    .join('\n') || '- (aucun)';
+
+  return `Tu es notaire et tu relis un avant-contrat avant signature.
+
+Un contrôle AUTOMATIQUE a déjà été fait par des règles fiables. Il couvre déjà :
+- les travaux déjà réalisés touchant le gros œuvre ou l'extérieur (autorisation d'urbanisme, garantie décennale) ;
+- les diagnostics et entretiens périmés ;
+- les documents et travaux que le vendeur doit fournir ou réaliser avant la vente.
+
+Voici ce que ce contrôle a DÉJÀ relevé :
+${constatsConnus}
+
+Ta seule tâche : signaler ce qui ÉCHAPPE à ces règles — une clause dangereuse, une contradiction
+entre deux passages, une obligation formulée d'une façon inhabituelle. Ne répète JAMAIS un constat
+de la liste ci-dessus.
+
+Règles absolues :
+- n'invente rien : chaque constat doit citer un passage EXACT du document, recopié mot pour mot ;
+- si tu ne peux pas citer un passage exact, n'ajoute pas le constat ;
+- une absence de document n'est jamais "CRITIQUE" à elle seule ;
+- ${MAX_CONSTATS_IA} constats au maximum, les plus utiles d'abord ;
+- si tu ne vois rien de plus que les règles, réponds avec une liste vide.
+
+Réponds UNIQUEMENT en JSON, sans commentaire autour :
+{"constats":[{"titre":"...","description":"...","gravite":"CRITIQUE|IMPORTANT|A_VERIFIER|INFORMATION","extrait":"citation exacte"}]}
+
+DOCUMENT :
+${entree.texte}`;
+}
+
+function validerReponse(objet) {
+  if (!objet || typeof objet !== 'object') return 'la réponse doit être un objet JSON';
+  if (!Array.isArray(objet.constats)) return 'le champ "constats" doit être un tableau';
+  return null;
+}
+
+// Même discipline que partout ailleurs dans ce projet : liste blanche stricte, énumération forcée,
+// et surtout — un constat sans citation retrouvée LITTÉRALEMENT dans le document est marqué comme
+// tel plutôt que présenté au même rang qu'un constat vérifiable. La « certitude » auto-déclarée
+// d'un modèle 8B n'est calibrée sur rien ; la vérification de la citation, si.
+function normaliserConstatsIa(objet, texteDocument) {
+  const bruts = (objet && Array.isArray(objet.constats)) ? objet.constats : [];
+  const constats = [];
+  for (const c of bruts.slice(0, MAX_CONSTATS_IA)) {
+    if (!c || typeof c !== 'object') continue;
+    const titre = String(c.titre || '').trim();
+    if (!titre) continue;
+    const extrait = String(c.extrait || '').trim();
+    // localiserExtrait renvoie -1 (et non null) quand la citation est introuvable : tester la
+    // nullité laisserait passer TOUTES les citations inventées pour des citations vérifiées.
+    const position = extrait ? localiserExtrait(texteDocument, extrait) : -1;
+    constats.push({
+      categorie: 'IA',
+      source: 'ia',
+      gravite: GRAVITES.includes(c.gravite) ? c.gravite : 'A_VERIFIER',
+      titre,
+      description: String(c.description || '').trim(),
+      phrase: extrait || null,
+      extraitVerifie: position >= 0
+    });
   }
-  return resultat;
+  return constats;
 }
 
+// `config` est la configuration du serveur (app.js la passe telle quelle) ; les tests peuvent y
+// glisser un `llm` déjà fabriqué pour ne pas dépendre d'un vrai Ollama.
 function creerRouteurAuditActe(config) {
   const routeur = express.Router();
-  const ollama = creerClientOllama(config);
+  const llm = (config && config.llm) || creerClientOllama(config);
 
-  routeur.get('/audit-acte/disponibilite', async (req, res) => {
-    const statut = await ollama.verifierDisponibilite();
-    res.json({ ...statut, modele: ollama.modele });
+  routeur.get('/audit-acte/disponibilite', async (_req, res) => {
+    const statut = await llm.verifierDisponibilite();
+    res.json({ ...statut, modele: llm.modele });
   });
 
-  routeur.post('/audit-acte/analyser', async (req, res) => {
-    const documentsBruts = Array.isArray(req.body.documents) ? req.body.documents : [];
-    const documents = documentsBruts.filter(
-      (d) => d && typeof d.nom === 'string' && typeof d.type === 'string' && typeof d.texte === 'string' && d.texte.trim()
-    ).map((d) => ({ nom: d.nom, type: d.type, texte: d.texte, pages: Array.isArray(d.pages) ? d.pages : [] }));
+  routeur.post('/audit-acte/approfondir', async (req, res) => {
+    const corps = req.body || {};
+    const brut = String(corps.texte || '').trim();
+    if (!brut) return res.status(400).json({ erreur: 'Aucun texte à analyser.' });
 
-    if (!documents.some((d) => d.type === 'principal')) {
-      res.status(400).json({ erreur: 'Aucun document "principal" (le projet lui-même) fourni.' });
-      return;
+    const dispo = await llm.verifierDisponibilite();
+    if (!dispo.disponible) {
+      return res.status(503).json({ erreur: dispo.message || 'Modèle local indisponible.' });
     }
 
-    const statut = await ollama.verifierDisponibilite();
-    if (!statut.disponible) {
-      res.status(503).json({ erreur: statut.raison });
-      return;
-    }
-
-    const mode = typeof req.body.mode === 'string' ? req.body.mode : null;
-    const typeVente = typeof req.body.typeVente === 'string' ? req.body.typeVente : null;
-    const avecReference = documents.some((d) => d.type === 'reference_compromis');
-
-    const objetFinal = {
-      constats: [], diagnostics: [], travaux: [], urbanisme: [], preemptions: [], servitudes: [],
-      copropriete: [], dates: [], erreursPasses: []
-    };
-
-    // Chaque passe est isolée : l'échec d'une seule (timeout Ollama, réponse hors schéma deux fois
-    // de suite) ne doit pas priver l'étude des quatre autres, plusieurs minutes de calcul déjà
-    // englouties. L'échec est consigné en clair (erreursPasses) plutôt que passé sous silence.
-    async function executerPasse(nom, fn) {
-      try {
-        return await fn();
-      } catch (err) {
-        objetFinal.erreursPasses.push({ passe: nom, message: err.message });
-        return null;
-      }
-    }
-
-    // Passe 1 — identification (bien, parties, prix, dates, titre) : toujours exécutée.
-    const resultatIdentification = await executerPasse('identification', async () => {
-      const docs = preparerDocumentsPourPasse(documentsPourPasse(documents, 'identification'));
-      const brut = await ollama.genererJson(construirePromptIdentification(docs, avecReference), validerPasseIdentification);
-      return normaliserPasseIdentification(brut).constats;
+    const { texte, tronque } = tronquer(brut, LIMITE_CARACTERES_DOCUMENT);
+    const prompt = construirePromptApprofondissement({
+      texte,
+      constatsDejaTrouves: Array.isArray(corps.constatsDejaTrouves) ? corps.constatsDejaTrouves : []
     });
-    if (resultatIdentification) {
-      const verifies = verifierConstats(resultatIdentification, documents);
-      for (const c of verifies) (c.categorie === 'DATES' ? objetFinal.dates : objetFinal.constats).push(c);
+
+    try {
+      const objet = await llm.genererJson(prompt, validerReponse);
+      res.json({ constats: normaliserConstatsIa(objet, texte), tronque, modele: dispo.modele || null });
+    } catch (e) {
+      // L'échec est sans conséquence : le rapport déterministe est déjà affiché côté client.
+      res.status(502).json({ erreur: `Le modèle local n'a pas pu répondre : ${e.message}` });
     }
-
-    // Passe 2 — diagnostics : le modèle identifie, le calcul de validité est fait en JS pur.
-    const resultatDiagnostics = await executerPasse('diagnostics', async () => {
-      const docs = preparerDocumentsPourPasse(documentsPourPasse(documents, 'diagnostics'));
-      const brut = await ollama.genererJson(construirePromptDiagnostics(docs, [...NATURES_DIAGNOSTIC]), validerPasseDiagnostics);
-      return normaliserPasseDiagnostics(brut).diagnostics;
-    });
-    if (resultatDiagnostics) {
-      objetFinal.diagnostics = fusionnerDiagnostics(resultatDiagnostics, documents, new Date().toISOString().slice(0, 10));
-    }
-
-    // Passe 3 — travaux (PRIORITAIRE, §5) : toujours exécutée, avant la passe 4 qui s'appuie sur
-    // ses constats les plus significatifs pour orienter sa recherche d'autorisations/garanties.
-    const resultatTravaux = await executerPasse('travaux', async () => {
-      const docs = preparerDocumentsPourPasse(documentsPourPasse(documents, 'travaux'));
-      const brut = await ollama.genererJson(construirePromptTravaux(docs, avecReference), validerPasseTravaux);
-      return normaliserPasseTravaux(brut).travaux;
-    });
-    if (resultatTravaux) objetFinal.travaux = verifierConstats(resultatTravaux, documents);
-
-    const titresTravaux = objetFinal.travaux
-      .filter((t) => t.gravite === 'CRITIQUE' || t.gravite === 'IMPORTANT')
-      .map((t) => t.titre)
-      .slice(0, 8);
-
-    // Passe 4 — urbanisme, autorisations, garanties, préemption, servitudes (§6, §7, §9, §10, §11).
-    const resultatUrbanisme = await executerPasse('urbanisme', async () => {
-      const docs = preparerDocumentsPourPasse(documentsPourPasse(documents, 'urbanisme'));
-      const brut = await ollama.genererJson(construirePromptUrbanisme(docs, titresTravaux), validerPasseUrbanisme);
-      return normaliserPasseUrbanisme(brut).constats;
-    });
-    if (resultatUrbanisme) {
-      const verifies = verifierConstats(resultatUrbanisme, documents);
-      for (const c of verifies) {
-        if (c.categorie === 'PREEMPTION') objetFinal.preemptions.push(c);
-        else if (c.categorie === 'SERVITUDE') objetFinal.servitudes.push(c);
-        else objetFinal.urbanisme.push(c); // URBANISME, AUTORISATION, GARANTIE
-      }
-    }
-
-    // Passe 5 — copropriété (§12), seulement si le bien vendu en est une : inutile de solliciter le
-    // modèle sur une section qui ne concerne pas ce dossier.
-    if (typeVente === 'copropriete') {
-      const resultatCopropriete = await executerPasse('copropriete', async () => {
-        const docs = preparerDocumentsPourPasse(documentsPourPasse(documents, 'copropriete'));
-        const brut = await ollama.genererJson(construirePromptCopropriete(docs), validerPasseCopropriete);
-        return normaliserPasseCopropriete(brut).copropriete;
-      });
-      if (resultatCopropriete) objetFinal.copropriete = verifierConstats(resultatCopropriete, documents);
-    }
-
-    objetFinal.resume = calculerResume(objetFinal, mode, documents.length);
-    res.json({ ...objetFinal, modele: ollama.modele });
   });
 
   return routeur;
 }
 
-// Fonctions pures exposées pour les tests (server/test/audit-acte.test.js).
-module.exports = { creerRouteurAuditActe, documentsPourPasse, preparerDocumentsPourPasse, TYPES_PAR_PASSE, LIMITE_CARACTERES_PAR_DOCUMENT, PLAFOND_CARACTERES_PASSE };
+module.exports = {
+  creerRouteurAuditActe,
+  construirePromptApprofondissement,
+  normaliserConstatsIa,
+  validerReponse,
+  tronquer,
+  LIMITE_CARACTERES_DOCUMENT,
+  MAX_CONSTATS_IA
+};

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-21 22:29';
+  const VERSION_APP = '2026-09-21 23:02';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-21 23:02', resume: "Outil 2 (Relecture d'un acte) refait de zéro : il ne passe plus par le modèle IA pour produire son rapport, qui s'affiche désormais instantanément, sans attente et sans serveur. Sur un compromis, il cherche quatre dangers précis et seulement ceux-là : les travaux déjà faits qui touchent le gros œuvre ou l'extérieur (autorisation d'urbanisme, garantie décennale), les diagnostics périmés, les entretiens et documents à obtenir du vendeur, les travaux qu'il doit faire avant la vente. Sur un projet de vente, il compare à l'avant-contrat signé et dit, engagement par engagement, s'il a été tenu — un justificatif peut être déposé et sa DATE est contrôlée (l'entretien de chaudière fourni a-t-il bien moins d'un an ?). Le modèle local reste disponible, en option, par un bouton sous le rapport" },
     { version: '2026-09-21 22:29', resume: "Appel de fonds : la mention « Envoi par e-mail uniquement » prend désormais la PLACE de l'adresse postale du destinataire, sous son nom, au lieu de s'ajouter au-dessus. Saisir une adresse dans « Adresse des clients » la fait disparaître et affiche l'adresse à la place — les deux ne peuvent pas cohabiter sur le même courrier. Elle reste modifiable dans l'aperçu (pour écrire « Envoi recommandé avec AR », par exemple), suit dans le .docx téléchargé, et le bouton « Effacer » la remet à sa formulation par défaut" },
     { version: '2026-09-21 22:09', resume: "Appel de fonds : le champ « Adresse du bien » propose désormais les adresses officielles de la Base Adresse Nationale (data.gouv.fr) pendant la frappe, et reprend simplement celle du dossier quand un dossier est rattaché — une note sous le champ dit d'où vient l'adresse affichée. Seul appel vers un service extérieur de tout CLAIRE : seul le texte tapé dans ce champ part, jamais un nom de dossier ni de client, et un poste sans internet garde la saisie libre. Corrigé au passage : le menu de recherche de dossier de cet écran s'affichait en boutons bruts, sans séparateur ni survol" },
     { version: '2026-09-21 22:02', resume: "Appel de fonds, trois retouches. Le bloc destinataire du courrier est aligné à droite dans l'aperçu, comme sur le papier. Le dépôt de garantie versé à l'agence est désormais DÉDUIT du virement demandé, l'agence reversant la somme à l'étude — la version de ce matin ne le déduisait pas, ce qui faisait réclamer au client une somme trop forte ; la fiche rappelle de réclamer ces fonds avant la signature. Enfin, la ligne « frais et droits de l'acte de vente » est contrôlée contre le barème du simulateur, comme les prorata l'étaient déjà : CLAIRE dit si le montant est au-dessus ou en dessous, sans jamais le remplir — ce barème n'a pas été audité. Corrigé au passage : un prorata écrit sans parenthèses n'était pas recalculé du tout" },
@@ -2896,106 +2897,26 @@
     return constats;
   }
 
-  // ==== OUTIL 2 : les obligations du vendeur ont-elles été tenues ? ====
+  // ==== OUTIL 2 : vocabulaire commun aux obligations du vendeur ====
   //
-  // Demandé par l'étude pour la relecture d'un projet d'acte de vente : entre le compromis et
-  // l'acte, le vendeur s'est engagé à fournir des attestations d'entretien, des factures de
-  // travaux, une garantie décennale, à réaliser des travaux… Le dossier Outil 1 porte déjà tout
-  // ce qu'il faut pour répondre SANS IA — un croisement de trois sources, toutes déterministes :
-  //   1. les engagements lus dans le compromis à la création du dossier (d.analyseJuridique), dont
-  //      les documents reconnus alimentent la checklist (PIECES_ENGAGEMENTS_AUTO, checklistPieces) ;
-  //   2. le statut de chaque pièce de cette checklist sur le NAS (d.pieces, d.fichiersTrouves) ;
-  //   3. les documents déposés dans Outil 2 lui-même (une facture, une attestation… déposée à
-  //      l'audit compte comme fournie, même si elle n'est pas encore rangée dans le dossier NAS).
-  // Le dossier n'est jamais modifié : un document déposé ici ne coche rien dans la checklist, la
-  // pièce sera marquée reçue par le parcours NAS habituel une fois rangée dans le dossier client
-  // (choix explicite de l'étude, Outil 2 reste un outil de lecture).
-  //
-  // Une obligation dont aucune pièce type ne correspond (« le vendeur fera réparer la toiture ») ne
-  // peut pas être vérifiée par un document : elle ressort « à vérifier », avec la clause et sa page,
-  // jamais « non tenue » — l'outil ne sait pas, il ne prétend pas savoir.
-
-  // Un document déposé dans Outil 2 vaut pour une pièce type : par son TYPE déclaré quand il est
-  // sans ambiguïté (une « facture de travaux » EST la pièce facturesTravaux), sinon par son nom de
-  // fichier, avec les mêmes motifNom que le parcours NAS (normalisation identique — voir
-  // normaliserNomPourMotif — pour qu'un fichier reconnu dans le dossier client le soit aussi ici).
-  var TYPE_DEPOT_VERS_PIECE = { facture: 'facturesTravaux', decennale: 'garantieDecennale' };
-
-  function documentDeposePourPiece(piece, documentsDeposes) {
-    for (const doc of documentsDeposes || []) {
-      if (!doc || !doc.nom) continue;
-      if (TYPE_DEPOT_VERS_PIECE[doc.type] === piece.cle) return doc;
-      if (piece.motifNom && piece.motifNom.test(normaliserNomPourMotif(doc.nom))) return doc;
-    }
-    return null;
-  }
-
+  // La vérification elle-même vit plus bas (verifierEngagementsTenus) : elle part du TEXTE de
+  // l'avant-contrat et des justificatifs déposés, comme l'étude l'a demandé, plutôt que de l'état
+  // du dossier Outil 1. Un dossier CLAIRE lié reste malgré tout une source de preuve utile —
+  // l'attestation de ramonage peut déjà être rangée sur le NAS et reconnue par le parcours
+  // habituel, auquel cas la redéposer ici n'aurait aucun sens.
   var LIBELLES_CAT_OBLIGATION = { entretien: 'Entretien', travaux: 'Travaux', justificatif: 'Justificatif', document: 'Document', autre: 'Autre' };
 
-  function verifierObligationsVendeur(d, documentsDeposes) {
-    if (!d) return [];
-    const obligations = [];
-    const pieces = d.pieces || {};
-    const fichiers = d.fichiersTrouves || {};
-    const engagements = (d.analyseJuridique && Array.isArray(d.analyseJuridique.engagements))
-      ? d.analyseJuridique.engagements : [];
-
-    // Pour chaque pièce de la checklist issue d'un engagement, la clause d'origine quand on peut la
-    // retrouver : c'est elle que l'étude veut relire, pas seulement le libellé générique.
-    const clausePourCle = {};
-    for (const e of engagements) {
-      const phrase = typeof e === 'string' ? e : (e && e.phrase);
-      if (!phrase) continue;
-      for (const doc of detecterDocumentsAFournir([phrase])) {
-        if (doc.cleChecklist && !clausePourCle[doc.cleChecklist]) {
-          clausePourCle[doc.cleChecklist] = { phrase, page: (typeof e === 'object' && e.page) || null };
-        }
-      }
-    }
-
-    const attendues = checklistPieces(d.typeVente, d).filter(p => p.autoEngagement);
-    for (const piece of attendues) {
-      const connu = DOCUMENTS_VENDEUR_CONNUS.find(x => x.cleChecklist === piece.cle);
-      const cat = connu ? connu.cat : 'document';
-      const clause = clausePourCle[piece.cle] || null;
-      const base = { cle: piece.cle, label: piece.label, cat, clause: clause ? clause.phrase : null, page: clause ? clause.page : null };
-      if (pieces[piece.cle] === 'recue') {
-        obligations.push({ ...base, statut: 'tenue', gravite: 'INFORMATION', preuve: { source: 'dossier', nom: fichiers[piece.cle] || null } });
-        continue;
-      }
-      const depose = documentDeposePourPiece(piece, documentsDeposes);
-      if (depose) {
-        obligations.push({ ...base, statut: 'tenue', gravite: 'INFORMATION', preuve: { source: 'depot', nom: depose.nom } });
-        continue;
-      }
-      // Jamais CRITIQUE sur une simple absence (§16 du cahier des charges) : IMPORTANT au plus.
-      obligations.push({ ...base, statut: 'non_tenue', gravite: 'IMPORTANT', preuve: null });
-    }
-
-    // Engagements sans pièce type : rien à cocher, mais à relire — la clause le dit mieux qu'un
-    // libellé, et sa page permet de la retrouver dans le compromis.
-    const clesCouvertes = new Set(attendues.map(p => p.cle));
-    for (const e of engagements) {
-      const phrase = typeof e === 'string' ? e : (e && e.phrase);
-      if (!phrase) continue;
-      const docs = detecterDocumentsAFournir([phrase]);
-      if (docs.some(doc => doc.cleChecklist && clesCouvertes.has(doc.cleChecklist))) continue;
-      obligations.push({
-        cle: null,
-        label: phrase.length > 140 ? phrase.slice(0, 137) + '…' : phrase,
-        cat: (typeof e === 'object' && e.type) || 'autre',
-        clause: phrase,
-        page: (typeof e === 'object' && e.page) || null,
-        statut: 'a_verifier',
-        gravite: 'A_VERIFIER',
-        preuve: null
-      });
-    }
-
-    // Les manquements d'abord : c'est ce qu'on vient chercher avant de signer.
-    const rang = { non_tenue: 0, a_verifier: 1, tenue: 2 };
-    obligations.sort((a, b) => rang[a.statut] - rang[b.statut]);
-    return obligations;
+  // Les clés de DOCUMENTS_VALIDITE_OUTIL2 (ramonage, entretienChaudiere, entretienPac) sont
+  // volontairement les MÊMES que celles de PIECES_ENGAGEMENTS_AUTO : aucune table de
+  // correspondance à tenir à jour, et une clé sans équivalent dans la checklist ne trouve
+  // simplement rien. La pièce trouvée sur le NAS prouve qu'elle EXISTE, jamais qu'elle est encore
+  // valable : son fichier n'a pas été lu ici, donc sa date n'a pas été contrôlée — c'est dit tel
+  // quel plutôt que de la compter comme une obligation tenue.
+  function preuveDansDossierLie(cle, dossier) {
+    if (!cle || !dossier || !dossier.pieces) return null;
+    if (dossier.pieces[cle] !== 'recue') return null;
+    const fichiers = dossier.fichiersTrouves || {};
+    return { source: 'dossier', nom: fichiers[cle] || null, date: null };
   }
 
   // ==== OUTIL 2 : proposer le dossier Outil 1 qui correspond au projet ====
@@ -3039,6 +2960,592 @@
     }
     scores.sort((a, b) => b.score - a.score);
     return scores.map(s => s.dossier);
+  }
+
+  // ==== OUTIL 2 : DANGERS DU COMPROMIS (100 % déterministe, aucun appel au modèle) ====
+  //
+  // Refonte complète, sur retour de l'étude : « j'ai testé l'outil 2 et c'est inutilisable, c'est
+  // trop long, il n'a jamais réussi à me sortir quelque chose ». La version précédente enchaînait
+  // CINQ appels Ollama en série sur le CPU d'un poste de bureau — plusieurs minutes, et un échec
+  // en cours de route faisait tout perdre. Tout ce que l'étude demande en réalité se lit par des
+  // règles, exactement comme l'outil 1 : le rapport est donc calculé instantanément, sans serveur,
+  // et le modèle local n'intervient plus qu'à la demande, APRÈS le résultat (bouton dédié).
+  //
+  // Périmètre arrêté avec l'étude, volontairement limité à quatre thèmes :
+  //   1. travaux DÉJÀ FAITS et déclarés — danger s'ils touchent au gros œuvre ou à l'extérieur
+  //      (autorisation d'urbanisme exigible, garantie décennale encore en cours à moins de 10 ans) ;
+  //   2. diagnostics périmés à la date de l'analyse ;
+  //   3. entretiens et documents que le vendeur doit fournir (chaudière, ramonage…) ;
+  //   4. travaux que le vendeur doit réaliser AVANT la vente.
+  // Préemption, servitudes et urbanisme général sont hors périmètre (choix explicite de l'étude) :
+  // un rapport court et lisible vaut mieux qu'un inventaire que personne ne lit.
+
+  // Durées de validité. PREMIER JET, au même titre que PIECES_* en leur temps : les durées fixes
+  // sont fiables, celles qui dépendent d'un résultat (plomb, amiante) ou d'une décision locale
+  // restent explicitement « à vérifier » plutôt que devinées. `motif` sert à la fois à repérer le
+  // document dans le texte du compromis ET à reconnaître un justificatif déposé par son nom de
+  // fichier.
+  // PIÈGE RENCONTRÉ EN ÉCRIVANT CES MOTIFS, valable pour tout le fichier : en JavaScript, \b est
+  // défini sur \w = [A-Za-z0-9_] — une lettre ACCENTUÉE n'est pas un caractère de mot. « \bÉtat »
+  // ne matche donc JAMAIS (espace et É sont tous deux « non-mot », il n'y a aucune frontière entre
+  // eux). Toute alternative qui COMMENCE par une lettre accentuée doit se passer du \b initial.
+  var DOCUMENTS_VALIDITE_OUTIL2 = {
+    dpe: { label: 'Diagnostic de performance énergétique (DPE)', famille: 'diagnostic', dureeMois: 120,
+      motif: /\b(?:DPE|diagnostics?\s+de\s+performance\s+[ée]nerg[ée]tique)\b/i },
+    erp: { label: 'État des risques et pollutions (ERP)', famille: 'diagnostic', dureeMois: 6,
+      motif: /(?:[ée]tat\s+des\s+risques(?:\s+et\s+(?:de\s+)?pollutions?)?|\bERP\b)/i },
+    termites: { label: 'État relatif à la présence de termites', famille: 'diagnostic', dureeMois: 6,
+      motif: /\btermites?\b/i },
+    electricite: { label: "État de l'installation intérieure d'électricité", famille: 'diagnostic', dureeMois: 36,
+      motif: /(?:installation\s+int[ée]rieure\s+d['’]?\s*[ée]lectricit[ée]|diagnostics?\s+[ée]lectricit[ée]|[ée]tat\s+de\s+l['’]?\s*installation\s+[ée]lectrique)/i },
+    gaz: { label: "État de l'installation intérieure de gaz", famille: 'diagnostic', dureeMois: 36,
+      motif: /(?:installation\s+int[ée]rieure\s+(?:de\s+)?gaz|diagnostics?\s+gaz|[ée]tat\s+de\s+l['’]?\s*installation\s+(?:de\s+)?gaz)/i },
+    assainissement: { label: "Contrôle d'assainissement non collectif", famille: 'diagnostic', dureeMois: 36,
+      motif: /\b(?:assainissement\s+non\s+collectif|\bSPANC\b)/i,
+      note: 'Contrôle de moins de 3 ans exigé à la vente — durée à reconfirmer auprès du SPANC de la commune.' },
+    amiante: { label: "Constat de repérage d'amiante", famille: 'diagnostic', dureeMois: null,
+      motif: /\bamiante\b/i,
+      note: "Illimitée si le repérage est négatif, à renouveler s'il est positif — dépend du RÉSULTAT, non déductible ici." },
+    plomb: { label: "Constat de risque d'exposition au plomb (CREP)", famille: 'diagnostic', dureeMois: null,
+      motif: /\b(?:plomb|\bCREP\b)/i,
+      note: "Illimitée en l'absence de plomb, 1 an si présence détectée — dépend du RÉSULTAT, non déductible ici." },
+    mesurage: { label: 'Mesurage (loi Carrez)', famille: 'diagnostic', dureeMois: null,
+      motif: /\b(?:loi\s+Carrez|mesurage|superficie\s+privative)\b/i,
+      note: 'Illimitée sauf travaux modifiant la surface depuis son établissement — à recouper avec les travaux déclarés.' },
+    entretienChaudiere: { label: 'Entretien annuel de la chaudière', famille: 'entretien', dureeMois: 12,
+      motif: /\b(?:entretien[^.]{0,30}chaudi[èe]re|chaudi[èe]re[^.]{0,30}entretien)\b/i },
+    ramonage: { label: 'Ramonage du conduit de fumée', famille: 'entretien', dureeMois: 12,
+      motif: /\bramonage\b/i },
+    entretienPac: { label: 'Entretien de la pompe à chaleur', famille: 'entretien', dureeMois: 24,
+      motif: /\b(?:pompe\s+[àa]\s+chaleur|\bPAC\b)/i,
+      note: 'Tous les 2 ans entre 4 et 70 kW ; aucune obligation en dessous de 4 kW — à recouper avec la puissance réelle.' }
+  };
+
+  // Même contrat que calculerValiditeDiagnostic() côté serveur, mais côté client et élargi aux
+  // entretiens : c'est ici que se joue la question posée par l'étude (« entretien de chaudière
+  // fourni, mais a-t-il bien moins d'un an ? »). Sans date, aucun calcul — un statut dédié plutôt
+  // qu'une expiration inventée.
+  function calculerValiditeDocumentOutil2(cle, dateEtablissement, dateReference) {
+    const entree = DOCUMENTS_VALIDITE_OUTIL2[cle];
+    if (!entree) return { statut: 'INCONNU', label: null, dateExpiration: null, message: 'Document non reconnu par la table de validité.' };
+    if (!dateEtablissement) {
+      return { statut: 'DATE_MANQUANTE', label: entree.label, dateExpiration: null,
+        message: `Aucune date trouvée pour « ${entree.label} » : sa validité ne peut pas être vérifiée.` };
+    }
+    if (entree.dureeMois == null) {
+      return { statut: 'NON_CALCULABLE', label: entree.label, dateExpiration: null,
+        message: entree.note || 'Durée de validité non déterminable automatiquement — à vérifier.' };
+    }
+    const dateExpiration = ajouterMois(dateEtablissement, entree.dureeMois);
+    if (!dateExpiration) {
+      return { statut: 'DATE_INVALIDE', label: entree.label, dateExpiration: null,
+        message: `Date illisible pour « ${entree.label} » : validité non vérifiable.` };
+    }
+    const reference = dateReference || new Date().toISOString().slice(0, 10);
+    const valide = dateExpiration >= reference;
+    return {
+      statut: valide ? 'VALIDE' : 'EXPIRE', label: entree.label, dateExpiration, valide,
+      message: valide
+        ? `Valable jusqu'au ${formatDateFr(dateExpiration)}.`
+        : `PÉRIMÉ depuis le ${formatDateFr(dateExpiration)} — un document à jour doit être produit avant la vente.`
+    };
+  }
+
+  // Une date, numérique ou en toutes lettres, dans un fragment. Volontairement distincte de
+  // detecterDatesDepuisTexte() (outil 1) : celle-ci cherche des ÉCHÉANCES avec tout son appareil de
+  // filtres (clauses hypothétiques, citations de loi, annexes) ; ici on veut simplement la date
+  // d'établissement d'un document, dans une fenêtre de quelques dizaines de caractères.
+  var RE_DATE_NUM_LIBRE = /\b(\d{1,2})\s*[\/\-.]\s*(\d{1,2})\s*[\/\-.]\s*((?:19|20)\d{2})\b/;
+  var RE_DATE_TEXTE_LIBRE = /\b(\d{1,2})(?:er)?\s+(janvier|f[ée]vrier|mars|avril|mai|juin|juillet|ao[ûu]t|septembre|octobre|novembre|d[ée]cembre)\s+((?:19|20)\d{2})\b/i;
+
+  function premiereDateDansFragment(fragment) {
+    const txt = String(fragment || '');
+    const num = txt.match(RE_DATE_NUM_LIBRE);
+    const lettres = txt.match(RE_DATE_TEXTE_LIBRE);
+    // La première des deux dans le fragment, pas la première des deux regex.
+    const candidats = [];
+    if (num) candidats.push({ index: num.index, iso: toISO(Number(num[3]), Number(num[2]) - 1, Number(num[1])) });
+    if (lettres) {
+      const mois = MOIS[lettres[2].toLowerCase().replace('û', 'u').replace('é', 'e')];
+      if (mois != null) candidats.push({ index: lettres.index, iso: toISO(Number(lettres[3]), mois, Number(lettres[1])) });
+    }
+    if (candidats.length === 0) return null;
+    candidats.sort((a, b) => a.index - b.index);
+    const iso = candidats[0].iso;
+    return /^\d{4}-\d{2}-\d{2}$/.test(iso) && !Number.isNaN(new Date(iso + 'T00:00:00Z').getTime()) ? iso : null;
+  }
+
+  // Fenêtre bornée par la fin de phrase : une date située après le point suivant appartient déjà à
+  // une autre clause et n'a aucune raison d'être celle du document cherché.
+  function fragmentApres(texte, index, longueur) {
+    const brut = String(texte || '').slice(index, index + (longueur || 260));
+    const point = brut.indexOf('.');
+    return point > 0 ? brut.slice(0, point) : brut;
+  }
+
+  function phraseAutour(texte, index, avant, apres) {
+    const t = String(texte || '');
+    let debut = index, n = 0;
+    while (debut > 0 && n < (avant || 250)) { if (t[debut - 1] === '.') break; debut--; n++; }
+    let fin = index; n = 0;
+    while (fin < t.length && n < (apres || 350)) { if (t[fin] === '.') { fin++; break; } fin++; n++; }
+    return { phrase: t.slice(debut, fin).replace(/\s+/g, ' ').trim(), debut, fin };
+  }
+
+  // --- Thème 1 : travaux DÉJÀ RÉALISÉS et déclarés dans l'acte -------------------------------
+  // Le danger nommé par l'étude : des travaux touchant au GROS ŒUVRE ou à l'EXTÉRIEUR du bien
+  // exigent une autorisation d'urbanisme, et engagent la garantie décennale s'ils ont moins de
+  // dix ans. Une réfection intérieure sans incidence sur la structure, non.
+  var RE_TRAVAUX_MOT = /\b(?:travaux|r[ée]novation|r[ée]habilitation|agrandissement|extension|sur[ée]l[ée]vation|ravalement|r[ée]fection|am[ée]nagement|construction|v[ée]randa|piscine|abri\s+de\s+jardin|carport|pergola|terrasse|cl[ôo]ture|portail|toiture|charpente|couverture|isolation|combles)\b/gi;
+
+  // Marqueur d'une réalisation PASSÉE : c'est lui qui distingue « des travaux ont été réalisés »
+  // (thème 1) de « le vendeur s'engage à faire réaliser des travaux » (thème 4, déjà couvert par
+  // extraireEngagementsVendeur).
+  var RE_TRAVAUX_PASSES = /(?:ont|a|ayant|avoir)\s+[ée]t[ée]\s+(?:r[ée]alis|effectu|ex[ée]cut|entrepr|achev|termin|construit|[ée]difi)|d[ée]clare\s+(?:avoir\s+)?(?:fait\s+)?(?:r[ée]alis|proc[ée]d|effectu|ex[ée]cut|construit|[ée]difi)|(?:r[ée]alis[ée]s?|effectu[ée]s?|ex[ée]cut[ée]s?|achev[ée]s?|construits?|[ée]difi[ée]s?)\s+(?:en|le|courant|depuis|il\s+y\s+a|au\s+cours)\b/i;
+
+  // Une déclaration de NON-travaux est la clause de style la plus fréquente de tout l'acte : la
+  // retenir produirait un danger sur chaque compromis (même piège que la négation de copropriété,
+  // déjà documenté pour COPROPRIETE_RE).
+  var RE_AUCUN_TRAVAUX = /\b(?:aucun[es]?\s+travaux|aucune\s+(?:construction|extension|r[ée]novation|modification)|n['’]\s*(?:a|ont)\s+(?:pas\s+|jamais\s+)?(?:fait\s+)?(?:r[ée]alis\w*|effectu\w*|entrepr\w*)\s+aucun|pas\s+de\s+travaux|n['’]\s*a\s+[ée]t[ée]\s+r[ée]alis[ée]\s+aucun)/i;
+
+  // Un engagement FUTUR n'est pas un travail déjà fait : il relève du thème 4.
+  var RE_TRAVAUX_FUTURS = /\bs['’]\s*(?:engage|oblige)\b|\bdevra\s+(?:faire\s+)?(?:r[ée]alis|ex[ée]cut|effectu)|\bs['’]\s*engage\s+[àa]\s+faire\b|\bavant\s+la\s+(?:vente|signature)\b[^.]{0,40}\bfera\b/i;
+
+  var RE_TRAVAUX_GROS_OEUVRE = /\b(?:gros\s*[-\s]?\s*(?:œuvre|oeuvre)|murs?\s+porteurs?|charpente|toiture|couverture|fondations?|dalle|plancher|poutre|structure|sur[ée]l[ée]vation|ouverture\s+(?:dans|d['’]un)\s+(?:un\s+)?mur)\b/i;
+  var RE_TRAVAUX_EXTERIEUR = /\b(?:ext[ée]rieur|fa[çc]ade|ravalement|toiture|couverture|v[ée]randa|extension|agrandissement|piscine|abri\s+de\s+jardin|carport|garage|terrasse|cl[ôo]ture|portail|pergola|d[ée]pendance|annexe|combles\s+am[ée]nag)/i;
+
+  var RE_AUTORISATION_URBANISME = /\b(?:d[ée]claration\s+pr[ée]alable|permis\s+de\s+construire|permis\s+d['’]am[ée]nager|autorisation\s+d['’]urbanisme|\bDP\s*n[°ºo]|\bPC\s*n[°ºo]|non[-\s]?opposition|d[ée]claration\s+attestant\s+l['’]ach[èe]vement)\b/i;
+  var RE_DECENNALE = /\b(?:garantie\s+d[ée]cennale|assurance\s+d[ée]cennale|responsabilit[ée]\s+d[ée]cennale|dommages?[-\s]ouvrage)\b/i;
+  var RE_FAIT_PAR_SOI_MEME = /\b(?:par\s+(?:lui|elle)[-\s]m[êe]me|par\s+ses\s+soins|en\s+auto[-\s]?construction|sans\s+recours\s+[àa]\s+(?:une\s+)?entreprise)\b/i;
+  var RE_ANNEE_TRAVAUX = /\b((?:19|20)\d{2})\b/;
+
+  // aujourdHui est toujours injecté : la fonction reste pure et testable (même convention que
+  // grouperEcheancesParSemaine / calculerValiditeDocumentOutil2).
+  function detecterTravauxRealises(texte, pages, aujourdHui) {
+    const src = String(texte || '');
+    const resultats = [];
+    const vus = new Set();
+    const re = new RegExp(RE_TRAVAUX_MOT.source, 'gi');
+    let m;
+    while ((m = re.exec(src)) !== null) {
+      const { phrase, debut } = phraseAutour(src, m.index, 250, 350);
+      if (phrase.length < 25) continue;
+      const cle = phrase.slice(0, 80).toLowerCase();
+      if (vus.has(cle)) continue;
+      if (!RE_TRAVAUX_PASSES.test(phrase)) continue;
+      if (RE_AUCUN_TRAVAUX.test(phrase)) continue;
+      if (RE_TRAVAUX_FUTURS.test(phrase)) continue;
+      vus.add(cle);
+
+      const grosOeuvre = RE_TRAVAUX_GROS_OEUVRE.test(phrase);
+      const exterieur = RE_TRAVAUX_EXTERIEUR.test(phrase);
+      const anneeMatch = phrase.match(RE_ANNEE_TRAVAUX);
+      const annee = anneeMatch ? Number(anneeMatch[1]) : null;
+      const anneeCourante = Number(String(aujourdHui || new Date().toISOString().slice(0, 10)).slice(0, 4));
+      // Moins de dix ans : la garantie décennale court encore, son attestation doit être produite.
+      const sousDecennale = annee ? (anneeCourante - annee) < 10 : null;
+
+      resultats.push({
+        phrase,
+        page: pageDepuisIndexPages(pages, debut),
+        grosOeuvre,
+        exterieur,
+        soumisAutorisation: grosOeuvre || exterieur,
+        autorisationMentionnee: RE_AUTORISATION_URBANISME.test(phrase),
+        decennaleMentionnee: RE_DECENNALE.test(phrase),
+        faitParLeVendeur: RE_FAIT_PAR_SOI_MEME.test(phrase),
+        annee,
+        sousDecennale
+      });
+    }
+    return resultats;
+  }
+
+  // Traduit un travail déclaré en constats. Un travail intérieur sans incidence sur la structure
+  // ne produit AUCUN constat : c'est ce qui garde le rapport court et lisible.
+  function constatsTravauxRealises(travaux) {
+    const constats = [];
+    for (const t of travaux || []) {
+      if (!t.soumisAutorisation) continue;
+      const ou = t.grosOeuvre ? 'le gros œuvre' : "l'extérieur du bien";
+      const situe = t.annee ? ` (${t.annee})` : '';
+      if (!t.autorisationMentionnee) {
+        constats.push({
+          categorie: 'TRAVAUX_REALISES',
+          gravite: 'CRITIQUE',
+          titre: `Travaux touchant ${ou}${situe} : aucune autorisation d'urbanisme mentionnée`,
+          description: "Ces travaux relèvent au minimum d'une déclaration préalable. Réclamer l'autorisation et la déclaration attestant l'achèvement, ou faire constater la prescription.",
+          phrase: t.phrase, page: t.page
+        });
+      }
+      if (t.sousDecennale === true && !t.decennaleMentionnee) {
+        constats.push({
+          categorie: 'TRAVAUX_REALISES',
+          gravite: 'IMPORTANT',
+          titre: `Travaux de moins de dix ans (${t.annee}) : garantie décennale non justifiée`,
+          description: t.faitParLeVendeur
+            ? "Travaux déclarés réalisés par le vendeur lui-même : aucune décennale ne couvre l'acquéreur, l'information doit figurer à l'acte."
+            : "Réclamer l'attestation d'assurance décennale de l'entreprise et les factures correspondantes.",
+          phrase: t.phrase, page: t.page
+        });
+      }
+      if (t.sousDecennale === null) {
+        constats.push({
+          categorie: 'TRAVAUX_REALISES',
+          gravite: 'A_VERIFIER',
+          titre: `Travaux touchant ${ou} sans date précisée`,
+          description: "Impossible de savoir si la garantie décennale court encore : faire préciser l'année de réalisation.",
+          phrase: t.phrase, page: t.page
+        });
+      }
+    }
+    return constats;
+  }
+
+  // --- Thème 2 : diagnostics et entretiens datés dans l'acte ---------------------------------
+  // Cherche chaque document connu dans le texte, puis la première date qui suit dans la même
+  // phrase — la rédaction notariale est constante sur ce point (« … établi le 12 mars 2024 par la
+  // société X », « … en date du 5 janvier 2026 »).
+  function detecterDocumentsDatesOutil2(texte, pages, aujourdHui) {
+    const src = String(texte || '');
+    const trouves = [];
+    for (const cle of Object.keys(DOCUMENTS_VALIDITE_OUTIL2)) {
+      const entree = DOCUMENTS_VALIDITE_OUTIL2[cle];
+      const re = new RegExp(entree.motif.source, 'i');
+      const m = src.match(re);
+      if (!m || m.index == null) continue;
+      const fragment = fragmentApres(src, m.index, 300);
+      const date = premiereDateDansFragment(fragment);
+      trouves.push({
+        cle, label: entree.label, famille: entree.famille,
+        dateEtablissement: date,
+        page: pageDepuisIndexPages(pages, m.index),
+        phrase: phraseAutour(src, m.index, 120, 260).phrase,
+        validite: calculerValiditeDocumentOutil2(cle, date, aujourdHui)
+      });
+    }
+    return trouves;
+  }
+
+  function constatsDocumentsDates(documents) {
+    const constats = [];
+    for (const d of documents || []) {
+      const v = d.validite || {};
+      if (v.statut === 'EXPIRE') {
+        constats.push({
+          categorie: d.famille === 'entretien' ? 'ENTRETIENS' : 'DIAGNOSTICS',
+          gravite: 'CRITIQUE',
+          titre: `${d.label} périmé`,
+          description: v.message, phrase: d.phrase, page: d.page
+        });
+      } else if (v.statut === 'DATE_MANQUANTE') {
+        constats.push({
+          categorie: d.famille === 'entretien' ? 'ENTRETIENS' : 'DIAGNOSTICS',
+          gravite: 'A_VERIFIER',
+          titre: `${d.label} : date non trouvée`,
+          description: v.message, phrase: d.phrase, page: d.page
+        });
+      } else if (v.statut === 'NON_CALCULABLE') {
+        constats.push({
+          categorie: d.famille === 'entretien' ? 'ENTRETIENS' : 'DIAGNOSTICS',
+          gravite: 'INFORMATION',
+          titre: `${d.label} : validité à vérifier`,
+          description: v.message, phrase: d.phrase, page: d.page
+        });
+      }
+    }
+    return constats;
+  }
+
+  // --- Thèmes 3 et 4 : ce que le vendeur doit fournir ou faire --------------------------------
+  // Réutilise TELLE QUELLE l'extraction de l'outil 1 (extraireEngagementsVendeur), éprouvée sur de
+  // vrais actes — « la même chose que pour l'outil 1 mais en plus poussé » : le « plus poussé »
+  // est ici le rapprochement avec les justificatifs déposés et le contrôle de leurs dates.
+  var GRAVITE_PAR_TYPE_ENGAGEMENT = { travaux: 'CRITIQUE', entretien: 'IMPORTANT', document: 'IMPORTANT', autre: 'A_VERIFIER' };
+
+  function constatsEngagementsVendeur(engagements, justificatifsParCle, aujourdHui) {
+    const constats = [];
+    for (const e of engagements || []) {
+      const cle = clePourEngagement(e.phrase);
+      const justif = cle && justificatifsParCle ? justificatifsParCle[cle] : null;
+      const categorie = e.type === 'travaux' ? 'TRAVAUX_A_FAIRE' : (e.type === 'entretien' ? 'ENTRETIENS' : 'DOCUMENTS');
+      if (justif && justif.document) {
+        const v = calculerValiditeDocumentOutil2(cle, justif.date, aujourdHui);
+        if (v.statut === 'EXPIRE') {
+          constats.push({
+            categorie, gravite: 'CRITIQUE',
+            titre: `${v.label} fourni mais PÉRIMÉ`,
+            description: `${justif.document} — ${v.message}`,
+            phrase: e.phrase, page: e.page
+          });
+        } else if (v.statut === 'DATE_MANQUANTE') {
+          constats.push({
+            categorie, gravite: 'A_VERIFIER',
+            titre: `${DOCUMENTS_VALIDITE_OUTIL2[cle].label} fourni, date illisible`,
+            description: `${justif.document} — aucune date n'a pu être lue dans le document : la vérifier à l'œil.`,
+            phrase: e.phrase, page: e.page
+          });
+        }
+        continue; // Justificatif présent et valable : rien à signaler.
+      }
+      constats.push({
+        categorie,
+        gravite: GRAVITE_PAR_TYPE_ENGAGEMENT[e.type] || 'A_VERIFIER',
+        titre: e.type === 'travaux'
+          ? 'Travaux à réaliser par le vendeur avant la vente'
+          : (cle ? `${DOCUMENTS_VALIDITE_OUTIL2[cle].label} : à obtenir du vendeur` : "Document à obtenir du vendeur"),
+        description: cle
+          ? `Aucun justificatif déposé pour « ${DOCUMENTS_VALIDITE_OUTIL2[cle].label} ».`
+          : "Engagement du vendeur relevé dans l'acte, sans justificatif déposé.",
+        phrase: e.phrase, page: e.page
+      });
+    }
+    return constats;
+  }
+
+  // Relie une clause d'engagement à une entrée de la table de validité, quand elle en désigne une :
+  // c'est ce qui permet ensuite de dater le justificatif déposé et d'en contrôler l'ancienneté.
+  function clePourEngagement(phrase) {
+    const p = String(phrase || '');
+    for (const cle of Object.keys(DOCUMENTS_VALIDITE_OUTIL2)) {
+      if (DOCUMENTS_VALIDITE_OUTIL2[cle].motif.test(p)) return cle;
+    }
+    return null;
+  }
+
+  // --- Justificatifs déposés ------------------------------------------------------------------
+  // La date d'un justificatif est cherchée d'abord derrière un marqueur explicite (« établi le »,
+  // « en date du », « date d'intervention »…), et seulement à défaut comme première date du
+  // document : la toute première date d'un PDF est souvent sa date d'impression, pas celle de
+  // l'intervention.
+  var RE_MARQUEUR_DATE_DOCUMENT = /(?:[ée]tabli(?:e)?\s+le|en\s+date\s+du|dat[ée]\s+du|r[ée]alis[ée]\s+le|effectu[ée]\s+le|date\s+(?:de\s+(?:la\s+)?(?:visite|l['’]?intervention|r[ée]alisation)|d['’]?intervention|d['’]?[ée]tablissement|du\s+contr[ôo]le)|fait\s+le|le\s+pr[ée]sent\s+(?:rapport|certificat|constat)[^.]{0,40}\ble\b)/gi;
+  var TAILLE_ENTETE_JUSTIFICATIF = 6000;
+
+  function dateDuJustificatif(texte) {
+    const entete = String(texte || '').slice(0, TAILLE_ENTETE_JUSTIFICATIF);
+    const re = new RegExp(RE_MARQUEUR_DATE_DOCUMENT.source, 'gi');
+    let m;
+    while ((m = re.exec(entete)) !== null) {
+      const date = premiereDateDansFragment(entete.slice(m.index + m[0].length, m.index + m[0].length + 60));
+      if (date) return date;
+    }
+    return premiereDateDansFragment(entete);
+  }
+
+  // Rapproche chaque justificatif déposé d'une entrée de la table, par son NOM de fichier d'abord
+  // (le plus fiable : c'est l'étude qui le nomme), par son contenu ensuite.
+  function rapprocherJustificatifs(documentsDeposes) {
+    const parCle = {};
+    for (const doc of documentsDeposes || []) {
+      const nom = normaliserNomPourMotif(doc.nom || '');
+      const texte = String(doc.texte || '');
+      for (const cle of Object.keys(DOCUMENTS_VALIDITE_OUTIL2)) {
+        if (parCle[cle]) continue;
+        const motif = DOCUMENTS_VALIDITE_OUTIL2[cle].motif;
+        if (!motif.test(nom) && !motif.test(texte.slice(0, 3000))) continue;
+        parCle[cle] = { document: doc.nom, date: dateDuJustificatif(texte) };
+      }
+    }
+    return parCle;
+  }
+
+  var ORDRE_GRAVITE_OUTIL2 = { CRITIQUE: 0, IMPORTANT: 1, A_VERIFIER: 2, INFORMATION: 3 };
+
+  // Point d'entrée du mode « lecture du compromis ». Tout est synchrone : le rapport s'affiche dès
+  // que les PDF sont lus, sans le moindre aller-retour serveur.
+  function analyserCompromisOutil2(entree) {
+    const texte = (entree && entree.texte) || '';
+    const pages = (entree && entree.pages) || [];
+    const aujourdHui = (entree && entree.aujourdHui) || new Date().toISOString().slice(0, 10);
+    const justificatifs = rapprocherJustificatifs((entree && entree.documentsDeposes) || []);
+
+    const travaux = detecterTravauxRealises(texte, pages, aujourdHui);
+    const documents = detecterDocumentsDatesOutil2(texte, pages, aujourdHui);
+    const engagements = typeof extraireEngagementsVendeur === 'function' ? extraireEngagementsVendeur(texte) : [];
+
+    const clesEngagees = new Set();
+    for (const e of engagements) {
+      const cle = clePourEngagement(e.phrase);
+      if (cle) clesEngagees.add(cle);
+    }
+
+    const constats = []
+      .concat(constatsTravauxRealises(travaux))
+      .concat(constatsDocumentsDates(documents.filter(d => !clesEngagees.has(d.cle))))
+      .concat(constatsEngagementsVendeur(engagements, justificatifs, aujourdHui));
+
+    constats.sort((a, b) => (ORDRE_GRAVITE_OUTIL2[a.gravite] ?? 9) - (ORDRE_GRAVITE_OUTIL2[b.gravite] ?? 9));
+
+    const resume = { CRITIQUE: 0, IMPORTANT: 0, A_VERIFIER: 0, INFORMATION: 0 };
+    for (const c of constats) { if (resume[c.gravite] != null) resume[c.gravite]++; }
+
+    return { mode: 'compromis', constats, resume, travaux, documents, engagements, justificatifs, aujourdHui };
+  }
+
+  // ==== OUTIL 2 : LECTURE D'UN PROJET DE VENTE (comparaison avec l'avant-contrat) ==============
+  //
+  // Périmètre arrêté avec l'étude : « comparer SEULEMENT l'avant-contrat avec le projet de vente et
+  // voir si les engagements ont été tenus et réalisés », avec la possibilité de déposer les
+  // justificatifs et de contrôler leurs dates. Deux sources de vérité, rien d'autre.
+  //
+  // L'obligation est tenue si — et seulement si — l'une de ces deux preuves existe :
+  //   • un justificatif déposé, dont la date est encore valable à la date de l'analyse ;
+  //   • le PROJET lui-même qui vise le document avec sa date (« … justifie de l'entretien annuel
+  //     de la chaudière effectué le 12 mars 2026 »), date elle aussi contrôlée.
+  // Un justificatif déposé mais PÉRIMÉ n'est pas une obligation tenue : c'est le cas que l'étude a
+  // explicitement nommé (« entretien de chaudière fourni, mais a-t-il bien moins d'un an ? »).
+
+  function preuveDansProjet(cle, texteProjet, pagesProjet, aujourdHui) {
+    const entree = DOCUMENTS_VALIDITE_OUTIL2[cle];
+    if (!entree || !texteProjet) return null;
+    const m = String(texteProjet).match(new RegExp(entree.motif.source, 'i'));
+    if (!m || m.index == null) return null;
+    const date = premiereDateDansFragment(fragmentApres(texteProjet, m.index, 300));
+    return {
+      source: 'projet',
+      page: pageDepuisIndexPages(pagesProjet, m.index),
+      date,
+      validite: calculerValiditeDocumentOutil2(cle, date, aujourdHui)
+    };
+  }
+
+  function verifierEngagementsTenus(entree) {
+    const texteAvantContrat = (entree && entree.texteAvantContrat) || '';
+    const texteProjet = (entree && entree.texteProjet) || '';
+    const pagesProjet = (entree && entree.pagesProjet) || [];
+    const aujourdHui = (entree && entree.aujourdHui) || new Date().toISOString().slice(0, 10);
+    const justificatifs = rapprocherJustificatifs((entree && entree.documentsDeposes) || []);
+    const engagements = typeof extraireEngagementsVendeur === 'function' ? extraireEngagementsVendeur(texteAvantContrat) : [];
+
+    const obligations = [];
+    for (const e of engagements) {
+      const cle = clePourEngagement(e.phrase);
+      const label = cle ? DOCUMENTS_VALIDITE_OUTIL2[cle].label : null;
+      const base = { cle, label, type: e.type, clause: e.phrase, page: e.page };
+
+      const depose = cle ? justificatifs[cle] : null;
+      if (depose && depose.document) {
+        const v = calculerValiditeDocumentOutil2(cle, depose.date, aujourdHui);
+        obligations.push({
+          ...base,
+          statut: v.statut === 'EXPIRE' ? 'perime' : (v.statut === 'DATE_MANQUANTE' ? 'date_illisible' : 'tenue'),
+          preuve: { source: 'depot', nom: depose.document, date: depose.date },
+          validite: v
+        });
+        continue;
+      }
+
+      const dansProjet = cle ? preuveDansProjet(cle, texteProjet, pagesProjet, aujourdHui) : null;
+      if (dansProjet && dansProjet.date) {
+        obligations.push({
+          ...base,
+          statut: dansProjet.validite.statut === 'EXPIRE' ? 'perime' : 'tenue',
+          preuve: { source: 'projet', page: dansProjet.page, date: dansProjet.date },
+          validite: dansProjet.validite
+        });
+        continue;
+      }
+
+      // Troisième source, en dernier recours : la pièce est peut-être déjà rangée sur le NAS et
+      // reconnue par le parcours habituel d'Outil 1. Elle vient APRÈS les deux autres, qui portent
+      // une date contrôlable — celle-ci prouve seulement l'existence du document.
+      const dansDossier = preuveDansDossierLie(cle, entree && entree.dossierLie);
+      if (dansDossier) {
+        obligations.push({ ...base, statut: 'tenue_non_datee', preuve: dansDossier, validite: null });
+        continue;
+      }
+
+      obligations.push({
+        ...base,
+        // Une clause sans document type (« le vendeur fera réparer la toiture ») ne peut pas être
+        // cochée automatiquement : l'outil ne prétend pas savoir, il la remet sous les yeux.
+        statut: cle ? 'non_tenue' : 'a_verifier',
+        preuve: null,
+        validite: null
+      });
+    }
+
+    const rang = { perime: 0, non_tenue: 1, date_illisible: 2, a_verifier: 3, tenue_non_datee: 4, tenue: 5 };
+    obligations.sort((a, b) => rang[a.statut] - rang[b.statut]);
+    return obligations;
+  }
+
+  var LIBELLES_STATUT_OBLIGATION_OUTIL2 = {
+    perime: { texte: 'Justificatif périmé', dl: 'dl-urgent', gravite: 'CRITIQUE' },
+    non_tenue: { texte: 'Non justifiée', dl: 'dl-urgent', gravite: 'CRITIQUE' },
+    date_illisible: { texte: 'Date illisible', dl: 'dl-pret', gravite: 'A_VERIFIER' },
+    a_verifier: { texte: 'À vérifier à la main', dl: 'dl-pret', gravite: 'A_VERIFIER' },
+    tenue_non_datee: { texte: 'Au dossier, date non contrôlée', dl: 'dl-pret', gravite: 'A_VERIFIER' },
+    tenue: { texte: 'Tenue', dl: 'dl-success', gravite: 'INFORMATION' }
+  };
+
+  function constatsObligationsOutil2(obligations) {
+    const constats = [];
+    for (const o of obligations || []) {
+      if (o.statut === 'tenue') continue;
+      const etat = LIBELLES_STATUT_OBLIGATION_OUTIL2[o.statut] || LIBELLES_STATUT_OBLIGATION_OUTIL2.a_verifier;
+      let description;
+      if (o.statut === 'perime') description = `${o.preuve && o.preuve.nom ? o.preuve.nom + ' — ' : ''}${o.validite ? o.validite.message : ''}`;
+      else if (o.statut === 'non_tenue') description = "Aucun justificatif déposé, et le projet de vente n'en vise aucun avec sa date.";
+      else if (o.statut === 'date_illisible') description = "Justificatif déposé, mais aucune date n'a pu y être lue : la vérifier à l'œil.";
+      else if (o.statut === 'tenue_non_datee') description = `La pièce est déjà rangée dans le dossier client${o.preuve && o.preuve.nom ? ' (' + o.preuve.nom + ')' : ''}, mais son fichier n'a pas été lu ici : sa date reste à vérifier.`;
+      else description = "Engagement sans document type : à contrôler à la main dans le projet.";
+      constats.push({
+        categorie: 'OBLIGATIONS',
+        gravite: etat.gravite,
+        titre: o.label ? `${o.label} : ${etat.texte.toLowerCase()}` : "Engagement du vendeur à contrôler",
+        description,
+        phrase: o.clause,
+        page: o.page
+      });
+    }
+    return constats;
+  }
+
+  // Un travail déclaré dans l'avant-contrat et qui disparaît du projet de vente est un vrai
+  // signal : la déclaration doit être reprise dans l'acte, c'est elle qui engage le vendeur.
+  function constatsTravauxNonRepris(travauxAvantContrat, texteProjet) {
+    const constats = [];
+    const projet = String(texteProjet || '');
+    for (const t of travauxAvantContrat || []) {
+      if (!t.soumisAutorisation) continue;
+      const mots = (t.phrase.match(RE_TRAVAUX_MOT) || []).map(x => x.toLowerCase());
+      const repris = mots.some(mot => projet.toLowerCase().includes(mot));
+      if (repris) continue;
+      constats.push({
+        categorie: 'TRAVAUX_REALISES',
+        gravite: 'IMPORTANT',
+        titre: 'Travaux déclarés dans l’avant-contrat, absents du projet de vente',
+        description: "La déclaration de travaux du vendeur doit être reprise dans l'acte : c'est elle qui l'engage.",
+        phrase: t.phrase, page: t.page
+      });
+    }
+    return constats;
+  }
+
+  // Point d'entrée du mode « projet de vente ». Comme le mode compromis : entièrement synchrone.
+  function analyserProjetVenteOutil2(entree) {
+    const aujourdHui = (entree && entree.aujourdHui) || new Date().toISOString().slice(0, 10);
+    const texteAvantContrat = (entree && entree.texteAvantContrat) || '';
+    const texteProjet = (entree && entree.texteProjet) || '';
+    const pagesAvantContrat = (entree && entree.pagesAvantContrat) || [];
+
+    const obligations = verifierEngagementsTenus({ ...entree, aujourdHui });
+    const comparaison = (entree && entree.reference && entree.projet)
+      ? comparerCompromisEtProjet(entree.reference, entree.projet) : [];
+    const travaux = detecterTravauxRealises(texteAvantContrat, pagesAvantContrat, aujourdHui);
+
+    const constats = []
+      .concat(comparaison)
+      .concat(constatsObligationsOutil2(obligations))
+      .concat(constatsTravauxNonRepris(travaux, texteProjet));
+
+    constats.sort((a, b) => (ORDRE_GRAVITE_OUTIL2[a.gravite] ?? 9) - (ORDRE_GRAVITE_OUTIL2[b.gravite] ?? 9));
+
+    const resume = { CRITIQUE: 0, IMPORTANT: 0, A_VERIFIER: 0, INFORMATION: 0 };
+    for (const c of constats) { if (resume[c.gravite] != null) resume[c.gravite]++; }
+
+    return { mode: 'acte', constats, resume, obligations, comparaison, travaux, aujourdHui };
   }
 
   // Corrections apportées À LA MAIN entre ce que l'extraction proposait et ce qui est réellement
@@ -3347,7 +3854,7 @@
   // des obligations de comportement, sans document ni chantier à suivre — elles sont écartées.
   const OBJET_DOCUMENT_RE = /certificat|attestation|justificatif|justifer|justifier|diagnostic|facture|devis|[ée]tat\s+parasitaire|police\s+d.assurance|contr[ôo]le|audit|document/i;
   const OBJET_ENTRETIEN_RE = /entretien|ramonage|vidange|d[ée]broussaill|[ée]lagage|curage|nettoyage/i;
-  const OBJET_TRAVAUX_RE = /travaux|r[ée]paration|remettre\s+en\s+[ée]tat|remise\s+en\s+[ée]tat|mise\s+en\s+conformit[ée]|r[ée]gularis|d[ée]barras|d[ée]gazage|d[ée]molition|raccordement|remplacement|d[ée]pollution|enl[èe]vement|lib[ée]rer\s+les\s+lieux|r[ée]silier/i;
+  const OBJET_TRAVAUX_RE = /travaux|\br[ée]par|remettre\s+en\s+[ée]tat|remise\s+en\s+[ée]tat|mise\s+en\s+conformit[ée]|r[ée]gularis|d[ée]barras|d[ée]gazage|d[ée]molition|raccordement|remplacement|d[ée]pollution|enl[èe]vement|lib[ée]rer\s+les\s+lieux|r[ée]silier/i;
 
   // Une énumération d'équipements vendus avec le bien (immeubles par destination) contient beaucoup
   // de mots-clés d'équipement sans être un engagement : on l'écarte explicitement.
@@ -9805,7 +10312,11 @@
   function empreinteConstat(constat) {
     if (!constat) return new Set();
     const sources = Array.isArray(constat.sources) ? constat.sources : [];
-    const extrait = sources.map(s => s && s.extrait).find(Boolean) || '';
+    // `phrase` = la clause recopiée du document par les règles déterministes (voir
+    // analyserCompromisOutil2) ; `sources[].extrait` = la citation d'un constat venu du modèle.
+    // Les deux sont du texte littéral de l'acte, donc stables d'un audit à l'autre sur une même
+    // trame — bien plus que le titre, reformulé à chaque fois du côté du modèle.
+    const extrait = constat.phrase || sources.map(s => s && s.extrait).find(Boolean) || '';
     const texte = [constat.titre || constat.label || '', extrait || constat.description || constat.message || ''].join(' ');
     return tokeniserApprentissage(normaliserTexteApprentissage(texte));
   }
@@ -12129,28 +12640,26 @@
   let compteurFichierAnalyseIa = 0;
   let analyseIaEnCours = false;
 
-  // Mode choisi EXPLICITEMENT à l'upload (jamais deviné, demande explicite de l'étude) : détermine
-  // si la comparaison avec un compromis/une promesse de référence a lieu (§13 du cahier des
-  // charges). auditTypeVente ('auto'|'maison'|'copropriete'|'terrain') pilote uniquement si la passe
-  // copropriété (§12) est exécutée côté serveur. auditDossierLie (mode 'acte' seulement) évite de
-  // réuploader le compromis quand le dossier est déjà suivi dans CLAIRE — jamais modifié, lu seul.
+  // Mode choisi EXPLICITEMENT au dépôt (jamais deviné, demande de l'étude) : « lecture du
+  // compromis » (chercher les dangers dans un avant-contrat) ou « lecture d'un projet de vente »
+  // (comparer ce projet à l'avant-contrat déjà signé et vérifier que les engagements ont été
+  // tenus). auditDossierLie (mode 'acte' seulement) évite de redéposer l'avant-contrat quand le
+  // dossier est déjà suivi dans CLAIRE — jamais modifié, lu seul.
   let auditMode = 'compromis';
-  let auditTypeVente = 'auto';
   let auditDossierLie = null;
 
-  // Taxonomie des documents : chaque type route le document vers les seules passes qui en ont
-  // besoin côté serveur (voir TYPES_PAR_PASSE, server/src/routes/auditActe.js) — garder le contexte
-  // de chaque appel Ollama petit sur le CPU de bureau de l'étude, sans GPU.
+  // Taxonomie volontairement COURTE (4 types) : elle ne sert plus à router un document vers l'une
+  // des cinq passes du modèle — il n'y en a plus — mais seulement à dire à l'outil ce qu'il a sous
+  // les yeux. Un « justificatif » est une pièce produite par le vendeur pour prouver qu'il a tenu
+  // un engagement (attestation d'entretien, facture, décennale, diagnostic) : c'est le seul type
+  // dont l'outil lit la DATE, pour répondre à la question posée par l'étude — « entretien de
+  // chaudière fourni, mais a-t-il bien moins d'un an ? ». Les distinguer plus finement
+  // (diagnostic / facture / décennale / urbanisme…) n'apporterait rien : le rapprochement avec
+  // l'engagement se fait par le contenu et le nom du fichier, pas par ce sélecteur.
   var TYPES_DOCUMENT_AUDIT = [
-    { valeur: 'principal', libelle: 'Principal (le projet lui-même)' },
-    { valeur: 'reference_compromis', libelle: 'Compromis / promesse de référence' },
-    { valeur: 'titre', libelle: 'Titre de propriété' },
-    { valeur: 'diagnostic', libelle: 'Diagnostic technique' },
-    { valeur: 'urbanisme', libelle: "Document d'urbanisme" },
-    { valeur: 'facture', libelle: 'Facture de travaux' },
-    { valeur: 'autorisation', libelle: "Autorisation d'urbanisme" },
-    { valeur: 'decennale', libelle: 'Garantie / assurance décennale' },
-    { valeur: 'copropriete', libelle: 'Document de copropriété' },
+    { valeur: 'principal', libelle: 'Principal (le document à relire)' },
+    { valeur: 'reference_compromis', libelle: 'Avant-contrat signé (référence)' },
+    { valeur: 'justificatif', libelle: "Justificatif d'une obligation" },
     { valeur: 'autre', libelle: 'Autre pièce' }
   ];
 
@@ -12158,11 +12667,13 @@
     auditMode = (valeur === 'acte') ? 'acte' : 'compromis';
     const bloc = document.getElementById('audit-reference-bloc');
     if (bloc) bloc.style.display = auditMode === 'acte' ? '' : 'none';
+    const aide = document.getElementById('audit-aide-mode');
+    if (aide) {
+      aide.textContent = auditMode === 'acte'
+        ? "Le projet est comparé à l'avant-contrat signé : parties, prix, désignation du bien, et surtout les engagements du vendeur — ont-ils été tenus, et les justificatifs sont-ils encore valables ?"
+        : "L'avant-contrat est relu à la recherche de dangers : travaux déjà faits touchant le gros œuvre ou l'extérieur, diagnostics périmés, entretiens et documents à obtenir, travaux à faire avant la vente.";
+    }
     calculerPropositionsDossierAudit();
-  }
-
-  function changerAuditTypeVente(valeur) {
-    auditTypeVente = valeur;
   }
 
   // Recherche d'un dossier CLAIRE à lier à l'audit (mode "projet d'acte de vente" uniquement) —
@@ -12285,19 +12796,19 @@
   }
 
   // Devine "principal" pour le premier PDF (sauf s'il évoque un compromis/une promesse alors qu'on
-  // est en mode "projet d'acte de vente", auquel cas c'est une RÉFÉRENCE, pas le principal), et
-  // "reference_compromis" pour un fichier nommé compromis/promesse ensuite en mode acte — une
-  // simple valeur de départ pratique, toujours modifiable ensuite via le <select> de chaque ligne
-  // (voir changerTypeFichierAnalyseIa) : ce n'est jamais figé. Tout le reste part en "autre", faute
-  // d'un jeu de mots-clés encore éprouvé sur de vrais noms de fichiers (voir CLAUDE.md, principe
-  // déjà appliqué à PIECES_*/motifNom : premier jet, resserré sur retour réel).
+  // est en mode "projet de vente", auquel cas c'est la RÉFÉRENCE, pas le principal), puis
+  // "reference_compromis" pour un fichier nommé compromis/promesse ensuite en mode acte. Tout
+  // fichier suivant part en "justificatif" : dans les deux modes, c'est ce qu'on dépose en
+  // pratique après le document à relire (attestation d'entretien, facture, décennale…), et c'est
+  // le seul type dont la date est ensuite contrôlée. Une simple valeur de départ, toujours
+  // modifiable via le <select> de chaque ligne (voir changerTypeFichierAnalyseIa).
   function deviserTypeAnalyseIa(nomFichier) {
     const dejaUnPrincipal = fichiersAnalyseIa.some(f => f.type === 'principal');
     const dejaUneReference = fichiersAnalyseIa.some(f => f.type === 'reference_compromis');
     const nommeCompromis = /compromis|promesse/i.test(nomFichier);
     if (!dejaUnPrincipal && (auditMode !== 'acte' || !nommeCompromis)) return 'principal';
     if (auditMode === 'acte' && nommeCompromis && !dejaUneReference) return 'reference_compromis';
-    return 'autre';
+    return 'justificatif';
   }
 
   function ajouterFichiersAnalyseIa(fileList) {
@@ -12477,26 +12988,28 @@
     return { dl: 'dl-neutre', icone: 'info', texte: 'Information' };
   }
 
-  // Une source citée par le modèle, déjà vérifiée côté serveur (voir server/src/audit/fusion.js,
-  // verifierSources) : la page n'est affichée que si la citation a été retrouvée telle quelle dans
-  // le document — une page à côté d'une citation non vérifiée laisserait croire à une localisation
-  // fiable qu'on n'a pas.
-  function renderSourcesAudit(sources) {
-    const liste = Array.isArray(sources) ? sources : [];
+  // Un constat cite TOUJOURS le passage du document dont il vient, avec sa page : c'est ce qui
+  // permet de le vérifier en dix secondes plutôt que de relire l'acte. `phrase`/`page` viennent
+  // des règles déterministes ; `sources` est la forme d'un constat venu du modèle local (bouton
+  // « Approfondir »), où la citation a d'abord été vérifiée côté serveur — une citation non
+  // retrouvée est signalée comme telle, jamais présentée au même rang qu'une citation confirmée.
+  function renderSourceConstat(c) {
+    if (c.phrase) {
+      const texte = String(c.phrase);
+      const extrait = escapeHtml(texte.length > 260 ? texte.slice(0, 257) + '…' : texte);
+      return `<div class="analyse-ia-constat-docs">${c.page ? 'p.' + c.page + ' — ' : ''}« ${extrait} »</div>`;
+    }
+    const liste = Array.isArray(c.sources) ? c.sources : [];
     if (liste.length === 0) return '';
     return `<div class="analyse-ia-constat-docs">${liste.map(s => {
-      const extrait = escapeHtml(String(s.extrait || '').slice(0, 160));
-      if (s.extraitTrouve) {
-        const lieu = s.document ? `${escapeHtml(s.document)}${s.page ? ' · p.' + s.page : ''} — ` : '';
-        return `${lieu}« ${extrait} »`;
+      const extrait = escapeHtml(String(s.extrait || '').slice(0, 260));
+      if (s.extraitTrouve === false) {
+        return `<span class="dot-label dl-neutre">${icone('alert-triangle')}Citation non retrouvée dans le document — à vérifier en priorité</span>`;
       }
-      return `<span class="dot-label dl-neutre">${icone('alert-triangle')}Citation non retrouvée — à vérifier en priorité</span>${s.document ? ' (' + escapeHtml(s.document) + ')' : ''}`;
+      return `${s.page ? 'p.' + s.page + ' — ' : ''}« ${extrait} »`;
     }).join('<br>')}</div>`;
   }
 
-  // Constat générique (identification/parties/prix/dates/titre, travaux, urbanisme/autorisations/
-  // garanties, préemption, servitudes, copropriété) : même gabarit pour toutes ces sections, la
-  // seule chose qui change d'une section à l'autre est la liste passée à renderSectionAudit().
   // Décision de l'étude sur un constat (voir la mémoire d'audit, memoriserDecisionConstat) :
   // deux boutons sur chaque constat, « Écarter » et « Confirmer », et l'état mémorisé affiché en
   // clair — un constat déjà écarté se replie (jamais supprimé : on le voit toujours, replié), un
@@ -12521,10 +13034,12 @@
 
   function renderConstatAudit(c) {
     const g = libelleGraviteAudit(c.gravite);
-    const corps = `<div class="analyse-ia-constat-titre"><span class="dot-label ${g.dl}">${icone(g.icone)}${g.texte}</span>${escapeHtml(c.titre)}</div>
+    const origine = c.source === 'ia'
+      ? `<span class="dot-label dl-neutre" title="Constat proposé par le modèle local, en complément des règles — à vérifier.">${icone('sparkle')}IA</span>`
+      : '';
+    const corps = `<div class="analyse-ia-constat-titre"><span class="dot-label ${g.dl}">${icone(g.icone)}${g.texte}</span>${origine}${escapeHtml(c.titre)}</div>
       ${c.description ? `<p class="analyse-ia-constat-desc">${escapeHtml(c.description)}</p>` : ''}
-      ${c.action ? `<p class="analyse-ia-constat-desc"><em>À vérifier : ${escapeHtml(c.action)}</em></p>` : ''}
-      ${renderSourcesAudit(c.sources)}
+      ${renderSourceConstat(c)}
       ${renderDecisionAudit(c)}`;
     if (c.memoire && c.memoire.decision === 'ecarte') {
       return `<details class="analyse-ia-constat constat-ecarte">
@@ -12535,77 +13050,75 @@
     return `<div class="analyse-ia-constat${c.memoire ? ' constat-confirme' : ''}">${corps}</div>`;
   }
 
-  // Une obligation du vendeur (voir verifierObligationsVendeur) : tenue (avec la pièce qui le
-  // prouve, et d'où elle vient), non tenue, ou à vérifier à la main quand aucune pièce type ne
-  // correspond à la clause.
+  // Une obligation du vendeur en mode « projet de vente » (voir verifierEngagementsTenus) : son
+  // statut, la preuve qui l'établit (justificatif déposé, ou le projet lui-même qui la vise avec
+  // sa date) et la clause d'origine. Les obligations TENUES sont affichées elles aussi : savoir
+  // ce qui est en règle fait partie de la relecture, et c'est ce qui distingue une obligation
+  // vérifiée d'une obligation qu'on a simplement oublié de regarder.
   function renderObligationAudit(o) {
-    const g = libelleGraviteAudit(o.gravite);
-    const etat = o.statut === 'tenue'
-      ? `<span class="dot-label dl-success">${icone('check')}Tenue</span>`
-      : o.statut === 'non_tenue'
-        ? `<span class="dot-label ${g.dl}">${icone(g.icone)}Non tenue</span>`
-        : `<span class="dot-label ${g.dl}">${icone(g.icone)}À vérifier</span>`;
-    const cat = LIBELLES_CAT_OBLIGATION[o.cat] ? `<span class="engagement-type ${escapeAttr(o.cat)}">${LIBELLES_CAT_OBLIGATION[o.cat]}</span>` : '';
-    let preuve = '';
+    const etat = LIBELLES_STATUT_OBLIGATION_OUTIL2[o.statut] || LIBELLES_STATUT_OBLIGATION_OUTIL2.a_verifier;
+    const g = libelleGraviteAudit(etat.gravite);
+    const badge = `<span class="dot-label ${etat.dl}">${icone(o.statut === 'tenue' ? 'check' : g.icone)}${etat.texte}</span>`;
+    const cat = LIBELLES_CAT_OBLIGATION[o.type] ? `<span class="engagement-type ${escapeAttr(o.type)}">${LIBELLES_CAT_OBLIGATION[o.type]}</span>` : '';
+    let preuve;
     if (o.preuve && o.preuve.source === 'dossier') {
-      preuve = `<p class="analyse-ia-constat-desc">Pièce trouvée dans le dossier client${o.preuve.nom ? ' : <em>' + escapeHtml(o.preuve.nom) + '</em>' : ''}.</p>`;
+      preuve = `Pièce déjà reçue dans le dossier client${o.preuve.nom ? ' : <em>' + escapeHtml(o.preuve.nom) + '</em>' : ''}.`;
     } else if (o.preuve && o.preuve.source === 'depot') {
-      preuve = `<p class="analyse-ia-constat-desc">Document déposé pour cet audit : <em>${escapeHtml(o.preuve.nom)}</em> (non rangé dans le dossier client, à classer).</p>`;
+      preuve = `Justificatif déposé : <em>${escapeHtml(o.preuve.nom)}</em>${o.preuve.date ? ' — ' + escapeHtml(formatDateFr(o.preuve.date)) : ''}.`;
+    } else if (o.preuve && o.preuve.source === 'projet') {
+      preuve = `Visé par le projet de vente${o.preuve.page ? ' (p.' + o.preuve.page + ')' : ''}${o.preuve.date ? ', daté du ' + escapeHtml(formatDateFr(o.preuve.date)) : ''}.`;
     } else if (o.statut === 'non_tenue') {
-      preuve = '<p class="analyse-ia-constat-desc">Aucune pièce correspondante, ni dans le dossier client ni parmi les documents déposés ici.</p>';
+      preuve = "Aucun justificatif déposé, et le projet de vente n'en vise aucun avec sa date.";
     } else {
-      preuve = '<p class="analyse-ia-constat-desc">Aucune pièce type ne correspond à cet engagement : à vérifier à la main.</p>';
+      preuve = "Engagement sans document type : à contrôler à la main dans le projet.";
     }
-    const clause = o.clause && o.cle
-      ? `<div class="analyse-ia-constat-docs">${o.page ? 'p.' + o.page + ' — ' : ''}« ${escapeHtml(o.clause.length > 200 ? o.clause.slice(0, 197) + '…' : o.clause)} »</div>`
-      : (o.page ? `<div class="analyse-ia-constat-docs">p.${o.page} du compromis</div>` : '');
+    const alerte = o.validite && o.validite.message && o.statut !== 'tenue'
+      ? `<p class="analyse-ia-constat-desc">${escapeHtml(o.validite.message)}</p>` : '';
     return `<div class="analyse-ia-constat">
-      <div class="analyse-ia-constat-titre">${etat}${cat}${escapeHtml(o.label)}</div>
-      ${preuve}
-      ${clause}
-    </div>`;
-  }
-
-  // Diagnostics (forme différente : nature/dateEtablissement/dateExpiration/message, voir
-  // server/src/audit/fusion.js, fusionnerDiagnostics) — la durée de validité n'est jamais calculée
-  // ici ni par le modèle, seulement affichée telle que le serveur l'a établie en JS pur.
-  function renderDiagnosticAudit(d) {
-    const g = libelleGraviteAudit(d.gravite);
-    const bien = d.bienConcerne ? ` — ${escapeHtml(d.bienConcerne)}` : '';
-    return `<div class="analyse-ia-constat">
-      <div class="analyse-ia-constat-titre"><span class="dot-label ${g.dl}">${icone(g.icone)}${g.texte}</span>${escapeHtml(d.label || d.nature)}${bien}</div>
-      <p class="analyse-ia-constat-desc">${escapeHtml(d.message)}</p>
-      ${renderSourcesAudit(d.sources)}
+      <div class="analyse-ia-constat-titre">${badge}${cat}${escapeHtml(o.label || "Engagement du vendeur")}</div>
+      <p class="analyse-ia-constat-desc">${preuve}</p>
+      ${alerte}
+      ${o.clause ? `<div class="analyse-ia-constat-docs">${o.page ? 'p.' + o.page + ' — ' : ''}« ${escapeHtml(o.clause.length > 240 ? o.clause.slice(0, 237) + '…' : o.clause)} »</div>` : ''}
     </div>`;
   }
 
   function renderSectionAudit(titre, liste, rendreItem) {
     const items = Array.isArray(liste) ? liste.slice() : [];
     if (items.length === 0) return '';
-    // Confirmés en tête, écartés en queue (repliés), le reste dans l'ordre du serveur.
+    // Confirmés en tête, écartés en queue (repliés), le reste dans l'ordre déjà calculé.
     const rang = c => (c.memoire ? (c.memoire.decision === 'confirme' ? 0 : 2) : 1);
     items.sort((a, b) => rang(a) - rang(b));
     return `<div class="dash-section-titre" style="margin-top:14px;">${escapeHtml(titre)} (${items.length})</div>${items.map(rendreItem).join('')}`;
   }
 
-  // Le dernier rapport affiché, pour le redessiner après une décision sur un constat sans
-  // relancer l'audit ; chaque constat reçoit un identifiant de rendu (uid) et sa décision
-  // mémorisée (memoire), posés par preparerRapportAudit().
+  // Sections du rapport, dans l'ordre de lecture. Les quatre premières sont les quatre thèmes
+  // arrêtés avec l'étude pour le mode « lecture du compromis » ; les deux suivantes appartiennent
+  // au mode « projet de vente ». Une catégorie sans constat ne s'affiche pas du tout.
+  var CATEGORIES_RAPPORT_OUTIL2 = [
+    { cle: 'COMPARAISON_COMPROMIS', titre: "Écarts avec l'avant-contrat" },
+    { cle: 'TRAVAUX_REALISES', titre: 'Travaux déjà réalisés sur le bien' },
+    { cle: 'DIAGNOSTICS', titre: 'Diagnostics' },
+    { cle: 'ENTRETIENS', titre: 'Entretiens à justifier' },
+    { cle: 'DOCUMENTS', titre: 'Documents à obtenir du vendeur' },
+    { cle: 'TRAVAUX_A_FAIRE', titre: 'Travaux à réaliser avant la vente' },
+    { cle: 'IA', titre: 'Relecture complémentaire par le modèle local' }
+  ];
+
+  // Le dernier rapport affiché, pour le redessiner après une décision sur un constat (ou après
+  // l'arrivée des constats du modèle) sans relancer l'analyse ; chaque constat reçoit un
+  // identifiant de rendu (uid) et sa décision mémorisée (memoire), posés par preparerRapportAudit.
   let dernierRapportAudit = null;
   let constatsAuditParUid = {};
-  var SECTIONS_CONSTATS_AUDIT = ['constats', 'dates', 'diagnostics', 'travaux', 'urbanisme', 'preemptions', 'servitudes', 'copropriete'];
 
   function preparerRapportAudit(resultat) {
     constatsAuditParUid = {};
     let n = 0;
-    for (const cle of SECTIONS_CONSTATS_AUDIT) {
-      for (const c of (resultat[cle] || [])) {
-        if (!c || typeof c !== 'object') continue;
-        c.uid = `k${++n}`;
-        constatsAuditParUid[c.uid] = c;
-        const m = decisionPourConstat(c, memoireAuditConstats);
-        c.memoire = m ? { id: m.id, decision: m.decision, nb: m.nb || 1 } : null;
-      }
+    for (const c of (resultat.constats || [])) {
+      if (!c || typeof c !== 'object') continue;
+      c.uid = `k${++n}`;
+      constatsAuditParUid[c.uid] = c;
+      const m = decisionPourConstat(c, memoireAuditConstats);
+      c.memoire = m ? { id: m.id, decision: m.decision, nb: m.nb || 1 } : null;
     }
   }
 
@@ -12628,24 +13141,14 @@
     renderRapportAuditActe(dernierRapportAudit);
   }
 
-  // Comptage par gravité — calculé côté serveur (voir calculerResume, fusion.js), jamais par le
-  // modèle : une synthèse générée par le modèle affirmerait des chiffres qu'il n'a lui-même aucun
-  // moyen de garantir cohérents avec le détail.
-  // Les constats ajoutés côté client (comparaison structurée, obligations du vendeur) entrent
-  // dans le même comptage que ceux du serveur — toujours un calcul, jamais le modèle.
-  function incrementerResumeAudit(corps, gravite) {
-    if (!corps.resume) corps.resume = { syntheseParGravite: {} };
-    if (!corps.resume.syntheseParGravite) corps.resume.syntheseParGravite = {};
-    const s = corps.resume.syntheseParGravite;
-    s[gravite] = (s[gravite] || 0) + 1;
-  }
-
+  // Comptage par gravité — un simple calcul sur les constats réellement affichés, jamais une
+  // synthèse rédigée par le modèle : celui-ci n'a aucun moyen de garantir que ses chiffres
+  // correspondent au détail qu'il vient d'écrire.
   function renderResumeAudit(resume) {
     if (!resume) return '';
-    const s = resume.syntheseParGravite || {};
     const tuile = (cle, libelle) => {
       const g = libelleGraviteAudit(cle);
-      return `<span class="dot-label ${g.dl}">${icone(g.icone)}${s[cle] || 0} ${libelle}</span>`;
+      return `<span class="dot-label ${g.dl}">${icone(g.icone)}${resume[cle] || 0} ${libelle}</span>`;
     };
     return `<div class="analyse-ia-resume">${tuile('CRITIQUE', 'critique(s)')}${tuile('IMPORTANT', 'important(s)')}${tuile('A_VERIFIER', 'à vérifier')}${tuile('INFORMATION', 'information(s)')}</div>`;
   }
@@ -12666,139 +13169,190 @@
     </div>`;
   }
 
+  // Ce que l'analyse a effectivement passé en revue : sans cette ligne, un rapport vide se lit
+  // comme « rien à signaler » alors qu'il peut aussi vouloir dire « rien n'a été trouvé à lire ».
+  function renderPerimetreAudit(resultat) {
+    const bouts = [];
+    if (resultat.mode === 'acte') {
+      bouts.push(`${(resultat.obligations || []).length} engagement(s) du vendeur relevé(s) dans l'avant-contrat`);
+      if (resultat.nbJustificatifs) bouts.push(`${resultat.nbJustificatifs} justificatif(s) déposé(s)`);
+    } else {
+      bouts.push(`${(resultat.travaux || []).length} déclaration(s) de travaux`);
+      bouts.push(`${(resultat.documents || []).length} document(s) daté(s) repéré(s)`);
+      bouts.push(`${(resultat.engagements || []).length} engagement(s) du vendeur`);
+    }
+    return `<p class="hint">Analysé : ${escapeHtml(bouts.join(' · '))}.</p>`;
+  }
+
   function renderRapportAuditActe(resultat) {
     const zone = document.getElementById('analyse-ia-rapport');
     if (!zone) return;
     let html = renderResumeAudit(resultat.resume);
-
-    const erreurs = Array.isArray(resultat.erreursPasses) ? resultat.erreursPasses : [];
-    for (const e of erreurs) {
-      html += `<p class="hint">${icone('alert-triangle')} Passe « ${escapeHtml(e.passe)} » indisponible : ${escapeHtml(e.message)}</p>`;
-    }
-
     html += renderCouvertureAudit(resultat.couvertureDocuments);
 
-    // Obligations du vendeur (mode acte + dossier lié, voir verifierObligationsVendeur) : en
-    // tête, avant les constats du modèle — c'est un résultat sûr, calculé, pas une suggestion.
-    if (Array.isArray(resultat.obligationsVendeur)) {
-      html += resultat.obligationsVendeur.length
-        ? renderSectionAudit('Obligations du vendeur', resultat.obligationsVendeur, renderObligationAudit)
-        : '<p class="hint">Aucune obligation du vendeur relevée dans le compromis du dossier lié.</p>';
-    } else if (resultat.modeAudit === 'acte') {
-      html += '<p class="hint">Liez un dossier CLAIRE (ci-contre) pour vérifier si le vendeur a tenu ses obligations — attestations d’entretien, factures de travaux, décennale…</p>';
+    const constats = resultat.constats || [];
+    if (constats.length === 0) {
+      html += `<p class="hint">Aucun danger relevé par les règles sur les documents fournis — ce qui ne dispense pas de la relecture : l'outil ne contrôle que les quatre points listés sous ce rapport.</p>`;
     }
 
-    const total = SECTIONS_CONSTATS_AUDIT.reduce((n, cle) => n + ((resultat[cle] || []).length), 0);
-    if (total === 0) {
-      html += '<p class="hint">Aucune incohérence relevée par le modèle sur les documents fournis — à vérifier malgré tout, voir la note ci-dessous.</p>';
-    } else {
-      html += renderSectionAudit('Identification, parties, prix, titre', resultat.constats, renderConstatAudit);
-      html += renderSectionAudit('Dates', resultat.dates, renderConstatAudit);
-      html += renderSectionAudit('Diagnostics', resultat.diagnostics, renderDiagnosticAudit);
-      html += renderSectionAudit('Travaux', resultat.travaux, renderConstatAudit);
-      html += renderSectionAudit('Urbanisme, autorisations, garanties', resultat.urbanisme, renderConstatAudit);
-      html += renderSectionAudit('Préemption', resultat.preemptions, renderConstatAudit);
-      html += renderSectionAudit('Servitudes', resultat.servitudes, renderConstatAudit);
-      html += renderSectionAudit('Copropriété', resultat.copropriete, renderConstatAudit);
+    // Mode « projet de vente » : le tableau des obligations passe en tête et remplace la section
+    // OBLIGATIONS des constats (ce serait la même information dite deux fois) — les obligations
+    // tenues n'y figureraient de toute façon pas, alors qu'elles font partie du résultat.
+    if (resultat.mode === 'acte') {
+      html += (resultat.obligations || []).length
+        ? renderSectionAudit("Obligations du vendeur", resultat.obligations, renderObligationAudit)
+        : "<p class=\"hint\">Aucun engagement du vendeur relevé dans l'avant-contrat de référence.</p>";
     }
+
+    for (const section of CATEGORIES_RAPPORT_OUTIL2) {
+      html += renderSectionAudit(section.titre, constats.filter(c => c.categorie === section.cle), renderConstatAudit);
+    }
+
+    html += renderPerimetreAudit(resultat);
+    html += renderBoutonApprofondirIa(resultat);
     zone.innerHTML = html;
   }
 
+  // ---- Approfondissement OPTIONNEL par le modèle local -------------------------------------
+  // Décision prise avec l'étude après son retour (« c'est trop long, il n'a jamais réussi à me
+  // sortir quelque chose ») : le modèle ne bloque plus rien. Le rapport des règles est déjà à
+  // l'écran, et ce bouton lance UNE requête courte dont l'échec ne coûte que le temps de l'essai.
+  let approfondissementIaEnCours = false;
+
+  function renderBoutonApprofondirIa(resultat) {
+    if (resultat.iaFaite) return '';
+    const libelle = approfondissementIaEnCours
+      ? `${icone('spinner', null, true)} Lecture par le modèle local…`
+      : `${icone('sparkle')} Approfondir avec l'IA locale`;
+    return `<div class="analyse-ia-actions" style="margin-top:14px;">
+      <button type="button" class="secondary" id="audit-approfondir-btn" onclick="approfondirAuditAvecIa()" ${approfondissementIaEnCours ? 'disabled' : ''}>${libelle}</button>
+    </div>
+    <p class="hint">Facultatif : le modèle relit le document à la recherche de ce qui échappe aux règles (clause inhabituelle, contradiction entre deux passages). Compter jusqu'à une minute ; le rapport ci-dessus reste affiché quoi qu'il arrive.</p>`;
+  }
+
+  async function approfondirAuditAvecIa() {
+    if (!dernierRapportAudit || approfondissementIaEnCours) return;
+    const texte = dernierRapportAudit.texteAnalyse;
+    if (!texte) return;
+    approfondissementIaEnCours = true;
+    renderRapportAuditActe(dernierRapportAudit);
+    try {
+      const reponse = await fetchAvecAuth('/api/audit-acte/approfondir', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          texte,
+          // Le modèle reçoit ce que les règles ont DÉJÀ trouvé : sans ça, il passe son temps à
+          // redire les mêmes choses, ce qui allonge la réponse sans rien apporter.
+          constatsDejaTrouves: (dernierRapportAudit.constats || []).map(c => c.titre).slice(0, 20)
+        })
+      });
+      const corps = await reponse.json();
+      if (!reponse.ok) {
+        afficherToast(corps.erreur || "Le modèle local n'a pas pu répondre — le rapport ci-dessus reste valable.", 'OK', null);
+        return;
+      }
+      const ajoutes = Array.isArray(corps.constats) ? corps.constats : [];
+      for (const c of ajoutes) {
+        dernierRapportAudit.constats.push({
+          categorie: 'IA',
+          source: 'ia',
+          gravite: c.gravite,
+          titre: c.titre,
+          description: c.description,
+          sources: c.phrase ? [{ extrait: c.phrase, extraitTrouve: c.extraitVerifie !== false }] : []
+        });
+        if (dernierRapportAudit.resume && dernierRapportAudit.resume[c.gravite] != null) dernierRapportAudit.resume[c.gravite]++;
+      }
+      dernierRapportAudit.iaFaite = true;
+      preparerRapportAudit(dernierRapportAudit);
+      afficherToast(ajoutes.length
+        ? `${ajoutes.length} constat(s) proposé(s) par le modèle local — à vérifier un par un.`
+        : "Le modèle local n'a rien vu de plus que les règles.", 'OK', null);
+    } catch (e) {
+      // Session expirée : fetchAvecAuth a déjà réaffiché l'écran de connexion.
+    } finally {
+      approfondissementIaEnCours = false;
+      renderRapportAuditActe(dernierRapportAudit);
+    }
+  }
+
+  // ---- Lancement de l'analyse --------------------------------------------------------------
+  // Entièrement SYNCHRONE, hormis la récupération éventuelle de l'avant-contrat sur le NAS :
+  // toute l'analyse est du calcul local sur du texte déjà lu, aucun aller-retour serveur. C'est
+  // toute la refonte — la version précédente enchaînait cinq appels au modèle avant d'afficher
+  // quoi que ce soit.
   async function lancerAuditActe() {
     const fichiersOk = fichiersAnalyseIa.filter(f => f.statut === 'ok');
     const principal = fichiersOk.find(f => f.type === 'principal');
     if (!principal) {
-      afficherToast('Ajoutez au moins un document « Principal » (le projet lui-même) dont le texte a bien été lu.', 'OK', null);
+      afficherToast('Ajoutez au moins un document « Principal » (le document à relire) dont le texte a bien été lu.', 'OK', null);
       return;
     }
     analyseIaEnCours = true;
     const btn = document.getElementById('analyse-ia-lancer-btn');
-    if (btn) { btn.disabled = true; btn.innerHTML = `${icone('spinner', null, true)} Audit en cours…`; }
-    const rapport = document.getElementById('analyse-ia-rapport');
-    if (rapport) rapport.innerHTML = '<p class="hint">Audit en cours — cela peut prendre plusieurs minutes selon le nombre de documents et la puissance du serveur (5 passes au maximum, exécutées l\'une après l\'autre).</p>';
+    if (btn) { btn.disabled = true; btn.innerHTML = `${icone('spinner', null, true)} Analyse…`; }
 
     try {
-      const referenceUploadee = fichiersOk.find(f => f.type === 'reference_compromis') || null;
+      const justificatifs = fichiersOk
+        .filter(f => f !== principal && f.type !== 'reference_compromis')
+        .map(f => ({ nom: f.nom, texte: f.texte }));
 
-      // Mode "projet d'acte de vente" + dossier lié + pas de compromis réuploadé : on va le
-      // chercher automatiquement sur le NAS plutôt que d'obliger un second import manuel — voir
-      // recupererTextCompromisDossier(). Silencieux en cas d'échec.
-      let referenceAutoRecuperee = null;
-      if (auditMode === 'acte' && auditDossierLie && !referenceUploadee) {
-        referenceAutoRecuperee = await recupererTextCompromisDossier(auditDossierLie);
-      }
-
-      const documents = fichiersOk.map(f => ({ nom: f.nom, type: f.type, texte: f.texte, pages: f.pages }));
-      if (referenceAutoRecuperee) {
-        documents.push({ nom: referenceAutoRecuperee.nom, type: 'reference_compromis', texte: referenceAutoRecuperee.texte, pages: referenceAutoRecuperee.pages });
-      }
-
-      // Couverture de lecture par document (voir lireTextePdfParPage/libelleCouverturePages) :
-      // affichée dans le rapport pour que l'étude sache si un document scanné volumineux a été lu
-      // dans son intégralité ou seulement en partie, plutôt que de le découvrir en silence — signalé
-      // par l'étude ("comment le document peut être analysé après si seulement 3 pages sont lu").
-      const couvertureDocuments = fichiersOk.map(f => ({ nom: f.nom, pagesLues: f.pagesLues, pagesTotal: f.pagesTotal, viaOcr: f.viaOcr, tronque: f.tronque }));
-      if (referenceAutoRecuperee) {
-        couvertureDocuments.push({ nom: referenceAutoRecuperee.nom, pagesLues: referenceAutoRecuperee.pagesLues, pagesTotal: referenceAutoRecuperee.pagesTotal, viaOcr: referenceAutoRecuperee.viaOcr, tronque: referenceAutoRecuperee.tronque });
-      }
-
-      let typeVenteEnvoyee = auditTypeVente;
-      if (typeVenteEnvoyee === 'auto') {
-        typeVenteEnvoyee = detecterTypeVenteCopropriete(principal.texte) ? 'copropriete' : null;
-      }
-
-      const reponse = await fetchAvecAuth('/api/audit-acte/analyser', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: auditMode, typeVente: typeVenteEnvoyee, documents })
-      });
-      const corps = await reponse.json();
-      if (!reponse.ok) {
-        if (rapport) rapport.innerHTML = `<p class="hint">${escapeHtml(corps.erreur || "Échec de l'audit.")}</p>`;
-        return;
-      }
-      corps.couvertureDocuments = couvertureDocuments;
-
-      // Comparaison déterministe compromis → projet de vente (§13), sans IA — voir
-      // comparerCompromisEtProjet(). Deux sources possibles pour la référence : un dossier CLAIRE
-      // lié (directement, aucune ré-extraction) ou un texte de compromis (réuploadé ou récupéré du
-      // NAS), passé par construireExtractionRegex() pour obtenir la même forme.
+      let resultat;
       if (auditMode === 'acte') {
-        const texteReference = referenceUploadee ? referenceUploadee.texte : (referenceAutoRecuperee ? referenceAutoRecuperee.texte : null);
-        const nomReference = referenceUploadee ? referenceUploadee.nom : (referenceAutoRecuperee ? referenceAutoRecuperee.nom : null);
-        const reference = auditDossierLie
-          ? referenceDepuisDossier(auditDossierLie)
-          : (texteReference ? construireExtractionRegex(texteReference, null, null, nomReference) : null);
-        if (reference) {
-          const projet = construireExtractionRegex(principal.texte, null, null, principal.nom);
-          const diff = comparerCompromisEtProjet(reference, projet);
-          corps.constats = Array.isArray(corps.constats) ? corps.constats : [];
-          for (const c of diff) {
-            corps.constats.unshift({ gravite: c.gravite, titre: c.titre, description: c.description, action: null, sources: [] });
-            incrementerResumeAudit(corps, c.gravite);
-          }
+        // La référence peut venir de trois endroits, dans cet ordre : un avant-contrat déposé
+        // ici, le PDF du dossier CLAIRE lié (récupéré tout seul sur le NAS), ou rien — auquel
+        // cas il n'y a simplement rien à comparer, ce que le rapport dit explicitement.
+        const referenceDeposee = fichiersOk.find(f => f.type === 'reference_compromis') || null;
+        let referenceAuto = null;
+        if (!referenceDeposee && auditDossierLie) {
+          referenceAuto = await recupererTextCompromisDossier(auditDossierLie);
         }
-
-        // Obligations du vendeur (voir verifierObligationsVendeur) : uniquement avec un dossier
-        // lié — c'est lui qui porte les engagements lus dans le compromis et l'état des pièces.
-        if (auditDossierLie) {
-          corps.obligationsVendeur = verifierObligationsVendeur(auditDossierLie, fichiersOk.map(f => ({ nom: f.nom, type: f.type })));
-          for (const o of corps.obligationsVendeur) {
-            if (o.statut !== 'tenue') incrementerResumeAudit(corps, o.gravite);
-          }
+        const ref = referenceDeposee || referenceAuto;
+        if (!ref) {
+          afficherToast("Déposez l'avant-contrat signé (type « Avant-contrat signé »), ou liez le dossier CLAIRE correspondant : sans lui, il n'y a rien à comparer au projet.", 'OK', null);
+          return;
         }
+        resultat = analyserProjetVenteOutil2({
+          texteAvantContrat: ref.texte,
+          pagesAvantContrat: ref.pages,
+          texteProjet: principal.texte,
+          pagesProjet: principal.pages,
+          documentsDeposes: justificatifs,
+          dossierLie: auditDossierLie,
+          reference: auditDossierLie
+            ? referenceDepuisDossier(auditDossierLie)
+            : construireExtractionRegex(ref.texte, null, null, ref.nom),
+          projet: construireExtractionRegex(principal.texte, null, null, principal.nom)
+        });
+        resultat.nbJustificatifs = justificatifs.length;
+        resultat.couvertureDocuments = fichiersOk.map(f => ({ nom: f.nom, pagesLues: f.pagesLues, pagesTotal: f.pagesTotal, viaOcr: f.viaOcr, tronque: f.tronque }));
+        if (referenceAuto) {
+          resultat.couvertureDocuments.push({ nom: referenceAuto.nom, pagesLues: referenceAuto.pagesLues, pagesTotal: referenceAuto.pagesTotal, viaOcr: referenceAuto.viaOcr, tronque: referenceAuto.tronque });
+        }
+      } else {
+        resultat = analyserCompromisOutil2({
+          texte: principal.texte,
+          pages: principal.pages,
+          documentsDeposes: justificatifs
+        });
+        resultat.couvertureDocuments = fichiersOk.map(f => ({ nom: f.nom, pagesLues: f.pagesLues, pagesTotal: f.pagesTotal, viaOcr: f.viaOcr, tronque: f.tronque }));
       }
-      corps.modeAudit = auditMode;
 
-      dernierRapportAudit = corps;
-      preparerRapportAudit(corps);
-      renderRapportAuditActe(corps);
+      // Texte gardé pour le bouton « Approfondir » : c'est le document à relire dans les deux
+      // modes (le projet en mode acte, l'avant-contrat en mode compromis).
+      resultat.texteAnalyse = principal.texte;
+      dernierRapportAudit = resultat;
+      preparerRapportAudit(resultat);
+      renderRapportAuditActe(resultat);
     } catch (e) {
-      // Session expirée : déjà géré par fetchAvecAuth (écran de connexion réaffiché).
+      console.error('Outil 2 : échec de l’analyse', e);
+      const rapport = document.getElementById('analyse-ia-rapport');
+      if (rapport) rapport.innerHTML = `<p class="hint">${icone('alert-triangle')} L'analyse n'a pas pu aboutir. Vérifiez que les documents déposés ont bien été lus.</p>`;
     } finally {
       analyseIaEnCours = false;
       renderListeFichiersAnalyseIa();
-      if (btn) btn.innerHTML = "Lancer l'audit";
+      if (btn) btn.innerHTML = "Analyser";
     }
   }
 

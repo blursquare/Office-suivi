@@ -986,10 +986,10 @@
     <div>
       <div class="dash-eyebrow">Lecture de projet</div>
       <div class="dash-titre-ligne">
-        <h1 class="dash-titre">Audit intelligent des actes</h1>
-        <span class="calc-warning-label" title="Les constats proposés sont générés par un modèle d'intelligence artificielle exécuté localement sur le serveur de l'étude — à vérifier systématiquement. C'est un assistant de relecture, jamais une décision juridique : le notaire garde la décision finale.">
+        <h1 class="dash-titre">Relecture d'un acte</h1>
+        <span class="calc-warning-label" title="Cette relecture applique des règles sur le texte des documents : elle attire l'attention sur des points précis, elle ne remplace pas la relecture du notaire, qui garde la décision finale.">
           <span id="icon-analyse-ia-warning" aria-hidden="true"></span>
-          Suggestions à vérifier
+          Aide à la relecture
         </span>
       </div>
     </div>
@@ -999,35 +999,27 @@
 
   <div class="dash-grid">
     <div class="calc-card">
-      <div class="dash-section-titre">Paramètres de l'audit</div>
+      <div class="dash-section-titre">Ce que vous relisez</div>
 
-      <label for="audit-mode">Type de document principal</label>
+      <label for="audit-mode">Document principal</label>
       <select id="audit-mode" onchange="changerAuditMode(this.value)">
-        <option value="compromis">Projet de compromis / promesse de vente</option>
-        <option value="acte">Projet d'acte de vente notarié</option>
+        <option value="compromis">Compromis / promesse de vente</option>
+        <option value="acte">Projet d'acte de vente</option>
       </select>
-      <p class="hint">Un projet d'acte de vente ajoute la comparaison avec le compromis/la promesse déjà signé(e) — voir ci-dessous.</p>
+      <p class="hint" id="audit-aide-mode">L'avant-contrat est relu à la recherche de dangers : travaux déjà faits touchant le gros œuvre ou l'extérieur, diagnostics périmés, entretiens et documents à obtenir, travaux à faire avant la vente.</p>
 
-      <label for="audit-type-vente">Type de vente</label>
-      <select id="audit-type-vente" onchange="changerAuditTypeVente(this.value)">
-        <option value="auto">Détection automatique</option>
-        <option value="maison">Maison</option>
-        <option value="copropriete">Copropriété</option>
-        <option value="terrain">Terrain à bâtir</option>
-      </select>
-
-      <div id="audit-reference-bloc" style="display:none;">
-        <label for="audit-dossier-recherche">Dossier CLAIRE déjà suivi (comparaison avec le compromis, obligations du vendeur)</label>
+      <div id="audit-reference-bloc" style="display:none; margin-top:14px;">
+        <label for="audit-dossier-recherche">Dossier CLAIRE déjà suivi</label>
         <div class="dash-recherche" style="width:100%;">
           <input type="search" id="audit-dossier-recherche" placeholder="Rechercher un dossier par nom ou responsable…" oninput="rechercherDossierAudit(this.value)" autocomplete="off">
           <div id="audit-dossier-resultats" class="dash-recherche-resultats" style="display:none;"></div>
         </div>
         <div id="audit-dossier-pill"></div>
-        <p class="hint">Dès que le projet est lu, les dossiers dont les parties correspondent sont proposés ici — à confirmer d'un clic. Sans dossier lié, déposez le compromis/la promesse de référence ci-dessous en indiquant son type ; les obligations du vendeur ne pourront alors pas être vérifiées.</p>
+        <p class="hint">Dès que le projet est lu, les dossiers dont les parties correspondent sont proposés ici — à confirmer d'un clic. L'avant-contrat signé est alors récupéré tout seul depuis le NAS. Sinon, déposez-le ci-dessous en lui donnant le type « Avant-contrat signé ».</p>
       </div>
 
-      <div class="dash-section-titre" style="margin-top:16px;">Documents à comparer</div>
-      <p class="hint">Déposez le projet (document « Principal ») et ses pièces séparément — chacune dans son propre fichier PDF. Indiquez le type de chacun : cela détermine quelles vérifications s'y appliquent.</p>
+      <div class="dash-section-titre" style="margin-top:16px;">Documents</div>
+      <p class="hint">Déposez le document à relire, puis les justificatifs fournis par le vendeur — attestation d'entretien de chaudière, ramonage, facture de travaux, décennale, diagnostics. Chacun dans son propre PDF : c'est leur date qui sera contrôlée.</p>
 
       <div class="pdf-dropzone" id="analyse-ia-dropzone" ondragover="gererSurvolDepotAnalyseIa(event)" ondragleave="gererQuitteDepotAnalyseIa(event)" ondrop="gererDepotAnalyseIa(event)">
         <span class="pdf-dropzone-icone" id="icon-analyse-ia-dropzone" aria-hidden="true"></span>
@@ -1040,22 +1032,23 @@
 
       <div class="analyse-ia-actions">
         <button type="button" class="secondary" id="analyse-ia-vider-btn" onclick="viderAnalyseIa()" style="display:none;">Vider la liste</button>
-        <button type="button" class="primary" id="analyse-ia-lancer-btn" onclick="lancerAuditActe()" disabled>Lancer l'audit</button>
+        <button type="button" class="primary" id="analyse-ia-lancer-btn" onclick="lancerAuditActe()" disabled>Analyser</button>
       </div>
     </div>
 
     <div class="calc-card">
-      <div class="dash-section-titre">Constats</div>
+      <div class="dash-section-titre">Points relevés</div>
       <div id="analyse-ia-rapport" class="analyse-ia-rapport">
-        <p class="hint">Aucun audit lancé pour l'instant.</p>
+        <p class="hint">Aucune relecture lancée pour l'instant.</p>
       </div>
     </div>
   </div>
 
   <div class="calc-card calc-card-notes">
-    <div class="dash-section-titre">À propos de cet audit</div>
-    <p>Le texte de chaque PDF est extrait dans votre navigateur (comme pour un import de compromis classique), puis envoyé au modèle d'IA qui tourne localement sur le serveur de l'étude (Ollama) — jamais à un service en ligne. Rien de ce que vous déposez ici n'est conservé au-delà de l'analyse : aucun dossier n'est créé, aucun fichier n'est enregistré (le dossier CLAIRE éventuellement lié n'est, lui, jamais modifié — seulement lu).</p>
-    <p>Un modèle de langage peut se tromper ou passer à côté d'un problème réel — cet audit est une aide à la relecture, pas une validation juridique. Chaque constat important doit pouvoir être vérifié dans les documents ; un constat dont la citation n'a pas été retrouvée telle quelle est signalé comme tel, jamais présenté avec la même assurance qu'une citation confirmée.</p>
+    <div class="dash-section-titre">Ce que cette relecture contrôle</div>
+    <p><strong>Sur un compromis ou une promesse</strong>, quatre points, et seulement ceux-là : les <strong>travaux déjà réalisés</strong> qui touchent le gros œuvre ou l'extérieur du bien (une autorisation d'urbanisme est alors exigible, et la garantie décennale court encore si les travaux ont moins de dix ans) ; les <strong>diagnostics périmés</strong> à ce jour ; les <strong>entretiens et documents</strong> que le vendeur doit fournir ; les <strong>travaux qu'il s'est engagé à faire avant la vente</strong>. Le reste (préemption, servitudes, urbanisme général) n'est volontairement pas contrôlé ici : un rapport court se lit, un inventaire ne se lit pas.</p>
+    <p><strong>Sur un projet d'acte de vente</strong>, le projet est comparé à l'avant-contrat signé : parties, prix, désignation du bien, et surtout les engagements du vendeur — un engagement n'est tenu que si un justificatif le prouve <em>et</em> que sa date est encore valable au jour de la relecture.</p>
+    <p>Tout est calculé dans votre navigateur, à partir du texte des PDF déposés : rien n'est enregistré, aucun dossier n'est créé, aucun fichier n'est conservé (le dossier CLAIRE éventuellement lié est lu, jamais modifié). Le bouton « Approfondir avec l'IA locale », en bas du rapport, est facultatif : il fait relire le document par le modèle qui tourne sur le serveur de l'étude (jamais un service en ligne) pour ce qui échappe aux règles. Un modèle de langage peut se tromper — ses constats sont signalés comme tels, à vérifier un par un.</p>
   </div>
 </div>
 
