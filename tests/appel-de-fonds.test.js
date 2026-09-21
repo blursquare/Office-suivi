@@ -294,3 +294,33 @@ test('prefillAppelFonds propose le département et le type de bien du contrôle'
   const sans = app.prefillAppelFonds({ id: 'd5', nom: 'A / B', adresseBien: 'lieu-dit Les Vignes' });
   assert.strictEqual(sans.departementFrais, null);
 });
+
+test('urlRechercheAdresseDataGouv encode la requête et borne les résultats', () => {
+  const url = app.urlRechercheAdresseDataGouv('5 rue des Lilas, Blois');
+  assert.ok(url.startsWith('https://api-adresse.data.gouv.fr/search/?q='));
+  // L'espace et la virgule doivent être encodés : une URL mal formée rend une 400 silencieuse.
+  assert.ok(url.includes('5%20rue%20des%20Lilas%2C%20Blois'));
+  assert.ok(url.includes('limit=5'));
+  assert.ok(url.includes('autocomplete=1'));
+  // Rien d'autre que le texte tapé ne part vers ce service tiers.
+  assert.ok(!url.includes('DUPONT'));
+});
+
+test('adressesDepuisReponseDataGouv lit le GeoJSON et écarte ce qui n’est pas exploitable', () => {
+  const json = {
+    features: [
+      { properties: { label: '5 Rue des Lilas 41000 Blois', context: '41, Loir-et-Cher, Centre-Val de Loire' } },
+      { properties: { label: '', context: '41, Loir-et-Cher' } },
+      { properties: {} },
+      null
+    ]
+  };
+  const r = app.adressesDepuisReponseDataGouv(json);
+  assert.strictEqual(r.length, 1);
+  assert.strictEqual(r[0].label, '5 Rue des Lilas 41000 Blois');
+  assert.ok(r[0].contexte.includes('Loir-et-Cher'));
+  // Une réponse vide, absente ou malformée ne doit jamais lever : le champ reste une saisie libre.
+  assert.strictEqual(app.adressesDepuisReponseDataGouv(null).length, 0);
+  assert.strictEqual(app.adressesDepuisReponseDataGouv({}).length, 0);
+  assert.strictEqual(app.adressesDepuisReponseDataGouv({ features: 'pas un tableau' }).length, 0);
+});

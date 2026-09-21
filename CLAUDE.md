@@ -6210,6 +6210,64 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
     « 6 339,74 € au-dessus » à 22 000 €, aucun badge à 0 € ni sans département choisi, aucun badge
     sur la ligne de frais d'acte de prêt, aucune erreur JS, aucun débordement horizontal.
 
+- **Adresse du bien de l'appel de fonds : reprise du dossier, ou suggestions de la Base Adresse
+  Nationale** — demandé par l'étude (« Si l'adresse du bien vendu est récupéré de sa fiche mettre
+  l'adresse. Si aucun dossier n'est rattaché ou recherché laisse le champs data.gouv »). L'autre
+  moitié de la demande était déjà en place : `appliquerPrefillAppelFonds()` écrivait déjà
+  `p.adresseBien` dans le champ — ce qui manquait, c'est **l'autocomplétion data.gouv**, que
+  j'avais volontairement écartée en portant l'artefact (voir « Volontairement PAS repris de
+  l'artefact » dans son entrée) au motif qu'elle introduisait un appel réseau vers un service
+  tiers. L'étude la redemande explicitement, donc elle est construite — la réserve reste notée
+  ci-dessous plutôt qu'appliquée.
+  - **Un seul appel vers un service extérieur dans tout CLAIRE**, et il est borné : ce qui part est
+    le texte tapé dans CE champ, rien d'autre — jamais le nom du dossier, des parties, ni aucune
+    autre donnée client. L'API (`api-adresse.data.gouv.fr`, Base Adresse Nationale) est un service
+    public de l'État, sans compte ni clé. **Vérifié que l'échec est inoffensif** : sans accès
+    internet, l'appel tombe dans le `catch`, aucun message, le champ reste une saisie libre et le
+    courrier se génère exactement comme avant. Testé en conditions réelles ici, le proxy de cet
+    environnement bloquant le vrai service.
+  - **Deux sources, jamais en même temps, et le champ dit laquelle** (`majSourceAdresseBien`,
+    `afAdresseBienDepuisDossier`) : dossier rattaché → « Adresse reprise du dossier rattaché » et
+    aucune suggestion (elle a déjà été relue et corrigée à la création du dossier, la redemander à
+    un service extérieur n'apporterait rien) ; pas de dossier, ou adresse absente du dossier →
+    « Tapez l'adresse : des suggestions officielles s'affichent ». **Dès la première frappe la note
+    rebascule** : sans ça elle affirmerait une provenance devenue fausse. Une adresse du dossier
+    retouchée à la main redonne donc les suggestions, ce qui est exactement ce qu'on veut pour
+    corriger une lecture approximative.
+  - Fonctions pures testables : `urlRechercheAdresseDataGouv()` (encodage, `limit=5`) et
+    `adressesDepuisReponseDataGouv()` (GeoJSON → `{label, contexte}`, tout ce qui n'a pas de
+    `label` exploitable écarté). Le reste dépend du DOM : anti-rebond de 250 ms, minimum de
+    4 caractères, et un **compteur de génération** (même patron que `generationImportActuel`) qui
+    jette une réponse arrivée après que l'étude a continué de taper — sinon le menu proposerait des
+    adresses sans rapport avec le contenu réel du champ.
+  - **Piège classique du `blur` avant le `click`** : masquer le menu sur `onblur` du champ le fait
+    disparaître AVANT que le clic sur une suggestion ne parte. D'où les 180 ms de délai dans
+    `masquerSuggestionsAdresseBien()`.
+  - Le menu réutilise `.dash-recherche-resultats`/`.dash-recherche-ligne`/`.dash-recherche-nom`/
+    `.dash-recherche-resp`, déjà en place pour la recherche de dossier — aucun second gabarit de
+    menu déroulant. Seule nouveauté CSS : `.af-adresse-auto { position: relative }`, le conteneur
+    de positionnement du menu. Il enveloppe le seul champ et non le `.calc-champ`, qui porte aussi
+    le libellé et la note : le menu se serait calé sur toute la hauteur du bloc.
+  - **Bug pré-existant corrigé au passage, trouvé en cherchant le gabarit à réutiliser** : le menu
+    de recherche de DOSSIER de cet écran (`rechercherDossierAppelFonds`) rendait des classes
+    `.dash-recherche-item`/`.dash-recherche-meta` qui **n'existent nulle part dans style.css** —
+    il s'affichait donc en boutons natifs bruts, sans séparateur ni survol. Un défaut introduit en
+    portant l'outil, jamais signalé parce que le menu reste fonctionnel. Corrigé vers les vraies
+    classes (`cursor: pointer` et le filet de séparation mesurés après coup).
+  - **Volontairement limité au champ « Adresse du bien »** : « Adresse des clients », juste
+    au-dessus, n'est jamais préremplie par le dossier (une fiche ne porte pas l'adresse postale des
+    acquéreurs) et gagnerait donc aussi à ces suggestions — mais l'étude a nommé l'adresse du bien,
+    et étendre un appel réseau à un second champ sans qu'on le demande n'est pas à moi de le
+    décider. À ajouter en une ligne si elle le souhaite.
+  - Tests : 2 nouveaux dans `tests/appel-de-fonds.test.js` (encodage de l'URL et absence de toute
+    autre donnée dedans, lecture du GeoJSON avec ses cas vides/malformés). Suite racine 493 → 495,
+    serveur inchangée (233 — chantier entièrement côté client). **Vérifié dans un vrai Chromium**
+    (serveur réel, BAN simulée par interception réseau, clair et sombre, 1400px et 400px) : menu
+    calé sous le champ et aligné à gauche, clic reportant l'adresse dans le champ ET dans le
+    courrier, menu refermé ensuite, adresse du dossier reprise avec sa note puis note rebasculée
+    dès la retouche, menu de recherche de dossier enfin stylé, aucune erreur JS, aucun débordement
+    horizontal. Service réellement injoignable : champ conservé, aucun menu, aucune erreur.
+
 ## Ce qui reste ouvert / pas encore fait
 
 - **Générateur d'appel de fonds : deux éléments de l'artefact volontairement non repris** (voir

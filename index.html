@@ -839,7 +839,11 @@
         </div>
         <div class="calc-champ">
           <label for="af-adresse-bien">Adresse du bien</label>
-          <textarea id="af-adresse-bien" rows="2" placeholder="Numéro et rue, Code postal VILLE" oninput="majApercuAppelFonds()"></textarea>
+          <div class="af-adresse-auto">
+            <textarea id="af-adresse-bien" rows="2" placeholder="Numéro et rue, Code postal VILLE" oninput="majApercuAppelFonds(); rechercherAdresseBienAppelFonds(this.value);" onblur="masquerSuggestionsAdresseBien()"></textarea>
+            <div id="af-adresse-bien-resultats" class="dash-recherche-resultats" style="display:none;"></div>
+          </div>
+          <p class="hint" id="af-adresse-bien-source">Tapez l'adresse : des suggestions officielles (Base Adresse Nationale) s'affichent.</p>
         </div>
         <div class="calc-champ calc-champ-paire">
           <div>

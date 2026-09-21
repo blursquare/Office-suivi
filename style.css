@@ -3946,6 +3946,12 @@
 /* Récapitulatif du préremplissage : ce que CLAIRE a repris du dossier, et surtout ce qu'elle
    n'a pas pu remplir. Le second compte autant que le premier — un champ vide sur un courrier
    adressé à un client se voit. */
+/* Conteneur de positionnement du menu de suggestions d'adresse (Base Adresse Nationale) :
+   `.dash-recherche-resultats` est posée en `position: absolute`, il lui faut un parent positionné.
+   Le `.calc-champ` ne peut pas jouer ce rôle — il porte aussi le libellé et la note sous le champ,
+   le menu se calerait sur toute la hauteur du bloc au lieu du seul champ de saisie. */
+.af-adresse-auto { position: relative; }
+
 .af-recap { display: none; flex-direction: column; gap: 10px; }
 .af-recap.af-recap-visible { display: flex; }
 .af-recap-bloc { font-size: 12.5px; line-height: 1.5; }

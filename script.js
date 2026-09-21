@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-21 22:02';
+  const VERSION_APP = '2026-09-21 22:09';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-21 22:09', resume: "Appel de fonds : le champ « Adresse du bien » propose désormais les adresses officielles de la Base Adresse Nationale (data.gouv.fr) pendant la frappe, et reprend simplement celle du dossier quand un dossier est rattaché — une note sous le champ dit d'où vient l'adresse affichée. Seul appel vers un service extérieur de tout CLAIRE : seul le texte tapé dans ce champ part, jamais un nom de dossier ni de client, et un poste sans internet garde la saisie libre. Corrigé au passage : le menu de recherche de dossier de cet écran s'affichait en boutons bruts, sans séparateur ni survol" },
     { version: '2026-09-21 22:02', resume: "Appel de fonds, trois retouches. Le bloc destinataire du courrier est aligné à droite dans l'aperçu, comme sur le papier. Le dépôt de garantie versé à l'agence est désormais DÉDUIT du virement demandé, l'agence reversant la somme à l'étude — la version de ce matin ne le déduisait pas, ce qui faisait réclamer au client une somme trop forte ; la fiche rappelle de réclamer ces fonds avant la signature. Enfin, la ligne « frais et droits de l'acte de vente » est contrôlée contre le barème du simulateur, comme les prorata l'étaient déjà : CLAIRE dit si le montant est au-dessus ou en dessous, sans jamais le remplir — ce barème n'a pas été audité. Corrigé au passage : un prorata écrit sans parenthèses n'était pas recalculé du tout" },
     { version: '2026-09-21 21:36', resume: "Nouvel outil « Appel de fonds » dans la sidebar : il produit la convocation au rendez-vous de signature avec le décompte des sommes à virer, et la télécharge en .docx à l'en-tête de l'étude. Relié au suivi — un bouton « Préparer l'appel de fonds » sur la fiche d'un dossier ouvre l'outil déjà rempli avec les acquéreurs, l'adresse et la désignation du bien, la date du rendez-vous et le prix ; il dit aussi, en clair, ce qu'il n'a PAS pu remplir. Le dépôt de garantie n'est porté en déduction que s'il est séquestré à l'étude, et les frais d'acte de prêt ne sont appelés que si l'offre porte une garantie hypothécaire. Le décompte d'un confrère peut être déposé en PDF ou collé : ses lignes remplissent le tableau, et ses prorata écrits sous forme de formule sont recalculés pour contrôle" },
     { version: '2026-09-21 18:04', resume: "Deux changements de couleur demandés : les notifications de nouveau document (le compteur de la sidebar, la mention sur la ligne du Suivi et le repère « Nouveau » sur la pièce) passent au ROUGE, qui se remarque mieux que l'ancien vert — lequel disait par ailleurs la même chose que le statut « reçu » affiché juste à côté. Et l'échéance « Signature de l'acte » passe au BLEU NUIT, partout où elle apparaît, y compris sur la fiche imprimée. Corrigé au passage sur le Tableau de bord : les pastilles « Appel de fonds » et « Rendez-vous de signature » du widget des 7 prochains jours ne prenaient pas la couleur de leur catégorie — le rendez-vous s'y affichait même dans la couleur de la date butoir, ce qui rendait les deux indiscernables" },
@@ -13294,9 +13295,13 @@
       boite.style.display = 'block';
       return;
     }
-    boite.innerHTML = trouves.map(d => `<button type="button" class="dash-recherche-item" onclick="choisirDossierAppelFonds('${escapeOnclickArg(d.id)}')">
+    // `.dash-recherche-ligne`/`.dash-recherche-resp` et pas `-item`/`-meta` : ces deux dernières
+    // n'existent nulle part dans style.css, le menu s'affichait donc en boutons natifs bruts (ni
+    // séparateur, ni survol). Corrigé en même temps que l'ajout des suggestions d'adresse, qui
+    // réutilisent le même gabarit juste en dessous.
+    boite.innerHTML = trouves.map(d => `<button type="button" class="dash-recherche-ligne" onclick="choisirDossierAppelFonds('${escapeOnclickArg(d.id)}')">
       <span class="dash-recherche-nom">${escapeHtml(libelleDossierAffiche(d))}</span>
-      <span class="dash-recherche-meta">${escapeHtml(d.responsable || '')}</span>
+      <span class="dash-recherche-resp">${escapeHtml(d.responsable || '')}</span>
     </button>`).join('');
     boite.style.display = 'block';
   }
@@ -13329,6 +13334,101 @@
     </div>`;
   }
 
+  // --- adresse du bien : reprise du dossier, ou suggestions de la Base Adresse Nationale --------
+  //
+  // Deux sources, jamais en même temps, demandé ainsi par l'étude : quand un dossier est rattaché,
+  // son adresse est reprise telle quelle (elle a déjà été relue et corrigée à la création du
+  // dossier, la redemander à un service extérieur n'apporterait rien) ; sans dossier rattaché, le
+  // champ propose les adresses officielles de la Base Adresse Nationale (api-adresse.data.gouv.fr).
+  //
+  // **Seul appel réseau vers un service tiers de tout CLAIRE.** Ce qui part est le texte tapé dans
+  // ce champ, rien d'autre — jamais le nom du dossier, des parties ni aucune autre donnée client.
+  // L'API est un service public de l'État, sans compte ni clé. Si le poste n'a pas d'accès
+  // internet, l'appel échoue silencieusement et le champ reste une saisie libre : la génération du
+  // courrier ne dépend à aucun moment de ce service.
+  var API_ADRESSE_DATA_GOUV = 'https://api-adresse.data.gouv.fr/search/';
+  var MIN_CARACTERES_SUGGESTION_ADRESSE = 4;
+  var DELAI_SUGGESTION_ADRESSE_MS = 250;
+  var afAdresseBienDepuisDossier = false;
+  var afSuggestionsAdresseMinuteur = null;
+  var afGenerationSuggestionAdresse = 0;
+
+  function urlRechercheAdresseDataGouv(requete) {
+    return API_ADRESSE_DATA_GOUV + '?q=' + encodeURIComponent(String(requete || '').trim()) + '&limit=5&autocomplete=1';
+  }
+
+  // La BAN renvoie du GeoJSON : `label` est l'adresse complète (« 5 rue des Lilas 41000 Blois »),
+  // `context` le département et la région. Tout ce qui n'a pas de `label` exploitable est écarté
+  // plutôt que rendu sous forme de ligne vide.
+  function adressesDepuisReponseDataGouv(json) {
+    const features = (json && Array.isArray(json.features)) ? json.features : [];
+    return features
+      .map(f => (f && f.properties) ? { label: String(f.properties.label || '').trim(), contexte: String(f.properties.context || '').trim() } : null)
+      .filter(a => a && a.label);
+  }
+
+  function masquerSuggestionsAdresseBien() {
+    // Un clic sur une suggestion déclenche d'abord le `blur` du champ : masquer tout de suite
+    // ferait disparaître le bouton avant que son `click` ne parte. D'où le petit délai.
+    setTimeout(() => {
+      const boite = afEl('af-adresse-bien-resultats');
+      if (boite) { boite.style.display = 'none'; boite.innerHTML = ''; }
+    }, 180);
+  }
+
+  function renderSuggestionsAdresseBien(liste) {
+    const boite = afEl('af-adresse-bien-resultats');
+    if (!boite) return;
+    if (!liste.length) { boite.style.display = 'none'; boite.innerHTML = ''; return; }
+    boite.innerHTML = liste.map(a => `<button type="button" class="dash-recherche-ligne" onclick="choisirAdresseBienAppelFonds('${codifierPourAttribut(a.label)}')">
+      <span class="dash-recherche-nom">${escapeHtml(a.label)}</span>
+      <span class="dash-recherche-resp">${escapeHtml(a.contexte)}</span>
+    </button>`).join('');
+    boite.style.display = 'block';
+  }
+
+  function rechercherAdresseBienAppelFonds(valeur) {
+    const q = String(valeur || '').trim();
+    if (afSuggestionsAdresseMinuteur) clearTimeout(afSuggestionsAdresseMinuteur);
+    // Dès que l'étude tape, l'adresse n'est plus celle reprise du dossier : l'indication sous le
+    // champ doit le dire, sinon elle affirmerait une provenance fausse.
+    if (afAdresseBienDepuisDossier) majSourceAdresseBien(false);
+    if (q.length < MIN_CARACTERES_SUGGESTION_ADRESSE) { renderSuggestionsAdresseBien([]); return; }
+    const generation = ++afGenerationSuggestionAdresse;
+    afSuggestionsAdresseMinuteur = setTimeout(async () => {
+      try {
+        const rep = await fetch(urlRechercheAdresseDataGouv(q));
+        if (!rep.ok) throw new Error('reponse ' + rep.status);
+        const json = await rep.json();
+        // Une réponse arrivée après que l'étude a continué de taper décrirait une requête
+        // périmée : on l'ignore plutôt que de proposer des adresses sans rapport avec le champ.
+        if (generation !== afGenerationSuggestionAdresse) return;
+        renderSuggestionsAdresseBien(adressesDepuisReponseDataGouv(json));
+      } catch (e) {
+        // Poste sans accès internet, service indisponible : aucun message, le champ reste une
+        // saisie libre. Une erreur ici ne doit jamais gêner la rédaction du courrier.
+        if (generation === afGenerationSuggestionAdresse) renderSuggestionsAdresseBien([]);
+      }
+    }, DELAI_SUGGESTION_ADRESSE_MS);
+  }
+
+  function choisirAdresseBienAppelFonds(b64) {
+    const champ = afEl('af-adresse-bien');
+    if (champ) champ.value = decoderAttribut(b64);
+    renderSuggestionsAdresseBien([]);
+    majSourceAdresseBien(false);
+    majApercuAppelFonds();
+  }
+
+  function majSourceAdresseBien(depuisDossier) {
+    afAdresseBienDepuisDossier = !!depuisDossier;
+    const note = afEl('af-adresse-bien-source');
+    if (!note) return;
+    note.textContent = afAdresseBienDepuisDossier
+      ? 'Adresse reprise du dossier rattaché. Modifiez-la pour obtenir des suggestions officielles.'
+      : "Tapez l'adresse : des suggestions officielles (Base Adresse Nationale) s'affichent.";
+  }
+
   // Écrit dans le formulaire tout ce que le dossier permet, puis AFFICHE ce qu'il n'a pas permis.
   // Le second point est le plus important : un champ laissé vide sur un courrier adressé à un
   // client se voit, et rien dans l'outil ne dirait pourquoi sans ce récapitulatif.
@@ -13344,6 +13444,9 @@
     ecrire('af-ref', p.dossierNom);
     ecrire('af-designation', p.designation);
     ecrire('af-adresse-bien', p.adresseBien);
+    // L'adresse vient de la fiche : on le dit sous le champ, et les suggestions extérieures
+    // n'ont plus lieu d'être tant que l'étude ne la retouche pas.
+    majSourceAdresseBien(!!p.adresseBien);
     ecrire('af-date-rdv', p.dateRdv);
     const casePret = afEl('af-pret-hypothecaire');
     if (casePret) casePret.checked = !!p.pretHypothecaire;
@@ -13759,6 +13862,8 @@
     if (casePret) casePret.checked = false;
     const lieu = afEl('af-lieu');
     if (lieu) lieu.value = "en l'étude";
+    majSourceAdresseBien(false);
+    renderSuggestionsAdresseBien([]);
     const rapport = afEl('af-rapport-parse');
     if (rapport) { rapport.className = 'af-rapport'; rapport.innerHTML = ''; }
     const recap = afEl('af-recap-prefill');
