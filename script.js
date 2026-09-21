@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-21 07:47';
+  const VERSION_APP = '2026-09-21 11:08';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-21 11:08', resume: "Sur la fiche dossier, les échéances sont désormais classées par DATE, de la plus proche à la plus lointaine, au lieu d'un ordre fixe qui ne disait rien de ce qui arrive en premier (une échéance sans date passe en fin de liste). Un champ « Email de l'acquéreur » apparaît au-dessus des boutons de relance : l'adresse détectée à l'import y est enfin visible, corrigeable, et peut être saisie après coup — jusqu'ici un email manquant n'affichait qu'un message sans moyen d'y répondre. « Rendez-vous de signature » passe en vert et « Appel de fonds » reçoit sa propre couleur (violet) : leurs pastilles restaient incolores dans le Suivi, contrairement aux trois autres catégories. Enfin, une offre de prêt cautionnée seule n'affiche plus « Caution · Hypothèque conventionnelle » : le paragraphe GARANTIES débordait sur la section suivante (« 8. ASSURANCES » et « Article 8 - … » n'étaient pas reconnus comme titres), et une hypothèque citée en simple alternative (« à défaut d'accord de la caution… ») était comptée comme une garantie du prêt" },
     { version: '2026-09-21 07:47', resume: "Dans la sidebar, le mot « Claire » est rapproché de son symbole, et le mot « ALPHA » est recentré dans sa pilule (il était visiblement remonté : les capitales laissent sous elles la place des jambages, que la pilule comptait quand même)" },
     { version: '2026-09-21 07:40', resume: "Logo : retour à la première proposition, celle que vous préférez — l'anneau ouvert en trait fin déjà associé à CLAIRE, dont le petit trait de fermeture devient une coche. Remplace la version en aplats géométriques livrée hier soir, qui se lisait comme un carré plein à cette taille. Le mot « Claire » ne change pas, et le badge « Alpha » à côté du logo est réduit" },
     { version: '2026-09-20 23:44', resume: "Nouveau logo, à la demande de l'étude après une proposition soumise pour avis (un anneau ouvert « rubané » en aplats géométriques, dont le creux central forme une coche — plutôt qu'un simple trait fin) : la marque de la sidebar, de l'écran de connexion, de « À propos » et le favicon/icône PWA reprennent tous ce nouveau motif, dans le même bleu --focus/--focus-hover déjà en place. Le mot « CLAIRE » s'écrit désormais « Claire », seule la première lettre en majuscule" },
@@ -6468,6 +6469,35 @@
     </div>`;
   }
 
+  // Ordre d'affichage des cartes d'échéance sur la fiche : CHRONOLOGIQUE (demandé par l'étude),
+  // et non plus l'ordre fixe prêt → appel de fonds → acte → rendez-vous → vente préalable →
+  // personnalisées, qui ne disait rien de ce qui arrive en premier. Une échéance sans date
+  // renseignée n'a rien à classer : elle part en fin de liste, dans ce même ordre naturel (le tri
+  // de JS est stable, donc les non datées gardent leur ordre d'insertion) — les reléguer en tête
+  // ferait disparaître les vraies échéances sous des cartes vides.
+  // Ne touche QUE l'affichage : l'index passé à renderTab pour une échéance personnalisée reste
+  // sa position réelle dans d.autres (c'est lui qui identifie l'entrée pour l'édition et la
+  // suppression, voir supprimerEcheanceAutre), pas son rang une fois trié.
+  function echeancesOrdonneesFiche(d, confiance, offreBloc) {
+    const cartes = [];
+    cartes.push({ iso: d.pret, html: renderTab('pret', 'Obtention du prêt', d.pret, d.id, d.pretPage, confiance.pret, null, d.offrePretStatut === 'recue', offreBloc, d.sansPret, echeanceValidee(d, 'pret')) });
+    if (dossierEntierementComplet(d)) cartes.push({ iso: d.appelFonds, html: renderTab('appelFonds', 'Appel de fonds', d.appelFonds, d.id, null, null, null, false, '', false, echeanceValidee(d, 'appelFonds')) });
+    cartes.push({ iso: d.acte, html: renderTab('acte', 'Signature de l\u2019acte', d.acte, d.id, d.actePage, confiance.acte, null, false, '', false, echeanceValidee(d, 'acte')) });
+    cartes.push({ iso: d.rendezVousSignature, html: renderTab('rendezVousSignature', 'Rendez-vous de signature', d.rendezVousSignature, d.id, null, null, null, false, '', false, echeanceValidee(d, 'rendezVousSignature')) });
+    if (d.ventebien) cartes.push({ iso: d.ventebien, html: renderTab('ventebien', 'Vente préalable', d.ventebien, d.id, d.ventebienPage, confiance.ventebien, null, false, '', false, echeanceValidee(d, 'ventebien')) });
+    (d.autres || []).forEach((a, i) => cartes.push({ iso: a.date, html: renderTab('autre', escapeHtml(a.label), a.date, d.id, a.page, null, i, false, '', false, echeanceValidee(d, 'autre-' + i)) }));
+    // Les dates sont au format ISO AAAA-MM-JJ partout dans l'outil (valeur d'un <input type="date">) :
+    // la comparaison de chaînes suffit à les classer, sans construire de Date ni risquer un
+    // décalage de fuseau horaire.
+    cartes.sort((a, b) => {
+      if (a.iso && b.iso) return a.iso < b.iso ? -1 : (a.iso > b.iso ? 1 : 0);
+      if (a.iso) return -1;
+      if (b.iso) return 1;
+      return 0;
+    });
+    return cartes.map(c => c.html).join('');
+  }
+
   // Marque une échéance comme réalisée (ou revient en arrière). La date n'est jamais effacée —
   // c'est la différence avec supprimerDateEcheance : le dossier garde la trace de la date butoir,
   // seule sa présence dans le planning change. `type` peut être une clé fixe (pret/acte/ventebien/
@@ -8251,12 +8281,7 @@
         </div>
         <div class="dossier-body">
         <div class="tabs">
-          ${renderTab('pret', 'Obtention du prêt', d.pret, d.id, d.pretPage, confiance.pret, null, d.offrePretStatut === 'recue', offreBloc, d.sansPret, echeanceValidee(d, 'pret'))}
-          ${dossierEntierementComplet(d) ? renderTab('appelFonds', 'Appel de fonds', d.appelFonds, d.id, null, null, null, false, '', false, echeanceValidee(d, 'appelFonds')) : ''}
-          ${renderTab('acte', 'Signature de l\u2019acte', d.acte, d.id, d.actePage, confiance.acte, null, false, '', false, echeanceValidee(d, 'acte'))}
-          ${renderTab('rendezVousSignature', 'Rendez-vous de signature', d.rendezVousSignature, d.id, null, null, null, false, '', false, echeanceValidee(d, 'rendezVousSignature'))}
-          ${d.ventebien ? renderTab('ventebien', 'Vente préalable', d.ventebien, d.id, d.ventebienPage, confiance.ventebien, null, false, '', false, echeanceValidee(d, 'ventebien')) : ''}
-          ${(d.autres || []).map((a, i) => renderTab('autre', escapeHtml(a.label), a.date, d.id, a.page, null, i, false, '', false, echeanceValidee(d, 'autre-' + i))).join('')}
+          ${echeancesOrdonneesFiche(d, confiance, offreBloc)}
         </div>
         ${renderAjoutEcheance(d)}
         ${d.roleNotaire !== 'participant' ? renderPiecesDossier(d) : ''}
@@ -8760,6 +8785,42 @@
     );
   }
 
+  // Champ "Email de l'acquéreur" directement sur la fiche, au-dessus des boutons de relance
+  // (demandé par l'étude). L'adresse est déjà captée à la création du dossier — détectée dans le
+  // compromis par detecterEmailAcquereur() puis enregistrée par ajouterDossier() — mais elle
+  // n'était visible NULLE PART une fois le dossier créé : impossible de vérifier ce qui avait été
+  // retenu, ni de corriger une adresse fausse ou d'en saisir une après coup autrement qu'en
+  // recréant le dossier. Un email manquant n'affichait qu'un message d'invite, sans moyen d'y
+  // répondre.
+  // Jamais affiché quand l'acquéreur est représenté par un office distinct du nôtre : c'est alors
+  // l'email du confrère qui sert aux relances (champ dédié dans le bloc notaires, voir
+  // renderNotairesDossier), et l'étude n'a pas à collecter l'adresse personnelle de l'acquéreur —
+  // même règle déontologique que celle déjà appliquée au champ équivalent du wizard.
+  // onblur plutôt que onchange, avec Entrée qui valide : la fiche se redessine à chaque
+  // modification, valider à chaque frappe ferait perdre le focus (même choix que le champ email du
+  // notaire de l'acquéreur juste au-dessus).
+  function renderEmailAcquereurDossier(d) {
+    if (notaireParticipantRepresenteAcquereur(d)) return '';
+    return `<div class="classif-champ champ-email-relance">
+      <label for="email-acq-${d.id}">Email de l’acquéreur</label>
+      <input type="email" id="email-acq-${d.id}" class="input-classif" value="${escapeAttr(d.emailAcquereur || '')}"
+        placeholder="Non renseigné" title="Destinataire des relances ciblées (provision, prêt, RIB) et du questionnaire de satisfaction."
+        onblur="changerEmailAcquereur('${d.id}', this.value)"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
+    </div>`;
+  }
+
+  function changerEmailAcquereur(id, valeur) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    const nouveau = String(valeur || '').trim();
+    if (nouveau === (d.emailAcquereur || '')) return;
+    d.emailAcquereur = nouveau;
+    ajouterHistorique(d, `Email de l’acquéreur : ${nouveau || '—'}`);
+    sauvegarder(d);
+    render();
+  }
+
   // Affichée sur la fiche dossier (voir renderCarteDossier), juste avant les trois actions
   // génériques (.ics/rappel/impression) : un bouton par motif de relance pertinent pour CE dossier.
   // Absente pour un notaire participant (même garde-fou que relancerSiOffreManquante/
@@ -8778,6 +8839,7 @@
         : 'Renseignez l’email de l’acquéreur pour activer les relances ciblées (provision, prêt, RIB).';
       return `<div class="relances-ciblees">
         <span class="section-eyebrow">Relancer par email</span>
+        ${renderEmailAcquereurDossier(d)}
         <p class="hint">${hint}</p>
       </div>`;
     }
@@ -8788,6 +8850,7 @@
     boutons.push(MODELES_EMAIL_RELANCE.rib);
     return `<div class="relances-ciblees">
       <span class="section-eyebrow">Relancer par email</span>
+      ${renderEmailAcquereurDossier(d)}
       ${notaireParticipant ? '<p class="hint">L’acquéreur est représenté par un office distinct : ces relances seront adressées à son notaire, jamais directement à l’acquéreur.</p>' : ''}
       <div class="relances-boutons">
         ${boutons.map(m => `<button type="button" class="action-rapide" onclick="envoyerRelanceCiblee('${d.id}', '${m.cle}')">${escapeHtml(m.libelle)}</button>`).join('')}
@@ -9749,8 +9812,8 @@
       acte:  { fond: '#E1F4F2', barre: '#1CA39B' },
       vente: { fond: '#E3EEF7', barre: '#2472B0' },
       autre: { fond: '#EEEEEE', barre: '#8A93A9' },
-      appelFonds: { fond: '#EEEEEE', barre: '#8A93A9' },
-      rendezVous: { fond: '#E1F4F2', barre: '#1CA39B' }
+      appelFonds: { fond: '#EEE9F7', barre: '#7C5CBF' },
+      rendezVous: { fond: '#E4F2EA', barre: '#2F8F5B' }
     };
 
     const cases = [
@@ -10219,10 +10282,70 @@
   // — sans quoi « les garanties sont acquises au prêteur » au fil d'une phrase passerait pour un
   // titre de paragraphe.
   var RE_TITRE_GARANTIES = /^[^\S\n]*(?:(?:article|art\.?|§)[^\S\n]*)?\d{0,2}[^\S\n]*[-–—.)]?[^\S\n]*(?:garanties?|s[ûu]ret[ée]s?)(?:[^\S\n]+(?:du[^\S\n]+pr[êe]t|exig[ée]es?|r[ée]elles?))?[^\S\n]*(?::|$)/im;
-  // Fin du paragraphe : le titre de section suivant (une ligne courte en capitales), ou à défaut
-  // une fenêtre généreuse — une énumération de garanties tient largement dedans.
-  var RE_TITRE_SECTION_SUIVANTE = /^[^\S\n]*[A-ZÀ-Ü][A-ZÀ-Ü0-9'’\s,.\-()]{4,80}[^\S\n]*$/m;
+  // Fin du paragraphe : le titre de section suivant, ou à défaut une fenêtre généreuse — une
+  // énumération de garanties tient largement dedans.
+  // Le motif précédent (« une ligne courte entièrement en capitales ») exigeait une MAJUSCULE
+  // comme TOUT PREMIER caractère de la ligne : il ne reconnaissait donc ni « 8. ASSURANCES » ni
+  // « Article 8 - Assurance emprunteur », c'est-à-dire les deux formes de titre les plus
+  // fréquentes dans une offre réelle. Le paragraphe « GARANTIES » avalait alors la section
+  // suivante en entier, et une hypothèque citée sous « ASSURANCES » remontait comme garantie du
+  // prêt — cause n°1 du « Caution · Hypothèque conventionnelle » signalé par l'étude sur une
+  // offre pourtant cautionnée seule.
+  var RE_NUMERO_SECTION = /^\s*(?:(article|art\.?|§)\s*)?(\d{1,2})?\s*[-–—.)]?\s*/i;
+  var RE_INTITULE_CAPITALES = /^[A-ZÀ-Ü][A-ZÀ-Ü0-9'’\s,.\-()]{4,80}$/;
   var LONGUEUR_MAX_PARAGRAPHE_GARANTIES = 2500;
+  // En deçà, on ne coupe pas : la première garantie elle-même est parfois écrite en capitales sur
+  // sa propre ligne (« CAUTIONNEMENT SOLIDAIRE »), et la prendre pour le titre suivant viderait
+  // le paragraphe — une offre cautionnée ressortirait « Sans garanties ».
+  var MIN_PARAGRAPHE_AVANT_COUPE = 40;
+
+  // Une ligne est un titre de section quand, son éventuel numéro d'article retiré (« 8. »,
+  // « Article 9 — », « § 4 – »), il reste soit un intitulé entièrement en capitales, soit — mais
+  // seulement si le mot « article »/« art. »/« § » était bien présent, marqueur non ambigu — un
+  // intitulé en casse normale.
+  function estTitreDeSection(ligne) {
+    const m = RE_NUMERO_SECTION.exec(ligne);
+    const motArticle = !!(m && m[1]);
+    const numero = !!(m && m[2]);
+    const reste = ligne.slice(m ? m[0].length : 0).trim();
+    if (!reste || reste.length > 90) return false;
+    if (RE_INTITULE_CAPITALES.test(reste)) return true;
+    return motArticle && numero;
+  }
+
+  // Index du prochain titre de section dans `texte`, ou -1.
+  function indexTitreSectionSuivante(texte) {
+    let position = 0;
+    for (const ligne of String(texte).split('\n')) {
+      if (position >= MIN_PARAGRAPHE_AVANT_COUPE && estTitreDeSection(ligne)) return position;
+      position += ligne.length + 1;
+    }
+    return -1;
+  }
+
+  // Cause n°2 du même signalement : le paragraphe « GARANTIES » d'une offre cautionnée nomme
+  // couramment une hypothèque en ALTERNATIVE (« à défaut d'accord de la caution, le prêt sera
+  // garanti par une hypothèque conventionnelle ») — ce n'est pas une garantie de CE prêt, c'est
+  // ce qui se passerait si la caution était refusée. Même principe que RE_SIMPLE_RENVOI_PIECE /
+  // motifPieceTrouve pour la checklist : on teste CHAQUE occurrence, et une occurrence non
+  // conditionnée ailleurs dans le même paragraphe reste valable.
+  var RE_GARANTIE_CONDITIONNELLE = /[àa]\s+d[ée]faut|faute\s+d['’e]|en\s+cas\s+de\s+(?:refus|rejet|d[ée]faillance|non[-\s]?obtention)|[àa]\s+titre\s+subsidiaire|en\s+substitution|le\s+cas\s+[ée]ch[ée]ant|si\s+(?:l['’]organisme|la\s+caution|le\s+cautionnement)/i;
+  var FENETRE_GARANTIE_CONDITIONNELLE = 160;
+
+  function garantieNonConditionnelle(motif, paragraphe) {
+    const re = new RegExp(motif.source, motif.flags.includes('g') ? motif.flags : motif.flags + 'g');
+    let m;
+    while ((m = re.exec(paragraphe)) !== null) {
+      let avant = paragraphe.slice(Math.max(0, m.index - FENETRE_GARANTIE_CONDITIONNELLE), m.index);
+      // Bornée à la phrase courante : un « à défaut » de la phrase précédente ne conditionne pas
+      // celle-ci (même principe que extraireContexte ailleurs dans ce fichier).
+      const coupe = Math.max(avant.lastIndexOf('. '), avant.lastIndexOf('\n'));
+      if (coupe >= 0) avant = avant.slice(coupe + 1);
+      if (!RE_GARANTIE_CONDITIONNELLE.test(avant)) return true;
+      if (m.index === re.lastIndex) re.lastIndex++;
+    }
+    return false;
+  }
 
   // Extrait le paragraphe « GARANTIES » de l'offre. Renvoie '' si l'offre n'en porte pas —
   // l'appelant retombe alors sur « Sans garanties », voir detecterGarantiesPret.
@@ -10235,7 +10358,7 @@
     // alors la section suivante en entier (une hypothèque citée sous « ASSURANCES » remontait
     // ainsi comme garantie du prêt).
     const reste = source.slice(titre.index + titre[0].length, titre.index + titre[0].length + LONGUEUR_MAX_PARAGRAPHE_GARANTIES);
-    const suivant = reste.search(RE_TITRE_SECTION_SUIVANTE);
+    const suivant = indexTitreSectionSuivante(reste);
     return suivant > 0 ? reste.slice(0, suivant) : reste;
   }
 
@@ -10248,7 +10371,7 @@
     // Aucun paragraphe « GARANTIES » : on ne sait pas, et ne pas savoir n'est pas « sans
     // garantie » — la fiche n'affiche alors rien plutôt qu'une affirmation fausse.
     if (!paragraphe) return [];
-    const trouvees = GARANTIES_PRET.filter(g => g.motif && g.motif.test(paragraphe)).map(g => g.cle);
+    const trouvees = GARANTIES_PRET.filter(g => g.motif && garantieNonConditionnelle(g.motif, paragraphe)).map(g => g.cle);
     // Le paragraphe existe mais n'énonce aucune des garanties connues : c'est une vraie réponse,
     // la première des quatre listées par l'étude.
     return trouvees.length ? trouvees : ['sansGarantie'];

@@ -114,3 +114,58 @@ test('normaliserDossierImporte écarte une date mal formée pour les deux nouvea
   const d = app.normaliserDossierImporte({ nom: 'X / Y', appelFonds: 'pas une date' }, 'x.json');
   assert.equal(d.appelFonds, '');
 });
+
+// Ordre CHRONOLOGIQUE des cartes d'échéance sur la fiche (demandé par l'étude) — remplace
+// l'ordre fixe prêt → appel de fonds → acte → rendez-vous → vente préalable → personnalisées.
+// On lit l'ordre dans le HTML produit en cherchant la position de chaque libellé.
+function ordreDesEcheances(app, d) {
+  const html = app.echeancesOrdonneesFiche(d, {}, '');
+  const libelles = ['Obtention du prêt', 'Appel de fonds', 'Signature de l’acte',
+    'Rendez-vous de signature', 'Vente préalable'].concat((d.autres || []).map((a) => a.label));
+  // Ancrage sur le titre de la carte, jamais sur le libellé seul : les tabs recatégorisables
+  // (prêt/acte/vente préalable) embarquent un <select> qui contient les TROIS libellés en
+  // <option>, donc un simple indexOf du libellé retombe sur la mauvaise carte.
+  return libelles
+    .map((l) => ({ l, i: html.indexOf('<div class="tab-name">' + l + '</div>') }))
+    .filter((x) => x.i >= 0)
+    .sort((a, b) => a.i - b.i)
+    .map((x) => x.l);
+}
+
+test('echeancesOrdonneesFiche classe les échéances datées par date croissante', () => {
+  const app = chargerApplication();
+  const d = dossierBase({
+    pret: '2026-11-15', acte: '2026-09-30', ventebien: '2026-08-01',
+    rendezVousSignature: '2026-10-05',
+    autres: [{ label: 'Diagnostic amiante', date: '2026-07-01' }]
+  });
+  assert.equal(
+    ordreDesEcheances(app, d).join(' | '),
+    'Diagnostic amiante | Vente préalable | Signature de l’acte | Rendez-vous de signature | Obtention du prêt'
+  );
+});
+
+test('echeancesOrdonneesFiche relègue les échéances sans date en fin, dans leur ordre naturel', () => {
+  const app = chargerApplication();
+  // Seule "Signature de l'acte" porte une date : elle passe devant le prêt et le rendez-vous,
+  // qui gardent entre eux l'ordre d'affichage historique.
+  const d = dossierBase({ pret: '', acte: '2026-09-30', rendezVousSignature: '' });
+  assert.equal(
+    ordreDesEcheances(app, d).join(' | '),
+    'Signature de l’acte | Obtention du prêt | Rendez-vous de signature'
+  );
+});
+
+test('echeancesOrdonneesFiche garde l\'index réel d\'une échéance personnalisée malgré le tri', () => {
+  const app = chargerApplication();
+  // La 2e entrée de d.autres (index 1) est la plus ancienne : elle s'affiche en premier, mais son
+  // bouton de suppression doit toujours viser l'index 1, pas son rang après tri.
+  const d = dossierBase({
+    acte: '2026-12-31',
+    autres: [{ label: 'Tardive', date: '2026-11-01' }, { label: 'Ancienne', date: '2026-01-15' }]
+  });
+  const html = app.echeancesOrdonneesFiche(d, {}, '');
+  assert.ok(html.indexOf('<div class="tab-name">Ancienne</div>') < html.indexOf('<div class="tab-name">Tardive</div>'));
+  assert.ok(html.includes("supprimerEcheanceAutre('d1', 1)"));
+  assert.ok(html.includes("supprimerEcheanceAutre('d1', 0)"));
+});

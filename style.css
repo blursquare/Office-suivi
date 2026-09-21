@@ -17,6 +17,11 @@
     --acte: #1CA39B;
     --acte-bg: #E1F4F2;
     --ventebien: #2472B0;
+    /* 4e catégorie d'échéance (« Appel de fonds »), demandée par l'étude. Aucun jeton existant
+       n'était libre : --pret (ambre), --acte (teal), --ventebien (bleu) et --success (vert, repris
+       par le rendez-vous de signature) sont tous pris, et --focus est réservé aux accents
+       interactifs. D'où ce violet, seule couleur de catégorie ajoutée depuis la refonte. */
+    --appelfonds: #7C5CBF;
     --ventebien-bg: #E3EEF7;
     --urgent: #C2410C;
     --success: #2F8F5B;
@@ -55,6 +60,7 @@
     --acte: #4FC2B8;
     --acte-bg: #1E322F;
     --ventebien: #6FAEDB;
+    --appelfonds: #A48BE0;
     --ventebien-bg: #263238;
     --urgent: #F08C4B;
     --success: #5FBF87;
@@ -2809,6 +2815,11 @@
      petite pastille .action-rapide générique (Revérifier...) : demandé par l'étude pour que tous
      les boutons d'action de la fiche se lisent au même gabarit. */
   .relances-ciblees { margin: 14px 0 0; }
+  /* Email de l'acquéreur, au-dessus des boutons (voir renderEmailAcquereurDossier) : borné en
+     largeur, une adresse n'a pas besoin de toute la largeur du tiroir. Son habillage est partagé
+     avec les champs du bloc notaires — voir .dossier-notaires input.input-classif, et le piège de
+     spécificité documenté juste au-dessus. */
+  .champ-email-relance { max-width: 340px; margin: 6px 0 10px; }
   .relances-boutons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
   .relances-boutons .action-rapide {
     margin-left: 0;
@@ -2988,7 +2999,8 @@
      élément+attribut, une spécificité qu'un simple `input.input-classif` ne bat pas — à égalité
      c'est l'ordre du fichier qui tranche, piège déjà rencontré quatre fois dans cette feuille
      (.select-edit, .input-inline, .pdf-recherche-input, .revision-saisie). */
-  .dossier-notaires input.input-classif {
+  .dossier-notaires input.input-classif,
+  .champ-email-relance input.input-classif {
     font-family: inherit;
     font-size: 13.5px;
     color: var(--ink);
@@ -3001,9 +3013,12 @@
     min-width: 0;
     cursor: text;
   }
-  .dossier-notaires input.input-classif:hover { border-color: var(--muted); }
-  .dossier-notaires input.input-classif:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-  .dossier-notaires input.input-classif::placeholder { color: var(--muted); font-style: italic; }
+  .dossier-notaires input.input-classif:hover,
+  .champ-email-relance input.input-classif:hover { border-color: var(--muted); }
+  .dossier-notaires input.input-classif:focus-visible,
+  .champ-email-relance input.input-classif:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .dossier-notaires input.input-classif::placeholder,
+  .champ-email-relance input.input-classif::placeholder { color: var(--muted); font-style: italic; }
 
   /* Le badge « Reçoit l'acte » EST le contrôle : les sélecteurs « Rôle du notaire » et « Acte reçu
      par » ont été retirés de la grille de classification (doublon signalé par l'étude). Présent
@@ -3199,9 +3214,9 @@
     background: var(--paper-card);
   }
   .tab.pret { border-left-color: var(--pret); }
-  .tab.appelFonds { border-left-color: var(--muted); }
+  .tab.appelFonds { border-left-color: var(--appelfonds); }
   .tab.acte { border-left-color: var(--acte); }
-  .tab.rendezVousSignature { border-left-color: var(--acte); }
+  .tab.rendezVousSignature { border-left-color: var(--success); }
   .tab.ventebien { border-left-color: var(--ventebien); }
   .tab.autre { border-left-color: var(--muted); }
 
@@ -3254,6 +3269,8 @@
   .tab.pret .tab-titre-ligne .tab-name { color: var(--pret); }
   .tab.acte .tab-titre-ligne .tab-name { color: var(--acte); }
   .tab.ventebien .tab-titre-ligne .tab-name { color: var(--ventebien); }
+  .tab.appelFonds .tab-name { color: var(--appelfonds); }
+  .tab.rendezVousSignature .tab-name { color: var(--success); }
   .tab-select-icone-wrap {
     position: relative;
     display: inline-flex;
@@ -3399,6 +3416,11 @@
   .dot-label.dl-pret { color: var(--pret); }
   .dot-label.dl-acte { color: var(--acte); }
   .dot-label.dl-ventebien { color: var(--ventebien); }
+  /* Les deux échéances ajoutées après coup n'avaient aucune règle ici : leur pastille restait
+     incolore dans le tableau du Suivi et la vue Échéances (voir `dl-${e.type}`), contrairement
+     aux trois autres catégories. */
+  .dot-label.dl-appelFonds { color: var(--appelfonds); }
+  .dot-label.dl-rendezVousSignature { color: var(--success); }
   .dot-label.dl-success { color: var(--success); }
   .dot-label.dl-urgent { color: var(--urgent); }
   .dot-label.dl-alerte {

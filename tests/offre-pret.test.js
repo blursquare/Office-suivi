@@ -126,3 +126,42 @@ test('un dossier dont l’offre reste « à confirmer » n’est pas considéré
   assert.equal(app.dossierEntierementComplet({ ...base, offrePretStatut: 'recue' }), true);
   assert.equal(app.dossierEntierementComplet({ ...base, offrePretStatut: 'aconfirmer' }), false);
 });
+
+// Signalé par l'étude sur un dossier réel : « Caution · Hypothèque conventionnelle » affiché pour
+// une offre qui ne porte qu'un cautionnement. Ce n'était pas l'affichage (qui se contente de
+// traduire les clés) mais la détection, pour deux raisons cumulées — un test par raison.
+test('extraireParagrapheGaranties s\'arrête sur un titre de section numéroté ou en casse normale', () => {
+  const app = chargerApplication();
+  // Le motif précédent exigeait une MAJUSCULE comme tout premier caractère de la ligne : ni
+  // « 8. ASSURANCES » ni « Article 8 - Assurance emprunteur » n'étaient reconnus comme titre, et
+  // le paragraphe GARANTIES avalait la section suivante (où l'hypothèque est citée à un autre titre).
+  const numerote = "7. GARANTIES\nLe prêt est garanti par le cautionnement de la société CREDIT LOGEMENT.\n\n"
+    + "8. ASSURANCES\nUne hypothèque conventionnelle pourrait être requise.";
+  assert.equal(app.detecterGarantiesPret(numerote).join(','), 'caution');
+
+  const article = "7. GARANTIES\nLe prêt est garanti par le cautionnement de la société CREDIT LOGEMENT.\n\n"
+    + "Article 8 - Assurance emprunteur\nLe prêteur pourra requérir une hypothèque conventionnelle sur le bien.";
+  assert.equal(app.detecterGarantiesPret(article).join(','), 'caution');
+});
+
+test('detecterGarantiesPret écarte une garantie citée en simple alternative', () => {
+  const app = chargerApplication();
+  const alternative = "GARANTIES :\nCautionnement solidaire de la société CREDIT LOGEMENT.\n"
+    + "À défaut d'accord de la caution, le prêt sera garanti par une hypothèque conventionnelle.";
+  assert.equal(app.detecterGarantiesPret(alternative).join(','), 'caution');
+
+  // …mais une hypothèque réellement exigée reste détectée, même si le paragraphe contient par
+  // ailleurs une phrase conditionnelle : le garde-fou porte sur CHAQUE occurrence, pas sur le
+  // paragraphe entier.
+  const cumul = "GARANTIES :\nHypothèque conventionnelle de premier rang sur le bien financé.\n"
+    + "En cas de refus, une hypothèque conventionnelle de second rang serait étudiée.";
+  assert.equal(app.detecterGarantiesPret(cumul).join(','), 'hypothequeConventionnelle');
+});
+
+test('extraireParagrapheGaranties ne coupe pas sur une première garantie écrite en capitales', () => {
+  const app = chargerApplication();
+  // Une garantie énoncée en capitales juste sous le titre ressemble à un titre de section : la
+  // couper viderait le paragraphe et ferait ressortir « Sans garanties » sur une offre cautionnée.
+  const capitales = "GARANTIES\nCAUTIONNEMENT SOLIDAIRE\nConsenti par la société CREDIT LOGEMENT.";
+  assert.equal(app.detecterGarantiesPret(capitales).join(','), 'caution');
+});

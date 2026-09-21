@@ -5490,6 +5490,82 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     16/32/64px sur fond clair et sombre) ; `npm test` reste vert (448 tests, aucun code JS touché
     — uniquement HTML/SVG).
 
+- **Lot de quatre demandes de l'étude (21/09 matin)**, traitées indépendamment :
+  - **Les échéances de la fiche dossier sont classées par DATE**, de la plus proche à la plus
+    lointaine (`echeancesOrdonneesFiche`, testable), au lieu de l'ordre fixe prêt → appel de fonds
+    → acte → rendez-vous → vente préalable → personnalisées, qui ne disait rien de ce qui arrive en
+    premier. Une échéance sans date n'a rien à classer : elle part en fin de liste, dans ce même
+    ordre naturel (le tri de JS est stable) — les reléguer en tête ferait disparaître les vraies
+    échéances sous des cartes vides. **Ne touche QUE l'affichage** : l'index passé à `renderTab()`
+    pour une échéance personnalisée reste sa position réelle dans `d.autres`, c'est lui qui
+    identifie l'entrée pour l'édition et la suppression (`supprimerEcheanceAutre`), pas son rang
+    après tri — vérifié par un test dédié.
+    - **Piège rencontré en écrivant les tests** : chercher un libellé d'échéance par `indexOf` dans
+      le HTML produit retombe sur la MAUVAISE carte — les tabs recatégorisables (prêt/acte/vente
+      préalable) embarquent un `<select>` qui contient les trois libellés en `<option>`. Il faut
+      s'ancrer sur `<div class="tab-name">…</div>`.
+  - **Champ « Email de l'acquéreur » sur la fiche**, au-dessus des boutons de relance
+    (`renderEmailAcquereurDossier`/`changerEmailAcquereur`). L'adresse était déjà captée à la
+    création du dossier — détectée par `detecterEmailAcquereur()` puis enregistrée par
+    `ajouterDossier()` — mais elle n'était visible NULLE PART une fois le dossier créé : impossible
+    de vérifier ce qui avait été retenu, de corriger une adresse fausse, ou d'en saisir une après
+    coup autrement qu'en recréant le dossier ; un email manquant n'affichait qu'un message d'invite
+    sans moyen d'y répondre. Jamais affiché quand l'acquéreur est représenté par un office distinct
+    (c'est alors l'email du confrère qui sert, champ dédié dans le bloc notaires) — même règle
+    déontologique que dans le wizard. `onblur` + Entrée qui valide, jamais `onchange` : la fiche se
+    redessine à chaque modification, valider à chaque frappe ferait perdre le focus (même choix que
+    le champ email du notaire de l'acquéreur). **Piège de spécificité CSS, sixième occurrence** :
+    `.champ-email-relance input.input-classif` (élément + 2 classes) — un simple
+    `input.input-classif` est à égalité avec la règle générique `input[type="email"]`, qui
+    l'emporterait par son ordre dans le fichier.
+  - **« Rendez-vous de signature » en vert, « Appel de fonds » coloré aussi.** Les deux échéances
+    ajoutées après coup n'avaient aucune règle `.dot-label.dl-<type>` : leur pastille restait
+    incolore dans le tableau du Suivi et la vue Échéances (rendues via `dl-${e.type}`),
+    contrairement aux trois autres catégories. Le rendez-vous RÉEL passe au vert `--success`,
+    distinct du teal `--acte` de la date butoir indicative — cohérent avec l'usage de `--success`
+    ailleurs pour ce qui est acquis (pièce reçue, échéance réalisée). **Aucun jeton n'était libre
+    pour l'appel de fonds** (`--pret` ambre, `--acte` teal, `--ventebien` bleu, `--success` vert
+    tous pris, `--focus` réservé aux accents interactifs) : d'où un nouveau `--appelfonds` violet
+    (`#7C5CBF` clair / `#A48BE0` sombre), seule couleur de catégorie ajoutée depuis la refonte. Les
+    deux couleurs sont répercutées sur le liseré et le titre de la carte d'échéance, et sur la
+    fiche imprimée (`TEINTES` dans `imprimerFiche()`, couleurs inline — Word ignore le CSS externe,
+    contrainte n°6).
+  - **Bug corrigé : une offre cautionnée seule affichait « Caution · Hypothèque conventionnelle ».**
+    Signalé par l'étude, qui demandait si c'était l'affichage — non : celui-ci se contente de
+    traduire les clés détectées (`libellesGarantiesPret`). Reproduit en bac à sable sur trois mises
+    en page réalistes, deux causes cumulées, toutes deux corrigées :
+    - **Le paragraphe « GARANTIES » débordait sur la section suivante.**
+      `RE_TITRE_SECTION_SUIVANTE` exigeait une MAJUSCULE comme TOUT PREMIER caractère de la ligne :
+      ni « 8. ASSURANCES » ni « Article 8 - Assurance emprunteur » n'étaient reconnus comme titre,
+      c'est-à-dire les deux formes les plus fréquentes dans une offre réelle — le paragraphe avalait
+      donc la section suivante, où l'hypothèque est citée à un tout autre titre. Remplacé par
+      `estTitreDeSection()`/`indexTitreSectionSuivante()` : le numéro d'article est retiré
+      (« 8. », « Article 9 — », « § 4 – ») avant de juger l'intitulé, qui est accepté soit
+      entièrement en capitales, soit — mais seulement si le mot « article »/« § » était bien
+      présent, marqueur non ambigu — en casse normale. Garde-fou `MIN_PARAGRAPHE_AVANT_COUPE` : on
+      ne coupe pas dans les 40 premiers caractères, la première garantie étant parfois écrite en
+      capitales sur sa propre ligne (« CAUTIONNEMENT SOLIDAIRE ») — la prendre pour le titre suivant
+      viderait le paragraphe et ferait ressortir « Sans garanties » sur une offre cautionnée.
+    - **Une garantie citée en simple ALTERNATIVE était comptée.** Le paragraphe d'une offre
+      cautionnée nomme couramment une hypothèque en repli (« à défaut d'accord de la caution, le
+      prêt sera garanti par une hypothèque conventionnelle ») : ce n'est pas une garantie de CE
+      prêt, c'est ce qui se passerait si la caution était refusée. `garantieNonConditionnelle()`
+      teste CHAQUE occurrence et écarte celles précédées d'un marqueur conditionnel
+      (`RE_GARANTIE_CONDITIONNELLE` : à défaut, faute de, en cas de refus/rejet/défaillance/
+      non-obtention, à titre subsidiaire, en substitution, le cas échéant, si la caution…) dans les
+      160 caractères qui précèdent, bornés à la phrase courante — une occurrence non conditionnée
+      ailleurs dans le même paragraphe reste valable. Même principe que
+      `RE_SIMPLE_RENVOI_PIECE`/`motifPieceTrouve` pour la checklist de pièces.
+    - Trois tests de régression dans `tests/offre-pret.test.js` (titre numéroté, titre « Article N -
+      … » en casse normale, alternative écartée sans rendre la détection insensible à une
+      hypothèque réellement exigée, première garantie en capitales non prise pour un titre).
+  - Vérifié dans un vrai Chromium (serveur réel, clair et sombre) : six échéances rendues dans
+    l'ordre 01/07 → 01/08 → 20/09 → 30/09 → 05/10 → 15/11 avec les bonnes couleurs de liseré et de
+    titre, les six pastilles `dl-*` colorées dans les deux thèmes, champ email saisi puis relu
+    depuis le serveur avec son entrée d'historique, boutons de relance apparaissant une fois
+    l'adresse connue, aucune erreur JS. `npm test` : 454 tests racine (+10), 210 côté serveur
+    (inchangé, ce lot est entièrement côté client).
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à
