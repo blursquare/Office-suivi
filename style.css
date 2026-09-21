@@ -515,11 +515,19 @@
     display: inline-block;
     align-self: flex-start;
     margin-top: 2px;
+    margin-left: 3px;
     font-size: 7px;
     font-weight: 700;
     letter-spacing: 0.05em;
     text-transform: uppercase;
-    padding: 0 4px;
+    /* Le mot est tout en capitales : la boîte du glyphe réserve sous la ligne de base une place
+       pour les jambages (p, g...) qu'aucune lettre n'occupe ici, ce qui fait remonter l'encre dans
+       la pilule (mesuré : 3,25 px au-dessus contre 6,00 px en dessous avec un simple `padding: 0`).
+       D'où un line-height court + un padding volontairement asymétrique, qui redescend le texte au
+       centre optique. Mesuré sur les pixels d'une capture, pas déduit des métriques de la police —
+       celles-ci annonçaient à tort une encre déjà centrée. */
+    line-height: 8px;
+    padding: 3px 4px 0;
     border-radius: 20px;
     background: color-mix(in srgb, var(--focus) 15%, var(--paper-card));
     border: 1px solid color-mix(in srgb, var(--focus) 40%, transparent);
@@ -529,7 +537,10 @@
   .sidebar-brand {
     display: flex;
     align-items: center;
-    gap: 8px;
+    /* Resserré (8px → 5px) à la demande de l'étude : le mot doit être plus près de son symbole.
+       Le badge « Alpha » reprend les 3px perdus via sa propre marge, pour ne pas venir se coller
+       au mot du même coup. */
+    gap: 5px;
     /* Espace au-dessus ET en dessous du logo, par rapport au menu de navigation juste en dessous
        (demandé par l'étude) — porté ici plutôt que sur le gap général de .sidebar, qui espacerait
        aussi tous les autres blocs de la sidebar (nav, pied de page) sans raison. */

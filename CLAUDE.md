@@ -5455,6 +5455,32 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     36×13px au lieu de 42×16px à côté d'un mot-symbole de 60×35px — mesuré, pas estimé. La pilule
     (fond + bordure teintés `--focus`) est conservée : l'étude a demandé « plus petit », pas de
     retirer le repère.
+  - **Le mot « ALPHA » n'était pas centré dans sa pilule, et « Claire » collait moins au logo** —
+    deux retouches demandées juste après :
+    - **Centrage vertical** : le texte est tout en capitales, donc la boîte du glyphe réserve sous
+      la ligne de base une place pour les jambages (p, g…) qu'aucune lettre n'occupe — l'encre
+      remonte d'autant dans la pilule. Corrigé par un `line-height: 8px` + un padding
+      volontairement asymétrique (`3px 4px 0`), qui redescend le texte au centre optique sans
+      changer la hauteur de la pilule (13px) ni sa largeur (36px).
+    - **Piège de méthode, à retenir** : les métriques de la police lues via
+      `TextMetrics.actualBoundingBoxAscent/Descent` en canvas annonçaient une encre DÉJÀ centrée
+      (1px de marge en haut comme en bas dans la boîte de 7px) — donc « rien à corriger ». C'était
+      faux. La mesure qui fait foi est celle des PIXELS RÉELS d'une capture : en agrandissant le
+      badge (`deviceScaleFactor: 12`) puis en cherchant les pixels sombres du texte par rapport
+      aux bords de la pilule, l'écart réel était de 3,25px au-dessus contre 6,00px en dessous. Ce
+      contrôle par pixels est ramené à 4,25 / 4,00 après correction (et 6,08 / 5,92
+      horizontalement, jamais touché). Pour tout problème de centrage fin de ce genre : mesurer
+      les pixels du rendu, pas les métriques déclarées de la police.
+    - **Rapprochement du mot et du symbole** : `.sidebar-brand` passe de `gap: 8px` à `5px`
+      (écart symbole → mot mesuré à 5px au lieu de 8). Le badge reprend les 3px perdus via son
+      propre `margin-left: 3px`, pour ne pas venir se coller au mot par effet de bord — le `gap`
+      d'un conteneur flex s'applique entre TOUS les enfants, pas seulement les deux visés.
+    - **Non vérifié avec la vraie police** : `fonts.googleapis.com` étant bloqué dans cet
+      environnement de développement (limite déjà documentée plus haut), ce réglage a été mesuré
+      sur la police de repli système, pas sur Inter. La cause (l'espace des jambages inutilisé par
+      des capitales) est la même pour toutes les polices, mais le nombre exact de pixels peut
+      différer d'une fraction de pixel avec Inter chargée — à confirmer par l'étude sur son poste,
+      et à réajuster avec la même méthode (mesure des pixels) si le décalage se voit encore.
   - **Leçon, à rapprocher de celle déjà tirée sur les PDF réels** : une proposition de logo jugée
     sur un aperçu agrandi ne dit rien de son rendu à la taille réelle. Les deux fois (le facetté
     hier, la pointe de coche du favicon aujourd'hui), c'est le rendu à 16-30px qui a tranché —
