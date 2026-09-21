@@ -6424,6 +6424,86 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
     bout en bout sur du texte réaliste ; ce sont les REGEX qu'il faudra resserrer sur retour réel,
     au même titre que celles d'Outil 1 (premier jet, comme `PIECES_*` en leur temps).
 
+- **Outil 2 : rapport en trois colonnes, et tous les diagnostics du DDT.** Trois demandes de
+  l'étude après avoir vu le rapport livré la veille : « revois la présentation de l'outil 2 » ;
+  « pour les projets de vente, mettre côte à côte clause d'engagement de l'avant-contrat et clause
+  d'engagement de la vente tenue avec le justificatif » ; « pour les durées de validité des
+  diagnostics, prendre tous les diagnostics en compte » avec un article notaires.fr en référence.
+  - **L'article de référence N'A PAS PU ÊTRE LU** : `notaires.fr` est bloqué par le proxy réseau de
+    cet environnement de développement (`EGRESS_BLOCKED`), comme pdf.js, Ollama et Google Fonts
+    déjà documentés ici ; service-public.fr et un proxy de lecture le sont aussi (vérifié, pas
+    supposé). Les durées viennent donc du régime légal, **à confirmer par l'étude contre
+    l'article**. Pour que cette vérification se fasse à l'œil et non en relisant du code, chaque
+    entrée de la table porte sa durée en clair (`duree: '10 ans'`), et un test la verrouille : une
+    correction de durée sera un changement visible, jamais une retouche silencieuse.
+  - **Quatre diagnostics ajoutés** : audit énergétique réglementaire (5 ans), état des nuisances
+    sonores aériennes (ENSA), information sur le risque de mérule, diagnostic technique global
+    (DTG). Avec les neuf déjà présents, la table couvre le dossier de diagnostic technique.
+  - **Trois régimes désormais distingués, et c'est le cœur du correctif** — le confondre était la
+    seule façon d'inventer une expiration ou d'encombrer le rapport :
+    - **durée fixe** (`dureeMois`) → expiration calculée depuis la seule date d'établissement ;
+    - **durée dépendant du RÉSULTAT** (plomb, amiante, Carrez) → toujours `dureeMois: null`,
+      signalée « à vérifier » plutôt que devinée. **Mais ce qui reste calculable depuis la date
+      l'est maintenant** : nouveau champ `etabliAvant`, qui porte pour l'amiante la date butoir du
+      1er janvier 2013 — un repérage antérieur est à refaire quel que soit son résultat, la
+      réglementation de repérage ayant changé à cette date. C'est le seul morceau de ce régime qui
+      se déduise de la date seule, et il était jusqu'ici perdu avec le reste ;
+    - **aucune durée légale** (bruit, mérule, DTG) → nouveau `sansDuree: true` et nouveau statut
+      `SANS_DUREE`, qui ne produit **aucun constat**. Sans cette troisième voie, ces trois
+      documents seraient tombés dans « validité à vérifier » comme le plomb, c'est-à-dire un
+      « à vérifier » sur chacun, à chaque acte, alors qu'il n'y a rien à contrôler : exactement le
+      bruit que l'étude a demandé d'éviter en réduisant le périmètre de cet outil.
+  - **Vue côte à côte** (`renderObligationAudit`, mode projet de vente) : chaque engagement du
+    vendeur devient une carte à trois colonnes — *avant-contrat (engagement pris)* ‖ *projet de
+    vente (ce qu'il en dit)* ‖ *justificatif*. C'est le geste de relecture lui-même : lire ce à
+    quoi le vendeur s'est engagé, ce que le projet en reprend, et ce qui le prouve, sans
+    aller-retour entre deux PDF. Les trois colonnes s'empilent sous 820px.
+    - Ça a demandé une donnée que l'outil ne gardait pas : `preuveDansProjet()` ne renvoyait que la
+      page et la date, jamais le TEXTE de la clause du projet — la colonne du milieu n'aurait dit
+      que « visé p.12 », ce qui n'est pas relisable, alors que **comparer les deux rédactions est
+      précisément le travail demandé**. Elle renvoie maintenant `clause`, et
+      `verifierEngagementsTenus()` la calcule d'emblée pour la porter sur l'obligation
+      (`clauseProjet`/`pageProjet`) **dans tous les cas**, y compris quand c'est un justificatif
+      déposé qui établit l'obligation : la preuve et la lecture du projet sont deux choses
+      différentes, l'une ne dispense pas de l'autre.
+    - Une obligation que le projet ne reprend pas l'affiche en clair (« Le projet de vente ne
+      reprend pas cet engagement ») plutôt que de laisser une colonne vide : c'est un signal, pas
+      une absence de donnée.
+  - **Présentation du rapport** :
+    - **Liseré de gravité** sur chaque constat (rouge `--urgent`, ambre `--pret`, neutre `--line`
+      — aucune couleur inventée, exactement les jetons de `libelleGraviteAudit`). C'est lui qui
+      rend une longue liste scannable : la pastille dit la gravité, le liseré la fait voir sans la
+      lire. **Défaut vu au rendu et corrigé** : les cartes d'obligation n'en avaient pas, si bien
+      qu'un « justificatif périmé » (critique) portait le même filet gris qu'un simple « à
+      vérifier à la main ».
+    - **Le périmètre passe en tête**, avec le comptage, dans un bandeau `.audit-entete` : savoir
+      sur quoi l'analyse a porté conditionne la lecture de ce qui suit. En pied de rapport, comme
+      c'était le cas, il arrivait trop tard — un rapport vide se lisait « rien à signaler » avant
+      qu'on ait appris qu'il n'y avait peut-être rien eu à lire.
+    - **Citations en blockquote** (`.obligation-clause`, filet à gauche + numéro de page en
+      exposant) au lieu d'italique au fil du texte : un passage d'acte se distingue maintenant de
+      la description au premier coup d'œil. Un seul composant pour les constats et les colonnes.
+    - **Titres de section** au registre `.section-eyebrow` (le seul de l'application) avec le
+      compteur en pastille, au lieu d'un `.dash-section-titre` à margin inline et d'un nombre entre
+      parenthèses dans le titre. **État vide** devenu un vrai état (`.audit-vide`, vert) plutôt
+      qu'une ligne d'aide perdue. Une gravité à zéro reste affichée mais en retrait.
+    - **La grille de l'onglet est inversée** (`.audit-grid`, `minmax(320px,400px) 1fr` au lieu du
+      `1.3fr 1fr` générique) : c'est le RAPPORT qui a besoin de la largeur, pas le formulaire — à
+      trois colonnes de citations dans l'ancienne colonne étroite, la comparaison n'était plus
+      lisible. **Piège de cascade rencontré, le même que déjà documenté cinq fois ici** : le repli
+      en une colonne de `.dash-grid` vit dans un `@media` placé PLUS HAUT dans la feuille ; une
+      règle `.audit-grid` nue l'emportait par l'ordre du fichier et faisait déborder la page de
+      155px sur téléphone (mesuré, pas supposé). D'où un `@media (min-width: 1301px)`.
+  - Tests : 9 nouveaux dans `tests/outil2-dangers.test.js` (couverture du DDT, durées fixes, durée
+    annoncée sur chaque entrée, un document sans durée qui ne produit aucun constat même sans date,
+    l'amiante d'avant 2013, l'audit énergétique, la clause du projet rapportée, sa présence sur
+    l'obligation même avec justificatif déposé, son absence quand le projet ne reprend rien). Suite
+    racine 526 → 535, serveur inchangée (202 — chantier entièrement côté client). **Vérifié dans un
+    vrai Chromium** (serveur réel, clair et sombre, 1500px et 400px) : trois colonnes rendues pour
+    chacun des trois statuts, liserés rouge/ambre/vert conformes, ENSA détecté sans produire de
+    constat, amiante de 2011 signalé périmé, sections comptées, aucune erreur JS, aucun débordement
+    horizontal.
+
 ## Ce qui reste ouvert / pas encore fait
 
 - **Générateur d'appel de fonds : l'aperçu de pagination A4 de l'artefact n'est pas repris**

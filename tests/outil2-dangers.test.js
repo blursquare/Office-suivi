@@ -384,3 +384,112 @@ test('LIBELLES_STATUT_OBLIGATION_OUTIL2 : chaque statut produit par verifierEnga
   assert.equal(app.LIBELLES_STATUT_OBLIGATION_OUTIL2.tenue.gravite, 'INFORMATION');
   assert.equal(app.LIBELLES_STATUT_OBLIGATION_OUTIL2.tenue_non_datee.gravite, 'A_VERIFIER');
 });
+
+// --- Table de validité : tous les diagnostics du DDT ----------------------------------------
+// Les durées viennent du régime légal (l'article notaires.fr donné en référence par l'étude est
+// bloqué par le proxy de cet environnement — voir le commentaire de DOCUMENTS_VALIDITE_OUTIL2).
+// Ces tests verrouillent ce que le code affirme, pour que toute correction de durée soit un
+// changement visible et volontaire plutôt qu'une retouche silencieuse.
+
+test('DOCUMENTS_VALIDITE_OUTIL2 couvre les diagnostics du dossier de diagnostic technique', () => {
+  const app = chargerApplication();
+  const attendus = ['dpe', 'auditEnergetique', 'erp', 'termites', 'electricite', 'gaz',
+    'assainissement', 'amiante', 'plomb', 'mesurage', 'bruit', 'merule', 'dtg'];
+  const cles = Object.keys(app.DOCUMENTS_VALIDITE_OUTIL2);
+  for (const cle of attendus) assert.ok(cles.includes(cle), `diagnostic absent de la table : ${cle}`);
+});
+
+test('DOCUMENTS_VALIDITE_OUTIL2 : les durées fixes sont celles du régime légal', () => {
+  const app = chargerApplication();
+  const t = app.DOCUMENTS_VALIDITE_OUTIL2;
+  assert.equal(t.dpe.dureeMois, 120);            // 10 ans
+  assert.equal(t.auditEnergetique.dureeMois, 60); // 5 ans
+  assert.equal(t.erp.dureeMois, 6);
+  assert.equal(t.termites.dureeMois, 6);
+  assert.equal(t.electricite.dureeMois, 36);
+  assert.equal(t.gaz.dureeMois, 36);
+  assert.equal(t.assainissement.dureeMois, 36);
+});
+
+test('DOCUMENTS_VALIDITE_OUTIL2 : chaque entrée annonce sa durée en clair, pour relecture', () => {
+  const app = chargerApplication();
+  for (const cle of Object.keys(app.DOCUMENTS_VALIDITE_OUTIL2)) {
+    assert.ok(app.DOCUMENTS_VALIDITE_OUTIL2[cle].duree, `durée non annoncée pour ${cle}`);
+  }
+});
+
+test('un document sans durée légale ne produit AUCUN constat, même sans date', () => {
+  const app = chargerApplication();
+  for (const cle of ['bruit', 'merule', 'dtg']) {
+    const sansDate = app.calculerValiditeDocumentOutil2(cle, null, AUJOURDHUI);
+    assert.equal(sansDate.statut, 'SANS_DUREE', cle);
+    const avecDate = app.calculerValiditeDocumentOutil2(cle, '2019-01-01', AUJOURDHUI);
+    assert.equal(avecDate.statut, 'SANS_DUREE', cle);
+  }
+  const constats = app.constatsDocumentsDates([
+    { cle: 'bruit', label: 'ENSA', famille: 'diagnostic', phrase: 'x', page: 1,
+      validite: app.calculerValiditeDocumentOutil2('bruit', null, AUJOURDHUI) }
+  ]);
+  assert.equal(constats.length, 0);
+});
+
+test('un repérage d’amiante antérieur au 1er janvier 2013 est à refaire, quel que soit son résultat', () => {
+  const app = chargerApplication();
+  const vieux = app.calculerValiditeDocumentOutil2('amiante', '2011-06-15', AUJOURDHUI);
+  assert.equal(vieux.statut, 'EXPIRE');
+  assert.match(vieux.message, /2013/);
+  // Après cette date, la durée dépend du résultat : jamais devinée ici.
+  const recent = app.calculerValiditeDocumentOutil2('amiante', '2019-06-15', AUJOURDHUI);
+  assert.equal(recent.statut, 'NON_CALCULABLE');
+});
+
+test('un audit énergétique de plus de 5 ans est périmé', () => {
+  const app = chargerApplication();
+  assert.equal(app.calculerValiditeDocumentOutil2('auditEnergetique', '2020-01-10', AUJOURDHUI).statut, 'EXPIRE');
+  assert.equal(app.calculerValiditeDocumentOutil2('auditEnergetique', '2024-01-10', AUJOURDHUI).statut, 'VALIDE');
+});
+
+// --- Vue côte à côte : la clause du projet de vente ------------------------------------------
+
+test('preuveDansProjet rapporte la clause du projet, pas seulement sa date', () => {
+  const app = chargerApplication();
+  const projet = "Le vendeur justifie de l'entretien de la chaudière effectué le 12 mars 2026 par la société Untel.";
+  const p = app.preuveDansProjet('entretienChaudiere', projet, pagesFactices(projet), AUJOURDHUI);
+  assert.equal(p.date, '2026-03-12');
+  assert.match(p.clause, /entretien de la chaudi/i);
+  assert.equal(p.page, 1);
+});
+
+test('verifierEngagementsTenus garde la clause du projet même quand un justificatif est déposé', () => {
+  const app = chargerApplication();
+  const avant = "Le VENDEUR s'engage à justifier de l'entretien annuel de la chaudière avant la signature.";
+  const projet = "Le vendeur justifie de l'entretien de la chaudière effectué le 12 mars 2026.";
+  const obligations = app.verifierEngagementsTenus({
+    texteAvantContrat: avant,
+    texteProjet: projet,
+    pagesProjet: pagesFactices(projet),
+    documentsDeposes: [{ nom: 'Entretien chaudiere.pdf', texte: 'Intervention effectuée le 5 juin 2026.' }],
+    aujourdHui: AUJOURDHUI
+  });
+  assert.equal(obligations.length, 1);
+  const o = obligations[0];
+  assert.equal(o.statut, 'tenue');
+  assert.equal(o.preuve.source, 'depot');           // c'est bien le justificatif qui l'établit…
+  assert.match(o.clauseProjet, /entretien de la chaudi/i); // … et la clause du projet reste lisible
+  assert.equal(o.pageProjet, 1);
+});
+
+test('verifierEngagementsTenus : clauseProjet vide quand le projet ne reprend pas l’engagement', () => {
+  const app = chargerApplication();
+  const avant = "Le VENDEUR s'engage à fournir le ramonage du conduit de fumée avant la vente.";
+  const obligations = app.verifierEngagementsTenus({
+    texteAvantContrat: avant,
+    texteProjet: "Le présent acte constate la vente du bien désigné ci-dessus.",
+    pagesProjet: pagesFactices('x'),
+    documentsDeposes: [],
+    aujourdHui: AUJOURDHUI
+  });
+  assert.equal(obligations.length, 1);
+  assert.equal(obligations[0].clauseProjet, null);
+  assert.equal(obligations[0].statut, 'non_tenue');
+});

@@ -1048,6 +1048,89 @@
   details.analyse-ia-constat.constat-ecarte[open] { opacity: 1; gap: 6px; }
   details.analyse-ia-constat.constat-ecarte[open] > summary { margin-bottom: 4px; }
   .analyse-ia-constat.constat-confirme { border-color: var(--success); }
+  /* Outil 2 : c'est le RAPPORT qui a besoin de la largeur, pas le formulaire — celui-ci n'est
+     qu'une poignée de contrôles, tandis que le rapport met trois citations côte à côte. La grille
+     générique .dash-grid donne l'inverse (1.3fr à gauche) : on l'inverse ici, et seulement ici.
+     PIÈGE DE CASCADE, déjà payé plusieurs fois dans ce fichier : le repli en une colonne de
+     .dash-grid vit dans un @media placé PLUS HAUT (ligne ~884). Une règle .audit-grid nue, écrite
+     ici, l'emporterait par l'ordre du fichier à spécificité égale et ferait déborder la page sur
+     téléphone. D'où le @media (min-width) : la règle ne s'applique qu'au-dessus du seuil. */
+  @media (min-width: 1301px) {
+    .audit-grid { grid-template-columns: minmax(320px, 400px) 1fr; }
+  }
+  /* Liseré de gravité sur chaque constat (Outil 2) : c'est lui qui rend une longue liste
+     scannable — la pastille .dot-label dit la gravité, le liseré la fait voir sans la lire.
+     Aucune couleur inventée : les trois jetons déjà réservés à l'alerte, à la vigilance et au
+     neutre, exactement ceux qu'utilise libelleGraviteAudit(). */
+  .analyse-ia-constat.constat-critique { border-left: 3px solid var(--urgent); }
+  .analyse-ia-constat.constat-important,
+  .analyse-ia-constat.constat-a_verifier { border-left: 3px solid var(--pret); }
+  .analyse-ia-constat.constat-information { border-left: 3px solid var(--line); }
+  /* Une gravité à zéro reste lisible mais cesse de rivaliser avec les autres (renderResumeAudit). */
+  .analyse-ia-resume .dot-label.audit-tuile-zero { opacity: 0.45; }
+  /* En-tête du rapport : comptage + périmètre, lus AVANT les constats. */
+  .audit-entete {
+    display: flex; flex-direction: column; gap: 6px;
+    padding: 12px 14px; border-radius: 10px;
+    background: var(--paper-sunk); border: 1px solid var(--line);
+  }
+  .audit-entete .analyse-ia-resume { margin-bottom: 0; }
+  .audit-entete .hint { margin: 0; }
+  /* Rapport sans aucun constat : un vrai état, pas une ligne d'aide perdue. */
+  .audit-vide {
+    display: flex; flex-direction: column; gap: 6px; align-items: flex-start;
+    padding: 14px; border-radius: 10px;
+    background: color-mix(in srgb, var(--success) 8%, var(--paper-card));
+    border: 1px solid color-mix(in srgb, var(--success) 28%, transparent);
+  }
+  .audit-vide p { margin: 0; font-size: 13px; color: var(--ink-soft); }
+  /* Titre de section : un seul registre d'étiquette dans toute l'application (.section-eyebrow),
+     le compteur en pastille plutôt qu'entre parenthèses dans le titre. */
+  .audit-section { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+  .audit-section-titre { display: flex; align-items: center; gap: 8px; margin: 0; font-size: inherit; }
+  .audit-section-compte {
+    font-size: 11px; font-weight: 600; line-height: 1;
+    padding: 3px 7px; border-radius: 999px;
+    color: var(--muted); background: var(--paper-sunk); border: 1px solid var(--line);
+    font-variant-numeric: tabular-nums;
+  }
+  /* Citation d'un passage d'acte : un filet à gauche plutôt que des guillemets et de l'italique
+     au fil du texte — c'est ce qui la distingue de la description au premier coup d'œil. */
+  .obligation-clause {
+    margin: 0; padding: 6px 0 6px 10px;
+    border-left: 2px solid var(--line);
+    font-size: 12px; color: var(--ink-soft); line-height: 1.45;
+  }
+  .obligation-page {
+    display: inline-block; margin-right: 6px;
+    font-size: 10.5px; font-weight: 600; color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .analyse-ia-citation-douteuse {
+    margin: 0; display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--pret);
+  }
+  .analyse-ia-citation-douteuse .icone { flex: none; }
+  /* Vue côte à côte des engagements (Outil 2, mode projet de vente) : avant-contrat ‖ projet ‖
+     justificatif. Les trois colonnes s'empilent sous 820px — dans la largeur d'un téléphone, trois
+     citations côte à côte ne seraient plus lisibles, et l'ordre vertical dit la même chose. */
+  .obligation-carte .obligation-cols {
+    display: grid; grid-template-columns: 1fr 1fr minmax(160px, 0.8fr);
+    gap: 14px; margin-top: 4px;
+  }
+  .obligation-carte .obligation-cols > * { min-width: 0; }
+  .obligation-col { display: flex; flex-direction: column; gap: 4px; }
+  .obligation-col-corps { display: flex; flex-direction: column; gap: 4px; }
+  .obligation-col-vide .obligation-col-corps { opacity: 0.8; }
+  .obligation-vide { margin: 0; font-size: 12px; color: var(--muted); font-style: italic; }
+  .obligation-preuve { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-soft); }
+  .obligation-preuve .icone { flex: none; color: var(--muted); }
+  .obligation-preuve-date { margin: 0; font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .obligation-validite { margin: 0; font-size: 12px; color: var(--urgent); }
+  .analyse-ia-constat.obligation-tenue { border-left: 3px solid var(--success); }
+  @media (max-width: 820px) {
+    .obligation-carte .obligation-cols { grid-template-columns: 1fr; gap: 10px; }
+  }
   .calc-champs { display: flex; flex-direction: column; gap: 16px; }
   .calc-champ label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 7px; }
   .calc-radios { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }

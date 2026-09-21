@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-21 23:02';
+  const VERSION_APP = '2026-09-21 23:46';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,8 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-21 23:46', resume: "Outil 2 : rapport en trois colonnes (avant-contrat / projet de vente / justificatif), "
+      + "liseré de gravité sur chaque constat, et tous les diagnostics du DDT dans la table de validité." },
     { version: '2026-09-21 23:02', resume: "Outil 2 (Relecture d'un acte) refait de zéro : il ne passe plus par le modèle IA pour produire son rapport, qui s'affiche désormais instantanément, sans attente et sans serveur. Sur un compromis, il cherche quatre dangers précis et seulement ceux-là : les travaux déjà faits qui touchent le gros œuvre ou l'extérieur (autorisation d'urbanisme, garantie décennale), les diagnostics périmés, les entretiens et documents à obtenir du vendeur, les travaux qu'il doit faire avant la vente. Sur un projet de vente, il compare à l'avant-contrat signé et dit, engagement par engagement, s'il a été tenu — un justificatif peut être déposé et sa DATE est contrôlée (l'entretien de chaudière fourni a-t-il bien moins d'un an ?). Le modèle local reste disponible, en option, par un bouton sous le rapport" },
     { version: '2026-09-21 22:29', resume: "Appel de fonds : la mention « Envoi par e-mail uniquement » prend désormais la PLACE de l'adresse postale du destinataire, sous son nom, au lieu de s'ajouter au-dessus. Saisir une adresse dans « Adresse des clients » la fait disparaître et affiche l'adresse à la place — les deux ne peuvent pas cohabiter sur le même courrier. Elle reste modifiable dans l'aperçu (pour écrire « Envoi recommandé avec AR », par exemple), suit dans le .docx téléchargé, et le bouton « Effacer » la remet à sa formulation par défaut" },
     { version: '2026-09-21 22:09', resume: "Appel de fonds : le champ « Adresse du bien » propose désormais les adresses officielles de la Base Adresse Nationale (data.gouv.fr) pendant la frappe, et reprend simplement celle du dossier quand un dossier est rattaché — une note sous le champ dit d'où vient l'adresse affichée. Seul appel vers un service extérieur de tout CLAIRE : seul le texte tapé dans ce champ part, jamais un nom de dossier ni de client, et un poste sans internet garde la saisie libre. Corrigé au passage : le menu de recherche de dossier de cet écran s'affichait en boutons bruts, sans séparateur ni survol" },
@@ -30,7 +32,6 @@
     { version: '2026-09-21 21:36', resume: "Nouvel outil « Appel de fonds » dans la sidebar : il produit la convocation au rendez-vous de signature avec le décompte des sommes à virer, et la télécharge en .docx à l'en-tête de l'étude. Relié au suivi — un bouton « Préparer l'appel de fonds » sur la fiche d'un dossier ouvre l'outil déjà rempli avec les acquéreurs, l'adresse et la désignation du bien, la date du rendez-vous et le prix ; il dit aussi, en clair, ce qu'il n'a PAS pu remplir. Le dépôt de garantie n'est porté en déduction que s'il est séquestré à l'étude, et les frais d'acte de prêt ne sont appelés que si l'offre porte une garantie hypothécaire. Le décompte d'un confrère peut être déposé en PDF ou collé : ses lignes remplissent le tableau, et ses prorata écrits sous forme de formule sont recalculés pour contrôle" },
     { version: '2026-09-21 18:04', resume: "Deux changements de couleur demandés : les notifications de nouveau document (le compteur de la sidebar, la mention sur la ligne du Suivi et le repère « Nouveau » sur la pièce) passent au ROUGE, qui se remarque mieux que l'ancien vert — lequel disait par ailleurs la même chose que le statut « reçu » affiché juste à côté. Et l'échéance « Signature de l'acte » passe au BLEU NUIT, partout où elle apparaît, y compris sur la fiche imprimée. Corrigé au passage sur le Tableau de bord : les pastilles « Appel de fonds » et « Rendez-vous de signature » du widget des 7 prochains jours ne prenaient pas la couleur de leur catégorie — le rendez-vous s'y affichait même dans la couleur de la date butoir, ce qui rendait les deux indiscernables" },
     { version: '2026-09-21 17:43', resume: "Calendrier connecté : les échéances s'affichaient par deux ou trois dans Outlook, puis plus rien. Le fichier produit devenait invalide dès le deuxième événement et le lecteur abandonnait le reste en silence. Trois défauts corrigés : une propriété d'annulation placée dans l'événement au lieu du calendrier, des lignes trop longues jamais repliées (les titres dépassent largement la limite de la norme dès que le nom du dossier est long), et les virgules ou points-virgules des noms de dossier non échappés. Rien à refaire de votre côté que resynchroniser le calendrier : l'abonnement et son adresse ne changent pas" },
-    { version: '2026-09-21 15:48', resume: "Réglages d'envoi précisés après vérification du DNS de l'étude : le courrier du domaine passe par une passerelle de filtrage et l'enregistrement SPF interdit tout envoi depuis une autre adresse — l'envoi sans compte, recommandé une heure plus tôt, n'est donc pas praticable. L'écran demande désormais un compte SMTP (smtp.office365.com, port 587, mot de passe d'application) et explique comment l'autoriser côté administrateur Microsoft 365. Corrigé au passage : avec un compte, l'expéditeur par défaut est désormais ce compte et non la boîte-passerelle — Microsoft refuse tout autre expéditeur, avec un message d'erreur peu parlant" },
   ];
 
   const STORAGE_KEY = 'dossiers';
@@ -2918,43 +2919,98 @@
   // Préemption, servitudes et urbanisme général sont hors périmètre (choix explicite de l'étude) :
   // un rapport court et lisible vaut mieux qu'un inventaire que personne ne lit.
 
-  // Durées de validité. PREMIER JET, au même titre que PIECES_* en leur temps : les durées fixes
-  // sont fiables, celles qui dépendent d'un résultat (plomb, amiante) ou d'une décision locale
-  // restent explicitement « à vérifier » plutôt que devinées. `motif` sert à la fois à repérer le
-  // document dans le texte du compromis ET à reconnaître un justificatif déposé par son nom de
-  // fichier.
+  // Durées de validité des diagnostics du dossier de diagnostic technique (DDT), reprises du droit
+  // en vigueur à la demande de l'étude (« prendre tous les diagnostics en compte », article de
+  // référence notaires.fr). L'article lui-même N'A PAS PU ÊTRE LU depuis cet environnement de
+  // développement (notaires.fr est bloqué par le proxy réseau, comme pdf.js/Ollama/Google Fonts —
+  // limite déjà documentée ailleurs dans ce fichier) : les durées ci-dessous sont celles du régime
+  // légal, à confirmer par l'étude contre l'article. Chaque entrée porte sa durée en clair (`duree`)
+  // pour que cette vérification se fasse à l'œil, sans relire le code.
+  //
+  // Trois régimes, volontairement distingués — c'est ce qui évite à la fois d'inventer une
+  // expiration et d'encombrer le rapport :
+  //   • durée fixe (`dureeMois`) → expiration calculée depuis la seule date d'établissement ;
+  //   • durée dépendante du RÉSULTAT (plomb, amiante, Carrez) → `dureeMois: null`, signalée « à
+  //     vérifier » plutôt que devinée, mais ce qui reste calculable depuis la date l'est quand
+  //     même (`etabliAvant`, cf. amiante) ;
+  //   • aucune durée légale (bruit, mérule, DTG) → `sansDuree: true`, AUCUN constat produit : il
+  //     n'y a rien à contrôler, et un « à vérifier » sur chacun noierait les vrais signaux.
+  //
+  // `motif` sert à la fois à repérer le document dans le texte du compromis ET à reconnaître un
+  // justificatif déposé par son nom de fichier.
   // PIÈGE RENCONTRÉ EN ÉCRIVANT CES MOTIFS, valable pour tout le fichier : en JavaScript, \b est
   // défini sur \w = [A-Za-z0-9_] — une lettre ACCENTUÉE n'est pas un caractère de mot. « \bÉtat »
   // ne matche donc JAMAIS (espace et É sont tous deux « non-mot », il n'y a aucune frontière entre
   // eux). Toute alternative qui COMMENCE par une lettre accentuée doit se passer du \b initial.
   var DOCUMENTS_VALIDITE_OUTIL2 = {
+    // --- Diagnostics à durée fixe : entièrement calculables depuis la seule date d'établissement.
     dpe: { label: 'Diagnostic de performance énergétique (DPE)', famille: 'diagnostic', dureeMois: 120,
+      duree: '10 ans',
       motif: /\b(?:DPE|diagnostics?\s+de\s+performance\s+[ée]nerg[ée]tique)\b/i },
+    auditEnergetique: { label: 'Audit énergétique réglementaire', famille: 'diagnostic', dureeMois: 60,
+      duree: '5 ans',
+      motif: /\baudit\s+[ée]nerg[ée]tique\b/i,
+      note: "Exigé à la vente d'une maison ou d'un immeuble en monopropriété selon l'étiquette du DPE — vérifier qu'il est bien dû pour ce bien." },
     erp: { label: 'État des risques et pollutions (ERP)', famille: 'diagnostic', dureeMois: 6,
-      motif: /(?:[ée]tat\s+des\s+risques(?:\s+et\s+(?:de\s+)?pollutions?)?|\bERP\b)/i },
+      duree: '6 mois',
+      motif: /(?:[ée]tat\s+des\s+risques(?:\s+et\s+(?:de\s+)?pollutions?)?|\bERP\b|\bERRIAL\b)/i },
     termites: { label: 'État relatif à la présence de termites', famille: 'diagnostic', dureeMois: 6,
+      duree: '6 mois',
       motif: /\btermites?\b/i },
     electricite: { label: "État de l'installation intérieure d'électricité", famille: 'diagnostic', dureeMois: 36,
+      duree: '3 ans',
       motif: /(?:installation\s+int[ée]rieure\s+d['’]?\s*[ée]lectricit[ée]|diagnostics?\s+[ée]lectricit[ée]|[ée]tat\s+de\s+l['’]?\s*installation\s+[ée]lectrique)/i },
     gaz: { label: "État de l'installation intérieure de gaz", famille: 'diagnostic', dureeMois: 36,
+      duree: '3 ans',
       motif: /(?:installation\s+int[ée]rieure\s+(?:de\s+)?gaz|diagnostics?\s+gaz|[ée]tat\s+de\s+l['’]?\s*installation\s+(?:de\s+)?gaz)/i },
     assainissement: { label: "Contrôle d'assainissement non collectif", famille: 'diagnostic', dureeMois: 36,
-      motif: /\b(?:assainissement\s+non\s+collectif|\bSPANC\b)/i,
-      note: 'Contrôle de moins de 3 ans exigé à la vente — durée à reconfirmer auprès du SPANC de la commune.' },
-    amiante: { label: "Constat de repérage d'amiante", famille: 'diagnostic', dureeMois: null,
+      duree: '3 ans',
+      motif: /\b(?:assainissement\s+non\s+collectif|\bSPANC\b)/i },
+
+    // --- Diagnostics dont la durée dépend du RÉSULTAT, pas de la seule date : jamais devinée ici.
+    // Ce qui EST calculable depuis la date est malgré tout contrôlé — voir `etabliAvant` pour
+    // l'amiante, où un repérage antérieur au 1er janvier 2013 est à refaire quel que soit son
+    // résultat (la réglementation de repérage a changé à cette date).
+    amiante: { label: "État de présence d'amiante", famille: 'diagnostic', dureeMois: null,
+      duree: 'illimitée si le repérage est négatif',
+      etabliAvant: '2013-01-01',
+      messageEtabliAvant: "Repérage antérieur au 1er janvier 2013 : à refaire, quel que soit son résultat (la réglementation de repérage a changé à cette date).",
       motif: /\bamiante\b/i,
-      note: "Illimitée si le repérage est négatif, à renouveler s'il est positif — dépend du RÉSULTAT, non déductible ici." },
+      note: "Illimitée si le repérage est négatif ; à renouveler s'il est positif — dépend du RÉSULTAT, non déductible ici." },
     plomb: { label: "Constat de risque d'exposition au plomb (CREP)", famille: 'diagnostic', dureeMois: null,
+      duree: "illimitée en l'absence de plomb, 1 an si présence",
       motif: /\b(?:plomb|\bCREP\b)/i,
       note: "Illimitée en l'absence de plomb, 1 an si présence détectée — dépend du RÉSULTAT, non déductible ici." },
     mesurage: { label: 'Mesurage (loi Carrez)', famille: 'diagnostic', dureeMois: null,
+      duree: 'illimitée sauf travaux modifiant la surface',
       motif: /\b(?:loi\s+Carrez|mesurage|superficie\s+privative)\b/i,
       note: 'Illimitée sauf travaux modifiant la surface depuis son établissement — à recouper avec les travaux déclarés.' },
+
+    // --- Documents d'information, SANS durée de validité légale : rien à contrôler, donc aucun
+    // constat produit (voir SANS_DUREE dans calculerValiditeDocumentOutil2). Ils restent dans la
+    // table pour être reconnus comme documents attendus et rapprochés d'un justificatif déposé.
+    bruit: { label: 'État des nuisances sonores aériennes (ENSA)', famille: 'diagnostic', dureeMois: null,
+      sansDuree: true, duree: 'aucune durée légale',
+      motif: /(?:nuisances\s+sonores\s+a[ée]riennes|\bENSA\b)/i,
+      note: "Document d'information, sans durée de validité : il doit refléter le plan d'exposition au bruit en vigueur au jour de la vente." },
+    merule: { label: 'Information sur le risque de mérule', famille: 'diagnostic', dureeMois: null,
+      sansDuree: true, duree: 'aucune durée légale',
+      motif: /\bm[ée]rules?\b/i,
+      note: "Information due dans les zones délimitées par arrêté préfectoral, sans durée de validité légale." },
+    dtg: { label: 'Diagnostic technique global (DTG)', famille: 'diagnostic', dureeMois: null,
+      sansDuree: true, duree: 'aucune durée légale',
+      motif: /(?:diagnostics?\s+technique\s+global|\bDTG\b)/i,
+      note: "Document de copropriété, sans durée de validité légale — à actualiser lorsque l'assemblée générale le décide." },
+
+    // --- Entretiens à la charge du vendeur (hors DDT, mais c'est le même contrôle de date).
     entretienChaudiere: { label: 'Entretien annuel de la chaudière', famille: 'entretien', dureeMois: 12,
+      duree: '1 an',
       motif: /\b(?:entretien[^.]{0,30}chaudi[èe]re|chaudi[èe]re[^.]{0,30}entretien)\b/i },
     ramonage: { label: 'Ramonage du conduit de fumée', famille: 'entretien', dureeMois: 12,
+      duree: '1 an',
       motif: /\bramonage\b/i },
     entretienPac: { label: 'Entretien de la pompe à chaleur', famille: 'entretien', dureeMois: 24,
+      duree: '2 ans',
       motif: /\b(?:pompe\s+[àa]\s+chaleur|\bPAC\b)/i,
       note: 'Tous les 2 ans entre 4 et 70 kW ; aucune obligation en dessous de 4 kW — à recouper avec la puissance réelle.' }
   };
@@ -2966,9 +3022,22 @@
   function calculerValiditeDocumentOutil2(cle, dateEtablissement, dateReference) {
     const entree = DOCUMENTS_VALIDITE_OUTIL2[cle];
     if (!entree) return { statut: 'INCONNU', label: null, dateExpiration: null, message: 'Document non reconnu par la table de validité.' };
+    // Document d'information sans durée de validité légale : rien à calculer, et surtout rien à
+    // signaler — même sans date. Voir le commentaire de DOCUMENTS_VALIDITE_OUTIL2.
+    if (entree.sansDuree) {
+      return { statut: 'SANS_DUREE', label: entree.label, dateExpiration: null,
+        message: entree.note || "Ce document n'a pas de durée de validité légale." };
+    }
     if (!dateEtablissement) {
       return { statut: 'DATE_MANQUANTE', label: entree.label, dateExpiration: null,
         message: `Aucune date trouvée pour « ${entree.label} » : sa validité ne peut pas être vérifiée.` };
+    }
+    // Un repérage antérieur à une date butoir réglementaire est à refaire quel que soit son
+    // résultat : c'est le seul morceau de ces régimes « dépendants du résultat » qui se déduise
+    // de la date seule, on ne s'en prive pas.
+    if (entree.etabliAvant && dateEtablissement < entree.etabliAvant) {
+      return { statut: 'EXPIRE', label: entree.label, dateExpiration: entree.etabliAvant, valide: false,
+        message: entree.messageEtabliAvant || `Établi avant le ${formatDateFr(entree.etabliAvant)} : à refaire.` };
     }
     if (entree.dureeMois == null) {
       return { statut: 'NON_CALCULABLE', label: entree.label, dateExpiration: null,
@@ -3333,6 +3402,10 @@
   // Un justificatif déposé mais PÉRIMÉ n'est pas une obligation tenue : c'est le cas que l'étude a
   // explicitement nommé (« entretien de chaudière fourni, mais a-t-il bien moins d'un an ? »).
 
+  // Renvoie AUSSI la clause telle qu'elle est rédigée dans le projet, pas seulement sa date : c'est
+  // elle qui s'affiche en regard de la clause de l'avant-contrat dans la vue côte à côte
+  // (renderObligationAudit). Sans ce texte, la colonne de droite ne dirait que « visé p.12 », ce
+  // qui n'est pas relisable — or comparer les deux rédactions EST le travail demandé.
   function preuveDansProjet(cle, texteProjet, pagesProjet, aujourdHui) {
     const entree = DOCUMENTS_VALIDITE_OUTIL2[cle];
     if (!entree || !texteProjet) return null;
@@ -3342,6 +3415,7 @@
     return {
       source: 'projet',
       page: pageDepuisIndexPages(pagesProjet, m.index),
+      clause: phraseAutour(texteProjet, m.index, 120, 300).phrase,
       date,
       validite: calculerValiditeDocumentOutil2(cle, date, aujourdHui)
     };
@@ -3361,6 +3435,13 @@
       const label = cle ? DOCUMENTS_VALIDITE_OUTIL2[cle].label : null;
       const base = { cle, label, type: e.type, clause: e.phrase, page: e.page };
 
+      // Calculée d'emblée : elle sert de PREUVE quand rien n'a été déposé, mais surtout de colonne
+      // « ce qu'en dit le projet de vente » dans tous les cas — y compris lorsque l'obligation est
+      // déjà établie par un justificatif déposé.
+      const dansProjet = cle ? preuveDansProjet(cle, texteProjet, pagesProjet, aujourdHui) : null;
+      base.clauseProjet = dansProjet ? dansProjet.clause : null;
+      base.pageProjet = dansProjet ? dansProjet.page : null;
+
       const depose = cle ? justificatifs[cle] : null;
       if (depose && depose.document) {
         const v = calculerValiditeDocumentOutil2(cle, depose.date, aujourdHui);
@@ -3373,7 +3454,6 @@
         continue;
       }
 
-      const dansProjet = cle ? preuveDansProjet(cle, texteProjet, pagesProjet, aujourdHui) : null;
       if (dansProjet && dansProjet.date) {
         obligations.push({
           ...base,
@@ -12932,20 +13012,15 @@
   // « Approfondir »), où la citation a d'abord été vérifiée côté serveur — une citation non
   // retrouvée est signalée comme telle, jamais présentée au même rang qu'une citation confirmée.
   function renderSourceConstat(c) {
-    if (c.phrase) {
-      const texte = String(c.phrase);
-      const extrait = escapeHtml(texte.length > 260 ? texte.slice(0, 257) + '…' : texte);
-      return `<div class="analyse-ia-constat-docs">${c.page ? 'p.' + c.page + ' — ' : ''}« ${extrait} »</div>`;
-    }
+    if (c.phrase) return citationObligation(c.phrase, c.page, 300);
     const liste = Array.isArray(c.sources) ? c.sources : [];
     if (liste.length === 0) return '';
-    return `<div class="analyse-ia-constat-docs">${liste.map(s => {
-      const extrait = escapeHtml(String(s.extrait || '').slice(0, 260));
+    return liste.map(s => {
       if (s.extraitTrouve === false) {
-        return `<span class="dot-label dl-neutre">${icone('alert-triangle')}Citation non retrouvée dans le document — à vérifier en priorité</span>`;
+        return `<p class="analyse-ia-citation-douteuse">${icone('alert-triangle')}Citation non retrouvée dans le document — à vérifier en priorité</p>`;
       }
-      return `${s.page ? 'p.' + s.page + ' — ' : ''}« ${extrait} »`;
-    }).join('<br>')}</div>`;
+      return citationObligation(s.extrait, s.page, 300);
+    }).join('');
   }
 
   // Décision de l'étude sur un constat (voir la mémoire d'audit, memoriserDecisionConstat) :
@@ -12979,44 +13054,88 @@
       ${c.description ? `<p class="analyse-ia-constat-desc">${escapeHtml(c.description)}</p>` : ''}
       ${renderSourceConstat(c)}
       ${renderDecisionAudit(c)}`;
+    const teinte = ` constat-${String(c.gravite || 'INFORMATION').toLowerCase()}`;
     if (c.memoire && c.memoire.decision === 'ecarte') {
-      return `<details class="analyse-ia-constat constat-ecarte">
+      return `<details class="analyse-ia-constat constat-ecarte${teinte}">
         <summary><span class="dot-label dl-neutre">${icone('x')}Déjà écarté</span>${escapeHtml(c.titre)}</summary>
         ${corps}
       </details>`;
     }
-    return `<div class="analyse-ia-constat${c.memoire ? ' constat-confirme' : ''}">${corps}</div>`;
+    return `<div class="analyse-ia-constat${teinte}${c.memoire ? ' constat-confirme' : ''}">${corps}</div>`;
   }
 
-  // Une obligation du vendeur en mode « projet de vente » (voir verifierEngagementsTenus) : son
-  // statut, la preuve qui l'établit (justificatif déposé, ou le projet lui-même qui la vise avec
-  // sa date) et la clause d'origine. Les obligations TENUES sont affichées elles aussi : savoir
-  // ce qui est en règle fait partie de la relecture, et c'est ce qui distingue une obligation
-  // vérifiée d'une obligation qu'on a simplement oublié de regarder.
+  // Une obligation du vendeur en mode « projet de vente », rendue en TROIS COLONNES — demande
+  // explicite de l'étude : « mettre côte à côte la clause d'engagement de l'avant-contrat et la
+  // clause d'engagement de la vente tenue avec le justificatif ». C'est exactement le geste de
+  // relecture : lire l'engagement pris, ce que le projet en dit, et ce qui le prouve, sans avoir à
+  // faire l'aller-retour entre deux PDF.
+  //   1. Avant-contrat : la clause telle qu'elle engage le vendeur (toujours présente, c'est elle
+  //      qui a fait naître la ligne) ;
+  //   2. Projet de vente : la clause correspondante s'il en porte une, sinon le vide, dit comme tel
+  //      — une obligation que le projet ne reprend pas est un signal en soi ;
+  //   3. Justificatif : la pièce qui l'établit et sa date contrôlée.
+  // Les obligations TENUES sont affichées elles aussi : savoir ce qui est en règle fait partie de
+  // la relecture, et c'est ce qui distingue une obligation vérifiée d'une obligation qu'on a
+  // simplement oublié de regarder.
+  function colonneObligation(titre, corps, vide) {
+    return `<div class="obligation-col${vide ? ' obligation-col-vide' : ''}">
+      <span class="section-eyebrow">${escapeHtml(titre)}</span>
+      <div class="obligation-col-corps">${corps}</div>
+    </div>`;
+  }
+
+  function citationObligation(texte, page, limite) {
+    if (!texte) return '';
+    const t = String(texte);
+    const coupe = t.length > (limite || 320) ? t.slice(0, (limite || 320) - 3) + '…' : t;
+    return `<blockquote class="obligation-clause">${page ? `<span class="obligation-page">p.${page}</span>` : ''}${escapeHtml(coupe)}</blockquote>`;
+  }
+
   function renderObligationAudit(o) {
     const etat = LIBELLES_STATUT_OBLIGATION_OUTIL2[o.statut] || LIBELLES_STATUT_OBLIGATION_OUTIL2.a_verifier;
     const g = libelleGraviteAudit(etat.gravite);
     const badge = `<span class="dot-label ${etat.dl}">${icone(o.statut === 'tenue' ? 'check' : g.icone)}${etat.texte}</span>`;
     const cat = LIBELLES_CAT_OBLIGATION[o.type] ? `<span class="engagement-type ${escapeAttr(o.type)}">${LIBELLES_CAT_OBLIGATION[o.type]}</span>` : '';
-    let preuve;
-    if (o.preuve && o.preuve.source === 'dossier') {
-      preuve = `Pièce déjà reçue dans le dossier client${o.preuve.nom ? ' : <em>' + escapeHtml(o.preuve.nom) + '</em>' : ''}.`;
-    } else if (o.preuve && o.preuve.source === 'depot') {
-      preuve = `Justificatif déposé : <em>${escapeHtml(o.preuve.nom)}</em>${o.preuve.date ? ' — ' + escapeHtml(formatDateFr(o.preuve.date)) : ''}.`;
+
+    const colAvant = colonneObligation("Avant-contrat — engagement pris",
+      o.clause ? citationObligation(o.clause, o.page)
+               : `<p class="obligation-vide">Clause non retrouvée.</p>`,
+      !o.clause);
+
+    const colProjet = colonneObligation("Projet de vente — ce qu'il en dit",
+      o.clauseProjet
+        ? citationObligation(o.clauseProjet, o.pageProjet)
+        : `<p class="obligation-vide">Le projet de vente ne reprend pas cet engagement.</p>`,
+      !o.clauseProjet);
+
+    let justif;
+    if (o.preuve && o.preuve.source === 'depot') {
+      justif = `<p class="obligation-preuve">${icone('file-text')}<em>${escapeHtml(o.preuve.nom)}</em></p>`
+        + (o.preuve.date ? `<p class="obligation-preuve-date">Daté du ${escapeHtml(formatDateFr(o.preuve.date))}</p>` : '');
+    } else if (o.preuve && o.preuve.source === 'dossier') {
+      justif = `<p class="obligation-preuve">${icone('folder')}Déjà dans le dossier client${o.preuve.nom ? ' : <em>' + escapeHtml(o.preuve.nom) + '</em>' : ''}</p>`
+        + `<p class="obligation-preuve-date">Fichier non lu ici : sa date reste à vérifier.</p>`;
     } else if (o.preuve && o.preuve.source === 'projet') {
-      preuve = `Visé par le projet de vente${o.preuve.page ? ' (p.' + o.preuve.page + ')' : ''}${o.preuve.date ? ', daté du ' + escapeHtml(formatDateFr(o.preuve.date)) : ''}.`;
+      justif = `<p class="obligation-preuve">${icone('file-text')}Aucune pièce déposée</p>`
+        + `<p class="obligation-preuve-date">Seule la mention du projet de vente l'établit${o.preuve.date ? ', datée du ' + escapeHtml(formatDateFr(o.preuve.date)) : ''}.</p>`;
     } else if (o.statut === 'non_tenue') {
-      preuve = "Aucun justificatif déposé, et le projet de vente n'en vise aucun avec sa date.";
+      justif = `<p class="obligation-vide">Aucun justificatif déposé.</p>`;
     } else {
-      preuve = "Engagement sans document type : à contrôler à la main dans le projet.";
+      justif = `<p class="obligation-vide">Engagement sans document type : à contrôler à la main.</p>`;
     }
-    const alerte = o.validite && o.validite.message && o.statut !== 'tenue'
-      ? `<p class="analyse-ia-constat-desc">${escapeHtml(o.validite.message)}</p>` : '';
-    return `<div class="analyse-ia-constat">
+    if (o.validite && o.validite.message && o.statut !== 'tenue') {
+      justif += `<p class="obligation-validite">${escapeHtml(o.validite.message)}</p>`;
+    } else if (o.validite && o.validite.statut === 'VALIDE') {
+      justif += `<p class="obligation-preuve-date">${escapeHtml(o.validite.message)}</p>`;
+    }
+    const colJustif = colonneObligation('Justificatif', justif, !o.preuve);
+
+    // Le liseré de gravité s'applique ici aussi : une obligation périmée est un constat critique,
+    // elle ne doit pas porter le même filet qu'un simple « à vérifier » (défaut vu au rendu).
+    const teinte = o.statut === 'tenue' ? ' obligation-tenue' : ` constat-${String(etat.gravite).toLowerCase()}`;
+    return `<div class="analyse-ia-constat obligation-carte${teinte}">
       <div class="analyse-ia-constat-titre">${badge}${cat}${escapeHtml(o.label || "Engagement du vendeur")}</div>
-      <p class="analyse-ia-constat-desc">${preuve}</p>
-      ${alerte}
-      ${o.clause ? `<div class="analyse-ia-constat-docs">${o.page ? 'p.' + o.page + ' — ' : ''}« ${escapeHtml(o.clause.length > 240 ? o.clause.slice(0, 237) + '…' : o.clause)} »</div>` : ''}
+      <div class="obligation-cols">${colAvant}${colProjet}${colJustif}</div>
     </div>`;
   }
 
@@ -13026,7 +13145,10 @@
     // Confirmés en tête, écartés en queue (repliés), le reste dans l'ordre déjà calculé.
     const rang = c => (c.memoire ? (c.memoire.decision === 'confirme' ? 0 : 2) : 1);
     items.sort((a, b) => rang(a) - rang(b));
-    return `<div class="dash-section-titre" style="margin-top:14px;">${escapeHtml(titre)} (${items.length})</div>${items.map(rendreItem).join('')}`;
+    return `<section class="audit-section">
+      <h3 class="audit-section-titre"><span class="section-eyebrow">${escapeHtml(titre)}</span><span class="audit-section-compte">${items.length}</span></h3>
+      ${items.map(rendreItem).join('')}
+    </section>`;
   }
 
   // Sections du rapport, dans l'ordre de lecture. Les quatre premières sont les quatre thèmes
@@ -13084,9 +13206,13 @@
   // correspondent au détail qu'il vient d'écrire.
   function renderResumeAudit(resume) {
     if (!resume) return '';
+    // Une gravité sans aucun constat reste affichée, mais en retrait : lire « 0 critique » fait
+    // partie du résultat, alors que l'afficher au même poids que « 3 critiques » brouillerait la
+    // seule chose que ce bandeau doit dire d'un coup d'œil.
     const tuile = (cle, libelle) => {
       const g = libelleGraviteAudit(cle);
-      return `<span class="dot-label ${g.dl}">${icone(g.icone)}${resume[cle] || 0} ${libelle}</span>`;
+      const n = resume[cle] || 0;
+      return `<span class="dot-label ${g.dl}${n === 0 ? ' audit-tuile-zero' : ''}">${icone(g.icone)}${n} ${libelle}</span>`;
     };
     return `<div class="analyse-ia-resume">${tuile('CRITIQUE', 'critique(s)')}${tuile('IMPORTANT', 'important(s)')}${tuile('A_VERIFIER', 'à vérifier')}${tuile('INFORMATION', 'information(s)')}</div>`;
   }
@@ -13125,12 +13251,23 @@
   function renderRapportAuditActe(resultat) {
     const zone = document.getElementById('analyse-ia-rapport');
     if (!zone) return;
-    let html = renderResumeAudit(resultat.resume);
+
+    // Le périmètre passe EN TÊTE, avec le comptage : savoir sur quoi l'analyse a porté conditionne
+    // la lecture de ce qui suit — le lire après le rapport, comme c'était le cas, arrive trop tard
+    // (un rapport vide se lit alors comme « rien à signaler » avant qu'on ait appris qu'il n'y
+    // avait peut-être rien à lire).
+    let html = `<header class="audit-entete">
+      ${renderResumeAudit(resultat.resume)}
+      ${renderPerimetreAudit(resultat)}
+    </header>`;
     html += renderCouvertureAudit(resultat.couvertureDocuments);
 
     const constats = resultat.constats || [];
     if (constats.length === 0) {
-      html += `<p class="hint">Aucun danger relevé par les règles sur les documents fournis — ce qui ne dispense pas de la relecture : l'outil ne contrôle que les quatre points listés sous ce rapport.</p>`;
+      html += `<div class="audit-vide">
+        <span class="dot-label dl-success">${icone('check')}Aucun danger relevé par les règles</span>
+        <p>Sur les documents fournis, et pour les seuls points contrôlés par l'outil (listés sous ce rapport). Cela ne dispense pas de la relecture.</p>
+      </div>`;
     }
 
     // Mode « projet de vente » : le tableau des obligations passe en tête et remplace la section
@@ -13138,7 +13275,7 @@
     // tenues n'y figureraient de toute façon pas, alors qu'elles font partie du résultat.
     if (resultat.mode === 'acte') {
       html += (resultat.obligations || []).length
-        ? renderSectionAudit("Obligations du vendeur", resultat.obligations, renderObligationAudit)
+        ? renderSectionAudit("Engagements du vendeur — avant-contrat, projet, justificatif", resultat.obligations, renderObligationAudit)
         : "<p class=\"hint\">Aucun engagement du vendeur relevé dans l'avant-contrat de référence.</p>";
     }
 
@@ -13146,7 +13283,6 @@
       html += renderSectionAudit(section.titre, constats.filter(c => c.categorie === section.cle), renderConstatAudit);
     }
 
-    html += renderPerimetreAudit(resultat);
     html += renderBoutonApprofondirIa(resultat);
     zone.innerHTML = html;
   }
