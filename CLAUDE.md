@@ -5566,6 +5566,50 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     l'adresse connue, aucune erreur JS. `npm test` : 454 tests racine (+10), 210 côté serveur
     (inchangé, ce lot est entièrement côté client).
 
+- **Ordre métier des étapes d'un dossier, et date butoir rendue indicative par le rendez-vous** —
+  l'étude a donné la séquence réelle d'un dossier, qui manquait jusqu'ici : **compromis signé →
+  vente préalable d'un bien (elle finance l'acquisition) → obtention du prêt → date butoir de
+  réitération de l'acte (provisoire) → appel de fonds (convocation + décompte des sommes dues par
+  l'acquéreur) → rendez-vous de signature de l'acte authentique** (fixé après consultation des
+  parties, souvent différent de la date butoir).
+  - **Cet ordre remplace l'ordre d'insertion historique** (prêt → appel de fonds → acte →
+    rendez-vous → vente préalable) partout où les échéances sont listées ensemble :
+    `echeancesOrdonneesFiche` (fiche), `toutesEcheances`/`prochaineEcheanceDetail` (planning),
+    `toutesEcheances` de `server/src/jobs/rappels.js` (rappels Teams) et le tableau `standard` de
+    `server/src/routes/calendrier.js` (flux webcal). **Il ne départage que les ex æquo** : depuis
+    le lot précédent, la fiche trie par DATE — l'ordre métier ne décide donc en pratique que du
+    sort des échéances sans date renseignée, reléguées en fin de liste.
+  - **« Une fois que cette date est rentrée la date butoir n'a plus lieu d'être mais est indicative
+    pour savoir si on signe avant ou après »** (l'étude) : `echeanceValidee(d, 'acte')` renvoie
+    désormais `true` dès que `d.rendezVousSignature` est renseignée — exactement le même mécanisme
+    que l'offre de prêt reçue qui clôt « Obtention du prêt ». **Un FAIT du dossier clôt l'échéance**,
+    pas une décision manuelle : c'est la seule généralisation, `d.echeancesValidees` continue de
+    fonctionner à côté. Conséquences en cascade, sans une ligne de plus : le butoir sort de
+    `toutesEcheances`/`prochaineEcheanceDetail` (plus annoncé comme prochaine échéance), et le job
+    de rappels Teams ne relance plus dessus à J-15/J-7 — relancer sur un butoir dont le
+    rendez-vous réel est déjà pris n'a plus d'objet. Le flux `.ics`, lui, continue de le publier
+    (il ne filtre pas sur `echeanceValidee` — écart pré-existant, et un événement d'agenda
+    indicatif ne gêne pas ; le retirer demanderait de publier son annulation).
+  - **La carte reste affichée, avec l'écart plutôt qu'un décompte** : `renderTab()` gagne un 12ᵉ
+    paramètre `butoirRemplacePar` (la date du rendez-vous, passée uniquement pour le tab `acte`)
+    qui remplace le décompte par « Signature 5 j APRÈS ce butoir » / « 3 j avant ce butoir » /
+    « Signature le jour même ». **C'est l'écart seul qui décide de la couleur** : signer après la
+    date butoir est le cas qui mérite l'alerte (`passed`, rouge), signer avant ou le jour même ne
+    pose aucun problème (`recue`, vert). Le bouton « Marquer réalisée »/« Annuler la validation »
+    disparaît dans ce cas — même piège déjà documenté pour le prêt confirmé reçu : le bouton
+    n'annulerait rien, la date butoir se rouvre en effaçant le rendez-vous, pas là.
+  - `ecartJours(isoA, isoB)` (nouvelle fonction pure) : différence SIGNÉE en jours, à ne pas
+    confondre avec `joursEntre()` juste à côté, qui compte les bornes comprises (`+1`) parce qu'il
+    sert au prorata. Calculée en UTC, même piège de changement d'heure déjà documenté.
+  - Tests : 5 nouveaux dans `tests/echeances-appel-fonds.test.js` (ordre métier en repli,
+    `ecartJours` dont un passage à l'heure d'hiver, le butoir clos par le rendez-vous, sa sortie du
+    planning, les trois libellés d'écart et l'absence de bouton de validation) et 3 dans
+    `server/test/rappels.test.js` (miroir de `echeanceValidee`, ordre de `toutesEcheances` avec et
+    sans rendez-vous, aucun rappel envoyé à J-15 d'un butoir remplacé). Suite racine 454 → 459,
+    serveur 210 → 213. Vérifié dans un vrai Chromium (clair et sombre) : cinq cartes dans l'ordre
+    01/08 → 01/09 → 25/09 → 01/10 → 06/10, « Signature 5 j APRÈS ce butoir » en rouge sur la carte
+    du butoir, et « Appel de fonds » annoncé comme prochaine échéance à la place de l'acte.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

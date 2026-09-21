@@ -169,3 +169,66 @@ test('echeancesOrdonneesFiche garde l\'index réel d\'une échéance personnalis
   assert.ok(html.includes("supprimerEcheanceAutre('d1', 1)"));
   assert.ok(html.includes("supprimerEcheanceAutre('d1', 0)"));
 });
+
+// Ordre métier du dossier donné par l'étude : compromis signé → vente préalable → obtention du
+// prêt → date butoir de réitération → appel de fonds → rendez-vous de signature. Il ne décide que
+// du sort des échéances SANS date (le tri se fait par date pour les autres).
+test('echeancesOrdonneesFiche : les échéances sans date suivent l\'ordre métier du dossier', () => {
+  const app = chargerApplication();
+  const d = dossierBase({ pret: '', acte: '', rendezVousSignature: '', ventebien: '' });
+  // ventebien n'est rendue que si elle porte une date (comportement d'origine, inchangé).
+  assert.equal(
+    ordreDesEcheances(app, d).join(' | '),
+    'Obtention du prêt | Signature de l’acte | Rendez-vous de signature'
+  );
+});
+
+test('ecartJours donne une différence signée, distincte de joursEntre (bornes comprises)', () => {
+  const app = chargerApplication();
+  assert.equal(app.ecartJours('2026-10-01', '2026-10-06'), 5);
+  assert.equal(app.ecartJours('2026-10-06', '2026-10-01'), -5);
+  assert.equal(app.ecartJours('2026-10-01', '2026-10-01'), 0);
+  // Traverse le changement d'heure d'octobre sans perdre un jour (calcul en UTC).
+  assert.equal(app.ecartJours('2026-10-20', '2026-11-03'), 14);
+  assert.equal(app.ecartJours('2026-10-01', ''), null);
+  assert.equal(app.joursEntre('2026-10-01', '2026-10-06'), 6);
+});
+
+// « Une fois que cette date est rentrée la date butoir n'a plus lieu d'être mais est indicative
+// pour savoir si on signe avant ou après » (l'étude).
+test('echeanceValidee : un rendez-vous fixé clôt la date butoir de réitération', () => {
+  const app = chargerApplication();
+  assert.equal(app.echeanceValidee(dossierBase({ acte: '2026-10-01' }), 'acte'), false);
+  assert.equal(app.echeanceValidee(dossierBase({ acte: '2026-10-01', rendezVousSignature: '2026-10-06' }), 'acte'), true);
+  // La validation manuelle continue de fonctionner indépendamment.
+  assert.equal(app.echeanceValidee(dossierBase({ acte: '2026-10-01', echeancesValidees: { acte: true } }), 'acte'), true);
+});
+
+test('la date butoir sort du planning dès qu\'un rendez-vous est fixé', () => {
+  const app = chargerApplication();
+  const d = dossierBase({ acte: '2026-10-01', rendezVousSignature: '2026-10-06' });
+  assert.equal(app.toutesEcheances(d).map((e) => e.type).join(','), 'rendezVousSignature');
+  assert.equal(app.prochaineEcheanceDetail(d).type, 'rendezVousSignature');
+});
+
+test('renderTab : la date butoir remplacée affiche l\'écart avec le rendez-vous, pas un décompte', () => {
+  const app = chargerApplication();
+  const apres = app.renderTab('acte', 'Signature de l’acte', '2026-10-01', 'd1', null, null, null, false, '', false, true, '2026-10-06');
+  assert.ok(apres.includes('Signature 5 j APRÈS ce butoir'), apres);
+  assert.ok(apres.includes('tab-countdown passed'));
+  // Aucun bouton de validation : ce n'est pas une décision manuelle, l'annuler n'annulerait rien.
+  assert.ok(!apres.includes('devaliderEcheance'));
+  assert.ok(!apres.includes('validerEcheance'));
+
+  const avant = app.renderTab('acte', 'Signature de l’acte', '2026-10-10', 'd1', null, null, null, false, '', false, true, '2026-10-07');
+  assert.ok(avant.includes('Signature 3 j avant ce butoir'), avant);
+  assert.ok(avant.includes('tab-countdown recue'));
+
+  const memeJour = app.renderTab('acte', 'Signature de l’acte', '2026-10-10', 'd1', null, null, null, false, '', false, true, '2026-10-10');
+  assert.ok(memeJour.includes('Signature le jour même'), memeJour);
+
+  // Sans rendez-vous, le comportement d'origine est intact.
+  const normal = app.renderTab('acte', 'Signature de l’acte', '2026-10-01', 'd1', null, null, null, false, '', false, false, '');
+  assert.ok(!normal.includes('ce butoir'));
+  assert.ok(normal.includes('validerEcheance'));
+});

@@ -301,3 +301,47 @@ test('executerTacheRappels : un échec de la copie n\'empêche pas le rappel pri
 
   db.close();
 });
+
+// Miroir de la règle client : un rendez-vous de signature fixé clôt la date butoir de réitération
+// (« une fois que cette date est rentrée la date butoir n'a plus lieu d'être », l'étude). Relancer
+// sur ce butoir n'aurait plus d'objet — le rendez-vous réel prend le relais.
+test('echeanceValidee : un rendez-vous fixé clôt la date butoir', () => {
+  assert.equal(echeanceValidee({ acte: '2026-10-01' }, 'acte'), false);
+  assert.equal(echeanceValidee({ acte: '2026-10-01', rendezVousSignature: '2026-10-06' }, 'acte'), true);
+  assert.equal(echeanceValidee({ acte: '2026-10-01', echeancesValidees: { acte: true } }, 'acte'), true);
+});
+
+test('toutesEcheances : le butoir remplacé sort du planning, dans l\'ordre métier du dossier', () => {
+  const d = {
+    ventebien: '2026-08-01', pret: '2026-09-01', acte: '2026-10-01',
+    appelFonds: '2026-09-25', rendezVousSignature: '2026-10-06'
+  };
+  assert.equal(
+    toutesEcheances(d).map((e) => e.type).join(','),
+    'ventebien,pret,appelFonds,rendezVousSignature'
+  );
+  // Sans rendez-vous, le butoir reste bien dans le planning, à sa place dans l'ordre métier.
+  const sansRdv = Object.assign({}, d, { rendezVousSignature: '' });
+  assert.equal(
+    toutesEcheances(sansRdv).map((e) => e.type).join(','),
+    'ventebien,pret,acte,appelFonds'
+  );
+});
+
+test('executerTacheRappels : aucun rappel sur une date butoir dont le rendez-vous est déjà fixé', async () => {
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  const parametresRepo = creerRepoParametres(db);
+  parametresRepo.ecrireReglages(config());
+  depot.creer({
+    id: 'r1', nom: 'X / Y', responsable: 'Julie VASSELIN',
+    acte: '2026-10-27', rendezVousSignature: '2026-11-10'
+  });
+  const envoyes = [];
+  const envoyerFn = async (url, dest, texte) => { envoyes.push({ dest, texte }); return { ok: true }; };
+  // J-15 de la date butoir : rien ne doit partir pour elle.
+  const r = await executerTacheRappels(depot, db, parametresRepo, envoyerFn, '2026-10-12');
+  assert.equal(r.rappelsDus, 0);
+  assert.equal(envoyes.length, 0);
+  db.close();
+});

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-21 11:08';
+  const VERSION_APP = '2026-09-21 11:15';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-21 11:15', resume: "Les étapes d'un dossier suivent maintenant votre ordre métier — compromis signé, vente préalable, obtention du prêt, date butoir de réitération, appel de fonds, rendez-vous de signature — partout où elles apparaissent ensemble (fiche, planning, rappels Teams, agenda connecté). Cet ordre ne départage que les échéances SANS date : les autres restent classées par date. Et dès qu'un rendez-vous de signature est saisi, la date butoir cesse de piloter le dossier : elle ne déclenche plus de rappel et n'est plus annoncée comme la prochaine échéance, mais reste affichée sur la fiche avec l'écart — « signature 5 j APRÈS ce butoir » en rouge, « 3 j avant » en vert — pour dire d'un coup d'œil si on signe avant ou après" },
     { version: '2026-09-21 11:08', resume: "Sur la fiche dossier, les échéances sont désormais classées par DATE, de la plus proche à la plus lointaine, au lieu d'un ordre fixe qui ne disait rien de ce qui arrive en premier (une échéance sans date passe en fin de liste). Un champ « Email de l'acquéreur » apparaît au-dessus des boutons de relance : l'adresse détectée à l'import y est enfin visible, corrigeable, et peut être saisie après coup — jusqu'ici un email manquant n'affichait qu'un message sans moyen d'y répondre. « Rendez-vous de signature » passe en vert et « Appel de fonds » reçoit sa propre couleur (violet) : leurs pastilles restaient incolores dans le Suivi, contrairement aux trois autres catégories. Enfin, une offre de prêt cautionnée seule n'affiche plus « Caution · Hypothèque conventionnelle » : le paragraphe GARANTIES débordait sur la section suivante (« 8. ASSURANCES » et « Article 8 - … » n'étaient pas reconnus comme titres), et une hypothèque citée en simple alternative (« à défaut d'accord de la caution… ») était comptée comme une garantie du prêt" },
     { version: '2026-09-21 07:47', resume: "Dans la sidebar, le mot « Claire » est rapproché de son symbole, et le mot « ALPHA » est recentré dans sa pilule (il était visiblement remonté : les capitales laissent sous elles la place des jambages, que la pilule comptait quand même)" },
     { version: '2026-09-21 07:40', resume: "Logo : retour à la première proposition, celle que vous préférez — l'anneau ouvert en trait fin déjà associé à CLAIRE, dont le petit trait de fermeture devient une coche. Remplace la version en aplats géométriques livrée hier soir, qui se lisait comme un carré plein à cette taille. Le mot « Claire » ne change pas, et le badge « Alpha » à côté du logo est réduit" },
@@ -6304,6 +6305,18 @@
     });
   }
 
+  // Écart signé, en jours, de `isoA` vers `isoB` (positif si B est après A). Distinct de
+  // joursEntre(), qui compte les bornes comprises (+1) parce qu'il sert au prorata — ici on veut
+  // une vraie différence, pour dire « 5 j après » ou « 3 j avant ». Calculé en UTC, même piège de
+  // changement d'heure déjà documenté pour joursEntre().
+  function ecartJours(isoA, isoB) {
+    if (!isoA || !isoB) return null;
+    const a = new Date(isoA + 'T00:00:00Z');
+    const b = new Date(isoB + 'T00:00:00Z');
+    if (isNaN(a) || isNaN(b)) return null;
+    return Math.round((b - a) / 86400000);
+  }
+
   function joursRestants(iso) {
     if (!iso) return null;
     const today = new Date();
@@ -6330,7 +6343,7 @@
     ).join('');
   }
 
-  function renderTab(type, label, iso, dossierId, page, confiance, autreIndex, offrePretRecue, offreBloc, sansPret, validee) {
+  function renderTab(type, label, iso, dossierId, page, confiance, autreIndex, offrePretRecue, offreBloc, sansPret, validee, butoirRemplacePar) {
     // Les tabs Prêt / Acte / Vente d'un dossier enregistré sont recatégorisables au clic ;
     // les échéances "Autre" gardent leur libellé personnalisé (non concerné par ce sélecteur).
     // Redessiné sur retour de l'étude : le titre est maintenant un texte statique (coloré selon la
@@ -6426,7 +6439,10 @@
     // effectivement confirmé reçu (offrePretRecue) — la source de vérité est alors le parcours NAS,
     // afficher "Annuler la validation" à cet endroit n'annulerait rien (voir echeanceValidee) et
     // laisserait croire à un bouton sans effet.
-    const modifiableManuellement = !(type === 'pret' && offrePretRecue);
+    // Même raison que pour le prêt reçu : quand c'est un FAIT du dossier qui clôt l'échéance (ici
+    // un rendez-vous de signature fixé), « Annuler la validation » n'annulerait rien — le bouton
+    // serait sans effet. La date butoir se rouvre en effaçant le rendez-vous, pas ici.
+    const modifiableManuellement = !(type === 'pret' && offrePretRecue) && !butoirRemplacePar;
     const boutonValidation = (dossierId && iso && modifiableManuellement)
       ? (validee
         ? `<button type="button" class="lien-dossier-local" onclick="devaliderEcheance('${dossierId}','${cleEdition}')">Annuler la validation</button>`
@@ -6445,6 +6461,16 @@
     if (offrePretRecue) {
       countdownClass = 'recue';
       countdownText = '✓ Offre reçue';
+    } else if (butoirRemplacePar) {
+      // La date butoir de réitération ne pilote plus rien une fois le rendez-vous pris, mais reste
+      // « indicative pour savoir si on signe avant ou après » (l'étude) : c'est cet écart qu'on
+      // affiche, et lui seul qui décide de la couleur — signer après la date butoir est le cas qui
+      // mérite l'alerte, signer avant ou le jour même ne pose aucun problème.
+      const ecart = ecartJours(iso, butoirRemplacePar);
+      countdownClass = ecart > 0 ? 'passed' : 'recue';
+      countdownText = ecart === 0
+        ? 'Signature le jour même'
+        : (ecart > 0 ? `Signature ${ecart} j APRÈS ce butoir` : `Signature ${-ecart} j avant ce butoir`);
     } else if (validee) {
       countdownClass = 'recue';
       countdownText = '✓ Réalisée';
@@ -6480,11 +6506,18 @@
   // suppression, voir supprimerEcheanceAutre), pas son rang une fois trié.
   function echeancesOrdonneesFiche(d, confiance, offreBloc) {
     const cartes = [];
-    cartes.push({ iso: d.pret, html: renderTab('pret', 'Obtention du prêt', d.pret, d.id, d.pretPage, confiance.pret, null, d.offrePretStatut === 'recue', offreBloc, d.sansPret, echeanceValidee(d, 'pret')) });
-    if (dossierEntierementComplet(d)) cartes.push({ iso: d.appelFonds, html: renderTab('appelFonds', 'Appel de fonds', d.appelFonds, d.id, null, null, null, false, '', false, echeanceValidee(d, 'appelFonds')) });
-    cartes.push({ iso: d.acte, html: renderTab('acte', 'Signature de l\u2019acte', d.acte, d.id, d.actePage, confiance.acte, null, false, '', false, echeanceValidee(d, 'acte')) });
-    cartes.push({ iso: d.rendezVousSignature, html: renderTab('rendezVousSignature', 'Rendez-vous de signature', d.rendezVousSignature, d.id, null, null, null, false, '', false, echeanceValidee(d, 'rendezVousSignature')) });
+    // Ordre d'INSERTION = l'ordre métier du dossier donné par l'étude (compromis signé → vente
+    // préalable → obtention du prêt → date butoir de réitération → appel de fonds → rendez-vous de
+    // signature). Il ne décide que du sort des échéances sans date, le tri ci-dessous classant les
+    // autres par date.
     if (d.ventebien) cartes.push({ iso: d.ventebien, html: renderTab('ventebien', 'Vente préalable', d.ventebien, d.id, d.ventebienPage, confiance.ventebien, null, false, '', false, echeanceValidee(d, 'ventebien')) });
+    cartes.push({ iso: d.pret, html: renderTab('pret', 'Obtention du prêt', d.pret, d.id, d.pretPage, confiance.pret, null, d.offrePretStatut === 'recue', offreBloc, d.sansPret, echeanceValidee(d, 'pret')) });
+    // La date butoir reste affichée une fois le rendez-vous fixé, mais devient indicative : le
+    // 12e argument lui fait afficher l'écart (« signature 5 j APRÈS ce butoir ») au lieu d'un
+    // décompte, voir renderTab.
+    cartes.push({ iso: d.acte, html: renderTab('acte', 'Signature de l\u2019acte', d.acte, d.id, d.actePage, confiance.acte, null, false, '', false, echeanceValidee(d, 'acte'), d.acte ? (d.rendezVousSignature || '') : '') });
+    if (dossierEntierementComplet(d)) cartes.push({ iso: d.appelFonds, html: renderTab('appelFonds', 'Appel de fonds', d.appelFonds, d.id, null, null, null, false, '', false, echeanceValidee(d, 'appelFonds')) });
+    cartes.push({ iso: d.rendezVousSignature, html: renderTab('rendezVousSignature', 'Rendez-vous de signature', d.rendezVousSignature, d.id, null, null, null, false, '', false, echeanceValidee(d, 'rendezVousSignature')) });
     (d.autres || []).forEach((a, i) => cartes.push({ iso: a.date, html: renderTab('autre', escapeHtml(a.label), a.date, d.id, a.page, null, i, false, '', false, echeanceValidee(d, 'autre-' + i)) }));
     // Les dates sont au format ISO AAAA-MM-JJ partout dans l'outil (valeur d'un <input type="date">) :
     // la comparaison de chaînes suffit à les classer, sans construire de Date ni risquer un
@@ -7114,11 +7147,14 @@
   // faire apparaître dans le planning de la semaine donnerait du travail qui n'existe plus.
   function toutesEcheances(d) {
     return [
-      ...(echeanceValidee(d, 'pret') ? [] : [{ type: 'pret', label: 'Obtention du prêt', iso: d.pret }]),
-      ...(echeanceValidee(d, 'appelFonds') ? [] : [{ type: 'appelFonds', label: 'Appel de fonds', iso: d.appelFonds }]),
-      ...(echeanceValidee(d, 'acte') ? [] : [{ type: 'acte', label: "Signature de l'acte", iso: d.acte }]),
-      ...(echeanceValidee(d, 'rendezVousSignature') ? [] : [{ type: 'rendezVousSignature', label: 'Rendez-vous de signature', iso: d.rendezVousSignature }]),
+      // Ordre métier du dossier, donné par l'étude : compromis signé → vente préalable (elle
+      // finance l'acquisition) → obtention du prêt → date butoir de réitération → appel de fonds →
+      // rendez-vous de signature. Ne départage que les ex æquo, le tri se faisant par date.
       ...(echeanceValidee(d, 'ventebien') ? [] : [{ type: 'ventebien', label: 'Vente préalable', iso: d.ventebien }]),
+      ...(echeanceValidee(d, 'pret') ? [] : [{ type: 'pret', label: 'Obtention du prêt', iso: d.pret }]),
+      ...(echeanceValidee(d, 'acte') ? [] : [{ type: 'acte', label: "Signature de l'acte", iso: d.acte }]),
+      ...(echeanceValidee(d, 'appelFonds') ? [] : [{ type: 'appelFonds', label: 'Appel de fonds', iso: d.appelFonds }]),
+      ...(echeanceValidee(d, 'rendezVousSignature') ? [] : [{ type: 'rendezVousSignature', label: 'Rendez-vous de signature', iso: d.rendezVousSignature }]),
       ...(d.autres || []).map((a, i) => ({ type: 'autre', label: a.label, iso: a.date, index: i }))
         .filter(it => !echeanceValidee(d, 'autre-' + it.index))
     ].filter(it => it.iso);
@@ -7202,8 +7238,17 @@
   // moyen, dossier non relié au NAS...). Le drapeau manuel n'intervient qu'en complément : dès que
   // l'offre est effectivement reçue, c'est ce statut-là qui fait foi (voir aussi renderTab, qui
   // évite d'afficher un bouton "Annuler la validation" sans effet dans ce cas).
+  // Une échéance peut être close par une décision manuelle (d.echeancesValidees) ou par un fait du
+  // dossier qui la résout d'office. Deux tels faits, l'un et l'autre décrits par l'étude :
+  //  - l'offre de prêt effectivement reçue clôt « Obtention du prêt » ;
+  //  - un rendez-vous de signature FIXÉ clôt la date butoir de réitération : « une fois que cette
+  //    date est rentrée la date butoir n'a plus lieu d'être, mais reste indicative pour savoir si
+  //    on signe avant ou après ». Elle continue donc de s'afficher sur la fiche (avec l'écart, voir
+  //    renderTab/butoirRemplacePar), mais elle sort du planning : plus de décompte à surveiller,
+  //    plus de rappel Teams, plus de « prochaine échéance ». Le rendez-vous réel prend le relais.
   function echeanceValidee(d, type) {
     if (type === 'pret') return d.offrePretStatut === 'recue' || !!(d.echeancesValidees && d.echeancesValidees.pret);
+    if (type === 'acte') return !!d.rendezVousSignature || !!(d.echeancesValidees && d.echeancesValidees.acte);
     return !!(d.echeancesValidees && d.echeancesValidees[type]);
   }
 
@@ -7212,11 +7257,14 @@
       // Une offre déjà reçue clôt cette échéance : la garder ici referait apparaître "Obtention du
       // prêt" comme la prochaine chose à surveiller alors qu'il n'y a plus rien à y suivre — on
       // passe directement à la suivante (acte, vente préalable...), voir calculerProchaineEcheance.
-      ...(echeanceValidee(d, 'pret') ? [] : [{ type: 'pret', label: 'Obtention du prêt', iso: d.pret }]),
-      ...(echeanceValidee(d, 'appelFonds') ? [] : [{ type: 'appelFonds', label: 'Appel de fonds', iso: d.appelFonds }]),
-      ...(echeanceValidee(d, 'acte') ? [] : [{ type: 'acte', label: "Signature de l'acte", iso: d.acte }]),
-      ...(echeanceValidee(d, 'rendezVousSignature') ? [] : [{ type: 'rendezVousSignature', label: 'Rendez-vous de signature', iso: d.rendezVousSignature }]),
+      // Ordre métier du dossier, donné par l'étude : compromis signé → vente préalable (elle
+      // finance l'acquisition) → obtention du prêt → date butoir de réitération → appel de fonds →
+      // rendez-vous de signature. Ne départage que les ex æquo, le tri se faisant par date.
       ...(echeanceValidee(d, 'ventebien') ? [] : [{ type: 'ventebien', label: 'Vente préalable', iso: d.ventebien }]),
+      ...(echeanceValidee(d, 'pret') ? [] : [{ type: 'pret', label: 'Obtention du prêt', iso: d.pret }]),
+      ...(echeanceValidee(d, 'acte') ? [] : [{ type: 'acte', label: "Signature de l'acte", iso: d.acte }]),
+      ...(echeanceValidee(d, 'appelFonds') ? [] : [{ type: 'appelFonds', label: 'Appel de fonds', iso: d.appelFonds }]),
+      ...(echeanceValidee(d, 'rendezVousSignature') ? [] : [{ type: 'rendezVousSignature', label: 'Rendez-vous de signature', iso: d.rendezVousSignature }]),
       ...(d.autres || []).map((a, i) => ({ type: 'autre', label: a.label, iso: a.date, index: i }))
         .filter(it => !echeanceValidee(d, 'autre-' + it.index))
     ].filter(it => it.iso);

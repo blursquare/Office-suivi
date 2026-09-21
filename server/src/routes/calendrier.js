@@ -124,12 +124,15 @@ function genererFluxIcs(dossiers) {
     // non simplement omise : un client calendrier garderait sinon l'ancien événement pour
     // toujours. Le repli de date n'a pas d'importance pour un événement annulé.
     const repli = d.pret || d.acte || d.ventebien || aujourdHui;
+    // Ordre métier du dossier (voir CLAUDE.md). Contrairement aux rappels Teams, le flux publie
+    // TOUTES les échéances datées, y compris la date butoir une fois le rendez-vous fixé : elle
+    // reste indicative dans l'agenda, et la retirer demanderait de publier son annulation.
     const standard = [
+      { cle: 'ventebien', libelle: 'Vente préalable', iso: d.ventebien },
       { cle: 'pret', libelle: 'Obtention du prêt', iso: d.pret },
-      { cle: 'appelFonds', libelle: 'Appel de fonds', iso: d.appelFonds },
       { cle: 'acte', libelle: "Signature de l'acte", iso: d.acte },
-      { cle: 'rendezVousSignature', libelle: 'Rendez-vous de signature', iso: d.rendezVousSignature },
-      { cle: 'ventebien', libelle: 'Vente préalable', iso: d.ventebien }
+      { cle: 'appelFonds', libelle: 'Appel de fonds', iso: d.appelFonds },
+      { cle: 'rendezVousSignature', libelle: 'Rendez-vous de signature', iso: d.rendezVousSignature }
     ];
     for (const e of standard) {
       const uid = `${d.id}-${e.cle}`;

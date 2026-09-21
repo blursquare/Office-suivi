@@ -28,8 +28,14 @@ const SEUILS_RAPPELS = [15, 7];
 // Le prêt reste avant tout piloté par offrePretStatut (parcours NAS), mais la validation manuelle
 // (voir echeancesValidees.pret, script.js) doit aussi être prise en compte ici — sans quoi un
 // dossier marqué réalisé côté client continuerait de recevoir des rappels Teams sur cette échéance.
+// Miroir de echeanceValidee() côté client (duplication assumée : pas de build partagé entre le
+// navigateur et Node dans ce projet — même choix que buildEvent/icsDate dans routes/calendrier.js).
+// Deux faits du dossier closent une échéance sans décision manuelle : l'offre de prêt reçue pour
+// « Obtention du prêt », et un rendez-vous de signature fixé pour la date butoir de réitération —
+// relancer sur un butoir dont le rendez-vous réel est déjà pris n'aurait plus d'objet.
 function echeanceValidee(d, type) {
   if (type === 'pret') return d.offrePretStatut === 'recue' || !!(d.echeancesValidees && d.echeancesValidees.pret);
+  if (type === 'acte') return !!d.rendezVousSignature || !!(d.echeancesValidees && d.echeancesValidees.acte);
   return !!(d.echeancesValidees && d.echeancesValidees[type]);
 }
 
@@ -38,11 +44,13 @@ function toutesEcheances(d) {
     .map((a, i) => ({ type: `autre-${i}`, label: a.label, iso: a.date }))
     .filter((it) => !echeanceValidee(d, it.type));
   return [
-    ...(echeanceValidee(d, 'pret') ? [] : [{ type: 'pret', label: 'Obtention du prêt', iso: d.pret }]),
-    ...(echeanceValidee(d, 'appelFonds') ? [] : [{ type: 'appelFonds', label: 'Appel de fonds', iso: d.appelFonds }]),
-    ...(echeanceValidee(d, 'acte') ? [] : [{ type: 'acte', label: "Signature de l'acte", iso: d.acte }]),
-    ...(echeanceValidee(d, 'rendezVousSignature') ? [] : [{ type: 'rendezVousSignature', label: 'Rendez-vous de signature', iso: d.rendezVousSignature }]),
+    // Ordre métier du dossier (voir CLAUDE.md) : vente préalable → prêt → date butoir → appel de
+    // fonds → rendez-vous de signature.
     ...(echeanceValidee(d, 'ventebien') ? [] : [{ type: 'ventebien', label: 'Vente préalable', iso: d.ventebien }]),
+    ...(echeanceValidee(d, 'pret') ? [] : [{ type: 'pret', label: 'Obtention du prêt', iso: d.pret }]),
+    ...(echeanceValidee(d, 'acte') ? [] : [{ type: 'acte', label: "Signature de l'acte", iso: d.acte }]),
+    ...(echeanceValidee(d, 'appelFonds') ? [] : [{ type: 'appelFonds', label: 'Appel de fonds', iso: d.appelFonds }]),
+    ...(echeanceValidee(d, 'rendezVousSignature') ? [] : [{ type: 'rendezVousSignature', label: 'Rendez-vous de signature', iso: d.rendezVousSignature }]),
     ...autres
   ].filter((it) => it.iso);
 }
