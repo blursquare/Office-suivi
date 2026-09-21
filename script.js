@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-21 17:43';
+  const VERSION_APP = '2026-09-21 18:04';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-21 18:04', resume: "Deux changements de couleur demandés : les notifications de nouveau document (le compteur de la sidebar, la mention sur la ligne du Suivi et le repère « Nouveau » sur la pièce) passent au ROUGE, qui se remarque mieux que l'ancien vert — lequel disait par ailleurs la même chose que le statut « reçu » affiché juste à côté. Et l'échéance « Signature de l'acte » passe au BLEU NUIT, partout où elle apparaît, y compris sur la fiche imprimée. Corrigé au passage sur le Tableau de bord : les pastilles « Appel de fonds » et « Rendez-vous de signature » du widget des 7 prochains jours ne prenaient pas la couleur de leur catégorie — le rendez-vous s'y affichait même dans la couleur de la date butoir, ce qui rendait les deux indiscernables" },
     { version: '2026-09-21 17:43', resume: "Calendrier connecté : les échéances s'affichaient par deux ou trois dans Outlook, puis plus rien. Le fichier produit devenait invalide dès le deuxième événement et le lecteur abandonnait le reste en silence. Trois défauts corrigés : une propriété d'annulation placée dans l'événement au lieu du calendrier, des lignes trop longues jamais repliées (les titres dépassent largement la limite de la norme dès que le nom du dossier est long), et les virgules ou points-virgules des noms de dossier non échappés. Rien à refaire de votre côté que resynchroniser le calendrier : l'abonnement et son adresse ne changent pas" },
     { version: '2026-09-21 15:48', resume: "Réglages d'envoi précisés après vérification du DNS de l'étude : le courrier du domaine passe par une passerelle de filtrage et l'enregistrement SPF interdit tout envoi depuis une autre adresse — l'envoi sans compte, recommandé une heure plus tôt, n'est donc pas praticable. L'écran demande désormais un compte SMTP (smtp.office365.com, port 587, mot de passe d'application) et explique comment l'autoriser côté administrateur Microsoft 365. Corrigé au passage : avec un compte, l'expéditeur par défaut est désormais ce compte et non la boîte-passerelle — Microsoft refuse tout autre expéditeur, avec un message d'erreur peu parlant" },
     { version: '2026-09-21 15:37', resume: "Les rappels automatiques sont alignés sur le flux définitif que vous avez activé : CLAIRE ENVOIE elle-même l'email vers la boîte-passerelle, et c'est son arrivée qui déclenche le flux, qui poste ensuite le message dans Teams. L'objet de cet email porte l'adresse du collaborateur à prévenir — c'est ce que le flux lit pour savoir à qui poster — et son corps porte le message. L'écran Réglages n'a donc plus de champ « URL du flux » : il demande à la place le serveur d'envoi et la boîte-passerelle, avec la marche à suivre pour Microsoft 365 (le plus souvent sans compte ni mot de passe, l'envoi étant autorisé depuis le réseau du bureau). Les adresses des collaborateurs, l'adresse de copie et l'activation déjà enregistrées sont conservées. Un mot de passe, s'il en faut un, n'est jamais réaffiché une fois enregistré" },
@@ -7744,13 +7745,16 @@
   // ouverture/fermeture pour ne pas laisser le formulaire ouvert sur le dossier suivant consulté.
   let ajoutEcheanceOuvert = false;
 
-  // Indicateur "dossier mis à jour" sur une ligne du Suivi (tableau ou vue Échéances) : le même
-  // .dot-label dl-success que la fiche/l'offre de prêt, pas un composant à part — demandé par
-  // l'étude ("identifier le dossier mis à jour"). Vide tant que rien de nouveau n'est à voir.
+  // Indicateur "dossier mis à jour" sur une ligne du Suivi (tableau ou vue Échéances) : un
+  // .dot-label ordinaire, pas un composant à part — demandé par l'étude ("identifier le dossier
+  // mis à jour"). Vide tant que rien de nouveau n'est à voir. Rouge (dl-urgent) depuis que l'étude
+  // a demandé "la couleur des notifications en rouge" : c'est un signal à remarquer, distinct du
+  // vert dl-success qui dit partout ailleurs "reçu/acquis" — les deux se retrouvaient côte à côte
+  // sur la même pièce, ce qui noyait justement le signal "nouveau".
   function tagNotificationsDossier(d) {
     const n = (d.piecesNotifications || []).length;
     if (!n) return '';
-    return `<span class="dot-label dl-success notif-nouveau-tag" title="${n} document${n > 1 ? 's' : ''} nouvellement trouvé${n > 1 ? 's' : ''} — ouvrez la fiche pour les voir"><span class="dot"></span>${n} nouvelle${n > 1 ? 's' : ''} pièce${n > 1 ? 's' : ''}</span>`;
+    return `<span class="dot-label dl-urgent notif-nouveau-tag" title="${n} document${n > 1 ? 's' : ''} nouvellement trouvé${n > 1 ? 's' : ''} — ouvrez la fiche pour les voir"><span class="dot"></span>${n} nouvelle${n > 1 ? 's' : ''} pièce${n > 1 ? 's' : ''}</span>`;
   }
 
   function renderLigneTableau(d) {
@@ -7950,7 +7954,7 @@
             // passage dans cette fiche reste marquée "Nouveau" tant que le tiroir n'a pas été
             // refermé (c'est ce qui vaut pour "vue").
             const estNouvelle = (d.piecesNotifications || []).includes(p.cle);
-            const tagNouveau = estNouvelle ? '<span class="dot-label dl-success notif-nouveau-tag">Nouveau</span>' : '';
+            const tagNouveau = estNouvelle ? '<span class="dot-label dl-urgent notif-nouveau-tag">Nouveau</span>' : '';
             const boutonSuppr = `<button type="button" class="piece-suppr" onclick="${p.personnalisee ? `supprimerPiecePersonnalisee('${d.id}', '${p.cle}')` : `retirerPieceStandard('${d.id}', '${p.cle}', '${escapeOnclickArg(p.label)}')`}" title="Retirer cette pièce de la checklist de ce dossier" aria-label="Retirer cette pièce">${icone('x')}</button>`;
             // Uniquement pour une pièce STANDARD reçue (motifNom) : permet de revenir en arrière
             // après une correspondance trouvée à tort ou un fichier renommé depuis — voir
@@ -8370,7 +8374,7 @@
           ${offreOuvrable
               ? `<button type="button" class="dot-label ${offreStatut.dl}" title="${d.offrePretStatut === 'recue' ? 'Offre de prêt reçue — cliquer pour ouvrir le fichier trouvé' : 'Document trouvé mais non confirmé — cliquer pour l’ouvrir et vérifier'}" onclick="ouvrirOffreTrouvee('${d.id}')"><span class="dot"></span>${d.offrePretStatut === 'recue' ? 'Ouvrir le fichier' : 'À confirmer — ouvrir'}</button>`
               : `<span class="dot-label ${offreStatut.dl}" title="${d.dossierLie ? escapeAttr(offreStatut.texte) : 'Aucun dossier du NAS relié : l’offre n’a pas encore pu être cherchée'}"><span class="dot"></span>${offreStatut.texte}</span>`}
-          ${offreEstNouvelle ? '<span class="dot-label dl-success notif-nouveau-tag">Nouveau</span>' : ''}
+          ${offreEstNouvelle ? '<span class="dot-label dl-urgent notif-nouveau-tag">Nouveau</span>' : ''}
           ${d.dossierLie
               ? `<button type="button" class="lien-dossier-local" onclick="verifierDossierLocalDepuisBouton('${d.id}', this)">Revérifier</button>`
               : `<button type="button" class="lien-dossier-local" onclick="lierDossierLocal('${d.id}')">${icone('link')} Relier un dossier du NAS</button>`}
@@ -10058,7 +10062,7 @@
     // daté précisément) — aucune couleur inventée pour l'occasion.
     const TEINTES = {
       pret:  { fond: '#FBEFD9', barre: '#B07A12' },
-      acte:  { fond: '#E1F4F2', barre: '#1CA39B' },
+      acte:  { fond: '#E2E7F0', barre: '#1E3A63' },
       vente: { fond: '#E3EEF7', barre: '#2472B0' },
       autre: { fond: '#EEEEEE', barre: '#8A93A9' },
       appelFonds: { fond: '#EEE9F7', barre: '#7C5CBF' },

@@ -5945,6 +5945,46 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     Même leçon que le décodage HTML des attributs `onclick` — quand plusieurs couches
     d'échappement se superposent, écrire la valeur en clair plutôt qu'en littéral échappé.
 
+- **Notifications en rouge, « Signature de l'acte » en bleu nuit** — deux demandes de l'étude
+  (« passe la couleur des notification en rouge. et la couleur du statut "Signature de l'acte" en
+  Blue nuit »).
+  - **Notifications** : le vert `--success` disait exactement la même chose que le statut « reçu »
+    affiché juste à côté sur la même pièce — le repère « Nouveau » se fondait dans le badge qu'il
+    était censé signaler. Les quatre surfaces passent au rouge `--urgent` : `.sidebar-badge-notif`
+    (le compteur, seul badge à fond plein de la sidebar), et les trois `dl-success
+    notif-nouveau-tag` de `tagNotificationsDossier()` / `renderPiecesDossier()` / du bloc
+    `.tab-offre-pret` de `renderCarteDossier()`. Un seul remplacement a suffi côté script.js : les
+    trois partagent déjà la classe `notif-nouveau-tag`. **Les autres `dl-success` de l'outil ne
+    sont pas touchés** (pièce reçue, échéance réalisée, statut d'offre, dossier lié d'Outil 2…) :
+    seule la famille « notification » change de registre.
+  - **`--acte` passe au bleu nuit** : `#1E3A63` en clair, `--acte-bg` `#E2E7F0`. Troisième valeur
+    de ce jeton (bleu moyen à l'origine, puis teal après l'échange avec `--ventebien`, voir son
+    historique) — le nom garde son sens, seule la valeur change, donc tout l'outil suit sans une
+    règle CSS de plus. Ce navy reste distinct des deux autres bleus de la palette (`--ventebien`
+    #2472B0, `--focus` #2563EB) **par sa profondeur**, pas par sa teinte : c'est le seul des trois
+    qui soit sombre.
+  - **En mode sombre, la profondeur n'est plus disponible** (un navy sur fond sombre est
+    illisible) : le jeton est éclairci comme les autres couleurs de catégorie, mais **décalé vers
+    l'indigo** (`#8A9FD4`, fond `#232736`) plutôt que simplement éclairci — un premier essai en
+    `#8FA5C8` restait trop proche de `--ventebien` (#6FAEDB) une fois les deux cartes côte à côte
+    dans le tiroir, constaté en capture d'écran. C'est donc la teinte (indigo contre cyan) qui
+    porte la distinction en sombre, là où c'est la profondeur en clair.
+  - `imprimerFiche()` : `TEINTES.acte` mis à jour à l'identique (couleurs inline, Word ignore le
+    CSS externe — contrainte n°6), sans quoi la fiche imprimée aurait gardé le teal.
+  - **Corrigé au passage, deux incohérences pré-existantes que ce changement rendait visibles** :
+    `.dashboard-pastille.appelFonds` utilisait `--muted` et `.dashboard-pastille.rendezVousSignature`
+    utilisait `--acte`, alors que partout ailleurs (`.tab.*`, `.dot-label.dl-*`) ces deux échéances
+    prennent `--appelfonds` et `--success` — une même échéance changeait donc de couleur entre le
+    widget « Échéances des 7 prochains jours » et sa carte, et le rendez-vous serait devenu bleu
+    nuit lui aussi, c'est-à-dire indiscernable de la date butoir que l'étude venait justement de
+    demander à distinguer.
+  - Vérifié dans un vrai Chromium (serveur réel, dossier synthétique portant les cinq échéances et
+    deux notifications en attente, clair et sombre) : valeurs calculées des jetons, couleur réelle
+    du titre de la carte « Signature de l'acte », les trois tags de notification en
+    `rgb(194,65,12)` / `rgb(240,140,75)`, compteur de sidebar rouge et visible, aucune erreur JS.
+    `npm test` reste vert aux deux endroits (467 tests racine, 233 côté serveur — changement
+    purement visuel, aucune fonction pure modifiée).
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

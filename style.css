@@ -8,17 +8,19 @@
     --line-soft: #EBEEF3;
     /* La couleur est réservée aux 4 catégories d'échéance : c'est le seul code que l'œil doit
        apprendre. Tout le reste (encarts d'information, notes) passe en neutre.
-       --acte et --ventebien ont été échangées (demande explicite de l'étude, voir CLAUDE.md) :
-       auparavant --acte était bleu et --ventebien teal — désormais l'acte est vert (teal) et la
-       vente préalable est bleue. Le nom du token garde son sens (--acte = couleur de "Signature
-       de l'acte"), seule sa valeur a changé. */
+       --acte a changé deux fois de valeur à la demande explicite de l'étude (voir CLAUDE.md) :
+       bleu moyen à l'origine, puis teal après échange avec --ventebien, et désormais BLEU NUIT.
+       Le nom du token garde son sens (--acte = couleur de "Signature de l'acte"), seule sa valeur
+       change. Ce navy profond reste distinct des deux autres bleus de la palette (--ventebien
+       #2472B0, moyen, et --focus #2563EB, vif) par sa profondeur, pas par sa teinte : c'est le
+       seul des trois qui soit sombre. */
     --pret: #B07A12;
     --pret-bg: #FBEFD9;
-    --acte: #1CA39B;
-    --acte-bg: #E1F4F2;
+    --acte: #1E3A63;
+    --acte-bg: #E2E7F0;
     --ventebien: #2472B0;
     /* 4e catégorie d'échéance (« Appel de fonds »), demandée par l'étude. Aucun jeton existant
-       n'était libre : --pret (ambre), --acte (teal), --ventebien (bleu) et --success (vert, repris
+       n'était libre : --pret (ambre), --acte (bleu nuit), --ventebien (bleu) et --success (vert, repris
        par le rendez-vous de signature) sont tous pris, et --focus est réservé aux accents
        interactifs. D'où ce violet, seule couleur de catégorie ajoutée depuis la refonte. */
     --appelfonds: #7C5CBF;
@@ -57,8 +59,12 @@
     --line-soft: #333333;
     --pret: #E0A93E;
     --pret-bg: #332B18;
-    --acte: #4FC2B8;
-    --acte-bg: #1E322F;
+    /* Bleu nuit éclairci pour rester lisible sur fond sombre (même convention que les autres
+       jetons de catégorie). Volontairement désaturé, là où --ventebien (#6FAEDB) et --focus
+       (#5B9DF9) tirent vers le cyan : sur un fond déjà sombre, la profondeur du navy n'est plus
+       disponible pour les distinguer, c'est donc la teinte (indigo contre cyan) qui s'en charge. */
+    --acte: #8A9FD4;
+    --acte-bg: #232736;
     --ventebien: #6FAEDB;
     --appelfonds: #A48BE0;
     --ventebien-bg: #263238;
@@ -628,9 +634,9 @@
 
   /* Compteur de pièces reçues pas encore vues (voir majBadgeNotificationsSidebar() dans script.js) —
      seul badge à fond plein de la sidebar, volontairement : c'est un signal à remarquer d'un coup
-     d'œil, pas un statut de navigation comme .sidebar-link.actif. Vert (--success), cohérent avec
-     .dot-label.dl-success déjà utilisé partout ailleurs pour "document reçu" — aucune couleur
-     inventée pour l'occasion. */
+     d'œil, pas un statut de navigation comme .sidebar-link.actif. Rouge (--urgent) à la demande de
+     l'étude : le vert --success disait la même chose que le statut "reçu" affiché juste à côté sur
+     la pièce elle-même, ce qui effaçait le caractère "à regarder maintenant" de ce compteur. */
   .sidebar-badge-notif {
     margin-left: auto;
     display: inline-flex;
@@ -640,7 +646,7 @@
     height: 18px;
     padding: 0 5px;
     border-radius: 999px;
-    background: var(--success);
+    background: var(--urgent);
     color: #fff;
     font-size: 11px;
     font-weight: 700;
@@ -2361,9 +2367,13 @@
     border-radius: 50%;
   }
   .dashboard-pastille.pret { background: var(--pret); }
-  .dashboard-pastille.appelFonds { background: var(--muted); }
+  /* Ces deux-là reprenaient --muted et --acte, alors que le reste de l'outil (.tab.*, .dot-label
+     .dl-*) leur donne --appelfonds et --success : une même échéance changeait donc de couleur
+     entre le widget du Tableau de bord et sa carte. Corrigé en passant par les mêmes jetons — le
+     bleu nuit de --acte rendait en plus le rendez-vous indiscernable de la date butoir. */
+  .dashboard-pastille.appelFonds { background: var(--appelfonds); }
   .dashboard-pastille.acte { background: var(--acte); }
-  .dashboard-pastille.rendezVousSignature { background: var(--acte); }
+  .dashboard-pastille.rendezVousSignature { background: var(--success); }
   .dashboard-pastille.ventebien { background: var(--ventebien); }
   .dashboard-pastille.autre { background: var(--muted); }
   .dashboard-jours {
