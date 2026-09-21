@@ -2232,7 +2232,9 @@
      lire comme un seul bloc plutôt que trois pastilles de longueurs disparates. */
   .dossier-actions {
     display: flex;
-    flex-wrap: nowrap;
+    /* nowrap pour les 3 boutons habituels (voir plus haut) ; le 4e bouton "Questionnaire",
+       conditionnel (d.acte), peut repasser à la ligne suivante plutôt que d'écraser les autres. */
+    flex-wrap: wrap;
     gap: 8px;
     margin-top: 16px;
   }
@@ -2251,6 +2253,7 @@
     cursor: pointer;
   }
   .dossier-actions button:hover { color: var(--ink); border-color: var(--ink-soft); }
+  .dossier-actions button.action-envoyee { border-color: var(--success); color: var(--success); }
 
   /* ---- en-tête et thème ---- */
   .header-top {
@@ -2454,6 +2457,10 @@
     background: #2E2E2E;
     color: var(--ink);
     border-color: #454545;
+  }
+  [data-theme="dark"] .dossier-actions button.action-envoyee {
+    border-color: var(--success);
+    color: var(--success);
   }
   [data-theme="dark"] button.secondary:hover,
   [data-theme="dark"] .toolbar-btn:hover,

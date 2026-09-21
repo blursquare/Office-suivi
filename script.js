@@ -56,7 +56,9 @@
     banknote: '<rect x="1.3" y="4.3" width="13.4" height="7.4" rx="1.4"/><circle cx="8" cy="8" r="1.9"/>',
     'map-pin': '<path d="M8 14.3S13 9.7 13 6.2A5 5 0 0 0 3 6.2C3 9.7 8 14.3 8 14.3Z" stroke-linejoin="round"/><circle cx="8" cy="6.2" r="1.7"/>',
     pencil: '<path d="M11.1 2.3a1.5 1.5 0 0 1 2.1 2.1L5.4 12.2l-2.9.7.7-2.9 7.9-7.7Z" stroke-linejoin="round"/>',
-    x: '<line x1="3.5" y1="3.5" x2="12.5" y2="12.5"/><line x1="12.5" y1="3.5" x2="3.5" y2="12.5"/>'
+    x: '<line x1="3.5" y1="3.5" x2="12.5" y2="12.5"/><line x1="12.5" y1="3.5" x2="3.5" y2="12.5"/>',
+    check: '<path d="M2.5 8.5 6.2 12.2 13.5 4.2"/>',
+    send: '<path d="M14 2 6.8 9.2" stroke-linejoin="round"/><path d="M14 2 9.6 14l-2.8-4.8L2 6.4 14 2Z" stroke-linejoin="round"/>'
   };
   // `cls` porte les classes de mise en page (taille via font-size hérité, marge...) ; `spin` anime
   // une rotation continue (voir @keyframes icone-spin) pour les icônes d'attente (ex. "spinner").
@@ -1945,6 +1947,7 @@
       roleNotaire,
       pieces: {},
       piecesNouvelles: {},
+      questionnaireEnvoyeLe: null,
       dossierLie: false,
       offrePretStatut: 'inconnu',
       accesAReconfirmer: false,
@@ -3116,6 +3119,9 @@
           <button onclick="telechargerICS('${d.id}')" title="Télécharger les rappels (.ics)">${icone('calendar')} Rappels (.ics)</button>
           <button onclick="ouvrirEmailRappel('${d.id}')" title="Envoyer un rappel par email">${icone('mail')} Rappel email</button>
           <button onclick="imprimerFiche('${d.id}')" title="Télécharger la fiche dossier imprimable">${icone('file-text')} Imprimer</button>
+          ${d.acte ? `
+          <button class="${d.questionnaireEnvoyeLe ? 'action-envoyee' : ''}" onclick="envoyerQuestionnaireSatisfaction('${d.id}')" title="${d.questionnaireEnvoyeLe ? `Questionnaire déjà envoyé le ${formatDateFr(d.questionnaireEnvoyeLe)} — cliquer pour renvoyer` : "Envoyer le questionnaire de satisfaction (une fois l'acte signé)"}">${icone(d.questionnaireEnvoyeLe ? 'check' : 'send')} Questionnaire</button>
+          ` : ''}
         </div>
         ${historique.length > 0 ? `
           <button type="button" class="historique-toggle section-eyebrow" onclick="toggleHistorique('${d.id}')">Historique (${historique.length})</button>
@@ -3547,6 +3553,10 @@
       offrePretStatut: 'inconnu',
       pieces: {},
       piecesNouvelles: {},
+      // Contrairement à dossierLie/offrePretStatut (dérivés d'un scan local, non fiables d'une
+      // machine à l'autre), l'envoi du questionnaire est un fait réel déjà accompli par
+      // l'utilisateur — préservé à l'import, comme l'historique.
+      questionnaireEnvoyeLe: (typeof d.questionnaireEnvoyeLe === 'string') ? d.questionnaireEnvoyeLe : null,
       accesAReconfirmer: false,
       derniereRelanceAuto: null
     };
@@ -4320,6 +4330,50 @@
     const body = `Bonjour,\n\nSauf erreur de notre part, nous n'avons pas encore reçu votre offre de prêt pour le dossier ${d.nom}.\n\nL'échéance d'obtention du prêt est fixée au ${formatDateFr(d.pret)}. Merci de nous transmettre cette offre dès réception, ou de nous indiquer où en est votre demande de financement.\n\nCordialement.`;
     const url = `mailto:${encodeURIComponent(d.emailAcquereur)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     afficherToast(`Relance « offre de prêt » ouverte pour ${d.nom} — vérifiez puis envoyez.`, 'OK', null);
+    window.location.href = url;
+  }
+
+  // Questionnaire de satisfaction, envoyé une fois l'acte signé (voir renderCarteDossier, bouton
+  // affiché seulement si d.acte est renseigné — demandé explicitement par l'étude). Comme pour
+  // relancerSiOffreManquante ci-dessus, une page web ne peut pas envoyer un email ni joindre un
+  // fichier automatiquement (voir CLAUDE.md, contrainte n°4) : le PDF est proposé en téléchargement
+  // (à joindre à la main) et le brouillon mailto s'ouvre à côté, prêt à envoyer.
+  function envoyerQuestionnaireSatisfaction(id) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    if (!d.emailAcquereur) {
+      afficherToast("Aucun email d'acquéreur enregistré pour ce dossier — impossible d'ouvrir le brouillon.", 'OK', null);
+      return;
+    }
+
+    // Déclenché par le même geste utilisateur que le téléchargement puis le mailto ci-dessous :
+    // les deux actions doivent rester proches du clic d'origine pour que le navigateur les autorise.
+    try {
+      const octets = atob(QUESTIONNAIRE_SATISFACTION_PDF_BASE64);
+      const tableau = new Uint8Array(octets.length);
+      for (let i = 0; i < octets.length; i++) tableau[i] = octets.charCodeAt(i);
+      const blob = new Blob([tableau], { type: 'application/pdf' });
+      const lien = document.createElement('a');
+      lien.href = URL.createObjectURL(blob);
+      lien.download = 'Enquete_satisfaction.pdf';
+      document.body.appendChild(lien);
+      lien.click();
+      document.body.removeChild(lien);
+    } catch (e) {
+      console.error(e);
+    }
+
+    const aujourdhui = new Date().toISOString().slice(0, 10);
+    d.questionnaireEnvoyeLe = aujourdhui;
+    ajouterHistorique(d, 'Questionnaire de satisfaction envoyé');
+    sauvegarder();
+    render();
+
+    const lienAvis = 'https://www.google.com/maps/place/Office+Notarial+de+Ma%C3%AEtre+Sophie+Gossart';
+    const subject = 'Questionnaire de satisfaction';
+    const body = `Bonjour,\n\nMaintenant que votre dossier est finalisé, nous serions heureux de recueillir votre avis sur notre accompagnement.\n\nVous trouverez ci-joint notre questionnaire de satisfaction. N'hésitez pas à le compléter et à nous le retourner.\n\nSi vous avez apprécié notre accompagnement, nous vous serions également reconnaissants de laisser un avis sur notre page Google : ${lienAvis}\n\nNous vous remercions par avance du temps que vous accepterez de nous consacrer.\n\nCordialement.`;
+    const url = `mailto:${encodeURIComponent(d.emailAcquereur)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    afficherToast('Questionnaire téléchargé — pensez à le joindre manuellement au brouillon avant envoi.', 'OK', null);
     window.location.href = url;
   }
 

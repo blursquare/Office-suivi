@@ -21,11 +21,16 @@ script.js                  Toute la logique applicative
 manifest.json              Manifest PWA (installation en application)
 sw.js                      Service worker minimal (requis pour l'installabilité, ne fait rien d'autre)
 icone.svg                  Icône de l'application
+questionnaire-satisfaction-pdf.js
+                           Fiche "Enquête satisfaction" (PDF fourni par l'étude), encodée en
+                           base64 — chargée en <script src>, pas en fetch() (voir point 1 des
+                           contraintes ci-dessous et l'historique des décisions, section
+                           questionnaire de satisfaction).
 Ouvrir-en-fenetre.bat      Optionnel (Windows) : ouvre index.html dans une fenêtre Chrome sans
                            onglets ni barre d'adresse — voir point 7 des contraintes ci-dessous.
 ```
 
-**Important** : ces 6 fichiers (les 7 avec le lanceur `.bat`, optionnel) doivent toujours être
+**Important** : ces 7 fichiers (les 8 avec le lanceur `.bat`, optionnel) doivent toujours être
 déposés ensemble, au même endroit (poste de travail ou lecteur réseau partagé de l'étude). Aucun
 serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
 
@@ -1699,6 +1704,42 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
     masquée quand la liste est vide (même principe que le widget "Échéances des 7 prochains jours").
     Chaque ligne (`.piece-recente-ligne`, même habillage que `.action-urgente-ligne`) ouvre le dossier
     concerné au clic (`ouvrirDossierDepuisDashboard`) et acquitte au passage sa notification.
+- **Bouton "Questionnaire de satisfaction"**, demandé par l'étude avec un modèle d'email précis
+  (texte + lien Google Maps vers la fiche avis de l'office) et un PDF à joindre
+  (`Enquete_satisfaction.pdf`, fourni par l'étude).
+  - **Visible uniquement une fois `d.acte` renseigné** (date du rendez-vous de signature
+    définitif) — demandé explicitement, pas de sens de solliciter un avis de satisfaction avant la
+    signature. `envoyerQuestionnaireSatisfaction(id)` (script.js, juste après
+    `relancerSiOffreManquante`) est appelée par un 4ᵉ bouton conditionnel dans `.dossier-actions`
+    (`${d.acte ? ... : ''}`), aux côtés de "Rappels (.ics)"/"Rappel email"/"Imprimer".
+  - **Aucune page web ne peut joindre un fichier à un brouillon `mailto:`** (même limitation que
+    pour les relances de prêt, voir contrainte n°4) : le bouton télécharge d'abord le PDF
+    (`Blob`/`<a download>`, décodé depuis `QUESTIONNAIRE_SATISFACTION_PDF_BASE64`) puis ouvre le
+    brouillon `mailto:` pré-rempli — un `afficherToast` explique honnêtement qu'il reste à joindre
+    le fichier téléchargé à la main, plutôt que de laisser croire à un envoi complet automatique.
+  - **PDF encodé en base64 dans un fichier séparé**, `questionnaire-satisfaction-pdf.js` (voir la
+    structure du projet plus haut), chargé en `<script src>` avant `script.js` dans `index.html` :
+    un `fetch()` vers un fichier local échoue en `file://` (restriction CORS du navigateur sur ce
+    protocole, voir contrainte n°1), mais un `<script src>` classique fonctionne normalement dans
+    ce contexte — solution déjà éprouvée ailleurs dans l'outil pour des ressources statiques
+    embarquées. Fichier séparé de `script.js` pour ne pas noyer le code applicatif sous une longue
+    chaîne base64 (~197 000 caractères).
+  - **Le lien vers la page d'avis Google est écrit en URL brute dans le corps de l'email**, pas en
+    lien markdown `[texte](url)` comme fourni par l'étude : un corps de `mailto:` est du texte
+    brut, aucun client mail n'y interprète le Markdown/HTML — un lien markdown non converti se
+    serait affiché tel quel (crochets et parenthèses inclus) dans le brouillon.
+  - `d.questionnaireEnvoyeLe` (date ISO ou `null`) marque l'envoi et fait passer le bouton en style
+    "déjà envoyé" (`.action-envoyee`, bordure/texte `--success`, icône `check` plutôt que `send`),
+    avec la date dans l'infobulle — un second clic reste possible (relance volontaire), rien n'est
+    verrouillé. Contrairement à `dossierLie`/`offrePretStatut` (dérivés d'un scan du dossier local,
+    non fiables d'une machine à l'autre), c'est un fait réellement accompli par l'utilisateur : la
+    valeur est donc **préservée** à l'import (`normaliserDossierImporte`), comme l'historique,
+    plutôt que remise à zéro.
+  - Icônes `check` et `send` ajoutées à `ICONES` (script.js), absentes jusqu'ici — même recette que
+    les autres icônes du fichier (grille 16×16, trait 1.4, extrémités arrondies).
+  - `.dossier-actions` passe de `flex-wrap: nowrap` à `wrap` : avec 3 boutons (cas le plus courant,
+    sans `d.acte`) rien ne change, mais le 4ᵉ bouton conditionnel peut désormais repasser à la
+    ligne suivante dans la largeur du tiroir plutôt que d'écraser les trois autres.
 
 ## Comment tester
 
