@@ -5422,6 +5422,42 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   - `npm test` reste vert (448 tests, aucune fonction pure modifiée — un changement purement visuel,
     HTML/SVG).
 
+- **Logo : retour à la PREMIÈRE proposition (« concept A » du tout premier jeu de pistes, celui
+  soumis avant que l'étude n'envoie la planche « Enterline »).** Après avoir vu le monogramme
+  facetté en place, l'étude a préféré revenir en arrière : « je préfère finalement pour le logo la
+  première version que tu m'as proposée (A), avant l'upload que je t'ai envoyé en exemple ».
+  Confirmé par la capture de la sidebar demandée juste avant — à 30px, les aplats facettés se
+  rejoignaient en un carré plein bleu, l'ouverture à droite (l'idée du « C ») avait disparu.
+  - **Le motif retenu est l'ANCIEN anneau ouvert en trait fin, dont le seul petit trait horizontal
+    de fermeture devient une coche** (`M27 23.5 L31.5 29 L40 17`, même `stroke-width: 1.8` et même
+    `viewBox="0 0 48 48"` que le logo d'avant) : l'évolution la plus légère possible du logo déjà
+    associé à CLAIRE, qui garde son anneau tout en introduisant le langage « coché = fait » déjà
+    présent partout dans l'outil. Les trois `.brand-mark` d'`index.html` (sidebar, écran de
+    connexion, « À propos ») reviennent à ce tracé ; l'anneau garde `--focus`, la coche
+    `--focus-hover`, comme le trait qu'elle remplace.
+  - **`icone.svg` (favicon/PWA) : le tracé ne pouvait PAS être repris tel quel.** Ce fichier a
+    volontairement un trait bien plus épais que la version écran (18 sur un anneau de rayon 44,
+    soit 0,41 du rayon, contre 1,8 sur rayon 15 = 0,12) pour rester lisible à 16px — voir son
+    historique. À cette épaisseur, la coche de concept A (dont la pointe sort par l'ouverture de
+    l'anneau, comme le faisait l'ancien trait droit) vient fusionner avec l'extrémité HAUTE de
+    l'anneau : les deux demi-traits de 9px se recouvrent, et le tout se lit comme une flèche de
+    rechargement, pas comme une coche. Constaté en rendant le favicon à 16/24/32/96px côte à côte,
+    pas en relisant le SVG. Quatre variantes comparées visuellement (pointe sortante, coche
+    intérieure en 18, coche intérieure en 15, sortie par le milieu du vide) : retenue la **coche
+    entièrement à l'intérieur de l'anneau, en trait 15** (`M78 97 L92 112 L120 78`) — la seule qui
+    se lise encore comme une coche à 16px sans toucher l'anneau. L'anneau lui-même
+    (`stroke-width: 18`, couleur fixe `#2563EB`, tuile graphite `#12181F`) est inchangé.
+  - **Le mot « Claire » n'est pas concerné** : la demande portait uniquement sur le symbole, la
+    casse choisie la veille est conservée.
+  - **Leçon, à rapprocher de celle déjà tirée sur les PDF réels** : une proposition de logo jugée
+    sur un aperçu agrandi ne dit rien de son rendu à la taille réelle. Les deux fois (le facetté
+    hier, la pointe de coche du favicon aujourd'hui), c'est le rendu à 16-30px qui a tranché —
+    générer la capture À CETTE TAILLE fait partie de la livraison, pas d'une vérification
+    optionnelle.
+  - Vérifié dans un vrai Chromium (serveur réel, sidebar en clair et en sombre, favicon rendu à
+    16/32/64px sur fond clair et sombre) ; `npm test` reste vert (448 tests, aucun code JS touché
+    — uniquement HTML/SVG).
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-20 23:44';
+  const VERSION_APP = '2026-09-21 07:37';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-21 07:37', resume: "Logo : retour à la première proposition, celle que vous préférez — l'anneau ouvert en trait fin déjà associé à CLAIRE, dont le petit trait de fermeture devient une coche. Remplace la version en aplats géométriques livrée hier soir, qui se lisait comme un carré plein à cette taille. Le mot « Claire » ne change pas" },
     { version: '2026-09-20 23:44', resume: "Nouveau logo, à la demande de l'étude après une proposition soumise pour avis (un anneau ouvert « rubané » en aplats géométriques, dont le creux central forme une coche — plutôt qu'un simple trait fin) : la marque de la sidebar, de l'écran de connexion, de « À propos » et le favicon/icône PWA reprennent tous ce nouveau motif, dans le même bleu --focus/--focus-hover déjà en place. Le mot « CLAIRE » s'écrit désormais « Claire », seule la première lettre en majuscule" },
     { version: '2026-09-20 23:28', resume: "Sidebar réorganisée en catégories (Dossier / Outils / Admin, « Tableau de bord » seul en tête). Nouveau système de notification quand une pièce est trouvée sur un dossier : un badge à côté de « Suivi des dossiers » compte les pièces reçues pas encore vues, un indicateur « N nouvelle(s) pièce(s) » apparaît sur la ligne du dossier concerné (Suivi comme vue Échéances), et un repère « Nouveau » identifie la pièce (ou l'offre de prêt) précise dans la fiche — jusqu'à ce que le tiroir soit refermé, ce qui vaut pour « vu ». Plusieurs pièces trouvées en même temps sur un dossier ne déclenchent qu'UN seul message, envoyé sur Teams au responsable du dossier (avec la même copie systématique à l'étude que les rappels d'échéance). Une notification navigateur/Windows, optionnelle (case dans « Réglages »), peut aussi s'afficher — mais seulement si l'onglet n'est pas déjà au premier plan, pour ne pas doubler ce qui est déjà visible à l'écran" },
     { version: '2026-09-20 22:58', resume: "Nouvelle échéance « Appel de fonds » (visible une fois le dossier complet, juste avant la signature de l'acte) et « Rendez-vous de signature » (le rendez-vous réel pris à l'office, distinct de la date butoir indicative de l'avant-contrat). « Marquer réalisée »/« Annuler la validation » fonctionne désormais sur n'importe quelle échéance (prêt, acte, vente préalable, personnalisée), plus seulement la vente préalable" },
