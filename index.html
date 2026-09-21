@@ -873,7 +873,9 @@
   <div class="calc-card calc-card-notes">
     <div class="dash-section-titre">Créer le flux dans Power Automate (une seule fois)</div>
     <ol>
-      <li>Dans Power Automate, créer un flux <strong>Instantané</strong> avec le déclencheur <strong>« Quand une requête HTTP est reçue »</strong> — laisser le schéma JSON vide, il n'est pas nécessaire.</li>
+      <li>Dans Power Automate, créer un flux <strong>Instantané</strong> avec le déclencheur <strong>« Quand une requête HTTP est reçue »</strong>, et coller ce schéma dans <em>Schéma JSON du corps de la requête</em> :<br>
+        <code class="code-bloc">{ "type": "object", "properties": { "destinataire": { "type": "string" }, "message": { "type": "string" } } }</code><br>
+        Le flux marche aussi sans ce schéma, mais alors les champs <code>destinataire</code> et <code>message</code> n'apparaissent pas dans la liste de contenu dynamique à l'étape suivante — il faudrait les saisir en expression. Autant le coller.</li>
       <li>Ajouter l'action Teams <strong>« Publier un message dans un chat ou un canal »</strong> : Publier en tant que <em>Flow bot</em>, Publier dans <em>Chat avec Flow bot</em>, Destinataire = contenu dynamique <code>destinataire</code>, Message = contenu dynamique <code>message</code>.</li>
       <li>Enregistrer le flux, puis rouvrir l'étape du déclencheur HTTP : l'URL générée s'affiche. La copier et la coller dans le champ ci-dessus, puis cliquer sur « Enregistrer ».</li>
       <li>Cocher « Activer l'envoi automatique », enregistrer, puis utiliser le bouton « Tester » de chaque collaborateur pour vérifier que le message arrive bien sur son compte Teams.</li>
