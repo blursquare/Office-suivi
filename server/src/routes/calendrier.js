@@ -12,6 +12,49 @@ const express = require('express');
 function pad(n) { return String(n).padStart(2, '0'); }
 function icsDate(iso) { return iso.replace(/-/g, ''); }
 
+// RFC 5545 §3.3.11 : dans une valeur TEXT, l'antislash, le point-virgule, la virgule et le saut de
+// ligne DOIVENT être échappés. Un nom de dossier en contient couramment (« DUPONT, Jean / MARTIN »,
+// une échéance personnalisée « Levée; option ») : sans échappement, un lecteur strict peut prendre
+// le point-virgule pour un séparateur de paramètre et rejeter l'événement.
+function echapperTexteIcs(valeur) {
+  return String(valeur == null ? '' : valeur)
+    .replace(/\\/g, '\\\\')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,')
+    .replace(/\r?\n/g, '\\n');
+}
+
+// RFC 5545 §3.1 : une ligne ne dépasse pas 75 octets, au-delà elle est repliée — coupure, CRLF,
+// puis une espace en tête de la continuation. Les titres d'échéance (libellé + acquéreur + nom
+// complet du dossier) dépassent largement ce plafond. La coupe se fait par POINT DE CODE et non
+// par octet : couper un caractère accentué en deux produirait de l'UTF-8 invalide.
+function plierLigneIcs(ligne) {
+  if (Buffer.byteLength(ligne, 'utf8') <= 75) return ligne;
+  const morceaux = [];
+  let courant = '';
+  let octets = 0;
+  let premier = true;
+  for (const caractere of ligne) {
+    const n = Buffer.byteLength(caractere, 'utf8');
+    // Une ligne de continuation commence par une espace, qui compte dans les 75 octets.
+    const plafond = premier ? 75 : 74;
+    if (octets + n > plafond) {
+      morceaux.push(courant);
+      courant = '';
+      octets = 0;
+      premier = false;
+    }
+    courant += caractere;
+    octets += n;
+  }
+  morceaux.push(courant);
+  return morceaux.join('\r\n ');
+}
+
+function plierFluxIcs(corps) {
+  return corps.split('\r\n').map(plierLigneIcs).join('\r\n');
+}
+
 function addDays(iso, n) {
   const d = new Date(iso + 'T00:00:00Z');
   d.setUTCDate(d.getUTCDate() + n);
@@ -60,7 +103,7 @@ function buildEvent(uid, summary, iso, sequence) {
     `LAST-MODIFIED:${horodatage}\r\n` +
     `DTSTART;VALUE=DATE:${icsDate(iso)}\r\n` +
     `DTEND;VALUE=DATE:${icsDate(addDays(iso, 1))}\r\n` +
-    `SUMMARY:${summary}\r\n` +
+    `SUMMARY:${echapperTexteIcs(summary)}\r\n` +
     'STATUS:CONFIRMED\r\n' +
     'END:VEVENT\r\n'
   );
@@ -78,9 +121,8 @@ function buildEventAnnule(uid, summary, isoRepli, sequence) {
     `LAST-MODIFIED:${horodatage}\r\n` +
     `DTSTART;VALUE=DATE:${icsDate(isoRepli)}\r\n` +
     `DTEND;VALUE=DATE:${icsDate(addDays(isoRepli, 1))}\r\n` +
-    `SUMMARY:${summary}\r\n` +
+    `SUMMARY:${echapperTexteIcs(summary)}\r\n` +
     'STATUS:CANCELLED\r\n' +
-    'METHOD:CANCEL\r\n' +
     'END:VEVENT\r\n'
   );
 }
@@ -149,7 +191,7 @@ function genererFluxIcs(dossiers) {
   }
 
   body += 'END:VCALENDAR\r\n';
-  return body;
+  return plierFluxIcs(body);
 }
 
 function creerRouteurCalendrier(depot, config) {
@@ -181,4 +223,4 @@ function creerRouteurCalendrier(depot, config) {
 
 // genererFluxIcs exposée pour les tests uniquement (voir server/test/calendrier.test.js) —
 // creerRouteurCalendrier() reste le seul point d'entrée réel.
-module.exports = { creerRouteurCalendrier, genererFluxIcs, sequenceDepuisMaj };
+module.exports = { creerRouteurCalendrier, genererFluxIcs, sequenceDepuisMaj, echapperTexteIcs, plierLigneIcs };

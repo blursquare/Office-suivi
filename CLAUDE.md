@@ -5898,6 +5898,53 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     demandée (le SPF) qui portait la vraie contrainte. Vérifier soi-même l'environnement réel, quand
     c'est possible à coût nul, vaut mieux qu'une procédure écrite en aveugle.
 
+- **Calendrier connecté : le flux .ics n'était pas conforme, et Outlook s'arrêtait au deuxième
+  événement.** Signalé par l'étude — « les échéances ne s'affichent toujours pas », puis, en
+  précisant : « j'ai sur deux trois dates du premier fichier connecté ». Cette seconde phrase était
+  le diagnostic : l'abonnement fonctionne, le flux est bien servi, mais sa LECTURE s'interrompt en
+  cours de route. Un client calendrier qui rencontre une anomalie de syntaxe abandonne le fichier à
+  cet endroit, sans le moindre message — tout ce qui suit disparaît silencieusement.
+  **Méthode** : générer le flux avec des dossiers réalistes (noms longs, ponctués, champs récents
+  non renseignés) et l'inspecter ligne par ligne, plutôt que relire `genererFluxIcs`. Les trois
+  défauts sont apparus du premier coup, et le premier tombait **ligne 17**, soit au deuxième
+  événement du premier dossier — exactement « deux trois dates ».
+  - **`METHOD:CANCEL` à l'intérieur d'un `VEVENT`.** `METHOD` est une propriété du CALENDRIER
+    (RFC 5545 §3.7.2), jamais d'un événement, et elle n'a de sens que dans un message d'invitation
+    iTIP — pas dans un flux publié. Retirée : `STATUS:CANCELLED`, émis juste au-dessus, est le
+    mécanisme correct et suffisant ici. **Ironie à retenir** : cette ligne avait été ajoutée par le
+    correctif précédent, celui qui traitait déjà « il reste des dates de vente et pas les nouvelles
+    dates butoir » — un correctif juste dans son intention (publier l'annulation) mais qui a cassé
+    la validité du fichier en même temps, donc aggravé le symptôme qu'il visait.
+  - **Lignes non repliées.** RFC 5545 §3.1 plafonne une ligne à 75 octets, au-delà elle se replie
+    (CRLF + une espace en tête de continuation). Un titre d'échéance — libellé + acquéreur + nom
+    complet du dossier — atteint couramment 110 à 120 octets. `plierLigneIcs()` replie par POINT DE
+    CODE et non par octet : couper un caractère accentué en deux produirait de l'UTF-8 invalide, ce
+    qu'un simple contrôle de longueur ne détecterait jamais (un test le verrouille explicitement).
+  - **Virgules et points-virgules non échappés** dans `SUMMARY` (§3.3.11). Un nom de dossier en
+    contient couramment (« DUPONT, Jean / MARTIN »), et une échéance personnalisée aussi
+    (« Levée; option ») — le point-virgule est le plus dangereux, un lecteur peut y voir un
+    séparateur de paramètre. `echapperTexteIcs()` traite antislash, point-virgule, virgule et saut
+    de ligne.
+  - **Rien à refaire côté étude** : l'URL d'abonnement et le jeton ne changent pas, seule une
+    resynchronisation du calendrier est nécessaire. Outlook resynchronise un abonnement Internet
+    selon son propre rythme (quelques heures), ce que `REFRESH-INTERVAL`/`X-PUBLISHED-TTL`
+    suggèrent sans pouvoir l'imposer — un affichage qui ne bouge pas dans l'heure n'est donc pas
+    forcément un nouveau bug.
+  - Tests : 6 nouveaux dans `server/test/calendrier.test.js` (aucune ligne > 75 octets, aucun
+    `METHOD` résiduel alors que l'annulation reste publiée, titres échappés, repli qui ne coupe pas
+    un caractère accentué et se déplie à l'identique, ligne courte rendue telle quelle,
+    `echapperTexteIcs` sur les quatre caractères). Suite serveur 227 → 233 ; racine inchangée (467,
+    chantier entièrement côté serveur). **Vérifié de bout en bout** sur un vrai serveur : flux servi
+    en HTTP 200, UTF-8 intact après repli, CRLF partout, aucune ligne hors norme, `BEGIN:VEVENT` et
+    `END:VEVENT` équilibrés, titres échappés.
+  - **Piège rencontré en ÉCRIVANT les tests, pas dans le code** : les valeurs attendues contiennent
+    des antislashs littéraux, et un littéral JS les fait doubler (`'\\;'` pour obtenir `\;`). Deux
+    assertions ont perdu un antislash au passage et ont échoué en accusant une implémentation qui
+    était juste. Corrigé en construisant les chaînes attendues avec une constante
+    `ANTISLASH = String.fromCharCode(92)` : plus lisible, et insensible à cette classe d'erreur.
+    Même leçon que le décodage HTML des attributs `onclick` — quand plusieurs couches
+    d'échappement se superposent, écrire la valeur en clair plutôt qu'en littéral échappé.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

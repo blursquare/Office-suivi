@@ -145,3 +145,79 @@ test('GET /calendrier.ics renvoie 503 quand aucun jeton n\'est configuré sur le
   serveur2.close();
   db2.close();
 });
+
+// --- Conformité du .ics produit (RFC 5545) ---
+//
+// Symptôme qui a motivé ces tests : Outlook n'affichait que « deux trois dates » du flux, puis plus
+// rien. Un fichier .ics devenu invalide en cours de route est abandonné par le lecteur à cet
+// endroit — le reste du portefeuille disparaît sans le moindre message d'erreur. Trois défauts se
+// cumulaient, chacun capable à lui seul de provoquer ça ; ces tests les verrouillent.
+
+const { echapperTexteIcs, plierLigneIcs } = require('../src/routes/calendrier');
+
+const ANTISLASH = String.fromCharCode(92);
+
+// Un dossier au nom long ET ponctué : les deux pièges à la fois.
+const DOSSIERS_PIEGES = [
+  {
+    id: 'x1',
+    nom: 'BOURGUEIL & BOUSSELET / CHARPENTIER, Jean & GENESTOUX',
+    updatedAt: Date.now(),
+    pret: '2026-09-09',
+    acte: '',                       // absente → publiée ANNULÉE
+    ventebien: '2026-08-01',
+    autres: [{ label: 'Levée; option', date: '2026-09-30' }]
+  }
+];
+
+test('flux .ics : aucune ligne ne dépasse 75 octets (RFC 5545 §3.1)', () => {
+  const lignes = genererFluxIcs(DOSSIERS_PIEGES).split('\r\n');
+  const trop = lignes.filter((l) => Buffer.byteLength(l, 'utf8') > 75);
+  assert.deepEqual(trop, [], `lignes non repliées : ${trop.join(' | ')}`);
+});
+
+// METHOD est une propriété du CALENDRIER (§3.7.2), jamais d'un VEVENT, et n'a de sens que dans un
+// message d'invitation iTIP — pas dans un flux publié. C'est STATUS:CANCELLED, juste au-dessus, qui
+// annule un événement ici.
+test('flux .ics : aucun METHOD à l\'intérieur d\'un VEVENT', () => {
+  const flux = genererFluxIcs(DOSSIERS_PIEGES);
+  assert.ok(!/^METHOD:/m.test(flux), 'un METHOD subsiste dans le flux');
+  assert.ok(flux.includes('STATUS:CANCELLED'), "l'annulation doit rester publiée");
+});
+
+test('flux .ics : virgules et points-virgules des titres sont échappés (§3.3.11)', () => {
+  const flux = genererFluxIcs(DOSSIERS_PIEGES);
+  // Le flux est replié : on reconstitue les lignes logiques avant d'inspecter les titres.
+  const deplie = flux.replace(/\r\n /g, '');
+  const titres = deplie.split('\r\n').filter((l) => l.startsWith('SUMMARY:'));
+  assert.ok(titres.length > 0);
+  for (const t of titres) {
+    const valeur = t.slice('SUMMARY:'.length);
+    assert.ok(!/(^|[^\\]),/.test(valeur), `virgule non échappée : ${t}`);
+    assert.ok(!/(^|[^\\]);/.test(valeur), `point-virgule non échappé : ${t}`);
+  }
+  assert.ok(deplie.includes('Levée' + ANTISLASH + '; option'), "le point-virgule d'une échéance personnalisée doit être échappé");
+});
+
+// Le repli se fait par point de code : couper un « é » en deux produirait de l'UTF-8 invalide, ce
+// qu'aucun test de longueur seul ne détecterait.
+test('plierLigneIcs : ne coupe jamais au milieu d\'un caractère accentué', () => {
+  const ligne = 'SUMMARY:' + 'é'.repeat(90);
+  const plie = plierLigneIcs(ligne);
+  for (const morceau of plie.split('\r\n')) {
+    assert.ok(Buffer.byteLength(morceau, 'utf8') <= 75);
+  }
+  // Déplié, on doit retrouver exactement la ligne d'origine.
+  assert.equal(plie.replace(/\r\n /g, ''), ligne);
+});
+
+test('plierLigneIcs : une ligne courte est rendue telle quelle', () => {
+  assert.equal(plierLigneIcs('STATUS:CONFIRMED'), 'STATUS:CONFIRMED');
+});
+
+test('echapperTexteIcs : antislash, point-virgule, virgule et saut de ligne', () => {
+  const attendu = 'a' + ANTISLASH + ANTISLASH + 'b'
+    + ANTISLASH + ';c' + ANTISLASH + ',d' + ANTISLASH + 'ne';
+  assert.equal(echapperTexteIcs('a' + ANTISLASH + 'b;c,d\ne'), attendu);
+  assert.equal(echapperTexteIcs(null), '');
+});
