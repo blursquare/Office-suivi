@@ -797,6 +797,7 @@
         <div class="calc-champ">
           <label for="af-adresse-clients">Adresse des clients</label>
           <textarea id="af-adresse-clients" rows="2" placeholder="Numéro et rue&#10;Code postal VILLE" oninput="majApercuAppelFonds()"></textarea>
+          <p class="hint">Laissé vide, le courrier porte la mention « Envoi par e-mail uniquement » à la place de l'adresse. Cette mention reste modifiable dans l'aperçu.</p>
         </div>
       </div>
 
@@ -919,8 +920,8 @@
 
           <div class="af-lettre-corps">
             <div class="af-adresse-bloc">
-              <div class="af-mention-envoi"><span class="af-champ" id="af-p-mention">Envoi par e-mail uniquement</span></div>
               <div id="af-p-adresse"><u>Destinataire à compléter</u></div>
+              <div class="af-mention-envoi" id="af-p-mention-ligne"><u><span class="af-champ" id="af-p-mention">Envoi par e-mail uniquement</span></u></div>
             </div>
 
             <div class="af-date-ligne"><u><span class="af-champ" id="af-p-ville">Blois</span>, le <span class="af-champ" id="af-p-datelettre"></span></u></div>

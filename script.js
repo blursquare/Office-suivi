@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-21 22:25';
+  const VERSION_APP = '2026-09-21 22:29';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,7 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
-    { version: '2026-09-21 22:25', resume: "Appel de fonds : le courrier porte maintenant la mention « Envoi par e-mail uniquement » au-dessus des coordonnées du destinataire. Elle est posée toute seule à chaque courrier, se corrige directement dans l'aperçu comme le reste du texte (pour écrire « Envoi recommandé avec AR », par exemple), et se retrouve telle quelle dans le .docx téléchargé. L'effacer dans l'aperçu la retire du courrier ; le bouton « Effacer » la remet à sa formulation par défaut" },
+    { version: '2026-09-21 22:29', resume: "Appel de fonds : la mention « Envoi par e-mail uniquement » prend désormais la PLACE de l'adresse postale du destinataire, sous son nom, au lieu de s'ajouter au-dessus. Saisir une adresse dans « Adresse des clients » la fait disparaître et affiche l'adresse à la place — les deux ne peuvent pas cohabiter sur le même courrier. Elle reste modifiable dans l'aperçu (pour écrire « Envoi recommandé avec AR », par exemple), suit dans le .docx téléchargé, et le bouton « Effacer » la remet à sa formulation par défaut" },
     { version: '2026-09-21 22:09', resume: "Appel de fonds : le champ « Adresse du bien » propose désormais les adresses officielles de la Base Adresse Nationale (data.gouv.fr) pendant la frappe, et reprend simplement celle du dossier quand un dossier est rattaché — une note sous le champ dit d'où vient l'adresse affichée. Seul appel vers un service extérieur de tout CLAIRE : seul le texte tapé dans ce champ part, jamais un nom de dossier ni de client, et un poste sans internet garde la saisie libre. Corrigé au passage : le menu de recherche de dossier de cet écran s'affichait en boutons bruts, sans séparateur ni survol" },
     { version: '2026-09-21 22:02', resume: "Appel de fonds, trois retouches. Le bloc destinataire du courrier est aligné à droite dans l'aperçu, comme sur le papier. Le dépôt de garantie versé à l'agence est désormais DÉDUIT du virement demandé, l'agence reversant la somme à l'étude — la version de ce matin ne le déduisait pas, ce qui faisait réclamer au client une somme trop forte ; la fiche rappelle de réclamer ces fonds avant la signature. Enfin, la ligne « frais et droits de l'acte de vente » est contrôlée contre le barème du simulateur, comme les prorata l'étaient déjà : CLAIRE dit si le montant est au-dessus ou en dessous, sans jamais le remplir — ce barème n'a pas été audité. Corrigé au passage : un prorata écrit sans parenthèses n'était pas recalculé du tout" },
     { version: '2026-09-21 21:36', resume: "Nouvel outil « Appel de fonds » dans la sidebar : il produit la convocation au rendez-vous de signature avec le décompte des sommes à virer, et la télécharge en .docx à l'en-tête de l'étude. Relié au suivi — un bouton « Préparer l'appel de fonds » sur la fiche d'un dossier ouvre l'outil déjà rempli avec les acquéreurs, l'adresse et la désignation du bien, la date du rendez-vous et le prix ; il dit aussi, en clair, ce qu'il n'a PAS pu remplir. Le dépôt de garantie n'est porté en déduction que s'il est séquestré à l'étude, et les frais d'acte de prêt ne sont appelés que si l'offre porte une garantie hypothécaire. Le décompte d'un confrère peut être déposé en PDF ou collé : ses lignes remplissent le tableau, et ses prorata écrits sous forme de formule sont recalculés pour contrôle" },
@@ -13655,6 +13655,8 @@
       if (adresse) adresse.split('\n').forEach(l => { if (l.trim()) lignes.push(l.trim()); });
       bloc.innerHTML = lignes.length ? '<u>' + lignes.map(escapeHtml).join('<br>') + '</u>' : '<u>Destinataire à compléter</u>';
     }
+    const ligneMention = afEl('af-p-mention-ligne');
+    if (ligneMention) ligneMention.style.display = adresse ? 'none' : '';
 
     const salut = salutationAppelFonds(clientsRemplis);
     poser('af-p-salut1', salut);
@@ -13779,17 +13781,22 @@
     poser('af-icone-instagram', a.iconInstagram);
   }
 
-  // Mention du mode d'envoi, posée automatiquement en tête du bloc destinataire et éditable dans
-  // l'aperçu comme le reste du courrier. Elle rejoint le .docx via `addrLines` : c'est le seul
-  // champ du modèle Word qui accepte des lignes libres (le modèle est stocké en base64 dans
-  // appel-de-fonds-modele.js, un placeholder dédié obligerait à le régénérer).
+  // Mention du mode d'envoi. Elle REMPLACE l'adresse postale du destinataire tant qu'aucune
+  // adresse n'est saisie ; dès qu'une adresse l'est, c'est elle qui s'affiche et la mention
+  // disparaît (une adresse postale et « envoi par e-mail uniquement » se contrediraient).
+  // Éditable dans l'aperçu comme le reste du courrier, et reprise dans le .docx via `addrLines` :
+  // c'est le seul champ du modèle Word qui accepte des lignes libres (le modèle est stocké en
+  // base64 dans appel-de-fonds-modele.js, un placeholder dédié obligerait à le régénérer).
+  // Elle vit dans son PROPRE élément, hors de #af-p-adresse : majApercuAppelFonds() réécrit ce
+  // dernier en entier à chaque frappe, une mention placée dedans serait effacée à la saisie
+  // suivante.
   var MENTION_ENVOI_APPEL_FONDS = "Envoi par e-mail uniquement";
 
-  function composerAdresseCourrier(mention, lignesAdresse) {
+  function composerAdresseCourrier(lignesAdresse, mention) {
     const lignes = [];
+    String(lignesAdresse || '').split('\n').forEach(l => { if (l.trim()) lignes.push(l.trim()); });
     const m = String(mention || '').trim();
     if (m) lignes.push(m);
-    String(lignesAdresse || '').split('\n').forEach(l => { if (l.trim()) lignes.push(l.trim()); });
     return lignes.join('\n');
   }
 
@@ -13798,6 +13805,7 @@
 
   function donneesCourrierAppelFonds() {
     const lire = (id) => { const e = afEl(id); return e ? e.textContent.trim() : ''; };
+    const mentionAffichee = () => { const e = afEl('af-p-mention-ligne'); return !!e && e.style.display !== 'none'; };
     const lignes = (id) => {
       const tbody = afEl(id);
       if (!tbody) return [];
@@ -13818,7 +13826,10 @@
     const blocAdresse = afEl('af-p-adresse');
     return {
       ref: afValeur('af-ref'),
-      addrLines: composerAdresseCourrier(lire('af-p-mention'), blocAdresse ? blocAdresse.innerHTML.split('<br>').map(s => s.replace(/<[^>]+>/g, '').trim()).filter(Boolean).join('\n') : ''),
+      addrLines: composerAdresseCourrier(
+        blocAdresse ? blocAdresse.innerHTML.split('<br>').map(s => s.replace(/<[^>]+>/g, '').trim()).filter(Boolean).join('\n') : '',
+        mentionAffichee() ? lire('af-p-mention') : ''
+      ),
       ville: lire('af-p-ville'),
       dateLettre: lire('af-p-datelettre'),
       salut1: lire('af-p-salut1'),

@@ -4036,8 +4036,9 @@
    drapeau à droite ne se lit pas comme une adresse. Repasse pleine largeur sous 700px, où 55 %
    de la colonne ne suffisent plus à tenir une ligne d'adresse sans la couper. */
 .af-adresse-bloc { margin: 0 0 24px auto; width: max-content; max-width: 55%; text-align: left; }
-/* Mention de mode d envoi, posee au-dessus du bloc destinataire (convention du courrier francais). */
-.af-mention-envoi { margin: 0 0 10px; font-style: italic; }
+/* Mention de mode d envoi : elle occupe la place de l adresse postale dans le bloc
+   destinataire, en italique pour se lire comme une mention et non comme une ligne d adresse. */
+.af-mention-envoi { font-style: italic; }
 @media (max-width: 700px) { .af-adresse-bloc { margin-left: 0; max-width: 100%; } }
 .af-signature { margin-top: 26px; text-align: right; }
 

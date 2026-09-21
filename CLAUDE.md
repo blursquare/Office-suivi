@@ -6268,34 +6268,44 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
     dès la retouche, menu de recherche de dossier enfin stylé, aucune erreur JS, aucun débordement
     horizontal. Service réellement injoignable : champ conservé, aucun menu, aucune erreur.
 
-- **Mention « Envoi par e-mail uniquement » en tête du bloc destinataire de l'appel de fonds**
-  (« met un texte automatique editable »). Posée à chaque courrier, corrigeable dans l'aperçu comme
-  le reste du texte — l'étude peut la remplacer par « Envoi recommandé avec AR » ou l'effacer, et
-  elle suit dans le fichier téléchargé.
+- **Mention « Envoi par e-mail uniquement » À LA PLACE de l'adresse postale du destinataire**
+  (« met un texte automatique editable », puis, aussitôt après : « la phrase doit remplacer
+  l'adresse postale par défaut mais on doit avoir la possibilité de taper l'adresse si besoin » —
+  la première version la posait AU-DESSUS de l'adresse, c'est cette précision qui a fixé sa
+  place). Le bloc destinataire affiche donc, par défaut, le nom du client puis cette mention ;
+  dès qu'une adresse est saisie dans « Adresse des clients », c'est elle qui s'affiche et la
+  mention disparaît — une adresse postale et « envoi par e-mail uniquement » se contrediraient
+  sur le même courrier. Éditable dans l'aperçu comme le reste du texte (« Envoi recommandé avec
+  AR »…), effaçable, et remise à `MENTION_ENVOI_APPEL_FONDS` par « Effacer ».
   - **Le point qui a décidé de l'implémentation : un texte qui n'existe que dans l'aperçu ne part
     pas dans le `.docx`.** Le modèle Word est stocké en base64 dans `appel-de-fonds-modele.js` et
     sa liste de placeholders est FERMÉE (voir l'entrée du générateur plus haut : « les changer ici
     sans changer le modèle casserait silencieusement la génération ») — un `{mentionEnvoi}` dédié
     aurait obligé à régénérer ce blob. `addrLines` est le seul champ qui accepte des lignes libres
     (il est reconstruit depuis `#af-p-adresse` et rendu avec `linebreaks: true`) : la mention y est
-    donc simplement ajoutée en première ligne par `composerAdresseCourrier(mention, lignesAdresse)`
-    (pure, testable), appelée dans `donneesCourrierAppelFonds()`. Aucun changement de modèle.
-  - **La mention vit HORS de `#af-p-adresse`, dans `.af-adresse-bloc`** : `majApercuAppelFonds()`
-    réécrit `bloc.innerHTML` en entier à chaque frappe (clients + adresse), une mention placée
-    dedans serait donc effacée dès la saisie suivante. Vérifié explicitement en navigateur : le
-    texte édité à la main survit à une modification de l'adresse.
-  - Effacée dans l'aperçu → absente du `.docx` (aucune ligne vide ajoutée) ; « Effacer » la remet à
-    `MENTION_ENVOI_APPEL_FONDS`, comme n'importe quel autre champ du formulaire.
-  - Placée AU-DESSUS de l'adresse et en italique (`.af-mention-envoi`), alignée sur les lignes du
-    destinataire — la convention du courrier français pour une mention de mode d'envoi. Comme tout
-    l'aperçu, elle garde l'identité PAPIER de l'étude et ne suit pas le thème de l'application.
-  - Tests : 3 nouveaux dans `tests/appel-de-fonds.test.js` (mention en tête, mention vide/blanche/
-    nulle omise, adresse absente, valeur par défaut). Suite racine 495 → 498, serveur inchangée
+    donc ajoutée en dernière ligne par `composerAdresseCourrier(lignesAdresse, mention)` (pure,
+    testable), appelée dans `donneesCourrierAppelFonds()`. Aucun changement de modèle.
+  - **La mention vit dans son PROPRE élément (`#af-p-mention-ligne`), hors de `#af-p-adresse`** :
+    `majApercuAppelFonds()` réécrit ce dernier en entier à chaque frappe (noms + adresse), une
+    mention placée dedans serait effacée dès la saisie suivante. C'est ce même `majApercuAppelFonds()`
+    qui la masque ou la réaffiche selon que le champ d'adresse est rempli ou non, et
+    `donneesCourrierAppelFonds()` ne la reprend dans `addrLines` que si elle est effectivement
+    affichée — le `.docx` reflète le courrier tel qu'il est à l'écran, jamais un état interne qui
+    en différerait.
+  - Rendue en italique dans le bloc souligné du destinataire (`.af-mention-envoi`) : elle occupe la
+    place d'une ligne d'adresse, l'italique la fait lire comme une mention plutôt que comme une
+    adresse. Comme tout l'aperçu, elle garde l'identité PAPIER de l'étude et ne suit pas le thème
+    de l'application. Une note sous le champ « Adresse des clients » dit ce qui se passe quand il
+    reste vide — sans elle, rien n'expliquerait l'apparition d'une phrase que personne n'a tapée.
+  - Tests : 3 dans `tests/appel-de-fonds.test.js` (mention ajoutée après les lignes du
+    destinataire, omise quand une adresse est saisie — y compris sur une mention vide/blanche/
+    nulle —, destinataire absent, valeur par défaut). Suite racine 495 → 498, serveur inchangée
     (233 — chantier entièrement côté client). **Vérifié dans un vrai Chromium** (serveur réel,
-    clair et sombre, 1600px et 400px) : mention affichée d'office, présente en tête de `addrLines`,
-    édition reportée, survie à une mise à jour de l'aperçu, disparition une fois effacée, retour à
-    la valeur par défaut après « Effacer », position et alignement mesurés, aucune erreur JS, aucun
-    débordement horizontal.
+    clair et sombre, 1500px et 400px) : mention affichée d'office en dernière ligne du bloc,
+    remplacée par l'adresse dès sa saisie puis rétablie à son effacement, édition survivant à une
+    mise à jour de l'aperçu, disparition du `.docx` une fois effacée, retour à la valeur par
+    défaut après « Effacer », position et alignement mesurés, aucune erreur JS, aucun débordement
+    horizontal.
 
 ## Ce qui reste ouvert / pas encore fait
 
