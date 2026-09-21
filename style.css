@@ -515,11 +515,11 @@
     display: inline-block;
     align-self: flex-start;
     margin-top: 2px;
-    font-size: 8px;
+    font-size: 7px;
     font-weight: 700;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.05em;
     text-transform: uppercase;
-    padding: 1px 5px;
+    padding: 0 4px;
     border-radius: 20px;
     background: color-mix(in srgb, var(--focus) 15%, var(--paper-card));
     border: 1px solid color-mix(in srgb, var(--focus) 40%, transparent);

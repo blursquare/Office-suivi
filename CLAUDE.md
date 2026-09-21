@@ -5448,7 +5448,13 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     se lise encore comme une coche à 16px sans toucher l'anneau. L'anneau lui-même
     (`stroke-width: 18`, couleur fixe `#2563EB`, tuile graphite `#12181F`) est inchangé.
   - **Le mot « Claire » n'est pas concerné** : la demande portait uniquement sur le symbole, la
-    casse choisie la veille est conservée.
+    casse choisie la veille est conservée (confirmé explicitement par l'étude juste après —
+    « laisse Claire, avec le C majuscule »).
+  - **Badge « Alpha » rapetissé** dans la foulée, sur la même demande : `.sidebar-alpha-badge`
+    passe de 8px/`padding: 1px 5px` à 7px/`padding: 0 4px` (letter-spacing 0.06em → 0.05em), soit
+    36×13px au lieu de 42×16px à côté d'un mot-symbole de 60×35px — mesuré, pas estimé. La pilule
+    (fond + bordure teintés `--focus`) est conservée : l'étude a demandé « plus petit », pas de
+    retirer le repère.
   - **Leçon, à rapprocher de celle déjà tirée sur les PDF réels** : une proposition de logo jugée
     sur un aperçu agrandi ne dit rien de son rendu à la taille réelle. Les deux fois (le facetté
     hier, la pointe de coche du favicon aujourd'hui), c'est le rendu à 16-30px qui a tranché —
