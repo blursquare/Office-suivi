@@ -6087,6 +6087,111 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     annonçant l'absence d'écart, aucune erreur JS, aucun débordement horizontal.
 
 
+- **Outil 2 : statut des acquéreurs, carnet d'entretien, tableau des travaux, type de bien.**
+  Quatre demandes de l'étude, avec la consigne explicite de poser des questions de cadrage plutôt
+  que de deviner — quatre arbitrages obtenus ainsi, notés au fil des points ci-dessous.
+  - **Statut des acquéreurs (marié / pacsé / concubin)** — périmètre retenu par l'étude parmi trois
+    proposés : ne pas se contenter de LIRE le statut, mais signaler ce qui manque et qui a une
+    conséquence sur la rédaction de l'acte (régime matrimonial non précisé, PACS dont le régime
+    n'est pas dit, acquisition à deux hors mariage sans quotités). Rien de tout cela n'existait :
+    `detecterParties()` ne rend que nom / qualité / rôle / personne physique ou morale.
+    - **Le piège central, et la raison de tout le code d'attribution** : le même acte décrit aussi
+      le statut du VENDEUR (« Monsieur X, marié avec Madame Y »). Lire « marié » dans tout le texte
+      le confondrait une fois sur deux. `roleLePlusProcheAvant()` tranche : **le marqueur de rôle le
+      plus proche EN AMONT décide à qui appartient la mention** — un acte présente toujours ses
+      parties par sections, et le statut est écrit dans la présentation de la partie concernée. Les
+      regex de rôle viennent de `qualitePourRole()`, qui tient compte du type d'acte : sur une
+      promesse d'ACHAT, « promettant » désigne l'acquéreur et non le vendeur.
+    - **Le régime est cherché dans la CLAUSE qui porte le statut**, jamais dans tout l'acte : celui
+      du vendeur y figure aussi, et le reprendre serait pire qu'un « non précisé ».
+    - Clause de style de négation écartée (`RE_NEGATION_STATUT` : « non liés par un pacte civil de
+      solidarité », « ne sont pas mariés ») — sans ce garde-fou, la phrase qui écarte le statut le
+      produirait. Même piège que `RE_AUCUN_TRAVAUX` et la négation de copropriété, déjà payé ici.
+    - **Quotités** (`quotitesAcquisitionPresentes`) : « quotités VENDUES » emploie exactement les
+      mêmes tournures que « quotités acquises », d'où l'exigence d'un mot d'acquisition à proximité
+      ET l'absence de vocabulaire de cession. Premier jet, comme `PIECES_*` en leur temps.
+    - Quatre constats (`constatsStatutAcquereurs`, catégorie `PARTIES`), plus une ligne « Statut des
+      acquéreurs » dans la fiche d'identité, **toujours affichée y compris « non trouvé »** : c'est
+      justement quand il manque qu'il faut le voir. Le cas « acquéreur marié achetant seul » est
+      inclus (déclaration d'emploi ou de remploi, intervention du conjoint) : c'est le point
+      classique, et il entre dans « vérifier si les acquéreurs sont mariés ».
+  - **Carnet d'entretien** (`RE_CARNET_ENTRETIEN`, `analyserCarnetEntretien`) — l'étude a choisi UN
+    SEUL de ses contenus : **les travaux importants déjà réalisés sur l'immeuble**, à croiser avec
+    les assemblées générales et les autorisations. Les contrats d'entretien (chaufferie, ascenseur),
+    les assurances de l'immeuble et la date de mise à jour du carnet n'ont **pas** été retenus : ne
+    pas les ajouter sans nouvelle demande, c'est ce qui garde le rapport court. Aucun constat non
+    plus pour un carnet absent, pour la même raison — le bloc « annexes » le dit déjà.
+    - Cherché **uniquement en copropriété** : c'est un document du syndicat (art. 18 de la loi du
+      10 juillet 1965), il n'existe pas sur une maison.
+    - Ses travaux passent par `detecterTravauxRealises()`/`constatsTravauxRealises()`, qui gagne un
+      paramètre de catégorie (`CARNET_ENTRETIEN`) — aucune logique dupliquée, et les garde-fous déjà
+      en place (clause de style, travail futur, texte de loi cité) y jouent tels quels.
+    - Garde-fou indispensable : un avant-contrat de copropriété CITE le carnet dans presque chaque
+      acte, il se prendrait lui-même pour un carnet sans `RE_DOC_AVANT_CONTRAT`. Même piège que
+      l'état daté.
+  - **Travaux : « l'acte seul fait foi »** (arbitrage explicite de l'étude, contre « croiser avec
+    les pièces déposées »). Le comportement des constats ne change donc pas — il appliquait déjà
+    cette règle. Ce qui manquait, c'est le reste de la demande : **lister** les travaux, et vérifier
+    **les factures**.
+    - `RE_FACTURE_TRAVAUX` (facture, devis, mémoire de travaux, justificatif de paiement) ajoute
+      `factureMentionnee` à chaque travail ; `resumeTravail()` en tire un libellé court, qui part du
+      mot déclencheur et non du début de la phrase (celle-ci commence souvent par une incise « Le
+      VENDEUR déclare que… » qui ne dit rien de la nature du travail).
+    - **Un TABLEAU** (`renderTableauTravauxAudit`) : une ligne par travail — libellé, page, année,
+      autorisation, facture, décennale. C'est lui qui répond à « lister » : les constats ne parlent
+      que du gros œuvre et de l'extérieur, une rénovation intérieure n'apparaissait donc nulle part.
+      Un tiret « — » veut dire « sans objet » (travail sans incidence sur la structure, ou décennale
+      éteinte au-delà de dix ans) et un « ? » « impossible à dire » (année non précisée) : ce sont
+      trois informations différentes, pas trois façons de dire « non ».
+    - **Aucun constat « facture manquante » n'a été ajouté** : le constat décennale déjà en place
+      réclame l'attestation « et les factures correspondantes ». En créer un second dirait deux fois
+      la même chose — le tableau porte l'information, les constats restent courts.
+    - **Un tableau par SOURCE**, comme la règle d'affectation des sections : les travaux de l'acte
+      en section « ce que dit l'acte » (mode compromis) ou « écarts avec l'avant-contrat » (mode
+      projet de vente, puisqu'ils y sont lus dans l'avant-contrat), ceux du carnet en « annexes ».
+    - **Bug corrigé au passage, dans du code déjà en place** : `RE_TRAVAUX_PASSES` ne reconnaissait
+      pas le participe passé au FÉMININ — « la toiture réalisée en 2021 » n'était pas détecté du
+      tout, alors que « des travaux ont été réalisés » l'était. Trouvé en écrivant le test du
+      carnet, pas à la relecture.
+  - **Type de bien déduit, AFFICHÉ et corrigeable** (arbitrage de l'étude, contre un sélecteur
+    obligatoire au dépôt et contre le silence actuel). Jusqu'ici la copropriété et le terrain à
+    bâtir étaient déduits chacun de son côté, sans que rien ne le dise : un type déduit de travers
+    rendait donc muette toute une partie du rapport sans explication.
+    - `deduireTypeBienOutil2()` par ordre de fiabilité (dossier CLAIRE lié, puis le texte, puis
+      « maison » par défaut — le cas majoritaire, et le seul qui n'ajoute aucun contrôle, donc le
+      repli le moins coûteux) ; `typeBienPourAudit()` laisse la correction manuelle l'emporter sur
+      tout. La copropriété est testée avant le terrain : son détecteur gère les clauses de négation,
+      le motif du terrain non. `estTerrainABatir()` reste la seule définition du terrain à bâtir,
+      appelée depuis la déduction plutôt que recopiée.
+    - **Ce n'est pas qu'un affichage** : `estCopropriete` et `estTerrain` en découlent désormais
+      dans les DEUX analyseurs, donc la correction change réellement les contrôles exécutés. Le
+      rapport dit lesquels (`CONTROLES_PAR_TYPE_BIEN`), et le message du bloc « annexes » vide
+      nomme les pièces attendues POUR CE TYPE — annoncer un état daté sur une maison ferait croire à
+      un contrôle qui n'a pas lieu d'être.
+    - `dernierAuditContexte` garde de quoi **rejouer l'analyse sans refaire le travail asynchrone**
+      (lecture des PDF, récupération de l'avant-contrat sur le NAS) : la correction est instantanée,
+      tout étant calculé en local. Les constats déjà obtenus du modèle local y sont conservés et
+      réinjectés — les perdre obligerait à relancer plusieurs minutes de calcul pour un simple
+      changement de type. Le choix manuel est remis à zéro dès que les documents ou le mode changent
+      (il se rapporte à l'acte analysé, pas à la session).
+  - **Piège de cascade CSS, sixième occurrence** (après `.select-edit`, `.input-inline`,
+    `.pdf-recherche-input`, `.revision-saisie`, `.input-classif`) : `.audit-entete select#audit-type-bien`
+    pour battre la règle générique `select { width: 100% }`. Et **piège de grille**, le même que
+    celui déjà payé sur `.af-grid > *` : une piste a un minimum automatique égal à son contenu, si
+    bien que la largeur minimale du tableau élargissait la page entière au lieu de faire défiler le
+    seul tableau — 219 px de débordement à 400 px de large, mesurés, corrigés par
+    `.audit-grid > * { min-width: 0 }`.
+  - Tests : `tests/outil2-parties-carnet.test.js` (15) ; le garde-fou structurel des sections de
+    `tests/outil2-lecture-acte.test.js` mis à jour avec les deux nouvelles catégories. Suite racine
+    655 → 670, serveur inchangée (215 — chantier entièrement côté client). **Vérifié de bout en
+    bout dans un vrai Chromium** (serveur réel, pdf.js simulé puisqu'il reste bloqué par le proxy
+    de cet environnement, clair et sombre, 1500 px et 400 px) sur un projet de copropriété portant
+    les quatre sujets : type déduit « copropriété » avec la liste des contrôles ajoutés, fiche
+    portant « Pacsés — régime non précisé », deux constats de statut, deux tableaux de travaux (acte
+    et carnet) aux bonnes colonnes, constats du carnet dans la section « annexes », et la correction
+    du type en « maison » puis « terrain » qui retire ou ajoute réellement les sections
+    correspondantes. Aucune erreur JS.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

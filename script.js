@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-22 22:22';
+  const VERSION_APP = '2026-09-22 22:46';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-22 22:46', resume: "Outil 2 : statut des acquereurs (marie/pacse/concubin), carnet d'entretien, tableau des travaux declares, type de bien corrigeable." },
     { version: '2026-09-22 22:22', resume: "Outil 2 : le rapport suit l'ordre de lecture "
       + "demandé — ce que dit l'acte, puis les écarts avec l'avant-contrat, puis ce que les "
       + "annexes apportent. La première section ouvre sur une fiche d'identité de l'acte "
@@ -3209,7 +3210,7 @@
   // Marqueur d'une réalisation PASSÉE : c'est lui qui distingue « des travaux ont été réalisés »
   // (thème 1) de « le vendeur s'engage à faire réaliser des travaux » (thème 4, déjà couvert par
   // extraireEngagementsVendeur).
-  var RE_TRAVAUX_PASSES = /(?:ont|a|ayant|avoir)\s+[ée]t[ée]\s+(?:r[ée]alis|effectu|ex[ée]cut|entrepr|achev|termin|construit|[ée]difi)|d[ée]clare\s+(?:avoir\s+)?(?:fait\s+)?(?:r[ée]alis|proc[ée]d|effectu|ex[ée]cut|construit|[ée]difi)|(?:r[ée]alis[ée]s?|effectu[ée]s?|ex[ée]cut[ée]s?|achev[ée]s?|construits?|[ée]difi[ée]s?)\s+(?:en|le|courant|depuis|il\s+y\s+a|au\s+cours)\b/i;
+  var RE_TRAVAUX_PASSES = /(?:ont|a|ayant|avoir)\s+[ée]t[ée]\s+(?:r[ée]alis|effectu|ex[ée]cut|entrepr|achev|termin|construit|[ée]difi)|d[ée]clare\s+(?:avoir\s+)?(?:fait\s+)?(?:r[ée]alis|proc[ée]d|effectu|ex[ée]cut|construit|[ée]difi)|(?:(?:r[ée]alis|effectu|ex[ée]cut|achev|[ée]difi|refai|r[ée]nov)[ée]e?s?|construite?s?)\s+(?:en|le|courant|depuis|il\s+y\s+a|au\s+cours)\b/i;
 
   // Une déclaration de NON-travaux est la clause de style la plus fréquente de tout l'acte : la
   // retenir produirait un danger sur chaque compromis (même piège que la négation de copropriété,
@@ -3240,6 +3241,23 @@
   var RE_DECENNALE = /\b(?:garantie\s+d[ée]cennale|assurance\s+d[ée]cennale|responsabilit[ée]\s+d[ée]cennale|dommages?[-\s]ouvrage)\b/i;
   var RE_FAIT_PAR_SOI_MEME = /\b(?:par\s+(?:lui|elle)[-\s]m[êe]me|par\s+ses\s+soins|en\s+auto[-\s]?construction|sans\s+recours\s+[àa]\s+(?:une\s+)?entreprise)\b/i;
   var RE_ANNEE_TRAVAUX = /\b((?:19|20)\d{2})\b/;
+
+  // Une facture ou un devis cité dans la même clause : c'est elle qui date le travail et nomme
+  // l'entreprise, donc ce qui permet ensuite de réclamer la bonne attestation décennale. Lue dans
+  // l'acte SEUL, comme l'autorisation et la décennale — arbitrage explicite de l'étude : ce que
+  // l'acte affirme fait foi, l'outil ne va pas vérifier qu'une facture est effectivement déposée.
+  var RE_FACTURE_TRAVAUX = /\b(?:factures?|devis|m[ée]moires?\s+de\s+travaux|justificatifs?\s+de\s+(?:paiement|travaux))\b/i;
+
+  // Libellé court d'un travail, pour la ligne du tableau : la clause entière y serait illisible.
+  // On part du mot déclencheur plutôt que du début de la phrase — celui-ci commence souvent par
+  // une incise (« Le VENDEUR déclare que… ») qui ne dit rien de la nature du travail.
+  function resumeTravail(phrase) {
+    const p = String(phrase || '').replace(/\s+/g, ' ').trim();
+    const m = p.match(new RegExp(RE_TRAVAUX_MOT.source, 'i'));
+    const debut = (m && m.index != null) ? m.index : 0;
+    const bout = p.slice(debut, debut + 90).trim();
+    return (debut + 90 < p.length) ? bout + '…' : bout;
+  }
 
   // aujourdHui est toujours injecté : la fonction reste pure et testable (même convention que
   // grouperEcheancesParSemaine / calculerValiditeDocumentOutil2).
@@ -3277,12 +3295,14 @@
 
       resultats.push({
         phrase,
+        libelle: resumeTravail(phrase),
         page: pageDepuisIndexPages(pages, debut),
         grosOeuvre,
         exterieur,
         soumisAutorisation: grosOeuvre || exterieur,
         autorisationMentionnee: RE_AUTORISATION_URBANISME.test(phrase),
         decennaleMentionnee: RE_DECENNALE.test(phrase),
+        factureMentionnee: RE_FACTURE_TRAVAUX.test(phrase),
         faitParLeVendeur: RE_FAIT_PAR_SOI_MEME.test(phrase),
         annee,
         sousDecennale
@@ -3293,15 +3313,16 @@
 
   // Traduit un travail déclaré en constats. Un travail intérieur sans incidence sur la structure
   // ne produit AUCUN constat : c'est ce qui garde le rapport court et lisible.
-  function constatsTravauxRealises(travaux) {
+  function constatsTravauxRealises(travaux, categorie) {
     const constats = [];
+    const cat = categorie || 'TRAVAUX_REALISES';
     for (const t of travaux || []) {
       if (!t.soumisAutorisation) continue;
       const ou = t.grosOeuvre ? 'le gros œuvre' : "l'extérieur du bien";
       const situe = t.annee ? ` (${t.annee})` : '';
       if (!t.autorisationMentionnee) {
         constats.push({
-          categorie: 'TRAVAUX_REALISES',
+          categorie: cat,
           gravite: 'CRITIQUE',
           titre: `Travaux touchant ${ou}${situe} : aucune autorisation d'urbanisme mentionnée`,
           description: "Ces travaux relèvent au minimum d'une déclaration préalable. Réclamer l'autorisation et la déclaration attestant l'achèvement, ou faire constater la prescription.",
@@ -3310,7 +3331,7 @@
       }
       if (t.sousDecennale === true && !t.decennaleMentionnee) {
         constats.push({
-          categorie: 'TRAVAUX_REALISES',
+          categorie: cat,
           gravite: 'IMPORTANT',
           titre: `Travaux de moins de dix ans (${t.annee}) : garantie décennale non justifiée`,
           description: t.faitParLeVendeur
@@ -3321,7 +3342,7 @@
       }
       if (t.sousDecennale === null) {
         constats.push({
-          categorie: 'TRAVAUX_REALISES',
+          categorie: cat,
           gravite: 'A_VERIFIER',
           titre: `Travaux touchant ${ou} sans date précisée`,
           description: "Impossible de savoir si la garantie décennale court encore : faire préciser l'année de réalisation.",
@@ -3330,6 +3351,262 @@
       }
     }
     return constats;
+  }
+
+  // --- Statut des acquéreurs : marié, pacsé, concubins ----------------------------------------
+  //
+  // Demandé par l'étude, avec un périmètre arrêté avec elle : ne pas se contenter de LIRE le
+  // statut, mais signaler ce qui manque et qui a une conséquence sur la rédaction de l'acte —
+  // régime matrimonial non précisé, PACS dont le régime n'est pas dit, acquisition à deux hors
+  // mariage sans quotités.
+  //
+  // PIÈGE CENTRAL, et la raison de tout le code d'attribution ci-dessous : le même acte décrit
+  // aussi le statut du VENDEUR (« Monsieur X, marié avec Madame Y, demeurant… »). Lire « marié »
+  // dans tout le texte le confondrait une fois sur deux, et un acte présente toujours ses parties
+  // par sections — d'où la règle : le marqueur de rôle le plus proche EN AMONT décide à qui
+  // appartient la mention. Les regex de rôle sont prises via qualitePourRole(), qui tient compte
+  // du type d'acte : sur une promesse d'ACHAT, « promettant » désigne l'acquéreur, pas le vendeur.
+
+  var RE_STATUT_MARIE = /\bmari[ée]e?s?\b|\b[ée]pou(?:x|se|ses)\b|\bconjoints?\b|\bcontrat\s+de\s+mariage\b/i;
+  var RE_STATUT_PACSE = /pacte\s+civil\s+de\s+solidarit[ée]|\bpacs[ée]e?s?\b|\bPACS\b/i;
+  var RE_STATUT_CONCUBINS = /\bconcubin(?:s|e|es|age)?\b|vivant\s+maritalement|union\s+libre/i;
+  // « divorcé DE Madame X » est un lien familial cité dans l'état civil, pas le statut actuel :
+  // le lookahead l'écarte (même garde-fou que RE_LIEN_FAMILIAL, côté extraction des noms).
+  var RE_STATUT_SEUL = /\bc[ée]libataires?\b|\bveuf\b|\bveuve\b|\bdivorc[ée]e?\b(?!\s*(?:de\b|d['’]))/i;
+
+  var RE_REGIME_MATRIMONIAL = /communaut[ée]\s+(?:l[ée]gale|universelle|r[ée]duite\s+aux\s+acqu[êe]ts|de\s+biens)|s[ée]paration\s+de\s+biens|participation\s+aux\s+acqu[êe]ts|r[ée]gime\s+(?:l[ée]gal|matrimonial)\b/i;
+  var RE_REGIME_PACS = /s[ée]paration\s+des\s+patrimoines|r[ée]gime\s+de\s+l['’]indivision|indivision\s+(?:l[ée]gale|conventionnelle)/i;
+
+  // Une clause de style qui NIE le statut (« ne sont liés par aucun pacte civil de solidarité »,
+  // « non mariés ») contient le mot recherché : la retenir ferait de chaque acte un couple marié.
+  // Même piège que RE_AUCUN_TRAVAUX et que la négation de copropriété, déjà payés ici deux fois.
+  var RE_NEGATION_STATUT = /\bnon\s+(?:mari[ée]|pacs[ée]|li[ée])|\bn['’](?:est|ont|a)\s+(?:pas|jamais)\b|\bne\s+sont\s+(?:pas|ni)\b|\baucun\s+pacte\b|\bni\s+mari[ée]|\bsans\s+(?:contrat|r[ée]gime)\b/i;
+  var FENETRE_NEGATION_STATUT = 90;
+
+  // Quotités d'acquisition. « Quotités VENDUES » emploie exactement les mêmes tournures : on exige
+  // donc un mot d'acquisition à proximité et l'absence de vocabulaire de cession. Premier jet, au
+  // même titre que PIECES_* en leur temps — à resserrer sur un acte réel qui le mettrait en défaut.
+  var RE_QUOTITE_ACQUISITION = /\bchacun(?:e)?\s+(?:pour|[àa]\s+concurrence\s+de)\s+(?:une\s+)?(?:moiti[ée]|\d)|\bpar\s+(?:parts?|moiti[ée]s?)\s+[ée]gales?|\b[àa]\s+concurrence\s+de\s+\d{1,3}\s*(?:%|centi[èe]mes?|\/\s*\d+)|\bpour\s+(?:une\s+)?moiti[ée]\s+indivise\b|\bproportions?\s+suivantes?\b/i;
+  var RE_ANCRE_ACQUISITION = /\bacqu[ièé]r|\bacquisition\b|\bacqu[ée]reurs?\b|\bb[ée]n[ée]ficiaires?\b|\bindivision\b/i;
+  var RE_ANCRE_CESSION = /\bvend(?:ent|eurs?|u|ue)\b|\bc[ée]d(?:ent|ants?)\b|quotit[ée]s?\s+vendues?/i;
+  var PORTEE_ANCRE_QUOTITE = 300;
+
+  function quotitesAcquisitionPresentes(texte) {
+    const src = String(texte || '');
+    const re = new RegExp(RE_QUOTITE_ACQUISITION.source, 'gi');
+    let m;
+    while ((m = re.exec(src)) !== null) {
+      const zone = src.slice(Math.max(0, m.index - PORTEE_ANCRE_QUOTITE), m.index + PORTEE_ANCRE_QUOTITE);
+      if (RE_ANCRE_CESSION.test(zone)) continue;
+      if (RE_ANCRE_ACQUISITION.test(zone)) return true;
+      if (re.lastIndex === m.index) re.lastIndex++;
+    }
+    return false;
+  }
+
+  // Rôle du marqueur le plus proche EN AMONT d'une position. Renvoie null si aucun marqueur ne
+  // précède — le statut n'est alors attribué à personne, plutôt qu'aux acquéreurs par défaut.
+  function roleLePlusProcheAvant(texte, index, reVendeur, reAcquereur) {
+    const avant = String(texte).slice(0, index);
+    let meilleur = null;
+    const cherche = (re, role) => {
+      const g = new RegExp(re.source, 'gi');
+      let m, pos = -1;
+      while ((m = g.exec(avant)) !== null) { pos = m.index; if (g.lastIndex === m.index) g.lastIndex++; }
+      if (pos >= 0 && (!meilleur || pos > meilleur.index)) meilleur = { index: pos, role };
+    };
+    cherche(reVendeur, 'VENDEUR');
+    cherche(reAcquereur, 'ACQUEREUR');
+    return meilleur ? meilleur.role : null;
+  }
+
+  function detecterStatutAcquereurs(texte, pages) {
+    const src = String(texte || '');
+    if (!src) return { statut: null, regime: null, quotites: false, phrase: '', page: null };
+
+    const type = typeof detecterTypeActe === 'function' ? (detecterTypeActe(src).valeur || 'INCONNU') : 'INCONNU';
+    const qV = typeof qualitePourRole === 'function' ? qualitePourRole(src, type, 'VENDEUR') : null;
+    const qA = typeof qualitePourRole === 'function' ? qualitePourRole(src, type, 'ACQUEREUR') : null;
+    const reVendeur = qV ? qV.re : RE_ROLE_VENDEUR;
+    const reAcquereur = qA ? qA.re : RE_ROLE_ACQUEREUR;
+
+    const premiereMentionAcquereur = (re) => {
+      const g = new RegExp(re.source, 'gi');
+      let m;
+      while ((m = g.exec(src)) !== null) {
+        if (g.lastIndex === m.index) g.lastIndex++;
+        const avant = src.slice(Math.max(0, m.index - FENETRE_NEGATION_STATUT), m.index);
+        if (RE_NEGATION_STATUT.test(avant)) continue;
+        if (roleLePlusProcheAvant(src, m.index, reVendeur, reAcquereur) !== 'ACQUEREUR') continue;
+        return m.index;
+      }
+      return null;
+    };
+
+    // Ordre de préférence : un couple présenté comme concubin peut aussi être dit « célibataire »
+    // pour chacun de ses membres — le statut du couple prime sur celui de chaque personne.
+    const candidats = [
+      { statut: 'marie', index: premiereMentionAcquereur(RE_STATUT_MARIE) },
+      { statut: 'pacse', index: premiereMentionAcquereur(RE_STATUT_PACSE) },
+      { statut: 'concubins', index: premiereMentionAcquereur(RE_STATUT_CONCUBINS) },
+      { statut: 'seul', index: premiereMentionAcquereur(RE_STATUT_SEUL) }
+    ];
+    const retenu = candidats.find(c => c.index != null) || null;
+
+    // Le régime est cherché dans la CLAUSE qui porte le statut, jamais dans tout l'acte : celui du
+    // vendeur y figure aussi, et le reprendre serait pire qu'un « non précisé ».
+    let regime = null;
+    let phrase = '';
+    let page = null;
+    if (retenu) {
+      const p = phraseAutour(src, retenu.index, 250, 350);
+      phrase = p.phrase;
+      page = pageDepuisIndexPages(pages, p.debut);
+      const reRegime = retenu.statut === 'pacse' ? RE_REGIME_PACS : RE_REGIME_MATRIMONIAL;
+      const mr = phrase.match(reRegime);
+      if (mr) regime = mr[0].trim();
+    }
+
+    return {
+      statut: retenu ? retenu.statut : null,
+      regime,
+      quotites: quotitesAcquisitionPresentes(src),
+      phrase, page
+    };
+  }
+
+  var LIBELLES_STATUT_ACQUEREURS = {
+    marie: 'Mariés', pacse: 'Pacsés', concubins: 'Concubins', seul: 'Non mariés (célibataire, veuf ou divorcé)'
+  };
+
+  function libelleStatutAcquereurs(statut) {
+    if (!statut || !statut.statut) return null;
+    const base = LIBELLES_STATUT_ACQUEREURS[statut.statut] || null;
+    if (!base) return null;
+    if (statut.statut === 'marie' || statut.statut === 'pacse') {
+      return base + (statut.regime ? ` — ${statut.regime}` : ' — régime non précisé');
+    }
+    return base;
+  }
+
+  // nbAcquereurs vient de l'extraction (detecterParties) : c'est lui qui distingue une acquisition
+  // à deux, où les quotités doivent être dites, d'un achat par une seule personne.
+  function constatsStatutAcquereurs(statut, nbAcquereurs) {
+    const constats = [];
+    if (!statut) return constats;
+    const n = Number(nbAcquereurs) || 0;
+    const base = { categorie: 'PARTIES', phrase: statut.phrase || '', page: statut.page || null };
+
+    if (!statut.statut) {
+      if (n >= 2) {
+        constats.push({ ...base, gravite: 'A_VERIFIER',
+          titre: 'Statut des acquéreurs non précisé',
+          description: "L'acte ne dit pas si les acquéreurs sont mariés, pacsés ou concubins. C'est ce statut qui commande le régime de propriété du bien et les quotités à indiquer." });
+      }
+      return constats;
+    }
+
+    if (statut.statut === 'marie' && !statut.regime) {
+      constats.push({ ...base, gravite: 'A_VERIFIER',
+        titre: 'Régime matrimonial des acquéreurs non précisé',
+        description: "Le régime détermine si le bien tombe en communauté ou reste propre. Faire préciser la date et le lieu du mariage, et l'existence ou non d'un contrat." });
+    }
+    if (statut.statut === 'pacse' && !statut.regime) {
+      constats.push({ ...base, gravite: 'A_VERIFIER',
+        titre: 'Régime du PACS non précisé',
+        description: "Séparation des patrimoines (régime légal depuis 2007) ou indivision : sans cette précision, la propriété du bien acquis n'est pas déterminée." });
+    }
+    if ((statut.statut === 'pacse' || statut.statut === 'concubins' || statut.statut === 'seul') && n >= 2 && !statut.quotites) {
+      constats.push({ ...base, gravite: 'IMPORTANT',
+        titre: 'Acquisition à deux hors mariage, sans quotités indiquées',
+        description: "Hors communauté, les acquéreurs achètent en indivision. À défaut de quotités écrites, chacun est réputé propriétaire pour moitié, quelle que soit sa participation réelle au financement." });
+    }
+    if (statut.statut === 'marie' && n === 1) {
+      constats.push({ ...base, gravite: 'A_VERIFIER',
+        titre: 'Acquéreur marié achetant seul',
+        description: "Selon le régime, le bien peut tomber en communauté malgré l'achat au nom d'un seul époux. Vérifier s'il faut une déclaration d'emploi ou de remploi, et l'intervention du conjoint." });
+    }
+    return constats;
+  }
+
+  // --- Carnet d'entretien de l'immeuble (copropriété) -----------------------------------------
+  //
+  // Périmètre choisi par l'étude parmi ce que le carnet contient : SEULEMENT les travaux
+  // importants déjà réalisés sur l'immeuble — à croiser avec les assemblées générales et les
+  // autorisations d'urbanisme. Les contrats d'entretien, les assurances de l'immeuble et la date
+  // de mise à jour du carnet n'ont PAS été retenus : ne pas les rajouter sans nouvelle demande,
+  // c'est ce qui garde le rapport court.
+  //
+  // Le carnet n'est cherché QUE si le type de bien est « copropriété » : c'est un document du
+  // syndicat (art. 18 de la loi du 10 juillet 1965), il n'existe pas sur une maison.
+  var RE_CARNET_ENTRETIEN = /carnet\s+d['’]?\s*entretien/i;
+
+  function analyserCarnetEntretien(doc, aujourdHui) {
+    if (!doc) return null;
+    const nom = typeof normaliserNomPourMotif === 'function' ? normaliserNomPourMotif(doc.nom || '') : String(doc.nom || '');
+    const tete = String(doc.texte || '').slice(0, 400);
+    if (!RE_CARNET_ENTRETIEN.test(nom) && !RE_CARNET_ENTRETIEN.test(tete)) return null;
+    // Un avant-contrat CITE le carnet d'entretien dans presque chaque acte de copropriété : sans
+    // ce garde-fou, il se prendrait lui-même pour un carnet. Même piège que l'état daté.
+    if (RE_DOC_AVANT_CONTRAT.test(nom) || RE_DOC_AVANT_CONTRAT.test(tete)) return null;
+    const travaux = detecterTravauxRealises(doc.texte, doc.pages || null, aujourdHui)
+      .map(t => ({ ...t, document: doc.nom }));
+    return { nom: doc.nom, travaux };
+  }
+
+  // --- Type de bien : déduit, affiché, corrigeable ---------------------------------------------
+  //
+  // Jusqu'ici la copropriété et le terrain à bâtir étaient déduits en silence, chacun de son côté.
+  // L'étude a demandé que le type soit DIT et corrigeable : c'est lui qui décide des contrôles
+  // propres à chaque type (assemblées générales, état daté et carnet d'entretien en copropriété ;
+  // permis de construire et purge des délais sur un terrain à bâtir ; rien de spécifique sur une
+  // maison). Un type déduit de travers rendait donc muette toute une partie du rapport, sans que
+  // rien ne l'explique.
+  //
+  // L'ordre des essais est celui de la fiabilité : le dossier CLAIRE lié (l'étude l'a choisi
+  // elle-même), puis le texte, puis « maison » par défaut — c'est le cas majoritaire, et le seul
+  // qui n'ajoute aucun contrôle, donc le repli le moins coûteux quand rien ne tranche.
+  var TYPES_BIEN_AUDIT = [
+    { valeur: 'maison', libelle: 'Maison / immeuble' },
+    { valeur: 'copropriete', libelle: 'Copropriété' },
+    { valeur: 'terrain', libelle: 'Terrain à bâtir' }
+  ];
+
+  var CONTROLES_PAR_TYPE_BIEN = {
+    copropriete: 'assemblées générales, état daté et carnet d’entretien',
+    terrain: 'permis de construire et purge de ses délais',
+    maison: 'aucun contrôle propre au type de bien'
+  };
+
+  function deduireTypeBienOutil2(entree) {
+    const dossierLie = (entree && entree.dossierLie) || null;
+    if (dossierLie && (dossierLie.typeVente === 'copropriete' || dossierLie.typeVente === 'terrain' || dossierLie.typeVente === 'maison')) {
+      return { type: dossierLie.typeVente, origine: 'dossier' };
+    }
+    const textes = [
+      (entree && entree.texteProjet) || '',
+      (entree && entree.texteAvantContrat) || '',
+      (entree && entree.texte) || ''
+    ].filter(Boolean);
+    // La copropriété est testée avant le terrain : son détecteur gère déjà les clauses de négation
+    // (« le bien n'est pas soumis au statut de la copropriété »), le motif du terrain non.
+    if (typeof detecterTypeVenteCopropriete === 'function' && textes.some(t => detecterTypeVenteCopropriete(t))) {
+      return { type: 'copropriete', origine: 'texte' };
+    }
+    // estTerrainABatir reste la seule définition du terrain à bâtir : sa branche « dossier lié »
+    // est déjà traitée ci-dessus, il ne reste ici que sa lecture du texte.
+    if (estTerrainABatir(entree)) return { type: 'terrain', origine: 'texte' };
+    return { type: 'maison', origine: 'defaut' };
+  }
+
+  // typeBienForce = la correction faite à la main dans le rapport. Elle l'emporte sur tout le
+  // reste : c'est elle qui rend la déduction « corrigeable » plutôt que seulement affichée.
+  function typeBienPourAudit(entree) {
+    const force = entree && entree.typeBienForce;
+    if (force === 'maison' || force === 'copropriete' || force === 'terrain') {
+      return { type: force, origine: 'manuel' };
+    }
+    return deduireTypeBienOutil2(entree);
   }
 
   // --- Thème 2 : diagnostics et entretiens datés dans l'acte ---------------------------------
@@ -3671,6 +3948,9 @@
     const travaux = detecterTravauxRealises(texte, pages, aujourdHui);
     const documents = detecterDocumentsDatesOutil2(texte, pages, aujourdHui);
     const engagements = typeof extraireEngagementsVendeur === 'function' ? extraireEngagementsVendeur(texte) : [];
+    const statutAcquereurs = detecterStatutAcquereurs(texte, pages);
+    const nbAcquereurs = (((entree && entree.extraction) || {}).parties || [])
+      .filter(pp => String(pp.role || '').toUpperCase() === 'ACQUEREUR').length;
 
     const clesEngagees = new Set();
     for (const e of engagements) {
@@ -3681,7 +3961,12 @@
     // Copropriété : les assemblées générales des trois dernières années. Aucune fenêtre
     // avant-contrat → vente ici (ce document n'est justement pas encore signé), donc seul le
     // volet « travaux votés » s'applique — voir constatsAssembleesGenerales.
-    const estCopropriete = typeof detecterTypeVenteCopropriete === 'function' && !!detecterTypeVenteCopropriete(texte);
+    const typeBien = typeBienPourAudit(entree);
+    const estCopropriete = typeBien.type === 'copropriete';
+    const carnets = estCopropriete
+      ? ((entree && entree.documentsDeposes) || []).map(doc => analyserCarnetEntretien(doc, aujourdHui)).filter(Boolean)
+      : [];
+    const travauxCarnet = carnets.reduce((acc, c) => acc.concat(c.travaux || []), []);
     const ags = fusionnerAssembleesGenerales([
       detecterAssembleesGenerales(texte, pages, null),
       ...((entree && entree.documentsDeposes) || []).map(doc => detecterAssembleesGenerales(doc.texte, null, doc.nom))
@@ -3696,7 +3981,9 @@
     const constats = []
       .concat(constatsLectureActe(texte, pages))
       .concat(constatsCoherenceActe(entree && entree.extraction))
+      .concat(constatsStatutAcquereurs(statutAcquereurs, nbAcquereurs))
       .concat(constatsTravauxRealises(travaux))
+      .concat(constatsTravauxRealises(travauxCarnet, 'CARNET_ENTRETIEN'))
       .concat(constatsDocumentsDates(documents.filter(d => !clesEngagees.has(d.cle))))
       .concat(constatsEngagementsVendeur(engagements, justificatifs, aujourdHui))
       .concat(constatsAssembleesGenerales({ ags, estCopropriete }))
@@ -3708,8 +3995,10 @@
     const resume = { CRITIQUE: 0, IMPORTANT: 0, A_VERIFIER: 0, INFORMATION: 0 };
     for (const c of constats) { if (resume[c.gravite] != null) resume[c.gravite]++; }
 
-    return { mode: 'compromis', constats, resume, fiche: ficheActeOutil2(entree && entree.extraction, 'compromis'),
-      travaux, documents, engagements, justificatifs,
+    return { mode: 'compromis', constats, resume,
+      fiche: ficheActeOutil2(entree && entree.extraction, 'compromis', { statutAcquereurs }),
+      travaux, travauxCarnet, carnets, documents, engagements, justificatifs, statutAcquereurs,
+      typeBien: typeBien.type, typeBienOrigine: typeBien.origine,
       ags, estCopropriete, etatsDates, certificatsUrbanisme, questions: questionsOutil2(constats), aujourdHui };
   }
 
@@ -4637,7 +4926,7 @@
   // qu'il n'a pas trouvées, qui sont une information en soi. Fonction pure et testable : elle ne
   // fait que mettre en forme l'objet d'extraction déjà calculé par construireExtractionRegex, sans
   // jamais relire le texte ni compléter une valeur absente.
-  function ficheActeOutil2(extraction, mode) {
+  function ficheActeOutil2(extraction, mode, extras) {
     if (!extraction) return [];
     const lignes = [];
     const champ = (cle) => (extraction.champs && extraction.champs[cle]) || null;
@@ -4662,6 +4951,12 @@
       .map(p => p.nom).join(' & ');
     ajouter('Vendeur(s)', nomsPar('VENDEUR') || null, null);
     ajouter('Acquéreur(s)', nomsPar('ACQUEREUR') || null, null);
+
+    // Statut des acquéreurs : toujours affiché, y compris « non trouvé » — c'est justement quand
+    // il manque qu'il faut le voir, et le constat qui l'accompagne dit pourquoi.
+    const statut = (extras && extras.statutAcquereurs) || null;
+    const ligneStatut = statut ? libelleStatutAcquereurs(statut) : null;
+    lignes.push({ libelle: 'Statut des acquéreurs', valeur: ligneStatut, page: (statut && statut.page) || null });
 
     const bien = extraction.bien || {};
     ajouter('Bien', (bien.adresse && bien.adresse.adresseComplete) || null, bien.source);
@@ -4707,6 +5002,9 @@
     const comparaison = (entree && entree.reference && entree.projet)
       ? comparerCompromisEtProjet(entree.reference, entree.projet) : [];
     const travaux = detecterTravauxRealises(texteAvantContrat, pagesAvantContrat, aujourdHui);
+    const statutAcquereurs = detecterStatutAcquereurs(texteProjet, (entree && entree.pagesProjet) || []);
+    const nbAcquereurs = (((entree && entree.projet) || {}).parties || [])
+      .filter(pp => String(pp.role || '').toUpperCase() === 'ACQUEREUR').length;
 
     // Copropriété : les deux volets s'appliquent ici, puisque l'avant-contrat EST signé et que la
     // date de vente est connue (ou, à défaut, bornée par le jour de la relecture). Les trois
@@ -4714,11 +5012,12 @@
     // projet les reprend, et c'est le PV déposé qui dit ce qui y a été voté.
     const pagesProjet = (entree && entree.pagesProjet) || [];
     const dossierLie = (entree && entree.dossierLie) || null;
-    const estCopropriete = typeof detecterTypeVenteCopropriete === 'function' && (
-      !!detecterTypeVenteCopropriete(texteProjet) ||
-      !!detecterTypeVenteCopropriete(texteAvantContrat) ||
-      (dossierLie && dossierLie.typeVente === 'copropriete')
-    );
+    const typeBien = typeBienPourAudit(entree);
+    const estCopropriete = typeBien.type === 'copropriete';
+    const carnets = estCopropriete
+      ? ((entree && entree.documentsDeposes) || []).map(doc => analyserCarnetEntretien(doc, aujourdHui)).filter(Boolean)
+      : [];
+    const travauxCarnet = carnets.reduce((acc, c) => acc.concat(c.travaux || []), []);
     const ags = fusionnerAssembleesGenerales([
       detecterAssembleesGenerales(texteAvantContrat, pagesAvantContrat, null),
       detecterAssembleesGenerales(texteProjet, pagesProjet, null),
@@ -4741,7 +5040,7 @@
     // permis n'est justement pas encore demandé, et un constat « permis non fourni » sur chaque
     // compromis de terrain serait exactement le bruit que l'étude a demandé d'éviter en réduisant
     // le périmètre d'Outil 2. Le contrôle a sa place au moment de relire le projet de vente.
-    const estTerrain = estTerrainABatir(entree);
+    const estTerrain = typeBien.type === 'terrain';
     const permis = estTerrain ? analyserDocumentsPermis((entree && entree.documentsDeposes) || []) : null;
     const purgePermis = permis ? calculerPurgePermis({
       aujourdHui,
@@ -4754,8 +5053,10 @@
       .concat(constatsLectureActe(texteProjet, pagesProjet))
       .concat(constatsCoherenceActe(entree && entree.projet))
       .concat(comparaison)
+      .concat(constatsStatutAcquereurs(statutAcquereurs, nbAcquereurs))
       .concat(constatsObligationsOutil2(obligations))
       .concat(constatsTravauxNonRepris(travaux, texteProjet))
+      .concat(constatsTravauxRealises(travauxCarnet, 'CARNET_ENTRETIEN'))
       .concat(constatsAssembleesGenerales({ ags, estCopropriete, dateAvantContrat, dateVente }))
       .concat(constatsEtatDate(etatsDates, aujourdHui, estCopropriete))
       .concat(constatsCertificatUrbanisme(certificatsUrbanisme, aujourdHui))
@@ -4766,8 +5067,11 @@
     const resume = { CRITIQUE: 0, IMPORTANT: 0, A_VERIFIER: 0, INFORMATION: 0 };
     for (const c of constats) { if (resume[c.gravite] != null) resume[c.gravite]++; }
 
-    return { mode: 'acte', constats, resume, fiche: ficheActeOutil2(entree && entree.projet, 'acte'),
-      obligations, comparaison, travaux, ags, estCopropriete,
+    return { mode: 'acte', constats, resume,
+      fiche: ficheActeOutil2(entree && entree.projet, 'acte', { statutAcquereurs }),
+      obligations, comparaison, travaux, travauxCarnet, carnets, statutAcquereurs,
+      typeBien: typeBien.type, typeBienOrigine: typeBien.origine,
+      ags, estCopropriete,
       etatsDates, certificatsUrbanisme, estTerrain, permis, purgePermis,
       questions: questionsOutil2(constats), dateAvantContrat, dateVente, aujourdHui };
   }
@@ -14557,6 +14861,9 @@
   let auditDossiersProposes = [];
 
   function calculerPropositionsDossierAudit() {
+    // Le type de bien choisi à la main se rapporte à l'acte analysé : dès que les documents ou le
+    // mode changent, il n'a plus de sens et la déduction doit reprendre la main.
+    typeBienAuditChoisi = null;
     auditDossiersProposes = [];
     if (auditMode !== 'acte') { renderPropositionsDossierAudit(); return; }
     const principal = fichiersAnalyseIa.find(f => f.type === 'principal' && f.statut === 'ok');
@@ -15012,6 +15319,7 @@
   // là où la section dit d'où il vient.
   var SOUS_SECTIONS_RAPPORT_OUTIL2 = [
     { cle: 'ACTE', section: 'ACTE', titre: 'Déclarations et cohérence de l’acte' },
+    { cle: 'PARTIES', section: 'ACTE', titre: 'Statut et quotités des acquéreurs' },
     { cle: 'TRAVAUX_REALISES', section: 'ACTE', titre: 'Travaux déjà réalisés sur le bien' },
     { cle: 'DIAGNOSTICS', section: 'ACTE', titre: 'Diagnostics' },
     { cle: 'ENTRETIENS', section: 'ACTE', titre: 'Entretiens à justifier' },
@@ -15019,6 +15327,7 @@
     { cle: 'TRAVAUX_A_FAIRE', section: 'ACTE', titre: 'Travaux à réaliser avant la vente' },
     { cle: 'COMPARAISON_COMPROMIS', section: 'AVANT_CONTRAT', titre: 'Différences relevées' },
     { cle: 'COPROPRIETE', section: 'ANNEXES', titre: 'Assemblées générales de copropriété' },
+    { cle: 'CARNET_ENTRETIEN', section: 'ANNEXES', titre: 'Carnet d’entretien de l’immeuble' },
     { cle: 'ETAT_DATE', section: 'ANNEXES', titre: 'État daté / pré-état daté' },
     { cle: 'URBANISME', section: 'ANNEXES', titre: 'Certificat d’urbanisme' },
     { cle: 'PERMIS', section: 'ANNEXES', titre: 'Permis de construire (terrain à bâtir)' }
@@ -15029,6 +15338,40 @@
   // identifiant de rendu (uid) et sa décision mémorisée (memoire), posés par preparerRapportAudit.
   let dernierRapportAudit = null;
   let constatsAuditParUid = {};
+
+  // Tout ce qu'il faut pour REJOUER l'analyse sans refaire le travail asynchrone (lecture des PDF,
+  // récupération de l'avant-contrat sur le NAS) : c'est ce qui rend la correction du type de bien
+  // instantanée. L'analyse elle-même est purement locale et synchrone, la rejouer ne coûte rien.
+  let dernierAuditContexte = null;
+  // Type de bien choisi à la main dans le rapport. Remis à zéro dès que les documents ou le mode
+  // changent : il se rapporte à l'acte analysé, pas à la session.
+  let typeBienAuditChoisi = null;
+
+  function executerAuditOutil2() {
+    const ctx = dernierAuditContexte;
+    if (!ctx) return;
+    const resultat = ctx.mode === 'acte'
+      ? analyserProjetVenteOutil2({ ...ctx.entree, typeBienForce: typeBienAuditChoisi })
+      : analyserCompromisOutil2({ ...ctx.entree, typeBienForce: typeBienAuditChoisi });
+    resultat.nbJustificatifs = ctx.nbJustificatifs;
+    resultat.couvertureDocuments = ctx.couvertureDocuments;
+    resultat.texteAnalyse = ctx.texteAnalyse;
+    // Les constats déjà obtenus du modèle local sont réinjectés : les perdre obligerait à relancer
+    // plusieurs minutes de calcul pour une simple correction de type de bien.
+    for (const c of (ctx.constatsIa || [])) {
+      resultat.constats.push(c);
+      if (resultat.resume && resultat.resume[c.gravite] != null) resultat.resume[c.gravite]++;
+    }
+    if ((ctx.constatsIa || []).length || ctx.iaFaite) resultat.iaFaite = true;
+    dernierRapportAudit = resultat;
+    preparerRapportAudit(resultat);
+    renderRapportAuditActe(resultat);
+  }
+
+  function changerTypeBienAudit(valeur) {
+    typeBienAuditChoisi = ['maison', 'copropriete', 'terrain'].indexOf(valeur) >= 0 ? valeur : null;
+    executerAuditOutil2();
+  }
 
   function preparerRapportAudit(resultat) {
     constatsAuditParUid = {};
@@ -15126,6 +15469,80 @@
     return `<div class="fiche-acte">${cases}</div>`;
   }
 
+  // Le TABLEAU des travaux déclarés — demandé par l'étude : « lister les travaux et vérifier s'ils
+  // sont déclarés, s'il y a des factures et s'il y a les assurances décennales ». Les constats ne
+  // suffisaient pas : ils ne parlent que du gros œuvre et de l'extérieur, si bien qu'une rénovation
+  // intérieure n'apparaissait nulle part — rien n'était « listé ».
+  //
+  // Les trois colonnes sont lues DANS L'ACTE et lui seul (arbitrage explicite de l'étude : ce que
+  // l'acte affirme fait foi, l'outil ne va pas vérifier qu'une autorisation ou une facture est
+  // effectivement déposée en pièce). Un tiret « — » signifie « sans objet », un point
+  // d'interrogation « impossible à dire », et c'est une information différente d'une croix.
+  function celluleTravailAudit(etat, titre) {
+    const table = {
+      oui: { txt: '✓', cls: 'travaux-oui' },
+      non: { txt: '✕', cls: 'travaux-non' },
+      na: { txt: '—', cls: 'travaux-na' },
+      inconnu: { txt: '?', cls: 'travaux-na' }
+    };
+    const c = table[etat] || table.inconnu;
+    return `<td class="${c.cls}"${titre ? ` title="${escapeAttr(titre)}"` : ''}>${c.txt}</td>`;
+  }
+
+  function ligneTravailAudit(t) {
+    const autorisation = !t.soumisAutorisation ? 'na' : (t.autorisationMentionnee ? 'oui' : 'non');
+    const facture = t.factureMentionnee ? 'oui' : 'non';
+    // La décennale ne se pose que sur un travail de moins de dix ans : au-delà elle est éteinte,
+    // et réclamer l'attestation n'aurait plus d'objet.
+    const decennale = t.sousDecennale === null ? 'inconnu' : (!t.sousDecennale ? 'na' : (t.decennaleMentionnee ? 'oui' : 'non'));
+    return `<tr>
+      <td class="travaux-libelle">${escapeHtml(t.libelle || t.phrase || '')}${t.page ? `<span class="travaux-page">p.${escapeHtml(String(t.page))}</span>` : ''}</td>
+      <td class="travaux-annee">${t.annee ? escapeHtml(String(t.annee)) : '—'}</td>
+      ${celluleTravailAudit(autorisation, t.soumisAutorisation ? "Autorisation d'urbanisme mentionnée dans l'acte" : "Travaux sans incidence sur la structure ni l'extérieur : aucune autorisation exigible")}
+      ${celluleTravailAudit(facture, "Facture ou devis mentionné dans l'acte")}
+      ${celluleTravailAudit(decennale, t.sousDecennale === null ? "Année non précisée : impossible de savoir si la garantie court encore" : (!t.sousDecennale ? 'Travaux de plus de dix ans : garantie décennale éteinte' : "Attestation d'assurance décennale mentionnée dans l'acte"))}
+    </tr>`;
+  }
+
+  function renderTableauTravauxAudit(titre, travaux, note) {
+    const liste = Array.isArray(travaux) ? travaux : [];
+    if (liste.length === 0) return '';
+    return `<section class="audit-section">
+      <h3 class="audit-section-titre"><span class="section-eyebrow">${escapeHtml(titre)}</span><span class="audit-section-compte">${liste.length}</span></h3>
+      ${note ? `<p class="hint">${escapeHtml(note)}</p>` : ''}
+      <div class="travaux-table-wrap">
+        <table class="travaux-table">
+          <thead><tr><th>Travaux déclarés</th><th>Année</th><th>Autorisation</th><th>Facture</th><th>Décennale</th></tr></thead>
+          <tbody>${liste.map(ligneTravailAudit).join('')}</tbody>
+        </table>
+      </div>
+    </section>`;
+  }
+
+  // Le type de bien, DIT et corrigeable (demande de l'étude). Il ne sert pas qu'à informer : c'est
+  // lui qui décide des contrôles propres au type, et un type déduit de travers rendait muette
+  // toute une partie du rapport sans que rien ne l'explique. La correction relance l'analyse
+  // immédiatement — tout est calculé en local, il n'y a rien à attendre.
+  var LIBELLES_ORIGINE_TYPE_BIEN = {
+    dossier: 'repris du dossier CLAIRE lié',
+    texte: 'déduit du texte de l’acte',
+    defaut: 'aucun indice dans l’acte — valeur par défaut',
+    manuel: 'choisi à la main'
+  };
+
+  function renderTypeBienAudit(resultat) {
+    const type = resultat.typeBien || 'maison';
+    const origine = LIBELLES_ORIGINE_TYPE_BIEN[resultat.typeBienOrigine] || '';
+    const options = TYPES_BIEN_AUDIT
+      .map(t => `<option value="${t.valeur}" ${t.valeur === type ? 'selected' : ''}>${escapeHtml(t.libelle)}</option>`)
+      .join('');
+    return `<div class="audit-type-bien">
+      <label for="audit-type-bien">Type de bien</label>
+      <select id="audit-type-bien" onchange="changerTypeBienAudit(this.value)">${options}</select>
+      <span class="hint">${escapeHtml(origine)} — contrôles ajoutés : ${escapeHtml(CONTROLES_PAR_TYPE_BIEN[type] || '')}.</span>
+    </div>`;
+  }
+
   // Un bloc = une SOURCE. Il porte son titre, la phrase qui dit d'où viennent ses constats, puis
   // ses sous-sections. Quand il n'a rien à montrer il ne se tait pas : il dit POURQUOI (aucune
   // annexe déposée, aucun écart relevé…). Se taire ferait lire « rien à signaler » là où il faut
@@ -15137,6 +15554,15 @@
     if (bloc.cle === 'ACTE') {
       const fiche = renderFicheActe(resultat.fiche);
       if (fiche) { corps += fiche; vide = false; }
+      // Le tableau des travaux appartient à la section de la source où ils ont été LUS : ici
+      // l'acte relu en mode « compromis », l'avant-contrat en mode « projet de vente » (bloc
+      // AVANT_CONTRAT ci-dessous). Un même tableau dans les deux sections dirait deux fois la
+      // même chose, et dans la mauvaise moitié du rapport une fois sur deux.
+      if (resultat.mode !== 'acte') {
+        const t = renderTableauTravauxAudit('Travaux déclarés dans l’acte', resultat.travaux,
+          "Lu dans l'acte seul : une colonne cochée signifie que l'acte le mentionne, pas que la pièce est déposée.");
+        if (t) { corps += t; vide = false; }
+      }
     }
 
     // Mode « projet de vente » : le tableau des obligations ouvre la section « avant-contrat »
@@ -15146,6 +15572,18 @@
       corps += renderSectionAudit('Engagements du vendeur — avant-contrat, projet, justificatif',
         resultat.obligations, renderObligationAudit);
       vide = false;
+    }
+
+    if (bloc.cle === 'AVANT_CONTRAT' && resultat.mode === 'acte') {
+      const t = renderTableauTravauxAudit('Travaux déclarés dans l’avant-contrat', resultat.travaux,
+        "Lu dans l'avant-contrat seul : une colonne cochée signifie qu'il le mentionne, pas que la pièce est déposée.");
+      if (t) { corps += t; vide = false; }
+    }
+
+    if (bloc.cle === 'ANNEXES') {
+      const t = renderTableauTravauxAudit('Travaux recensés au carnet d’entretien', resultat.travauxCarnet,
+        "Relevés dans le carnet d'entretien de l'immeuble : à croiser avec les assemblées générales et les autorisations d'urbanisme.");
+      if (t) { corps += t; vide = false; }
     }
 
     for (const sous of SOUS_SECTIONS_RAPPORT_OUTIL2) {
@@ -15168,9 +15606,18 @@
       return "Aucun écart relevé entre l'avant-contrat et le projet, et aucun engagement du vendeur repéré dans l'avant-contrat.";
     }
     if (bloc.cle === 'ANNEXES') {
-      return resultat.nbJustificatifs
-        ? "Rien à signaler dans les pièces déposées, pour les seuls points contrôlés par l'outil."
-        : "Aucune annexe déposée : les diagnostics, l'état daté, le certificat d'urbanisme et les procès-verbaux d'assemblée n'ont pas pu être contrôlés.";
+      if (resultat.nbJustificatifs) {
+        return "Rien à signaler dans les pièces déposées, pour les seuls points contrôlés par l'outil.";
+      }
+      // La liste des pièces citées dépend du TYPE DE BIEN : annoncer un état daté et des
+      // procès-verbaux d'assemblée sur une maison ferait croire à un contrôle qui n'a pas lieu
+      // d'être, et taire le carnet d'entretien sur une copropriété en ferait manquer un.
+      const attendues = resultat.typeBien === 'copropriete'
+        ? "les diagnostics, l'état daté, le certificat d'urbanisme, les procès-verbaux d'assemblée et le carnet d'entretien"
+        : resultat.typeBien === 'terrain'
+          ? "les diagnostics, le certificat d'urbanisme, le permis de construire et son constat d'affichage"
+          : "les diagnostics et le certificat d'urbanisme";
+      return `Aucune annexe déposée : ${attendues} n'ont pas pu être contrôlés.`;
     }
     return "Rien à signaler dans le document principal, pour les seuls points contrôlés par l'outil.";
   }
@@ -15185,6 +15632,7 @@
     // avait peut-être rien à lire).
     let html = `<header class="audit-entete">
       ${renderResumeAudit(resultat.resume)}
+      ${renderTypeBienAudit(resultat)}
       ${renderPerimetreAudit(resultat)}
     </header>`;
     html += renderCouvertureAudit(resultat.couvertureDocuments);
@@ -15299,17 +15747,22 @@
       }
       const ajoutes = Array.isArray(corps.constats) ? corps.constats : [];
       for (const c of ajoutes) {
-        dernierRapportAudit.constats.push({
+        const constat = {
           categorie: 'IA',
           source: 'ia',
           gravite: c.gravite,
           titre: c.titre,
           description: c.description,
           sources: c.phrase ? [{ extrait: c.phrase, extraitTrouve: c.extraitVerifie !== false }] : []
-        });
+        };
+        dernierRapportAudit.constats.push(constat);
+        // Gardés aussi dans le contexte : sans ça, corriger le type de bien rejouerait l'analyse
+        // et effacerait plusieurs minutes de calcul du modèle local.
+        if (dernierAuditContexte) dernierAuditContexte.constatsIa.push(constat);
         if (dernierRapportAudit.resume && dernierRapportAudit.resume[c.gravite] != null) dernierRapportAudit.resume[c.gravite]++;
       }
       dernierRapportAudit.iaFaite = true;
+      if (dernierAuditContexte) dernierAuditContexte.iaFaite = true;
       preparerRapportAudit(dernierRapportAudit);
       afficherToast(ajoutes.length
         ? `${ajoutes.length} constat(s) proposé(s) par le modèle local — à vérifier un par un.`
@@ -15343,7 +15796,7 @@
         .filter(f => f !== principal && f.type !== 'reference_compromis')
         .map(f => ({ nom: f.nom, texte: f.texte, pages: f.pages }));
 
-      let resultat;
+      const couverture = fichiersOk.map(f => ({ nom: f.nom, pagesLues: f.pagesLues, pagesTotal: f.pagesTotal, viaOcr: f.viaOcr, tronque: f.tronque }));
       if (auditMode === 'acte') {
         // La référence peut venir de trois endroits, dans cet ordre : un avant-contrat déposé
         // ici, le PDF du dossier CLAIRE lié (récupéré tout seul sur le NAS), ou rien — auquel
@@ -15358,43 +15811,50 @@
           afficherToast("Déposez l'avant-contrat signé (type « Avant-contrat signé »), ou liez le dossier CLAIRE correspondant : sans lui, il n'y a rien à comparer au projet.", 'OK', null);
           return;
         }
-        resultat = analyserProjetVenteOutil2({
-          texteAvantContrat: ref.texte,
-          pagesAvantContrat: ref.pages,
-          texteProjet: principal.texte,
-          pagesProjet: principal.pages,
-          documentsDeposes: justificatifs,
-          dossierLie: auditDossierLie,
-          reference: auditDossierLie
-            ? referenceDepuisDossier(auditDossierLie)
-            : construireExtractionRegex(ref.texte, null, null, ref.nom),
-          projet: construireExtractionRegex(principal.texte, null, null, principal.nom)
-        });
-        resultat.nbJustificatifs = justificatifs.length;
-        resultat.couvertureDocuments = fichiersOk.map(f => ({ nom: f.nom, pagesLues: f.pagesLues, pagesTotal: f.pagesTotal, viaOcr: f.viaOcr, tronque: f.tronque }));
         if (referenceAuto) {
-          resultat.couvertureDocuments.push({ nom: referenceAuto.nom, pagesLues: referenceAuto.pagesLues, pagesTotal: referenceAuto.pagesTotal, viaOcr: referenceAuto.viaOcr, tronque: referenceAuto.tronque });
+          couverture.push({ nom: referenceAuto.nom, pagesLues: referenceAuto.pagesLues, pagesTotal: referenceAuto.pagesTotal, viaOcr: referenceAuto.viaOcr, tronque: referenceAuto.tronque });
         }
+        dernierAuditContexte = {
+          mode: 'acte',
+          entree: {
+            texteAvantContrat: ref.texte,
+            pagesAvantContrat: ref.pages,
+            texteProjet: principal.texte,
+            pagesProjet: principal.pages,
+            documentsDeposes: justificatifs,
+            dossierLie: auditDossierLie,
+            reference: auditDossierLie
+              ? referenceDepuisDossier(auditDossierLie)
+              : construireExtractionRegex(ref.texte, null, null, ref.nom),
+            projet: construireExtractionRegex(principal.texte, null, null, principal.nom)
+          },
+          nbJustificatifs: justificatifs.length,
+          couvertureDocuments: couverture,
+          // Texte gardé pour le bouton « Approfondir » : c'est le document à relire dans les deux
+          // modes (le projet en mode acte, l'avant-contrat en mode compromis).
+          texteAnalyse: principal.texte,
+          constatsIa: []
+        };
       } else {
-        resultat = analyserCompromisOutil2({
-          texte: principal.texte,
-          pages: principal.pages,
-          documentsDeposes: justificatifs,
-          // Même objet d'extraction qu'en mode « acte » : il alimente la fiche d'identité et les
-          // contrôles de cohérence de la section 1. Rien de nouveau n'est lu — ce sont les regex
-          // d'Outil 1 appliquées au texte déjà en mémoire.
-          extraction: construireExtractionRegex(principal.texte, null, null, principal.nom)
-        });
-        resultat.nbJustificatifs = justificatifs.length;
-        resultat.couvertureDocuments = fichiersOk.map(f => ({ nom: f.nom, pagesLues: f.pagesLues, pagesTotal: f.pagesTotal, viaOcr: f.viaOcr, tronque: f.tronque }));
+        dernierAuditContexte = {
+          mode: 'compromis',
+          entree: {
+            texte: principal.texte,
+            pages: principal.pages,
+            documentsDeposes: justificatifs,
+            // Même objet d'extraction qu'en mode « acte » : il alimente la fiche d'identité et les
+            // contrôles de cohérence de la section 1. Rien de nouveau n'est lu — ce sont les regex
+            // d'Outil 1 appliquées au texte déjà en mémoire.
+            extraction: construireExtractionRegex(principal.texte, null, null, principal.nom)
+          },
+          nbJustificatifs: justificatifs.length,
+          couvertureDocuments: couverture,
+          texteAnalyse: principal.texte,
+          constatsIa: []
+        };
       }
 
-      // Texte gardé pour le bouton « Approfondir » : c'est le document à relire dans les deux
-      // modes (le projet en mode acte, l'avant-contrat en mode compromis).
-      resultat.texteAnalyse = principal.texte;
-      dernierRapportAudit = resultat;
-      preparerRapportAudit(resultat);
-      renderRapportAuditActe(resultat);
+      executerAuditOutil2();
     } catch (e) {
       console.error('Outil 2 : échec de l’analyse', e);
       const rapport = document.getElementById('analyse-ia-rapport');

@@ -1082,6 +1082,53 @@
   }
   .audit-entete .analyse-ia-resume { margin-bottom: 0; }
   .audit-entete .hint { margin: 0; }
+  /* Type de bien : DIT et corrigeable. Ce n'est pas une information décorative — c'est lui qui
+     décide des contrôles propres au type (assemblées générales et carnet d'entretien en
+     copropriété, permis sur un terrain à bâtir), et un type déduit de travers rendait muette
+     toute une partie du rapport sans que rien ne l'explique. */
+  .audit-type-bien { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .audit-type-bien label {
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--muted); margin: 0;
+  }
+  /* Élément + 2 classes : la règle générique `select { width: 100% }` des champs de formulaire a
+     la même spécificité qu'un simple `.audit-type-bien select` et l'emporterait par l'ordre du
+     fichier — piège de cascade déjà payé cinq fois ici (.select-edit, .input-inline,
+     .pdf-recherche-input, .revision-saisie, .input-classif). */
+  .audit-entete select#audit-type-bien {
+    width: auto; min-width: 0; max-width: 100%;
+    padding: 4px 8px; font-size: 13px;
+    border: 1px solid var(--line); border-radius: 6px;
+    background: var(--paper-card); color: var(--ink);
+  }
+  .audit-type-bien .hint { flex: 1 1 100%; }
+
+  /* Tableau des travaux déclarés : ce que les constats ne disent pas, puisqu'ils ne parlent que
+     du gros œuvre et de l'extérieur — ici TOUS les travaux relevés apparaissent, y compris ceux
+     qui n'appellent aucune alerte. Les trois colonnes sont lues dans l'acte seul. */
+  /* Une piste de grille a un minimum automatique égal à son contenu : sans min-width:0 sur la
+     colonne du rapport, la largeur minimale du tableau (la colonne des libellés) élargit la page
+     entière au lieu de faire défiler le seul tableau — même piège que .af-grid > *, déjà payé sur
+     le générateur d'appel de fonds. Mesuré : 219px de débordement à 400px de large. */
+  .audit-grid > * { min-width: 0; }
+  .travaux-table-wrap { overflow-x: auto; max-width: 100%; margin-top: 10px; }
+  .travaux-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .travaux-table th {
+    text-align: left; padding: 6px 10px; white-space: nowrap;
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--muted);
+    border-bottom: 1px solid var(--line);
+  }
+  .travaux-table th:not(:first-child):not(:nth-child(2)) { text-align: center; }
+  .travaux-table td { padding: 8px 10px; vertical-align: top; border-bottom: 1px solid var(--line-soft); }
+  .travaux-table tr:last-child td { border-bottom: 0; }
+  .travaux-libelle { min-width: 220px; overflow-wrap: anywhere; }
+  .travaux-page { margin-left: 6px; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .travaux-annee { white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--muted); }
+  .travaux-oui, .travaux-non, .travaux-na { text-align: center; font-weight: 700; white-space: nowrap; }
+  .travaux-oui { color: var(--success); }
+  .travaux-non { color: var(--urgent); }
+  .travaux-na { color: var(--muted); font-weight: 500; }
   /* Le rapport est organisé par SOURCE : « ce que dit l'acte », « écarts avec l'avant-contrat »,
      « ce que les annexes apportent ». Ces trois blocs sont un niveau AU-DESSUS des .audit-section
      qu'ils contiennent — d'où le filet de séparation et le titre plus affirmé, qui les font lire

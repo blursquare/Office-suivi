@@ -144,9 +144,9 @@ test('chaque catégorie de constat est rattachée à une section existante du ra
   }
   // Garde-fou structurel : une catégorie oubliée ici disparaîtrait silencieusement du rapport.
   const couvertes = app.SOUS_SECTIONS_RAPPORT_OUTIL2.map(s => s.cle).sort().join(',');
-  assert.equal(couvertes, ['ACTE', 'COMPARAISON_COMPROMIS', 'COPROPRIETE', 'DIAGNOSTICS',
-    'DOCUMENTS', 'ENTRETIENS', 'ETAT_DATE', 'PERMIS', 'TRAVAUX_A_FAIRE', 'TRAVAUX_REALISES',
-    'URBANISME'].sort().join(','));
+  assert.equal(couvertes, ['ACTE', 'CARNET_ENTRETIEN', 'COMPARAISON_COMPROMIS', 'COPROPRIETE',
+    'DIAGNOSTICS', 'DOCUMENTS', 'ENTRETIENS', 'ETAT_DATE', 'PARTIES', 'PERMIS', 'TRAVAUX_A_FAIRE',
+    'TRAVAUX_REALISES', 'URBANISME'].sort().join(','));
 });
 
 test('le cadastre est lu aussi dans le tableau à plat d’un acte authentique', () => {
