@@ -7337,6 +7337,60 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
     « Réinitialiser » d'une autre. Sur une liste où les boutons dépendent du statut, capturer la clé
     de l'élément réellement cliqué plutôt que de supposer l'ordre.
 
+- **« Il me sort une hypothèque alors qu'il n'y a qu'une caution » — deux causes, dont une qui
+  rendait tout le mécanisme des garanties inopérant depuis sa livraison.** Signalé par l'étude avec
+  l'offre de prêt réelle (22 pages, prêt cautionné par la Compagnie Européenne de Garanties et
+  Cautions). Le PDF a été rejoué à travers les fonctions de l'outil plutôt que relu.
+  - **Cause 1, la plus grave : `extraireParagrapheGaranties()` ne trouvait JAMAIS le paragraphe.**
+    `RE_TITRE_GARANTIES` est ancrée en début de ligne (`^`, drapeau `m`) — c'était tout l'objet du
+    correctif du 21/09, qui restreignait la lecture des garanties au seul paragraphe « GARANTIES ».
+    Or `lireTextePdfVerification()` fait `content.items.map(it => it.str).join(' ')` par page :
+    **le texte lu ne porte qu'UN SEUL retour à la ligne PAR PAGE**. Sur cette offre, « GARANTIES »
+    est au milieu de la page 5 → aucun match → `detecterGarantiesPret()` renvoie `[]` sur
+    pratiquement toutes les offres réelles. Et comme un échec de détection ne doit pas écraser une
+    valeur déjà connue (`if (garanties.length) d.garantiesPret = garanties;` — règle voulue), la
+    garantie lue à tort par une version ANTÉRIEURE (celle qui cherchait dans tout le document)
+    restait affichée indéfiniment, sans qu'aucun « Revérifier » ne puisse la corriger. Le symptôme
+    de l'étude n'était donc pas produit par le code en place : c'était un reliquat figé.
+    - **Correctif** : la lecture qui suit l'identification de l'offre passe à
+      **`lireTextePdfEnLignes()`** — déjà en place, écrite pour le décompte d'appel de fonds, elle
+      reconstruit de VRAIES lignes depuis la position verticale des items (`transform[5]`). Les
+      ancrages de ligne redeviennent valides et tout le mécanisme du 21/09 fonctionne comme prévu.
+      `detecterMontantPret()` lit le même texte : vérifié sans régression sur cette offre (elle
+      n'emploie pas la forme parenthésée, donc `null` avant comme après), et `MONTANT_PRET_RE`
+      exclut `\n` — un vrai saut de ligne borne désormais la clause mieux qu'un saut par page.
+    - **C'est la TROISIÈME fois que ce piège est payé** (après `RE_TITRE_PARTIE_SUIVANTE` et le
+      parseur de décompte). La leçon, déjà écrite deux fois ici, vaut d'être appliquée
+      préventivement : **toute regex ancrée sur `^` ou `\n` est fausse par construction tant que le
+      texte qu'elle reçoit ne porte pas de vraies lignes.** Reste à auditer sous cet angle :
+      `RE_TITRE_PIECE_JOINTE`, `estDebutPageAnnexe`, `estTitreDeSection`/`RE_INTITULE_CAPITALES`,
+      `RE_TITRE_GARANTIES` elle-même là où elle serait appelée sur un autre texte.
+  - **Cause 2 : l'hypothèque citée est un engagement À VENIR, pas une garantie de ce prêt.** Le
+    contrat de cautionnement de la société de caution est reproduit À L'INTÉRIEUR du paragraphe
+    GARANTIES, et il contient : « L'Emprunteur s'engage à consentir à ses frais une hypothèque
+    conventionnelle sur le bien financé […] **à première demande** de la COMPAGNIE et/ou du Prêteur
+    notamment **dans les cas suivants** : — défaillance de l'Emprunteur… ». `garantieNonConditionnelle()`
+    ne regardait que les 160 caractères qui PRÉCÈDENT, et ses marqueurs ne couvraient que la
+    garantie de REPLI (« à défaut », « en cas de refus »…). `RE_GARANTIE_CONDITIONNELLE` gagne donc
+    la seconde famille : `s'engage/s'oblige à consentir|constituer|affecter`, `à première demande`,
+    `pourra/pourrait/peut exiger|demander|réclamer`, `sera tenu de consentir`. **Aucun nouveau
+    mécanisme** : « s'engage à consentir » précède le mot « hypothèque » de ~40 caractères dans la
+    même phrase, donc la fenêtre AVANT déjà en place suffit.
+    - Sur cette offre précise, la cause 2 était masquée par le plafond
+      `LONGUEUR_MAX_PARAGRAPHE_GARANTIES` (2500) : la clause est à +4731 caractères du titre. Elle
+      est corrigée quand même — dépendre d'un plafond arbitraire pour ne pas afficher une fausse
+      garantie n'est pas une garantie.
+  - **Vérifié sur le PDF réel** (texte extrait page par page, fonctions rejouées) : `['caution']`
+    après correctif, contre `[]` avec l'ancien chemin de lecture. Deux contrôles opposés passent
+    aussi : la clause CEGC réécrite proprement ne rend que `caution`, et une hypothèque réellement
+    exigée par le prêteur reste détectée.
+  - **Pour l'étude** : un clic sur « Revérifier » suffit désormais à corriger un dossier affiché à
+    tort — la détection rend maintenant une valeur non vide, qui écrase l'ancienne.
+  - Tests : 2 nouveaux dans `tests/offre-pret.test.js` (la clause CEGC avec son contre-exemple, et
+    un test qui verrouille explicitement la RAISON du changement de lecteur : le même texte aplati
+    en une seule ligne ne doit plus rien trouver). Suite racine 626 → 628, serveur inchangée (211 —
+    chantier entièrement côté client).
+
 ## Ce qui reste ouvert / pas encore fait
 
 - **Signature manuscrite de Bastien ANGLUMENT, conservée pour le courrier d'appel de fonds**

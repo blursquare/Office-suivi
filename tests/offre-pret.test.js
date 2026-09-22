@@ -165,3 +165,45 @@ test('extraireParagrapheGaranties ne coupe pas sur une première garantie écrit
   const capitales = "GARANTIES\nCAUTIONNEMENT SOLIDAIRE\nConsenti par la société CREDIT LOGEMENT.";
   assert.equal(app.detecterGarantiesPret(capitales).join(','), 'caution');
 });
+
+test('detecterGarantiesPret écarte l\'hypothèque que l\'emprunteur s\'engage à consentir PLUS TARD', () => {
+  const app = chargerApplication();
+  // Cas réel signalé par l'étude sur une offre CAUTIONNÉE SEULE : le contrat de cautionnement de
+  // la société de caution est reproduit À L'INTÉRIEUR du paragraphe GARANTIES, et il prévoit une
+  // hypothèque que l'emprunteur devra consentir si le prêteur la réclame. Ce n'est pas une
+  // garantie de ce prêt aujourd'hui — la fiche affichait pourtant « Caution · Hypothèque
+  // conventionnelle ». Les marqueurs de ce cas SUIVENT le verbe, mais « s'engage à consentir »
+  // le précède dans la même phrase : c'est lui qui sert d'ancre.
+  const cegc = "GARANTIES\n"
+    + "Caution société de cautionnement (convention) COMPAGNIE EUROPEENNE DE GARANTIES ET CAUTIONS.\n"
+    + "La COMPAGNIE délivre une caution solidaire régie par les articles 2288 et suivants du code civil.\n"
+    + "L'Emprunteur s'engage à consentir à ses frais une hypothèque conventionnelle sur le bien "
+    + "financé ou tout autre bien de valeur équivalente à première demande de la COMPAGNIE et/ou "
+    + "du Prêteur notamment dans les cas suivants :\n"
+    + "- défaillance de l'Emprunteur dans le remboursement du prêt,\n"
+    + "- informations erronées fournies par l'Emprunteur lors de la demande relative au prêt.\n"
+    + "ASSURANCES\nLe prêt est assorti d'une assurance emprunteur.";
+  assert.equal(app.detecterGarantiesPret(cegc).join(','), 'caution');
+
+  // Contrôle : une hypothèque que le prêteur EXIGE reste détectée — le garde-fou ne doit pas
+  // rendre la détection aveugle aux vraies hypothèques.
+  const exigee = "GARANTIES\nLe prêt est garanti par une hypothèque conventionnelle de premier "
+    + "rang sur le bien financé.\nASSURANCES\nSuite.";
+  assert.equal(app.detecterGarantiesPret(exigee).join(','), 'hypothequeConventionnelle');
+});
+
+test('le paragraphe GARANTIES n\'est trouvé que sur un texte à VRAIES lignes (pdf.js en donne une par page)', () => {
+  const app = chargerApplication();
+  const lignes = "Assurance acceptée sans réserve.\nGARANTIES\nCautionnement solidaire de la "
+    + "société CREDIT LOGEMENT.\nASSURANCES\nSuite.";
+  assert.equal(app.detecterGarantiesPret(lignes).join(','), 'caution');
+
+  // lireTextePdfVerification joint TOUS les items d'une page par une espace : « GARANTIES » se
+  // retrouve au milieu d'une ligne longue de plusieurs milliers de caractères, et l'ancrage en
+  // début de ligne de RE_TITRE_GARANTIES ne matche plus rien. C'est pour ça que la lecture des
+  // garanties passe désormais par lireTextePdfEnLignes (voir verifierDossierLocal) : ce test
+  // verrouille la raison du changement, pas seulement son effet.
+  const aplati = lignes.replace(/\n/g, ' ');
+  assert.equal(app.extraireParagrapheGaranties(aplati), '');
+  assert.equal(app.detecterGarantiesPret(aplati).length, 0);
+});

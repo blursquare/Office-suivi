@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-22 16:32';
+  const VERSION_APP = '2026-09-22 16:48';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,15 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-22 16:48', resume: "Garanties du prêt : une offre cautionnée seule "
+      + "n'affiche plus d'hypothèque. Deux causes, corrigées ensemble. La première : le paragraphe "
+      + "« GARANTIES » de l'offre n'était en réalité jamais retrouvé, parce que le texte lu dans le "
+      + "PDF ne comportait qu'un seul retour à la ligne par page — les garanties affichées "
+      + "restaient donc figées sur ce qu'une version antérieure avait lu, sans jamais se corriger. "
+      + "La seconde : le contrat de la société de caution, reproduit à l'intérieur de ce paragraphe, "
+      + "prévoit une hypothèque que l'emprunteur devrait consentir plus tard si le prêteur la "
+      + "réclame ; elle était comptée comme une garantie du prêt. Un clic sur « Revérifier » remet "
+      + "à jour les dossiers déjà affichés à tort." },
     { version: '2026-09-22 16:32', resume: "Fiche dossier : une pièce peut être marquée reçue à la "
       + "main, pour un document que vous détenez ailleurs que dans le dossier NAS — une réponse SAFER "
       + "présente dans Authentic, un courrier papier. Le contrôle automatique ne la cherche plus et ne "
@@ -70,14 +79,6 @@
       + "Quand les deux délais sont écoulés, il rappelle qu'un calcul ne remplace pas le certificat de non-recours "
       + "du greffe ni l'attestation de non-retrait de la mairie, et prépare les questions à poser. Les permis "
       + "délivrés avant le 28 novembre 2025 relèvent de l'ancien régime du recours gracieux, signalé comme tel." },
-    { version: '2026-09-22 12:06', resume: "Le serveur ne se fige plus et n'affiche plus d'erreur passagère "
-      + "demandant d'actualiser la page : sa relecture du NAS, qui tourne toutes les dix minutes pour repérer les "
-      + "nouveaux documents, le rendait muet pendant tout le parcours des dossiers — d'autant plus longtemps que le "
-      + "NAS répondait lentement. Il répond désormais pendant ce parcours, et deux relectures ne peuvent plus se "
-      + "chevaucher. Fiche dossier : la carte « Appel de fonds » s'affiche dès qu'un rendez-vous de signature est "
-      + "fixé, ou dès qu'une date d'appel de fonds a été saisie — elle pouvait jusqu'ici disparaître, avec sa date, "
-      + "quand une pièce du dossier repassait à « manquante ». Calendrier .ics : correctif du 21/09 inclus (les "
-      + "agendas ne s'arrêtaient plus à la cinquième échéance)." },
   ];
 
   const STORAGE_KEY = 'dossiers';
@@ -12291,7 +12292,17 @@
   // ce qui se passerait si la caution était refusée. Même principe que RE_SIMPLE_RENVOI_PIECE /
   // motifPieceTrouve pour la checklist : on teste CHAQUE occurrence, et une occurrence non
   // conditionnée ailleurs dans le même paragraphe reste valable.
-  var RE_GARANTIE_CONDITIONNELLE = /[àa]\s+d[ée]faut|faute\s+d['’e]|en\s+cas\s+de\s+(?:refus|rejet|d[ée]faillance|non[-\s]?obtention)|[àa]\s+titre\s+subsidiaire|en\s+substitution|le\s+cas\s+[ée]ch[ée]ant|si\s+(?:l['’]organisme|la\s+caution|le\s+cautionnement)/i;
+  // Deux familles de faux positifs, et non une seule :
+  //  - la garantie de REPLI (« à défaut d'accord de la caution… ») ;
+  //  - la garantie que l'emprunteur s'ENGAGE À CONSTITUER PLUS TARD, à la demande du prêteur ou
+  //    de la société de caution. Le contrat de cautionnement CEGC, reproduit à l'intérieur même du
+  //    paragraphe GARANTIES d'une offre pourtant cautionnée seule, contient ainsi : « L'Emprunteur
+  //    s'engage à consentir à ses frais une hypothèque conventionnelle sur le bien financé […] à
+  //    première demande de la COMPAGNIE et/ou du Prêteur notamment dans les cas suivants : … ».
+  //    Ce n'est pas une garantie de CE prêt aujourd'hui, c'est ce qui se passerait en cas de
+  //    défaillance — exactement le cas signalé par l'étude (« il me sort une hypothèque alors
+  //    qu'il n'y a qu'une caution »).
+  var RE_GARANTIE_CONDITIONNELLE = /[àa]\s+d[ée]faut|faute\s+d['’e]|en\s+cas\s+de\s+(?:refus|rejet|d[ée]faillance|non[-\s]?obtention)|[àa]\s+titre\s+subsidiaire|en\s+substitution|le\s+cas\s+[ée]ch[ée]ant|si\s+(?:l['’]organisme|la\s+caution|le\s+cautionnement)|s['’](?:engage|oblige)\s+[àa]\s+(?:consentir|constituer|affecter)|[àa]\s+premi[èe]re\s+demande|(?:pourra|pourrait|peut)\s+(?:exiger|demander|r[ée]clamer)|sera\s+tenu\s+de\s+consentir/i;
   var FENETRE_GARANTIE_CONDITIONNELLE = 160;
 
   function garantieNonConditionnelle(motif, paragraphe) {
@@ -13130,7 +13141,18 @@
                 // Le PDF est déjà ouvert : on en profite pour lire le montant emprunté (apport) et
                 // les garanties du prêt. Best-effort, et jamais d'écrasement par un échec : une
                 // valeur déjà connue est conservée si une revérification ne la retrouve pas.
-                const texte = await lireTextePdfVerification(pdf);
+                // Lecture à LIGNES (lireTextePdfEnLignes, reconstruites depuis la position
+                // verticale des items) et non lireTextePdfVerification, qui joint tous les items
+                // d'une page par une espace : ce dernier ne produit QU'UN SEUL retour à la ligne
+                // PAR PAGE, si bien que RE_TITRE_GARANTIES — ancrée en début de ligne — ne pouvait
+                // matcher que si le mot « GARANTIES » ouvrait une page. Sur une offre réelle il est
+                // au milieu d'une page : le paragraphe n'était donc JAMAIS trouvé, et comme un
+                // échec de détection ne doit pas écraser une valeur déjà connue (voir juste en
+                // dessous), une garantie lue à tort par une version antérieure restait affichée
+                // indéfiniment. Même piège que celui déjà payé sur RE_TITRE_PARTIE_SUIVANTE et sur
+                // le parseur de décompte : toute regex ancrée sur ^ ou \n est suspecte tant que le
+                // texte ne porte pas de vraies lignes.
+                const texte = await lireTextePdfEnLignes(pdf);
                 const montant = detecterMontantPret(texte);
                 if (montant) d.montantPret = montant;
                 const garanties = detecterGarantiesPret(texte);
