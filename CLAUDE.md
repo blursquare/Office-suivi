@@ -6668,6 +6668,73 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
     badge ALPHA à 36×17 px avec `padding: 2px 4px`, aucune erreur JS, aucun débordement
     horizontal. `npm test` : 558 tests racine (+4), 202 côté serveur.
 
+- **Appel de fonds : l'import d'un PDF de décompte ne rendait RIEN, et le contrôle du barème ne se
+  déclenchait jamais.** Signalé par l'étude avec une vraie convocation de confrère (LD Notaires,
+  décompte à 7 lignes, solde 227 642,28 €). Le PDF a été rejoué à travers la chaîne réelle plutôt que
+  relu — les quatre défauts sont apparus du premier coup.
+  - **Deux bugs empilés empêchaient toute lecture.** D'abord `importerDecompteAppelFonds()` faisait
+    `lu.texte` sur le retour de `lireTextePdfVerification()`, qui renvoie une **chaîne**, pas un
+    objet : la propriété valait `undefined`, le parseur recevait `''`, et le chemin d'import PDF
+    était donc mort depuis toujours, quel que soit le document. Ensuite, même corrigé, ce lecteur
+    joint tous les items d'une page par une espace : le texte rendu n'a **qu'un retour à la ligne
+    par PAGE**, alors qu'un décompte est un TABLEAU et que `parserDecompteConfrere()` travaille
+    ligne par ligne. Même piège que celui déjà payé sur `RE_TITRE_PARTIE_SUIVANTE`, appliqué cette
+    fois à un parseur entièrement ligne par ligne, donc fatal.
+  - **`lireTextePdfEnLignes(pdf)` / `lignesDepuisItemsPdf(items)`** (nouvelles, pures pour la
+    seconde donc testables) reconstruisent les lignes depuis la position VERTICALE de chaque item
+    (`transform[5]`, la translation Y de la matrice de rendu) : deux items à la même hauteur
+    appartiennent à la même ligne du tableau. La tolérance est **dérivée de la hauteur du texte**
+    (`TOLERANCE_LIGNE_PDF`) et non fixée en dur — un décompte mélange couramment plusieurs corps de
+    police, et un seuil absolu couperait en deux une ligne écrite plus grand. Y décroît vers le bas
+    en coordonnées PDF, d'où le tri décroissant pour retrouver l'ordre de lecture. Les deux autres
+    lecteurs (`lireTextePdfVerification`, `lireTextePdfParPage`) ne sont **pas touchés** : leurs
+    appelants cherchent des mots-clés dans un texte continu, l'aplatissement ne les gêne pas.
+    Repli sur la lecture OCR si le PDF n'a pas de texte extractible — sa sortie est naturellement
+    découpée en lignes.
+  - **`AF_FRAIS_ACTE_RE` étendue à « frais d'achat » / « frais d'acquisition »** : c'est le libellé
+    des décomptes réels (« Frais d'achat (sauf à parfaire ou à diminuer) »), pas « frais d'acte »
+    comme le modèle de l'étude — le contrôle du barème ne se déclenchait donc jamais sur un
+    décompte importé, celui-là même qu'il sert à vérifier. « Frais de prêt » et « frais de
+    promesse » restent hors périmètre (autres barèmes), et « Provision sur frais versée à ce
+    jour » ne risque rien : le contrôle ne porte que sur la colonne débit.
+  - **Le rapport d'import dit désormais pourquoi le contrôle se tait** quand le département et la
+    nature du bien manquent — une convocation décrit une somme à virer, pas le bien, donc ces deux
+    données n'y sont jamais. Se taire sans rien dire laissait croire que la ligne avait été
+    vérifiée et jugée conforme. La note n'apparaît que s'il y a bien une ligne à contrôler.
+  - **Tirets, puces et deux-points de fin retirés des libellés** (`afNettoyerLibelle`, appelée sur
+    tous les chemins du parseur) : « - Frais d'achat », « • Prorata », « Prix de vente: » sont de
+    la mise en page du décompte, pas des libellés — ils partaient tels quels dans le courrier. Les
+    deux branches du parseur en retiraient déjà un en tête de LIGNE, mais pas celle où le libellé et
+    son montant sont sur deux lignes (le tiret vit alors dans `libelleEnAttente`), ni les puces et
+    tirets longs. Le nettoyage est aussi appliqué **avant** les tests de sous-total et de ligne de
+    prix, tous deux ancrés en début de chaîne : un « - Ensemble » ne matchait aucun des deux.
+  - **Interligne du tableau resserré** (`table.af-table td`, `line-height: 1.35`) : le corps de la
+    lettre est aéré (interligne hérité d'environ 1,6), ce qui laissait une dizaine de pixels de
+    blanc sous chaque cellule d'une seule ligne — « un saut de ligne sous chaque ligne du début du
+    tableau ». `vertical-align: top` est CONSERVÉ : il aligne le montant sur la première ligne d'un
+    libellé qui passe à la ligne, ce qu'un centrage casserait. Mesuré avant/après : hauteur de
+    cellule 36 → 30 px, blanc réparti 7 px au-dessus / 6 px en dessous.
+  - **Date de rendez-vous en gras souligné dans le document Word.** L'aperçu l'affichait déjà
+    ainsi (`<b><u>` autour de `#af-p-rdv`), mais dans le modèle `.docx` toute la phrase était **une
+    seule `<w:r>` sans mise en forme** : `{rdvPhrase}` sortait en texte plat, et « vente » comme
+    `{adresseBien}` perdaient aussi leur soulignement. Le paragraphe est découpé en sept runs avec
+    les `<w:rPr>` correspondants, et le base64 de `appel-de-fonds-modele.js` régénéré. **Piège à
+    connaître pour toute future retouche du modèle** : un placeholder doit rester ENTIER dans une
+    seule run, docxtemplater ne sait pas recoller un `{nom}` coupé en deux. Vérifié après coup que
+    les 27 fichiers de l'archive sont inchangés sauf `word/document.xml`, que tous les
+    placeholders (dont les boucles `{#debitRows}`/`{#creditRows}`) sont intacts, et que chaque XML
+    reste bien formé.
+  - Tests : 5 nouveaux dans `tests/appel-de-fonds.test.js` (reconstruction des lignes depuis des
+    items en désordre, tolérance verticale, tirets/puces/deux-points retirés y compris sur deux
+    lignes, « frais d'achat » contrôlé et « frais de prêt » non, et le décompte réel recalculé au
+    centime près). Suite racine 558 → 563, serveur inchangée (202). **Vérifié de bout en bout** :
+    le PDF réel rejoué à travers `lignesDepuisItemsPdf` (items simulés depuis les boîtes
+    englobantes de `pdftotext`, pdf.js étant bloqué par le proxy de cet environnement) donne 7
+    lignes et un recalcul à 227 642,28 €, identique au solde annoncé par le confrère ; puis dans un
+    vrai Chromium (serveur réel) : tableau rendu sans tiret ni blanc superflu, département 41 et
+    nature « maison » déduits de l'adresse saisie, badge « ✓ conforme au barème » sur les
+    18 200 € du confrère, phrase de rendez-vous en gras souligné, aucune erreur JS.
+
 ## Ce qui reste ouvert / pas encore fait
 
 - **Générateur d'appel de fonds : l'aperçu de pagination A4 de l'artefact n'est pas repris**

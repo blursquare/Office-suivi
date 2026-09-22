@@ -384,3 +384,88 @@ test('typeBienDepuisDesignation ignore accents et majuscules', () => {
   assert.equal(app.typeBienDepuisDesignation('UN TERRAIN À BÂTIR'), 'land');
   assert.equal(app.typeBienDepuisDesignation('un lot de COPROPRIETE'), 'condo');
 });
+
+test('les lignes d’un PDF sont reconstruites depuis la position verticale des items', () => {
+  // pdf.js rend une page comme une suite d'items, pas comme des lignes : les deux autres lecteurs
+  // du fichier les joignent par une espace et ne produisent qu'UN retour à la ligne par page.
+  // Le parseur du décompte, lui, travaille ligne par ligne — d'où ce lecteur dédié.
+  const app = chargerApplication();
+  const item = (str, x, y) => ({ str, height: 10, transform: [1, 0, 0, 10, x, y] });
+  const lignes = app.lignesDepuisItemsPdf([
+    // Volontairement dans le désordre : c'est la position, pas l'ordre d'arrivée, qui décide.
+    item('220 000,00 €', 420, 700),
+    item('- Acompte', 60, 660),
+    item('Prix de vente', 60, 700),
+    item('11 000,00 €', 420, 660)
+  ]);
+  assert.equal(lignes.join(' // '), 'Prix de vente 220 000,00 € // - Acompte 11 000,00 €');
+});
+
+test('deux items légèrement décalés restent sur la même ligne', () => {
+  // Un décompte mélange les corps de police (un exposant, une note en petit) : la tolérance est
+  // dérivée de la hauteur du texte, un seuil absolu couperait une ligne écrite plus grand.
+  const app = chargerApplication();
+  const lignes = app.lignesDepuisItemsPdf([
+    { str: 'Prorata', height: 10, transform: [1, 0, 0, 10, 60, 500] },
+    { str: 'taxe foncière', height: 10, transform: [1, 0, 0, 10, 110, 502] },
+    { str: '501,28 €', height: 10, transform: [1, 0, 0, 10, 420, 499] },
+    { str: 'Ligne suivante', height: 10, transform: [1, 0, 0, 10, 60, 480] }
+  ]);
+  assert.equal(lignes.length, 2);
+  assert.equal(lignes[0], 'Prorata taxe foncière 501,28 €');
+});
+
+test('un tiret ou une puce en début de ligne ne part pas dans le courrier', () => {
+  // Décoration de liste du décompte du confrère, pas une partie du libellé. Le cas du libellé et
+  // du montant sur DEUX lignes est le seul que l'ancien nettoyage laissait passer.
+  const app = chargerApplication();
+  const res = app.parserDecompteConfrere([
+    'Prix de vente: 220 000,00 €',
+    'Frais à ajouter :',
+    '- Frais d’achat 18 200,00 €',
+    '• Frais de promesse TTC 341,00 €',
+    '— Prorata taxe foncière',
+    '501,28 €'
+  ].join('\n'));
+  const libelles = res.lignes.debit.map(l => l.libelle);
+  assert.equal(libelles.join(' | '), 'Prix de vente | Frais d’achat | Frais de promesse TTC | Prorata taxe foncière');
+});
+
+test('« Frais d’achat » est contrôlé contre le barème, « frais de prêt » non', () => {
+  // Libellé réel d'un décompte de confrère : le contrôle ne se déclenchait jamais sur un décompte
+  // importé, celui-là même qu'il sert à vérifier. Signalé par l'étude.
+  const app = chargerApplication();
+  assert.ok(app.estLigneFraisActeVente('Frais d’achat (sauf à parfaire ou à diminuer)'));
+  assert.ok(app.estLigneFraisActeVente("Frais d'acquisition"));
+  assert.ok(app.estLigneFraisActeVente("Frais et droits de l'acte de vente"));
+  assert.ok(!app.estLigneFraisActeVente('Frais de prêt(s) (sauf à parfaire ou à diminuer)'));
+  assert.ok(!app.estLigneFraisActeVente('Frais de promesse TTC'));
+});
+
+test('le décompte réel d’un confrère se recalcule au centime près', () => {
+  // Décompte d'une vraie convocation (LD Notaires), tel que lireTextePdfEnLignes le restitue.
+  // Le solde recalculé doit retomber sur celui que le confrère annonce : c'est le seul contrôle
+  // possible sur un décompte que l'outil n'a pas produit.
+  const app = chargerApplication();
+  const res = app.parserDecompteConfrere([
+    'Prix de vente: 220 000,00 €',
+    'Frais à ajouter :',
+    '- Frais d’achat (sauf à parfaire ou à diminuer) 18 200,00 €',
+    '- Frais de prêt(s) (sauf à parfaire ou à diminuer) mémoire',
+    '- Frais de promesse TTC 341,00 €',
+    '- Prorata taxe foncière 501,28 €',
+    'Ensemble 19 042,28 € +19 042,28 €',
+    'Total des dépenses 239 042,28 €',
+    'Sommes à déduire :',
+    '- Acompte 11 000,00 €',
+    '- Provision sur frais versée à ce jour 400,00 €',
+    'Ensemble 11 400,00 € - 11 400,00 €',
+    'Versement à la signature 227 642,28 €'
+  ].join('\n'));
+  const somme = (s) => res.lignes[s].reduce((t, l) => t + (l.memoire ? 0 : (l.montant || 0)), 0);
+  assert.equal(res.lignes.debit.length, 5);
+  assert.equal(res.lignes.credit.length, 2);
+  assert.equal(res.lignes.debit[2].memoire, true);
+  assert.equal(res.meta.soldeDeclare, 227642.28);
+  assert.equal(Math.round((somme('debit') - somme('credit')) * 100) / 100, 227642.28);
+});

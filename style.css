@@ -4135,7 +4135,12 @@
 /* Le tableau du décompte : bordure double, comme sur le courrier réel de l'étude. */
 table.af-table { width: 100%; border-collapse: collapse; margin: 14px 0 4px; border: 3px double #26201a; }
 table.af-table col.af-col-montant { width: 120px; }
-table.af-table td { border: 1px solid #26201a; padding: 5px 7px; vertical-align: top; }
+/* Interligne resserré dans le seul tableau : le corps de la lettre est aéré (line-height hérité
+   d'environ 1,6), ce qui laissait une dizaine de pixels de blanc sous chaque cellule d'une seule
+   ligne — signalé par l'étude comme un « saut de ligne » sous chaque ligne du tableau.
+   vertical-align: top est CONSERVÉ : il aligne le montant sur la première ligne d'un libellé qui
+   passe à la ligne, ce qu'un centrage casserait. */
+table.af-table td { border: 1px solid #26201a; padding: 4px 7px; vertical-align: top; line-height: 1.35; }
 table.af-table td.af-montant { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 table.af-table tr.af-sous-total td { font-weight: 700; }
 table.af-table tr.af-solde td { font-weight: 700; font-size: 13.5px; }

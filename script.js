@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-22 09:47';
+  const VERSION_APP = '2026-09-22 10:08';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,13 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-22 10:08', resume: "Appel de fonds : l'import d'un PDF de décompte ne rendait jamais rien. "
+      + "Deux causes cumulées — le texte lu n'arrivait pas jusqu'au parseur, et il était de toute façon aplati en une "
+      + "seule ligne par page alors qu'un décompte est un tableau. Les lignes sont maintenant reconstruites depuis la "
+      + "position du texte dans la page. « Frais d'achat », le libellé employé par les confrères, est désormais "
+      + "contrôlé contre le barème, et le rapport dit ce qu'il manque quand ce contrôle ne peut pas se faire. Les "
+      + "tirets de début de ligne ne partent plus dans le courrier, le tableau est moins aéré, et la date de "
+      + "rendez-vous ressort en gras souligné dans le document Word comme dans l'aperçu." },
     { version: '2026-09-22 09:47', resume: "Appel de fonds : les deux menus du contrôle de la provision sur frais "
       + "(département, nature du bien) se remplissent tout seuls à partir de l'adresse et de la désignation déjà saisies "
       + "juste au-dessus, et laissent tranquille tout choix fait à la main. Dans l'aperçu du courrier, le logo "
@@ -42,7 +49,6 @@
     { version: '2026-09-21 23:02', resume: "Outil 2 (Relecture d'un acte) refait de zéro : il ne passe plus par le modèle IA pour produire son rapport, qui s'affiche désormais instantanément, sans attente et sans serveur. Sur un compromis, il cherche quatre dangers précis et seulement ceux-là : les travaux déjà faits qui touchent le gros œuvre ou l'extérieur (autorisation d'urbanisme, garantie décennale), les diagnostics périmés, les entretiens et documents à obtenir du vendeur, les travaux qu'il doit faire avant la vente. Sur un projet de vente, il compare à l'avant-contrat signé et dit, engagement par engagement, s'il a été tenu — un justificatif peut être déposé et sa DATE est contrôlée (l'entretien de chaudière fourni a-t-il bien moins d'un an ?). Le modèle local reste disponible, en option, par un bouton sous le rapport" },
     { version: '2026-09-21 22:29', resume: "Appel de fonds : la mention « Envoi par e-mail uniquement » prend désormais la PLACE de l'adresse postale du destinataire, sous son nom, au lieu de s'ajouter au-dessus. Saisir une adresse dans « Adresse des clients » la fait disparaître et affiche l'adresse à la place — les deux ne peuvent pas cohabiter sur le même courrier. Elle reste modifiable dans l'aperçu (pour écrire « Envoi recommandé avec AR », par exemple), suit dans le .docx téléchargé, et le bouton « Effacer » la remet à sa formulation par défaut" },
     { version: '2026-09-21 22:09', resume: "Appel de fonds : le champ « Adresse du bien » propose désormais les adresses officielles de la Base Adresse Nationale (data.gouv.fr) pendant la frappe, et reprend simplement celle du dossier quand un dossier est rattaché — une note sous le champ dit d'où vient l'adresse affichée. Seul appel vers un service extérieur de tout CLAIRE : seul le texte tapé dans ce champ part, jamais un nom de dossier ni de client, et un poste sans internet garde la saisie libre. Corrigé au passage : le menu de recherche de dossier de cet écran s'affichait en boutons bruts, sans séparateur ni survol" },
-    { version: '2026-09-21 22:02', resume: "Appel de fonds, trois retouches. Le bloc destinataire du courrier est aligné à droite dans l'aperçu, comme sur le papier. Le dépôt de garantie versé à l'agence est désormais DÉDUIT du virement demandé, l'agence reversant la somme à l'étude — la version de ce matin ne le déduisait pas, ce qui faisait réclamer au client une somme trop forte ; la fiche rappelle de réclamer ces fonds avant la signature. Enfin, la ligne « frais et droits de l'acte de vente » est contrôlée contre le barème du simulateur, comme les prorata l'étaient déjà : CLAIRE dit si le montant est au-dessus ou en dessous, sans jamais le remplir — ce barème n'a pas été audité. Corrigé au passage : un prorata écrit sans parenthèses n'était pas recalculé du tout" },
   ];
 
   const STORAGE_KEY = 'dossiers';
@@ -12001,6 +12007,62 @@
     return pages[pages.length - 1].numero;
   }
 
+  // Lecture d'un PDF en RESTITUANT SES LIGNES, pour le générateur d'appel de fonds.
+  //
+  // Les deux lecteurs ci-dessus joignent tous les items d'une page par une espace : le texte qu'ils
+  // rendent n'a qu'UN retour à la ligne PAR PAGE (piège déjà payé ailleurs dans ce fichier, voir
+  // RE_TITRE_PARTIE_SUIVANTE). C'est sans conséquence pour eux — ils cherchent des mots-clés dans
+  // un texte continu — mais le décompte d'un confrère est un TABLEAU : parserDecompteConfrere
+  // travaille ligne par ligne, et recevait donc une seule ligne géante où plus rien ne
+  // correspondait. C'est la cause du « aucune ligne de décompte reconnue » sur un PDF pourtant
+  // parfaitement lisible.
+  //
+  // Les lignes sont reconstruites depuis la position VERTICALE de chaque item (transform[5], la
+  // translation Y de la matrice de rendu) : deux items à la même hauteur appartiennent à la même
+  // ligne du tableau. La tolérance est dérivée de la hauteur du texte lui-même plutôt que fixée en
+  // dur — un décompte mélange couramment plusieurs corps de police, et un seuil absolu couperait
+  // en deux une ligne écrite plus grand que les autres.
+  var TOLERANCE_LIGNE_PDF = 0.6;
+
+  function lignesDepuisItemsPdf(items) {
+    const utiles = (items || []).filter(it => it && typeof it.str === 'string' && it.str.trim());
+    const lignes = [];
+    utiles.forEach(it => {
+      const t = it.transform || [];
+      const y = Number(t[5]) || 0;
+      const x = Number(t[4]) || 0;
+      const hauteur = Math.abs(Number(it.height) || Number(t[3]) || 10) || 10;
+      const marge = Math.max(2, hauteur * TOLERANCE_LIGNE_PDF);
+      let ligne = null;
+      for (const l of lignes) {
+        if (Math.abs(l.y - y) <= Math.max(marge, l.marge)) { ligne = l; break; }
+      }
+      if (!ligne) { ligne = { y, marge, items: [] }; lignes.push(ligne); }
+      ligne.marge = Math.max(ligne.marge, marge);
+      ligne.items.push({ x, str: it.str });
+    });
+    // Y décroît vers le bas de la page en coordonnées PDF : on lit donc du plus grand au plus
+    // petit pour retrouver l'ordre de lecture.
+    lignes.sort((a, b) => b.y - a.y);
+    return lignes.map(l => l.items
+      .sort((a, b) => a.x - b.x)
+      .map(i => i.str)
+      .join(' ')
+      .replace(/\s{2,}/g, ' ')
+      .trim()
+    ).filter(Boolean);
+  }
+
+  async function lireTextePdfEnLignes(pdf) {
+    const lignes = [];
+    for (let p = 1; p <= Math.min(pdf.numPages, PLAFOND_PAGES_VERIFICATION); p++) {
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent();
+      lignesDepuisItemsPdf(content.items).forEach(l => lignes.push(l));
+    }
+    return lignes.join('\n');
+  }
+
   // Retour visuel pendant le parcours du dossier local (peut prendre plusieurs secondes sur un
   // dossier volumineux/beaucoup de PDF/repli OCR) : sans ça, le bouton restait silencieux jusqu'au
   // résultat final, ce qui pouvait laisser croire à un clic sans effet — signalé par l'étude.
@@ -13753,8 +13815,23 @@
     return { libelle: reste.slice(0, m2.index).trim(), second: montantDepuisTexteFr(m1[1]) };
   }
 
+  // Les décomptes de confrère préfixent couramment chaque ligne d'un tiret ou d'une puce
+  // (« - Frais d'achat ») : c'est une décoration de liste, pas une partie du libellé, et elle
+  // partirait telle quelle dans le courrier. Les deux branches du parseur en retiraient déjà un
+  // en tête de ligne, mais pas celle où le libellé et son montant sont sur DEUX lignes (le tiret
+  // vit alors dans libelleEnAttente), ni les puces et tirets longs. Un seul nettoyage, appliqué
+  // au libellé final, couvre tous les chemins.
+  var AF_PUCE_DEBUT_RE = /^[\s\u2022\u00b7\u2043\u25aa\u25cf\u2010-\u2015*\u2212-]+/;
+
+  function afNettoyerLibelle(s) {
+    // Le deux-points final vient de la mise en page du décompte (« Prix de vente: 220 000,00 € »),
+    // où il annonce la colonne des montants : il n'a plus de sens une fois la valeur dans sa
+    // propre cellule.
+    return String(s || '').replace(AF_PUCE_DEBUT_RE, '').replace(/\s*:\s*$/, '').trim();
+  }
+
   function afMajusculeInitiale(s) {
-    s = String(s || '').trim();
+    s = afNettoyerLibelle(s);
     return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
   }
 
@@ -13799,7 +13876,7 @@
       if (!mMontant) {
         if (AF_EURO_SEUL_RE.test(ligne) || AF_SANS_MONTANT_RE.test(ligne)) {
           const estMemoire = AF_MEMOIRE_RE.test(ligne);
-          const libelle = ligne.replace(AF_EURO_SEUL_RE, '').replace(AF_SANS_MONTANT_RE, '').replace(/^-+\s*/, '').trim();
+          const libelle = afNettoyerLibelle(ligne.replace(AF_EURO_SEUL_RE, '').replace(AF_SANS_MONTANT_RE, ''));
           viderCandidatsPrix();
           ligneHorsPrixVue = true;
           brut.push({ libelle: libelle || '(ligne)', montant: 0, signe, formule: null, id: afIdLigne(), memoire: estMemoire });
@@ -13812,7 +13889,7 @@
       }
 
       const montant = montantDepuisTexteFr(mMontant[1]);
-      const avantMontant = ligne.slice(0, mMontant.index).trim().replace(/^-+\s*/, '');
+      const avantMontant = afNettoyerLibelle(ligne.slice(0, mMontant.index));
       let formule = null;
       let libelle;
       if (/^[(（]/.test(avantMontant) && libelleEnAttente) {
@@ -13829,6 +13906,9 @@
         libelle = ex.libelle;
         formule = ex.formule;
       }
+      // Avant les deux tests qui suivent : un « - Ensemble » venu d'un libellé en attente ne
+      // matcherait aucun des deux motifs, tous deux ancrés en début de chaîne.
+      libelle = afNettoyerLibelle(libelle);
 
       if (AF_SOUS_TOTAL_RE.test(libelle)) { viderCandidatsPrix(); meta.soldeDeclare = montant; continue; }
       if (AF_LIGNE_PRIX_RE.test(libelle) && !ligneHorsPrixVue) { candidatsPrix.push({ libelle, montant }); continue; }
@@ -13875,7 +13955,12 @@
   // Le libellé doit désigner les frais de l'acte de VENTE. « Frais d'acte de prêt », « frais de
   // mainlevée », « frais de négociation » relèvent d'autres barèmes : les contrôler contre
   // celui-ci ferait croire à un écart sur une ligne parfaitement juste.
-  var AF_FRAIS_ACTE_RE = /\b(?:frais\s+et\s+droits|frais\s+d['\u2019]?\s*acte|frais\s+de\s+notaire|frais\s+notari[ée]s|[ée]moluments\s+et\s+droits|provision\s+sur\s+frais)\b/i;
+  //
+  // « Frais d'achat » / « frais d'acquisition » : ce sont les libellés employés par les confrères
+  // dans les décomptes réels (« Frais d'achat (sauf à parfaire ou à diminuer) »), pas
+  // « frais d'acte » comme le modèle de l'étude — le contrôle ne se déclenchait donc jamais sur
+  // un décompte importé, celui-là même qu'il sert à vérifier. Signalé par l'étude.
+  var AF_FRAIS_ACTE_RE = /\b(?:frais\s+et\s+droits|frais\s+d['\u2019]?\s*(?:acte|achat|acquisition)|frais\s+de\s+notaire|frais\s+notari[ée]s|[ée]moluments\s+et\s+droits|provision\s+sur\s+frais)\b/i;
   var AF_FRAIS_HORS_VENTE_RE = /\b(pr[êe]t|mainlev[ée]e|n[ée]gociation|hypoth[èe]que|caution|copropri[ée]t[ée]|syndic|bancaires?|garantie|succession)\b/i;
 
   function estLigneFraisActeVente(libelle) {
@@ -14607,8 +14692,16 @@
     try {
       const buffer = await fichier.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
-      const lu = await lireTextePdfVerification(pdf);
-      appliquerDecompteAppelFonds(lu.texte || '');
+      // Deux bugs se cumulaient ici. D'abord `lu.texte` : lireTextePdfVerification renvoie une
+      // CHAÎNE, pas un objet — la propriété valait donc undefined et le parseur recevait une
+      // chaîne vide, quel que soit le PDF. Ensuite, même corrigé, ce lecteur aplatit chaque page
+      // en une seule ligne, alors qu'un décompte est un TABLEAU et que ce parseur travaille ligne
+      // par ligne (voir lireTextePdfEnLignes pour le détail du piège).
+      let texte = await lireTextePdfEnLignes(pdf);
+      // Décompte scanné, sans texte extractible : repli sur la lecture OCR, dont la sortie est
+      // naturellement découpée en lignes.
+      if (texte.trim().length < 40) texte = await lireTextePdfVerification(pdf);
+      appliquerDecompteAppelFonds(texte || '');
     } catch (e) {
       console.error(e);
       afficherRapportAppelFonds('Ce PDF n\'a pas pu être lu.', ['Collez son texte dans le champ ci-dessous.'], true);
@@ -14645,6 +14738,13 @@
       if (Math.abs(recalcul - res.meta.soldeDeclare) > 0.02) {
         notes.push(`Le solde annoncé par le confrère (${montantVersTexteFr(res.meta.soldeDeclare)}) ne correspond pas au recalcul (${montantVersTexteFr(recalcul)}) : une ligne a probablement été mal lue.`);
       }
+    }
+    // Le contrôle du barème a besoin du département et de la nature du bien, qu'un décompte ou une
+    // convocation ne portent presque jamais (ils décrivent une somme à virer, pas le bien). Sans
+    // eux il se tait — et se taire sans rien dire laisse croire que la ligne a été vérifiée et
+    // jugée conforme. On le dit donc, mais seulement quand il y a bien une ligne à contrôler.
+    if (!fourchetteFraisActeFormulaire() && afLignes.debit.some(l => !l.memoire && estLigneFraisActeVente(l.libelle))) {
+      notes.push('Les frais d’acte n’ont pas été contrôlés : renseignez l’adresse du bien et sa désignation (ou directement le département et la nature du bien, juste sous le tableau).');
     }
     afficherRapportAppelFonds(`${total} ligne(s) reprises du décompte.`, notes, notes.length > 0);
   }
