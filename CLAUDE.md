@@ -5997,6 +5997,96 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     `npm test` reste vert aux deux endroits (467 tests racine, 233 côté serveur — changement
     purement visuel, aucune fonction pure modifiée).
 
+- **Outil 2 : le rapport suit l'ordre de lecture d'un notaire — l'acte, puis l'avant-contrat, puis
+  les annexes.** Demandé par l'étude après le test du rapport précédent : « l'objectif principal
+  est d'abord de lire le contenu de l'acte de vente, PUIS de comparer avec l'avant contrat, PUIS
+  avec les annexes. Peut-être diviser en trois les résultats trouvés ? » Ce qui manquait n'était
+  pas un thème de plus mais la **première** de ces trois lectures : sur le projet de vente réel
+  envoyé par l'étude, le rapport ne portait que deux constats, tous deux disant « vous ne m'avez
+  pas donné le document ». Il ne disait rien de l'acte lui-même, pourtant le seul document
+  toujours présent.
+  - **Règle d'affectation, à garder avant d'ajouter une catégorie** : une section est définie par
+    le DOCUMENT qu'il faut ouvrir pour trancher le point. Un constat qui touche deux sources
+    n'apparaît **qu'une fois**, dans la section de la source la plus fragile (celle qui peut
+    manquer) — le répéter recréerait la duplication que l'étude a déjà fait retirer une fois. Les
+    catégories produites par les détecteurs ne changent pas : seul leur regroupement change
+    (`SECTIONS_RAPPORT_OUTIL2` + `SOUS_SECTIONS_RAPPORT_OUTIL2`, en remplacement de
+    `CATEGORIES_RAPPORT_OUTIL2`). Un test structurel vérifie que chaque catégorie est rattachée à
+    une section existante — une catégorie oubliée disparaîtrait sinon du rapport en silence.
+  - **Chaque section dit ce qu'elle n'a PAS pu faire** (`messageBlocAuditVide`) au lieu de rester
+    muette : « aucune annexe déposée : les diagnostics, l'état daté, le certificat d'urbanisme et
+    les procès-verbaux d'assemblée n'ont pas pu être contrôlés ». C'était précisément la confusion
+    mesurée sur l'acte réel — un rapport vide se lit « rien à signaler » là où il faut lire « rien
+    n'a pu être contrôlé ». L'état vide global vert (`.audit-vide`) disparaît pour la même raison :
+    affirmer « aucun danger relevé » juste au-dessus d'« aucune annexe n'a pu être contrôlée » est
+    une contradiction. En mode « compromis », la section 2 ne s'affiche pas du tout : le document
+    analysé EST l'avant-contrat.
+  - **Fiche d'identité de l'acte** (`ficheActeOutil2`, pure et testable), en tête de la section 1,
+    **toujours affichée** : parties, bien, cadastre, prix, notaires — et en mode « compromis » le
+    dépôt de garantie, son séquestre et les quatre dates. Une valeur absente s'affiche « non
+    trouvé », jamais devinée. **Aucune extraction nouvelle** : `construireExtractionRegex` était
+    déjà calculée et passée à `analyserProjetVenteOutil2`, son résultat n'était simplement jamais
+    affiché ; le mode « compromis » la calcule maintenant aussi.
+    - **Adaptée au mode**, et c'est une décision, pas un oubli : un acte de vente n'a ni dépôt de
+      garantie ni dates butoir (elles appartiennent à l'avant-contrat), et `detecterTypeActe` ne
+      connaît que les avant-contrats — quatre lignes « non trouvé » y seraient du bruit, pas une
+      information. Le type d'acte, lui, est déjà donné par le sélecteur de l'écran.
+  - **Deux constats lus dans le seul acte** (`constatsLectureActe`), tirés de ce que l'acte réel
+    déclarait et que rien ne signalait :
+    - **Procédure ou litige en cours** — IMPORTANT, et **CRITIQUE quand l'acquéreur la reprend à
+      son compte** (subrogation). La clause de style « il n'existe à ce jour aucune action ou
+      litige en cours » est écartée (`RE_AUCUN_LITIGE`), sans quoi chaque acte produirait l'alerte.
+      **La subrogation est jugée sur la CLAUSE entière et non sur la phrase citée** : dans l'acte
+      réel elle arrive deux phrases plus loin, et `phraseAutour` s'arrête au premier point — on
+      cite court, on juge large, sans quoi le cas le plus grave ressortait au niveau le plus faible.
+    - **Document que l'acte déclare non établi** — A_VERIFIER, **sauf quand la même clause dit
+      pourquoi il en est dispensé** (`RE_DISPENSE_DOCUMENT` : « n'entre pas dans le champ
+      d'application », « non soumis », « dispensé »…). L'acte a déjà répondu ; le signaler
+      reviendrait à poser une question sur chaque acte qui prend la peine de se justifier — même
+      discipline que `RE_AUCUN_TRAVAUX` et la négation de copropriété.
+    - Même dédoublonnage par CHEVAUCHEMENT de plage que `detecterTravauxRealises`, et pour la même
+      raison : la plage est retenue AVANT les garde-fous, sinon une clause écartée ne laisse
+      aucune trace et un second mot déclencheur la fait rejuger sur une fenêtre décalée qui repasse
+      les garde-fous.
+  - **Les contrôles de cohérence de l'extraction deviennent des constats de la section 1**
+    (`constatsCoherenceActe`) — prêt après l'acte, réitération = signature, date écrite contredite
+    par un délai : c'est exactement une lecture de l'acte seul. **Filtrés** (`CODES_COHERENCE_ACTE`)
+    sur ce qui décrit une contradiction DANS L'ACTE : « adresse non reconstituée » et « notaire
+    instrumentaire indéterminé » sont des limites de notre lecture, déjà affichées « non trouvé »
+    dans la fiche — en refaire un constat dirait deux fois la même chose.
+  - **Trois corrections d'Outil 1 trouvées en rejouant le vrai acte**, chacune visible dans la
+    fiche :
+    - **Le côté d'un notaire se cherche D'ABORD APRÈS SON NOM** (`detecterNotaires`), comme
+      l'office et le CRPCEN le font déjà, avec repli sur la fenêtre entière pour la rédaction
+      inverse (« le notaire du vendeur, Maître X »). Sur un acte authentique les deux notaires
+      comparaissent dans la même phrase, chacun suivi de sa qualité — « Maître A, notaire à …,
+      Notaire assistant le VENDEUR, avec le concours de Maître B, …, assistant l'ACQUEREUR » : la
+      fenêtre de B contenait les DEUX marqueurs et retenait le premier, si bien que **les deux
+      notaires ressortaient du côté du vendeur**, aucun côté acquéreur, et la règle d'attribution
+      de la minute ne pouvait plus s'appliquer. La fenêtre est en outre bornée des deux côtés par
+      les mentions voisines, et plus seulement à droite.
+    - **Le cadastre est lu dans le TABLEAU à plat de la PARTIE NORMALISÉE**
+      (`RE_CADASTRE_TABLEAU`) : « Figurant ainsi au cadastre : Section N° Lieudit BH 81 … »,
+      l'en-tête de colonnes suivi des valeurs, tel que pdf.js le rend. Motif distinct du premier,
+      ancré sur cet en-tête précis, donc sans risque de faux positif.
+    - **`ficheActeOutil2` comparait les rôles en minuscules** alors que `detecterParties` les rend
+      en capitales : les deux lignes les plus attendues de la fiche (vendeurs, acquéreurs)
+      sortaient vides. Trouvé au premier rejeu, pas à la relecture.
+  - **Résultat mesuré sur le projet de vente réel** (30 pages, copropriété) : de 2 constats disant
+    tous deux « document manquant » à une fiche d'identité complète (BOURGUEIL & BOUSSELET /
+    CHARPENTIER & GENESTOUX, bien, cadastre BH 81, prix, les deux notaires) + un CRITIQUE
+    « procédure en cours, reprise par l'acquéreur » + un A_VERIFIER sur le diagnostic technique
+    global, la clause d'audit énergétique dispensée n'étant plus signalée.
+  - Tests : `tests/outil2-lecture-acte.test.js` (13 — les deux constats et leurs garde-fous, la
+    subrogation jugée sur la clause, la page depuis les frontières, le filtrage des alertes de
+    cohérence, les rôles en capitales, la fiche adaptée au mode, les valeurs absentes préservées,
+    le garde-fou structurel des sections, le cadastre en tableau, les deux côtés d'une
+    comparution). Suite racine 642 → 655, serveur inchangée (215 — chantier entièrement côté
+    client). **Vérifié dans un vrai Chromium** (serveur réel, clair et sombre, 1500px et 400px) sur
+    les deux actes réels : trois blocs titrés avec leur phrase de source, fiche complète, section 2
+    annonçant l'absence d'écart, aucune erreur JS, aucun débordement horizontal.
+
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

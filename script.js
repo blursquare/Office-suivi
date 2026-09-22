@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-22 22:01';
+  const VERSION_APP = '2026-09-22 22:22';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,12 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-22 22:22', resume: "Outil 2 : le rapport suit l'ordre de lecture "
+      + "demandé — ce que dit l'acte, puis les écarts avec l'avant-contrat, puis ce que les "
+      + "annexes apportent. La première section ouvre sur une fiche d'identité de l'acte "
+      + "(parties, bien, cadastre, prix, notaires) toujours affichée, et signale les "
+      + "procédures en cours et les documents que l'acte déclare non établis. Chaque section "
+      + "dit ce qu'elle n'a pas pu contrôler au lieu de rester muette." },
     { version: '2026-09-22 22:01', resume: "Rappels automatiques : un seuil par echeance (pret et vente prealable J-15/J-7, appel de fonds J-15/J-10, signature J-25/J-15)." },
     { version: '2026-09-22 21:58', resume: "Outil 2 : les clauses de style de copropriete (carnet d'entretien, texte de loi cite) ne sont plus prises pour des travaux realises." },
     { version: '2026-09-22 21:49', resume: "La relance « offre de prêt » adressée au client ne "
@@ -2085,7 +2091,18 @@
     const vus = new Set();
     mentions.forEach((mention, i) => {
       const suivante = mentions[i + 1];
-      const debut = debutPhrase(source, mention.index);
+      const precedente = mentions[i - 1];
+      // La fenêtre est bornée des DEUX côtés par les mentions voisines, pas seulement à droite.
+      // Sur un acte authentique, les deux notaires comparaissent dans la même phrase — « Maître A,
+      // notaire à …, Notaire assistant le VENDEUR, avec le concours de Maître B, notaire à …,
+      // assistant l'ACQUEREUR » — et sans borne à gauche la fenêtre de B remontait jusqu'au rôle
+      // de A : les deux notaires ressortaient du côté du vendeur, donc aucun côté acquéreur et
+      // aucune attribution possible. Même raison que pour l'office et le CRPCEN, déjà cherchés à
+      // partir du nom (voir plus bas).
+      const debut = Math.max(
+        debutPhrase(source, mention.index),
+        precedente ? precedente.index + precedente.longueur : 0
+      );
       const fin = Math.min(
         source.length,
         mention.index + mention.longueur + 400,
@@ -2115,7 +2132,16 @@
       if (vus.has(cle)) return;
       vus.add(cle);
 
-      const mCote = fenetre.match(RE_COTE_NOTAIRE);
+      // Le côté se cherche D'ABORD APRÈS LE NOM, comme l'office et le CRPCEN (voir plus bas), et
+      // seulement à défaut dans toute la fenêtre. Sur un acte authentique les deux notaires
+      // comparaissent dans la même phrase, chacun suivi de sa qualité — « Maître A, notaire à …,
+      // Notaire assistant le VENDEUR, avec le concours de Maître B, notaire à …, assistant
+      // l'ACQUEREUR » : la fenêtre de B contient les DEUX marqueurs et le premier rencontré est
+      // celui de A, si bien que les deux notaires ressortaient du côté du vendeur. Le repli sur la
+      // fenêtre entière reste nécessaire pour la rédaction inverse, « le notaire du vendeur,
+      // Maître X », où la qualité précède le nom.
+      const apresNom = source.slice(mention.index + mention.longueur, fin).replace(RE_INTRODUCTION_NOTAIRE_SUIVANT, ' ');
+      const mCote = apresNom.match(RE_COTE_NOTAIRE) || fenetre.match(RE_COTE_NOTAIRE);
       const qualite = mCote ? qualiteDepuisMot(mCote[1]) : null;
       const cote = qualite ? (roleDepuisQualite(type, qualite) === 'VENDEUR' ? 'vendeur' : 'acquereur') : 'inconnu';
 
@@ -2447,8 +2473,16 @@
 
   var RE_CADASTRE = /cadastr[ée]e?s?\s+(?:en\s+)?section\s+([A-Z]{1,3})\s*(?:n(?:um[ée]ro|[°ºo])?\s*)?(\d{1,4})/i;
 
+  // La PARTIE NORMALISÉE d'un acte authentique présente le cadastre en TABLEAU, que pdf.js rend à
+  // plat : « Figurant ainsi au cadastre : Section N° Lieudit BH 81 9 RUE D ESCURES » — l'en-tête
+  // de colonnes suivi des valeurs. Le motif ci-dessus, écrit pour la rédaction en toutes lettres
+  // d'un avant-contrat, ne peut pas le voir. Motif distinct plutôt qu'alternative ajoutée au
+  // premier : il s'ancre sur cet en-tête précis, ce qui le rend sans risque de faux positif.
+  var RE_CADASTRE_TABLEAU = /cadastre\s*:?\s*Section\s+N[°ºo]?\s+Lieudit\s+([A-Z]{1,3})\s+(\d{1,4})\b/i;
+
   function detecterCadastre(texte) {
-    const m = RE_CADASTRE.exec(String(texte || ''));
+    const source = String(texte || '');
+    const m = RE_CADASTRE.exec(source) || RE_CADASTRE_TABLEAU.exec(source);
     return m ? { section: m[1].toUpperCase(), numero: m[2] } : null;
   }
 
@@ -3660,6 +3694,8 @@
     const certificatsUrbanisme = ((entree && entree.documentsDeposes) || []).map(analyserCertificatUrbanisme).filter(Boolean);
 
     const constats = []
+      .concat(constatsLectureActe(texte, pages))
+      .concat(constatsCoherenceActe(entree && entree.extraction))
       .concat(constatsTravauxRealises(travaux))
       .concat(constatsDocumentsDates(documents.filter(d => !clesEngagees.has(d.cle))))
       .concat(constatsEngagementsVendeur(engagements, justificatifs, aujourdHui))
@@ -3672,7 +3708,8 @@
     const resume = { CRITIQUE: 0, IMPORTANT: 0, A_VERIFIER: 0, INFORMATION: 0 };
     for (const c of constats) { if (resume[c.gravite] != null) resume[c.gravite]++; }
 
-    return { mode: 'compromis', constats, resume, travaux, documents, engagements, justificatifs,
+    return { mode: 'compromis', constats, resume, fiche: ficheActeOutil2(entree && entree.extraction, 'compromis'),
+      travaux, documents, engagements, justificatifs,
       ags, estCopropriete, etatsDates, certificatsUrbanisme, questions: questionsOutil2(constats), aujourdHui };
   }
 
@@ -4477,6 +4514,189 @@
   }
 
   // Point d'entrée du mode « projet de vente ». Comme le mode compromis : entièrement synchrone.
+  // ==== OUTIL 2 : LECTURE DE L'ACTE LUI-MÊME (section 1 du rapport) ============================
+  //
+  // Objectif principal redonné par l'étude : « lire le contenu de l'acte de vente, PUIS comparer
+  // avec l'avant-contrat, PUIS avec les annexes ». Trois sources, trois sections — et celle-ci ne
+  // dépend d'AUCUN autre document : c'est la plus fiable du rapport, d'où sa place en tête.
+  //
+  // Deux choses distinctes y figurent (arbitrage explicite de l'étude) :
+  //  • une FICHE D'IDENTITÉ toujours affichée, même quand tout va bien — sans elle, un rapport
+  //    vide ne dit pas si l'outil a lu l'acte ou s'il l'a seulement traversé ;
+  //  • les ALERTES lues dans le seul projet : ce que l'acte déclare et qui appelle une action.
+
+  // Une clause de NON-litige est une clause de style de presque tout acte (« il n'existe à ce jour
+  // aucune action ou litige en cours… ») : la retenir produirait une alerte sur chaque dossier.
+  // Même piège que RE_AUCUN_TRAVAUX et que la négation de copropriété, déjà payés ici.
+  var RE_AUCUN_LITIGE = /\b(?:aucun[e]?\s+(?:action|litige|proc[ée]dure|instance|contentieux)|n['’]existe\s+(?:[àa]\s+ce\s+jour\s+)?aucun|pas\s+de\s+(?:litige|proc[ée]dure|contentieux))/i;
+
+  // Un acte notarial emploie « procédure » à tout propos (procédure de préemption, d'appel de
+  // fonds, procédure de purge…) : seuls des marqueurs de VRAI contentieux sont retenus.
+  var RE_PROCEDURE_EN_COURS = /\b(?:proc[ée]dure\s+en\s+cours|instance\s+en\s+cours|litige\s+en\s+cours|proc[ée]dure\s+judiciaire|proc[ée]dure\s+d['’]assignation|assignation\s+(?:du|de\s+la|des|devant)|contentieux\s+en\s+cours|expertise\s+judiciaire|devant\s+le\s+tribunal)/i;
+
+  // Ce qui fait passer le constat de IMPORTANT à CRITIQUE : l'acquéreur reprend la procédure à son
+  // compte. C'est exactement la clause de l'acte réel envoyé par l'étude (subrogation).
+  var RE_CHARGE_ACQUEREUR_PROCEDURE = /\b(?:fai(?:re|t)\s+son\s+affaire\s+personnelle|subrog|se\s+substitue|reprend\s+[àa]\s+son\s+compte)/i;
+  var PORTEE_CLAUSE_PROCEDURE = 1200;
+
+  // Un document que l'acte déclare lui-même NON établi. Deux tournures notariales, le nom du
+  // document venant avant ou après : « Le diagnostic technique global n'a pas été établi. » /
+  // « il n'a pas été établi d'audit énergétique ».
+  var RE_DOCUMENT_NON_ETABLI = /\bn['’]a\s+pas\s+[ée]t[ée]\s+(?:[ée]tabli|fourni|remis|r[ée]alis[ée]|dress[ée])|\bn['’]ont\s+pas\s+[ée]t[ée]\s+(?:[ée]tablis|fournis|remis)|\bne\s+sera\s+pas\s+(?:[ée]tabli|fourni|remis)/i;
+
+  // … sauf quand l'acte DIT DANS LA MÊME CLAUSE pourquoi il en est dispensé (« il n'entre pas dans
+  // le champ d'application… par suite il n'a pas été établi d'audit énergétique »). L'acte a déjà
+  // répondu : le signaler reviendrait à poser une question sur chaque acte qui prend la peine de
+  // se justifier — la clause de style, encore, comme pour les travaux et la copropriété.
+  var RE_DISPENSE_DOCUMENT = /n['’]entre\s+pas\s+dans\s+le\s+champ\s+d['’]application|non\s+soumis|n['’]est\s+pas\s+soumis|dispens[ée]|sans\s+objet|non\s+applicable|n['’]est\s+pas\s+tenu/i;
+
+  // Les contrôles de cohérence qui décrivent une CONTRADICTION DANS L'ACTE, et non une limite de
+  // notre lecture. ADRESSE_INCOMPLETE et NOTAIRE_INSTRUMENTAIRE_INCERTAIN en sont volontairement
+  // absents : la fiche d'identité affiche déjà ces deux lignes comme « non trouvé », en faire en
+  // plus un constat dirait deux fois la même chose — la duplication que l'étude a fait retirer.
+  var CODES_COHERENCE_ACTE = ['SIGNATURE_EGALE_REITERATION', 'PRET_APRES_ACTE', 'PRET_EGALE_VENTE_PREALABLE',
+    'DATE_EXPLICITE_VS_DELAI', 'NOTAIRES_IDENTIQUES', 'TYPE_ACTE_VS_QUALITES'];
+
+  // Constats lus dans le SEUL acte principal — aucun autre document n'est nécessaire pour les
+  // établir. La date du jour n'entre pas ici : rien de ce qui suit n'en dépend.
+  function constatsLectureActe(texte, pages) {
+    const src = String(texte || '');
+    const constats = [];
+    const spans = [];
+
+    // Une plage est retenue AVANT les garde-fous, comme dans detecterTravauxRealises : une clause
+    // est jugée UNE fois, quel que soit le verdict. Sans ça, une clause écartée ne laisse aucune
+    // trace et un second mot déclencheur la fait rejuger sur une fenêtre décalée, qui repasse les
+    // garde-fous — le bug déjà payé sur les travaux.
+    const nouveau = (index, avant, apres) => {
+      const p = phraseAutour(src, index, avant, apres);
+      if (p.phrase.length < 25) return null;
+      if (spans.some(s => p.debut < s.fin && p.fin > s.debut)) return null;
+      spans.push({ debut: p.debut, fin: p.fin });
+      return p;
+    };
+
+    // 1) Procédure / litige en cours déclaré dans l'acte.
+    const reProc = new RegExp(RE_PROCEDURE_EN_COURS.source, 'gi');
+    let m;
+    while ((m = reProc.exec(src)) !== null) {
+      const p = nouveau(m.index, 250, 500);
+      if (!p) continue;
+      if (RE_AUCUN_LITIGE.test(p.phrase)) continue;
+      // La phrase citée s'arrête au premier point ; or « l'ACQUEREUR s'oblige à faire son affaire
+      // personnelle de cette procédure » arrive deux phrases plus loin dans l'acte réel envoyé par
+      // l'étude. On CITE court et on JUGE sur la clause entière — sans cette distinction, le cas
+      // le plus grave des deux ressortait au niveau le plus faible.
+      const repris = RE_CHARGE_ACQUEREUR_PROCEDURE.test(src.slice(p.debut, p.debut + PORTEE_CLAUSE_PROCEDURE));
+      constats.push({
+        categorie: 'ACTE',
+        gravite: repris ? 'CRITIQUE' : 'IMPORTANT',
+        titre: repris ? 'Procédure en cours, reprise par l’acquéreur' : 'Procédure en cours déclarée dans l’acte',
+        description: repris
+          ? "L'acquéreur s'oblige à faire son affaire personnelle de cette procédure : vérifier qu'il en mesure la portée et que le vendeur le subroge bien dans ses droits."
+          : "L'acte déclare une procédure ou un litige en cours : vérifier son objet, son état d'avancement et qui en supporte l'issue.",
+        phrase: p.phrase, page: pageDepuisIndexPages(pages, p.debut)
+      });
+    }
+
+    // 2) Document que l'acte déclare lui-même non établi.
+    const reDoc = new RegExp(RE_DOCUMENT_NON_ETABLI.source, 'gi');
+    while ((m = reDoc.exec(src)) !== null) {
+      const p = nouveau(m.index, 250, 300);
+      if (!p) continue;
+      if (RE_DISPENSE_DOCUMENT.test(p.phrase)) continue;
+      constats.push({
+        categorie: 'ACTE',
+        gravite: 'A_VERIFIER',
+        titre: 'Document déclaré non établi par l’acte',
+        description: "L'acte indique lui-même qu'un document n'a pas été établi ou fourni : vérifier s'il en est réellement dispensé, ou s'il reste à réclamer avant la signature.",
+        phrase: p.phrase, page: pageDepuisIndexPages(pages, p.debut)
+      });
+    }
+
+    return constats;
+  }
+
+  // Les contrôles de cohérence de l'extraction (prêt après l'acte, réitération = signature…) sont
+  // EXACTEMENT une lecture de l'acte seul : leur place est dans cette section plutôt que dans un
+  // panneau à part. Réutilisés tels quels, jamais recalculés.
+  function constatsCoherenceActe(extraction) {
+    const alertes = (extraction && extraction.alertes) || [];
+    return alertes
+      .filter(a => a && CODES_COHERENCE_ACTE.indexOf(a.code) !== -1)
+      .map(a => ({
+        categorie: 'ACTE',
+        gravite: a.gravite === 'critique' ? 'CRITIQUE' : 'A_VERIFIER',
+        titre: 'Incohérence dans les données de l’acte',
+        description: a.message,
+        phrase: '', page: null
+      }));
+  }
+
+  // Fiche d'identité : ce que l'outil a compris de l'acte, TOUJOURS affiché — y compris les lignes
+  // qu'il n'a pas trouvées, qui sont une information en soi. Fonction pure et testable : elle ne
+  // fait que mettre en forme l'objet d'extraction déjà calculé par construireExtractionRegex, sans
+  // jamais relire le texte ni compléter une valeur absente.
+  function ficheActeOutil2(extraction, mode) {
+    if (!extraction) return [];
+    const lignes = [];
+    const champ = (cle) => (extraction.champs && extraction.champs[cle]) || null;
+    const ajouter = (libelle, valeur, source) => {
+      lignes.push({ libelle, valeur: valeur || null, page: (source && source.page) || null });
+    };
+
+    // Le type d'acte ne figure QU'EN mode « compromis ». En mode « projet de vente », c'est le
+    // sélecteur de l'écran qui l'a dit, et detecterTypeActe ne connaît de toute façon que les
+    // avant-contrats (TYPES_ACTE) : afficher « non trouvé » sur un acte de vente donnerait
+    // l'impression d'un échec de lecture là où il n'y a rien à lire.
+    if (mode !== 'acte') {
+      const type = extraction.typeActe || {};
+      ajouter('Type d’acte', type.valeur && type.valeur !== 'INCONNU' ? (LIBELLES_TYPE_ACTE[type.valeur] || type.valeur) : null, type.source);
+    }
+
+    // detecterParties renvoie le rôle en CAPITALES (« VENDEUR »), le vocabulaire interne de
+    // l'extraction — comparer en minuscules vidait les deux lignes les plus attendues de la fiche.
+    const parties = Array.isArray(extraction.parties) ? extraction.parties : [];
+    const nomsPar = (role) => parties
+      .filter(p => String(p.role || '').toUpperCase() === role)
+      .map(p => p.nom).join(' & ');
+    ajouter('Vendeur(s)', nomsPar('VENDEUR') || null, null);
+    ajouter('Acquéreur(s)', nomsPar('ACQUEREUR') || null, null);
+
+    const bien = extraction.bien || {};
+    ajouter('Bien', (bien.adresse && bien.adresse.adresseComplete) || null, bien.source);
+    const cad = bien.cadastre;
+    ajouter('Cadastre', cad ? `section ${cad.section} n° ${cad.numero}` : null, null);
+
+    const prix = champ('prixVente');
+    ajouter('Prix', prix && prix.valeur ? formaterPrix(prix.valeur) : null, prix && prix.source);
+
+    const not = extraction.notaires || {};
+    ajouter('Notaire du vendeur', libelleNotaire(not.vendeur) || null, null);
+    ajouter('Notaire de l’acquéreur', libelleNotaire(not.acquereur) || null, null);
+
+    // Dépôt de garantie et dates butoir appartiennent à l'AVANT-CONTRAT : un acte de vente n'en
+    // porte pas, et quatre lignes « non trouvé » y seraient du bruit, pas une information.
+    if (mode !== 'acte') {
+      const depot = champ('depotGarantie');
+      ajouter('Dépôt de garantie', depot && depot.valeur ? formaterPrix(depot.valeur) : null, depot && depot.source);
+      const sequestre = champ('sequestreDepot');
+      ajouter('Séquestré chez', (sequestre && sequestre.valeur) || null, sequestre && sequestre.source);
+
+      const dates = extraction.dates || {};
+      const dateLigne = (cle, libelle) => {
+        const d = dates[cle];
+        ajouter(libelle, d && d.valeur ? formatDateFr(d.valeur) : null, d && d.source);
+      };
+      dateLigne('SIGNATURE_AVANT_CONTRAT', 'Signature de l’avant-contrat');
+      dateLigne('BUTOIR_PRET', 'Obtention du prêt');
+      dateLigne('BUTOIR_VENTE_PREALABLE', 'Vente préalable');
+      dateLigne('REITERATION_ACTE', 'Date butoir de réitération');
+    }
+
+    return lignes;
+  }
+
   function analyserProjetVenteOutil2(entree) {
     const aujourdHui = (entree && entree.aujourdHui) || new Date().toISOString().slice(0, 10);
     const texteAvantContrat = (entree && entree.texteAvantContrat) || '';
@@ -4531,6 +4751,8 @@
     const conditionPermis = RE_CONDITION_PERMIS.test(texteAvantContrat) || RE_CONDITION_PERMIS.test(texteProjet);
 
     const constats = []
+      .concat(constatsLectureActe(texteProjet, pagesProjet))
+      .concat(constatsCoherenceActe(entree && entree.projet))
       .concat(comparaison)
       .concat(constatsObligationsOutil2(obligations))
       .concat(constatsTravauxNonRepris(travaux, texteProjet))
@@ -4544,7 +4766,8 @@
     const resume = { CRITIQUE: 0, IMPORTANT: 0, A_VERIFIER: 0, INFORMATION: 0 };
     for (const c of constats) { if (resume[c.gravite] != null) resume[c.gravite]++; }
 
-    return { mode: 'acte', constats, resume, obligations, comparaison, travaux, ags, estCopropriete,
+    return { mode: 'acte', constats, resume, fiche: ficheActeOutil2(entree && entree.projet, 'acte'),
+      obligations, comparaison, travaux, ags, estCopropriete,
       etatsDates, certificatsUrbanisme, estTerrain, permis, purgePermis,
       questions: questionsOutil2(constats), dateAvantContrat, dateVente, aujourdHui };
   }
@@ -14758,21 +14981,47 @@
     </section>`;
   }
 
-  // Sections du rapport, dans l'ordre de lecture. Les quatre premières sont les quatre thèmes
-  // arrêtés avec l'étude pour le mode « lecture du compromis » ; les deux suivantes appartiennent
-  // au mode « projet de vente ». Une catégorie sans constat ne s'affiche pas du tout.
-  var CATEGORIES_RAPPORT_OUTIL2 = [
-    { cle: 'COMPARAISON_COMPROMIS', titre: "Écarts avec l'avant-contrat" },
-    { cle: 'TRAVAUX_REALISES', titre: 'Travaux déjà réalisés sur le bien' },
-    { cle: 'DIAGNOSTICS', titre: 'Diagnostics' },
-    { cle: 'ENTRETIENS', titre: 'Entretiens à justifier' },
-    { cle: 'DOCUMENTS', titre: 'Documents à obtenir du vendeur' },
-    { cle: 'TRAVAUX_A_FAIRE', titre: 'Travaux à réaliser avant la vente' },
-    { cle: 'COPROPRIETE', titre: 'Assemblées générales de copropriété' },
-    { cle: 'ETAT_DATE', titre: 'État daté / pré-état daté' },
-    { cle: 'URBANISME', titre: "Certificat d’urbanisme" },
-    { cle: 'PERMIS', titre: 'Permis de construire (terrain à bâtir)' },
-    { cle: 'IA', titre: 'Relecture complémentaire par le modèle local' }
+  // Le rapport est organisé par SOURCE, dans l'ordre de lecture donné par l'étude : « lire le
+  // contenu de l'acte de vente, PUIS comparer avec l'avant-contrat, PUIS avec les annexes ».
+  //
+  // Règle d'affectation, à garder en tête avant d'ajouter une catégorie : une section est définie
+  // par le DOCUMENT qu'il faut ouvrir pour trancher le point. Un constat qui touche deux sources
+  // n'apparaît QU'UNE fois, dans la section de la source la plus fragile (celle qui peut manquer)
+  // — répéter le même constat dans deux sections recréerait la duplication que l'étude a déjà
+  // fait retirer une fois.
+  var SECTIONS_RAPPORT_OUTIL2 = [
+    {
+      cle: 'ACTE',
+      titre: 'Ce que dit l’acte',
+      source: 'Établi à partir du document principal seul.'
+    },
+    {
+      cle: 'AVANT_CONTRAT',
+      titre: 'Écarts avec l’avant-contrat',
+      source: 'Établi en comparant le projet à l’avant-contrat signé.'
+    },
+    {
+      cle: 'ANNEXES',
+      titre: 'Ce que les annexes apportent',
+      source: 'Établi à partir des pièces déposées avec l’acte.'
+    }
+  ];
+
+  // Les catégories restent celles que produisent les détecteurs : seul leur regroupement change.
+  // Sous-titres conservés à l'intérieur de chaque section — ils disent ce que le constat concerne,
+  // là où la section dit d'où il vient.
+  var SOUS_SECTIONS_RAPPORT_OUTIL2 = [
+    { cle: 'ACTE', section: 'ACTE', titre: 'Déclarations et cohérence de l’acte' },
+    { cle: 'TRAVAUX_REALISES', section: 'ACTE', titre: 'Travaux déjà réalisés sur le bien' },
+    { cle: 'DIAGNOSTICS', section: 'ACTE', titre: 'Diagnostics' },
+    { cle: 'ENTRETIENS', section: 'ACTE', titre: 'Entretiens à justifier' },
+    { cle: 'DOCUMENTS', section: 'ACTE', titre: 'Documents à obtenir du vendeur' },
+    { cle: 'TRAVAUX_A_FAIRE', section: 'ACTE', titre: 'Travaux à réaliser avant la vente' },
+    { cle: 'COMPARAISON_COMPROMIS', section: 'AVANT_CONTRAT', titre: 'Différences relevées' },
+    { cle: 'COPROPRIETE', section: 'ANNEXES', titre: 'Assemblées générales de copropriété' },
+    { cle: 'ETAT_DATE', section: 'ANNEXES', titre: 'État daté / pré-état daté' },
+    { cle: 'URBANISME', section: 'ANNEXES', titre: 'Certificat d’urbanisme' },
+    { cle: 'PERMIS', section: 'ANNEXES', titre: 'Permis de construire (terrain à bâtir)' }
   ];
 
   // Le dernier rapport affiché, pour le redessiner après une décision sur un constat (ou après
@@ -14850,13 +15099,80 @@
     const bouts = [];
     if (resultat.mode === 'acte') {
       bouts.push(`${(resultat.obligations || []).length} engagement(s) du vendeur relevé(s) dans l'avant-contrat`);
-      if (resultat.nbJustificatifs) bouts.push(`${resultat.nbJustificatifs} justificatif(s) déposé(s)`);
+      // Le compte est affiché même à zéro : « aucune annexe déposée » explique la moitié du
+      // rapport, et le taire laisse croire que les pièces ont été lues sans rien donner.
+      bouts.push(`${resultat.nbJustificatifs || 0} justificatif(s) déposé(s)`);
     } else {
       bouts.push(`${(resultat.travaux || []).length} déclaration(s) de travaux`);
       bouts.push(`${(resultat.documents || []).length} document(s) daté(s) repéré(s)`);
       bouts.push(`${(resultat.engagements || []).length} engagement(s) du vendeur`);
     }
     return `<p class="hint">Analysé : ${escapeHtml(bouts.join(' · '))}.</p>`;
+  }
+
+  // La fiche d'identité, en tête de la section 1 : ce que l'outil a compris de l'acte, TOUJOURS
+  // affiché, y compris les lignes qu'il n'a pas trouvées. Sans elle, un rapport sans constat ne
+  // dit pas si l'acte a été lu ou seulement traversé — c'est exactement ce qui manquait sur le
+  // projet réel envoyé par l'étude, où le rapport ne portait que « vous ne m'avez pas donné le
+  // document ». Une valeur absente s'affiche « non trouvé » : jamais devinée, jamais complétée.
+  function renderFicheActe(fiche) {
+    const lignes = Array.isArray(fiche) ? fiche : [];
+    if (lignes.length === 0) return '';
+    const cases = lignes.map(l => `<div class="fiche-acte-case">
+      <span class="fiche-acte-libelle">${escapeHtml(l.libelle)}</span>
+      <span class="fiche-acte-valeur${l.valeur ? '' : ' fiche-acte-absent'}">${escapeHtml(l.valeur || 'non trouvé')}</span>
+      ${l.page ? `<span class="fiche-acte-page">p.${escapeHtml(String(l.page))}</span>` : ''}
+    </div>`).join('');
+    return `<div class="fiche-acte">${cases}</div>`;
+  }
+
+  // Un bloc = une SOURCE. Il porte son titre, la phrase qui dit d'où viennent ses constats, puis
+  // ses sous-sections. Quand il n'a rien à montrer il ne se tait pas : il dit POURQUOI (aucune
+  // annexe déposée, aucun écart relevé…). Se taire ferait lire « rien à signaler » là où il faut
+  // lire « rien n'a pu être contrôlé » — la confusion même que l'étude a signalée.
+  function renderBlocAudit(bloc, resultat, constats) {
+    let corps = '';
+    let vide = true;
+
+    if (bloc.cle === 'ACTE') {
+      const fiche = renderFicheActe(resultat.fiche);
+      if (fiche) { corps += fiche; vide = false; }
+    }
+
+    // Mode « projet de vente » : le tableau des obligations ouvre la section « avant-contrat »
+    // — c'est bien une comparaison (l'engagement pris ‖ ce que le projet en dit ‖ le justificatif)
+    // et il remplace la catégorie OBLIGATIONS des constats, qui redirait la même chose.
+    if (bloc.cle === 'AVANT_CONTRAT' && resultat.mode === 'acte' && (resultat.obligations || []).length) {
+      corps += renderSectionAudit('Engagements du vendeur — avant-contrat, projet, justificatif',
+        resultat.obligations, renderObligationAudit);
+      vide = false;
+    }
+
+    for (const sous of SOUS_SECTIONS_RAPPORT_OUTIL2) {
+      if (sous.section !== bloc.cle) continue;
+      const html = renderSectionAudit(sous.titre, constats.filter(c => c.categorie === sous.cle), renderConstatAudit);
+      if (html) { corps += html; vide = false; }
+    }
+
+    if (vide) corps = `<p class="hint">${escapeHtml(messageBlocAuditVide(bloc, resultat))}</p>`;
+
+    return `<section class="audit-bloc">
+      <h2 class="audit-bloc-titre">${escapeHtml(bloc.titre)}</h2>
+      <p class="audit-bloc-source">${escapeHtml(bloc.source)}</p>
+      ${corps}
+    </section>`;
+  }
+
+  function messageBlocAuditVide(bloc, resultat) {
+    if (bloc.cle === 'AVANT_CONTRAT') {
+      return "Aucun écart relevé entre l'avant-contrat et le projet, et aucun engagement du vendeur repéré dans l'avant-contrat.";
+    }
+    if (bloc.cle === 'ANNEXES') {
+      return resultat.nbJustificatifs
+        ? "Rien à signaler dans les pièces déposées, pour les seuls points contrôlés par l'outil."
+        : "Aucune annexe déposée : les diagnostics, l'état daté, le certificat d'urbanisme et les procès-verbaux d'assemblée n'ont pas pu être contrôlés.";
+    }
+    return "Rien à signaler dans le document principal, pour les seuls points contrôlés par l'outil.";
   }
 
   function renderRapportAuditActe(resultat) {
@@ -14874,26 +15190,15 @@
     html += renderCouvertureAudit(resultat.couvertureDocuments);
 
     const constats = resultat.constats || [];
-    if (constats.length === 0) {
-      html += `<div class="audit-vide">
-        <span class="dot-label dl-success">${icone('check')}Aucun danger relevé par les règles</span>
-        <p>Sur les documents fournis, et pour les seuls points contrôlés par l'outil (listés sous ce rapport). Cela ne dispense pas de la relecture.</p>
-      </div>`;
+
+    for (const bloc of SECTIONS_RAPPORT_OUTIL2) {
+      // En mode « compromis », il n'y a rien à comparer : le document analysé EST l'avant-contrat.
+      if (bloc.cle === 'AVANT_CONTRAT' && resultat.mode !== 'acte') continue;
+      html += renderBlocAudit(bloc, resultat, constats);
     }
 
-    // Mode « projet de vente » : le tableau des obligations passe en tête et remplace la section
-    // OBLIGATIONS des constats (ce serait la même information dite deux fois) — les obligations
-    // tenues n'y figureraient de toute façon pas, alors qu'elles font partie du résultat.
-    if (resultat.mode === 'acte') {
-      html += (resultat.obligations || []).length
-        ? renderSectionAudit("Engagements du vendeur — avant-contrat, projet, justificatif", resultat.obligations, renderObligationAudit)
-        : "<p class=\"hint\">Aucun engagement du vendeur relevé dans l'avant-contrat de référence.</p>";
-    }
-
-    for (const section of CATEGORIES_RAPPORT_OUTIL2) {
-      html += renderSectionAudit(section.titre, constats.filter(c => c.categorie === section.cle), renderConstatAudit);
-    }
-
+    html += renderSectionAudit('Relecture complémentaire par le modèle local',
+      constats.filter(c => c.categorie === 'IA'), renderConstatAudit);
     html += renderQuestionsAudit(resultat.questions);
     html += renderBoutonApprofondirIa(resultat);
     zone.innerHTML = html;
@@ -15074,8 +15379,13 @@
         resultat = analyserCompromisOutil2({
           texte: principal.texte,
           pages: principal.pages,
-          documentsDeposes: justificatifs
+          documentsDeposes: justificatifs,
+          // Même objet d'extraction qu'en mode « acte » : il alimente la fiche d'identité et les
+          // contrôles de cohérence de la section 1. Rien de nouveau n'est lu — ce sont les regex
+          // d'Outil 1 appliquées au texte déjà en mémoire.
+          extraction: construireExtractionRegex(principal.texte, null, null, principal.nom)
         });
+        resultat.nbJustificatifs = justificatifs.length;
         resultat.couvertureDocuments = fichiersOk.map(f => ({ nom: f.nom, pagesLues: f.pagesLues, pagesTotal: f.pagesTotal, viaOcr: f.viaOcr, tronque: f.tronque }));
       }
 
