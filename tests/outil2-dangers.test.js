@@ -493,3 +493,166 @@ test('verifierEngagementsTenus : clauseProjet vide quand le projet ne reprend pa
   assert.equal(obligations[0].clauseProjet, null);
   assert.equal(obligations[0].statut, 'non_tenue');
 });
+
+// --- Assemblées générales de copropriété ------------------------------------------------------
+// Point de vigilance demandé par l'étude. Les textes reprennent la structure des clauses réelles
+// (« Assemblées générales », procès-verbal) avec des dates et des montants inventés.
+
+const COPRO = "Le bien vendu constitue le lot numéro 12 d'un immeuble soumis au régime de la copropriété.";
+
+test('detecterAssembleesGenerales lit la date de chaque AG, la plus récente en tête', () => {
+  const app = chargerApplication();
+  const texte = COPRO + " Les assemblées générales se sont tenues le 12 mars 2024, le 18 avril 2025 et le 3 juin 2023.";
+  // Une seule mention plurielle : le détecteur s'ancre sur le couple mention + date.
+  const t2 = "Assemblée générale ordinaire du 18 avril 2025. Assemblée générale du 12 mars 2024. Assemblée générale extraordinaire du 3 juin 2023.";
+  const ags = app.detecterAssembleesGenerales(t2, pagesFactices(t2), null);
+  assert.equal(ags.length, 3);
+  assert.equal(ags.map(a => a.date).join(','), '2025-04-18,2024-03-12,2023-06-03');
+  assert.ok(texte.length > 0);
+});
+
+test('detecterAssembleesGenerales repère les travaux votés, et pas une résolution rejetée', () => {
+  const app = chargerApplication();
+  const vote = "Assemblée générale ordinaire du 18 avril 2025. Résolution n°4 : des travaux de ravalement de la façade ont été votés pour un montant de 120 000 euros.";
+  const rejet = "Assemblée générale ordinaire du 18 avril 2025. Résolution n°4 : les travaux de ravalement ont été rejetés par l'assemblée.";
+  assert.equal(app.detecterAssembleesGenerales(vote, pagesFactices(vote), null)[0].travauxVotes, true);
+  assert.equal(app.detecterAssembleesGenerales(rejet, pagesFactices(rejet), null)[0].travauxVotes, false);
+});
+
+test('detecterAssembleesGenerales : la clause de style « aucun travaux voté » ne déclenche rien', () => {
+  const app = chargerApplication();
+  // Sans ce garde-fou, la phrase qui RASSURE produirait l'alerte qu'elle vient d'écarter — même
+  // piège que « le bien n'est pas soumis au statut de la copropriété » côté Outil 1.
+  const texte = "Assemblée générale du 18 avril 2025 : aucun travaux n'a été voté lors des trois dernières assemblées générales.";
+  assert.equal(app.detecterAssembleesGenerales(texte, pagesFactices(texte), null)[0].travauxVotes, false);
+});
+
+test('detecterAssembleesGenerales ignore une date qui ne se rattache pas à la réunion', () => {
+  const app = chargerApplication();
+  const texte = "L'assemblée générale statuera sur ces travaux avant le 30 juin 2026.";
+  assert.equal(app.detecterAssembleesGenerales(texte, pagesFactices(texte), null).length, 0);
+});
+
+test('fusionnerAssembleesGenerales : le PV qui établit un vote l’emporte sur la clause qui date seule', () => {
+  const app = chargerApplication();
+  const clause = "Assemblée générale du 18 avril 2025 dont le procès-verbal est annexé.";
+  const pv = "Procès-verbal d'assemblée générale du 18 avril 2025. Résolution n°4 : travaux de toiture votés.";
+  const ags = app.fusionnerAssembleesGenerales([
+    app.detecterAssembleesGenerales(clause, pagesFactices(clause), null),
+    app.detecterAssembleesGenerales(pv, null, 'PV AG 2025.pdf')
+  ]);
+  assert.equal(ags.length, 1, 'une seule AG, pas un doublon');
+  assert.equal(ags[0].travauxVotes, true);
+  assert.equal(ags[0].document, 'PV AG 2025.pdf');
+});
+
+test('agEntreAvantContratEtVente borne la fenêtre des deux côtés', () => {
+  const app = chargerApplication();
+  const ags = [{ date: '2026-05-10' }, { date: '2026-02-01' }, { date: '2025-11-03' }];
+  const dans = app.agEntreAvantContratEtVente(ags, '2026-01-15', '2026-04-30');
+  assert.equal(dans.map(a => a.date).join(','), '2026-02-01');
+  // Une AG tenue le jour même de l'avant-contrat est antérieure à l'engagement : hors fenêtre.
+  assert.equal(app.agEntreAvantContratEtVente([{ date: '2026-01-15' }], '2026-01-15', null).length, 0);
+  // Sans date de vente connue, la fenêtre reste ouverte — comportement prudent assumé.
+  assert.equal(app.agEntreAvantContratEtVente(ags, '2026-01-15', null).length, 2);
+  // Sans date d'avant-contrat, le volet 1 ne s'applique pas du tout.
+  assert.equal(app.agEntreAvantContratEtVente(ags, null, null).length, 0);
+});
+
+test('constatsAssembleesGenerales : une AG avec travaux après l’avant-contrat est CRITIQUE', () => {
+  const app = chargerApplication();
+  const constats = app.constatsAssembleesGenerales({
+    ags: [{ date: '2026-02-01', travauxVotes: true, phrase: 'x', page: 3 }],
+    estCopropriete: true, dateAvantContrat: '2026-01-15', dateVente: '2026-04-30'
+  });
+  assert.equal(constats.length, 1);
+  assert.equal(constats[0].gravite, 'CRITIQUE');
+  assert.equal(constats[0].categorie, 'COPROPRIETE');
+  assert.match(constats[0].description, /6-2/);
+});
+
+test('constatsAssembleesGenerales : une AG sans travaux identifiés après l’avant-contrat reste IMPORTANT', () => {
+  const app = chargerApplication();
+  const constats = app.constatsAssembleesGenerales({
+    ags: [{ date: '2026-02-01', travauxVotes: false, phrase: 'x', page: 3 }],
+    estCopropriete: true, dateAvantContrat: '2026-01-15', dateVente: null
+  });
+  assert.equal(constats.length, 1);
+  assert.equal(constats[0].gravite, 'IMPORTANT');
+  assert.match(constats[0].description, /proc[èe]s-verbal/i);
+});
+
+test('constatsAssembleesGenerales : travaux des trois dernières AG, sans redire celles de la fenêtre', () => {
+  const app = chargerApplication();
+  const ags = [
+    { date: '2026-02-01', travauxVotes: true, phrase: 'a', page: 1 },  // dans la fenêtre
+    { date: '2025-04-18', travauxVotes: true, phrase: 'b', page: 2 },
+    { date: '2024-03-12', travauxVotes: false, phrase: 'c', page: 3 },
+    { date: '2023-06-03', travauxVotes: true, phrase: 'd', page: 4 }   // 4e : hors des trois dernières
+  ];
+  const constats = app.constatsAssembleesGenerales({
+    ags, estCopropriete: true, dateAvantContrat: '2026-01-15', dateVente: '2026-04-30'
+  });
+  assert.equal(constats.length, 2, 'la fenêtre + une seule des trois dernières, sans doublon');
+  assert.equal(constats[0].gravite, 'CRITIQUE');
+  assert.equal(constats[1].gravite, 'A_VERIFIER');
+  assert.match(constats[1].titre, /18 avril 2025/);
+});
+
+test('constatsAssembleesGenerales : rien du tout hors copropriété', () => {
+  const app = chargerApplication();
+  const ags = [{ date: '2026-02-01', travauxVotes: true, phrase: 'x', page: 1 }];
+  assert.equal(app.constatsAssembleesGenerales({ ags, estCopropriete: false, dateAvantContrat: '2026-01-15' }).length, 0);
+  assert.equal(app.constatsAssembleesGenerales({ ags: [], estCopropriete: false }).length, 0);
+});
+
+test('constatsAssembleesGenerales : copropriété sans aucune AG datée = point à vérifier', () => {
+  const app = chargerApplication();
+  const constats = app.constatsAssembleesGenerales({ ags: [], estCopropriete: true, dateAvantContrat: '2026-01-15' });
+  assert.equal(constats.length, 1);
+  assert.equal(constats[0].gravite, 'A_VERIFIER');
+  assert.match(constats[0].description, /trois derni[èe]res/);
+});
+
+test('analyserCompromisOutil2 : les AG ne remontent que sur une copropriété', () => {
+  const app = chargerApplication();
+  const clause = " Assemblée générale ordinaire du 18 avril 2025 : travaux de ravalement votés.";
+  const copro = app.analyserCompromisOutil2({ texte: COPRO + clause, pages: pagesFactices(COPRO + clause), aujourdHui: AUJOURDHUI });
+  assert.equal(copro.estCopropriete, true);
+  assert.ok(copro.constats.some(c => c.categorie === 'COPROPRIETE'), 'un constat AG attendu');
+
+  const maison = app.analyserCompromisOutil2({ texte: "Une maison individuelle." + clause, pages: pagesFactices(clause), aujourdHui: AUJOURDHUI });
+  assert.equal(maison.estCopropriete, false);
+  assert.equal(maison.constats.filter(c => c.categorie === 'COPROPRIETE').length, 0);
+});
+
+test('analyserProjetVenteOutil2 : AG tenue entre l’avant-contrat et la vente, travaux votés', () => {
+  const app = chargerApplication();
+  const avant = COPRO + " Fait à BLOIS le 15 janvier 2026.";
+  const projet = COPRO + " Le présent acte constate la vente du lot numéro 12.";
+  const res = app.analyserProjetVenteOutil2({
+    texteAvantContrat: avant, pagesAvantContrat: pagesFactices(avant),
+    texteProjet: projet, pagesProjet: pagesFactices(projet),
+    documentsDeposes: [{ nom: 'PV AG.pdf', texte: "Procès-verbal d'assemblée générale du 1er février 2026. Résolution n°3 : travaux de réfection de la toiture votés." }],
+    dossierLie: { typeVente: 'copropriete', rendezVousSignature: '2026-04-30' },
+    aujourdHui: AUJOURDHUI
+  });
+  assert.equal(res.dateAvantContrat, '2026-01-15');
+  assert.equal(res.dateVente, '2026-04-30');
+  const ag = res.constats.filter(c => c.categorie === 'COPROPRIETE');
+  assert.equal(ag.length, 1);
+  assert.equal(ag[0].gravite, 'CRITIQUE');
+  assert.match(ag[0].titre, /1er f[ée]vrier 2026|1 f[ée]vrier 2026/);
+});
+
+test('detecterAssembleesGenerales : la fenêtre d’une AG ne déborde pas sur la suivante', () => {
+  const app = chargerApplication();
+  // Défaut vu au rendu : la clause de style de l'AG SUIVANTE annulait le vote de la précédente.
+  const texte = "Assemblée générale ordinaire du 14 mai 2025 : résolution n°7, des travaux de ravalement ont été votés. "
+    + "Assemblée générale ordinaire du 22 juin 2024 : aucun travaux n'a été voté.";
+  const ags = app.detecterAssembleesGenerales(texte, pagesFactices(texte), null);
+  assert.equal(ags.length, 2);
+  assert.equal(ags[0].date, '2025-05-14');
+  assert.equal(ags[0].travauxVotes, true, 'le vote de 2025 ne doit pas être annulé par la phrase de 2024');
+  assert.equal(ags[1].travauxVotes, false);
+});

@@ -6504,6 +6504,73 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
     constat, amiante de 2011 signalé périmé, sections comptées, aucune erreur JS, aucun débordement
     horizontal.
 
+- **Outil 2 : assemblées générales de copropriété**, point de vigilance demandé par l'étude en
+  deux volets : « vérifier s'il y a eu une assemblée générale des copropriétaires entre l'avant-
+  contrat et la date de signature de la vente et si des travaux ont été votés dans cette
+  assemblée », et « détecter aussi les travaux votés dans les trois dernières assemblées générales
+  de manière générale ». Nouvelle section « Assemblées générales de copropriété » dans le rapport,
+  et nouvelle catégorie `COPROPRIETE` dans `CATEGORIES_RAPPORT_OUTIL2`.
+  - **Uniquement sur une copropriété** (`detecterTypeVenteCopropriete` sur le projet ou
+    l'avant-contrat, ou `d.typeVente === 'copropriete'` sur le dossier lié) : `constatsAssembleesGenerales`
+    retourne une liste vide sinon, sans même regarder les AG relevées. Sur une maison, une clause
+    qui cite une assemblée (lotissement, ASL) ne doit rien produire.
+  - **Volet 1 — l'AG dans la fenêtre** (mode « projet de vente » seulement) : la fenêtre va de la
+    signature de l'avant-contrat (`detecterDateCompromis` sur son texte) à celle de la vente. Cette
+    dernière n'existe pas encore — le projet n'est pas signé —, elle est donc prise sur le dossier
+    lié (`rendezVousSignature || acte`) ; **sans dossier lié la fenêtre reste OUVERTE**, toute AG
+    postérieure à l'avant-contrat est alors signalée, ce qui est le comportement prudent. Une AG
+    tenue le jour MÊME de l'avant-contrat est hors fenêtre : elle est antérieure à l'engagement,
+    elle relève du volet 2 (testé). Travaux votés → CRITIQUE, avec le rappel de l'art. 6-2 de la
+    loi du 10 juillet 1965 (sauf convention contraire, c'est celui qui est copropriétaire à la date
+    d'exigibilité de l'appel de fonds qui doit) ; AG sans travaux identifiés → IMPORTANT, avec
+    l'invitation à relire le procès-verbal. En mode « compromis » ce volet ne s'applique pas du
+    tout : ce document n'est justement pas encore signé (`dateAvantContrat` vaut `null`).
+  - **Volet 2 — les trois dernières AG** (`NB_AG_A_EXAMINER`) : seules celles où des travaux ont été
+    votés produisent un constat, en A_VERIFIER, et **celles déjà signalées par le volet 1 en sont
+    retirées** — les redire serait le doublon que le rapport évite déjà ailleurs (voir
+    `clesEngagees` dans `analyserCompromisOutil2`).
+  - **Copropriété sans aucune AG datée** → A_VERIFIER : les PV des trois dernières assemblées font
+    partie de ce que le vendeur doit remettre, leur absence est en soi le point à vérifier.
+  - **Trois sources lues, et fusionnées** (`fusionnerAssembleesGenerales`) : la clause
+    « Assemblées générales » de l'avant-contrat les DATE, le projet les reprend, et c'est le PV
+    déposé en justificatif qui dit ce qui y a été VOTÉ. Une même AG citée deux fois n'apparaît donc
+    qu'une, et **la version qui établit un vote l'emporte sur celle qui n'en dit rien**.
+  - **Une AG n'est retenue que datée** (`RE_MENTION_AG` + `RE_CONNECTEUR_DATE_AG`) : le mot seul
+    apparaît dans des clauses de style (« les décisions d'assemblée générale s'imposent à
+    l'acquéreur ») qui ne désignent aucune réunion. **Le connecteur est ancré des deux bouts** —
+    un simple `(?:du|le)\s*$` acceptait « l'assemblée générale statuera sur ces travaux AVANT LE
+    30 juin 2026 », c'est-à-dire une échéance à venir prise pour une réunion tenue (test de
+    régression dédié).
+  - **Deux garde-fous sur le vote** : une résolution rejetée/ajournée ne compte pas
+    (`RE_RESOLUTION_REJETEE`), et la clause de style « aucun travaux n'a été voté lors des trois
+    dernières assemblées » non plus (`RE_AUCUN_TRAVAUX_VOTE`) — sans ce second, la phrase qui
+    RASSURE produirait exactement l'alerte qu'elle vient d'écarter, même piège que « le bien n'est
+    pas soumis au statut de la copropriété » côté Outil 1.
+  - **Défaut vu au rendu, pas en relisant le code, et corrigé** : la fenêtre de lecture des travaux
+    (`FENETRE_TRAVAUX_AG`, 900 caractères) débordait sur l'AG SUIVANTE. Sur « AG du 14 mai 2025 :
+    travaux de ravalement votés. AG du 22 juin 2024 : aucun travaux n'a été voté. », la phrase de
+    style de la SECONDE annulait le vote de la PREMIÈRE — un vrai travail voté disparaissait du
+    rapport. `detecterAssembleesGenerales` fait désormais deux passes : les mentions d'abord, les
+    fenêtres ensuite, chacune fermée par la mention suivante. Les tests unitaires ne l'avaient pas
+    attrapé : ils ne portaient qu'une AG par texte.
+  - Tests : 13 nouveaux dans `tests/outil2-dangers.test.js` (dates lues et triées, vote vs rejet,
+    clause de style, date non rattachée à la réunion, fusion multi-documents, les quatre cas de
+    bornes de fenêtre, les gravités des deux volets, le dédoublonnage entre volets, le silence hors
+    copropriété, la copropriété sans AG, les deux modes de bout en bout, et la régression de la
+    fenêtre débordante). Suite racine 535 → 549, serveur inchangée (202 — chantier entièrement côté
+    client). La note « Ce que cette relecture contrôle » de l'écran est complétée dans les deux
+    modes : sans ça, elle annonçait un périmètre devenu faux.
+  - **Vérifié dans un vrai Chromium** (serveur réel, clair et sombre, 1500px et 400px) sur un
+    avant-contrat de copropriété citant deux AG + un PV déposé : fenêtre correctement calculée
+    (15/01/2026 → 30/04/2026), trois AG fusionnées sans doublon, un constat CRITIQUE pour l'AG du
+    3 février 2026 et un A_VERIFIER pour celle du 14 mai 2025, section comptée à 2, aucune erreur
+    JS, aucun débordement horizontal.
+  - **Limite connue, non corrigée ici** : `detecterDateCompromis` ne reconnaît pas « Le présent
+    compromis a été signé à BLOIS le … » (elle reconnaît « Fait à … le … », « signé
+    électroniquement le … », « a signé à … le … »). Sur un avant-contrat rédigé ainsi, la fenêtre
+    du volet 1 ne se calcule pas et seul le volet 2 s'applique — limite ancienne de cette fonction,
+    hors du périmètre de cette demande, à traiter avec un extrait réel comme le reste de ce fichier.
+
 ## Ce qui reste ouvert / pas encore fait
 
 - **Générateur d'appel de fonds : l'aperçu de pagination A4 de l'artefact n'est pas repris**
