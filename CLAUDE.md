@@ -6910,6 +6910,71 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
     déjà saisie sur un dossier incomplet, et rien qui ne la justifie. Un test existant encodait
     l'ancienne règle et a été mis à jour plutôt que contourné. Suite racine 583 → 586.
 
+- **Outil 2, terrain à bâtir : le permis de construire de l'acquéreur, et la purge de ses deux
+  délais.** Demandé par l'étude, avec la consigne explicite d'**apprendre les délais sur internet**
+  plutôt que de les écrire de mémoire — consigne suivie, et c'est elle qui a fait apparaître un
+  changement de loi récent qu'un délai appris par cœur aurait manqué.
+  - **Deux délais, deux points de départ DIFFÉRENTS — c'est tout le sujet, et l'erreur qu'on ferait
+    en les confondant** : le **retrait administratif** court **3 mois depuis la date de l'arrêté**
+    (art. L.424-5 c. urb. : au-delà, la mairie ne peut plus retirer un permis illégal) ; le
+    **recours des tiers** court **2 mois depuis le PREMIER JOUR d'un affichage continu de deux mois
+    sur le terrain** (art. R.600-2), **jamais depuis l'arrêté**. Compter le recours depuis l'arrêté
+    — le raccourci naturel — donnerait un permis « purgé » deux mois trop tôt, sur un terrain que
+    l'étude s'apprête à faire vendre.
+  - **Sans constat d'affichage, le délai de recours NE COURT PAS.** Ce n'est pas un délai en cours
+    dont on ignorerait la fin : c'est un compteur qui n'a jamais démarré, et il peut donc encore
+    courir des années plus tard. D'où un statut à part (`'non-demarre'`, distinct de `'inconnu'`)
+    et une formulation de constat qui le dit en toutes lettres — un « délai en cours » laisserait
+    croire qu'il suffit d'attendre. Un test vérifie qu'un affichage manquant ne devient jamais
+    « purgé », même dix ans après l'arrêté.
+  - **Loi n° 2025-1129 du 26 novembre 2025 (« loi Huwart »), trouvée en cherchant**, applicable aux
+    décisions d'urbanisme prises **à partir du 28 novembre 2025** : le recours gracieux est ramené
+    à un mois et ne prolonge plus le délai contentieux. Pour un permis antérieur, l'ancien régime
+    s'applique — un recours gracieux déposé dans les deux mois rouvrait un nouveau délai de deux
+    mois, qu'un simple calendrier ne peut pas connaître. `ancienRegimeRecoursGracieux` (dérivé de
+    la seule comparaison de la date d'arrêté à `DATE_LOI_SIMPLIFICATION_URBANISME`) fait basculer
+    le texte du constat entre les deux régimes, plutôt que d'affirmer une purge que le droit
+    applicable ne garantit pas.
+  - **Un calcul de dates ne prouve rien, et l'outil le dit** : quand les deux délais sont écoulés
+    d'après les dates relevées, il ne conclut pas « permis purgé » mais produit un A_VERIFIER — un
+    calcul ne sait pas qu'un tiers a déposé un recours le dernier jour. Seuls le **certificat de
+    non-recours** du greffe du tribunal administratif (art. R.600-7) et l'**attestation de
+    non-retrait** de la mairie le prouvent ; le constat les nomme et la question part dans le bloc
+    « À demander ». Même principe que la réserve déjà posée sur l'état daté et le certificat
+    d'urbanisme.
+  - **Piège de typage des documents, évité par l'ORDRE des tests** (`typeDocumentPermis`) : un
+    constat d'affichage et un certificat de non-recours CITENT tous les deux le permis, avec son
+    numéro. Les tester après le permis ferait prendre la date du constat pour celle de l'arrêté —
+    trois mois de retrait comptés depuis le mauvais jour. Constat et certificat sont donc reconnus
+    EN PREMIER, et le code le dit en commentaire pour qu'on ne « range » pas ces tests un jour.
+  - **Le plus ancien constat d'affichage est retenu**, pas le plus récent : le délai court depuis
+    le premier jour. L'usage étant de faire dresser trois constats (début, milieu, fin de la
+    période de deux mois), un seul constat déposé produit un rappel distinct — la continuité de
+    l'affichage pendant deux mois n'est alors pas démontrée.
+  - **Uniquement en mode « projet de vente », jamais sur un compromis** : au moment de signer
+    l'avant-contrat, le permis n'est en général pas encore demandé — un constat « permis non
+    fourni » sur CHAQUE compromis de terrain serait exactement le bruit que l'étude a demandé
+    d'éviter en réduisant le périmètre d'Outil 2. Commenté comme un choix, pas comme un oubli.
+  - **Terrain à bâtir reconnu d'abord par le dossier lié** (`d.typeVente === 'terrain'`), le texte
+    ne servant que de repli — même précédence que `estCopropriete`. Hors terrain à bâtir, aucun
+    constat de cette famille n'est produit.
+  - La gravité du permis manquant suit l'acte : **IMPORTANT** quand la vente est conditionnée à
+    son obtention (`RE_CONDITION_PERMIS` sur l'avant-contrat ou le projet), **A_VERIFIER** sinon —
+    un terrain vendu sans condition suspensive de permis n'a pas à être bloqué par son absence.
+  - Deux destinataires ajoutés au bloc « À demander » : **l'acquéreur** (le permis et les constats
+    sont dans ses mains, pas dans celles du vendeur) et le **greffe du tribunal administratif**
+    (le certificat de non-recours). Nouvelle catégorie de rapport `PERMIS`.
+  - Tests : `tests/outil2-permis.test.js` (17 — les deux points de départ, le compteur non démarré,
+    l'arrêté illisible qui ne produit aucune date inventée, les deux régimes de part et d'autre du
+    28/11/2025, l'ordre de typage des documents, l'avant-contrat écarté, le plus ancien constat
+    retenu, la réserve du certificat avec sa mention de R.600-7, le constat unique, la précédence
+    du dossier lié, le silence hors terrain à bâtir, et le rapport de bout en bout). Suite racine
+    586 → 603, serveur inchangée (203 — chantier entièrement côté client). La note « Ce que cette
+    relecture contrôle » de l'écran est complétée : sans ça, elle annonçait un périmètre devenu
+    faux. **Vérifié dans un vrai Chromium** (serveur réel, clair et sombre, 1500px et 400px) sur un
+    projet de vente de terrain : section « Permis de construire (terrain à bâtir) » comptée à 3,
+    bloc de questions avec son bouton de copie, aucune erreur JS, aucun débordement horizontal.
+
 ## Ce qui reste ouvert / pas encore fait
 
 - **Signature manuscrite de Bastien ANGLUMENT, conservée pour le courrier d'appel de fonds**
