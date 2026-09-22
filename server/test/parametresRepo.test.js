@@ -9,7 +9,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 
 const { ouvrirDb } = require('../src/db');
-const { creerRepoParametres, assainirReglages, REGLAGES_PAR_DEFAUT, PORT_SMTP_PAR_DEFAUT } = require('../src/parametresRepo');
+const { creerRepoParametres, assainirReglages, REGLAGES_PAR_DEFAUT, PORT_SMTP_PAR_DEFAUT , assainirDernierTour } = require('../src/parametresRepo');
 
 const REGLAGES_TEST = Object.freeze({
   emailActif: true,
@@ -154,4 +154,26 @@ test('assainirReglages() : la clé actuelle l\'emporte toujours sur l\'ancienne'
 test('assainirReglages() : copieEmail absent reste une chaîne vide (jamais undefined)', () => {
   assert.equal(assainirReglages({}).copieEmail, '');
   assert.equal(assainirReglages({ copieEmail: '   ' }).copieEmail, '');
+});
+
+// ---- assainirDernierTour ----
+// Même discipline de liste blanche que pour les réglages : ce compte rendu est relu à chaque
+// ouverture de l'écran Réglages, une valeur exotique en base ne doit jamais remonter telle quelle.
+
+test('assainirDernierTour : valeurs exotiques ramenées à une forme sûre', () => {
+  const t = assainirDernierTour({ at: 42, rappelsDus: -3, rappelsEnvoyes: 2.7, erreurs: 'pas un tableau', declenche: 'bidon' });
+  assert.equal(t.at, '');
+  assert.equal(t.rappelsDus, 0);
+  assert.equal(t.rappelsEnvoyes, 2);
+  assert.deepEqual(t.erreurs, []);
+  assert.equal(t.declenche, 'automatique', 'seul "manuel" est reconnu, tout le reste retombe sur automatique');
+  assert.deepEqual(assainirDernierTour(null).erreurs, []);
+});
+
+test('assainirDernierTour : les erreurs sont plafonnées et les entrées vides écartées', () => {
+  const erreurs = Array.from({ length: 50 }, (_, i) => `erreur ${i}`).concat(['', '   ']);
+  const t = assainirDernierTour({ erreurs, declenche: 'manuel' });
+  assert.equal(t.erreurs.length, 20, 'un tour en échec sur tout un portefeuille ne doit pas faire grossir la base');
+  assert.equal(t.erreurs[0], 'erreur 0');
+  assert.equal(t.declenche, 'manuel');
 });

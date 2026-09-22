@@ -1164,20 +1164,37 @@
     <div class="calc-champs" id="reglages-emails-liste"></div>
   </div>
 
+  <div class="calc-card">
+    <div class="dash-section-titre">Dernier tour de rappels</div>
+    <p class="hint">La tâche passe toutes les 30 minutes. Sans cet encart, un envoi qui échoue — mot de passe d'application révoqué, compte bloqué — arrêterait les rappels sans que rien ne le signale.</p>
+    <div id="reglages-dernier-tour" class="reglages-dernier-tour"></div>
+    <div style="margin-top:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      <button type="button" class="secondary" id="reglages-lancer-tour" onclick="lancerTourRappels()">Lancer un tour maintenant</button>
+      <span class="hint" style="margin:0;">Exécute le vrai tour de rappels, sans attendre la prochaine demi-heure.</span>
+    </div>
+  </div>
+
   <div class="calc-card calc-card-notes">
     <div class="dash-section-titre">Comment ça marche</div>
     <p>CLAIRE envoie un email à la boîte-passerelle. Son <strong>objet</strong> contient l'adresse du collaborateur à prévenir, son <strong>corps</strong> le message. Le flux Power Automate, déclenché par l'arrivée de cet email, lit l'objet pour savoir à qui poster le message dans Teams.</p>
     <p><strong>Le flux est déjà créé et activé</strong> (déclencheur « Quand un nouvel e-mail arrive » sur cette boîte, puis action Teams). Il n'y a rien à refaire dans Power Automate : seuls les réglages d'envoi ci-dessus sont à renseigner.</p>
 
     <div class="dash-section-titre" style="margin-top:14px;">Renseigner le serveur d'envoi</div>
+    <p>CLAIRE a besoin d'un compte capable d'envoyer un email. Deux comptes conviennent ; <strong>le second est celui actuellement en service dans cette étude</strong>, faute de droits d'administration sur Microsoft 365.</p>
+
+    <p><strong>A. Une boîte de l'étude (Microsoft 365)</strong> — demande un administrateur, donc indisponible ici pour l'instant. Serveur <code>smtp.office365.com</code>, port <strong>587</strong>, « Connexion chiffrée dès l'ouverture » <strong>décochée</strong>, compte = l'adresse de la boîte, mot de passe = un mot de passe d'application. Deux prérequis à faire poser par l'administrateur : <strong>SMTP authentifié</strong> autorisé pour cette boîte (Utilisateurs → la boîte → Courrier → Gérer les applications de messagerie), et la possibilité de créer un mot de passe d'application.</p>
+
+    <p><strong>B. Un compte Gmail</strong> — ne demande aucun administrateur, c'est le montage en place. Activer la <strong>validation en deux étapes</strong> sur le compte, puis créer un <strong>mot de passe d'application</strong> sur <code>myaccount.google.com/apppasswords</code> (16 caractères, affichés une seule fois). Serveur <code>smtp.gmail.com</code>, port <strong>587</strong>, « Connexion chiffrée dès l'ouverture » <strong>décochée</strong>, compte = l'adresse Gmail complète, mot de passe = les 16 caractères. <strong>Laisser l'adresse d'expédition vide</strong> : Gmail exige que l'expéditeur soit le compte authentifié lui-même, et le champ vide fait exactement cela.</p>
+
+    <p class="reglages-avertissement">À savoir avec un compte Gmail : le corps des rappels nomme le dossier et liste les pièces reçues et manquantes. Ces données transitent donc par un compte extérieur à l'étude. Par ailleurs, le message arrive de l'extérieur du domaine et traverse le filtrage : s'il n'arrive pas, regarder d'abord les indésirables de la boîte-passerelle, ajouter l'adresse d'expédition aux expéditeurs approuvés, et au besoin créer une règle qui la classe dans un dossier dédié — le flux peut alors être déclenché sur ce dossier.</p>
+
     <ol>
-      <li><strong>Autoriser l'authentification SMTP</strong> pour la boîte qui enverra les messages : centre d'administration Microsoft 365 → Utilisateurs → la boîte concernée → Courrier → Gérer les applications de messagerie → cocher <strong>SMTP authentifié</strong>. Ce réglage est souvent désactivé pour tout le locataire par défaut : l'administrateur doit alors l'autoriser au moins pour cette boîte.</li>
-      <li><strong>Créer un mot de passe d'application</strong> si ce compte est protégé par authentification à deux facteurs (le cas habituel) : le mot de passe habituel ne fonctionne pas pour SMTP.</li>
-      <li>Remplir ci-dessus : serveur <code>smtp.office365.com</code>, port <strong>587</strong>, « Connexion chiffrée dès l'ouverture » <strong>décochée</strong> (le chiffrement est négocié en cours de connexion sur ce port), compte = l'adresse de la boîte, mot de passe = le mot de passe d'application. Laisser l'adresse d'expédition vide.</li>
-      <li>Renseigner la <strong>boîte-passerelle</strong> (celle sur laquelle le flux est déclenché), l'adresse email de chaque collaborateur, optionnellement une adresse de copie, cocher <strong>« Activer l'envoi automatique de rappels »</strong>, puis <strong>Enregistrer</strong>.</li>
-      <li>Utiliser le bouton <strong>« Tester »</strong> à côté de chaque collaborateur : un message de test doit arriver dans son Teams. S'il n'arrive pas, l'historique du flux dans Power Automate indique s'il s'est déclenché — email bien arrivé mais pas de message Teams : le problème est dans le flux ; aucune trace : le problème est côté envoi, et le message d'erreur affiché sous le bouton le précise.</li>
+      <li>Remplir les réglages d'envoi ci-dessus selon A ou B, ainsi que la <strong>boîte-passerelle</strong> (celle sur laquelle le flux est déclenché) et l'adresse email de chaque collaborateur.</li>
+      <li>Cocher <strong>« Activer l'envoi automatique de rappels »</strong>, puis <strong>Enregistrer</strong>.</li>
+      <li>Cliquer <strong>« Tester »</strong> à côté d'un collaborateur, puis <strong>aller regarder dans Teams</strong>. Le message affiché sous le bouton ne confirme qu'une chose : le serveur d'envoi a accepté le message. Lui seul ne prouve ni que l'email est arrivé, ni que le flux s'est déclenché.</li>
+      <li>Si rien n'arrive dans Teams : l'historique du flux dans Power Automate tranche. Le flux s'est déclenché mais rien n'est posté → le problème est dans le flux. Aucune trace de déclenchement → l'email n'est jamais arrivé, voir les indésirables de la boîte-passerelle.</li>
+      <li><strong>« Lancer un tour maintenant »</strong> vérifie le vrai chemin des rappels, pas le message de test : mêmes calculs, même texte, même envoi que le tour automatique. Attention, ce qu'il envoie est réellement consommé et ne repartira pas au tour suivant.</li>
     </ol>
-    <p><strong>Pourquoi un compte est nécessaire ici.</strong> Microsoft 365 accepte aussi un envoi sans compte depuis le réseau du bureau, mais seulement si l'enregistrement SPF du domaine autorise l'adresse IP de sortie du bureau. Quand le courrier du domaine passe par une passerelle de filtrage — c'est le cas de cette étude, dont le SPF n'autorise que le prestataire de filtrage et refuse tout le reste — un envoi depuis le bureau serait rejeté ou mis en quarantaine. Le compte authentifié contourne entièrement ce point : le message part de la boîte elle-même, et le destinataire étant une boîte du même locataire, la remise est interne.</p>
 
     <p>Les rappels sont envoyés automatiquement 15 puis 7 jours avant chaque échéance active d'un dossier (vente préalable, prêt, date butoir, appel de fonds, rendez-vous de signature, échéance personnalisée), au responsable du dossier — jamais deux fois pour la même échéance. L'adresse de copie ci-dessus, si renseignée, reçoit le même message pour chaque envoi. Il n'existe plus de rappel par email manuel à envoyer soi-même : ce mécanisme le remplace entièrement.</p>
   </div>

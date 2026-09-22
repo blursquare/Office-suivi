@@ -136,9 +136,12 @@ function texteRappel(r) {
 // double si la copie coïncide avec l'adresse du responsable lui-même. Un échec de la copie est
 // consigné dans `erreurs` mais ne remet jamais en cause le marquage du rappel principal comme
 // envoyé : c'est lui qui compte pour ne pas relancer le collaborateur concerné.
-async function executerTacheRappels(depot, db, parametresRepo, envoyerFn, aujourdHui) {
+async function executerTacheRappels(depot, db, parametresRepo, envoyerFn, aujourdHui, declenche) {
   const resultat = { rappelsDus: 0, rappelsEnvoyes: 0, erreurs: [] };
   const reglages = parametresRepo.lireReglages();
+  // Envoi non configuré : on sort SANS rien consigner. Écrire un compte rendu vide écraserait le
+  // dernier vrai tour par une ligne qui ne dit rien — et l'écran Réglages affiche déjà, à sa
+  // place, que l'envoi n'est pas activé.
   if (!envoiConfigure(reglages)) return resultat;
 
   const jour = aujourdHui || new Date().toISOString().slice(0, 10);
@@ -175,6 +178,20 @@ async function executerTacheRappels(depot, db, parametresRepo, envoyerFn, aujour
     } else {
       resultat.erreurs.push(`${r.nomDossier} — ${r.libelle} : ${envoi.erreur}`);
     }
+  }
+
+  // Le compte rendu est consigné ICI plutôt que chez l'appelant : les deux appelants (le minuteur
+  // et le bouton « Lancer un tour maintenant ») doivent le faire, et l'oubli de l'un des deux
+  // rouvrirait exactement le trou qu'on vient de boucher. Le garde-fou `typeof` couvre les tests
+  // qui passent un faux dépôt réduit à `lireReglages`.
+  if (typeof parametresRepo.ecrireDernierTour === 'function') {
+    parametresRepo.ecrireDernierTour({
+      at: new Date().toISOString(),
+      rappelsDus: resultat.rappelsDus,
+      rappelsEnvoyes: resultat.rappelsEnvoyes,
+      erreurs: resultat.erreurs,
+      declenche: declenche === 'manuel' ? 'manuel' : 'automatique'
+    });
   }
   return resultat;
 }

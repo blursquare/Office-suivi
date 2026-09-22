@@ -12,7 +12,8 @@
 // retraverser le réseau du bureau à chaque ouverture de l'écran.
 
 const express = require('express');
-const { envoyerEmail } = require('../envoiEmail');
+const { envoyerEmail, envoiConfigure } = require('../envoiEmail');
+const { executerTacheRappels } = require('../jobs/rappels');
 
 const MESSAGE_TEST = "📌 CLAIRE — Message de test. Si vous recevez ceci, les rappels automatiques sont bien configurés.";
 
@@ -21,9 +22,13 @@ function reglagesPublics(reglages) {
   return { ...reste, smtpMotDePasseEnregistre: !!smtpMotDePasse };
 }
 
-function creerRouteurReglages(parametresRepo, envoyerFn) {
+// `options` porte `{ depot, db }`, nécessaires au seul déclenchement manuel d'un tour de rappels.
+// Optionnels : les tests qui ne montent que la lecture/écriture des réglages n'ont pas à fabriquer
+// un dépôt, et la route répond alors 503 au lieu de planter.
+function creerRouteurReglages(parametresRepo, envoyerFn, options) {
   const routeur = express.Router();
   const envoyer = envoyerFn || envoyerEmail;
+  const { depot, db } = options || {};
 
   routeur.get('/reglages', (req, res) => {
     res.json(reglagesPublics(parametresRepo.lireReglages()));
@@ -51,6 +56,38 @@ function creerRouteurReglages(parametresRepo, envoyerFn) {
     const resultat = await envoyer(reglages, email, MESSAGE_TEST);
     if (resultat.ok) res.json({ ok: true });
     else res.status(502).json({ erreur: resultat.erreur });
+  });
+
+  // Compte rendu du dernier tour de la tâche de rappels (voir jobs/rappels.js). `null` tant que la
+  // tâche n'a jamais rien tenté — l'écran Réglages le distingue d'un tour réellement vide.
+  routeur.get('/reglages/dernier-tour', (req, res) => {
+    res.json({ dernierTour: parametresRepo.lireDernierTour() });
+  });
+
+  // Déclenche UN vrai tour de rappels, tout de suite. C'est bien le chemin de production
+  // (calculerRappelsDus → texteRappel → envoi → reminder_log), pas le message de test : sans ce
+  // bouton, vérifier la chaîne complète jusqu'à Teams supposerait d'attendre le prochain tour
+  // automatique, ou de fabriquer un dossier dont une échéance tombe pile à J-15 ou J-7.
+  //
+  // Conséquence assumée : un rappel envoyé ici est marqué dans reminder_log et ne repartira donc
+  // pas au tour automatique suivant — ce n'est pas une simulation, c'est le tour lui-même, avancé
+  // de quelques minutes.
+  routeur.post('/reglages/lancer-rappels', async (req, res) => {
+    if (!depot || !db) {
+      res.status(503).json({ erreur: "Déclenchement manuel indisponible sur ce serveur." });
+      return;
+    }
+    const reglages = parametresRepo.lireReglages();
+    if (!envoiConfigure(reglages)) {
+      res.status(400).json({ erreur: "L'envoi n'est pas activé, ou le serveur d'envoi et la boîte-passerelle ne sont pas renseignés." });
+      return;
+    }
+    try {
+      const resultat = await executerTacheRappels(depot, db, parametresRepo, envoyer, null, 'manuel');
+      res.json({ ok: true, ...resultat, dernierTour: parametresRepo.lireDernierTour() });
+    } catch (e) {
+      res.status(500).json({ erreur: `Le tour de rappels a échoué : ${e.message}` });
+    }
   });
 
   return routeur;

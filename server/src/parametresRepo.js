@@ -11,6 +11,18 @@
 
 const CLE_REGLAGES = 'reglages';
 
+// Compte rendu du DERNIER tour de la tâche de rappels (voir jobs/rappels.js). Stocké sous sa
+// propre clé plutôt que dans le blob `reglages` : ce n'est pas un réglage saisi par l'étude mais
+// un état produit par le serveur, et `assainirReglages()` (liste blanche stricte) le jetterait à
+// chaque enregistrement du formulaire.
+//
+// Raison d'être : jusqu'ici `executerTacheRappels()` construisait soigneusement `resultat.erreurs`
+// et PERSONNE ne lisait ce tableau — la tâche tourne toutes les 30 minutes dans un serveur lancé
+// SANS FENÊTRE (Lancer-CLAIRE-en-arriere-plan.vbs), donc même un console.warn n'aurait été vu de
+// personne. Un mot de passe d'application révoqué, et les rappels s'arrêtaient en silence : c'est
+// précisément l'ABSENCE de message qui aurait dû alerter, et rien ne la signalait.
+const CLE_DERNIER_TOUR = 'dernier-tour-rappels';
+
 const PORT_SMTP_PAR_DEFAUT = 25;
 
 const REGLAGES_PAR_DEFAUT = Object.freeze({
@@ -85,6 +97,29 @@ function assainirReglages(brut, precedent) {
   };
 }
 
+// Même discipline que `assainirReglages` : rien d'exotique ne ressort d'ici, y compris si la
+// valeur en base a été écrite par une version antérieure ou corrompue à la main. Les erreurs sont
+// plafonnées — un tour qui échoue sur soixante dossiers n'a pas à faire grossir indéfiniment une
+// ligne de base que personne ne lira au-delà des premières.
+const MAX_ERREURS_CONSERVEES = 20;
+
+function assainirDernierTour(brut) {
+  const b = (brut && typeof brut === 'object') ? brut : {};
+  const entier = (v) => (Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0);
+  const erreurs = Array.isArray(b.erreurs)
+    ? b.erreurs.filter((e) => typeof e === 'string' && e.trim()).slice(0, MAX_ERREURS_CONSERVEES)
+    : [];
+  return {
+    at: typeof b.at === 'string' ? b.at : '',
+    rappelsDus: entier(b.rappelsDus),
+    rappelsEnvoyes: entier(b.rappelsEnvoyes),
+    erreurs,
+    // 'automatique' (le minuteur de 30 min) ou 'manuel' (bouton « Lancer un tour maintenant ») :
+    // sans ça, l'étude ne saurait pas si la ligne affichée vient de son propre clic ou du job.
+    declenche: b.declenche === 'manuel' ? 'manuel' : 'automatique'
+  };
+}
+
 function creerRepoParametres(db) {
   const lireStmt = db.prepare('SELECT valeur FROM parametres WHERE cle = ?');
   const ecrireStmt = db.prepare(
@@ -107,7 +142,28 @@ function creerRepoParametres(db) {
     return propre;
   }
 
-  return { lireReglages, ecrireReglages };
+  // Absent = la tâche n'a encore jamais tourné depuis l'installation (ou l'envoi n'a jamais été
+  // configuré : un tour qui sort avant d'avoir rien tenté n'écrit rien, voir executerTacheRappels).
+  function lireDernierTour() {
+    const ligne = lireStmt.get(CLE_DERNIER_TOUR);
+    if (!ligne) return null;
+    try {
+      return assainirDernierTour(JSON.parse(ligne.valeur));
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function ecrireDernierTour(resultat) {
+    const propre = assainirDernierTour(resultat);
+    ecrireStmt.run(CLE_DERNIER_TOUR, JSON.stringify(propre));
+    return propre;
+  }
+
+  return { lireReglages, ecrireReglages, lireDernierTour, ecrireDernierTour };
 }
 
-module.exports = { creerRepoParametres, assainirReglages, REGLAGES_PAR_DEFAUT, PORT_SMTP_PAR_DEFAUT };
+module.exports = {
+  creerRepoParametres, assainirReglages, assainirDernierTour,
+  REGLAGES_PAR_DEFAUT, PORT_SMTP_PAR_DEFAUT
+};

@@ -1498,6 +1498,41 @@
   /* Réglages : résultat du message de test envoyé à un collaborateur (voir testerTeamsResponsable
      dans script.js) — mêmes tokens --success/--urgent que le reste de l'outil, aucune couleur
      inventée pour l'occasion. */
+  /* Compte rendu du dernier tour de rappels (écran Réglages). Reprend exactement le langage
+     d'état déjà en place pour .analyse-ia-dispo (vert = rien à signaler, rouge = à regarder) :
+     un seul vocabulaire visuel d'état dans tout l'outil, aucune couleur inventée. */
+  .reglages-dernier-tour {
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    border: 1px solid var(--line);
+    background: var(--paper-sunk);
+  }
+  .reglages-dernier-tour.dernier-tour-ok {
+    color: var(--success);
+    background: color-mix(in srgb, var(--success) 10%, var(--paper-card));
+    border-color: color-mix(in srgb, var(--success) 30%, transparent);
+  }
+  .reglages-dernier-tour.dernier-tour-alerte {
+    color: var(--urgent);
+    background: color-mix(in srgb, var(--urgent) 10%, var(--paper-card));
+    border-color: color-mix(in srgb, var(--urgent) 30%, transparent);
+  }
+  .dernier-tour-ligne { display: flex; align-items: center; gap: 8px; }
+  .dernier-tour-ligne .icone { flex: none; }
+  .dernier-tour-erreurs { margin: 8px 0 0; padding-left: 26px; }
+  .dernier-tour-erreurs li { margin-bottom: 3px; }
+
+  /* Même teinte que .dl-alerte, le seul signal de l'outil qui garde un fond plein — ici sur un
+     paragraphe entier plutôt qu'un mot, ce texte étant une mise en garde et non une étiquette. */
+  p.reglages-avertissement {
+    padding: 10px 14px;
+    border-radius: 8px;
+    color: var(--urgent);
+    background: color-mix(in srgb, var(--urgent) 8%, var(--paper-card));
+    border: 1px solid color-mix(in srgb, var(--urgent) 25%, transparent);
+  }
+
   p.reglages-email-ok { color: var(--success); }
   p.reglages-email-echec { color: var(--urgent); }
 

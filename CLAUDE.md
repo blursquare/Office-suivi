@@ -7078,6 +7078,84 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
     environnement. `npm test` reste vert (613 tests racine, 203 côté serveur — chantier
     entièrement côté client).
 
+- **Rappels par email : la chaîne fonctionne enfin, et un encart dit désormais quand elle casse.**
+  Deux semaines de blocages successifs sur l'envoi, puis un défaut de conception trouvé APRÈS que
+  l'étude a confirmé « ça a fonctionné ».
+  - **Le diagnostic, dans l'ordre où les contraintes sont tombées.** L'étude a signalé
+    `Invalid login: 535-5.7.8 … gsmtp` — un refus d'authentification Gmail, pas un problème de
+    CLAIRE. Chaque piste s'est fermée l'une après l'autre : pas de droits d'administrateur
+    Microsoft 365, donc impossible d'autoriser l'authentification SMTP sur une boîte du locataire ;
+    l'envoi sans compte déjà écarté par le SPF `-all` du domaine (voir son entrée plus haut) ; et
+    le déclencheur HTTP de Power Automate, que la route sans identifiants supposait, est une
+    fonctionnalité **premium** dont l'étude ne dispose pas — **j'avais supposé l'inverse** parce
+    que le flux existait déjà, l'étude m'a corrigé. Reste donc Gmail + un mot de passe
+    d'application, créable une fois la validation en deux étapes activée : c'est ce que l'étude a
+    fait, et **aucune ligne de code n'a été nécessaire** — le chemin SMTP écrit la veille était
+    déjà bon.
+  - **Deux réserves posées à l'étude avant qu'elle ne s'engage dans cette voie**, toutes deux
+    levées en pratique mais pas par construction : chaque rappel porte un nom de dossier et une
+    échéance, qui transitent donc par un compte Google ; et la boîte-passerelle doit accepter un
+    message venant de l'extérieur du domaine — si Retarus/EOP l'écarte, le flux ne se déclenche
+    jamais alors que l'envoi, lui, a réussi.
+  - **Le vrai défaut, trouvé en relisant plutôt qu'en supposant : `resultat.erreurs` n'avait aucun
+    consommateur.** `executerTacheRappels()` construisait soigneusement cette liste depuis sa
+    création ; `demarrerTacheRappels()` jette le résultat, et seul un plantage de la tâche
+    produisait un `console.warn` — invisible, le serveur tournant sans fenêtre
+    (`Lancer-CLAIRE-en-arriere-plan.vbs`). Un mot de passe d'application révoqué, et les rappels
+    s'arrêtaient **en silence** : c'est précisément l'ABSENCE de message qui aurait dû alerter.
+    Rien ne pouvait le signaler.
+  - **Compte rendu du dernier tour** (`dernier-tour-rappels`, `parametresRepo.lireDernierTour()`/
+    `ecrireDernierTour()`) : quand, déclenché à la main ou par le minuteur, combien de rappels
+    envoyés sur combien dus, et la liste des erreurs (plafonnée à 20 — un tour qui échoue sur
+    soixante dossiers n'a pas à faire grossir une ligne que personne ne lira au-delà des
+    premières). **Stocké sous sa PROPRE clé, jamais dans le blob `reglages`** : ce n'est pas un
+    réglage saisi par l'étude mais un état produit par le serveur, et la liste blanche stricte
+    d'`assainirReglages()` le jetterait à chaque enregistrement du formulaire. Un tour qui sort
+    avant d'avoir rien tenté (envoi non configuré) n'écrit rien du tout, pour ne pas effacer le
+    dernier compte rendu utile.
+  - **Un compteur à zéro n'est JAMAIS une alerte** (`renderDernierTourRappels`) : la plupart des
+    tours n'ont simplement aucun rappel dû ce jour-là. C'est la présence d'une erreur, et elle
+    seule, qui fait basculer l'encart en rouge.
+  - **Bouton « Lancer un tour maintenant »** (`POST /api/reglages/lancer-rappels`) : le vrai
+    chemin de production (`calculerRappelsDus` → `texteRappel` → envoi → `reminder_log`), pas le
+    message de test. Sans lui, vérifier la chaîne complète jusqu'à Teams supposerait d'attendre la
+    prochaine demi-heure, ou de fabriquer un dossier dont une échéance tombe pile à J-15 ou J-7.
+    **Conséquence assumée** : un rappel parti ainsi est marqué dans `reminder_log` et ne repartira
+    pas au tour automatique suivant — ce n'est pas une simulation, c'est le tour lui-même, avancé.
+    La route répond 503 plutôt que de planter quand le routeur est monté sans `{depot, db}` (les
+    tests qui n'exercent que la lecture/écriture des réglages n'ont pas à fabriquer un dépôt).
+  - **Message du bouton « Tester » corrigé** : il affichait un succès qui laissait croire que le
+    message était arrivé. Une réponse 200 dit SEULEMENT que le serveur d'envoi a accepté le
+    message — ni son arrivée dans la boîte-passerelle, ni le déclenchement du flux, ni le message
+    Teams, trois étapes hors de portée de CLAIRE. D'où « ✓ Remis au serveur d'envoi — vérifiez
+    maintenant dans Teams », et la même précision ajoutée dans la procédure affichée à l'écran.
+    Le panneau ci-dessus couvre le maillon de l'envoi, jamais celui-là.
+  - **Procédure de l'écran Réglages réécrite** en deux options (A : boîte Microsoft 365, demande
+    un administrateur ; B : Gmail + mot de passe d'application, sans administrateur — le montage
+    réellement en service), avec l'avertissement de confidentialité/filtrage. `server/README.md`
+    suit, et ne recommande plus l'envoi direct Microsoft 365, devenu impraticable ici.
+  - **Corrigé au passage** : « 2 dûs » — le circonflexe de « dû » ne sert qu'à le distinguer de
+    l'article « du » au masculin singulier, il disparaît au pluriel. Sorti en fonction pure
+    (`libelleRappelsTour`) parce que la phrase est écrite à deux endroits (l'encart et le bandeau
+    de confirmation) : deux copies finiraient par diverger, et c'est un texte que l'étude lit.
+  - Tests : +3 dans `server/test/rappels.test.js` (compte rendu écrit avec son origine automatique
+    puis manuelle, un envoi en échec qui remonte avec `rappelsEnvoyes: 0`, un tour non configuré
+    qui n'écrit rien et préserve le compte rendu précédent), +3 dans
+    `server/test/reglages.test.js` (compte rendu `null` au départ, 400 quand l'envoi n'est pas
+    activé, un vrai tour persisté avec `declenche: 'manuel'`), +2 dans
+    `server/test/parametresRepo.test.js` (assainissement de valeurs exotiques, plafond des
+    erreurs), +2 dans `tests/rappels-libelle.test.js`. Suite racine 613 → 615, serveur 203 → 211.
+  - **Vérifié dans un vrai Chromium** (serveur réel, transport d'envoi injecté dont le second
+    appel échoue, deux dossiers synthétiques, clair et sombre, 1500px et 400px) : encart vide au
+    départ avec son texte propre, état rouge après un tour listant le dossier, l'échéance et
+    l'erreur `535-5.7.8` exacte, « 1 rappel envoyé sur 2 dus », état vert quand tout passe,
+    accords au singulier comme au pluriel, compte rendu conservé après rechargement de la page,
+    `reminder_log` qui empêche bien un second envoi au tour suivant, aucun débordement horizontal,
+    aucune erreur JS.
+  - **Reste à confirmer par l'étude, et par elle seule** : qu'un message de test ou un tour lancé
+    à la main arrive effectivement dans Teams. C'est le seul maillon que rien, côté CLAIRE, ne
+    peut observer.
+
 ## Ce qui reste ouvert / pas encore fait
 
 - **Signature manuscrite de Bastien ANGLUMENT, conservée pour le courrier d'appel de fonds**

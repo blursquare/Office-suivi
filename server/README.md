@@ -155,7 +155,7 @@ nslookup -type=txt votredomaine.fr
   À noter : quand le MX pointe vers un tel prestataire, l'endpoint Microsoft existe quand même,
   il n'est simplement plus publié dans le MX — le centre d'administration Microsoft 365 (Paramètres
   → Domaines → le domaine) donne sa valeur exacte.
-- **Envoi avec compte** (le cas courant, et le seul possible dès que le SPF est fermé) : serveur
+- **Envoi avec compte Microsoft 365** : serveur
   `smtp.office365.com`, port **587**, « Connexion chiffrée dès l'ouverture » **décochée** (STARTTLS
   est négocié en cours de connexion sur ce port), compte = l'adresse d'une boîte de l'étude,
   mot de passe = un **mot de passe d'application** si cette boîte est protégée par authentification
@@ -164,6 +164,19 @@ nslookup -type=txt votredomaine.fr
   et l'authentification SMTP non bloquée au niveau du locataire.
   Le SPF ne gêne pas ce mode : le message part de la boîte elle-même, et le destinataire étant une
   boîte du même locataire, la remise est interne.
+- **Envoi depuis une messagerie externe** (`smtp.gmail.com`, port **587**, « Connexion chiffrée dès
+  l'ouverture » **décochée**, compte = l'adresse complète, mot de passe = un **mot de passe
+  d'application** de 16 caractères, créable seulement après avoir activé la validation en deux
+  étapes sur le compte). **C'est le montage actuellement en service chez l'étude**, les deux modes
+  Microsoft 365 ci-dessus lui étant tous les deux fermés : le SPF du domaine interdit l'envoi sans
+  compte, et activer l'authentification SMTP sur une boîte du locataire demande des droits
+  d'administrateur Microsoft 365 dont l'étude ne dispose pas.
+  Deux réserves à connaître, l'une et l'autre écartées en pratique mais pas par construction :
+  chaque rappel contient un nom de dossier et une échéance, qui transitent donc par le compte
+  externe utilisé ; et la boîte-passerelle doit accepter un message venant de l'extérieur du
+  domaine — si le filtrage l'écarte, le flux ne se déclenche jamais et rien ne le signale du côté
+  de l'envoi, qui a réussi. Le panneau « Dernier tour de rappels » (plus bas) ne couvre pas ce
+  cas-là : seul un coup d'œil dans Teams, ou l'historique du flux dans Power Automate, le dira.
 
 **Adresse d'expédition : la laisser vide.** Microsoft 365 exige que l'expéditeur soit le compte
 authentifié, sauf droit « Envoyer en tant que » accordé à ce compte — un autre nom se solde par un
@@ -180,11 +193,40 @@ valeur du compte SMTP (ou, en envoi sans compte, celle de la boîte-passerelle).
    email arrivé mais pas de message Teams : le problème est dans le flux ; aucune trace : le
    problème est côté envoi, et le message d'erreur affiché sous le bouton le précise.
 
+### Surveiller que les rappels partent bien
+
+La tâche tourne toutes les 30 minutes dans un serveur lancé **sans fenêtre** — personne ne voit
+donc ses messages. Jusqu'à cette version, `executerTacheRappels()` construisait soigneusement sa
+liste d'erreurs et **personne ne la lisait** : un mot de passe d'application révoqué, un compte
+bloqué, et les rappels s'arrêtaient en silence. C'est précisément l'ABSENCE de message qui aurait
+dû alerter, et rien ne la signalait.
+
+Deux ajouts dans l'écran « Réglages », sous l'encart **« Dernier tour de rappels »** :
+- le **compte rendu du dernier tour** — quand, déclenché à la main ou par le minuteur, combien de
+  rappels envoyés sur combien dus, et la liste des erreurs. Vert tant qu'aucune erreur n'est
+  remontée, rouge dès qu'il y en a une. **Un compteur à zéro n'est jamais une alerte** : la plupart
+  des tours n'ont simplement aucun rappel dû ce jour-là ;
+- le bouton **« Lancer un tour maintenant »**, qui exécute le vrai tour (même chemin de production
+  que le minuteur), sans attendre la prochaine demi-heure. Conséquence assumée : un rappel envoyé
+  ainsi est marqué dans `reminder_log` et ne repartira donc pas au tour automatique suivant — ce
+  n'est pas une simulation, c'est le tour lui-même, avancé de quelques minutes.
+
+Le compte rendu est stocké sous sa propre clé (`dernier-tour-rappels`) et non dans le blob
+`reglages` : ce n'est pas un réglage saisi par l'étude mais un état produit par le serveur, et la
+liste blanche stricte d'`assainirReglages()` le jetterait à chaque enregistrement du formulaire.
+
+**Ce que le bouton « Tester » prouve, et ce qu'il ne prouve pas.** Une réponse en succès dit
+seulement que le **serveur d'envoi a accepté le message**. Elle ne dit rien de son arrivée dans la
+boîte-passerelle, du déclenchement du flux, ni du message Teams — trois étapes qui se passent
+ensuite, hors de portée de CLAIRE. D'où le libellé « Remis au serveur d'envoi — vérifiez maintenant
+dans Teams » plutôt qu'un « message reçu » qui affirmerait plus que ce qui a été vérifié.
+
 **Le mot de passe SMTP ne ressort jamais de la base** : `GET /api/reglages` le retire de la réponse
 et le remplace par un booléen `smtpMotDePasseEnregistre`. Le champ reste donc vide à l'ouverture de
 l'écran, et un enregistrement qui ne le renvoie pas **conserve** celui déjà en place (une chaîne
 vide explicite l'efface). Il reste stocké en clair dans le fichier de la base, sur le serveur de
-l'étude — raison de plus de préférer l'envoi direct, qui n'en demande aucun.
+l'étude : un mot de passe d'application dédié, révocable d'un clic sans toucher au mot de passe du
+compte lui-même, est donc préférable à un mot de passe de messagerie ordinaire.
 
 Détails d'implémentation, pour qui retouche ce code :
 - `src/envoiEmail.js` : envoi SMTP (`nodemailer`, timeout 20s), `envoiConfigure()` — la condition
@@ -200,7 +242,9 @@ Détails d'implémentation, pour qui retouche ce code :
   minuteur. Un dossier sans condition de prêt (`sansPret`) est quand même rappelé pour ses autres
   échéances — ce mécanisme ne dépend pas de `d.reminderDays` (propre au seul export `.ics` manuel).
 - `src/routes/reglages.js` : `GET/PUT /api/reglages` + `POST /api/reglages/tester-email` (envoie
-  toujours avec les réglages déjà **enregistrés** en base, jamais un formulaire non validé).
+  toujours avec les réglages déjà **enregistrés** en base, jamais un formulaire non validé),
+  `GET /api/reglages/dernier-tour` (compte rendu, `null` tant que la tâche n'a rien tenté) et
+  `POST /api/reglages/lancer-rappels` (un vrai tour, tout de suite).
 - `creerApp({ db, config, envoyerEmailFn })` : la couche d'envoi est injectable, pour que les tests
   de routes n'ouvrent ni serveur SMTP ni serveur HTTP.
 
@@ -574,9 +618,12 @@ dépendances de l'autre.
   l'étude** — voir la section « Rappels automatiques par email » plus haut : la couche d'envoi, le
   job de rappels et les routes sont testés avec un transport injecté, et le chemin complet
   (navigateur → serveur → SMTP) a été vérifié contre un faux serveur SMTP local, qui a bien reçu
-  `To: <passerelle>`, `Subject: <destinataire>` et le message en corps. Restent à confirmer par
-  l'étude : que le compte SMTP renseigné soit bien autorisé à l'authentification SMTP côté
-  administrateur Microsoft 365, et que le flux se déclenche bien à l'arrivée de l'email.
+  `To: <passerelle>`, `Subject: <destinataire>` et le message en corps. **L'envoi lui-même est
+  désormais confirmé en production** (montage Gmail + mot de passe d'application, voir « Quel mode
+  d'envoi ? »). Reste hors de portée de CLAIRE, et donc à confirmer d'un coup d'œil dans Teams :
+  que le flux se déclenche bien à l'arrivée de l'email et poste le message à la bonne personne —
+  un envoi réussi ne le prouve pas. Le panneau « Dernier tour de rappels » couvre le maillon
+  d'avant (l'envoi), pas celui-là.
 - **`node:sqlite` est une API expérimentale** de Node.js (avertissement affiché au démarrage,
   sans conséquence connue) — `better-sqlite3` reste une option de repli si elle posait problème
   un jour sur le poste de l'étude.

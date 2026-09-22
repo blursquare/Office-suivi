@@ -31,11 +31,12 @@ const envoyerEmailFn = async (reglages, destinataire, texte) => {
   return reponseEnvoi;
 };
 
-let db, serveurApp, baseUrl, jeton;
+let db, serveurApp, baseUrl, jeton, depot;
 
 before(async () => {
   db = ouvrirDb(':memory:');
-  const { app, gestionnaireAuth } = creerApp({ db, config: config(), envoyerEmailFn });
+  const { app, gestionnaireAuth, depot: d } = creerApp({ db, config: config(), envoyerEmailFn });
+  depot = d;
   jeton = gestionnaireAuth.creerSession();
   serveurApp = app.listen(0);
   await new Promise((resolve) => serveurApp.once('listening', resolve));
@@ -155,3 +156,56 @@ test('POST /api/reglages/tester-email : un envoi en échec → 502', async () =>
   assert.match((await reponse.json()).erreur, /550 relay denied/);
   reponseEnvoi = { ok: true, erreur: null };
 });
+
+// ---- Compte rendu du dernier tour, et déclenchement manuel ----
+// Ces deux routes existent parce que la tâche de rappels tourne dans un serveur SANS FENÊTRE :
+// sans elles, un envoi cassé (mot de passe d'application révoqué) arrêtait tout en silence, et
+// vérifier la chaîne jusqu'à Teams supposait d'attendre le prochain tour automatique.
+
+test('GET /api/reglages/dernier-tour : null tant que la tâche n\'a rien tenté', async () => {
+  const reponse = await appeler('/api/reglages/dernier-tour');
+  assert.equal(reponse.status, 200);
+  assert.equal((await reponse.json()).dernierTour, null);
+});
+
+test('POST /api/reglages/lancer-rappels : refusé tant que l\'envoi n\'est pas activé', async () => {
+  await appeler('/api/reglages', { method: 'PUT', body: JSON.stringify({ ...SMTP, emailActif: false }) });
+  const reponse = await appeler('/api/reglages/lancer-rappels', { method: 'POST' });
+  assert.equal(reponse.status, 400);
+  assert.match((await reponse.json()).erreur, /activé|renseignés/);
+});
+
+test('POST /api/reglages/lancer-rappels : exécute un vrai tour et renvoie son compte rendu', async () => {
+  depot.creer({ id: 'rappel-manuel', nom: 'DUPONT / MARTIN', responsable: 'Bastien ANGLUMENT', pret: joursApres(15) });
+  await appeler('/api/reglages', {
+    method: 'PUT',
+    body: JSON.stringify({ ...SMTP, emailActif: true, emailsResponsables: { 'Bastien ANGLUMENT': 'b@etude.fr' } })
+  });
+
+  envois.length = 0;
+  const reponse = await appeler('/api/reglages/lancer-rappels', { method: 'POST' });
+  assert.equal(reponse.status, 200);
+  const corps = await reponse.json();
+  assert.equal(corps.ok, true);
+  assert.equal(corps.rappelsDus, 1);
+  assert.equal(corps.rappelsEnvoyes, 1);
+  assert.equal(envois.length, 1, 'le tour manuel passe bien par la couche d\'envoi injectée');
+  // La couche injectée reçoit l'adresse du VRAI destinataire : le détournement « À = passerelle,
+  // Objet = destinataire » vit à l'intérieur d'envoyerEmail(), donc sous ce point d'injection.
+  assert.equal(envois[0].destinataire, 'b@etude.fr');
+
+  // Le compte rendu revient avec la réponse ET reste lisible ensuite : c'est lui qui alimente
+  // l'encart de l'écran Réglages, y compris après un rechargement de la page.
+  assert.equal(corps.dernierTour.declenche, 'manuel');
+  const relu = await (await appeler('/api/reglages/dernier-tour')).json();
+  assert.equal(relu.dernierTour.rappelsEnvoyes, 1);
+  assert.equal(relu.dernierTour.declenche, 'manuel');
+});
+
+// Échéance à J-15 pile, calculée depuis aujourd'hui : un ISO figé rendrait le test caduc au bout
+// de quelques semaines (le rappel ne serait plus dû).
+function joursApres(n) {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}

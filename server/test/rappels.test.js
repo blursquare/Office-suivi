@@ -382,3 +382,73 @@ test('executerTacheRappels : aucun rappel sur une date butoir dont le rendez-vou
   assert.equal(envoyes.length, 0);
   db.close();
 });
+
+// ---- Compte rendu du dernier tour ----
+// `resultat.erreurs` était construit depuis toujours sans qu'aucun appelant ne le lise, dans un
+// serveur lancé sans fenêtre : un envoi cassé arrêtait les rappels en silence. Ces trois tests
+// verrouillent la seule fenêtre sur cet état.
+
+test('executerTacheRappels : consigne le compte rendu du tour (dus, envoyés, déclenchement)', async () => {
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  const parametresRepo = creerRepoParametres(db);
+  depot.creer({ id: 'd1', nom: 'DUPONT / MARTIN', responsable: 'Bastien ANGLUMENT', pret: '2026-11-11' });
+  parametresRepo.ecrireReglages({ emailActif: true, smtpHote: 'smtp.test', emailPasserelle: 'passerelle@etude.fr', emailsResponsables: { 'Bastien ANGLUMENT': 'b@etude.fr' } });
+
+  assert.equal(parametresRepo.lireDernierTour(), null, 'rien tant que la tâche n\'a jamais tourné');
+
+  const envoyerFn = async () => ({ ok: true });
+  await executerTacheRappels(depot, db, parametresRepo, envoyerFn, '2026-10-27');
+
+  const tour = parametresRepo.lireDernierTour();
+  assert.equal(tour.rappelsDus, 1);
+  assert.equal(tour.rappelsEnvoyes, 1);
+  assert.deepEqual(tour.erreurs, []);
+  assert.equal(tour.declenche, 'automatique');
+  assert.match(tour.at, /^\d{4}-\d{2}-\d{2}T/, 'horodatage ISO');
+
+  // Un tour déclenché à la main doit être distinguable, sans quoi l'étude ne saurait pas si la
+  // ligne affichée vient de son propre clic ou du minuteur.
+  await executerTacheRappels(depot, db, parametresRepo, envoyerFn, '2026-10-27', 'manuel');
+  assert.equal(parametresRepo.lireDernierTour().declenche, 'manuel');
+
+  db.close();
+});
+
+test('executerTacheRappels : un envoi en échec ressort dans le compte rendu consigné', async () => {
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  const parametresRepo = creerRepoParametres(db);
+  depot.creer({ id: 'd1', nom: 'DUPONT / MARTIN', responsable: 'Bastien ANGLUMENT', pret: '2026-11-11' });
+  parametresRepo.ecrireReglages({ emailActif: true, smtpHote: 'smtp.test', emailPasserelle: 'passerelle@etude.fr', emailsResponsables: { 'Bastien ANGLUMENT': 'b@etude.fr' } });
+
+  const envoyerFn = async () => ({ ok: false, erreur: 'Invalid login: 535-5.7.8' });
+  await executerTacheRappels(depot, db, parametresRepo, envoyerFn, '2026-10-27');
+
+  const tour = parametresRepo.lireDernierTour();
+  assert.equal(tour.rappelsEnvoyes, 0);
+  assert.equal(tour.erreurs.length, 1);
+  assert.match(tour.erreurs[0], /535-5\.7\.8/, 'le message du serveur SMTP doit rester lisible');
+
+  db.close();
+});
+
+test('executerTacheRappels : envoi non configuré — aucun compte rendu écrit (ne pas écraser le dernier vrai tour)', async () => {
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  const parametresRepo = creerRepoParametres(db);
+  depot.creer({ id: 'd1', nom: 'DUPONT / MARTIN', responsable: 'Bastien ANGLUMENT', pret: '2026-11-11' });
+
+  parametresRepo.ecrireReglages({ emailActif: true, smtpHote: 'smtp.test', emailPasserelle: 'passerelle@etude.fr', emailsResponsables: { 'Bastien ANGLUMENT': 'b@etude.fr' } });
+  await executerTacheRappels(depot, db, parametresRepo, async () => ({ ok: true }), '2026-10-27');
+  const avant = parametresRepo.lireDernierTour();
+  assert.equal(avant.rappelsEnvoyes, 1);
+
+  // L'étude décoche « Activer l'envoi » : le tour suivant sort avant d'avoir rien tenté et ne doit
+  // PAS remplacer le compte rendu précédent par une ligne vide qui ne dirait rien.
+  parametresRepo.ecrireReglages({ emailActif: false, smtpHote: 'smtp.test', emailPasserelle: 'passerelle@etude.fr' });
+  await executerTacheRappels(depot, db, parametresRepo, async () => ({ ok: true }), '2026-10-28');
+  assert.deepEqual(parametresRepo.lireDernierTour(), avant, 'le dernier vrai tour est conservé tel quel');
+
+  db.close();
+});

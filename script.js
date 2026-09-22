@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-22 13:30';
+  const VERSION_APP = '2026-09-22 14:48';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,13 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-22 14:48', resume: "Réglages : nouvel encart « Dernier tour de rappels » "
+      + "qui dit quand la tâche est passée, combien de rappels sont partis et, surtout, lesquels ont "
+      + "échoué. Sans lui, un envoi cassé — mot de passe d'application révoqué, compte bloqué — "
+      + "arrêtait les rappels sans que rien ne le signale, le serveur tournant sans fenêtre. Un bouton "
+      + "« Lancer un tour maintenant » exécute le vrai tour sans attendre la demi-heure suivante. Le "
+      + "message de succès du bouton « Tester » est corrigé : il dit maintenant « remis au serveur "
+      + "d'envoi », car une réponse en succès ne prouve pas l'arrivée du message dans Teams." },
     { version: '2026-09-22 13:30', resume: "Tableau de bord : nouveau bloc « Pièces reçues, pas "
       + "encore consultées », qui NOMME les documents fraîchement trouvés sur le NAS, dossier par "
       + "dossier. Jusqu'ici l'outil disait seulement qu'il y avait du nouveau (compteur dans la barre "
@@ -75,12 +82,6 @@
       + "juste au-dessus, et laissent tranquille tout choix fait à la main. Dans l'aperçu du courrier, le logo "
       + "visioconférence et la mention « office équipé… » passent en bas de la colonne de gauche, là où le modèle Word "
       + "les place déjà, et le logo Notaires de France est un peu réduit. Badge ALPHA : marges d'origine rétablies." },
-    { version: '2026-09-22 09:41', resume: "Deux corrections signalées sur un vrai projet de vente. Un acte dont le "
-      + "texte extrait n'a aucun retour à la ligne — le cas de tout acte authentique lu par l'outil — faisait déborder le "
-      + "bloc VENDEUR sur la section ACQUÉREUR : les acquéreurs ressortaient vendeurs, d'où un faux « rôle changé » dans "
-      + "Outil 2 et un nom de dossier fautif dans Outil 1. Et la clause d'origine de propriété (« remontant à un titre "
-      + "translatif d'au moins trente ans ») n'est plus comptée comme une obligation du vendeur : établir cette origine "
-      + "est le travail du notaire sur le titre." },
   ];
 
   const STORAGE_KEY = 'dossiers';
@@ -15999,6 +16000,7 @@
       document.getElementById('reglages-copie-email').value = reglages.copieEmail || '';
       renderReglagesEmails(reglages.emailsResponsables || {});
       document.getElementById('reglages-etat').style.display = 'none';
+      chargerDernierTourRappels();
     } catch (e) {
       // Session expirée : déjà géré par fetchAvecAuth (écran de connexion réaffiché).
     }
@@ -16121,7 +16123,11 @@
       const corps = await reponse.json();
       if (!resultat) return;
       if (reponse.ok && corps.ok) {
-        resultat.textContent = '✓ Message envoyé — vérifiez la boîte de réception.';
+        // Volontairement pas « ✓ Message reçu » : cette réponse ne dit QUE ceci — le serveur
+        // d'envoi a accepté le message. Elle ne prouve ni son arrivée dans la boîte-passerelle,
+        // ni le déclenchement du flux, ni le message Teams. Laisser croire l'inverse ferait
+        // conclure à tort que la chaîne fonctionne, et chercher le problème au mauvais endroit.
+        resultat.textContent = "✓ Remis au serveur d'envoi — vérifiez maintenant dans Teams.";
         resultat.className = 'hint reglages-email-resultat reglages-email-ok';
       } else {
         resultat.textContent = corps.erreur || "Échec de l'envoi.";
@@ -16129,6 +16135,85 @@
       }
     } catch (e) {
       // Session expirée : déjà géré par fetchAvecAuth (écran de connexion réaffiché).
+    }
+  }
+
+  // ---- Compte rendu du dernier tour de rappels (voir server/src/jobs/rappels.js) ----
+  // La tâche construisait son `resultat.erreurs` depuis toujours sans que personne ne le lise, et
+  // le serveur tourne sans fenêtre : un envoi cassé arrêtait les rappels en silence. Ces deux
+  // fonctions sont la seule fenêtre sur cet état.
+
+  // « 2 dus », pas « 2 dûs » : le circonflexe de « dû » ne sert qu'à le distinguer de l'article
+  // « du » au masculin singulier, il disparaît au pluriel comme au féminin. Sorti en fonction pure
+  // parce que la même phrase est écrite à deux endroits (l'encart et le bandeau de confirmation) —
+  // deux copies finiraient par diverger, et c'est un texte que l'étude lit.
+  function libelleRappelsTour(envoyes, dus) {
+    const n = Number.isFinite(envoyes) && envoyes > 0 ? Math.floor(envoyes) : 0;
+    const d = Number.isFinite(dus) && dus > 0 ? Math.floor(dus) : 0;
+    const pluriel = n > 1 ? 's' : '';
+    return `${n} rappel${pluriel} envoyé${pluriel} sur ${d} ${d > 1 ? 'dus' : 'dû'}`;
+  }
+
+  function renderDernierTourRappels(tour) {
+    const zone = document.getElementById('reglages-dernier-tour');
+    if (!zone) return;
+    if (!tour || !tour.at) {
+      zone.className = 'reglages-dernier-tour';
+      zone.innerHTML = '<p class="hint" style="margin:0;">Aucun tour enregistré pour l\'instant — la tâche n\'a encore rien tenté, ou l\'envoi n\'est pas activé.</p>';
+      return;
+    }
+    const quand = new Date(tour.at);
+    const quandTexte = isNaN(quand.getTime())
+      ? tour.at
+      : quand.toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' });
+    const origine = tour.declenche === 'manuel' ? 'déclenché à la main' : 'tour automatique';
+    const erreurs = Array.isArray(tour.erreurs) ? tour.erreurs : [];
+    // Un tour sans erreur ET sans envoi n'est pas un problème : la plupart des tours n'ont
+    // simplement aucun rappel dû ce jour-là. C'est la présence d'erreurs qui fait basculer en
+    // alerte, jamais un compteur à zéro.
+    zone.className = 'reglages-dernier-tour ' + (erreurs.length ? 'dernier-tour-alerte' : 'dernier-tour-ok');
+    let html = `<div class="dernier-tour-ligne">${icone(erreurs.length ? 'alert-triangle' : 'check')}`;
+    html += `<span><strong>${escapeHtml(quandTexte)}</strong> — ${escapeHtml(origine)} · `;
+    html += `${escapeHtml(libelleRappelsTour(tour.rappelsEnvoyes, tour.rappelsDus))}.</span></div>`;
+    if (erreurs.length) {
+      html += '<ul class="dernier-tour-erreurs">' + erreurs.map((e) => `<li>${escapeHtml(e)}</li>`).join('') + '</ul>';
+    }
+    zone.innerHTML = html;
+  }
+
+  async function chargerDernierTourRappels() {
+    try {
+      const reponse = await fetchAvecAuth('/api/reglages/dernier-tour');
+      const corps = await reponse.json();
+      renderDernierTourRappels(corps.dernierTour);
+    } catch (e) {
+      // Session expirée : déjà géré par fetchAvecAuth (écran de connexion réaffiché).
+    }
+  }
+
+  // Lance un VRAI tour tout de suite. Le bouton est désactivé pendant l'appel : un tour qui envoie
+  // plusieurs rappels sur un serveur SMTP lent peut durer quelques secondes, et deux tours lancés
+  // en parallèle se disputeraient reminder_log.
+  async function lancerTourRappels() {
+    const bouton = document.getElementById('reglages-lancer-tour');
+    const zone = document.getElementById('reglages-etat');
+    if (bouton) { bouton.disabled = true; bouton.textContent = 'Tour en cours…'; }
+    try {
+      const reponse = await fetchAvecAuth('/api/reglages/lancer-rappels', { method: 'POST' });
+      const corps = await reponse.json();
+      zone.style.display = 'flex';
+      if (reponse.ok && corps.ok) {
+        renderDernierTourRappels(corps.dernierTour);
+        zone.className = 'analyse-ia-dispo dispo-ok';
+        zone.innerHTML = `${icone('check')}Tour terminé : ${escapeHtml(libelleRappelsTour(corps.rappelsEnvoyes, corps.rappelsDus))}. Vérifiez dans Teams.`;
+      } else {
+        zone.className = 'analyse-ia-dispo dispo-off';
+        zone.innerHTML = `${icone('alert-triangle')}${escapeHtml(corps.erreur || 'Le tour de rappels a échoué.')}`;
+      }
+    } catch (e) {
+      // Session expirée : déjà géré par fetchAvecAuth.
+    } finally {
+      if (bouton) { bouton.disabled = false; bouton.textContent = 'Lancer un tour maintenant'; }
     }
   }
 
