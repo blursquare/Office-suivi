@@ -112,21 +112,6 @@ test('chaque cleChecklist désigne une pièce réellement affichable', () => {
   });
 });
 
-test('extraireConditions restitue les rubriques de la section "Conditions suspensives"', () => {
-  const app = chargerApplication();
-  const texte = `
-Conditions suspensives
-
-CERTIFICAT D'URBANISME :
-Le vendeur devra produire un certificat d'urbanisme datant de moins de trois mois avant la signature.
-
-Conditions particulières
-DIVERS : néant.
-`;
-  const conditions = app.extraireConditions(texte);
-  assert.ok(conditions.some(c => c.type === 'suspensive' && /URBANISME/.test(c.titre)));
-});
-
 test('l’origine trentenaire n’est pas une obligation du vendeur à réclamer', () => {
   // Clause de style présente dans quasiment tous les avant-contrats : établir l'origine
   // trentenaire du bien est le travail du notaire sur le titre, pas une pièce à demander au

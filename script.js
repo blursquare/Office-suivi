@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-22 23:44';
+  const VERSION_APP = '2026-09-22 23:54';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,8 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-22 23:54', resume: "Bloc « Conditions suspensives et particulières » de l'analyse juridique retiré : "
+      + "il ne ressortait rien d'utile sur les actes réels." },
     { version: '2026-09-22 23:44', resume: "Stress test sur tous les PDF réels envoyés : noms "
       + "de dossier (noms composés, conjoints cités), dépôt de garantie versé en partie et son "
       + "séquestre, agence, adresse, « 2 mois et demi », montant des prêts (hors relais), décompte "
@@ -137,7 +139,7 @@
   // ("fin septembre 2026", "délai de 30 jours à compter de la signature", "J+30") plutôt que lue
   // telle quelle — confiance "estime" plutôt que "auto" (voir detecterDatesDepuisTexte).
   let approxParType = { pret: false, acte: false, ventebien: false };
-  let analyseJuridiqueActuelle = { documents: [], engagements: [], conditions: [] };
+  let analyseJuridiqueActuelle = { documents: [], engagements: [] };
   // Incrémenté à chaque nouvel import (traiterFichierPdf) et à chaque reset du formulaire
   // (reinitialiserFormulaire) — permet à lancerExtractionIa() de vérifier, une fois sa réponse
   // reçue, qu'elle porte encore sur l'import en cours plutôt que sur un import précédent déjà
@@ -5836,141 +5838,6 @@
     return fin === -1 ? reste.slice(0, 12000) : reste.slice(0, fin + 20);
   }
 
-  // Découpe une section en rubriques : un titre est une ligne courte en majuscules, souvent
-  // terminée par « : ».
-  function decouperEnRubriques(section) {
-    const rubriques = [];
-    const lignes = section.split('\n');
-    let courante = null;
-    const titreRe = /^\s*([A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ][A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ'’\s,\-\/\d]{3,70})\s*:\s*$/;
-
-    lignes.forEach(ligne => {
-      const m = ligne.match(titreRe);
-      if (m) {
-        if (courante) rubriques.push(courante);
-        courante = { titre: m[1].replace(/\s+/g, ' ').trim(), contenu: '' };
-      } else if (courante) {
-        courante.contenu += ' ' + ligne.trim();
-      }
-    });
-    if (courante) rubriques.push(courante);
-
-    return rubriques
-      .map(r => ({ titre: r.titre, contenu: r.contenu.replace(/\s+/g, ' ').trim() }))
-      .filter(r => r.contenu.length > 30);
-  }
-
-  function extraireConditionsParticulieres(texte) {
-    const section = extraireSection(
-      texte,
-      /Conditions\s+particuli[èe]res/i,
-      /\n\s*(?:Interdiction\s+pour\s+le\s+vendeur|Obligations\s+de\s+garde|Dispositions\s+(?:diverses|g[ée]n[ée]rales)|Signatures?|Annexes?)\b/i
-    );
-    if (!section) return [];
-    return decouperEnRubriques(section).map(r => ({
-      titre: r.titre,
-      contenu: r.contenu.length > 400 ? r.contenu.slice(0, 400) + '…' : r.contenu,
-      // Une rubrique est signalée comme « à suivre » si le vendeur y prend un engagement.
-      engagementVendeur: /\ble\s+vendeur\s+s.(?:engage|oblige)|\ble\s+vendeur\s+(?:devra|remettra|produira|fournira|justifiera)/i.test(r.contenu)
-    }));
-  }
-
-  function extraireConditionsSuspensives(texte) {
-    const section = extraireSection(
-      texte,
-      /\nConditions\s+suspensives/i,
-      /\n\s*Conditions\s+particuli[èe]res/i
-    );
-    const rubriques = section ? decouperEnRubriques(section) : [];
-
-    // La condition de prêt a son propre titre de section dans la plupart des modèles.
-    const cs = rubriques.map(r => ({
-      titre: r.titre,
-      contenu: r.contenu.length > 350 ? r.contenu.slice(0, 350) + '…' : r.contenu
-    }));
-
-    const pret = texte.match(/Condition\s+suspensive\s+de\s+l.obtention\s+d.un\s+pr[êe]t[^\n]{0,120}/i);
-    if (pret && !cs.some(c => /pr[êe]t/i.test(c.titre))) {
-      const dateButoir = texte.match(/DUR[ÉE]E\s+DE\s+VALIDIT[ÉE][^\n]{0,120}/i);
-      cs.unshift({
-        titre: "OBTENTION D'UN PRÊT IMMOBILIER",
-        contenu: dateButoir ? dateButoir[0].replace(/\s+/g, ' ').trim() : pret[0].replace(/\s+/g, ' ').trim()
-      });
-    }
-    return cs;
-  }
-
-  // Un compromis structure ses clauses par rubriques en majuscules (CITERNE DE GAZ :, COUVERTURE :…)
-  // regroupées sous « Conditions particulières » / « Conditions suspensives ». On exploite cette
-  // structure pour restituer les clauses telles que le notaire les lit, sans rien inventer.
-  function extraireConditions(texte) {
-    const resultats = [];
-    const vus = new Set();
-
-    const sections = [
-      // Le titre doit être seul sur sa ligne : évite d'attraper « ...sous conditions suspensives »
-      // du titre courant répété en pied de page.
-      { titre: /\n\s*Conditions?\s+suspensives?\s*\n/i, type: 'suspensive' },
-      { titre: /\n\s*Conditions?\s+particuli[èe]res?\s*\n/i, type: 'particuliere' }
-    ];
-
-    sections.forEach(({ titre, type }) => {
-      const m = texte.match(titre);
-      if (!m) return;
-      const debut = m.index + m[0].length;
-      // La section s'arrête au prochain grand titre de niveau équivalent.
-      const reste = texte.slice(debut, debut + 12000);
-      const finMatch = reste.match(/\n(?:Conditions?\s+particuli[èe]res?|Interdiction\s+pour\s+le\s+vendeur|Obligations?\s+de\s+garde|Date\s+et\s+signatures?|Dispositions?\s+g[ée]n[ée]rales?)\s*\n/i);
-      const corps = finMatch ? reste.slice(0, finMatch.index) : reste;
-
-      // Rubriques : ligne en MAJUSCULES, tolérant les mots de liaison en minuscules
-      // (« CHAUFFAGE et PRODUCTION D'EAU CHAUDE : »).
-      const reRubrique = /(?:^|\n)([A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ][A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ'’\s\-,()°.\d]*(?:\s(?:et|de|du|des|d'|l'|la|le)\s[A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ'’\s\-,()°.\d]*)*)\s*:\s*/g;
-      const points = [];
-      let r;
-      while ((r = reRubrique.exec(corps)) !== null) {
-        const t = r[1].trim().replace(/\s+/g, ' ');
-        if (t.length < 4 || t.length > 70) continue;
-        points.push({ titre: t, debut: r.index + r[0].length });
-      }
-
-      points.forEach((p, i) => {
-        const fin = (i + 1 < points.length) ? points[i + 1].debut : corps.length;
-        let contenu = corps.slice(p.debut, fin).replace(/\s+/g, ' ').trim();
-        // Retire les pieds de page répétés par l'extraction PDF.
-        contenu = contenu.replace(/Compromis de vente[^\n]{0,120}Page \d+ sur \d+/gi, '').trim();
-        if (contenu.length < 20) return;
-        const cle = p.titre.toLowerCase();
-        if (vus.has(cle)) return;
-        vus.add(cle);
-        resultats.push({ titre: p.titre, contenu: contenu.slice(0, 600), type });
-      });
-
-      // Certaines conditions suspensives ont un titre de ligne sans « : » final
-      // (« CERTIFICAT OU NOTE D'URBANISME », « DROIT DE PRÉEMPTION URBAIN (DPU) »).
-      if (type === 'suspensive' && points.length === 0) {
-        const reTitreSeul = /(?:^|\n)([A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ][A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ'’\s\-()°\d]{6,70})\n/g;
-        const titres = [];
-        let t;
-        while ((t = reTitreSeul.exec(corps)) !== null) {
-          titres.push({ titre: t[1].trim().replace(/\s+/g, ' '), debut: t.index + t[0].length });
-        }
-        titres.forEach((p, i) => {
-          const fin = (i + 1 < titres.length) ? titres[i + 1].debut : corps.length;
-          let contenu = corps.slice(p.debut, fin).replace(/\s+/g, ' ').trim();
-          contenu = contenu.replace(/Compromis de vente[^\n]{0,120}Page \d+ sur \d+/gi, '').trim();
-          if (contenu.length < 40) return;
-          const cle = p.titre.toLowerCase();
-          if (vus.has(cle)) return;
-          vus.add(cle);
-          resultats.push({ titre: p.titre, contenu: contenu.slice(0, 600), type });
-        });
-      }
-    });
-
-    return resultats;
-  }
-
   function extraireEngagementsVendeur(texte) {
     const engagements = [];
     const vus = new Set();
@@ -6039,14 +5906,6 @@
       }
     }
     return engagements;
-  }
-
-  function renderCondition(c) {
-    const libelle = c.type === 'suspensive' ? 'Suspensive' : 'Particulière';
-    return `<div class="condition-ligne">
-      <span class="condition-titre"><span class="condition-badge ${c.type}">${libelle}</span>${escapeHtml(c.titre)}</span>
-      <span class="condition-contenu">${escapeHtml(c.contenu)}</span>
-    </div>`;
   }
 
   // Accepte le nouveau format {label, cat} comme l'ancien (simple chaîne), pour que les dossiers
@@ -6188,12 +6047,11 @@
     const listeDocs = document.getElementById('analyse-documents-liste');
     const note = document.getElementById('analyse-note');
     const vide = document.getElementById('analyse-vide-etat');
-    const { documents, engagements, conditions = [] } = analyseJuridiqueActuelle;
+    const { documents, engagements } = analyseJuridiqueActuelle;
 
-    const analyseJuridiqueDisponible = documents.length > 0 || engagements.length > 0 || conditions.length > 0;
+    const analyseJuridiqueDisponible = documents.length > 0 || engagements.length > 0;
     if (vide) vide.style.display = analyseJuridiqueDisponible ? 'none' : 'block';
     if (!analyseJuridiqueDisponible) {
-      document.getElementById('analyse-section-conditions').style.display = 'none';
       document.getElementById('analyse-section-engagements').style.display = 'none';
       const sectionDocuments = document.getElementById('analyse-section-documents');
       if (sectionDocuments) sectionDocuments.style.display = 'none';
@@ -6202,13 +6060,6 @@
     }
     const sectionDocumentsVisible = document.getElementById('analyse-section-documents');
     if (sectionDocumentsVisible) sectionDocumentsVisible.style.display = 'block';
-
-    // Les conditions suspensives et particulières sont reprises telles qu'elles figurent au
-    // compromis, rubrique par rubrique : c'est la lecture de référence du notaire.
-    const sectionConditions = document.getElementById('analyse-section-conditions');
-    sectionConditions.style.display = conditions.length > 0 ? 'block' : 'none';
-    document.getElementById('analyse-nb-conditions').textContent = conditions.length || '';
-    document.getElementById('analyse-conditions-liste').innerHTML = conditions.map(renderCondition).join('');
 
     // Les engagements sont affichés directement : ce sont les actions à suivre, elles ne doivent
     // pas être cachées derrière un clic.
@@ -6601,8 +6452,7 @@
     const engagements = extraireEngagementsVendeur(texte);
     analyseJuridiqueActuelle = {
       documents: detecterDocumentsAFournir(engagements),
-      engagements,
-      conditions: extraireConditions(texte)
+      engagements
     };
     afficherAnalyseJuridique();
 
@@ -8551,7 +8401,7 @@
     dernierTexteTraite = '';
     detectedDates = [];
     autresEnCours = [];
-    analyseJuridiqueActuelle = { documents: [], engagements: [], conditions: [] };
+    analyseJuridiqueActuelle = { documents: [], engagements: [] };
     extractionActuelle = null;
     valeursAppliquees = {};
     correctionsRevision = {};
@@ -8715,8 +8565,7 @@
       archive: false,
       analyseJuridique: {
         documents: analyseJuridiqueActuelle.documents.slice(),
-        engagements: analyseJuridiqueActuelle.engagements.slice(),
-        conditions: (analyseJuridiqueActuelle.conditions || []).slice()
+        engagements: analyseJuridiqueActuelle.engagements.slice()
       },
       typeActe: instantane ? instantane.typeActe : null,
       parties: instantane ? instantane.parties : [],
@@ -10941,8 +10790,7 @@
   function renderCarteDossier(d) {
       const confiance = d.confiance || {};
       const historique = d.historique || [];
-      const analyse = d.analyseJuridique || { documents: [], engagements: [], conditions: [] };
-      const analyseConditions = analyse.conditions || [];
+      const analyse = d.analyseJuridique || { documents: [], engagements: [] };
       // "Ouvrir le compromis" et "Changer de dossier"/"Lier un dossier local" reprennent tous les
       // deux le design de "+ Ajouter une pièce" (.action-rapide) — demandé par l'étude, cohérent
       // avec les autres actions rapides de la fiche (Revérifier...) plutôt que l'ancien style de
@@ -11096,15 +10944,9 @@
         ${renderAjoutEcheance(d)}
         ${d.roleNotaire !== 'participant' ? renderPiecesDossier(d) : ''}
         ${renderDiagnosticParcours(d)}
-        ${(analyse.documents.length > 0 || analyse.engagements.length > 0 || analyseConditions.length > 0) ? `
+        ${(analyse.documents.length > 0 || analyse.engagements.length > 0) ? `
           <details class="analyse-juridique analyse-repliable" style="margin-top:14px;" open>
             <summary class="analyse-titre">Analyse juridique du compromis</summary>
-            ${analyseConditions.length > 0 ? `
-              <div class="analyse-section">
-                <div class="analyse-sous-titre">Conditions suspensives et particulières <span class="analyse-compteur">${analyseConditions.length}</span></div>
-                ${analyseConditions.map(renderCondition).join('')}
-              </div>
-            ` : ''}
             ${analyse.engagements.length > 0 ? `
               <div class="analyse-section">
                 <div class="analyse-sous-titre">Engagements du vendeur <span class="analyse-compteur">${analyse.engagements.length}</span></div>
@@ -11423,7 +11265,7 @@
     const type = typeEl ? typeEl.value : 'document';
     const phrase = texteEl ? texteEl.value.trim() : '';
     if (!phrase) { if (texteEl) texteEl.focus(); return; }
-    d.analyseJuridique = d.analyseJuridique || { documents: [], engagements: [], conditions: [] };
+    d.analyseJuridique = d.analyseJuridique || { documents: [], engagements: [] };
     d.analyseJuridique.engagements = d.analyseJuridique.engagements || [];
     d.analyseJuridique.engagements.push({ phrase, type, page: null, manuel: true });
     ajouterHistorique(d, `Obligation du vendeur ajoutée : « ${phrase.slice(0, 80)}${phrase.length > 80 ? '…' : ''} »`);
@@ -12668,8 +12510,7 @@
         documents: Array.isArray(d.analyseJuridique && d.analyseJuridique.documents)
           ? d.analyseJuridique.documents.filter(x => typeof x === 'string' || (x && typeof x === 'object' && typeof x.label === 'string'))
           : [],
-        engagements: Array.isArray(d.analyseJuridique && d.analyseJuridique.engagements) ? d.analyseJuridique.engagements : [],
-        conditions: Array.isArray(d.analyseJuridique && d.analyseJuridique.conditions) ? d.analyseJuridique.conditions : []
+        engagements: Array.isArray(d.analyseJuridique && d.analyseJuridique.engagements) ? d.analyseJuridique.engagements : []
       },
       // Trace de ce que l'extraction avait compris de l'acte : conservée à l'import (c'est une
       // lecture du document lui-même, la même sur n'importe quel poste — contrairement à
@@ -12769,7 +12610,7 @@
   function imprimerFiche(id) {
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
-    const analyse = d.analyseJuridique || { documents: [], engagements: [], conditions: [] };
+    const analyse = d.analyseJuridique || { documents: [], engagements: [] };
     const docs = (analyse.documents || []).map(x => typeof x === 'string' ? x : x.label);
     const engs = (analyse.engagements || []).map(x => typeof x === 'string' ? x : x.phrase);
 

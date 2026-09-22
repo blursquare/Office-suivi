@@ -2413,32 +2413,6 @@
     height: fit-content;
     margin-top: 1px;
   }
-  .condition-ligne {
-    padding: 8px 0;
-    border-top: 1px solid var(--line-soft);
-    font-size: 12.5px;
-    line-height: 1.55;
-  }
-  .condition-ligne:first-child { border-top: none; }
-  .condition-titre {
-    font-weight: 700;
-    color: var(--ink);
-    display: block;
-    margin-bottom: 2px;
-  }
-  .condition-badge {
-    display: inline-block;
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    padding: 1px 6px;
-    border-radius: 8px;
-    margin-right: 6px;
-    vertical-align: middle;
-  }
-  .condition-badge.suspensive { background: var(--acte-bg); color: var(--acte); }
-  .condition-badge.particuliere { background: var(--ventebien-bg); color: var(--ventebien); }
-  .condition-contenu { color: var(--ink-soft); }
 
   .engagement-type.document, .engagement-type.justificatif { background: var(--acte-bg); color: var(--acte); }
   .engagement-type.entretien { background: var(--ventebien-bg); color: var(--ventebien); }

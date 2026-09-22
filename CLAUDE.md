@@ -6327,11 +6327,27 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   - **Vérifié sans rien changer** : les 16 PDF du dossier NAS réel sont tous reconnus par leur NOM
     (certificat d'urbanisme, alignement ET numérotage sur le même fichier, préemption, diagnostics,
     taxe foncière, entretien chaudière, offre de prêt), quel que soit le type de vente.
+- **Bloc « Conditions suspensives et particulières » de l'analyse juridique : supprimé.** Présent
+  depuis l'import initial du projet, sans justification écrite : il reprenait les rubriques en
+  majuscules des sections « Conditions suspensives » / « Conditions particulières » d'une trame
+  d'agence précise (titres seuls sur leur ligne, pied de page « Compromis de vente … Page X sur Y »).
+  Le texte pdf.js n'ayant qu'un retour à la ligne par page, il restait vide sur les PDF réels — et,
+  le bloc étant masqué quand il est vide, l'étude ne l'avait jamais vu. À sa demande (« teste, et si
+  rien d'intéressant ne ressort, supprime »), rejoué sur les 10 avant-contrats réels, y compris avec
+  des lignes reconstruites depuis les positions pdf.js (`lignesDepuisItemsPdf`) : **0 résultat sur
+  9 actes**, et sur le dixième (VERLAY, scanné) 13 rubriques sans rapport (servitudes, impôts,
+  assurance…) étiquetées à tort « suspensives ». Relevé à la main sous les titres « conditions
+  suspensives » des 10 actes, le contenu réel se réduit à la condition de prêt (déjà suivie par les
+  dates et la carte « Obtention du prêt ») et, sur un seul acte, à l'obtention d'un certificat
+  d'urbanisme — trop peu pour une réécriture. Retirés : `extraireConditions`,
+  `extraireConditionsSuspensives`/`extraireConditionsParticulieres` et `decouperEnRubriques` (ces
+  trois-là n'étaient déjà plus appelées), `renderCondition`, `#analyse-section-conditions`, le bloc
+  de la fiche, les règles `.condition-*`, le champ `conditions` de l'analyse (plus écrit à la
+  création, plus conservé à l'import — un dossier ancien qui le porte encore s'affiche normalement,
+  le champ est ignoré) et son test. `extraireSection` est conservée : elle sert à la désignation du
+  bien. **Ne pas le réintroduire sans demande explicite**, et le cas échéant en partant des titres
+  de clause et des 10 actes du stress test, jamais des retours à la ligne.
 - **Constats du stress test laissés ouverts** (à trancher avec l'étude, pas des oublis) :
-  - **`extraireConditions()` (Analyse juridique → « Conditions ») est vide sur 100 % des PDF réels** :
-    elle découpe par retour à la ligne, et pdf.js n'en met qu'un par page — le même piège déjà payé
-    trois fois ici. Sur du texte reconstruit en lignes elle remonte des résultats, mais bruités. À
-    rouvrir seulement si l'étude utilise ce bloc.
   - L'adresse de l'OFFICE notarial lit le CRPCEN (« CRPCEN 41089 ») comme un code postal —
     cosmétique, le département retombe juste par coïncidence (41).
   - Les deux scans (VERLAY, BANCQUART) : prix manuscrit illisible par l'OCR, et adresse de BANCQUART
