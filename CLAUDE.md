@@ -7362,9 +7362,14 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
     - **C'est la TROISIÈME fois que ce piège est payé** (après `RE_TITRE_PARTIE_SUIVANTE` et le
       parseur de décompte). La leçon, déjà écrite deux fois ici, vaut d'être appliquée
       préventivement : **toute regex ancrée sur `^` ou `\n` est fausse par construction tant que le
-      texte qu'elle reçoit ne porte pas de vraies lignes.** Reste à auditer sous cet angle :
-      `RE_TITRE_PIECE_JOINTE`, `estDebutPageAnnexe`, `estTitreDeSection`/`RE_INTITULE_CAPITALES`,
-      `RE_TITRE_GARANTIES` elle-même là où elle serait appelée sur un autre texte.
+      texte qu'elle reçoit ne porte pas de vraies lignes.** **Audit fait dans la foulée, rien à
+      corriger** : `estDebutPageAnnexe` reçoit le texte d'UNE SEULE page à la fois (boucle de
+      `extraireTextesUtiles`), son `^` désigne donc bien le début de page ; `estTitreDeSection`/
+      `RE_INTITULE_CAPITALES` n'a qu'un appelant, `extraireParagrapheGaranties`, qui reçoit
+      désormais du texte à vraies lignes ; `RE_TITRE_PARTIE_SUIVANTE` était déjà traité. Les regex
+      d'Outil 2 sont passées au même crible : la seule ancrée (`RE_CONNECTEUR_DATE_AG`) s'applique
+      à un fragment court, jamais à une ligne de document. **À refaire** dès qu'une regex ancrée
+      est écrite, ou qu'un lecteur de PDF change d'appelant.
   - **Cause 2 : l'hypothèque citée est un engagement À VENIR, pas une garantie de ce prêt.** Le
     contrat de cautionnement de la société de caution est reproduit À L'INTÉRIEUR du paragraphe
     GARANTIES, et il contient : « L'Emprunteur s'engage à consentir à ses frais une hypothèque
@@ -7442,6 +7447,26 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
   d'été/hiver — utiliser `date` seul afficherait une heure fausse pour l'étude). Affichés dans
   l'écran "À propos", c'est actuellement le seul moyen pour l'étude de vérifier qu'elle a bien la
   dernière copie (et de voir CE QUI a changé) avant de resignaler un bug déjà corrigé.
+- **Outil 2 : panneau de diagnostic de la relecture — idée validée par l'étude, reportée par
+  elle (« plus tard mais bonne idée »).** Pendant d'Outil 1 (`renderDiagnosticParcours`, voir son
+  historique) : après chaque relecture, afficher les pages réellement lues, les clauses candidates
+  repérées, et surtout **celles qui ont été écartées AVEC LA RAISON** (clause de style, travail
+  futur et non réalisé, aucun marqueur de réalisation passée…). Motivation : le seul retour obtenu
+  jusqu'ici sur Outil 2 est « il rate des choses », ce qui ne permet aucun correctif ; ce panneau
+  transformerait le signalement en « il a vu la clause page 12 mais l'a écartée comme clause de
+  style », donc en correctif d'un seul tour. Sur un outil dont tous les motifs sont un premier jet
+  à resserrer acte par acte, c'est l'investissement le plus rentable — à relancer dès que l'étude
+  le redemande.
+- **Outil 2, retour en attente de précision** : l'étude a signalé « ne fonctionne pas très bien,
+  mais c'est mieux, il y a du potentiel », puis précisé « il rate des choses » (faux négatifs).
+  **La question qui décide de la suite n'a pas encore de réponse** : ce qui est raté est-il DANS
+  les quatre thèmes (trou de motif → élargir à partir de la clause réelle) ou EN DEHORS
+  (préemption, servitudes, urbanisme général, titre — retirés volontairement, voir l'entrée
+  suivante → décision de périmètre, pas correctif) ? Deux causes structurelles ont déjà été
+  écartées sans l'acte : aucune regex d'Outil 2 n'est ancrée sur une ligne de document, et la
+  lecture n'est pas tronquée en silence (plafond de 60 pages, signalé par la section
+  « couverture » du rapport). **Ne pas élargir de motif avant d'avoir l'acte réel** — c'est la
+  leçon la plus répétée de ce fichier.
 - **Outil 2 : le cahier des charges en 19 sections n'est plus le périmètre.** L'étude l'a
   volontairement réduit à quatre thèmes après avoir testé la version qui le suivait (voir
   « Outil 2 refait de zéro »). Les sections abandonnées — préemption, servitudes, urbanisme
