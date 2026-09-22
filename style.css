@@ -1178,6 +1178,44 @@
 
   .audit-section { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
   .audit-section-titre { display: flex; align-items: center; gap: 8px; margin: 0; font-size: inherit; }
+  /* Le bouton de masquage se pose en bout de ligne, hors du flux de lecture du titre : c'est un
+     geste rare (« ne plus jamais me montrer ça »), il ne doit pas rivaliser avec le titre ni avec
+     le compteur. Il ne s'assombrit qu'au survol de sa propre rubrique. */
+  .audit-masquer {
+    margin-left: auto;
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 7px; border-radius: 999px;
+    font: inherit; font-size: 11px; line-height: 1.6;
+    color: var(--muted); background: transparent;
+    border: 1px solid transparent; cursor: pointer;
+    opacity: 0.55; transition: opacity 0.12s ease, border-color 0.12s ease;
+  }
+  .audit-section:hover .audit-masquer { opacity: 1; }
+  .audit-masquer:hover, .audit-masquer:focus-visible { border-color: var(--line); color: var(--ink-soft); }
+
+  /* Rubriques masquées : en pied de rapport, sans insistance, mais TOUJOURS visibles — c'est le
+     seul endroit qui dit ce qui a été retiré de la vue et combien cet acte en retient. */
+  .audit-masquees { margin-top: 24px; padding-top: 14px; border-top: 1px solid var(--line-soft); }
+  .audit-masquees .hint { margin: 4px 0 8px; }
+  .audit-masquees ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .audit-masquees li { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .audit-masquee-titre { font-size: 13px; color: var(--ink-soft); }
+  .audit-masquees li .hint { margin: 0; }
+  .audit-masquees li .action-rapide { margin-left: auto; }
+
+  /* L'écart avant-contrat / projet : l'erreur que l'étude a désignée comme la plus coûteuse, donc
+     annoncée dès l'en-tête. Les trois états (non comparé / aucun écart / N écarts) partagent la
+     même ligne ; seul le troisième prend un fond, pour ne pas mettre au même niveau une alerte et
+     une réassurance. */
+  .audit-ecarts {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    margin: 0; font-size: 13px; color: var(--ink-soft);
+  }
+  .audit-ecarts-alerte {
+    padding: 7px 10px; border-radius: 8px;
+    background: color-mix(in srgb, var(--urgent) 9%, transparent);
+    border: 1px solid color-mix(in srgb, var(--urgent) 26%, transparent);
+  }
   .audit-section-compte {
     font-size: 11px; font-weight: 600; line-height: 1;
     padding: 3px 7px; border-radius: 999px;

@@ -6192,6 +6192,65 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     du type en « maison » puis « terrain » qui retire ou ajoute réellement les sections
     correspondantes. Aucune erreur JS.
 
+- **Quatre réponses de l'étude sur Outil 2, dont une qui renverse la priorité : le défaut n'est pas
+  ce qu'il rate, c'est qu'il « signale trop de choses sans intérêt ».** Questions posées à sa
+  demande explicite (« des questions pour améliorer et te permettre de comprendre ce que l'on fait
+  en relisant les projets d'acte ? »). Les quatre réponses, à garder en tête avant tout chantier
+  sur cet outil :
+  1. **Le problème est le BRUIT**, pas les manques — le point resté ouvert depuis « il rate des
+     choses » est donc tranché dans l'autre sens : il n'y a pas de motif à élargir, il y a du
+     signal à retirer.
+  2. **L'erreur la plus coûteuse est une divergence avant-contrat / acte passée inaperçue** (une
+     partie, un prix, des quotités, une désignation qui changent d'un acte à l'autre).
+  3. **Aucune trame de relecture écrite** : rien à calquer, c'est l'habitude.
+  4. **Aucun acte réel à fournir pour l'instant** — donc, règle déjà écrite ici et appliquée à la
+     lettre : **ne toucher à aucun motif**. Élargir ou resserrer une regex sans l'acte est ce qui a
+     déjà provoqué plusieurs régressions dans ce fichier.
+  Deux changements seulement, tous deux structurels et sans une seule regex touchée :
+  - **Chaque rubrique du rapport peut être masquée une fois pour toutes**
+    (`rubriquesMasqueesAudit`, clé `audit-rubriques-masquees`, `basculerRubriqueDans()` pure et
+    testable). Faute d'acte réel, deviner QUELLES rubriques sont du bruit reviendrait à resserrer
+    des motifs au jugé : c'est donc l'étude qui tranche, rubrique par rubrique. **Distinct de
+    `memoireAuditConstats`** (« Écarter » UN constat, reconnu ensuite par similarité de clause —
+    voir son historique) : ici c'est une rubrique entière qui disparaît quel que soit son contenu,
+    le bon geste quand un sujet n'intéresse jamais l'étude, là où écarter un à un les constats d'un
+    sujet qui revient sur chaque acte ne finirait jamais.
+    - **Jamais silencieux, et c'est le garde-fou du mécanisme** : les rubriques masquées sont
+      listées en pied de rapport AVEC le nombre de constats qu'elles retiennent sur l'acte en cours
+      (`renderRubriquesMasqueesAudit`). Masquer ne doit pas pouvoir avaler un constat critique sans
+      que rien ne le dise.
+    - Une section vidée par un masquage n'écrit plus « rien à signaler » mais « N rubrique(s)
+      masquée(s) » — c'est exactement la confusion que ce rapport combat déjà ailleurs (« rien à
+      signaler » lu à la place de « rien n'a pu être contrôlé »).
+    - `basculerRubriqueDans()` refuse toute clé absente de `SOUS_SECTIONS_RAPPORT_OUTIL2` et
+      nettoie les entrées mortes au passage : sans ce garde-fou, une rubrique renommée laisserait
+      une entrée que plus aucun bouton du rapport ne pourrait retirer.
+    - Le bouton n'est proposé que sur les rubriques de CONSTATS, jamais sur les tableaux (travaux,
+      obligations) : ceux-là portent justement la comparaison avant-contrat / projet, c'est-à-dire
+      la réponse n°2 ci-dessus.
+  - **L'écart avant-contrat / projet est annoncé dès l'en-tête** (`renderEcartsAudit`), au-dessus
+    des sections : il vit dans la deuxième d'entre elles, parfois deux écrans plus bas, alors que
+    c'est l'erreur que l'étude dit lui avoir coûté le plus cher. **Trois états bien distincts,
+    jamais confondus** : *Non comparé* (aucun avant-contrat de référence), *Aucun écart* (comparé,
+    rien trouvé — c'est là que se trouve la réassurance cherchée, d'où l'affichage même à zéro), et
+    *N écart(s)* avec un bouton qui fait défiler jusqu'à la section.
+    - **Bug corrigé au passage, trouvé en construisant ce bandeau** : `messageBlocAuditVide()`
+      écrivait « Aucun écart relevé entre l'avant-contrat et le projet » **même quand aucune
+      référence n'avait été fournie** — donc quand aucune comparaison n'avait eu lieu. Rassurer
+      l'étude sur le point précis qu'elle vient de désigner comme le plus coûteux, sans avoir rien
+      comparé, était le pire cas possible. Nouveau drapeau `comparaisonFaite` sur le résultat de
+      `analyserProjetVenteOutil2()` (« une référence était-elle disponible ? », pas « un écart
+      a-t-il été trouvé ? »), consulté par les deux endroits.
+  - Tests : 5 nouveaux dans `tests/outil2-lecture-acte.test.js` (bascule d'une rubrique dans les
+    deux sens, clé inconnue et entrée morte, les trois états du bandeau, le message de section vide
+    qui n'affirme rien sans référence, `comparaisonFaite` posé d'après la seule disponibilité d'une
+    référence). Suite racine 670 → 675, serveur inchangée (215 — chantier entièrement côté client).
+    **Vérifié dans un vrai Chromium** (serveur réel, rapport fabriqué en mémoire, pdf.js et Ollama
+    restant bloqués ici) en clair et en sombre : les trois états du bandeau, masquage d'une
+    rubrique qui disparaît de la section et réapparaît en pied avec son compte, persistance en
+    `localStorage`, réaffichage qui la remet à sa place, aucune erreur JS, aucun débordement
+    horizontal à 400px.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à
@@ -7776,16 +7835,19 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
   style », donc en correctif d'un seul tour. Sur un outil dont tous les motifs sont un premier jet
   à resserrer acte par acte, c'est l'investissement le plus rentable — à relancer dès que l'étude
   le redemande.
-- **Outil 2, retour en attente de précision** : l'étude a signalé « ne fonctionne pas très bien,
-  mais c'est mieux, il y a du potentiel », puis précisé « il rate des choses » (faux négatifs).
-  **La question qui décide de la suite n'a pas encore de réponse** : ce qui est raté est-il DANS
-  les quatre thèmes (trou de motif → élargir à partir de la clause réelle) ou EN DEHORS
-  (préemption, servitudes, urbanisme général, titre — retirés volontairement, voir l'entrée
-  suivante → décision de périmètre, pas correctif) ? Deux causes structurelles ont déjà été
-  écartées sans l'acte : aucune regex d'Outil 2 n'est ancrée sur une ligne de document, et la
+- **Outil 2 : la question « ce qu'il rate est-il dans ou hors des quatre thèmes ? » est
+  TRANCHÉE — et dans une troisième direction.** Interrogée directement, l'étude a répondu que le
+  défaut n'est ni l'un ni l'autre : l'outil **« signale trop de choses sans intérêt »**. Il n'y a
+  donc pas de motif à élargir (ni, sans acte réel, à resserrer au jugé), il y a du signal à
+  retirer — ce que le masquage de rubrique permet désormais de faire décider par l'étude
+  elle-même (voir son entrée d'historique). Deux causes structurelles restaient écartées sans
+  l'acte, et le restent : aucune regex d'Outil 2 n'est ancrée sur une ligne de document, et la
   lecture n'est pas tronquée en silence (plafond de 60 pages, signalé par la section
-  « couverture » du rapport). **Ne pas élargir de motif avant d'avoir l'acte réel** — c'est la
-  leçon la plus répétée de ce fichier.
+  « couverture » du rapport). **Ce qui reste ouvert** : quelles rubriques l'étude masque
+  effectivement à l'usage — c'est la mesure la plus fiable du bruit réel, et elle dira quoi
+  retirer ou resserrer POUR DE BON, sur des faits plutôt que sur une supposition. **Ne toujours
+  pas élargir ni resserrer un motif avant d'avoir un acte réel** : l'étude n'a pas pu en fournir
+  pour l'instant, et c'est la leçon la plus répétée de ce fichier.
 - **Outil 2 : le cahier des charges en 19 sections n'est plus le périmètre.** L'étude l'a
   volontairement réduit à quatre thèmes après avoir testé la version qui le suivait (voir
   « Outil 2 refait de zéro »). Les sections abandonnées — préemption, servitudes, urbanisme

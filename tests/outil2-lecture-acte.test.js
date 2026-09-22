@@ -174,3 +174,68 @@ test('sur une comparution d’acte authentique, chaque notaire garde SON côté'
   assert.equal(liste[0].cote, 'vendeur');
   assert.equal(liste[1].cote, 'acquereur');
 });
+
+// --- Bruit du rapport : l'étude masque une rubrique entière ---------------------------------
+// Retour direct de l'étude : le défaut d'Outil 2 n'est pas ce qu'il rate, c'est qu'il « signale
+// trop de choses sans intérêt ». Faute d'acte réel, c'est elle qui tranche rubrique par rubrique.
+
+test('masquer une rubrique l’ajoute, la rappeler la retire', () => {
+  const app = chargerApplication();
+  const a = app.basculerRubriqueDans([], 'DIAGNOSTICS');
+  assert.equal(a.join(','), 'DIAGNOSTICS');
+  assert.equal(app.basculerRubriqueDans(a, 'DIAGNOSTICS').length, 0);
+});
+
+test('une clé inconnue n’est jamais masquée, et une entrée morte est nettoyée', () => {
+  const app = chargerApplication();
+  // Sans ce garde-fou, une rubrique renommée laisserait une entrée que plus aucun bouton du
+  // rapport ne pourrait retirer.
+  assert.equal(app.basculerRubriqueDans([], 'RUBRIQUE_INVENTEE').length, 0);
+  assert.equal(app.basculerRubriqueDans(['RUBRIQUE_SUPPRIMEE'], 'PARTIES').join(','), 'PARTIES');
+  assert.equal(app.basculerRubriqueDans(null, 'PARTIES').join(','), 'PARTIES');
+});
+
+// --- Écart avant-contrat / projet : l'erreur que l'étude dit la plus coûteuse ------------------
+
+test('« aucun écart » n’est affirmé que si la comparaison a réellement eu lieu', () => {
+  const app = chargerApplication();
+  const bloc = app.SECTIONS_RAPPORT_OUTIL2.find(b => b.cle === 'AVANT_CONTRAT');
+
+  const sans = app.messageBlocAuditVide(bloc, { mode: 'acte', comparaisonFaite: false });
+  assert.match(sans, /Aucun avant-contrat de référence/);
+  assert.ok(!/Aucun écart relevé/.test(sans));
+
+  const avec = app.messageBlocAuditVide(bloc, { mode: 'acte', comparaisonFaite: true });
+  assert.match(avec, /Aucun écart relevé/);
+});
+
+test('l’en-tête distingue les trois états de la comparaison', () => {
+  const app = chargerApplication();
+  const nonCompare = app.renderEcartsAudit({ mode: 'acte', comparaisonFaite: false }, []);
+  assert.match(nonCompare, /Non comparé/);
+
+  const aucun = app.renderEcartsAudit({ mode: 'acte', comparaisonFaite: true }, []);
+  assert.match(aucun, /Aucun écart/);
+  assert.match(aucun, /dl-success/);
+
+  const ecarts = app.renderEcartsAudit({ mode: 'acte', comparaisonFaite: true },
+    [{ categorie: 'COMPARAISON_COMPROMIS' }, { categorie: 'COMPARAISON_COMPROMIS' }, { categorie: 'ACTE' }]);
+  assert.match(ecarts, /2 écart\(s\)/);
+  assert.match(ecarts, /dl-urgent/);
+
+  // En mode « compromis » il n'y a rien à comparer : le document analysé EST l'avant-contrat.
+  assert.equal(app.renderEcartsAudit({ mode: 'compromis', comparaisonFaite: false }, []), '');
+});
+
+test('comparaisonFaite dit si une référence était disponible, pas si un écart a été trouvé', () => {
+  const app = chargerApplication();
+  const base = { texteProjet: 'Texte du projet de vente.', texteAvantContrat: 'Texte du compromis.' };
+  assert.equal(app.analyserProjetVenteOutil2(base).comparaisonFaite, false);
+
+  const avecRef = app.analyserProjetVenteOutil2({
+    ...base,
+    reference: { parties: [], prixVente: null, bien: {}, notaires: {}, dates: {} },
+    projet: { parties: [], prixVente: null, bien: {}, notaires: {}, dates: {} }
+  });
+  assert.equal(avecRef.comparaisonFaite, true);
+});

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-22 22:46';
+  const VERSION_APP = '2026-09-22 23:01';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,11 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-22 23:01', resume: "Outil 2 : chaque rubrique du rapport peut être "
+      + "masquée une fois pour toutes (et réaffichée en bas du rapport, avec le nombre de "
+      + "constats qu'elle retient). L'écart entre l'avant-contrat et le projet est annoncé dès "
+      + "l'en-tête, et « aucun écart » n'est plus affirmé quand aucun avant-contrat de "
+      + "référence n'a été fourni." },
     { version: '2026-09-22 22:46', resume: "Outil 2 : statut des acquereurs (marie/pacse/concubin), carnet d'entretien, tableau des travaux declares, type de bien corrigeable." },
     { version: '2026-09-22 22:22', resume: "Outil 2 : le rapport suit l'ordre de lecture "
       + "demandé — ce que dit l'acte, puis les écarts avec l'avant-contrat, puis ce que les "
@@ -5070,6 +5075,9 @@
     return { mode: 'acte', constats, resume,
       fiche: ficheActeOutil2(entree && entree.projet, 'acte', { statutAcquereurs }),
       obligations, comparaison, travaux, travauxCarnet, carnets, statutAcquereurs,
+      // Distinguer « comparé, rien trouvé » de « pas comparé du tout » : sans ce drapeau, le
+      // rapport affirmerait l'absence d'écart sur un audit où aucune référence n'a été fournie.
+      comparaisonFaite: !!(entree && entree.reference && entree.projet),
       typeBien: typeBien.type, typeBienOrigine: typeBien.origine,
       ags, estCopropriete,
       etatsDates, certificatsUrbanisme, estTerrain, permis, purgePermis,
@@ -12079,6 +12087,75 @@
     sauvegarderMemoireAudit();
   }
 
+  // --- Rubriques du rapport d'Outil 2 masquées par l'étude ------------------------------------
+  // Réponse directe à un retour de l'étude : le défaut d'Outil 2 n'est pas ce qu'il rate, c'est
+  // qu'il « signale trop de choses sans intérêt ». Sans acte réel sous la main, deviner lesquelles
+  // reviendrait à resserrer des motifs au jugé — ce qui a déjà provoqué des régressions ici. C'est
+  // donc l'étude qui tranche, rubrique par rubrique, une fois pour toutes.
+  //
+  // Distinct de memoireAuditConstats (« Écarter » UN constat, reconnu ensuite par similarité de
+  // clause) : ici c'est une RUBRIQUE entière qui disparaît, quel que soit son contenu. C'est le
+  // bon geste quand un sujet n'intéresse jamais l'étude — écarter un à un les constats d'un sujet
+  // qui revient sur chaque acte ne finirait jamais.
+  //
+  // Jamais silencieux : les rubriques masquées sont listées en pied de rapport AVEC le nombre de
+  // constats qu'elles retiennent sur l'acte en cours. Masquer ne doit pas pouvoir avaler un
+  // constat critique sans que rien ne le dise.
+  const CLE_RUBRIQUES_MASQUEES = 'audit-rubriques-masquees';
+  let rubriquesMasqueesAudit = [];
+
+  async function sauvegarderRubriquesMasquees() {
+    const contenu = JSON.stringify(rubriquesMasqueesAudit);
+    try {
+      if (window.storage) { await window.storage.set(CLE_RUBRIQUES_MASQUEES, contenu, false); return; }
+    } catch (e) { console.warn('window.storage indisponible pour les rubriques masquées, repli sur localStorage.', e); }
+    try { localStorage.setItem(CLE_RUBRIQUES_MASQUEES, contenu); } catch (e) { console.warn('Sauvegarde des rubriques masquées impossible.', e); }
+  }
+
+  async function chargerRubriquesMasquees() {
+    let brut = null;
+    try {
+      if (window.storage) {
+        const res = await window.storage.get(CLE_RUBRIQUES_MASQUEES, false);
+        if (res && res.value) brut = JSON.parse(res.value);
+      }
+    } catch (e) { /* on tente le repli ci-dessous */ }
+    if (brut === null) {
+      try {
+        const local = localStorage.getItem(CLE_RUBRIQUES_MASQUEES);
+        if (local) brut = JSON.parse(local);
+      } catch (e) { /* rien d'exploitable non plus ici */ }
+    }
+    rubriquesMasqueesAudit = Array.isArray(brut) ? brut.filter(c => typeof c === 'string') : [];
+  }
+
+  function rubriqueMasqueeAudit(cle) {
+    return rubriquesMasqueesAudit.indexOf(String(cle)) !== -1;
+  }
+
+  // Fonction pure (la liste est passée et rendue), testable : l'état de la page l'appelle avec
+  // rubriquesMasqueesAudit. Une clé inconnue de SOUS_SECTIONS_RAPPORT_OUTIL2 n'est jamais ajoutée
+  // — sans ce garde-fou, une rubrique renommée laisserait une entrée morte que plus aucun bouton
+  // ne pourrait retirer.
+  function basculerRubriqueDans(liste, cle) {
+    const clesConnues = SOUS_SECTIONS_RAPPORT_OUTIL2.map(s => s.cle);
+    const k = String(cle);
+    const actuelle = Array.isArray(liste) ? liste.filter(x => clesConnues.indexOf(x) !== -1) : [];
+    if (clesConnues.indexOf(k) === -1) return actuelle;
+    return actuelle.indexOf(k) !== -1 ? actuelle.filter(x => x !== k) : actuelle.concat([k]);
+  }
+
+  function basculerRubriqueAudit(cle) {
+    const masquee = rubriqueMasqueeAudit(cle);
+    rubriquesMasqueesAudit = basculerRubriqueDans(rubriquesMasqueesAudit, cle);
+    sauvegarderRubriquesMasquees();
+    if (dernierRapportAudit) renderRapportAuditActe(dernierRapportAudit);
+    const titre = (SOUS_SECTIONS_RAPPORT_OUTIL2.find(s => s.cle === String(cle)) || {}).titre || 'Rubrique';
+    afficherToast(masquee
+      ? `« ${titre} » est de nouveau affichée.`
+      : `« ${titre} » ne sera plus affichée. Réafficher en bas du rapport.`, 'OK', null);
+  }
+
   // ---- export / import (sauvegarde JSON complète du registre) ----
 
   function exporterDonnees() {
@@ -15276,14 +15353,20 @@
     </div>`;
   }
 
-  function renderSectionAudit(titre, liste, rendreItem) {
+  function renderSectionAudit(titre, liste, rendreItem, cleRubrique) {
     const items = Array.isArray(liste) ? liste.slice() : [];
     if (items.length === 0) return '';
     // Confirmés en tête, écartés en queue (repliés), le reste dans l'ordre déjà calculé.
     const rang = c => (c.memoire ? (c.memoire.decision === 'confirme' ? 0 : 2) : 1);
     items.sort((a, b) => rang(a) - rang(b));
+    // Le bouton n'est proposé que sur les rubriques de constats : les tableaux (travaux,
+    // obligations) portent justement la comparaison avant-contrat / projet, que l'étude a
+    // désignée comme l'erreur lui coûtant le plus cher — rien à masquer là.
+    const masquer = cleRubrique
+      ? `<button type="button" class="audit-masquer" title="Ne plus afficher cette rubrique, sur cet audit et les suivants" onclick="basculerRubriqueAudit('${escapeOnclickArg(cleRubrique)}')">${icone('x')}Masquer</button>`
+      : '';
     return `<section class="audit-section">
-      <h3 class="audit-section-titre"><span class="section-eyebrow">${escapeHtml(titre)}</span><span class="audit-section-compte">${items.length}</span></h3>
+      <h3 class="audit-section-titre"><span class="section-eyebrow">${escapeHtml(titre)}</span><span class="audit-section-compte">${items.length}</span>${masquer}</h3>
       ${items.map(rendreItem).join('')}
     </section>`;
   }
@@ -15586,15 +15669,26 @@
       if (t) { corps += t; vide = false; }
     }
 
+    let nbMasquees = 0;
     for (const sous of SOUS_SECTIONS_RAPPORT_OUTIL2) {
       if (sous.section !== bloc.cle) continue;
-      const html = renderSectionAudit(sous.titre, constats.filter(c => c.categorie === sous.cle), renderConstatAudit);
+      const items = constats.filter(c => c.categorie === sous.cle);
+      if (items.length === 0) continue;
+      if (rubriqueMasqueeAudit(sous.cle)) { nbMasquees++; continue; }
+      const html = renderSectionAudit(sous.titre, items, renderConstatAudit, sous.cle);
       if (html) { corps += html; vide = false; }
     }
 
-    if (vide) corps = `<p class="hint">${escapeHtml(messageBlocAuditVide(bloc, resultat))}</p>`;
+    // Une section vidée par un MASQUAGE ne dit pas « rien à signaler » : ce serait faux, et c'est
+    // exactement la confusion que ce rapport combat ailleurs (« rien à signaler » lu à la place de
+    // « rien n'a pu être contrôlé »).
+    if (vide) {
+      corps = nbMasquees
+        ? `<p class="hint">${nbMasquees} rubrique(s) masquée(s) dans cette section — à réafficher en bas du rapport.</p>`
+        : `<p class="hint">${escapeHtml(messageBlocAuditVide(bloc, resultat))}</p>`;
+    }
 
-    return `<section class="audit-bloc">
+    return `<section class="audit-bloc" id="audit-bloc-${escapeAttr(bloc.cle)}">
       <h2 class="audit-bloc-titre">${escapeHtml(bloc.titre)}</h2>
       <p class="audit-bloc-source">${escapeHtml(bloc.source)}</p>
       ${corps}
@@ -15603,6 +15697,12 @@
 
   function messageBlocAuditVide(bloc, resultat) {
     if (bloc.cle === 'AVANT_CONTRAT') {
+      // Sans avant-contrat de référence, il n'y a pas « aucun écart » : il n'y a eu AUCUNE
+      // comparaison. Les confondre reviendrait à rassurer l'étude sur le point qu'elle a désigné
+      // comme lui ayant coûté le plus cher.
+      if (!resultat.comparaisonFaite) {
+        return "Aucun avant-contrat de référence : liez le dossier CLAIRE ou déposez le compromis signé pour que les parties, le prix, la désignation du bien et les dates soient comparés.";
+      }
       return "Aucun écart relevé entre l'avant-contrat et le projet, et aucun engagement du vendeur repéré dans l'avant-contrat.";
     }
     if (bloc.cle === 'ANNEXES') {
@@ -15622,6 +15722,52 @@
     return "Rien à signaler dans le document principal, pour les seuls points contrôlés par l'outil.";
   }
 
+  // L'écart entre l'avant-contrat et le projet est, de tous les défauts de relecture, celui que
+  // l'étude a désigné comme lui ayant coûté le plus cher (une partie, un prix, des quotités ou une
+  // désignation qui changent d'un acte à l'autre sans qu'on le voie). Il vit dans la DEUXIÈME
+  // section du rapport, parfois deux écrans plus bas : il est donc annoncé dès l'en-tête — y
+  // compris, et surtout, quand il n'y en a aucun, puisque c'est là que se trouve la réassurance
+  // cherchée. Trois états bien distincts, jamais confondus : pas comparé / comparé sans écart /
+  // N écarts.
+  function renderEcartsAudit(resultat, constats) {
+    if (!resultat || resultat.mode !== 'acte') return '';
+    if (!resultat.comparaisonFaite) {
+      return `<p class="audit-ecarts"><span class="dot-label dl-neutre">${icone('info')}Non comparé</span> aucun avant-contrat de référence : liez le dossier CLAIRE ou déposez le compromis signé.</p>`;
+    }
+    const n = (constats || []).filter(c => c.categorie === 'COMPARAISON_COMPROMIS').length;
+    if (n === 0) {
+      return `<p class="audit-ecarts"><span class="dot-label dl-success">${icone('check')}Aucun écart</span> entre l'avant-contrat et le projet sur les parties, le prix, la désignation du bien, le cadastre et les dates.</p>`;
+    }
+    return `<p class="audit-ecarts audit-ecarts-alerte"><span class="dot-label dl-urgent">${icone('alert-triangle')}${n} écart(s)</span> entre l'avant-contrat et le projet.
+      <button type="button" class="action-rapide" onclick="allerAuxEcartsAudit()">Voir</button></p>`;
+  }
+
+  function allerAuxEcartsAudit() {
+    const el = document.getElementById('audit-bloc-AVANT_CONTRAT');
+    if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // Pied de rapport : ce que l'étude a choisi de ne plus voir, et combien cet acte-ci en retient.
+  // Le compte est le garde-fou du mécanisme — sans lui, masquer une rubrique pourrait faire
+  // disparaître un constat critique en silence.
+  function renderRubriquesMasqueesAudit(constats) {
+    const masquees = SOUS_SECTIONS_RAPPORT_OUTIL2.filter(s => rubriqueMasqueeAudit(s.cle));
+    if (masquees.length === 0) return '';
+    const lignes = masquees.map(sous => {
+      const n = (constats || []).filter(c => c.categorie === sous.cle).length;
+      return `<li>
+        <span class="audit-masquee-titre">${escapeHtml(sous.titre)}</span>
+        <span class="hint">${n} constat(s) retenu(s) sur cet acte</span>
+        <button type="button" class="action-rapide" onclick="basculerRubriqueAudit('${escapeOnclickArg(sous.cle)}')">Réafficher</button>
+      </li>`;
+    }).join('');
+    return `<section class="audit-masquees">
+      <span class="section-eyebrow">Rubriques masquées</span>
+      <p class="hint">Ces rubriques ne sont affichées sur aucun rapport tant qu'elles ne sont pas réaffichées ici.</p>
+      <ul>${lignes}</ul>
+    </section>`;
+  }
+
   function renderRapportAuditActe(resultat) {
     const zone = document.getElementById('analyse-ia-rapport');
     if (!zone) return;
@@ -15630,14 +15776,15 @@
     // la lecture de ce qui suit — le lire après le rapport, comme c'était le cas, arrive trop tard
     // (un rapport vide se lit alors comme « rien à signaler » avant qu'on ait appris qu'il n'y
     // avait peut-être rien à lire).
+    const constats = resultat.constats || [];
+
     let html = `<header class="audit-entete">
       ${renderResumeAudit(resultat.resume)}
+      ${renderEcartsAudit(resultat, constats)}
       ${renderTypeBienAudit(resultat)}
       ${renderPerimetreAudit(resultat)}
     </header>`;
     html += renderCouvertureAudit(resultat.couvertureDocuments);
-
-    const constats = resultat.constats || [];
 
     for (const bloc of SECTIONS_RAPPORT_OUTIL2) {
       // En mode « compromis », il n'y a rien à comparer : le document analysé EST l'avant-contrat.
@@ -15648,6 +15795,7 @@
     html += renderSectionAudit('Relecture complémentaire par le modèle local',
       constats.filter(c => c.categorie === 'IA'), renderConstatAudit);
     html += renderQuestionsAudit(resultat.questions);
+    html += renderRubriquesMasqueesAudit(constats);
     html += renderBoutonApprofondirIa(resultat);
     zone.innerHTML = html;
   }
@@ -17541,6 +17689,7 @@
   chargerExclusionsMotifNom();
   chargerJournalCorrections();
   chargerMemoireAudit();
+  chargerRubriquesMasquees();
   // Mode serveur intranet (voir CLAUDE.md) : l'application entière est bloquée par l'écran de
   // connexion tant que le mot de passe partagé n'a pas été validé — un jeton déjà mémorisé
   // (localStorage, valable 12h côté serveur) permet de sauter cette étape au rechargement.
