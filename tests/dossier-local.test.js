@@ -379,6 +379,20 @@ test('normaliserDossierImporte ne conserve pas nasInventaire/nasNouveaute (propr
   assert.equal(d.nasDossier, '2024-118 DUPONT'); // le chemin NAS, lui, reste valable
 });
 
+test('normaliserDossierImporte conserve piecesValideesManuellement (décision de l\'étude, pas un scan)', () => {
+  // Contrairement à pieces/offrePretStatut/fichiersTrouves, qui dérivent d'un parcours du NAS de CE
+  // serveur, une validation à la main dit qu'un document est détenu AILLEURS (Authentic, courrier
+  // papier) : ce fait reste vrai sur n'importe quelle installation.
+  const app = chargerApplication();
+  const d = app.normaliserDossierImporte({
+    nom: 'Test',
+    piecesValideesManuellement: ['reponseSafer', 42, null, 'avisTaxeFonciere']
+  }, 'test.json');
+  assert.equal(d.piecesValideesManuellement.join(','), 'reponseSafer,avisTaxeFonciere');
+  const sansChamp = app.normaliserDossierImporte({ nom: 'Test' }, 'test.json');
+  assert.equal(sansChamp.piecesValideesManuellement.length, 0);
+});
+
 test('lireTextePdfVerification concatène le texte de toutes les pages d\'un PDF', async () => {
   const app = chargerApplication();
   const pdf = creerPdfFictif(3, p => `page${p}`);

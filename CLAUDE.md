@@ -7281,6 +7281,62 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
     `let` de premier niveau invisible depuis le contexte `vm` des tests — limite déjà documentée),
     d'où la vérification en A/B dans un vrai navigateur plutôt qu'un test unitaire.
 
+- **Une pièce peut être marquée reçue À LA MAIN, et le contrôle automatique n'y revient plus.**
+  Demandé par l'étude à partir d'un cas concret : *« si un document est validé à la main mais pas
+  présent dans le dossier local — exemple SAFER, car présent dans notre logiciel métier Authentic de
+  Fichorga — ne pas repasser dessus lors du contrôle et ne pas le repasser en non reçu »*. Le besoin
+  est structurel, pas propre à la SAFER : une partie des pièces d'un dossier ne transite jamais par
+  le NAS. Depuis le correctif de désynchronisation (voir « Désynchronisation d'une pièce… » plus
+  haut), `verifierDossierLocal()` **reteste TOUTE la checklist** et remet à `'manquante'` une pièce
+  reçue qu'il ne retrouve pas — comportement voulu pour un fichier supprimé du NAS, mais qui effaçait
+  à chaque tour une confirmation faite à la main pour un document qui n'y a jamais été.
+  - **`d.piecesValideesManuellement`** (tableau de clés) plutôt qu'une quatrième valeur de statut.
+    C'est la décision structurante : `d.pieces[cle]` reste `'recue'`, donc les cinq endroits qui
+    testent `=== 'recue'` — le compteur de la fiche, `statutDossier()`, `dossierEntierementComplet()`,
+    `calculerStatsPortefeuille()` et, côté serveur, `piecesRecuesEtManquantes()`
+    (`server/src/piecesChecklist.js`, qui alimente les rappels par email) — continuent de compter la
+    pièce sans une ligne de changement. Un statut `'recue_main'` aurait obligé à retoucher les cinq,
+    et le premier oublié aurait fait disparaître la pièce d'un compteur ou d'un rappel.
+  - `verifierDossierLocal()` **exclut ces clés de `aChercher`** (rien n'est cherché sur le NAS pour
+    elles) et les réaffirme `'recue'` en tête de la boucle de comptage, **avant** la branche de
+    désynchronisation — l'ordre EST la garantie demandée : une pièce validée à la main ne peut
+    atteindre le code qui la repasserait en manquante.
+  - **Deux interactions non évidentes, couvertes** : `lierDossierLocal()` remet toute `d.pieces` à
+    `'manquante'` à chaque (re)liaison — les clés validées à la main y sont réaffirmées `'recue'`,
+    sans quoi changer de dossier NAS effacerait ces confirmations ; et `normaliserDossierImporte()`
+    **conserve** le tableau (filtré sur les chaînes), contrairement à `pieces`/`offrePretStatut`/
+    `fichiersTrouves`/`nasInventaire` qui repartent de zéro : ceux-là dérivent d'un scan du NAS de CE
+    serveur, une validation manuelle dit qu'un document est détenu ailleurs, ce qui reste vrai sur
+    n'importe quelle installation.
+  - **Deux boutons sur la même position**, à droite de la pièce : une coche verte (`icone('check')`,
+    `.piece-valider`) tant qu'elle n'est pas validée, remplacée par la flèche de retour
+    (`icone('rotate-ccw')`, `retirerValidationManuellePiece`) une fois qu'elle l'est. Les deux passent
+    par `demanderConfirmation()` et journalisent dans l'historique, comme `retirerPieceStandard()`.
+    Le bouton « Réinitialiser » d'une pièce trouvée sur le NAS disparaît pendant ce temps : il efface
+    un chemin de fichier mémorisé, or il n'y en a aucun derrière une validation manuelle.
+  - **Le libellé d'une pièce validée à la main n'est pas cliquable** (un `<span>`, pas un `<button>`) :
+    aucun fichier du NAS n'est associé, un bouton « ouvrir » ne mènerait nulle part. Un soulignement
+    pointillé + `cursor: help` (`.piece-item.validee-main`) et une infobulle disent d'où vient le
+    statut — sans ce repère, rien ne distinguerait à l'écran une pièce trouvée sur le NAS d'une pièce
+    confirmée à la main.
+  - **Volontairement pas proposé sur une pièce personnalisée** : elle a déjà son propre cycle de
+    statut au clic sur son icône (inconnu → manquante → reçue), et `verifierDossierLocal()` ne la
+    repasse jamais en manquante — le problème traité ici ne s'y pose pas.
+  - Test dans `tests/dossier-local.test.js` (conservation à l'import, entrées non-chaînes écartées).
+    `validerPieceManuellement`/`retirerValidationManuellePiece`/`verifierDossierLocal` dépendent de
+    `dossiers` (invisible depuis le contexte `vm` des tests — limite déjà documentée), d'où une
+    **vérification dans un vrai Chromium** (serveur réel, dossier NAS ne contenant PAS le document,
+    une seule pièce suivie de bout en bout) : après validation, statut `recue`, clé présente,
+    compteur 1/9 → 2/9, ligne d'historique ; **après un `verifierDossierLocal()` complet, la pièce
+    est toujours `recue` et toujours dans la liste** — la demande elle-même ; après retrait,
+    `manquante`, liste vidée, compteur revenu à 1/9, bouton de validation réapparu. Aucune erreur JS.
+  - **Piège de vérification à ne pas reproduire** : le premier script cliquait « le premier bouton
+    valider du DOM » puis affirmait sur une clé écrite en dur — deux pièces différentes, parce que la
+    première pièce de la liste était déjà reçue et n'avait donc pas ce bouton. Trois assertions sur
+    quatre portaient sur la mauvaise pièce, et l'étape de retrait avait en réalité cliqué le
+    « Réinitialiser » d'une autre. Sur une liste où les boutons dépendent du statut, capturer la clé
+    de l'élément réellement cliqué plutôt que de supposer l'ordre.
+
 ## Ce qui reste ouvert / pas encore fait
 
 - **Signature manuscrite de Bastien ANGLUMENT, conservée pour le courrier d'appel de fonds**

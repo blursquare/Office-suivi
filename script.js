@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-22 16:18';
+  const VERSION_APP = '2026-09-22 16:32';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,13 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-22 16:32', resume: "Fiche dossier : une pièce peut être marquée reçue à la "
+      + "main, pour un document que vous détenez ailleurs que dans le dossier NAS — une réponse SAFER "
+      + "présente dans Authentic, un courrier papier. Le contrôle automatique ne la cherche plus et ne "
+      + "la repasse jamais en « manquante », même quand le fichier n'est pas sur le NAS. La coche verte "
+      + "à droite de la pièce la valide ainsi ; la flèche qui la remplace ensuite retire cette "
+      + "validation et la remet dans le contrôle. Ces validations survivent au changement de dossier "
+      + "NAS et à l'import d'une sauvegarde." },
     { version: '2026-09-22 16:18', resume: "La page ne se fige plus et n'annonce plus d'avoir perdu le serveur. La relecture automatique des dossiers, toutes les cinq minutes, retéléchargeait et réanalysait TOUS les PDF de chaque dossier dont l'offre de prêt n'avait pas encore été trouvée — les mêmes, indéfiniment. Elle ne relit plus qu'un nombre limité de documents par tour, se souvient de ceux qu'elle a déjà écartés, ignore les dossiers archivés, et deux relectures ne peuvent plus se chevaucher. La synchronisation démarre désormais tout de suite après la connexion, sans attendre la fin de cette relecture. Un clic sur « Revérifier » (ou « Revérifier tous les dossiers ») garde sa portée complète." },
     { version: '2026-09-22 15:45', resume: "Nouvel outil « Arbitrage forfait mobilier » dans la "
       + "barre de gauche, sous Outils : à défaut d'inventaire, les meubles d'une succession sont "
@@ -71,13 +78,6 @@
       + "fixé, ou dès qu'une date d'appel de fonds a été saisie — elle pouvait jusqu'ici disparaître, avec sa date, "
       + "quand une pièce du dossier repassait à « manquante ». Calendrier .ics : correctif du 21/09 inclus (les "
       + "agendas ne s'arrêtaient plus à la cinquième échéance)." },
-    { version: '2026-09-22 10:28', resume: "Outil 2 lit désormais l'état daté, le pré-état daté et le "
-      + "certificat d'urbanisme déposés : procédures en cours, travaux envisagés et devis, impayés, sommes à la charge "
-      + "de l'acquéreur, validité du certificat et ses points de vigilance — avec, en pied de rapport, les questions "
-      + "prêtes à envoyer au syndic, au confrère ou à la mairie, copiables d'un clic. « Signature de l'acte » devient "
-      + "« Date butoir » et sort du planning (elle n'est qu'indicative) ; tant que l'appel de fonds n'est pas fait, "
-      + "c'est lui qu'annonce le planning, puis la signature une fois qu'il l'est. Les libellés d'un décompte de "
-      + "confrère importé sont ramenés au vocabulaire de l'étude." },
   ];
 
   const STORAGE_KEY = 'dossiers';
@@ -9559,9 +9559,21 @@
             // après une correspondance trouvée à tort ou un fichier renommé depuis — voir
             // reinitialiserStatutPieceStandard(). Une pièce personnalisée a déjà son propre cycle
             // de statut au clic sur l'icône, pas besoin de ce bouton supplémentaire pour elle.
-            const boutonReinit = (!p.personnalisee && (pieces[p.cle] || 'inconnu') === 'recue')
+            // Pièce que l'étude détient hors du NAS (Authentic/Fichorga, courrier papier...) : le
+            // contrôle automatique ne la touche plus du tout — voir validerPieceManuellement.
+            const estValideeManuellement = !p.personnalisee && (d.piecesValideesManuellement || []).includes(p.cle);
+            const boutonReinit = (!p.personnalisee && !estValideeManuellement && (pieces[p.cle] || 'inconnu') === 'recue')
               ? `<button type="button" class="piece-reinit" onclick="reinitialiserStatutPieceStandard('${d.id}', '${p.cle}', '${escapeOnclickArg(p.label)}')" title="Réinitialiser (fichier renommé, ou mauvaise correspondance)" aria-label="Réinitialiser le statut de cette pièce">${icone('rotate-ccw')}</button>`
               : '';
+            // Une seule de ces deux formes s'affiche à la fois : valider à la main tant que la
+            // pièce n'est pas reçue, retirer cette validation une fois qu'elle l'est de cette
+            // façon. Jamais sur une pièce personnalisée : elle a déjà son cycle de statut au clic.
+            let boutonValidation = '';
+            if (estValideeManuellement) {
+              boutonValidation = `<button type="button" class="piece-reinit" onclick="retirerValidationManuellePiece('${d.id}', '${p.cle}', '${escapeOnclickArg(p.label)}')" title="Retirer la validation manuelle : la pièce sera de nouveau cherchée sur le NAS" aria-label="Retirer la validation manuelle de cette pièce">${icone('rotate-ccw')}</button>`;
+            } else if (!p.personnalisee && (pieces[p.cle] || 'inconnu') !== 'recue') {
+              boutonValidation = `<button type="button" class="piece-valider" onclick="validerPieceManuellement('${d.id}', '${p.cle}', '${escapeOnclickArg(p.label)}')" title="Marquer reçue à la main (document détenu hors du dossier NAS : Authentic, courrier…)" aria-label="Marquer cette pièce reçue à la main">${icone('check')}</button>`;
+            }
             let contenu;
             if (p.personnalisee) {
               // Aucun motifNom (nom libre saisi par l'étude, pas de détection fiable possible) :
@@ -9578,6 +9590,9 @@
                 ? `<button type="button" class="piece-texte-btn" title="Cliquer pour ouvrir le fichier trouvé" onclick="ouvrirPieceTrouvee('${d.id}', '${p.cle}')">${escapeHtml(p.label)}</button>`
                 : `<span class="piece-texte">${escapeHtml(p.label)}</span>`;
               contenu = `<span class="piece-label">${iconeBtn}${texteRendu}</span>`;
+            } else if (estValideeManuellement) {
+              // Aucun fichier du NAS derrière elle : rien à ouvrir, donc un simple libellé.
+              contenu = `<span class="piece-label" title="Validée à la main : document détenu hors du dossier NAS (Authentic…). Le contrôle automatique ne la remet jamais en manquante."><span class="piece-icone">✓</span>${escapeHtml(p.label)}</span>`;
             } else if (s.cls === 'recue') {
               // Cliquable pour rouvrir directement le fichier local où la pièce a été trouvée.
               contenu = `<button type="button" class="piece-label" title="Cliquer pour ouvrir le fichier trouvé" onclick="ouvrirPieceTrouvee('${d.id}', '${p.cle}')"><span class="piece-icone">${s.texte}</span>${escapeHtml(p.label)}</button>`;
@@ -9590,7 +9605,7 @@
                 : s.titre;
               contenu = `<span class="piece-label" title="${escapeAttr(titre)}"><span class="piece-icone">${s.texte}</span>${escapeHtml(p.label)}</span>`;
             }
-            return `<span class="piece-item ${s.cls}">${contenu}${tagNouveau}${boutonReinit}${boutonSuppr}</span>`;
+            return `<span class="piece-item ${s.cls}${estValideeManuellement ? ' validee-main' : ''}">${contenu}${tagNouveau}${boutonValidation}${boutonReinit}${boutonSuppr}</span>`;
           }).join('')}
         </div>
         ${renderAjoutPiece(d)}
@@ -9849,6 +9864,47 @@
       }
       memoriserFichierTrouve(d, NAS_CLE_PIECE(cle), null);
       ajouterHistorique(d, `Pièce réinitialisée (correspondance retirée) : « ${label} »`);
+      sauvegarder(d);
+      render();
+    });
+  }
+
+  // Validation À LA MAIN d'une pièce standard : l'étude détient le document, mais pas dans le
+  // dossier du NAS — il vit dans Authentic (Fichorga), le logiciel métier de l'étude. Cas donné
+  // en exemple : une réponse SAFER. Sans ce mécanisme, la pièce restait "manquante" pour toujours,
+  // et surtout le contrôle automatique la repassait à "manquante" à chaque tour même après une
+  // correction manuelle (voir la désynchronisation dans verifierDossierLocal) — une décision
+  // humaine défaite par un scan toutes les cinq minutes.
+  // Le drapeau vit dans une LISTE À PART (d.piecesValideesManuellement) plutôt que dans une
+  // quatrième valeur de d.pieces : tout ce qui compte les pièces reçues (compteur de la fiche,
+  // statutDossier, dossierEntierementComplet, les stats du portefeuille, la checklist du rappel
+  // par email côté serveur) teste `=== 'recue'`, et une nouvelle valeur aurait obligé à retoucher
+  // chacun de ces endroits — avec la certitude d'en oublier un.
+  function validerPieceManuellement(dossierId, cle, label) {
+    const d = dossiers.find(x => x.id === dossierId);
+    if (!d) return;
+    demanderConfirmation(`Marquer « ${label} » comme reçue, en dehors du dossier NAS (Authentic, courrier papier…) ? Le contrôle automatique ne la cherchera plus et ne la repassera jamais en manquante.`, () => {
+      d.piecesValideesManuellement = d.piecesValideesManuellement || [];
+      if (!d.piecesValideesManuellement.includes(cle)) d.piecesValideesManuellement.push(cle);
+      d.pieces = d.pieces || {};
+      d.pieces[cle] = 'recue';
+      ajouterHistorique(d, `Pièce validée à la main (hors dossier NAS) : « ${label} »`);
+      sauvegarder(d);
+      render();
+    });
+  }
+
+  // Annule la validation ci-dessus : la pièce redevient une pièce ordinaire, donc cherchée à
+  // nouveau sur le NAS au prochain parcours. Elle repart de "manquante" plutôt que de "reçue" —
+  // c'est bien le scan, et non cette validation, qui décidera désormais de son sort.
+  function retirerValidationManuellePiece(dossierId, cle, label) {
+    const d = dossiers.find(x => x.id === dossierId);
+    if (!d) return;
+    demanderConfirmation(`Retirer la validation manuelle de « ${label} » ? Elle sera de nouveau recherchée dans le dossier NAS au prochain contrôle.`, () => {
+      d.piecesValideesManuellement = (d.piecesValideesManuellement || []).filter(c => c !== cle);
+      d.pieces = d.pieces || {};
+      d.pieces[cle] = 'manquante';
+      ajouterHistorique(d, `Validation manuelle retirée : « ${label} »`);
       sauvegarder(d);
       render();
     });
@@ -11549,6 +11605,12 @@
       // PDF local, contrairement à `pieces` juste en dessous, qui repart bien à {}) : conservés tels
       // quels à l'import, comme `autres` ci-dessus.
       piecesRetirees: Array.isArray(d.piecesRetirees) ? d.piecesRetirees.filter(c => typeof c === 'string') : [],
+      // Pièces validées À LA MAIN (voir validerPieceManuellement) : une pièce que l'étude détient
+      // ailleurs que sur le NAS — typiquement dans Authentic (Fichorga), une réponse SAFER par
+      // exemple. C'est une décision prise par un humain, pas un statut dérivé d'un scan : elle est
+      // donc conservée à l'import, contrairement à `pieces`/`fichiersTrouves` juste en dessous.
+      piecesValideesManuellement: Array.isArray(d.piecesValideesManuellement)
+        ? d.piecesValideesManuellement.filter(c => typeof c === 'string') : [],
       piecesPersonnalisees: Array.isArray(d.piecesPersonnalisees)
         ? d.piecesPersonnalisees.filter(p => p && typeof p === 'object' && typeof p.cle === 'string' && typeof p.label === 'string')
             .map(p => ({ cle: p.cle, label: p.label }))
@@ -12662,8 +12724,13 @@
     // compris le compromis (jamais rescanne automatiquement — voir ouvrirCompromisTrouve()).
     d.fichiersTrouves = {};
     if (d.roleNotaire !== 'participant') {
+      // Une pièce validée à la main ne dépend d'AUCUN dossier NAS (elle vit dans Authentic, ou
+      // sur papier) : changer de dossier relié ne doit pas défaire cette décision.
+      const valideesMain = new Set(d.piecesValideesManuellement || []);
       d.pieces = {};
-      checklistPieces(d.typeVente, d).forEach(p => { d.pieces[p.cle] = 'manquante'; });
+      checklistPieces(d.typeVente, d).forEach(p => {
+        d.pieces[p.cle] = valideesMain.has(p.cle) ? 'recue' : 'manquante';
+      });
     }
     ajouterHistorique(d, etaitDejaLie
       ? `Dossier NAS relié modifié : ${chemin}`
@@ -12944,7 +13011,13 @@
     // "reçue" pour toujours, plus aucun scan ne la revérifiant (signalé par l'étude). Ne coûte
     // rien : depuis que la checklist est reconnue par le seul NOM de fichier, une pièce déjà
     // trouvée se re-teste sans ouvrir le moindre PDF.
-    const aChercher = new Set(checklist.map(p => p.cle));
+    // Une pièce validée à la main (voir validerPieceManuellement) est détenue par l'étude AILLEURS
+    // que sur le NAS — dans Authentic (Fichorga) le plus souvent : une réponse SAFER, par exemple.
+    // Le parcours ne doit donc ni la chercher, ni la repasser à "manquante" faute de l'y trouver,
+    // ce qui reviendrait à défaire une décision humaine à chaque tour automatique. Demandé
+    // explicitement par l'étude.
+    const validees = new Set(d.piecesValideesManuellement || []);
+    const aChercher = new Set(checklist.map(p => p.cle).filter(cle => !validees.has(cle)));
     const fichierParPiece = {};
 
     // Un clic explicite sur « Revérifier » repart de zéro : la mémoire des PDF écartés pour
@@ -13103,7 +13176,11 @@
     let nbPiecesTrouvees = 0;
     const desynchronisees = [];
     for (const piece of checklist) {
-      if (fichierParPiece[piece.cle]) {
+      if (validees.has(piece.cle)) {
+        // Validée à la main : son statut ne dépend pas de ce que contient le NAS.
+        d.pieces[piece.cle] = 'recue';
+        nbPiecesTrouvees++;
+      } else if (fichierParPiece[piece.cle]) {
         d.pieces[piece.cle] = 'recue';
         nbPiecesTrouvees++;
         memoriserFichierTrouve(d, NAS_CLE_PIECE(piece.cle), fichierParPiece[piece.cle]);
