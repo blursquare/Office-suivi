@@ -6975,6 +6975,62 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
     projet de vente de terrain : section « Permis de construire (terrain à bâtir) » comptée à 3,
     bloc de questions avec son bouton de copie, aucune erreur JS, aucun débordement horizontal.
 
+- **Appel de fonds : la date ET l'heure du rendez-vous lues dans la convocation du confrère.**
+  Demandé par l'étude. Le champ « Heure » existait depuis le portage de l'outil mais n'était
+  jamais prérempli, et pour cause : la fiche du dossier ne porte qu'une DATE
+  (`d.rendezVousSignature` est un `<input type="date">`). La convocation du confrère, elle, écrit
+  le jour et l'heure en toutes lettres — c'est la seule source de l'horaire dans cet écran, et
+  c'est donc là que la détection se branche, sur le même chemin que le décompte (PDF déposé ou
+  texte collé passent tous deux par `appliquerDecompteAppelFonds`, un seul point à couvrir).
+  - **Ancrage obligatoire sur le vocabulaire du rendez-vous** (`AF_ANCRE_RDV_RE` : rendez-vous,
+    convocation, signature, réitération, « vous recevoir »…), jamais « la première date du
+    document ». Une convocation est pleine de dates qui n'en sont pas — la date du courrier en
+    tête, les bornes d'un prorata de taxe foncière, la date du compromis : prendre la première
+    donnerait le mauvais jour bien plus souvent que le bon. Même prudence que la fenêtre de
+    `SEQUESTRE_RE` autour de la clause de dépôt. Un décompte sans aucun vocabulaire de rendez-vous
+    ne rend donc rien du tout (testé).
+  - **La date est cherchée APRÈS l'ancre en priorité**, et seulement à défaut dans les 60
+    caractères qui la précèdent (« le 14 octobre 2026 à 9 h 15 se tiendra le rendez-vous »). Les
+    chercher d'un bloc ferait remonter la date du courrier, qui précède presque toujours l'objet.
+  - **L'heure se lit AUTOUR de la date retenue, pas dans toute la fenêtre**
+    (`afZoneHeureAutourDate`) — le défaut le plus grave trouvé en écrivant les tests, et qui ne se
+    voyait pas à la relecture : sur « Convocation du 12 octobre 2026. Le rendez-vous est fixé au
+    14 octobre 2026 à 11 heures », la première ancre retenait le 12 octobre et lui collait
+    l'heure de la phrase suivante — une date et une heure qui ne vont pas ensemble, le pire
+    résultat possible ici. L'année termine la date dans les deux écritures (14/10/2026 comme
+    14 octobre 2026), elle suffit donc à la situer dans la fenêtre et à borner la zone d'heure.
+  - **`extraireDateDeFragment` est réutilisée telle quelle** (elle lit déjà les deux écritures) :
+    aucun motif de date n'est dupliqué. Conséquence assumée, la même que pour « fin septembre » du
+    côté du compromis : **l'année doit figurer dans le texte**. « Rendez-vous le mardi 14 octobre
+    à 10 heures » ne rend rien plutôt qu'une année devinée.
+  - Quatre écritures de l'heure acceptées (`14h30`, `14 h 30`, `14:30`, `14 heures 30`, et
+    `14 heures` seul → 14:00). **Le lookahead ne porte que sur un chiffre** : y avoir mis le point
+    rejetait « à 10 h. », c'est-à-dire une heure en fin de phrase, l'écriture la plus courante —
+    défaut attrapé par un test, pas par la relecture. Le motif exigeant `h`/`heures`/`:`, aucun
+    montant ne peut être pris pour une heure (vérifié sur « 1 430,00 € » et « 18 200,00 € »).
+  - **Rien n'est jamais écrasé**, comme partout ailleurs dans cet outil : un champ déjà rempli (par
+    le dossier lié ou à la main) est conservé. Une date qui diverge de celle du document est
+    **signalée** dans le rapport d'import, comme le solde déclaré par le confrère — et dans ce cas
+    **l'heure n'est pas reprise non plus** : elle se rapporte au jour du document, la coller sur
+    un autre jour marierait une heure à une date qui n'est pas la sienne. C'est exactement le
+    défaut qu'`afZoneHeureAutourDate` écarte à la lecture, et je l'avais réintroduit au niveau du
+    formulaire — vu en vérification dans le navigateur, pas dans les tests.
+  - **La détection tourne AVANT le retour sur décompte vide** : une convocation dont le tableau
+    n'a pas été reconnu porte quand même le jour et l'heure, et c'est déjà ça de pris.
+  - Tests : 10 nouveaux dans `tests/appel-de-fonds.test.js` (les deux écritures de date, les
+    quatre de l'heure, la date du courrier écartée, le découpage en lignes d'un PDF, la préférence
+    pour la mention qui porte l'heure, la date avant l'ancre, l'année absente, le décompte sans
+    vocabulaire de rendez-vous, les montants qui ne sont pas des heures, la date seule). Suite
+    racine 603 → 613, serveur inchangée (203 — chantier entièrement côté client). **Vérifié dans
+    un vrai Chromium** (serveur réel) sur une convocation réaliste : les deux champs vides se
+    remplissent au 14 octobre 2026 à 14:30, la phrase du courrier suit, et une date préalablement
+    saisie au 20 octobre est conservée avec l'écart signalé et l'heure laissée vide. Aucune erreur
+    JS, aucun débordement horizontal.
+  - **Piège de convention de test rencontré** : `tests/appel-de-fonds.test.js` prend son `app` une
+    seule fois en tête de fichier ; écrire `const { app } = chargerApplication()` dans un test y
+    rend `app` indéfini et fait passer un code correct pour cassé. Reprendre la convention du
+    fichier avant d'y ajouter des cas.
+
 ## Ce qui reste ouvert / pas encore fait
 
 - **Signature manuscrite de Bastien ANGLUMENT, conservée pour le courrier d'appel de fonds**

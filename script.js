@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-22 12:20';
+  const VERSION_APP = '2026-09-22 12:54';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,14 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-22 12:54', resume: "Appel de fonds : la date ET l'heure du rendez-vous sont "
+      + "désormais lues automatiquement dans la convocation du confrère, qu'elle soit déposée en PDF ou "
+      + "collée — c'est le seul document qui porte l'horaire, la fiche du dossier n'ayant qu'une date. "
+      + "Rien n'est écrasé : un champ déjà rempli est conservé, et si le document annonce un autre jour, "
+      + "l'écart est signalé dans le rapport d'import plutôt que corrigé en silence. La lecture s'appuie "
+      + "sur le vocabulaire du rendez-vous et non sur la première date venue : la date du courrier, celle "
+      + "du compromis ou les bornes d'un prorata de taxe foncière ne sont jamais prises pour le "
+      + "rendez-vous." },
     { version: '2026-09-22 12:20', resume: "Outil 2, relecture d'un projet de vente sur un terrain à bâtir : "
       + "le permis de construire de l'acquéreur est désormais contrôlé. L'outil vérifie que l'arrêté a été obtenu, "
       + "que l'affichage sur le terrain est justifié par un constat, et calcule la purge des DEUX délais, qui ne "
@@ -68,8 +76,6 @@
     { version: '2026-09-22 09:32', resume: "Outil 2, ventes en copropriété : une assemblée générale tenue entre l'avant-contrat "
       + "et la vente est signalée (critique si des travaux y ont été votés), et les travaux votés lors des trois dernières "
       + "assemblées générales sont relevés." },
-    { version: '2026-09-21 23:46', resume: "Outil 2 : rapport en trois colonnes (avant-contrat / projet de vente / justificatif), "
-      + "liseré de gravité sur chaque constat, et tous les diagnostics du DDT dans la table de validité." },
   ];
 
   const STORAGE_KEY = 'dossiers';
@@ -14670,6 +14676,81 @@
     return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
   }
 
+  // --- date et heure du rendez-vous, lues dans la convocation du confrère ------------------------
+  //
+  // C'est la SEULE source de l'horaire dans cet écran : le dossier suivi ne porte qu'une date
+  // (`d.rendezVousSignature` est un champ date, sans heure), alors que la convocation du confrère
+  // écrit le jour ET l'heure en toutes lettres.
+  //
+  // Ancrage OBLIGATOIRE sur le vocabulaire du rendez-vous. Une convocation est pleine de dates qui
+  // n'en sont pas : la date du courrier, les bornes d'un prorata de taxe foncière, la date du
+  // compromis. Prendre « la première date du document » donnerait le mauvais jour bien plus
+  // souvent que le bon — même prudence que la fenêtre de SEQUESTRE_RE autour de la clause de dépôt.
+  var AF_ANCRE_RDV_RE = /rendez[-\s]?vous|convocation|signature|r[ée]it[ée]ration|vous\s+(?:recevoir|attendre|attendons|recevons)/i;
+  // La date est cherchée APRÈS l'ancre en priorité (« le rendez-vous est fixé au 14 octobre »),
+  // et seulement à défaut avant (« le 14 octobre 2026 à 14 h, rendez-vous en l'étude ») : chercher
+  // les deux d'un bloc ferait remonter la date du courrier, qui précède souvent l'objet.
+  var AF_APRES_ANCRE_RDV = 240;
+  var AF_AVANT_ANCRE_RDV = 60;
+
+  // 14h30 / 14 h 30 / 14:30 / 14 heures 30 / 14 heures / 14h. Le motif exige h / heures /
+  // deux-points, ce qui écarte déjà tout montant ; le lookbehind couvre le reste (« 3,14 h » ne
+  // donne pas 14 h). Le lookahead ne porte QUE sur un chiffre : y mettre aussi le point rejetait
+  // « à 10 h. », c'est-à-dire une heure en fin de phrase — l'écriture la plus courante dans une
+  // convocation.
+  var AF_HEURE_RDV_RE = /(?<![\d,.])([01]?\d|2[0-3])\s*(?:h(?:eures?)?|:)\s*([0-5]\d)?(?!\d)/i;
+
+  // L'heure se lit AUTOUR de la date retenue, jamais dans toute la fenêtre : « Convocation du
+  // 12 octobre 2026. Le rendez-vous est fixé au 14 octobre 2026 à 11 heures » donnerait sinon
+  // « 12 octobre à 11 heures » — une date et une heure qui ne vont pas ensemble, le pire résultat
+  // possible ici. L'année termine la date dans les deux écritures (14/10/2026 comme
+  // 14 octobre 2026) : elle suffit à la situer dans la fenêtre.
+  var AF_AVANT_DATE_HEURE = 60;  // « à 11 heures le 14 octobre 2026 »
+  var AF_APRES_DATE_HEURE = 44;  // « le 14 octobre 2026 à 11 heures 30 »
+
+  function afZoneHeureAutourDate(fenetre, iso) {
+    const annee = String(iso || '').slice(0, 4);
+    const pos = fenetre.indexOf(annee);
+    if (pos < 0) return fenetre;
+    return fenetre.slice(Math.max(0, pos - AF_AVANT_DATE_HEURE), pos + annee.length + AF_APRES_DATE_HEURE);
+  }
+
+  function afHeureDansFragment(fragment) {
+    const m = AF_HEURE_RDV_RE.exec(String(fragment || ''));
+    if (!m) return null;
+    return pad(parseInt(m[1], 10)) + ':' + pad(m[2] ? parseInt(m[2], 10) : 0);
+  }
+
+  // Renvoie { date, heure, extrait } : date en ISO, heure en HH:MM, l'une comme l'autre nulles si
+  // rien de sûr n'a été lu. L'ANNÉE doit figurer dans le texte — « le mardi 14 octobre à 10 heures »
+  // ne rend rien plutôt qu'une année devinée, exactement comme « fin septembre » côté détection de
+  // dates du compromis.
+  function detecterRendezVousDecompte(texte) {
+    // Le texte d'un PDF arrive découpé en lignes : sans cet aplatissement, « fixé au\n14 octobre
+    // 2026 » ne serait jamais lu comme une seule phrase.
+    const src = String(texte || '').replace(/\s+/g, ' ');
+    const vide = { date: null, heure: null, extrait: '' };
+    if (!src) return vide;
+    const ancres = new RegExp(AF_ANCRE_RDV_RE.source, 'gi');
+    let sansHeure = null;
+    let m;
+    while ((m = ancres.exec(src)) !== null) {
+      const finAncre = m.index + m[0].length;
+      const apres = src.slice(finAncre, Math.min(src.length, finAncre + AF_APRES_ANCRE_RDV));
+      const avant = src.slice(Math.max(0, m.index - AF_AVANT_ANCRE_RDV), m.index);
+      let fenetre = apres;
+      let date = extraireDateDeFragment(apres);
+      if (!date) { fenetre = avant; date = extraireDateDeFragment(avant); }
+      if (!date) continue;
+      const heure = afHeureDansFragment(afZoneHeureAutourDate(fenetre, date));
+      // Une mention qui donne l'heure l'emporte sur une mention qui n'a que le jour : un titre
+      // (« Convocation du 14 octobre 2026 ») précède souvent la phrase complète, plus précise.
+      if (heure) return { date, heure, extrait: fenetre.trim() };
+      if (!sansHeure) sansHeure = { date, heure: null, extrait: fenetre.trim() };
+    }
+    return sansHeure || vide;
+  }
+
   function parserDecompteConfrere(texte) {
     const lignes = String(texte || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
     const brut = [];
@@ -15549,18 +15630,51 @@
     appliquerDecompteAppelFonds(zone.value || '');
   }
 
+  // Reprend le rendez-vous lu dans le document, SANS jamais écraser ce qui est déjà saisi — même
+  // règle que la référence de dossier juste en dessous, et que tout le reste de l'outil. Une date
+  // déjà saisie qui diffère de celle du document n'est donc pas corrigée en silence : elle est
+  // signalée, comme le solde déclaré par le confrère. Renvoie les notes à joindre au rapport.
+  function appliquerRendezVousDetecte(texte) {
+    const rdv = detecterRendezVousDecompte(texte);
+    if (!rdv.date) return [];
+    const notes = [];
+    const champD = afEl('af-date-rdv');
+    const champH = afEl('af-heure-rdv');
+    const repris = [];
+    // Une date saisie qui diffère de celle du document n'est pas corrigée en silence : elle est
+    // signalée. Et dans ce cas l'heure n'est PAS reprise non plus — elle se rapporte au jour du
+    // document, la coller sur un autre jour marierait une heure à une date qui n'est pas la
+    // sienne (le défaut même qu'afZoneHeureAutourDate écarte à la lecture).
+    const memeJour = champD && champD.value === rdv.date;
+    const dateDiverge = champD && champD.value && !memeJour;
+    if (champD && !champD.value) { champD.value = rdv.date; repris.push('la date'); }
+    else if (dateDiverge) {
+      notes.push(`Le document annonce un rendez-vous le ${formatDateFr(rdv.date)}, alors que la date saisie est le ${formatDateFr(champD.value)} : à vérifier.`);
+    }
+    if (rdv.heure && champH && !champH.value && !dateDiverge) { champH.value = rdv.heure; repris.push('l’heure'); }
+    if (repris.length) {
+      notes.push(`Rendez-vous repris du document (${repris.join(' et ')}) : ${phraseRdvAppelFonds(afValeur('af-date-rdv'), afValeur('af-heure-rdv'), '')} — à vérifier.`);
+      majApercuAppelFonds();
+    }
+    return notes;
+  }
+
   // Les lignes du confrère REMPLACENT le tableau : mélanger son décompte avec celui déduit du
   // dossier ferait compter deux fois le prix ou les frais.
   function appliquerDecompteAppelFonds(texte) {
     const res = parserDecompteConfrere(texte);
     const total = res.lignes.debit.length + res.lignes.credit.length;
+    // Le rendez-vous est cherché AVANT le retour sur décompte vide : une convocation dont le
+    // tableau n'a pas été reconnu porte quand même le jour et l'heure, et c'est déjà ça de pris.
+    const notesRdv = appliquerRendezVousDetecte(texte);
     if (!total) {
-      afficherRapportAppelFonds('Aucune ligne de décompte reconnue dans ce document.', res.meta.avertissements, true);
+      afficherRapportAppelFonds('Aucune ligne de décompte reconnue dans ce document.',
+        res.meta.avertissements.concat(notesRdv), true);
       return;
     }
     afLignes = res.lignes;
     renderTableAppelFonds();
-    const notes = res.meta.avertissements.slice();
+    const notes = res.meta.avertissements.concat(notesRdv);
     if (res.meta.refTrouvee) {
       const champ = afEl('af-ref');
       if (champ && !champ.value) { champ.value = res.meta.refTrouvee; majApercuAppelFonds(); }

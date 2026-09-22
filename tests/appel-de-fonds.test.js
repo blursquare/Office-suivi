@@ -528,3 +528,85 @@ test('la normalisation s’applique au décompte importé, sans toucher aux mont
   assert.equal(res.lignes.debit.map(l => l.montant).join(','), '220000,18200,501.28');
   assert.equal(res.lignes.credit.map(l => l.montant).join(','), '11000,400');
 });
+
+// --- date et heure du rendez-vous lues dans la convocation du confrère -------------------------
+//
+// Textes construits sur la STRUCTURE de vraies convocations, avec des noms et des dates inventés.
+
+test('detecterRendezVousDecompte lit le jour et l’heure d’une convocation', () => {
+  const r = app.detecterRendezVousDecompte(
+    'Maître LEROY, notaire à VENDOME\n' +
+    'Le rendez-vous de signature de l’acte authentique de vente est fixé au mercredi 14 octobre 2026 ' +
+    'à 14 heures 30 en notre étude.');
+  assert.equal(r.date, '2026-10-14');
+  assert.equal(r.heure, '14:30');
+});
+
+test('detecterRendezVousDecompte accepte les quatre écritures de l’heure', () => {
+  const lu = (h) => app.detecterRendezVousDecompte(
+    'Rendez-vous de signature le 14/10/2026 à ' + h + ' en l’étude.').heure;
+  assert.equal(lu('14h30'), '14:30');
+  assert.equal(lu('14 h 30'), '14:30');
+  assert.equal(lu('14:30'), '14:30');
+  assert.equal(lu('14 heures'), '14:00');
+});
+
+test('detecterRendezVousDecompte ignore la date du courrier et retient celle du rendez-vous', () => {
+  // La date du courrier PRÉCÈDE l'objet : c'est le piège que l'ancrage doit écarter.
+  const r = app.detecterRendezVousDecompte(
+    'BLOIS, le 3 septembre 2026\n' +
+    'Objet : convocation\n' +
+    'Nous vous invitons à vous présenter pour la signature de l’acte le 9 octobre 2026 à 10 h.');
+  assert.equal(r.date, '2026-10-09');
+  assert.equal(r.heure, '10:00');
+});
+
+test('detecterRendezVousDecompte survit au découpage en lignes d’un PDF', () => {
+  const r = app.detecterRendezVousDecompte(
+    'Le rendez-vous de signature est fixé au\n14 octobre 2026\nà 15 h 00.');
+  assert.equal(r.date, '2026-10-14');
+  assert.equal(r.heure, '15:00');
+});
+
+test('detecterRendezVousDecompte préfère la mention qui porte l’heure', () => {
+  // Un titre daté ouvre le courrier, la phrase complète vient plus bas : c'est elle qu'on veut.
+  const r = app.detecterRendezVousDecompte(
+    'Convocation du 12 octobre 2026\n' +
+    'Le rendez-vous est fixé au 14 octobre 2026 à 11 heures.');
+  assert.equal(r.date, '2026-10-14');
+  assert.equal(r.heure, '11:00');
+});
+
+test('detecterRendezVousDecompte accepte la date écrite avant l’ancre', () => {
+  const r = app.detecterRendezVousDecompte(
+    'Le 14 octobre 2026 à 9 h 15 se tiendra le rendez-vous de signature.');
+  assert.equal(r.date, '2026-10-14');
+  assert.equal(r.heure, '09:15');
+});
+
+test('detecterRendezVousDecompte ne rend rien sans année, plutôt qu’une année devinée', () => {
+  const r = app.detecterRendezVousDecompte(
+    'Rendez-vous de signature le mardi 14 octobre à 10 heures en l’étude.');
+  assert.equal(r.date, null);
+  assert.equal(r.heure, null);
+});
+
+test('detecterRendezVousDecompte ne prend aucune date sans vocabulaire de rendez-vous', () => {
+  // Un décompte seul : prorata de taxe foncière, prix, solde — aucune de ces dates n'est un RDV.
+  const r = app.detecterRendezVousDecompte(
+    'Prorata taxe foncière du 15/03/2026 au 31/12/2026   913,00 €\n' +
+    'Prix de vente   220 000,00 €');
+  assert.equal(r.date, null);
+});
+
+test('afHeureDansFragment ne prend pas un montant pour une heure', () => {
+  assert.equal(app.afHeureDansFragment('Reste à verser 1 430,00 € à la signature'), null);
+  assert.equal(app.afHeureDansFragment('Frais d’achat 18 200,00 €'), null);
+});
+
+test('detecterRendezVousDecompte rend la date seule quand l’heure n’est pas écrite', () => {
+  const r = app.detecterRendezVousDecompte(
+    'La réitération par acte authentique interviendra le 14 octobre 2026 en notre étude.');
+  assert.equal(r.date, '2026-10-14');
+  assert.equal(r.heure, null);
+});
