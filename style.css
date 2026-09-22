@@ -532,14 +532,13 @@
     font-weight: 700;
     letter-spacing: 0.05em;
     text-transform: uppercase;
-    /* Le mot est tout en capitales : la boîte du glyphe réserve sous la ligne de base une place
-       pour les jambages (p, g...) qu'aucune lettre n'occupe ici, ce qui fait remonter l'encre dans
-       la pilule (mesuré : 3,25 px au-dessus contre 6,00 px en dessous avec un simple `padding: 0`).
-       D'où un line-height court + un padding volontairement asymétrique, qui redescend le texte au
-       centre optique. Mesuré sur les pixels d'une capture, pas déduit des métriques de la police —
-       celles-ci annonçaient à tort une encre déjà centrée. */
-    line-height: 8px;
-    padding: 3px 4px 0;
+    /* Padding SYMÉTRIQUE, rétabli à la demande de l'étude. Un réglage asymétrique (3px en haut,
+       0 en bas) avait été posé ici pour compenser l'espace des jambages qu'aucune capitale
+       n'occupe — mais il avait été mesuré sur la police de REPLI, fonts.googleapis.com étant
+       bloqué dans l'environnement de développement : avec Inter réellement chargée, les mêmes
+       pixels de compensation décalent le mot vers le bas. Ne pas réessayer ce genre de réglage
+       fin sans pouvoir l'observer avec la vraie police. */
+    padding: 2px 4px;
     border-radius: 20px;
     background: color-mix(in srgb, var(--focus) 15%, var(--paper-card));
     border: 1px solid color-mix(in srgb, var(--focus) 40%, transparent);
@@ -4091,7 +4090,7 @@
 
 .af-topbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 20px; padding-bottom: 14px; }
 .af-topbar img { display: block; }
-.af-logo-notaires { width: 420px; max-width: 55%; height: auto; margin-top: 6px; }
+.af-logo-notaires { width: 360px; max-width: 48%; height: auto; margin-top: 6px; }
 .af-office-id { text-align: right; }
 .af-logo-office { width: 230px; height: auto; margin-left: auto; }
 .af-office-addr { font-family: 'Inter', sans-serif; font-size: 10px; letter-spacing: 0.03em; color: #6b6250; margin-top: 3px; }
@@ -4105,7 +4104,7 @@
 .af-aside-lien { color: #1a56db; text-decoration: underline; }
 .af-aside-social { display: flex; align-items: center; gap: 5px; margin-top: 5px; }
 .af-aside-social img { width: 13px; height: 13px; border-radius: 3px; flex: none; }
-.af-aside-visio { text-align: center; }
+.af-aside-visio { text-align: center; margin-top: 4px; }
 .af-aside-visio img { width: 52px; height: auto; }
 .af-aside-visio-texte { font-size: 8.5px; letter-spacing: 0.03em; color: #6b6250; margin-top: 7px; }
 

@@ -849,11 +849,11 @@
         <div class="calc-champ calc-champ-paire">
           <div>
             <label for="af-frais-departement">Département du bien</label>
-            <select id="af-frais-departement" onchange="renderTableAppelFonds()"></select>
+            <select id="af-frais-departement" onchange="marquerChoixFraisAppelFonds('departement')"></select>
           </div>
           <div>
             <label for="af-frais-type">Nature du bien</label>
-            <select id="af-frais-type" onchange="renderTableAppelFonds()">
+            <select id="af-frais-type" onchange="marquerChoixFraisAppelFonds('type')">
               <option value="">— à choisir —</option>
               <option value="house">Maison, immeuble</option>
               <option value="condo">Appartement, lot</option>
@@ -861,7 +861,7 @@
             </select>
           </div>
         </div>
-        <p class="hint">Sert uniquement à <b>contrôler</b> la ligne « frais et droits de l'acte de vente » du décompte : CLAIRE dit si le montant saisi est au-dessus ou en dessous de son barème, elle ne le remplit jamais. Ce barème n'a pas été audité — le chiffre reste le vôtre.</p>
+        <p class="hint">Repris tout seuls de l'adresse et de la désignation saisies ci-dessus, et modifiables. Servent uniquement à <b>contrôler</b> la ligne « frais et droits de l'acte de vente » du décompte : CLAIRE dit si le montant saisi est au-dessus ou en dessous de son barème, elle ne le remplit jamais. Ce barème n'a pas été audité — le chiffre reste le vôtre.</p>
       </div>
 
       <div class="dash-section-titre" style="margin-top:18px;">6 · Financement</div>
@@ -890,10 +890,6 @@
 
         <div class="af-lettre-grid">
           <aside class="af-lettre-aside" contenteditable="false">
-            <div class="af-aside-bloc af-aside-visio">
-              <img id="af-icone-visio" alt="">
-              <div class="af-aside-visio-texte">OFFICE ÉQUIPÉ<br>DE LA VISIOCONFÉRENCE<br>DE LA PROFESSION</div>
-            </div>
             <div class="af-aside-bloc">
               <div class="af-aside-titre">NOUS CONTACTER</div>
               <div class="af-aside-ligne">02 54 78 61 70</div>
@@ -915,6 +911,14 @@
               <div class="af-aside-ligne">SAMEDI matin :</div>
               <div class="af-aside-ligne">sur rendez-vous.</div>
               <div class="af-aside-ligne">PARKING</div>
+            </div>
+            <!-- Le bloc visioconférence ferme la colonne, comme dans le modèle Word lui-même : dans
+                 header2.xml il est le dernier contenu de la zone de texte latérale, donc en bas de la
+                 première page. L'aperçu le posait en tête — une divergence avec le .docx téléchargé,
+                 corrigée ici, pas un choix de mise en page nouveau. -->
+            <div class="af-aside-bloc af-aside-visio">
+              <img id="af-icone-visio" alt="">
+              <div class="af-aside-visio-texte">OFFICE ÉQUIPÉ<br>DE LA VISIOCONFÉRENCE<br>DE LA PROFESSION</div>
             </div>
           </aside>
 

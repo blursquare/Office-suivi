@@ -6621,6 +6621,53 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
   - `npm test` : 554 tests racine (+5), 202 côté serveur (inchangés, chantier entièrement côté
     client).
 
+- **Trois retouches demandées ensemble** :
+  - **Appel de fonds : le contrôle de la provision sur frais se nourrit de ce qui est déjà saisi
+    au-dessus.** Ses deux menus (« Département du bien », « Nature du bien ») n'étaient remplis
+    que par le préremplissage depuis un dossier lié — sur un courrier tapé à la main, il fallait
+    ressaisir à dix lignes d'écart une information déjà donnée, et le contrôle restait muet tant
+    qu'on ne le faisait pas. `majFraisDepuisBienAppelFonds()` les dérive désormais de l'adresse
+    (code postal → `departementDepuisCodePostal` → `cleBaremeDepuisDepartement`) et de la
+    désignation (`typeBienDepuisDesignation()`, nouvelle fonction pure testable).
+    - **Branché dans `majApercuAppelFonds()` et nulle part ailleurs** : c'est le seul point par où
+      passent TOUS les chemins qui modifient ces deux champs — la frappe, le clic sur une
+      suggestion d'adresse BAN, et le préremplissage depuis un dossier. Un `oninput` ajouté sur
+      chaque champ aurait manqué les deux derniers.
+    - **Un choix fait à la main n'est jamais écrasé** : `marquerChoixFraisAppelFonds()` (l'`onchange`
+      des deux menus) lève un drapeau qui désactive l'auto-remplissage pour ce menu jusqu'à la
+      remise à zéro du formulaire. Sans ce garde-fou, corriger un département à la main serait
+      annulé à la frappe suivante dans l'adresse.
+    - **Ce qui ne tranche pas remet le champ à vide plutôt que de garder la valeur précédente** :
+      un code postal du 69 (Métropole de Lyon / Rhône, indiscernables — voir
+      `cleBaremeDepuisDepartement`) ou une désignation qui ne dit pas la nature du bien laissent le
+      contrôle muet, au lieu de comparer à un barème qui n'est plus celui du bien.
+    - `typeBienDepuisDesignation()` teste « lot/copropriété/appartement » AVANT « maison/immeuble » :
+      « un lot de copropriété dans un immeuble » est une copropriété, pas un immeuble. Quatre tests
+      dans `tests/appel-de-fonds.test.js`, dont ce cas et les désignations qui ne tranchent pas.
+    - Le `renderTableAppelFonds()` n'est relancé que si un menu a réellement changé, pas à chaque
+      frappe dans l'adresse.
+  - **Courrier : le bloc visioconférence descend en bas de la colonne de gauche, et le logo
+    Notaires de France est réduit.** L'aperçu posait « OFFICE ÉQUIPÉ DE LA VISIOCONFÉRENCE » en
+    TÊTE de l'aside — or dans le modèle Word (`word/header2.xml`, zone de texte latérale) ce bloc
+    est le DERNIER contenu de la colonne, donc en bas de la première page. Vérifié en dézippant le
+    `.docx` embarqué dans `appel-de-fonds-modele.js` et en relisant l'ordre des paragraphes de
+    cette zone : l'aperçu divergeait du fichier réellement téléchargé, il ne s'agissait donc pas
+    d'un choix de mise en page nouveau mais d'un alignement sur le modèle. `.af-logo-notaires`
+    passe de 420px/55 % à 360px/48 % (mesuré à 324px de large dans l'aperçu).
+  - **Badge ALPHA : padding symétrique rétabli** (`2px 4px`, `line-height` retiré). Le réglage
+    asymétrique posé la veille pour compenser l'espace des jambages qu'aucune capitale n'occupe
+    avait été **mesuré sur la police de repli** — `fonts.googleapis.com` étant bloqué dans cet
+    environnement de développement — et décalait le mot vers le bas une fois Inter réellement
+    chargée sur le poste de l'étude. **Leçon** : ne pas régler un centrage au pixel près sans
+    pouvoir l'observer avec la vraie police ; à couvrir par le commentaire plutôt que par une
+    nouvelle tentative.
+  - Vérifié dans un vrai Chromium (serveur réel, clair et sombre, 1500px et 400px) : 41100 →
+    département 41 et « un lot de copropriété » → copropriété, 45000 + « une maison » → 45 et
+    maison, un type choisi à la main qui résiste à un changement de désignation, un code postal du
+    69 qui vide le champ, le bloc visio en 4ᵉ et dernière position de l'aside sous HORAIRES, le
+    badge ALPHA à 36×17 px avec `padding: 2px 4px`, aucune erreur JS, aucun débordement
+    horizontal. `npm test` : 558 tests racine (+4), 202 côté serveur.
+
 ## Ce qui reste ouvert / pas encore fait
 
 - **Générateur d'appel de fonds : l'aperçu de pagination A4 de l'artefact n'est pas repris**

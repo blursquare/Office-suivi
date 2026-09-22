@@ -350,3 +350,37 @@ test('composerAdresseCourrier tient sans destinataire, et la mention par defaut 
   assert.equal(app.composerAdresseCourrier('', ''), '');
   assert.equal(app.MENTION_ENVOI_APPEL_FONDS, 'Envoi par e-mail uniquement');
 });
+
+test('typeBienDepuisDesignation lit la nature du bien dans la désignation libre', () => {
+  const app = chargerApplication();
+  assert.equal(app.typeBienDepuisDesignation('une maison'), 'house');
+  assert.equal(app.typeBienDepuisDesignation('un immeuble de rapport'), 'house');
+  assert.equal(app.typeBienDepuisDesignation('un pavillon'), 'house');
+  assert.equal(app.typeBienDepuisDesignation('un lot de copropriété'), 'condo');
+  assert.equal(app.typeBienDepuisDesignation('un appartement'), 'condo');
+  assert.equal(app.typeBienDepuisDesignation('un terrain à bâtir'), 'land');
+  assert.equal(app.typeBienDepuisDesignation('une parcelle'), 'land');
+});
+
+test('un lot situé dans un immeuble reste une copropriété', () => {
+  // L'ordre des tests porte la règle : les deux mots sont présents, mais c'est « lot » qui dit la
+  // nature du bien vendu. Testé dans les deux sens de rédaction.
+  const app = chargerApplication();
+  assert.equal(app.typeBienDepuisDesignation('un lot de copropriété dans un immeuble'), 'condo');
+  assert.equal(app.typeBienDepuisDesignation('un immeuble en copropriété, lot numéro 4'), 'condo');
+});
+
+test('une désignation qui ne tranche pas ne propose aucune nature', () => {
+  // Le contrôle des frais se tait alors, plutôt que de comparer à un barème qui n'est pas celui
+  // du bien — même prudence que le département ambigu (69), qui ne propose rien non plus.
+  const app = chargerApplication();
+  assert.equal(app.typeBienDepuisDesignation(''), null);
+  assert.equal(app.typeBienDepuisDesignation('un bien'), null);
+  assert.equal(app.typeBienDepuisDesignation('les droits indivis du vendeur'), null);
+});
+
+test('typeBienDepuisDesignation ignore accents et majuscules', () => {
+  const app = chargerApplication();
+  assert.equal(app.typeBienDepuisDesignation('UN TERRAIN À BÂTIR'), 'land');
+  assert.equal(app.typeBienDepuisDesignation('un lot de COPROPRIETE'), 'condo');
+});

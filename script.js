@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-22 09:41';
+  const VERSION_APP = '2026-09-22 09:47';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,11 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-22 09:47', resume: "Appel de fonds : les deux menus du contrôle de la provision sur frais "
+      + "(département, nature du bien) se remplissent tout seuls à partir de l'adresse et de la désignation déjà saisies "
+      + "juste au-dessus, et laissent tranquille tout choix fait à la main. Dans l'aperçu du courrier, le logo "
+      + "visioconférence et la mention « office équipé… » passent en bas de la colonne de gauche, là où le modèle Word "
+      + "les place déjà, et le logo Notaires de France est un peu réduit. Badge ALPHA : marges d'origine rétablies." },
     { version: '2026-09-22 09:41', resume: "Deux corrections signalées sur un vrai projet de vente. Un acte dont le "
       + "texte extrait n'a aucun retour à la ligne — le cas de tout acte authentique lu par l'outil — faisait déborder le "
       + "bloc VENDEUR sur la section ACQUÉREUR : les acquéreurs ressortaient vendeurs, d'où un faux « rôle changé » dans "
@@ -38,7 +43,6 @@
     { version: '2026-09-21 22:29', resume: "Appel de fonds : la mention « Envoi par e-mail uniquement » prend désormais la PLACE de l'adresse postale du destinataire, sous son nom, au lieu de s'ajouter au-dessus. Saisir une adresse dans « Adresse des clients » la fait disparaître et affiche l'adresse à la place — les deux ne peuvent pas cohabiter sur le même courrier. Elle reste modifiable dans l'aperçu (pour écrire « Envoi recommandé avec AR », par exemple), suit dans le .docx téléchargé, et le bouton « Effacer » la remet à sa formulation par défaut" },
     { version: '2026-09-21 22:09', resume: "Appel de fonds : le champ « Adresse du bien » propose désormais les adresses officielles de la Base Adresse Nationale (data.gouv.fr) pendant la frappe, et reprend simplement celle du dossier quand un dossier est rattaché — une note sous le champ dit d'où vient l'adresse affichée. Seul appel vers un service extérieur de tout CLAIRE : seul le texte tapé dans ce champ part, jamais un nom de dossier ni de client, et un poste sans internet garde la saisie libre. Corrigé au passage : le menu de recherche de dossier de cet écran s'affichait en boutons bruts, sans séparateur ni survol" },
     { version: '2026-09-21 22:02', resume: "Appel de fonds, trois retouches. Le bloc destinataire du courrier est aligné à droite dans l'aperçu, comme sur le papier. Le dépôt de garantie versé à l'agence est désormais DÉDUIT du virement demandé, l'agence reversant la somme à l'étude — la version de ce matin ne le déduisait pas, ce qui faisait réclamer au client une somme trop forte ; la fiche rappelle de réclamer ces fonds avant la signature. Enfin, la ligne « frais et droits de l'acte de vente » est contrôlée contre le barème du simulateur, comme les prorata l'étaient déjà : CLAIRE dit si le montant est au-dessus ou en dessous, sans jamais le remplir — ce barème n'a pas été audité. Corrigé au passage : un prorata écrit sans parenthèses n'était pas recalculé du tout" },
-    { version: '2026-09-21 21:36', resume: "Nouvel outil « Appel de fonds » dans la sidebar : il produit la convocation au rendez-vous de signature avec le décompte des sommes à virer, et la télécharge en .docx à l'en-tête de l'étude. Relié au suivi — un bouton « Préparer l'appel de fonds » sur la fiche d'un dossier ouvre l'outil déjà rempli avec les acquéreurs, l'adresse et la désignation du bien, la date du rendez-vous et le prix ; il dit aussi, en clair, ce qu'il n'a PAS pu remplir. Le dépôt de garantie n'est porté en déduction que s'il est séquestré à l'étude, et les frais d'acte de prêt ne sont appelés que si l'offre porte une garantie hypothécaire. Le décompte d'un confrère peut être déposé en PDF ou collé : ses lignes remplissent le tableau, et ses prorata écrits sous forme de formule sont recalculés pour contrôle" },
   ];
 
   const STORAGE_KEY = 'dossiers';
@@ -13893,6 +13897,57 @@
 
   var AF_TYPE_BIEN_PAR_TYPE_VENTE = { maison: 'house', copropriete: 'condo', terrain: 'land' };
 
+  // La désignation du bien est un champ LIBRE (« une maison », « un lot de copropriété », « un
+  // terrain à bâtir »…) : elle sert au courrier, mais elle dit aussi de quelle nature de bien il
+  // s'agit, la seule autre donnée dont le contrôle des frais a besoin. On la lit donc plutôt que de
+  // faire ressaisir la même chose deux fois à dix lignes d'écart. L'ordre des tests compte :
+  // « lot de copropriété dans un immeuble » est une copropriété, pas un immeuble. Une désignation
+  // qui ne tranche pas ne rend rien — le contrôle se tait alors, plutôt que de comparer à un
+  // barème qui n'est pas celui du bien.
+  function typeBienDepuisDesignation(texte) {
+    const t = normaliserPourRecherche(String(texte || ''));
+    if (!t) return null;
+    if (/\b(?:lot|copropriete|appartement|studio|duplex)\b/.test(t)) return 'condo';
+    if (/\b(?:terrain|parcelle|terrains)\b/.test(t)) return 'land';
+    if (/\b(?:maison|immeuble|pavillon|villa|longere|batiment)\b/.test(t)) return 'house';
+    return null;
+  }
+
+  // Le contrôle des frais se nourrit de ce qui est déjà saisi au-dessus (adresse et désignation du
+  // bien), sans jamais écraser un choix explicite : dès que quelqu'un touche l'un des deux menus,
+  // son drapeau passe à true et l'auto-remplissage le laisse tranquille pour le reste de la
+  // session de saisie (remis à zéro par reinitialiserAppelFonds). Sans ce garde-fou, corriger un
+  // département à la main serait annulé à la frappe suivante dans l'adresse.
+  let afFraisChoisiALaMain = { departement: false, type: false };
+
+  function marquerChoixFraisAppelFonds(quoi) {
+    afFraisChoisiALaMain[quoi] = true;
+    renderTableAppelFonds();
+  }
+
+  // Renvoie true si l'un des deux menus a réellement changé : l'appelant ne reconstruit le tableau
+  // du décompte que dans ce cas, plutôt qu'à chaque frappe dans l'adresse.
+  function majFraisDepuisBienAppelFonds() {
+    let change = false;
+    const poser = (id, valeur) => {
+      const el = afEl(id);
+      if (!el || el.value === valeur) return;
+      el.value = valeur;
+      change = true;
+    };
+    if (!afFraisChoisiALaMain.departement) {
+      const cp = (afValeur('af-adresse-bien').match(/\b\d{5}\b/) || [null])[0];
+      const cle = cleBaremeDepuisDepartement(departementDepuisCodePostal(cp));
+      // Une clé absente du menu (69, Corse/Alsace non tranchées) remet le champ à vide plutôt que
+      // de laisser le département précédent contrôler une adresse qui n'est plus la sienne.
+      poser('af-frais-departement', cle && DEPARTEMENTS_FRAIS_ACTE[cle] ? cle : '');
+    }
+    if (!afFraisChoisiALaMain.type) {
+      poser('af-frais-type', typeBienDepuisDesignation(afValeur('af-designation')) || '');
+    }
+    return change;
+  }
+
   // Le dossier ne dit pas si l'acquéreur est primo-accédant, et le total change selon le régime
   // (hausse départementale temporaire appliquée ou non). Plutôt que de parier, on calcule les
   // DEUX bornes : un montant qui tombe entre les deux est conforme, quel que soit le régime réel.
@@ -14507,6 +14562,12 @@
   function majApercuAppelFonds() {
     const poser = (id, texte) => { const e = afEl(id); if (e && texte) e.textContent = texte; };
 
+    // L'adresse et la désignation du bien alimentent aussi le contrôle des frais, juste en dessous
+    // (voir majFraisDepuisBienAppelFonds) : c'est le seul endroit par où passent TOUS les chemins
+    // qui les modifient — la frappe, le clic sur une suggestion d'adresse, et le préremplissage
+    // depuis un dossier — donc le seul où le brancher une fois pour toutes.
+    if (majFraisDepuisBienAppelFonds()) renderTableAppelFonds();
+
     const clientsRemplis = afClients.filter(c => String(c.nom || '').trim());
     const adresse = afValeur('af-adresse-clients');
     const bloc = afEl('af-p-adresse');
@@ -14739,6 +14800,7 @@
 
   function reinitialiserAppelFonds() {
     afDossierLie = null;
+    afFraisChoisiALaMain = { departement: false, type: false };
     afClients = [{ civilite: 'M', prenom: '', nom: '' }];
     afLignes = lignesDecompteDepuisPrefill(null);
     ['af-ref', 'af-designation', 'af-adresse-bien', 'af-adresse-clients', 'af-date-rdv', 'af-heure-rdv', 'af-lieu-autre', 'af-coller-texte', 'af-frais-departement', 'af-frais-type'].forEach(id => {
