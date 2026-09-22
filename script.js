@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-22 21:49';
+  const VERSION_APP = '2026-09-22 21:58';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-22 21:58', resume: "Outil 2 : les clauses de style de copropriete (carnet d'entretien, texte de loi cite) ne sont plus prises pour des travaux realises." },
     { version: '2026-09-22 21:49', resume: "La relance « offre de prêt » adressée au client ne "
       + "s'arrête plus le jour de l'échéance : elle continue tous les 10 jours tant que l'offre "
       + "n'est pas arrivée, jusqu'à l'archivage du dossier. Le texte de l'email et la ligne "
@@ -3183,6 +3184,20 @@
   // Un engagement FUTUR n'est pas un travail déjà fait : il relève du thème 4.
   var RE_TRAVAUX_FUTURS = /\bs['’]\s*(?:engage|oblige)\b|\bdevra\s+(?:faire\s+)?(?:r[ée]alis|ex[ée]cut|effectu)|\bs['’]\s*engage\s+[àa]\s+faire\b|\bavant\s+la\s+(?:vente|signature)\b[^.]{0,40}\bfera\b/i;
 
+  // Une clause qui DÉCRIT ce qu'un document doit mentionner (« le carnet d'entretien a pour objet
+  // de mentionner si des travaux importants ont été réalisés ») parle de travaux au conditionnel,
+  // pas de travaux faits sur CE bien. C'est du boilerplate présent dans presque tout acte de
+  // copropriété : le retenir produirait un danger sur chacun, même piège que RE_AUCUN_TRAVAUX.
+  var RE_TRAVAUX_HYPOTHETIQUE = /\bsi\s+(?:des|les?|la|l['’])\s*travaux|\bs['’]ils?\s+(?:ont|a)\s+[ée]t[ée]\s+r[ée]alis|\ba\s+pour\s+objet\s+de\s+mentionner|\bindiquant\s+si\b|\bdoit\s+mentionner\b/i;
+
+  // Un acte cite couramment le texte de loi qu'il applique (art. L.731-4 du Code de la
+  // construction, loi du 10 juillet 1965…), et ces textes parlent eux-mêmes de travaux. Exiger
+  // DEUX marqueurs — la référence au texte ET un verbe d'énonciation ou une énumération légale
+  // (« 1° … 2° … ») — évite d'écarter une vraie déclaration qui se contenterait de viser un
+  // article (« travaux soumis à déclaration préalable au sens de l'article R.421-17 »).
+  var RE_REFERENCE_TEXTE_LEGAL = /\b(?:article\s+[LRD]?\.?\s*\d|du\s+(?:m[êe]me\s+)?[Cc]ode\b|loi\s+(?:n[°ºo]|du\s+\d)|d[ée]cret\s+n[°ºo])/;
+  var RE_ENONCIATION_LEGALE = /\b(?:dispose|pr[ée]voit|[ée]nonce|stipule)\s+que\b|\baux\s+termes\s+de\s+l['’]article\b|\best\s+ainsi\s+r[ée]dig[ée]\b|\b\d{1,2}°\s/;
+
   var RE_TRAVAUX_GROS_OEUVRE = /\b(?:gros\s*[-\s]?\s*(?:œuvre|oeuvre)|murs?\s+porteurs?|charpente|toiture|couverture|fondations?|dalle|plancher|poutre|structure|sur[ée]l[ée]vation|ouverture\s+(?:dans|d['’]un)\s+(?:un\s+)?mur)\b/i;
   var RE_TRAVAUX_EXTERIEUR = /\b(?:ext[ée]rieur|fa[çc]ade|ravalement|toiture|couverture|v[ée]randa|extension|agrandissement|piscine|abri\s+de\s+jardin|carport|garage|terrasse|cl[ôo]ture|portail|pergola|d[ée]pendance|annexe|combles\s+am[ée]nag)/i;
 
@@ -3196,18 +3211,26 @@
   function detecterTravauxRealises(texte, pages, aujourdHui) {
     const src = String(texte || '');
     const resultats = [];
-    const vus = new Set();
+    const spans = [];
     const re = new RegExp(RE_TRAVAUX_MOT.source, 'gi');
     let m;
     while ((m = re.exec(src)) !== null) {
-      const { phrase, debut } = phraseAutour(src, m.index, 250, 350);
+      const { phrase, debut, fin } = phraseAutour(src, m.index, 250, 350);
       if (phrase.length < 25) continue;
-      const cle = phrase.slice(0, 80).toLowerCase();
-      if (vus.has(cle)) continue;
+      // Deux mots « travaux » dans une même clause longue donnaient deux fenêtres de lecture
+      // différentes (la marche arrière butant sur son plafond de 250 caractères plutôt que sur un
+      // point), donc deux constats pour un seul passage. On dédoublonne par CHEVAUCHEMENT de
+      // plage, pas par les 80 premiers caractères du texte rendu.
+      if (spans.some(s => debut < s.fin && fin > s.debut)) continue;
+      // La plage est retenue AVANT les garde-fous : une clause est jugée UNE fois, quel que soit
+      // le verdict. Sans ça, une clause écartée ne laissait aucune trace et son deuxième mot
+      // « travaux » la faisait rejuger sur une fenêtre décalée, qui repassait les garde-fous.
+      spans.push({ debut, fin });
       if (!RE_TRAVAUX_PASSES.test(phrase)) continue;
       if (RE_AUCUN_TRAVAUX.test(phrase)) continue;
       if (RE_TRAVAUX_FUTURS.test(phrase)) continue;
-      vus.add(cle);
+      if (RE_TRAVAUX_HYPOTHETIQUE.test(phrase)) continue;
+      if (RE_REFERENCE_TEXTE_LEGAL.test(phrase) && RE_ENONCIATION_LEGALE.test(phrase)) continue;
 
       const grosOeuvre = RE_TRAVAUX_GROS_OEUVRE.test(phrase);
       const exterieur = RE_TRAVAUX_EXTERIEUR.test(phrase);

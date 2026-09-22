@@ -42,6 +42,61 @@ test('detecterTravauxRealises ignore la clause de style « aucun travaux »', ()
   assert.equal(app.detecterTravauxRealises(texte, pagesFactices(texte), AUJOURDHUI).length, 0);
 });
 
+// Les cinq faux positifs ci-dessous viennent d'un vrai projet de vente en copropriété (30 pages) :
+// aucun ne parle de travaux faits sur CE bien, tous sont du boilerplate présent dans presque tout
+// acte de copropriété — donc cinq fausses alertes sur chaque dossier de ce type.
+
+test('detecterTravauxRealises ignore la description de ce qu un document doit mentionner', () => {
+  const app = chargerApplication();
+  const texte = "Ce carnet d'entretien a pour objet de mentionner : si des travaux importants ont "
+    + "ete realises, si des contrats d'assurance dommages souscrits par le syndicat des "
+    + "coproprietaires sont en cours, l'echeancier du programme pluriannuel de travaux decides "
+    + "par l'assemblee generale s'il en existe un.";
+  assert.equal(app.detecterTravauxRealises(texte, pagesFactices(texte), AUJOURDHUI).length, 0);
+});
+
+test('detecterTravauxRealises ignore une information conditionnelle sur des travaux prescrits', () => {
+  const app = chargerApplication();
+  const texte = "Celui-ci comportait notamment un extrait du document graphique situant le BIEN au "
+    + "regard du zonage reglementaire, ainsi qu'une information indiquant si des travaux ont ete "
+    + "prescrits par ce reglement et s'ils ont ete realises au regard de chacun des plans de "
+    + "prevention des risques.";
+  assert.equal(app.detecterTravauxRealises(texte, pagesFactices(texte), AUJOURDHUI).length, 0);
+});
+
+test('detecterTravauxRealises ignore le texte de loi cite dans l acte', () => {
+  const app = chargerApplication();
+  const texte = "L'article L 731-4 du Code de la construction et de l'habitation dispose que : "
+    + "toute mise en copropriete d'un immeuble construit depuis plus de dix ans est precedee du "
+    + "diagnostic technique global, lequel comporte 1° la liste des travaux necessaires a la "
+    + "sauvegarde de l'immeuble et a la refection de la toiture.";
+  assert.equal(app.detecterTravauxRealises(texte, pagesFactices(texte), AUJOURDHUI).length, 0);
+});
+
+test('detecterTravauxRealises garde une declaration qui se contente de viser un article', () => {
+  const app = chargerApplication();
+  // Le garde-fou exige DEUX marqueurs (reference au texte ET verbe d'enonciation) : viser un
+  // article ne doit pas suffire a ecarter une vraie declaration du vendeur.
+  const texte = "Le vendeur declare avoir fait realiser en 2021 des travaux de ravalement de "
+    + "facade soumis a declaration prealable au sens de l'article R 421-17 du Code de l'urbanisme.";
+  const t = app.detecterTravauxRealises(texte, pagesFactices(texte), AUJOURDHUI);
+  assert.equal(t.length, 1);
+  assert.equal(t[0].exterieur, true);
+  assert.equal(t[0].annee, 2021);
+});
+
+test('detecterTravauxRealises ne rend qu un constat pour une seule clause longue', () => {
+  const app = chargerApplication();
+  // Deux mots « travaux » eloignes de plus de 250 caracteres dans la meme phrase donnaient deux
+  // fenetres de lecture differentes, donc deux constats pour un seul passage.
+  const texte = "Le vendeur declare que des travaux de refection de la toiture ont ete realises en "
+    + "2019 par une entreprise reguliere, " + "apres consultation de plusieurs devis detailles et "
+    + "acceptation du plus avantageux au terme d'une comparaison serieuse des prestations "
+    + "proposees par chacune des entreprises consultees, ces travaux ayant ete receptionnes sans "
+    + "reserve.";
+  assert.equal(app.detecterTravauxRealises(texte, pagesFactices(texte), AUJOURDHUI).length, 1);
+});
+
 test('detecterTravauxRealises ignore un engagement de travaux FUTURS (thème 4, pas thème 1)', () => {
   const app = chargerApplication();
   const texte = "Le VENDEUR s'engage à faire réaliser les travaux de ravalement de façade avant la signature de l'acte authentique.";

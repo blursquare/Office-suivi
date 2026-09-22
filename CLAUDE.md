@@ -7460,6 +7460,41 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
     existante produit réellement avant de conclure à un bug.
 
 
+- **Outil 2 : cinq fausses alertes « travaux réalisés » sur tout acte de copropriété, trouvées en
+  rejouant un vrai projet de vente** (30 pages, copropriété) envoyé par l'étude pour comprendre le
+  « il rate des choses ». Aucune ne parle de travaux faits sur CE bien : deux familles de
+  boilerplate présentes dans presque tout acte de copropriété, donc cinq fausses alertes sur chaque
+  dossier de ce type.
+  - **Description de ce qu'un DOCUMENT doit mentionner** — « Ce carnet d'entretien a pour objet de
+    mentionner : si des travaux importants ont été réalisés… », « une information indiquant si des
+    travaux ont été prescrits et s'ils ont été réalisés ». Le verbe est au passé, mais au
+    conditionnel : `RE_TRAVAUX_HYPOTHETIQUE` (« si des travaux », « s'ils ont été réalisés », « a
+    pour objet de mentionner », « indiquant si », « doit mentionner »), dans l'esprit du
+    `CLAUSE_HYPOTHETIQUE_RE` déjà en place pour les dates d'Outil 1.
+  - **Texte de loi cité dans l'acte** — « L'article L 731-4 du Code de la construction dispose
+    que : … 1° La liste des travaux nécessaires à la sauvegarde de l'immeuble… ». **Deux marqueurs
+    exigés**, jamais un seul : la référence au texte (`RE_REFERENCE_TEXTE_LEGAL` : article, Code,
+    loi n°, décret n°) ET un verbe d'énonciation ou une énumération légale
+    (`RE_ENONCIATION_LEGALE` : « dispose/prévoit/énonce/stipule que », « aux termes de l'article »,
+    « est ainsi rédigé », « 1° »). Viser un article ne suffit donc pas à écarter une vraie
+    déclaration — « travaux de ravalement soumis à déclaration préalable au sens de l'article
+    R 421-17 » reste détecté, et un test le verrouille. « Au sens de » avait été envisagé comme
+    troisième déclencheur puis retiré pour cette raison précise.
+  - **Dédoublonnage par CHEVAUCHEMENT de plage, plus par les 80 premiers caractères.** Deux mots
+    « travaux » éloignés de plus de 250 caractères dans la même phrase donnaient deux fenêtres de
+    lecture différentes (la marche arrière de `phraseAutour` butant sur son plafond plutôt que sur
+    un point), donc deux constats pour un seul passage — et, plus grave, la seconde fenêtre
+    **repassait les garde-fous** que la première avait déclenchés. La plage est donc retenue AVANT
+    les garde-fous : une clause est jugée UNE fois, quel que soit le verdict.
+  - Ces cinq clauses ne produisaient pas encore de constat visible sur CET acte (aucune ne porte de
+    mot de gros œuvre ni d'extérieur, et `constatsTravauxRealises` sort tôt sur
+    `!soumisAutorisation`) — mais la liste de l'art. L.731-1 cite « la réfection de la toiture » et
+    le carnet d'entretien « les équipements communs » : il suffit d'une trame un peu différente
+    pour que la fausse alerte devienne visible. Corrigé à la cause plutôt qu'attendu.
+  - Cinq tests dans `tests/outil2-dangers.test.js` (les deux familles de boilerplate, la
+    déclaration qui vise un article et doit rester détectée, la clause longue qui ne rend qu'un
+    constat). Suite racine 628 → 642, serveur inchangée (211 — chantier entièrement côté client).
+
 ## Ce qui reste ouvert / pas encore fait
 
 - **Signature manuscrite de Bastien ANGLUMENT, conservée pour le courrier d'appel de fonds**
