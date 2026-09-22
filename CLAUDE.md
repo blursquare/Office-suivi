@@ -6735,6 +6735,119 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
     nature « maison » déduits de l'adresse saisie, badge « ✓ conforme au barème » sur les
     18 200 € du confrère, phrase de rendez-vous en gras souligné, aucune erreur JS.
 
+- **Outil 2 : état daté, pré-état daté et certificat d'urbanisme, avec les questions à poser.**
+  Demandé par l'étude à partir d'un cas réel : la lecture de l'état daté l'avait conduite à écrire au
+  confrère « des travaux de ravalement sont-ils prévus pour les prochaines années, des devis
+  ont-ils été réalisés ? » et « la procédure liée à l'affaissement de la cour a-t-elle évolué
+  depuis la promesse ? » — « c'est le genre d'analyse dont on a besoin ». Trois arbitrages pris
+  avec elle avant d'écrire une ligne, à ne pas rouvrir sans nouvelle demande : périmètre =
+  **tout** le contenu de l'état daté (pas seulement les deux points de l'exemple) ; sortie = des
+  constats **et** des questions prêtes à copier ; certificat d'urbanisme = points de vigilance +
+  validité. Entièrement déterministe et synchrone, comme le reste d'Outil 2 : aucun appel au
+  modèle local.
+  - **Deux régimes de rubrique, et c'est ce qui évite l'inventaire** (`RUBRIQUES_ETAT_DATE`) : une
+    rubrique de MONTANT n'intéresse que si elle porte une somme > 0 — « néant », « sans objet »
+    ou 0,00 € sont des RÉPONSES du syndic, pas des absences, et ne produisent rien ; une rubrique
+    de MENTION (une procédure, un devis) suffit à se signaler par sa seule présence. Sans cette
+    distinction, chaque état daté produirait une dizaine de constats, c'est-à-dire exactement
+    l'inventaire que l'étude a demandé d'éviter en réduisant le périmètre d'Outil 2. Une rubrique
+    trouvée dont le montant est illisible est dite « à vérifier » plutôt qu'ignorée.
+  - **Huit rubriques** : procédures en cours (CRITIQUE), travaux envisagés et devis, charges
+    impayées du vendeur, sommes incombant à l'acquéreur, travaux votés non encore appelés,
+    emprunt du syndicat, fonds de travaux, avances. Premier jet, comme `PIECES_*` en leur temps :
+    à resserrer dès qu'un vrai état daté fait remonter un faux positif, jamais à élargir « au cas
+    où ».
+  - **Un pré-état daté ne dispense jamais de demander l'état daté** : document de courtoisie,
+    établi avant l'avant-contrat, ni opposable ni à jour au moment de la vente — d'où deux types
+    distincts et un constat qui lui est propre. Une copropriété sans état daté du tout produit
+    elle-même un point à vérifier ; hors copropriété, rien.
+  - **Certificat d'urbanisme** : validité de 18 mois (`MOIS_VALIDITE_CU`, art. R.410-17 C. urb.)
+    calculée en JS pur à partir de la seule date lue — jamais demandée au modèle, même principe
+    que `DUREES_VALIDITE_DIAGNOSTIC`. La prorogation d'un an existe mais suppose une demande et
+    l'absence de changement des règles : elle n'est donc jamais présumée, seulement rappelée.
+    **Un CU « a » (information) est distingué d'un CU « b » (opérationnel)** : se fier au premier
+    pour juger un projet de construction est précisément l'erreur à signaler. Huit points de
+    vigilance (`POINTS_CERTIFICAT_URBANISME`) : emplacement réservé (CRITIQUE), alignement,
+    préemption, servitudes, risques, patrimoine, opération d'aménagement, taxes.
+  - **Bloc « À demander » en pied de rapport** (`questionsOutil2`, `renderQuestionsAudit`) : un
+    constat dit ce qui a été repéré, une question dit ce qu'il reste à demander — et c'est elle
+    qui part dans le courrier. Groupées par destinataire (syndic, confrère, mairie), jamais
+    répétées, avec un bouton « Copier » par bloc. **`navigator.clipboard` n'existe qu'en contexte
+    sécurisé** — absent sur un poste qui rejoint le serveur par son adresse IP, même limite que
+    `showDirectoryPicker` — d'où le repli `<textarea>` + `execCommand`, qui marche partout. Un
+    constat sans question ne produit aucune demande : un certificat encore valable n'a rien à
+    demander à personne.
+  - **Piège structurel évité** : un avant-contrat CITE systématiquement l'état daté et le
+    certificat d'urbanisme sans être ni l'un ni l'autre (même boilerplate qui avait déjà fait
+    perdre toute détection par le CONTENU à la checklist de pièces). Reconnaissance par le NOM
+    d'abord, puis par le seul TITRE (400 premiers caractères), et un garde-fou explicite qui
+    écarte tout document dont le nom ou l'en-tête annonce un compromis / un projet d'acte.
+  - **Piège JavaScript rencontré, le même que celui déjà documenté pour `\bÉtat`** : `\b` est
+    défini sur `\w = [A-Za-z0-9_]`, une lettre ACCENTUÉE n'en fait pas partie. `/\b[ée]tat/` ne
+    matche donc JAMAIS « ÉTAT DATÉ » (espace et É sont tous deux « non-mot »), et `/dat[ée]\b/`
+    échoue de même sur le « É » final. Sept motifs étaient concernés (état daté, référé, étude,
+    impayé, concerné, réservé, site classé) — corrigés par des lookarounds explicites
+    `(?<![A-Za-z0-9_À-ɏ])` / `(?![A-Za-z0-9_À-ɏ])`. **À vérifier systématiquement dès qu'un
+    motif commence ou finit par une lettre susceptible d'être accentuée.**
+  - Tests : `tests/outil2-etat-date.test.js` (14). Suite racine 563 → 577, serveur inchangée.
+    **Vérifié dans un vrai Chromium** (serveur réel, clair et sombre) sur un état daté et un
+    certificat d'urbanisme synthétiques : 5 constats d'état daté et 5 d'urbanisme, 10 questions
+    réparties entre les trois destinataires, copie dans le presse-papiers confirmée, aucun
+    débordement horizontal, aucune erreur JS.
+
+- **La date butoir devient informative, et le planning enchaîne appel de fonds → signature.**
+  Quatre demandes de l'étude dans le même message, qui ne forment qu'une seule règle métier :
+  ce qui engage l'étude, c'est le rendez-vous réellement pris à l'office, pas la date lue dans
+  l'avant-contrat.
+  - **« Signature de l'acte » (`acte`) devient « Date butoir »** partout où elle est nommée
+    (`LIBELLES_CATEGORIE`, le sélecteur de recatégorisation, le tab de la fiche) **et disparaît du
+    planning** — tableau du Suivi, vue Échéances, rappels par email. Elle reste visible sur la
+    fiche, avec l'écart qui la sépare du rendez-vous (« signature 5 j APRÈS ce butoir », déjà en
+    place).
+  - **Tant que l'appel de fonds n'est pas fait, c'est lui que le planning annonce**, même si le
+    rendez-vous est déjà fixé : c'est ce qu'il reste à faire. Faute de date propre — le cas
+    courant, l'étude ne la saisit pas toujours — il prend celle du rendez-vous : l'appel doit de
+    toute façon être parti avant, c'est sa vraie échéance, et mieux vaut ça que ne rien annoncer.
+    Une fois l'appel de fonds fait, le rendez-vous prend le relais sous le nom de « Signature de
+    l'acte ».
+  - **Une seule définition du planning** (`echeancesPlanning`) : `toutesEcheances()` et
+    `prochaineEcheanceDetail()` en portaient chacune une copie, et toute règle ajoutée à l'une
+    devait être reportée à l'autre à la main. C'est ce qui a rendu ce lot sûr à appliquer.
+  - **Le titre du tab « Rendez-vous de signature » passe en gras** (`.tab-name-fort`) : c'est la
+    seule date de signature qui fasse foi, juste à côté d'une date butoir qui ne l'est pas.
+  - **Miroir serveur mis à jour à l'identique** (`server/src/jobs/rappels.js`) : plus aucun rappel
+    J-15/J-7 sur une date butoir, et le même enchaînement appel de fonds → signature. Le flux
+    `.ics` n'est PAS touché : un repère indicatif dans un agenda ne gêne personne, et le retirer
+    demanderait d'en publier l'annulation.
+  - Tests : suite racine 577 → 579 (quinze tests réécrits sur les nouvelles règles plutôt que
+    contournés — ils encodaient les anciennes), serveur 203. **Vérifié dans un vrai Chromium** :
+    appel de fonds annoncé à la date du rendez-vous tant qu'il n'est pas fait, « Signature de
+    l'acte » ensuite, fiche affichant « Date butoir » et le rendez-vous en gras.
+
+- **Appel de fonds : les libellés d'un décompte de confrère sont ramenés au vocabulaire de
+  l'étude** (`LIBELLES_NORMALISES_DECOMPTE`, `normaliserLibelleDecompte`). Chaque confrère nomme
+  les mêmes lignes à sa façon, et ces libellés partent TELS QUELS dans le courrier de l'étude :
+  « Prix de vente » → « Prix d'acquisition », « Frais d'achat » → « Montant des frais et droits
+  de l'acte de vente », « Prorata taxe foncière » → « Quote-part de taxes foncières »,
+  « Acompte » → « Acompte sur prix versé à l'étude », « Provision sur frais » → « Acompte sur
+  frais versé à l'étude », variantes comprises.
+  - **Un libellé NON reconnu n'est jamais renommé** : renommer ce qu'on n'a pas compris serait pire
+    que de ne rien faire. Une taxe locale, un honoraire, une ligne propre au dossier gardent leur
+    rédaction, mot pour mot.
+  - **L'ordre des règles porte le sens** : « provision/acompte sur FRAIS » doit être testé avant
+    « acompte » tout court, et « frais d'acte de PRÊT » / « frais de promesse » / « frais de
+    mainlevée » sont explicitement écartés en premier — ils relèvent d'autres barèmes, les
+    renommer « frais et droits de l'acte de vente » serait un contresens et le contrôle du barème
+    les prendrait alors pour la ligne qu'il vérifie.
+  - **Piège d'outillage, à ne pas reproduire** : écrire ce tableau de regex via un heredoc Python
+    a inséré cinq caractères BACKSPACE (U+0008) là où `\b` était attendu — `\b` est un backspace
+    dans une chaîne Python. Le fichier restait syntaxiquement valide et les regex matchaient à peu
+    près, donc rien ne le signalait. Détecté par `grep -c $'\x08'`, à lancer après toute écriture
+    de regex par script.
+  - Tests : 4 nouveaux dans `tests/appel-de-fonds.test.js` (les cinq familles et leurs variantes,
+    les lignes qui ressemblent aux frais d'acte sans en être, un libellé non reconnu, et le
+    décompte réel importé dont les montants ne bougent pas). Suite racine 579 → 583.
+
 ## Ce qui reste ouvert / pas encore fait
 
 - **Générateur d'appel de fonds : l'aperçu de pagination A4 de l'artefact n'est pas repris**

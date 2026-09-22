@@ -53,7 +53,9 @@ test('parserDecompteConfrere rattache une formule de prorata à sa ligne', () =>
   ].join('\n');
   const r = app.parserDecompteConfrere(texte);
   assert.strictEqual(r.lignes.debit.length, 1);
-  assert.strictEqual(r.lignes.debit[0].libelle, 'Prorata de taxe foncière');
+  // Le libellé du confrère est ramené au vocabulaire de l'étude (normaliserLibelleDecompte) ; ce
+  // test porte sur la formule et son rattachement à la bonne ligne.
+  assert.strictEqual(r.lignes.debit[0].libelle, 'Quote-part de taxes foncières');
   assert.ok(r.lignes.debit[0].formule.includes('913'));
   assert.strictEqual(r.lignes.debit[0].montant, 230.13);
 });
@@ -220,7 +222,7 @@ test('afExtraireFormule lit aussi un prorata écrit sans parenthèses', () => {
   // était bien sur la ligne mais aucun recalcul n'était tenté.
   const r = app.parserDecompteConfrere('Prorata taxe foncière 913 € x 92 jours / 365 jours    230,13 €');
   assert.strictEqual(r.lignes.debit.length, 1);
-  assert.strictEqual(r.lignes.debit[0].libelle, 'Prorata taxe foncière');
+  assert.strictEqual(r.lignes.debit[0].libelle, 'Quote-part de taxes foncières');
   assert.ok(r.lignes.debit[0].formule.includes('913'));
   assert.strictEqual(app.verifierProrataLigne(r.lignes.debit[0]).statut, 'ok');
 });
@@ -428,7 +430,7 @@ test('un tiret ou une puce en début de ligne ne part pas dans le courrier', () 
     '501,28 €'
   ].join('\n'));
   const libelles = res.lignes.debit.map(l => l.libelle);
-  assert.equal(libelles.join(' | '), 'Prix de vente | Frais d’achat | Frais de promesse TTC | Prorata taxe foncière');
+  assert.equal(libelles.join(' | '), 'Prix d’acquisition | Montant des frais et droits de l’acte de vente | Frais de promesse TTC | Quote-part de taxes foncières');
 });
 
 test('« Frais d’achat » est contrôlé contre le barème, « frais de prêt » non', () => {
@@ -468,4 +470,61 @@ test('le décompte réel d’un confrère se recalcule au centime près', () => 
   assert.equal(res.lignes.debit[2].memoire, true);
   assert.equal(res.meta.soldeDeclare, 227642.28);
   assert.equal(Math.round((somme('debit') - somme('credit')) * 100) / 100, 227642.28);
+});
+
+test('les libellés du confrère sont ramenés au vocabulaire de l’étude', () => {
+  // Chaque confrère nomme les mêmes lignes à sa façon, et ces libellés partent tels quels dans le
+  // courrier : l'étude a demandé une formulation unique. Les variantes sont reconnues.
+  const app = chargerApplication();
+  const n = app.normaliserLibelleDecompte;
+  ['Prix de vente', "Prix d'acquisition", 'Prix de cession', 'Prix principal']
+    .forEach(l => assert.equal(n(l), 'Prix d’acquisition', l));
+  ["Frais d'achat (sauf à parfaire ou à diminuer)", "Frais d'acte", 'Frais et droits',
+   'Frais de notaire', "Frais d'acquisition", 'Émoluments et droits']
+    .forEach(l => assert.equal(n(l), 'Montant des frais et droits de l’acte de vente', l));
+  ['Prorata taxe foncière', 'Quote-part de taxes foncières', 'Prorata TF', 'Répartition taxes foncières']
+    .forEach(l => assert.equal(n(l), 'Quote-part de taxes foncières', l));
+  ['Acompte', 'Arrhes versées', 'Dépôt de garantie', 'Séquestre']
+    .forEach(l => assert.equal(n(l), 'Acompte sur prix versé à l’étude', l));
+  ['Provision sur frais versée à ce jour', 'Acompte sur frais', 'Provision déjà versée']
+    .forEach(l => assert.equal(n(l), 'Acompte sur frais versé à l’étude', l));
+});
+
+test('les lignes qui ressemblent aux frais d’acte sans en être gardent leur libellé', () => {
+  // « Frais d'acte de prêt », « frais de promesse », « frais de mainlevée » relèvent d'autres
+  // barèmes : les renommer « frais et droits de l'acte de vente » serait un contresens, et le
+  // contrôle du barème les prendrait alors à tort pour la ligne qu'il vérifie.
+  const app = chargerApplication();
+  const n = app.normaliserLibelleDecompte;
+  ["Frais d'acte de prêt", 'Frais de prêt(s) (sauf à parfaire ou à diminuer)',
+   'Frais de promesse TTC', 'Frais de mainlevée', 'Frais de négociation']
+    .forEach(l => assert.equal(n(l), l, l));
+});
+
+test('un libellé non reconnu n’est jamais renommé', () => {
+  // Renommer ce qu'on n'a pas compris serait pire que de ne rien faire : le libellé du confrère
+  // part dans le courrier de l'étude tel quel.
+  const app = chargerApplication();
+  const n = app.normaliserLibelleDecompte;
+  ['Taxe de séjour communale', 'Honoraires de rédaction', 'Copies authentiques', '', '  ']
+    .forEach(l => assert.equal(n(l), String(l).trim(), JSON.stringify(l)));
+});
+
+test('la normalisation s’applique au décompte importé, sans toucher aux montants', () => {
+  const app = chargerApplication();
+  const res = app.parserDecompteConfrere([
+    'Prix de vente: 220 000,00 €',
+    'Frais à ajouter :',
+    '- Frais d’achat (sauf à parfaire ou à diminuer) 18 200,00 €',
+    '- Prorata taxe foncière 501,28 €',
+    'Sommes à déduire :',
+    '- Acompte 11 000,00 €',
+    '- Provision sur frais versée à ce jour 400,00 €'
+  ].join('\n'));
+  assert.equal(res.lignes.debit.map(l => l.libelle).join(' | '),
+    'Prix d’acquisition | Montant des frais et droits de l’acte de vente | Quote-part de taxes foncières');
+  assert.equal(res.lignes.credit.map(l => l.libelle).join(' | '),
+    'Acompte sur prix versé à l’étude | Acompte sur frais versé à l’étude');
+  assert.equal(res.lignes.debit.map(l => l.montant).join(','), '220000,18200,501.28');
+  assert.equal(res.lignes.credit.map(l => l.montant).join(','), '11000,400');
 });

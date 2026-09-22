@@ -185,9 +185,11 @@ test('prochaineEcheanceDetail ignore l\'échéance de prêt une fois l\'offre re
   const app = chargerApplication();
   const dansTroisJours = new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString().slice(0, 10);
   const dansVingtJours = new Date(Date.now() + 20 * 24 * 3600 * 1000).toISOString().slice(0, 10);
-  const d = { pret: dansTroisJours, acte: dansVingtJours, offrePretStatut: 'recue' };
+  // La date butoir ne figure plus au planning (elle est indicative) : la suivante est donc la
+  // vente préalable, pas elle — voir echeancesPlanning.
+  const d = { pret: dansTroisJours, ventebien: dansVingtJours, offrePretStatut: 'recue' };
   const prochaine = app.prochaineEcheanceDetail(d);
-  assert.equal(prochaine.type, 'acte');
+  assert.equal(prochaine.type, 'ventebien');
 });
 
 test('prochaineEcheanceDetail garde l\'échéance de prêt tant que l\'offre n\'est pas confirmée reçue', () => {

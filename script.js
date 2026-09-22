@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-22 10:08';
+  const VERSION_APP = '2026-09-22 10:28';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,13 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-22 10:28', resume: "Outil 2 lit désormais l'état daté, le pré-état daté et le "
+      + "certificat d'urbanisme déposés : procédures en cours, travaux envisagés et devis, impayés, sommes à la charge "
+      + "de l'acquéreur, validité du certificat et ses points de vigilance — avec, en pied de rapport, les questions "
+      + "prêtes à envoyer au syndic, au confrère ou à la mairie, copiables d'un clic. « Signature de l'acte » devient "
+      + "« Date butoir » et sort du planning (elle n'est qu'indicative) ; tant que l'appel de fonds n'est pas fait, "
+      + "c'est lui qu'annonce le planning, puis la signature une fois qu'il l'est. Les libellés d'un décompte de "
+      + "confrère importé sont ramenés au vocabulaire de l'étude." },
     { version: '2026-09-22 10:08', resume: "Appel de fonds : l'import d'un PDF de décompte ne rendait jamais rien. "
       + "Deux causes cumulées — le texte lu n'arrivait pas jusqu'au parseur, et il était de toute façon aplati en une "
       + "seule ligne par page alors qu'un décompte est un tableau. Les lignes sont maintenant reconstruites depuis la "
@@ -48,7 +55,6 @@
       + "liseré de gravité sur chaque constat, et tous les diagnostics du DDT dans la table de validité." },
     { version: '2026-09-21 23:02', resume: "Outil 2 (Relecture d'un acte) refait de zéro : il ne passe plus par le modèle IA pour produire son rapport, qui s'affiche désormais instantanément, sans attente et sans serveur. Sur un compromis, il cherche quatre dangers précis et seulement ceux-là : les travaux déjà faits qui touchent le gros œuvre ou l'extérieur (autorisation d'urbanisme, garantie décennale), les diagnostics périmés, les entretiens et documents à obtenir du vendeur, les travaux qu'il doit faire avant la vente. Sur un projet de vente, il compare à l'avant-contrat signé et dit, engagement par engagement, s'il a été tenu — un justificatif peut être déposé et sa DATE est contrôlée (l'entretien de chaudière fourni a-t-il bien moins d'un an ?). Le modèle local reste disponible, en option, par un bouton sous le rapport" },
     { version: '2026-09-21 22:29', resume: "Appel de fonds : la mention « Envoi par e-mail uniquement » prend désormais la PLACE de l'adresse postale du destinataire, sous son nom, au lieu de s'ajouter au-dessus. Saisir une adresse dans « Adresse des clients » la fait disparaître et affiche l'adresse à la place — les deux ne peuvent pas cohabiter sur le même courrier. Elle reste modifiable dans l'aperçu (pour écrire « Envoi recommandé avec AR », par exemple), suit dans le .docx téléchargé, et le bouton « Effacer » la remet à sa formulation par défaut" },
-    { version: '2026-09-21 22:09', resume: "Appel de fonds : le champ « Adresse du bien » propose désormais les adresses officielles de la Base Adresse Nationale (data.gouv.fr) pendant la frappe, et reprend simplement celle du dossier quand un dossier est rattaché — une note sous le champ dit d'où vient l'adresse affichée. Seul appel vers un service extérieur de tout CLAIRE : seul le texte tapé dans ce champ part, jamais un nom de dossier ni de client, et un poste sans internet garde la saisie libre. Corrigé au passage : le menu de recherche de dossier de cet écran s'affichait en boutons bruts, sans séparateur ni survol" },
   ];
 
   const STORAGE_KEY = 'dossiers';
@@ -3587,18 +3593,426 @@
       ...((entree && entree.documentsDeposes) || []).map(doc => detecterAssembleesGenerales(doc.texte, null, doc.nom))
     ]);
 
+    // État daté / pré-état daté et certificat d'urbanisme : cherchés parmi les documents déposés
+    // uniquement, jamais dans l'avant-contrat lui-même — celui-ci les CITE couramment sans en être
+    // un (même piège que les pièces de la checklist, déjà payé une fois).
+    const etatsDates = ((entree && entree.documentsDeposes) || []).map(analyserEtatDate).filter(Boolean);
+    const certificatsUrbanisme = ((entree && entree.documentsDeposes) || []).map(analyserCertificatUrbanisme).filter(Boolean);
+
     const constats = []
       .concat(constatsTravauxRealises(travaux))
       .concat(constatsDocumentsDates(documents.filter(d => !clesEngagees.has(d.cle))))
       .concat(constatsEngagementsVendeur(engagements, justificatifs, aujourdHui))
-      .concat(constatsAssembleesGenerales({ ags, estCopropriete }));
+      .concat(constatsAssembleesGenerales({ ags, estCopropriete }))
+      .concat(constatsEtatDate(etatsDates, aujourdHui, estCopropriete))
+      .concat(constatsCertificatUrbanisme(certificatsUrbanisme, aujourdHui));
 
     constats.sort((a, b) => (ORDRE_GRAVITE_OUTIL2[a.gravite] ?? 9) - (ORDRE_GRAVITE_OUTIL2[b.gravite] ?? 9));
 
     const resume = { CRITIQUE: 0, IMPORTANT: 0, A_VERIFIER: 0, INFORMATION: 0 };
     for (const c of constats) { if (resume[c.gravite] != null) resume[c.gravite]++; }
 
-    return { mode: 'compromis', constats, resume, travaux, documents, engagements, justificatifs, ags, estCopropriete, aujourdHui };
+    return { mode: 'compromis', constats, resume, travaux, documents, engagements, justificatifs,
+      ags, estCopropriete, etatsDates, certificatsUrbanisme, questions: questionsOutil2(constats), aujourdHui };
+  }
+
+  // ==== OUTIL 2 : ÉTAT DATÉ / PRÉ-ÉTAT DATÉ ET CERTIFICAT D'URBANISME ==========================
+  //
+  // Demandé par l'étude à partir d'un cas réel : sur un dossier de copropriété, la lecture de
+  // l'état daté avait fait écrire au confrère « des travaux de ravalement sont-ils prévus pour les
+  // prochaines années, des devis ont-ils été réalisés ? » et « la procédure liée à l'affaissement
+  // de la cour a-t-elle évolué depuis la promesse ? ». C'est ce genre de point que l'outil doit
+  // faire remonter — et la question qui va avec, prête à être envoyée.
+  //
+  // Trois arbitrages pris avec l'étude avant d'écrire une ligne, à ne pas rouvrir sans nouvelle
+  // demande :
+  //   • périmètre de l'état daté = TOUT son contenu (pas seulement les travaux et les procédures
+  //     de l'exemple) : impayés du vendeur, fonds de travaux, avances, sommes incombant à
+  //     l'acquéreur, emprunt du syndicat ;
+  //   • sortie = des constats dans le rapport ET un bloc de questions prêtes à copier ;
+  //   • certificat d'urbanisme = points de vigilance + validité (date, 18 mois, CU a ou b).
+  //
+  // Tout est déterministe et synchrone, comme le reste d'Outil 2 : aucun appel au modèle local.
+
+  // Un état daté n'est pas un pré-état daté. Le second est un document de courtoisie, établi AVANT
+  // l'avant-contrat et sans valeur opposable ; le premier est l'acte du syndic prévu à l'article 5
+  // du décret du 17 mars 1967, demandé par le notaire avant la vente. Les deux ont le même contenu,
+  // mais un pré-état daté de plusieurs mois ne dit plus rien de la situation du jour — d'où deux
+  // types distincts et un constat propre au pré-état daté seul.
+  //
+  // PIÈGE À NE PAS REPRODUIRE, déjà payé une fois dans ce fichier : en JavaScript `\b` est défini
+  // sur `\w = [A-Za-z0-9_]`, une lettre ACCENTUÉE n'en fait pas partie. `/\b[ée]tat/` ne matche donc
+  // JAMAIS « ÉTAT DATÉ » (espace et É sont tous deux « non-mot », il n'y a aucune frontière entre
+  // eux), et `/dat[ée]\b/` échoue de même sur le « É » final. D'où les lookarounds explicites
+  // ci-dessous partout où un motif commence ou finit par une lettre susceptible d'être accentuée.
+  var MOT_AVANT = '(?<![A-Za-z0-9_\u00c0-\u024f])';
+  var MOT_APRES = '(?![A-Za-z0-9_\u00c0-\u024f])';
+  var RE_ETAT_DATE = new RegExp(MOT_AVANT + '[ée]tat\\s+dat[ée]' + MOT_APRES, 'i');
+  var RE_PRE_ETAT_DATE = new RegExp(MOT_AVANT + 'pr[ée][\\s-]*[ée]tat\\s+dat[ée]' + MOT_APRES, 'i');
+  // Mêmes alternatives que `certificatUrbanisme.motifNom` de la checklist de pièces (« CU a) », la
+  // « réponse urbanisme » de l'étude), plus le visa de l'article L.410-1 qui figure en tête du
+  // document lui-même. « CU » seul n'est PAS accepté : deux lettres ne désignent pas un document,
+  // même principe que les sigles courts déjà discutés pour la checklist.
+  var RE_CERTIFICAT_URBANISME = /certificat\s+d?[’']?\s*urbanisme|\bCU\s*[ab]\s*\)|r[ée]ponse\s+(?:d[’']?\s*)?urbanisme|\bL\.?\s*410-1\b/i;
+
+  // « Néant », « sans objet », « 0,00 € » : la rubrique existe et le syndic a répondu qu'il n'y a
+  // rien. C'est une réponse, pas une absence — elle ne doit produire AUCUN constat, sinon chaque
+  // état daté en produirait une dizaine et le rapport deviendrait l'inventaire que l'étude a
+  // justement demandé d'éviter.
+  var RE_RUBRIQUE_VIDE = /\b(n[ée]ant|sans\s+objet|aucune?|non\s+concern[ée]|pas\s+de\s+)(?![A-Za-z0-9_À-ɏ])/i;
+
+  // Montant en fin de fragment, dans les formes qu'emploie un état daté (« 1 234,56 € »,
+  // « 1234.56 EUR », « 0 € »). Volontairement plus large que AF_MONTANT_FIN_RE (appel de fonds),
+  // qui exige deux décimales et un montant en fin de LIGNE.
+  var RE_MONTANT_ETAT_DATE = /(\d{1,3}(?:[.\s ]\d{3})*(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)\s*(?:€|EUR\b|euros?\b)/i;
+
+  // Chaque rubrique porte SA question, rédigée pour être envoyée telle quelle. « type » décide de
+  // la lecture :
+  //   • 'montant' : la rubrique n'intéresse que si elle porte une somme > 0. Zéro ou « néant » =
+  //     silence ; rubrique trouvée mais montant illisible = A_VERIFIER (le dire plutôt que de
+  //     l'ignorer, c'est peut-être la seule fois où elle sera lue).
+  //   • 'mention' : la seule présence du sujet suffit (une procédure en cours, un devis), sauf
+  //     négation à proximité immédiate.
+  // Premier jet, comme PIECES_* en leur temps : à resserrer dès qu'un vrai état daté fait remonter
+  // un faux positif, jamais à élargir « au cas où ».
+  var RUBRIQUES_ETAT_DATE = [
+    {
+      cle: 'proceduresEnCours', type: 'mention', gravite: 'CRITIQUE',
+      libelle: 'Procédure ou litige en cours',
+      motif: /\b(proc[ée]dure|litige|contentieux|instance\s+en\s+cours|assignation|expertise\s+judiciaire|r[ée]f[ée]r[ée])(?![A-Za-z0-9_À-ɏ])/i,
+      destinataire: 'syndic',
+      question: "Une procédure est mentionnée dans l’état daté : pourriez-vous nous indiquer où elle en est aujourd’hui, et si elle est susceptible d’entraîner un appel de fonds à la charge du copropriétaire ?"
+    },
+    {
+      cle: 'travauxEnvisages', type: 'mention', gravite: 'IMPORTANT',
+      libelle: 'Travaux envisagés ou devis en cours',
+      motif: /(?<![A-Za-z0-9_À-ɏ])(travaux\s+(?:envisag[ée]s|pr[ée]vus|[àa]\s+pr[ée]voir|projet[ée]s)|projet\s+de\s+travaux|devis|ravalement|[ée]tude\s+en\s+cours)(?![A-Za-z0-9_À-ɏ])/i,
+      destinataire: 'syndic',
+      question: "Des travaux sont évoqués dans l’état daté : pourriez-vous nous préciser s’ils sont prévus pour les prochaines années, si des devis ont déjà été établis, et à quel stade en est leur vote ?"
+    },
+    {
+      cle: 'chargesImpayees', type: 'montant', gravite: 'IMPORTANT',
+      libelle: 'Charges impayées par le vendeur',
+      motif: /\b(impay[ée]s?|arri[ée]r[ée]s?\s+de\s+charges|sommes?\s+restant\s+dues?|dette\s+du\s+copropri[ée]taire|solde\s+d[ée]biteur)(?![A-Za-z0-9_À-ɏ])/i,
+      destinataire: 'confrere',
+      question: "L’état daté fait apparaître des sommes restant dues par le vendeur au syndicat : pourriez-vous confirmer qu’elles seront réglées sur le prix au jour de la signature ?"
+    },
+    {
+      cle: 'sommesIncombantAcquereur', type: 'montant', gravite: 'IMPORTANT',
+      libelle: "Sommes incombant à l’acquéreur",
+      motif: /\bsommes?\s+(?:incombant|[àa]\s+la\s+charge\s+du)\s+(?:au\s+)?(?:nouveau\s+copropri[ée]taire|futur\s+copropri[ée]taire|acqu[ée]reur)\b/i,
+      destinataire: 'confrere',
+      question: "L’état daté met des sommes à la charge du nouveau copropriétaire : pourriez-vous nous en confirmer le détail, afin que nous les reprenions dans le décompte de l’acquéreur ?"
+    },
+    {
+      cle: 'travauxVotesNonAppeles', type: 'montant', gravite: 'IMPORTANT',
+      libelle: 'Travaux votés non encore appelés',
+      motif: /\btravaux\s+vot[ée]s\b|\bappels?\s+de\s+fonds\s+travaux\b|\bquote[\s-]*part\s+de\s+travaux\b/i,
+      destinataire: 'confrere',
+      question: "Des travaux votés restent à appeler : pourriez-vous nous confirmer la répartition convenue entre le vendeur et l’acquéreur (art. 6-2 de la loi du 10 juillet 1965) ?"
+    },
+    {
+      cle: 'empruntSyndicat', type: 'mention', gravite: 'IMPORTANT',
+      libelle: 'Emprunt souscrit par le syndicat',
+      motif: /\bemprunt\b(?![^.]{0,40}\bn[ée]ant\b)/i,
+      destinataire: 'syndic',
+      question: "Un emprunt du syndicat est mentionné : pourriez-vous nous indiquer le capital restant dû rattaché au lot vendu et les modalités de remboursement ?"
+    },
+    {
+      cle: 'fondsTravaux', type: 'montant', gravite: 'A_VERIFIER',
+      libelle: 'Fonds de travaux',
+      motif: /\bfonds\s+de\s+travaux\b|\barticle\s+14[\s-]*2\b/i,
+      destinataire: 'confrere',
+      question: "Pourriez-vous nous confirmer le montant du fonds de travaux rattaché au lot ? Il reste acquis au syndicat et n’est pas remboursé au vendeur, sauf convention contraire à préciser dans l’acte."
+    },
+    {
+      cle: 'avances', type: 'montant', gravite: 'A_VERIFIER',
+      libelle: 'Avances et fonds de roulement',
+      motif: /\bavances?\b|\bfonds\s+de\s+roulement\b|\bavance\s+de\s+tr[ée]sorerie\b/i,
+      destinataire: 'confrere',
+      question: "Pourriez-vous nous confirmer le montant des avances à reconstituer par l’acquéreur et celles à rembourser au vendeur ?"
+    }
+  ];
+
+  // Points de vigilance d'un certificat d'urbanisme. Même logique 'mention' que ci-dessus : ce sont
+  // des servitudes ou des contraintes, pas des montants.
+  var POINTS_CERTIFICAT_URBANISME = [
+    {
+      cle: 'emplacementReserve', gravite: 'CRITIQUE',
+      libelle: 'Emplacement réservé',
+      motif: /\bemplacements?\s+r[ée]serv[ée]s?(?![A-Za-z0-9_À-ɏ])/i,
+      destinataire: 'mairie',
+      question: "Le certificat d’urbanisme fait état d’un emplacement réservé : pourriez-vous nous préciser son emprise exacte sur la parcelle vendue et son bénéficiaire ?"
+    },
+    {
+      cle: 'alignement', gravite: 'IMPORTANT',
+      libelle: "Alignement",
+      motif: /\balignement\b/i,
+      destinataire: 'mairie',
+      question: "Un alignement est mentionné : pourriez-vous nous indiquer si un arrêté d’alignement a été délivré et s’il affecte la construction existante ?"
+    },
+    {
+      cle: 'preemption', gravite: 'IMPORTANT',
+      libelle: 'Droit de préemption',
+      motif: /\b(droit\s+de\s+pr[ée]emption|DPU\b|zone\s+d['’]am[ée]nagement\s+diff[ée]r[ée]|ZAD\b)/i,
+      destinataire: 'mairie',
+      question: "Le bien est situé dans le périmètre d’un droit de préemption : pourriez-vous nous confirmer le titulaire du droit et l’adresse à laquelle adresser la déclaration d’intention d’aliéner ?"
+    },
+    {
+      cle: 'servitudes', gravite: 'IMPORTANT',
+      libelle: "Servitudes d’utilité publique",
+      motif: /\bservitudes?\s+d['’]\s*utilit[ée]\s+publique\b|\bservitudes?\b/i,
+      destinataire: 'mairie',
+      question: "Des servitudes d’utilité publique sont mentionnées : pourriez-vous nous en communiquer la liste et le plan, afin que nous les reprenions dans l’acte ?"
+    },
+    {
+      cle: 'risques', gravite: 'IMPORTANT',
+      libelle: 'Plan de prévention des risques',
+      motif: /\b(plan\s+de\s+pr[ée]vention\s+des\s+risques|PPRN?[IiTt]?\b|zone\s+(?:inondable|de\s+risque)|al[ée]a\s+(?:fort|moyen|faible))\b/i,
+      destinataire: 'mairie',
+      question: "Le bien est concerné par un plan de prévention des risques : pourriez-vous nous préciser le zonage applicable à la parcelle et les prescriptions qui en découlent ?"
+    },
+    {
+      cle: 'patrimoine', gravite: 'IMPORTANT',
+      libelle: 'Protection du patrimoine',
+      motif: /\b(monument\s+historique|site\s+(?:class[ée]|inscrit)|abords?\s+d['’]un\s+monument|architecte\s+des\s+b[âa]timents\s+de\s+France|\bABF\b|site\s+patrimonial\s+remarquable)(?![A-Za-z0-9_À-ɏ])/i,
+      destinataire: 'mairie',
+      question: "Le bien est situé dans un périmètre de protection du patrimoine : pourriez-vous nous confirmer si l’avis de l’architecte des Bâtiments de France est requis pour les travaux envisagés ?"
+    },
+    {
+      cle: 'operationAmenagement', gravite: 'A_VERIFIER',
+      libelle: "Opération d’aménagement",
+      motif: /\b(zone\s+d['’]am[ée]nagement\s+concert[ée]|ZAC\b|lotissement|projet\s+urbain\s+partenarial|\bPUP\b)/i,
+      destinataire: 'mairie',
+      question: "Une opération d’aménagement est mentionnée : pourriez-vous nous indiquer les participations ou charges éventuellement mises à la charge du terrain ?"
+    },
+    {
+      cle: 'taxes', gravite: 'A_VERIFIER',
+      libelle: "Taxes et participations d’urbanisme",
+      motif: /\b(taxe\s+d['’]am[ée]nagement|redevance\s+d['’]arch[ée]ologie|participations?\s+d['’]urbanisme)\b/i,
+      destinataire: 'mairie',
+      question: "Des taxes ou participations d’urbanisme sont mentionnées : pourriez-vous nous confirmer si elles restent dues et à quel titre ?"
+    }
+  ];
+
+  // Validité d'un certificat d'urbanisme : 18 mois à compter de sa délivrance (art. R.410-17 du
+  // code de l'urbanisme). La prorogation d'un an existe mais suppose une demande et l'absence de
+  // changement des règles et taxes : elle n'est donc jamais présumée ici, seulement rappelée.
+  var MOIS_VALIDITE_CU = 18;
+
+  // Un avant-contrat ou un projet d'acte CITE systématiquement l'état daté et le certificat
+  // d'urbanisme sans être ni l'un ni l'autre — c'est le même piège que celui déjà payé sur la
+  // checklist de pièces, où ces documents ont fini par perdre toute détection par le CONTENU.
+  // L'appelant écarte déjà le document principal et l'avant-contrat de référence, mais un
+  // justificatif peut lui aussi être une copie de l'acte : ce garde-fou par le nom reste utile.
+  var RE_DOC_AVANT_CONTRAT = /compromis|promesse|avant[\s-]*contrat|projet\s+d?['’]?\s*acte|acte\s+de\s+vente/i;
+
+  // Reconnaissance par le NOM d'abord (le plus fiable, cf. la leçon déjà tirée sur la checklist de
+  // pièces), puis par le TITRE seul — les 400 premiers caractères, pas le document entier : un
+  // état daté porte son intitulé en tête, une simple mention en cours de texte n'en fait pas un.
+  var TETE_DOCUMENT_SYNDIC = 400;
+
+  function typeDocumentSyndicUrbanisme(doc) {
+    const nom = normaliserNomPourMotif((doc && doc.nom) || '');
+    if (RE_PRE_ETAT_DATE.test(nom)) return 'pre-etat-date';
+    if (RE_ETAT_DATE.test(nom)) return 'etat-date';
+    if (RE_CERTIFICAT_URBANISME.test(nom)) return 'certificat-urbanisme';
+    if (RE_DOC_AVANT_CONTRAT.test(nom)) return null;
+    const entete = String((doc && doc.texte) || '').slice(0, TETE_DOCUMENT_SYNDIC);
+    if (RE_DOC_AVANT_CONTRAT.test(entete)) return null;
+    if (RE_PRE_ETAT_DATE.test(entete)) return 'pre-etat-date';
+    if (RE_ETAT_DATE.test(entete)) return 'etat-date';
+    if (RE_CERTIFICAT_URBANISME.test(entete)) return 'certificat-urbanisme';
+    return null;
+  }
+
+  function montantDansFragment(fragment) {
+    const m = RE_MONTANT_ETAT_DATE.exec(String(fragment || ''));
+    if (!m) return null;
+    const n = parseFloat(String(m[1]).replace(/[\s ]/g, '').replace(/\.(?=\d{3}\b)/g, '').replace(',', '.'));
+    return Number.isFinite(n) ? n : null;
+  }
+
+  // Fenêtre volontairement courte après le libellé de la rubrique (180 caractères) : dans un état
+  // daté, le montant suit immédiatement son intitulé, et élargir ramènerait celui de la rubrique
+  // suivante.
+  var FENETRE_RUBRIQUE_ETAT_DATE = 180;
+
+  function analyserEtatDate(doc) {
+    const texte = String((doc && doc.texte) || '');
+    const pages = (doc && doc.pages) || null;
+    const type = typeDocumentSyndicUrbanisme(doc);
+    if (type !== 'etat-date' && type !== 'pre-etat-date') return null;
+    const rubriques = [];
+    for (const r of RUBRIQUES_ETAT_DATE) {
+      const m = r.motif.exec(texte);
+      if (!m) continue;
+      const fragment = fragmentApres(texte, m.index, FENETRE_RUBRIQUE_ETAT_DATE);
+      const vide = RE_RUBRIQUE_VIDE.test(fragment);
+      const montant = montantDansFragment(fragment);
+      const contexte = phraseAutour(texte, m.index, 120, 300);
+      const page = pages ? pageDepuisIndexPages(pages, m.index) : null;
+      if (r.type === 'montant') {
+        // Zéro ou « néant » : le syndic a répondu, il n'y a rien à signaler.
+        if (vide || montant === 0) continue;
+        rubriques.push({ cle: r.cle, libelle: r.libelle, gravite: r.gravite, montant,
+          lisible: montant != null, phrase: contexte.phrase, page,
+          destinataire: r.destinataire, question: r.question });
+      } else {
+        if (vide) continue;
+        rubriques.push({ cle: r.cle, libelle: r.libelle, gravite: r.gravite, montant: null,
+          lisible: true, phrase: contexte.phrase, page,
+          destinataire: r.destinataire, question: r.question });
+      }
+    }
+    return { type, document: (doc && doc.nom) || '', date: dateDuJustificatif(texte), rubriques };
+  }
+
+  function analyserCertificatUrbanisme(doc) {
+    const texte = String((doc && doc.texte) || '');
+    const pages = (doc && doc.pages) || null;
+    if (typeDocumentSyndicUrbanisme(doc) !== 'certificat-urbanisme') return null;
+    // CU « b » (opérationnel) : il dit si l'opération projetée est réalisable. Le CU « a »
+    // (information) ne donne que les règles applicables — se fier à un CU a pour juger un projet
+    // de construction est précisément l'erreur à signaler.
+    const operationnel = /\bcertificat\s+d['’]?\s*urbanisme\s+op[ée]rationnel\b|\bCU\s*b\s*\)|\bL\.?\s*410-1\s*b\b|\b2[°º]\s*de\s+l['’]article\s+L\.?\s*410-1\b/i.test(texte);
+    const points = [];
+    for (const p of POINTS_CERTIFICAT_URBANISME) {
+      const m = p.motif.exec(texte);
+      if (!m) continue;
+      const fragment = fragmentApres(texte, m.index, FENETRE_RUBRIQUE_ETAT_DATE);
+      if (RE_RUBRIQUE_VIDE.test(fragment)) continue;
+      const contexte = phraseAutour(texte, m.index, 120, 300);
+      points.push({ cle: p.cle, libelle: p.libelle, gravite: p.gravite, phrase: contexte.phrase,
+        page: pages ? pageDepuisIndexPages(pages, m.index) : null,
+        destinataire: p.destinataire, question: p.question });
+    }
+    const date = dateDuJustificatif(texte);
+    return {
+      document: (doc && doc.nom) || '', date, points,
+      genre: operationnel ? 'b' : 'a',
+      expiration: date ? ajouterMois(date, MOIS_VALIDITE_CU) : null
+    };
+  }
+
+  function constatsEtatDate(analyses, aujourdHui, estCopropriete) {
+    const liste = (analyses || []).filter(Boolean);
+    const constats = [];
+
+    // Copropriété sans état daté ni pré-état daté déposé : c'est en soi le point à signaler, la
+    // vente ne peut pas se préparer sans lui.
+    if (estCopropriete && liste.length === 0) {
+      constats.push({
+        categorie: 'ETAT_DATE', gravite: 'A_VERIFIER',
+        titre: "Aucun état daté ni pré-état daté dans les documents fournis",
+        description: "Vente en copropriété : réclamer l’état daté au syndic pour connaître les sommes dues par le vendeur, celles incombant à l’acquéreur, les travaux votés et les procédures en cours.",
+        destinataire: 'syndic',
+        question: "Pourriez-vous nous adresser l’état daté prévu à l’article 5 du décret du 17 mars 1967 pour le lot vendu ?"
+      });
+      return constats;
+    }
+
+    for (const a of liste) {
+      if (a.type === 'pre-etat-date') {
+        // Un pré-état daté est un document de courtoisie, établi avant l'avant-contrat : il ne
+        // remplace jamais l'état daté demandé au syndic avant la vente.
+        constats.push({
+          categorie: 'ETAT_DATE', gravite: 'IMPORTANT',
+          titre: `Pré-état daté${a.date ? ' du ' + formatDateFr(a.date) : ''} : l’état daté reste à demander`,
+          description: "Le pré-état daté n’est ni opposable ni à jour à la date de la vente. L’état daté prévu à l’article 5 du décret du 17 mars 1967 doit être demandé au syndic avant la signature.",
+          document: a.document,
+          destinataire: 'syndic',
+          question: "Pourriez-vous nous adresser l’état daté pour le lot vendu, la vente étant en cours de préparation ?"
+        });
+      }
+      for (const r of a.rubriques) {
+        const montantTexte = r.montant != null ? formaterPrixCentimes(r.montant) : null;
+        constats.push({
+          categorie: 'ETAT_DATE',
+          gravite: r.lisible ? r.gravite : 'A_VERIFIER',
+          titre: montantTexte ? `${r.libelle} : ${montantTexte}` : r.libelle,
+          description: r.lisible
+            ? `Relevé dans ${a.type === 'pre-etat-date' ? 'le pré-état daté' : 'l’état daté'}${a.document ? ' (' + a.document + ')' : ''}.`
+            : `Rubrique présente dans ${a.type === 'pre-etat-date' ? 'le pré-état daté' : 'l’état daté'}, mais son montant n’a pas pu être lu : à vérifier sur le document.`,
+          phrase: r.phrase, page: r.page, document: a.document,
+          destinataire: r.destinataire, question: r.question
+        });
+      }
+    }
+    return constats;
+  }
+
+  function constatsCertificatUrbanisme(analyses, aujourdHui) {
+    const liste = (analyses || []).filter(Boolean);
+    const constats = [];
+    for (const a of liste) {
+      if (!a.date) {
+        constats.push({
+          categorie: 'URBANISME', gravite: 'A_VERIFIER',
+          titre: "Certificat d’urbanisme sans date de délivrance lisible",
+          description: `Sa validité (${MOIS_VALIDITE_CU} mois à compter de la délivrance) n’a pas pu être contrôlée : vérifier la date sur le document.`,
+          document: a.document
+        });
+      } else if (a.expiration && a.expiration < aujourdHui) {
+        constats.push({
+          categorie: 'URBANISME', gravite: 'CRITIQUE',
+          titre: `Certificat d’urbanisme périmé depuis le ${formatDateFr(a.expiration)}`,
+          description: `Délivré le ${formatDateFr(a.date)}, sa validité de ${MOIS_VALIDITE_CU} mois est dépassée. Une prorogation d’un an est possible sur demande si les règles d’urbanisme et les taxes n’ont pas changé ; à défaut, en demander un nouveau.`,
+          document: a.document,
+          destinataire: 'mairie',
+          question: "Pourriez-vous nous délivrer un nouveau certificat d’urbanisme pour le bien désigné, celui en notre possession étant expiré ?"
+        });
+      } else if (a.expiration) {
+        constats.push({
+          categorie: 'URBANISME', gravite: 'INFORMATION',
+          titre: `Certificat d’urbanisme valable jusqu’au ${formatDateFr(a.expiration)}`,
+          description: `Délivré le ${formatDateFr(a.date)}, validité de ${MOIS_VALIDITE_CU} mois.`,
+          document: a.document
+        });
+      }
+      if (a.genre === 'a') {
+        constats.push({
+          categorie: 'URBANISME', gravite: 'A_VERIFIER',
+          titre: "Certificat d’urbanisme d’information (CU a)",
+          description: "Il donne les règles applicables au terrain, mais ne dit PAS si une opération projetée y est réalisable. Si l’acquéreur a un projet de construction ou de division, un certificat opérationnel (CU b) est à demander.",
+          document: a.document,
+          destinataire: 'mairie',
+          question: "L’acquéreur ayant un projet sur ce terrain, pourriez-vous nous délivrer un certificat d’urbanisme opérationnel (b) précisant si l’opération envisagée est réalisable ?"
+        });
+      }
+      for (const p of a.points) {
+        constats.push({
+          categorie: 'URBANISME', gravite: p.gravite,
+          titre: p.libelle,
+          description: `Relevé dans le certificat d’urbanisme${a.document ? ' (' + a.document + ')' : ''}.`,
+          phrase: p.phrase, page: p.page, document: a.document,
+          destinataire: p.destinataire, question: p.question
+        });
+      }
+    }
+    return constats;
+  }
+
+  // Les questions prêtes à envoyer, regroupées par destinataire. Un constat sans question n'en
+  // produit aucune : toutes n'appellent pas un courrier (un certificat encore valable, par
+  // exemple, n'a rien à demander à personne). Deux constats qui poseraient la même question ne la
+  // produisent qu'une fois — c'est le cas dès que deux documents portent la même rubrique.
+  var DESTINATAIRES_QUESTIONS_OUTIL2 = [
+    { cle: 'syndic', titre: 'Questions à poser au syndic' },
+    { cle: 'confrere', titre: 'Questions à poser au confrère' },
+    { cle: 'mairie', titre: 'Questions à poser à la mairie' }
+  ];
+
+  function questionsOutil2(constats) {
+    const parDestinataire = {};
+    for (const c of constats || []) {
+      if (!c || !c.question || !c.destinataire) continue;
+      if (!parDestinataire[c.destinataire]) parDestinataire[c.destinataire] = [];
+      if (parDestinataire[c.destinataire].indexOf(c.question) === -1) parDestinataire[c.destinataire].push(c.question);
+    }
+    return DESTINATAIRES_QUESTIONS_OUTIL2
+      .filter(d => parDestinataire[d.cle] && parDestinataire[d.cle].length)
+      .map(d => ({ cle: d.cle, titre: d.titre, questions: parDestinataire[d.cle] }));
   }
 
   // ==== OUTIL 2 : LECTURE D'UN PROJET DE VENTE (comparaison avec l'avant-contrat) ==============
@@ -3787,18 +4201,27 @@
     // l'avant-contrat est alors signalée, ce qui est le comportement prudent.
     const dateVente = dossierLie ? (dossierLie.rendezVousSignature || dossierLie.acte || null) : null;
 
+    // Mêmes analyses qu'en mode « compromis », sur les mêmes documents déposés : c'est justement
+    // au moment de relire le projet de vente que l'état daté arrive, et un certificat d'urbanisme
+    // périmé entre l'avant-contrat et la vente est exactement le genre de point à rattraper là.
+    const etatsDates = ((entree && entree.documentsDeposes) || []).map(analyserEtatDate).filter(Boolean);
+    const certificatsUrbanisme = ((entree && entree.documentsDeposes) || []).map(analyserCertificatUrbanisme).filter(Boolean);
+
     const constats = []
       .concat(comparaison)
       .concat(constatsObligationsOutil2(obligations))
       .concat(constatsTravauxNonRepris(travaux, texteProjet))
-      .concat(constatsAssembleesGenerales({ ags, estCopropriete, dateAvantContrat, dateVente }));
+      .concat(constatsAssembleesGenerales({ ags, estCopropriete, dateAvantContrat, dateVente }))
+      .concat(constatsEtatDate(etatsDates, aujourdHui, estCopropriete))
+      .concat(constatsCertificatUrbanisme(certificatsUrbanisme, aujourdHui));
 
     constats.sort((a, b) => (ORDRE_GRAVITE_OUTIL2[a.gravite] ?? 9) - (ORDRE_GRAVITE_OUTIL2[b.gravite] ?? 9));
 
     const resume = { CRITIQUE: 0, IMPORTANT: 0, A_VERIFIER: 0, INFORMATION: 0 };
     for (const c of constats) { if (resume[c.gravite] != null) resume[c.gravite]++; }
 
-    return { mode: 'acte', constats, resume, obligations, comparaison, travaux, ags, estCopropriete, dateAvantContrat, dateVente, aujourdHui };
+    return { mode: 'acte', constats, resume, obligations, comparaison, travaux, ags, estCopropriete,
+      etatsDates, certificatsUrbanisme, questions: questionsOutil2(constats), dateAvantContrat, dateVente, aujourdHui };
   }
 
   // Corrections apportées À LA MAIN entre ce que l'extraction proposait et ce qui est réellement
@@ -7197,7 +7620,7 @@
   function optionsCategorie(typeActuel) {
     const options = [
       ['pret', 'Obtention du prêt'],
-      ['acte', "Signature de l'acte"],
+      ['acte', 'Date butoir'],
       ['ventebien', 'Vente préalable']
     ];
     return options.map(([val, texte]) =>
@@ -7223,7 +7646,7 @@
             <span class="tab-select-icone-chevron">${icone('chevron-down')}</span>
           </span>
         </div>`
-      : `<div class="tab-name">${label}</div>`;
+      : `<div class="tab-name${type === 'rendezVousSignature' ? ' tab-name-fort' : ''}">${label}</div>`;
 
     // Petite croix en haut à droite pour retirer une échéance : "autre" passe par
     // supprimerEcheanceAutre (retire l'entrée de d.autres) ; Prêt/Acte/Vente préalable, tant qu'une
@@ -7377,7 +7800,7 @@
     // La date butoir reste affichée une fois le rendez-vous fixé, mais devient indicative : le
     // 12e argument lui fait afficher l'écart (« signature 5 j APRÈS ce butoir ») au lieu d'un
     // décompte, voir renderTab.
-    cartes.push({ iso: d.acte, html: renderTab('acte', 'Signature de l\u2019acte', d.acte, d.id, d.actePage, confiance.acte, null, false, '', false, echeanceValidee(d, 'acte'), d.acte ? (d.rendezVousSignature || '') : '') });
+    cartes.push({ iso: d.acte, html: renderTab('acte', 'Date butoir', d.acte, d.id, d.actePage, confiance.acte, null, false, '', false, echeanceValidee(d, 'acte'), d.acte ? (d.rendezVousSignature || '') : '') });
     if (dossierEntierementComplet(d)) cartes.push({ iso: d.appelFonds, html: renderTab('appelFonds', 'Appel de fonds', d.appelFonds, d.id, null, null, null, false, '', false, echeanceValidee(d, 'appelFonds')) });
     cartes.push({ iso: d.rendezVousSignature, html: renderTab('rendezVousSignature', 'Rendez-vous de signature', d.rendezVousSignature, d.id, null, null, null, false, '', false, echeanceValidee(d, 'rendezVousSignature')) });
     (d.autres || []).forEach((a, i) => cartes.push({ iso: a.date, html: renderTab('autre', escapeHtml(a.label), a.date, d.id, a.page, null, i, false, '', false, echeanceValidee(d, 'autre-' + i)) }));
@@ -7419,8 +7842,11 @@
 
   // Échange le contenu de deux échéances fixes d'un dossier (aucune perte de données : si la
   // catégorie cible avait déjà une date, elle prend la place de l'ancienne).
+  // « Date butoir », et non plus « Signature de l'acte » : cette date vient de l'avant-contrat et
+  // n'est qu'INDICATIVE — c'est le rendez-vous réellement pris à l'office qui fait foi. L'étude a
+  // demandé que son nom le dise et qu'elle disparaîsse du planning (voir echeancesPlanning).
   const LIBELLES_CATEGORIE = {
-    pret: 'Obtention du prêt', acte: "Signature de l'acte", ventebien: 'Vente préalable',
+    pret: 'Obtention du prêt', acte: 'Date butoir', ventebien: 'Vente préalable',
     appelFonds: 'Appel de fonds', rendezVousSignature: 'Rendez-vous de signature'
   };
 
@@ -8042,19 +8468,50 @@
   // Toutes les échéances ACTIVES d'un dossier, pas seulement la plus proche. Même exclusion que
   // prochaineEcheanceDetail() pour une offre de prêt déjà reçue : la condition est résolue, la
   // faire apparaître dans le planning de la semaine donnerait du travail qui n'existe plus.
+  // La liste des échéances qui composent le PLANNING d'un dossier — le tableau du Suivi, la vue
+  // Échéances, les rappels. Une seule définition, partagée par toutesEcheances() et
+  // prochaineEcheanceDetail() : les deux en portaient une copie, et toute règle ajoutée à l'une
+  // devait être reportée à l'autre à la main.
+  //
+  // Trois règles métier, données par l'étude, que la seule lecture des dates ne suffit pas à poser :
+  //
+  //  1. La DATE BUTOIR (`acte`) n'y figure jamais. Elle vient de l'avant-contrat et n'est
+  //     qu'indicative : ce qui engage l'étude, c'est le rendez-vous pris à l'office. Elle reste
+  //     visible sur la fiche (avec l'écart entre les deux, voir renderTab) mais n'annonce plus
+  //     rien dans le planning.
+  //  2. Tant que l'APPEL DE FONDS n'est pas fait, c'est lui qu'il reste à faire, même si le
+  //     rendez-vous est déjà fixé : le planning annonce donc « Appel de fonds ». Faute de date
+  //     propre — le cas courant, l'étude ne la saisit pas toujours — il prend celle du
+  //     rendez-vous : l'appel doit de toute façon être parti avant, c'est sa vraie échéance.
+  //  3. Une fois l'appel de fonds fait, le rendez-vous devient la prochaine échéance, sous le nom
+  //     de « Signature de l'acte » — c'est ce qu'il reste à faire, et c'est la seule signature
+  //     dont la date soit certaine.
+  //
+  // Ordre métier du dossier : compromis signé → vente préalable (elle finance l'acquisition) →
+  // obtention du prêt → appel de fonds → signature. Ne départage que les ex æquo, le tri se
+  // faisant par date.
+  function echeancesPlanning(d) {
+    const items = [];
+    if (!echeanceValidee(d, 'ventebien')) items.push({ type: 'ventebien', label: 'Vente préalable', iso: d.ventebien });
+    // Une offre déjà reçue clôt cette échéance : la garder ici referait apparaître « Obtention du
+    // prêt » comme la prochaine chose à surveiller alors qu'il n'y a plus rien à y suivre.
+    if (!echeanceValidee(d, 'pret')) items.push({ type: 'pret', label: 'Obtention du prêt', iso: d.pret });
+
+    const appelFondsFait = echeanceValidee(d, 'appelFonds');
+    if (!appelFondsFait) {
+      items.push({ type: 'appelFonds', label: 'Appel de fonds', iso: d.appelFonds || d.rendezVousSignature });
+    } else if (!echeanceValidee(d, 'rendezVousSignature')) {
+      items.push({ type: 'rendezVousSignature', label: 'Signature de l’acte', iso: d.rendezVousSignature });
+    }
+
+    (d.autres || []).forEach((a, i) => {
+      if (!echeanceValidee(d, 'autre-' + i)) items.push({ type: 'autre', label: a.label, iso: a.date, index: i });
+    });
+    return items.filter(it => it.iso);
+  }
+
   function toutesEcheances(d) {
-    return [
-      // Ordre métier du dossier, donné par l'étude : compromis signé → vente préalable (elle
-      // finance l'acquisition) → obtention du prêt → date butoir de réitération → appel de fonds →
-      // rendez-vous de signature. Ne départage que les ex æquo, le tri se faisant par date.
-      ...(echeanceValidee(d, 'ventebien') ? [] : [{ type: 'ventebien', label: 'Vente préalable', iso: d.ventebien }]),
-      ...(echeanceValidee(d, 'pret') ? [] : [{ type: 'pret', label: 'Obtention du prêt', iso: d.pret }]),
-      ...(echeanceValidee(d, 'acte') ? [] : [{ type: 'acte', label: "Signature de l'acte", iso: d.acte }]),
-      ...(echeanceValidee(d, 'appelFonds') ? [] : [{ type: 'appelFonds', label: 'Appel de fonds', iso: d.appelFonds }]),
-      ...(echeanceValidee(d, 'rendezVousSignature') ? [] : [{ type: 'rendezVousSignature', label: 'Rendez-vous de signature', iso: d.rendezVousSignature }]),
-      ...(d.autres || []).map((a, i) => ({ type: 'autre', label: a.label, iso: a.date, index: i }))
-        .filter(it => !echeanceValidee(d, 'autre-' + it.index))
-    ].filter(it => it.iso);
+    return echeancesPlanning(d);
   }
 
   // Nombre de semaines affichées individuellement après la semaine courante ; au-delà, tout tombe
@@ -8150,21 +8607,7 @@
   }
 
   function prochaineEcheanceDetail(d) {
-    const items = [
-      // Une offre déjà reçue clôt cette échéance : la garder ici referait apparaître "Obtention du
-      // prêt" comme la prochaine chose à surveiller alors qu'il n'y a plus rien à y suivre — on
-      // passe directement à la suivante (acte, vente préalable...), voir calculerProchaineEcheance.
-      // Ordre métier du dossier, donné par l'étude : compromis signé → vente préalable (elle
-      // finance l'acquisition) → obtention du prêt → date butoir de réitération → appel de fonds →
-      // rendez-vous de signature. Ne départage que les ex æquo, le tri se faisant par date.
-      ...(echeanceValidee(d, 'ventebien') ? [] : [{ type: 'ventebien', label: 'Vente préalable', iso: d.ventebien }]),
-      ...(echeanceValidee(d, 'pret') ? [] : [{ type: 'pret', label: 'Obtention du prêt', iso: d.pret }]),
-      ...(echeanceValidee(d, 'acte') ? [] : [{ type: 'acte', label: "Signature de l'acte", iso: d.acte }]),
-      ...(echeanceValidee(d, 'appelFonds') ? [] : [{ type: 'appelFonds', label: 'Appel de fonds', iso: d.appelFonds }]),
-      ...(echeanceValidee(d, 'rendezVousSignature') ? [] : [{ type: 'rendezVousSignature', label: 'Rendez-vous de signature', iso: d.rendezVousSignature }]),
-      ...(d.autres || []).map((a, i) => ({ type: 'autre', label: a.label, iso: a.date, index: i }))
-        .filter(it => !echeanceValidee(d, 'autre-' + it.index))
-    ].filter(it => it.iso);
+    const items = echeancesPlanning(d);
     if (!items.length) return null;
     const avecJours = items.map(it => ({ ...it, jours: joursRestants(it.iso) }));
     const upcoming = avecJours.filter(it => it.jours >= 0);
@@ -13459,6 +13902,8 @@
     { cle: 'DOCUMENTS', titre: 'Documents à obtenir du vendeur' },
     { cle: 'TRAVAUX_A_FAIRE', titre: 'Travaux à réaliser avant la vente' },
     { cle: 'COPROPRIETE', titre: 'Assemblées générales de copropriété' },
+    { cle: 'ETAT_DATE', titre: 'État daté / pré-état daté' },
+    { cle: 'URBANISME', titre: "Certificat d’urbanisme" },
     { cle: 'IA', titre: 'Relecture complémentaire par le modèle local' }
   ];
 
@@ -13581,8 +14026,63 @@
       html += renderSectionAudit(section.titre, constats.filter(c => c.categorie === section.cle), renderConstatAudit);
     }
 
+    html += renderQuestionsAudit(resultat.questions);
     html += renderBoutonApprofondirIa(resultat);
     zone.innerHTML = html;
+  }
+
+  // Les questions prêtes à copier, demandées par l'étude en même temps que l'analyse de l'état daté :
+  // un constat dit ce qui a été repéré, une question dit ce qu'il reste à demander, et c'est elle
+  // qui part dans le courrier au syndic ou au confrère. Un bouton par destinataire copie tout le
+  // bloc d'un coup — recopier une question à la souris depuis un rapport, c'est exactement le
+  // geste que cet outil doit éviter.
+  function renderQuestionsAudit(blocs) {
+    const liste = (blocs || []).filter(b => b && b.questions && b.questions.length);
+    if (!liste.length) return '';
+    let html = '<section class="audit-questions"><span class="section-eyebrow">À demander</span>';
+    liste.forEach((b, i) => {
+      html += `<div class="audit-questions-bloc">
+        <div class="audit-questions-tete">
+          <strong>${escapeHtml(b.titre)}</strong>
+          <button type="button" class="action-rapide" onclick="copierQuestionsAudit(${i})">${icone('clipboard')}Copier</button>
+        </div>
+        <ul id="audit-questions-${i}">${b.questions.map(q => `<li>${escapeHtml(q)}</li>`).join('')}</ul>
+      </div>`;
+    });
+    return html + '</section>';
+  }
+
+  function copierQuestionsAudit(index) {
+    const bloc = ((dernierRapportAudit && dernierRapportAudit.questions) || [])[index];
+    if (!bloc) return;
+    const texte = bloc.questions.join('\n\n');
+    // navigator.clipboard n'existe qu'en contexte sécurisé (localhost ou HTTPS) : sur un poste du
+    // bureau qui rejoint le serveur par son adresse IP, il est absent — même limite que celle déjà
+    // rencontrée avec showDirectoryPicker, et la raison pour laquelle le NAS est lu par le serveur.
+    // Le repli par <textarea> + execCommand marche partout, y compris là.
+    const fini = (ok) => afficherToast(ok ? 'Questions copiées.' : 'La copie a échoué : sélectionnez le texte à la main.', 'OK', null);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(texte).then(() => fini(true), () => fini(copierParTextarea(texte)));
+      return;
+    }
+    fini(copierParTextarea(texte));
+  }
+
+  function copierParTextarea(texte) {
+    try {
+      const zone = document.createElement('textarea');
+      zone.value = texte;
+      zone.setAttribute('readonly', '');
+      zone.style.position = 'fixed';
+      zone.style.opacity = '0';
+      document.body.appendChild(zone);
+      zone.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(zone);
+      return ok;
+    } catch (e) {
+      return false;
+    }
   }
 
   // ---- Approfondissement OPTIONNEL par le modèle local -------------------------------------
@@ -13668,7 +14168,7 @@
     try {
       const justificatifs = fichiersOk
         .filter(f => f !== principal && f.type !== 'reference_compromis')
-        .map(f => ({ nom: f.nom, texte: f.texte }));
+        .map(f => ({ nom: f.nom, texte: f.texte, pages: f.pages }));
 
       let resultat;
       if (auditMode === 'acte') {
@@ -13830,6 +14330,44 @@
     return String(s || '').replace(AF_PUCE_DEBUT_RE, '').replace(/\s*:\s*$/, '').trim();
   }
 
+  // Vocabulaire de l'étude. Chaque confrère nomme les mêmes lignes à sa façon (« Prix de vente »,
+  // « Frais d'achat », « Prorata TF »…) et ces libellés partent tels quels dans le courrier de
+  // l'étude : ils sont donc ramenés à la formulation qu'elle emploie, demandée explicitement.
+  //
+  // La normalisation ne touche QUE le libellé : un montant, un signe ou une formule n'en dépendent
+  // jamais. Et elle ne s'applique qu'à un libellé RECONNU — tout ce qui ne l'est pas (une ligne
+  // propre à ce dossier, une taxe locale, un honoraire) garde le sien, mot pour mot : renommer ce
+  // qu'on n'a pas compris serait pire que de ne rien faire.
+  //
+  // L'ordre compte : « Provision sur frais » et « Acompte sur frais » sont un acompte sur les
+  // FRAIS, pas sur le prix, et doivent donc être testés avant « acompte » tout court ; de même
+  // « frais d'acte de prêt » n'est pas « frais d'acte » et doit sortir avant lui.
+  var LIBELLES_NORMALISES_DECOMPTE = [
+    // À écarter d'abord : ces lignes ressemblent aux suivantes sans être elles.
+    { garde: true, motif: /\bfrais\s+d?['’]?\s*acte\s+de\s+pr[êe]t\b|\bfrais\s+de\s+pr[êe]ts?\b|\bfrais\s+de\s+(?:promesse|mainlev[ée]e|n[ée]gociation)\b/i },
+
+    { libelle: 'Acompte sur frais versé à l’étude',
+      motif: /\b(?:provision|acompte)\s+sur\s+(?:les\s+)?frais\b|\bprovision\s+(?:d[ée]jà\s+)?vers[ée]e\b/i },
+    { libelle: 'Acompte sur prix versé à l’étude',
+      motif: /\b(?:acompte|arrhes|s[ée]questre)\b|\bd[ée]p[ôo]t\s+de\s+garantie\b/i },
+    { libelle: 'Montant des frais et droits de l’acte de vente',
+      motif: /\bfrais\s+et\s+droits\b|\bfrais\s+d?['’]?\s*(?:acte|achat|acquisition)\b|\bfrais\s+de\s+notaire\b|\bfrais\s+notari[ée]s|[ée]moluments\s+et\s+droits\b/i },
+    { libelle: 'Quote-part de taxes foncières',
+      motif: /\b(?:prorata|quote[\s-]*part|r[ée]partition)\b[^.]{0,30}(?:\bTF\b|taxes?\s+fonci[èe]res?)|taxes?\s+fonci[èe]res?[^.]{0,30}\b(?:prorata|quote[\s-]*part)/i },
+    { libelle: 'Prix d’acquisition',
+      motif: /\bprix\s+(?:de\s+vente|d?['’]?\s*acquisition|de\s+cession|principal)\b|^prix\b/i }
+  ];
+
+  function normaliserLibelleDecompte(libelle) {
+    const brut = String(libelle || '').trim();
+    if (!brut) return brut;
+    for (const r of LIBELLES_NORMALISES_DECOMPTE) {
+      if (!r.motif.test(brut)) continue;
+      return r.garde ? brut : r.libelle;
+    }
+    return brut;
+  }
+
   function afMajusculeInitiale(s) {
     s = afNettoyerLibelle(s);
     return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
@@ -13922,7 +14460,7 @@
     const lignesFinales = { debit: [], credit: [] };
     for (const it of brut) {
       (it.signe >= 0 ? lignesFinales.debit : lignesFinales.credit).push({
-        libelle: afMajusculeInitiale(it.libelle), montant: it.montant,
+        libelle: normaliserLibelleDecompte(afMajusculeInitiale(it.libelle)), montant: it.montant,
         formule: it.formule, id: it.id, memoire: !!it.memoire
       });
     }

@@ -43,22 +43,37 @@ test('toutesEcheances : exclut le prêt une fois l\'offre reçue, inclut les éc
   };
   const types = toutesEcheances(d).map((e) => e.type);
   assert.ok(!types.includes('pret'), 'le prêt déjà reçu ne doit pas être rappelé');
-  assert.ok(types.includes('acte'));
+  // La date butoir n'est qu'indicative : elle ne déclenche aucun rappel (règle de l'étude).
+  assert.ok(!types.includes('acte'));
   assert.ok(!types.includes('ventebien'), 'sans date, une échéance ne doit jamais être rappelée');
   assert.ok(types.includes('autre-0'));
 });
 
-test('toutesEcheances : couvre aussi l\'appel de fonds et le rendez-vous de signature, exclus une fois validés', () => {
+test('toutesEcheances : appel de fonds d\'abord, signature une fois qu\'il est fait', () => {
+  // Miroir de echeancesPlanning() côté script.js : tant que l'appel de fonds n'est pas fait,
+  // c'est lui qu'on rappelle, même si le rendez-vous est déjà fixé.
   const d = { appelFonds: '2026-11-20', rendezVousSignature: '2026-12-05' };
-  assert.deepEqual(toutesEcheances(d).map((e) => e.type).sort(), ['appelFonds', 'rendezVousSignature']);
+  assert.deepEqual(toutesEcheances(d).map((e) => e.type), ['appelFonds']);
+
+  const faitAppel = { ...d, echeancesValidees: { appelFonds: true } };
+  const apres = toutesEcheances(faitAppel);
+  assert.deepEqual(apres.map((e) => e.type), ['rendezVousSignature']);
+  assert.equal(apres[0].label, 'Signature de l\u2019acte');
+
   const validees = { ...d, echeancesValidees: { appelFonds: true, rendezVousSignature: true } };
   assert.deepEqual(toutesEcheances(validees), []);
 });
 
+test('toutesEcheances : sans date propre, l\'appel de fonds prend celle du rendez-vous', () => {
+  const items = toutesEcheances({ rendezVousSignature: '2026-12-05' });
+  assert.deepEqual(items.map((e) => e.type), ['appelFonds']);
+  assert.equal(items[0].iso, '2026-12-05');
+});
+
 test('toutesEcheances : un dossier sans prêt (sansPret) garde ses autres échéances', () => {
-  const d = { sansPret: true, acte: '2026-12-01' };
+  const d = { sansPret: true, ventebien: '2026-12-01' };
   const types = toutesEcheances(d).map((e) => e.type);
-  assert.deepEqual(types, ['acte']);
+  assert.deepEqual(types, ['ventebien']);
 });
 
 test('joursRestants compte en UTC, insensible aux bascules heure d\'été/hiver', () => {
@@ -172,7 +187,7 @@ test('executerTacheRappels : un collaborateur sans adresse configurée est signa
   const depot = creerDepot(db);
   const parametresRepo = creerRepoParametres(db);
   depot.creer({ id: 'd1', nom: 'A / B', responsable: 'Julie VASSELIN', pret: '2026-11-11' });
-  depot.creer({ id: 'd2', nom: 'C / D', responsable: 'Jérémy SAUJOT', acte: '2026-11-11' });
+  depot.creer({ id: 'd2', nom: 'C / D', responsable: 'Jérémy SAUJOT', ventebien: '2026-11-11' });
   parametresRepo.ecrireReglages({ emailActif: true, smtpHote: 'smtp.test', emailPasserelle: 'passerelle@etude.fr', emailsResponsables: { 'Jérémy SAUJOT': 'jeremy@etude.fr' } });
 
   const envois = [];
@@ -239,7 +254,7 @@ test('executerTacheRappels : copieEmail reçoit un double de chaque rappel envoy
   const depot = creerDepot(db);
   const parametresRepo = creerRepoParametres(db);
   depot.creer({ id: 'd1', nom: 'DUPONT / MARTIN', responsable: 'Bastien ANGLUMENT', pret: '2026-11-11' });
-  depot.creer({ id: 'd2', nom: 'A / B', responsable: 'Julie VASSELIN', acte: '2026-11-03' });
+  depot.creer({ id: 'd2', nom: 'A / B', responsable: 'Julie VASSELIN', ventebien: '2026-11-03' });
   parametresRepo.ecrireReglages({
     emailActif: true, smtpHote: 'smtp.test', emailPasserelle: 'passerelle@etude.fr', copieEmail: 'gossart@etude.fr',
     emailsResponsables: { 'Bastien ANGLUMENT': 'b@etude.fr', 'Julie VASSELIN': 'j@etude.fr' }
@@ -333,20 +348,20 @@ test('echeanceValidee : un rendez-vous fixé clôt la date butoir', () => {
   assert.equal(echeanceValidee({ acte: '2026-10-01', echeancesValidees: { acte: true } }, 'acte'), true);
 });
 
-test('toutesEcheances : le butoir remplacé sort du planning, dans l\'ordre métier du dossier', () => {
+test('toutesEcheances : la date butoir ne figure JAMAIS au planning, dans l\'ordre métier du dossier', () => {
   const d = {
     ventebien: '2026-08-01', pret: '2026-09-01', acte: '2026-10-01',
     appelFonds: '2026-09-25', rendezVousSignature: '2026-10-06'
   };
   assert.equal(
     toutesEcheances(d).map((e) => e.type).join(','),
-    'ventebien,pret,appelFonds,rendezVousSignature'
+    'ventebien,pret,appelFonds'
   );
-  // Sans rendez-vous, le butoir reste bien dans le planning, à sa place dans l'ordre métier.
+  // Même sans rendez-vous : la date butoir est indicative, elle ne déclenche aucun rappel.
   const sansRdv = Object.assign({}, d, { rendezVousSignature: '' });
   assert.equal(
     toutesEcheances(sansRdv).map((e) => e.type).join(','),
-    'ventebien,pret,acte,appelFonds'
+    'ventebien,pret,appelFonds'
   );
 });
 

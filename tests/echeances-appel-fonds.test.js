@@ -88,17 +88,37 @@ test('renderTab : le prêt non encore reçu propose bien "Marquer réalisée" (v
   assert.match(html, /validerEcheance\('d1','pret'\)/);
 });
 
-test('toutesEcheances/prochaineEcheanceDetail/calculerProchaineEcheance couvrent les deux nouvelles échéances', () => {
+test('tant que l’appel de fonds n’est pas fait, c’est lui que le planning annonce', () => {
+  // Règle donnée par l'étude : le rendez-vous a beau être fixé, ce qu'il reste À FAIRE est
+  // l'appel de fonds — le planning n'annonce donc qu'une seule chose, celle-là.
   const app = chargerApplication();
   const d = dossierBase({ appelFonds: '2026-11-20', rendezVousSignature: '2026-12-01' });
-  const types = app.toutesEcheances(d).map((e) => e.type).sort();
-  assert.equal(types.join(','), 'appelFonds,rendezVousSignature');
-
-  const detail = app.prochaineEcheanceDetail(d);
-  assert.equal(detail.type, 'appelFonds');
+  assert.equal(app.toutesEcheances(d).map((e) => e.type).join(','), 'appelFonds');
+  assert.equal(app.prochaineEcheanceDetail(d).type, 'appelFonds');
 
   const validees = Object.assign({}, d, { echeancesValidees: { appelFonds: true, rendezVousSignature: true } });
   assert.equal(app.prochaineEcheanceDetail(validees), null);
+});
+
+test('une fois l’appel de fonds fait, le planning annonce « Signature de l’acte »', () => {
+  const app = chargerApplication();
+  const d = dossierBase({ appelFonds: '2026-11-20', rendezVousSignature: '2026-12-01',
+    echeancesValidees: { appelFonds: true } });
+  const suivante = app.prochaineEcheanceDetail(d);
+  assert.equal(suivante.type, 'rendezVousSignature');
+  assert.equal(suivante.iso, '2026-12-01');
+  // C'est bien la signature qui est nommée, pas le « rendez-vous » : c'est ce qu'il reste à faire.
+  assert.equal(suivante.label, 'Signature de l’acte');
+});
+
+test('sans date propre, l’appel de fonds prend celle du rendez-vous', () => {
+  // L'étude ne saisit pas toujours la date de l'appel de fonds ; il doit de toute façon être parti
+  // avant la signature, c'est donc sa vraie échéance — mieux que de ne rien annoncer du tout.
+  const app = chargerApplication();
+  const d = dossierBase({ rendezVousSignature: '2026-12-01' });
+  const suivante = app.prochaineEcheanceDetail(d);
+  assert.equal(suivante.type, 'appelFonds');
+  assert.equal(suivante.iso, '2026-12-01');
 });
 
 test('normaliserDossierImporte conserve appelFonds/rendezVousSignature comme les autres dates fixes', () => {
@@ -120,13 +140,14 @@ test('normaliserDossierImporte écarte une date mal formée pour les deux nouvea
 // On lit l'ordre dans le HTML produit en cherchant la position de chaque libellé.
 function ordreDesEcheances(app, d) {
   const html = app.echeancesOrdonneesFiche(d, {}, '');
-  const libelles = ['Obtention du prêt', 'Appel de fonds', 'Signature de l’acte',
+  const libelles = ['Obtention du prêt', 'Appel de fonds', 'Date butoir',
     'Rendez-vous de signature', 'Vente préalable'].concat((d.autres || []).map((a) => a.label));
   // Ancrage sur le titre de la carte, jamais sur le libellé seul : les tabs recatégorisables
   // (prêt/acte/vente préalable) embarquent un <select> qui contient les TROIS libellés en
   // <option>, donc un simple indexOf du libellé retombe sur la mauvaise carte.
   return libelles
-    .map((l) => ({ l, i: html.indexOf('<div class="tab-name">' + l + '</div>') }))
+    // La classe peut porter un modificateur (tab-name-fort sur le rendez-vous de signature).
+    .map((l) => ({ l, i: html.search(new RegExp('<div class="tab-name[^"]*">' + l.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '</div>')) }))
     .filter((x) => x.i >= 0)
     .sort((a, b) => a.i - b.i)
     .map((x) => x.l);
@@ -141,7 +162,7 @@ test('echeancesOrdonneesFiche classe les échéances datées par date croissante
   });
   assert.equal(
     ordreDesEcheances(app, d).join(' | '),
-    'Diagnostic amiante | Vente préalable | Signature de l’acte | Rendez-vous de signature | Obtention du prêt'
+    'Diagnostic amiante | Vente préalable | Date butoir | Rendez-vous de signature | Obtention du prêt'
   );
 });
 
@@ -152,7 +173,7 @@ test('echeancesOrdonneesFiche relègue les échéances sans date en fin, dans le
   const d = dossierBase({ pret: '', acte: '2026-09-30', rendezVousSignature: '' });
   assert.equal(
     ordreDesEcheances(app, d).join(' | '),
-    'Signature de l’acte | Obtention du prêt | Rendez-vous de signature'
+    'Date butoir | Obtention du prêt | Rendez-vous de signature'
   );
 });
 
@@ -179,7 +200,7 @@ test('echeancesOrdonneesFiche : les échéances sans date suivent l\'ordre méti
   // ventebien n'est rendue que si elle porte une date (comportement d'origine, inchangé).
   assert.equal(
     ordreDesEcheances(app, d).join(' | '),
-    'Obtention du prêt | Signature de l’acte | Rendez-vous de signature'
+    'Obtention du prêt | Date butoir | Rendez-vous de signature'
   );
 });
 
@@ -204,31 +225,36 @@ test('echeanceValidee : un rendez-vous fixé clôt la date butoir de réitérati
   assert.equal(app.echeanceValidee(dossierBase({ acte: '2026-10-01', echeancesValidees: { acte: true } }), 'acte'), true);
 });
 
-test('la date butoir sort du planning dès qu\'un rendez-vous est fixé', () => {
+test('la date butoir ne figure JAMAIS au planning, rendez-vous fixé ou non', () => {
+  // Elle vient de l'avant-contrat et n'est qu'indicative : c'est le rendez-vous pris à l'office
+  // qui engage l'étude. Elle reste visible sur la fiche, avec l'écart entre les deux.
   const app = chargerApplication();
-  const d = dossierBase({ acte: '2026-10-01', rendezVousSignature: '2026-10-06' });
-  assert.equal(app.toutesEcheances(d).map((e) => e.type).join(','), 'rendezVousSignature');
-  assert.equal(app.prochaineEcheanceDetail(d).type, 'rendezVousSignature');
+  const avecRdv = dossierBase({ acte: '2026-10-01', rendezVousSignature: '2026-10-06' });
+  assert.equal(app.toutesEcheances(avecRdv).map((e) => e.type).join(','), 'appelFonds');
+
+  const sansRdv = dossierBase({ acte: '2026-10-01' });
+  assert.equal(app.toutesEcheances(sansRdv).length, 0);
+  assert.equal(app.prochaineEcheanceDetail(sansRdv), null);
 });
 
 test('renderTab : la date butoir remplacée affiche l\'écart avec le rendez-vous, pas un décompte', () => {
   const app = chargerApplication();
-  const apres = app.renderTab('acte', 'Signature de l’acte', '2026-10-01', 'd1', null, null, null, false, '', false, true, '2026-10-06');
+  const apres = app.renderTab('acte', 'Date butoir', '2026-10-01', 'd1', null, null, null, false, '', false, true, '2026-10-06');
   assert.ok(apres.includes('Signature 5 j APRÈS ce butoir'), apres);
   assert.ok(apres.includes('tab-countdown passed'));
   // Aucun bouton de validation : ce n'est pas une décision manuelle, l'annuler n'annulerait rien.
   assert.ok(!apres.includes('devaliderEcheance'));
   assert.ok(!apres.includes('validerEcheance'));
 
-  const avant = app.renderTab('acte', 'Signature de l’acte', '2026-10-10', 'd1', null, null, null, false, '', false, true, '2026-10-07');
+  const avant = app.renderTab('acte', 'Date butoir', '2026-10-10', 'd1', null, null, null, false, '', false, true, '2026-10-07');
   assert.ok(avant.includes('Signature 3 j avant ce butoir'), avant);
   assert.ok(avant.includes('tab-countdown recue'));
 
-  const memeJour = app.renderTab('acte', 'Signature de l’acte', '2026-10-10', 'd1', null, null, null, false, '', false, true, '2026-10-10');
+  const memeJour = app.renderTab('acte', 'Date butoir', '2026-10-10', 'd1', null, null, null, false, '', false, true, '2026-10-10');
   assert.ok(memeJour.includes('Signature le jour même'), memeJour);
 
   // Sans rendez-vous, le comportement d'origine est intact.
-  const normal = app.renderTab('acte', 'Signature de l’acte', '2026-10-01', 'd1', null, null, null, false, '', false, false, '');
+  const normal = app.renderTab('acte', 'Date butoir', '2026-10-01', 'd1', null, null, null, false, '', false, false, '');
   assert.ok(!normal.includes('ce butoir'));
   assert.ok(normal.includes('validerEcheance'));
 });

@@ -43,16 +43,23 @@ function toutesEcheances(d) {
   const autres = (Array.isArray(d.autres) ? d.autres : [])
     .map((a, i) => ({ type: `autre-${i}`, label: a.label, iso: a.date }))
     .filter((it) => !echeanceValidee(d, it.type));
-  return [
-    // Ordre métier du dossier (voir CLAUDE.md) : vente préalable → prêt → date butoir → appel de
-    // fonds → rendez-vous de signature.
-    ...(echeanceValidee(d, 'ventebien') ? [] : [{ type: 'ventebien', label: 'Vente préalable', iso: d.ventebien }]),
-    ...(echeanceValidee(d, 'pret') ? [] : [{ type: 'pret', label: 'Obtention du prêt', iso: d.pret }]),
-    ...(echeanceValidee(d, 'acte') ? [] : [{ type: 'acte', label: "Signature de l'acte", iso: d.acte }]),
-    ...(echeanceValidee(d, 'appelFonds') ? [] : [{ type: 'appelFonds', label: 'Appel de fonds', iso: d.appelFonds }]),
-    ...(echeanceValidee(d, 'rendezVousSignature') ? [] : [{ type: 'rendezVousSignature', label: 'Rendez-vous de signature', iso: d.rendezVousSignature }]),
-    ...autres
-  ].filter((it) => it.iso);
+  // Miroir exact de echeancesPlanning() côté script.js — ce projet n'a pas de mécanisme de build
+  // partagé entre navigateur et Node, cette duplication est un choix assumé et déjà documenté.
+  // Trois règles métier données par l'étude, à garder alignées des deux côtés :
+  //  • la DATE BUTOIR (`acte`) ne déclenche aucun rappel : elle vient de l'avant-contrat et n'est
+  //    qu'indicative, c'est le rendez-vous pris à l'office qui engage l'étude ;
+  //  • tant que l'appel de fonds n'est pas fait, c'est lui qu'on rappelle, même rendez-vous fixé,
+  //    et à défaut de date propre il prend celle du rendez-vous (il doit être parti avant) ;
+  //  • une fois l'appel de fonds fait, on rappelle la signature.
+  const items = [];
+  if (!echeanceValidee(d, 'ventebien')) items.push({ type: 'ventebien', label: 'Vente préalable', iso: d.ventebien });
+  if (!echeanceValidee(d, 'pret')) items.push({ type: 'pret', label: 'Obtention du prêt', iso: d.pret });
+  if (!echeanceValidee(d, 'appelFonds')) {
+    items.push({ type: 'appelFonds', label: 'Appel de fonds', iso: d.appelFonds || d.rendezVousSignature });
+  } else if (!echeanceValidee(d, 'rendezVousSignature')) {
+    items.push({ type: 'rendezVousSignature', label: 'Signature de l’acte', iso: d.rendezVousSignature });
+  }
+  return items.concat(autres).filter((it) => it.iso);
 }
 
 // Compté en UTC (même piège déjà documenté pour joursEntre() côté prorata — une différence entre

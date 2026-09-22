@@ -1085,6 +1085,21 @@
   .audit-vide p { margin: 0; font-size: 13px; color: var(--ink-soft); }
   /* Titre de section : un seul registre d'étiquette dans toute l'application (.section-eyebrow),
      le compteur en pastille plutôt qu'entre parenthèses dans le titre. */
+  /* Les questions prêtes à envoyer, en pied de rapport : un constat dit ce qui a été repéré,
+     une question dit ce qu'il reste à demander. Volontairement posées sur le fond enfoncé déjà
+     utilisé pour les panneaux de l'outil (--paper-sunk), pas une couleur inventée pour l'occasion. */
+  .audit-questions { display: flex; flex-direction: column; gap: 10px; margin-top: 22px; }
+  .audit-questions-bloc {
+    padding: 12px 14px; border-radius: 10px;
+    background: var(--paper-sunk); border: 1px solid var(--line);
+  }
+  .audit-questions-tete {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    flex-wrap: wrap; margin-bottom: 8px;
+  }
+  .audit-questions-bloc ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 7px; }
+  .audit-questions-bloc li { font-size: 13px; line-height: 1.5; color: var(--ink-soft); }
+
   .audit-section { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
   .audit-section-titre { display: flex; align-items: center; gap: 8px; margin: 0; font-size: inherit; }
   .audit-section-compte {
@@ -3367,6 +3382,9 @@
   .tab.ventebien .tab-titre-ligne .tab-name { color: var(--ventebien); }
   .tab.appelFonds .tab-name { color: var(--appelfonds); }
   .tab.rendezVousSignature .tab-name { color: var(--success); }
+  /* Le rendez-vous réellement pris à l'office est la seule date de signature qui fasse foi : la
+     date butoir de l'avant-contrat, juste à côté, n'est qu'indicative. Demandé par l'étude. */
+  .tab .tab-name.tab-name-fort { font-weight: 700; }
   .tab-select-icone-wrap {
     position: relative;
     display: inline-flex;
