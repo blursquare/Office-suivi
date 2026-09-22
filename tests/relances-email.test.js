@@ -129,3 +129,41 @@ test('renderQuestionnaireSatisfaction : absent quand l’acquéreur est représe
   }));
   assert.equal(html, '');
 });
+
+// --- Cadence de la relance « offre de prêt » adressée au client ------------------------------
+// Demandée par l'étude : une première relance quand l'échéance entre dans les 15 jours, puis une
+// tous les 10 jours tant que l'offre reste introuvable. Avant ce réglage, la seule garde était
+// « pas deux fois le même jour » — donc une relance par jour pendant quinze jours.
+
+test('relanceOffreDue : première relance dès qu\'aucune n\'a encore été envoyée', () => {
+  const app = chargerApplication();
+  assert.equal(app.relanceOffreDue(null, '2026-10-01'), true);
+  assert.equal(app.relanceOffreDue('', '2026-10-01'), true);
+});
+
+test('relanceOffreDue : rien avant 10 jours, relance au 10e', () => {
+  const app = chargerApplication();
+  assert.equal(app.relanceOffreDue('2026-10-01', '2026-10-01'), false); // le jour même
+  assert.equal(app.relanceOffreDue('2026-10-01', '2026-10-02'), false);
+  assert.equal(app.relanceOffreDue('2026-10-01', '2026-10-09'), false); // veille du seuil
+  assert.equal(app.relanceOffreDue('2026-10-01', '2026-10-11'), true);  // 10 jours pile
+  assert.equal(app.relanceOffreDue('2026-10-01', '2026-10-20'), true);
+});
+
+test('relanceOffreDue : un jour sauté ne fait pas perdre la relance', () => {
+  const app = chargerApplication();
+  // C'est la raison du comptage depuis la dernière relance plutôt que sur des seuils fixes : le
+  // parcours qui la déclenche ne tourne que si CLAIRE est ouverte ce jour-là.
+  assert.equal(app.relanceOffreDue('2026-10-01', '2026-10-14'), true);
+});
+
+test('relanceOffreDue : une date illisible autorise la relance plutôt que de la bloquer', () => {
+  const app = chargerApplication();
+  assert.equal(app.relanceOffreDue('pas-une-date', '2026-10-01'), true);
+});
+
+test('la fenêtre de relance reste de 15 jours avant l\'échéance', () => {
+  const app = chargerApplication();
+  assert.equal(app.FENETRE_RELANCE_OFFRE_JOURS, 15);
+  assert.equal(app.JOURS_ENTRE_RELANCES_OFFRE, 10);
+});

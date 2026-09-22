@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-22 16:48';
+  const VERSION_APP = '2026-09-22 21:39';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,12 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-22 21:39', resume: "Deux corrections demandées par l'étude. "
+      + "L'entretien de pompe à chaleur vaut désormais 1 an et non 2 ans dans le contrôle des "
+      + "durées de validité (Outil 2). Et la relance « offre de prêt » adressée au client ne "
+      + "part plus qu'une première fois quand l'échéance entre dans les 15 jours, puis une fois "
+      + "tous les 10 jours tant que l'offre manque — auparavant elle se proposait chaque jour "
+      + "de la quinzaine." },
     { version: '2026-09-22 16:48', resume: "Garanties du prêt : une offre cautionnée seule "
       + "n'affiche plus d'hypothèque. Deux causes, corrigées ensemble. La première : le paragraphe "
       + "« GARANTIES » de l'offre n'était en réalité jamais retrouvé, parce que le texte lu dans le "
@@ -3065,10 +3071,9 @@
     ramonage: { label: 'Ramonage du conduit de fumée', famille: 'entretien', dureeMois: 12,
       duree: '1 an',
       motif: /\bramonage\b/i },
-    entretienPac: { label: 'Entretien de la pompe à chaleur', famille: 'entretien', dureeMois: 24,
-      duree: '2 ans',
-      motif: /\b(?:pompe\s+[àa]\s+chaleur|\bPAC\b)/i,
-      note: 'Tous les 2 ans entre 4 et 70 kW ; aucune obligation en dessous de 4 kW — à recouper avec la puissance réelle.' }
+    entretienPac: { label: 'Entretien de la pompe à chaleur', famille: 'entretien', dureeMois: 12,
+      duree: '1 an',
+      motif: /\b(?:pompe\s+[àa]\s+chaleur|\bPAC\b)/i }
   };
 
   // Même contrat que calculerValiditeDiagnostic() côté serveur, mais côté client et élargi aux
@@ -13390,6 +13395,26 @@
   // Ouvre automatiquement une relance pré-rédigée si l'échéance approche et qu'aucune offre n'a
   // été trouvée — au plus une fois par jour et par dossier, pour ne pas rouvrir un brouillon à
   // chaque vérification. L'envoi final reste un geste volontaire de l'utilisateur.
+  // Cadence de la relance « offre de prêt » adressée au client, demandée par l'étude : une
+  // première relance quand l'échéance entre dans les 15 jours, puis une tous les 10 jours tant que
+  // l'offre reste introuvable. Avant ce réglage, la seule garde était « pas deux fois le même
+  // jour » — donc en pratique une relance PAR JOUR pendant quinze jours, ce que personne ne
+  // souhaite envoyer à un acquéreur.
+  var FENETRE_RELANCE_OFFRE_JOURS = 15;
+  var JOURS_ENTRE_RELANCES_OFFRE = 10;
+
+  // Comptée depuis la DERNIÈRE relance, et non sur des seuils fixes (J-15 puis J-5) : cette
+  // relance n'est déclenchée que par un parcours du NAS, qui ne tourne que si CLAIRE est ouverte
+  // ce jour-là — un seuil exact serait purement et simplement manqué un jour sur deux. Une date
+  // illisible (dossier importé, valeur corrompue) autorise la relance plutôt que de la bloquer
+  // indéfiniment : le pire cas est un email de trop, pas une offre jamais réclamée.
+  function relanceOffreDue(derniereRelanceIso, aujourdhuiIso) {
+    if (!derniereRelanceIso) return true;
+    const ecart = ecartJours(derniereRelanceIso, aujourdhuiIso);
+    if (ecart === null) return true;
+    return ecart >= JOURS_ENTRE_RELANCES_OFFRE;
+  }
+
   function relancerSiOffreManquante(d) {
     // Notaire participant/concourant : suivi volontairement limité au prêt et aux engagements du
     // vendeur (voir renderCarteDossier/verifierPiecesDossier, même garde-fou) — relancer
@@ -13399,9 +13424,9 @@
     const destinataire = emailDestinataireRelance(d);
     if (!destinataire || !d.pret) return;
     const jours = joursRestants(d.pret);
-    if (jours === null || jours < 0 || jours > 15) return;
+    if (jours === null || jours < 0 || jours > FENETRE_RELANCE_OFFRE_JOURS) return;
     const aujourdhui = new Date().toISOString().slice(0, 10);
-    if (d.derniereRelanceAuto === aujourdhui) return;
+    if (!relanceOffreDue(d.derniereRelanceAuto, aujourdhui)) return;
 
     d.derniereRelanceAuto = aujourdhui;
     ajouterHistorique(d, `Relance automatique ouverte (offre de prêt introuvable, échéance J-${jours})`);

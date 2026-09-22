@@ -7396,6 +7396,45 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
     en une seule ligne ne doit plus rien trouver). Suite racine 626 → 628, serveur inchangée (211 —
     chantier entièrement côté client).
 
+- **Entretien de pompe à chaleur : 1 an, et non 2** (`DOCUMENTS_VALIDITE_OUTIL2.entretienPac`,
+  Outil 2) — corrigé par l'étude en relisant les 16 durées affichées en clair, ce qui est
+  exactement l'usage prévu du champ `duree` (voir l'entrée « assemblées générales » et le
+  commentaire de la table : l'article notaires.fr de référence n'ayant pas pu être lu depuis cet
+  environnement, ces durées sont celles du régime légal, à faire confirmer une par une). La `note`
+  de cette entrée, qui annonçait « tous les 2 ans entre 4 et 70 kW », est **retirée avec la
+  correction** : elle aurait continué de s'afficher à côté d'une durée d'un an, et une note qui
+  contredit la donnée affichée vaut moins que pas de note du tout. Les trois durées d'entretien
+  (chaudière, ramonage, PAC) sont désormais verrouillées par un test, comme l'étaient déjà les
+  sept diagnostics à durée fixe — les durées de la table étant des faits extérieurs au code, seul
+  un test empêche une retouche ultérieure de les ramener à une supposition.
+- **Relance « offre de prêt » au client : une première fois à J-15, puis tous les 10 jours** —
+  demandé par l'étude en découvrant ce que faisait réellement `relancerSiOffreManquante()`. Sa
+  seule garde était `d.derniereRelanceAuto === aujourdhui`, soit « pas deux fois le même jour » :
+  dans une fenêtre de 0 à 15 jours avant l'échéance, ça proposait un brouillon **chaque jour
+  pendant quinze jours**. Nouvelle garde `relanceOffreDue(derniereRelanceIso, aujourdhuiIso)`
+  (pure, testable) + `FENETRE_RELANCE_OFFRE_JOURS` (15, inchangée) et
+  `JOURS_ENTRE_RELANCES_OFFRE` (10).
+  - **Comptée depuis la DERNIÈRE relance, jamais sur des seuils fixes** (J-15 puis J-5) : cette
+    relance n'est déclenchée que par un parcours du NAS, qui ne tourne que si CLAIRE est ouverte
+    ce jour-là — un seuil exact serait simplement manqué dès que personne n'ouvre l'outil ce
+    jour-là, et la relance sautée ne reviendrait jamais. Le décompte depuis la dernière relance
+    rattrape naturellement le retard.
+  - Une `derniereRelanceAuto` illisible (dossier importé, valeur corrompue) **autorise** la
+    relance plutôt que de la bloquer : le pire cas est un email de trop, pas une offre jamais
+    réclamée.
+  - Dans le cas nominal, ça donne exactement deux relances, J-15 et J-5 — **vérifié par un rejeu
+    jour par jour en bac à sable** sur une fenêtre de 20 jours (la fonction elle-même dépend de
+    `dossiers`/du DOM, donc non testable unitairement ; seule sa garde l'est). La fenêtre
+    s'arrêtant à l'échéance (`jours < 0` sort), aucune relance ne part une fois la date passée —
+    comportement inchangé, non rouvert ici.
+  - **À ne pas confondre avec les rappels automatiques par email** (`server/src/jobs/rappels.js`,
+    J-15/J-7, adressés au COLLABORATEUR responsable et routés vers Teams) : ce sont deux
+    mécanismes distincts, sur deux destinataires distincts, et l'étude les avait elle-même
+    confondus en posant la question. Le job serveur couvre toutes les échéances du planning ; la
+    relance ci-dessus ne concerne que l'offre de prêt et s'adresse au client (ou au confrère
+    lorsqu'un office distinct représente l'acquéreur — voir `emailDestinataireRelance`).
+
+
 ## Ce qui reste ouvert / pas encore fait
 
 - **Signature manuscrite de Bastien ANGLUMENT, conservée pour le courrier d'appel de fonds**

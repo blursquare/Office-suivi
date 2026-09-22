@@ -411,6 +411,20 @@ test('DOCUMENTS_VALIDITE_OUTIL2 : les durées fixes sont celles du régime léga
   assert.equal(t.assainissement.dureeMois, 36);
 });
 
+// Durées confirmées par l'étude (l'entretien de PAC valait 2 ans avant sa relecture) : les
+// verrouiller ici évite qu'une retouche ultérieure ne les ramène silencieusement à une supposition.
+test('DOCUMENTS_VALIDITE_OUTIL2 : entretiens à la charge du vendeur, durées confirmées par l\'étude', () => {
+  const app = chargerApplication();
+  const t = app.DOCUMENTS_VALIDITE_OUTIL2;
+  assert.equal(t.entretienChaudiere.dureeMois, 12);
+  assert.equal(t.ramonage.dureeMois, 12);
+  assert.equal(t.entretienPac.dureeMois, 12);
+  assert.equal(t.entretienPac.duree, '1 an');
+  // La note qui accompagnait cette entrée annonçait « tous les 2 ans » : elle a été retirée avec
+  // la correction, une note qui contredit la durée affichée vaut moins que pas de note du tout.
+  assert.equal(t.entretienPac.note, undefined);
+});
+
 test('DOCUMENTS_VALIDITE_OUTIL2 : chaque entrée annonce sa durée en clair, pour relecture', () => {
   const app = chargerApplication();
   for (const cle of Object.keys(app.DOCUMENTS_VALIDITE_OUTIL2)) {
