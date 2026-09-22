@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-22 15:45';
+  const VERSION_APP = '2026-09-22 16:18';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-22 16:18', resume: "La page ne se fige plus et n'annonce plus d'avoir perdu le serveur. La relecture automatique des dossiers, toutes les cinq minutes, retéléchargeait et réanalysait TOUS les PDF de chaque dossier dont l'offre de prêt n'avait pas encore été trouvée — les mêmes, indéfiniment. Elle ne relit plus qu'un nombre limité de documents par tour, se souvient de ceux qu'elle a déjà écartés, ignore les dossiers archivés, et deux relectures ne peuvent plus se chevaucher. La synchronisation démarre désormais tout de suite après la connexion, sans attendre la fin de cette relecture. Un clic sur « Revérifier » (ou « Revérifier tous les dossiers ») garde sa portée complète." },
     { version: '2026-09-22 15:45', resume: "Nouvel outil « Arbitrage forfait mobilier » dans la "
       + "barre de gauche, sous Outils : à défaut d'inventaire, les meubles d'une succession sont "
       + "évalués au forfait de 5 % de l'article 764 du CGI ; une prisée par commissaire de justice "
@@ -77,13 +78,6 @@
       + "« Date butoir » et sort du planning (elle n'est qu'indicative) ; tant que l'appel de fonds n'est pas fait, "
       + "c'est lui qu'annonce le planning, puis la signature une fois qu'il l'est. Les libellés d'un décompte de "
       + "confrère importé sont ramenés au vocabulaire de l'étude." },
-    { version: '2026-09-22 10:08', resume: "Appel de fonds : l'import d'un PDF de décompte ne rendait jamais rien. "
-      + "Deux causes cumulées — le texte lu n'arrivait pas jusqu'au parseur, et il était de toute façon aplati en une "
-      + "seule ligne par page alors qu'un décompte est un tableau. Les lignes sont maintenant reconstruites depuis la "
-      + "position du texte dans la page. « Frais d'achat », le libellé employé par les confrères, est désormais "
-      + "contrôlé contre le barème, et le rapport dit ce qu'il manque quand ce contrôle ne peut pas se faire. Les "
-      + "tirets de début de ligne ne partent plus dans le courrier, le tableau est moins aéré, et la date de "
-      + "rendez-vous ressort en gras souligné dans le document Word comme dans l'aperçu." },
   ];
 
   const STORAGE_KEY = 'dossiers';
@@ -9080,13 +9074,25 @@
     }
     const texteOriginal = btn ? btn.innerHTML : '';
     if (btn) btn.disabled = true;
+    // Geste explicite de l'étude : portée complète, comme un « Revérifier » dossier par dossier.
+    // L'appel se fait pourtant avec viaClicUtilisateur = false, uniquement pour qu'un toast de
+    // résultat ne s'affiche pas par dossier (la progression est dans le bouton, le bilan à la fin) —
+    // le budget et la mémoire des PDF écartés (voir MAX_PDF_OUVERTS_TOUR_AUTO) sont donc levés ici
+    // à la main, sans quoi ce bouton n'ouvrirait plus rien dès qu'un tour automatique a consommé
+    // son budget.
+    aVerifier.forEach(d => { delete pdfEcartesPourOffre[d.id]; });
+    budgetOuverturesTourAuto = Infinity;
     try {
       for (let i = 0; i < aVerifier.length; i++) {
         if (btn) btn.innerHTML = `${icone('spinner', null, true)} ${i + 1}/${aVerifier.length}\u2026`;
         await verifierDossierLocal(aVerifier[i].id, false);
+        await rendreLaMain();
       }
       afficherToast(`${aVerifier.length} dossier${aVerifier.length > 1 ? 's' : ''} rev\u00e9rifi\u00e9${aVerifier.length > 1 ? 's' : ''} sur le NAS.`, 'OK', null);
     } finally {
+      // Remis à zéro : le prochain tour automatique refixe son propre budget en démarrant, il ne
+      // doit surtout pas hériter de l'illimité posé ci-dessus.
+      budgetOuverturesTourAuto = 0;
       if (btn) { btn.disabled = false; btn.innerHTML = texteOriginal; }
       render();
     }
@@ -11046,8 +11052,14 @@
   async function demarrerApplication() {
     await charger();
     await chargerEtatNas();
-    await revérifierDossiersLiesAuDemarrage();
+    // Le polling démarre AVANT la relecture du NAS, et celle-ci n'est plus attendue : sur un
+    // portefeuille d'une soixantaine de dossiers, ce parcours peut prendre plusieurs minutes
+    // (il ouvre des PDF, voir verifierDossierLocal) — tant qu'il n'avait pas fini, aucune synchro
+    // n'avait encore commencé et l'indicateur de connexion restait muet, ce qui donnait
+    // exactement le symptôme signalé par l'étude : « la page se bloque puis il indique ne plus
+    // avoir accès au serveur ». C'est une tâche de fond, pas une étape de démarrage.
     demarrerPolling();
+    revérifierDossiersLiesAuDemarrage().catch(e => console.error('Relecture des dossiers NAS', e));
   }
 
   // ---- apprentissage des corrections (dates) ----
@@ -12118,6 +12130,22 @@
   var MIN_PAGES_OFFRE_PRET = 6;
   var LONGUEUR_TITRE_PDF = 600; // « page de garde » retenue comme titre : le haut de la page 1
 
+  // Chercher l'offre de prêt coûte cher : tant qu'elle n'est pas trouvée, CHAQUE PDF du dossier NAS
+  // est téléchargé en entier puis analysé par pdf.js — et un dossier encore incomplet est justement
+  // celui où elle n'est pas là, donc celui où tous les fichiers y passent. Répété toutes les
+  // 5 minutes sur une soixantaine de dossiers, c'est ce qui figeait la page et faisait tomber le
+  // sondage de synchronisation (signalé par l'étude : « la page se bloque puis il indique ne plus
+  // avoir accès au serveur »). Deux garde-fous, sur les seuls tours AUTOMATIQUES :
+  //   - un budget d'ouvertures partagé par tout le tour, pour qu'un tour reste borné quoi qu'il
+  //     arrive ; ce qui n'a pas été examiné le sera au tour suivant, sans jamais tout refaire ;
+  //   - une mémoire des fichiers déjà ouverts et écartés, par dossier et pour la session : un PDF
+  //     qui n'est pas l'offre de prêt ne le devient pas cinq minutes plus tard.
+  // Un clic explicite sur « Revérifier » ignore les deux : il oublie la mémoire du dossier et
+  // n'entame aucun budget — l'étude doit toujours pouvoir forcer un parcours complet.
+  const MAX_PDF_OUVERTS_TOUR_AUTO = 25;
+  let budgetOuverturesTourAuto = 0;
+  const pdfEcartesPourOffre = {};
+
   // Le texte d'une page de PDF arrive en fragments dont l'espacement ne reflète pas la mise en
   // page : on le remet à plat avant tout test de motif, comme ailleurs dans ce fichier.
   function titrePagePdf(textePremierePage) {
@@ -12919,8 +12947,17 @@
     const aChercher = new Set(checklist.map(p => p.cle));
     const fichierParPiece = {};
 
+    // Un clic explicite sur « Revérifier » repart de zéro : la mémoire des PDF écartés pour
+    // l'offre est oubliée pour CE dossier, et aucun budget ne s'applique (voir leur déclaration).
+    if (viaClicUtilisateur) delete pdfEcartesPourOffre[id];
+    const pdfEcartes = pdfEcartesPourOffre[id] || (pdfEcartesPourOffre[id] = new Set());
+
     let offreTrouvee = false;
     let offreAConfirmer = false; // trouvée par son titre, mais sans confirmation du modèle local
+    // Vrai si le budget d'ouvertures du tour automatique s'est épuisé avant d'avoir pu examiner
+    // tous les candidats : l'offre n'a alors pas été « cherchée et non trouvée », elle n'a pas été
+    // cherchée jusqu'au bout — son statut ne doit surtout pas basculer sur « manquante ».
+    let parcoursEcourte = false;
     let fichierOffre = null;
     let nbAnalyses = 0; // fichiers réellement ouverts (lus par pdf.js) — seuls les candidats offre
     let nbFichiersRencontres = 0;
@@ -12955,7 +12992,11 @@
       // Offre de prêt : nombre de pages, puis TITRE de la page de garde, puis confirmation par le
       // modèle IA local — voir MIN_PAGES_OFFRE_PRET pour le pourquoi de chacun des trois filtres.
       // Le PDF n'est ouvert que tant que l'offre n'a pas été trouvée.
-      if (chercherOffre && !offreTrouvee) {
+      // Le budget et la mémoire ne concernent que les tours automatiques : un clic explicite
+      // ouvre tout ce qu'il faut, aussi longtemps qu'il faut.
+      if (chercherOffre && !offreTrouvee && !pdfEcartes.has(fichier.chemin) &&
+          (viaClicUtilisateur || budgetOuverturesTourAuto > 0)) {
+        if (!viaClicUtilisateur) budgetOuverturesTourAuto--;
         try {
           nbAnalyses++;
           const pdf = await ouvrirPdfNas(cheminComplet);
@@ -12965,6 +13006,7 @@
             // DEUX voies de reconnaissance ci-dessous, y compris quand le nom du fichier est
             // parfaitement explicite — demandé ainsi par l'étude (« toujours pour ceux de plus de
             // 6 pages »).
+            pdfEcartes.add(fichier.chemin);
             diagnosticJournal.push(`${fichier.nom} → écarté pour l'offre (${pdf.numPages} page${pdf.numPages > 1 ? 's' : ''}, minimum ${MIN_PAGES_OFFRE_PRET})`);
           } else {
             // Deux voies, dans cet ordre (demandé par l'étude après avoir vu les deux méthodes
@@ -12984,7 +13026,10 @@
               const contenu = await page1.getTextContent();
               titre = titrePagePdf(contenu.items.map(it => it.str).join(' '));
               reconnu = OFFRE_PRET_RE.test(titre);
-              if (!reconnu) diagnosticJournal.push(`${fichier.nom} → ni le nom du fichier ni le titre de la page de garde n'évoquent une offre de prêt`);
+              if (!reconnu) {
+                pdfEcartes.add(fichier.chemin);
+                diagnosticJournal.push(`${fichier.nom} → ni le nom du fichier ni le titre de la page de garde n'évoquent une offre de prêt`);
+              }
             }
             if (reconnu) {
               // Le modèle n'est sollicité que sur la voie « contenu » : quand le nom du fichier
@@ -12994,6 +13039,7 @@
                 ? { disponible: true, estOffrePret: true, raison: '' }
                 : await confirmerOffrePretIa(titre);
               if (confirmation.disponible && !confirmation.estOffrePret) {
+                pdfEcartes.add(fichier.chemin);
                 diagnosticJournal.push(`${fichier.nom} → titre proche, mais écarté par le modèle local${confirmation.raison ? ' : ' + confirmation.raison : ''}`);
               } else {
                 offreTrouvee = true;
@@ -13023,9 +13069,15 @@
           // Un PDF illisible (chiffré, corrompu, police exotique) ne doit jamais interrompre le
           // parcours : il est simplement écarté pour l'offre, les pièces continuent d'être testées
           // par leur nom de fichier juste en dessous.
+          // Une lecture qui échoue n'est volontairement PAS mémorisée comme écartée : la cause
+          // peut être passagère (NAS momentanément injoignable), et un fichier écarté pour de bon
+          // sur un incident réseau ne serait plus jamais réexaminé de la session.
           console.error('Lecture impossible pour', fichier.nom, e);
           diagnosticJournal.push(`${fichier.nom} → lecture impossible (${e.message})`);
         }
+      } else if (chercherOffre && !offreTrouvee && !pdfEcartes.has(fichier.chemin)) {
+        // Budget du tour automatique épuisé : ce candidat sera examiné au prochain tour.
+        parcoursEcourte = true;
       }
 
       for (const piece of checklist) {
@@ -13124,7 +13176,10 @@
       offreEtaitRecue = d.offrePretStatut === 'recue';
       // Trois issues, pas deux : trouvée et confirmée, trouvée mais pas confirmable (modèle local
       // indisponible — statut distinct demandé par l'étude, à trancher à la main), ou introuvable.
-      d.offrePretStatut = offreTrouvee ? (offreAConfirmer ? 'aconfirmer' : 'recue') : 'manquante';
+      // Un parcours écourté faute de budget (voir parcoursEcourte) ne conclut jamais « manquante » :
+      // il reste des candidats à ouvrir, le statut précédent est conservé jusqu'au tour suivant.
+      if (offreTrouvee) d.offrePretStatut = offreAConfirmer ? 'aconfirmer' : 'recue';
+      else if (!parcoursEcourte) d.offrePretStatut = 'manquante';
     }
 
     // Diff pièces/offre AVANT → APRÈS ce parcours (voir piecesAvant/offreEtaitRecue plus haut) :
@@ -13162,7 +13217,7 @@
     // une vérification ultérieure ne la retrouve plus (fichier déplacé/archivé/renommé une fois
     // traité) : ce n'est pas un signe que l'offre manque réellement, l'étude l'a déjà en main.
     // relancerSiOffreManquante() écarte déjà elle-même le rôle participant.
-    if (chercherOffre && !offreTrouvee && !offreEtaitRecue) relancerSiOffreManquante(d);
+    if (chercherOffre && !offreTrouvee && !offreEtaitRecue && !parcoursEcourte) relancerSiOffreManquante(d);
   }
 
   // Rouvre directement le PDF du NAS où une pièce (ou l'offre de prêt) a été reconnue, plutôt
@@ -13295,17 +13350,45 @@
   // vérifications automatiques (démarrage, minuteur) — un clic explicite sur "Revérifier" doit
   // toujours fonctionner, même sur un dossier déjà complet (l'étude peut vouloir confirmer après
   // un doute, ou un document a pu être retiré du dossier local entre-temps).
+  // Rend la main au navigateur entre deux dossiers : sans ça, un tour sur une soixantaine de
+  // dossiers enchaîne les téléchargements et les analyses pdf.js sans jamais laisser passer le
+  // sondage de synchronisation (7 s) ni un clic. Pendant du `respirer()` déjà posé côté serveur
+  // dans nasWatch.js, pour exactement la même raison.
+  function rendreLaMain() {
+    return new Promise(r => setTimeout(r, 0));
+  }
+
+  // Un tour ne doit jamais se superposer au précédent. Le minuteur ci-dessous tire toutes les
+  // 5 minutes ; un tour plus long que ça (portefeuille volumineux, NAS lent) faisait démarrer un
+  // second tour par-dessus le premier, puis un troisième, chacun rouvrant les mêmes PDF — les
+  // connexions du navigateur (6 par origine) étaient alors toutes prises et le sondage de
+  // synchronisation ne passait plus : « plus d'accès au serveur » alors que le serveur répond.
+  // Même garde-fou que l'indicateur `enCours` de nasWatch.js côté serveur.
+  let tourVerificationEnCours = false;
+
   async function revérifierDossiersLiesAuDemarrage() {
-    for (const d of dossiers) {
-      // Un dossier actif jamais relié : on tente le rattachement au NAS tout seul, une fois par
-      // session (voir lierDossierNasAutomatique). Un dossier archivé n'a plus rien à suivre.
-      if (!d.nasDossier && !d.archive) await lierDossierNasAutomatique(d.id);
-      if (d.dossierLie && !dossierEntierementComplet(d)) {
-        await verifierDossierLocal(d.id, false);
+    if (tourVerificationEnCours) return;
+    tourVerificationEnCours = true;
+    budgetOuverturesTourAuto = MAX_PDF_OUVERTS_TOUR_AUTO;
+    try {
+      for (const d of dossiers) {
+        // Un dossier archivé est terminé : plus aucune pièce à y attendre, donc rien à relire.
+        if (d.archive) continue;
+        // Un dossier actif jamais relié : on tente le rattachement au NAS tout seul, une fois par
+        // session (voir lierDossierNasAutomatique).
+        if (!d.nasDossier) await lierDossierNasAutomatique(d.id);
+        if (d.dossierLie && !dossierEntierementComplet(d)) {
+          await verifierDossierLocal(d.id, false);
+        }
+        await rendreLaMain();
       }
+    } finally {
+      tourVerificationEnCours = false;
     }
   }
-  setInterval(() => { revérifierDossiersLiesAuDemarrage(); }, 5 * 60 * 1000);
+  setInterval(() => {
+    revérifierDossiersLiesAuDemarrage().catch(e => console.error('Relecture des dossiers NAS', e));
+  }, 5 * 60 * 1000);
 
 
   // ---- thème clair / sombre ----

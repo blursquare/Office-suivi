@@ -7218,6 +7218,69 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
     trajets qui entrent et sortent du coût, « Réinitialiser » qui remet à vide, note imprimable qui
     remplace les cartes de saisie, aucun débordement horizontal, aucune erreur JS.
 
+- **« La page se bloque puis il indique ne plus avoir accès au serveur » — la cause était côté
+  CLIENT, pas côté serveur.** Signalé une deuxième fois par l'étude (« j'ai encore eu une
+  coupure »), après le correctif serveur du matin (`c7078b0`, relecture du NAS asynchrone) qui
+  visait le même symptôme. Ce correctif-là était juste, mais il ne traitait qu'une moitié du
+  problème : le navigateur a sa propre relecture périodique, et c'est elle qui coûtait le plus
+  cher. Vérifié plutôt que supposé — aucun appel `*Sync` bloquant ne subsiste dans un chemin de
+  requête du serveur, et les builds `.exe` sont bien produits automatiquement (le premier
+  postérieur à `c7078b0` est la release « build 93 »).
+  - **Le mécanisme, mesuré en A/B dans un vrai navigateur** (serveur réel + un dossier NAS de
+    41 PDF, pdf.js simulé faute de CDN ici) : `revérifierDossiersLiesAuDemarrage()` parcourt tous
+    les dossiers non complets, et pour chacun `verifierDossierLocal()` **télécharge et analyse
+    CHAQUE PDF du dossier NAS tant que l'offre de prêt n'a pas été trouvée**. Or un dossier
+    incomplet est précisément celui où elle n'est pas là : tous les fichiers y passaient donc, à
+    chaque tour. **Avant : 41 ouvertures par tour, à chaque tour, indéfiniment. Après : 25, puis
+    16, puis 0.**
+  - Multiplié par une soixantaine de dossiers actifs toutes les 5 minutes, ça sature à la fois le
+    fil d'exécution de la page (pdf.js, mémoire) et les 6 connexions que le navigateur autorise
+    par origine — le sondage de synchronisation (7 s) ne passe plus, `sondagePeriodique()` échoue,
+    `majStatutServeur(false)` affiche « Hors ligne ». Le serveur, lui, répond parfaitement : c'est
+    exactement ce que décrivait l'étude.
+  - **Quatre correctifs, tous sur les tours AUTOMATIQUES uniquement** :
+    1. **Garde d'exclusion mutuelle** (`tourVerificationEnCours`) — le minuteur tire toutes les
+       5 minutes sans se demander si le tour précédent est fini ; un tour plus long que ça (NAS
+       lent, gros portefeuille) en faisait démarrer un second par-dessus, puis un troisième, chacun
+       rouvrant les mêmes fichiers. C'est le **pendant exact du drapeau `enCours` posé côté serveur
+       dans `nasWatch.js`** par le correctif du matin : le même bug, de l'autre côté du fil.
+    2. **Budget d'ouvertures par tour** (`MAX_PDF_OUVERTS_TOUR_AUTO`, 25, partagé par tout le
+       tour) : un tour reste borné quoi qu'il arrive, et ce qui n'a pas été examiné l'est au tour
+       suivant — progressif, jamais répété.
+    3. **Mémoire des PDF déjà écartés** (`pdfEcartesPourOffre`, par dossier, en mémoire pour la
+       session) : un PDF qui n'est pas l'offre de prêt ne le devient pas cinq minutes plus tard.
+       Les rejets déterministes seuls sont mémorisés (trop peu de pages, titre non reconnu, écarté
+       par le modèle local) — **jamais un échec de lecture**, dont la cause peut être passagère
+       (NAS momentanément injoignable) et qui écarterait alors un fichier pour toute la session.
+    4. **Les dossiers archivés sont sautés** : ils n'attendent plus aucune pièce, les relire
+       indéfiniment était du gaspillage pur. Le tour rend aussi la main au navigateur entre deux
+       dossiers (`rendreLaMain()`, pendant du `respirer()` serveur).
+  - **Garde-fou indispensable qui va avec le budget** (`parcoursEcourte`) : un tour interrompu
+    faute de budget n'a pas « cherché l'offre sans la trouver », il ne l'a pas cherchée jusqu'au
+    bout. `d.offrePretStatut` n'est donc PAS basculé sur `manquante` dans ce cas, et
+    `relancerSiOffreManquante()` n'est pas déclenchée — sans quoi le correctif aurait créé un faux
+    « offre introuvable » et un brouillon de relance au client à chaque tour partiel. Vérifié dans
+    le navigateur : après un tour écourté le statut reste `inconnu`, il ne passe à `manquante`
+    qu'une fois tous les candidats réellement examinés.
+  - **Le polling démarre AVANT la relecture, qui n'est plus attendue** : `demarrerApplication()`
+    faisait `await revérifierDossiersLiesAuDemarrage()` **puis** `demarrerPolling()` — tant que le
+    parcours complet du portefeuille n'était pas terminé (plusieurs minutes sur un vrai NAS),
+    aucune synchronisation n'avait encore commencé. C'est une tâche de fond, pas une étape de
+    démarrage.
+  - **`reverifierTousLesDossiers()` (bouton « Revérifier tous les dossiers ») appelle
+    `verifierDossierLocal(id, false)`** — volontairement, pour n'afficher qu'un bilan final plutôt
+    qu'un toast par dossier. Ce `false` le faisait donc tomber sous le budget et la mémoire : il
+    lève maintenant les deux explicitement (mémoire vidée, budget `Infinity`, remis à 0 en
+    `finally`). **À ne pas perdre de vue si ce drapeau change un jour de sens** : c'est le seul
+    endroit où « pas un clic utilisateur » est faux au sens du geste, vrai au sens de l'affichage.
+  - **Ne parvient à l'étude que par un nouveau `.exe`** : ce sont des fichiers clients, mais en
+    mode serveur ils sont servis par l'exécutable (assets embarqués du blob SEA) — un
+    retéléchargement de `script.js` ne suffit pas, contrairement à la version 100 % locale.
+  - `npm test` reste vert (625 tests racine, 211 serveur) : ce chantier ne touche aucune fonction
+    pure (`verifierDossierLocal`/`revérifierDossiersLiesAuDemarrage` dépendent de `dossiers`, un
+    `let` de premier niveau invisible depuis le contexte `vm` des tests — limite déjà documentée),
+    d'où la vérification en A/B dans un vrai navigateur plutôt qu'un test unitaire.
+
 ## Ce qui reste ouvert / pas encore fait
 
 - **Signature manuscrite de Bastien ANGLUMENT, conservée pour le courrier d'appel de fonds**
