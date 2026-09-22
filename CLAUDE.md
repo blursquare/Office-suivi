@@ -7030,6 +7030,53 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
     seule fois en tête de fichier ; écrire `const { app } = chargerApplication()` dans un test y
     rend `app` indéfini et fait passer un code correct pour cassé. Reprendre la convention du
     fichier avant d'y ajouter des cas.
+- **Tableau de bord : bloc « Pièces reçues, pas encore consultées ».** Demandé par l'étude après
+  avoir constaté que cette fonction n'existait pas. Les notifications de pièces trouvées sur le
+  NAS (`d.piecesNotifications`, voir son historique) avaient trois surfaces, aucune sur le Tableau
+  de bord, et **aucune ne NOMMAIT ce qui venait d'arriver** : le compteur de la sidebar et le tag
+  « N nouvelles pièces » de la ligne du Suivi disent seulement qu'il y a du nouveau, et le tag
+  « Nouveau » posé sur la pièce elle-même n'est visible qu'une fois la fiche ouverte — donc trop
+  tard pour savoir s'il valait la peine de l'ouvrir. `renderPiecesRecuesDashboard(dossiersActifs)`
+  liste une ligne par dossier concerné : le nombre, le nom du dossier, et les LIBELLÉS des pièces
+  (`libelleNotificationPiece`, déjà écrite pour la fiche et l'email au responsable — un seul
+  endroit qui sait nommer une notification, y compris le pseudo-clé de l'offre de prêt).
+  - **Aucun second mécanisme de notification** : le bloc lit exactement l'état que lisent déjà les
+    trois autres surfaces. Rien n'a été ajouté au modèle du dossier, à `verifierDossierLocal()`,
+    ni à la route serveur.
+  - **L'effacement reste le geste déjà en place, et l'étude a explicitement demandé de le garder** :
+    la fermeture du tiroir, pour CE dossier uniquement (`fermerDossierDrawer`, inchangée).
+    Consulter un dossier ne fait donc jamais disparaître les nouveautés des autres — vérifié dans
+    le navigateur, pas déduit : après fermeture du premier dossier, le second garde sa ligne et le
+    compteur de la sidebar passe de 4 à 1.
+  - **Placé entre les tuiles KPI et « Actions urgentes »**, en pleine largeur. C'est le seul bloc
+    du tableau de bord dont le contenu **disparaît une fois lu**, donc le seul qu'on puisse manquer
+    en ne regardant pas au bon moment ; et la liste des pièces d'un dossier est trop longue pour la
+    colonne étroite d'« Actions urgentes ». Pleine largeur ne le rend pas envahissant : il n'existe
+    pas le reste du temps.
+  - **C'est la SECTION ENTIÈRE qui se masque quand il n'y a rien** (`#dash-nouveautes`), comme la
+    colonne des échéances à 7 jours — pas d'étiquette orpheline, et le tableau de bord retrouve
+    alors exactement sa mise en page habituelle. Un bloc permanent affichant « rien de nouveau »
+    occuperait toute l'année la place d'un signal qui ne dure que quelques heures.
+  - **Tri par nombre de pièces décroissant** : sur un portefeuille où plusieurs parcours viennent
+    de tourner, c'est le dossier qui a le plus reçu qu'on veut ouvrir en premier.
+  - Chaque ligne passe par `ouvrirDossierDepuisDashboard()` — le même chemin qu'« Actions
+    urgentes » et que la recherche du Tableau de bord, jamais une seconde implémentation. Les
+    lignes réutilisent `.action-urgente-ligne` et `.dash-liste` est ajoutée à la règle
+    d'`.actions-urgentes` plutôt que recopiée : deux listes de dossiers cliquables sur le même
+    écran doivent se lire comme un seul objet, pas comme deux composants aux réglages légèrement
+    différents. `.dash-nouveautes` est ajoutée au filtre d'impression, comme les autres blocs du
+    tableau de bord.
+  - Pas de test unitaire : `renderPiecesRecuesDashboard` dépend du DOM et de `dossiers` (un `let`
+    de premier niveau invisible depuis le contexte `vm` des tests — même limite déjà documentée
+    pour `totalNotificationsPieces`/`majBadgeNotificationsSidebar`). **Vérifié dans un vrai
+    Chromium** (serveur réel, trois dossiers synthétiques dont un sans nouveauté, clair et sombre,
+    1500px et 400px) : deux lignes affichées avec les bons libellés (« Certificat d'urbanisme ·
+    Avis de taxe foncière · Offre de prêt »), le dossier sans nouveauté absent, l'ordre DOM
+    confirmé (kpis → nouveautés → grille), clic ouvrant le bon dossier dans le tiroir avec ses
+    3 tags « Nouveau », effacement du seul dossier consulté, section masquée une fois tout vu,
+    aucun débordement horizontal, aucune erreur JS hors les échecs de CDN déjà connus de cet
+    environnement. `npm test` reste vert (613 tests racine, 203 côté serveur — chantier
+    entièrement côté client).
 
 ## Ce qui reste ouvert / pas encore fait
 

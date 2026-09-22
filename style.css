@@ -847,11 +847,18 @@
     letter-spacing: 0.1em;
     margin-bottom: 10px;
   }
-  .actions-urgentes {
+  /* .dash-liste partage la mise en pile d'.actions-urgentes (et ses lignes réutilisent
+     .action-urgente-ligne) : deux listes de dossiers cliquables sur le même écran doivent se lire
+     comme un seul objet, pas comme deux composants voisins aux réglages légèrement différents. */
+  .actions-urgentes,
+  .dash-liste {
     display: flex;
     flex-direction: column;
     gap: 8px;
   }
+  /* Même écart que .kpis-dashboard avant .dash-grid : quand le bloc apparaît, il s'intercale sans
+     resserrer ni écarter ce qui l'entoure. */
+  .dash-nouveautes { margin-bottom: 28px; }
   .actions-urgentes-vide {
     background: var(--success-bg);
     color: var(--success);
@@ -3654,7 +3661,7 @@
     .panel, .pdf-viewer, .list-toolbar, .dossier-actions, .dossier-actions-titre, .relances-ciblees, .theme-btn,
     .confirm-overlay, .toast, footer.note, .historique-toggle, .dashboard,
     .sidebar, .sidebar-burger, .sidebar-scrim, .dash-header, .kpis-dashboard, .actions-urgentes,
-    .dash-section-titre { display: none !important; }
+    .dash-nouveautes, .dash-section-titre { display: none !important; }
     .app-main { padding: 0; }
     .layout-cols { display: block; }
     .wrap { max-width: 100%; padding: 0; }

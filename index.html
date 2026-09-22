@@ -115,6 +115,18 @@
 
   <div class="kpis-dashboard" id="kpis-dashboard"></div>
 
+  <!-- Bloc transitoire : il n'existe que tant que des pièces trouvées sur le NAS n'ont pas été
+       vues (d.piecesNotifications, effacé à la fermeture du tiroir du dossier concerné — et de lui
+       seul, voir fermerDossierDrawer). Masqué entièrement quand il n'y a rien à signaler, comme la
+       colonne des échéances plus bas : pas d'étiquette orpheline, et le tableau de bord retrouve
+       alors exactement sa mise en page habituelle. Placé AVANT « Actions urgentes » : c'est le seul
+       bloc du tableau de bord dont le contenu disparaît une fois lu, donc le seul qu'on puisse
+       manquer en ne regardant pas au bon moment. -->
+  <div id="dash-nouveautes" class="dash-nouveautes" style="display:none;">
+    <div class="dash-section-titre">Pièces reçues, pas encore consultées</div>
+    <div id="pieces-recues-dashboard" class="dash-liste"></div>
+  </div>
+
   <div class="dash-grid">
     <div class="dash-col">
       <div class="dash-section-titre">Actions urgentes</div>

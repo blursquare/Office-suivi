@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-22 12:54';
+  const VERSION_APP = '2026-09-22 13:30';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,14 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-22 13:30', resume: "Tableau de bord : nouveau bloc « Pièces reçues, pas "
+      + "encore consultées », qui NOMME les documents fraîchement trouvés sur le NAS, dossier par "
+      + "dossier. Jusqu'ici l'outil disait seulement qu'il y avait du nouveau (compteur dans la barre "
+      + "de gauche, tag sur la ligne du Suivi) sans dire quoi, ce qui obligeait à ouvrir une fiche pour "
+      + "le savoir. Un clic sur une ligne ouvre directement le dossier concerné. Le bloc n'apparaît "
+      + "que s'il y a quelque chose à signaler, et une pièce disparaît de la liste quand on referme la "
+      + "fiche du dossier où elle a été trouvée — de ce dossier-là uniquement, les autres gardent leurs "
+      + "nouveautés." },
     { version: '2026-09-22 12:54', resume: "Appel de fonds : la date ET l'heure du rendez-vous sont "
       + "désormais lues automatiquement dans la convocation du confrère, qu'elle soit déposée en PDF ou "
       + "collée — c'est le seul document qui porte l'horaire, la fiche du dossier n'ayant qu'une date. "
@@ -73,9 +81,6 @@
       + "Outil 2 et un nom de dossier fautif dans Outil 1. Et la clause d'origine de propriété (« remontant à un titre "
       + "translatif d'au moins trente ans ») n'est plus comptée comme une obligation du vendeur : établir cette origine "
       + "est le travail du notaire sur le titre." },
-    { version: '2026-09-22 09:32', resume: "Outil 2, ventes en copropriété : une assemblée générale tenue entre l'avant-contrat "
-      + "et la vente est signalée (critique si des travaux y ont été votés), et les travaux votés lors des trois dernières "
-      + "assemblées générales sont relevés." },
   ];
 
   const STORAGE_KEY = 'dossiers';
@@ -8587,6 +8592,54 @@
     }).join('');
   }
 
+  // "Pièces reçues, pas encore consultées" (tableau de bord) : la seule vue de l'outil qui NOMME
+  // les pièces nouvellement trouvées sur le NAS. Les trois surfaces déjà en place ne disent que
+  // "il y a du nouveau" — un compteur dans la sidebar, un tag "N nouvelles pièces" sur la ligne du
+  // Suivi, et le tag "Nouveau" sur la pièce elle-même, mais celui-là n'est visible qu'une fois la
+  // fiche ouverte, donc trop tard pour savoir s'il valait la peine de l'ouvrir.
+  //
+  // Lit exactement le même état que ces trois surfaces (d.piecesNotifications) : aucun second
+  // mécanisme de notification à maintenir, et l'effacement reste le geste déjà en place — la
+  // fermeture du tiroir, pour CE dossier uniquement (voir fermerDossierDrawer). Consulter un
+  // dossier ne fait donc jamais disparaître les nouveautés des autres, ici comme ailleurs.
+  //
+  // C'est la COLONNE ENTIÈRE qui se masque quand il n'y a rien (comme la colonne des échéances à
+  // 7 jours) : un bloc permanent qui afficherait "rien de nouveau" occuperait toute l'année la
+  // place d'un signal qui, lui, ne dure que quelques heures.
+  function renderPiecesRecuesDashboard(dossiersActifs) {
+    const section = document.getElementById('dash-nouveautes');
+    const bloc = document.getElementById('pieces-recues-dashboard');
+    if (!section || !bloc) return;
+
+    // Les dossiers les plus fournis d'abord : sur un portefeuille où plusieurs parcours viennent
+    // de tourner, c'est celui qui a reçu le plus de pièces qu'on veut ouvrir en premier.
+    const avecNouveautes = dossiersActifs
+      .filter(d => (d.piecesNotifications || []).length)
+      .sort((a, b) => (b.piecesNotifications || []).length - (a.piecesNotifications || []).length);
+
+    if (avecNouveautes.length === 0) {
+      section.style.display = 'none';
+      bloc.innerHTML = '';
+      return;
+    }
+    section.style.display = '';
+    bloc.innerHTML = avecNouveautes.map(d => {
+      const cles = d.piecesNotifications || [];
+      // libelleNotificationPiece résout les deux familles de clés (checklist de pièces, et le
+      // pseudo-clé de l'offre de prêt) — déjà utilisée par la fiche et l'email au responsable,
+      // un seul endroit qui sait nommer une notification.
+      const libelles = cles.map(cle => libelleNotificationPiece(d, cle));
+      const n = cles.length;
+      return `
+        <button type="button" class="action-urgente-ligne" onclick="ouvrirDossierDepuisDashboard('${d.id}')">
+          <span class="dot-label dl-urgent"><span class="dot"></span>${n} nouvelle${n > 1 ? 's' : ''}</span>
+          <span class="action-urgente-nom">${escapeHtml(libelleDossierAffiche(d))}</span>
+          <span class="action-urgente-raison" title="${escapeAttr(libelles.join(' · '))}">${escapeHtml(libelles.join(' · '))}</span>
+          <span class="action-urgente-fleche">&rarr;</span>
+        </button>`;
+    }).join('');
+  }
+
   // Ouvre un dossier depuis le tableau de bord : bascule vers le Suivi et ouvre sa fiche dans le
   // tiroir latéral, exactement comme un clic sur sa ligne (même chemin, voir ouvrirDossierDrawer).
   function ouvrirDossierDepuisDashboard(id) {
@@ -9160,6 +9213,7 @@
     renderStatsSuivi(dossiersActifs);
     renderKpisDashboard(dossiersActifs);
     renderActionsUrgentes(dossiersActifs);
+    renderPiecesRecuesDashboard(dossiersActifs);
     renderRechercheDashboard(dossiersActifs);
     majBadgeNotificationsSidebar();
     // Avant les retours anticipés sur liste vide ci-dessous : le tiroir doit se rafraîchir (ou se
