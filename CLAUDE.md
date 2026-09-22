@@ -6571,6 +6571,56 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
     du volet 1 ne se calcule pas et seul le volet 2 s'applique — limite ancienne de cette fonction,
     hors du périmètre de cette demande, à traiter avec un extrait réel comme le reste de ce fichier.
 
+- **Deux corrections signalées sur un vrai projet de vente** (« VENTE BOURGUEIL / CHARPENTIER et
+  GENESTOUX », l'acte de la promesse déjà rejouée plus haut) — dans les deux cas la clause a été
+  **rejouée sur le PDF réel** avant d'écrire une ligne, et la seconde a mis au jour un défaut bien
+  plus large que ce que l'étude avait vu :
+  - **La clause d'origine de propriété n'est plus une obligation du vendeur.** « Le PROMETTANT
+    devra justifier d'une origine de propriété régulière remontant à un titre translatif d'au moins
+    trente ans » : clause de style de presque tous les avant-contrats, et établir cette origine est
+    le travail du notaire sur le titre, pas une pièce à réclamer. `EXCLUSION_ENGAGEMENT_RE` portait
+    déjà `trentenaire` (voir son historique) mais la rédaction courante n'emploie jamais cet
+    adjectif — elle écrit « trente ans » en toutes lettres. Deux motifs ajoutés,
+    `origine\s+de\s+propri[ée]t[ée]` et `titre\s+translatif`, chacun suffisant à lui seul sur la
+    clause réelle. Un test de contrôle vérifie que l'exclusion reste étroite : une clause qui parle
+    de propriété à un autre titre (« fournir l'attestation notariée de propriété ») ressort
+    toujours comme engagement documentaire.
+  - **Bug structurel : le bloc d'une partie débordait sur la suivante dès que le texte n'avait pas
+    de retour à la ligne.** Symptôme signalé : « GENESTOUX était ACQUEREUR dans le compromis/la
+    promesse, VENDEUR dans le projet de vente » — un faux constat CRITIQUE de rôle changé sur un
+    projet pourtant conforme. Cause : `RE_TITRE_PARTIE_SUIVANTE`, la borne de fin du bloc d'une
+    partie, exige le titre de la partie suivante **en début de ligne** ; or pdf.js rend une page
+    comme une suite d'items joints par une espace (`content.items.map(it => it.str).join(' ')`,
+    dans `lireTextePdfParPage` comme dans `extraireTextesUtiles`), donc **le texte que lit l'outil
+    n'a qu'un seul retour à la ligne par PAGE**. Sur un acte authentique, où l'état civil des deux
+    parties tient dans la même page, la borne ne matchait donc jamais et le bloc VENDEUR avalait
+    toute la section ACQUÉREUR. Reproduit exactement en simulant l'extraction pdf.js (`\n` par page
+    seulement) sur le texte des deux PDF réels : CHARPENTIER et GENESTOUX ressortaient VENDEURS.
+    - **Correctif : la FIN DE PHRASE est acceptée comme seconde borne de gauche**
+      (`(?:^|\n|[.;]\s)`), et une espace comme borne de droite. Ce qui rend l'assouplissement sûr
+      est la position : un titre de section suit toujours un point (« … pour le cas de
+      l'inexécution. ACQUEREUR Monsieur… »), tandis qu'une mention au fil du texte (« Les VENDEURS
+      s'engagent de manière indivisible… ») est précédée d'un MOT, jamais d'un point — elle ne
+      coupe donc rien. Les majuscules restent exigées. Vérifié par trois tests : le cas aplati, le
+      même acte mis en lignes (rien ne change là où les retours existent), et la mention au fil du
+      texte qui ne doit pas couper.
+    - **Le même correctif répare un défaut d'Outil 1 que personne n'avait signalé** : sur cet acte,
+      `detecterNomDossier()` rendait « BOURGUEIL & BOUSSELET & CHARPENTIER & GENESTOUX » — les
+      quatre du même côté. Il rend maintenant « BOURGUEIL & BOUSSELET / CHARPENTIER & GENESTOUX ».
+      C'est probablement une part du « les noms de dossier ne vont pas » resté ouvert depuis
+      longtemps, cette fois reproduite et corrigée plutôt que déduite.
+    - Avant/après mesurés sur les deux PDF réels via un script de bac à sable : le rapport d'Outil 2
+      passait d'un constat « Rôle changé pour GENESTOUX » + une obligation fantôme (la clause
+      trentenaire) à **zéro constat de comparaison et zéro obligation** — les deux signalements de
+      l'étude, corrigés ensemble et vérifiés sur leurs documents d'origine.
+  - **Leçon, la même que pour le premier acte authentique rejoué ici** : le texte que l'outil lit
+    n'est pas celui qu'on voit dans un lecteur PDF. Toute regex qui s'ancre sur `^` ou `\n` est
+    suspecte par construction — il n'y a qu'un retour à la ligne par page. À vérifier sur les
+    autres motifs qui en dépendent (`RE_TITRE_PIECE_JOINTE`, `estDebutPageAnnexe`, `estTitreDeSection`)
+    au prochain signalement qui y ressemble.
+  - `npm test` : 554 tests racine (+5), 202 côté serveur (inchangés, chantier entièrement côté
+    client).
+
 ## Ce qui reste ouvert / pas encore fait
 
 - **Générateur d'appel de fonds : l'aperçu de pagination A4 de l'artefact n'est pas repris**

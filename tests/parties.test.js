@@ -320,3 +320,60 @@ test('la comparution des notaires ne fournit jamais le nom d’une partie', () =
   const vendeurs = parties.filter(p => p.role === 'VENDEUR').map(p => p.nom);
   assert.equal(vendeurs.join(' & '), 'LEMERCIER');
 });
+
+test('un acte sans retour à la ligne ne fait pas déborder le bloc VENDEUR sur l’ACQUÉREUR', () => {
+  // pdf.js rend une page comme une suite d'items joints par une espace : un acte authentique
+  // parvient donc à l'extraction SANS AUCUN retour à la ligne. RE_TITRE_PARTIE_SUIVANTE, qui
+  // s'ancrait en début de ligne, ne trouvait plus où couper — le bloc VENDEUR avalait la section
+  // ACQUÉREUR et ses noms ressortaient vendeurs. Sur un projet de vente comparé à sa promesse,
+  // Outil 2 affichait alors un faux « rôle changé » pour l'acquéreur.
+  const app = chargerApplication();
+  const texte = [
+    'IDENTIFICATION DES PARTIES',
+    'VENDEUR',
+    'Monsieur Jean-Loup BOURGUEIL, enseignant, et Madame Yvette BOUSSELET, retraitée,',
+    'demeurant ensemble à CHATEAUDUN (28200) 6 rue de Chaulnes.',
+    'Monsieur est né à BUZANCAIS (36500) le 12 mai 1966.',
+    'Les VENDEURS s’engagent de manière indivisible et solidaire à exécuter les obligations',
+    'naissant à leur charge du présent acte.',
+    'ACQUEREUR',
+    'Monsieur Sébastien CHARPENTIER, directeur, et Madame Julie GENESTOUX, entrepreneur,',
+    'demeurant ensemble à MARIGNY-LES-USAGES (45760) 255 rue de Villevert.',
+    'Monsieur est né à VILLENEUVE-SAINT-GEORGES (94190) le 30 juin 1976.'
+  ].join(' ');
+  const parties = app.detecterParties(texte, 'INCONNU');
+  const vendeurs = parties.filter(p => p.role === 'VENDEUR').map(p => p.nom);
+  const acquereurs = parties.filter(p => p.role === 'ACQUEREUR').map(p => p.nom);
+  assert.equal(vendeurs.join(' & '), 'BOURGUEIL & BOUSSELET');
+  assert.equal(acquereurs.join(' & '), 'CHARPENTIER & GENESTOUX');
+});
+
+test('le même acte mis en lignes donne exactement le même découpage', () => {
+  // Le repli sur la fin de phrase ne doit rien changer là où les retours à la ligne existent.
+  const app = chargerApplication();
+  const texte = [
+    'IDENTIFICATION DES PARTIES',
+    'VENDEUR',
+    'Monsieur Jean-Loup BOURGUEIL, enseignant, et Madame Yvette BOUSSELET, retraitée,',
+    'demeurant ensemble à CHATEAUDUN (28200) 6 rue de Chaulnes.',
+    'Les VENDEURS s’engagent de manière indivisible et solidaire.',
+    'ACQUEREUR',
+    'Monsieur Sébastien CHARPENTIER, directeur, et Madame Julie GENESTOUX, entrepreneur,',
+    'demeurant ensemble à MARIGNY-LES-USAGES (45760) 255 rue de Villevert.'
+  ].join('\n');
+  const parties = app.detecterParties(texte, 'INCONNU');
+  assert.equal(parties.filter(p => p.role === 'VENDEUR').map(p => p.nom).join(' & '), 'BOURGUEIL & BOUSSELET');
+  assert.equal(parties.filter(p => p.role === 'ACQUEREUR').map(p => p.nom).join(' & '), 'CHARPENTIER & GENESTOUX');
+});
+
+test('une mention du rôle au fil d’une phrase ne coupe jamais le bloc', () => {
+  // « Les VENDEURS s'engagent… » est en majuscules mais précédé d'un mot, jamais d'un point :
+  // c'est ce qui rend l'assouplissement sûr. Si cette mention coupait, le second nom du couple
+  // vendeur serait perdu.
+  const app = chargerApplication();
+  const texte = 'VENDEUR Les VENDEURS Monsieur Paul DURAND et Madame Anne LEROY, '
+    + 'demeurant à BLOIS (41000) 3 rue Haute. ACQUEREUR Monsieur Marc PETIT, demeurant à TOURS.';
+  const parties = app.detecterParties(texte, 'INCONNU');
+  assert.equal(parties.filter(p => p.role === 'VENDEUR').map(p => p.nom).join(' & '), 'DURAND & LEROY');
+  assert.equal(parties.filter(p => p.role === 'ACQUEREUR').map(p => p.nom).join(' & '), 'PETIT');
+});

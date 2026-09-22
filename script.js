@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-22 09:32';
+  const VERSION_APP = '2026-09-22 09:41';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,12 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-22 09:41', resume: "Deux corrections signalées sur un vrai projet de vente. Un acte dont le "
+      + "texte extrait n'a aucun retour à la ligne — le cas de tout acte authentique lu par l'outil — faisait déborder le "
+      + "bloc VENDEUR sur la section ACQUÉREUR : les acquéreurs ressortaient vendeurs, d'où un faux « rôle changé » dans "
+      + "Outil 2 et un nom de dossier fautif dans Outil 1. Et la clause d'origine de propriété (« remontant à un titre "
+      + "translatif d'au moins trente ans ») n'est plus comptée comme une obligation du vendeur : établir cette origine "
+      + "est le travail du notaire sur le titre." },
     { version: '2026-09-22 09:32', resume: "Outil 2, ventes en copropriété : une assemblée générale tenue entre l'avant-contrat "
       + "et la vente est signalée (critique si des travaux y ont été votés), et les travaux votés lors des trois dernières "
       + "assemblées générales sont relevés." },
@@ -33,7 +39,6 @@
     { version: '2026-09-21 22:09', resume: "Appel de fonds : le champ « Adresse du bien » propose désormais les adresses officielles de la Base Adresse Nationale (data.gouv.fr) pendant la frappe, et reprend simplement celle du dossier quand un dossier est rattaché — une note sous le champ dit d'où vient l'adresse affichée. Seul appel vers un service extérieur de tout CLAIRE : seul le texte tapé dans ce champ part, jamais un nom de dossier ni de client, et un poste sans internet garde la saisie libre. Corrigé au passage : le menu de recherche de dossier de cet écran s'affichait en boutons bruts, sans séparateur ni survol" },
     { version: '2026-09-21 22:02', resume: "Appel de fonds, trois retouches. Le bloc destinataire du courrier est aligné à droite dans l'aperçu, comme sur le papier. Le dépôt de garantie versé à l'agence est désormais DÉDUIT du virement demandé, l'agence reversant la somme à l'étude — la version de ce matin ne le déduisait pas, ce qui faisait réclamer au client une somme trop forte ; la fiche rappelle de réclamer ces fonds avant la signature. Enfin, la ligne « frais et droits de l'acte de vente » est contrôlée contre le barème du simulateur, comme les prorata l'étaient déjà : CLAIRE dit si le montant est au-dessus ou en dessous, sans jamais le remplir — ce barème n'a pas été audité. Corrigé au passage : un prorata écrit sans parenthèses n'était pas recalculé du tout" },
     { version: '2026-09-21 21:36', resume: "Nouvel outil « Appel de fonds » dans la sidebar : il produit la convocation au rendez-vous de signature avec le décompte des sommes à virer, et la télécharge en .docx à l'en-tête de l'étude. Relié au suivi — un bouton « Préparer l'appel de fonds » sur la fiche d'un dossier ouvre l'outil déjà rempli avec les acquéreurs, l'adresse et la désignation du bien, la date du rendez-vous et le prix ; il dit aussi, en clair, ce qu'il n'a PAS pu remplir. Le dépôt de garantie n'est porté en déduction que s'il est séquestré à l'étude, et les frais d'acte de prêt ne sont appelés que si l'offre porte une garantie hypothécaire. Le décompte d'un confrère peut être déposé en PDF ou collé : ses lignes remplissent le tableau, et ses prorata écrits sous forme de formule sont recalculés pour contrôle" },
-    { version: '2026-09-21 18:04', resume: "Deux changements de couleur demandés : les notifications de nouveau document (le compteur de la sidebar, la mention sur la ligne du Suivi et le repère « Nouveau » sur la pièce) passent au ROUGE, qui se remarque mieux que l'ancien vert — lequel disait par ailleurs la même chose que le statut « reçu » affiché juste à côté. Et l'échéance « Signature de l'acte » passe au BLEU NUIT, partout où elle apparaît, y compris sur la fiche imprimée. Corrigé au passage sur le Tableau de bord : les pastilles « Appel de fonds » et « Rendez-vous de signature » du widget des 7 prochains jours ne prenaient pas la couleur de leur catégorie — le rendez-vous s'y affichait même dans la couleur de la date butoir, ce qui rendait les deux indiscernables" },
   ];
 
   const STORAGE_KEY = 'dossiers';
@@ -596,10 +601,16 @@
     return premiere;
   }
 
-  // Titre du bloc d'une AUTRE partie : en majuscules et sur sa propre ligne, comme les trames les
-  // écrivent. Exiger les majuscules évite de couper sur le mot « vendeur » employé au fil d'une
-  // phrase à l'intérieur du bloc lui-même.
-  var RE_TITRE_PARTIE_SUIVANTE = /(?:^|\n)[^\S\n]*(?:VENDEURS?|ACQU[ÉE]REURS?|PROMETTANTS?|B[ÉE]N[ÉE]FICIAIRES?|ACHETEURS?|C[ÉE]DANTS?|CESSIONNAIRES?)[^\S\n]*(?::|\n|$)/;
+  // Titre du bloc d'une AUTRE partie. Écrit en majuscules sur sa propre ligne dans la trame, mais
+  // le texte que lit l'outil n'a pas forcément de ligne : pdf.js rend une page comme une suite
+  // d'items joints par une espace (voir lireTextePdfParPage/extraireTextesUtiles), si bien qu'un
+  // acte authentique entièrement aplati n'avait plus AUCUN retour à la ligne où s'ancrer — le bloc
+  // VENDEUR avalait alors la section ACQUÉREUR et ses noms ressortaient vendeurs (constat « rôle
+  // changé » sur un projet de vente pourtant conforme). La FIN DE PHRASE est donc acceptée comme
+  // seconde borne de gauche : un titre de section suit toujours un point, tandis qu'une mention au
+  // fil du texte (« Les VENDEURS s'engagent de manière indivisible… ») est précédée d'un mot, donc
+  // jamais retenue — c'est ce qui rend l'assouplissement sûr. Les majuscules restent exigées.
+  var RE_TITRE_PARTIE_SUIVANTE = /(?:^|\n|[.;]\s)[^\S\n]*(?:VENDEURS?|ACQU[ÉE]REURS?|PROMETTANTS?|B[ÉE]N[ÉE]FICIAIRES?|ACHETEURS?|C[ÉE]DANTS?|CESSIONNAIRES?)[^\S\n]*(?::|\n|\s|$)/;
 
   function extraireBlocPartie(texte, motRe, apresIndex) {
     const zone = texte.slice(apresIndex);
@@ -4101,7 +4112,13 @@
   // "trentenaire" ajoutée de même : « le vendeur doit justifier de l'origine trentenaire » est une
   // clause de style présente dans quasiment tous les avant-contrats, et l'établissement de cette
   // origine relève du travail du notaire sur le titre — pas d'une pièce à réclamer au vendeur.
-  const EXCLUSION_ENGAGEMENT_RE = /urbanisme|permis\s+de\s+construire|d[ée]claration\s+pr[ée]alable|droit\s+de\s+pr[ée]emption|\bdia\b|bornage|servitude|cadastr|copropri[ée]t[ée]|syndic|assembl[ée]e\s+g[ée]n[ée]rale|[ée]tat\s+dat[ée]|fonds\s+de\s+travaux|charges\s+de\s+copropri[ée]t[ée]|taxe\s+fonci[èe]re|imp[ôo]t\s+foncier|quitus\s+fiscal|hypoth[ée]|mainlev[ée]e|certificat\s+de\s+radiation|privil[èe]ge\s+de\s+pr[êe]teur|demande\s+de\s+visite|trentenaire/i;
+  // Clauses de style qui portent l'ancrage « le vendeur/promettant devra… » sans être pour autant
+  // une pièce à réclamer. L'origine de propriété en fait partie (« devra justifier d'une origine de
+  // propriété régulière remontant à un titre translatif d'au moins trente ans ») : l'établissement de
+  // cette origine est le travail du notaire sur le titre, pas un justificatif à demander au vendeur.
+  // « trentenaire » seul ne suffisait pas — la rédaction la plus courante écrit « trente ans » en toutes
+  // lettres et n'emploie jamais l'adjectif.
+  const EXCLUSION_ENGAGEMENT_RE = /urbanisme|permis\s+de\s+construire|d[ée]claration\s+pr[ée]alable|droit\s+de\s+pr[ée]emption|\bdia\b|bornage|servitude|cadastr|copropri[ée]t[ée]|syndic|assembl[ée]e\s+g[ée]n[ée]rale|[ée]tat\s+dat[ée]|fonds\s+de\s+travaux|charges\s+de\s+copropri[ée]t[ée]|taxe\s+fonci[èe]re|imp[ôo]t\s+foncier|quitus\s+fiscal|hypoth[ée]|mainlev[ée]e|certificat\s+de\s+radiation|privil[èe]ge\s+de\s+pr[êe]teur|demande\s+de\s+visite|trentenaire|origine\s+de\s+propri[ée]t[ée]|titre\s+translatif/i;
 
   // Clauses purement hypothétiques : « SI le bien VENAIT À se trouver en zone contaminée, le
   // vendeur s'engage à fournir un état parasitaire ». Rien n'est dû tant que l'hypothèse ne se

@@ -145,3 +145,24 @@ test('le verbe « réparer » vaut engagement de travaux, comme le nom « répar
   assert.equal(e.length, 1);
   assert.equal(e[0].type, 'travaux');
 });
+
+test('l’origine de propriété « remontant à un titre translatif d’au moins trente ans » est écartée', () => {
+  // Même clause de style que ci-dessus, dans sa rédaction la PLUS courante : elle n'emploie jamais
+  // l'adjectif « trentenaire », mais « trente ans » en toutes lettres — le motif d'exclusion
+  // existant passait donc à côté, et l'étude la voyait ressortir dans Outil 2.
+  const app = chargerApplication();
+  const e = app.extraireEngagementsVendeur(
+    "Le PROMETTANT devra justifier d’une origine de propriété régulière remontant à un titre "
+    + "translatif d'au moins trente ans.");
+  assert.equal(e.length, 0);
+});
+
+test('l’exclusion de l’origine de propriété reste étroite', () => {
+  // Le motif ajouté vise la seule formule « origine de propriété » : une clause qui parle par
+  // ailleurs de propriété doit continuer à ressortir comme engagement documentaire.
+  const app = chargerApplication();
+  const e = app.extraireEngagementsVendeur(
+    "Le VENDEUR devra fournir l'attestation notariée de propriété du bien avant la signature.");
+  assert.equal(e.length, 1);
+  assert.equal(e[0].type, 'document');
+});
