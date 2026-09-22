@@ -6251,6 +6251,97 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     `localStorage`, réaffichage qui la remet à sa place, aucune erreur JS, aucun débordement
     horizontal à 400px.
 
+- **Stress test sur TOUS les PDF réels envoyés par l'étude** (« Tu pourrais faire un stress test avec
+  tous les avant-contrats et PDF que je t'ai envoyés… ? ») : 8 avant-contrats (dont 2 scans), le
+  projet de vente BOURGUEIL, 3 offres de prêt, 3 convocations avec décompte, 2 certificats
+  d'alignement, 2 avis de taxe foncière et le dossier NAS réel « NEW_DOSSIER » (16 PDF). **Méthode,
+  à réutiliser** : banc dans le scratchpad (`stress/`), pdf.js 3.11.174 (la version de CLAIRE) pour
+  extraire le texte EXACTEMENT comme l'outil le lit (items joints par une espace, un `\n` par page,
+  plus les items bruts avec leur position pour `lignesDepuisItemsPdf`), tesseract pour les scans,
+  puis chaque détecteur rejoué via `tests/helpers/load-app.js`. Les tests de régression reprennent la
+  STRUCTURE de chaque passage fautif avec des noms, adresses et montants inventés
+  (`tests/stress-actes-reels.test.js`, 19 tests — 13 des 15 premiers échouaient sur la version
+  d'avant, vérifié en les rejouant contre `HEAD`). Ce qui a été corrigé :
+  - **Parties / nom du dossier** : nom composé écrit par pdf.js avec des espaces autour du tiret
+    (« DUPRÉ - LEBLANC », `normaliserEspacesNom`) ; « Ci - après dénommé » accepté ; un conjoint cité
+    (« veuf en premières noces de Madame X », « pacte civil de solidarité avec Madame Y ») n'est plus
+    pris pour une partie (`RE_LIEN_FAMILIAL`) ; le bloc de chaque partie est borné par la partie
+    suivante ET par les titres qui closent la présentation (`RE_FIN_PRESENTATION_PARTIES` : QUOTITÉS
+    VENDUES/ACQUISES, PRÉSENCE-REPRÉSENTATION, DÉCLARATIONS DES PARTIES…). Sur PUV FERNANDES, le nom
+    passait de 5 personnes toutes « VENDEUR » à « SIMOND & FERNANDES PINTO / ROUSSELIÈRE ».
+  - **Dépôt de garantie / indemnité d'immobilisation** : la somme retenue est celle VERSÉE, pas
+    l'indemnité stipulée (`detecterDepotGarantieDetail` → `{montant, total, index}`) — sur une promesse
+    unilatérale, 10 350 € versés sur 20 700 € stipulés ; déduire le total dans l'appel de fonds aurait
+    fait réclamer trop peu au client. Une phrase de versement doit avoir un verbe de remise ET un
+    détenteur (comptabilité, séquestre, notaire), et jamais parler du SOLDE (dû seulement si la vente
+    échoue). Le séquestre est cherché autour du VERSEMENT, plus autour de la première mention du mot —
+    qui tombait sur la clause de levée d'option. Résultats sur les actes réels : PUV 10 350,
+    BOURGUEIL 4 600, MOKADEM 11 000, LAUNAY 2 000 (sur 29 000), BOUCHE 1 000, BONNIN 8 745, VERLAY 1 750.
+  - **Adresse** : désignation des trames d'office (« DÉSIGNATION A BLOIS (LOIR-ET-CHER) 41000 1 Rue… »,
+    « Commune de X (41000) … située … ») lue en premier (`adresseDesignationTrame`).
+  - **Agence** : « négociées par l'agence "LGM IMMOBILIER" » — le pluriel et les guillemets n'étaient
+    pas acceptés, l'outil retombait sur « par l'intermédiaire de Monsieur X », c'est-à-dire le
+    NÉGOCIATEUR. Trouvé aussi sur BAUDRY (« BLOIS IMMO », non détecté auparavant).
+  - **Dates** : « au plus tard dans les 2 mois ET DEMI » (+15 jours, `echeanceDepuisDelai`) ; une date
+    ÉCRITE l'emporte sur la date calculée de la même clause dans `meilleureCandidateEcheance` (même
+    règle que `construireDatesMetier`, qui ne s'appliquait pas au formulaire) ; « L. 313-41 » et
+    « 20.700 » ne coupent plus le contexte d'une date (`pointNonTerminal`) ; un délai de VERSEMENT
+    (indemnité, virement) n'est plus classé « prêt » par le titre de sa clause
+    (`RE_DELAI_DE_VERSEMENT`) ; achat sans prêt : « ne recourir à aucun prêt », « absence de condition
+    suspensive d'obtention de prêt ».
+  - **Engagements du vendeur** : apostrophe typographique (« s’engage »), et la tournure « que le
+    VENDEUR remette/fasse/justifie… » des conditions particulières ; « nouvelles législations » exclu.
+  - **Offre de prêt — montant emprunté** : les offres réelles n'emploient PAS la reprise entre
+    parenthèses mais un montant par prêt en tableau (« Montant total du crédit : 294 000,00 EUR ») —
+    le montant n'était jamais lu, l'apport jamais affiché. Les prêts sont additionnés, **sauf un prêt
+    relais** (il se rembourse par la vente de l'ancien bien, il ne finance pas l'achat).
+    Résultats : 321 036 / 103 399 / 74 506.
+  - **Appel de fonds — décompte d'un confrère** : un libellé coupé par la mise en page (« …frais et
+    droits de l'acte de » / « prêt » à la ligne suivante) laissait « prêt » en libellé orphelin, et le
+    libellé tronqué était renommé « …acte de vente » puis contrôlé contre le barème de la vente. Une
+    ligne de un ou deux mots en minuscules sans montant est désormais rattachée à la ligne
+    précédente (`AF_FIN_LIBELLE_RE`) ; « acte de prêt » est gardé tel quel par la normalisation ; « € € »
+    en fin de ligne accepté (le « Soit au total » passait sinon pour une ligne). Recalcul identique au
+    solde des trois confrères au centime.
+  - **Outil 2 — certificat d'urbanisme, trois défauts sur le vrai CU du dossier NAS** :
+    (1) la date retenue était celle du PLU cité dans les visas (« Vu le PLUi approuvé le 29 novembre
+    2022 »), d'où un **faux CRITIQUE « périmé depuis mai 2024 »** sur un certificat demandé en juin
+    2026. La date d'un CU est désormais celle de sa DÉLIVRANCE et d'elle seule
+    (`datesCertificatUrbanisme`, jamais « la première date du document ») ; faute de date lisible, la
+    date de DÉPÔT de la demande suffit à conclure qu'il est valable au moins 18 mois après elle ;
+    (2) les **servitudes AC1 / avis de l'ABF**, écrites en lettres espacées par le PDF (« ( A B F ) »),
+    n'étaient pas vues — le point « protection du patrimoine » manquait ; (3) un renvoi (« le
+    certificat d'alignement est à demander à… »), la clause de style « droit des tiers … que le
+    certificat ne vérifie pas » et les visas ne produisent plus de point de vigilance
+    (`occurrenceUtileCertificat` ; les visas s'arrêtent au « CERTIFIE » du dispositif, `RE_VISA_CU`).
+  - **Outil 2 — bruit** (la plainte de l'étude, voir l'entrée précédente) : le tableau des durées de
+    validité et les phrases normatives (« doit être annexé ») ne comptent plus comme mention d'un
+    diagnostic (`mentionDiagnosticUtile`) ; les diagnostics sans date sont regroupés en UN constat
+    par famille ; une voie de droit ouverte (« pourra engager une action en justice ») n'est plus une
+    « procédure en cours » (`RE_PROCEDURE_NORMATIVE`) ; le statut des acquéreurs est cherché dans leur
+    seule présentation (`zonePresentationAcquereur`), le régime dans la phrase du statut, avec « non
+    engagé(s) dans les liens d'un PACS » comme négation ; « annexe » seul ne vaut plus travaux
+    extérieurs. Constats par acte avant → après : PUV 12 → 4, FERNANDES 13 → 2, BAUDRY 18 → 8,
+    MOKADEM 12 → 5, LAUNAY 12 → 5. Projet BOURGUEIL contre sa promesse : 5 constats pertinents, aucun
+    faux écart.
+  - **Vérifié sans rien changer** : les 16 PDF du dossier NAS réel sont tous reconnus par leur NOM
+    (certificat d'urbanisme, alignement ET numérotage sur le même fichier, préemption, diagnostics,
+    taxe foncière, entretien chaudière, offre de prêt), quel que soit le type de vente.
+- **Constats du stress test laissés ouverts** (à trancher avec l'étude, pas des oublis) :
+  - **`extraireConditions()` (Analyse juridique → « Conditions ») est vide sur 100 % des PDF réels** :
+    elle découpe par retour à la ligne, et pdf.js n'en met qu'un par page — le même piège déjà payé
+    trois fois ici. Sur du texte reconstruit en lignes elle remonte des résultats, mais bruités. À
+    rouvrir seulement si l'étude utilise ce bloc.
+  - L'adresse de l'OFFICE notarial lit le CRPCEN (« CRPCEN 41089 ») comme un code postal —
+    cosmétique, le département retombe juste par coïncidence (41).
+  - Les deux scans (VERLAY, BANCQUART) : prix manuscrit illisible par l'OCR, et adresse de BANCQUART
+    prise dans la procuration annexée. L'attestation d'entretien de chaudière du dossier NAS est
+    manuscrite : rien d'exploitable. Limites d'OCR, pas de règle à corriger.
+  - La signature électronique de BAUDRY et BONNIN n'est pas dans le texte (seulement les métadonnées
+    du PDF) ; la promesse BOUCHE laisse la date d'expiration EN BLANC dans le document lui-même.
+  - BOURGUEIL : « le PROMETTANT s'engage à rembourser tous appels de fonds travaux » ressort en
+    engagement de travaux — mineur, non corrigé sans second exemple.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

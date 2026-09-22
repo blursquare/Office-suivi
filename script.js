@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-22 23:01';
+  const VERSION_APP = '2026-09-22 23:44';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,11 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-22 23:44', resume: "Stress test sur tous les PDF réels envoyés : noms "
+      + "de dossier (noms composés, conjoints cités), dépôt de garantie versé en partie et son "
+      + "séquestre, agence, adresse, « 2 mois et demi », montant des prêts (hors relais), décompte "
+      + "d'un confrère (« acte de prêt »), certificat d'urbanisme (date du PLU prise pour la "
+      + "délivrance, ABF manqué) et bruit d'Outil 2 fortement réduit." },
     { version: '2026-09-22 23:01', resume: "Outil 2 : chaque rubrique du rapport peut être "
       + "masquée une fois pour toutes (et réaffichée en bas du rapport, avec le nombre de "
       + "constats qu'elle retient). L'écart entre l'avant-contrat et le projet est annoncé dès "
@@ -342,7 +347,7 @@
   // Attention : "paiement comptant" seul est un FAUX AMI — cette formule désigne presque toujours
   // le règlement du solde en une fois à la signature de l'acte, pas l'absence de prêt.
   // On ne se fie donc qu'à des marqueurs juridiques non ambigus (dont la renonciation Scrivener).
-  const CASH_RE = /ne\s+recourt?\s+pas\s+[àa]\s+(?:un\s+)?(?:pr[êe]t|emprunt)|sans\s+recours\s+[àa]\s+(?:un\s+)?(?:pr[êe]t|emprunt)|sans\s+financement\s+bancaire|sans\s+condition\s+suspensive\s+d.obtention\s+de\s+pr[êe]t|renonce\s+(?:express[ée]ment\s+)?au\s+b[ée]n[ée]fice\s+(?:des\s+dispositions\s+)?de\s+l.article\s*l\.?\s*313|d[ée]clare\s+ne\s+pas\s+recourir\s+[àa]\s+(?:un\s+)?(?:pr[êe]t|emprunt)|financement\s+(?:se\s+fera|r[ée]alis[ée])\s+(?:exclusivement\s+)?(?:sur|par)\s+(?:ses\s+)?fonds\s+propres/i;
+  const CASH_RE = /ne\s+recourt?\s+pas\s+[àa]\s+(?:un\s+)?(?:pr[êe]t|emprunt)|sans\s+recours\s+[àa]\s+(?:un\s+)?(?:pr[êe]t|emprunt)|sans\s+financement\s+bancaire|sans\s+condition\s+suspensive\s+d.obtention\s+de\s+pr[êe]t|renonce\s+(?:express[ée]ment\s+)?au\s+b[ée]n[ée]fice\s+(?:des\s+dispositions\s+)?de\s+l.article\s*l\.?\s*313|d[ée]clare\s+ne\s+pas\s+recourir\s+[àa]\s+(?:un\s+)?(?:pr[êe]t|emprunt)|financement\s+(?:se\s+fera|r[ée]alis[ée])\s+(?:exclusivement\s+)?(?:sur|par)\s+(?:ses\s+)?fonds\s+propres|ne\s+recourir\s+[àa]\s+aucun\s+(?:pr[êe]t|emprunt)|absence\s+de\s+condition\s+suspensive\s+d['’]?\s*obtention\s+(?:d['’]un\s+|de\s+|du\s+)?pr[êe]t/i;
 
   function detecterFinancementComptant(texte) {
     return CASH_RE.test(texte);
@@ -447,7 +452,7 @@
   // tournure d'intermédiation explicite ("par l'intermédiaire de l'agence...", "par l'entremise
   // de...") — jamais sur le seul mot "agence", trop ambigu (agence bancaire, agence France
   // Travail...) pour être un signal fiable à lui seul.
-  const AGENCE_RE = /(?:l['’]interm[ée]diaire\s+de\s+(?:l['’]agence\s+)?|par\s+l['’]entremise\s+de\s+(?:l['’]agence\s+)?|n[ée]goci[ée]e?\s+par\s+(?:l['’]agence\s+)?|mandat[ée]?e?\s+[àa]\s+l['’]agence\s+|l['’]agence\s+immobili[èe]re\s+)([A-Z0-9][^,.\n(;]{1,60}?)(?=\s*[,.;\n(]|\s+(?:sise|situ[ée]e?|dont|repr[ée]sent[ée]e?|immatricul[ée]e?)\b)/i;
+  const AGENCE_RE = /(?:l['’]interm[ée]diaire\s+de\s+(?:l['’]agence\s+)?|par\s+l['’]entremise\s+de\s+(?:l['’]agence\s+)?|n[ée]goci[ée]e?s?\s+par\s+(?:l['’]agence\s+)?|mandat[ée]?e?\s+[àa]\s+l['’]agence\s+|l['’]agence\s+immobili[èe]re\s+)["«“]?\s*([A-Z0-9][^,.\n(;"»”]{1,60}?)\s*["»”]?(?=\s*[,.;\n(]|\s+(?:sise|situ[ée]e?|dont|repr[ée]sent[ée]e?|immatricul[ée]e?)\b)/i;
 
   function detecterNomAgence(texte) {
     const m = AGENCE_RE.exec(texte);
@@ -493,7 +498,7 @@
   //     fenêtre volontairement courte entre le mot-clé et le montant.
   // Premier jet, comme AGENCE_RE en son temps : à resserrer sur retour réel de l'étude.
   const DEPOT_ANCRE_RE = /d[ée]p[ôo]t\s+de\s+garantie|acompte\s+sur\s+(?:le\s+)?prix|indemnit[ée]\s+d['’]immobilisation/i;
-  const DEPOT_GARANTIE_PARENTHESES_RE = /(?:d[ée]p[ôo]t\s+de\s+garantie|acompte\s+sur\s+(?:le\s+)?prix|indemnit[ée]\s+d['’]immobilisation)[^(.]{0,150}\(\s*([\d](?:[\d\s.]{0,14})?(?:,\d{2})?)\s*(?:€|eur(?:os?)?\b)\s*\.?\s*\)/i;
+  const DEPOT_GARANTIE_PARENTHESES_RE = /(?:d[ée]p[ôo]t\s+de\s+garantie|acompte\s+sur\s+(?:le\s+)?prix|indemnit[ée]\s+d['’]immobilisation)[^(.]{0,300}\(\s*([\d](?:[\d\s.]{0,14})?(?:,\d{2})?)\s*(?:€|eur(?:os?)?\b)\s*\.?\s*\)/i;
   const DEPOT_GARANTIE_CHIFFRES_RE = /(?:d[ée]p[ôo]t\s+de\s+garantie|acompte\s+sur\s+(?:le\s+)?prix|indemnit[ée]\s+d['’]immobilisation)[^(.]{0,60}?(?:de\s+(?:la\s+somme\s+de\s+)?|soit\s+|:\s*)([\d][\d\s.]{2,14}(?:,\d{2})?)\s*(?:€|eur(?:os?)?\b)/i;
 
   function montantDepuisCapture(brut) {
@@ -504,39 +509,141 @@
     return Number.isFinite(valeur) && valeur >= 100 ? valeur : null;
   }
 
-  function detecterDepotGarantie(texte) {
-    const source = String(texte || '');
-    const parenthese = DEPOT_GARANTIE_PARENTHESES_RE.exec(source);
-    if (parenthese) {
-      const valeur = montantDepuisCapture(parenthese[1]);
-      if (valeur !== null) return valeur;
+  // Trame d'agence où le montant PRÉCÈDE le mot-clé : « La somme de huit mille sept cent quarante-cinq
+  // euros (8 745 €), sera déposée à titre d'acompte entre les mains de Maître X ». Rencontrée sur un
+  // vrai compromis : ni « dépôt de garantie » ni « acompte sur le prix » n'y figurent, et le dépôt
+  // ressortait absent.
+  const DEPOT_MONTANT_AVANT_RE = /\(\s*([\d](?:[\d\s.]{0,14})?(?:,\d{2})?)\s*(?:€|eur(?:os?)?\b)\s*\.?\s*\)[^.(]{0,80}?[àa]\s+titre\s+(?:d['’]acompte|de\s+d[ée]p[ôo]t\s+de\s+garantie)/i;
+
+  // Sur une promesse, l'indemnité d'immobilisation stipulée n'est presque jamais versée en entier :
+  // l'acte fixe un TOTAL, puis précise la part réellement remise au notaire (« Sur cette somme, le
+  // BÉNÉFICIAIRE s'engage à verser … la somme de DEUX MILLE EUROS (2 000,00 EUR) … en la
+  // comptabilité de Me X »), le solde n'étant dû que si la vente échoue. Constaté sur QUATRE vraies
+  // promesses (10 350 sur 20 700, 4 600 sur 9 200, 2 000 sur 29 000, 11 000 sur 22 000). Retenir le
+  // total faisait déduire de l'appel de fonds une somme que l'étude n'a jamais reçue — donc
+  // réclamer trop peu au client, erreur qui ne se voit que le jour de la signature. C'est la somme
+  // VERSÉE qui compte : elle seule est entre les mains du notaire.
+  // Une phrase de versement : un verbe de remise ET un destinataire qui détient les fonds.
+  const RE_PHRASE_VERSEMENT = /\b(?:vers[ée]e?s?|verser|versera|remise?|consign[ée]e?|s[ée]questr[ée]e?)(?![A-Za-z0-9_À-ÿ])/i; // pas de \b final : « versé » finit par une lettre accentuée
+  const RE_DESTINATAIRE_FONDS = /comptabilit[ée]|entre\s+les\s+mains|s[ée]questre|d[ée]positaire|notaire|office/i;
+  // … et jamais le SOLDE, dû seulement si la vente échoue.
+  const RE_SOLDE_NON_VERSE = /\bsolde\b|en\s+cas\s+de\s+non[\s-]|dans\s+l['’](?:hypoth[èe]se|[ée]ventualit[ée])/i;
+  const PORTEE_VERSEMENT_PARTIEL = 2500;
+  // Titre de la clause, écrit en capitales : sert d'ancre quand le total n'est pas assez proche du
+  // mot-clé pour DEPOT_GARANTIE_PARENTHESES_RE (« INDEMNITE D'IMMOBILISATION … le BÉNÉFICIAIRE
+  // s'engage à verser au PROMETTANT la somme VINGT NEUF MILLE EUROS (29 000,00 EUR) »). Jamais
+  // précédé de « ABSENCE DE » : « ABSENCE DE DEPOT DE GARANTIE » dit précisément l'inverse.
+  const RE_TITRE_CLAUSE_DEPOT = /(?:INDEMNIT[ÉE]\s+D['’]\s*IMMOBILISATION|D[ÉE]P[ÔO]T\s+DE\s+GARANTIE)/g;
+  const RE_ABSENCE_DEPOT = /ABSENCE|PAS\s+DE|SANS|NON[\s-]/i;
+  const PORTEE_TITRE_CLAUSE_DEPOT = 1500;
+  const RE_MONTANT_PARENTHESES_G = /\(\s*([\d](?:[\d\s.]{0,14})?(?:,\d{2})?)\s*(?:€|eur(?:os?)?\b)\s*\.?\s*\)/gi;
+
+  function phraseContenant(source, index) {
+    let debut = index;
+    while (debut > 0 && !/[.;]\s/.test(source.slice(debut - 2, debut))) debut--;
+    let fin = index;
+    while (fin < source.length && !/[.;]\s/.test(source.slice(fin, fin + 2))) fin++;
+    return { texte: source.slice(debut, fin), debut };
+  }
+
+  function versementPartiel(source, apres, total) {
+    const zone = source.slice(apres, apres + PORTEE_VERSEMENT_PARTIEL);
+    const re = new RegExp(RE_MONTANT_PARENTHESES_G.source, 'gi');
+    let m;
+    while ((m = re.exec(zone)) !== null) {
+      const montant = montantDepuisCapture(m[1]);
+      if (montant === null || montant >= total) continue;
+      const phrase = phraseContenant(source, apres + m.index);
+      if (!RE_PHRASE_VERSEMENT.test(phrase.texte) || !RE_DESTINATAIRE_FONDS.test(phrase.texte)) continue;
+      if (RE_SOLDE_NON_VERSE.test(phrase.texte)) continue;
+      return { montant, index: phrase.debut };
     }
-    const chiffres = DEPOT_GARANTIE_CHIFFRES_RE.exec(source);
-    if (chiffres) return montantDepuisCapture(chiffres[1]);
     return null;
   }
 
-  // À QUI l'acquéreur verse ce dépôt. Cherché UNIQUEMENT dans la fenêtre qui entoure la clause de
-  // dépôt (200 caractères avant le mot-clé, 600 après) : « entre les mains du notaire soussigné »
-  // apparaît aussi dans des clauses sans rapport (indemnité de retard, appel de fonds), le chercher
-  // dans tout l'acte ramènerait n'importe laquelle d'entre elles. Aucune clause de dépôt détectée
-  // = aucun séquestre renvoyé, plutôt qu'un nom pris ailleurs au hasard.
+  // Pure et testable. `montant` est la somme réellement versée (celle à déduire de l'appel de
+  // fonds), `total` l'indemnité stipulée quand elle diffère, `index` l'endroit où chercher à qui
+  // elle a été remise (voir detecterSequestreDepot).
+  function detecterDepotGarantieDetail(texte) {
+    const source = String(texte || '');
+    let trouve = null;
+    const parenthese = DEPOT_GARANTIE_PARENTHESES_RE.exec(source);
+    if (parenthese) {
+      const valeur = montantDepuisCapture(parenthese[1]);
+      if (valeur !== null) trouve = { valeur, index: parenthese.index, fin: parenthese.index + parenthese[0].length };
+    }
+    if (!trouve) {
+      const chiffres = DEPOT_GARANTIE_CHIFFRES_RE.exec(source);
+      const valeur = chiffres ? montantDepuisCapture(chiffres[1]) : null;
+      if (valeur !== null) trouve = { valeur, index: chiffres.index, fin: chiffres.index + chiffres[0].length };
+    }
+    if (!trouve) {
+      const avant = DEPOT_MONTANT_AVANT_RE.exec(source);
+      const valeur = avant ? montantDepuisCapture(avant[1]) : null;
+      if (valeur !== null) trouve = { valeur, index: avant.index, fin: avant.index + avant[0].length };
+    }
+    if (!trouve) {
+      const re = new RegExp(RE_TITRE_CLAUSE_DEPOT.source, 'g');
+      let t;
+      while (!trouve && (t = re.exec(source)) !== null) {
+        if (RE_ABSENCE_DEPOT.test(source.slice(Math.max(0, t.index - 60), t.index))) continue;
+        const zone = source.slice(t.index, t.index + PORTEE_TITRE_CLAUSE_DEPOT);
+        const m = new RegExp(RE_MONTANT_PARENTHESES_G.source, 'i').exec(zone);
+        const valeur = m ? montantDepuisCapture(m[1]) : null;
+        if (valeur !== null) trouve = { valeur, index: t.index + m.index, fin: t.index + m.index + m[0].length };
+      }
+    }
+    if (!trouve) return null;
+    const partiel = versementPartiel(source, trouve.fin, trouve.valeur);
+    if (partiel) return { montant: partiel.montant, total: trouve.valeur, index: partiel.index };
+    return { montant: trouve.valeur, total: null, index: trouve.index };
+  }
+
+  function detecterDepotGarantie(texte) {
+    const d = detecterDepotGarantieDetail(texte);
+    return d ? d.montant : null;
+  }
+
+  // À QUI l'acquéreur verse ce dépôt. Cherché UNIQUEMENT autour de l'endroit où la somme VERSÉE est
+  // énoncée (voir detecterDepotGarantieDetail) : « entre les mains du notaire » apparaît aussi dans
+  // des clauses sans rapport (levée d'option, indemnité de retard, appel de fonds). Ancrée
+  // jusqu'ici sur la première MENTION du mot-clé, la recherche ramenait sur une vraie promesse la
+  // clause de levée d'option (« consignation entre les mains du notaire chargé de dresser l'acte
+  // d'une somme suffisante pour… »), qui cite l'indemnité au passage. Aucun dépôt détecté = aucun
+  // séquestre renvoyé, plutôt qu'un nom pris ailleurs au hasard.
   const FENETRE_SEQUESTRE_AVANT = 200;
-  const FENETRE_SEQUESTRE_APRES = 600;
-  const SEQUESTRE_RE = /(?:entre\s+les\s+mains\s+d[eu]\s*(?:la\s+|l['’])?|s[ée]questr[ée]?e?\s+(?:aupr[èe]s\s+d[eu]\s*(?:la\s+|l['’])?|chez\s+|entre\s+les\s+mains\s+d[eu]\s*(?:la\s+|l['’])?)|en\s+la\s+comptabilit[ée]\s+d[eu]\s*(?:la\s+|l['’])?|vers[ée]e?\s+[àa]\s+(?:la\s+|l['’])?)([^,.;:\n(]{2,70})/i;
+  const FENETRE_SEQUESTRE_APRES = 900;
+  const SEQUESTRE_RE = /(?:entre\s+les\s+mains\s+d[eu]\s*(?:la\s+|l['’])?|s[ée]questr[ée]?e?\s+(?:aupr[èe]s\s+d[eu]\s*(?:la\s+|l['’])?|chez\s+|entre\s+les\s+mains\s+d[eu]\s*(?:la\s+|l['’])?)|(?:en\s+)?la\s+comptabilit[ée]\s+d[eu]\s*(?:la\s+|l['’])?|vers[ée]e?\s+[àa]\s+(?:la\s+|l['’])?)([^,.;:\n(]{2,70})/i;
+  // « Les parties choisissent … le notaire rédacteur des présentes comme dépositaire et tiers
+  // séquestre de ces fonds » : le détenteur est nommé AVANT le mot-clé.
+  const SEQUESTRE_DESIGNE_RE = /\b((?:l[ea]\s+|l['’])(?:notaire|office|agence|cabinet)[^,.;:\n(]{0,60}?)\s+comme\s+(?:d[ée]positaire|(?:tiers\s+)?s[ée]questre)/i;
 
   function detecterSequestreDepot(texte) {
     const source = String(texte || '');
-    const ancre = DEPOT_ANCRE_RE.exec(source);
-    if (!ancre) return null;
-    const debut = Math.max(0, ancre.index - FENETRE_SEQUESTRE_AVANT);
-    const fenetre = source.slice(debut, ancre.index + FENETRE_SEQUESTRE_APRES);
-    const m = SEQUESTRE_RE.exec(fenetre);
-    if (!m) return null;
-    const nom = m[1].replace(/\s+/g, ' ').trim()
+    const depot = detecterDepotGarantieDetail(source);
+    let fenetre;
+    if (depot) {
+      const debut = Math.max(0, depot.index - FENETRE_SEQUESTRE_AVANT);
+      fenetre = source.slice(debut, depot.index + FENETRE_SEQUESTRE_APRES);
+    } else {
+      // Aucun montant lu : on accepte encore une phrase qui NOMME le dépôt ET dit qu'il est versé
+      // ou séquestré (« Le dépôt de garantie est versé à la CARPA »), jamais une phrase qui ne
+      // fait que le citer — c'est ce qui écarte la clause de levée d'option.
+      const re = new RegExp(DEPOT_ANCRE_RE.source, 'gi');
+      let m;
+      while ((m = re.exec(source)) !== null) {
+        const phrase = phraseContenant(source, m.index).texte;
+        if (RE_PHRASE_VERSEMENT.test(phrase)) { fenetre = phrase; break; }
+      }
+      if (!fenetre) return null;
+    }
+    const candidats = [SEQUESTRE_RE.exec(fenetre), SEQUESTRE_DESIGNE_RE.exec(fenetre)].filter(Boolean)
+      .sort((a, b) => a.index - b.index);
+    if (!candidats.length) return null;
+    const nom = candidats[0][1].replace(/\s+/g, ' ').trim()
       // Coupe une proposition relative qui suivrait ("... du notaire soussigné qui en donnera
       // quittance") : seul le destinataire nous intéresse.
-      .replace(/\s+(?:qui|lequel|laquelle|auquel|dont|en\s+sa\s+qualit[ée])\b.*$/i, '')
+      .replace(/\s+(?:qui|lequel|laquelle|auquel|dont|en\s+sa\s+qualit[ée]|sur\s+un\s+compte|au\s+PROMETTANT|au\s+VENDEUR)\b.*$/i, '')
       .replace(/[,\s]+$/, '');
     return nom.length >= 2 ? nom : null;
   }
@@ -565,12 +672,43 @@
   // ce sens.
   const MONTANT_PRET_RE = /(?:montant\s+(?:du\s+)?(?:pr[êe]t|financement|emprunt[ée]?)|capital\s+emprunt[ée]|somme\s+pr[êe]t[ée]e?)[^(.\n]{0,120}\(\s*([\d](?:[\d\s.]{0,14})?(?:,\d{2})?)\s*(?:€|euros?)\s*\)/i;
 
+  // Les offres réelles du corpus n'emploient PAS la reprise entre parenthèses : elles écrivent un
+  // montant PAR PRÊT, en tableau (« Montant total du crédit : 294 000,00 EUR », « Montant et
+  // monnaie du prêt à accorder : 59 606,00 EUR »). Sur les trois offres reçues, le montant restait
+  // donc introuvable et l'apport estimé ne s'affichait jamais. Les prêts sont additionnés, SAUF un
+  // prêt RELAIS : il se rembourse par la vente de l'ancien bien et ne finance pas l'achat — le
+  // compter ferait ressortir un « prêt supérieur au prix » (constaté : 615 036 € empruntés dont
+  // 294 000 € de relais).
+  var RE_MONTANT_PAR_PRET = /(?:montant\s+total\s+du\s+cr[ée]dit|montant\s+et\s+monnaie\s+du\s+pr[êe]t\s+[àa]\s+accorder|montant\s+du\s+pr[êe]t)\s*:\s*([\d][\d\s.]{0,14}(?:,\d{2})?)\s*(?:€|eur(?:os?)?\b)/gi;
+  var RE_PRET_RELAIS = /\brelais\b/i;
+
   function detecterMontantPret(texte) {
-    const m = MONTANT_PRET_RE.exec(texte);
-    if (!m) return null;
-    const partieEntiere = m[1].split(',')[0].replace(/[\s.]/g, '');
-    const valeur = parseInt(partieEntiere, 10);
-    return Number.isFinite(valeur) && valeur >= 1000 ? valeur : null;
+    const source = String(texte || '');
+    const m = MONTANT_PRET_RE.exec(source);
+    if (m) {
+      const partieEntiere = m[1].split(',')[0].replace(/[\s.]/g, '');
+      const valeur = parseInt(partieEntiere, 10);
+      if (Number.isFinite(valeur) && valeur >= 1000) return valeur;
+    }
+    const re = new RegExp(RE_MONTANT_PAR_PRET.source, 'gi');
+    const vus = new Set();
+    let total = 0;
+    let finPrecedente = 0;
+    let t;
+    while ((t = re.exec(source)) !== null) {
+      const valeur = parseInt(t[1].split(',')[0].replace(/[\s.]/g, ''), 10);
+      // Libellé du prêt : ce qui précède le montant, sans remonter au-delà du prêt précédent —
+      // selon la mise en page, il est sur la même ligne ou sur la ligne du dessus.
+      const libelle = source.slice(Math.max(finPrecedente, t.index - 250), t.index);
+      finPrecedente = t.index + t[0].length;
+      if (!Number.isFinite(valeur) || valeur < 1000) continue;
+      if (RE_PRET_RELAIS.test(libelle)) continue;
+      // Un même montant repris plus loin (récapitulatif, tableau d'amortissement) n'est compté qu'une fois.
+      if (vus.has(valeur)) continue;
+      vus.add(valeur);
+      total += valeur;
+    }
+    return total >= 1000 ? total : null;
   }
 
   // Apport estimé une fois l'offre de prêt reçue : ce que le prêt ne couvre pas dans le prix total
@@ -621,6 +759,12 @@
 
   function normaliserMaj(s) {
     return s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toUpperCase();
+  }
+
+  // pdf.js espace les tirets et multiplie les espaces (« DE   SOUSA   MARTINS », « LE - GOFF ») :
+  // le nom retenu est remis à la forme sous laquelle on l'écrit.
+  function normaliserEspacesNom(nom) {
+    return String(nom || '').replace(/\s*-\s*/g, '-').replace(/\s+/g, ' ').trim();
   }
 
   function estNomValide(candidat) {
@@ -679,6 +823,15 @@
   // jamais retenue — c'est ce qui rend l'assouplissement sûr. Les majuscules restent exigées.
   var RE_TITRE_PARTIE_SUIVANTE = /(?:^|\n|[.;]\s)[^\S\n]*(?:VENDEURS?|ACQU[ÉE]REURS?|PROMETTANTS?|B[ÉE]N[ÉE]FICIAIRES?|ACHETEURS?|C[ÉE]DANTS?|CESSIONNAIRES?)[^\S\n]*(?::|\n|\s|$)/;
 
+  // Rubriques qui SUIVENT toujours la présentation des parties dans un acte authentique : quotités,
+  // présence/représentation, déclarations, état-capacité, objet du contrat. Écrites en capitales
+  // (d'où le motif sensible à la casse), elles bornent le bloc de la DERNIÈRE partie présentée,
+  // qu'aucun titre de partie suivante ne vient fermer. Sans elles, les 1200 caractères par défaut
+  // débordaient sur « QUOTITES VENDUES : Monsieur X et Madame Y vendent… » et coupaient un nom en
+  // plein milieu — constaté sur une vraie promesse, dont l'acquéreur gagnait un troisième nom
+  // tronqué (« BOUS » pour « BOUSSELET », la venderesse).
+  var RE_FIN_PRESENTATION_PARTIES = /QUOTIT[ÉE]\s*S?\s+(?:VENDUES?|ACQUISES?)|PR[ÉE]SENCE\s*-\s*REPR[ÉE]SENTATION|D[ÉE]CLARATIONS?\s+DES\s+PARTIES|[ÉE]TAT\s*-\s*CAPACIT[ÉE]|OBJET\s+DU\s+CONTRAT/;
+
   function extraireBlocPartie(texte, motRe, apresIndex) {
     const zone = texte.slice(apresIndex);
     const mention = chercherMentionPartie(texte, motRe, apresIndex);
@@ -689,7 +842,7 @@
     // borne, les 1200 caractères par défaut débordaient sur le bloc voisin : sur un acte où le
     // PROMETTANT tient moins de 800 caractères, le nom du BENEFICIAIRE se retrouvait compté parmi
     // les vendeurs.
-    const bornes = [reste.match(/ci-apr[èe]s\s+d[ée]nomm/i), reste.match(RE_TITRE_PARTIE_SUIVANTE)]
+    const bornes = [reste.match(/ci\s*-\s*apr[èe]s\s+d[ée]nomm/i), reste.match(RE_TITRE_PARTIE_SUIVANTE), reste.match(RE_FIN_PRESENTATION_PARTIES)]
       .filter(Boolean).map(m => m.index);
     const longueur = bornes.length ? Math.min(...bornes) : Math.min(reste.length, 1200);
     return { texte: reste.slice(0, longueur), finAbsolue: apresIndex + debut + longueur };
@@ -704,12 +857,14 @@
   // et « demeurant à CHATEAUDUN » donneraient une commune pour un nom de famille — l'erreur déjà
   // rencontrée et corrigée ailleurs dans ce fichier (voir nomsAvantLabel).
   var PORTEE_NOM_APRES_CIVILITE = 90;
-  var RE_SUITE_MAJUSCULES = /[A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,}(?:[-\s][A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,})*/g;
+  var RE_SUITE_MAJUSCULES = /[A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,}(?:[^\S\n]*-[^\S\n]*[A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,}|[^\S\n]+[A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,})*/g;
   var RE_PREPOSITION_LIEU = /(?:^|[\s(])(?:[àa]|au|aux|de|du|des|en|dans|sur|pr[èe]s)\s+$/i;
   // Une civilité introduite par un lien de famille ne présente pas une partie : « Divorcé de Madame
   // Ana DA SILVA MARTINHO », « veuve de Monsieur X ». Sans ce garde-fou, l'ex-conjoint cité dans
   // l'état civil devenait un acquéreur.
-  var RE_LIEN_FAMILIAL = /(?:divorc[ée]e?|veuf|veuve|[ée]pou(?:x|se)|mari[ée]e?|remari[ée]e?|s[ée]par[ée]e?|pacs[ée]e?)\s+(?:de\s+|d['’]|avec\s+|[àa]\s+)?$/i;
+  // « en premières/secondes noces » s'intercale couramment (« Divorcée en premières noces de
+  // Monsieur X ») : sans lui, l'ex-conjoint d'une vraie promesse ressortait bénéficiaire.
+  var RE_LIEN_FAMILIAL = /(?:(?:divorc[ée]e?|veuf|veuve|[ée]pou(?:x|se)|mari[ée]e?|remari[ée]e?|s[ée]par[ée]e?|pacs[ée]e?)\s+(?:en\s+\S+\s+noces\s+)?(?:de\s+|d['’]|avec\s+|[àa]\s+)?|pacte\s+civil\s+de\s+solidarit[ée]\s+avec\s+)$/i;
 
   function nomApresCivilite(segment) {
     const s = String(segment || '');
@@ -740,7 +895,7 @@
     if (positions.length === 0) return [];
     positions.push(bloc.length);
     const noms = [];
-    const nomAvantNaissanceRe = /\b([A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,}(?:[-\s][A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,})*)\s+n[ée]e?(?=\s)/;
+    const nomAvantNaissanceRe = /\b([A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,}(?:[^\S\n]*-[^\S\n]*[A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,}|[^\S\n]+[A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,})*)\s+n[ée]e?(?=\s)/;
     for (let i = 0; i < positions.length - 1; i++) {
       if (RE_LIEN_FAMILIAL.test(bloc.slice(Math.max(0, positions[i] - 40), positions[i]))) continue;
       const segment = bloc.slice(positions[i], positions[i + 1]);
@@ -785,12 +940,17 @@
     if (bornes.length === 0) return [];
     const noms = [];
     for (let i = 0; i < bornes.length; i++) {
+      // Même garde-fou que extraireNomsParNaissance : le conjoint nommé dans l'état civil
+      // (« Marié à Madame X », « pacte civil de solidarité avec Madame Y ») n'est pas une partie.
+      // Constaté sur un vrai compromis d'agence où les trois conjoints des vendeurs ressortaient
+      // vendeurs à leur tour.
+      if (RE_LIEN_FAMILIAL.test(fenetre.slice(Math.max(0, bornes[i].debut - 60), bornes[i].debut))) continue;
       const finSegment = i + 1 < bornes.length ? bornes[i + 1].debut : fenetre.length;
       const segment = fenetre.slice(bornes[i].fin, finSegment);
       // « NOM né(e) » d'abord : l'ancre la plus sûre quand la date de naissance est mentionnée
       // (même motif que extraireNomsParNaissance). Sinon le PREMIER mot en capitales du segment,
       // qui précède nécessairement l'adresse — c'est tout l'objet du correctif.
-      const parNaissance = segment.match(/\b([A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,}(?:[-\s][A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,})*)\s+n[ée]e?(?=\s)/);
+      const parNaissance = segment.match(/\b([A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,}(?:[^\S\n]*-[^\S\n]*[A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,}|[^\S\n]+[A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,})*)\s+n[ée]e?(?=\s)/);
       if (parNaissance && estNomValide(parNaissance[1])) { noms.push(parNaissance[1]); continue; }
       const premier = trouverNomDansFenetre(segment, 'first');
       if (premier) noms.push(premier.nom);
@@ -799,7 +959,7 @@
   }
 
   function trouverNomDansFenetre(fenetre, direction) {
-    const nomRe = /\b([A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,}(?:[-\s][A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,})*)\b/g;
+    const nomRe = /\b([A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,}(?:[^\S\n]*-[^\S\n]*[A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,}|[^\S\n]+[A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,})*)\b/g;
     let resultat = null;
     let nm;
     while ((nm = nomRe.exec(fenetre)) !== null) {
@@ -832,11 +992,11 @@
     // retombait sur la méthode « en-tête », qui va chercher le nom APRÈS le mot-clé et ramenait
     // donc celui de la partie suivante. Trouvé en écrivant le test de non-régression du couple.
     return /(^|[^A-Za-zÀ-ÿ])["«'’]\s*(?:les?|la|l['’]|du|des)?\s*$/i.test(avant) ||
-      /ci-apr[èe]s\s+d[ée]nomm[ée]e?s?\s+(?:les?|la|l['’])?\s*$/i.test(avant) ||
+      /ci\s*-\s*apr[èe]s\s+d[ée]nomm[ée]e?s?\s+(?:les?|la|l['’])?\s*$/i.test(avant) ||
       // Ordre des mots inversé, tout aussi courant : « Dénommés ci-après le PROMETTANT ». Sans
       // cette variante, l'étiquette n'était pas reconnue, le nom était cherché APRÈS le mot-clé,
       // et le dossier prenait le mot structurel qui suit (« ENSEMBLE D'UNE PART » → « ENSEMBLE »).
-      /d[ée]nomm[ée]e?s?\s+ci-apr[èe]s\s+(?:les?|la|l['’])?\s*$/i.test(avant);
+      /d[ée]nomm[ée]e?s?\s+ci\s*-\s*apr[èe]s\s+(?:les?|la|l['’])?\s*$/i.test(avant);
   }
 
   function extraireNomsRepli(texte, motRe) {
@@ -978,6 +1138,7 @@
   // rattacher une date issue d'un délai à l'échéance « prêt » — voir son usage dans ajouter().
   // `var` et non `const` : déclarée ainsi pour rester visible depuis le harnais de tests
   // (tests/helpers/load-app.js ne voit que les `function` et les `var` de premier niveau).
+  var RE_DELAI_DE_VERSEMENT = /indemnit[ée]\s+d['’]immobilisation|d[ée]p[ôo]t\s+de\s+garantie|\bverser\b|\bversement\b|virement|s[ée]questre/i;
   var VOCABULAIRE_PRET_CLAUSE_RE = /\bpr[êe]ts?\b|\bemprunt|\bfinancement\b/i;
 
   function suggererEcheance(contexte) {
@@ -1032,6 +1193,14 @@
     const candidats = detectedDates.filter(d => d.suggestion === type);
     if (candidats.length === 0) return { candidat: null, ambigu: false };
     if (candidats.length === 1) return { candidat: candidats[0], ambigu: false };
+    // Une date ÉCRITE dans l'acte l'emporte toujours sur une date CALCULÉE depuis un délai — même
+    // règle que construireDatesMetier. Sur un vrai compromis, « au plus tard dans les 2 mois et demi
+    // à compter de la signature, soit le 5 mars 2026 » donnait deux candidates ; la date calculée,
+    // plus ancienne, était reportée dans le formulaire alors que le panneau affichait la bonne.
+    const explicites = candidats.filter(d => !d.approx);
+    if (explicites.length && explicites.length < candidats.length) {
+      return meilleureCandidateEcheance(explicites, type);
+    }
     // Départage d'abord sur le SIGNAL FORT du type : une clause qui nomme l'objet même de
     // l'échéance l'emporte sur une clause qui ne fait que citer le mot au passage. Sans ça, sur une
     // vraie promesse, « la faculté de substitution ne pourra être exercée que jusqu'au 30 septembre
@@ -1186,9 +1355,17 @@
 
     const parties = [];
     let curseur = 0;
-    for (const cote of cotes) {
+    for (let iCote = 0; iCote < cotes.length; iCote++) {
+      const cote = cotes[iCote];
       const role = roleDepuisQualite(type, cote.qualite);
-      const resultat = nomsEtFinPourRole(source, cote.re, curseur);
+      // Le bloc d'une partie ne dépasse JAMAIS la première mention de la partie suivante : c'est la
+      // seule borne qui ne dépende d'aucune typographie. Les autres (« ci-après dénommé », titre en
+      // capitales) échouent dès que pdf.js espace un tiret (« Ci - après ») ou qu'un saut de page
+      // s'intercale — le bloc du PROMETTANT avalait alors le BÉNÉFICIAIRE, et tout l'acte ne
+      // comptait plus que des vendeurs (constaté sur deux vraies promesses unilatérales).
+      const suivante = cotes[iCote + 1];
+      const borne = suivante && suivante.index > cote.index ? suivante.index : source.length;
+      const resultat = nomsEtFinPourRole(source.slice(0, borne), cote.re, curseur);
       let noms = resultat.noms;
       const bloc = source.slice(cote.index, Math.min(source.length, cote.index + 1200));
 
@@ -1215,7 +1392,7 @@
       // BOURGUEIL et Madame BOUSSELET vendent la pleine propriété »), et l'acquéreur héritait alors
       // du nom des vendeurs.
       const dejaVus = new Set(parties.map(p => p.nom));
-      noms = noms.filter(n => !dejaVus.has(n));
+      noms = [...new Set(noms.map(normaliserEspacesNom))].filter(n => !dejaVus.has(n));
       for (const nom of noms) {
         parties.push({
           nom,
@@ -2506,8 +2683,37 @@
     return [voie, [adresse.codePostal, adresse.commune].filter(Boolean).join(' ')].filter(Boolean).join(', ');
   }
 
+  // Deux rédactions de la désignation SANS la tournure « sis à » que ADRESSE_BIEN_RE attend, toutes
+  // deux relevées sur de vraies promesses — et qui laissaient l'adresse du bien vide :
+  //  - trame d'office (LD Notaires, GOSSART) : « IDENTIFICATION DU BIEN — DÉSIGNATION — A BLOIS
+  //    (LOIR-ET-CHER) 41000 1 Rue Hannah Arendt, Une maison… ». pdf.js coupe parfois le titre en
+  //    « D ÉSIGNATION », d'où l'espace toléré ;
+  //  - « Commune de LANDES LE GAULOIS (41190) Une maison d'habitation situé(e) 510 rue Pitouille. »
+  // L'adresse reconstruite reprend l'ordre usuel (voie, code postal, commune).
+  var RE_DESIGNATION_TRAME_OFFICE = /D\s?[ÉE]\s?SIGNATION\s+(?:A|À)\s+([A-ZÀ-Ü][A-ZÀ-Ü'’\s-]{1,40}?)\s*\([^)]{2,40}\)\s*(\d{5})\s+([^,.\n]{2,80}?)\s*[,.]/;
+  var RE_DESIGNATION_COMMUNE_DE = /Commune\s+de\s+([A-ZÀ-Ü][A-ZÀ-Ü'’\s-]{1,40}?)\s*\(\s*(\d{5})\s*\)[^.]{0,120}?situ[ée]e?(?:\s*\(e\))?\s+(?:au\s+|[àa]\s+)?(\d+[^.,\n]{2,60}?)\s*[,.]/;
+
+  function adresseDesignationTrame(source) {
+    for (const re of [RE_DESIGNATION_TRAME_OFFICE, RE_DESIGNATION_COMMUNE_DE]) {
+      const m = re.exec(source);
+      if (!m) continue;
+      const commune = m[1].replace(/\s*-\s*/g, '-').replace(/\s+/g, ' ').trim();
+      const voie = m[3].replace(/\s+/g, ' ').trim();
+      const adresse = parserAdresse(`${voie}, ${m[2]} ${commune}`);
+      if (!adresse.codePostal) continue;
+      adresse.adresseComplete = adresseLisible(adresse);
+      return {
+        adresse,
+        source: { extrait: extraireContexte(source, m.index, m[0].length), index: m.index, page: pageDepuisIndex(m.index) }
+      };
+    }
+    return null;
+  }
+
   function detecterAdresseBienStructuree(texte) {
     const source = String(texte || '');
+    const parTrame = adresseDesignationTrame(source);
+    if (parTrame) return parTrame;
     const section = extraireSection(source, RE_SECTION_DESIGNATION, RE_SECTION_APRES_DESIGNATION);
     const zones = section ? [section, source] : [source];
 
@@ -3240,7 +3446,7 @@
   var RE_ENONCIATION_LEGALE = /\b(?:dispose|pr[ée]voit|[ée]nonce|stipule)\s+que\b|\baux\s+termes\s+de\s+l['’]article\b|\best\s+ainsi\s+r[ée]dig[ée]\b|\b\d{1,2}°\s/;
 
   var RE_TRAVAUX_GROS_OEUVRE = /\b(?:gros\s*[-\s]?\s*(?:œuvre|oeuvre)|murs?\s+porteurs?|charpente|toiture|couverture|fondations?|dalle|plancher|poutre|structure|sur[ée]l[ée]vation|ouverture\s+(?:dans|d['’]un)\s+(?:un\s+)?mur)\b/i;
-  var RE_TRAVAUX_EXTERIEUR = /\b(?:ext[ée]rieur|fa[çc]ade|ravalement|toiture|couverture|v[ée]randa|extension|agrandissement|piscine|abri\s+de\s+jardin|carport|garage|terrasse|cl[ôo]ture|portail|pergola|d[ée]pendance|annexe|combles\s+am[ée]nag)/i;
+  var RE_TRAVAUX_EXTERIEUR = /\b(?:ext[ée]rieur|fa[çc]ade|ravalement|toiture|couverture|v[ée]randa|extension|agrandissement|piscine|abri\s+de\s+jardin|carport|garage|terrasse|cl[ôo]ture|portail|pergola|d[ée]pendance|(?:b[âa]timent|construction|local)\s+annexe|combles\s+am[ée]nag)/i;
 
   var RE_AUTORISATION_URBANISME = /\b(?:d[ée]claration\s+pr[ée]alable|permis\s+de\s+construire|permis\s+d['’]am[ée]nager|autorisation\s+d['’]urbanisme|\bDP\s*n[°ºo]|\bPC\s*n[°ºo]|non[-\s]?opposition|d[ée]claration\s+attestant\s+l['’]ach[èe]vement)\b/i;
   var RE_DECENNALE = /\b(?:garantie\s+d[ée]cennale|assurance\s+d[ée]cennale|responsabilit[ée]\s+d[ée]cennale|dommages?[-\s]ouvrage)\b/i;
@@ -3379,13 +3585,13 @@
   // le lookahead l'écarte (même garde-fou que RE_LIEN_FAMILIAL, côté extraction des noms).
   var RE_STATUT_SEUL = /\bc[ée]libataires?\b|\bveuf\b|\bveuve\b|\bdivorc[ée]e?\b(?!\s*(?:de\b|d['’]))/i;
 
-  var RE_REGIME_MATRIMONIAL = /communaut[ée]\s+(?:l[ée]gale|universelle|r[ée]duite\s+aux\s+acqu[êe]ts|de\s+biens)|s[ée]paration\s+de\s+biens|participation\s+aux\s+acqu[êe]ts|r[ée]gime\s+(?:l[ée]gal|matrimonial)\b/i;
-  var RE_REGIME_PACS = /s[ée]paration\s+des\s+patrimoines|r[ée]gime\s+de\s+l['’]indivision|indivision\s+(?:l[ée]gale|conventionnelle)/i;
+  var RE_REGIME_MATRIMONIAL = /communaut[ée]\s+(?:l[ée]gale|universelle|r[ée]duite\s+aux\s+acqu[êe]ts|de\s+biens|d['’]acqu[êe]ts)|s[ée]paration\s+de\s+biens|participation\s+aux\s+acqu[êe]ts|r[ée]gime\s+(?:l[ée]gal|matrimonial)\b/i;
+  var RE_REGIME_PACS = /s[ée]paration\s+des\s+patrimoines|s[ée]paration\s+de\s+biens|r[ée]gime\s+de\s+l['’]indivision|indivision\s+(?:l[ée]gale|conventionnelle)/i;
 
   // Une clause de style qui NIE le statut (« ne sont liés par aucun pacte civil de solidarité »,
   // « non mariés ») contient le mot recherché : la retenir ferait de chaque acte un couple marié.
   // Même piège que RE_AUCUN_TRAVAUX et que la négation de copropriété, déjà payés ici deux fois.
-  var RE_NEGATION_STATUT = /\bnon\s+(?:mari[ée]|pacs[ée]|li[ée])|\bn['’](?:est|ont|a)\s+(?:pas|jamais)\b|\bne\s+sont\s+(?:pas|ni)\b|\baucun\s+pacte\b|\bni\s+mari[ée]|\bsans\s+(?:contrat|r[ée]gime)\b/i;
+  var RE_NEGATION_STATUT = /\bnon\s+(?:mari[ée]|pacs[ée]|li[ée]|engag[ée])|\bn['’](?:est|ont|a)\s+(?:pas|jamais)\b|\bn['’]\s*(?:[ée]tant|ayant)\s+pas\b|\bne\s+sont\s+(?:pas|ni)\b|\baucun\s+pacte\b|\bni\s+mari[ée]|\bsans\s+(?:contrat|r[ée]gime)\b/i;
   var FENETRE_NEGATION_STATUT = 90;
 
   // Quotités d'acquisition. « Quotités VENDUES » emploie exactement les mêmes tournures : on exige
@@ -3425,6 +3631,21 @@
     return meilleur ? meilleur.role : null;
   }
 
+  // Présentation de l'acquéreur : entre le libellé du vendeur et celui de l'acquéreur quand l'acte
+  // présente puis étiquette (« …, ci-après dénommé L'ACQUÉREUR »), ou le bloc qui suit le titre
+  // quand il titre puis présente (« BÉNÉFICIAIRE : Monsieur X… »). null si l'acquéreur n'est pas
+  // trouvé : la recherche porte alors sur tout le texte, comme avant.
+  function zonePresentationAcquereur(src, qV, qA) {
+    if (!qA || qA.index == null || qA.index < 0) return null;
+    const idx = qA.index;
+    if (estStyleLabelEntreGuillemets(src, idx)) {
+      const debut = qV && qV.index != null && qV.index < idx ? qV.index : Math.max(0, idx - 1500);
+      return { debut, fin: idx };
+    }
+    const bloc = extraireBlocPartie(src, qA.re, idx);
+    return { debut: idx, fin: bloc ? bloc.finAbsolue : Math.min(src.length, idx + 1500) };
+  }
+
   function detecterStatutAcquereurs(texte, pages) {
     const src = String(texte || '');
     if (!src) return { statut: null, regime: null, quotites: false, phrase: '', page: null };
@@ -3435,14 +3656,23 @@
     const reVendeur = qV ? qV.re : RE_ROLE_VENDEUR;
     const reAcquereur = qA ? qA.re : RE_ROLE_ACQUEREUR;
 
+    // Le statut n'est cherché QUE dans la présentation de l'acquéreur. Cherché dans tout l'acte, il
+    // s'accrochait à n'importe quelle clause qui cite un acquéreur et un conjoint (« le notaire
+    // notifie au syndic le nom du candidat acquéreur… et de son conjoint ») : une acquéreuse
+    // divorcée ressortait « mariée, régime non précisé » sur deux vrais actes.
+    const zone = zonePresentationAcquereur(src, qV, qA);
     const premiereMentionAcquereur = (re) => {
       const g = new RegExp(re.source, 'gi');
       let m;
       while ((m = g.exec(src)) !== null) {
         if (g.lastIndex === m.index) g.lastIndex++;
+        if (zone && (m.index < zone.debut || m.index > zone.fin)) continue;
         const avant = src.slice(Math.max(0, m.index - FENETRE_NEGATION_STATUT), m.index);
         if (RE_NEGATION_STATUT.test(avant)) continue;
-        if (roleLePlusProcheAvant(src, m.index, reVendeur, reAcquereur) !== 'ACQUEREUR') continue;
+        // La zone suffit quand elle est connue : sur un acte qui présente PUIS étiquette (« …, dénommés
+        // ci-après le BÉNÉFICIAIRE »), le marqueur de rôle le plus proche en amont est celui du VENDEUR,
+        // et le « célibataire » des bénéficiaires n'était jamais retenu.
+        if (!zone && roleLePlusProcheAvant(src, m.index, reVendeur, reAcquereur) !== 'ACQUEREUR') continue;
         return m.index;
       }
       return null;
@@ -3468,7 +3698,10 @@
       phrase = p.phrase;
       page = pageDepuisIndexPages(pages, p.debut);
       const reRegime = retenu.statut === 'pacse' ? RE_REGIME_PACS : RE_REGIME_MATRIMONIAL;
-      const mr = phrase.match(reRegime);
+      // Cherché dans la PHRASE ENTIÈRE et non dans l'extrait cité, que phraseAutour() coupe à une
+      // longueur fixe : « … un pacte civil de solidarité sous le régime de la sépar » — le régime,
+      // pourtant écrit, ressortait « non précisé ».
+      const mr = phraseContenant(src, retenu.index).texte.match(reRegime) || phrase.match(reRegime);
       if (mr) regime = mr[0].trim();
     }
 
@@ -3618,29 +3851,80 @@
   // Cherche chaque document connu dans le texte, puis la première date qui suit dans la même
   // phrase — la rédaction notariale est constante sur ce point (« … établi le 12 mars 2024 par la
   // société X », « … en date du 5 janvier 2026 »).
+  // Trois sortes de mentions d'un diagnostic qui NE décrivent PAS un document de CE dossier, et
+  // qui produisaient à elles seules l'essentiel du bruit du rapport (« trop de choses sans
+  // intérêt », dit l'étude) — rejoué sur neuf avant-contrats réels :
+  //  - le TABLEAU légal « durée de validité des documents constituant le dossier de diagnostic
+  //    technique », rappelé dans chaque trame d'office : chaque ligne (« Etat amiante Illimitée »,
+  //    « DPE 10 ans ») devenait un « date non trouvée » — huit constats par acte, sur tous les actes ;
+  //  - une phrase NORMATIVE (« Un audit énergétique doit être réalisé lorsque… ») ;
+  //  - une date de CALENDRIER LÉGAL (« à compter du 1er avril 2023 pour les logements de la classe F
+  //    ou G ») prise pour la date d'établissement — un audit « périmé » en CRITIQUE sur un acte qui
+  //    n'en annexait aucun.
+  // Une mention de ce type est ignorée ; si elles le sont toutes, le document n'est pas signalé.
+  var RE_LIGNE_TABLEAU_VALIDITE = /^[^.]{0,50}?(?:illimit[ée]e|\b\d{1,2}\s+(?:ans?|mois)\b)/i;
+  var RE_MENTION_NORMATIVE_DIAG = /\bdoi(?:t|vent)\s+(?:obligatoirement\s+)?[êe]tre\s+(?:r[ée]alis|[ée]tabli|fourni|annex|produit)|\best\s+obligatoire\b|\bsont\s+tenus\b/i;
+  var RE_DATE_CALENDRIER_LEGAL = /[àa]\s+compter\s+du|[àa]\s+partir\s+du|\b(?:loi|d[ée]cret|ordonnance|arr[êe]t[ée])\b/i;
+
+  // Le diagnostic n'est PAS requis pour ce bien, et l'acte le dit : « l'immeuble n'est pas inclus
+  // dans une zone contaminée », « ne comporte aucune installation intérieure de gaz », « permis de
+  // construire délivré après le 1er juillet 1997, il n'entre pas dans le champ d'application ». Sur
+  // deux actes réels, cette dernière date était lue comme celle du repérage amiante, qui ressortait
+  // « périmé » en CRITIQUE — alors qu'il n'y a précisément aucun repérage à produire.
+  var RE_DIAG_NON_REQUIS = /n['’]\s*(?:entre|est|sont)\s+pas\s+(?:dans\s+le\s+champ|inclus|concern|soumis|n[ée]cessaire|requis|[ée]quip|situ[ée])|\bne\s+comporte\s+(?:aucune?|pas)\b|\bn['’]a\s+pas\s+[ée]t[ée]\s+(?:[ée]tabli|r[ée]alis)|\baucun\s+[ée]tat\b|construits?\s+(?:apr[èe]s|post[ée]rieurement\s+au)\s+(?:le\s+)?1(?:er)?\s+janvier\s+1949|(?:d[ée]livr[ée]|permis)[^.]{0,60}(?:apr[èe]s|post[ée]rieurement\s+au)\s+(?:le\s+)?1(?:er)?\s+juillet\s+1997|\bpas\s+n[ée]cessaire\b|\bil\s+n['’]y\s+a\s+pas\s+lieu\b/i;
+
+  function mentionDiagnosticUtile(src, m) {
+    const apres = src.slice(m.index + m[0].length, m.index + m[0].length + 80);
+    if (RE_LIGNE_TABLEAU_VALIDITE.test(apres)) return null;
+    const phrase = phraseAutour(src, m.index, 120, 260).phrase;
+    if (RE_MENTION_NORMATIVE_DIAG.test(phrase)) return null;
+    if (RE_DIAG_NON_REQUIS.test(phrase)) return null;
+    const fragment = fragmentApres(src, m.index, 300);
+    let date = premiereDateDansFragment(fragment);
+    if (date) {
+      // La date n'est retenue que si rien, entre la mention et elle, n'en fait une date de loi.
+      const posDate = fragment.search(/\d{1,2}(?:er)?[\s\/.-]/);
+      const entre = posDate === -1 ? fragment : fragment.slice(0, posDate);
+      if (RE_DATE_CALENDRIER_LEGAL.test(entre)) date = null;
+    }
+    return { index: m.index, date, phrase };
+  }
+
   function detecterDocumentsDatesOutil2(texte, pages, aujourdHui) {
     const src = String(texte || '');
     const trouves = [];
     for (const cle of Object.keys(DOCUMENTS_VALIDITE_OUTIL2)) {
       const entree = DOCUMENTS_VALIDITE_OUTIL2[cle];
-      const re = new RegExp(entree.motif.source, 'i');
-      const m = src.match(re);
-      if (!m || m.index == null) continue;
-      const fragment = fragmentApres(src, m.index, 300);
-      const date = premiereDateDansFragment(fragment);
+      const re = new RegExp(entree.motif.source, 'gi');
+      let m;
+      let retenue = null;
+      while ((m = re.exec(src)) !== null) {
+        const mention = mentionDiagnosticUtile(src, m);
+        if (mention && (!retenue || (!retenue.date && mention.date))) retenue = mention;
+        if (retenue && retenue.date) break;
+        if (re.lastIndex === m.index) re.lastIndex++;
+      }
+      if (!retenue) continue;
+      const date = retenue.date;
+      m = { index: retenue.index };
       trouves.push({
         cle, label: entree.label, famille: entree.famille,
         dateEtablissement: date,
         page: pageDepuisIndexPages(pages, m.index),
-        phrase: phraseAutour(src, m.index, 120, 260).phrase,
+        phrase: retenue.phrase,
         validite: calculerValiditeDocumentOutil2(cle, date, aujourdHui)
       });
     }
     return trouves;
   }
 
+  // Les documents dont la date n'est pas écrite dans l'acte (elle figure dans le DDT annexé) sont
+  // REGROUPÉS en un seul constat par famille, qui les nomme tous : un par diagnostic, c'était cinq
+  // à huit lignes identiques sur chaque acte réel — la première cause du « trop de choses sans
+  // intérêt » signalé par l'étude. Rien n'est perdu : la liste est dans le titre du constat.
   function constatsDocumentsDates(documents) {
     const constats = [];
+    const sansDate = [];
     for (const d of documents || []) {
       const v = d.validite || {};
       if (v.statut === 'EXPIRE') {
@@ -3651,12 +3935,7 @@
           description: v.message, phrase: d.phrase, page: d.page
         });
       } else if (v.statut === 'DATE_MANQUANTE') {
-        constats.push({
-          categorie: d.famille === 'entretien' ? 'ENTRETIENS' : 'DIAGNOSTICS',
-          gravite: 'A_VERIFIER',
-          titre: `${d.label} : date non trouvée`,
-          description: v.message, phrase: d.phrase, page: d.page
-        });
+        sansDate.push(d);
       } else if (v.statut === 'NON_CALCULABLE') {
         constats.push({
           categorie: d.famille === 'entretien' ? 'ENTRETIENS' : 'DIAGNOSTICS',
@@ -3665,6 +3944,20 @@
           description: v.message, phrase: d.phrase, page: d.page
         });
       }
+    }
+    for (const famille of ['diagnostic', 'entretien']) {
+      const lot = sansDate.filter(d => (d.famille === 'entretien') === (famille === 'entretien'));
+      if (!lot.length) continue;
+      const libelles = lot.map(d => d.label);
+      constats.push({
+        categorie: famille === 'entretien' ? 'ENTRETIENS' : 'DIAGNOSTICS',
+        gravite: 'A_VERIFIER',
+        titre: lot.length === 1
+          ? `${libelles[0]} : date non trouvée dans l'acte`
+          : `${lot.length} ${famille === 'entretien' ? 'entretiens' : 'diagnostics'} sans date dans l'acte : ${libelles.join(', ')}`,
+        description: "L'acte les cite sans en donner la date d'établissement : la vérifier sur le dossier de diagnostic technique annexé, pour s'assurer qu'aucun n'aura expiré le jour de la signature.",
+        phrase: lot[0].phrase, page: lot[0].page
+      });
     }
     return constats;
   }
@@ -4166,7 +4459,7 @@
     {
       cle: 'patrimoine', gravite: 'IMPORTANT',
       libelle: 'Protection du patrimoine',
-      motif: /\b(monument\s+historique|site\s+(?:class[ée]|inscrit)|abords?\s+d['’]un\s+monument|architecte\s+des\s+b[âa]timents\s+de\s+France|\bABF\b|site\s+patrimonial\s+remarquable)(?![A-Za-z0-9_À-ɏ])/i,
+      motif: /\b(monument\s+historique|site\s+(?:class[ée]|inscrit)|abords?\s+d['’]un\s+monument|architecte\s+des\s+b[âa]timents\s+de\s+France|\bABF\b|\(\s*A\s+B\s+F\s*\)|\bAC1\b|site\s+patrimonial\s+remarquable)(?![A-Za-z0-9_À-ɏ])/i,
       destinataire: 'mairie',
       question: "Le bien est situé dans un périmètre de protection du patrimoine : pourriez-vous nous confirmer si l’avis de l’architecte des Bâtiments de France est requis pour les travaux envisagés ?"
     },
@@ -4259,6 +4552,59 @@
     return { type, document: (doc && doc.nom) || '', date: dateDuJustificatif(texte), rubriques };
   }
 
+  // Deux familles de mentions qui ne disent RIEN du terrain, trouvées sur un vrai certificat :
+  //  • les RENVOIS (« Le certificat d'alignement est à demander à la même adresse ») — même
+  //    piège que pour la checklist de pièces, d'où la réutilisation de RE_SIMPLE_RENVOI_PIECE ;
+  //  • les CLAUSES DE STYLE imprimées sur tout certificat (« sans préjudice du droit des tiers
+  //    (… servitudes de vue … cahier des charges du lotissement …) que le certificat ne vérifie
+  //    pas », « prorogé si les servitudes d'urbanisme n'ont pas évolué »).
+  // Chaque occurrence est jugée séparément : une vraie mention plus loin dans le document compte.
+  var RE_CLAUSE_STYLE_CU = /ne\s+v[ée]rifie\s+pas|droit\s+des\s+tiers|prorog[ée]|dur[ée]e\s+de\s+validit[ée]|n['’]ont\s+pas\s+[ée]volu[ée]/i;
+
+  function occurrenceUtileCertificat(motif, texte) {
+    const re = new RegExp(motif.source, motif.flags.includes('g') ? motif.flags : motif.flags + 'g');
+    let m;
+    while ((m = re.exec(texte)) !== null) {
+      const { phrase } = phraseAutour(texte, m.index, 120, 300);
+      if (RE_SIMPLE_RENVOI_PIECE.test(phrase)) continue;
+      // Un visa (« Vu le plan de prévention des risques… ») dit qu'un texte existe sur la
+      // commune, pas qu'il concerne ce terrain : c'est l'article du certificat qui le dit.
+      if (RE_VISA_CU.test(texte.slice(Math.max(0, m.index - 320), m.index))) continue;
+      // La clause de style s'étend sur plusieurs phrases (et une énumération finie par « … ») :
+      // elle est jugée sur une fenêtre autour de l'occurrence, pas sur la seule phrase.
+      if (RE_CLAUSE_STYLE_CU.test(texte.slice(Math.max(0, m.index - 250), m.index + 150))) continue;
+      return m;
+    }
+    return null;
+  }
+
+  // La date d'un certificat est celle de sa DÉLIVRANCE, et seulement elle. Un certificat s'ouvre
+  // par des visas (« Vu le PLUi approuvé le 29 novembre 2022 », « Vu le PPRI approuvé le… ») :
+  // prendre « la première date du document », comme pour un justificatif ordinaire, retenait la
+  // date du PLU et déclarait périmé un certificat délivré trois mois plus tôt — constaté sur un
+  // vrai CU. Aucun repli sur la première date, donc : sans marqueur de délivrance, pas de date.
+  var RE_DELIVRANCE_CU = /d[ée]livr[ée]\s+le|fait\s+[àa]\s+[^,.\n]{1,40},?\s+le|sign[ée]\s+le|arr[êe]t[ée]\s+le/gi;
+  // Les visas se terminent au point-virgule, ou au verbe du dispositif (« CERTIFIE », « ARRÊTE »)
+  // qui ouvre les articles : une mention qui suit ce verbe n'est plus un visa.
+  var RE_VISA_CU = /\b[Vv]u\s+(?:le|la|les|l['’])\b(?:(?!CERTIFIE|ARR[ÊE]TE|ARTICLE|D[ÉE]CIDE)[^;]){0,320}$/;
+  var RE_DEMANDE_CU = /demande\s+(?:d[ée]pos[ée]e|re[çc]ue|enregistr[ée]e)\s+le\s*([0-9]{1,2}\s*\/\s*[0-9]{1,2}\s*\/\s*[0-9]{4}|[0-9]{1,2}(?:er)?\s+[a-zéû]+\s+[0-9]{4})/i;
+
+  function datesCertificatUrbanisme(texte) {
+    const src = String(texte || '');
+    let date = null;
+    const re = new RegExp(RE_DELIVRANCE_CU.source, 'gi');
+    let m;
+    while ((m = re.exec(src)) !== null) {
+      // « délibération … en date du 29 novembre 2022 » dans un visa : ce n'est pas la délivrance.
+      if (RE_VISA_CU.test(src.slice(Math.max(0, m.index - 200), m.index))) continue;
+      const d = premiereDateDansFragment(src.slice(m.index + m[0].length, m.index + m[0].length + 60));
+      if (d) { date = d; break; }
+    }
+    const md = RE_DEMANDE_CU.exec(src);
+    const dateDemande = md ? premiereDateDansFragment(md[1].replace(/\s*\/\s*/g, '/')) : null;
+    return { date, dateDemande };
+  }
+
   function analyserCertificatUrbanisme(doc) {
     const texte = String((doc && doc.texte) || '');
     const pages = (doc && doc.pages) || null;
@@ -4269,7 +4615,7 @@
     const operationnel = /\bcertificat\s+d['’]?\s*urbanisme\s+op[ée]rationnel\b|\bCU\s*b\s*\)|\bL\.?\s*410-1\s*b\b|\b2[°º]\s*de\s+l['’]article\s+L\.?\s*410-1\b/i.test(texte);
     const points = [];
     for (const p of POINTS_CERTIFICAT_URBANISME) {
-      const m = p.motif.exec(texte);
+      const m = occurrenceUtileCertificat(p.motif, texte);
       if (!m) continue;
       const fragment = fragmentApres(texte, m.index, FENETRE_RUBRIQUE_ETAT_DATE);
       if (RE_RUBRIQUE_VIDE.test(fragment)) continue;
@@ -4278,9 +4624,9 @@
         page: pages ? pageDepuisIndexPages(pages, m.index) : null,
         destinataire: p.destinataire, question: p.question });
     }
-    const date = dateDuJustificatif(texte);
+    const { date, dateDemande } = datesCertificatUrbanisme(texte);
     return {
-      document: (doc && doc.nom) || '', date, points,
+      document: (doc && doc.nom) || '', date, dateDemande, points,
       genre: operationnel ? 'b' : 'a',
       expiration: date ? ajouterMois(date, MOIS_VALIDITE_CU) : null
     };
@@ -4337,7 +4683,16 @@
     const liste = (analyses || []).filter(Boolean);
     const constats = [];
     for (const a of liste) {
-      if (!a.date) {
+      if (!a.date && a.dateDemande && ajouterMois(a.dateDemande, MOIS_VALIDITE_CU) >= aujourdHui) {
+        // La délivrance est forcément postérieure à la demande : si la demande date de moins de
+        // 18 mois, le certificat est encore valable quelle que soit sa date exacte.
+        constats.push({
+          categorie: 'URBANISME', gravite: 'INFORMATION',
+          titre: `Certificat d’urbanisme valable au moins jusqu’au ${formatDateFr(ajouterMois(a.dateDemande, MOIS_VALIDITE_CU))}`,
+          description: `Date de délivrance non lue sur le document ; la demande ayant été déposée le ${formatDateFr(a.dateDemande)}, sa validité de ${MOIS_VALIDITE_CU} mois court au plus tôt depuis cette date.`,
+          document: a.document
+        });
+      } else if (!a.date) {
         constats.push({
           categorie: 'URBANISME', gravite: 'A_VERIFIER',
           titre: "Certificat d’urbanisme sans date de délivrance lisible",
@@ -4823,6 +5178,10 @@
   // aucune action ou litige en cours… ») : la retenir produirait une alerte sur chaque dossier.
   // Même piège que RE_AUCUN_TRAVAUX et que la négation de copropriété, déjà payés ici.
   var RE_AUCUN_LITIGE = /\b(?:aucun[e]?\s+(?:action|litige|proc[ée]dure|instance|contentieux)|n['’]existe\s+(?:[àa]\s+ce\s+jour\s+)?aucun|pas\s+de\s+(?:litige|proc[ée]dure|contentieux))/i;
+  // Un RAPPEL de la loi (« cette contestation doit impérativement prendre la forme d'une action en
+  // justice, assignation … devant le tribunal ») n'est pas une procédure en cours : il ne déclare
+  // rien sur ce bien. Présent dans deux actes réels du corpus (droit de contestation en copropriété).
+  var RE_PROCEDURE_NORMATIVE = /\b(?:doit|doivent|devra|devront|peut|peuvent|pourra|pourront)\b[^.]{0,80}(?:action\s+en\s+justice|assignation|proc[ée]dure|tribunal)/i;
 
   // Un acte notarial emploie « procédure » à tout propos (procédure de préemption, d'appel de
   // fonds, procédure de purge…) : seuls des marqueurs de VRAI contentieux sont retenus.
@@ -4877,6 +5236,7 @@
       const p = nouveau(m.index, 250, 500);
       if (!p) continue;
       if (RE_AUCUN_LITIGE.test(p.phrase)) continue;
+      if (RE_PROCEDURE_NORMATIVE.test(p.phrase)) continue;
       // La phrase citée s'arrête au premier point ; or « l'ACQUEREUR s'oblige à faire son affaire
       // personnelle de cette procédure » arrive deux phrases plus loin dans l'acte réel envoyé par
       // l'étude. On CITE court et on JUGE sur la clause entière — sans cette distinction, le cas
@@ -5411,13 +5771,16 @@
   // cette origine est le travail du notaire sur le titre, pas un justificatif à demander au vendeur.
   // « trentenaire » seul ne suffisait pas — la rédaction la plus courante écrit « trente ans » en toutes
   // lettres et n'emploie jamais l'adjectif.
-  const EXCLUSION_ENGAGEMENT_RE = /urbanisme|permis\s+de\s+construire|d[ée]claration\s+pr[ée]alable|droit\s+de\s+pr[ée]emption|\bdia\b|bornage|servitude|cadastr|copropri[ée]t[ée]|syndic|assembl[ée]e\s+g[ée]n[ée]rale|[ée]tat\s+dat[ée]|fonds\s+de\s+travaux|charges\s+de\s+copropri[ée]t[ée]|taxe\s+fonci[èe]re|imp[ôo]t\s+foncier|quitus\s+fiscal|hypoth[ée]|mainlev[ée]e|certificat\s+de\s+radiation|privil[èe]ge\s+de\s+pr[êe]teur|demande\s+de\s+visite|trentenaire|origine\s+de\s+propri[ée]t[ée]|titre\s+translatif/i;
+  // « nouvelles législations / dispositions légales » : clause de style (« Si … de nouvelles
+  // législations protectrices venaient à entrer en application, le PROMETTANT s’engage à fournir… »),
+  // présente dans trois actes du corpus réel — une hypothèse, pas une pièce à réclamer.
+  const EXCLUSION_ENGAGEMENT_RE = /urbanisme|permis\s+de\s+construire|d[ée]claration\s+pr[ée]alable|droit\s+de\s+pr[ée]emption|\bdia\b|bornage|servitude|cadastr|copropri[ée]t[ée]|syndic|assembl[ée]e\s+g[ée]n[ée]rale|[ée]tat\s+dat[ée]|fonds\s+de\s+travaux|charges\s+de\s+copropri[ée]t[ée]|taxe\s+fonci[èe]re|imp[ôo]t\s+foncier|quitus\s+fiscal|hypoth[ée]|mainlev[ée]e|certificat\s+de\s+radiation|privil[èe]ge\s+de\s+pr[êe]teur|demande\s+de\s+visite|trentenaire|origine\s+de\s+propri[ée]t[ée]|titre\s+translatif|nouvelles?\s+(?:l[ée]gislations?|dispositions?\s+l[ée]gales)/i;
 
   // Clauses purement hypothétiques : « SI le bien VENAIT À se trouver en zone contaminée, le
   // vendeur s'engage à fournir un état parasitaire ». Rien n'est dû tant que l'hypothèse ne se
   // réalise pas — ce n'est pas une pièce à réclamer à l'ouverture du dossier, contrairement au
   // renouvellement d'un diagnostic ou d'un entretien, qui lui est ferme et daté.
-  const CLAUSE_HYPOTHETIQUE_RE = /\bsi\s+(?:les?|la|des|le\s+bien|l[ea]s?\s+biens?)[^.]{0,120}?\b(?:venai(?:en)?t|se\s+r[ée]v[ée]lai(?:en)?t|[ée]tai(?:en)?t|devai(?:en)?t|s'av[ée]rai(?:en)?t)(?=\s)|\bdans\s+(?:le\s+cas|l.hypoth[èe]se)\s+o[ùu](?=\s)|\bau\s+cas\s+o[ùu](?=\s)|\bs'il\s+(?:venait|s'av[ée]rait|appara[îi]ssait)(?=\s)|\bviendrai(?:en)?t\s+[àa]\s+se\s+trouver|\bsi\s+d(?:es|e\s+telles?)\b[^.]{0,80}\bse\s+r[ée]v[ée]lai(?:en)?t(?=\s|,)|\b(?:appara[îi]traient|surviendrai(?:en)?t|se\s+r[ée]v[ée]lerai(?:en)?t)(?=\s|,)/i;
+  const CLAUSE_HYPOTHETIQUE_RE = /\bsi\s+(?:les?|la|des|le\s+bien|l[ea]s?\s+biens?)[^.]{0,120}?\b(?:venai(?:en)?t|se\s+r[ée]v[ée]lai(?:en)?t|[ée]tai(?:en)?t|devai(?:en)?t|s['’]av[ée]rai(?:en)?t)(?=\s)|\bdans\s+(?:le\s+cas|l.hypoth[èe]se)\s+o[ùu](?=\s)|\bau\s+cas\s+o[ùu](?=\s)|\bs'il\s+(?:venait|s'av[ée]rait|appara[îi]ssait)(?=\s)|\bviendrai(?:en)?t\s+[àa]\s+se\s+trouver|\bsi\s+d(?:es|e\s+telles?)\b[^.]{0,80}\bse\s+r[ée]v[ée]lai(?:en)?t(?=\s|,)|\b(?:appara[îi]traient|surviendrai(?:en)?t|se\s+r[ée]v[ée]lerai(?:en)?t)(?=\s|,)/i;
 
   // Occupation, jouissance et libération des lieux : elles relèvent des modalités de remise du
   // bien le jour de l'acte, pas des pièces ou travaux à obtenir en amont.
@@ -5616,7 +5979,12 @@
     // Selon la nature de l'acte, le vendeur peut être désigné VENDEUR (compromis synallagmatique)
     // ou PROMETTANT (promesse unilatérale de vente, souvent réitérée par acte authentique) : les
     // deux rôles portent la même obligation de délivrance et sont traités de façon identique.
-    const re = /\ble\s+(?:vendeur|promettant)\s+(?:s'engage(?:\s+à)?|s'oblige(?:\s+à)?|devra|remettra|produira|fournira|communiquera|justifiera|fera\s+son\s+affaire)\b/gi;
+    // Apostrophe DROITE ou TYPOGRAPHIQUE : les actes d'office écrivent « s’engage » (’), et seule
+    // la forme droite était reconnue — sur les promesses réelles du corpus, la quasi-totalité des
+    // obligations du vendeur passait ainsi inaperçue. Le subjonctif d'une condition particulière
+    // (« Que le PROMETTANT remette en état, dès avant l'acte authentique, le coffret électrique »)
+    // est une obligation au même titre.
+    const re = /\ble\s+(?:vendeur|promettant)\s+(?:s['’]\s*engage(?:\s+à)?|s['’]\s*oblige(?:\s+à)?|devra|remettra|produira|fournira|communiquera|justifiera|fera\s+son\s+affaire)\b|\bque\s+le\s+(?:vendeur|promettant)\s+(?:remette|fasse|produise|fournisse|justifie|r[ée]alise|proc[èe]de)\b/gi;
     let m;
     while ((m = re.exec(texte)) !== null) {
       let fin = m.index;
@@ -5873,23 +6241,43 @@
 
   // Extrait la phrase contenant la date (bornée par un maximum de caractères) plutôt qu'une simple
   // fenêtre de N caractères, pour éviter qu'un mot-clé d'une phrase voisine ne s'y mélange.
+  // Un point qui NE termine PAS la phrase : abréviation (« article L. 313-41 », « art. », « Me. »)
+  // ou séparateur de milliers (« 20.700,00 € »). Pris pour une fin de phrase, il coupait le contexte
+  // d'une vraie échéance de prêt (« L'obtention du ou des prêts devra, … article L. 313-41 du Code
+  // de la consommation, intervenir au plus tard le 5 Août 2023 ») juste avant le mot « prêts » :
+  // la date restait sans catégorie et une autre, sans rapport, prenait sa place.
+  function pointNonTerminal(texte, i) {
+    const avant = texte.slice(Math.max(0, i - 5), i);
+    if (/\d$/.test(avant) && /^\d/.test(texte.slice(i + 1, i + 2))) return true;
+    return /(?:^|[\s(])(?:[A-Z]|art|Art|al|cf|Me|MM|Mme|Mlle|St|Ste)$/.test(avant);
+  }
+
   function extraireContexte(texte, index, longueur) {
     const MAX_AVANT = 260, MAX_APRES = 220;
     let debut = index;
     let n = 0;
     while (debut > 0 && n < MAX_AVANT) {
       const ch = texte[debut - 1];
-      if (ch === '.') break;
+      if (ch === '.' && !pointNonTerminal(texte, debut - 1)) break;
       debut--; n++;
     }
     let fin = index + longueur;
     n = 0;
     while (fin < texte.length && n < MAX_APRES) {
       const ch = texte[fin];
-      if (ch === '.') { fin++; break; }
+      if (ch === '.' && !pointNonTerminal(texte, fin)) { fin++; break; }
       fin++; n++;
     }
     return texte.slice(debut, fin).replace(/\s+/g, ' ').trim();
+  }
+
+  // « dans les 2 mois ET DEMI » : le demi-mois (quinze jours) était ignoré, et la date calculée
+  // tombait quinze jours trop tôt — constaté sur un vrai compromis, dont l'acte donnait lui-même la
+  // date exacte juste après (« soit le 5 mars 2026 »), qui correspond bien à 2 mois + 15 jours.
+  function echeanceDepuisDelai(texte, finMotif, base, delai) {
+    const iso = calculerDateEcheance(base, delai);
+    if (!iso || delai.unite !== 'mois') return iso;
+    return /^\s+et\s+demi\b/i.test(texte.slice(finMotif, finMotif + 20)) ? addDays(iso, 15) : iso;
   }
 
   function detecterDatesDepuisTexte(texte, dateCompromis) {
@@ -5938,7 +6326,11 @@
       // écartée en amont par le garde-fou « notifier/notification » de reAuPlusTardDelai et
       // reAuPlusTardApres, avant même d'arriver ici. La date reste marquée « ≈ estimée », donc
       // signalée comme à vérifier, exactement comme les autres dates déduites d'un délai.
-      if (!suggestion && calcul) {
+      // Jamais pour un délai de VERSEMENT (indemnité, dépôt de garantie) : sur une vraie promesse,
+      // « verser … au plus tard dans les dix jours à compter des présentes » suit immédiatement le
+      // tableau de financement (« Fonds empruntés… »), et la date de versement de l'indemnité
+      // ressortait classée « prêt ».
+      if (!suggestion && calcul && !RE_DELAI_DE_VERSEMENT.test(contexte)) {
         const clause = texte.slice(Math.max(0, index - 600), index + longueur);
         if (VOCABULAIRE_PRET_CLAUSE_RE.test(clause)) suggestion = 'pret';
       }
@@ -6009,13 +6401,13 @@
       const reDelai = new RegExp('d[ée]lai\\s+de\\s+' + MOTIF_NOMBRE + '\\s*(jours?|mois)\\s+(?:[àa]\\s+compter|[àa]\\s+partir)\\s+de\\s+(?:la\\s+signature|ce\\s+jour|l[\'’]acte|la\\s+pr[ée]sente|le\\s+pr[ée]sent\\s+(?:compromis|acte)|la\\s+promesse)', 'gi');
       while ((m = reDelai.exec(texte)) !== null) {
         const delai = { valeur: valeurNombre(m[1]), unite: uniteDelai(m[2]) };
-        ajouter(calculerDateEcheance(dateCompromis, delai), m[0], m.index, m[0].length, true,
+        ajouter(echeanceDepuisDelai(texte, m.index + m[0].length, dateCompromis, delai), m[0], m.index, m[0].length, true,
           { delai, pointDepart: 'signature', baseDate: dateCompromis });
       }
       const reJPlus = /\bJ\s*\+\s*(\d{1,3})\b/g;
       while ((m = reJPlus.exec(texte)) !== null) {
         const delai = { valeur: parseInt(m[1], 10), unite: 'jours' };
-        ajouter(calculerDateEcheance(dateCompromis, delai), m[0], m.index, m[0].length, true,
+        ajouter(echeanceDepuisDelai(texte, m.index + m[0].length, dateCompromis, delai), m[0], m.index, m[0].length, true,
           { delai, pointDepart: 'signature', baseDate: dateCompromis });
       }
       // "au plus tard dans les 60 jours" (ou "dans un délai de 60 jours") : formulation réelle
@@ -6040,7 +6432,7 @@
         const avant = texte.slice(Math.max(0, m.index - 200), m.index);
         if (/notifier|notification/i.test(avant)) continue;
         const delai = { valeur: valeurNombre(m[1]), unite: uniteDelai(m[2]) };
-        ajouter(calculerDateEcheance(dateCompromis, delai), m[0], m.index, m[0].length, true,
+        ajouter(echeanceDepuisDelai(texte, m.index + m[0].length, dateCompromis, delai), m[0], m.index, m[0].length, true,
           { delai, pointDepart: 'signature', baseDate: dateCompromis });
       }
       // "au plus tard 60 jours après la signature des présentes" : autre formulation réelle de la
@@ -6054,7 +6446,7 @@
         const avant = texte.slice(Math.max(0, m.index - 200), m.index);
         if (/notifier|notification/i.test(avant)) continue;
         const delai = { valeur: valeurNombre(m[1]), unite: uniteDelai(m[2]) };
-        ajouter(calculerDateEcheance(dateCompromis, delai), m[0], m.index, m[0].length, true,
+        ajouter(echeanceDepuisDelai(texte, m.index + m[0].length, dateCompromis, delai), m[0], m.index, m[0].length, true,
           { delai, pointDepart: 'signature', baseDate: dateCompromis });
       }
     }
@@ -16056,7 +16448,12 @@
   // tableau. Ces motifs ont été écrits sur de vrais décomptes — ne pas les resserrer sans
   // relire les tests correspondants (tests/appel-de-fonds.test.js), même consigne que pour les
   // regex de détection de dates.
-  var AF_MONTANT_FIN_RE = /([0-9]{1,3}(?:[.\s ][0-9]{3})*,[0-9]{2})\s*€\s*$/;
+  var AF_MONTANT_FIN_RE = /([0-9]{1,3}(?:[.\s ][0-9]{3})*,[0-9]{2})(?:\s*€)+\s*$/;
+  // Un libellé coupé par la mise en page du confrère (« …frais et droits de l’acte de » / « prêt »)
+  // laisse sur la ligne SUIVANTE un ou deux mots en minuscules, sans montant : c’est la fin du
+  // libellé précédent, pas le début du suivant. Borné à 35 caractères et à des minuscules : un
+  // vrai libellé de ligne commence par une majuscule.
+  var AF_FIN_LIBELLE_RE = /^[a-zà-ÿ][a-zà-ÿ'’\s-]{0,35}$/;
   var AF_EURO_SEUL_RE = /€\s*$/;
   // « Offerts », « Néant », « pour mémoire »… : une ligne complète, mais sans chiffre.
   var AF_SANS_MONTANT_RE = /[(]?\b(offerts?|n[ée]ant|directement\s+au\s+syndic|sans\s+objet|non\s+concern[ée]|(?:pour\s+)?m[ée]moire)\b[)]?\s*$/i;
@@ -16130,7 +16527,7 @@
   // « frais d'acte de prêt » n'est pas « frais d'acte » et doit sortir avant lui.
   var LIBELLES_NORMALISES_DECOMPTE = [
     // À écarter d'abord : ces lignes ressemblent aux suivantes sans être elles.
-    { garde: true, motif: /\bfrais\s+d?['’]?\s*acte\s+de\s+pr[êe]t\b|\bfrais\s+de\s+pr[êe]ts?\b|\bfrais\s+de\s+(?:promesse|mainlev[ée]e|n[ée]gociation)\b/i },
+    { garde: true, motif: /\bfrais\s+d?['’]?\s*acte\s+de\s+pr[êe]t\b|\bacte\s+de\s+pr[êe]t\b|\bfrais\s+de\s+pr[êe]ts?\b|\bfrais\s+de\s+(?:promesse|mainlev[ée]e|n[ée]gociation)\b/i },
 
     { libelle: 'Acompte sur frais versé à l’étude',
       motif: /\b(?:provision|acompte)\s+sur\s+(?:les\s+)?frais\b|\bprovision\s+(?:d[ée]jà\s+)?vers[ée]e\b/i },
@@ -16242,6 +16639,8 @@
     let signe = 1;
     let libelleEnAttente = null;
     let ligneHorsPrixVue = false;
+    // Dernière ligne ajoutée, pour y rattacher une fin de libellé renvoyée à la ligne suivante.
+    let derniere = null;
 
     // Un décompte répète parfois le prix (une fois en tête, une fois dans le corps) : on ne garde
     // que la DERNIÈRE occurrence rencontrée avant la première vraie ligne de frais, et on le dit.
@@ -16256,8 +16655,8 @@
     };
 
     for (const ligne of lignes) {
-      if (AF_BASCULE_DEBIT_RE.test(ligne)) { viderCandidatsPrix(); signe = 1; libelleEnAttente = null; continue; }
-      if (AF_BASCULE_CREDIT_RE.test(ligne)) { viderCandidatsPrix(); signe = -1; libelleEnAttente = null; continue; }
+      if (AF_BASCULE_DEBIT_RE.test(ligne)) { viderCandidatsPrix(); signe = 1; libelleEnAttente = null; derniere = null; continue; }
+      if (AF_BASCULE_CREDIT_RE.test(ligne)) { viderCandidatsPrix(); signe = -1; libelleEnAttente = null; derniere = null; continue; }
       if (/^(votre\s+d[ée]compte|d[ée]compte\s+(pr[ée]visionnel|acqu[ée]reur))/i.test(ligne)) continue;
 
       const mRef = /^r[ée]f[ée]rences?\s+dossier\s*:\s*(.+)$/i.exec(ligne);
@@ -16268,6 +16667,7 @@
         viderCandidatsPrix();
         meta.soldeDeclare = deux.second;
         libelleEnAttente = null;
+        derniere = null;
         continue;
       }
 
@@ -16280,6 +16680,11 @@
           ligneHorsPrixVue = true;
           brut.push({ libelle: libelle || '(ligne)', montant: 0, signe, formule: null, id: afIdLigne(), memoire: estMemoire });
           libelleEnAttente = null;
+          continue;
+        }
+        if (!libelleEnAttente && derniere && AF_FIN_LIBELLE_RE.test(ligne)) {
+          derniere.libelle = derniere.libelle + ' ' + ligne;
+          derniere = null;
           continue;
         }
         // Pas de montant : c'est un libellé dont le montant est sur la ligne suivante.
@@ -16309,12 +16714,13 @@
       // matcherait aucun des deux motifs, tous deux ancrés en début de chaîne.
       libelle = afNettoyerLibelle(libelle);
 
-      if (AF_SOUS_TOTAL_RE.test(libelle)) { viderCandidatsPrix(); meta.soldeDeclare = montant; continue; }
-      if (AF_LIGNE_PRIX_RE.test(libelle) && !ligneHorsPrixVue) { candidatsPrix.push({ libelle, montant }); continue; }
+      if (AF_SOUS_TOTAL_RE.test(libelle)) { viderCandidatsPrix(); meta.soldeDeclare = montant; derniere = null; continue; }
+      if (AF_LIGNE_PRIX_RE.test(libelle) && !ligneHorsPrixVue) { derniere = { libelle, montant }; candidatsPrix.push(derniere); continue; }
 
       viderCandidatsPrix();
       ligneHorsPrixVue = true;
-      brut.push({ libelle, montant, signe, formule, id: afIdLigne() });
+      derniere = { libelle, montant, signe, formule, id: afIdLigne() };
+      brut.push(derniere);
     }
     viderCandidatsPrix();
 
