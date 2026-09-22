@@ -6850,6 +6850,30 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
 
 ## Ce qui reste ouvert / pas encore fait
 
+- **Signature manuscrite de Bastien ANGLUMENT, conservée pour le courrier d'appel de fonds**
+  (`docs/assets/signature-anglument.png`, 223×103 px, fond transparent) : fournie par l'étude avec
+  la consigne explicite « garde cela pour plus tard » — **rien n'est branché**, ni dans l'aperçu ni
+  dans le `.docx`. Sa place naturelle est sous le nom du notaire en fin de courrier
+  (`{notaire}` dans le modèle Word). Trois points à ne pas redécouvrir le jour où l'étude le
+  demandera :
+  - **Le modèle Word n'a pas de placeholder d'image** et sa liste de champs est fermée (voir
+    l'entrée du générateur) — insérer une image demande soit un `{%signature}` avec le module
+    image de docxtemplater (dépendance supplémentaire, chargée d'un CDN aujourd'hui bloqué ici),
+    soit de poser l'image directement dans `word/document.xml` + `word/media/` + les relations,
+    et de régénérer le base64 de `appel-de-fonds-modele.js`. La seconde voie n'ajoute aucune
+    dépendance et reste cohérente avec la façon dont le modèle a déjà été retouché à la main.
+  - **Côté aperçu**, l'image passe par `APPEL_FONDS_MODELE.assets` comme les data-URI déjà en
+    place (`logoNotaires`/`logoOffice`/`iconVisio`) — jamais un `<img src>` vers un fichier servi
+    à part, qui ne survivrait pas au `.docx`.
+  - **Piège de déploiement déjà payé deux fois** (`questionnaire-satisfaction-pdf.js`,
+    `appel-de-fonds-modele.js`) : tout nouveau fichier servi statiquement doit être déclaré À LA
+    FOIS dans `ASSETS_STATIQUES` (`server/src/app.js`) **et** dans les assets embarqués du `.exe`
+    (`server/scripts/build-windows-exe.mjs`) — sans les deux, il fait un 404 silencieux.
+  - **Question à trancher avec l'étude avant de construire** : la signature doit-elle figurer sur
+    tous les courriers, ou seulement ceux qu'elle signe elle-même (les trois responsables n'ont
+    pas la même) ? Une signature apposée automatiquement sur le courrier d'un collègue serait une
+    erreur bien plus coûteuse qu'un champ vide.
+
 - **Générateur d'appel de fonds : l'aperçu de pagination A4 de l'artefact n'est pas repris**
   (la coupure visuelle « page 2 » quand le courrier déborde) — calé sur les marges réelles du
   modèle Word par un ratio mesuré, donc fragile, et sans effet sur le fichier produit. À ne
