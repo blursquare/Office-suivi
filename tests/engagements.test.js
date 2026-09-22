@@ -151,3 +151,60 @@ test('l’exclusion de l’origine de propriété reste étroite', () => {
   assert.equal(e.length, 1);
   assert.equal(e[0].type, 'document');
 });
+
+// Chaque obligation de fournir un document ou de justifier d'un entretien doit apparaître dans
+// « Documents et pièces identifiés » — signalé par l'étude, reproduit sur deux actes réels
+// (structures reprises, noms inventés).
+test('« entretien de chaudière » sans article est reconnu comme document à fournir', () => {
+  const app = chargerApplication();
+  const e = app.extraireEngagementsVendeur(
+    "Etant donné que l'entretien de chaudière aura plus d'un an le jour de l'acte, le vendeur " +
+    "s'engage au plus tard pour l'acte authentique à communiquer un nouvel entretien de chaudière.");
+  assert.equal(e.length, 1);
+  const labels = app.detecterDocumentsAFournir(e).map(d => d.label).join('|');
+  assert.equal(labels, "Justificatif d'entretien de la chaudière");
+});
+
+test('le verbe « ramoner » vaut justificatif de ramonage', () => {
+  const app = chargerApplication();
+  const e = app.extraireEngagementsVendeur('Le vendeur s’engage à faire ramoner les conduits avant la vente.');
+  assert.equal(e.length, 1);
+  assert.equal(app.detecterDocumentsAFournir(e).map(d => d.label).join('|'), 'Justificatif de ramonage');
+});
+
+test('une énumération de pièces donne un document par élément, connu ou non', () => {
+  const app = chargerApplication();
+  const docs = app.detecterDocumentsAFournir([{ type: 'document', phrase:
+    "Le PROMETTANT s’engage à remettre à l’ ACQUEREUR au plus tard lors de la signature de l’acte " +
+    "authentique de vente, les documents ci - après énumérés : - la facture finale du constructeur ; " +
+    "- les plans des réseaux ainsi que, le cas échéant, les plans du chauffage au sol ." }]);
+  assert.equal(docs.map(d => d.label).join('|'), 'Factures des travaux réalisés|Plans des réseaux');
+  assert.equal(docs[1].cleChecklist, null);
+});
+
+test('un document hors catalogue apparaît sous un libellé tiré de la clause', () => {
+  const app = chargerApplication();
+  const docs = app.detecterDocumentsAFournir([{ type: 'document', phrase:
+    'Le PROMETTANT s’engage à fournir au BENEFICIAIRE l’attestation d’acquittement de la prime ' +
+    'définitive au plus tard le jour de la signature de l’acte authentique de vente.' }]);
+  assert.equal(docs.length, 1);
+  assert.equal(docs[0].label, 'Attestation d’acquittement de la prime définitive');
+  assert.equal(docs[0].generique, true);
+});
+
+test('une obligation de travaux sans modèle connu ne produit pas de document générique', () => {
+  const app = chargerApplication();
+  const docs = app.detecterDocumentsAFournir([{ type: 'travaux', phrase:
+    'Le PROMETTANT s’engage à rembourser au BENEFICIAIRE tous appels de fonds concernant des travaux.' }]);
+  assert.equal(docs.length, 0);
+});
+
+test('compléter les documents ajoute ceux des nouvelles obligations sans ressusciter un document retiré', () => {
+  const app = chargerApplication();
+  // L'étude a retiré « ramonage » de la liste ; elle ajoute ensuite une obligation d'entretien de
+  // chaudière : seule celle-ci doit apparaître.
+  const docs = [{ label: 'Vidange de fosse septique', cat: 'entretien', cleChecklist: 'vidangeFosse' }];
+  app.completerDocumentsIdentifies(docs, [{ type: 'entretien', phrase: 'Le vendeur justifiera de l’entretien de la chaudière.' }]);
+  app.completerDocumentsIdentifies(docs, [{ type: 'entretien', phrase: 'Le vendeur justifiera de l’entretien de la chaudière.' }]);
+  assert.equal(docs.map(d => d.label).join('|'), "Vidange de fosse septique|Justificatif d'entretien de la chaudière");
+});

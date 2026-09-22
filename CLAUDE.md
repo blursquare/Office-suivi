@@ -6347,6 +6347,37 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   le champ est ignoré) et son test. `extraireSection` est conservée : elle sert à la désignation du
   bien. **Ne pas le réintroduire sans demande explicite**, et le cas échéant en partant des titres
   de clause et des 10 actes du stress test, jamais des retours à la ligne.
+- **Une obligation du vendeur de fournir un document ou de justifier d'un entretien n'apparaissait
+  pas toujours dans « Documents et pièces identifiés »** (signalé par l'étude). Reproduit sur deux
+  actes réels, trois causes :
+  - **Catalogue trop strict** (`DOCUMENTS_VENDEUR_CONNUS`) : BONNIN écrit « un nouvel entretien de
+    chaudière » — le motif exigeait « entretien DE LA chaudière ». Motifs chaudière/PAC élargis à
+    « entretien … chaudière » dans une fenêtre de 30-40 caractères (ils ne sont testés que DANS une
+    clause d'engagement, jamais sur tout l'acte, donc sans risque de faux positif large) ; ramonage
+    étendu au verbe « ramoner » (et `OBJET_ENTRETIEN_RE` avec lui, sans quoi la clause n'était même
+    pas retenue comme obligation), au poêle et à l'insert ; « facture finale du constructeur » /
+    « de l'entreprise » / « de l'artisan » rattachée aux factures de travaux.
+  - **Pas de repli hors catalogue** : une obligation dont la pièce n'est pas au catalogue
+    (MOKADEM : « l'attestation d'acquittement de la prime définitive », « les plans des réseaux »)
+    ne produisait RIEN. `documentsDepuisClause()` donne désormais un document **générique** nommé
+    d'après la clause (verbe de remise → objet, destinataire et délai retirés — `libelleDocumentGenerique`),
+    marqué `generique: true`, **sans clé de checklist** : il n'est pas cherché sur le NAS (aucun nom
+    de fichier fiable à attendre), mais il ne disparaît plus en silence. Uniquement pour une
+    obligation de type document ou entretien — des travaux ne sont pas une pièce à réclamer.
+  - **Une énumération** (« les documents ci-après énumérés : - a ; - b ») est traitée élément par
+    élément (`elementsEnumeresClause`) : le premier document reconnu masquait les suivants.
+  - **Les ajouts et corrections à la main ne recalculaient pas la liste** : sélection dans le PDF,
+    saisie libre du wizard, correction d'une obligation (import ou fiche), ajout sur une fiche
+    enregistrée. Tous passent par `completerDocumentsIdentifies(documents, [nouvelle])`, qui AJOUTE
+    les documents de la seule obligation touchée sans recalculer le reste — un recalcul complet
+    ferait revenir un document que l'étude a retiré à la main. Même traitement pour les suggestions
+    du modèle local, qui recalculaient jusqu'ici toute la liste pour cette raison-là. Sur une fiche,
+    un document du catalogue ainsi ajouté rejoint aussi la checklist de pièces (via
+    `clesChecklistDepuisDocuments`, déjà rétroactive), donc la recherche sur le NAS.
+  - Rejoué sur les 10 avant-contrats : chaque obligation de type document ou entretien produit
+    désormais au moins un document. Six tests dans `tests/engagements.test.js` (structures réelles,
+    noms inventés). Vérifié dans un vrai Chromium : ajout libre dans le wizard et ajout sur une fiche
+    enregistrée mettent la liste à jour immédiatement.
 - **Constats du stress test laissés ouverts** (à trancher avec l'étude, pas des oublis) :
   - L'adresse de l'OFFICE notarial lit le CRPCEN (« CRPCEN 41089 ») comme un code postal —
     cosmétique, le département retombe juste par coïncidence (41).

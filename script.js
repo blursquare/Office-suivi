@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-22 23:54';
+  const VERSION_APP = '2026-09-23 00:01';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,8 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-23 00:01', resume: "Chaque obligation du vendeur de fournir un document ou de justifier d'un "
+      + "entretien apparaît dans les documents à fournir, y compris après un ajout ou une correction à la main." },
     { version: '2026-09-22 23:54', resume: "Bloc « Conditions suspensives et particulières » de l'analyse juridique retiré : "
       + "il ne ressortait rien d'utile sur les actes réels." },
     { version: '2026-09-22 23:44', resume: "Stress test sur tous les PDF réels envoyés : noms "
@@ -5703,9 +5705,9 @@
   // rien n'apparaît deux fois.
   const DOCUMENTS_VENDEUR_CONNUS = [
     // Entretien courant à justifier
-    { motif: /ramonage|entretien\s+(?:de\s+la\s+)?chemin[ée]e|conduits?\s+de\s+fum[ée]e/i, label: 'Justificatif de ramonage', cat: 'entretien', cleChecklist: 'ramonage' },
-    { motif: /entretien\s+(?:annuel\s+)?(?:de\s+la\s+)?chaudi[èe]re|contrat\s+d.entretien\s+(?:de\s+la\s+)?chaudi[èe]re/i, label: "Justificatif d'entretien de la chaudière", cat: 'entretien', cleChecklist: 'entretienChaudiere' },
-    { motif: /entretien\s+(?:du\s+|de\s+la\s+)?(?:syst[èe]me\s+de\s+)?pompe\s+[àa]\s+chaleur|entretien\s+(?:de\s+la\s+)?pac\b/i, label: "Justificatif d'entretien de la pompe à chaleur", cat: 'entretien', cleChecklist: 'entretienPac' },
+    { motif: /ramon(?:age|er|[ée]e?s?)\b|entretien.{0,30}(?:chemin[ée]e|po[êe]le|insert)|conduits?\s+de\s+fum[ée]e/i, label: 'Justificatif de ramonage', cat: 'entretien', cleChecklist: 'ramonage' },
+    { motif: /entretien.{0,30}chaudi[èe]re|chaudi[èe]re.{0,40}entretenue/i, label: "Justificatif d'entretien de la chaudière", cat: 'entretien', cleChecklist: 'entretienChaudiere' },
+    { motif: /entretien.{0,40}(?:pompe\s+[àa]\s+chaleur|\bpac\b)/i, label: "Justificatif d'entretien de la pompe à chaleur", cat: 'entretien', cleChecklist: 'entretienPac' },
     { motif: /entretien.{0,30}(?:climatisation|clim\b)/i, label: "Justificatif d'entretien de la climatisation", cat: 'entretien', cleChecklist: 'entretienClim' },
     { motif: /vidange\s+(?:de\s+la\s+)?fosse|(?:entretien|vidange).{0,30}fosse\s+septique/i, label: 'Vidange de fosse septique', cat: 'entretien', cleChecklist: 'vidangeFosse' },
     { motif: /entretien.{0,30}adoucisseur/i, label: "Entretien de l'adoucisseur d'eau", cat: 'entretien', cleChecklist: 'entretienAdoucisseur' },
@@ -5721,7 +5723,7 @@
     { motif: /certificat\s+de\s+conformit[ée]|attestation\s+de\s+conformit[ée]|consuel/i, label: 'Attestation de conformité', cat: 'justificatif', cleChecklist: 'attestationConformite' },
     { motif: /garantie\s+d[ée]cennale/i, label: 'Justificatif de garantie décennale', cat: 'justificatif', cleChecklist: 'garantieDecennale' },
     { motif: /dommage[- ]ouvrage/i, label: 'Assurance dommage-ouvrage', cat: 'justificatif', cleChecklist: 'dommageOuvrage' },
-    { motif: /factures?\s+(?:des\s+|de\s+)?travaux|justificatifs?\s+(?:des\s+)?travaux/i, label: 'Factures des travaux réalisés', cat: 'justificatif', cleChecklist: 'facturesTravaux' },
+    { motif: /factures?\s+(?:finales?\s+)?(?:des\s+|de\s+l['’]?\s*|de\s+|du\s+)?(?:travaux|constructeur|entreprises?|artisans?)|justificatifs?\s+(?:des\s+)?travaux/i, label: 'Factures des travaux réalisés', cat: 'justificatif', cleChecklist: 'facturesTravaux' },
     { motif: /assainissement\s+non\s+collectif|contr[ôo]le\s+d.assainissement|spanc\b/i, label: "Contrôle d'assainissement", cat: 'justificatif', cleChecklist: 'reponseAssainissement' },
     { motif: /[ée]tat\s+parasitaire|m[ée]rule/i, label: 'État parasitaire / mérule', cat: 'justificatif', cleChecklist: 'etatParasitaire' },
     { motif: /audit\s+[ée]nerg[ée]tique/i, label: 'Audit énergétique', cat: 'justificatif', cleChecklist: 'auditEnergetique' },
@@ -5732,18 +5734,102 @@
   // Les documents ne sont cherchés QUE dans les clauses d'engagement du vendeur et les conditions
   // suspensives : chercher dans tout le compromis remontait des faux positifs (un adoucisseur cité
   // dans la liste des immeubles par destination n'est pas une pièce à réclamer).
+  // Chaque obligation du vendeur de fournir un document ou de justifier d'un entretien doit
+  // apparaître dans « Documents et pièces identifiés » (signalé par l'étude : « il détecte une
+  // obligation mais ne la met pas dans les documents à fournir »). Deux étages :
+  //  1. le catalogue ci-dessus, qui donne un libellé stable et une clé de checklist (donc une
+  //     recherche automatique sur le NAS) ;
+  //  2. à défaut, un document GÉNÉRIQUE nommé d'après la clause elle-même (« Attestation
+  //     d'acquittement de la prime définitive »), sans clé de checklist — il ne sera pas cherché
+  //     sur le NAS, mais il ne disparaît plus en silence. Seulement pour une obligation de type
+  //     document ou entretien : des travaux ne sont pas une pièce à réclamer.
+  // Une clause qui énumère plusieurs pièces (« les documents ci-après énumérés : - la facture… ;
+  // - les plans… ») est traitée élément par élément, sans quoi le premier document reconnu
+  // masquait tous les autres.
+  var TYPES_OBLIGATION_DOCUMENT = ['document', 'entretien', 'justificatif'];
+  var RE_VERBE_REMISE_DOCUMENT = /\b(?:fournir|remettre|communiquer|produire|transmettre|d[ée]livrer|adresser|justifier\s+(?:d['’]\s*|de\s+la\s+|de\s+l['’]\s*|du\s+|des\s+|de\s+)|faire\s+(?:proc[ée]der|r[ée]aliser|effectuer)\s+(?:[àa]\s+la\s+|[àa]\s+l['’]\s*|au\s+|aux\s+|[àa]\s+))\s*/i;
+  var RE_DESTINATAIRE_DOCUMENT = /^(?:[àa]\s+l['’]?\s*|au\s+|aux\s+|[àa]\s+)(?:acqu[ée]reurs?|b[ée]n[ée]ficiaires?|notaires?|[ée]tude|office)\b[^,]*?(?:,\s*|\s+(?=l[ea]s?\s|l['’]|une?\s|des\s))/i;
+  var RE_FIN_OBJET_DOCUMENT = /\s+(?:au\s+plus\s+tard|avant\s|dès\s|lors\s|ainsi\s+que\b|pour\s+le\s+jour|dans\s+(?:un|les|le)\s|et\s+ce\s|et\s+[àa]\s+en\s|le\s+jour\s|[àa]\s+(?:premi[èe]re\s+)?demande|au\s+jour\s)|[.;,:]/i;
+
+  function libelleDocumentGenerique(fragment) {
+    let t = String(fragment || '').replace(/\s+/g, ' ').replace(/\s+([’'])\s*/g, '$1').trim();
+    t = t.replace(RE_DESTINATAIRE_DOCUMENT, '');
+    const coupe = t.search(RE_FIN_OBJET_DOCUMENT);
+    if (coupe > 0) t = t.slice(0, coupe);
+    t = t.replace(/^(?:[-–•]\s*)?(?:(?:les?|la|une?|des|ses|son|sa)\s+|l['’]\s*)/i, '').trim();
+    if (t.length < 6) return null;
+    if (/^(?:documents?|pi[èe]ces?)\s+ci\s*-?\s*apr[èe]s/i.test(t)) return null;
+    if (t.length > 90) t = t.slice(0, 88).replace(/\s+\S*$/, '') + '…';
+    return t.charAt(0).toUpperCase() + t.slice(1);
+  }
+
+  // Éléments d'une énumération (« … énumérés : - a ; - b ») ; une clause sans énumération rend
+  // un seul élément : elle-même.
+  function elementsEnumeresClause(phrase) {
+    const p = String(phrase || '');
+    const deuxPoints = p.indexOf(':');
+    if (deuxPoints < 0) return [{ texte: p, enumere: false }];
+    const suite = p.slice(deuxPoints + 1);
+    const morceaux = suite.split(/\s*;\s*|\s+[-–•]\s+|^\s*[-–•]\s*/).map(x => x.trim()).filter(x => x.length >= 6);
+    if (morceaux.length < 2 && !/^\s*[-–•]/.test(suite)) return [{ texte: p, enumere: false }];
+    return morceaux.map(texte => ({ texte, enumere: true }));
+  }
+
+  function documentsDepuisClause(clause) {
+    const phrase = typeof clause === 'string' ? clause : (clause && clause.phrase) || '';
+    const type = typeof clause === 'string' ? null : (clause && clause.type) || null;
+    const resultats = [];
+    elementsEnumeresClause(phrase).forEach(({ texte, enumere }) => {
+      const connus = DOCUMENTS_VENDEUR_CONNUS.filter(doc => doc.motif.test(texte));
+      connus.forEach(doc => resultats.push({ label: doc.label, cat: doc.cat, cleChecklist: doc.cleChecklist || null }));
+      if (connus.length || !TYPES_OBLIGATION_DOCUMENT.includes(type)) return;
+      let fragment = texte;
+      if (!enumere) {
+        const m = RE_VERBE_REMISE_DOCUMENT.exec(texte);
+        if (!m) return;
+        fragment = texte.slice(m.index + m[0].length);
+      }
+      const label = libelleDocumentGenerique(fragment);
+      if (label) resultats.push({ label, cat: type === 'entretien' ? 'entretien' : 'justificatif', cleChecklist: null, generique: true });
+    });
+    return resultats;
+  }
+
+  function cleDocumentIdentifie(doc) {
+    return normaliserPourRecherche(typeof doc === 'string' ? doc : (doc && doc.label) || '');
+  }
+
   function detecterDocumentsAFournir(clauses) {
     const trouves = [];
     const vus = new Set();
-    const zonesPertinentes = clauses.map(c => (typeof c === 'string' ? c : c.phrase)).join('\n');
-    DOCUMENTS_VENDEUR_CONNUS.forEach(doc => {
-      if (doc.motif.test(zonesPertinentes) && !vus.has(doc.label)) {
-        vus.add(doc.label);
-        trouves.push({ label: doc.label, cat: doc.cat, cleChecklist: doc.cleChecklist || null });
-      }
+    (clauses || []).forEach(clause => {
+      documentsDepuisClause(clause).forEach(doc => {
+        const cle = cleDocumentIdentifie(doc);
+        if (!cle || vus.has(cle)) return;
+        vus.add(cle);
+        trouves.push(doc);
+      });
     });
     return trouves;
   }
+
+  // Ajoute à une liste de documents ceux que de NOUVELLES obligations font apparaître, sans rien
+  // retirer ni recalculer du reste : un document que l'étude a retiré à la main ne doit pas
+  // revenir parce qu'elle vient d'ajouter une autre obligation. Utilisée partout où une obligation
+  // est ajoutée ou corrigée après la lecture du compromis (sélection dans le PDF, saisie libre,
+  // correction, ajout sur une fiche enregistrée, suggestion du modèle local).
+  function completerDocumentsIdentifies(documents, nouvellesClauses) {
+    const liste = Array.isArray(documents) ? documents : [];
+    const vus = new Set(liste.map(cleDocumentIdentifie));
+    detecterDocumentsAFournir(nouvellesClauses).forEach(doc => {
+      const cle = cleDocumentIdentifie(doc);
+      if (vus.has(cle)) return;
+      vus.add(cle);
+      liste.push(doc);
+    });
+    return liste;
+  }
+
 
   // Extrait les phrases où le VENDEUR s'engage à remettre/produire/fournir un document,
   // pour donner accès aux clauses exactes du compromis (et pas seulement à l'étiquette générique).
@@ -5751,7 +5837,7 @@
   // les clauses générales (maintenir le bien en l'état, s'interdire de consentir un bail…) sont
   // des obligations de comportement, sans document ni chantier à suivre — elles sont écartées.
   const OBJET_DOCUMENT_RE = /certificat|attestation|justificatif|justifer|justifier|diagnostic|facture|devis|[ée]tat\s+parasitaire|police\s+d.assurance|contr[ôo]le|audit|document/i;
-  const OBJET_ENTRETIEN_RE = /entretien|ramonage|vidange|d[ée]broussaill|[ée]lagage|curage|nettoyage/i;
+  const OBJET_ENTRETIEN_RE = /entretien|ramon(?:age|er)|vidange|d[ée]broussaill|[ée]lagage|curage|nettoyage/i;
   const OBJET_TRAVAUX_RE = /travaux|\br[ée]par|remettre\s+en\s+[ée]tat|remise\s+en\s+[ée]tat|mise\s+en\s+conformit[ée]|r[ée]gularis|d[ée]barras|d[ée]gazage|d[ée]molition|raccordement|remplacement|d[ée]pollution|enl[èe]vement|lib[ée]rer\s+les\s+lieux|r[ée]silier/i;
 
   // Une énumération d'équipements vendus avec le bien (immeubles par destination) contient beaucoup
@@ -6026,6 +6112,7 @@
       cible.type = type;
       ajouterHistorique(d, `Engagement du vendeur modifié : « ${phrase.slice(0, 80)}${phrase.length > 80 ? '…' : ''} »`);
       memoriserCorrection(phrase, type, null, 'engagement');
+      d.analyseJuridique.documents = completerDocumentsIdentifies(d.analyseJuridique.documents, [{ phrase, type }]);
       engagementEnEdition = null;
       sauvegarder(d);
       render();
@@ -6035,6 +6122,7 @@
       cible.phrase = phrase;
       cible.type = type;
       memoriserCorrection(phrase, type, null, 'engagement');
+      completerDocumentsIdentifies(analyseJuridiqueActuelle.documents, [{ phrase, type }]);
       engagementEnEdition = null;
       afficherAnalyseJuridique();
     }
@@ -7406,6 +7494,7 @@
     // trouverCorrectionApprise/memoriserCorrection, catégorie 'engagement' : même mécanisme que
     // l'apprentissage déjà en place pour les dates, un espace de classification séparé).
     memoriserCorrection(selectionEngagementEnCours.phrase, type, null, 'engagement');
+    completerDocumentsIdentifies(analyseJuridiqueActuelle.documents, [{ phrase: selectionEngagementEnCours.phrase, type }]);
     afficherAnalyseJuridique();
     masquerBoutonAjoutEngagement();
     afficherToast('Engagement ajouté à l’analyse juridique.', 'OK', null);
@@ -7452,6 +7541,7 @@
     // relire), la mémoriser reste sans risque pour tout futur import dont une clause proche
     // passerait, elle, par le motif d'ancrage d'extraireEngagementsVendeur().
     memoriserCorrection(texte, type, null, 'engagement');
+    completerDocumentsIdentifies(analyseJuridiqueActuelle.documents, [{ phrase: texte, type }]);
     masquerFormAjoutEngagementManuel();
     afficherAnalyseJuridique();
     afficherToast('Engagement ajouté à l’analyse juridique.', 'OK', null);
@@ -8169,15 +8259,18 @@
       lotsAboutis++;
 
       if (lot === 'dates') {
+        const nouvelles = [];
         for (const suggestion of (corps.resultat.engagementsVendeur || [])) {
           if (engagementDejaConnu(suggestion.extrait, analyseJuridiqueActuelle.engagements)) continue;
-          analyseJuridiqueActuelle.engagements.push({ phrase: suggestion.extrait, type: suggestion.type, page: null, source: 'ia' });
+          const e = { phrase: suggestion.extrait, type: suggestion.type, page: null, source: 'ia' };
+          analyseJuridiqueActuelle.engagements.push(e);
+          nouvelles.push(e);
           engagementsAjoutes++;
         }
-        if ((corps.resultat.engagementsVendeur || []).length > 0) {
-          // Recalculés à partir de TOUS les engagements (regex + IA), comme dans traiterTexte() —
-          // une seule fonction pure, jamais deux logiques selon la provenance de la liste.
-          analyseJuridiqueActuelle.documents = detecterDocumentsAFournir(analyseJuridiqueActuelle.engagements);
+        if (nouvelles.length > 0) {
+          // Complétés à partir des seules obligations ajoutées : un recalcul complet ferait revenir
+          // un document que l'étude a retiré à la main pendant l'attente du modèle.
+          completerDocumentsIdentifies(analyseJuridiqueActuelle.documents, nouvelles);
           afficherAnalyseJuridique();
         }
       }
@@ -11268,6 +11361,7 @@
     d.analyseJuridique = d.analyseJuridique || { documents: [], engagements: [] };
     d.analyseJuridique.engagements = d.analyseJuridique.engagements || [];
     d.analyseJuridique.engagements.push({ phrase, type, page: null, manuel: true });
+    d.analyseJuridique.documents = completerDocumentsIdentifies(d.analyseJuridique.documents, [{ phrase, type }]);
     ajouterHistorique(d, `Obligation du vendeur ajoutée : « ${phrase.slice(0, 80)}${phrase.length > 80 ? '…' : ''} »`);
     memoriserCorrection(phrase, type, null, 'engagement');
     ajoutEngagementOuvert = false;
