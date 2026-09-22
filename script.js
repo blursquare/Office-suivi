@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-22 21:39';
+  const VERSION_APP = '2026-09-22 21:49';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,10 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-22 21:49', resume: "La relance « offre de prêt » adressée au client ne "
+      + "s'arrête plus le jour de l'échéance : elle continue tous les 10 jours tant que l'offre "
+      + "n'est pas arrivée, jusqu'à l'archivage du dossier. Le texte de l'email et la ligne "
+      + "d'historique disent alors que l'échéance est dépassée, au lieu de l'annoncer au futur." },
     { version: '2026-09-22 21:39', resume: "Deux corrections demandées par l'étude. "
       + "L'entretien de pompe à chaleur vaut désormais 1 an et non 2 ans dans le contrôle des "
       + "durées de validité (Outil 2). Et la relance « offre de prêt » adressée au client ne "
@@ -13415,25 +13419,50 @@
     return ecart >= JOURS_ENTRE_RELANCES_OFFRE;
   }
 
+  // Libellé de l'échéance pour l'historique : « J-3 » avant, « J » le jour même, « J+5 » après.
+  // Sans ça, une relance postérieure à l'échéance écrivait « J--5 ».
+  function libelleEcheanceRelance(jours) {
+    if (jours > 0) return `échéance J-${jours}`;
+    if (jours === 0) return `échéance aujourd'hui`;
+    return `échéance dépassée de ${-jours} jour${-jours > 1 ? 's' : ''}`;
+  }
+
+  // Le corps part à un client : la phrase sur l'échéance doit changer une fois la date passée,
+  // sinon la relance annonce au futur une date déjà derrière nous. Fonction pure, testable.
+  function corpsRelanceOffreManquante(nom, isoEcheance, jours) {
+    const phraseEcheance = jours >= 0
+      ? `L'échéance d'obtention du prêt est fixée au ${formatDateFr(isoEcheance)}.`
+      : `L'échéance d'obtention du prêt, fixée au ${formatDateFr(isoEcheance)}, est désormais dépassée.`;
+    return `Bonjour,\n\nSauf erreur de notre part, nous n'avons pas encore reçu votre offre de prêt pour le dossier ${nom}.\n\n${phraseEcheance} Merci de nous transmettre cette offre dès réception, ou de nous indiquer où en est votre demande de financement.\n\nCordialement.`;
+  }
+
   function relancerSiOffreManquante(d) {
     // Notaire participant/concourant : suivi volontairement limité au prêt et aux engagements du
     // vendeur (voir renderCarteDossier/verifierPiecesDossier, même garde-fou) — relancer
     // l'acquéreur reste un geste du notaire instrumentaire, celui qui reçoit l'acte et porte la
     // relation avec lui, pas de l'étude en simple concours. Demandé explicitement par l'étude.
     if (d.roleNotaire === 'participant') return;
+    // Un dossier archivé n'attend plus rien. En pratique la revérification automatique les saute
+    // déjà, mais un clic explicite sur « Revérifier » passe encore par ici.
+    if (d.archive) return;
     const destinataire = emailDestinataireRelance(d);
     if (!destinataire || !d.pret) return;
     const jours = joursRestants(d.pret);
-    if (jours === null || jours < 0 || jours > FENETRE_RELANCE_OFFRE_JOURS) return;
+    // Pas de borne basse : la relance CONTINUE une fois l'échéance passée, tous les 10 jours,
+    // tant que l'offre n'est pas là (demandé par l'étude). C'est précisément à ce moment que la
+    // condition suspensive est en jeu — s'arrêter là laisserait le dossier sans relance au pire
+    // moment. Le seul arrêt est l'arrivée de l'offre (cette fonction n'est plus appelée) ou
+    // l'archivage du dossier.
+    if (jours === null || jours > FENETRE_RELANCE_OFFRE_JOURS) return;
     const aujourdhui = new Date().toISOString().slice(0, 10);
     if (!relanceOffreDue(d.derniereRelanceAuto, aujourdhui)) return;
 
     d.derniereRelanceAuto = aujourdhui;
-    ajouterHistorique(d, `Relance automatique ouverte (offre de prêt introuvable, échéance J-${jours})`);
+    ajouterHistorique(d, `Relance automatique ouverte (offre de prêt introuvable, ${libelleEcheanceRelance(jours)})`);
     sauvegarder(d);
 
     const subject = `Relance — Offre de prêt attendue (dossier ${d.nom})`;
-    const body = `Bonjour,\n\nSauf erreur de notre part, nous n'avons pas encore reçu votre offre de prêt pour le dossier ${d.nom}.\n\nL'échéance d'obtention du prêt est fixée au ${formatDateFr(d.pret)}. Merci de nous transmettre cette offre dès réception, ou de nous indiquer où en est votre demande de financement.\n\nCordialement.`;
+    const body = corpsRelanceOffreManquante(d.nom, d.pret, jours);
     const url = `mailto:${encodeURIComponent(destinataire)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     afficherToast(`Relance « offre de prêt » ouverte pour ${d.nom} — vérifiez puis envoyez.`, 'OK', null);
     window.location.href = url;

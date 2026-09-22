@@ -167,3 +167,36 @@ test('la fenêtre de relance reste de 15 jours avant l\'échéance', () => {
   assert.equal(app.FENETRE_RELANCE_OFFRE_JOURS, 15);
   assert.equal(app.JOURS_ENTRE_RELANCES_OFFRE, 10);
 });
+
+// --- Relance « offre de prêt » après l'échéance ----------------------------------------------
+// L'étude a demandé que la relance CONTINUE une fois la date passée, tous les 10 jours : c'est
+// précisément là que la condition suspensive est en jeu.
+
+test('libelleEcheanceRelance : avant, le jour même, après', () => {
+  const app = chargerApplication();
+  assert.equal(app.libelleEcheanceRelance(15), 'échéance J-15');
+  assert.equal(app.libelleEcheanceRelance(1), 'échéance J-1');
+  assert.equal(app.libelleEcheanceRelance(0), "échéance aujourd'hui");
+  assert.equal(app.libelleEcheanceRelance(-1), 'échéance dépassée de 1 jour');
+  assert.equal(app.libelleEcheanceRelance(-12), 'échéance dépassée de 12 jours');
+});
+
+test("corpsRelanceOffreManquante : la phrase d'échéance passe au passé une fois la date dépassée", () => {
+  const app = chargerApplication();
+  const avant = app.corpsRelanceOffreManquante('DUPONT / MARTIN', '2026-11-01', 5);
+  assert.ok(avant.includes('est fixée au'), avant);
+  assert.ok(!avant.includes('dépassée'), avant);
+
+  const apres = app.corpsRelanceOffreManquante('DUPONT / MARTIN', '2026-11-01', -5);
+  assert.ok(apres.includes('est désormais dépassée'), apres);
+  // La date reste citée dans les deux cas, et le dossier est toujours nommé.
+  assert.ok(apres.includes('DUPONT / MARTIN'), apres);
+  assert.ok(apres.includes('novembre 2026'), apres);
+});
+
+test('corpsRelanceOffreManquante : le jour même reste au présent, pas au passé', () => {
+  const app = chargerApplication();
+  const jourJ = app.corpsRelanceOffreManquante('DUPONT / MARTIN', '2026-11-01', 0);
+  assert.ok(jourJ.includes('est fixée au'), jourJ);
+  assert.ok(!jourJ.includes('dépassée'), jourJ);
+});

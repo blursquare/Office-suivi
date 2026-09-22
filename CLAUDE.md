@@ -7435,6 +7435,31 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
     lorsqu'un office distinct représente l'acquéreur — voir `emailDestinataireRelance`).
 
 
+- **La relance « offre de prêt » ne s'arrête plus à l'échéance** — décision de l'étude, prise sur
+  la question laissée ouverte par l'entrée précédente (« la fenêtre s'arrête à l'échéance,
+  dites-le-moi si vous voulez qu'elle continue »). Elle continue **tous les 10 jours** tant que
+  l'offre n'est pas là : c'est précisément une fois la date passée que la condition suspensive est
+  en jeu, s'arrêter là laissait le dossier sans relance au pire moment. Le garde `jours < 0`
+  disparaît ; la borne haute (`FENETRE_RELANCE_OFFRE_JOURS`, 15) est inchangée.
+  - **Deux seuls arrêts** : l'arrivée de l'offre (`verifierDossierLocal` n'appelle plus cette
+    fonction) et l'archivage du dossier — nouveau garde `if (d.archive) return`. Le tour
+    automatique saute déjà les dossiers archivés, mais un clic explicite sur « Revérifier »
+    continuait de passer par là.
+  - **Deux textes devenaient faux une fois la date passée**, corrigés ensemble et sortis en
+    fonctions pures testables : l'historique écrivait `J--5` (`libelleEcheanceRelance`, qui rend
+    maintenant « échéance J-5 », « échéance aujourd'hui », « échéance dépassée de 5 jours ») et le
+    corps de l'email annonçait au FUTUR une date déjà derrière nous
+    (`corpsRelanceOffreManquante`, dont la phrase d'échéance bascule au passé sous zéro). Ce corps
+    part à un client : c'est la raison de l'avoir extrait plutôt que laissé en ligne.
+  - **Rejeu jour par jour en bac à sable** sur J-20 → J+40 : relances à J-15, J-5, J+5, J+15,
+    J+25, J+35, avec le bon libellé à chaque fois, et aucune relance sur un dossier archivé.
+    `npm test` : 637 tests racine (+3), 211 serveur.
+  - **Piège de vérification, le même que déjà documenté deux fois ici** : le premier test a échoué
+    en attendant « 1er novembre 2026 » alors que `formatDateFr` rend « 1 novembre 2026 » — c'est
+    la valeur ATTENDUE que j'avais écrite de travers, pas le code. Vérifier ce qu'une fonction
+    existante produit réellement avant de conclure à un bug.
+
+
 ## Ce qui reste ouvert / pas encore fait
 
 - **Signature manuscrite de Bastien ANGLUMENT, conservée pour le courrier d'appel de fonds**
