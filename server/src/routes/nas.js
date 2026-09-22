@@ -18,6 +18,31 @@ const express = require('express');
 const fs = require('node:fs');
 const path = require('node:path');
 const { listerPdfRecursif, listerSousDossiers, resoudreCheminNas, rapprocherParNom, rapprochementParfait } = require('../nas');
+const fsp = require('node:fs/promises');
+
+// Toute lecture du NAS est asynchrone depuis qu'un balayage synchrone a été identifié comme la
+// cause des gels du serveur (voir nas.js et CLAUDE.md) : pendant qu'une route attend le NAS, le
+// serveur continue de répondre aux autres.
+//
+// Une route `async` qui REJETTE ne renvoie jamais rien : Express 4 ne rattrape pas une promesse
+// rejetée, la requête resterait suspendue jusqu'au timeout du navigateur — un gel remplacé par un
+// blocage définitif, soit pire que le problème traité ici. D'où cette enveloppe obligatoire.
+const routeAsync = (fn) => (req, res) => {
+  Promise.resolve(fn(req, res)).catch((err) => {
+    console.error('[CLAIRE] Erreur sur une route NAS :', err && err.stack ? err.stack : err);
+    if (!res.headersSent) res.status(500).json({ erreur: 'Lecture du NAS impossible depuis le serveur.' });
+  });
+};
+
+// `fs.existsSync` sur un chemin réseau est lui aussi un aller-retour bloquant — remplacé partout.
+async function existe(chemin) {
+  try {
+    await fsp.access(chemin);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
 
 function creerRouteurNas(config) {
   const routeur = express.Router();
@@ -25,26 +50,26 @@ function creerRouteurNas(config) {
   // Interrogée par l'interface pour savoir si la fonctionnalité est utilisable du tout, et afficher
   // un message actionnable sinon (racine non configurée / introuvable) plutôt qu'une liste vide
   // inexplicable.
-  routeur.get('/nas/etat', (req, res) => {
+  routeur.get('/nas/etat', routeAsync(async (req, res) => {
     const racine = config.nasRacine;
     if (!racine) {
       res.json({ configure: false, raison: "Aucun dossier NAS configuré : ajoutez \"nasRacine\" dans config.json (à côté de CLAIRE-serveur.exe), puis redémarrez le serveur." });
       return;
     }
-    if (!fs.existsSync(racine)) {
+    if (!(await existe(racine))) {
       res.json({ configure: false, racine, raison: `Le dossier configuré est introuvable depuis le serveur : ${racine}` });
       return;
     }
     res.json({ configure: true, racine });
-  });
+  }));
 
-  routeur.get('/nas/dossiers', (req, res) => {
+  routeur.get('/nas/dossiers', routeAsync(async (req, res) => {
     const racine = config.nasRacine;
-    if (!racine || !fs.existsSync(racine)) {
+    if (!racine || !(await existe(racine))) {
       res.status(503).json({ erreur: 'Aucun dossier NAS configuré ou accessible depuis le serveur.' });
       return;
     }
-    const dossiers = listerSousDossiers(racine);
+    const dossiers = await listerSousDossiers(racine);
     // Le rapprochement est proposé ici quand le client fournit un nom : le serveur a déjà la liste
     // sous la main, inutile de la renvoyer pour que le client refasse le même calcul.
     const propose = req.query.nom ? rapprocherParNom(String(req.query.nom), dossiers) : null;
@@ -52,43 +77,43 @@ function creerRouteurNas(config) {
     // retrouvent dans ce seul dossier NAS (voir rapprochementParfait).
     const parfait = req.query.nom ? rapprochementParfait(String(req.query.nom), dossiers) : null;
     res.json({ dossiers, propose, parfait });
-  });
+  }));
 
-  routeur.get('/nas/fichiers', (req, res) => {
+  routeur.get('/nas/fichiers', routeAsync(async (req, res) => {
     const racine = config.nasRacine;
     if (!racine) {
       res.status(503).json({ erreur: 'Aucun dossier NAS configuré.' });
       return;
     }
-    const cible = resoudreCheminNas(racine, req.query.dossier || '');
+    const cible = await resoudreCheminNas(racine, req.query.dossier || '');
     if (!cible) {
       res.status(400).json({ erreur: 'Chemin hors du dossier NAS configuré.' });
       return;
     }
-    if (!fs.existsSync(cible)) {
+    if (!(await existe(cible))) {
       res.status(404).json({ erreur: 'Dossier introuvable sur le NAS.' });
       return;
     }
     // Les chemins renvoyés sont relatifs au SOUS-DOSSIER demandé ; le client les repréfixe pour
     // appeler /nas/fichier. Garder cette base explicite évite toute ambiguïté des deux côtés.
-    const fichiers = listerPdfRecursif(cible);
+    const fichiers = await listerPdfRecursif(cible);
     res.json({ base: path.relative(path.resolve(racine), cible), fichiers });
-  });
+  }));
 
-  routeur.get('/nas/fichier', (req, res) => {
+  routeur.get('/nas/fichier', routeAsync(async (req, res) => {
     const racine = config.nasRacine;
     if (!racine) {
       res.status(503).json({ erreur: 'Aucun dossier NAS configuré.' });
       return;
     }
-    const cible = resoudreCheminNas(racine, req.query.chemin || '');
+    const cible = await resoudreCheminNas(racine, req.query.chemin || '');
     if (!cible || !/\.pdf$/i.test(cible)) {
       // L'extension est vérifiée ici et pas seulement à la liste : cette route sert des octets
       // bruts, elle ne doit jamais pouvoir rendre autre chose qu'un PDF du NAS.
       res.status(400).json({ erreur: 'Chemin invalide (seuls les PDF du dossier NAS sont servis).' });
       return;
     }
-    if (!fs.existsSync(cible)) {
+    if (!(await existe(cible))) {
       res.status(404).json({ erreur: 'Fichier introuvable sur le NAS.' });
       return;
     }
@@ -98,7 +123,7 @@ function creerRouteurNas(config) {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(path.basename(cible))}"`);
     fs.createReadStream(cible).pipe(res);
-  });
+  }));
 
   return routeur;
 }

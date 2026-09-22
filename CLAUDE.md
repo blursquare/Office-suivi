@@ -6848,6 +6848,68 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
     les lignes qui ressemblent aux frais d'acte sans en être, un libellé non reconnu, et le
     décompte réel importé dont les montants ne bougent pas). Suite racine 579 → 583.
 
+- **Le serveur se figeait le temps de relire le NAS — corrigé en rendant tout ce chemin
+  asynchrone.** Signalé par l'étude (« le serveur saute souvent en ce moment »), puis précisé sur
+  question directe : « il me met un message d'erreur et il faut actualiser pour que ça revienne,
+  parfois ça se fige ». **C'est cette précision qui a tranché** : si une simple actualisation de la
+  page suffit à tout remettre en ordre, le processus n'est pas mort — il était seulement
+  injoignable pendant un moment. Écarté d'emblée, donc, le crash du processus (les gestionnaires
+  `uncaughtException`/`crash.log` journalisent et laissent tourner, et le seul `process.exit` du
+  code est dans le chemin de démarrage).
+  - **Cause : Node est mono-thread, et la surveillance du NAS était synchrone.**
+    `executerTourSurveillanceNas()` (toutes les 10 minutes, voir son historique plus haut)
+    parcourait TOUS les dossiers reliés avec `readdirSync`/`realpathSync`/`existsSync`. Pendant tout
+    le tour, la boucle d'événements est occupée : le serveur n'accepte plus une seule requête HTTP.
+    Sur un LAN rapide le tour passe inaperçu (moins d'une seconde mesurée ici sur un disque local),
+    mais chaque aller-retour SMB coûte des dizaines de millisecondes dès que le NAS répond mal
+    (disques en veille, sauvegarde en cours, reconnexion) — **14 allers-retours par dossier × 60
+    dossiers = 840 par tour**. D'où un serveur qui paraît mort puis revient de lui-même, exactement
+    toutes les dix minutes.
+  - **Correctif** : `server/src/nas.js` passe entièrement à `node:fs/promises`
+    (`listerPdfRecursif`, `listerSousDossiers`, `resoudreCheminNas`), `server/src/routes/nas.js`
+    remplace chaque `fs.existsSync` par un `await existe(...)`, et `nasWatch.js` rend explicitement
+    la main entre deux dossiers (`respirer()`, un `setImmediate`) pour qu'un portefeuille qui
+    grandit ne puisse jamais monopoliser le serveur à nouveau. Un drapeau `enCours` empêche en plus
+    deux tours de se chevaucher : un tour lent ne doit pas voir le minuteur en relancer un second
+    par-dessus, ce qui doublerait la charge sur le NAS précisément quand il est déjà en difficulté.
+  - **`resoudreCheminNas()` garde des garanties de confinement RIGOUREUSEMENT identiques** : seuls
+    les appels disque ont changé, la logique (résolution des liens AVANT la comparaison, refus de
+    tout ce qui retombe hors de la racine) est inchangée — et ses tests, eux aussi inchangés dans
+    leurs assertions, ne sont devenus `async` que pour `await` les appels.
+  - **Piège Express 4, à ne pas reproduire** : une route `async` dont la promesse REJETTE ne renvoie
+    jamais rien — Express 4 ne rattrape pas une promesse rejetée, et la requête reste suspendue
+    jusqu'au timeout du navigateur. Soit un gel remplacé par un blocage DÉFINITIF, donc pire que le
+    problème traité. D'où l'enveloppe `routeAsync()` en tête de `routes/nas.js`, obligatoire sur
+    chacune des quatre routes. `fs.createReadStream` est volontairement conservé : c'est déjà de
+    l'E/S asynchrone.
+  - **Mesuré, pas supposé** (A/B en modélisant la latence d'un NAS, le disque local de cet
+    environnement étant ~1000× plus rapide que du SMB) : **AVANT, 3,6 s sans aucune réponse HTTP
+    pendant le tour ; APRÈS, 1 ms.** La première mesure, faite sans modéliser la latence, ne
+    montrait aucune différence — elle a été signalée comme non concluante plutôt que présentée
+    comme un gain. **Piège de la sonde elle-même, rencontré au passage** : une sonde de latence de
+    boucle d'événements (`setInterval` qui mesure sa propre dérive) doit laisser la boucle tourner
+    une fois (`await new Promise(r => setImmediate(r))`) AVANT le `clearInterval`, sans quoi le
+    rappel en retard n'est jamais exécuté et la sonde lit 0.
+  - **Ne parvient à l'étude que par un nouveau `.exe`** : c'est du code serveur.
+
+- **Bug corrigé : la carte « Appel de fonds » disparaissait de la fiche, avec sa date.** Signalé par
+  l'étude (« parfois l'espace appel de fonds ne s'affiche pas alors que la date du rendez-vous est
+  indiquée et remplie »). La condition d'affichage était `dossierEntierementComplet(d)` seul, alors
+  que `echeancesPlanning` annonce l'appel de fonds dès qu'un rendez-vous est fixé
+  (`iso: d.appelFonds || d.rendezVousSignature`, voir son historique) : **le planning réclamait un
+  appel de fonds que la fiche ne donnait aucun moyen de saisir.** La condition devient
+  `d.appelFonds || d.rendezVousSignature || dossierEntierementComplet(d)`.
+  - **Second défaut, plus grave, trouvé en corrigeant le premier et que l'étude n'avait pas vu** :
+    une date d'appel de fonds DÉJÀ SAISIE disparaissait, elle aussi, dès que le dossier cessait
+    d'être complet — ce qui arrive tout seul, une pièce repassant à `manquante` quand son fichier
+    disparaît du NAS (voir « Désynchronisation d'une pièce… » plus haut). La date restait dans le
+    dossier, invisible ET non modifiable. Une donnée saisie par l'étude ne doit jamais dépendre
+    d'un état dérivé d'un scan pour rester affichée : c'est la première des trois conditions.
+  - Trois tests ajoutés dans `tests/echeances-appel-fonds.test.js` qui vérifient la carte
+    RÉELLEMENT RENDUE (et non la seule fonction) : rendez-vous fixé sur un dossier incomplet, date
+    déjà saisie sur un dossier incomplet, et rien qui ne la justifie. Un test existant encodait
+    l'ancienne règle et a été mis à jour plutôt que contourné. Suite racine 583 → 586.
+
 ## Ce qui reste ouvert / pas encore fait
 
 - **Signature manuscrite de Bastien ANGLUMENT, conservée pour le courrier d'appel de fonds**

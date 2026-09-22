@@ -48,12 +48,39 @@ test('echeanceValidee couvre appelFonds et rendezVousSignature comme n\'importe 
   assert.equal(app.echeanceValidee(d, 'rendezVousSignature'), false);
 });
 
-test('dossierEntierementComplet pilote la visibilité de l\'appel de fonds', () => {
+test('dossierEntierementComplet distingue bien un dossier prêt à signer d\'un dossier incomplet', () => {
   const app = chargerApplication();
   const incomplet = dossierBase({ sansPret: false, offrePretStatut: 'inconnu' });
   const complet = dossierBase({ sansPret: true, roleNotaire: 'participant' });
   assert.equal(app.dossierEntierementComplet(incomplet), false);
   assert.equal(app.dossierEntierementComplet(complet), true);
+});
+
+// Signalé par l'étude : « parfois l'espace appel de fonds ne s'affiche pas alors que la date du
+// rendez-vous est indiquée et remplie ». L'ancien test ci-dessus ne vérifiait que la fonction de
+// complétude, jamais la carte RÉELLEMENT AFFICHÉE — c'est exactement par là que le défaut est
+// passé. Ces trois cas verrouillent l'affichage lui-même.
+test('appel de fonds affiché dès qu\'un rendez-vous de signature est fixé, même dossier incomplet', () => {
+  const app = chargerApplication();
+  const d = dossierBase({ sansPret: false, offrePretStatut: 'inconnu', rendezVousSignature: '2026-12-01' });
+  assert.equal(app.dossierEntierementComplet(d), false, 'le dossier doit bien être incomplet pour que le test ait un sens');
+  assert.ok(ordreDesEcheances(app, d).includes('Appel de fonds'));
+});
+
+test('une date d\'appel de fonds déjà saisie ne disparaît jamais, même si le dossier redevient incomplet', () => {
+  // Cas réel : une pièce repasse automatiquement à « manquante » quand son fichier disparaît du
+  // NAS. La date saisie deviendrait alors invisible ET non modifiable.
+  const app = chargerApplication();
+  const d = dossierBase({ sansPret: false, offrePretStatut: 'inconnu', appelFonds: '2026-11-20' });
+  assert.equal(app.dossierEntierementComplet(d), false);
+  assert.ok(ordreDesEcheances(app, d).includes('Appel de fonds'));
+});
+
+test('appel de fonds masqué tant que rien ne le justifie', () => {
+  // La règle d'origine reste : ni date saisie, ni rendez-vous, ni dossier complet → pas de carte.
+  const app = chargerApplication();
+  const d = dossierBase({ sansPret: false, offrePretStatut: 'inconnu' });
+  assert.ok(!ordreDesEcheances(app, d).includes('Appel de fonds'));
 });
 
 test('renderTab : croix de suppression et bouton de validation présents sur les deux nouveaux types', () => {
@@ -162,7 +189,9 @@ test('echeancesOrdonneesFiche classe les échéances datées par date croissante
   });
   assert.equal(
     ordreDesEcheances(app, d).join(' | '),
-    'Diagnostic amiante | Vente préalable | Date butoir | Rendez-vous de signature | Obtention du prêt'
+    // L'appel de fonds est désormais affiché dès qu'un rendez-vous est fixé ; sans date propre,
+    // il part en fin de liste comme toute échéance non renseignée.
+    'Diagnostic amiante | Vente préalable | Date butoir | Rendez-vous de signature | Obtention du prêt | Appel de fonds'
   );
 });
 

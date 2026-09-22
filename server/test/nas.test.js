@@ -99,22 +99,22 @@ after(() => {
   fs.rmSync(path.join(racine, '..', 'claire-nas-secret.pdf'), { force: true });
 });
 
-test('resoudreCheminNas refuse tout ce qui sort de la racine', () => {
+test('resoudreCheminNas refuse tout ce qui sort de la racine', async () => {
   // LE test de ce fichier : ces chemins viennent d'une requête HTTP, pas du code.
-  assert.equal(resoudreCheminNas(racine, '../claire-nas-secret.pdf'), null);
-  assert.equal(resoudreCheminNas(racine, '2024-118 DUPONT MARTIN/../../claire-nas-secret.pdf'), null);
-  assert.equal(resoudreCheminNas(racine, '/etc/passwd'), null);
-  assert.equal(resoudreCheminNas(racine, 'a\0b'), null);
-  assert.equal(resoudreCheminNas('', 'quoi que ce soit'), null);
+  assert.equal(await resoudreCheminNas(racine, '../claire-nas-secret.pdf'), null);
+  assert.equal(await resoudreCheminNas(racine, '2024-118 DUPONT MARTIN/../../claire-nas-secret.pdf'), null);
+  assert.equal(await resoudreCheminNas(racine, '/etc/passwd'), null);
+  assert.equal(await resoudreCheminNas(racine, 'a\0b'), null);
+  assert.equal(await resoudreCheminNas('', 'quoi que ce soit'), null);
 });
 
-test('resoudreCheminNas accepte un chemin légitime, racine comprise', () => {
-  const cible = resoudreCheminNas(racine, '2024-118 DUPONT MARTIN/3 - Titre de propriete/Titre.pdf');
+test('resoudreCheminNas accepte un chemin légitime, racine comprise', async () => {
+  const cible = await resoudreCheminNas(racine, '2024-118 DUPONT MARTIN/3 - Titre de propriete/Titre.pdf');
   assert.ok(cible && cible.endsWith(path.join('3 - Titre de propriete', 'Titre.pdf')));
-  assert.ok(resoudreCheminNas(racine, ''));
+  assert.ok(await resoudreCheminNas(racine, ''));
 });
 
-test('resoudreCheminNas suit les liens symboliques AVANT de vérifier', function (t) {
+test('resoudreCheminNas suit les liens symboliques AVANT de vérifier', async function (t) {
   // Un raccourci posé dans le NAS et pointant ailleurs suffirait sinon à contourner la
   // vérification, qui ne porterait que sur le chemin écrit.
   const lien = path.join(racine, 'raccourci.pdf');
@@ -124,24 +124,24 @@ test('resoudreCheminNas suit les liens symboliques AVANT de vérifier', function
     t.skip('liens symboliques indisponibles sur ce système de fichiers');
     return;
   }
-  assert.equal(resoudreCheminNas(racine, 'raccourci.pdf'), null);
+  assert.equal(await resoudreCheminNas(racine, 'raccourci.pdf'), null);
   fs.rmSync(lien, { force: true });
 });
 
 // ---- Parcours ----
 
-test('listerSousDossiers ne rend que les dossiers clients, triés', () => {
-  assert.equal(listerSousDossiers(racine).join(','), '2024-115 LEROY BERNARD,2024-118 DUPONT MARTIN');
+test('listerSousDossiers ne rend que les dossiers clients, triés', async () => {
+  assert.equal((await listerSousDossiers(racine)).join(','), '2024-115 LEROY BERNARD,2024-118 DUPONT MARTIN');
 });
 
-test('listerPdfRecursif descend dans les sous-dossiers et ignore le reste', () => {
-  const fichiers = listerPdfRecursif(path.join(racine, '2024-118 DUPONT MARTIN'));
+test('listerPdfRecursif descend dans les sous-dossiers et ignore le reste', async () => {
+  const fichiers = await listerPdfRecursif(path.join(racine, '2024-118 DUPONT MARTIN'));
   assert.equal(fichiers.map((f) => f.nom).sort().join(','), 'Offre de pret.pdf,Titre.pdf');
   assert.ok(fichiers.every((f) => !path.isAbsolute(f.chemin)), 'les chemins rendus doivent rester relatifs');
   assert.ok(!fichiers.some((f) => f.nom === 'notes.txt'));
 });
 
-test('listerPdfRecursif parcourt en LARGEUR, pas en profondeur', () => {
+test('listerPdfRecursif parcourt en LARGEUR, pas en profondeur', async () => {
   // Reproduit le bug déjà payé côté client : une première rubrique dont le SOUS-dossier est
   // volumineux ne doit pas épuiser le plafond avant que les rubriques suivantes soient vues.
   const gros = fs.mkdtempSync(path.join(os.tmpdir(), 'claire-nas-gros-'));
@@ -151,7 +151,7 @@ test('listerPdfRecursif parcourt en LARGEUR, pas en profondeur', () => {
     fs.writeFileSync(path.join(gros, '0 - COMPTABILITE', 'PRET', `releve-${i}.pdf`), 'x');
   }
   fs.writeFileSync(path.join(gros, '3 - Titre', 'Titre.pdf'), 'x');
-  const noms = listerPdfRecursif(gros).map((f) => f.nom);
+  const noms = (await listerPdfRecursif(gros)).map((f) => f.nom);
   assert.ok(noms.includes('Titre.pdf'), 'la rubrique suivante doit être atteinte malgré le plafond');
   assert.ok(noms.length <= MAX_FICHIERS);
   fs.rmSync(gros, { recursive: true, force: true });

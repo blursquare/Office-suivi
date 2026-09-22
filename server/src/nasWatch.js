@@ -41,17 +41,32 @@ function memeInventaire(a, b) {
 // que si quelque chose a changé — pas à chaque tour sur un portefeuille inchangé, ce qui ferait
 // inutilement grimper le SEQUENCE iCalendar de chaque dossier (voir routes/calendrier.js) sans
 // aucune raison fonctionnelle.
-function executerTourSurveillanceNas(depot, racineNas) {
+// ASYNCHRONE depuis que ce balayage a été identifié comme la cause des gels du serveur signalés
+// par l'étude (« le serveur saute souvent »). Le parcours était synchrone et bouclait sur TOUS les
+// dossiers reliés : pendant tout le tour, Node — mono-thread — ne répondait plus à une seule
+// requête HTTP. Sur un LAN rapide le tour passe inaperçu (moins d'une seconde mesurée), mais dès
+// que le NAS répond lentement (disques en veille, sauvegarde en cours, reconnexion SMB) le coût
+// est multiplié par chaque aller-retour et par chaque dossier du portefeuille : le serveur
+// paraissait mort, puis revenait de lui-même — exactement le symptôme décrit.
+//
+// Deux garde-fous, et il faut les deux :
+//   1. chaque lecture disque est `await` (voir nas.js), donc le serveur répond PENDANT le parcours ;
+//   2. `respirer()` entre deux dossiers rend explicitement la main à la boucle d'événements, pour
+//      qu'un portefeuille qui grandit ne puisse jamais monopoliser le serveur à nouveau.
+const respirer = () => new Promise((resolve) => setImmediate(resolve));
+
+async function executerTourSurveillanceNas(depot, racineNas) {
   const resultat = { dossiersVerifies: 0, dossiersNotifies: 0 };
   if (!racineNas) return resultat;
   for (const d of depot.tousActifs()) {
     if (d.archive || !d.nasDossier) continue;
-    const chemin = resoudreCheminNas(racineNas, d.nasDossier);
+    const chemin = await resoudreCheminNas(racineNas, d.nasDossier);
     if (!chemin) continue;
     resultat.dossiersVerifies++;
+    await respirer();
     let fichiers;
     try {
-      fichiers = listerPdfRecursif(chemin).map((f) => f.chemin);
+      fichiers = (await listerPdfRecursif(chemin)).map((f) => f.chemin);
     } catch (e) {
       continue; // dossier illisible entretemps (déplacé, permissions) : jamais fatal pour les autres
     }
@@ -74,11 +89,19 @@ function executerTourSurveillanceNas(depot, racineNas) {
 const INTERVALLE_SURVEILLANCE_NAS_MS = 10 * 60 * 1000;
 
 function demarrerSurveillanceNas(depot, config, intervalleMs) {
-  const tour = () => {
+  // `enCours` empêche deux tours de se chevaucher : un tour lent (NAS qui répond mal) ne doit pas
+  // voir le minuteur en relancer un deuxième par-dessus, ce qui doublerait la charge sur le NAS
+  // au pire moment — précisément quand il est déjà en difficulté.
+  let enCours = false;
+  const tour = async () => {
+    if (enCours) return;
+    enCours = true;
     try {
-      executerTourSurveillanceNas(depot, config.nasRacine);
+      await executerTourSurveillanceNas(depot, config.nasRacine);
     } catch (e) {
       console.warn('[CLAIRE] Surveillance du NAS (nouveaux documents) interrompue :', e.message);
+    } finally {
+      enCours = false;
     }
   };
   tour(); // un premier passage tout de suite, pas seulement dans dix minutes

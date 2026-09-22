@@ -19,7 +19,7 @@
 // tout ce qui ne retombe pas à l'intérieur de la racine (voir son commentaire).
 
 const path = require('node:path');
-const fs = require('node:fs');
+const fsp = require('node:fs/promises');
 
 // Mêmes plafonds que ceux déjà éprouvés côté client sur de vrais dossiers de l'étude (voir
 // CLAUDE.md, « parcours en largeur ») : un dossier client ancien peut légitimement compter
@@ -32,14 +32,14 @@ const MAX_FICHIERS = 3000;
 // sous-dossier « PRET », des dizaines de relevés scannés) épuise le plafond avant que les rubriques
 // suivantes (« 3 - Titre de propriété »…) n'aient jamais été regardées, et leurs pièces ne sont
 // alors JAMAIS trouvées quel que soit leur nom.
-function listerPdfRecursif(racineAbsolue, fsImpl = fs) {
+async function listerPdfRecursif(racineAbsolue, fsImpl = fsp) {
   const fichiers = [];
   const file = [{ chemin: racineAbsolue, profondeur: 0 }];
   while (file.length > 0 && fichiers.length < MAX_FICHIERS) {
     const courant = file.shift();
     let entrees;
     try {
-      entrees = fsImpl.readdirSync(courant.chemin, { withFileTypes: true });
+      entrees = await fsImpl.readdir(courant.chemin, { withFileTypes: true });
     } catch (_) {
       continue; // dossier illisible (permissions, lien cassé) : ignoré, jamais fatal pour le reste
     }
@@ -62,10 +62,10 @@ function listerPdfRecursif(racineAbsolue, fsImpl = fs) {
   return fichiers;
 }
 
-function listerSousDossiers(racineAbsolue, fsImpl = fs) {
+async function listerSousDossiers(racineAbsolue, fsImpl = fsp) {
   let entrees;
   try {
-    entrees = fsImpl.readdirSync(racineAbsolue, { withFileTypes: true });
+    entrees = await fsImpl.readdir(racineAbsolue, { withFileTypes: true });
   } catch (_) {
     return [];
   }
@@ -147,9 +147,9 @@ function rapprochementParfait(nomDossier, nomsNas) {
 // SEUL point de passage d'un chemin venant d'une requête HTTP vers le système de fichiers.
 // Renvoie le chemin absolu, ou `null` si la cible sort de la racine — un `..` répété, un chemin
 // absolu déguisé ou un lien symbolique qui remonte ailleurs donneraient sinon accès à tout le
-// disque du poste serveur. `realpathSync` résout aussi les liens avant le contrôle, sans quoi un
+// disque du poste serveur. `realpath` résout aussi les liens avant le contrôle, sans quoi un
 // raccourci posé dans le NAS suffirait à contourner la vérification.
-function resoudreCheminNas(racine, cheminRelatif, fsImpl = fs) {
+async function resoudreCheminNas(racine, cheminRelatif, fsImpl = fsp) {
   if (!racine) return null;
   const relatif = String(cheminRelatif || '');
   if (relatif.includes('\0')) return null;
@@ -160,8 +160,8 @@ function resoudreCheminNas(racine, cheminRelatif, fsImpl = fs) {
   try {
     // Le chemin peut ne pas exister encore (l'appelant le signalera) : dans ce cas la vérification
     // ci-dessus, purement lexicale, fait foi.
-    const reel = fsImpl.realpathSync(cible);
-    const racineReelle = fsImpl.realpathSync(racineAbsolue);
+    const reel = await fsImpl.realpath(cible);
+    const racineReelle = await fsImpl.realpath(racineAbsolue);
     if (reel !== racineReelle && !reel.startsWith(racineReelle + path.sep)) return null;
     return reel;
   } catch (_) {

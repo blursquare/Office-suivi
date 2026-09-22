@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-22 10:28';
+  const VERSION_APP = '2026-09-22 12:06';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,14 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-22 12:06', resume: "Le serveur ne se fige plus et n'affiche plus d'erreur passagère "
+      + "demandant d'actualiser la page : sa relecture du NAS, qui tourne toutes les dix minutes pour repérer les "
+      + "nouveaux documents, le rendait muet pendant tout le parcours des dossiers — d'autant plus longtemps que le "
+      + "NAS répondait lentement. Il répond désormais pendant ce parcours, et deux relectures ne peuvent plus se "
+      + "chevaucher. Fiche dossier : la carte « Appel de fonds » s'affiche dès qu'un rendez-vous de signature est "
+      + "fixé, ou dès qu'une date d'appel de fonds a été saisie — elle pouvait jusqu'ici disparaître, avec sa date, "
+      + "quand une pièce du dossier repassait à « manquante ». Calendrier .ics : correctif du 21/09 inclus (les "
+      + "agendas ne s'arrêtaient plus à la cinquième échéance)." },
     { version: '2026-09-22 10:28', resume: "Outil 2 lit désormais l'état daté, le pré-état daté et le "
       + "certificat d'urbanisme déposés : procédures en cours, travaux envisagés et devis, impayés, sommes à la charge "
       + "de l'acquéreur, validité du certificat et ses points de vigilance — avec, en pied de rapport, les questions "
@@ -54,7 +62,6 @@
     { version: '2026-09-21 23:46', resume: "Outil 2 : rapport en trois colonnes (avant-contrat / projet de vente / justificatif), "
       + "liseré de gravité sur chaque constat, et tous les diagnostics du DDT dans la table de validité." },
     { version: '2026-09-21 23:02', resume: "Outil 2 (Relecture d'un acte) refait de zéro : il ne passe plus par le modèle IA pour produire son rapport, qui s'affiche désormais instantanément, sans attente et sans serveur. Sur un compromis, il cherche quatre dangers précis et seulement ceux-là : les travaux déjà faits qui touchent le gros œuvre ou l'extérieur (autorisation d'urbanisme, garantie décennale), les diagnostics périmés, les entretiens et documents à obtenir du vendeur, les travaux qu'il doit faire avant la vente. Sur un projet de vente, il compare à l'avant-contrat signé et dit, engagement par engagement, s'il a été tenu — un justificatif peut être déposé et sa DATE est contrôlée (l'entretien de chaudière fourni a-t-il bien moins d'un an ?). Le modèle local reste disponible, en option, par un bouton sous le rapport" },
-    { version: '2026-09-21 22:29', resume: "Appel de fonds : la mention « Envoi par e-mail uniquement » prend désormais la PLACE de l'adresse postale du destinataire, sous son nom, au lieu de s'ajouter au-dessus. Saisir une adresse dans « Adresse des clients » la fait disparaître et affiche l'adresse à la place — les deux ne peuvent pas cohabiter sur le même courrier. Elle reste modifiable dans l'aperçu (pour écrire « Envoi recommandé avec AR », par exemple), suit dans le .docx téléchargé, et le bouton « Effacer » la remet à sa formulation par défaut" },
   ];
 
   const STORAGE_KEY = 'dossiers';
@@ -7801,7 +7808,23 @@
     // 12e argument lui fait afficher l'écart (« signature 5 j APRÈS ce butoir ») au lieu d'un
     // décompte, voir renderTab.
     cartes.push({ iso: d.acte, html: renderTab('acte', 'Date butoir', d.acte, d.id, d.actePage, confiance.acte, null, false, '', false, echeanceValidee(d, 'acte'), d.acte ? (d.rendezVousSignature || '') : '') });
-    if (dossierEntierementComplet(d)) cartes.push({ iso: d.appelFonds, html: renderTab('appelFonds', 'Appel de fonds', d.appelFonds, d.id, null, null, null, false, '', false, echeanceValidee(d, 'appelFonds')) });
+    // Trois raisons d'afficher l'appel de fonds, et il faut les trois — la règle d'origine
+    // (« seulement quand le dossier est prêt à signer ») était seule, et elle masquait deux cas
+    // que l'étude a signalés ou qui l'auraient été tôt ou tard :
+    //   1. une date DÉJÀ SAISIE ne doit jamais disparaître de l'écran. Une pièce de la checklist
+    //      repasse automatiquement à « manquante » quand son fichier disparaît du NAS : le dossier
+    //      cessait alors d'être « complet » et l'appel de fonds déjà renseigné devenait invisible
+    //      ET non modifiable, sans que rien ne l'explique ;
+    //   2. un RENDEZ-VOUS DE SIGNATURE fixé rend l'appel de fonds dû par définition — c'est
+    //      l'étape juste avant (voir l'ordre métier). Le planning l'annonçait d'ailleurs déjà
+    //      (echeancesPlanning, qui retombe sur la date du rendez-vous faute de date propre)
+    //      pendant que la fiche, elle, ne donnait aucun moyen de le renseigner : les deux se
+    //      contredisaient ;
+    //   3. le dossier complet, la règle d'origine, conservée telle quelle.
+    // La reconnaissance des pièces se fait par NOM DE FICHIER : une pièce bien présente mais
+    // nommée autrement suffit à faire échouer la condition 3, ce qui rendait le masquage d'autant
+    // plus arbitraire vu de l'étude.
+    if (d.appelFonds || d.rendezVousSignature || dossierEntierementComplet(d)) cartes.push({ iso: d.appelFonds, html: renderTab('appelFonds', 'Appel de fonds', d.appelFonds, d.id, null, null, null, false, '', false, echeanceValidee(d, 'appelFonds')) });
     cartes.push({ iso: d.rendezVousSignature, html: renderTab('rendezVousSignature', 'Rendez-vous de signature', d.rendezVousSignature, d.id, null, null, null, false, '', false, echeanceValidee(d, 'rendezVousSignature')) });
     (d.autres || []).forEach((a, i) => cartes.push({ iso: a.date, html: renderTab('autre', escapeHtml(a.label), a.date, d.id, a.page, null, i, false, '', false, echeanceValidee(d, 'autre-' + i)) }));
     // Les dates sont au format ISO AAAA-MM-JJ partout dans l'outil (valeur d'un <input type="date">) :
