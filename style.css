@@ -1260,6 +1260,39 @@
     .calc-champ-paire, .prorata-parts, #onglet-prorata .calc-ratebox { grid-template-columns: 1fr; }
   }
 
+  /* ---- Arbitrage du forfait mobilier (succession). Comme le prorata, presque tout est repris du
+     simulateur de provision (.calc-card/.calc-champ/.calc-resultat/.calc-table) : ne sont définis
+     ici que les quelques éléments sans équivalent — la case à cocher seule, les lignes de total du
+     décompte et la note imprimable. ---- */
+  /* .calc-radios est une grille à deux colonnes (pensée pour une paire de radios) : une case seule
+     y prendrait la moitié de la largeur. */
+  .calc-coche { grid-template-columns: 1fr; }
+  #inv-verdict-badge { margin-bottom: 12px; }
+  .inv-resultat .calc-small { margin-top: 8px; }
+  /* Une économie nulle ou négative n'est pas un résultat à mettre en avant en bleu d'accent : elle
+     reprend --urgent, déjà la couleur du verdict « Non recommandé » juste au-dessus. */
+  .calc-total.inv-montant-negatif { color: var(--urgent); }
+  .inv-table { margin-top: 18px; }
+  /* .calc-table grossit et décale sa DERNIÈRE ligne — mais `:last-child` est relatif au <tbody>, et
+     ce décompte en a trois (l'un d'eux, celui des postes de coût, est reconstruit à chaque saisie).
+     Sans ce rappel, le dernier poste de coût se retrouvait mis en avant au hasard de ce qui est
+     chiffré. Ici la hiérarchie est portée par les deux marqueurs explicites ci-dessous. */
+  .inv-table tr:last-child td { font-size: 13px; padding-top: 10px; }
+  .inv-table tr.inv-ligne-total td { font-weight: 600; border-top: 1px solid var(--line); }
+  .inv-table tr.inv-ligne-net td {
+    font-weight: 700;
+    font-size: 14.5px;
+    padding-top: 12px;
+    border-bottom: 0;
+  }
+  .inv-actions { display: flex; gap: 8px; margin-top: 18px; }
+  .inv-actions button { flex: 1; }
+  /* Note imprimable : invisible à l'écran, seule chose que sort Ctrl+P depuis cet onglet. */
+  .inv-print { display: none; }
+  @media (max-width: 640px) {
+    .inv-actions { flex-direction: column; }
+  }
+
   @media (max-width: 900px) {
     .sidebar-burger {
       display: flex;
@@ -4233,6 +4266,20 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
 /* À l'impression du navigateur (Ctrl+P depuis cet onglet), seule la feuille sort — le
    formulaire, la sidebar et les boutons d'édition n'ont rien à y faire. */
 @media print {
+  /* Arbitrage du forfait mobilier : la sidebar, .dash-header et footer.note sont déjà masqués par
+     le bloc @media print général plus haut ; il ne reste qu'à retirer les cartes de saisie et à
+     faire apparaître la note de calcul, que construireNoteInventaire() tient à jour. */
+  body.onglet-inventaire-actif #onglet-inventaire .calc-card { display: none !important; }
+  body.onglet-inventaire-actif #inv-print { display: block !important; }
+  .inv-print h1 { font-size: 16pt; margin: 0 0 4px; }
+  .inv-print .inv-print-sous { font-size: 9pt; color: #555; margin: 0 0 16px; }
+  .inv-print table { width: 100%; border-collapse: collapse; font-size: 10.5pt; }
+  .inv-print td { padding: 6px 0; border-bottom: 1px solid #ddd; }
+  .inv-print td:last-child { text-align: right; white-space: nowrap; }
+  .inv-print tr.inv-print-total td { font-weight: 700; border-top: 1px solid #000; }
+  .inv-print .inv-print-verdict { margin: 18px 0 0; font-size: 10.5pt; }
+  .inv-print .inv-print-note { margin: 18px 0 0; font-size: 8.5pt; color: #555; font-style: italic; }
+
   body.onglet-appel-fonds-actif .app-shell { display: none; }
   body.onglet-appel-fonds-actif #onglet-appel-fonds { display: block !important; }
   body.onglet-appel-fonds-actif .dash-header,

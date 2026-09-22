@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-22 14:48';
+  const VERSION_APP = '2026-09-22 15:45';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,13 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-22 15:45', resume: "Nouvel outil « Arbitrage forfait mobilier » dans la "
+      + "barre de gauche, sous Outils : à défaut d'inventaire, les meubles d'une succession sont "
+      + "évalués au forfait de 5 % de l'article 764 du CGI ; une prisée par commissaire de justice "
+      + "écarte ce forfait mais coûte. L'outil compare l'économie de droits au coût de la démarche "
+      + "et dit si elle vaut la peine pour le client, avec le décompte détaillé et une note "
+      + "imprimable. Il ne calcule pas les droits de succession : vous saisissez les deux montants "
+      + "que vous avez déjà simulés." },
     { version: '2026-09-22 14:48', resume: "Réglages : nouvel encart « Dernier tour de rappels » "
       + "qui dit quand la tâche est passée, combien de rappels sont partis et, surtout, lesquels ont "
       + "échoué. Sans lui, un envoi cassé — mot de passe d'application révoqué, compte bloqué — "
@@ -77,11 +84,6 @@
       + "contrôlé contre le barème, et le rapport dit ce qu'il manque quand ce contrôle ne peut pas se faire. Les "
       + "tirets de début de ligne ne partent plus dans le courrier, le tableau est moins aéré, et la date de "
       + "rendez-vous ressort en gras souligné dans le document Word comme dans l'aperçu." },
-    { version: '2026-09-22 09:47', resume: "Appel de fonds : les deux menus du contrôle de la provision sur frais "
-      + "(département, nature du bien) se remplissent tout seuls à partir de l'adresse et de la désignation déjà saisies "
-      + "juste au-dessus, et laissent tranquille tout choix fait à la main. Dans l'aperçu du courrier, le logo "
-      + "visioconférence et la mention « office équipé… » passent en bas de la colonne de gauche, là où le modèle Word "
-      + "les place déjà, et le logo Notaires de France est un peu réduit. Badge ALPHA : marges d'origine rétablies." },
   ];
 
   const STORAGE_KEY = 'dossiers';
@@ -162,6 +164,9 @@
     // Prorata : un disque coupé en deux parts inégales — une somme répartie entre deux parties.
     // Même grille 16x16 et même trait que le reste du jeu.
     'part-disque': '<circle cx="8" cy="8" r="5.6"/><path d="M8 2.4V8l4 3.8"/>',
+    // Balance à deux plateaux : l'arbitrage du forfait mobilier met en regard ce que la prisée
+    // fait gagner et ce qu'elle coûte. Même grille 16x16 et même trait 1.4 que le reste du jeu.
+    scale: '<line x1="8" y1="3.2" x2="8" y2="13.2"/><line x1="5.2" y1="13.2" x2="10.8" y2="13.2"/><line x1="3" y1="4.4" x2="13" y2="4.4"/><path d="M3 4.4 1.4 8.4h3.2L3 4.4Z" stroke-linejoin="round"/><path d="M13 4.4 11.4 8.4h3.2L13 4.4Z" stroke-linejoin="round"/>',
     // Réglages : une vraie roue crantée (anneau + trou central + 8 dents), demandée par l'étude
     // à la place de l'ancien glyphe en étoile (cercle + rayons, sans anneau — trop proche d'un
     // soleil qu'd'un engrenage). Même trait que le reste du jeu.
@@ -8765,6 +8770,7 @@
     document.getElementById('onglet-calculateur').style.display = nom === 'calculateur' ? '' : 'none';
     document.getElementById('onglet-prorata').style.display = nom === 'prorata' ? '' : 'none';
     document.getElementById('onglet-appel-fonds').style.display = nom === 'appel-fonds' ? '' : 'none';
+    document.getElementById('onglet-inventaire').style.display = nom === 'inventaire' ? '' : 'none';
     document.getElementById('onglet-analyse-ia').style.display = nom === 'analyse-ia' ? '' : 'none';
     document.getElementById('onglet-reglages').style.display = nom === 'reglages' ? '' : 'none';
     document.getElementById('tab-dashboard').setAttribute('aria-selected', String(nom === 'dashboard'));
@@ -8772,6 +8778,7 @@
     document.getElementById('tab-calculateur').setAttribute('aria-selected', String(nom === 'calculateur'));
     document.getElementById('tab-prorata').setAttribute('aria-selected', String(nom === 'prorata'));
     document.getElementById('tab-appel-fonds').setAttribute('aria-selected', String(nom === 'appel-fonds'));
+    document.getElementById('tab-inventaire').setAttribute('aria-selected', String(nom === 'inventaire'));
     document.getElementById('tab-analyse-ia').setAttribute('aria-selected', String(nom === 'analyse-ia'));
     document.getElementById('tab-reglages').setAttribute('aria-selected', String(nom === 'reglages'));
     document.getElementById('tab-dashboard').classList.toggle('actif', nom === 'dashboard');
@@ -8779,9 +8786,13 @@
     document.getElementById('tab-calculateur').classList.toggle('actif', nom === 'calculateur');
     document.getElementById('tab-prorata').classList.toggle('actif', nom === 'prorata');
     document.getElementById('tab-appel-fonds').classList.toggle('actif', nom === 'appel-fonds');
+    document.getElementById('tab-inventaire').classList.toggle('actif', nom === 'inventaire');
     // Ctrl+P depuis cet onglet doit sortir la FEUILLE, pas l'application autour (voir @media
     // print dans style.css) — un onglet n'ayant pas de classe sur <body>, on la pose ici.
     document.body.classList.toggle('onglet-appel-fonds-actif', nom === 'appel-fonds');
+    // Même raison pour l'arbitrage du forfait mobilier : Ctrl+P doit sortir la note de calcul,
+    // pas les cartes de saisie autour (voir @media print dans style.css).
+    document.body.classList.toggle('onglet-inventaire-actif', nom === 'inventaire');
     document.getElementById('tab-analyse-ia').classList.toggle('actif', nom === 'analyse-ia');
     document.getElementById('tab-reglages').classList.toggle('actif', nom === 'reglages');
     if (nom === 'suivi' || nom === 'dashboard') render();
@@ -8796,6 +8807,9 @@
     // Date du jour, tableau vierge et chargement du modèle Word au premier affichage (voir
     // initAppelFonds) — puis seulement le chargement du modèle aux visites suivantes.
     if (nom === 'appel-fonds') initAppelFonds();
+    // Premier passage : l'écran part de champs vides, il n'y a donc rien à calculer — mais le
+    // verdict et le message d'invite doivent quand même être posés (voir reinitialiserInventaire).
+    if (nom === 'inventaire') calculerInventaireAffichage();
   }
 
   // ==== SUIVI : regroupement des échéances par semaine ====
@@ -13693,6 +13707,242 @@
     if (champDate && !champDate.value) champDate.value = isoAujourdHui();
     majPeriodeProrata();
   }
+  // ==== ARBITRAGE DU FORFAIT MOBILIER (succession) ====
+  // Porté d'un artefact fourni par l'étude ("Arbitrage du forfait mobilier"), dont seule la
+  // STRUCTURE est reprise : sa palette bordeaux et ses polices (Fraunces/Source Sans/IBM Plex) ont
+  // été jetées au profit des jetons et du gabarit déjà en place ici (.calc-card/.calc-champ/
+  // .dash-grid, comme le simulateur de provision et le prorata) — même discipline que pour les
+  // maquettes précédentes, un seul système visuel dans tout l'outil.
+  //
+  // Ce que l'outil répond : à défaut d'inventaire ou de prisée, les meubles meublants d'une
+  // succession sont évalués à un FORFAIT de 5 % de l'actif successoral (art. 764 du CGI). Un
+  // inventaire notarié avec prisée par un commissaire de justice écarte ce forfait — mais il a un
+  // coût. La question du client est donc arithmétique : ce que la prisée fait gagner en droits
+  // couvre-t-il ce qu'elle coûte ?
+  //
+  // Décision structurante, reprise telle quelle de l'artefact et à ne PAS défaire : l'outil ne
+  // calcule JAMAIS les droits de succession. Le notaire saisit les deux montants qu'il a déjà
+  // simulés de son côté. Construire ici un moteur de droits (abattements, tranches, degré de
+  // parenté, assurance-vie…) reviendrait à présenter comme fiable un barème que personne n'a
+  // audité — c'est exactement la réserve déjà posée sur le simulateur de provision.
+
+  // Les postes du coût, dans l'ordre où ils apparaissent au décompte. AUCUN n'est affiché tant
+  // qu'il n'est pas chiffré : tous les dossiers n'ont ni comparant absent ni déplacement, et une
+  // ligne « − 0 € » n'apprend rien à personne — c'est aussi ce que dit l'écran de saisie ("les
+  // postes laissés vides ne sont pas comptés").
+  var LIGNES_COUT_INVENTAIRE = [
+    { cle: 'ouverture', label: "Provision — acte d'inventaire" },
+    { cle: 'prisee', label: 'Prisée du commissaire de justice, TTC' },
+    { cle: 'cloture', label: 'Provision — acte de clôture' },
+    { cle: 'serment', label: 'Prestation(s) de serment des absents' },
+    { cle: 'trajet', label: 'Frais de trajet' }
+  ];
+
+  // Un champ vide n'est pas un zéro : il vaut `null`, ce qui distingue « pas encore renseigné » de
+  // « rien à compter ». C'est cette distinction qui permet de ne pas afficher de verdict tant que
+  // les deux simulations de droits n'ont pas été saisies.
+  function nombreSaisiInventaire(valeur) {
+    if (valeur === null || valeur === undefined) return null;
+    const texte = String(valeur).trim();
+    if (!texte) return null;
+    const n = Number(texte.replace(',', '.'));
+    return Number.isFinite(n) ? n : null;
+  }
+
+  // Aucun montant négatif n'a de sens ici, et un coût négatif gonflerait silencieusement
+  // l'économie affichée : on le ramène à zéro plutôt que de le laisser fausser le résultat.
+  function montantPositifInventaire(valeur) {
+    const n = nombreSaisiInventaire(valeur);
+    return n === null ? 0 : Math.max(0, n);
+  }
+
+  // Fonction pure (testable) : ne lit aucun champ, ne touche à rien. `saisie` porte des chaînes
+  // telles que les rend un <input>, vides comprises.
+  function calculerArbitrageInventaire(saisie) {
+    const s = saisie || {};
+    const droitsSans = nombreSaisiInventaire(s.droitsSans);
+    const droitsAvec = nombreSaisiInventaire(s.droitsAvec);
+    // Les deux simulations sont indispensables : sans elles il n'y a pas d'économie à comparer au
+    // coût, et un verdict rendu sur des champs vides afficherait « non recommandé » sur un écran
+    // où personne n'a encore rien saisi.
+    const complet = droitsSans !== null && droitsAvec !== null;
+    const brutes = complet ? droitsSans - droitsAvec : 0;
+
+    const serment = montantPositifInventaire(s.sermentNb) * montantPositifInventaire(s.sermentUnit);
+    const trajet = s.trajetActif
+      ? montantPositifInventaire(s.trajetNb) * montantPositifInventaire(s.trajetUnit)
+      : 0;
+    const montants = {
+      ouverture: montantPositifInventaire(s.fraisOuverture),
+      prisee: montantPositifInventaire(s.prisee),
+      cloture: montantPositifInventaire(s.fraisCloture),
+      serment: serment,
+      trajet: trajet
+    };
+
+    const lignes = LIGNES_COUT_INVENTAIRE
+      .filter(l => montants[l.cle] > 0)
+      .map(l => ({ cle: l.cle, label: l.label, montant: montants[l.cle] }));
+    const cout = lignes.reduce((total, l) => total + l.montant, 0);
+
+    return {
+      complet: complet,
+      droitsSans: droitsSans === null ? 0 : droitsSans,
+      droitsAvec: droitsAvec === null ? 0 : droitsAvec,
+      brutes: brutes,
+      lignes: lignes,
+      cout: cout,
+      net: complet ? brutes - cout : 0
+    };
+  }
+
+  // Trois états, pas deux. L'artefact d'origine n'en avait que deux (favorable / défavorable), ce
+  // qui affichait « Non recommandé » sur un formulaire encore vierge — une réponse tranchée à une
+  // question que personne n'a posée, contraire à la règle déjà en place sur les deux autres
+  // simulateurs ("une valeur pré-remplie se prend pour un résultat"). D'où `indetermine`.
+  //
+  // Volontairement PAS de quatrième état « marginal » (une économie nette de quelques dizaines
+  // d'euros, techniquement positive mais qui ne vaut pas la démarche) : le seuil à partir duquel
+  // l'inventaire cesse d'être intéressant est un jugement que l'étude n'a pas donné, l'inventer
+  // reviendrait à poser une règle métier de ma propre initiative.
+  var VERDICTS_INVENTAIRE = {
+    indetermine: {
+      libelle: 'À compléter',
+      dl: 'dl-neutre',
+      message: 'Saisissez les droits de succession simulés dans les deux hypothèses pour obtenir le verdict.'
+    },
+    defavorable: {
+      libelle: 'Non recommandé',
+      dl: 'dl-urgent',
+      message: "Le coût de l'inventaire atteint ou dépasse l'économie de droits : la démarche ne fait rien gagner au client et ne peut pas être recommandée sur ce seul critère."
+    },
+    favorable: {
+      libelle: 'Intéressant pour le client',
+      dl: 'dl-success',
+      message: "L'inventaire fait économiser des droits de succession au client, même une fois son coût déduit : la démarche est financièrement intéressante et peut être recommandée."
+    }
+  };
+
+  function verdictArbitrageInventaire(resultat) {
+    const cle = !resultat || !resultat.complet
+      ? 'indetermine'
+      : (resultat.net > 0 ? 'favorable' : 'defavorable');
+    return Object.assign({ cle: cle }, VERDICTS_INVENTAIRE[cle]);
+  }
+
+  function lireSaisieInventaire() {
+    const val = id => {
+      const el = document.getElementById(id);
+      return el ? el.value : '';
+    };
+    const coche = document.getElementById('inv-trajet-actif');
+    return {
+      dossier: val('inv-dossier'),
+      droitsSans: val('inv-droits-sans'),
+      droitsAvec: val('inv-droits-avec'),
+      fraisOuverture: val('inv-frais-ouverture'),
+      prisee: val('inv-prisee'),
+      fraisCloture: val('inv-frais-cloture'),
+      sermentNb: val('inv-serment-nb'),
+      sermentUnit: val('inv-serment-unit'),
+      trajetActif: !!(coche && coche.checked),
+      trajetNb: val('inv-trajet-nb'),
+      trajetUnit: val('inv-trajet-unit')
+    };
+  }
+
+  function calculerInventaireAffichage() {
+    const saisie = lireSaisieInventaire();
+    const r = calculerArbitrageInventaire(saisie);
+    const v = verdictArbitrageInventaire(r);
+
+    const badge = document.getElementById('inv-verdict-badge');
+    if (badge) badge.innerHTML = `<span class="dot-label ${v.dl}"><span class="dot"></span>${escapeHtml(v.libelle)}</span>`;
+    const chiffre = document.getElementById('inv-verdict-montant');
+    if (chiffre) {
+      chiffre.textContent = r.complet ? formaterPrix(r.net) : '—';
+      chiffre.classList.toggle('inv-montant-negatif', r.complet && r.net <= 0);
+    }
+    const texte = document.getElementById('inv-verdict-texte');
+    if (texte) texte.textContent = v.message;
+
+    const decompte = document.getElementById('inv-decompte');
+    if (decompte) decompte.style.display = r.complet ? '' : 'none';
+    if (r.complet) {
+      const pose = (id, montant, signe) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = (signe || '') + formaterPrix(montant);
+      };
+      pose('inv-l-droits-sans', r.droitsSans);
+      pose('inv-l-droits-avec', r.droitsAvec);
+      pose('inv-l-brutes', r.brutes);
+      pose('inv-l-cout', r.cout, '− ');
+      pose('inv-l-net', r.net);
+      const corps = document.getElementById('inv-decompte-cout');
+      if (corps) {
+        corps.innerHTML = r.lignes
+          .map(l => `<tr><td>${escapeHtml(l.label)}</td><td>− ${formaterPrix(l.montant)}</td></tr>`)
+          .join('');
+      }
+    }
+
+    construireNoteInventaire(saisie, r, v);
+  }
+
+  // La note imprimable est reconstruite à chaque saisie plutôt qu'au clic sur « Imprimer » : un
+  // Ctrl+P direct depuis l'onglet doit sortir la même feuille que le bouton.
+  function construireNoteInventaire(saisie, r, v) {
+    const cible = document.getElementById('inv-print');
+    if (!cible) return;
+    if (!r.complet) { cible.innerHTML = ''; return; }
+    const titre = (saisie.dossier || '').trim() || 'Succession';
+    const lignes = r.lignes
+      .map(l => `<tr><td>${escapeHtml(l.label)}</td><td>− ${formaterPrix(l.montant)}</td></tr>`)
+      .join('');
+    cible.innerHTML = `
+      <h1>${escapeHtml(titre)}</h1>
+      <p class="inv-print-sous">Note de calcul — arbitrage forfait mobilier / inventaire avec prisée · ${escapeHtml(formatDateFr(isoAujourdHui()))}</p>
+      <table>
+        <tr><td>Droits de succession sans prisée (forfait mobilier)</td><td>${formaterPrix(r.droitsSans)}</td></tr>
+        <tr><td>Droits de succession avec prisée</td><td>${formaterPrix(r.droitsAvec)}</td></tr>
+        <tr class="inv-print-total"><td>Économies brutes</td><td>${formaterPrix(r.brutes)}</td></tr>
+        ${lignes}
+        <tr class="inv-print-total"><td>Économies nettes estimées</td><td>${formaterPrix(r.net)}</td></tr>
+      </table>
+      <p class="inv-print-verdict"><strong>${escapeHtml(v.libelle)}</strong> — ${escapeHtml(v.message)}</p>
+      <p class="inv-print-note">Simulation indicative établie sur la base des éléments saisis. Le forfait mobilier de 5 % (art. 764 du CGI) s'applique à défaut d'inventaire ou de prisée ; il peut être écarté par un inventaire notarié avec prisée par un commissaire de justice. La fourchette de prisée et le nombre de prestations de serment sont à confirmer avant tout conseil au client.</p>`;
+  }
+
+  function basculerTrajetsInventaire() {
+    const coche = document.getElementById('inv-trajet-actif');
+    const bloc = document.getElementById('inv-trajet-champs');
+    if (bloc) bloc.style.display = coche && coche.checked ? '' : 'none';
+    calculerInventaireAffichage();
+  }
+
+  // Remet l'écran à vide, jamais à un jeu de valeurs d'exemple : l'artefact d'origine livrait un
+  // dossier fictif pré-rempli, ce qui contredit la règle déjà posée sur les deux autres
+  // simulateurs — un montant déjà là se prend pour un résultat.
+  function reinitialiserInventaire() {
+    ['inv-dossier', 'inv-droits-sans', 'inv-droits-avec', 'inv-frais-ouverture', 'inv-prisee',
+      'inv-frais-cloture', 'inv-serment-nb', 'inv-serment-unit', 'inv-trajet-nb', 'inv-trajet-unit']
+      .forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+    const coche = document.getElementById('inv-trajet-actif');
+    if (coche) coche.checked = false;
+    basculerTrajetsInventaire();
+  }
+
+  function imprimerNoteInventaire() {
+    const r = calculerArbitrageInventaire(lireSaisieInventaire());
+    if (!r.complet) {
+      afficherToast('Saisissez les droits de succession dans les deux hypothèses avant d\'imprimer la note.', 'OK', null);
+      return;
+    }
+    window.print();
+  }
 
   // Peuple le <select> des départements une seule fois au démarrage (le calculateur est toujours
   // dans le DOM, comme les autres onglets — voir definirOnglet) et calcule un premier résultat par
@@ -16235,6 +16485,7 @@
       'icon-nav-calculateur': 'banknote',
       'icon-nav-prorata': 'part-disque',
       'icon-nav-appel-fonds': 'mail',
+      'icon-nav-inventaire': 'scale',
       'icon-af-dropzone': 'upload',
       'icon-apropos': 'info',
       'icon-calc-warning': 'alert-triangle',

@@ -7156,6 +7156,68 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
     à la main arrive effectivement dans Teams. C'est le seul maillon que rien, côté CLAIRE, ne
     peut observer.
 
+- **Nouvel outil « Arbitrage forfait mobilier » (succession)**, demandé par l'étude : « implémente
+  l'artéfact de simulation d'intérêt d'inventaire de succession à ajouter dans Outils de la
+  sidebar. Reprend UI/UX de CLAIRE, pas de slop IA. » Port d'un artefact existant
+  (« Arbitrage du forfait mobilier »), pas une construction de zéro — d'où la discipline déjà
+  appliquée aux maquettes précédentes (frais d'acte, fiche « Nocturne », appel de fonds) :
+  **on reprend la STRUCTURE, on jette la palette.** L'artefact pose un bordeaux `#7c2e2e`, Fraunces
+  / Source Sans 3 / IBM Plex Mono et un rayon de 3px ; rien de tout ça n'entre ici. L'écran est
+  bâti sur `.dash-header`/`.dash-grid`/`.calc-card`/`.calc-champ`/`.calc-resultat`/`.calc-table`,
+  c'est-à-dire exactement le gabarit du simulateur de provision et du prorata, et sur les jetons
+  déjà validés.
+  - **Ce que l'outil répond** : à défaut d'inventaire ou de prisée, les meubles meublants sont
+    évalués au **forfait de 5 % de l'actif** (art. 764 du CGI). Un inventaire notarié avec prisée
+    par un commissaire de justice écarte ce forfait, mais il a un coût. La question est donc
+    arithmétique : l'économie de droits couvre-t-elle la dépense ? `calculerArbitrageInventaire()`
+    (pure, testable) fait `économies brutes = droits sans prisée − droits avec prisée`, puis
+    `net = brutes − (acte d'inventaire + prisée + acte de clôture + serments + trajets)`.
+  - **Décision structurante reprise de l'artefact, à ne PAS défaire : l'outil ne calcule JAMAIS les
+    droits de succession.** Le notaire saisit les deux montants qu'il a déjà simulés de son côté.
+    Bâtir ici un moteur de droits (abattements, tranches, degré de parenté, assurance-vie…)
+    reviendrait à présenter comme fiable un barème que personne n'a audité — exactement la réserve
+    déjà posée sur le simulateur de provision, et le genre de chiffre qui engage l'étude dès qu'il
+    est annoncé à un client.
+  - **Trois états de verdict, pas deux.** L'artefact n'en avait que deux (favorable / défavorable),
+    ce qui affichait « Non recommandé » sur un formulaire encore vierge — une réponse tranchée à
+    une question que personne n'a posée. `verdictArbitrageInventaire()` rend `indetermine` tant que
+    les deux simulations de droits ne sont pas saisies, et les champs partent tous **vides**, comme
+    sur les deux autres simulateurs (« une valeur pré-remplie se prend pour un résultat ») : les
+    valeurs d'exemple de l'artefact ne sont donc pas reprises, et « Réinitialiser » remet à vide,
+    pas à l'exemple. Les trois verdicts prennent `dl-neutre`/`dl-urgent`/`dl-success`, aucune
+    couleur inventée pour cet écran.
+  - **Volontairement PAS de quatrième état « marginal »** (une économie nette de quelques dizaines
+    d'euros, techniquement positive mais qui ne vaut pas la démarche) : le seuil à partir duquel
+    l'inventaire cesse d'être intéressant est un jugement que l'étude n'a pas donné, l'inventer
+    serait poser une règle métier de ma propre initiative. L'artefact avait d'ailleurs un état
+    `warn` dans son CSS que sa propre logique ne posait jamais.
+  - **Pas de PDF, l'impression suffit.** L'artefact embarquait jsPDF et une police Carlito en
+    base64 (280 Ko de fichier pour ça), avec un repli sur `window.print()` de toute façon. CLAIRE
+    a déjà son mécanisme — un bloc masqué à l'écran plus un `@media print` — et jsPDF viendrait
+    d'un CDN. `construireNoteInventaire()` tient `#inv-print` à jour à chaque saisie (et non au
+    clic) pour qu'un Ctrl+P direct sorte la même feuille que le bouton ; `definirOnglet()` pose
+    `body.onglet-inventaire-actif`, comme pour l'appel de fonds.
+  - **Deux défauts vus au rendu, pas à la relecture, et corrigés** : la dernière ligne de coût du
+    décompte se retrouvait grossie et décalée au hasard de ce qui est chiffré — `.calc-table`
+    met en valeur sa dernière ligne, mais `:last-child` est relatif au `<tbody>`, et ce décompte en
+    a trois (celui des postes de coût est reconstruit à chaque saisie) ; et les postes non chiffrés
+    s'affichaient en « − 0 € », ce qui contredisait la note de l'écran (« les postes laissés vides
+    ne sont pas comptés ») — aucun poste n'apparaît plus tant qu'il n'est pas chiffré.
+  - Nouvelle icône `scale` (balance à deux plateaux) dans `ICONES`, même grille 16×16 et même trait
+    1.4 que le reste du jeu. Un seul ajout CSS de fond (`.calc-coche`, `.inv-*`) : presque tout est
+    hérité.
+  - Tests : `tests/inventaire-succession.test.js` (10 — le calcul de référence, les deux champs de
+    droits qui bloquent le verdict sans le rendre, les postes vides qui valent zéro sans bloquer,
+    les trajets conditionnés à la case, le décompte limité aux postes chiffrés, un coût négatif
+    ramené à zéro, une économie brute négative quand le mobilier vaut plus que le forfait, la
+    bascule du verdict à zéro exactement, les trois jetons de couleur, la virgule décimale). Suite
+    racine 615 → 625, serveur inchangée (211 — chantier entièrement côté client, aucun fichier
+    statique nouveau à déclarer). **Vérifié dans un vrai Chromium** (serveur réel, clair et sombre,
+    1500px et 400px) : lien dans la bonne section de la barre de gauche, écran vide au départ avec
+    « À compléter », les deux verdicts et leurs couleurs, décompte complet au centime attendu,
+    trajets qui entrent et sortent du coût, « Réinitialiser » qui remet à vide, note imprimable qui
+    remplace les cartes de saisie, aucun débordement horizontal, aucune erreur JS.
+
 ## Ce qui reste ouvert / pas encore fait
 
 - **Signature manuscrite de Bastien ANGLUMENT, conservée pour le courrier d'appel de fonds**

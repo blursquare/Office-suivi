@@ -71,6 +71,12 @@
       <button type="button" id="tab-appel-fonds" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('appel-fonds')">
         <span class="sidebar-link-icone" id="icon-nav-appel-fonds" aria-hidden="true"></span>Appel de fonds
       </button>
+      <!-- Arbitrage du forfait mobilier : la prisée d'un commissaire de justice écarte le forfait
+           de 5 % de l'art. 764 CGI, mais elle a un coût — l'outil compare les deux. Sans dossier,
+           comme les deux simulateurs voisins : rien n'est enregistré. -->
+      <button type="button" id="tab-inventaire" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('inventaire')">
+        <span class="sidebar-link-icone" id="icon-nav-inventaire" aria-hidden="true"></span>Arbitrage forfait mobilier
+      </button>
 
       <span class="sidebar-nav-titre">Admin</span>
       <!-- Réglages de l'étude (URL du flux Power Automate + adresse email de chaque collaborateur) :
@@ -986,6 +992,134 @@
       </div>
     </div>
   </div>
+</div>
+
+<!-- Arbitrage du forfait mobilier (succession) — voir CLAUDE.md. Porté d'un artefact fourni par
+     l'étude, dont seule la structure est reprise : gabarit .calc-card/.calc-champ/.dash-grid et
+     jetons de CLAIRE, comme le simulateur de provision et le prorata. L'outil ne calcule JAMAIS
+     les droits de succession : le notaire saisit les deux montants qu'il a déjà simulés, un
+     moteur de droits non audité n'aurait pas sa place ici. -->
+<div class="onglet-panel" id="onglet-inventaire" style="display:none;">
+  <div class="dash-header">
+    <div>
+      <div class="dash-eyebrow">Succession</div>
+      <div class="dash-titre-ligne">
+        <h1 class="dash-titre">Arbitrage du forfait mobilier</h1>
+        <span class="calc-warning-label" title="Simulation établie sur les seuls éléments saisis. La fourchette de prisée et le nombre de prestations de serment sont à confirmer avant tout conseil au client.">
+          <span id="icon-inv-warning" aria-hidden="true"></span>Simulation indicative
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="dash-grid">
+    <div>
+      <div class="calc-card">
+        <div class="dash-section-titre">Droits de succession simulés</div>
+        <div class="calc-champs">
+          <div class="calc-champ">
+            <label for="inv-dossier">Dossier</label>
+            <input type="text" id="inv-dossier" placeholder="Nom du dossier de succession" oninput="calculerInventaireAffichage()">
+          </div>
+          <div class="calc-champ">
+            <label for="inv-droits-sans">Sans prisée — forfait mobilier de 5 % (€)</label>
+            <input type="number" id="inv-droits-sans" min="0" step="1" placeholder="Droits dus si le forfait s'applique" oninput="calculerInventaireAffichage()">
+          </div>
+          <div class="calc-champ">
+            <label for="inv-droits-avec">Avec prisée par commissaire de justice (€)</label>
+            <input type="number" id="inv-droits-avec" min="0" step="1" placeholder="Droits dus sur la valeur réelle du mobilier" oninput="calculerInventaireAffichage()">
+          </div>
+          <p class="hint">Ces deux montants viennent de votre propre simulation des droits : CLAIRE ne les calcule pas et ne connaît ni les abattements ni le degré de parenté.</p>
+        </div>
+      </div>
+
+      <div class="calc-card">
+        <div class="dash-section-titre">Coût de l'inventaire</div>
+        <div class="calc-champs">
+          <div class="calc-champ">
+            <label for="inv-frais-ouverture">Provision — acte d'inventaire (€)</label>
+            <input type="number" id="inv-frais-ouverture" min="0" step="0.01" placeholder="0" oninput="calculerInventaireAffichage()">
+          </div>
+          <div class="calc-champ">
+            <label for="inv-prisee">Prisée du commissaire de justice, TTC (€)</label>
+            <input type="number" id="inv-prisee" min="0" step="0.01" placeholder="0" oninput="calculerInventaireAffichage()">
+          </div>
+          <div class="calc-champ">
+            <label for="inv-frais-cloture">Provision — acte de clôture (€)</label>
+            <input type="number" id="inv-frais-cloture" min="0" step="0.01" placeholder="0" oninput="calculerInventaireAffichage()">
+          </div>
+          <div class="calc-champ calc-champ-paire">
+            <div>
+              <label for="inv-serment-nb">Prestations de serment (absents)</label>
+              <input type="number" id="inv-serment-nb" min="0" step="1" placeholder="0" oninput="calculerInventaireAffichage()">
+            </div>
+            <div>
+              <label for="inv-serment-unit">Coût unitaire (€)</label>
+              <input type="number" id="inv-serment-unit" min="0" step="0.01" placeholder="0" oninput="calculerInventaireAffichage()">
+            </div>
+          </div>
+          <div class="calc-radios calc-coche">
+            <label for="inv-trajet-actif">
+              <input type="checkbox" id="inv-trajet-actif" onchange="basculerTrajetsInventaire()">
+              Compter des frais de trajet
+            </label>
+          </div>
+          <div class="calc-champ calc-champ-paire" id="inv-trajet-champs" style="display:none;">
+            <div>
+              <label for="inv-trajet-nb">Nombre de trajets</label>
+              <input type="number" id="inv-trajet-nb" min="0" step="1" placeholder="0" oninput="calculerInventaireAffichage()">
+            </div>
+            <div>
+              <label for="inv-trajet-unit">Coût unitaire (€)</label>
+              <input type="number" id="inv-trajet-unit" min="0" step="0.01" placeholder="0" oninput="calculerInventaireAffichage()">
+            </div>
+          </div>
+          <p class="hint">Les postes laissés vides ne sont pas comptés. Serments et trajets n'apparaissent au décompte que s'ils sont chiffrés.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="calc-card">
+      <div class="dash-section-titre">Verdict</div>
+      <div id="inv-verdict-badge"></div>
+      <div class="calc-resultat inv-resultat">
+        <div class="calc-tag">Économie nette estimée</div>
+        <div class="calc-total" id="inv-verdict-montant">—</div>
+        <div class="calc-small" id="inv-verdict-texte"></div>
+      </div>
+
+      <div id="inv-decompte" style="display:none;">
+        <table class="calc-table inv-table">
+          <tbody>
+            <tr><td>Droits sans prisée (forfait mobilier)</td><td id="inv-l-droits-sans"></td></tr>
+            <tr><td>Droits avec prisée</td><td id="inv-l-droits-avec"></td></tr>
+            <tr class="inv-ligne-total"><td>Économies brutes</td><td id="inv-l-brutes"></td></tr>
+          </tbody>
+          <tbody id="inv-decompte-cout"></tbody>
+          <tbody>
+            <tr class="inv-ligne-total"><td>Coût de l'inventaire</td><td id="inv-l-cout"></td></tr>
+            <tr class="inv-ligne-net"><td>Économies nettes estimées</td><td id="inv-l-net"></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="inv-actions">
+        <button type="button" class="secondary" onclick="imprimerNoteInventaire()">Imprimer la note</button>
+        <button type="button" class="secondary" onclick="reinitialiserInventaire()">Réinitialiser</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="calc-card calc-card-notes">
+    <div class="dash-section-titre">Ce que dit le texte</div>
+    <p><strong>Article 764 du CGI :</strong> à défaut d'inventaire ou de prisée, les meubles meublants sont réputés valoir <strong>5 % de l'ensemble des autres biens</strong> de la succession. Ce forfait est un plancher d'évaluation, pas une option de confort.</p>
+    <p>Un <strong>inventaire notarié avec prisée par un commissaire de justice</strong> écarte ce forfait et lui substitue la valeur réellement constatée. L'arbitrage n'a donc d'intérêt que lorsque le mobilier vaut sensiblement moins que 5 % de l'actif.</p>
+    <p>Ce simulateur compare la seule <strong>économie de droits</strong> au <strong>coût de la démarche</strong>. Il ne dit rien des autres raisons de dresser un inventaire — protection du conjoint survivant, indivision conflictuelle, démembrement, recel successoral — qui peuvent le justifier même sans gain fiscal.</p>
+  </div>
+
+  <!-- Note imprimable : masquée à l'écran, seule chose que sort Ctrl+P depuis cet onglet (voir
+       @media print). Reconstruite à chaque saisie par construireNoteInventaire(). -->
+  <div id="inv-print" class="inv-print"></div>
 </div>
 
 <!-- Outil 2 — Audit intelligent des actes notariaux (voir CLAUDE.md, section "Outil 2") :
