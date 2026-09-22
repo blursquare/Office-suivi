@@ -148,52 +148,25 @@ sans personne devant l'écran, ne peut pas passer par un brouillon `mailto:`.
 
 **Tout se configure depuis l'écran « Réglages » de la sidebar** — aucun fichier à éditer à la main.
 
-### Quel mode d'envoi ?
+### Envoi par Gmail, et seulement par Gmail
 
-Deux modes existent, et **le DNS du domaine décide lequel est praticable** — le vérifier avant de
-configurer quoi que ce soit, dans une invite de commandes Windows :
+L'écran Réglages ne propose plus qu'un compte **Gmail** (décision de l'étude, 23/09/2026) : serveur
+`smtp.gmail.com`, port **587** en STARTTLS, fixés par le client (`GMAIL_SMTP` dans `script.js`) ;
+on ne saisit que le **compte Gmail**, son **mot de passe d'application** (16 caractères, créable
+sur `myaccount.google.com/apppasswords` après activation de la validation en deux étapes), la
+boîte-passerelle et l'éventuelle adresse de copie. L'adresse d'expédition reste vide : Gmail exige
+que l'expéditeur soit le compte authentifié lui-même.
 
-```
-nslookup -type=mx votredomaine.fr
-nslookup -type=txt votredomaine.fr
-```
+Pourquoi pas Microsoft 365 : l'envoi sans compte est interdit par le SPF du domaine (`-all`,
+passerelle Retarus), et autoriser le SMTP authentifié sur une boîte du locataire demande des droits
+d'administrateur dont l'étude ne dispose pas. Le transport côté serveur (`envoiEmail.js`) reste un
+SMTP générique : si ce choix change un jour, seul le formulaire est à rouvrir.
 
-- **Envoi sans compte** (« direct send ») : Microsoft 365 accepte les emails envoyés depuis le
-  réseau du bureau vers une adresse du domaine. Le serveur à indiquer est alors
-  `domaine-avec-tirets.mail.protection.outlook.com`, port 25, compte et mot de passe vides.
-  **Praticable seulement si l'enregistrement SPF du domaine autorise l'adresse IP de sortie du
-  bureau.** Un SPF qui se termine par `-all` en ne listant qu'un prestataire de filtrage
-  (Retarus, Proofpoint, Mailinblack…) l'interdit : l'envoi serait rejeté ou mis en quarantaine.
-  À noter : quand le MX pointe vers un tel prestataire, l'endpoint Microsoft existe quand même,
-  il n'est simplement plus publié dans le MX — le centre d'administration Microsoft 365 (Paramètres
-  → Domaines → le domaine) donne sa valeur exacte.
-- **Envoi avec compte Microsoft 365** : serveur
-  `smtp.office365.com`, port **587**, « Connexion chiffrée dès l'ouverture » **décochée** (STARTTLS
-  est négocié en cours de connexion sur ce port), compte = l'adresse d'une boîte de l'étude,
-  mot de passe = un **mot de passe d'application** si cette boîte est protégée par authentification
-  à deux facteurs. Deux prérequis côté administrateur Microsoft 365 : **SMTP authentifié** autorisé
-  pour cette boîte (Utilisateurs → la boîte → Courrier → Gérer les applications de messagerie),
-  et l'authentification SMTP non bloquée au niveau du locataire.
-  Le SPF ne gêne pas ce mode : le message part de la boîte elle-même, et le destinataire étant une
-  boîte du même locataire, la remise est interne.
-- **Envoi depuis une messagerie externe** (`smtp.gmail.com`, port **587**, « Connexion chiffrée dès
-  l'ouverture » **décochée**, compte = l'adresse complète, mot de passe = un **mot de passe
-  d'application** de 16 caractères, créable seulement après avoir activé la validation en deux
-  étapes sur le compte). **C'est le montage actuellement en service chez l'étude**, les deux modes
-  Microsoft 365 ci-dessus lui étant tous les deux fermés : le SPF du domaine interdit l'envoi sans
-  compte, et activer l'authentification SMTP sur une boîte du locataire demande des droits
-  d'administrateur Microsoft 365 dont l'étude ne dispose pas.
-  Deux réserves à connaître, l'une et l'autre écartées en pratique mais pas par construction :
-  chaque rappel contient un nom de dossier et une échéance, qui transitent donc par le compte
-  externe utilisé ; et la boîte-passerelle doit accepter un message venant de l'extérieur du
-  domaine — si le filtrage l'écarte, le flux ne se déclenche jamais et rien ne le signale du côté
-  de l'envoi, qui a réussi. Le panneau « Dernier tour de rappels » (plus bas) ne couvre pas ce
-  cas-là : seul un coup d'œil dans Teams, ou l'historique du flux dans Power Automate, le dira.
-
-**Adresse d'expédition : la laisser vide.** Microsoft 365 exige que l'expéditeur soit le compte
-authentifié, sauf droit « Envoyer en tant que » accordé à ce compte — un autre nom se solde par un
-refus `5.7.60 Client does not have permissions to send as this sender`. Laissée vide, elle prend la
-valeur du compte SMTP (ou, en envoi sans compte, celle de la boîte-passerelle).
+Deux réserves à connaître : chaque rappel contient un nom de dossier et une échéance, qui
+transitent donc par le compte Gmail ; et la boîte-passerelle doit accepter un message venant de
+l'extérieur du domaine — si le filtrage l'écarte, le flux ne se déclenche jamais et rien ne le
+signale du côté de l'envoi, qui a réussi. Le panneau « Dernier tour de rappels » ne couvre pas ce
+cas-là : seul un coup d'œil dans Teams, ou l'historique du flux dans Power Automate, le dira.
 
 ### Puis
 

@@ -77,6 +77,12 @@
       <button type="button" id="tab-inventaire" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('inventaire')">
         <span class="sidebar-link-icone" id="icon-nav-inventaire" aria-hidden="true"></span>Arbitrage forfait mobilier
       </button>
+      <!-- Quotités d'acquisition : proportions de chaque acquéreur d'après l'origine du financement,
+           et annexe « Nature et quotités des droits acquis » en .docx. Porté d'un artefact de
+           l'étude (structure et textes des clauses), aux jetons de CLAIRE — voir CLAUDE.md. -->
+      <button type="button" id="tab-quotites" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('quotites')">
+        <span class="sidebar-link-icone" id="icon-nav-quotites" aria-hidden="true"></span>Quotités d'acquisition
+      </button>
 
       <span class="sidebar-nav-titre">Admin</span>
       <!-- Réglages de l'étude (URL du flux Power Automate + adresse email de chaque collaborateur) :
@@ -91,14 +97,6 @@
       <button type="button" class="sidebar-link install-btn" id="install-btn" style="display:none;" onclick="installerApplication()">
         <span class="sidebar-link-icone" id="icon-install" aria-hidden="true"></span>Installer l'application
       </button>
-      <div class="sidebar-footer-row">
-        <button type="button" class="sidebar-link sidebar-link-icone-seule" id="theme-btn" onclick="basculerTheme()" aria-label="Basculer le thème clair/sombre" title="Basculer le thème clair/sombre">
-          <span class="sidebar-link-icone" id="icon-theme" aria-hidden="true"></span>
-        </button>
-        <button type="button" class="sidebar-link sidebar-link-apropos" onclick="ouvrirAPropos()">
-          <span class="sidebar-link-icone" id="icon-apropos" aria-hidden="true"></span>À propos
-        </button>
-      </div>
     </div>
   </aside>
 
@@ -1117,6 +1115,82 @@
   <div id="inv-print" class="inv-print"></div>
 </div>
 
+<!-- Quotités d'acquisition — voir CLAUDE.md. Porté de l'artefact « Quotité des acquéreurs » :
+     structure du formulaire et texte des clauses repris tels quels, palette et typographie de
+     l'artefact abandonnées au profit des jetons de CLAIRE. L'aperçu de droite reste une FEUILLE
+     (fond blanc, Times New Roman comme le .docx produit) dans les deux thèmes : c'est le
+     fac-similé du document, même principe que le courrier d'appel de fonds. -->
+<div class="onglet-panel" id="onglet-quotites" style="display:none;">
+  <div class="dash-header">
+    <div>
+      <div class="dash-eyebrow">Acquisition à plusieurs</div>
+      <div class="dash-titre-ligne">
+        <h1 class="dash-titre">Quotités d'acquisition</h1>
+      </div>
+    </div>
+    <div class="dash-header-actions">
+      <button type="button" class="secondary" onclick="reinitialiserQuotites()">Effacer</button>
+      <button type="button" class="primary" id="qt-telecharger" onclick="telechargerQuotitesDocx(this)">Télécharger l'annexe (.docx)</button>
+    </div>
+  </div>
+
+  <div class="af-grid qt-grid">
+    <div class="calc-card af-form">
+      <div class="dash-section-titre">Dossier suivi</div>
+      <div class="calc-champs">
+        <div class="calc-champ">
+          <label for="qt-dossier-recherche">Reprendre les acquéreurs et le prix d'un dossier</label>
+          <div class="dash-recherche" style="width:100%;">
+            <input type="search" id="qt-dossier-recherche" placeholder="Rechercher un dossier par nom ou responsable…" oninput="rechercherDossierQuotites(this.value)" autocomplete="off">
+            <div id="qt-dossier-resultats" class="dash-recherche-resultats" style="display:none;"></div>
+          </div>
+          <div id="qt-dossier-pill"></div>
+        </div>
+        <div id="qt-recap-prefill" class="af-recap"></div>
+      </div>
+
+      <div class="dash-section-titre qt-titre">Nature du bien</div>
+      <div class="calc-radios qt-radios-bien">
+        <label><input type="radio" name="qt-type-bien" value="immeuble" checked onchange="changerTypeBienQuotites(this.value)"> Maison ou lot de copropriété</label>
+        <label><input type="radio" name="qt-type-bien" value="terrain" onchange="changerTypeBienQuotites(this.value)"> Terrain + construction</label>
+      </div>
+
+      <div class="dash-section-titre qt-titre">Acquéreurs</div>
+      <div id="qt-acquereurs" class="qt-liste"></div>
+      <button type="button" class="action-rapide" onclick="ajouterAcquereurQuotites()">+ Ajouter un acquéreur</button>
+
+      <div class="dash-section-titre qt-titre">Montant de l'opération</div>
+      <div id="qt-lignes" class="qt-liste"></div>
+      <button type="button" class="action-rapide" onclick="ajouterLigneQuotites()">+ Ajouter une ligne</button>
+      <div class="qt-total-ligne"><span>Total de l'opération</span><strong id="qt-total-operation">—</strong></div>
+
+      <div class="dash-section-titre qt-titre">Origine du financement</div>
+      <div id="qt-sources" class="qt-liste"></div>
+      <div class="qt-ajout-sources">
+        <button type="button" class="action-rapide" onclick="ajouterSourceQuotites('apport')">+ Apport personnel</button>
+        <button type="button" class="action-rapide" onclick="ajouterSourceQuotites('pret')">+ Prêt</button>
+      </div>
+      <div class="qt-total-ligne"><span>Total du financement</span><strong id="qt-total-financement">—</strong></div>
+    </div>
+
+    <div class="qt-colonne-droite">
+      <div class="calc-card qt-resultat">
+        <div class="dash-section-titre">Quotités</div>
+        <div id="qt-controle"></div>
+        <div id="qt-quotites" class="qt-quotites"></div>
+        <p class="hint">Proportions arrondies au centième, ajustées pour totaliser exactement 100 %. Elles suivent le financement de chacun, pas le montant de l'opération.</p>
+      </div>
+
+      <div class="af-apercu qt-apercu">
+        <div class="af-apercu-barre">
+          <span class="section-eyebrow">Aperçu de l'annexe</span>
+        </div>
+        <div class="qt-feuille" id="qt-feuille"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Outil 2 — Audit intelligent des actes notariaux (voir CLAUDE.md, section "Outil 2") :
      remplace l'ancienne "Analyse approfondie (IA)" (un seul prompt, un seul type de document).
      Sélecteur de MODE explicite à l'upload (projet de compromis/promesse, ou projet d'acte de
@@ -1206,9 +1280,9 @@
 <div class="onglet-panel" id="onglet-reglages" style="display:none;">
   <div class="dash-header">
     <div>
-      <div class="dash-eyebrow">Réglages</div>
+      <div class="dash-eyebrow">Admin</div>
       <div class="dash-titre-ligne">
-        <h1 class="dash-titre">Rappels automatiques par email</h1>
+        <h1 class="dash-titre">Réglages</h1>
       </div>
     </div>
   </div>
@@ -1220,66 +1294,72 @@
        réglage partagé n'aurait aucun sens ici. Voir notifierNavigateurPieces()/
        CLE_LOCALSTORAGE_NOTIF_NAVIGATEUR dans script.js. -->
   <div class="calc-card">
-    <div class="dash-section-titre">Notifications sur ce poste</div>
-    <div class="calc-champs">
-      <label class="toolbar-checkbox" style="display:flex; align-items:center; gap:8px; font-weight:600;">
-        <input type="checkbox" id="reglages-notif-navigateur" onchange="basculerNotifNavigateur(this.checked)">
-        Recevoir une notification du navigateur/Windows pour une nouvelle pièce trouvée
+    <div class="dash-section-titre">Sur ce poste</div>
+    <div class="reglages-liste">
+      <label class="reglages-option" for="reglages-theme-sombre">
+        <span class="reglages-option-texte">
+          <span class="reglages-option-titre">Mode sombre</span>
+          <span class="hint">Fond sombre pour toute l'application. Retenu sur ce poste uniquement.</span>
+        </span>
+        <span class="switch reglages-switch">
+          <input type="checkbox" id="reglages-theme-sombre" onchange="appliquerTheme(this.checked ? 'dark' : 'light')">
+          <span class="slider"></span>
+        </span>
       </label>
-      <p class="hint">Ne se déclenche que si cet onglet n'est pas déjà au premier plan — les indicateurs déjà visibles dans la sidebar, le Suivi et la fiche dossier suffisent pendant que vous regardez CLAIRE. Demande une autorisation au navigateur au premier clic ; propre à ce poste, à réactiver sur chaque poste concerné.</p>
-      <p class="hint" id="reglages-notif-navigateur-etat"></p>
+      <label class="reglages-option" for="reglages-notif-navigateur">
+        <span class="reglages-option-texte">
+          <span class="reglages-option-titre">Notification d'une nouvelle pièce</span>
+          <span class="hint">Une notification Windows quand une pièce arrive sur le NAS, seulement si CLAIRE n'est pas au premier plan. Le navigateur demande l'autorisation au premier clic ; à activer sur chaque poste.</span>
+          <span class="hint" id="reglages-notif-navigateur-etat"></span>
+        </span>
+        <span class="switch reglages-switch">
+          <input type="checkbox" id="reglages-notif-navigateur" onchange="basculerNotifNavigateur(this.checked)">
+          <span class="slider"></span>
+        </span>
+      </label>
     </div>
   </div>
+
+  <div class="reglages-section-titre">Rappels automatiques par email</div>
 
   <!-- CLAIRE envoie elle-même un email vers la boîte-passerelle : c'est son ARRIVÉE qui déclenche
        le flux Power Automate, lequel poste ensuite le message dans Teams. L'objet de cet email
        porte l'adresse du destinataire réel, que le flux lit pour savoir à qui poster — voir
-       server/src/envoiEmail.js pour la convention complète. -->
+       server/src/envoiEmail.js pour la convention complète. Envoi par un compte Gmail UNIQUEMENT
+       (décision de l'étude, faute de droits d'administration Microsoft 365) : serveur, port et
+       expéditeur ne sont plus saisis, voir GMAIL_SMTP dans script.js. -->
   <div class="calc-card">
-    <div class="dash-section-titre">Envoi des messages</div>
+    <div class="dash-section-titre">Envoi par Gmail</div>
     <div class="calc-champs">
-      <label class="toolbar-checkbox" style="display:flex; align-items:center; gap:8px; font-weight:600;">
-        <input type="checkbox" id="reglages-envoi-actif">
-        Activer l'envoi automatique de rappels
+      <label class="reglages-option" for="reglages-envoi-actif">
+        <span class="reglages-option-texte">
+          <span class="reglages-option-titre">Envoi automatique des rappels</span>
+          <span class="hint">Toutes les 30 minutes, les rappels dus partent au responsable de chaque dossier.</span>
+        </span>
+        <span class="switch reglages-switch">
+          <input type="checkbox" id="reglages-envoi-actif">
+          <span class="slider"></span>
+        </span>
       </label>
       <div class="calc-champ">
-        <label for="reglages-passerelle">Boîte aux lettres qui déclenche le flux</label>
+        <label for="reglages-smtp-utilisateur">Compte Gmail qui envoie</label>
+        <input type="email" id="reglages-smtp-utilisateur" placeholder="prenom.nom@gmail.com">
+        <p class="hint">L'adresse Gmail complète. Elle sert aussi d'expéditeur : Gmail refuse tout autre nom.</p>
+      </div>
+      <div class="calc-champ">
+        <label for="reglages-smtp-motdepasse">Mot de passe d'application</label>
+        <input type="password" id="reglages-smtp-motdepasse" autocomplete="new-password" placeholder="16 caractères">
+        <p class="hint">Pas le mot de passe du compte : celui créé sur <code>myaccount.google.com/apppasswords</code>. Jamais réaffiché une fois enregistré — laisser vide conserve celui en place.</p>
+      </div>
+      <div class="calc-champ">
+        <label for="reglages-passerelle">Boîte qui déclenche le flux Teams</label>
         <input type="email" id="reglages-passerelle" placeholder="prenom.nom@etude.fr">
-        <p class="hint">Tous les messages de CLAIRE sont envoyés à cette adresse. C'est leur arrivée qui déclenche le flux Power Automate, qui poste ensuite le message dans Teams à la personne concernée.</p>
+        <p class="hint">Tous les messages lui sont adressés ; leur arrivée déclenche le flux Power Automate, qui poste dans Teams à la bonne personne.</p>
       </div>
       <div class="calc-champ">
-        <label for="reglages-smtp-hote">Serveur d'envoi (SMTP)</label>
-        <input type="text" id="reglages-smtp-hote" placeholder="smtp.office365.com">
-        <p class="hint">Pour Microsoft 365 : <code>smtp.office365.com</code>, port 587, avec un compte et un mot de passe d'application (voir la procédure plus bas). L'envoi sans compte n'est possible que si l'enregistrement SPF du domaine autorise l'adresse IP du bureau — ce n'est pas le cas quand le courrier passe par une passerelle de filtrage.</p>
-      </div>
-      <div class="calc-champ">
-        <label for="reglages-smtp-port">Port</label>
-        <input type="number" id="reglages-smtp-port" min="1" max="65535" value="25">
-        <p class="hint">587 pour un envoi avec compte (le cas courant), 25 pour un envoi sans compte, 465 pour un serveur en TLS direct.</p>
-      </div>
-      <label class="toolbar-checkbox" style="display:flex; align-items:center; gap:8px;">
-        <input type="checkbox" id="reglages-smtp-securise">
-        Connexion chiffrée dès l'ouverture (port 465 uniquement)
-      </label>
-      <div class="calc-champ">
-        <label for="reglages-smtp-expediteur">Adresse d'expédition</label>
-        <input type="email" id="reglages-smtp-expediteur" placeholder="Laisser vide : le compte SMTP ci-dessous sera utilisé">
-        <p class="hint">Microsoft 365 exige que l'expéditeur soit le compte SMTP lui-même, sauf droit « Envoyer en tant que » accordé à ce compte. Laisser vide est le plus sûr : le compte sert alors d'expéditeur.</p>
-      </div>
-      <div class="calc-champ">
-        <label for="reglages-smtp-utilisateur">Compte SMTP</label>
-        <input type="text" id="reglages-smtp-utilisateur" placeholder="prenom.nom@etude.fr">
-        <p class="hint">La boîte aux lettres qui envoie les messages. L'authentification SMTP doit être autorisée pour elle côté administrateur Microsoft 365. Laisser vide uniquement pour un envoi sans compte, si le SPF du domaine l'autorise.</p>
-      </div>
-      <div class="calc-champ">
-        <label for="reglages-smtp-motdepasse">Mot de passe du compte SMTP</label>
-        <input type="password" id="reglages-smtp-motdepasse" autocomplete="new-password" placeholder="Mot de passe d'application">
-        <p class="hint">Un <strong>mot de passe d'application</strong> si le compte est protégé par authentification à deux facteurs. N'est jamais réaffiché une fois enregistré : laisser ce champ vide conserve celui déjà en place. Stocké sur le serveur de l'étude, dans le fichier de la base.</p>
-      </div>
-      <div class="calc-champ">
-        <label for="reglages-copie-email">Adresse recevant une copie de tous les rappels</label>
-        <input type="email" id="reglages-copie-email" placeholder="prenom.nom@etude.fr">
-        <p class="hint">Reçoit un double de CHAQUE rappel envoyé, quel que soit le responsable du dossier concerné. Laisser vide pour ne recevoir aucune copie.</p>
+        <label for="reglages-copie-email">Copie de tous les rappels</label>
+        <input type="email" id="reglages-copie-email" placeholder="Laisser vide : aucune copie">
+        <p class="hint">Reçoit un double de chaque rappel, quel que soit le responsable du dossier.</p>
       </div>
       <div>
         <button type="button" class="primary" onclick="enregistrerReglages()">Enregistrer</button>
@@ -1308,19 +1388,15 @@
     <p>CLAIRE envoie un email à la boîte-passerelle. Son <strong>objet</strong> contient l'adresse du collaborateur à prévenir, son <strong>corps</strong> le message. Le flux Power Automate, déclenché par l'arrivée de cet email, lit l'objet pour savoir à qui poster le message dans Teams.</p>
     <p><strong>Le flux est déjà créé et activé</strong> (déclencheur « Quand un nouvel e-mail arrive » sur cette boîte, puis action Teams). Il n'y a rien à refaire dans Power Automate : seuls les réglages d'envoi ci-dessus sont à renseigner.</p>
 
-    <div class="dash-section-titre" style="margin-top:14px;">Renseigner le serveur d'envoi</div>
-    <p>CLAIRE a besoin d'un compte capable d'envoyer un email. Deux comptes conviennent ; <strong>le second est celui actuellement en service dans cette étude</strong>, faute de droits d'administration sur Microsoft 365.</p>
+    <div class="dash-section-titre" style="margin-top:14px;">Préparer le compte Gmail</div>
+    <p>Sur le compte Gmail, activer la <strong>validation en deux étapes</strong>, puis créer un <strong>mot de passe d'application</strong> sur <code>myaccount.google.com/apppasswords</code> : 16 caractères, affichés une seule fois. C'est lui qui se colle ci-dessus, jamais le mot de passe du compte.</p>
 
-    <p><strong>A. Une boîte de l'étude (Microsoft 365)</strong> — demande un administrateur, donc indisponible ici pour l'instant. Serveur <code>smtp.office365.com</code>, port <strong>587</strong>, « Connexion chiffrée dès l'ouverture » <strong>décochée</strong>, compte = l'adresse de la boîte, mot de passe = un mot de passe d'application. Deux prérequis à faire poser par l'administrateur : <strong>SMTP authentifié</strong> autorisé pour cette boîte (Utilisateurs → la boîte → Courrier → Gérer les applications de messagerie), et la possibilité de créer un mot de passe d'application.</p>
-
-    <p><strong>B. Un compte Gmail</strong> — ne demande aucun administrateur, c'est le montage en place. Activer la <strong>validation en deux étapes</strong> sur le compte, puis créer un <strong>mot de passe d'application</strong> sur <code>myaccount.google.com/apppasswords</code> (16 caractères, affichés une seule fois). Serveur <code>smtp.gmail.com</code>, port <strong>587</strong>, « Connexion chiffrée dès l'ouverture » <strong>décochée</strong>, compte = l'adresse Gmail complète, mot de passe = les 16 caractères. <strong>Laisser l'adresse d'expédition vide</strong> : Gmail exige que l'expéditeur soit le compte authentifié lui-même, et le champ vide fait exactement cela.</p>
-
-    <p class="reglages-avertissement">À savoir avec un compte Gmail : le corps des rappels nomme le dossier et liste les pièces reçues et manquantes. Ces données transitent donc par un compte extérieur à l'étude. Par ailleurs, le message arrive de l'extérieur du domaine et traverse le filtrage : s'il n'arrive pas, regarder d'abord les indésirables de la boîte-passerelle, ajouter l'adresse d'expédition aux expéditeurs approuvés, et au besoin créer une règle qui la classe dans un dossier dédié — le flux peut alors être déclenché sur ce dossier.</p>
+    <p class="reglages-avertissement">Le corps des rappels nomme le dossier et liste les pièces reçues et manquantes : ces données transitent par un compte extérieur à l'étude. Le message arrivant de l'extérieur du domaine, il traverse aussi le filtrage : s'il n'arrive pas, regarder d'abord les indésirables de la boîte-passerelle et ajouter l'adresse Gmail aux expéditeurs approuvés.</p>
 
     <ol>
-      <li>Remplir les réglages d'envoi ci-dessus selon A ou B, ainsi que la <strong>boîte-passerelle</strong> (celle sur laquelle le flux est déclenché) et l'adresse email de chaque collaborateur.</li>
-      <li>Cocher <strong>« Activer l'envoi automatique de rappels »</strong>, puis <strong>Enregistrer</strong>.</li>
-      <li>Cliquer <strong>« Tester »</strong> à côté d'un collaborateur, puis <strong>aller regarder dans Teams</strong>. Le message affiché sous le bouton ne confirme qu'une chose : le serveur d'envoi a accepté le message. Lui seul ne prouve ni que l'email est arrivé, ni que le flux s'est déclenché.</li>
+      <li>Renseigner le compte Gmail, son mot de passe d'application, la <strong>boîte-passerelle</strong> (celle sur laquelle le flux est déclenché) et l'adresse email de chaque collaborateur.</li>
+      <li>Activer <strong>« Envoi automatique des rappels »</strong>, puis <strong>Enregistrer</strong>.</li>
+      <li>Cliquer <strong>« Tester »</strong> à côté d'un collaborateur, puis <strong>aller regarder dans Teams</strong>. Le message affiché sous le bouton ne confirme qu'une chose : Gmail a accepté le message. Lui seul ne prouve ni que l'email est arrivé, ni que le flux s'est déclenché.</li>
       <li>Si rien n'arrive dans Teams : l'historique du flux dans Power Automate tranche. Le flux s'est déclenché mais rien n'est posté → le problème est dans le flux. Aucune trace de déclenchement → l'email n'est jamais arrivé, voir les indésirables de la boîte-passerelle.</li>
       <li><strong>« Lancer un tour maintenant »</strong> vérifie le vrai chemin des rappels, pas le message de test : mêmes calculs, même texte, même envoi que le tour automatique. Attention, ce qu'il envoie est réellement consommé et ne repartira pas au tour suivant.</li>
     </ol>
@@ -1333,6 +1409,13 @@
       <li>Échéance personnalisée&nbsp;: 15 puis 7 jours avant</li>
     </ul>
     <p>La <strong>date butoir</strong> de l'avant-contrat ne déclenche aucun rappel&nbsp;: elle est indicative, c'est le rendez-vous pris à l'office qui engage l'étude. L'adresse de copie ci-dessus, si renseignée, reçoit le même message pour chaque envoi. Il n'existe plus de rappel par email manuel à envoyer soi-même&nbsp;: ce mécanisme le remplace entièrement.</p>
+  </div>
+  <div class="calc-card reglages-apropos">
+    <div>
+      <div class="dash-section-titre">À propos de Claire</div>
+      <p class="hint">Version <strong id="reglages-version"></strong> — historique des dernières modifications et qualité de l'extraction.</p>
+    </div>
+    <button type="button" class="secondary" onclick="ouvrirAPropos()"><span id="icon-reglages-apropos" aria-hidden="true"></span>Ouvrir « À propos »</button>
   </div>
 </div>
 

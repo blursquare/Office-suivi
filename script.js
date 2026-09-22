@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-23 00:01';
+  const VERSION_APP = '2026-09-23 00:20';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,8 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-23 00:20', resume: "Nouvel outil « Quotités d'acquisition » (annexe .docx) ; mode sombre et « À propos » "
+      + "passés dans les Réglages ; envoi des rappels par Gmail uniquement." },
     { version: '2026-09-23 00:01', resume: "Chaque obligation du vendeur de fournir un document ou de justifier d'un "
       + "entretien apparaît dans les documents à fournir, y compris après un ajout ou une correction à la main." },
     { version: '2026-09-22 23:54', resume: "Bloc « Conditions suspensives et particulières » de l'analyse juridique retiré : "
@@ -194,6 +196,7 @@
     'part-disque': '<circle cx="8" cy="8" r="5.6"/><path d="M8 2.4V8l4 3.8"/>',
     // Balance à deux plateaux : l'arbitrage du forfait mobilier met en regard ce que la prisée
     // fait gagner et ce qu'elle coûte. Même grille 16x16 et même trait 1.4 que le reste du jeu.
+    users: '<circle cx="6" cy="5.4" r="2.2"/><path d="M2 13c0-2.2 1.8-3.8 4-3.8s4 1.6 4 3.8"/><path d="M10.4 3.3a2.1 2.1 0 0 1 0 4.2"/><path d="M11.6 9.4c1.4.4 2.4 1.7 2.4 3.6"/>',
     scale: '<line x1="8" y1="3.2" x2="8" y2="13.2"/><line x1="5.2" y1="13.2" x2="10.8" y2="13.2"/><line x1="3" y1="4.4" x2="13" y2="4.4"/><path d="M3 4.4 1.4 8.4h3.2L3 4.4Z" stroke-linejoin="round"/><path d="M13 4.4 11.4 8.4h3.2L13 4.4Z" stroke-linejoin="round"/>',
     // Réglages : une vraie roue crantée (anneau + trou central + 8 dents), demandée par l'étude
     // à la place de l'ancien glyphe en étoile (cercle + rayons, sans anneau — trop proche d'un
@@ -9668,6 +9671,7 @@
     document.getElementById('onglet-prorata').style.display = nom === 'prorata' ? '' : 'none';
     document.getElementById('onglet-appel-fonds').style.display = nom === 'appel-fonds' ? '' : 'none';
     document.getElementById('onglet-inventaire').style.display = nom === 'inventaire' ? '' : 'none';
+    document.getElementById('onglet-quotites').style.display = nom === 'quotites' ? '' : 'none';
     document.getElementById('onglet-analyse-ia').style.display = nom === 'analyse-ia' ? '' : 'none';
     document.getElementById('onglet-reglages').style.display = nom === 'reglages' ? '' : 'none';
     document.getElementById('tab-dashboard').setAttribute('aria-selected', String(nom === 'dashboard'));
@@ -9676,6 +9680,7 @@
     document.getElementById('tab-prorata').setAttribute('aria-selected', String(nom === 'prorata'));
     document.getElementById('tab-appel-fonds').setAttribute('aria-selected', String(nom === 'appel-fonds'));
     document.getElementById('tab-inventaire').setAttribute('aria-selected', String(nom === 'inventaire'));
+    document.getElementById('tab-quotites').setAttribute('aria-selected', String(nom === 'quotites'));
     document.getElementById('tab-analyse-ia').setAttribute('aria-selected', String(nom === 'analyse-ia'));
     document.getElementById('tab-reglages').setAttribute('aria-selected', String(nom === 'reglages'));
     document.getElementById('tab-dashboard').classList.toggle('actif', nom === 'dashboard');
@@ -9684,6 +9689,7 @@
     document.getElementById('tab-prorata').classList.toggle('actif', nom === 'prorata');
     document.getElementById('tab-appel-fonds').classList.toggle('actif', nom === 'appel-fonds');
     document.getElementById('tab-inventaire').classList.toggle('actif', nom === 'inventaire');
+    document.getElementById('tab-quotites').classList.toggle('actif', nom === 'quotites');
     // Ctrl+P depuis cet onglet doit sortir la FEUILLE, pas l'application autour (voir @media
     // print dans style.css) — un onglet n'ayant pas de classe sur <body>, on la pose ici.
     document.body.classList.toggle('onglet-appel-fonds-actif', nom === 'appel-fonds');
@@ -9704,6 +9710,9 @@
     // Date du jour, tableau vierge et chargement du modèle Word au premier affichage (voir
     // initAppelFonds) — puis seulement le chargement du modèle aux visites suivantes.
     if (nom === 'appel-fonds') initAppelFonds();
+    // Formulaire des quotités construit au premier affichage seulement : le quitter puis y revenir
+    // ne doit pas effacer une saisie en cours.
+    if (nom === 'quotites') initQuotites();
     // Premier passage : l'écran part de champs vides, il n'y a donc rien à calculer — mais le
     // verdict et le message d'invite doivent quand même être posés (voir reinitialiserInventaire).
     if (nom === 'inventaire') calculerInventaireAffichage();
@@ -14505,15 +14514,11 @@
 
   async function appliquerTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
-    const btn = document.getElementById('theme-btn');
-    // Icône seule (sans libellé "Mode sombre"/"Mode clair" à côté) — demandé par l'étude ; le
-    // libellé accessible reste porté par aria-label/title, pas visible à l'écran.
-    if (btn) {
-      const theTitle = theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre';
-      btn.setAttribute('aria-label', theTitle);
-      btn.setAttribute('title', theTitle);
-      btn.innerHTML = `<span class="sidebar-link-icone" aria-hidden="true">${icone(theme === 'dark' ? 'sun' : 'moon')}</span>`;
-    }
+    // Le choix vit désormais dans les Réglages (interrupteur « Mode sombre »), plus dans le pied de
+    // la sidebar — demandé par l'étude. L'interrupteur est resynchronisé ici pour refléter le
+    // thème réellement appliqué, y compris celui chargé au démarrage.
+    const inter = document.getElementById('reglages-theme-sombre');
+    if (inter) inter.checked = theme === 'dark';
     try {
       if (window.storage) { await window.storage.set(CLE_THEME, theme, false); return; }
     } catch (e) { /* on tente le repli ci-dessous */ }
@@ -14626,27 +14631,34 @@
 
   let evenementInstallation = null;
 
+  // Le pied de la sidebar ne porte plus que ce bouton (thème et « À propos » sont passés dans les
+  // Réglages) : il est masqué avec lui, sinon il ne resterait qu'un filet de séparation sans rien
+  // dessous.
+  function afficherBoutonInstallation(visible) {
+    const btn = document.getElementById('install-btn');
+    if (btn) btn.style.display = visible ? 'inline-block' : 'none';
+    const pied = document.querySelector('.sidebar-footer');
+    if (pied) pied.style.display = visible ? 'flex' : 'none';
+  }
+
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     evenementInstallation = e;
-    const btn = document.getElementById('install-btn');
-    if (btn) btn.style.display = 'inline-block';
+    afficherBoutonInstallation(true);
   });
 
   async function installerApplication() {
     if (!evenementInstallation) return;
-    const btn = document.getElementById('install-btn');
     evenementInstallation.prompt();
     const { outcome } = await evenementInstallation.userChoice;
     evenementInstallation = null;
-    if (btn) btn.style.display = 'none';
+    afficherBoutonInstallation(false);
     if (outcome === 'accepted') afficherToast('Application installée — retrouvez-la depuis son icône, sans repasser par Chrome.', 'OK', null);
   }
 
   // Une fois installée, Chrome ne redéclenche plus l'événement : on masque le bouton pour de bon.
   window.addEventListener('appinstalled', () => {
-    const btn = document.getElementById('install-btn');
-    if (btn) btn.style.display = 'none';
+    afficherBoutonInstallation(false);
     evenementInstallation = null;
   });
 
@@ -15133,6 +15145,576 @@
       return;
     }
     window.print();
+  }
+
+  // ---- Quotités d'acquisition (onglet indépendant, sans enregistrement) ----
+  //
+  // Porté de l'artefact « Quotité des acquéreurs » fourni par l'étude. Repris : la structure du
+  // formulaire (nature du bien, acquéreurs, montant de l'opération, origine du financement) et,
+  // MOT POUR MOT, le texte des clauses de l'annexe — c'est le modèle rédactionnel de l'étude, pas
+  // à reformuler sans lui (même règle que PROCEDURE_FONDS). Abandonnés : la palette or/crème et les
+  // polices de l'artefact (jetons de CLAIRE à la place), et ses montants d'exemple — un formulaire
+  // prérempli se prend pour un résultat (même décision que les deux simulateurs voisins).
+  //
+  // Deux corrections de fond par rapport à l'artefact, toutes deux vérifiées par des tests :
+  //   • les proportions sont réparties au plus fort reste (repartirPourcentages) : arrondies
+  //     chacune de leur côté, trois tiers donnaient 33,33 % × 3 = 99,99 %, une annexe qui ne
+  //     totalise pas 100 % ne se signe pas ;
+  //   • un acquéreur qui ne finance rien est SIGNALÉ (sa quotité serait nulle, il n'acquerrait rien
+  //     — presque toujours un montant oublié), là où l'artefact l'aurait écrit « 0,00 % » dans l'acte.
+
+  var TYPES_BIEN_QUOTITES = ['immeuble', 'terrain'];
+
+  // Libellés d'opération proposés selon la nature du bien, montants VIDES. « Prorata de taxes
+  // foncières » part en mémoire : son montant n'est connu qu'au décompte de la vente.
+  function lignesOperationParDefaut(typeBien) {
+    const libelles = typeBien === 'terrain'
+      ? ["Prix d'acquisition du terrain", 'Coût de la construction', "Frais et droits de l'acte de vente",
+        'Frais de dossier bancaire', 'Frais de garantie']
+      : ["Prix d'acquisition", "Frais et droits de l'acte de vente", 'Frais de dossier bancaire', 'Frais de garantie'];
+    return libelles.map(libelle => ({ libelle, montant: null, memoire: false }))
+      .concat([{ libelle: 'Prorata de taxes foncières', montant: null, memoire: true }]);
+  }
+
+  function montantQuotite(v) {
+    const n = typeof v === 'number' ? v : parseFloat(String(v == null ? '' : v).replace(/\s/g, '').replace(',', '.'));
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }
+
+  // Répartit 100 % entre des montants au centième près, par la méthode du plus fort reste : chaque
+  // part est tronquée au centième, puis les centièmes manquants vont aux parts dont le reste est le
+  // plus grand. Le total vaut toujours exactement 100 dès qu'un montant est positif.
+  function repartirPourcentages(montants) {
+    const valeurs = (montants || []).map(montantQuotite);
+    const total = valeurs.reduce((a, b) => a + b, 0);
+    if (!total) return valeurs.map(() => 0);
+    const exacts = valeurs.map(v => v / total * 10000);
+    const bases = exacts.map(Math.floor);
+    let manquants = 10000 - bases.reduce((a, b) => a + b, 0);
+    const ordre = exacts.map((e, i) => ({ i, reste: e - bases[i] }))
+      .sort((a, b) => b.reste - a.reste || a.i - b.i);
+    for (let k = 0; manquants > 0 && k < ordre.length; k++, manquants--) bases[ordre[k].i] += 1;
+    return bases.map(b => b / 100);
+  }
+
+  function calculerQuotites(etat) {
+    const e = etat || {};
+    const acquereurs = Array.isArray(e.acquereurs) ? e.acquereurs : [];
+    const lignes = Array.isArray(e.lignes) ? e.lignes : [];
+    const sources = Array.isArray(e.sources) ? e.sources : [];
+    const arrondi = v => Math.round(v * 100) / 100;
+
+    const totalOperation = arrondi(lignes.reduce((s, l) => s + (l.memoire ? 0 : montantQuotite(l.montant)), 0));
+    const totalParSource = {};
+    sources.forEach(src => {
+      totalParSource[src.id] = arrondi(acquereurs.reduce((s, a) => s + montantQuotite((src.montants || {})[a.id]), 0));
+    });
+    const totaux = acquereurs.map(a =>
+      arrondi(sources.reduce((s, src) => s + montantQuotite((src.montants || {})[a.id]), 0)));
+    const totalFinancement = arrondi(totaux.reduce((a, b) => a + b, 0));
+    const pourcentages = repartirPourcentages(totaux);
+    const ecart = arrondi(totalFinancement - totalOperation);
+
+    return {
+      totalOperation,
+      totalFinancement,
+      totalParSource,
+      ecart,
+      // Tolérance d'un demi-euro, comme l'artefact : au-delà, ce n'est plus un arrondi.
+      couvert: totalOperation > 0 && Math.abs(ecart) < 0.5,
+      parAcquereur: acquereurs.map((a, i) => ({ id: a.id, total: totaux[i], pourcentage: pourcentages[i] })),
+      // Quotité nulle = l'acquéreur n'acquerrait rien. Signalé seulement quand d'autres financent :
+      // tant que rien n'est saisi, tout le monde est à zéro et il n'y a rien à dire.
+      sansFinancement: totalFinancement > 0 ? acquereurs.filter((a, i) => totaux[i] === 0).map(a => a.id) : []
+    };
+  }
+
+  function civiliteAbregee(civilite) {
+    if (civilite === 'Madame') return 'Mme';
+    if (civilite === 'Monsieur') return 'M.';
+    return civilite || '';
+  }
+
+  function nomAcquereurQuotite(a) {
+    return `${civiliteAbregee(a.civilite)} ${String(a.nom || '').trim() || '……………'}`.trim();
+  }
+
+  function formaterPourcentageQuotite(p) {
+    return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(p || 0) + ' %';
+  }
+
+  function phraseQuotitesAcquisition(acquereurs, calcul) {
+    const acq = Array.isArray(acquereurs) ? acquereurs : [];
+    if (!acq.length) return '';
+    if (acq.length === 1) return `${nomAcquereurQuotite(acq[0])} acquiert le bien ci-dessus désigné en pleine propriété.`;
+    const parts = acq.map((a, i) => `${formaterPourcentageQuotite(calcul.parAcquereur[i].pourcentage)} pour ${nomAcquereurQuotite(a)}`);
+    return `${acq.map(nomAcquereurQuotite).join(' et ')} acquièrent le bien ci-dessus désigné en indivision, savoir : ${parts.join(', ')}.`;
+  }
+
+  // Lignes « Origine du financement » telles qu'elles s'écrivent dans l'annexe : un prêt en une
+  // ligne (son total), un apport en une ligne PAR acquéreur.
+  function lignesFinancementAnnexe(etat, calcul) {
+    const lignes = [];
+    (etat.sources || []).forEach(src => {
+      if (src.type === 'pret') {
+        lignes.push({ libelle: `Prêt${src.banque ? ' de ' + src.banque : ''}`, montant: calcul.totalParSource[src.id] || 0 });
+      } else {
+        (etat.acquereurs || []).forEach(a => {
+          lignes.push({ libelle: `Apport personnel de ${nomAcquereurQuotite(a)}`, montant: montantQuotite((src.montants || {})[a.id]) });
+        });
+      }
+    });
+    return lignes;
+  }
+
+  function libelleSourceTableau(src) {
+    if (src.type !== 'pret') return 'Apport personnel';
+    return src.banque ? `PRET ${src.banque}` : 'PRET';
+  }
+
+  // Clauses de l'annexe, texte repris à l'identique de l'artefact de l'étude. `section` = amorce
+  // soulignée suivie d'un tiret, `sous` = sous-titre en italique, `texte` = paragraphe simple.
+  function clausesQuotites(etat) {
+    const acq = etat.acquereurs || [];
+    const indivision = acq.length >= 2;
+    const prets = (etat.sources || []).filter(s => s.type === 'pret' && (s.banque || s.numero));
+    const c = [];
+    if (indivision) {
+      if (prets.length) {
+        const frag = prets.map(p => `le prêt${p.numero ? ' n°' + p.numero : ''} consenti par ${p.banque || '……………'}`).join(' et ');
+        c.push({ type: 'section', amorce: 'Convention des acquéreurs - sort des prêts souscrits', texte: `Les acquéreurs ont convenu de rembourser ${frag} dans les proportions sus indiquées le tout sans que cette clause puisse être opposable au prêteur pour lequel la solidarité entre les emprunteurs a été expressément stipulée aux termes de l'emprunt.` });
+      }
+      c.push({ type: 'texte', texte: "Les acquéreurs entendent en outre écarter toute présomption de libéralité indirecte, si la contribution effective de chacun des membres du couple ne correspondait pas aux quote-parts indivises, cette différence constituera en toute hypothèse une créance entre eux." });
+      c.push({ type: 'texte', texte: "En cas de dérogation à cette convention, il en sera tenu compte le jour de la liquidation de l'indivision ainsi qu'il est dit ci-dessous." });
+      c.push({ type: 'texte', texte: "L'assurance décès-invalidité, dans la mesure où elle serait mise en œuvre, profitera en toute hypothèse à l'indivision et ne sera pas constitutive d'une créance." });
+    }
+    c.push({ type: 'section', amorce: "Prise en charge d'un financement extérieur ultérieur", texte: "En cas de financement extérieur ultérieur pour des travaux, il est conseillé aux acquéreurs d'établir également une convention de ce type afin de prévenir toute difficulté lors de la liquidation de l'indivision. A défaut le financement sera présumé proportionnel aux quotités acquises." });
+    c.push({ type: 'section', amorce: "Prise en charge d'un financement personnel ultérieur", texte: "Si l'un des indivisaires améliore l'état du bien indivis, ou si l'indivision retire un profit des dépenses nécessaires à la conservation de l'immeuble réalisées par l'un des indivisaires seul, ou pour un montant supérieur à sa part dans l'immeuble, il lui en sera tenu compte conformément aux dispositions de l'article 815-13 du Code civil." });
+    c.push({ type: 'section', amorce: 'Industrie personnelle', texte: "Il est fait observer que l'industrie personnelle des acquéreurs (leur travail) et celle de leurs ayants droit dans les travaux effectués, qu'ils soient d'entretien ou non, ne seront ni cause de créance ni cause d'indemnité." });
+    if (indivision) {
+      const fraction = acq.length === 2 ? 'à concurrence de la moitié chacun' : 'à parts égales entre eux';
+      c.push({ type: 'section', amorce: 'Vie courante', texte: `Les dépenses d'entretien, les charges courantes, les assurances, les impôts locaux, taxes et autres directement liés à l'usage de l'immeuble, seront supportés, au titre de l'obligation à la dette, par les acquéreurs ${fraction}, sauf à tenir compte de la solidarité en matière fiscale. Il sera tenu compte de la contribution effective de chacun d'entre eux lors de la liquidation de l'indivision, à charge pour le demandeur d'en justifier.` });
+    }
+    c.push({ type: 'section', amorce: 'Répartition lors de la revente', texte: "Il conviendra de distinguer si les sommes empruntées lors de l'acquisition seront ou non remboursées au moment de la revente." });
+    c.push({ type: 'sous', texte: "Les sommes empruntées lors de l'acquisition sont remboursées" });
+    c.push({ type: 'texte', texte: "La proportion de propriété telle qu'arrêtée entre les indivisaires aux présentes sera celle qui sera utilisée pour la répartition du prix de revente, sous réserve de l'apurement des comptes pouvant exister entre eux." });
+    c.push({ type: 'sous', texte: "Les sommes empruntées lors de l'acquisition ne sont pas remboursées" });
+    c.push({ type: 'texte', texte: "Avant toute répartition entre les indivisaires, seront prélevés sur le prix de vente : l'impôt sur la plus-value éventuelle, les impôts locaux et taxes exigibles ou à valoir, le solde des sommes empruntées, en capital, intérêts et accessoires, ainsi que les charges de toutes sortes exigibles ou estimées liées au bien indivis et à son utilisation, en ce compris le cas échéant les frais attachés à la radiation des inscriptions." });
+    c.push({ type: 'texte', texte: "Le reliquat du prix sera ensuite réparti de la manière suivante." });
+    c.push({ type: 'texte', texte: "Chaque indivisaire se verra attribuer une quote-part sur le disponible du prix de revente qui correspondra à son financement réel par rapport au financement global, selon la formule suivante :" });
+    c.push({ type: 'texte', texte: "Solde du prix multiplié par Apports personnels + montant des mensualités pris à sa charge divisée par le Total des apports + total des mensualités réglées." });
+    c.push({ type: 'texte', texte: "Il est ici précisé qu'en cas de réalisation ultérieure de travaux financés dans des proportions différentes de celles convenues ci-dessus, il devra en être tenu compte dans la répartition du prix." });
+    c.push({ type: 'texte', texte: "De même, en cas de modifications des proportions de remboursement d'emprunts, et sous réserve d'en justifier, il devra être tenu compte de la contribution réelle de chacun." });
+    c.push({ type: 'section', amorce: 'Répartition lors du partage', texte: "Il conviendra là aussi de distinguer si les sommes empruntées lors de l'acquisition seront ou non remboursées au moment du partage." });
+    c.push({ type: 'sous', texte: "Les sommes empruntées lors de l'acquisition sont remboursées" });
+    c.push({ type: 'texte', texte: "La proportion de propriété telle qu'arrêtée entre les indivisaires aux présentes sera celle qui sera utilisée par rapport à la valeur du bien au jour du partage pour déterminer la soulte, sous réserve de l'apurement des comptes pouvant exister entre eux." });
+    c.push({ type: 'sous', texte: "Les sommes empruntées lors de l'acquisition ne sont pas remboursées" });
+    c.push({ type: 'texte', texte: "Avant toute répartition entre les indivisaires, les impôts locaux et taxes exigibles ou à valoir, le solde des sommes empruntées, en capital, intérêts et accessoires, ainsi que les charges de toutes sortes exigibles ou estimées liées au bien indivis et à son utilisation, seront déduits de la valeur du bien indivis au jour de ce partage, en ce compris le cas échéant les frais attachés à la radiation des inscriptions si l'attributaire venait à ne pas reprendre le prêt." });
+    c.push({ type: 'texte', texte: "La soulte sera déterminée de la manière suivante." });
+    c.push({ type: 'texte', texte: "Chaque indivisaire se verra déterminer sa quote-part sur la valeur du bien indivis qui correspondra à son financement réel par rapport au financement global, selon la formule suivante :" });
+    c.push({ type: 'texte', texte: "Valeur nette du bien indivis multipliée par Apports personnels + montant des mensualités pris à sa charge divisée par le Total des apports + total des mensualités réglées." });
+    c.push({ type: 'texte', texte: "Il est ici précisé qu'en cas de réalisation ultérieure de travaux financés dans des proportions différentes de celles convenues ci-dessus, il devra en être tenu compte dans la répartition du prix." });
+    c.push({ type: 'texte', texte: "De même, en cas de modifications des proportions de remboursement d'emprunts, et sous réserve d'en justifier, il devra être tenu compte de la contribution réelle de chacun." });
+    return c;
+  }
+
+  // Ce qu'un dossier d'Outil 1 permet de reprendre, et ce qu'il ne dit pas. Les acquéreurs viennent
+  // de clientsDepuisDossier (partagée avec l'appel de fonds) ; la civilité n'est jamais lue dans
+  // l'acte, elle est donc mise par défaut ET signalée. Le montant du prêt n'est reporté sur un
+  // acquéreur que s'il est seul : à plusieurs, sa répartition ne se devine pas.
+  function prefillQuotites(d) {
+    if (!d) return null;
+    const clients = clientsDepuisDossier(d);
+    const repris = [];
+    const aCompleter = [];
+    const acquereurs = clients.map(c => ({
+      civilite: c.civilite === 'SCI' ? 'SCI' : 'Monsieur',
+      nom: String(c.nom || '').trim()
+    }));
+    if (acquereurs.length) {
+      repris.push(acquereurs.length > 1 ? `${acquereurs.length} acquéreurs` : 'Acquéreur');
+      if (clients.some(c => c.aCompleter)) aCompleter.push('Civilité et prénom de chaque acquéreur — l’acte n’en donne que le nom.');
+    } else {
+      aCompleter.push('Acquéreurs — aucun n’a pu être lu sur ce dossier.');
+    }
+    const typeBien = d.typeVente === 'terrain' ? 'terrain' : 'immeuble';
+    repris.push(typeBien === 'terrain' ? 'Nature du bien : terrain à bâtir' : 'Nature du bien');
+    const prix = montantQuotite(d.prixVente);
+    if (prix) repris.push('Prix d’acquisition'); else aCompleter.push('Prix d’acquisition.');
+    if (typeBien === 'terrain') aCompleter.push('Coût de la construction.');
+    aCompleter.push('Frais et droits de l’acte, frais bancaires et de garantie.');
+
+    const montantPret = d.sansPret ? 0 : montantQuotite(d.montantPret);
+    if (d.sansPret) repris.push('Achat sans prêt');
+    else if (montantPret && acquereurs.length === 1) repris.push('Montant du prêt (offre reçue)');
+    else if (montantPret) aCompleter.push(`Répartition du prêt de ${formaterPrixCentimes(montantPret)} entre les acquéreurs.`);
+    else aCompleter.push('Montant et établissement du prêt.');
+    aCompleter.push('Apport personnel de chacun.');
+    return { typeBien, acquereurs, prix, montantPret, sansPret: !!d.sansPret, repris, aCompleter };
+  }
+
+  // --- état et rendu ------------------------------------------------------------------------
+  let qtEtat = null;
+  let qtCompteur = 0;
+  let qtDossierLie = null;
+  function qtId() { qtCompteur += 1; return 'q' + qtCompteur; }
+
+  function etatQuotitesVierge() {
+    const a1 = { id: qtId(), civilite: 'Monsieur', nom: '' };
+    const a2 = { id: qtId(), civilite: 'Madame', nom: '' };
+    return {
+      typeBien: 'immeuble',
+      acquereurs: [a1, a2],
+      lignes: lignesOperationParDefaut('immeuble').map(l => Object.assign({ id: qtId() }, l)),
+      sources: [
+        { id: qtId(), type: 'apport', banque: '', numero: '', montants: {} },
+        { id: qtId(), type: 'pret', banque: '', numero: '', montants: {} }
+      ]
+    };
+  }
+
+  function initQuotites() {
+    if (qtEtat) return;
+    qtEtat = etatQuotitesVierge();
+    renderQuotites();
+  }
+
+  function reinitialiserQuotites() {
+    qtEtat = etatQuotitesVierge();
+    qtDossierLie = null;
+    renderPillDossierQuotites();
+    const recap = document.getElementById('qt-recap-prefill');
+    if (recap) { recap.className = 'af-recap'; recap.innerHTML = ''; }
+    renderQuotites();
+  }
+
+  function valeurChampQuotite(v) {
+    return v == null || v === '' ? '' : String(v);
+  }
+
+  function renderQuotites() {
+    if (!qtEtat) return;
+    document.querySelectorAll('input[name="qt-type-bien"]').forEach(r => { r.checked = r.value === qtEtat.typeBien; });
+
+    const plusieurs = qtEtat.acquereurs.length > 1;
+    document.getElementById('qt-acquereurs').innerHTML = qtEtat.acquereurs.map((a, i) => `
+      <div class="qt-ligne qt-ligne-acquereur">
+        <select aria-label="Civilité de l'acquéreur ${i + 1}" onchange="modifierAcquereurQuotites('${a.id}', 'civilite', this.value, true)">
+          ${['Monsieur', 'Madame', 'SCI'].map(c => `<option value="${c}"${a.civilite === c ? ' selected' : ''}>${c}</option>`).join('')}
+        </select>
+        <input type="text" aria-label="Prénom et nom de l'acquéreur ${i + 1}" placeholder="Prénom NOM" value="${escapeAttr(a.nom)}" oninput="modifierAcquereurQuotites('${a.id}', 'nom', this.value, false)">
+        ${plusieurs ? `<button type="button" class="qt-suppr" title="Retirer cet acquéreur" aria-label="Retirer cet acquéreur" onclick="retirerAcquereurQuotites('${a.id}')">${icone('x')}</button>` : '<span></span>'}
+      </div>`).join('');
+
+    document.getElementById('qt-lignes').innerHTML = qtEtat.lignes.map(l => `
+      <div class="qt-ligne qt-ligne-operation${l.memoire ? ' qt-memoire' : ''}">
+        <input type="text" aria-label="Libellé" placeholder="Libellé" value="${escapeAttr(l.libelle)}" oninput="modifierLigneQuotites('${l.id}', 'libelle', this.value, false)">
+        <input type="number" min="0" step="0.01" aria-label="Montant de ${escapeAttr(l.libelle || 'la ligne')}" placeholder="${l.memoire ? 'Mémoire' : '0,00'}" value="${l.memoire ? '' : valeurChampQuotite(l.montant)}" ${l.memoire ? 'disabled' : ''} oninput="modifierLigneQuotites('${l.id}', 'montant', this.value, false)">
+        <label class="qt-memoire-coche" title="Montant non encore connu : écrit « MEMOIRE » dans l'annexe et exclu du total"><input type="checkbox" ${l.memoire ? 'checked' : ''} onchange="modifierLigneQuotites('${l.id}', 'memoire', this.checked, true)">Mémoire</label>
+        <button type="button" class="qt-suppr" title="Supprimer la ligne" aria-label="Supprimer la ligne" onclick="retirerLigneQuotites('${l.id}')">${icone('x')}</button>
+      </div>`).join('');
+
+    document.getElementById('qt-sources').innerHTML = qtEtat.sources.map(src => `
+      <div class="qt-source">
+        <div class="qt-source-entete">
+          <span class="dot-label ${src.type === 'pret' ? 'dl-acte' : 'dl-success'}"><span class="dot"></span>${src.type === 'pret' ? 'Prêt' : 'Apport personnel'}</span>
+          <strong class="qt-source-total" id="qt-source-total-${src.id}"></strong>
+          <button type="button" class="qt-suppr" title="Supprimer cette source" aria-label="Supprimer cette source" onclick="retirerSourceQuotites('${src.id}')">${icone('x')}</button>
+        </div>
+        ${src.type === 'pret' ? `<div class="qt-source-pret">
+          <input type="text" aria-label="Établissement prêteur" placeholder="Établissement prêteur" value="${escapeAttr(src.banque)}" oninput="modifierSourceQuotites('${src.id}', 'banque', this.value)">
+          <input type="text" aria-label="Numéro de prêt" placeholder="N° de prêt" value="${escapeAttr(src.numero)}" oninput="modifierSourceQuotites('${src.id}', 'numero', this.value)">
+        </div>` : ''}
+        <div class="qt-source-montants">
+          ${qtEtat.acquereurs.map(a => `<label class="qt-part">
+            <span class="qt-part-nom" id="qt-part-nom-${src.id}-${a.id}">${escapeHtml(nomAcquereurQuotite(a))}</span>
+            <input type="number" min="0" step="0.01" placeholder="0,00" value="${valeurChampQuotite((src.montants || {})[a.id])}" oninput="modifierMontantSourceQuotites('${src.id}', '${a.id}', this.value)">
+          </label>`).join('')}
+        </div>
+      </div>`).join('');
+
+    majResultatsQuotites();
+  }
+
+  // Rendu partiel appelé à chaque frappe : ne reconstruit JAMAIS les champs de saisie (le focus
+  // serait perdu à chaque caractère), seulement les totaux, le contrôle, les quotités et l'aperçu.
+  function majResultatsQuotites() {
+    if (!qtEtat) return;
+    const r = calculerQuotites(qtEtat);
+    document.getElementById('qt-total-operation').textContent = formaterPrixCentimes(r.totalOperation);
+    document.getElementById('qt-total-financement').textContent = formaterPrixCentimes(r.totalFinancement);
+    qtEtat.sources.forEach(src => {
+      const el = document.getElementById(`qt-source-total-${src.id}`);
+      if (el) el.textContent = formaterPrixCentimes(r.totalParSource[src.id] || 0);
+      qtEtat.acquereurs.forEach(a => {
+        const nom = document.getElementById(`qt-part-nom-${src.id}-${a.id}`);
+        if (nom) nom.textContent = nomAcquereurQuotite(a);
+      });
+    });
+
+    const controle = document.getElementById('qt-controle');
+    const alertes = [];
+    if (!r.totalOperation && !r.totalFinancement) {
+      alertes.push(`<div class="qt-alerte qt-alerte-neutre">${icone('info')}<span>Saisissez le montant de l'opération et l'origine du financement.</span></div>`);
+    } else if (r.couvert) {
+      alertes.push(`<div class="qt-alerte qt-alerte-ok">${icone('check')}<span>Le financement couvre exactement le montant de l'opération.</span></div>`);
+    } else {
+      const sens = r.ecart > 0 ? 'Le financement dépasse le coût de l’opération' : 'Le financement ne couvre pas le coût de l’opération';
+      alertes.push(`<div class="qt-alerte qt-alerte-ecart">${icone('alert-triangle')}<span>${sens} de <strong>${formaterPrixCentimes(Math.abs(r.ecart))}</strong> (${formaterPrixCentimes(r.totalFinancement)} pour ${formaterPrixCentimes(r.totalOperation)}).</span></div>`);
+    }
+    r.sansFinancement.forEach(id => {
+      const a = qtEtat.acquereurs.find(x => x.id === id);
+      if (a) alertes.push(`<div class="qt-alerte qt-alerte-ecart">${icone('alert-triangle')}<span>${escapeHtml(nomAcquereurQuotite(a))} ne finance rien : sa quotité serait nulle.</span></div>`);
+    });
+    controle.innerHTML = alertes.join('');
+
+    document.getElementById('qt-quotites').innerHTML = qtEtat.acquereurs.map((a, i) => {
+      const p = r.parAcquereur[i];
+      return `<div class="qt-quotite">
+        <div class="qt-quotite-nom">${escapeHtml(nomAcquereurQuotite(a))}</div>
+        <div class="qt-quotite-pct">${formaterPourcentageQuotite(p.pourcentage)}</div>
+        <div class="qt-barre" aria-hidden="true"><span style="width:${Math.min(100, p.pourcentage)}%"></span></div>
+        <div class="qt-quotite-montant">${formaterPrixCentimes(p.total)}</div>
+      </div>`;
+    }).join('');
+
+    document.getElementById('qt-feuille').innerHTML = htmlAnnexeQuotites(qtEtat, r);
+  }
+
+  function htmlAnnexeQuotites(etat, r) {
+    const e = s => escapeHtml(s);
+    let h = `<p class="qt-doc-titre">NATURE ET QUOTITES DES DROITS ACQUIS</p>`;
+    h += `<p>${e(phraseQuotitesAcquisition(etat.acquereurs, r))}</p>`;
+    h += `<p><u>Détermination des proportions acquises</u> - Les acquéreurs déclarent que la proportionnalité indiquée ci-dessus a été fixée en fonction des éléments suivants :</p>`;
+    h += `<p class="qt-doc-rubrique">MONTANT DE L'OPERATION :</p>`;
+    etat.lignes.forEach(l => {
+      h += `<div class="qt-doc-ligne"><span>${e(l.libelle || '—')}</span><span>${l.memoire ? 'MEMOIRE' : e(formaterPrixCentimes(montantQuotite(l.montant)))}</span></div>`;
+    });
+    h += `<div class="qt-doc-ligne qt-doc-total"><span>Total</span><span>${e(formaterPrixCentimes(r.totalOperation))}</span></div>`;
+    h += `<p class="qt-doc-rubrique">ORIGINE DU FINANCEMENT :</p>`;
+    lignesFinancementAnnexe(etat, r).forEach(l => {
+      h += `<div class="qt-doc-ligne"><span>${e(l.libelle)}</span><span>${e(formaterPrixCentimes(l.montant))}</span></div>`;
+    });
+    h += `<div class="qt-doc-ligne qt-doc-total"><span>Total</span><span>${e(formaterPrixCentimes(r.totalFinancement))}</span></div>`;
+    h += `<p>Récapitulatif des financements de chacun :</p>`;
+    h += `<table class="qt-doc-table"><thead><tr><th></th>${etat.acquereurs.map(a => `<th>${e(nomAcquereurQuotite(a))}</th>`).join('')}<th>TOTAL</th></tr></thead><tbody>`;
+    etat.sources.forEach(src => {
+      h += `<tr><td>${e(libelleSourceTableau(src))}</td>${etat.acquereurs.map(a => `<td class="num">${e(formaterPrixCentimes(montantQuotite((src.montants || {})[a.id])))}</td>`).join('')}<td class="num">${e(formaterPrixCentimes(r.totalParSource[src.id] || 0))}</td></tr>`;
+    });
+    h += `<tr class="gras"><td>TOTAL</td>${r.parAcquereur.map(p => `<td class="num">${e(formaterPrixCentimes(p.total))}</td>`).join('')}<td class="num">${e(formaterPrixCentimes(r.totalFinancement))}</td></tr>`;
+    h += `<tr class="gras"><td>Proportions</td>${r.parAcquereur.map(p => `<td class="num">${e(formaterPourcentageQuotite(p.pourcentage))}</td>`).join('')}<td class="num">100 %</td></tr>`;
+    h += `</tbody></table>`;
+    clausesQuotites(etat).forEach(c => {
+      if (c.type === 'section') h += `<p><u>${e(c.amorce)}</u> - ${e(c.texte)}</p>`;
+      else if (c.type === 'sous') h += `<p class="qt-doc-sous">${e(c.texte)}</p>`;
+      else h += `<p>${e(c.texte)}</p>`;
+    });
+    return h;
+  }
+
+  // --- modifications -------------------------------------------------------------------------
+  function changerTypeBienQuotites(type) {
+    if (!qtEtat || !TYPES_BIEN_QUOTITES.includes(type) || type === qtEtat.typeBien) return;
+    // Les lignes ne sont remplacées que si personne n'y a encore rien saisi : changer de nature du
+    // bien ne doit jamais effacer un montant déjà tapé.
+    const vierges = qtEtat.lignes.every(l => !montantQuotite(l.montant));
+    qtEtat.typeBien = type;
+    if (vierges) {
+      const prix = qtEtat.lignes.find(l => /prix d'acquisition/i.test(l.libelle));
+      qtEtat.lignes = lignesOperationParDefaut(type).map(l => Object.assign({ id: qtId() }, l));
+      if (prix && montantQuotite(prix.montant)) qtEtat.lignes[0].montant = prix.montant;
+    }
+    renderQuotites();
+  }
+
+  function ajouterAcquereurQuotites() {
+    if (!qtEtat) return;
+    qtEtat.acquereurs.push({ id: qtId(), civilite: 'Monsieur', nom: '' });
+    renderQuotites();
+  }
+  function retirerAcquereurQuotites(id) {
+    if (!qtEtat || qtEtat.acquereurs.length <= 1) return;
+    qtEtat.acquereurs = qtEtat.acquereurs.filter(a => a.id !== id);
+    qtEtat.sources.forEach(s => { delete s.montants[id]; });
+    renderQuotites();
+  }
+  function modifierAcquereurQuotites(id, champ, valeur, reconstruire) {
+    const a = qtEtat && qtEtat.acquereurs.find(x => x.id === id);
+    if (!a) return;
+    a[champ] = valeur;
+    if (reconstruire) renderQuotites(); else majResultatsQuotites();
+  }
+
+  function ajouterLigneQuotites() {
+    if (!qtEtat) return;
+    qtEtat.lignes.push({ id: qtId(), libelle: '', montant: null, memoire: false });
+    renderQuotites();
+  }
+  function retirerLigneQuotites(id) {
+    if (!qtEtat) return;
+    qtEtat.lignes = qtEtat.lignes.filter(l => l.id !== id);
+    renderQuotites();
+  }
+  function modifierLigneQuotites(id, champ, valeur, reconstruire) {
+    const l = qtEtat && qtEtat.lignes.find(x => x.id === id);
+    if (!l) return;
+    l[champ] = champ === 'montant' ? (valeur === '' ? null : valeur) : valeur;
+    if (reconstruire) renderQuotites(); else majResultatsQuotites();
+  }
+
+  function ajouterSourceQuotites(type) {
+    if (!qtEtat) return;
+    qtEtat.sources.push({ id: qtId(), type: type === 'pret' ? 'pret' : 'apport', banque: '', numero: '', montants: {} });
+    renderQuotites();
+  }
+  function retirerSourceQuotites(id) {
+    if (!qtEtat) return;
+    qtEtat.sources = qtEtat.sources.filter(s => s.id !== id);
+    renderQuotites();
+  }
+  function modifierSourceQuotites(id, champ, valeur) {
+    const s = qtEtat && qtEtat.sources.find(x => x.id === id);
+    if (!s) return;
+    s[champ] = valeur;
+    majResultatsQuotites();
+  }
+  function modifierMontantSourceQuotites(idSource, idAcquereur, valeur) {
+    const s = qtEtat && qtEtat.sources.find(x => x.id === idSource);
+    if (!s) return;
+    s.montants[idAcquereur] = valeur === '' ? null : valeur;
+    majResultatsQuotites();
+  }
+
+  // --- dossier suivi (Outil 1) ---------------------------------------------------------------
+  function rechercherDossierQuotites(valeur) {
+    const boite = document.getElementById('qt-dossier-resultats');
+    if (!boite) return;
+    const q = normaliserPourRecherche(String(valeur || '').trim());
+    if (!q) { boite.style.display = 'none'; boite.innerHTML = ''; return; }
+    const trouves = dossiers.filter(d => !d.archive &&
+      (normaliserPourRecherche(d.nom || '').includes(q) || normaliserPourRecherche(d.responsable || '').includes(q)))
+      .slice(0, 8);
+    boite.innerHTML = trouves.length
+      ? trouves.map(d => `<button type="button" class="dash-recherche-ligne" onclick="choisirDossierQuotites('${escapeOnclickArg(d.id)}')">
+          <span class="dash-recherche-nom">${escapeHtml(libelleDossierAffiche(d))}</span>
+          <span class="dash-recherche-resp">${escapeHtml(d.responsable || '')}</span>
+        </button>`).join('')
+      : '<div class="dash-recherche-vide">Aucun dossier ne correspond.</div>';
+    boite.style.display = 'block';
+  }
+
+  function choisirDossierQuotites(id) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    const champ = document.getElementById('qt-dossier-recherche');
+    if (champ) champ.value = '';
+    const boite = document.getElementById('qt-dossier-resultats');
+    if (boite) { boite.style.display = 'none'; boite.innerHTML = ''; }
+    const p = prefillQuotites(d);
+    qtEtat = etatQuotitesVierge();
+    qtEtat.typeBien = p.typeBien;
+    qtEtat.lignes = lignesOperationParDefaut(p.typeBien).map(l => Object.assign({ id: qtId() }, l));
+    if (p.prix) qtEtat.lignes[0].montant = p.prix;
+    if (p.acquereurs.length) qtEtat.acquereurs = p.acquereurs.map(a => Object.assign({ id: qtId() }, a));
+    if (p.sansPret) qtEtat.sources = qtEtat.sources.filter(s => s.type !== 'pret');
+    else if (p.montantPret && qtEtat.acquereurs.length === 1) {
+      const pret = qtEtat.sources.find(s => s.type === 'pret');
+      if (pret) pret.montants[qtEtat.acquereurs[0].id] = p.montantPret;
+    }
+    qtDossierLie = d.id;
+    renderPillDossierQuotites();
+    const recap = document.getElementById('qt-recap-prefill');
+    if (recap) {
+      recap.className = 'af-recap af-recap-visible';
+      recap.innerHTML = `<div class="af-recap-bloc"><div class="af-recap-titre">Repris du dossier</div><ul>${p.repris.map(x => `<li>${escapeHtml(x)}</li>`).join('')}</ul></div>
+        <div class="af-recap-bloc af-recap-manquant"><div class="af-recap-titre">À compléter</div><ul>${p.aCompleter.map(x => `<li>${escapeHtml(x)}</li>`).join('')}</ul></div>`;
+    }
+    renderQuotites();
+  }
+
+  function renderPillDossierQuotites() {
+    const cible = document.getElementById('qt-dossier-pill');
+    if (!cible) return;
+    const d = qtDossierLie ? dossiers.find(x => x.id === qtDossierLie) : null;
+    cible.innerHTML = d ? `<div class="dash-recherche-pill">
+      <span class="dot-label dl-success"><span class="dot"></span>${escapeHtml(libelleDossierAffiche(d))}</span>
+      <button type="button" class="action-rapide" onclick="reinitialiserQuotites()">Détacher</button>
+    </div>` : '';
+  }
+
+  // --- annexe .docx --------------------------------------------------------------------------
+  // Bibliothèque `docx` (la même que l'artefact d'origine), chargée à la demande depuis
+  // cdn.jsdelivr.net comme pizzip/docxtemplater pour l'appel de fonds : rien n'est chargé tant que
+  // personne ne télécharge d'annexe. Mise en page de l'artefact conservée à l'identique (Times New
+  // Roman 11, marges 2,5 cm, points de conduite vers le montant).
+  async function telechargerQuotitesDocx(btn) {
+    if (!qtEtat) return;
+    const r = calculerQuotites(qtEtat);
+    if (!r.totalFinancement) {
+      afficherToast('Saisissez l’origine du financement avant de télécharger l’annexe.', 'OK', null);
+      return;
+    }
+    const libelle = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Préparation…'; }
+    try {
+      if (!window.docx) await afChargerScript('https://cdn.jsdelivr.net/npm/docx@9.7.1/dist/index.iife.min.js');
+      const D = window.docx;
+      const POLICE = 'Times New Roman';
+      const TAILLE = 22;
+      const P = o => new D.Paragraph(Object.assign({ spacing: { after: 160, line: 259, lineRule: 'auto' } }, o));
+      const R = (text, o) => new D.TextRun(Object.assign({ text, font: POLICE, size: TAILLE }, o || {}));
+      const taquets = [{ type: D.TabStopType.RIGHT, position: 8220, leader: D.LeaderType.DOT }];
+      const ligne = (lib, mt, gras, apres) => P({ tabStops: taquets, spacing: { after: apres || 60 }, children: [R(lib + ' \t' + mt, { bold: !!gras })] });
+      const enfants = [];
+      enfants.push(P({ alignment: D.AlignmentType.CENTER, spacing: { after: 220 }, children: [R('NATURE ET QUOTITES DES DROITS ACQUIS', { bold: true })] }));
+      enfants.push(P({ alignment: D.AlignmentType.JUSTIFIED, children: [R(phraseQuotitesAcquisition(qtEtat.acquereurs, r))] }));
+      enfants.push(P({ alignment: D.AlignmentType.JUSTIFIED, children: [R('Détermination des proportions acquises', { underline: { type: 'single' } }), R(' - Les acquéreurs déclarent que la proportionnalité indiquée ci-dessus a été fixée en fonction des éléments suivants :')] }));
+      enfants.push(P({ spacing: { before: 160, after: 120 }, children: [R("MONTANT DE L'OPERATION : ", { bold: true, underline: { type: 'single' } })] }));
+      qtEtat.lignes.forEach(l => enfants.push(ligne(l.libelle || '—', l.memoire ? 'MEMOIRE' : formaterPrixCentimes(montantQuotite(l.montant)))));
+      enfants.push(ligne('Total', formaterPrixCentimes(r.totalOperation), true, 220));
+      enfants.push(P({ spacing: { before: 100, after: 120 }, children: [R('ORIGINE DU FINANCEMENT : ', { bold: true, underline: { type: 'single' } })] }));
+      lignesFinancementAnnexe(qtEtat, r).forEach(l => enfants.push(ligne(l.libelle, formaterPrixCentimes(l.montant))));
+      enfants.push(ligne('Total', formaterPrixCentimes(r.totalFinancement), true, 220));
+      enfants.push(P({ children: [R('Récapitulatif des financements de chacun : ')] }));
+
+      const bord = { style: 'single', size: 6, color: '000000' };
+      const cellule = (text, o) => new D.TableCell({
+        margins: { top: 60, bottom: 60, left: 100, right: 100 },
+        verticalAlign: D.VerticalAlign.CENTER,
+        children: [P({ alignment: (o && o.droite) ? D.AlignmentType.RIGHT : D.AlignmentType.CENTER, spacing: { after: 0 }, children: [R(text, { bold: !!(o && o.gras) })] })]
+      });
+      const rangees = [new D.TableRow({ children: [cellule('', { gras: true }), ...qtEtat.acquereurs.map(a => cellule(nomAcquereurQuotite(a), { gras: true })), cellule('TOTAL', { gras: true })] })];
+      qtEtat.sources.forEach(src => rangees.push(new D.TableRow({ children: [cellule(libelleSourceTableau(src)), ...qtEtat.acquereurs.map(a => cellule(formaterPrixCentimes(montantQuotite((src.montants || {})[a.id])), { droite: true })), cellule(formaterPrixCentimes(r.totalParSource[src.id] || 0), { droite: true })] })));
+      rangees.push(new D.TableRow({ children: [cellule('TOTAL', { gras: true }), ...r.parAcquereur.map(p => cellule(formaterPrixCentimes(p.total), { droite: true, gras: true })), cellule(formaterPrixCentimes(r.totalFinancement), { droite: true, gras: true })] }));
+      rangees.push(new D.TableRow({ children: [cellule('Proportions', { gras: true }), ...r.parAcquereur.map(p => cellule(formaterPourcentageQuotite(p.pourcentage), { droite: true, gras: true })), cellule('100 %', { droite: true, gras: true })] }));
+      enfants.push(new D.Table({ width: { size: 100, type: D.WidthType.PERCENTAGE }, borders: { top: bord, bottom: bord, left: bord, right: bord, insideHorizontal: bord, insideVertical: bord }, rows: rangees }));
+      enfants.push(P({ spacing: { before: 220, after: 0 }, children: [R('')] }));
+
+      clausesQuotites(qtEtat).forEach(c => {
+        if (c.type === 'section') enfants.push(P({ alignment: D.AlignmentType.JUSTIFIED, children: [R(c.amorce, { underline: { type: 'single' } }), R(' - ' + c.texte)] }));
+        else if (c.type === 'sous') enfants.push(P({ alignment: D.AlignmentType.JUSTIFIED, spacing: { before: 120, after: 100 }, children: [R(c.texte, { italics: true })] }));
+        else enfants.push(P({ alignment: D.AlignmentType.JUSTIFIED, children: [R(c.texte)] }));
+      });
+
+      const doc = new D.Document({
+        styles: { default: { document: { run: { font: POLICE, size: TAILLE } } } },
+        sections: [{ properties: { page: { margin: { top: 1417, bottom: 1417, left: 1417, right: 1417 } } }, children: enfants }]
+      });
+      const blob = await D.Packer.toBlob(doc);
+      const noms = qtEtat.acquereurs.map(a => String(a.nom || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '')).filter(Boolean).join('_');
+      const lien = document.createElement('a');
+      lien.href = URL.createObjectURL(blob);
+      lien.download = `Quotites_acquisition_${noms || 'acte'}.docx`;
+      document.body.appendChild(lien);
+      lien.click();
+      lien.remove();
+      setTimeout(() => URL.revokeObjectURL(lien.href), 5000);
+    } catch (e) {
+      console.error(e);
+      afficherToast('Génération impossible : la bibliothèque Word n’a pas pu être chargée (accès internet requis).', 'OK', null);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = libelle; }
+    }
   }
 
   // Peuple le <select> des départements une seule fois au démarrage (le calculateur est toujours
@@ -17747,25 +18329,30 @@
   // fiche dossier, qui n'ont pas besoin de cette liste sous forme de variable.
   var RESPONSABLES = ['Bastien ANGLUMENT', 'Julie VASSELIN', 'Jérémy SAUJOT'];
 
+  // Seul transport d'envoi proposé depuis l'écran Réglages : un compte Gmail avec mot de passe
+  // d'application, port 587 en STARTTLS. Microsoft 365 est écarté (pas de droits d'administration
+  // pour autoriser le SMTP authentifié, et le SPF du domaine interdit l'envoi sans compte).
+  var GMAIL_SMTP = { hote: 'smtp.gmail.com', port: 587, securise: false };
+
   async function chargerReglages() {
     initReglagesNotifNavigateur();
+    const version = document.getElementById('reglages-version');
+    if (version) version.textContent = VERSION_APP;
+    const inter = document.getElementById('reglages-theme-sombre');
+    if (inter) inter.checked = document.documentElement.getAttribute('data-theme') === 'dark';
     try {
       const reponse = await fetchAvecAuth('/api/reglages');
       const reglages = await reponse.json();
       document.getElementById('reglages-envoi-actif').checked = !!reglages.emailActif;
       document.getElementById('reglages-passerelle').value = reglages.emailPasserelle || '';
-      document.getElementById('reglages-smtp-hote').value = reglages.smtpHote || '';
-      document.getElementById('reglages-smtp-port').value = reglages.smtpPort || 25;
-      document.getElementById('reglages-smtp-securise').checked = !!reglages.smtpSecurise;
       document.getElementById('reglages-smtp-utilisateur').value = reglages.smtpUtilisateur || '';
-      document.getElementById('reglages-smtp-expediteur').value = reglages.smtpExpediteur || '';
       // Jamais la valeur elle-même : le serveur ne la renvoie pas. Le champ reste vide, et son
       // texte d'invite dit si un mot de passe est déjà en place.
       const champSecret = document.getElementById('reglages-smtp-motdepasse');
       champSecret.value = '';
       champSecret.placeholder = reglages.smtpMotDePasseEnregistre
         ? 'Déjà enregistré — laisser vide pour le conserver'
-        : "Mot de passe d'application";
+        : '16 caractères';
       document.getElementById('reglages-copie-email').value = reglages.copieEmail || '';
       renderReglagesEmails(reglages.emailsResponsables || {});
       document.getElementById('reglages-etat').style.display = 'none';
@@ -17837,11 +18424,14 @@
     const objet = {
       emailActif: document.getElementById('reglages-envoi-actif').checked,
       emailPasserelle: document.getElementById('reglages-passerelle').value.trim(),
-      smtpHote: document.getElementById('reglages-smtp-hote').value.trim(),
-      smtpPort: parseInt(document.getElementById('reglages-smtp-port').value, 10) || 25,
-      smtpSecurise: document.getElementById('reglages-smtp-securise').checked,
+      // Gmail uniquement (décision de l'étude) : serveur, port et chiffrement sont fixes, et
+      // l'expéditeur reste vide pour que le compte authentifié soit utilisé — Gmail refuse tout
+      // autre nom. Le serveur garde un transport SMTP générique, seul ce formulaire est fermé.
+      smtpHote: GMAIL_SMTP.hote,
+      smtpPort: GMAIL_SMTP.port,
+      smtpSecurise: GMAIL_SMTP.securise,
       smtpUtilisateur: document.getElementById('reglages-smtp-utilisateur').value.trim(),
-      smtpExpediteur: document.getElementById('reglages-smtp-expediteur').value.trim(),
+      smtpExpediteur: '',
       copieEmail: document.getElementById('reglages-copie-email').value.trim(),
       emailsResponsables
     };
@@ -18006,7 +18596,8 @@
       'icon-nav-appel-fonds': 'mail',
       'icon-nav-inventaire': 'scale',
       'icon-af-dropzone': 'upload',
-      'icon-apropos': 'info',
+      'icon-reglages-apropos': 'info',
+      'icon-nav-quotites': 'users',
       'icon-calc-warning': 'alert-triangle',
       'icon-nav-analyse-ia': 'sparkle',
       'icon-analyse-ia-warning': 'alert-triangle',

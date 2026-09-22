@@ -652,20 +652,15 @@
     line-height: 1;
   }
 
+  /* Ne porte plus que le bouton d'installation : masqué avec lui (voir afficherBoutonInstallation). */
   .sidebar-footer {
     margin-top: auto;
     padding-top: 14px;
     border-top: 1px solid var(--line-soft);
-    display: flex;
+    display: none;
     flex-direction: column;
     gap: 2px;
   }
-  /* Mode sombre + À propos côte à côte plutôt qu'empilés (demandé par l'étude) : le bouton de
-     thème (icône seule, voir .sidebar-link-icone-seule) garde sa largeur au contenu, "À propos"
-     prend le reste de la ligne. */
-  .sidebar-footer-row { display: flex; align-items: center; gap: 2px; }
-  .sidebar-footer-row .sidebar-link-apropos { width: auto; flex: 1 1 auto; }
-
   .sidebar-burger, .sidebar-scrim { display: none; }
 
   .app-main {
@@ -4181,8 +4176,6 @@
   /* Lien "À propos" en bas de la sidebar : volontairement discret (plus petit, muted) par rapport
      aux autres liens du pied de sidebar (installer l'app, thème) — une aide occasionnelle, pas une
      action fréquente. */
-  .sidebar-link-apropos { font-size: 12.5px; color: var(--muted); padding: 8px 10px; }
-  .sidebar-link-apropos .sidebar-link-icone { font-size: 13px; opacity: 0.75; }
   /* Bloc de code court à recopier (schéma JSON du flux Power Automate, écran Réglages). */
   .code-bloc {
     display: inline-block;
@@ -4391,4 +4384,119 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
   body.onglet-appel-fonds-actif .af-apercu-barre,
   body.onglet-appel-fonds-actif .af-table-actions { display: none !important; }
   body.onglet-appel-fonds-actif .af-lettre { border: none; box-shadow: none; max-width: none; padding: 0; }
+}
+
+/* ---- Réglages : options « sur ce poste » en interrupteurs ------------------------------------
+   Une ligne = un libellé + sa note à gauche, l'interrupteur (.switch, déjà utilisé pour les dates
+   butoir du wizard) à droite. Toute la ligne est le <label> : cliquer le texte bascule aussi. */
+.reglages-liste { display: flex; flex-direction: column; }
+.reglages-option {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 12px 0; cursor: pointer;
+}
+.reglages-liste .reglages-option + .reglages-option { border-top: 1px solid var(--line-soft); }
+.calc-champs > .reglages-option { padding-top: 0; }
+.reglages-option-texte { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.reglages-option-titre { font-size: 14px; font-weight: 600; color: var(--ink); }
+.reglages-option .hint { margin: 0; }
+.reglages-option .hint:empty { display: none; }
+.reglages-switch input:checked + .slider { background-color: var(--focus); }
+.reglages-switch input:focus-visible + .slider { outline: 2px solid var(--focus); outline-offset: 2px; }
+.reglages-section-titre {
+  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--muted); margin: 26px 0 10px;
+}
+.reglages-apropos { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.reglages-apropos .dash-section-titre { margin-bottom: 2px; }
+.reglages-apropos .hint { margin: 0; }
+.reglages-apropos button { display: inline-flex; align-items: center; gap: 6px; }
+
+/* ---- Quotités d'acquisition ------------------------------------------------------------------
+   Formulaire à gauche (gabarit de l'appel de fonds : .af-grid/.af-form), résultat et aperçu de
+   l'annexe à droite. L'aperçu est une FEUILLE : fond blanc et Times New Roman dans les deux
+   thèmes, comme le .docx qui en sort. */
+.qt-titre { margin-top: 20px; }
+.qt-liste { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+.qt-ligne { display: grid; gap: 8px; align-items: center; }
+.qt-ligne-acquereur { grid-template-columns: 112px minmax(0, 1fr) 28px; }
+.qt-ligne-operation {
+  grid-template-columns: minmax(0, 1fr) auto 28px;
+  grid-template-areas: "lib lib lib" "mt mem x";
+  padding-bottom: 8px; border-bottom: 1px solid var(--line-soft);
+}
+.qt-ligne-operation > input[type="text"] { grid-area: lib; }
+.qt-ligne-operation > input[type="number"] { grid-area: mt; }
+.qt-ligne-operation > .qt-memoire-coche { grid-area: mem; }
+.qt-ligne-operation > .qt-suppr { grid-area: x; }
+.qt-memoire input[type="text"] { color: var(--muted); }
+.qt-memoire-coche { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); white-space: nowrap; cursor: pointer; }
+.qt-memoire-coche input { width: auto; margin: 0; accent-color: var(--focus); }
+
+.qt-suppr {
+  width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--muted); cursor: pointer;
+}
+.qt-suppr:hover { color: var(--urgent); border-color: var(--line); }
+.qt-suppr:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.qt-total-ligne {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line-soft);
+  font-size: 13px; color: var(--ink-soft);
+}
+.qt-total-ligne strong { font-size: 15px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.qt-ajout-sources { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.qt-source { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 10px; }
+.qt-source-entete { display: flex; align-items: center; gap: 8px; }
+.qt-source-total { margin-left: auto; font-size: 13px; font-variant-numeric: tabular-nums; }
+.qt-source-pret { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 8px; }
+.qt-source-montants { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.qt-part { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.qt-part-nom { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 520px) { .qt-source-pret { grid-template-columns: 1fr; } }
+
+.qt-colonne-droite { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.qt-resultat .hint { margin: 12px 0 0; }
+.qt-alerte {
+  display: flex; align-items: flex-start; gap: 8px; font-size: 13px; line-height: 1.45;
+  padding: 8px 10px; border-radius: 8px; margin-bottom: 8px;
+}
+.qt-alerte .icone { flex: none; margin-top: 2px; }
+.qt-alerte-neutre { color: var(--ink-soft); background: var(--paper-sunk); }
+.qt-alerte-ok { color: var(--success); background: color-mix(in srgb, var(--success) 10%, transparent); }
+.qt-alerte-ecart { color: color-mix(in srgb, var(--urgent) 88%, var(--ink)); background: color-mix(in srgb, var(--urgent) 9%, transparent); }
+.qt-quotites { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px 22px; margin-top: 6px; }
+.qt-quotite { display: grid; grid-template-columns: 1fr auto; row-gap: 5px; align-items: baseline; }
+.qt-quotite-nom { font-size: 13px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qt-quotite-pct { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; color: var(--ink); }
+.qt-barre { grid-column: 1 / -1; height: 4px; border-radius: 4px; background: var(--line-soft); overflow: hidden; }
+.qt-barre span { display: block; height: 100%; background: var(--focus); border-radius: 4px; transition: width 0.2s; }
+@media (prefers-reduced-motion: reduce) { .qt-barre span { transition: none; } }
+.qt-quotite-montant { grid-column: 1 / -1; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.qt-apercu { align-items: stretch; }
+.qt-apercu .af-apercu-barre { max-width: none; }
+.qt-feuille {
+  background: #ffffff; border: 1px solid #dcdcdc; border-radius: 2px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.1);
+  padding: 34px 42px 40px;
+  font-family: 'Times New Roman', Times, serif; font-size: 11pt; line-height: 1.5; color: #1a1a1a;
+}
+.qt-feuille p { margin: 0 0 10px; text-align: justify; color: #1a1a1a; }
+.qt-feuille .qt-doc-titre { text-align: center; font-weight: 700; margin-bottom: 16px; }
+.qt-feuille .qt-doc-rubrique { font-weight: 700; text-decoration: underline; margin: 14px 0 6px; }
+.qt-feuille .qt-doc-sous { font-style: italic; margin: 12px 0 8px; }
+.qt-doc-ligne { display: flex; align-items: baseline; gap: 6px; margin-bottom: 4px; }
+.qt-doc-ligne span:first-child { flex: 0 1 auto; padding-right: 6px; }
+.qt-doc-ligne span:last-child { margin-left: auto; white-space: nowrap; font-variant-numeric: tabular-nums; padding-left: 6px; }
+.qt-doc-ligne { background-image: radial-gradient(circle, #7a7a7a 0.6px, transparent 0.8px); background-size: 5px 2px; background-repeat: repeat-x; background-position: 0 calc(100% - 4px); }
+.qt-doc-ligne span { background: #ffffff; }
+.qt-doc-total { font-weight: 700; background-image: none; margin-bottom: 14px; }
+.qt-doc-table { width: 100%; border-collapse: collapse; margin: 8px 0 18px; font-size: 10.5pt; }
+.qt-doc-table th, .qt-doc-table td { border: 1px solid #1a1a1a; padding: 4px 7px; color: #1a1a1a; }
+.qt-doc-table th { font-weight: 700; text-align: center; }
+.qt-doc-table td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.qt-doc-table tr.gras td { font-weight: 700; }
+@media (max-width: 700px) {
+  .qt-feuille { padding: 20px 18px; overflow-x: auto; }
 }

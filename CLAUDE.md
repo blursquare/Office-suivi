@@ -6389,6 +6389,47 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   - BOURGUEIL : « le PROMETTANT s'engage à rembourser tous appels de fonds travaux » ressort en
     engagement de travaux — mineur, non corrigé sans second exemple.
 
+- **Réglages : mode sombre et « À propos » y passent, envoi par Gmail uniquement ; nouvel outil
+  « Quotités d'acquisition »** — quatre demandes de l'étude dans le même message :
+  - **Mode sombre en interrupteur** dans une carte « Sur ce poste » en tête des Réglages (`.switch`
+    déjà utilisé par le wizard, coloré `--focus`), à côté de la notification Windows passée au
+    même format. `appliquerTheme()` resynchronise l'interrupteur ; `basculerTheme()` reste mais n'a
+    plus de bouton. **Le pied de la sidebar est vidé** (thème et « À propos » en sont retirés, avec
+    `.sidebar-footer-row`/`.sidebar-link-apropos`) : il n'y reste que le bouton d'installation PWA,
+    et le pied entier est masqué avec lui (`afficherBoutonInstallation`) — sinon un filet de
+    séparation sans rien dessous. Interprété comme un DÉPLACEMENT ; à rétablir en une ligne si
+    l'étude voulait aussi garder l'accès rapide.
+  - **« À propos » dans les Réglages** : carte en pied d'écran, version affichée, bouton qui ouvre
+    la même fenêtre qu'avant (`ouvrirAPropos`, inchangée).
+  - **Envoi des rappels par Gmail uniquement** : le formulaire ne demande plus que le compte Gmail,
+    son mot de passe d'application, la boîte-passerelle et l'adresse de copie. Serveur, port,
+    chiffrement et expéditeur ne sont plus saisis : le client envoie `GMAIL_SMTP`
+    (`smtp.gmail.com`, 587, STARTTLS) et un expéditeur vide. **Le serveur n'est pas touché** : son
+    transport SMTP reste générique et ses tests inchangés — seul le formulaire est fermé, si l'étude
+    obtient un jour des droits Microsoft 365 il suffit de le rouvrir. La procédure de l'écran et
+    `server/README.md` ne décrivent plus que Gmail.
+  - **« Quotités d'acquisition »** (section Outils, onglet `#onglet-quotites`), porté de l'artefact
+    « Quotité des acquéreurs » de l'étude : proportions de chaque acquéreur d'après l'origine du
+    financement, et annexe « Nature et quotités des droits acquis » téléchargeable en `.docx`.
+    **Repris** : la structure (nature du bien, acquéreurs, montant de l'opération avec lignes
+    « mémoire », sources de financement apport/prêt réparties par acquéreur) et le **texte des
+    clauses mot pour mot** — modèle rédactionnel de l'étude, à ne pas reformuler sans lui (même
+    règle que `PROCEDURE_FONDS`). **Abandonnés** : la palette or/crème et les polices de
+    l'artefact (gabarit `.af-grid`/`.af-form`/`.calc-card` et jetons de CLAIRE), et ses montants
+    d'exemple (champs vides, comme les autres simulateurs). **Deux corrections de fond** :
+    `repartirPourcentages()` répartit au plus fort reste — arrondies séparément, trois parts égales
+    donnaient 99,99 %, une annexe qui ne totalise pas 100 % ne se signe pas ; et un acquéreur qui
+    ne finance rien est signalé (quotité nulle), plutôt qu'écrit « 0,00 % » dans l'acte. Relié à
+    Outil 1 par une recherche de dossier (`prefillQuotites`) : acquéreurs, nature du bien, prix,
+    et le montant du prêt **seulement s'il n'y a qu'un acquéreur** — à plusieurs, sa répartition
+    ne se devine pas et le récapitulatif « À compléter » le dit. L'aperçu est une feuille (fond
+    blanc, Times New Roman) dans les deux thèmes, comme le courrier d'appel de fonds. La
+    bibliothèque `docx@9.7.1` (celle de l'artefact) est chargée à la demande depuis
+    cdn.jsdelivr.net au premier téléchargement — aucun nouveau fichier statique à déclarer. Tests :
+    `tests/quotites.test.js` (8). **Non vérifié** : la génération du `.docx` elle-même (CDN bloqué
+    dans cet environnement) — mise en page et appels repris à l'identique de l'artefact, où
+    l'étude les a déjà utilisés.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à
