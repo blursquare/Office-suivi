@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-22 21:58';
+  const VERSION_APP = '2026-09-22 22:01';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-22 22:01', resume: "Rappels automatiques : un seuil par echeance (pret et vente prealable J-15/J-7, appel de fonds J-15/J-10, signature J-25/J-15)." },
     { version: '2026-09-22 21:58', resume: "Outil 2 : les clauses de style de copropriete (carnet d'entretien, texte de loi cite) ne sont plus prises pour des travaux realises." },
     { version: '2026-09-22 21:49', resume: "La relance « offre de prêt » adressée au client ne "
       + "s'arrête plus le jour de l'échéance : elle continue tous les 10 jours tant que l'offre "

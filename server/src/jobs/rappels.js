@@ -7,8 +7,9 @@
 // depuis été retiré DÉFINITIVEMENT, à la demande explicite de l'étude — ce job, avec sa copie
 // systématique (voir `reglages.copieEmail` ci-dessous), le remplace entièrement.
 //
-// Aux seuils J-15/J-7 (RAPPELS_PAR_DEFAUT côté client), sur TOUTES les échéances actives d'un
-// dossier (prêt, acte, vente préalable, personnalisées) — pas seulement le prêt comme l'export
+// À des seuils PROPRES À CHAQUE ÉCHÉANCE (voir SEUILS_RAPPELS_PAR_TYPE), sur toutes les échéances
+// actives d'un dossier (prêt, vente préalable, appel de fonds, signature, personnalisées) — pas
+// seulement le prêt comme l'export
 // .ics manuel (volontairement limité par l'étude à cette seule date pour un export ponctuel d'UN
 // dossier) : ce mécanisme est plus proche du flux calendrier connecté (routes/calendrier.js), qui
 // couvre déjà tout le portefeuille. `d.reminderDays` (propre au seul export .ics, vide sur un
@@ -23,7 +24,26 @@
 const { envoyerEmail, envoiConfigure } = require('../envoiEmail');
 const { piecesRecuesEtManquantes } = require('../piecesChecklist');
 
-const SEUILS_RAPPELS = [15, 7];
+// Seuils de rappel PAR ÉCHÉANCE, donnés un par un par l'étude — pas un seuil unique pour tout.
+// Une signature d'acte se prépare de plus loin qu'un appel de fonds, et un appel de fonds doit
+// partir assez tôt pour que le virement arrive : c'est la seule raison pour laquelle ces quatre
+// couples diffèrent. La DATE BUTOIR (`acte`) n'y figure volontairement pas — elle ne déclenche
+// aucun rappel (voir toutesEcheances ci-dessous), c'est le rendez-vous pris à l'office qui engage
+// l'étude.
+const SEUILS_RAPPELS_PAR_TYPE = {
+  pret: [15, 7],
+  ventebien: [15, 7],
+  appelFonds: [15, 10],
+  rendezVousSignature: [25, 15]
+};
+
+// Échéance personnalisée (`autre-0`, `autre-1`…) : l'étude n'a pas de seuil à donner pour une date
+// qu'elle nomme elle-même au cas par cas, ce repli reprend donc l'ancien couple unique.
+const SEUILS_RAPPELS_DEFAUT = [15, 7];
+
+function seuilsPourType(type) {
+  return SEUILS_RAPPELS_PAR_TYPE[type] || SEUILS_RAPPELS_DEFAUT;
+}
 
 // Le prêt reste avant tout piloté par offrePretStatut (parcours NAS), mais la validation manuelle
 // (voir echeancesValidees.pret, script.js) doit aussi être prise en compte ici — sans quoi un
@@ -83,7 +103,7 @@ function calculerRappelsDus(dossiers, aujourdHui, dejaEnvoyes) {
     const pieces = piecesRecuesEtManquantes(d);
     for (const e of toutesEcheances(d)) {
       const j = joursRestants(e.iso, aujourdHui);
-      for (const seuil of SEUILS_RAPPELS) {
+      for (const seuil of seuilsPourType(e.type)) {
         if (j !== seuil) continue;
         const reminderKey = `${e.type}:${seuil}`;
         if (dejaEnvoyes && dejaEnvoyes.has(`${d.id}:${reminderKey}`)) continue;
@@ -210,6 +230,6 @@ function demarrerTacheRappels(depot, db, config, parametresRepo, envoyerFn) {
 }
 
 module.exports = {
-  SEUILS_RAPPELS, echeanceValidee, toutesEcheances, joursRestants,
+  SEUILS_RAPPELS_PAR_TYPE, SEUILS_RAPPELS_DEFAUT, seuilsPourType, echeanceValidee, toutesEcheances, joursRestants,
   calculerRappelsDus, texteRappel, executerTacheRappels, demarrerTacheRappels
 };

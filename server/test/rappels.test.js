@@ -10,15 +10,31 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
-  SEUILS_RAPPELS, echeanceValidee, toutesEcheances, joursRestants,
+  SEUILS_RAPPELS_PAR_TYPE, SEUILS_RAPPELS_DEFAUT, seuilsPourType,
+  echeanceValidee, toutesEcheances, joursRestants,
   calculerRappelsDus, texteRappel, executerTacheRappels
 } = require('../src/jobs/rappels');
 const { ouvrirDb } = require('../src/db');
 const { creerDepot } = require('../src/dossiersRepo');
 const { creerRepoParametres } = require('../src/parametresRepo');
 
-test('SEUILS_RAPPELS reprend bien J-15/J-7 (RAPPELS_PAR_DEFAUT côté client)', () => {
-  assert.deepEqual(SEUILS_RAPPELS, [15, 7]);
+// Ces quatre couples sont des valeurs METIER donnees une par une par l'etude : seul un test
+// empeche une retouche ulterieure de les ramener a un seuil unique (meme raison que les durees
+// de validite des diagnostics, verrouillees de la meme facon cote Outil 2).
+test('les seuils de rappel sont ceux donnes par l etude, echeance par echeance', () => {
+  assert.deepEqual(seuilsPourType('pret'), [15, 7]);
+  assert.deepEqual(seuilsPourType('ventebien'), [15, 7]);
+  assert.deepEqual(seuilsPourType('appelFonds'), [15, 10]);
+  assert.deepEqual(seuilsPourType('rendezVousSignature'), [25, 15]);
+});
+
+test('une echeance personnalisee retombe sur le couple par defaut', () => {
+  assert.deepEqual(seuilsPourType('autre-0'), SEUILS_RAPPELS_DEFAUT);
+  assert.deepEqual(seuilsPourType('autre-7'), [15, 7]);
+});
+
+test('la date butoir n a aucun seuil declare : elle ne doit jamais etre rappelee', () => {
+  assert.equal(SEUILS_RAPPELS_PAR_TYPE.acte, undefined);
 });
 
 test('echeanceValidee : le prêt est "validé" dès que l\'offre est reçue, les autres via echeancesValidees', () => {
@@ -93,6 +109,30 @@ test('calculerRappelsDus : un rappel tombe pile à J-15 et à J-7, jamais entre 
   assert.equal(calculerRappelsDus([d], '2026-10-27', new Set()).length, 1); // J-15
   assert.equal(calculerRappelsDus([d], '2026-11-04', new Set()).length, 1); // J-7
   assert.equal(calculerRappelsDus([d], '2026-11-01', new Set()).length, 0); // ni l'un ni l'autre
+});
+
+test('calculerRappelsDus : l appel de fonds part a J-15 et J-10, pas a J-7', () => {
+  // Un dossier dont l offre de pret est recue : le planning annonce alors l appel de fonds,
+  // seul, ce qui isole ses seuils propres.
+  const d = {
+    id: 'd1', nom: 'X / Y', responsable: 'Julie VASSELIN',
+    offrePretStatut: 'recue', appelFonds: '2026-11-11'
+  };
+  assert.equal(calculerRappelsDus([d], '2026-10-27', new Set()).length, 1); // J-15
+  assert.equal(calculerRappelsDus([d], '2026-11-01', new Set()).length, 1); // J-10
+  assert.equal(calculerRappelsDus([d], '2026-11-04', new Set()).length, 0); // J-7 : plus un seuil
+});
+
+test('calculerRappelsDus : la signature part de plus loin, a J-25 et J-15', () => {
+  // Appel de fonds deja fait : le planning passe a la signature (voir toutesEcheances).
+  const d = {
+    id: 'd1', nom: 'X / Y', responsable: 'Julie VASSELIN',
+    offrePretStatut: 'recue', appelFonds: '2026-10-01',
+    echeancesValidees: { appelFonds: true }, rendezVousSignature: '2026-11-11'
+  };
+  assert.equal(calculerRappelsDus([d], '2026-10-17', new Set()).length, 1); // J-25
+  assert.equal(calculerRappelsDus([d], '2026-10-27', new Set()).length, 1); // J-15
+  assert.equal(calculerRappelsDus([d], '2026-11-04', new Set()).length, 0); // J-7 : plus un seuil
 });
 
 test('calculerRappelsDus : déjà envoyé (reminder_log) → jamais renvoyé le même jour', () => {

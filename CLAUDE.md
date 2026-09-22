@@ -7495,6 +7495,31 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
     déclaration qui vise un article et doit rester détectée, la clause longue qui ne rend qu'un
     constat). Suite racine 628 → 642, serveur inchangée (211 — chantier entièrement côté client).
 
+- **Seuils de rappel propres à chaque échéance**, donnés un par un par l'étude — c'est la réponse
+  à la question laissée ouverte (« un seuil par échéance, je vous les donne ») :
+  **prêt J-15/J-7, vente préalable J-15/J-7, appel de fonds J-15/J-10, signature de l'acte
+  J-25/J-15.** `SEUILS_RAPPELS` (le couple unique `[15, 7]` de `server/src/jobs/rappels.js`) est
+  remplacé par `SEUILS_RAPPELS_PAR_TYPE` + `seuilsPourType(type)` (pure, testable), consultée par
+  `calculerRappelsDus` pour CHAQUE échéance plutôt qu'une fois pour toutes.
+  - Une **échéance personnalisée** (`autre-0`, `autre-1`…) retombe sur `SEUILS_RAPPELS_DEFAUT`,
+    l'ancien couple `[15, 7]` : l'étude n'a pas de seuil à donner pour une date qu'elle nomme
+    elle-même au cas par cas.
+  - La **date butoir** (`acte`) n'a volontairement AUCUNE entrée dans la table, et un test le
+    verrouille : elle ne figure déjà pas dans `toutesEcheances()` (voir « La date butoir devient
+    informative » plus haut), lui donner un seuil laisserait croire le contraire à la prochaine
+    lecture.
+  - Ces quatre couples sont des valeurs MÉTIER, pas un réglage technique : comme les durées de
+    validité des diagnostics d'Outil 2, seul un test empêche une retouche ultérieure de les
+    ramener à un seuil unique.
+  - Tests : +4 dans `server/test/rappels.test.js` (la table elle-même, le repli d'une échéance
+    personnalisée, l'absence d'entrée pour la date butoir, et deux vérifications de bout en bout
+    par `calculerRappelsDus` — l'appel de fonds qui part à J-10 et plus à J-7, la signature à J-25
+    et J-15). Suite serveur 211 → 215 ; racine inchangée (642 — chantier côté serveur, plus le
+    texte de l'écran Réglages).
+  - L'écran Réglages et `server/README.md` listaient « J-15/J-7 » comme une règle unique, et
+    citaient même la date butoir parmi les échéances rappelées : les deux sont réécrits avec le
+    tableau réel.
+
 ## Ce qui reste ouvert / pas encore fait
 
 - **Signature manuscrite de Bastien ANGLUMENT, conservée pour le courrier d'appel de fonds**

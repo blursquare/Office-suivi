@@ -96,9 +96,21 @@ tient à jour tout seul, pour tout le portefeuille, sans jamais rouvrir l'outil.
 Remplace le déclenchement automatique des rappels (auparavant : rien, en pratique — seul un
 brouillon `mailto:` manuel existait, voir l'ancien bouton « Envoyer un rappel par email » sur une
 fiche dossier, **retiré définitivement** depuis que ce mécanisme couvre le même besoin — voir
-plus bas). Aux seuils J-15/J-7, sur toutes les échéances actives d'un dossier (prêt, acte, vente
-préalable, échéance personnalisée), CLAIRE envoie un **email** au responsable du dossier — jamais
-deux fois pour la même échéance.
+plus bas). Sur toutes les échéances actives d'un dossier, CLAIRE envoie un **email** au
+responsable du dossier — jamais deux fois pour la même échéance. **Les seuils sont propres à
+chaque échéance** (`SEUILS_RAPPELS_PAR_TYPE`, `server/src/jobs/rappels.js`), donnés un par un par
+l'étude :
+
+| Échéance | Rappels |
+| --- | --- |
+| Obtention du prêt | J-15 et J-7 |
+| Vente préalable | J-15 et J-7 |
+| Appel de fonds | J-15 et J-10 |
+| Signature de l'acte | J-25 et J-15 |
+| Échéance personnalisée | J-15 et J-7 (repli) |
+
+La **date butoir** de l'avant-contrat ne déclenche aucun rappel : elle est indicative, c'est le
+rendez-vous pris à l'office qui engage l'étude.
 
 > **Trois architectures d'envoi se sont succédé pour ce même besoin.** (1) Un `POST` JSON vers un
 > déclencheur HTTP Power Automate, qui postait un message privé Teams ; (2) le même `POST`, l'action
