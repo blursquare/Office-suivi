@@ -8,6 +8,7 @@ const express = require('express');
 const { creerGestionnaireAuth } = require('./auth');
 const { creerDepot } = require('./dossiersRepo');
 const { creerRepoParametres } = require('./parametresRepo');
+const { creerRouteurAuditRetours } = require('./routes/auditRetours');
 const { creerRouteurAuth } = require('./routes/auth');
 const { creerRouteurDossiers } = require('./routes/dossiers');
 const { creerRouteurCalendrier } = require('./routes/calendrier');
@@ -99,6 +100,7 @@ function creerApp({ db, config, envoyerEmailFn }) {
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNas(config));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurReglages(parametresRepo, envoyerEmailFn, { depot, db }));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNotifications(parametresRepo, envoyerEmailFn));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAuditRetours(parametresRepo));
 
   // Gestionnaire d'erreurs générique en dernier recours : évite qu'une exception inattendue
   // (JSON malformé, etc.) ne fasse planter le processus entier plutôt que de répondre 500.

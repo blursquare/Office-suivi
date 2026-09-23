@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-23 20:59';
+  const VERSION_APP = '2026-09-23 21:46';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-23 21:46', resume: "Relecture d'actes : grille visuelle, synthèse à communiquer au client, mode commentaires (avis justifié, pour ce dossier ou pour tous), pièces AAE du NAS et mise à jour des parties de la fiche." },
     { version: '2026-09-23 20:59', resume: "Relecture d'actes : parties relues dans l'avant-contrat (plus d'acquéreur passé "
       + "vendeur), adresse et cadastre corrigés, dates plus comparées, analyse IA retirée." },
     { version: '2026-09-23 20:12', resume: "Copie Gmail des rappels effacée 2 h après l'envoi seulement, pour laisser le flux "
@@ -4352,7 +4353,8 @@
       fiche: ficheActeOutil2(entree && entree.extraction, 'compromis', { statutAcquereurs }),
       travaux, travauxCarnet, carnets, documents, engagements, justificatifs, statutAcquereurs,
       typeBien: typeBien.type, typeBienOrigine: typeBien.origine,
-      ags, estCopropriete, etatsDates, certificatsUrbanisme, questions: questionsOutil2(constats), aujourdHui };
+      ags, estCopropriete, etatsDates, certificatsUrbanisme, questions: questionsOutil2(constats), aujourdHui,
+      justificatifsReconnus: Object.keys(justificatifs) };
   }
 
   // ==== OUTIL 2 : ÉTAT DATÉ / PRÉ-ÉTAT DATÉ ET CERTIFICAT D'URBANISME ==========================
@@ -5065,6 +5067,354 @@
       .map(d => ({ cle: d.cle, titre: d.titre, questions: parDestinataire[d.cle] }));
   }
 
+  // ==== OUTIL 2 : GRILLE DE RELECTURE, SYNTHÈSE CLIENT, COMMENTAIRES (fonctions pures) ==========
+  //
+  // Demande de l'étude (23/09/2026) : « il faut que l'audit soit lisible comme un message que l'on
+  // pourrait communiquer au client. Une synthèse professionnelle. Mais aussi quelque chose de
+  // visuel pour s'y retrouver. Peut-être un mode où je pourrais pendant un temps mettre des
+  // commentaires […] Parfois les commentaires peuvent être liés uniquement au dossier. »
+  //
+  // Trois pièces, toutes calculées depuis le MÊME résultat que le rapport détaillé — jamais une
+  // seconde analyse qui pourrait le contredire :
+  //   • la GRILLE : une case par rubrique, dans les trois sections du rapport, avec un état lisible
+  //     d'un coup d'œil (à régler / à vérifier / rien relevé / non contrôlé) et les pièces
+  //     attendues pour ce type de bien ;
+  //   • la SYNTHÈSE : un texte rédigé, prêt à envoyer, qui ne reprend que les points retenus ;
+  //   • les COMMENTAIRES : l'avis de l'étude sur un constat (juste, faux positif, mal formulé,
+  //     gravité à revoir), pour ce dossier seulement ou pour tous, justifié par écrit.
+
+  var LIBELLES_ETAT_GRILLE_OUTIL2 = {
+    alerte: { texte: 'À régler', dl: 'dl-urgent' },
+    attention: { texte: 'À vérifier', dl: 'dl-pret' },
+    ok: { texte: 'Rien relevé', dl: 'dl-success' },
+    non_controle: { texte: 'Non contrôlé', dl: 'dl-neutre' },
+    masque: { texte: 'Masqué', dl: 'dl-neutre' }
+  };
+
+  function etatDepuisConstatsOutil2(liste) {
+    const g = (liste || []).map(c => c.gravite);
+    if (g.indexOf('CRITIQUE') >= 0 || g.indexOf('IMPORTANT') >= 0) return 'alerte';
+    if (g.indexOf('A_VERIFIER') >= 0) return 'attention';
+    return 'ok';
+  }
+
+  // Une rubrique n'a de case que si elle a un sens pour CE rapport : une rubrique de copropriété
+  // sur une maison, ou la comparaison avec l'avant-contrat sur un compromis, n'est pas « rien
+  // relevé » — elle n'existe pas. Une rubrique qui porte malgré tout des constats est toujours
+  // montrée (la règle ci-dessous ne doit jamais cacher un constat).
+  function rubriqueApplicableOutil2(cle, resultat) {
+    const r = resultat || {};
+    const mode = r.mode;
+    const type = r.typeBien;
+    if (cle === 'ACTE' || cle === 'PARTIES' || cle === 'URBANISME') return true;
+    if (['TRAVAUX_REALISES', 'DIAGNOSTICS', 'ENTRETIENS', 'DOCUMENTS', 'TRAVAUX_A_FAIRE'].indexOf(cle) >= 0) return mode !== 'acte';
+    if (cle === 'COMPARAISON_COMPROMIS') return mode === 'acte';
+    if (cle === 'COPROPRIETE' || cle === 'CARNET_ENTRETIEN' || cle === 'ETAT_DATE') return type === 'copropriete';
+    if (cle === 'PERMIS') return type === 'terrain' && mode === 'acte';
+    return true;
+  }
+
+  // « Rien relevé » et « rien pu contrôler » sont deux réponses différentes : la seconde est celle
+  // d'une rubrique dont le document n'a pas été fourni. Les confondre, c'est rassurer à tort.
+  function rubriqueNonControleeOutil2(cle, resultat) {
+    const r = resultat || {};
+    if (cle === 'COMPARAISON_COMPROMIS') return !r.comparaisonFaite;
+    if (cle === 'URBANISME') return !(r.certificatsUrbanisme || []).length;
+    if (cle === 'CARNET_ENTRETIEN') return !(r.carnets || []).length;
+    if (cle === 'ETAT_DATE') return !(r.etatsDates || []).length;
+    if (cle === 'COPROPRIETE') return !(r.ags || []).length;
+    if (cle === 'PERMIS') return !(r.permis && r.permis.permis);
+    return false;
+  }
+
+  // Pièces qu'on s'attend à voir jointes pour ce TYPE de bien (proposition faite à l'étude après
+  // le premier test : « mieux gérer les annexes »). Reconnues avec les détecteurs déjà en place —
+  // rien de nouveau n'est lu. Trois états : fournie, partielle (un pré-état daté à la place de
+  // l'état daté), absente.
+  function piecesAttenduesOutil2(resultat) {
+    const r = resultat || {};
+    const type = r.typeBien || 'maison';
+    const diagnostics = (r.justificatifsReconnus || [])
+      .filter(k => DOCUMENTS_VALIDITE_OUTIL2[k] && DOCUMENTS_VALIDITE_OUTIL2[k].famille === 'diagnostic');
+    const pieces = [
+      { cle: 'diagnostics', libelle: 'Diagnostics techniques', etat: diagnostics.length ? 'fournie' : 'absente',
+        detail: diagnostics.length ? `${diagnostics.length} reconnu(s)` : '' },
+      { cle: 'cu', libelle: "Certificat d'urbanisme", etat: (r.certificatsUrbanisme || []).length ? 'fournie' : 'absente', detail: '' }
+    ];
+    if (type === 'copropriete') {
+      const ed = r.etatsDates || [];
+      const etatEd = ed.some(e => e.type === 'etat-date') ? 'fournie' : (ed.length ? 'partielle' : 'absente');
+      pieces.push({ cle: 'etatDate', libelle: 'État daté', etat: etatEd, detail: etatEd === 'partielle' ? 'pré-état daté seulement' : '' });
+      pieces.push({ cle: 'pvAg', libelle: "Procès-verbaux d'assemblée générale", etat: (r.ags || []).some(a => a.document) ? 'fournie' : 'absente', detail: '' });
+      pieces.push({ cle: 'carnet', libelle: "Carnet d'entretien de l'immeuble", etat: (r.carnets || []).length ? 'fournie' : 'absente', detail: '' });
+    }
+    if (type === 'terrain' && r.mode === 'acte') {
+      const p = r.permis || {};
+      pieces.push({ cle: 'permis', libelle: 'Permis de construire', etat: p.permis ? 'fournie' : 'absente', detail: '' });
+      pieces.push({ cle: 'affichage', libelle: "Constat d'affichage du permis", etat: (p.constatsAffichage || []).length ? 'fournie' : 'absente', detail: '' });
+      pieces.push({ cle: 'nonRecours', libelle: 'Certificat de non-recours', etat: p.certificatNonRecours ? 'fournie' : 'absente', detail: '' });
+    }
+    return pieces;
+  }
+
+  // La grille : une colonne par section du rapport, une case par rubrique. `options.estExclu`
+  // (constat écarté ou jugé faux positif) et `options.estMasquee` (rubrique masquée) sont passés
+  // explicitement — fonction pure, testable.
+  function grilleRelectureOutil2(resultat, options) {
+    const r = resultat || {};
+    const o = options || {};
+    const estExclu = typeof o.estExclu === 'function' ? o.estExclu : () => false;
+    const estMasquee = typeof o.estMasquee === 'function' ? o.estMasquee : () => false;
+    const constats = (r.constats || []).filter(c => c && !estExclu(c));
+    const colonnes = [];
+    for (const bloc of SECTIONS_RAPPORT_OUTIL2) {
+      if (bloc.cle === 'AVANT_CONTRAT' && r.mode !== 'acte') continue;
+      const lignes = [];
+      if (bloc.cle === 'AVANT_CONTRAT' && (r.obligations || []).length) {
+        const exclues = new Set((r.constats || []).filter(c => c && c.categorie === 'OBLIGATIONS' && estExclu(c)).map(c => c.phrase));
+        const obl = r.obligations.filter(x => x.statut === 'tenue' || !exclues.has(x.clause));
+        const tenues = obl.filter(x => x.statut === 'tenue').length;
+        const items = constats.filter(c => c.categorie === 'OBLIGATIONS');
+        lignes.push({ cle: 'OBLIGATIONS', titre: 'Engagements du vendeur', etat: etatDepuisConstatsOutil2(items),
+          nb: items.length, detail: `${tenues}/${obl.length} justifié(s)` });
+      }
+      for (const sous of SOUS_SECTIONS_RAPPORT_OUTIL2) {
+        if (sous.section !== bloc.cle) continue;
+        const items = constats.filter(c => c.categorie === sous.cle);
+        if (!rubriqueApplicableOutil2(sous.cle, r) && items.length === 0) continue;
+        let etat;
+        if (estMasquee(sous.cle)) etat = 'masque';
+        else if (items.length) etat = etatDepuisConstatsOutil2(items);
+        else etat = rubriqueNonControleeOutil2(sous.cle, r) ? 'non_controle' : 'ok';
+        const pointsUtiles = items.filter(c => c.gravite !== 'INFORMATION').length;
+        lignes.push({ cle: sous.cle, titre: sous.titre, etat, nb: items.length,
+          detail: etat === 'masque' ? `${items.length} constat(s) masqué(s)`
+            : pointsUtiles ? `${pointsUtiles} point(s)` : (etat === 'non_controle' ? 'document non fourni' : '') });
+      }
+      colonnes.push({ cle: bloc.cle, titre: bloc.titre, lignes,
+        pieces: bloc.cle === 'ANNEXES' ? piecesAttenduesOutil2(r) : [] });
+    }
+    return colonnes;
+  }
+
+  var DESTINATAIRES_SYNTHESE_OUTIL2 = {
+    syndic: 'Auprès du syndic', confrere: 'Auprès du confrère', mairie: 'Auprès de la mairie',
+    acquereur: "Auprès de l'acquéreur", tribunal: 'Auprès du greffe du tribunal administratif'
+  };
+
+  function extraitSyntheseOutil2(texte, max) {
+    const t = String(texte || '').replace(/\s+/g, ' ').trim();
+    return t.length > max ? t.slice(0, max - 1).replace(/\s+\S*$/, '') + '…' : t;
+  }
+
+  function pointSyntheseOutil2(c, i, mode) {
+    // Un engagement du vendeur se désigne par sa clause, pas par la formule interne de l'outil
+    // (« engagement sans document type ») : c'est la clause que le destinataire reconnaîtra.
+    if (c.categorie === 'OBLIGATIONS') {
+      const titre = /^Engagement du vendeur/.test(String(c.titre || '')) ? 'Engagement du vendeur' : String(c.titre || '').replace(/\s+$/, '');
+      const page = c.page ? ` (${mode === 'acte' ? 'avant-contrat, ' : ''}page ${c.page})` : '';
+      let ligne = `${i + 1}. ${titre}${page} :`;
+      if (c.phrase) ligne += `\n   « ${extraitSyntheseOutil2(c.phrase, 240)} »`;
+      ligne += `\n   ${/sans document type/i.test(c.description || '') ? "Sa réalisation reste à justifier avant la signature." : String(c.description || '').trim()}`;
+      return ligne;
+    }
+    const titre = String(c.titre || '').replace(/\s+$/, '');
+    const fin = /[.!?:]$/.test(titre) ? '' : '.';
+    const page = c.page ? ` (page ${c.page})` : '';
+    let ligne = `${i + 1}. ${titre}${fin}${page}`;
+    if (c.description) ligne += `\n   ${String(c.description).trim()}`;
+    return ligne;
+  }
+
+  // La synthèse rédigée : un message que l'étude peut envoyer tel quel, ou retoucher. Elle ne
+  // reprend que les points RETENUS — ni les constats écartés ou jugés faux positifs, ni les
+  // rubriques masquées, ni les simples informations — et dit en une phrase où en est l'acte. Le
+  // détail technique (clause citée, page, rubrique) reste dans le rapport détaillé.
+  function syntheseClientOutil2(resultat, options) {
+    const r = resultat || {};
+    const o = options || {};
+    const estExclu = typeof o.estExclu === 'function' ? o.estExclu : () => false;
+    const estMasquee = typeof o.estMasquee === 'function' ? o.estMasquee : () => false;
+    const retenus = (r.constats || []).filter(c => c && !estExclu(c) && !estMasquee(c.categorie) && c.gravite !== 'INFORMATION');
+    const aRegler = retenus.filter(c => c.gravite === 'CRITIQUE' || c.gravite === 'IMPORTANT');
+    const aVerifier = retenus.filter(c => c.gravite === 'A_VERIFIER');
+    const nbPieces = r.nbJustificatifs || 0;
+    const L = [];
+
+    const objet = r.mode === 'acte' ? "Relecture du projet d'acte de vente" : "Relecture de l'avant-contrat";
+    L.push(`Objet : ${objet}${o.dossierNom ? ' — ' + o.dossierNom : ''}`);
+    L.push('');
+    L.push(o.formule || 'Madame, Monsieur,');
+    L.push('');
+    if (r.mode === 'acte') {
+      let intro = "Nous avons procédé à la relecture du projet d'acte de vente";
+      if (r.comparaisonFaite) intro += `, en le rapprochant de l'avant-contrat signé${r.dateAvantContrat ? ' le ' + formatDateFr(r.dateAvantContrat) : ''}`;
+      if (nbPieces) intro += `${r.comparaisonFaite ? ' et' : ','} des ${nbPieces} pièce(s) communiquée(s)`;
+      L.push(intro + '.');
+    } else {
+      L.push(`Nous avons procédé à la relecture de l'avant-contrat${nbPieces ? ` et des ${nbPieces} pièce(s) communiquée(s)` : ''}.`);
+    }
+
+    if (aRegler.length) {
+      L.push(`En synthèse, ${aRegler.length} point(s) doivent être réglés avant la signature${aVerifier.length ? `, et ${aVerifier.length} autre(s) méritent une vérification` : ''}.`);
+    } else if (aVerifier.length) {
+      L.push(`En synthèse, aucun point bloquant n'a été relevé ; ${aVerifier.length} point(s) restent à vérifier.`);
+    } else {
+      L.push("En synthèse, aucun point n'appelle d'observation sur les éléments contrôlés.");
+    }
+    if (r.mode === 'acte' && r.comparaisonFaite && !estMasquee('COMPARAISON_COMPROMIS')
+        && !retenus.some(c => c.categorie === 'COMPARAISON_COMPROMIS')) {
+      L.push("Les parties, le prix, la désignation du bien et le cadastre sont conformes à l'avant-contrat.");
+    }
+
+    if (aRegler.length) {
+      L.push('');
+      L.push('Points à régler avant la signature :');
+      aRegler.forEach((c, i) => L.push(pointSyntheseOutil2(c, i, r.mode)));
+    }
+    if (aVerifier.length) {
+      L.push('');
+      L.push('Points à vérifier :');
+      aVerifier.forEach((c, i) => L.push(pointSyntheseOutil2(c, i, r.mode)));
+    }
+
+    // Un engagement dont le constat a été jugé faux positif n'est plus compté parmi ceux à justifier.
+    const clausesExclues = new Set((r.constats || []).filter(c => c && c.categorie === 'OBLIGATIONS' && estExclu(c)).map(c => c.phrase));
+    const obl = (r.mode === 'acte' ? (r.obligations || []) : []).filter(x => x.statut === 'tenue' || !clausesExclues.has(x.clause));
+    if (obl.length) {
+      const tenues = obl.filter(x => x.statut === 'tenue').length;
+      L.push('');
+      L.push(`Engagements du vendeur : ${tenues} sur ${obl.length} justifié(s) à ce jour.`);
+    }
+
+    const manquantes = piecesAttenduesOutil2(r).filter(p => p.etat !== 'fournie');
+    const questions = questionsOutil2(retenus);
+    if (manquantes.length || questions.length) {
+      L.push('');
+      L.push('Pièces et informations à obtenir :');
+      if (manquantes.length) {
+        L.push(`- Pièces non communiquées : ${manquantes.map(p => p.libelle + (p.detail ? ` (${p.detail})` : '')).join(', ')}.`);
+      }
+      for (const q of questions) {
+        L.push(`- ${DESTINATAIRES_SYNTHESE_OUTIL2[q.cle] || q.titre} :`);
+        q.questions.forEach(t => L.push(`  • ${t}`));
+      }
+    }
+
+    L.push('');
+    L.push("Cette relecture porte sur les points contrôlés à partir des documents communiqués ; elle ne remplace pas l'examen complet de l'acte.");
+    L.push('');
+    L.push('Nous restons à votre disposition pour tout complément.');
+    return L.join('\n');
+  }
+
+  // --- Commentaires de l'étude sur les constats ------------------------------------------------
+  // Un commentaire est rattaché à un constat par la même empreinte que la mémoire d'audit (titre +
+  // clause citée, voir empreinteConstat), mais il vit sur le SERVEUR (partagé entre les postes,
+  // exportable) et porte une PORTÉE : « ce dossier seulement » ou « tous les dossiers ». Un avis
+  // pour ce dossier l'emporte sur un avis général, à similarité égale.
+  var VERDICTS_RETOUR_OUTIL2 = {
+    juste: { texte: 'Juste', dl: 'dl-success', icone: 'check' },
+    faux_positif: { texte: 'Faux positif', dl: 'dl-neutre', icone: 'x' },
+    mal_formule: { texte: 'Mal formulé', dl: 'dl-pret', icone: 'pencil' },
+    gravite: { texte: 'Gravité à revoir', dl: 'dl-pret', icone: 'alert-triangle' },
+    manque: { texte: "Oubli de l'audit", dl: 'dl-urgent', icone: 'info' }
+  };
+  var SEUIL_SIMILARITE_RETOUR_OUTIL2 = 0.5;
+
+  function empreinteTexteConstat(constat) {
+    return [...empreinteConstat(constat)].join(' ');
+  }
+
+  function retourPourConstat(constat, retours, dossierCle) {
+    const tokens = empreinteConstat(constat);
+    if (tokens.size < 3) return null;
+    let meilleur = null;
+    let meilleurScore = -1;
+    for (const r of retours || []) {
+      if (!r || !r.constat || r.verdict === 'manque' || !r.empreinte) continue;
+      const memeDossier = !!dossierCle && r.dossierCle === dossierCle;
+      if (r.portee === 'dossier' && !memeDossier) continue;
+      if (r.constat.categorie && constat.categorie && r.constat.categorie !== constat.categorie) continue;
+      const score = similariteJaccard(tokens, new Set(String(r.empreinte).split(' ')));
+      if (score < SEUIL_SIMILARITE_RETOUR_OUTIL2) continue;
+      // Avis propre au dossier d'abord, puis le plus ressemblant, puis le plus récent.
+      const rang = score + (r.portee === 'dossier' ? 1 : 0);
+      if (rang > meilleurScore || (rang === meilleurScore && meilleur && String(r.date) > String(meilleur.date))) {
+        meilleur = r; meilleurScore = rang;
+      }
+    }
+    return meilleur;
+  }
+
+  // Applique les commentaires aux constats d'un rapport : rattache l'avis, et corrige la gravité
+  // quand l'étude a demandé une autre gravité (l'origine est gardée, pour pouvoir la rejouer).
+  function appliquerRetoursAuxConstats(constats, retours, dossierCle) {
+    for (const c of constats || []) {
+      if (!c || typeof c !== 'object') continue;
+      if (c.graviteOrigine) { c.gravite = c.graviteOrigine; delete c.graviteOrigine; }
+      const r = retourPourConstat(c, retours, dossierCle);
+      c.retour = r ? { id: r.id, verdict: r.verdict, portee: r.portee, commentaire: r.commentaire,
+        graviteSouhaitee: r.graviteSouhaitee || null, date: r.date } : null;
+      if (r && r.verdict === 'gravite' && r.graviteSouhaitee && r.graviteSouhaitee !== c.gravite) {
+        c.graviteOrigine = c.gravite;
+        c.gravite = r.graviteSouhaitee;
+      }
+    }
+    return constats;
+  }
+
+  // Un constat que l'étude a écarté (mémoire d'audit) ou jugé faux positif ne compte plus : ni
+  // dans le résumé, ni dans la grille, ni dans la synthèse. Il reste lisible, replié, dans le
+  // rapport détaillé.
+  function constatExcluOutil2(c) {
+    return !!(c && ((c.memoire && c.memoire.decision === 'ecarte') || (c.retour && c.retour.verdict === 'faux_positif')));
+  }
+
+  function resumeConstatsOutil2(constats) {
+    const resume = { CRITIQUE: 0, IMPORTANT: 0, A_VERIFIER: 0, INFORMATION: 0 };
+    for (const c of constats || []) {
+      if (!c || constatExcluOutil2(c)) continue;
+      if (resume[c.gravite] != null) resume[c.gravite]++;
+    }
+    return resume;
+  }
+
+  // La fiche d'un dossier créé avant le correctif des blocs de parties (21/09) peut porter
+  // l'acquéreur rangé côté vendeur. La relecture lit désormais l'avant-contrat lui-même (voir
+  // referenceAudit) : quand ce qu'elle y lit diffère de la fiche, elle le dit et propose de
+  // mettre la fiche à jour — d'un clic, confirmé, jamais toute seule.
+  function signaturePartiesOutil2(parties) {
+    return (parties || [])
+      .map(p => `${normaliserPourRecherche(String(p.nom || '').trim())}|${String(p.role || '').toUpperCase()}`)
+      .filter(x => !x.startsWith('|'))
+      .sort()
+      .join(';');
+  }
+
+  function partiesDivergentes(partiesDossier, partiesTexte) {
+    if (!(partiesTexte || []).length) return false;
+    return signaturePartiesOutil2(partiesDossier) !== signaturePartiesOutil2(partiesTexte);
+  }
+
+  // Rubrique « AAE » du NAS : les pièces réunies entre l'avant-contrat et la vente (urbanisme,
+  // entretien, état daté…), futures annexes de l'acte — exactement ce que la relecture du projet
+  // de vente doit lire. Un SEGMENT DE DOSSIER du chemin, jamais le nom du fichier (« Copie AAE
+  // PROMESSE… » est l'avant-contrat, pas une annexe).
+  function estDansRubriqueAAE(chemin) {
+    const segments = String(chemin || '').split(/[\\/]+/).filter(Boolean);
+    segments.pop();
+    return segments.some(seg => /(?:^|[^A-Za-z0-9])AAE(?:[^A-Za-z0-9]|$)/i.test(seg));
+  }
+
+  // Clé d'un audit pour les commentaires « ce dossier seulement » : le dossier CLAIRE lié quand il
+  // y en a un, sinon le nom du document relu (deux relectures du même projet se retrouvent).
+  function cleDossierAudit(dossierLie, nomPrincipal) {
+    if (dossierLie && dossierLie.id) return 'dossier:' + dossierLie.id;
+    const nom = normaliserPourRecherche(String(nomPrincipal || '')).replace(/\.pdf$/, '').replace(/[^a-z0-9]+/g, ' ').trim();
+    return nom ? 'document:' + nom : '';
+  }
+
   // ==== OUTIL 2 : LECTURE D'UN PROJET DE VENTE (comparaison avec l'avant-contrat) ==============
   //
   // Périmètre arrêté avec l'étude : « comparer SEULEMENT l'avant-contrat avec le projet de vente et
@@ -5500,7 +5850,8 @@
       typeBien: typeBien.type, typeBienOrigine: typeBien.origine,
       ags, estCopropriete,
       etatsDates, certificatsUrbanisme, estTerrain, permis, purgePermis,
-      questions: questionsOutil2(constats), dateAvantContrat, dateVente, aujourdHui };
+      questions: questionsOutil2(constats), dateAvantContrat, dateVente, aujourdHui,
+      justificatifsReconnus: Object.keys(rapprocherJustificatifs((entree && entree.documentsDeposes) || [])) };
   }
 
   // Corrections apportées À LA MAIN entre ce que l'extraction proposait et ce qui est réellement
@@ -16009,9 +16360,45 @@
   function renderDossierLieAudit() {
     const pill = document.getElementById('audit-dossier-pill');
     if (!pill) return;
-    pill.innerHTML = auditDossierLie
-      ? `<span class="dot-label dl-success">${icone('link')}${escapeHtml(auditDossierLie.nom)}<button type="button" class="piece-suppr" onclick="retirerDossierAudit()" title="Ne plus lier ce dossier" aria-label="Ne plus lier ce dossier">${icone('x')}</button></span>`
+    const d = auditDossierLie;
+    const aae = d && d.nasDossier
+      ? `<button type="button" class="action-rapide audit-aae-btn" onclick="ajouterPiecesAaeAudit()" title="Lit les PDF rangés dans la rubrique AAE du dossier sur le NAS (pièces réunies depuis l'avant-contrat) et les ajoute comme pièces à contrôler">${icone('folder')}Ajouter les pièces de la rubrique AAE</button>`
       : '';
+    pill.innerHTML = d
+      ? `<span class="dot-label dl-success">${icone('link')}${escapeHtml(d.nom)}<button type="button" class="piece-suppr" onclick="retirerDossierAudit()" title="Ne plus lier ce dossier" aria-label="Ne plus lier ce dossier">${icone('x')}</button></span>${aae}`
+      : '';
+  }
+
+  // Les annexes d'un projet de vente sont déjà sur le NAS, dans la rubrique AAE du dossier : les
+  // redéposer une à une est exactement le geste que cet outil doit éviter. Plafonné — une rubrique
+  // anormalement chargée ne doit pas lancer des dizaines de lectures (et d'OCR) d'un coup.
+  var MAX_PIECES_AAE_AUDIT = 25;
+  async function ajouterPiecesAaeAudit() {
+    const d = auditDossierLie;
+    if (!d || !d.nasDossier) return;
+    let fichiers;
+    try {
+      fichiers = await listerFichiersNas(d);
+    } catch (e) {
+      afficherToast('Lecture du dossier NAS impossible : ' + e.message, 'OK', null);
+      return;
+    }
+    const dejaLa = new Set(fichiersAnalyseIa.map(f => f.cheminNas || f.nom));
+    const retenus = fichiers.filter(f => estDansRubriqueAAE(f.chemin) && !dejaLa.has(cheminNasComplet(d, f.chemin)));
+    if (!retenus.length) {
+      afficherToast('Aucune nouvelle pièce dans la rubrique AAE de ce dossier.', 'OK', null);
+      return;
+    }
+    const lot = retenus.slice(0, MAX_PIECES_AAE_AUDIT);
+    const nouvelles = lot.map(f => ({
+      id: `analyse-ia-${++compteurFichierAnalyseIa}`,
+      file: null, cheminNas: cheminNasComplet(d, f.chemin), nom: f.nom, type: 'justificatif',
+      statut: 'lecture', texte: '', pages: [], erreurTexte: '', pagesLues: null, pagesTotal: null, viaOcr: false, tronque: false
+    }));
+    fichiersAnalyseIa = fichiersAnalyseIa.concat(nouvelles);
+    renderListeFichiersAnalyseIa();
+    afficherToast(`${lot.length} pièce(s) de la rubrique AAE en cours de lecture${retenus.length > lot.length ? ` (${retenus.length - lot.length} autre(s) non ajoutée(s) : plafond atteint)` : ''}.`, 'OK', null);
+    for (const entree of nouvelles) await extraireTexteFichierAnalyseIa(entree.id);
   }
 
   function choisirDossierAudit(id) {
@@ -16126,8 +16513,13 @@
       return;
     }
     try {
-      const buffer = await entree.file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: buffer, verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise;
+      let pdf;
+      if (entree.cheminNas) {
+        pdf = await ouvrirPdfNas(entree.cheminNas);
+      } else {
+        const buffer = await entree.file.arrayBuffer();
+        pdf = await pdfjsLib.getDocument({ data: buffer, verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise;
+      }
       const { texte, pages, pagesLues, pagesTotal, viaOcr, tronque } = await lireTextePdfParPage(pdf);
       if (texte.trim().length < 20) {
         entree.statut = 'erreur';
@@ -16279,18 +16671,98 @@
 
   function renderConstatAudit(c) {
     const g = libelleGraviteAudit(c.gravite);
-    const corps = `<div class="analyse-ia-constat-titre"><span class="dot-label ${g.dl}">${icone(g.icone)}${g.texte}</span>${escapeHtml(c.titre)}</div>
+    const graviteCorrigee = c.graviteOrigine
+      ? `<span class="hint audit-gravite-corrigee">gravité corrigée par l'étude (initialement : ${escapeHtml(libelleGraviteAudit(c.graviteOrigine).texte.toLowerCase())})</span>` : '';
+    // En mode commentaires, le commentaire remplace « Écarter / Confirmer » : ce sont deux façons
+    // de donner le même avis, les afficher ensemble ferait douter de celle qui compte.
+    const pied = modeCommentairesAudit ? renderCommentaireConstatAudit(c) : (renderRetourResumeAudit(c) || renderDecisionAudit(c));
+    const corps = `<div class="analyse-ia-constat-titre"><span class="dot-label ${g.dl}">${icone(g.icone)}${g.texte}</span>${escapeHtml(c.titre)}${graviteCorrigee}</div>
       ${c.description ? `<p class="analyse-ia-constat-desc">${escapeHtml(c.description)}</p>` : ''}
       ${renderSourceConstat(c)}
-      ${renderDecisionAudit(c)}`;
+      ${pied}`;
     const teinte = ` constat-${String(c.gravite || 'INFORMATION').toLowerCase()}`;
+    const ancre = c.uid ? ` id="audit-constat-${c.uid}"` : '';
+    if (c.retour && c.retour.verdict === 'faux_positif') {
+      const portee = c.retour.portee === 'dossier' ? 'pour ce dossier' : 'sur tous les dossiers';
+      const ouvert = formCommentaireAudit && formCommentaireAudit.uid === c.uid ? ' open' : '';
+      return `<details class="analyse-ia-constat constat-ecarte${teinte}"${ancre}${ouvert}>
+        <summary><span class="dot-label dl-neutre">${icone('x')}Faux positif ${portee}</span>${escapeHtml(c.titre)}</summary>
+        ${corps}
+      </details>`;
+    }
     if (c.memoire && c.memoire.decision === 'ecarte') {
-      return `<details class="analyse-ia-constat constat-ecarte${teinte}">
+      return `<details class="analyse-ia-constat constat-ecarte${teinte}"${ancre}>
         <summary><span class="dot-label dl-neutre">${icone('x')}Déjà écarté</span>${escapeHtml(c.titre)}</summary>
         ${corps}
       </details>`;
     }
-    return `<div class="analyse-ia-constat${teinte}${c.memoire ? ' constat-confirme' : ''}">${corps}</div>`;
+    const confirme = (c.memoire && c.memoire.decision === 'confirme') || (c.retour && c.retour.verdict === 'juste');
+    return `<div class="analyse-ia-constat${teinte}${confirme ? ' constat-confirme' : ''}"${ancre}>${corps}</div>`;
+  }
+
+  // ---- Mode commentaires (Outil 2) ----------------------------------------------------------
+  // Hors mode commentaires, un avis déjà donné reste visible (une ligne) : l'étude doit voir
+  // pourquoi un constat est replié ou a changé de gravité.
+  function renderRetourResumeAudit(c) {
+    const r = c.retour;
+    if (!r) return '';
+    const v = VERDICTS_RETOUR_OUTIL2[r.verdict] || VERDICTS_RETOUR_OUTIL2.juste;
+    const portee = r.portee === 'dossier' ? 'ce dossier' : 'tous les dossiers';
+    return `<div class="audit-commentaire audit-commentaire-lu">
+      <span class="dot-label ${v.dl}">${icone(v.icone)}${v.texte} · ${portee}</span>
+      ${r.commentaire ? `<span class="audit-commentaire-texte">« ${escapeHtml(r.commentaire)} »</span>` : ''}
+    </div>`;
+  }
+
+  function renderCommentaireConstatAudit(c) {
+    if (!c.uid) return '';
+    const f = formCommentaireAudit && formCommentaireAudit.uid === c.uid ? formCommentaireAudit : null;
+    if (f) return renderFormCommentaireAudit(c, f);
+    if (c.retour) {
+      return `<div class="audit-commentaire">
+        ${renderRetourResumeAudit(c)}
+        <div class="audit-commentaire-actions">
+          <button type="button" class="icon-btn" onclick="modifierCommentaireAudit('${c.uid}')">${icone('pencil')} Modifier</button>
+          <button type="button" class="icon-btn" onclick="supprimerCommentaireAudit('${c.uid}')">${icone('x')} Supprimer</button>
+        </div>
+      </div>`;
+    }
+    const bouton = (verdict) => {
+      const v = VERDICTS_RETOUR_OUTIL2[verdict];
+      return `<button type="button" class="audit-verdict-btn" onclick="ouvrirCommentaireAudit('${c.uid}', '${verdict}')">${icone(v.icone)}${v.texte}</button>`;
+    };
+    return `<div class="audit-commentaire audit-commentaire-choix">
+      <span class="audit-commentaire-question">Votre avis :</span>
+      ${bouton('juste')}${bouton('faux_positif')}${bouton('mal_formule')}${bouton('gravite')}
+    </div>`;
+  }
+
+  function renderFormCommentaireAudit(c, f) {
+    const choix = ['juste', 'faux_positif', 'mal_formule', 'gravite'].map(verdict => {
+      const v = VERDICTS_RETOUR_OUTIL2[verdict];
+      return `<button type="button" class="audit-verdict-btn${f.verdict === verdict ? ' actif' : ''}" onclick="changerVerdictCommentaireAudit('${verdict}')">${icone(v.icone)}${v.texte}</button>`;
+    }).join('');
+    const gravites = ['CRITIQUE', 'IMPORTANT', 'A_VERIFIER', 'INFORMATION']
+      .map(gr => `<option value="${gr}" ${f.gravite === gr ? 'selected' : ''}>${escapeHtml(libelleGraviteAudit(gr).texte)}</option>`).join('');
+    const aide = {
+      juste: 'Pourquoi ce point est utile (facultatif)',
+      faux_positif: 'Pourquoi ce point ne devait pas sortir — ex. « la clause parle de la vente précédente »',
+      mal_formule: 'Comment le formuler, ou ce qui est inexact dans le texte',
+      gravite: 'Pourquoi cette gravité'
+    }[f.verdict] || '';
+    return `<div class="audit-commentaire audit-commentaire-form">
+      <div class="audit-commentaire-choix">${choix}</div>
+      ${f.verdict === 'gravite' ? `<label class="audit-commentaire-ligne">Gravité juste : <select id="audit-com-gravite" onchange="formCommentaireAudit.gravite = this.value">${gravites}</select></label>` : ''}
+      <div class="audit-commentaire-ligne" role="radiogroup" aria-label="Portée du commentaire">
+        <label><input type="radio" name="audit-com-portee" value="dossier" ${f.portee === 'dossier' ? 'checked' : ''} onchange="formCommentaireAudit.portee = 'dossier'"> Ce dossier seulement</label>
+        <label><input type="radio" name="audit-com-portee" value="tous" ${f.portee === 'tous' ? 'checked' : ''} onchange="formCommentaireAudit.portee = 'tous'"> Tous les dossiers</label>
+      </div>
+      <textarea id="audit-com-texte" rows="2" placeholder="${escapeAttr(aide)}" oninput="formCommentaireAudit.texte = this.value">${escapeHtml(f.texte || '')}</textarea>
+      <div class="audit-commentaire-actions">
+        <button type="button" class="secondary" onclick="fermerCommentaireAudit()">Annuler</button>
+        <button type="button" class="primary" onclick="enregistrerCommentaireAudit()">Enregistrer</button>
+      </div>
+    </div>`;
   }
 
   // Une obligation du vendeur en mode « projet de vente », rendue en TROIS COLONNES — demande
@@ -16362,13 +16834,23 @@
     // Le liseré de gravité s'applique ici aussi : une obligation périmée est un constat critique,
     // elle ne doit pas porter le même filet qu'un simple « à vérifier » (défaut vu au rendu).
     const teinte = o.statut === 'tenue' ? ' obligation-tenue' : ` constat-${String(etat.gravite).toLowerCase()}`;
-    return `<div class="analyse-ia-constat obligation-carte${teinte}">
-      <div class="analyse-ia-constat-titre">${badge}${cat}${escapeHtml(o.label || "Engagement du vendeur")}</div>
+    const c = o.constatUid ? constatsAuditParUid[o.constatUid] : null;
+    const pied = c ? (modeCommentairesAudit ? renderCommentaireConstatAudit(c) : renderRetourResumeAudit(c)) : '';
+    const ancre = c ? ` id="audit-constat-${c.uid}"` : '';
+    const corps = `<div class="analyse-ia-constat-titre">${badge}${cat}${escapeHtml(o.label || "Engagement du vendeur")}</div>
       <div class="obligation-cols">${colAvant}${colProjet}${colJustif}</div>
-    </div>`;
+      ${pied}`;
+    if (c && c.retour && c.retour.verdict === 'faux_positif') {
+      const ouvert = formCommentaireAudit && formCommentaireAudit.uid === c.uid ? ' open' : '';
+      return `<details class="analyse-ia-constat obligation-carte constat-ecarte${teinte}"${ancre}${ouvert}>
+        <summary><span class="dot-label dl-neutre">${icone('x')}Faux positif ${c.retour.portee === 'dossier' ? 'pour ce dossier' : 'sur tous les dossiers'}</span>${escapeHtml(o.label || "Engagement du vendeur")}</summary>
+        ${corps}
+      </details>`;
+    }
+    return `<div class="analyse-ia-constat obligation-carte${teinte}"${ancre}>${corps}</div>`;
   }
 
-  function renderSectionAudit(titre, liste, rendreItem, cleRubrique) {
+  function renderSectionAudit(titre, liste, rendreItem, cleRubrique, ancre) {
     const items = Array.isArray(liste) ? liste.slice() : [];
     if (items.length === 0) return '';
     // Confirmés en tête, écartés en queue (repliés), le reste dans l'ordre déjà calculé.
@@ -16380,7 +16862,8 @@
     const masquer = cleRubrique
       ? `<button type="button" class="audit-masquer" title="Ne plus afficher cette rubrique, sur cet audit et les suivants" onclick="basculerRubriqueAudit('${escapeOnclickArg(cleRubrique)}')">${icone('x')}Masquer</button>`
       : '';
-    return `<section class="audit-section">
+    const id = cleRubrique || ancre;
+    return `<section class="audit-section"${id ? ` id="audit-rub-${escapeAttr(id)}"` : ''}>
       <h3 class="audit-section-titre"><span class="section-eyebrow">${escapeHtml(titre)}</span><span class="audit-section-compte">${items.length}</span>${masquer}</h3>
       ${items.map(rendreItem).join('')}
     </section>`;
@@ -16473,6 +16956,19 @@
       const m = decisionPourConstat(c, memoireAuditConstats);
       c.memoire = m ? { id: m.id, decision: m.decision, nb: m.nb || 1 } : null;
     }
+    // Les commentaires de l'étude s'appliquent ensuite (gravité corrigée, faux positif replié), et
+    // le résumé comme les questions sont recalculés sur ce qui reste réellement retenu : un point
+    // jugé faux positif ne doit plus gonfler le compteur ni produire une question au syndic.
+    // Les engagements du vendeur s'affichent en cartes à trois colonnes (renderObligationAudit),
+    // pas en constats : chaque carte retrouve le constat qu'elle représente pour porter son
+    // commentaire et son repli.
+    for (const o of (resultat.obligations || [])) {
+      const c = (resultat.constats || []).find(x => x && x.categorie === 'OBLIGATIONS' && x.phrase === o.clause);
+      o.constatUid = c ? c.uid : null;
+    }
+    appliquerRetoursAuxConstats(resultat.constats || [], retoursAudit, dernierAuditContexte ? dernierAuditContexte.dossierCle : '');
+    resultat.resume = resumeConstatsOutil2(resultat.constats);
+    resultat.questions = questionsOutil2((resultat.constats || []).filter(c => !constatExcluOutil2(c)));
   }
 
   function decisionConstatAudit(uid, decision) {
@@ -16660,7 +17156,7 @@
     // et il remplace la catégorie OBLIGATIONS des constats, qui redirait la même chose.
     if (bloc.cle === 'AVANT_CONTRAT' && resultat.mode === 'acte' && (resultat.obligations || []).length) {
       corps += renderSectionAudit('Engagements du vendeur — avant-contrat, projet, justificatif',
-        resultat.obligations, renderObligationAudit);
+        resultat.obligations, renderObligationAudit, null, 'OBLIGATIONS');
       vide = false;
     }
 
@@ -16775,6 +17271,15 @@
     </section>`;
   }
 
+  // Trois vues du même résultat, dans l'ordre où on s'en sert : la GRILLE en tête (où en est
+  // l'acte, d'un coup d'œil), puis soit la SYNTHÈSE rédigée (ce qu'on envoie), soit le RAPPORT
+  // détaillé (ce qu'on vérifie). La synthèse s'ouvre par défaut : c'est ce que l'étude a demandé
+  // de pouvoir communiquer ; un clic sur une case de la grille bascule sur le détail de la rubrique.
+  let vueRapportAudit = 'synthese';
+  // Texte de la synthèse retouché à la main : gardé tant qu'on ne demande pas à le régénérer —
+  // une décision prise ensuite sur un constat ne doit pas effacer la rédaction en cours.
+  let syntheseAuditEditee = null;
+
   function renderRapportAuditActe(resultat) {
     const zone = document.getElementById('analyse-ia-rapport');
     if (!zone) return;
@@ -16786,22 +17291,337 @@
     const constats = resultat.constats || [];
 
     let html = `<header class="audit-entete">
-      ${renderResumeAudit(resultat.resume)}
+      <div class="audit-entete-ligne">
+        ${renderResumeAudit(resultat.resume)}
+        <label class="audit-bascule-commentaires" title="Donner votre avis sur chaque point relevé, pour ce dossier ou pour tous : ces commentaires servent à corriger les règles de la relecture.">
+          <span class="switch small"><input type="checkbox" ${modeCommentairesAudit ? 'checked' : ''} onchange="basculerModeCommentairesAudit(this.checked)"><span class="slider"></span></span>
+          Mode commentaires
+        </label>
+      </div>
       ${renderEcartsAudit(resultat, constats)}
       ${renderTypeBienAudit(resultat)}
       ${renderPerimetreAudit(resultat)}
+      ${renderPartiesDossierAudit(resultat)}
     </header>`;
     html += renderCouvertureAudit(resultat.couvertureDocuments);
+    if (modeCommentairesAudit) html += renderPanneauCommentairesAudit();
+    html += renderGrilleAudit(resultat);
 
-    for (const bloc of SECTIONS_RAPPORT_OUTIL2) {
-      // En mode « compromis », il n'y a rien à comparer : le document analysé EST l'avant-contrat.
-      if (bloc.cle === 'AVANT_CONTRAT' && resultat.mode !== 'acte') continue;
-      html += renderBlocAudit(bloc, resultat, constats);
+    html += `<div class="vue-bascule audit-vue-bascule" role="group" aria-label="Vue du rapport">
+      <button type="button" class="vue-bascule-btn${vueRapportAudit === 'synthese' ? ' actif' : ''}" onclick="definirVueRapportAudit('synthese')">Synthèse à communiquer</button>
+      <button type="button" class="vue-bascule-btn${vueRapportAudit === 'detail' ? ' actif' : ''}" onclick="definirVueRapportAudit('detail')">Rapport détaillé</button>
+    </div>`;
+
+    if (vueRapportAudit === 'synthese') {
+      html += renderSyntheseAudit(resultat);
+    } else {
+      for (const bloc of SECTIONS_RAPPORT_OUTIL2) {
+        // En mode « compromis », il n'y a rien à comparer : le document analysé EST l'avant-contrat.
+        if (bloc.cle === 'AVANT_CONTRAT' && resultat.mode !== 'acte') continue;
+        html += renderBlocAudit(bloc, resultat, constats);
+      }
+      html += renderQuestionsAudit(resultat.questions);
+      html += renderRubriquesMasqueesAudit(constats);
     }
-
-    html += renderQuestionsAudit(resultat.questions);
-    html += renderRubriquesMasqueesAudit(constats);
     zone.innerHTML = html;
+  }
+
+  function renderPartiesDossierAudit(resultat) {
+    const d = auditDossierLie;
+    const ctx = dernierAuditContexte;
+    if (!d || !ctx || resultat.mode !== 'acte' || !ctx.entree || !ctx.entree.reference) return '';
+    const texte = (ctx.entree.reference.parties || []);
+    if (!ctx.referenceLueDansTexte || !partiesDivergentes(d.parties, texte)) return '';
+    const liste = texte.map(p => `${p.nom} (${String(p.role || '').toLowerCase()})`).join(', ');
+    return `<p class="audit-ecarts audit-ecarts-alerte"><span class="dot-label dl-pret">${icone('info')}Fiche à mettre à jour</span>
+      Les parties enregistrées sur le dossier ne sont pas celles lues dans l'avant-contrat : ${escapeHtml(liste)}. La relecture s'appuie sur l'avant-contrat.
+      <button type="button" class="action-rapide" onclick="mettreAJourPartiesDossierAudit()">Mettre à jour la fiche</button></p>`;
+  }
+
+  // Seule écriture sur le dossier lié depuis cet écran, et seulement sur un clic confirmé : la
+  // relecture reste en lecture seule sur tout le reste.
+  function mettreAJourPartiesDossierAudit() {
+    const d = auditDossierLie;
+    const ctx = dernierAuditContexte;
+    if (!d || !ctx || !ctx.entree || !ctx.entree.reference) return;
+    const parties = (ctx.entree.reference.parties || []).map(p => ({
+      nom: p.nom, qualiteActe: p.qualiteActe, role: p.role,
+      qualitePersonne: p.qualitePersonne || 'physique', representant: p.representant || null
+    }));
+    if (!parties.length) return;
+    demanderConfirmation("Remplacer les parties de la fiche par celles lues dans l'avant-contrat ? Le nom du dossier n'est pas modifié.", () => {
+      d.parties = parties;
+      ajouterHistorique(d, "Parties mises à jour depuis l'avant-contrat relu (Relecture d'actes)");
+      sauvegarder(d);
+      afficherToast('Fiche du dossier mise à jour.', 'OK', null);
+      if (dernierRapportAudit) renderRapportAuditActe(dernierRapportAudit);
+    });
+  }
+
+  function definirVueRapportAudit(vue) {
+    vueRapportAudit = vue === 'detail' ? 'detail' : 'synthese';
+    if (dernierRapportAudit) renderRapportAuditActe(dernierRapportAudit);
+  }
+
+  function optionsExclusionAudit() {
+    return { estExclu: constatExcluOutil2, estMasquee: rubriqueMasqueeAudit };
+  }
+
+  // La grille de relecture : une colonne par section du rapport, une case par rubrique, colorée
+  // par ce qui y reste à faire. C'est le « quelque chose de visuel pour s'y retrouver » demandé :
+  // on voit où regarder avant de lire quoi que ce soit.
+  function renderGrilleAudit(resultat) {
+    const colonnes = grilleRelectureOutil2(resultat, optionsExclusionAudit());
+    if (!colonnes.length) return '';
+    const cols = colonnes.map(col => {
+      const cases = col.lignes.map(l => {
+        const e = LIBELLES_ETAT_GRILLE_OUTIL2[l.etat] || LIBELLES_ETAT_GRILLE_OUTIL2.ok;
+        return `<button type="button" class="audit-case audit-case-${l.etat}" onclick="allerRubriqueAudit('${escapeOnclickArg(l.cle)}', '${escapeOnclickArg(col.cle)}')">
+          <span class="audit-case-titre">${escapeHtml(l.titre)}</span>
+          <span class="dot-label ${e.dl}"><span class="dot"></span>${e.texte}${l.detail ? ` · ${escapeHtml(l.detail)}` : ''}</span>
+        </button>`;
+      }).join('');
+      const pieces = col.pieces.length ? `<div class="audit-pieces">
+          <span class="section-eyebrow">Pièces attendues</span>
+          <ul>${col.pieces.map(p => `<li class="audit-piece-${p.etat}">${icone(p.etat === 'fournie' ? 'check' : p.etat === 'partielle' ? 'info' : 'x')}<span>${escapeHtml(p.libelle)}${p.detail ? ` <span class="hint">(${escapeHtml(p.detail)})</span>` : ''}</span></li>`).join('')}</ul>
+        </div>` : '';
+      return `<div class="audit-grille-col">
+        <span class="section-eyebrow">${escapeHtml(col.titre)}</span>
+        ${cases || '<p class="hint">Aucune rubrique.</p>'}
+        ${pieces}
+      </div>`;
+    }).join('');
+    return `<section class="audit-grille" aria-label="Vue d'ensemble de la relecture">${cols}</section>`;
+  }
+
+  function allerRubriqueAudit(cle, section) {
+    vueRapportAudit = 'detail';
+    if (dernierRapportAudit) renderRapportAuditActe(dernierRapportAudit);
+    const el = document.getElementById('audit-rub-' + cle) || document.getElementById('audit-bloc-' + section);
+    if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function texteSyntheseAudit(resultat) {
+    const d = auditDossierLie;
+    return syntheseClientOutil2(resultat, {
+      ...optionsExclusionAudit(),
+      dossierNom: d ? libelleDossierAffiche(d) : ''
+    });
+  }
+
+  function renderSyntheseAudit(resultat) {
+    const texte = syntheseAuditEditee != null ? syntheseAuditEditee : texteSyntheseAudit(resultat);
+    const lignes = Math.min(40, Math.max(12, texte.split('\n').length + 2));
+    return `<section class="audit-synthese">
+      <div class="audit-synthese-barre">
+        <p class="hint">Rédigée à partir des seuls points retenus (ni les points écartés, ni les rubriques masquées). Modifiable avant envoi.${syntheseAuditEditee != null ? ' <strong>Modifiée à la main</strong> — « Régénérer » reprend vos derniers choix.' : ''}</p>
+        <div class="audit-synthese-actions">
+          <button type="button" class="secondary" onclick="regenererSyntheseAudit()">Régénérer</button>
+          <button type="button" class="primary" onclick="copierSyntheseAudit()">${icone('clipboard')} Copier</button>
+        </div>
+      </div>
+      <textarea id="audit-synthese-texte" class="audit-synthese-texte" rows="${lignes}" spellcheck="true" aria-label="Synthèse à communiquer" oninput="syntheseAuditEditee = this.value">${escapeHtml(texte)}</textarea>
+    </section>`;
+  }
+
+  function regenererSyntheseAudit() {
+    syntheseAuditEditee = null;
+    if (dernierRapportAudit) renderRapportAuditActe(dernierRapportAudit);
+  }
+
+  function copierSyntheseAudit() {
+    const champ = document.getElementById('audit-synthese-texte');
+    const texte = champ ? champ.value : '';
+    const fini = (ok) => afficherToast(ok ? 'Synthèse copiée.' : 'La copie a échoué : sélectionnez le texte à la main.', 'OK', null);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(texte).then(() => fini(true), () => fini(copierParTextarea(texte)));
+      return;
+    }
+    fini(copierParTextarea(texte));
+  }
+
+  // ---- Commentaires : état, panneau, actions --------------------------------------------------
+  const CLE_MODE_COMMENTAIRES_AUDIT = 'audit-mode-commentaires';
+  let modeCommentairesAudit = false;
+  try { modeCommentairesAudit = localStorage.getItem(CLE_MODE_COMMENTAIRES_AUDIT) === '1'; } catch (e) { /* navigation privée */ }
+  let retoursAudit = [];
+  let formCommentaireAudit = null; // { uid, verdict, portee, gravite, texte, id }
+  let texteOubliAudit = '';
+  let porteeOubliAudit = 'dossier';
+
+  async function chargerRetoursAudit() {
+    try {
+      const reponse = await fetchAvecAuth('/api/audit-retours');
+      if (!reponse.ok) throw new Error('statut ' + reponse.status);
+      const data = await reponse.json();
+      retoursAudit = Array.isArray(data.retours) ? data.retours : [];
+    } catch (e) {
+      console.warn('Commentaires de relecture indisponibles', e);
+    }
+    return retoursAudit;
+  }
+
+  async function basculerModeCommentairesAudit(actif) {
+    modeCommentairesAudit = !!actif;
+    try { localStorage.setItem(CLE_MODE_COMMENTAIRES_AUDIT, actif ? '1' : '0'); } catch (e) { /* sans importance */ }
+    formCommentaireAudit = null;
+    if (actif) await chargerRetoursAudit();
+    if (dernierRapportAudit) { preparerRapportAudit(dernierRapportAudit); renderRapportAuditActe(dernierRapportAudit); }
+  }
+
+  function retoursDuDossierAudit() {
+    const cle = dernierAuditContexte ? dernierAuditContexte.dossierCle : '';
+    return retoursAudit.filter(r => r.verdict === 'manque' && (r.portee === 'tous' || (cle && r.dossierCle === cle)));
+  }
+
+  function renderPanneauCommentairesAudit() {
+    const oublis = retoursDuDossierAudit();
+    return `<section class="audit-panneau-commentaires">
+      <div class="audit-panneau-tete">
+        <div>
+          <strong>Mode commentaires</strong>
+          <p class="hint">Sous chaque point : « Juste », « Faux positif », « Mal formulé » ou « Gravité à revoir », avec votre justification. Un faux positif est replié tout de suite (pour ce dossier ou pour tous) ; l'ensemble sert ensuite à corriger les règles de la relecture.</p>
+        </div>
+        <button type="button" class="action-rapide" onclick="exporterRetoursAudit()">${icone('download')}Exporter les commentaires (${retoursAudit.length})</button>
+      </div>
+      <label for="audit-oubli-texte" class="audit-commentaire-question">Ce que la relecture a raté</label>
+      <textarea id="audit-oubli-texte" rows="2" placeholder="Ex. « la servitude de passage page 14 n'est pas signalée »" oninput="texteOubliAudit = this.value">${escapeHtml(texteOubliAudit)}</textarea>
+      <div class="audit-commentaire-ligne">
+        <label><input type="radio" name="audit-oubli-portee" ${porteeOubliAudit === 'dossier' ? 'checked' : ''} onchange="porteeOubliAudit = 'dossier'"> Ce dossier seulement</label>
+        <label><input type="radio" name="audit-oubli-portee" ${porteeOubliAudit === 'tous' ? 'checked' : ''} onchange="porteeOubliAudit = 'tous'"> Tous les dossiers</label>
+        <button type="button" class="secondary audit-oubli-btn" onclick="enregistrerOubliAudit()">Signaler l'oubli</button>
+      </div>
+      ${oublis.length ? `<ul class="audit-oublis">${oublis.map(r => `<li><span class="dot-label dl-urgent">${icone('info')}${r.portee === 'dossier' ? 'Ce dossier' : 'Tous'}</span><span>${escapeHtml(r.commentaire)}</span><button type="button" class="piece-suppr" onclick="supprimerRetourAudit('${escapeOnclickArg(r.id)}')" title="Supprimer" aria-label="Supprimer">${icone('x')}</button></li>`).join('')}</ul>` : ''}
+    </section>`;
+  }
+
+  function ouvrirCommentaireAudit(uid, verdict) {
+    const c = constatsAuditParUid[uid];
+    if (!c) return;
+    formCommentaireAudit = { uid, verdict, portee: 'dossier', gravite: c.gravite, texte: '', id: null };
+    if (dernierRapportAudit) renderRapportAuditActe(dernierRapportAudit);
+    const champ = document.getElementById('audit-com-texte');
+    if (champ) champ.focus();
+  }
+
+  function modifierCommentaireAudit(uid) {
+    const c = constatsAuditParUid[uid];
+    if (!c || !c.retour) return;
+    formCommentaireAudit = { uid, verdict: c.retour.verdict, portee: c.retour.portee,
+      gravite: c.retour.graviteSouhaitee || c.gravite, texte: c.retour.commentaire || '', id: c.retour.id };
+    if (dernierRapportAudit) renderRapportAuditActe(dernierRapportAudit);
+  }
+
+  function changerVerdictCommentaireAudit(verdict) {
+    if (!formCommentaireAudit) return;
+    formCommentaireAudit.verdict = verdict;
+    if (dernierRapportAudit) renderRapportAuditActe(dernierRapportAudit);
+  }
+
+  function fermerCommentaireAudit() {
+    formCommentaireAudit = null;
+    if (dernierRapportAudit) renderRapportAuditActe(dernierRapportAudit);
+  }
+
+  function contexteRetourAudit() {
+    const ctx = dernierAuditContexte || {};
+    const r = dernierRapportAudit || {};
+    return { dossierCle: ctx.dossierCle || '', dossierNom: ctx.dossierNom || '', document: ctx.documentPrincipal || '',
+      mode: r.mode || 'compromis', typeBien: r.typeBien || '', date: new Date().toISOString() };
+  }
+
+  async function publierRetourAudit(retour) {
+    const reponse = await fetchAvecAuth('/api/audit-retours', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(retour)
+    });
+    if (!reponse.ok) {
+      const corps = await reponse.json().catch(() => ({}));
+      throw new Error(corps.erreur || 'statut ' + reponse.status);
+    }
+    const data = await reponse.json();
+    retoursAudit = retoursAudit.filter(x => x.id !== data.retour.id).concat([data.retour]);
+    return data.retour;
+  }
+
+  function rafraichirApresCommentaireAudit() {
+    if (!dernierRapportAudit) return;
+    preparerRapportAudit(dernierRapportAudit);
+    renderRapportAuditActe(dernierRapportAudit);
+  }
+
+  async function enregistrerCommentaireAudit() {
+    const f = formCommentaireAudit;
+    const c = f && constatsAuditParUid[f.uid];
+    if (!c) return;
+    const retour = {
+      ...contexteRetourAudit(),
+      id: f.id || undefined,
+      verdict: f.verdict,
+      portee: f.portee,
+      commentaire: String(f.texte || '').trim(),
+      graviteSouhaitee: f.verdict === 'gravite' ? f.gravite : null,
+      empreinte: empreinteTexteConstat(c),
+      constat: { categorie: c.categorie, gravite: c.graviteOrigine || c.gravite, titre: c.titre,
+        description: c.description || '', phrase: c.phrase || '', page: c.page || null }
+    };
+    try {
+      await publierRetourAudit(retour);
+      formCommentaireAudit = null;
+      rafraichirApresCommentaireAudit();
+      afficherToast(f.verdict === 'faux_positif'
+        ? (f.portee === 'dossier' ? 'Faux positif noté : replié pour ce dossier.' : 'Faux positif noté : replié sur tous les dossiers.')
+        : 'Commentaire enregistré.', 'OK', null);
+    } catch (e) {
+      afficherToast("Le commentaire n'a pas pu être enregistré : " + e.message, 'OK', null);
+    }
+  }
+
+  async function supprimerRetourAudit(id) {
+    try {
+      const reponse = await fetchAvecAuth('/api/audit-retours/' + encodeURIComponent(id), { method: 'DELETE' });
+      if (!reponse.ok && reponse.status !== 404) throw new Error('statut ' + reponse.status);
+      retoursAudit = retoursAudit.filter(r => r.id !== id);
+      rafraichirApresCommentaireAudit();
+    } catch (e) {
+      afficherToast('Suppression impossible : ' + e.message, 'OK', null);
+    }
+  }
+
+  function supprimerCommentaireAudit(uid) {
+    const c = constatsAuditParUid[uid];
+    if (c && c.retour) supprimerRetourAudit(c.retour.id);
+  }
+
+  async function enregistrerOubliAudit() {
+    const texte = String(texteOubliAudit || '').trim();
+    if (!texte) {
+      afficherToast("Décrivez ce que la relecture aurait dû signaler.", 'OK', null);
+      return;
+    }
+    try {
+      await publierRetourAudit({ ...contexteRetourAudit(), verdict: 'manque', portee: porteeOubliAudit, commentaire: texte });
+      texteOubliAudit = '';
+      rafraichirApresCommentaireAudit();
+      afficherToast('Oubli signalé.', 'OK', null);
+    } catch (e) {
+      afficherToast("L'oubli n'a pas pu être enregistré : " + e.message, 'OK', null);
+    }
+  }
+
+  // L'export est ce qui permet de corriger les règles : le fichier est relu, commentaire par
+  // commentaire, et chaque correction de règle part de là (jamais une règle réécrite toute seule).
+  // Il contient les clauses citées des actes : à transmettre comme les actes eux-mêmes.
+  async function exporterRetoursAudit() {
+    await chargerRetoursAudit();
+    const contenu = JSON.stringify({ application: 'CLAIRE', version: VERSION_APP, exporteLe: new Date().toISOString(), retours: retoursAudit }, null, 2);
+    const url = URL.createObjectURL(new Blob([contenu], { type: 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `commentaires-relecture-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
   }
 
   // Les questions prêtes à copier, demandées par l'étude en même temps que l'analyse de l'état daté :
@@ -16899,6 +17719,7 @@
         }
         dernierAuditContexte = {
           mode: 'acte',
+          referenceLueDansTexte: !!(ref && ref.texte),
           entree: {
             texteAvantContrat: ref.texte,
             pagesAvantContrat: ref.pages,
@@ -16929,6 +17750,14 @@
         };
       }
 
+      dernierAuditContexte.dossierCle = cleDossierAudit(auditMode === 'acte' ? auditDossierLie : null, principal.nom);
+      dernierAuditContexte.dossierNom = auditMode === 'acte' && auditDossierLie ? auditDossierLie.nom : '';
+      dernierAuditContexte.documentPrincipal = principal.nom;
+      // Une nouvelle relecture repart de la synthèse générée, pas d'une rédaction faite pour un
+      // autre acte ; et les commentaires sont relus (un collègue a pu en ajouter depuis).
+      syntheseAuditEditee = null;
+      formCommentaireAudit = null;
+      await chargerRetoursAudit();
       executerAuditOutil2();
     } catch (e) {
       console.error('Outil 2 : échec de l’analyse', e);

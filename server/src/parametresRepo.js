@@ -41,6 +41,58 @@ function assainirCopiesEnAttente(brut) {
     .slice(-MAX_COPIES_EN_ATTENTE);
 }
 
+// Commentaires de l'étude sur les rapports de relecture d'actes (Outil 2 — voir
+// routes/auditRetours.js et le « mode commentaires » de script.js). Stockés en BASE, pas dans le
+// navigateur : ils sont partagés entre les postes, et surtout ils doivent survivre au changement
+// de poste ou au vidage du cache — ce sont eux qui disent, relus plus tard, où les règles de
+// l'outil se trompent. Plafonnés : au-delà, les plus anciens partent (ils ont déjà été exportés
+// et analysés, ou ne le seront plus).
+const CLE_RETOURS_AUDIT = 'audit-retours';
+const MAX_RETOURS_AUDIT = 1000;
+const VERDICTS_RETOUR_AUDIT = ['juste', 'faux_positif', 'mal_formule', 'gravite', 'manque'];
+const GRAVITES_AUDIT = ['CRITIQUE', 'IMPORTANT', 'A_VERIFIER', 'INFORMATION'];
+
+function texteBorne(valeur, max) {
+  return typeof valeur === 'string' ? valeur.trim().slice(0, max) : '';
+}
+
+function assainirRetourAudit(brut) {
+  const b = (brut && typeof brut === 'object') ? brut : null;
+  if (!b || VERDICTS_RETOUR_AUDIT.indexOf(b.verdict) === -1) return null;
+  const c = (b.constat && typeof b.constat === 'object') ? b.constat : null;
+  const commentaire = texteBorne(b.commentaire, 2000);
+  // Un « oubli » de l'audit n'a pas de constat derrière lui : sans texte il ne dit rien.
+  if (b.verdict === 'manque' && !commentaire) return null;
+  if (b.verdict !== 'manque' && !c) return null;
+  return {
+    id: texteBorne(b.id, 64) || `r${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`,
+    date: texteBorne(b.date, 40) || new Date().toISOString(),
+    verdict: b.verdict,
+    portee: b.portee === 'dossier' ? 'dossier' : 'tous',
+    commentaire,
+    graviteSouhaitee: GRAVITES_AUDIT.indexOf(b.graviteSouhaitee) >= 0 ? b.graviteSouhaitee : null,
+    dossierCle: texteBorne(b.dossierCle, 200),
+    dossierNom: texteBorne(b.dossierNom, 200),
+    document: texteBorne(b.document, 200),
+    mode: b.mode === 'acte' ? 'acte' : 'compromis',
+    typeBien: texteBorne(b.typeBien, 20),
+    empreinte: texteBorne(b.empreinte, 600),
+    constat: c ? {
+      categorie: texteBorne(c.categorie, 40),
+      gravite: GRAVITES_AUDIT.indexOf(c.gravite) >= 0 ? c.gravite : 'INFORMATION',
+      titre: texteBorne(c.titre, 300),
+      description: texteBorne(c.description, 1000),
+      phrase: texteBorne(c.phrase, 600),
+      page: Number.isFinite(c.page) ? c.page : null
+    } : null
+  };
+}
+
+function assainirRetoursAudit(brut) {
+  if (!Array.isArray(brut)) return [];
+  return brut.map(assainirRetourAudit).filter(Boolean).slice(-MAX_RETOURS_AUDIT);
+}
+
 const PORT_SMTP_PAR_DEFAUT = 25;
 
 const REGLAGES_PAR_DEFAUT = Object.freeze({
@@ -200,13 +252,30 @@ function creerRepoParametres(db) {
     return propre;
   }
 
+  function lireRetoursAudit() {
+    const ligne = lireStmt.get(CLE_RETOURS_AUDIT);
+    if (!ligne) return [];
+    try {
+      return assainirRetoursAudit(JSON.parse(ligne.valeur));
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function ecrireRetoursAudit(liste) {
+    const propre = assainirRetoursAudit(liste);
+    ecrireStmt.run(CLE_RETOURS_AUDIT, JSON.stringify(propre));
+    return propre;
+  }
+
   return {
     lireReglages, ecrireReglages, lireDernierTour, ecrireDernierTour,
-    lireCopiesEnAttente, ecrireCopiesEnAttente
+    lireCopiesEnAttente, ecrireCopiesEnAttente, lireRetoursAudit, ecrireRetoursAudit
   };
 }
 
 module.exports = {
   creerRepoParametres, assainirReglages, assainirDernierTour, assainirCopiesEnAttente,
+  assainirRetourAudit, assainirRetoursAudit, MAX_RETOURS_AUDIT,
   REGLAGES_PAR_DEFAUT, PORT_SMTP_PAR_DEFAUT
 };

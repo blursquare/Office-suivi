@@ -456,6 +456,22 @@ bout avec un vrai serveur et une arborescence reproduisant celle de l'étude, ma
 de fichiers Linux — le comportement d'un chemin UNC (`\\\\serveur\\partage`) et les droits du
 compte exécutant le serveur restent à confirmer au bureau.
 
+## Commentaires sur la relecture d'actes
+
+Le « mode commentaires » de l'écran **Relecture d'actes** enregistre l'avis de l'étude sur chaque
+point relevé (juste, faux positif, mal formulé, gravité à revoir — pour ce dossier seulement ou
+pour tous) et les oublis signalés. Ils sont stockés **dans la base du serveur** (table
+`parametres`, clé `audit-retours`, 1 000 commentaires au plus), donc partagés entre les postes.
+
+- `GET /api/audit-retours` — la liste ;
+- `POST /api/audit-retours` — ajoute ou remplace (même `id`) un commentaire ;
+- `DELETE /api/audit-retours/:id` — le supprime.
+
+Ces routes sont protégées par le mot de passe partagé, comme le reste de `/api`. Le bouton
+« Exporter les commentaires » télécharge un JSON à transmettre pour corriger les règles de la
+relecture : **il contient les clauses citées des actes**, à traiter avec la même discrétion que les
+actes eux-mêmes.
+
 ## Service Windows (démarrage automatique, redémarrage seul en cas de plantage)
 
 Par défaut, `CLAIRE-serveur.exe` reste un simple exécutable : il tourne tant que sa fenêtre de

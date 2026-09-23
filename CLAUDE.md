@@ -6646,6 +6646,105 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     grille de relecture fixe conforme / écart / non trouvé, les annexes attendues par type de
     vente). Question de fond posée plutôt que devinée, comme le veut la leçon des notaires.
 
+- **Relecture d'actes : grille visuelle, synthèse à communiquer, mode commentaires** — demande de
+  l'étude du 23/09/2026 au soir : « il faut que l'audit soit lisible comme un message que l'on
+  pourrait communiquer au client. Une synthèse professionnelle. Mais aussi quelque chose de visuel
+  pour s'y retrouver. Peut-être un mode où je pourrais pendant un temps mettre des commentaires
+  pour que tu puisses analyser les retours et ajuster pour les suivants […] Parfois les
+  commentaires peuvent être liés uniquement au dossier. Je pourrais justifier pourquoi », précédée
+  de « mets tout en place » sur les propositions faites juste avant (grille fixe, annexes
+  attendues par type de bien, pièces AAE du NAS, fiche aux parties périmées). Trois vues du MÊME
+  résultat, jamais une seconde analyse qui pourrait contredire le rapport :
+  - **Grille de relecture** (`grilleRelectureOutil2`, pure) en tête du rapport : une colonne par
+    section (acte / avant-contrat / annexes), une case par rubrique avec quatre états
+    (`LIBELLES_ETAT_GRILLE_OUTIL2`) — **à régler** (critique ou important), **à vérifier**,
+    **rien relevé**, **non contrôlé** — plus « masqué ». « Non contrôlé »
+    (`rubriqueNonControleeOutil2`) est l'état d'une rubrique dont le document n'a pas été fourni :
+    le confondre avec « rien relevé » serait rassurer à tort, la confusion déjà combattue ailleurs
+    dans ce rapport. Une rubrique sans objet pour ce rapport (copropriété sur une maison, permis
+    hors terrain, comparaison sur un compromis — `rubriqueApplicableOutil2`) n'a pas de case,
+    **sauf si elle porte malgré tout des constats** : la règle ne cache jamais un constat. Une case
+    pour les engagements du vendeur (« x/y justifié(s) »). Un clic sur une case bascule sur le
+    rapport détaillé et fait défiler jusqu'à la rubrique (`id="audit-rub-CLE"`, posé par
+    `renderSectionAudit`).
+  - **Pièces attendues par type de bien** (`piecesAttenduesOutil2`, pure), dans la colonne des
+    annexes : diagnostics et certificat d'urbanisme toujours ; état daté, PV d'AG et carnet
+    d'entretien en copropriété ; permis, constat d'affichage et certificat de non-recours sur un
+    terrain en mode projet de vente. Trois états (fournie / partielle — un pré-état daté à la place
+    de l'état daté / absente), reconnus avec les détecteurs déjà en place : les deux analyseurs
+    renvoient désormais `justificatifsReconnus` (clés de `rapprocherJustificatifs`), rien de
+    nouveau n'est lu.
+  - **Synthèse à communiquer** (`syntheseClientOutil2`, pure), vue par défaut du rapport, bascule
+    « Synthèse / Rapport détaillé » (`vueRapportAudit`, même composant `.vue-bascule` que le
+    Suivi) : objet, formule d'appel, une phrase d'introduction (avant-contrat et sa date, nombre de
+    pièces), **une phrase de conclusion** (N points à régler / aucun point bloquant / aucune
+    observation), la conformité à l'avant-contrat **dite seulement si la comparaison a eu lieu**,
+    puis « Points à régler avant la signature », « Points à vérifier », le bilan des engagements du
+    vendeur, les pièces non communiquées et les questions par destinataire (« Auprès du syndic »…),
+    et une réserve finale. **Seuls les points retenus y figurent** : ni les constats écartés ou
+    jugés faux positifs, ni les rubriques masquées, ni les simples informations. Un engagement du
+    vendeur y est désigné **par sa clause citée** (240 caractères) et non par la formule interne
+    « engagement sans document type », que le destinataire ne comprendrait pas. Rendue dans un
+    `<textarea>` modifiable (`syntheseAuditEditee` garde la rédaction à travers les re-rendus ;
+    « Régénérer » l'abandonne), bouton « Copier » avec le repli `copierParTextarea` (presse-papiers
+    absent hors contexte sécurisé, voir `copierQuestionsAudit`). Une nouvelle relecture repart de la
+    synthèse générée.
+  - **Mode commentaires** (interrupteur dans l'en-tête du rapport, mémorisé par poste en
+    `localStorage`, clé `audit-mode-commentaires`) : sous chaque constat — et sous chaque carte
+    d'engagement du vendeur, reliée à son constat par `o.constatUid` posé dans
+    `preparerRapportAudit` — quatre avis (`VERDICTS_RETOUR_OUTIL2` : juste, faux positif, mal
+    formulé, gravité à revoir avec la gravité juste), une **portée** (« ce dossier seulement »,
+    par défaut — un avis ne se généralise que si on le choisit — ou « tous les dossiers ») et une
+    **justification écrite**. En mode commentaires ces avis remplacent « Écarter / Confirmer » (deux
+    façons du même geste). Un panneau propre au mode permet de signaler **ce que la relecture a
+    raté** (verdict `manque`, texte obligatoire) et d'**exporter tous les commentaires en JSON**.
+  - **Effets immédiats, volontairement bornés** (`appliquerRetoursAuxConstats`, pure) : un avis se
+    rattache à un constat par la même empreinte que la mémoire d'audit (titre + clause citée,
+    Jaccard ≥ 0.5), **dans la même catégorie seulement**, l'avis propre au dossier l'emportant sur
+    l'avis général. Faux positif → constat replié (« Faux positif pour ce dossier / sur tous les
+    dossiers ») et exclu du résumé, de la grille, de la synthèse et des questions
+    (`constatExcluOutil2`, `resumeConstatsOutil2` — le résumé et les questions sont désormais
+    RECALCULÉS dans `preparerRapportAudit` sur ce qui reste retenu, écartés compris) ; gravité à
+    revoir → gravité remplacée, l'origine gardée dans `graviteOrigine` et affichée (« gravité
+    corrigée par l'étude ») ; juste → liseré vert comme un constat confirmé ; mal formulé →
+    seulement conservé. **Rien d'autre n'est « appris » automatiquement** : corriger une règle qui
+    se trompe passe par l'export, relu à la main — même principe que le journal des corrections
+    d'extraction. La clé d'un dossier (`cleDossierAudit`) est le dossier CLAIRE lié, à défaut le nom
+    normalisé du document relu.
+  - **Stockage serveur**, pas navigateur : les commentaires doivent survivre au changement de poste
+    et être partagés. `server/src/routes/auditRetours.js` (`GET/POST/DELETE /api/audit-retours`,
+    derrière le mot de passe), `parametresRepo.lireRetoursAudit()/ecrireRetoursAudit()` sous la clé
+    `audit-retours`, `assainirRetourAudit()` en liste blanche (champs bornés, verdict et gravité
+    dans leur énumération, plafond `MAX_RETOURS_AUDIT` = 1000, un `POST` au même `id` remplace).
+    L'export contient les clauses citées des actes : à transmettre comme les actes eux-mêmes.
+  - **Pièces de la rubrique AAE du NAS** : bouton « Ajouter les pièces de la rubrique AAE » sous le
+    dossier CLAIRE lié (mode projet de vente, dossier relié au NAS) — liste les PDF dont un
+    **segment de dossier** du chemin est « AAE » (`estDansRubriqueAAE`, jamais le nom du fichier :
+    « Copie AAE PROMESSE… » est l'avant-contrat), les ajoute comme justificatifs et les lit via
+    `ouvrirPdfNas` (`extraireTexteFichierAnalyseIa` accepte désormais une entrée `cheminNas` sans
+    `File`). Plafond `MAX_PIECES_AAE_AUDIT` = 25, lecture l'une après l'autre (OCR possible).
+    Conforme à la précision de l'étude sur la rubrique AAE (voir « Correction : l'avant-contrat
+    n'est pas dans la rubrique AAE »).
+  - **Fiche aux parties périmées** : quand les parties lues dans l'avant-contrat
+    (`referenceLueDansTexte`) diffèrent de celles du dossier lié (`partiesDivergentes`, pure,
+    insensible à la casse et aux accents), l'en-tête l'annonce avec un bouton « Mettre à jour la
+    fiche » (`mettreAJourPartiesDossierAudit`, confirmé, journalisé, nom du dossier inchangé).
+    **Seule écriture sur le dossier lié depuis cet écran**, et seulement sur ce clic : l'exception
+    au principe « dossier lié en lecture seule » est explicite, c'est la réponse au cas MOKADEM
+    (fiche créée avant le correctif des blocs de parties).
+  - **Défaut vu au rendu et corrigé** : la ligne d'un fichier déposé (nom + type + statut + croix)
+    débordait de 16 px à largeur de téléphone — `.analyse-ia-fichier` se replie désormais.
+  - Tests : `tests/outil2-synthese.test.js` (8 — grille et ses états, rubrique masquée et constat
+    exclu, pièces attendues par type, synthèse et ses exclusions, conformité dite seulement si
+    comparée, portée et catégorie des commentaires, gravité corrigée puis rétablie, résumé,
+    clé de dossier, parties divergentes, rubrique AAE) et `server/test/audit-retours.test.js` (4).
+    Suite racine 724 → 732, serveur 233 → 237. **Vérifié dans un vrai Chromium** (serveur réel,
+    textes réels du couple promesse / vente MOKADEM injectés faute de pdf.js, clair et sombre,
+    1500 px et 400 px) : grille à cinq cases, synthèse rédigée, un faux positif « tous les
+    dossiers » enregistré sur le serveur puis appliqué à la page suivante (constat replié, résumé
+    passé de 2 à 1 point à vérifier, synthèse et bilan « 0 sur 1 » mis à jour), un oubli signalé,
+    aucune erreur JS, aucun débordement.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

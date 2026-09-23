@@ -976,6 +976,9 @@
     border: 1px solid var(--line);
     border-radius: 10px;
     background: var(--paper-card);
+    /* À largeur de téléphone, nom + type + statut + croix ne tiennent pas sur une ligne : la croix
+       débordait de 16px (mesuré). On laisse la ligne se replier. */
+    flex-wrap: wrap;
   }
   .analyse-ia-fichier .icone { flex: none; color: var(--muted); }
   .analyse-ia-fichier-nom {
@@ -1211,6 +1214,88 @@
     background: color-mix(in srgb, var(--urgent) 9%, transparent);
     border: 1px solid color-mix(in srgb, var(--urgent) 26%, transparent);
   }
+  /* ---- Relecture d'actes : grille, synthèse, commentaires (demande du 23/09/2026) ---- */
+  .audit-entete-ligne { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .audit-bascule-commentaires {
+    display: inline-flex; align-items: center; gap: 8px; margin: 0;
+    font-size: 12.5px; font-weight: 500; color: var(--ink-soft); cursor: pointer;
+  }
+  /* La grille : une colonne par section du rapport, une case par rubrique. L'état se lit à la
+     couleur du liseré (mêmes jetons que les constats), puis au mot — jamais à la couleur seule. */
+  .audit-grille {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px;
+    margin-top: 14px;
+  }
+  .audit-grille-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .audit-grille-col > .section-eyebrow { margin-bottom: 2px; }
+  .audit-case {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 5px;
+    width: 100%; text-align: left; font-family: inherit;
+    padding: 8px 10px; border-radius: 8px; cursor: pointer;
+    background: var(--paper-card); border: 1px solid var(--line); border-left: 3px solid var(--line);
+    color: var(--ink); transition: background 0.15s ease;
+  }
+  .audit-case:hover { background: var(--paper-sunk); }
+  .audit-case:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .audit-case-titre { font-size: 12.5px; font-weight: 600; line-height: 1.3; }
+  .audit-case .dot-label { white-space: normal; line-height: 1.3; }
+  .audit-case-alerte { border-left-color: var(--urgent); }
+  .audit-case-attention { border-left-color: var(--pret); }
+  .audit-case-ok { border-left-color: var(--success); }
+  .audit-case-non_controle, .audit-case-masque { border-style: dashed; border-left-style: solid; }
+  .audit-case-masque { opacity: 0.6; }
+  .audit-pieces { margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--line-soft); }
+  .audit-pieces ul { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+  .audit-pieces li { display: flex; align-items: flex-start; gap: 6px; font-size: 12.5px; line-height: 1.35; color: var(--ink-soft); }
+  .audit-pieces li .icone { flex: none; margin-top: 2px; }
+  .audit-piece-fournie .icone { color: var(--success); }
+  .audit-piece-partielle .icone { color: var(--pret); }
+  .audit-piece-absente .icone { color: var(--urgent); }
+  .audit-vue-bascule { margin-top: 18px; }
+  /* La synthèse : un texte à envoyer, présenté comme une page (fond de carte, interligne de
+     lecture), modifiable sur place. */
+  .audit-synthese { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .audit-synthese-barre { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .audit-synthese-barre .hint { margin: 0; flex: 1 1 260px; }
+  .audit-synthese-actions { display: flex; gap: 8px; }
+  .audit-synthese textarea.audit-synthese-texte {
+    width: 100%; box-sizing: border-box; resize: vertical;
+    font-family: inherit; font-size: 13.5px; line-height: 1.6; color: var(--ink);
+    padding: 16px 18px; border-radius: 10px;
+    background: var(--paper-card); border: 1px solid var(--line);
+  }
+  /* Commentaires : sous chaque constat, en mode commentaires. */
+  .audit-commentaire { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; padding-top: 8px; border-top: 1px dashed var(--line); }
+  .audit-commentaire-lu { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+  .audit-commentaire-texte { font-size: 12.5px; color: var(--ink-soft); font-style: italic; }
+  .audit-commentaire-choix, .audit-commentaire.audit-commentaire-choix { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .audit-commentaire-question { font-size: 12px; font-weight: 600; color: var(--muted); }
+  .audit-verdict-btn {
+    display: inline-flex; align-items: center; gap: 5px; font-family: inherit;
+    font-size: 12px; padding: 4px 9px; border-radius: 999px; cursor: pointer;
+    background: var(--paper-card); border: 1px solid var(--line); color: var(--ink-soft);
+  }
+  .audit-verdict-btn:hover { border-color: var(--focus); color: var(--ink); }
+  .audit-verdict-btn.actif { background: var(--focus); border-color: var(--focus); color: #fff; }
+  .audit-commentaire-ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; font-size: 12.5px; color: var(--ink-soft); }
+  .audit-commentaire-ligne label { display: inline-flex; align-items: center; gap: 5px; margin: 0; font-weight: 400; }
+  .audit-commentaire-ligne select { width: auto; }
+  .audit-commentaire-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+  .audit-commentaire-actions .icon-btn { font-size: 12px; display: inline-flex; align-items: center; gap: 4px; }
+  .audit-gravite-corrigee { font-weight: 400; font-size: 11.5px; margin: 0; }
+  .audit-panneau-commentaires {
+    display: flex; flex-direction: column; gap: 8px; margin-top: 12px;
+    padding: 12px 14px; border-radius: 10px;
+    background: color-mix(in srgb, var(--focus) 6%, var(--paper-card));
+    border: 1px solid color-mix(in srgb, var(--focus) 30%, var(--line));
+  }
+  .audit-panneau-tete { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+  .audit-panneau-tete .hint { margin: 4px 0 0; }
+  .audit-oubli-btn { margin-left: auto; }
+  .audit-oublis { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .audit-oublis li { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-soft); }
+  .audit-oublis li > span:nth-child(2) { flex: 1; }
+  .audit-aae-btn { margin-top: 8px; }
   .audit-section-compte {
     font-size: 11px; font-weight: 600; line-height: 1;
     padding: 3px 7px; border-radius: 999px;
