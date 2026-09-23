@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-23 20:03';
+  const VERSION_APP = '2026-09-23 20:12';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,8 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-23 20:12', resume: "Copie Gmail des rappels effacée 2 h après l'envoi seulement, pour laisser le flux "
+      + "Power Automate lire le message avant." },
     { version: '2026-09-23 20:03', resume: "Rappels : la copie que Gmail garde dans « Messages envoyés » est effacée "
       + "après chaque envoi (corbeille puis suppression définitive)." },
     { version: '2026-09-23 18:15', resume: "Agenda connecté (.ics) : seuls l'obtention du prêt et la vente préalable y figurent, "
@@ -18637,14 +18639,12 @@
         // conclure à tort que la chaîne fonctionne, et chercher le problème au mauvais endroit.
         const destinataire = corps.destinataire || enregistree;
         const passerelle = corps.passerelle || reglagesEnregistres.emailPasserelle;
-        // Compte Gmail : le serveur a aussi tenté d'effacer la copie rangée dans « Messages
-        // envoyés ». On le dit dans les deux cas — c'est le seul endroit où l'étude peut vérifier
-        // que ce nettoyage fonctionne sur son compte.
+        // Compte Gmail : la copie rangée dans « Messages envoyés » n'est effacée qu'après un délai,
+        // le flux Power Automate devant d'abord lire ce même message. Un échec d'effacement
+        // apparaîtra en avertissement dans « Dernier tour de rappels ».
         let copie = '';
-        if (corps.copieGmail) {
-          copie = corps.copieGmail.effacee
-            ? ' Copie effacée du compte Gmail.'
-            : ` ⚠ ${corps.copieGmail.erreur || 'Copie non effacée du compte Gmail.'}`;
+        if (corps.copieGmail && corps.copieGmail.differee) {
+          copie = ` La copie gardée par Gmail sera effacée dans environ ${corps.copieGmail.delaiHeures || 2} h, une fois le flux passé.`;
         }
         afficherResultatTest(resultat,
           `✓ Remis au serveur d'envoi — boîte-passerelle « ${passerelle} », objet (destinataire Teams) « ${destinataire} ». Vérifiez maintenant dans Teams.${copie}`,

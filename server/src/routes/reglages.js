@@ -13,7 +13,8 @@
 
 const express = require('express');
 const { envoyerEmail, envoiConfigure } = require('../envoiEmail');
-const { effacerCopiesEnvoyees, estCompteGmail } = require('../imapGmail');
+const { estCompteGmail } = require('../imapGmail');
+const { mettreCopiesEnAttente, DELAI_AVANT_EFFACEMENT_MS } = require('../nettoyageGmail');
 const { executerTacheRappels } = require('../jobs/rappels');
 
 // Forme d'une adresse email : un seul @, une partie locale, un domaine d'au moins deux libellés
@@ -77,12 +78,15 @@ function creerRouteurReglages(parametresRepo, envoyerFn, options) {
       res.status(502).json({ erreur: resultat.erreur });
       return;
     }
-    // Le test ATTEND l'effacement de la copie Gmail, contrairement aux notifications : c'est le
-    // seul moyen pour l'étude de vérifier que ce nettoyage fonctionne sur son compte.
+    // La copie Gmail du message de test suit le même chemin que celle d'un rappel : mise en
+    // attente, effacée plus tard. L'effacer tout de suite empêcherait justement le flux de lire le
+    // message de test — c'est-à-dire de vérifier ce que ce bouton est censé vérifier.
     let copieGmail = null;
     if (estCompteGmail(reglages) && resultat.messageId) {
-      const n = await effacerCopiesEnvoyees(reglages, [resultat.messageId]);
-      copieGmail = { effacee: !!n.ok && n.effaces > 0, erreur: n.erreur || null };
+      if (typeof parametresRepo.lireCopiesEnAttente === 'function') {
+        mettreCopiesEnAttente(parametresRepo, reglages, [resultat.messageId]);
+      }
+      copieGmail = { differee: true, delaiHeures: Math.round(DELAI_AVANT_EFFACEMENT_MS / 3600000) };
     }
     // L'adresse réellement utilisée est renvoyée : l'écran l'affiche pour qu'on la relise.
     const reponse = { ok: true, destinataire: email, passerelle: reglages.emailPasserelle };

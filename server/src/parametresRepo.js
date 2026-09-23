@@ -23,6 +23,24 @@ const CLE_REGLAGES = 'reglages';
 // précisément l'ABSENCE de message qui aurait dû alerter, et rien ne la signalait.
 const CLE_DERNIER_TOUR = 'dernier-tour-rappels';
 
+// Copies rangées par Gmail dans « Messages envoyés », en attente d'effacement (voir
+// nettoyageGmail.js). Même raison que le compte rendu ci-dessus pour une clé à part : c'est un
+// état produit par le serveur, pas un réglage.
+const CLE_COPIES_GMAIL = 'copies-gmail-a-effacer';
+const MAX_COPIES_EN_ATTENTE = 500;
+
+function assainirCopiesEnAttente(brut) {
+  if (!Array.isArray(brut)) return [];
+  return brut
+    .filter((c) => c && typeof c.messageId === 'string' && c.messageId.trim() && Number.isFinite(c.envoyeLe))
+    .map((c) => ({
+      messageId: c.messageId,
+      envoyeLe: c.envoyeLe,
+      essais: Number.isFinite(c.essais) && c.essais >= 0 ? Math.floor(c.essais) : 0
+    }))
+    .slice(-MAX_COPIES_EN_ATTENTE);
+}
+
 const PORT_SMTP_PAR_DEFAUT = 25;
 
 const REGLAGES_PAR_DEFAUT = Object.freeze({
@@ -166,10 +184,29 @@ function creerRepoParametres(db) {
     return propre;
   }
 
-  return { lireReglages, ecrireReglages, lireDernierTour, ecrireDernierTour };
+  function lireCopiesEnAttente() {
+    const ligne = lireStmt.get(CLE_COPIES_GMAIL);
+    if (!ligne) return [];
+    try {
+      return assainirCopiesEnAttente(JSON.parse(ligne.valeur));
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function ecrireCopiesEnAttente(liste) {
+    const propre = assainirCopiesEnAttente(liste);
+    ecrireStmt.run(CLE_COPIES_GMAIL, JSON.stringify(propre));
+    return propre;
+  }
+
+  return {
+    lireReglages, ecrireReglages, lireDernierTour, ecrireDernierTour,
+    lireCopiesEnAttente, ecrireCopiesEnAttente
+  };
 }
 
 module.exports = {
-  creerRepoParametres, assainirReglages, assainirDernierTour,
+  creerRepoParametres, assainirReglages, assainirDernierTour, assainirCopiesEnAttente,
   REGLAGES_PAR_DEFAUT, PORT_SMTP_PAR_DEFAUT
 };

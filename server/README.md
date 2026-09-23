@@ -172,15 +172,20 @@ l'extérieur du domaine — si le filtrage l'écarte, le flux ne se déclenche j
 signale du côté de l'envoi, qui a réussi. Le panneau « Dernier tour de rappels » ne couvre pas ce
 cas-là : seul un coup d'œil dans Teams, ou l'historique du flux dans Power Automate, le dira.
 
-**La copie gardée par Gmail est effacée après chaque envoi.** Gmail range d'office dans « Messages
-envoyés » tout message parti par `smtp.gmail.com` ; le SMTP ne permet pas de l'empêcher. CLAIRE se
-reconnecte donc en IMAP (`imap.gmail.com:993`, **même compte, même mot de passe d'application** —
-rien de plus à saisir) et retrouve chaque message par son **Message-ID exact** (jamais par son
-destinataire ou son objet : le compte peut servir à autre chose), le déplace dans la corbeille puis
-l'en supprime définitivement (`server/src/imapGmail.js`). Pour les rappels, une seule connexion IMAP
-par tour. Un échec (IMAP désactivé dans les paramètres Gmail, copie pas encore rangée…) n'annule
-jamais l'envoi, déjà fait : il apparaît en **avertissement orange** dans « Dernier tour de rappels »,
-et le bouton « Tester » dit si la copie de test a bien été effacée.
+**La copie gardée par Gmail est effacée DEUX HEURES après l'envoi.** Gmail range d'office dans
+« Messages envoyés » tout message parti par `smtp.gmail.com` ; le SMTP ne permet pas de l'empêcher.
+CLAIRE se reconnecte donc en IMAP (`imap.gmail.com:993`, **même compte, même mot de passe
+d'application** — rien de plus à saisir), retrouve chaque message par son **Message-ID exact**
+(jamais par son destinataire ou son objet : le compte peut servir à autre chose), le déplace dans
+la corbeille puis l'en supprime définitivement (`server/src/imapGmail.js`).
+
+**Pourquoi deux heures et pas tout de suite** : le flux Power Automate est déclenché par ce même
+message Gmail, et relève la boîte à intervalles de plusieurs minutes. L'effacer aussitôt pourrait
+le retirer avant le passage du flux — le rappel serait parti, le message Teams jamais. Chaque copie
+attend donc dans une file (`server/src/nettoyageGmail.js`) et la tâche de rappels, toutes les
+30 minutes, efface celles qui ont plus de deux heures. Une copie déjà disparue entre-temps sort
+simplement de la file ; un échec de connexion est retenté jusqu'à cinq fois et apparaît en
+**avertissement orange** dans « Dernier tour de rappels », sans jamais annuler un envoi.
 
 Côté Outlook, la copie reçue par la boîte-passerelle se supprime dans le flux Power Automate lui-même
 (action « Supprimer l'e-mail (V2) » ou « Déplacer l'e-mail (V2) » après l'action Teams, exécutée

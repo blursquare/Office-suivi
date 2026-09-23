@@ -22,7 +22,7 @@
 // l'une des deux, vérifier si l'autre a besoin du même changement.
 
 const { envoyerEmail, envoiConfigure } = require('../envoiEmail');
-const { effacerCopiesEnvoyees } = require('../imapGmail');
+const { mettreCopiesEnAttente, executerNettoyageGmail } = require('../nettoyageGmail');
 const { piecesRecuesEtManquantes } = require('../piecesChecklist');
 
 // Seuils de rappel PAR ÉCHÉANCE, donnés un par un par l'étude — pas un seuil unique pour tout.
@@ -159,8 +159,8 @@ function texteRappel(r) {
 // envoyé : c'est lui qui compte pour ne pas relancer le collaborateur concerné.
 //
 // Avec un compte Gmail, les copies rangées par Gmail dans « Messages envoyés » sont effacées en UNE
-// seule connexion IMAP en fin de tour (voir imapGmail.js), pas après chaque message : un tour peut
-// en envoyer plusieurs, et se reconnecter pour chacun ne ferait que ralentir. Un échec d'effacement
+// seule connexion IMAP par tour, et seulement DEUX HEURES après leur envoi (voir nettoyageGmail.js :
+// le flux Power Automate lit ce même message, il ne faut pas l'effacer avant). Un échec d'effacement
 // est un AVERTISSEMENT, jamais une erreur : les rappels, eux, sont bien partis — l'encart de
 // l'écran Réglages ne doit pas passer au rouge pour une copie restée chez Google.
 // `options.effacerFn` injectable pour les tests.
@@ -211,10 +211,13 @@ async function executerTacheRappels(depot, db, parametresRepo, envoyerFn, aujour
     }
   }
 
-  const effacer = (options && options.effacerFn) || effacerCopiesEnvoyees;
-  if (messagesEnvoyes.length) {
-    const nettoyage = await effacer(reglages, messagesEnvoyes);
-    if (nettoyage && !nettoyage.ok && nettoyage.erreur) resultat.avertissements.push(nettoyage.erreur);
+  // Les copies de CE tour sont seulement mises en attente : le flux doit d'abord avoir lu le
+  // message (voir nettoyageGmail.js). Ce tour efface en revanche celles des tours précédents dont
+  // le délai est écoulé. Le garde-fou `typeof` couvre les tests qui passent un faux dépôt réduit.
+  if (typeof parametresRepo.lireCopiesEnAttente === 'function') {
+    mettreCopiesEnAttente(parametresRepo, reglages, messagesEnvoyes);
+    const nettoyage = await executerNettoyageGmail(parametresRepo, reglages, options && options.effacerFn);
+    if (nettoyage.avertissement) resultat.avertissements.push(nettoyage.avertissement);
   }
 
   // Le compte rendu est consigné ICI plutôt que chez l'appelant : les deux appelants (le minuteur

@@ -493,7 +493,7 @@ test('executerTacheRappels : envoi non configuré — aucun compte rendu écrit 
   db.close();
 });
 
-test('executerTacheRappels : copies Gmail effacées en UNE fois en fin de tour, échec = avertissement', async () => {
+test('executerTacheRappels : les copies Gmail du tour sont mises en ATTENTE, jamais effacées dans la foulée', async () => {
   const db = ouvrirDb(':memory:');
   const depot = creerDepot(db);
   const parametresRepo = creerRepoParametres(db);
@@ -505,28 +505,21 @@ test('executerTacheRappels : copies Gmail effacées en UNE fois en fin de tour, 
 
   let n = 0;
   const envoyerFn = async () => ({ ok: true, messageId: `<m${++n}@claire>` });
-  const appels = [];
-  const effacerFn = async (reglages, ids) => {
-    appels.push(ids.join(','));
-    return { ok: false, effaces: 0, erreur: 'Copie Gmail non effacée (délai IMAP dépassé).' };
-  };
+  let appels = 0;
+  const effacerFn = async () => { appels++; return { ok: true, effaces: 0 }; };
   const r = await executerTacheRappels(depot, db, parametresRepo, envoyerFn, '2026-10-27', null, { effacerFn });
 
-  // Le principal ET la copie à l'étude, une seule connexion pour les deux.
-  assert.equal(appels.length, 1);
-  assert.equal(appels[0], '<m1@claire>,<m2@claire>');
-  // Les rappels sont partis : l'échec d'effacement n'est pas une erreur du tour.
+  // Le flux Power Automate lit ce même message Gmail : l'effacer maintenant l'empêcherait de partir.
+  assert.equal(appels, 0);
   assert.equal(r.rappelsEnvoyes, 1);
-  assert.equal(r.erreurs.length, 0);
-  const tour = parametresRepo.lireDernierTour();
-  assert.equal(tour.erreurs.length, 0);
-  assert.equal(tour.avertissements.length, 1);
-  assert.match(tour.avertissements[0], /Copie Gmail non effacée/);
+  assert.equal(r.avertissements.length, 0);
+  // Le principal ET la copie à l'étude attendent leur tour.
+  assert.equal(parametresRepo.lireCopiesEnAttente().map((c) => c.messageId).join(','), '<m1@claire>,<m2@claire>');
 
   db.close();
 });
 
-test('executerTacheRappels : aucun envoi réussi → aucune tentative d\'effacement', async () => {
+test('executerTacheRappels : aucun envoi réussi → rien en attente, aucune tentative d\'effacement', async () => {
   const db = ouvrirDb(':memory:');
   const depot = creerDepot(db);
   const parametresRepo = creerRepoParametres(db);
@@ -536,5 +529,6 @@ test('executerTacheRappels : aucun envoi réussi → aucune tentative d\'effacem
   await executerTacheRappels(depot, db, parametresRepo, async () => ({ ok: false, erreur: 'x' }), '2026-10-27', null,
     { effacerFn: async () => { appels++; return { ok: true }; } });
   assert.equal(appels, 0);
+  assert.equal(parametresRepo.lireCopiesEnAttente().length, 0);
   db.close();
 });

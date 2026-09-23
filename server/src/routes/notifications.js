@@ -14,7 +14,7 @@
 
 const express = require('express');
 const { envoyerEmail, envoiConfigure } = require('../envoiEmail');
-const { effacerCopiesEnvoyees } = require('../imapGmail');
+const { mettreCopiesEnAttente } = require('../nettoyageGmail');
 
 // Fonction pure et testable : le corps du message, séparé de l'envoi lui-même. Pas d'objet à
 // construire — celui de l'email transporte l'adresse du destinataire, lue par le flux pour router
@@ -70,15 +70,12 @@ function creerRouteurNotifications(parametresRepo, envoyerFn) {
       if (!copie.ok) resultat.erreurs.push(copie.erreur);
     }
 
-    res.json(resultat);
-
-    // Effacement de la copie Gmail APRÈS la réponse (voir imapGmail.js) : le navigateur n'a pas à
-    // attendre une connexion IMAP pour une notification qu'il a lancée sans rien attendre en retour.
-    if (messagesEnvoyes.length) {
-      effacerCopiesEnvoyees(reglages, messagesEnvoyes).then((n) => {
-        if (n && !n.ok && n.erreur) console.warn('[CLAIRE]', n.erreur);
-      }).catch(() => {});
+    // Copie Gmail mise en attente, jamais effacée tout de suite : le flux doit d'abord avoir lu le
+    // message. La tâche de rappels l'effacera à l'un de ses prochains tours (voir nettoyageGmail.js).
+    if (typeof parametresRepo.lireCopiesEnAttente === 'function') {
+      mettreCopiesEnAttente(parametresRepo, reglages, messagesEnvoyes);
     }
+    res.json(resultat);
   });
 
   return router;

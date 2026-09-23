@@ -6556,6 +6556,39 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     (« Copie effacée du compte Gmail »). Prérequis possible : l'accès IMAP doit être activé dans les
     paramètres Gmail du compte (il l'est par défaut sur les comptes récents).
 
+- **Correctif du jour même : la copie Gmail n'est plus effacée juste après l'envoi, mais DEUX
+  HEURES après.** J'avais affirmé à l'étude que l'effacement ne pouvait pas gêner le flux, en
+  supposant qu'il se déclenchait sur la boîte-passerelle Outlook. L'étude a corrigé : **le flux
+  Power Automate a été créé sur la boîte Gmail elle-même.** Or son déclencheur relève la boîte à
+  intervalles de plusieurs minutes, et dans Gmail un message envoyé à soi-même n'est qu'UN message
+  portant deux libellés (Envoyés + Boîte de réception) : le mettre à la corbeille depuis « Messages
+  envoyés » le retire partout. L'effacement immédiat pouvait donc supprimer le message avant le
+  passage du flux — rappel parti, message Teams jamais. **Rien n'avait encore été déployé** (le
+  nouveau `.exe` n'était pas installé), le défaut n'a donc jamais tourné chez l'étude.
+  - **`server/src/nettoyageGmail.js`** (nouveau) : `mettreCopiesEnAttente()` range chaque
+    Message-ID envoyé dans une file persistée (`parametresRepo.lireCopiesEnAttente()`/
+    `ecrireCopiesEnAttente()`, clé `copies-gmail-a-effacer`, plafonnée à 500) ;
+    `executerNettoyageGmail()` n'efface que les copies de plus de `DELAI_AVANT_EFFACEMENT_MS`
+    (2 h). Appelée par la tâche de rappels à chaque tour : une copie disparaît donc entre 2 h et
+    2 h 30 après l'envoi. Les trois envois (rappels, notification de pièces, bouton « Tester »)
+    passent par la file ; plus aucun n'efface directement.
+  - **Une copie introuvable à l'échéance n'est plus un avertissement** : avec un délai, elle a
+    normalement déjà disparu (effacée à la main, ou par le flux s'il est un jour configuré pour).
+    Seul un **échec de connexion** (nouveau drapeau `echec` sur le retour de
+    `effacerCopiesEnvoyees`) produit un avertissement et un nouvel essai, abandonné après
+    `MAX_ESSAIS_EFFACEMENT` (5). Compte qui n'est plus Gmail : file vidée sans tentative.
+  - **Le bouton « Tester » ne vérifie plus l'effacement en direct** : effacer tout de suite la copie
+    du message de test l'aurait justement empêché d'atteindre Teams. Il annonce « la copie gardée par
+    Gmail sera effacée dans environ 2 h, une fois le flux passé » ; un échec se lira dans l'encart
+    « Dernier tour de rappels ».
+  - **Leçon** : avant d'affirmer qu'une action n'interfère pas avec le flux, demander ce qui le
+    DÉCLENCHE — j'avais tenu pour acquise l'architecture n°3 documentée plus haut (déclencheur sur la
+    boîte Outlook), que l'étude avait changée depuis sans que le dépôt le sache.
+  - Tests : `server/test/nettoyage-gmail.test.js` (7 — délai respecté, seules les copies dues
+    effacées, introuvable sans avertissement, échec retenté puis abandonné, compte non Gmail,
+    dédoublonnage) ; le test de `rappels.test.js` qui vérifiait l'effacement dans le même tour est
+    réécrit pour vérifier l'inverse. Suite serveur 234 → 241, racine inchangée (717).
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

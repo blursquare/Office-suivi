@@ -16,7 +16,10 @@
 //     le compte Gmail peut aussi servir à autre chose, et un critère large effacerait des messages
 //     que CLAIRE n'a pas envoyés ;
 //   • il est déplacé dans la corbeille PUIS supprimé de la corbeille (sinon Gmail le garde 30 jours) ;
-//   • un échec n'annule JAMAIS l'envoi, qui a déjà eu lieu : il est rapporté comme avertissement.
+//   • un échec n'annule JAMAIS l'envoi, qui a déjà eu lieu : il est rapporté comme avertissement ;
+//   • cette fonction n'est JAMAIS appelée juste après l'envoi : le flux Power Automate est
+//     déclenché par ce même message Gmail, et l'effacer avant son passage l'empêcherait de partir
+//     (voir nettoyageGmail.js, qui ne l'appelle qu'après un délai).
 
 const tls = require('node:tls');
 
@@ -164,7 +167,7 @@ async function effacerCopiesEnvoyees(reglages, messageIds, options) {
   const ids = [...new Set((messageIds || []).filter((x) => typeof x === 'string' && x.trim()))];
   if (!ids.length || !estCompteGmail(r)) return { ok: true, ignore: true, effaces: 0, introuvables: 0, erreur: null };
   if (!r.smtpUtilisateur || !r.smtpMotDePasse) {
-    return { ok: false, effaces: 0, introuvables: ids.length, erreur: 'Compte Gmail ou mot de passe d\'application manquant : la copie envoyée n\'a pas pu être effacée.' };
+    return { ok: false, echec: true, effaces: 0, introuvables: ids.length, erreur: 'Compte Gmail ou mot de passe d\'application manquant : la copie envoyée n\'a pas pu être effacée.' };
   }
 
   const pauseMs = Number.isFinite(opts.pauseMs) ? opts.pauseMs : PAUSE_RECHERCHE_MS;
@@ -227,7 +230,9 @@ async function effacerCopiesEnvoyees(reglages, messageIds, options) {
         : null
     };
   } catch (e) {
-    return { ok: false, effaces: 0, introuvables: ids.length, erreur: `Copie Gmail non effacée (${e.message}).` };
+    // `echec` : la connexion elle-même a échoué, rien n'a été examiné — à retenter plus tard. À
+    // distinguer d'un message introuvable, qui a simplement déjà disparu.
+    return { ok: false, echec: true, effaces: 0, introuvables: ids.length, erreur: `Copie Gmail non effacée (${e.message}).` };
   } finally {
     if (session) session.fermer();
   }
