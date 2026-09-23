@@ -143,3 +143,10 @@ test('expéditeur explicite : il l\'emporte sur le compte', async () => {
   await envoyerEmail(r, 'bastien@etude.fr', 'Test', espion.creer);
   assert.match(espion.envois[0].from, /notifications@etude\.fr/);
 });
+
+test('un envoi réussi renvoie le Message-ID (sert à effacer la copie Gmail)', async () => {
+  const espion = transportEspion();
+  const r = await envoyerEmail(REGLAGES, 'bastien@etude.fr', 'Test', espion.creer);
+  assert.equal(r.ok, true);
+  assert.equal(r.messageId, 'test');
+});

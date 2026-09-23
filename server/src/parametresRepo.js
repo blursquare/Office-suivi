@@ -109,11 +109,17 @@ function assainirDernierTour(brut) {
   const erreurs = Array.isArray(b.erreurs)
     ? b.erreurs.filter((e) => typeof e === 'string' && e.trim()).slice(0, MAX_ERREURS_CONSERVEES)
     : [];
+  const avertissements = Array.isArray(b.avertissements)
+    ? b.avertissements.filter((e) => typeof e === 'string' && e.trim()).slice(0, MAX_ERREURS_CONSERVEES)
+    : [];
   return {
     at: typeof b.at === 'string' ? b.at : '',
     rappelsDus: entier(b.rappelsDus),
     rappelsEnvoyes: entier(b.rappelsEnvoyes),
     erreurs,
+    // Ce qui n'a PAS empêché les rappels de partir (la copie Gmail restée dans « Messages
+    // envoyés ») : affiché à part, sans faire passer l'encart en alerte.
+    avertissements,
     // 'automatique' (le minuteur de 30 min) ou 'manuel' (bouton « Lancer un tour maintenant ») :
     // sans ça, l'étude ne saurait pas si la ligne affichée vient de son propre clic ou du job.
     declenche: b.declenche === 'manuel' ? 'manuel' : 'automatique'

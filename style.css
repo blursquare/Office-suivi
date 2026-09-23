@@ -1657,6 +1657,9 @@
   .dernier-tour-ligne .icone { flex: none; }
   .dernier-tour-erreurs { margin: 8px 0 0; padding-left: 26px; }
   .dernier-tour-erreurs li { margin-bottom: 3px; }
+  /* Ambre --pret : un point à surveiller (copie Gmail non effacée), pas une panne des rappels. */
+  .dernier-tour-avertissements { margin: 8px 0 0; padding-left: 26px; color: var(--pret); }
+  .dernier-tour-avertissements li { margin-bottom: 3px; }
 
   /* Même teinte que .dl-alerte, le seul signal de l'outil qui garde un fond plein — ici sur un
      paragraphe entier plutôt qu'un mot, ce texte étant une mise en garde et non une étiquette. */

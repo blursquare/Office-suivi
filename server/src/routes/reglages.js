@@ -13,6 +13,7 @@
 
 const express = require('express');
 const { envoyerEmail, envoiConfigure } = require('../envoiEmail');
+const { effacerCopiesEnvoyees, estCompteGmail } = require('../imapGmail');
 const { executerTacheRappels } = require('../jobs/rappels');
 
 // Forme d'une adresse email : un seul @, une partie locale, un domaine d'au moins deux libellés
@@ -72,9 +73,21 @@ function creerRouteurReglages(parametresRepo, envoyerFn, options) {
       return;
     }
     const resultat = await envoyer(reglages, email, MESSAGE_TEST);
+    if (!resultat.ok) {
+      res.status(502).json({ erreur: resultat.erreur });
+      return;
+    }
+    // Le test ATTEND l'effacement de la copie Gmail, contrairement aux notifications : c'est le
+    // seul moyen pour l'étude de vérifier que ce nettoyage fonctionne sur son compte.
+    let copieGmail = null;
+    if (estCompteGmail(reglages) && resultat.messageId) {
+      const n = await effacerCopiesEnvoyees(reglages, [resultat.messageId]);
+      copieGmail = { effacee: !!n.ok && n.effaces > 0, erreur: n.erreur || null };
+    }
     // L'adresse réellement utilisée est renvoyée : l'écran l'affiche pour qu'on la relise.
-    if (resultat.ok) res.json({ ok: true, destinataire: email, passerelle: reglages.emailPasserelle });
-    else res.status(502).json({ erreur: resultat.erreur });
+    const reponse = { ok: true, destinataire: email, passerelle: reglages.emailPasserelle };
+    if (copieGmail) reponse.copieGmail = copieGmail;
+    res.json(reponse);
   });
 
   // Compte rendu du dernier tour de la tâche de rappels (voir jobs/rappels.js). `null` tant que la

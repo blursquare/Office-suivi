@@ -14,6 +14,7 @@
 
 const express = require('express');
 const { envoyerEmail, envoiConfigure } = require('../envoiEmail');
+const { effacerCopiesEnvoyees } = require('../imapGmail');
 
 // Fonction pure et testable : le corps du message, séparé de l'envoi lui-même. Pas d'objet à
 // construire — celui de l'email transporte l'adresse du destinataire, lue par le flux pour router
@@ -48,10 +49,12 @@ function creerRouteurNotifications(parametresRepo, envoyerFn) {
     const texte = texteNotificationPieces(dossierNom, pieces);
     const email = responsable ? reglages.emailsResponsables[responsable] : null;
     const resultat = { ok: true, envoyeResponsable: false, envoyeCopie: false, erreurs: [] };
+    const messagesEnvoyes = [];
 
     if (email) {
       const envoi = await envoyer(reglages, email, texte);
       resultat.envoyeResponsable = envoi.ok;
+      if (envoi.ok && envoi.messageId) messagesEnvoyes.push(envoi.messageId);
       if (!envoi.ok) resultat.erreurs.push(envoi.erreur);
     } else if (responsable) {
       resultat.erreurs.push(`${responsable} : aucune adresse email configurée (voir Réglages).`);
@@ -63,10 +66,19 @@ function creerRouteurNotifications(parametresRepo, envoyerFn) {
     if (reglages.copieEmail && reglages.copieEmail !== email) {
       const copie = await envoyer(reglages, reglages.copieEmail, texte);
       resultat.envoyeCopie = copie.ok;
+      if (copie.ok && copie.messageId) messagesEnvoyes.push(copie.messageId);
       if (!copie.ok) resultat.erreurs.push(copie.erreur);
     }
 
     res.json(resultat);
+
+    // Effacement de la copie Gmail APRÈS la réponse (voir imapGmail.js) : le navigateur n'a pas à
+    // attendre une connexion IMAP pour une notification qu'il a lancée sans rien attendre en retour.
+    if (messagesEnvoyes.length) {
+      effacerCopiesEnvoyees(reglages, messagesEnvoyes).then((n) => {
+        if (n && !n.ok && n.erreur) console.warn('[CLAIRE]', n.erreur);
+      }).catch(() => {});
+    }
   });
 
   return router;

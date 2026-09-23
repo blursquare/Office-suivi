@@ -71,7 +71,7 @@ async function envoyerEmail(reglages, destinataireEmail, texte, creerTransportFn
   const creer = creerTransportFn || ((opts) => nodemailer.createTransport(opts));
   try {
     const transport = creer(optionsTransport(r));
-    await transport.sendMail({
+    const info = await transport.sendMail({
       // L'expéditeur doit être une adresse que le serveur accepte. Avec un compte SMTP, Microsoft
       // 365 EXIGE que l'expéditeur soit le compte authentifié lui-même (sauf droit « Envoyer en
       // tant que ») : un autre nom se solde par un refus « 5.7.60 Client does not have permissions
@@ -83,7 +83,9 @@ async function envoyerEmail(reglages, destinataireEmail, texte, creerTransportFn
       subject: destinataireEmail, // routage lu par le flux — voir la convention en tête de fichier
       text: texte
     });
-    return { ok: true, erreur: null };
+    // Le Message-ID sert à retrouver, et effacer, la copie que Gmail range dans « Messages
+    // envoyés » (voir imapGmail.js) : c'est le seul critère qui ne peut désigner que CE message.
+    return { ok: true, erreur: null, messageId: (info && info.messageId) || null };
   } catch (e) {
     return { ok: false, erreur: `Envoi SMTP impossible (${e.message}).` };
   }

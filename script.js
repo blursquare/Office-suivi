@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-23 18:15';
+  const VERSION_APP = '2026-09-23 20:03';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,8 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-23 20:03', resume: "Rappels : la copie que Gmail garde dans « Messages envoyés » est effacée "
+      + "après chaque envoi (corbeille puis suppression définitive)." },
     { version: '2026-09-23 18:15', resume: "Agenda connecté (.ics) : seuls l'obtention du prêt et la vente préalable y figurent, "
       + "et ils disparaissent une fois l'offre reçue ou la vente préalable réalisée." },
     { version: '2026-09-23 14:03', resume: "Appel de fonds : une date saisie le marque réalisé, titre en gras, section du bas "
@@ -18635,8 +18637,17 @@
         // conclure à tort que la chaîne fonctionne, et chercher le problème au mauvais endroit.
         const destinataire = corps.destinataire || enregistree;
         const passerelle = corps.passerelle || reglagesEnregistres.emailPasserelle;
+        // Compte Gmail : le serveur a aussi tenté d'effacer la copie rangée dans « Messages
+        // envoyés ». On le dit dans les deux cas — c'est le seul endroit où l'étude peut vérifier
+        // que ce nettoyage fonctionne sur son compte.
+        let copie = '';
+        if (corps.copieGmail) {
+          copie = corps.copieGmail.effacee
+            ? ' Copie effacée du compte Gmail.'
+            : ` ⚠ ${corps.copieGmail.erreur || 'Copie non effacée du compte Gmail.'}`;
+        }
         afficherResultatTest(resultat,
-          `✓ Remis au serveur d'envoi — boîte-passerelle « ${passerelle} », objet (destinataire Teams) « ${destinataire} ». Vérifiez maintenant dans Teams.`,
+          `✓ Remis au serveur d'envoi — boîte-passerelle « ${passerelle} », objet (destinataire Teams) « ${destinataire} ». Vérifiez maintenant dans Teams.${copie}`,
           'reglages-email-ok');
       } else {
         resultat.textContent = corps.erreur || "Échec de l'envoi.";
@@ -18686,6 +18697,12 @@
     html += `${escapeHtml(libelleRappelsTour(tour.rappelsEnvoyes, tour.rappelsDus))}.</span></div>`;
     if (erreurs.length) {
       html += '<ul class="dernier-tour-erreurs">' + erreurs.map((e) => `<li>${escapeHtml(e)}</li>`).join('') + '</ul>';
+    }
+    // Avertissements (copie Gmail non effacée) : les rappels sont partis, l'encart ne passe donc
+    // pas en alerte — mais une copie restée chez Google doit se voir.
+    const avertissements = Array.isArray(tour.avertissements) ? tour.avertissements : [];
+    if (avertissements.length) {
+      html += '<ul class="dernier-tour-avertissements">' + avertissements.map((e) => `<li>${escapeHtml(e)}</li>`).join('') + '</ul>';
     }
     zone.innerHTML = html;
   }

@@ -492,3 +492,49 @@ test('executerTacheRappels : envoi non configuré — aucun compte rendu écrit 
 
   db.close();
 });
+
+test('executerTacheRappels : copies Gmail effacées en UNE fois en fin de tour, échec = avertissement', async () => {
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  const parametresRepo = creerRepoParametres(db);
+  depot.creer({ id: 'd1', nom: 'DUPONT / MARTIN', responsable: 'Bastien ANGLUMENT', pret: '2026-11-11' });
+  parametresRepo.ecrireReglages({
+    emailActif: true, smtpHote: 'smtp.gmail.com', emailPasserelle: 'passerelle@etude.fr',
+    copieEmail: 'copie@etude.fr', emailsResponsables: { 'Bastien ANGLUMENT': 'b@etude.fr' }
+  });
+
+  let n = 0;
+  const envoyerFn = async () => ({ ok: true, messageId: `<m${++n}@claire>` });
+  const appels = [];
+  const effacerFn = async (reglages, ids) => {
+    appels.push(ids.join(','));
+    return { ok: false, effaces: 0, erreur: 'Copie Gmail non effacée (délai IMAP dépassé).' };
+  };
+  const r = await executerTacheRappels(depot, db, parametresRepo, envoyerFn, '2026-10-27', null, { effacerFn });
+
+  // Le principal ET la copie à l'étude, une seule connexion pour les deux.
+  assert.equal(appels.length, 1);
+  assert.equal(appels[0], '<m1@claire>,<m2@claire>');
+  // Les rappels sont partis : l'échec d'effacement n'est pas une erreur du tour.
+  assert.equal(r.rappelsEnvoyes, 1);
+  assert.equal(r.erreurs.length, 0);
+  const tour = parametresRepo.lireDernierTour();
+  assert.equal(tour.erreurs.length, 0);
+  assert.equal(tour.avertissements.length, 1);
+  assert.match(tour.avertissements[0], /Copie Gmail non effacée/);
+
+  db.close();
+});
+
+test('executerTacheRappels : aucun envoi réussi → aucune tentative d\'effacement', async () => {
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  const parametresRepo = creerRepoParametres(db);
+  depot.creer({ id: 'd1', nom: 'DUPONT / MARTIN', responsable: 'Bastien ANGLUMENT', pret: '2026-11-11' });
+  parametresRepo.ecrireReglages({ emailActif: true, smtpHote: 'smtp.gmail.com', emailPasserelle: 'passerelle@etude.fr', emailsResponsables: { 'Bastien ANGLUMENT': 'b@etude.fr' } });
+  let appels = 0;
+  await executerTacheRappels(depot, db, parametresRepo, async () => ({ ok: false, erreur: 'x' }), '2026-10-27', null,
+    { effacerFn: async () => { appels++; return { ok: true }; } });
+  assert.equal(appels, 0);
+  db.close();
+});

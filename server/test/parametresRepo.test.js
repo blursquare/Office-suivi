@@ -177,3 +177,10 @@ test('assainirDernierTour : les erreurs sont plafonnées et les entrées vides �
   assert.equal(t.erreurs[0], 'erreur 0');
   assert.equal(t.declenche, 'manuel');
 });
+
+test('assainirDernierTour conserve les avertissements (chaînes seulement)', () => {
+  const { assainirDernierTour } = require('../src/parametresRepo');
+  const t = assainirDernierTour({ at: 'x', avertissements: ['Copie Gmail non effacée', 3, ''] });
+  assert.equal(t.avertissements.length, 1);
+  assert.equal(assainirDernierTour({}).avertissements.length, 0);
+});

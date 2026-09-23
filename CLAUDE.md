@@ -6515,6 +6515,47 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     offre « à confirmer » qui le garde ; vente préalable validée retirée ; `sansPret` sans prêt).
     Suite serveur 220.
 
+- **La copie des rappels gardée par Gmail dans « Messages envoyés » est effacée après chaque envoi**,
+  demandé par l'étude (« supprimer l'e-mail une fois la notification délivrée », puis « fais ça pour
+  gmail »). Chaque rappel porte un nom de dossier et une échéance, qui n'ont pas à rester stockés
+  chez Google. Le SMTP ne peut pas empêcher cette copie : il faut revenir la supprimer par IMAP.
+  - **`server/src/imapGmail.js`** (nouveau), client IMAP minimal écrit à la main — sept commandes
+    (LOGIN, LIST, SELECT, UID SEARCH, UID MOVE, UID STORE, UID EXPUNGE). `imapflow` écarté : sa
+    journalisation à base de worker threads supporte mal l'exécutable SEA, même raison que `llm.js`
+    sans dépendance. `imap.gmail.com:993`, **même compte et même mot de passe d'application** que
+    le SMTP : rien de plus à saisir. Ne s'applique que si `smtpHote` est un serveur Gmail
+    (`estCompteGmail`).
+  - **Trois décisions** : le message est retrouvé par son **Message-ID exact** (renvoyé désormais
+    par `envoyerEmail()` à partir de `info.messageId` de nodemailer), jamais par destinataire ou
+    objet — le compte peut servir à autre chose ; il part dans la corbeille **puis** en est
+    supprimé (`UID STORE +FLAGS.SILENT (\Deleted)` + **`UID EXPUNGE` restreint à ces UID**, jamais
+    un `EXPUNGE` global qui viderait d'autres messages marqués) — sinon Gmail le garde 30 jours ;
+    et un échec n'annule **jamais** l'envoi, déjà fait : c'est un avertissement, pas une erreur.
+  - Les dossiers « Messages envoyés »/« Corbeille » sont lus par leurs attributs `\Sent`/`\Trash`
+    (RFC 6154), pas par leur nom, localisé selon la langue du compte ; repli sur les noms anglais.
+    La recherche est relancée (NOOP + 3 essais espacés de 2 s) car Gmail ne range pas toujours la
+    copie avant que la recherche parte ; sans `COPYUID` après le `UID MOVE`, les messages sont
+    recherchés à nouveau dans la corbeille. Le mot de passe n'est jamais repris dans un message
+    d'erreur (`exiger()` ne cite pas la commande).
+  - **Branchements** : `executerTacheRappels()` rassemble les Message-ID du tour (rappel principal
+    ET copie à l'étude) et fait **une seule** session IMAP en fin de tour ; un échec va dans le
+    nouveau `resultat.avertissements`, persisté dans le compte rendu (`assainirDernierTour`) et
+    rendu en orange sous « Dernier tour de rappels » — **pas** dans `erreurs`, qui fait basculer
+    l'encart en rouge et signifie « un rappel n'est pas parti ». La route de notification de pièces
+    nettoie en arrière-plan, après sa réponse. `tester-email` attend le nettoyage et renvoie
+    `copieGmail {effacee, erreur}` (seulement pour un compte Gmail), affiché à côté du résultat :
+    c'est le seul moyen pour l'étude de vérifier le comportement sur son vrai compte.
+  - **La copie reçue par la boîte-passerelle Outlook n'est PAS concernée** : CLAIRE n'a aucun accès
+    à cette boîte. Elle se supprime dans le flux Power Automate (« Supprimer l'e-mail (V2) » après
+    l'action Teams, exécutée seulement si celle-ci a réussi) — expliqué à l'étude, à elle de le faire.
+  - Tests : `server/test/imap-gmail.test.js` (10, contre un faux serveur IMAP en `net` local —
+    commandes exactes, relance, repli sans COPYUID, introuvable, connexion refusée sans mot de passe
+    dans l'erreur) ; +2 dans `rappels.test.js`, +1 dans `envoi-email.test.js`, +1 dans
+    `parametresRepo.test.js`. **Non vérifié en conditions réelles** : `imap.gmail.com` est
+    injoignable depuis cet environnement — à confirmer par l'étude avec le bouton « Tester »
+    (« Copie effacée du compte Gmail »). Prérequis possible : l'accès IMAP doit être activé dans les
+    paramètres Gmail du compte (il l'est par défaut sur les comptes récents).
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

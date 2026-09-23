@@ -22,6 +22,7 @@
 // l'une des deux, vérifier si l'autre a besoin du même changement.
 
 const { envoyerEmail, envoiConfigure } = require('../envoiEmail');
+const { effacerCopiesEnvoyees } = require('../imapGmail');
 const { piecesRecuesEtManquantes } = require('../piecesChecklist');
 
 // Seuils de rappel PAR ÉCHÉANCE, donnés un par un par l'étude — pas un seuil unique pour tout.
@@ -156,8 +157,15 @@ function texteRappel(r) {
 // double si la copie coïncide avec l'adresse du responsable lui-même. Un échec de la copie est
 // consigné dans `erreurs` mais ne remet jamais en cause le marquage du rappel principal comme
 // envoyé : c'est lui qui compte pour ne pas relancer le collaborateur concerné.
-async function executerTacheRappels(depot, db, parametresRepo, envoyerFn, aujourdHui, declenche) {
-  const resultat = { rappelsDus: 0, rappelsEnvoyes: 0, erreurs: [] };
+//
+// Avec un compte Gmail, les copies rangées par Gmail dans « Messages envoyés » sont effacées en UNE
+// seule connexion IMAP en fin de tour (voir imapGmail.js), pas après chaque message : un tour peut
+// en envoyer plusieurs, et se reconnecter pour chacun ne ferait que ralentir. Un échec d'effacement
+// est un AVERTISSEMENT, jamais une erreur : les rappels, eux, sont bien partis — l'encart de
+// l'écran Réglages ne doit pas passer au rouge pour une copie restée chez Google.
+// `options.effacerFn` injectable pour les tests.
+async function executerTacheRappels(depot, db, parametresRepo, envoyerFn, aujourdHui, declenche, options) {
+  const resultat = { rappelsDus: 0, rappelsEnvoyes: 0, erreurs: [], avertissements: [] };
   const reglages = parametresRepo.lireReglages();
   // Envoi non configuré : on sort SANS rien consigner. Écrire un compte rendu vide écraserait le
   // dernier vrai tour par une ligne qui ne dit rien — et l'écran Réglages affiche déjà, à sa
@@ -177,6 +185,7 @@ async function executerTacheRappels(depot, db, parametresRepo, envoyerFn, aujour
 
   const marquerStmt = db.prepare('INSERT OR IGNORE INTO reminder_log (dossier_id, reminder_key, sent_at) VALUES (?, ?, ?)');
   const envoyer = envoyerFn || envoyerEmail;
+  const messagesEnvoyes = [];
 
   for (const r of dus) {
     const email = reglages.emailsResponsables[r.responsable];
@@ -188,9 +197,11 @@ async function executerTacheRappels(depot, db, parametresRepo, envoyerFn, aujour
     const envoi = await envoyer(reglages, email, texte);
     if (envoi.ok) {
       resultat.rappelsEnvoyes++;
+      if (envoi.messageId) messagesEnvoyes.push(envoi.messageId);
       marquerStmt.run(r.dossierId, r.reminderKey, new Date().toISOString());
       if (reglages.copieEmail && reglages.copieEmail !== email) {
         const copie = await envoyer(reglages, reglages.copieEmail, texte);
+        if (copie.ok && copie.messageId) messagesEnvoyes.push(copie.messageId);
         if (!copie.ok) {
           resultat.erreurs.push(`Copie (${reglages.copieEmail}) pour ${r.nomDossier} — ${r.libelle} : ${copie.erreur}`);
         }
@@ -198,6 +209,12 @@ async function executerTacheRappels(depot, db, parametresRepo, envoyerFn, aujour
     } else {
       resultat.erreurs.push(`${r.nomDossier} — ${r.libelle} : ${envoi.erreur}`);
     }
+  }
+
+  const effacer = (options && options.effacerFn) || effacerCopiesEnvoyees;
+  if (messagesEnvoyes.length) {
+    const nettoyage = await effacer(reglages, messagesEnvoyes);
+    if (nettoyage && !nettoyage.ok && nettoyage.erreur) resultat.avertissements.push(nettoyage.erreur);
   }
 
   // Le compte rendu est consigné ICI plutôt que chez l'appelant : les deux appelants (le minuteur
@@ -210,6 +227,7 @@ async function executerTacheRappels(depot, db, parametresRepo, envoyerFn, aujour
       rappelsDus: resultat.rappelsDus,
       rappelsEnvoyes: resultat.rappelsEnvoyes,
       erreurs: resultat.erreurs,
+      avertissements: resultat.avertissements,
       declenche: declenche === 'manuel' ? 'manuel' : 'automatique'
     });
   }
