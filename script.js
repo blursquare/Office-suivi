@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-23 20:12';
+  const VERSION_APP = '2026-09-23 20:59';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,8 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-23 20:59', resume: "Relecture d'actes : parties relues dans l'avant-contrat (plus d'acquéreur passé "
+      + "vendeur), adresse et cadastre corrigés, dates plus comparées, analyse IA retirée." },
     { version: '2026-09-23 20:12', resume: "Copie Gmail des rappels effacée 2 h après l'envoi seulement, pour laisser le flux "
       + "Power Automate lire le message avant." },
     { version: '2026-09-23 20:03', resume: "Rappels : la copie que Gmail garde dans « Messages envoyés » est effacée "
@@ -2681,12 +2683,27 @@
   // de colonnes suivi des valeurs. Le motif ci-dessus, écrit pour la rédaction en toutes lettres
   // d'un avant-contrat, ne peut pas le voir. Motif distinct plutôt qu'alternative ajoutée au
   // premier : il s'ancre sur cet en-tête précis, ce qui le rend sans risque de faux positif.
-  var RE_CADASTRE_TABLEAU = /cadastre\s*:?\s*Section\s+N[°ºo]?\s+Lieudit\s+([A-Z]{1,3})\s+(\d{1,4})\b/i;
+  // Deux variantes relevées sur l'acte MOKADEM (promesse et vente) : une colonne « Surface » entre
+  // l'en-tête et les valeurs, et « c adastre » coupé en deux par pdf.js.
+  var RE_CADASTRE_TABLEAU = /c\s?adastre\s*:?\s*Section\s+N[°ºo]?\s+Lieudit\s+(?:Surface\s+)?([A-Z]{1,3})\s+(\d{1,4})\b/i;
+
+  // L'« historique cadastral » d'un acte décrit la parcelle d'AVANT une division (« originairement
+  // cadastrée section ER numéro 189 ») : c'était elle qui ressortait, alors que le bien vendu est
+  // la parcelle issue de la division. Une mention précédée d'un de ces mots est écartée.
+  var RE_CADASTRE_ANCIEN = /(?:originairement|anciennement|pr[ée]c[ée]demment|autrefois|initialement|ci-devant)\s*$/i;
 
   function detecterCadastre(texte) {
     const source = String(texte || '');
-    const m = RE_CADASTRE.exec(source) || RE_CADASTRE_TABLEAU.exec(source);
-    return m ? { section: m[1].toUpperCase(), numero: m[2] } : null;
+    // Le tableau de la partie normalisée est la désignation actuelle : il passe en premier.
+    const t = RE_CADASTRE_TABLEAU.exec(source);
+    if (t) return { section: t[1].toUpperCase(), numero: t[2] };
+    const re = new RegExp(RE_CADASTRE.source, 'gi');
+    let m;
+    while ((m = re.exec(source)) !== null) {
+      if (RE_CADASTRE_ANCIEN.test(source.slice(Math.max(0, m.index - 30), m.index))) continue;
+      return { section: m[1].toUpperCase(), numero: m[2] };
+    }
+    return null;
   }
 
   // Adresse du bien, découpée en composants. Cherche d'abord dans la section désignation, puis dans
@@ -2707,10 +2724,11 @@
   // deux relevées sur de vraies promesses — et qui laissaient l'adresse du bien vide :
   //  - trame d'office (LD Notaires, GOSSART) : « IDENTIFICATION DU BIEN — DÉSIGNATION — A BLOIS
   //    (LOIR-ET-CHER) 41000 1 Rue Hannah Arendt, Une maison… ». pdf.js coupe parfois le titre en
-  //    « D ÉSIGNATION », d'où l'espace toléré ;
+  //    « D ÉSIGNATION », voire « D   ESIGNATION » (plusieurs espaces sur l'acte de vente MOKADEM),
+  //    d'où les espaces tolérés ;
   //  - « Commune de LANDES LE GAULOIS (41190) Une maison d'habitation situé(e) 510 rue Pitouille. »
   // L'adresse reconstruite reprend l'ordre usuel (voie, code postal, commune).
-  var RE_DESIGNATION_TRAME_OFFICE = /D\s?[ÉE]\s?SIGNATION\s+(?:A|À)\s+([A-ZÀ-Ü][A-ZÀ-Ü'’\s-]{1,40}?)\s*\([^)]{2,40}\)\s*(\d{5})\s+([^,.\n]{2,80}?)\s*[,.]/;
+  var RE_DESIGNATION_TRAME_OFFICE = /D\s*[ÉE]\s*SIGNATION\s+(?:A|À)\s+([A-ZÀ-Ü][A-ZÀ-Ü'’\s-]{1,40}?)\s*\([^)]{2,40}\)\s*(\d{5})\s+([^,.\n]{2,80}?)\s*[,.]/;
   var RE_DESIGNATION_COMMUNE_DE = /Commune\s+de\s+([A-ZÀ-Ü][A-ZÀ-Ü'’\s-]{1,40}?)\s*\(\s*(\d{5})\s*\)[^.]{0,120}?situ[ée]e?(?:\s*\(e\))?\s+(?:au\s+|[àa]\s+)?(\d+[^.,\n]{2,60}?)\s*[,.]/;
 
   function adresseDesignationTrame(source) {
@@ -3055,6 +3073,31 @@
     };
   }
 
+  // Référence de la comparaison avant-contrat → projet. Quand le TEXTE de l'avant-contrat est
+  // disponible (déposé ici, ou récupéré sur le NAS du dossier lié), c'est lui qui fait foi pour
+  // les parties : celles enregistrées sur le dossier datent de sa création, et un dossier créé
+  // avant le correctif des blocs de parties (21/09) peut porter l'acquéreur rangé côté vendeur —
+  // c'était la cause du « Rôle changé » signalé sur l'acte MOKADEM, alors que les deux actes
+  // étaient conformes. Le dossier ne sert plus qu'à compléter ce que le texte n'a pas donné (prix,
+  // adresse, cadastre, déjà relus par l'étude à la création).
+  function referenceAudit(texte, nomFichier, dossier) {
+    const depuisDossier = referenceDepuisDossier(dossier);
+    if (!texte) return depuisDossier;
+    const ref = construireExtractionRegex(texte, null, null, nomFichier);
+    if (!depuisDossier) return ref;
+    if (!(ref.parties || []).length) ref.parties = depuisDossier.parties;
+    const prixTexte = ref.champs && ref.champs.prixVente && ref.champs.prixVente.valeur;
+    const prixDossier = depuisDossier.champs.prixVente.valeur;
+    if (prixTexte == null && prixDossier != null) ref.champs.prixVente = depuisDossier.champs.prixVente;
+    ref.bien = ref.bien || { adresse: null, cadastre: null };
+    const adresseDossier = depuisDossier.bien && depuisDossier.bien.adresse;
+    if (!(ref.bien.adresse && adresseLisible(ref.bien.adresse)) && adresseDossier && adresseLisible(adresseDossier)) {
+      ref.bien.adresse = adresseDossier;
+    }
+    if (!ref.bien.cadastre && depuisDossier.bien && depuisDossier.bien.cadastre) ref.bien.cadastre = depuisDossier.bien.cadastre;
+    return ref;
+  }
+
   // Compare deux valeurs texte en ignorant accents/casse/espaces superflus — même principe que
   // normaliserPourRecherche() (recherche de dossier), appliqué ici à un nom de partie ou une adresse.
   function memeValeurTexte(a, b) {
@@ -3064,10 +3107,6 @@
   function partieCorrespondante(partie, liste) {
     return (liste || []).find(p => memeValeurTexte(p.nom, partie.nom));
   }
-
-  var LIBELLES_TYPE_DATE_COMPARAISON = {
-    BUTOIR_PRET: 'Obtention du prêt', REITERATION_ACTE: 'Signature de l’acte', BUTOIR_VENTE_PREALABLE: 'Vente préalable'
-  };
 
   // Constat pur (sans IA) : {categorie: 'COMPARAISON_COMPROMIS', gravite, titre, description,
   // sources: []} — même forme que les constats produits par les passes IA côté serveur (voir
@@ -3122,7 +3161,11 @@
 
     const adresseRef = reference.bien && reference.bien.adresse;
     const adresseProjet = projet.bien && projet.bien.adresse;
-    if (adresseRef && adresseProjet && !memeValeurTexte(adresseLisible(adresseRef), adresseLisible(adresseProjet))) {
+    // Une adresse que l'outil n'a pas su lire (champ vide) n'est pas une adresse DIFFÉRENTE : c'est
+    // ce qui produisait un CRITIQUE « Désignation du bien différente » sur un projet conforme.
+    const lisibleRef = adresseRef ? adresseLisible(adresseRef) : '';
+    const lisibleProjet = adresseProjet ? adresseLisible(adresseProjet) : '';
+    if (lisibleRef && lisibleProjet && !memeValeurTexte(lisibleRef, lisibleProjet)) {
       constats.push({
         categorie: 'COMPARAISON_COMPROMIS', gravite: 'CRITIQUE',
         titre: 'Désignation du bien différente',
@@ -3154,18 +3197,10 @@
       });
     }
 
-    for (const type of Object.keys(LIBELLES_TYPE_DATE_COMPARAISON)) {
-      const vRef = reference.dates && reference.dates[type] && reference.dates[type].valeur;
-      const vProjet = projet.dates && projet.dates[type] && projet.dates[type].valeur;
-      if (vRef && vProjet && vRef !== vProjet) {
-        constats.push({
-          categorie: 'COMPARAISON_COMPROMIS', gravite: 'A_VERIFIER',
-          titre: `Date différente — ${LIBELLES_TYPE_DATE_COMPARAISON[type]}`,
-          description: `Compromis/promesse : ${vRef} — projet de vente : ${vProjet}. Un report peut être légitime, à confirmer.`,
-          sources: []
-        });
-      }
-    }
+    // Pas de comparaison des DATES : l'acte de vente n'a plus de date butoir, il RELATE les
+    // conditions levées. Sa « date de prêt » est celle de l'offre (« selon offre du 8 août 2026 »),
+    // qui n'a rien à voir avec la date butoir de l'avant-contrat — la comparer produisait une
+    // fausse alerte sur chaque vente financée par un prêt.
 
     return constats;
   }
@@ -5221,7 +5256,11 @@
   // le champ d'application… par suite il n'a pas été établi d'audit énergétique »). L'acte a déjà
   // répondu : le signaler reviendrait à poser une question sur chaque acte qui prend la peine de
   // se justifier — la clause de style, encore, comme pour les travaux et la copropriété.
-  var RE_DISPENSE_DOCUMENT = /n['’]entre\s+pas\s+dans\s+le\s+champ\s+d['’]application|non\s+soumis|n['’]est\s+pas\s+soumis|dispens[ée]|sans\s+objet|non\s+applicable|n['’]est\s+pas\s+tenu/i;
+  // « conformément aux dispositions de l'article… » et « ne relevant pas de… » : l'acte de vente
+  // MOKADEM écarte l'audit énergétique ainsi (« étant un bâtiment… ne relevant pas du statut de la
+  // copropriété… il n'a pas été établi d'audit énergétique, conformément aux dispositions de
+  // l'article L 126-28-1 ») — l'absence est justifiée par le texte lui-même.
+  var RE_DISPENSE_DOCUMENT = /n['’]entre\s+pas\s+dans\s+le\s+champ\s+d['’]application|non\s+soumis|n['’]est\s+pas\s+soumis|dispens[ée]|sans\s+objet|non\s+applicable|n['’]est\s+pas\s+tenu|ne\s+relevant\s+pas|conform[ée]ment\s+aux\s+dispositions/i;
 
   // Les contrôles de cohérence qui décrivent une CONTRADICTION DANS L'ACTE, et non une limite de
   // notre lecture. ADRESSE_INCOMPLETE et NOTAIRE_INSTRUMENTAIRE_INCERTAIN en sont volontairement
@@ -5940,6 +5979,23 @@
     return fin === -1 ? reste.slice(0, 12000) : reste.slice(0, fin + 20);
   }
 
+  // Le texte lu par pdf.js n'a qu'un retour à la ligne par page : une clause récupérée en remontant
+  // jusqu'au point précédent traîne donc tout ce qui la sépare de la phrase d'avant — le renvoi
+  // d'annexe qui clôt la clause précédente, le numéro de page, le titre de section. Sur l'acte
+  // MOKADEM : « Annexe n°9bis 28 Le PROMETTANT s'engage… », « CONDITIONS PARTICULIERES Le
+  // PROMETTANT s'engage… ». Ce sont des débris de mise en page, pas le texte de l'engagement.
+  function nettoyerDebutClause(brut) {
+    let t = String(brut || '').replace(/\s+/g, ' ').trim();
+    let avant;
+    do {
+      avant = t;
+      t = t.replace(/^annexes?\s+n[°ºo]\s*[\w-]+\s*/i, '')
+        .replace(/^\d{1,3}\s+(?=\S)/, '')
+        .replace(/^(?:[A-ZÀ-Ü'’-]{2,}\s+)+(?=[A-ZÀ-Ü][a-zà-ÿ])/, '');
+    } while (t !== avant);
+    return t;
+  }
+
   function extraireEngagementsVendeur(texte) {
     const engagements = [];
     const vus = new Set();
@@ -5971,7 +6027,7 @@
         if (texte[debut - 1] === '.') break;
         debut--; n++;
       }
-      const phrase = texte.slice(debut, fin).replace(/\s+/g, ' ').trim();
+      const phrase = nettoyerDebutClause(texte.slice(debut, fin));
       if (phrase.length <= 25) continue;
       if (EXCLUSION_ENGAGEMENT_RE.test(phrase)) continue;
       if (LISTE_EQUIPEMENTS_RE.test(phrase)) continue;
@@ -9769,7 +9825,6 @@
     if (nom === 'suivi' || nom === 'dashboard') render();
     // Vérifiée à chaque ouverture (appel léger) plutôt qu'une fois pour toutes : Ollama a pu être
     // installé/démarré/arrêté sur le serveur depuis la dernière visite de cet onglet.
-    if (nom === 'analyse-ia') verifierDisponibiliteAnalyseIa();
     // Réglages relus à chaque ouverture (un collègue a pu les modifier depuis un autre poste,
     // même principe que la disponibilité d'Ollama ci-dessus).
     if (nom === 'reglages') chargerReglages();
@@ -16173,29 +16228,6 @@
     }
   }
 
-  // Interrogée à chaque ouverture de l'onglet (voir definirOnglet) : Ollama a pu être installé/
-  // démarré/arrêté sur le serveur depuis la dernière visite. Affiche tout de suite un message
-  // actionnable (modèle absent, Ollama non lancé...) plutôt que de laisser lancer un audit de
-  // plusieurs minutes pour découvrir l'échec à la fin — voir server/src/routes/auditActe.js.
-  async function verifierDisponibiliteAnalyseIa() {
-    const zone = document.getElementById('analyse-ia-dispo');
-    if (!zone) return;
-    try {
-      const reponse = await fetchAvecAuth('/api/audit-acte/disponibilite');
-      const statut = await reponse.json();
-      zone.style.display = 'flex';
-      if (statut.disponible) {
-        zone.className = 'analyse-ia-dispo dispo-ok';
-        zone.innerHTML = `${icone('sparkle')}Modèle local « ${escapeHtml(statut.modele)} » disponible.`;
-      } else {
-        zone.className = 'analyse-ia-dispo dispo-off';
-        zone.innerHTML = `${icone('alert-triangle')}${escapeHtml(statut.raison || 'Modèle IA local indisponible.')}`;
-      }
-    } catch (e) {
-      // Session expirée : fetchAvecAuth a déjà réaffiché l'écran de connexion, rien d'autre à faire.
-    }
-  }
-
   // 4 niveaux de gravité (§16 du cahier des charges), sur seulement 3 couleurs déjà réservées dans
   // l'outil (pas de 5ᵉ couleur inventée pour l'occasion, voir CLAUDE.md) : IMPORTANT et A_VERIFIER
   // partagent l'ambre, distingués par leur texte et leur icône plutôt que par la couleur.
@@ -16208,9 +16240,9 @@
 
   // Un constat cite TOUJOURS le passage du document dont il vient, avec sa page : c'est ce qui
   // permet de le vérifier en dix secondes plutôt que de relire l'acte. `phrase`/`page` viennent
-  // des règles déterministes ; `sources` est la forme d'un constat venu du modèle local (bouton
-  // « Approfondir »), où la citation a d'abord été vérifiée côté serveur — une citation non
-  // retrouvée est signalée comme telle, jamais présentée au même rang qu'une citation confirmée.
+  // des règles déterministes ; `sources` est l'ancienne forme d'un constat venu du modèle local
+  // (bouton « Approfondir », retiré le 23/09/2026) — conservée pour ne pas casser un rendu : une
+  // citation non retrouvée reste signalée comme telle.
   function renderSourceConstat(c) {
     if (c.phrase) return citationObligation(c.phrase, c.page, 300);
     const liste = Array.isArray(c.sources) ? c.sources : [];
@@ -16247,10 +16279,7 @@
 
   function renderConstatAudit(c) {
     const g = libelleGraviteAudit(c.gravite);
-    const origine = c.source === 'ia'
-      ? `<span class="dot-label dl-neutre" title="Constat proposé par le modèle local, en complément des règles — à vérifier.">${icone('sparkle')}IA</span>`
-      : '';
-    const corps = `<div class="analyse-ia-constat-titre"><span class="dot-label ${g.dl}">${icone(g.icone)}${g.texte}</span>${origine}${escapeHtml(c.titre)}</div>
+    const corps = `<div class="analyse-ia-constat-titre"><span class="dot-label ${g.dl}">${icone(g.icone)}${g.texte}</span>${escapeHtml(c.titre)}</div>
       ${c.description ? `<p class="analyse-ia-constat-desc">${escapeHtml(c.description)}</p>` : ''}
       ${renderSourceConstat(c)}
       ${renderDecisionAudit(c)}`;
@@ -16424,14 +16453,6 @@
       : analyserCompromisOutil2({ ...ctx.entree, typeBienForce: typeBienAuditChoisi });
     resultat.nbJustificatifs = ctx.nbJustificatifs;
     resultat.couvertureDocuments = ctx.couvertureDocuments;
-    resultat.texteAnalyse = ctx.texteAnalyse;
-    // Les constats déjà obtenus du modèle local sont réinjectés : les perdre obligerait à relancer
-    // plusieurs minutes de calcul pour une simple correction de type de bien.
-    for (const c of (ctx.constatsIa || [])) {
-      resultat.constats.push(c);
-      if (resultat.resume && resultat.resume[c.gravite] != null) resultat.resume[c.gravite]++;
-    }
-    if ((ctx.constatsIa || []).length || ctx.iaFaite) resultat.iaFaite = true;
     dernierRapportAudit = resultat;
     preparerRapportAudit(resultat);
     renderRapportAuditActe(resultat);
@@ -16778,11 +16799,8 @@
       html += renderBlocAudit(bloc, resultat, constats);
     }
 
-    html += renderSectionAudit('Relecture complémentaire par le modèle local',
-      constats.filter(c => c.categorie === 'IA'), renderConstatAudit);
     html += renderQuestionsAudit(resultat.questions);
     html += renderRubriquesMasqueesAudit(constats);
-    html += renderBoutonApprofondirIa(resultat);
     zone.innerHTML = html;
   }
 
@@ -16840,75 +16858,6 @@
     }
   }
 
-  // ---- Approfondissement OPTIONNEL par le modèle local -------------------------------------
-  // Décision prise avec l'étude après son retour (« c'est trop long, il n'a jamais réussi à me
-  // sortir quelque chose ») : le modèle ne bloque plus rien. Le rapport des règles est déjà à
-  // l'écran, et ce bouton lance UNE requête courte dont l'échec ne coûte que le temps de l'essai.
-  let approfondissementIaEnCours = false;
-
-  function renderBoutonApprofondirIa(resultat) {
-    if (resultat.iaFaite) return '';
-    const libelle = approfondissementIaEnCours
-      ? `${icone('spinner', null, true)} Lecture par le modèle local…`
-      : `${icone('sparkle')} Approfondir avec l'IA locale`;
-    return `<div class="analyse-ia-actions" style="margin-top:14px;">
-      <button type="button" class="secondary" id="audit-approfondir-btn" onclick="approfondirAuditAvecIa()" ${approfondissementIaEnCours ? 'disabled' : ''}>${libelle}</button>
-    </div>
-    <p class="hint">Facultatif : le modèle relit le document à la recherche de ce qui échappe aux règles (clause inhabituelle, contradiction entre deux passages). Compter jusqu'à une minute ; le rapport ci-dessus reste affiché quoi qu'il arrive.</p>`;
-  }
-
-  async function approfondirAuditAvecIa() {
-    if (!dernierRapportAudit || approfondissementIaEnCours) return;
-    const texte = dernierRapportAudit.texteAnalyse;
-    if (!texte) return;
-    approfondissementIaEnCours = true;
-    renderRapportAuditActe(dernierRapportAudit);
-    try {
-      const reponse = await fetchAvecAuth('/api/audit-acte/approfondir', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          texte,
-          // Le modèle reçoit ce que les règles ont DÉJÀ trouvé : sans ça, il passe son temps à
-          // redire les mêmes choses, ce qui allonge la réponse sans rien apporter.
-          constatsDejaTrouves: (dernierRapportAudit.constats || []).map(c => c.titre).slice(0, 20)
-        })
-      });
-      const corps = await reponse.json();
-      if (!reponse.ok) {
-        afficherToast(corps.erreur || "Le modèle local n'a pas pu répondre — le rapport ci-dessus reste valable.", 'OK', null);
-        return;
-      }
-      const ajoutes = Array.isArray(corps.constats) ? corps.constats : [];
-      for (const c of ajoutes) {
-        const constat = {
-          categorie: 'IA',
-          source: 'ia',
-          gravite: c.gravite,
-          titre: c.titre,
-          description: c.description,
-          sources: c.phrase ? [{ extrait: c.phrase, extraitTrouve: c.extraitVerifie !== false }] : []
-        };
-        dernierRapportAudit.constats.push(constat);
-        // Gardés aussi dans le contexte : sans ça, corriger le type de bien rejouerait l'analyse
-        // et effacerait plusieurs minutes de calcul du modèle local.
-        if (dernierAuditContexte) dernierAuditContexte.constatsIa.push(constat);
-        if (dernierRapportAudit.resume && dernierRapportAudit.resume[c.gravite] != null) dernierRapportAudit.resume[c.gravite]++;
-      }
-      dernierRapportAudit.iaFaite = true;
-      if (dernierAuditContexte) dernierAuditContexte.iaFaite = true;
-      preparerRapportAudit(dernierRapportAudit);
-      afficherToast(ajoutes.length
-        ? `${ajoutes.length} constat(s) proposé(s) par le modèle local — à vérifier un par un.`
-        : "Le modèle local n'a rien vu de plus que les règles.", 'OK', null);
-    } catch (e) {
-      // Session expirée : fetchAvecAuth a déjà réaffiché l'écran de connexion.
-    } finally {
-      approfondissementIaEnCours = false;
-      renderRapportAuditActe(dernierRapportAudit);
-    }
-  }
-
   // ---- Lancement de l'analyse --------------------------------------------------------------
   // Entièrement SYNCHRONE, hormis la récupération éventuelle de l'avant-contrat sur le NAS :
   // toute l'analyse est du calcul local sur du texte déjà lu, aucun aller-retour serveur. C'est
@@ -16957,17 +16906,11 @@
             pagesProjet: principal.pages,
             documentsDeposes: justificatifs,
             dossierLie: auditDossierLie,
-            reference: auditDossierLie
-              ? referenceDepuisDossier(auditDossierLie)
-              : construireExtractionRegex(ref.texte, null, null, ref.nom),
+            reference: referenceAudit(ref.texte, ref.nom, auditDossierLie),
             projet: construireExtractionRegex(principal.texte, null, null, principal.nom)
           },
           nbJustificatifs: justificatifs.length,
-          couvertureDocuments: couverture,
-          // Texte gardé pour le bouton « Approfondir » : c'est le document à relire dans les deux
-          // modes (le projet en mode acte, l'avant-contrat en mode compromis).
-          texteAnalyse: principal.texte,
-          constatsIa: []
+          couvertureDocuments: couverture
         };
       } else {
         dernierAuditContexte = {
@@ -16982,9 +16925,7 @@
             extraction: construireExtractionRegex(principal.texte, null, null, principal.nom)
           },
           nbJustificatifs: justificatifs.length,
-          couvertureDocuments: couverture,
-          texteAnalyse: principal.texte,
-          constatsIa: []
+          couvertureDocuments: couverture
         };
       }
 
@@ -18766,7 +18707,7 @@
       'icon-reglages-apropos': 'info',
       'icon-nav-quotites': 'users',
       'icon-calc-warning': 'alert-triangle',
-      'icon-nav-analyse-ia': 'sparkle',
+      'icon-nav-analyse-ia': 'eye',
       'icon-analyse-ia-warning': 'alert-triangle',
       'icon-analyse-ia-dropzone': 'upload',
       'icon-pdf-recherche': 'search',

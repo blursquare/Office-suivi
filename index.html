@@ -50,12 +50,11 @@
              d.piecesNotifications dans script.js) : masqué tant qu'il n'y a rien à signaler. -->
         <span class="sidebar-badge-notif" id="badge-notif-suivi" style="display:none;"></span>
       </button>
-      <!-- Outil d'import et d'analyse juridique approfondie par IA locale (Ollama, voir
-           server/src/llm.js/CLAUDE.md) : distinct du wizard "Nouveau dossier" (qui extrait des
-           dates/champs par regex pour créer un dossier de suivi) — ici on dépose l'acte ET ses
-           annexes séparément pour une relecture croisée, sans forcément créer de dossier. -->
+      <!-- Outil 2, relecture d'un acte (règles déterministes, sans IA depuis le 23/09/2026) :
+           distinct du wizard "Nouveau dossier" — ici on dépose l'acte ET ses annexes séparément
+           pour une relecture croisée, sans créer de dossier. -->
       <button type="button" id="tab-analyse-ia" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('analyse-ia')">
-        <span class="sidebar-link-icone" id="icon-nav-analyse-ia" aria-hidden="true"></span>Audit des actes (IA)
+        <span class="sidebar-link-icone" id="icon-nav-analyse-ia" aria-hidden="true"></span>Relecture d'actes
       </button>
 
       <span class="sidebar-nav-titre">Outils</span>
@@ -1191,15 +1190,10 @@
   </div>
 </div>
 
-<!-- Outil 2 — Audit intelligent des actes notariaux (voir CLAUDE.md, section "Outil 2") :
-     remplace l'ancienne "Analyse approfondie (IA)" (un seul prompt, un seul type de document).
-     Sélecteur de MODE explicite à l'upload (projet de compromis/promesse, ou projet d'acte de
-     vente notarié — jamais deviné), documents typés qui routent chacun vers les seules passes
-     qui en ont besoin côté serveur, et 5 passes ciblées couvrant les 19 sections du cahier des
-     charges plutôt qu'un unique prompt fourre-tout. Tourne entièrement sur le serveur de l'étude
-     (Ollama en local, voir server/README.md) : aucun texte de document n'est jamais envoyé à un
-     service extérieur. Onglet propre au serveur intranet — n'existe pas sur la version 100%
-     locale (main), qui n'a pas de backend pour héberger le modèle. -->
+<!-- Outil 2 — Relecture d'un acte (voir CLAUDE.md, entrées « Outil 2 »). Entièrement
+     déterministe et calculé dans le navigateur : aucun appel au modèle local depuis le 23/09/2026
+     (l'étude a jugé son apport nul). Sélecteur de MODE explicite (projet de compromis/promesse,
+     ou projet d'acte de vente — jamais deviné). -->
 <div class="onglet-panel" id="onglet-analyse-ia" style="display:none;">
   <div class="dash-header">
     <div>
@@ -1213,8 +1207,6 @@
       </div>
     </div>
   </div>
-
-  <div id="analyse-ia-dispo" class="analyse-ia-dispo" style="display:none;"></div>
 
   <div class="dash-grid audit-grid">
     <div class="calc-card">
@@ -1268,7 +1260,7 @@
     <p><strong>Sur un compromis ou une promesse</strong>, quatre points, et seulement ceux-là : les <strong>travaux déjà réalisés</strong> qui touchent le gros œuvre ou l'extérieur du bien (une autorisation d'urbanisme est alors exigible, et la garantie décennale court encore si les travaux ont moins de dix ans) ; les <strong>diagnostics périmés</strong> à ce jour ; les <strong>entretiens et documents</strong> que le vendeur doit fournir ; les <strong>travaux qu'il s'est engagé à faire avant la vente</strong>. <strong>En copropriété</strong>, s'ajoutent les <strong>travaux votés lors des trois dernières assemblées générales</strong> et, si vous déposez l'<strong>état daté ou le pré-état daté</strong>, son contenu : procédures en cours, travaux envisagés et devis, impayés du vendeur, sommes incombant à l'acquéreur, fonds de travaux, avances et emprunt du syndicat. Si vous déposez un <strong>certificat d'urbanisme</strong>, sa validité (18 mois) et ses points de vigilance sont relevés. Le reste de l'urbanisme général n'est volontairement pas contrôlé ici : un rapport court se lit, un inventaire ne se lit pas.</p>
     <p><strong>Sur un projet d'acte de vente</strong>, le projet est comparé à l'avant-contrat signé : parties, prix, désignation du bien, et surtout les engagements du vendeur — un engagement n'est tenu que si un justificatif le prouve <em>et</em> que sa date est encore valable au jour de la relecture. <strong>En copropriété</strong>, une assemblée générale tenue <em>entre</em> l'avant-contrat et la vente est signalée : si des travaux y ont été votés, il reste à trancher qui en supporte le coût. L'état daté et le certificat d'urbanisme déposés sont lus ici aussi. <strong>Sur un terrain à bâtir</strong>, le <strong>permis de construire de l'acquéreur</strong> est contrôlé : arrêté obtenu, affichage sur le terrain justifié par constat, et purge des deux délais — retrait administratif (3 mois depuis l'arrêté) et recours des tiers (2 mois depuis le premier jour d'affichage continu, jamais depuis l'arrêté). Sans constat d'affichage, le délai de recours ne court même pas.</p>
     <p>Chaque point qui appelle une démarche produit une <strong>question prête à envoyer</strong>, groupée par destinataire (syndic, confrère, mairie, acquéreur, greffe du tribunal administratif) en pied de rapport, et copiable d'un clic.</p>
-    <p>Tout est calculé dans votre navigateur, à partir du texte des PDF déposés : rien n'est enregistré, aucun dossier n'est créé, aucun fichier n'est conservé (le dossier CLAIRE éventuellement lié est lu, jamais modifié). Le bouton « Approfondir avec l'IA locale », en bas du rapport, est facultatif : il fait relire le document par le modèle qui tourne sur le serveur de l'étude (jamais un service en ligne) pour ce qui échappe aux règles. Un modèle de langage peut se tromper — ses constats sont signalés comme tels, à vérifier un par un.</p>
+    <p>Tout est calculé dans votre navigateur, à partir du texte des PDF déposés : rien n'est enregistré, aucun dossier n'est créé, aucun fichier n'est conservé (le dossier CLAIRE éventuellement lié est lu, jamais modifié).</p>
   </div>
 </div>
 

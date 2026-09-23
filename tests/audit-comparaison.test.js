@@ -91,12 +91,23 @@ test('comparerCompromisEtProjet détecte un notaire instrumentaire différent (�
   assert.ok(constats.some(c => c.gravite === 'A_VERIFIER' && /Notaire instrumentaire différent/.test(c.titre)));
 });
 
-test('comparerCompromisEtProjet détecte une date différente (à vérifier, pas critique)', () => {
+test('comparerCompromisEtProjet ne compare plus les dates (l’acte de vente n’a pas de date butoir)', () => {
+  // Sur l'acte réel MOKADEM, la « date de prêt » lue dans la vente est celle de l'offre (« selon
+  // offre du 8 août 2026 »), sans rapport avec la date butoir de la promesse.
   const app = chargerApplication();
   const ref = projetBase(app);
   const projet = projetBase(app, { dates: { BUTOIR_PRET: app.champExtraction('2026-11-01'), REITERATION_ACTE: app.champExtraction('2026-12-15'), BUTOIR_VENTE_PREALABLE: app.champExtraction(null) } });
   const constats = app.comparerCompromisEtProjet(ref, projet);
-  assert.ok(constats.some(c => c.gravite === 'A_VERIFIER' && /Signature de l.acte/.test(c.titre)));
+  assert.equal(constats.filter(c => /Date différente/.test(c.titre)).length, 0);
+});
+
+test('comparerCompromisEtProjet : une adresse illisible n’est pas une adresse différente', () => {
+  const app = chargerApplication();
+  const ref = projetBase(app);
+  const vide = { adresseComplete: '', statut: 'NOT_FOUND' };
+  const projet = projetBase(app, { bien: { adresse: vide, cadastre: ref.bien && ref.bien.cadastre } });
+  const constats = app.comparerCompromisEtProjet(ref, projet);
+  assert.equal(constats.filter(c => /Désignation du bien/.test(c.titre)).length, 0);
 });
 
 test('comparerCompromisEtProjet renvoie [] sans référence ou sans projet', () => {

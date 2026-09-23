@@ -3,7 +3,7 @@
 // Extraction assistée par IA locale pour le wizard "Nouveau dossier" (voir CLAUDE.md) : appelée en
 // arrière-plan APRÈS l'extraction par regex existante (traiterTexte(), script.js, inchangée) pour
 // ne compléter QUE ce qu'elle n'a pas trouvé — jamais pour la remplacer. Distincte de
-// routes/auditActe.js (Outil 2 — compare PLUSIEURS documents entre eux pour trouver des
+// l’ancienne route d’audit d’Outil 2, retirée le 23/09/2026 (elle comparait PLUSIEURS documents pour trouver des
 // incohérences) : ici un seul document, un travail d'extraction de champs.
 //
 // TROIS LOTS plutôt qu'un appel fourre-tout (parties / bien / dates) : un modèle 7-8B tenu de

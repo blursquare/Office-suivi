@@ -11,7 +11,6 @@ const { creerRepoParametres } = require('./parametresRepo');
 const { creerRouteurAuth } = require('./routes/auth');
 const { creerRouteurDossiers } = require('./routes/dossiers');
 const { creerRouteurCalendrier } = require('./routes/calendrier');
-const { creerRouteurAuditActe } = require('./routes/auditActe');
 const { creerRouteurExtractionIa } = require('./routes/extractionIa');
 const { creerRouteurOffrePret } = require('./routes/offrePret');
 const { creerRouteurNas } = require('./routes/nas');
@@ -95,7 +94,6 @@ function creerApp({ db, config, envoyerEmailFn }) {
   // dans un client calendrier, cohérent avec .env.example (`GET /calendrier.ics?token=...`).
   app.use(creerRouteurCalendrier(depot, config));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurDossiers(depot));
-  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAuditActe(config));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExtractionIa(config));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurOffrePret(config));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNas(config));

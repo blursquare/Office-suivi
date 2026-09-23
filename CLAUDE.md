@@ -6589,6 +6589,63 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     dédoublonnage) ; le test de `rappels.test.js` qui vérifiait l'effacement dans le même tour est
     réécrit pour vérifier l'inverse. Suite serveur 234 → 241, racine inchangée (717).
 
+- **Outil 2 : « acquéreur passé vendeur » corrigé à la source, cinq fausses alertes de moins, et
+  l'analyse par le modèle local retirée.** Signalé par l'étude sur le couple réel promesse / acte
+  de vente MOKADEM (38 pages), avec trois demandes : un rapport plus synthétique, la fin de
+  l'acquéreur rangé côté vendeur, et le retrait de « l'analyse llama, qui n'a aucune plus-value ».
+  Les deux PDF ont été rejoués dans le banc du stress test avant toute modification.
+  - **Cause du « Rôle changé » : la référence venait du DOSSIER, pas du texte.** Avec un dossier
+    CLAIRE lié, `lancerAuditActe()` prenait `referenceDepuisDossier(d)` — les parties ENREGISTRÉES
+    à la création du dossier. Rejouée avec la version de l'époque (20463bb), la promesse donnait
+    MOKADEM et DE SOUSA MARTINS tous deux VENDEURS : le dossier portait cette erreur, corrigée
+    depuis dans l'extraction (voir « Corriger le débordement du bloc d'une partie ») mais jamais
+    relue. Le code actuel lit les deux actes correctement. **Nouvelle `referenceAudit(texte, nom,
+    dossier)`** : dès que le texte de l'avant-contrat est disponible (déposé, ou récupéré sur le
+    NAS du dossier lié), ses parties font foi ; le dossier ne sert plus qu'à compléter ce que le
+    texte n'a pas donné (prix, adresse, cadastre). **Conséquence à retenir** : un dossier créé avec
+    une version antérieure garde ses parties fausses sur sa fiche — l'audit ne s'y fie plus, mais
+    la fiche elle-même reste à corriger à la main.
+  - **Quatre fausses alertes de l'acte réel, corrigées structurellement** :
+    - *Désignation du bien différente* (CRITIQUE) : l'adresse du projet n'était pas lue, et une
+      adresse VIDE était comparée comme une adresse différente. Garde-fou dans
+      `comparerCompromisEtProjet` (les deux adresses doivent être lisibles), et
+      `RE_DESIGNATION_TRAME_OFFICE` tolère désormais plusieurs espaces dans « D   ESIGNATION ».
+    - *Date différente — Obtention du prêt* : la comparaison des DATES est supprimée. Un acte de
+      vente n'a plus de date butoir ; la « date de prêt » qu'on y lit est celle de l'offre (« selon
+      offre du 8 août 2026 »), sans rapport avec le butoir de la promesse. Faux positif sur chaque
+      vente financée. `LIBELLES_TYPE_DATE_COMPARAISON` retirée avec elle.
+    - *Document déclaré non établi* (audit énergétique) : l'acte justifiait l'absence par la loi
+      (« ne relevant pas du statut de la copropriété… conformément aux dispositions de l'article
+      L 126-28-1 ») — `RE_DISPENSE_DOCUMENT` gagne ces deux tournures.
+    - *Cadastre* : la parcelle retenue était celle de l'**historique cadastral** (« originairement
+      cadastrée section ER numéro 189 »), pas la parcelle vendue (ER 208). `RE_CADASTRE_TABLEAU`
+      accepte la colonne « Surface » et « c adastre » coupé par pdf.js, il passe désormais EN
+      PREMIER (la partie normalisée est la désignation actuelle), et `RE_CADASTRE_ANCIEN` écarte
+      toute mention précédée de originairement/anciennement/précédemment. Rejoué sur les 29 PDF du
+      stress test : 5 changements, tous des corrections, dont PUV FERNANDES qui passe d'une parcelle
+      fausse (XX 101, un remaniement) à « non trouvé » — mieux vaut une case vide qu'une parcelle
+      d'un autre temps.
+  - **Clauses d'obligation débarrassées des débris de mise en page** (`nettoyerDebutClause`) :
+    « Annexe n°9bis 28 Le PROMETTANT s'engage… », « CONDITIONS PARTICULIERES Le PROMETTANT… » —
+    renvoi d'annexe, numéro de page et titre de section remontés avec la clause, le texte lu n'ayant
+    qu'un retour à la ligne par page (même piège que les autres, appliqué ici au début de phrase).
+  - **Bouton « Approfondir avec l'IA locale » retiré entièrement** : `approfondirAuditAvecIa`,
+    `renderBoutonApprofondirIa`, `verifierDisponibiliteAnalyseIa`, le bandeau de disponibilité de
+    l'onglet, la section « Relecture complémentaire par le modèle local », la route serveur
+    (`server/src/routes/auditActe.js`, `/api/audit-acte/*`) et son test. **Les autres usages du
+    modèle local ne sont PAS touchés** (extraction du wizard, relance ciblée d'un champ,
+    confirmation d'une offre de prêt) : l'étude n'a parlé que de l'audit — à retirer aussi seulement
+    sur demande. Le lien de la sidebar devient « Relecture d'actes » (icône œil) : « (IA) » y était
+    devenu faux.
+  - **Résultat sur l'acte réel** : de 5 constats (1 CRITIQUE faux, 2 A_VERIFIER faux) à 2, les
+    deux obligations du vendeur à vérifier, citées proprement. Tests :
+    `tests/outil2-reference-texte.test.js` (6, structure de l'acte réel, noms inventés), deux tests
+    de `audit-comparaison` réécrits sur le nouveau contrat. Suite racine 717 → 724, serveur 241 → 233
+    (le test de la route retirée).
+  - **Non traité, proposé à l'étude** : la présentation « plus synthétique et structurée » (une
+    grille de relecture fixe conforme / écart / non trouvé, les annexes attendues par type de
+    vente). Question de fond posée plutôt que devinée, comme le veut la leçon des notaires.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

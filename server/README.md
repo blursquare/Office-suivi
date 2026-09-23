@@ -259,24 +259,10 @@ Détails d'implémentation, pour qui retouche ce code :
 ## Analyse juridique par IA locale (Ollama)
 
 Le même modèle local sert plusieurs fonctionnalités distinctes :
-- L'onglet « Audit des actes (IA) » (sidebar de l'outil) — Outil 2, « Relecture d'un acte » —
-  **n'utilise PLUS le modèle pour produire son rapport.** Refait de zéro le 21/09/2026 après un
-  test de l'étude (« c'est inutilisable, c'est trop long ») : la version précédente enchaînait
-  cinq appels Ollama en série avant le moindre affichage, soit plusieurs minutes sur le CPU d'un
-  poste de bureau, et un échec en cours de route faisait tout perdre. Le rapport est désormais
-  calculé **entièrement dans le navigateur**, instantanément, par des règles (voir CLAUDE.md,
-  « Outil 2 refait de zéro ») — aucune route serveur n'est appelée pour l'obtenir.
-
-  Le modèle ne sert plus qu'au bouton facultatif **« Approfondir avec l'IA locale »**, sous le
-  rapport : **une seule** requête (`POST /api/audit-acte/approfondir`), courte, jamais bloquante.
-  Le prompt lui donne ce que les règles ont déjà trouvé et ne lui demande QUE ce qui leur échappe
-  (clause inhabituelle, contradiction entre deux passages) ; un constat dont la citation n'est pas
-  retrouvée littéralement dans le document est marqué comme tel, jamais présenté au même rang
-  qu'une citation confirmée. Son échec ne coûte rien : le rapport est déjà à l'écran.
-
-  `GET /api/audit-acte/disponibilite` reste utilisée à l'ouverture de l'onglet pour dire tout de
-  suite si Ollama est installé et le modèle téléchargé. `POST /api/audit-acte/analyser` et le
-  dossier `src/audit/` n'existent plus.
+- L'onglet « Relecture d'actes » (Outil 2) **n'utilise plus du tout le modèle**. Son rapport est
+  calculé entièrement dans le navigateur par des règles (voir CLAUDE.md, « Outil 2 refait de
+  zéro »), et le bouton facultatif « Approfondir avec l'IA locale » a été retiré le 23/09/2026 à la
+  demande de l'étude, qui n'y voyait aucun apport. Les routes `/api/audit-acte/*` n'existent plus.
 - Le wizard « Nouveau dossier » lui-même appelle aussi le modèle en arrière-plan, juste après
   l'extraction habituelle par regex (inchangée, toujours le chemin principal et immédiat) : il ne
   complète QUE ce que les regex n'ont pas trouvé et ne propose de nouveaux engagements du vendeur
@@ -357,19 +343,13 @@ l'étude préfère l'installer sur une machine dédiée du réseau plutôt que s
   chaque constat proposé est à vérifier, jamais une validation juridique en soi (rappelé dans
   l'interface elle-même). Voir CLAUDE.md pour le choix explicite de ne jamais utiliser un service
   IA en ligne pour cette fonctionnalité, précisément à cause de la confidentialité des actes.
-- Un document très long est tronqué au-delà d'un certain nombre de caractères avant d'être envoyé
-  au modèle, et le total d'une passe (tous documents confondus) est lui-même plafonné — voir
-  `LIMITE_CARACTERES_PAR_DOCUMENT`/`PLAFOND_CARACTERES_PASSE` dans `src/routes/auditActe.js` ; un
-  document entier est omis plutôt que coupé en plein milieu si le plafond de la passe est atteint.
 - Rien n'est jamais enregistré par cet outil : les PDF déposés et le texte qui en est extrait ne
   vivent qu'en mémoire le temps de l'analyse, aucun dossier n'est créé (le dossier CLAIRE
   éventuellement lié n'est jamais modifié, seulement lu).
 - **Non vérifié en conditions réelles dans cet environnement de développement** (pas de machine
-  Windows ni d'Ollama installable ici) : le client HTTP (`src/llm.js`) et la route
-  d'approfondissement (`src/routes/auditActe.js`) sont testés avec un faux serveur Ollama (voir
-  `test/audit-approfondir.test.js`), mais la qualité réelle des constats produits par `llama3.1:8b`
-  reste à confirmer par l'étude. Le rapport principal d'Outil 2, lui, ne dépend plus d'Ollama du
-  tout : il s'affiche même sur un poste où le modèle n'est pas installé.
+  Windows ni d'Ollama installable ici) : le client HTTP (`src/llm.js`) et les routes qui l'utilisent
+  sont testés avec un faux serveur Ollama, mais la qualité réelle des réponses de `llama3.1:8b`
+  reste à confirmer par l'étude.
 
 ### Troisième usage du modèle : confirmer une offre de prêt
 
@@ -593,11 +573,10 @@ npm test
 178 tests (`node:test`, aucune dépendance de test supplémentaire) couvrant l'authentification, le
 cycle complet créer/lire/modifier/supprimer/restaurer un dossier, la résolution de configuration
 du mode `.exe` (mot de passe ET jeton calendrier), le service des fichiers statiques embarqués, le
-flux calendrier connecté (`/calendrier.ics`), l'extraction IA pour le wizard (`/api/extraction-ia`),
-l'approfondissement facultatif d'Outil 2 (`/api/audit-acte/approfondir`) et les rappels par email
+flux calendrier connecté (`/calendrier.ics`), l'extraction IA pour le wizard (`/api/extraction-ia`) et les rappels par email
 (réglages, client Power Automate, job de rappels avec un envoi injecté) — les trois premières avec
 un faux serveur Ollama HTTP, la dernière avec un faux webhook HTTP local (voir
-`test/extraction-ia.test.js`, `test/audit-approfondir.test.js`, `test/parametresRepo.test.js`,
+`test/extraction-ia.test.js`, `test/parametresRepo.test.js`,
 `test/envoi-email.test.js`, `test/rappels.test.js`, `test/reglages.test.js`).
 Indépendant de la suite de tests à la racine du dépôt (`npm test` depuis `Office-suivi/`, 526 tests
 sur les fonctions pures de `script.js`) — les deux peuvent tourner sans que l'un dépende des
@@ -637,7 +616,7 @@ dépendances de l'autre.
   un jour sur le poste de l'étude.
 - **Analyse et extraction par IA locale (Ollama) disponibles mais non vérifiées sur de vrais actes**
   — voir la section « Analyse juridique par IA locale » plus haut : le client HTTP et les routes
-  (`/api/audit-acte/*`, `/api/extraction-ia`) sont testées avec un faux serveur Ollama, mais la
+  (`/api/extraction-ia`, `/api/offre-pret/confirmer`) sont testées avec un faux serveur Ollama, mais la
   qualité réelle des constats/champs produits par le modèle par défaut (`llama3.1:8b`) sur de vrais
   compromis/promesses/projets d'actes reste à confirmer par l'étude, tout comme les temps de réponse
   sur le matériel réel du poste serveur (aucun GPU dédié à prévoir dans ce budget — la vitesse dépendra
