@@ -6475,6 +6475,25 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   - Tests : 5 côté client, 3 côté serveur (+ une assertion existante étendue). Suite racine 707 → 712,
     serveur 215 → 218.
 
+- **Appel de fonds réalisé dès que sa date est saisie, et quatre retouches voisines** (23/09) :
+  - **Saisir la date de l'appel de fonds sur la fiche le marque réalisé** (`marquerAppelFondsSelonDate`,
+    pure et testable, appelée par `validerEditionDate` et `supprimerDateEcheance`) : l'étude ne note
+    cette date qu'une fois l'appel parti. Pose `d.echeancesValidees.appelFonds` — le même drapeau que
+    « Marquer réalisée », donc le planning passe aussitôt au rendez-vous de signature. **Vider ou
+    supprimer la date retire la validation** : sinon un appel de fonds sans date resterait « fait ».
+    « Annuler la validation » reste disponible si la date a été saisie en avance.
+  - **Titre « Appel de fonds » en gras** sur sa carte (`tab-name-fort`, comme le rendez-vous).
+  - **La section « Appel de fonds » du bas de fiche disparaît une fois l'appel fait**
+    (`renderAppelFondsDossier` sort sur `echeanceValidee(d, 'appelFonds')`) — plus rien à préparer.
+  - **« Courriel alignement et numérotage »** : déjà reconnu pour les deux pièces par les alternatives
+    existantes (vérifié avant de toucher la regex) ; ajout de `courriel (d')alignement` à
+    `certificatAlignement.motifNom` pour un courriel d'alignement seul. Un « alignement » nu reste
+    refusé (le garde-fou « réponse alignement voirie » est retesté).
+  - **Titres de colonne dans la vue Échéances** (Date / Échéance / Dossier / Responsable), posés UNE
+    fois, sur le tableau du premier groupe : les largeurs étant fixes et identiques d'un groupe à
+    l'autre (`table-layout: fixed`), ces titres restent alignés sur toutes les semaines en dessous.
+  - Tests : +5 (`echeances-appel-fonds`, `dossier-local`, `semaines`). Suite racine 712 → 717.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

@@ -160,3 +160,15 @@ test('ORDRE_STATUT classe du plus bloquant au terminé', () => {
   const app = chargerApplication();
   assert.equal(app.ORDRE_STATUT.join(','), 'blocage,aconfirmer,arelier,pret,archive');
 });
+
+test('la vue Échéances porte des titres de colonne, une seule fois, en haut', () => {
+  const app = chargerApplication();
+  const dossiers = [
+    { id: 'a', nom: 'A / B', responsable: 'Julie VASSELIN', pret: '2020-01-10' },
+    { id: 'b', nom: 'C / D', responsable: 'Julie VASSELIN', pret: '2099-06-10' },
+  ];
+  const html = app.renderVueSemaines(dossiers);
+  assert.equal(html.split('<thead>').length - 1, 1);
+  assert.ok(html.indexOf('<thead>') < html.indexOf('<tbody>'));
+  for (const titre of ['Date', 'Échéance', 'Dossier', 'Responsable']) assert.ok(html.includes(`<th>${titre}</th>`));
+});

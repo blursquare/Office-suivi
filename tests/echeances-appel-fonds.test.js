@@ -287,3 +287,30 @@ test('renderTab : la date butoir remplacée affiche l\'écart avec le rendez-vou
   assert.ok(!normal.includes('ce butoir'));
   assert.ok(normal.includes('validerEcheance'));
 });
+
+test("saisir une date d'appel de fonds le marque réalisé, la vider annule la validation", () => {
+  const app = chargerApplication();
+  const d = { id: 'd1', historique: [] };
+  app.marquerAppelFondsSelonDate(d, '2026-10-15');
+  assert.equal(app.echeanceValidee(d, 'appelFonds'), true);
+  const nbHisto = d.historique.length;
+  // Une seconde saisie ne rejournalise rien : l'appel de fonds était déjà fait.
+  app.marquerAppelFondsSelonDate(d, '2026-10-20');
+  assert.equal(d.historique.length, nbHisto);
+  app.marquerAppelFondsSelonDate(d, '');
+  assert.equal(app.echeanceValidee(d, 'appelFonds'), false);
+});
+
+test("la section « Appel de fonds » du bas de fiche disparaît une fois l'appel fait", () => {
+  const app = chargerApplication();
+  const d = { id: 'd1', rendezVousSignature: '2026-11-01', prixVente: 200000, adresseBien: 'x' };
+  assert.ok(app.renderAppelFondsDossier(d).includes("Préparer l'appel de fonds"));
+  d.echeancesValidees = { appelFonds: true };
+  assert.equal(app.renderAppelFondsDossier(d), '');
+});
+
+test('le titre de la carte « Appel de fonds » est en gras', () => {
+  const app = chargerApplication();
+  const html = app.renderTab('appelFonds', 'Appel de fonds', '2026-11-20', 'd1', null, null, null, false, '', false, false);
+  assert.ok(html.includes('tab-name tab-name-fort'));
+});

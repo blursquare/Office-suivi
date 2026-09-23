@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-23 13:44';
+  const VERSION_APP = '2026-09-23 14:03';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,9 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-23 14:03', resume: "Appel de fonds : une date saisie le marque réalisé, titre en gras, section du bas "
+      + "de fiche masquée une fois fait ; « Courriel alignement et numérotage » reconnu ; titres de colonne "
+      + "dans la vue Échéances." },
     { version: '2026-09-23 13:44', resume: "Réglages : « Tester » vérifie l'adresse avant l'envoi (format, domaine, "
       + "modification non enregistrée) et affiche l'adresse réellement utilisée." },
     { version: '2026-09-23 07:40', resume: "Notifications en petite carte en bas de la barre latérale : "
@@ -8887,7 +8890,7 @@
             <span class="tab-select-icone-chevron">${icone('chevron-down')}</span>
           </span>
         </div>`
-      : `<div class="tab-name${type === 'rendezVousSignature' ? ' tab-name-fort' : ''}">${label}</div>`;
+      : `<div class="tab-name${type === 'rendezVousSignature' || type === 'appelFonds' ? ' tab-name-fort' : ''}">${label}</div>`;
 
     // Petite croix en haut à droite pour retirer une échéance : "autre" passe par
     // supprimerEcheanceAutre (retire l'entrée de d.autres) ; Prêt/Acte/Vente préalable, tant qu'une
@@ -9086,6 +9089,21 @@
     ajouterHistorique(d, `${libelleEcheancePourHistorique(d, type)} marquée réalisée`);
     sauvegarder(d);
     render();
+  }
+
+  // Une date d'appel de fonds renseignée vaut appel de fonds fait (voir validerEditionDate) ;
+  // pure sur le dossier passé, donc testable. Ne journalise que ce qui change réellement.
+  function marquerAppelFondsSelonDate(d, iso) {
+    const fait = !!iso;
+    const deja = !!(d.echeancesValidees && d.echeancesValidees.appelFonds);
+    if (fait === deja) return;
+    d.echeancesValidees = d.echeancesValidees || {};
+    if (fait) {
+      d.echeancesValidees.appelFonds = true;
+      ajouterHistorique(d, 'Appel de fonds marqué réalisé (date saisie)');
+    } else {
+      delete d.echeancesValidees.appelFonds;
+    }
   }
 
   function devaliderEcheance(id, type) {
@@ -10342,7 +10360,7 @@
     if (groupes.length === 0) {
       return '<div class="empty-state">Aucune échéance en attente sur les dossiers affichés.</div>';
     }
-    return groupes.map(g => {
+    return groupes.map((g, indexGroupe) => {
       const lignes = g.items.map(({ dossier: d, echeance: e }) => {
         const jours = joursRestants(e.iso);
         return `
@@ -10369,6 +10387,7 @@
               <colgroup>
                 <col class="col-echeance-date"><col class="col-echeance-type"><col><col class="col-echeance-resp">
               </colgroup>
+              ${indexGroupe === 0 ? '<thead><tr><th>Date</th><th>Échéance</th><th>Dossier</th><th>Responsable</th></tr></thead>' : ''}
               <tbody>${lignes}</tbody>
             </table>
           </div>
@@ -11282,6 +11301,11 @@
       // vraie date désormais renseignée (verifierDossierLocal()/la checklist continuaient d'ignorer
       // le prêt).
       if (cle === 'pret') d.sansPret = !nouvelleDate;
+      // Saisir la date de l'appel de fonds, c'est constater qu'il est parti : demandé par l'étude,
+      // l'échéance passe aussitôt en « réalisée » (la carte le dit, le planning passe au
+      // rendez-vous de signature, et la section « Appel de fonds » du bas de fiche disparaît).
+      // Vider la date annule la validation — sinon un appel de fonds sans date resterait « fait ».
+      if (cle === 'appelFonds') marquerAppelFondsSelonDate(d, nouvelleDate);
       sauvegarder(d);
     }
     render();
@@ -11354,6 +11378,7 @@
       // sans ce basculement, une recherche locale de l'offre aurait continué pour une condition
       // qui n'est plus suivie sur ce dossier (verifierDossierLocal() teste déjà `!d.sansPret`).
       if (type === 'pret') d.sansPret = true;
+      if (type === 'appelFonds') marquerAppelFondsSelonDate(d, '');
       ajouterHistorique(d, `« ${LIBELLES_CATEGORIE[type]} » supprimée`);
       sauvegarder(d);
       render();
@@ -11779,6 +11804,8 @@
   // prépare un .docx, l'étude le relit et l'envoie.
   function renderAppelFondsDossier(d) {
     if (d.archive) return '';
+    // Appel de fonds déjà fait : plus rien à préparer, la section disparaît (demandé par l'étude).
+    if (echeanceValidee(d, 'appelFonds')) return '';
     // Ce qui manquera au courrier, dit AVANT le clic plutôt que découvert sur l'écran suivant.
     const manques = [];
     if (!d.rendezVousSignature) manques.push('la date du rendez-vous');
@@ -12973,7 +13000,7 @@
     // "certificat" devant que s'il est à proximité immédiate (20 caractères) du mot "numérotage",
     // dans un ordre ou l'autre : c'est spécifiquement le document combiné qui est visé, pas
     // n'importe quel fichier mentionnant "alignement".
-    { cle: 'certificatAlignement', label: "Certificat d'alignement", motifNom: /certificat\s+d?[’']?\s*alignement|alignement.{0,20}num[ée]\s?rotage|num[ée]\s?rotage.{0,20}alignement/i },
+    { cle: 'certificatAlignement', label: "Certificat d'alignement", motifNom: /certificat\s+d?[’']?\s*alignement|courriel\s+(?:d['’]\s*)?alignement|alignement.{0,20}num[ée]\s?rotage|num[ée]\s?rotage.{0,20}alignement/i },
     // \s? après l'accent : un fichier réel de l'étude a été nommé "...nume_rotage..." (le mot
     // "numérotage" coupé en deux à l'endroit de l'accent, très probablement une frappe accidentelle
     // d'espace dans "numé rotage" avant conversion espace→underscore) — voir CLAUDE.md.

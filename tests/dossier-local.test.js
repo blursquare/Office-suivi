@@ -272,6 +272,19 @@ test('motifNom reconnaît alignement + numérotage réunis dans un seul document
   }
 });
 
+test('motifNom reconnaît « Courriel alignement et numérotage » (et le courriel d\'alignement seul)', () => {
+  const app = chargerApplication();
+  const pieces = app.checklistPieces('maison');
+  const alignement = pieces.find(p => p.cle === 'certificatAlignement');
+  const numerotage = pieces.find(p => p.cle === 'certificatNumerotage');
+  const combine = app.normaliserNomPourMotif('Courriel_alignement_et_numérotage.pdf');
+  assert.ok(alignement.motifNom.test(combine));
+  assert.ok(numerotage.motifNom.test(combine));
+  assert.ok(alignement.motifNom.test("Courriel d'alignement.pdf"));
+  // Le garde-fou existant tient toujours : un « alignement » cité en passant ne suffit pas.
+  assert.equal(alignement.motifNom.test("Certificat d'urbanisme - réponse alignement voirie.pdf"), false);
+});
+
 test('normaliserNomPourMotif remplace underscores/tirets par des espaces pour un vrai nom de fichier de l\'étude', () => {
   const app = chargerApplication();
   assert.equal(
