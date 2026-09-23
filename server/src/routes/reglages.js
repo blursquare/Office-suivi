@@ -15,6 +15,14 @@ const express = require('express');
 const { envoyerEmail, envoiConfigure } = require('../envoiEmail');
 const { executerTacheRappels } = require('../jobs/rappels');
 
+// Forme d'une adresse email : un seul @, une partie locale, un domaine d'au moins deux libellés
+// séparés par des points, sans espace. Volontairement simple — il ne s'agit pas de valider la RFC,
+// seulement d'arrêter une faute de frappe avant qu'elle ne parte en objet vers le flux.
+function adresseEmailValide(adresse) {
+  if (typeof adresse !== 'string') return false;
+  return /^[^\s@]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$/.test(adresse.trim());
+}
+
 const MESSAGE_TEST = "📌 CLAIRE — Message de test. Si vous recevez ceci, les rappels automatiques sont bien configurés.";
 
 function reglagesPublics(reglages) {
@@ -53,8 +61,19 @@ function creerRouteurReglages(parametresRepo, envoyerFn, options) {
       res.status(400).json({ erreur: `Aucune adresse email enregistrée pour ${responsable || 'ce collaborateur'}.` });
       return;
     }
+    // Contrôle de forme avant envoi : une adresse malformée partirait quand même en objet et ne
+    // se révélerait qu'au bout de la chaîne, dans l'erreur du flux Power Automate.
+    if (!adresseEmailValide(email)) {
+      res.status(400).json({ erreur: `L'adresse enregistrée « ${email} » n'est pas une adresse email valide. Rien n'a été envoyé.` });
+      return;
+    }
+    if (!adresseEmailValide(reglages.emailPasserelle)) {
+      res.status(400).json({ erreur: `La boîte-passerelle « ${reglages.emailPasserelle} » n'est pas une adresse email valide. Rien n'a été envoyé.` });
+      return;
+    }
     const resultat = await envoyer(reglages, email, MESSAGE_TEST);
-    if (resultat.ok) res.json({ ok: true });
+    // L'adresse réellement utilisée est renvoyée : l'écran l'affiche pour qu'on la relise.
+    if (resultat.ok) res.json({ ok: true, destinataire: email, passerelle: reglages.emailPasserelle });
     else res.status(502).json({ erreur: resultat.erreur });
   });
 
@@ -93,4 +112,4 @@ function creerRouteurReglages(parametresRepo, envoyerFn, options) {
   return routeur;
 }
 
-module.exports = { creerRouteurReglages, reglagesPublics, MESSAGE_TEST };
+module.exports = { creerRouteurReglages, reglagesPublics, adresseEmailValide, MESSAGE_TEST };

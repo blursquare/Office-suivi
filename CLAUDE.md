@@ -6453,6 +6453,28 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     documentée. Vérifié dans un vrai Chromium (clair, sombre, 400 px) : position, pause au
     survol, disparition, aucun débordement, aucune erreur JS.
 
+- **Réglages : le bouton « Tester » vérifie l'adresse AVANT d'envoyer, et affiche celle qu'il a
+  utilisée.** Demandé par l'étude juste après la première chaîne complète CLAIRE → Gmail →
+  boîte-passerelle → Power Automate → Teams (confirmée fonctionnelle le 23/09) : le flux avait
+  d'abord échoué sur une adresse à laquelle « il manquait un s », alors que l'étude pensait l'avoir
+  corrigée. Or une faute de DOMAINE (« notaire.fr » pour « notaires.fr ») passe tout contrôle de
+  forme et ne se révèle qu'au bout de la chaîne, dans l'historique du flux.
+  - `controlerAdresseEnvoi(adresse, adresseReference)` (pure, testable,
+    `tests/controle-adresse-envoi.test.js`) : `erreur` bloquante si l'adresse est impossible (vide,
+    espace, @ absent ou doublé, domaine sans point, point doublé ou final), `avertissement` si elle
+    est bien formée mais sur un autre domaine que la boîte-passerelle. Un avertissement seulement —
+    un locataire Microsoft 365 peut porter plusieurs domaines — avec un lien « Envoyer quand même ».
+  - **Le test part vers l'adresse ENREGISTRÉE, pas vers celle du champ** (voir le commentaire de
+    `testerEnvoiResponsable`). `reglagesEnregistres` mémorise la dernière lecture/écriture serveur ;
+    un champ modifié mais pas enregistré bloque le test avec un message qui nomme l'adresse vers
+    laquelle il partirait encore. C'était très probablement le piège du « pourtant j'ai corrigé ».
+  - Côté serveur, `adresseEmailValide()` (`server/src/routes/reglages.js`) refuse une adresse ou une
+    passerelle malformée avant tout envoi (400, « Rien n'a été envoyé »), et la réponse d'un envoi
+    réussi porte `destinataire` et `passerelle` : l'écran affiche « boîte-passerelle X, objet
+    (destinataire Teams) Y » pour qu'on relise l'adresse avant d'aller chercher le message dans Teams.
+  - Tests : 5 côté client, 3 côté serveur (+ une assertion existante étendue). Suite racine 707 → 712,
+    serveur 215 → 218.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

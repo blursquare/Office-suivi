@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-23 07:40';
+  const VERSION_APP = '2026-09-23 13:44';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,8 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-23 13:44', resume: "Réglages : « Tester » vérifie l'adresse avant l'envoi (format, domaine, "
+      + "modification non enregistrée) et affiche l'adresse réellement utilisée." },
     { version: '2026-09-23 07:40', resume: "Notifications en petite carte en bas de la barre latérale : "
       + "elles restent 6 secondes (pause au survol), puis s'effacent." },
     { version: '2026-09-23 00:20', resume: "Nouvel outil « Quotités d'acquisition » (annexe .docx) ; mode sombre et « À propos » "
@@ -18376,6 +18378,35 @@
   // pour autoriser le SMTP authentifié, et le SPF du domaine interdit l'envoi sans compte).
   var GMAIL_SMTP = { hote: 'smtp.gmail.com', port: 587, securise: false };
 
+  // Réglages tels qu'ils sont ENREGISTRÉS côté serveur (dernière lecture ou dernier enregistrement).
+  // Le bouton « Tester » envoie à l'adresse enregistrée, pas à celle du champ : il doit donc savoir
+  // si les deux diffèrent, sans quoi on teste une adresse que personne ne voit plus à l'écran.
+  let reglagesEnregistres = { emailPasserelle: '', emailsResponsables: {} };
+
+  // Contrôle d'une adresse AVANT le message de test (pure, testable). Deux niveaux :
+  // - `erreur` : l'adresse ne peut pas être une adresse email — rien n'est envoyé ;
+  // - `avertissement` : l'adresse est bien formée mais son domaine diffère de celui de la
+  //   boîte-passerelle. C'est la faute qu'aucun contrôle de format ne voit (« notaire.fr » pour
+  //   « notaires.fr ») et qui ne se révèle qu'au bout de la chaîne, dans l'erreur du flux Power
+  //   Automate. Un simple avertissement : un locataire Microsoft 365 peut porter plusieurs domaines.
+  function controlerAdresseEnvoi(adresse, adresseReference) {
+    const a = typeof adresse === 'string' ? adresse.trim() : '';
+    if (!a) return { erreur: 'Aucune adresse enregistrée.' };
+    if (/\s/.test(a)) return { erreur: `« ${a} » contient une espace.` };
+    if (!/^[^@]+@[^@]+$/.test(a)) return { erreur: `« ${a} » doit contenir un seul @.` };
+    const [local, domaine] = a.split('@');
+    if (!local) return { erreur: `« ${a} » : rien avant le @.` };
+    if (!/^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$/.test(domaine)) {
+      return { erreur: `« ${a} » : le domaine « ${domaine} » n'est pas valide (point manquant, en double ou en fin d'adresse ?).` };
+    }
+    const ref = typeof adresseReference === 'string' ? adresseReference.trim() : '';
+    const domaineRef = ref.includes('@') ? ref.split('@').pop().toLowerCase() : '';
+    if (domaineRef && domaine.toLowerCase() !== domaineRef) {
+      return { avertissement: `Le domaine « ${domaine} » diffère de celui de la boîte-passerelle (« ${domaineRef} ») : vérifiez l'orthographe.` };
+    }
+    return {};
+  }
+
   async function chargerReglages() {
     initReglagesNotifNavigateur();
     const version = document.getElementById('reglages-version');
@@ -18396,6 +18427,7 @@
         ? 'Déjà enregistré — laisser vide pour le conserver'
         : '16 caractères';
       document.getElementById('reglages-copie-email').value = reglages.copieEmail || '';
+      memoriserReglagesEnregistres(reglages);
       renderReglagesEmails(reglages.emailsResponsables || {});
       document.getElementById('reglages-etat').style.display = 'none';
       chargerDernierTourRappels();
@@ -18441,6 +18473,13 @@
         if (etat) etat.textContent = "Autorisation refusée — rien ne sera notifié tant qu'elle n'est pas accordée.";
       }
     });
+  }
+
+  function memoriserReglagesEnregistres(reglages) {
+    reglagesEnregistres = {
+      emailPasserelle: (reglages && reglages.emailPasserelle) || '',
+      emailsResponsables: (reglages && reglages.emailsResponsables) || {}
+    };
   }
 
   function renderReglagesEmails(emailsResponsables) {
@@ -18496,6 +18535,7 @@
         body: JSON.stringify(reglagesFormulaireVersObjet())
       });
       const reglages = await reponse.json();
+      memoriserReglagesEnregistres(reglages);
       renderReglagesEmails(reglages.emailsResponsables || {});
       zone.style.display = 'flex';
       zone.className = 'analyse-ia-dispo dispo-ok';
@@ -18511,10 +18551,46 @@
   // (voir routes/reglages.js) — pas ceux du formulaire pas encore validés : on veut vérifier ce que
   // le job de rappels utilisera réellement. Si le formulaire contient une modification non
   // enregistrée, on le signale plutôt que de tester une valeur qui n'est pas encore la bonne.
-  async function testerEnvoiResponsable(nom) {
+  function afficherResultatTest(resultat, texte, classe) {
+    if (!resultat) return;
+    resultat.textContent = texte;
+    resultat.className = `hint reglages-email-resultat${classe ? ' ' + classe : ''}`;
+  }
+
+  async function testerEnvoiResponsable(nom, malgreAvertissement) {
     const i = RESPONSABLES.indexOf(nom);
     const resultat = document.getElementById(`reglages-email-resultat-${i}`);
-    if (resultat) { resultat.textContent = 'Envoi du message de test…'; resultat.className = 'hint reglages-email-resultat'; }
+    const champ = document.getElementById(`reglages-email-${i}`);
+    const saisie = champ ? champ.value.trim() : '';
+    const enregistree = (reglagesEnregistres.emailsResponsables[nom] || '').trim();
+
+    // Vérifications AVANT tout envoi : le message part vers l'adresse ENREGISTRÉE, il faut donc
+    // d'abord s'assurer que c'est bien celle que l'on a sous les yeux, puis qu'elle tient debout.
+    if (saisie !== enregistree) {
+      afficherResultatTest(resultat, enregistree
+        ? `Adresse modifiée mais pas enregistrée : le test partirait encore vers « ${enregistree} ». Cliquez sur « Enregistrer » d'abord.`
+        : "Adresse pas encore enregistrée : cliquez sur « Enregistrer » d'abord.", 'reglages-email-echec');
+      return;
+    }
+    const controle = controlerAdresseEnvoi(enregistree, reglagesEnregistres.emailPasserelle);
+    if (controle.erreur) {
+      afficherResultatTest(resultat, `${controle.erreur} Rien n'a été envoyé.`, 'reglages-email-echec');
+      return;
+    }
+    const controlePasserelle = controlerAdresseEnvoi(reglagesEnregistres.emailPasserelle, '');
+    if (controlePasserelle.erreur) {
+      afficherResultatTest(resultat, `Boîte-passerelle : ${controlePasserelle.erreur} Rien n'a été envoyé.`, 'reglages-email-echec');
+      return;
+    }
+    if (controle.avertissement && !malgreAvertissement) {
+      if (resultat) {
+        resultat.className = 'hint reglages-email-resultat reglages-email-echec';
+        resultat.innerHTML = `${escapeHtml(controle.avertissement)} <button type="button" class="lien-dossier-local" onclick="testerEnvoiResponsable('${escapeOnclickArg(nom)}', true)">Envoyer quand même</button>`;
+      }
+      return;
+    }
+
+    afficherResultatTest(resultat, `Envoi du message de test à « ${enregistree} »…`, '');
     try {
       const reponse = await fetchAvecAuth('/api/reglages/tester-email', {
         method: 'POST',
@@ -18528,8 +18604,11 @@
         // d'envoi a accepté le message. Elle ne prouve ni son arrivée dans la boîte-passerelle,
         // ni le déclenchement du flux, ni le message Teams. Laisser croire l'inverse ferait
         // conclure à tort que la chaîne fonctionne, et chercher le problème au mauvais endroit.
-        resultat.textContent = "✓ Remis au serveur d'envoi — vérifiez maintenant dans Teams.";
-        resultat.className = 'hint reglages-email-resultat reglages-email-ok';
+        const destinataire = corps.destinataire || enregistree;
+        const passerelle = corps.passerelle || reglagesEnregistres.emailPasserelle;
+        afficherResultatTest(resultat,
+          `✓ Remis au serveur d'envoi — boîte-passerelle « ${passerelle} », objet (destinataire Teams) « ${destinataire} ». Vérifiez maintenant dans Teams.`,
+          'reglages-email-ok');
       } else {
         resultat.textContent = corps.erreur || "Échec de l'envoi.";
         resultat.className = 'hint reglages-email-resultat reglages-email-echec';

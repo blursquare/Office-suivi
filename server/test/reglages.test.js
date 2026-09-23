@@ -15,7 +15,7 @@ const os = require('node:os');
 
 const { creerApp } = require('../src/app');
 const { ouvrirDb } = require('../src/db');
-const { MESSAGE_TEST } = require('../src/routes/reglages');
+const { MESSAGE_TEST, adresseEmailValide } = require('../src/routes/reglages');
 
 function config() {
   return { motDePasse: 'mdp-test', racineRepo: os.tmpdir(), port: 0, jetonCalendrier: '' };
@@ -135,7 +135,9 @@ test('POST /api/reglages/tester-email : envoie bien le MESSAGE_TEST à l\'adress
   });
   const reponse = await appeler('/api/reglages/tester-email', { method: 'POST', body: JSON.stringify({ responsable: 'Jérémy SAUJOT' }) });
   assert.equal(reponse.status, 200);
-  assert.deepEqual(await reponse.json(), { ok: true });
+  // L'adresse réellement utilisée revient à l'écran, pour qu'on la relise avant de chercher
+  // le message dans Teams.
+  assert.deepEqual(await reponse.json(), { ok: true, destinataire: 'jeremy@etude.fr', passerelle: 'passerelle@etude.fr' });
   assert.equal(envois.length, 1);
   assert.equal(envois[0].destinataire, 'jeremy@etude.fr');
   assert.equal(envois[0].texte, MESSAGE_TEST);
@@ -155,6 +157,38 @@ test('POST /api/reglages/tester-email : un envoi en échec → 502', async () =>
   assert.equal(reponse.status, 502);
   assert.match((await reponse.json()).erreur, /550 relay denied/);
   reponseEnvoi = { ok: true, erreur: null };
+});
+
+test('POST /api/reglages/tester-email : une adresse malformée est refusée AVANT tout envoi', async () => {
+  envois.length = 0;
+  await appeler('/api/reglages', {
+    method: 'PUT',
+    body: JSON.stringify({ emailActif: true, ...SMTP, emailsResponsables: { 'Jérémy SAUJOT': 'jeremy@etude' } })
+  });
+  const reponse = await appeler('/api/reglages/tester-email', { method: 'POST', body: JSON.stringify({ responsable: 'Jérémy SAUJOT' }) });
+  assert.equal(reponse.status, 400);
+  assert.match((await reponse.json()).erreur, /jeremy@etude.*Rien n'a été envoyé/);
+  assert.equal(envois.length, 0);
+});
+
+test('POST /api/reglages/tester-email : une boîte-passerelle malformée est refusée AVANT tout envoi', async () => {
+  envois.length = 0;
+  await appeler('/api/reglages', {
+    method: 'PUT',
+    body: JSON.stringify({ emailActif: true, smtpHote: 'smtp.test', emailPasserelle: 'passerelle@@etude.fr', emailsResponsables: { 'Jérémy SAUJOT': 'jeremy@etude.fr' } })
+  });
+  const reponse = await appeler('/api/reglages/tester-email', { method: 'POST', body: JSON.stringify({ responsable: 'Jérémy SAUJOT' }) });
+  assert.equal(reponse.status, 400);
+  assert.match((await reponse.json()).erreur, /boîte-passerelle/);
+  assert.equal(envois.length, 0);
+});
+
+test('adresseEmailValide : forme attendue, fautes de frappe écartées', () => {
+  assert.equal(adresseEmailValide('Bastien.ANGLUMENT@gossart.notaires.fr'), true);
+  assert.equal(adresseEmailValide(' bastien@etude.fr '), true);
+  for (const mauvaise of ['', 'bastien', 'bastien@etude', 'bastien@@etude.fr', 'bas tien@etude.fr', 'bastien@etude..fr', 'bastien@etude.fr.', '@etude.fr', null]) {
+    assert.equal(adresseEmailValide(mauvaise), false, String(mauvaise));
+  }
 });
 
 // ---- Compte rendu du dernier tour, et déclenchement manuel ----
