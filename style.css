@@ -2810,39 +2810,75 @@
   .toolbar-btn:hover { border-color: var(--ink-soft); color: var(--ink); }
   .toolbar-btn-label { display: inline-flex; align-items: center; }
 
-  /* ---- toast (annuler suppression) ---- */
+  /* ---- toast : petite carte en bas de la sidebar ----
+     Demandé par l'étude : plutôt qu'une bulle sombre centrée en bas de l'écran (qui passait
+     par-dessus le contenu qu'on était en train de lire), une petite carte posée dans le pied de
+     la sidebar, vide depuis que le thème et « À propos » sont passés dans les Réglages. Même
+     largeur que les liens de navigation (252 - 2 x 16), fond de carte du thème, et un filet qui se
+     vide pendant l'affichage : il dit combien de temps la carte reste, sans chiffre à lire.
+     Sous 900px la sidebar est repliée : la carte passe alors en bas de l'écran, pleine largeur
+     moins les gouttières. */
   .toast {
     position: fixed;
-    left: 50%;
-    bottom: 24px;
-    transform: translateX(-50%);
-    background: var(--ink);
-    color: #fff;
-    padding: 12px 16px;
-    border-radius: 6px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    font-size: 13.5px;
+    left: 16px;
+    bottom: 16px;
+    width: 220px;
+    box-sizing: border-box;
+    background: var(--paper-card);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    box-shadow: var(--shadow-float);
+    padding: 11px 12px 13px;
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    font-size: 12.5px;
+    line-height: 1.4;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.18s ease, transform 0.18s ease;
     /* En retrait explicite du tiroir de fiche dossier (.drawer-overlay, z-index 900) : signalé
        par l'étude, ce toast (ex. "Offre de prêt trouvée...", déclenché par "Revérifier" DEPUIS le
        tiroir) ne doit jamais se superposer à son contenu — la checklist déjà visible dans le
-       tiroir montre le même résultat, ce toast n'est qu'un rappel ponctuel. Les deux partageaient
-       jusqu'ici la même valeur par coïncidence, un ordre d'empilement fragile plutôt qu'explicite.*/
+       tiroir montre le même résultat, ce toast n'est qu'un rappel ponctuel. */
     z-index: 890;
   }
+  .toast.visible { opacity: 1; transform: none; }
+  #toast-message { overflow-wrap: anywhere; }
   .toast-undo {
+    align-self: flex-end;
     font-family: inherit;
-    font-size: 13.5px;
+    font-size: 12px;
     font-weight: 600;
     background: none;
     border: none;
-    color: #8FD3FF;
+    color: var(--focus);
     cursor: pointer;
     padding: 0;
   }
   .toast-undo:hover { text-decoration: underline; }
+  .toast-undo:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
+  .toast-duree {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 2px;
+    background: var(--focus);
+    opacity: 0.55;
+    transform-origin: left center;
+  }
+  .toast.visible .toast-duree { animation: toast-duree var(--toast-duree, 6s) linear forwards; }
+  .toast.en-pause .toast-duree { animation-play-state: paused; }
+  @keyframes toast-duree { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+  @media (max-width: 900px) {
+    .toast { left: 16px; right: 16px; width: auto; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .toast { transition: none; transform: none; }
+    .toast.visible .toast-duree { animation: none; }
+  }
 
   /* ---- badges de confiance / statut du dossier / appris / estimé ----
      Tous en .dot-label désormais (voir sa définition plus bas, section "tab-offre-pret") : ce
@@ -3984,8 +4020,7 @@
   }
   [data-theme="dark"] .confirm-box { background: #2A2A2A; }
   [data-theme="dark"] .confirm-box .btn-annuler { background: #2E2E2E; color: var(--ink); border-color: #454545; }
-  [data-theme="dark"] .toast { background: #333333; border: 1px solid #454545; color: #fff; }
-  [data-theme="dark"] .toast-undo { color: #8FCBFF; }
+  [data-theme="dark"] .toast { background: #2E2E2E; border-color: #454545; }
   [data-theme="dark"] .switch .slider { background-color: #454545; }
   [data-theme="dark"] .analyse-doc-badge { background: #2E2E2E; color: var(--ink); }
   [data-theme="dark"] .tab { background: #2A2A2A; }

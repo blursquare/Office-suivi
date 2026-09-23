@@ -6430,6 +6430,29 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     dans cet environnement) — mise en page et appels repris à l'identique de l'artefact, où
     l'étude les a déjà utilisés.
 
+- **Notifications (« toasts ») : petite carte en bas de la sidebar qui s'efface d'elle-même**,
+  demandé par l'étude avec une capture de l'ancienne bulle (« peuvent-elles apparaître plutôt en
+  bas […] sous forme de petite carte rectangulaire qui disparaît ensuite ? »). L'ancienne bulle
+  sombre centrée en bas de l'écran passait par-dessus le contenu qu'on lisait. Désormais une carte
+  de 220 px (la largeur des liens de navigation) posée dans le pied de la sidebar, resté vide
+  depuis que le thème et « À propos » sont passés dans les Réglages — interprétation de « la sodé
+  bas » comme « la sidebar » ; si l'étude voulait le coin bas-droit, c'est `left` → `right` dans
+  `.toast`. Fond de carte du thème (`--paper-card`, `--line`, `--shadow-float`) au lieu de
+  couleurs en dur, bouton en `--focus`.
+  - Apparition/disparition en fondu (`.toast.visible`, 180 ms), `display: none` posé 200 ms après
+    le retrait de la classe (`masquerToast()`) : un `transitionend` ne se déclencherait pas quand
+    `prefers-reduced-motion` coupe la transition.
+  - Filet de 2 px qui se vide pendant les 6 s (`.toast-duree`, animation CSS) : dit combien de
+    temps la carte reste, sans chiffre à lire. **Pause au survol** (`en-pause` +
+    `animation-play-state`, minuteur suspendu puis relancé sur le temps restant) — le temps de
+    lire un nom de fichier long ou de viser « Annuler » avant que la carte ne parte.
+  - Un nouveau message pendant qu'une carte est affichée relance le filet (classe retirée, reflow
+    forcé, classe reposée). `role="status"` + `aria-live="polite"` ajoutés.
+  - Sous 900 px (sidebar repliée) : pleine largeur en bas de l'écran, gouttières de 16 px.
+  - `z-index: 890` conservé, toujours sous le tiroir de fiche dossier (900) pour la raison déjà
+    documentée. Vérifié dans un vrai Chromium (clair, sombre, 400 px) : position, pause au
+    survol, disparition, aucun débordement, aucune erreur JS.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

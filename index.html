@@ -1422,9 +1422,10 @@
   </main>
 </div>
 
-<div id="toast" class="toast" style="display:none;">
+<div id="toast" class="toast" style="display:none;" role="status" aria-live="polite">
   <span id="toast-message"></span>
   <button type="button" class="toast-undo" id="toast-undo-btn">Annuler</button>
+  <span class="toast-duree" aria-hidden="true"></span>
 </div>
 
 <!-- Barre flottante affichée quand on sélectionne du texte dans l'aperçu du compromis (import en

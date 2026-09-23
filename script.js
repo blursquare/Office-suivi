@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-23 00:20';
+  const VERSION_APP = '2026-09-23 07:40';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,8 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-23 07:40', resume: "Notifications en petite carte en bas de la barre latérale : "
+      + "elles restent 6 secondes (pause au survol), puis s'effacent." },
     { version: '2026-09-23 00:20', resume: "Nouvel outil « Quotités d'acquisition » (annexe .docx) ; mode sombre et « À propos » "
       + "passés dans les Réglages ; envoi des rappels par Gmail uniquement." },
     { version: '2026-09-23 00:01', resume: "Chaque obligation du vendeur de fournir un document ou de justifier d'un "
@@ -8746,20 +8748,60 @@
   });
 
   let dernierSupprimeTimeout = null;
+  let toastMasquageTimeout = null;
+  const DUREE_TOAST_MS = 6000;
+  let toastRestantMs = DUREE_TOAST_MS;
+  let toastDemarreA = 0;
 
-  function afficherToast(message, texteBouton, onUndo) {
+  // Petite carte en bas de la sidebar (voir .toast dans style.css). Elle reste 6 s, se met en
+  // pause tant que la souris est dessus (le temps de lire un nom de fichier long ou de viser
+  // « Annuler »), puis s'efface en fondu avant d'être retirée du flux.
+  function masquerToast() {
     clearTimeout(dernierSupprimeTimeout);
     const toast = document.getElementById('toast');
+    if (!toast) return;
+    toast.classList.remove('visible', 'en-pause');
+    clearTimeout(toastMasquageTimeout);
+    toastMasquageTimeout = setTimeout(() => { toast.style.display = 'none'; }, 200);
+  }
+
+  function programmerMasquageToast(delaiMs) {
+    clearTimeout(dernierSupprimeTimeout);
+    toastRestantMs = delaiMs;
+    toastDemarreA = Date.now();
+    dernierSupprimeTimeout = setTimeout(masquerToast, delaiMs);
+  }
+
+  function afficherToast(message, texteBouton, onUndo) {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
+    clearTimeout(toastMasquageTimeout);
     document.getElementById('toast-message').textContent = message;
     const btn = document.getElementById('toast-undo-btn');
     btn.textContent = texteBouton;
     btn.onclick = () => {
-      clearTimeout(dernierSupprimeTimeout);
-      toast.style.display = 'none';
+      masquerToast();
       if (onUndo) onUndo();
     };
+    toast.onmouseenter = () => {
+      if (!toast.classList.contains('visible')) return;
+      clearTimeout(dernierSupprimeTimeout);
+      toastRestantMs = Math.max(0, toastRestantMs - (Date.now() - toastDemarreA));
+      toast.classList.add('en-pause');
+    };
+    toast.onmouseleave = () => {
+      if (!toast.classList.contains('en-pause')) return;
+      toast.classList.remove('en-pause');
+      programmerMasquageToast(Math.max(toastRestantMs, 400));
+    };
+    // Relance le filet de durée même si une carte était déjà affichée : retirer la classe,
+    // forcer un reflow, puis la reposer redémarre l'animation depuis le début.
+    toast.classList.remove('visible', 'en-pause');
+    toast.style.setProperty('--toast-duree', `${DUREE_TOAST_MS}ms`);
     toast.style.display = 'flex';
-    dernierSupprimeTimeout = setTimeout(() => { toast.style.display = 'none'; }, 6000);
+    void toast.offsetWidth;
+    toast.classList.add('visible');
+    programmerMasquageToast(DUREE_TOAST_MS);
   }
 
   async function supprimerDossier(id) {
