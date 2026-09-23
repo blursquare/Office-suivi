@@ -6494,6 +6494,27 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     l'autre (`table-layout: fixed`), ces titres restent alignés sur toutes les semaines en dessous.
   - Tests : +5 (`echeances-appel-fonds`, `dossier-local`, `semaines`). Suite racine 712 → 717.
 
+- **Agenda connecté (`/calendrier.ics`) réduit à l'obtention du prêt et à la vente préalable**,
+  demandé par l'étude une fois l'abonnement Outlook confirmé fonctionnel : « ne mets dans l'agenda
+  que les rappels de prêt et de vente préalable si c'est activé dans le dossier ; si on a l'offre de
+  prêt retire le rappel, idem si la vente préalable a été signée ; ne mets pas les autres dates ».
+  - `echeancePublieeAgenda(d, type)` (`server/src/routes/calendrier.js`, pure, exportée) : publié
+    seulement si le dossier n'est pas archivé, que la date existe (une vente préalable non cochée à
+    la création n'a pas de date), que le prêt n'est pas `sansPret`, et que l'échéance n'est pas
+    RÉALISÉE — `echeanceValidee()` est importée telle quelle de `jobs/rappels.js` (offre `recue` ou
+    « Marquer réalisée » pour le prêt, « Marquer réalisée » pour la vente préalable), jamais
+    recopiée. Une offre seulement « à confirmer » n'est pas reçue : l'échéance reste publiée.
+  - **Les autres échéances sont publiées ANNULÉES, jamais simplement omises** (`TYPES_RETIRES_AGENDA`
+    + les `d.autres`, et le prêt/la vente préalable une fois réalisés) : un Outlook déjà abonné
+    garde indéfiniment un événement qui disparaît du flux, seul `STATUS:CANCELLED` sur le même UID
+    le retire (voir le correctif `.ics` plus haut). Mêmes UID stables qu'avant, donc les dates
+    déjà publiées (appel de fonds, rendez-vous, date butoir, échéances personnalisées) disparaissent
+    d'Outlook à la prochaine resynchronisation.
+  - Tests : `server/test/calendrier.test.js` réécrit sur ce contrat (seuls prêt et vente préalable
+    confirmés, les quatre autres annulés ; offre reçue ou validation manuelle qui retire le prêt,
+    offre « à confirmer » qui le garde ; vente préalable validée retirée ; `sansPret` sans prêt).
+    Suite serveur 220.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

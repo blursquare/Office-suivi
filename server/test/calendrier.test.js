@@ -10,21 +10,53 @@ const { genererFluxIcs } = require('../src/routes/calendrier');
 
 // ---- genererFluxIcs() : fonction pure, testée directement sans monter de serveur ----
 
-test('genererFluxIcs : un dossier actif avec les cinq échéances fixes produit cinq VEVENT', () => {
+// UID des événements PUBLIÉS (non annulés) d'un flux, dans l'ordre.
+function uidsConfirmes(body) {
+  return body.split('BEGIN:VEVENT').slice(1)
+    .filter((ev) => /STATUS:CONFIRMED/.test(ev))
+    .map((ev) => /UID:([^@]+)@/.exec(ev)[1]);
+}
+
+test("genererFluxIcs : seuls le prêt et la vente préalable sont publiés, le reste est annulé", () => {
+  // Décision de l'étude (23/09) : l'agenda ne porte que les deux conditions dont dépend la vente.
   const body = genererFluxIcs([
     {
       id: 'd1', nom: 'DUPONT / MARTIN', pret: '2026-11-11', appelFonds: '2026-11-20',
-      acte: '2026-12-01', rendezVousSignature: '2026-12-01', ventebien: '2026-10-05'
+      acte: '2026-12-01', rendezVousSignature: '2026-12-01', ventebien: '2026-10-05',
+      autres: [{ label: 'Levée hypothèque', date: '2026-09-30' }]
     }
   ]);
   assert.match(body, /BEGIN:VCALENDAR/);
-  assert.match(body, /UID:d1-pret@claire-calendrier/);
-  assert.match(body, /UID:d1-appelFonds@claire-calendrier/);
-  assert.match(body, /UID:d1-acte@claire-calendrier/);
-  assert.match(body, /UID:d1-rendezVousSignature@claire-calendrier/);
-  assert.match(body, /UID:d1-ventebien@claire-calendrier/);
+  assert.equal(uidsConfirmes(body).join(','), 'd1-pret,d1-ventebien');
   assert.match(body, /Obtention du prêt — MARTIN - Dossier DUPONT \/ MARTIN/);
-  assert.equal((body.match(/BEGIN:VEVENT/g) || []).length, 5);
+  // Les échéances déjà publiées par les versions précédentes sont annulées, pour quitter l'agenda.
+  for (const cle of ['acte', 'appelFonds', 'rendezVousSignature', 'autre-0']) {
+    assert.match(body, new RegExp(`UID:d1-${cle}@claire-calendrier`), cle);
+  }
+  assert.equal((body.match(/STATUS:CANCELLED/g) || []).length, 4);
+});
+
+test("genererFluxIcs : l'offre de prêt reçue retire le prêt de l'agenda", () => {
+  const recue = genererFluxIcs([{ id: 'd1', nom: 'X / Y', pret: '2026-11-11', offrePretStatut: 'recue' }]);
+  assert.equal(uidsConfirmes(recue).join(','), '');
+  // Même effet quand le prêt est marqué réalisé à la main.
+  const valide = genererFluxIcs([{ id: 'd1', nom: 'X / Y', pret: '2026-11-11', echeancesValidees: { pret: true } }]);
+  assert.equal(uidsConfirmes(valide).join(','), '');
+  // Tant que l'offre n'est qu'« à confirmer », le rappel reste.
+  const aConfirmer = genererFluxIcs([{ id: 'd1', nom: 'X / Y', pret: '2026-11-11', offrePretStatut: 'aconfirmer' }]);
+  assert.equal(uidsConfirmes(aConfirmer).join(','), 'd1-pret');
+});
+
+test("genererFluxIcs : la vente préalable signée est retirée de l'agenda", () => {
+  const body = genererFluxIcs([
+    { id: 'd1', nom: 'X / Y', pret: '2026-11-11', ventebien: '2026-10-05', echeancesValidees: { ventebien: true } }
+  ]);
+  assert.equal(uidsConfirmes(body).join(','), 'd1-pret');
+});
+
+test("genererFluxIcs : un achat comptant ne publie pas de prêt, même avec une date", () => {
+  const body = genererFluxIcs([{ id: 'd1', nom: 'X / Y', pret: '2026-11-11', sansPret: true }]);
+  assert.equal(uidsConfirmes(body).join(','), '');
 });
 
 // Un client calendrier ne supprime PAS un événement qui disparaît du flux : il faut publier son
@@ -67,14 +99,6 @@ test('sequenceDepuisMaj reste un entier raisonnable et croissant', () => {
   // Un horodatage absent ou invalide ne doit pas produire NaN dans le flux.
   assert.equal(sequenceDepuisMaj(undefined), 0);
   assert.equal(sequenceDepuisMaj('abc'), 0);
-});
-
-test('genererFluxIcs : inclut les échéances personnalisées (d.autres)', () => {
-  const body = genererFluxIcs([
-    { id: 'd1', nom: 'X / Y', autres: [{ label: 'Levée hypothèque', date: '2026-09-30' }] }
-  ]);
-  assert.match(body, /UID:d1-autre-0@claire-calendrier/);
-  assert.match(body, /SUMMARY:Levée hypothèque — Y - Dossier X \/ Y/);
 });
 
 test('genererFluxIcs : dossier sans "/" dans le nom retombe sur le nom complet', () => {

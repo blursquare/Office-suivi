@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-23 14:03';
+  const VERSION_APP = '2026-09-23 18:15';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,8 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-23 18:15', resume: "Agenda connecté (.ics) : seuls l'obtention du prêt et la vente préalable y figurent, "
+      + "et ils disparaissent une fois l'offre reçue ou la vente préalable réalisée." },
     { version: '2026-09-23 14:03', resume: "Appel de fonds : une date saisie le marque réalisé, titre en gras, section du bas "
       + "de fiche masquée une fois fait ; « Courriel alignement et numérotage » reconnu ; titres de colonne "
       + "dans la vue Échéances." },

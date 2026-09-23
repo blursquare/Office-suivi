@@ -8,6 +8,7 @@
 'use strict';
 
 const express = require('express');
+const { echeanceValidee } = require('../jobs/rappels');
 
 function pad(n) { return String(n).padStart(2, '0'); }
 function icsDate(iso) { return iso.replace(/-/g, ''); }
@@ -136,13 +137,26 @@ function extraireNomAcquereur(nomDossier) {
   return parties.length > 1 ? parties[1].trim() : nomDossier;
 }
 
-// Un événement par échéance ACTIVE de chaque dossier actif : obtention du prêt, signature de
-// l'acte, vente préalable, échéances personnalisées (d.autres). Contrairement à l'export .ics
-// manuel côté client (telechargerICS(), volontairement limité à la seule date de prêt sur demande
-// de l'étude, pour un export ponctuel d'UN dossier) : ici c'est un abonnement continu censé
-// refléter tout le portefeuille, donc toutes les échéances de tous les dossiers actifs. Un dossier
-// archivé n'a plus d'échéance à suivre : ses événements sont publiés ANNULÉS (voir
-// buildEventAnnule) plutôt qu'omis — les omettre les laissait affichés pour toujours.
+// Ce que publie l'agenda, sur décision de l'étude (23/09) : UNIQUEMENT l'obtention du prêt et la
+// vente préalable, et seulement tant qu'elles restent à obtenir. Les autres échéances (date butoir,
+// appel de fonds, rendez-vous de signature, échéances personnalisées) ne sont plus publiées : elles
+// se suivent dans CLAIRE et par les rappels email, l'agenda n'en garde que les deux conditions dont
+// dépend la vente.
+//
+// Un événement retiré est publié ANNULÉ, jamais simplement omis (voir buildEventAnnule) : ces
+// échéances ayant déjà été publiées, un client calendrier les garderait sinon pour toujours.
+var TYPES_PUBLIES_AGENDA = ['pret', 'ventebien'];
+var TYPES_RETIRES_AGENDA = ['acte', 'appelFonds', 'rendezVousSignature'];
+
+// Une échéance est publiée si elle est ACTIVE sur le dossier (date renseignée ; pour le prêt, pas
+// un achat comptant) et pas encore obtenue : offre de prêt reçue (statut NAS ou validation à la
+// main), vente préalable marquée réalisée. Même définition que les rappels email (echeanceValidee).
+function echeancePublieeAgenda(d, type) {
+  if (!d || d.archive || !d[type]) return false;
+  if (type === 'pret' && d.sansPret) return false;
+  return !echeanceValidee(d, type);
+}
+
 function genererFluxIcs(dossiers) {
   let body =
     'BEGIN:VCALENDAR\r\n' +
@@ -166,27 +180,25 @@ function genererFluxIcs(dossiers) {
     // non simplement omise : un client calendrier garderait sinon l'ancien événement pour
     // toujours. Le repli de date n'a pas d'importance pour un événement annulé.
     const repli = d.pret || d.acte || d.ventebien || aujourdHui;
-    // Ordre métier du dossier (voir CLAUDE.md). Contrairement aux rappels par email, le flux publie
-    // TOUTES les échéances datées, y compris la date butoir une fois le rendez-vous fixé : elle
-    // reste indicative dans l'agenda, et la retirer demanderait de publier son annulation.
-    const standard = [
-      { cle: 'ventebien', libelle: 'Vente préalable', iso: d.ventebien },
-      { cle: 'pret', libelle: 'Obtention du prêt', iso: d.pret },
-      { cle: 'acte', libelle: "Signature de l'acte", iso: d.acte },
-      { cle: 'appelFonds', libelle: 'Appel de fonds', iso: d.appelFonds },
-      { cle: 'rendezVousSignature', libelle: 'Rendez-vous de signature', iso: d.rendezVousSignature }
-    ];
-    for (const e of standard) {
-      const uid = `${d.id}-${e.cle}`;
-      body += (!d.archive && e.iso)
-        ? buildEvent(uid, `${e.libelle}${suffixe}`, e.iso, sequence)
-        : buildEventAnnule(uid, `${e.libelle}${suffixe}`, repli, sequence);
+    const libelles = {
+      pret: 'Obtention du prêt',
+      ventebien: 'Vente préalable',
+      acte: "Signature de l'acte",
+      appelFonds: 'Appel de fonds',
+      rendezVousSignature: 'Rendez-vous de signature'
+    };
+    for (const cle of TYPES_PUBLIES_AGENDA) {
+      const uid = `${d.id}-${cle}`;
+      body += echeancePublieeAgenda(d, cle)
+        ? buildEvent(uid, `${libelles[cle]}${suffixe}`, d[cle], sequence)
+        : buildEventAnnule(uid, `${libelles[cle]}${suffixe}`, repli, sequence);
+    }
+    // Déjà publiées par les versions précédentes : annulées, pour qu'elles quittent l'agenda.
+    for (const cle of TYPES_RETIRES_AGENDA) {
+      body += buildEventAnnule(`${d.id}-${cle}`, `${libelles[cle]}${suffixe}`, repli, sequence);
     }
     (Array.isArray(d.autres) ? d.autres : []).forEach((a, i) => {
-      const uid = `${d.id}-autre-${i}`;
-      body += (!d.archive && a.date)
-        ? buildEvent(uid, `${a.label || 'Échéance'}${suffixe}`, a.date, sequence)
-        : buildEventAnnule(uid, `${a.label || 'Échéance'}${suffixe}`, repli, sequence);
+      body += buildEventAnnule(`${d.id}-autre-${i}`, `${a.label || 'Échéance'}${suffixe}`, repli, sequence);
     });
   }
 
@@ -223,4 +235,4 @@ function creerRouteurCalendrier(depot, config) {
 
 // genererFluxIcs exposée pour les tests uniquement (voir server/test/calendrier.test.js) —
 // creerRouteurCalendrier() reste le seul point d'entrée réel.
-module.exports = { creerRouteurCalendrier, genererFluxIcs, sequenceDepuisMaj, echapperTexteIcs, plierLigneIcs };
+module.exports = { creerRouteurCalendrier, genererFluxIcs, echeancePublieeAgenda, sequenceDepuisMaj, echapperTexteIcs, plierLigneIcs };

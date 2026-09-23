@@ -66,7 +66,12 @@ Un seul fichier à déposer sur le PC du bureau, sans installer Node.js, sans te
 ## Calendrier connecté (abonnement webcal)
 
 Un flux calendrier en lecture seule, généré à la demande à partir de TOUS les dossiers actifs du
-registre (obtention du prêt, signature de l'acte, vente préalable, échéances personnalisées) —
+registre. **Il ne publie que deux échéances** : l'obtention du prêt et la vente préalable, chacune
+seulement si elle est activée et datée sur le dossier. L'obtention du prêt disparaît dès que
+l'offre est reçue (ou l'échéance marquée réalisée), la vente préalable dès qu'elle est marquée
+réalisée. Les autres dates (date butoir, appel de fonds, rendez-vous de signature, échéances
+personnalisées) n'y figurent pas — elles sont publiées comme **annulées**, ce qui les retire d'un
+Outlook déjà abonné (omettre un événement ne suffirait pas : Outlook le garderait indéfiniment) —
 distinct de l'export `.ics` ponctuel d'un seul dossier depuis l'outil lui-même (bouton « Rappels
 (.ics) » sur une fiche, limité à la seule date de prêt) : celui-ci est un abonnement continu qui se
 tient à jour tout seul, pour tout le portefeuille, sans jamais rouvrir l'outil.
@@ -84,8 +89,7 @@ tient à jour tout seul, pour tout le portefeuille, sans jamais rouvrir l'outil.
    n'apparaît donc pas instantanément dans Outlook, contrairement à l'outil lui-même (synchronisé
    par sondage toutes les 7 secondes entre postes). C'est une limite d'Outlook sur ce type
    d'abonnement, pas un réglage ajustable côté serveur CLAIRE.
-4. Un dossier archivé n'apparaît plus dans ce flux (mêmes échéances qu'un dossier actif tant
-   qu'il ne l'est pas). Le flux est en LECTURE SEULE : modifier/supprimer un événement dans Outlook
+4. Un dossier archivé n'apparaît plus dans ce flux. Le flux est en LECTURE SEULE : modifier/supprimer un événement dans Outlook
    n'a aucun effet sur le registre CLAIRE, qui reste la seule source de vérité.
 5. En mode développeur (`npm start`), ce flux reste désactivé tant que `CALENDRIER_TOKEN` n'est
    pas renseigné dans `.env` (voir `.env.example`) — sans jeton, `GET /calendrier.ics` répond 503
