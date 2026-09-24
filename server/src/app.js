@@ -16,6 +16,7 @@ const { creerRouteurExtractionIa } = require('./routes/extractionIa');
 const { creerRouteurOffrePret } = require('./routes/offrePret');
 const { creerRouteurNas, creerRouteurLienPiece } = require('./routes/nas');
 const { creerRouteurReglages } = require('./routes/reglages');
+const { creerRouteurSauvegarde } = require('./routes/sauvegarde');
 const { creerRouteurNotifications } = require('./routes/notifications');
 const { creerRouteurExclusionsPieces } = require('./routes/exclusionsPieces');
 const { creerRouteurRelectureClaude } = require('./routes/relectureClaude');
@@ -109,6 +110,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude }) {
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurOffrePret(config));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNas(config));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurReglages(parametresRepo, envoyerEmailFn, { depot, db }));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurSauvegarde(parametresRepo, db, config));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNotifications(parametresRepo, envoyerEmailFn));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAuditRetours(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExclusionsPieces(parametresRepo));

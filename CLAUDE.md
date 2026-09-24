@@ -6936,6 +6936,51 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   `envoi-email.test.js`, +1 et une assertion de bout en bout dans `liens-pieces.test.js`. Suite
   serveur 262 → 264 ; racine inchangée.
 
+- **CLAIRE passe en bêta, la relecture d'actes reste en alpha, et la base est enfin sauvegardée.**
+  L'étude a demandé où en était l'outil (« alpha, bêta, version finale ? »). Avis rendu : CLAIRE
+  (suivi des dossiers) est prête pour la bêta — usage quotidien réel depuis des semaines, fonctions
+  principales en place — à une condition bloquante, **l'absence totale de sauvegarde** : tous les
+  dossiers vivaient dans un seul fichier du poste serveur, que rien ne copiait. La relecture d'actes
+  (refaite la veille sur l'API Claude, un seul test réel) reste en alpha. L'étude a validé l'ordre
+  proposé : sauvegarde d'abord, puis bascule en bêta.
+  - **`server/src/sauvegarde.js`** : une copie par jour, vérifiée toutes les heures
+    (`demarrerSauvegardeAutomatique`, démarrée dans `index.js` seulement, comme les deux autres
+    minuteurs). `VACUUM INTO` vers un fichier temporaire LOCAL (copie cohérente d'une base ouverte ;
+    une copie brute du fichier pendant une écriture peut être corrompue), relecture de la copie
+    (`PRAGMA integrity_check` + nombre de dossiers — une sauvegarde jamais relue ne prouve rien),
+    puis copie ASYNCHRONE vers la destination sous un nom `.partiel` renommé à la fin. **Jamais de
+    `VACUUM INTO` directement sur le NAS** : synchrone sur un partage lent, il figerait le serveur —
+    le défaut déjà corrigé sur la relecture du NAS. Rotation à 14 copies (`claire-AAAA-MM-JJ.db`,
+    seuls ces noms exacts sont supprimés) ; une relance le même jour remplace la copie du jour.
+    Une seule sauvegarde à la fois (`sauvegardeEnCours`, partagé par le minuteur et le bouton).
+  - Destination choisie dans **Réglages → Sauvegarde de la base** (clé `sauvegarde`, séparée du blob
+    `reglages` comme le compte rendu des rappels ; état sous `etat-sauvegarde` : dernière tentative
+    ET dernière réussite, séparées pour qu'un échec n'efface pas la date de la dernière copie
+    valable). Sans choix, les copies vont dans `data/sauvegardes` et l'écran dit que ça ne protège
+    pas d'une panne du disque. Chemin absolu exigé (`validerDossierSauvegarde`, accepte `\\NAS\…`
+    et `D:\…` même quand le serveur tourne sous Linux en développement).
+  - **Jamais silencieux** : encart d'état dans les Réglages (`messageEtatSauvegarde`, pure et
+    testée : vert / alerte / neutre), et **bandeau sur le Tableau de bord** dès que la dernière
+    tentative a échoué ou qu'aucune copie n'a réussi depuis `JOURS_AVANT_ALERTE` (3) jours — même
+    leçon que le compte rendu des rappels : un échec visible seulement dans les Réglages ne serait
+    vu par personne. Procédure de restauration repliée sous l'encart et dans server/README.md.
+  - **Bug attrapé en vérification dans le navigateur, pas par les tests** : le `PUT` du dossier
+    partait sans `Content-Type: application/json`, le serveur recevait un corps vide et enregistrait
+    un dossier vide — la sauvegarde partait donc en local malgré le chemin saisi. `fetchAvecAuth`
+    n'ajoute pas cet en-tête : **tout appel avec un corps JSON doit le poser lui-même**.
+  - **Badges** : celui du logo passe à « Bêta » ; un badge ambre « Alpha » (`.stade-badge`,
+    `--pret` : un outil en test, pas une alerte) sur le lien « Relecture d'actes » et à côté du
+    titre de cet écran.
+  - **Critères convenus pour la suite** (à ne pas oublier) : version finale de CLAIRE après
+    plusieurs semaines sans bug bloquant, une restauration de sauvegarde testée une fois, et les
+    points jamais vérifiés au bureau confirmés (lien Teams, démarrage automatique, garanties) ; en
+    bêta, plus de nouvelle fonction principale, seulement des corrections. Relecture d'actes en bêta
+    après une dizaine d'actes relus avec le mode commentaires, un bruit réduit, aucun nom en clair
+    repéré à l'étape de pseudonymisation, et un coût moyen jugé acceptable.
+  - Tests : `server/test/sauvegarde.test.js` (9, dont une vraie sauvegarde relue, la rotation qui
+    épargne un fichier étranger, une destination impossible sans exception ni temporaire laissé, les
+    routes) et `tests/sauvegarde-affichage.test.js` (4). Suite serveur 264 → 273, racine 748 → 752.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

@@ -475,6 +475,29 @@ version HTML, l'action « Publier un message » du flux doit reprendre le **Corp
 de l'email reçu — pas un « corps en texte brut », s'il en propose un. Si le message Teams montre
 encore l'adresse en clair après le nom de la pièce, c'est que le flux lit la version texte.
 
+### Sauvegarde automatique de la base
+
+Tous les dossiers vivent dans un seul fichier, `data/claire.db`, à côté de l'exécutable. CLAIRE en
+fait **une copie par jour** (vérifiée toutes les heures, donc rattrapée si le poste a été éteint) et
+garde les **14 dernières**, nommées `claire-AAAA-MM-JJ.db`. Le dossier de destination se choisit
+dans **Réglages → Sauvegarde de la base** : indiquez un dossier **du NAS**, en chemin complet vu
+depuis le poste serveur (`\\NAS\Sauvegardes\CLAIRE`) — sans choix, les copies restent dans
+`data/sauvegardes`, sur le même disque que la base, donc sans protection contre une panne de ce
+disque. Évitez le dossier qui contient les dossiers clients (`nasRacine`) : le dossier de
+sauvegardes apparaîtrait dans la liste des dossiers à relier.
+
+Chaque copie est obtenue par `VACUUM INTO` (copie cohérente d'une base ouverte), relue
+(`PRAGMA integrity_check` + nombre de dossiers), puis copiée de façon asynchrone vers le NAS sous un
+nom provisoire renommé à la fin. Le compte rendu s'affiche dans les Réglages, et un bandeau apparaît
+sur le Tableau de bord si la dernière tentative a échoué ou si aucune sauvegarde n'a réussi depuis
+3 jours.
+
+**Restaurer** : arrêter le serveur (`Arreter-CLAIRE.bat`), renommer `data/claire.db` en
+`claire-avant-restauration.db`, copier la sauvegarde voulue dans `data/` sous le nom `claire.db`,
+relancer. Tout ce qui a été saisi après la date de la sauvegarde est perdu. **Tester une
+restauration une fois** (sur un poste de test, ou en gardant la base d'origine à côté) avant de
+compter dessus.
+
 ### Fichiers écartés
 
 Un clic sur « Réinitialiser » d'une pièce mal reconnue écarte ce nom de fichier pour cette pièce,

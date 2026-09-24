@@ -36,6 +36,36 @@ const CLE_SECRET_LIENS = 'secret-liens-pieces';
 const CLE_EXCLUSIONS_PIECES = 'exclusions-noms-pieces';
 const MAX_NOMS_PAR_PIECE = 200;
 
+// Sauvegarde automatique de la base (voir sauvegarde.js) : le dossier de destination choisi dans
+// les Réglages, et l'état des dernières tentatives. Deux clés à part du blob `reglages`, comme le
+// compte rendu des rappels : l'état est produit par le serveur, pas saisi par l'étude.
+const CLE_REGLAGE_SAUVEGARDE = 'sauvegarde';
+const CLE_ETAT_SAUVEGARDE = 'etat-sauvegarde';
+
+function assainirTentativeSauvegarde(t) {
+  if (!t || typeof t !== 'object' || typeof t.at !== 'string') return null;
+  const nombre = (v) => (Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0);
+  return {
+    at: t.at.slice(0, 40),
+    ok: !!t.ok,
+    fichier: texteBorne(t.fichier, 200),
+    dossier: texteBorne(t.dossier, 500),
+    locale: !!t.locale,
+    taille: nombre(t.taille),
+    nbDossiers: nombre(t.nbDossiers),
+    supprimes: Array.isArray(t.supprimes) ? t.supprimes.filter((n) => typeof n === 'string').slice(0, 50) : [],
+    erreur: t.erreur ? texteBorne(String(t.erreur), 500) : null
+  };
+}
+
+function assainirEtatSauvegarde(brut) {
+  const b = brut && typeof brut === 'object' ? brut : {};
+  return {
+    derniereReussie: typeof b.derniereReussie === 'string' ? b.derniereReussie.slice(0, 40) : null,
+    derniereTentative: assainirTentativeSauvegarde(b.derniereTentative)
+  };
+}
+
 function assainirExclusionsPieces(brut) {
   const propre = {};
   if (!brut || typeof brut !== 'object' || Array.isArray(brut)) return propre;
@@ -354,7 +384,39 @@ function creerRepoParametres(db) {
     return propre;
   }
 
+  function lireReglageSauvegarde() {
+    const ligne = lireStmt.get(CLE_REGLAGE_SAUVEGARDE);
+    try {
+      const v = ligne ? JSON.parse(ligne.valeur) : {};
+      return { dossier: texteBorne(v && v.dossier, 500) };
+    } catch (e) {
+      return { dossier: '' };
+    }
+  }
+
+  function ecrireReglageSauvegarde(reglage) {
+    const propre = { dossier: texteBorne(reglage && reglage.dossier, 500) };
+    ecrireStmt.run(CLE_REGLAGE_SAUVEGARDE, JSON.stringify(propre));
+    return propre;
+  }
+
+  function lireEtatSauvegarde() {
+    const ligne = lireStmt.get(CLE_ETAT_SAUVEGARDE);
+    try {
+      return assainirEtatSauvegarde(ligne ? JSON.parse(ligne.valeur) : {});
+    } catch (e) {
+      return assainirEtatSauvegarde({});
+    }
+  }
+
+  function ecrireEtatSauvegarde(etat) {
+    const propre = assainirEtatSauvegarde(etat);
+    ecrireStmt.run(CLE_ETAT_SAUVEGARDE, JSON.stringify(propre));
+    return propre;
+  }
+
   return {
+    lireReglageSauvegarde, ecrireReglageSauvegarde, lireEtatSauvegarde, ecrireEtatSauvegarde,
     lireReglages, ecrireReglages, lireDernierTour, ecrireDernierTour,
     lireCopiesEnAttente, ecrireCopiesEnAttente, lireRetoursAudit, ecrireRetoursAudit,
     lireReglagesClaude, ecrireReglagesClaude, lireSecretLiens,
@@ -363,7 +425,7 @@ function creerRepoParametres(db) {
 }
 
 module.exports = {
-  creerRepoParametres, assainirReglages, assainirExclusionsPieces, assainirDernierTour, assainirCopiesEnAttente,
+  creerRepoParametres, assainirReglages, assainirEtatSauvegarde, assainirExclusionsPieces, assainirDernierTour, assainirCopiesEnAttente,
   assainirRetourAudit, assainirRetoursAudit, MAX_RETOURS_AUDIT,
   assainirReglagesClaude, MODELES_CLAUDE, MODELE_CLAUDE_PAR_DEFAUT,
   REGLAGES_PAR_DEFAUT, PORT_SMTP_PAR_DEFAUT

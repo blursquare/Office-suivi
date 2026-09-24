@@ -519,7 +519,26 @@
     pointer-events: none;
   }
 
-  /* Badge "Alpha" : déplacé à côté du logo "CLAIRE" (demandé par l'étude), en plus petit qu'avant
+  /* Stade de maturité d'un outil (« Alpha » sur la relecture d'actes, pendant que CLAIRE est en
+     bêta) : même facture que le badge du logo, mais en ambre --pret — un outil encore en test, pas
+     une alerte. Sur le lien de la barre latérale, poussé à droite du libellé. */
+  .stade-badge {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 20px;
+    color: var(--pret);
+    background: color-mix(in srgb, var(--pret) 14%, var(--paper-card));
+    border: 1px solid color-mix(in srgb, var(--pret) 40%, transparent);
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  .stade-badge-nav { margin-left: auto; font-size: 8px; padding: 1px 5px; }
+
+  /* Badge du logo (« Bêta » depuis le 24/09/2026, « Alpha » avant) : déplacé à côté du logo "CLAIRE" (demandé par l'étude), en plus petit qu'avant
      (il vivait seul dans un bloc calé en haut à droite de la sidebar) — un simple repère discret
      à côté de la marque plutôt qu'un second bloc d'état. L'indicateur de connexion au serveur, qui
      partageait ce bloc, a lui été déplacé dans l'écran "À propos" (voir .apropos-box). */
@@ -1744,6 +1763,22 @@
   /* Ambre --pret : un point à surveiller (copie Gmail non effacée), pas une panne des rappels. */
   .dernier-tour-avertissements { margin: 8px 0 0; padding-left: 26px; color: var(--pret); }
   .dernier-tour-avertissements li { margin-bottom: 3px; }
+
+  /* Sauvegarde de la base : procédure de restauration repliée sous l'encart, et bandeau du Tableau
+     de bord qui n'apparaît qu'en cas de retard ou d'échec (même teinte que l'encart en alerte). */
+  .reglages-restauration { margin-top: 14px; font-size: 13px; }
+  .reglages-restauration summary { cursor: pointer; color: var(--focus); font-weight: 500; }
+  .reglages-restauration ol { margin: 10px 0 6px; padding-left: 20px; }
+  .reglages-restauration li { margin-bottom: 4px; }
+  .dash-alerte-sauvegarde {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin-bottom: 16px; padding: 10px 14px; border-radius: 10px; font-size: 13px;
+    color: var(--urgent);
+    background: color-mix(in srgb, var(--urgent) 10%, var(--paper-card));
+    border: 1px solid color-mix(in srgb, var(--urgent) 30%, transparent);
+  }
+  .dash-alerte-sauvegarde > span { flex: 1 1 260px; }
+  .dash-alerte-sauvegarde .icone { flex: none; }
 
   /* Même teinte que .dl-alerte, le seul signal de l'outil qui garde un fond plein — ici sur un
      paragraphe entier plutôt qu'un mot, ce texte étant une mise en garde et non une étiquette. */

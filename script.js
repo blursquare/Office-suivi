@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-24 12:13';
+  const VERSION_APP = '2026-09-24 12:32';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-24 12:32', resume: "CLAIRE passe en bêta (la relecture d'actes reste en alpha). Sauvegarde automatique quotidienne de la base, dossier de destination à choisir dans les Réglages, alerte sur le Tableau de bord si elle échoue." },
     { version: '2026-09-24 12:13', resume: "Notification Teams des pièces trouvées : c'est le nom de la pièce qui est cliquable, l'adresse n'est plus affichée en clair." },
     { version: '2026-09-24 11:46', resume: "Tableau de bord refait (actions urgentes par statut, dernières pièces trouvées, avancement des dossiers) ; pièce renouvelée prise en compte (TF 2025 → 2026) ; fichiers écartés visibles et rétablissables ; lien vers la pièce dans Teams ; responsable prévenu quand un dossier est complet ; relecture d'actes sans limite de pages." },
     { version: '2026-09-24 10:34', resume: "Agenda connecté : l'appel de fonds, le rendez-vous, la date butoir et les échéances personnalisées ne sont plus du tout publiés (ils apparaissaient annulés, empilés sur un même jour). Seuls restent le prêt et la vente préalable à obtenir." },
@@ -12791,6 +12792,10 @@
     // exactement le symptôme signalé par l'étude : « la page se bloque puis il indique ne plus
     // avoir accès au serveur ». C'est une tâche de fond, pas une étape de démarrage.
     demarrerPolling();
+    // État des sauvegardes : lu au démarrage puis toutes les heures, pour que le bandeau du Tableau
+    // de bord apparaisse sans qu'on ait à ouvrir les Réglages.
+    chargerEtatSauvegarde();
+    setInterval(chargerEtatSauvegarde, 60 * 60 * 1000);
     revérifierDossiersLiesAuDemarrage().catch(e => console.error('Relecture des dossiers NAS', e));
   }
 
@@ -20528,6 +20533,7 @@
       renderReglagesEmails(reglages.emailsResponsables || {});
       document.getElementById('reglages-etat').style.display = 'none';
       chargerDernierTourRappels();
+      chargerEtatSauvegarde();
     } catch (e) {
       // Session expirée : déjà géré par fetchAvecAuth (écran de connexion réaffiché).
     }
@@ -20769,6 +20775,111 @@
       html += '<ul class="dernier-tour-avertissements">' + avertissements.map((e) => `<li>${escapeHtml(e)}</li>`).join('') + '</ul>';
     }
     zone.innerHTML = html;
+  }
+
+  // ---- Sauvegarde automatique de la base (voir server/src/sauvegarde.js) ----
+
+  let etatSauvegarde = null;
+
+  // Pure et testable : ce que l'écran dit de l'état des sauvegardes. `niveau` : 'ok', 'alerte'
+  // (en retard ou échec — c'est lui qui fait aussi apparaître le bandeau du Tableau de bord), ou
+  // 'neutre' (fonction sans objet, ou première sauvegarde pas encore faite). `emplacement` dit où
+  // partent les copies, et signale un dossier local qui ne protège pas d'une panne du disque.
+  function messageEtatSauvegarde(etat) {
+    if (!etat || !etat.actif) return { niveau: 'neutre', titre: 'Sauvegarde sans objet ici (base en mémoire).', detail: '', emplacement: '' };
+    const dest = etat.destination || {};
+    const emplacement = dest.locale
+      ? `Copies rangées sur ce poste (${dest.dossier}) : choisissez un dossier du NAS ci-dessous.`
+      : `Copies rangées dans ${dest.dossier}.`;
+    const t = etat.derniereTentative;
+    const jours = etat.joursDepuisDerniere;
+    const seuil = etat.joursAvantAlerte || 3;
+    if (!etat.derniereReussie) {
+      if (t && !t.ok) return { niveau: 'alerte', titre: 'La sauvegarde n\'a jamais réussi.', detail: t.erreur || '', emplacement };
+      return { niveau: 'neutre', titre: 'Première sauvegarde dans quelques minutes (ou « Sauvegarder maintenant »).', detail: '', emplacement };
+    }
+    const quand = new Date(etat.derniereReussie);
+    const quandTexte = isNaN(quand.getTime()) ? etat.derniereReussie : quand.toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' });
+    const nb = t && t.ok && Number.isFinite(t.nbDossiers) ? ` — ${t.nbDossiers} dossier${t.nbDossiers > 1 ? 's' : ''}` : '';
+    if (t && !t.ok) {
+      return { niveau: 'alerte', titre: `Dernière sauvegarde réussie : ${quandTexte}. La suivante a échoué.`, detail: t.erreur || '', emplacement };
+    }
+    if (Number.isFinite(jours) && jours >= seuil) {
+      return { niveau: 'alerte', titre: `Aucune sauvegarde depuis ${jours} jours (dernière : ${quandTexte}).`, detail: 'Le serveur était-il arrêté ?', emplacement };
+    }
+    return { niveau: 'ok', titre: `Dernière sauvegarde : ${quandTexte}${nb}.`, detail: '', emplacement };
+  }
+
+  function renderEtatSauvegarde() {
+    const zone = document.getElementById('reglages-sauvegarde-etat');
+    if (zone && etatSauvegarde) {
+      const m = messageEtatSauvegarde(etatSauvegarde);
+      zone.className = 'reglages-dernier-tour' + (m.niveau === 'ok' ? ' dernier-tour-ok' : m.niveau === 'alerte' ? ' dernier-tour-alerte' : '');
+      zone.innerHTML = `<div class="dernier-tour-ligne">${icone(m.niveau === 'alerte' ? 'alert-triangle' : m.niveau === 'ok' ? 'check' : 'info')}<span><strong>${escapeHtml(m.titre)}</strong>${m.detail ? ' ' + escapeHtml(m.detail) : ''}</span></div>`
+        + (m.emplacement ? `<p class="hint" style="margin:6px 0 0;">${escapeHtml(m.emplacement)}</p>` : '');
+    }
+    const champ = document.getElementById('reglages-sauvegarde-dossier');
+    if (champ && etatSauvegarde && document.activeElement !== champ) champ.value = etatSauvegarde.dossier || '';
+    renderAlerteSauvegardeDashboard();
+  }
+
+  function renderAlerteSauvegardeDashboard() {
+    const zone = document.getElementById('dash-alerte-sauvegarde');
+    if (!zone) return;
+    const m = etatSauvegarde ? messageEtatSauvegarde(etatSauvegarde) : null;
+    if (!m || m.niveau !== 'alerte') { zone.style.display = 'none'; zone.innerHTML = ''; return; }
+    zone.style.display = '';
+    zone.innerHTML = `${icone('alert-triangle')}<span><strong>Sauvegarde de la base :</strong> ${escapeHtml(m.titre)}${m.detail ? ' ' + escapeHtml(m.detail) : ''}</span>
+      <button type="button" class="action-rapide" onclick="definirOnglet('reglages')">Voir les Réglages</button>`;
+  }
+
+  async function chargerEtatSauvegarde() {
+    try {
+      const reponse = await fetchAvecAuth('/api/sauvegarde');
+      if (!reponse.ok) return;
+      etatSauvegarde = await reponse.json();
+      renderEtatSauvegarde();
+    } catch (e) {
+      // Serveur injoignable ou session expirée : déjà signalés ailleurs.
+    }
+  }
+
+  async function enregistrerDossierSauvegarde() {
+    const champ = document.getElementById('reglages-sauvegarde-dossier');
+    const resultat = document.getElementById('reglages-sauvegarde-resultat');
+    try {
+      const reponse = await fetchAvecAuth('/api/sauvegarde', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dossier: champ ? champ.value : '' })
+      });
+      const corps = await reponse.json();
+      if (!reponse.ok) { if (resultat) resultat.textContent = corps.erreur || 'Enregistrement impossible.'; return; }
+      etatSauvegarde = corps;
+      renderEtatSauvegarde();
+      if (resultat) resultat.textContent = 'Enregistré. Cliquez « Sauvegarder maintenant » pour vérifier que ce dossier est accessible.';
+    } catch (e) {
+      if (resultat) resultat.textContent = 'Serveur injoignable.';
+    }
+  }
+
+  async function lancerSauvegarde() {
+    const bouton = document.getElementById('reglages-sauvegarde-lancer');
+    const resultat = document.getElementById('reglages-sauvegarde-resultat');
+    if (bouton) { bouton.disabled = true; bouton.textContent = 'Sauvegarde en cours…'; }
+    if (resultat) resultat.textContent = '';
+    try {
+      const reponse = await fetchAvecAuth('/api/sauvegarde/lancer', { method: 'POST' });
+      const corps = await reponse.json();
+      if (!reponse.ok) { if (resultat) resultat.textContent = corps.erreur || 'Sauvegarde impossible.'; return; }
+      etatSauvegarde = corps;
+      renderEtatSauvegarde();
+      const t = corps.derniereTentative;
+      if (resultat) resultat.textContent = t && t.ok ? `✓ ${t.fichier} écrit.` : `Échec : ${(t && t.erreur) || 'erreur inconnue'}`;
+    } catch (e) {
+      if (resultat) resultat.textContent = 'Serveur injoignable.';
+    } finally {
+      if (bouton) { bouton.disabled = false; bouton.textContent = 'Sauvegarder maintenant'; }
+    }
   }
 
   async function chargerDernierTourRappels() {

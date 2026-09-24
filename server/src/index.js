@@ -60,6 +60,7 @@ const { creerApp } = require('./app');
 const { resoudreCheminNavigateurApp } = require('./navigateurApp');
 const { demarrerSurveillanceNas } = require('./nasWatch');
 const { demarrerTacheRappels } = require('./jobs/rappels');
+const { demarrerSauvegardeAutomatique } = require('./sauvegarde');
 
 // Journal de secours à côté de la base (même dossier `data/`, déjà résolu correctement en mode
 // développement comme en mode exécutable autonome — voir config.js) : signalé par l'étude, le
@@ -152,6 +153,10 @@ function demarrer() {
   // endroit réel (jamais dans app.js, pour ne pas déclencher ce minuteur dans les tests qui
   // montent creerApp() directement).
   demarrerTacheRappels(depot, db, config, parametresRepo);
+
+  // Sauvegarde quotidienne de la base (voir sauvegarde.js) : vérifiée toutes les heures, faite
+  // une fois par jour. Même règle que les deux minuteurs ci-dessus : démarrée ici seulement.
+  demarrerSauvegardeAutomatique(db, config, parametresRepo);
 
   const serveur = app.listen(config.port, () => {
     const url = `http://localhost:${config.port}/`;

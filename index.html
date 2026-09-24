@@ -30,7 +30,7 @@
       <span class="brand-word">Claire</span>
       <!-- Déplacé ici (petit, à côté du logo) depuis un bloc séparé en haut à droite de la sidebar,
            demandé par l'étude. -->
-      <span class="sidebar-alpha-badge" title="Version alpha : l'outil est encore en évolution active, des ajustements peuvent survenir d'une session à l'autre.">Alpha</span>
+      <span class="sidebar-alpha-badge" title="Version bêta : les fonctions principales sont stables et en usage au bureau ; seules des corrections et des retouches sont encore apportées. La relecture d'actes, plus récente, reste en alpha.">Bêta</span>
     </div>
 
     <!-- Liens groupés par catégorie (demandé par l'étude) : "Tableau de bord" reste seul, sans
@@ -54,7 +54,7 @@
            distinct du wizard "Nouveau dossier" — ici on dépose l'acte ET ses annexes séparément
            pour une relecture croisée, sans créer de dossier. -->
       <button type="button" id="tab-analyse-ia" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('analyse-ia')">
-        <span class="sidebar-link-icone" id="icon-nav-analyse-ia" aria-hidden="true"></span>Relecture d'actes
+        <span class="sidebar-link-icone" id="icon-nav-analyse-ia" aria-hidden="true"></span>Relecture d'actes<span class="stade-badge stade-badge-nav" title="Alpha : outil encore en test, à utiliser avec le mode commentaires.">Alpha</span>
       </button>
 
       <span class="sidebar-nav-titre">Outils</span>
@@ -115,6 +115,11 @@
       <button type="button" class="primary dash-header-nouveau" onclick="definirOnglet('nouveau')">+ Nouveau dossier</button>
     </div>
   </div>
+
+  <!-- Affiché seulement quand la sauvegarde automatique est en retard ou a échoué (voir
+       renderAlerteSauvegardeDashboard dans script.js) : un échec qui ne se voit que dans les
+       Réglages, personne ne le verrait. -->
+  <div id="dash-alerte-sauvegarde" class="dash-alerte-sauvegarde" style="display:none;"></div>
 
   <div class="kpis-dashboard" id="kpis-dashboard"></div>
 
@@ -1193,6 +1198,7 @@
       <div class="dash-eyebrow">Lecture de projet</div>
       <div class="dash-titre-ligne">
         <h1 class="dash-titre">Relecture d'un acte</h1>
+        <span class="stade-badge" title="Version alpha : outil encore en test. Relisez chaque point, et signalez les erreurs avec le mode commentaires pour qu'elles soient corrigées.">Alpha</span>
         <span class="calc-warning-label" title="Chaque point relevé est une proposition, citée page à l'appui, que le notaire vérifie et tranche : la relecture ne remplace pas son contrôle.">
           <span id="icon-analyse-ia-warning" aria-hidden="true"></span>
           Aide à la relecture
@@ -1448,6 +1454,36 @@
         <span id="reglages-claude-resultat"></span>
       </div>
     </div>
+  </div>
+
+  <!-- Sauvegarde automatique de la base (server/src/sauvegarde.js) : une copie par jour, les 14
+       dernières gardées. Voir chargerEtatSauvegarde()/renderEtatSauvegarde() dans script.js. -->
+  <div class="calc-card">
+    <div class="dash-section-titre">Sauvegarde de la base</div>
+    <p class="hint">Tous les dossiers vivent dans un seul fichier sur le poste serveur. CLAIRE en fait une copie chaque jour et garde les 14 dernières. Choisissez un dossier <strong>sur le NAS</strong> : une copie restée sur le même disque ne protège pas d'une panne de ce disque.</p>
+    <div id="reglages-sauvegarde-etat" class="reglages-dernier-tour"></div>
+    <div class="calc-champs" style="margin-top:12px;">
+      <div class="calc-champ">
+        <label for="reglages-sauvegarde-dossier">Dossier des sauvegardes</label>
+        <input type="text" id="reglages-sauvegarde-dossier" autocomplete="off" placeholder="\\NAS\Sauvegardes\CLAIRE">
+        <p class="hint">Chemin complet, vu depuis le poste serveur. Évitez le dossier qui contient les dossiers clients : il apparaîtrait dans la liste des dossiers à relier.</p>
+      </div>
+    </div>
+    <div style="margin-top:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      <button type="button" class="primary" onclick="enregistrerDossierSauvegarde()">Enregistrer</button>
+      <button type="button" class="secondary" id="reglages-sauvegarde-lancer" onclick="lancerSauvegarde()">Sauvegarder maintenant</button>
+      <span id="reglages-sauvegarde-resultat" class="hint" style="margin:0;"></span>
+    </div>
+    <details class="reglages-restauration">
+      <summary>Restaurer une sauvegarde</summary>
+      <ol>
+        <li>Arrêter le serveur : double-cliquer sur <code>Arreter-CLAIRE.bat</code>, à côté de <code>CLAIRE-serveur.exe</code>.</li>
+        <li>Dans le dossier <code>data</code>, à côté de l'exécutable, renommer <code>claire.db</code> en <code>claire-avant-restauration.db</code> (à garder tant que la restauration n'est pas vérifiée).</li>
+        <li>Copier la sauvegarde voulue (par exemple <code>claire-2026-09-24.db</code>) dans ce dossier <code>data</code> et la renommer <code>claire.db</code>.</li>
+        <li>Relancer CLAIRE, puis vérifier dans le Suivi que les dossiers sont là.</li>
+      </ol>
+      <p class="hint">Tout ce qui a été saisi après la date de la sauvegarde est perdu : c'est l'état du dossier ce jour-là qui revient.</p>
+    </details>
   </div>
 
   <!-- Fichiers écartés à la main pour une pièce (bouton « Réinitialiser » d'une pièce mal
