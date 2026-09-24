@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-24 18:08';
+  const VERSION_APP = '2026-09-24 18:10';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-24 18:10', resume: "Fenêtres de confirmation : le bouton dit ce qui va se passer (Retirer, Réinitialiser, Vider, Effacer en rouge ; Valider, Importer, Mettre à jour en bleu) au lieu de « Supprimer » partout." },
     { version: '2026-09-24 18:08', resume: "Valider une pièce à la main : le bouton de confirmation dit « Valider » (en bleu) et non plus « Supprimer »." },
     { version: '2026-09-24 18:05', resume: "Pièces : un « Arrêté d'alignement » (avec ou sans accent, « arrêté individuel / portant alignement »…) coche le certificat d'alignement. Fiche : « Signature 7 j avant la date butoir » au lieu de « ce butoir »." },
     { version: '2026-09-24 18:00', resume: "Courrier d'appel de fonds (.docx) : plus de ligne vide sous chaque ligne du décompte sans formule de calcul. Arbitrage forfait mobilier : les coûts habituels (300 € + 600 € + 300 €, un serment à 240 €) sont posés d'office, seules les deux simulations de droits restent à saisir." },
@@ -9342,20 +9343,43 @@
     lierDossierNasAutomatique(dossier.id);
   }
 
+  // Verbe d'ouverture de la question → libellé et couleur du bouton (voir demanderConfirmation).
+  var BOUTONS_CONFIRMATION = [
+    { verbe: 'supprimer', bouton: 'Supprimer', ton: 'danger' },
+    { verbe: 'retirer', bouton: 'Retirer', ton: 'danger' },
+    { verbe: 'réinitialiser', bouton: 'Réinitialiser', ton: 'danger' },
+    { verbe: 'vider', bouton: 'Vider', ton: 'danger' },
+    { verbe: 'effacer', bouton: 'Effacer', ton: 'danger' },
+    { verbe: 'marquer', bouton: 'Valider', ton: 'valider' },
+    { verbe: 'importer', bouton: 'Importer', ton: 'valider' },
+    { verbe: 'remplacer', bouton: 'Mettre à jour', ton: 'valider' },
+  ];
+  function boutonConfirmation(message) {
+    const premier = String(message || '').trim().split(/[\s«»"'’]+/)[0].toLowerCase();
+    const r = BOUTONS_CONFIRMATION.find(b => b.verbe === premier);
+    return r ? { bouton: r.bouton, ton: r.ton } : { bouton: 'Confirmer', ton: 'valider' };
+  }
+
   // Modale de confirmation maison : window.confirm() est souvent bloqué dans un aperçu en
   // bac à sable (iframe), ce qui empêchait la suppression de fonctionner silencieusement.
   let actionConfirmee = null;
 
-  // `options.bouton` remplace le libellé du bouton (« Supprimer » par défaut) et
-  // `options.ton: 'valider'` le passe du rouge de la suppression au bleu d'une action positive :
-  // demander de confirmer une validation avec un bouton rouge « Supprimer » faisait croire à
-  // l'inverse de ce qui allait se passer. Remis à l'état par défaut à chaque appel.
+  // Le bouton de confirmation dit ce qui va se passer, d'après le PREMIER MOT de la question
+  // (`boutonConfirmation`, pure et testable) : « Retirer », « Vider », « Importer »… plutôt qu'un
+  // « Supprimer » rouge partout, qui faisait croire à une suppression là où il n'y en avait pas.
+  // Rouge pour ce qui retire ou efface, bleu (`.btn-valider`) pour ce qui ajoute ou valide.
+  // `options.bouton` / `options.ton` l'emportent sur cette déduction. Un verbe inconnu retombe
+  // sur « Confirmer », en bleu : jamais un « Supprimer » affiché par défaut sur une question qui
+  // ne supprime rien.
   function demanderConfirmation(message, onConfirm, options) {
     document.getElementById('confirm-message').textContent = message;
     const ok = document.getElementById('confirm-btn-ok');
     if (ok) {
-      ok.textContent = (options && options.bouton) || 'Supprimer';
-      ok.classList.toggle('btn-valider', !!(options && options.ton === 'valider'));
+      const deduit = boutonConfirmation(message);
+      const bouton = (options && options.bouton) || deduit.bouton;
+      const ton = (options && options.ton) || deduit.ton;
+      ok.textContent = bouton;
+      ok.classList.toggle('btn-valider', ton === 'valider');
     }
     actionConfirmee = onConfirm;
     document.getElementById('confirm-overlay').style.display = 'flex';
@@ -11637,7 +11661,7 @@
       signalerSiDossierDevenuComplet(d);
       sauvegarder(d);
       render();
-    }, { bouton: 'Valider', ton: 'valider' });
+    });
   }
 
   // Annule la validation ci-dessus : la pièce redevient une pièce ordinaire, donc cherchée à

@@ -7202,13 +7202,15 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   - La carte « Date butoir » affiche « Signature 7 j avant la date butoir » (et « APRÈS la date
     butoir ») au lieu de « ce butoir », demandé par l'étude.
 
-- **Confirmation d'une validation manuelle de pièce : bouton « Valider » au lieu de « Supprimer »**
-  (24/09). `demanderConfirmation(message, onConfirm, options)` accepte `options.bouton` (libellé)
-  et `options.ton: 'valider'` (bouton bleu `--focus` via `.btn-valider` au lieu du rouge
-  `--urgent`) ; remis à « Supprimer »/rouge à chaque appel, donc les autres confirmations ne
-  changent pas. Seule `validerPieceManuellement()` l'utilise pour l'instant — d'autres
-  confirmations non destructives (réinitialiser une pièce, importer, mettre à jour les parties)
-  affichent encore « Supprimer », à passer au cas par cas si l'étude le demande.
+- **Fenêtres de confirmation : le bouton dit ce qui va se passer** (24/09). Le bouton était
+  « Supprimer » en rouge pour TOUTES les confirmations, y compris valider une pièce, importer ou
+  mettre à jour des parties. `boutonConfirmation(message)` (pure, `tests/confirmation-bouton.test.js`)
+  déduit le libellé du PREMIER MOT de la question via `BOUTONS_CONFIRMATION` : Supprimer / Retirer /
+  Réinitialiser / Vider / Effacer en rouge, « Marquer… » → Valider, Importer, « Remplacer… » →
+  Mettre à jour en bleu (`.btn-valider`, `--focus`). Un verbe inconnu donne « Confirmer » en bleu —
+  jamais un « Supprimer » par défaut. `demanderConfirmation(message, onConfirm, options)` accepte
+  encore `options.bouton`/`options.ton` pour forcer. **Toute nouvelle confirmation doit commencer
+  par son verbe d'action**, sinon elle affichera « Confirmer ».
 
 ## Comment tester
 
