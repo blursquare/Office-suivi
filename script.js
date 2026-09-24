@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-24 17:30';
+  const VERSION_APP = '2026-09-24 18:00';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-24 18:00', resume: "Courrier d'appel de fonds (.docx) : plus de ligne vide sous chaque ligne du décompte sans formule de calcul. Arbitrage forfait mobilier : les coûts habituels (300 € + 600 € + 300 €, un serment à 240 €) sont posés d'office, seules les deux simulations de droits restent à saisir." },
     { version: '2026-09-24 17:30', resume: "Apprentissage : une date corrigée à la main à la création d'un dossier (panneau ou champ « Dates butoir ») est retenue pour les actes suivants, et partagée entre tous les postes. Écrire à l'acquéreur est possible en participation. Nouveau bouton « Réception des fonds », qui rappelle la date du rendez-vous." },
     { version: '2026-09-24 16:51', resume: "Rappels et notifications : quand le responsable du dossier est aussi l'adresse de copie de l'étude, un seul message part, même si les deux adresses sont écrites avec une casse différente." },
     { version: '2026-09-24 16:32', resume: "Une pièce ajoutée à la main et cochée reçue ne se décoche plus à chaque revérification du NAS. Garanties du prêt : le paragraphe « GARANTIE(S) » est reconnu, et les « Garanties » de l'assurance emprunteur ne font plus conclure « Sans garanties » (la caution est de nouveau détectée)." },
@@ -10513,9 +10514,9 @@
     // Formulaire des quotités construit au premier affichage seulement : le quitter puis y revenir
     // ne doit pas effacer une saisie en cours.
     if (nom === 'quotites') initQuotites();
-    // Premier passage : l'écran part de champs vides, il n'y a donc rien à calculer — mais le
-    // verdict et le message d'invite doivent quand même être posés (voir reinitialiserInventaire).
-    if (nom === 'inventaire') calculerInventaireAffichage();
+    // Premier passage : coûts habituels posés, droits vides — le verdict et le message d'invite
+    // sont posés dans la foulée (voir initInventaire / reinitialiserInventaire).
+    if (nom === 'inventaire') initInventaire();
   }
 
   // ==== SUIVI : regroupement des échéances par semaine ====
@@ -16432,19 +16433,42 @@
     calculerInventaireAffichage();
   }
 
-  // Remet l'écran à vide, jamais à un jeu de valeurs d'exemple : l'artefact d'origine livrait un
-  // dossier fictif pré-rempli, ce qui contredit la règle déjà posée sur les deux autres
-  // simulateurs — un montant déjà là se prend pour un résultat.
+  // Coûts de l'inventaire posés d'office, demandé par l'étude : ce sont toujours les mêmes montants
+  // d'un dossier à l'autre (on les retouche parfois), les ressaisir à chaque simulation ne sert à
+  // rien. Repris de l'artefact d'origine. Les deux simulations de DROITS restent vides, elles :
+  // elles changent à chaque succession, et tant qu'elles manquent aucun verdict n'est affiché —
+  // la règle « un montant déjà là se prend pour un résultat » continue donc de protéger ce qui
+  // décide réellement de la réponse. Les trajets restent décochés (la plupart des dossiers n'en
+  // ont pas), le nombre d'un trajet est seulement prêt si on les coche.
+  var COUTS_INVENTAIRE_DEFAUT = {
+    'inv-frais-ouverture': 300,
+    'inv-prisee': 600,
+    'inv-frais-cloture': 300,
+    'inv-serment-nb': 1,
+    'inv-serment-unit': 240,
+    'inv-trajet-nb': 1
+  };
+
+  // Remet l'écran dans son état de départ : coûts habituels, droits et intitulé vides.
   function reinitialiserInventaire() {
     ['inv-dossier', 'inv-droits-sans', 'inv-droits-avec', 'inv-frais-ouverture', 'inv-prisee',
       'inv-frais-cloture', 'inv-serment-nb', 'inv-serment-unit', 'inv-trajet-nb', 'inv-trajet-unit']
       .forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.value = '';
+        if (el) el.value = Object.prototype.hasOwnProperty.call(COUTS_INVENTAIRE_DEFAUT, id) ? String(COUTS_INVENTAIRE_DEFAUT[id]) : '';
       });
     const coche = document.getElementById('inv-trajet-actif');
     if (coche) coche.checked = false;
     basculerTrajetsInventaire();
+  }
+
+  // Premier passage sur l'onglet seulement : le quitter puis y revenir ne doit pas écraser une
+  // simulation en cours (même principe que initProrata / initQuotites).
+  var inventaireInitialise = false;
+  function initInventaire() {
+    if (inventaireInitialise) { calculerInventaireAffichage(); return; }
+    inventaireInitialise = true;
+    reinitialiserInventaire();
   }
 
   function imprimerNoteInventaire() {

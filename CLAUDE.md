@@ -7166,6 +7166,32 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     `tests/dossier-local.test.js` (+1) ; `server/test/corrections-apprises.test.js` (4). Suite
     racine 768 → 773, serveur 276 → 280.
 
+- **Courrier d'appel de fonds sans ligne vide, et coûts d'inventaire posés d'office** (24/09) :
+  - **La ligne vide sous chaque ligne du décompte venait du MODÈLE Word**, pas des données. La
+    cellule de libellé de `{#debitRows}` portait `{label}` puis, dans une seconde run, un
+    `<w:br/>` INCONDITIONNEL suivi de `  {#formula}{formula}{/formula}` : la condition ne couvrait
+    que le texte de la formule, jamais le saut de ligne. Chaque ligne sans formule (prix, frais…)
+    sortait donc avec un retour à la ligne et deux espaces sous son libellé — visible sur le
+    `.docx` envoyé par l'étude, dont le libellé se terminait par « Prix d'acquisition␣␣ » + saut.
+    L'ouverture de la condition passe AVANT le saut (`{label}{#formula}` dans la première run,
+    `<w:br/>  {formula}{/formula}` dans la seconde) : docxtemplater retire alors toute la XML
+    comprise entre les deux balises, saut compris. Rendu vérifié avec docxtemplater/pizzip réels
+    sur trois cas (formule absente, présente, chaîne vide) ; seule `word/document.xml` change dans
+    l'archive, les 20 autres fichiers sont identiques octet pour octet, et le base64 de
+    `appel-de-fonds-modele.js` est régénéré. Rappel du piège déjà noté : un placeholder doit rester
+    entier dans une seule run.
+  - **Arbitrage forfait mobilier : coûts habituels posés d'office** (« ils sont toujours les mêmes,
+    parfois on les modifie ») — `COUTS_INVENTAIRE_DEFAUT` : acte d'inventaire 300 €, prisée 600 €,
+    acte de clôture 300 €, un serment à 240 €, et un trajet prêt (trajets toujours décochés). Ce
+    sont les valeurs de l'artefact d'origine, retirées au portage au nom de « un montant déjà là se
+    prend pour un résultat ». **Cette règle reste vraie pour ce qui décide la réponse** : les deux
+    simulations de droits et l'intitulé restent vides, donc aucun verdict n'est affiché tant
+    qu'elles manquent (testé). « Réinitialiser » revient à ces coûts, pas à des champs vides.
+    `initInventaire()` ne les pose qu'au PREMIER affichage de l'onglet : le quitter puis y revenir
+    ne défait pas une saisie en cours (même principe que `initProrata`). Vérifié dans un vrai
+    Chromium : coûts présents à l'ouverture, prisée modifiée conservée après un aller-retour
+    d'onglet, retour aux coûts habituels après « Réinitialiser ». Suite racine 773 → 774.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

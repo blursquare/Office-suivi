@@ -122,3 +122,20 @@ test('une virgule décimale est acceptée comme un point', () => {
   assert.strictEqual(r.cout, 12.5);
   assert.strictEqual(r.net, 987.5);
 });
+
+// Les coûts habituels de l'étude sont posés d'office (ils ne changent presque jamais), mais les
+// droits restent vides : seuls, ces coûts ne doivent JAMAIS produire de verdict.
+test('les coûts posés d\'office sont ceux de l\'étude et ne rendent aucun verdict sans les droits', () => {
+  const d = app.COUTS_INVENTAIRE_DEFAUT;
+  assert.strictEqual([d['inv-frais-ouverture'], d['inv-prisee'], d['inv-frais-cloture'], d['inv-serment-nb'], d['inv-serment-unit']].join(','), '300,600,300,1,240');
+  assert.ok(!('inv-droits-sans' in d) && !('inv-droits-avec' in d) && !('inv-dossier' in d));
+  const r = app.calculerArbitrageInventaire({
+    droitsSans: '', droitsAvec: '',
+    fraisOuverture: String(d['inv-frais-ouverture']), prisee: String(d['inv-prisee']),
+    fraisCloture: String(d['inv-frais-cloture']), sermentNb: String(d['inv-serment-nb']),
+    sermentUnit: String(d['inv-serment-unit']), trajetActif: false, trajetNb: '', trajetUnit: ''
+  });
+  assert.strictEqual(r.complet, false);
+  assert.strictEqual(r.cout, 1440);
+  assert.strictEqual(app.verdictArbitrageInventaire(r).cle, 'indetermine');
+});
