@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-24 14:33';
+  const VERSION_APP = '2026-09-24 16:22';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-24 16:22', resume: "Noms de fichiers reconnus avec une marge d'erreur : fautes de frappe, mots de référence autour du nom, sigles (CU, CU a, DIA), casse. Le diagnostic du dossier signale « nom approchant » quand c'est le cas. Un décompte de remboursement d'éco-prêt n'est pas pris pour une offre de prêt." },
     { version: '2026-09-24 14:33', resume: "Relecture d'actes : la visionneuse montre la page entière ; vos commentaires du premier essai sont intégrés à la grille (écart Carrez de 5 %, DPE multiples, notaire rédacteur, récapitulatif des diagnostics, pré-état daté, santé et travaux de la copropriété, fonds de travaux, AG, location touristique, honoraires) ; plus d'anomalie en doublon d'un point ni tirée du mandat de l'agence." },
     { version: '2026-09-24 12:32', resume: "CLAIRE passe en bêta (la relecture d'actes reste en alpha). Sauvegarde automatique quotidienne de la base, dossier de destination à choisir dans les Réglages, alerte sur le Tableau de bord si elle échoue." },
     { version: '2026-09-24 12:13', resume: "Notification Teams des pièces trouvées : c'est le nom de la pièce qui est cliquable, l'adresse n'est plus affichée en clair." },
@@ -11483,7 +11484,11 @@
   async function chercherFichierParNom(d, texteRecherche) {
     const cible = normaliserNomPourMotif(texteRecherche).toLowerCase();
     const fichiers = await listerFichiersNas(d);
-    return fichiers.find(f => normaliserNomPourMotif(f.nom).toLowerCase().includes(cible)) || null;
+    const exact = fichiers.find(f => normaliserNomPourMotif(f.nom).toLowerCase().includes(cible));
+    if (exact) return exact;
+    // À défaut, le libellé comme forme tolérante (faute de frappe, mots en plus) — voir
+    // correspondFormeNom. Toujours après la correspondance exacte : un nom exact l'emporte.
+    return fichiers.find(f => correspondFormeNom(texteRecherche, tokensNomFichier(normaliserNomPourMotif(f.nom)))) || null;
   }
 
   async function ajouterPiecePersonnalisee(dossierId) {
@@ -13956,6 +13961,160 @@
     return (texte || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   }
 
+  // ==== Noms de fichiers : reconnaissance tolérante (fautes de frappe, mots en plus, sigles) ====
+  // Demandé par l'étude : un nom de fichier saisi à la main n'est presque jamais la forme exacte
+  // qu'attend un motifNom — une lettre oubliée ou inversée (« Certficat d'urbanisme »), des mots de
+  // référence autour du nom (« 2024-118 DUPONT - Renonciation DIA commune »), un sigle
+  // (« CU a », « DIA »), une casse quelconque. Les motifNom restent le PREMIER test, inchangé ; ce
+  // qui suit n'est qu'un second essai, sur des formes déclarées pièce par pièce (`formesNom`).
+  //
+  // Trois garde-fous, parce qu'une tolérance mal réglée ferait reconnaître un document pour un
+  // autre (le coût qu'on paie le plus cher ici : les pièces d'une autre rubrique cochées reçues) :
+  //  - un mot de moins de 5 lettres doit être EXACT (au pluriel près) : « CU », « DIA », « TF »,
+  //    « pret » ne tolèrent aucune faute, un sigle d'une lettre de travers en devient un autre ;
+  //  - la PREMIÈRE lettre n'est jamais tolérée (« vitre » ne vaut pas « titre ») ;
+  //  - les mots d'une forme à plusieurs mots doivent être VOISINS dans le nom (au plus un mot
+  //    étranger entre eux) : c'est ce qui garde « Certificat d'urbanisme - réponse alignement
+  //    voirie » hors du certificat d'alignement, comme le faisait déjà le motifNom.
+  var MOTS_VIDES_NOM_FICHIER = ['a', 'au', 'aux', 'd', 'de', 'des', 'du', 'en', 'et', 'l', 'la', 'le', 'les', 'pdf', 'pour', 'sur', 'un', 'une'];
+
+  function tokensNomFichier(nom) {
+    return normaliserPourRecherche(String(nom || ''))
+      .split(/[^a-z0-9]+/)
+      .filter(t => t && !MOTS_VIDES_NOM_FICHIER.includes(t));
+  }
+
+  // Distance d'édition avec transposition (deux lettres inversées = une seule faute).
+  function distanceEdition(a, b) {
+    const d = [];
+    for (let i = 0; i <= a.length; i++) { d[i] = [i]; }
+    for (let j = 0; j <= b.length; j++) d[0][j] = j;
+    for (let i = 1; i <= a.length; i++) {
+      for (let j = 1; j <= b.length; j++) {
+        const cout = a[i - 1] === b[j - 1] ? 0 : 1;
+        d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cout);
+        if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+          d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+        }
+      }
+    }
+    return d[a.length][b.length];
+  }
+
+  function motsVoisinsNom(attendu, mot) {
+    if (attendu === mot) return true;
+    const sansPluriel = m => (m.length >= 4 ? m.replace(/[sx]$/, '') : m);
+    if (sansPluriel(attendu) === sansPluriel(mot)) return true;
+    if (attendu.length < 5 || attendu[0] !== mot[0]) return false;
+    const tolerance = attendu.length >= 10 ? 2 : 1;
+    if (Math.abs(attendu.length - mot.length) > tolerance) return false;
+    return distanceEdition(attendu, mot) <= tolerance;
+  }
+
+  // Une forme (« certificat urbanisme ») correspond à un nom de fichier si chacun de ses mots
+  // retrouve un mot voisin dans le nom, sans que deux mots ne se servent du même, et que
+  // l'ensemble tienne dans une fenêtre d'au plus un mot étranger. Deux mots consécutifs du nom
+  // peuvent aussi être recollés (« nume rotage » → « numerotage », un mot coupé par l'outil de
+  // nommage au niveau de l'accent — voir motifNom), et une forme entière collée en un seul mot
+  // (« EtatDate ») est reconnue aussi.
+  function correspondFormeNom(forme, tokens) {
+    const mots = tokensNomFichier(forme);
+    if (!mots.length || !tokens.length) return false;
+    const unites = [];
+    tokens.forEach((t, i) => {
+      unites.push({ texte: t, debut: i, fin: i });
+      if (i + 1 < tokens.length) unites.push({ texte: t + tokens[i + 1], debut: i, fin: i + 1 });
+    });
+    if (mots.length > 1) {
+      const colle = mots.join('');
+      if (unites.some(u => motsVoisinsNom(colle, u.texte))) return true;
+    }
+    const candidats = mots.map(m => unites.filter(u => motsVoisinsNom(m, u.texte)));
+    if (candidats.some(c => !c.length)) return false;
+    const choisis = [];
+    const essayer = k => {
+      if (k === mots.length) {
+        const debut = Math.min(...choisis.map(u => u.debut));
+        const fin = Math.max(...choisis.map(u => u.fin));
+        const unitesCollees = choisis.filter(u => u.fin > u.debut).length;
+        return fin - debut + 1 <= mots.length + 1 + unitesCollees;
+      }
+      for (const u of candidats[k]) {
+        if (choisis.some(c => u.debut <= c.fin && c.debut <= u.fin)) continue;
+        choisis.push(u);
+        if (essayer(k + 1)) return true;
+        choisis.pop();
+      }
+      return false;
+    };
+    return essayer(0);
+  }
+
+  // 'exact' si le motifNom reconnaît le nom, 'approche' si seule une forme tolérante le fait,
+  // null sinon. Une pièce personnalisée (sans motifNom) se retrouve par son libellé, en
+  // sous-chaîne comme avant ou, à défaut, comme une forme tolérante.
+  function correspondancePieceNom(piece, nomNormalise) {
+    if (!piece) return null;
+    if (piece.personnalisee) {
+      if (String(nomNormalise).toLowerCase().includes(String(piece.label || '').toLowerCase())) return 'exact';
+      return correspondFormeNom(piece.label, tokensNomFichier(nomNormalise)) ? 'approche' : null;
+    }
+    if (piece.motifNom && piece.motifNom.test(nomNormalise)) return 'exact';
+    const formes = FORMES_NOM_PIECES[piece.cle];
+    if (!formes) return null;
+    const tokens = tokensNomFichier(nomNormalise);
+    return formes.some(f => correspondFormeNom(f, tokens)) ? 'approche' : null;
+  }
+
+  // Formes tolérantes par pièce. Des MOTS, sans accent ni article (ils sont retirés du nom de
+  // fichier avant comparaison). Une forme d'un seul mot court (« cu », « dia ») est un sigle :
+  // il doit figurer tel quel, comme mot entier, dans le nom. `article20`/`ribCopro` n'en ont pas :
+  // leur motifNom est déjà une combinaison (« RIB » + « syndic ») qu'une forme libre affaiblirait.
+  var FORMES_NOM_PIECES = {
+    certificatUrbanisme: ['certificat urbanisme', 'cu', 'reponse urbanisme'],
+    certificatAlignement: ['certificat alignement', 'courriel alignement', 'alignement numerotage', 'numerotage alignement'],
+    certificatNumerotage: ['numerotage'],
+    reponseAssainissement: ['assainissement', 'spanc'],
+    renonciationPreemption: ['preemption', 'dpu', 'dia', 'declaration intention aliener'],
+    diagnosticsTechniques: ['diagnostic', 'diagnostique', 'ddt'],
+    erp: ['erp', 'etat risques'],
+    avisTaxeFonciere: ['tf', 'taxe fonciere'],
+    titrePropriete: ['titre'],
+    etatDate: ['etat date'],
+    etudeSol: ['etude sol', 'g1', 'g2'],
+    ramonage: ['ramonage'],
+    entretienChaudiere: ['entretien chaudiere', 'contrat chaudiere'],
+    entretienPac: ['entretien pac', 'entretien pompe chaleur'],
+    entretienClim: ['climatisation', 'clim'],
+    vidangeFosse: ['fosse', 'vidange'],
+    entretienAdoucisseur: ['adoucisseur'],
+    debroussaillage: ['debroussaillage', 'elagage'],
+    travauxRemiseEtat: ['remise etat'],
+    miseEnConformite: ['mise conformite', 'regularisation'],
+    cuveCiterne: ['citerne', 'degazage'],
+    debarras: ['debarras', 'encombrants'],
+    attestationConformite: ['consuel', 'attestation conformite', 'certificat conformite'],
+    garantieDecennale: ['decennale'],
+    dommageOuvrage: ['dommage ouvrage'],
+    facturesTravaux: ['facture travaux'],
+    etatParasitaire: ['parasitaire', 'merule', 'termites'],
+    auditEnergetique: ['audit energetique'],
+    securitePiscine: ['piscine'],
+    resiliationContrat: ['resiliation']
+  };
+
+  // Offre de prêt : même second essai que les pièces. Chaque forme exige le mot qui DIT de quel
+  // document il s'agit (offre, contrat, accord) à côté de « prêt »/« crédit » : un « Décompte de
+  // remboursement ÉCO PRÊT » (l'exemple donné par l'étude) contient « prêt » mais n'est pas une
+  // offre, et ne doit pas en devenir une.
+  var FORMES_NOM_OFFRE_PRET = ['offre pret', 'offre credit', 'offre financement', 'offre prealable credit', 'accord pret', 'contrat pret', 'contrat credit'];
+
+  function nomDitOffrePret(nomNormalise) {
+    if (OFFRE_PRET_RE.test(nomNormalise)) return true;
+    const tokens = tokensNomFichier(nomNormalise);
+    return FORMES_NOM_OFFRE_PRET.some(f => correspondFormeNom(f, tokens));
+  }
+
   // Ordre d'affichage = ordre des listes fournies par l'étude : urbanisme (commun aux trois types),
   // puis les pièces propres à la copropriété si applicable, puis le reste, puis les pièces
   // auto-détectées depuis un engagement du compromis (voir PIECES_ENGAGEMENTS_AUTO ci-dessus),
@@ -14989,7 +15148,7 @@
             //      fichier a déjà fait le travail d'identification ;
             //   2. sinon (nom muet ou ambigu) → TITRE de la page de garde, puis confirmation par
             //      le modèle IA local, comme avant.
-            const nomDitOffre = OFFRE_PRET_RE.test(nomNormalise);
+            const nomDitOffre = nomDitOffrePret(nomNormalise);
             let titre = '';
             let reconnu = nomDitOffre;
             let parLeNom = nomDitOffre;
@@ -15074,9 +15233,10 @@
         // que chercherFichierParNom, appliquée ici pour qu'un "Revérifier" ultérieur la retrouve
         // aussi, pas seulement la recherche ponctuelle faite à son ajout.
         let correspond = false;
+        const reconnaissance = correspondancePieceNom(piece, nomNormalise);
         if (piece.personnalisee) {
-          correspond = nomNormalise.toLowerCase().includes(piece.label.toLowerCase());
-        } else if (piece.motifNom && piece.motifNom.test(nomNormalise)) {
+          correspond = !!reconnaissance;
+        } else if (reconnaissance) {
           if (estNomExcluPourPiece(piece.cle, nomNormalise)) {
             // Le nom correspond, mais une correction précédente l'a écarté pour cette pièce (bouton
             // « Réinitialiser », voir reinitialiserStatutPieceStandard). Écrit en clair dans le
@@ -15091,7 +15251,7 @@
         }
         if (correspond) {
           (candidatsParPiece[piece.cle] = candidatsParPiece[piece.cle] || []).push({ chemin: cheminComplet, nom: fichier.nom });
-          diagnosticJournal.push(`${fichier.nom} → pièce trouvée par nom : « ${piece.label} »`);
+          diagnosticJournal.push(`${fichier.nom} → pièce trouvée par nom${reconnaissance === 'approche' ? ' (nom approchant)' : ''} : « ${piece.label} »`);
         }
       }
     }

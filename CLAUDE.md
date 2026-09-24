@@ -7029,6 +7029,37 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     758, serveur 273 → 274. Vérifié dans un vrai Chromium (pdf.js simulé, CDN bloqué ici) : page
     entière visible, bas de page compris, clair et sombre, 1500 px et 400 px, aucune erreur JS.
 
+- **Noms de fichiers reconnus avec une marge d'erreur** (24/09), demandé par l'étude : « détecter
+  aussi le nom même si ce n'est pas le nom exact — faute de frappe, mots de référence en plus (ex :
+  DECOMPTE de remboursement ECO PRET), abréviations (cu, cu a, renonciation DIA…), la casse ». La
+  casse était déjà ignorée (tous les `motifNom` sont en `/i`) ; le reste manquait.
+  - **Second essai, jamais à la place du premier** : `correspondancePieceNom(piece, nom)` teste
+    d'abord le `motifNom` inchangé (`'exact'`), puis seulement des formes tolérantes déclarées pièce
+    par pièce dans `FORMES_NOM_PIECES` (`'approche'`). Branché dans `verifierDossierLocal`
+    (exclusions posées par « Réinitialiser » toujours respectées, le diagnostic écrit « nom
+    approchant »), dans `chercherFichierParNom` (après la correspondance exacte) et, pour l'offre
+    de prêt, via `nomDitOffrePret` (formes `FORMES_NOM_OFFRE_PRET`). Une pièce personnalisée se
+    retrouve aussi par son libellé approché.
+  - `correspondFormeNom` : nom de fichier découpé en mots sans accent ni article
+    (`tokensNomFichier`, `MOTS_VIDES_NOM_FICHIER`), chaque mot de la forme doit retrouver un mot
+    voisin (`motsVoisinsNom` : pluriel, puis distance d'édition avec transposition,
+    `distanceEdition`), mots en plus autorisés, deux mots consécutifs recollables (« nume rotage »),
+    forme entière collée reconnue (« EtatDate »).
+  - **Trois garde-fous, à ne pas assouplir** : un mot de moins de 5 lettres doit être exact (un
+    sigle — CU, DIA, TF — ne tolère aucune faute, et doit être un mot entier : « Diagramme » n'est
+    pas une DIA, « Cuisine » pas un CU) ; la première lettre n'est jamais tolérée (« vitre » ≠
+    « titre ») ; les mots d'une forme doivent être voisins, au plus un mot étranger entre eux —
+    c'est ce qui garde « Certificat d'urbanisme - réponse alignement voirie » hors du certificat
+    d'alignement. Tolérance d'une faute de 5 à 9 lettres, deux à partir de 10.
+  - **« DECOMPTE de remboursement ECO PRET »** a été lu comme l'exemple d'un nom chargé de mots de
+    référence, pas comme une pièce à reconnaître (aucune pièce de la checklist ne lui correspond).
+    Il sert de contre-exemple : chaque forme de l'offre de prêt exige le mot qui dit le document
+    (offre, contrat, accord) à côté de « prêt »/« crédit », donc un décompte d'éco-prêt n'est
+    jamais pris pour une offre. À ajouter comme pièce si l'étude le demande.
+  - `article20` et `ribCopro` n'ont pas de forme tolérante : leur `motifNom` est déjà une
+    combinaison qu'une forme libre affaiblirait. `choisirAvantContratNas` n'est pas touché.
+  - Tests : `tests/noms-approchants.test.js` (8, dont les négatifs). Suite racine 758 → 766.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à
