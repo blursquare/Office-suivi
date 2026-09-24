@@ -79,6 +79,16 @@ async function main() {
   );
 
   etape(2, 6, 'Génération du blob SEA (avec les fichiers statiques embarqués)');
+  // Identité du build, embarquée dans l'exécutable : c'est ainsi que la mise à jour en un clic
+  // (src/miseAJour.js) sait quel build tourne sur le poste et s'il en existe un plus récent. Le
+  // workflow GitHub fournit CLAIRE_BUILD (numéro du run, le même que le tag serveur-exe-N de la
+  // release) et CLAIRE_COMMIT ; une construction locale n'a pas de numéro (build: null).
+  const numero = Number.parseInt(process.env.CLAIRE_BUILD || '', 10);
+  fs.writeFileSync(path.join(BUILD_DIR, 'build-info.json'), JSON.stringify({
+    build: Number.isInteger(numero) && numero > 0 ? numero : null,
+    commit: process.env.CLAIRE_COMMIT || '',
+    date: new Date().toISOString()
+  }));
   const seaConfig = {
     main: 'build/claire-server.cjs',
     output: 'build/sea-prep.blob',
@@ -93,7 +103,8 @@ async function main() {
       'appel-de-fonds-modele.js': '../appel-de-fonds-modele.js',
       'manifest.json': '../manifest.json',
       'sw.js': '../sw.js',
-      'icone.svg': '../icone.svg'
+      'icone.svg': '../icone.svg',
+      'build-info.json': 'build/build-info.json'
     }
   };
   const seaConfigPath = path.join(SERVER_DIR, 'sea-config.json');

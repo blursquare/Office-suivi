@@ -606,6 +606,33 @@ version, l'écran, le dossier ouvert, le navigateur et les dernières erreurs te
   `GET /api/signalements/:id`, `PATCH /api/signalements/:id`, `DELETE /api/signalements/:id`,
   `GET /api/signalements/export?statut=nouveau|transmis|corrige|doublon|ecarte|tous`.
 
+## Mise à jour en un clic
+
+Réglages › **Mise à jour de CLAIRE**. Chaque push sur `main` publie un nouveau
+`CLAIRE-serveur.exe` en release GitHub (`serveur-exe-N`, voir
+`.github/workflows/build-exe.yml`) ; le numéro `N` est embarqué dans l'exécutable
+(`build-info.json`, écrit par `scripts/build-windows-exe.mjs`), c'est ainsi que le serveur sait
+quelle version il fait tourner.
+
+- **Vérifier** : lit la dernière release et la compare au build installé. Rien n'est téléchargé.
+- **Mettre à jour maintenant** (après confirmation) : sauvegarde de la base → téléchargement de
+  l'exécutable à côté de l'actuel → contrôle de sa taille et de son empreinte SHA-256 (publiée par
+  GitHub) → l'actuel est renommé `CLAIRE-serveur.ancien.exe`, le nouveau prend sa place →
+  redémarrage. Une sauvegarde impossible ou une empreinte différente annule tout sans rien
+  changer. La page se recharge d'elle-même quand le serveur revient ; il faut se reconnecter (les
+  sessions sont en mémoire).
+- **Redémarrage** : lancé à la main ou par `Lancer-CLAIRE-en-arriere-plan.vbs`, le serveur relance
+  lui-même le nouvel exécutable (sans fenêtre) avant de s'arrêter ; en service NSSM, il s'arrête et
+  NSSM le relance.
+- **Dépôt privé** : l'accès aux releases demande un jeton GitHub *fine-grained* limité au dépôt
+  Office-suivi, permission **Contents : Read-only** — la procédure est affichée dans la carte. Il
+  est gardé en base (`parametres`, clé `mise-a-jour`) et ne ressort par aucune route.
+- **Retour arrière** : `Arreter-CLAIRE.bat`, supprimer `CLAIRE-serveur.exe`, renommer
+  `CLAIRE-serveur.ancien.exe` en `CLAIRE-serveur.exe`, relancer.
+- **La toute première fois**, l'exécutable en place n'a pas encore cette fonction : il faut
+  installer à la main une version qui la contient. Il affiche ensuite « version inconnue » s'il
+  est antérieur à l'embarquement du numéro de build — l'installation reste possible.
+
 ## Service Windows (démarrage automatique, redémarrage seul en cas de plantage)
 
 Par défaut, `CLAIRE-serveur.exe` reste un simple exécutable : il tourne tant que sa fenêtre de

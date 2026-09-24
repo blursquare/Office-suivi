@@ -5310,3 +5310,10 @@ button.gantt-ligne:hover { background: var(--paper-sunk); }
 .signalement-actions select.signalement-input { width: 100%; max-width: 260px; padding: 5px 8px; font-size: 13px; }
 .signalement-actions .signalement-note input.signalement-input { max-width: none; }
 .signalement-actions .signalement-suppr { margin-left: auto; }
+
+/* Fenêtre « Mise à jour en cours » (voir installerMiseAJour dans script.js). */
+.confirm-box p.maj-overlay-detail {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--muted);
+}

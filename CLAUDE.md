@@ -7325,6 +7325,55 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     avec capture JPEG et contexte, passage en « transmis », erreur JS de test bien jointe, dossier
     ouvert repris dans le contexte, Échap qui ferme, aucun débordement, aucune erreur JS.
 
+- **Mise à jour de CLAIRE en un clic, et dépôt GitHub passé en privé** (24/09 soir). L'étude a
+  demandé si je pouvais « envoyer les nouvelles versions directement sur le PC de l'office », puis
+  « en remote ? ». **Non** : cet environnement de développement n'a aucun accès au réseau du bureau.
+  Réponse construite à la place, avec deux choix de l'étude : **installation seulement sur un clic**
+  (jamais la nuit, jamais seule), et **dépôt passé en privé**.
+  - **Serveur** (`server/src/miseAJour.js`, `server/src/routes/miseAJour.js`, voir server/README.md,
+    section « Mise à jour en un clic ») : `GET /api/mise-a-jour` (build installé, jeton enregistré ou
+    non — jamais le jeton), `PUT /api/mise-a-jour/jeton`, `POST …/verifier` (compare à
+    `releases/latest`, rien n'est téléchargé), `POST …/installer`. L'installation enchaîne
+    sauvegarde de la base (`sauvegarderEtEnregistrer` ; un échec annule tout), téléchargement en
+    `.partiel` avec contrôle de taille, de taille minimale et de l'empreinte SHA-256 que GitHub publie
+    avec l'asset (`digest`) — **refus si GitHub n'en publie pas** —, puis échange des fichiers.
+  - **Windows permet de RENOMMER un exécutable en cours d'exécution** (pas de l'écraser) : c'est ce
+    qui rend l'échange possible sans script externe. `echangerExecutables` fait actuel → `.ancien.exe`
+    puis nouveau → actuel, et défait la première étape si la seconde échoue — le dossier n'est
+    jamais laissé sans `CLAIRE-serveur.exe`. `CLAIRE-serveur.ancien.exe` reste sur le disque : c'est
+    le retour arrière, à la main (procédure affichée dans la carte et le README).
+  - **Redémarrage** (`redemarrerApresMiseAJour`, index.js, passé à `creerApp` via
+    `miseAJour.redemarrer`) : fermeture du port et de la base AVANT de relancer — sinon la nouvelle
+    instance tomberait sur EADDRINUSE —, puis, en session interactive, relance détachée et sans
+    fenêtre de `process.execPath` (qui désigne déjà le nouveau fichier) ; en service NSSM (pas de
+    `SESSIONNAME`, même signal qu'`ouvrirNavigateur`), arrêt seul, NSSM relançant le même chemin.
+    Relancer dans les deux cas ferait démarrer deux instances. La nouvelle instance reçoit
+    `CLAIRE_APRES_MISE_A_JOUR=1` et n'ouvre pas de nouvelle fenêtre Chrome : la page déjà ouverte
+    attend que `/api/health` disparaisse puis revienne, et se recharge (`installerMiseAJour`). Les
+    sessions étant en mémoire, il faut se reconnecter. Au-delà de 3 minutes sans réponse, la fenêtre
+    donne la procédure de retour arrière.
+  - **Numéro de build embarqué** : `build-windows-exe.mjs` écrit `build-info.json` (`build` =
+    `CLAIRE_BUILD`, fourni par le workflow = `github.run_number`, le même `N` que le tag
+    `serveur-exe-N` ; `commit`, `date`) et l'embarque comme asset SEA ; `lireBuildInstalle` le lit par
+    `sea.getAsset`. Un exécutable antérieur n'en a pas → « version inconnue », installation quand
+    même possible. **Le tout premier passage est manuel** : l'exécutable en service n'a pas encore
+    cette fonction.
+  - **Dépôt privé** : je n'ai pas pu changer la visibilité moi-même (aucun outil ni jeton
+    d'administration du dépôt dans cet environnement) — procédure donnée à l'étude. Un dépôt privé
+    répond **404** (pas 403) à qui n'y a pas accès : `messageErreurGithub` parle donc d'abord du
+    jeton. Jeton *fine-grained* limité au dépôt, **Contents : Read-only**, saisi dans la carte,
+    stocké en base (clé `mise-a-jour`, `assainirReglagesMiseAJour`), jamais renvoyé — même
+    discipline que le mot de passe SMTP et la clé API. En privé, le workflow de build continue de
+    fonctionner (`GITHUB_TOKEN` du dépôt) et consomme des minutes GitHub Actions (quota gratuit
+    des dépôts privés, largement suffisant pour quelques builds par jour).
+  - Tests : `server/test/mise-a-jour.test.js` (14, doublures de `fetch` et de `sea`, vrai
+    échange de fichiers dans un dossier temporaire, route complète jusqu'au redémarrage),
+    `tests/mise-a-jour-affichage.test.js` (4). Suite racine 791, serveur 303. Construction locale
+    de l'exécutable vérifiée (`build-info.json` bien présent dans le blob). **Vérifié dans un vrai
+    Chromium** avec un serveur simulant l'exécutable et GitHub : vérification, confirmation,
+    fenêtre de progression, redémarrage, rechargement sur l'écran de connexion, clair et sombre,
+    aucune erreur JS. **Non vérifié sur Windows** : le renommage d'un exécutable en cours et la
+    relance détachée restent à confirmer par la première mise à jour réelle au bureau.
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

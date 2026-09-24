@@ -313,6 +313,19 @@ function assainirReglagesClaude(brut, precedent) {
   };
 }
 
+// Jeton GitHub de la mise à jour en un clic (voir miseAJour.js) : même discipline que la clé API
+// Anthropic — jamais renvoyé par une route ; absent ou `null` dans la requête, on garde celui en
+// base ; chaîne vide explicite, on l'efface.
+const CLE_MISE_A_JOUR = 'mise-a-jour';
+
+function assainirReglagesMiseAJour(brut, precedent) {
+  const b = (brut && typeof brut === 'object') ? brut : {};
+  const p = (precedent && typeof precedent === 'object') ? precedent : {};
+  const jeton = (typeof b.jetonGithub === 'string') ? b.jetonGithub.trim() : texteNettoye(p.jetonGithub);
+  // Un jeton GitHub ne contient ni espace ni caractère de contrôle : tout le reste est un collage raté.
+  return { jetonGithub: /^[A-Za-z0-9_]{20,255}$/.test(jeton) ? jeton : '' };
+}
+
 function creerRepoParametres(db) {
   const lireStmt = db.prepare('SELECT valeur FROM parametres WHERE cle = ?');
   const ecrireStmt = db.prepare(
@@ -475,7 +488,24 @@ function creerRepoParametres(db) {
     return propre;
   }
 
+  function lireReglagesMiseAJour() {
+    const ligne = lireStmt.get(CLE_MISE_A_JOUR);
+    if (!ligne) return assainirReglagesMiseAJour({});
+    try {
+      return assainirReglagesMiseAJour(JSON.parse(ligne.valeur));
+    } catch (e) {
+      return assainirReglagesMiseAJour({});
+    }
+  }
+
+  function ecrireReglagesMiseAJour(reglages) {
+    const propre = assainirReglagesMiseAJour(reglages, lireReglagesMiseAJour());
+    ecrireStmt.run(CLE_MISE_A_JOUR, JSON.stringify(propre));
+    return propre;
+  }
+
   return {
+    lireReglagesMiseAJour, ecrireReglagesMiseAJour,
     lireReglageSauvegarde, ecrireReglageSauvegarde, lireEtatSauvegarde, ecrireEtatSauvegarde,
     lireReglages, ecrireReglages, lireDernierTour, ecrireDernierTour,
     lireCopiesEnAttente, ecrireCopiesEnAttente, lireRetoursAudit, ecrireRetoursAudit,
@@ -487,6 +517,6 @@ function creerRepoParametres(db) {
 module.exports = {
   creerRepoParametres, assainirReglages, assainirEtatSauvegarde, assainirExclusionsPieces, assainirCorrectionApprise, assainirCorrectionsApprises, MAX_CORRECTIONS_APPRISES, assainirDernierTour, assainirCopiesEnAttente,
   assainirRetourAudit, assainirRetoursAudit, MAX_RETOURS_AUDIT,
-  assainirReglagesClaude, MODELES_CLAUDE, MODELE_CLAUDE_PAR_DEFAUT,
+  assainirReglagesClaude, assainirReglagesMiseAJour, MODELES_CLAUDE, MODELE_CLAUDE_PAR_DEFAUT,
   REGLAGES_PAR_DEFAUT, PORT_SMTP_PAR_DEFAUT
 };

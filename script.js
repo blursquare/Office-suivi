@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-24 19:34';
+  const VERSION_APP = '2026-09-24 23:05';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-24 23:05', resume: "Réglages › Mise à jour de CLAIRE : « Vérifier » compare la version installée à la dernière publiée, « Mettre à jour maintenant » sauvegarde la base, installe la nouvelle version et redémarre le serveur, en un clic. Le dépôt GitHub étant privé, un jeton en lecture seule s'enregistre dans la même carte." },
     { version: '2026-09-24 19:34', resume: "Nouveau bouton « Signaler un problème » en bas de la barre latérale : gravité, ce que vous faisiez, ce qui s'est passé, capture d'écran facultative ; la version, l'écran, le dossier ouvert et les erreurs techniques sont joints tout seuls. Un problème bloquant prévient l'étude sur Teams. Tri, doublons et export dans Réglages › Signalements des collaborateurs." },
     { version: '2026-09-24 19:07', resume: "Relecture d'actes : bilan réorganisé (résumé et contrôle CLAIRE de l'acte en haut, thèmes avec « à surveiller » et « validé » côte à côte, aperçu toujours ouvert), grille adaptée maison / copropriété / terrain à bâtir, commentaires en deux lignes, analyses passées enregistrées et rouvrables. Tableau de bord : J- avant la date butoir du prêt à côté d'une offre introuvable, dossiers actifs en vert." },
     { version: '2026-09-24 18:10', resume: "Fenêtres de confirmation : le bouton dit ce qui va se passer (Retirer, Réinitialiser, Vider, Effacer en rouge ; Valider, Importer, Mettre à jour en bleu) au lieu de « Supprimer » partout." },
@@ -21745,6 +21746,7 @@
       document.getElementById('reglages-etat').style.display = 'none';
       chargerDernierTourRappels();
       chargerEtatSauvegarde();
+      chargerMiseAJour();
     } catch (e) {
       // Session expirée : déjà géré par fetchAvecAuth (écran de connexion réaffiché).
     }
@@ -22091,6 +22093,152 @@
     } finally {
       if (bouton) { bouton.disabled = false; bouton.textContent = 'Sauvegarder maintenant'; }
     }
+  }
+
+  // ===== Mise à jour de CLAIRE en un clic (server/src/miseAJour.js) =====
+  // Rien ne s'installe sans le clic « Mettre à jour maintenant » : « Vérifier » ne fait que
+  // comparer le build installé à la dernière publication GitHub.
+  let etatMiseAJour = null;
+  let verificationMiseAJour = null;
+
+  // Texte de l'encart, pur et testable. `etat` : GET /api/mise-a-jour ; `verif` : réponse de
+  // « Vérifier » (ou null tant qu'on n'a pas vérifié).
+  function messageMiseAJour(etat, verif) {
+    const installe = etat && etat.installe && Number.isInteger(etat.installe.build) ? etat.installe.build : null;
+    const libInstalle = installe ? `build ${installe}` : 'version inconnue';
+    if (!etat) return { niveau: 'neutre', titre: 'État de la mise à jour indisponible.', detail: '', installable: false };
+    if (!etat.modeExe) {
+      return { niveau: 'neutre', titre: 'Serveur en mode développement : la mise à jour ne concerne que CLAIRE-serveur.exe.', detail: '', installable: false };
+    }
+    if (!verif) return { niveau: 'neutre', titre: `Version installée : ${libInstalle}.`, detail: 'Cliquez « Vérifier » pour voir s\'il existe une version plus récente.', installable: false };
+    if (verif.erreur) return { niveau: 'alerte', titre: 'Vérification impossible.', detail: verif.erreur, installable: false };
+    const dispo = verif.disponible || {};
+    const quand = dispo.publieLe ? ` (publiée le ${formatDateFr(String(dispo.publieLe).slice(0, 10))})` : '';
+    if (verif.etat === 'a-jour') return { niveau: 'ok', titre: `CLAIRE est à jour (${libInstalle}).`, detail: '', installable: false };
+    if (verif.etat === 'disponible') {
+      return { niveau: 'alerte', titre: `Nouvelle version disponible : build ${dispo.build}${quand}.`, detail: `Installée : ${libInstalle}.`, installable: true };
+    }
+    return {
+      niveau: 'neutre',
+      titre: `Dernière version publiée : build ${dispo.build || '?'}${quand}.`,
+      detail: `Installée : ${libInstalle} — impossible de dire si elle est plus récente. L'installer reste possible.`,
+      installable: true
+    };
+  }
+
+  function renderMiseAJour() {
+    const zone = document.getElementById('reglages-maj-etat');
+    if (!zone) return;
+    const m = messageMiseAJour(etatMiseAJour, verificationMiseAJour);
+    zone.className = 'reglages-dernier-tour' + (m.niveau === 'ok' ? ' dernier-tour-ok' : m.niveau === 'alerte' ? ' dernier-tour-alerte' : '');
+    zone.innerHTML = `<div class="dernier-tour-ligne">${icone(m.niveau === 'ok' ? 'check' : m.niveau === 'alerte' ? 'alert-triangle' : 'info')}<span><strong>${escapeHtml(m.titre)}</strong>${m.detail ? ' ' + escapeHtml(m.detail) : ''}</span></div>`;
+    const installer = document.getElementById('reglages-maj-installer');
+    if (installer) installer.style.display = m.installable ? '' : 'none';
+    const verifier = document.getElementById('reglages-maj-verifier');
+    if (verifier) verifier.disabled = !(etatMiseAJour && etatMiseAJour.modeExe);
+    const champ = document.getElementById('reglages-maj-jeton');
+    if (champ && etatMiseAJour) {
+      champ.placeholder = etatMiseAJour.jetonEnregistre ? 'Déjà enregistré — laisser vide pour le conserver' : 'github_pat_…';
+    }
+  }
+
+  async function chargerMiseAJour() {
+    try {
+      const reponse = await fetchAvecAuth('/api/mise-a-jour');
+      if (!reponse.ok) return;
+      etatMiseAJour = await reponse.json();
+      renderMiseAJour();
+    } catch (e) {
+      // Serveur injoignable ou session expirée : déjà signalés ailleurs.
+    }
+  }
+
+  async function verifierMiseAJour() {
+    const bouton = document.getElementById('reglages-maj-verifier');
+    if (bouton) { bouton.disabled = true; bouton.textContent = 'Vérification…'; }
+    try {
+      const reponse = await fetchAvecAuth('/api/mise-a-jour/verifier', { method: 'POST' });
+      const corps = await reponse.json();
+      etatMiseAJour = Object.assign({}, etatMiseAJour, corps);
+      verificationMiseAJour = corps;
+    } catch (e) {
+      verificationMiseAJour = { erreur: 'Serveur injoignable.' };
+    } finally {
+      if (bouton) bouton.textContent = 'Vérifier';
+      renderMiseAJour();
+    }
+  }
+
+  async function enregistrerJetonMiseAJour() {
+    const champ = document.getElementById('reglages-maj-jeton');
+    const resultat = document.getElementById('reglages-maj-jeton-resultat');
+    const valeur = champ ? champ.value.trim() : '';
+    if (!valeur) { if (resultat) resultat.textContent = 'Collez le jeton dans le champ avant d\'enregistrer.'; return; }
+    try {
+      const reponse = await fetchAvecAuth('/api/mise-a-jour/jeton', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jetonGithub: valeur })
+      });
+      const corps = await reponse.json();
+      if (!reponse.ok) { if (resultat) resultat.textContent = corps.erreur || 'Enregistrement impossible.'; return; }
+      etatMiseAJour = corps;
+      if (champ) champ.value = '';
+      if (resultat) resultat.textContent = 'Jeton enregistré. Cliquez « Vérifier » pour contrôler qu\'il donne bien accès au dépôt.';
+      renderMiseAJour();
+    } catch (e) {
+      if (resultat) resultat.textContent = 'Serveur injoignable.';
+    }
+  }
+
+  function afficherProgressionMiseAJour(titre, detail) {
+    const overlay = document.getElementById('maj-overlay');
+    if (!overlay) return;
+    document.getElementById('maj-overlay-titre').textContent = titre;
+    document.getElementById('maj-overlay-detail').textContent = detail || '';
+    overlay.style.display = 'flex';
+  }
+
+  function demanderInstallationMiseAJour() {
+    const m = messageMiseAJour(etatMiseAJour, verificationMiseAJour);
+    if (!m.installable) return;
+    const dispo = (verificationMiseAJour && verificationMiseAJour.disponible) || {};
+    demanderConfirmation(
+      `Installer CLAIRE build ${dispo.build || '?'} ? La base est sauvegardée d'abord, puis le serveur redémarre : CLAIRE sera indisponible environ une minute sur tous les postes, et il faudra se reconnecter.`,
+      installerMiseAJour,
+      { bouton: 'Mettre à jour', ton: 'valider' }
+    );
+  }
+
+  // Après la réponse du serveur, il s'arrête et relance la nouvelle version : on attend qu'il ait
+  // disparu PUIS qu'il réponde de nouveau, et on recharge la page (le nouveau script.js vient avec).
+  async function installerMiseAJour() {
+    afficherProgressionMiseAJour('Mise à jour en cours…', 'Sauvegarde de la base puis téléchargement de la nouvelle version (environ 90 Mo). Ne fermez pas cette fenêtre.');
+    let corps;
+    try {
+      const reponse = await fetchAvecAuth('/api/mise-a-jour/installer', { method: 'POST' });
+      corps = await reponse.json();
+      if (!reponse.ok) throw new Error(corps.erreur || 'Mise à jour impossible.');
+    } catch (e) {
+      document.getElementById('maj-overlay').style.display = 'none';
+      verificationMiseAJour = { erreur: e.message };
+      renderMiseAJour();
+      afficherInfoAction('Mise à jour non installée', `${e.message} CLAIRE continue de fonctionner avec la version actuelle.`);
+      return;
+    }
+    afficherProgressionMiseAJour('Redémarrage de CLAIRE…', `Build ${corps.build} installé. La page se rechargera d'elle-même dès que le serveur sera revenu.`);
+    const debut = Date.now();
+    let disparu = false;
+    const attendre = (ms) => new Promise((ok) => setTimeout(ok, ms));
+    while (Date.now() - debut < 3 * 60 * 1000) {
+      await attendre(2000);
+      let repond = false;
+      try { repond = (await fetch('/api/health', { cache: 'no-store' })).ok; } catch (e) { repond = false; }
+      if (!repond) disparu = true;
+      if (repond && (disparu || Date.now() - debut > 20000)) { location.reload(); return; }
+    }
+    afficherProgressionMiseAJour(
+      'Le serveur ne répond pas.',
+      `Sur le poste serveur, vérifiez le fichier erreur-demarrage.txt à côté de CLAIRE-serveur.exe. Pour revenir à la version précédente : lancez Arreter-CLAIRE.bat, supprimez CLAIRE-serveur.exe, renommez ${corps.ancien || 'CLAIRE-serveur.ancien.exe'} en CLAIRE-serveur.exe, puis relancez-le.`
+    );
   }
 
   async function chargerDernierTourRappels() {

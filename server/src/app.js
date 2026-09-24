@@ -23,6 +23,7 @@ const { creerRouteurCorrectionsApprises } = require('./routes/correctionsApprise
 const { creerRouteurRelectureClaude } = require('./routes/relectureClaude');
 const { creerRouteurRelectures } = require('./routes/relectures');
 const { creerRouteurSignalements } = require('./routes/signalements');
+const { creerRouteurMiseAJour } = require('./routes/miseAJour');
 
 // Fichier statique → nom d'asset embarqué (voir server/scripts/build-windows-exe.mjs, section
 // `assets` de sea-config.json) + type MIME à renvoyer. Tous des fichiers texte (HTML/CSS/JS/JSON/
@@ -73,7 +74,7 @@ function estSea() {
 
 // `envoyerEmailFn` : injection de la couche d'envoi (voir envoiEmail.js), utilisée uniquement par
 // les tests — sans elle, vérifier les routes qui notifient demanderait un vrai serveur SMTP.
-function creerApp({ db, config, envoyerEmailFn, creerClientClaude }) {
+function creerApp({ db, config, envoyerEmailFn, creerClientClaude, miseAJour }) {
   const app = express();
   const depot = creerDepot(db);
   const parametresRepo = creerRepoParametres(db);
@@ -125,6 +126,9 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude }) {
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRelectureClaude(parametresRepo, db, { creerClient: creerClientClaude }));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRelectures(db));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurSignalements(db, parametresRepo, envoyerEmailFn));
+  // Mise à jour en un clic : `miseAJour.redemarrer` est fourni par index.js (seul endroit qui tient
+  // le serveur HTTP et la base) ; les tests y injectent aussi un faux `sea` et un faux `fetch`.
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurMiseAJour(parametresRepo, db, config, miseAJour || {}));
 
   // Gestionnaire d'erreurs générique en dernier recours : évite qu'une exception inattendue
   // (JSON malformé, etc.) ne fasse planter le processus entier plutôt que de répondre 500.

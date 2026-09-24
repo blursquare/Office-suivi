@@ -5,7 +5,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { exec } = require('node:child_process');
+const { exec, spawn } = require('node:child_process');
 
 // Un échec AU DÉMARRAGE (config.json illisible, port déjà pris, base inaccessible) survient avant
 // que quoi que ce soit ait pu être journalisé, et la fenêtre de console d'un .exe à double-clic se
@@ -137,9 +137,51 @@ function ouvrirNavigateur(url) {
 // scriptsAssistants.js, module séparé pour rester testable sans exécutable réel.
 const { assurerScriptsAssistants } = require('./scriptsAssistants');
 
+// Redémarrage après une mise à jour en un clic (voir miseAJour.js) : à ce stade, le fichier
+// CLAIRE-serveur.exe est DÉJÀ la nouvelle version (l'ancienne a été renommée), et
+// `process.execPath` désigne ce chemin. On ferme d'abord le port et la base — sinon la nouvelle
+// instance trouverait le port occupé et s'arrêterait (EADDRINUSE) — puis :
+//   - session interactive (lancement direct ou Lancer-CLAIRE-en-arriere-plan.vbs) : on relance
+//     l'exécutable, détaché et sans fenêtre, avant de s'arrêter ;
+//   - service Windows (NSSM, pas de SESSIONNAME — même signal que ouvrirNavigateur) : on s'arrête
+//     seulement, NSSM relance lui-même CLAIRE-serveur.exe, donc la nouvelle version. Relancer ici
+//     AUSSI ferait démarrer deux instances.
+// CLAIRE_APRES_MISE_A_JOUR évite à la nouvelle instance de rouvrir une fenêtre Chrome : la page
+// déjà ouverte se recharge d'elle-même une fois le serveur revenu.
+function redemarrerApresMiseAJour(serveur, db) {
+  let fait = false;
+  const terminer = () => {
+    if (fait) return;
+    fait = true;
+    try { db.close(); } catch (_) { /* déjà fermée */ }
+    if (process.env.SESSIONNAME) {
+      try {
+        spawn(process.execPath, [], {
+          cwd: path.dirname(process.execPath),
+          detached: true,
+          stdio: 'ignore',
+          windowsHide: true,
+          env: { ...process.env, CLAIRE_APRES_MISE_A_JOUR: '1' }
+        }).unref();
+      } catch (e) {
+        journaliserErreurFatale('Relance après mise à jour', e);
+      }
+    }
+    process.exit(0);
+  };
+  serveur.close(terminer);
+  if (typeof serveur.closeAllConnections === 'function') serveur.closeAllConnections();
+  setTimeout(terminer, 5000).unref();
+}
+
 function demarrer() {
   const db = ouvrirDb(config.cheminDb);
-  const { app, depot, parametresRepo } = creerApp({ db, config });
+  let serveur = null;
+  const { app, depot, parametresRepo } = creerApp({
+    db,
+    config,
+    miseAJour: { redemarrer: () => redemarrerApresMiseAJour(serveur, db) }
+  });
 
   // Surveillance périodique du NAS (nouveaux documents, voir nasWatch.js) : silencieuse si
   // `nasRacine` n'est pas configurée (comme le reste des fonctionnalités liées au NAS), et sans
@@ -158,7 +200,7 @@ function demarrer() {
   // une fois par jour. Même règle que les deux minuteurs ci-dessus : démarrée ici seulement.
   demarrerSauvegardeAutomatique(db, config, parametresRepo);
 
-  const serveur = app.listen(config.port, () => {
+  serveur = app.listen(config.port, () => {
     const url = `http://localhost:${config.port}/`;
     const adresses = adressesLan();
     console.log(`[CLAIRE] Serveur intranet démarré sur le port ${config.port}.`);
@@ -209,7 +251,8 @@ function demarrer() {
       }
     }
 
-    ouvrirNavigateur(url);
+    // Après une mise à jour en un clic, la fenêtre déjà ouverte se recharge d'elle-même.
+    if (!process.env.CLAIRE_APRES_MISE_A_JOUR) ouvrirNavigateur(url);
   });
 
   // Port déjà occupé (un serveur CLAIRE déjà lancé, masqué par Lancer-CLAIRE-en-arriere-plan.vbs,

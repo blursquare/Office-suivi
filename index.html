@@ -1471,6 +1471,47 @@
     </div>
   </div>
 
+  <!-- Mise à jour de CLAIRE en un clic (server/src/miseAJour.js) : rien ne s'installe sans le
+       bouton « Mettre à jour maintenant ». Voir chargerMiseAJour()/renderMiseAJour() dans script.js. -->
+  <div class="calc-card">
+    <div class="dash-section-titre">Mise à jour de CLAIRE</div>
+    <p class="hint">Chaque amélioration publiée produit une nouvelle version de CLAIRE-serveur.exe. « Vérifier » la compare à celle qui tourne ; « Mettre à jour maintenant » sauvegarde la base, installe la nouvelle version et redémarre le serveur (environ une minute d'interruption pour tous les postes). L'ancienne version reste à côté, sous le nom <code>CLAIRE-serveur.ancien.exe</code>.</p>
+    <div id="reglages-maj-etat" class="reglages-dernier-tour"></div>
+    <div style="margin-top:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      <button type="button" class="secondary" id="reglages-maj-verifier" onclick="verifierMiseAJour()">Vérifier</button>
+      <button type="button" class="primary" id="reglages-maj-installer" style="display:none;" onclick="demanderInstallationMiseAJour()">Mettre à jour maintenant</button>
+    </div>
+    <details class="reglages-restauration">
+      <summary>Jeton d'accès GitHub (dépôt privé)</summary>
+      <p class="hint">Le code de CLAIRE est dans un dépôt GitHub privé : pour y récupérer les nouvelles versions, le serveur a besoin d'un jeton en <strong>lecture seule</strong>. Il reste sur le serveur de l'étude et ne s'affiche plus jamais une fois enregistré.</p>
+      <ol>
+        <li>Sur github.com, connecté au compte propriétaire du dépôt : photo de profil › <em>Settings</em> › <em>Developer settings</em> › <em>Personal access tokens</em> › <em>Fine-grained tokens</em> › <em>Generate new token</em>.</li>
+        <li>Nom : « CLAIRE mise à jour ». Expiration : la plus longue proposée (à renouveler ensuite).</li>
+        <li><em>Repository access</em> : <em>Only select repositories</em> › <strong>Office-suivi</strong>.</li>
+        <li><em>Permissions</em> › <em>Repository permissions</em> › <strong>Contents : Read-only</strong>. Rien d'autre.</li>
+        <li><em>Generate token</em>, copier le jeton (il commence par <code>github_pat_</code>) et le coller ci-dessous.</li>
+      </ol>
+      <div class="calc-champs" style="margin-top:8px;">
+        <div class="calc-champ">
+          <label for="reglages-maj-jeton">Jeton GitHub</label>
+          <input type="password" id="reglages-maj-jeton" autocomplete="off" placeholder="github_pat_…">
+        </div>
+      </div>
+      <div style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <button type="button" class="primary" onclick="enregistrerJetonMiseAJour()">Enregistrer le jeton</button>
+        <span id="reglages-maj-jeton-resultat" class="hint" style="margin:0;"></span>
+      </div>
+    </details>
+    <details class="reglages-restauration">
+      <summary>Si la nouvelle version ne démarre pas</summary>
+      <ol>
+        <li>Sur le poste serveur, lire <code>erreur-demarrage.txt</code> à côté de <code>CLAIRE-serveur.exe</code> (il dit pourquoi).</li>
+        <li>Pour revenir à la version précédente : lancer <code>Arreter-CLAIRE.bat</code>, supprimer <code>CLAIRE-serveur.exe</code>, renommer <code>CLAIRE-serveur.ancien.exe</code> en <code>CLAIRE-serveur.exe</code>, puis le relancer.</li>
+        <li>La base a été sauvegardée juste avant la mise à jour (voir « Sauvegarde de la base » ci-dessous).</li>
+      </ol>
+    </details>
+  </div>
+
   <!-- Sauvegarde automatique de la base (server/src/sauvegarde.js) : une copie par jour, les 14
        dernières gardées. Voir chargerEtatSauvegarde()/renderEtatSauvegarde() dans script.js. -->
   <div class="calc-card">
@@ -1615,6 +1656,15 @@
      n'ayant pas de mise à jour automatique — voir CLAUDE.md) : la version/date affichée ici permet
      de vérifier en un coup d'œil qu'on a bien la dernière copie avant de rouvrir un signalement de
      bug déjà corrigé. -->
+<!-- Mise à jour en cours : jamais fermable (Échap/clic sur le fond) — le serveur redémarre, la page
+     se recharge d'elle-même. Voir installerMiseAJour() dans script.js. -->
+<div class="confirm-overlay" id="maj-overlay" style="display:none;" role="alertdialog" aria-live="polite" aria-labelledby="maj-overlay-titre">
+  <div class="confirm-box">
+    <p id="maj-overlay-titre" style="font-weight:600; margin-bottom:8px;"></p>
+    <p id="maj-overlay-detail" class="maj-overlay-detail"></p>
+  </div>
+</div>
+
 <div class="confirm-overlay" id="apropos-overlay" style="display:none;" onclick="fermerAPropos()">
   <div class="confirm-box apropos-box" onclick="event.stopPropagation()">
     <div class="apropos-header">

@@ -41,6 +41,11 @@ jobs:
 
       - name: Construire l'exécutable Windows
         working-directory: server
+        env:
+          # Embarqués dans l'exécutable (build-info.json) pour la mise à jour en un clic : le numéro
+          # doit être celui du tag serveur-exe-N publié plus bas.
+          CLAIRE_BUILD: ${{ github.run_number }}
+          CLAIRE_COMMIT: ${{ github.sha }}
         run: npm run build:exe
 
       - name: Publier une release GitHub avec l'exécutable
