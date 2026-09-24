@@ -564,7 +564,10 @@ pour tous) et les oublis signalés. Ils sont stockés **dans la base du serveur*
 
 Les commentaires portés sur un point de la grille sont aussi **renvoyés à Claude** lors des
 relectures suivantes, sous forme de consignes (« ne signale pas… », « considère comme critique… ») :
-c'est ainsi que l'outil s'ajuste aux usages de l'étude, sans réentraînement.
+c'est ainsi que l'outil s'ajuste aux usages de l'étude, sans réentraînement. Seuls les 30 derniers
+sont transmis : ce qui doit durer passe dans la **grille** elle-même (champ `consigne` de chaque
+point, côté client), relu après chaque export de commentaires — la grille est injectée à chaque
+analyse, avec pour chaque point la ligne « Attendu : … ».
 
 Ces routes sont protégées par le mot de passe partagé, comme le reste de `/api`. Le bouton
 « Exporter les commentaires » télécharge un JSON à transmettre pour corriger les règles de la

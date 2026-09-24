@@ -5011,6 +5011,9 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
 .relecture-visionneuse {
   position: sticky;
   top: 12px;
+  /* Hauteur fixe (et pas seulement maximale) : c'est elle qui décide de la taille d'une page
+     entière, y compris pour un document d'une seule page. */
+  height: calc(100vh - 24px);
   max-height: calc(100vh - 24px);
   display: flex;
   flex-direction: column;
@@ -5029,13 +5032,15 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
   border-bottom: 1px solid var(--line-soft);
 }
 .visionneuse-tete select { flex: 1 1 auto; width: auto; min-width: 0; }
+.visionneuse-tete, .visionneuse-extrait { flex: 0 0 auto; }
 .visionneuse-extrait { padding: 0 12px; }
 .visionneuse-extrait:not(:empty) { padding: 10px 12px; border-bottom: 1px solid var(--line-soft); max-height: 150px; overflow: auto; }
 .visionneuse-extrait .obligation-clause { margin: 0; }
-.visionneuse-pages { flex: 1 1 auto; overflow: auto; padding: 12px; background: var(--paper-sunk); display: flex; flex-direction: column; gap: 12px; }
+.visionneuse-pages { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 12px; background: var(--paper-sunk); display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .visionneuse-page {
   position: relative;
-  min-height: 200px;
+  flex: 0 0 auto;
+  max-width: 100%;
   background: #fff;
   box-shadow: 0 1px 3px rgba(0,0,0,0.12);
   border-radius: 2px;
@@ -5065,6 +5070,7 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
   .relecture-visionneuse:not([hidden]) {
     position: fixed;
     inset: 12px;
+    height: auto;
     max-height: none;
     z-index: 880;
     box-shadow: var(--shadow-float);

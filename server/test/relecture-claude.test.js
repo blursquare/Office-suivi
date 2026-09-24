@@ -212,3 +212,17 @@ test('route : Opus 5 passe par le repli serveur ; un refus est signalé, factur�
   assert.equal(appel.p.fallbacks, 'default');
   assert.equal(appel.p.betas[0], 'server-side-fallback-2026-07-01');
 });
+
+test('consigne de point : conservée par la validation, injectée sous le point ; anomalies sans doublon ni mandat', () => {
+  const { grille: g } = validerGrille([
+    { id: 'honoraires', section: 'Volet financier', intitule: 'Honoraires', declencheur: 'Vente par intermédiaire', consigne: 'Dis si les honoraires sont compris dans le prix.' },
+    { id: 'dpe', section: 'Diagnostics', intitule: 'DPE', declencheur: 'Tous les biens' }
+  ]);
+  assert.equal(g[0].consigne, 'Dis si les honoraires sont compris dans le prix.');
+  assert.equal(g[1].consigne, '');
+  const s = construireSystemPrompt('compromis', g);
+  assert.match(s, /\[honoraires\] Honoraires — s'applique si : Vente par intermédiaire\n\s+Attendu : Dis si les honoraires/);
+  assert.doesNotMatch(s, /\[dpe\][^\n]*\n\s+Attendu/);
+  assert.match(s, /ne répète JAMAIS un point de la grille/);
+  assert.match(s, /mandat de vente[\s\S]*garantie financière/);
+});

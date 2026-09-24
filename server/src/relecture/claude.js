@@ -93,7 +93,9 @@ function validerGrille(brut) {
       section: texteCourt(p.section, 80),
       intitule: texteCourt(p.intitule, 300),
       declencheur: texteCourt(p.declencheur, 300),
-      base_legale: texteCourt(p.base_legale, 200)
+      base_legale: texteCourt(p.base_legale, 200),
+      // Ce que l'étude attend concrètement sur ce point (tiré de ses commentaires de relecture).
+      consigne: texteCourt(p.consigne, 600)
     });
   }
   return { grille };
@@ -155,7 +157,7 @@ function grilleVersTexte(grille) {
   }
   const blocs = [];
   for (const [section, points] of parSection) {
-    const lignes = points.map(p => `  - [${p.id}] ${p.intitule} — s'applique si : ${p.declencheur}${p.base_legale ? ` (${p.base_legale})` : ''}`).join('\n');
+    const lignes = points.map(p => `  - [${p.id}] ${p.intitule} — s'applique si : ${p.declencheur}${p.base_legale ? ` (${p.base_legale})` : ''}${p.consigne ? `\n      Attendu : ${p.consigne}` : ''}`).join('\n');
     blocs.push(`${section} :\n${lignes}`);
   }
   return blocs.join('\n\n');
@@ -221,6 +223,13 @@ Le commentaire dit en une ou deux phrases ce qui a été trouvé (ou pourquoi le
 Tout autre point d'attention (incohérence de dates ou de montants, clause ambiguë, contradiction
 entre documents) va dans "anomalies", avec sa gravité : "elevee" (à régler avant signature),
 "moyenne" (à surveiller), "faible" (à noter).
+- Une anomalie ne répète JAMAIS un point de la grille : si le sujet relève d'un point (superficie
+  → désignation du bien, date de réitération → date limite de l'acte authentique, honoraires →
+  honoraires de négociation…), dis-le dans le commentaire de ce point et nulle part ailleurs.
+- Le mandat de vente et les pièces propres à l'agence (garantie financière de l'agent, carte
+  professionnelle, dates et délais du mandat ou de l'offre d'achat) ne sont pas à contrôler : n'en
+  tire aucune anomalie. Seuls le prix et les honoraires de l'offre d'achat peuvent être rapprochés
+  de l'avant-contrat, et seulement dans le point « honoraires ».
 
 ${grilleVersTexte(grille)}${(consignes && consignes.length) ? `
 

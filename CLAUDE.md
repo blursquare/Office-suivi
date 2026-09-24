@@ -6981,6 +6981,54 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     épargne un fichier étranger, une destination impossible sans exception ni temporaire laissé, les
     routes) et `tests/sauvegarde-affichage.test.js` (4). Suite serveur 264 → 273, racine 748 → 752.
 
+- **Relecture d'actes : premier retour de l'étude intégré, et la visionneuse montre la page
+  entière** (24/09/2026, fichier `commentaires-relecture-2026-09-24.json`, 14 avis sur un
+  compromis de copropriété).
+  - **Visionneuse** : chaque page était calée sur la seule LARGEUR du panneau, donc une page A4
+    plus haute que la zone visible — on n'en voyait jamais le bas sans défiler.
+    `tailleAjusteePage(l, h, dispoL, dispoH)` (pure, testée) la ramène à la plus petite des deux
+    échelles ; les emplacements prennent d'emblée cette taille (d'après la page 1) pour que le
+    défilement vers la page citée tombe juste avant même le dessin. `.relecture-visionneuse` passe
+    d'une `max-height` à une `height` fixe — sinon un document d'une page rétrécit le panneau et
+    la page avec. **Défaut vu en capture, pas en relisant** : l'en-tête et l'extrait cité, en
+    `flex` sans `flex: 0 0 auto`, se faisaient écraser par la zone des pages.
+  - **Chaque point de la grille peut porter une `consigne`** (« ce qu'on attend concrètement »),
+    phrase unique ou `{compromis, acte}` quand la vérification diffère selon le stade
+    (`consignePointGrille`). Transmise au serveur (`validerGrille` la garde, 600 caractères) et
+    injectée sous le point dans le prompt (`Attendu : …`). C'est l'endroit où les commentaires
+    « pour tous les dossiers » deviennent durables : les consignes tirées des commentaires restent
+    limitées aux 30 dernières, la grille, elle, ne s'oublie pas.
+  - **Ce que chaque commentaire est devenu** : quotités (sur un avant-contrat, les indiquer si
+    exprimées, sinon simple rappel pour l'acte — jamais « absent ») ; désignation (écart Carrez en
+    pourcentage, important au-delà de 5 %) ; DPE (dire qu'il y en a plusieurs, retenir celui visé
+    par l'acte / le plus récent) ; date de l'acte authentique (ignorer les dates du mandat et de
+    l'offre d'achat) ; travaux (seulement ceux du VENDEUR, qualifiés extérieur / surface / gros
+    œuvre → DP ou permis) ; honoraires (compris dans le prix ? à la charge de qui ? — c'est là que
+    se range l'écart 202 000 / 214 000 de l'offre d'achat) ; AG (date de la dernière et de la
+    prochaine, chaque résolution qui touche le lot avec son numéro) ; pré-état daté analysé
+    rubrique par rubrique (`alur_charges`) ; santé financière du syndicat (`alur_impayes`) ;
+    fonds de travaux (remboursé ou non par l'acquéreur). **Quatre points nouveaux** :
+    `notaire_redacteur`, `ddt_recapitulatif` (chaque diagnostic, sa date, valable / périmé /
+    manquant), `alur_travaux_copro`, `usage_location_touristique` (la réglementation des meublés
+    de tourisme de La Rochelle avait été manquée — la consigne interdit d'inventer une règle
+    locale absente des documents).
+  - **Deux règles générales dans le prompt** : une anomalie ne répète jamais un point de la grille
+    (trois anomalies du test étaient des doublons : superficie, date de réitération, prix) ; le
+    mandat et les pièces propres à l'agence (garantie financière, dates du mandat ou de l'offre)
+    ne produisent aucune anomalie.
+  - **Consignes tirées des commentaires** (`consignesDepuisRetours`, pure, testée) : un avis
+    « juste » accompagné d'une remarque est désormais transmis (« bien, et vérifier l'écart de
+    5 % » est une consigne — il était jeté) ; un avis de gravité l'est même sans commentaire ; un
+    oubli signalé sur plusieurs lignes donne une consigne par ligne (le long commentaire « manque »
+    était tronqué à 380 caractères, ses dernières demandes perdues).
+  - **Non traité, faute de pouvoir le vérifier sans l'acte** : « la résolution quatorze p.6/35 »
+    — sans le document on ne sait pas ce qu'elle dit ; la consigne AG demande désormais de relever
+    toute résolution qui touche le lot, ce qui devrait la couvrir. Le nombre de lots discordant
+    (avis « information », portée ce dossier) reste propre à ce dossier.
+  - Tests : `tests/outil2-retours-relecture.test.js` (6) et un test serveur. Suite racine 752 →
+    758, serveur 273 → 274. Vérifié dans un vrai Chromium (pdf.js simulé, CDN bloqué ici) : page
+    entière visible, bas de page compris, clair et sombre, 1500 px et 400 px, aucune erreur JS.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

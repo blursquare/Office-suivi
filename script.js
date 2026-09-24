@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-24 12:32';
+  const VERSION_APP = '2026-09-24 14:33';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-24 14:33', resume: "Relecture d'actes : la visionneuse montre la page entière ; vos commentaires du premier essai sont intégrés à la grille (écart Carrez de 5 %, DPE multiples, notaire rédacteur, récapitulatif des diagnostics, pré-état daté, santé et travaux de la copropriété, fonds de travaux, AG, location touristique, honoraires) ; plus d'anomalie en doublon d'un point ni tirée du mandat de l'agence." },
     { version: '2026-09-24 12:32', resume: "CLAIRE passe en bêta (la relecture d'actes reste en alpha). Sauvegarde automatique quotidienne de la base, dossier de destination à choisir dans les Réglages, alerte sur le Tableau de bord si elle échoue." },
     { version: '2026-09-24 12:13', resume: "Notification Teams des pièces trouvées : c'est le nom de la pièce qui est cliquable, l'adresse n'est plus affichée en clair." },
     { version: '2026-09-24 11:46', resume: "Tableau de bord refait (actions urgentes par statut, dernières pièces trouvées, avancement des dossiers) ; pièce renouvelée prise en compte (TF 2025 → 2026) ; fichiers écartés visibles et rétablissables ; lien vers la pièce dans Teams ; responsable prévenu quand un dossier est complet ; relecture d'actes sans limite de pages." },
@@ -5115,9 +5116,16 @@
     // Parties et capacité
     { id: 'identite_parties', section: 'parties', intitule: "Identification complète de chaque partie (état civil, domicile), identique d'un document à l'autre", declencheur: 'Toujours', modes: ['compromis', 'acte'] },
     { id: 'capacite_regime', section: 'parties', intitule: 'Capacité et pouvoirs : régime matrimonial ou PACS, consentement du conjoint sur le logement familial, représentation, protection', declencheur: 'Toujours', base_legale: 'C. civ. art. 215', modes: ['compromis', 'acte'] },
-    { id: 'quotites', section: 'parties', intitule: "Quotités d'acquisition en cas de pluralité d'acquéreurs ; déclaration d'emploi ou de remploi", declencheur: "Plusieurs acquéreurs, ou acquéreur marié achetant seul", modes: ['compromis', 'acte'] },
+    { id: 'notaire_redacteur', section: 'parties', intitule: "Notaire rédacteur de l'acte et, le cas échéant, notaire en participation ou en concours", declencheur: 'Toujours', modes: ['compromis', 'acte'],
+      consigne: "Nomme le notaire rédacteur (celui qui reçoit l'acte) et le notaire qui intervient en participation ou en concours pour l'autre partie, avec la citation qui les désigne." },
+    { id: 'quotites', section: 'parties', intitule: "Quotités d'acquisition en cas de pluralité d'acquéreurs ; déclaration d'emploi ou de remploi", declencheur: "Plusieurs acquéreurs, ou acquéreur marié achetant seul", modes: ['compromis', 'acte'],
+      consigne: {
+        compromis: "Sur un avant-contrat c'est sans incidence immédiate : si des quotités sont exprimées, indique-les telles quelles (statut « present ») ; sinon, rappelle seulement qu'elles devront être précisées dans l'acte authentique (statut « a_verifier », jamais « absent »).",
+        acte: "Indique les quotités exprimées pour chaque acquéreur et leur concordance avec l'avant-contrat ; signale une déclaration d'emploi ou de remploi attendue et absente."
+      } },
     // Bien et désignation
-    { id: 'designation_bien', section: 'bien', intitule: 'Désignation du bien et références cadastrales, cohérentes entre le corps de l\'acte et les annexes', declencheur: 'Toujours', modes: ['compromis', 'acte'] },
+    { id: 'designation_bien', section: 'bien', intitule: 'Désignation du bien et références cadastrales, cohérentes entre le corps de l\'acte et les annexes', declencheur: 'Toujours', modes: ['compromis', 'acte'],
+      consigne: "Compare la superficie privative (Carrez) du corps de l'acte à celle de l'attestation de mesurage et du titre : donne les deux valeurs et l'écart en pourcentage. Un écart de plus de 5 % est un point important (action en diminution du prix) ; en deçà, simple mention." },
     { id: 'origine_propriete', section: 'bien', intitule: 'Origine de propriété du bien mentionnée', declencheur: 'Toujours', modes: ['compromis', 'acte'] },
     { id: 'occupation', section: 'bien', intitule: "Situation d'occupation (libre ou loué), bail et congé le cas échéant", declencheur: 'Toujours', modes: ['compromis', 'acte'] },
     { id: 'situation_hypothecaire', section: 'bien', intitule: 'Situation hypothécaire : inscriptions révélées et mainlevées à obtenir', declencheur: "Projet d'acte de vente", modes: ['acte'] },
@@ -5127,7 +5135,8 @@
     { id: 'conditions_levees', section: 'avant_contrat', intitule: "Conditions suspensives de l'avant-contrat réalisées ou levées, et constatées dans l'acte", declencheur: 'Avant-contrat fourni', modes: ['acte'] },
     { id: 'engagements_vendeur', section: 'avant_contrat', intitule: "Engagements du vendeur pris dans l'avant-contrat (travaux, documents, entretiens) tenus et justifiés", declencheur: "L'avant-contrat comporte des engagements du vendeur", modes: ['acte'] },
     // Diagnostics techniques (prototype)
-    { id: 'dpe', section: 'diagnostics', intitule: 'Diagnostic de performance énergétique (DPE)', declencheur: 'Tous les biens', base_legale: 'Validité 10 ans', modes: ['compromis', 'acte'] },
+    { id: 'dpe', section: 'diagnostics', intitule: 'Diagnostic de performance énergétique (DPE)', declencheur: 'Tous les biens', base_legale: 'Validité 10 ans', modes: ['compromis', 'acte'],
+      consigne: "S'il y a plusieurs DPE au dossier, dis-le et cite chacun avec sa date ; indique celui que vise l'acte et retiens le plus récent comme référence." },
     { id: 'amiante', section: 'diagnostics', intitule: 'Diagnostic amiante', declencheur: 'Permis de construire délivré avant le 01/07/1997', modes: ['compromis', 'acte'] },
     { id: 'plomb', section: 'diagnostics', intitule: "Constat de risque d'exposition au plomb (CREP)", declencheur: 'Construction antérieure au 01/01/1949', modes: ['compromis', 'acte'] },
     { id: 'electricite', section: 'diagnostics', intitule: 'Diagnostic électricité', declencheur: 'Installation intérieure de plus de 15 ans', base_legale: 'Validité 3 ans', modes: ['compromis', 'acte'] },
@@ -5137,17 +5146,25 @@
     { id: 'assainissement', section: 'diagnostics', intitule: 'Diagnostic assainissement non collectif', declencheur: "Bien non raccordé au tout-à-l'égout", base_legale: 'Validité 3 ans', modes: ['compromis', 'acte'] },
     { id: 'carrez', section: 'diagnostics', intitule: 'Mesurage loi Carrez', declencheur: 'Lot de copropriété de plus de 8 m²', modes: ['compromis', 'acte'] },
     { id: 'merule', section: 'diagnostics', intitule: 'Information mérule', declencheur: 'Zone concernée par un arrêté préfectoral', modes: ['compromis', 'acte'] },
+    { id: 'ddt_recapitulatif', section: 'diagnostics', intitule: 'Récapitulatif des diagnostics : chacun avec sa date, valable, périmé ou manquant', declencheur: 'Toujours', modes: ['compromis', 'acte'],
+      consigne: "Liste chaque diagnostic du dossier sous la forme « nom — date — valable / périmé / date non trouvée », puis ceux qui manquent alors que leur déclencheur s'applique. Juge la validité à la date prévue pour la signature de l'acte authentique." },
     { id: 'bruit', section: 'diagnostics', intitule: "Information bruit (plan d'exposition au bruit)", declencheur: "Bien situé en zone de bruit d'aérodrome", modes: ['compromis', 'acte'] },
     // Copropriété — loi ALUR (prototype) + plusieurs copropriétés + travaux votés
     { id: 'copro_multiples', section: 'copropriete', intitule: 'Chaque copropriété identifiée séparément (syndic, règlement, lots) quand l\'acte porte sur des lots de plusieurs copropriétés', declencheur: 'Bien en copropriété', modes: ['compromis', 'acte'], copro: true },
     { id: 'alur_reglement', section: 'copropriete', intitule: 'Règlement de copropriété et état descriptif de division (et modificatifs publiés)', declencheur: 'Bien en copropriété', modes: ['compromis', 'acte'], copro: true },
-    { id: 'alur_pv_ag', section: 'copropriete', intitule: 'Procès-verbaux des 3 dernières assemblées générales', declencheur: 'Bien en copropriété', modes: ['compromis', 'acte'], copro: true },
+    { id: 'alur_pv_ag', section: 'copropriete', intitule: 'Procès-verbaux des 3 dernières assemblées générales ; date de la dernière et de la prochaine assemblée', declencheur: 'Bien en copropriété', modes: ['compromis', 'acte'], copro: true,
+      consigne: "Donne la date de la dernière assemblée générale et celle de la prochaine si elle est connue. Relève chaque résolution qui concerne le lot vendu ou l'acquéreur (travaux, usage des lots, location, modification du règlement, procédure) avec son numéro et sa page." },
     { id: 'alur_travaux_votes', section: 'copropriete', intitule: 'Travaux votés en assemblée générale et répartition vendeur / acquéreur des appels de fonds', declencheur: 'Bien en copropriété', base_legale: 'Loi 10/07/1965 art. 6-2 (décret)', modes: ['compromis', 'acte'], copro: true },
     { id: 'alur_carnet_entretien', section: 'copropriete', intitule: "Carnet d'entretien de l'immeuble", declencheur: 'Bien en copropriété', modes: ['compromis', 'acte'], copro: true },
     { id: 'alur_fiche_synthetique', section: 'copropriete', intitule: 'Fiche synthétique de copropriété', declencheur: 'Bien en copropriété', modes: ['compromis', 'acte'], copro: true },
-    { id: 'alur_charges', section: 'copropriete', intitule: 'Montant des charges courantes et hors budget dues par le vendeur ; état daté (ou pré-état daté)', declencheur: 'Bien en copropriété', modes: ['compromis', 'acte'], copro: true },
-    { id: 'alur_impayes', section: 'copropriete', intitule: 'État global des impayés de charges du syndicat et dettes fournisseurs', declencheur: 'Bien en copropriété', modes: ['compromis', 'acte'], copro: true },
-    { id: 'alur_fonds_travaux', section: 'copropriete', intitule: 'Montant du fonds de travaux et part du vendeur', declencheur: 'Bien en copropriété', modes: ['compromis', 'acte'], copro: true },
+    { id: 'alur_charges', section: 'copropriete', intitule: 'Pré-état daté ou état daté : charges courantes et hors budget, sommes dues par le vendeur, sommes à la charge de l\'acquéreur', declencheur: 'Bien en copropriété', modes: ['compromis', 'acte'], copro: true,
+      consigne: "Analyse le pré-état daté (ou l'état daté) rubrique par rubrique et donne les montants : budget prévisionnel et charges annuelles du lot, sommes restant dues par le vendeur, provisions et travaux déjà appelés, avances, emprunt du syndicat. Un pré-état daté n'est pas l'état daté : rappelle qu'il faudra le demander pour l'acte." },
+    { id: 'alur_impayes', section: 'copropriete', intitule: 'Santé financière de la copropriété : impayés de charges du syndicat, dettes fournisseurs, procédures en cours', declencheur: 'Bien en copropriété', modes: ['compromis', 'acte'], copro: true,
+      consigne: "Donne les chiffres (impayés globaux, dettes fournisseurs, rapportés au budget si possible) et conclus en une phrase sur la santé financière du syndicat ; signale toute procédure en cours." },
+    { id: 'alur_travaux_copro', section: 'copropriete', intitule: 'Travaux de la copropriété réalisés ou à réaliser (votés, envisagés, devis, plan pluriannuel)', declencheur: 'Bien en copropriété', modes: ['compromis', 'acte'], copro: true,
+      consigne: "Liste les travaux de la copropriété déjà réalisés, votés, envisagés ou devisés, avec leur montant et la quote-part du lot quand elle figure ; précise qui les supportera entre vendeur et acquéreur." },
+    { id: 'alur_fonds_travaux', section: 'copropriete', intitule: "Fonds de travaux : montant, part du lot, et remboursement ou non par l'acquéreur au vendeur", declencheur: 'Bien en copropriété', modes: ['compromis', 'acte'], copro: true,
+      consigne: "Le fonds de travaux reste attaché au lot : dis si l'acte prévoit que l'acquéreur rembourse au vendeur sa quote-part (et le montant), ou qu'il n'y a pas de remboursement ; si l'acte ne le dit pas, statut « a_verifier »." },
     { id: 'alur_dtg', section: 'copropriete', intitule: 'Diagnostic technique global (DTG) / plan pluriannuel de travaux', declencheur: 'Immeuble de plus de 10 ans, si réalisé ou voté', modes: ['compromis', 'acte'], copro: true },
     // Délais et clauses (prototype, adaptés au mode)
     { id: 'retractation', section: 'delais', intitule: 'Délai légal de rétractation de 10 jours (acquéreur non professionnel) et point de départ identifiable', declencheur: 'Acquéreur non professionnel', base_legale: 'CCH art. L271-1', modes: ['compromis'] },
@@ -5155,15 +5172,20 @@
     { id: 'pret_obtenu', section: 'delais', intitule: 'Prêt obtenu : offre acceptée, prêteur, montant et garanties (hypothèque, privilège, caution) cohérents avec l\'acte', declencheur: 'Financement par crédit immobilier', modes: ['acte'] },
     { id: 'clause_penale_dedit', section: 'delais', intitule: 'Clause pénale ou clause de dédit clairement identifiée, avec montant', declencheur: 'Tous les avant-contrats', modes: ['compromis'] },
     { id: 'purge_preemption', section: 'delais', intitule: 'Purge du droit de préemption (urbain, SAFER, locataire ou autre)', declencheur: 'Selon nature et localisation du bien', modes: ['compromis', 'acte'] },
-    { id: 'date_acte_authentique', section: 'delais', intitule: "Date limite de signature de l'acte authentique cohérente avec les autres délais", declencheur: 'Tous les avant-contrats', modes: ['compromis'] },
+    { id: 'date_acte_authentique', section: 'delais', intitule: "Date limite de signature de l'acte authentique cohérente avec les autres délais", declencheur: 'Tous les avant-contrats', modes: ['compromis'],
+      consigne: "Seules comptent les dates de l'avant-contrat : ne tiens aucun compte de celles du mandat de vente ni de l'offre d'achat de l'agence." },
     // Urbanisme et servitudes (prototype)
     { id: 'situation_urbanisme', section: 'urbanisme', intitule: "Situation au regard des règles d'urbanisme (certificat d'urbanisme, zonage, alignement)", declencheur: 'Toujours', modes: ['compromis', 'acte'] },
     { id: 'servitudes', section: 'urbanisme', intitule: 'Servitudes apparentes ou occultes mentionnées', declencheur: 'Toujours', modes: ['compromis', 'acte'] },
-    { id: 'conformite_travaux', section: 'urbanisme', intitule: 'Travaux réalisés : autorisation, achèvement et conformité (DAACT), garantie décennale', declencheur: 'Si des travaux sont mentionnés', modes: ['compromis', 'acte'] },
+    { id: 'usage_location_touristique', section: 'urbanisme', intitule: "Usage du bien : location meublée de tourisme, changement d'usage, règlement municipal ou clause du règlement de copropriété", declencheur: 'Commune ou copropriété réglementant la location meublée de tourisme', modes: ['compromis', 'acte'],
+      consigne: "Signale toute règle citée dans les documents sur la location meublée de courte durée ou le changement d'usage (délibération municipale, autorisation, compensation, interdiction ou limite du règlement de copropriété) et ce qu'elle impose à l'acquéreur. N'invente aucune règle locale qui ne figure pas dans les documents." },
+    { id: 'conformite_travaux', section: 'urbanisme', intitule: 'Travaux réalisés par le vendeur : autorisation, achèvement et conformité (DAACT), garantie décennale', declencheur: 'Si le vendeur a réalisé des travaux', modes: ['compromis', 'acte'],
+      consigne: "Ne vise que les travaux réalisés par le VENDEUR (ceux de la copropriété relèvent du point « Travaux de la copropriété »). Qualifie chacun : touche-t-il l'extérieur du bâtiment, crée-t-il de la surface, porte-t-il sur le gros œuvre ? Si oui, une déclaration préalable ou un permis était exigible : dis s'il est justifié." },
     // Volet financier (prototype)
     { id: 'prix_modalites', section: 'financier', intitule: 'Prix de vente (chiffres et lettres concordants), ventilation mobilier, modalités de paiement', declencheur: 'Toujours', modes: ['compromis', 'acte'] },
     { id: 'sequestre', section: 'financier', intitule: 'Dépôt de garantie : montant, séquestre et sort (imputation sur le prix dans l\'acte)', declencheur: 'Si un dépôt est prévu', modes: ['compromis', 'acte'] },
-    { id: 'honoraires', section: 'financier', intitule: 'Honoraires de négociation : montant et charge (vendeur ou acquéreur)', declencheur: 'Vente par intermédiaire', modes: ['compromis', 'acte'] },
+    { id: 'honoraires', section: 'financier', intitule: 'Honoraires de négociation : montant et charge (vendeur ou acquéreur)', declencheur: 'Vente par intermédiaire', modes: ['compromis', 'acte'],
+      consigne: "Dis si les honoraires sont compris dans le prix et à la charge de qui. Un écart de prix entre l'avant-contrat et l'offre d'achat ou le mandat s'explique souvent par les honoraires : vérifie-le ici avant d'en faire une anomalie." },
     { id: 'taxe_fonciere', section: 'financier', intitule: 'Répartition de la taxe foncière au prorata temporis', declencheur: 'Toujours', modes: ['compromis', 'acte'] },
     { id: 'dommage_ouvrage', section: 'financier', intitule: 'Assurance dommages-ouvrage', declencheur: 'Construction ou travaux de moins de 10 ans', modes: ['compromis', 'acte'] },
     { id: 'plus_value', section: 'financier', intitule: 'Plus-value immobilière : exonération invoquée et justifiée, ou calcul prévu', declencheur: "Projet d'acte de vente", modes: ['acte'] }
@@ -5174,7 +5196,16 @@
     const sections = new Map(SECTIONS_GRILLE_OUTIL2.map(s => [s.cle, s.titre]));
     return GRILLE_RELECTURE_OUTIL2
       .filter(p => p.modes.indexOf(m) >= 0)
-      .map(p => ({ id: p.id, section: sections.get(p.section) || p.section, intitule: p.intitule, declencheur: p.declencheur, base_legale: p.base_legale || '' }));
+      .map(p => ({ id: p.id, section: sections.get(p.section) || p.section, intitule: p.intitule, declencheur: p.declencheur, base_legale: p.base_legale || '', consigne: consignePointGrille(p, m) }));
+  }
+
+  // Une consigne de point est soit une phrase commune aux deux modes, soit {compromis, acte} : sur un
+  // avant-contrat et sur un projet de vente, la même question n'appelle pas la même vérification.
+  function consignePointGrille(point, mode) {
+    const c = point && point.consigne;
+    if (!c) return '';
+    if (typeof c === 'string') return c;
+    return c[mode === 'acte' ? 'acte' : 'compromis'] || '';
   }
 
   // Nature d'une pièce déposée, déduite de son NOM puis du HAUT de sa première page — jamais de tout
@@ -18378,15 +18409,31 @@
 
   function consignesEtudeRelecture() {
     const cle = dernierAuditContexte ? dernierAuditContexte.dossierCle : cleDossierAudit(auditDossierLie, (documentsOrdonnesRelecture()[0] || {}).nom);
-    const utiles = retoursAudit.filter(r => r && r.commentaire && ['faux_positif', 'mal_formule', 'gravite', 'manque'].indexOf(r.verdict) >= 0
+    return consignesDepuisRetours(retoursAudit, cle);
+  }
+
+  // Pure : les commentaires de l'étude transformés en consignes pour le modèle. Un avis « juste »
+  // accompagné d'une remarque est transmis lui aussi (« bien vu, et vérifier aussi l'écart de 5 % »
+  // est une consigne) ; un avis de gravité l'est même sans commentaire (la gravité voulue suffit) ;
+  // un oubli signalé sur plusieurs lignes donne une consigne par ligne, pour qu'aucune ne soit
+  // tronquée. Les 30 dernières au plus, dans la portée du dossier en cours.
+  function consignesDepuisRetours(retours, cle) {
+    const utiles = (retours || []).filter(r => r
+      && ['faux_positif', 'mal_formule', 'gravite', 'manque', 'juste'].indexOf(r.verdict) >= 0
+      && (r.commentaire || r.verdict === 'gravite')
       && (r.portee === 'tous' || (cle && r.dossierCle === cle)));
-    return utiles.slice(-30).map(r => {
+    const consignes = [];
+    for (const r of utiles) {
       const titre = r.constat && r.constat.titre ? `« ${r.constat.titre} »` : '';
-      if (r.verdict === 'faux_positif') return `Ne signale pas comme un problème ${titre} : ${r.commentaire}`;
-      if (r.verdict === 'manque') return `Vérifie aussi : ${r.commentaire}`;
-      if (r.verdict === 'gravite') return `${titre} : gravité attendue ${String(r.graviteSouhaitee || '').toLowerCase()} — ${r.commentaire}`;
-      return `${titre} : ${r.commentaire}`;
-    }).map(t => t.slice(0, 380));
+      const commentaire = String(r.commentaire || '').trim();
+      if (r.verdict === 'faux_positif') consignes.push(`Ne signale pas comme un problème ${titre} : ${commentaire}`);
+      else if (r.verdict === 'manque') {
+        commentaire.split(/\n+/).map(l => l.trim()).filter(Boolean).forEach(l => consignes.push(`Vérifie aussi : ${l}`));
+      } else if (r.verdict === 'gravite') consignes.push(`${titre} : gravité attendue ${String(r.graviteSouhaitee || '').toLowerCase()}${commentaire ? ` — ${commentaire}` : ''}`);
+      else if (r.verdict === 'juste') consignes.push(`Constat jugé juste par l'étude, à conserver ${titre} : ${commentaire}`);
+      else consignes.push(`${titre} : ${commentaire}`);
+    }
+    return consignes.slice(-30).map(t => t.slice(0, 380));
   }
 
   function corpsRequeteRelecture() {
@@ -18922,11 +18969,17 @@
       const conteneur = document.getElementById('visionneuse-pages');
       if (!conteneur.querySelector('.visionneuse-page')) {
         conteneur.innerHTML = '';
+        // Les emplacements prennent d'emblée la taille d'une page entière (celle de la page 1) : la
+        // position de défilement de chaque page est juste avant même qu'elle soit dessinée.
+        const premiere = await v.pdf.getPage(1);
+        const taille = tailleVisionneuseRelecture(premiere.getViewport({ scale: 1 }), conteneur);
         for (let i = 1; i <= v.pdf.numPages; i++) {
           const bloc = document.createElement('div');
           bloc.className = 'visionneuse-page';
           bloc.id = 'visionneuse-page-' + i;
           bloc.dataset.page = String(i);
+          bloc.style.width = taille.largeur + 'px';
+          bloc.style.height = taille.hauteur + 'px';
           bloc.innerHTML = `<span class="visionneuse-num">p.${i}</span>`;
           conteneur.appendChild(bloc);
         }
@@ -18960,15 +19013,36 @@
     const bloc = document.getElementById('visionneuse-page-' + numero);
     if (!bloc) return;
     const page = await v.pdf.getPage(numero);
-    const largeur = Math.max(280, (bloc.clientWidth || 520));
-    const echelle = largeur / page.getViewport({ scale: 1 }).width;
-    const viewport = page.getViewport({ scale: echelle * (window.devicePixelRatio || 1) });
+    const base = page.getViewport({ scale: 1 });
+    const taille = tailleVisionneuseRelecture(base, document.getElementById('visionneuse-pages'));
+    bloc.style.width = taille.largeur + 'px';
+    bloc.style.height = taille.hauteur + 'px';
+    const viewport = page.getViewport({ scale: taille.echelle * (window.devicePixelRatio || 1) });
     const canvas = document.createElement('canvas');
     canvas.width = viewport.width;
     canvas.height = viewport.height;
     canvas.style.width = '100%';
+    canvas.style.height = '100%';
     await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
     bloc.appendChild(canvas);
+  }
+
+  // La page ENTIÈRE tient dans la zone visible de la visionneuse, en largeur comme en hauteur :
+  // caler seulement la largeur donnait une page A4 plus haute que le panneau, dont on ne voyait
+  // jamais le bas sans faire défiler (demande de l'étude au premier essai de la relecture).
+  function tailleVisionneuseRelecture(base, conteneur) {
+    return tailleAjusteePage(base.width, base.height,
+      (conteneur && conteneur.clientWidth) || 540, (conteneur && conteneur.clientHeight) || 760);
+  }
+
+  // Pure : dimensions d'une page de largeur l × hauteur h ramenée dans une zone dispoL × dispoH
+  // (marges intérieures de la zone déduites), sans jamais la déformer.
+  function tailleAjusteePage(l, h, dispoL, dispoH) {
+    const marge = 24;
+    const largeurDispo = Math.max(160, dispoL - marge);
+    const hauteurDispo = Math.max(200, dispoH - marge);
+    const echelle = Math.min(largeurDispo / l, hauteurDispo / h);
+    return { echelle, largeur: Math.floor(l * echelle), hauteur: Math.floor(h * echelle) };
   }
 
   // Même principe que voirEngagementDansPdf (Outil 1) : retrouver l'extrait dans le texte de la
