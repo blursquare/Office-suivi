@@ -7060,6 +7060,37 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     combinaison qu'une forme libre affaiblirait. `choisirAvantContratNas` n'est pas touché.
   - Tests : `tests/noms-approchants.test.js` (8, dont les négatifs). Suite racine 758 → 766.
 
+- **Deux correctifs signalés sur un vrai dossier de prêt (Banque Populaire, 45 pages)** :
+  - **Une pièce personnalisée cochée « reçue » à la main se décochait à chaque revérification**
+    (« DECOMPTE de remboursement ECO PRET », document que le NAS n'a pas). Depuis le correctif de
+    désynchronisation, `verifierDossierLocal()` repasse à « manquante » toute pièce reçue dont il ne
+    retrouve pas le fichier — mais une pièce personnalisée cochée à la main n'en a jamais eu.
+    `basculerStatutPiecePersonnalisee()` pose désormais la clé dans `d.piecesValideesManuellement`
+    (le même drapeau que `validerPieceManuellement()` pour une pièce standard) quand elle passe à
+    « reçue », et l'en retire sinon ; `supprimerPiecePersonnalisee()` l'en retire aussi. Rattrapage
+    des pièces cochées AVANT ce drapeau : une pièce personnalisée « reçue » sans fichier mémorisé
+    (`fichierTrouve` vide — une recherche réussie mémorise toujours son fichier) n'a pu être cochée
+    qu'à la main, elle est protégée de la même façon, dans le parcours comme dans `lierDossierLocal()`
+    (relevé AVANT de vider `d.fichiersTrouves`). Contrairement à une pièce standard validée à la
+    main, une pièce personnalisée cochée reste CHERCHÉE (`aChercher`) : si un fichier à son nom
+    apparaît, il devient ouvrable depuis la fiche. Vérifié dans un vrai Chromium (serveur réel +
+    NAS de 41 PDF) : la version précédente décochait la pièce dès le démarrage, la nouvelle la garde
+    reçue à travers trois revérifications, et la décocher la laisse bien repasser à « manquante ».
+  - **La caution n'était pas détectée : deux défauts de `detecterGarantiesPret()`, rejoués sur le
+    PDF réel.** Le vrai titre s'écrit « GARANTIE(S) », que `RE_TITRE_GARANTIES` n'acceptait pas ; et
+    le PREMIER « Garanties : » de l'offre est celui de l'**assurance emprunteur** (« Garanties : se
+    référer à la notice d'information de l'assurance »), qui ne nomme aucune garantie du prêt — d'où
+    un faux « Sans garanties ». Le motif accepte « GARANTIE(S) »/« SÛRETÉ(S) » et devient global ;
+    `paragraphesGaranties()` rend TOUS les paragraphes titrés dans l'ordre du document, et le premier
+    qui énonce une garantie connue fait foi (les conditions particulières précèdent les conditions
+    générales). « Sans garanties » n'est plus conclu que si l'un des paragraphes est celui du PRÊT
+    (`estParagrapheGarantiesAssurance()` : assurance/assureur/notice d'information dans ses 200
+    premiers caractères) — ceux de l'assurance seuls ne disent rien des garanties du prêt.
+    `extraireParagrapheGaranties()` suit la même règle. Rejoué sur les cinq offres réelles du stress
+    test : seule celle-ci change (« Sans garanties » → « Caution »). Deux tests dans
+    `tests/offre-pret.test.js` (structure de l'offre, noms et montants inventés). **Pour l'étude** :
+    un clic sur « Revérifier » suffit à corriger le dossier concerné.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

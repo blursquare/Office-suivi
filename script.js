@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-24 16:22';
+  const VERSION_APP = '2026-09-24 16:32';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-24 16:32', resume: "Une pièce ajoutée à la main et cochée reçue ne se décoche plus à chaque revérification du NAS. Garanties du prêt : le paragraphe « GARANTIE(S) » est reconnu, et les « Garanties » de l'assurance emprunteur ne font plus conclure « Sans garanties » (la caution est de nouveau détectée)." },
     { version: '2026-09-24 16:22', resume: "Noms de fichiers reconnus avec une marge d'erreur : fautes de frappe, mots de référence autour du nom, sigles (CU, CU a, DIA), casse. Le diagnostic du dossier signale « nom approchant » quand c'est le cas. Un décompte de remboursement d'éco-prêt n'est pas pris pour une offre de prêt." },
     { version: '2026-09-24 14:33', resume: "Relecture d'actes : la visionneuse montre la page entière ; vos commentaires du premier essai sont intégrés à la grille (écart Carrez de 5 %, DPE multiples, notaire rédacteur, récapitulatif des diagnostics, pré-état daté, santé et travaux de la copropriété, fonds de travaux, AG, location touristique, honoraires) ; plus d'anomalie en doublon d'un point ni tirée du mandat de l'agence." },
     { version: '2026-09-24 12:32', resume: "CLAIRE passe en bêta (la relecture d'actes reste en alpha). Sauvegarde automatique quotidienne de la base, dossier de destination à choisir dans les Réglages, alerte sur le Tableau de bord si elle échoue." },
@@ -11534,6 +11535,7 @@
     demanderConfirmation(`Retirer la pièce « ${item.label} » de la checklist de ce dossier ?`, () => {
       d.piecesPersonnalisees = d.piecesPersonnalisees.filter(p => p.cle !== cle);
       if (d.pieces) delete d.pieces[cle];
+      d.piecesValideesManuellement = (d.piecesValideesManuellement || []).filter(c => c !== cle);
       ajouterHistorique(d, `Pièce retirée de la checklist : « ${item.label} »`);
       sauvegarder(d);
       render();
@@ -11680,6 +11682,14 @@
     d.pieces = d.pieces || {};
     const actuel = d.pieces[cle] || 'inconnu';
     d.pieces[cle] = actuel === 'inconnu' ? 'manquante' : actuel === 'manquante' ? 'recue' : 'inconnu';
+    // Cochée à la main = décision de l'étude, comme validerPieceManuellement pour une pièce
+    // standard : le parcours du NAS ne doit plus la repasser à « manquante » faute d'y trouver un
+    // fichier à son nom. Sans ce drapeau, une pièce ajoutée à la main pour un document que le NAS
+    // n'a pas (« DECOMPTE de remboursement ECO PRET », signalé par l'étude) se décochait à chaque
+    // revérification.
+    const validees = (d.piecesValideesManuellement || []).filter(c => c !== cle);
+    if (d.pieces[cle] === 'recue') validees.push(cle);
+    d.piecesValideesManuellement = validees;
     signalerSiDossierDevenuComplet(d);
     sauvegarder(d);
     render();
@@ -14255,7 +14265,7 @@
   // ligne. Toujours ancré en DÉBUT DE LIGNE, et le deux-points est obligatoire dans le second cas
   // — sans quoi « les garanties sont acquises au prêteur » au fil d'une phrase passerait pour un
   // titre de paragraphe.
-  var RE_TITRE_GARANTIES = /^[^\S\n]*(?:(?:article|art\.?|§)[^\S\n]*)?\d{0,2}[^\S\n]*[-–—.)]?[^\S\n]*(?:garanties?|s[ûu]ret[ée]s?)(?:[^\S\n]+(?:du[^\S\n]+pr[êe]t|exig[ée]es?|r[ée]elles?))?[^\S\n]*(?::|$)/im;
+  var RE_TITRE_GARANTIES = /^[^\S\n]*(?:(?:article|art\.?|§)[^\S\n]*)?\d{0,2}[^\S\n]*[-–—.)]?[^\S\n]*(?:garanties?|garantie\(s\)|s[ûu]ret[ée]s?|s[ûu]ret[ée]\(s\))(?:[^\S\n]+(?:du[^\S\n]+pr[êe]t|exig[ée]es?|r[ée]elles?))?[^\S\n]*(?::|$)/gim;
   // Fin du paragraphe : le titre de section suivant, ou à défaut une fenêtre généreuse — une
   // énumération de garanties tient largement dedans.
   // Le motif précédent (« une ligne courte entièrement en capitales ») exigeait une MAJUSCULE
@@ -14331,19 +14341,53 @@
     return false;
   }
 
-  // Extrait le paragraphe « GARANTIES » de l'offre. Renvoie '' si l'offre n'en porte pas —
-  // l'appelant retombe alors sur « Sans garanties », voir detecterGarantiesPret.
-  function extraireParagrapheGaranties(texte) {
+  // Une offre porte souvent PLUSIEURS paragraphes titrés « Garanties » : celui du prêt, mais aussi
+  // les « Garanties : se référer à la notice d'information de l'assurance » de l'assurance
+  // emprunteur (un par assuré, par prêt), et un « GARANTIES » de conditions générales qui renvoie
+  // aux conditions particulières. Sur l'offre réelle Banque Populaire signalée par l'étude, le
+  // premier rencontré était celui de l'assurance : la fiche affichait « Sans garanties » alors que
+  // le vrai paragraphe, plus loin, portait un cautionnement. On les parcourt donc TOUS, dans
+  // l'ordre du document.
+  function paragraphesGaranties(texte) {
     const source = String(texte || '');
-    const titre = RE_TITRE_GARANTIES.exec(source);
-    if (!titre) return '';
-    // On repart de la FIN du titre, jamais du premier `\n` trouvé après son index de départ : ce
-    // dernier pouvait retomber sur le saut de ligne PRÉCÉDANT le titre, et le paragraphe avalait
-    // alors la section suivante en entier (une hypothèque citée sous « ASSURANCES » remontait
-    // ainsi comme garantie du prêt).
-    const reste = source.slice(titre.index + titre[0].length, titre.index + titre[0].length + LONGUEUR_MAX_PARAGRAPHE_GARANTIES);
-    const suivant = indexTitreSectionSuivante(reste);
-    return suivant > 0 ? reste.slice(0, suivant) : reste;
+    const re = new RegExp(RE_TITRE_GARANTIES.source, RE_TITRE_GARANTIES.flags);
+    const paragraphes = [];
+    let titre;
+    while ((titre = re.exec(source)) !== null) {
+      if (titre[0].length === 0) { re.lastIndex++; continue; }
+      // On repart de la FIN du titre, jamais du premier `\n` trouvé après son index de départ : ce
+      // dernier pouvait retomber sur le saut de ligne PRÉCÉDANT le titre, et le paragraphe avalait
+      // alors la section suivante en entier (une hypothèque citée sous « ASSURANCES » remontait
+      // ainsi comme garantie du prêt).
+      const debut = titre.index + titre[0].length;
+      const reste = source.slice(debut, debut + LONGUEUR_MAX_PARAGRAPHE_GARANTIES);
+      const suivant = indexTitreSectionSuivante(reste);
+      paragraphes.push(suivant > 0 ? reste.slice(0, suivant) : reste);
+    }
+    return paragraphes;
+  }
+
+  // Paragraphe des garanties de l'ASSURANCE emprunteur, pas du prêt : il renvoie à la notice
+  // d'information de l'assurance dès ses premiers mots. Il ne sert qu'à ne pas conclure
+  // « Sans garanties » sur sa seule foi (voir detecterGarantiesPret).
+  var RE_GARANTIES_ASSURANCE = /assurance|assureur|notice\s+d['’]information|bulletin\s+d['’]adh[ée]sion/i;
+  function estParagrapheGarantiesAssurance(paragraphe) {
+    return RE_GARANTIES_ASSURANCE.test(String(paragraphe || '').slice(0, 200));
+  }
+
+  function garantiesDuParagraphe(paragraphe) {
+    return GARANTIES_PRET.filter(g => g.motif && garantieNonConditionnelle(g.motif, paragraphe)).map(g => g.cle);
+  }
+
+  // Extrait LE paragraphe « GARANTIES » du prêt : le premier qui énonce une garantie connue, à
+  // défaut le premier qui n'est pas celui de l'assurance, à défaut le premier tout court. Renvoie
+  // '' si l'offre n'en porte aucun.
+  function extraireParagrapheGaranties(texte) {
+    const paragraphes = paragraphesGaranties(texte);
+    return paragraphes.find(p => garantiesDuParagraphe(p).length)
+      || paragraphes.find(p => !estParagrapheGarantiesAssurance(p))
+      || paragraphes[0]
+      || '';
   }
 
   // Les quatre réponses possibles listées par l'étude sont un CUMUL des trois clés ci-dessus :
@@ -14351,14 +14395,21 @@
   // dernière AVEC l'hypothèque conventionnelle. On renvoie donc toujours une liste de clés, dont
   // libellesGarantiesPret tire la phrase affichée.
   function detecterGarantiesPret(texte) {
-    const paragraphe = extraireParagrapheGaranties(texte);
+    const paragraphes = paragraphesGaranties(texte);
     // Aucun paragraphe « GARANTIES » : on ne sait pas, et ne pas savoir n'est pas « sans
     // garantie » — la fiche n'affiche alors rien plutôt qu'une affirmation fausse.
-    if (!paragraphe) return [];
-    const trouvees = GARANTIES_PRET.filter(g => g.motif && garantieNonConditionnelle(g.motif, paragraphe)).map(g => g.cle);
-    // Le paragraphe existe mais n'énonce aucune des garanties connues : c'est une vraie réponse,
-    // la première des quatre listées par l'étude.
-    return trouvees.length ? trouvees : ['sansGarantie'];
+    if (!paragraphes.length) return [];
+    // Le PREMIER paragraphe qui énonce une garantie connue fait foi : les garanties du prêt sont
+    // aux conditions particulières, avant les conditions générales qui en parlent en termes
+    // génériques.
+    for (const p of paragraphes) {
+      const trouvees = garantiesDuParagraphe(p);
+      if (trouvees.length) return trouvees;
+    }
+    // Aucun n'en énonce. Ce n'est une vraie réponse (« Sans garanties », la première des quatre
+    // listées par l'étude) que si l'un d'eux est bien celui du PRÊT : ceux de l'assurance
+    // emprunteur ne disent rien des garanties du prêt.
+    return paragraphes.some(p => !estParagrapheGarantiesAssurance(p)) ? ['sansGarantie'] : [];
   }
 
   function libellesGarantiesPret(cles) {
@@ -14780,13 +14831,19 @@
       d.offrePretStatut = 'inconnu';
       d.montantPret = null;
       d.garantiesPret = []; // lues dans l'offre de l'ancien dossier : elles ne valent plus rien ici
+    // Pièces personnalisées cochées à la main avant que le drapeau piecesValideesManuellement ne
+    // leur soit posé (voir basculerStatutPiecePersonnalisee) : reçues sans fichier mémorisé. À
+    // relever AVANT de vider d.fichiersTrouves juste en dessous.
+    const personnaliseesCocheesMain = (d.piecesPersonnalisees || [])
+      .filter(p => (d.pieces || {})[p.cle] === 'recue' && !fichierTrouve(d, NAS_CLE_PIECE(p.cle)))
+      .map(p => p.cle);
     // Les fichiers deja localises pointaient vers l'ANCIEN dossier : tout repart de zero, y
     // compris le compromis (jamais rescanne automatiquement — voir ouvrirCompromisTrouve()).
     d.fichiersTrouves = {};
     if (d.roleNotaire !== 'participant') {
       // Une pièce validée à la main ne dépend d'AUCUN dossier NAS (elle vit dans Authentic, ou
       // sur papier) : changer de dossier relié ne doit pas défaire cette décision.
-      const valideesMain = new Set(d.piecesValideesManuellement || []);
+      const valideesMain = new Set((d.piecesValideesManuellement || []).concat(personnaliseesCocheesMain));
       d.pieces = {};
       checklistPieces(d.typeVente, d).forEach(p => {
         d.pieces[p.cle] = valideesMain.has(p.cle) ? 'recue' : 'manquante';
@@ -15070,7 +15127,10 @@
     // ce qui reviendrait à défaire une décision humaine à chaque tour automatique. Demandé
     // explicitement par l'étude.
     const validees = new Set(d.piecesValideesManuellement || []);
-    const aChercher = new Set(checklist.map(p => p.cle).filter(cle => !validees.has(cle)));
+    // Une pièce PERSONNALISÉE cochée à la main reste cherchée : si un fichier à son nom apparaît,
+    // il devient ouvrable depuis la fiche. Elle est seulement protégée de la remise à « manquante »
+    // (voir plus bas).
+    const aChercher = new Set(checklist.filter(p => p.personnalisee || !validees.has(p.cle)).map(p => p.cle));
     const fichierParPiece = {};
     const candidatsParPiece = {};
     const exclusionsRencontrees = [];
@@ -15276,14 +15336,19 @@
     let nbPiecesTrouvees = 0;
     const desynchronisees = [];
     for (const piece of checklist) {
-      if (validees.has(piece.cle)) {
-        // Validée à la main : son statut ne dépend pas de ce que contient le NAS.
-        d.pieces[piece.cle] = 'recue';
-        nbPiecesTrouvees++;
-      } else if (fichierParPiece[piece.cle]) {
+      // Pièce personnalisée « reçue » sans aucun fichier mémorisé : elle n'a pu être cochée qu'à la
+      // main (une recherche réussie mémorise toujours son fichier). Rattrape les pièces cochées
+      // avant que ce drapeau n'existe, sans qu'il faille les recocher une à une.
+      const personnaliseeCocheeMain = piece.personnalisee && d.pieces[piece.cle] === 'recue'
+        && !fichierTrouve(d, NAS_CLE_PIECE(piece.cle));
+      if (fichierParPiece[piece.cle]) {
         d.pieces[piece.cle] = 'recue';
         nbPiecesTrouvees++;
         memoriserFichierTrouve(d, NAS_CLE_PIECE(piece.cle), fichierParPiece[piece.cle]);
+      } else if (validees.has(piece.cle) || personnaliseeCocheeMain) {
+        // Validée à la main : son statut ne dépend pas de ce que contient le NAS.
+        d.pieces[piece.cle] = 'recue';
+        nbPiecesTrouvees++;
       } else if (d.pieces[piece.cle] === 'recue') {
         // Elle était reçue et son fichier n'est plus là : désynchronisée. Garde-fou explicite — on
         // ne remet une pièce à "manquante" QUE si le parcours a effectivement vu des fichiers.

@@ -207,3 +207,37 @@ test('le paragraphe GARANTIES n\'est trouvé que sur un texte à VRAIES lignes (
   assert.equal(app.extraireParagrapheGaranties(aplati), '');
   assert.equal(app.detecterGarantiesPret(aplati).length, 0);
 });
+
+// Structure d'une offre réelle Banque Populaire (noms, montants et organismes inventés) : le
+// premier paragraphe « Garanties : » est celui de l'ASSURANCE emprunteur, le vrai est titré
+// « GARANTIE(S) » plus loin, et les conditions générales ont encore leur propre « GARANTIES ».
+test('l’offre à plusieurs paragraphes « Garanties » : le titre GARANTIE(S) du prêt fait foi', () => {
+  const app = chargerApplication();
+  const offre = "ASSURANCE(S) EMPRUNTEUR\n"
+    + "- Délégation au profit de la Banque du bénéfice de l'assurance souscrite par MME JEANNE EXEMPLE.\n"
+    + "Garanties : Se référer aux paragraphes concernés des dispositions de la notice d'information de l'assurance et du\n"
+    + "bulletin d'adhésion .\n"
+    + "Ces garanties sont obligatoires dans les proportions ci-dessous pour obtenir le financement :\n"
+    + "Part d'assurance obligatoire : 100,00 %\n"
+    + "GARANTIE(S)\n"
+    + "- Cautionnement solidaire de Société Exemple Garantie (ci-après désignée la \"Caution\") à hauteur de 100 000,00 EUR.\n"
+    + "Cette caution est recueillie pour sûreté du prêt ci-dessous :\n"
+    + "- Prêt immobilier standard : 100 000,00 EUR sur 240 mois.\n"
+    + "CLAUSE(S) PARTICULIERE(S)\n"
+    + "Les fonds seront adressés chez le notaire.\n"
+    + "CONDITIONS GENERALES\n"
+    + "GARANTIES\n"
+    + "En garantie du paiement de toutes sommes dues, l'Emprunteur confère à la Banque les garanties prévues aux conditions particulières.\n";
+  assert.equal(app.detecterGarantiesPret(offre).join(','), 'caution');
+  assert.ok(app.extraireParagrapheGaranties(offre).includes('Cautionnement solidaire'));
+});
+
+test('seuls des paragraphes « Garanties » d’assurance ne disent pas « Sans garanties »', () => {
+  const app = chargerApplication();
+  const assurance = "Garanties : Se référer à la notice d'information de l'assurance.\n"
+    + "Ces garanties sont obligatoires pour obtenir le financement.\n";
+  assert.equal(app.detecterGarantiesPret(assurance).length, 0);
+  // Un vrai paragraphe du prêt qui n'énonce rien de connu reste, lui, une réponse.
+  const vide = "GARANTIES\nAucune garantie n'est exigée pour ce prêt.\nASSURANCES\nSuite.";
+  assert.equal(app.detecterGarantiesPret(vide).join(','), 'sansGarantie');
+});
