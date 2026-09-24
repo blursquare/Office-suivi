@@ -28,7 +28,7 @@ test('grille : les points demandés par l’étude existent, avec leur consigne'
   assert.match(point('compromis', 'alur_pv_ag').consigne, /dernière assemblée[\s\S]*prochaine/);
   assert.match(point('compromis', 'alur_charges').consigne, /pré-état daté/);
   // Un point sans consigne en transmet une vide, jamais undefined.
-  assert.equal(point('compromis', 'amiante').consigne, '');
+  assert.equal(point('compromis', 'origine_propriete').consigne, '');
 });
 
 test('quotités : la consigne dépend du stade de l’acte', () => {

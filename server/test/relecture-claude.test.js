@@ -226,3 +226,16 @@ test('consigne de point : conservée par la validation, injectée sous le point 
   assert.match(s, /ne répète JAMAIS un point de la grille/);
   assert.match(s, /mandat de vente[\s\S]*garantie financière/);
 });
+
+test('construireSystemPrompt : le type de bien oriente la lecture, commentaires en deux lignes', () => {
+  const { construireSystemPrompt: p, validerTypeBien } = require('../src/relecture/claude');
+  const grille = [{ id: 'dpe', section: 'Diagnostics', intitule: 'DPE', declencheur: 'Tous les biens', base_legale: '', consigne: '' }];
+  assert.match(p('compromis', grille, [], 'terrain'), /TERRAIN À BÂTIR/);
+  assert.match(p('compromis', grille, [], 'copropriete'), /LOTS DE COPROPRIÉTÉ/);
+  assert.doesNotMatch(p('compromis', grille, [], 'chateau'), /Le bien vendu est/);
+  assert.equal(validerTypeBien('chateau'), '');
+  const sans = p('compromis', grille, []);
+  assert.match(sans, /DEUX LIGNES au plus/);
+  assert.match(sans, /à définir/);
+  assert.match(sans, /monument historique/);
+});

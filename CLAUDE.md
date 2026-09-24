@@ -7212,6 +7212,77 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   encore `options.bouton`/`options.ton` pour forcer. **Toute nouvelle confirmation doit commencer
   par son verbe d'action**, sinon elle affichera « Confirmer ».
 
+- **Relecture d'actes : bilan réorganisé, grille par type de bien, analyses passées enregistrées ;
+  tableau de bord : J- avant le butoir du prêt** (24/09 soir). Deuxième série de commentaires de
+  l'étude (`commentaires-relecture-2026-09-24_1.json`, projet de promesse, maison), plus « créer une
+  base de donnée pour pouvoir revenir sur les analyses d'acte passées ».
+  - **Bilan (étape 4) : nouvelle disposition, demandée mot pour mot.** En haut, le résumé (carte de
+    santé) à gauche et, juste à côté à droite, le **contrôle automatique CLAIRE réduit à « Ce que dit
+    l'acte »** (fiche d'identité et constats lus dans l'acte seul) : les autres blocs CLAIRE (écarts
+    avec l'avant-contrat, annexes, type de bien, couverture…) faisaient doublon avec la grille relue
+    par Claude et sont retirés du bilan (`categoriesClaireBilanRelecture` : seules ces catégories
+    comptent aussi dans la santé globale). En dessous, les thèmes à gauche et **l'aperçu à droite,
+    toujours ouvert** — sur la citation demandée, sinon sur le document relu, page 1. Plus de bouton
+    de fermeture. Dans chaque thème, **« À surveiller » et « Validé » côte à côte**
+    (`repartirLignesThemeRelecture`, pure), au lieu d'une liste avec les validés repliés.
+  - **Le « grand carré blanc » sous l'analyse** : `.relecture-visionneuse` pose `display: flex`, qui
+    l'emportait sur l'attribut `hidden` — l'aside restait affiché, vide, 100vh de haut. Corrigé à la
+    cause (`[hidden] { display: none }`) et rendu sans objet : sans document à montrer (analyse
+    rouverte dont les PDF ont été déposés depuis le poste), l'aperçu affiche un état vide qui dit
+    pourquoi, et le cadre se réduit à son message (`:has(.visionneuse-vide)`). Sous 1180 px l'aperçu
+    n'est plus un panneau plein écran par-dessus le bilan mais un bloc sous les thèmes ; un clic sur
+    une page l'amène à l'écran. Le défilement vers une page se fait dans l'aperçu seul
+    (`scrollTop`), plus par `scrollIntoView`, qui faisait bouger toute la page.
+  - **Maison / copropriété / terrain à bâtir vraiment différenciés.** Le type de bien se choisit
+    désormais **à l'étape 3, avant de lancer l'analyse** (`renderTypeBienEtapeRelecture`,
+    `typeBienRelectureCourante` : choisi à la main, sinon déduit des documents par
+    `deduireTypeBienOutil2`), et il décide des points posés : champ `types` sur les points de
+    `GRILLE_RELECTURE_OUTIL2`, `pointPourTypeBien()`, `grillePourModeOutil2(mode, typeBien)` et
+    `sectionsTableauDeBordOutil2(analyse, mode, typeBien)`. Diagnostics du bâti (DPE, amiante,
+    plomb, électricité, gaz, termites, mérule, assainissement), travaux du vendeur et
+    dommages-ouvrage : maison et copropriété seulement ; points ALUR et Carrez : copropriété
+    seulement (un point `copro: true` sans `types` vaut copropriété). **Six points propres au
+    terrain à bâtir** : constructibilité/lotissement, bornage (C. urb. L115-4), viabilisation, étude
+    géotechnique (CCH L112-21), condition suspensive de permis (avant-contrat), permis purgé (projet
+    de vente). Sans type connu, tout reste posé. Le serveur reçoit `typeBien` et le dit au modèle
+    (`TYPES_BIEN_PROMPT` dans `relecture/claude.js`). Le type retenu s'affiche sur la carte de santé
+    (`typeBienEnvoyeRelecture`) ; il ne se corrige plus dans le bilan, puisque la grille a déjà été
+    posée pour lui.
+  - **Analyses plus courtes** : le commentaire d'un point tient en deux lignes au plus (≈ 250
+    caractères) sauf quand le point l'exige (montants, écart chiffré, résolutions citées), la
+    synthèse en 2 à 4 phrases, une anomalie en deux lignes.
+  - **Retours du JSON devenus des consignes durables** (grille et règles du prompt) : termites —
+    une clause « hors zone contaminée » répond au point, statut sans objet, jamais d'anomalie en plus ;
+    plomb et amiante « non soumis » — contrôlés contre la date de construction (1949) ou du permis
+    (1er juillet 1997) quand elle figure au dossier ; date « à définir » dans un projet →
+    `a_verifier`, jamais critique ni anomalie en doublon ; anomalies électricité/gaz sur un bien
+    vendu en l'état → à surveiller ; monument historique / AC1 / ABF / SPR signalés dans le point
+    urbanisme **seulement s'ils figurent dans les documents**. **Limite dite à l'étude** : aucune base
+    extérieure (Géoportail de l'urbanisme) n'est consultée — l'outil ne voit que les pièces
+    déposées ; la protection patrimoniale manquée sur ce dossier ne sera trouvée que si un document
+    (certificat d'urbanisme, ERP, acte) la mentionne. Les avis « pour ce dossier » (date butoir déjà
+    vue, nombre de lots) restent des commentaires, non généralisés.
+  - **Base des analyses passées** (`relectures`, `server/src/routes/relectures.js`, voir
+    server/README.md) : chaque bilan affiché est enregistré (`enregistrerRelectureCourante`, POST puis
+    PUT) avec l'analyse ré-identifiée, les contrôles CLAIRE, le coût, la santé et la liste des
+    documents avec leur chemin NAS. Carte « Analyses enregistrées » à l'étape 1 (recherche sans
+    accents, `filtrerHistoriqueRelectures`), réouverture sans requête ni coût
+    (`ouvrirRelectureArchivee`, bandeau « Analyse enregistrée le… », `fichierRelecture` rouvre les
+    pièces du NAS dans l'aperçu), suppression confirmée. **Décision assumée** : contrairement à
+    `analyses_claude` (requête pseudonymisée), ce bilan est stocké **en clair** sur le serveur de
+    l'étude, comme les dossiers — c'est ce que l'étude veut relire ; rien de cela ne part chez
+    Anthropic. Mode commentaires utilisable sur une analyse rouverte.
+  - **Tableau de bord** : à côté de « Offre de prêt introuvable » (Actions urgentes), le délai avant
+    la date butoir d'obtention du prêt (`delaiButoirPret` : « J-12 avant le butoir », « butoir
+    aujourd'hui », « butoir dépassé de 4 j »). Tuile « dossier(s) actif(s) » : chiffre en vert
+    (`c-success`).
+  - Tests : `tests/outil2-bilan-type-bien.test.js` (7), `server/test/relectures.test.js` (3), +1 dans
+    `relecture-claude.test.js`. Suite racine 783, serveur 284. Vérifié dans un vrai Chromium
+    (serveur réel, pdf.js simulé, clair/sombre, 1500 et 400 px) : CLAIRE à droite du résumé sur la
+    même ligne, aperçu ouvert à droite des thèmes avec ses pages, deux colonnes par thème, analyse
+    enregistrée puis rouverte depuis la liste avec son bandeau et l'aperçu vide expliqué, aucun
+    débordement, aucune erreur JS.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

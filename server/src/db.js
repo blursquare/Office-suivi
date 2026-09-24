@@ -51,6 +51,29 @@ const SCHEMA = `
     reponse TEXT
   );
 
+  -- Relectures d'actes enregistrées (Outil 2) : de quoi REVENIR sur une analyse passée. Demande de
+  -- l'étude : « créer une base de donnée pour pouvoir revenir sur les analyses d'acte passées ».
+  -- Contrairement à analyses_claude (journal de la requête PSEUDONYMISÉE envoyée à Anthropic),
+  -- on y garde le bilan tel que l'étude l'a lu, ré-identifié : c'est une donnée de l'étude,
+  -- rangée sur son serveur au même titre que les dossiers. Les PDF eux-mêmes n'y sont pas.
+  CREATE TABLE IF NOT EXISTS relectures (
+    id TEXT PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    mode TEXT,
+    type_bien TEXT,
+    dossier_id TEXT,
+    dossier_nom TEXT,
+    libelle TEXT,
+    critique INTEGER NOT NULL DEFAULT 0,
+    surveiller INTEGER NOT NULL DEFAULT 0,
+    valide INTEGER NOT NULL DEFAULT 0,
+    avec_claude INTEGER NOT NULL DEFAULT 0,
+    cout_usd REAL NOT NULL DEFAULT 0,
+    donnees TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_relectures_created ON relectures(created_at);
+
   CREATE TABLE IF NOT EXISTS parametres (
     cle TEXT PRIMARY KEY,
     valeur TEXT NOT NULL

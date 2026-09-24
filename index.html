@@ -1246,6 +1246,14 @@
         </div>
       </div>
     </div>
+
+    <div class="calc-card relecture-historique">
+      <div class="relecture-historique-tete">
+        <div class="dash-section-titre">Analyses enregistrées</div>
+        <input type="search" id="relecture-historique-recherche" placeholder="Rechercher par dossier ou document…" oninput="renderHistoriqueRelectures()" autocomplete="off" aria-label="Rechercher une analyse enregistrée">
+      </div>
+      <div id="relecture-historique-liste"><p class="hint">Chargement…</p></div>
+    </div>
   </section>
 
   <!-- Étape 2 : pseudonymisation locale, avant tout envoi -->

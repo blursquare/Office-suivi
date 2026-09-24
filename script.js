@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-24 18:10';
+  const VERSION_APP = '2026-09-24 19:07';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-24 19:07', resume: "Relecture d'actes : bilan réorganisé (résumé et contrôle CLAIRE de l'acte en haut, thèmes avec « à surveiller » et « validé » côte à côte, aperçu toujours ouvert), grille adaptée maison / copropriété / terrain à bâtir, commentaires en deux lignes, analyses passées enregistrées et rouvrables. Tableau de bord : J- avant la date butoir du prêt à côté d'une offre introuvable, dossiers actifs en vert." },
     { version: '2026-09-24 18:10', resume: "Fenêtres de confirmation : le bouton dit ce qui va se passer (Retirer, Réinitialiser, Vider, Effacer en rouge ; Valider, Importer, Mettre à jour en bleu) au lieu de « Supprimer » partout." },
     { version: '2026-09-24 18:08', resume: "Valider une pièce à la main : le bouton de confirmation dit « Valider » (en bleu) et non plus « Supprimer »." },
     { version: '2026-09-24 18:05', resume: "Pièces : un « Arrêté d'alignement » (avec ou sans accent, « arrêté individuel / portant alignement »…) coche le certificat d'alignement. Fiche : « Signature 7 j avant la date butoir » au lieu de « ce butoir »." },
@@ -197,6 +198,7 @@
     sun: '<circle cx="8" cy="8" r="3"/><line x1="8" y1="1.2" x2="8" y2="3"/><line x1="8" y1="13" x2="8" y2="14.8"/><line x1="1.2" y1="8" x2="3" y2="8"/><line x1="13" y1="8" x2="14.8" y2="8"/><line x1="3.3" y1="3.3" x2="4.5" y2="4.5"/><line x1="11.5" y1="11.5" x2="12.7" y2="12.7"/><line x1="3.3" y1="12.7" x2="4.5" y2="11.5"/><line x1="11.5" y1="4.5" x2="12.7" y2="3.3"/>',
     moon: '<path d="M13.6 9.9A5.8 5.8 0 1 1 6.1 2.4a4.6 4.6 0 0 0 7.5 7.5Z" stroke-linejoin="round"/>',
     search: '<circle cx="7" cy="7" r="4.3"/><line x1="10.2" y1="10.2" x2="14" y2="14"/>',
+    clock: '<circle cx="8" cy="8" r="6.2"/><path d="M8 4.6V8l2.4 1.6"/>',
     'alert-triangle': '<path d="M8 2.3 14.4 13.2a0.9 0.9 0 0 1-0.8 1.3H2.4a0.9 0.9 0 0 1-0.8-1.3L8 2.3Z" stroke-linejoin="round"/><line x1="8" y1="6" x2="8" y2="9.3"/><circle cx="8" cy="11.5" r="0.8" fill="currentColor" stroke="none"/>',
     'file-text': '<path d="M4 2h5.5L12 4.5V14H4Z" stroke-linejoin="round"/><path d="M9.5 2v2.5H12"/><line x1="6" y1="8" x2="10" y2="8"/><line x1="6" y1="10.5" x2="9" y2="10.5"/>',
     mail: '<rect x="1.4" y="3.5" width="13.2" height="9" rx="1.4"/><path d="M2 4.3 8 9l6-4.7"/>',
@@ -5150,17 +5152,22 @@
     { id: 'conditions_levees', section: 'avant_contrat', intitule: "Conditions suspensives de l'avant-contrat réalisées ou levées, et constatées dans l'acte", declencheur: 'Avant-contrat fourni', modes: ['acte'] },
     { id: 'engagements_vendeur', section: 'avant_contrat', intitule: "Engagements du vendeur pris dans l'avant-contrat (travaux, documents, entretiens) tenus et justifiés", declencheur: "L'avant-contrat comporte des engagements du vendeur", modes: ['acte'] },
     // Diagnostics techniques (prototype)
-    { id: 'dpe', section: 'diagnostics', intitule: 'Diagnostic de performance énergétique (DPE)', declencheur: 'Tous les biens', base_legale: 'Validité 10 ans', modes: ['compromis', 'acte'],
+    { id: 'dpe', types: ['maison', 'copropriete'], section: 'diagnostics', intitule: 'Diagnostic de performance énergétique (DPE)', declencheur: 'Tous les biens', base_legale: 'Validité 10 ans', modes: ['compromis', 'acte'],
       consigne: "S'il y a plusieurs DPE au dossier, dis-le et cite chacun avec sa date ; indique celui que vise l'acte et retiens le plus récent comme référence." },
-    { id: 'amiante', section: 'diagnostics', intitule: 'Diagnostic amiante', declencheur: 'Permis de construire délivré avant le 01/07/1997', modes: ['compromis', 'acte'] },
-    { id: 'plomb', section: 'diagnostics', intitule: "Constat de risque d'exposition au plomb (CREP)", declencheur: 'Construction antérieure au 01/01/1949', modes: ['compromis', 'acte'] },
-    { id: 'electricite', section: 'diagnostics', intitule: 'Diagnostic électricité', declencheur: 'Installation intérieure de plus de 15 ans', base_legale: 'Validité 3 ans', modes: ['compromis', 'acte'] },
-    { id: 'gaz', section: 'diagnostics', intitule: 'Diagnostic gaz', declencheur: 'Installation intérieure de plus de 15 ans', base_legale: 'Validité 3 ans', modes: ['compromis', 'acte'] },
-    { id: 'termites', section: 'diagnostics', intitule: 'État relatif à la présence de termites', declencheur: 'Zone à risque définie par arrêté préfectoral', base_legale: 'Validité 6 mois', modes: ['compromis', 'acte'] },
+    { id: 'amiante', types: ['maison', 'copropriete'], section: 'diagnostics', intitule: 'Diagnostic amiante', declencheur: 'Permis de construire délivré avant le 01/07/1997', modes: ['compromis', 'acte'],
+      consigne: "Si l'acte déclare le bien non soumis au repérage amiante, vérifie-le contre la date du permis de construire quand elle figure dans les documents (antérieur au 1er juillet 1997 : repérage exigé) et signale toute contradiction ; sinon, la déclaration répond au point." },
+    { id: 'plomb', types: ['maison', 'copropriete'], section: 'diagnostics', intitule: "Constat de risque d'exposition au plomb (CREP)", declencheur: 'Construction antérieure au 01/01/1949', modes: ['compromis', 'acte'],
+      consigne: "Si l'acte déclare le bien non soumis au CREP, vérifie-le contre la date de construction quand elle figure dans les documents (antérieure au 1er janvier 1949 : CREP exigé) et signale toute contradiction ; sinon, la déclaration répond au point." },
+    { id: 'electricite', types: ['maison', 'copropriete'], section: 'diagnostics', intitule: 'Diagnostic électricité', declencheur: 'Installation intérieure de plus de 15 ans', base_legale: 'Validité 3 ans', modes: ['compromis', 'acte'],
+      consigne: "Des anomalies relevées sur un bien vendu en l'état sont à surveiller (« a_verifier »), jamais un point critique, sauf si l'acte met leur levée à la charge du vendeur." },
+    { id: 'gaz', types: ['maison', 'copropriete'], section: 'diagnostics', intitule: 'Diagnostic gaz', declencheur: 'Installation intérieure de plus de 15 ans', base_legale: 'Validité 3 ans', modes: ['compromis', 'acte'],
+      consigne: "Des anomalies relevées sur un bien vendu en l'état sont à surveiller (« a_verifier »), jamais un point critique, sauf si l'acte met leur levée à la charge du vendeur." },
+    { id: 'termites', types: ['maison', 'copropriete'], section: 'diagnostics', intitule: 'État relatif à la présence de termites', declencheur: 'Zone à risque définie par arrêté préfectoral', base_legale: 'Validité 6 mois', modes: ['compromis', 'acte'],
+      consigne: "Lis d'abord les clauses : si l'acte déclare le bien hors d'une zone contaminée ou susceptible de l'être, aucun état termites n'est exigé — statut « non_applicable », en citant la clause. Jamais d'anomalie « diagnostic termites manquant » en plus de ce point." },
     { id: 'erp', section: 'diagnostics', intitule: 'État des risques et pollutions (ERP)', declencheur: 'Tous les biens', base_legale: 'Validité 6 mois', modes: ['compromis', 'acte'] },
-    { id: 'assainissement', section: 'diagnostics', intitule: 'Diagnostic assainissement non collectif', declencheur: "Bien non raccordé au tout-à-l'égout", base_legale: 'Validité 3 ans', modes: ['compromis', 'acte'] },
-    { id: 'carrez', section: 'diagnostics', intitule: 'Mesurage loi Carrez', declencheur: 'Lot de copropriété de plus de 8 m²', modes: ['compromis', 'acte'] },
-    { id: 'merule', section: 'diagnostics', intitule: 'Information mérule', declencheur: 'Zone concernée par un arrêté préfectoral', modes: ['compromis', 'acte'] },
+    { id: 'assainissement', types: ['maison', 'copropriete'], section: 'diagnostics', intitule: 'Diagnostic assainissement non collectif', declencheur: "Bien non raccordé au tout-à-l'égout", base_legale: 'Validité 3 ans', modes: ['compromis', 'acte'] },
+    { id: 'carrez', types: ['copropriete'], section: 'diagnostics', intitule: 'Mesurage loi Carrez', declencheur: 'Lot de copropriété de plus de 8 m²', modes: ['compromis', 'acte'] },
+    { id: 'merule', types: ['maison', 'copropriete'], section: 'diagnostics', intitule: 'Information mérule', declencheur: 'Zone concernée par un arrêté préfectoral', modes: ['compromis', 'acte'] },
     { id: 'ddt_recapitulatif', section: 'diagnostics', intitule: 'Récapitulatif des diagnostics : chacun avec sa date, valable, périmé ou manquant', declencheur: 'Toujours', modes: ['compromis', 'acte'],
       consigne: "Liste chaque diagnostic du dossier sous la forme « nom — date — valable / périmé / date non trouvée », puis ceux qui manquent alors que leur déclencheur s'applique. Juge la validité à la date prévue pour la signature de l'acte authentique." },
     { id: 'bruit', section: 'diagnostics', intitule: "Information bruit (plan d'exposition au bruit)", declencheur: "Bien situé en zone de bruit d'aérodrome", modes: ['compromis', 'acte'] },
@@ -5188,13 +5195,22 @@
     { id: 'clause_penale_dedit', section: 'delais', intitule: 'Clause pénale ou clause de dédit clairement identifiée, avec montant', declencheur: 'Tous les avant-contrats', modes: ['compromis'] },
     { id: 'purge_preemption', section: 'delais', intitule: 'Purge du droit de préemption (urbain, SAFER, locataire ou autre)', declencheur: 'Selon nature et localisation du bien', modes: ['compromis', 'acte'] },
     { id: 'date_acte_authentique', section: 'delais', intitule: "Date limite de signature de l'acte authentique cohérente avec les autres délais", declencheur: 'Tous les avant-contrats', modes: ['compromis'],
-      consigne: "Seules comptent les dates de l'avant-contrat : ne tiens aucun compte de celles du mandat de vente ni de l'offre d'achat de l'agence." },
+      consigne: "Seules comptent les dates de l'avant-contrat : ne tiens aucun compte de celles du mandat de vente ni de l'offre d'achat de l'agence. Une date encore « à définir » ou en blanc : statut « a_verifier », jamais « absent » — et pas d'anomalie en plus sur le même sujet." },
     // Urbanisme et servitudes (prototype)
-    { id: 'situation_urbanisme', section: 'urbanisme', intitule: "Situation au regard des règles d'urbanisme (certificat d'urbanisme, zonage, alignement)", declencheur: 'Toujours', modes: ['compromis', 'acte'] },
+    { id: 'situation_urbanisme', section: 'urbanisme', intitule: "Situation au regard des règles d'urbanisme (certificat d'urbanisme, zonage, alignement, protection du patrimoine)", declencheur: 'Toujours', modes: ['compromis', 'acte'],
+      consigne: "Relève le zonage et toute servitude d'utilité publique citée : abords d'un monument historique (AC1), avis de l'architecte des Bâtiments de France, site patrimonial remarquable. Ne suppose jamais leur absence — aucune base extérieure n'est consultée." },
+    // Terrain à bâtir : ce qui remplace les diagnostics du bâti
+    { id: 'terrain_constructibilite', types: ['terrain'], section: 'urbanisme', intitule: 'Constructibilité : zonage, certificat d\'urbanisme opérationnel, lotissement (autorisation, règlement, cahier des charges)', declencheur: 'Terrain à bâtir', modes: ['compromis', 'acte'] },
+    { id: 'terrain_bornage', types: ['terrain'], section: 'bien', intitule: 'Bornage et superficie du terrain', declencheur: 'Terrain à bâtir', base_legale: 'C. urb. L115-4 (lotissement)', modes: ['compromis', 'acte'],
+      consigne: "Dis si un bornage a été réalisé (géomètre, date) et si la superficie est garantie ; en lotissement, le bornage est obligatoire." },
+    { id: 'terrain_viabilisation', types: ['terrain'], section: 'bien', intitule: 'Viabilisation : raccordements (eau, électricité, assainissement, voirie) et leur prise en charge', declencheur: 'Terrain à bâtir', modes: ['compromis', 'acte'] },
+    { id: 'terrain_etude_sol', types: ['terrain'], section: 'diagnostics', intitule: "Étude géotechnique préalable (retrait-gonflement des argiles)", declencheur: "Zone d'exposition moyenne ou forte", base_legale: 'CCH L112-21', modes: ['compromis', 'acte'] },
+    { id: 'terrain_permis', types: ['terrain'], section: 'delais', intitule: "Condition suspensive d'obtention du permis de construire : délai, purge du recours des tiers et du retrait", declencheur: 'Terrain à bâtir', modes: ['compromis'] },
+    { id: 'terrain_permis_purge', types: ['terrain'], section: 'urbanisme', intitule: "Permis de construire de l'acquéreur obtenu et purgé (affichage, recours des tiers, retrait)", declencheur: 'Vente conditionnée à un permis', modes: ['acte'] },
     { id: 'servitudes', section: 'urbanisme', intitule: 'Servitudes apparentes ou occultes mentionnées', declencheur: 'Toujours', modes: ['compromis', 'acte'] },
     { id: 'usage_location_touristique', section: 'urbanisme', intitule: "Usage du bien : location meublée de tourisme, changement d'usage, règlement municipal ou clause du règlement de copropriété", declencheur: 'Commune ou copropriété réglementant la location meublée de tourisme', modes: ['compromis', 'acte'],
       consigne: "Signale toute règle citée dans les documents sur la location meublée de courte durée ou le changement d'usage (délibération municipale, autorisation, compensation, interdiction ou limite du règlement de copropriété) et ce qu'elle impose à l'acquéreur. N'invente aucune règle locale qui ne figure pas dans les documents." },
-    { id: 'conformite_travaux', section: 'urbanisme', intitule: 'Travaux réalisés par le vendeur : autorisation, achèvement et conformité (DAACT), garantie décennale', declencheur: 'Si le vendeur a réalisé des travaux', modes: ['compromis', 'acte'],
+    { id: 'conformite_travaux', types: ['maison', 'copropriete'], section: 'urbanisme', intitule: 'Travaux réalisés par le vendeur : autorisation, achèvement et conformité (DAACT), garantie décennale', declencheur: 'Si le vendeur a réalisé des travaux', modes: ['compromis', 'acte'],
       consigne: "Ne vise que les travaux réalisés par le VENDEUR (ceux de la copropriété relèvent du point « Travaux de la copropriété »). Qualifie chacun : touche-t-il l'extérieur du bâtiment, crée-t-il de la surface, porte-t-il sur le gros œuvre ? Si oui, une déclaration préalable ou un permis était exigible : dis s'il est justifié." },
     // Volet financier (prototype)
     { id: 'prix_modalites', section: 'financier', intitule: 'Prix de vente (chiffres et lettres concordants), ventilation mobilier, modalités de paiement', declencheur: 'Toujours', modes: ['compromis', 'acte'] },
@@ -5202,15 +5218,24 @@
     { id: 'honoraires', section: 'financier', intitule: 'Honoraires de négociation : montant et charge (vendeur ou acquéreur)', declencheur: 'Vente par intermédiaire', modes: ['compromis', 'acte'],
       consigne: "Dis si les honoraires sont compris dans le prix et à la charge de qui. Un écart de prix entre l'avant-contrat et l'offre d'achat ou le mandat s'explique souvent par les honoraires : vérifie-le ici avant d'en faire une anomalie." },
     { id: 'taxe_fonciere', section: 'financier', intitule: 'Répartition de la taxe foncière au prorata temporis', declencheur: 'Toujours', modes: ['compromis', 'acte'] },
-    { id: 'dommage_ouvrage', section: 'financier', intitule: 'Assurance dommages-ouvrage', declencheur: 'Construction ou travaux de moins de 10 ans', modes: ['compromis', 'acte'] },
+    { id: 'dommage_ouvrage', types: ['maison', 'copropriete'], section: 'financier', intitule: 'Assurance dommages-ouvrage', declencheur: 'Construction ou travaux de moins de 10 ans', modes: ['compromis', 'acte'] },
     { id: 'plus_value', section: 'financier', intitule: 'Plus-value immobilière : exonération invoquée et justifiée, ou calcul prévu', declencheur: "Projet d'acte de vente", modes: ['acte'] }
   ];
 
-  function grillePourModeOutil2(mode) {
+  // Un point s'applique-t-il à ce type de bien ? Sans type connu, tous les points restent posés
+  // (le modèle les marque « sans objet »). Un point copropriété n'a de sens qu'en copropriété, un
+  // diagnostic du bâti pas sur un terrain nu : les poser quand même, c'est la moitié du bruit.
+  function pointPourTypeBien(point, typeBien) {
+    if (!typeBien) return true;
+    const types = point.types || (point.copro ? ['copropriete'] : null);
+    return !types || types.indexOf(typeBien) >= 0;
+  }
+
+  function grillePourModeOutil2(mode, typeBien) {
     const m = mode === 'acte' ? 'acte' : 'compromis';
     const sections = new Map(SECTIONS_GRILLE_OUTIL2.map(s => [s.cle, s.titre]));
     return GRILLE_RELECTURE_OUTIL2
-      .filter(p => p.modes.indexOf(m) >= 0)
+      .filter(p => p.modes.indexOf(m) >= 0 && pointPourTypeBien(p, typeBien))
       .map(p => ({ id: p.id, section: sections.get(p.section) || p.section, intitule: p.intitule, declencheur: p.declencheur, base_legale: p.base_legale || '', consigne: consignePointGrille(p, m) }));
   }
 
@@ -5435,12 +5460,12 @@
 
   // Regroupe la réponse de Claude par section de la grille, avec le niveau de chaque ligne et le
   // pire niveau de la section. `grille` est celle envoyée (même ordre).
-  function sectionsTableauDeBordOutil2(analyse, mode) {
+  function sectionsTableauDeBordOutil2(analyse, mode, typeBien) {
     const a = analyse || {};
     const parId = new Map((a.points || []).map(p => [p.id, p]));
     const sections = [];
     for (const s of SECTIONS_GRILLE_OUTIL2) {
-      const points = GRILLE_RELECTURE_OUTIL2.filter(g => g.section === s.cle && g.modes.indexOf(mode === 'acte' ? 'acte' : 'compromis') >= 0);
+      const points = GRILLE_RELECTURE_OUTIL2.filter(g => g.section === s.cle && g.modes.indexOf(mode === 'acte' ? 'acte' : 'compromis') >= 0 && pointPourTypeBien(g, typeBien));
       if (!points.length) continue;
       const lignes = points.map(g => {
         const r = parId.get(g.id) || { statut: 'a_verifier', commentaire: 'Point non traité.', citations: [] };
@@ -10145,7 +10170,7 @@
     const tMois = formaterTendance(evolution.ecartMois);
     const tendanceMois = `<span class="kpi-tendance" title="${evolution.actuel} aujourd'hui contre ${evolution.moisDernier} il y a un mois">${tMois.icone}${tMois.texte} vs mois dernier</span>`;
     const tuiles = [
-      ['c-neutre', actifs, actifs > 1 ? 'dossiers actifs' : 'dossier actif', icone('folder', 'kpi-icone'), tendanceMois],
+      ['c-success', actifs, actifs > 1 ? 'dossiers actifs' : 'dossier actif', icone('folder', 'kpi-icone'), tendanceMois],
       ['c-urgent', urgents, 'échéances ≤ 7 jours', iconeCalendrierSeuil(7), ''],
       ['c-urgent', urgents15, 'échéances ≤ 15 jours', iconeCalendrierSeuil(15), ''],
       ['c-pret', manquantes, 'offres de prêts en attente', icone('alert-triangle', 'kpi-icone'), ''],
@@ -10171,9 +10196,19 @@
   var ORDRE_GROUPES_URGENTS = ['blocage', 'aconfirmer', 'arelier', 'pret'];
   var MAX_LIGNES_GROUPE_URGENT = 4;
 
+  // À côté d'une offre de prêt introuvable, le temps qui reste avant la date butoir d'obtention
+  // du prêt : c'est ce qui dit s'il faut relancer aujourd'hui ou dans quinze jours. Pure, testable.
+  function delaiButoirPret(d, aujourdhuiIso) {
+    if (!d || !d.pret) return '';
+    const j = aujourdhuiIso ? ecartJours(aujourdhuiIso, d.pret) : joursRestants(d.pret);
+    if (!Number.isFinite(j)) return '';
+    if (j < 0) return ` — butoir dépassé de ${-j} j`;
+    return j === 0 ? " — butoir aujourd'hui" : ` — J-${j} avant le butoir`;
+  }
+
   function raisonUrgence(d) {
     const prochaine = prochaineEcheanceDetail(d);
-    if (!d.sansPret && d.offrePretStatut === 'manquante') return 'Offre de prêt introuvable';
+    if (!d.sansPret && d.offrePretStatut === 'manquante') return 'Offre de prêt introuvable' + delaiButoirPret(d);
     if (prochaine && prochaine.jours < 0) return `${prochaine.label} dépassée`;
     if (prochaine) return `${prochaine.label} — ${prochaine.jours === 0 ? "aujourd'hui" : 'J-' + prochaine.jours}`;
     return 'À vérifier';
@@ -18373,10 +18408,15 @@
   let constatsClaudeRelecture = [];    // lignes de Claude au format « constat » (commentaires)
   let journalCoutRelecture = null;
   let pageApercuRelecture = { doc: 0, page: 0 };
+  let typeBienEnvoyeRelecture = '';    // type de bien pour lequel la grille a été posée
+  let idRelectureEnregistree = null;   // bilan affiché, tel qu'enregistré dans la base
+  let relectureArchiveeOuverte = null; // { id, createdAt } quand on relit une analyse passée
+  let historiqueRelectures = null;     // liste des analyses enregistrées (métadonnées)
 
   var LIBELLES_ETAPES_RELECTURE = ['Documents', 'Pseudonymisation', 'Analyse', 'Bilan'];
 
   function initRelecture() {
+    chargerHistoriqueRelectures();
     renderStepperRelecture();
     renderListeFichiersAnalyseIa();
     renderDossierLieAudit();
@@ -18393,12 +18433,15 @@
 
   function definirEtapeRelecture(n) {
     const cible = Math.max(1, Math.min(4, n));
-    if (cible >= 2 && !fichiersAnalyseIa.some(f => f.type === 'principal' && f.statut === 'ok')) {
+    // Quitter une analyse enregistrée pour revenir aux étapes : on retrouve la relecture en cours
+    // de préparation, jamais un mélange des deux.
+    if (relectureArchiveeOuverte && cible < 4) fermerRelectureArchivee();
+    if (cible >= 2 && !relectureArchiveeOuverte && !fichiersAnalyseIa.some(f => f.type === 'principal' && f.statut === 'ok')) {
       afficherToast('Ajoutez d’abord le document à relire (type « Document à relire »), et attendez sa lecture.', 'OK', null);
       return;
     }
-    if (cible >= 3 && !anonymisationRelecture) preparerAnonymisationRelecture();
-    if (cible === 4 && !dernierRapportAudit) {
+    if (cible >= 3 && !anonymisationRelecture && !relectureArchiveeOuverte) preparerAnonymisationRelecture();
+    if (cible === 4 && !dernierRapportAudit && !relectureArchiveeOuverte) {
       afficherToast("Lancez d'abord l'analyse.", 'OK', null);
       return;
     }
@@ -18439,6 +18482,7 @@
     erreurClaudeRelecture = '';
     dernierRapportAudit = null;
     constatsClaudeRelecture = [];
+    idRelectureEnregistree = null;
     if (etapeRelecture > 1) { etapeRelecture = 1; definirEtapeRelecture(1); }
   }
 
@@ -18816,10 +18860,12 @@
   function corpsRequeteRelecture() {
     const a = anonymisationRelecture || preparerAnonymisationRelecture();
     const docs = documentsOrdonnesRelecture();
-    documentsEnvoyesRelecture = docs.map((f, i) => ({ numero: i + 1, fichierId: f.id }));
+    documentsEnvoyesRelecture = docs.map((f, i) => ({ numero: i + 1, fichierId: f.id, nom: f.nom, type: f.type, nature: f.nature || 'autre', cheminNas: f.cheminNas || '' }));
+    const typeBien = typeBienRelectureCourante();
     return {
       mode: auditMode,
-      grille: grillePourModeOutil2(auditMode),
+      typeBien,
+      grille: grillePourModeOutil2(auditMode, typeBien),
       consignes: consignesEtudeRelecture().map(c => pseudonymiserTexteLibreOutil2(c, a.table)),
       // Le nom de fichier porte souvent le nom des clients (« VENTE DUPONT MARTIN.pdf ») : il ne
       // part jamais, remplacé par un intitulé neutre.
@@ -18848,7 +18894,8 @@
     }
     const e = etatClaudeRelecture;
     const modele = LIBELLES_MODELES_CLAUDE[e.modele] || e.modele || '';
-    const grille = grillePourModeOutil2(auditMode);
+    const typeBien = typeBienRelectureCourante();
+    const grille = grillePourModeOutil2(auditMode, typeBien);
     let estimation = '';
     if (e.configure) {
       if (!estimationRelecture) {
@@ -18878,6 +18925,7 @@
         <div><span class="section-eyebrow">Données masquées</span><strong>${anonymisationRelecture ? anonymisationRelecture.table.length : 0}</strong><span class="hint">table gardée sur ce poste</span></div>
         <div><span class="section-eyebrow">Modèle</span><strong>${e.configure ? escapeHtml(modele) : '—'}</strong><span class="hint">${e.configure ? 'API Claude' : 'non configuré'}</span></div>
       </div>
+      ${renderTypeBienEtapeRelecture(typeBien, grille.length)}
       ${estimation}
       ${e.configure ? '' : `<div class="analyse-non-configure">${icone('key')}<div><strong>Aucune clé API Claude.</strong> <p class="hint">Renseignez-la dans Réglages → Relecture par Claude. En attendant, les contrôles automatiques de CLAIRE restent disponibles.</p></div></div>`}
       ${enCours}${erreur}
@@ -18970,7 +19018,7 @@
   // Rejoue les contrôles CLAIRE sans refaire la lecture (changement du type de bien).
   function executerAuditOutil2() {
     const ctx = dernierAuditContexte;
-    if (!ctx) return;
+    if (!ctx || !ctx.entree) return;
     const resultat = ctx.mode === 'acte'
       ? analyserProjetVenteOutil2({ ...ctx.entree, typeBienForce: typeBienAuditChoisi })
       : analyserCompromisOutil2({ ...ctx.entree, typeBienForce: typeBienAuditChoisi });
@@ -18998,6 +19046,8 @@
       formCommentaireAudit = null;
       await chargerRetoursAudit();
       await preparerControlesClaireRelecture();
+      typeBienEnvoyeRelecture = typeBienRelectureCourante();
+      idRelectureEnregistree = null;
       if (avecClaude) {
         const corps = corpsRequeteRelecture();
         const r = await fetchAvecAuth('/api/relecture-claude/analyser', {
@@ -19026,6 +19076,197 @@
       return;
     }
     definirEtapeRelecture(4);
+    enregistrerRelectureCourante();
+  }
+
+  // ---- Type de bien : choisi avant l'analyse, il décide des points posés ----------------------
+  function typeBienRelectureCourante() {
+    if (typeBienAuditChoisi) return typeBienAuditChoisi;
+    const principal = fichiersAnalyseIa.find(f => f.type === 'principal' && f.statut === 'ok');
+    const ref = fichiersAnalyseIa.find(f => f.type === 'reference_compromis' && f.statut === 'ok');
+    return deduireTypeBienOutil2({
+      texteProjet: principal ? principal.texte : '', texteAvantContrat: ref ? ref.texte : '', dossierLie: auditDossierLie
+    }).type;
+  }
+
+  function renderTypeBienEtapeRelecture(typeBien, nbPoints) {
+    const options = TYPES_BIEN_AUDIT
+      .map(t => `<option value="${t.valeur}" ${t.valeur === typeBien ? 'selected' : ''}>${escapeHtml(t.libelle)}</option>`).join('');
+    return `<div class="relecture-type-bien">
+      <label for="relecture-type-bien">Type de bien</label>
+      <select id="relecture-type-bien" onchange="changerTypeBienRelecture(this.value)" ${analyseEnCoursRelecture ? 'disabled' : ''}>${options}</select>
+      <span class="hint">${typeBienAuditChoisi ? 'Choisi à la main' : 'Déduit des documents'} — la grille pose ${nbPoints} points adaptés à ce type de bien : à corriger avant de lancer l'analyse si la déduction est fausse.</span>
+    </div>`;
+  }
+
+  function changerTypeBienRelecture(valeur) {
+    typeBienAuditChoisi = ['maison', 'copropriete', 'terrain'].indexOf(valeur) >= 0 ? valeur : null;
+    estimationRelecture = null;
+    renderEtapeAnalyseRelecture();
+  }
+
+  // ---- Analyses enregistrées : revenir sur une relecture passée --------------------------------
+  // Chaque bilan affiché est rangé dans la base du serveur (routes/relectures.js) : on peut le
+  // rouvrir plus tard sans relancer l'analyse ni la payer une seconde fois.
+  function instantaneRelecture() {
+    const r = dernierRapportAudit;
+    if (!r) return null;
+    const ctx = dernierAuditContexte || {};
+    const docs = documentsEnvoyesRelecture.length ? documentsEnvoyesRelecture
+      : documentsOrdonnesRelecture().map((f, i) => ({ numero: i + 1, fichierId: f.id, nom: f.nom, type: f.type, nature: f.nature || 'autre', cheminNas: f.cheminNas || '' }));
+    return {
+      version: 1,
+      mode: auditMode,
+      typeBien: typeBienEnvoyeRelecture || r.typeBien || '',
+      dossierId: auditDossierLie ? auditDossierLie.id : '',
+      dossierNom: auditDossierLie ? auditDossierLie.nom : '',
+      dossierCle: ctx.dossierCle || '',
+      libelle: ctx.documentPrincipal || '',
+      sante: derniereSanteRelecture ? derniereSanteRelecture.compte : null,
+      analyse: analyseClaudeRelecture,
+      erreurClaude: erreurClaudeRelecture || '',
+      facture: factureRelecture,
+      rapport: r,
+      documents: docs.map(d => ({ numero: d.numero, nom: d.nom || '', type: d.type || '', nature: d.nature || '', cheminNas: d.cheminNas || '' }))
+    };
+  }
+
+  async function enregistrerRelectureCourante() {
+    const corps = instantaneRelecture();
+    if (!corps) return;
+    try {
+      const url = idRelectureEnregistree ? '/api/relectures/' + encodeURIComponent(idRelectureEnregistree) : '/api/relectures';
+      const r = await fetchAvecAuth(url, {
+        method: idRelectureEnregistree ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps)
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.erreur || 'statut ' + r.status);
+      if (data.id) idRelectureEnregistree = data.id;
+      chargerHistoriqueRelectures();
+    } catch (e) {
+      console.warn('Relecture : enregistrement impossible', e);
+      afficherToast("Le bilan n'a pas pu être enregistré dans les analyses passées (serveur injoignable ?).", 'OK', null);
+    }
+  }
+
+  async function chargerHistoriqueRelectures() {
+    try {
+      const r = await fetchAvecAuth('/api/relectures');
+      if (!r.ok) throw new Error('statut ' + r.status);
+      historiqueRelectures = (await r.json()).relectures || [];
+    } catch (e) {
+      historiqueRelectures = historiqueRelectures || [];
+    }
+    renderHistoriqueRelectures();
+  }
+
+  // Pure, testable : filtre la liste sur le dossier, le document ou le type d'acte, sans accents.
+  function filtrerHistoriqueRelectures(liste, recherche) {
+    const q = normaliserPourRecherche(String(recherche || '').trim());
+    if (!q) return liste || [];
+    return (liste || []).filter(h => normaliserPourRecherche([h.dossierNom, h.libelle, h.mode === 'acte' ? "projet d'acte de vente" : 'avant-contrat'].join(' ')).indexOf(q) >= 0);
+  }
+
+  function renderHistoriqueRelectures() {
+    const zone = document.getElementById('relecture-historique-liste');
+    if (!zone) return;
+    if (historiqueRelectures === null) { zone.innerHTML = '<p class="hint">Chargement…</p>'; return; }
+    const champ = document.getElementById('relecture-historique-recherche');
+    const liste = filtrerHistoriqueRelectures(historiqueRelectures, champ ? champ.value : '');
+    if (!historiqueRelectures.length) { zone.innerHTML = '<p class="hint">Aucune analyse enregistrée pour l’instant : chaque bilan affiché à l’étape 4 est gardé ici.</p>'; return; }
+    if (!liste.length) { zone.innerHTML = '<p class="hint">Aucune analyse ne correspond à cette recherche.</p>'; return; }
+    zone.innerHTML = `<ul class="historique-relectures">${liste.slice(0, 60).map(h => {
+      const quand = new Date(h.createdAt);
+      const date = isNaN(quand) ? '' : quand.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) + ' · ' + quand.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      const type = (TYPES_BIEN_AUDIT.find(t => t.valeur === h.typeBien) || {}).libelle || '';
+      const s = h.sante || {};
+      return `<li class="historique-ligne">
+        <button type="button" class="historique-ouvrir" onclick="ouvrirRelectureArchivee('${escapeOnclickArg(h.id)}')">
+          <span class="historique-titre">${escapeHtml(h.dossierNom ? libelleDossierAffiche({ nom: h.dossierNom }) : (h.libelle || 'Relecture sans dossier'))}</span>
+          <span class="historique-meta">${escapeHtml([date, h.mode === 'acte' ? "Projet d'acte de vente" : 'Avant-contrat', type, h.avecClaude ? '' : 'contrôles CLAIRE seuls'].filter(Boolean).join(' · '))}</span>
+        </button>
+        <span class="historique-compteurs">
+          ${s.critique ? `<span class="dot-label dl-urgent"><span class="dot"></span>${s.critique}</span>` : ''}
+          ${s.surveiller ? `<span class="dot-label dl-pret"><span class="dot"></span>${s.surveiller}</span>` : ''}
+          <span class="dot-label dl-success"><span class="dot"></span>${s.valide || 0}</span>
+        </span>
+        <button type="button" class="icon-btn" onclick="supprimerRelectureArchivee('${escapeOnclickArg(h.id)}')" aria-label="Supprimer cette analyse" title="Supprimer cette analyse">${icone('x')}</button>
+      </li>`;
+    }).join('')}</ul>`;
+  }
+
+  async function ouvrirRelectureArchivee(id) {
+    let data;
+    try {
+      const r = await fetchAvecAuth('/api/relectures/' + encodeURIComponent(id));
+      data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.erreur || 'statut ' + r.status);
+    } catch (e) {
+      afficherToast("Impossible d'ouvrir cette analyse : " + (e.message || 'serveur injoignable'), 'OK', null);
+      return;
+    }
+    const h = data.relecture;
+    const d = h.donnees || {};
+    relectureArchiveeOuverte = { id: h.id, createdAt: h.createdAt };
+    idRelectureEnregistree = h.id;
+    auditMode = d.mode === 'acte' ? 'acte' : 'compromis';
+    typeBienEnvoyeRelecture = d.typeBien || '';
+    analyseClaudeRelecture = d.analyse || null;
+    erreurClaudeRelecture = d.erreurClaude || '';
+    factureRelecture = d.facture || null;
+    dernierRapportAudit = d.rapport || null;
+    documentsEnvoyesRelecture = (d.documents || []).map(x => ({ ...x, fichierId: `hist-${h.id}-${x.numero}` }));
+    dernierAuditContexte = { mode: auditMode, dossierCle: d.dossierCle || '', dossierNom: d.dossierNom || '', documentPrincipal: d.libelle || '', archive: true };
+    fermerVisionneuseRelecture();
+    formCommentaireAudit = null;
+    await chargerRetoursAudit();
+    if (dernierRapportAudit) preparerRapportAudit(dernierRapportAudit);
+    definirEtapeRelecture(4);
+  }
+
+  function fermerRelectureArchivee() {
+    relectureArchiveeOuverte = null;
+    idRelectureEnregistree = null;
+    analyseClaudeRelecture = null;
+    factureRelecture = null;
+    erreurClaudeRelecture = '';
+    dernierRapportAudit = null;
+    dernierAuditContexte = null;
+    documentsEnvoyesRelecture = [];
+    constatsClaudeRelecture = [];
+    fermerVisionneuseRelecture();
+    const select = document.getElementById('audit-mode');
+    if (select) auditMode = select.value === 'acte' ? 'acte' : 'compromis';
+  }
+
+  function quitterRelectureArchivee() {
+    fermerRelectureArchivee();
+    definirEtapeRelecture(1);
+  }
+
+  function supprimerRelectureArchivee(id) {
+    demanderConfirmation("Supprimer cette analyse enregistrée ? Elle ne pourra plus être rouverte (les commentaires donnés restent).", async () => {
+      try {
+        const r = await fetchAvecAuth('/api/relectures/' + encodeURIComponent(id), { method: 'DELETE' });
+        if (!r.ok) throw new Error('statut ' + r.status);
+      } catch (e) {
+        afficherToast("Suppression impossible (serveur injoignable ?).", 'OK', null);
+        return;
+      }
+      if (relectureArchiveeOuverte && relectureArchiveeOuverte.id === id) quitterRelectureArchivee();
+      chargerHistoriqueRelectures();
+    });
+  }
+
+  function renderBandeauArchiveRelecture() {
+    if (!relectureArchiveeOuverte) return '';
+    const quand = new Date(relectureArchiveeOuverte.createdAt);
+    const date = isNaN(quand) ? '' : quand.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) + ' à ' + quand.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    return `<div class="relecture-archive-bandeau">
+      <span class="dot-label dl-neutre">${icone('clock')}Analyse enregistrée${date ? ' le ' + escapeHtml(date) : ''}</span>
+      <span class="hint">Consultation : rien n'est relancé ni refacturé.</span>
+      <button type="button" class="secondary" onclick="quitterRelectureArchivee()">Fermer</button>
+    </div>`;
   }
 
   // ---- Étape 4 : bilan -------------------------------------------------------------------------
@@ -19065,7 +19306,7 @@
     if (!c) return '';
     const idx = citationsRelecture.push(c) - 1;
     const doc = documentsEnvoyesRelecture.find(d => d.numero === c.document);
-    const f = doc ? fichiersAnalyseIa.find(x => x.id === doc.fichierId) : null;
+    const f = doc ? (fichiersAnalyseIa.find(x => x.id === doc.fichierId) || (doc.nom ? doc : null)) : null;
     const nomDoc = f ? f.nom : 'Document';
     const court = f ? (f.type === 'principal' ? 'Projet' : f.type === 'reference_compromis' ? 'Avant-contrat' : libelleNaturePieceOutil2(f.nature)) : `Doc ${c.document || '?'}`;
     const verif = c.verifie ? '' : ` <span class="page-chip-alerte" title="Extrait introuvable mot pour mot dans le document : à vérifier en priorité">${icone('alert-triangle')}</span>`;
@@ -19126,6 +19367,23 @@
     valide: { titre: 'Validé', phrase: 'aucun point à régler sur la grille' }
   };
 
+  // Catégories de contrôles CLAIRE affichées dans le bilan : « Ce que dit l'acte » seulement.
+  // Demande de l'étude : le reste (écarts avec l'avant-contrat, annexes) fait doublon avec la
+  // grille relue par Claude, qui couvre les mêmes sujets pièce par pièce, citations à l'appui.
+  function categoriesClaireBilanRelecture() {
+    return new Set(SOUS_SECTIONS_RAPPORT_OUTIL2.filter(x => x.section === 'ACTE').map(x => x.cle));
+  }
+
+  // Validés d'un côté, à traiter de l'autre, pour chaque thème : on voit d'un coup d'œil ce qui est
+  // acquis et ce qui reste à faire, sans déplier une liste. Pure, testable.
+  function repartirLignesThemeRelecture(lignes) {
+    const aTraiter = lignes.filter(l => l.niveau === 'critique' || l.niveau === 'surveiller')
+      .sort((x, y) => NIVEAUX_RELECTURE_OUTIL2[x.niveau].rang - NIVEAUX_RELECTURE_OUTIL2[y.niveau].rang);
+    return { aTraiter, valides: lignes.filter(l => l.niveau === 'valide'), na: lignes.filter(l => l.niveau === 'na') };
+  }
+
+  let derniereSanteRelecture = null;
+
   function renderTableauDeBordRelecture() {
     const zone = document.getElementById('relecture-bilan');
     if (!zone) return;
@@ -19133,7 +19391,8 @@
     if (!r) { zone.innerHTML = '<p class="hint">Aucune analyse pour l’instant.</p>'; return; }
     citationsRelecture = [];
     const a = analyseClaudeRelecture;
-    const sections = a ? sectionsTableauDeBordOutil2(a, auditMode) : [];
+    const typeBien = typeBienEnvoyeRelecture || r.typeBien || '';
+    const sections = a ? sectionsTableauDeBordOutil2(a, auditMode, typeBien) : [];
     construireConstatsClaudeRelecture(sections);
     // Les commentaires de l'étude s'appliquent aux lignes de Claude comme aux contrôles CLAIRE.
     for (const c of constatsClaudeRelecture) constatsAuditParUid[c.uid] = c;
@@ -19141,10 +19400,11 @@
 
     const anomalies = constatsClaudeRelecture.filter(c => c.anomalie);
     const extras = anomalies.filter(c => !(c.retour && c.retour.verdict === 'faux_positif')).map(c => niveauDepuisGraviteRelecture(c.gravite));
-    // Les contrôles CLAIRE comptent aussi : une procédure en cours relevée par nos règles est un
-    // point critique, qu'une ligne de grille l'ait vue ou non.
+    // Les contrôles CLAIRE affichés comptent aussi : une procédure en cours relevée par nos règles
+    // est un point critique, qu'une ligne de grille l'ait vue ou non.
+    const catsClaire = categoriesClaireBilanRelecture();
     for (const c of (r.constats || [])) {
-      if (constatExcluOutil2(c) || rubriqueMasqueeAudit(c.categorie)) continue;
+      if (!catsClaire.has(c.categorie) || constatExcluOutil2(c) || rubriqueMasqueeAudit(c.categorie)) continue;
       if (c.gravite === 'CRITIQUE' || c.gravite === 'IMPORTANT') extras.push('critique');
       else if (c.gravite === 'A_VERIFIER') extras.push('surveiller');
     }
@@ -19155,11 +19415,13 @@
       return { ...s, niveau, lignesEff: lignes };
     });
     const sante = santeRelectureOutil2(sectionsEffectives.map(s => ({ lignes: s.lignesEff })), extras);
+    derniereSanteRelecture = sante;
     const v = VERDICTS_SANTE_RELECTURE[sante.niveau];
     const n = NIVEAUX_RELECTURE_OUTIL2[sante.niveau];
 
     const copros = (a && a.coproprietes) || [];
-    const detectees = detecterCoproprietesMultiplesOutil2(documentsOrdonnesRelecture().filter(f => f.type !== 'justificatif').map(f => f.texte).join('\n'));
+    const textesCopro = documentsOrdonnesRelecture().filter(f => f.type !== 'justificatif').map(f => f.texte).join('\n');
+    const detectees = detecterCoproprietesMultiplesOutil2(textesCopro);
     const bandeauCopro = copros.length > 1 || detectees.multiples ? `<section class="copro-multiples">
         <span class="dot-label dl-pret">${icone('info')}${Math.max(copros.length, detectees.nombre)} copropriétés dans cet acte</span>
         ${copros.length ? `<ul>${copros.map(c => `<li><strong>${escapeHtml(c.designation)}</strong>${c.lots ? ` — lots ${escapeHtml(c.lots)}` : ''}${c.observations ? `<p class="hint">${escapeHtml(c.observations)}</p>` : ''}</li>`).join('')}</ul>` : '<p class="hint">Chaque point copropriété de la grille doit être vérifié pour chacune d’elles.</p>'}
@@ -19176,14 +19438,20 @@
     }).join('');
 
     const detailSections = sectionsEffectives.map(s => {
-      const aTraiter = s.lignesEff.filter(l => l.niveau === 'critique' || l.niveau === 'surveiller').sort((x, y) => NIVEAUX_RELECTURE_OUTIL2[x.niveau].rang - NIVEAUX_RELECTURE_OUTIL2[y.niveau].rang);
-      const valides = s.lignesEff.filter(l => l.niveau === 'valide');
-      const na = s.lignesEff.filter(l => l.niveau === 'na');
+      const { aTraiter, valides, na } = repartirLignesThemeRelecture(s.lignesEff);
       const ns = NIVEAUX_RELECTURE_OUTIL2[s.niveau];
       return `<section class="grille-section niveau-${s.niveau}" id="relecture-section-${s.cle}">
         <h3 class="grille-section-titre"><span>${escapeHtml(s.titre)}</span><span class="dot-label ${ns.dl}"><span class="dot"></span>${ns.texte}</span></h3>
-        ${aTraiter.map(l => lignePointRelecture(l._source)).join('')}
-        ${valides.length ? `<details class="grille-valides"><summary>${icone('check')}${valides.length} point(s) validé(s)</summary>${valides.map(l => lignePointRelecture(l._source)).join('')}</details>` : ''}
+        <div class="grille-colonnes">
+          <div class="grille-col grille-col-traiter">
+            <span class="section-eyebrow">À surveiller <span class="grille-col-compte">${aTraiter.length}</span></span>
+            ${aTraiter.length ? aTraiter.map(l => lignePointRelecture(l._source)).join('') : '<p class="hint grille-col-vide">Rien à surveiller sur ce thème.</p>'}
+          </div>
+          <div class="grille-col grille-col-valides">
+            <span class="section-eyebrow">Validé <span class="grille-col-compte">${valides.length}</span></span>
+            ${valides.length ? valides.map(l => lignePointRelecture(l._source)).join('') : '<p class="hint grille-col-vide">Aucun point validé.</p>'}
+          </div>
+        </div>
         ${na.length ? `<p class="hint grille-na">${na.length} point(s) sans objet : ${escapeHtml(na.map(l => l.intitule.split(' (')[0]).join(' · '))}</p>` : ''}
       </section>`;
     }).join('');
@@ -19204,13 +19472,14 @@
         }).join('')}
       </section>` : '';
 
-    const resumeClaire = r.resume || {};
-    const nbClaire = (resumeClaire.CRITIQUE || 0) + (resumeClaire.IMPORTANT || 0) + (resumeClaire.A_VERIFIER || 0);
-    const claire = `<details class="claire-controles" ${a ? '' : 'open'}>
-        <summary><span class="section-eyebrow">Contrôles automatiques CLAIRE</span>
-          <span class="hint">Règles locales, sans IA — ${nbClaire} point(s) : travaux déclarés, diagnostics périmés, engagements du vendeur, état daté, AG, urbanisme${auditMode === 'acte' ? ', écarts avec l’avant-contrat' : ''}</span></summary>
-        ${htmlControlesClaire(r)}
-      </details>`;
+    // Contrôle automatique CLAIRE, sans IA : seulement ce que dit l'acte lui-même.
+    const blocActe = SECTIONS_RAPPORT_OUTIL2.find(b => b.cle === 'ACTE');
+    const claire = `<section class="claire-controles claire-acte">
+        <div class="claire-acte-tete"><span class="section-eyebrow">Contrôle automatique CLAIRE</span>
+          <span class="hint">Règles locales, sans IA</span></div>
+        ${renderPartiesDossierAudit(r)}
+        ${renderBlocAudit(blocActe, r, r.constats || [])}
+      </section>`;
 
     const f = factureRelecture;
     const cout = f ? `<section class="relecture-cout">
@@ -19224,11 +19493,13 @@
         ${renderJournalCoutRelecture()}
       </section>` : '';
 
+    const libelleType = (TYPES_BIEN_AUDIT.find(t => t.valeur === typeBien) || {}).libelle;
     const entete = `<section class="sante-carte niveau-${sante.niveau}">
         <div class="sante-visuel">${donutSanteRelecture(sante.compte)}<span class="sante-visuel-chiffre">${sante.compte.critique + sante.compte.surveiller}<small>à traiter</small></span></div>
         <div class="sante-texte">
           <span class="dot-label ${n.dl}">${icone(n.icone)}${v.titre}</span>
           <h2 class="sante-titre">${a && a.type_acte ? escapeHtml(a.type_acte) : (auditMode === 'acte' ? "Projet d'acte de vente" : "Projet d'avant-contrat")}</h2>
+          ${libelleType ? `<span class="sante-type-bien">${escapeHtml(libelleType)}</span>` : ''}
           <p class="sante-phrase">${sante.compte.critique ? `${sante.compte.critique} point(s) critique(s), ` : ''}${v.phrase}.</p>
           <div class="sante-compteurs">
             <span class="sante-compteur c-critique"><strong>${sante.compte.critique}</strong>critique(s)</span>
@@ -19245,21 +19516,30 @@
         </label>
       </section>`;
 
-    zone.innerHTML = `<div class="relecture-bilan-grille${visionneuseRelecture.ouverte ? ' avec-visionneuse' : ''}">
+    zone.innerHTML = `${renderBandeauArchiveRelecture()}
+    <div class="relecture-bilan-haut">
+      <div class="relecture-bilan-resume">${entete}${bandeauCopro}</div>
+      ${claire}
+    </div>
+    ${modeCommentairesAudit ? renderPanneauCommentairesAudit() : ''}
+    <div class="relecture-bilan-grille">
       <div class="relecture-bilan-principal">
-        ${entete}
-        ${modeCommentairesAudit ? renderPanneauCommentairesAudit() : ''}
-        ${bandeauCopro}
         ${tuiles ? `<div class="sante-tuiles">${tuiles}</div>` : ''}
         ${detailSections}
         ${anomaliesHtml}
-        ${claire}
         ${cout}
         <p class="hint relecture-cadre">${icone('info')} Aide à la relecture : chaque point est une proposition, citée page à l'appui, que le notaire vérifie et tranche. Les données identifiantes ont été masquées avant l'envoi et la correspondance est restée sur ce poste.</p>
       </div>
-      <aside class="relecture-visionneuse" id="relecture-visionneuse" ${visionneuseRelecture.ouverte ? '' : 'hidden'}></aside>
+      <aside class="relecture-visionneuse" id="relecture-visionneuse" aria-label="Aperçu du document"></aside>
     </div>`;
-    if (visionneuseRelecture.ouverte) renderVisionneuseRelecture();
+    // L'aperçu reste toujours ouvert : sur la citation demandée, sinon sur le document relu.
+    const v0 = visionneuseRelecture;
+    if (v0.ouverte && fichierRelecture(v0.fichierId)) renderVisionneuseRelecture(true);
+    else {
+      const defaut = premierDocumentVisionneuseRelecture();
+      if (defaut) ouvrirVisionneuseRelecture(defaut.id, 1, '', true);
+      else renderVisionneuseVideRelecture();
+    }
   }
 
   function allerSectionRelecture(cle) {
@@ -19284,48 +19564,75 @@
     return pdf;
   }
 
+  // Un document de la relecture tel qu'on peut l'afficher : le fichier déposé ou lu sur le NAS
+  // pendant la session, ou — pour une analyse enregistrée rouverte plus tard — son chemin sur le
+  // NAS, seul moyen de le retrouver (les PDF déposés depuis le poste ne sont pas conservés).
+  function fichierRelecture(fichierId) {
+    const f = fichiersAnalyseIa.find(x => x.id === fichierId);
+    if (f) return f;
+    const d = documentsEnvoyesRelecture.find(x => x.fichierId === fichierId);
+    return d && d.cheminNas ? { id: d.fichierId, nom: d.nom, type: d.type, nature: d.nature, cheminNas: d.cheminNas } : null;
+  }
+
+  function premierDocumentVisionneuseRelecture() {
+    const docs = documentsEnvoyesRelecture.length
+      ? documentsEnvoyesRelecture.map(d => fichierRelecture(d.fichierId)).filter(Boolean)
+      : documentsOrdonnesRelecture();
+    return docs.find(f => f.type === 'principal') || docs[0] || null;
+  }
+
+  // Jamais un grand cadre blanc : sans document à montrer, l'aperçu dit pourquoi.
+  function fermerVisionneuseRelecture() {
+    visionneuseRelecture = { ouverte: false, fichierId: null, page: 1, extrait: '', verifie: true, pdf: null, rendues: new Set() };
+  }
+
+  function renderVisionneuseVideRelecture() {
+    const aside = document.getElementById('relecture-visionneuse');
+    if (!aside) return;
+    aside.dataset.fichier = '';
+    aside.innerHTML = `<div class="visionneuse-vide">${icone('eye')}<strong>Aucun aperçu disponible</strong>
+      <p class="hint">${relectureArchiveeOuverte
+        ? "Cette analyse enregistrée ne conserve pas les PDF déposés depuis le poste : seules les pièces lues sur le NAS peuvent être rouvertes."
+        : "Le document relu n'est plus disponible dans cette session."}</p></div>`;
+  }
+
   function ouvrirCitationRelecture(idx) {
     const c = citationsRelecture[idx];
     if (!c) return;
     const doc = documentsEnvoyesRelecture.find(d => d.numero === c.document);
-    if (!doc) { afficherToast("Document introuvable pour cette citation.", 'OK', null); return; }
+    if (!doc || !fichierRelecture(doc.fichierId)) {
+      afficherToast(doc ? "Ce document n'est pas conservé avec l'analyse enregistrée : ouvrez-le depuis le NAS." : "Document introuvable pour cette citation.", 'OK', null);
+      return;
+    }
     ouvrirVisionneuseRelecture(doc.fichierId, c.page || 1, c.extrait || '', c.verifie !== false);
+    // Sous 1180 px l'aperçu passe sous les thèmes : on l'amène à l'écran.
+    const aside = document.getElementById('relecture-visionneuse');
+    if (aside && window.innerWidth <= 1180 && aside.scrollIntoView) aside.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   async function ouvrirVisionneuseRelecture(fichierId, page, extrait, verifie) {
     const changement = visionneuseRelecture.fichierId !== fichierId;
     visionneuseRelecture = { ...visionneuseRelecture, ouverte: true, fichierId, page, extrait, verifie };
     if (changement) { visionneuseRelecture.pdf = null; visionneuseRelecture.rendues = new Set(); }
-    const grille = document.querySelector('.relecture-bilan-grille');
-    const aside = document.getElementById('relecture-visionneuse');
-    if (grille) grille.classList.add('avec-visionneuse');
-    if (aside) aside.hidden = false;
     await renderVisionneuseRelecture(changement);
-  }
-
-  function fermerVisionneuseRelecture() {
-    visionneuseRelecture.ouverte = false;
-    const grille = document.querySelector('.relecture-bilan-grille');
-    const aside = document.getElementById('relecture-visionneuse');
-    if (grille) grille.classList.remove('avec-visionneuse');
-    if (aside) { aside.hidden = true; aside.innerHTML = ''; }
   }
 
   async function renderVisionneuseRelecture(reconstruire) {
     const aside = document.getElementById('relecture-visionneuse');
     const v = visionneuseRelecture;
-    const f = fichiersAnalyseIa.find(x => x.id === v.fichierId);
-    if (!aside || !f) return;
-    const options = documentsEnvoyesRelecture.map(d => {
-      const x = fichiersAnalyseIa.find(y => y.id === d.fichierId);
-      return x ? `<option value="${x.id}" ${x.id === f.id ? 'selected' : ''}>${escapeHtml(x.nom)}</option>` : '';
-    }).join('');
+    const f = fichierRelecture(v.fichierId);
+    if (!aside) return;
+    if (!f) { renderVisionneuseVideRelecture(); return; }
+    const affichables = (documentsEnvoyesRelecture.length
+      ? documentsEnvoyesRelecture.map(d => fichierRelecture(d.fichierId))
+      : documentsOrdonnesRelecture()).filter(Boolean);
+    const options = affichables.map(x => `<option value="${escapeAttr(x.id)}" ${x.id === f.id ? 'selected' : ''}>${escapeHtml(x.nom)}</option>`).join('');
     const existant = aside.querySelector('.visionneuse-pages');
     if (!existant || reconstruire || aside.dataset.fichier !== f.id) {
       aside.dataset.fichier = f.id;
       aside.innerHTML = `<div class="visionneuse-tete">
+          <span class="visionneuse-titre">${icone('eye')}Aperçu</span>
           <select aria-label="Document affiché" onchange="ouvrirVisionneuseRelecture(this.value, 1, '', true)">${options}</select>
-          <button type="button" class="icon-btn" onclick="fermerVisionneuseRelecture()" aria-label="Fermer la visionneuse">${icone('x')}</button>
         </div>
         <div class="visionneuse-extrait" id="visionneuse-extrait"></div>
         <div class="visionneuse-pages" id="visionneuse-pages"><p class="hint">${icone('spinner', null, true)} Ouverture du document…</p></div>`;
@@ -19368,12 +19675,16 @@
       }
       const page = Math.max(1, Math.min(v.page, v.pdf.numPages));
       await rendrePageVisionneuseRelecture(page);
+      const conteneurPages = document.getElementById('visionneuse-pages');
       const cible = document.getElementById('visionneuse-page-' + page);
       if (cible) {
-        cible.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        cible.classList.remove('flash');
-        void cible.offsetWidth;
-        cible.classList.add('flash');
+        // Défile dans l'aperçu seul : un scrollIntoView ferait aussi bouger toute la page.
+        conteneurPages.scrollTop += cible.getBoundingClientRect().top - conteneurPages.getBoundingClientRect().top - 8;
+        if (v.extrait || page > 1) {
+          cible.classList.remove('flash');
+          void cible.offsetWidth;
+          cible.classList.add('flash');
+        }
       }
       if (v.extrait) surlignerExtraitVisionneuseRelecture(page, v.extrait);
     } catch (e) {

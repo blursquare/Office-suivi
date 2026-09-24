@@ -812,6 +812,7 @@
   .kpi-num.c-urgent { color: var(--urgent); }
   .kpi-num.c-pret { color: var(--pret); }
   .kpi-num.c-neutre { color: var(--ink); }
+  .kpi-num.c-success { color: var(--success); }
   /* Tendance du nombre de dossiers actifs vs le mois précédent (voir calculerEvolutionPortefeuille
      dans script.js), à côté du chiffre de la tuile "dossier actif" uniquement — la comparaison à
      l'année précédente reste calculée mais n'est volontairement pas affichée pour l'instant (voir
@@ -4823,8 +4824,16 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
 
 /* Étape 4 : bilan — carte de santé, tuiles de section, grille détaillée, visionneuse */
 .relecture-bilan-grille { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; }
+/* Haut : le résumé à gauche, le contrôle automatique CLAIRE juste à côté. Bas : les thèmes à
+   gauche, l'aperçu toujours ouvert à droite. */
+.relecture-bilan-haut { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; margin-bottom: 18px; }
+.relecture-bilan-haut > * { min-width: 0; }
+.relecture-bilan-resume { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+@media (min-width: 1101px) {
+  .relecture-bilan-haut { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
+}
 @media (min-width: 1181px) {
-  .relecture-bilan-grille.avec-visionneuse { grid-template-columns: minmax(0, 1fr) minmax(380px, 44%); }
+  .relecture-bilan-grille { grid-template-columns: minmax(0, 1fr) minmax(380px, 44%); }
 }
 .relecture-bilan-principal { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
 
@@ -4996,6 +5005,45 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
 }
 .claire-controles > summary::-webkit-details-marker { display: none; }
 .claire-controles[open] > summary { margin-bottom: 10px; }
+/* Le contrôle CLAIRE en haut à droite : borné en hauteur pour ne pas repousser les thèmes. */
+.claire-acte { max-height: 560px; overflow: auto; }
+.claire-acte-tete { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-bottom: 8px; }
+.claire-acte .audit-bloc { margin: 0; border: 0; padding: 0; background: none; box-shadow: none; }
+
+/* Dans chaque thème : à surveiller et validé côte à côte. */
+.grille-colonnes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.grille-colonnes > * { min-width: 0; }
+@media (max-width: 760px) { .grille-colonnes { grid-template-columns: minmax(0, 1fr); } }
+.grille-col > .section-eyebrow { display: flex; align-items: center; gap: 6px; padding-bottom: 4px; }
+.grille-col-compte { font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+.grille-col-traiter > .section-eyebrow { color: var(--pret); }
+.grille-col-valides > .section-eyebrow { color: var(--success); }
+.grille-col .point-ligne { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 8px 0; }
+.grille-col .point-ligne > .dot-label { font-size: 11.5px; }
+.grille-col-valides .point-commentaire { font-size: 12.5px; color: var(--muted); }
+.grille-col-vide { margin: 6px 0; border-top: 1px solid var(--line-soft); padding-top: 8px; }
+
+.sante-type-bien { display: inline-block; align-self: flex-start; width: fit-content; font-size: 12px; font-weight: 600; color: var(--ink-soft); background: var(--paper-sunk); border: 1px solid var(--line-soft); border-radius: 999px; padding: 1px 10px; margin: 2px 0 4px; }
+
+.relecture-type-bien { display: grid; grid-template-columns: auto minmax(0, 260px); gap: 6px 12px; align-items: center; margin: 14px 0 4px; }
+.relecture-type-bien label { margin: 0; }
+.relecture-type-bien .hint { grid-column: 1 / -1; margin: 0; }
+
+.relecture-archive-bandeau { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 10px 14px; margin-bottom: 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper-sunk); }
+.relecture-archive-bandeau .secondary { margin-left: auto; }
+
+.relecture-historique { margin-top: 18px; }
+.relecture-historique-tete { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-bottom: 6px; }
+.relecture-historique-tete .dash-section-titre { margin: 0; }
+.relecture-historique-tete input[type="search"] { width: 280px; max-width: 100%; }
+.historique-relectures { list-style: none; margin: 0; padding: 0; }
+.historique-ligne { display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--line-soft); padding: 4px 0; }
+.historique-ouvrir { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; font: inherit; color: inherit; background: none; border: 0; border-radius: 6px; padding: 6px 8px; cursor: pointer; }
+.historique-ouvrir:hover { background: var(--paper-sunk); }
+.historique-ouvrir:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.historique-titre { font-size: 13.5px; font-weight: 600; overflow-wrap: anywhere; }
+.historique-meta { font-size: 12px; color: var(--muted); }
+.historique-compteurs { display: flex; gap: 8px; font-variant-numeric: tabular-nums; flex: 0 0 auto; }
 
 .relecture-cout {
   background: var(--paper-card);
@@ -5010,6 +5058,7 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
 @media (max-width: 640px) { .relecture-cout-grille { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .relecture-cadre { display: flex; gap: 6px; align-items: flex-start; }
 
+.relecture-visionneuse[hidden] { display: none; }
 .relecture-visionneuse {
   position: sticky;
   top: 12px;
@@ -5034,6 +5083,13 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
   border-bottom: 1px solid var(--line-soft);
 }
 .visionneuse-tete select { flex: 1 1 auto; width: auto; min-width: 0; }
+.visionneuse-titre { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: var(--muted); flex: 0 0 auto; }
+/* Sans document à montrer, le cadre se réduit à son message : jamais un grand carré vide. */
+.relecture-visionneuse:has(.visionneuse-vide) { height: auto; }
+.visionneuse-vide { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 24px; text-align: center; color: var(--muted); background: var(--paper-sunk); }
+.visionneuse-vide .icone { font-size: 22px; }
+.visionneuse-vide strong { color: var(--ink-soft); }
+.visionneuse-vide .hint { max-width: 36ch; }
 .visionneuse-tete, .visionneuse-extrait { flex: 0 0 auto; }
 .visionneuse-extrait { padding: 0 12px; }
 .visionneuse-extrait:not(:empty) { padding: 10px 12px; border-bottom: 1px solid var(--line-soft); max-height: 150px; overflow: auto; }
@@ -5067,16 +5123,9 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
 }
 .visionneuse-surlignage { transition: none; }
 @media (prefers-reduced-motion: reduce) { .visionneuse-page.flash { animation: none; } }
-/* Sous 1180px, la visionneuse passe en panneau plein écran par-dessus le bilan. */
+/* Sous 1180px, l'aperçu passe sous les thèmes, toujours ouvert, à hauteur d'écran. */
 @media (max-width: 1180px) {
-  .relecture-visionneuse:not([hidden]) {
-    position: fixed;
-    inset: 12px;
-    height: auto;
-    max-height: none;
-    z-index: 880;
-    box-shadow: var(--shadow-float);
-  }
+  .relecture-visionneuse { position: static; height: 78vh; max-height: 78vh; }
 }
 
 .reglages-claude-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }

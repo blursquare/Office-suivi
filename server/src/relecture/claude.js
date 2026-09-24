@@ -175,8 +175,22 @@ function validerConsignes(brut) {
   return brut.filter(c => typeof c === 'string' && c.trim()).slice(0, 30).map(c => c.trim().slice(0, 400));
 }
 
-function construireSystemPrompt(mode, grille, consignes) {
+// Type de bien : décide des points qui ont un sens (un DPE ne se demande pas pour un terrain nu,
+// l'état daté n'existe qu'en copropriété). La grille envoyée est déjà filtrée côté client ; le
+// prompt le dit en plus, pour que le modèle lise l'acte avec les bons réflexes.
+const TYPES_BIEN_PROMPT = {
+  maison: "une MAISON individuelle (hors copropriété) : aucun point propre à la copropriété ne s'applique",
+  copropriete: 'un ou plusieurs LOTS DE COPROPRIÉTÉ : les points copropriété (loi ALUR, état daté, assemblées générales, fonds de travaux, superficie Carrez) sont au cœur de la relecture',
+  terrain: "un TERRAIN À BÂTIR : il n'y a pas de bâtiment, donc ni diagnostics du bâti (DPE, amiante, plomb, électricité, gaz, termites) ni copropriété ; la relecture porte sur la constructibilité, le bornage, la viabilisation, l'étude de sol et le permis de construire"
+};
+
+function validerTypeBien(v) {
+  return Object.prototype.hasOwnProperty.call(TYPES_BIEN_PROMPT, v) ? v : '';
+}
+
+function construireSystemPrompt(mode, grille, consignes, typeBien) {
   const objet = OBJET_PAR_MODE[mode] || OBJET_PAR_MODE.compromis;
+  const bien = TYPES_BIEN_PROMPT[validerTypeBien(typeBien)] || '';
   const comparaison = mode === 'acte'
     ? `
 Comparaison avec l'avant-contrat : quand un document de rôle « avant_contrat » est fourni, relève
@@ -195,7 +209,9 @@ documents : deux jetons différents désignent donc deux valeurs différentes, c
 repérer une incohérence sans connaître la valeur. Reprends les jetons tels quels, ne cherche jamais
 à deviner ce qu'ils masquent.
 
-Chaque document est encadré par <document numero="…" role="…" nature="…"> et chaque page commence
+${bien ? `Le bien vendu est ${bien}.
+
+` : ''}Chaque document est encadré par <document numero="…" role="…" nature="…"> et chaque page commence
 par [[page N]]. Une page marquée « annexe jointe » appartient à une pièce annexée au document.
 
 Règles impératives :
@@ -209,7 +225,8 @@ Règles impératives :
   de deux syndicats distincts). Recense-les une par une dans "coproprietes" ; pour chaque point
   copropriété de la grille, examine CHAQUE copropriété et précise dans le commentaire laquelle est
   concernée — le statut retenu est celui de la copropriété la moins bien documentée.
-- "synthese" : 3 à 5 phrases factuelles, sans jugement de valeur, à destination du notaire.
+- "synthese" : 2 à 4 phrases courtes et factuelles, sans jugement de valeur, à destination du notaire.
+- Chaque anomalie : un titre court et une description de deux lignes au plus.
 ${comparaison}
 
 GRILLE DE RELECTURE — pour "points", renvoie EXACTEMENT un item par point ci-dessous (même id, sans
@@ -218,7 +235,21 @@ ajout ni omission), avec son statut :
 - "absent" : le déclencheur s'applique manifestement d'après le texte, mais rien ne l'atteste ;
 - "non_applicable" : le déclencheur ne s'applique pas à cette opération ;
 - "a_verifier" : le texte ne permet pas de trancher. En cas de doute, c'est ce statut, jamais "absent".
-Le commentaire dit en une ou deux phrases ce qui a été trouvé (ou pourquoi le point reste ouvert).
+Le commentaire tient en DEUX LIGNES au plus (une ou deux phrases courtes, 250 caractères environ) :
+ce qui a été trouvé, ou pourquoi le point reste ouvert. Ne le développe que si le point l'exige
+(montants à lister, écart à chiffrer, résolutions d'assemblée à citer) — jamais pour paraphraser.
+- Une clause qui DÉCLARE le bien non concerné par un diagnostic (hors zone termites, non soumis au
+  plomb ou à l'amiante…) répond au point : statut "non_applicable" ou "present", jamais "absent".
+  Contrôle-la seulement contre ce que disent les documents (plomb : construction antérieure au
+  1er janvier 1949 ; amiante : permis de construire antérieur au 1er juillet 1997) et signale une
+  contradiction avec la date de construction si elle figure au dossier.
+- Une date encore « à définir » ou laissée en blanc dans un projet appelle "a_verifier", jamais un
+  point critique : c'est un projet, la date sera arrêtée avant la signature.
+- Des anomalies électricité ou gaz relevées par un diagnostic, sur un bien vendu en l'état, sont à
+  surveiller ("a_verifier"), pas à régler avant la signature, sauf si l'acte prévoit leur levée.
+- Protection du patrimoine (abords d'un monument historique, servitude AC1, avis de l'architecte des
+  Bâtiments de France, site patrimonial remarquable) : signale-la dans le point urbanisme dès qu'un
+  document la mentionne ; tu ne peux consulter aucune base extérieure, n'en suppose jamais l'absence.
 
 Tout autre point d'attention (incohérence de dates ou de montants, clause ambiguë, contradiction
 entre documents) va dans "anomalies", avec sa gravité : "elevee" (à régler avant signature),
@@ -372,7 +403,7 @@ function normaliserAnalyse(brute, grille, documents) {
 
 module.exports = {
   TARIFS_USD_PAR_MILLION, calculerCoutUsd, estimerCoutUsd,
-  validerGrille, validerDocuments, validerConsignes, construireTexteDocuments, construireSystemPrompt,
+  validerGrille, validerDocuments, validerConsignes, validerTypeBien, construireTexteDocuments, construireSystemPrompt,
   SCHEMA_RELECTURE, verifierCitations, normaliserAnalyse, pageDepuisIndex,
   MAX_CARACTERES_TOTAL, STATUTS_POINT, LIMITE_JETONS_ENTREE, MAX_JETONS_SORTIE
 };

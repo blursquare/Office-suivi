@@ -21,6 +21,7 @@ const { creerRouteurNotifications } = require('./routes/notifications');
 const { creerRouteurExclusionsPieces } = require('./routes/exclusionsPieces');
 const { creerRouteurCorrectionsApprises } = require('./routes/correctionsApprises');
 const { creerRouteurRelectureClaude } = require('./routes/relectureClaude');
+const { creerRouteurRelectures } = require('./routes/relectures');
 
 // Fichier statique → nom d'asset embarqué (voir server/scripts/build-windows-exe.mjs, section
 // `assets` de sea-config.json) + type MIME à renvoyer. Tous des fichiers texte (HTML/CSS/JS/JSON/
@@ -82,7 +83,11 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude }) {
   // (jusqu'à ~2,5 millions de caractères, voir relecture/claude.js) : plafond propre, plus haut.
   const jsonStandard = express.json({ limit: '5mb' });
   const jsonRelecture = express.json({ limit: '60mb' });
-  app.use((req, res, next) => (req.path.startsWith('/api/relecture-claude/') ? jsonRelecture : jsonStandard)(req, res, next));
+  // Un bilan de relecture enregistré (analyse + contrôles CLAIRE) dépasse rarement 1 Mo, mais un acte
+  // de copropriété avec beaucoup d'annexes peut produire un rapport plus lourd : plafond intermédiaire.
+  const jsonBilan = express.json({ limit: '20mb' });
+  app.use((req, res, next) => (req.path.startsWith('/api/relecture-claude/') ? jsonRelecture
+    : req.path.startsWith('/api/relectures') ? jsonBilan : jsonStandard)(req, res, next));
 
   // Sert index.html/style.css/script.js/manifest.json/sw.js/icone.svg : depuis la racine du dépôt
   // en mode développement (`npm start`), depuis les assets embarqués du blob SEA en mode
@@ -117,6 +122,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude }) {
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExclusionsPieces(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurCorrectionsApprises(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRelectureClaude(parametresRepo, db, { creerClient: creerClientClaude }));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRelectures(db));
 
   // Gestionnaire d'erreurs générique en dernier recours : évite qu'une exception inattendue
   // (JSON malformé, etc.) ne fasse planter le processus entier plutôt que de répondre 500.

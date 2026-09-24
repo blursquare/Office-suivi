@@ -551,6 +551,21 @@ Routes (toutes derrière le mot de passe partagé) : `GET /api/relecture-claude/
 `GET /api/relecture-claude/journal`, `GET|PUT /api/relecture-claude/reglages`,
 `POST /api/relecture-claude/tester`.
 
+## Analyses d'actes enregistrées
+
+Chaque bilan affiché à l'étape 4 de la relecture d'actes est rangé dans la base (table `relectures`,
+`routes/relectures.js`) : il se rouvre depuis la carte « Analyses enregistrées » de l'étape 1, sans
+nouvelle requête à Anthropic ni nouvelle lecture des PDF.
+
+- `GET /api/relectures` (liste, `?dossierId=` pour un dossier), `GET /api/relectures/:id` (bilan
+  complet), `POST` (enregistrer), `PUT /:id` (remplacer), `DELETE /:id`. Derrière le mot de passe.
+- On y garde le bilan **tel que l'étude l'a lu, ré-identifié** (noms rétablis) : c'est une donnée de
+  l'étude, sur son serveur, au même titre que les dossiers — rien de cela n'est envoyé à Anthropic.
+  Le journal `analyses_claude`, lui, garde la requête pseudonymisée envoyée, comme avant.
+- Les PDF ne sont pas stockés : une pièce lue sur le NAS se rouvre dans l'aperçu, une pièce déposée
+  depuis le poste non.
+- La table fait partie de la base : la sauvegarde quotidienne la copie avec le reste.
+
 ## Commentaires sur la relecture d'actes
 
 Le « mode commentaires » de l'écran **Relecture d'actes** enregistre l'avis de l'étude sur chaque

@@ -61,7 +61,7 @@ function preparerRequete(corps) {
   if (g.erreur) return { erreur: g.erreur };
   const d = validerDocuments(corps && corps.documents);
   if (d.erreur) return { erreur: d.erreur };
-  const system = construireSystemPrompt(mode, g.grille, validerConsignes(corps && corps.consignes));
+  const system = construireSystemPrompt(mode, g.grille, validerConsignes(corps && corps.consignes), corps && corps.typeBien);
   const contenu = `Voici les documents pseudonymisés à relire. Remplis la fiche demandée.\n\n${construireTexteDocuments(d.documents)}`;
   return { mode, grille: g.grille, documents: d.documents, system, contenu };
 }
