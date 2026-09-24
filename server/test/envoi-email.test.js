@@ -78,6 +78,15 @@ test('envoi réussi : destinataire en OBJET, passerelle en À, message en corps'
   assert.match(msg.from, /claire@etude\.fr/);
 });
 
+test('message {texte, html} : deux versions envoyées ; une chaîne seule reste sans HTML', async () => {
+  const espion = transportEspion();
+  await envoyerEmail(REGLAGES, 'bastien@etude.fr', { texte: 'Brut', html: '<a href="x">Titre</a>' }, espion.creer);
+  assert.equal(espion.envois[0].text, 'Brut');
+  assert.equal(espion.envois[0].html, '<a href="x">Titre</a>');
+  await envoyerEmail(REGLAGES, 'bastien@etude.fr', 'Brut', espion.creer);
+  assert.equal('html' in espion.envois[1], false);
+});
+
 test("expéditeur non renseigné : la passerelle sert d'adresse d'expédition", async () => {
   const espion = transportEspion();
   await envoyerEmail({ ...REGLAGES, smtpExpediteur: '' }, 'bastien@etude.fr', 'Corps', espion.creer);

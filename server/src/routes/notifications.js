@@ -28,12 +28,34 @@ function libelleNouvellesPieces(nombre) {
 
 // `liens` : [{label, url}] — une ligne par pièce dont le fichier est connu, pour l'ouvrir
 // directement depuis le message (voir liensPieces.js). Absent ou vide : le message reste celui
-// d'avant, sur une seule ligne.
+// d'avant, sur une seule ligne. C'est la version TEXTE BRUT, qui garde l'adresse en clair ; la
+// version HTML ci-dessous est celle que Teams affiche.
 function texteNotificationPieces(dossierNom, pieces, liens) {
   const liste = pieces.join(', ');
   const entete = `📄 CLAIRE — ${libelleNouvellesPieces(pieces.length)} sur le dossier ${dossierNom} : ${liste}.`;
   const lignes = (Array.isArray(liens) ? liens : []).filter((l) => l && l.url).map((l) => `• ${l.label} : ${l.url}`);
   return lignes.length ? `${entete}\n${lignes.join('\n')}` : entete;
+}
+
+function echapperHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// Version HTML, demandée par l'étude : dans Teams, c'est le NOM de la pièce qui est cliquable,
+// plus une longue adresse affichée en clair après lui. Une pièce sans fichier connu reste un
+// simple libellé. Tout ce qui vient d'un dossier (nom, libellés) est échappé : un nom de dossier
+// contenant « < » ou « & » ne doit ni casser le message ni y injecter de balise.
+function htmlNotificationPieces(dossierNom, pieces, liens) {
+  const urls = new Map((Array.isArray(liens) ? liens : []).filter((l) => l && l.url).map((l) => [l.label, l.url]));
+  const lignes = pieces.map((label) => {
+    const url = urls.get(label);
+    return url
+      ? `• <a href="${echapperHtml(url)}">${echapperHtml(label)}</a>`
+      : `• ${echapperHtml(label)}`;
+  });
+  return `📄 CLAIRE — ${libelleNouvellesPieces(pieces.length)} sur le dossier <b>${echapperHtml(dossierNom)}</b> :<br>${lignes.join('<br>')}`;
 }
 
 // Demandé par l'étude : prévenir le responsable dès qu'un dossier a tout reçu (offre de prêt et
@@ -57,13 +79,14 @@ function lirePiece(p) {
 // quand aucun responsable n'est connu), jamais en double si elle coïncide avec l'adresse déjà
 // notifiée. La copie Gmail est mise en attente d'effacement, jamais effacée tout de suite : le flux
 // doit d'abord avoir lu le message (voir nettoyageGmail.js).
-async function envoyerAuResponsable(parametresRepo, envoyer, reglages, responsable, texte) {
+// `message` : chaîne, ou {texte, html} (voir envoiEmail.js).
+async function envoyerAuResponsable(parametresRepo, envoyer, reglages, responsable, message) {
   const email = responsable ? reglages.emailsResponsables[responsable] : null;
   const resultat = { ok: true, envoyeResponsable: false, envoyeCopie: false, erreurs: [] };
   const messagesEnvoyes = [];
 
   if (email) {
-    const envoi = await envoyer(reglages, email, texte);
+    const envoi = await envoyer(reglages, email, message);
     resultat.envoyeResponsable = envoi.ok;
     if (envoi.ok && envoi.messageId) messagesEnvoyes.push(envoi.messageId);
     if (!envoi.ok) resultat.erreurs.push(envoi.erreur);
@@ -72,7 +95,7 @@ async function envoyerAuResponsable(parametresRepo, envoyer, reglages, responsab
   }
 
   if (reglages.copieEmail && reglages.copieEmail !== email) {
-    const copie = await envoyer(reglages, reglages.copieEmail, texte);
+    const copie = await envoyer(reglages, reglages.copieEmail, message);
     resultat.envoyeCopie = copie.ok;
     if (copie.ok && copie.messageId) messagesEnvoyes.push(copie.messageId);
     if (!copie.ok) resultat.erreurs.push(copie.erreur);
@@ -109,8 +132,12 @@ function creerRouteurNotifications(parametresRepo, envoyerFn, options = {}) {
       const base = baseDepuisRequete(req, adresses);
       liens = avecChemin.map((p) => ({ label: p.label, url: urlLienPiece(base, secret, p.chemin) }));
     }
-    const texte = texteNotificationPieces(dossierNom, pieces.map((p) => p.label), liens);
-    res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, responsable, texte));
+    const labels = pieces.map((p) => p.label);
+    const message = {
+      texte: texteNotificationPieces(dossierNom, labels, liens),
+      html: htmlNotificationPieces(dossierNom, labels, liens)
+    };
+    res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, responsable, message));
   });
 
   router.post('/notifications/dossier-complet', async (req, res) => {
@@ -126,4 +153,4 @@ function creerRouteurNotifications(parametresRepo, envoyerFn, options = {}) {
   return router;
 }
 
-module.exports = { creerRouteurNotifications, texteNotificationPieces, texteDossierComplet };
+module.exports = { creerRouteurNotifications, texteNotificationPieces, htmlNotificationPieces, texteDossierComplet };

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-24 11:46';
+  const VERSION_APP = '2026-09-24 12:13';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-24 12:13', resume: "Notification Teams des pièces trouvées : c'est le nom de la pièce qui est cliquable, l'adresse n'est plus affichée en clair." },
     { version: '2026-09-24 11:46', resume: "Tableau de bord refait (actions urgentes par statut, dernières pièces trouvées, avancement des dossiers) ; pièce renouvelée prise en compte (TF 2025 → 2026) ; fichiers écartés visibles et rétablissables ; lien vers la pièce dans Teams ; responsable prévenu quand un dossier est complet ; relecture d'actes sans limite de pages." },
     { version: '2026-09-24 10:34', resume: "Agenda connecté : l'appel de fonds, le rendez-vous, la date butoir et les échéances personnalisées ne sont plus du tout publiés (ils apparaissaient annulés, empilés sur un même jour). Seuls restent le prêt et la vente préalable à obtenir." },
     { version: '2026-09-24 08:36', resume: "Relecture d'actes refaite en quatre étapes avec l'API Claude : documents (dossier du NAS complet), pseudonymisation sur ce poste, analyse point par point, bilan visuel avec pages cliquables et coût de l'analyse." },

@@ -24,8 +24,11 @@ function config() {
 
 // Capture ce que la route demande d'envoyer, sans ouvrir la moindre connexion.
 const envois = [];
-const envoyerEmailFn = async (reglages, destinataire, texte) => {
-  envois.push({ destinataire, texte });
+// Un message peut être une chaîne ou {texte, html} (voir envoiEmail.js) : on garde les deux.
+const envoyerEmailFn = async (reglages, destinataire, message) => {
+  const texte = typeof message === 'string' ? message : message.texte;
+  const html = typeof message === 'string' ? null : message.html;
+  envois.push({ destinataire, texte, html });
   return { ok: true, erreur: null };
 };
 

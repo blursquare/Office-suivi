@@ -62,8 +62,17 @@ function optionsTransport(reglages) {
 
 // `creerTransportFn` injectable pour les tests (voir server/test/envoi-email.test.js) : sans elle,
 // tester cette fonction demanderait un vrai serveur SMTP.
-async function envoyerEmail(reglages, destinataireEmail, texte, creerTransportFn) {
+//
+// `message` : le corps en texte brut (chaîne), ou `{ texte, html }` quand le message porte des
+// liens à rendre cliquables sous un libellé (notification de pièces trouvées : le NOM de la pièce
+// est le lien, voir routes/notifications.js). L'email part alors en deux versions — texte brut ET
+// HTML —, le flux Power Automate reprenant le corps HTML dans Teams, qui l'affiche mis en forme.
+// La version texte garde l'adresse en clair : c'est elle qu'un client de messagerie sans HTML, ou
+// un flux qui lirait le corps en texte, présenterait.
+async function envoyerEmail(reglages, destinataireEmail, message, creerTransportFn) {
   const r = reglages || {};
+  const corps = typeof message === 'string' ? { texte: message, html: null } : (message || {});
+  const texte = corps.texte || '';
   if (!r.smtpHote) return { ok: false, erreur: 'Aucun serveur SMTP configuré (voir Réglages).' };
   if (!r.emailPasserelle) return { ok: false, erreur: 'Aucune boîte-passerelle configurée (voir Réglages).' };
   if (!destinataireEmail) return { ok: false, erreur: 'Aucune adresse email configurée pour ce collaborateur.' };
@@ -81,7 +90,8 @@ async function envoyerEmail(reglages, destinataireEmail, texte, creerTransportFn
       from: `"CLAIRE" <${r.smtpExpediteur || r.smtpUtilisateur || r.emailPasserelle}>`,
       to: r.emailPasserelle,
       subject: destinataireEmail, // routage lu par le flux — voir la convention en tête de fichier
-      text: texte
+      text: texte,
+      ...(corps.html ? { html: corps.html } : {})
     });
     // Le Message-ID sert à retrouver, et effacer, la copie que Gmail range dans « Messages
     // envoyés » (voir imapGmail.js) : c'est le seul critère qui ne peut désigner que CE message.

@@ -469,6 +469,12 @@ l'adresse du serveur sur le réseau du bureau — il ne s'ouvre donc que depuis 
 Si le fichier a été déplacé ou renommé depuis, le lien affiche un message et invite à ouvrir le
 dossier dans CLAIRE.
 
+Dans Teams, c'est le **nom de la pièce** qui est cliquable : l'email part en deux versions, texte
+brut (l'adresse en clair après le nom) et HTML (le nom porte le lien). Pour que Teams affiche la
+version HTML, l'action « Publier un message » du flux doit reprendre le **Corps** (le corps HTML)
+de l'email reçu — pas un « corps en texte brut », s'il en propose un. Si le message Teams montre
+encore l'adresse en clair après le nom de la pièce, c'est que le flux lit la version texte.
+
 ### Fichiers écartés
 
 Un clic sur « Réinitialiser » d'une pièce mal reconnue écarte ce nom de fichier pour cette pièce,

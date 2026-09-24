@@ -6921,6 +6921,21 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     débordement. **Non vérifié en conditions réelles** : le lien dans un vrai message Teams (il
     faut que Teams laisse ouvrir une adresse http du réseau local).
 
+- **Notification des pièces trouvées : le NOM de la pièce devient le lien dans Teams**, demandé par
+  l'étude juste après la mise en service du lien signé (« rendre le lien cliquable en cliquant sur
+  le nom de la pièce »). Le message affichait « • Titre de propriété : http://192.168.x.x:3000/piece?c=…&e=…&s=… »,
+  une longue adresse illisible. `envoyerEmail(reglages, destinataire, message, …)` accepte désormais
+  soit une chaîne (inchangé pour les rappels et la notification « dossier complet »), soit
+  `{ texte, html }` : l'email part alors en `multipart/alternative`. `htmlNotificationPieces()`
+  (pure, testée) produit `• <a href="…">Titre de propriété</a>` pour chaque pièce dont le fichier
+  est connu, un simple libellé sinon, le nom du dossier en gras — tout ce qui vient du dossier est
+  échappé, l'`&` de l'adresse compris. La version texte garde l'adresse en clair, pour un client
+  sans HTML ou un flux qui lirait le corps en texte. **Dépend du flux Power Automate** : l'action
+  Teams doit reprendre le corps HTML de l'email reçu ; si l'adresse reste affichée en clair dans
+  Teams, c'est la version texte que le flux lit (noté dans server/README.md). Tests : +1 dans
+  `envoi-email.test.js`, +1 et une assertion de bout en bout dans `liens-pieces.test.js`. Suite
+  serveur 262 → 264 ; racine inchangée.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

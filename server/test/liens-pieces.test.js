@@ -17,7 +17,7 @@ const { ouvrirDb } = require('../src/db');
 const {
   parametresLien, urlLienPiece, lienValide, baseDepuisRequete, DUREE_VALIDITE_LIEN_JOURS
 } = require('../src/liensPieces');
-const { texteNotificationPieces, texteDossierComplet } = require('../src/routes/notifications');
+const { texteNotificationPieces, htmlNotificationPieces, texteDossierComplet } = require('../src/routes/notifications');
 
 const SECRET = 'a'.repeat(64);
 const JOUR = 24 * 60 * 60 * 1000;
@@ -54,6 +54,16 @@ test('texteNotificationPieces : une ligne par lien, rien de plus sans lien', () 
   assert.match(avec, /\n• ERP : http:\/\/x\/piece\?c=1$/);
 });
 
+test('htmlNotificationPieces : le NOM de la pièce est le lien, le reste est échappé', () => {
+  const html = htmlNotificationPieces('DUPONT <&> MARTIN', ['ERP', 'Titre'], [{ label: 'ERP', url: 'http://x/piece?c=1&e=2' }]);
+  assert.match(html, /• <a href="http:\/\/x\/piece\?c=1&amp;e=2">ERP<\/a>/);
+  // Une pièce sans fichier connu reste un libellé, sans lien.
+  assert.match(html, /<br>• Titre$/);
+  assert.match(html, /<b>DUPONT &lt;&amp;&gt; MARTIN<\/b>/);
+  // L'adresse n'apparaît plus en clair, seulement dans l'attribut du lien.
+  assert.equal(html.split('http://x').length - 1, 1);
+});
+
 test('texteDossierComplet : nomme le dossier et dit qu\'il est prêt à être rédigé', () => {
   const t = texteDossierComplet('DUPONT / MARTIN');
   assert.match(t, /DUPONT \/ MARTIN/);
@@ -62,8 +72,11 @@ test('texteDossierComplet : nomme le dossier et dit qu\'il est prêt à être r�
 
 let db, serveurApp, baseUrl, jeton, racine;
 const envois = [];
-const envoyerEmailFn = async (reglages, destinataire, texte) => {
-  envois.push({ destinataire, texte });
+// Un message peut être une chaîne ou {texte, html} (voir envoiEmail.js) : on garde les deux.
+const envoyerEmailFn = async (reglages, destinataire, message) => {
+  const texte = typeof message === 'string' ? message : message.texte;
+  const html = typeof message === 'string' ? null : message.html;
+  envois.push({ destinataire, texte, html });
   return { ok: true, erreur: null };
 };
 
@@ -110,6 +123,10 @@ test('notification avec chemin → le message porte un lien qui ouvre le PDF SAN
   assert.match(url, /\/piece\?c=/);
   // Aucune ligne de lien pour une pièce sans chemin.
   assert.equal(/• ERP/.test(envois[0].texte), false);
+  // Version HTML, celle que Teams affiche : le nom de la pièce porte le même lien.
+  const lienHtml = envois[0].html.match(/<a href="([^"]+)">Titre de propriété<\/a>/)[1];
+  assert.equal(lienHtml.replace(/&amp;/g, '&'), url);
+  assert.match(envois[0].html, /<br>• ERP/);
 
   // Rejoué sur le serveur de test (l'hôte du lien peut être une adresse du réseau local).
   const chemin = new URL(url).pathname + new URL(url).search;
