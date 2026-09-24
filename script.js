@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-24 16:51';
+  const VERSION_APP = '2026-09-24 17:30';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-24 17:30', resume: "Apprentissage : une date corrigée à la main à la création d'un dossier (panneau ou champ « Dates butoir ») est retenue pour les actes suivants, et partagée entre tous les postes. Écrire à l'acquéreur est possible en participation. Nouveau bouton « Réception des fonds », qui rappelle la date du rendez-vous." },
     { version: '2026-09-24 16:51', resume: "Rappels et notifications : quand le responsable du dossier est aussi l'adresse de copie de l'étude, un seul message part, même si les deux adresses sont écrites avec une casse différente." },
     { version: '2026-09-24 16:32', resume: "Une pièce ajoutée à la main et cochée reçue ne se décoche plus à chaque revérification du NAS. Garanties du prêt : le paragraphe « GARANTIE(S) » est reconnu, et les « Garanties » de l'assurance emprunteur ne font plus conclure « Sans garanties » (la caution est de nouveau détectée)." },
     { version: '2026-09-24 16:22', resume: "Noms de fichiers reconnus avec une marge d'erreur : fautes de frappe, mots de référence autour du nom, sigles (CU, CU a, DIA), casse. Le diagnostic du dossier signale « nom approchant » quand c'est le cas. Un décompte de remboursement d'éco-prêt n'est pas pris pour une offre de prêt." },
@@ -1227,6 +1228,13 @@
     const candidats = detectedDates.filter(d => d.suggestion === type);
     if (candidats.length === 0) return { candidat: null, ambigu: false };
     if (candidats.length === 1) return { candidat: candidats[0], ambigu: false };
+    // Une clause que l'étude a déjà désignée à la main pour ce type, sur un acte de même trame
+    // (voir trouverCorrectionApprise), l'emporte sur toutes les règles qui suivent : c'est une
+    // décision humaine, pas une déduction. Sans cette règle, apprendre la bonne clause ne suffisait
+    // pas — l'ancienne candidate, toujours classée du même type par ses mots-clés, restait retenue
+    // en premier, et la correction semblait « ne pas avoir été apprise ».
+    const apprises = candidats.filter(d => d.apprise);
+    if (apprises.length === 1) return { candidat: apprises[0], ambigu: false };
     // Une date ÉCRITE dans l'acte l'emporte toujours sur une date CALCULÉE depuis un délai — même
     // règle que construireDatesMetier. Sur un vrai compromis, « au plus tard dans les 2 mois et demi
     // à compter de la signature, soit le 5 mars 2026 » donnait deux candidates ; la date calculée,
@@ -7444,13 +7452,35 @@
   // Une correction faite dans le panneau alimente la mémoire des corrections, au même titre qu'un
   // clic sur un chip : c'est exactement le même geste (l'outil s'est trompé, l'étude tranche), et
   // c'est ce qui fait ressortir le badge « Appris » au prochain compromis de même trame.
+  // Ce qui doit être appris, c'est la clause qui porte la date RETENUE par l'étude — pas celle que
+  // l'outil avait choisie à tort. La version précédente mémorisait `objet.source.extrait`, c'est-à-
+  // dire l'extrait de la date qu'on était justement en train de corriger : elle renforçait l'erreur
+  // au lieu de l'apprendre, et le prochain acte de même trame retombait sur la même mauvaise date.
   function memoriserCorrectionRevision(cle, valeur) {
     if (!valeur) return;
     const champDate = { pret: 'pret', acte: 'acte', ventebien: 'ventebien' }[cle];
     if (!champDate) return;
-    const objet = champRevision(extractionActuelle, cle);
-    const contexte = objet && objet.source && objet.source.extrait ? objet.source.extrait : '';
-    if (contexte) memoriserCorrection(contexte, champDate, null, 'date');
+    apprendreDateSaisie(champDate, valeur);
+  }
+
+  // Une date choisie à la main pour un type d'échéance (panneau « Ce que l'outil a compris », ou
+  // champ « Dates butoir » de l'étape Vérifier) : si elle figure parmi les dates repérées dans
+  // l'acte, sa clause est apprise pour ce type. Mémorisée quand l'outil l'avait classée autrement,
+  // ou quand elle était l'une de plusieurs candidates du même type (l'outil avait alors choisi une
+  // autre clause). Une date tapée qui ne figure pas dans l'acte n'a pas de clause : rien à apprendre.
+  function apprendreDateSaisie(type, iso) {
+    if (!iso || dateIncompleteEnCoursDeSaisie(iso)) return false;
+    if (!Array.isArray(detectedDates)) return false;
+    const item = detectedDates.find(d => d.iso === iso);
+    if (!item || !item.contexte) return false;
+    const concurrentes = detectedDates.filter(d => d !== item && d.suggestion === type).length;
+    if (item.suggestion === type && !concurrentes) return false; // l'outil avait déjà bien vu
+    memoriserCorrection(item.contexte, type, null);
+    item.suggestion = type;
+    item.apprise = true;
+    item.active = true;
+    if (typeof renderChips === 'function') renderChips();
+    return true;
   }
 
   function basculerVerificationRevision(cle, coche) {
@@ -10391,20 +10421,16 @@
     const select = document.getElementById('f-type-vente');
     const roleSelect = document.getElementById('f-role-notaire');
     const bloc = document.getElementById('pieces-apercu');
-    // Relancer l'acquéreur (email + relance automatique si l'offre tarde, voir
-    // relancerSiOffreManquante) reste un geste du notaire instrumentaire, celui qui reçoit l'acte
-    // et porte la relation avec lui — pas de l'étude en simple participation/concours, dont le
-    // suivi se limite au prêt et aux engagements du vendeur. Demandé explicitement par l'étude.
+    // L'email de l'acquéreur est demandé que l'étude soit instrumentaire, seule ou en
+    // participation (demandé par l'étude : « permettre d'écrire à l'acquéreur »). Il n'est masqué
+    // que lorsque l'ACQUÉREUR est représenté par un office distinct du nôtre (voir
+    // notaireParticipantRepresenteAcquereur, appliquée ici à l'acte en cours d'import plutôt qu'à
+    // un dossier déjà enregistré) : on ne doit alors pas collecter son email personnel.
     const champEmailAcquereur = document.getElementById('champ-email-acquereur');
     if (champEmailAcquereur) {
-      const estParticipant = roleSelect && roleSelect.value === 'participant';
-      // Même règle déontologique que ci-dessus, mais pour le cas où c'est l'ACQUÉREUR qui est
-      // représenté par un office distinct du nôtre (voir notaireParticipantRepresenteAcquereur,
-      // appliquée ici à l'acte en cours d'import plutôt qu'à un dossier déjà enregistré) : dans ce
-      // cas non plus, on ne doit pas collecter l'email personnel de l'acquéreur.
       const cotesWizard = cotesNotairesPourDossier(extractionActuelle ? extractionActuelle.notaires : null);
       const acquereurRepresenteParAutre = !!(cotesWizard.acquereur && !estEtude({ nom: cotesWizard.acquereur }));
-      const masquer = estParticipant || acquereurRepresenteParAutre;
+      const masquer = acquereurRepresenteParAutre;
       champEmailAcquereur.style.display = masquer ? 'none' : '';
       if (masquer) document.getElementById('f-email-acquereur').value = '';
     }
@@ -12323,13 +12349,28 @@
     };
   }
 
+  // Confirmation de réception des fonds, demandée par l'étude : l'acquéreur a viré le montant de
+  // l'appel de fonds, on le lui confirme en rappelant la date du rendez-vous de signature. Proposée
+  // seulement une fois ce rendez-vous fixé (voir renderRelancesCiblees) — la date butoir de
+  // l'avant-contrat n'est qu'indicative, la rappeler au client l'induirait en erreur.
+  function construireEmailReceptionFonds(d) {
+    const rdv = d.rendezVousSignature
+      ? `\n\nNous vous rappelons que le rendez-vous de signature de l'acte authentique est fixé au ${formatDateFr(d.rendezVousSignature)}, en notre office.`
+      : '';
+    return {
+      sujet: `Réception des fonds — dossier ${d.nom}`,
+      corps: `Bonjour,\n\nNous vous confirmons la bonne réception des fonds destinés à votre acquisition (dossier ${d.nom}).${rdv}\n\nNous restons à votre disposition pour toute question d'ici là.\n\nCordialement.`
+    };
+  }
+
   // Une entrée par motif de relance : le libellé du bouton, le modèle d'email, et la condition qui
   // le rend pertinent pour CE dossier (pas de relance "prêt" sur un achat comptant, pas de relance
   // "pièces" si tout est déjà reçu) — évaluée à l'affichage par renderRelancesCiblees().
   var MODELES_EMAIL_RELANCE = {
     provision: { cle: 'provision', libelle: 'Provision + pièce d’identité', construire: construireEmailRelanceProvision, historique: 'Relance manuelle envoyée — provision sur frais et pièce d’identité' },
     pret: { cle: 'pret', libelle: 'Prêt manquant', construire: construireEmailRelancePret, historique: 'Relance manuelle envoyée — offre de prêt' },
-    rib: { cle: 'rib', libelle: 'RIB', construire: construireEmailRelanceRib, historique: 'Relance manuelle envoyée — RIB' }
+    rib: { cle: 'rib', libelle: 'RIB', construire: construireEmailRelanceRib, historique: 'Relance manuelle envoyée — RIB' },
+    fonds: { cle: 'fonds', libelle: 'Réception des fonds', construire: construireEmailReceptionFonds, historique: 'Email envoyé — confirmation de réception des fonds' }
   };
 
   function envoyerRelanceCiblee(id, type) {
@@ -12400,15 +12441,18 @@
   // Le motif "pièces à fournir" a été retiré sur demande de l'étude (bouton jugé redondant avec la
   // checklist déjà visible sur la fiche) — restent "Provision + pièce d'identité" (envoi de
   // démarrage, voir construireEmailRelanceProvision), "Prêt manquant" et "RIB".
+  // Rôle participant : ouvert à la demande de l'étude (« quand on est seul notaire ou en
+  // participation, permettre d'écrire à l'acquéreur »). Seule reste la règle déontologique : si
+  // l'acquéreur est représenté par un AUTRE office, on écrit à ce confrère, jamais au client
+  // (emailDestinataireRelance).
   function renderRelancesCiblees(d) {
-    if (d.roleNotaire === 'participant') return '';
     const notaireParticipant = notaireParticipantRepresenteAcquereur(d);
     if (!emailDestinataireRelance(d)) {
       const hint = notaireParticipant
         ? 'Renseignez l’email du notaire de l’acquéreur (ci-dessus) pour activer les relances ciblées (provision, prêt, RIB) — l’acquéreur étant représenté par un office distinct, l’étude ne doit pas le contacter directement.'
         : 'Renseignez l’email de l’acquéreur pour activer les relances ciblées (provision, prêt, RIB).';
       return `<div class="relances-ciblees">
-        <span class="section-eyebrow">Relancer par email</span>
+        <span class="section-eyebrow">Écrire par email</span>
         ${renderEmailAcquereurDossier(d)}
         <p class="hint">${hint}</p>
       </div>`;
@@ -12418,8 +12462,9 @@
       boutons.push(MODELES_EMAIL_RELANCE.pret);
     }
     boutons.push(MODELES_EMAIL_RELANCE.rib);
+    if (d.rendezVousSignature) boutons.push(MODELES_EMAIL_RELANCE.fonds);
     return `<div class="relances-ciblees">
-      <span class="section-eyebrow">Relancer par email</span>
+      <span class="section-eyebrow">Écrire par email</span>
       ${renderEmailAcquereurDossier(d)}
       ${notaireParticipant ? '<p class="hint">L’acquéreur est représenté par un office distinct : ces relances seront adressées à son notaire, jamais directement à l’acquéreur.</p>' : ''}
       <div class="relances-boutons">
@@ -12503,13 +12548,13 @@
     );
   }
 
-  // Affichée juste après "Relancer par email" : absente pour un dossier déjà archivé (l'action n'a
-  // plus de sens), un rôle participant (même garde-fou que les relances ciblées) et — demandé
+  // Affichée juste après "Écrire par email" : absente pour un dossier déjà archivé (l'action n'a
+  // plus de sens) et — demandé
   // explicitement par l'étude — dès que l'acquéreur est représenté par un notaire distinct du
   // nôtre : ce questionnaire ne doit JAMAIS être proposé/adressé au confrère, contrairement aux
   // autres relances ciblées qui, elles, transitent par lui dans ce cas.
   function renderQuestionnaireSatisfaction(d) {
-    if (d.roleNotaire === 'participant' || notaireParticipantRepresenteAcquereur(d)) return '';
+    if (notaireParticipantRepresenteAcquereur(d)) return '';
     // Déjà envoyé : on le dit, avec la date, et on laisse la possibilité de renvoyer. Affiché même
     // sur un dossier archivé (l'envoi archive le dossier, voir envoyerQuestionnaireSatisfaction) —
     // sinon la trace disparaîtrait à l'instant même où elle devient utile.
@@ -12832,6 +12877,9 @@
     // Avant toute relecture du NAS : un parcours lancé sans elles reconnaîtrait des fichiers que
     // l'étude a écartés.
     await chargerExclusionsMotifNom();
+    // Avant le premier import : un dossier créé juste après la connexion doit profiter des
+    // corrections faites par les collègues (voir chargerApprentissageServeur).
+    await chargerApprentissageServeur();
     // Le polling démarre AVANT la relecture du NAS, et celle-ci n'est plus attendue : sur un
     // portefeuille d'une soixantaine de dossiers, ce parcours peut prendre plusieurs minutes
     // (il ouvre des PDF, voir verifierDossierLocal) — tant qu'il n'avait pas fini, aucune synchro
@@ -12861,9 +12909,9 @@
   // neutralisation de ces éléments avant de comparer, puis un recouvrement de mots (indice de
   // Jaccard) plutôt qu'une comparaison caractère à caractère.
   //
-  // Stocké en local uniquement (même mécanisme que le registre des dossiers, voir charger() /
-  // sauvegarder() ci-dessus) : rien n'est envoyé nulle part, et rien de plus que des fragments de
-  // clauses déjà affichés à l'écran n'est conservé.
+  // Stocké sur le serveur de l'étude, partagé entre les postes (voir sauvegarderApprentissage) :
+  // rien ne sort du bureau, et rien de plus que des fragments de clauses déjà affichés à l'écran
+  // n'est conservé.
   const CLE_APPRENTISSAGE = 'corrections-echeances';
   const SEUIL_SIMILARITE_APPRENTISSAGE = 0.6; // au-delà, on considère qu'il s'agit de la même clause-type
   const MAX_CORRECTIONS_MEMORISEES = 500; // filet de sécurité : évite une croissance illimitée du stockage local
@@ -12896,14 +12944,41 @@
     return union === 0 ? 0 : intersection / union;
   }
 
-  async function sauvegarderApprentissage() {
-    const contenu = JSON.stringify(correctionsApprises);
-    try {
-      if (window.storage) { await window.storage.set(CLE_APPRENTISSAGE, contenu, false); return; }
-    } catch (e) { console.warn('window.storage indisponible pour l’apprentissage, repli sur localStorage.', e); }
-    try { localStorage.setItem(CLE_APPRENTISSAGE, contenu); } catch (e) { console.warn('Sauvegarde de l’apprentissage impossible.', e); }
+  // Les corrections vivent SUR LE SERVEUR (voir server/src/routes/correctionsApprises.js) :
+  // gardées dans le navigateur de chaque poste, une correction faite par un collaborateur n'était
+  // jamais « apprise » pour un dossier créé depuis un autre poste — c'est ce que l'étude constatait
+  // (« vérifier que c'est bien appris pour les prochains dossiers »). Chaque correction est envoyée
+  // seule, fusionnée par identifiant côté serveur. Le stockage local ne sert plus que de REPLI : une
+  // correction qui n'a pas pu partir (serveur injoignable) y attend, et elle est reprise sur le
+  // serveur au démarrage suivant — comme les exclusions de pièces.
+  async function sauvegarderApprentissage(entree) {
+    let envoyee = false;
+    if (entree && authToken) {
+      try {
+        const reponse = await fetchAvecAuth('/api/corrections-apprises', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ correction: entree })
+        });
+        if (reponse.ok) {
+          const data = await reponse.json();
+          if (data && Array.isArray(data.corrections)) correctionsApprises = data.corrections;
+          envoyee = true;
+        }
+      } catch (e) { console.warn('Correction non enregistrée sur le serveur, gardée sur ce poste :', e.message); }
+    }
+    if (envoyee) return;
+    try { localStorage.setItem(CLE_APPRENTISSAGE, JSON.stringify(correctionsApprises)); } catch (e) { console.warn('Sauvegarde de l’apprentissage impossible.', e); }
   }
 
+  function correctionsValides(brut) {
+    return Array.isArray(brut)
+      ? brut.filter(c => c && typeof c === 'object' && Array.isArray(c.tokens) && typeof c.classification === 'string')
+      : [];
+  }
+
+  // Au chargement de la page, AVANT la connexion : ce que ce poste avait gardé en local (anciennes
+  // corrections, ou corrections qui n'ont pas pu partir). Remplacé par la liste du serveur dès que
+  // la session est ouverte (chargerApprentissageServeur).
   async function chargerApprentissage() {
     let brut = null;
     try {
@@ -12918,9 +12993,25 @@
         if (local) brut = JSON.parse(local);
       } catch (e) { /* rien d'exploitable non plus ici */ }
     }
-    correctionsApprises = Array.isArray(brut)
-      ? brut.filter(c => c && typeof c === 'object' && Array.isArray(c.tokens) && typeof c.classification === 'string')
-      : [];
+    correctionsApprises = correctionsValides(brut);
+  }
+
+  // Liste partagée du bureau, puis reprise UNE fois de ce que ce poste gardait en local et que le
+  // serveur n'a pas encore : une correction faite avant ce passage en base n'est pas perdue.
+  async function chargerApprentissageServeur() {
+    const locales = correctionsValides(correctionsApprises);
+    let serveur = null;
+    try {
+      const reponse = await fetchAvecAuth('/api/corrections-apprises');
+      if (reponse.ok) serveur = correctionsValides((await reponse.json()).corrections);
+    } catch (e) { console.warn('Corrections apprises indisponibles sur le serveur :', e.message); }
+    if (!serveur) return; // serveur injoignable : on garde la liste locale
+    correctionsApprises = serveur;
+    const connues = new Set(serveur.map(c => c.id));
+    for (const c of locales) {
+      if (c.id && !connues.has(c.id)) await sauvegarderApprentissage(c);
+    }
+    try { localStorage.removeItem(CLE_APPRENTISSAGE); } catch (e) { /* sans importance */ }
   }
 
   // Retrouve, parmi les corrections déjà apprises, la plus proche du contexte donné — ou null si
@@ -12958,11 +13049,13 @@
     if (tokens.length < 3) return; // pas assez de matière pour comparer de façon fiable
 
     const existante = trouverCorrectionApprise(contexte, categorie);
+    let entree;
     if (existante && existante.classification === classification) {
       existante.nbConfirmations = (existante.nbConfirmations || 1) + 1;
       existante.dateMaj = new Date().toISOString();
+      entree = existante;
     } else {
-      correctionsApprises.push({
+      entree = {
         id: (crypto.randomUUID ? crypto.randomUUID() : 'c-' + Date.now() + '-' + Math.random().toString(16).slice(2)),
         tokens,
         contexteExemple: contexte.slice(0, 200),
@@ -12971,15 +13064,16 @@
         libelle: libelle || null,
         nbConfirmations: 1,
         dateMaj: new Date().toISOString()
-      });
+      };
+      correctionsApprises.push(entree);
       // Filet de sécurité : on garde les corrections les plus confirmées/récentes plutôt que de
-      // laisser le stockage local croître sans fin au fil des années.
+      // laisser le stockage croître sans fin au fil des années (même plafond côté serveur).
       if (correctionsApprises.length > MAX_CORRECTIONS_MEMORISEES) {
         correctionsApprises.sort((a, b) => (b.nbConfirmations - a.nbConfirmations) || b.dateMaj.localeCompare(a.dateMaj));
         correctionsApprises.length = MAX_CORRECTIONS_MEMORISEES;
       }
     }
-    sauvegarderApprentissage();
+    sauvegarderApprentissage(entree);
   }
 
   // Apprentissage d'un document mal rattaché à une pièce de la checklist (voir
@@ -15588,11 +15682,9 @@
   }
 
   function relancerSiOffreManquante(d) {
-    // Notaire participant/concourant : suivi volontairement limité au prêt et aux engagements du
-    // vendeur (voir renderCarteDossier/verifierPiecesDossier, même garde-fou) — relancer
-    // l'acquéreur reste un geste du notaire instrumentaire, celui qui reçoit l'acte et porte la
-    // relation avec lui, pas de l'étude en simple concours. Demandé explicitement par l'étude.
-    if (d.roleNotaire === 'participant') return;
+    // Le rôle participant n'interdit plus d'écrire à l'acquéreur (demandé par l'étude) : seule
+    // compte la règle déontologique d'emailDestinataireRelance — un acquéreur représenté par un
+    // autre office est relancé via ce confrère, jamais directement.
     // Un dossier archivé n'attend plus rien. En pratique la revérification automatique les saute
     // déjà, mais un clic explicite sur « Revérifier » passe encore par ici.
     if (d.archive) return;

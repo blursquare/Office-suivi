@@ -7103,6 +7103,69 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   un cas ajouté dans `notifications.test.js`, +1 dans `envoi-email.test.js`. Suite serveur
   274 → 276. Ne parvient à l'étude que par un nouveau `.exe`.
 
+- **Lot du 24/09 fin d'après-midi : trois demandes, et un signalement qui n'était pas un bug de
+  reconnaissance.**
+  - **« Courriel (d')alignement (et) (de) numérotage » ne cochait que le numérotage.** Rejoué avant
+    toute retouche : les quatre écritures (plus l'apostrophe typographique et les underscores) sont
+    reconnues EXACTEMENT par les `motifNom` des DEUX pièces. Le parcours retient bien un même
+    fichier pour plusieurs pièces. La cause est donc une **exclusion enregistrée** par un ancien clic
+    sur « Réinitialiser » de l'alignement — même cas que celui déjà diagnostiqué pour « Courriel
+    alignement et numérotage.pdf ». Elle se lève dans Réglages › Fichiers écartés des pièces, ou par
+    « Ne plus écarter » dans le diagnostic du dossier. Aucune regex n'a été touchée ; un test fige
+    les six écritures (`tests/dossier-local.test.js`).
+  - **Écrire à l'acquéreur quand l'étude est seule ou en participation** (« permettre d'écrire à
+    l'acquéreur »). La garde `d.roleNotaire === 'participant'` est retirée de
+    `renderRelancesCiblees`, `renderQuestionnaireSatisfaction` et `relancerSiOffreManquante`. Le champ
+    email de l'acquéreur du wizard n'est plus masqué pour ce rôle. **Seule reste la règle
+    déontologique** : si un AUTRE office représente l'acquéreur (`notaireParticipantRepresenteAcquereur`),
+    les relances vont à ce confrère (`emailDestinataireRelance`), le champ email du client reste
+    masqué et le questionnaire n'est jamais proposé. La checklist de pièces reste, elle, réservée à
+    l'instrumentaire : la demande portait sur l'écriture, pas sur le suivi des pièces. Le titre de la
+    section passe de « Relancer par email » à « Écrire par email ».
+  - **Bouton « Réception des fonds »** (`construireEmailReceptionFonds`, motif `fonds` de
+    `MODELES_EMAIL_RELANCE`). Il confirme à l'acquéreur la bonne réception des fonds et rappelle la
+    date du rendez-vous de signature. Il n'est proposé qu'une fois `d.rendezVousSignature`
+    renseignée. Jamais la date butoir, qui n'est qu'indicative (voir « La date butoir devient
+    informative »). Même routage que les autres relances, même journalisation dans l'historique.
+    Le dossier ne porte pas l'heure du rendez-vous : seule la date est rappelée.
+  - **« Vérifier que c'est bien appris pour les prochains dossiers » : trois trous, tous corrigés et
+    vérifiés de bout en bout.**
+    1. **Une date tapée à la main dans « Dates butoir » (étape Vérifier) n'apprenait rien.**
+       `#f-pret`/`#f-acte`/`#f-ventebien` n'avaient aucun `onchange` : seul un clic sur un chip
+       alimentait la mémoire. Nouvelle `apprendreDateSaisie(type, iso)` : si la date choisie figure
+       parmi les dates repérées dans l'acte, sa clause est apprise pour ce type. C'est le cas quand
+       l'outil l'avait classée autrement, ou quand elle était l'une de plusieurs candidates du même
+       type. Une date qui n'est pas dans l'acte n'a pas de clause : rien à apprendre.
+    2. **Une correction dans le panneau « Ce que l'outil a compris » apprenait la MAUVAISE clause.**
+       `memoriserCorrectionRevision` mémorisait `objet.source.extrait`, c'est-à-dire l'extrait de la
+       date qu'on corrigeait. Elle renforçait donc l'erreur. Elle passe maintenant par
+       `apprendreDateSaisie`, sur la date retenue.
+    3. **Apprendre la bonne clause ne suffisait pas à la faire retenir.** L'ancienne candidate
+       restait classée du même type par ses mots-clés, et gardait la priorité.
+       `meilleureCandidateEcheance` fait désormais passer en premier une candidate apprise quand
+       elle est la seule de son type, avant même la règle « date écrite plutôt que calculée » :
+       c'est une décision humaine. Deux candidates apprises retombent sur les règles habituelles.
+    4. **La mémoire était propre à chaque poste** (`localStorage`). Une correction faite par un
+       collaborateur n'était jamais apprise pour un dossier créé ailleurs. Elle vit maintenant en
+       base : clé `corrections-apprises` et routes `GET/POST /api/corrections-apprises`
+       (`server/src/routes/correctionsApprises.js`). Chaque correction est envoyée seule et fusionnée
+       par identifiant, sans PUT global, pour que deux postes ne s'écrasent pas. Plafond de 500,
+       comme côté navigateur. `chargerApprentissageServeur()` est appelée dans
+       `demarrerApplication()` avant tout import. Elle reprend une fois les corrections gardées
+       localement, puis vide le stockage du poste. Le `localStorage` ne sert plus que de repli
+       quand le serveur est injoignable.
+    - **Vérifié dans un vrai Chromium** avec deux contextes, donc deux « postes », sur un vrai
+      serveur. Sur le poste A, l'outil retient le 30/04 ; l'étude tape le 15/03 à la main ; une
+      correction arrive sur le serveur. Le poste B importe un acte de même trame (autres dates) et
+      retient le 15/03 sans aide. Aucune erreur JS.
+    - **Toujours pas appris, volontairement** (voir « Deux apprentissages supplémentaires ») : nom
+      du dossier, adresse, prix, montants. Ces valeurs libres n'ont pas de mécanisme de
+      réapplication sûr.
+  - Tests : `tests/apprentissage-corrections.test.js` (2, dont le parcours complet premier acte →
+    correction → second acte) ; `tests/relances-email.test.js` (+2 et un réécrit) ;
+    `tests/dossier-local.test.js` (+1) ; `server/test/corrections-apprises.test.js` (4). Suite
+    racine 768 → 773, serveur 276 → 280.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

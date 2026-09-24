@@ -19,6 +19,7 @@ const { creerRouteurReglages } = require('./routes/reglages');
 const { creerRouteurSauvegarde } = require('./routes/sauvegarde');
 const { creerRouteurNotifications } = require('./routes/notifications');
 const { creerRouteurExclusionsPieces } = require('./routes/exclusionsPieces');
+const { creerRouteurCorrectionsApprises } = require('./routes/correctionsApprises');
 const { creerRouteurRelectureClaude } = require('./routes/relectureClaude');
 
 // Fichier statique → nom d'asset embarqué (voir server/scripts/build-windows-exe.mjs, section
@@ -114,6 +115,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude }) {
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNotifications(parametresRepo, envoyerEmailFn));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAuditRetours(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExclusionsPieces(parametresRepo));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurCorrectionsApprises(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRelectureClaude(parametresRepo, db, { creerClient: creerClientClaude }));
 
   // Gestionnaire d'erreurs générique en dernier recours : évite qu'une exception inattendue

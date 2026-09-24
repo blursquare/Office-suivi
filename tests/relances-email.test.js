@@ -41,9 +41,9 @@ test('construireEmailRelanceRib ne dépend d’aucun champ du dossier au-delà d
   assert.match(corps, /DUPONT \/ MARTIN/);
 });
 
-test('MODELES_EMAIL_RELANCE couvre exactement les trois motifs restants', () => {
+test('MODELES_EMAIL_RELANCE couvre exactement les quatre motifs', () => {
   const app = chargerApplication();
-  assert.equal(Object.keys(app.MODELES_EMAIL_RELANCE).sort().join(','), 'pret,provision,rib');
+  assert.equal(Object.keys(app.MODELES_EMAIL_RELANCE).sort().join(','), 'fonds,pret,provision,rib');
 });
 
 test('construireEmailRelanceProvision mentionne l’agence quand elle est connue, sinon reste générique', () => {
@@ -86,10 +86,33 @@ test('construireEmailQuestionnaireSatisfaction reprend le texte fourni par l\'é
   assert.doesNotMatch(corps, /PROVISOIRE/);
 });
 
-test('renderQuestionnaireSatisfaction : absent pour un dossier archivé ou un rôle participant', () => {
+test('renderQuestionnaireSatisfaction : absent pour un dossier archivé, proposé en participation', () => {
   const app = chargerApplication();
-  assert.equal(app.renderQuestionnaireSatisfaction(dossierBase(app, { archive: true })), '');
-  assert.equal(app.renderQuestionnaireSatisfaction(dossierBase(app, { roleNotaire: 'participant' })), '');
+  assert.equal(app.renderQuestionnaireSatisfaction(dossierBase(app, { archive: true, acte: '2026-12-01' })), '');
+  // Demandé par l'étude : en participation, on peut écrire à l'acquéreur.
+  assert.match(app.renderQuestionnaireSatisfaction(dossierBase(app, { roleNotaire: 'participant', acte: '2026-12-01' })), /Questionnaire de satisfaction/);
+});
+
+test('relances : ouvertes en participation, toujours routées vers le confrère quand un autre office représente l’acquéreur', () => {
+  const app = chargerApplication();
+  const participant = app.renderRelancesCiblees(dossierBase(app, { roleNotaire: 'participant' }));
+  assert.match(participant, /envoyerRelanceCiblee\('d1', 'provision'\)/);
+  const confrere = dossierBase(app, { roleNotaire: 'participant', notaireAcquereur: 'Maître DURAND', emailNotaireParticipant: 'durand@notaires.fr' });
+  assert.equal(app.emailDestinataireRelance(confrere), 'durand@notaires.fr');
+  assert.match(app.renderRelancesCiblees(confrere), /adressées à son notaire/);
+});
+
+test('réception des fonds : proposée une fois le rendez-vous fixé, qui est rappelé dans l’email', () => {
+  const app = chargerApplication();
+  assert.doesNotMatch(app.renderRelancesCiblees(dossierBase(app, {})), /'fonds'/);
+  const d = dossierBase(app, { rendezVousSignature: '2026-11-20', acte: '2026-11-30' });
+  assert.match(app.renderRelancesCiblees(d), /envoyerRelanceCiblee\('d1', 'fonds'\)/);
+  const { sujet, corps } = app.construireEmailReceptionFonds(d);
+  assert.match(sujet, /Réception des fonds/);
+  assert.match(corps, /bonne réception des fonds/);
+  assert.match(corps, /20 novembre 2026/);
+  // Jamais la date butoir, qui n'est qu'indicative.
+  assert.doesNotMatch(corps, /30 novembre 2026/);
 });
 
 // Demandé par l'étude : proposé seulement une fois la date de signature de l'acte renseignée.

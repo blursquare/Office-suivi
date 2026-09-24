@@ -475,3 +475,22 @@ Une caution pourra etre sollicitee ulterieurement.`;
   assert.equal(app.detecterGarantiesPret('OFFRE DE PRET\nMONTANT\nLe preteur de deniers beneficie d’un privilege legal.').length, 0);
   assert.equal(app.detecterGarantiesPret('').length, 0);
 });
+
+test('« Courriel (d’)alignement (et) (de) numérotage » coche les DEUX pièces', () => {
+  // Signalé par l'étude : ces fichiers ne cochaient que le numérotage. Le nom est bien reconnu pour
+  // les deux pièces (ce test le fige) : le blocage venait d'une exclusion posée un jour par
+  // « Réinitialiser », visible et rétablissable dans Réglages › Fichiers écartés des pièces.
+  const app = chargerApplication();
+  const pieces = app.checklistPieces('maison');
+  const alignement = pieces.find(p => p.cle === 'certificatAlignement');
+  const numerotage = pieces.find(p => p.cle === 'certificatNumerotage');
+  for (const nom of [
+    'Courriel alignement numérotage.pdf', 'Courriel alignement et numérotage.pdf',
+    "Courriel d'alignement et numérotage.pdf", "Courriel d'alignement et de numérotage.pdf",
+    'Courriel d’alignement et de numérotage.pdf', 'Courriel_d_alignement_et_de_numerotage.pdf'
+  ]) {
+    const n = app.normaliserNomPourMotif(nom);
+    assert.ok(alignement.motifNom.test(n), `alignement devrait reconnaître "${nom}"`);
+    assert.ok(numerotage.motifNom.test(n), `numérotage devrait reconnaître "${nom}"`);
+  }
+});

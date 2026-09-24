@@ -36,6 +36,50 @@ const CLE_SECRET_LIENS = 'secret-liens-pieces';
 const CLE_EXCLUSIONS_PIECES = 'exclusions-noms-pieces';
 const MAX_NOMS_PAR_PIECE = 200;
 
+// Corrections apprises (script.js, memoriserCorrection) : quand l'étude reclasse une date ou une
+// obligation du vendeur à l'import d'un avant-contrat, la clause est retenue pour être reconnue au
+// prochain acte de même trame. Longtemps gardées dans le navigateur de chaque poste : une
+// correction faite par un collaborateur n'était jamais « apprise » pour les dossiers créés depuis
+// un autre poste. En base, elles profitent à tout le bureau.
+const CLE_CORRECTIONS_APPRISES = 'corrections-apprises';
+const MAX_CORRECTIONS_APPRISES = 500;
+const CATEGORIES_CORRECTION = ['date', 'engagement'];
+
+function assainirCorrectionApprise(brut) {
+  const b = brut && typeof brut === 'object' ? brut : null;
+  if (!b || typeof b.id !== 'string' || !/^[A-Za-z0-9_.-]{1,80}$/.test(b.id)) return null;
+  if (!Array.isArray(b.tokens) || typeof b.classification !== 'string' || !b.classification.trim()) return null;
+  const tokens = Array.from(new Set(b.tokens.filter((t) => typeof t === 'string' && t.trim()).map((t) => t.slice(0, 60)))).slice(0, 200);
+  if (tokens.length < 3) return null;
+  return {
+    id: b.id,
+    tokens,
+    contexteExemple: typeof b.contexteExemple === 'string' ? b.contexteExemple.slice(0, 200) : '',
+    categorie: CATEGORIES_CORRECTION.indexOf(b.categorie) === -1 ? 'date' : b.categorie,
+    classification: b.classification.trim().slice(0, 30),
+    libelle: typeof b.libelle === 'string' && b.libelle.trim() ? b.libelle.trim().slice(0, 120) : null,
+    nbConfirmations: Number.isFinite(b.nbConfirmations) && b.nbConfirmations >= 1 ? Math.floor(b.nbConfirmations) : 1,
+    dateMaj: typeof b.dateMaj === 'string' ? b.dateMaj.slice(0, 40) : new Date().toISOString()
+  };
+}
+
+// Au-delà du plafond, on garde les corrections les plus confirmées puis les plus récentes — même
+// règle que côté navigateur.
+function assainirCorrectionsApprises(brut) {
+  if (!Array.isArray(brut)) return [];
+  const parId = new Map();
+  for (const c of brut) {
+    const propre = assainirCorrectionApprise(c);
+    if (propre) parId.set(propre.id, propre);
+  }
+  const liste = Array.from(parId.values());
+  if (liste.length > MAX_CORRECTIONS_APPRISES) {
+    liste.sort((a, b) => (b.nbConfirmations - a.nbConfirmations) || b.dateMaj.localeCompare(a.dateMaj));
+    liste.length = MAX_CORRECTIONS_APPRISES;
+  }
+  return liste;
+}
+
 // Sauvegarde automatique de la base (voir sauvegarde.js) : le dossier de destination choisi dans
 // les Réglages, et l'état des dernières tentatives. Deux clés à part du blob `reglages`, comme le
 // compte rendu des rappels : l'état est produit par le serveur, pas saisi par l'étude.
@@ -384,6 +428,22 @@ function creerRepoParametres(db) {
     return propre;
   }
 
+  function lireCorrectionsApprises() {
+    const ligne = lireStmt.get(CLE_CORRECTIONS_APPRISES);
+    if (!ligne) return [];
+    try {
+      return assainirCorrectionsApprises(JSON.parse(ligne.valeur));
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function ecrireCorrectionsApprises(corrections) {
+    const propre = assainirCorrectionsApprises(corrections);
+    ecrireStmt.run(CLE_CORRECTIONS_APPRISES, JSON.stringify(propre));
+    return propre;
+  }
+
   function lireReglageSauvegarde() {
     const ligne = lireStmt.get(CLE_REGLAGE_SAUVEGARDE);
     try {
@@ -420,12 +480,12 @@ function creerRepoParametres(db) {
     lireReglages, ecrireReglages, lireDernierTour, ecrireDernierTour,
     lireCopiesEnAttente, ecrireCopiesEnAttente, lireRetoursAudit, ecrireRetoursAudit,
     lireReglagesClaude, ecrireReglagesClaude, lireSecretLiens,
-    lireExclusionsPieces, ecrireExclusionsPieces
+    lireExclusionsPieces, ecrireExclusionsPieces, lireCorrectionsApprises, ecrireCorrectionsApprises
   };
 }
 
 module.exports = {
-  creerRepoParametres, assainirReglages, assainirEtatSauvegarde, assainirExclusionsPieces, assainirDernierTour, assainirCopiesEnAttente,
+  creerRepoParametres, assainirReglages, assainirEtatSauvegarde, assainirExclusionsPieces, assainirCorrectionApprise, assainirCorrectionsApprises, MAX_CORRECTIONS_APPRISES, assainirDernierTour, assainirCopiesEnAttente,
   assainirRetourAudit, assainirRetoursAudit, MAX_RETOURS_AUDIT,
   assainirReglagesClaude, MODELES_CLAUDE, MODELE_CLAUDE_PAR_DEFAUT,
   REGLAGES_PAR_DEFAUT, PORT_SMTP_PAR_DEFAUT

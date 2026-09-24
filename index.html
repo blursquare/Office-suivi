@@ -243,7 +243,7 @@
               </label>
               <span>Obtention du prêt (condition suspensive)</span>
             </div>
-            <input type="date" id="f-pret">
+            <input type="date" id="f-pret" onchange="apprendreDateSaisie('pret', this.value)">
           </div>
 
           <div class="date-block acte" id="bloc-acte">
@@ -254,7 +254,7 @@
               </label>
               <span>Signature de l'acte</span>
             </div>
-            <input type="date" id="f-acte">
+            <input type="date" id="f-acte" onchange="apprendreDateSaisie('acte', this.value)">
           </div>
 
           <div class="date-block ventebien inactive" id="bloc-ventebien">
@@ -265,7 +265,7 @@
               </label>
               <span>Vente préalable</span>
             </div>
-            <input type="date" id="f-ventebien" disabled>
+            <input type="date" id="f-ventebien" disabled onchange="apprendreDateSaisie('ventebien', this.value)">
           </div>
 
           <div id="autres-list"></div>
