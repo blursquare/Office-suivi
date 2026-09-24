@@ -596,8 +596,8 @@ faisait et ce qui s'est passé, avec une capture d'écran s'il le souhaite. CLAI
 version, l'écran, le dossier ouvert, le navigateur et les dernières erreurs techniques.
 
 - Stockés dans la table `signalements` (capture comprise, réduite à 1600 px).
-- Un signalement **bloquant** part aussitôt vers l'adresse de copie de l'étude (réglage « Envoyer
-  de tous les rappels »), par la même chaîne que les rappels : il faut donc que l'envoi par email soit
+- Un signalement **bloquant** part aussitôt vers l'adresse de copie de l'étude (réglage « Copie de
+  tous les rappels »), par la même chaîne que les rappels : il faut donc que l'envoi par email soit
   configuré et cette adresse renseignée.
 - Tri, doublons, version du correctif et export dans **Réglages › Signalements des
   collaborateurs**. L'export (`signalements-claire-AAAA-MM-JJ.json`) est le fichier à transmettre
