@@ -9,7 +9,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 
-const { envoyerEmail, envoiConfigure, optionsTransport } = require('../src/envoiEmail');
+const { envoyerEmail, envoiConfigure, optionsTransport, memeAdresseEmail } = require('../src/envoiEmail');
 
 const REGLAGES = Object.freeze({
   emailActif: true,
@@ -158,4 +158,12 @@ test('un envoi réussi renvoie le Message-ID (sert à effacer la copie Gmail)', 
   const r = await envoyerEmail(REGLAGES, 'bastien@etude.fr', 'Test', espion.creer);
   assert.equal(r.ok, true);
   assert.equal(r.messageId, 'test');
+});
+
+test('memeAdresseEmail : casse, espaces et forme « Nom <adresse> » ignorés', () => {
+  assert.equal(memeAdresseEmail('Bastien.ANGLUMENT@gossart.notaires.fr', ' bastien.anglument@gossart.notaires.fr '), true);
+  assert.equal(memeAdresseEmail('Bastien ANGLUMENT <bastien.anglument@gossart.notaires.fr>', 'BASTIEN.anglument@gossart.notaires.fr'), true);
+  assert.equal(memeAdresseEmail('bastien@etude.fr', 'julie@etude.fr'), false);
+  assert.equal(memeAdresseEmail('', ''), false);
+  assert.equal(memeAdresseEmail(null, 'x@etude.fr'), false);
 });

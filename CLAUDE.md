@@ -7090,6 +7090,18 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     test : seule celle-ci change (« Sans garanties » → « Caution »). Deux tests dans
     `tests/offre-pret.test.js` (structure de l'offre, noms et montants inventés). **Pour l'étude** :
     un clic sur « Revérifier » suffit à corriger le dossier concerné.
+- **Copie à l'étude : plus de doublon quand le responsable EST l'adresse de copie.** Signalé par
+  l'étude : chaque notification adressée à bastien.anglument@gossart.notaires.fr arrivait deux fois
+  (« c'est moi »). La copie systématique (`reglages.copieEmail`) était bien écartée quand elle
+  coïncidait avec l'adresse du responsable — mais par une comparaison STRICTE (`!==`) : il suffisait
+  que l'une des deux soit saisie « Bastien.ANGLUMENT@… » et l'autre en minuscules pour que les deux
+  envois partent, donc deux messages Teams dans le même chat. `memeAdresseEmail(a, b)`
+  (`server/src/envoiEmail.js`, testée) compare sans casse ni espaces, et lit l'adresse d'une forme
+  « Nom <adresse> » ; utilisée aux deux seuls endroits concernés, `executerTacheRappels`
+  (`jobs/rappels.js`) et `envoyerAuResponsable` (`routes/notifications.js`, qui sert à la fois la
+  notification de pièces trouvées et celle de dossier complet). Tests : +1 dans `rappels.test.js`,
+  un cas ajouté dans `notifications.test.js`, +1 dans `envoi-email.test.js`. Suite serveur
+  274 → 276. Ne parvient à l'étude que par un nouveau `.exe`.
 
 ## Comment tester
 

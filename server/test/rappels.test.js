@@ -353,6 +353,26 @@ test('executerTacheRappels : copieEmail identique à l\'adresse du responsable n
   db.close();
 });
 
+test('executerTacheRappels : copie et responsable écrits avec une casse différente — un seul envoi', async () => {
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  const parametresRepo = creerRepoParametres(db);
+  depot.creer({ id: 'd1', nom: 'X / Y', responsable: 'Bastien ANGLUMENT', pret: '2026-11-11' });
+  parametresRepo.ecrireReglages({
+    emailActif: true, smtpHote: 'smtp.test', emailPasserelle: 'passerelle@etude.fr',
+    copieEmail: 'bastien.anglument@gossart.notaires.fr',
+    emailsResponsables: { 'Bastien ANGLUMENT': 'Bastien.ANGLUMENT@gossart.notaires.fr ' }
+  });
+
+  const envois = [];
+  const envoyerFn = async (reglages, email) => { envois.push(email); return { ok: true }; };
+
+  await executerTacheRappels(depot, db, parametresRepo, envoyerFn, '2026-10-27');
+  assert.equal(envois.length, 1);
+
+  db.close();
+});
+
 test('executerTacheRappels : un échec de la copie n\'empêche pas le rappel principal d\'être marqué envoyé', async () => {
   const db = ouvrirDb(':memory:');
   const depot = creerDepot(db);

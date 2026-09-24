@@ -126,4 +126,13 @@ test('copieEmail : reçoit un double, jamais si elle coïncide avec le destinata
   });
   await appeler('/api/notifications/pieces-recues', { method: 'POST', body: JSON.stringify({ dossierNom: 'DUPONT / MARTIN', responsable: 'Bastien ANGLUMENT', pieces: ['ERP'] }) });
   assert.equal(envois.length, 1);
+
+  // Même boîte écrite avec une autre casse : toujours un seul envoi (doublon signalé par l'étude).
+  envois.length = 0;
+  await appeler('/api/reglages', {
+    method: 'PUT',
+    body: JSON.stringify({ emailActif: true, smtpHote: 'smtp.test', emailPasserelle: 'passerelle@etude.fr', copieEmail: 'bastien.anglument@gossart.notaires.fr', emailsResponsables: { 'Bastien ANGLUMENT': 'Bastien.ANGLUMENT@gossart.notaires.fr' } })
+  });
+  await appeler('/api/notifications/pieces-recues', { method: 'POST', body: JSON.stringify({ dossierNom: 'DUPONT / MARTIN', responsable: 'Bastien ANGLUMENT', pieces: ['ERP'] }) });
+  assert.equal(envois.length, 1);
 });

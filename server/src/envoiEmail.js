@@ -101,4 +101,20 @@ async function envoyerEmail(reglages, destinataireEmail, message, creerTransport
   }
 }
 
-module.exports = { envoyerEmail, envoiConfigure, optionsTransport };
+// Deux adresses désignent-elles la même boîte ? Sert à ne pas envoyer la copie à l'étude quand
+// elle est AUSSI le responsable du dossier : un double identique arriverait sinon dans le même
+// chat Teams. La comparaison ignore la casse et les espaces (« Bastien.ANGLUMENT@… » et
+// « bastien.anglument@… » sont la même boîte — une adresse email n'est pas sensible à la casse
+// en pratique), et lit l'adresse entre chevrons d'une forme « Nom <adresse> ».
+function adresseNormalisee(adresse) {
+  const brut = String(adresse || '').trim();
+  const chevrons = brut.match(/<([^>]+)>/);
+  return (chevrons ? chevrons[1] : brut).trim().toLowerCase();
+}
+
+function memeAdresseEmail(a, b) {
+  const na = adresseNormalisee(a);
+  return na !== '' && na === adresseNormalisee(b);
+}
+
+module.exports = { envoyerEmail, envoiConfigure, optionsTransport, memeAdresseEmail };

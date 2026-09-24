@@ -21,7 +21,7 @@
 // (même choix déjà documenté pour buildEvent/icsDate dans routes/calendrier.js) — en modifiant
 // l'une des deux, vérifier si l'autre a besoin du même changement.
 
-const { envoyerEmail, envoiConfigure } = require('../envoiEmail');
+const { envoyerEmail, envoiConfigure, memeAdresseEmail } = require('../envoiEmail');
 const { mettreCopiesEnAttente, executerNettoyageGmail } = require('../nettoyageGmail');
 const { piecesRecuesEtManquantes } = require('../piecesChecklist');
 
@@ -199,7 +199,7 @@ async function executerTacheRappels(depot, db, parametresRepo, envoyerFn, aujour
       resultat.rappelsEnvoyes++;
       if (envoi.messageId) messagesEnvoyes.push(envoi.messageId);
       marquerStmt.run(r.dossierId, r.reminderKey, new Date().toISOString());
-      if (reglages.copieEmail && reglages.copieEmail !== email) {
+      if (reglages.copieEmail && !memeAdresseEmail(reglages.copieEmail, email)) {
         const copie = await envoyer(reglages, reglages.copieEmail, texte);
         if (copie.ok && copie.messageId) messagesEnvoyes.push(copie.messageId);
         if (!copie.ok) {

@@ -13,7 +13,7 @@
 // projet, pas un second à côté.
 
 const express = require('express');
-const { envoyerEmail, envoiConfigure } = require('../envoiEmail');
+const { envoyerEmail, envoiConfigure, memeAdresseEmail } = require('../envoiEmail');
 const { mettreCopiesEnAttente } = require('../nettoyageGmail');
 const { urlLienPiece, baseDepuisRequete } = require('../liensPieces');
 const { adressesLan } = require('../reseau');
@@ -94,7 +94,7 @@ async function envoyerAuResponsable(parametresRepo, envoyer, reglages, responsab
     resultat.erreurs.push(`${responsable} : aucune adresse email configurée (voir Réglages).`);
   }
 
-  if (reglages.copieEmail && reglages.copieEmail !== email) {
+  if (reglages.copieEmail && !memeAdresseEmail(reglages.copieEmail, email)) {
     const copie = await envoyer(reglages, reglages.copieEmail, message);
     resultat.envoyeCopie = copie.ok;
     if (copie.ok && copie.messageId) messagesEnvoyes.push(copie.messageId);

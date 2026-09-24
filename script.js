@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-24 16:32';
+  const VERSION_APP = '2026-09-24 16:51';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-24 16:51', resume: "Rappels et notifications : quand le responsable du dossier est aussi l'adresse de copie de l'étude, un seul message part, même si les deux adresses sont écrites avec une casse différente." },
     { version: '2026-09-24 16:32', resume: "Une pièce ajoutée à la main et cochée reçue ne se décoche plus à chaque revérification du NAS. Garanties du prêt : le paragraphe « GARANTIE(S) » est reconnu, et les « Garanties » de l'assurance emprunteur ne font plus conclure « Sans garanties » (la caution est de nouveau détectée)." },
     { version: '2026-09-24 16:22', resume: "Noms de fichiers reconnus avec une marge d'erreur : fautes de frappe, mots de référence autour du nom, sigles (CU, CU a, DIA), casse. Le diagnostic du dossier signale « nom approchant » quand c'est le cas. Un décompte de remboursement d'éco-prêt n'est pas pris pour une offre de prêt." },
     { version: '2026-09-24 14:33', resume: "Relecture d'actes : la visionneuse montre la page entière ; vos commentaires du premier essai sont intégrés à la grille (écart Carrez de 5 %, DPE multiples, notaire rédacteur, récapitulatif des diagnostics, pré-état daté, santé et travaux de la copropriété, fonds de travaux, AG, location touristique, honoraires) ; plus d'anomalie en doublon d'un point ni tirée du mandat de l'agence." },
