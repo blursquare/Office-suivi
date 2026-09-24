@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-24 18:00';
+  const VERSION_APP = '2026-09-24 18:05';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-24 18:05', resume: "Pièces : un « Arrêté d'alignement » (avec ou sans accent, « arrêté individuel / portant alignement »…) coche le certificat d'alignement. Fiche : « Signature 7 j avant la date butoir » au lieu de « ce butoir »." },
     { version: '2026-09-24 18:00', resume: "Courrier d'appel de fonds (.docx) : plus de ligne vide sous chaque ligne du décompte sans formule de calcul. Arbitrage forfait mobilier : les coûts habituels (300 € + 600 € + 300 €, un serment à 240 €) sont posés d'office, seules les deux simulations de droits restent à saisir." },
     { version: '2026-09-24 17:30', resume: "Apprentissage : une date corrigée à la main à la création d'un dossier (panneau ou champ « Dates butoir ») est retenue pour les actes suivants, et partagée entre tous les postes. Écrire à l'acquéreur est possible en participation. Nouveau bouton « Réception des fonds », qui rappelle la date du rendez-vous." },
     { version: '2026-09-24 16:51', resume: "Rappels et notifications : quand le responsable du dossier est aussi l'adresse de copie de l'étude, un seul message part, même si les deux adresses sont écrites avec une casse différente." },
@@ -9635,7 +9636,7 @@
       countdownClass = ecart > 0 ? 'passed' : 'recue';
       countdownText = ecart === 0
         ? 'Signature le jour même'
-        : (ecart > 0 ? `Signature ${ecart} j APRÈS ce butoir` : `Signature ${-ecart} j avant ce butoir`);
+        : (ecart > 0 ? `Signature ${ecart} j APRÈS la date butoir` : `Signature ${-ecart} j avant la date butoir`);
     } else if (validee) {
       countdownClass = 'recue';
       countdownText = '✓ Réalisée';
@@ -9678,7 +9679,7 @@
     if (d.ventebien) cartes.push({ iso: d.ventebien, html: renderTab('ventebien', 'Vente préalable', d.ventebien, d.id, d.ventebienPage, confiance.ventebien, null, false, '', false, echeanceValidee(d, 'ventebien')) });
     cartes.push({ iso: d.pret, html: renderTab('pret', 'Obtention du prêt', d.pret, d.id, d.pretPage, confiance.pret, null, d.offrePretStatut === 'recue', offreBloc, d.sansPret, echeanceValidee(d, 'pret')) });
     // La date butoir reste affichée une fois le rendez-vous fixé, mais devient indicative : le
-    // 12e argument lui fait afficher l'écart (« signature 5 j APRÈS ce butoir ») au lieu d'un
+    // 12e argument lui fait afficher l'écart (« signature 5 j APRÈS la date butoir ») au lieu d'un
     // décompte, voir renderTab.
     cartes.push({ iso: d.acte, html: renderTab('acte', 'Date butoir', d.acte, d.id, d.actePage, confiance.acte, null, false, '', false, echeanceValidee(d, 'acte'), d.acte ? (d.rendezVousSignature || '') : '') });
     // Trois raisons d'afficher l'appel de fonds, et il faut les trois — la règle d'origine
@@ -13919,7 +13920,7 @@
     // "certificat" devant que s'il est à proximité immédiate (20 caractères) du mot "numérotage",
     // dans un ordre ou l'autre : c'est spécifiquement le document combiné qui est visé, pas
     // n'importe quel fichier mentionnant "alignement".
-    { cle: 'certificatAlignement', label: "Certificat d'alignement", motifNom: /certificat\s+d?[’']?\s*alignement|courriel\s+(?:d['’]\s*)?alignement|alignement.{0,20}num[ée]\s?rotage|num[ée]\s?rotage.{0,20}alignement/i },
+    { cle: 'certificatAlignement', label: "Certificat d'alignement", motifNom: /certificat\s+d?[’']?\s*alignement|arr[êe]t[ée]s?[\s'’][^.]{0,30}?alignement|courriel\s+(?:d['’]\s*)?alignement|alignement.{0,20}num[ée]\s?rotage|num[ée]\s?rotage.{0,20}alignement/i },
     // \s? après l'accent : un fichier réel de l'étude a été nommé "...nume_rotage..." (le mot
     // "numérotage" coupé en deux à l'endroit de l'accent, très probablement une frappe accidentelle
     // d'espace dans "numé rotage" avant conversion espace→underscore) — voir CLAUDE.md.
@@ -14178,7 +14179,7 @@
   // leur motifNom est déjà une combinaison (« RIB » + « syndic ») qu'une forme libre affaiblirait.
   var FORMES_NOM_PIECES = {
     certificatUrbanisme: ['certificat urbanisme', 'cu', 'reponse urbanisme'],
-    certificatAlignement: ['certificat alignement', 'courriel alignement', 'alignement numerotage', 'numerotage alignement'],
+    certificatAlignement: ['certificat alignement', 'arrete alignement', 'courriel alignement', 'alignement numerotage', 'numerotage alignement'],
     certificatNumerotage: ['numerotage'],
     reponseAssainissement: ['assainissement', 'spanc'],
     renonciationPreemption: ['preemption', 'dpu', 'dia', 'declaration intention aliener'],

@@ -269,14 +269,14 @@ test('la date butoir ne figure JAMAIS au planning, rendez-vous fixé ou non', ()
 test('renderTab : la date butoir remplacée affiche l\'écart avec le rendez-vous, pas un décompte', () => {
   const app = chargerApplication();
   const apres = app.renderTab('acte', 'Date butoir', '2026-10-01', 'd1', null, null, null, false, '', false, true, '2026-10-06');
-  assert.ok(apres.includes('Signature 5 j APRÈS ce butoir'), apres);
+  assert.ok(apres.includes('Signature 5 j APRÈS la date butoir'), apres);
   assert.ok(apres.includes('tab-countdown passed'));
   // Aucun bouton de validation : ce n'est pas une décision manuelle, l'annuler n'annulerait rien.
   assert.ok(!apres.includes('devaliderEcheance'));
   assert.ok(!apres.includes('validerEcheance'));
 
   const avant = app.renderTab('acte', 'Date butoir', '2026-10-10', 'd1', null, null, null, false, '', false, true, '2026-10-07');
-  assert.ok(avant.includes('Signature 3 j avant ce butoir'), avant);
+  assert.ok(avant.includes('Signature 3 j avant la date butoir'), avant);
   assert.ok(avant.includes('tab-countdown recue'));
 
   const memeJour = app.renderTab('acte', 'Date butoir', '2026-10-10', 'd1', null, null, null, false, '', false, true, '2026-10-10');
@@ -284,7 +284,7 @@ test('renderTab : la date butoir remplacée affiche l\'écart avec le rendez-vou
 
   // Sans rendez-vous, le comportement d'origine est intact.
   const normal = app.renderTab('acte', 'Date butoir', '2026-10-01', 'd1', null, null, null, false, '', false, false, '');
-  assert.ok(!normal.includes('ce butoir'));
+  assert.ok(!normal.includes('la date butoir'));
   assert.ok(normal.includes('validerEcheance'));
 });
 

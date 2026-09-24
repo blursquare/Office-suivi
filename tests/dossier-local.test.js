@@ -494,3 +494,28 @@ test('« Courriel (d’)alignement (et) (de) numérotage » coche les DEUX pièc
     assert.ok(numerotage.motifNom.test(n), `numérotage devrait reconnaître "${nom}"`);
   }
 });
+
+test('motifNom reconnaît le certificat d\'alignement pris sous forme d\'arrêté, avec ou sans accent', () => {
+  // Signalé par l'étude : l'alignement est parfois délivré par un ARRÊTÉ (« Arrêté d'alignement »).
+  const app = chargerApplication();
+  const alignement = app.checklistPieces('maison').find(p => p.cle === 'certificatAlignement');
+  const noms = [
+    "Arrêté d'alignement.pdf", 'Arrete alignement.pdf', 'arrêté_d_alignement.pdf',
+    "ARRETE D'ALIGNEMENT.pdf", "ARRÊTÉ D’ALIGNEMENT.pdf", "Arrêté individuel d'alignement.pdf",
+    'Arrêté portant alignement.pdf', "Arrêté municipal portant alignement individuel.pdf",
+    'Arretes-alignement-2026.pdf',
+  ];
+  for (const nom of noms) {
+    const n = app.normaliserNomPourMotif(nom);
+    assert.ok(alignement.motifNom.test(n) || app.correspondancePieceNom(alignement, n),
+      `certificatAlignement devrait reconnaître "${nom}"`);
+  }
+  // Forme tolérante : une faute de frappe sur « alignement » est rattrapée.
+  assert.ok(app.correspondancePieceNom(alignement, app.normaliserNomPourMotif('Arrete alignemnt.pdf')));
+  // Garde-fous : un arrêté sans rapport, et l'alignement cité en passant, ne suffisent pas.
+  for (const nom of ['Arrêté de permis de construire.pdf', "Certificat d'urbanisme - réponse alignement voirie.pdf"]) {
+    const n = app.normaliserNomPourMotif(nom);
+    assert.equal(alignement.motifNom.test(n), false, nom);
+    assert.ok(!app.correspondancePieceNom(alignement, n), nom);
+  }
+});

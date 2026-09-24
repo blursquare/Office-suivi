@@ -7192,6 +7192,16 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     Chromium : coûts présents à l'ouverture, prisée modifiée conservée après un aller-retour
     d'onglet, retour aux coûts habituels après « Réinitialiser ». Suite racine 773 → 774.
 
+- **Certificat d'alignement sous forme d'ARRÊTÉ, et libellé de l'écart au butoir** (24/09) :
+  - `certificatAlignement.motifNom` accepte `arr[êe]t[ée]s?[\s'’][^.]{0,30}?alignement` : « Arrêté
+    d'alignement », « Arrete alignement », « arrêté_d_alignement », « Arrêté individuel / portant
+    alignement »… Le mot « arrêté » doit être présent : un « alignement » nu reste refusé (garde-fou
+    « réponse alignement voirie » retesté). Forme tolérante `'arrete alignement'` ajoutée à
+    `FORMES_NOM_PIECES`. Pas de `\b` après « arrêté » : un `\b` après une lettre accentuée ne
+    matche jamais (piège déjà documenté). Test dans `tests/dossier-local.test.js`.
+  - La carte « Date butoir » affiche « Signature 7 j avant la date butoir » (et « APRÈS la date
+    butoir ») au lieu de « ce butoir », demandé par l'étude.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à
