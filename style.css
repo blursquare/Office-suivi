@@ -671,12 +671,12 @@
     line-height: 1;
   }
 
-  /* Ne porte plus que le bouton d'installation : masqué avec lui (voir afficherBoutonInstallation). */
+  /* « Signaler un problème » (toujours) et le bouton d'installation (quand il est proposé). */
   .sidebar-footer {
     margin-top: auto;
     padding-top: 14px;
     border-top: 1px solid var(--line-soft);
-    display: none;
+    display: flex;
     flex-direction: column;
     gap: 2px;
   }
@@ -5229,3 +5229,84 @@ button.gantt-ligne:hover { background: var(--paper-sunk); }
 @media (max-width: 640px) {
   .gantt-ligne { grid-template-columns: 120px 1fr; }
 }
+
+/* ==== Signalements de problèmes (voir ouvrirSignalement / renderSignalements dans script.js) ==== */
+.sidebar-link.sidebar-signaler { color: var(--ink-soft); }
+.sidebar-link.sidebar-signaler:hover { color: var(--ink); }
+
+/* Formulaire : plus large que les confirmations courtes, et défilant sur un petit écran. */
+.confirm-box.signalement-box {
+  max-width: 540px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.signalement-titre { margin: 0; font-size: 18px; }
+.confirm-box.signalement-box p.hint { margin: 0; font-size: 13px; color: var(--muted); }
+.signalement-champ-bloc { display: flex; flex-direction: column; gap: 6px; }
+.signalement-libelle { font-size: 13px; font-weight: 600; color: var(--ink); }
+.signalement-box textarea { min-height: 56px; }
+.signalement-gravite { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+/* Plus spécifique que .confirm-box button (padding, rayon) : ce sont des choix, pas des actions. */
+.confirm-box .signalement-gravite button {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+  padding: 9px 10px; border-radius: 8px; text-align: left;
+  border: 1px solid var(--line); background: var(--paper-card); color: var(--ink);
+}
+.confirm-box .signalement-gravite button:hover { border-color: var(--ink-soft); }
+.confirm-box .signalement-gravite button[aria-pressed="true"] {
+  border-color: var(--focus);
+  background: color-mix(in srgb, var(--focus) 9%, var(--paper-card));
+  box-shadow: inset 0 0 0 1px var(--focus);
+}
+.signalement-gravite .hint { font-size: 11.5px; margin: 0; }
+.signalement-capture { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.signalement-capture .hint { margin: 0; font-size: 12px; color: var(--muted); }
+.signalement-capture img {
+  max-width: 100%; max-height: 180px; border: 1px solid var(--line); border-radius: 6px; display: block;
+}
+.signalement-capture-btn { cursor: pointer; }
+.confirm-box.signalement-box p.signalement-contexte-ligne { font-size: 12px; }
+.confirm-box.signalement-box p.signalement-erreur { margin: 0; font-size: 13px; color: var(--urgent); min-height: 0; }
+.confirm-box.signalement-box p.signalement-erreur:empty { display: none; }
+@media (max-width: 480px) {
+  .signalement-gravite { grid-template-columns: 1fr; }
+}
+
+/* Tri dans les Réglages. */
+.reglages-signalements-tete { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+.reglages-signalements-tete .dash-section-titre { margin: 0; }
+.signalements-filtres { margin: 12px 0; flex-wrap: wrap; }
+.signalements-compte { font-variant-numeric: tabular-nums; opacity: 0.7; margin-left: 2px; }
+.signalements-liste { display: flex; flex-direction: column; gap: 10px; }
+/* Liseré de gravité, comme les constats de la relecture d'actes. */
+.signalement {
+  border: 1px solid var(--line); border-left: 3px solid var(--line);
+  border-radius: 8px; padding: 12px 14px; background: var(--paper-card);
+  display: flex; flex-direction: column; gap: 8px; min-width: 0;
+}
+.signalement.signalement-bloquant { border-left-color: var(--urgent); }
+.signalement.signalement-genant { border-left-color: var(--pret); }
+.signalement-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.signalement-quand { margin: 0; font-variant-numeric: tabular-nums; }
+.signalement-tete select.signalement-statut { width: auto; margin-left: auto; padding: 4px 8px; font-size: 13px; }
+.signalement-texte { margin: 0; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.signalement-texte .section-eyebrow { display: block; margin-bottom: 2px; }
+.signalement-lieu { margin: 0; }
+.signalement-details summary { cursor: pointer; font-size: 12.5px; color: var(--ink-soft); }
+.signalement-details ul { margin: 6px 0; padding-left: 18px; font-size: 12.5px; }
+.signalement-details code { overflow-wrap: anywhere; }
+.signalement-details .hint { margin: 4px 0 0; overflow-wrap: anywhere; }
+.signalement-capture-zone img { max-width: 100%; max-height: 360px; object-fit: contain; border: 1px solid var(--line); border-radius: 6px; display: block; }
+.signalement-capture-zone:empty { display: none; }
+.signalement-actions { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; }
+.signalement-champ { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); min-width: 0; }
+.signalement-champ.signalement-note { flex: 1 1 200px; }
+/* Élément + 2 classes : l'emporte sur input[type="text"] et select génériques (voir CLAUDE.md). */
+.signalement-actions input.signalement-input,
+.signalement-actions select.signalement-input { width: 100%; max-width: 260px; padding: 5px 8px; font-size: 13px; }
+.signalement-actions .signalement-note input.signalement-input { max-width: none; }
+.signalement-actions .signalement-suppr { margin-left: auto; }

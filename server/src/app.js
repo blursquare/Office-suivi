@@ -22,6 +22,7 @@ const { creerRouteurExclusionsPieces } = require('./routes/exclusionsPieces');
 const { creerRouteurCorrectionsApprises } = require('./routes/correctionsApprises');
 const { creerRouteurRelectureClaude } = require('./routes/relectureClaude');
 const { creerRouteurRelectures } = require('./routes/relectures');
+const { creerRouteurSignalements } = require('./routes/signalements');
 
 // Fichier statique → nom d'asset embarqué (voir server/scripts/build-windows-exe.mjs, section
 // `assets` de sea-config.json) + type MIME à renvoyer. Tous des fichiers texte (HTML/CSS/JS/JSON/
@@ -123,6 +124,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude }) {
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurCorrectionsApprises(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRelectureClaude(parametresRepo, db, { creerClient: creerClientClaude }));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRelectures(db));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurSignalements(db, parametresRepo, envoyerEmailFn));
 
   // Gestionnaire d'erreurs générique en dernier recours : évite qu'une exception inattendue
   // (JSON malformé, etc.) ne fasse planter le processus entier plutôt que de répondre 500.

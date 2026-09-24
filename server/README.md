@@ -589,6 +589,23 @@ Ces routes sont protégées par le mot de passe partagé, comme le reste de `/ap
 relecture : **il contient les clauses citées des actes**, à traiter avec la même discrétion que les
 actes eux-mêmes.
 
+## Signalements des collaborateurs
+
+Bouton « Signaler un problème » en bas de la barre latérale : chaque collaborateur décrit ce qu'il
+faisait et ce qui s'est passé, avec une capture d'écran s'il le souhaite. CLAIRE y joint la
+version, l'écran, le dossier ouvert, le navigateur et les dernières erreurs techniques.
+
+- Stockés dans la table `signalements` (capture comprise, réduite à 1600 px).
+- Un signalement **bloquant** part aussitôt vers l'adresse de copie de l'étude (réglage « Envoyer
+  de tous les rappels »), par la même chaîne que les rappels : il faut donc que l'envoi par email soit
+  configuré et cette adresse renseignée.
+- Tri, doublons, version du correctif et export dans **Réglages › Signalements des
+  collaborateurs**. L'export (`signalements-claire-AAAA-MM-JJ.json`) est le fichier à transmettre
+  pour correction.
+- Routes (authentifiées) : `POST /api/signalements`, `GET /api/signalements`,
+  `GET /api/signalements/:id`, `PATCH /api/signalements/:id`, `DELETE /api/signalements/:id`,
+  `GET /api/signalements/export?statut=nouveau|transmis|corrige|doublon|ecarte|tous`.
+
 ## Service Windows (démarrage automatique, redémarrage seul en cas de plantage)
 
 Par défaut, `CLAIRE-serveur.exe` reste un simple exécutable : il tourne tant que sa fenêtre de

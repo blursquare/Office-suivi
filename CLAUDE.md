@@ -7283,6 +7283,48 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     enregistrée puis rouverte depuis la liste avec son bandeau et l'aperçu vide expliqué, aucun
     débordement, aucune erreur JS.
 
+- **« Signaler un problème » : remontée des bugs par les équipes, triée par l'étude seule**
+  (24/09 soir). Après la présentation de CLAIRE aux collaborateurs, l'étude a demandé comment
+  organiser la remontée des problèmes, puis tranché : « tout passe par moi ».
+  - **Côté collaborateur** : un bouton « Signaler un problème » en bas de la barre latérale, sur
+    tous les écrans (le pied de sidebar est donc toujours visible ; `afficherBoutonInstallation`
+    ne masque plus que le bouton d'installation). Formulaire `#signalement-overlay` (patron
+    `.confirm-overlay`) : gravité (bloquant / gênant / idée), qui signale (liste `RESPONSABLES` +
+    « Autre », retenu par poste en `localStorage`), ce que je faisais, ce qui s'est passé à la
+    place, capture d'écran facultative (fichier ou Ctrl+V, ramenée à 1600 px en JPEG par
+    `dimensionsCaptureReduite`). **Joint sans rien demander, et affiché avant l'envoi**
+    (`resumeContexteSignalement`) : `VERSION_APP`, l'écran (`ongletActuel`, posé par
+    `definirOnglet`), le dossier ouvert dans le tiroir, le navigateur, la taille de fenêtre et les
+    **dernières erreurs JavaScript** — tampon `erreursRecentes` alimenté par `window.onerror` et
+    `unhandledrejection`, posé en tête de `script.js` pour attraper aussi le démarrage, gardé en
+    mémoire seulement (`ajouterErreurTampon`, borné à 10, sans doublon consécutif). C'est souvent
+    lui qui donne la cause qu'un collaborateur ne peut pas décrire.
+  - **Côté serveur** (`server/src/routes/signalements.js`, table `signalements`) : création
+    ouverte à tout poste connecté ; liste sans les captures (chargées une à une) ; `PATCH` pour le
+    tri (statut `nouveau` / `transmis` / `corrige` / `doublon` / `ecarte`, note, version du
+    correctif, doublon — jamais de lui-même ni d'une origine inconnue) ; export JSON captures
+    comprises (`GET /api/signalements/export`, par défaut les « nouveaux ») ; suppression, qui
+    remet à trier les doublons qui pointaient vers l'original. **Un bloquant prévient l'étude sur
+    le moment** par la chaîne des rappels (email → passerelle → Teams), à l'adresse de COPIE de
+    l'étude (`reglages.copieEmail`) — l'adresse qui reçoit déjà tout, et aucun nom écrit en dur.
+    Un échec d'envoi ne perd jamais le signalement, déjà enregistré.
+  - **Côté étude** : carte « Signalements des collaborateurs » dans les Réglages (filtres À trier
+    / Transmis / Traités / Tous, liseré de gravité, détails techniques repliés, capture au clic,
+    statut, doublon, version corrigée, note) et compteur rouge sur « Réglages » tant qu'il reste
+    des signalements à trier (relu toutes les 5 min). « Exporter les signalements à trier »
+    télécharge `signalements-claire-AAAA-MM-JJ.json` puis propose de les marquer « transmis »,
+    pour que l'export suivant ne reprenne que les nouveaux. **Ce fichier est ce que l'étude me
+    transmet** : le lire commence par le contexte (version — vérifier d'abord qu'elle n'est pas
+    antérieure au correctif, piège déjà payé plusieurs fois — puis les erreurs JS).
+  - **Limite assumée** : pas de compte par collaborateur (mot de passe partagé) — la séparation
+    « signaler / trier » est une affaire d'écran, pas de droits. Tout poste peut ouvrir les
+    Réglages ; c'est dit dans la carte elle-même.
+  - Tests : `server/test/signalements.test.js` (5), `tests/signalements.test.js` (4). Suite
+    racine 787, serveur 289. Vérifié dans un vrai Chromium (clair, sombre, 400 px) : envoi d'un
+    bloquant avec capture puis d'un gênant, compteur à 2, capture ouverte dans les Réglages, export
+    avec capture JPEG et contexte, passage en « transmis », erreur JS de test bien jointe, dossier
+    ouvert repris dans le contexte, Échap qui ferme, aucun débordement, aucune erreur JS.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

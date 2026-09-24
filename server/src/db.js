@@ -74,6 +74,27 @@ const SCHEMA = `
   );
   CREATE INDEX IF NOT EXISTS idx_relectures_created ON relectures(created_at);
 
+  -- Signalements de problèmes par les collaborateurs (bouton « Signaler un problème ») : triés et
+  -- exportés par l'étude depuis les Réglages, voir routes/signalements.js. La capture d'écran, si
+  -- elle est jointe, est gardée ici en data-URI (réduite côté client).
+  CREATE TABLE IF NOT EXISTS signalements (
+    id TEXT PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    gravite TEXT NOT NULL,
+    statut TEXT NOT NULL DEFAULT 'nouveau',
+    auteur TEXT,
+    action TEXT,
+    constat TEXT,
+    contexte TEXT,
+    capture TEXT,
+    note TEXT,
+    version_corrige TEXT,
+    doublon_de TEXT,
+    notifie INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE INDEX IF NOT EXISTS idx_signalements_created ON signalements(created_at);
+
   CREATE TABLE IF NOT EXISTS parametres (
     cle TEXT PRIMARY KEY,
     valeur TEXT NOT NULL

@@ -89,10 +89,17 @@
            de configuration ni redemander à Claude Code — voir server/src/parametresRepo.js. -->
       <button type="button" id="tab-reglages" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('reglages')">
         <span class="sidebar-link-icone" id="icon-nav-reglages" aria-hidden="true"></span>Réglages
+        <!-- Signalements de problèmes encore à trier (voir majBadgeSignalementsDepuis). -->
+        <span class="sidebar-badge-notif" id="badge-signalements-reglages" style="display:none;"></span>
       </button>
     </nav>
 
     <div class="sidebar-footer">
+      <!-- Remontée des problèmes par les équipes (voir ouvrirSignalement dans script.js) : sur tous
+           les écrans, et le signalement part vers l'étude, qui trie et transmet. -->
+      <button type="button" class="sidebar-link sidebar-signaler" onclick="ouvrirSignalement()">
+        <span class="sidebar-link-icone" id="icon-signaler" aria-hidden="true"></span>Signaler un problème
+      </button>
       <button type="button" class="sidebar-link install-btn" id="install-btn" style="display:none;" onclick="installerApplication()">
         <span class="sidebar-link-icone" id="icon-install" aria-hidden="true"></span>Installer l'application
       </button>
@@ -1502,6 +1509,17 @@
     <div id="reglages-exclusions"></div>
   </div>
 
+  <!-- Signalements des collaborateurs (bouton « Signaler un problème ») : l'étude les trie ici
+       et exporte ceux à transmettre. Voir routes/signalements.js. -->
+  <div class="calc-card" id="reglages-carte-signalements">
+    <div class="reglages-signalements-tete">
+      <div class="dash-section-titre">Signalements des collaborateurs</div>
+      <button type="button" class="secondary" onclick="exporterSignalements()">Exporter les signalements à trier</button>
+    </div>
+    <p class="hint">Chacun signale un problème depuis le bas de la barre latérale ; un problème bloquant vous prévient aussi sur Teams (adresse « Copie de tous les rappels »). Triez ici, puis exportez le fichier et transmettez-le pour correction. Une fois corrigé, passez le signalement en « Corrigé » avec la version indiquée dans « À propos ».</p>
+    <div id="reglages-signalements"><p class="hint">Chargement…</p></div>
+  </div>
+
   <div class="calc-card reglages-apropos">
     <div>
       <div class="dash-section-titre">À propos de Claire</div>
@@ -1660,6 +1678,46 @@
     <p id="info-action-message"></p>
     <div class="confirm-actions">
       <button type="button" class="btn-annuler" onclick="fermerInfoAction()">Compris</button>
+    </div>
+  </div>
+</div>
+
+<!-- Signaler un problème (voir ouvrirSignalement dans script.js). Le contexte technique est joint
+     sans rien demander ; le collaborateur ne décrit que ce qu'il faisait et ce qu'il a vu. -->
+<div class="confirm-overlay" id="signalement-overlay" style="display:none;" onclick="fermerSignalement()">
+  <div class="confirm-box signalement-box" role="dialog" aria-modal="true" aria-labelledby="signalement-titre" onclick="event.stopPropagation()" onpaste="collerCaptureSignalement(event)">
+    <h2 id="signalement-titre" class="signalement-titre">Signaler un problème</h2>
+    <p class="hint">Le signalement part vers l'étude, qui le transmet pour correction.</p>
+    <div class="signalement-champ-bloc">
+      <span class="signalement-libelle">Gravité</span>
+      <div class="signalement-gravite" role="group" aria-label="Gravité">
+        <button type="button" data-gravite="bloquant" aria-pressed="false" onclick="choisirGraviteSignalement('bloquant')"><span class="dot-label dl-urgent"><span class="dot"></span>Bloquant</span><span class="hint">Je ne peux pas continuer.</span></button>
+        <button type="button" data-gravite="genant" aria-pressed="false" onclick="choisirGraviteSignalement('genant')"><span class="dot-label dl-pret"><span class="dot"></span>Gênant</span><span class="hint">Ça marche mal.</span></button>
+        <button type="button" data-gravite="idee" aria-pressed="false" onclick="choisirGraviteSignalement('idee')"><span class="dot-label dl-neutre"><span class="dot"></span>Idée</span><span class="hint">Ce serait mieux si…</span></button>
+      </div>
+    </div>
+    <label class="signalement-champ-bloc" for="signalement-auteur">
+      <span class="signalement-libelle">Qui signale ?</span>
+      <select id="signalement-auteur"></select>
+    </label>
+    <label class="signalement-champ-bloc" for="signalement-action">
+      <span class="signalement-libelle">Ce que vous faisiez</span>
+      <textarea id="signalement-action" rows="2" placeholder="Ex. : j'ouvrais la fiche du dossier DUPONT et je cliquais sur « Ouvrir le compromis »"></textarea>
+    </label>
+    <label class="signalement-champ-bloc" for="signalement-constat">
+      <span class="signalement-libelle">Ce qui s'est passé à la place</span>
+      <textarea id="signalement-constat" rows="3" placeholder="Ex. : rien ne s'est ouvert, alors que le fichier est bien dans le dossier du NAS"></textarea>
+    </label>
+    <div class="signalement-champ-bloc">
+      <span class="signalement-libelle">Capture d'écran <span class="hint">(facultatif)</span></span>
+      <div id="signalement-capture" class="signalement-capture"></div>
+      <input type="file" id="signalement-fichier" accept="image/*" hidden onchange="joindreCaptureSignalement(this.files[0])">
+    </div>
+    <p class="hint signalement-contexte-ligne">Joint automatiquement : <span id="signalement-contexte"></span>.</p>
+    <p class="signalement-erreur" id="signalement-erreur" role="alert"></p>
+    <div class="confirm-actions">
+      <button type="button" class="btn-annuler" onclick="fermerSignalement()">Annuler</button>
+      <button type="button" class="btn-confirmer btn-valider" id="signalement-envoyer" onclick="envoyerSignalement()">Envoyer le signalement</button>
     </div>
   </div>
 </div>

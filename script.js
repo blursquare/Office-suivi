@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-24 19:07';
+  const VERSION_APP = '2026-09-24 19:34';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-24 19:34', resume: "Nouveau bouton « Signaler un problème » en bas de la barre latérale : gravité, ce que vous faisiez, ce qui s'est passé, capture d'écran facultative ; la version, l'écran, le dossier ouvert et les erreurs techniques sont joints tout seuls. Un problème bloquant prévient l'étude sur Teams. Tri, doublons et export dans Réglages › Signalements des collaborateurs." },
     { version: '2026-09-24 19:07', resume: "Relecture d'actes : bilan réorganisé (résumé et contrôle CLAIRE de l'acte en haut, thèmes avec « à surveiller » et « validé » côte à côte, aperçu toujours ouvert), grille adaptée maison / copropriété / terrain à bâtir, commentaires en deux lignes, analyses passées enregistrées et rouvrables. Tableau de bord : J- avant la date butoir du prêt à côté d'une offre introuvable, dossiers actifs en vert." },
     { version: '2026-09-24 18:10', resume: "Fenêtres de confirmation : le bouton dit ce qui va se passer (Retirer, Réinitialiser, Vider, Effacer en rouge ; Valider, Importer, Mettre à jour en bleu) au lieu de « Supprimer » partout." },
     { version: '2026-09-24 18:08', resume: "Valider une pièce à la main : le bouton de confirmation dit « Valider » (en bleu) et non plus « Supprimer »." },
@@ -147,6 +148,45 @@
       + "délivrés avant le 28 novembre 2025 relèvent de l'ancien régime du recours gracieux, signalé comme tel." },
   ];
 
+  // Dernières erreurs techniques de la page, jointes automatiquement à un signalement de problème
+  // (voir envoyerSignalement) : un collaborateur décrit ce qu'il voit, pas la pile d'erreur qu'il
+  // ne voit pas — c'est souvent elle qui donne la cause. Posé ici, en tête de fichier, pour
+  // attraper aussi les erreurs du démarrage. Gardé en mémoire seulement, jamais stocké.
+  var MAX_ERREURS_TAMPON = 10;
+  var erreursRecentes = [];
+
+  // Pure et testable : ajoute une erreur au tampon, sans doublon consécutif, borné.
+  function ajouterErreurTampon(tampon, entree, max) {
+    if (!entree || !entree.message) return tampon;
+    const derniere = tampon[tampon.length - 1];
+    if (derniere && derniere.message === entree.message && derniere.source === entree.source) {
+      derniere.fois = (derniere.fois || 1) + 1;
+      derniere.at = entree.at;
+      return tampon;
+    }
+    tampon.push({ message: String(entree.message).slice(0, 500), source: entree.source || '', at: entree.at || '' });
+    while (tampon.length > (max || MAX_ERREURS_TAMPON)) tampon.shift();
+    return tampon;
+  }
+
+  if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+    window.addEventListener('error', (e) => {
+      ajouterErreurTampon(erreursRecentes, {
+        message: (e && e.message) || 'Erreur',
+        source: e && e.filename ? `${String(e.filename).split('/').pop()}:${e.lineno || '?'}` : '',
+        at: new Date().toISOString()
+      });
+    });
+    window.addEventListener('unhandledrejection', (e) => {
+      const r = e && e.reason;
+      ajouterErreurTampon(erreursRecentes, {
+        message: (r && (r.message || String(r))) || 'Promesse rejetée',
+        source: 'promesse',
+        at: new Date().toISOString()
+      });
+    });
+  }
+
   const STORAGE_KEY = 'dossiers';
   let dossiers = [];
   let detectedDates = []; // {iso, label, contexte, suggestion}
@@ -235,6 +275,8 @@
     // Réglages : une vraie roue crantée (anneau + trou central + 8 dents), demandée par l'étude
     // à la place de l'ancien glyphe en étoile (cercle + rayons, sans anneau — trop proche d'un
     // soleil qu'd'un engrenage). Même trait que le reste du jeu.
+    // Drapeau : « Signaler un problème ».
+    flag: '<path d="M3.6 14.4V2.2"/><path d="M3.6 2.8h8.6l-1.9 3.1 1.9 3.1H3.6" stroke-linejoin="round"/>',
     settings: '<circle cx="8" cy="8" r="4.6"/><circle cx="8" cy="8" r="1.6"/><line x1="12.6" y1="8" x2="14.1" y2="8"/><line x1="11.3" y1="4.7" x2="12.3" y2="3.7"/><line x1="8" y1="3.4" x2="8" y2="1.9"/><line x1="4.7" y1="4.7" x2="3.7" y2="3.7"/><line x1="3.4" y1="8" x2="1.9" y2="8"/><line x1="4.7" y1="11.3" x2="3.7" y2="12.3"/><line x1="8" y1="12.6" x2="8" y2="14.1"/><line x1="11.3" y1="11.3" x2="12.3" y2="12.3"/>'
   };
   // `cls` porte les classes de mise en page (taille via font-size hérité, marge...) ; `spin` anime
@@ -10532,7 +10574,17 @@
     scrim.classList.toggle('visible', ouverte);
   }
 
+  // Écran affiché, joint au contexte d'un signalement de problème (voir contexteSignalement).
+  var ongletActuel = 'dashboard';
+  var LIBELLES_ONGLETS = {
+    dashboard: 'Tableau de bord', nouveau: 'Nouveau dossier', suivi: 'Suivi des dossiers',
+    calculateur: 'Simulateur de provision', prorata: 'Prorata & répartitions', 'appel-fonds': 'Appel de fonds',
+    inventaire: 'Arbitrage forfait mobilier', quotites: "Quotités d'acquisition", 'analyse-ia': "Relecture d'actes",
+    reglages: 'Réglages'
+  };
+
   function definirOnglet(nom) {
+    ongletActuel = nom;
     // Sur mobile, choisir une section referme la sidebar repliable (voir toggleSidebarMobile).
     toggleSidebarMobile(false);
     document.getElementById('onglet-dashboard').style.display = nom === 'dashboard' ? '' : 'none';
@@ -10574,7 +10626,7 @@
     // installé/démarré/arrêté sur le serveur depuis la dernière visite de cet onglet.
     // Réglages relus à chaque ouverture (un collègue a pu les modifier depuis un autre poste,
     // même principe que la disponibilité d'Ollama ci-dessus).
-    if (nom === 'reglages') { chargerReglages(); chargerReglagesClaude(); }
+    if (nom === 'reglages') { chargerReglages(); chargerReglagesClaude(); chargerSignalements(); }
     if (nom === 'analyse-ia') initRelecture();
     // Date du jour et bornes de période posées au premier affichage seulement (voir initProrata).
     if (nom === 'prorata') initProrata();
@@ -12962,6 +13014,10 @@
     // de bord apparaisse sans qu'on ait à ouvrir les Réglages.
     chargerEtatSauvegarde();
     setInterval(chargerEtatSauvegarde, 60 * 60 * 1000);
+    // Compteur des signalements à trier sur « Réglages » : relu au démarrage puis toutes les
+    // 5 minutes — un signalement fait sur un autre poste doit finir par apparaître ici aussi.
+    majBadgeSignalements();
+    setInterval(majBadgeSignalements, 5 * 60 * 1000);
     revérifierDossiersLiesAuDemarrage().catch(e => console.error('Relecture des dossiers NAS', e));
   }
 
@@ -13360,6 +13416,398 @@
       <li><span class="exclusions-nom">${escapeHtml(l.nom)}</span>
         <span class="hint">n'est plus reconnu comme « ${escapeHtml(libellePieceParCle(l.cle))} »</span>
         <button type="button" class="action-rapide" onclick="retirerExclusionPiece('${escapeOnclickArg(l.cle)}', '${escapeOnclickArg(l.nom)}')">Rétablir</button></li>`).join('')}</ul>`;
+  }
+
+  // ==== SIGNALEMENTS DE PROBLÈMES ====
+  //
+  // Demandé par l'étude après la présentation de CLAIRE aux équipes : « comment organiser la
+  // remontée des bugs qu'ils peuvent me donner ? », puis « tout passe par moi ». D'où :
+  //   - un bouton « Signaler un problème » en bas de la barre latérale, sur tous les écrans, qui
+  //     joint tout seul ce qu'un collaborateur ne saurait pas dire (version, écran, dossier ouvert,
+  //     navigateur, dernières erreurs techniques) — il n'a qu'à décrire ce qu'il faisait et ce qu'il
+  //     a vu ;
+  //   - le tri (statut, doublon, version du correctif) et l'export se font dans les Réglages, par
+  //     l'étude, qui transmet le fichier exporté à Claude Code.
+  // Un signalement « bloquant » la prévient tout de suite sur Teams (voir routes/signalements.js).
+
+  var GRAVITES_SIGNALEMENT = {
+    bloquant: { texte: 'Bloquant', dl: 'dl-urgent', aide: "Je ne peux pas continuer mon travail." },
+    genant: { texte: 'Gênant', dl: 'dl-pret', aide: "Ça marche, mais mal ou pas comme prévu." },
+    idee: { texte: "Idée d'amélioration", dl: 'dl-neutre', aide: "Ce serait mieux si…" }
+  };
+  var STATUTS_SIGNALEMENT = {
+    nouveau: 'À trier', transmis: 'Transmis', corrige: 'Corrigé', doublon: 'Doublon', ecarte: 'Écarté'
+  };
+  var CLE_AUTEUR_SIGNALEMENT = 'signalement-auteur';
+  // Une capture plein écran sur un grand moniteur pèse plusieurs Mo en PNG : elle est ramenée à
+  // cette largeur, en JPEG, avant l'envoi — assez pour lire un message d'erreur, sans alourdir la
+  // base ni l'export.
+  var LARGEUR_MAX_CAPTURE = 1600;
+
+  let signalementEnCours = { gravite: '', capture: '' };
+  let signalementsCharges = [];
+  let filtreSignalements = 'a-trier';
+
+  // Pure : dimensions d'une capture réduite, proportions conservées, jamais agrandie.
+  function dimensionsCaptureReduite(largeur, hauteur, max) {
+    const l = Math.max(1, Math.round(Number(largeur) || 1));
+    const h = Math.max(1, Math.round(Number(hauteur) || 1));
+    const m = max || LARGEUR_MAX_CAPTURE;
+    if (l <= m) return { largeur: l, hauteur: h };
+    return { largeur: m, hauteur: Math.max(1, Math.round(h * m / l)) };
+  }
+
+  // Pure : filtre de la liste des Réglages. « À trier » = ni transmis ni traités ; « Traités »
+  // regroupe ce qui n'appelle plus rien (corrigé, doublon, écarté).
+  function filtrerSignalements(liste, filtre) {
+    const l = Array.isArray(liste) ? liste : [];
+    if (filtre === 'a-trier') return l.filter(s => s.statut === 'nouveau');
+    if (filtre === 'transmis') return l.filter(s => s.statut === 'transmis');
+    if (filtre === 'traites') return l.filter(s => s.statut === 'corrige' || s.statut === 'doublon' || s.statut === 'ecarte');
+    return l.slice();
+  }
+
+  // Pure : la phrase qui dit, dans le formulaire, ce qui sera joint sans rien demander.
+  function resumeContexteSignalement(ctx) {
+    const c = ctx || {};
+    const morceaux = [];
+    if (c.version) morceaux.push(`version ${c.version}`);
+    if (c.onglet) morceaux.push(`écran « ${c.onglet} »`);
+    if (c.dossierNom) morceaux.push(`dossier ${c.dossierNom}`);
+    const n = Array.isArray(c.erreurs) ? c.erreurs.length : 0;
+    morceaux.push(n ? `${n} erreur${n > 1 ? 's' : ''} technique${n > 1 ? 's' : ''} récente${n > 1 ? 's' : ''}` : 'aucune erreur technique récente');
+    return morceaux.join(' · ');
+  }
+
+  function contexteSignalement() {
+    const d = typeof dossierOuvert !== 'undefined' && dossierOuvert ? dossiers.find(x => x.id === dossierOuvert) : null;
+    const theme = document.documentElement.getAttribute('data-theme') || '';
+    return {
+      version: VERSION_APP,
+      onglet: LIBELLES_ONGLETS[ongletActuel] || ongletActuel,
+      dossierId: d ? d.id : '',
+      dossierNom: d ? d.nom : '',
+      navigateur: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+      ecran: typeof window !== 'undefined' ? `${window.innerWidth}×${window.innerHeight}` : '',
+      theme,
+      erreurs: erreursRecentes.slice()
+    };
+  }
+
+  function ouvrirSignalement() {
+    toggleSidebarMobile(false);
+    signalementEnCours = { gravite: '', capture: '', contexte: contexteSignalement() };
+    const auteur = document.getElementById('signalement-auteur');
+    if (auteur) {
+      let memo = '';
+      try { memo = localStorage.getItem(CLE_AUTEUR_SIGNALEMENT) || ''; } catch (e) { memo = ''; }
+      auteur.innerHTML = '<option value="">— Choisir —</option>'
+        + RESPONSABLES.map(n => `<option value="${escapeAttr(n)}"${n === memo ? ' selected' : ''}>${escapeHtml(n)}</option>`).join('')
+        + `<option value="Autre"${memo === 'Autre' ? ' selected' : ''}>Autre collaborateur</option>`;
+    }
+    document.getElementById('signalement-action').value = '';
+    document.getElementById('signalement-constat').value = '';
+    document.getElementById('signalement-erreur').textContent = '';
+    document.getElementById('signalement-contexte').textContent = resumeContexteSignalement(signalementEnCours.contexte);
+    const envoyer = document.getElementById('signalement-envoyer');
+    envoyer.disabled = false;
+    envoyer.textContent = 'Envoyer le signalement';
+    majGraviteSignalement();
+    majCaptureSignalement();
+    document.getElementById('signalement-overlay').style.display = 'flex';
+    setTimeout(() => { const b = document.querySelector('.signalement-gravite button'); if (b) b.focus(); }, 0);
+  }
+
+  function fermerSignalement() {
+    document.getElementById('signalement-overlay').style.display = 'none';
+  }
+
+  function choisirGraviteSignalement(g) {
+    signalementEnCours.gravite = GRAVITES_SIGNALEMENT[g] ? g : '';
+    majGraviteSignalement();
+  }
+
+  function majGraviteSignalement() {
+    document.querySelectorAll('.signalement-gravite button').forEach(b => {
+      b.setAttribute('aria-pressed', String(b.dataset.gravite === signalementEnCours.gravite));
+    });
+  }
+
+  function majCaptureSignalement() {
+    const zone = document.getElementById('signalement-capture');
+    if (!zone) return;
+    if (signalementEnCours.capture) {
+      zone.innerHTML = `<img src="${signalementEnCours.capture}" alt="Capture d'écran jointe">
+        <button type="button" class="action-rapide" onclick="retirerCaptureSignalement()">Retirer la capture</button>`;
+    } else {
+      zone.innerHTML = `<label class="action-rapide signalement-capture-btn" for="signalement-fichier">Joindre une capture d'écran</label>
+        <span class="hint">ou collez-la ici (Ctrl + V). Pour capturer une zone : Windows + Maj + S.</span>`;
+    }
+  }
+
+  function retirerCaptureSignalement() {
+    signalementEnCours.capture = '';
+    const f = document.getElementById('signalement-fichier');
+    if (f) f.value = '';
+    majCaptureSignalement();
+  }
+
+  // Réduit l'image (largeur ≤ LARGEUR_MAX_CAPTURE, JPEG) avant de la garder en data-URI.
+  function joindreCaptureSignalement(fichier) {
+    if (!fichier || !/^image\//.test(fichier.type)) {
+      document.getElementById('signalement-erreur').textContent = 'Seule une image peut être jointe.';
+      return;
+    }
+    const url = URL.createObjectURL(fichier);
+    const img = new Image();
+    img.onload = () => {
+      const dim = dimensionsCaptureReduite(img.naturalWidth, img.naturalHeight);
+      const canvas = document.createElement('canvas');
+      canvas.width = dim.largeur;
+      canvas.height = dim.hauteur;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, dim.largeur, dim.hauteur);
+      ctx.drawImage(img, 0, 0, dim.largeur, dim.hauteur);
+      URL.revokeObjectURL(url);
+      signalementEnCours.capture = canvas.toDataURL('image/jpeg', 0.82);
+      document.getElementById('signalement-erreur').textContent = '';
+      majCaptureSignalement();
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      document.getElementById('signalement-erreur').textContent = "Cette image n'a pas pu être lue.";
+    };
+    img.src = url;
+  }
+
+  function collerCaptureSignalement(e) {
+    const items = e.clipboardData && e.clipboardData.items ? Array.from(e.clipboardData.items) : [];
+    const image = items.find(it => it.kind === 'file' && /^image\//.test(it.type));
+    if (!image) return; // un collage de texte dans un champ reste un collage de texte
+    e.preventDefault();
+    joindreCaptureSignalement(image.getAsFile());
+  }
+
+  async function envoyerSignalement() {
+    const erreur = document.getElementById('signalement-erreur');
+    const action = document.getElementById('signalement-action').value.trim();
+    const constat = document.getElementById('signalement-constat').value.trim();
+    const auteur = document.getElementById('signalement-auteur').value;
+    if (!signalementEnCours.gravite) { erreur.textContent = 'Choisissez la gravité du problème.'; return; }
+    if (!action && !constat) { erreur.textContent = 'Décrivez ce que vous faisiez ou ce qui s’est passé.'; return; }
+    try { localStorage.setItem(CLE_AUTEUR_SIGNALEMENT, auteur); } catch (e) { /* sans conséquence */ }
+    const bouton = document.getElementById('signalement-envoyer');
+    bouton.disabled = true;
+    bouton.textContent = 'Envoi…';
+    try {
+      const r = await fetchAvecAuth('/api/signalements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          gravite: signalementEnCours.gravite, auteur, action, constat,
+          // Contexte relu à l'envoi (une erreur a pu survenir depuis l'ouverture du formulaire).
+          contexte: { ...signalementEnCours.contexte, erreurs: erreursRecentes.slice() },
+          capture: signalementEnCours.capture || ''
+        })
+      });
+      const corps = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(corps.erreur || `Erreur ${r.status}`);
+      fermerSignalement();
+      afficherToast(corps.notifie
+        ? 'Signalement envoyé. L’étude est prévenue sur Teams.'
+        : 'Signalement envoyé à l’étude. Merci.', 'OK', null);
+      majBadgeSignalements();
+    } catch (e) {
+      erreur.textContent = `Envoi impossible : ${e.message}. Réessayez dans un instant.`;
+      bouton.disabled = false;
+      bouton.textContent = 'Envoyer le signalement';
+    }
+  }
+
+  // ---- tri par l'étude (Réglages) ----
+
+  function dateHeureSignalement(iso) {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+
+  function extraitSignalement(s, n) {
+    const t = (s.constat || s.action || '').replace(/\s+/g, ' ').trim();
+    return t.length > n ? t.slice(0, n - 1) + '…' : t;
+  }
+
+  async function chargerSignalements() {
+    const zone = document.getElementById('reglages-signalements');
+    try {
+      const r = await fetchAvecAuth('/api/signalements');
+      if (!r.ok) throw new Error(`Erreur ${r.status}`);
+      signalementsCharges = (await r.json()).signalements || [];
+      renderSignalements();
+      majBadgeSignalementsDepuis(signalementsCharges);
+    } catch (e) {
+      if (zone) zone.innerHTML = `<p class="hint">Signalements indisponibles : ${escapeHtml(e.message)}</p>`;
+    }
+  }
+
+  async function majBadgeSignalements() {
+    try {
+      const r = await fetchAvecAuth('/api/signalements');
+      if (!r.ok) return;
+      majBadgeSignalementsDepuis((await r.json()).signalements || []);
+    } catch (e) { /* le badge attendra le prochain passage */ }
+  }
+
+  // Compteur rouge sur « Réglages » : signalements encore à trier. Sur tous les postes — il n'y a
+  // pas de compte par collaborateur —, mais ça n'appelle une action que de la part de l'étude.
+  function majBadgeSignalementsDepuis(liste) {
+    const n = filtrerSignalements(liste, 'a-trier').length;
+    const badge = document.getElementById('badge-signalements-reglages');
+    if (!badge) return;
+    badge.textContent = String(n);
+    badge.style.display = n ? '' : 'none';
+    badge.title = `${n} signalement${n > 1 ? 's' : ''} à trier`;
+  }
+
+  function definirFiltreSignalements(f) {
+    filtreSignalements = f;
+    renderSignalements();
+  }
+
+  function renderSignalements() {
+    const zone = document.getElementById('reglages-signalements');
+    if (!zone) return;
+    const compte = (f) => filtrerSignalements(signalementsCharges, f).length;
+    const filtres = [['a-trier', 'À trier'], ['transmis', 'Transmis'], ['traites', 'Traités'], ['tous', 'Tous']];
+    const bascule = `<div class="vue-bascule signalements-filtres" role="tablist">${filtres.map(([f, l]) =>
+      `<button type="button" role="tab" aria-selected="${f === filtreSignalements}" class="vue-bascule-btn${f === filtreSignalements ? ' actif' : ''}" onclick="definirFiltreSignalements('${f}')">${l} <span class="signalements-compte">${compte(f)}</span></button>`).join('')}</div>`;
+    const liste = filtrerSignalements(signalementsCharges, filtreSignalements);
+    const vide = {
+      'a-trier': 'Rien à trier. Les signalements des collaborateurs arrivent ici.',
+      transmis: 'Aucun signalement transmis en attente de correction.',
+      traites: 'Aucun signalement traité pour le moment.',
+      tous: 'Aucun signalement pour le moment.'
+    }[filtreSignalements];
+    zone.innerHTML = bascule + (liste.length
+      ? `<div class="signalements-liste">${liste.map(renderSignalement).join('')}</div>`
+      : `<p class="hint">${vide}</p>`);
+  }
+
+  function renderSignalement(s) {
+    const g = GRAVITES_SIGNALEMENT[s.gravite] || GRAVITES_SIGNALEMENT.genant;
+    const ctx = s.contexte || {};
+    const lieu = [ctx.onglet && `Écran « ${escapeHtml(ctx.onglet)} »`, ctx.dossierNom && `dossier ${escapeHtml(ctx.dossierNom)}`,
+      ctx.version && `version ${escapeHtml(ctx.version)}`].filter(Boolean).join(' · ');
+    const erreurs = Array.isArray(ctx.erreurs) ? ctx.erreurs : [];
+    const autres = signalementsCharges.filter(x => x.id !== s.id && x.statut !== 'doublon');
+    const idArg = escapeOnclickArg(s.id);
+    return `<article class="signalement signalement-${escapeAttr(s.gravite)}" id="sig-${escapeAttr(s.id)}">
+      <div class="signalement-tete">
+        <span class="dot-label ${g.dl}"><span class="dot"></span>${g.texte}</span>
+        <span class="hint signalement-quand">${dateHeureSignalement(s.createdAt)}${s.auteur ? ` · ${escapeHtml(s.auteur)}` : ''}${s.notifie ? ' · prévenu sur Teams' : ''}</span>
+        <select class="signalement-statut" aria-label="Statut du signalement" onchange="modifierSignalement('${idArg}', { statut: this.value })">
+          ${Object.entries(STATUTS_SIGNALEMENT).map(([k, l]) => `<option value="${k}"${k === s.statut ? ' selected' : ''}>${l}</option>`).join('')}
+        </select>
+      </div>
+      ${s.action ? `<p class="signalement-texte"><span class="section-eyebrow">Ce qu'il faisait</span>${escapeHtml(s.action)}</p>` : ''}
+      ${s.constat ? `<p class="signalement-texte"><span class="section-eyebrow">Ce qui s'est passé</span>${escapeHtml(s.constat)}</p>` : ''}
+      ${lieu ? `<p class="hint signalement-lieu">${lieu}</p>` : ''}
+      <details class="signalement-details">
+        <summary>Détails techniques${erreurs.length ? ` (${erreurs.length} erreur${erreurs.length > 1 ? 's' : ''})` : ''}</summary>
+        ${erreurs.length ? `<ul>${erreurs.map(e => `<li><code>${escapeHtml(e.message)}</code>${e.source ? ` <span class="hint">${escapeHtml(e.source)}</span>` : ''}${e.fois > 1 ? ` <span class="hint">×${e.fois}</span>` : ''}</li>`).join('')}</ul>` : '<p class="hint">Aucune erreur technique enregistrée.</p>'}
+        <p class="hint">${escapeHtml(ctx.navigateur || '')}${ctx.ecran ? ` · fenêtre ${escapeHtml(ctx.ecran)}` : ''}</p>
+      </details>
+      <div class="signalement-capture-zone" id="sig-capture-${escapeAttr(s.id)}"></div>
+      <div class="signalement-actions">
+        ${s.aCapture ? `<button type="button" class="action-rapide" onclick="voirCaptureSignalement('${idArg}')">Voir la capture</button>` : ''}
+        ${s.statut === 'corrige' ? `<label class="signalement-champ">Corrigé en version
+          <input type="text" class="signalement-input" value="${escapeAttr(s.versionCorrige)}" placeholder="${escapeAttr(VERSION_APP)}" onchange="modifierSignalement('${idArg}', { versionCorrige: this.value })"></label>` : ''}
+        ${autres.length ? `<label class="signalement-champ">Doublon de
+          <select class="signalement-input" onchange="modifierSignalement('${idArg}', this.value ? { doublonDe: this.value } : { statut: 'nouveau', doublonDe: '' })">
+            <option value="">—</option>
+            ${autres.map(x => `<option value="${escapeAttr(x.id)}"${x.id === s.doublonDe ? ' selected' : ''}>${escapeHtml(dateHeureSignalement(x.createdAt))} — ${escapeHtml(extraitSignalement(x, 40))}</option>`).join('')}
+          </select></label>` : ''}
+        <label class="signalement-champ signalement-note">Note
+          <input type="text" class="signalement-input" value="${escapeAttr(s.note)}" placeholder="Pour vous seulement" onchange="modifierSignalement('${idArg}', { note: this.value })"></label>
+        <button type="button" class="icon-btn signalement-suppr" title="Supprimer ce signalement" aria-label="Supprimer ce signalement" onclick="supprimerSignalement('${idArg}')">${icone('x')}</button>
+      </div>
+    </article>`;
+  }
+
+  async function modifierSignalement(id, changements) {
+    try {
+      const r = await fetchAvecAuth(`/api/signalements/${encodeURIComponent(id)}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(changements)
+      });
+      const corps = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(corps.erreur || `Erreur ${r.status}`);
+      await chargerSignalements();
+    } catch (e) {
+      afficherToast(`Modification impossible : ${e.message}`, 'OK', null);
+      chargerSignalements();
+    }
+  }
+
+  async function voirCaptureSignalement(id) {
+    const zone = document.getElementById(`sig-capture-${id}`);
+    if (!zone) return;
+    if (zone.innerHTML) { zone.innerHTML = ''; return; }
+    try {
+      const r = await fetchAvecAuth(`/api/signalements/${encodeURIComponent(id)}`);
+      if (!r.ok) throw new Error(`Erreur ${r.status}`);
+      const s = (await r.json()).signalement;
+      if (s && s.capture) zone.innerHTML = `<a href="${s.capture}" target="_blank" rel="noopener"><img src="${s.capture}" alt="Capture jointe au signalement"></a>`;
+    } catch (e) {
+      afficherToast(`Capture indisponible : ${e.message}`, 'OK', null);
+    }
+  }
+
+  function supprimerSignalement(id) {
+    demanderConfirmation('Supprimer ce signalement ? Il disparaît définitivement, capture comprise.', async () => {
+      try {
+        const r = await fetchAvecAuth(`/api/signalements/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        if (!r.ok) throw new Error(`Erreur ${r.status}`);
+        await chargerSignalements();
+      } catch (e) {
+        afficherToast(`Suppression impossible : ${e.message}`, 'OK', null);
+      }
+    });
+  }
+
+  // Le fichier à transmettre à Claude Code : les signalements encore à trier, captures comprises.
+  // Une fois téléchargé, l'écran propose de les marquer « transmis », pour que le prochain export
+  // ne reprenne que les nouveaux.
+  async function exporterSignalements() {
+    try {
+      const r = await fetchAvecAuth('/api/signalements/export?statut=nouveau');
+      if (!r.ok) throw new Error(`Erreur ${r.status}`);
+      const corps = await r.json();
+      const liste = corps.signalements || [];
+      if (!liste.length) { afficherToast('Aucun signalement à trier : rien à exporter.', 'OK', null); return; }
+      const blob = new Blob([JSON.stringify({ application: 'CLAIRE', version: VERSION_APP, ...corps }, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `signalements-claire-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      const n = liste.length;
+      demanderConfirmation(`Marquer ${n > 1 ? `les ${n} signalements exportés` : 'le signalement exporté'} comme transmis ?`, async () => {
+        for (const s of liste) {
+          try {
+            await fetchAvecAuth(`/api/signalements/${encodeURIComponent(s.id)}`, {
+              method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ statut: 'transmis' })
+            });
+          } catch (e) { /* le suivant est tenté quand même */ }
+        }
+        await chargerSignalements();
+      });
+    } catch (e) {
+      afficherToast(`Export impossible : ${e.message}`, 'OK', null);
+    }
   }
 
   // ---- apprentissage des constats d'Outil 2 (Audit des actes) ----
@@ -15966,7 +16414,11 @@
       const overlay = document.getElementById('confirm-overlay');
       const barreSelection = document.getElementById('pdf-selection-toolbar');
       const formEngagementManuel = document.getElementById('ajout-engagement-manuel-form');
-      if (infoActionOverlay && infoActionOverlay.style.display === 'flex') {
+      const signalementOverlay = document.getElementById('signalement-overlay');
+      if (signalementOverlay && signalementOverlay.style.display === 'flex') {
+        e.preventDefault();
+        fermerSignalement();
+      } else if (infoActionOverlay && infoActionOverlay.style.display === 'flex') {
         e.preventDefault();
         fermerInfoAction();
       } else if (aproposOverlay && aproposOverlay.style.display === 'flex') {
@@ -16011,14 +16463,11 @@
 
   let evenementInstallation = null;
 
-  // Le pied de la sidebar ne porte plus que ce bouton (thème et « À propos » sont passés dans les
-  // Réglages) : il est masqué avec lui, sinon il ne resterait qu'un filet de séparation sans rien
-  // dessous.
+  // Le pied de la sidebar porte « Signaler un problème », toujours visible, et ce bouton-ci,
+  // seulement quand le navigateur propose l'installation.
   function afficherBoutonInstallation(visible) {
     const btn = document.getElementById('install-btn');
     if (btn) btn.style.display = visible ? 'inline-block' : 'none';
-    const pied = document.querySelector('.sidebar-footer');
-    if (pied) pied.style.display = visible ? 'flex' : 'none';
   }
 
   window.addEventListener('beforeinstallprompt', (e) => {
@@ -21688,6 +22137,7 @@
       'icon-burger': 'menu',
       'icon-nav-dashboard': 'layout',
       'icon-nav-suivi': 'list',
+      'icon-signaler': 'flag',
       'icon-install': 'download',
       'icon-dropzone': 'upload',
       'icon-intro-dates': 'calendar',
