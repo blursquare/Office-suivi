@@ -853,7 +853,6 @@
   }
   /* Même écart que .kpis-dashboard avant .dash-grid : quand le bloc apparaît, il s'intercale sans
      resserrer ni écarter ce qui l'entoure. */
-  .dash-nouveautes { margin-bottom: 28px; }
   .actions-urgentes-vide {
     background: var(--success-bg);
     color: var(--success);
@@ -2680,70 +2679,6 @@
     color: var(--muted);
   }
 
-  /* ---- tableau de bord ---- */
-  /* Même rayon (10px) et même padding (16px) que .kpi-tile/.actions-urgentes juste au-dessus :
-     trois cartes voisines du même écran avaient trois rayons différents (6, 8 et 10px). Plus de
-     margin-bottom non plus — l'espacement entre les deux colonnes est porté par le `gap` de
-     .dash-grid, le cumuler donnait un écart inégal selon la colonne. */
-  .dashboard {
-    background: var(--paper-card);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 16px;
-    box-shadow: var(--shadow-card);
-  }
-  /* Chaque ligne est un <button> qui ouvre le dossier : les styles natifs du bouton sont remis à
-     plat pour qu'elle se lise toujours comme une ligne de liste, pleine largeur et alignée à
-     gauche — seul le survol trahit qu'elle est cliquable. */
-  .dashboard-ligne {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    /* Largeur EXPLICITE, marges négatives comprises : un <button> garde une largeur au contenu
-       même en `display:flex` (Chromium le traite comme un contrôle de formulaire, pas comme un
-       bloc), et `width:100%` seul, combiné aux marges négatives, décalait la ligne vers la gauche
-       sans l'élargir — filet et survol s'arrêtaient alors avant le bord droit de la carte. */
-    width: calc(100% + 16px);
-    padding: 7px 8px;
-    margin: 0 -8px;
-    font-family: inherit;
-    font-size: 13.5px;
-    color: inherit;
-    text-align: left;
-    background: none;
-    border: none;
-    border-top: 1px solid var(--line-soft);
-    border-radius: 6px;
-    cursor: pointer;
-  }
-  .dashboard-ligne:first-child { border-top: none; }
-  .dashboard-ligne:hover { background: var(--paper-sunk); }
-  .dashboard-ligne:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
-  .dashboard-pastille {
-    flex: 0 0 auto;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-  }
-  .dashboard-pastille.pret { background: var(--pret); }
-  /* Ces deux-là reprenaient --muted et --acte, alors que le reste de l'outil (.tab.*, .dot-label
-     .dl-*) leur donne --appelfonds et --success : une même échéance changeait donc de couleur
-     entre le widget du Tableau de bord et sa carte. Corrigé en passant par les mêmes jetons — le
-     bleu nuit de --acte rendait en plus le rendez-vous indiscernable de la date butoir. */
-  .dashboard-pastille.appelFonds { background: var(--appelfonds); }
-  .dashboard-pastille.acte { background: var(--acte); }
-  .dashboard-pastille.rendezVousSignature { background: var(--success); }
-  .dashboard-pastille.ventebien { background: var(--ventebien); }
-  .dashboard-pastille.autre { background: var(--muted); }
-  .dashboard-jours {
-    flex: 0 0 auto;
-    font-weight: 600;
-    color: var(--urgent);
-    min-width: 42px;
-  }
-  .dashboard-texte { color: var(--ink); }
-  .dashboard-texte b { font-weight: 600; }
-
   /* ---- barre d'outils de la liste ---- */
   .list-toolbar {
     display: flex;
@@ -3950,7 +3885,7 @@
   @media print {
     body { background: #fff; color: #000; font-size: 11pt; }
     .panel, .pdf-viewer, .list-toolbar, .dossier-actions, .dossier-actions-titre, .relances-ciblees, .theme-btn,
-    .confirm-overlay, .toast, footer.note, .historique-toggle, .dashboard,
+    .confirm-overlay, .toast, footer.note, .historique-toggle, .dash-avancement,
     .sidebar, .sidebar-burger, .sidebar-scrim, .dash-header, .kpis-dashboard, .actions-urgentes,
     .dash-nouveautes, .dash-section-titre { display: none !important; }
     .app-main { padding: 0; }
@@ -5102,3 +5037,103 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
 }
 
 .reglages-claude-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+/* Fichiers écartés des pièces : diagnostic du dossier et Réglages. */
+.diagnostic-exclusions {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--pret) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--pret) 35%, transparent);
+  font-size: 13px;
+}
+.diagnostic-exclusions p { margin: 0 0 6px; }
+.diagnostic-exclusions ul, .exclusions-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.diagnostic-exclusions li, .exclusions-liste li {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
+}
+.diagnostic-exclusions li span { flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; }
+.exclusions-liste li { padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
+.exclusions-liste li:last-child { border-bottom: none; }
+.exclusions-nom { font-weight: 600; overflow-wrap: anywhere; }
+.exclusions-liste .hint { flex: 1 1 220px; }
+
+/* ---- Tableau de bord : actions urgentes par statut, dernières pièces, avancement ---- */
+.urgent-groupe { display: flex; flex-direction: column; gap: 6px; }
+.urgent-groupe + .urgent-groupe { margin-top: 10px; }
+.urgent-groupe-titre { display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 0 2px; }
+.urgent-groupe-nb {
+  font-size: 11px; font-weight: 600; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.urgent-groupe-reste {
+  align-self: flex-start; background: none; border: none; padding: 2px 2px;
+  font: inherit; font-size: 12.5px; color: var(--focus); cursor: pointer;
+}
+.urgent-groupe-reste:hover { text-decoration: underline; }
+
+.derniere-piece { align-items: center; }
+.derniere-piece-date {
+  flex: 0 0 52px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums;
+}
+.derniere-piece-texte { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
+.derniere-piece-texte b { font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.derniere-piece-texte .action-urgente-raison { font-size: 12.5px; }
+
+.dash-avancement { margin-top: 28px; }
+.avancement-dossiers {
+  background: var(--paper-card); border: 1px solid var(--line); border-radius: 10px;
+  padding: 14px 16px; box-shadow: var(--shadow-card); overflow-x: auto;
+}
+.gantt { min-width: 640px; display: flex; flex-direction: column; }
+.gantt-ligne {
+  display: grid; grid-template-columns: minmax(160px, 240px) 1fr; align-items: center; gap: 12px;
+  width: 100%; min-height: 30px; padding: 0; background: none; border: none; border-radius: 6px;
+  font: inherit; text-align: left; color: inherit; cursor: pointer;
+}
+button.gantt-ligne:hover { background: var(--paper-sunk); }
+.gantt-entete { cursor: default; min-height: 22px; }
+.gantt-nom {
+  font-size: 12.5px; font-weight: 600; color: var(--ink); padding-left: 6px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.gantt-piste { position: relative; height: 30px; }
+.gantt-entete .gantt-piste { height: 22px; }
+.gantt-mois, .gantt-auj-libelle {
+  position: absolute; top: 2px; transform: translateX(-50%);
+  font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); white-space: nowrap;
+}
+.gantt-auj-libelle { color: var(--focus); font-weight: 600; text-transform: none; letter-spacing: 0; top: 0; font-size: 11px; }
+.gantt-grille { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--line-soft); }
+.gantt-aujourdhui { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: color-mix(in srgb, var(--focus) 55%, transparent); }
+.gantt-barre {
+  position: absolute; top: 50%; height: 6px; margin-top: -3px; border-radius: 3px;
+  background: color-mix(in srgb, var(--muted) 28%, transparent);
+}
+.gantt-barre.coupe-avant { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.gantt-barre.coupe-apres { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.gantt-jalon {
+  position: absolute; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px;
+  border-radius: 50%; border: 2px solid var(--muted); background: var(--paper-card);
+}
+.gantt-jalon.fait { background: currentColor; }
+.gantt-jalon.hors { opacity: 0.45; }
+.gantt-jalon.ventebien { color: var(--ventebien); border-color: var(--ventebien); }
+.gantt-jalon.pret { color: var(--pret); border-color: var(--pret); }
+.gantt-jalon.appelFonds { color: var(--appelfonds); border-color: var(--appelfonds); }
+.gantt-jalon.acte { color: var(--acte); border-color: var(--acte); border-radius: 2px; transform: rotate(45deg); width: 10px; height: 10px; margin: -5px 0 0 -5px; }
+.gantt-jalon.rendezVousSignature { color: var(--success); border-color: var(--success); }
+.gantt-jalon.fait.ventebien, .gantt-jalon.fait.pret, .gantt-jalon.fait.appelFonds,
+.gantt-jalon.fait.acte, .gantt-jalon.fait.rendezVousSignature { background: currentColor; }
+.gantt-legende {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+  margin-top: 12px; font-size: 12px; color: var(--ink-soft);
+}
+.gantt-legende > span { display: inline-flex; align-items: center; gap: 6px; }
+.gantt-jalon.legende { position: static; margin: 0; flex: 0 0 auto; }
+.gantt-jalon.acte.legende { margin: 0 1px; }
+.gantt-jalon.fait-exemple { background: var(--muted); }
+.gantt-legende .action-rapide { margin-left: auto; }
+@media (max-width: 640px) {
+  .gantt-ligne { grid-template-columns: 120px 1fr; }
+}

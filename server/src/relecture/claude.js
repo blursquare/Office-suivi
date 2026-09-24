@@ -56,9 +56,21 @@ const STATUTS_POINT = ['present', 'absent', 'non_applicable', 'a_verifier'];
 const GRAVITES_ANOMALIE = ['elevee', 'moyenne', 'faible'];
 const MAX_POINTS_GRILLE = 90;
 const MAX_DOCUMENTS = 40;
-// Garde-fou grossier : ~250 000 jetons de français. Au-delà on REFUSE avec un message explicite
-// plutôt que de tronquer en silence — une annexe coupée en deux produirait un « absent » faux.
-const MAX_CARACTERES_TOTAL = 900000;
+// Aucune limite de PAGES (demandé par l'étude : « aucune limite ») — la seule borne qui reste est
+// celle du modèle lui-même : 1 million de jetons de contexte (Sonnet 5 comme Opus 5), dont on
+// réserve de quoi répondre. Deux étages :
+//   - MAX_CARACTERES_TOTAL, un garde-fou grossier AVANT tout appel : ~2,5 millions de caractères,
+//     soit à peu près le million de jetons en français (Sonnet 5 compte ~30 % de jetons de plus
+//     qu'avant pour le même texte). L'ancienne borne (900 000) bloquait des dossiers à ~300 000
+//     jetons, bien avant la vraie limite ;
+//   - LIMITE_JETONS_ENTREE, le vrai plafond, vérifié sur le compte EXACT des jetons (route
+//     /estimer, countTokens) avant le lancement.
+// Au-delà on REFUSE avec un message explicite plutôt que de tronquer en silence — une annexe coupée
+// en deux produirait un « absent » faux.
+const MAX_CARACTERES_TOTAL = 2500000;
+const CONTEXTE_MODELE_JETONS = 1000000;
+const MAX_JETONS_SORTIE = 64000;
+const LIMITE_JETONS_ENTREE = CONTEXTE_MODELE_JETONS - MAX_JETONS_SORTIE - 4000;
 
 const ID_POINT_RE = /^[a-z0-9_]{2,40}$/;
 
@@ -353,5 +365,5 @@ module.exports = {
   TARIFS_USD_PAR_MILLION, calculerCoutUsd, estimerCoutUsd,
   validerGrille, validerDocuments, validerConsignes, construireTexteDocuments, construireSystemPrompt,
   SCHEMA_RELECTURE, verifierCitations, normaliserAnalyse, pageDepuisIndex,
-  MAX_CARACTERES_TOTAL, STATUTS_POINT
+  MAX_CARACTERES_TOTAL, STATUTS_POINT, LIMITE_JETONS_ENTREE, MAX_JETONS_SORTIE
 };

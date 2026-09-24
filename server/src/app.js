@@ -14,9 +14,10 @@ const { creerRouteurDossiers } = require('./routes/dossiers');
 const { creerRouteurCalendrier } = require('./routes/calendrier');
 const { creerRouteurExtractionIa } = require('./routes/extractionIa');
 const { creerRouteurOffrePret } = require('./routes/offrePret');
-const { creerRouteurNas } = require('./routes/nas');
+const { creerRouteurNas, creerRouteurLienPiece } = require('./routes/nas');
 const { creerRouteurReglages } = require('./routes/reglages');
 const { creerRouteurNotifications } = require('./routes/notifications');
+const { creerRouteurExclusionsPieces } = require('./routes/exclusionsPieces');
 const { creerRouteurRelectureClaude } = require('./routes/relectureClaude');
 
 // Fichier statique → nom d'asset embarqué (voir server/scripts/build-windows-exe.mjs, section
@@ -76,9 +77,9 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude }) {
 
   // Un dossier avec historique/analyse juridique reste petit, 5 Mo est déjà large — sauf la
   // relecture d'actes par Claude, qui reçoit le texte complet d'un projet et de ses annexes
-  // (jusqu'à ~900 000 caractères, voir relecture/claude.js) : plafond propre, plus haut.
+  // (jusqu'à ~2,5 millions de caractères, voir relecture/claude.js) : plafond propre, plus haut.
   const jsonStandard = express.json({ limit: '5mb' });
-  const jsonRelecture = express.json({ limit: '30mb' });
+  const jsonRelecture = express.json({ limit: '60mb' });
   app.use((req, res, next) => (req.path.startsWith('/api/relecture-claude/') ? jsonRelecture : jsonStandard)(req, res, next));
 
   // Sert index.html/style.css/script.js/manifest.json/sw.js/icone.svg : depuis la racine du dépôt
@@ -100,6 +101,9 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude }) {
   // routes/calendrier.js. Montée à la racine (pas sous /api) pour rester une URL courte à coller
   // dans un client calendrier, cohérent avec .env.example (`GET /calendrier.ics?token=...`).
   app.use(creerRouteurCalendrier(depot, config));
+  // Lien signé vers une pièce du NAS (notification Teams) : hors authentification par session, la
+  // signature du lien en tient lieu — voir liensPieces.js.
+  app.use(creerRouteurLienPiece(config, parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurDossiers(depot));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExtractionIa(config));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurOffrePret(config));
@@ -107,6 +111,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude }) {
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurReglages(parametresRepo, envoyerEmailFn, { depot, db }));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNotifications(parametresRepo, envoyerEmailFn));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAuditRetours(parametresRepo));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExclusionsPieces(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRelectureClaude(parametresRepo, db, { creerClient: creerClientClaude }));
 
   // Gestionnaire d'erreurs générique en dernier recours : évite qu'une exception inattendue

@@ -6835,6 +6835,92 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     réelles** : pas de vraie clé API ni de pdf.js ici — la qualité de l'analyse, sa durée et son
     coût réels sur un dossier complet restent à confirmer par l'étude.
 
+- **Carnet de bord « À faire » traité en un lot, plus un bug d'alignement et la relecture sans
+  limite de pages** (24/09) — l'étude a demandé de « lancer les tâches à faire uniquement » du
+  carnet de bord (artefact de suivi), en signalant au passage qu'un dossier reliait le numérotage
+  mais pas l'alignement avec un document unique « Courriel alignement et numérotage.pdf », puis,
+  en cours de travail, de retirer toute limite de pages de la relecture d'actes.
+  - **Le bug d'alignement : une exclusion mémorisée, invisible, propre à chaque poste.** Le motif
+    reconnaissait bien les deux pièces sur ce nom (vérifié avant tout — même piège que les
+    signalements « toujours bugué » déjà documentés). Seul mécanisme capable de faire passer l'une
+    et pas l'autre dans le MÊME parcours : `estNomExcluPourPiece`, posé par un clic sur
+    « Réinitialiser » de l'alignement. Cette exclusion était globale à tous les dossiers, rangée dans
+    le `localStorage` du poste, et ne se voyait nulle part : sur un nom générique comme celui-ci, un
+    clic unique bloquait l'alignement sur tous les dossiers suivants, et deux postes pouvaient rendre
+    deux verdicts différents pour la même pièce. Reproduit de bout en bout (serveur réel + dossier
+    NAS) avant correction. Trois changements :
+    - les exclusions passent **en base** (`parametresRepo.lireExclusionsPieces`, clé
+      `exclusions-noms-pieces`, routes `GET/POST /api/exclusions-pieces` et `POST …/retirer` —
+      volontairement pas de PUT global, deux postes qui ajoutent en même temps ne s'écrasent pas) ;
+      celles déjà gardées dans le navigateur sont reprises UNE fois au démarrage
+      (`reprendreExclusionsLocales`) puis effacées, pour ne perdre aucune décision humaine ;
+      chargées dans `demarrerApplication()` AVANT la relecture du NAS ;
+    - le parcours **journalise** chaque correspondance écartée (`exclusionsRencontrees`) et le
+      diagnostic du dossier l'affiche en tête, avec un bouton « Ne plus écarter »
+      (`retirerExclusionPiece`, qui relance aussitôt le parcours du dossier) ;
+    - une carte **« Fichiers écartés des pièces »** dans les Réglages liste tout, avec « Rétablir ».
+  - **Pièce renouvelée (ramonage, entretien, taxe foncière 2025 → 2026).** `verifierDossierLocal`
+    retenait le PREMIER fichier correspondant et, une fois toutes les pièces trouvées, sortait du
+    parcours : la version de l'année suivante, déposée à côté, n'était jamais vue. Désormais tous
+    les candidats sont collectés (plus de sortie anticipée — sans coût, les pièces ne sont
+    reconnues que par le nom) et `choisirFichierPiece` retient l'année la plus récente écrite dans le
+    NOM du fichier (`anneeDansNomFichier` : 2000 à l'an prochain seulement, jamais un dossier
+    parent). Stabilité : le fichier déjà retenu reste tant qu'aucun candidat n'est STRICTEMENT plus
+    récent. Une pièce renouvelée est notifiée comme une nouvelle pièce, avec une ligne d'historique
+    « Avis de taxe foncière (2025 → 2026) ».
+  - **Lien vers la pièce dans la notification Teams.** Un clic dans Teams ne porte aucune
+    authentification : la route protégée `/api/nas/fichier` aurait répondu « non autorisé » (même
+    piège que `ouvrirFichierNas`). D'où un **lien signé** (`server/src/liensPieces.js`) : HMAC-SHA256
+    du chemin et d'une date d'expiration (90 jours), secret généré une fois en base
+    (`lireSecretLiens`), servi par `GET /piece` monté HORS authentification mais avec exactement les
+    garde-fous de `/api/nas/fichier` (confinement à la racine, PDF seulement). L'adresse du serveur
+    est celle par laquelle le poste l'a joint, `localhost` remplacé par l'adresse du réseau local
+    (`adressesLan`, sortie de `index.js` vers `server/src/reseau.js`). Le client envoie désormais
+    `pieces: [{label, chemin}]` ; la route accepte encore l'ancienne forme (chaînes seules).
+  - **Responsable prévenu quand un dossier est complet** (offre reçue ou sans prêt + toute la
+    checklist reçue) : `signalerSiDossierDevenuComplet` → `POST /api/notifications/dossier-complet`,
+    même envoi que les notifications de pièces (`envoyerAuResponsable`, factorisé, copie à l'étude
+    comprise). **Une seule fois** : `d.completNotifieLe`, effacé si le dossier cesse d'être complet
+    (le prochain passage sera de nouveau annoncé). Jamais pour un dossier archivé ni une
+    participation. Appelé après le parcours du NAS et après chaque mutation qui peut compléter un
+    dossier (validation manuelle, pièce retirée, pièce personnalisée cochée).
+  - **Tableau de bord refait** (carnet : « actions urgentes par type de statut, rappel des dernières
+    pièces trouvées, Gantt, retirer les échéances des 7 prochains jours ») :
+    - actions urgentes **regroupées par statut** (`groupesActionsUrgentes` : Aucun document →
+      Réception de pièces → À relier), quatre lignes par groupe puis « et N autres — voir le Suivi » ;
+      même critère d'urgence qu'avant ;
+    - **« Dernières pièces trouvées »** (`dernieresPiecesTrouvees`) remplace « Pièces reçues, pas
+      encore consultées » : un rappel des 14 derniers jours qui ne disparaît plus à la consultation,
+      les non vues en tête avec « Nouveau ». Date tirée de `d.piecesTrouveesLe` (nouveau, posé par le
+      parcours) ; une notification antérieure à ce champ s'affiche quand même, sans date ;
+    - **« Avancement des dossiers »** (`donneesAvancement`, pure) : une ligne par dossier, barre de la
+      création (entrée « Dossier créé » de l'historique — la date de signature de l'avant-contrat
+      n'est pas conservée sur le dossier) à la signature, jalons colorés par catégorie, pleins une
+      fois réalisés. Fenêtre FIXE (−30 j / +150 j) : un acte à un an écraserait sinon tous les
+      autres ; ce qui en sort est ramené au bord et atténué. 15 lignes puis « Afficher les N ».
+      Défaut vu en capture et corrigé : le libellé « Aujourd'hui » chevauchait un repère de mois ;
+    - le widget « Échéances des 7 prochains jours » est **supprimé** (`renderDashboard` et ses
+      styles), la tuile KPI du même nom reste.
+    `piecesTrouveesLe`/`completNotifieLe` repartent à zéro à l'import d'une sauvegarde, comme les
+    autres statuts dérivés d'un parcours du NAS.
+  - **Relecture d'actes sans limite de pages** (« ne mets pas de limite de 60 pages, aucune
+    limite ») : `lireTextePdfParPage` lit toutes les pages, texte comme OCR (`PAGES_OCR_AUDIT`
+    supprimée) ; la vérification des pièces du NAS garde ses plafonds, elle ne fait que reconnaître
+    un document. La seule borne qui subsiste est celle du modèle (1 million de jetons, Sonnet 5 comme
+    Opus 5) : l'ancienne borne serveur de 900 000 caractères bloquait à ~300 000 jetons, elle passe à
+    2,5 millions (`MAX_CARACTERES_TOTAL`), et le vrai plafond (`LIMITE_JETONS_ENTREE`, contexte −
+    sortie − marge) est vérifié sur le compte EXACT de `/estimer` : l'écran le signale et désactive
+    « Lancer l'analyse » plutôt qu'un refus de l'API après coup. Corps JSON de la route porté à 60 Mo.
+  - Tests : `tests/pieces-renouvelees.test.js` (5), `tests/tableau-de-bord.test.js` (6),
+    `server/test/liens-pieces.test.js` (9 — dont un lien qui ouvre le PDF sans authentification,
+    une signature fausse refusée, un chemin hors NAS refusé même bien signé),
+    `server/test/exclusions-pieces.test.js` (3), deux dans `relecture-claude.test.js`. **Vérifié de
+    bout en bout dans un vrai Chromium** (serveur réel, arborescence NAS, clair et sombre, 400 px) :
+    alignement manquant avec l'exclusion puis reçu après « Ne plus écarter », TF 2026 retenue à la
+    place de 2025 avec son historique, les trois blocs du tableau de bord, aucune erreur JS, aucun
+    débordement. **Non vérifié en conditions réelles** : le lien dans un vrai message Teams (il
+    faut que Teams laisse ouvrir une adresse http du réseau local).
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

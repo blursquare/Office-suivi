@@ -12,7 +12,7 @@ const { ouvrirDb } = require('../src/db');
 const { assainirReglagesClaude } = require('../src/parametresRepo');
 const {
   calculerCoutUsd, estimerCoutUsd, validerGrille, validerDocuments, construireTexteDocuments,
-  construireSystemPrompt, normaliserAnalyse, verifierCitations
+  construireSystemPrompt, normaliserAnalyse, verifierCitations, MAX_CARACTERES_TOTAL, LIMITE_JETONS_ENTREE, MAX_JETONS_SORTIE
 } = require('../src/relecture/claude');
 
 const grille = [
@@ -39,7 +39,11 @@ test('validerGrille / validerDocuments : identifiants, doublons, volume refusé 
   assert.ok(validerGrille([{ id: 'A B' }]).erreur);
   assert.ok(validerGrille([grille[0], grille[0]]).erreur);
   assert.ok(validerDocuments([]).erreur);
-  assert.match(validerDocuments([{ texte: 'x'.repeat(950000) }]).erreur, /trop volumineux/);
+  // Aucune limite de pages : un document de 950 000 caractères (bien plus de 60 pages) passe ; seul
+  // ce qui dépasse ce que le modèle peut lire est refusé.
+  assert.equal(validerDocuments([{ texte: 'x'.repeat(950000) }]).erreur, undefined);
+  assert.match(validerDocuments([{ texte: 'x'.repeat(MAX_CARACTERES_TOTAL + 1) }]).erreur, /trop volumineux/);
+  assert.ok(LIMITE_JETONS_ENTREE < 1000000 - MAX_JETONS_SORTIE + 1);
   const d = validerDocuments(documents).documents;
   assert.equal(d[0].numero, 1);
   assert.equal(d[0].pages.length, 2);
@@ -103,12 +107,13 @@ test('assainirReglagesClaude : clé conservée si absente, effacée si vide, mod
 // ---- Route, avec un faux client Anthropic ----
 let db, serveurApp, baseUrl, jeton;
 const appels = [];
+let jetonsCompte = 12000;
 let reponseSuivante = null;
 
 function fauxClient(cle) {
   return {
     messages: {
-      countTokens: async (p) => { appels.push({ type: 'count', cle, p }); return { input_tokens: 12000 }; },
+      countTokens: async (p) => { appels.push({ type: 'count', cle, p }); return { input_tokens: jetonsCompte }; },
       stream: (p) => { appels.push({ type: 'stream', cle, p }); return { finalMessage: async () => reponseSuivante }; }
     },
     beta: { messages: { stream: (p) => { appels.push({ type: 'beta', cle, p }); return { finalMessage: async () => reponseSuivante }; } } },
@@ -157,6 +162,18 @@ test('route : estimation par comptage de jetons', async () => {
   const r = await (await appeler('/api/relecture-claude/estimer', 'POST', { mode: 'compromis', grille, documents })).json();
   assert.equal(r.jetonsEntree, 12000);
   assert.ok(r.coutEstime.bas > 0);
+  assert.equal(r.depasse, false);
+});
+
+test('route : un dossier trop grand pour le modèle est signalé avant le lancement', async () => {
+  jetonsCompte = LIMITE_JETONS_ENTREE + 1;
+  try {
+    const r = await (await appeler('/api/relecture-claude/estimer', 'POST', { mode: 'compromis', grille, documents })).json();
+    assert.equal(r.depasse, true);
+    assert.equal(r.limiteJetons, LIMITE_JETONS_ENTREE);
+  } finally {
+    jetonsCompte = 12000;
+  }
 });
 
 test('route : analyse — sortie structurée demandée, citations vérifiées, coût facturé et journal', async () => {

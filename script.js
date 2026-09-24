@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-24 10:34';
+  const VERSION_APP = '2026-09-24 11:46';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-24 11:46', resume: "Tableau de bord refait (actions urgentes par statut, dernières pièces trouvées, avancement des dossiers) ; pièce renouvelée prise en compte (TF 2025 → 2026) ; fichiers écartés visibles et rétablissables ; lien vers la pièce dans Teams ; responsable prévenu quand un dossier est complet ; relecture d'actes sans limite de pages." },
     { version: '2026-09-24 10:34', resume: "Agenda connecté : l'appel de fonds, le rendez-vous, la date butoir et les échéances personnalisées ne sont plus du tout publiés (ils apparaissaient annulés, empilés sur un même jour). Seuls restent le prêt et la vente préalable à obtenir." },
     { version: '2026-09-24 08:36', resume: "Relecture d'actes refaite en quatre étapes avec l'API Claude : documents (dossier du NAS complet), pseudonymisation sur ce poste, analyse point par point, bilan visuel avec pages cliquables et coût de l'analyse." },
     { version: '2026-09-23 21:46', resume: "Relecture d'actes : grille visuelle, synthèse à communiquer au client, mode commentaires (avis justifié, pour ce dossier ou pour tous), pièces AAE du NAS et mise à jour des parties de la fiche." },
@@ -9913,46 +9914,6 @@
     render();
   }
 
-  function renderDashboard(dossiersActifs) {
-    // C'est la COLONNE entière qui se masque, pas seulement la carte : son étiquette de section
-    // vit au-dessus de la carte (comme « Actions urgentes »), et resterait sinon orpheline.
-    const bloc = document.getElementById('dashboard-col');
-    const liste = document.getElementById('dashboard-liste');
-    const echeances = [];
-    dossiersActifs.forEach(d => {
-      const items = [
-        { type: 'pret', label: 'Obtention du prêt', iso: d.pret },
-        { type: 'appelFonds', label: 'Appel de fonds', iso: d.appelFonds },
-        { type: 'acte', label: "Signature de l'acte", iso: d.acte },
-        { type: 'rendezVousSignature', label: 'Rendez-vous de signature', iso: d.rendezVousSignature },
-        { type: 'ventebien', label: 'Vente préalable', iso: d.ventebien },
-        ...(d.autres || []).map(a => ({ type: 'autre', label: a.label, iso: a.date }))
-      ];
-      items.forEach(it => {
-        if (!it.iso) return;
-        const jours = joursRestants(it.iso);
-        if (jours >= 0 && jours <= 7) echeances.push({ ...it, jours, nomDossier: libelleDossierAffiche(d), id: d.id });
-      });
-    });
-    echeances.sort((a, b) => a.jours - b.jours);
-
-    if (echeances.length === 0) {
-      bloc.style.display = 'none';
-      return;
-    }
-    bloc.style.display = 'block';
-    // Chaque ligne mène au dossier concerné (demandé par l'étude) — même chemin que « Actions
-    // urgentes » et que la recherche du Tableau de bord : bascule vers le Suivi et ouvre le
-    // tiroir, pas une seconde implémentation.
-    liste.innerHTML = echeances.map(e => `
-      <button type="button" class="dashboard-ligne" onclick="ouvrirDossierDepuisDashboard('${e.id}')" title="Ouvrir le dossier ${escapeAttr(e.nomDossier)}">
-        <span class="dashboard-pastille ${e.type}"></span>
-        <span class="dashboard-jours">${e.jours === 0 ? "Auj." : 'J-' + e.jours}</span>
-        <span class="dashboard-texte"><b>${escapeHtml(e.label)}</b> — ${escapeHtml(e.nomDossier)} (${formatDateFr(e.iso)})</span>
-      </button>
-    `).join('');
-  }
-
   // Évolution du nombre de dossiers actifs dans le temps, demandée par l'étude pour le Tableau de
   // bord ("comparer avec le mois précédent... suivi par rapport au mois précédent et à l'année
   // précédente"). Calculée RÉTROACTIVEMENT à partir de l'historique déjà stocké sur chaque dossier
@@ -10099,81 +10060,228 @@
   // bord. Seule vue restante à s'appuyer sur ce score depuis le retrait du badge "🔥 Prioritaire"
   // de la ligne de tableau (refonte visuelle, voir CLAUDE.md) : le statut "Blocage" (rouge) et ce
   // bloc couvrent déjà ce que ce badge signalait seul.
+  // Actions urgentes, REGROUPÉES PAR STATUT (demandé par l'étude, carnet de bord) : « Aucun
+  // document », puis « Réception de pièces », puis « À relier » — le groupe dit d'emblée quel genre
+  // de geste attend, au lieu d'une seule liste où un dossier bloqué côtoie un dossier simplement
+  // pas encore relié. Même critère d'urgence qu'avant (statut « Aucun document », ou score
+  // calculerPriorite élevé) : seul le regroupement change. Au-delà de quelques lignes par groupe,
+  // le reste est annoncé plutôt que masqué en silence.
+  var ORDRE_GROUPES_URGENTS = ['blocage', 'aconfirmer', 'arelier', 'pret'];
+  var MAX_LIGNES_GROUPE_URGENT = 4;
+
+  function raisonUrgence(d) {
+    const prochaine = prochaineEcheanceDetail(d);
+    if (!d.sansPret && d.offrePretStatut === 'manquante') return 'Offre de prêt introuvable';
+    if (prochaine && prochaine.jours < 0) return `${prochaine.label} dépassée`;
+    if (prochaine) return `${prochaine.label} — ${prochaine.jours === 0 ? "aujourd'hui" : 'J-' + prochaine.jours}`;
+    return 'À vérifier';
+  }
+
+  // Pure et testable : les dossiers urgents, groupés par statut dans l'ordre ci-dessus, chaque
+  // groupe trié par priorité décroissante.
+  function groupesActionsUrgentes(dossiersActifs) {
+    const urgents = dossiersActifs
+      .filter(d => statutDossier(d) === 'blocage' || calculerPriorite(d) >= SEUIL_PRIORITE_ELEVEE)
+      .sort((a, b) => calculerPriorite(b) - calculerPriorite(a));
+    const parStatut = {};
+    for (const d of urgents) (parStatut[statutDossier(d)] = parStatut[statutDossier(d)] || []).push(d);
+    return ORDRE_GROUPES_URGENTS.filter(st => parStatut[st]).map(st => ({ statut: st, dossiers: parStatut[st] }));
+  }
+
   function renderActionsUrgentes(dossiersActifs) {
     const bloc = document.getElementById('actions-urgentes');
     if (!bloc) return;
-    const urgents = dossiersActifs
-      .filter(d => statutDossier(d) === 'blocage' || calculerPriorite(d) >= SEUIL_PRIORITE_ELEVEE)
-      .sort((a, b) => calculerPriorite(b) - calculerPriorite(a))
-      .slice(0, 6);
-
-    if (urgents.length === 0) {
+    const groupes = groupesActionsUrgentes(dossiersActifs);
+    if (groupes.length === 0) {
       bloc.innerHTML = '<div class="actions-urgentes-vide">✓ Aucune action urgente pour le moment.</div>';
       return;
     }
-    bloc.innerHTML = urgents.map(d => {
-      const prochaine = prochaineEcheanceDetail(d);
-      let raison;
-      if (!d.sansPret && d.offrePretStatut === 'manquante') raison = "Offre de prêt introuvable";
-      else if (prochaine && prochaine.jours < 0) raison = "Échéance dépassée";
-      else if (prochaine) raison = `${escapeHtml(prochaine.label)} — J-${prochaine.jours}`;
-      else raison = "À vérifier";
+    bloc.innerHTML = groupes.map(g => {
+      const s = LIBELLES_STATUT[g.statut] || { texte: g.statut, dl: 'dl-neutre' };
+      const visibles = g.dossiers.slice(0, MAX_LIGNES_GROUPE_URGENT);
+      const reste = g.dossiers.length - visibles.length;
       return `
-        <button type="button" class="action-urgente-ligne" onclick="ouvrirDossierDepuisDashboard('${d.id}')">
-          ${renderBadgeStatut(d)}
-          <span class="action-urgente-nom">${escapeHtml(libelleDossierAffiche(d))}</span>
-          <span class="action-urgente-raison">${raison}</span>
-          <span class="action-urgente-fleche">→</span>
-        </button>`;
+        <div class="urgent-groupe">
+          <div class="urgent-groupe-titre"><span class="dot-label ${s.dl}"><span class="dot"></span>${escapeHtml(s.texte)}</span><span class="urgent-groupe-nb">${g.dossiers.length}</span></div>
+          ${visibles.map(d => `
+            <button type="button" class="action-urgente-ligne" onclick="ouvrirDossierDepuisDashboard('${d.id}')">
+              <span class="action-urgente-nom">${escapeHtml(libelleDossierAffiche(d))}</span>
+              <span class="action-urgente-raison">${escapeHtml(raisonUrgence(d))}</span>
+              <span class="action-urgente-fleche">→</span>
+            </button>`).join('')}
+          ${reste > 0 ? `<button type="button" class="urgent-groupe-reste" onclick="definirOnglet('suivi')">et ${reste} autre${reste > 1 ? 's' : ''} — voir le Suivi</button>` : ''}
+        </div>`;
     }).join('');
   }
 
-  // "Pièces reçues, pas encore consultées" (tableau de bord) : la seule vue de l'outil qui NOMME
-  // les pièces nouvellement trouvées sur le NAS. Les trois surfaces déjà en place ne disent que
-  // "il y a du nouveau" — un compteur dans la sidebar, un tag "N nouvelles pièces" sur la ligne du
-  // Suivi, et le tag "Nouveau" sur la pièce elle-même, mais celui-là n'est visible qu'une fois la
-  // fiche ouverte, donc trop tard pour savoir s'il valait la peine de l'ouvrir.
-  //
-  // Lit exactement le même état que ces trois surfaces (d.piecesNotifications) : aucun second
-  // mécanisme de notification à maintenir, et l'effacement reste le geste déjà en place — la
-  // fermeture du tiroir, pour CE dossier uniquement (voir fermerDossierDrawer). Consulter un
-  // dossier ne fait donc jamais disparaître les nouveautés des autres, ici comme ailleurs.
-  //
-  // C'est la COLONNE ENTIÈRE qui se masque quand il n'y a rien (comme la colonne des échéances à
-  // 7 jours) : un bloc permanent qui afficherait "rien de nouveau" occuperait toute l'année la
-  // place d'un signal qui, lui, ne dure que quelques heures.
+  // « Dernières pièces trouvées » (Tableau de bord, demandé par l'étude au carnet de bord) : un
+  // RAPPEL des pièces arrivées sur le NAS ces derniers jours, qui reste lisible après consultation
+  // — contrairement à l'ancien bloc « Pièces reçues, pas encore consultées », qui disparaissait dès
+  // que la fiche avait été ouverte. Les pièces pas encore vues gardent leur repère « Nouveau »
+  // (d.piecesNotifications, même état que le badge de la sidebar et le tag de la fiche), et
+  // remontent en tête. La date vient de d.piecesTrouveesLe, posée par verifierDossierLocal à chaque
+  // pièce trouvée ou renouvelée ; une notification plus ancienne que ce champ n'a pas de date et
+  // s'affiche quand même, en tête, marquée « Nouveau ».
+  var JOURS_DERNIERES_PIECES = 14;
+  var MAX_DERNIERES_PIECES = 10;
+
+  // Pure et testable : une entrée par (dossier, pièce), les non vues d'abord puis la plus récente.
+  function dernieresPiecesTrouvees(dossiersActifs, maintenantMs) {
+    const limite = (maintenantMs || Date.now()) - JOURS_DERNIERES_PIECES * 86400000;
+    const entrees = [];
+    for (const d of dossiersActifs) {
+      const nouvelles = new Set(d.piecesNotifications || []);
+      const dates = d.piecesTrouveesLe || {};
+      const cles = new Set([...Object.keys(dates), ...nouvelles]);
+      for (const cle of cles) {
+        const le = dates[cle] || null;
+        const nouvelle = nouvelles.has(cle);
+        if (!nouvelle && (!le || Date.parse(le) < limite)) continue;
+        entrees.push({ dossier: d, cle, le, nouvelle });
+      }
+    }
+    entrees.sort((a, b) => (b.nouvelle - a.nouvelle) || String(b.le || '').localeCompare(String(a.le || '')));
+    return entrees.slice(0, MAX_DERNIERES_PIECES);
+  }
+
   function renderPiecesRecuesDashboard(dossiersActifs) {
     const section = document.getElementById('dash-nouveautes');
     const bloc = document.getElementById('pieces-recues-dashboard');
     if (!section || !bloc) return;
-
-    // Les dossiers les plus fournis d'abord : sur un portefeuille où plusieurs parcours viennent
-    // de tourner, c'est celui qui a reçu le plus de pièces qu'on veut ouvrir en premier.
-    const avecNouveautes = dossiersActifs
-      .filter(d => (d.piecesNotifications || []).length)
-      .sort((a, b) => (b.piecesNotifications || []).length - (a.piecesNotifications || []).length);
-
-    if (avecNouveautes.length === 0) {
+    const entrees = dernieresPiecesTrouvees(dossiersActifs);
+    if (entrees.length === 0) {
       section.style.display = 'none';
       bloc.innerHTML = '';
       return;
     }
     section.style.display = '';
-    bloc.innerHTML = avecNouveautes.map(d => {
-      const cles = d.piecesNotifications || [];
-      // libelleNotificationPiece résout les deux familles de clés (checklist de pièces, et le
-      // pseudo-clé de l'offre de prêt) — déjà utilisée par la fiche et l'email au responsable,
-      // un seul endroit qui sait nommer une notification.
-      const libelles = cles.map(cle => libelleNotificationPiece(d, cle));
-      const n = cles.length;
+    bloc.innerHTML = entrees.map(e => {
+      const quand = e.le ? new Date(e.le).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '';
       return `
-        <button type="button" class="action-urgente-ligne" onclick="ouvrirDossierDepuisDashboard('${d.id}')">
-          <span class="dot-label dl-urgent"><span class="dot"></span>${n} nouvelle${n > 1 ? 's' : ''}</span>
-          <span class="action-urgente-nom">${escapeHtml(libelleDossierAffiche(d))}</span>
-          <span class="action-urgente-raison" title="${escapeAttr(libelles.join(' · '))}">${escapeHtml(libelles.join(' · '))}</span>
+        <button type="button" class="action-urgente-ligne derniere-piece" onclick="ouvrirDossierDepuisDashboard('${e.dossier.id}')">
+          <span class="derniere-piece-date">${escapeHtml(quand)}</span>
+          <span class="derniere-piece-texte"><b>${escapeHtml(libelleNotificationPiece(e.dossier, e.cle))}</b>
+            <span class="action-urgente-raison">${escapeHtml(libelleDossierAffiche(e.dossier))}</span></span>
+          ${e.nouvelle ? '<span class="dot-label dl-urgent notif-nouveau-tag"><span class="dot"></span>Nouveau</span>' : ''}
           <span class="action-urgente-fleche">&rarr;</span>
         </button>`;
     }).join('');
+  }
+
+  // ---- Avancement des dossiers (Tableau de bord) ----
+  // Diagramme de Gantt demandé par l'étude au carnet de bord : une ligne par dossier actif, une
+  // barre de la création du dossier jusqu'à la signature (rendez-vous, à défaut la date butoir),
+  // et un jalon par échéance, coloré par catégorie comme partout ailleurs, plein une fois réalisé.
+  // Fenêtre FIXE (un mois en arrière, cinq mois en avant) plutôt qu'ajustée au plus lointain
+  // dossier : un seul acte prévu dans un an écraserait tous les autres au bord gauche. Ce qui sort
+  // de la fenêtre est ramené au bord et signalé par une flèche.
+  var JOURS_AVANT_AVANCEMENT = 30;
+  var JOURS_APRES_AVANCEMENT = 150;
+  var MAX_LIGNES_AVANCEMENT = 15;
+  var JALONS_AVANCEMENT = [
+    { type: 'ventebien', label: 'Vente préalable' },
+    { type: 'pret', label: 'Obtention du prêt' },
+    { type: 'appelFonds', label: 'Appel de fonds' },
+    { type: 'acte', label: 'Date butoir' },
+    { type: 'rendezVousSignature', label: 'Signature' }
+  ];
+  let avancementToutAfficher = false;
+
+  function isoDepuisMs(ms) {
+    const d = new Date(ms);
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+  }
+  function msDepuisIso(iso) { return Date.parse(String(iso).slice(0, 10) + 'T00:00:00Z'); }
+
+  // Pure et testable. `aujourdhuiIso` injectée pour que le calcul ne dépende pas de l'horloge.
+  function donneesAvancement(dossiersActifs, aujourdhuiIso) {
+    const jour = 86400000;
+    const auj = msDepuisIso(aujourdhuiIso);
+    const debut = auj - JOURS_AVANT_AVANCEMENT * jour;
+    const fin = auj + JOURS_APRES_AVANCEMENT * jour;
+    const pct = (ms) => Math.max(0, Math.min(100, ((ms - debut) / (fin - debut)) * 100));
+    const lignes = [];
+    for (const d of dossiersActifs) {
+      const jalons = JALONS_AVANCEMENT
+        .filter(j => d[j.type])
+        .map(j => {
+          const ms = msDepuisIso(d[j.type]);
+          return {
+            type: j.type, label: j.label, iso: d[j.type], pct: pct(ms),
+            hors: ms < debut ? 'avant' : ms > fin ? 'apres' : null,
+            fait: j.type === 'acte' ? !!d.rendezVousSignature : echeanceValidee(d, j.type)
+          };
+        });
+      if (!jalons.length) continue;
+      const creation = (d.historique || []).find(h => h.texte === 'Dossier créé');
+      const departMs = creation ? msDepuisIso(creation.date) : Math.min(...jalons.map(j => msDepuisIso(j.iso)));
+      const arriveeIso = d.rendezVousSignature || d.acte || jalons.map(j => j.iso).sort().pop();
+      const arriveeMs = msDepuisIso(arriveeIso);
+      lignes.push({
+        id: d.id, nom: libelleDossierAffiche(d), finMs: arriveeMs,
+        barreDebut: pct(departMs), barreFin: pct(arriveeMs),
+        coupeAvant: departMs < debut, coupeApres: arriveeMs > fin,
+        jalons
+      });
+    }
+    lignes.sort((a, b) => a.finMs - b.finMs);
+    // Repères de mois : le 1er de chaque mois dans la fenêtre.
+    const mois = [];
+    const dd = new Date(debut);
+    let m = Date.UTC(dd.getUTCFullYear(), dd.getUTCMonth() + 1, 1);
+    while (m <= fin) {
+      mois.push({ pct: pct(m), label: new Date(m).toLocaleDateString('fr-FR', { month: 'short', timeZone: 'UTC' }) });
+      const x = new Date(m);
+      m = Date.UTC(x.getUTCFullYear(), x.getUTCMonth() + 1, 1);
+    }
+    return { aujourdhuiPct: pct(auj), mois, lignes };
+  }
+
+  function basculerAvancementComplet() {
+    avancementToutAfficher = !avancementToutAfficher;
+    render();
+  }
+
+  function renderAvancementDossiers(dossiersActifs) {
+    const section = document.getElementById('dash-avancement');
+    const bloc = document.getElementById('avancement-dossiers');
+    if (!section || !bloc) return;
+    const donnees = donneesAvancement(dossiersActifs, isoDepuisMs(Date.now()));
+    if (!donnees.lignes.length) {
+      section.style.display = 'none';
+      return;
+    }
+    section.style.display = '';
+    const lignes = avancementToutAfficher ? donnees.lignes : donnees.lignes.slice(0, MAX_LIGNES_AVANCEMENT);
+    const reste = donnees.lignes.length - lignes.length;
+    const repereAuj = `<span class="gantt-aujourdhui" style="left:${donnees.aujourdhuiPct}%"></span>`;
+    bloc.innerHTML = `
+      <div class="gantt" role="img" aria-label="Avancement de ${donnees.lignes.length} dossier(s), de la création à la signature">
+        <div class="gantt-ligne gantt-entete">
+          <span class="gantt-nom"></span>
+          <span class="gantt-piste">${donnees.mois
+            // Un repère de mois trop près d'« Aujourd'hui » n'est pas écrit : les deux libellés se
+            // chevaucheraient. Le trait de grille, lui, reste sur chaque ligne.
+            .filter(m => Math.abs(m.pct - donnees.aujourdhuiPct) > 6)
+            .map(m => `<span class="gantt-mois" style="left:${m.pct}%">${escapeHtml(m.label)}</span>`).join('')}
+            <span class="gantt-auj-libelle" style="left:${donnees.aujourdhuiPct}%">Aujourd'hui</span></span>
+        </div>
+        ${lignes.map(l => `
+          <button type="button" class="gantt-ligne" onclick="ouvrirDossierDepuisDashboard('${l.id}')" title="Ouvrir le dossier ${escapeAttr(l.nom)}">
+            <span class="gantt-nom">${escapeHtml(l.nom)}</span>
+            <span class="gantt-piste">
+              ${donnees.mois.map(m => `<span class="gantt-grille" style="left:${m.pct}%"></span>`).join('')}
+              ${repereAuj}
+              <span class="gantt-barre${l.coupeAvant ? ' coupe-avant' : ''}${l.coupeApres ? ' coupe-apres' : ''}" style="left:${l.barreDebut}%;width:${Math.max(0.5, l.barreFin - l.barreDebut)}%"></span>
+              ${l.jalons.map(j => `<span class="gantt-jalon ${j.type}${j.fait ? ' fait' : ''}${j.hors ? ' hors' : ''}" style="left:${j.pct}%" title="${escapeAttr(j.label)} — ${escapeAttr(formatDateFr(j.iso))}${j.fait ? ' (réalisé)' : ''}"></span>`).join('')}
+            </span>
+          </button>`).join('')}
+      </div>
+      <div class="gantt-legende">
+        ${JALONS_AVANCEMENT.map(j => `<span><span class="gantt-jalon ${j.type} legende"></span>${escapeHtml(j.label)}</span>`).join('')}
+        <span><span class="gantt-jalon legende fait-exemple"></span>Plein : réalisé</span>
+        ${reste > 0 || avancementToutAfficher ? `<button type="button" class="action-rapide" onclick="basculerAvancementComplet()">${avancementToutAfficher ? 'Réduire' : `Afficher les ${donnees.lignes.length} dossiers`}</button>` : ''}
+      </div>`;
   }
 
   // Ouvre un dossier depuis le tableau de bord : bascule vers le Suivi et ouvre sa fiche dans le
@@ -10772,7 +10880,7 @@
     const filtreRole = document.getElementById('filtre-role').value;
 
     const dossiersActifs = dossiers.filter(d => !d.archive);
-    renderDashboard(dossiersActifs);
+    renderAvancementDossiers(dossiersActifs);
     renderStatsSuivi(dossiersActifs);
     renderKpisDashboard(dossiersActifs);
     renderActionsUrgentes(dossiersActifs);
@@ -11276,6 +11384,19 @@
     diagnosticParcoursOuvert = !!ouvert;
   }
 
+  // Fichiers qui correspondaient à une pièce mais ont été écartés par une correction précédente :
+  // montrés en tête du diagnostic avec de quoi défaire l'exclusion, parce que c'est EXACTEMENT le
+  // cas où une pièce présente sur le NAS reste « manquante » sans raison visible.
+  function renderExclusionsDiagnostic(d, diag) {
+    const liste = (diag && diag.exclusions) || [];
+    if (!liste.length) return '';
+    return `<div class="diagnostic-exclusions">
+      <p><strong>${liste.length === 1 ? 'Un fichier a été écarté' : `${liste.length} fichiers ont été écartés`} par une correction précédente :</strong></p>
+      <ul>${liste.map(e => `<li><span>${escapeHtml(e.fichier)} → « ${escapeHtml(e.label)} »</span>
+        <button type="button" class="action-rapide" onclick="retirerExclusionPiece('${escapeOnclickArg(e.cle)}', '${escapeOnclickArg(e.nom)}', '${escapeOnclickArg(d.id)}')">Ne plus écarter</button></li>`).join('')}</ul>
+    </div>`;
+  }
+
   function renderDiagnosticParcours(d) {
     const diag = dernierDiagnosticParcours[d.id];
     if (!diag) return '';
@@ -11307,6 +11428,7 @@
         <summary><span class="section-eyebrow">Diagnostic du dernier parcours (${heure})</span></summary>
         <div class="diagnostic-corps">
           <ul class="diagnostic-resume">${lignesResume.map(l => `<li>${l}</li>`).join('')}</ul>
+          ${renderExclusionsDiagnostic(d, diag)}
           ${diag.journal.length
             ? `<ul class="diagnostic-journal">${diag.journal.map(l => `<li>${escapeHtml(l)}</li>`).join('')}</ul>`
             : '<p class="diagnostic-vide">Aucune correspondance par nom, ni lecture de contenu, lors de ce parcours.</p>'}
@@ -11407,6 +11529,7 @@
       }
       memoriserFichierTrouve(d, NAS_CLE_PIECE(cle), null);
       ajouterHistorique(d, `Pièce réinitialisée (correspondance retirée) : « ${label} »`);
+      signalerSiDossierDevenuComplet(d);
       sauvegarder(d);
       render();
     });
@@ -11432,6 +11555,7 @@
       d.pieces = d.pieces || {};
       d.pieces[cle] = 'recue';
       ajouterHistorique(d, `Pièce validée à la main (hors dossier NAS) : « ${label} »`);
+      signalerSiDossierDevenuComplet(d);
       sauvegarder(d);
       render();
     });
@@ -11448,6 +11572,7 @@
       d.pieces = d.pieces || {};
       d.pieces[cle] = 'manquante';
       ajouterHistorique(d, `Validation manuelle retirée : « ${label} »`);
+      signalerSiDossierDevenuComplet(d);
       sauvegarder(d);
       render();
     });
@@ -11464,6 +11589,7 @@
       d.piecesRetirees = d.piecesRetirees || [];
       if (!d.piecesRetirees.includes(cle)) d.piecesRetirees.push(cle);
       ajouterHistorique(d, `Pièce retirée de la checklist : « ${label} »`);
+      signalerSiDossierDevenuComplet(d);
       sauvegarder(d);
       render();
     });
@@ -11516,6 +11642,7 @@
     d.pieces = d.pieces || {};
     const actuel = d.pieces[cle] || 'inconnu';
     d.pieces[cle] = actuel === 'inconnu' ? 'manquante' : actuel === 'manquante' ? 'recue' : 'inconnu';
+    signalerSiDossierDevenuComplet(d);
     sauvegarder(d);
     render();
   }
@@ -12653,6 +12780,9 @@
   async function demarrerApplication() {
     await charger();
     await chargerEtatNas();
+    // Avant toute relecture du NAS : un parcours lancé sans elles reconnaîtrait des fichiers que
+    // l'étude a écartés.
+    await chargerExclusionsMotifNom();
     // Le polling démarre AVANT la relecture du NAS, et celle-ci n'est plus attendue : sur un
     // portefeuille d'une soixantaine de dossiers, ce parcours peut prendre plusieurs minutes
     // (il ouvre des PDF, voir verifierDossierLocal) — tant qu'il n'avait pas fini, aucune synchro
@@ -12905,29 +13035,40 @@
     );
   }
 
-  async function sauvegarderExclusionsMotifNom() {
-    const contenu = JSON.stringify(exclusionsMotifNom);
+  // Les exclusions vivent désormais SUR LE SERVEUR (voir server/src/routes/exclusionsPieces.js) :
+  // gardées dans le navigateur de chaque poste, elles faisaient rendre deux verdicts différents
+  // pour la même pièce selon le poste qui parcourait le NAS, et restaient invisibles. C'est ce qui
+  // expliquait « Courriel alignement et numérotage.pdf » : numérotage relié, alignement jamais —
+  // une exclusion posée un jour sur ce poste pour l'alignement, jamais signalée nulle part.
+  // Les exclusions déjà gardées localement sont reprises UNE fois sur le serveur, puis effacées du
+  // navigateur : une décision humaine n'est pas perdue, et elle devient visible (Réglages).
+  async function chargerExclusionsMotifNom() {
     try {
-      if (window.storage) { await window.storage.set(CLE_EXCLUSIONS_MOTIF_NOM, contenu, false); return; }
-    } catch (e) { console.warn('window.storage indisponible pour les exclusions de pièces, repli sur localStorage.', e); }
-    try { localStorage.setItem(CLE_EXCLUSIONS_MOTIF_NOM, contenu); } catch (e) { console.warn('Sauvegarde des exclusions de pièces impossible.', e); }
+      const reponse = await fetchAvecAuth('/api/exclusions-pieces');
+      if (reponse.ok) {
+        const data = await reponse.json();
+        exclusionsMotifNom = (data && data.exclusions) || {};
+      }
+    } catch (e) {
+      console.warn('Exclusions de pièces indisponibles :', e.message);
+    }
+    await reprendreExclusionsLocales();
+    renderExclusionsReglages();
   }
 
-  async function chargerExclusionsMotifNom() {
+  async function reprendreExclusionsLocales() {
     let brut = null;
     try {
-      if (window.storage) {
-        const res = await window.storage.get(CLE_EXCLUSIONS_MOTIF_NOM, false);
-        if (res && res.value) brut = JSON.parse(res.value);
+      const local = localStorage.getItem(CLE_EXCLUSIONS_MOTIF_NOM);
+      if (local) brut = JSON.parse(local);
+    } catch (e) { /* rien d'exploitable */ }
+    if (!brut || typeof brut !== 'object' || Array.isArray(brut)) return;
+    for (const [cle, noms] of Object.entries(brut)) {
+      for (const nom of (Array.isArray(noms) ? noms : [])) {
+        if (!estNomExcluPourPiece(cle, nom)) await exclureNomPourPiece(cle, nom);
       }
-    } catch (e) { /* on tente le repli ci-dessous */ }
-    if (brut === null) {
-      try {
-        const local = localStorage.getItem(CLE_EXCLUSIONS_MOTIF_NOM);
-        if (local) brut = JSON.parse(local);
-      } catch (e) { /* rien d'exploitable non plus ici */ }
     }
-    exclusionsMotifNom = (brut && typeof brut === 'object' && !Array.isArray(brut)) ? brut : {};
+    try { localStorage.removeItem(CLE_EXCLUSIONS_MOTIF_NOM); } catch (e) { /* sans importance */ }
   }
 
   // Un nom de fichier déjà normalisé (voir normaliserNomPourMotif) est-il exclu pour cette pièce ?
@@ -12936,13 +13077,71 @@
     return Array.isArray(liste) && liste.includes(nomNormalise);
   }
 
-  // Enregistre l'exclusion (idempotent : un même nom ne s'ajoute jamais deux fois pour la même
-  // pièce) et persiste immédiatement.
-  function exclureNomPourPiece(cle, nomNormalise) {
+  // Enregistre l'exclusion sur le serveur (idempotent), puis garde la version renvoyée : c'est
+  // l'état de tout le bureau, y compris ce qu'un collègue a pu ajouter entre-temps.
+  async function exclureNomPourPiece(cle, nomNormalise) {
     if (!nomNormalise) return;
-    if (!Array.isArray(exclusionsMotifNom[cle])) exclusionsMotifNom[cle] = [];
-    if (!exclusionsMotifNom[cle].includes(nomNormalise)) exclusionsMotifNom[cle].push(nomNormalise);
-    sauvegarderExclusionsMotifNom();
+    exclusionsMotifNom[cle] = Array.from(new Set([...(exclusionsMotifNom[cle] || []), nomNormalise]));
+    try {
+      const reponse = await fetchAvecAuth('/api/exclusions-pieces', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ cle, nom: nomNormalise })
+      });
+      if (reponse.ok) exclusionsMotifNom = (await reponse.json()).exclusions || exclusionsMotifNom;
+    } catch (e) {
+      console.warn('Exclusion non enregistrée sur le serveur :', e.message);
+    }
+    renderExclusionsReglages();
+  }
+
+  // « Ne plus écarter » : le nom redevient une correspondance possible pour cette pièce. Relance
+  // aussitôt le parcours du dossier d'où vient le clic, pour que la pièce soit retrouvée sans
+  // attendre le tour automatique.
+  async function retirerExclusionPiece(cle, nomNormalise, dossierId) {
+    try {
+      const reponse = await fetchAvecAuth('/api/exclusions-pieces/retirer', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ cle, nom: nomNormalise })
+      });
+      if (!reponse.ok) throw new Error('statut ' + reponse.status);
+      exclusionsMotifNom = (await reponse.json()).exclusions || {};
+    } catch (e) {
+      afficherToast("Impossible de rétablir ce fichier : " + e.message, 'OK', null);
+      return;
+    }
+    renderExclusionsReglages();
+    afficherToast('Fichier rétabli : il pourra de nouveau être reconnu pour cette pièce.', 'OK', null);
+    if (dossierId) await verifierDossierLocal(dossierId, true);
+  }
+
+  // Libellé d'une clé de pièce, toutes checklists confondues (l'exclusion ne dit pas de quel type
+  // de vente elle vient) — repli sur la clé elle-même.
+  function libellePieceParCle(cle) {
+    for (const type of ['maison', 'copropriete', 'terrain']) {
+      const p = checklistPieces(type).find(x => x.cle === cle);
+      if (p) return p.label;
+    }
+    const auto = PIECES_ENGAGEMENTS_AUTO.find(x => x.cle === cle);
+    return auto ? auto.label : cle;
+  }
+
+  // Liste des fichiers écartés, dans les Réglages : sans elle, une exclusion posée une fois
+  // n'était visible nulle part et ne pouvait être défaite qu'en vidant le navigateur.
+  function renderExclusionsReglages() {
+    const zone = document.getElementById('reglages-exclusions');
+    if (!zone) return;
+    const lignes = [];
+    for (const [cle, noms] of Object.entries(exclusionsMotifNom || {})) {
+      for (const nom of noms) lignes.push({ cle, nom });
+    }
+    if (!lignes.length) {
+      zone.innerHTML = '<p class="hint">Aucun fichier écarté. Un fichier l\'est quand on clique sur « Réinitialiser » d\'une pièce mal reconnue.</p>';
+      return;
+    }
+    zone.innerHTML = `<ul class="exclusions-liste">${lignes.map(l => `
+      <li><span class="exclusions-nom">${escapeHtml(l.nom)}</span>
+        <span class="hint">n'est plus reconnu comme « ${escapeHtml(libellePieceParCle(l.cle))} »</span>
+        <button type="button" class="action-rapide" onclick="retirerExclusionPiece('${escapeOnclickArg(l.cle)}', '${escapeOnclickArg(l.nom)}')">Rétablir</button></li>`).join('')}</ul>`;
   }
 
   // ---- apprentissage des constats d'Outil 2 (Audit des actes) ----
@@ -13276,6 +13475,10 @@
       // sens que sur le poste qui vient de faire le scan qui l'a déclenchée, jamais importée telle
       // quelle d'une autre installation.
       piecesNotifications: [],
+      // Même raison : la date de découverte d'une pièce et l'avis « dossier complet » dérivent
+      // d'un parcours du NAS de CE serveur — ils repartent de zéro avec les pièces.
+      piecesTrouveesLe: {},
+      completNotifieLe: null,
       // nasInventaire/nasNouveaute (surveillance périodique du NAS, voir server/src/nasWatch.js)
       // sont volontairement ABSENTS d'ici, comme fichiersTrouves/pieces ci-dessus : un simple
       // listing de noms propre à l'arborescence de CE serveur, sans intérêt — et potentiellement
@@ -14070,7 +14273,12 @@
   // pas de vérification redondante ici.
   async function notifierNouvellesPiecesTrouvees(d, cles) {
     try {
-      const pieces = cles.map(cle => libelleNotificationPiece(d, cle));
+      // Chaque pièce part avec le chemin du fichier trouvé sur le NAS : le serveur en fait un lien
+      // qui ouvre la pièce directement depuis le message Teams (voir server/src/liensPieces.js).
+      const pieces = cles.map(cle => ({
+        label: libelleNotificationPiece(d, cle),
+        chemin: fichierTrouve(d, cle === CLE_NOTIF_OFFRE_PRET ? NAS_CLE_OFFRE : NAS_CLE_PIECE(cle))
+      }));
       await fetchAvecAuth('/api/notifications/pieces-recues', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -14232,6 +14440,39 @@
       if (onglet) onglet.close();
       afficherToast("Impossible d'ouvrir ce fichier depuis le NAS : " + e.message, 'OK', null);
     }
+  }
+
+  // Année la plus récente écrite dans un nom de fichier (« TF 2026.pdf », « Ramonage_2025-11 »…),
+  // ou null. Seules les années plausibles comptent (2000 à l'an prochain) : un numéro de dossier
+  // ou de parcelle à quatre chiffres ne doit pas passer pour une année. Le chemin complet peut être
+  // fourni, seul le nom du fichier est lu (un dossier « Archives 2019 » ne dit rien du document).
+  function anneeDansNomFichier(cheminOuNom) {
+    const nom = String(cheminOuNom || '').split(/[\\/]/).pop();
+    const max = new Date().getFullYear() + 1;
+    let meilleure = null;
+    for (const m of nom.matchAll(/(?<!\d)(20\d{2})(?!\d)/g)) {
+      const a = Number(m[1]);
+      if (a <= max && (meilleure === null || a > meilleure)) meilleure = a;
+    }
+    return meilleure;
+  }
+
+  // Parmi les fichiers qui correspondent à une même pièce, lequel retenir ? Celui dont le nom porte
+  // l'année la plus récente — une pièce annuelle renouvelée (ramonage, entretien de chaudière, taxe
+  // foncière) coexiste souvent avec la précédente dans le dossier, et c'est la nouvelle qui compte.
+  // Stabilité : le fichier déjà retenu reste retenu tant qu'aucun candidat n'est STRICTEMENT plus
+  // récent (sans ça, deux fichiers sans année échangeraient leur place au gré de l'ordre du
+  // parcours, et la pièce changerait de fichier sans raison). Sans année nulle part : le premier
+  // rencontré, comme avant. Fonction pure, testée.
+  function choisirFichierPiece(candidats, cheminPrecedent) {
+    const liste = (candidats || []).filter(c => c && c.chemin);
+    if (!liste.length) return { chemin: null, annee: null };
+    const avecAnnee = liste.map(c => ({ chemin: c.chemin, annee: anneeDansNomFichier(c.nom || c.chemin) }));
+    const plusRecente = avecAnnee.reduce((max, c) => (c.annee !== null && (max === null || c.annee > max) ? c.annee : max), null);
+    const precedent = cheminPrecedent ? avecAnnee.find(c => c.chemin === cheminPrecedent) : null;
+    if (precedent && (plusRecente === null || (precedent.annee !== null && precedent.annee >= plusRecente))) return precedent;
+    if (plusRecente === null) return precedent || avecAnnee[0];
+    return avecAnnee.find(c => c.annee === plusRecente);
   }
 
   function fichierTrouve(d, cle) {
@@ -14443,15 +14684,13 @@
   // principe que le repli déjà utilisé pour la date de signature du compromis (traiterFichierPdf),
   // borné pour ne pas ralentir le parcours de tout un dossier local.
   const PAGES_OCR_VERIFICATION = 3;
-  // Repli OCR dédié à Outil 2 (Audit des actes, voir lireTextePdfParPage juste en dessous) :
-  // PAGES_OCR_VERIFICATION (3 pages) suffit à RECONNAÎTRE un document scanné par son titre — c'est
-  // tout ce que demande verifierDossierLocal() — mais Outil 2 doit ANALYSER l'intégralité d'un
-  // document scanné pour y détecter des incohérences, pas seulement l'identifier. Repli signalé par
-  // l'étude ("comment le document peut être analysé après si seulement 3 pages sont lu") : alignée
-  // sur PLAFOND_PAGES_VERIFICATION, la même limite que la lecture texte, pour qu'un document scanné
-  // reçoive la même couverture qu'un document au texte extractible. Coût assumé : jusqu'à ~30s/page
-  // (DELAI_MAX_OCR) sur un document entièrement scanné, contre quelques secondes pour 3 pages.
-  const PAGES_OCR_AUDIT = PLAFOND_PAGES_VERIFICATION;
+  // Relecture d'actes (Outil 2, voir lireTextePdfParPage juste en dessous) : AUCUNE limite de
+  // pages, ni pour la lecture du texte ni pour le repli OCR — demandé explicitement par l'étude
+  // (« ne mets pas de limite de 60 pages, aucune limite »). La vérification des pièces du NAS garde,
+  // elle, ses plafonds (PLAFOND_PAGES_VERIFICATION, PAGES_OCR_VERIFICATION) : elle ne fait que
+  // RECONNAÎTRE un document, alors que la relecture doit en ANALYSER chaque page — une annexe
+  // coupée en deux produirait un « absent » faux. Coût assumé : jusqu'à ~30 s/page d'OCR
+  // (DELAI_MAX_OCR) sur un document entièrement scanné.
 
   // Texte utile d'un PDF du dossier local relié, avec repli OCR s'il n'a aucun texte extractible
   // (scan/image) : partagé par verifierDossierLocal(), qui n'a plus qu'à tester l'offre de prêt
@@ -14480,23 +14719,18 @@
     return texte;
   }
 
-  // Variante page par page de lireTextePdfVerification(), pour Outil 2 (Audit des actes — voir plus
-  // bas, section « Analyse approfondie (IA) ») : celui-ci doit citer une PAGE précise pour chaque
-  // document envoyé au modèle, pas seulement pour le compromis en cours d'import (pageDepuisIndex
-  // ne connaît que le PDF unique chargé dans le wizard). Même lecture texte
-  // (PLAFOND_PAGES_VERIFICATION), mais repli OCR élargi (PAGES_OCR_AUDIT, voir sa déclaration
-  // ci-dessus) : contrairement à lireTextePdfVerification(), qui n'a besoin que de RECONNAÎTRE un
-  // document par son titre, Outil 2 doit pouvoir ANALYSER l'intégralité d'un document scanné.
-  // Mémorise en plus la position de chaque page dans le texte joint, et un résumé de couverture
-  // (pagesLues/pagesTotal/viaOcr/tronque) pour que l'audit puisse signaler qu'une lecture a été
-  // coupée plutôt que de le laisser silencieux. lireTextePdfVerification() elle-même n'est pas
-  // touchée : ses appelants existants (vérification d'un dossier local) n'ont pas besoin de tout
-  // ça et ne doivent pas changer de comportement (ni de temps de traitement).
+  // Variante page par page de lireTextePdfVerification(), pour la relecture d'actes (Outil 2) :
+  // chaque constat doit citer une PAGE précise de n'importe quel document fourni. Lit TOUTES les
+  // pages, texte comme OCR (aucune limite, voir le commentaire ci-dessus), mémorise la position de
+  // chaque page dans le texte joint, et un résumé de couverture (pagesLues/pagesTotal/viaOcr/
+  // tronque) — `tronque` ne peut plus être vrai que si une page est illisible, jamais par plafond.
+  // lireTextePdfVerification() n'est pas touchée : la vérification d'un dossier du NAS garde ses
+  // plafonds et son temps de traitement.
   async function lireTextePdfParPage(pdf) {
     let texte = '';
     let pages = [];
     const pagesTotal = pdf.numPages;
-    for (let p = 1; p <= Math.min(pagesTotal, PLAFOND_PAGES_VERIFICATION); p++) {
+    for (let p = 1; p <= pagesTotal; p++) {
       const page = await pdf.getPage(p);
       const content = await page.getTextContent();
       const debut = texte.length;
@@ -14510,7 +14744,7 @@
         try {
           let texteOcr = '';
           const pagesOcr = [];
-          for (let p = 1; p <= Math.min(pagesTotal, PAGES_OCR_AUDIT); p++) {
+          for (let p = 1; p <= pagesTotal; p++) {
             const debut = texteOcr.length;
             texteOcr += (await ocrPage(pdf, p, workerVerif)) + '\n';
             pagesOcr.push({ numero: p, debut, fin: texteOcr.length });
@@ -14642,6 +14876,8 @@
     const validees = new Set(d.piecesValideesManuellement || []);
     const aChercher = new Set(checklist.map(p => p.cle).filter(cle => !validees.has(cle)));
     const fichierParPiece = {};
+    const candidatsParPiece = {};
+    const exclusionsRencontrees = [];
 
     // Un clic explicite sur « Revérifier » repart de zéro : la mémoire des PDF écartés pour
     // l'offre est oubliée pour CE dossier, et aucun budget ne s'applique (voir leur déclaration).
@@ -14678,7 +14914,10 @@
     }
 
     for (const fichier of fichiers) {
-      if ((!chercherOffre || offreTrouvee) && aChercher.size === 0) break; // tout est déjà résolu
+      // Plus de sortie anticipée une fois toutes les pièces trouvées : il faut voir TOUS les
+      // fichiers pour repérer une version plus récente d'une pièce déjà trouvée. Sans coût réel,
+      // les pièces n'étant reconnues que par le nom (aucun PDF ouvert pour elles).
+      if (chercherOffre && offreTrouvee && aChercher.size === 0) break; // plus rien à chercher du tout
       nbFichiersRencontres++;
       const cheminComplet = cheminNasComplet(d, fichier.chemin);
       // Nom normalisé (underscores/tirets → espaces, accents recomposés en NFC) avant tout test de
@@ -14787,23 +15026,53 @@
         parcoursEcourte = true;
       }
 
+      // TOUS les fichiers qui correspondent à une pièce sont retenus comme candidats, plus
+      // seulement le premier : quand une pièce annuelle est renouvelée (ramonage, entretien, taxe
+      // foncière 2025 → 2026), les deux fichiers coexistent dans le dossier, et c'est le plus
+      // récent qui doit compter — voir choisirFichierPiece après la boucle. Demandé par l'étude.
       for (const piece of checklist) {
         if (!aChercher.has(piece.cle)) continue;
         // Pièce personnalisée (voir checklistPieces/ajouterPiecePersonnalisee) : pas de motifNom
         // (nom libre saisi par l'étude), retrouvée par sous-chaîne de son libellé — même logique
         // que chercherFichierParNom, appliquée ici pour qu'un "Revérifier" ultérieur la retrouve
         // aussi, pas seulement la recherche ponctuelle faite à son ajout.
+        let correspond = false;
         if (piece.personnalisee) {
-          if (nomNormalise.toLowerCase().includes(piece.label.toLowerCase())) {
-            fichierParPiece[piece.cle] = cheminComplet;
-            aChercher.delete(piece.cle);
-            diagnosticJournal.push(`${fichier.nom} → pièce trouvée par nom : « ${piece.label} »`);
+          correspond = nomNormalise.toLowerCase().includes(piece.label.toLowerCase());
+        } else if (piece.motifNom && piece.motifNom.test(nomNormalise)) {
+          if (estNomExcluPourPiece(piece.cle, nomNormalise)) {
+            // Le nom correspond, mais une correction précédente l'a écarté pour cette pièce (bouton
+            // « Réinitialiser », voir reinitialiserStatutPieceStandard). Écrit en clair dans le
+            // diagnostic : sans ça, une exclusion posée une fois bloquait la pièce en silence sur
+            // TOUS les dossiers suivants portant un fichier de même nom — cas signalé par l'étude
+            // (« Courriel alignement et numérotage.pdf » : numérotage relié, alignement jamais).
+            exclusionsRencontrees.push({ cle: piece.cle, label: piece.label, nom: nomNormalise, fichier: fichier.nom });
+            diagnosticJournal.push(`${fichier.nom} → correspond à « ${piece.label} » mais écarté par une correction précédente (Réglages › Fichiers écartés pour rétablir)`);
+          } else {
+            correspond = true;
           }
-        } else if (piece.motifNom && piece.motifNom.test(nomNormalise) && !estNomExcluPourPiece(piece.cle, nomNormalise)) {
-          fichierParPiece[piece.cle] = cheminComplet;
-          aChercher.delete(piece.cle);
+        }
+        if (correspond) {
+          (candidatsParPiece[piece.cle] = candidatsParPiece[piece.cle] || []).push({ chemin: cheminComplet, nom: fichier.nom });
           diagnosticJournal.push(`${fichier.nom} → pièce trouvée par nom : « ${piece.label} »`);
         }
+      }
+    }
+
+    // Choix du fichier retenu pour chaque pièce, et repérage des pièces RENOUVELÉES (même pièce,
+    // fichier d'une année plus récente que celui déjà connu) — elles sont notifiées comme une pièce
+    // nouvelle, puisque c'en est une pour l'étude.
+    const piecesMisesAJour = [];
+    for (const piece of checklist) {
+      const candidats = candidatsParPiece[piece.cle];
+      if (!candidats || !candidats.length) continue;
+      const precedent = fichierTrouve(d, NAS_CLE_PIECE(piece.cle));
+      const choix = choisirFichierPiece(candidats, precedent);
+      fichierParPiece[piece.cle] = choix.chemin;
+      const anneePrecedente = precedent ? anneeDansNomFichier(precedent) : null;
+      if (precedent && choix.chemin !== precedent && choix.annee && anneePrecedente && choix.annee > anneePrecedente) {
+        piecesMisesAJour.push({ cle: piece.cle, label: piece.label, avant: anneePrecedente, apres: choix.annee });
+        diagnosticJournal.push(`Pièce « ${piece.label} » : version ${choix.annee} retenue à la place de ${anneePrecedente}`);
       }
     }
 
@@ -14845,6 +15114,7 @@
     dernierDiagnosticParcours[id] = {
       horodatage: new Date().toISOString(),
       journal: diagnosticJournal,
+      exclusions: exclusionsRencontrees,
       resume: {
         nbFichiersRencontres,
         nbAnalyses,
@@ -14899,16 +15169,31 @@
     // L'offre "à confirmer" n'est volontairement pas comptée : rien n'est encore "reçu" tant que
     // l'étude (ou le modèle local) ne l'a pas confirmé.
     const nouvellesPieces = checklist
-      .filter(p => d.pieces[p.cle] === 'recue' && piecesAvant[p.cle] !== 'recue')
+      .filter(p => d.pieces[p.cle] === 'recue' && piecesAvant[p.cle] !== 'recue' && !validees.has(p.cle))
       .map(p => p.cle);
+    // Une pièce renouvelée (année plus récente, voir piecesMisesAJour) est une nouveauté pour
+    // l'étude au même titre qu'une pièce jamais vue : même notification, même trace.
+    for (const m of piecesMisesAJour) {
+      if (!nouvellesPieces.includes(m.cle)) nouvellesPieces.push(m.cle);
+    }
+    if (piecesMisesAJour.length) {
+      ajouterHistorique(d, 'Pièce(s) mise(s) à jour sur le NAS : ' +
+        piecesMisesAJour.map(m => `${m.label} (${m.avant} → ${m.apres})`).join(', '));
+    }
     if (chercherOffre && offreTrouvee && !offreAConfirmer && !offreEtaitRecue) {
       nouvellesPieces.push(CLE_NOTIF_OFFRE_PRET);
     }
     if (nouvellesPieces.length) {
+      // Date à laquelle chaque pièce a été trouvée (ou renouvelée) — alimente « Dernières pièces
+      // trouvées » sur le Tableau de bord, qui garde la trace après que la fiche a été consultée.
+      const maintenant = new Date().toISOString();
+      d.piecesTrouveesLe = d.piecesTrouveesLe || {};
+      for (const cle of nouvellesPieces) d.piecesTrouveesLe[cle] = maintenant;
       d.piecesNotifications = Array.from(new Set([...(d.piecesNotifications || []), ...nouvellesPieces]));
       notifierNouvellesPiecesTrouvees(d, nouvellesPieces);
       notifierNavigateurPieces(d, nouvellesPieces);
     }
+    signalerSiDossierDevenuComplet(d);
 
     // Ce parcours vient justement de relire le dossier NAS : la notification proactive d'un
     // nouveau document (voir appliquerChangementsDistants/nasWatch.js) a déjà rempli son rôle une
@@ -15087,6 +15372,36 @@
     if (d.offrePretStatut === 'aconfirmer') return { texte: 'À confirmer', dl: 'dl-pret' };
     if (d.offrePretStatut === 'manquante') return { texte: 'Introuvable', dl: 'dl-pret' };
     return { texte: 'À vérifier', dl: 'dl-neutre' };
+  }
+
+  // Prévient le responsable, une seule fois, qu'un dossier a tout reçu — demandé par l'étude : c'est
+  // le signal qu'il peut commencer la rédaction de l'acte. `d.completNotifieLe` empêche tout
+  // renvoi (y compris depuis un autre poste, le dossier étant partagé) ; il est effacé si le dossier
+  // cesse d'être complet (une pièce disparue du NAS), pour que le prochain passage à « complet »
+  // soit de nouveau annoncé. Rien pour un dossier archivé, ni pour une participation : la
+  // rédaction revient alors au confrère. Appelée après toute mutation qui peut compléter un
+  // dossier (parcours du NAS, validation manuelle d'une pièce, pièce personnalisée cochée).
+  function doitNotifierDossierComplet(d) {
+    if (!d || d.archive || d.roleNotaire === 'participant') return false;
+    return dossierEntierementComplet(d) && !d.completNotifieLe;
+  }
+
+  function signalerSiDossierDevenuComplet(d) {
+    if (!d) return;
+    if (!dossierEntierementComplet(d)) {
+      if (d.completNotifieLe) d.completNotifieLe = null;
+      return;
+    }
+    if (!doitNotifierDossierComplet(d)) return;
+    d.completNotifieLe = new Date().toISOString();
+    ajouterHistorique(d, 'Dossier complet (offre de prêt et pièces reçues) : responsable prévenu');
+    // Fire-and-forget, comme la notification de pièces : un envoi impossible ne doit jamais faire
+    // échouer ce qui vient d'être fait sur le dossier.
+    fetchAvecAuth('/api/notifications/dossier-complet', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ dossierNom: d.nom, responsable: d.responsable || null })
+    }).catch(e => console.warn('Notification « dossier complet » impossible :', e.message));
   }
 
   // Un dossier dont l'offre de prêt est déjà confirmée reçue ET toutes les pièces de la checklist
@@ -18115,6 +18430,11 @@
         const c = estimationRelecture.coutEstime;
         estimation = `<div class="analyse-estimation"><span class="section-eyebrow">Coût estimé</span><strong>${c ? `${formaterCoutUsd(c.bas)} à ${formaterCoutUsd(c.haut)}` : '—'}</strong>
           <span class="hint">${estimationRelecture.jetonsEntree.toLocaleString('fr-FR')} jetons à lire · facturé par Anthropic en dollars</span></div>`;
+        // Aucune limite de pages : la seule borne est ce que le modèle peut lire en une fois. Dit
+        // AVANT le lancement, avec le compte exact, plutôt qu'un refus de l'API après coup.
+        if (estimationRelecture.depasse) {
+          estimation += `<p class="analyse-erreur">${icone('alert-triangle')} Ce dossier dépasse ce que le modèle peut lire en une seule analyse (${estimationRelecture.jetonsEntree.toLocaleString('fr-FR')} jetons, maximum ${(estimationRelecture.limiteJetons || 0).toLocaleString('fr-FR')}). Retirez les pièces les moins utiles à l'étape 1.</p>`;
+        }
       }
     }
     const enCours = analyseEnCoursRelecture
@@ -18134,7 +18454,7 @@
       <div class="relecture-actions">
         <button type="button" class="secondary" onclick="definirEtapeRelecture(2)" ${analyseEnCoursRelecture ? 'disabled' : ''}>Retour</button>
         ${e.configure ? '' : `<button type="button" class="secondary" onclick="lancerAuditActe(false)" ${analyseEnCoursRelecture ? 'disabled' : ''}>Contrôles CLAIRE seuls</button>`}
-        <button type="button" class="primary" onclick="lancerAuditActe(true)" ${e.configure && !analyseEnCoursRelecture ? '' : 'disabled'}>${icone('sparkle')} Lancer l'analyse</button>
+        <button type="button" class="primary" onclick="lancerAuditActe(true)" ${e.configure && !analyseEnCoursRelecture && !(estimationRelecture && estimationRelecture.depasse) ? '' : 'disabled'}>${icone('sparkle')} Lancer l'analyse</button>
       </div>
       ${renderJournalCoutRelecture()}`;
   }
@@ -20529,7 +20849,6 @@
 
   chargerTheme();
   chargerApprentissage();
-  chargerExclusionsMotifNom();
   chargerJournalCorrections();
   chargerMemoireAudit();
   chargerRubriquesMasquees();

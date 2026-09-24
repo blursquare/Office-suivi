@@ -27,6 +27,25 @@ const CLE_DERNIER_TOUR = 'dernier-tour-rappels';
 // nettoyageGmail.js). Même raison que le compte rendu ci-dessus pour une clé à part : c'est un
 // état produit par le serveur, pas un réglage.
 const CLE_COPIES_GMAIL = 'copies-gmail-a-effacer';
+const CLE_SECRET_LIENS = 'secret-liens-pieces';
+
+// Noms de fichiers écartés à la main pour une pièce de la checklist (bouton « Réinitialiser » d'une
+// pièce mal reconnue, voir script.js). Longtemps gardés dans le navigateur de chaque poste : deux
+// postes pouvaient alors rendre deux verdicts différents pour la même pièce du même dossier, et
+// l'exclusion restait invisible. En base, ils sont partagés et listés dans les Réglages.
+const CLE_EXCLUSIONS_PIECES = 'exclusions-noms-pieces';
+const MAX_NOMS_PAR_PIECE = 200;
+
+function assainirExclusionsPieces(brut) {
+  const propre = {};
+  if (!brut || typeof brut !== 'object' || Array.isArray(brut)) return propre;
+  for (const [cle, noms] of Object.entries(brut)) {
+    if (!/^[A-Za-z0-9_-]{1,80}$/.test(cle) || !Array.isArray(noms)) continue;
+    const liste = Array.from(new Set(noms.filter((n) => typeof n === 'string' && n.trim()).map((n) => n.trim().slice(0, 300))));
+    if (liste.length) propre[cle] = liste.slice(-MAX_NOMS_PAR_PIECE);
+  }
+  return propre;
+}
 const MAX_COPIES_EN_ATTENTE = 500;
 
 function assainirCopiesEnAttente(brut) {
@@ -308,15 +327,43 @@ function creerRepoParametres(db) {
     return propre;
   }
 
+  // Secret des liens vers les pièces (voir liensPieces.js) : généré une seule fois, au premier
+  // besoin, puis conservé en base — le changer rendrait invalides tous les liens déjà envoyés
+  // dans Teams. Jamais exposé par une route.
+  function lireSecretLiens() {
+    const ligne = lireStmt.get(CLE_SECRET_LIENS);
+    if (ligne && typeof ligne.valeur === 'string' && ligne.valeur.length >= 32) return ligne.valeur;
+    const secret = require('node:crypto').randomBytes(32).toString('hex');
+    ecrireStmt.run(CLE_SECRET_LIENS, secret);
+    return secret;
+  }
+
+  function lireExclusionsPieces() {
+    const ligne = lireStmt.get(CLE_EXCLUSIONS_PIECES);
+    if (!ligne) return {};
+    try {
+      return assainirExclusionsPieces(JSON.parse(ligne.valeur));
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function ecrireExclusionsPieces(exclusions) {
+    const propre = assainirExclusionsPieces(exclusions);
+    ecrireStmt.run(CLE_EXCLUSIONS_PIECES, JSON.stringify(propre));
+    return propre;
+  }
+
   return {
     lireReglages, ecrireReglages, lireDernierTour, ecrireDernierTour,
     lireCopiesEnAttente, ecrireCopiesEnAttente, lireRetoursAudit, ecrireRetoursAudit,
-    lireReglagesClaude, ecrireReglagesClaude
+    lireReglagesClaude, ecrireReglagesClaude, lireSecretLiens,
+    lireExclusionsPieces, ecrireExclusionsPieces
   };
 }
 
 module.exports = {
-  creerRepoParametres, assainirReglages, assainirDernierTour, assainirCopiesEnAttente,
+  creerRepoParametres, assainirReglages, assainirExclusionsPieces, assainirDernierTour, assainirCopiesEnAttente,
   assainirRetourAudit, assainirRetoursAudit, MAX_RETOURS_AUDIT,
   assainirReglagesClaude, MODELES_CLAUDE, MODELE_CLAUDE_PAR_DEFAUT,
   REGLAGES_PAR_DEFAUT, PORT_SMTP_PAR_DEFAUT

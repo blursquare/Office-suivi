@@ -15,7 +15,7 @@ const express = require('express');
 const crypto = require('node:crypto');
 const {
   calculerCoutUsd, estimerCoutUsd, validerGrille, validerDocuments, validerConsignes, construireTexteDocuments,
-  construireSystemPrompt, SCHEMA_RELECTURE, normaliserAnalyse
+  construireSystemPrompt, SCHEMA_RELECTURE, normaliserAnalyse, LIMITE_JETONS_ENTREE, MAX_JETONS_SORTIE
 } = require('../relecture/claude');
 
 // Opus 5 seulement : le repli serveur en cas de refus par les classifieurs de sécurité. Une
@@ -92,7 +92,13 @@ function creerRouteurRelectureClaude(parametresRepo, db, options) {
         system: r.system,
         messages: [{ role: 'user', content: r.contenu }]
       });
-      res.json({ modele: s.modele, jetonsEntree: compte.input_tokens, coutEstime: estimerCoutUsd(compte.input_tokens, s.modele) });
+      // Le compte exact dit si le dossier tient dans le contexte du modèle : c'est la seule limite
+      // réelle (aucune limite de pages, voir LIMITE_JETONS_ENTREE). Signalé AVANT le lancement.
+      const depasse = compte.input_tokens > LIMITE_JETONS_ENTREE;
+      res.json({
+        modele: s.modele, jetonsEntree: compte.input_tokens, coutEstime: estimerCoutUsd(compte.input_tokens, s.modele),
+        depasse, limiteJetons: LIMITE_JETONS_ENTREE
+      });
     } catch (err) {
       journaliserErreur('estimation', err);
       res.status(502).json({ erreur: messageErreurApi(err) });
@@ -109,7 +115,7 @@ function creerRouteurRelectureClaude(parametresRepo, db, options) {
     const client = creerClient(s.cle);
     const params = {
       model: s.modele,
-      max_tokens: 64000,
+      max_tokens: MAX_JETONS_SORTIE,
       thinking: { type: 'adaptive' },
       output_config: { effort: 'high', format: { type: 'json_schema', schema: SCHEMA_RELECTURE } },
       system: r.system,

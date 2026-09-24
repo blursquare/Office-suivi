@@ -118,33 +118,26 @@
 
   <div class="kpis-dashboard" id="kpis-dashboard"></div>
 
-  <!-- Bloc transitoire : il n'existe que tant que des pièces trouvées sur le NAS n'ont pas été
-       vues (d.piecesNotifications, effacé à la fermeture du tiroir du dossier concerné — et de lui
-       seul, voir fermerDossierDrawer). Masqué entièrement quand il n'y a rien à signaler, comme la
-       colonne des échéances plus bas : pas d'étiquette orpheline, et le tableau de bord retrouve
-       alors exactement sa mise en page habituelle. Placé AVANT « Actions urgentes » : c'est le seul
-       bloc du tableau de bord dont le contenu disparaît une fois lu, donc le seul qu'on puisse
-       manquer en ne regardant pas au bon moment. -->
-  <div id="dash-nouveautes" class="dash-nouveautes" style="display:none;">
-    <div class="dash-section-titre">Pièces reçues, pas encore consultées</div>
-    <div id="pieces-recues-dashboard" class="dash-liste"></div>
-  </div>
-
+  <!-- Refonte demandée par l'étude au carnet de bord : actions urgentes regroupées par statut,
+       rappel des dernières pièces trouvées (qui reste lisible après consultation, les pièces pas
+       encore vues marquées « Nouveau »), et un diagramme d'avancement de chaque dossier. Le widget
+       « Échéances des 7 prochains jours » est retiré : le diagramme montre les mêmes dates, et la
+       tuile KPI garde le compte. Chaque colonne se masque entière quand elle est vide, pour ne pas
+       laisser d'étiquette orpheline. -->
   <div class="dash-grid">
     <div class="dash-col">
       <div class="dash-section-titre">Actions urgentes</div>
       <div id="actions-urgentes" class="actions-urgentes"></div>
     </div>
-    <!-- Même structure que « Actions urgentes » à gauche : l'étiquette de section VIT AU-DESSUS
-         de la carte, elle n'est plus un titre d'un autre registre à l'intérieur. C'est la colonne
-         entière qui se masque quand il n'y a aucune échéance (voir renderDashboard), pour ne pas
-         laisser une étiquette orpheline. -->
-    <div class="dash-col" id="dashboard-col" style="display:none;">
-      <div class="dash-section-titre">Échéances des 7 prochains jours</div>
-      <div id="dashboard" class="dashboard">
-        <div id="dashboard-liste"></div>
-      </div>
+    <div class="dash-col" id="dash-nouveautes" style="display:none;">
+      <div class="dash-section-titre">Dernières pièces trouvées</div>
+      <div id="pieces-recues-dashboard" class="dash-liste"></div>
     </div>
+  </div>
+
+  <div class="dash-avancement" id="dash-avancement" style="display:none;">
+    <div class="dash-section-titre">Avancement des dossiers</div>
+    <div id="avancement-dossiers" class="avancement-dossiers"></div>
   </div>
 </div>
 
@@ -1455,6 +1448,14 @@
         <span id="reglages-claude-resultat"></span>
       </div>
     </div>
+  </div>
+
+  <!-- Fichiers écartés à la main pour une pièce (bouton « Réinitialiser » d'une pièce mal
+       reconnue). Partagés par tout le bureau, voir retirerExclusionPiece() dans script.js. -->
+  <div class="calc-card">
+    <div class="dash-section-titre">Fichiers écartés des pièces</div>
+    <p class="hint">Ces noms de fichiers ne sont plus reconnus pour la pièce indiquée, sur aucun dossier. « Rétablir » annule l'exclusion ; relancez ensuite « Revérifier » sur le dossier concerné.</p>
+    <div id="reglages-exclusions"></div>
   </div>
 
   <div class="calc-card reglages-apropos">

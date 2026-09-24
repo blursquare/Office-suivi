@@ -459,6 +459,25 @@ bout avec un vrai serveur et une arborescence reproduisant celle de l'étude, ma
 de fichiers Linux — le comportement d'un chemin UNC (`\\\\serveur\\partage`) et les droits du
 compte exécutant le serveur restent à confirmer au bureau.
 
+
+### Lien vers une pièce dans la notification Teams
+
+Quand une pièce est trouvée sur le NAS, le message envoyé au responsable contient un lien qui ouvre
+directement le PDF, sans passer par CLAIRE. Ce lien est **signé** par le serveur (HMAC, valable
+90 jours) : il n'ouvre que CE fichier, et reste confiné au dossier NAS configuré. Il pointe vers
+l'adresse du serveur sur le réseau du bureau — il ne s'ouvre donc que depuis un poste du bureau.
+Si le fichier a été déplacé ou renommé depuis, le lien affiche un message et invite à ouvrir le
+dossier dans CLAIRE.
+
+### Fichiers écartés
+
+Un clic sur « Réinitialiser » d'une pièce mal reconnue écarte ce nom de fichier pour cette pièce,
+sur tous les dossiers. Ces exclusions sont enregistrées sur le serveur (partagées par tous les
+postes) et listées dans **Réglages › Fichiers écartés des pièces**, avec un bouton « Rétablir ». Le
+diagnostic du dernier parcours d'un dossier signale aussi tout fichier écarté, avec « Ne plus
+écarter ». Une pièce présente sur le NAS qui reste « manquante » sans raison apparente : regarder
+d'abord là.
+
 ## Relecture d'actes par l'API Claude
 
 L'écran **Relecture d'actes** fait relire un projet d'avant-contrat ou un projet d'acte de vente

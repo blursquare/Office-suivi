@@ -128,4 +128,32 @@ function creerRouteurNas(config) {
   return routeur;
 }
 
-module.exports = { creerRouteurNas };
+// Lien direct vers une pièce, envoyé dans la notification Teams (voir ../liensPieces.js). Montée
+// HORS du middleware d'authentification, volontairement : un clic dans Teams n'en porte aucune. La
+// preuve est la signature du lien lui-même, vérifiée ici avant toute lecture du NAS ; au-delà, le
+// chemin suit exactement les mêmes garde-fous que /api/nas/fichier (confinement, PDF seulement).
+function creerRouteurLienPiece(config, parametresRepo) {
+  const { lienValide } = require('../liensPieces');
+  const routeur = express.Router();
+  routeur.get('/piece', routeAsync(async (req, res) => {
+    const racine = config.nasRacine;
+    const params = { c: req.query.c, e: req.query.e, s: req.query.s };
+    if (!lienValide(parametresRepo.lireSecretLiens(), params)) {
+      res.status(403).type('text/plain; charset=utf-8')
+        .send("Lien invalide ou expiré. Ouvrez la pièce depuis la fiche du dossier dans CLAIRE.");
+      return;
+    }
+    const cible = racine ? await resoudreCheminNas(racine, params.c) : null;
+    if (!cible || !/\.pdf$/i.test(cible) || !(await existe(cible))) {
+      res.status(404).type('text/plain; charset=utf-8')
+        .send("Ce fichier n'est plus à cet endroit sur le NAS (déplacé ou renommé). Ouvrez le dossier dans CLAIRE.");
+      return;
+    }
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(path.basename(cible))}"`);
+    fs.createReadStream(cible).pipe(res);
+  }));
+  return routeur;
+}
+
+module.exports = { creerRouteurNas, creerRouteurLienPiece };

@@ -3,7 +3,6 @@
 // demande, M5) seront démarrées ici aux prochaines étapes — voir le plan.
 'use strict';
 
-const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
 const { exec } = require('node:child_process');
@@ -90,19 +89,7 @@ function journaliserErreurFatale(origine, erreur) {
 process.on('uncaughtException', (err) => journaliserErreurFatale('Exception non interceptée', err));
 process.on('unhandledRejection', (raison) => journaliserErreurFatale('Promesse rejetée non gérée', raison));
 
-// Adresses IPv4 locales candidates (hors loopback) : à donner aux autres postes du bureau pour
-// qu'ils rejoignent ce même registre (`http://<ip>:<port>/`) — évite à l'étude de devoir chercher
-// elle-même l'IP du poste dans les paramètres réseau Windows.
-function adressesLan() {
-  const interfaces = os.networkInterfaces();
-  const adresses = [];
-  for (const nom of Object.keys(interfaces)) {
-    for (const iface of interfaces[nom] || []) {
-      if (iface.family === 'IPv4' && !iface.internal) adresses.push(iface.address);
-    }
-  }
-  return adresses;
-}
+const { adressesLan } = require('./reseau');
 
 // Ouvre l'outil au démarrage dans une fenêtre Chrome/Edge dédiée, sans onglets ni barre
 // d'adresse — même rendu que `Ouvrir-en-fenetre.bat` pour la version 100% locale (voir CLAUDE.md,
