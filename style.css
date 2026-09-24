@@ -4144,6 +4144,8 @@
     color: #fff;
   }
   .confirm-box .btn-confirmer:hover { background: #b85e08; }
+  .confirm-box .btn-confirmer.btn-valider { border-color: var(--focus); background: var(--focus); }
+  .confirm-box .btn-confirmer.btn-valider:hover { background: var(--focus-hover); }
 
   /* ---- écran "À propos" (voir ouvrirAPropos dans script.js) ----
      Réutilise .confirm-overlay/.confirm-box (même fond, même carte centrée) pour rester cohérent

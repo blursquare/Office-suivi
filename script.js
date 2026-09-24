@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-24 18:05';
+  const VERSION_APP = '2026-09-24 18:08';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-24 18:08', resume: "Valider une pièce à la main : le bouton de confirmation dit « Valider » (en bleu) et non plus « Supprimer »." },
     { version: '2026-09-24 18:05', resume: "Pièces : un « Arrêté d'alignement » (avec ou sans accent, « arrêté individuel / portant alignement »…) coche le certificat d'alignement. Fiche : « Signature 7 j avant la date butoir » au lieu de « ce butoir »." },
     { version: '2026-09-24 18:00', resume: "Courrier d'appel de fonds (.docx) : plus de ligne vide sous chaque ligne du décompte sans formule de calcul. Arbitrage forfait mobilier : les coûts habituels (300 € + 600 € + 300 €, un serment à 240 €) sont posés d'office, seules les deux simulations de droits restent à saisir." },
     { version: '2026-09-24 17:30', resume: "Apprentissage : une date corrigée à la main à la création d'un dossier (panneau ou champ « Dates butoir ») est retenue pour les actes suivants, et partagée entre tous les postes. Écrire à l'acquéreur est possible en participation. Nouveau bouton « Réception des fonds », qui rappelle la date du rendez-vous." },
@@ -9345,8 +9346,17 @@
   // bac à sable (iframe), ce qui empêchait la suppression de fonctionner silencieusement.
   let actionConfirmee = null;
 
-  function demanderConfirmation(message, onConfirm) {
+  // `options.bouton` remplace le libellé du bouton (« Supprimer » par défaut) et
+  // `options.ton: 'valider'` le passe du rouge de la suppression au bleu d'une action positive :
+  // demander de confirmer une validation avec un bouton rouge « Supprimer » faisait croire à
+  // l'inverse de ce qui allait se passer. Remis à l'état par défaut à chaque appel.
+  function demanderConfirmation(message, onConfirm, options) {
     document.getElementById('confirm-message').textContent = message;
+    const ok = document.getElementById('confirm-btn-ok');
+    if (ok) {
+      ok.textContent = (options && options.bouton) || 'Supprimer';
+      ok.classList.toggle('btn-valider', !!(options && options.ton === 'valider'));
+    }
     actionConfirmee = onConfirm;
     document.getElementById('confirm-overlay').style.display = 'flex';
   }
@@ -11627,7 +11637,7 @@
       signalerSiDossierDevenuComplet(d);
       sauvegarder(d);
       render();
-    });
+    }, { bouton: 'Valider', ton: 'valider' });
   }
 
   // Annule la validation ci-dessus : la pièce redevient une pièce ordinaire, donc cherchée à

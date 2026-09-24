@@ -7202,6 +7202,14 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   - La carte « Date butoir » affiche « Signature 7 j avant la date butoir » (et « APRÈS la date
     butoir ») au lieu de « ce butoir », demandé par l'étude.
 
+- **Confirmation d'une validation manuelle de pièce : bouton « Valider » au lieu de « Supprimer »**
+  (24/09). `demanderConfirmation(message, onConfirm, options)` accepte `options.bouton` (libellé)
+  et `options.ton: 'valider'` (bouton bleu `--focus` via `.btn-valider` au lieu du rouge
+  `--urgent`) ; remis à « Supprimer »/rouge à chaque appel, donc les autres confirmations ne
+  changent pas. Seule `validerPieceManuellement()` l'utilise pour l'instant — d'autres
+  confirmations non destructives (réinitialiser une pièce, importer, mettre à jour les parties)
+  affichent encore « Supprimer », à passer au cas par cas si l'étude le demande.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à
