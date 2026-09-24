@@ -196,6 +196,30 @@ function assainirDernierTour(brut) {
   };
 }
 
+// Réglages de la relecture d'actes par l'API Claude (Outil 2) — rangés sous leur PROPRE clé, à
+// part des réglages d'envoi d'email : la liste blanche d'assainirReglages() ne les connaît pas, et
+// deux écrans différents n'ont pas à s'écraser l'un l'autre.
+//
+// La clé API suit la même discipline que le mot de passe SMTP : elle ne ressort JAMAIS de la base
+// (voir routes/relectureClaude.js), et `precedent` permet de la conserver quand le formulaire ne
+// la renvoie pas — absente ou `null`, on garde celle en base ; chaîne vide explicite, on l'efface.
+const CLE_REGLAGES_CLAUDE = 'relecture-claude';
+// Modèles proposés à l'étude. Sonnet 5 par défaut : c'est celui retenu dans le prototype
+// « Notariat IA » fourni par l'étude, et il coûte 2,5 fois moins qu'Opus 5 à l'usage.
+const MODELES_CLAUDE = ['claude-sonnet-5', 'claude-opus-5'];
+const MODELE_CLAUDE_PAR_DEFAUT = 'claude-sonnet-5';
+
+function assainirReglagesClaude(brut, precedent) {
+  const b = (brut && typeof brut === 'object') ? brut : {};
+  const p = (precedent && typeof precedent === 'object') ? precedent : {};
+  const cle = (typeof b.cleApi === 'string') ? b.cleApi.trim() : texteNettoye(p.cleApi);
+  return {
+    cleApi: cle,
+    modele: MODELES_CLAUDE.indexOf(b.modele) >= 0 ? b.modele
+      : (MODELES_CLAUDE.indexOf(p.modele) >= 0 ? p.modele : MODELE_CLAUDE_PAR_DEFAUT)
+  };
+}
+
 function creerRepoParametres(db) {
   const lireStmt = db.prepare('SELECT valeur FROM parametres WHERE cle = ?');
   const ecrireStmt = db.prepare(
@@ -268,14 +292,32 @@ function creerRepoParametres(db) {
     return propre;
   }
 
+  function lireReglagesClaude() {
+    const ligne = lireStmt.get(CLE_REGLAGES_CLAUDE);
+    if (!ligne) return assainirReglagesClaude({});
+    try {
+      return assainirReglagesClaude(JSON.parse(ligne.valeur));
+    } catch (e) {
+      return assainirReglagesClaude({});
+    }
+  }
+
+  function ecrireReglagesClaude(reglages) {
+    const propre = assainirReglagesClaude(reglages, lireReglagesClaude());
+    ecrireStmt.run(CLE_REGLAGES_CLAUDE, JSON.stringify(propre));
+    return propre;
+  }
+
   return {
     lireReglages, ecrireReglages, lireDernierTour, ecrireDernierTour,
-    lireCopiesEnAttente, ecrireCopiesEnAttente, lireRetoursAudit, ecrireRetoursAudit
+    lireCopiesEnAttente, ecrireCopiesEnAttente, lireRetoursAudit, ecrireRetoursAudit,
+    lireReglagesClaude, ecrireReglagesClaude
   };
 }
 
 module.exports = {
   creerRepoParametres, assainirReglages, assainirDernierTour, assainirCopiesEnAttente,
   assainirRetourAudit, assainirRetoursAudit, MAX_RETOURS_AUDIT,
+  assainirReglagesClaude, MODELES_CLAUDE, MODELE_CLAUDE_PAR_DEFAUT,
   REGLAGES_PAR_DEFAUT, PORT_SMTP_PAR_DEFAUT
 };

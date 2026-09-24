@@ -30,6 +30,27 @@ const SCHEMA = `
   -- fonctionnalité — le premier usage est le flux Power Automate + les adresses email des
   -- responsables (voir jobs/rappels.js), mais rien n'empêche d'y ranger d'autres réglages plus tard
   -- sans nouvelle migration.
+  -- Journal des relectures d'actes par l'API Claude (Outil 2). Le guide IEJ/CSN « Introduction à
+  -- l'intelligence artificielle » (déc. 2025) recommande d'ARCHIVER les requêtes adressées à une
+  -- IA : on y conserve donc la requête et la réponse telles qu'elles sont parties et revenues,
+  -- c'est-à-dire PSEUDONYMISÉES — la table de correspondance jeton → valeur réelle ne quitte
+  -- jamais le navigateur (voir anonymiserTexteRelecture dans script.js), elle n'est donc pas ici.
+  CREATE TABLE IF NOT EXISTS analyses_claude (
+    id TEXT PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    mode TEXT,
+    modele TEXT,
+    libelle TEXT,
+    input_tokens INTEGER NOT NULL DEFAULT 0,
+    output_tokens INTEGER NOT NULL DEFAULT 0,
+    cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+    cache_write_tokens INTEGER NOT NULL DEFAULT 0,
+    cout_usd REAL NOT NULL DEFAULT 0,
+    duree_ms INTEGER,
+    requete TEXT,
+    reponse TEXT
+  );
+
   CREATE TABLE IF NOT EXISTS parametres (
     cle TEXT PRIMARY KEY,
     valeur TEXT NOT NULL

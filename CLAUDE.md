@@ -6745,6 +6745,80 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     passé de 2 à 1 point à vérifier, synthèse et bilan « 0 sur 1 » mis à jour), un oubli signalé,
     aucune erreur JS, aucun débordement.
 
+- **Relecture d'actes refaite en quatre étapes sur l'API Claude (Outil 2 v3).** Demande de l'étude
+  du 24/09/2026, accompagnée du guide IEJ/CSN « Introduction à l'intelligence artificielle » et du
+  code d'un prototype construit dans une autre conversation (Next.js, « LLM du notariat » sur l'API
+  Claude) : « reprends le cœur du nouveau système de relecture et adapte-le à notre outil 2 […]
+  meilleure gestion des annexes, accès au dossier local complet et pas qu'AAE, deux copropriétés
+  dans un même acte, la check-list du nouveau cœur + ce qu'on a déjà fait, adaptée au projet de
+  vente, présentation en étapes (upload, anonymisation…), une carte de santé de l'acte à la fin,
+  pas d'email rédigé, voir le projet en cliquant sur les numéros de page, et le coût de l'analyse ».
+  **Décision structurante : c'est la fin de la règle « pas d'appel à un service extérieur » pour
+  cet écran, voulue et cadrée par l'étude** (clé API qu'elle fournit, pseudonymisation locale).
+  - **Ce qui est repris du prototype** : la grille injectée dans le prompt système, la
+    pseudonymisation par jetons ⟦CATEGORIE_n⟧ avant envoi, la sortie structurée
+    (`output_config.format` json_schema), la ré-identification au retour. **Ce qui est adapté** :
+    - la pseudonymisation se fait **dans le navigateur**, page par page, avec **une seule table
+      partagée par tous les documents** (même personne = même jeton d'un acte à l'autre, ce qui
+      laisse Claude repérer une incohérence entre l'avant-contrat et le projet) ; la table ne quitte
+      jamais le poste, le serveur ne reçoit que du texte déjà masqué (`anonymiserDocumentsOutil2`,
+      `REGLES_ANONYMISATION_OUTIL2`, `termesConnusAnonymisation`, `desanonymiserOutil2`) ;
+    - la **grille vit côté client** (`GRILLE_RELECTURE_OUTIL2`, ~47 points, filtrée par mode par
+      `grillePourModeOutil2`) : les 35 points du prototype + ce qui avait été bâti ici (identité et
+      capacité, quotités, désignation, occupation, situation hypothécaire, engagements du vendeur,
+      AG/ALUR, copropriétés multiples, prêt obtenu, honoraires, plus-value) + une section
+      « Concordance avec l'avant-contrat » propre au projet de vente ; les points du seul
+      avant-contrat (rétractation, condition de prêt, clause pénale, date de réitération) ne sont
+      pas posés sur un projet de vente. Le serveur la valide (`validerGrille`) sans la redéfinir ;
+    - le serveur **vérifie chaque citation mot pour mot** et recalcule la page d'après sa position
+      réelle (`verifierCitations`) — même principe que `localiserExtrait` côté extraction ; un point
+      omis par le modèle ressort « à vérifier » (`omis: true`), jamais « validé » ;
+    - les **commentaires de l'étude** (mode commentaires, stockés serveur) sont renvoyés au modèle
+      comme consignes (`consignesEtudeRelecture`, section « CONSIGNES DE L'ÉTUDE » du prompt) —
+      **après pseudonymisation** (`pseudonymiserTexteLibreOutil2`) : un commentaire peut citer un
+      nom, il ne doit pas partir en clair par ce biais ;
+    - chaque requête est **archivée pseudonymisée** avec sa réponse, ses jetons et son coût (table
+      `analyses_claude`) — conseil explicite du guide IEJ.
+  - **Quatre étapes** (`definirEtapeRelecture`, stepper `#relecture-stepper`) : **1 Documents** —
+    dépôt, ou **parcours du dossier du NAS complet, rubrique par rubrique** (AAE et avant-contrat
+    précochés, 40 pièces au plus), nature de chaque pièce devinée (`classerNaturePieceOutil2`) et
+    annexes jointes au PDF principal repérées (`debutAnnexesDocumentOutil2`, envoyées marquées
+    « annexe jointe ») ; **2 Pseudonymisation** — table affichée, « Masquer aussi » un terme,
+    « Laisser en clair » une valeur, aperçu page par page de ce qui partira ; **3 Analyse** —
+    récapitulatif, coût estimé par comptage exact des jetons (gratuit), lancement ; **4 Bilan** —
+    carte de santé (anneau critique/à surveiller/validé), une tuile par section avec ses pastilles,
+    détail des points (validés repliés, sans-objet en une ligne), anomalies hors grille, puces de
+    page qui ouvrent une **visionneuse** à droite (pdf.js, extrait surligné), contrôles
+    automatiques de CLAIRE en complément, et **coût réel** de l'analyse avec le cumul du mois.
+  - **Deux copropriétés dans un même acte** : point de grille dédié (`copro_multiples`), champ
+    `coproprietes` dans le schéma de sortie, et détection locale
+    (`detecterCoproprietesMultiplesOutil2`) qui affiche un bandeau même sans clé API.
+  - **Retirés** : la synthèse email à communiquer au client (« pas d'e-mail rédigé, j'aime pas
+    finalement »), la grille visuelle et le bloc « À demander » de la version précédente — le bilan
+    les remplace. `questionsOutil2` reste (utilisée par les analyseurs), sans rendu.
+  - **Sans clé API**, l'écran reste utilisable : « Contrôles CLAIRE seuls » lance les analyseurs
+    déterministes déjà en place (dont le bilan garde la section).
+  - Serveur : `server/src/relecture/claude.js`, `server/src/routes/relectureClaude.js` (voir
+    server/README.md, section « Relecture d'actes par l'API Claude »), dépendance
+    `@anthropic-ai/sdk` (CJS, embarquée par esbuild dans le `.exe`). Modèles : Sonnet 5 (défaut) et
+    Opus 5 (avec le repli serveur `server-side-fallback-2026-07-01`) ; flux + `finalMessage`,
+    `thinking: adaptive`, `effort: high`, `max_tokens` 64 000. Clé dans les réglages, jamais
+    renvoyée au navigateur ; repli sur `ANTHROPIC_API_KEY`.
+  - **Pièges payés en écrivant la pseudonymisation** : le drapeau `i` rendait la commune « en
+    majuscules » insensible à la casse et avalait toute la suite de la phrase ; une société
+    (`SCI…`) traversait le point final ; une espace doublée par pdf.js donnait deux jetons à la même
+    personne (clé désormais à espaces normalisés) ; une civilité suivie de plus de quatre mots
+    laissait « SOUSA MARTINS » en clair (six mots acceptés) ; « M. I MPOT » était pris pour une
+    personne (premier mot d'au moins deux lettres exigé). Rejoué sur le projet de vente réel du
+    stress test : aucun patronyme des parties ne subsiste dans le texte envoyé.
+  - Tests : `tests/outil2-relecture-claude.test.js` (9), `server/test/relecture-claude.test.js`
+    (12, faux client Anthropic). Suite racine 737, serveur 249. **Vérifié dans un vrai Chromium**
+    (serveur réel + faux client Claude qui cite de vrais passages, clair/sombre, 1500 et 400 px) :
+    les quatre étapes, ré-identification des commentaires, 23 puces de page, visionneuse, coût
+    affiché, aucun jeton visible dans le bilan, aucun débordement. **Non vérifié en conditions
+    réelles** : pas de vraie clé API ni de pdf.js ici — la qualité de l'analyse, sa durée et son
+    coût réels sur un dossier complet restent à confirmer par l'étude.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

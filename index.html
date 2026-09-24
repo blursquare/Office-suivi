@@ -1200,7 +1200,7 @@
       <div class="dash-eyebrow">Lecture de projet</div>
       <div class="dash-titre-ligne">
         <h1 class="dash-titre">Relecture d'un acte</h1>
-        <span class="calc-warning-label" title="Cette relecture applique des règles sur le texte des documents : elle attire l'attention sur des points précis, elle ne remplace pas la relecture du notaire, qui garde la décision finale.">
+        <span class="calc-warning-label" title="Chaque point relevé est une proposition, citée page à l'appui, que le notaire vérifie et tranche : la relecture ne remplace pas son contrôle.">
           <span id="icon-analyse-ia-warning" aria-hidden="true"></span>
           Aide à la relecture
         </span>
@@ -1208,61 +1208,88 @@
     </div>
   </div>
 
-  <div class="dash-grid audit-grid">
-    <div class="calc-card">
-      <div class="dash-section-titre">Ce que vous relisez</div>
+  <nav class="relecture-stepper" id="relecture-stepper" aria-label="Étapes de la relecture"></nav>
 
-      <label for="audit-mode">Document principal</label>
-      <select id="audit-mode" onchange="changerAuditMode(this.value)">
-        <option value="compromis">Compromis / promesse de vente</option>
-        <option value="acte">Projet d'acte de vente</option>
-      </select>
-      <p class="hint" id="audit-aide-mode">L'avant-contrat est relu à la recherche de dangers : travaux déjà faits touchant le gros œuvre ou l'extérieur, diagnostics périmés, entretiens et documents à obtenir, travaux à faire avant la vente.</p>
+  <!-- Étape 1 : documents -->
+  <section class="relecture-etape" id="relecture-etape-1">
+    <div class="dash-grid relecture-docs-grid">
+      <div class="calc-card">
+        <div class="dash-section-titre">Ce que vous relisez</div>
+        <label for="audit-mode">Nature du projet</label>
+        <select id="audit-mode" onchange="changerAuditMode(this.value)">
+          <option value="compromis">Projet de compromis / promesse de vente</option>
+          <option value="acte">Projet d'acte de vente</option>
+        </select>
+        <p class="hint" id="audit-aide-mode"></p>
 
-      <div id="audit-reference-bloc" style="display:none; margin-top:14px;">
-        <label for="audit-dossier-recherche">Dossier CLAIRE déjà suivi</label>
+        <label for="audit-dossier-recherche" style="margin-top:14px;">Dossier CLAIRE <span class="hint">(facultatif)</span></label>
         <div class="dash-recherche" style="width:100%;">
           <input type="search" id="audit-dossier-recherche" placeholder="Rechercher un dossier par nom ou responsable…" oninput="rechercherDossierAudit(this.value)" autocomplete="off">
           <div id="audit-dossier-resultats" class="dash-recherche-resultats" style="display:none;"></div>
         </div>
         <div id="audit-dossier-pill"></div>
-        <p class="hint">Dès que le projet est lu, les dossiers dont les parties correspondent sont proposés ici — à confirmer d'un clic. L'avant-contrat signé est alors récupéré tout seul depuis le NAS. Sinon, déposez-le ci-dessous en lui donnant le type « Avant-contrat signé ».</p>
+        <p class="hint">Lié à un dossier, la relecture a accès à tout son dossier du NAS : pièces à choisir rubrique par rubrique, et avant-contrat repris tout seul pour un projet de vente.</p>
+        <div id="relecture-nas" class="relecture-nas" style="display:none;"></div>
       </div>
 
-      <div class="dash-section-titre" style="margin-top:16px;">Documents</div>
-      <p class="hint">Déposez le document à relire, puis les justificatifs fournis par le vendeur — attestation d'entretien de chaudière, ramonage, facture de travaux, décennale, diagnostics. Chacun dans son propre PDF : c'est leur date qui sera contrôlée.</p>
-
-      <div class="pdf-dropzone" id="analyse-ia-dropzone" ondragover="gererSurvolDepotAnalyseIa(event)" ondragleave="gererQuitteDepotAnalyseIa(event)" ondrop="gererDepotAnalyseIa(event)">
-        <span class="pdf-dropzone-icone" id="icon-analyse-ia-dropzone" aria-hidden="true"></span>
-        <label for="analyse-ia-fichiers" class="file-btn">Choisir un ou plusieurs PDF</label>
-        <input type="file" id="analyse-ia-fichiers" accept="application/pdf" multiple onchange="ajouterFichiersAnalyseIa(this.files); this.value='';">
-        <span class="pdf-dropzone-hint">ou glissez-déposez les fichiers ici</span>
-      </div>
-
-      <div id="analyse-ia-liste-fichiers" class="analyse-ia-liste-fichiers"></div>
-
-      <div class="analyse-ia-actions">
-        <button type="button" class="secondary" id="analyse-ia-vider-btn" onclick="viderAnalyseIa()" style="display:none;">Vider la liste</button>
-        <button type="button" class="primary" id="analyse-ia-lancer-btn" onclick="lancerAuditActe()" disabled>Analyser</button>
+      <div class="calc-card">
+        <div class="dash-section-titre">Documents</div>
+        <div class="pdf-dropzone" id="analyse-ia-dropzone" ondragover="gererSurvolDepotAnalyseIa(event)" ondragleave="gererQuitteDepotAnalyseIa(event)" ondrop="gererDepotAnalyseIa(event)">
+          <span class="pdf-dropzone-icone" id="icon-analyse-ia-dropzone" aria-hidden="true"></span>
+          <label for="analyse-ia-fichiers" class="file-btn">Choisir un ou plusieurs PDF</label>
+          <input type="file" id="analyse-ia-fichiers" accept="application/pdf" multiple onchange="ajouterFichiersAnalyseIa(this.files); this.value='';">
+          <span class="pdf-dropzone-hint">le projet, puis ses annexes — ou glissez-déposez</span>
+        </div>
+        <div id="analyse-ia-liste-fichiers" class="analyse-ia-liste-fichiers"></div>
+        <div class="relecture-actions">
+          <button type="button" class="secondary" id="analyse-ia-vider-btn" onclick="viderAnalyseIa()" style="display:none;">Tout retirer</button>
+          <button type="button" class="primary" id="relecture-suivant-1" onclick="allerEtapePseudonymisationRelecture()" disabled>Continuer</button>
+        </div>
       </div>
     </div>
+  </section>
 
+  <!-- Étape 2 : pseudonymisation locale, avant tout envoi -->
+  <section class="relecture-etape" id="relecture-etape-2" style="display:none;">
+    <div class="calc-card relecture-cadre-carte">
+      <div class="relecture-cadre-icone" id="icon-relecture-cadre" aria-hidden="true"></div>
+      <div>
+        <strong>Rien d'identifiant ne quitte l'étude.</strong>
+        <p class="hint">Noms, adresses, naissances, contacts, références cadastrales et identifiants sont remplacés ici, dans votre navigateur, par des jetons (⟦PERSONNE_1⟧…). Seul le texte ainsi masqué est envoyé à l'API Claude d'Anthropic ; la correspondance reste sur ce poste et sert à rétablir les noms dans le bilan. Un même élément porte le même jeton dans tous les documents, ce qui laisse repérer une incohérence d'un acte à l'autre. Relisez l'aperçu : un nom resté en clair se masque en un clic.</p>
+      </div>
+    </div>
+    <div class="dash-grid relecture-anon-grid">
+      <div class="calc-card">
+        <div class="dash-section-titre">Données masquées</div>
+        <div id="relecture-anonymisation"></div>
+      </div>
+      <div class="calc-card">
+        <div class="dash-section-titre">Ce qui sera envoyé</div>
+        <div id="relecture-apercu-anon" class="relecture-apercu-anon"></div>
+      </div>
+    </div>
+    <div class="relecture-actions">
+      <button type="button" class="secondary" onclick="definirEtapeRelecture(1)">Retour</button>
+      <button type="button" class="primary" onclick="definirEtapeRelecture(3)">Valider et continuer</button>
+    </div>
+  </section>
+
+  <!-- Étape 3 : analyse -->
+  <section class="relecture-etape" id="relecture-etape-3" style="display:none;">
     <div class="calc-card">
-      <div class="dash-section-titre">Points relevés</div>
-      <div id="analyse-ia-rapport" class="analyse-ia-rapport">
-        <p class="hint">Aucune relecture lancée pour l'instant.</p>
-      </div>
+      <div class="dash-section-titre">Analyse</div>
+      <div id="relecture-analyse"></div>
     </div>
-  </div>
+  </section>
 
-  <div class="calc-card calc-card-notes">
-    <div class="dash-section-titre">Ce que cette relecture contrôle</div>
-    <p><strong>Sur un compromis ou une promesse</strong>, quatre points, et seulement ceux-là : les <strong>travaux déjà réalisés</strong> qui touchent le gros œuvre ou l'extérieur du bien (une autorisation d'urbanisme est alors exigible, et la garantie décennale court encore si les travaux ont moins de dix ans) ; les <strong>diagnostics périmés</strong> à ce jour ; les <strong>entretiens et documents</strong> que le vendeur doit fournir ; les <strong>travaux qu'il s'est engagé à faire avant la vente</strong>. <strong>En copropriété</strong>, s'ajoutent les <strong>travaux votés lors des trois dernières assemblées générales</strong> et, si vous déposez l'<strong>état daté ou le pré-état daté</strong>, son contenu : procédures en cours, travaux envisagés et devis, impayés du vendeur, sommes incombant à l'acquéreur, fonds de travaux, avances et emprunt du syndicat. Si vous déposez un <strong>certificat d'urbanisme</strong>, sa validité (18 mois) et ses points de vigilance sont relevés. Le reste de l'urbanisme général n'est volontairement pas contrôlé ici : un rapport court se lit, un inventaire ne se lit pas.</p>
-    <p><strong>Sur un projet d'acte de vente</strong>, le projet est comparé à l'avant-contrat signé : parties, prix, désignation du bien, et surtout les engagements du vendeur — un engagement n'est tenu que si un justificatif le prouve <em>et</em> que sa date est encore valable au jour de la relecture. <strong>En copropriété</strong>, une assemblée générale tenue <em>entre</em> l'avant-contrat et la vente est signalée : si des travaux y ont été votés, il reste à trancher qui en supporte le coût. L'état daté et le certificat d'urbanisme déposés sont lus ici aussi. <strong>Sur un terrain à bâtir</strong>, le <strong>permis de construire de l'acquéreur</strong> est contrôlé : arrêté obtenu, affichage sur le terrain justifié par constat, et purge des deux délais — retrait administratif (3 mois depuis l'arrêté) et recours des tiers (2 mois depuis le premier jour d'affichage continu, jamais depuis l'arrêté). Sans constat d'affichage, le délai de recours ne court même pas.</p>
-    <p>Chaque point qui appelle une démarche produit une <strong>question prête à envoyer</strong>, groupée par destinataire (syndic, confrère, mairie, acquéreur, greffe du tribunal administratif) en pied de rapport, et copiable d'un clic.</p>
-    <p>Le rapport s'ouvre sur une <strong>grille</strong> (une case par rubrique : à régler, à vérifier, rien relevé, non contrôlé) et sur une <strong>synthèse rédigée</strong>, prête à copier dans un courrier ; le <strong>rapport détaillé</strong> donne chaque clause citée avec sa page. Le <strong>mode commentaires</strong> permet de dire, sous chaque point, s'il est juste, faux, mal formulé ou mal gradué — pour ce dossier seulement ou pour tous — et de signaler ce que la relecture a raté ; ces commentaires sont conservés sur le serveur de l'étude et exportables pour corriger les règles.</p>
-    <p>Tout est calculé dans votre navigateur, à partir du texte des PDF déposés : aucun dossier n'est créé, aucun fichier n'est conservé. Le dossier CLAIRE éventuellement lié est lu, et n'est modifié que si vous cliquez sur « Mettre à jour la fiche » quand ses parties diffèrent de l'avant-contrat relu.</p>
-  </div>
+  <!-- Étape 4 : bilan -->
+  <section class="relecture-etape" id="relecture-etape-4" style="display:none;">
+    <div id="relecture-bilan"></div>
+    <div class="relecture-actions">
+      <button type="button" class="secondary" onclick="definirEtapeRelecture(1)">Modifier les documents</button>
+      <button type="button" class="secondary" onclick="viderAnalyseIa()">Nouvelle relecture</button>
+    </div>
+  </section>
 </div>
 
 <!-- Réglages : URL du flux Power Automate + adresse email de chaque responsable (voir
@@ -1403,6 +1430,33 @@
     </ul>
     <p>La <strong>date butoir</strong> de l'avant-contrat ne déclenche aucun rappel&nbsp;: elle est indicative, c'est le rendez-vous pris à l'office qui engage l'étude. L'adresse de copie ci-dessus, si renseignée, reçoit le même message pour chaque envoi. Il n'existe plus de rappel par email manuel à envoyer soi-même&nbsp;: ce mécanisme le remplace entièrement.</p>
   </div>
+  <!-- Relecture d'actes par l'API Claude (Outil 2) : clé et modèle, lus/écrits par
+       server/src/routes/relectureClaude.js. La clé ne ressort jamais du serveur. -->
+  <div class="calc-card">
+    <div class="dash-section-titre">Relecture par Claude</div>
+    <div class="calc-champs">
+      <div class="calc-champ">
+        <label for="reglages-claude-cle">Clé API Anthropic</label>
+        <input type="password" id="reglages-claude-cle" autocomplete="off" placeholder="sk-ant-…">
+        <p class="hint">Créée sur <code>console.anthropic.com</code> (compte de l'étude, facturation à l'usage). Stockée sur le serveur de l'étude, jamais réaffichée — laisser vide conserve celle en place.</p>
+      </div>
+      <div class="calc-champ">
+        <label for="reglages-claude-modele">Modèle</label>
+        <select id="reglages-claude-modele">
+          <option value="claude-sonnet-5">Claude Sonnet 5 — recommandé (2 $ / 10 $ par million de jetons)</option>
+          <option value="claude-opus-5">Claude Opus 5 — plus approfondi, 2,5 fois plus cher (5 $ / 25 $)</option>
+        </select>
+        <p class="hint">Une relecture complète (projet + annexes) coûte en général quelques dizaines de centimes ; le coût exact s'affiche avant de lancer et à la fin de chaque analyse.</p>
+      </div>
+      <div class="reglages-claude-actions">
+        <button type="button" class="primary" onclick="enregistrerReglagesClaude()">Enregistrer</button>
+        <button type="button" class="secondary" onclick="testerCleClaude()">Vérifier la clé</button>
+        <button type="button" class="secondary" onclick="effacerCleClaude()">Effacer la clé</button>
+        <span id="reglages-claude-resultat"></span>
+      </div>
+    </div>
+  </div>
+
   <div class="calc-card reglages-apropos">
     <div>
       <div class="dash-section-titre">À propos de Claire</div>

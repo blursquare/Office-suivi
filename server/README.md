@@ -456,6 +456,50 @@ bout avec un vrai serveur et une arborescence reproduisant celle de l'étude, ma
 de fichiers Linux — le comportement d'un chemin UNC (`\\\\serveur\\partage`) et les droits du
 compte exécutant le serveur restent à confirmer au bureau.
 
+## Relecture d'actes par l'API Claude
+
+L'écran **Relecture d'actes** fait relire un projet d'avant-contrat ou un projet d'acte de vente
+point par point par Claude (Anthropic), sur une grille d'environ 45 points (parties, bien,
+diagnostics, copropriété — y compris plusieurs copropriétés dans un même acte —, délais et clauses,
+urbanisme, volet financier ; en projet de vente, concordance avec l'avant-contrat signé).
+
+**Ce qui part chez Anthropic, et ce qui n'y part jamais.** Les noms, adresses, dates et lieux de
+naissance, emails, téléphones, IBAN, numéros de sécurité sociale, références cadastrales et
+sociétés sont remplacés par des jetons (`⟦PERSONNE_1⟧`…) **dans le navigateur**, avant tout envoi.
+La correspondance jeton → valeur reste sur le poste ; le serveur ne la reçoit jamais. L'étape 2 de
+l'écran montre exactement le texte qui sera envoyé, et permet de masquer un terme oublié ou de
+laisser en clair une valeur masquée à tort. Les noms de fichiers ne sont pas envoyés non plus
+(« Document 1 », « Annexe 2 »…). Cadre retenu : guide IEJ/CSN sur l'intelligence artificielle
+(secret professionnel, vérification humaine de chaque sortie, archivage des requêtes).
+
+**Clé API.** Réglages → *Relecture par Claude* : la clé est stockée dans la base du serveur et ne
+ressort jamais vers un navigateur (seul un « clé enregistrée » est renvoyé). À défaut, la variable
+d'environnement `ANTHROPIC_API_KEY` est utilisée. Le bouton *Tester* vérifie la clé sans rien
+facturer. Modèles proposés : Claude Sonnet 5 (défaut) et Claude Opus 5. Le poste serveur doit
+pouvoir joindre `api.anthropic.com` en HTTPS. Sans clé, l'écran reste utilisable avec les seuls
+contrôles automatiques de CLAIRE (règles locales, sans IA).
+
+**Coût.** Avant de lancer, l'écran affiche une fourchette calculée à partir du nombre exact de
+jetons à lire (comptage gratuit chez Anthropic). Après l'analyse, le coût réel facturé, les jetons
+lus et produits et la durée sont affichés en bas du bilan, avec le cumul du mois et depuis
+l'installation. Tarifs utilisés (dollars par million de jetons) : Sonnet 5 — 2 en entrée, 10 en
+sortie ; Opus 5 — 5 et 25. Un dossier complet (acte + avant-contrat + quelques annexes) représente
+en général quelques dizaines de centimes.
+
+**Archivage.** Chaque requête est conservée telle qu'envoyée — donc pseudonymisée — avec la
+réponse, les jetons et le coût, dans la table `analyses_claude` de la base. Seules les
+métadonnées (date, modèle, coût) sont exposées par `GET /api/relecture-claude/journal`.
+
+**Vérification des citations.** Chaque point cité doit renvoyer à un extrait du texte ; le serveur
+cherche l'extrait mot pour mot dans le document et recalcule la page d'après sa position réelle.
+Un extrait introuvable est signalé comme non vérifié plutôt qu'affiché comme une preuve. Un point
+de la grille que le modèle aurait omis est affiché « à surveiller », jamais « validé ».
+
+Routes (toutes derrière le mot de passe partagé) : `GET /api/relecture-claude/etat`,
+`POST /api/relecture-claude/estimer`, `POST /api/relecture-claude/analyser`,
+`GET /api/relecture-claude/journal`, `GET|PUT /api/relecture-claude/reglages`,
+`POST /api/relecture-claude/tester`.
+
 ## Commentaires sur la relecture d'actes
 
 Le « mode commentaires » de l'écran **Relecture d'actes** enregistre l'avis de l'étude sur chaque
@@ -466,6 +510,10 @@ pour tous) et les oublis signalés. Ils sont stockés **dans la base du serveur*
 - `GET /api/audit-retours` — la liste ;
 - `POST /api/audit-retours` — ajoute ou remplace (même `id`) un commentaire ;
 - `DELETE /api/audit-retours/:id` — le supprime.
+
+Les commentaires portés sur un point de la grille sont aussi **renvoyés à Claude** lors des
+relectures suivantes, sous forme de consignes (« ne signale pas… », « considère comme critique… ») :
+c'est ainsi que l'outil s'ajuste aux usages de l'étude, sans réentraînement.
 
 Ces routes sont protégées par le mot de passe partagé, comme le reste de `/api`. Le bouton
 « Exporter les commentaires » télécharge un JSON à transmettre pour corriger les règles de la

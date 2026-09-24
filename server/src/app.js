@@ -17,6 +17,7 @@ const { creerRouteurOffrePret } = require('./routes/offrePret');
 const { creerRouteurNas } = require('./routes/nas');
 const { creerRouteurReglages } = require('./routes/reglages');
 const { creerRouteurNotifications } = require('./routes/notifications');
+const { creerRouteurRelectureClaude } = require('./routes/relectureClaude');
 
 // Fichier statique → nom d'asset embarqué (voir server/scripts/build-windows-exe.mjs, section
 // `assets` de sea-config.json) + type MIME à renvoyer. Tous des fichiers texte (HTML/CSS/JS/JSON/
@@ -67,13 +68,18 @@ function estSea() {
 
 // `envoyerEmailFn` : injection de la couche d'envoi (voir envoiEmail.js), utilisée uniquement par
 // les tests — sans elle, vérifier les routes qui notifient demanderait un vrai serveur SMTP.
-function creerApp({ db, config, envoyerEmailFn }) {
+function creerApp({ db, config, envoyerEmailFn, creerClientClaude }) {
   const app = express();
   const depot = creerDepot(db);
   const parametresRepo = creerRepoParametres(db);
   const gestionnaireAuth = creerGestionnaireAuth(config.motDePasse);
 
-  app.use(express.json({ limit: '5mb' })); // un dossier avec historique/analyse juridique reste petit, 5 Mo est déjà large
+  // Un dossier avec historique/analyse juridique reste petit, 5 Mo est déjà large — sauf la
+  // relecture d'actes par Claude, qui reçoit le texte complet d'un projet et de ses annexes
+  // (jusqu'à ~900 000 caractères, voir relecture/claude.js) : plafond propre, plus haut.
+  const jsonStandard = express.json({ limit: '5mb' });
+  const jsonRelecture = express.json({ limit: '30mb' });
+  app.use((req, res, next) => (req.path.startsWith('/api/relecture-claude/') ? jsonRelecture : jsonStandard)(req, res, next));
 
   // Sert index.html/style.css/script.js/manifest.json/sw.js/icone.svg : depuis la racine du dépôt
   // en mode développement (`npm start`), depuis les assets embarqués du blob SEA en mode
@@ -101,6 +107,7 @@ function creerApp({ db, config, envoyerEmailFn }) {
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurReglages(parametresRepo, envoyerEmailFn, { depot, db }));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNotifications(parametresRepo, envoyerEmailFn));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAuditRetours(parametresRepo));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRelectureClaude(parametresRepo, db, { creerClient: creerClientClaude }));
 
   // Gestionnaire d'erreurs générique en dernier recours : évite qu'une exception inattendue
   // (JSON malformé, etc.) ne fasse planter le processus entier plutôt que de répondre 500.

@@ -4623,3 +4623,482 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
 @media (max-width: 700px) {
   .qt-feuille { padding: 20px 18px; overflow-x: auto; }
 }
+
+/* ==== Relecture d'un acte — parcours en quatre étapes (Outil 2 v3) ==================================
+   Documents → Pseudonymisation → Analyse → Bilan. Tout repose sur les jetons existants : aucune
+   couleur propre à cet écran. Les niveaux du bilan (critique / à surveiller / validé) reprennent
+   --urgent / --pret / --success, comme le reste de l'outil. */
+.relecture-stepper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.relecture-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  background: none;
+  border: none;
+  padding: 6px 2px;
+  cursor: pointer;
+}
+.relecture-step:hover { color: var(--ink-soft); }
+.relecture-step.actif { color: var(--ink); }
+.relecture-step.fait { color: var(--ink-soft); }
+.relecture-step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--line-soft);
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 700;
+  flex: 0 0 auto;
+}
+.relecture-step.actif .relecture-step-num { background: var(--focus); color: #fff; }
+.relecture-step.fait .relecture-step-num { background: var(--success-bg); color: var(--success); }
+.relecture-step-trait { flex: 1 1 24px; max-width: 48px; height: 1px; background: var(--line); }
+@media (max-width: 640px) {
+  .relecture-stepper { justify-content: space-between; gap: 6px; }
+  .relecture-step-trait { display: none; }
+  .relecture-step:not(.actif) .relecture-step-libelle { display: none; }
+}
+
+.relecture-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+@media (min-width: 1301px) {
+  .relecture-docs-grid { grid-template-columns: minmax(320px, 420px) 1fr; }
+  .relecture-anon-grid { grid-template-columns: minmax(340px, 1fr) minmax(0, 1.15fr); }
+}
+.relecture-docs-grid > *, .relecture-anon-grid > * { min-width: 0; }
+
+/* Étape 1 : documents groupés, annexes par nature */
+.relecture-groupe { margin-top: 16px; }
+.relecture-groupe > .section-eyebrow { display: block; margin-bottom: 6px; }
+.relecture-vide { margin: 4px 0 0; }
+.relecture-nature { margin: 8px 0 4px; }
+.relecture-nature-titre {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  margin: 6px 0 4px;
+}
+.relecture-annexes-integrees { display: block; font-size: 11.5px; }
+.relecture-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.relecture-nas {
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: var(--paper-sunk);
+  max-height: 460px;
+  overflow: auto;
+}
+.relecture-nas-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.relecture-nas-actions { display: flex; gap: 8px; }
+.relecture-nas-rubrique { border-top: 1px solid var(--line-soft); padding: 6px 0; }
+.relecture-nas-rubrique > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  list-style: none;
+}
+.relecture-nas-rubrique > summary::-webkit-details-marker { display: none; }
+.relecture-nas-ligne {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 2px 5px 20px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.relecture-nas-ligne.deja { opacity: 0.55; cursor: default; }
+.relecture-nas-nom { flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; }
+.relecture-nas-nature { font-size: 11.5px; color: var(--muted); }
+
+/* Étape 2 : pseudonymisation */
+.relecture-cadre-carte { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 16px; }
+.relecture-cadre-carte p { margin: 4px 0 0; max-width: 90ch; }
+.relecture-cadre-icone { font-size: 22px; color: var(--success); flex: 0 0 auto; line-height: 1; padding-top: 2px; }
+.anon-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+.anon-stats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--paper-sunk);
+}
+.anon-stats strong { font-size: 22px; font-variant-numeric: tabular-nums; color: var(--ink); line-height: 1.1; }
+.anon-stats span { font-size: 11.5px; color: var(--muted); }
+.anon-ajout { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
+.anon-ajout label { margin: 0; font-size: 13px; }
+.anon-ajout input[type="text"] { flex: 1 1 200px; width: auto; }
+.anon-grille { display: flex; flex-direction: column; gap: 6px; max-height: 520px; overflow: auto; }
+.anon-liste { list-style: none; margin: 0; padding: 0; }
+.anon-liste li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 13px;
+}
+.anon-jeton, .anon-mark {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 11.5px;
+  color: var(--focus);
+  background: color-mix(in srgb, var(--focus) 10%, transparent);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+.anon-valeur { overflow-wrap: anywhere; }
+.anon-puce {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: inherit;
+  font-size: 12px;
+  border: 1px solid var(--line);
+  background: var(--paper-card);
+  color: var(--ink-soft);
+  border-radius: 999px;
+  padding: 1px 8px;
+  cursor: pointer;
+}
+.anon-apercu-tete { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.anon-apercu-tete select { width: auto; max-width: 100%; flex: 1 1 200px; }
+.anon-apercu-pages { display: flex; align-items: center; gap: 4px; font-size: 12.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.anon-apercu-texte {
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--ink);
+  background: var(--paper-sunk);
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  padding: 14px 16px;
+  max-height: 560px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Étape 3 : analyse */
+.analyse-recap { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+.analyse-recap > div { display: flex; flex-direction: column; gap: 3px; padding: 12px 14px; border-radius: 8px; background: var(--paper-sunk); }
+.analyse-recap strong { font-size: 18px; color: var(--ink); font-variant-numeric: tabular-nums; }
+@media (max-width: 760px) { .analyse-recap { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.analyse-estimation {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+.analyse-estimation strong { font-size: 18px; font-variant-numeric: tabular-nums; }
+.analyse-en-cours, .analyse-non-configure {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--paper-sunk);
+  margin-bottom: 12px;
+}
+.analyse-en-cours > .icone, .analyse-non-configure > .icone { font-size: 20px; color: var(--focus); flex: 0 0 auto; }
+.analyse-en-cours p, .analyse-non-configure p { margin: 3px 0 0; }
+.analyse-erreur { color: var(--urgent); font-size: 13.5px; }
+.analyse-journal { margin-top: 12px; }
+
+/* Étape 4 : bilan — carte de santé, tuiles de section, grille détaillée, visionneuse */
+.relecture-bilan-grille { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (min-width: 1181px) {
+  .relecture-bilan-grille.avec-visionneuse { grid-template-columns: minmax(0, 1fr) minmax(380px, 44%); }
+}
+.relecture-bilan-principal { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+
+.sante-carte {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 22px;
+  align-items: center;
+  background: var(--paper-card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow-card);
+  padding: 22px 24px;
+}
+.sante-carte .audit-bascule-commentaires { position: absolute; top: 16px; right: 18px; }
+.sante-visuel { position: relative; width: 132px; height: 132px; }
+.sante-donut { width: 132px; height: 132px; display: block; }
+.sante-visuel-chiffre {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.sante-visuel-chiffre small { font-size: 11px; font-weight: 500; color: var(--muted); margin-top: 4px; }
+.sante-texte { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.sante-titre { margin: 2px 0 0; font-size: 20px; text-wrap: balance; padding-right: 150px; }
+.sante-phrase { margin: 0; color: var(--ink-soft); font-size: 14px; }
+.sante-compteurs { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 4px; }
+.sante-compteur { display: flex; align-items: baseline; gap: 5px; font-size: 12.5px; color: var(--muted); }
+.sante-compteur strong { font-size: 18px; font-variant-numeric: tabular-nums; }
+.sante-compteur.c-critique strong { color: var(--urgent); }
+.sante-compteur.c-surveiller strong { color: var(--pret); }
+.sante-compteur.c-valide strong { color: var(--success); }
+.sante-compteur.c-na strong { color: var(--muted); }
+.sante-synthese {
+  margin: 8px 0 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ink);
+  max-width: 85ch;
+  border-top: 1px solid var(--line-soft);
+  padding-top: 10px;
+}
+@media (max-width: 640px) {
+  .sante-carte { grid-template-columns: minmax(0, 1fr); justify-items: start; }
+  .sante-carte .audit-bascule-commentaires { position: static; }
+  .sante-titre { padding-right: 0; }
+}
+
+.copro-multiples {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 16px;
+  background: var(--paper-card);
+}
+.copro-multiples ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
+.copro-multiples li p { margin: 2px 0 6px; }
+
+.sante-tuiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.sante-tuile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  text-align: left;
+  font: inherit;
+  background: var(--paper-card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 14px;
+  cursor: pointer;
+  color: var(--ink);
+}
+.sante-tuile:hover { border-color: var(--ink-soft); }
+.sante-tuile:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.sante-tuile-titre { font-size: 13px; font-weight: 600; }
+.sante-tuile-points { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 2px; }
+.tuile-point { width: 8px; height: 8px; border-radius: 2px; background: var(--line); }
+.tuile-point.niveau-critique { background: var(--urgent); }
+.tuile-point.niveau-surveiller { background: var(--pret); }
+.tuile-point.niveau-valide { background: var(--success); }
+.tuile-point.niveau-na { background: var(--line-soft); }
+
+.grille-section {
+  background: var(--paper-card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px 18px 10px;
+  scroll-margin-top: 16px;
+}
+.grille-section-titre {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+.point-ligne {
+  display: grid;
+  grid-template-columns: 128px minmax(0, 1fr);
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line-soft);
+  scroll-margin-top: 16px;
+}
+.point-ligne > .dot-label { align-self: start; margin-top: 1px; }
+.point-intitule { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.point-commentaire { margin: 4px 0 0; font-size: 13.5px; line-height: 1.55; color: var(--ink-soft); max-width: 90ch; }
+.point-citations { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.point-ligne.niveau-na .point-intitule { color: var(--muted); font-weight: 500; }
+@media (max-width: 640px) { .point-ligne { grid-template-columns: minmax(0, 1fr); gap: 4px; } }
+.grille-valides > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 12.5px;
+  color: var(--success);
+  padding: 8px 0 4px;
+  border-top: 1px solid var(--line-soft);
+}
+.grille-valides > summary::-webkit-details-marker { display: none; }
+.grille-na { margin: 6px 0 4px; }
+
+.page-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--focus);
+  background: color-mix(in srgb, var(--focus) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--focus) 22%, transparent);
+  border-radius: 999px;
+  padding: 2px 10px;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.page-chip:hover { background: color-mix(in srgb, var(--focus) 14%, transparent); }
+.page-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.page-chip.non-verifiee { color: var(--ink-soft); background: var(--paper-sunk); border-color: var(--line); }
+.page-chip-alerte { color: var(--pret); display: inline-flex; }
+
+.claire-controles {
+  background: var(--paper-card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 18px;
+}
+.claire-controles > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  cursor: pointer;
+  list-style: none;
+}
+.claire-controles > summary::-webkit-details-marker { display: none; }
+.claire-controles[open] > summary { margin-bottom: 10px; }
+
+.relecture-cout {
+  background: var(--paper-card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px 18px;
+}
+.relecture-cout-grille { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 8px; }
+.relecture-cout-grille > div { display: flex; flex-direction: column; gap: 2px; }
+.relecture-cout-grille strong { font-size: 17px; font-variant-numeric: tabular-nums; color: var(--ink); }
+.relecture-cout-grille span { font-size: 11.5px; color: var(--muted); }
+@media (max-width: 640px) { .relecture-cout-grille { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.relecture-cadre { display: flex; gap: 6px; align-items: flex-start; }
+
+.relecture-visionneuse {
+  position: sticky;
+  top: 12px;
+  max-height: calc(100vh - 24px);
+  display: flex;
+  flex-direction: column;
+  background: var(--paper-card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  min-width: 0;
+}
+.visionneuse-tete {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.visionneuse-tete select { flex: 1 1 auto; width: auto; min-width: 0; }
+.visionneuse-extrait { padding: 0 12px; }
+.visionneuse-extrait:not(:empty) { padding: 10px 12px; border-bottom: 1px solid var(--line-soft); max-height: 150px; overflow: auto; }
+.visionneuse-extrait .obligation-clause { margin: 0; }
+.visionneuse-pages { flex: 1 1 auto; overflow: auto; padding: 12px; background: var(--paper-sunk); display: flex; flex-direction: column; gap: 12px; }
+.visionneuse-page {
+  position: relative;
+  min-height: 200px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+  border-radius: 2px;
+  scroll-margin-top: 8px;
+}
+.visionneuse-page canvas { display: block; border-radius: 2px; }
+.visionneuse-num {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 11px;
+  color: #6B7280;
+  background: rgba(255,255,255,0.85);
+  border-radius: 4px;
+  padding: 0 5px;
+  z-index: 1;
+}
+.visionneuse-page.flash { animation: visionneuse-flash 1.4s ease-out; }
+@keyframes visionneuse-flash {
+  0% { box-shadow: 0 0 0 3px var(--focus); }
+  100% { box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+}
+.visionneuse-surlignage { transition: none; }
+@media (prefers-reduced-motion: reduce) { .visionneuse-page.flash { animation: none; } }
+/* Sous 1180px, la visionneuse passe en panneau plein écran par-dessus le bilan. */
+@media (max-width: 1180px) {
+  .relecture-visionneuse:not([hidden]) {
+    position: fixed;
+    inset: 12px;
+    max-height: none;
+    z-index: 880;
+    box-shadow: var(--shadow-float);
+  }
+}
+
+.reglages-claude-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
