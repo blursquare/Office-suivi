@@ -10,14 +10,14 @@ const { genererFluxIcs } = require('../src/routes/calendrier');
 
 // ---- genererFluxIcs() : fonction pure, testée directement sans monter de serveur ----
 
-// UID des événements PUBLIÉS (non annulés) d'un flux, dans l'ordre.
+// UID des événements publiés d'un flux, dans l'ordre.
 function uidsConfirmes(body) {
   return body.split('BEGIN:VEVENT').slice(1)
     .filter((ev) => /STATUS:CONFIRMED/.test(ev))
     .map((ev) => /UID:([^@]+)@/.exec(ev)[1]);
 }
 
-test("genererFluxIcs : seuls le prêt et la vente préalable sont publiés, le reste est annulé", () => {
+test("genererFluxIcs : seuls le prêt et la vente préalable sont publiés, le reste est omis", () => {
   // Décision de l'étude (23/09) : l'agenda ne porte que les deux conditions dont dépend la vente.
   const body = genererFluxIcs([
     {
@@ -29,11 +29,16 @@ test("genererFluxIcs : seuls le prêt et la vente préalable sont publiés, le r
   assert.match(body, /BEGIN:VCALENDAR/);
   assert.equal(uidsConfirmes(body).join(','), 'd1-pret,d1-ventebien');
   assert.match(body, /Obtention du prêt — MARTIN - Dossier DUPONT \/ MARTIN/);
-  // Les échéances déjà publiées par les versions précédentes sont annulées, pour quitter l'agenda.
+  // Tout le reste est OMIS, jamais publié annulé : Outlook affiche un événement annulé d'un
+  // abonnement (c'est ce que l'étude voyait, cinq échéances empilées sur le même jour).
   for (const cle of ['acte', 'appelFonds', 'rendezVousSignature', 'autre-0']) {
-    assert.match(body, new RegExp(`UID:d1-${cle}@claire-calendrier`), cle);
+    assert.doesNotMatch(body, new RegExp(`UID:d1-${cle}@claire-calendrier`), cle);
   }
-  assert.equal((body.match(/STATUS:CANCELLED/g) || []).length, 4);
+  for (const libelle of ['Appel de fonds', 'Rendez-vous de signature', "Signature de l'acte", 'Levée hypothèque']) {
+    assert.ok(!body.includes(libelle), libelle);
+  }
+  assert.equal((body.match(/BEGIN:VEVENT/g) || []).length, 2);
+  assert.doesNotMatch(body, /STATUS:CANCELLED/);
 });
 
 test("genererFluxIcs : l'offre de prêt reçue retire le prêt de l'agenda", () => {
@@ -59,23 +64,18 @@ test("genererFluxIcs : un achat comptant ne publie pas de prêt, même avec une 
   assert.equal(uidsConfirmes(body).join(','), '');
 });
 
-// Un client calendrier ne supprime PAS un événement qui disparaît du flux : il faut publier son
-// annulation. Omettre l'événement — ce que faisait la version précédente — laissait une échéance
-// périmée affichée indéfiniment chez l'étude.
+// Un abonnement Internet Outlook remplace le calendrier entier à chaque resynchronisation : un
+// événement omis disparaît, alors qu'un événement publié « annulé » reste affiché. D'où l'omission.
 
-test('genererFluxIcs : un dossier archivé voit ses échéances ANNULÉES, pas omises', () => {
-  const body = genererFluxIcs([{ id: 'd1', nom: 'X / Y', archive: true, pret: '2026-11-11' }]);
-  assert.match(body, /UID:d1-pret@claire-calendrier/);
-  assert.match(body, /STATUS:CANCELLED/);
-  assert.doesNotMatch(body, /STATUS:CONFIRMED/);
+test('genererFluxIcs : un dossier archivé ne publie rien', () => {
+  const body = genererFluxIcs([{ id: 'd1', nom: 'X / Y', archive: true, pret: '2026-11-11', ventebien: '2026-10-01' }]);
+  assert.doesNotMatch(body, /BEGIN:VEVENT/);
 });
 
-test('genererFluxIcs : une échéance sans date est ANNULÉE, pas omise', () => {
+test('genererFluxIcs : une échéance sans date ne publie rien, et aucun événement annulé', () => {
   const body = genererFluxIcs([{ id: 'd1', nom: 'X / Y', pret: '', acte: null, ventebien: undefined }]);
-  for (const cle of ['pret', 'appelFonds', 'acte', 'rendezVousSignature', 'ventebien']) {
-    assert.match(body, new RegExp(`UID:d1-${cle}@claire-calendrier`), cle);
-  }
-  assert.equal((body.match(/STATUS:CANCELLED/g) || []).length, 5);
+  assert.doesNotMatch(body, /BEGIN:VEVENT/);
+  assert.doesNotMatch(body, /STATUS:CANCELLED/);
 });
 
 test('genererFluxIcs : chaque événement porte un SEQUENCE croissant avec la modification', () => {
@@ -185,10 +185,10 @@ const ANTISLASH = String.fromCharCode(92);
 const DOSSIERS_PIEGES = [
   {
     id: 'x1',
-    nom: 'BOURGUEIL & BOUSSELET / CHARPENTIER, Jean & GENESTOUX',
+    nom: 'BOURGUEIL & BOUSSELET / CHARPENTIER, Jean; GENESTOUX',
     updatedAt: Date.now(),
     pret: '2026-09-09',
-    acte: '',                       // absente → publiée ANNULÉE
+    acte: '',                       // non publiée (seuls prêt et vente préalable le sont)
     ventebien: '2026-08-01',
     autres: [{ label: 'Levée; option', date: '2026-09-30' }]
   }
@@ -201,12 +201,11 @@ test('flux .ics : aucune ligne ne dépasse 75 octets (RFC 5545 §3.1)', () => {
 });
 
 // METHOD est une propriété du CALENDRIER (§3.7.2), jamais d'un VEVENT, et n'a de sens que dans un
-// message d'invitation iTIP — pas dans un flux publié. C'est STATUS:CANCELLED, juste au-dessus, qui
-// annule un événement ici.
+// message d'invitation iTIP — pas dans un flux publié.
 test('flux .ics : aucun METHOD à l\'intérieur d\'un VEVENT', () => {
   const flux = genererFluxIcs(DOSSIERS_PIEGES);
   assert.ok(!/^METHOD:/m.test(flux), 'un METHOD subsiste dans le flux');
-  assert.ok(flux.includes('STATUS:CANCELLED'), "l'annulation doit rester publiée");
+  assert.ok(!flux.includes('STATUS:CANCELLED'), 'aucun événement annulé ne doit être publié');
 });
 
 test('flux .ics : virgules et points-virgules des titres sont échappés (§3.3.11)', () => {
@@ -220,7 +219,7 @@ test('flux .ics : virgules et points-virgules des titres sont échappés (§3.3.
     assert.ok(!/(^|[^\\]),/.test(valeur), `virgule non échappée : ${t}`);
     assert.ok(!/(^|[^\\]);/.test(valeur), `point-virgule non échappé : ${t}`);
   }
-  assert.ok(deplie.includes('Levée' + ANTISLASH + '; option'), "le point-virgule d'une échéance personnalisée doit être échappé");
+  assert.ok(deplie.includes('Jean' + ANTISLASH + '; GENESTOUX'), "le point-virgule d'un nom de dossier doit être échappé");
 });
 
 // Le repli se fait par point de code : couper un « é » en deux produirait de l'UTF-8 invalide, ce

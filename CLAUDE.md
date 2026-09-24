@@ -6515,6 +6515,22 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     offre « à confirmer » qui le garde ; vente préalable validée retirée ; `sansPret` sans prêt).
     Suite serveur 220.
 
+- **Correctif : l'agenda connecté affichait encore les échéances « retirées », empilées sur un même
+  jour.** Signalé par l'étude avec une capture Outlook (« Appel de fonds », « Obtention du prêt »,
+  « Rendez-vous de signature », « Signature de l'acte », « Vente préalable » d'un même dossier, tous
+  le même jour). Cause : l'entrée précédente publiait ces échéances en `STATUS:CANCELLED`, sur
+  l'hypothèse qu'un client garde indéfiniment un événement qui disparaît du flux. **C'est faux pour un
+  abonnement Internet Outlook** : il remplace le calendrier entier à chaque resynchronisation (un
+  événement omis disparaît donc tout seul) et il AFFICHE les événements annulés — tous datés au même
+  jour de repli (`d.pret || d.acte || d.ventebien`), d'où la pile. `buildEventAnnule` est supprimée :
+  `genererFluxIcs` ne publie plus que le prêt et la vente préalable tant qu'`echeancePublieeAgenda`
+  est vrai, et omet tout le reste (dossiers archivés, dates vides, échéances réalisées, date butoir,
+  appel de fonds, rendez-vous, échéances personnalisées). UID et SEQUENCE inchangés. Tests réécrits
+  pour vérifier l'absence (aucun `STATUS:CANCELLED` nulle part). **Leçon** : le comportement d'un
+  client calendrier se vérifie sur le client, pas dans la RFC — le correctif précédent était
+  conforme au texte et faux dans Outlook. Pour forcer l'affichage à jour sans attendre la
+  resynchronisation d'Outlook : supprimer l'abonnement et le rajouter.
+
 - **La copie des rappels gardée par Gmail dans « Messages envoyés » est effacée après chaque envoi**,
   demandé par l'étude (« supprimer l'e-mail une fois la notification délivrée », puis « fais ça pour
   gmail »). Chaque rappel porte un nom de dossier et une échéance, qui n'ont pas à rester stockés

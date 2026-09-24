@@ -70,8 +70,11 @@ registre. **Il ne publie que deux échéances** : l'obtention du prêt et la ven
 seulement si elle est activée et datée sur le dossier. L'obtention du prêt disparaît dès que
 l'offre est reçue (ou l'échéance marquée réalisée), la vente préalable dès qu'elle est marquée
 réalisée. Les autres dates (date butoir, appel de fonds, rendez-vous de signature, échéances
-personnalisées) n'y figurent pas — elles sont publiées comme **annulées**, ce qui les retire d'un
-Outlook déjà abonné (omettre un événement ne suffirait pas : Outlook le garderait indéfiniment) —
+personnalisées) n'y figurent pas du tout. **Aucun événement n'est jamais publié « annulé »** : un
+abonnement Internet Outlook remplace le calendrier entier à chaque resynchronisation, donc ce qui
+n'est plus dans le flux disparaît de lui-même, alors qu'un événement annulé resterait affiché. Pour
+forcer la mise à jour sans attendre la resynchronisation d'Outlook (qui peut prendre quelques
+heures), supprimer l'abonnement puis le rajouter avec la même adresse. Ce flux est
 distinct de l'export `.ics` ponctuel d'un seul dossier depuis l'outil lui-même (bouton « Rappels
 (.ics) » sur une fiche, limité à la seule date de prêt) : celui-ci est un abonnement continu qui se
 tient à jour tout seul, pour tout le portefeuille, sans jamais rouvrir l'outil.

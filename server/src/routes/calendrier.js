@@ -68,19 +68,17 @@ function dtstampMaintenant() {
 }
 
 // Un UID stable (id du dossier + type d'échéance) pour qu'Outlook mette à jour le MÊME événement
-// d'un rafraîchissement à l'autre plutôt que d'en accumuler un nouveau. Mais un UID stable ne
-// suffit pas, et c'est ce qui manquait :
+// d'un rafraîchissement à l'autre plutôt que d'en accumuler un nouveau, et un SEQUENCE qui croît à
+// chaque modification du dossier (RFC 5545, §3.8.7.4) pour qu'une date corrigée remplace bien
+// l'ancienne.
 //
-//   1. SEQUENCE — un client calendrier NE REMPLACE PAS un événement qu'il connaît déjà si le
-//      numéro de séquence n'a pas augmenté (RFC 5545, §3.8.7.4 : il « DOIT » être incrémenté à
-//      chaque changement significatif, et un changement de DTSTART en est un). Sans lui, une date
-//      butoir corrigée dans CLAIRE n'arrivait jamais dans Outlook, qui gardait l'ancienne.
-//   2. STATUS:CANCELLED — un client NE SUPPRIME PAS un événement qui disparaît simplement du
-//      flux. Une date de vente préalable effacée, ou un dossier archivé, restaient donc affichés
-//      indéfiniment. Il faut publier explicitement leur annulation.
-//
-// Les deux expliquent exactement ce que l'étude a constaté : « il y a encore des dates de vente
-// dessus et pas les nouvelles dates butoir d'obtention de prêt ».
+// Ce flux ne publie JAMAIS d'événement annulé (STATUS:CANCELLED). Une version précédente le
+// faisait, pour retirer d'un agenda déjà abonné une échéance qui n'avait plus à y figurer — en
+// supposant qu'un client garde indéfiniment un événement qui disparaît simplement du flux. C'est
+// faux pour un abonnement Internet Outlook : il REMPLACE le calendrier entier à chaque
+// resynchronisation, donc un événement omis disparaît de lui-même, alors qu'un événement annulé
+// reste AFFICHÉ. L'étude voyait ainsi « Appel de fonds », « Rendez-vous de signature »,
+// « Signature de l'acte »… empilés sur le même jour (la date de repli des annulations).
 
 // Origine des numéros de séquence : 1er janvier 2024. Le SEQUENCE doit tenir dans un entier que
 // tous les clients acceptent — l'horodatage en millisecondes depuis 1970 est bien trop grand,
@@ -110,24 +108,6 @@ function buildEvent(uid, summary, iso, sequence) {
   );
 }
 
-// Annulation explicite d'une échéance qui n'existe plus (date effacée, dossier archivé). La date
-// portée n'a pas d'importance — un client ne l'affiche pas — mais un VEVENT doit en avoir une.
-function buildEventAnnule(uid, summary, isoRepli, sequence) {
-  const horodatage = dtstampMaintenant();
-  return (
-    'BEGIN:VEVENT\r\n' +
-    `UID:${uid}@claire-calendrier\r\n` +
-    `SEQUENCE:${sequence}\r\n` +
-    `DTSTAMP:${horodatage}\r\n` +
-    `LAST-MODIFIED:${horodatage}\r\n` +
-    `DTSTART;VALUE=DATE:${icsDate(isoRepli)}\r\n` +
-    `DTEND;VALUE=DATE:${icsDate(addDays(isoRepli, 1))}\r\n` +
-    `SUMMARY:${echapperTexteIcs(summary)}\r\n` +
-    'STATUS:CANCELLED\r\n' +
-    'END:VEVENT\r\n'
-  );
-}
-
 // Le nom du dossier est au format "VENDEUR(S) / ACQUEREUR(S)" (voir CLAUDE.md) : on isole la
 // partie acquéreur pour la mettre en avant dans le titre de l'événement — même logique que
 // extraireNomAcquereur() côté client, dupliquée ici faute de pouvoir partager du code entre
@@ -143,10 +123,9 @@ function extraireNomAcquereur(nomDossier) {
 // se suivent dans CLAIRE et par les rappels email, l'agenda n'en garde que les deux conditions dont
 // dépend la vente.
 //
-// Un événement retiré est publié ANNULÉ, jamais simplement omis (voir buildEventAnnule) : ces
-// échéances ayant déjà été publiées, un client calendrier les garderait sinon pour toujours.
+// Tout le reste est simplement OMIS (voir plus haut, jamais d'événement annulé) : un abonnement
+// Outlook se resynchronise en entier, ce qui n'est plus dans le flux quitte l'agenda.
 var TYPES_PUBLIES_AGENDA = ['pret', 'ventebien'];
-var TYPES_RETIRES_AGENDA = ['acte', 'appelFonds', 'rendezVousSignature'];
 
 // Une échéance est publiée si elle est ACTIVE sur le dossier (date renseignée ; pour le prêt, pas
 // un achat comptant) et pas encore obtenue : offre de prêt reçue (statut NAS ou validation à la
@@ -170,36 +149,16 @@ function genererFluxIcs(dossiers) {
     'REFRESH-INTERVAL;VALUE=DURATION:PT1H\r\n' +
     'X-PUBLISHED-TTL:PT1H\r\n';
 
-  const aujourdHui = new Date().toISOString().slice(0, 10);
+  const libelles = { pret: 'Obtention du prêt', ventebien: 'Vente préalable' };
 
   for (const d of dossiers) {
-    const nomAcquereur = extraireNomAcquereur(d.nom);
-    const suffixe = ` — ${nomAcquereur} - Dossier ${d.nom}`;
+    const suffixe = ` — ${extraireNomAcquereur(d.nom)} - Dossier ${d.nom}`;
     const sequence = sequenceDepuisMaj(d.updatedAt);
-    // Une échéance sans date — ou tout un dossier archivé — doit être ANNULÉE explicitement, et
-    // non simplement omise : un client calendrier garderait sinon l'ancien événement pour
-    // toujours. Le repli de date n'a pas d'importance pour un événement annulé.
-    const repli = d.pret || d.acte || d.ventebien || aujourdHui;
-    const libelles = {
-      pret: 'Obtention du prêt',
-      ventebien: 'Vente préalable',
-      acte: "Signature de l'acte",
-      appelFonds: 'Appel de fonds',
-      rendezVousSignature: 'Rendez-vous de signature'
-    };
     for (const cle of TYPES_PUBLIES_AGENDA) {
-      const uid = `${d.id}-${cle}`;
-      body += echeancePublieeAgenda(d, cle)
-        ? buildEvent(uid, `${libelles[cle]}${suffixe}`, d[cle], sequence)
-        : buildEventAnnule(uid, `${libelles[cle]}${suffixe}`, repli, sequence);
+      if (echeancePublieeAgenda(d, cle)) {
+        body += buildEvent(`${d.id}-${cle}`, `${libelles[cle]}${suffixe}`, d[cle], sequence);
+      }
     }
-    // Déjà publiées par les versions précédentes : annulées, pour qu'elles quittent l'agenda.
-    for (const cle of TYPES_RETIRES_AGENDA) {
-      body += buildEventAnnule(`${d.id}-${cle}`, `${libelles[cle]}${suffixe}`, repli, sequence);
-    }
-    (Array.isArray(d.autres) ? d.autres : []).forEach((a, i) => {
-      body += buildEventAnnule(`${d.id}-autre-${i}`, `${a.label || 'Échéance'}${suffixe}`, repli, sequence);
-    });
   }
 
   body += 'END:VCALENDAR\r\n';
