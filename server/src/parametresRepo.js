@@ -326,6 +326,56 @@ function assainirReglagesMiseAJour(brut, precedent) {
   return { jetonGithub: /^[A-Za-z0-9_]{20,255}$/.test(jeton) ? jeton : '' };
 }
 
+// Agenda de l'office (voir agendaOffice.js/agendaWatch.js) : une seule URL, publiée depuis Outlook
+// (« Publier ce calendrier », sans authentification — même flux que l'artefact « brief du matin »
+// de l'étude), rangée sous sa PROPRE clé plutôt que dans le blob `reglages` (envoi d'email) — deux
+// écrans différents, deux réglages indépendants.
+const CLE_REGLAGES_AGENDA = 'agenda-office';
+
+function assainirReglagesAgenda(brut) {
+  const b = (brut && typeof brut === 'object') ? brut : {};
+  const url = texteBorne(b.icsUrl, 2000);
+  // Contrôle de forme minimal (schéma http/https) : n'empêche pas d'enregistrer une URL fausse,
+  // mais attrape un collage manifestement raté (un chemin de fichier, du texte au hasard) avant
+  // que le tour de surveillance ne s'y casse les dents en silence.
+  return { icsUrl: /^https?:\/\//i.test(url) ? url : '' };
+}
+
+// Compte rendu du DERNIER tour de lecture de l'agenda — même raison d'être que CLE_DERNIER_TOUR
+// pour les rappels par email : un flux devenu injoignable (lien de publication révoqué, calendrier
+// dépublié dans Outlook) arrêterait de mettre à jour les dossiers SANS RIEN LE SIGNALER si personne
+// ne consultait ce compte rendu. Plafonné comme les autres listes de ce fichier.
+const CLE_DERNIER_TOUR_AGENDA = 'dernier-tour-agenda';
+const MAX_ENTREES_TOUR_AGENDA = 50;
+
+function assainirEntreeDetectionAgenda(brut) {
+  const b = (brut && typeof brut === 'object') ? brut : null;
+  if (!b) return null;
+  return {
+    dossierId: texteBorne(b.dossierId, 80),
+    dossierNom: texteBorne(b.dossierNom, 200),
+    action: (b.action === 'appelFonds' || b.action === 'projetEnvoye') ? b.action : '',
+    dateIso: texteBorne(b.dateIso, 10),
+    reference: texteBorne(b.reference, 300),
+    resume: texteBorne(b.resume, 300)
+  };
+}
+
+function assainirDernierTourAgenda(brut) {
+  const b = (brut && typeof brut === 'object') ? brut : {};
+  const listeBornee = (v) => (Array.isArray(v) ? v.map(assainirEntreeDetectionAgenda).filter(Boolean).slice(0, MAX_ENTREES_TOUR_AGENDA) : []);
+  return {
+    at: texteBorne(b.at, 40),
+    ok: !!b.ok,
+    dossiersVerifies: Number.isFinite(b.dossiersVerifies) && b.dossiersVerifies >= 0 ? Math.floor(b.dossiersVerifies) : 0,
+    misAJour: listeBornee(b.misAJour),
+    dejaRenseignes: listeBornee(b.dejaRenseignes),
+    sansCorrespondance: listeBornee(b.sansCorrespondance),
+    erreur: b.erreur ? texteBorne(String(b.erreur), 500) : null,
+    declenche: b.declenche === 'manuel' ? 'manuel' : 'automatique'
+  };
+}
+
 function creerRepoParametres(db) {
   const lireStmt = db.prepare('SELECT valeur FROM parametres WHERE cle = ?');
   const ecrireStmt = db.prepare(
@@ -488,6 +538,41 @@ function creerRepoParametres(db) {
     return propre;
   }
 
+  function lireReglagesAgenda() {
+    const ligne = lireStmt.get(CLE_REGLAGES_AGENDA);
+    if (!ligne) return assainirReglagesAgenda({});
+    try {
+      return assainirReglagesAgenda(JSON.parse(ligne.valeur));
+    } catch (e) {
+      return assainirReglagesAgenda({});
+    }
+  }
+
+  function ecrireReglagesAgenda(reglages) {
+    const propre = assainirReglagesAgenda(reglages);
+    ecrireStmt.run(CLE_REGLAGES_AGENDA, JSON.stringify(propre));
+    return propre;
+  }
+
+  // Absent = jamais tenté depuis l'installation, ou l'URL n'a jamais été renseignée (voir
+  // executerEtEnregistrerTourAgenda, qui écrit systématiquement — même sans URL — pour que
+  // l'écran Réglages distingue « jamais essayé » de « essayé, mais rien à lire »).
+  function lireDernierTourAgenda() {
+    const ligne = lireStmt.get(CLE_DERNIER_TOUR_AGENDA);
+    if (!ligne) return null;
+    try {
+      return assainirDernierTourAgenda(JSON.parse(ligne.valeur));
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function ecrireDernierTourAgenda(resultat) {
+    const propre = assainirDernierTourAgenda(resultat);
+    ecrireStmt.run(CLE_DERNIER_TOUR_AGENDA, JSON.stringify(propre));
+    return propre;
+  }
+
   function lireReglagesMiseAJour() {
     const ligne = lireStmt.get(CLE_MISE_A_JOUR);
     if (!ligne) return assainirReglagesMiseAJour({});
@@ -506,6 +591,7 @@ function creerRepoParametres(db) {
 
   return {
     lireReglagesMiseAJour, ecrireReglagesMiseAJour,
+    lireReglagesAgenda, ecrireReglagesAgenda, lireDernierTourAgenda, ecrireDernierTourAgenda,
     lireReglageSauvegarde, ecrireReglageSauvegarde, lireEtatSauvegarde, ecrireEtatSauvegarde,
     lireReglages, ecrireReglages, lireDernierTour, ecrireDernierTour,
     lireCopiesEnAttente, ecrireCopiesEnAttente, lireRetoursAudit, ecrireRetoursAudit,
@@ -518,5 +604,6 @@ module.exports = {
   creerRepoParametres, assainirReglages, assainirEtatSauvegarde, assainirExclusionsPieces, assainirCorrectionApprise, assainirCorrectionsApprises, MAX_CORRECTIONS_APPRISES, assainirDernierTour, assainirCopiesEnAttente,
   assainirRetourAudit, assainirRetoursAudit, MAX_RETOURS_AUDIT,
   assainirReglagesClaude, assainirReglagesMiseAJour, MODELES_CLAUDE, MODELE_CLAUDE_PAR_DEFAUT,
+  assainirReglagesAgenda, assainirDernierTourAgenda,
   REGLAGES_PAR_DEFAUT, PORT_SMTP_PAR_DEFAUT
 };

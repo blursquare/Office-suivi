@@ -1444,6 +1444,36 @@
     </ul>
     <p>La <strong>date butoir</strong> de l'avant-contrat ne déclenche aucun rappel&nbsp;: elle est indicative, c'est le rendez-vous pris à l'office qui engage l'étude. L'adresse de copie ci-dessus, si renseignée, reçoit le même message pour chaque envoi. Il n'existe plus de rappel par email manuel à envoyer soi-même&nbsp;: ce mécanisme le remplace entièrement.</p>
   </div>
+
+  <div class="reglages-section-titre">Agenda de l'office</div>
+
+  <!-- Lecture automatique du calendrier publié (.ics) de l'office — même flux que celui déjà lu par
+       l'artefact "brief du matin". Voir server/src/agendaOffice.js (lecture/repérage) et
+       server/src/agendaWatch.js (tour périodique, toutes les 15 minutes). Un rendez-vous portant la
+       référence "VTE - NOM DU DOSSIER" et mentionnant "appel de fonds"/"projet envoyé" (dans le
+       titre ou noté dans le rendez-vous) reporte automatiquement la date correspondante sur le
+       dossier — jamais si le champ est déjà renseigné. -->
+  <div class="calc-card">
+    <div class="dash-section-titre">Lecture automatique du calendrier publié (.ics)</div>
+    <p class="hint">Un rendez-vous qui porte la référence « VTE - NOM DU DOSSIER » et mentionne « appel de fonds » et/ou « projet envoyé » (dans le titre du rendez-vous, ou noté dedans) reporte automatiquement la date correspondante sur le dossier — jamais si elle est déjà saisie.</p>
+    <div class="calc-champs">
+      <div class="calc-champ">
+        <label for="reglages-agenda-url">Adresse .ics du calendrier de l'office</label>
+        <input type="text" id="reglages-agenda-url" autocomplete="off" placeholder="https://outlook.office.com/owa/calendar/…/reachcalendar.ics">
+        <p class="hint">Le même lien déjà utilisé par le brief du matin pour lire ce calendrier.</p>
+      </div>
+    </div>
+    <div style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      <button type="button" class="primary" onclick="enregistrerReglagesAgenda()">Enregistrer</button>
+      <span id="reglages-agenda-resultat" class="hint" style="margin:0;"></span>
+    </div>
+    <div id="reglages-agenda-dernier-tour" class="reglages-dernier-tour" style="margin-top:12px;"></div>
+    <div style="margin-top:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      <button type="button" class="secondary" id="reglages-agenda-lancer" onclick="lancerTourAgenda()">Tester maintenant</button>
+      <span class="hint" style="margin:0;">Relit le calendrier tout de suite, sans attendre le prochain tour automatique (toutes les 15 minutes).</span>
+    </div>
+  </div>
+
   <!-- Relecture d'actes par l'API Claude (Outil 2) : clé et modèle, lus/écrits par
        server/src/routes/relectureClaude.js. La clé ne ressort jamais du serveur. -->
   <div class="calc-card">

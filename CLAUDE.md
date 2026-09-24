@@ -7374,6 +7374,101 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     fenêtre de progression, redémarrage, rechargement sur l'écran de connexion, clair et sombre,
     aucune erreur JS. **Non vérifié sur Windows** : le renommage d'un exécutable en cours et la
     relance détachée restent à confirmer par la première mise à jour réelle au bureau.
+
+- **Agenda de l'office : appel de fonds et projet d'acte envoyé notés dans le calendrier, lus
+  automatiquement.** Demandé par l'étude : « Quand un appel de fonds et fait on le note dans
+  l'agenda idem si le projet est envoyé au client. L'artefact brief du matin récupère le .ics du
+  calendrier de l'office pour le lire. Tu pourrais faire la même chose et mettre à jour
+  automatiquement la date d'envoi de l'appel de fonds lorsqu'il est noté dans le rendez-vous sur
+  l'agenda ? Et pareil pour l'envoi du projet d'acte qui pourrai être un nouveau statut juste après
+  l'appel de fond. » **Convention réelle obtenue avant d'écrire une ligne** (deux questions posées,
+  jamais devinée) : les rendez-vous portent une référence « VTE - NOM DU DOSSIER », « appel de
+  fonds » et/ou « projet envoyé » sont notés dessus (ensemble ou séparément, dans le titre ou
+  ajoutés au rendez-vous existant) ; les couleurs (vert = office, violet = visio, orange = confrère)
+  indiquent le lieu du rendez-vous et **n'ont rien à voir** avec cette détection.
+  - **`server/src/agendaOffice.js`** (nouveau, pur, sans dépendance réseau) : `parseIcsEvenements()`
+    déplie les lignes RFC 5545 (`deplierLignesIcs` — un pli ne retire qu'UN espace, une phrase
+    fendue au milieu d'un mot doit donc porter deux espaces dans le fichier de test, pas un seul :
+    piège de fixture rencontré et corrigé, pas un bug de code) et décode `\n`/`\,`/`\;`/`\\`
+    (`decoderTexteIcs`), en ignorant tout sous-composant imbriqué (`VALARM`…) pour ne lire que
+    `SUMMARY`/`DESCRIPTION`/`DTSTART`/`STATUS` du `VEVENT` lui-même. `extraireReferenceVte()`
+    reconnaît « VTE - … » (ou « VTE : »/« VTE… ») dans le titre ou la description ;
+    `detecteAppelDeFonds()`/`detecteProjetEnvoye()` cherchent « appel de fonds »/« AF » et
+    « projet … envoyé »/« envoi … projet » — **premier jet, comme `motifNom`/`PIECES_*` en leur
+    temps**, à resserrer sur un vrai calendrier de l'étude si un faux positif/négatif remonte.
+    Un événement `STATUS:CANCELLED` est ignoré.
+  - **Rapprochement au dossier, jamais un pari** : `dossierPourReferenceAgenda()` réutilise
+    TELLES QUELLES `normaliserNomRapprochement()`/`motsSignificatifs()` de `nas.js` (déjà écrites et
+    déjà éprouvées pour le rapprochement d'un dossier NAS) — un dossier ne matche que si TOUS ses
+    mots significatifs (≥ 3 lettres, hors `MOTS_IGNORES`) figurent dans la référence de l'agenda,
+    et seulement si un SEUL dossier remplit cette condition. Deux dossiers qui matcheraient tous
+    les deux → aucun n'est retenu (même prudence que `rapprochementParfait()` : se tromper de
+    dossier ferait écrire une date au mauvais endroit, pire qu'une non-détection).
+  - **`server/src/agendaWatch.js`** (nouveau) : `appliquerDetectionsAgenda()` écrit
+    `d.appelFonds`/`d.projetEnvoye` **uniquement si le champ est encore vide** (jamais d'écrasement
+    d'une date déjà saisie, à la main ou par un tour précédent) et pose
+    `d.echeancesValidees[champ] = true` du même geste — une date lue dans l'agenda vaut une
+    validation manuelle, exactement le même sens que « Marquer réalisée ». Une entrée d'historique
+    nomme la référence agenda qui a déclenché l'écriture. Skip silencieux d'un dossier archivé.
+    `executerTourSurveillanceAgenda()` (silencieux sans URL enregistrée, erreur réseau/HTTP jamais
+    fatale — capturée et rapportée) et `demarrerSurveillanceAgenda()` (tour immédiat puis toutes les
+    15 minutes, `enCours` empêche tout chevauchement — même patron que `nasWatch.js`/
+    `jobs/rappels.js`, avec la même raison d'être : un flux devenu injoignable ne doit jamais
+    arrêter les mises à jour EN SILENCE).
+  - **Réglages persistés** (`parametresRepo.js`) : `assainirReglagesAgenda()` (une seule clé
+    `icsUrl`, acceptée seulement si elle commence par `http(s)://` — un chemin de fichier collé par
+    erreur ne casse rien, il est simplement refusé) et `assainirDernierTourAgenda()` (compte rendu
+    du DERNIER tour — `at`, `ok`, `dossiersVerifies`, `misAJour`/`dejaRenseignes`/
+    `sansCorrespondance` bornés à 50 entrées, `erreur`, `declenche` — même raison d'être que
+    `dernier-tour-rappels` : un lien de calendrier révoqué ne doit jamais arrêter les mises à jour
+    sans que rien ne le dise).
+  - **`server/src/routes/agenda.js`** : `GET/PUT /api/agenda` (lecture/écriture de l'URL + lecture
+    du dernier tour), `POST /api/agenda/tester` (déclenche un VRAI tour, comme
+    « Lancer un tour maintenant » pour les rappels — pas une simulation) ; montée dans `app.js`
+    derrière le mot de passe partagé, avec `depot`/`fetchFn` injectables pour les tests.
+  - **Nouvelle échéance `projetEnvoye`**, insérée dans la chaîne appel de fonds → signature (voir
+    son historique plus haut) qui devient donc à TROIS étapes : `echeancesPlanning()` (script.js)
+    annonce l'appel de fonds tant qu'il n'est pas fait, puis le projet d'acte envoyé une fois
+    l'appel de fonds validé, puis enfin « Signature de l'acte » une fois le projet envoyé validé
+    aussi — repli sur la date du rendez-vous à chaque étape faute de date propre, même principe
+    déjà en place pour l'appel de fonds seul. `d.projetEnvoye`/`marquerProjetEnvoyeSelonDate()`
+    (saisir la date la valide, la vider ou la supprimer l'invalide) suivent exactement le patron de
+    `d.appelFonds`. Répercuté partout où `appelFonds` l'était déjà : `renderTab()` (titre en gras,
+    croix de suppression), `LIBELLES_CATEGORIE`, `calculerProchaineEcheance()`,
+    `JALONS_AVANCEMENT` (Gantt du tableau de bord), `normaliserDossierImporte()` (conservé à
+    l'import, comme une saisie de l'étude), `imprimerFiche()` (`TEINTES`/`cases`), et les styles
+    `.dot-label.dl-projetEnvoye`/`.gantt-jalon.projetEnvoye` (gris neutre, comme les échéances
+    personnalisées — aucune couleur de plus). **Miroir serveur** : `jobs/rappels.js` porte la même
+    chaîne à trois étapes dans `toutesEcheances()` — `projetEnvoye` n'a pas de seuil de rappel
+    dédié dans `SEUILS_RAPPELS_PAR_TYPE` (retombe sur `SEUILS_RAPPELS_DEFAUT`, 15/7 jours), noté
+    explicitement en commentaire pour ne pas le chercher par erreur.
+  - **Réglages › Agenda de l'office** (nouvelle carte, entre « Rappels automatiques par email » et
+    « Relecture par Claude ») : un champ pour l'adresse `.ics` (« le même lien déjà utilisé par le
+    brief du matin »), un bouton Enregistrer, un compte rendu du dernier tour (icône + date +
+    origine automatique/manuelle + dossiers vérifiés/mis à jour, avec le détail par dossier et les
+    références sans correspondance) et « Tester maintenant » qui déclenche un vrai tour et
+    réaffiche le compte rendu persisté (`chargerReglagesAgenda()`/`enregistrerReglagesAgenda()`/
+    `renderDernierTourAgenda()`/`lancerTourAgenda()`, patron identique à
+    `chargerDernierTourRappels()`/`lancerTourRappels()`).
+  - Tests : `server/test/agenda-office.test.js` (19 — dépliage RFC 5545, décodage, VALARM ignoré,
+    référence VTE, les deux détections, rapprochement univoque/ambigu/absent, bout en bout),
+    `server/test/agenda-watch.test.js` (10 — remplissage, non-écrasement, dossier archivé, aucune
+    correspondance, deux détections sur le même dossier, absence d'URL, erreur HTTP, bout en bout,
+    persistance du compte rendu), `server/test/agenda-route.test.js` (6),
+    `server/test/parametresRepo.test.js` (+ validation URL/liste bornée). Suite serveur 342, suite
+    racine 791 (deux tests existants de `tests/echeances-appel-fonds.test.js` réécrits sur la
+    nouvelle chaîne à trois étapes — ils encodaient l'ancien enchaînement direct appel de fonds →
+    signature, mis à jour plutôt que contournés, même discipline que pour `rappels.test.js`).
+    **Vérifié dans un vrai Chromium** (serveur réel, clair/sombre/mobile 400px) : carte affichée au
+    bon endroit, URL enregistrée puis relue après rechargement, « Tester maintenant » déclenchant un
+    vrai tour et affichant proprement une erreur réseau (`fetch failed`, l'agenda réel étant hors de
+    portée du proxy de cet environnement) sans jamais planter, aucun débordement horizontal.
+  - **Non vérifié en conditions réelles** : ni un vrai calendrier Outlook publié ni son URL `.ics`
+    réelle ne sont accessibles dans cet environnement de développement (même limite déjà documentée
+    pour Ollama/pdf.js/Google Fonts) — la reconnaissance effective de la convention de l'étude sur
+    de vrais rendez-vous (variations de rédaction, majuscules, accents) reste à confirmer une fois
+    l'URL réelle renseignée dans Réglages.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

@@ -24,6 +24,7 @@ const { creerRouteurRelectureClaude } = require('./routes/relectureClaude');
 const { creerRouteurRelectures } = require('./routes/relectures');
 const { creerRouteurSignalements } = require('./routes/signalements');
 const { creerRouteurMiseAJour } = require('./routes/miseAJour');
+const { creerRouteurAgenda } = require('./routes/agenda');
 
 // Fichier statique → nom d'asset embarqué (voir server/scripts/build-windows-exe.mjs, section
 // `assets` de sea-config.json) + type MIME à renvoyer. Tous des fichiers texte (HTML/CSS/JS/JSON/
@@ -74,7 +75,7 @@ function estSea() {
 
 // `envoyerEmailFn` : injection de la couche d'envoi (voir envoiEmail.js), utilisée uniquement par
 // les tests — sans elle, vérifier les routes qui notifient demanderait un vrai serveur SMTP.
-function creerApp({ db, config, envoyerEmailFn, creerClientClaude, miseAJour }) {
+function creerApp({ db, config, envoyerEmailFn, creerClientClaude, miseAJour, agenda }) {
   const app = express();
   const depot = creerDepot(db);
   const parametresRepo = creerRepoParametres(db);
@@ -129,6 +130,9 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, miseAJour }) 
   // Mise à jour en un clic : `miseAJour.redemarrer` est fourni par index.js (seul endroit qui tient
   // le serveur HTTP et la base) ; les tests y injectent aussi un faux `sea` et un faux `fetch`.
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurMiseAJour(parametresRepo, db, config, miseAJour || {}));
+  // Agenda de l'office (voir agendaOffice.js/agendaWatch.js) : `agenda.fetchFn` est réservé aux
+  // tests, jamais utilisé en production (repli sur le `fetch` global de Node).
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAgenda(parametresRepo, { depot, ...(agenda || {}) }));
 
   // Gestionnaire d'erreurs générique en dernier recours : évite qu'une exception inattendue
   // (JSON malformé, etc.) ne fasse planter le processus entier plutôt que de répondre 500.

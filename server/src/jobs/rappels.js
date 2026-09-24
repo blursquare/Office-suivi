@@ -36,6 +36,8 @@ const SEUILS_RAPPELS_PAR_TYPE = {
   ventebien: [15, 7],
   appelFonds: [15, 10],
   rendezVousSignature: [25, 15]
+  // `projetEnvoye` (ajoutée après coup, voir agendaWatch.js) n'a pas de couple donné par l'étude —
+  // retombe sur SEUILS_RAPPELS_DEFAUT via seuilsPourType(), comme une échéance personnalisée.
 };
 
 // Échéance personnalisée (`autre-0`, `autre-1`…) : l'étude n'a pas de seuil à donner pour une date
@@ -66,17 +68,21 @@ function toutesEcheances(d) {
     .filter((it) => !echeanceValidee(d, it.type));
   // Miroir exact de echeancesPlanning() côté script.js — ce projet n'a pas de mécanisme de build
   // partagé entre navigateur et Node, cette duplication est un choix assumé et déjà documenté.
-  // Trois règles métier données par l'étude, à garder alignées des deux côtés :
+  // Règles métier données par l'étude, à garder alignées des deux côtés :
   //  • la DATE BUTOIR (`acte`) ne déclenche aucun rappel : elle vient de l'avant-contrat et n'est
   //    qu'indicative, c'est le rendez-vous pris à l'office qui engage l'étude ;
   //  • tant que l'appel de fonds n'est pas fait, c'est lui qu'on rappelle, même rendez-vous fixé,
   //    et à défaut de date propre il prend celle du rendez-vous (il doit être parti avant) ;
-  //  • une fois l'appel de fonds fait, on rappelle la signature.
+  //  • une fois l'appel de fonds fait, c'est l'envoi du projet d'acte au client qu'on rappelle
+  //    (ajouté sur demande de l'étude, détecté depuis l'agenda de l'office — voir agendaWatch.js) ;
+  //  • une fois le projet envoyé, on rappelle la signature.
   const items = [];
   if (!echeanceValidee(d, 'ventebien')) items.push({ type: 'ventebien', label: 'Vente préalable', iso: d.ventebien });
   if (!echeanceValidee(d, 'pret')) items.push({ type: 'pret', label: 'Obtention du prêt', iso: d.pret });
   if (!echeanceValidee(d, 'appelFonds')) {
     items.push({ type: 'appelFonds', label: 'Appel de fonds', iso: d.appelFonds || d.rendezVousSignature });
+  } else if (!echeanceValidee(d, 'projetEnvoye')) {
+    items.push({ type: 'projetEnvoye', label: 'Projet d’acte envoyé', iso: d.projetEnvoye || d.rendezVousSignature });
   } else if (!echeanceValidee(d, 'rendezVousSignature')) {
     items.push({ type: 'rendezVousSignature', label: 'Signature de l’acte', iso: d.rendezVousSignature });
   }

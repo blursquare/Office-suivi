@@ -59,6 +59,7 @@ const { ouvrirDb } = require('./db');
 const { creerApp } = require('./app');
 const { resoudreCheminNavigateurApp } = require('./navigateurApp');
 const { demarrerSurveillanceNas } = require('./nasWatch');
+const { demarrerSurveillanceAgenda } = require('./agendaWatch');
 const { demarrerTacheRappels } = require('./jobs/rappels');
 const { demarrerSauvegardeAutomatique } = require('./sauvegarde');
 
@@ -188,6 +189,12 @@ function demarrer() {
   // effet sur les tests qui montent `creerApp()` directement — ce minuteur ne démarre qu'ici, au
   // vrai point d'entrée du serveur.
   demarrerSurveillanceNas(depot, config);
+
+  // Lecture périodique de l'agenda de l'office (voir agendaWatch.js) : silencieuse tant que
+  // l'étude n'a pas renseigné l'URL du calendrier publié depuis l'écran Réglages — même principe
+  // que la surveillance du NAS ci-dessus, et démarrée au même seul endroit réel (jamais dans
+  // app.js, pour ne pas déclencher ce minuteur dans les tests qui montent creerApp() directement).
+  demarrerSurveillanceAgenda(depot, parametresRepo);
 
   // Rappels automatiques par email (voir jobs/rappels.js) : silencieux tant que l'étude n'a pas
   // activé/configuré l'envoi depuis l'écran Réglages (emailActif/smtpHote/emailPasserelle, table

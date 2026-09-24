@@ -98,6 +98,39 @@ tient à jour tout seul, pour tout le portefeuille, sans jamais rouvrir l'outil.
    pas renseigné dans `.env` (voir `.env.example`) — sans jeton, `GET /calendrier.ics` répond 503
    plutôt que de générer un flux non protégé.
 
+## Agenda de l'office (lecture automatique du .ics publié)
+
+À l'inverse du flux ci-dessus (CLAIRE **publie** un calendrier qu'Outlook lit), ce mécanisme fait
+lire à CLAIRE le calendrier **de l'office**, publié depuis Outlook — même lien `.ics` que celui déjà
+utilisé par l'artefact « brief du matin » de l'étude. Objectif : reporter automatiquement sur un
+dossier la date d'un appel de fonds ou d'un projet d'acte envoyé, dès que le rendez-vous
+correspondant est noté dans l'agenda, sans ressaisie côté CLAIRE.
+
+**Convention attendue** (voir `server/src/agendaOffice.js`) : un rendez-vous porte la référence
+« VTE - NOM DU DOSSIER » (dans son titre ou sa description) et mentionne « appel de fonds » et/ou
+« projet envoyé »/« envoi du projet » — ensemble ou séparément, dans le titre du rendez-vous ou
+ajouté au texte d'un rendez-vous existant. Les couleurs de rendez-vous (vert = office, violet =
+visio, orange = confrère) indiquent seulement le LIEU et ne jouent aucun rôle dans cette lecture.
+
+1. Dans **Réglages › Agenda de l'office**, coller l'adresse `.ics` publiée du calendrier de
+   l'office (Outlook : **Paramètres → Calendrier → Calendriers partagés → Publier un calendrier**,
+   ou récupérer le lien déjà utilisé par le brief du matin) et cliquer **Enregistrer**.
+2. Le serveur relit ce calendrier toutes les **15 minutes**. Dès qu'un rendez-vous correspond à la
+   convention ci-dessus ET à un seul dossier actif (rapprochement par les mots significatifs du
+   nom du dossier, comme pour le rapprochement automatique au NAS — jamais sur un dossier ambigu
+   entre plusieurs candidats), la date du rendez-vous est reportée sur `appelFonds`/`projetEnvoye`
+   **uniquement si le champ est encore vide** — une date déjà saisie n'est jamais écrasée.
+3. **« Tester maintenant »** déclenche un vrai tour de lecture immédiatement, sans attendre le
+   prochain passage automatique, et affiche le compte rendu (dossiers vérifiés, mis à jour,
+   références sans dossier correspondant, erreur éventuelle).
+4. Un dossier archivé n'est jamais mis à jour par ce mécanisme.
+5. Une adresse qui ne commence pas par `http://` ou `https://` (chemin de fichier collé par erreur,
+   texte au hasard) est refusée à l'enregistrement plutôt que d'échouer en silence au premier tour.
+6. **Premier jet de détection de mots-clés** (« appel de fonds »/« AF », « projet … envoyé »),
+   comme les autres détections heuristiques de CLAIRE (`motifNom`, `PIECES_*`…) — à resserrer si un
+   faux positif ou un rendez-vous non reconnu remonte, avec la formulation exacte qui a posé
+   problème.
+
 ## Rappels automatiques par email
 
 Remplace le déclenchement automatique des rappels (auparavant : rien, en pratique — seul un

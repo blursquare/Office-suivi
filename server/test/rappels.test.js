@@ -33,6 +33,13 @@ test('une echeance personnalisee retombe sur le couple par defaut', () => {
   assert.deepEqual(seuilsPourType('autre-7'), [15, 7]);
 });
 
+// projetEnvoye a ete ajoutee apres coup (lecture de l'agenda de l'office) sans seuil donne par
+// l'etude : elle doit retomber sur le meme couple par defaut qu'une echeance personnalisee.
+test('projetEnvoye n a pas de seuil dedie : retombe sur le couple par defaut', () => {
+  assert.equal(SEUILS_RAPPELS_PAR_TYPE.projetEnvoye, undefined);
+  assert.deepEqual(seuilsPourType('projetEnvoye'), SEUILS_RAPPELS_DEFAUT);
+});
+
 test('la date butoir n a aucun seuil declare : elle ne doit jamais etre rappelee', () => {
   assert.equal(SEUILS_RAPPELS_PAR_TYPE.acte, undefined);
 });
@@ -65,18 +72,25 @@ test('toutesEcheances : exclut le prêt une fois l\'offre reçue, inclut les éc
   assert.ok(types.includes('autre-0'));
 });
 
-test('toutesEcheances : appel de fonds d\'abord, signature une fois qu\'il est fait', () => {
+test('toutesEcheances : appel de fonds, puis projet envoyé, puis signature', () => {
   // Miroir de echeancesPlanning() côté script.js : tant que l'appel de fonds n'est pas fait,
-  // c'est lui qu'on rappelle, même si le rendez-vous est déjà fixé.
+  // c'est lui qu'on rappelle, même si le rendez-vous est déjà fixé ; une fois fait, c'est
+  // l'envoi du projet d'acte (ajouté après coup, voir agendaWatch.js) ; une fois le projet
+  // envoyé, la signature.
   const d = { appelFonds: '2026-11-20', rendezVousSignature: '2026-12-05' };
   assert.deepEqual(toutesEcheances(d).map((e) => e.type), ['appelFonds']);
 
   const faitAppel = { ...d, echeancesValidees: { appelFonds: true } };
-  const apres = toutesEcheances(faitAppel);
-  assert.deepEqual(apres.map((e) => e.type), ['rendezVousSignature']);
-  assert.equal(apres[0].label, 'Signature de l\u2019acte');
+  const apresAppel = toutesEcheances(faitAppel);
+  assert.deepEqual(apresAppel.map((e) => e.type), ['projetEnvoye']);
+  assert.equal(apresAppel[0].label, 'Projet d\u2019acte envoy\u00e9');
 
-  const validees = { ...d, echeancesValidees: { appelFonds: true, rendezVousSignature: true } };
+  const faitProjet = { ...d, echeancesValidees: { appelFonds: true, projetEnvoye: true } };
+  const apresProjet = toutesEcheances(faitProjet);
+  assert.deepEqual(apresProjet.map((e) => e.type), ['rendezVousSignature']);
+  assert.equal(apresProjet[0].label, 'Signature de l\u2019acte');
+
+  const validees = { ...d, echeancesValidees: { appelFonds: true, projetEnvoye: true, rendezVousSignature: true } };
   assert.deepEqual(toutesEcheances(validees), []);
 });
 
@@ -124,11 +138,12 @@ test('calculerRappelsDus : l appel de fonds part a J-15 et J-10, pas a J-7', () 
 });
 
 test('calculerRappelsDus : la signature part de plus loin, a J-25 et J-15', () => {
-  // Appel de fonds deja fait : le planning passe a la signature (voir toutesEcheances).
+  // Appel de fonds ET projet d'acte deja faits : le planning passe a la signature (voir
+  // toutesEcheances) - le projet envoye est une etape intermediaire ajoutee apres coup.
   const d = {
     id: 'd1', nom: 'X / Y', responsable: 'Julie VASSELIN',
     offrePretStatut: 'recue', appelFonds: '2026-10-01',
-    echeancesValidees: { appelFonds: true }, rendezVousSignature: '2026-11-11'
+    echeancesValidees: { appelFonds: true, projetEnvoye: true }, rendezVousSignature: '2026-11-11'
   };
   assert.equal(calculerRappelsDus([d], '2026-10-17', new Set()).length, 1); // J-25
   assert.equal(calculerRappelsDus([d], '2026-10-27', new Set()).length, 1); // J-15

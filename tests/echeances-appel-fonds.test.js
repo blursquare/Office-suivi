@@ -123,19 +123,33 @@ test('tant que l’appel de fonds n’est pas fait, c’est lui que le planning 
   assert.equal(app.toutesEcheances(d).map((e) => e.type).join(','), 'appelFonds');
   assert.equal(app.prochaineEcheanceDetail(d).type, 'appelFonds');
 
-  const validees = Object.assign({}, d, { echeancesValidees: { appelFonds: true, rendezVousSignature: true } });
+  // Tout validé, y compris l'étape intermédiaire « projet envoyé » : plus rien à annoncer.
+  const validees = Object.assign({}, d, {
+    echeancesValidees: { appelFonds: true, projetEnvoye: true, rendezVousSignature: true }
+  });
   assert.equal(app.prochaineEcheanceDetail(validees), null);
 });
 
-test('une fois l’appel de fonds fait, le planning annonce « Signature de l’acte »', () => {
+test('une fois l’appel de fonds fait, le planning annonce le projet d’acte envoyé, puis la signature', () => {
   const app = chargerApplication();
-  const d = dossierBase({ appelFonds: '2026-11-20', rendezVousSignature: '2026-12-01',
-    echeancesValidees: { appelFonds: true } });
-  const suivante = app.prochaineEcheanceDetail(d);
-  assert.equal(suivante.type, 'rendezVousSignature');
-  assert.equal(suivante.iso, '2026-12-01');
+  const base = dossierBase({ appelFonds: '2026-11-20', rendezVousSignature: '2026-12-01' });
+
+  // Étape 1 : appel de fonds fait, mais pas encore le projet envoyé → c'est lui la suite.
+  const apresAppelFonds = Object.assign({}, base, { echeancesValidees: { appelFonds: true } });
+  const suivante1 = app.prochaineEcheanceDetail(apresAppelFonds);
+  assert.equal(suivante1.type, 'projetEnvoye');
+  assert.equal(suivante1.iso, '2026-12-01');
+  assert.equal(suivante1.label, 'Projet d’acte envoyé');
+
+  // Étape 2 : le projet est envoyé aussi → la signature devient la prochaine échéance.
+  const apresProjetEnvoye = Object.assign({}, base, {
+    echeancesValidees: { appelFonds: true, projetEnvoye: true }
+  });
+  const suivante2 = app.prochaineEcheanceDetail(apresProjetEnvoye);
+  assert.equal(suivante2.type, 'rendezVousSignature');
+  assert.equal(suivante2.iso, '2026-12-01');
   // C'est bien la signature qui est nommée, pas le « rendez-vous » : c'est ce qu'il reste à faire.
-  assert.equal(suivante.label, 'Signature de l’acte');
+  assert.equal(suivante2.label, 'Signature de l’acte');
 });
 
 test('sans date propre, l’appel de fonds prend celle du rendez-vous', () => {

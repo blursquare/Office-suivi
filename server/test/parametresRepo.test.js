@@ -9,7 +9,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 
 const { ouvrirDb } = require('../src/db');
-const { creerRepoParametres, assainirReglages, REGLAGES_PAR_DEFAUT, PORT_SMTP_PAR_DEFAUT , assainirDernierTour } = require('../src/parametresRepo');
+const { creerRepoParametres, assainirReglages, REGLAGES_PAR_DEFAUT, PORT_SMTP_PAR_DEFAUT , assainirDernierTour, assainirReglagesAgenda, assainirDernierTourAgenda } = require('../src/parametresRepo');
 
 const REGLAGES_TEST = Object.freeze({
   emailActif: true,
@@ -183,4 +183,40 @@ test('assainirDernierTour conserve les avertissements (chaînes seulement)', () 
   const t = assainirDernierTour({ at: 'x', avertissements: ['Copie Gmail non effacée', 3, ''] });
   assert.equal(t.avertissements.length, 1);
   assert.equal(assainirDernierTour({}).avertissements.length, 0);
+});
+
+// Réglages de l'agenda de l'office (voir agendaOffice.js/agendaWatch.js) : une seule URL http(s),
+// tout le reste (un chemin de fichier collé par erreur, du texte au hasard) est écarté avant même
+// que le tour de surveillance n'essaie de la joindre.
+test('assainirReglagesAgenda : n\'accepte qu\'une URL http(s)', () => {
+  assert.equal(assainirReglagesAgenda({ icsUrl: 'https://outlook.office.com/x.ics' }).icsUrl, 'https://outlook.office.com/x.ics');
+  assert.equal(assainirReglagesAgenda({ icsUrl: 'http://exemple.fr/x.ics' }).icsUrl, 'http://exemple.fr/x.ics');
+  assert.equal(assainirReglagesAgenda({ icsUrl: 'C:\\Users\\etude\\agenda.ics' }).icsUrl, '');
+  assert.equal(assainirReglagesAgenda({ icsUrl: '' }).icsUrl, '');
+  assert.equal(assainirReglagesAgenda({}).icsUrl, '');
+  assert.equal(assainirReglagesAgenda(null).icsUrl, '');
+});
+
+test('assainirDernierTourAgenda : borne les listes et les valeurs exotiques', () => {
+  const t = assainirDernierTourAgenda({
+    at: 'x', ok: 'oui', dossiersVerifies: -2,
+    misAJour: [{ dossierId: 'd1', dossierNom: 'A / B', action: 'appelFonds', dateIso: '2026-10-14' }, 'pas un objet'],
+    dejaRenseignes: 'pas un tableau',
+    sansCorrespondance: [{ reference: 'X' }],
+    erreur: 12, declenche: 'bidon'
+  });
+  assert.equal(t.ok, true);
+  assert.equal(t.dossiersVerifies, 0);
+  assert.equal(t.misAJour.length, 1);
+  assert.equal(t.misAJour[0].action, 'appelFonds');
+  assert.deepEqual(t.dejaRenseignes, []);
+  assert.equal(t.sansCorrespondance.length, 1);
+  assert.equal(t.erreur, '12');
+  assert.equal(t.declenche, 'automatique');
+  assert.equal(assainirDernierTourAgenda(null).ok, false);
+});
+
+test('assainirDernierTourAgenda : une action inconnue est ecartee, jamais propagee telle quelle', () => {
+  const t = assainirDernierTourAgenda({ misAJour: [{ dossierId: 'd1', dossierNom: 'X', action: 'autre-chose', dateIso: '2026-10-14' }] });
+  assert.equal(t.misAJour[0].action, '');
 });

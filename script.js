@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-24 23:05';
+  const VERSION_APP = '2026-09-25 00:13';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-25 00:13', resume: "CLAIRE lit désormais l'agenda .ics publié de l'office (même lien que le brief du matin, toutes les 15 minutes) : un rendez-vous portant « VTE - NOM DU DOSSIER » et mentionnant « appel de fonds »/« projet envoyé » reporte automatiquement la date sur le dossier, jamais si elle est déjà saisie. Nouvelle échéance « Projet d'acte envoyé », entre l'appel de fonds et la signature. Réglages › Agenda de l'office pour l'adresse et « Tester maintenant »." },
     { version: '2026-09-24 23:05', resume: "Réglages › Mise à jour de CLAIRE : « Vérifier » compare la version installée à la dernière publiée, « Mettre à jour maintenant » sauvegarde la base, installe la nouvelle version et redémarre le serveur, en un clic. Le dépôt GitHub étant privé, un jeton en lecture seule s'enregistre dans la même carte." },
     { version: '2026-09-24 19:34', resume: "Nouveau bouton « Signaler un problème » en bas de la barre latérale : gravité, ce que vous faisiez, ce qui s'est passé, capture d'écran facultative ; la version, l'écran, le dossier ouvert et les erreurs techniques sont joints tout seuls. Un problème bloquant prévient l'étude sur Teams. Tri, doublons et export dans Réglages › Signalements des collaborateurs." },
     { version: '2026-09-24 19:07', resume: "Relecture d'actes : bilan réorganisé (résumé et contrôle CLAIRE de l'acte en haut, thèmes avec « à surveiller » et « validé » côte à côte, aperçu toujours ouvert), grille adaptée maison / copropriété / terrain à bâtir, commentaires en deux lignes, analyses passées enregistrées et rouvrables. Tableau de bord : J- avant la date butoir du prêt à côté d'une offre introuvable, dossiers actifs en vert." },
@@ -9629,7 +9630,7 @@
             <span class="tab-select-icone-chevron">${icone('chevron-down')}</span>
           </span>
         </div>`
-      : `<div class="tab-name${type === 'rendezVousSignature' || type === 'appelFonds' ? ' tab-name-fort' : ''}">${label}</div>`;
+      : `<div class="tab-name${type === 'rendezVousSignature' || type === 'appelFonds' || type === 'projetEnvoye' ? ' tab-name-fort' : ''}">${label}</div>`;
 
     // Petite croix en haut à droite pour retirer une échéance : "autre" passe par
     // supprimerEcheanceAutre (retire l'entrée de d.autres) ; Prêt/Acte/Vente préalable, tant qu'une
@@ -9639,7 +9640,7 @@
     // demandé par l'étude sous forme d'un vrai bouton de suppression.
     const croixSuppression = (dossierId && autreIndex != null)
       ? `<button type="button" class="tab-suppr" onclick="supprimerEcheanceAutre('${dossierId}', ${autreIndex})" title="Supprimer cette échéance" aria-label="Supprimer cette échéance">${icone('x')}</button>`
-      : (dossierId && autreIndex == null && iso && (type === 'pret' || type === 'acte' || type === 'ventebien' || type === 'appelFonds' || type === 'rendezVousSignature'))
+      : (dossierId && autreIndex == null && iso && (type === 'pret' || type === 'acte' || type === 'ventebien' || type === 'appelFonds' || type === 'projetEnvoye' || type === 'rendezVousSignature'))
         ? `<button type="button" class="tab-suppr" onclick="supprimerDateEcheance('${dossierId}', '${type}')" title="Supprimer cette date" aria-label="Supprimer cette date">${icone('x')}</button>`
         : '';
 
@@ -9801,6 +9802,11 @@
     // nommée autrement suffit à faire échouer la condition 3, ce qui rendait le masquage d'autant
     // plus arbitraire vu de l'étude.
     if (d.appelFonds || d.rendezVousSignature || dossierEntierementComplet(d)) cartes.push({ iso: d.appelFonds, html: renderTab('appelFonds', 'Appel de fonds', d.appelFonds, d.id, null, null, null, false, '', false, echeanceValidee(d, 'appelFonds')) });
+    // Même logique de visibilité que l'appel de fonds, décalée d'un cran : une date déjà saisie
+    // reste toujours affichée, l'appel de fonds fait rend l'envoi du projet dû (voir
+    // echeancesPlanning), et un rendez-vous fixé le rend pertinent même si l'appel de fonds n'a pas
+    // encore été validé.
+    if (d.projetEnvoye || echeanceValidee(d, 'appelFonds') || d.rendezVousSignature) cartes.push({ iso: d.projetEnvoye, html: renderTab('projetEnvoye', 'Projet d’acte envoyé', d.projetEnvoye, d.id, null, null, null, false, '', false, echeanceValidee(d, 'projetEnvoye')) });
     cartes.push({ iso: d.rendezVousSignature, html: renderTab('rendezVousSignature', 'Rendez-vous de signature', d.rendezVousSignature, d.id, null, null, null, false, '', false, echeanceValidee(d, 'rendezVousSignature')) });
     (d.autres || []).forEach((a, i) => cartes.push({ iso: a.date, html: renderTab('autre', escapeHtml(a.label), a.date, d.id, a.page, null, i, false, '', false, echeanceValidee(d, 'autre-' + i)) }));
     // Les dates sont au format ISO AAAA-MM-JJ partout dans l'outil (valeur d'un <input type="date">) :
@@ -9845,6 +9851,22 @@
     }
   }
 
+  // Même principe que marquerAppelFondsSelonDate ci-dessus, pour le projet d'acte envoyé au
+  // client : une date renseignée (à la main, ou détectée depuis l'agenda de l'office — voir
+  // agendaWatch.js côté serveur) vaut envoi fait.
+  function marquerProjetEnvoyeSelonDate(d, iso) {
+    const fait = !!iso;
+    const deja = !!(d.echeancesValidees && d.echeancesValidees.projetEnvoye);
+    if (fait === deja) return;
+    d.echeancesValidees = d.echeancesValidees || {};
+    if (fait) {
+      d.echeancesValidees.projetEnvoye = true;
+      ajouterHistorique(d, 'Projet d’acte envoyé marqué réalisé (date saisie)');
+    } else {
+      delete d.echeancesValidees.projetEnvoye;
+    }
+  }
+
   function devaliderEcheance(id, type) {
     const d = dossiers.find(x => x.id === id);
     if (!d || !d.echeancesValidees) return;
@@ -9861,7 +9883,8 @@
   // demandé que son nom le dise et qu'elle disparaîsse du planning (voir echeancesPlanning).
   const LIBELLES_CATEGORIE = {
     pret: 'Obtention du prêt', acte: 'Date butoir', ventebien: 'Vente préalable',
-    appelFonds: 'Appel de fonds', rendezVousSignature: 'Rendez-vous de signature'
+    appelFonds: 'Appel de fonds', projetEnvoye: 'Projet d’acte envoyé',
+    rendezVousSignature: 'Rendez-vous de signature'
   };
 
   // Résout le libellé d'une échéance pour un message d'historique — les trois/cinq types fixes
@@ -10061,6 +10084,7 @@
     const dates = [
       datePret,
       echeanceValidee(d, 'appelFonds') ? null : d.appelFonds,
+      echeanceValidee(d, 'projetEnvoye') ? null : d.projetEnvoye,
       echeanceValidee(d, 'acte') ? null : d.acte,
       echeanceValidee(d, 'rendezVousSignature') ? null : d.rendezVousSignature,
       echeanceValidee(d, 'ventebien') ? null : d.ventebien,
@@ -10362,6 +10386,7 @@
     { type: 'ventebien', label: 'Vente préalable' },
     { type: 'pret', label: 'Obtention du prêt' },
     { type: 'appelFonds', label: 'Appel de fonds' },
+    { type: 'projetEnvoye', label: 'Projet envoyé' },
     { type: 'acte', label: 'Date butoir' },
     { type: 'rendezVousSignature', label: 'Signature' }
   ];
@@ -10683,13 +10708,17 @@
   //     rendez-vous est déjà fixé : le planning annonce donc « Appel de fonds ». Faute de date
   //     propre — le cas courant, l'étude ne la saisit pas toujours — il prend celle du
   //     rendez-vous : l'appel doit de toute façon être parti avant, c'est sa vraie échéance.
-  //  3. Une fois l'appel de fonds fait, le rendez-vous devient la prochaine échéance, sous le nom
+  //  3. Une fois l'appel de fonds fait, c'est l'envoi du PROJET D'ACTE au client qui devient
+  //     l'étape à surveiller (même repli sur la date du rendez-vous à défaut de date propre) —
+  //     ajouté sur demande de l'étude, lue automatiquement depuis l'agenda de l'office quand elle
+  //     l'y note (voir agendaWatch.js côté serveur), ou saisie à la main comme les autres dates.
+  //  4. Une fois le projet envoyé, le rendez-vous devient la prochaine échéance, sous le nom
   //     de « Signature de l'acte » — c'est ce qu'il reste à faire, et c'est la seule signature
   //     dont la date soit certaine.
   //
   // Ordre métier du dossier : compromis signé → vente préalable (elle finance l'acquisition) →
-  // obtention du prêt → appel de fonds → signature. Ne départage que les ex æquo, le tri se
-  // faisant par date.
+  // obtention du prêt → appel de fonds → projet d'acte envoyé → signature. Ne départage que les
+  // ex æquo, le tri se faisant par date.
   function echeancesPlanning(d) {
     const items = [];
     if (!echeanceValidee(d, 'ventebien')) items.push({ type: 'ventebien', label: 'Vente préalable', iso: d.ventebien });
@@ -10700,6 +10729,8 @@
     const appelFondsFait = echeanceValidee(d, 'appelFonds');
     if (!appelFondsFait) {
       items.push({ type: 'appelFonds', label: 'Appel de fonds', iso: d.appelFonds || d.rendezVousSignature });
+    } else if (!echeanceValidee(d, 'projetEnvoye')) {
+      items.push({ type: 'projetEnvoye', label: 'Projet d’acte envoyé', iso: d.projetEnvoye || d.rendezVousSignature });
     } else if (!echeanceValidee(d, 'rendezVousSignature')) {
       items.push({ type: 'rendezVousSignature', label: 'Signature de l’acte', iso: d.rendezVousSignature });
     }
@@ -12200,6 +12231,7 @@
       // rendez-vous de signature, et la section « Appel de fonds » du bas de fiche disparaît).
       // Vider la date annule la validation — sinon un appel de fonds sans date resterait « fait ».
       if (cle === 'appelFonds') marquerAppelFondsSelonDate(d, nouvelleDate);
+      if (cle === 'projetEnvoye') marquerProjetEnvoyeSelonDate(d, nouvelleDate);
       sauvegarder(d);
     }
     render();
@@ -12273,6 +12305,7 @@
       // qui n'est plus suivie sur ce dossier (verifierDossierLocal() teste déjà `!d.sansPret`).
       if (type === 'pret') d.sansPret = true;
       if (type === 'appelFonds') marquerAppelFondsSelonDate(d, '');
+      if (type === 'projetEnvoye') marquerProjetEnvoyeSelonDate(d, '');
       ajouterHistorique(d, `« ${LIBELLES_CATEGORIE[type]} » supprimée`);
       sauvegarder(d);
       render();
@@ -14049,6 +14082,10 @@
       // statut dérivé d'un scan à revérifier — l'appel de fonds et le rendez-vous de signature sont
       // ajoutés après coup par l'étude, pas extraits automatiquement du compromis.
       appelFonds: dateValide(d.appelFonds),
+      // Comme appelFonds/acte/ventebien juste au-dessus : conservé tel quel à l'import, une saisie
+      // de l'étude ou une détection depuis l'agenda de l'office (voir agendaWatch.js) — jamais un
+      // statut dérivé d'un scan du NAS à revérifier sur ce poste.
+      projetEnvoye: dateValide(d.projetEnvoye),
       acte: dateValide(d.acte),
       rendezVousSignature: dateValide(d.rendezVousSignature),
       ventebien: dateValide(d.ventebien),
@@ -14242,12 +14279,16 @@
       vente: { fond: '#E3EEF7', barre: '#2472B0' },
       autre: { fond: '#EEEEEE', barre: '#8A93A9' },
       appelFonds: { fond: '#EEE9F7', barre: '#7C5CBF' },
+      // projetEnvoye : même teinte neutre que "autre" (--muted en écran), pas de couleur de
+      // catégorie dédiée — comme appelFonds/rendezVous, une échéance manuelle hors extraction.
+      projetEnvoye: { fond: '#EEEEEE', barre: '#8A93A9' },
       rendezVous: { fond: '#E4F2EA', barre: '#2F8F5B' }
     };
 
     const cases = [
       d.pret ? { cls: 'pret', label: 'Obtention du prêt', date: d.pret } : null,
       d.appelFonds ? { cls: 'appelFonds', label: 'Appel de fonds', date: d.appelFonds } : null,
+      d.projetEnvoye ? { cls: 'projetEnvoye', label: 'Projet d’acte envoyé', date: d.projetEnvoye } : null,
       d.acte ? { cls: 'acte', label: "Signature de l'acte", date: d.acte } : null,
       d.rendezVousSignature ? { cls: 'rendezVous', label: 'Rendez-vous de signature', date: d.rendezVousSignature } : null,
       d.ventebien ? { cls: 'vente', label: 'Vente préalable', date: d.ventebien } : null,
@@ -21745,6 +21786,7 @@
       renderReglagesEmails(reglages.emailsResponsables || {});
       document.getElementById('reglages-etat').style.display = 'none';
       chargerDernierTourRappels();
+      chargerReglagesAgenda();
       chargerEtatSauvegarde();
       chargerMiseAJour();
     } catch (e) {
@@ -21988,6 +22030,121 @@
       html += '<ul class="dernier-tour-avertissements">' + avertissements.map((e) => `<li>${escapeHtml(e)}</li>`).join('') + '</ul>';
     }
     zone.innerHTML = html;
+  }
+
+  // ---- Agenda de l'office : lecture automatique du .ics publié (voir server/src/agendaWatch.js /
+  // agendaOffice.js) — même flux que celui déjà lu par l'artefact "brief du matin". Un rendez-vous
+  // portant "VTE - NOM DU DOSSIER" et mentionnant "appel de fonds"/"projet envoyé" reporte
+  // automatiquement la date sur le dossier, jamais si elle est déjà renseignée. ----
+
+  async function chargerReglagesAgenda() {
+    try {
+      const reponse = await fetchAvecAuth('/api/agenda');
+      const corps = await reponse.json();
+      const champ = document.getElementById('reglages-agenda-url');
+      // Ne jamais écraser une saisie en cours : un tour automatique de rappels a pu recharger cet
+      // écran pendant que l'étude collait l'URL.
+      if (champ && document.activeElement !== champ) champ.value = (corps.reglages && corps.reglages.icsUrl) || '';
+      renderDernierTourAgenda(corps.dernierTour);
+    } catch (e) {
+      // Session expirée : déjà géré par fetchAvecAuth (écran de connexion réaffiché).
+    }
+  }
+
+  async function enregistrerReglagesAgenda() {
+    const resultat = document.getElementById('reglages-agenda-resultat');
+    const champ = document.getElementById('reglages-agenda-url');
+    try {
+      const reponse = await fetchAvecAuth('/api/agenda', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ icsUrl: champ ? champ.value.trim() : '' })
+      });
+      const corps = await reponse.json();
+      const urlEnregistree = (corps.reglages && corps.reglages.icsUrl) || '';
+      if (champ) champ.value = urlEnregistree;
+      if (resultat) {
+        if (champ && champ.value !== '' && !urlEnregistree) {
+          resultat.textContent = "Cette adresse ne ressemble pas à un lien de calendrier (http/https) — rien n'a été enregistré.";
+          resultat.className = 'hint reglages-email-resultat reglages-email-echec';
+        } else {
+          resultat.textContent = 'Enregistré.';
+          resultat.className = 'hint';
+        }
+      }
+      renderDernierTourAgenda(corps.dernierTour);
+    } catch (e) {
+      if (resultat) { resultat.textContent = 'Serveur injoignable.'; resultat.className = 'hint reglages-email-resultat reglages-email-echec'; }
+    }
+  }
+
+  function libelleActionAgenda(action) {
+    return action === 'projetEnvoye' ? 'Projet d’acte envoyé' : 'Appel de fonds';
+  }
+
+  function renderDernierTourAgenda(tour) {
+    const zone = document.getElementById('reglages-agenda-dernier-tour');
+    if (!zone) return;
+    if (!tour || !tour.at) {
+      zone.className = 'reglages-dernier-tour';
+      zone.innerHTML = '<p class="hint" style="margin:0;">Aucune lecture enregistrée pour l\'instant — l\'adresse n\'est pas encore renseignée, ou le premier tour n\'a pas encore eu lieu.</p>';
+      return;
+    }
+    const quand = new Date(tour.at);
+    const quandTexte = isNaN(quand.getTime())
+      ? tour.at
+      : quand.toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' });
+    const origine = tour.declenche === 'manuel' ? 'déclenché à la main' : 'tour automatique';
+    const misAJour = Array.isArray(tour.misAJour) ? tour.misAJour : [];
+    const sansCorrespondance = Array.isArray(tour.sansCorrespondance) ? tour.sansCorrespondance : [];
+    // En erreur seulement si le calendrier n'a pas pu être lu du tout (URL révoquée, réseau) —
+    // aucune correspondance trouvée n'est pas un problème, c'est le cas normal la plupart du temps.
+    const enErreur = !tour.ok && !!tour.erreur;
+    zone.className = 'reglages-dernier-tour ' + (enErreur ? 'dernier-tour-alerte' : 'dernier-tour-ok');
+    let html = `<div class="dernier-tour-ligne">${icone(enErreur ? 'alert-triangle' : 'check')}`;
+    html += `<span><strong>${escapeHtml(quandTexte)}</strong> — ${escapeHtml(origine)} · `;
+    html += enErreur
+      ? escapeHtml(tour.erreur)
+      : `${tour.dossiersVerifies} dossier${tour.dossiersVerifies > 1 ? 's' : ''} vérifié${tour.dossiersVerifies > 1 ? 's' : ''}, ${misAJour.length} mis à jour`;
+    html += '.</span></div>';
+    if (misAJour.length) {
+      html += '<ul class="dernier-tour-erreurs" style="color:inherit;">' + misAJour.map((m) =>
+        `<li>${escapeHtml(m.dossierNom || '')} — ${escapeHtml(libelleActionAgenda(m.action))} (${escapeHtml(m.dateIso || '')})</li>`
+      ).join('') + '</ul>';
+    }
+    if (sansCorrespondance.length) {
+      html += '<ul class="dernier-tour-avertissements">' + sansCorrespondance.map((m) =>
+        `<li>« ${escapeHtml(m.reference || '')} » — aucun dossier correspondant trouvé.</li>`
+      ).join('') + '</ul>';
+    }
+    zone.innerHTML = html;
+  }
+
+  // Lance un VRAI tour de lecture tout de suite, sans attendre le prochain passage automatique.
+  async function lancerTourAgenda() {
+    const bouton = document.getElementById('reglages-agenda-lancer');
+    const resultat = document.getElementById('reglages-agenda-resultat');
+    if (bouton) { bouton.disabled = true; bouton.textContent = 'Lecture en cours…'; }
+    try {
+      const reponse = await fetchAvecAuth('/api/agenda/tester', { method: 'POST' });
+      const corps = await reponse.json();
+      if (resultat) {
+        if (reponse.ok && corps.ok) {
+          resultat.textContent = `✓ ${corps.dossiersVerifies} dossier(s) vérifié(s), ${(corps.misAJour || []).length} mis à jour.`;
+          resultat.className = 'hint';
+        } else {
+          resultat.textContent = corps.erreur || "La lecture de l'agenda a échoué.";
+          resultat.className = 'hint reglages-email-resultat reglages-email-echec';
+        }
+      }
+      // Le compte rendu persisté (avec sa date et son origine) n'est disponible qu'en relisant
+      // /api/agenda — la réponse de /api/agenda/tester ne porte que le résultat brut du tour.
+      await chargerReglagesAgenda();
+    } catch (e) {
+      if (resultat) { resultat.textContent = 'Serveur injoignable.'; resultat.className = 'hint reglages-email-resultat reglages-email-echec'; }
+    } finally {
+      if (bouton) { bouton.disabled = false; bouton.textContent = 'Tester maintenant'; }
+    }
   }
 
   // ---- Sauvegarde automatique de la base (voir server/src/sauvegarde.js) ----
