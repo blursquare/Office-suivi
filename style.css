@@ -5237,60 +5237,42 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
 .dash-avancement { margin-top: 28px; }
 .avancement-dossiers {
   background: var(--paper-card); border: 1px solid var(--line); border-radius: 10px;
-  padding: 14px 16px; box-shadow: var(--shadow-card); overflow-x: auto;
+  padding: 6px 8px; box-shadow: var(--shadow-card);
 }
-.gantt { min-width: 640px; display: flex; flex-direction: column; }
-.gantt-ligne {
-  display: grid; grid-template-columns: minmax(160px, 240px) 1fr; align-items: center; gap: 12px;
-  width: 100%; min-height: 30px; padding: 0; background: none; border: none; border-radius: 6px;
+/* Une ligne par dossier : nom, jauge, statut. Le filet de séparation est porté par la ligne
+   suivante (+ ~), pour qu'aucune ligne n'en ait sous elle en fin de liste. */
+button.avancement-ligne {
+  display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 128px; align-items: center; gap: 20px;
+  width: 100%; padding: 12px 10px; background: none; border: none; border-radius: 8px;
   font: inherit; text-align: left; color: inherit; cursor: pointer;
 }
-button.gantt-ligne:hover { background: var(--paper-sunk); }
-.gantt-entete { cursor: default; min-height: 22px; }
-.gantt-nom {
-  font-size: 12.5px; font-weight: 600; color: var(--ink); padding-left: 6px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+button.avancement-ligne:hover { background: var(--paper-sunk); }
+.avancement-ligne + .avancement-ligne { border-top: 1px solid var(--line-soft); border-radius: 0; }
+.avancement-ligne + .avancement-ligne:hover { border-radius: 0; }
+.avancement-nom { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.avancement-titre { font-size: 13.5px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.avancement-detail { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.avancement-jauge { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.avancement-jauge-tete { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: var(--muted); }
+.avancement-jauge-tete b { font-size: 13px; color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.avancement-barre { display: block; height: 6px; border-radius: 3px; background: var(--line-soft); overflow: hidden; }
+.avancement-barre > span { display: block; height: 100%; border-radius: 3px; background: var(--success); }
+.avancement-ligne.statut-surveiller .avancement-barre > span { background: var(--pret); }
+.avancement-ligne.statut-retard .avancement-barre > span { background: var(--urgent); }
+.avancement-statut { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+/* Pilule pleine teintée : le seul endroit du tableau de bord où le statut se lit en couleur de
+   fond — c'est ce que la ligne a de plus important à dire. Couleurs = jetons de statut existants. */
+.avancement-pilule {
+  display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 600; white-space: nowrap;
 }
-.gantt-piste { position: relative; height: 30px; }
-.gantt-entete .gantt-piste { height: 22px; }
-.gantt-mois, .gantt-auj-libelle {
-  position: absolute; top: 2px; transform: translateX(-50%);
-  font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); white-space: nowrap;
-}
-.gantt-auj-libelle { color: var(--focus); font-weight: 600; text-transform: none; letter-spacing: 0; top: 0; font-size: 11px; }
-.gantt-grille { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--line-soft); }
-.gantt-aujourdhui { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: color-mix(in srgb, var(--focus) 55%, transparent); }
-.gantt-barre {
-  position: absolute; top: 50%; height: 6px; margin-top: -3px; border-radius: 3px;
-  background: color-mix(in srgb, var(--muted) 28%, transparent);
-}
-.gantt-barre.coupe-avant { border-top-left-radius: 0; border-bottom-left-radius: 0; }
-.gantt-barre.coupe-apres { border-top-right-radius: 0; border-bottom-right-radius: 0; }
-.gantt-jalon {
-  position: absolute; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px;
-  border-radius: 50%; border: 2px solid var(--muted); background: var(--paper-card);
-}
-.gantt-jalon.fait { background: currentColor; }
-.gantt-jalon.hors { opacity: 0.45; }
-.gantt-jalon.ventebien { color: var(--ventebien); border-color: var(--ventebien); }
-.gantt-jalon.pret { color: var(--pret); border-color: var(--pret); }
-.gantt-jalon.appelFonds { color: var(--appelfonds); border-color: var(--appelfonds); }
-.gantt-jalon.projetEnvoye { color: var(--projet); border-color: var(--projet); }
-.gantt-jalon.acte { color: var(--acte); border-color: var(--acte); border-radius: 2px; transform: rotate(45deg); width: 10px; height: 10px; margin: -5px 0 0 -5px; }
-.gantt-jalon.rendezVousSignature { color: var(--success); border-color: var(--success); }
-.gantt-jalon.fait.ventebien, .gantt-jalon.fait.pret, .gantt-jalon.fait.appelFonds, .gantt-jalon.fait.projetEnvoye,
-.gantt-jalon.fait.acte, .gantt-jalon.fait.rendezVousSignature { background: currentColor; }
-.gantt-legende {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
-  margin-top: 12px; font-size: 12px; color: var(--ink-soft);
-}
-.gantt-legende > span { display: inline-flex; align-items: center; gap: 6px; }
-.gantt-jalon.legende { position: static; margin: 0; flex: 0 0 auto; }
-.gantt-jalon.acte.legende { margin: 0 1px; }
-.gantt-jalon.fait-exemple { background: var(--muted); }
-.gantt-legende .action-rapide { margin-left: auto; }
-@media (max-width: 640px) {
-  .gantt-ligne { grid-template-columns: 120px 1fr; }
+.avancement-pilule.dl-success { color: var(--success); background: color-mix(in srgb, var(--success) 14%, transparent); }
+.avancement-pilule.dl-pret { color: var(--pret); background: color-mix(in srgb, var(--pret) 16%, transparent); }
+.avancement-pilule.dl-urgent { color: var(--urgent); background: color-mix(in srgb, var(--urgent) 14%, transparent); }
+.avancement-montant { font-size: 12.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.avancement-pied { display: flex; justify-content: flex-end; padding: 8px 10px 6px; border-top: 1px solid var(--line-soft); }
+@media (max-width: 700px) {
+  button.avancement-ligne { grid-template-columns: minmax(0, 1fr) auto; gap: 10px 14px; }
+  .avancement-jauge { grid-column: 1 / -1; grid-row: 2; }
 }
 
 /* ==== Signalements de problèmes (voir ouvrirSignalement / renderSignalements dans script.js) ==== */

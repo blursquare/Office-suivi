@@ -7895,6 +7895,28 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     serveur 371. Vérifié dans Chromium (clair, sombre, 400 px) : aucun dossier en double, un clic
     sur une ligne ouvre le bon tiroir, aucun débordement, aucune erreur JS.
 
+- **Avancement des dossiers : le Gantt devient une ligne par dossier** (25/09 soir), d'après une
+  maquette envoyée par l'étude (« Avancement », pourcentage, barre, pastille « Dans les délais /
+  À surveiller / En retard », montant). Trois arbitrages demandés et obtenus : la liste
+  **remplace** le diagramme de Gantt (et non un bloc de plus) ; le pourcentage est **pour moitié
+  les étapes, pour moitié les pièces** ; le statut vient **de « À traiter »**.
+  - `avancementDossier(d, aujourdhuiIso)` (pure) : étapes `ETAPES_AVANCEMENT` qui s'appliquent au
+    dossier (vente préalable seulement si `d.ventebien`, prêt sauf `d.sansPret`, puis appel de fonds,
+    projet, signature). Une étape est faite par `echeanceValidee` ; pour les deux envois, une date
+    saisie suffit aussi (même règle que la carte « Envoi au client ») ; la signature une fois le
+    rendez-vous PASSÉ. Pièces = `checklistPieces` reçues ; sans checklist (participation), les étapes
+    seules font 100 %. Rend aussi la prochaine étape, affichée sous le nom.
+  - `statutAvancement(gravite)` / `lignesAvancement(dossiers, auj)` : la gravité du point le plus
+    urgent de `pointsATraiter` — critique → En retard, vigilance → À surveiller, sinon Dans les
+    délais. **Pas de second calcul d'urgence** : les deux blocs du tableau de bord disent toujours
+    la même chose d'un dossier. Tri : statut, puis le moins avancé d'abord. Suit le périmètre du
+    tableau de bord (ses dossiers ou tous) ; 15 lignes puis « Afficher les N ».
+  - Pastille pleine teintée (jetons `--success`/`--pret`/`--urgent`), barre de la même couleur,
+    prix de vente via `formaterPrix` (« — » s'il manque). Sous 700 px la jauge passe sous le nom.
+  - Retirés : `donneesAvancement`, `JALONS_AVANCEMENT`, les styles `.gantt-*` et leurs trois tests,
+    remplacés par trois tests dans `tests/tableau-de-bord.test.js`. Suite racine 810. Vérifié dans
+    un vrai Chromium (clair, sombre, 400 px sans débordement, clic qui ouvre la fiche).
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

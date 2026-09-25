@@ -1,7 +1,7 @@
 'use strict';
 
 // Tableau de bord refait (carnet de bord de l'étude) : actions urgentes regroupées par statut,
-// rappel des dernières pièces trouvées, diagramme d'avancement de chaque dossier.
+// rappel des dernières pièces trouvées, avancement de chaque dossier.
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -26,37 +26,37 @@ test('dernieresPiecesTrouvees : une notification sans date (données plus ancien
   assert.equal(e[0].le, null);
 });
 
-test('donneesAvancement : barre de la création à la signature, jalons placés et marqués réalisés', () => {
+test('avancementDossier : moitié étapes, moitié pièces ; seules les étapes qui s\'appliquent', () => {
   const d = {
-    id: 'x', nom: 'DUPONT / MARTIN', typeVente: 'maison',
-    historique: [{ date: '2026-09-01T09:00:00Z', texte: 'Dossier créé' }],
-    pret: '2026-10-15', offrePretStatut: 'recue', rendezVousSignature: '2026-12-10', acte: '2026-12-01'
+    id: 'x', nom: 'DUPONT / MARTIN', typeVente: 'maison', sansPret: true,
+    appelFonds: '2026-09-10', rendezVousSignature: '2026-10-10',
+    pieces: { certificatUrbanisme: 'recue', erp: 'recue' }
   };
-  const r = app.donneesAvancement([d], '2026-09-24');
-  assert.equal(r.lignes.length, 1);
-  const l = r.lignes[0];
-  assert.ok(l.barreDebut > 0 && l.barreDebut < r.aujourdhuiPct);
-  assert.ok(l.barreFin > r.aujourdhuiPct);
-  const pret = l.jalons.find(j => j.type === 'pret');
-  assert.equal(pret.fait, true); // offre reçue
-  // La date butoir est « faite » dès que le rendez-vous est pris : elle n'est plus qu'indicative.
-  assert.equal(l.jalons.find(j => j.type === 'acte').fait, true);
-  assert.equal(l.jalons.find(j => j.type === 'rendezVousSignature').fait, false);
-  assert.ok(r.mois.length >= 5);
+  const a = app.avancementDossier(d, '2026-09-24');
+  // Sans prêt ni vente préalable : appel de fonds, projet, signature — l'appel de fonds est fait.
+  assert.equal(a.etapesTotal, 3);
+  assert.equal(a.etapesFaites, 1);
+  assert.ok(a.piecesTotal > 2);
+  assert.equal(a.piecesRecues, 2);
+  assert.equal(a.pct, Math.round(50 / 3 + 50 * 2 / a.piecesTotal));
+  assert.equal(a.prochaine, 'Envoi projet');
 });
 
-test('donneesAvancement : ce qui sort de la fenêtre est ramené au bord et signalé ; sans date, pas de ligne', () => {
-  const loin = { id: 'l', nom: 'LOIN', typeVente: 'maison', acte: '2027-09-01' };
-  const vide = { id: 'v', nom: 'VIDE', typeVente: 'maison' };
-  const r = app.donneesAvancement([loin, vide], '2026-09-24');
-  assert.equal(r.lignes.length, 1);
-  assert.equal(r.lignes[0].jalons[0].pct, 100);
-  assert.equal(r.lignes[0].jalons[0].hors, 'apres');
-  assert.equal(r.lignes[0].coupeApres, true);
+test('avancementDossier : en participation, les étapes seules ; signature faite une fois le rendez-vous passé', () => {
+  const d = { id: 'p', nom: 'P', typeVente: 'maison', roleNotaire: 'participant', sansPret: true,
+    appelFonds: '2026-08-01', projetEnvoye: '2026-08-05', rendezVousSignature: '2026-09-01' };
+  const a = app.avancementDossier(d, '2026-09-24');
+  assert.equal(a.piecesTotal, 0);
+  assert.equal(a.pct, 100);
+  assert.equal(a.prochaine, null);
 });
 
-test('donneesAvancement : les dossiers sont triés par date de signature', () => {
-  const a = { id: 'a', nom: 'A', typeVente: 'maison', acte: '2026-12-20' };
-  const b = { id: 'b', nom: 'B', typeVente: 'maison', rendezVousSignature: '2026-10-20' };
-  assert.equal(app.donneesAvancement([a, b], '2026-09-24').lignes.map(l => l.id).join(','), 'b,a');
+test('lignesAvancement : statut tiré de « À traiter », les plus urgentes d\'abord', () => {
+  const ok = { id: 'ok', nom: 'OK', typeVente: 'maison', roleNotaire: 'participant', sansPret: true };
+  // Offre de prêt non reçue à 3 jours du butoir : critique dans « À traiter ».
+  const retard = { id: 'r', nom: 'R', typeVente: 'maison', roleNotaire: 'participant', pret: '2026-09-27', offrePretStatut: 'manquante' };
+  const l = app.lignesAvancement([ok, retard], '2026-09-24');
+  assert.equal(l.map(x => x.dossier.id + ':' + x.statut).join(','), 'r:retard,ok:delais');
+  assert.equal(app.statutAvancement('vigilance'), 'surveiller');
+  assert.equal(app.statutAvancement(undefined), 'delais');
 });

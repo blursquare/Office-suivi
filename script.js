@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-25 21:27';
+  const VERSION_APP = '2026-09-25 21:36';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-25 21:36', resume: "Tableau de bord : le diagramme de Gantt est remplacé par une ligne par dossier — pourcentage d'avancement (étapes et pièces), statut Dans les délais / À surveiller / En retard, prix de vente." },
     { version: '2026-09-25 21:27', resume: "Tableau de bord : « Actions urgentes » et « Alertes importantes » réunies en une carte « À traiter » (une ligne par dossier, le geste à faire en titre), tuiles J-7/J-15 retirées, dernières pièces au-dessus de l'agenda." },
     { version: '2026-09-25 21:14', resume: "Tableau de bord : carte « Alertes importantes » (points qui demandent une décision, par gravité) et « Mes rappels », liste personnelle enregistrée sur le serveur." },
     { version: '2026-09-25 21:06', resume: "Tableau de bord : carte Agenda (semaine, rendez-vous de signature avec heure et lieu lus dans l'agenda de l'office, état de l'appel de fonds et du projet)." },
@@ -10412,79 +10413,77 @@
   }
 
   // ---- Avancement des dossiers (Tableau de bord) ----
-  // Diagramme de Gantt demandé par l'étude au carnet de bord : une ligne par dossier actif, une
-  // barre de la création du dossier jusqu'à la signature (rendez-vous, à défaut la date butoir),
-  // et un jalon par échéance, coloré par catégorie comme partout ailleurs, plein une fois réalisé.
-  // Fenêtre FIXE (un mois en arrière, cinq mois en avant) plutôt qu'ajustée au plus lointain
-  // dossier : un seul acte prévu dans un an écraserait tous les autres au bord gauche. Ce qui sort
-  // de la fenêtre est ramené au bord et signalé par une flèche.
-  var JOURS_AVANT_AVANCEMENT = 30;
-  var JOURS_APRES_AVANCEMENT = 150;
+  // Une ligne par dossier : un pourcentage d'avancement, une barre, un statut et le prix de vente.
+  // Remplace le diagramme de Gantt (demande de l'étude, d'après une maquette « Avancement / Dans
+  // les délais / À surveiller / En retard »). Le pourcentage est pour moitié les ÉTAPES du dossier
+  // (vente préalable, prêt, appel de fonds, projet, signature — seules celles qui s'appliquent),
+  // pour moitié les PIÈCES de sa checklist reçues ; sans checklist (participation), les étapes
+  // seules. Le statut ne se calcule pas une seconde fois : c'est la gravité du point le plus
+  // urgent de « À traiter » (pointsATraiter), pour que les deux blocs disent toujours la même chose.
   var MAX_LIGNES_AVANCEMENT = 15;
-  var JALONS_AVANCEMENT = [
+  var ETAPES_AVANCEMENT = [
     { type: 'ventebien', label: 'Vente préalable' },
     { type: 'pret', label: 'Obtention du prêt' },
     { type: 'appelFonds', label: 'Envoi appel de fonds' },
     { type: 'projetEnvoye', label: 'Envoi projet' },
-    { type: 'acte', label: 'Date butoir' },
-    { type: 'rendezVousSignature', label: 'Signature' }
+    { type: 'signature', label: 'Signature' }
   ];
+  var STATUTS_AVANCEMENT = {
+    retard: { texte: 'En retard', dl: 'dl-urgent', ordre: 0 },
+    surveiller: { texte: 'À surveiller', dl: 'dl-pret', ordre: 1 },
+    delais: { texte: 'Dans les délais', dl: 'dl-success', ordre: 2 }
+  };
   let avancementToutAfficher = false;
 
   function isoDepuisMs(ms) {
     const d = new Date(ms);
     return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
   }
-  function msDepuisIso(iso) { return Date.parse(String(iso).slice(0, 10) + 'T00:00:00Z'); }
 
   // Pure et testable. `aujourdhuiIso` injectée pour que le calcul ne dépende pas de l'horloge.
-  function donneesAvancement(dossiersActifs, aujourdhuiIso) {
-    const jour = 86400000;
-    const auj = msDepuisIso(aujourdhuiIso);
-    const debut = auj - JOURS_AVANT_AVANCEMENT * jour;
-    const fin = auj + JOURS_APRES_AVANCEMENT * jour;
-    const pct = (ms) => Math.max(0, Math.min(100, ((ms - debut) / (fin - debut)) * 100));
-    const lignes = [];
-    for (const d of dossiersActifs) {
-      const jalons = JALONS_AVANCEMENT
-        .filter(j => d[j.type])
-        .map(j => {
-          const ms = msDepuisIso(d[j.type]);
-          return {
-            type: j.type, label: j.label, iso: d[j.type], pct: pct(ms),
-            hors: ms < debut ? 'avant' : ms > fin ? 'apres' : null,
-            fait: j.type === 'acte' ? !!d.rendezVousSignature : echeanceValidee(d, j.type)
-          };
-        });
-      if (!jalons.length) continue;
-      // Deux étapes à la même date (appel de fonds et projet envoyés le même jour, par exemple) se
-      // superposeraient exactement : chaque jalon trop proche d'un précédent est décalé d'un cran
-      // vers la droite (`rang`), pour que chaque étape reste visible et cliquable à la survol.
-      jalons.forEach((j, i) => {
-        j.rang = jalons.slice(0, i).filter(p => Math.abs(p.pct - j.pct) < 1.2).length;
-      });
-      const creation = (d.historique || []).find(h => h.texte === 'Dossier créé');
-      const departMs = creation ? msDepuisIso(creation.date) : Math.min(...jalons.map(j => msDepuisIso(j.iso)));
-      const arriveeIso = d.rendezVousSignature || d.acte || jalons.map(j => j.iso).sort().pop();
-      const arriveeMs = msDepuisIso(arriveeIso);
-      lignes.push({
-        id: d.id, nom: libelleDossierAffiche(d), finMs: arriveeMs,
-        barreDebut: pct(departMs), barreFin: pct(arriveeMs),
-        coupeAvant: departMs < debut, coupeApres: arriveeMs > fin,
-        jalons
-      });
-    }
-    lignes.sort((a, b) => a.finMs - b.finMs);
-    // Repères de mois : le 1er de chaque mois dans la fenêtre.
-    const mois = [];
-    const dd = new Date(debut);
-    let m = Date.UTC(dd.getUTCFullYear(), dd.getUTCMonth() + 1, 1);
-    while (m <= fin) {
-      mois.push({ pct: pct(m), label: new Date(m).toLocaleDateString('fr-FR', { month: 'short', timeZone: 'UTC' }) });
-      const x = new Date(m);
-      m = Date.UTC(x.getUTCFullYear(), x.getUTCMonth() + 1, 1);
-    }
-    return { aujourdhuiPct: pct(auj), mois, lignes };
+  function avancementDossier(d, aujourdhuiIso) {
+    const etapes = ETAPES_AVANCEMENT.filter(e => {
+      if (e.type === 'ventebien') return !!d.ventebien;
+      if (e.type === 'pret') return !d.sansPret;
+      return true;
+    }).map(e => {
+      // La signature n'est faite qu'une fois le rendez-vous passé ; les autres étapes suivent la
+      // même règle que partout ailleurs (offre reçue, date saisie, relevé dans l'agenda…).
+      // Pour les deux envois, une date saisie vaut envoi fait (même règle que la carte « Envoi au
+      // client »), y compris sur un dossier dont la date précède ce drapeau.
+      const fait = e.type === 'signature'
+        ? !!d.rendezVousSignature && d.rendezVousSignature < aujourdhuiIso
+        : echeanceValidee(d, e.type) || ((e.type === 'appelFonds' || e.type === 'projetEnvoye') && !!d[e.type]);
+      return { type: e.type, label: e.label, fait };
+    });
+    const etapesFaites = etapes.filter(e => e.fait).length;
+    const pieces = d.roleNotaire === 'participant' ? [] : checklistPieces(d.typeVente, d);
+    const piecesRecues = pieces.filter(p => (d.pieces || {})[p.cle] === 'recue').length;
+    const partEtapes = etapes.length ? etapesFaites / etapes.length : 0;
+    const pct = pieces.length
+      ? Math.round(50 * partEtapes + 50 * (piecesRecues / pieces.length))
+      : Math.round(100 * partEtapes);
+    const prochaine = etapes.find(e => !e.fait);
+    return {
+      pct, etapesFaites, etapesTotal: etapes.length, piecesRecues, piecesTotal: pieces.length,
+      prochaine: prochaine ? prochaine.label : null
+    };
+  }
+
+  // Pure : le statut d'un dossier d'après la gravité de son point le plus urgent dans « À traiter ».
+  function statutAvancement(gravite) {
+    if (gravite === 'critique') return 'retard';
+    if (gravite === 'vigilance') return 'surveiller';
+    return 'delais';
+  }
+
+  // Pure et testable : les lignes du bloc, les plus urgentes d'abord, puis les moins avancées.
+  function lignesAvancement(dossiersActifs, aujourdhuiIso) {
+    const gravites = new Map(pointsATraiter(dossiersActifs, aujourdhuiIso).map(p => [p.dossier.id, p.gravite]));
+    return (dossiersActifs || []).filter(d => d && !d.archive).map(d => {
+      const statut = statutAvancement(gravites.get(d.id));
+      return { dossier: d, statut, ...avancementDossier(d, aujourdhuiIso) };
+    }).sort((a, b) => (STATUTS_AVANCEMENT[a.statut].ordre - STATUTS_AVANCEMENT[b.statut].ordre) || (a.pct - b.pct));
   }
 
   function basculerAvancementComplet() {
@@ -10496,42 +10495,38 @@
     const section = document.getElementById('dash-avancement');
     const bloc = document.getElementById('avancement-dossiers');
     if (!section || !bloc) return;
-    const donnees = donneesAvancement(dossiersActifs, isoDepuisMs(Date.now()));
-    if (!donnees.lignes.length) {
+    const toutes = lignesAvancement(dossiersActifs, isoDepuisMs(Date.now()));
+    if (!toutes.length) {
       section.style.display = 'none';
       return;
     }
     section.style.display = '';
-    const lignes = avancementToutAfficher ? donnees.lignes : donnees.lignes.slice(0, MAX_LIGNES_AVANCEMENT);
-    const reste = donnees.lignes.length - lignes.length;
-    const repereAuj = `<span class="gantt-aujourdhui" style="left:${donnees.aujourdhuiPct}%"></span>`;
-    bloc.innerHTML = `
-      <div class="gantt" role="img" aria-label="Avancement de ${donnees.lignes.length} dossier(s), de la création à la signature">
-        <div class="gantt-ligne gantt-entete">
-          <span class="gantt-nom"></span>
-          <span class="gantt-piste">${donnees.mois
-            // Un repère de mois trop près d'« Aujourd'hui » n'est pas écrit : les deux libellés se
-            // chevaucheraient. Le trait de grille, lui, reste sur chaque ligne.
-            .filter(m => Math.abs(m.pct - donnees.aujourdhuiPct) > 6)
-            .map(m => `<span class="gantt-mois" style="left:${m.pct}%">${escapeHtml(m.label)}</span>`).join('')}
-            <span class="gantt-auj-libelle" style="left:${donnees.aujourdhuiPct}%">Aujourd'hui</span></span>
-        </div>
-        ${lignes.map(l => `
-          <button type="button" class="gantt-ligne" onclick="ouvrirDossierDepuisDashboard('${l.id}')" title="Ouvrir le dossier ${escapeAttr(l.nom)}">
-            <span class="gantt-nom">${escapeHtml(l.nom)}</span>
-            <span class="gantt-piste">
-              ${donnees.mois.map(m => `<span class="gantt-grille" style="left:${m.pct}%"></span>`).join('')}
-              ${repereAuj}
-              <span class="gantt-barre${l.coupeAvant ? ' coupe-avant' : ''}${l.coupeApres ? ' coupe-apres' : ''}" style="left:${l.barreDebut}%;width:${Math.max(0.5, l.barreFin - l.barreDebut)}%"></span>
-              ${l.jalons.map(j => `<span class="gantt-jalon ${j.type}${j.fait ? ' fait' : ''}${j.hors ? ' hors' : ''}" style="left:${j.pct}%${j.rang ? `;translate:${j.rang * 11}px 0` : ''}" title="${escapeAttr(j.label)} — ${escapeAttr(formatDateFr(j.iso))}${j.fait ? ' (réalisé)' : ''}"></span>`).join('')}
-            </span>
-          </button>`).join('')}
-      </div>
-      <div class="gantt-legende">
-        ${JALONS_AVANCEMENT.map(j => `<span><span class="gantt-jalon ${j.type} legende"></span>${escapeHtml(j.label)}</span>`).join('')}
-        <span><span class="gantt-jalon legende fait-exemple"></span>Plein : réalisé</span>
-        ${reste > 0 || avancementToutAfficher ? `<button type="button" class="action-rapide" onclick="basculerAvancementComplet()">${avancementToutAfficher ? 'Réduire' : `Afficher les ${donnees.lignes.length} dossiers`}</button>` : ''}
-      </div>`;
+    const lignes = avancementToutAfficher ? toutes : toutes.slice(0, MAX_LIGNES_AVANCEMENT);
+    const reste = toutes.length - lignes.length;
+    bloc.innerHTML = lignes.map(l => {
+      const s = STATUTS_AVANCEMENT[l.statut];
+      const detail = [`${l.etapesFaites}/${l.etapesTotal} étapes`];
+      if (l.piecesTotal) detail.push(`${l.piecesRecues}/${l.piecesTotal} pièces`);
+      if (l.prochaine) detail.push(`prochaine : ${l.prochaine}`);
+      const nom = libelleDossierAffiche(l.dossier);
+      return `
+        <button type="button" class="avancement-ligne statut-${l.statut}" onclick="ouvrirDossierDepuisDashboard('${l.dossier.id}')" title="Ouvrir le dossier ${escapeAttr(nom)}">
+          <span class="avancement-nom">
+            <span class="avancement-titre">${escapeHtml(nom)}</span>
+            <span class="avancement-detail">${escapeHtml(detail.join(' · '))}</span>
+          </span>
+          <span class="avancement-jauge">
+            <span class="avancement-jauge-tete"><span>Avancement</span><b>${l.pct}%</b></span>
+            <span class="avancement-barre" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${l.pct}" aria-label="Avancement ${l.pct} %"><span style="width:${l.pct}%"></span></span>
+          </span>
+          <span class="avancement-statut">
+            <span class="avancement-pilule ${s.dl}">${escapeHtml(s.texte)}</span>
+            <span class="avancement-montant">${l.dossier.prixVente ? escapeHtml(formaterPrix(l.dossier.prixVente)) : '—'}</span>
+          </span>
+        </button>`;
+    }).join('') + (reste > 0 || avancementToutAfficher
+      ? `<div class="avancement-pied"><button type="button" class="action-rapide" onclick="basculerAvancementComplet()">${avancementToutAfficher ? 'Réduire' : `Afficher les ${toutes.length} dossiers`}</button></div>`
+      : '');
   }
 
   // Ouvre un dossier depuis le tableau de bord : bascule vers le Suivi et ouvre sa fiche dans le
