@@ -123,7 +123,7 @@ visio, orange = confrère) indiquent seulement le LIEU et ne jouent aucun rôle 
    date déjà saisie n'est jamais écrasée. Chaque envoi relevé est mémorisé sur le dossier
    (`detectionsAgenda`) : il n'est **plus jamais retraité**, même si la date est ensuite effacée
    ou corrigée à la main. Sur la fiche, les deux dates se lisent et se corrigent dans la carte
-   « Appel de fonds » (« Envoi appel de fonds », « Envoi projet »).
+   « Envoi au client » (« Envoi appel de fonds », « Envoi projet »).
    **CLAIRE ne peut pas écrire dans l'agenda de l'office** : elle le LIT seulement. Y écrire
    demanderait une application Microsoft 365 autorisée par un administrateur (Microsoft Graph),
    dont l'étude ne dispose pas.
