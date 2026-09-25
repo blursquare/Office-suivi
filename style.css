@@ -1771,6 +1771,14 @@
   .reglages-restauration summary { cursor: pointer; color: var(--focus); font-weight: 500; }
   .reglages-restauration ol { margin: 10px 0 6px; padding-left: 20px; }
   .reglages-restauration li { margin-bottom: 4px; }
+  /* « Comment ça marche » des rappels : replié par défaut pour alléger l'écran Réglages. */
+  .reglages-aide { font-size: 13px; }
+  .reglages-aide > summary { cursor: pointer; margin-bottom: 0; }
+  .reglages-aide[open] > summary { margin-bottom: 10px; }
+  .reglages-aide p { margin: 0 0 10px; }
+  .reglages-aide p:last-child { margin-bottom: 0; }
+  .reglages-aide ol { margin: 0 0 10px; padding-left: 20px; }
+  .reglages-aide li { margin-bottom: 4px; }
   .dash-alerte-sauvegarde {
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
     margin-bottom: 16px; padding: 10px 14px; border-radius: 10px; font-size: 13px;

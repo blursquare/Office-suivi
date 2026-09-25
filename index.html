@@ -1333,7 +1333,7 @@
       <label class="reglages-option" for="reglages-theme-sombre">
         <span class="reglages-option-texte">
           <span class="reglages-option-titre">Mode sombre</span>
-          <span class="hint">Fond sombre pour toute l'application. Retenu sur ce poste uniquement.</span>
+          <span class="hint">Retenu sur ce poste uniquement.</span>
         </span>
         <span class="switch reglages-switch">
           <input type="checkbox" id="reglages-theme-sombre" onchange="appliquerTheme(this.checked ? 'dark' : 'light')">
@@ -1343,7 +1343,7 @@
       <label class="reglages-option" for="reglages-notif-navigateur">
         <span class="reglages-option-texte">
           <span class="reglages-option-titre">Notification d'une nouvelle pièce</span>
-          <span class="hint">Une notification Windows quand une pièce arrive sur le NAS, seulement si CLAIRE n'est pas au premier plan. Le navigateur demande l'autorisation au premier clic ; à activer sur chaque poste.</span>
+          <span class="hint">Notification Windows quand une pièce arrive sur le NAS. À activer sur chaque poste.</span>
           <span class="hint" id="reglages-notif-navigateur-etat"></span>
         </span>
         <span class="switch reglages-switch">
@@ -1368,7 +1368,7 @@
       <label class="reglages-option" for="reglages-envoi-actif">
         <span class="reglages-option-texte">
           <span class="reglages-option-titre">Envoi automatique des rappels</span>
-          <span class="hint">Toutes les 30 minutes, les rappels dus partent au responsable de chaque dossier.</span>
+          <span class="hint">Toutes les 30 minutes, au responsable du dossier.</span>
         </span>
         <span class="switch reglages-switch">
           <input type="checkbox" id="reglages-envoi-actif">
@@ -1378,22 +1378,19 @@
       <div class="calc-champ">
         <label for="reglages-smtp-utilisateur">Compte Gmail qui envoie</label>
         <input type="email" id="reglages-smtp-utilisateur" placeholder="prenom.nom@gmail.com">
-        <p class="hint">L'adresse Gmail complète. Elle sert aussi d'expéditeur : Gmail refuse tout autre nom.</p>
       </div>
       <div class="calc-champ">
         <label for="reglages-smtp-motdepasse">Mot de passe d'application</label>
         <input type="password" id="reglages-smtp-motdepasse" autocomplete="new-password" placeholder="16 caractères">
-        <p class="hint">Pas le mot de passe du compte : celui créé sur <code>myaccount.google.com/apppasswords</code>. Jamais réaffiché une fois enregistré — laisser vide conserve celui en place.</p>
+        <p class="hint">Créé sur <code>myaccount.google.com/apppasswords</code>. Laisser vide conserve celui en place.</p>
       </div>
       <div class="calc-champ">
         <label for="reglages-passerelle">Boîte qui déclenche le flux Teams</label>
         <input type="email" id="reglages-passerelle" placeholder="prenom.nom@etude.fr">
-        <p class="hint">Tous les messages lui sont adressés ; leur arrivée déclenche le flux Power Automate, qui poste dans Teams à la bonne personne.</p>
       </div>
       <div class="calc-champ">
         <label for="reglages-copie-email">Copie de tous les rappels</label>
         <input type="email" id="reglages-copie-email" placeholder="Laisser vide : aucune copie">
-        <p class="hint">Reçoit un double de chaque rappel, quel que soit le responsable du dossier.</p>
       </div>
       <div>
         <button type="button" class="primary" onclick="enregistrerReglages()">Enregistrer</button>
@@ -1403,47 +1400,29 @@
 
   <div class="calc-card">
     <div class="dash-section-titre">Adresse email de chaque collaborateur</div>
-    <p class="hint">Destinataire du rappel : l'adresse email professionnelle de la personne responsable du dossier.</p>
     <div class="calc-champs" id="reglages-emails-liste"></div>
   </div>
 
   <div class="calc-card">
     <div class="dash-section-titre">Dernier tour de rappels</div>
-    <p class="hint">La tâche passe toutes les 30 minutes. Sans cet encart, un envoi qui échoue — mot de passe d'application révoqué, compte bloqué — arrêterait les rappels sans que rien ne le signale.</p>
     <div id="reglages-dernier-tour" class="reglages-dernier-tour"></div>
     <div style="margin-top:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
       <button type="button" class="secondary" id="reglages-lancer-tour" onclick="lancerTourRappels()">Lancer un tour maintenant</button>
-      <span class="hint" style="margin:0;">Exécute le vrai tour de rappels, sans attendre la prochaine demi-heure.</span>
     </div>
   </div>
 
-  <div class="calc-card calc-card-notes">
-    <div class="dash-section-titre">Comment ça marche</div>
-    <p>CLAIRE envoie un email à la boîte-passerelle. Son <strong>objet</strong> contient l'adresse du collaborateur à prévenir, son <strong>corps</strong> le message. Le flux Power Automate, déclenché par l'arrivée de cet email, lit l'objet pour savoir à qui poster le message dans Teams.</p>
-    <p><strong>Le flux est déjà créé et activé</strong> (déclencheur « Quand un nouvel e-mail arrive » sur cette boîte, puis action Teams). Il n'y a rien à refaire dans Power Automate : seuls les réglages d'envoi ci-dessus sont à renseigner.</p>
-
-    <div class="dash-section-titre" style="margin-top:14px;">Préparer le compte Gmail</div>
-    <p>Sur le compte Gmail, activer la <strong>validation en deux étapes</strong>, puis créer un <strong>mot de passe d'application</strong> sur <code>myaccount.google.com/apppasswords</code> : 16 caractères, affichés une seule fois. C'est lui qui se colle ci-dessus, jamais le mot de passe du compte.</p>
-
-    <p class="reglages-avertissement">Le corps des rappels nomme le dossier et liste les pièces reçues et manquantes : ces données transitent par un compte extérieur à l'étude. Le message arrivant de l'extérieur du domaine, il traverse aussi le filtrage : s'il n'arrive pas, regarder d'abord les indésirables de la boîte-passerelle et ajouter l'adresse Gmail aux expéditeurs approuvés.</p>
-
+  <details class="calc-card reglages-aide">
+    <summary class="dash-section-titre">Comment ça marche</summary>
+    <p>CLAIRE envoie un email à la boîte-passerelle : l'<strong>objet</strong> contient l'adresse du collaborateur, le <strong>corps</strong> le message. Le flux Power Automate, déjà créé, le poste dans Teams.</p>
     <ol>
-      <li>Renseigner le compte Gmail, son mot de passe d'application, la <strong>boîte-passerelle</strong> (celle sur laquelle le flux est déclenché) et l'adresse email de chaque collaborateur.</li>
-      <li>Activer <strong>« Envoi automatique des rappels »</strong>, puis <strong>Enregistrer</strong>.</li>
-      <li>Cliquer <strong>« Tester »</strong> à côté d'un collaborateur, puis <strong>aller regarder dans Teams</strong>. Le message affiché sous le bouton ne confirme qu'une chose : Gmail a accepté le message. Lui seul ne prouve ni que l'email est arrivé, ni que le flux s'est déclenché.</li>
-      <li>Si rien n'arrive dans Teams : l'historique du flux dans Power Automate tranche. Le flux s'est déclenché mais rien n'est posté → le problème est dans le flux. Aucune trace de déclenchement → l'email n'est jamais arrivé, voir les indésirables de la boîte-passerelle.</li>
-      <li><strong>« Lancer un tour maintenant »</strong> vérifie le vrai chemin des rappels, pas le message de test : mêmes calculs, même texte, même envoi que le tour automatique. Attention, ce qu'il envoie est réellement consommé et ne repartira pas au tour suivant.</li>
+      <li>Sur le compte Gmail : validation en deux étapes, puis un <strong>mot de passe d'application</strong> (<code>myaccount.google.com/apppasswords</code>).</li>
+      <li>Remplir les champs ci-dessus, activer l'envoi, <strong>Enregistrer</strong>.</li>
+      <li><strong>« Tester »</strong> puis vérifier dans Teams. Rien n'arrive : voir l'historique du flux, puis les indésirables de la boîte-passerelle.</li>
+      <li><strong>« Lancer un tour maintenant »</strong> envoie réellement les rappels dus : ils ne repartiront pas au tour suivant.</li>
     </ol>
-
-    <p>Les rappels partent automatiquement au responsable du dossier, jamais deux fois pour la même échéance. Chaque échéance a ses propres seuils&nbsp;:</p>
-    <ul>
-      <li>Vente préalable, obtention du prêt&nbsp;: <strong>15 puis 7 jours avant</strong></li>
-      <li>Appel de fonds&nbsp;: <strong>15 puis 10 jours avant</strong></li>
-      <li>Signature de l'acte&nbsp;: <strong>25 puis 15 jours avant</strong></li>
-      <li>Échéance personnalisée&nbsp;: 15 puis 7 jours avant</li>
-    </ul>
-    <p>La <strong>date butoir</strong> de l'avant-contrat ne déclenche aucun rappel&nbsp;: elle est indicative, c'est le rendez-vous pris à l'office qui engage l'étude. L'adresse de copie ci-dessus, si renseignée, reçoit le même message pour chaque envoi. Il n'existe plus de rappel par email manuel à envoyer soi-même&nbsp;: ce mécanisme le remplace entièrement.</p>
-  </div>
+    <p>Seuils : vente préalable et prêt <strong>J-15 / J-7</strong>, appel de fonds <strong>J-15 / J-10</strong>, signature <strong>J-25 / J-15</strong>, échéance personnalisée J-15 / J-7. Jamais de rappel sur la date butoir.</p>
+    <p class="reglages-avertissement">Les rappels nomment le dossier et ses pièces : ces données transitent par le compte Gmail.</p>
+  </details>
 
   <div class="reglages-section-titre">Agenda de l'office</div>
 
@@ -1455,12 +1434,11 @@
        dossier — jamais si le champ est déjà renseigné. -->
   <div class="calc-card">
     <div class="dash-section-titre">Lecture automatique du calendrier publié (.ics)</div>
-    <p class="hint">Un rendez-vous qui porte la référence « VTE - NOM DU DOSSIER » et mentionne « appel de fonds » et/ou « projet envoyé » (dans le titre du rendez-vous, ou noté dedans) reporte automatiquement la date correspondante sur le dossier — jamais si elle est déjà saisie.</p>
+    <p class="hint">Un rendez-vous « VTE - NOM DU DOSSIER » mentionnant « appel de fonds » ou « projet envoyé » inscrit la date du jour sur le dossier.</p>
     <div class="calc-champs">
       <div class="calc-champ">
         <label for="reglages-agenda-url">Adresse .ics du calendrier de l'office</label>
         <input type="text" id="reglages-agenda-url" autocomplete="off" placeholder="https://outlook.office.com/owa/calendar/…/reachcalendar.ics">
-        <p class="hint">Le même lien déjà utilisé par le brief du matin pour lire ce calendrier.</p>
       </div>
     </div>
     <div style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
@@ -1470,7 +1448,6 @@
     <div id="reglages-agenda-dernier-tour" class="reglages-dernier-tour" style="margin-top:12px;"></div>
     <div style="margin-top:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
       <button type="button" class="secondary" id="reglages-agenda-lancer" onclick="lancerTourAgenda()">Tester maintenant</button>
-      <span class="hint" style="margin:0;">Relit le calendrier tout de suite, sans attendre le prochain tour automatique (toutes les 15 minutes).</span>
     </div>
   </div>
 
@@ -1482,7 +1459,7 @@
       <div class="calc-champ">
         <label for="reglages-claude-cle">Clé API Anthropic</label>
         <input type="password" id="reglages-claude-cle" autocomplete="off" placeholder="sk-ant-…">
-        <p class="hint">Créée sur <code>console.anthropic.com</code> (compte de l'étude, facturation à l'usage). Stockée sur le serveur de l'étude, jamais réaffichée — laisser vide conserve celle en place.</p>
+        <p class="hint">Créée sur <code>console.anthropic.com</code>. Laisser vide conserve celle en place.</p>
       </div>
       <div class="calc-champ">
         <label for="reglages-claude-modele">Modèle</label>
@@ -1490,7 +1467,6 @@
           <option value="claude-sonnet-5">Claude Sonnet 5 — recommandé (2 $ / 10 $ par million de jetons)</option>
           <option value="claude-opus-5">Claude Opus 5 — plus approfondi, 2,5 fois plus cher (5 $ / 25 $)</option>
         </select>
-        <p class="hint">Une relecture complète (projet + annexes) coûte en général quelques dizaines de centimes ; le coût exact s'affiche avant de lancer et à la fin de chaque analyse.</p>
       </div>
       <div class="reglages-claude-actions">
         <button type="button" class="primary" onclick="enregistrerReglagesClaude()">Enregistrer</button>
@@ -1505,7 +1481,7 @@
        bouton « Mettre à jour maintenant ». Voir chargerMiseAJour()/renderMiseAJour() dans script.js. -->
   <div class="calc-card">
     <div class="dash-section-titre">Mise à jour de CLAIRE</div>
-    <p class="hint">Chaque amélioration publiée produit une nouvelle version de CLAIRE-serveur.exe. « Vérifier » la compare à celle qui tourne ; « Mettre à jour maintenant » sauvegarde la base, installe la nouvelle version et redémarre le serveur (environ une minute d'interruption pour tous les postes). L'ancienne version reste à côté, sous le nom <code>CLAIRE-serveur.ancien.exe</code>.</p>
+    <p class="hint">La mise à jour sauvegarde la base puis redémarre le serveur (environ une minute d'interruption).</p>
     <div id="reglages-maj-etat" class="reglages-dernier-tour"></div>
     <div style="margin-top:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
       <button type="button" class="secondary" id="reglages-maj-verifier" onclick="verifierMiseAJour()">Vérifier</button>
@@ -1513,7 +1489,7 @@
     </div>
     <details class="reglages-restauration">
       <summary>Jeton d'accès GitHub (dépôt privé)</summary>
-      <p class="hint">Le code de CLAIRE est dans un dépôt GitHub privé : pour y récupérer les nouvelles versions, le serveur a besoin d'un jeton en <strong>lecture seule</strong>. Il reste sur le serveur de l'étude et ne s'affiche plus jamais une fois enregistré.</p>
+      <p class="hint">Jeton en <strong>lecture seule</strong>, jamais réaffiché une fois enregistré.</p>
       <ol>
         <li>Sur github.com, connecté au compte propriétaire du dépôt : photo de profil › <em>Settings</em> › <em>Developer settings</em> › <em>Personal access tokens</em> › <em>Fine-grained tokens</em> › <em>Generate new token</em>.</li>
         <li>Nom : « CLAIRE mise à jour ». Expiration : la plus longue proposée (à renouveler ensuite).</li>
@@ -1546,13 +1522,13 @@
        dernières gardées. Voir chargerEtatSauvegarde()/renderEtatSauvegarde() dans script.js. -->
   <div class="calc-card">
     <div class="dash-section-titre">Sauvegarde de la base</div>
-    <p class="hint">Tous les dossiers vivent dans un seul fichier sur le poste serveur. CLAIRE en fait une copie chaque jour et garde les 14 dernières. Choisissez un dossier <strong>sur le NAS</strong> : une copie restée sur le même disque ne protège pas d'une panne de ce disque.</p>
+    <p class="hint">Une copie par jour, les 14 dernières gardées. Choisir un dossier <strong>sur le NAS</strong>.</p>
     <div id="reglages-sauvegarde-etat" class="reglages-dernier-tour"></div>
     <div class="calc-champs" style="margin-top:12px;">
       <div class="calc-champ">
         <label for="reglages-sauvegarde-dossier">Dossier des sauvegardes</label>
         <input type="text" id="reglages-sauvegarde-dossier" autocomplete="off" placeholder="\\NAS\Sauvegardes\CLAIRE">
-        <p class="hint">Chemin complet, vu depuis le poste serveur. Évitez le dossier qui contient les dossiers clients : il apparaîtrait dans la liste des dossiers à relier.</p>
+        <p class="hint">Chemin complet, hors du dossier des dossiers clients.</p>
       </div>
     </div>
     <div style="margin-top:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
@@ -1576,7 +1552,7 @@
        reconnue). Partagés par tout le bureau, voir retirerExclusionPiece() dans script.js. -->
   <div class="calc-card">
     <div class="dash-section-titre">Fichiers écartés des pièces</div>
-    <p class="hint">Ces noms de fichiers ne sont plus reconnus pour la pièce indiquée, sur aucun dossier. « Rétablir » annule l'exclusion ; relancez ensuite « Revérifier » sur le dossier concerné.</p>
+    <p class="hint">Noms de fichiers qui ne sont plus reconnus pour la pièce indiquée.</p>
     <div id="reglages-exclusions"></div>
   </div>
 
@@ -1587,14 +1563,14 @@
       <div class="dash-section-titre">Signalements des collaborateurs</div>
       <button type="button" class="secondary" onclick="exporterSignalements()">Exporter les signalements à trier</button>
     </div>
-    <p class="hint">Chacun signale un problème depuis le bas de la barre latérale ; un problème bloquant vous prévient aussi sur Teams (adresse « Copie de tous les rappels »). Triez ici, puis exportez le fichier et transmettez-le pour correction. Une fois corrigé, passez le signalement en « Corrigé » avec la version indiquée dans « À propos ».</p>
+    <p class="hint">Triez, puis exportez le fichier à transmettre pour correction.</p>
     <div id="reglages-signalements"><p class="hint">Chargement…</p></div>
   </div>
 
   <div class="calc-card reglages-apropos">
     <div>
       <div class="dash-section-titre">À propos de Claire</div>
-      <p class="hint">Version <strong id="reglages-version"></strong> — historique des dernières modifications et qualité de l'extraction.</p>
+      <p class="hint">Version <strong id="reglages-version"></strong></p>
     </div>
     <button type="button" class="secondary" onclick="ouvrirAPropos()"><span id="icon-reglages-apropos" aria-hidden="true"></span>Ouvrir « À propos »</button>
   </div>

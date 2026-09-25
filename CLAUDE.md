@@ -7502,6 +7502,14 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     Chromium (clair et sombre) : carte à deux entrées, saisie de la date du projet par le crayon,
     aucune erreur JS.
 
+- **Écran Réglages allégé** (25/09, « réduire le texte pour moins charger la page ») : textes
+  d'aide raccourcis à une ligne ou retirés quand le libellé du champ suffisait, carte
+  « Comment ça marche » des rappels repliée par défaut (`<details class="reglages-aide">`, contenu
+  condensé : fonctionnement, 4 étapes, seuils, avertissement Gmail), états vides et message
+  d'autorisation de notification raccourcis. Aucun champ, id ni bouton touché. Hauteur mesurée de
+  l'écran : 4270 px → 3317 px à 1400 px de large. **À garder** : un texte d'aide ne répète pas le
+  libellé ; une explication longue va dans un `<details>` replié, pas en permanence à l'écran.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

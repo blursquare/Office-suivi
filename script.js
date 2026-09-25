@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-25 07:57';
+  const VERSION_APP = '2026-09-25 08:04';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-25 08:04', resume: "Réglages allégés : textes d'aide raccourcis, « Comment ça marche » replié par défaut." },
     { version: '2026-09-25 07:57', resume: "Fiche dossier : la carte « Appel de fonds » porte deux entrées datées, « Envoi appel de fonds » et « Envoi projet ». Un envoi relevé dans l'agenda de l'office prend la date du jour de la détection, et n'est plus jamais retraité ensuite. L'agenda .ics de CLAIRE reste inchangé." },
     { version: '2026-09-25 00:13', resume: "CLAIRE lit désormais l'agenda .ics publié de l'office (même lien que le brief du matin, toutes les 15 minutes) : un rendez-vous portant « VTE - NOM DU DOSSIER » et mentionnant « appel de fonds »/« projet envoyé » reporte automatiquement la date sur le dossier, jamais si elle est déjà saisie. Nouvelle échéance « Projet d'acte envoyé », entre l'appel de fonds et la signature. Réglages › Agenda de l'office pour l'adresse et « Tester maintenant »." },
     { version: '2026-09-24 23:05', resume: "Réglages › Mise à jour de CLAIRE : « Vérifier » compare la version installée à la dernière publiée, « Mettre à jour maintenant » sauvegarde la base, installe la nouvelle version et redémarre le serveur, en un clic. Le dépôt GitHub étant privé, un jeton en lecture seule s'enregistre dans la même carte." },
@@ -13488,7 +13489,7 @@
       for (const nom of noms) lignes.push({ cle, nom });
     }
     if (!lignes.length) {
-      zone.innerHTML = '<p class="hint">Aucun fichier écarté. Un fichier l\'est quand on clique sur « Réinitialiser » d\'une pièce mal reconnue.</p>';
+      zone.innerHTML = '<p class="hint">Aucun fichier écarté.</p>';
       return;
     }
     zone.innerHTML = `<ul class="exclusions-liste">${lignes.map(l => `
@@ -21860,7 +21861,7 @@
       etat.textContent = !supporte
         ? "Ce navigateur ne prend pas en charge les notifications."
         : Notification.permission === 'denied'
-          ? "Autorisation refusée dans les réglages du navigateur — à réactiver manuellement (icône à gauche de l'adresse) pour utiliser cette option."
+          ? "Bloquée par le navigateur : à réautoriser via l'icône à gauche de l'adresse."
           : '';
     }
   }
@@ -22055,7 +22056,7 @@
     if (!zone) return;
     if (!tour || !tour.at) {
       zone.className = 'reglages-dernier-tour';
-      zone.innerHTML = '<p class="hint" style="margin:0;">Aucun tour enregistré pour l\'instant — la tâche n\'a encore rien tenté, ou l\'envoi n\'est pas activé.</p>';
+      zone.innerHTML = '<p class="hint" style="margin:0;">Aucun tour pour l\'instant.</p>';
       return;
     }
     const quand = new Date(tour.at);
@@ -22138,7 +22139,7 @@
     if (!zone) return;
     if (!tour || !tour.at) {
       zone.className = 'reglages-dernier-tour';
-      zone.innerHTML = '<p class="hint" style="margin:0;">Aucune lecture enregistrée pour l\'instant — l\'adresse n\'est pas encore renseignée, ou le premier tour n\'a pas encore eu lieu.</p>';
+      zone.innerHTML = '<p class="hint" style="margin:0;">Aucune lecture pour l\'instant.</p>';
       return;
     }
     const quand = new Date(tour.at);
