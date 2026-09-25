@@ -5234,7 +5234,6 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
 .derniere-piece-texte b { font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .derniere-piece-texte .action-urgente-raison { font-size: 12.5px; }
 
-.dash-avancement { margin-top: 28px; }
 .avancement-dossiers {
   background: var(--paper-card); border: 1px solid var(--line); border-radius: 10px;
   padding: 6px 8px; box-shadow: var(--shadow-card);
@@ -5270,9 +5269,39 @@ button.avancement-ligne:hover { background: var(--paper-sunk); }
 .avancement-pilule.dl-urgent { color: var(--urgent); background: color-mix(in srgb, var(--urgent) 14%, transparent); }
 .avancement-montant { font-size: 12.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .avancement-pied { display: flex; justify-content: flex-end; padding: 8px 10px 6px; border-top: 1px solid var(--line-soft); }
+/* Dans une colonne étroite (tableau de bord sur quatre colonnes), la ligne passe sur deux
+   rangées : nom + statut en haut, jauge pleine largeur dessous. Requête de CONTENEUR et non de
+   fenêtre : c'est la largeur du bloc qui compte, pas celle de l'écran. */
+@container dashbloc (max-width: 520px) {
+  button.avancement-ligne { grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; padding: 11px 8px; }
+  .avancement-jauge { grid-column: 1 / -1; grid-row: 2; }
+  .avancement-detail { white-space: normal; }
+}
+/* Même raison pour « Dernières pièces trouvées » : à ~300px, la flèche et le libellé tronqué
+   mangeaient le nom de la pièce. Le libellé passe à la ligne, la flèche disparaît (toute la ligne
+   est déjà cliquable). */
+@container dashbloc (max-width: 380px) {
+  .derniere-piece .action-urgente-fleche { display: none; }
+  .derniere-piece-texte b, .derniere-piece-texte .action-urgente-raison { white-space: normal; }
+  .derniere-piece { align-items: flex-start; flex-wrap: wrap; }
+  .derniere-piece-date { flex-basis: 44px; }
+  .derniere-piece .notif-nouveau-tag { margin-left: 54px; }
+}
 @media (max-width: 700px) {
   button.avancement-ligne { grid-template-columns: minmax(0, 1fr) auto; gap: 10px 14px; }
   .avancement-jauge { grid-column: 1 / -1; grid-row: 2; }
+}
+
+/* ---- Tableau de bord : quatre blocs côte à côte ----
+   Flex et non grille à quatre pistes : un bloc masqué (display:none quand il est vide) ne laisse
+   aucune colonne vide, les blocs restants se partagent la largeur. */
+.dash-quatre { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 20px; }
+.dash-bloc { flex: 1 1 0; min-width: 0; container-type: inline-size; container-name: dashbloc; }
+@media (max-width: 1400px) {
+  .dash-bloc { flex: 1 1 calc(50% - 10px); }
+}
+@media (max-width: 900px) {
+  .dash-bloc { flex-basis: 100%; }
 }
 
 /* ==== Signalements de problèmes (voir ouvrirSignalement / renderSignalements dans script.js) ==== */
@@ -5382,7 +5411,6 @@ button.lien-discret {
 button.lien-discret:hover { color: var(--focus); text-decoration-color: currentColor; }
 button.lien-discret:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
 
-.dash-col-droite { display: flex; flex-direction: column; gap: 24px; }
 
 /* ---- Carte « Agenda » du tableau de bord (voir renderRendezVousDashboard) ---- */
 .agenda-carte {
@@ -5467,7 +5495,6 @@ button.lien-discret:focus-visible { outline: 2px solid var(--focus); outline-off
 }
 
 /* ---- Alertes importantes + Mes rappels (voir renderAlertesDashboard) ---- */
-.dash-col-gauche { display: flex; flex-direction: column; gap: 24px; }
 .alertes-entete {
   display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
   padding: 16px 18px 14px; border-bottom: 1px solid var(--line-soft);

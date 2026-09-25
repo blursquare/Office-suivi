@@ -7917,6 +7917,18 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     remplacés par trois tests dans `tests/tableau-de-bord.test.js`. Suite racine 810. Vérifié dans
     un vrai Chromium (clair, sombre, 400 px sans débordement, clic qui ouvre la fiche).
 
+- **Tableau de bord sur quatre colonnes** (25/09 soir, « met les blocs sur quatre colonnes, elles
+  sont trop larges »). « À traiter » (+ Mes rappels), « Dernières pièces trouvées », « Agenda » et
+  « Avancement des dossiers » sont désormais quatre `.dash-bloc` côte à côte dans `.dash-quatre`
+  (les colonnes `.dash-col-gauche/-droite` et le bloc d'avancement pleine largeur disparaissent).
+  **Flex, pas une grille à quatre pistes** : un bloc masqué quand il est vide (pièces, avancement)
+  ne laisse pas de colonne vide, les autres se partagent la largeur. Deux par ligne sous 1400 px,
+  un seul sous 900 px. Chaque bloc est un **conteneur** (`container-name: dashbloc`) : dans une
+  colonne étroite, une ligne d'avancement passe sur deux rangées (nom + statut, puis la jauge) et
+  une ligne de « Dernières pièces » laisse son libellé passer à la ligne sans la flèche — requêtes
+  de conteneur et non de fenêtre, c'est la largeur du bloc qui compte. Vérifié dans Chromium
+  (1600, 1280, 400 px, clair et sombre) : aucun débordement, aucune erreur JS.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

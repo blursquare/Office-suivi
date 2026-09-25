@@ -133,31 +133,30 @@
 
   <div class="kpis-dashboard" id="kpis-dashboard"></div>
 
-  <!-- Refonte demandée par l'étude au carnet de bord : actions urgentes regroupées par statut,
-       rappel des dernières pièces trouvées (qui reste lisible après consultation, les pièces pas
-       encore vues marquées « Nouveau »), et l'avancement de chaque dossier (pourcentage, statut,
-       prix — voir renderAvancementDossiers). Chaque colonne se masque entière quand elle est vide, pour ne pas
-       laisser d'étiquette orpheline. -->
-  <div class="dash-grid">
-    <div class="dash-col dash-col-gauche">
-      <!-- À traiter (fusion d'Actions urgentes et d'Alertes importantes) + Mes rappels : voir
-           renderAlertesDashboard. -->
+  <!-- Quatre blocs côte à côte (demandé par l'étude : en pleine largeur, chaque bloc était trop
+       large pour ce qu'il montre) : À traiter + Mes rappels, dernières pièces trouvées, agenda,
+       avancement des dossiers. Rangée en flex et non en grille à 4 pistes fixes : un bloc masqué
+       quand il est vide (pièces, avancement) ne laisse pas de colonne vide, les autres se
+       partagent la largeur. Deux par ligne sous 1400px, un seul sous 900px. -->
+  <div class="dash-quatre">
+    <!-- À traiter (fusion d'Actions urgentes et d'Alertes importantes) + Mes rappels : voir
+         renderAlertesDashboard. -->
+    <div class="dash-bloc">
       <div class="agenda-carte alertes-carte" id="alertes-dashboard"></div>
     </div>
-    <div class="dash-col dash-col-droite">
-      <!-- Carte Agenda : semaine, rendez-vous de signature, état des envois (voir
-           renderRendezVousDashboard). Toujours affichée, même sans rendez-vous. -->
-      <div id="dash-nouveautes" style="display:none;">
-        <div class="dash-section-titre">Dernières pièces trouvées</div>
-        <div id="pieces-recues-dashboard" class="dash-liste"></div>
-      </div>
+    <div class="dash-bloc" id="dash-nouveautes" style="display:none;">
+      <div class="dash-section-titre">Dernières pièces trouvées</div>
+      <div id="pieces-recues-dashboard" class="dash-liste"></div>
+    </div>
+    <!-- Carte Agenda : semaine, rendez-vous de signature, état des envois (voir
+         renderRendezVousDashboard). Toujours affichée, même sans rendez-vous. -->
+    <div class="dash-bloc">
       <div class="agenda-carte" id="agenda-dashboard"></div>
     </div>
-  </div>
-
-  <div class="dash-avancement" id="dash-avancement" style="display:none;">
-    <div class="dash-section-titre">Avancement des dossiers</div>
-    <div id="avancement-dossiers" class="avancement-dossiers"></div>
+    <div class="dash-bloc dash-avancement" id="dash-avancement" style="display:none;">
+      <div class="dash-section-titre">Avancement des dossiers</div>
+      <div id="avancement-dossiers" class="avancement-dossiers"></div>
+    </div>
   </div>
 </div>
 
