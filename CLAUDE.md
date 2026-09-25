@@ -8009,6 +8009,23 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     inchangée. Vérifié dans un vrai Chromium (clair, sombre, 1500 px, mode agrandi, 400 px) :
     modification d'une adresse et du responsable enregistrée avec son historique, onglet conservé
     après le rendu, mode agrandi mémorisé, Échap qui ferme, aucun débordement, aucune erreur JS.
+- **Fiche dossier : informations du dossier compactées sur deux colonnes** (25/09 soir, « la
+  partie texte des informations du dossier prend trop de place, essaie une présentation plus
+  compacte, colonne ? Le reste est bien »). `renderProprietesDossier` garde ses trois groupes, ses
+  ids et ses fonctions ; seule la mise en page change : chaque groupe `.fiche-proprietes` est une
+  grille de deux cases par ligne, chaque case `.prop-ligne` a son libellé à gauche dans une colonne
+  fixe de 118 px (104 px sous 560 px, où la grille passe à une colonne) — les libellés de toutes les
+  lignes tombent donc à la même verticale. Une valeur longue prend toute la largeur (`prop-pleine` :
+  adresse, dossier du NAS, avant-contrat, notaires, dont le champ porte en plus « Reçoit l'acte »).
+  Libellés et boutons raccourcis pour tenir dans la case : « Dossier NAS », « Adresse », « Prix »,
+  « Dépôt », « Notaire vendeur/acquéreur », « Confrère » ; boutons « Changer », « Ouvrir »,
+  « Relier » (l'intitulé complet reste en infobulle) ; financement réduit à « Offre introuvable » /
+  « Comptant » / « Apport … (… %) », le montant du prêt en infobulle. Une case ne passe jamais à la
+  ligne (`flex-wrap: nowrap`) : un texte trop long s'abrège plutôt que de repousser son bouton.
+  **Essai écarté en chemin** : libellé au-dessus de la valeur, en grille — mesuré à −12 % seulement,
+  la ligne du libellé coûtant presque autant que ce qu'on gagnait en largeur. Mesuré : 493 → 324 px
+  dans le tiroir et en mode agrandi, 850 → 448 px à 400 px de large. Vérifié dans Chromium (clair,
+  sombre, agrandi, 400 px) : aucun débordement, aucune erreur JS.
 
 ## Comment tester
 

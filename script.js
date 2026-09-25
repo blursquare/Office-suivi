@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-25 22:51';
+  const VERSION_APP = '2026-09-25 23:19';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-25 23:19', resume: "Fiche dossier : informations du dossier sur deux colonnes, libellés courts à gauche — un tiers de hauteur en moins avant les onglets." },
     { version: '2026-09-25 22:51', resume: "Fiche dossier refaite : barre d'actions, propriétés modifiables sur place, avancement par étapes, onglets Échéances / Pièces / Analyse / Échanges / Historique, et mode agrandi sur deux colonnes." },
     { version: '2026-09-25 21:53', resume: "Tableau de bord : recherche et « + Nouveau dossier » sur la ligne du « Bonjour », titre agrandi, avancement limité à 6 dossiers." },
     { version: '2026-09-25 21:47', resume: "Tableau de bord : colonne principale et rail à droite (dernières pièces, agenda), quatre cartes au même gabarit." },
@@ -11072,8 +11073,11 @@
   // financement, les notaires. Un champ vide dit « Non détecté » plutôt que de disparaître : c'est
   // justement là qu'il faut le remplir.
   function renderProprietesDossier(d, boutonOuvrirCompromis, boutonsDossierLocal) {
-    const ligne = (ic, libelle, valeur, pourId) => `
-      <div class="prop-ligne">
+    // Une case de la grille : libellé court à gauche, valeur à droite. `cls` : 'prop-pleine' pour
+    // une valeur longue (adresse, dossier du NAS, avant-contrat, notaires) qui prend toute la
+    // largeur ; les autres vont deux par ligne.
+    const ligne = (ic, libelle, valeur, pourId, cls) => `
+      <div class="prop-ligne${cls ? ' ' + cls : ''}">
         <dt>${pourId ? `<label for="${pourId}">` : '<span>'}${icone(ic)}<span>${libelle}</span>${pourId ? '</label>' : '</span>'}</dt>
         <dd>${valeur}</dd>
       </div>`;
@@ -11096,10 +11100,10 @@
     const offre = statutOffreAffichage(d);
     const apport = (!d.sansPret && d.offrePretStatut === 'recue') ? calculerApport(d) : null;
     const financement = d.sansPret
-      ? `<span class="dot-label dl-pret">${icone('banknote')}Achat comptant, sans prêt</span>`
+      ? `<span class="dot-label dl-pret" title="Achat comptant, sans prêt">${icone('banknote')}Comptant</span>`
       : apport
-        ? `<span class="prop-texte"><span class="apport-cercle apport-${apport.niveau}"></span> Prêt de ${formaterPrix(d.montantPret)} · apport ${formaterPrix(apport.montant)} (${apport.pourcentage} %)</span>`
-        : `<span class="prop-texte">Prêt · offre</span><span class="dot-label ${offre.dl}"><span class="dot"></span>${offre.texte}</span>`;
+        ? `<span class="prop-texte" title="Prêt de ${escapeAttr(formaterPrix(d.montantPret))}"><span class="apport-cercle apport-${apport.niveau}"></span> Apport ${formaterPrix(apport.montant)} (${apport.pourcentage} %)</span>`
+        : `<span class="dot-label ${offre.dl}" title="Prêt — statut de l’offre"><span class="dot"></span>Offre ${offre.texte.toLowerCase()}</span>`;
 
     // Groupe 3 — les notaires. Le bouton « Reçoit l'acte » EST le contrôle (voir
     // basculerCoteInstrumentaire), sur les deux lignes au même endroit.
@@ -11124,26 +11128,26 @@
     // L'acquéreur représenté par un office distinct : la déontologie interdit de le contacter
     // directement, les relances vont à son notaire (voir emailDestinataireRelance).
     const emailParticipant = notaireParticipantRepresenteAcquereur(d)
-      ? ligne('mail', 'Email du confrère', `<input type="email" id="not-email-participant-${d.id}" class="prop-champ" value="${escapeAttr(d.emailNotaireParticipant || '')}" placeholder="Non renseigné" title="Les relances (prêt, RIB) seront adressées à cette adresse plutôt qu'à l'acquéreur lui-même." onblur="changerEmailNotaireParticipant('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">`, `not-email-participant-${d.id}`)
+      ? ligne('mail', 'Confrère', `<input type="email" id="not-email-participant-${d.id}" class="prop-champ" value="${escapeAttr(d.emailNotaireParticipant || '')}" placeholder="Non renseigné" title="Les relances (prêt, RIB) seront adressées à cette adresse plutôt qu'à l'acquéreur lui-même." onblur="changerEmailNotaireParticipant('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">`, `not-email-participant-${d.id}`)
       : '';
 
     return `
       <dl class="fiche-proprietes">
         ${ligne('user', 'Responsable', responsable, `resp-${d.id}`)}
         ${ligne('home', 'Type de vente', typeVente, `tv-${d.id}`)}
-        ${ligne('folder', 'Dossier du NAS', nas)}
-        ${ligne('file-text', 'Avant-contrat', avantContrat)}
+        ${ligne('folder', 'Dossier NAS', nas, null, 'prop-pleine')}
+        ${ligne('file-text', 'Avant-contrat', avantContrat, null, 'prop-pleine')}
       </dl>
       <dl class="fiche-proprietes">
-        ${ligne('map-pin', 'Adresse du bien', saisie('adresse', d.adresseBien, 'changerAdresseBien'), `adresse-${d.id}`)}
-        ${ligne('banknote', 'Prix de vente', saisie('prix', d.prixVente ? formaterPrix(d.prixVente) : '', 'changerPrixVente', ' inputmode="numeric"'), `prix-${d.id}`)}
-        ${ligne('lock', 'Dépôt de garantie', saisie('depot', d.depotGarantie ? formaterPrix(d.depotGarantie) : '', 'changerDepotGarantie', ' inputmode="numeric"'), `depot-${d.id}`)}
-        ${ligne('shield', 'Versé à (séquestre)', saisie('sequestre', d.sequestreDepot, 'changerSequestreDepot', ' title="Entre les mains de qui l\'acquéreur verse le dépôt : l\'office, l\'agence, la CARPA…"'), `sequestre-${d.id}`)}
+        ${ligne('map-pin', 'Adresse', saisie('adresse', d.adresseBien, 'changerAdresseBien'), `adresse-${d.id}`, 'prop-pleine')}
+        ${ligne('banknote', 'Prix', saisie('prix', d.prixVente ? formaterPrix(d.prixVente) : '', 'changerPrixVente', ' inputmode="numeric"'), `prix-${d.id}`)}
+        ${ligne('lock', 'Dépôt', saisie('depot', d.depotGarantie ? formaterPrix(d.depotGarantie) : '', 'changerDepotGarantie', ' inputmode="numeric" title="Dépôt de garantie"'), `depot-${d.id}`)}
+        ${ligne('shield', 'Séquestre', saisie('sequestre', d.sequestreDepot, 'changerSequestreDepot', ' title="Entre les mains de qui l\'acquéreur verse le dépôt : l\'office, l\'agence, la CARPA…"'), `sequestre-${d.id}`)}
         ${ligne('trend-up', 'Financement', financement)}
       </dl>
       <dl class="fiche-proprietes">
-        ${ligne('scale', 'Notaire du vendeur', notaire('vendeur', d.notaireVendeur), `not-vendeur-${d.id}`)}
-        ${ligne('scale', 'Notaire de l’acquéreur', notaire('acquereur', d.notaireAcquereur), `not-acquereur-${d.id}`)}
+        ${ligne('scale', 'Notaire vendeur', notaire('vendeur', d.notaireVendeur), `not-vendeur-${d.id}`, 'prop-pleine')}
+        ${ligne('scale', 'Notaire acquéreur', notaire('acquereur', d.notaireAcquereur), `not-acquereur-${d.id}`, 'prop-pleine')}
         ${emailParticipant}
         ${ligne('flag', 'Notre étude', ligneRole)}
       </dl>
@@ -12638,14 +12642,14 @@
       const titreOuvrirCompromis = d.compromisNomFichier
         ? `Ouvrir « ${d.compromisNomFichier} », le fichier importé à la création du dossier`
         : "Rechercher et ouvrir l'avant-contrat dans le dossier NAS relié (aucun nom de fichier mémorisé pour ce dossier)";
-      const boutonOuvrirCompromis = `<button type="button" class="action-rapide" onclick="ouvrirCompromisTrouve('${d.id}', this)" title="${escapeAttr(titreOuvrirCompromis)}">${icone('file-text')} Ouvrir le compromis</button>`;
+      const boutonOuvrirCompromis = `<button type="button" class="action-rapide" onclick="ouvrirCompromisTrouve('${d.id}', this)" title="${escapeAttr(titreOuvrirCompromis)}">${icone('file-text')} Ouvrir</button>`;
       // Le nom du dossier NAS relié est affiché dans l'infobulle : le vérifier ne doit pas demander
       // d'ouvrir la fenêtre de choix.
       const boutonsDossierLocal = d.dossierLie
-          ? `<button type="button" class="action-rapide" onclick="changerDossierLocal('${d.id}')" title="${escapeAttr('Dossier NAS relié : ' + (d.nasDossier || '—'))}">Changer de dossier</button>`
+          ? `<button type="button" class="action-rapide" onclick="changerDossierLocal('${d.id}')" title="${escapeAttr('Dossier NAS relié : ' + (d.nasDossier || '—') + ' — cliquez pour en choisir un autre')}">Changer</button>`
           // Même sans prêt (achat comptant), le dossier NAS reste nécessaire pour suivre
           // la checklist de pièces (urbanisme...) — voir renderPiecesDossier ci-dessous.
-          : `<button type="button" class="action-rapide" onclick="lierDossierLocal('${d.id}')">${icone('link')} Relier un dossier du NAS</button>`;
+          : `<button type="button" class="action-rapide" onclick="lierDossierLocal('${d.id}')" title="Relier ce dossier à son dossier du NAS">${icone('link')} Relier</button>`;
       // Statut de l'offre sous la date de la carte "Obtention du prêt" (voir renderTab, paramètre
       // offreBloc). Une puce de couleur plutôt qu'une phrase : le décompte juste au-dessus dit déjà
       // "✓ Offre reçue" en toutes lettres, la puce ne fait que confirmer d'un coup d'œil sans
