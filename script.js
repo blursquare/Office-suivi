@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-25 21:53';
+  const VERSION_APP = '2026-09-25 22:51';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-25 22:51', resume: "Fiche dossier refaite : barre d'actions, propriétés modifiables sur place, avancement par étapes, onglets Échéances / Pièces / Analyse / Échanges / Historique, et mode agrandi sur deux colonnes." },
     { version: '2026-09-25 21:53', resume: "Tableau de bord : recherche et « + Nouveau dossier » sur la ligne du « Bonjour », titre agrandi, avancement limité à 6 dossiers." },
     { version: '2026-09-25 21:47', resume: "Tableau de bord : colonne principale et rail à droite (dernières pièces, agenda), quatre cartes au même gabarit." },
     { version: '2026-09-25 21:41', resume: "Tableau de bord : À traiter, dernières pièces, agenda et avancement côte à côte sur quatre colonnes." },
@@ -304,7 +305,15 @@
     // à la place de l'ancien glyphe en étoile (cercle + rayons, sans anneau — trop proche d'un
     // soleil qu'd'un engrenage). Même trait que le reste du jeu.
     // Drapeau : « Signaler un problème ».
-    flag: '<path d="M3.6 14.4V2.2"/><path d="M3.6 2.8h8.6l-1.9 3.1 1.9 3.1H3.6" stroke-linejoin="round"/>',
+    // Fiche dossier (tiroir) : barre d'actions à icônes seules et lignes de propriétés.
+    archive: '<rect x="1.8" y="2.6" width="12.4" height="3.2" rx="0.8"/><path d="M2.8 5.8v6.8a1 1 0 0 0 1 1h8.4a1 1 0 0 0 1-1V5.8"/><line x1="6.4" y1="8.4" x2="9.6" y2="8.4"/>',
+    trash: '<path d="M2.6 4.2h10.8"/><path d="M6.2 4.2V2.6h3.6v1.6"/><path d="M3.8 4.2l.7 9.2a1 1 0 0 0 1 .9h5a1 1 0 0 0 1-.9l.7-9.2" stroke-linejoin="round"/>',
+    printer: '<path d="M4.4 5.6V1.8h7.2v3.8"/><rect x="1.6" y="5.6" width="12.8" height="5.6" rx="1.2"/><rect x="4.4" y="9.2" width="7.2" height="5" rx="0.6"/>',
+    maximize: '<path d="M9.4 2.2h4.4v4.4"/><path d="M13.8 2.2 9 7"/><path d="M6.6 13.8H2.2V9.4"/><path d="M2.2 13.8 7 9"/>',
+    minimize: '<path d="M13.6 6.4H9.6V2.4"/><path d="M9.6 6.4 14 2"/><path d="M2.4 9.6h4v4"/><path d="M6.4 9.6 2 14"/>',
+    home: '<path d="M2 7.4 8 2.4l6 5"/><path d="M3.6 6.2v7.4h8.8V6.2" stroke-linejoin="round"/><path d="M6.6 13.6V9.8h2.8v3.8"/>',
+    user: '<circle cx="8" cy="5.2" r="2.6"/><path d="M2.8 14c0-2.8 2.3-4.8 5.2-4.8s5.2 2 5.2 4.8"/>',
+    flag: '<path d="M3.6 14.4V2.2"/><path d="M3.6 2.8h8.6l-1.9 3.1 1.9 3.1H3.6"stroke-linejoin="round"/>',
     settings: '<circle cx="8" cy="8" r="4.6"/><circle cx="8" cy="8" r="1.6"/><line x1="12.6" y1="8" x2="14.1" y2="8"/><line x1="11.3" y1="4.7" x2="12.3" y2="3.7"/><line x1="8" y1="3.4" x2="8" y2="1.9"/><line x1="4.7" y1="4.7" x2="3.7" y2="3.7"/><line x1="3.4" y1="8" x2="1.9" y2="8"/><line x1="4.7" y1="11.3" x2="3.7" y2="12.3"/><line x1="8" y1="12.6" x2="8" y2="14.1"/><line x1="11.3" y1="11.3" x2="12.3" y2="12.3"/>'
   };
   // `cls` porte les classes de mise en page (taille via font-size hérité, marge...) ; `spin` anime
@@ -10125,7 +10134,7 @@
   }
 
   // Email de l'office du notaire de l'acquéreur, saisi/corrigé sur la fiche (voir
-  // renderNotairesDossier) — n'apparaît que quand notaireParticipantRepresenteAcquereur(d) est vrai
+  // renderProprietesDossier) — n'apparaît que quand notaireParticipantRepresenteAcquereur(d) est vrai
   // (un office distinct du nôtre représente l'acquéreur) : la déontologie interdit alors à
   // l'instrumentaire de contacter directement l'acquéreur, les relances passent par ce champ.
   function changerEmailNotaireParticipant(id, valeur) {
@@ -10141,7 +10150,7 @@
 
   // Bascule le côté qui reçoit l'acte depuis le badge de la ligne concernée (il n'y a plus de
   // sélecteur « Acte reçu par » : c'est le badge lui-même qui porte l'action, voir
-  // renderNotairesDossier). Recliquer sur le côté déjà désigné le retire.
+  // renderProprietesDossier). Recliquer sur le côté déjà désigné le retire.
   function basculerCoteInstrumentaire(id, cote) {
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
@@ -10445,20 +10454,7 @@
 
   // Pure et testable. `aujourdhuiIso` injectée pour que le calcul ne dépende pas de l'horloge.
   function avancementDossier(d, aujourdhuiIso) {
-    const etapes = ETAPES_AVANCEMENT.filter(e => {
-      if (e.type === 'ventebien') return !!d.ventebien;
-      if (e.type === 'pret') return !d.sansPret;
-      return true;
-    }).map(e => {
-      // La signature n'est faite qu'une fois le rendez-vous passé ; les autres étapes suivent la
-      // même règle que partout ailleurs (offre reçue, date saisie, relevé dans l'agenda…).
-      // Pour les deux envois, une date saisie vaut envoi fait (même règle que la carte « Envoi au
-      // client »), y compris sur un dossier dont la date précède ce drapeau.
-      const fait = e.type === 'signature'
-        ? !!d.rendezVousSignature && d.rendezVousSignature < aujourdhuiIso
-        : echeanceValidee(d, e.type) || ((e.type === 'appelFonds' || e.type === 'projetEnvoye') && !!d[e.type]);
-      return { type: e.type, label: e.label, fait };
-    });
+    const etapes = etapesAvancement(d, aujourdhuiIso);
     const etapesFaites = etapes.filter(e => e.fait).length;
     const pieces = d.roleNotaire === 'participant' ? [] : checklistPieces(d.typeVente, d);
     const piecesRecues = pieces.filter(p => (d.pieces || {})[p.cle] === 'recue').length;
@@ -10471,6 +10467,28 @@
       pct, etapesFaites, etapesTotal: etapes.length, piecesRecues, piecesTotal: pieces.length,
       prochaine: prochaine ? prochaine.label : null
     };
+  }
+
+  // Pure : les étapes qui s'appliquent au dossier, chacune avec sa date et son état. Sert au
+  // pourcentage ci-dessus et au détail pas à pas de la fiche dossier (renderAvancementFiche).
+  // `iso` est la date à afficher en regard de l'étape, jamais une date inventée : vide si le
+  // dossier n'en porte pas.
+  function etapesAvancement(d, aujourdhuiIso) {
+    return ETAPES_AVANCEMENT.filter(e => {
+      if (e.type === 'ventebien') return !!d.ventebien;
+      if (e.type === 'pret') return !d.sansPret;
+      return true;
+    }).map(e => {
+      // La signature n'est faite qu'une fois le rendez-vous passé ; les autres étapes suivent la
+      // même règle que partout ailleurs (offre reçue, date saisie, relevé dans l'agenda…).
+      // Pour les deux envois, une date saisie vaut envoi fait (même règle que la carte « Envoi au
+      // client »), y compris sur un dossier dont la date précède ce drapeau.
+      const fait = e.type === 'signature'
+        ? !!d.rendezVousSignature && d.rendezVousSignature < aujourdhuiIso
+        : echeanceValidee(d, e.type) || ((e.type === 'appelFonds' || e.type === 'projetEnvoye') && !!d[e.type]);
+      const iso = e.type === 'signature' ? (d.rendezVousSignature || '') : (d[e.type] || '');
+      return { type: e.type, label: e.label, fait, iso };
+    });
   }
 
   // Pure : le statut d'un dossier d'après la gravité de son point le plus urgent dans « À traiter ».
@@ -11048,87 +11066,88 @@
     return 'VENTE ' + ((d && d.nom) || '');
   }
 
-  // Notaire du vendeur / de l'acquéreur, sous l'adresse et le prix (demande explicite de l'étude).
-  // Deux champs LIBRES et une liste déroulante des notaires détectés à l'import : l'acte ne dit pas
-  // toujours qui représente qui, et quand il ne le dit pas on n'affecte rien — c'est l'étude qui
-  // tranche. Présentés comme la grille de classification juste en dessous (libellé au-dessus du
-  // champ) : deux champs voisins qu'une icône seule ne suffirait pas à distinguer, contrairement à
-  // l'adresse et au prix qui ont chacun leur propre ligne pleine largeur.
-  // Dépôt de garantie / acompte sur le prix versé par l'acquéreur à la signature, et l'office ou
-  // l'agence qui le séquestre. Présenté comme la grille de classification (libellé AU-DESSUS du
-  // champ) et non comme l'adresse/le prix (icône seule) : deux champs voisins qu'une icône ne
-  // suffirait pas à distinguer — c'est exactement la dissymétrie déjà corrigée une fois sur
-  // l'adresse et le prix (voir CLAUDE.md).
-  function renderDepotGarantieDossier(d) {
-    return `
-      <div class="dossier-depot">
-        <div class="dossier-classification-grid">
-          <div class="classif-champ">
-            <label for="depot-${d.id}">Dépôt de garantie / acompte</label>
-            <input type="text" id="depot-${d.id}" class="input-classif" inputmode="numeric" value="${d.depotGarantie ? formaterPrix(d.depotGarantie) : ''}" placeholder="Non détecté" onblur="changerDepotGarantie('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
-          </div>
-          <div class="classif-champ">
-            <label for="sequestre-${d.id}">Versé à (séquestre)</label>
-            <input type="text" id="sequestre-${d.id}" class="input-classif" value="${escapeAttr(d.sequestreDepot || '')}" placeholder="Non détecté" title="Entre les mains de qui l'acquéreur verse le dépôt : l'office, l'agence, la CARPA…" onblur="changerSequestreDepot('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
-          </div>
-        </div>
+  // Propriétés du dossier, une ligne par donnée : icône et libellé à gauche, valeur à droite,
+  // directement modifiable (même identifiants et mêmes fonctions que l'ancienne fiche — seule la
+  // présentation change). Trois groupes séparés par un filet : le dossier lui-même, le bien et son
+  // financement, les notaires. Un champ vide dit « Non détecté » plutôt que de disparaître : c'est
+  // justement là qu'il faut le remplir.
+  function renderProprietesDossier(d, boutonOuvrirCompromis, boutonsDossierLocal) {
+    const ligne = (ic, libelle, valeur, pourId) => `
+      <div class="prop-ligne">
+        <dt>${pourId ? `<label for="${pourId}">` : '<span>'}${icone(ic)}<span>${libelle}</span>${pourId ? '</label>' : '</span>'}</dt>
+        <dd>${valeur}</dd>
       </div>`;
-  }
+    const saisie = (id, valeur, fonction, extra) => `<input type="text" id="${id}-${d.id}" class="prop-champ" value="${escapeAttr(valeur || '')}" placeholder="Non détecté" onblur="${fonction}('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"${extra || ''}>`;
 
-  function renderNotairesDossier(d) {
+    // Groupe 1 — le dossier.
+    const responsable = `<select id="resp-${d.id}" class="prop-champ" onchange="changerResponsable('${d.id}', this.value)">
+        <option value="" ${d.responsable ? '' : 'selected'}>À définir</option>
+        ${RESPONSABLES.map(r => `<option ${d.responsable === r ? 'selected' : ''}>${escapeHtml(r)}</option>`).join('')}
+      </select>`;
+    const typeVente = `<select id="tv-${d.id}" class="prop-champ" onchange="changerTypeVente('${d.id}', this.value)">
+        <option value="maison" ${d.typeVente === 'maison' || !d.typeVente ? 'selected' : ''}>Maison</option>
+        <option value="copropriete" ${d.typeVente === 'copropriete' ? 'selected' : ''}>Copropriété</option>
+        <option value="terrain" ${d.typeVente === 'terrain' ? 'selected' : ''}>Terrain à bâtir</option>
+      </select>`;
+    const nas = `<span class="prop-texte${d.dossierLie ? '' : ' vide'}" title="${escapeAttr(d.nasDossier || '')}">${d.dossierLie ? escapeHtml(d.nasDossier || 'Relié') : 'Non relié'}</span>${boutonsDossierLocal}`;
+    const avantContrat = `<span class="prop-texte${d.compromisNomFichier ? '' : ' vide'}" title="${escapeAttr(d.compromisNomFichier || '')}">${d.compromisNomFichier ? escapeHtml(d.compromisNomFichier) : 'Aucun fichier mémorisé'}</span>${boutonOuvrirCompromis}`;
+
+    // Groupe 2 — le bien et son financement.
+    const offre = statutOffreAffichage(d);
+    const apport = (!d.sansPret && d.offrePretStatut === 'recue') ? calculerApport(d) : null;
+    const financement = d.sansPret
+      ? `<span class="dot-label dl-pret">${icone('banknote')}Achat comptant, sans prêt</span>`
+      : apport
+        ? `<span class="prop-texte"><span class="apport-cercle apport-${apport.niveau}"></span> Prêt de ${formaterPrix(d.montantPret)} · apport ${formaterPrix(apport.montant)} (${apport.pourcentage} %)</span>`
+        : `<span class="prop-texte">Prêt · offre</span><span class="dot-label ${offre.dl}"><span class="dot"></span>${offre.texte}</span>`;
+
+    // Groupe 3 — les notaires. Le bouton « Reçoit l'acte » EST le contrôle (voir
+    // basculerCoteInstrumentaire), sur les deux lignes au même endroit.
     const detectes = (Array.isArray(d.notairesDetectes) ? d.notairesDetectes : []).filter(n => n && n.nom);
     const listeId = `notaires-detectes-${d.id}`;
-    // Le badge « Reçoit l'acte » EST le contrôle : les sélecteurs « Rôle du notaire » et « Acte
-    // reçu par » ont été retirés de la grille de classification (doublon signalé par l'étude).
-    // Présent sur les deux lignes, au même endroit, pour que désigner l'un ou l'autre soit un
-    // geste symétrique et que rien ne se décale à l'écran.
-    const champ = (cote, libelle, valeur) => {
+    const notaire = (cote, valeur) => {
       const actif = d.coteInstrumentaire === cote;
-      return `
-      <div class="classif-champ">
-        <div class="classif-champ-entete">
-          <label for="not-${cote}-${d.id}">${libelle}</label>
-          <button type="button" class="dot-label ${actif ? 'dl-success' : 'dl-neutre'} notaire-redacteur${actif ? ' actif' : ''}"
-            onclick="basculerCoteInstrumentaire('${d.id}', '${cote}')"
-            title="${actif ? 'Ce notaire reçoit l’acte. Cliquez pour retirer.' : 'Désigner ce notaire comme celui qui reçoit l’acte.'}">${actif ? icone('check') : '<span class="dot"></span>'}Reçoit l’acte</button>
-        </div>
-        <input type="text" id="not-${cote}-${d.id}" class="input-classif"${detectes.length ? ` list="${listeId}"` : ''} value="${escapeAttr(valeur || '')}" placeholder="Non détecté" onblur="affecterNotaire('${d.id}', '${cote}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
-      </div>`;
+      return `<input type="text" id="not-${cote}-${d.id}" class="prop-champ"${detectes.length ? ` list="${listeId}"` : ''} value="${escapeAttr(valeur || '')}" placeholder="Non détecté" onblur="affecterNotaire('${d.id}', '${cote}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
+        <button type="button" class="dot-label ${actif ? 'dl-success' : 'dl-neutre'} notaire-redacteur${actif ? ' actif' : ''}"
+          onclick="basculerCoteInstrumentaire('${d.id}', '${cote}')"
+          title="${actif ? 'Ce notaire reçoit l’acte. Cliquez pour retirer.' : 'Désigner ce notaire comme celui qui reçoit l’acte.'}">${actif ? icone('check') : '<span class="dot"></span>'}Reçoit l’acte</button>`;
     };
-
     // Rôle de l'étude : déduit dès que notre étude est reconnue d'un côté ET qu'un côté reçoit
-    // l'acte (voir deduireRoleNotaireDossier) — affiché alors en simple texte, il n'y a plus rien
-    // à choisir. Sinon, et seulement sinon, il reste cliquable : c'est le seul moyen de marquer un
-    // dossier en participation quand l'acte ne nomme pas notre étude.
+    // l'acte (voir deduireRoleNotaireDossier) ; sinon cliquable, seul moyen de marquer un dossier
+    // en participation quand l'acte ne nomme pas notre étude.
     const role = d.roleNotaire === 'participant' ? 'Participant' : 'Instrumentaire';
     const deduit = !!(coteEtudeDossier(d) && d.coteInstrumentaire);
     const ligneRole = deduit
-      ? `<span class="notaire-role" title="Déduit du côté qui reçoit l’acte.">Notre étude : <strong>${role}</strong> <span class="notaire-role-source">déduit</span></span>`
+      ? `<span class="notaire-role" title="Déduit du côté qui reçoit l’acte."><strong>${role}</strong> <span class="notaire-role-source">déduit</span></span>`
       : `<button type="button" class="notaire-role notaire-role-bouton" onclick="basculerRoleEtude('${d.id}')"
-           title="L’étude n’est reconnue dans aucun des deux notaires : cliquez pour changer son rôle.">Notre étude : <strong>${role}</strong> ${icone('pencil')}</button>`;
-
-    // L'acquéreur est représenté par un office distinct du nôtre : la déontologie interdit à
-    // l'instrumentaire de le contacter directement (voir notaireParticipantRepresenteAcquereur) —
-    // un champ dédié permet de renseigner l'email de CET office, utilisé à la place de l'email de
-    // l'acquéreur par les relances ciblées (voir emailDestinataireRelance/renderRelancesCiblees).
-    const blocEmailParticipant = notaireParticipantRepresenteAcquereur(d) ? `
-        <div class="classif-champ">
-          <div class="classif-champ-entete">
-            <label for="not-email-participant-${d.id}">Email du notaire de l’acquéreur</label>
-          </div>
-          <input type="email" id="not-email-participant-${d.id}" class="input-classif" value="${escapeAttr(d.emailNotaireParticipant || '')}" placeholder="Non renseigné" title="Les relances (prêt, RIB) seront adressées à cette adresse plutôt qu'à l'acquéreur lui-même." onblur="changerEmailNotaireParticipant('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
-        </div>` : '';
+           title="L’étude n’est reconnue dans aucun des deux notaires : cliquez pour changer son rôle."><strong>${role}</strong> ${icone('pencil')}</button>`;
+    // L'acquéreur représenté par un office distinct : la déontologie interdit de le contacter
+    // directement, les relances vont à son notaire (voir emailDestinataireRelance).
+    const emailParticipant = notaireParticipantRepresenteAcquereur(d)
+      ? ligne('mail', 'Email du confrère', `<input type="email" id="not-email-participant-${d.id}" class="prop-champ" value="${escapeAttr(d.emailNotaireParticipant || '')}" placeholder="Non renseigné" title="Les relances (prêt, RIB) seront adressées à cette adresse plutôt qu'à l'acquéreur lui-même." onblur="changerEmailNotaireParticipant('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">`, `not-email-participant-${d.id}`)
+      : '';
 
     return `
-      <div class="dossier-notaires">
-        <div class="dossier-classification-grid">
-          ${champ('vendeur', 'Notaire du vendeur', d.notaireVendeur)}
-          ${champ('acquereur', 'Notaire de l’acquéreur', d.notaireAcquereur)}
-          ${blocEmailParticipant}
-        </div>
-        ${detectes.length ? `<datalist id="${listeId}">${detectes.map(n => `<option value="${escapeAttr(n.nom)}"></option>`).join('')}</datalist>` : ''}
-        ${ligneRole}
-      </div>`;
+      <dl class="fiche-proprietes">
+        ${ligne('user', 'Responsable', responsable, `resp-${d.id}`)}
+        ${ligne('home', 'Type de vente', typeVente, `tv-${d.id}`)}
+        ${ligne('folder', 'Dossier du NAS', nas)}
+        ${ligne('file-text', 'Avant-contrat', avantContrat)}
+      </dl>
+      <dl class="fiche-proprietes">
+        ${ligne('map-pin', 'Adresse du bien', saisie('adresse', d.adresseBien, 'changerAdresseBien'), `adresse-${d.id}`)}
+        ${ligne('banknote', 'Prix de vente', saisie('prix', d.prixVente ? formaterPrix(d.prixVente) : '', 'changerPrixVente', ' inputmode="numeric"'), `prix-${d.id}`)}
+        ${ligne('lock', 'Dépôt de garantie', saisie('depot', d.depotGarantie ? formaterPrix(d.depotGarantie) : '', 'changerDepotGarantie', ' inputmode="numeric"'), `depot-${d.id}`)}
+        ${ligne('shield', 'Versé à (séquestre)', saisie('sequestre', d.sequestreDepot, 'changerSequestreDepot', ' title="Entre les mains de qui l\'acquéreur verse le dépôt : l\'office, l\'agence, la CARPA…"'), `sequestre-${d.id}`)}
+        ${ligne('trend-up', 'Financement', financement)}
+      </dl>
+      <dl class="fiche-proprietes">
+        ${ligne('scale', 'Notaire du vendeur', notaire('vendeur', d.notaireVendeur), `not-vendeur-${d.id}`)}
+        ${ligne('scale', 'Notaire de l’acquéreur', notaire('acquereur', d.notaireAcquereur), `not-acquereur-${d.id}`)}
+        ${emailParticipant}
+        ${ligne('flag', 'Notre étude', ligneRole)}
+      </dl>
+      ${detectes.length ? `<datalist id="${listeId}">${detectes.map(n => `<option value="${escapeAttr(n.nom)}"></option>`).join('')}</datalist>` : ''}`;
   }
 
   // ---- Collaborateur du poste ----
@@ -12020,6 +12039,11 @@
   // le tiroir au passage.
   function ouvrirDossierDrawer(id) {
     dossierOuvert = id;
+    // La fiche s'ouvre sur ses échéances, sauf s'il y a du nouveau : on arrive alors directement
+    // sur les pièces trouvées depuis le dernier passage.
+    const d = dossiers.find(x => x.id === id);
+    const notifs = (d && d.piecesNotifications) || [];
+    ongletFiche = notifs.some(c => c !== CLE_NOTIF_OFFRE_PRET) && d.roleNotaire !== 'participant' ? 'pieces' : 'echeances';
     ajoutEcheanceOuvert = false;
     ajoutPieceOuvert = false;
     ajoutEngagementOuvert = false;
@@ -12051,6 +12075,7 @@
   // action menée DANS la fiche — renommer, corriger une date, revérifier — se répercute sans
   // refermer le tiroir) autant que par l'ouverture/fermeture elles-mêmes. Un dossier supprimé ou
   // devenu invisible pendant qu'il était ouvert referme le tiroir plutôt que d'afficher un vide.
+  let dossierRenduDansTiroir = null;
   function renderDrawer() {
     const overlay = document.getElementById('dossier-drawer-overlay');
     const contenu = document.getElementById('dossier-drawer-contenu');
@@ -12059,12 +12084,20 @@
     const d = dossierOuvert ? dossiers.find(x => x.id === dossierOuvert) : null;
     if (!d) {
       dossierOuvert = null;
+      dossierRenduDansTiroir = null;
       overlay.style.display = 'none';
       document.body.classList.remove('drawer-ouvert');
       contenu.innerHTML = '';
       return;
     }
+    // Le défilement du tiroir est conservé : render() le reconstruit à chaque action menée dans
+    // la fiche, et remonter en haut à chaque clic ferait perdre la ligne qu'on venait de modifier.
+    const panneau = document.getElementById('dossier-drawer');
+    const defilement = panneau && dossierRenduDansTiroir === d.id ? panneau.scrollTop : 0;
+    dossierRenduDansTiroir = d.id;
+    if (panneau) panneau.classList.toggle('large', ficheLarge);
     contenu.innerHTML = renderCarteDossier(d);
+    if (panneau) panneau.scrollTop = defilement;
     overlay.style.display = 'flex';
     // Empêche la page derrière le tiroir de défiler en même temps que lui (sinon la molette
     // emporte la liste dès que le contenu du tiroir arrive en bout de course).
@@ -12646,155 +12679,213 @@
               ? `<button type="button" class="lien-dossier-local" onclick="verifierDossierLocalDepuisBouton('${d.id}', this)">Revérifier</button>`
               : `<button type="button" class="lien-dossier-local" onclick="lierDossierLocal('${d.id}')">${icone('link')} Relier un dossier du NAS</button>`}
         </div>${garantiesBloc}` : '';
+      const aujourdhui = isoAujourdHui();
+      const avancement = avancementDossier(d, aujourdhui);
+      const etapes = etapesAvancement(d, aujourdhui);
+      const prochaineEtape = etapes.find(e => !e.fait) || null;
+      const avecPieces = d.roleNotaire !== 'participant';
+      const checklist = avecPieces ? checklistPieces(d.typeVente, d) : [];
+      const nbPiecesRecues = checklist.filter(p => (d.pieces || {})[p.cle] === 'recue').length;
+      const notifications = d.piecesNotifications || [];
+      const notifPieces = notifications.some(c => c !== CLE_NOTIF_OFFRE_PRET);
+      const nbEcheancesAVenir = echeancesPlanning(d).length;
+      const onglet = (ongletFiche === 'pieces' && !avecPieces) ? 'echeances' : ongletFiche;
+      const cache = nom => onglet === nom ? '' : ' hidden';
+
+      // Un onglet par geste, dans l'ordre où on les accomplit sur un dossier : ce qui arrive
+      // (échéances), ce qu'on attend (pièces), ce que dit l'acte, ce qu'on écrit, ce qui s'est
+      // passé. Le compteur dit ce qu'il y a dedans sans l'ouvrir ; la pastille rouge, qu'il y a du
+      // nouveau (même signal « Nouveau » que partout ailleurs, voir d.piecesNotifications).
+      const ongletsFiche = [
+        { cle: 'echeances', libelle: 'Échéances', compteur: nbEcheancesAVenir ? String(nbEcheancesAVenir) : '', titre: `${nbEcheancesAVenir} échéance(s) à venir`, nouveau: notifications.includes(CLE_NOTIF_OFFRE_PRET) },
+        avecPieces ? { cle: 'pieces', libelle: 'Pièces', compteur: `${nbPiecesRecues}/${checklist.length}`, titre: `${nbPiecesRecues} pièce(s) reçue(s) sur ${checklist.length}`, complet: checklist.length > 0 && nbPiecesRecues === checklist.length, nouveau: notifPieces } : null,
+        { cle: 'analyse', libelle: 'Analyse', compteur: analyse.engagements.length ? String(analyse.engagements.length) : '', titre: `${analyse.engagements.length} obligation(s) du vendeur` },
+        { cle: 'echanges', libelle: 'Échanges', compteur: '', titre: 'Emails au client, questionnaire, appel de fonds' },
+        { cle: 'historique', libelle: 'Historique', compteur: historique.length ? String(historique.length) : '', titre: `${historique.length} entrée(s)` }
+      ].filter(Boolean);
+
+      const prochaine = prochaineEcheanceDetail(d);
+      const puceProchaine = prochaine ? `<span class="dot-label dl-${prochaine.type}" title="Prochaine échéance"><span class="dot"></span>${escapeHtml(prochaine.label)} · ${formatDateFr(prochaine.iso)} · ${prochaine.jours >= 0 ? 'J-' + prochaine.jours : 'dépassée de ' + (-prochaine.jours) + ' j'}</span>` : '';
+
+      const analyseVide = analyse.documents.length === 0 && analyse.engagements.length === 0;
       return `
-      <div class="dossier${d.archive ? ' est-archive' : ''}">
-        <div class="dossier-head">
-          <!-- Badge de statut + Archiver/Supprimer regroupés sur une même ligne, en tête de fiche
-               (repris d'une maquette fournie par l'étude, recolorée avec nos propres tokens — pas
-               la palette indigo/violette de la maquette). Auparavant le badge vivait dans le nom
-               et Archiver/Supprimer sur le côté opposé de la fiche : rassemblés ici, plus rien à
-               regarder à deux endroits différents pour savoir où en est le dossier et agir dessus. -->
-          <div class="dossier-head-barre">
-            ${renderBadgeStatut(d)}
-            <button class="icon-btn" onclick="archiverDossier('${d.id}', ${!d.archive})">${d.archive ? 'Désarchiver' : 'Archiver'}</button>
-            <button class="icon-btn" onclick="supprimerDossier('${d.id}')">Supprimer</button>
+      <div class="dossier fiche${d.archive ? ' est-archive' : ''}">
+        <!-- Barre d'outils collante : fermer et agrandir à gauche (le geste le plus fréquent en
+             premier), les actions sur le dossier entier à droite, en icônes seules avec leur
+             intitulé en infobulle. Archiver/Supprimer ne se mêlent plus au titre. -->
+        <div class="fiche-barre">
+          <div class="fiche-barre-groupe">
+            <button type="button" class="fiche-btn" onclick="fermerDossierDrawer()" aria-label="Fermer la fiche" title="Fermer (Échap)">${icone('x')}</button>
+            <button type="button" class="fiche-btn fiche-btn-agrandir" onclick="basculerFicheLarge()" aria-label="${ficheLarge ? 'Réduire la fiche' : 'Agrandir la fiche'}" title="${ficheLarge ? 'Réduire la fiche' : 'Agrandir la fiche'}">${icone(ficheLarge ? 'minimize' : 'maximize')}</button>
           </div>
-          <div class="nom-dossier">
-            <span class="nom-affichage" id="nom-affichage-${d.id}">
-              <span class="nom-texte">${escapeHtml(libelleDossierAffiche(d))}</span>
-              <button type="button" class="icon-crayon" onclick="activerEditionNom('${d.id}')" title="Modifier le nom" aria-label="Modifier le nom">${icone('pencil')}</button>
-            </span>
-            <span class="nom-edition" id="nom-edition-${d.id}" hidden>
-              <input type="text" class="dossier-nom-input" id="nom-input-${d.id}" value="${escapeAttr(d.nom)}" aria-label="Nom du dossier" onkeydown="if(event.key==='Enter'){event.preventDefault();validerEditionNom('${d.id}');}else if(event.key==='Escape'){annulerEditionNom('${d.id}');}">
-              <button type="button" class="icon-valider" onclick="validerEditionNom('${d.id}')" title="Valider" aria-label="Valider le nom">✓</button>
-            </span>
+          <div class="fiche-barre-groupe">
+            <button type="button" class="fiche-btn" onclick="telechargerICS('${d.id}')" aria-label="Télécharger les rappels (.ics)" title="Télécharger les rappels (.ics)">${icone('calendar')}</button>
+            <button type="button" class="fiche-btn" onclick="imprimerFiche('${d.id}')" aria-label="Imprimer la fiche" title="Imprimer la fiche">${icone('printer')}</button>
+            <button type="button" class="fiche-btn" onclick="archiverDossier('${d.id}', ${!d.archive})" aria-label="${d.archive ? 'Désarchiver' : 'Archiver'}" title="${d.archive ? 'Désarchiver le dossier' : 'Archiver le dossier'}">${icone('archive')}</button>
+            <button type="button" class="fiche-btn fiche-btn-danger" onclick="supprimerDossier('${d.id}')" aria-label="Supprimer le dossier" title="Supprimer le dossier">${icone('trash')}</button>
           </div>
-          <!-- Sur sa propre ligne, séparée de .nom-affichage : mélangée au nom (voir historique
-               de ce fichier), sa position dépendait de la longueur du nom — tantôt collée à côté,
-               tantôt repoussée à la ligne suivante selon l'espace restant. Signalé par l'étude
-               ("se balade"). Ici, toujours au même endroit, quel que soit le nom du dossier. -->
-          ${boutonsDossierLocal ? `<div class="dossier-lien-local-ligne">${boutonOuvrirCompromis}${boutonsDossierLocal}</div>` : ''}
-
-          <div class="dossier-head-divider"></div>
-
-          <!-- Adresse/prix : une ligne icône + champ chacun, plutôt que mêlés à la grille de
-               classification en dessous — assez de place sur leur propre ligne pour qu'une icône
-               seule (sans libellé texte) reste lisible, contrairement à la ligne de classification
-               ci-dessous où plusieurs champs se partagent l'espace. -->
-          <div class="dossier-adresse-prix">
-            <div class="dossier-info-ligne">
-              ${icone('map-pin')}
-              <input type="text" class="input-inline champ-adresse-bien" value="${escapeAttr(d.adresseBien || '')}" placeholder="Adresse non détectée" aria-label="Adresse du bien" onblur="changerAdresseBien('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
-            </div>
-            <div class="dossier-info-ligne">
-              ${icone('banknote')}
-              <input type="text" class="input-inline champ-prix-vente" value="${d.prixVente ? formaterPrix(d.prixVente) : ''}" placeholder="Prix non détecté" aria-label="Prix de vente" onblur="changerPrixVente('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
-            </div>
-          </div>
-
-          <div class="dossier-head-divider"></div>
-
-          ${renderDepotGarantieDossier(d)}
-
-          <div class="dossier-head-divider"></div>
-
-          ${renderNotairesDossier(d)}
-
-          <div class="dossier-head-divider"></div>
-
-          <!-- Type de vente / Rôle du notaire / Responsable : grille avec libellé au-dessus du
-               champ (plutôt que libellé + <select> en ligne, ancien style .select-edit) — reprend
-               la présentation de la maquette fournie, plus lisible qu'une ligne de libellés et de
-               champs mélangés qui se repliait sur plusieurs lignes inégales dans la largeur du
-               tiroir. -->
-          <div class="dossier-classification-grid">
-            <div class="classif-champ">
-              <label for="tv-${d.id}">Type de vente</label>
-              <select id="tv-${d.id}" class="select-classif" onchange="changerTypeVente('${d.id}', this.value)">
-                <option value="maison" ${d.typeVente === 'maison' || !d.typeVente ? 'selected' : ''}>Maison</option>
-                <option value="copropriete" ${d.typeVente === 'copropriete' ? 'selected' : ''}>Copropriété</option>
-                <option value="terrain" ${d.typeVente === 'terrain' ? 'selected' : ''}>Terrain à bâtir</option>
-              </select>
-            </div>
-            <!-- « Rôle du notaire » et « Acte reçu par » ont été retirés d'ici : les deux
-                 faisaient doublon avec le bloc notaires juste au-dessus, où le badge « Reçoit
-                 l'acte » porte désormais l'action et où le rôle de l'étude est déduit
-                 (voir renderNotairesDossier/deduireRoleNotaireDossier). -->
-            <div class="classif-champ">
-              <label for="resp-${d.id}">Responsable</label>
-              <select id="resp-${d.id}" class="select-classif" onchange="changerResponsable('${d.id}', this.value)">
-                <option value="" ${d.responsable ? '' : 'selected'}>— À définir —</option>
-                <option ${d.responsable === 'Bastien ANGLUMENT' ? 'selected' : ''}>Bastien ANGLUMENT</option>
-                <option ${d.responsable === 'Julie VASSELIN' ? 'selected' : ''}>Julie VASSELIN</option>
-                <option ${d.responsable === 'Jérémy SAUJOT' ? 'selected' : ''}>Jérémy SAUJOT</option>
-              </select>
-            </div>
-          </div>
-
-          ${d.sansPret ? `<span class="dot-label dl-pret badge-cash">${icone('banknote')}Achat comptant — sans prêt</span>` : ''}
-          ${(!d.sansPret && d.offrePretStatut === 'recue' && calculerApport(d)) ? (() => {
-            const apport = calculerApport(d);
-            return `<div class="addr apport-ligne">
-              <span class="apport-cercle apport-${apport.niveau}"></span>
-              Apport estimé : <strong>${formaterPrix(apport.montant)}</strong> (${apport.pourcentage}% du prix de ${formaterPrix(d.prixVente)}, prêt de ${formaterPrix(d.montantPret)})
-            </div>`;
-          })() : ''}
         </div>
-        <div class="dossier-body">
-        <div class="tabs">
-          ${echeancesOrdonneesFiche(d, confiance, offreBloc)}
-        </div>
-        ${renderAjoutEcheance(d)}
-        ${d.roleNotaire !== 'participant' ? renderPiecesDossier(d) : ''}
-        ${renderDiagnosticParcours(d)}
-        ${(analyse.documents.length > 0 || analyse.engagements.length > 0) ? `
-          <details class="analyse-juridique analyse-repliable" style="margin-top:14px;" open>
-            <summary class="analyse-titre">Analyse juridique du compromis</summary>
-            ${analyse.engagements.length > 0 ? `
-              <div class="analyse-section">
-                <div class="analyse-sous-titre">Engagements du vendeur <span class="analyse-compteur">${analyse.engagements.length}</span></div>
-                ${analyse.engagements.map((e, i) => renderEngagement(e, i, d.id)).join('')}
+
+        <div class="fiche-colonnes">
+          <div class="fiche-principale">
+            <header class="fiche-entete">
+              <div class="fiche-meta">${renderBadgeStatut(d)}${puceProchaine}</div>
+              <div class="nom-dossier">
+                <span class="nom-affichage" id="nom-affichage-${d.id}">
+                  <span class="nom-texte">${escapeHtml(libelleDossierAffiche(d))}</span>
+                  <button type="button" class="icon-crayon" onclick="activerEditionNom('${d.id}')" title="Modifier le nom" aria-label="Modifier le nom">${icone('pencil')}</button>
+                </span>
+                <span class="nom-edition" id="nom-edition-${d.id}" hidden>
+                  <input type="text" class="dossier-nom-input" id="nom-input-${d.id}" value="${escapeAttr(d.nom)}" aria-label="Nom du dossier" onkeydown="if(event.key==='Enter'){event.preventDefault();validerEditionNom('${d.id}');}else if(event.key==='Escape'){annulerEditionNom('${d.id}');}">
+                  <button type="button" class="icon-valider" onclick="validerEditionNom('${d.id}')" title="Valider" aria-label="Valider le nom">✓</button>
+                </span>
               </div>
-            ` : ''}
-            <div class="analyse-section">
-              <div class="analyse-sous-titre">Documents et pièces identifiés <span class="analyse-compteur">${analyse.documents.length}</span></div>
-              <div class="analyse-documents-liste">
-                ${analyse.documents.length > 0
-                  ? analyse.documents.map((doc, i) => renderDocBadge(doc, i, d.id)).join('')
-                  : '<span class="analyse-vide">Aucun document type reconnu automatiquement.</span>'}
-              </div>
+              ${renderProgressionFiche(etapes, prochaineEtape, avancement)}
+            </header>
+
+            ${renderProprietesDossier(d, boutonOuvrirCompromis, boutonsDossierLocal)}
+
+            <div class="fiche-onglets" role="tablist" aria-label="Sections de la fiche">
+              ${ongletsFiche.map(o => `<button type="button" role="tab" class="fiche-onglet${o.cle === onglet ? ' actif' : ''}" data-onglet="${o.cle}" aria-selected="${o.cle === onglet}" title="${escapeAttr(o.titre)}" onclick="definirOngletFiche('${o.cle}')">${o.libelle}${o.compteur ? `<span class="fiche-compteur${o.complet ? ' complet' : ''}">${o.compteur}</span>` : ''}${o.nouveau ? '<span class="fiche-onglet-nouveau" aria-label="Nouveau"></span>' : ''}</button>`).join('')}
             </div>
-          </details>
-        ` : ''}
-        ${renderAjoutEngagement(d)}
-        ${renderRelancesCiblees(d)}
-        ${renderQuestionnaireSatisfaction(d)}
-        ${renderAppelFondsDossier(d)}
-        <!-- Libellés volontairement courts (l'intitulé complet reste en infobulle) : l'étude veut
-             ces actions sur une seule ligne, ce que "Télécharger les rappels (.ics)" et son voisin
-             ne permettaient pas dans la largeur du tiroir. Le rappel par email générique
-             ("Rappel email") a été retiré définitivement : les rappels automatiques par email
-             (voir jobs/rappels.js), avec copie systématique à l'étude, le remplacent. Le titre
-             "EXPORTER" (même registre que "Relancer par email" juste au-dessus) a été demandé pour
-             nommer ce bloc de boutons, jusque-là sans étiquette. -->
-        <span class="section-eyebrow dossier-actions-titre">Exporter</span>
-        <div class="dossier-actions">
-          <button onclick="telechargerICS('${d.id}')" title="Télécharger les rappels (.ics)">${icone('calendar')} Rappels (.ics)</button>
-          <button onclick="imprimerFiche('${d.id}')" title="Télécharger la fiche dossier imprimable">${icone('file-text')} Imprimer</button>
-        </div>
-        <!-- "Ce que l'outil a compris" (voir renderExtractionDossier) placé juste au-dessus de
-             l'historique, demandé par l'étude : c'est la dernière chose lue avant de consulter
-             l'historique des modifications du dossier. -->
-        ${renderExtractionDossier(d)}
-        ${historique.length > 0 ? `
-          <button type="button" class="historique-toggle section-eyebrow" onclick="toggleHistorique('${d.id}')">Historique (${historique.length})</button>
-          <div class="historique-liste" id="historique-${d.id}">
-            ${historique.slice().reverse().map(h => `<div class="historique-ligne"><span class="h-date">${new Date(h.date).toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })}</span>${escapeHtml(h.texte)}${h.auteur ? `<span class="h-auteur"> — ${escapeHtml(prenomCollaborateur(h.auteur))}</span>` : ''}</div>`).join('')}
+
+            <section class="fiche-panneau" data-onglet="echeances" role="tabpanel"${cache('echeances')}>
+              <div class="tabs">
+                ${echeancesOrdonneesFiche(d, confiance, offreBloc)}
+              </div>
+              ${renderAjoutEcheance(d)}
+            </section>
+
+            ${avecPieces ? `<section class="fiche-panneau" data-onglet="pieces" role="tabpanel"${cache('pieces')}>
+              ${renderPiecesDossier(d)}
+              ${renderDiagnosticParcours(d)}
+            </section>` : ''}
+
+            <section class="fiche-panneau" data-onglet="analyse" role="tabpanel"${cache('analyse')}>
+              ${analyseVide ? `<p class="fiche-vide">Aucune obligation du vendeur ni aucun document relevé dans l'avant-contrat.</p>` : `
+              <div class="analyse-juridique">
+                ${analyse.engagements.length > 0 ? `
+                  <div class="analyse-section">
+                    <div class="analyse-sous-titre">Engagements du vendeur <span class="analyse-compteur">${analyse.engagements.length}</span></div>
+                    ${analyse.engagements.map((e, i) => renderEngagement(e, i, d.id)).join('')}
+                  </div>
+                ` : ''}
+                <div class="analyse-section">
+                  <div class="analyse-sous-titre">Documents et pièces identifiés <span class="analyse-compteur">${analyse.documents.length}</span></div>
+                  <div class="analyse-documents-liste">
+                    ${analyse.documents.length > 0
+                      ? analyse.documents.map((doc, i) => renderDocBadge(doc, i, d.id)).join('')
+                      : '<span class="analyse-vide">Aucun document type reconnu automatiquement.</span>'}
+                  </div>
+                </div>
+              </div>`}
+              ${renderAjoutEngagement(d)}
+              ${renderExtractionDossier(d)}
+            </section>
+
+            <section class="fiche-panneau" data-onglet="echanges" role="tabpanel"${cache('echanges')}>
+              ${renderRelancesCiblees(d)}
+              ${renderQuestionnaireSatisfaction(d)}
+              ${renderAppelFondsDossier(d)}
+            </section>
+
+            <section class="fiche-panneau" data-onglet="historique" role="tabpanel"${cache('historique')}>
+              ${renderActiviteFiche(historique)}
+            </section>
           </div>
-        ` : ''}
-      </div>
+
+          <!-- Colonne de droite, en mode agrandi seulement : l'avancement pas à pas et les dernières
+               actions, toujours sous les yeux quel que soit l'onglet ouvert. -->
+          <aside class="fiche-laterale">
+            ${renderEtapesFiche(etapes, prochaineEtape, avancement)}
+            <div class="fiche-carte">
+              <div class="fiche-carte-titre"><span class="section-eyebrow">Activité récente</span>
+                ${historique.length > 5 ? `<button type="button" class="fiche-lien" onclick="definirOngletFiche('historique')">Tout voir</button>` : ''}</div>
+              ${renderActiviteFiche(historique.slice(-5))}
+            </div>
+          </aside>
+        </div>
       </div>
     `;
+  }
+
+  // Onglet actif de la fiche et mode agrandi. L'onglet repart sur « Échéances » à chaque ouverture
+  // (ou « Pièces » s'il y a du nouveau, voir ouvrirDossierDrawer) mais survit aux render() qui
+  // reconstruisent le tiroir à chaque action. Le mode agrandi, lui, est une préférence du poste.
+  var CLE_FICHE_LARGE = 'claire-fiche-large';
+  let ongletFiche = 'echeances';
+  let ficheLarge = (() => {
+    try { return localStorage.getItem(CLE_FICHE_LARGE) === '1'; } catch (e) { return false; }
+  })();
+
+  // Bascule sans reconstruire le tiroir : les champs en cours de saisie et le défilement restent
+  // en place.
+  function definirOngletFiche(nom) {
+    ongletFiche = nom;
+    const tiroir = document.getElementById('dossier-drawer');
+    if (!tiroir) return;
+    tiroir.querySelectorAll('.fiche-onglet').forEach(b => {
+      const actif = b.getAttribute('data-onglet') === nom;
+      b.classList.toggle('actif', actif);
+      b.setAttribute('aria-selected', actif ? 'true' : 'false');
+    });
+    tiroir.querySelectorAll('.fiche-panneau').forEach(p => { p.hidden = p.getAttribute('data-onglet') !== nom; });
+  }
+
+  function basculerFicheLarge() {
+    ficheLarge = !ficheLarge;
+    try { localStorage.setItem(CLE_FICHE_LARGE, ficheLarge ? '1' : '0'); } catch (e) { /* préférence facultative */ }
+    renderDrawer();
+  }
+
+  // Barre segmentée de l'en-tête : un segment par étape qui s'applique au dossier (plein = fait,
+  // souligné = la prochaine), le pourcentage global à droite — même calcul que le tableau de bord.
+  function renderProgressionFiche(etapes, prochaineEtape, avancement) {
+    if (!etapes.length) return '';
+    const detail = [`${avancement.etapesFaites}/${avancement.etapesTotal} étapes`];
+    if (avancement.piecesTotal) detail.push(`${avancement.piecesRecues}/${avancement.piecesTotal} pièces`);
+    if (prochaineEtape) detail.push(`prochaine : ${prochaineEtape.label}`);
+    return `
+      <div class="fiche-progression">
+        <div class="fiche-segments" role="img" aria-label="Avancement : ${escapeAttr(detail.join(', '))}">
+          ${etapes.map(e => `<span class="fiche-segment${e.fait ? ' fait' : (e === prochaineEtape ? ' encours' : '')}" title="${escapeAttr(e.label + (e.fait ? ' — fait' : ''))}"></span>`).join('')}
+        </div>
+        <span class="fiche-pct">${avancement.pct} %</span>
+      </div>
+      <div class="fiche-progression-detail">${escapeHtml(detail.join(' · '))}</div>`;
+  }
+
+  // Détail pas à pas, dans la colonne de droite du mode agrandi.
+  function renderEtapesFiche(etapes, prochaineEtape, avancement) {
+    if (!etapes.length) return '';
+    return `
+      <div class="fiche-carte">
+        <div class="fiche-carte-titre"><span class="section-eyebrow">Avancement</span><span class="fiche-pct">${avancement.pct} %</span></div>
+        <div class="fiche-barre-pct"><span style="width:${avancement.pct}%"></span></div>
+        <ol class="fiche-etapes">
+          ${etapes.map(e => {
+            const etat = e.fait ? 'fait' : (e === prochaineEtape ? 'encours' : 'afaire');
+            return `<li class="fiche-etape ${etat}">
+              <span class="fiche-etape-marque">${e.fait ? icone('check') : ''}</span>
+              <span class="fiche-etape-libelle">${escapeHtml(e.label)}</span>
+              <span class="fiche-etape-date">${e.iso ? formatDateFr(e.iso) : '—'}</span>
+            </li>`;
+          }).join('')}
+        </ol>
+        ${avancement.piecesTotal ? `<div class="fiche-etapes-pieces">Pièces reçues <strong>${avancement.piecesRecues}/${avancement.piecesTotal}</strong></div>` : ''}
+      </div>`;
+  }
+
+  // Historique en fil d'activité, le plus récent en haut : le texte d'abord, la date et l'auteur
+  // dessous, en plus petit. Utilisé par l'onglet « Historique » (tout) et la colonne de droite
+  // du mode agrandi (les cinq dernières).
+  function renderActiviteFiche(historique) {
+    if (!historique.length) return '<p class="fiche-vide">Aucune activité enregistrée.</p>';
+    return `<ol class="fiche-activite">${historique.slice().reverse().map(h => `
+      <li class="fiche-activite-ligne">
+        <span class="fiche-activite-texte">${escapeHtml(h.texte)}</span>
+        <span class="fiche-activite-meta">${new Date(h.date).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}${h.auteur ? ` · ${escapeHtml(prenomCollaborateur(h.auteur))}` : ''}</span>
+      </li>`).join('')}</ol>`;
   }
 
   function escapeHtml(s) {
@@ -13345,7 +13436,7 @@
   // répondre.
   // Jamais affiché quand l'acquéreur est représenté par un office distinct du nôtre : c'est alors
   // l'email du confrère qui sert aux relances (champ dédié dans le bloc notaires, voir
-  // renderNotairesDossier), et l'étude n'a pas à collecter l'adresse personnelle de l'acquéreur —
+  // renderProprietesDossier), et l'étude n'a pas à collecter l'adresse personnelle de l'acquéreur —
   // même règle déontologique que celle déjà appliquée au champ équivalent du wizard.
   // onblur plutôt que onchange, avec Entrée qui valide : la fiche se redessine à chaque
   // modification, valider à chaque frappe ferait perdre le focus (même choix que le champ email du
@@ -13389,7 +13480,7 @@
     const notaireParticipant = notaireParticipantRepresenteAcquereur(d);
     if (!emailDestinataireRelance(d)) {
       const hint = notaireParticipant
-        ? 'Renseignez l’email du notaire de l’acquéreur (ci-dessus) pour activer les relances ciblées (provision, prêt, RIB) — l’acquéreur étant représenté par un office distinct, l’étude ne doit pas le contacter directement.'
+        ? 'Renseignez l’email du confrère (propriétés de la fiche) pour activer les relances ciblées (provision, prêt, RIB) — l’acquéreur étant représenté par un office distinct, l’étude ne doit pas le contacter directement.'
         : 'Renseignez l’email de l’acquéreur pour activer les relances ciblées (provision, prêt, RIB).';
       return `<div class="relances-ciblees">
         <span class="section-eyebrow">Écrire par email</span>

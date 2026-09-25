@@ -60,3 +60,15 @@ test('lignesAvancement : statut tiré de « À traiter », les plus urgentes d\'
   assert.equal(app.statutAvancement('vigilance'), 'surveiller');
   assert.equal(app.statutAvancement(undefined), 'delais');
 });
+
+test('etapesAvancement : chaque étape porte sa date et son état, dans l\'ordre du dossier', () => {
+  const d = { id: 'e', typeVente: 'maison', ventebien: '2026-10-02', pret: '2026-10-15', rendezVousSignature: '2026-12-04',
+    appelFonds: '2026-11-20', echeancesValidees: { ventebien: true } };
+  const e = app.etapesAvancement(d, '2026-09-25');
+  assert.equal(e.map(x => x.type).join(','), 'ventebien,pret,appelFonds,projetEnvoye,signature');
+  assert.equal(e.map(x => x.fait ? 1 : 0).join(''), '10100');
+  assert.equal(e.map(x => x.iso).join('|'), '2026-10-02|2026-10-15|2026-11-20||2026-12-04');
+  // Sans prêt ni vente préalable, ces deux étapes ne s'appliquent pas.
+  const cash = app.etapesAvancement({ id: 'c', sansPret: true }, '2026-09-25');
+  assert.equal(cash.map(x => x.type).join(','), 'appelFonds,projetEnvoye,signature');
+});

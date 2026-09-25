@@ -7966,6 +7966,49 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   titre. `MAX_LIGNES_AVANCEMENT` passe de 15 à 6, et le pied « Afficher les N dossiers » est conservé.
   Vérifié dans Chromium : même ligne à 1600, 1440 et 1280 px, aucun débordement à 400 px, clair et
   sombre, aucune erreur JS.
+- **Fiche dossier (tiroir) refaite** (25/09 soir), d'après trois captures de fiches « task detail »
+  envoyées par l'étude (« prends le meilleur, pas de slop IA, fais des choix pour optimiser »). Seule
+  la structure est reprise, pas les palettes : jetons de CLAIRE, clair et sombre. Aucune fonction
+  d'action n'a changé : mêmes ids, mêmes `onclick`/`onblur`, seule la présentation bouge.
+  - **Barre d'outils collante** (`.fiche-barre`, rendue par `renderCarteDossier`, la barre statique
+    d'`index.html` est retirée) : fermer et agrandir à gauche ; Rappels (.ics), Imprimer, Archiver,
+    Supprimer à droite en icônes seules avec leur intitulé en infobulle. Archiver/Supprimer ne se
+    mêlent plus au titre. Cinq icônes ajoutées à `ICONES` (archive, trash, printer, maximize,
+    minimize) plus home et user.
+  - **En-tête** : statut + prochaine échéance (« Obtention du prêt · 15 octobre 2026 · J-20 »), titre
+    à 23 px, puis une barre segmentée, un segment par étape (`etapesAvancement`, extraite
+    d'`avancementDossier` qui l'utilise désormais — même calcul que le tableau de bord), et
+    « 1/5 étapes · 3/10 pièces · prochaine : … ».
+  - **Propriétés en liste libellé → valeur** (`renderProprietesDossier`, remplace
+    `renderDepotGarantieDossier` et `renderNotairesDossier`) : trois groupes séparés d'un filet — le
+    dossier (responsable, type de vente, dossier du NAS avec Changer/Relier, avant-contrat avec
+    Ouvrir), le bien (adresse, prix, dépôt, séquestre, financement — achat comptant, ou statut de
+    l'offre, ou prêt et apport une fois l'offre reçue), les notaires (vendeur, acquéreur avec
+    « Reçoit l'acte », email du confrère si un autre office représente l'acquéreur, rôle de l'étude).
+    Les valeurs sont des champs « fantômes » : on lit une valeur, un clic la rend modifiable (fond au
+    survol, cadre bleu au focus). Sélecteur `.fiche-proprietes input.prop-champ` : septième rencontre
+    du piège de spécificité avec `input[type="text"]`. Sous 560 px, le libellé passe au-dessus.
+  - **Onglets en pilules avec compteurs** (`ongletFiche`, `definirOngletFiche`) : Échéances (à venir),
+    Pièces (reçues/total, en vert si complet), Analyse (obligations du vendeur, documents, ajout,
+    extraction), Échanges (email client, relances, questionnaire, appel de fonds), Historique (fil
+    d'activité, `renderActiviteFiche`). Pastille rouge sur l'onglet qui porte une nouveauté (même
+    signal que `d.piecesNotifications`). Les panneaux sont tous dans le DOM, basculés par `hidden`
+    sans `render()` : un champ en cours de saisie n'est pas perdu. L'onglet survit aux `render()` qui
+    reconstruisent la fiche ; il repart sur Échéances à chaque ouverture, ou sur Pièces s'il y a des
+    pièces nouvelles. Pas d'onglet Pièces pour un dossier en participation.
+  - **Mode agrandi** (bouton de la barre, préférence du poste en `localStorage`
+    `claire-fiche-large`) : tiroir à 1120 px, colonne de droite collante avec l'avancement pas à pas
+    (`renderEtapesFiche` : coche, étape en cours, dates) et les cinq dernières activités. Désactivé
+    sous 1100 px de fenêtre (le bouton disparaît).
+  - **Le défilement du tiroir est conservé** d'un `render()` à l'autre (`dossierRenduDansTiroir`),
+    et remis en haut seulement quand on ouvre un autre dossier.
+  - Impression : barre, onglets et colonne masqués, tous les panneaux imprimés. CSS morte retirée
+    (en-tête `.dossier-head*`, grille de classification, `.select-classif`, `input.input-inline`,
+    `.dossier-actions`, historique repliable, `.analyse-repliable`).
+  - Tests : `etapesAvancement` dans `tests/tableau-de-bord.test.js`. Suite racine 811, serveur
+    inchangée. Vérifié dans un vrai Chromium (clair, sombre, 1500 px, mode agrandi, 400 px) :
+    modification d'une adresse et du responsable enregistrée avec son historique, onglet conservé
+    après le rendu, mode agrandi mémorisé, Échap qui ferme, aucun débordement, aucune erreur JS.
 
 ## Comment tester
 

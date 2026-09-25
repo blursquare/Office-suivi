@@ -2150,16 +2150,6 @@
     border: 1px solid var(--line);
     border-radius: 6px;
   }
-  /* Même registre que .section-eyebrow (voir sa définition plus bas) — demandé par l'étude pour
-     que ce titre s'aligne sur celui de "Pièces du dossier (...)" juste au-dessus sur la fiche. */
-  .analyse-titre {
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-bottom: 14px;
-  }
 
   .analyse-vide-etat {
     color: var(--ink-soft);
@@ -2970,34 +2960,6 @@
     color: var(--muted);
   }
 
-  /* ---- historique ---- */
-  .historique-toggle {
-    font-family: inherit;
-    color: var(--muted);
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0;
-    margin-top: 10px;
-    align-self: flex-start;
-  }
-  .historique-toggle:hover { color: var(--ink-soft); }
-  .historique-liste {
-    display: none;
-    margin-top: 8px;
-    padding: 10px 12px;
-    background: var(--paper);
-    border-radius: 2px;
-    font-size: 12px;
-    color: var(--ink-soft);
-  }
-  .historique-liste.ouvert { display: block; }
-  .historique-ligne { padding: 3px 0; }
-  .historique-ligne .h-date {
-    color: var(--muted);
-    margin-right: 6px;
-    font-variant-numeric: tabular-nums;
-  }
 
   /* ---- archive ---- */
   .dossier.est-archive { opacity: 0.65; }
@@ -3198,14 +3160,13 @@
   .ajout-engagement-btn { margin: 14px 0 0; }
 
   /* Relances ciblées par email (voir renderRelancesCiblees) : un bouton par motif pertinent pour
-     CE dossier (prêt manquant, RIB), juste avant les actions génériques (.dossier-actions). Taille
-     alignée sur .dossier-actions button (Rappels .ics/Imprimer, juste en dessous) plutôt que la
-     petite pastille .action-rapide générique (Revérifier...) : demandé par l'étude pour que tous
-     les boutons d'action de la fiche se lisent au même gabarit. */
+     CE dossier (prêt manquant, RIB), dans l'onglet « Échanges » de la fiche. Un gabarit plus grand
+     que la petite pastille .action-rapide générique (Revérifier...) : demandé par l'étude pour que
+     ces envois se lisent comme des actions à part entière. */
   .relances-ciblees { margin: 14px 0 0; }
   /* Email de l'acquéreur, au-dessus des boutons (voir renderEmailAcquereurDossier) : borné en
      largeur, une adresse n'a pas besoin de toute la largeur du tiroir. Son habillage est partagé
-     avec les champs du bloc notaires — voir .dossier-notaires input.input-classif, et le piège de
+     avec l'ancien bloc notaires — voir .champ-email-relance input.input-classif, et le piège de
      spécificité documenté juste au-dessus. */
   .champ-email-relance { max-width: 340px; margin: 6px 0 10px; }
   .relances-boutons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
@@ -3269,30 +3230,6 @@
     .drawer-panneau { animation: none; }
   }
 
-  /* Le tiroir défile sur toute sa hauteur : la croix reste accessible sans remonter. Elle occupe
-     sa propre barre collante plutôt que de flotter au-dessus du contenu — en flottant, elle
-     empiétait sur la première ligne de la fiche (nom du dossier + Archiver/Supprimer). */
-  .drawer-barre {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    display: flex;
-    justify-content: flex-end;
-    background: var(--paper-card);
-    padding: 6px 0 8px;
-  }
-  .drawer-fermer {
-    font-family: inherit;
-    font-size: 15px;
-    line-height: 1;
-    color: var(--ink-soft);
-    background: var(--paper-card);
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    padding: 6px 9px;
-    cursor: pointer;
-  }
-  .drawer-fermer:hover { color: var(--ink); background: var(--line-soft); }
 
   /* Le tiroir gère son propre défilement : sans ça, arrivé en bout de course, la molette continue
      sur la liste derrière et l'utilisateur perd la position qu'on cherchait justement à préserver. */
@@ -3307,53 +3244,304 @@
     box-shadow: none;
     background: transparent;
   }
-  .drawer-panneau .dossier-head { margin-bottom: 12px; }
-  .drawer-panneau .dossier-head h3 { font-size: 20px; }
   /* Deux échéances par rangée dans la largeur du tiroir (la valeur par défaut, 150px, en tasserait
      trois et l'échéance "prêt" porte en plus le statut de l'offre et son bouton Revérifier). */
   .drawer-panneau .tabs { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
 
-  /* En-tête en une seule colonne verticale (repris d'une maquette fournie par l'étude, recolorée
-     avec nos tokens) : badge de statut + Archiver/Supprimer d'abord, puis le nom, "Changer de
-     dossier", adresse/prix et la classification — un seul ordre de lecture de haut en bas, plus de
-     répartition gauche (nom) / droite (actions) qui plaçait ces deux zones loin l'une de l'autre. */
-  .dossier-head {
+  /* ---- fiche dossier (tiroir) ----
+     Une barre d'outils, un titre, une liste de propriétés, des onglets. Les propriétés se lisent
+     comme une fiche (libellé à gauche, valeur à droite) et restent modifiables sur place ; les
+     onglets remplacent le long défilement d'avant, où l'historique arrivait après six sections.
+     Mode agrandi : une colonne de droite porte l'avancement pas à pas et l'activité récente. */
+  .fiche-barre {
+    position: sticky;
+    top: 0;
+    z-index: 3;
     display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin-bottom: 16px;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin: 0 -22px;
+    padding: 10px 16px;
+    background: var(--paper-card);
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .fiche-barre-groupe { display: flex; align-items: center; gap: 2px; }
+  .fiche-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    font-size: 15px;
+    color: var(--ink-soft);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .fiche-btn:hover { color: var(--ink); background: var(--paper-sunk); border-color: var(--line); }
+  .fiche-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .fiche-btn-danger:hover { color: var(--urgent); }
+  /* Rien à agrandir quand l'écran n'en a pas la place. */
+  @media (max-width: 1100px) { .fiche-btn-agrandir { display: none; } }
+
+  .fiche-entete { padding: 20px 0 6px; }
+  .fiche-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-bottom: 8px; }
+  .fiche .nom-dossier { margin: 0 0 0 -2px; }
+  .fiche .nom-texte {
+    font-size: 23px;
+    font-weight: 650;
+    line-height: 1.25;
+    letter-spacing: -0.012em;
+    text-wrap: balance;
   }
 
-  .dossier-head-barre {
+  /* Un segment par étape : plein une fois faite, teinté pour la prochaine. */
+  .fiche-progression { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
+  .fiche-segments { flex: 1 1 auto; display: flex; gap: 4px; }
+  .fiche-segment { flex: 1 1 0; height: 6px; border-radius: 3px; background: var(--line-soft); }
+  .fiche-segment.fait { background: var(--success); }
+  .fiche-segment.encours { background: color-mix(in srgb, var(--focus) 40%, var(--line-soft)); }
+  .fiche-pct { font-size: 12.5px; font-weight: 600; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .fiche-progression-detail { margin-top: 6px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  /* Propriétés : trois groupes séparés d'un filet (le dossier, le bien, les notaires). */
+  .fiche-proprietes {
+    margin: 0;
+    padding: 8px 0;
+    border-top: 1px solid var(--line-soft);
+  }
+  .fiche-entete + .fiche-proprietes { margin-top: 14px; }
+  .prop-ligne {
+    display: grid;
+    grid-template-columns: 172px minmax(0, 1fr);
+    align-items: center;
+    column-gap: 12px;
+    min-height: 34px;
+  }
+  .prop-ligne dt { margin: 0; }
+  .prop-ligne dt > label, .prop-ligne dt > span {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 2px;
+    gap: 9px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .prop-ligne dt .icone { flex: none; font-size: 14px; }
+  .prop-ligne dd {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    min-width: 0;
+    font-size: 13.5px;
+  }
+  /* Champs fantômes : on lit une valeur, on la modifie en cliquant dessus. Sélecteur composé pour
+     battre `input[type="text"]` et `select` génériques (piège de spécificité déjà documenté). */
+  .fiche-proprietes input.prop-champ,
+  .fiche-proprietes select.prop-champ {
+    font-family: inherit;
+    font-size: 13.5px;
+    color: var(--ink);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 5px 8px;
+    margin: 0 0 0 -9px;
+    min-width: 0;
+    max-width: 100%;
+    box-shadow: none;
+    cursor: text;
+  }
+  .fiche-proprietes input.prop-champ { flex: 1 1 160px; width: auto; }
+  .fiche-proprietes select.prop-champ { flex: 0 1 auto; width: auto; cursor: pointer; }
+  .fiche-proprietes input.prop-champ:hover,
+  .fiche-proprietes select.prop-champ:hover { background: var(--paper-sunk); }
+  .fiche-proprietes input.prop-champ:focus,
+  .fiche-proprietes select.prop-champ:focus {
+    outline: none;
+    background: var(--paper-card);
+    border-color: var(--focus);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 16%, transparent);
+  }
+  .fiche-proprietes input.prop-champ::placeholder { color: var(--muted); }
+  .prop-texte {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--ink);
+  }
+  .prop-texte.vide { color: var(--muted); }
+  .fiche-proprietes .action-rapide { margin-left: 0; flex: none; }
+  .fiche-proprietes .notaire-redacteur { flex: none; }
+  .fiche-proprietes .apport-cercle { margin-right: 4px; vertical-align: -1px; }
+
+  @media (max-width: 560px) {
+    .prop-ligne { grid-template-columns: minmax(0, 1fr); padding: 5px 0; }
+    .fiche-proprietes input.prop-champ, .fiche-proprietes select.prop-champ { margin-left: -9px; }
   }
 
-  /* Filets fins entre les sections de l'en-tête (nom, adresse/prix, classification) : un simple
-     trait, pas de dégradé comme .table (les rangées d'un tableau) — ici trois blocs bien distincts
-     à séparer clairement, pas une liste de lignes similaires. */
-  .dossier-head-divider { height: 1px; background: var(--line); margin: 8px 0; }
+  /* Onglets en pilules, avec leur compteur. Collés sous la barre d'outils quand on défile. */
+  .fiche-onglets {
+    position: sticky;
+    top: 53px;
+    z-index: 2;
+    display: flex;
+    gap: 2px;
+    margin: 6px 0 16px;
+    padding: 4px;
+    background: var(--paper-sunk);
+    border: 1px solid var(--line-soft);
+    border-radius: 10px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .fiche-onglets::-webkit-scrollbar { display: none; }
+  .fiche-onglet {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1 0 auto;
+    justify-content: center;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-soft);
+    white-space: nowrap;
+    background: none;
+    border: none;
+    border-radius: 7px;
+    padding: 7px 12px;
+    cursor: pointer;
+  }
+  .fiche-onglet:hover { color: var(--ink); }
+  .fiche-onglet:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+  .fiche-onglet.actif {
+    color: var(--ink);
+    background: var(--paper-card);
+    box-shadow: 0 1px 2px rgba(22,35,60,0.08), 0 0 0 1px var(--line);
+  }
+  .fiche-compteur {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 6px;
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-soft);
+    background: var(--line-soft);
+    border-radius: 9px;
+  }
+  .fiche-onglet.actif .fiche-compteur { color: var(--focus); background: color-mix(in srgb, var(--focus) 13%, transparent); }
+  .fiche-compteur.complet, .fiche-onglet.actif .fiche-compteur.complet { color: var(--success); background: var(--success-bg); }
+  .fiche-onglet-nouveau {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--urgent);
+  }
+  .fiche-panneau[hidden] { display: none; }
+  .fiche-panneau > :first-child { margin-top: 0; }
+  .fiche-vide { margin: 4px 0 12px; font-size: 13px; color: var(--muted); }
+  /* L'onglet porte déjà le cadre : l'analyse n'a pas besoin d'une boîte de plus autour de ses cartes. */
+  .fiche-panneau .analyse-juridique { margin-top: 0; padding: 0; background: none; border: none; }
 
-  /* Côte à côte plutôt qu'empilées : le tiroir élargi (620px, voir .drawer-panneau) laisse assez
-     de place pour les deux sur une même ligne. flex-wrap en repli sous cette largeur (mobile). */
-  .dossier-adresse-prix { display: flex; flex-wrap: wrap; gap: 8px 20px; }
-  .dossier-info-ligne { display: flex; align-items: center; gap: 8px; color: var(--ink-soft); flex: 1 1 200px; min-width: 0; }
-  .dossier-info-ligne .icone { flex: none; color: var(--muted); }
-  .dossier-info-ligne input.input-inline { flex: 1; min-width: 0; }
+  /* Historique en fil d'activité. */
+  .fiche-activite { list-style: none; margin: 0; padding: 0 0 0 4px; }
+  .fiche-activite-ligne {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0 0 14px 18px;
+    border-left: 1px solid var(--line);
+  }
+  .fiche-activite-ligne:last-child { border-left-color: transparent; padding-bottom: 0; }
+  .fiche-activite-ligne::before {
+    content: "";
+    position: absolute;
+    left: -4.5px;
+    top: 5px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--paper-card);
+    border: 1.5px solid var(--muted);
+  }
+  .fiche-activite-ligne:first-child::before { background: var(--focus); border-color: var(--focus); }
+  .fiche-activite-texte { font-size: 13px; color: var(--ink); line-height: 1.45; overflow-wrap: anywhere; }
+  .fiche-activite-meta { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
 
-  /* Type de vente / Rôle du notaire / Responsable : libellé au-dessus du champ, en grille plutôt
-     qu'une ligne de libellés-en-ligne qui se repliait de façon inégale dans la largeur du tiroir. */
-  /* minmax à 165px (pas 140) : dans la largeur du tiroir (~520px), 140px laissait passer 3
-     colonnes mais tronquait le nom le plus long de la liste des responsables ("Bastien
-     ANGLUMENT") dans son <select> — à 165px la grille passe à 2 colonnes, le champ Responsable
-     prend sa propre ligne pleine largeur et n'est plus coupé. */
-  .dossier-classification-grid {
+  /* Colonne de droite : n'existe qu'en mode agrandi. */
+  .fiche-laterale { display: none; }
+  .fiche-carte { padding: 14px 16px; background: var(--paper-sunk); border-radius: 10px; }
+  .fiche-carte-titre { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+  .fiche-lien { font-family: inherit; font-size: 12px; color: var(--focus); background: none; border: none; padding: 0; cursor: pointer; }
+  .fiche-lien:hover { text-decoration: underline; text-underline-offset: 2px; }
+  .fiche-barre-pct { height: 6px; border-radius: 3px; background: var(--line-soft); overflow: hidden; }
+  .fiche-barre-pct > span { display: block; height: 100%; background: var(--success); border-radius: 3px; }
+  .fiche-etapes { list-style: none; margin: 12px 0 0; padding: 0; }
+  .fiche-etape {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
-    gap: 10px;
+    grid-template-columns: 18px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 9px;
+    padding: 5px 0;
+    font-size: 13px;
   }
+  .fiche-etape-marque {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    font-size: 10px;
+    border-radius: 50%;
+    border: 1.5px solid var(--line);
+    background: var(--paper-card);
+  }
+  .fiche-etape.fait .fiche-etape-marque { background: var(--success); border-color: var(--success); color: #fff; }
+  .fiche-etape.encours .fiche-etape-marque { border-color: var(--focus); box-shadow: inset 0 0 0 3px var(--paper-card); background: var(--focus); }
+  .fiche-etape.afaire .fiche-etape-libelle { color: var(--muted); }
+  .fiche-etape.encours .fiche-etape-libelle { font-weight: 600; }
+  .fiche-etape-date { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .fiche-etapes-pieces { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--ink-soft); }
+  .fiche-etapes-pieces strong { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+  @media (min-width: 1101px) {
+    .drawer-panneau.large { width: min(1120px, 100%); }
+    .drawer-panneau.large .fiche-colonnes {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 300px;
+      gap: 28px;
+      align-items: start;
+    }
+    .drawer-panneau.large .fiche-laterale {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      position: sticky;
+      top: 72px;
+      padding-top: 20px;
+    }
+    .drawer-panneau.large .fiche-progression,
+    .drawer-panneau.large .fiche-progression-detail { display: none; }
+  }
+
+
+
+
+
   .classif-champ { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
   .classif-champ label {
     font-size: 11px;
@@ -3362,33 +3550,12 @@
     text-transform: uppercase;
     color: var(--muted);
   }
-  .select-classif {
-    font-family: inherit;
-    font-size: 13.5px;
-    color: var(--ink);
-    background: var(--paper-sunk);
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    padding: 6px 8px;
-    cursor: pointer;
-    width: 100%;
-  }
-  .select-classif:hover { border-color: var(--muted); }
-  .select-classif:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 
-  /* Notaire du vendeur / de l'acquéreur : même gabarit que la grille de classification ci-dessus
-     (libellé au-dessus, champ encadré) — deux champs voisins qu'une icône seule ne distinguerait
-     pas, contrairement à l'adresse et au prix qui ont chacun leur ligne pleine largeur. Le badge
-     « Reçoit l'acte » vit sur la ligne du libellé, pas dans le champ : il qualifie le côté, pas la
-     valeur saisie. */
-  .dossier-notaires { display: flex; flex-direction: column; gap: 8px; }
   .classif-champ-entete { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   /* Sélecteur composé (2 classes + élément) : la règle générique `input[type="text"], …` combine
      élément+attribut, une spécificité qu'un simple `input.input-classif` ne bat pas — à égalité
      c'est l'ordre du fichier qui tranche, piège déjà rencontré quatre fois dans cette feuille
      (.select-edit, .input-inline, .pdf-recherche-input, .revision-saisie). */
-  .dossier-notaires input.input-classif,
-  .dossier-depot input.input-classif,
   .champ-email-relance input.input-classif {
     font-family: inherit;
     font-size: 13.5px;
@@ -3402,14 +3569,8 @@
     min-width: 0;
     cursor: text;
   }
-  .dossier-notaires input.input-classif:hover,
-  .dossier-depot input.input-classif:hover,
   .champ-email-relance input.input-classif:hover { border-color: var(--muted); }
-  .dossier-notaires input.input-classif:focus-visible,
-  .dossier-depot input.input-classif:focus-visible,
   .champ-email-relance input.input-classif:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-  .dossier-notaires input.input-classif::placeholder,
-  .dossier-depot input.input-classif::placeholder,
   .champ-email-relance input.input-classif::placeholder { color: var(--muted); font-style: italic; }
 
   /* Le badge « Reçoit l'acte » EST le contrôle : les sélecteurs « Rôle du notaire » et « Acte reçu
@@ -3454,25 +3615,7 @@
   .notaire-role-bouton:hover .icone { color: var(--focus); }
   .notaire-role-bouton:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
 
-  /* Carte ouverte en deux colonnes (échéances/pièces/analyse à gauche, historique + actions à
-     droite) — demandé pour profiter de la largeur disponible plutôt qu'un long défilement vertical
-     unique. Empile en une seule colonne sous la largeur d'une carte compacte/mobile. */
-  /* Fiche en une seule colonne : elle vit maintenant dans le tiroir latéral (~520px), où les deux
-     colonnes d'avant n'auraient plus tenu. L'ordre de lecture porte la hiérarchie à la place des
-     colonnes — échéances, puis les trois actions (remontées juste dessous, ce sont elles qu'on
-     vient chercher après avoir lu une date), puis les pièces, l'analyse et l'historique, ces deux
-     derniers repliés. */
-  .dossier-body {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-  }
 
-  .dossier-head h3 {
-    font-size: 18px;
-    font-weight: 500;
-    margin: 0 0 3px;
-  }
 
   /* Nom du dossier : affichage simple + crayon plutôt qu'un champ toujours modifiable au clic —
      évite de déclencher une édition par un simple clic sur le nom (voir activerEditionNom()). */
@@ -3484,9 +3627,6 @@
     gap: 6px;
   }
   .nom-affichage[hidden], .nom-edition[hidden] { display: none; }
-  /* Toujours sur sa propre ligne sous le nom, jamais mélangée à .nom-affichage (voir CLAUDE.md,
-     "se balade" signalé par l'étude) : sa position ne dépend plus de la longueur du nom. */
-  .dossier-lien-local-ligne { margin: 2px 0 0; }
   .nom-texte {
     font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif;
     font-size: 19px;
@@ -3521,38 +3661,8 @@
   }
   .dossier-nom-input:focus { outline: none; }
 
-  .dossier-head .addr {
-    font-size: 13.5px;
-    color: var(--ink-soft);
-  }
 
-  /* Champs texte libres (adresse/prix, détectés automatiquement — voir CLAUDE.md) : soulignement en
-     tirets, pas de cadre plein, curseur texte. Chacun occupe sa propre ligne (voir
-     .dossier-info-ligne) et s'étire donc pleine largeur, plus de largeur fixe par champ.
-     Sélecteur préfixé par `input` (pas juste `.input-inline`) : la règle générique
-     `input[type="text"], ... { width:100%; ... }` combine élément+attribut, une spécificité qu'une
-     simple classe seule ne bat pas — sans ce préfixe, .input-inline perdrait bordure/fond/padding. */
-  input.input-inline {
-    font-family: inherit;
-    font-size: 13.5px;
-    color: var(--ink-soft);
-    background: transparent;
-    border: none;
-    border-bottom: 1px dashed var(--line);
-    padding: 0 2px;
-    width: auto;
-    max-width: none;
-    min-width: 0;
-    display: inline;
-    cursor: text;
-  }
-  input.input-inline:hover { color: var(--ink); border-bottom-color: var(--ink-soft); }
-  input.input-inline:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-  input.input-inline::placeholder { color: var(--muted); font-style: italic; }
 
-  /* Apport estimé (voir calculerApport) : petit cercle coloré + texte, même logique de couleur que
-     .badge-statut (succès/pret-amber/urgent, aucune couleur inventée pour l'occasion). */
-  .apport-ligne { margin-top: 4px; display: flex; align-items: center; gap: 6px; }
   .apport-cercle {
     display: inline-block;
     width: 10px;
@@ -3564,12 +3674,6 @@
   .apport-cercle.apport-pret { background: var(--pret); }
   .apport-cercle.apport-urgent { background: var(--urgent); }
 
-  /* "Achat comptant" (.badge-cash) : simple métadonnée, pas une alerte — .dot-label dl-neutre
-     (voir plus haut), pas de fond inventé pour l'occasion. Marge de séparation propre à sa
-     position dans la classification, portée par cette classe plutôt que par .dot-label lui-même.
-     ("Participant", même traitement à l'origine, retiré : redondant avec le sélecteur "Rôle du
-     notaire" toujours visible juste en dessous, incohérent puisqu'absent pour "Instrumentaire". */
-  .badge-cash { margin-top: 6px; }
 
   .icon-btn {
     background: none;
@@ -3864,35 +3968,8 @@
      que le tiroir de la fiche est refermé (fermerDossierDrawer), une fois la pièce "vue". */
   .notif-nouveau-tag { margin-left: 6px; }
 
-  /* Étiquette "Exporter" au-dessus des deux boutons, même registre que "Relancer par email"
-     juste au-dessus (voir .relances-ciblees/.relances-boutons, même schéma 14px/6px). */
-  .dossier-actions-titre { display: block; margin: 14px 0 6px; }
 
-  /* Les actions tiennent sur une seule ligne (demandé par l'étude), à largeurs égales :
-     flex-wrap est désactivé et chaque bouton se partage la place, ce qui les fait aussi lire
-     comme un seul bloc plutôt que des pastilles de longueurs disparates. Réduites à deux boutons
-     (Rappels .ics / Imprimer) depuis le retrait définitif du rappel par email générique, remplacé
-     par les rappels automatiques Teams — voir CLAUDE.md. */
-  .dossier-actions {
-    display: flex;
-    flex-wrap: nowrap;
-    gap: 8px;
-  }
 
-  .dossier-actions button {
-    flex: 1 1 0;
-    min-width: 0;
-    white-space: nowrap;
-    font-family: inherit;
-    font-size: 13px;
-    padding: 7px 10px;
-    border-radius: 20px;
-    border: 1px solid var(--line);
-    background: var(--paper-card);
-    color: var(--ink-soft);
-    cursor: pointer;
-  }
-  .dossier-actions button:hover { color: var(--ink); border-color: var(--ink-soft); }
 
   /* ---- en-tête et thème ---- */
   .header-top {
@@ -3966,8 +4043,8 @@
   /* ---- impression : une feuille A4 propre par dossier ---- */
   @media print {
     body { background: #fff; color: #000; font-size: 11pt; }
-    .panel, .pdf-viewer, .list-toolbar, .dossier-actions, .dossier-actions-titre, .relances-ciblees, .envoi-action, .theme-btn,
-    .confirm-overlay, .toast, footer.note, .historique-toggle, .dash-avancement,
+    .panel, .pdf-viewer, .list-toolbar, .relances-ciblees, .envoi-action, .theme-btn,
+    .confirm-overlay, .toast, footer.note, .dash-avancement,
     .sidebar, .sidebar-burger, .sidebar-scrim, .dash-header, .kpis-dashboard, .actions-urgentes,
     .dash-nouveautes, .dash-rail, .dash-section-titre { display: none !important; }
     .app-main { padding: 0; }
@@ -3984,7 +4061,6 @@
     .dossier:last-child { page-break-after: auto; }
     .dossier-nom-input { border: none; font-size: 18pt; padding: 0; }
     .nom-texte { font-size: 18pt; }
-    .dossier-body { display: block; }
     /* La fiche n'est plus dans le flux de la page mais dans un tiroir fixe : à l'impression on le
        remet dans le flux, on masque tout le reste de l'application, et on imprime la seule fiche
        ouverte. Le sélecteur est ancré sur body.drawer-ouvert pour que le tiroir fermé (masqué par
@@ -4005,27 +4081,15 @@
       padding: 0;
       animation: none;
     }
-    .drawer-barre { display: none !important; }
+    .fiche-barre, .fiche-onglets, .fiche-laterale, .fiche-progression, .fiche-progression-detail { display: none !important; }
+    .fiche-panneau[hidden] { display: block !important; }
+    .fiche-proprietes input.prop-champ, .fiche-proprietes select.prop-champ { border: none; background: none; box-shadow: none; }
     .tabs { display: block; }
     .tab { border: 1px solid #999; margin-bottom: 6pt; padding: 6pt; background: #fff !important; }
-    .historique-liste { display: block !important; }
     .analyse-juridique { background: #fff; border: 1px solid #999; }
-    .icon-btn, .tab-select-icone-wrap, .icon-crayon, .icon-valider, .nom-edition, .tab-date-edition, .select-classif, .tab-suppr, .ajout-echeance-btn, .ajout-echeance-form, .piece-suppr, .piece-reinit, .piece-valider, .ajout-piece-btn, .ajout-piece-form, .diagnostic-parcours, .extraction-dossier, .engagement-suppr, .analyse-doc-suppr, .analyse-engagement-edition, .ajout-engagement-btn, .ajout-engagement-form { display: none !important; }
+    .icon-btn, .tab-select-icone-wrap, .icon-crayon, .icon-valider, .nom-edition, .tab-date-edition, .tab-suppr, .ajout-echeance-btn, .ajout-echeance-form, .piece-suppr, .piece-reinit, .piece-valider, .ajout-piece-btn, .ajout-piece-form, .diagnostic-parcours, .extraction-dossier, .engagement-suppr, .analyse-doc-suppr, .analyse-engagement-edition, .ajout-engagement-btn, .ajout-engagement-form { display: none !important; }
   }
 
-  .analyse-repliable > summary {
-    cursor: pointer;
-    list-style: none;
-    margin-bottom: 0;
-  }
-  .analyse-repliable[open] > summary { margin-bottom: 14px; }
-  .analyse-repliable > summary::-webkit-details-marker { display: none; }
-  .analyse-repliable > summary::after {
-    content: " ▸";
-    color: var(--muted);
-    font-size: 11px;
-  }
-  .analyse-repliable[open] > summary::after { content: " ▾"; }
 
   /* ---- wizard "Nouveau dossier" (Importer / Vérifier / Finaliser) ---- */
   .wizard-stepper {
@@ -4107,7 +4171,6 @@
   [data-theme="dark"] button.secondary,
   [data-theme="dark"] .toolbar-btn,
   [data-theme="dark"] .mini-btn,
-  [data-theme="dark"] .dossier-actions button,
   [data-theme="dark"] .file-btn,
   [data-theme="dark"] .pdf-viewer-nav button {
     background: #2E2E2E;
@@ -4117,7 +4180,6 @@
   [data-theme="dark"] button.secondary:hover,
   [data-theme="dark"] .toolbar-btn:hover,
   [data-theme="dark"] .mini-btn:hover,
-  [data-theme="dark"] .dossier-actions button:hover,
   [data-theme="dark"] .file-btn:hover {
     background: #383838;
     border-color: var(--focus);
