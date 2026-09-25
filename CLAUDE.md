@@ -7841,6 +7841,31 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     vrai Chromium (clair, sombre, 400 px) : jour sélectionné, semaine suivante, aucun débordement.
     Ne parvient au bureau qu'avec le prochain `CLAIRE-serveur.exe`.
 
+- **Carte « Alertes importantes » + « Mes rappels »**, à partir d'une seconde maquette de l'étude
+  (carte « Alertes importantes » avec icône et gravité Critique / Vigilance / Information, puis une
+  liste « Mes rappels » à cocher). Arbitrages demandés et obtenus : la carte s'ajoute **en plus**
+  d'Actions urgentes (pas à sa place), et les rappels sont **libres, saisis par chacun, éventuellement
+  rattachés à un dossier**. Placée en tête de la colonne de gauche, même gabarit que la carte Agenda.
+  - `alertesImportantes(dossiers, aujourdhuiIso)` (pure) ne retient que ce qui appelle un geste :
+    offre de prêt non reçue à 15 jours ou moins du butoir du prêt (critique à 7 j), rendez-vous de
+    signature à 7 jours ou moins avec l'appel de fonds ou le projet non envoyé (critique à 2 j),
+    signature fixée après la date butoir, date butoir à 15 jours sans rendez-vous (critique à 5 j),
+    vente préalable non confirmée à 7 jours, et en Information un dossier complet sans rendez-vous.
+    Tri gravité puis proximité, 5 affichées, le reste renvoie au Suivi. « Traiter » ouvre la
+    première. Suit le périmètre du tableau de bord (ses dossiers, ou tous). Couleurs : `--urgent`,
+    `--pret`, `--focus`.
+  - **Mes rappels** : texte, échéance et dossier facultatifs, case à cocher, croix au survol. Stockés
+    **sur le serveur** (clé `rappels-perso`, `server/src/routes/rappelsPerso.js`, POST un rappel à la
+    fois fusionné par id, DELETE par id, GET filtré par `?auteur=` — sans auteur, rien : jamais la
+    liste de tout le bureau), pour les retrouver sur n'importe quel poste. Chacun ne voit que les
+    siens, y compris l'administrateur. Les rappels cochés restent visibles barrés jusqu'au soir
+    (`rappelsAffiches`, pure), l'échéance se lit « Aujourd'hui / Demain / Lundi / En retard de 2 j »
+    (`libelleEcheanceRappel`). Sans collaborateur choisi, la carte invite à le faire. Relus au
+    démarrage, au changement de collaborateur et à chaque retour sur le tableau de bord.
+  - Tests : +2 dans `tests/collaborateur-poste.test.js`, `server/test/rappels-perso.test.js` (2).
+    Suites : racine 810, serveur 371. Vérifié dans un vrai Chromium (clair, sombre, 400 px) : trois
+    rappels ajoutés, un coché, un supprimé, tout relu après rechargement.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

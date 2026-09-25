@@ -20,6 +20,7 @@ const { creerRouteurSauvegarde } = require('./routes/sauvegarde');
 const { creerRouteurNotifications } = require('./routes/notifications');
 const { creerRouteurExclusionsPieces } = require('./routes/exclusionsPieces');
 const { creerRouteurCorrectionsApprises } = require('./routes/correctionsApprises');
+const { creerRouteurRappelsPerso } = require('./routes/rappelsPerso');
 const { creerRouteurRelectureClaude } = require('./routes/relectureClaude');
 const { creerRouteurRelectures } = require('./routes/relectures');
 const { creerRouteurSignalements } = require('./routes/signalements');
@@ -126,6 +127,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, miseAJour, ag
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAuditRetours(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExclusionsPieces(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurCorrectionsApprises(parametresRepo));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRappelsPerso(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRelectureClaude(parametresRepo, db, { creerClient: creerClientClaude }));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRelectures(db));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurSignalements(db, parametresRepo, envoyerEmailFn));

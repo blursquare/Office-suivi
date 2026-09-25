@@ -80,6 +80,48 @@ function assainirCorrectionsApprises(brut) {
   return liste;
 }
 
+// « Mes rappels » du tableau de bord : les choses à faire que chaque collaborateur note pour
+// lui-même, éventuellement rattachées à un dossier. En base plutôt que dans le navigateur, pour les
+// retrouver depuis n'importe quel poste. Même principe que les corrections apprises : chaque poste
+// envoie le seul rappel qu'il crée ou modifie, fusionné par identifiant.
+const CLE_RAPPELS_PERSO = 'rappels-perso';
+const MAX_RAPPELS_PERSO = 2000;
+
+function assainirRappelPerso(brut) {
+  const b = brut && typeof brut === 'object' ? brut : null;
+  if (!b || typeof b.id !== 'string' || !/^[A-Za-z0-9_.-]{1,80}$/.test(b.id)) return null;
+  const texte = typeof b.texte === 'string' ? b.texte.trim().slice(0, 200) : '';
+  const auteur = typeof b.auteur === 'string' ? b.auteur.trim().slice(0, 80) : '';
+  if (!texte || !auteur) return null;
+  const date = (v) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : '');
+  return {
+    id: b.id,
+    auteur,
+    texte,
+    echeance: date(b.echeance),
+    dossierId: typeof b.dossierId === 'string' ? b.dossierId.slice(0, 80) : '',
+    fait: !!b.fait,
+    faitLe: b.fait && typeof b.faitLe === 'string' ? b.faitLe.slice(0, 40) : '',
+    creeLe: typeof b.creeLe === 'string' ? b.creeLe.slice(0, 40) : new Date().toISOString()
+  };
+}
+
+// Au-delà du plafond, les rappels faits les plus anciens partent en premier.
+function assainirRappelsPerso(brut) {
+  if (!Array.isArray(brut)) return [];
+  const parId = new Map();
+  for (const r of brut) {
+    const propre = assainirRappelPerso(r);
+    if (propre) parId.set(propre.id, propre);
+  }
+  let liste = Array.from(parId.values());
+  if (liste.length > MAX_RAPPELS_PERSO) {
+    liste.sort((a, b) => (a.fait - b.fait) || String(b.faitLe || b.creeLe).localeCompare(String(a.faitLe || a.creeLe)));
+    liste = liste.slice(0, MAX_RAPPELS_PERSO);
+  }
+  return liste;
+}
+
 // Sauvegarde automatique de la base (voir sauvegarde.js) : le dossier de destination choisi dans
 // les Réglages, et l'état des dernières tentatives. Deux clés à part du blob `reglages`, comme le
 // compte rendu des rappels : l'état est produit par le serveur, pas saisi par l'étude.
@@ -514,6 +556,22 @@ function creerRepoParametres(db) {
     return propre;
   }
 
+  function lireRappelsPerso() {
+    const ligne = lireStmt.get(CLE_RAPPELS_PERSO);
+    if (!ligne) return [];
+    try {
+      return assainirRappelsPerso(JSON.parse(ligne.valeur));
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function ecrireRappelsPerso(rappels) {
+    const propre = assainirRappelsPerso(rappels);
+    ecrireStmt.run(CLE_RAPPELS_PERSO, JSON.stringify(propre));
+    return propre;
+  }
+
   function lireReglageSauvegarde() {
     const ligne = lireStmt.get(CLE_REGLAGE_SAUVEGARDE);
     try {
@@ -603,13 +661,15 @@ function creerRepoParametres(db) {
     lireReglages, ecrireReglages, lireDernierTour, ecrireDernierTour,
     lireCopiesEnAttente, ecrireCopiesEnAttente, lireRetoursAudit, ecrireRetoursAudit,
     lireReglagesClaude, ecrireReglagesClaude, lireSecretLiens,
-    lireExclusionsPieces, ecrireExclusionsPieces, lireCorrectionsApprises, ecrireCorrectionsApprises
+    lireExclusionsPieces, ecrireExclusionsPieces, lireCorrectionsApprises, ecrireCorrectionsApprises,
+    lireRappelsPerso, ecrireRappelsPerso
   };
 }
 
 module.exports = {
   creerRepoParametres, assainirReglages, assainirEtatSauvegarde, assainirExclusionsPieces, assainirCorrectionApprise, assainirCorrectionsApprises, MAX_CORRECTIONS_APPRISES, assainirDernierTour, assainirCopiesEnAttente,
   assainirRetourAudit, assainirRetoursAudit, MAX_RETOURS_AUDIT,
+  assainirRappelPerso, assainirRappelsPerso, MAX_RAPPELS_PERSO,
   assainirReglagesClaude, assainirReglagesMiseAJour, MODELES_CLAUDE, MODELE_CLAUDE_PAR_DEFAUT,
   assainirReglagesAgenda, assainirDernierTourAgenda,
   REGLAGES_PAR_DEFAUT, PORT_SMTP_PAR_DEFAUT

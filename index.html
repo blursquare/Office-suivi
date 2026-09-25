@@ -140,9 +140,14 @@
        tuile KPI garde le compte. Chaque colonne se masque entière quand elle est vide, pour ne pas
        laisser d'étiquette orpheline. -->
   <div class="dash-grid">
-    <div class="dash-col">
+    <div class="dash-col dash-col-gauche">
+      <!-- Alertes importantes + Mes rappels (voir renderAlertesDashboard) : les points qui
+           demandent une décision, puis la liste personnelle du collaborateur du poste. -->
+      <div class="agenda-carte alertes-carte" id="alertes-dashboard"></div>
+      <div>
       <div class="dash-section-titre">Actions urgentes</div>
       <div id="actions-urgentes" class="actions-urgentes"></div>
+      </div>
     </div>
     <div class="dash-col dash-col-droite">
       <!-- Carte Agenda : semaine, rendez-vous de signature, état des envois (voir

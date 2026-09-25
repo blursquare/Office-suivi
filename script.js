@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-25 21:06';
+  const VERSION_APP = '2026-09-25 21:14';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-25 21:14', resume: "Tableau de bord : carte « Alertes importantes » (points qui demandent une décision, par gravité) et « Mes rappels », liste personnelle enregistrée sur le serveur." },
     { version: '2026-09-25 21:06', resume: "Tableau de bord : carte Agenda (semaine, rendez-vous de signature avec heure et lieu lus dans l'agenda de l'office, état de l'appel de fonds et du projet)." },
     { version: '2026-09-25 21:01', resume: "Tableau de bord adapté au collaborateur du poste : ses dossiers par défaut (vue globale pour l'administrateur), accueil, rendez-vous de signature à 15 jours avec l'état des envois, auteur dans l'historique." },
     { version: '2026-09-25 15:31', resume: "Agenda de l'office : un rendez-vous intitulé « VENTE NOM DU DOSSIER » est reconnu comme « VTE - NOM DU DOSSIER »." },
@@ -10739,6 +10740,8 @@
     document.getElementById('tab-analyse-ia').classList.toggle('actif', nom === 'analyse-ia');
     document.getElementById('tab-reglages').classList.toggle('actif', nom === 'reglages');
     if (nom === 'suivi') appliquerFiltreSuiviCollaborateur();
+    // Relu à chaque retour sur le tableau de bord : un rappel ajouté depuis un autre poste.
+    if (nom === 'dashboard' && typeof chargerRappelsPerso === 'function' && authToken) chargerRappelsPerso();
     if (nom === 'suivi' || nom === 'dashboard') render();
     // Vérifiée à chaque ouverture (appel léger) plutôt qu'une fois pour toutes : Ollama a pu être
     // installé/démarré/arrêté sur le serveur depuis la dernière visite de cet onglet.
@@ -11359,7 +11362,11 @@
     const resp = document.getElementById('f-responsable');
     if (resp && !resp.value && valide) resp.value = valide;
     fermerChoixPoste();
+    ajoutRappelOuvert = false;
+    rappelsPerso = [];
+    rappelsPersoCharges = false;
     render();
+    chargerRappelsPerso();
   }
 
   function initUtilisateurPoste() {
@@ -11541,6 +11548,245 @@
       </div>`;
   }
 
+  // ---- Alertes importantes et « Mes rappels » (tableau de bord) ----
+  // Maquette envoyée par l'étude : une carte « Alertes importantes » (en plus d'Actions urgentes,
+  // choix de l'étude) qui ne garde que les points qui demandent une décision, avec une gravité
+  // lisible d'un coup d'œil, puis « Mes rappels », la liste de choses à faire que chacun note pour
+  // lui-même (enregistrée sur le serveur, voir server/src/routes/rappelsPerso.js).
+  var MAX_ALERTES_AFFICHEES = 5;
+  var ORDRE_GRAVITE_ALERTE = { critique: 0, vigilance: 1, info: 2 };
+  var LIBELLES_GRAVITE_ALERTE = { critique: 'Critique', vigilance: 'Vigilance', info: 'Information' };
+
+  function libelleDelaiAlerte(j) {
+    if (j === null || j === undefined) return '';
+    if (j < 0) return `dépassé de ${-j} j`;
+    return j === 0 ? "aujourd'hui" : `J-${j}`;
+  }
+
+  // Pure et testable : les points qui demandent une décision, du plus grave au moins grave puis du
+  // plus proche au plus lointain. Chaque règle correspond à un geste précis — relancer l'offre,
+  // envoyer l'appel de fonds ou le projet, fixer le rendez-vous — jamais un simple constat.
+  function alertesImportantes(dossiersActifs, aujourdhuiIso) {
+    const alertes = [];
+    const ajouter = (d, gravite, titre, detail, jours) => alertes.push({ dossier: d, gravite, titre, detail, jours });
+    const court = (iso) => new Date(iso + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+    for (const d of dossiersActifs || []) {
+      if (!d || d.archive) continue;
+      // Offre de prêt pas encore reçue à l'approche (ou au-delà) de la date butoir du prêt.
+      if (!d.sansPret && d.pret && !echeanceValidee(d, 'pret')) {
+        const j = ecartJours(aujourdhuiIso, d.pret);
+        if (j !== null && j <= 15) {
+          const titre = j < 0 ? 'Date butoir du prêt dépassée sans offre'
+            : d.offrePretStatut === 'manquante' ? 'Offre de prêt introuvable' : 'Offre de prêt non reçue';
+          ajouter(d, j <= 7 ? 'critique' : 'vigilance', titre, `Butoir du prêt le ${court(d.pret)}`, j);
+        }
+      }
+      // Rendez-vous de signature proche alors qu'un envoi manque encore.
+      if (d.rendezVousSignature) {
+        const j = ecartJours(aujourdhuiIso, d.rendezVousSignature);
+        if (j !== null && j >= 0 && j <= 7) {
+          const af = echeanceValidee(d, 'appelFonds');
+          const pr = echeanceValidee(d, 'projetEnvoye');
+          if (!af || !pr) {
+            const titre = !af && !pr ? 'Appel de fonds et projet non envoyés' : !af ? 'Appel de fonds non envoyé' : 'Projet non envoyé';
+            const heure = plageHoraireRendezVous(d.rendezVousSignatureHeure, '');
+            ajouter(d, j <= 2 ? 'critique' : 'vigilance', titre, `Signature le ${court(d.rendezVousSignature)}${heure ? ' à ' + heure : ''}`, j);
+          }
+        }
+        // Signature fixée après la date butoir de l'avant-contrat.
+        if (d.acte && j !== null && j >= 0) {
+          const ecart = ecartJours(d.acte, d.rendezVousSignature);
+          if (ecart > 0) ajouter(d, 'vigilance', `Signature ${ecart} j après la date butoir`, `Butoir le ${court(d.acte)}, signature le ${court(d.rendezVousSignature)}`, j);
+        }
+      } else if (d.acte) {
+        // Date butoir proche, et aucun rendez-vous de signature fixé.
+        const j = ecartJours(aujourdhuiIso, d.acte);
+        if (j !== null && j <= 15) ajouter(d, j <= 5 ? 'critique' : 'vigilance', 'Aucun rendez-vous de signature fixé', `Date butoir le ${court(d.acte)}`, j);
+      }
+      // Vente préalable qui approche sans être confirmée.
+      if (d.ventebien && !echeanceValidee(d, 'ventebien')) {
+        const j = ecartJours(aujourdhuiIso, d.ventebien);
+        if (j !== null && j <= 7) ajouter(d, j < 0 ? 'critique' : 'vigilance', 'Vente préalable non confirmée', `Prévue le ${court(d.ventebien)}`, j);
+      }
+      // Dossier complet sans rendez-vous : il n'attend plus que d'être fixé.
+      if (!d.rendezVousSignature && dossierEntierementComplet(d)) {
+        ajouter(d, 'info', 'Dossier complet — rendez-vous à fixer', 'Offre et pièces reçues', null);
+      }
+    }
+    return alertes.sort((a, b) => (ORDRE_GRAVITE_ALERTE[a.gravite] - ORDRE_GRAVITE_ALERTE[b.gravite])
+      || ((a.jours === null ? 999 : a.jours) - (b.jours === null ? 999 : b.jours)));
+  }
+
+  // Pure : l'échéance d'un rappel, dite comme on la dirait.
+  function libelleEcheanceRappel(iso, aujourdhuiIso) {
+    if (!iso) return '';
+    const j = ecartJours(aujourdhuiIso, iso);
+    if (j === null) return '';
+    if (j < 0) return `En retard de ${-j} j`;
+    if (j === 0) return "Aujourd'hui";
+    if (j === 1) return 'Demain';
+    const dt = new Date(iso + 'T00:00:00');
+    if (j < 7) { const n = dt.toLocaleDateString('fr-FR', { weekday: 'long' }); return n.charAt(0).toUpperCase() + n.slice(1); }
+    return dt.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  }
+
+  // Pure : les rappels à afficher — à faire d'abord (par échéance, les sans-date à la fin), puis
+  // ceux cochés AUJOURD'HUI, barrés, pour voir ce qui a été fait dans la journée.
+  function rappelsAffiches(rappels, aujourdhuiIso) {
+    const l = Array.isArray(rappels) ? rappels : [];
+    const aFaire = l.filter(r => !r.fait).sort((a, b) => (a.echeance || '9999').localeCompare(b.echeance || '9999') || String(a.creeLe).localeCompare(String(b.creeLe)));
+    const faits = l.filter(r => r.fait && String(r.faitLe || '').slice(0, 10) === aujourdhuiIso);
+    return aFaire.concat(faits);
+  }
+
+  let rappelsPerso = [];
+  let rappelsPersoCharges = false;
+  let ajoutRappelOuvert = false;
+
+  async function chargerRappelsPerso() {
+    if (!utilisateurPoste) { rappelsPerso = []; rappelsPersoCharges = true; return; }
+    try {
+      const reponse = await fetchAvecAuth('/api/rappels-perso?auteur=' + encodeURIComponent(utilisateurPoste));
+      if (reponse.ok) rappelsPerso = (await reponse.json()).rappels || [];
+    } catch (e) { console.warn('Rappels indisponibles :', e.message); }
+    rappelsPersoCharges = true;
+    renderAlertesDashboard(dossiersPerimetreDashboard());
+  }
+
+  async function enregistrerRappelPerso(rappel) {
+    try {
+      const reponse = await fetchAvecAuth('/api/rappels-perso', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rappel })
+      });
+      if (!reponse.ok) throw new Error((await reponse.json().catch(() => ({}))).erreur || `HTTP ${reponse.status}`);
+    } catch (e) {
+      afficherToast(`Rappel non enregistré : ${e.message}`, 'OK', null);
+      chargerRappelsPerso();
+    }
+  }
+
+  function dossiersPerimetreDashboard() {
+    return dossiersDuPerimetre(dossiers, utilisateurPoste, vueGlobaleDashboard()).filter(d => !d.archive);
+  }
+
+  function ouvrirAjoutRappel(ouvrir) {
+    ajoutRappelOuvert = !!ouvrir;
+    renderAlertesDashboard(dossiersPerimetreDashboard());
+    if (ajoutRappelOuvert) setTimeout(() => { const c = document.getElementById('rappel-perso-texte'); if (c) c.focus(); }, 0);
+  }
+
+  function ajouterRappelPerso() {
+    const texte = (document.getElementById('rappel-perso-texte').value || '').trim();
+    if (!texte || !utilisateurPoste) return;
+    const rappel = {
+      id: 'rp-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7),
+      auteur: utilisateurPoste,
+      texte: texte.slice(0, 200),
+      echeance: document.getElementById('rappel-perso-date').value || '',
+      dossierId: document.getElementById('rappel-perso-dossier').value || '',
+      fait: false,
+      faitLe: '',
+      creeLe: new Date().toISOString()
+    };
+    rappelsPerso.push(rappel);
+    ajoutRappelOuvert = false;
+    renderAlertesDashboard(dossiersPerimetreDashboard());
+    enregistrerRappelPerso(rappel);
+  }
+
+  function basculerRappelPerso(id) {
+    const r = rappelsPerso.find(x => x.id === id);
+    if (!r) return;
+    r.fait = !r.fait;
+    r.faitLe = r.fait ? new Date().toISOString() : '';
+    renderAlertesDashboard(dossiersPerimetreDashboard());
+    enregistrerRappelPerso(r);
+  }
+
+  async function supprimerRappelPerso(id) {
+    rappelsPerso = rappelsPerso.filter(x => x.id !== id);
+    renderAlertesDashboard(dossiersPerimetreDashboard());
+    try { await fetchAvecAuth('/api/rappels-perso/' + encodeURIComponent(id), { method: 'DELETE' }); }
+    catch (e) { afficherToast(`Rappel non supprimé : ${e.message}`, 'OK', null); chargerRappelsPerso(); }
+  }
+
+  function renderMesRappels(perimetreActifs) {
+    if (!utilisateurPoste) {
+      return `<div class="rappels-perso-vide">Pour noter vos rappels, <button type="button" class="lien-discret" onclick="ouvrirChoixPoste()">indiquez qui utilise ce poste</button>.</div>`;
+    }
+    const aujourdhui = isoAujourdhuiLocal();
+    const liste = rappelsAffiches(rappelsPerso, aujourdhui);
+    const lignes = liste.map(r => {
+      const d = r.dossierId ? dossiers.find(x => x.id === r.dossierId) : null;
+      const quand = libelleEcheanceRappel(r.echeance, aujourdhui);
+      const enRetard = !r.fait && r.echeance && r.echeance < aujourdhui;
+      const sous = [quand, d ? libelleDossierAffiche(d) : ''].filter(Boolean);
+      return `
+        <div class="rappel-perso${r.fait ? ' fait' : ''}">
+          <button type="button" class="rappel-perso-case" role="checkbox" aria-checked="${r.fait}" onclick="basculerRappelPerso('${escapeOnclickArg(r.id)}')" aria-label="${r.fait ? 'Marquer à faire' : 'Marquer fait'} : ${escapeAttr(r.texte)}">${r.fait ? icone('check') : ''}</button>
+          <div class="rappel-perso-texte">
+            <span class="rappel-perso-titre">${escapeHtml(r.texte)}</span>
+            ${sous.length ? `<span class="rappel-perso-sous${enRetard ? ' retard' : ''}">${sous.map((s, i) => i === 1 && d ? `<button type="button" class="lien-discret" onclick="ouvrirDossierDepuisDashboard('${d.id}')">${escapeHtml(s)}</button>` : escapeHtml(s)).join(' · ')}</span>` : ''}
+          </div>
+          <button type="button" class="rappel-perso-suppr" onclick="supprimerRappelPerso('${escapeOnclickArg(r.id)}')" aria-label="Supprimer le rappel" title="Supprimer">${icone('x')}</button>
+        </div>`;
+    }).join('');
+    const options = perimetreActifs.slice().sort((a, b) => String(a.nom).localeCompare(String(b.nom)))
+      .map(d => `<option value="${escapeAttr(d.id)}">${escapeHtml(libelleDossierAffiche(d))}</option>`).join('');
+    const formulaire = ajoutRappelOuvert ? `
+      <form class="rappel-perso-form" onsubmit="event.preventDefault(); ajouterRappelPerso();">
+        <input type="text" id="rappel-perso-texte" maxlength="200" placeholder="Ex. Relancer le syndic pour l'état daté" required>
+        <div class="rappel-perso-form-ligne">
+          <input type="date" id="rappel-perso-date" aria-label="Échéance">
+          <select id="rappel-perso-dossier" aria-label="Dossier"><option value="">Sans dossier</option>${options}</select>
+        </div>
+        <div class="rappel-perso-form-ligne">
+          <button type="submit" class="primary">Ajouter</button>
+          <button type="button" class="secondary" onclick="ouvrirAjoutRappel(false)">Annuler</button>
+        </div>
+      </form>` : `<button type="button" class="action-rapide rappel-perso-ajout" onclick="ouvrirAjoutRappel(true)">+ Ajouter un rappel</button>`;
+    return `${lignes || (rappelsPersoCharges ? '<div class="rappels-perso-vide">Aucun rappel pour le moment.</div>' : '')}${formulaire}`;
+  }
+
+  function renderAlertesDashboard(perimetreActifs) {
+    const bloc = document.getElementById('alertes-dashboard');
+    if (!bloc) return;
+    const global = vueGlobaleDashboard();
+    const alertes = alertesImportantes(perimetreActifs, isoAujourdhuiLocal());
+    const visibles = alertes.slice(0, MAX_ALERTES_AFFICHEES);
+    const nbDecision = alertes.filter(a => a.gravite !== 'info').length;
+    const sousTitre = alertes.length === 0 ? 'Rien ne demande de décision.'
+      : nbDecision ? `${nbDecision} point${nbDecision > 1 ? 's' : ''} nécessite${nbDecision > 1 ? 'nt' : ''} une décision`
+        : `${alertes.length} point${alertes.length > 1 ? 's' : ''} à noter`;
+    const lignes = visibles.map(a => {
+      const meta = [LIBELLES_GRAVITE_ALERTE[a.gravite], libelleDelaiAlerte(a.jours)].filter(Boolean);
+      const sous = [libelleDossierAffiche(a.dossier), a.detail, global && a.dossier.responsable ? prenomCollaborateur(a.dossier.responsable) : ''].filter(Boolean);
+      return `
+        <button type="button" class="alerte-ligne g-${a.gravite}" onclick="ouvrirDossierDepuisDashboard('${a.dossier.id}')">
+          <span class="alerte-icone" aria-hidden="true">${icone(a.gravite === 'info' ? 'info' : 'alert-triangle')}</span>
+          <span class="alerte-texte">
+            <span class="alerte-titre">${escapeHtml(a.titre)}</span>
+            <span class="alerte-sous">${sous.map(escapeHtml).join(' · ')}</span>
+            <span class="alerte-meta"><span class="alerte-gravite">${escapeHtml(meta[0])}</span>${meta[1] ? ' · ' + escapeHtml(meta[1]) : ''}</span>
+          </span>
+        </button>`;
+    }).join('');
+    const reste = alertes.length - visibles.length;
+    bloc.innerHTML = `
+      <div class="alertes-entete">
+        <div>
+          <div class="agenda-titre">Alertes importantes</div>
+          <div class="agenda-mois">${escapeHtml(sousTitre)}</div>
+        </div>
+        ${visibles.length ? `<button type="button" class="lien-action" onclick="ouvrirDossierDepuisDashboard('${visibles[0].dossier.id}')">Traiter</button>` : ''}
+      </div>
+      ${lignes ? `<div class="alertes-liste">${lignes}${reste > 0 ? `<button type="button" class="urgent-groupe-reste" onclick="definirOnglet('suivi')">et ${reste} autre${reste > 1 ? 's' : ''} — voir le Suivi</button>` : ''}</div>` : ''}
+      <div class="rappels-perso">
+        <div class="section-eyebrow">Mes rappels</div>
+        ${renderMesRappels(perimetreActifs)}
+      </div>`;
+  }
+
   function render() {
     const list = document.getElementById('dossier-list');
     const count = document.getElementById('dossier-count');
@@ -11564,6 +11810,7 @@
     renderKpisDashboard(perimetreActifs, perimetreTous);
     renderAccueilDashboard(perimetreActifs, calculerStatsPortefeuille(perimetreActifs));
     renderRendezVousDashboard(perimetreActifs);
+    renderAlertesDashboard(perimetreActifs);
     renderActionsUrgentes(perimetreActifs);
     renderPiecesRecuesDashboard(perimetreActifs);
     renderRechercheDashboard(dossiersActifs);
@@ -13593,6 +13840,7 @@
     initUtilisateurPoste();
     await charger();
     demanderUtilisateurPosteSiInconnu();
+    chargerRappelsPerso();
     await chargerEtatNas();
     // Avant toute relecture du NAS : un parcours lancé sans elles reconnaîtrait des fichiers que
     // l'étude a écartés.

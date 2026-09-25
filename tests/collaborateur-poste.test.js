@@ -92,3 +92,35 @@ test('plageHoraireRendezVous et tri par heure dans la journée', () => {
   assert.equal(r.map(x => x.dossier.id).join(','), 'c,a,b');
   assert.equal(r[0].lieu, 'Office');
 });
+
+test('alertesImportantes : gravité, ordre, et rien quand tout est en ordre', () => {
+  const l = [
+    { id: 'a', nom: 'A', pret: '2026-09-28', offrePretStatut: 'manquante' },            // butoir J-3 → critique
+    { id: 'b', nom: 'B', rendezVousSignature: '2026-10-01', echeancesValidees: { appelFonds: true } }, // J-6, projet manquant → vigilance
+    { id: 'c', nom: 'C', rendezVousSignature: '2026-09-26' },                            // J-1, rien envoyé → critique
+    { id: 'd', nom: 'D', acte: '2026-10-05' },                                           // butoir J-10 sans rdv → vigilance
+    { id: 'e', nom: 'E', pret: '2026-12-01', offrePretStatut: 'manquante' },            // loin → rien
+    { id: 'f', nom: 'F', pret: '2026-09-28', offrePretStatut: 'recue' }                 // offre reçue → rien
+  ];
+  const r = app.alertesImportantes(l, '2026-09-25');
+  assert.equal(r.map(a => a.dossier.id + ':' + a.gravite).join(','), 'c:critique,a:critique,b:vigilance,d:vigilance');
+  assert.equal(r[0].titre, 'Appel de fonds et projet non envoyés');
+  assert.equal(r[2].titre, 'Projet non envoyé');
+  assert.equal(app.libelleDelaiAlerte(-4), 'dépassé de 4 j');
+});
+
+test('rappels : libellé d’échéance et ordre d’affichage', () => {
+  assert.equal(app.libelleEcheanceRappel('2026-09-25', '2026-09-25'), "Aujourd'hui");
+  assert.equal(app.libelleEcheanceRappel('2026-09-26', '2026-09-25'), 'Demain');
+  assert.equal(app.libelleEcheanceRappel('2026-09-23', '2026-09-25'), 'En retard de 2 j');
+  assert.equal(app.libelleEcheanceRappel('2026-09-28', '2026-09-25'), 'Lundi');
+  assert.equal(app.libelleEcheanceRappel('', '2026-09-25'), '');
+  const l = [
+    { id: '1', texte: 'sans date', fait: false, creeLe: 'a' },
+    { id: '2', texte: 'demain', echeance: '2026-09-26', fait: false, creeLe: 'b' },
+    { id: '3', texte: 'fait hier', fait: true, faitLe: '2026-09-24T10:00:00Z' },
+    { id: '4', texte: 'fait ce jour', fait: true, faitLe: '2026-09-25T09:00:00Z' },
+    { id: '5', texte: 'aujourd’hui', echeance: '2026-09-25', fait: false, creeLe: 'c' }
+  ];
+  assert.equal(app.rappelsAffiches(l, '2026-09-25').map(r => r.id).join(','), '5,2,1,4');
+});
