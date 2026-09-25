@@ -8027,6 +8027,18 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   dans le tiroir et en mode agrandi, 850 → 448 px à 400 px de large. Vérifié dans Chromium (clair,
   sombre, agrandi, 400 px) : aucun débordement, aucune erreur JS.
 
+- **Moins de texte autour des envois d'email** (25/09 soir, « mets moins de texte pour décrire
+  les fonctions, par exemple pour les envois d'e-mail »). Onglet Échanges de la fiche : la phrase
+  qui décrivait chaque action est retirée quand le bouton suffit (questionnaire de satisfaction,
+  appel de fonds — leur effet passe en infobulle) ; il ne reste une ligne d'aide que pour dire ce
+  qui manque (« Renseignez l'email de l'acquéreur pour écrire. », « À saisir ensuite : la date du
+  rendez-vous. », « Adressé au notaire de l'acquéreur. »). Fenêtres ouvertes après un envoi :
+  « Brouillon ouvert — Relisez-le puis envoyez-le depuis votre messagerie. » (+ une phrase courte
+  sur la copie dans le presse-papiers, `PHRASE_COPIE_BROUILLON`), idem pour le `.ics` et le
+  questionnaire. **À garder** : un texte d'aide ne décrit pas ce que le bouton dit déjà ; il dit ce
+  qui manque ou ce qui ne se voit pas. Mesuré : onglet Échanges 216 → 125 px sur un dossier avec
+  confrère. Les autres écrans (Réglages, Relecture d'actes) ne sont pas touchés par ce lot.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

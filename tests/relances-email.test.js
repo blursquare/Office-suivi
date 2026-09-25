@@ -115,7 +115,7 @@ test('relances : ouvertes en participation, toujours routées vers le confrère 
   assert.match(participant, /envoyerRelanceCiblee\('d1', 'provision'\)/);
   const confrere = dossierBase(app, { roleNotaire: 'participant', notaireAcquereur: 'Maître DURAND', emailNotaireParticipant: 'durand@notaires.fr' });
   assert.equal(app.emailDestinataireRelance(confrere), 'durand@notaires.fr');
-  assert.match(app.renderRelancesCiblees(confrere), /adressées à son notaire/);
+  assert.match(app.renderRelancesCiblees(confrere), /Adressé au notaire de l.acquéreur/);
 });
 
 test('réception des fonds : bouton dans la carte « Envoi au client », seulement une fois l’appel de fonds validé', () => {

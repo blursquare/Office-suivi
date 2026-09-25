@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-25 23:19';
+  const VERSION_APP = '2026-09-25 23:22';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-25 23:22', resume: "Emails de la fiche : textes d'aide raccourcis (onglet Échanges, fenêtres après envoi)." },
     { version: '2026-09-25 23:19', resume: "Fiche dossier : informations du dossier sur deux colonnes, libellés courts à gauche — un tiers de hauteur en moins avant les onglets." },
     { version: '2026-09-25 22:51', resume: "Fiche dossier refaite : barre d'actions, propriétés modifiables sur place, avancement par étapes, onglets Échéances / Pièces / Analyse / Échanges / Historique, et mode agrandi sur deux colonnes." },
     { version: '2026-09-25 21:53', resume: "Tableau de bord : recherche et « + Nouveau dossier » sur la ligne du « Bonjour », titre agrandi, avancement limité à 6 dossiers." },
@@ -12335,7 +12336,7 @@
           ${alertes}
           ${blocs.join('')}
           ${lignesChamps}
-          <p class="hint">Relevé au moment de l’import, à titre d’explication : les valeurs enregistrées restent celles des champs ci-dessus, modifiables à tout moment.</p>
+          <p class="hint">Relevé à l’import, pour information.</p>
         </div>
       </details>
     `;
@@ -13271,7 +13272,7 @@
     URL.revokeObjectURL(url);
     afficherInfoAction(
       'Fichier .ics téléchargé',
-      "À importer dans Outlook (ou votre agenda) : il crée un événement pour l'obtention du prêt, avec ses rappels."
+      "Ouvrez-le dans Outlook : il ajoute l'échéance du prêt et ses rappels."
     );
   }
 
@@ -13336,7 +13337,7 @@
     return copie;
   }
 
-  var PHRASE_COPIE_BROUILLON = ' Le texte complet est aussi copié dans le presse-papiers : si le brouillon paraît coupé, collez-le (Ctrl+A puis Ctrl+V dans le corps).';
+  var PHRASE_COPIE_BROUILLON = ' Texte également copié : si le brouillon est coupé, Ctrl+A puis Ctrl+V.';
 
   function construireEmailRelancePret(d) {
     return {
@@ -13426,8 +13427,8 @@
     if (modele.date) render();
     const copie = ouvrirBrouillonEmail(destinataire, sujet, corps);
     afficherInfoAction(
-      "Brouillon d'email ouvert",
-      "L'envoi final reste un clic manuel dans votre messagerie : rien n'est envoyé automatiquement." + (copie ? PHRASE_COPIE_BROUILLON : '')
+      "Brouillon ouvert",
+      "Relisez-le puis envoyez-le depuis votre messagerie." + (copie ? PHRASE_COPIE_BROUILLON : '')
     );
   }
 
@@ -13450,7 +13451,7 @@
     return `<div class="classif-champ champ-email-relance">
       <label for="email-acq-${d.id}">Email de l’acquéreur</label>
       <input type="email" id="email-acq-${d.id}" class="input-classif" value="${escapeAttr(d.emailAcquereur || '')}"
-        placeholder="Non renseigné" title="Destinataire des relances ciblées (provision, prêt, RIB) et du questionnaire de satisfaction."
+        placeholder="Non renseigné" title="Destinataire des emails et du questionnaire."
         onblur="changerEmailAcquereur('${d.id}', this.value)"
         onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
     </div>`;
@@ -13484,8 +13485,8 @@
     const notaireParticipant = notaireParticipantRepresenteAcquereur(d);
     if (!emailDestinataireRelance(d)) {
       const hint = notaireParticipant
-        ? 'Renseignez l’email du confrère (propriétés de la fiche) pour activer les relances ciblées (provision, prêt, RIB) — l’acquéreur étant représenté par un office distinct, l’étude ne doit pas le contacter directement.'
-        : 'Renseignez l’email de l’acquéreur pour activer les relances ciblées (provision, prêt, RIB).';
+        ? 'Renseignez l’email du confrère (ci-dessus) pour écrire : l’acquéreur a son propre notaire.'
+        : 'Renseignez l’email de l’acquéreur pour écrire.';
       return `<div class="relances-ciblees">
         <span class="section-eyebrow">Écrire par email</span>
         ${renderEmailAcquereurDossier(d)}
@@ -13502,7 +13503,7 @@
     return `<div class="relances-ciblees">
       <span class="section-eyebrow">Écrire par email</span>
       ${renderEmailAcquereurDossier(d)}
-      ${notaireParticipant ? '<p class="hint">L’acquéreur est représenté par un office distinct : ces relances seront adressées à son notaire, jamais directement à l’acquéreur.</p>' : ''}
+      ${notaireParticipant ? '<p class="hint">Adressé au notaire de l’acquéreur.</p>' : ''}
       <div class="relances-boutons">
         ${boutons.map(m => `<button type="button" class="action-rapide" onclick="envoyerRelanceCiblee('${d.id}', '${m.cle}')">${escapeHtml(m.libelle)}</button>`).join('')}
       </div>
@@ -13580,10 +13581,10 @@
     render();
     const copie = ouvrirBrouillonEmail(destinataire, sujet, corps);
     afficherInfoAction(
-      "Brouillon d'email ouvert, dossier archivé",
+      "Brouillon ouvert, dossier archivé",
       (pdfOk
-        ? "Le questionnaire (PDF) vient d'être téléchargé : pensez à le JOINDRE au brouillon avant de l'envoyer — une page web ne peut pas attacher un fichier toute seule. L'envoi final reste un clic manuel dans votre messagerie."
-        : "L'envoi final reste un clic manuel dans votre messagerie. Le PDF du questionnaire n'a pas pu être téléchargé : vérifiez que le fichier questionnaire-satisfaction-pdf.js est bien présent à côté de index.html.")
+        ? "Joignez le PDF du questionnaire, qui vient d'être téléchargé, puis envoyez."
+        : "Le PDF du questionnaire n'a pas pu être téléchargé : le brouillon est ouvert sans lui.")
         + (copie ? PHRASE_COPIE_BROUILLON : '')
     );
   }
@@ -13601,7 +13602,7 @@
     if (d.questionnaireEnvoyeLe) {
       return `<div class="relances-ciblees">
         <span class="section-eyebrow">Clôturer le dossier</span>
-        <p class="hint">${icone('check')} Questionnaire de satisfaction envoyé le ${formatDateFr(d.questionnaireEnvoyeLe)}.</p>
+        <p class="hint">${icone('check')} Questionnaire envoyé le ${formatDateFr(d.questionnaireEnvoyeLe)}.</p>
         ${d.emailAcquereur ? `<div class="relances-boutons">
           <button type="button" class="action-rapide" onclick="envoyerQuestionnaireSatisfaction('${d.id}')">${icone('mail')} Renvoyer</button>
         </div>` : ''}
@@ -13614,14 +13615,13 @@
     if (!d.emailAcquereur) {
       return `<div class="relances-ciblees">
         <span class="section-eyebrow">Clôturer le dossier</span>
-        <p class="hint">Renseignez l’email de l’acquéreur pour activer l’envoi du questionnaire de satisfaction.</p>
+        <p class="hint">Renseignez l’email de l’acquéreur.</p>
       </div>`;
     }
     return `<div class="relances-ciblees">
       <span class="section-eyebrow">Clôturer le dossier</span>
-      <p class="hint">Envoie le questionnaire de satisfaction à l’acquéreur et archive automatiquement ce dossier.</p>
       <div class="relances-boutons">
-        <button type="button" class="action-rapide" onclick="envoyerQuestionnaireSatisfaction('${d.id}')">${icone('mail')} Questionnaire de satisfaction</button>
+        <button type="button" class="action-rapide" onclick="envoyerQuestionnaireSatisfaction('${d.id}')" title="Ouvre le brouillon et archive le dossier">${icone('mail')} Questionnaire de satisfaction</button>
       </div>
     </div>`;
   }
@@ -13642,10 +13642,10 @@
     if (!d.adresseBien) manques.push("l'adresse du bien");
     return `<div class="relances-ciblees">
       <span class="section-eyebrow">Appel de fonds</span>
-      <p class="hint">Prépare la convocation au rendez-vous de signature avec le décompte des sommes à virer, à partir des données de ce dossier.${manques.length ? ` Il restera à saisir ${escapeHtml(manques.join(', '))}.` : ''}</p>
       <div class="relances-boutons">
-        <button type="button" class="action-rapide" onclick="preparerAppelFondsDepuisDossier('${d.id}')">${icone('mail')} Préparer l'appel de fonds</button>
+        <button type="button" class="action-rapide" onclick="preparerAppelFondsDepuisDossier('${d.id}')" title="Convocation et décompte des sommes à virer">${icone('mail')} Préparer l'appel de fonds</button>
       </div>
+      ${manques.length ? `<p class="hint">À saisir ensuite : ${escapeHtml(manques.join(', '))}.</p>` : ''}
     </div>`;
   }
 
