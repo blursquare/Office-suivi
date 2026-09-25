@@ -8065,6 +8065,12 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     `.piece-suppr`, `.piece-valider`…) sont supprimés.
   - Vérifié dans Chromium (clair, sombre, 400 px) : cocher une pièce en attente la valide et
     passe le compteur de 4/10 à 5/10 sans la déplacer, décocher la retire ; aucun débordement.
+  - **Puis sur deux colonnes** (demande suivante de l'étude) : `column-count: 2` et non une grille,
+    pour que la liste se lise de haut en bas dans l'ordre de la checklist (une grille rangerait de
+    gauche à droite) ; une colonne sous 560 px. `MAX_PIECES_VISIBLES` passe à 8 (quatre lignes par
+    colonne). Pour tenir dans une demi-largeur, la mention « introuvable » est retirée — le bord
+    orange de la case suffit, l'explication passe dans l'infobulle — et les noms longs passent à la
+    ligne au lieu d'être coupés.
 
 ## Comment tester
 

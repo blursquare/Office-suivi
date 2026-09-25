@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-25 23:32';
+  const VERSION_APP = '2026-09-25 23:37';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-25 23:37', resume: "Pièces du dossier sur deux colonnes ; les noms longs passent à la ligne au lieu d'être coupés." },
     { version: '2026-09-25 23:32', resume: "Pièces du dossier en liste à cocher : compteur et barre de progression, une case par pièce (cocher = reçue à la main), « Voir les autres », ajout en pied de carte." },
     { version: '2026-09-25 23:23', resume: "Fiche dossier : « Dépôt » devient « Séquestre », et l'ancien « Séquestre » (qui détient les fonds) devient « Versé à »." },
     { version: '2026-09-25 23:22', resume: "Emails de la fiche : textes d'aide raccourcis (onglet Échanges, fenêtres après envoi)." },
@@ -12127,7 +12128,7 @@
   // Liste de pièces repliée au-delà de MAX_PIECES_VISIBLES lignes (« Voir les N autres ») ; remise
   // à false à chaque ouverture/fermeture du tiroir, comme ajoutPieceOuvert.
   let piecesToutesVisibles = false;
-  var MAX_PIECES_VISIBLES = 6;
+  var MAX_PIECES_VISIBLES = 8;
 
   // Formulaire d'ajout d'une obligation du vendeur sur une fiche déjà enregistrée (voir
   // renderAjoutEngagement) : même principe que ajoutEcheanceOuvert/ajoutPieceOuvert.
@@ -12205,7 +12206,7 @@
         caseTitre = 'Reçue (validée à la main) — cliquer pour retirer la validation';
       } else if (!recue) {
         caseAction = `validerPieceManuellement('${d.id}', '${p.cle}', '${arg}')`;
-        caseTitre = `${s.titre} — cliquer pour la marquer reçue (document détenu hors du NAS)`;
+        caseTitre = `${statut === 'manquante' ? 'Introuvable dans le dossier du NAS' : s.titre} — cliquer pour la marquer reçue (document détenu hors du NAS)`;
       } else {
         caseTitre = 'Reçue — trouvée dans le dossier du NAS';
       }
@@ -12219,8 +12220,7 @@
         ? `<button type="button" class="piece-nom piece-nom-lien" title="Ouvrir le fichier trouvé" onclick="ouvrirPieceTrouvee('${d.id}', '${p.cle}')">${escapeHtml(p.label)}</button>`
         : `<span class="piece-nom"${titreNom}>${escapeHtml(p.label)}</span>`;
       const tags = (notifs.includes(p.cle) ? '<span class="dot-label dl-urgent notif-nouveau-tag">Nouveau</span>' : '')
-        + (valideeMain ? '<span class="piece-tag">à la main</span>' : '')
-        + (statut === 'manquante' && !p.personnalisee ? '<span class="piece-tag piece-tag-manque">introuvable</span>' : '');
+        + (valideeMain ? '<span class="piece-tag">à la main</span>' : '');
       const reinit = (!p.personnalisee && !valideeMain && recue)
         ? `<button type="button" class="piece-action" onclick="reinitialiserStatutPieceStandard('${d.id}', '${p.cle}', '${arg}')" title="Réinitialiser (mauvaise correspondance ou fichier renommé)" aria-label="Réinitialiser le statut de cette pièce">${icone('rotate-ccw')}</button>`
         : '';
