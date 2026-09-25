@@ -7533,6 +7533,43 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     (`translate`, qui ne gêne pas la rotation du losange de la date butoir) au lieu de se cacher
     l'une l'autre.
 
+- **« Confirmer la réception des fonds », et une signature commune pour tous les emails**
+  (25/09). Deux demandes de l'étude :
+  - **Le bouton vit dans la carte « Envoi au client », sous « Envoi appel de fonds »**
+    (`renderReceptionFonds`), et n'apparaît qu'une fois `echeanceValidee(d, 'appelFonds')` :
+    date saisie, validation manuelle ou relevé dans l'agenda. Avant, il n'y a rien à confirmer.
+    Il réutilise le motif `fonds` de `MODELES_EMAIL_RELANCE` (même routage vers le confrère
+    quand un autre office représente l'acquéreur, même historique). Ce motif n'est **plus proposé
+    parmi les relances** de la fiche, où il dépendait du rendez-vous de signature : un seul
+    endroit pour ce geste. Le texte dit désormais que les fonds « ont bien été reçus en notre
+    comptabilité ». Il rappelle le rendez-vous de signature s'il est fixé, jamais la date butoir.
+    **`d.receptionFondsConfirmeeLe`** (nouveau champ, posé par `envoyerRelanceCiblee` via
+    `modele.date`, conservé à l'import) : la carte affiche ensuite « Réception des fonds
+    confirmée le … » et un bouton « Renvoyer », comme le questionnaire de satisfaction.
+  - **`SIGNATURE_EMAIL_OFFICE`** termine les six emails pré-rédigés (provision, prêt, RIB,
+    réception des fonds, questionnaire de satisfaction, relance automatique de l'offre de prêt) à
+    la place de « Cordialement. ». Elle contient « Bien cordialement, / Office de Maître Sophie
+    GOSSART », les coordonnées de l'office, puis les mentions légales **reprises mot pour mot**
+    (virement obligatoire au-delà de 3 000 €, RIB signé, secret professionnel, fraude
+    notaires.fr). **Les images de la signature Outlook (photo de l'office, logos, encart
+    visioconférence) ne peuvent pas y figurer** : un brouillon `mailto:` ne porte que du texte.
+    Leurs coordonnées sont reprises en texte.
+  - **Troncature possible du brouillon** : la signature représente à elle seule plus de 2 000
+    caractères une fois encodée. Certaines messageries Windows coupent un `mailto:` long.
+    `ouvrirBrouillonEmail()` (utilisée par les trois chemins d'envoi) **copie aussi le corps
+    complet dans le presse-papiers**, dans le même clic (`copierTexteSilencieux`, textarea +
+    `execCommand`, `navigator.clipboard` étant absent hors contexte sécurisé). La fenêtre d'info le
+    dit : si le brouillon paraît coupé, faire Ctrl+A puis Ctrl+V dans le corps.
+  - **À confirmer par l'étude** : si Outlook ajoute déjà sa signature par défaut aux nouveaux
+    messages, elle apparaîtra deux fois (sous forme d'images, puis en texte). Dans ce cas, retirer
+    la partie coordonnées/mentions de `SIGNATURE_EMAIL_OFFICE` et ne garder que « Bien cordialement,
+    / Office de Maître Sophie GOSSART ».
+  - Tests : 5 dans `tests/relances-email.test.js` (bouton conditionné à l'appel de fonds validé,
+    état « confirmée le », texte de l'email, signature en fin des six emails, import). Suite racine
+    798. Vérifié dans Chromium (clair et sombre) : bouton sous l'appel de fonds, brouillon adressé à
+    l'acquéreur et terminé par les mentions légales, carte passée à « confirmée le » avec la date
+    qui revient à la ligne au lieu d'être coupée, aucune erreur JS.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

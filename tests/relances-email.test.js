@@ -102,17 +102,65 @@ test('relances : ouvertes en participation, toujours routées vers le confrère 
   assert.match(app.renderRelancesCiblees(confrere), /adressées à son notaire/);
 });
 
-test('réception des fonds : proposée une fois le rendez-vous fixé, qui est rappelé dans l’email', () => {
+test('réception des fonds : bouton dans la carte « Envoi au client », seulement une fois l’appel de fonds validé', () => {
   const app = chargerApplication();
-  assert.doesNotMatch(app.renderRelancesCiblees(dossierBase(app, {})), /'fonds'/);
+  // Plus proposée parmi les relances de la fiche : elle vit à côté de l'appel de fonds.
+  const avecRdv = dossierBase(app, { rendezVousSignature: '2026-11-20', acte: '2026-11-30' });
+  assert.doesNotMatch(app.renderRelancesCiblees(avecRdv), /'fonds'/);
+  assert.equal(app.renderReceptionFonds(avecRdv), '');
+  const fait = dossierBase(app, { rendezVousSignature: '2026-11-20', appelFonds: '2026-10-30', echeancesValidees: { appelFonds: true } });
+  assert.match(app.renderReceptionFonds(fait), /envoyerRelanceCiblee\('d1', 'fonds'\)/);
+  assert.match(app.renderReceptionFonds(fait), /Confirmer la réception des fonds/);
+  assert.match(app.renderCarteEnvoisAvantSignature(fait), /Confirmer la réception des fonds/);
+});
+
+test('réception des fonds : une fois confirmée, la carte affiche la date et propose de renvoyer', () => {
+  const app = chargerApplication();
+  const d = dossierBase(app, { appelFonds: '2026-10-30', echeancesValidees: { appelFonds: true }, receptionFondsConfirmeeLe: '2026-11-02' });
+  const html = app.renderReceptionFonds(d);
+  assert.match(html, /confirmée le 2 novembre 2026/);
+  assert.match(html, /Renvoyer/);
+  assert.equal(app.MODELES_EMAIL_RELANCE.fonds.date, 'receptionFondsConfirmeeLe');
+});
+
+test('réception des fonds : l’email confirme la réception en comptabilité et rappelle le rendez-vous, jamais la date butoir', () => {
+  const app = chargerApplication();
   const d = dossierBase(app, { rendezVousSignature: '2026-11-20', acte: '2026-11-30' });
-  assert.match(app.renderRelancesCiblees(d), /envoyerRelanceCiblee\('d1', 'fonds'\)/);
   const { sujet, corps } = app.construireEmailReceptionFonds(d);
   assert.match(sujet, /Réception des fonds/);
-  assert.match(corps, /bonne réception des fonds/);
+  assert.match(corps, /bien été reçus en notre comptabilité/);
   assert.match(corps, /20 novembre 2026/);
-  // Jamais la date butoir, qui n'est qu'indicative.
   assert.doesNotMatch(corps, /30 novembre 2026/);
+});
+
+test('signature commune : tous les emails pré-rédigés se terminent par la signature de l’office', () => {
+  const app = chargerApplication();
+  const d = dossierBase(app, { pret: '2026-11-15', rendezVousSignature: '2026-11-20' });
+  const corps = [
+    app.construireEmailRelancePret(d).corps,
+    app.construireEmailRelanceRib(d).corps,
+    app.construireEmailRelanceProvision(d).corps,
+    app.construireEmailReceptionFonds(d).corps,
+    app.construireEmailQuestionnaireSatisfaction(d).corps,
+    app.corpsRelanceOffreManquante(d.nom, d.pret, 5)
+  ];
+  for (const c of corps) {
+    assert.ok(c.endsWith(app.SIGNATURE_EMAIL_OFFICE), c.slice(0, 60));
+    assert.doesNotMatch(c, /\n\nCordialement\./);
+  }
+  const sig = app.SIGNATURE_EMAIL_OFFICE;
+  assert.match(sig, /^\n\nBien cordialement,\n\nOffice de Maître Sophie GOSSART\n/);
+  assert.match(sig, /L\.112-6-1 du Code Monétaire et Financier/);
+  assert.match(sig, /RIB signé par vous/);
+  assert.match(sig, /secret professionnel/);
+  assert.match(sig, /Attention fraude/);
+});
+
+test('normaliserDossierImporte conserve la date de confirmation de réception des fonds', () => {
+  const app = chargerApplication();
+  const d = app.normaliserDossierImporte({ id: 'x', nom: 'A / B', receptionFondsConfirmeeLe: '2026-11-02' });
+  assert.equal(d.receptionFondsConfirmeeLe, '2026-11-02');
+  assert.equal(app.normaliserDossierImporte({ id: 'y', nom: 'A / B' }).receptionFondsConfirmeeLe, null);
 });
 
 // Demandé par l'étude : proposé seulement une fois la date de signature de l'acte renseignée.

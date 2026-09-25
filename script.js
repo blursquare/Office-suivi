@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-25 08:11';
+  const VERSION_APP = '2026-09-25 09:32';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-25 09:32', resume: 'Bouton « Confirmer la réception des fonds » sous l’appel de fonds validé ; signature de l’office et mentions légales sur tous les emails.' },
     { version: '2026-09-25 08:11', resume: "« Envoi appel de fonds » et « Envoi projet » sont deux étapes distinctes du suivi, comme l'obtention du prêt ou la signature : mêmes libellés partout (planning, avancement, rappels, fiche imprimée) et une couleur propre à l'envoi du projet. Deux étapes le même jour ne se superposent plus dans l'avancement des dossiers." },
     { version: '2026-09-25 08:06', resume: "Fiche dossier : la carte des deux envois (appel de fonds, projet) s'appelle désormais « Envoi au client »." },
     { version: '2026-09-25 08:04', resume: "Réglages allégés : textes d'aide raccourcis, « Comment ça marche » replié par défaut." },
@@ -9324,6 +9325,7 @@
       id: (crypto.randomUUID ? crypto.randomUUID() : 'd-' + Date.now() + '-' + Math.random().toString(16).slice(2)),
       nom, responsable, emailAcquereur,
       questionnaireEnvoyeLe: null,
+      receptionFondsConfirmeeLe: null,
       nomAgence,
       adresseBien,
       prixVente: Number.isFinite(prixVente) && prixVente > 0 ? prixVente : null,
@@ -9778,6 +9780,18 @@
     { cle: 'projetEnvoye', label: 'Envoi projet' }
   ];
 
+  // Sous « Envoi appel de fonds », une fois l'appel validé (date saisie, validation manuelle ou
+  // relevé dans l'agenda) : « Confirmer la réception des fonds » ouvre l'email au client (voir
+  // construireEmailReceptionFonds). Une fois envoyé, la date s'affiche et le bouton devient
+  // « Renvoyer », comme pour le questionnaire de satisfaction.
+  function renderReceptionFonds(d) {
+    if (!echeanceValidee(d, 'appelFonds')) return '';
+    if (d.receptionFondsConfirmeeLe) {
+      return `<div class="envoi-action"><span class="dot-label dl-success"><span class="dot"></span>Réception des fonds confirmée le ${formatDateFr(d.receptionFondsConfirmeeLe)}</span><button type="button" class="action-rapide" onclick="envoyerRelanceCiblee('${d.id}', 'fonds')">${icone('mail')} Renvoyer</button></div>`;
+    }
+    return `<div class="envoi-action"><button type="button" class="action-rapide" onclick="envoyerRelanceCiblee('${d.id}', 'fonds')">${icone('mail')} Confirmer la réception des fonds</button></div>`;
+  }
+
   function renderCarteEnvoisAvantSignature(d) {
     const lignes = ENVOIS_AVANT_SIGNATURE.map(({ cle, label }) => {
       const iso = d[cle] || '';
@@ -9802,6 +9816,7 @@
           <button type="button" class="icon-valider" onclick="validerEditionDate('${d.id}','${cle}')" title="Valider" aria-label="Valider la date">✓</button>
         </span>
         ${statut}
+        ${cle === 'appelFonds' ? renderReceptionFonds(d) : ''}
       </div>`;
     }).join('');
     return `<div class="tab appelFonds">
@@ -12528,18 +12543,71 @@
   // relancerSiOffreManquante() déjà en place) : chacun cible un motif de relance précis, pour ne
   // plus avoir à réécrire le même email à la main selon ce qui manque réellement au dossier — un
   // usage distinct, non couvert par les rappels automatiques.
+  // Signature commune de tous les emails pré-rédigés (relances, réception des fonds, questionnaire,
+  // relance automatique de l'offre de prêt), fournie par l'étude : « Bien cordialement / Office de
+  // Maître Sophie GOSSART », les coordonnées de l'office, puis les mentions légales. Version TEXTE
+  // de la signature Outlook de l'étude : un brouillon mailto: ne porte que du texte, les bandeaux
+  // en image (photo de l'office, logos, encart visioconférence) ne peuvent pas y être insérés.
+  // Texte des mentions repris mot pour mot — ne pas le reformuler sans le document de l'étude.
+  var SIGNATURE_EMAIL_OFFICE = '\n\nBien cordialement,\n\n'
+    + 'Office de Maître Sophie GOSSART\n'
+    + 'Office Notarial de la Salamandre\n'
+    + '3 rue Bout des Haies - 41000 BLOIS\n'
+    + 'Tél. 02 54 78 61 70\n'
+    + 'office.gossart@notaires.fr\n'
+    + 'sophie-gossart-blois.notaires.fr\n\n'
+    + '---\n'
+    + 'Ainsi qu’il résulte des dispositions de l’article L.112-6-1 du Code Monétaire et Financier, désormais, tous les versements supérieurs à 3.000 € doivent être effectués par virement uniquement. Les notaires ne sont plus autorisés à accepter ou à établir des chèques pour le compte des parties à un acte donnant lieu à publicité foncière : seuls les virements sont autorisés.\n'
+    + 'Pour l’envoi de vos prix de vente, solde, fonds dépendant d’une succession, vous devrez impérativement nous fournir un RIB signé par vous.\n\n'
+    + 'Ce message contient des informations confidentielles protégées par le secret professionnel.\n'
+    + 'Au cas où il ne vous serait pas destiné, nous vous remercions de bien vouloir nous en aviser immédiatement et de le supprimer. Les liaisons internet ne sont pas sécurisées et en conséquence l’Office ne pourra être responsable de tout changement qui pourrait être effectué concernant ce message après son envoi.\n\n'
+    + 'Attention fraude : tous les notaires de France ont l’obligation de communiquer uniquement avec une adresse mail notaires.fr (notaires au pluriel avec un s). Un notaire ou un collaborateur de notaire ne vous écrira jamais avec une adresse orange, free, gmail ou autres.';
+
+  // Un brouillon mailto: long (la signature et ses mentions légales en font plus de 2 000
+  // caractères une fois encodés) peut être tronqué par certaines messageries Windows. Le corps
+  // complet est donc AUSSI copié dans le presse-papiers, dans le même geste : si le brouillon
+  // s'arrête en cours de route, un Ctrl+A puis Ctrl+V dans le corps le rétablit en entier.
+  // navigator.clipboard n'existe qu'en contexte sécurisé (absent sur un poste qui rejoint le
+  // serveur par son adresse IP) : repli sur un textarea + execCommand, qui marche partout.
+  function copierTexteSilencieux(texte) {
+    try {
+      const zone = document.createElement('textarea');
+      zone.value = texte;
+      zone.setAttribute('readonly', '');
+      zone.style.position = 'fixed';
+      zone.style.opacity = '0';
+      document.body.appendChild(zone);
+      zone.select();
+      const ok = document.execCommand && document.execCommand('copy');
+      document.body.removeChild(zone);
+      if (ok) return true;
+    } catch (e) { /* repli ci-dessous */ }
+    try {
+      if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(texte); return true; }
+    } catch (e) { /* rien de plus à tenter */ }
+    return false;
+  }
+
+  function ouvrirBrouillonEmail(destinataire, sujet, corps) {
+    const copie = copierTexteSilencieux(corps);
+    window.location.href = `mailto:${encodeURIComponent(destinataire)}?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(corps)}`;
+    return copie;
+  }
+
+  var PHRASE_COPIE_BROUILLON = ' Le texte complet est aussi copié dans le presse-papiers : si le brouillon paraît coupé, collez-le (Ctrl+A puis Ctrl+V dans le corps).';
+
   function construireEmailRelancePret(d) {
     const echeance = d.pret ? ` L'échéance d'obtention du prêt est fixée au ${formatDateFr(d.pret)}.` : '';
     return {
       sujet: `Relance — Offre de prêt attendue (dossier ${d.nom})`,
-      corps: `Bonjour,\n\nSauf erreur de notre part, nous n'avons pas encore reçu votre offre de prêt pour le dossier ${d.nom}.${echeance}\n\nMerci de nous transmettre cette offre dès réception, ou de nous indiquer où en est votre demande de financement.\n\nCordialement.`
+      corps: `Bonjour,\n\nSauf erreur de notre part, nous n'avons pas encore reçu votre offre de prêt pour le dossier ${d.nom}.${echeance}\n\nMerci de nous transmettre cette offre dès réception, ou de nous indiquer où en est votre demande de financement.${SIGNATURE_EMAIL_OFFICE}`
     };
   }
 
   function construireEmailRelanceRib(d) {
     return {
       sujet: `Relevé d'identité bancaire — dossier ${d.nom}`,
-      corps: `Bonjour,\n\nAfin de préparer l'appel de fonds de votre dossier ${d.nom}, merci de nous transmettre un relevé d'identité bancaire (RIB) à votre nom.\n\nCordialement.`
+      corps: `Bonjour,\n\nAfin de préparer l'appel de fonds de votre dossier ${d.nom}, merci de nous transmettre un relevé d'identité bancaire (RIB) à votre nom.${SIGNATURE_EMAIL_OFFICE}`
     };
   }
 
@@ -12556,21 +12624,23 @@
       : '';
     return {
       sujet: `Demande de provision sur frais et pièce d'identité — dossier ${d.nom}`,
-      corps: `Bonjour,\n\nNous vous confirmons la bonne réception de votre avant-contrat signé ${viaAgence} pour le dossier ${d.nom}.\n\nAfin de poursuivre la constitution de votre dossier, merci de nous adresser :\n- une provision sur frais de 100,00 € ;\n- une copie de votre pièce d'identité en cours de validité.${relancePret}\n\nCordialement.`
+      corps: `Bonjour,\n\nNous vous confirmons la bonne réception de votre avant-contrat signé ${viaAgence} pour le dossier ${d.nom}.\n\nAfin de poursuivre la constitution de votre dossier, merci de nous adresser :\n- une provision sur frais de 100,00 € ;\n- une copie de votre pièce d'identité en cours de validité.${relancePret}${SIGNATURE_EMAIL_OFFICE}`
     };
   }
 
   // Confirmation de réception des fonds, demandée par l'étude : l'acquéreur a viré le montant de
-  // l'appel de fonds, on le lui confirme en rappelant la date du rendez-vous de signature. Proposée
-  // seulement une fois ce rendez-vous fixé (voir renderRelancesCiblees) — la date butoir de
-  // l'avant-contrat n'est qu'indicative, la rappeler au client l'induirait en erreur.
+  // l'appel de fonds, on lui confirme que les fonds sont bien arrivés en comptabilité. Le bouton
+  // vit dans la carte « Envoi au client », sous « Envoi appel de fonds », et n'apparaît qu'une fois
+  // cet appel de fonds validé (voir renderCarteEnvoisAvantSignature) : avant, il n'y a rien à
+  // confirmer. Le rendez-vous de signature n'est rappelé que s'il est fixé — jamais la date butoir
+  // de l'avant-contrat, qui n'est qu'indicative et induirait le client en erreur.
   function construireEmailReceptionFonds(d) {
     const rdv = d.rendezVousSignature
       ? `\n\nNous vous rappelons que le rendez-vous de signature de l'acte authentique est fixé au ${formatDateFr(d.rendezVousSignature)}, en notre office.`
       : '';
     return {
       sujet: `Réception des fonds — dossier ${d.nom}`,
-      corps: `Bonjour,\n\nNous vous confirmons la bonne réception des fonds destinés à votre acquisition (dossier ${d.nom}).${rdv}\n\nNous restons à votre disposition pour toute question d'ici là.\n\nCordialement.`
+      corps: `Bonjour,\n\nNous vous confirmons que les fonds destinés à votre acquisition (dossier ${d.nom}) ont bien été reçus en notre comptabilité.${rdv}\n\nNous restons à votre disposition pour toute question.${SIGNATURE_EMAIL_OFFICE}`
     };
   }
 
@@ -12581,7 +12651,8 @@
     provision: { cle: 'provision', libelle: 'Provision + pièce d’identité', construire: construireEmailRelanceProvision, historique: 'Relance manuelle envoyée — provision sur frais et pièce d’identité' },
     pret: { cle: 'pret', libelle: 'Prêt manquant', construire: construireEmailRelancePret, historique: 'Relance manuelle envoyée — offre de prêt' },
     rib: { cle: 'rib', libelle: 'RIB', construire: construireEmailRelanceRib, historique: 'Relance manuelle envoyée — RIB' },
-    fonds: { cle: 'fonds', libelle: 'Réception des fonds', construire: construireEmailReceptionFonds, historique: 'Email envoyé — confirmation de réception des fonds' }
+    // `date` : champ du dossier qui mémorise l'envoi, pour que la carte dise ensuite « confirmée le … ».
+    fonds: { cle: 'fonds', libelle: 'Confirmer la réception des fonds', construire: construireEmailReceptionFonds, historique: 'Email envoyé — confirmation de réception des fonds en comptabilité', date: 'receptionFondsConfirmeeLe' }
   };
 
   function envoyerRelanceCiblee(id, type) {
@@ -12598,12 +12669,13 @@
     }
     const { sujet, corps } = modele.construire(d);
     ajouterHistorique(d, modele.historique);
+    if (modele.date) d[modele.date] = new Date().toISOString().slice(0, 10);
     sauvegarder(d);
-    const url = `mailto:${encodeURIComponent(destinataire)}?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(corps)}`;
-    window.location.href = url;
+    if (modele.date) render();
+    const copie = ouvrirBrouillonEmail(destinataire, sujet, corps);
     afficherInfoAction(
       "Brouillon d'email ouvert",
-      "L'envoi final reste un clic manuel dans votre messagerie : rien n'est envoyé automatiquement."
+      "L'envoi final reste un clic manuel dans votre messagerie : rien n'est envoyé automatiquement." + (copie ? PHRASE_COPIE_BROUILLON : '')
     );
   }
 
@@ -12673,7 +12745,8 @@
       boutons.push(MODELES_EMAIL_RELANCE.pret);
     }
     boutons.push(MODELES_EMAIL_RELANCE.rib);
-    if (d.rendezVousSignature) boutons.push(MODELES_EMAIL_RELANCE.fonds);
+    // « Confirmer la réception des fonds » n'est pas ici : il vit dans la carte « Envoi au client »,
+    // à côté de l'appel de fonds dont il dépend (voir renderCarteEnvoisAvantSignature).
     return `<div class="relances-ciblees">
       <span class="section-eyebrow">Écrire par email</span>
       ${renderEmailAcquereurDossier(d)}
@@ -12706,7 +12779,7 @@
   function construireEmailQuestionnaireSatisfaction(d) {
     return {
       sujet: 'Questionnaire de satisfaction',
-      corps: `Bonjour,\n\nMaintenant que votre dossier est finalisé, nous serions heureux de recueillir votre avis sur notre accompagnement.\n\nVous trouverez ci-joint notre questionnaire de satisfaction. N'hésitez pas à le compléter et à nous le retourner.\n\nSi vous avez apprécié notre accompagnement, nous vous serions également reconnaissants de laisser un avis sur notre page Google : ${LIEN_AVIS_GOOGLE_OFFICE}\n\nNous vous remercions par avance du temps que vous accepterez de nous consacrer.\n\nCordialement.`
+      corps: `Bonjour,\n\nMaintenant que votre dossier est finalisé, nous serions heureux de recueillir votre avis sur notre accompagnement.\n\nVous trouverez ci-joint notre questionnaire de satisfaction. N'hésitez pas à le compléter et à nous le retourner.\n\nSi vous avez apprécié notre accompagnement, nous vous serions également reconnaissants de laisser un avis sur notre page Google : ${LIEN_AVIS_GOOGLE_OFFICE}\n\nNous vous remercions par avance du temps que vous accepterez de nous consacrer.${SIGNATURE_EMAIL_OFFICE}`
     };
   }
 
@@ -12749,13 +12822,13 @@
     ajouterHistorique(d, 'Dossier archivé automatiquement (questionnaire de satisfaction envoyé)');
     sauvegarder(d);
     render();
-    const url = `mailto:${encodeURIComponent(destinataire)}?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(corps)}`;
-    window.location.href = url;
+    const copie = ouvrirBrouillonEmail(destinataire, sujet, corps);
     afficherInfoAction(
       "Brouillon d'email ouvert, dossier archivé",
-      pdfOk
+      (pdfOk
         ? "Le questionnaire (PDF) vient d'être téléchargé : pensez à le JOINDRE au brouillon avant de l'envoyer — une page web ne peut pas attacher un fichier toute seule. L'envoi final reste un clic manuel dans votre messagerie."
-        : "L'envoi final reste un clic manuel dans votre messagerie. Le PDF du questionnaire n'a pas pu être téléchargé : vérifiez que le fichier questionnaire-satisfaction-pdf.js est bien présent à côté de index.html."
+        : "L'envoi final reste un clic manuel dans votre messagerie. Le PDF du questionnaire n'a pas pu être téléchargé : vérifiez que le fichier questionnaire-satisfaction-pdf.js est bien présent à côté de index.html.")
+        + (copie ? PHRASE_COPIE_BROUILLON : '')
     );
   }
 
@@ -14120,6 +14193,7 @@
       // Contrairement aux statuts dérivés d'un scan du NAS (offrePretStatut, pieces...), l'envoi du
       // questionnaire est un fait réel déjà accompli par l'utilisateur : conservé tel quel.
       questionnaireEnvoyeLe: typeof d.questionnaireEnvoyeLe === 'string' ? d.questionnaireEnvoyeLe : null,
+      receptionFondsConfirmeeLe: typeof d.receptionFondsConfirmeeLe === 'string' ? d.receptionFondsConfirmeeLe : null,
       adresseBien: typeof d.adresseBien === 'string' ? d.adresseBien : '',
       nomAgence: typeof d.nomAgence === 'string' ? d.nomAgence : '',
       prixVente: Number.isFinite(d.prixVente) && d.prixVente > 0 ? d.prixVente : null,
@@ -16299,7 +16373,7 @@
     const phraseEcheance = jours >= 0
       ? `L'échéance d'obtention du prêt est fixée au ${formatDateFr(isoEcheance)}.`
       : `L'échéance d'obtention du prêt, fixée au ${formatDateFr(isoEcheance)}, est désormais dépassée.`;
-    return `Bonjour,\n\nSauf erreur de notre part, nous n'avons pas encore reçu votre offre de prêt pour le dossier ${nom}.\n\n${phraseEcheance} Merci de nous transmettre cette offre dès réception, ou de nous indiquer où en est votre demande de financement.\n\nCordialement.`;
+    return `Bonjour,\n\nSauf erreur de notre part, nous n'avons pas encore reçu votre offre de prêt pour le dossier ${nom}.\n\n${phraseEcheance} Merci de nous transmettre cette offre dès réception, ou de nous indiquer où en est votre demande de financement.${SIGNATURE_EMAIL_OFFICE}`;
   }
 
   function relancerSiOffreManquante(d) {
@@ -16327,9 +16401,8 @@
 
     const subject = `Relance — Offre de prêt attendue (dossier ${d.nom})`;
     const body = corpsRelanceOffreManquante(d.nom, d.pret, jours);
-    const url = `mailto:${encodeURIComponent(destinataire)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     afficherToast(`Relance « offre de prêt » ouverte pour ${d.nom} — vérifiez puis envoyez.`, 'OK', null);
-    window.location.href = url;
+    ouvrirBrouillonEmail(destinataire, subject, body);
   }
 
   // Statut de l'offre de prêt à afficher, dans le même vocabulaire court partout où il apparaît

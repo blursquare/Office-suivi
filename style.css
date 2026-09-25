@@ -3740,6 +3740,13 @@
   }
   .envoi-libelle.envoi-appelFonds::before { background: var(--appelfonds); }
   .envoi-libelle.envoi-projetEnvoye::before { background: var(--projet); }
+  /* « Confirmer la réception des fonds », sous l'appel de fonds une fois validé. */
+  .envoi-action {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px;
+    margin-top: 4px;
+  }
+  /* La confirmation porte une date longue : elle passe à la ligne plutôt que d'être coupée. */
+  .envoi-action .dot-label { white-space: normal; line-height: 1.3; align-items: baseline; }
   .tab-date-affichage .tab-date { margin-bottom: 0; }
   .tab-date-affichage .icon-crayon { font-size: 11px; padding: 2px 4px; }
   .tab-date-edition {
@@ -3957,7 +3964,7 @@
   /* ---- impression : une feuille A4 propre par dossier ---- */
   @media print {
     body { background: #fff; color: #000; font-size: 11pt; }
-    .panel, .pdf-viewer, .list-toolbar, .dossier-actions, .dossier-actions-titre, .relances-ciblees, .theme-btn,
+    .panel, .pdf-viewer, .list-toolbar, .dossier-actions, .dossier-actions-titre, .relances-ciblees, .envoi-action, .theme-btn,
     .confirm-overlay, .toast, footer.note, .historique-toggle, .dash-avancement,
     .sidebar, .sidebar-burger, .sidebar-scrim, .dash-header, .kpis-dashboard, .actions-urgentes,
     .dash-nouveautes, .dash-section-titre { display: none !important; }
