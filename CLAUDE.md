@@ -7469,6 +7469,44 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     de vrais rendez-vous (variations de rédaction, majuscules, accents) reste à confirmer une fois
     l'URL réelle renseignée dans Réglages.
 
+- **Agenda connecté : le rendez-vous de signature publié, avec l'appel de fonds noté dans son
+  LIEU.** Demandé par l'étude (« note l'appel de fonds dans le rendez-vous de signature »),
+  précisé en deux temps avant d'écrire une ligne (règle déjà appliquée plusieurs fois dans ce
+  fichier — demander la règle plutôt que deviner) : (1) rien à détecter de nouveau — le statut de
+  l'appel de fonds est déjà connu via `echeanceValidee(d, 'appelFonds')`, il s'agit seulement de
+  l'exposer dans le flux sortant ; (2) l'emplacement voulu est le champ `LOCATION` de l'événement,
+  jamais son titre ni sa description.
+  - **Le rendez-vous de signature (`rendezVousSignature`) rejoint `pret`/`ventebien` dans
+    `TYPES_PUBLIES_AGENDA`** (`server/src/routes/calendrier.js`) — c'est un changement de la
+    décision du 23/09, qui l'excluait délibérément avec la date butoir/l'appel de fonds/les
+    échéances personnalisées (« l'agenda ne porte que les deux conditions dont dépend la vente »).
+    Il suit exactement la même règle de publication que les deux autres, via `echeancePublieeAgenda`
+    déjà générique : publié tant qu'une date existe et qu'il n'est pas lui-même marqué réalisé
+    (`echeanceValidee(d, 'rendezVousSignature')`) — un rendez-vous passé n'a plus lieu de rester
+    dans l'agenda. La date butoir, l'appel de fonds lui-même et les échéances personnalisées
+    restent omis, inchangé.
+  - `buildEvent()` gagne un paramètre `location` optionnel — `LOCATION:` n'est émise que si une
+    valeur est fournie, donc sans effet sur les événements prêt/vente préalable. RFC 5545 §3.4.1 :
+    une propriété TEXT simple, qui suit les mêmes règles de repli (`plierLigneIcs`) et
+    d'échappement (`echapperTexteIcs`) que `SUMMARY`, déjà en place — aucun nouveau mécanisme
+    d'encodage à écrire.
+  - `libelleAppelFondsPourLocation(d)` (pure, testée) : « Appel de fonds effectué » ou
+    « Appel de fonds non effectué », uniquement selon `echeanceValidee(d, 'appelFonds')` — pas de
+    troisième état, cohérent avec le reste de l'outil qui traite déjà cette échéance comme
+    binaire (faite / pas faite), jamais « en cours ».
+  - **Non vérifié en conditions réelles** : aucun client Outlook réel dans cet environnement de
+    développement (même limite que pour l'agenda de l'office, juste au-dessus) — reste à confirmer
+    par l'étude que `LOCATION` s'affiche de façon visible sur un abonnement en LECTURE SEULE
+    (certains clients ne le montrent que dans le détail d'un événement ouvert, pas dans la vue
+    mois/semaine) ; si ce n'est pas assez visible en pratique, la même information pourrait être
+    ajoutée au `SUMMARY` ou à une `DESCRIPTION` en repli.
+  - Tests : `server/test/calendrier.test.js` — le test qui verrouillait « seuls le prêt et la
+    vente préalable sont publiés » est réécrit sur la nouvelle règle (il encodait l'ancienne
+    décision, mis à jour plutôt que contourné, même discipline que pour `agenda-watch.test.js`) ;
+    3 tests ajoutés (le lieu selon les deux états de l'appel de fonds, le rendez-vous retiré une
+    fois marqué réalisé, `libelleAppelFondsPourLocation` en isolation). Suite serveur 342 → 345,
+    suite racine inchangée (791 — chantier entièrement côté serveur).
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

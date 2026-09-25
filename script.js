@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-25 00:13';
+  const VERSION_APP = '2026-09-25 07:48';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-25 07:48', resume: "Agenda connecté : le rendez-vous de signature est désormais publié, avec le statut de l'appel de fonds (« effectué »/« non effectué ») noté dans son lieu (LOCATION) — visible sans rouvrir CLAIRE." },
     { version: '2026-09-25 00:13', resume: "CLAIRE lit désormais l'agenda .ics publié de l'office (même lien que le brief du matin, toutes les 15 minutes) : un rendez-vous portant « VTE - NOM DU DOSSIER » et mentionnant « appel de fonds »/« projet envoyé » reporte automatiquement la date sur le dossier, jamais si elle est déjà saisie. Nouvelle échéance « Projet d'acte envoyé », entre l'appel de fonds et la signature. Réglages › Agenda de l'office pour l'adresse et « Tester maintenant »." },
     { version: '2026-09-24 23:05', resume: "Réglages › Mise à jour de CLAIRE : « Vérifier » compare la version installée à la dernière publiée, « Mettre à jour maintenant » sauvegarde la base, installe la nouvelle version et redémarre le serveur, en un clic. Le dépôt GitHub étant privé, un jeton en lecture seule s'enregistre dans la même carte." },
     { version: '2026-09-24 19:34', resume: "Nouveau bouton « Signaler un problème » en bas de la barre latérale : gravité, ce que vous faisiez, ce qui s'est passé, capture d'écran facultative ; la version, l'écran, le dossier ouvert et les erreurs techniques sont joints tout seuls. Un problème bloquant prévient l'étude sur Teams. Tri, doublons et export dans Réglages › Signalements des collaborateurs." },
