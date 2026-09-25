@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-25 21:47';
+  const VERSION_APP = '2026-09-25 21:53';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-25 21:53', resume: "Tableau de bord : recherche et « + Nouveau dossier » sur la ligne du « Bonjour », titre agrandi, avancement limité à 6 dossiers." },
     { version: '2026-09-25 21:47', resume: "Tableau de bord : colonne principale et rail à droite (dernières pièces, agenda), quatre cartes au même gabarit." },
     { version: '2026-09-25 21:41', resume: "Tableau de bord : À traiter, dernières pièces, agenda et avancement côte à côte sur quatre colonnes." },
     { version: '2026-09-25 21:36', resume: "Tableau de bord : le diagramme de Gantt est remplacé par une ligne par dossier — pourcentage d'avancement (étapes et pièces), statut Dans les délais / À surveiller / En retard, prix de vente." },
@@ -10422,7 +10423,7 @@
   // pour moitié les PIÈCES de sa checklist reçues ; sans checklist (participation), les étapes
   // seules. Le statut ne se calcule pas une seconde fois : c'est la gravité du point le plus
   // urgent de « À traiter » (pointsATraiter), pour que les deux blocs disent toujours la même chose.
-  var MAX_LIGNES_AVANCEMENT = 15;
+  var MAX_LIGNES_AVANCEMENT = 6;   // demandé par l'étude : 6 dossiers, puis « Afficher les N »
   var ETAPES_AVANCEMENT = [
     { type: 'ventebien', label: 'Vente préalable' },
     { type: 'pret', label: 'Obtention du prêt' },

@@ -7954,6 +7954,19 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   - `.dash-quatre` supprimé. Vérifié dans Chromium (1600, 1440, 1280, 400 px, clair et sombre) :
     aucun débordement horizontal, aucune erreur JS.
 
+- **En-tête du tableau de bord sur une ligne, avancement à 6 dossiers** (25/09 soir, « recherche et
+  bouton nouveau dossier au même niveau que bonjour Julie, alignés à droite / grossir un peu le
+  bonjour / avancement : 6 dossiers maximum »). Dans `index.html`, l'en-tête du tableau de bord
+  (`.dash-header.dash-header-accueil`) empile désormais l'eyebrow, une ligne `.dash-accueil-ligne`
+  (titre `#dash-titre` à gauche, `.dash-header-actions` poussé à droite par `margin-left: auto`), puis
+  le résumé `#dash-accueil`. Titre porté à 32 px (27 px sous 900 px) sur ce seul écran ; le
+  `.dash-titre` des autres onglets n'a pas bougé. **Les règles sont placées APRÈS les `@media`
+  génériques** de `.dash-header-actions` (`width: 100%` dès 1300 px), sans quoi celles-ci renverraient
+  la recherche sous le titre. Sous 900 px, recherche et bouton repassent en pleine largeur sous le
+  titre. `MAX_LIGNES_AVANCEMENT` passe de 15 à 6, et le pied « Afficher les N dossiers » est conservé.
+  Vérifié dans Chromium : même ligne à 1600, 1440 et 1280 px, aucun débordement à 400 px, clair et
+  sombre, aucune erreur JS.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

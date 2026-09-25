@@ -116,21 +116,22 @@
        passe sous la colonne principale. -->
   <div class="dash-disposition">
     <div class="dash-principal">
-    <div class="dash-header">
-      <div>
-        <div class="dash-eyebrow">Tableau de bord</div>
+    <div class="dash-header dash-header-accueil">
+      <div class="dash-eyebrow">Tableau de bord</div>
+      <!-- Titre à gauche, recherche et « + Nouveau dossier » sur la même ligne, alignés à droite. -->
+      <div class="dash-accueil-ligne">
         <h1 class="dash-titre" id="dash-titre">Vue d'ensemble</h1>
-        <!-- Accueil du collaborateur du poste : résumé du jour, bascule Mes dossiers / Tous
-             (voir renderAccueilDashboard dans script.js). -->
-        <div class="dash-accueil" id="dash-accueil"></div>
-      </div>
-      <div class="dash-header-actions">
-        <div class="dash-recherche">
-          <input type="search" id="recherche-dashboard" placeholder="Rechercher un dossier ou un responsable…" oninput="render()" autocomplete="off">
-          <div class="dash-recherche-resultats" id="dash-recherche-resultats" style="display:none;"></div>
+        <div class="dash-header-actions">
+          <div class="dash-recherche">
+            <input type="search" id="recherche-dashboard" placeholder="Rechercher un dossier ou un responsable…" oninput="render()" autocomplete="off">
+            <div class="dash-recherche-resultats" id="dash-recherche-resultats" style="display:none;"></div>
+          </div>
+          <button type="button" class="primary dash-header-nouveau" onclick="definirOnglet('nouveau')">+ Nouveau dossier</button>
         </div>
-        <button type="button" class="primary dash-header-nouveau" onclick="definirOnglet('nouveau')">+ Nouveau dossier</button>
       </div>
+      <!-- Accueil du collaborateur du poste : résumé du jour, bascule Mes dossiers / Tous
+           (voir renderAccueilDashboard dans script.js). -->
+      <div class="dash-accueil" id="dash-accueil"></div>
     </div>
 
     <!-- Affiché seulement quand la sauvegarde automatique est en retard ou a échoué (voir

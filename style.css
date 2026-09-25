@@ -5309,6 +5309,25 @@ button.avancement-ligne:hover { background: var(--paper-sunk); }
 /* L'en-tête vit dans la colonne principale : plus de place perdue sous le titre, la marge
    suffit à séparer les chiffres. */
 .dash-principal .dash-header { margin-bottom: 20px; }
+/* En-tête du tableau de bord : titre à gauche, recherche et « + Nouveau dossier » à droite sur la
+   MÊME ligne ; le résumé du jour dessous. Placé après les @media génériques de .dash-header-actions
+   (width: 100% dès 1300px) pour que ceux-ci ne renvoient pas les actions sous le titre. */
+.dash-header.dash-header-accueil { display: block; }
+.dash-accueil-ligne {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  flex-wrap: wrap;
+}
+.dash-accueil-ligne .dash-titre { font-size: 32px; line-height: 1.15; }
+.dash-accueil-ligne .dash-header-actions { width: auto; margin-left: auto; flex-wrap: nowrap; }
+.dash-accueil-ligne .dash-recherche { width: 260px; flex: 0 1 260px; }
+@media (max-width: 900px) {
+  .dash-accueil-ligne .dash-titre { font-size: 27px; }
+  .dash-accueil-ligne .dash-header-actions { width: 100%; margin-left: 0; flex-direction: column; align-items: stretch; }
+  .dash-accueil-ligne .dash-recherche { width: 100%; flex: none; }
+}
 .dash-principal .kpis-dashboard { margin-bottom: 24px; }
 /* À traiter (étroit) + avancement (large). Flex : un avancement masqué laisse À traiter prendre
    toute la largeur, et les deux passent l'un sous l'autre dès que la colonne ne peut plus tenir
