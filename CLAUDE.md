@@ -7737,6 +7737,16 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     fonds » et le questionnaire de satisfaction (test de signature réduit à ces deux-là).
   - Tests : texte exact des deux emails dans `tests/relances-email.test.js`. Suite racine 800.
 
+- **Email du questionnaire de satisfaction : texte de l'étude, sans signature** (25/09), même
+  traitement que les emails ci-dessus. `construireEmailQuestionnaireSatisfaction` porte le texte
+  fourni mot pour mot (« Madame, Monsieur, … Bien cordialement. »), paragraphes séparés par une
+  ligne vide, les deux solutions numérotées sur deux lignes consécutives. Le lien « Cliquez ici
+  pour laisser votre avis » est écrit en clair suivi de l'adresse (un `mailto:` ne porte que du
+  texte, Outlook rend l'adresse cliquable). `LIEN_AVIS_GOOGLE_OFFICE` passe à l'adresse complète
+  donnée par l'étude, qui ouvre directement les avis. Plus de `SIGNATURE_EMAIL_OFFICE` : seul
+  l'email « Réception des fonds » la porte encore. Le PDF du questionnaire reste téléchargé au
+  même clic, à joindre à la main. Test de texte exact dans `tests/relances-email.test.js`.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

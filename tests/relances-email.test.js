@@ -90,11 +90,16 @@ test('construireEmailQuestionnaireSatisfaction reprend le texte fourni par l\'é
   const app = chargerApplication();
   const { sujet, corps } = app.construireEmailQuestionnaireSatisfaction(dossierBase(app, {}));
   assert.equal(sujet, 'Questionnaire de satisfaction');
-  assert.match(corps, /questionnaire de satisfaction/i);
-  assert.match(corps, /page Google/);
-  assert.match(corps, /google\.com\/maps/);
-  // Plus aucune mention de modèle provisoire.
-  assert.doesNotMatch(corps, /PROVISOIRE/);
+  assert.equal(corps, [
+    'Madame, Monsieur,',
+    'La qualité du service rendu à nos clients est une priorité pour notre office. Elle traduit l’engagement de notre équipe pour s’adapter à vos attentes.',
+    'Afin de recueillir votre avis, deux solutions s’offrent à vous :\n1. Répondre au questionnaire satisfaction ci-joint, de manière anonyme, et nous le retourner.\n2. Laisser un avis en ligne afin de faire profiter de votre expérience au sein de notre office. Cliquez ici pour laisser votre avis : ' + app.LIEN_AVIS_GOOGLE_OFFICE,
+    'Sachez que toute l’office notarial a eu à cœur de vous accompagner et espère pouvoir collaborer à vos côtés de nouveau.',
+    'Dans l’attente et vous en remerciant vivement par avance,',
+    'Bien cordialement.'
+  ].join('\n\n'));
+  assert.match(app.LIEN_AVIS_GOOGLE_OFFICE, /^https:\/\/www\.google\.com\/maps\/place\/.*!9m1!1b1$/);
+  assert.doesNotMatch(corps, /PROVISOIRE|Office de Maître/);
 });
 
 test('renderQuestionnaireSatisfaction : absent pour un dossier archivé, proposé en participation', () => {
@@ -148,8 +153,7 @@ test('signature commune : tous les emails pré-rédigés se terminent par la sig
   const app = chargerApplication();
   const d = dossierBase(app, { pret: '2026-11-15', rendezVousSignature: '2026-11-20' });
   const corps = [
-    app.construireEmailReceptionFonds(d).corps,
-    app.construireEmailQuestionnaireSatisfaction(d).corps
+    app.construireEmailReceptionFonds(d).corps
   ];
   for (const c of corps) {
     assert.ok(c.endsWith(app.SIGNATURE_EMAIL_OFFICE), c.slice(0, 60));

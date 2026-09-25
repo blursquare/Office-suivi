@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-25 15:03';
+  const VERSION_APP = '2026-09-25 15:08';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-25 15:08', resume: "Email du questionnaire de satisfaction : texte de l'étude, lignes espacées, sans signature, lien direct vers les avis Google." },
     { version: '2026-09-25 15:03', resume: "Emails « Provision + pièce d’identité » et « RIB » : textes de l'étude, lignes espacées, sans signature texte. Le RIB demande désormais d'apporter RIB et pièce d'identité au rendez-vous de signature." },
     { version: '2026-09-25 14:54', resume: "Relance « offre de prêt » (bouton et relance automatique) : nouveau texte de l'étude, lignes espacées, sans signature texte — la signature Outlook s'ajoute d'elle-même." },
     { version: '2026-09-25 14:02', resume: "Agenda de l'office : un rendez-vous « VTE - … » à venir remplit le rendez-vous de signature du dossier (ignoré s'il porte un « ? »), et le suit s'il est déplacé. Réglages rangés en quatre sous-onglets, la mise à jour en tête. Logo agrandi." },
@@ -12787,21 +12788,25 @@
   // notaire de l'acquéreur quand il est en participation, ce questionnaire porte sur le RESSENTI
   // du client vis-à-vis de NOTRE étude — demandé explicitement à un office en participation n'a
   // aucun sens. Toujours `d.emailAcquereur` directement, jamais `emailDestinataireRelance(d)`.
-  //
-  // MODÈLE PROVISOIRE : l'étude doit fournir le texte définitif du questionnaire (un rappel est
-  // programmé pour le briefing du lendemain de cette entrée). REMPLACER le sujet/corps ci-dessous
-  // dès réception — ne rien changer d'autre dans cette fonction.
-  // Page d'avis de l'office, à joindre à l'email — fournie par l'étude avec le questionnaire.
-  var LIEN_AVIS_GOOGLE_OFFICE = 'https://www.google.com/maps/place/Office+Notarial+de+Ma%C3%AEtre+Sophie+Gossart';
+  // Page d'avis Google de l'office (lien fourni par l'étude, il ouvre directement les avis).
+  var LIEN_AVIS_GOOGLE_OFFICE = 'https://www.google.com/maps/place/Office+Notarial+de+Ma%C3%AEtre+Sophie+Gossart/@47.6135912,1.3271913,15z/data=!4m7!3m6!1s0x0:0x9b95fcc14ccb0c41!8m2!3d47.6134738!4d1.3273035!9m1!1b1';
 
-  // Texte DÉFINITIF fourni par l'étude (le modèle provisoire précédent est retiré). Le
-  // questionnaire lui-même est un PDF, également fourni : il est téléchargé au même clic, à
-  // joindre à la main au brouillon — une page web ne peut pas attacher un fichier à un mailto
+  // Texte fourni mot pour mot par l'étude, une ligne vide entre chaque paragraphe, sans
+  // SIGNATURE_EMAIL_OFFICE (le texte se termine lui-même par « Bien cordialement. »). Un mailto
+  // ne porte que du texte : le lien « Cliquez ici » est écrit en clair, Outlook le rend cliquable.
+  // Le questionnaire lui-même est un PDF téléchargé au même clic, à joindre à la main
   // (contrainte fondamentale n°4).
   function construireEmailQuestionnaireSatisfaction(d) {
     return {
       sujet: 'Questionnaire de satisfaction',
-      corps: `Bonjour,\n\nMaintenant que votre dossier est finalisé, nous serions heureux de recueillir votre avis sur notre accompagnement.\n\nVous trouverez ci-joint notre questionnaire de satisfaction. N'hésitez pas à le compléter et à nous le retourner.\n\nSi vous avez apprécié notre accompagnement, nous vous serions également reconnaissants de laisser un avis sur notre page Google : ${LIEN_AVIS_GOOGLE_OFFICE}\n\nNous vous remercions par avance du temps que vous accepterez de nous consacrer.${SIGNATURE_EMAIL_OFFICE}`
+      corps: [
+        'Madame, Monsieur,',
+        'La qualité du service rendu à nos clients est une priorité pour notre office. Elle traduit l’engagement de notre équipe pour s’adapter à vos attentes.',
+        'Afin de recueillir votre avis, deux solutions s’offrent à vous :\n1. Répondre au questionnaire satisfaction ci-joint, de manière anonyme, et nous le retourner.\n2. Laisser un avis en ligne afin de faire profiter de votre expérience au sein de notre office. Cliquez ici pour laisser votre avis : ' + LIEN_AVIS_GOOGLE_OFFICE,
+        'Sachez que toute l’office notarial a eu à cœur de vous accompagner et espère pouvoir collaborer à vos côtés de nouveau.',
+        'Dans l’attente et vous en remerciant vivement par avance,',
+        'Bien cordialement.'
+      ].join('\n\n')
     };
   }
 
