@@ -205,3 +205,41 @@ test('executerEtEnregistrerTourAgenda : un tour reussi met a jour le compte rend
   assert.equal(depot.trouverParId('d1').projetEnvoye, dateDuJourParis());
   db.close();
 });
+
+// Erreur 503 signalée par l'étude (25/09) : le serveur du calendrier refusait la requête de Node.
+test('lecture ics : en-tetes de client d\'agenda, webcal converti en https, relance sur 503', async () => {
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  const appels = [];
+  const ics = 'BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n';
+  const reponses = [{ ok: false, status: 503 }, { ok: true, status: 200, text: async () => ics }];
+  const fetchFn = async (url, options) => { appels.push({ url, options }); return reponses[appels.length - 1]; };
+  const resultat = await executerTourSurveillanceAgenda(depot, 'webcal://outlook.example/owa/calendar/x/calendar.ics', fetchFn, 0);
+  assert.equal(resultat.ok, true, resultat.erreur);
+  assert.equal(appels.length, 2, 'une seule relance apres le 503');
+  assert.equal(appels[0].url, 'https://outlook.example/owa/calendar/x/calendar.ics');
+  assert.match(appels[0].options.headers['User-Agent'], /Mozilla/);
+  assert.match(appels[0].options.headers.Accept, /text\/calendar/);
+  db.close();
+});
+
+test('lecture ics : 503 persistant → message clair, jamais plus d\'une relance', async () => {
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  let n = 0;
+  const resultat = await executerTourSurveillanceAgenda(depot, 'https://x.test/calendar.ics', async () => { n++; return { ok: false, status: 503 }; }, 0);
+  assert.equal(resultat.ok, false);
+  assert.equal(n, 2);
+  assert.match(resultat.erreur, /indisponible pour l'instant \(erreur 503\)/);
+  db.close();
+});
+
+test('lecture ics : un lien HTML (sans VCALENDAR) est signale au lieu de rendre 0 mise a jour', async () => {
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  const resultat = await executerTourSurveillanceAgenda(depot, 'https://x.test/calendar.html',
+    async () => ({ ok: true, status: 200, text: async () => '<html><body>Calendrier</body></html>' }), 0);
+  assert.equal(resultat.ok, false);
+  assert.match(resultat.erreur, /calendar\.ics/);
+  db.close();
+});

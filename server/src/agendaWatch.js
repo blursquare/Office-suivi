@@ -69,9 +69,66 @@ function appliquerDetectionsAgenda(depot, detections, aujourdHui) {
   return resultat;
 }
 
+// En-têtes envoyés au serveur du calendrier. Le `fetch` de Node n'envoie par défaut qu'un
+// User-Agent « node » et `Accept: */*` : certains serveurs de calendriers publiés (Outlook/Office 365
+// en tête) répondent alors 503 à une requête qu'ils servent sans difficulté à un navigateur ou à un
+// client d'agenda. On se présente donc comme un client d'agenda ordinaire.
+const ENTETES_LECTURE_ICS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+  Accept: 'text/calendar, text/plain;q=0.9, */*;q=0.8',
+  'Accept-Language': 'fr-FR,fr;q=0.9'
+};
+
+// Codes qui disent « réessayez plus tard » : une seule nouvelle tentative, après une courte pause.
+const STATUTS_A_RELANCER = [429, 502, 503, 504];
+const PAUSE_AVANT_RELANCE_MS = 3000;
+
+// Une adresse copiée depuis Outlook commence parfois par `webcal://` (le protocole d'abonnement),
+// que `fetch` ne sait pas ouvrir : c'est la même adresse en https.
+function adresseLisibleIcs(url) {
+  const brute = String(url || '').trim();
+  return brute.replace(/^webcals?:\/\//i, 'https://');
+}
+
+// Message affiché dans les Réglages : le code seul ne dit rien à l'étude.
+function messageErreurCalendrier(statut) {
+  if (statut === 503 || statut === 502 || statut === 504 || statut === 429) {
+    return `Le serveur du calendrier est indisponible pour l'instant (erreur ${statut}). ` +
+      'CLAIRE réessaiera au prochain tour, dans 15 minutes.';
+  }
+  if (statut === 401 || statut === 403) {
+    return `Le calendrier refuse l'accès (erreur ${statut}) : le lien de publication a peut-être été ` +
+      'révoqué — republiez le calendrier et recollez le lien ICS.';
+  }
+  if (statut === 404) {
+    return "Le calendrier est introuvable (erreur 404) : vérifiez que le lien collé est bien le lien ICS " +
+      '(il se termine par calendar.ics), pas le lien HTML.';
+  }
+  return `Le calendrier a répondu une erreur (${statut}).`;
+}
+
+async function telechargerIcs(icsUrl, fetchFn, pauseMs) {
+  const f = fetchFn || fetch;
+  const adresse = adresseLisibleIcs(icsUrl);
+  let reponse = await f(adresse, { headers: ENTETES_LECTURE_ICS, redirect: 'follow' });
+  if (STATUTS_A_RELANCER.includes(reponse.status)) {
+    await new Promise((r) => setTimeout(r, pauseMs == null ? PAUSE_AVANT_RELANCE_MS : pauseMs));
+    reponse = await f(adresse, { headers: ENTETES_LECTURE_ICS, redirect: 'follow' });
+  }
+  if (!reponse.ok) throw new Error(messageErreurCalendrier(reponse.status));
+  const texte = await reponse.text();
+  // Un lien HTML (la page « afficher le calendrier ») répond 200 mais ne contient aucun événement :
+  // le dire plutôt que de rendre « 0 dossier mis à jour » comme si tout allait bien.
+  if (!/BEGIN:VCALENDAR/i.test(texte)) {
+    throw new Error("Le lien ne renvoie pas un calendrier : collez le lien ICS (il se termine par calendar.ics), pas le lien HTML.");
+  }
+  return texte;
+}
+
 // Un seul tour de lecture : télécharge le flux, détecte, applique. `fetchFn` injectable (tests) —
-// la vraie fonction par défaut est le `fetch` global de Node.
-async function executerTourSurveillanceAgenda(depot, icsUrl, fetchFn) {
+// la vraie fonction par défaut est le `fetch` global de Node. `pauseMs` : pause avant la relance
+// (injectable pour que les tests ne patientent pas trois secondes).
+async function executerTourSurveillanceAgenda(depot, icsUrl, fetchFn, pauseMs) {
   const resultat = {
     ok: false, dossiersVerifies: 0, misAJour: [], dejaRenseignes: [], sansCorrespondance: [], erreur: null
   };
@@ -80,9 +137,7 @@ async function executerTourSurveillanceAgenda(depot, icsUrl, fetchFn) {
     return resultat;
   }
   try {
-    const reponse = await (fetchFn || fetch)(icsUrl);
-    if (!reponse.ok) throw new Error(`Le calendrier a répondu une erreur (${reponse.status}).`);
-    const texte = await reponse.text();
+    const texte = await telechargerIcs(icsUrl, fetchFn, pauseMs);
     const dossiersActifs = depot.tousActifs().filter((d) => !d.archive);
     resultat.dossiersVerifies = dossiersActifs.length;
     const detections = actionsDetecteesDepuisIcs(texte, dossiersActifs);
@@ -138,6 +193,7 @@ function demarrerSurveillanceAgenda(depot, parametresRepo, fetchFn, intervalleMs
 }
 
 module.exports = {
+  adresseLisibleIcs, messageErreurCalendrier, ENTETES_LECTURE_ICS,
   appliquerDetectionsAgenda, dateDuJourParis, executerTourSurveillanceAgenda, executerEtEnregistrerTourAgenda,
   demarrerSurveillanceAgenda, INTERVALLE_SURVEILLANCE_AGENDA_MS
 };

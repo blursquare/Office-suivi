@@ -334,7 +334,9 @@ const CLE_REGLAGES_AGENDA = 'agenda-office';
 
 function assainirReglagesAgenda(brut) {
   const b = (brut && typeof brut === 'object') ? brut : {};
-  const url = texteBorne(b.icsUrl, 2000);
+  // Une adresse copiée depuis Outlook commence parfois par webcal:// (protocole d'abonnement) :
+  // c'est la même adresse en https, convertie ici pour être acceptée et lisible par fetch.
+  const url = texteBorne(b.icsUrl, 2000).replace(/^webcals?:\/\//i, 'https://');
   // Contrôle de forme minimal (schéma http/https) : n'empêche pas d'enregistrer une URL fausse,
   // mais attrape un collage manifestement raté (un chemin de fichier, du texte au hasard) avant
   // que le tour de surveillance ne s'y casse les dents en silence.

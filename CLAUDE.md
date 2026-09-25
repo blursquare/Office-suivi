@@ -7589,6 +7589,23 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   - Tests : `server/test/auth.test.js` (3). Vérifié dans Chromium : aucune fenêtre de connexion,
     l'API répond. Ne parvient au bureau qu'avec le prochain `CLAIRE-serveur.exe`.
 
+- **Agenda de l'office : erreur 503 à la lecture du .ics** (25/09). Signalé par l'étude juste
+  après la mise en service de la lecture de l'agenda (« la lecture fait ressortir une erreur 503 »).
+  La route elle-même n'était pas en cause (elle ne renvoie 503 que sans dépôt, jamais en
+  production) : c'était le serveur du CALENDRIER qui répondait 503 au `fetch` de Node, qui ne
+  s'annonce que comme « node » avec `Accept: */*` — alors que le même lien est lu sans difficulté
+  par le brief du matin. `telechargerIcs()` (`server/src/agendaWatch.js`) envoie désormais des
+  en-têtes de client d'agenda (`ENTETES_LECTURE_ICS` : User-Agent de navigateur,
+  `Accept: text/calendar`), convertit `webcal://` en `https://` (`adresseLisibleIcs`, aussi à
+  l'enregistrement dans `assainirReglagesAgenda`), relance UNE fois après 3 s sur 429/502/503/504,
+  et traduit le code en phrase (`messageErreurCalendrier` : indisponible/réessai au prochain tour,
+  accès refusé → republier, 404 → lien HTML au lieu du lien ICS). Une réponse 200 sans
+  `BEGIN:VCALENDAR` (lien HTML de la page d'affichage) est signalée au lieu de rendre « 0 mis à
+  jour ». **Non vérifié contre le vrai serveur Outlook** (injoignable depuis cet environnement) :
+  si le 503 persiste, ouvrir le lien dans le navigateur du poste serveur pour savoir si c'est le
+  lien ou le réseau. Tests : 3 dans `server/test/agenda-watch.test.js`. Ne parvient au bureau
+  qu'avec le prochain `CLAIRE-serveur.exe`.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

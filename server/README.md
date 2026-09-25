@@ -134,6 +134,14 @@ visio, orange = confrère) indiquent seulement le LIEU et ne jouent aucun rôle 
 4. Un dossier archivé n'est jamais mis à jour par ce mécanisme.
 5. Une adresse qui ne commence pas par `http://` ou `https://` (chemin de fichier collé par erreur,
    texte au hasard) est refusée à l'enregistrement plutôt que d'échouer en silence au premier tour.
+   Une adresse `webcal://` (copiée depuis Outlook) est convertie en `https://`.
+7. **Erreur 503 / 429 / 502 / 504** : le serveur du calendrier demande de revenir plus tard. CLAIRE
+   se présente comme un client d'agenda ordinaire (User-Agent de navigateur, `Accept: text/calendar`
+   — sans eux, Outlook refusait la requête de Node), relance une fois après 3 s, puis réessaie au
+   tour suivant. Si l'erreur persiste plusieurs tours, ouvrir le lien dans un navigateur : s'il
+   télécharge bien un fichier `calendar.ics`, le problème vient du réseau du poste serveur ;
+   sinon, republier le calendrier. Un lien HTML (page d'affichage, sans `BEGIN:VCALENDAR`) est
+   signalé comme tel plutôt que de rendre « 0 dossier mis à jour ».
 6. **Premier jet de détection de mots-clés** (« appel de fonds »/« AF », « projet … envoyé »),
    comme les autres détections heuristiques de CLAIRE (`motifNom`, `PIECES_*`…) — à resserrer si un
    faux positif ou un rendez-vous non reconnu remonte, avec la formulation exacte qui a posé
