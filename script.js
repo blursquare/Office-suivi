@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-25 15:31';
+  const VERSION_APP = '2026-09-25 21:01';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-25 21:01', resume: "Tableau de bord adapté au collaborateur du poste : ses dossiers par défaut (vue globale pour l'administrateur), accueil, rendez-vous de signature à 15 jours avec l'état des envois, auteur dans l'historique." },
     { version: '2026-09-25 15:31', resume: "Agenda de l'office : un rendez-vous intitulé « VENTE NOM DU DOSSIER » est reconnu comme « VTE - NOM DU DOSSIER »." },
     { version: '2026-09-25 15:12', resume: "Agenda de l'office : l'erreur 500 d'Exchange (calendrier introuvable derrière le lien) est expliquée, avec une relance automatique." },
     { version: '2026-09-25 15:08', resume: "Email du questionnaire de satisfaction : texte de l'étude, lignes espacées, sans signature, lien direct vers les avis Google." },
@@ -9201,7 +9202,7 @@
     generationImportActuel++;
     compromisNomFichierImporte = '';
     document.getElementById('f-nom').value = '';
-    document.getElementById('f-responsable').value = '';
+    document.getElementById('f-responsable').value = utilisateurPoste || '';
     document.getElementById('f-type-vente').value = 'maison';
     document.getElementById('f-role-notaire').value = 'instrumentaire';
     majApercuPieces();
@@ -9400,7 +9401,7 @@
       notaires: instantane ? instantane.notaires : null,
       bien: instantane ? instantane.bien : null,
       extraction: instantane ? instantane.extraction : null,
-      historique: [{ date: new Date().toISOString(), texte: 'Dossier créé' }]
+      historique: [Object.assign({ date: new Date().toISOString(), texte: 'Dossier créé' }, utilisateurPoste ? { auteur: utilisateurPoste } : {})]
     };
 
     // Ce que l'étude a corrigé à la main par rapport à ce que l'extraction proposait — journalisé
@@ -9982,7 +9983,10 @@
 
   function ajouterHistorique(d, texte) {
     d.historique = d.historique || [];
-    d.historique.push({ date: new Date().toISOString(), texte });
+    const entree = { date: new Date().toISOString(), texte };
+    // Qui a fait quoi : le collaborateur du poste, quand il est connu.
+    if (typeof utilisateurPoste !== 'undefined' && utilisateurPoste) entree.auteur = utilisateurPoste;
+    d.historique.push(entree);
   }
 
   function changerCategorie(dossierId, ancienType, nouveauType) {
@@ -10300,7 +10304,7 @@
     </svg>`;
   }
 
-  function renderKpisDashboard(dossiersActifs) {
+  function renderKpisDashboard(dossiersActifs, dossiersTousPerimetre) {
     const bloc = document.getElementById('kpis-dashboard');
     if (!bloc) return;
     const { actifs, urgents, urgents15, manquantes, piecesIncompletes } = calculerStatsPortefeuille(dossiersActifs);
@@ -10311,7 +10315,7 @@
     // précédente reste calculée (evolution.ecartAn) mais volontairement pas affichée pour
     // l'instant, sur demande explicite de l'étude ("ne pas afficher l'option pour l'année pour le
     // moment") — à réactiver ici le jour où elle le redemande, sans retoucher le calcul.
-    const evolution = calculerEvolutionPortefeuille(dossiers);
+    const evolution = calculerEvolutionPortefeuille(dossiersTousPerimetre || dossiers);
     const tMois = formaterTendance(evolution.ecartMois);
     const tendanceMois = `<span class="kpi-tendance" title="${evolution.actuel} aujourd'hui contre ${evolution.moisDernier} il y a un mois">${tMois.icone}${tMois.texte} vs mois dernier</span>`;
     const tuiles = [
@@ -10731,6 +10735,7 @@
     document.body.classList.toggle('onglet-inventaire-actif', nom === 'inventaire');
     document.getElementById('tab-analyse-ia').classList.toggle('actif', nom === 'analyse-ia');
     document.getElementById('tab-reglages').classList.toggle('actif', nom === 'reglages');
+    if (nom === 'suivi') appliquerFiltreSuiviCollaborateur();
     if (nom === 'suivi' || nom === 'dashboard') render();
     // Vérifiée à chaque ouverture (appel léger) plutôt qu'une fois pour toutes : Ollama a pu être
     // installé/démarré/arrêté sur le serveur depuis la dernière visite de cet onglet.
@@ -11169,6 +11174,253 @@
       </div>`;
   }
 
+  // ---- Collaborateur du poste ----
+  // Demandé par l'étude : adapter le tableau de bord à la personne qui l'ouvre. Un navigateur ne
+  // peut lire ni le nom du PC ni la session Windows, et l'adresse IP d'un poste change sans
+  // réservation dans la box : le collaborateur choisit donc UNE FOIS qui utilise ce poste, choix
+  // retenu dans le navigateur (localStorage) et modifiable dans les Réglages ou depuis le tableau
+  // de bord. Perdu seulement si les données du navigateur sont effacées, ou si CLAIRE est ouverte
+  // par une autre adresse (localhost / IP : deux « sites » pour le navigateur) — CLAIRE repose
+  // alors simplement la question, aucune donnée de dossier n'en dépend.
+  // L'administrateur (Bastien ANGLUMENT, décision de l'étude) garde la vue de toute l'étude par
+  // défaut ; les autres voient d'abord leurs propres dossiers, avec un bouton pour tout revoir.
+  var CLE_UTILISATEUR_POSTE = 'claire-utilisateur-poste';
+  var PREFIXE_DERNIERE_VISITE = 'claire-derniere-visite:';
+  var ADMINISTRATEURS = ['Bastien ANGLUMENT'];
+  var JOURS_RENDEZ_VOUS_DASHBOARD = 15;
+  let utilisateurPoste = '';
+  // null = vue par défaut selon le rôle ; true/false = choix fait avec la bascule du tableau de bord.
+  let vueDashboardGlobale = null;
+  // Date de la visite PRÉCÉDENTE de ce collaborateur sur ce poste (lue au démarrage, avant d'être
+  // remplacée par celle d'aujourd'hui) : sert à « pièces arrivées depuis votre dernière visite ».
+  let derniereVisitePrecedente = null;
+  // Le filtre « Responsable » du Suivi n'est posé qu'à la première ouverture de la session : le
+  // collaborateur doit pouvoir repasser sur « Tous » sans que CLAIRE le lui remette à chaque fois.
+  let filtreSuiviPose = false;
+  let questionPosteEcartee = false;
+
+  function estAdministrateur(nom) { return ADMINISTRATEURS.indexOf(nom) !== -1; }
+
+  // « Julie VASSELIN » → « Julie ». Pure.
+  function prenomCollaborateur(nom) {
+    const mots = String(nom || '').trim().split(/\s+/).filter(Boolean);
+    if (!mots.length) return '';
+    const prenom = mots.filter(m => m !== m.toUpperCase() || !/[A-ZÀ-Ý]/.test(m));
+    return (prenom.length ? prenom : mots).join(' ');
+  }
+
+  // Pure : les dossiers que montre le tableau de bord. Sans collaborateur connu, ou en vue globale,
+  // tout le portefeuille.
+  function dossiersDuPerimetre(liste, utilisateur, global) {
+    const l = Array.isArray(liste) ? liste : [];
+    if (global || !utilisateur) return l.slice();
+    return l.filter(d => d && d.responsable === utilisateur);
+  }
+
+  // Pure : la vue par défaut dépend du rôle, sauf choix explicite avec la bascule.
+  function vueGlobalePour(utilisateur, choix) {
+    if (!utilisateur) return true;
+    if (choix === true || choix === false) return choix;
+    return estAdministrateur(utilisateur);
+  }
+
+  function vueGlobaleDashboard() { return vueGlobalePour(utilisateurPoste, vueDashboardGlobale); }
+
+  function isoAujourdhuiLocal() {
+    const t = new Date();
+    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+  }
+
+  // Pure : les rendez-vous de signature des `jours` prochains jours, avec l'état des deux envois
+  // qui doivent être partis avant (appel de fonds, projet d'acte). Aujourd'hui compris.
+  function rendezVousProchains(dossiersActifs, aujourdhuiIso, jours) {
+    const n = Number.isFinite(jours) ? jours : JOURS_RENDEZ_VOUS_DASHBOARD;
+    const res = [];
+    for (const d of dossiersActifs || []) {
+      if (!d || !d.rendezVousSignature) continue;
+      const j = ecartJours(aujourdhuiIso, d.rendezVousSignature);
+      if (j === null || j < 0 || j > n) continue;
+      res.push({
+        dossier: d,
+        date: d.rendezVousSignature,
+        jours: j,
+        appelFondsEnvoye: echeanceValidee(d, 'appelFonds'),
+        projetEnvoye: echeanceValidee(d, 'projetEnvoye')
+      });
+    }
+    return res.sort((a, b) => a.date.localeCompare(b.date) || String(a.dossier.nom).localeCompare(String(b.dossier.nom)));
+  }
+
+  // Pure : les pièces trouvées APRÈS `depuisIso` (horodatage de la visite précédente).
+  function piecesDepuisVisite(dossiersActifs, depuisIso) {
+    if (!depuisIso) return [];
+    const depuis = Date.parse(depuisIso);
+    if (!Number.isFinite(depuis)) return [];
+    const res = [];
+    for (const d of dossiersActifs || []) {
+      const dates = (d && d.piecesTrouveesLe) || {};
+      for (const cle of Object.keys(dates)) {
+        const t = Date.parse(dates[cle]);
+        if (Number.isFinite(t) && t > depuis) res.push({ dossier: d, cle, le: dates[cle] });
+      }
+    }
+    return res;
+  }
+
+  // Pure : la phrase de l'accueil. Ne dit que ce qui est non nul — une phrase de zéros ne dit rien.
+  function resumeAccueilCollaborateur(c) {
+    const x = c || {};
+    const morceaux = [];
+    const pl = (n, s, p) => `${n} ${n > 1 ? p : s}`;
+    if (x.rendezVous) morceaux.push(pl(x.rendezVous, 'rendez-vous de signature', 'rendez-vous de signature') + ` dans les ${JOURS_RENDEZ_VOUS_DASHBOARD} jours`);
+    if (x.echeances7) morceaux.push(pl(x.echeances7, 'échéance', 'échéances') + ' dans la semaine');
+    if (x.piecesDepuisVisite) morceaux.push(pl(x.piecesDepuisVisite, 'pièce arrivée', 'pièces arrivées') + ' depuis votre dernière visite');
+    if (!morceaux.length) return 'Rien d’urgent pour le moment.';
+    const phrase = morceaux.length === 1 ? morceaux[0] : morceaux.slice(0, -1).join(', ') + ' et ' + morceaux[morceaux.length - 1];
+    return phrase.charAt(0).toUpperCase() + phrase.slice(1) + '.';
+  }
+
+  function lireUtilisateurPoste() {
+    let nom = '';
+    try { nom = localStorage.getItem(CLE_UTILISATEUR_POSTE) || ''; } catch (e) { nom = ''; }
+    return RESPONSABLES.indexOf(nom) !== -1 ? nom : '';
+  }
+
+  // Lit la visite précédente de ce collaborateur puis enregistre celle d'aujourd'hui.
+  function enregistrerVisite(nom) {
+    derniereVisitePrecedente = null;
+    if (!nom) return;
+    const cle = PREFIXE_DERNIERE_VISITE + nom;
+    try {
+      derniereVisitePrecedente = localStorage.getItem(cle) || null;
+      localStorage.setItem(cle, new Date().toISOString());
+    } catch (e) { /* navigation privée : pas bloquant */ }
+  }
+
+  function definirUtilisateurPoste(nom) {
+    const valide = RESPONSABLES.indexOf(nom) !== -1 ? nom : '';
+    utilisateurPoste = valide;
+    vueDashboardGlobale = null;
+    filtreSuiviPose = false;
+    try {
+      if (valide) localStorage.setItem(CLE_UTILISATEUR_POSTE, valide);
+      else localStorage.removeItem(CLE_UTILISATEUR_POSTE);
+    } catch (e) { /* pas bloquant */ }
+    enregistrerVisite(valide);
+    const select = document.getElementById('reglages-utilisateur-poste');
+    if (select) select.value = valide;
+    const resp = document.getElementById('f-responsable');
+    if (resp && !resp.value && valide) resp.value = valide;
+    fermerChoixPoste();
+    render();
+  }
+
+  function initUtilisateurPoste() {
+    utilisateurPoste = lireUtilisateurPoste();
+    enregistrerVisite(utilisateurPoste);
+    const select = document.getElementById('reglages-utilisateur-poste');
+    if (select) {
+      select.innerHTML = '<option value="">— Non défini —</option>'
+        + RESPONSABLES.map(n => `<option value="${escapeAttr(n)}">${escapeHtml(n)}</option>`).join('');
+      select.value = utilisateurPoste;
+    }
+    const resp = document.getElementById('f-responsable');
+    if (resp && !resp.value && utilisateurPoste) resp.value = utilisateurPoste;
+  }
+
+  function ouvrirChoixPoste() {
+    const overlay = document.getElementById('poste-overlay');
+    if (!overlay) return;
+    const liste = document.getElementById('poste-choix-liste');
+    liste.innerHTML = RESPONSABLES.map(n => `
+      <button type="button" class="poste-choix-btn${n === utilisateurPoste ? ' actif' : ''}" onclick="definirUtilisateurPoste('${escapeOnclickArg(n)}')">
+        <span class="poste-choix-nom">${escapeHtml(n)}</span>
+        ${estAdministrateur(n) ? '<span class="poste-choix-role">Vue de toute l’étude</span>' : ''}
+      </button>`).join('');
+    overlay.style.display = 'flex';
+  }
+
+  function fermerChoixPoste() {
+    const overlay = document.getElementById('poste-overlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+
+  function ecarterChoixPoste() {
+    questionPosteEcartee = true;
+    fermerChoixPoste();
+  }
+
+  function demanderUtilisateurPosteSiInconnu() {
+    if (!utilisateurPoste && !questionPosteEcartee) ouvrirChoixPoste();
+  }
+
+  function basculerVueDashboard(globale) {
+    vueDashboardGlobale = !!globale;
+    render();
+  }
+
+  // Filtre « Responsable » du Suivi posé sur le collaborateur, une seule fois par session.
+  function appliquerFiltreSuiviCollaborateur() {
+    if (filtreSuiviPose || !utilisateurPoste || estAdministrateur(utilisateurPoste)) return;
+    filtreSuiviPose = true;
+    const f = document.getElementById('filtre-responsable');
+    if (f && !f.value) f.value = utilisateurPoste;
+  }
+
+  function renderAccueilDashboard(perimetreActifs, stats) {
+    const titre = document.getElementById('dash-titre');
+    const bloc = document.getElementById('dash-accueil');
+    if (!titre || !bloc) return;
+    if (!utilisateurPoste) {
+      titre.textContent = 'Vue d’ensemble';
+      bloc.innerHTML = `<button type="button" class="lien-discret" onclick="ouvrirChoixPoste()">Qui utilise ce poste ? Choisir</button>`;
+      return;
+    }
+    titre.textContent = `Bonjour ${prenomCollaborateur(utilisateurPoste)}`;
+    const global = vueGlobaleDashboard();
+    const resume = resumeAccueilCollaborateur({
+      rendezVous: rendezVousProchains(perimetreActifs, isoAujourdhuiLocal()).length,
+      echeances7: stats.urgents,
+      piecesDepuisVisite: piecesDepuisVisite(perimetreActifs, derniereVisitePrecedente).length
+    });
+    bloc.innerHTML = `
+      <p class="dash-accueil-resume">${escapeHtml(resume)}</p>
+      <div class="dash-accueil-actions">
+        <div class="vue-bascule" role="group" aria-label="Dossiers affichés">
+          <button type="button" class="vue-bascule-btn${global ? '' : ' actif'}" aria-pressed="${!global}" onclick="basculerVueDashboard(false)">Mes dossiers</button>
+          <button type="button" class="vue-bascule-btn${global ? ' actif' : ''}" aria-pressed="${global}" onclick="basculerVueDashboard(true)">Tous les dossiers</button>
+        </div>
+        <button type="button" class="lien-discret" onclick="ouvrirChoixPoste()">Pas ${escapeHtml(prenomCollaborateur(utilisateurPoste))} ? Changer</button>
+      </div>`;
+  }
+
+  function renderRendezVousDashboard(perimetreActifs) {
+    const section = document.getElementById('dash-rendezvous');
+    const bloc = document.getElementById('rendezvous-dashboard');
+    if (!section || !bloc) return;
+    const liste = rendezVousProchains(perimetreActifs, isoAujourdhuiLocal());
+    const global = vueGlobaleDashboard();
+    if (!liste.length) {
+      section.style.display = '';
+      bloc.innerHTML = `<div class="dash-vide-neutre">Aucun rendez-vous de signature dans les ${JOURS_RENDEZ_VOUS_DASHBOARD} prochains jours.</div>`;
+      return;
+    }
+    section.style.display = '';
+    const etat = (ok, fait, reste) => `<span class="dot-label ${ok ? 'dl-success' : 'dl-pret'}"><span class="dot"></span>${ok ? fait : reste}</span>`;
+    bloc.innerHTML = liste.map(r => {
+      const quand = new Date(r.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+      const delai = r.jours === 0 ? "aujourd'hui" : `J-${r.jours}`;
+      return `
+        <button type="button" class="action-urgente-ligne rdv-ligne" onclick="ouvrirDossierDepuisDashboard('${r.dossier.id}')">
+          <span class="rdv-date"><b>${escapeHtml(quand)}</b><span class="rdv-delai">${delai}</span></span>
+          <span class="rdv-dossier"><span class="action-urgente-nom">${escapeHtml(libelleDossierAffiche(r.dossier))}</span>
+            ${global && r.dossier.responsable ? `<span class="action-urgente-raison">${escapeHtml(r.dossier.responsable)}</span>` : ''}</span>
+          <span class="rdv-etats">${etat(r.appelFondsEnvoye, 'Appel de fonds envoyé', 'Appel de fonds à envoyer')}${etat(r.projetEnvoye, 'Projet envoyé', 'Projet à envoyer')}</span>
+          <span class="action-urgente-fleche">&rarr;</span>
+        </button>`;
+    }).join('');
+  }
+
   function render() {
     const list = document.getElementById('dossier-list');
     const count = document.getElementById('dossier-count');
@@ -11181,11 +11433,19 @@
     const filtreRole = document.getElementById('filtre-role').value;
 
     const dossiersActifs = dossiers.filter(d => !d.archive);
-    renderAvancementDossiers(dossiersActifs);
+    // Le tableau de bord ne montre que les dossiers du collaborateur du poste (sauf vue globale,
+    // par défaut pour l'administrateur) — voir « Collaborateur du poste ». Le Suivi, lui, garde
+    // tout le portefeuille : il a son propre filtre Responsable.
+    const globalDash = vueGlobaleDashboard();
+    const perimetreTous = dossiersDuPerimetre(dossiers, utilisateurPoste, globalDash);
+    const perimetreActifs = perimetreTous.filter(d => !d.archive);
+    renderAvancementDossiers(perimetreActifs);
     renderStatsSuivi(dossiersActifs);
-    renderKpisDashboard(dossiersActifs);
-    renderActionsUrgentes(dossiersActifs);
-    renderPiecesRecuesDashboard(dossiersActifs);
+    renderKpisDashboard(perimetreActifs, perimetreTous);
+    renderAccueilDashboard(perimetreActifs, calculerStatsPortefeuille(perimetreActifs));
+    renderRendezVousDashboard(perimetreActifs);
+    renderActionsUrgentes(perimetreActifs);
+    renderPiecesRecuesDashboard(perimetreActifs);
     renderRechercheDashboard(dossiersActifs);
     majBadgeNotificationsSidebar();
     // Avant les retours anticipés sur liste vide ci-dessous : le tiroir doit se rafraîchir (ou se
@@ -12160,7 +12420,7 @@
         ${historique.length > 0 ? `
           <button type="button" class="historique-toggle section-eyebrow" onclick="toggleHistorique('${d.id}')">Historique (${historique.length})</button>
           <div class="historique-liste" id="historique-${d.id}">
-            ${historique.slice().reverse().map(h => `<div class="historique-ligne"><span class="h-date">${new Date(h.date).toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })}</span>${escapeHtml(h.texte)}</div>`).join('')}
+            ${historique.slice().reverse().map(h => `<div class="historique-ligne"><span class="h-date">${new Date(h.date).toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })}</span>${escapeHtml(h.texte)}${h.auteur ? `<span class="h-auteur"> — ${escapeHtml(prenomCollaborateur(h.auteur))}</span>` : ''}</div>`).join('')}
           </div>
         ` : ''}
       </div>
@@ -13207,7 +13467,9 @@
   // La popup « accès à reconfirmer » qui vivait ici a disparu avec le mécanisme de permissions du
   // navigateur : le serveur lit le NAS, il n'y a plus rien à reconfirmer.
   async function demarrerApplication() {
+    initUtilisateurPoste();
     await charger();
+    demanderUtilisateurPosteSiInconnu();
     await chargerEtatNas();
     // Avant toute relecture du NAS : un parcours lancé sans elles reconnaîtrait des fichiers que
     // l'étude a écartés.
@@ -13713,6 +13975,8 @@
     if (auteur) {
       let memo = '';
       try { memo = localStorage.getItem(CLE_AUTEUR_SIGNALEMENT) || ''; } catch (e) { memo = ''; }
+      // Le collaborateur du poste l'emporte : c'est lui qui est devant l'écran.
+      if (utilisateurPoste) memo = utilisateurPoste;
       auteur.innerHTML = '<option value="">— Choisir —</option>'
         + RESPONSABLES.map(n => `<option value="${escapeAttr(n)}"${n === memo ? ' selected' : ''}>${escapeHtml(n)}</option>`).join('')
         + `<option value="Autre"${memo === 'Autre' ? ' selected' : ''}>Autre collaborateur</option>`;
@@ -15362,7 +15626,10 @@
   // la sidebar à côté de "Suivi des dossiers" (voir majBadgeNotificationsSidebar). Un dossier
   // archivé n'est jamais compté : rien à signaler sur un dossier qu'on ne consulte plus.
   function totalNotificationsPieces() {
-    return dossiers
+    // Limité aux dossiers du collaborateur du poste, sauf pour l'administrateur (voir
+    // « Collaborateur du poste ») : ce badge dit « il y a du nouveau POUR MOI ».
+    const global = !utilisateurPoste || estAdministrateur(utilisateurPoste);
+    return dossiersDuPerimetre(dossiers, utilisateurPoste, global)
       .filter(d => !d.archive)
       .reduce((total, d) => total + ((d.piecesNotifications || []).length), 0);
   }
@@ -16684,7 +16951,11 @@
       const barreSelection = document.getElementById('pdf-selection-toolbar');
       const formEngagementManuel = document.getElementById('ajout-engagement-manuel-form');
       const signalementOverlay = document.getElementById('signalement-overlay');
-      if (signalementOverlay && signalementOverlay.style.display === 'flex') {
+      const posteOverlay = document.getElementById('poste-overlay');
+      if (posteOverlay && posteOverlay.style.display === 'flex') {
+        e.preventDefault();
+        ecarterChoixPoste();
+      } else if (signalementOverlay && signalementOverlay.style.display === 'flex') {
         e.preventDefault();
         fermerSignalement();
       } else if (infoActionOverlay && infoActionOverlay.style.display === 'flex') {

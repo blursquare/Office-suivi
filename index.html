@@ -112,7 +112,10 @@
   <div class="dash-header">
     <div>
       <div class="dash-eyebrow">Tableau de bord</div>
-      <h1 class="dash-titre">Vue d'ensemble</h1>
+      <h1 class="dash-titre" id="dash-titre">Vue d'ensemble</h1>
+      <!-- Accueil du collaborateur du poste : résumé du jour, bascule Mes dossiers / Tous
+           (voir renderAccueilDashboard dans script.js). -->
+      <div class="dash-accueil" id="dash-accueil"></div>
     </div>
     <div class="dash-header-actions">
       <div class="dash-recherche">
@@ -136,6 +139,13 @@
        « Échéances des 7 prochains jours » est retiré : le diagramme montre les mêmes dates, et la
        tuile KPI garde le compte. Chaque colonne se masque entière quand elle est vide, pour ne pas
        laisser d'étiquette orpheline. -->
+  <!-- Prochains rendez-vous de signature (15 jours) et l'état des deux envois qui doivent les
+       précéder — demandé par l'étude. Suit la vue du tableau de bord (ses dossiers, ou tous). -->
+  <div class="dash-rendezvous" id="dash-rendezvous" style="display:none;">
+    <div class="dash-section-titre">Prochains rendez-vous de signature — 15 jours</div>
+    <div id="rendezvous-dashboard" class="dash-liste"></div>
+  </div>
+
   <div class="dash-grid">
     <div class="dash-col">
       <div class="dash-section-titre">Actions urgentes</div>
@@ -1383,6 +1393,13 @@
       <div class="calc-card">
         <div class="dash-section-titre">Sur ce poste</div>
         <div class="reglages-liste">
+          <label class="reglages-option" for="reglages-utilisateur-poste">
+            <span class="reglages-option-texte">
+              <span class="reglages-option-titre">Collaborateur de ce poste</span>
+              <span class="hint">Le tableau de bord, le Suivi et l’historique s’adaptent à cette personne.</span>
+            </span>
+            <select id="reglages-utilisateur-poste" class="reglages-select-poste" onchange="definirUtilisateurPoste(this.value)"></select>
+          </label>
           <label class="reglages-option" for="reglages-theme-sombre">
             <span class="reglages-option-texte">
               <span class="reglages-option-titre">Mode sombre</span>
@@ -1690,6 +1707,19 @@
   <div class="confirm-box">
     <p id="maj-overlay-titre" style="font-weight:600; margin-bottom:8px;"></p>
     <p id="maj-overlay-detail" class="maj-overlay-detail"></p>
+  </div>
+</div>
+
+<!-- Qui utilise ce poste ? Demandé une fois par poste (voir « Collaborateur du poste » dans
+     script.js), retenu dans le navigateur, modifiable dans les Réglages. -->
+<div class="confirm-overlay" id="poste-overlay" style="display:none;" onclick="ecarterChoixPoste()">
+  <div class="confirm-box poste-box" role="dialog" aria-labelledby="poste-titre" onclick="event.stopPropagation()">
+    <div class="poste-titre" id="poste-titre">Qui utilise ce poste ?</div>
+    <p class="hint">Le tableau de bord s’ouvrira sur vos dossiers. Choix retenu sur ce poste, modifiable dans les Réglages.</p>
+    <div class="poste-choix-liste" id="poste-choix-liste"></div>
+    <div class="confirm-actions">
+      <button type="button" class="btn-annuler" onclick="ecarterChoixPoste()">Plus tard</button>
+    </div>
   </div>
 </div>
 

@@ -5387,3 +5387,58 @@ button.gantt-ligne:hover { background: var(--paper-sunk); }
   font-size: 11.5px;
   color: var(--muted);
 }
+
+/* ---- Collaborateur du poste (voir « Collaborateur du poste » dans script.js) ---- */
+.dash-accueil { margin-top: 6px; display: flex; flex-direction: column; gap: 10px; }
+.dash-accueil-resume { margin: 0; color: var(--ink-soft); font-size: 14px; max-width: 70ch; }
+.dash-accueil-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+button.lien-discret {
+  font-family: inherit; font-size: 12.5px; color: var(--muted);
+  background: none; border: none; padding: 0; cursor: pointer;
+  text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px;
+}
+button.lien-discret:hover { color: var(--focus); text-decoration-color: currentColor; }
+button.lien-discret:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
+
+.dash-rendezvous { margin-bottom: 24px; }
+.dash-vide-neutre {
+  background: var(--paper-sunk); color: var(--muted);
+  border: 1px solid var(--line); border-radius: 10px;
+  padding: 14px 16px; font-size: 13.5px;
+}
+.rdv-ligne { gap: 16px; }
+.rdv-date { display: flex; flex-direction: column; min-width: 92px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.rdv-date b { color: var(--ink); font-weight: 600; text-transform: capitalize; }
+.rdv-delai { font-size: 12px; color: var(--muted); }
+.rdv-dossier { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
+.rdv-etats { display: flex; gap: 14px; flex-wrap: wrap; margin-left: auto; font-size: 12.5px; }
+.rdv-etats + .action-urgente-fleche { margin-left: 0; }
+@media (max-width: 700px) {
+  .rdv-ligne { flex-wrap: wrap; }
+  .rdv-etats { margin-left: 0; width: 100%; }
+}
+
+.h-auteur { color: var(--muted); }
+
+.poste-box { max-width: 420px; }
+.poste-titre { font-size: 17px; font-weight: 700; color: var(--ink); margin: 0 0 4px; }
+.poste-choix-liste { display: flex; flex-direction: column; gap: 8px; margin: 14px 0 6px; }
+.poste-choix-btn {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  width: 100%; font-family: inherit; font-size: 14px; text-align: left;
+  background: var(--paper-card); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 8px; padding: 11px 14px; cursor: pointer;
+}
+.poste-choix-btn:hover, .poste-choix-btn:focus-visible { border-color: var(--focus); outline: none; }
+.poste-choix-btn.actif { border-color: var(--focus); box-shadow: 0 0 0 1px var(--focus) inset; }
+.poste-choix-nom { font-weight: 600; }
+.poste-choix-role { font-size: 12px; color: var(--muted); }
+.reglages-option select.reglages-select-poste { width: auto; min-width: 200px; flex-shrink: 0; }
+/* Piège de grille déjà rencontré ailleurs (.af-grid, .audit-grid) : une piste 1fr ne descend pas
+   sous la largeur de son contenu. Sans ça, une raison d'urgence longue élargissait toute la page
+   à largeur de téléphone. */
+.dash-grid > * { min-width: 0; }
+@media (max-width: 700px) {
+  .action-urgente-ligne { flex-wrap: wrap; }
+  .action-urgente-raison { white-space: normal; }
+}

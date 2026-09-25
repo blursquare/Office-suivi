@@ -7777,6 +7777,43 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   relevés). La lecture ne reprendra de toute façon que quand le lien du calendrier sera corrigé
   (erreur 500, voir l'entrée précédente).
 
+- **Tableau de bord adapté au collaborateur du poste** (25/09 soir). L'étude a demandé si CLAIRE
+  pouvait « détecter le PC » du collaborateur pour adapter le tableau de bord. Un navigateur ne lit
+  ni le nom du PC ni la session Windows, et l'adresse IP d'un poste change sans réservation dans la
+  box : solution retenue par l'étude, **choisir une fois par poste** (« Qui utilise ce poste ? »),
+  choix retenu en `localStorage` (`claire-utilisateur-poste`), modifiable dans Réglages › Général ›
+  Sur ce poste ou par « Pas Julie ? Changer » sur le tableau de bord. Perdu seulement si les
+  données du navigateur sont effacées ou si CLAIRE est ouverte par une autre adresse (localhost et
+  l'IP sont deux « sites ») : CLAIRE repose alors la question, rien d'autre n'en dépend. Les
+  arbitrages ont été demandés par `AskUserQuestion` ; l'étude a tout retenu, plus deux ajouts :
+  - **Bastien ANGLUMENT est administrateur** (`ADMINISTRATEURS`) : vue de toute l'étude par
+    défaut, badge de la sidebar sur tous les dossiers, pas de filtre posé sur le Suivi. Les autres
+    voient d'abord LEURS dossiers (`d.responsable`), avec une bascule « Mes dossiers / Tous les
+    dossiers » (`vueGlobalePour`, pure). Seul le tableau de bord suit ce périmètre
+    (`dossiersDuPerimetre`) : le bandeau du Suivi reste global, il a son propre filtre.
+  - **Accueil** : « Bonjour Julie » à la place de « Vue d'ensemble », et une phrase
+    (`resumeAccueilCollaborateur`, pure) qui ne cite que ce qui est non nul — rendez-vous à 15 jours,
+    échéances de la semaine, pièces arrivées **depuis la visite précédente** (`piecesDepuisVisite`,
+    sur `d.piecesTrouveesLe` ; horodatage de visite par collaborateur et par poste,
+    `claire-derniere-visite:<nom>`, lu au démarrage puis remplacé).
+  - **Prochains rendez-vous de signature — 15 jours** (`rendezVousProchains`, pure) : demandé en
+    plus par l'étude, avec l'état « Appel de fonds envoyé / à envoyer » et « Projet envoyé / à
+    envoyer » (`echeanceValidee`, donc aussi ce qui est relevé dans l'agenda). L'administrateur voit
+    ceux de tous, avec le responsable sous le nom du dossier.
+  - **Qui a fait quoi** : `ajouterHistorique` (et l'entrée « Dossier créé ») pose `auteur`, affiché
+    « — Julie » dans l'historique de la fiche. Les entrées écrites par le serveur (agenda, NAS)
+    n'en ont pas, et les anciennes non plus.
+  - **Responsable pré-rempli** à la création (`reinitialiserFormulaire` et démarrage), **Suivi
+    filtré** sur le collaborateur à la première ouverture de la session seulement (repasser sur
+    « Tous » tient ensuite), **signalement pré-rempli** avec le collaborateur du poste.
+  - Défaut vu en vérification et corrigé au passage : à 400 px, une raison longue d'« Actions
+    urgentes » élargissait la page (même piège de grille que `.af-grid`) — `.dash-grid > *
+    { min-width: 0 }`, et les lignes se replient sous 700 px.
+  - Tests : `tests/collaborateur-poste.test.js` (6). Suite racine 800 → 806. Vérifié dans un vrai
+    Chromium (serveur réel, dossiers inventés) : question au premier lancement, vue de Julie limitée
+    à ses 3 rendez-vous, bascule « Tous », filtre du Suivi posé, auteur dans l'historique, vue
+    globale par défaut pour Bastien, aucun débordement à 400 px.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à
