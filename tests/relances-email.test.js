@@ -33,12 +33,13 @@ test('construireEmailRelancePret reste correct sans date de prêt connue', () =>
   assert.doesNotMatch(corps, /échéance/i);
 });
 
-test('construireEmailRelanceRib ne dépend d’aucun champ du dossier au-delà du nom', () => {
+test('construireEmailRelanceRib reprend mot pour mot le texte de l’étude, sans signature', () => {
   const app = chargerApplication();
   const d = dossierBase(app, {});
   const { sujet, corps } = app.construireEmailRelanceRib(d);
-  assert.match(sujet, /RIB|bancaire/i);
-  assert.match(corps, /DUPONT \/ MARTIN/);
+  assert.match(sujet, /RIB/);
+  assert.match(sujet, /DUPONT \/ MARTIN/);
+  assert.equal(corps, 'Bonjour,\n\nEn prévision du rendez-vous de signature je vous remercie de vous munir de votre RIB et de votre pièce d’identité.\n\nBien cordialement,');
 });
 
 test('MODELES_EMAIL_RELANCE couvre exactement les quatre motifs', () => {
@@ -56,7 +57,17 @@ test('construireEmailRelanceProvision mentionne l’agence quand elle est connue
 
   const sansAgence = dossierBase(app, { nomAgence: '', sansPret: true });
   const { corps: corpsSansAgence } = app.construireEmailRelanceProvision(sansAgence);
-  assert.match(corpsSansAgence, /votre agence immobilière/);
+  assert.match(corpsSansAgence, /auprès de l'agence\./);
+});
+
+test('construireEmailRelanceProvision reprend mot pour mot le texte de l’étude, lignes espacées, sans signature', () => {
+  const app = chargerApplication();
+  const d = dossierBase(app, { nomAgence: '', sansPret: false, offrePretStatut: 'inconnu' });
+  assert.equal(app.construireEmailRelanceProvision(d).corps,
+    "Bonjour,\n\nNous vous confirmons la bonne réception de votre avant-contrat signé auprès de l'agence.\n\n"
+    + "Afin de poursuivre la constitution de votre dossier, merci de nous adresser :\n- une provision sur frais de 100,00 € ;\n"
+    + "- une copie de votre pièce d'identité en cours de validité.\n\n"
+    + "Si votre acquisition est soumise à l'obtention d'un prêt, merci également de nous transmettre votre offre de prêt dès que vous l'aurez reçue.");
 });
 
 test('construireEmailRelanceProvision relance aussi l’offre de prêt si la condition est active', () => {
@@ -137,8 +148,6 @@ test('signature commune : tous les emails pré-rédigés se terminent par la sig
   const app = chargerApplication();
   const d = dossierBase(app, { pret: '2026-11-15', rendezVousSignature: '2026-11-20' });
   const corps = [
-    app.construireEmailRelanceRib(d).corps,
-    app.construireEmailRelanceProvision(d).corps,
     app.construireEmailReceptionFonds(d).corps,
     app.construireEmailQuestionnaireSatisfaction(d).corps
   ];

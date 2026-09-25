@@ -7722,6 +7722,21 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   `mailto:` : le brouillon prend la police par défaut d'Outlook (Fichier › Options › Courrier ›
   Papier à lettres et polices). Tests réécrits dans `tests/relances-email.test.js`.
 
+- **Emails « Provision + pièce d'identité » et « RIB » : textes de l'étude, sans signature**
+  (25/09), même traitement que la relance de l'offre de prêt juste au-dessus.
+  - `construireEmailRelanceProvision` : texte fourni mot pour mot, paragraphes séparés par une ligne
+    vide, les deux pièces demandées sur deux lignes consécutives. Le nom du dossier sort du corps
+    (il reste dans l'objet). Seul écart au texte : « auprès de l'agence » est suivi du nom de
+    l'agence quand `d.nomAgence` est connu. La phrase sur l'offre de prêt reste conditionnelle
+    (`!d.sansPret && d.offrePretStatut !== 'recue'`).
+  - `construireEmailRelanceRib` change de SENS : il ne demande plus un RIB pour préparer l'appel de
+    fonds, il invite à se munir du RIB et de la pièce d'identité au rendez-vous de signature. Il se
+    termine par « Bien cordialement, » comme l'a écrit l'étude. Objet : « RIB et pièce d'identité
+    pour le rendez-vous de signature — dossier … ».
+  - Ni l'un ni l'autre ne porte plus `SIGNATURE_EMAIL_OFFICE`. Elle ne reste que sur « Réception des
+    fonds » et le questionnaire de satisfaction (test de signature réduit à ces deux-là).
+  - Tests : texte exact des deux emails dans `tests/relances-email.test.js`. Suite racine 800.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

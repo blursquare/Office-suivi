@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-25 14:54';
+  const VERSION_APP = '2026-09-25 15:03';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-25 15:03', resume: "Emails « Provision + pièce d’identité » et « RIB » : textes de l'étude, lignes espacées, sans signature texte. Le RIB demande désormais d'apporter RIB et pièce d'identité au rendez-vous de signature." },
     { version: '2026-09-25 14:54', resume: "Relance « offre de prêt » (bouton et relance automatique) : nouveau texte de l'étude, lignes espacées, sans signature texte — la signature Outlook s'ajoute d'elle-même." },
     { version: '2026-09-25 14:02', resume: "Agenda de l'office : un rendez-vous « VTE - … » à venir remplit le rendez-vous de signature du dossier (ignoré s'il porte un « ? »), et le suit s'il est déplacé. Réglages rangés en quatre sous-onglets, la mise à jour en tête. Logo agrandi." },
     { version: '2026-09-25 10:56', resume: 'Agenda de l’office : déclencheur lu dans le lieu du rendez-vous (« Appel de fonds (et projet) envoyé »), rendez-vous à venir seulement, nom de dossier reconnu même partiel.' },
@@ -12614,27 +12615,38 @@
     };
   }
 
+  // Texte fourni mot pour mot par l'étude (25/09) : RIB et pièce d'identité à apporter au
+  // rendez-vous de signature. Il se termine par « Bien cordialement, » comme l'étude l'a écrit,
+  // sans SIGNATURE_EMAIL_OFFICE : la signature Outlook (avec ses images) s'ajoute d'elle-même.
   function construireEmailRelanceRib(d) {
     return {
-      sujet: `Relevé d'identité bancaire — dossier ${d.nom}`,
-      corps: `Bonjour,\n\nAfin de préparer l'appel de fonds de votre dossier ${d.nom}, merci de nous transmettre un relevé d'identité bancaire (RIB) à votre nom.${SIGNATURE_EMAIL_OFFICE}`
+      sujet: `RIB et pièce d'identité pour le rendez-vous de signature — dossier ${d.nom}`,
+      corps: ['Bonjour,',
+        'En prévision du rendez-vous de signature je vous remercie de vous munir de votre RIB et de votre pièce d’identité.',
+        'Bien cordialement,'].join('\n\n')
     };
   }
 
-  // Email de "démarrage" du dossier, demandé par l'étude : confirme la bonne réception de
-  // l'avant-contrat signé (transmis par l'agence — mentionnée par son nom si détectée, voir
-  // detecterNomAgence(), sinon formulée de façon générique), et demande la provision sur frais de
-  // 100,00 € ainsi qu'une copie de pièce d'identité. Ajoute une ligne sur l'offre de prêt
-  // UNIQUEMENT si une condition de prêt est active et pas encore levée pour ce dossier — inutile
-  // de la réclamer sur un achat comptant ou une offre déjà reçue.
+  // Email de "démarrage" du dossier : texte fourni mot pour mot par l'étude (25/09). Une ligne
+  // vide entre chaque paragraphe, les deux pièces demandées sur deux lignes consécutives, et PAS
+  // de SIGNATURE_EMAIL_OFFICE (même choix que la relance de l'offre de prêt : la signature
+  // Outlook de l'étude, avec ses images, s'ajoute d'elle-même). Seul écart au texte : le nom de
+  // l'agence suit « auprès de l'agence » quand il a été détecté (voir detecterNomAgence()). La
+  // phrase sur l'offre de prêt n'est ajoutée que si une condition de prêt est active et pas
+  // encore levée — inutile de la réclamer sur un achat comptant ou une offre déjà reçue.
   function construireEmailRelanceProvision(d) {
-    const viaAgence = d.nomAgence ? `avec l’agence ${d.nomAgence}` : 'avec votre agence immobilière';
-    const relancePret = (!d.sansPret && d.offrePretStatut !== 'recue')
-      ? "\n\nSi votre acquisition est soumise à l'obtention d'un prêt, merci également de nous transmettre votre offre de prêt dès que vous l'aurez reçue."
-      : '';
+    const agence = d.nomAgence ? `auprès de l'agence ${d.nomAgence}` : "auprès de l'agence";
+    const paragraphes = [
+      'Bonjour,',
+      `Nous vous confirmons la bonne réception de votre avant-contrat signé ${agence}.`,
+      "Afin de poursuivre la constitution de votre dossier, merci de nous adresser :\n- une provision sur frais de 100,00 € ;\n- une copie de votre pièce d'identité en cours de validité."
+    ];
+    if (!d.sansPret && d.offrePretStatut !== 'recue') {
+      paragraphes.push("Si votre acquisition est soumise à l'obtention d'un prêt, merci également de nous transmettre votre offre de prêt dès que vous l'aurez reçue.");
+    }
     return {
       sujet: `Demande de provision sur frais et pièce d'identité — dossier ${d.nom}`,
-      corps: `Bonjour,\n\nNous vous confirmons la bonne réception de votre avant-contrat signé ${viaAgence} pour le dossier ${d.nom}.\n\nAfin de poursuivre la constitution de votre dossier, merci de nous adresser :\n- une provision sur frais de 100,00 € ;\n- une copie de votre pièce d'identité en cours de validité.${relancePret}${SIGNATURE_EMAIL_OFFICE}`
+      corps: paragraphes.join('\n\n')
     };
   }
 
