@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-25 23:23';
+  const VERSION_APP = '2026-09-25 23:32';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-25 23:32', resume: "Pièces du dossier en liste à cocher : compteur et barre de progression, une case par pièce (cocher = reçue à la main), « Voir les autres », ajout en pied de carte." },
     { version: '2026-09-25 23:23', resume: "Fiche dossier : « Dépôt » devient « Séquestre », et l'ancien « Séquestre » (qui détient les fonds) devient « Versé à »." },
     { version: '2026-09-25 23:22', resume: "Emails de la fiche : textes d'aide raccourcis (onglet Échanges, fenêtres après envoi)." },
     { version: '2026-09-25 23:19', resume: "Fiche dossier : informations du dossier sur deux colonnes, libellés courts à gauche — un tiers de hauteur en moins avant les onglets." },
@@ -289,6 +290,7 @@
     pencil: '<path d="M11.1 2.3a1.5 1.5 0 0 1 2.1 2.1L5.4 12.2l-2.9.7.7-2.9 7.9-7.7Z" stroke-linejoin="round"/>',
     x: '<line x1="3.5" y1="3.5" x2="12.5" y2="12.5"/><line x1="12.5" y1="3.5" x2="3.5" y2="12.5"/>',
     check: '<path d="M3 8.4 6.4 11.8 13 4.6" stroke-linejoin="round"/>',
+    'list-check': '<path d="M1.8 4.2 3 5.4 5.2 3M1.8 8.2 3 9.4 5.2 7M1.8 12.2 3 13.4 5.2 11"/><path d="M7.6 4.3H14M7.6 8.3H14M7.6 12.3H14"/>',
     'trend-up': '<path d="M2.5 12 6.8 7.7 9.3 10.2 13.5 6"/><path d="M9.5 6h4v4"/>',
     'trend-down': '<path d="M2.5 4 6.8 8.3 9.3 5.8 13.5 10"/><path d="M9.5 10h4v-4"/>',
     info: '<circle cx="8" cy="8" r="6.2"/><line x1="8" y1="7.2" x2="8" y2="11.3"/><circle cx="8" cy="4.9" r="0.9" fill="currentColor" stroke="none"/>',
@@ -10648,7 +10650,7 @@
     const checklist = checklistPieces(select.value);
     bloc.innerHTML = `
       <div class="pieces-apercu-titre">Pièces attendues pour ce type de vente (${checklist.length}) :</div>
-      <div class="pieces-liste">
+      <div class="pieces-apercu-liste">
         ${checklist.map(p => `<span class="piece-item inconnu"><span class="piece-icone">?</span>${escapeHtml(p.label)}</span>`).join('')}
       </div>
     `;
@@ -12053,6 +12055,7 @@
     ajoutEcheanceOuvert = false;
     ajoutPieceOuvert = false;
     ajoutEngagementOuvert = false;
+    piecesToutesVisibles = false;
     engagementEnEdition = null;
     diagnosticParcoursOuvert = false;
     render();
@@ -12072,6 +12075,7 @@
     ajoutEcheanceOuvert = false;
     ajoutPieceOuvert = false;
     ajoutEngagementOuvert = false;
+    piecesToutesVisibles = false;
     engagementEnEdition = null;
     diagnosticParcoursOuvert = false;
     render();
@@ -12120,6 +12124,10 @@
   // principe qu'ajoutEcheanceOuvert pour les échéances — un seul dossier ouvert à la fois dans le
   // tiroir, un simple booléen suffit, remis à false à chaque ouverture/fermeture.
   let ajoutPieceOuvert = false;
+  // Liste de pièces repliée au-delà de MAX_PIECES_VISIBLES lignes (« Voir les N autres ») ; remise
+  // à false à chaque ouverture/fermeture du tiroir, comme ajoutPieceOuvert.
+  let piecesToutesVisibles = false;
+  var MAX_PIECES_VISIBLES = 6;
 
   // Formulaire d'ajout d'une obligation du vendeur sur une fiche déjà enregistrée (voir
   // renderAjoutEngagement) : même principe que ajoutEcheanceOuvert/ajoutPieceOuvert.
@@ -12153,81 +12161,86 @@
   // Personnalisable pour CE dossier (voir checklistPieces) : une pièce standard non pertinente peut
   // être retirée, une pièce propre au dossier peut être ajoutée — demandé par l'étude plutôt que de
   // subir la liste standard telle quelle dans les cas particuliers.
+  // Présentation en liste à cocher (demandée par l'étude à partir d'une maquette « sous-tâches ») :
+  // un en-tête avec le compteur et une barre de progression, une ligne par pièce avec sa case,
+  // « Voir les N autres », et l'ajout d'une pièce en pied de carte.
+  // La CASE est le geste principal, et elle suit le même sens partout : cocher = « reçue ».
+  //   - pièce standard en attente → cocher la marque reçue à la main (validerPieceManuellement) ;
+  //   - pièce standard validée à la main → décocher retire cette validation ;
+  //   - pièce standard trouvée sur le NAS → case non cliquable (c'est le parcours qui l'a cochée ;
+  //     « Réinitialiser » reste disponible au survol, en cas de mauvaise correspondance) ;
+  //   - pièce personnalisée → la case fait défiler son statut (à vérifier → manquante → reçue).
+  // Le NOM d'une pièce reçue avec un fichier ouvre ce fichier.
   function renderPiecesDossier(d) {
     const checklist = checklistPieces(d.typeVente, d);
     const pieces = d.pieces || {};
     const nbRecues = checklist.filter(p => pieces[p.cle] === 'recue').length;
-    const complet = checklist.length > 0 && nbRecues === checklist.length;
+    const total = checklist.length;
+    const complet = total > 0 && nbRecues === total;
+    const pct = total ? Math.round(nbRecues / total * 100) : 0;
     const libelleType = d.typeVente === 'copropriete' ? 'copropriété' : d.typeVente === 'terrain' ? 'terrain à bâtir' : 'maison';
+    const notifs = d.piecesNotifications || [];
+    // Ordre de la checklist conservé : une pièce ne change jamais de place quand on la coche.
+    // Repliée, la liste ne cache que des pièces DÉJÀ REÇUES (et pas nouvelles) au-delà des
+    // MAX_PIECES_VISIBLES premières lignes : une pièce à réclamer reste toujours visible.
+    const ordonnees = checklist;
+    const visibles = piecesToutesVisibles ? ordonnees
+      : ordonnees.filter((p, i) => i < MAX_PIECES_VISIBLES || pieces[p.cle] !== 'recue' || notifs.includes(p.cle));
+    const cachees = ordonnees.length - visibles.length;
+
+    const ligne = (p) => {
+      const statut = pieces[p.cle] || 'inconnu';
+      const s = libellePiece(statut);
+      const recue = statut === 'recue';
+      const valideeMain = !p.personnalisee && (d.piecesValideesManuellement || []).includes(p.cle);
+      const label = escapeAttr(p.label);
+      const arg = escapeOnclickArg(p.label);
+      let caseAction = '';
+      let caseTitre = s.titre;
+      if (p.personnalisee) {
+        caseAction = `basculerStatutPiecePersonnalisee('${d.id}', '${p.cle}')`;
+        caseTitre = `${s.titre} — cliquer pour changer le statut`;
+      } else if (valideeMain) {
+        caseAction = `retirerValidationManuellePiece('${d.id}', '${p.cle}', '${arg}')`;
+        caseTitre = 'Reçue (validée à la main) — cliquer pour retirer la validation';
+      } else if (!recue) {
+        caseAction = `validerPieceManuellement('${d.id}', '${p.cle}', '${arg}')`;
+        caseTitre = `${s.titre} — cliquer pour la marquer reçue (document détenu hors du NAS)`;
+      } else {
+        caseTitre = 'Reçue — trouvée dans le dossier du NAS';
+      }
+      const coche = recue ? icone('check') : (statut === 'manquante' && p.personnalisee ? icone('x') : '');
+      const caseHtml = caseAction
+        ? `<button type="button" class="piece-case" role="checkbox" aria-checked="${recue}" aria-label="${label}" title="${escapeAttr(caseTitre)}" onclick="piecesToutesVisibles = true; ${caseAction}">${coche}</button>`
+        : `<span class="piece-case" role="checkbox" aria-checked="true" aria-disabled="true" aria-label="${label}" title="${escapeAttr(caseTitre)}">${coche}</span>`;
+      const ouvrable = recue && !valideeMain;
+      const titreNom = p.autoEngagement && !recue ? ' title="Relevée dans les engagements du vendeur de l’avant-contrat."' : '';
+      const nom = ouvrable
+        ? `<button type="button" class="piece-nom piece-nom-lien" title="Ouvrir le fichier trouvé" onclick="ouvrirPieceTrouvee('${d.id}', '${p.cle}')">${escapeHtml(p.label)}</button>`
+        : `<span class="piece-nom"${titreNom}>${escapeHtml(p.label)}</span>`;
+      const tags = (notifs.includes(p.cle) ? '<span class="dot-label dl-urgent notif-nouveau-tag">Nouveau</span>' : '')
+        + (valideeMain ? '<span class="piece-tag">à la main</span>' : '')
+        + (statut === 'manquante' && !p.personnalisee ? '<span class="piece-tag piece-tag-manque">introuvable</span>' : '');
+      const reinit = (!p.personnalisee && !valideeMain && recue)
+        ? `<button type="button" class="piece-action" onclick="reinitialiserStatutPieceStandard('${d.id}', '${p.cle}', '${arg}')" title="Réinitialiser (mauvaise correspondance ou fichier renommé)" aria-label="Réinitialiser le statut de cette pièce">${icone('rotate-ccw')}</button>`
+        : '';
+      const suppr = `<button type="button" class="piece-action piece-action-suppr" onclick="${p.personnalisee ? `supprimerPiecePersonnalisee('${d.id}', '${p.cle}')` : `retirerPieceStandard('${d.id}', '${p.cle}', '${arg}')`}" title="Retirer cette pièce de la checklist de ce dossier" aria-label="Retirer cette pièce">${icone('x')}</button>`;
+      return `<li class="piece-ligne ${s.cls}${valideeMain ? ' validee-main' : ''}">${caseHtml}${nom}${tags}<span class="piece-actions">${reinit}${suppr}</span></li>`;
+    };
+
     return `
       <div class="pieces-dossier">
-        <div class="pieces-dossier-titre">
-          <span class="section-eyebrow">Pièces du dossier (${libelleType})</span>
-          <span class="pieces-compteur${complet ? ' complet' : ''}">${nbRecues}/${checklist.length}</span>
-          ${d.dossierLie ? `<button type="button" class="action-rapide" onclick="verifierDossierLocalDepuisBouton('${d.id}', this)">Revérifier les pièces</button>` : ''}
+        <div class="pieces-entete">
+          <div class="pieces-entete-ligne">
+            <span class="pieces-titre">${icone('list-check')}<span class="pieces-titre-texte">Pièces du dossier</span><span class="pieces-type">· ${libelleType}</span></span>
+            ${d.dossierLie ? `<button type="button" class="action-rapide" onclick="verifierDossierLocalDepuisBouton('${d.id}', this)" title="Relire le dossier du NAS">${icone('rotate-ccw')} Revérifier</button>` : ''}
+            <span class="pieces-compteur${complet ? ' complet' : ''}">${nbRecues}/${total}</span>
+          </div>
+          <div class="pieces-barre${complet ? ' complet' : ''}" role="progressbar" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${nbRecues}" aria-label="Pièces reçues"><span style="width:${pct}%"></span></div>
         </div>
-        <div class="pieces-liste">
-          ${checklist.map(p => {
-            const s = libellePiece(pieces[p.cle] || 'inconnu');
-            // Voir d.piecesNotifications/fermerDossierDrawer : une pièce trouvée depuis le dernier
-            // passage dans cette fiche reste marquée "Nouveau" tant que le tiroir n'a pas été
-            // refermé (c'est ce qui vaut pour "vue").
-            const estNouvelle = (d.piecesNotifications || []).includes(p.cle);
-            const tagNouveau = estNouvelle ? '<span class="dot-label dl-urgent notif-nouveau-tag">Nouveau</span>' : '';
-            const boutonSuppr = `<button type="button" class="piece-suppr" onclick="${p.personnalisee ? `supprimerPiecePersonnalisee('${d.id}', '${p.cle}')` : `retirerPieceStandard('${d.id}', '${p.cle}', '${escapeOnclickArg(p.label)}')`}" title="Retirer cette pièce de la checklist de ce dossier" aria-label="Retirer cette pièce">${icone('x')}</button>`;
-            // Uniquement pour une pièce STANDARD reçue (motifNom) : permet de revenir en arrière
-            // après une correspondance trouvée à tort ou un fichier renommé depuis — voir
-            // reinitialiserStatutPieceStandard(). Une pièce personnalisée a déjà son propre cycle
-            // de statut au clic sur l'icône, pas besoin de ce bouton supplémentaire pour elle.
-            // Pièce que l'étude détient hors du NAS (Authentic/Fichorga, courrier papier...) : le
-            // contrôle automatique ne la touche plus du tout — voir validerPieceManuellement.
-            const estValideeManuellement = !p.personnalisee && (d.piecesValideesManuellement || []).includes(p.cle);
-            const boutonReinit = (!p.personnalisee && !estValideeManuellement && (pieces[p.cle] || 'inconnu') === 'recue')
-              ? `<button type="button" class="piece-reinit" onclick="reinitialiserStatutPieceStandard('${d.id}', '${p.cle}', '${escapeOnclickArg(p.label)}')" title="Réinitialiser (fichier renommé, ou mauvaise correspondance)" aria-label="Réinitialiser le statut de cette pièce">${icone('rotate-ccw')}</button>`
-              : '';
-            // Une seule de ces deux formes s'affiche à la fois : valider à la main tant que la
-            // pièce n'est pas reçue, retirer cette validation une fois qu'elle l'est de cette
-            // façon. Jamais sur une pièce personnalisée : elle a déjà son cycle de statut au clic.
-            let boutonValidation = '';
-            if (estValideeManuellement) {
-              boutonValidation = `<button type="button" class="piece-reinit" onclick="retirerValidationManuellePiece('${d.id}', '${p.cle}', '${escapeOnclickArg(p.label)}')" title="Retirer la validation manuelle : la pièce sera de nouveau cherchée sur le NAS" aria-label="Retirer la validation manuelle de cette pièce">${icone('rotate-ccw')}</button>`;
-            } else if (!p.personnalisee && (pieces[p.cle] || 'inconnu') !== 'recue') {
-              boutonValidation = `<button type="button" class="piece-valider" onclick="validerPieceManuellement('${d.id}', '${p.cle}', '${escapeOnclickArg(p.label)}')" title="Marquer reçue à la main (document détenu hors du dossier NAS : Authentic, courrier…)" aria-label="Marquer cette pièce reçue à la main">${icone('check')}</button>`;
-            }
-            let contenu;
-            if (p.personnalisee) {
-              // Aucun motifNom (nom libre saisi par l'étude, pas de détection fiable possible) :
-              // le statut se corrige à la main, mais désormais via DEUX zones de clic distinctes
-              // plutôt qu'une seule sur toute la puce (demandé par l'étude) — cliquer sur l'icône
-              // change le statut (basculerStatutPiecePersonnalisee), cliquer sur le texte rouvre
-              // le fichier trouvé (ouvrirPieceTrouvee) une fois la pièce reçue (une recherche
-              // automatique a pu la trouver, voir ajouterPiecePersonnalisee/chercherFichierParNom,
-              // ou "Revérifier les pièces" ensuite) ; tant qu'elle n'est pas reçue, il n'y a pas de
-              // fichier à ouvrir, le texte reste un simple libellé non cliquable.
-              const estRecue = s.cls === 'recue';
-              const iconeBtn = `<button type="button" class="piece-icone-btn" title="Cliquer pour changer le statut" aria-label="Changer le statut de « ${escapeAttr(p.label)} »" onclick="basculerStatutPiecePersonnalisee('${d.id}', '${p.cle}')"><span class="piece-icone">${s.texte}</span></button>`;
-              const texteRendu = estRecue
-                ? `<button type="button" class="piece-texte-btn" title="Cliquer pour ouvrir le fichier trouvé" onclick="ouvrirPieceTrouvee('${d.id}', '${p.cle}')">${escapeHtml(p.label)}</button>`
-                : `<span class="piece-texte">${escapeHtml(p.label)}</span>`;
-              contenu = `<span class="piece-label">${iconeBtn}${texteRendu}</span>`;
-            } else if (estValideeManuellement) {
-              // Aucun fichier du NAS derrière elle : rien à ouvrir, donc un simple libellé.
-              contenu = `<span class="piece-label" title="Validée à la main : document détenu hors du dossier NAS (Authentic…). Le contrôle automatique ne la remet jamais en manquante."><span class="piece-icone">✓</span>${escapeHtml(p.label)}</span>`;
-            } else if (s.cls === 'recue') {
-              // Cliquable pour rouvrir directement le fichier local où la pièce a été trouvée.
-              contenu = `<button type="button" class="piece-label" title="Cliquer pour ouvrir le fichier trouvé" onclick="ouvrirPieceTrouvee('${d.id}', '${p.cle}')"><span class="piece-icone">${s.texte}</span>${escapeHtml(p.label)}</button>`;
-            } else {
-              // Pièce auto-détectée depuis un engagement du compromis (voir PIECES_ENGAGEMENTS_AUTO) :
-              // infobulle dédiée tant qu'elle n'est pas reçue, pour que l'étude comprenne d'où elle
-              // vient sans avoir à deviner — elle n'a rien ajouté elle-même à cette checklist.
-              const titre = p.autoEngagement
-                ? "Détectée automatiquement : ce document est mentionné dans les engagements du vendeur de l'avant-contrat."
-                : s.titre;
-              contenu = `<span class="piece-label" title="${escapeAttr(titre)}"><span class="piece-icone">${s.texte}</span>${escapeHtml(p.label)}</span>`;
-            }
-            return `<span class="piece-item ${s.cls}${estValideeManuellement ? ' validee-main' : ''}">${contenu}${tagNouveau}${boutonValidation}${boutonReinit}${boutonSuppr}</span>`;
-          }).join('')}
-        </div>
+        ${total ? `<ul class="pieces-liste">${visibles.map(ligne).join('')}</ul>` : '<p class="fiche-vide pieces-vide">Aucune pièce attendue pour ce dossier.</p>'}
+        ${cachees > 0 ? `<button type="button" class="pieces-voir-plus" onclick="piecesToutesVisibles = true; render();">Voir les ${cachees} autre${cachees > 1 ? 's' : ''} (reçue${cachees > 1 ? 's' : ''})</button>`
+          : (piecesToutesVisibles && ordonnees.some((p, i) => i >= MAX_PIECES_VISIBLES && pieces[p.cle] === 'recue' && !notifs.includes(p.cle)) ? `<button type="button" class="pieces-voir-plus" onclick="piecesToutesVisibles = false; render();">Voir moins</button>` : '')}
         ${renderAjoutPiece(d)}
       </div>
     `;
@@ -12245,7 +12258,7 @@
 
   function renderAjoutPiece(d) {
     if (!ajoutPieceOuvert) {
-      return `<button type="button" class="action-rapide ajout-piece-btn" onclick="afficherFormAjoutPiece()">+ Ajouter une pièce</button>`;
+      return `<button type="button" class="ajout-piece-btn" onclick="afficherFormAjoutPiece()">${icone('plus')}Ajouter une pièce</button>`;
     }
     return `
       <div class="ajout-piece-form">

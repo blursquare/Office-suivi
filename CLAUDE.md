@@ -8039,6 +8039,33 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   qui manque ou ce qui ne se voit pas. Mesuré : onglet Échanges 216 → 125 px sur un dossier avec
   confrère. Les autres écrans (Réglages, Relecture d'actes) ne sont pas touchés par ce lot.
 
+- **Pièces du dossier en liste à cocher**, d'après une maquette de « sous-tâches » envoyée par
+  l'étude (« présentation pour la liste de pièces à adapter à Claire »). Seule la structure est
+  reprise (jetons de CLAIRE, pas l'orange de la maquette). `renderPiecesDossier` rend une carte :
+  en-tête (icône `list-check`, « Pièces du dossier · maison », « Revérifier », compteur `N/M`,
+  barre de progression ambre `--pret`, verte `--success` une fois complète), une `<ul>` d'une
+  ligne par pièce, « Voir les N autres (reçues) », et « + Ajouter une pièce » en pied de carte.
+  - **La case est le geste principal, toujours dans le même sens — cocher = reçue** : pièce
+    standard en attente → `validerPieceManuellement` ; validée à la main → décocher appelle
+    `retirerValidationManuellePiece` ; trouvée sur le NAS → case non cliquable (le parcours l'a
+    cochée), « Réinitialiser » au survol ; pièce personnalisée → la case fait défiler son statut.
+    Les anciens boutons ✓ / ↺ séparés disparaissent. Le nom d'une pièce reçue avec un fichier
+    ouvre ce fichier. États : case pleine verte (reçue), bord ambre + « introuvable » (cherchée sur
+    le NAS sans succès), bord pointillé (jamais vérifiée), « à la main » pour une validation
+    manuelle, « Nouveau » inchangé.
+  - **L'ordre de la checklist est conservé** : un premier essai faisait remonter les pièces en
+    attente, mais une pièce cochée descendait alors derrière « Voir plus » et disparaissait sous le
+    clic. Repliée (`MAX_PIECES_VISIBLES` = 6), la liste ne cache que des pièces DÉJÀ REÇUES et non
+    nouvelles au-delà de la 6e ligne — une pièce à réclamer reste toujours visible — et un clic
+    sur une case la déplie (`piecesToutesVisibles`, remis à `false` à l'ouverture/fermeture du
+    tiroir comme `ajoutPieceOuvert`).
+  - Retrait/réinitialisation au survol de la ligne (`.piece-actions`, toujours visibles sur écran
+    tactile). L'aperçu de checklist du wizard garde ses puces (`.piece-item` dans
+    `.pieces-apercu-liste`) ; les styles des anciennes puces de la fiche (`.piece-label`,
+    `.piece-suppr`, `.piece-valider`…) sont supprimés.
+  - Vérifié dans Chromium (clair, sombre, 400 px) : cocher une pièce en attente la valide et
+    passe le compteur de 4/10 à 5/10 sans la déplacer, décocher la retire ; aucun débordement.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

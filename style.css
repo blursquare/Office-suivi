@@ -2227,166 +2227,182 @@
   .analyse-doc-suppr:hover { background: var(--paper-sunk); color: var(--urgent); }
   .analyse-doc-suppr .icone { width: 9px; height: 9px; }
 
-  /* ---- pièces du dossier (checklist de constitution, selon le type de vente) ---- */
+  /* ---- pièces du dossier (checklist de constitution, selon le type de vente) ----
+     Carte « liste à cocher » : en-tête (titre, compteur, barre de progression), une ligne par
+     pièce avec sa case, « Voir les N autres », et l'ajout en pied de carte. */
   .pieces-dossier {
     margin-top: 14px;
-    padding: 14px 16px;
-    background: var(--paper-sunk);
+    background: var(--paper-card);
     border: 1px solid var(--line);
-    border-radius: 6px;
+    border-radius: 10px;
+    overflow: hidden;
   }
-  .pieces-dossier-titre {
+  .pieces-entete {
+    padding: 12px 16px 14px;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .pieces-entete-ligne { display: flex; align-items: center; gap: 10px; }
+  .pieces-titre {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .pieces-titre .icone { font-size: 16px; color: var(--muted); flex: none; }
+  .pieces-titre-texte { flex: none; white-space: nowrap; }
+  .pieces-type { font-weight: 400; color: var(--muted); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pieces-entete-ligne .action-rapide { flex: none; white-space: nowrap; }
+  .pieces-compteur {
+    flex: none;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+  }
+  .pieces-compteur.complet { color: var(--success); }
+  .pieces-barre {
+    margin-top: 10px;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--line-soft);
+    overflow: hidden;
+  }
+  .pieces-barre > span { display: block; height: 100%; border-radius: 3px; background: var(--pret); transition: width .3s ease; }
+  .pieces-barre.complet > span { background: var(--success); }
+  @media (prefers-reduced-motion: reduce) { .pieces-barre > span { transition: none; } }
+
+  .pieces-liste { list-style: none; margin: 0; padding: 6px 16px 4px; background: var(--paper-sunk); }
+  .pieces-vide { margin: 0; padding: 12px 16px; background: var(--paper-sunk); }
+  .piece-ligne {
     display: flex;
     align-items: center;
     gap: 10px;
-    flex-wrap: wrap;
-    font-size: 13px;
+    min-height: 36px;
+    font-size: 13.5px;
+    color: var(--ink);
+  }
+  .piece-case {
+    flex: none;
+    width: 17px;
+    height: 17px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1.5px solid var(--line);
+    border-radius: 4px;
+    background: var(--paper-card);
+    color: #fff;
+    font-size: 12px;
+  }
+  button.piece-case { cursor: pointer; }
+  button.piece-case:hover { border-color: var(--success); }
+  .piece-case:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .piece-ligne.recue .piece-case { background: var(--success); border-color: var(--success); }
+  .piece-ligne.inconnu .piece-case { border-style: dashed; }
+  .piece-ligne.manquante .piece-case { border-color: var(--pret); }
+  .piece-ligne.manquante .piece-case .icone { color: var(--pret); }
+  .piece-ligne.inconnu .piece-nom { color: var(--ink-soft); }
+  .piece-nom {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .piece-nom-lien {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: none;
+    padding: 0;
+    text-align: left;
+    cursor: pointer;
+  }
+  .piece-nom-lien:hover { color: var(--focus); text-decoration: underline; text-underline-offset: 2px; }
+  .piece-tag { flex: none; font-size: 11.5px; color: var(--muted); }
+  .piece-tag-manque { color: var(--pret); }
+  .piece-ligne .notif-nouveau-tag { flex: none; font-size: 11.5px; }
+  .piece-actions { margin-left: auto; display: flex; gap: 2px; flex: none; opacity: 0; transition: opacity .12s; }
+  .piece-ligne:hover .piece-actions, .piece-ligne:focus-within .piece-actions { opacity: 1; }
+  @media (hover: none) { .piece-actions { opacity: 1; } }
+  .piece-action {
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: none;
+    border-radius: 5px;
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .piece-action .icone { width: 11px; height: 11px; }
+  .piece-action:hover { background: var(--line-soft); color: var(--focus); }
+  .piece-action-suppr:hover { color: var(--urgent); }
+  .piece-action:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+
+  .pieces-voir-plus {
+    display: block;
+    width: 100%;
+    padding: 2px 16px 10px;
+    background: var(--paper-sunk);
+    border: none;
+    font: inherit;
+    font-size: 12.5px;
+    color: var(--muted);
+    text-align: left;
+    cursor: pointer;
+  }
+  .pieces-voir-plus:hover { color: var(--focus); }
+
+  .ajout-piece-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 12px 16px;
+    border: none;
+    border-top: 1px solid var(--line-soft);
+    background: var(--paper-card);
+    font: inherit;
+    font-size: 13.5px;
     font-weight: 600;
     color: var(--ink);
-    margin-bottom: 10px;
-  }
-  .pieces-compteur {
-    font-size: 11.5px;
-    font-weight: 700;
-    padding: 1px 8px;
-    border-radius: 9px;
-    background: var(--pret-bg);
-    color: var(--pret);
-  }
-  .pieces-compteur.complet { background: var(--success-bg); color: var(--success); }
-  .pieces-liste {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .piece-item {
-    display: inline-flex;
-    align-items: center;
-    gap: 2px;
-    background: var(--paper-card);
-    border: 1px solid var(--line-soft);
-    color: var(--ink-soft);
-    font-size: 12.5px;
-    padding: 4px 4px 4px 10px;
-    border-radius: 14px;
-  }
-  .piece-icone { font-weight: 700; }
-  /* .piece-label porte le contenu (icône + libellé) : un <button> quand la pièce est cliquable
-     (reçue → ouvrirPieceTrouvee ; personnalisée → basculerStatutPiecePersonnalisee, faute de
-     motifNom pour la détecter automatiquement), un simple <span> sinon (manquante/inconnu et pas
-     personnalisée, rien à faire au clic). .piece-suppr (croix) est un second élément de la même
-     puce, jamais imbriqué dans .piece-label — deux <button> l'un dans l'autre serait invalide et
-     casserait la délimitation des clics. */
-  .piece-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: none;
-    border: none;
-    font: inherit;
-    color: inherit;
-    padding: 0;
-  }
-  button.piece-label { cursor: pointer; }
-  /* Pièce personnalisée : .piece-label redevient un simple <span> conteneur (comme .piece-item
-     lui-même) autour de DEUX <button> distincts — l'icône change le statut, le texte ouvre le
-     fichier trouvé une fois reçue (voir renderPiecesDossier). Jamais un <button> imbriqué dans un
-     autre, même piège déjà documenté pour .piece-item/.piece-suppr. */
-  .piece-icone-btn {
-    display: inline-flex;
-    align-items: center;
-    background: none;
-    border: none;
-    font: inherit;
-    color: inherit;
-    padding: 0;
     cursor: pointer;
-    border-radius: 3px;
   }
-  .piece-icone-btn:hover { background: var(--paper-sunk); }
-  .piece-texte-btn {
-    background: none;
-    border: none;
-    font: inherit;
-    color: inherit;
-    padding: 0;
-    cursor: pointer;
-    text-align: left;
-  }
-  .piece-texte-btn:hover { text-decoration: underline; }
-  .piece-item.recue { border-color: var(--success); color: var(--ink); }
-  .piece-item.recue:hover { background: var(--success-bg); }
-  .piece-item.recue .piece-icone { color: var(--success); }
-  .piece-item.manquante { border-color: var(--pret); color: var(--ink); }
-  .piece-item.manquante .piece-icone { color: var(--pret); }
-  .piece-item.inconnu .piece-icone { color: var(--muted); }
-  .piece-suppr {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 16px;
-    height: 16px;
-    padding: 0;
-    border: none;
-    background: none;
-    border-radius: 50%;
-    color: var(--muted);
-    cursor: pointer;
-    flex: none;
-  }
-  .piece-suppr:hover { background: var(--paper-sunk); color: var(--urgent); }
-  .piece-suppr .icone { width: 9px; height: 9px; }
-  /* Réinitialiser une pièce STANDARD reçue à tort (mauvaise correspondance, fichier renommé depuis)
-     — même gabarit que .piece-suppr, jamais affiché en même temps pour la même pièce que la
-     couleur de survol (bleu, pas rouge comme .piece-suppr : ce n'est pas une suppression). */
-  .piece-reinit {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 16px;
-    height: 16px;
-    padding: 0;
-    border: none;
-    background: none;
-    border-radius: 50%;
-    color: var(--muted);
-    cursor: pointer;
-    flex: none;
-  }
-  .piece-reinit:hover { background: var(--paper-sunk); color: var(--focus); }
-  .piece-reinit .icone { width: 9px; height: 9px; }
-  /* Valider une pièce à la main, quand l'étude la détient hors du NAS (Authentic/Fichorga, courrier
-     papier…) — voir validerPieceManuellement. Même gabarit que .piece-reinit, survol en vert :
-     c'est une confirmation de réception, pas une correction. */
-  .piece-valider {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 16px;
-    height: 16px;
-    padding: 0;
-    border: none;
-    background: none;
-    border-radius: 50%;
-    color: var(--muted);
-    cursor: pointer;
-    flex: none;
-  }
-  .piece-valider:hover { background: var(--paper-sunk); color: var(--success); }
-  .piece-valider .icone { width: 9px; height: 9px; }
-  /* Pièce reçue mais SANS fichier sur le NAS : la coche est validée à la main, son libellé n'ouvre
-     rien. Le pointillé la distingue d'une pièce réellement trouvée dans le dossier, qui, elle, est
-     cliquable — sans introduire de seconde couleur pour un même statut « reçue ». */
-  .piece-item.validee-main .piece-label { border-bottom: 1px dotted var(--line); cursor: help; }
-
-  .ajout-piece-btn { margin-top: 10px; }
+  .ajout-piece-btn .icone { font-size: 14px; }
+  .ajout-piece-btn:hover { background: var(--paper-sunk); color: var(--focus); }
+  .ajout-piece-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
   .ajout-piece-form {
     display: flex;
     align-items: center;
     gap: 6px;
-    margin-top: 10px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--line-soft);
   }
   .ajout-piece-form input[type="text"] { flex: 1 1 auto; }
+
+  /* Puces de l'aperçu de la checklist (étape « Finaliser » du wizard, voir .pieces-apercu). */
+  .piece-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--paper-card);
+    border: 1px solid var(--line-soft);
+    color: var(--ink-soft);
+    font-size: 12.5px;
+    padding: 4px 10px;
+    border-radius: 14px;
+  }
+  .piece-icone { font-weight: 700; }
+  .piece-item.inconnu .piece-icone { color: var(--muted); }
 
   /* ---- diagnostic du dernier parcours du dossier local (voir renderDiagnosticParcours) ----
      Repliable et FERMÉ par défaut (contrairement à .pieces-dossier/.analyse-juridique, toujours
@@ -2467,14 +2483,10 @@
   }
   .diagnostic-erreur { color: var(--urgent); font-style: normal; }
 
-  /* Aperçu de la checklist à l'étape "Finaliser" du wizard, avant l'enregistrement du dossier —
-     mêmes puces .piece-item que le suivi réel, mais sans compteur ni bouton (rien à vérifier
-     encore, juste montrer ce qui sera attendu selon le type de vente choisi). Padding symétrique
-     restauré ici : sans croix de suppression (dossier pas encore créé, rien à personnaliser), le
-     padding asymétrique de .piece-item (pensé pour laisser la place à .piece-suppr) déséquilibrerait
-     visuellement la puce. */
+  /* Aperçu de la checklist à l'étape "Finaliser" du wizard, avant l'enregistrement du dossier :
+     de simples puces .piece-item, sans compteur ni case (rien à vérifier encore). */
   .pieces-apercu { margin: 4px 0 20px; }
-  .pieces-apercu .piece-item { padding: 4px 10px; }
+  .pieces-apercu-liste { display: flex; flex-wrap: wrap; gap: 8px; }
   .pieces-apercu-titre {
     font-size: 12.5px;
     color: var(--ink-soft);
@@ -4104,7 +4116,7 @@
     .tabs { display: block; }
     .tab { border: 1px solid #999; margin-bottom: 6pt; padding: 6pt; background: #fff !important; }
     .analyse-juridique { background: #fff; border: 1px solid #999; }
-    .icon-btn, .tab-select-icone-wrap, .icon-crayon, .icon-valider, .nom-edition, .tab-date-edition, .tab-suppr, .ajout-echeance-btn, .ajout-echeance-form, .piece-suppr, .piece-reinit, .piece-valider, .ajout-piece-btn, .ajout-piece-form, .diagnostic-parcours, .extraction-dossier, .engagement-suppr, .analyse-doc-suppr, .analyse-engagement-edition, .ajout-engagement-btn, .ajout-engagement-form { display: none !important; }
+    .icon-btn, .tab-select-icone-wrap, .icon-crayon, .icon-valider, .nom-edition, .tab-date-edition, .tab-suppr, .ajout-echeance-btn, .ajout-echeance-form, .piece-actions, .pieces-voir-plus, .ajout-piece-btn, .ajout-piece-form, .diagnostic-parcours, .extraction-dossier, .engagement-suppr, .analyse-doc-suppr, .analyse-engagement-edition, .ajout-engagement-btn, .ajout-engagement-form { display: none !important; }
   }
 
 
