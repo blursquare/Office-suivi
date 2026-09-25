@@ -120,9 +120,16 @@ function dateDepuisDtstart(dtstart) {
 // peut suivre juste après, sur la même ligne) : la comparaison par mots significatifs qui suit
 // tolère très bien ces mots en trop.
 const RE_REFERENCE_VTE = /\bVTE\b\s*[-–:]?\s*(.+)/i;
+// « VENTE » en toutes lettres est accepté aussi (« VENTE MOKADEM / DE SOUSA MARTINS »), mais
+// seulement EN TÊTE de ligne : tout événement porteur d'une référence est pris pour le rendez-vous
+// de signature (voir `estRendezVousSignature`), et « Visite de la vente DUPONT » ou « point sur la
+// vente » au fil d'une description ne doivent pas le devenir. « VTE » est un sigle de l'étude, il
+// reste reconnu où qu'il soit.
+const RE_REFERENCE_VENTE = /^\s*VENTE\b\s*[-–:]?\s*(.+)/im;
 
 function extraireReferenceVte(texte) {
-  const m = RE_REFERENCE_VTE.exec(String(texte || ''));
+  const source = String(texte || '');
+  const m = RE_REFERENCE_VTE.exec(source) || RE_REFERENCE_VENTE.exec(source);
   return m ? m[1].trim() : '';
 }
 

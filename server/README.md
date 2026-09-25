@@ -108,7 +108,9 @@ dossier la date d'un appel de fonds ou d'un projet d'acte envoyé, dès que le r
 correspondant est noté dans l'agenda, sans ressaisie côté CLAIRE.
 
 **Convention attendue** (voir `server/src/agendaOffice.js`) : un rendez-vous porte la référence
-« VTE - NOM DU DOSSIER » dans son titre (ou sa description) ; son **lieu** porte les initiales du
+« VTE - NOM DU DOSSIER » dans son titre (ou sa description) — « VENTE NOM DU DOSSIER » est
+accepté aussi, mais seulement en début de ligne (« Visite de la vente DUPONT » n'est pas une
+référence) ; son **lieu** porte les initiales du
 collaborateur suivies de « Appel de fonds envoyé » ou « Appel de fonds et projet envoyé » (le
 titre et la description sont lus aussi). Il faut un ENVOI FAIT : « appel de fonds à faire »,
 « projet à envoyer » ou « non envoyé » ne déclenchent rien. **Seuls les rendez-vous à venir**

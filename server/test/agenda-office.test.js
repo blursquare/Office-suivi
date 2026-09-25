@@ -102,6 +102,30 @@ test('extraireReferenceVte reconnait VTE avec differents separateurs, et rien sa
   assert.equal(extraireReferenceVte(''), '');
 });
 
+test('extraireReferenceVte reconnait aussi VENTE, mais seulement en tete de ligne', () => {
+  assert.equal(extraireReferenceVte('VENTE MOKADEM / DE SOUSA MARTINS'), 'MOKADEM / DE SOUSA MARTINS');
+  assert.equal(extraireReferenceVte('VENTE - DUPONT'), 'DUPONT');
+  assert.equal(extraireReferenceVte('Vente : DUPONT'), 'DUPONT');
+  assert.equal(extraireReferenceVte('Notes\nVENTE DUPONT / MARTIN'), 'DUPONT / MARTIN');
+  assert.equal(extraireReferenceVte('Visite de la vente DUPONT'), '');
+  assert.equal(extraireReferenceVte('Prevente DUPONT'), '');
+});
+
+test('un rendez-vous VENTE ... porte les deux envois comme un rendez-vous VTE', () => {
+  const ics = [
+    'BEGIN:VCALENDAR', 'BEGIN:VEVENT',
+    'SUMMARY:VENTE MOKADEM / DE SOUSA MARTINS',
+    'LOCATION:Me DENIS en 1er - Appel de fonds et projet envoyé',
+    'DTSTART:20991014T140000Z', 'END:VEVENT', 'END:VCALENDAR'
+  ].join('\r\n');
+  const dossiers = [{ id: 'a', nom: 'MOKADEM / DE SOUSA MARTINS' }, { id: 'b', nom: 'DUPONT / MARTIN' }];
+  const actions = actionsDetecteesDepuisIcs(ics, dossiers, '2026-09-25');
+  assert.equal(actions.length, 1);
+  assert.equal(actions[0].dossierId, 'a');
+  assert.equal(actions[0].appelFonds, true);
+  assert.equal(actions[0].projetEnvoye, true);
+});
+
 test('extraireReferenceVte garde les mots-cles d\'action colles a la reference (tolere par le matching)', () => {
   assert.equal(extraireReferenceVte('VTE - DUPONT / MARTIN - Appel de fonds'), 'DUPONT / MARTIN - Appel de fonds');
 });

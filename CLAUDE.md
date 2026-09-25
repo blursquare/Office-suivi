@@ -7764,6 +7764,19 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     lien jamais affiché). Le test de route qui simulait un 500 passe à un 404, qui n'est pas relancé
     (sinon 3 s d'attente réelle et une réponse simulée manquante).
 
+- **Agenda de l'office : « VENTE » reconnu en plus de « VTE »** (25/09). Demandé par l'étude,
+  dont certains rendez-vous s'intitulent « VENTE MOKADEM / DE SOUSA MARTINS » plutôt que
+  « VTE - … ». `extraireReferenceVte` (`server/src/agendaOffice.js`) accepte « VENTE » avec les mêmes
+  séparateurs, **mais seulement en tête de ligne** (`RE_REFERENCE_VENTE`, drapeau `m`). La raison :
+  tout événement qui porte une référence est pris pour le rendez-vous de signature
+  (`estRendezVousSignature`), et « Visite de la vente DUPONT » ou « point sur la vente » dans une
+  description ne doivent pas remplir cette date. « VTE » reste reconnu partout, c'est un sigle propre
+  à l'étude. « VENTE » était déjà dans `MOTS_IGNORES` (`nas.js`), il ne compte donc pas comme nom
+  dans le rapprochement. Deux tests dans `server/test/agenda-office.test.js`, dont le cas MOKADEM de
+  bout en bout (« Me DENIS en 1er - Appel de fonds et projet envoyé » : les deux envois sont
+  relevés). La lecture ne reprendra de toute façon que quand le lien du calendrier sera corrigé
+  (erreur 500, voir l'entrée précédente).
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à
