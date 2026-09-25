@@ -7638,6 +7638,34 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     ajouter de réglage de proxy dans CLAIRE sans savoir qu'un proxy explicite existe : celui-ci est
     transparent, il intercepte déjà tout.
 
+- **Agenda de l'office : le déclencheur est dans le LIEU, seuls les rendez-vous à venir comptent,
+  et le nom du dossier se reconnaît même partiel** (25/09), convention précisée par l'étude une fois
+  la lecture du `.ics` rétablie : « VTE - NOM DU DOSSIER » en titre, pas forcément tous les noms de
+  famille ; dans le lieu, les initiales du collaborateur puis « Appel de fonds envoyé » ou « Appel
+  de fonds et projet envoyé ».
+  - `parseIcsEvenements` lit `LOCATION` ; `detecterActionsEvenement` lit le lieu en premier, puis
+    titre et description.
+  - **Un ENVOI FAIT est exigé** : « appel de fonds » seul ne suffit plus (`RE_APPEL_ENVOYE` : suivi
+    de « envoyé » dans les 40 caractères, ou « envoi de l'appel de fonds », ou « AF envoyé » en
+    capitales). `ENVOYE` refuse « envoyer »/« envoyez » — l'ancien motif du projet acceptait
+    « projet à envoyer » — et `matchNonNie` écarte « non envoyé »/« pas (encore) envoyé ».
+  - **Rendez-vous à venir seulement** : `actionsDetecteesDepuisIcs(ics, dossiers, aujourdHui)`
+    écarte tout événement antérieur au jour de lecture (`dateDuJourParis()`, passé par le tour).
+  - **Rapprochement tolérant** (`dossierPourReferenceAgenda`), qui remplace « tous les noms du
+    dossier doivent figurer dans la référence » : score = noms du dossier retrouvés dans la
+    référence, exactement ou à une faute près (`motsVoisins` : 5 lettres minimum, première lettre
+    identique, distance d'édition 1). Au moins un nom en commun ; le dossier en tête gagne s'il est
+    seul. À score égal : si les ex æquo ont été retenus sur les mêmes noms, la plus grande part de
+    noms cités départage (« DUPONT » → le dossier « DUPONT » plutôt que « DUPONT / MARTIN ») ; sur
+    des noms différents (« PETIT / DUPONT » face à deux dossiers), rien. Les mots d'agenda
+    (`MOTS_AGENDA_IGNORES` : RDV, SIGNATURE, APPEL, FONDS, PROJET…) ne comptent jamais.
+  - **Risque assumé, à surveiller** : un seul nom en commun suffit. Si l'agenda cite une vente
+    absente de CLAIRE dont un nom est aussi celui d'un dossier suivi, ce dossier recevra la date.
+    L'historique nomme la référence agenda utilisée, et la date ne remplace jamais une date saisie.
+  - Tests : `agenda-office.test.js` (lieu, envoi exigé et négations, tolérance, fautes, ex æquo,
+    filtre de date), un tour qui ignore un rendez-vous passé dans `agenda-watch.test.js` ; fixtures
+    des tours datées 2099 pour ne pas vieillir. Suite serveur 360, racine 798.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

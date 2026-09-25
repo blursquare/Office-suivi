@@ -276,7 +276,7 @@ async function executerTourSurveillanceAgenda(depot, icsUrl, fetchFn, pauseMs) {
     }
     const dossiersActifs = depot.tousActifs().filter((d) => !d.archive);
     resultat.dossiersVerifies = dossiersActifs.length;
-    const detections = actionsDetecteesDepuisIcs(texte, dossiersActifs);
+    const detections = actionsDetecteesDepuisIcs(texte, dossiersActifs, dateDuJourParis());
     const applique = appliquerDetectionsAgenda(depot, detections);
     resultat.ok = true;
     resultat.misAJour = applique.misAJour;

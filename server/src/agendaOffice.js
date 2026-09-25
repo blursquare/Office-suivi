@@ -7,9 +7,12 @@
 // même flux dans un autre artefact (« brief du matin ») — rien de nouveau à créer côté agenda.
 //
 // Convention réelle donnée par l'étude, à ne pas généraliser au-delà de ce qu'elle a décrit :
-//   - chaque renvoi de vente porte « VTE - NOM DU DOSSIER » dans son titre (ou sa description) ;
-//   - « appel de fonds » et/ou « projet envoyé » sont notés sur ce même événement, l'un, l'autre,
-//     ou les deux ;
+//   - chaque rendez-vous de vente porte « VTE - NOM DU DOSSIER » dans son titre (ou sa
+//     description) — ce nom ne reprend pas forcément TOUS les noms de famille du dossier CLAIRE ;
+//   - le déclencheur est le plus souvent noté dans le LIEU du rendez-vous (propriété LOCATION) :
+//     les initiales du collaborateur suivies de « Appel de fonds envoyé » ou de « Appel de fonds et
+//     projet envoyé » — le titre et la description sont lus aussi, en repli ;
+//   - seuls les rendez-vous À VENIR (à partir du jour de la lecture) sont pris en compte ;
 //   - trois couleurs Outlook distinguent le LIEU du rendez-vous (vert = office, violet = visio,
 //     orange = confrère) — sans rapport avec cette détection, jamais lues ici.
 //
@@ -18,10 +21,12 @@
 // Microsoft Graph n'est nécessaire (déjà écarté une fois pour les relances email/calendrier, voir
 // CLAUDE.md) : un simple GET HTTP suffit.
 //
-// Rapprochement au dossier CLAIRE par MOTS SIGNIFICATIFS EN COMMUN, comme le rapprochement NAS
-// (voir nas.js, rapprochementParfait/motsSignificatifs) — même prudence : ce job tourne sans
-// personne pour arbitrer une ambiguïté, se tromper de dossier remplirait une date sur le mauvais
-// dossier. Une seule correspondance SANS AMBIGUÏTÉ met à jour un dossier ; sinon, rien.
+// Rapprochement au dossier CLAIRE par MOTS SIGNIFICATIFS EN COMMUN (voir nas.js,
+// motsSignificatifs), avec TOLÉRANCE : l'agenda peut ne citer qu'une partie des noms du dossier, ou
+// les écrire avec une faute. Le dossier qui partage le plus de noms avec la référence l'emporte —
+// mais seulement s'il est SEUL en tête : deux dossiers ex æquo ne donnent rien plutôt qu'un choix
+// arbitraire, ce job tournant sans personne pour arbitrer (une date écrite sur le mauvais dossier
+// est pire qu'une date non relevée).
 
 const { normaliserNomRapprochement, motsSignificatifs } = require('./nas');
 
@@ -72,7 +77,7 @@ function parseIcsEvenements(texte) {
     const ligne = ligneBrute.replace(/\s+$/, '');
     const majLigne = ligne.trim().toUpperCase();
     if (majLigne === 'BEGIN:VEVENT') {
-      courant = { summary: '', description: '', dtstart: '', status: '' };
+      courant = { summary: '', description: '', location: '', dtstart: '', status: '' };
       profondeurSousComposant = 0;
       continue;
     }
@@ -94,6 +99,7 @@ function parseIcsEvenements(texte) {
     const valeur = ligne.slice(idx + 1);
     if (cle === 'SUMMARY') courant.summary = decoderTexteIcs(valeur);
     else if (cle === 'DESCRIPTION') courant.description = decoderTexteIcs(valeur);
+    else if (cle === 'LOCATION') courant.location = decoderTexteIcs(valeur);
     else if (cle === 'DTSTART') courant.dtstart = valeur.trim();
     else if (cle === 'STATUS') courant.status = valeur.trim().toUpperCase();
   }
@@ -126,46 +132,123 @@ function referenceDossierEvenement(evenement) {
   return extraireReferenceVte(evenement.summary) || extraireReferenceVte(evenement.description);
 }
 
-// « AF » en abréviation n'est accepté qu'EN MAJUSCULES (donc sans /i) : en minuscules, « af » n'est
-// pas un mot français et se prêterait à des faux positifs sur un texte quelconque, alors qu'en
-// capitales c'est une convention de bureau reconnaissable sans ambiguïté.
+// Le déclencheur donné par l'étude est un ENVOI FAIT : « Appel de fonds envoyé », « Appel de fonds
+// et projet envoyé ». Exiger le participe « envoyé » (et pas seulement les mots « appel de fonds »)
+// évite de relever une note de préparation (« appel de fonds à faire », « projet à envoyer ») comme
+// un envoi déjà parti. `ENVOYE` refuse « envoyer »/« envoyez » (un infinitif n'est pas un envoi) ;
+// une négation juste avant (« pas envoyé », « non envoyé ») annule le déclencheur.
+const ENVOYE = String.raw`envoy[ée]e?s?(?![A-Za-zÀ-ÿ])`;
+const RE_APPEL_ENVOYE = new RegExp(String.raw`appel\s+de\s+fonds[\s\S]{0,40}?` + ENVOYE, 'i');
+const RE_ENVOI_APPEL = /\benvoi\s+(?:de\s+l['’]\s*|d['’]\s*|de\s+)?appel\s+de\s+fonds/i;
+// « AF » en abréviation n'est accepté qu'EN MAJUSCULES : en minuscules, « af » n'est pas un mot
+// français et se prêterait à des faux positifs, alors qu'en capitales c'est une convention de bureau.
+const RE_AF_ENVOYE = new RegExp(String.raw`\bAF\b[\s\S]{0,40}?` + ENVOYE.replace('[ée]', '[ÉEée]'));
+const RE_NEGATION_ENVOI = /\b(?:non|pas|jamais)\s+(?:encore\s+)?$/i;
+
+// Un match n'est retenu que si le participe n'est pas nié juste avant (« AF pas envoyé »).
+function matchNonNie(re, texte) {
+  const global = new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g');
+  let m;
+  while ((m = global.exec(texte)) !== null) {
+    const idxEnvoi = m[0].search(/envo[iy]/i);
+    const avant = texte.slice(Math.max(0, m.index + idxEnvoi - 20), m.index + idxEnvoi);
+    if (!RE_NEGATION_ENVOI.test(avant)) return true;
+    if (m[0].length === 0) global.lastIndex++;
+  }
+  return false;
+}
+
 function detecteAppelDeFonds(texte) {
   const t = String(texte || '');
-  return /appel\s+de\s+fonds/i.test(t) || /\bAF\b/.test(t);
+  return matchNonNie(RE_APPEL_ENVOYE, t) || matchNonNie(RE_ENVOI_APPEL, t) || matchNonNie(RE_AF_ENVOYE, t);
 }
 
 // Deux ordres de mots tolérés (« projet ... envoyé » et « envoi ... projet »), fenêtre de 40
 // caractères entre les deux pour couvrir « projet d'acte envoyé au client » comme « envoi du
-// projet d'acte » sans dériver vers un tout autre sens de ces deux mots pris séparément.
-const RE_PROJET_ENVOYE = /\bprojet\b[\s\S]{0,40}?\benvoy[ée]/i;
+// projet d'acte ». « Appel de fonds et projet envoyé » déclenche donc les DEUX actions.
+const RE_PROJET_ENVOYE = new RegExp(String.raw`\bprojet\b[\s\S]{0,40}?` + ENVOYE, 'i');
 const RE_ENVOI_PROJET = /\benvoi\b[\s\S]{0,40}?\bprojet\b/i;
 function detecteProjetEnvoye(texte) {
   const t = String(texte || '');
-  return RE_PROJET_ENVOYE.test(t) || RE_ENVOI_PROJET.test(t);
+  return matchNonNie(RE_PROJET_ENVOYE, t) || matchNonNie(RE_ENVOI_PROJET, t);
 }
 
+// Le LIEU d'abord (c'est là que l'étude note le déclencheur), puis le titre et la description.
 function detecterActionsEvenement(evenement) {
-  const texte = `${evenement.summary || ''} ${evenement.description || ''}`;
+  const texte = [evenement.location, evenement.summary, evenement.description]
+    .filter(Boolean).join(' \n ');
   return {
     appelFonds: detecteAppelDeFonds(texte),
     projetEnvoye: detecteProjetEnvoye(texte)
   };
 }
 
-// Une seule correspondance possible, jamais un choix arbitraire entre deux dossiers : TOUS les
-// mots significatifs du nom du dossier CLAIRE doivent se retrouver dans la référence lue au
-// calendrier, et un SEUL dossier actif doit remplir cette condition — même règle et même prudence
-// que rapprochementParfait() pour le NAS, réécrite ici dans l'autre sens (une seule référence à
-// tester contre plusieurs dossiers, plutôt qu'un seul dossier à tester contre plusieurs candidats).
+// Distance d'édition (Levenshtein), bornée : sert uniquement à tolérer une faute de frappe dans
+// un nom de famille noté à la main dans l'agenda (« DUPOND » pour « DUPONT »).
+function distanceEdition(a, b, max) {
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  let precedente = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const courante = [i];
+    let minLigne = i;
+    for (let j = 1; j <= b.length; j++) {
+      const cout = a[i - 1] === b[j - 1] ? 0 : 1;
+      courante[j] = Math.min(precedente[j] + 1, courante[j - 1] + 1, precedente[j - 1] + cout);
+      if (courante[j] < minLigne) minLigne = courante[j];
+    }
+    if (minLigne > max) return max + 1;
+    precedente = courante;
+  }
+  return precedente[b.length];
+}
+
+// Deux noms sont « les mêmes » s'ils sont identiques, ou — à partir de 5 lettres, première lettre
+// identique — s'ils ne diffèrent que d'une lettre. Un nom court (« RAY », « DIAS ») doit être exact :
+// une lettre de différence y change trop souvent de famille.
+function motsVoisins(a, b) {
+  if (a === b) return true;
+  if (a.length < 5 || b.length < 5 || a[0] !== b[0]) return false;
+  return distanceEdition(a, b, 1) <= 1;
+}
+
+// Mots qui accompagnent la référence dans un titre d'agenda sans jamais désigner une personne —
+// ignorés de part et d'autre, sans quoi « VTE - DUPONT signature » ne se distinguerait plus d'un
+// dossier dont un nom commencerait par l'un d'eux.
+const MOTS_AGENDA_IGNORES = new Set([
+  'VTE', 'RDV', 'SIGNATURE', 'ACTE', 'PROMESSE', 'COMPROMIS', 'APPEL', 'FONDS', 'PROJET', 'ENVOYE',
+  'ENVOI', 'VISIO', 'OFFICE', 'CONFRERE', 'SCI', 'SARL', 'SAS', 'CONSORTS', 'SUCCESSION'
+]);
+
+function motsNomsDeFamille(texte) {
+  return motsSignificatifs(texte).filter((m) => !MOTS_AGENDA_IGNORES.has(m));
+}
+
+// Score d'un dossier : nombre de ses noms retrouvés (exactement ou à une faute près) dans la
+// référence. Au moins un nom en commun est exigé, et le dossier en tête l'emporte s'il y est SEUL.
+// À score égal, deux cas :
+//   - les deux dossiers ont été retenus sur les MÊMES noms de la référence (« VTE - DUPONT » face à
+//     « DUPONT » et « DUPONT / MARTIN ») : celui dont la plus grande part des noms est citée gagne ;
+//   - ils l'ont été sur des noms DIFFÉRENTS (« VTE - PETIT DUPONT » face à « DUPONT / MARTIN » et
+//     « LEROY / PETIT ») : la référence désigne deux dossiers à la fois, rien n'est retenu.
 function dossierPourReferenceAgenda(reference, dossiersActifs) {
-  const motsRef = new Set(normaliserNomRapprochement(reference).split(' ').filter(Boolean));
-  if (motsRef.size === 0) return null;
-  const correspondants = (dossiersActifs || []).filter((d) => {
-    if (!d || typeof d.nom !== 'string') return false;
-    const attendus = motsSignificatifs(d.nom);
-    return attendus.length > 0 && attendus.every((mot) => motsRef.has(mot));
-  });
-  return correspondants.length === 1 ? correspondants[0] : null;
+  const motsRef = [...new Set(motsNomsDeFamille(reference))];
+  if (motsRef.length === 0) return null;
+  const candidats = [];
+  for (const d of dossiersActifs || []) {
+    if (!d || typeof d.nom !== 'string') continue;
+    const attendus = [...new Set(motsNomsDeFamille(d.nom))];
+    if (attendus.length === 0) continue;
+    const communs = attendus.filter((mot) => motsRef.some((r) => motsVoisins(mot, r)));
+    if (communs.length === 0) continue;
+    const refTouches = motsRef.filter((r) => communs.some((mot) => motsVoisins(mot, r))).sort().join(' ');
+    candidats.push({ d, communs: communs.length, part: communs.length / attendus.length, refTouches });
+  }
+  if (candidats.length === 0) return null;
+  candidats.sort((x, y) => (y.communs - x.communs) || (y.part - x.part));
+  const premier = candidats[0];
+  const exAequo = candidats.slice(1).filter((c) => c.communs === premier.communs);
+  if (exAequo.some((c) => c.refTouches !== premier.refTouches || c.part === premier.part)) return null;
+  return premier.d;
 }
 
 // Fonction d'ensemble, pure et testable de bout en bout à partir d'un texte .ics et de la liste
@@ -173,7 +256,9 @@ function dossierPourReferenceAgenda(reference, dossiersActifs) {
 // détectée — un même événement peut porter les deux actions à la fois. `dossierId`/`dossierNom`
 // restent `null` quand aucune correspondance sûre n'a été trouvée : c'est à l'appelant de décider
 // quoi en faire (voir agendaWatch.js, qui les liste sans jamais rien écrire dans ce cas).
-function actionsDetecteesDepuisIcs(icsTexte, dossiersActifs) {
+// `aujourdHui` (AAAA-MM-JJ) : seuls les rendez-vous de ce jour ou postérieurs sont lus, comme
+// demandé par l'étude — un rendez-vous passé ne déclenche plus rien. Omis : aucun filtre (tests).
+function actionsDetecteesDepuisIcs(icsTexte, dossiersActifs, aujourdHui) {
   const evenements = parseIcsEvenements(icsTexte);
   const resultats = [];
   for (const evt of evenements) {
@@ -182,6 +267,7 @@ function actionsDetecteesDepuisIcs(icsTexte, dossiersActifs) {
     if (!reference) continue;
     const dateIso = dateDepuisDtstart(evt.dtstart);
     if (!dateIso) continue;
+    if (aujourdHui && dateIso < aujourdHui) continue;
     const actions = detecterActionsEvenement(evt);
     if (!actions.appelFonds && !actions.projetEnvoye) continue;
     const dossier = dossierPourReferenceAgenda(reference, dossiersActifs);
@@ -201,5 +287,5 @@ function actionsDetecteesDepuisIcs(icsTexte, dossiersActifs) {
 module.exports = {
   deplierLignesIcs, decoderTexteIcs, parseIcsEvenements, dateDepuisDtstart,
   extraireReferenceVte, referenceDossierEvenement, detecteAppelDeFonds, detecteProjetEnvoye,
-  detecterActionsEvenement, dossierPourReferenceAgenda, actionsDetecteesDepuisIcs
+  detecterActionsEvenement, dossierPourReferenceAgenda, actionsDetecteesDepuisIcs, motsVoisins
 };

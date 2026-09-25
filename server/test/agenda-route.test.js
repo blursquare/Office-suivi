@@ -84,8 +84,9 @@ test('POST /api/agenda/tester : declenche un vrai tour, met a jour un dossier, p
   const ics = [
     'BEGIN:VCALENDAR',
     'BEGIN:VEVENT',
-    'SUMMARY:VTE - DUPONT / MARTIN - Appel de fonds',
-    'DTSTART:20261014',
+    'SUMMARY:VTE - DUPONT / MARTIN',
+    'LOCATION:BA Appel de fonds envoyé',
+    'DTSTART:20991014',
     'END:VEVENT',
     'END:VCALENDAR'
   ].join('\r\n');

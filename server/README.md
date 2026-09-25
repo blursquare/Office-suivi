@@ -108,18 +108,23 @@ dossier la date d'un appel de fonds ou d'un projet d'acte envoyé, dès que le r
 correspondant est noté dans l'agenda, sans ressaisie côté CLAIRE.
 
 **Convention attendue** (voir `server/src/agendaOffice.js`) : un rendez-vous porte la référence
-« VTE - NOM DU DOSSIER » (dans son titre ou sa description) et mentionne « appel de fonds » et/ou
-« projet envoyé »/« envoi du projet » — ensemble ou séparément, dans le titre du rendez-vous ou
-ajouté au texte d'un rendez-vous existant. Les couleurs de rendez-vous (vert = office, violet =
+« VTE - NOM DU DOSSIER » dans son titre (ou sa description) ; son **lieu** porte les initiales du
+collaborateur suivies de « Appel de fonds envoyé » ou « Appel de fonds et projet envoyé » (le
+titre et la description sont lus aussi). Il faut un ENVOI FAIT : « appel de fonds à faire »,
+« projet à envoyer » ou « non envoyé » ne déclenchent rien. **Seuls les rendez-vous à venir**
+(à partir du jour de la lecture) sont pris en compte. Le nom noté dans l'agenda peut ne reprendre
+qu'une partie des noms de famille du dossier, ou comporter une faute de frappe sur un nom d'au
+moins cinq lettres : le dossier qui partage le plus de noms avec la référence est retenu, à
+condition d'être seul en tête — deux dossiers ex æquo, ou une référence qui cite des noms de deux
+dossiers différents, ne donnent rien. Les couleurs de rendez-vous (vert = office, violet =
 visio, orange = confrère) indiquent seulement le LIEU et ne jouent aucun rôle dans cette lecture.
 
 1. Dans **Réglages › Agenda de l'office**, coller l'adresse `.ics` publiée du calendrier de
    l'office (Outlook : **Paramètres → Calendrier → Calendriers partagés → Publier un calendrier**,
    ou récupérer le lien déjà utilisé par le brief du matin) et cliquer **Enregistrer**.
 2. Le serveur relit ce calendrier toutes les **15 minutes**. Dès qu'un rendez-vous correspond à la
-   convention ci-dessus ET à un seul dossier actif (rapprochement par les mots significatifs du
-   nom du dossier, comme pour le rapprochement automatique au NAS — jamais sur un dossier ambigu
-   entre plusieurs candidats), **la date du jour de la détection** (et non celle du rendez-vous)
+   convention ci-dessus ET à un seul dossier actif (rapprochement tolérant décrit ci-dessus — jamais
+   sur un dossier ambigu entre plusieurs candidats), **la date du jour de la détection** (et non celle du rendez-vous)
    est reportée sur `appelFonds`/`projetEnvoye`, **uniquement si le champ est encore vide** — une
    date déjà saisie n'est jamais écrasée. Chaque envoi relevé est mémorisé sur le dossier
    (`detectionsAgenda`) : il n'est **plus jamais retraité**, même si la date est ensuite effacée

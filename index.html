@@ -1429,12 +1429,12 @@
   <!-- Lecture automatique du calendrier publié (.ics) de l'office — même flux que celui déjà lu par
        l'artefact "brief du matin". Voir server/src/agendaOffice.js (lecture/repérage) et
        server/src/agendaWatch.js (tour périodique, toutes les 15 minutes). Un rendez-vous portant la
-       référence "VTE - NOM DU DOSSIER" et mentionnant "appel de fonds"/"projet envoyé" (dans le
-       titre ou noté dans le rendez-vous) reporte automatiquement la date correspondante sur le
-       dossier — jamais si le champ est déjà renseigné. -->
+       référence "VTE - NOM DU DOSSIER" et, dans son lieu (ou son titre/sa description), "Appel de
+       fonds envoyé" / "Appel de fonds et projet envoyé" reporte automatiquement la date du jour sur
+       le dossier — rendez-vous à venir seulement, jamais si le champ est déjà renseigné. -->
   <div class="calc-card">
     <div class="dash-section-titre">Lecture automatique du calendrier publié (.ics)</div>
-    <p class="hint">Un rendez-vous « VTE - NOM DU DOSSIER » mentionnant « appel de fonds » ou « projet envoyé » inscrit la date du jour sur le dossier.</p>
+    <p class="hint">Un rendez-vous à venir « VTE - NOM DU DOSSIER » dont le lieu indique « Appel de fonds envoyé » ou « Appel de fonds et projet envoyé » inscrit la date du jour sur le dossier.</p>
     <div class="calc-champs">
       <div class="calc-champ">
         <label for="reglages-agenda-url">Adresse .ics du calendrier de l'office</label>

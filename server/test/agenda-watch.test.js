@@ -165,8 +165,9 @@ test('executerTourSurveillanceAgenda : bout en bout avec un vrai flux et un vrai
   const ics = [
     'BEGIN:VCALENDAR',
     'BEGIN:VEVENT',
-    'SUMMARY:VTE - DUPONT / MARTIN - Appel de fonds',
-    'DTSTART:20261014',
+    'SUMMARY:VTE - DUPONT / MARTIN',
+    'LOCATION:BA Appel de fonds envoyé',
+    'DTSTART:20991014',
     'END:VEVENT',
     'END:VCALENDAR'
   ].join('\r\n');
@@ -176,6 +177,18 @@ test('executerTourSurveillanceAgenda : bout en bout avec un vrai flux et un vrai
   assert.equal(resultat.dossiersVerifies, 1);
   assert.equal(resultat.misAJour.length, 1);
   assert.equal(depot.trouverParId('d1').appelFonds, dateDuJourParis());
+  db.close();
+});
+
+test('executerTourSurveillanceAgenda : un rendez-vous deja passe ne declenche plus rien', async () => {
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  depot.creer({ id: 'd1', nom: 'DUPONT / MARTIN' });
+  const ics = 'BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:VTE - DUPONT\r\nLOCATION:BA Appel de fonds envoyé\r\nDTSTART:20000101\r\nEND:VEVENT\r\nEND:VCALENDAR';
+  const resultat = await executerTourSurveillanceAgenda(depot, 'https://example.test/agenda.ics', fauxFetch([{ ok: true, status: 200, text: async () => ics }]));
+  assert.equal(resultat.ok, true);
+  assert.equal(resultat.misAJour.length, 0);
+  assert.equal(depot.trouverParId('d1').appelFonds || '', '');
   db.close();
 });
 
@@ -196,7 +209,7 @@ test('executerEtEnregistrerTourAgenda : un tour reussi met a jour le compte rend
   const parametresRepo = creerRepoParametres(db);
   parametresRepo.ecrireReglagesAgenda({ icsUrl: 'https://example.test/agenda.ics' });
   depot.creer({ id: 'd1', nom: 'DURAND / LEROY' });
-  const ics = 'BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:VTE - DURAND / LEROY - projet envoye\r\nDTSTART:20261020\r\nEND:VEVENT\r\nEND:VCALENDAR';
+  const ics = 'BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:VTE - DURAND / LEROY - projet envoye\r\nDTSTART:20991020\r\nEND:VEVENT\r\nEND:VCALENDAR';
   await executerEtEnregistrerTourAgenda(depot, parametresRepo, fauxFetch([{ ok: true, status: 200, text: async () => ics }]));
   const dernierTour = parametresRepo.lireDernierTourAgenda();
   assert.equal(dernierTour.ok, true);

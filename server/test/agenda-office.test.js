@@ -30,12 +30,13 @@ test('decoderTexteIcs retire les echappements standard (virgule, point-virgule, 
   assert.equal(decoderTexteIcs('Ligne 1\\nLigne 2'), 'Ligne 1\nLigne 2');
 });
 
-function icsEvenement({ summary, description, dtstart, status }) {
+function icsEvenement({ summary, description, location, dtstart, status }) {
   return [
     'BEGIN:VCALENDAR',
     'BEGIN:VEVENT',
     summary !== undefined ? `SUMMARY:${summary}` : null,
     description !== undefined ? `DESCRIPTION:${description}` : null,
+    location !== undefined ? `LOCATION:${location}` : null,
     dtstart !== undefined ? `DTSTART:${dtstart}` : null,
     status !== undefined ? `STATUS:${status}` : null,
     'END:VEVENT',
@@ -111,11 +112,18 @@ test('referenceDossierEvenement cherche d\'abord le resume, puis la description 
   assert.equal(referenceDossierEvenement({ summary: 'RDV signature', description: '' }), '');
 });
 
-test('detecteAppelDeFonds : la phrase complete insensible a la casse, l\'abreviation seulement en capitales', () => {
+test('detecteAppelDeFonds : un appel de fonds ENVOYE, jamais une simple mention ou une note de preparation', () => {
   assert.equal(detecteAppelDeFonds('Appel de fonds envoye'), true);
-  assert.equal(detecteAppelDeFonds('APPEL DE FONDS'), true);
-  assert.equal(detecteAppelDeFonds('VTE - DUPONT - AF'), true);
-  assert.equal(detecteAppelDeFonds('VTE - DUPONT - af'), false, 'af en minuscules ne doit pas matcher (trop de faux positifs)');
+  assert.equal(detecteAppelDeFonds('BA Appel de fonds envoyé'), true);
+  assert.equal(detecteAppelDeFonds('JV Appel de fonds et projet envoyé'), true);
+  assert.equal(detecteAppelDeFonds('APPEL DE FONDS ENVOYE'), true);
+  assert.equal(detecteAppelDeFonds('envoi de l\'appel de fonds'), true);
+  assert.equal(detecteAppelDeFonds('AF envoyé'), true);
+  assert.equal(detecteAppelDeFonds('af envoyé'), false, 'af en minuscules ne doit pas matcher (trop de faux positifs)');
+  assert.equal(detecteAppelDeFonds('APPEL DE FONDS'), false, 'une mention sans envoi ne declenche rien');
+  assert.equal(detecteAppelDeFonds('Appel de fonds à envoyer'), false, 'un infinitif n\'est pas un envoi');
+  assert.equal(detecteAppelDeFonds('Appel de fonds non envoyé'), false);
+  assert.equal(detecteAppelDeFonds('AF pas encore envoyé'), false);
   assert.equal(detecteAppelDeFonds('Rendez-vous signature'), false);
 });
 
@@ -125,11 +133,24 @@ test('detecteProjetEnvoye : les deux ordres de mots, jamais un texte sans rappor
   assert.equal(detecteProjetEnvoye('envoi du projet d\'acte'), true);
   assert.equal(detecteProjetEnvoye('Appel de fonds'), false);
   assert.equal(detecteProjetEnvoye('projet de vente en cours de redaction'), false);
+  assert.equal(detecteProjetEnvoye('projet à envoyer'), false);
+  assert.equal(detecteProjetEnvoye('JV Appel de fonds et projet envoyé'), true);
 });
 
 test('detecterActionsEvenement combine resume et description', () => {
   const actions = detecterActionsEvenement({ summary: 'VTE - DUPONT / MARTIN', description: 'Appel de fonds + projet envoyé' });
   assert.deepEqual(actions, { appelFonds: true, projetEnvoye: true });
+});
+
+test('detecterActionsEvenement lit le LIEU du rendez-vous (initiales + declencheur)', () => {
+  assert.deepEqual(detecterActionsEvenement({ summary: 'VTE - DUPONT', location: 'BA Appel de fonds envoyé' }), { appelFonds: true, projetEnvoye: false });
+  assert.deepEqual(detecterActionsEvenement({ summary: 'VTE - DUPONT', location: 'JS Appel de fonds et projet envoyé' }), { appelFonds: true, projetEnvoye: true });
+  assert.deepEqual(detecterActionsEvenement({ summary: 'VTE - DUPONT', location: 'Office' }), { appelFonds: false, projetEnvoye: false });
+});
+
+test('parseIcsEvenements lit le lieu (LOCATION), echappements compris', () => {
+  const evts = parseIcsEvenements(icsEvenement({ summary: 'VTE - DUPONT', location: 'BA Appel de fonds\\, projet envoyé', dtstart: '20991014' }));
+  assert.equal(evts[0].location, 'BA Appel de fonds, projet envoyé');
 });
 
 test('dossierPourReferenceAgenda : correspondance sans ambiguite uniquement', () => {
@@ -152,16 +173,43 @@ test('dossierPourReferenceAgenda : aucune correspondance ou ambiguite rend null,
   assert.equal(dossierPourReferenceAgenda('Vente et acquereur', dossiers), null);
 });
 
-test('dossierPourReferenceAgenda : un dossier archive/supprime absent de la liste n\'est jamais candidat', () => {
-  const dossiers = [{ id: 'd1', nom: 'DUPONT / MARTIN' }];
-  assert.equal(dossierPourReferenceAgenda('DUPONT', dossiers), null, 'un seul mot significatif sur deux ne suffit pas');
+test('dossierPourReferenceAgenda : tolerant, l\'agenda peut ne citer qu\'une partie des noms', () => {
+  const dossiers = [
+    { id: 'd1', nom: 'DUPONT & DURAND / MARTIN' },
+    { id: 'd2', nom: 'LEROY / PETIT' }
+  ];
+  assert.equal(dossierPourReferenceAgenda('DUPONT', dossiers).id, 'd1');
+  assert.equal(dossierPourReferenceAgenda('MARTIN - signature', dossiers).id, 'd1');
+  assert.equal(dossierPourReferenceAgenda('PETIT', dossiers).id, 'd2');
+});
+
+test('dossierPourReferenceAgenda : une faute de frappe sur un nom long est toleree, pas sur un nom court', () => {
+  const dossiers = [{ id: 'd1', nom: 'DUPONT / MARTIN' }, { id: 'd2', nom: 'RAY / DIAS' }];
+  assert.equal(dossierPourReferenceAgenda('DUPOND', dossiers).id, 'd1');
+  assert.equal(dossierPourReferenceAgenda('MARTAN', dossiers).id, 'd1');
+  assert.equal(dossierPourReferenceAgenda('ROY', dossiers), null, 'un nom de moins de 5 lettres doit etre exact');
+  assert.equal(dossierPourReferenceAgenda('TUPONT', dossiers), null, 'la premiere lettre n\'est jamais toleree');
+});
+
+test('dossierPourReferenceAgenda : a egalite, le dossier le mieux couvert gagne, sinon rien', () => {
+  const dossiers = [
+    { id: 'd1', nom: 'DUPONT / MARTIN' },
+    { id: 'd2', nom: 'DUPONT' },
+    { id: 'd3', nom: 'LEROY / PETIT' }
+  ];
+  assert.equal(dossierPourReferenceAgenda('DUPONT', dossiers).id, 'd2', 'meme nom cite : le dossier dont la plus grande part est citee');
+  assert.equal(dossierPourReferenceAgenda('DUPONT MARTIN', dossiers).id, 'd1', 'plus de noms en commun');
+  assert.equal(dossierPourReferenceAgenda('PETIT / DUPONT', dossiers), null, 'des noms de deux dossiers differents : ambigu');
+  const homonymes = [{ id: 'a', nom: 'DUPONT / MARTIN' }, { id: 'b', nom: 'DUPONT / LEROY' }];
+  assert.equal(dossierPourReferenceAgenda('DUPONT', homonymes), null, 'deux dossiers egalement couverts : rien');
 });
 
 test('actionsDetecteesDepuisIcs : bout en bout sur un flux realiste, un evenement = une detection', () => {
   const texte = [
     'BEGIN:VCALENDAR',
     'BEGIN:VEVENT',
-    'SUMMARY:VTE - DUPONT / MARTIN - Appel de fonds',
+    'SUMMARY:VTE - DUPONT / MARTIN',
+    'LOCATION:BA Appel de fonds envoyé',
     'DTSTART:20261014T090000Z',
     'END:VEVENT',
     'BEGIN:VEVENT',
@@ -189,20 +237,32 @@ test('actionsDetecteesDepuisIcs : bout en bout sur un flux realiste, un evenemen
 });
 
 test('actionsDetecteesDepuisIcs : ignore un evenement annule (STATUS:CANCELLED)', () => {
-  const texte = icsEvenement({ summary: 'VTE - DUPONT / MARTIN - Appel de fonds', dtstart: '20261014', status: 'CANCELLED' });
+  const texte = icsEvenement({ summary: 'VTE - DUPONT / MARTIN', location: 'BA Appel de fonds envoyé', dtstart: '20261014', status: 'CANCELLED' });
   assert.deepEqual(actionsDetecteesDepuisIcs(texte, [{ id: 'd1', nom: 'DUPONT / MARTIN' }]), []);
 });
 
 test('actionsDetecteesDepuisIcs : un evenement sans VTE ou sans date exploitable est ignore', () => {
-  const sansVte = icsEvenement({ summary: 'Appel de fonds DUPONT', dtstart: '20261014' });
+  const sansVte = icsEvenement({ summary: 'DUPONT', location: 'Appel de fonds envoyé', dtstart: '20261014' });
   assert.deepEqual(actionsDetecteesDepuisIcs(sansVte, [{ id: 'd1', nom: 'DUPONT / MARTIN' }]), []);
-  const sansDate = icsEvenement({ summary: 'VTE - DUPONT / MARTIN - Appel de fonds' });
+  const sansDate = icsEvenement({ summary: 'VTE - DUPONT / MARTIN', location: 'Appel de fonds envoyé' });
   assert.deepEqual(actionsDetecteesDepuisIcs(sansDate, [{ id: 'd1', nom: 'DUPONT / MARTIN' }]), []);
 });
 
 test('actionsDetecteesDepuisIcs : sans correspondance sure, dossierId reste null (jamais devine)', () => {
-  const texte = icsEvenement({ summary: 'VTE - INCONNU / PERSONNE - Appel de fonds', dtstart: '20261014' });
+  const texte = icsEvenement({ summary: 'VTE - INCONNU / PERSONNE', location: 'Appel de fonds envoyé', dtstart: '20261014' });
   const resultats = actionsDetecteesDepuisIcs(texte, [{ id: 'd1', nom: 'DUPONT / MARTIN' }]);
   assert.equal(resultats.length, 1);
   assert.equal(resultats[0].dossierId, null);
+});
+
+test('actionsDetecteesDepuisIcs : seuls les rendez-vous a partir du jour de lecture sont lus', () => {
+  const texte = [
+    'BEGIN:VCALENDAR',
+    'BEGIN:VEVENT', 'SUMMARY:VTE - DUPONT', 'LOCATION:BA Appel de fonds envoyé', 'DTSTART:20260924', 'END:VEVENT',
+    'BEGIN:VEVENT', 'SUMMARY:VTE - DUPONT', 'LOCATION:BA Appel de fonds envoyé', 'DTSTART:20260925T140000Z', 'END:VEVENT',
+    'BEGIN:VEVENT', 'SUMMARY:VTE - DUPONT', 'LOCATION:BA Appel de fonds envoyé', 'DTSTART:20261014', 'END:VEVENT',
+    'END:VCALENDAR'
+  ].join('\r\n');
+  const resultats = actionsDetecteesDepuisIcs(texte, [{ id: 'd1', nom: 'DUPONT / MARTIN' }], '2026-09-25');
+  assert.equal(resultats.map((r) => r.dateIso).join(','), '2026-09-25,2026-10-14');
 });
