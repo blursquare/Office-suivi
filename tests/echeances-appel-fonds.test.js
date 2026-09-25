@@ -64,7 +64,7 @@ test('appel de fonds affiché dès qu\'un rendez-vous de signature est fixé, m�
   const app = chargerApplication();
   const d = dossierBase({ sansPret: false, offrePretStatut: 'inconnu', rendezVousSignature: '2026-12-01' });
   assert.equal(app.dossierEntierementComplet(d), false, 'le dossier doit bien être incomplet pour que le test ait un sens');
-  assert.ok(ordreDesEcheances(app, d).includes('Appel de fonds'));
+  assert.ok(ordreDesEcheances(app, d).includes('Envoi au client'));
 });
 
 test('une date d\'appel de fonds déjà saisie ne disparaît jamais, même si le dossier redevient incomplet', () => {
@@ -73,14 +73,14 @@ test('une date d\'appel de fonds déjà saisie ne disparaît jamais, même si le
   const app = chargerApplication();
   const d = dossierBase({ sansPret: false, offrePretStatut: 'inconnu', appelFonds: '2026-11-20' });
   assert.equal(app.dossierEntierementComplet(d), false);
-  assert.ok(ordreDesEcheances(app, d).includes('Appel de fonds'));
+  assert.ok(ordreDesEcheances(app, d).includes('Envoi au client'));
 });
 
 test('appel de fonds masqué tant que rien ne le justifie', () => {
   // La règle d'origine reste : ni date saisie, ni rendez-vous, ni dossier complet → pas de carte.
   const app = chargerApplication();
   const d = dossierBase({ sansPret: false, offrePretStatut: 'inconnu' });
-  assert.ok(!ordreDesEcheances(app, d).includes('Appel de fonds'));
+  assert.ok(!ordreDesEcheances(app, d).includes('Envoi au client'));
 });
 
 test('renderTab : croix de suppression et bouton de validation présents sur les deux nouveaux types', () => {
@@ -181,7 +181,8 @@ test('normaliserDossierImporte écarte une date mal formée pour les deux nouvea
 // On lit l'ordre dans le HTML produit en cherchant la position de chaque libellé.
 function ordreDesEcheances(app, d) {
   const html = app.echeancesOrdonneesFiche(d, {}, '');
-  const libelles = ['Obtention du prêt', 'Appel de fonds', 'Date butoir',
+  // « Envoi au client » : titre de la carte qui porte l'envoi de l'appel de fonds et du projet.
+  const libelles = ['Obtention du prêt', 'Envoi au client', 'Date butoir',
     'Rendez-vous de signature', 'Vente préalable'].concat((d.autres || []).map((a) => a.label));
   // Ancrage sur le titre de la carte, jamais sur le libellé seul : les tabs recatégorisables
   // (prêt/acte/vente préalable) embarquent un <select> qui contient les TROIS libellés en
@@ -205,7 +206,7 @@ test('echeancesOrdonneesFiche classe les échéances datées par date croissante
     ordreDesEcheances(app, d).join(' | '),
     // L'appel de fonds est désormais affiché dès qu'un rendez-vous est fixé ; sans date propre,
     // il part en fin de liste comme toute échéance non renseignée.
-    'Diagnostic amiante | Vente préalable | Date butoir | Rendez-vous de signature | Obtention du prêt | Appel de fonds'
+    'Diagnostic amiante | Vente préalable | Date butoir | Rendez-vous de signature | Obtention du prêt | Envoi au client'
   );
 });
 
@@ -350,7 +351,7 @@ test('renderCarteEnvoisAvantSignature : deux entrées, dates et statuts propres 
   assert.equal((html.match(/À compléter/g) || []).length, 1, "l'envoi du projet reste à compléter");
 });
 
-test('echeancesOrdonneesFiche : une seule carte « Appel de fonds », plus de carte « Projet » séparée', () => {
+test('echeancesOrdonneesFiche : une seule carte « Envoi au client », plus de carte « Projet » séparée', () => {
   const app = chargerApplication();
   const html = app.echeancesOrdonneesFiche(dossierBase({ rendezVousSignature: '2026-12-01', projetEnvoye: '2026-11-20' }), {}, '');
   assert.equal((html.match(/<div class="tab appelFonds">/g) || []).length, 1);

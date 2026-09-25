@@ -7480,7 +7480,7 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     réintroduire.** Leçon : « l'ics » peut désigner deux calendriers ici (celui que CLAIRE publie,
     celui de l'office qu'elle lit) — demander lequel avant de coder.
   - **Fiche** : les cartes « Appel de fonds » et « Projet d'acte envoyé » sont fusionnées en une
-    seule carte « Appel de fonds » (`renderCarteEnvoisAvantSignature`, `ENVOIS_AVANT_SIGNATURE`)
+    seule carte « Appel de fonds » (renommée « Envoi au client » ensuite) (`renderCarteEnvoisAvantSignature`, `ENVOIS_AVANT_SIGNATURE`)
     à deux lignes, **« Envoi appel de fonds »** et **« Envoi projet »**, chacune avec sa date,
     son crayon (mêmes id `tabdate-<id>-<cle>` que les autres cartes, donc
     `activerEditionDate`/`validerEditionDate` inchangées) et sa croix. Une date saisie vaut envoi
@@ -7509,6 +7509,10 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   d'autorisation de notification raccourcis. Aucun champ, id ni bouton touché. Hauteur mesurée de
   l'écran : 4270 px → 3317 px à 1400 px de large. **À garder** : un texte d'aide ne répète pas le
   libellé ; une explication longue va dans un `<details>` replié, pas en permanence à l'écran.
+
+- **Carte renommée « Envoi au client »** (25/09) : la carte de la fiche qui porte « Envoi appel de
+  fonds » et « Envoi projet » (`renderCarteEnvoisAvantSignature`) ne s'appelle plus « Appel de
+  fonds ». Seul le titre change : classe CSS `tab appelFonds` et couleur conservées.
 
 ## Comment tester
 

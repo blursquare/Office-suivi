@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-25 08:04';
+  const VERSION_APP = '2026-09-25 08:06';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-25 08:06', resume: "Fiche dossier : la carte des deux envois (appel de fonds, projet) s'appelle désormais « Envoi au client »." },
     { version: '2026-09-25 08:04', resume: "Réglages allégés : textes d'aide raccourcis, « Comment ça marche » replié par défaut." },
     { version: '2026-09-25 07:57', resume: "Fiche dossier : la carte « Appel de fonds » porte deux entrées datées, « Envoi appel de fonds » et « Envoi projet ». Un envoi relevé dans l'agenda de l'office prend la date du jour de la détection, et n'est plus jamais retraité ensuite. L'agenda .ics de CLAIRE reste inchangé." },
     { version: '2026-09-25 00:13', resume: "CLAIRE lit désormais l'agenda .ics publié de l'office (même lien que le brief du matin, toutes les 15 minutes) : un rendez-vous portant « VTE - NOM DU DOSSIER » et mentionnant « appel de fonds »/« projet envoyé » reporte automatiquement la date sur le dossier, jamais si elle est déjà saisie. Nouvelle échéance « Projet d'acte envoyé », entre l'appel de fonds et la signature. Réglages › Agenda de l'office pour l'adresse et « Tester maintenant »." },
@@ -9766,7 +9767,7 @@
     </div>`;
   }
 
-  // Carte « Appel de fonds » de la fiche : deux entrées, chacune avec sa date — « Envoi appel de
+  // Carte « Envoi au client » de la fiche : deux entrées, chacune avec sa date — « Envoi appel de
   // fonds » (d.appelFonds) et « Envoi projet » (d.projetEnvoye). Une date saisie vaut envoi fait
   // (marquerAppelFondsSelonDate / marquerProjetEnvoyeSelonDate, via validerEditionDate) : pas de
   // bouton « Marquer réalisée » ici, la date EST la validation. Chaque ligne réutilise le même
@@ -9803,7 +9804,7 @@
       </div>`;
     }).join('');
     return `<div class="tab appelFonds">
-      <div class="tab-name tab-name-fort">Appel de fonds</div>
+      <div class="tab-name tab-name-fort">Envoi au client</div>
       ${lignes}
     </div>`;
   }
@@ -9845,7 +9846,7 @@
     // La reconnaissance des pièces se fait par NOM DE FICHIER : une pièce bien présente mais
     // nommée autrement suffit à faire échouer la condition 3, ce qui rendait le masquage d'autant
     // plus arbitraire vu de l'étude.
-    // Une seule carte « Appel de fonds » porte les DEUX envois qui précèdent la signature — l'appel
+    // Une seule carte « Envoi au client » porte les DEUX envois qui précèdent la signature — l'appel
     // de fonds puis le projet d'acte —, chacun avec sa propre date (demandé par l'étude : ce sont
     // deux étapes d'un même moment du dossier, deux cartes séparées dispersaient l'information).
     // Les dates restent stockées dans d.appelFonds / d.projetEnvoye : le planning, le Gantt et les
