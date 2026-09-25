@@ -107,6 +107,37 @@ function messageErreurCalendrier(statut) {
   return `Le calendrier a répondu une erreur (${statut}).`;
 }
 
+// Ce qui permet de savoir QUI a répondu l'erreur : le serveur de Microsoft, ou un équipement du
+// réseau du bureau (pare-feu, proxy) posé entre CLAIRE et internet. Le même lien lu par un autre
+// client (navigateur, brief du matin) ne donne pas l'erreur : c'est donc cette distinction qui
+// tranche. On n'y met JAMAIS le chemin de l'adresse, qui porte le jeton de publication du
+// calendrier — seulement le nom de domaine, l'en-tête `server`, un identifiant de requête et le
+// début du texte renvoyé.
+async function diagnosticReponseIcs(reponse, adresse) {
+  const morceaux = [];
+  try { morceaux.push(`hôte ${new URL(adresse).hostname}`); } catch (e) { /* adresse illisible */ }
+  const entete = (nom) => {
+    try { return reponse && reponse.headers && typeof reponse.headers.get === 'function' ? reponse.headers.get(nom) : null; } catch (e) { return null; }
+  };
+  const serveur = entete('server');
+  if (serveur) morceaux.push(`serveur « ${String(serveur).slice(0, 60)} »`);
+  const via = entete('via');
+  if (via) morceaux.push(`via « ${String(via).slice(0, 60)} »`);
+  const identifiant = entete('request-id') || entete('x-ms-request-id') || entete('x-request-id');
+  if (identifiant) morceaux.push(`requête ${String(identifiant).slice(0, 60)}`);
+  try {
+    if (reponse && typeof reponse.text === 'function') {
+      const corps = String(await reponse.text() || '')
+        .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (corps) morceaux.push(`réponse « ${corps.slice(0, 140)}${corps.length > 140 ? '…' : ''} »`);
+    }
+  } catch (e) { /* corps illisible : on s'en passe */ }
+  return morceaux.length ? ` Détail technique : ${morceaux.join(' ; ')}.` : '';
+}
+
 async function telechargerIcs(icsUrl, fetchFn, pauseMs) {
   const f = fetchFn || fetch;
   const adresse = adresseLisibleIcs(icsUrl);
@@ -115,7 +146,7 @@ async function telechargerIcs(icsUrl, fetchFn, pauseMs) {
     await new Promise((r) => setTimeout(r, pauseMs == null ? PAUSE_AVANT_RELANCE_MS : pauseMs));
     reponse = await f(adresse, { headers: ENTETES_LECTURE_ICS, redirect: 'follow' });
   }
-  if (!reponse.ok) throw new Error(messageErreurCalendrier(reponse.status));
+  if (!reponse.ok) throw new Error(messageErreurCalendrier(reponse.status) + await diagnosticReponseIcs(reponse, adresse));
   const texte = await reponse.text();
   // Un lien HTML (la page « afficher le calendrier ») répond 200 mais ne contient aucun événement :
   // le dire plutôt que de rendre « 0 dossier mis à jour » comme si tout allait bien.
@@ -193,7 +224,7 @@ function demarrerSurveillanceAgenda(depot, parametresRepo, fetchFn, intervalleMs
 }
 
 module.exports = {
-  adresseLisibleIcs, messageErreurCalendrier, ENTETES_LECTURE_ICS,
+  adresseLisibleIcs, messageErreurCalendrier, diagnosticReponseIcs, ENTETES_LECTURE_ICS,
   appliquerDetectionsAgenda, dateDuJourParis, executerTourSurveillanceAgenda, executerEtEnregistrerTourAgenda,
   demarrerSurveillanceAgenda, INTERVALLE_SURVEILLANCE_AGENDA_MS
 };

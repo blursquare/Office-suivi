@@ -234,6 +234,24 @@ test('lecture ics : 503 persistant → message clair, jamais plus d\'une relance
   db.close();
 });
 
+test('lecture ics : l\'erreur dit qui a repondu (hote, serveur, identifiant, texte) sans jamais le jeton', async () => {
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  const entetes = { server: 'Microsoft-HTTPAPI/2.0', 'request-id': 'abc-123' };
+  const reponse = () => ({
+    ok: false, status: 503,
+    headers: { get: (n) => entetes[n.toLowerCase()] || null },
+    text: async () => '<html><head><style>b{}</style></head><body><h1>Service Unavailable</h1></body></html>'
+  });
+  const resultat = await executerTourSurveillanceAgenda(depot, 'https://outlook.office365.com/owa/calendar/JETONSECRET/calendar.ics', async () => reponse(), 0);
+  assert.match(resultat.erreur, /hôte outlook\.office365\.com/);
+  assert.match(resultat.erreur, /serveur « Microsoft-HTTPAPI\/2\.0 »/);
+  assert.match(resultat.erreur, /requête abc-123/);
+  assert.match(resultat.erreur, /réponse « Service Unavailable »/);
+  assert.doesNotMatch(resultat.erreur, /JETONSECRET/);
+  db.close();
+});
+
 test('lecture ics : un lien HTML (sans VCALENDAR) est signale au lieu de rendre 0 mise a jour', async () => {
   const db = ouvrirDb(':memory:');
   const depot = creerDepot(db);

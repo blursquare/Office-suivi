@@ -7605,6 +7605,17 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   si le 503 persiste, ouvrir le lien dans le navigateur du poste serveur pour savoir si c'est le
   lien ou le réseau. Tests : 3 dans `server/test/agenda-watch.test.js`. Ne parvient au bureau
   qu'avec le prochain `CLAIRE-serveur.exe`.
+  - **Le 503 a persisté après ce correctif** (retour de l'étude à 10:12, le nouveau message
+    s'affichait bien, donc le nouveau `.exe` tournait). Les en-têtes n'étaient donc pas la cause.
+    Plutôt que de deviner une seconde fois, l'erreur porte désormais un **détail technique**
+    (`diagnosticReponseIcs`) : nom de domaine appelé, en-têtes `server`/`via`, identifiant de
+    requête Microsoft (`request-id`) et début du texte renvoyé, balises retirées. **Jamais le
+    chemin de l'adresse**, qui porte le jeton de publication du calendrier (testé). C'est ce détail
+    qui tranche : `Microsoft-HTTPAPI` ou un `request-id` → c'est Microsoft qui refuse ; un nom de
+    pare-feu/proxy (Fortinet, Stormshield, Squid…) ou un `via` → c'est le réseau du bureau, que le
+    `fetch` de Node traverse sans passer par le proxy système de Windows, contrairement à Chrome.
+    Rappel : le brief du matin lit le même lien depuis les serveurs d'Anthropic, pas depuis le
+    réseau du bureau — qu'il fonctionne ne prouve rien sur le chemin réseau du poste serveur.
 
 ## Comment tester
 

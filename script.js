@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-25 10:07';
+  const VERSION_APP = '2026-09-25 10:21';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-25 10:21', resume: 'Agenda de l’office : en cas d’erreur, le message dit qui a répondu (serveur de Microsoft ou réseau du bureau), pour trouver la cause du 503.' },
     { version: '2026-09-25 10:07', resume: 'Agenda de l’office : lecture qui se présente comme un client d’agenda (corrige l’erreur 503), relance automatique et messages d’erreur clairs.' },
     { version: '2026-09-25 09:38', resume: 'Plus de mot de passe : CLAIRE s’ouvre directement sur tous les postes du bureau.' },
     { version: '2026-09-25 09:32', resume: 'Bouton « Confirmer la réception des fonds » sous l’appel de fonds validé ; signature de l’office et mentions légales sur tous les emails.' },
