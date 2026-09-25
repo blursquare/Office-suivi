@@ -324,3 +324,45 @@ test('lecture ics : lien en http bloque par le proxy → relu en https et lien e
   assert.ok(urls.some((u) => u.startsWith('https://')));
   db.close();
 });
+
+test('rendez-vous de signature : écrit si vide, suit un déplacement, respecte une saisie manuelle', () => {
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  depot.creer({ id: 'd1', nom: 'DUPONT / MARTIN' });
+  depot.creer({ id: 'd2', nom: 'DURAND', rendezVousSignature: '2099-12-01' });
+  const det = (dossierId, dateIso) => ({ dossierId, dossierNom: 'x', reference: 'DUPONT', dateIso, rendezVous: true, appelFonds: false, projetEnvoye: false });
+
+  // Deux rendez-vous pour le même dossier : le plus proche l'emporte.
+  let r = appliquerDetectionsAgenda(depot, [det('d1', '2099-11-20'), det('d1', '2099-11-10'), det('d2', '2099-11-15')], '2026-09-25');
+  assert.equal(depot.trouverParId('d1').rendezVousSignature, '2099-11-10');
+  assert.equal(depot.trouverParId('d1').detectionsAgenda.rendezVousSignature, '2099-11-10');
+  assert.equal(r.misAJour.filter((m) => m.action === 'rendezVousSignature').length, 1);
+  // d2 : date saisie à la main, jamais écrasée, écart signalé.
+  assert.equal(depot.trouverParId('d2').rendezVousSignature, '2099-12-01');
+  assert.equal(r.dejaRenseignes[0].dateFiche, '2099-12-01');
+
+  // Même date au tour suivant : rien.
+  r = appliquerDetectionsAgenda(depot, [det('d1', '2099-11-10')], '2026-09-26');
+  assert.equal(r.misAJour.length, 0);
+
+  // Rendez-vous déplacé dans l'agenda : la date suit.
+  r = appliquerDetectionsAgenda(depot, [det('d1', '2099-11-17')], '2026-09-27');
+  assert.equal(depot.trouverParId('d1').rendezVousSignature, '2099-11-17');
+  assert.equal(r.misAJour[0].ancienneDate, '2099-11-10');
+  assert.match(depot.trouverParId('d1').historique.slice(-1)[0].texte, /déplacé/);
+
+  // Corrigée à la main ensuite : l'agenda ne la touche plus.
+  const d = depot.trouverParId('d1'); d.rendezVousSignature = '2099-11-18'; depot.remplacer('d1', d);
+  appliquerDetectionsAgenda(depot, [det('d1', '2099-11-17')], '2026-09-28');
+  assert.equal(depot.trouverParId('d1').rendezVousSignature, '2099-11-18');
+  db.close();
+});
+
+test('rendez-vous de signature : un dossier archivé n\'est jamais touché', () => {
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  depot.creer({ id: 'd1', nom: 'DUPONT', archive: true });
+  appliquerDetectionsAgenda(depot, [{ dossierId: 'd1', dateIso: '2099-11-10', rendezVous: true, reference: 'DUPONT' }], '2026-09-25');
+  assert.equal(depot.trouverParId('d1').rendezVousSignature || '', '');
+  db.close();
+});

@@ -266,3 +266,23 @@ test('actionsDetecteesDepuisIcs : seuls les rendez-vous a partir du jour de lect
   const resultats = actionsDetecteesDepuisIcs(texte, [{ id: 'd1', nom: 'DUPONT / MARTIN' }], '2026-09-25');
   assert.equal(resultats.map((r) => r.dateIso).join(','), '2026-09-25,2026-10-14');
 });
+
+test('rendez-vous de signature : un VTE à venir avec une heure, sans « ? », est le rendez-vous', () => {
+  const { estRendezVousSignature } = require('../src/agendaOffice');
+  assert.equal(estRendezVousSignature({ summary: 'VTE - DUPONT', location: 'Office', dtstart: '20991014T090000Z' }), true);
+  assert.equal(estRendezVousSignature({ summary: 'VTE - DUPONT ?', location: '', dtstart: '20991014T090000Z' }), false, '« ? » dans le titre');
+  assert.equal(estRendezVousSignature({ summary: 'VTE - DUPONT', location: 'Visio ??', dtstart: '20991014T090000Z' }), false, '« ? » dans le lieu');
+  assert.equal(estRendezVousSignature({ summary: 'VTE - DUPONT', location: 'https://teams.microsoft.com/l/meetup?id=1', dtstart: '20991014T090000Z' }), true, 'le « ? » d\'un lien ne compte pas');
+  assert.equal(estRendezVousSignature({ summary: 'VTE - DUPONT', location: '', dtstart: '20991014' }), false, 'toute la journee : une note, pas un rendez-vous');
+});
+
+test('actionsDetecteesDepuisIcs : un rendez-vous sans déclencheur d\'envoi est quand même relevé', () => {
+  const texte = icsEvenement({ summary: 'VTE - DUPONT / MARTIN', location: 'Office', dtstart: '20991014T090000Z' });
+  const r = actionsDetecteesDepuisIcs(texte, [{ id: 'd1', nom: 'DUPONT / MARTIN' }], '2026-09-25');
+  assert.equal(r.length, 1);
+  assert.equal(r[0].rendezVous, true);
+  assert.equal(r[0].appelFonds, false);
+  assert.equal(r[0].dateIso, '2099-10-14');
+  const douteux = icsEvenement({ summary: 'VTE - DUPONT / MARTIN ?', location: 'Office', dtstart: '20991014T090000Z' });
+  assert.deepEqual(actionsDetecteesDepuisIcs(douteux, [{ id: 'd1', nom: 'DUPONT / MARTIN' }], '2026-09-25'), []);
+});

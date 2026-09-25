@@ -587,7 +587,9 @@
   .brand-word {
     font-family: 'Montserrat', 'Inter', -apple-system, 'Segoe UI', sans-serif;
     font-weight: 700;
-    font-size: 22px;
+    /* 22px → 30px (symbole 30 → 40px dans index.html) : logo agrandi à la demande de l'étude. */
+    font-size: 30px;
+    line-height: 1;
     color: var(--ink);
     letter-spacing: -0.01em;
   }
@@ -4542,9 +4544,25 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
 .reglages-option .hint:empty { display: none; }
 .reglages-switch input:checked + .slider { background-color: var(--focus); }
 .reglages-switch input:focus-visible + .slider { outline: 2px solid var(--focus); outline-offset: 2px; }
-.reglages-section-titre {
-  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em;
-  color: var(--muted); margin: 26px 0 10px;
+/* Sous-onglets des Réglages (même composant .vue-bascule que le Suivi) et grille de cartes : deux
+   colonnes sur un écran large, une seule en dessous. Les cartes perdent leur marge basse dans la
+   grille, c'est le gap qui espace. min-width:0 : sans lui une carte au contenu large (tableau,
+   lien long) élargirait sa piste au lieu de revenir à la ligne. */
+.reglages-onglets { margin-bottom: 18px; flex-wrap: wrap; }
+.reglages-onglets .vue-bascule-btn { font-size: 13px; padding: 6px 14px; display: inline-flex; align-items: center; gap: 6px; }
+.reglages-onglet-compteur {
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+  background: var(--urgent); color: #fff; font-size: 11px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums;
+}
+.reglages-onglet-compteur[hidden] { display: none; }
+.reglages-grille { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; }
+.reglages-grille > * { min-width: 0; margin-bottom: 0; }
+.reglages-grille .calc-card > p.hint + .calc-champs { margin-top: 12px; }
+@media (min-width: 1200px) {
+  .reglages-grille { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .reglages-grille > .reglages-pleine { grid-column: 1 / -1; }
+  #reglages-panneau-relecture .reglages-grille { grid-template-columns: minmax(0, 760px); }
 }
 .reglages-apropos { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .reglages-apropos .dash-section-titre { margin-bottom: 2px; }
@@ -5360,5 +5378,12 @@ button.gantt-ligne:hover { background: var(--paper-sunk); }
 .confirm-box p.maj-overlay-detail {
   margin: 0;
   font-size: 13.5px;
+  color: var(--muted);
+}
+
+/* Rendez-vous de signature relevé dans l'agenda de l'office (voir agendaWatch.js). */
+.tab .tab-note-agenda {
+  margin-top: 6px;
+  font-size: 11.5px;
   color: var(--muted);
 }

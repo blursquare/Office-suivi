@@ -66,7 +66,67 @@ function appliquerDetectionsAgenda(depot, detections, aujourdHui) {
       resultat.misAJour.push({ dossierId: d.id, dossierNom: d.nom, action, dateIso: jour });
     }
   }
+  appliquerRendezVousAgenda(depot, detections, resultat);
   return resultat;
+}
+
+// Rendez-vous de signature (demandé par l'étude, 25/09) : la date du PLUS PROCHE rendez-vous
+// « VTE - … » confirmé (sans « ? », voir estRendezVousSignature) remplit d.rendezVousSignature.
+// Contrairement aux envois, c'est la date du RENDEZ-VOUS qui est écrite, et elle suit l'agenda :
+//   - champ vide → la date de l'agenda est écrite ;
+//   - champ égal à la dernière date écrite par l'agenda (d.detectionsAgenda.rendezVousSignature)
+//     et l'agenda dit autre chose → le rendez-vous a été déplacé, la date suit ;
+//   - champ saisi à la main (différent de ce que l'agenda avait écrit) → jamais écrasé, l'écart est
+//     seulement signalé dans le compte rendu ;
+//   - champ déjà à la bonne date → rien, le repère est seulement posé.
+// Un rendez-vous qui disparaît de l'agenda n'efface jamais la date : l'absence d'un événement ne
+// dit pas qu'il est annulé (lien de publication partiel, événement déplacé au-delà de la fenêtre).
+function appliquerRendezVousAgenda(depot, detections, resultat) {
+  const plusProche = new Map();
+  for (const det of detections || []) {
+    if (!det.rendezVous || !det.dossierId || !det.dateIso) continue;
+    const actuel = plusProche.get(det.dossierId);
+    if (!actuel || det.dateIso < actuel.dateIso) plusProche.set(det.dossierId, det);
+  }
+  for (const [dossierId, det] of plusProche) {
+    const d = depot.trouverParId(dossierId);
+    if (!d || d.archive) continue;
+    d.detectionsAgenda = d.detectionsAgenda || {};
+    const ecritParAgenda = d.detectionsAgenda.rendezVousSignature || null;
+    const actuel = d.rendezVousSignature || null;
+    if (actuel === det.dateIso) {
+      if (ecritParAgenda !== det.dateIso) {
+        d.detectionsAgenda.rendezVousSignature = det.dateIso;
+        depot.remplacer(d.id, d);
+      }
+      continue;
+    }
+    if (actuel && actuel !== ecritParAgenda) {
+      resultat.dejaRenseignes.push({
+        dossierId: d.id, dossierNom: d.nom, action: 'rendezVousSignature', dateIso: det.dateIso, dateFiche: actuel
+      });
+      continue;
+    }
+    d.rendezVousSignature = det.dateIso;
+    d.detectionsAgenda.rendezVousSignature = det.dateIso;
+    d.historique = d.historique || [];
+    d.historique.push({
+      date: new Date().toISOString(),
+      texte: actuel
+        ? `Rendez-vous de signature déplacé au ${formatDateFr(det.dateIso)} d’après l’agenda de l’office (« ${det.reference} »)`
+        : `Rendez-vous de signature du ${formatDateFr(det.dateIso)} relevé dans l’agenda de l’office (« ${det.reference} »)`
+    });
+    depot.remplacer(d.id, d);
+    resultat.misAJour.push({
+      dossierId: d.id, dossierNom: d.nom, action: 'rendezVousSignature', dateIso: det.dateIso,
+      ...(actuel ? { ancienneDate: actuel } : {})
+    });
+  }
+}
+
+function formatDateFr(iso) {
+  const [a, m, j] = String(iso).split('-');
+  return a && m && j ? `${j}/${m}/${a}` : String(iso);
 }
 
 // En-têtes envoyés au serveur du calendrier. Le `fetch` de Node n'envoie par défaut qu'un
@@ -339,6 +399,6 @@ function demarrerSurveillanceAgenda(depot, parametresRepo, fetchFn, intervalleMs
 module.exports = {
   adresseLisibleIcs, messageErreurCalendrier, diagnosticReponseIcs, ENTETES_LECTURE_ICS,
   texteSansAdresses, causeProxy, telechargerIcs,
-  appliquerDetectionsAgenda, dateDuJourParis, executerTourSurveillanceAgenda, executerEtEnregistrerTourAgenda,
+  appliquerDetectionsAgenda, appliquerRendezVousAgenda, dateDuJourParis, executerTourSurveillanceAgenda, executerEtEnregistrerTourAgenda,
   demarrerSurveillanceAgenda, INTERVALLE_SURVEILLANCE_AGENDA_MS
 };

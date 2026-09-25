@@ -356,8 +356,12 @@ function assainirEntreeDetectionAgenda(brut) {
   return {
     dossierId: texteBorne(b.dossierId, 80),
     dossierNom: texteBorne(b.dossierNom, 200),
-    action: (b.action === 'appelFonds' || b.action === 'projetEnvoye') ? b.action : '',
+    action: ['appelFonds', 'projetEnvoye', 'rendezVousSignature'].includes(b.action) ? b.action : '',
     dateIso: texteBorne(b.dateIso, 10),
+    // Rendez-vous de signature : date déplacée (ancienne) ou date saisie à la main qui diffère de
+    // l'agenda (dateFiche) — affichées dans le compte rendu des Réglages.
+    ancienneDate: texteBorne(b.ancienneDate, 10),
+    dateFiche: texteBorne(b.dateFiche, 10),
     reference: texteBorne(b.reference, 300),
     resume: texteBorne(b.resume, 300)
   };

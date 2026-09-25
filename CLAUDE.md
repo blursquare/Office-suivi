@@ -7666,6 +7666,47 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     filtre de date), un tour qui ignore un rendez-vous passé dans `agenda-watch.test.js` ; fixtures
     des tours datées 2099 pour ne pas vieillir. Suite serveur 360, racine 798.
 
+- **Rendez-vous de signature lu dans l'agenda de l'office, Réglages en sous-onglets, logo agrandi**
+  (25/09 après-midi, quatre demandes : « détecter si un rendez-vous de signature a été placé sur
+  l'agenda et remplir automatiquement la case, ne pas le prendre s'il a des points
+  d'interrogation / repenser les réglages, on doit trop scroller / grossir le logo / la mise à jour
+  en haut des réglages »).
+  - **`estRendezVousSignature(evt)`** (`server/src/agendaOffice.js`) : tout événement « VTE - … »
+    à venir est le rendez-vous de signature, sauf **un « ? » dans le titre ou le lieu** (adresses
+    retirées avant le test — le « ? » d'un lien Teams ne dit rien) et **un événement « toute la
+    journée »** (DTSTART sans heure : une note, jamais une signature — règle ajoutée par moi, à
+    lever si l'étude pose ses signatures en journée entière). La description n'est pas lue pour
+    ce test, elle porte couramment des liens. `actionsDetecteesDepuisIcs` rend désormais aussi les
+    événements sans déclencheur d'envoi, avec `rendezVous: true`.
+  - **`appliquerRendezVousAgenda()`** (`server/src/agendaWatch.js`), appelée en fin
+    d'`appliquerDetectionsAgenda` : par dossier, le rendez-vous **le plus proche** ; c'est la
+    **date du rendez-vous** qui est écrite (pas celle du jour, contrairement aux envois), et elle
+    **suit l'agenda** — repère `d.detectionsAgenda.rendezVousSignature` = dernière date écrite par
+    l'agenda : champ vide → écrit ; champ égal au repère et agenda différent → déplacé (historique
+    « déplacé au … ») ; champ saisi à la main → jamais écrasé, l'écart est listé dans le compte
+    rendu des Réglages (`dejaRenseignes` avec `dateFiche`) ; un événement disparu n'efface rien.
+    `assainirEntreeDetectionAgenda` accepte l'action `rendezVousSignature` et les champs
+    `ancienneDate`/`dateFiche`. Côté client, `normaliserDossierImporte` conserve le repère, et la
+    carte « Rendez-vous de signature » affiche « Relevé dans l'agenda de l'office » tant que la
+    date n'a pas été corrigée à la main. Écrire la date du rendez-vous rend la date butoir
+    informative (`echeanceValidee(d, 'acte')`), comme une saisie manuelle.
+  - **Réglages en quatre sous-onglets** (`.reglages-onglets`, composant `.vue-bascule` du Suivi,
+    `definirSousOngletReglages()`, dernier sous-onglet retenu en `localStorage`) : **Général**
+    (Mise à jour en premier, Sur ce poste, Sauvegarde, À propos), **Rappels et agenda**,
+    **Relecture d'actes**, **Pièces et signalements** (compteur rouge des signalements à trier,
+    en plus de celui de la barre latérale). Cartes en grille deux colonnes au-delà de 1200 px
+    (`.reglages-grille`, `.reglages-pleine` pour les cartes pleine largeur). Hauteur mesurée de
+    l'écran à 1500 px : ~3300 px avant, 850 à 1130 px par sous-onglet après. Les titres de section
+    `.reglages-section-titre` disparaissent (le sous-onglet les remplace). Le bouton « Voir les
+    Réglages » du bandeau de sauvegarde ouvre directement « Général ».
+  - **Logo** de la barre latérale : symbole 30 → 40 px (trait 1,8 → 2,2), mot « Claire » 22 → 30 px.
+  - Tests : 2 dans `server/test/agenda-office.test.js`, 2 dans `server/test/agenda-watch.test.js`
+    (le plus proche retenu, déplacement suivi, saisie manuelle respectée, archivé intouché). Suite
+    serveur 360 → 364, racine inchangée. Vérifié dans un vrai Chromium (clair, sombre, 400 px) :
+    sous-onglets, grille, aucun débordement, carte du rendez-vous avec sa mention, aucune erreur JS.
+    **Ne parvient au bureau qu'avec le prochain `CLAIRE-serveur.exe`** (lecture de l'agenda côté
+    serveur).
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

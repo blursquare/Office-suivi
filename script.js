@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-25 10:56';
+  const VERSION_APP = '2026-09-25 14:02';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-25 14:02', resume: "Agenda de l'office : un rendez-vous « VTE - … » à venir remplit le rendez-vous de signature du dossier (ignoré s'il porte un « ? »), et le suit s'il est déplacé. Réglages rangés en quatre sous-onglets, la mise à jour en tête. Logo agrandi." },
     { version: '2026-09-25 10:56', resume: 'Agenda de l’office : déclencheur lu dans le lieu du rendez-vous (« Appel de fonds (et projet) envoyé »), rendez-vous à venir seulement, nom de dossier reconnu même partiel.' },
     { version: '2026-09-25 10:34', resume: 'Agenda de l’office : l’erreur nomme le proxy du bureau (nacXwan) et sa cause précise ; un lien en http bloqué par ce proxy est relu en https.' },
     { version: '2026-09-25 10:21', resume: 'Agenda de l’office : en cas d’erreur, le message dit qui a répondu (serveur de Microsoft ou réseau du bureau), pour trouver la cause du 503.' },
@@ -9875,7 +9876,11 @@
     if (d.appelFonds || d.projetEnvoye || d.rendezVousSignature || dossierEntierementComplet(d)) {
       cartes.push({ iso: d.appelFonds || d.projetEnvoye || null, html: renderCarteEnvoisAvantSignature(d) });
     }
-    cartes.push({ iso: d.rendezVousSignature, html: renderTab('rendezVousSignature', 'Rendez-vous de signature', d.rendezVousSignature, d.id, null, null, null, false, '', false, echeanceValidee(d, 'rendezVousSignature')) });
+    // Date relevée dans l'agenda de l'office (voir agendaWatch.js) : dite sur la carte, tant qu'elle
+    // n'a pas été corrigée à la main (la date saisie ne correspond alors plus au repère).
+    const rdvAgenda = d.rendezVousSignature && d.detectionsAgenda && d.detectionsAgenda.rendezVousSignature === d.rendezVousSignature
+      ? '<div class="tab-note-agenda">Relevé dans l’agenda de l’office</div>' : '';
+    cartes.push({ iso: d.rendezVousSignature, html: renderTab('rendezVousSignature', 'Rendez-vous de signature', d.rendezVousSignature, d.id, null, null, null, false, rdvAgenda, false, echeanceValidee(d, 'rendezVousSignature')) });
     (d.autres || []).forEach((a, i) => cartes.push({ iso: a.date, html: renderTab('autre', escapeHtml(a.label), a.date, d.id, a.page, null, i, false, '', false, echeanceValidee(d, 'autre-' + i)) }));
     // Les dates sont au format ISO AAAA-MM-JJ partout dans l'outil (valeur d'un <input type="date">) :
     // la comparaison de chaînes suffit à les classer, sans construire de Date ni risquer un
@@ -10726,7 +10731,7 @@
     // installé/démarré/arrêté sur le serveur depuis la dernière visite de cet onglet.
     // Réglages relus à chaque ouverture (un collègue a pu les modifier depuis un autre poste,
     // même principe que la disponibilité d'Ollama ci-dessus).
-    if (nom === 'reglages') { chargerReglages(); chargerReglagesClaude(); chargerSignalements(); }
+    if (nom === 'reglages') { definirSousOngletReglages(sousOngletReglagesRetenu()); chargerReglages(); chargerReglagesClaude(); chargerSignalements(); }
     if (nom === 'analyse-ia') initRelecture();
     // Date du jour et bornes de période posées au premier affichage seulement (voir initProrata).
     if (nom === 'prorata') initProrata();
@@ -13847,6 +13852,32 @@
     } catch (e) { /* le badge attendra le prochain passage */ }
   }
 
+  // Sous-onglets des Réglages (demandé par l'étude : « on doit trop scroller »). Le dernier ouvert
+  // est retenu sur ce poste — confort seulement, repli sur « Général » si le stockage manque.
+  var SOUS_ONGLETS_REGLAGES = ['general', 'rappels', 'relecture', 'pieces'];
+  const CLE_SOUS_ONGLET_REGLAGES = 'reglages-sous-onglet';
+
+  function sousOngletReglagesRetenu() {
+    try {
+      const v = localStorage.getItem(CLE_SOUS_ONGLET_REGLAGES);
+      return SOUS_ONGLETS_REGLAGES.includes(v) ? v : 'general';
+    } catch (e) { return 'general'; }
+  }
+
+  function definirSousOngletReglages(nom) {
+    const cle = SOUS_ONGLETS_REGLAGES.includes(nom) ? nom : 'general';
+    for (const k of SOUS_ONGLETS_REGLAGES) {
+      const panneau = document.getElementById('reglages-panneau-' + k);
+      const bouton = document.getElementById('reglages-onglet-' + k);
+      if (panneau) panneau.hidden = k !== cle;
+      if (bouton) {
+        bouton.classList.toggle('actif', k === cle);
+        bouton.setAttribute('aria-selected', String(k === cle));
+      }
+    }
+    try { localStorage.setItem(CLE_SOUS_ONGLET_REGLAGES, cle); } catch (e) { /* confort seulement */ }
+  }
+
   // Compteur rouge sur « Réglages » : signalements encore à trier. Sur tous les postes — il n'y a
   // pas de compte par collaborateur —, mais ça n'appelle une action que de la part de l'étude.
   function majBadgeSignalementsDepuis(liste) {
@@ -13856,6 +13887,12 @@
     badge.textContent = String(n);
     badge.style.display = n ? '' : 'none';
     badge.title = `${n} signalement${n > 1 ? 's' : ''} à trier`;
+    // Même compteur sur le sous-onglet qui les porte, pour savoir où cliquer une fois dans les Réglages.
+    const sousOnglet = document.getElementById('reglages-onglet-compteur-signalements');
+    if (sousOnglet) {
+      sousOnglet.textContent = String(n);
+      sousOnglet.hidden = !n;
+    }
   }
 
   function definirFiltreSignalements(f) {
@@ -14262,7 +14299,7 @@
       // un dossier réimporté verrait l'agenda réécrire ces dates à la date du nouvel import.
       detectionsAgenda: (d.detectionsAgenda && typeof d.detectionsAgenda === 'object' && !Array.isArray(d.detectionsAgenda))
         ? Object.fromEntries(Object.entries(d.detectionsAgenda)
-          .filter(([k, v]) => (k === 'appelFonds' || k === 'projetEnvoye') && typeof v === 'string'))
+          .filter(([k, v]) => (k === 'appelFonds' || k === 'projetEnvoye' || k === 'rendezVousSignature') && typeof v === 'string'))
         : {},
       typeVente: (d.typeVente === 'copropriete' || d.typeVente === 'terrain') ? d.typeVente : 'maison',
       roleNotaire: d.roleNotaire === 'participant' ? 'participant' : 'instrumentaire',
@@ -22239,6 +22276,7 @@
   }
 
   function libelleActionAgenda(action) {
+    if (action === 'rendezVousSignature') return 'Rendez-vous de signature';
     return action === 'projetEnvoye' ? 'Envoi projet' : 'Envoi appel de fonds';
   }
 
@@ -22272,7 +22310,16 @@
     }
     if (misAJour.length) {
       html += '<ul class="dernier-tour-erreurs" style="color:inherit;">' + misAJour.map((m) =>
-        `<li>${escapeHtml(m.dossierNom || '')} — ${escapeHtml(libelleActionAgenda(m.action))} (${escapeHtml(m.dateIso || '')})</li>`
+        `<li>${escapeHtml(m.dossierNom || '')} — ${escapeHtml(libelleActionAgenda(m.action))} (${escapeHtml(formatDateFr(m.dateIso))}${m.ancienneDate ? ', au lieu du ' + escapeHtml(formatDateFr(m.ancienneDate)) : ''})</li>`
+      ).join('') + '</ul>';
+    }
+    // Un rendez-vous de l'agenda qui ne correspond pas à la date saisie à la main sur la fiche :
+    // CLAIRE ne l'écrase pas, elle le signale.
+    const ecartsRdv = (Array.isArray(tour.dejaRenseignes) ? tour.dejaRenseignes : [])
+      .filter((m) => m.action === 'rendezVousSignature' && m.dateFiche);
+    if (ecartsRdv.length) {
+      html += '<ul class="dernier-tour-avertissements">' + ecartsRdv.map((m) =>
+        `<li>${escapeHtml(m.dossierNom || '')} — rendez-vous du ${escapeHtml(formatDateFr(m.dateIso))} dans l'agenda, ${escapeHtml(formatDateFr(m.dateFiche))} saisi sur la fiche : la fiche n'est pas modifiée.</li>`
       ).join('') + '</ul>';
     }
     if (sansCorrespondance.length) {
@@ -22363,7 +22410,7 @@
     if (!m || m.niveau !== 'alerte') { zone.style.display = 'none'; zone.innerHTML = ''; return; }
     zone.style.display = '';
     zone.innerHTML = `${icone('alert-triangle')}<span><strong>Sauvegarde de la base :</strong> ${escapeHtml(m.titre)}${m.detail ? ' ' + escapeHtml(m.detail) : ''}</span>
-      <button type="button" class="action-rapide" onclick="definirOnglet('reglages')">Voir les Réglages</button>`;
+      <button type="button" class="action-rapide" onclick="definirOnglet('reglages'); definirSousOngletReglages('general')">Voir les Réglages</button>`;
   }
 
   async function chargerEtatSauvegarde() {

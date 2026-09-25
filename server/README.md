@@ -130,6 +130,16 @@ visio, orange = confrère) indiquent seulement le LIEU et ne jouent aucun rôle 
    (`detectionsAgenda`) : il n'est **plus jamais retraité**, même si la date est ensuite effacée
    ou corrigée à la main. Sur la fiche, les deux dates se lisent et se corrigent dans la carte
    « Envoi au client » (« Envoi appel de fonds », « Envoi projet »).
+3. **Rendez-vous de signature** : tout rendez-vous « VTE - … » à venir, avec une heure (un
+   événement « toute la journée » est une note, pas une signature), rattaché à un seul dossier,
+   remplit `rendezVousSignature` avec **la date du rendez-vous** — le plus proche s'il y en a
+   plusieurs. **Un « ? » dans le titre ou le lieu** (rendez-vous pas encore confirmé) l'écarte ;
+   le « ? » d'un lien de visioconférence ne compte pas. La date suit l'agenda tant qu'elle n'a pas
+   été touchée à la main : si le rendez-vous est déplacé, la fiche l'est aussi (repère
+   `detectionsAgenda.rendezVousSignature` = dernière date écrite par l'agenda). Une date saisie à
+   la main n'est jamais écrasée ; l'écart avec l'agenda est seulement signalé dans le compte rendu
+   des Réglages. Un rendez-vous qui disparaît de l'agenda n'efface jamais la date.
+
    **CLAIRE ne peut pas écrire dans l'agenda de l'office** : elle le LIT seulement. Y écrire
    demanderait une application Microsoft 365 autorisée par un administrateur (Microsoft Graph),
    dont l'étude ne dispose pas.

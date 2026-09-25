@@ -251,9 +251,28 @@ function dossierPourReferenceAgenda(reference, dossiersActifs) {
   return premier.d;
 }
 
+// Rendez-vous de signature (demandé par l'étude, 25/09) : tout rendez-vous « VTE - … » à venir est
+// le rendez-vous de signature de la vente — sa date remplit d.rendezVousSignature (voir
+// agendaWatch.js). Deux exclusions :
+//   - un point d'interrogation dans le titre ou le lieu (« VTE - DUPONT ? », « ?? ») : l'étude note
+//     ainsi un rendez-vous pas encore confirmé — il ne doit rien écrire sur la fiche. Les adresses
+//     (lien de visioconférence) sont retirées avant ce test, leur « ? » ne dit rien du rendez-vous ;
+//     la description n'est pas lue pour la même raison ;
+//   - un événement « toute la journée » (DTSTART sans heure) : un rendez-vous de signature a
+//     toujours une heure, une journée entière est une note (« AF à envoyer »), pas une signature.
+function sansAdresses(texte) {
+  return String(texte || '').replace(/\b(?:https?|webcals?):\/\/\S+/gi, ' ');
+}
+
+function estRendezVousSignature(evenement) {
+  if (!/^\d{8}T\d{4}/.test(String(evenement.dtstart || '').trim())) return false;
+  return !/\?/.test(sansAdresses(evenement.summary) + ' ' + sansAdresses(evenement.location));
+}
+
 // Fonction d'ensemble, pure et testable de bout en bout à partir d'un texte .ics et de la liste
 // des dossiers actifs (chacun avec au moins {id, nom}) : une entrée par (événement, action)
-// détectée — un même événement peut porter les deux actions à la fois. `dossierId`/`dossierNom`
+// détectée — un même événement peut porter les deux actions à la fois, et être en plus le
+// rendez-vous de signature (`rendezVous`). `dossierId`/`dossierNom`
 // restent `null` quand aucune correspondance sûre n'a été trouvée : c'est à l'appelant de décider
 // quoi en faire (voir agendaWatch.js, qui les liste sans jamais rien écrire dans ce cas).
 // `aujourdHui` (AAAA-MM-JJ) : seuls les rendez-vous de ce jour ou postérieurs sont lus, comme
@@ -269,7 +288,8 @@ function actionsDetecteesDepuisIcs(icsTexte, dossiersActifs, aujourdHui) {
     if (!dateIso) continue;
     if (aujourdHui && dateIso < aujourdHui) continue;
     const actions = detecterActionsEvenement(evt);
-    if (!actions.appelFonds && !actions.projetEnvoye) continue;
+    const rendezVous = estRendezVousSignature(evt);
+    if (!actions.appelFonds && !actions.projetEnvoye && !rendezVous) continue;
     const dossier = dossierPourReferenceAgenda(reference, dossiersActifs);
     resultats.push({
       reference,
@@ -277,6 +297,7 @@ function actionsDetecteesDepuisIcs(icsTexte, dossiersActifs, aujourdHui) {
       resume: (evt.summary || reference).slice(0, 200),
       appelFonds: actions.appelFonds,
       projetEnvoye: actions.projetEnvoye,
+      rendezVous,
       dossierId: dossier ? dossier.id : null,
       dossierNom: dossier ? dossier.nom : null
     });
@@ -287,5 +308,6 @@ function actionsDetecteesDepuisIcs(icsTexte, dossiersActifs, aujourdHui) {
 module.exports = {
   deplierLignesIcs, decoderTexteIcs, parseIcsEvenements, dateDepuisDtstart,
   extraireReferenceVte, referenceDossierEvenement, detecteAppelDeFonds, detecteProjetEnvoye,
-  detecterActionsEvenement, dossierPourReferenceAgenda, actionsDetecteesDepuisIcs, motsVoisins
+  detecterActionsEvenement, dossierPourReferenceAgenda, actionsDetecteesDepuisIcs, motsVoisins,
+  estRendezVousSignature
 };
