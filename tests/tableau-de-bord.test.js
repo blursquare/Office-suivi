@@ -9,17 +9,6 @@ const { chargerApplication } = require('./helpers/load-app.js');
 
 const app = chargerApplication();
 
-test('groupesActionsUrgentes : un groupe par statut, « Aucun document » en premier', () => {
-  const bloque = { id: 'a', nom: 'A', typeVente: 'maison', dossierLie: true, offrePretStatut: 'manquante', pieces: {} };
-  for (const p of app.checklistPieces('maison')) bloque.pieces[p.cle] = 'manquante';
-  const tranquille = { id: 'b', nom: 'B', typeVente: 'maison', sansPret: true, roleNotaire: 'participant' };
-  const groupes = app.groupesActionsUrgentes([tranquille, bloque]);
-  assert.equal(groupes.length, 1);
-  assert.equal(groupes[0].statut, 'blocage');
-  assert.equal(groupes[0].dossiers[0].id, 'a');
-  assert.equal(app.groupesActionsUrgentes([tranquille]).length, 0);
-});
-
 test('dernieresPiecesTrouvees : les non vues d\'abord, puis la plus récente ; au-delà de 14 jours, oubliées', () => {
   const maintenant = Date.parse('2026-09-24T12:00:00Z');
   const d1 = { id: '1', nom: 'UN', typeVente: 'maison', piecesTrouveesLe: { erp: '2026-09-23T10:00:00Z', titrePropriete: '2026-08-01T10:00:00Z' } };

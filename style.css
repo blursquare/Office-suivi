@@ -778,7 +778,7 @@
 
   .kpis-dashboard {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 12px;
     margin-bottom: 28px;
   }
@@ -916,7 +916,7 @@
     .kpis-dashboard { grid-template-columns: repeat(3, 1fr); }
   }
   @media (max-width: 640px) {
-    .kpis-dashboard { grid-template-columns: repeat(2, 1fr); }
+    .kpis-dashboard { grid-template-columns: 1fr; }
   }
 
   /* ---- Calculateur de provision sur frais d'acte (onglet indépendant) ----
@@ -5543,3 +5543,25 @@ button.lien-action:hover { text-decoration: underline; }
 .rappel-perso-form { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
 .rappel-perso-form-ligne { display: flex; gap: 8px; flex-wrap: wrap; }
 .rappel-perso-form-ligne input[type="date"], .rappel-perso-form-ligne select { flex: 1 1 150px; width: auto; min-width: 0; }
+
+/* ---- « À traiter » : une ligne par dossier, groupée par gravité (voir pointsATraiter) ---- */
+.a-traiter-groupe { display: flex; flex-direction: column; }
+.a-traiter-groupe-titre {
+  display: flex; align-items: center; gap: 8px; padding: 12px 18px 4px;
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em;
+}
+.a-traiter-groupe.g-critique .alerte-gravite { color: var(--urgent); }
+.a-traiter-groupe.g-vigilance .alerte-gravite { color: var(--pret); }
+.a-traiter-groupe.g-info .alerte-gravite { color: var(--focus); }
+.a-traiter-groupe .urgent-groupe-reste { margin: 6px 18px 4px; align-self: flex-start; }
+.alerte-ligne { align-items: flex-start; }
+.alerte-delai {
+  margin-left: auto; flex-shrink: 0; font-size: 12px; font-weight: 600; color: var(--muted);
+  font-variant-numeric: tabular-nums; padding-top: 2px;
+}
+.alerte-ligne.g-critique .alerte-delai { color: var(--urgent); }
+.alerte-autres { display: flex; flex-direction: column; gap: 1px; margin-top: 3px; }
+.alerte-autre { font-size: 12px; color: var(--muted); }
+.alerte-autre.g-critique { color: var(--urgent); }
+.alerte-autre.g-vigilance { color: var(--pret); }
+.a-traiter-vide { padding: 16px 18px; font-size: 13.5px; color: var(--success); border-bottom: 1px solid var(--line-soft); }

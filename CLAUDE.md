@@ -7866,6 +7866,35 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     Suites : racine 810, serveur 371. Vérifié dans un vrai Chromium (clair, sombre, 400 px) : trois
     rappels ajoutés, un coché, un supprimé, tout relu après rechargement.
 
+- **Tableau de bord : une seule carte « À traiter » à la place d'« Actions urgentes » et
+  d'« Alertes importantes »** (25/09 soir, « retire les deux blocs J-7 et J-15, remonte les
+  dernières pièces au-dessus de l'agenda, trouve une meilleure idée pour mélanger action urgente et
+  alerte importante »). Les deux cartes listaient souvent le MÊME dossier deux fois, l'une par son
+  statut (« Aucun document »), l'autre par son échéance (« Offre non reçue »).
+  - **Une ligne par dossier, le GESTE en titre** (`pointsATraiter`, pure et testée) : les points
+    d'`alertesImportantes` (titres devenus des verbes — « Relancer l'offre de prêt », « Envoyer
+    l'appel de fonds et le projet », « Fixer le rendez-vous de signature », « Confirmer la vente
+    préalable », « Vérifier le report de la date butoir ») et ceux tirés du statut
+    (`pointsEtatDossier` : « Réclamer les pièces » pour un dossier relié dont une pièce est
+    manquante, « Relier le dossier du NAS » pour un dossier jamais relié) sont regroupés par
+    dossier. Le plus grave donne le titre ; les autres s'affichent en dessous (« + Relancer l'offre
+    de prêt · J-4 »), sans doublon de titre. Groupes Critique / Vigilance / À suivre
+    (`MAX_LIGNES_A_TRAITER` 8/6/4), triés par gravité puis par délai. Le sous-titre compte les
+    dossiers hors « À suivre » ; le lien « Traiter » ouvre le premier. « Mes rappels » reste au
+    pied de la même carte.
+  - Retirés : `renderActionsUrgentes`, `groupesActionsUrgentes`, `raisonUrgence`,
+    `ORDRE_GROUPES_URGENTS`, `MAX_LIGNES_GROUPE_URGENT`, `MAX_ALERTES_AFFICHEES` et le bloc HTML.
+    `delaiButoirPret` reste (utilisée ailleurs et testée). `iconeCalendrierSeuil` n'a plus
+    d'appelant.
+  - **Tuiles « échéances ≤ 7 / 15 jours » supprimées** : le tableau de bord n'a plus que trois
+    tuiles (actifs, offres en attente, pièces manquantes), `.kpis-dashboard` en `repeat(3, 1fr)`.
+    L'agenda et « À traiter » disent déjà ce qui arrive, et avec le dossier.
+  - **Colonne de droite : « Dernières pièces trouvées » au-dessus de l'Agenda.**
+  - Tests : `tests/collaborateur-poste.test.js` (titres, regroupement `pointsATraiter`),
+    `groupesActionsUrgentes` retiré de `tests/tableau-de-bord.test.js`. Suites : racine 810,
+    serveur 371. Vérifié dans Chromium (clair, sombre, 400 px) : aucun dossier en double, un clic
+    sur une ligne ouvre le bon tiroir, aucun débordement, aucune erreur JS.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

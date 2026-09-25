@@ -141,22 +141,18 @@
        laisser d'étiquette orpheline. -->
   <div class="dash-grid">
     <div class="dash-col dash-col-gauche">
-      <!-- Alertes importantes + Mes rappels (voir renderAlertesDashboard) : les points qui
-           demandent une décision, puis la liste personnelle du collaborateur du poste. -->
+      <!-- À traiter (fusion d'Actions urgentes et d'Alertes importantes) + Mes rappels : voir
+           renderAlertesDashboard. -->
       <div class="agenda-carte alertes-carte" id="alertes-dashboard"></div>
-      <div>
-      <div class="dash-section-titre">Actions urgentes</div>
-      <div id="actions-urgentes" class="actions-urgentes"></div>
-      </div>
     </div>
     <div class="dash-col dash-col-droite">
       <!-- Carte Agenda : semaine, rendez-vous de signature, état des envois (voir
            renderRendezVousDashboard). Toujours affichée, même sans rendez-vous. -->
-      <div class="agenda-carte" id="agenda-dashboard"></div>
       <div id="dash-nouveautes" style="display:none;">
         <div class="dash-section-titre">Dernières pièces trouvées</div>
         <div id="pieces-recues-dashboard" class="dash-liste"></div>
       </div>
+      <div class="agenda-carte" id="agenda-dashboard"></div>
     </div>
   </div>
 

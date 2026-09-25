@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-25 21:14';
+  const VERSION_APP = '2026-09-25 21:27';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-25 21:27', resume: "Tableau de bord : « Actions urgentes » et « Alertes importantes » réunies en une carte « À traiter » (une ligne par dossier, le geste à faire en titre), tuiles J-7/J-15 retirées, dernières pièces au-dessus de l'agenda." },
     { version: '2026-09-25 21:14', resume: "Tableau de bord : carte « Alertes importantes » (points qui demandent une décision, par gravité) et « Mes rappels », liste personnelle enregistrée sur le serveur." },
     { version: '2026-09-25 21:06', resume: "Tableau de bord : carte Agenda (semaine, rendez-vous de signature avec heure et lieu lus dans l'agenda de l'office, état de l'appel de fonds et du projet)." },
     { version: '2026-09-25 21:01', resume: "Tableau de bord adapté au collaborateur du poste : ses dossiers par défaut (vue globale pour l'administrateur), accueil, rendez-vous de signature à 15 jours avec l'état des envois, auteur dans l'historique." },
@@ -10311,7 +10312,9 @@
   function renderKpisDashboard(dossiersActifs, dossiersTousPerimetre) {
     const bloc = document.getElementById('kpis-dashboard');
     if (!bloc) return;
-    const { actifs, urgents, urgents15, manquantes, piecesIncompletes } = calculerStatsPortefeuille(dossiersActifs);
+    // Les tuiles « échéances ≤ 7 / 15 jours » sont retirées (demande de l'étude) : la carte À
+    // traiter et l'Agenda disent déjà ce qui arrive, et avec le détail.
+    const { actifs, manquantes, piecesIncompletes } = calculerStatsPortefeuille(dossiersActifs);
     // Tendance du nombre de dossiers actifs vs le mois précédent (voir calculerEvolutionPortefeuille)
     // affichée directement à côté du chiffre plutôt qu'en dessous — demandé par l'étude. Sur TOUS
     // les dossiers (dossiers, pas dossiersActifs) puisqu'un dossier archivé aujourd'hui a pu être
@@ -10324,8 +10327,6 @@
     const tendanceMois = `<span class="kpi-tendance" title="${evolution.actuel} aujourd'hui contre ${evolution.moisDernier} il y a un mois">${tMois.icone}${tMois.texte} vs mois dernier</span>`;
     const tuiles = [
       ['c-success', actifs, actifs > 1 ? 'dossiers actifs' : 'dossier actif', icone('folder', 'kpi-icone'), tendanceMois],
-      ['c-urgent', urgents, 'échéances ≤ 7 jours', iconeCalendrierSeuil(7), ''],
-      ['c-urgent', urgents15, 'échéances ≤ 15 jours', iconeCalendrierSeuil(15), ''],
       ['c-pret', manquantes, 'offres de prêts en attente', icone('alert-triangle', 'kpi-icone'), ''],
       ['c-pret', piecesIncompletes, 'dossiers avec pièces manquantes', icone('clipboard', 'kpi-icone'), '']
     ];
@@ -10346,9 +10347,6 @@
   // pas encore relié. Même critère d'urgence qu'avant (statut « Aucun document », ou score
   // calculerPriorite élevé) : seul le regroupement change. Au-delà de quelques lignes par groupe,
   // le reste est annoncé plutôt que masqué en silence.
-  var ORDRE_GROUPES_URGENTS = ['blocage', 'aconfirmer', 'arelier', 'pret'];
-  var MAX_LIGNES_GROUPE_URGENT = 4;
-
   // À côté d'une offre de prêt introuvable, le temps qui reste avant la date butoir d'obtention
   // du prêt : c'est ce qui dit s'il faut relancer aujourd'hui ou dans quinze jours. Pure, testable.
   function delaiButoirPret(d, aujourdhuiIso) {
@@ -10357,51 +10355,6 @@
     if (!Number.isFinite(j)) return '';
     if (j < 0) return ` — butoir dépassé de ${-j} j`;
     return j === 0 ? " — butoir aujourd'hui" : ` — J-${j} avant le butoir`;
-  }
-
-  function raisonUrgence(d) {
-    const prochaine = prochaineEcheanceDetail(d);
-    if (!d.sansPret && d.offrePretStatut === 'manquante') return 'Offre de prêt introuvable' + delaiButoirPret(d);
-    if (prochaine && prochaine.jours < 0) return `${prochaine.label} dépassée`;
-    if (prochaine) return `${prochaine.label} — ${prochaine.jours === 0 ? "aujourd'hui" : 'J-' + prochaine.jours}`;
-    return 'À vérifier';
-  }
-
-  // Pure et testable : les dossiers urgents, groupés par statut dans l'ordre ci-dessus, chaque
-  // groupe trié par priorité décroissante.
-  function groupesActionsUrgentes(dossiersActifs) {
-    const urgents = dossiersActifs
-      .filter(d => statutDossier(d) === 'blocage' || calculerPriorite(d) >= SEUIL_PRIORITE_ELEVEE)
-      .sort((a, b) => calculerPriorite(b) - calculerPriorite(a));
-    const parStatut = {};
-    for (const d of urgents) (parStatut[statutDossier(d)] = parStatut[statutDossier(d)] || []).push(d);
-    return ORDRE_GROUPES_URGENTS.filter(st => parStatut[st]).map(st => ({ statut: st, dossiers: parStatut[st] }));
-  }
-
-  function renderActionsUrgentes(dossiersActifs) {
-    const bloc = document.getElementById('actions-urgentes');
-    if (!bloc) return;
-    const groupes = groupesActionsUrgentes(dossiersActifs);
-    if (groupes.length === 0) {
-      bloc.innerHTML = '<div class="actions-urgentes-vide">✓ Aucune action urgente pour le moment.</div>';
-      return;
-    }
-    bloc.innerHTML = groupes.map(g => {
-      const s = LIBELLES_STATUT[g.statut] || { texte: g.statut, dl: 'dl-neutre' };
-      const visibles = g.dossiers.slice(0, MAX_LIGNES_GROUPE_URGENT);
-      const reste = g.dossiers.length - visibles.length;
-      return `
-        <div class="urgent-groupe">
-          <div class="urgent-groupe-titre"><span class="dot-label ${s.dl}"><span class="dot"></span>${escapeHtml(s.texte)}</span><span class="urgent-groupe-nb">${g.dossiers.length}</span></div>
-          ${visibles.map(d => `
-            <button type="button" class="action-urgente-ligne" onclick="ouvrirDossierDepuisDashboard('${d.id}')">
-              <span class="action-urgente-nom">${escapeHtml(libelleDossierAffiche(d))}</span>
-              <span class="action-urgente-raison">${escapeHtml(raisonUrgence(d))}</span>
-              <span class="action-urgente-fleche">→</span>
-            </button>`).join('')}
-          ${reste > 0 ? `<button type="button" class="urgent-groupe-reste" onclick="definirOnglet('suivi')">et ${reste} autre${reste > 1 ? 's' : ''} — voir le Suivi</button>` : ''}
-        </div>`;
-    }).join('');
   }
 
   // « Dernières pièces trouvées » (Tableau de bord, demandé par l'étude au carnet de bord) : un
@@ -11553,7 +11506,6 @@
   // choix de l'étude) qui ne garde que les points qui demandent une décision, avec une gravité
   // lisible d'un coup d'œil, puis « Mes rappels », la liste de choses à faire que chacun note pour
   // lui-même (enregistrée sur le serveur, voir server/src/routes/rappelsPerso.js).
-  var MAX_ALERTES_AFFICHEES = 5;
   var ORDRE_GRAVITE_ALERTE = { critique: 0, vigilance: 1, info: 2 };
   var LIBELLES_GRAVITE_ALERTE = { critique: 'Critique', vigilance: 'Vigilance', info: 'Information' };
 
@@ -11576,9 +11528,9 @@
       if (!d.sansPret && d.pret && !echeanceValidee(d, 'pret')) {
         const j = ecartJours(aujourdhuiIso, d.pret);
         if (j !== null && j <= 15) {
-          const titre = j < 0 ? 'Date butoir du prêt dépassée sans offre'
-            : d.offrePretStatut === 'manquante' ? 'Offre de prêt introuvable' : 'Offre de prêt non reçue';
-          ajouter(d, j <= 7 ? 'critique' : 'vigilance', titre, `Butoir du prêt le ${court(d.pret)}`, j);
+          const constat = j < 0 ? 'Butoir du prêt dépassé sans offre'
+            : d.offrePretStatut === 'manquante' ? 'Offre introuvable' : 'Offre non reçue';
+          ajouter(d, j <= 7 ? 'critique' : 'vigilance', 'Relancer l’offre de prêt', `${constat} · butoir le ${court(d.pret)}`, j);
         }
       }
       // Rendez-vous de signature proche alors qu'un envoi manque encore.
@@ -11588,7 +11540,7 @@
           const af = echeanceValidee(d, 'appelFonds');
           const pr = echeanceValidee(d, 'projetEnvoye');
           if (!af || !pr) {
-            const titre = !af && !pr ? 'Appel de fonds et projet non envoyés' : !af ? 'Appel de fonds non envoyé' : 'Projet non envoyé';
+            const titre = !af && !pr ? 'Envoyer l’appel de fonds et le projet' : !af ? 'Envoyer l’appel de fonds' : 'Envoyer le projet';
             const heure = plageHoraireRendezVous(d.rendezVousSignatureHeure, '');
             ajouter(d, j <= 2 ? 'critique' : 'vigilance', titre, `Signature le ${court(d.rendezVousSignature)}${heure ? ' à ' + heure : ''}`, j);
           }
@@ -11596,25 +11548,66 @@
         // Signature fixée après la date butoir de l'avant-contrat.
         if (d.acte && j !== null && j >= 0) {
           const ecart = ecartJours(d.acte, d.rendezVousSignature);
-          if (ecart > 0) ajouter(d, 'vigilance', `Signature ${ecart} j après la date butoir`, `Butoir le ${court(d.acte)}, signature le ${court(d.rendezVousSignature)}`, j);
+          if (ecart > 0) ajouter(d, 'vigilance', 'Vérifier le report de la date butoir', `Signature ${ecart} j après le butoir du ${court(d.acte)}`, j);
         }
       } else if (d.acte) {
         // Date butoir proche, et aucun rendez-vous de signature fixé.
         const j = ecartJours(aujourdhuiIso, d.acte);
-        if (j !== null && j <= 15) ajouter(d, j <= 5 ? 'critique' : 'vigilance', 'Aucun rendez-vous de signature fixé', `Date butoir le ${court(d.acte)}`, j);
+        if (j !== null && j <= 15) ajouter(d, j <= 5 ? 'critique' : 'vigilance', 'Fixer le rendez-vous de signature', `Aucun rendez-vous · butoir le ${court(d.acte)}`, j);
       }
       // Vente préalable qui approche sans être confirmée.
       if (d.ventebien && !echeanceValidee(d, 'ventebien')) {
         const j = ecartJours(aujourdhuiIso, d.ventebien);
-        if (j !== null && j <= 7) ajouter(d, j < 0 ? 'critique' : 'vigilance', 'Vente préalable non confirmée', `Prévue le ${court(d.ventebien)}`, j);
+        if (j !== null && j <= 7) ajouter(d, j < 0 ? 'critique' : 'vigilance', 'Confirmer la vente préalable', `Prévue le ${court(d.ventebien)}`, j);
       }
       // Dossier complet sans rendez-vous : il n'attend plus que d'être fixé.
       if (!d.rendezVousSignature && dossierEntierementComplet(d)) {
-        ajouter(d, 'info', 'Dossier complet — rendez-vous à fixer', 'Offre et pièces reçues', null);
+        ajouter(d, 'info', 'Fixer le rendez-vous de signature', 'Dossier complet : offre et pièces reçues', null);
       }
     }
     return alertes.sort((a, b) => (ORDRE_GRAVITE_ALERTE[a.gravite] - ORDRE_GRAVITE_ALERTE[b.gravite])
       || ((a.jours === null ? 999 : a.jours) - (b.jours === null ? 999 : b.jours)));
+  }
+
+  // « À traiter » : fusion d'Actions urgentes et d'Alertes importantes (demandée par l'étude, les
+  // deux listes montraient souvent le même dossier deux fois). UNE ligne par dossier : le geste le
+  // plus grave en titre, les autres points du même dossier en dessous. Aux alertes datées
+  // s'ajoutent les points d'état qu'Actions urgentes était seule à montrer (aucun document trouvé,
+  // dossier pas encore relié au NAS), sans échéance, en « À suivre ».
+  var LIBELLES_GROUPES_A_TRAITER = { critique: 'Critique', vigilance: 'Vigilance', info: 'À suivre' };
+  var MAX_LIGNES_A_TRAITER = { critique: 8, vigilance: 6, info: 4 };
+
+  function pointsEtatDossier(d) {
+    const statut = statutDossier(d);
+    // « Aucun document » ne vaut réclamation de pièces que si le dossier est relié et que des pièces
+    // y ont réellement été cherchées : une offre introuvable seule est déjà « Relancer l'offre ».
+    const piecesManquantes = d.dossierLie && d.roleNotaire !== 'participant'
+      && checklistPieces(d.typeVente, d).some(p => (d.pieces || {})[p.cle] === 'manquante');
+    if (statut === 'blocage' && piecesManquantes) return [{ dossier: d, gravite: 'vigilance', titre: 'Réclamer les pièces', detail: 'Aucune pièce trouvée sur le NAS', jours: null }];
+    if (statut === 'arelier' && !d.dossierLie) return [{ dossier: d, gravite: 'info', titre: 'Relier le dossier du NAS', detail: 'Pièces pas encore vérifiées', jours: null }];
+    return [];
+  }
+
+  // Pure et testable.
+  function pointsATraiter(dossiersActifs, aujourdhuiIso) {
+    const parDossier = new Map();
+    const ajouter = (a) => {
+      const l = parDossier.get(a.dossier.id) || [];
+      if (!l.some(x => x.titre === a.titre)) l.push(a);
+      parDossier.set(a.dossier.id, l);
+    };
+    for (const a of alertesImportantes(dossiersActifs, aujourdhuiIso)) ajouter(a);
+    for (const d of dossiersActifs || []) {
+      if (d && !d.archive) for (const a of pointsEtatDossier(d)) ajouter(a);
+    }
+    const cle = (a) => [ORDRE_GRAVITE_ALERTE[a.gravite], a.jours === null ? 999 : a.jours];
+    const comparer = (a, b) => { const x = cle(a), y = cle(b); return (x[0] - y[0]) || (x[1] - y[1]); };
+    const lignes = [];
+    for (const liste of parDossier.values()) {
+      liste.sort(comparer);
+      lignes.push({ dossier: liste[0].dossier, principal: liste[0], autres: liste.slice(1), gravite: liste[0].gravite, jours: liste[0].jours });
+    }
+    return lignes.sort((a, b) => comparer(a.principal, b.principal));
   }
 
   // Pure : l'échéance d'un rappel, dite comme on la dirait.
@@ -11752,35 +11745,47 @@
     const bloc = document.getElementById('alertes-dashboard');
     if (!bloc) return;
     const global = vueGlobaleDashboard();
-    const alertes = alertesImportantes(perimetreActifs, isoAujourdhuiLocal());
-    const visibles = alertes.slice(0, MAX_ALERTES_AFFICHEES);
-    const nbDecision = alertes.filter(a => a.gravite !== 'info').length;
-    const sousTitre = alertes.length === 0 ? 'Rien ne demande de décision.'
-      : nbDecision ? `${nbDecision} point${nbDecision > 1 ? 's' : ''} nécessite${nbDecision > 1 ? 'nt' : ''} une décision`
-        : `${alertes.length} point${alertes.length > 1 ? 's' : ''} à noter`;
-    const lignes = visibles.map(a => {
-      const meta = [LIBELLES_GRAVITE_ALERTE[a.gravite], libelleDelaiAlerte(a.jours)].filter(Boolean);
-      const sous = [libelleDossierAffiche(a.dossier), a.detail, global && a.dossier.responsable ? prenomCollaborateur(a.dossier.responsable) : ''].filter(Boolean);
+    const lignes = pointsATraiter(perimetreActifs, isoAujourdhuiLocal());
+    const nbDecision = lignes.filter(l => l.gravite !== 'info').length;
+    const sousTitre = lignes.length === 0 ? 'Rien à traiter pour le moment.'
+      : nbDecision ? `${nbDecision} dossier${nbDecision > 1 ? 's' : ''} demande${nbDecision > 1 ? 'nt' : ''} une action`
+        : `${lignes.length} dossier${lignes.length > 1 ? 's' : ''} à suivre`;
+    const groupes = ['critique', 'vigilance', 'info'].map(g => {
+      const du = lignes.filter(l => l.gravite === g);
+      if (!du.length) return '';
+      const visibles = du.slice(0, MAX_LIGNES_A_TRAITER[g]);
+      const reste = du.length - visibles.length;
       return `
-        <button type="button" class="alerte-ligne g-${a.gravite}" onclick="ouvrirDossierDepuisDashboard('${a.dossier.id}')">
-          <span class="alerte-icone" aria-hidden="true">${icone(a.gravite === 'info' ? 'info' : 'alert-triangle')}</span>
-          <span class="alerte-texte">
-            <span class="alerte-titre">${escapeHtml(a.titre)}</span>
-            <span class="alerte-sous">${sous.map(escapeHtml).join(' · ')}</span>
-            <span class="alerte-meta"><span class="alerte-gravite">${escapeHtml(meta[0])}</span>${meta[1] ? ' · ' + escapeHtml(meta[1]) : ''}</span>
-          </span>
-        </button>`;
+        <div class="a-traiter-groupe g-${g}">
+          <div class="a-traiter-groupe-titre"><span class="alerte-gravite">${LIBELLES_GROUPES_A_TRAITER[g]}</span><span class="urgent-groupe-nb">${du.length}</span></div>
+          ${visibles.map(l => {
+            const a = l.principal;
+            const sous = [libelleDossierAffiche(l.dossier), a.detail, global && l.dossier.responsable ? prenomCollaborateur(l.dossier.responsable) : ''].filter(Boolean);
+            const delai = libelleDelaiAlerte(a.jours);
+            return `
+            <button type="button" class="alerte-ligne g-${a.gravite}" onclick="ouvrirDossierDepuisDashboard('${l.dossier.id}')">
+              <span class="alerte-icone" aria-hidden="true">${icone(a.gravite === 'info' ? 'info' : 'alert-triangle')}</span>
+              <span class="alerte-texte">
+                <span class="alerte-titre">${escapeHtml(a.titre)}</span>
+                <span class="alerte-sous">${sous.map(escapeHtml).join(' · ')}</span>
+                ${l.autres.length ? `<span class="alerte-autres">${l.autres.map(x => `<span class="alerte-autre g-${x.gravite}">+ ${escapeHtml(x.titre)}${x.jours !== null ? ' · ' + escapeHtml(libelleDelaiAlerte(x.jours)) : ''}</span>`).join('')}</span>` : ''}
+              </span>
+              ${delai ? `<span class="alerte-delai">${escapeHtml(delai)}</span>` : ''}
+            </button>`;
+          }).join('')}
+          ${reste > 0 ? `<button type="button" class="urgent-groupe-reste" onclick="definirOnglet('suivi')">et ${reste} autre${reste > 1 ? 's' : ''} — voir le Suivi</button>` : ''}
+        </div>`;
     }).join('');
-    const reste = alertes.length - visibles.length;
+    const premier = lignes.find(l => l.gravite !== 'info') || lignes[0];
     bloc.innerHTML = `
       <div class="alertes-entete">
         <div>
-          <div class="agenda-titre">Alertes importantes</div>
+          <div class="agenda-titre">À traiter</div>
           <div class="agenda-mois">${escapeHtml(sousTitre)}</div>
         </div>
-        ${visibles.length ? `<button type="button" class="lien-action" onclick="ouvrirDossierDepuisDashboard('${visibles[0].dossier.id}')">Traiter</button>` : ''}
+        ${premier ? `<button type="button" class="lien-action" onclick="ouvrirDossierDepuisDashboard('${premier.dossier.id}')">Traiter</button>` : ''}
       </div>
-      ${lignes ? `<div class="alertes-liste">${lignes}${reste > 0 ? `<button type="button" class="urgent-groupe-reste" onclick="definirOnglet('suivi')">et ${reste} autre${reste > 1 ? 's' : ''} — voir le Suivi</button>` : ''}</div>` : ''}
+      ${groupes ? `<div class="alertes-liste">${groupes}</div>` : '<div class="a-traiter-vide">✓ Aucune action en attente sur vos dossiers.</div>'}
       <div class="rappels-perso">
         <div class="section-eyebrow">Mes rappels</div>
         ${renderMesRappels(perimetreActifs)}
@@ -11811,7 +11816,6 @@
     renderAccueilDashboard(perimetreActifs, calculerStatsPortefeuille(perimetreActifs));
     renderRendezVousDashboard(perimetreActifs);
     renderAlertesDashboard(perimetreActifs);
-    renderActionsUrgentes(perimetreActifs);
     renderPiecesRecuesDashboard(perimetreActifs);
     renderRechercheDashboard(dossiersActifs);
     majBadgeNotificationsSidebar();

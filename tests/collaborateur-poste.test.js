@@ -104,8 +104,9 @@ test('alertesImportantes : gravité, ordre, et rien quand tout est en ordre', ()
   ];
   const r = app.alertesImportantes(l, '2026-09-25');
   assert.equal(r.map(a => a.dossier.id + ':' + a.gravite).join(','), 'c:critique,a:critique,b:vigilance,d:vigilance');
-  assert.equal(r[0].titre, 'Appel de fonds et projet non envoyés');
-  assert.equal(r[2].titre, 'Projet non envoyé');
+  assert.equal(r[0].titre, 'Envoyer l’appel de fonds et le projet');
+  assert.equal(r[1].titre, 'Relancer l’offre de prêt');
+  assert.equal(r[2].titre, 'Envoyer le projet');
   assert.equal(app.libelleDelaiAlerte(-4), 'dépassé de 4 j');
 });
 
@@ -123,4 +124,17 @@ test('rappels : libellé d’échéance et ordre d’affichage', () => {
     { id: '5', texte: 'aujourd’hui', echeance: '2026-09-25', fait: false, creeLe: 'c' }
   ];
   assert.equal(app.rappelsAffiches(l, '2026-09-25').map(r => r.id).join(','), '5,2,1,4');
+});
+
+test('pointsATraiter : une ligne par dossier, le plus grave en titre, les autres en dessous', () => {
+  const l = [
+    // Même dossier : offre non reçue (J-3, critique) et butoir sans rendez-vous (J-10, vigilance).
+    { id: 'a', nom: 'A', pret: '2026-09-28', offrePretStatut: 'manquante', acte: '2026-10-05' },
+    { id: 'b', nom: 'B', typeVente: 'maison', sansPret: true }  // jamais relié : À suivre
+  ];
+  const r = app.pointsATraiter(l, '2026-09-25');
+  assert.equal(r.map(x => x.dossier.id + ':' + x.gravite).join(','), 'a:critique,b:info');
+  assert.equal(r[0].principal.titre, 'Relancer l’offre de prêt');
+  assert.equal(r[0].autres.map(x => x.titre).join(','), 'Fixer le rendez-vous de signature');
+  assert.equal(r[1].principal.titre, 'Relier le dossier du NAS');
 });
