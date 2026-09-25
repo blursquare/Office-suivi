@@ -261,3 +261,53 @@ test('lecture ics : un lien HTML (sans VCALENDAR) est signale au lieu de rendre 
   assert.match(resultat.erreur, /calendar\.ics/);
   db.close();
 });
+
+test('lecture ics : proxy Squid du bureau → message qui nomme le proxy et la cause, sans jeton', async () => {
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  const entetes = { server: 'squid', via: '1.1 nacXwan-Proxy (squid)', 'x-squid-error': 'ERR_DNS_FAIL 0' };
+  const corps = '<html><body><h1>ERREUR</h1><p>L\'erreur suivante s\'est produite en essayant d\'accéder à l\'URL : '
+    + '<a href="https://mail.authentic-connect.fr/cal/JETONSECRET/agenda.ics">https://mail.authentic-connect.fr/cal/JETONSECRET/agenda.ics</a></p>'
+    + '<p>Impossible de déterminer l\'adresse IP du nom d\'hôte mail.authentic-connect.fr</p></body></html>';
+  const reponse = () => ({ ok: false, status: 503, headers: { get: (n) => entetes[n.toLowerCase()] || null }, text: async () => corps });
+  const resultat = await executerTourSurveillanceAgenda(depot, 'https://mail.authentic-connect.fr/cal/JETONSECRET/agenda.ics', async () => reponse(), 0);
+  assert.match(resultat.erreur, /proxy du réseau du bureau \(« nacXwan-Proxy »\)/);
+  assert.match(resultat.erreur, /résolution DNS/);
+  assert.match(resultat.erreur, /ERR_DNS_FAIL/);
+  assert.match(resultat.erreur, /Impossible de déterminer l'adresse IP/);
+  assert.doesNotMatch(resultat.erreur, /JETONSECRET/);
+  db.close();
+});
+
+test('lecture ics : sans en-tete X-Squid-Error, la cause est lue dans la page du proxy', () => {
+  const { causeProxy, texteSansAdresses } = require('../src/agendaWatch');
+  const entetes = { via: '1.1 nacXwan-Proxy (squid)' };
+  const rep = { headers: { get: (n) => entetes[n.toLowerCase()] || null } };
+  const cause = causeProxy(rep, texteSansAdresses('<p>La tentative de connexion à 1.2.3.4 a échoué.</p>'));
+  assert.equal(cause.nom, 'nacXwan-Proxy');
+  assert.equal(cause.code, 'ERR_CONNECT_FAIL');
+  assert.equal(causeProxy({ headers: { get: (n) => (n === 'server' ? 'Microsoft-HTTPAPI/2.0' : null) } }, ''), null);
+  assert.equal(texteSansAdresses('voir http://a.b/c/SECRET?x=1 fin'), 'voir a.b fin');
+});
+
+test('lecture ics : lien en http bloque par le proxy → relu en https et lien enregistre corrige', async () => {
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  const parametresRepo = creerRepoParametres(db);
+  parametresRepo.ecrireReglagesAgenda({ icsUrl: 'http://mail.exemple.test/cal/x/agenda.ics' });
+  const ics = 'BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n';
+  const urls = [];
+  const fetchFn = async (url) => {
+    urls.push(url);
+    if (url.startsWith('http://')) return { ok: false, status: 403, headers: { get: (n) => (n === 'server' ? 'squid' : null) }, text: async () => '' };
+    return { ok: true, status: 200, text: async () => ics };
+  };
+  const retour = await executerEtEnregistrerTourAgenda(depot, parametresRepo, fetchFn);
+  assert.equal(retour.ok, true);
+  assert.equal(retour.lienPasseEnHttps, true);
+  assert.equal(retour.adresseCorrigee, undefined);
+  assert.equal(parametresRepo.lireReglagesAgenda().icsUrl, 'https://mail.exemple.test/cal/x/agenda.ics');
+  assert.equal(parametresRepo.lireDernierTourAgenda().lienPasseEnHttps, true);
+  assert.ok(urls.some((u) => u.startsWith('https://')));
+  db.close();
+});

@@ -144,7 +144,9 @@ visio, orange = confrère) indiquent seulement le LIEU et ne jouent aucun rôle 
    signalé comme tel plutôt que de rendre « 0 dossier mis à jour ». Le message d'erreur se termine
    par un **détail technique** (domaine appelé, en-têtes `server`/`via`, identifiant de requête,
    début du texte renvoyé — jamais le jeton du lien) : il dit si c'est Microsoft ou un équipement du
-   réseau du bureau qui a répondu.
+   réseau du bureau qui a répondu. Quand c'est le proxy du bureau (Squid), le message le nomme et
+   donne sa cause (DNS, connexion, filtrage, délai) : c'est alors au prestataire réseau d'autoriser
+   le site. Un lien en `http://` refusé par ce proxy est retenté en `https://`, et corrigé s'il passe.
 6. **Premier jet de détection de mots-clés** (« appel de fonds »/« AF », « projet … envoyé »),
    comme les autres détections heuristiques de CLAIRE (`motifNom`, `PIECES_*`…) — à resserrer si un
    faux positif ou un rendez-vous non reconnu remonte, avec la formulation exacte qui a posé

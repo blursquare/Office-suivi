@@ -7616,6 +7616,27 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     `fetch` de Node traverse sans passer par le proxy système de Windows, contrairement à Chrome.
     Rappel : le brief du matin lit le même lien depuis les serveurs d'Anthropic, pas depuis le
     réseau du bureau — qu'il fonctionne ne prouve rien sur le chemin réseau du poste serveur.
+  - **Verdict du diagnostic (10:25)** : `serveur « squid » ; via « 1.1 nacXwan-Proxy (squid) »`,
+    hôte `mail.authentic-connect.fr` — le calendrier n'est pas Outlook mais celui d'**Authentic
+    Connect** (Fichorga), et la page d'erreur vient du **proxy transparent du réseau du bureau**
+    (Squid, prestataire nacXwan), pas du calendrier. Ce proxy intercepte le trafic sortant du poste
+    serveur et n'arrive pas à charger l'adresse (« l'URL demandée n'a pas pu être trouvée »).
+    Deux changements, sans rien deviner de plus :
+    - le message nomme le proxy et **sa cause exacte** (`causeProxy`, `CAUSES_SQUID`) : en-tête
+      `X-Squid-Error` d'abord (ERR_DNS_FAIL, ERR_CONNECT_FAIL, ERR_ACCESS_DENIED, délai…), sinon
+      la phrase de la page Squid (FR ou EN). Ce sont trois demandes différentes au prestataire
+      réseau. Le texte de la page est porté à 400 caractères — la cause était coupée à 140 — et
+      **débarrassé de toute adresse complète** (`texteSansAdresses`) : une page Squid recopie
+      l'URL demandée, donc le jeton de publication. Testé avec un jeton dans la page ;
+    - **un lien enregistré en `http://` est relu en `https://`** quand le proxy le refuse. Chrome
+      passe de lui-même en https, ce qui expliquerait qu'il ouvre le lien là où Node échoue (un
+      proxy transparent sans interception TLS ne voit que le trafic http). Si la version https
+      fonctionne, le lien enregistré est corrigé (`lienPasseEnHttps` dans le compte rendu, jamais
+      l'adresse elle-même dans la réponse de la route).
+    **Si le message nomme toujours nacXwan-Proxy après ça**, la seule issue est côté réseau :
+    demander au prestataire d'autoriser `mail.authentic-connect.fr` pour le poste serveur. Ne pas
+    ajouter de réglage de proxy dans CLAIRE sans savoir qu'un proxy explicite existe : celui-ci est
+    transparent, il intercepte déjà tout.
 
 ## Comment tester
 

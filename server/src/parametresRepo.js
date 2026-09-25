@@ -373,7 +373,8 @@ function assainirDernierTourAgenda(brut) {
     misAJour: listeBornee(b.misAJour),
     dejaRenseignes: listeBornee(b.dejaRenseignes),
     sansCorrespondance: listeBornee(b.sansCorrespondance),
-    erreur: b.erreur ? texteBorne(String(b.erreur), 500) : null,
+    erreur: b.erreur ? texteBorne(String(b.erreur), 1500) : null,
+    lienPasseEnHttps: !!b.lienPasseEnHttps,
     declenche: b.declenche === 'manuel' ? 'manuel' : 'automatique'
   };
 }

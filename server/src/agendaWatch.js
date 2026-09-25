@@ -107,52 +107,153 @@ function messageErreurCalendrier(statut) {
   return `Le calendrier a répondu une erreur (${statut}).`;
 }
 
-// Ce qui permet de savoir QUI a répondu l'erreur : le serveur de Microsoft, ou un équipement du
-// réseau du bureau (pare-feu, proxy) posé entre CLAIRE et internet. Le même lien lu par un autre
-// client (navigateur, brief du matin) ne donne pas l'erreur : c'est donc cette distinction qui
-// tranche. On n'y met JAMAIS le chemin de l'adresse, qui porte le jeton de publication du
-// calendrier — seulement le nom de domaine, l'en-tête `server`, un identifiant de requête et le
-// début du texte renvoyé.
-async function diagnosticReponseIcs(reponse, adresse) {
+// Le texte d'une page d'erreur, sans balises ni adresses complètes : une page d'erreur de proxy
+// recopie l'URL demandée, donc le jeton de publication du calendrier — chaque adresse est ramenée
+// à son seul nom de domaine avant d'être affichée où que ce soit.
+function texteSansAdresses(html) {
+  return String(html || '')
+    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&#39;|&apos;|&rsquo;/gi, "'")
+    .replace(/&quot;/gi, '"')
+    .replace(/&amp;/gi, '&')
+    .replace(/(?:https?|webcals?):\/\/([^\s\/"'<>?#:]+)[^\s"'<>]*/gi, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Un proxy Squid (celui du réseau du bureau, « nacXwan-Proxy ») répond à la place du site quand il
+// n'arrive pas à le joindre. Il dit pourquoi dans l'en-tête `X-Squid-Error` et dans sa page : c'est
+// ce qui distingue « le proxy ne trouve pas le site » (DNS) de « le proxy l'a trouvé mais ne peut
+// pas s'y connecter » ou « le proxy l'interdit » — trois demandes différentes au prestataire réseau.
+const CAUSES_SQUID = [
+  { code: 'ERR_DNS_FAIL', motif: /impossible de d[ée]terminer l'adresse ip|unable to determine ip address/i,
+    texte: "il ne trouve pas l'adresse du site (résolution DNS impossible depuis le proxy)" },
+  { code: 'ERR_ACCESS_DENIED', motif: /acc[èe]s (?:refus|interdit)|access denied/i,
+    texte: 'une règle de filtrage du proxy interdit ce site' },
+  { code: 'ERR_SECURE_CONNECT_FAIL', motif: /connexion s[ée]curis[ée]e|secure connection/i,
+    texte: 'la connexion sécurisée (https) avec le site a échoué' },
+  { code: 'ERR_CONNECT_FAIL', motif: /tentative de connexion|connection to .* failed|connexion .* (?:refus|a [ée]chou)/i,
+    texte: "il trouve le site mais n'arrive pas à s'y connecter" },
+  { code: 'ERR_READ_TIMEOUT', motif: /d[ée]lai d'attente|read timeout|timed out/i,
+    texte: 'le site ne répond pas à temps' },
+  { code: 'ERR_LIFETIME_EXP', motif: null, texte: 'le site ne répond pas à temps' },
+  { code: 'ERR_CONNECT_TIMEOUT', motif: null, texte: 'le site ne répond pas à temps' },
+  { code: 'ERR_ZERO_SIZE_OBJECT', motif: /r[ée]ponse vide|zero sized reply/i,
+    texte: 'le site a renvoyé une réponse vide' }
+];
+
+function lireEntete(reponse, nom) {
+  try {
+    return reponse && reponse.headers && typeof reponse.headers.get === 'function' ? reponse.headers.get(nom) : null;
+  } catch (e) { return null; }
+}
+
+// `null` quand ce n'est pas un proxy qui a répondu ; sinon { nom, code, texte } — code et texte
+// `null` quand le proxy ne dit pas pourquoi.
+function causeProxy(reponse, corps) {
+  const serveur = String(lireEntete(reponse, 'server') || '');
+  const via = String(lireEntete(reponse, 'via') || '');
+  const erreurSquid = String(lireEntete(reponse, 'x-squid-error') || '');
+  if (!/squid/i.test(serveur) && !/squid/i.test(via) && !erreurSquid) return null;
+  const nomVia = (via.match(/\d(?:\.\d)?\s+([^\s(,]+)/) || [])[1];
+  const nom = nomVia || 'squid';
+  const code = (erreurSquid.match(/ERR_[A-Z_]+/) || [])[0];
+  let cause = code ? CAUSES_SQUID.find((c) => c.code === code) : null;
+  if (!cause) cause = CAUSES_SQUID.find((c) => c.motif && c.motif.test(corps || ''));
+  return { nom, code: cause ? cause.code : (code || null), texte: cause ? cause.texte : null };
+}
+
+function messageErreurProxy(proxy, hote, statut) {
+  const pourquoi = proxy.texte ? ` : ${proxy.texte}` : '';
+  return `Le proxy du réseau du bureau (« ${proxy.nom} ») n'a pas pu lire le calendrier sur ` +
+    `${hote || 'internet'}${pourquoi} (erreur ${statut}${proxy.code ? `, ${proxy.code}` : ''}). ` +
+    "Ce n'est ni le calendrier ni CLAIRE : demandez à votre prestataire réseau d'autoriser " +
+    `${hote || 'ce site'} pour le poste qui héberge CLAIRE. CLAIRE réessaiera au prochain tour.`;
+}
+
+// Ce qui permet de savoir QUI a répondu l'erreur : le serveur du calendrier, ou un équipement du
+// réseau du bureau (pare-feu, proxy) posé entre CLAIRE et internet. On n'y met JAMAIS le chemin de
+// l'adresse, qui porte le jeton de publication du calendrier — seulement le nom de domaine, les
+// en-têtes `server`/`via`/`x-squid-error`, un identifiant de requête et le texte renvoyé (lui-même
+// débarrassé de toute adresse complète, voir texteSansAdresses).
+function diagnosticDepuisCorps(reponse, adresse, corps) {
   const morceaux = [];
   try { morceaux.push(`hôte ${new URL(adresse).hostname}`); } catch (e) { /* adresse illisible */ }
-  const entete = (nom) => {
-    try { return reponse && reponse.headers && typeof reponse.headers.get === 'function' ? reponse.headers.get(nom) : null; } catch (e) { return null; }
-  };
-  const serveur = entete('server');
+  try { morceaux.push(`protocole ${new URL(adresse).protocol.replace(':', '')}`); } catch (e) { /* idem */ }
+  const serveur = lireEntete(reponse, 'server');
   if (serveur) morceaux.push(`serveur « ${String(serveur).slice(0, 60)} »`);
-  const via = entete('via');
+  const via = lireEntete(reponse, 'via');
   if (via) morceaux.push(`via « ${String(via).slice(0, 60)} »`);
-  const identifiant = entete('request-id') || entete('x-ms-request-id') || entete('x-request-id');
+  const erreurSquid = lireEntete(reponse, 'x-squid-error');
+  if (erreurSquid) morceaux.push(`code proxy ${String(erreurSquid).slice(0, 40)}`);
+  const identifiant = lireEntete(reponse, 'request-id') || lireEntete(reponse, 'x-ms-request-id') || lireEntete(reponse, 'x-request-id');
   if (identifiant) morceaux.push(`requête ${String(identifiant).slice(0, 60)}`);
-  try {
-    if (reponse && typeof reponse.text === 'function') {
-      const corps = String(await reponse.text() || '')
-        .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
-        .replace(/<[^>]+>/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-      if (corps) morceaux.push(`réponse « ${corps.slice(0, 140)}${corps.length > 140 ? '…' : ''} »`);
-    }
-  } catch (e) { /* corps illisible : on s'en passe */ }
+  const texte = texteSansAdresses(corps);
+  if (texte) morceaux.push(`réponse « ${texte.slice(0, 400)}${texte.length > 400 ? '…' : ''} »`);
   return morceaux.length ? ` Détail technique : ${morceaux.join(' ; ')}.` : '';
 }
 
-async function telechargerIcs(icsUrl, fetchFn, pauseMs) {
-  const f = fetchFn || fetch;
-  const adresse = adresseLisibleIcs(icsUrl);
+async function lireCorpsErreur(reponse) {
+  try {
+    if (reponse && typeof reponse.text === 'function') return String(await reponse.text() || '');
+  } catch (e) { /* corps illisible : on s'en passe */ }
+  return '';
+}
+
+// Conservée pour les appelants existants : lit le corps puis rend le diagnostic.
+async function diagnosticReponseIcs(reponse, adresse) {
+  return diagnosticDepuisCorps(reponse, adresse, await lireCorpsErreur(reponse));
+}
+
+async function messageEchecLecture(reponse, adresse) {
+  const corps = await lireCorpsErreur(reponse);
+  let hote = '';
+  try { hote = new URL(adresse).hostname; } catch (e) { /* adresse illisible */ }
+  const proxy = causeProxy(reponse, texteSansAdresses(corps));
+  const tete = proxy ? messageErreurProxy(proxy, hote, reponse.status) : messageErreurCalendrier(reponse.status);
+  return { message: tete + diagnosticDepuisCorps(reponse, adresse, corps), proxy };
+}
+
+async function lireUneAdresse(f, adresse, pauseMs) {
   let reponse = await f(adresse, { headers: ENTETES_LECTURE_ICS, redirect: 'follow' });
   if (STATUTS_A_RELANCER.includes(reponse.status)) {
     await new Promise((r) => setTimeout(r, pauseMs == null ? PAUSE_AVANT_RELANCE_MS : pauseMs));
     reponse = await f(adresse, { headers: ENTETES_LECTURE_ICS, redirect: 'follow' });
   }
-  if (!reponse.ok) throw new Error(messageErreurCalendrier(reponse.status) + await diagnosticReponseIcs(reponse, adresse));
+  return reponse;
+}
+
+// `infos` (facultatif) reçoit `adresseUtilisee` : l'adresse réellement lue, qui peut être la
+// version https d'un lien enregistré en http (voir plus bas).
+async function telechargerIcs(icsUrl, fetchFn, pauseMs, infos) {
+  const f = fetchFn || fetch;
+  const adresse = adresseLisibleIcs(icsUrl);
+  let reponse = await lireUneAdresse(f, adresse, pauseMs);
+  let adresseLue = adresse;
+  if (!reponse.ok) {
+    const echec = await messageEchecLecture(reponse, adresse);
+    // Un lien en http:// passe par le proxy transparent du bureau, qui ne sait pas toujours le
+    // servir ; Chrome, lui, passe de lui-même en https — c'est pourquoi le même lien s'ouvre dans le
+    // navigateur. On tente donc la version https une fois avant d'abandonner.
+    let reussi = false;
+    if (/^http:\/\//i.test(adresse)) {
+      const enHttps = adresse.replace(/^http:\/\//i, 'https://');
+      try {
+        const autre = await f(enHttps, { headers: ENTETES_LECTURE_ICS, redirect: 'follow' });
+        if (autre && autre.ok) { reponse = autre; adresseLue = enHttps; reussi = true; }
+      } catch (e) { /* https indisponible : l'erreur d'origine reste la plus parlante */ }
+    }
+    if (!reussi) throw new Error(echec.message);
+  }
   const texte = await reponse.text();
   // Un lien HTML (la page « afficher le calendrier ») répond 200 mais ne contient aucun événement :
   // le dire plutôt que de rendre « 0 dossier mis à jour » comme si tout allait bien.
   if (!/BEGIN:VCALENDAR/i.test(texte)) {
     throw new Error("Le lien ne renvoie pas un calendrier : collez le lien ICS (il se termine par calendar.ics), pas le lien HTML.");
   }
+  if (infos) infos.adresseUtilisee = adresseLue;
   return texte;
 }
 
@@ -168,7 +269,11 @@ async function executerTourSurveillanceAgenda(depot, icsUrl, fetchFn, pauseMs) {
     return resultat;
   }
   try {
-    const texte = await telechargerIcs(icsUrl, fetchFn, pauseMs);
+    const infos = {};
+    const texte = await telechargerIcs(icsUrl, fetchFn, pauseMs, infos);
+    if (infos.adresseUtilisee && infos.adresseUtilisee !== adresseLisibleIcs(icsUrl)) {
+      resultat.adresseCorrigee = infos.adresseUtilisee;
+    }
     const dossiersActifs = depot.tousActifs().filter((d) => !d.archive);
     resultat.dossiersVerifies = dossiersActifs.length;
     const detections = actionsDetecteesDepuisIcs(texte, dossiersActifs);
@@ -189,12 +294,20 @@ async function executerTourSurveillanceAgenda(depot, icsUrl, fetchFn, pauseMs) {
 async function executerEtEnregistrerTourAgenda(depot, parametresRepo, fetchFn, declenche) {
   const reglages = parametresRepo.lireReglagesAgenda();
   const resultat = await executerTourSurveillanceAgenda(depot, reglages.icsUrl, fetchFn);
+  // Le lien enregistré en http n'a pu être lu qu'en https : on garde la version qui fonctionne,
+  // sans quoi chaque tour repasserait d'abord par l'échec du proxy.
+  if (resultat.adresseCorrigee) {
+    parametresRepo.ecrireReglagesAgenda({ ...reglages, icsUrl: resultat.adresseCorrigee });
+  }
+  const { adresseCorrigee, ...compteRendu } = resultat;
   parametresRepo.ecrireDernierTourAgenda({
-    ...resultat,
+    ...compteRendu,
+    lienPasseEnHttps: Boolean(adresseCorrigee),
     at: new Date().toISOString(),
     declenche: declenche === 'manuel' ? 'manuel' : 'automatique'
   });
-  return resultat;
+  // Jamais l'adresse elle-même dans la réponse : elle porte le jeton de publication.
+  return { ...compteRendu, lienPasseEnHttps: Boolean(adresseCorrigee) };
 }
 
 // 15 minutes : ni aussi rapproché que le sondage de synchronisation du client (7 s, pensé pour un
@@ -225,6 +338,7 @@ function demarrerSurveillanceAgenda(depot, parametresRepo, fetchFn, intervalleMs
 
 module.exports = {
   adresseLisibleIcs, messageErreurCalendrier, diagnosticReponseIcs, ENTETES_LECTURE_ICS,
+  texteSansAdresses, causeProxy, telechargerIcs,
   appliquerDetectionsAgenda, dateDuJourParis, executerTourSurveillanceAgenda, executerEtEnregistrerTourAgenda,
   demarrerSurveillanceAgenda, INTERVALLE_SURVEILLANCE_AGENDA_MS
 };
