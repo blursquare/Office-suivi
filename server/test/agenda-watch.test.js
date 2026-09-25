@@ -41,7 +41,7 @@ test('appliquerDetectionsAgenda : renseigne appelFonds et projetEnvoye, journali
   assert.equal(d.detectionsAgenda.appelFonds, '2026-09-25');
   assert.equal(d.echeancesValidees.appelFonds, true);
   assert.equal(d.historique.length, 1);
-  assert.match(d.historique[0].texte, /Appel de fonds relevé dans l.agenda/);
+  assert.match(d.historique[0].texte, /Envoi appel de fonds relevé dans l.agenda/);
   db.close();
 });
 

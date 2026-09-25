@@ -24,6 +24,7 @@
        par le rendez-vous de signature) sont tous pris, et --focus est réservé aux accents
        interactifs. D'où ce violet, seule couleur de catégorie ajoutée depuis la refonte. */
     --appelfonds: #7C5CBF;
+    --projet: #B83E78;
     --ventebien-bg: #E3EEF7;
     --urgent: #C2410C;
     --success: #2F8F5B;
@@ -67,6 +68,7 @@
     --acte-bg: #232736;
     --ventebien: #6FAEDB;
     --appelfonds: #A48BE0;
+    --projet: #E58AB5;
     --ventebien-bg: #263238;
     --urgent: #F08C4B;
     --success: #5FBF87;
@@ -3606,7 +3608,8 @@
   .tab.acte { border-left-color: var(--acte); }
   .tab.rendezVousSignature { border-left-color: var(--success); }
   .tab.ventebien { border-left-color: var(--ventebien); }
-  .tab.autre, .tab.projetEnvoye { border-left-color: var(--muted); }
+  .tab.autre { border-left-color: var(--muted); }
+  .tab.projetEnvoye { border-left-color: var(--projet); }
 
   /* Croix de suppression d'une échéance personnalisée (voir supprimerEcheanceAutre) : positionnée
      en haut à droite de la carte plutôt qu'alignée avec le contenu, pour rester à l'écart du
@@ -3731,6 +3734,12 @@
     letter-spacing: 0.06em;
   }
   .envoi-ligne .dot-label { font-size: 12px; }
+  .envoi-libelle::before {
+    content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    margin-right: 6px; vertical-align: 1px;
+  }
+  .envoi-libelle.envoi-appelFonds::before { background: var(--appelfonds); }
+  .envoi-libelle.envoi-projetEnvoye::before { background: var(--projet); }
   .tab-date-affichage .tab-date { margin-bottom: 0; }
   .tab-date-affichage .icon-crayon { font-size: 11px; padding: 2px 4px; }
   .tab-date-edition {
@@ -3822,7 +3831,8 @@
     background: currentColor;
   }
   .dot-label .icone { flex: none; }
-  .dot-label.dl-neutre, .dot-label.dl-autre, .dot-label.dl-projetEnvoye { color: var(--muted); }
+  .dot-label.dl-neutre, .dot-label.dl-autre { color: var(--muted); }
+  .dot-label.dl-projetEnvoye { color: var(--projet); }
   .dot-label.dl-pret { color: var(--pret); }
   .dot-label.dl-acte { color: var(--acte); }
   .dot-label.dl-ventebien { color: var(--ventebien); }
@@ -5240,7 +5250,7 @@ button.gantt-ligne:hover { background: var(--paper-sunk); }
 .gantt-jalon.ventebien { color: var(--ventebien); border-color: var(--ventebien); }
 .gantt-jalon.pret { color: var(--pret); border-color: var(--pret); }
 .gantt-jalon.appelFonds { color: var(--appelfonds); border-color: var(--appelfonds); }
-.gantt-jalon.projetEnvoye { color: var(--muted); border-color: var(--muted); }
+.gantt-jalon.projetEnvoye { color: var(--projet); border-color: var(--projet); }
 .gantt-jalon.acte { color: var(--acte); border-color: var(--acte); border-radius: 2px; transform: rotate(45deg); width: 10px; height: 10px; margin: -5px 0 0 -5px; }
 .gantt-jalon.rendezVousSignature { color: var(--success); border-color: var(--success); }
 .gantt-jalon.fait.ventebien, .gantt-jalon.fait.pret, .gantt-jalon.fait.appelFonds, .gantt-jalon.fait.projetEnvoye,

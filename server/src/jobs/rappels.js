@@ -80,9 +80,9 @@ function toutesEcheances(d) {
   if (!echeanceValidee(d, 'ventebien')) items.push({ type: 'ventebien', label: 'Vente préalable', iso: d.ventebien });
   if (!echeanceValidee(d, 'pret')) items.push({ type: 'pret', label: 'Obtention du prêt', iso: d.pret });
   if (!echeanceValidee(d, 'appelFonds')) {
-    items.push({ type: 'appelFonds', label: 'Appel de fonds', iso: d.appelFonds || d.rendezVousSignature });
+    items.push({ type: 'appelFonds', label: 'Envoi appel de fonds', iso: d.appelFonds || d.rendezVousSignature });
   } else if (!echeanceValidee(d, 'projetEnvoye')) {
-    items.push({ type: 'projetEnvoye', label: 'Projet d’acte envoyé', iso: d.projetEnvoye || d.rendezVousSignature });
+    items.push({ type: 'projetEnvoye', label: 'Envoi projet', iso: d.projetEnvoye || d.rendezVousSignature });
   } else if (!echeanceValidee(d, 'rendezVousSignature')) {
     items.push({ type: 'rendezVousSignature', label: 'Signature de l’acte', iso: d.rendezVousSignature });
   }

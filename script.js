@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-25 08:06';
+  const VERSION_APP = '2026-09-25 08:11';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-25 08:11', resume: "« Envoi appel de fonds » et « Envoi projet » sont deux étapes distinctes du suivi, comme l'obtention du prêt ou la signature : mêmes libellés partout (planning, avancement, rappels, fiche imprimée) et une couleur propre à l'envoi du projet. Deux étapes le même jour ne se superposent plus dans l'avancement des dossiers." },
     { version: '2026-09-25 08:06', resume: "Fiche dossier : la carte des deux envois (appel de fonds, projet) s'appelle désormais « Envoi au client »." },
     { version: '2026-09-25 08:04', resume: "Réglages allégés : textes d'aide raccourcis, « Comment ça marche » replié par défaut." },
     { version: '2026-09-25 07:57', resume: "Fiche dossier : la carte « Appel de fonds » porte deux entrées datées, « Envoi appel de fonds » et « Envoi projet ». Un envoi relevé dans l'agenda de l'office prend la date du jour de la détection, et n'est plus jamais retraité ensuite. L'agenda .ics de CLAIRE reste inchangé." },
@@ -9794,7 +9795,7 @@
         ? `<button type="button" class="icon-crayon" onclick="supprimerDateEcheance('${d.id}', '${cle}')" title="Effacer cette date" aria-label="Effacer cette date">${icone('x')}</button>`
         : '';
       return `<div class="envoi-ligne">
-        <div class="envoi-libelle">${label}</div>
+        <div class="envoi-libelle envoi-${cle}">${label}</div>
         <span class="tab-date-affichage" id="${idBase}-aff"><div class="tab-date">${iso ? formatDateFr(iso) : 'Non renseignée'}</div><button type="button" class="icon-crayon" onclick="activerEditionDate('${d.id}','${cle}')" title="Saisir ou corriger cette date" aria-label="Saisir ou corriger cette date">${icone('pencil')}</button>${croix}</span>
         <span class="tab-date-edition" id="${idBase}-edit" hidden>
           <input type="date" class="tab-date-input" id="${idBase}-input" value="${iso}">
@@ -9930,7 +9931,7 @@
   // demandé que son nom le dise et qu'elle disparaîsse du planning (voir echeancesPlanning).
   const LIBELLES_CATEGORIE = {
     pret: 'Obtention du prêt', acte: 'Date butoir', ventebien: 'Vente préalable',
-    appelFonds: 'Appel de fonds', projetEnvoye: 'Projet d’acte envoyé',
+    appelFonds: 'Envoi appel de fonds', projetEnvoye: 'Envoi projet',
     rendezVousSignature: 'Rendez-vous de signature'
   };
 
@@ -10432,8 +10433,8 @@
   var JALONS_AVANCEMENT = [
     { type: 'ventebien', label: 'Vente préalable' },
     { type: 'pret', label: 'Obtention du prêt' },
-    { type: 'appelFonds', label: 'Appel de fonds' },
-    { type: 'projetEnvoye', label: 'Projet envoyé' },
+    { type: 'appelFonds', label: 'Envoi appel de fonds' },
+    { type: 'projetEnvoye', label: 'Envoi projet' },
     { type: 'acte', label: 'Date butoir' },
     { type: 'rendezVousSignature', label: 'Signature' }
   ];
@@ -10465,6 +10466,12 @@
           };
         });
       if (!jalons.length) continue;
+      // Deux étapes à la même date (appel de fonds et projet envoyés le même jour, par exemple) se
+      // superposeraient exactement : chaque jalon trop proche d'un précédent est décalé d'un cran
+      // vers la droite (`rang`), pour que chaque étape reste visible et cliquable à la survol.
+      jalons.forEach((j, i) => {
+        j.rang = jalons.slice(0, i).filter(p => Math.abs(p.pct - j.pct) < 1.2).length;
+      });
       const creation = (d.historique || []).find(h => h.texte === 'Dossier créé');
       const departMs = creation ? msDepuisIso(creation.date) : Math.min(...jalons.map(j => msDepuisIso(j.iso)));
       const arriveeIso = d.rendezVousSignature || d.acte || jalons.map(j => j.iso).sort().pop();
@@ -10525,7 +10532,7 @@
               ${donnees.mois.map(m => `<span class="gantt-grille" style="left:${m.pct}%"></span>`).join('')}
               ${repereAuj}
               <span class="gantt-barre${l.coupeAvant ? ' coupe-avant' : ''}${l.coupeApres ? ' coupe-apres' : ''}" style="left:${l.barreDebut}%;width:${Math.max(0.5, l.barreFin - l.barreDebut)}%"></span>
-              ${l.jalons.map(j => `<span class="gantt-jalon ${j.type}${j.fait ? ' fait' : ''}${j.hors ? ' hors' : ''}" style="left:${j.pct}%" title="${escapeAttr(j.label)} — ${escapeAttr(formatDateFr(j.iso))}${j.fait ? ' (réalisé)' : ''}"></span>`).join('')}
+              ${l.jalons.map(j => `<span class="gantt-jalon ${j.type}${j.fait ? ' fait' : ''}${j.hors ? ' hors' : ''}" style="left:${j.pct}%${j.rang ? `;translate:${j.rang * 11}px 0` : ''}" title="${escapeAttr(j.label)} — ${escapeAttr(formatDateFr(j.iso))}${j.fait ? ' (réalisé)' : ''}"></span>`).join('')}
             </span>
           </button>`).join('')}
       </div>
@@ -10775,9 +10782,9 @@
 
     const appelFondsFait = echeanceValidee(d, 'appelFonds');
     if (!appelFondsFait) {
-      items.push({ type: 'appelFonds', label: 'Appel de fonds', iso: d.appelFonds || d.rendezVousSignature });
+      items.push({ type: 'appelFonds', label: 'Envoi appel de fonds', iso: d.appelFonds || d.rendezVousSignature });
     } else if (!echeanceValidee(d, 'projetEnvoye')) {
-      items.push({ type: 'projetEnvoye', label: 'Projet d’acte envoyé', iso: d.projetEnvoye || d.rendezVousSignature });
+      items.push({ type: 'projetEnvoye', label: 'Envoi projet', iso: d.projetEnvoye || d.rendezVousSignature });
     } else if (!echeanceValidee(d, 'rendezVousSignature')) {
       items.push({ type: 'rendezVousSignature', label: 'Signature de l’acte', iso: d.rendezVousSignature });
     }
@@ -14334,14 +14341,14 @@
       appelFonds: { fond: '#EEE9F7', barre: '#7C5CBF' },
       // projetEnvoye : même teinte neutre que "autre" (--muted en écran), pas de couleur de
       // catégorie dédiée — comme appelFonds/rendezVous, une échéance manuelle hors extraction.
-      projetEnvoye: { fond: '#EEEEEE', barre: '#8A93A9' },
+      projetEnvoye: { fond: '#F7E6EF', barre: '#B83E78' },
       rendezVous: { fond: '#E4F2EA', barre: '#2F8F5B' }
     };
 
     const cases = [
       d.pret ? { cls: 'pret', label: 'Obtention du prêt', date: d.pret } : null,
-      d.appelFonds ? { cls: 'appelFonds', label: 'Appel de fonds', date: d.appelFonds } : null,
-      d.projetEnvoye ? { cls: 'projetEnvoye', label: 'Projet d’acte envoyé', date: d.projetEnvoye } : null,
+      d.appelFonds ? { cls: 'appelFonds', label: 'Envoi appel de fonds', date: d.appelFonds } : null,
+      d.projetEnvoye ? { cls: 'projetEnvoye', label: 'Envoi projet', date: d.projetEnvoye } : null,
       d.acte ? { cls: 'acte', label: "Signature de l'acte", date: d.acte } : null,
       d.rendezVousSignature ? { cls: 'rendezVous', label: 'Rendez-vous de signature', date: d.rendezVousSignature } : null,
       d.ventebien ? { cls: 'vente', label: 'Vente préalable', date: d.ventebien } : null,
@@ -22132,7 +22139,7 @@
   }
 
   function libelleActionAgenda(action) {
-    return action === 'projetEnvoye' ? 'Projet d’acte envoyé' : 'Appel de fonds';
+    return action === 'projetEnvoye' ? 'Envoi projet' : 'Envoi appel de fonds';
   }
 
   function renderDernierTourAgenda(tour) {

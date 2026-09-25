@@ -83,7 +83,7 @@ test('toutesEcheances : appel de fonds, puis projet envoyé, puis signature', ()
   const faitAppel = { ...d, echeancesValidees: { appelFonds: true } };
   const apresAppel = toutesEcheances(faitAppel);
   assert.deepEqual(apresAppel.map((e) => e.type), ['projetEnvoye']);
-  assert.equal(apresAppel[0].label, 'Projet d\u2019acte envoy\u00e9');
+  assert.equal(apresAppel[0].label, 'Envoi projet');
 
   const faitProjet = { ...d, echeancesValidees: { appelFonds: true, projetEnvoye: true } };
   const apresProjet = toutesEcheances(faitProjet);

@@ -26,7 +26,7 @@ function dossierBase(extra) {
 test('libelleEcheancePourHistorique résout les types fixes et une échéance personnalisée', () => {
   const app = chargerApplication();
   const d = dossierBase({ autres: [{ label: 'Diagnostic amiante', date: '2026-10-01' }] });
-  assert.equal(app.libelleEcheancePourHistorique(d, 'appelFonds'), 'Appel de fonds');
+  assert.equal(app.libelleEcheancePourHistorique(d, 'appelFonds'), 'Envoi appel de fonds');
   assert.equal(app.libelleEcheancePourHistorique(d, 'rendezVousSignature'), 'Rendez-vous de signature');
   assert.equal(app.libelleEcheancePourHistorique(d, 'autre-0'), 'Diagnostic amiante');
   // Index hors limites (échéance déjà supprimée entretemps) : repli sans planter.
@@ -139,7 +139,7 @@ test('une fois l’appel de fonds fait, le planning annonce le projet d’acte e
   const suivante1 = app.prochaineEcheanceDetail(apresAppelFonds);
   assert.equal(suivante1.type, 'projetEnvoye');
   assert.equal(suivante1.iso, '2026-12-01');
-  assert.equal(suivante1.label, 'Projet d’acte envoyé');
+  assert.equal(suivante1.label, 'Envoi projet');
 
   // Étape 2 : le projet est envoyé aussi → la signature devient la prochaine échéance.
   const apresProjetEnvoye = Object.assign({}, base, {

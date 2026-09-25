@@ -7514,6 +7514,25 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   fonds » et « Envoi projet » (`renderCarteEnvoisAvantSignature`) ne s'appelle plus « Appel de
   fonds ». Seul le titre change : classe CSS `tab appelFonds` et couleur conservées.
 
+- **Les deux envois, étapes de suivi à part entière** (25/09, « dans la timeline d'un dossier
+  distingue bien les deux, il faut que ce soit des statuts de suivi comme obtention du prêt ou
+  signature de l'acte »). La carte « Envoi au client » reste la zone de saisie ; partout où le suivi
+  du dossier se lit, les deux envois sont deux étapes distinctes :
+  - **mêmes libellés partout** : « Envoi appel de fonds » / « Envoi projet » (planning
+    `echeancesPlanning`, colonne « Prochaine échéance » et vue Échéances, `JALONS_AVANCEMENT`,
+    `LIBELLES_CATEGORIE` donc historique, fiche imprimée, rappels email côté serveur
+    `jobs/rappels.js`, historique posé par `agendaWatch.js`) — ils étaient trois libellés
+    différents pour la même étape ;
+  - **couleur propre à l'envoi du projet** : nouveau jeton `--projet` (framboise, `#B83E78` clair /
+    `#E58AB5` sombre), au lieu du gris `--muted` partagé avec les échéances personnalisées, qui le
+    faisait lire comme une date quelconque. Appliqué aux pastilles `dl-projetEnvoye`, aux jalons du
+    Gantt, à la fiche imprimée, et en puce devant chaque entrée de la carte « Envoi au client »
+    (violet / framboise, les mêmes que dans l'avancement) ;
+  - **jalons superposés décalés** (`donneesAvancement`, champ `rang`) : deux étapes à la même date
+    — cas courant désormais que l'agenda inscrit la date du jour de détection — se décalent de 11 px
+    (`translate`, qui ne gêne pas la rotation du losange de la date butoir) au lieu de se cacher
+    l'une l'autre.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

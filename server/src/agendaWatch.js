@@ -11,7 +11,7 @@
 const { actionsDetecteesDepuisIcs } = require('./agendaOffice');
 
 const CHAMP_PAR_ACTION = { appelFonds: 'appelFonds', projetEnvoye: 'projetEnvoye' };
-const LIBELLE_PAR_ACTION = { appelFonds: 'Appel de fonds', projetEnvoye: "Projet d'acte envoyé" };
+const LIBELLE_PAR_ACTION = { appelFonds: 'Envoi appel de fonds', projetEnvoye: 'Envoi projet' };
 const ACTIONS_CONNUES = Object.keys(CHAMP_PAR_ACTION);
 
 // Date du jour en heure de Paris (AAAA-MM-JJ) — le serveur tourne au bureau, mais `toISOString()`
