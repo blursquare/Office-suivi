@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-25 09:32';
+  const VERSION_APP = '2026-09-25 09:38';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-25 09:38', resume: 'Plus de mot de passe : CLAIRE s’ouvre directement sur tous les postes du bureau.' },
     { version: '2026-09-25 09:32', resume: 'Bouton « Confirmer la réception des fonds » sous l’appel de fonds validé ; signature de l’office et mentions légales sur tous les emails.' },
     { version: '2026-09-25 08:11', resume: "« Envoi appel de fonds » et « Envoi projet » sont deux étapes distinctes du suivi, comme l'obtention du prêt ou la signature : mêmes libellés partout (planning, avancement, rappels, fiche imprimée) et une couleur propre à l'envoi du projet. Deux étapes le même jour ne se superposent plus dans l'avancement des dossiers." },
     { version: '2026-09-25 08:06', resume: "Fiche dossier : la carte des deux envois (appel de fonds, projet) s'appelle désormais « Envoi au client »." },
@@ -12930,10 +12931,32 @@
     if (reponse.status === 401) {
       stockerJeton(null);
       arreterPolling();
-      afficherEcranConnexion();
+      // Sans mot de passe côté serveur, un 401 ne peut venir que d'un jeton d'avant le
+      // changement : on en redemande un tout seul, l'écran ne s'affiche que si c'est refusé.
+      connexionAutomatique();
       throw new Error('Session expirée — reconnexion nécessaire.');
     }
     return reponse;
+  }
+
+  async function connexionAutomatique() {
+    try {
+      const reponse = await fetch('/api/login', {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ motDePasse: '' })
+      });
+      if (reponse.ok) {
+        const { jeton } = await reponse.json();
+        stockerJeton(jeton);
+        fermerEcranConnexion();
+        await demarrerApplication();
+        return true;
+      }
+      afficherEcranConnexion();
+    } catch (e) {
+      console.error('Connexion au serveur impossible', e);
+      afficherEcranConnexion("Serveur injoignable — vérifiez la connexion au réseau de l'étude.");
+    }
+    return false;
   }
 
   function afficherEcranConnexion(messageErreur) {
@@ -22619,11 +22642,15 @@
   // (localStorage, valable 12h côté serveur) permet de sauter cette étape au rechargement.
   // demarrerApplication() gère elle-même le cas d'un jeton devenu invalide (401 → fetchAvecAuth
   // réaffiche l'écran de connexion), pas la peine de le vérifier au préalable ici.
+  // Accès sans mot de passe (demandé par l'étude, 25/09) : le serveur délivre un jeton à tout
+  // poste du bureau (voir server/src/auth.js, option `desactivee`). Sans jeton mémorisé, on le
+  // demande donc tout seul ; l'écran de connexion ne s'affiche que si le serveur exige encore un
+  // mot de passe ("authActive": true dans config.json).
   authToken = chargerJetonStocke();
   if (authToken) {
     demarrerApplication().catch((e) => console.error('Démarrage impossible', e));
   } else {
-    afficherEcranConnexion();
+    connexionAutomatique();
   }
   renderChips();
   // L'analyse juridique est une étape du wizard toujours visible (voir definirEtapeWizard) : sans

@@ -48,10 +48,11 @@ Un seul fichier à déposer sur le PC du bureau, sans installer Node.js, sans te
    Un premier lancement direct sur l'exe (fenêtre visible) reste utile une fois, pour vérifier que
    tout démarre bien et passer l'avertissement SmartScreen ci-dessous ; ensuite, place à
    `Lancer-CLAIRE-en-arriere-plan.vbs`.
-5. **Au tout premier lancement**, un mot de passe partagé est généré automatiquement et affiché
-   dans la console, ET écrit dans un fichier `mot-de-passe.txt` créé à côté de l'exécutable — à
-   communiquer à tous les collaborateurs (même mot de passe pour tout le monde). Pour le changer,
-   éditer `config.json` (créé au même endroit) puis relancer.
+5. **Aucun mot de passe n'est demandé** (retiré à la demande de l'étude, 25/09) : l'outil s'ouvre
+   directement sur tous les postes du bureau. Le serveur n'étant joignable que depuis le réseau de
+   l'étude, c'est ce réseau qui fait office de protection. Pour rétablir un mot de passe partagé,
+   ajouter `"authActive": true` dans `config.json` (à côté de l'exécutable) puis relancer : le mot
+   de passe est alors celui de `"authPassword"` (aussi écrit dans `mot-de-passe.txt`).
 6. Le navigateur s'ouvre automatiquement sur l'outil — dans une **fenêtre Chrome (ou Edge) dédiée,
    sans onglets ni barre d'adresse** si l'un des deux est installé aux emplacements habituels, sinon
    dans un onglet du navigateur par défaut. Pour que les **autres postes** du bureau s'y

@@ -7570,6 +7570,25 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     l'acquéreur et terminé par les mentions légales, carte passée à « confirmée le » avec la date
     qui revient à la ligne au lieu d'être coupée, aucune erreur JS.
 
+- **Accès sans mot de passe** (25/09), demandé par l'étude juste après un « le mot de passe ne
+  fonctionne pas ». La décision d'origine (« mot de passe partagé unique ») est donc levée : le
+  serveur n'est joignable que depuis le réseau du bureau, c'est ce réseau qui protège l'accès.
+  - `creerGestionnaireAuth(motDePasse, { desactivee })` (`server/src/auth.js`) : le middleware
+    laisse tout passer et `/api/login` délivre un jeton quel que soit le mot de passe. `app.js`
+    active ce mode sur `config.authActive === false` ; `config.js` le pose par défaut, sauf
+    `"authActive": true` dans `config.json` ou `CLAIRE_AUTH=1` en développement. Une config de
+    test qui ne précise rien garde l'authentification : les tests de 401 existants restent vrais.
+  - Côté client, `connexionAutomatique()` demande un jeton avec un mot de passe vide au démarrage
+    (et sur un 401) ; l'écran de connexion ne s'affiche que si le serveur le refuse. Le reste du
+    client (`authToken` comme signal « connecté ») n'a pas bougé.
+  - **Bug trouvé au passage, cause probable du « mot de passe ne fonctionne pas »** :
+    `motDePasseValide()` bourrait les deux mots de passe à 256 CARACTÈRES avant `timingSafeEqual`,
+    qui compare des OCTETS. Un caractère accentué (2 octets en UTF-8) donnait deux tampons de
+    longueurs différentes, donc une exception → erreur 500, affichée « Mot de passe incorrect ».
+    Tampons de 512 octets fixes désormais. Sans effet tant que l'accès reste sans mot de passe.
+  - Tests : `server/test/auth.test.js` (3). Vérifié dans Chromium : aucune fenêtre de connexion,
+    l'API répond. Ne parvient au bureau qu'avec le prochain `CLAIRE-serveur.exe`.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

@@ -79,7 +79,9 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, miseAJour, ag
   const app = express();
   const depot = creerDepot(db);
   const parametresRepo = creerRepoParametres(db);
-  const gestionnaireAuth = creerGestionnaireAuth(config.motDePasse);
+  // authActive === false : accès sans mot de passe (défaut en production, voir config.js). Absent
+  // (tests qui construisent leur propre config) : l'authentification reste active.
+  const gestionnaireAuth = creerGestionnaireAuth(config.motDePasse, { desactivee: config.authActive === false });
 
   // Un dossier avec historique/analyse juridique reste petit, 5 Mo est déjà large — sauf la
   // relecture d'actes par Claude, qui reçoit le texte complet d'un projet et de ses annexes

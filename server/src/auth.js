@@ -11,7 +11,12 @@ const crypto = require('node:crypto');
 // indéfiniment.
 const DUREE_SESSION_MS = 12 * 60 * 60 * 1000;
 
-function creerGestionnaireAuth(motDePasseAttendu) {
+// `desactivee` : accès sans mot de passe, demandé par l'étude (25/09) — le serveur n'est joignable
+// que depuis le réseau du bureau. Toute requête passe, et /api/login délivre un jeton à n'importe
+// quel mot de passe (y compris vide) pour que le client n'ait jamais à afficher l'écran de
+// connexion. Réactivable par "authActive": true dans config.json (voir config.js).
+function creerGestionnaireAuth(motDePasseAttendu, options) {
+  const desactivee = !!(options && options.desactivee);
   const sessions = new Map(); // jeton -> expiration (epoch ms)
 
   function nettoyerSessionsExpirees() {
@@ -22,14 +27,18 @@ function creerGestionnaireAuth(motDePasseAttendu) {
   }
 
   function motDePasseValide(candidat) {
+    if (desactivee) return true;
     if (typeof candidat !== 'string' || !motDePasseAttendu) return false;
     // Comparaison en temps constant : évite qu'une différence de timing révèle combien de
     // caractères du mot de passe sont déjà corrects. Les deux tampons doivent avoir la même
     // longueur pour timingSafeEqual — on bourre le plus court avant de comparer, sans jamais
     // court-circuiter sur une comparaison de longueur en clair.
-    const a = Buffer.from(candidat.padEnd(256, '\0'));
-    const b = Buffer.from(motDePasseAttendu.padEnd(256, '\0'));
-    return crypto.timingSafeEqual(a, b) && candidat.length === motDePasseAttendu.length;
+    // Tampons de taille FIXE en octets : bourrer en caractères ne suffisait pas — un caractère
+    // accentué prend deux octets, les tampons n'avaient plus la même longueur et timingSafeEqual
+    // levait une exception (erreur 500, affichée « mot de passe incorrect »).
+    const a = Buffer.alloc(512); a.write(candidat.slice(0, 256), 'utf8');
+    const b = Buffer.alloc(512); b.write(motDePasseAttendu.slice(0, 256), 'utf8');
+    return crypto.timingSafeEqual(a, b) && candidat === motDePasseAttendu;
   }
 
   function creerSession() {
@@ -46,6 +55,7 @@ function creerGestionnaireAuth(motDePasseAttendu) {
 
   // Middleware Express : exige `Authorization: Bearer <jeton>` sur toute route protégée.
   function middlewareAuth(req, res, next) {
+    if (desactivee) { next(); return; }
     const entete = req.get('authorization') || '';
     const jeton = entete.startsWith('Bearer ') ? entete.slice(7) : null;
     if (!jeton || !sessionValide(jeton)) {
@@ -55,7 +65,7 @@ function creerGestionnaireAuth(motDePasseAttendu) {
     next();
   }
 
-  return { motDePasseValide, creerSession, sessionValide, middlewareAuth };
+  return { motDePasseValide, creerSession, sessionValide, middlewareAuth, desactivee };
 }
 
 module.exports = { creerGestionnaireAuth };
