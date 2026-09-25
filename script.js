@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-25 14:02';
+  const VERSION_APP = '2026-09-25 14:54';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-25 14:54', resume: "Relance « offre de prêt » (bouton et relance automatique) : nouveau texte de l'étude, lignes espacées, sans signature texte — la signature Outlook s'ajoute d'elle-même." },
     { version: '2026-09-25 14:02', resume: "Agenda de l'office : un rendez-vous « VTE - … » à venir remplit le rendez-vous de signature du dossier (ignoré s'il porte un « ? »), et le suit s'il est déplacé. Réglages rangés en quatre sous-onglets, la mise à jour en tête. Logo agrandi." },
     { version: '2026-09-25 10:56', resume: 'Agenda de l’office : déclencheur lu dans le lieu du rendez-vous (« Appel de fonds (et projet) envoyé »), rendez-vous à venir seulement, nom de dossier reconnu même partiel.' },
     { version: '2026-09-25 10:34', resume: 'Agenda de l’office : l’erreur nomme le proxy du bureau (nacXwan) et sa cause précise ; un lien en http bloqué par ce proxy est relu en https.' },
@@ -12607,10 +12608,9 @@
   var PHRASE_COPIE_BROUILLON = ' Le texte complet est aussi copié dans le presse-papiers : si le brouillon paraît coupé, collez-le (Ctrl+A puis Ctrl+V dans le corps).';
 
   function construireEmailRelancePret(d) {
-    const echeance = d.pret ? ` L'échéance d'obtention du prêt est fixée au ${formatDateFr(d.pret)}.` : '';
     return {
       sujet: `Relance — Offre de prêt attendue (dossier ${d.nom})`,
-      corps: `Bonjour,\n\nSauf erreur de notre part, nous n'avons pas encore reçu votre offre de prêt pour le dossier ${d.nom}.${echeance}\n\nMerci de nous transmettre cette offre dès réception, ou de nous indiquer où en est votre demande de financement.${SIGNATURE_EMAIL_OFFICE}`
+      corps: corpsRelanceOffreManquante(d.nom, d.pret, d.pret ? joursRestants(d.pret) : null)
     };
   }
 
@@ -16431,13 +16431,24 @@
     return `échéance dépassée de ${-jours} jour${-jours > 1 ? 's' : ''}`;
   }
 
-  // Le corps part à un client : la phrase sur l'échéance doit changer une fois la date passée,
-  // sinon la relance annonce au futur une date déjà derrière nous. Fonction pure, testable.
+  // Modèle fourni mot pour mot par l'étude (25/09), commun à la relance manuelle (« Prêt
+  // manquant ») et à la relance automatique : une ligne par paragraphe, séparées par une ligne
+  // vide, et SANS la signature texte de l'office — l'étude préfère la signature Outlook, qui porte
+  // les images (un brouillon mailto: ne peut transporter que du texte). Seul écart au modèle : une
+  // fois l'échéance passée, « était fixée » plutôt que « est fixée ». Sans date connue, la phrase
+  // d'échéance est simplement omise. Fonction pure, testable.
   function corpsRelanceOffreManquante(nom, isoEcheance, jours) {
-    const phraseEcheance = jours >= 0
-      ? `L'échéance d'obtention du prêt est fixée au ${formatDateFr(isoEcheance)}.`
-      : `L'échéance d'obtention du prêt, fixée au ${formatDateFr(isoEcheance)}, est désormais dépassée.`;
-    return `Bonjour,\n\nSauf erreur de notre part, nous n'avons pas encore reçu votre offre de prêt pour le dossier ${nom}.\n\n${phraseEcheance} Merci de nous transmettre cette offre dès réception, ou de nous indiquer où en est votre demande de financement.${SIGNATURE_EMAIL_OFFICE}`;
+    const lignes = [
+      'Bonjour,',
+      'J’espère que vous allez bien.',
+      "Nous n'avons pas encore reçu votre offre de prêt dans le cadre de votre dossier."
+    ];
+    if (isoEcheance) {
+      const verbe = (typeof jours === 'number' && jours < 0) ? 'était fixée' : 'est fixée';
+      lignes.push(`L'échéance d'obtention du prêt ${verbe} au ${formatDateFr(isoEcheance)}.`);
+    }
+    lignes.push("Merci de nous transmettre cette offre dès réception, ou de nous indiquer où en est votre demande de financement.");
+    return lignes.join('\n\n');
   }
 
   function relancerSiOffreManquante(d) {

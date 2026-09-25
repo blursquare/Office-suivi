@@ -7707,6 +7707,21 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     **Ne parvient au bureau qu'avec le prochain `CLAIRE-serveur.exe`** (lecture de l'agenda côté
     serveur).
 
+- **Relance « offre de prêt » au client : texte de l'étude, lignes espacées, sans signature**
+  (25/09). Le bouton « Prêt manquant » et la relance automatique (J-15 puis tous les 10 jours)
+  partagent désormais un seul corps, `corpsRelanceOffreManquante()` (`construireEmailRelancePret`
+  l'appelle) : le modèle fourni mot pour mot par l'étude (« Bonjour, / J’espère que vous allez
+  bien. / Nous n'avons pas encore reçu votre offre de prêt dans le cadre de votre dossier. /
+  L'échéance d'obtention du prêt est fixée au … / Merci de nous transmettre… »), une ligne vide
+  entre chaque phrase. Seul écart : « était fixée » une fois l'échéance passée ; sans date de prêt,
+  la phrase d'échéance est omise. Le nom du dossier n'est plus dans le corps (il reste dans
+  l'objet). **Pas de `SIGNATURE_EMAIL_OFFICE` sur cet email**, à la demande de l'étude : un
+  brouillon `mailto:` ne porte que du texte, les images de la signature ne peuvent venir que de la
+  signature Outlook configurée pour les nouveaux messages. Les autres emails gardent la signature
+  texte — à retirer aussi si l'étude le demande. « Police 11 » ne peut pas être imposée par un
+  `mailto:` : le brouillon prend la police par défaut d'Outlook (Fichier › Options › Courrier ›
+  Papier à lettres et polices). Tests réécrits dans `tests/relances-email.test.js`.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

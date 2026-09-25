@@ -137,12 +137,10 @@ test('signature commune : tous les emails pré-rédigés se terminent par la sig
   const app = chargerApplication();
   const d = dossierBase(app, { pret: '2026-11-15', rendezVousSignature: '2026-11-20' });
   const corps = [
-    app.construireEmailRelancePret(d).corps,
     app.construireEmailRelanceRib(d).corps,
     app.construireEmailRelanceProvision(d).corps,
     app.construireEmailReceptionFonds(d).corps,
-    app.construireEmailQuestionnaireSatisfaction(d).corps,
-    app.corpsRelanceOffreManquante(d.nom, d.pret, 5)
+    app.construireEmailQuestionnaireSatisfaction(d).corps
   ];
   for (const c of corps) {
     assert.ok(c.endsWith(app.SIGNATURE_EMAIL_OFFICE), c.slice(0, 60));
@@ -252,17 +250,27 @@ test('libelleEcheanceRelance : avant, le jour même, après', () => {
   assert.equal(app.libelleEcheanceRelance(-12), 'échéance dépassée de 12 jours');
 });
 
-test("corpsRelanceOffreManquante : la phrase d'échéance passe au passé une fois la date dépassée", () => {
+test('relance offre de prêt : modèle de l’étude, lignes espacées, sans signature texte', () => {
   const app = chargerApplication();
-  const avant = app.corpsRelanceOffreManquante('DUPONT / MARTIN', '2026-11-01', 5);
-  assert.ok(avant.includes('est fixée au'), avant);
-  assert.ok(!avant.includes('dépassée'), avant);
+  const corps = app.corpsRelanceOffreManquante('DUPONT / MARTIN', '2026-08-30', 5);
+  assert.equal(corps, [
+    'Bonjour,',
+    'J’espère que vous allez bien.',
+    "Nous n'avons pas encore reçu votre offre de prêt dans le cadre de votre dossier.",
+    "L'échéance d'obtention du prêt est fixée au 30 août 2026.",
+    "Merci de nous transmettre cette offre dès réception, ou de nous indiquer où en est votre demande de financement."
+  ].join('\n\n'));
+  assert.ok(!corps.includes('GOSSART'), corps);
+  // Le bouton manuel produit exactement le même texte.
+  const d = dossierBase(app, { pret: '2026-08-30' });
+  assert.ok(app.construireEmailRelancePret(d).corps.includes("est fixée au 30 août 2026") ||
+    app.construireEmailRelancePret(d).corps.includes("était fixée au 30 août 2026"));
+});
 
+test("corpsRelanceOffreManquante : « était fixée » une fois la date dépassée", () => {
+  const app = chargerApplication();
   const apres = app.corpsRelanceOffreManquante('DUPONT / MARTIN', '2026-11-01', -5);
-  assert.ok(apres.includes('est désormais dépassée'), apres);
-  // La date reste citée dans les deux cas, et le dossier est toujours nommé.
-  assert.ok(apres.includes('DUPONT / MARTIN'), apres);
-  assert.ok(apres.includes('novembre 2026'), apres);
+  assert.ok(apres.includes('était fixée au 1 novembre 2026'), apres);
 });
 
 test('corpsRelanceOffreManquante : le jour même reste au présent, pas au passé', () => {
