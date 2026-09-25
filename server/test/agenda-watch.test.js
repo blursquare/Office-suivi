@@ -8,7 +8,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
-  appliquerDetectionsAgenda, executerTourSurveillanceAgenda, executerEtEnregistrerTourAgenda
+  appliquerDetectionsAgenda, executerTourSurveillanceAgenda, executerEtEnregistrerTourAgenda, dateDuJourParis
 } = require('../src/agendaWatch');
 const { ouvrirDb } = require('../src/db');
 const { creerDepot } = require('../src/dossiersRepo');
@@ -31,15 +31,17 @@ test('appliquerDetectionsAgenda : renseigne appelFonds et projetEnvoye, journali
   const detections = [
     { dossierId: 'd1', dossierNom: 'DUPONT / MARTIN', dateIso: '2026-10-14', reference: 'DUPONT / MARTIN - Appel de fonds', appelFonds: true, projetEnvoye: false }
   ];
-  const resultat = appliquerDetectionsAgenda(depot, detections);
+  // La date retenue est celle du JOUR DE LA DÉTECTION, pas celle du rendez-vous (2026-10-14).
+  const resultat = appliquerDetectionsAgenda(depot, detections, '2026-09-25');
   assert.equal(resultat.misAJour.length, 1);
   assert.equal(resultat.misAJour[0].action, 'appelFonds');
 
   const d = depot.trouverParId('d1');
-  assert.equal(d.appelFonds, '2026-10-14');
+  assert.equal(d.appelFonds, '2026-09-25');
+  assert.equal(d.detectionsAgenda.appelFonds, '2026-09-25');
   assert.equal(d.echeancesValidees.appelFonds, true);
   assert.equal(d.historique.length, 1);
-  assert.match(d.historique[0].texte, /Appel de fonds détecté depuis l.agenda/);
+  assert.match(d.historique[0].texte, /Appel de fonds relevé dans l.agenda/);
   db.close();
 });
 
@@ -57,6 +59,41 @@ test('appliquerDetectionsAgenda : n\'ecrase JAMAIS une date deja connue', () => 
 
   const d = depot.trouverParId('d1');
   assert.equal(d.appelFonds, '2026-09-01', 'la date deja saisie ne doit jamais etre remplacee');
+  db.close();
+});
+
+test('appliquerDetectionsAgenda : une action deja relevee n\'est plus jamais retraitee', () => {
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  depot.creer({ id: 'd1', nom: 'DUPONT / MARTIN' });
+  const det = [{ dossierId: 'd1', dossierNom: 'DUPONT / MARTIN', dateIso: '2026-10-14', reference: 'DUPONT / MARTIN', appelFonds: true, projetEnvoye: false }];
+  appliquerDetectionsAgenda(depot, det, '2026-09-25');
+  // L'étude efface la date à la main : le tour suivant ne doit PAS la réécrire à la date du jour.
+  const d = depot.trouverParId('d1');
+  d.appelFonds = '';
+  depot.remplacer('d1', d);
+  const second = appliquerDetectionsAgenda(depot, det, '2026-09-30');
+  assert.equal(second.misAJour.length, 0);
+  assert.equal(second.dejaRenseignes.length, 0);
+  assert.equal(depot.trouverParId('d1').appelFonds, '');
+  assert.equal(depot.trouverParId('d1').historique.length, 1);
+  db.close();
+});
+
+test('appliquerDetectionsAgenda : une date deja saisie a la main pose le repere sans etre ecrasee', () => {
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  depot.creer({ id: 'd1', nom: 'DUPONT / MARTIN', appelFonds: '2026-09-01' });
+  const det = [{ dossierId: 'd1', dossierNom: 'DUPONT / MARTIN', dateIso: '2026-10-14', reference: 'DUPONT / MARTIN', appelFonds: true, projetEnvoye: false }];
+  appliquerDetectionsAgenda(depot, det, '2026-09-25');
+  const d = depot.trouverParId('d1');
+  assert.equal(d.appelFonds, '2026-09-01');
+  assert.equal(d.detectionsAgenda.appelFonds, '2026-09-25');
+  // Même vidée ensuite, elle ne sera plus réécrite par l'agenda.
+  d.appelFonds = '';
+  depot.remplacer('d1', d);
+  appliquerDetectionsAgenda(depot, det, '2026-09-30');
+  assert.equal(depot.trouverParId('d1').appelFonds, '');
   db.close();
 });
 
@@ -95,10 +132,10 @@ test('appliquerDetectionsAgenda : deux detections separees pour le meme dossier 
     { dossierId: 'd1', dossierNom: 'DUPONT / MARTIN', dateIso: '2026-10-01', reference: 'DUPONT / MARTIN - Appel de fonds', appelFonds: true, projetEnvoye: false },
     { dossierId: 'd1', dossierNom: 'DUPONT / MARTIN', dateIso: '2026-10-10', reference: 'DUPONT / MARTIN - projet envoye', appelFonds: false, projetEnvoye: true }
   ];
-  appliquerDetectionsAgenda(depot, detections);
+  appliquerDetectionsAgenda(depot, detections, '2026-09-25');
   const d = depot.trouverParId('d1');
-  assert.equal(d.appelFonds, '2026-10-01');
-  assert.equal(d.projetEnvoye, '2026-10-10');
+  assert.equal(d.appelFonds, '2026-09-25');
+  assert.equal(d.projetEnvoye, '2026-09-25');
   assert.equal(d.historique.length, 2);
   db.close();
 });
@@ -138,7 +175,7 @@ test('executerTourSurveillanceAgenda : bout en bout avec un vrai flux et un vrai
   assert.equal(resultat.ok, true);
   assert.equal(resultat.dossiersVerifies, 1);
   assert.equal(resultat.misAJour.length, 1);
-  assert.equal(depot.trouverParId('d1').appelFonds, '2026-10-14');
+  assert.equal(depot.trouverParId('d1').appelFonds, dateDuJourParis());
   db.close();
 });
 
@@ -165,6 +202,6 @@ test('executerEtEnregistrerTourAgenda : un tour reussi met a jour le compte rend
   assert.equal(dernierTour.ok, true);
   assert.equal(dernierTour.declenche, 'automatique');
   assert.equal(dernierTour.misAJour.length, 1);
-  assert.equal(depot.trouverParId('d1').projetEnvoye, '2026-10-20');
+  assert.equal(depot.trouverParId('d1').projetEnvoye, dateDuJourParis());
   db.close();
 });

@@ -3704,6 +3704,25 @@
     gap: 2px;
   }
   .tab-date-affichage[hidden] { display: none; }
+  /* Carte « Appel de fonds » : deux envois (appel de fonds, projet d'acte), chacun sa date. */
+  .envoi-ligne {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-top: 8px;
+  }
+  .envoi-ligne + .envoi-ligne {
+    margin-top: 8px;
+    border-top: 1px solid var(--line-soft);
+  }
+  .envoi-libelle {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .envoi-ligne .dot-label { font-size: 12px; }
   .tab-date-affichage .tab-date { margin-bottom: 0; }
   .tab-date-affichage .icon-crayon { font-size: 11px; padding: 2px 4px; }
   .tab-date-edition {

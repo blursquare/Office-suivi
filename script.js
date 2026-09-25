@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-25 07:48';
+  const VERSION_APP = '2026-09-25 07:57';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,7 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
-    { version: '2026-09-25 07:48', resume: "Agenda connecté : le rendez-vous de signature est désormais publié, avec le statut de l'appel de fonds (« effectué »/« non effectué ») noté dans son lieu (LOCATION) — visible sans rouvrir CLAIRE." },
+    { version: '2026-09-25 07:57', resume: "Fiche dossier : la carte « Appel de fonds » porte deux entrées datées, « Envoi appel de fonds » et « Envoi projet ». Un envoi relevé dans l'agenda de l'office prend la date du jour de la détection, et n'est plus jamais retraité ensuite. L'agenda .ics de CLAIRE reste inchangé." },
     { version: '2026-09-25 00:13', resume: "CLAIRE lit désormais l'agenda .ics publié de l'office (même lien que le brief du matin, toutes les 15 minutes) : un rendez-vous portant « VTE - NOM DU DOSSIER » et mentionnant « appel de fonds »/« projet envoyé » reporte automatiquement la date sur le dossier, jamais si elle est déjà saisie. Nouvelle échéance « Projet d'acte envoyé », entre l'appel de fonds et la signature. Réglages › Agenda de l'office pour l'adresse et « Tester maintenant »." },
     { version: '2026-09-24 23:05', resume: "Réglages › Mise à jour de CLAIRE : « Vérifier » compare la version installée à la dernière publiée, « Mettre à jour maintenant » sauvegarde la base, installe la nouvelle version et redémarre le serveur, en un clic. Le dépôt GitHub étant privé, un jeton en lecture seule s'enregistre dans la même carte." },
     { version: '2026-09-24 19:34', resume: "Nouveau bouton « Signaler un problème » en bas de la barre latérale : gravité, ce que vous faisiez, ce qui s'est passé, capture d'écran facultative ; la version, l'écran, le dossier ouvert et les erreurs techniques sont joints tout seuls. Un problème bloquant prévient l'étude sur Teams. Tri, doublons et export dans Réglages › Signalements des collaborateurs." },
@@ -9765,6 +9765,48 @@
     </div>`;
   }
 
+  // Carte « Appel de fonds » de la fiche : deux entrées, chacune avec sa date — « Envoi appel de
+  // fonds » (d.appelFonds) et « Envoi projet » (d.projetEnvoye). Une date saisie vaut envoi fait
+  // (marquerAppelFondsSelonDate / marquerProjetEnvoyeSelonDate, via validerEditionDate) : pas de
+  // bouton « Marquer réalisée » ici, la date EST la validation. Chaque ligne réutilise le même
+  // mécanisme crayon → champ date → ✓ que les autres cartes (mêmes id tabdate-<id>-<cle>).
+  var ENVOIS_AVANT_SIGNATURE = [
+    { cle: 'appelFonds', label: 'Envoi appel de fonds' },
+    { cle: 'projetEnvoye', label: 'Envoi projet' }
+  ];
+
+  function renderCarteEnvoisAvantSignature(d) {
+    const lignes = ENVOIS_AVANT_SIGNATURE.map(({ cle, label }) => {
+      const iso = d[cle] || '';
+      const idBase = `tabdate-${d.id}-${cle}`;
+      const detecte = d.detectionsAgenda && d.detectionsAgenda[cle];
+      let statut;
+      if (iso) {
+        statut = `<span class="dot-label dl-success"><span class="dot"></span>Envoyé${detecte ? ' — relevé dans l’agenda' : ''}</span>`;
+      } else if (echeanceValidee(d, cle)) {
+        statut = '<span class="dot-label dl-success"><span class="dot"></span>Fait, date non renseignée</span>';
+      } else {
+        statut = '<span class="dot-label dl-neutre"><span class="dot"></span>À compléter</span>';
+      }
+      const croix = iso
+        ? `<button type="button" class="icon-crayon" onclick="supprimerDateEcheance('${d.id}', '${cle}')" title="Effacer cette date" aria-label="Effacer cette date">${icone('x')}</button>`
+        : '';
+      return `<div class="envoi-ligne">
+        <div class="envoi-libelle">${label}</div>
+        <span class="tab-date-affichage" id="${idBase}-aff"><div class="tab-date">${iso ? formatDateFr(iso) : 'Non renseignée'}</div><button type="button" class="icon-crayon" onclick="activerEditionDate('${d.id}','${cle}')" title="Saisir ou corriger cette date" aria-label="Saisir ou corriger cette date">${icone('pencil')}</button>${croix}</span>
+        <span class="tab-date-edition" id="${idBase}-edit" hidden>
+          <input type="date" class="tab-date-input" id="${idBase}-input" value="${iso}">
+          <button type="button" class="icon-valider" onclick="validerEditionDate('${d.id}','${cle}')" title="Valider" aria-label="Valider la date">✓</button>
+        </span>
+        ${statut}
+      </div>`;
+    }).join('');
+    return `<div class="tab appelFonds">
+      <div class="tab-name tab-name-fort">Appel de fonds</div>
+      ${lignes}
+    </div>`;
+  }
+
   // Ordre d'affichage des cartes d'échéance sur la fiche : CHRONOLOGIQUE (demandé par l'étude),
   // et non plus l'ordre fixe prêt → appel de fonds → acte → rendez-vous → vente préalable →
   // personnalisées, qui ne disait rien de ce qui arrive en premier. Une échéance sans date
@@ -9802,12 +9844,14 @@
     // La reconnaissance des pièces se fait par NOM DE FICHIER : une pièce bien présente mais
     // nommée autrement suffit à faire échouer la condition 3, ce qui rendait le masquage d'autant
     // plus arbitraire vu de l'étude.
-    if (d.appelFonds || d.rendezVousSignature || dossierEntierementComplet(d)) cartes.push({ iso: d.appelFonds, html: renderTab('appelFonds', 'Appel de fonds', d.appelFonds, d.id, null, null, null, false, '', false, echeanceValidee(d, 'appelFonds')) });
-    // Même logique de visibilité que l'appel de fonds, décalée d'un cran : une date déjà saisie
-    // reste toujours affichée, l'appel de fonds fait rend l'envoi du projet dû (voir
-    // echeancesPlanning), et un rendez-vous fixé le rend pertinent même si l'appel de fonds n'a pas
-    // encore été validé.
-    if (d.projetEnvoye || echeanceValidee(d, 'appelFonds') || d.rendezVousSignature) cartes.push({ iso: d.projetEnvoye, html: renderTab('projetEnvoye', 'Projet d’acte envoyé', d.projetEnvoye, d.id, null, null, null, false, '', false, echeanceValidee(d, 'projetEnvoye')) });
+    // Une seule carte « Appel de fonds » porte les DEUX envois qui précèdent la signature — l'appel
+    // de fonds puis le projet d'acte —, chacun avec sa propre date (demandé par l'étude : ce sont
+    // deux étapes d'un même moment du dossier, deux cartes séparées dispersaient l'information).
+    // Les dates restent stockées dans d.appelFonds / d.projetEnvoye : le planning, le Gantt et les
+    // rappels n'ont rien à changer.
+    if (d.appelFonds || d.projetEnvoye || d.rendezVousSignature || dossierEntierementComplet(d)) {
+      cartes.push({ iso: d.appelFonds || d.projetEnvoye || null, html: renderCarteEnvoisAvantSignature(d) });
+    }
     cartes.push({ iso: d.rendezVousSignature, html: renderTab('rendezVousSignature', 'Rendez-vous de signature', d.rendezVousSignature, d.id, null, null, null, false, '', false, echeanceValidee(d, 'rendezVousSignature')) });
     (d.autres || []).forEach((a, i) => cartes.push({ iso: a.date, html: renderTab('autre', escapeHtml(a.label), a.date, d.id, a.page, null, i, false, '', false, echeanceValidee(d, 'autre-' + i)) }));
     // Les dates sont au format ISO AAAA-MM-JJ partout dans l'outil (valeur d'un <input type="date">) :
@@ -14103,6 +14147,12 @@
       // fichier — la réimporter à zéro lui redemanderait de refaire ce travail.
       echeancesValidees: (d.echeancesValidees && typeof d.echeancesValidees === 'object' && !Array.isArray(d.echeancesValidees))
         ? Object.fromEntries(Object.entries(d.echeancesValidees).filter(([, v]) => v === true))
+        : {},
+      // Envois déjà relevés dans l'agenda de l'office (voir agendaWatch.js) : conservés, sans quoi
+      // un dossier réimporté verrait l'agenda réécrire ces dates à la date du nouvel import.
+      detectionsAgenda: (d.detectionsAgenda && typeof d.detectionsAgenda === 'object' && !Array.isArray(d.detectionsAgenda))
+        ? Object.fromEntries(Object.entries(d.detectionsAgenda)
+          .filter(([k, v]) => (k === 'appelFonds' || k === 'projetEnvoye') && typeof v === 'string'))
         : {},
       typeVente: (d.typeVente === 'copropriete' || d.typeVente === 'terrain') ? d.typeVente : 'maison',
       roleNotaire: d.roleNotaire === 'participant' ? 'participant' : 'instrumentaire',

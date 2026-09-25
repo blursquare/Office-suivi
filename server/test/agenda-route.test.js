@@ -96,7 +96,7 @@ test('POST /api/agenda/tester : declenche un vrai tour, met a jour un dossier, p
   assert.equal(reponse.status, 200);
   assert.equal(corps.ok, true);
   assert.equal(corps.misAJour.length, 1);
-  assert.equal(depot.trouverParId('d1').appelFonds, '2026-10-14');
+  assert.equal(depot.trouverParId('d1').appelFonds, require('../src/agendaWatch').dateDuJourParis());
 
   const relu = await (await appeler('/api/agenda')).json();
   assert.equal(relu.dernierTour.ok, true);

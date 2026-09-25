@@ -91,7 +91,7 @@ function sequenceDepuisMaj(updatedAt) {
   return Math.max(0, Math.floor((ms - ORIGINE_SEQUENCE) / 1000));
 }
 
-function buildEvent(uid, summary, iso, sequence, location) {
+function buildEvent(uid, summary, iso, sequence) {
   if (!iso) return '';
   const horodatage = dtstampMaintenant();
   return (
@@ -103,25 +103,9 @@ function buildEvent(uid, summary, iso, sequence, location) {
     `DTSTART;VALUE=DATE:${icsDate(iso)}\r\n` +
     `DTEND;VALUE=DATE:${icsDate(addDays(iso, 1))}\r\n` +
     `SUMMARY:${echapperTexteIcs(summary)}\r\n` +
-    // LOCATION (RFC 5545 §3.4.1) : une propriété texte simple, mêmes règles de repli/échappement
-    // que SUMMARY — voir libelleAppelFondsPourLocation(). Omise (pas de ligne) quand rien à y dire.
-    (location ? `LOCATION:${echapperTexteIcs(location)}\r\n` : '') +
     'STATUS:CONFIRMED\r\n' +
     'END:VEVENT\r\n'
   );
-}
-
-// Statut de l'appel de fonds, noté dans le LIEU (LOCATION) du rendez-vous de signature — demandé
-// explicitement par l'étude (25/09). Volontairement dans LOCATION plutôt que SUMMARY/DESCRIPTION :
-// c'est le champ qu'Outlook affiche sans allonger le titre déjà chargé (nom du dossier + acquéreur,
-// voir extraireNomAcquereur), et il n'a par ailleurs aucun autre usage dans ce flux. Aucune nouvelle
-// détection : `echeanceValidee(d, 'appelFonds')` (déjà calculée pour les rappels email/le planning,
-// voir jobs/rappels.js) est la seule source de vérité, ici simplement exposée.
-// Non vérifié en conditions réelles (pas d'Outlook dans cet environnement de développement, comme
-// documenté ailleurs pour Ollama/pdf.js) : à confirmer par l'étude que LOCATION s'affiche bien de
-// façon visible sur un abonnement en lecture seule, pas seulement dans le détail de l'événement.
-function libelleAppelFondsPourLocation(d) {
-  return echeanceValidee(d, 'appelFonds') ? 'Appel de fonds effectué' : 'Appel de fonds non effectué';
 }
 
 // Le nom du dossier est au format "VENDEUR(S) / ACQUEREUR(S)" (voir CLAUDE.md) : on isole la
@@ -133,19 +117,15 @@ function extraireNomAcquereur(nomDossier) {
   return parties.length > 1 ? parties[1].trim() : nomDossier;
 }
 
-// Ce que publie l'agenda, sur décision de l'étude (23/09) : l'obtention du prêt et la vente
-// préalable, et seulement tant qu'elles restent à obtenir. La date butoir, l'appel de fonds et les
-// échéances personnalisées ne sont pas publiés : ils se suivent dans CLAIRE et par les rappels
-// email, l'agenda n'en garde que ce qui engage directement le rendez-vous de signature.
-//
-// Complété (25/09) : le RENDEZ-VOUS DE SIGNATURE lui-même est désormais publié — demandé
-// explicitement pour y noter, dans son LIEU (LOCATION), si l'appel de fonds a été fait (voir
-// libelleAppelFondsPourLocation ci-dessus). Retiré comme les autres dès qu'il est marqué réalisé
-// (`echeanceValidee`) — un rendez-vous passé n'a plus lieu de rester dans l'agenda.
+// Ce que publie l'agenda, sur décision de l'étude (23/09) : UNIQUEMENT l'obtention du prêt et la
+// vente préalable, et seulement tant qu'elles restent à obtenir. Les autres échéances (date butoir,
+// appel de fonds, rendez-vous de signature, échéances personnalisées) ne sont plus publiées : elles
+// se suivent dans CLAIRE et par les rappels email, l'agenda n'en garde que les deux conditions dont
+// dépend la vente.
 //
 // Tout le reste est simplement OMIS (voir plus haut, jamais d'événement annulé) : un abonnement
 // Outlook se resynchronise en entier, ce qui n'est plus dans le flux quitte l'agenda.
-var TYPES_PUBLIES_AGENDA = ['pret', 'ventebien', 'rendezVousSignature'];
+var TYPES_PUBLIES_AGENDA = ['pret', 'ventebien'];
 
 // Une échéance est publiée si elle est ACTIVE sur le dossier (date renseignée ; pour le prêt, pas
 // un achat comptant) et pas encore obtenue : offre de prêt reçue (statut NAS ou validation à la
@@ -169,15 +149,14 @@ function genererFluxIcs(dossiers) {
     'REFRESH-INTERVAL;VALUE=DURATION:PT1H\r\n' +
     'X-PUBLISHED-TTL:PT1H\r\n';
 
-  const libelles = { pret: 'Obtention du prêt', ventebien: 'Vente préalable', rendezVousSignature: 'Rendez-vous de signature' };
+  const libelles = { pret: 'Obtention du prêt', ventebien: 'Vente préalable' };
 
   for (const d of dossiers) {
     const suffixe = ` — ${extraireNomAcquereur(d.nom)} - Dossier ${d.nom}`;
     const sequence = sequenceDepuisMaj(d.updatedAt);
     for (const cle of TYPES_PUBLIES_AGENDA) {
       if (echeancePublieeAgenda(d, cle)) {
-        const location = cle === 'rendezVousSignature' ? libelleAppelFondsPourLocation(d) : undefined;
-        body += buildEvent(`${d.id}-${cle}`, `${libelles[cle]}${suffixe}`, d[cle], sequence, location);
+        body += buildEvent(`${d.id}-${cle}`, `${libelles[cle]}${suffixe}`, d[cle], sequence);
       }
     }
   }
@@ -215,4 +194,4 @@ function creerRouteurCalendrier(depot, config) {
 
 // genererFluxIcs exposée pour les tests uniquement (voir server/test/calendrier.test.js) —
 // creerRouteurCalendrier() reste le seul point d'entrée réel.
-module.exports = { creerRouteurCalendrier, genererFluxIcs, echeancePublieeAgenda, sequenceDepuisMaj, echapperTexteIcs, plierLigneIcs, libelleAppelFondsPourLocation };
+module.exports = { creerRouteurCalendrier, genererFluxIcs, echeancePublieeAgenda, sequenceDepuisMaj, echapperTexteIcs, plierLigneIcs };

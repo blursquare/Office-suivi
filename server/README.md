@@ -66,17 +66,11 @@ Un seul fichier à déposer sur le PC du bureau, sans installer Node.js, sans te
 ## Calendrier connecté (abonnement webcal)
 
 Un flux calendrier en lecture seule, généré à la demande à partir de TOUS les dossiers actifs du
-registre. **Il publie trois échéances** : l'obtention du prêt, la vente préalable et le rendez-vous
-de signature, chacune seulement si elle est activée/datée sur le dossier. L'obtention du prêt
-disparaît dès que l'offre est reçue (ou l'échéance marquée réalisée), la vente préalable dès
-qu'elle est marquée réalisée, le rendez-vous de signature dès qu'il est lui-même marqué réalisé.
-L'événement du rendez-vous de signature porte, dans son **LIEU** (`LOCATION`), le statut de l'appel
-de fonds — « Appel de fonds effectué » ou « Appel de fonds non effectué » — pour l'avoir sous les
-yeux sans rouvrir CLAIRE (demandé par l'étude le 25/09 ; non vérifié dans un vrai Outlook dans cet
-environnement de développement — à confirmer que ce champ s'affiche bien de façon visible sur un
-abonnement en lecture seule). Les autres dates (date butoir, appel de fonds lui-même, échéances
-personnalisées) n'y figurent pas du tout : elles se suivent dans CLAIRE et par les rappels email.
-**Aucun événement n'est jamais publié « annulé »** : un
+registre. **Il ne publie que deux échéances** : l'obtention du prêt et la vente préalable, chacune
+seulement si elle est activée et datée sur le dossier. L'obtention du prêt disparaît dès que
+l'offre est reçue (ou l'échéance marquée réalisée), la vente préalable dès qu'elle est marquée
+réalisée. Les autres dates (date butoir, appel de fonds, rendez-vous de signature, échéances
+personnalisées) n'y figurent pas du tout. **Aucun événement n'est jamais publié « annulé »** : un
 abonnement Internet Outlook remplace le calendrier entier à chaque resynchronisation, donc ce qui
 n'est plus dans le flux disparaît de lui-même, alors qu'un événement annulé resterait affiché. Pour
 forcer la mise à jour sans attendre la resynchronisation d'Outlook (qui peut prendre quelques
@@ -124,8 +118,15 @@ visio, orange = confrère) indiquent seulement le LIEU et ne jouent aucun rôle 
 2. Le serveur relit ce calendrier toutes les **15 minutes**. Dès qu'un rendez-vous correspond à la
    convention ci-dessus ET à un seul dossier actif (rapprochement par les mots significatifs du
    nom du dossier, comme pour le rapprochement automatique au NAS — jamais sur un dossier ambigu
-   entre plusieurs candidats), la date du rendez-vous est reportée sur `appelFonds`/`projetEnvoye`
-   **uniquement si le champ est encore vide** — une date déjà saisie n'est jamais écrasée.
+   entre plusieurs candidats), **la date du jour de la détection** (et non celle du rendez-vous)
+   est reportée sur `appelFonds`/`projetEnvoye`, **uniquement si le champ est encore vide** — une
+   date déjà saisie n'est jamais écrasée. Chaque envoi relevé est mémorisé sur le dossier
+   (`detectionsAgenda`) : il n'est **plus jamais retraité**, même si la date est ensuite effacée
+   ou corrigée à la main. Sur la fiche, les deux dates se lisent et se corrigent dans la carte
+   « Appel de fonds » (« Envoi appel de fonds », « Envoi projet »).
+   **CLAIRE ne peut pas écrire dans l'agenda de l'office** : elle le LIT seulement. Y écrire
+   demanderait une application Microsoft 365 autorisée par un administrateur (Microsoft Graph),
+   dont l'étude ne dispose pas.
 3. **« Tester maintenant »** déclenche un vrai tour de lecture immédiatement, sans attendre le
    prochain passage automatique, et affiche le compte rendu (dossiers vérifiés, mis à jour,
    références sans dossier correspondant, erreur éventuelle).

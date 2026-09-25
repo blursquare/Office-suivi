@@ -17,10 +17,8 @@ function uidsConfirmes(body) {
     .map((ev) => /UID:([^@]+)@/.exec(ev)[1]);
 }
 
-test("genererFluxIcs : prêt, vente préalable et rendez-vous de signature sont publiés, le reste est omis", () => {
-  // Décision de l'étude (23/09, complétée le 25/09) : l'agenda porte les deux conditions dont
-  // dépend la vente, et désormais le rendez-vous de signature lui-même — pour y noter, dans son
-  // LIEU, si l'appel de fonds a été fait (voir libelleAppelFondsPourLocation).
+test("genererFluxIcs : seuls le prêt et la vente préalable sont publiés, le reste est omis", () => {
+  // Décision de l'étude (23/09) : l'agenda ne porte que les deux conditions dont dépend la vente.
   const body = genererFluxIcs([
     {
       id: 'd1', nom: 'DUPONT / MARTIN', pret: '2026-11-11', appelFonds: '2026-11-20',
@@ -29,36 +27,18 @@ test("genererFluxIcs : prêt, vente préalable et rendez-vous de signature sont 
     }
   ]);
   assert.match(body, /BEGIN:VCALENDAR/);
-  assert.equal(uidsConfirmes(body).join(','), 'd1-pret,d1-ventebien,d1-rendezVousSignature');
+  assert.equal(uidsConfirmes(body).join(','), 'd1-pret,d1-ventebien');
   assert.match(body, /Obtention du prêt — MARTIN - Dossier DUPONT \/ MARTIN/);
-  assert.match(body, /Rendez-vous de signature — MARTIN - Dossier DUPONT \/ MARTIN/);
-  // Le lieu du rendez-vous porte le statut de l'appel de fonds — pas encore fait ici (une date
-  // existe, mais rien ne l'a validé).
-  assert.match(body, /LOCATION:Appel de fonds non effectué/);
-  // La date butoir, l'appel de fonds lui-même et les échéances personnalisées restent OMIS,
-  // jamais publiés annulés : Outlook affiche un événement annulé d'un abonnement (c'est ce que
-  // l'étude voyait, plusieurs échéances empilées sur le même jour).
-  for (const cle of ['acte', 'appelFonds', 'autre-0']) {
+  // Tout le reste est OMIS, jamais publié annulé : Outlook affiche un événement annulé d'un
+  // abonnement (c'est ce que l'étude voyait, cinq échéances empilées sur le même jour).
+  for (const cle of ['acte', 'appelFonds', 'rendezVousSignature', 'autre-0']) {
     assert.doesNotMatch(body, new RegExp(`UID:d1-${cle}@claire-calendrier`), cle);
   }
-  assert.ok(!body.includes("Signature de l'acte"));
-  assert.ok(!body.includes('Levée hypothèque'));
-  assert.equal((body.match(/BEGIN:VEVENT/g) || []).length, 3);
+  for (const libelle of ['Appel de fonds', 'Rendez-vous de signature', "Signature de l'acte", 'Levée hypothèque']) {
+    assert.ok(!body.includes(libelle), libelle);
+  }
+  assert.equal((body.match(/BEGIN:VEVENT/g) || []).length, 2);
   assert.doesNotMatch(body, /STATUS:CANCELLED/);
-});
-
-test('genererFluxIcs : le lieu du rendez-vous dit "effectué" une fois l\'appel de fonds validé', () => {
-  const parDate = genererFluxIcs([
-    { id: 'd1', nom: 'X / Y', rendezVousSignature: '2026-12-01', appelFonds: '2026-11-20', echeancesValidees: { appelFonds: true } }
-  ]);
-  assert.match(parDate, /LOCATION:Appel de fonds effectué/);
-});
-
-test("genererFluxIcs : le rendez-vous de signature marqué réalisé n'est plus publié", () => {
-  const body = genererFluxIcs([
-    { id: 'd1', nom: 'X / Y', rendezVousSignature: '2026-12-01', echeancesValidees: { rendezVousSignature: true } }
-  ]);
-  assert.doesNotMatch(body, /UID:d1-rendezVousSignature@claire-calendrier/);
 });
 
 test("genererFluxIcs : l'offre de prêt reçue retire le prêt de l'agenda", () => {
@@ -124,16 +104,6 @@ test('sequenceDepuisMaj reste un entier raisonnable et croissant', () => {
 test('genererFluxIcs : dossier sans "/" dans le nom retombe sur le nom complet', () => {
   const body = genererFluxIcs([{ id: 'd1', nom: 'UN SEUL NOM', pret: '2026-11-11' }]);
   assert.match(body, /Obtention du prêt — UN SEUL NOM - Dossier UN SEUL NOM/);
-});
-
-test("libelleAppelFondsPourLocation : reflète echeanceValidee(d, 'appelFonds'), rien d'autre", () => {
-  const { libelleAppelFondsPourLocation } = require('../src/routes/calendrier');
-  assert.equal(libelleAppelFondsPourLocation({}), 'Appel de fonds non effectué');
-  assert.equal(libelleAppelFondsPourLocation({ appelFonds: '2026-11-20' }), 'Appel de fonds non effectué');
-  assert.equal(
-    libelleAppelFondsPourLocation({ echeancesValidees: { appelFonds: true } }),
-    'Appel de fonds effectué'
-  );
 });
 
 // ---- Route GET /calendrier.ics : jeton dédié, hors du mot de passe de session ----

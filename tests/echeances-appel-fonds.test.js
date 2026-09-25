@@ -328,3 +328,37 @@ test('le titre de la carte « Appel de fonds » est en gras', () => {
   const html = app.renderTab('appelFonds', 'Appel de fonds', '2026-11-20', 'd1', null, null, null, false, '', false, false);
   assert.ok(html.includes('tab-name tab-name-fort'));
 });
+
+// Carte « Appel de fonds » de la fiche (25/09) : deux entrées, chacune sa date — « Envoi appel de
+// fonds » et « Envoi projet » — au lieu de deux cartes séparées.
+test('renderCarteEnvoisAvantSignature : deux entrées, dates et statuts propres à chacune', () => {
+  const app = chargerApplication();
+  const vide = app.renderCarteEnvoisAvantSignature(dossierBase());
+  assert.ok(vide.includes('Envoi appel de fonds'));
+  assert.ok(vide.includes('Envoi projet'));
+  assert.equal((vide.match(/À compléter/g) || []).length, 2);
+  // Les deux champs de saisie existent, avec les id attendus par validerEditionDate.
+  assert.ok(vide.includes('id="tabdate-d1-appelFonds-input"'));
+  assert.ok(vide.includes('id="tabdate-d1-projetEnvoye-input"'));
+
+  const html = app.renderCarteEnvoisAvantSignature(dossierBase({
+    appelFonds: '2026-09-25', echeancesValidees: { appelFonds: true },
+    detectionsAgenda: { appelFonds: '2026-09-25' }
+  }));
+  assert.ok(html.includes('25 septembre 2026'));
+  assert.ok(html.includes('relevé dans l’agenda'));
+  assert.equal((html.match(/À compléter/g) || []).length, 1, "l'envoi du projet reste à compléter");
+});
+
+test('echeancesOrdonneesFiche : une seule carte « Appel de fonds », plus de carte « Projet » séparée', () => {
+  const app = chargerApplication();
+  const html = app.echeancesOrdonneesFiche(dossierBase({ rendezVousSignature: '2026-12-01', projetEnvoye: '2026-11-20' }), {}, '');
+  assert.equal((html.match(/<div class="tab appelFonds">/g) || []).length, 1);
+  assert.ok(!html.includes('class="tab projetEnvoye"'));
+});
+
+test("normaliserDossierImporte : conserve les envois déjà relevés dans l'agenda", () => {
+  const app = chargerApplication();
+  const d = app.normaliserDossierImporte(dossierBase({ detectionsAgenda: { appelFonds: '2026-09-25', autre: 'x', projetEnvoye: 3 } }));
+  assert.equal(JSON.stringify(d.detectionsAgenda), '{"appelFonds":"2026-09-25"}');
+});

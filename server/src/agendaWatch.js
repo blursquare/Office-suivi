@@ -14,12 +14,22 @@ const CHAMP_PAR_ACTION = { appelFonds: 'appelFonds', projetEnvoye: 'projetEnvoye
 const LIBELLE_PAR_ACTION = { appelFonds: 'Appel de fonds', projetEnvoye: "Projet d'acte envoyé" };
 const ACTIONS_CONNUES = Object.keys(CHAMP_PAR_ACTION);
 
-// Applique les détections aux dossiers — jamais par-dessus une date DÉJÀ CONNUE, qu'elle vienne
-// d'une saisie manuelle ou d'un tour précédent : une valeur dérivée d'une source externe ne doit
-// jamais écraser ce que l'étude a elle-même renseigné, même règle que partout ailleurs dans ce
-// projet (adresseBien, prixVente, montantPret...). Pure au sens de ses dépendances : `depot` est
-// injecté, donc testable sans base réelle (voir server/test/agenda-watch.test.js).
-function appliquerDetectionsAgenda(depot, detections) {
+// Date du jour en heure de Paris (AAAA-MM-JJ) — le serveur tourne au bureau, mais `toISOString()`
+// donnerait la date UTC, fausse entre minuit et 2 h.
+function dateDuJourParis() {
+  return new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });
+}
+
+// Applique les détections aux dossiers. Deux règles données par l'étude (25/09) :
+//  • la date retenue est celle du JOUR DE LA DÉTECTION, pas celle du rendez-vous de l'agenda —
+//    c'est le jour où l'envoi est constaté ;
+//  • une action déjà relevée pour un dossier (d.detectionsAgenda[champ]) n'est PLUS JAMAIS
+//    retraitée, même si la date est ensuite effacée ou corrigée à la main : sans ce repère, l'agenda
+//    réécrirait la date à chaque tour avec la date du jour.
+// Jamais non plus par-dessus une date DÉJÀ CONNUE (saisie manuelle) — le repère est alors posé quand
+// même, pour que l'action ne soit plus reconsidérée. `depot` injecté : testable sans base réelle.
+function appliquerDetectionsAgenda(depot, detections, aujourdHui) {
+  const jour = aujourdHui || dateDuJourParis();
   const resultat = { misAJour: [], dejaRenseignes: [], sansCorrespondance: [] };
   for (const det of detections || []) {
     if (!det.dossierId) {
@@ -34,20 +44,26 @@ function appliquerDetectionsAgenda(depot, detections) {
     for (const action of ACTIONS_CONNUES) {
       if (!det[action]) continue;
       const champ = CHAMP_PAR_ACTION[action];
+      // Déjà relevée lors d'un tour précédent : on ne repasse plus dessus, et on ne la compte pas
+      // non plus dans le compte rendu (elle y reviendrait à chaque tour, pour rien).
+      if (d.detectionsAgenda && d.detectionsAgenda[champ]) continue;
+      d.detectionsAgenda = d.detectionsAgenda || {};
+      d.detectionsAgenda[champ] = jour;
       if (d[champ]) {
+        depot.remplacer(d.id, d);
         resultat.dejaRenseignes.push({ dossierId: d.id, dossierNom: d.nom, action });
         continue;
       }
-      d[champ] = det.dateIso;
+      d[champ] = jour;
       d.echeancesValidees = d.echeancesValidees || {};
       d.echeancesValidees[champ] = true;
       d.historique = d.historique || [];
       d.historique.push({
         date: new Date().toISOString(),
-        texte: `${LIBELLE_PAR_ACTION[action]} détecté depuis l’agenda de l’office (« ${det.reference} »)`
+        texte: `${LIBELLE_PAR_ACTION[action]} relevé dans l’agenda de l’office (« ${det.reference} »)`
       });
       depot.remplacer(d.id, d);
-      resultat.misAJour.push({ dossierId: d.id, dossierNom: d.nom, action, dateIso: det.dateIso });
+      resultat.misAJour.push({ dossierId: d.id, dossierNom: d.nom, action, dateIso: jour });
     }
   }
   return resultat;
@@ -122,6 +138,6 @@ function demarrerSurveillanceAgenda(depot, parametresRepo, fetchFn, intervalleMs
 }
 
 module.exports = {
-  appliquerDetectionsAgenda, executerTourSurveillanceAgenda, executerEtEnregistrerTourAgenda,
+  appliquerDetectionsAgenda, dateDuJourParis, executerTourSurveillanceAgenda, executerEtEnregistrerTourAgenda,
   demarrerSurveillanceAgenda, INTERVALLE_SURVEILLANCE_AGENDA_MS
 };
