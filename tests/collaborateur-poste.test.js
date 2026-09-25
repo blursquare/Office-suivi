@@ -64,3 +64,31 @@ test('resumeAccueilCollaborateur : ne cite que ce qui est non nul', () => {
     '1 rendez-vous de signature dans les 15 jours, 3 échéances dans la semaine et 2 pièces arrivées depuis votre dernière visite.'
   );
 });
+
+test('semaineAgenda : lundi → dimanche, décalage, rendez-vous comptés par jour', () => {
+  const l = [{ rendezVousSignature: '2026-10-01' }, { rendezVousSignature: '2026-10-01' }, { rendezVousSignature: '2026-10-06' }];
+  const s0 = app.semaineAgenda(l, '2026-10-01', 0); // jeudi
+  assert.equal(s0.map(j => j.iso).join(','), '2026-09-28,2026-09-29,2026-09-30,2026-10-01,2026-10-02,2026-10-03,2026-10-04');
+  assert.equal(s0[3].aujourdhui, true);
+  assert.equal(s0[3].nombre, 2);
+  assert.equal(s0[0].passe, true);
+  const s1 = app.semaineAgenda(l, '2026-10-01', 1);
+  assert.equal(s1[0].iso, '2026-10-05');
+  assert.equal(s1[1].nombre, 1);
+  // Un dimanche appartient à la semaine qui commence le lundi précédent.
+  assert.equal(app.semaineAgenda([], '2026-10-04', 0)[0].iso, '2026-09-28');
+});
+
+test('plageHoraireRendezVous et tri par heure dans la journée', () => {
+  assert.equal(app.plageHoraireRendezVous('10:30', '11:30'), '10 h 30 — 11 h 30');
+  assert.equal(app.plageHoraireRendezVous('10:30', ''), '10 h 30');
+  assert.equal(app.plageHoraireRendezVous('', '11:30'), '');
+  const l = [
+    { id: 'a', nom: 'A', rendezVousSignature: '2026-10-01', rendezVousSignatureHeure: '15:00' },
+    { id: 'b', nom: 'B', rendezVousSignature: '2026-10-01' },
+    { id: 'c', nom: 'C', rendezVousSignature: '2026-10-01', rendezVousSignatureHeure: '09:00', rendezVousSignatureLieu: 'Office' }
+  ];
+  const r = app.rendezVousProchains(l, '2026-09-30');
+  assert.equal(r.map(x => x.dossier.id).join(','), 'c,a,b');
+  assert.equal(r[0].lieu, 'Office');
+});

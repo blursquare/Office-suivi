@@ -101,6 +101,7 @@ function parseIcsEvenements(texte) {
     else if (cle === 'DESCRIPTION') courant.description = decoderTexteIcs(valeur);
     else if (cle === 'LOCATION') courant.location = decoderTexteIcs(valeur);
     else if (cle === 'DTSTART') courant.dtstart = valeur.trim();
+    else if (cle === 'DTEND') courant.dtend = valeur.trim();
     else if (cle === 'STATUS') courant.status = valeur.trim().toUpperCase();
   }
   return evenements;
@@ -113,6 +114,24 @@ function dateDepuisDtstart(dtstart) {
   if (typeof dtstart !== 'string') return null;
   const m = /^(\d{4})(\d{2})(\d{2})/.exec(dtstart.trim());
   return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
+}
+
+// L'heure « HH:MM » d'un DTSTART/DTEND horodaté, à l'heure de Paris — null pour un événement
+// « toute la journée » (date seule). La forme en UTC (suffixe Z) est convertie ; la forme sans
+// zone, ou avec TZID (le paramètre est déjà retiré par parseIcsEvenements), est l'heure locale du
+// calendrier telle qu'écrite — Exchange publie dans la zone de l'agenda de l'office.
+function heureDepuisDtstart(dtstart) {
+  if (typeof dtstart !== 'string') return null;
+  const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})?(Z)?/.exec(dtstart.trim());
+  if (!m) return null;
+  if (!m[7]) return `${m[4]}:${m[5]}`;
+  const instant = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]));
+  const parties = new Intl.DateTimeFormat('fr-FR', {
+    timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+  }).formatToParts(instant);
+  const h = (parties.find(p => p.type === 'hour') || {}).value;
+  const mn = (parties.find(p => p.type === 'minute') || {}).value;
+  return h && mn ? `${h}:${mn}` : null;
 }
 
 // « VTE » comme mot entier, suivi d'un séparateur optionnel (tiret cadratin/simple, deux-points),
@@ -305,6 +324,9 @@ function actionsDetecteesDepuisIcs(icsTexte, dossiersActifs, aujourdHui) {
       appelFonds: actions.appelFonds,
       projetEnvoye: actions.projetEnvoye,
       rendezVous,
+      heure: heureDepuisDtstart(evt.dtstart),
+      heureFin: heureDepuisDtstart(evt.dtend),
+      lieu: String(evt.location || '').slice(0, 160),
       dossierId: dossier ? dossier.id : null,
       dossierNom: dossier ? dossier.nom : null
     });
@@ -316,5 +338,5 @@ module.exports = {
   deplierLignesIcs, decoderTexteIcs, parseIcsEvenements, dateDepuisDtstart,
   extraireReferenceVte, referenceDossierEvenement, detecteAppelDeFonds, detecteProjetEnvoye,
   detecterActionsEvenement, dossierPourReferenceAgenda, actionsDetecteesDepuisIcs, motsVoisins,
-  estRendezVousSignature
+  estRendezVousSignature, heureDepuisDtstart
 };

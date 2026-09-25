@@ -382,3 +382,22 @@ test('lecture ics : 500 Exchange DirectoryOperationError → une relance puis me
   assert.match(resultat.erreur, /code Exchange DirectoryOperationError/);
   assert.doesNotMatch(resultat.erreur, /secret-jeton/);
 });
+
+test('rendez-vous de signature : heure et lieu de l’agenda posés, suivis le même jour', () => {
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  depot.creer({ id: 'd1', nom: 'DUPONT / MARTIN' });
+  const det = (heure, lieu) => ({ dossierId: 'd1', dossierNom: 'x', reference: 'DUPONT', dateIso: '2099-11-10', rendezVous: true, appelFonds: false, projetEnvoye: false, heure, heureFin: '11:30', lieu });
+  appliquerDetectionsAgenda(depot, [det('10:30', 'Office')], '2026-09-25');
+  let d = depot.trouverParId('d1');
+  assert.equal(d.rendezVousSignatureHeure, '10:30');
+  assert.equal(d.rendezVousSignatureHeureFin, '11:30');
+  assert.equal(d.rendezVousSignatureLieu, 'Office');
+  // Avancé le même jour : l'heure suit, la date ne bouge pas.
+  appliquerDetectionsAgenda(depot, [det('09:00', 'Visio')], '2026-09-26');
+  d = depot.trouverParId('d1');
+  assert.equal(d.rendezVousSignature, '2099-11-10');
+  assert.equal(d.rendezVousSignatureHeure, '09:00');
+  assert.equal(d.rendezVousSignatureLieu, 'Visio');
+  db.close();
+});

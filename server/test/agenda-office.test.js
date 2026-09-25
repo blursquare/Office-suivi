@@ -310,3 +310,11 @@ test('actionsDetecteesDepuisIcs : un rendez-vous sans déclencheur d\'envoi est 
   const douteux = icsEvenement({ summary: 'VTE - DUPONT / MARTIN ?', location: 'Office', dtstart: '20991014T090000Z' });
   assert.deepEqual(actionsDetecteesDepuisIcs(douteux, [{ id: 'd1', nom: 'DUPONT / MARTIN' }], '2026-09-25'), []);
 });
+
+test('heureDepuisDtstart : heure locale, conversion depuis UTC, rien pour une journée entière', () => {
+  const { heureDepuisDtstart } = require('../src/agendaOffice');
+  assert.equal(heureDepuisDtstart('20260930T143000'), '14:30');
+  assert.equal(heureDepuisDtstart('20260930T120000Z'), '14:00'); // heure d'été
+  assert.equal(heureDepuisDtstart('20261215T093000Z'), '10:30'); // heure d'hiver
+  assert.equal(heureDepuisDtstart('20260930'), null);
+});

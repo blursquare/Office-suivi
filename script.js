@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-25 21:01';
+  const VERSION_APP = '2026-09-25 21:06';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-25 21:06', resume: "Tableau de bord : carte Agenda (semaine, rendez-vous de signature avec heure et lieu lus dans l'agenda de l'office, état de l'appel de fonds et du projet)." },
     { version: '2026-09-25 21:01', resume: "Tableau de bord adapté au collaborateur du poste : ses dossiers par défaut (vue globale pour l'administrateur), accueil, rendez-vous de signature à 15 jours avec l'état des envois, auteur dans l'historique." },
     { version: '2026-09-25 15:31', resume: "Agenda de l'office : un rendez-vous intitulé « VENTE NOM DU DOSSIER » est reconnu comme « VTE - NOM DU DOSSIER »." },
     { version: '2026-09-25 15:12', resume: "Agenda de l'office : l'erreur 500 d'Exchange (calendrier introuvable derrière le lien) est expliquée, avec une relance automatique." },
@@ -283,6 +284,8 @@
     info: '<circle cx="8" cy="8" r="6.2"/><line x1="8" y1="7.2" x2="8" y2="11.3"/><circle cx="8" cy="4.9" r="0.9" fill="currentColor" stroke="none"/>',
     'chevron-down': '<path d="M3.5 6 8 10.5 12.5 6"/>',
     'chevron-up': '<path d="M3.5 10 8 5.5 12.5 10"/>',
+    'chevron-left': '<path d="M10 3.5 5.5 8 10 12.5"/>',
+    'chevron-right': '<path d="M6 3.5 10.5 8 6 12.5"/>',
     'rotate-ccw': '<path d="M13.3 8A5.3 5.3 0 1 1 10.8 3.4"/><path d="M13.6 2.6v3.6h-3.6"/>',
     // Prorata : un disque coupé en deux parts inégales — une somme répartie entre deux parties.
     // Même grille 16x16 et même trait que le reste du jeu.
@@ -11240,15 +11243,59 @@
       if (!d || !d.rendezVousSignature) continue;
       const j = ecartJours(aujourdhuiIso, d.rendezVousSignature);
       if (j === null || j < 0 || j > n) continue;
-      res.push({
-        dossier: d,
-        date: d.rendezVousSignature,
-        jours: j,
-        appelFondsEnvoye: echeanceValidee(d, 'appelFonds'),
-        projetEnvoye: echeanceValidee(d, 'projetEnvoye')
-      });
+      res.push(rendezVousDepuisDossier(d, j));
     }
-    return res.sort((a, b) => a.date.localeCompare(b.date) || String(a.dossier.nom).localeCompare(String(b.dossier.nom)));
+    return trierRendezVous(res);
+  }
+
+  function rendezVousDepuisDossier(d, jours) {
+    return {
+      dossier: d,
+      date: d.rendezVousSignature,
+      jours,
+      heure: d.rendezVousSignatureHeure || '',
+      heureFin: d.rendezVousSignatureHeureFin || '',
+      lieu: d.rendezVousSignatureLieu || '',
+      appelFondsEnvoye: echeanceValidee(d, 'appelFonds'),
+      projetEnvoye: echeanceValidee(d, 'projetEnvoye')
+    };
+  }
+
+  // Par date, puis par heure (un rendez-vous sans heure connue en fin de journée), puis par nom.
+  function trierRendezVous(liste) {
+    return liste.sort((a, b) => a.date.localeCompare(b.date)
+      || (a.heure || '99').localeCompare(b.heure || '99')
+      || String(a.dossier.nom).localeCompare(String(b.dossier.nom)));
+  }
+
+  // Pure : les 7 jours (lundi → dimanche) de la semaine qui contient `aujourdhuiIso`, décalée de
+  // `decalage` semaines, avec le nombre de rendez-vous de signature de chaque jour.
+  function semaineAgenda(dossiersActifs, aujourdhuiIso, decalage) {
+    const base = new Date(aujourdhuiIso + 'T00:00:00Z');
+    const lundi = new Date(base.getTime() - (((base.getUTCDay() + 6) % 7) * 86400000) + (decalage || 0) * 7 * 86400000);
+    const parJour = {};
+    for (const d of dossiersActifs || []) {
+      if (d && d.rendezVousSignature) parJour[d.rendezVousSignature] = (parJour[d.rendezVousSignature] || 0) + 1;
+    }
+    const jours = [];
+    for (let i = 0; i < 7; i++) {
+      const iso = new Date(lundi.getTime() + i * 86400000).toISOString().slice(0, 10);
+      jours.push({ iso, nombre: parJour[iso] || 0, passe: iso < aujourdhuiIso, aujourdhui: iso === aujourdhuiIso });
+    }
+    return jours;
+  }
+
+  // Pure : « 10 h 30 — 11 h 30 », « 10 h 30 », ou '' quand l'heure n'est pas connue.
+  function plageHoraireRendezVous(heure, heureFin) {
+    const f = (h) => (h ? h.replace(':', ' h ') : '');
+    if (!heure) return '';
+    return heureFin && heureFin !== heure ? `${f(heure)} — ${f(heureFin)}` : f(heure);
+  }
+
+  function effacerHoraireRendezVous(d) {
+    d.rendezVousSignatureHeure = '';
+    d.rendezVousSignatureHeureFin = '';
+    d.rendezVousSignatureLieu = '';
   }
 
   // Pure : les pièces trouvées APRÈS `depuisIso` (horodatage de la visite précédente).
@@ -11394,31 +11441,104 @@
       </div>`;
   }
 
+  // Carte « Agenda » du tableau de bord (maquette fournie par l'étude) : une bande de la semaine,
+  // un point sous chaque jour qui porte un rendez-vous de signature, puis la liste. Par défaut la
+  // liste montre les rendez-vous des 15 prochains jours ; cliquer sur un jour la limite à ce jour.
+  // L'heure et le lieu viennent de l'agenda de l'office (voir agendaWatch.js côté serveur) — une
+  // date saisie à la main n'en a pas, la ligne le dit simplement en ne les affichant pas.
+  var SEMAINES_AGENDA_MAX = 2;
+  let agendaDecalageSemaine = 0;
+  let agendaJourSelectionne = null;
+
+  function decalerSemaineAgenda(pas) {
+    agendaDecalageSemaine = Math.max(0, Math.min(SEMAINES_AGENDA_MAX, agendaDecalageSemaine + pas));
+    agendaJourSelectionne = null;
+    render();
+  }
+
+  function selectionnerJourAgenda(iso) {
+    agendaJourSelectionne = agendaJourSelectionne === iso ? null : iso;
+    render();
+  }
+
+  // Couleur du liseré : vert si les deux envois sont partis, rouge si un envoi manque à deux jours
+  // ou moins du rendez-vous, ambre sinon.
+  function tonRendezVous(r) {
+    if (r.appelFondsEnvoye && r.projetEnvoye) return 'ok';
+    return r.jours <= 2 ? 'urgent' : 'attente';
+  }
+
   function renderRendezVousDashboard(perimetreActifs) {
-    const section = document.getElementById('dash-rendezvous');
-    const bloc = document.getElementById('rendezvous-dashboard');
-    if (!section || !bloc) return;
-    const liste = rendezVousProchains(perimetreActifs, isoAujourdhuiLocal());
+    const bloc = document.getElementById('agenda-dashboard');
+    if (!bloc) return;
+    const aujourdhui = isoAujourdhuiLocal();
     const global = vueGlobaleDashboard();
-    if (!liste.length) {
-      section.style.display = '';
-      bloc.innerHTML = `<div class="dash-vide-neutre">Aucun rendez-vous de signature dans les ${JOURS_RENDEZ_VOUS_DASHBOARD} prochains jours.</div>`;
-      return;
+    const semaine = semaineAgenda(perimetreActifs, aujourdhui, agendaDecalageSemaine);
+    const moisRef = new Date((agendaJourSelectionne || semaine[3].iso) + 'T00:00:00');
+    const mois = moisRef.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+
+    let liste;
+    let titreListe;
+    if (agendaJourSelectionne) {
+      liste = trierRendezVous(perimetreActifs
+        .filter(d => d.rendezVousSignature === agendaJourSelectionne)
+        .map(d => rendezVousDepuisDossier(d, ecartJours(aujourdhui, agendaJourSelectionne))));
+      titreListe = new Date(agendaJourSelectionne + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    } else {
+      liste = rendezVousProchains(perimetreActifs, aujourdhui);
+      titreListe = `Prochains rendez-vous — ${JOURS_RENDEZ_VOUS_DASHBOARD} jours`;
     }
-    section.style.display = '';
-    const etat = (ok, fait, reste) => `<span class="dot-label ${ok ? 'dl-success' : 'dl-pret'}"><span class="dot"></span>${ok ? fait : reste}</span>`;
-    bloc.innerHTML = liste.map(r => {
-      const quand = new Date(r.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
-      const delai = r.jours === 0 ? "aujourd'hui" : `J-${r.jours}`;
-      return `
-        <button type="button" class="action-urgente-ligne rdv-ligne" onclick="ouvrirDossierDepuisDashboard('${r.dossier.id}')">
-          <span class="rdv-date"><b>${escapeHtml(quand)}</b><span class="rdv-delai">${delai}</span></span>
-          <span class="rdv-dossier"><span class="action-urgente-nom">${escapeHtml(libelleDossierAffiche(r.dossier))}</span>
-            ${global && r.dossier.responsable ? `<span class="action-urgente-raison">${escapeHtml(r.dossier.responsable)}</span>` : ''}</span>
-          <span class="rdv-etats">${etat(r.appelFondsEnvoye, 'Appel de fonds envoyé', 'Appel de fonds à envoyer')}${etat(r.projetEnvoye, 'Projet envoyé', 'Projet à envoyer')}</span>
-          <span class="action-urgente-fleche">&rarr;</span>
+
+    const bande = semaine.map(j => {
+      const dt = new Date(j.iso + 'T00:00:00');
+      const nomJour = dt.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', '').slice(0, 3);
+      const classes = ['agenda-jour'];
+      if (j.passe) classes.push('passe');
+      if (j.aujourdhui) classes.push('aujourdhui');
+      if (j.iso === agendaJourSelectionne) classes.push('selectionne');
+      const titre = `${dt.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} — ${j.nombre ? j.nombre + ' rendez-vous' : 'aucun rendez-vous'}`;
+      return `<button type="button" class="${classes.join(' ')}" onclick="selectionnerJourAgenda('${j.iso}')" aria-pressed="${j.iso === agendaJourSelectionne}" title="${escapeAttr(titre)}">
+          <span class="agenda-jour-nom">${escapeHtml(nomJour)}</span>
+          <span class="agenda-jour-num">${dt.getDate()}</span>
+          <span class="agenda-jour-point${j.nombre ? ' present' : ''}" aria-hidden="true"></span>
         </button>`;
     }).join('');
+
+    const etat = (ok, fait, reste) => `<span class="dot-label ${ok ? 'dl-success' : 'dl-pret'}"><span class="dot"></span>${ok ? fait : reste}</span>`;
+    const lignes = liste.length ? liste.map(r => {
+      const quand = new Date(r.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+      const plage = plageHoraireRendezVous(r.heure, r.heureFin);
+      const delai = r.jours === 0 ? "aujourd'hui" : r.jours > 0 ? `J-${r.jours}` : '';
+      const meta = [agendaJourSelectionne ? '' : quand, plage, delai].filter(Boolean).join(' · ');
+      const lieu = [r.lieu, global && r.dossier.responsable ? prenomCollaborateur(r.dossier.responsable) : ''].filter(Boolean);
+      return `
+        <button type="button" class="agenda-rdv ton-${tonRendezVous(r)}" onclick="ouvrirDossierDepuisDashboard('${r.dossier.id}')">
+          <span class="agenda-rdv-titre">${escapeHtml(libelleDossierAffiche(r.dossier))}</span>
+          <span class="agenda-rdv-meta">${escapeHtml(meta)}</span>
+          ${lieu.length ? `<span class="agenda-rdv-lieu">${lieu.map(escapeHtml).join(' · ')}</span>` : ''}
+          <span class="agenda-rdv-etats">${etat(r.appelFondsEnvoye, 'Appel de fonds envoyé', 'Appel de fonds à envoyer')}${etat(r.projetEnvoye, 'Projet envoyé', 'Projet à envoyer')}</span>
+        </button>`;
+    }).join('') : `<div class="agenda-vide">${agendaJourSelectionne ? 'Aucun rendez-vous de signature ce jour-là.' : `Aucun rendez-vous de signature dans les ${JOURS_RENDEZ_VOUS_DASHBOARD} prochains jours.`}</div>`;
+
+    bloc.innerHTML = `
+      <div class="agenda-entete">
+        <div>
+          <div class="agenda-titre">Agenda</div>
+          <div class="agenda-mois">${escapeHtml(mois.charAt(0).toUpperCase() + mois.slice(1))}</div>
+        </div>
+        <div class="agenda-nav">
+          <button type="button" class="icon-btn" onclick="decalerSemaineAgenda(-1)" ${agendaDecalageSemaine <= 0 ? 'disabled' : ''} aria-label="Semaine précédente">${icone('chevron-left')}</button>
+          <button type="button" class="icon-btn" onclick="decalerSemaineAgenda(1)" ${agendaDecalageSemaine >= SEMAINES_AGENDA_MAX ? 'disabled' : ''} aria-label="Semaine suivante">${icone('chevron-right')}</button>
+        </div>
+      </div>
+      <div class="agenda-bande" role="group" aria-label="Jours de la semaine">${bande}</div>
+      <div class="agenda-liste">
+        <div class="agenda-liste-titre">
+          <span class="section-eyebrow">${escapeHtml(titreListe)}</span>
+          ${agendaJourSelectionne ? '<button type="button" class="lien-discret" onclick="selectionnerJourAgenda(null)">Tout voir</button>' : ''}
+        </div>
+        ${lignes}
+      </div>`;
   }
 
   function render() {
@@ -12560,6 +12680,8 @@
         sauvegarder(d);
       }
     } else if (nouvelleDate !== (d[cle] || '')) {
+      // L'heure et le lieu lus dans l'agenda se rapportaient à l'ancienne date du rendez-vous.
+      if (cle === 'rendezVousSignature') effacerHoraireRendezVous(d);
       ajouterHistorique(d, `« ${LIBELLES_CATEGORIE[cle]} » modifiée : ${d[cle] ? formatDateFr(d[cle]) : 'non renseignée'} → ${nouvelleDate ? formatDateFr(nouvelleDate) : 'non renseignée'}`);
       d[cle] = nouvelleDate || '';
       d.confiance = d.confiance || {};
@@ -12650,6 +12772,7 @@
       if (type === 'pret') d.sansPret = true;
       if (type === 'appelFonds') marquerAppelFondsSelonDate(d, '');
       if (type === 'projetEnvoye') marquerProjetEnvoyeSelonDate(d, '');
+      if (type === 'rendezVousSignature') effacerHoraireRendezVous(d);
       ajouterHistorique(d, `« ${LIBELLES_CATEGORIE[type]} » supprimée`);
       sauvegarder(d);
       render();
@@ -14563,6 +14686,10 @@
       projetEnvoye: dateValide(d.projetEnvoye),
       acte: dateValide(d.acte),
       rendezVousSignature: dateValide(d.rendezVousSignature),
+      // Heure et lieu relevés dans l'agenda de l'office : un fait du rendez-vous, conservés.
+      rendezVousSignatureHeure: /^\d{2}:\d{2}$/.test(d.rendezVousSignatureHeure || '') ? d.rendezVousSignatureHeure : '',
+      rendezVousSignatureHeureFin: /^\d{2}:\d{2}$/.test(d.rendezVousSignatureHeureFin || '') ? d.rendezVousSignatureHeureFin : '',
+      rendezVousSignatureLieu: typeof d.rendezVousSignatureLieu === 'string' ? d.rendezVousSignatureLieu.slice(0, 160) : '',
       ventebien: dateValide(d.ventebien),
       autres: Array.isArray(d.autres)
         ? d.autres.filter(a => a && typeof a === 'object' && dateValide(a.date))

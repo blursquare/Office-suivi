@@ -5400,23 +5400,64 @@ button.lien-discret {
 button.lien-discret:hover { color: var(--focus); text-decoration-color: currentColor; }
 button.lien-discret:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
 
-.dash-rendezvous { margin-bottom: 24px; }
-.dash-vide-neutre {
-  background: var(--paper-sunk); color: var(--muted);
-  border: 1px solid var(--line); border-radius: 10px;
-  padding: 14px 16px; font-size: 13.5px;
+.dash-col-droite { display: flex; flex-direction: column; gap: 24px; }
+
+/* ---- Carte « Agenda » du tableau de bord (voir renderRendezVousDashboard) ---- */
+.agenda-carte {
+  background: var(--paper-card); border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: var(--shadow-card); overflow: hidden;
 }
-.rdv-ligne { gap: 16px; }
-.rdv-date { display: flex; flex-direction: column; min-width: 92px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
-.rdv-date b { color: var(--ink); font-weight: 600; text-transform: capitalize; }
-.rdv-delai { font-size: 12px; color: var(--muted); }
-.rdv-dossier { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
-.rdv-etats { display: flex; gap: 14px; flex-wrap: wrap; margin-left: auto; font-size: 12.5px; }
-.rdv-etats + .action-urgente-fleche { margin-left: 0; }
-@media (max-width: 700px) {
-  .rdv-ligne { flex-wrap: wrap; }
-  .rdv-etats { margin-left: 0; width: 100%; }
+.agenda-entete {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  padding: 16px 18px 14px; border-bottom: 1px solid var(--line-soft);
 }
+.agenda-titre { font-size: 17px; font-weight: 700; color: var(--ink); }
+.agenda-mois { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.agenda-nav { display: flex; gap: 4px; }
+.agenda-bande {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;
+  padding: 12px 12px; border-bottom: 1px solid var(--line-soft);
+}
+.agenda-jour {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  font-family: inherit; background: none; border: 1px solid transparent; border-radius: 10px;
+  padding: 7px 0 6px; cursor: pointer; color: var(--ink);
+}
+.agenda-jour:hover { background: var(--paper-sunk); }
+.agenda-jour:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.agenda-jour-nom { font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.agenda-jour-num { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.agenda-jour-point { width: 5px; height: 5px; border-radius: 50%; background: transparent; }
+.agenda-jour-point.present { background: var(--focus); }
+.agenda-jour.passe .agenda-jour-num { color: var(--muted); font-weight: 500; }
+.agenda-jour.aujourdhui { background: var(--focus); }
+.agenda-jour.aujourdhui .agenda-jour-nom,
+.agenda-jour.aujourdhui .agenda-jour-num { color: #fff; }
+.agenda-jour.aujourdhui .agenda-jour-point.present { background: #fff; }
+.agenda-jour.selectionne { border-color: var(--focus); }
+.agenda-jour.aujourdhui.selectionne { box-shadow: 0 0 0 2px var(--paper-card), 0 0 0 3px var(--focus); }
+
+.agenda-liste { padding: 14px 18px 16px; display: flex; flex-direction: column; gap: 6px; }
+.agenda-liste-titre { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 2px; }
+.agenda-liste-titre .section-eyebrow:first-letter { text-transform: uppercase; }
+.agenda-rdv {
+  display: flex; flex-direction: column; gap: 3px; width: 100%;
+  font-family: inherit; text-align: left; background: none; border: none; border-radius: 6px;
+  padding: 7px 10px 8px 14px; cursor: pointer; position: relative;
+}
+.agenda-rdv::before {
+  content: ''; position: absolute; left: 0; top: 7px; bottom: 7px; width: 3px; border-radius: 2px;
+  background: var(--pret);
+}
+.agenda-rdv.ton-ok::before { background: var(--success); }
+.agenda-rdv.ton-urgent::before { background: var(--urgent); }
+.agenda-rdv:hover { background: var(--paper-sunk); }
+.agenda-rdv:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.agenda-rdv-titre { font-size: 14px; font-weight: 600; color: var(--ink); }
+.agenda-rdv-meta { font-size: 12.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.agenda-rdv-lieu { font-size: 12.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agenda-rdv-etats { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; margin-top: 2px; }
+.agenda-vide { font-size: 13px; color: var(--muted); padding: 6px 0 2px; }
 
 .h-auteur { color: var(--muted); }
 

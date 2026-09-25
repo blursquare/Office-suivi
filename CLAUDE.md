@@ -7814,6 +7814,33 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     à ses 3 rendez-vous, bascule « Tous », filtre du Suivi posé, auteur dans l'historique, vue
     globale par défaut pour Bastien, aucun débordement à 400 px.
 
+- **Carte « Agenda » sur le tableau de bord**, à partir d'une maquette envoyée par l'étude (carte
+  sombre : titre, mois, bande de la semaine avec le jour courant surligné et un point sous les jours
+  occupés, puis « Prochaines réunions » avec heure, lieu et un liseré de couleur). Elle remplace le
+  bloc pleine largeur « Prochains rendez-vous de signature » livré juste avant et prend la tête de
+  la colonne de droite, au-dessus de « Dernières pièces trouvées ». Seule la structure est reprise,
+  pas la palette (jetons de CLAIRE, clair et sombre).
+  - Bande lundi → dimanche (`semaineAgenda`, pure), ‹ › sur trois semaines au plus
+    (`SEMAINES_AGENDA_MAX`) ; cliquer un jour limite la liste à ce jour, « Tout voir » revient aux
+    15 jours. Liseré par rendez-vous (`tonRendezVous`) : vert si appel de fonds ET projet sont
+    partis, rouge s'il en manque un à J-2 ou moins, ambre sinon. En vue globale, le prénom du
+    responsable suit le lieu.
+  - **Heure, heure de fin et lieu viennent de l'agenda de l'office** : `heureDepuisDtstart`
+    (`server/src/agendaOffice.js`, UTC converti à l'heure de Paris, forme sans zone lue telle
+    quelle, `null` pour une journée entière), DTEND et LOCATION ajoutés au parse, posés sur le
+    dossier (`rendezVousSignatureHeure`/`HeureFin`/`Lieu`) par `poserHoraireRendezVous`
+    (`agendaWatch.js`) — **seulement quand la date vient de l'agenda ou coïncide avec lui** : une
+    date saisie à la main n'a pas d'horaire connu. Un rendez-vous avancé le même jour met l'heure
+    à jour. Côté client, corriger ou supprimer la date du rendez-vous efface heure et lieu
+    (`effacerHoraireRendezVous`) ; les trois champs sont conservés à l'import. Un rendez-vous sans
+    heure s'affiche simplement sans plage horaire, en fin de journée dans le tri.
+  - Le lieu affiché est le LOCATION tel que l'étude l'écrit (souvent « initiales — Appel de fonds
+    envoyé », voir l'agenda) : c'est sa note, laissée telle quelle.
+  - Tests : +2 dans `tests/collaborateur-poste.test.js`, +1 dans `server/test/agenda-office.test.js`,
+    +1 dans `server/test/agenda-watch.test.js`. Suites : racine 808, serveur 369. Vérifié dans un
+    vrai Chromium (clair, sombre, 400 px) : jour sélectionné, semaine suivante, aucun débordement.
+    Ne parvient au bureau qu'avec le prochain `CLAIRE-serveur.exe`.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

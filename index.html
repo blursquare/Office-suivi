@@ -139,21 +139,19 @@
        « Échéances des 7 prochains jours » est retiré : le diagramme montre les mêmes dates, et la
        tuile KPI garde le compte. Chaque colonne se masque entière quand elle est vide, pour ne pas
        laisser d'étiquette orpheline. -->
-  <!-- Prochains rendez-vous de signature (15 jours) et l'état des deux envois qui doivent les
-       précéder — demandé par l'étude. Suit la vue du tableau de bord (ses dossiers, ou tous). -->
-  <div class="dash-rendezvous" id="dash-rendezvous" style="display:none;">
-    <div class="dash-section-titre">Prochains rendez-vous de signature — 15 jours</div>
-    <div id="rendezvous-dashboard" class="dash-liste"></div>
-  </div>
-
   <div class="dash-grid">
     <div class="dash-col">
       <div class="dash-section-titre">Actions urgentes</div>
       <div id="actions-urgentes" class="actions-urgentes"></div>
     </div>
-    <div class="dash-col" id="dash-nouveautes" style="display:none;">
-      <div class="dash-section-titre">Dernières pièces trouvées</div>
-      <div id="pieces-recues-dashboard" class="dash-liste"></div>
+    <div class="dash-col dash-col-droite">
+      <!-- Carte Agenda : semaine, rendez-vous de signature, état des envois (voir
+           renderRendezVousDashboard). Toujours affichée, même sans rendez-vous. -->
+      <div class="agenda-carte" id="agenda-dashboard"></div>
+      <div id="dash-nouveautes" style="display:none;">
+        <div class="dash-section-titre">Dernières pièces trouvées</div>
+        <div id="pieces-recues-dashboard" class="dash-liste"></div>
+      </div>
     </div>
   </div>
 

@@ -81,6 +81,18 @@ function appliquerDetectionsAgenda(depot, detections, aujourdHui) {
 //   - champ déjà à la bonne date → rien, le repère est seulement posé.
 // Un rendez-vous qui disparaît de l'agenda n'efface jamais la date : l'absence d'un événement ne
 // dit pas qu'il est annulé (lien de publication partiel, événement déplacé au-delà de la fenêtre).
+// Heure, heure de fin et lieu du rendez-vous tels que lus dans l'agenda. Ne sont posés que sur un
+// rendez-vous dont la DATE vient de l'agenda (ou coïncide avec lui) : une date saisie à la main et
+// différente n'a pas d'horaire connu, lui en coller un serait mentir. Rend vrai si quelque chose
+// a changé.
+function poserHoraireRendezVous(d, det) {
+  const avant = [d.rendezVousSignatureHeure, d.rendezVousSignatureHeureFin, d.rendezVousSignatureLieu].join('|');
+  d.rendezVousSignatureHeure = det.heure || '';
+  d.rendezVousSignatureHeureFin = det.heureFin || '';
+  d.rendezVousSignatureLieu = det.lieu || '';
+  return avant !== [d.rendezVousSignatureHeure, d.rendezVousSignatureHeureFin, d.rendezVousSignatureLieu].join('|');
+}
+
 function appliquerRendezVousAgenda(depot, detections, resultat) {
   const plusProche = new Map();
   for (const det of detections || []) {
@@ -95,7 +107,10 @@ function appliquerRendezVousAgenda(depot, detections, resultat) {
     const ecritParAgenda = d.detectionsAgenda.rendezVousSignature || null;
     const actuel = d.rendezVousSignature || null;
     if (actuel === det.dateIso) {
-      if (ecritParAgenda !== det.dateIso) {
+      // Même date : l'heure, l'heure de fin et le lieu suivent l'agenda (affichés dans l'agenda du
+      // tableau de bord) — un rendez-vous avancé de 9 h à 11 h le même jour doit s'y voir.
+      const changeHoraire = poserHoraireRendezVous(d, det);
+      if (ecritParAgenda !== det.dateIso || changeHoraire) {
         d.detectionsAgenda.rendezVousSignature = det.dateIso;
         depot.remplacer(d.id, d);
       }
@@ -109,6 +124,7 @@ function appliquerRendezVousAgenda(depot, detections, resultat) {
     }
     d.rendezVousSignature = det.dateIso;
     d.detectionsAgenda.rendezVousSignature = det.dateIso;
+    poserHoraireRendezVous(d, det);
     d.historique = d.historique || [];
     d.historique.push({
       date: new Date().toISOString(),
