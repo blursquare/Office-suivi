@@ -3969,7 +3969,7 @@
     .panel, .pdf-viewer, .list-toolbar, .dossier-actions, .dossier-actions-titre, .relances-ciblees, .envoi-action, .theme-btn,
     .confirm-overlay, .toast, footer.note, .historique-toggle, .dash-avancement,
     .sidebar, .sidebar-burger, .sidebar-scrim, .dash-header, .kpis-dashboard, .actions-urgentes,
-    .dash-nouveautes, .dash-section-titre { display: none !important; }
+    .dash-nouveautes, .dash-rail, .dash-section-titre { display: none !important; }
     .app-main { padding: 0; }
     .layout-cols { display: block; }
     .wrap { max-width: 100%; padding: 0; }
@@ -5269,10 +5269,10 @@ button.avancement-ligne:hover { background: var(--paper-sunk); }
 .avancement-pilule.dl-urgent { color: var(--urgent); background: color-mix(in srgb, var(--urgent) 14%, transparent); }
 .avancement-montant { font-size: 12.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .avancement-pied { display: flex; justify-content: flex-end; padding: 8px 10px 6px; border-top: 1px solid var(--line-soft); }
-/* Dans une colonne étroite (tableau de bord sur quatre colonnes), la ligne passe sur deux
+/* Dans une colonne étroite (à côté de « À traiter » sur le tableau de bord), la ligne passe sur deux
    rangées : nom + statut en haut, jauge pleine largeur dessous. Requête de CONTENEUR et non de
    fenêtre : c'est la largeur du bloc qui compte, pas celle de l'écran. */
-@container dashbloc (max-width: 520px) {
+@container dashbloc (max-width: 560px) {
   button.avancement-ligne { grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; padding: 11px 8px; }
   .avancement-jauge { grid-column: 1 / -1; grid-row: 2; }
   .avancement-detail { white-space: normal; }
@@ -5292,16 +5292,45 @@ button.avancement-ligne:hover { background: var(--paper-sunk); }
   .avancement-jauge { grid-column: 1 / -1; grid-row: 2; }
 }
 
-/* ---- Tableau de bord : quatre blocs côte à côte ----
-   Flex et non grille à quatre pistes : un bloc masqué (display:none quand il est vide) ne laisse
-   aucune colonne vide, les blocs restants se partagent la largeur. */
-.dash-quatre { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 20px; }
-.dash-bloc { flex: 1 1 0; min-width: 0; container-type: inline-size; container-name: dashbloc; }
-@media (max-width: 1400px) {
-  .dash-bloc { flex: 1 1 calc(50% - 10px); }
+/* ---- Tableau de bord : colonne principale + rail à droite ----
+   Le rail (dernières pièces, agenda) démarre à hauteur du titre, comme sur la maquette fournie
+   par l'étude ; la colonne principale porte l'en-tête, les chiffres, puis À traiter à côté de
+   l'avancement. Chaque bloc garde min-width:0 (un enfant de grille ou de flex ne descend sinon
+   pas sous la largeur de son contenu) et reste un conteneur « dashbloc » pour ses requêtes de
+   conteneur. */
+.dash-disposition {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 24px;
+  align-items: start;
 }
-@media (max-width: 900px) {
-  .dash-bloc { flex-basis: 100%; }
+.dash-principal { min-width: 0; }
+.dash-rail { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+/* L'en-tête vit dans la colonne principale : plus de place perdue sous le titre, la marge
+   suffit à séparer les chiffres. */
+.dash-principal .dash-header { margin-bottom: 20px; }
+.dash-principal .kpis-dashboard { margin-bottom: 24px; }
+/* À traiter (étroit) + avancement (large). Flex : un avancement masqué laisse À traiter prendre
+   toute la largeur, et les deux passent l'un sous l'autre dès que la colonne ne peut plus tenir
+   340 + 460 px. */
+.dash-duo { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px; }
+.dash-bloc { min-width: 0; container-type: inline-size; container-name: dashbloc; }
+.dash-duo > .dash-bloc-traiter { flex: 1 1 340px; }
+.dash-duo > .dash-avancement { flex: 1.5 1 460px; }
+/* Les quatre blocs sont des cartes au même gabarit (titre + sous-titre en tête, comme l'agenda
+   et À traiter) : les listes qu'elles contiennent perdent leur propre cadre. */
+.agenda-carte .avancement-dossiers { border: 0; border-radius: 0; box-shadow: none; }
+.dash-liste-carte { gap: 0; padding: 4px 8px 8px; }
+.dash-liste-carte .action-urgente-ligne {
+  border: 0; border-radius: 6px; box-shadow: none; background: none; padding: 11px 10px;
+}
+.dash-liste-carte .action-urgente-ligne + .action-urgente-ligne { border-top: 1px solid var(--line-soft); border-radius: 0; }
+.dash-liste-carte .action-urgente-ligne:hover { background: var(--paper-sunk); }
+@media (max-width: 1320px) {
+  .dash-disposition { grid-template-columns: minmax(0, 1fr); }
+  /* Le rail passe sous la colonne principale : pièces et agenda côte à côte. */
+  .dash-rail { flex-direction: row; flex-wrap: wrap; align-items: flex-start; }
+  .dash-rail > .dash-bloc { flex: 1 1 320px; }
 }
 
 /* ==== Signalements de problèmes (voir ouvrirSignalement / renderSignalements dans script.js) ==== */

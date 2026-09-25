@@ -109,54 +109,72 @@
   <main class="app-main">
 
 <div class="onglet-panel" id="onglet-dashboard">
-  <div class="dash-header">
-    <div>
-      <div class="dash-eyebrow">Tableau de bord</div>
-      <h1 class="dash-titre" id="dash-titre">Vue d'ensemble</h1>
-      <!-- Accueil du collaborateur du poste : résumé du jour, bascule Mes dossiers / Tous
-           (voir renderAccueilDashboard dans script.js). -->
-      <div class="dash-accueil" id="dash-accueil"></div>
-    </div>
-    <div class="dash-header-actions">
-      <div class="dash-recherche">
-        <input type="search" id="recherche-dashboard" placeholder="Rechercher un dossier ou un responsable…" oninput="render()" autocomplete="off">
-        <div class="dash-recherche-resultats" id="dash-recherche-resultats" style="display:none;"></div>
+  <!-- Disposition en deux colonnes (demandée par l'étude d'après une maquette : quatre blocs de
+       même largeur côte à côte ne se lisaient pas) : une colonne principale — en-tête, chiffres,
+       puis À traiter à côté de l'avancement — et un rail à droite qui démarre tout en haut, à
+       hauteur du titre, avec les dernières pièces trouvées puis l'agenda. Sous 1320px le rail
+       passe sous la colonne principale. -->
+  <div class="dash-disposition">
+    <div class="dash-principal">
+    <div class="dash-header">
+      <div>
+        <div class="dash-eyebrow">Tableau de bord</div>
+        <h1 class="dash-titre" id="dash-titre">Vue d'ensemble</h1>
+        <!-- Accueil du collaborateur du poste : résumé du jour, bascule Mes dossiers / Tous
+             (voir renderAccueilDashboard dans script.js). -->
+        <div class="dash-accueil" id="dash-accueil"></div>
       </div>
-      <button type="button" class="primary dash-header-nouveau" onclick="definirOnglet('nouveau')">+ Nouveau dossier</button>
+      <div class="dash-header-actions">
+        <div class="dash-recherche">
+          <input type="search" id="recherche-dashboard" placeholder="Rechercher un dossier ou un responsable…" oninput="render()" autocomplete="off">
+          <div class="dash-recherche-resultats" id="dash-recherche-resultats" style="display:none;"></div>
+        </div>
+        <button type="button" class="primary dash-header-nouveau" onclick="definirOnglet('nouveau')">+ Nouveau dossier</button>
+      </div>
     </div>
-  </div>
 
-  <!-- Affiché seulement quand la sauvegarde automatique est en retard ou a échoué (voir
-       renderAlerteSauvegardeDashboard dans script.js) : un échec qui ne se voit que dans les
-       Réglages, personne ne le verrait. -->
-  <div id="dash-alerte-sauvegarde" class="dash-alerte-sauvegarde" style="display:none;"></div>
+    <!-- Affiché seulement quand la sauvegarde automatique est en retard ou a échoué (voir
+         renderAlerteSauvegardeDashboard dans script.js) : un échec qui ne se voit que dans les
+         Réglages, personne ne le verrait. -->
+    <div id="dash-alerte-sauvegarde" class="dash-alerte-sauvegarde" style="display:none;"></div>
 
-  <div class="kpis-dashboard" id="kpis-dashboard"></div>
+    <div class="kpis-dashboard" id="kpis-dashboard"></div>
 
-  <!-- Quatre blocs côte à côte (demandé par l'étude : en pleine largeur, chaque bloc était trop
-       large pour ce qu'il montre) : À traiter + Mes rappels, dernières pièces trouvées, agenda,
-       avancement des dossiers. Rangée en flex et non en grille à 4 pistes fixes : un bloc masqué
-       quand il est vide (pièces, avancement) ne laisse pas de colonne vide, les autres se
-       partagent la largeur. Deux par ligne sous 1400px, un seul sous 900px. -->
-  <div class="dash-quatre">
-    <!-- À traiter (fusion d'Actions urgentes et d'Alertes importantes) + Mes rappels : voir
-         renderAlertesDashboard. -->
-    <div class="dash-bloc">
-      <div class="agenda-carte alertes-carte" id="alertes-dashboard"></div>
+    <!-- À traiter + Mes rappels (étroit) à côté de l'avancement (large). En flex et non en
+         grille : quand l'avancement est masqué (aucun dossier), À traiter prend toute la
+         largeur ; quand la colonne se rétrécit, les deux passent l'un sous l'autre. -->
+    <div class="dash-duo">
+      <div class="dash-bloc dash-bloc-traiter">
+        <div class="agenda-carte alertes-carte" id="alertes-dashboard"></div>
+      </div>
+      <div class="dash-bloc dash-avancement" id="dash-avancement" style="display:none;">
+        <div class="agenda-carte">
+          <div class="agenda-entete"><div>
+            <div class="agenda-titre">Avancement des dossiers</div>
+            <div class="agenda-mois">Étapes et pièces, du plus urgent au plus avancé</div>
+          </div></div>
+          <div id="avancement-dossiers" class="avancement-dossiers"></div>
+        </div>
+      </div>
     </div>
-    <div class="dash-bloc" id="dash-nouveautes" style="display:none;">
-      <div class="dash-section-titre">Dernières pièces trouvées</div>
-      <div id="pieces-recues-dashboard" class="dash-liste"></div>
     </div>
-    <!-- Carte Agenda : semaine, rendez-vous de signature, état des envois (voir
-         renderRendezVousDashboard). Toujours affichée, même sans rendez-vous. -->
-    <div class="dash-bloc">
-      <div class="agenda-carte" id="agenda-dashboard"></div>
-    </div>
-    <div class="dash-bloc dash-avancement" id="dash-avancement" style="display:none;">
-      <div class="dash-section-titre">Avancement des dossiers</div>
-      <div id="avancement-dossiers" class="avancement-dossiers"></div>
-    </div>
+
+    <aside class="dash-rail">
+      <div class="dash-bloc" id="dash-nouveautes" style="display:none;">
+        <div class="agenda-carte">
+          <div class="agenda-entete"><div>
+            <div class="agenda-titre">Dernières pièces</div>
+            <div class="agenda-mois">Trouvées sur le NAS ces 14 derniers jours</div>
+          </div></div>
+          <div id="pieces-recues-dashboard" class="dash-liste dash-liste-carte"></div>
+        </div>
+      </div>
+      <!-- Carte Agenda : semaine, rendez-vous de signature, état des envois (voir
+           renderRendezVousDashboard). Toujours affichée, même sans rendez-vous. -->
+      <div class="dash-bloc">
+        <div class="agenda-carte" id="agenda-dashboard"></div>
+      </div>
+    </aside>
   </div>
 </div>
 

@@ -7929,6 +7929,31 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   de conteneur et non de fenêtre, c'est la largeur du bloc qui compte. Vérifié dans Chromium
   (1600, 1280, 400 px, clair et sombre) : aucun débordement, aucune erreur JS.
 
+- **Tableau de bord : colonne principale + rail à droite, à la place des quatre colonnes** (25/09
+  soir). Les quatre blocs côte à côte de même largeur ont été refusés (« ça va pas, ajuste pour que
+  ce soit harmonieux, tu peux changer le nombre de colonnes par ligne »), avec en référence une
+  maquette de tableau de bord à colonne principale et rail latéral.
+  - `.dash-disposition` : grille `minmax(0,1fr) 340px`. Colonne principale (`.dash-principal`) :
+    en-tête (salutation, recherche, « + Nouveau dossier »), alerte de sauvegarde, trois tuiles KPI,
+    puis `.dash-duo` — « À traiter » + Mes rappels (étroit, `flex: 1 1 340px`) à côté de
+    « Avancement des dossiers » (large, `flex: 1.5 1 460px`). Rail (`.dash-rail`, un `<aside>`) qui
+    démarre à hauteur du titre : « Dernières pièces » puis l'Agenda.
+  - **Flex et non grille pour le duo** : un avancement masqué (aucun dossier) laisse À traiter
+    prendre toute la largeur, et les deux passent l'un sous l'autre dès que la colonne ne tient plus
+    340 + 460 px (vers 1440 px de fenêtre). Sous 1320 px le rail passe sous la colonne principale,
+    pièces et agenda côte à côte, puis empilés sous ~700 px.
+  - **Les quatre blocs sont des cartes au même gabarit** (`.agenda-carte` + `.agenda-entete` :
+    titre 17 px + sous-titre) : « Dernières pièces » (« Trouvées sur le NAS ces 14 derniers jours »)
+    et « Avancement des dossiers » avaient un petit titre en capitales au-dessus d'une liste
+    encadrée, à côté de deux cartes titrées de l'intérieur — c'est ce décalage qui cassait
+    l'alignement. Leurs listes perdent leur propre cadre (`.dash-liste-carte`, filets entre les
+    lignes ; `.agenda-carte .avancement-dossiers` sans bordure). Les id (`#dash-nouveautes`,
+    `#dash-avancement`) sont inchangés : le JS qui les masque quand ils sont vides n'a pas bougé.
+  - La requête de conteneur `dashbloc` de l'avancement passe de 520 à 560 px : à ~540 px la ligne
+    tenait sur un rang mais tronquait « étapes · pièces · prochaine ».
+  - `.dash-quatre` supprimé. Vérifié dans Chromium (1600, 1440, 1280, 400 px, clair et sombre) :
+    aucun débordement horizontal, aucune erreur JS.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

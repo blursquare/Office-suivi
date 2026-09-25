@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-25 21:41';
+  const VERSION_APP = '2026-09-25 21:47';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-25 21:47', resume: "Tableau de bord : colonne principale et rail à droite (dernières pièces, agenda), quatre cartes au même gabarit." },
     { version: '2026-09-25 21:41', resume: "Tableau de bord : À traiter, dernières pièces, agenda et avancement côte à côte sur quatre colonnes." },
     { version: '2026-09-25 21:36', resume: "Tableau de bord : le diagramme de Gantt est remplacé par une ligne par dossier — pourcentage d'avancement (étapes et pièces), statut Dans les délais / À surveiller / En retard, prix de vente." },
     { version: '2026-09-25 21:27', resume: "Tableau de bord : « Actions urgentes » et « Alertes importantes » réunies en une carte « À traiter » (une ligne par dossier, le geste à faire en titre), tuiles J-7/J-15 retirées, dernières pièces au-dessus de l'agenda." },
