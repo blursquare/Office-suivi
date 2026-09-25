@@ -366,3 +366,19 @@ test('rendez-vous de signature : un dossier archivé n\'est jamais touché', () 
   assert.equal(depot.trouverParId('d1').rendezVousSignature || '', '');
   db.close();
 });
+
+// Erreur 500 signalée par l'étude (25/09) : Exchange (IIS) répond 500 + X-CasErrorCode
+// « DirectoryOperationError » quand le calendrier du lien est introuvable.
+test('lecture ics : 500 Exchange DirectoryOperationError → une relance puis message explicite', async () => {
+  const depot = { tousActifs: () => [] };
+  const entetes = { server: 'Microsoft-IIS/10.0', 'x-caserrorcode': 'DirectoryOperationError', 'request-id': 'abc-123' };
+  let n = 0;
+  const resultat = await executerTourSurveillanceAgenda(depot,
+    'https://mail.exemple.test/owa/calendar/secret-jeton@etude.fr/xyz/calendar.ics',
+    async () => { n++; return { ok: false, status: 500, headers: { get: (k) => entetes[k.toLowerCase()] || null }, text: async () => '' }; }, 0);
+  assert.equal(n, 2, 'une seule relance apres le 500');
+  assert.equal(resultat.ok, false);
+  assert.match(resultat.erreur, /ne retrouve pas le calendrier/);
+  assert.match(resultat.erreur, /code Exchange DirectoryOperationError/);
+  assert.doesNotMatch(resultat.erreur, /secret-jeton/);
+});

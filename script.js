@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-25 15:08';
+  const VERSION_APP = '2026-09-25 15:12';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-25 15:12', resume: "Agenda de l'office : l'erreur 500 d'Exchange (calendrier introuvable derrière le lien) est expliquée, avec une relance automatique." },
     { version: '2026-09-25 15:08', resume: "Email du questionnaire de satisfaction : texte de l'étude, lignes espacées, sans signature, lien direct vers les avis Google." },
     { version: '2026-09-25 15:03', resume: "Emails « Provision + pièce d’identité » et « RIB » : textes de l'étude, lignes espacées, sans signature texte. Le RIB demande désormais d'apporter RIB et pièce d'identité au rendez-vous de signature." },
     { version: '2026-09-25 14:54', resume: "Relance « offre de prêt » (bouton et relance automatique) : nouveau texte de l'étude, lignes espacées, sans signature texte — la signature Outlook s'ajoute d'elle-même." },

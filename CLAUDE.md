@@ -7747,6 +7747,23 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   l'email « Réception des fonds » la porte encore. Le PDF du questionnaire reste téléchargé au
   même clic, à joindre à la main. Test de texte exact dans `tests/relances-email.test.js`.
 
+- **Agenda de l'office : erreur 500 d'Exchange** (25/09). Après le passage en https, le calendrier
+  n'est plus bloqué par le proxy du bureau : c'est le serveur d'Authentic Connect lui-même (Exchange,
+  `Microsoft-IIS/10.0`) qui répond 500. Vérifié depuis cet environnement, qui joint
+  `mail.authentic-connect.fr` : un lien de calendrier publié inventé reçoit exactement ce 500, avec
+  l'en-tête **`X-CasErrorCode: DirectoryOperationError`** et un corps vide, quel que soit le
+  User-Agent (navigateur, Outlook, node). Autrement dit, Exchange **ne retrouve pas la boîte ou le
+  calendrier désignés par le lien** : il a été dépublié, republié sous un nouveau lien, ou le lien
+  collé est incomplet. Ce ne sont pas les en-têtes de CLAIRE.
+  - Le diagnostic affiche désormais `code Exchange …` (en-tête `x-caserrorcode`), et
+    `messageErreurCalendrier(statut, codeExchange)` explique ce cas en clair : recopier le lien ICS
+    actuel, le même que celui du brief du matin.
+  - 500 rejoint `STATUTS_A_RELANCER` : une seconde lecture après 3 s. « DirectoryOperationError »
+    peut aussi être un raté passager de l'annuaire d'Exchange.
+  - Test ajouté dans `server/test/agenda-watch.test.js` (une relance, message explicite, jeton du
+    lien jamais affiché). Le test de route qui simulait un 500 passe à un 404, qui n'est pas relancé
+    (sinon 3 s d'attente réelle et une réponse simulée manquante).
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

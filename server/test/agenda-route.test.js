@@ -106,10 +106,11 @@ test('POST /api/agenda/tester : declenche un vrai tour, met a jour un dossier, p
 
 test('POST /api/agenda/tester : une erreur reseau est rapportee proprement (jamais un plantage)', async () => {
   await appeler('/api/agenda', { method: 'PUT', body: JSON.stringify({ icsUrl: 'https://example.test/agenda.ics' }) });
-  reponsesFetch.push({ ok: false, status: 500 });
+  // 404 plutôt que 500 : un 500 est désormais relancé une fois après 3 s (voir STATUTS_A_RELANCER).
+  reponsesFetch.push({ ok: false, status: 404 });
   const reponse = await appeler('/api/agenda/tester', { method: 'POST' });
   const corps = await reponse.json();
   assert.equal(reponse.status, 200, 'la route repond normalement, l\'echec est porte dans le compte rendu');
   assert.equal(corps.ok, false);
-  assert.match(corps.erreur, /500/);
+  assert.match(corps.erreur, /404/);
 });

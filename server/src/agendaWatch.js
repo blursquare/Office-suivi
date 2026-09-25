@@ -140,7 +140,9 @@ const ENTETES_LECTURE_ICS = {
 };
 
 // Codes qui disent « réessayez plus tard » : une seule nouvelle tentative, après une courte pause.
-const STATUTS_A_RELANCER = [429, 502, 503, 504];
+// 500 en fait partie : le code d'Exchange « DirectoryOperationError » (voir plus bas) peut aussi être
+// un raté passager de son annuaire, et une seconde lecture ne coûte rien.
+const STATUTS_A_RELANCER = [429, 500, 502, 503, 504];
 const PAUSE_AVANT_RELANCE_MS = 3000;
 
 // Une adresse copiée depuis Outlook commence parfois par `webcal://` (le protocole d'abonnement),
@@ -150,8 +152,18 @@ function adresseLisibleIcs(url) {
   return brute.replace(/^webcals?:\/\//i, 'https://');
 }
 
-// Message affiché dans les Réglages : le code seul ne dit rien à l'étude.
-function messageErreurCalendrier(statut) {
+// Message affiché dans les Réglages : le code seul ne dit rien à l'étude. `codeExchange` : l'en-tête
+// `X-CasErrorCode` d'un serveur Exchange (Outlook Web App, comme le calendrier d'Authentic Connect).
+// « DirectoryOperationError » est ce qu'Exchange répond (en 500) quand il ne retrouve pas la boîte ou
+// le calendrier désignés par le lien — vérifié le 25/09/2026 sur mail.authentic-connect.fr avec un
+// lien inventé : même 500, même code, quel que soit l'en-tête User-Agent envoyé.
+function messageErreurCalendrier(statut, codeExchange) {
+  if (/DirectoryOperationError/i.test(String(codeExchange || ''))) {
+    return `Le serveur du calendrier (Exchange) ne retrouve pas le calendrier désigné par ce lien ` +
+      `(erreur ${statut}, ${codeExchange}). Le calendrier a sans doute été dépublié, ou republié avec ` +
+      "un nouveau lien, ou le lien collé est incomplet. Recopiez le lien ICS actuel (le même que celui " +
+      'du brief du matin, se terminant par calendar.ics) dans ce champ, puis « Tester maintenant ».';
+  }
   if (statut === 503 || statut === 502 || statut === 504 || statut === 429) {
     return `Le serveur du calendrier est indisponible pour l'instant (erreur ${statut}). ` +
       'CLAIRE réessaiera au prochain tour, dans 15 minutes.';
@@ -248,6 +260,8 @@ function diagnosticDepuisCorps(reponse, adresse, corps) {
   if (via) morceaux.push(`via « ${String(via).slice(0, 60)} »`);
   const erreurSquid = lireEntete(reponse, 'x-squid-error');
   if (erreurSquid) morceaux.push(`code proxy ${String(erreurSquid).slice(0, 40)}`);
+  const codeExchange = lireEntete(reponse, 'x-caserrorcode');
+  if (codeExchange) morceaux.push(`code Exchange ${String(codeExchange).slice(0, 60)}`);
   const identifiant = lireEntete(reponse, 'request-id') || lireEntete(reponse, 'x-ms-request-id') || lireEntete(reponse, 'x-request-id');
   if (identifiant) morceaux.push(`requête ${String(identifiant).slice(0, 60)}`);
   const texte = texteSansAdresses(corps);
@@ -272,7 +286,8 @@ async function messageEchecLecture(reponse, adresse) {
   let hote = '';
   try { hote = new URL(adresse).hostname; } catch (e) { /* adresse illisible */ }
   const proxy = causeProxy(reponse, texteSansAdresses(corps));
-  const tete = proxy ? messageErreurProxy(proxy, hote, reponse.status) : messageErreurCalendrier(reponse.status);
+  const tete = proxy ? messageErreurProxy(proxy, hote, reponse.status)
+    : messageErreurCalendrier(reponse.status, lireEntete(reponse, 'x-caserrorcode'));
   return { message: tete + diagnosticDepuisCorps(reponse, adresse, corps), proxy };
 }
 
