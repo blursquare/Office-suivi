@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-25 23:22';
+  const VERSION_APP = '2026-09-25 23:23';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-25 23:23', resume: "Fiche dossier : « Dépôt » devient « Séquestre », et l'ancien « Séquestre » (qui détient les fonds) devient « Versé à »." },
     { version: '2026-09-25 23:22', resume: "Emails de la fiche : textes d'aide raccourcis (onglet Échanges, fenêtres après envoi)." },
     { version: '2026-09-25 23:19', resume: "Fiche dossier : informations du dossier sur deux colonnes, libellés courts à gauche — un tiers de hauteur en moins avant les onglets." },
     { version: '2026-09-25 22:51', resume: "Fiche dossier refaite : barre d'actions, propriétés modifiables sur place, avancement par étapes, onglets Échéances / Pièces / Analyse / Échanges / Historique, et mode agrandi sur deux colonnes." },
@@ -11142,8 +11143,8 @@
       <dl class="fiche-proprietes">
         ${ligne('map-pin', 'Adresse', saisie('adresse', d.adresseBien, 'changerAdresseBien'), `adresse-${d.id}`, 'prop-pleine')}
         ${ligne('banknote', 'Prix', saisie('prix', d.prixVente ? formaterPrix(d.prixVente) : '', 'changerPrixVente', ' inputmode="numeric"'), `prix-${d.id}`)}
-        ${ligne('lock', 'Dépôt', saisie('depot', d.depotGarantie ? formaterPrix(d.depotGarantie) : '', 'changerDepotGarantie', ' inputmode="numeric" title="Dépôt de garantie"'), `depot-${d.id}`)}
-        ${ligne('shield', 'Séquestre', saisie('sequestre', d.sequestreDepot, 'changerSequestreDepot', ' title="Entre les mains de qui l\'acquéreur verse le dépôt : l\'office, l\'agence, la CARPA…"'), `sequestre-${d.id}`)}
+        ${ligne('lock', 'Séquestre', saisie('depot', d.depotGarantie ? formaterPrix(d.depotGarantie) : '', 'changerDepotGarantie', ' inputmode="numeric" title="Montant séquestré (dépôt de garantie)"'), `depot-${d.id}`)}
+        ${ligne('shield', 'Versé à', saisie('sequestre', d.sequestreDepot, 'changerSequestreDepot', ' title="Entre les mains de qui l\'acquéreur verse le dépôt : l\'office, l\'agence, la CARPA…"'), `sequestre-${d.id}`)}
         ${ligne('trend-up', 'Financement', financement)}
       </dl>
       <dl class="fiche-proprietes">

@@ -8018,7 +8018,7 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   lignes tombent donc à la même verticale. Une valeur longue prend toute la largeur (`prop-pleine` :
   adresse, dossier du NAS, avant-contrat, notaires, dont le champ porte en plus « Reçoit l'acte »).
   Libellés et boutons raccourcis pour tenir dans la case : « Dossier NAS », « Adresse », « Prix »,
-  « Dépôt », « Notaire vendeur/acquéreur », « Confrère » ; boutons « Changer », « Ouvrir »,
+  « Séquestre » (le montant du dépôt — libellé « Dépôt » renommé à la demande de l'étude ; l'ancien « Séquestre », qui détient les fonds, devient « Versé à »), « Notaire vendeur/acquéreur », « Confrère » ; boutons « Changer », « Ouvrir »,
   « Relier » (l'intitulé complet reste en infobulle) ; financement réduit à « Offre introuvable » /
   « Comptant » / « Apport … (… %) », le montant du prêt en infobulle. Une case ne passe jamais à la
   ligne (`flex-wrap: nowrap`) : un texte trop long s'abrège plutôt que de repousser son bouton.
