@@ -47,27 +47,20 @@
     --focus-hover: #551A26;
     --shadow-card: 0 1px 2px rgba(22,35,60,0.04), 0 2px 8px rgba(22,35,60,0.04);
     --shadow-float: 0 8px 28px rgba(22,35,60,0.16);
-    /* Panneau "verre" de la sidebar : dégradé légèrement teinté (pas un simple à-plat de
-       --paper-card) + flou derrière ce qui défile sous elle en mobile (voir .sidebar-burger /
-       .sidebar en position fixed) — la seule vraie translucidité visible, la sidebar desktop étant
-       en flux normal sans rien en dessous. */
-    --sidebar-bg: linear-gradient(165deg, rgba(255,255,255,0.94) 0%, rgba(246,248,251,0.88) 55%, rgba(228,236,247,0.85) 100%);
-    --sidebar-border: rgba(22,35,60,0.08);
-    --sidebar-shadow: 4px 0 28px rgba(22,35,60,0.07);
-    --sidebar-highlight: rgba(255,255,255,0.7);
-    /* Onglet de navigation actif (Tableau de bord/Suivi/Simulateur) : gris foncé neutre, cohérent
-       avec la palette mode sombre déjà en gris neutres — pas de bleu --focus dans la sidebar. */
-    --sidebar-actif-bg: linear-gradient(155deg, #4B5157 0%, #363A3F 100%);
   }
 
+  /* Mode sombre repris de l'artefact de présentation de CLAIRE (demandé par l'étude) : graphite
+     froid (#14161A / #1B1E23 / #20232A) plutôt que le gris chaud façon Claude.ai d'avant, et un
+     rendu « bureautique » — cartes détachées par leur filet (--line, nettement plus visible qu'un
+     écart de fond) et une ombre courte, sans halo. Les couleurs de catégorie ne bougent pas. */
   [data-theme="dark"] {
-    --paper: #1E1E1E;
-    --paper-card: #2A2A2A;
-    --paper-sunk: #242424;
-    --ink: #ECECEC;
-    --ink-soft: #ABABAB;
-    --line: #3D3D3D;
-    --line-soft: #333333;
+    --paper: #14161A;
+    --paper-card: #1B1E23;
+    --paper-sunk: #20232A;
+    --ink: #EDEEF0;
+    --ink-soft: #C3C7CD;
+    --line: #2F343C;
+    --line-soft: #24272D;
     --pret: #E0A93E;
     --pret-bg: #332B18;
     /* Bleu nuit éclairci pour rester lisible sur fond sombre (même convention que les autres
@@ -86,21 +79,13 @@
     --notif-nouveau: #F87171;
     --success: #5FBF87;
     --success-bg: #223026;
-    --muted: #8C8C8C;
-    /* Surfaces (fond, cartes, encres) restent en gris neutre — décision explicite, voir plus bas
-       ("Palette bleue professionnelle"). Variante sombre du bordeaux (voir :root) : éclaircie et
-       désaturée pour rester lisible sur fond sombre, même convention que les autres jetons de
-       catégorie (--acte, --ventebien...). */
+    --muted: #9AA0A8;
+    /* Variante sombre du bordeaux (voir :root) : éclaircie et désaturée pour rester lisible sur
+       fond sombre, même convention que les autres jetons de catégorie. */
     --focus: #D08A98;
     --focus-hover: #DFA3AE;
-    --shadow-card: 0 1px 2px rgba(0,0,0,0.3), 0 2px 8px rgba(0,0,0,0.2);
-    --shadow-float: 0 8px 28px rgba(0,0,0,0.5);
-    --sidebar-bg: linear-gradient(165deg, rgba(46,46,46,0.94) 0%, rgba(30,30,30,0.9) 55%, rgba(36,44,58,0.88) 100%);
-    --sidebar-border: rgba(255,255,255,0.07);
-    --sidebar-shadow: 4px 0 32px rgba(0,0,0,0.4);
-    --sidebar-highlight: rgba(255,255,255,0.09);
-    /* Un peu plus clair qu'en mode clair pour rester visible sur le fond de sidebar déjà sombre. */
-    --sidebar-actif-bg: linear-gradient(155deg, #5C6369 0%, #454A50 100%);
+    --shadow-card: 0 1px 2px rgba(0,0,0,0.35);
+    --shadow-float: 0 12px 32px -8px rgba(0,0,0,0.6);
   }
 
   * { box-sizing: border-box; }
@@ -506,39 +491,34 @@
     min-height: 100vh;
   }
 
-  /* Sidebar toujours sombre, flottante, coins arrondis (demandé par l'étude — contraste net avec un
-     contenu qui, lui, garde le thème courant). Plutôt qu'un second jeu de classes à maintenir, tous
-     les jetons dont dépend le CONTENU de la sidebar (.sidebar-link, .dot-label, badges...) sont
-     redéclarés ici aux valeurs déjà utilisées par [data-theme="dark"] — une simple redéclaration
-     locale de variables CSS, qui l'emporte sur celle de :root/[data-theme] pour tout ce sous-arbre,
-     sans dupliquer la moindre règle de rendu. --focus prend la variante sombre du bordeaux (plus
-     lisible sur ce fond que la variante claire) ; --sidebar-actif-bg (l'onglet actif) reste le même
-     gris neutre qu'avant, cohérent avec la palette déjà en place. Détachée du bord (marge + coins
-     arrondis + ombre plus marquée) : border-right retiré, il n'a plus de sens une fois la sidebar
-     séparée du contenu par un espace. */
-  .sidebar {
-    --paper: #1E1E1E; --paper-card: #2A2A2A; --paper-sunk: #242424;
-    --ink: #ECECEC; --ink-soft: #ABABAB; --line: #3D3D3D; --line-soft: #333333; --muted: #8C8C8C;
+  /* Sidebar toujours sombre, flottante, coins arrondis, quel que soit le thème du contenu (demandé
+     par l'étude, pour le contraste). Tous les jetons dont dépend son contenu sont redéclarés ici aux
+     valeurs de [data-theme="dark"] : une redéclaration locale de variables CSS l'emporte pour tout
+     ce sous-arbre sans dupliquer une seule règle de rendu. Partagés avec le bouton burger (mobile),
+     qui ouvre ce panneau et doit donc lui ressembler. Panneau plat bordé, sans flou ni dégradé :
+     l'effet « verre » a été retiré avec le passage au mode sombre de l'artefact de présentation. */
+  .sidebar, .sidebar-burger {
+    --paper: #14161A; --paper-card: #1B1E23; --paper-sunk: #20232A;
+    --ink: #EDEEF0; --ink-soft: #C3C7CD; --line: #2F343C; --line-soft: #24272D; --muted: #9AA0A8;
     --pret: #E0A93E; --pret-bg: #332B18; --acte: #8A9FD4; --acte-bg: #232736; --ventebien: #6FAEDB;
     --ventebien-bg: #263238; --appelfonds: #A48BE0; --projet: #E58AB5; --urgent: #F08C4B;
     --notif-nouveau: #F87171;
     --success: #5FBF87; --success-bg: #223026;
     --focus: #D08A98; --focus-hover: #DFA3AE;
-    --sidebar-bg: linear-gradient(165deg, rgba(46,46,46,0.94) 0%, rgba(30,30,30,0.9) 55%, rgba(36,44,58,0.88) 100%);
-    --sidebar-border: rgba(255,255,255,0.07);
-    --sidebar-highlight: rgba(255,255,255,0.09);
-    --sidebar-actif-bg: linear-gradient(155deg, #5C6369 0%, #454A50 100%);
-
+    --sidebar-bg: #1B1E23;
+    --sidebar-border: #2F343C;
+    --sidebar-actif-bg: #2C3139;
+  }
+  .sidebar {
     flex: 0 0 252px;
     display: flex;
     flex-direction: column;
     gap: 4px;
     padding: 22px 16px;
     background: var(--sidebar-bg);
-    backdrop-filter: blur(20px) saturate(160%);
-    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border: 1px solid var(--sidebar-border);
     border-radius: 20px;
-    box-shadow: 0 18px 40px rgba(0,0,0,0.45);
+    box-shadow: 0 10px 28px -10px rgba(0,0,0,0.5);
     position: sticky;
     top: 16px;
     margin: 16px 0 16px 16px;
@@ -546,15 +526,6 @@
     overflow-y: auto;
     z-index: 2;
   }
-  .sidebar::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, var(--sidebar-highlight), transparent);
-    pointer-events: none;
-  }
-
   /* Stade de maturité d'un outil (« Alpha » sur la relecture d'actes, pendant que CLAIRE est en
      bêta) : même facture que le badge du logo, mais en ambre --pret — un outil encore en test, pas
      une alerte. Sur le lien de la barre latérale, poussé à droite du libellé. */
@@ -664,12 +635,12 @@
      gauche d'une rangée sinon vide. */
   .sidebar-link-icone-seule { width: auto; justify-content: center; }
   .sidebar-link-icone-seule .sidebar-link-icone { width: auto; font-size: 17px; }
-  /* Lien actif en "pilule de verre" (dégradé + liseré clair en haut + ombre portée) : gris foncé
-     neutre (--sidebar-actif-bg), pas de bleu dans la sidebar. */
+  /* Lien actif : aplat neutre + trait d'accent bordeaux à gauche, comme la navigation d'Outlook —
+     plus de « pilule de verre » (dégradé, reflet, ombre), retirée avec l'effet verre. */
   .sidebar-link.actif {
     background: var(--sidebar-actif-bg);
-    color: #fff;
-    box-shadow: 0 4px 14px -2px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.22);
+    color: var(--ink);
+    box-shadow: inset 3px 0 0 var(--focus);
   }
   .sidebar-link.actif .sidebar-link-icone { opacity: 1; }
 
@@ -1696,18 +1667,14 @@
       border-radius: 10px;
       border: 1px solid var(--sidebar-border);
       background: var(--sidebar-bg);
-      backdrop-filter: blur(14px) saturate(160%);
-      -webkit-backdrop-filter: blur(14px) saturate(160%);
       color: var(--ink);
       font-size: 18px;
       cursor: pointer;
       box-shadow: var(--shadow-float);
     }
-    /* Overlay fixe par-dessus le contenu (contrairement au flux normal en desktop) : c'est ici que
-       le flou de .sidebar (voir plus haut) devient réellement visible, sur ce qui défile dessous.
-       Le traitement "flottant" (marge/coins arrondis) du desktop n'a plus de sens sur un tiroir
-       mobile plein écran : reste sombre (jetons hérités de la règle de base), mais redevient
-       bord-à-bord pleine hauteur, plus pratique à atteindre au doigt. */
+    /* Tiroir fixe par-dessus le contenu. Le traitement flottant du desktop (marge, coins arrondis)
+       n'a pas de sens sur un tiroir plein écran : il reste sombre mais redevient bord-à-bord,
+       plus facile à atteindre au doigt. */
     .sidebar {
       position: fixed;
       z-index: 41;
