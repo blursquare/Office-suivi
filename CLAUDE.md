@@ -9827,6 +9827,31 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
   - Vérifié dans un vrai Chromium (clair, sombre, 400 px) : `--focus` et celui de la sidebar
     changent pour les cinq thèmes, choix relu après rechargement, aucun débordement, aucune erreur JS.
 
+- **Thème retrouvé à chaque relance, logo inversé, mot « Claire » moins gras** (26/09 soir, trois
+  demandes enchaînées : « le logo de l'app : met moins gras la typo », « garder le thème choisi par
+  le collaborateur doit rester lorsqu'il relance », « logo picto dans la sidebar […] inverse entre
+  noir et blanc » et « le logo de l'app doit être le même que celui du logo »).
+  - **Thème par collaborateur, gardé sur le serveur** : le `localStorage` seul ne tient pas d'une
+    relance à l'autre dès que le navigateur perd ses données ou que CLAIRE est ouverte par une autre
+    adresse (localhost et l'IP du poste sont deux « sites » distincts). Clé `preferences-collaborateurs`
+    (`parametresRepo.lirePreferences/ecrirePreferences`, liste blanche `light|dark` et des cinq
+    accents), route `GET /api/preferences?collaborateur=` / `PUT /api/preferences` qui FUSIONNE
+    (changer la couleur ne remet pas le mode sombre à zéro). Côté client, les interrupteurs appellent
+    `choisirTheme()`/`choisirAccent()` (application immédiate + envoi) ; `chargerPreferencesCollaborateur()`
+    réapplique le choix au démarrage et au changement de collaborateur, et reprend une fois le choix
+    déjà fait sur le poste quand le serveur n'en a pas. Le `localStorage` reste le cache lu avant la
+    connexion, pour éviter un éclair de l'ancien thème. Sans collaborateur choisi, rien n'est envoyé.
+  - **Logo : tuile blanche, anneau et coche noirs** (`#111418`), sur les trois emplacements
+    d'index.html (sidebar, connexion, À propos), avec un filet `#D5D8DD` qui ne se voit que sur fond
+    clair. **`icone.svg` reprend exactement ce dessin** (même viewBox 48, traits 2,2, coche à
+    l'ouverture de l'anneau) au lieu de sa version épaissie à coche intérieure : rendu vérifié à 16,
+    32 et 64 px, toujours lisible.
+  - **Mot « Claire » en Montserrat 500** au lieu de 700 ; le lien Google Fonts ne charge plus que ce
+    poids (Montserrat ne sert qu'au logo).
+  - Tests : `server/test/preferences.test.js` (2). Suites : 809 racine, 373 serveur. Vérifié dans un
+    vrai Chromium : sombre + vert choisis par Julie, puis un navigateur vierge qui ne connaît que le
+    collaborateur retrouve sombre + vert.
+
 ## Ce qui reste ouvert / pas encore fait
 
 - **Signature manuscrite de Bastien ANGLUMENT, conservée pour le courrier d'appel de fonds**

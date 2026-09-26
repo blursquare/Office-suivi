@@ -122,6 +122,34 @@ function assainirRappelsPerso(brut) {
   return liste;
 }
 
+// Préférences d'affichage par collaborateur (mode sombre, thème de couleur) : gardées sur le
+// serveur pour qu'un collaborateur retrouve son thème à chaque relance, même si le navigateur
+// a perdu ses données ou si CLAIRE est ouverte par une autre adresse (localhost / IP), deux
+// « sites » qui ne partagent pas leur localStorage.
+const CLE_PREFERENCES = 'preferences-collaborateurs';
+const THEMES_PREFERENCES = ['light', 'dark'];
+const ACCENTS_PREFERENCES = ['bordeaux', 'bleu', 'vert', 'prune', 'orange'];
+
+function assainirPreference(brut) {
+  const b = brut && typeof brut === 'object' ? brut : {};
+  const out = {};
+  if (THEMES_PREFERENCES.includes(b.theme)) out.theme = b.theme;
+  if (ACCENTS_PREFERENCES.includes(b.accent)) out.accent = b.accent;
+  return out;
+}
+
+function assainirPreferences(brut) {
+  const out = {};
+  if (!brut || typeof brut !== 'object' || Array.isArray(brut)) return out;
+  for (const [nom, pref] of Object.entries(brut).slice(0, 50)) {
+    const cle = String(nom).trim().slice(0, 80);
+    if (!cle) continue;
+    const propre = assainirPreference(pref);
+    if (Object.keys(propre).length) out[cle] = propre;
+  }
+  return out;
+}
+
 // Sauvegarde automatique de la base (voir sauvegarde.js) : le dossier de destination choisi dans
 // les Réglages, et l'état des dernières tentatives. Deux clés à part du blob `reglages`, comme le
 // compte rendu des rappels : l'état est produit par le serveur, pas saisi par l'étude.
@@ -572,6 +600,22 @@ function creerRepoParametres(db) {
     return propre;
   }
 
+  function lirePreferences() {
+    const ligne = lireStmt.get(CLE_PREFERENCES);
+    if (!ligne) return {};
+    try {
+      return assainirPreferences(JSON.parse(ligne.valeur));
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function ecrirePreferences(preferences) {
+    const propre = assainirPreferences(preferences);
+    ecrireStmt.run(CLE_PREFERENCES, JSON.stringify(propre));
+    return propre;
+  }
+
   function lireReglageSauvegarde() {
     const ligne = lireStmt.get(CLE_REGLAGE_SAUVEGARDE);
     try {
@@ -662,14 +706,14 @@ function creerRepoParametres(db) {
     lireCopiesEnAttente, ecrireCopiesEnAttente, lireRetoursAudit, ecrireRetoursAudit,
     lireReglagesClaude, ecrireReglagesClaude, lireSecretLiens,
     lireExclusionsPieces, ecrireExclusionsPieces, lireCorrectionsApprises, ecrireCorrectionsApprises,
-    lireRappelsPerso, ecrireRappelsPerso
+    lireRappelsPerso, ecrireRappelsPerso, lirePreferences, ecrirePreferences
   };
 }
 
 module.exports = {
   creerRepoParametres, assainirReglages, assainirEtatSauvegarde, assainirExclusionsPieces, assainirCorrectionApprise, assainirCorrectionsApprises, MAX_CORRECTIONS_APPRISES, assainirDernierTour, assainirCopiesEnAttente,
   assainirRetourAudit, assainirRetoursAudit, MAX_RETOURS_AUDIT,
-  assainirRappelPerso, assainirRappelsPerso, MAX_RAPPELS_PERSO,
+  assainirRappelPerso, assainirRappelsPerso, MAX_RAPPELS_PERSO, assainirPreference, assainirPreferences,
   assainirReglagesClaude, assainirReglagesMiseAJour, MODELES_CLAUDE, MODELE_CLAUDE_PAR_DEFAUT,
   assainirReglagesAgenda, assainirDernierTourAgenda,
   REGLAGES_PAR_DEFAUT, PORT_SMTP_PAR_DEFAUT

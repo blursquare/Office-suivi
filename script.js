@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-26 19:05';
+  const VERSION_APP = '2026-09-26 19:19';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-26 19:19', resume: "Thème (mode sombre et couleur) retrouvé à chaque relance : gardé au nom du collaborateur sur le serveur ; logo en tuile blanche et trait noir, icône de l'application au même dessin ; mot « Claire » moins gras." },
     { version: '2026-09-26 19:05', resume: "Thème de couleur au choix dans Réglages › Général (bordeaux, bleu, vert, prune, orange), retenu par poste ; logo et icône d'onglet en noir et blanc, identiques pour tous les thèmes." },
     { version: '2026-09-26 18:45', resume: "Mode sombre repris de l'artefact de présentation (graphite froid, cartes bordées) ; relecture complète : code et styles inutilisés retirés, texte lisible sur les boutons roses en sombre, logo et icône d'onglet au bordeaux, étiquette « Nouveau » collée au nom de la pièce, cases à cocher visibles, nom du responsable plus coupé." },
     { version: '2026-09-26 18:19', resume: "Palette bordeaux + sidebar toujours sombre et flottante (coins arrondis, détachée du bord) ; tableau de bord : date du jour au-dessus de « Bonjour », « À traiter »/« Avancement » réellement côte à côte ; pastilles « Nouveau »/compteur de pièces en rouge franc, distinct du rouge-orangé --urgent." },
@@ -11367,6 +11368,7 @@
     rappelsPersoCharges = false;
     render();
     chargerRappelsPerso();
+    chargerPreferencesCollaborateur();
   }
 
   function initUtilisateurPoste() {
@@ -13966,6 +13968,7 @@
     await charger();
     demanderUtilisateurPosteSiInconnu();
     chargerRappelsPerso();
+    chargerPreferencesCollaborateur();
     await chargerEtatNas();
     // Avant toute relecture du NAS : un parcours lancé sans elles reconnaîtrait des fichiers que
     // l'étude a écartés.
@@ -17422,6 +17425,61 @@
     let accent = null;
     try { accent = localStorage.getItem(CLE_ACCENT); } catch (e) { /* aucune préférence enregistrée */ }
     appliquerAccent(accent, false);
+  }
+
+  // ---- préférences d'affichage du collaborateur ----
+  // Le thème (mode sombre + couleur) est aussi gardé sur le serveur, au nom du collaborateur du
+  // poste : le localStorage seul ne tient pas d'une relance à l'autre dès que le navigateur
+  // perd ses données ou que CLAIRE est ouverte par une autre adresse (localhost / IP, deux
+  // « sites » distincts). Le localStorage reste le cache immédiat, lu avant toute connexion.
+
+  function choisirTheme(theme) {
+    appliquerTheme(theme);
+    enregistrerPreferenceCollaborateur({ theme });
+  }
+
+  function choisirAccent(valeur) {
+    appliquerAccent(valeur);
+    enregistrerPreferenceCollaborateur({ accent: accentValide(valeur) });
+  }
+
+  async function enregistrerPreferenceCollaborateur(preferences) {
+    if (!utilisateurPoste || !authToken) return;
+    try {
+      await fetchAvecAuth('/api/preferences', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ collaborateur: utilisateurPoste, preferences })
+      });
+    } catch (e) { /* le choix reste appliqué sur ce poste */ }
+  }
+
+  function preferencesLocales() {
+    const out = {};
+    try {
+      const theme = localStorage.getItem(CLE_THEME);
+      if (theme === 'dark' || theme === 'light') out.theme = theme;
+      const accent = localStorage.getItem(CLE_ACCENT);
+      if (accent && ACCENTS_DISPONIBLES.indexOf(accent) >= 0) out.accent = accent;
+    } catch (e) { /* pas de préférence locale */ }
+    return out;
+  }
+
+  async function chargerPreferencesCollaborateur() {
+    if (!utilisateurPoste || !authToken) return;
+    let serveur = {};
+    try {
+      const reponse = await fetchAvecAuth('/api/preferences?collaborateur=' + encodeURIComponent(utilisateurPoste));
+      if (!reponse.ok) return;
+      serveur = (await reponse.json()).preferences || {};
+    } catch (e) { return; }
+    if (serveur.theme) appliquerTheme(serveur.theme);
+    if (serveur.accent) appliquerAccent(serveur.accent);
+    // Premier passage de ce collaborateur : on reprend le choix déjà fait sur ce poste.
+    const manquant = {};
+    const locales = preferencesLocales();
+    if (!serveur.theme && locales.theme) manquant.theme = locales.theme;
+    if (!serveur.accent && locales.accent) manquant.accent = locales.accent;
+    if (Object.keys(manquant).length) enregistrerPreferenceCollaborateur(manquant);
   }
 
   // ---- barre de progression ----

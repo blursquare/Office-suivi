@@ -612,11 +612,11 @@
   /* Logo "CLAIRE" seul : Montserrat (choisie explicitement par l'étude, après un premier essai en
      Bodoni Moda inspiré d'une référence "Sage" fournie plus tôt) — un sans-serif géométrique, pour
      une marque plus affirmée/moderne que le reste de l'interface, déjà en Inter partout ailleurs
-     (voir h1/h2/h3 en tête de fichier). Majuscules resserrées (letter-spacing négatif) : Montserrat
-     en gras/tout-capitales a tendance à paraître un peu large sans ce resserrement. */
+     (voir h1/h2/h3 en tête de fichier). Graisse 500 plutôt que 700 : demandé par l'étude (« moins
+     gras ») ; le léger resserrement (letter-spacing négatif) reste, Montserrat étant large. */
   .brand-word {
     font-family: 'Montserrat', 'Inter', -apple-system, 'Segoe UI', sans-serif;
-    font-weight: 700;
+    font-weight: 500;
     /* 22px → 30px (symbole 30 → 40px dans index.html) : logo agrandi à la demande de l'étude. */
     font-size: 30px;
     line-height: 1;
