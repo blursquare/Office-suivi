@@ -130,7 +130,7 @@ test('un dossier dont l’offre reste « à confirmer » n’est pas considéré
 // Signalé par l'étude sur un dossier réel : « Caution · Hypothèque conventionnelle » affiché pour
 // une offre qui ne porte qu'un cautionnement. Ce n'était pas l'affichage (qui se contente de
 // traduire les clés) mais la détection, pour deux raisons cumulées — un test par raison.
-test('extraireParagrapheGaranties s\'arrête sur un titre de section numéroté ou en casse normale', () => {
+test('detecterGarantiesPret : le paragraphe s\'arrête sur un titre de section numéroté ou en casse normale', () => {
   const app = chargerApplication();
   // Le motif précédent exigeait une MAJUSCULE comme tout premier caractère de la ligne : ni
   // « 8. ASSURANCES » ni « Article 8 - Assurance emprunteur » n'étaient reconnus comme titre, et
@@ -158,7 +158,7 @@ test('detecterGarantiesPret écarte une garantie citée en simple alternative', 
   assert.equal(app.detecterGarantiesPret(cumul).join(','), 'hypothequeConventionnelle');
 });
 
-test('extraireParagrapheGaranties ne coupe pas sur une première garantie écrite en capitales', () => {
+test('detecterGarantiesPret ne coupe pas le paragraphe sur une première garantie écrite en capitales', () => {
   const app = chargerApplication();
   // Une garantie énoncée en capitales juste sous le titre ressemble à un titre de section : la
   // couper viderait le paragraphe et ferait ressortir « Sans garanties » sur une offre cautionnée.
@@ -204,7 +204,6 @@ test('le paragraphe GARANTIES n\'est trouvé que sur un texte à VRAIES lignes (
   // garanties passe désormais par lireTextePdfEnLignes (voir verifierDossierLocal) : ce test
   // verrouille la raison du changement, pas seulement son effet.
   const aplati = lignes.replace(/\n/g, ' ');
-  assert.equal(app.extraireParagrapheGaranties(aplati), '');
   assert.equal(app.detecterGarantiesPret(aplati).length, 0);
 });
 
@@ -229,7 +228,6 @@ test('l’offre à plusieurs paragraphes « Garanties » : le titre GARANTIE(S) 
     + "GARANTIES\n"
     + "En garantie du paiement de toutes sommes dues, l'Emprunteur confère à la Banque les garanties prévues aux conditions particulières.\n";
   assert.equal(app.detecterGarantiesPret(offre).join(','), 'caution');
-  assert.ok(app.extraireParagrapheGaranties(offre).includes('Cautionnement solidaire'));
 });
 
 test('seuls des paragraphes « Garanties » d’assurance ne disent pas « Sans garanties »', () => {

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-26 18:19';
+  const VERSION_APP = '2026-09-26 18:45';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-26 18:45', resume: "Mode sombre repris de l'artefact de présentation (graphite froid, cartes bordées) ; relecture complète : code et styles inutilisés retirés, texte lisible sur les boutons roses en sombre, logo et icône d'onglet au bordeaux, étiquette « Nouveau » collée au nom de la pièce, cases à cocher visibles, nom du responsable plus coupé." },
     { version: '2026-09-26 18:19', resume: "Palette bordeaux + sidebar toujours sombre et flottante (coins arrondis, détachée du bord) ; tableau de bord : date du jour au-dessus de « Bonjour », « À traiter »/« Avancement » réellement côte à côte ; pastilles « Nouveau »/compteur de pièces en rouge franc, distinct du rouge-orangé --urgent." },
     { version: '2026-09-26 17:07', resume: "Sidebar : coin arrondi (au lieu d'un angle droit) entre le tronc et la branche du sous-menu « Outils »." },
     { version: '2026-09-26 13:59', resume: "Appel de fonds : 4 sauts de ligne entre l'adresse/la mention d'envoi et la ligne « Ville, le date » du courrier." },
@@ -223,7 +224,6 @@
     });
   }
 
-  const STORAGE_KEY = 'dossiers';
   let dossiers = [];
   let detectedDates = []; // {iso, label, contexte, suggestion}
   let autresEnCours = []; // {id, label, iso, active}
@@ -271,8 +271,6 @@
     list: '<circle cx="2.3" cy="4" r="0.9" fill="currentColor" stroke="none"/><line x1="5.4" y1="4" x2="14" y2="4"/><circle cx="2.3" cy="8" r="0.9" fill="currentColor" stroke="none"/><line x1="5.4" y1="8" x2="14" y2="8"/><circle cx="2.3" cy="12" r="0.9" fill="currentColor" stroke="none"/><line x1="5.4" y1="12" x2="14" y2="12"/>',
     menu: '<line x1="2.4" y1="4.5" x2="13.6" y2="4.5"/><line x1="2.4" y1="8" x2="13.6" y2="8"/><line x1="2.4" y1="11.5" x2="13.6" y2="11.5"/>',
     download: '<path d="M8 2v8"/><path d="M4.5 7 8 10.5 11.5 7"/><path d="M3 13.5h10"/>',
-    sun: '<circle cx="8" cy="8" r="3"/><line x1="8" y1="1.2" x2="8" y2="3"/><line x1="8" y1="13" x2="8" y2="14.8"/><line x1="1.2" y1="8" x2="3" y2="8"/><line x1="13" y1="8" x2="14.8" y2="8"/><line x1="3.3" y1="3.3" x2="4.5" y2="4.5"/><line x1="11.5" y1="11.5" x2="12.7" y2="12.7"/><line x1="3.3" y1="12.7" x2="4.5" y2="11.5"/><line x1="11.5" y1="4.5" x2="12.7" y2="3.3"/>',
-    moon: '<path d="M13.6 9.9A5.8 5.8 0 1 1 6.1 2.4a4.6 4.6 0 0 0 7.5 7.5Z" stroke-linejoin="round"/>',
     search: '<circle cx="7" cy="7" r="4.3"/><line x1="10.2" y1="10.2" x2="14" y2="14"/>',
     clock: '<circle cx="8" cy="8" r="6.2"/><path d="M8 4.6V8l2.4 1.6"/>',
     'alert-triangle': '<path d="M8 2.3 14.4 13.2a0.9 0.9 0 0 1-0.8 1.3H2.4a0.9 0.9 0 0 1-0.8-1.3L8 2.3Z" stroke-linejoin="round"/><line x1="8" y1="6" x2="8" y2="9.3"/><circle cx="8" cy="11.5" r="0.8" fill="currentColor" stroke="none"/>',
@@ -1918,10 +1916,6 @@
     return trouve ? trouve.canonique : null;
   }
 
-  // Un lieu-dit n'est PAS une voie : il ne doit jamais être transformé artificiellement en nom de
-  // rue (spec explicite, cas fréquent sur les biens ruraux du secteur de l'étude).
-  var RE_LIEU_DIT = /\blieu[-\s]?dit\s+(.+)$/i;
-
   // Le département se déduit du code postal, jamais du seul nom de commune (plusieurs communes
   // portent des noms proches d'un département à l'autre — la spec insiste sur ce point).
   function departementDepuisCodePostal(cp) {
@@ -1934,9 +1928,6 @@
     return chiffres.slice(0, 2);
   }
 
-  // Numéro en tête de fragment : accepte les formes complexes que la spec demande de ne pas
-  // tronquer — « 12 bis », « 12 ter », « 12 A », « 12-14 », « 12/14 ».
-  var RE_NUMERO_DEBUT = /^(\d{1,4}\s*[-\/]\s*\d{1,4}|\d{1,4}(?:\s*(?:bis|ter|quater)\b|\s+[A-Za-z]\b)?)\s*,?\s*/i;
   // Numéro rejeté en fin de fragment : « rue Victor Hugo n°12 ».
   var RE_NUMERO_FIN = /\bn\s*[°ºo]\s*(\d{1,4}(?:\s*(?:bis|ter|quater))?)\s*$/i;
 
@@ -3986,12 +3977,6 @@
     { valeur: 'terrain', libelle: 'Terrain à bâtir' }
   ];
 
-  var CONTROLES_PAR_TYPE_BIEN = {
-    copropriete: 'assemblées générales, état daté et carnet d’entretien',
-    terrain: 'permis de construire et purge de ses délais',
-    maison: 'aucun contrôle propre au type de bien'
-  };
-
   function deduireTypeBienOutil2(entree) {
     const dossierLie = (entree && entree.dossierLie) || null;
     if (dossierLie && (dossierLie.typeVente === 'copropriete' || dossierLie.typeVente === 'terrain' || dossierLie.typeVente === 'maison')) {
@@ -5549,10 +5534,6 @@
     return { present: 'valide', a_verifier: 'surveiller', absent: 'critique', non_applicable: 'na' }[statut] || 'surveiller';
   }
 
-  function niveauAnomalieOutil2(gravite) {
-    return gravite === 'elevee' ? 'critique' : 'surveiller';
-  }
-
   // Regroupe la réponse de Claude par section de la grille, avec le niveau de chaque ligne et le
   // pire niveau de la section. `grille` est celle envoyée (même ordre).
   function sectionsTableauDeBordOutil2(analyse, mode, typeBien) {
@@ -5601,36 +5582,6 @@
   // retirées le 24/09/2026 (« pas d'e-mail rédigé à la fin, je n'aime pas finalement ») : le rendu
   // passe désormais par le tableau de bord de la relecture (voir « OUTIL 2 v3 » plus bas). Restent
   // ici les pièces attendues par type de bien et les commentaires de l'étude sur un constat.
-
-  // Pièces qu'on s'attend à voir jointes pour ce TYPE de bien (proposition faite à l'étude après
-  // le premier test : « mieux gérer les annexes »). Reconnues avec les détecteurs déjà en place —
-  // rien de nouveau n'est lu. Trois états : fournie, partielle (un pré-état daté à la place de
-  // l'état daté), absente.
-  function piecesAttenduesOutil2(resultat) {
-    const r = resultat || {};
-    const type = r.typeBien || 'maison';
-    const diagnostics = (r.justificatifsReconnus || [])
-      .filter(k => DOCUMENTS_VALIDITE_OUTIL2[k] && DOCUMENTS_VALIDITE_OUTIL2[k].famille === 'diagnostic');
-    const pieces = [
-      { cle: 'diagnostics', libelle: 'Diagnostics techniques', etat: diagnostics.length ? 'fournie' : 'absente',
-        detail: diagnostics.length ? `${diagnostics.length} reconnu(s)` : '' },
-      { cle: 'cu', libelle: "Certificat d'urbanisme", etat: (r.certificatsUrbanisme || []).length ? 'fournie' : 'absente', detail: '' }
-    ];
-    if (type === 'copropriete') {
-      const ed = r.etatsDates || [];
-      const etatEd = ed.some(e => e.type === 'etat-date') ? 'fournie' : (ed.length ? 'partielle' : 'absente');
-      pieces.push({ cle: 'etatDate', libelle: 'État daté', etat: etatEd, detail: etatEd === 'partielle' ? 'pré-état daté seulement' : '' });
-      pieces.push({ cle: 'pvAg', libelle: "Procès-verbaux d'assemblée générale", etat: (r.ags || []).some(a => a.document) ? 'fournie' : 'absente', detail: '' });
-      pieces.push({ cle: 'carnet', libelle: "Carnet d'entretien de l'immeuble", etat: (r.carnets || []).length ? 'fournie' : 'absente', detail: '' });
-    }
-    if (type === 'terrain' && r.mode === 'acte') {
-      const p = r.permis || {};
-      pieces.push({ cle: 'permis', libelle: 'Permis de construire', etat: p.permis ? 'fournie' : 'absente', detail: '' });
-      pieces.push({ cle: 'affichage', libelle: "Constat d'affichage du permis", etat: (p.constatsAffichage || []).length ? 'fournie' : 'absente', detail: '' });
-      pieces.push({ cle: 'nonRecours', libelle: 'Certificat de non-recours', etat: p.certificatNonRecours ? 'fournie' : 'absente', detail: '' });
-    }
-    return pieces;
-  }
 
   // --- Commentaires de l'étude sur les constats ------------------------------------------------
   // Un commentaire est rattaché à un constat par la même empreinte que la mémoire d'audit (titre +
@@ -10220,11 +10171,6 @@
     return upcoming.length ? Math.min(...upcoming) : (dates.length ? Math.min(...dates) : 999999);
   }
 
-  function toggleHistorique(id) {
-    const el = document.getElementById('historique-' + id);
-    if (el) el.classList.toggle('ouvert');
-  }
-
   function archiverDossier(id, archive) {
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
@@ -10372,28 +10318,6 @@
     bloc.innerHTML = tuiles.map(([cls, valeur, libelle, iconeHtml, tendance]) =>
       `<div class="kpi-tile"><div class="kpi-label">${iconeHtml}${libelle}</div><div class="kpi-num-ligne"><span class="kpi-num ${cls}">${valeur}</span>${tendance}</div></div>`
     ).join('');
-  }
-
-  // "Actions urgentes" du tableau de bord : les dossiers qui méritent une attention immédiate, au
-  // même sens que le score de calculerPriorite() (voir SEUIL_PRIORITE_ELEVEE) — un seul et même
-  // critère d'urgence dans tout l'outil, pas une seconde définition inventée pour le tableau de
-  // bord. Seule vue restante à s'appuyer sur ce score depuis le retrait du badge "🔥 Prioritaire"
-  // de la ligne de tableau (refonte visuelle, voir CLAUDE.md) : le statut "Blocage" (rouge) et ce
-  // bloc couvrent déjà ce que ce badge signalait seul.
-  // Actions urgentes, REGROUPÉES PAR STATUT (demandé par l'étude, carnet de bord) : « Aucun
-  // document », puis « Réception de pièces », puis « À relier » — le groupe dit d'emblée quel genre
-  // de geste attend, au lieu d'une seule liste où un dossier bloqué côtoie un dossier simplement
-  // pas encore relié. Même critère d'urgence qu'avant (statut « Aucun document », ou score
-  // calculerPriorite élevé) : seul le regroupement change. Au-delà de quelques lignes par groupe,
-  // le reste est annoncé plutôt que masqué en silence.
-  // À côté d'une offre de prêt introuvable, le temps qui reste avant la date butoir d'obtention
-  // du prêt : c'est ce qui dit s'il faut relancer aujourd'hui ou dans quinze jours. Pure, testable.
-  function delaiButoirPret(d, aujourdhuiIso) {
-    if (!d || !d.pret) return '';
-    const j = aujourdhuiIso ? ecartJours(aujourdhuiIso, d.pret) : joursRestants(d.pret);
-    if (!Number.isFinite(j)) return '';
-    if (j < 0) return ` — butoir dépassé de ${-j} j`;
-    return j === 0 ? " — butoir aujourd'hui" : ` — J-${j} avant le butoir`;
   }
 
   // « Dernières pièces trouvées » (Tableau de bord, demandé par l'étude au carnet de bord) : un
@@ -11631,7 +11555,6 @@
   // lisible d'un coup d'œil, puis « Mes rappels », la liste de choses à faire que chacun note pour
   // lui-même (enregistrée sur le serveur, voir server/src/routes/rappelsPerso.js).
   var ORDRE_GRAVITE_ALERTE = { critique: 0, vigilance: 1, info: 2 };
-  var LIBELLES_GRAVITE_ALERTE = { critique: 'Critique', vigilance: 'Vigilance', info: 'Information' };
 
   function libelleDelaiAlerte(j) {
     if (j === null || j === undefined) return '';
@@ -12323,7 +12246,7 @@
         ? `<button type="button" class="piece-action" onclick="reinitialiserStatutPieceStandard('${d.id}', '${p.cle}', '${arg}')" title="Réinitialiser (mauvaise correspondance ou fichier renommé)" aria-label="Réinitialiser le statut de cette pièce">${icone('rotate-ccw')}</button>`
         : '';
       const suppr = `<button type="button" class="piece-action piece-action-suppr" onclick="${p.personnalisee ? `supprimerPiecePersonnalisee('${d.id}', '${p.cle}')` : `retirerPieceStandard('${d.id}', '${p.cle}', '${arg}')`}" title="Retirer cette pièce de la checklist de ce dossier" aria-label="Retirer cette pièce">${icone('x')}</button>`;
-      return `<li class="piece-ligne ${s.cls}${valideeMain ? ' validee-main' : ''}">${caseHtml}${nom}${tags}<span class="piece-actions">${reinit}${suppr}</span></li>`;
+      return `<li class="piece-ligne ${s.cls}${valideeMain ? ' validee-main' : ''}">${caseHtml}<span class="piece-libelle">${nom}${tags}</span><span class="piece-actions">${reinit}${suppr}</span></li>`;
     };
 
     return `
@@ -13109,14 +13032,6 @@
     edit.hidden = false;
     const input = document.getElementById(idBase + '-input');
     if (input) input.focus();
-  }
-
-  function annulerEditionDate(dossierId, cle) {
-    const idBase = `tabdate-${dossierId}-${cle}`;
-    const aff = document.getElementById(idBase + '-aff');
-    const edit = document.getElementById(idBase + '-edit');
-    if (aff) aff.hidden = false;
-    if (edit) edit.hidden = true;
   }
 
   function validerEditionDate(dossierId, cle) {
@@ -16100,17 +16015,6 @@
     return GARANTIES_PRET.filter(g => g.motif && garantieNonConditionnelle(g.motif, paragraphe)).map(g => g.cle);
   }
 
-  // Extrait LE paragraphe « GARANTIES » du prêt : le premier qui énonce une garantie connue, à
-  // défaut le premier qui n'est pas celui de l'assurance, à défaut le premier tout court. Renvoie
-  // '' si l'offre n'en porte aucun.
-  function extraireParagrapheGaranties(texte) {
-    const paragraphes = paragraphesGaranties(texte);
-    return paragraphes.find(p => garantiesDuParagraphe(p).length)
-      || paragraphes.find(p => !estParagrapheGarantiesAssurance(p))
-      || paragraphes[0]
-      || '';
-  }
-
   // Les quatre réponses possibles listées par l'étude sont un CUMUL des trois clés ci-dessus :
   // aucune (« Sans garanties »), caution, hypothèque légale de prêteur de deniers, ou cette
   // dernière AVEC l'hypothèque conventionnelle. On renvoie donc toujours une liste de clés, dont
@@ -17473,11 +17377,6 @@
     try { localStorage.setItem(CLE_THEME, theme); } catch (e) { /* préférence non enregistrée : sans conséquence */ }
   }
 
-  function basculerTheme() {
-    const actuel = document.documentElement.getAttribute('data-theme');
-    appliquerTheme(actuel === 'dark' ? 'light' : 'dark');
-  }
-
   async function chargerTheme() {
     let theme = null;
     try {
@@ -17776,15 +17675,6 @@
       pourcentageAcquereur: joursAcquereur / joursPeriode
     };
   }
-
-  // Périodes proposées par l'outil. La taxe foncière est annuelle et due par le propriétaire au
-  // 1er janvier (le vendeur), d'où une période calée sur l'année civile ; les charges de
-  // copropriété suivent l'appel de fonds (trimestre ou mois) ; le loyer, le mois civil.
-  var PERIODES_PRORATA = [
-    { cle: 'annee', label: 'Année civile', aide: 'Taxe foncière : due par le propriétaire au 1er janvier, l’acquéreur rembourse sa part.' },
-    { cle: 'trimestre', label: 'Trimestre civil', aide: 'Charges de copropriété appelées au trimestre.' },
-    { cle: 'mois', label: 'Mois civil', aide: 'Charges mensuelles, ou loyer du mois en cours.' }
-  ];
 
   // Bornes de la période contenant `dateIso`, pour le découpage choisi. Le dernier jour est calculé
   // en reculant d'un jour depuis le premier jour de la période suivante : la seule façon sûre de
@@ -18752,7 +18642,6 @@
   // PDF lui-même (voir lireTextePdfParPage, déjà utilisée pour vérifier un dossier local).
   let fichiersAnalyseIa = []; // { id, file, nom, type, statut, texte, pages, erreurTexte }
   let compteurFichierAnalyseIa = 0;
-  let analyseIaEnCours = false;
 
   // Mode choisi EXPLICITEMENT au dépôt (jamais deviné, demande de l'étude) : « lecture du
   // compromis » (chercher les dangers dans un avant-contrat) ou « lecture d'un projet de vente »
@@ -18761,21 +18650,6 @@
   // dossier est déjà suivi dans CLAIRE — jamais modifié, lu seul.
   let auditMode = 'compromis';
   let auditDossierLie = null;
-
-  // Taxonomie volontairement COURTE (4 types) : elle ne sert plus à router un document vers l'une
-  // des cinq passes du modèle — il n'y en a plus — mais seulement à dire à l'outil ce qu'il a sous
-  // les yeux. Un « justificatif » est une pièce produite par le vendeur pour prouver qu'il a tenu
-  // un engagement (attestation d'entretien, facture, décennale, diagnostic) : c'est le seul type
-  // dont l'outil lit la DATE, pour répondre à la question posée par l'étude — « entretien de
-  // chaudière fourni, mais a-t-il bien moins d'un an ? ». Les distinguer plus finement
-  // (diagnostic / facture / décennale / urbanisme…) n'apporterait rien : le rapprochement avec
-  // l'engagement se fait par le contenu et le nom du fichier, pas par ce sélecteur.
-  var TYPES_DOCUMENT_AUDIT = [
-    { valeur: 'principal', libelle: 'Principal (le document à relire)' },
-    { valeur: 'reference_compromis', libelle: 'Avant-contrat signé (référence)' },
-    { valeur: 'justificatif', libelle: "Justificatif d'une obligation" },
-    { valeur: 'autre', libelle: 'Autre pièce' }
-  ];
 
   function changerAuditMode(valeur) {
     auditMode = (valeur === 'acte') ? 'acte' : 'compromis';
@@ -19066,10 +18940,6 @@
       return `<span class="dot-label dl-pret" title="Seules les ${entree.pagesLues} premières pages sur ${entree.pagesTotal} ont été lues — le reste du document n'a pas pu être analysé.">${icone('alert-triangle')}Lu partiellement (${couverture})</span>`;
     }
     return `<span class="dot-label dl-success" title="${escapeAttr(couverture)}">${icone('file-text')}Lu (${couverture})</span>`;
-  }
-
-  function optionsTypeDocumentAudit(typeActuel) {
-    return TYPES_DOCUMENT_AUDIT.map(t => `<option value="${t.valeur}" ${t.valeur === typeActuel ? 'selected' : ''}>${escapeHtml(t.libelle)}</option>`).join('');
   }
 
   // 4 niveaux de gravité (§16 du cahier des charges), sur seulement 3 couleurs déjà réservées dans
@@ -19381,11 +19251,6 @@
   let typeBienAuditChoisi = null;
 
 
-  function changerTypeBienAudit(valeur) {
-    typeBienAuditChoisi = ['maison', 'copropriete', 'terrain'].indexOf(valeur) >= 0 ? valeur : null;
-    executerAuditOutil2();
-  }
-
   function preparerRapportAudit(resultat) {
     constatsAuditParUid = {};
     let n = 0;
@@ -19427,55 +19292,6 @@
     oublierDecisionConstat(c.memoire.id);
     preparerRapportAudit(dernierRapportAudit);
     renderRapportAuditActe(dernierRapportAudit);
-  }
-
-  // Comptage par gravité — un simple calcul sur les constats réellement affichés, jamais une
-  // synthèse rédigée par le modèle : celui-ci n'a aucun moyen de garantir que ses chiffres
-  // correspondent au détail qu'il vient d'écrire.
-  function renderResumeAudit(resume) {
-    if (!resume) return '';
-    // Une gravité sans aucun constat reste affichée, mais en retrait : lire « 0 critique » fait
-    // partie du résultat, alors que l'afficher au même poids que « 3 critiques » brouillerait la
-    // seule chose que ce bandeau doit dire d'un coup d'œil.
-    const tuile = (cle, libelle) => {
-      const g = libelleGraviteAudit(cle);
-      const n = resume[cle] || 0;
-      return `<span class="dot-label ${g.dl}${n === 0 ? ' audit-tuile-zero' : ''}">${icone(g.icone)}${n} ${libelle}</span>`;
-    };
-    return `<div class="analyse-ia-resume">${tuile('CRITIQUE', 'critique(s)')}${tuile('IMPORTANT', 'important(s)')}${tuile('A_VERIFIER', 'à vérifier')}${tuile('INFORMATION', 'information(s)')}</div>`;
-  }
-
-  // Alerte de couverture de lecture, affichée UNIQUEMENT s'il y a quelque chose à signaler
-  // (au moins un document dont la lecture a été coupée par un plafond de pages) — sur un audit où
-  // tous les documents ont été lus intégralement, ce qui est le cas courant, cette section reste
-  // silencieuse plutôt que d'ajouter une ligne de bruit à chaque audit. Voir
-  // lireTextePdfParPage()/libelleCouverturePages() : un constat basé sur un document tronqué peut
-  // être incomplet, pas seulement le rapport lui-même.
-  function renderCouvertureAudit(couverture) {
-    const liste = Array.isArray(couverture) ? couverture.filter(c => c && c.tronque) : [];
-    if (liste.length === 0) return '';
-    const lignes = liste.map(c => `<li>${escapeHtml(c.nom)} — ${escapeHtml(libelleCouverturePages(c))}</li>`).join('');
-    return `<div class="analyse-ia-couverture-alerte">
-      <p>${icone('alert-triangle')} Lecture incomplète sur ${liste.length} document(s) — au-delà de la page indiquée, le contenu n'a pas pu être analysé :</p>
-      <ul>${lignes}</ul>
-    </div>`;
-  }
-
-  // Ce que l'analyse a effectivement passé en revue : sans cette ligne, un rapport vide se lit
-  // comme « rien à signaler » alors qu'il peut aussi vouloir dire « rien n'a été trouvé à lire ».
-  function renderPerimetreAudit(resultat) {
-    const bouts = [];
-    if (resultat.mode === 'acte') {
-      bouts.push(`${(resultat.obligations || []).length} engagement(s) du vendeur relevé(s) dans l'avant-contrat`);
-      // Le compte est affiché même à zéro : « aucune annexe déposée » explique la moitié du
-      // rapport, et le taire laisse croire que les pièces ont été lues sans rien donner.
-      bouts.push(`${resultat.nbJustificatifs || 0} justificatif(s) déposé(s)`);
-    } else {
-      bouts.push(`${(resultat.travaux || []).length} déclaration(s) de travaux`);
-      bouts.push(`${(resultat.documents || []).length} document(s) daté(s) repéré(s)`);
-      bouts.push(`${(resultat.engagements || []).length} engagement(s) du vendeur`);
-    }
-    return `<p class="hint">Analysé : ${escapeHtml(bouts.join(' · '))}.</p>`;
   }
 
   // La fiche d'identité, en tête de la section 1 : ce que l'outil a compris de l'acte, TOUJOURS
@@ -19542,30 +19358,6 @@
         </table>
       </div>
     </section>`;
-  }
-
-  // Le type de bien, DIT et corrigeable (demande de l'étude). Il ne sert pas qu'à informer : c'est
-  // lui qui décide des contrôles propres au type, et un type déduit de travers rendait muette
-  // toute une partie du rapport sans que rien ne l'explique. La correction relance l'analyse
-  // immédiatement — tout est calculé en local, il n'y a rien à attendre.
-  var LIBELLES_ORIGINE_TYPE_BIEN = {
-    dossier: 'repris du dossier CLAIRE lié',
-    texte: 'déduit du texte de l’acte',
-    defaut: 'aucun indice dans l’acte — valeur par défaut',
-    manuel: 'choisi à la main'
-  };
-
-  function renderTypeBienAudit(resultat) {
-    const type = resultat.typeBien || 'maison';
-    const origine = LIBELLES_ORIGINE_TYPE_BIEN[resultat.typeBienOrigine] || '';
-    const options = TYPES_BIEN_AUDIT
-      .map(t => `<option value="${t.valeur}" ${t.valeur === type ? 'selected' : ''}>${escapeHtml(t.libelle)}</option>`)
-      .join('');
-    return `<div class="audit-type-bien">
-      <label for="audit-type-bien">Type de bien</label>
-      <select id="audit-type-bien" onchange="changerTypeBienAudit(this.value)">${options}</select>
-      <span class="hint">${escapeHtml(origine)} — contrôles ajoutés : ${escapeHtml(CONTROLES_PAR_TYPE_BIEN[type] || '')}.</span>
-    </div>`;
   }
 
   // Un bloc = une SOURCE. Il porte son titre, la phrase qui dit d'où viennent ses constats, puis
@@ -19664,76 +19456,12 @@
     return "Rien à signaler dans le document principal, pour les seuls points contrôlés par l'outil.";
   }
 
-  // L'écart entre l'avant-contrat et le projet est, de tous les défauts de relecture, celui que
-  // l'étude a désigné comme lui ayant coûté le plus cher (une partie, un prix, des quotités ou une
-  // désignation qui changent d'un acte à l'autre sans qu'on le voie). Il vit dans la DEUXIÈME
-  // section du rapport, parfois deux écrans plus bas : il est donc annoncé dès l'en-tête — y
-  // compris, et surtout, quand il n'y en a aucun, puisque c'est là que se trouve la réassurance
-  // cherchée. Trois états bien distincts, jamais confondus : pas comparé / comparé sans écart /
-  // N écarts.
-  function renderEcartsAudit(resultat, constats) {
-    if (!resultat || resultat.mode !== 'acte') return '';
-    if (!resultat.comparaisonFaite) {
-      return `<p class="audit-ecarts"><span class="dot-label dl-neutre">${icone('info')}Non comparé</span> aucun avant-contrat de référence : liez le dossier CLAIRE ou déposez le compromis signé.</p>`;
-    }
-    const n = (constats || []).filter(c => c.categorie === 'COMPARAISON_COMPROMIS').length;
-    if (n === 0) {
-      return `<p class="audit-ecarts"><span class="dot-label dl-success">${icone('check')}Aucun écart</span> entre l'avant-contrat et le projet sur les parties, le prix, la désignation du bien, le cadastre et les dates.</p>`;
-    }
-    return `<p class="audit-ecarts audit-ecarts-alerte"><span class="dot-label dl-urgent">${icone('alert-triangle')}${n} écart(s)</span> entre l'avant-contrat et le projet.
-      <button type="button" class="action-rapide" onclick="allerAuxEcartsAudit()">Voir</button></p>`;
-  }
-
-  function allerAuxEcartsAudit() {
-    const el = document.getElementById('audit-bloc-AVANT_CONTRAT');
-    if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
-  // Pied de rapport : ce que l'étude a choisi de ne plus voir, et combien cet acte-ci en retient.
-  // Le compte est le garde-fou du mécanisme — sans lui, masquer une rubrique pourrait faire
-  // disparaître un constat critique en silence.
-  function renderRubriquesMasqueesAudit(constats) {
-    const masquees = SOUS_SECTIONS_RAPPORT_OUTIL2.filter(s => rubriqueMasqueeAudit(s.cle));
-    if (masquees.length === 0) return '';
-    const lignes = masquees.map(sous => {
-      const n = (constats || []).filter(c => c.categorie === sous.cle).length;
-      return `<li>
-        <span class="audit-masquee-titre">${escapeHtml(sous.titre)}</span>
-        <span class="hint">${n} constat(s) retenu(s) sur cet acte</span>
-        <button type="button" class="action-rapide" onclick="basculerRubriqueAudit('${escapeOnclickArg(sous.cle)}')">Réafficher</button>
-      </li>`;
-    }).join('');
-    return `<section class="audit-masquees">
-      <span class="section-eyebrow">Rubriques masquées</span>
-      <p class="hint">Ces rubriques ne sont affichées sur aucun rapport tant qu'elles ne sont pas réaffichées ici.</p>
-      <ul>${lignes}</ul>
-    </section>`;
-  }
-
   // Détail des contrôles AUTOMATIQUES de CLAIRE (règles déterministes, sans IA) : il vit désormais
   // dans le tableau de bord de la relecture, sous la grille de Claude (voir renderTableauDeBordRelecture).
   // Le point d'entrée garde son nom : tout ce qui modifie un constat (décision, commentaire, type
   // de bien) le rappelle pour redessiner.
   function renderRapportAuditActe() {
     renderTableauDeBordRelecture();
-  }
-
-  function htmlControlesClaire(resultat) {
-    const constats = resultat.constats || [];
-    let html = `<div class="audit-entete">
-      ${renderEcartsAudit(resultat, constats)}
-      ${renderTypeBienAudit(resultat)}
-      ${renderPerimetreAudit(resultat)}
-      ${renderPartiesDossierAudit(resultat)}
-    </div>`;
-    html += renderCouvertureAudit(resultat.couvertureDocuments);
-    for (const bloc of SECTIONS_RAPPORT_OUTIL2) {
-      // En mode « compromis », il n'y a rien à comparer : le document analysé EST l'avant-contrat.
-      if (bloc.cle === 'AVANT_CONTRAT' && resultat.mode !== 'acte') continue;
-      html += renderBlocAudit(bloc, resultat, constats);
-    }
-    html += renderRubriquesMasqueesAudit(constats);
-    return html;
   }
 
   function renderPartiesDossierAudit(resultat) {
@@ -20586,20 +20314,6 @@
     resultat.couvertureDocuments = dernierAuditContexte.couvertureDocuments;
     dernierRapportAudit = resultat;
     return true;
-  }
-
-  // Rejoue les contrôles CLAIRE sans refaire la lecture (changement du type de bien).
-  function executerAuditOutil2() {
-    const ctx = dernierAuditContexte;
-    if (!ctx || !ctx.entree) return;
-    const resultat = ctx.mode === 'acte'
-      ? analyserProjetVenteOutil2({ ...ctx.entree, typeBienForce: typeBienAuditChoisi })
-      : analyserCompromisOutil2({ ...ctx.entree, typeBienForce: typeBienAuditChoisi });
-    resultat.nbJustificatifs = ctx.nbJustificatifs;
-    resultat.couvertureDocuments = ctx.couvertureDocuments;
-    dernierRapportAudit = resultat;
-    preparerRapportAudit(resultat);
-    renderTableauDeBordRelecture();
   }
 
   async function lancerAuditActe(avecClaude) {
@@ -23553,6 +23267,7 @@
       'icon-reglages-apropos': 'info',
       'icon-nav-quotites': 'users',
       'icon-calc-warning': 'alert-triangle',
+      'icon-inv-warning': 'alert-triangle',
       'icon-nav-analyse-ia': 'eye',
       'icon-analyse-ia-warning': 'alert-triangle',
       'icon-analyse-ia-dropzone': 'upload',

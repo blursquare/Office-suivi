@@ -9747,6 +9747,57 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
     aucune fonction pure modifiée — `libelleDateDuJour()` dépend de `Date()`/du DOM, non testable
     unitairement).
 
+- **Mode sombre repris de l'artefact de présentation, puis relecture complète du code et de l'UI**
+  (26/09 soir). Deux demandes enchaînées : « j'aime bien les couleurs du mode sombre de l'artefact de
+  présentation de CLAIRE », puis « reprends ton code en entier, vérifie s'il n'y a pas des
+  incohérences et des choses qui ne servent pas […] fais les corrections, pas de slop IA ».
+  - **Palette sombre** : graphite froid (`--paper` #14161A, `--paper-card` #1B1E23, `--paper-sunk`
+    #20232A, `--line` #2F343C, `--muted` #9AA0A8), ombre courte sans halo ; les cartes se détachent
+    par leur filet. La sidebar reste flottante et toujours sombre (jetons redéclarés localement sur
+    `.sidebar, .sidebar-burger`), mais plate : l'effet verre (`backdrop-filter`, `::before`, dégradé)
+    est retiré, l'onglet actif est un aplat avec un liseré `--focus` à gauche.
+  - **Code mort retiré** (vérifié par recherche de chaque nom, dynamiques compris — `'chip-' +`,
+    `` `dl-${…}` ``…) : 18 fonctions et 9 déclarations de `script.js`, les icônes `sun`/`moon`,
+    76 règles CSS des versions précédentes d'Outil 2 (`audit-*`), de l'ancien tableau de bord
+    (`actions-urgentes*`) et d'anciens en-têtes (`theme-btn`, `header-top`…), l'enveloppe serveur
+    `diagnosticReponseIcs` (« conservée pour les appelants existants » : il n'y en avait plus) et
+    `LIBELLES_GRAVITE` (jamais lue). Les règles `.dossier` de carte, entièrement annulées dans le
+    tiroir (seul endroit où la fiche existe encore), sont supprimées avec leur annulation.
+    **Méthode pour la prochaine fois** : l'outil qui retire des règles CSS doit masquer les
+    accolades des commentaires avant de compter (un commentaire citait `select { width: 100% }`).
+  - **Incohérences corrigées** :
+    - le badge « Simulation indicative » de l'arbitrage forfait mobilier n'avait jamais reçu son
+      icône (`icon-inv-warning` absent d'`initIconesStatiques`) ;
+    - un bloc de reprises « mode sombre » posait des gris neutres codés en dur (#2E2E2E, #454545…)
+      par-dessus des composants déjà tokenisés : restes de l'ancienne palette, en désaccord avec la
+      nouvelle. Supprimé ;
+    - **nouveau jeton `--on-accent`** pour le texte posé sur un aplat d'accent (`--focus`,
+      `--urgent`, `--success`, `--notif-nouveau`) : blanc en clair, graphite en sombre — le texte
+      blanc sur le rose `--focus` #D08A98 du mode sombre (boutons primaires, jour courant de
+      l'agenda, étapes actives, compteurs) tombait à un contraste d'environ 2,6 ;
+    - logo et favicon étaient encore dans l'ancien bleu (#2563EB) ou dépendaient de `--focus`
+      (rose en sombre, sous des traits blancs) : tuile fixée au bordeaux de la marque #6D2332,
+      `theme-color` du navigateur et du manifest alignés sur la sidebar (#1B1E23) ;
+    - ombres codées en dur remplacées par `--shadow-card`/`--shadow-float` (fenêtre de confirmation,
+      aperçu PDF, onglet actif de la fiche) ; survol du bouton de suppression sans couleur figée ;
+    - fiche : l'étiquette « Nouveau » d'une pièce suit maintenant le nom dans le même flux de texte
+      (`.piece-libelle`) — en colonne flex séparée, elle laissait un grand vide quand le nom passait
+      à la ligne ; cases à cocher bordées de `--muted` (quasi invisibles en sombre avec `--line`) ;
+      sélecteurs de la liste des propriétés sans flèche native, qui coupait « Bastien ANGLUMENT » ;
+      colonne de libellés mobile portée à 116px (« Notaire acquéreur » était coupé) ;
+    - tableau de bord : « Qui utilise ce poste ? Choisir » n'est plus étiré et centré sous la
+      recherche ; « Trier par » ne passe plus sur deux lignes dans le Suivi ;
+    - commentaires de jetons périmés (« --focus #2563EB », « seule couleur ajoutée ») réécrits.
+  - **Volontairement conservé** : les couleurs fixes des feuilles imprimées ou « papier » (courrier
+    d'appel de fonds, annexe des quotités, note d'inventaire, fiche `.doc`) — ce sont des fac-similés
+    qui ne suivent pas le thème ; la sélection bleue dans la couche de texte du PDF (convention de
+    lecteur, sur un rendu toujours blanc) ; les paires règle de base + modificateur
+    (`.travaux-na`, `.icon-valider`…), qui ne sont pas des contradictions.
+  - Tests : un test d'Outil 2 référençait `CONTROLES_PAR_TYPE_BIEN` (retirée, sans lecteur dans
+    l'application) : l'assertion est retirée. Suites : 808 racine, 371 serveur. Vérifié dans un vrai
+    Chromium (clair, sombre, 1500 et 400px) : aucune erreur JS, aucun débordement horizontal, aucun
+    libellé coupé dans la fiche.
+
 ## Ce qui reste ouvert / pas encore fait
 
 - **Signature manuscrite de Bastien ANGLUMENT, conservée pour le courrier d'appel de fonds**

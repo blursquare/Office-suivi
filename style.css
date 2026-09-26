@@ -6,23 +6,20 @@
     --ink-soft: #57607A;
     --line: #DCE2E9;
     --line-soft: #EBEEF3;
-    /* La couleur est réservée aux 4 catégories d'échéance : c'est le seul code que l'œil doit
+    /* La couleur est réservée aux catégories d'échéance : c'est le seul code que l'œil doit
        apprendre. Tout le reste (encarts d'information, notes) passe en neutre.
        --acte a changé deux fois de valeur à la demande explicite de l'étude (voir CLAUDE.md) :
        bleu moyen à l'origine, puis teal après échange avec --ventebien, et désormais BLEU NUIT.
-       Le nom du token garde son sens (--acte = couleur de "Signature de l'acte"), seule sa valeur
-       change. Ce navy profond reste distinct des deux autres bleus de la palette (--ventebien
-       #2472B0, moyen, et --focus #2563EB, vif) par sa profondeur, pas par sa teinte : c'est le
-       seul des trois qui soit sombre. */
+       Le nom du token garde son sens, seule sa valeur change. Ce navy reste distinct de
+       --ventebien (#2472B0) par sa profondeur, pas par sa teinte. */
     --pret: #B07A12;
     --pret-bg: #FBEFD9;
     --acte: #1E3A63;
     --acte-bg: #E2E7F0;
     --ventebien: #2472B0;
-    /* 4e catégorie d'échéance (« Appel de fonds »), demandée par l'étude. Aucun jeton existant
-       n'était libre : --pret (ambre), --acte (bleu nuit), --ventebien (bleu) et --success (vert, repris
-       par le rendez-vous de signature) sont tous pris, et --focus est réservé aux accents
-       interactifs. D'où ce violet, seule couleur de catégorie ajoutée depuis la refonte. */
+    /* Envois au client : « Envoi appel de fonds » (violet) et « Envoi projet » (framboise). Les
+       autres teintes sont prises — --pret (ambre), --acte (bleu nuit), --ventebien (bleu),
+       --success (vert, rendez-vous de signature) — et --focus est réservé aux accents interactifs. */
     --appelfonds: #7C5CBF;
     --projet: #B83E78;
     --ventebien-bg: #E3EEF7;
@@ -45,6 +42,9 @@
        ou --ventebien). */
     --focus: #6D2332;
     --focus-hover: #551A26;
+    /* Texte posé sur un aplat d'accent (--focus, --urgent, --success, --notif-nouveau) : blanc en
+       clair, graphite en sombre, où les accents éclaircis ne portent plus un texte blanc lisible. */
+    --on-accent: #fff;
     --shadow-card: 0 1px 2px rgba(22,35,60,0.04), 0 2px 8px rgba(22,35,60,0.04);
     --shadow-float: 0 8px 28px rgba(22,35,60,0.16);
   }
@@ -63,10 +63,9 @@
     --line-soft: #24272D;
     --pret: #E0A93E;
     --pret-bg: #332B18;
-    /* Bleu nuit éclairci pour rester lisible sur fond sombre (même convention que les autres
-       jetons de catégorie). Volontairement désaturé, là où --ventebien (#6FAEDB) et --focus
-       (#5B9DF9) tirent vers le cyan : sur un fond déjà sombre, la profondeur du navy n'est plus
-       disponible pour les distinguer, c'est donc la teinte (indigo contre cyan) qui s'en charge. */
+    /* Bleu nuit éclairci pour rester lisible sur fond sombre. Désaturé vers l'indigo, là où
+       --ventebien (#6FAEDB) tire vers le cyan : sur un fond sombre la profondeur du navy n'est plus
+       disponible pour les distinguer, c'est donc la teinte qui s'en charge. */
     --acte: #8A9FD4;
     --acte-bg: #232736;
     --ventebien: #6FAEDB;
@@ -84,6 +83,7 @@
        fond sombre, même convention que les autres jetons de catégorie. */
     --focus: #D08A98;
     --focus-hover: #DFA3AE;
+    --on-accent: #14161A;
     --shadow-card: 0 1px 2px rgba(0,0,0,0.35);
     --shadow-float: 0 12px 32px -8px rgba(0,0,0,0.6);
   }
@@ -154,7 +154,7 @@
     padding: 16px;
     max-height: calc(100vh - 48px);
     flex-direction: column;
-    box-shadow: 0 2px 12px rgba(22,35,60,0.07);
+    box-shadow: var(--shadow-card);
   }
 
   .pdf-viewer-header {
@@ -504,7 +504,7 @@
     --ventebien-bg: #263238; --appelfonds: #A48BE0; --projet: #E58AB5; --urgent: #F08C4B;
     --notif-nouveau: #F87171;
     --success: #5FBF87; --success-bg: #223026;
-    --focus: #D08A98; --focus-hover: #DFA3AE;
+    --focus: #D08A98; --focus-hover: #DFA3AE; --on-accent: #14161A;
     --sidebar-bg: #1B1E23;
     --sidebar-border: #2F343C;
     --sidebar-actif-bg: #2C3139;
@@ -631,10 +631,7 @@
     opacity: 0.85;
   }
   .sidebar-link:hover { background: var(--paper-sunk); color: var(--ink); transform: translateX(1px); }
-  /* Bouton sans libellé texte (mode sombre) : centrer l'icône plutôt que la laisser plaquée à
-     gauche d'une rangée sinon vide. */
-  .sidebar-link-icone-seule { width: auto; justify-content: center; }
-  .sidebar-link-icone-seule .sidebar-link-icone { width: auto; font-size: 17px; }
+
   /* Lien actif : aplat neutre + trait d'accent bordeaux à gauche, comme la navigation d'Outlook —
      plus de « pilule de verre » (dégradé, reflet, ombre), retirée avec l'effet verre. */
   .sidebar-link.actif {
@@ -772,7 +769,7 @@
     padding: 0 5px;
     border-radius: 999px;
     background: var(--notif-nouveau);
-    color: #fff;
+    color: var(--on-accent);
     font-size: 11px;
     font-weight: 700;
     line-height: 1;
@@ -1019,21 +1016,13 @@
   /* .dash-liste partage la mise en pile d'.actions-urgentes (et ses lignes réutilisent
      .action-urgente-ligne) : deux listes de dossiers cliquables sur le même écran doivent se lire
      comme un seul objet, pas comme deux composants voisins aux réglages légèrement différents. */
-  .actions-urgentes,
+  
   .dash-liste {
     display: flex;
     flex-direction: column;
     gap: 8px;
   }
-  /* Même écart que .kpis-dashboard avant .dash-grid : quand le bloc apparaît, il s'intercale sans
-     resserrer ni écarter ce qui l'entoure. */
-  .actions-urgentes-vide {
-    background: var(--success-bg);
-    color: var(--success);
-    border-radius: 10px;
-    padding: 16px;
-    font-size: 13.5px;
-  }
+
   .action-urgente-ligne {
     display: flex;
     align-items: center;
@@ -1050,7 +1039,7 @@
     box-shadow: var(--shadow-card);
   }
   .action-urgente-ligne:hover { border-color: var(--focus); }
-  .action-urgente-nom { font-weight: 600; color: var(--ink); flex-shrink: 0; }
+
   .action-urgente-raison { color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .action-urgente-fleche { margin-left: auto; color: var(--muted); flex-shrink: 0; }
 
@@ -1181,21 +1170,7 @@
   }
 
   .analyse-ia-rapport { display: flex; flex-direction: column; gap: 10px; }
-  /* Alerte de couverture de lecture (Outil 2) : n'apparaît que si au moins un document a été
-     tronqué par un plafond de pages (voir renderCouvertureAudit/lireTextePdfParPage, script.js) —
-     même teinte que .dl-alerte/.calc-warning-label (color-mix sur --pret, pas --urgent : une
-     lecture partielle appelle une vigilance, ce n'est pas en soi une erreur constatée). */
-  .analyse-ia-couverture-alerte {
-    padding: 10px 14px;
-    border-radius: 10px;
-    font-size: 13px;
-    color: var(--pret);
-    background: color-mix(in srgb, var(--pret) 10%, var(--paper-card));
-    border: 1px solid color-mix(in srgb, var(--pret) 30%, transparent);
-  }
-  .analyse-ia-couverture-alerte p { margin: 0 0 6px; display: flex; align-items: center; gap: 6px; }
-  .analyse-ia-couverture-alerte .icone { flex: none; }
-  .analyse-ia-couverture-alerte ul { margin: 0; padding-left: 22px; }
+
   /* Comptage par gravité (Outil 2 — Audit des actes), calculé côté serveur : quatre .dot-label en
      ligne, jamais un chiffre inventé par le modèle (voir renderResumeAudit, script.js). */
   .analyse-ia-resume { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 4px; }
@@ -1210,7 +1185,7 @@
   }
   .analyse-ia-constat-titre { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 13.5px; flex-wrap: wrap; }
   .analyse-ia-constat-desc { font-size: 13px; color: var(--ink-soft); margin: 0; }
-  .analyse-ia-constat-docs { font-size: 11.5px; color: var(--muted); font-style: italic; }
+
   /* Décision de l'étude sur un constat (mémoire d'audit, voir renderDecisionAudit) : deux petits
      boutons en pied de constat, ou l'état mémorisé + « Annuler ». */
   .analyse-ia-constat-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
@@ -1232,9 +1207,7 @@
      .dash-grid vit dans un @media placé PLUS HAUT (ligne ~884). Une règle .audit-grid nue, écrite
      ici, l'emporterait par l'ordre du fichier à spécificité égale et ferait déborder la page sur
      téléphone. D'où le @media (min-width) : la règle ne s'applique qu'au-dessus du seuil. */
-  @media (min-width: 1301px) {
-    .audit-grid { grid-template-columns: minmax(320px, 400px) 1fr; }
-  }
+
   /* Liseré de gravité sur chaque constat (Outil 2) : c'est lui qui rend une longue liste
      scannable — la pastille .dot-label dit la gravité, le liseré la fait voir sans la lire.
      Aucune couleur inventée : les trois jetons déjà réservés à l'alerte, à la vigilance et au
@@ -1243,45 +1216,7 @@
   .analyse-ia-constat.constat-important,
   .analyse-ia-constat.constat-a_verifier { border-left: 3px solid var(--pret); }
   .analyse-ia-constat.constat-information { border-left: 3px solid var(--line); }
-  /* Une gravité à zéro reste lisible mais cesse de rivaliser avec les autres (renderResumeAudit). */
-  .analyse-ia-resume .dot-label.audit-tuile-zero { opacity: 0.45; }
-  /* En-tête du rapport : comptage + périmètre, lus AVANT les constats. */
-  .audit-entete {
-    display: flex; flex-direction: column; gap: 6px;
-    padding: 12px 14px; border-radius: 10px;
-    background: var(--paper-sunk); border: 1px solid var(--line);
-  }
-  .audit-entete .analyse-ia-resume { margin-bottom: 0; }
-  .audit-entete .hint { margin: 0; }
-  /* Type de bien : DIT et corrigeable. Ce n'est pas une information décorative — c'est lui qui
-     décide des contrôles propres au type (assemblées générales et carnet d'entretien en
-     copropriété, permis sur un terrain à bâtir), et un type déduit de travers rendait muette
-     toute une partie du rapport sans que rien ne l'explique. */
-  .audit-type-bien { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
-  .audit-type-bien label {
-    font-size: 10px; font-weight: 600; text-transform: uppercase;
-    letter-spacing: 0.1em; color: var(--muted); margin: 0;
-  }
-  /* Élément + 2 classes : la règle générique `select { width: 100% }` des champs de formulaire a
-     la même spécificité qu'un simple `.audit-type-bien select` et l'emporterait par l'ordre du
-     fichier — piège de cascade déjà payé cinq fois ici (.select-edit, .input-inline,
-     .pdf-recherche-input, .revision-saisie, .input-classif). */
-  .audit-entete select#audit-type-bien {
-    width: auto; min-width: 0; max-width: 100%;
-    padding: 4px 8px; font-size: 13px;
-    border: 1px solid var(--line); border-radius: 6px;
-    background: var(--paper-card); color: var(--ink);
-  }
-  .audit-type-bien .hint { flex: 1 1 100%; }
 
-  /* Tableau des travaux déclarés : ce que les constats ne disent pas, puisqu'ils ne parlent que
-     du gros œuvre et de l'extérieur — ici TOUS les travaux relevés apparaissent, y compris ceux
-     qui n'appellent aucune alerte. Les trois colonnes sont lues dans l'acte seul. */
-  /* Une piste de grille a un minimum automatique égal à son contenu : sans min-width:0 sur la
-     colonne du rapport, la largeur minimale du tableau (la colonne des libellés) élargit la page
-     entière au lieu de faire défiler le seul tableau — même piège que .af-grid > *, déjà payé sur
-     le générateur d'appel de fonds. Mesuré : 219px de débordement à 400px de large. */
-  .audit-grid > * { min-width: 0; }
   .travaux-table-wrap { overflow-x: auto; max-width: 100%; margin-top: 10px; }
   .travaux-table { width: 100%; border-collapse: collapse; font-size: 13px; }
   .travaux-table th {
@@ -1330,22 +1265,6 @@
   .fiche-acte-valeur { font-size: 13.5px; color: var(--ink); overflow-wrap: anywhere; }
   .fiche-acte-absent { color: var(--muted); font-style: italic; }
   .fiche-acte-page { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
-  /* Titre de section : un seul registre d'étiquette dans toute l'application (.section-eyebrow),
-     le compteur en pastille plutôt qu'entre parenthèses dans le titre. */
-  /* Les questions prêtes à envoyer, en pied de rapport : un constat dit ce qui a été repéré,
-     une question dit ce qu'il reste à demander. Volontairement posées sur le fond enfoncé déjà
-     utilisé pour les panneaux de l'outil (--paper-sunk), pas une couleur inventée pour l'occasion. */
-  .audit-questions { display: flex; flex-direction: column; gap: 10px; margin-top: 22px; }
-  .audit-questions-bloc {
-    padding: 12px 14px; border-radius: 10px;
-    background: var(--paper-sunk); border: 1px solid var(--line);
-  }
-  .audit-questions-tete {
-    display: flex; align-items: center; justify-content: space-between; gap: 10px;
-    flex-wrap: wrap; margin-bottom: 8px;
-  }
-  .audit-questions-bloc ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 7px; }
-  .audit-questions-bloc li { font-size: 13px; line-height: 1.5; color: var(--ink-soft); }
 
   .audit-section { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
   .audit-section-titre { display: flex; align-items: center; gap: 8px; margin: 0; font-size: inherit; }
@@ -1364,16 +1283,6 @@
   .audit-section:hover .audit-masquer { opacity: 1; }
   .audit-masquer:hover, .audit-masquer:focus-visible { border-color: var(--line); color: var(--ink-soft); }
 
-  /* Rubriques masquées : en pied de rapport, sans insistance, mais TOUJOURS visibles — c'est le
-     seul endroit qui dit ce qui a été retiré de la vue et combien cet acte en retient. */
-  .audit-masquees { margin-top: 24px; padding-top: 14px; border-top: 1px solid var(--line-soft); }
-  .audit-masquees .hint { margin: 4px 0 8px; }
-  .audit-masquees ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
-  .audit-masquees li { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .audit-masquee-titre { font-size: 13px; color: var(--ink-soft); }
-  .audit-masquees li .hint { margin: 0; }
-  .audit-masquees li .action-rapide { margin-left: auto; }
-
   /* L'écart avant-contrat / projet : l'erreur que l'étude a désignée comme la plus coûteuse, donc
      annoncée dès l'en-tête. Les trois états (non comparé / aucun écart / N écarts) partagent la
      même ligne ; seul le troisième prend un fond, pour ne pas mettre au même niveau une alerte et
@@ -1387,56 +1296,12 @@
     background: color-mix(in srgb, var(--urgent) 9%, transparent);
     border: 1px solid color-mix(in srgb, var(--urgent) 26%, transparent);
   }
-  /* ---- Relecture d'actes : grille, synthèse, commentaires (demande du 23/09/2026) ---- */
-  .audit-entete-ligne { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+
   .audit-bascule-commentaires {
     display: inline-flex; align-items: center; gap: 8px; margin: 0;
     font-size: 12.5px; font-weight: 500; color: var(--ink-soft); cursor: pointer;
   }
-  /* La grille : une colonne par section du rapport, une case par rubrique. L'état se lit à la
-     couleur du liseré (mêmes jetons que les constats), puis au mot — jamais à la couleur seule. */
-  .audit-grille {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px;
-    margin-top: 14px;
-  }
-  .audit-grille-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-  .audit-grille-col > .section-eyebrow { margin-bottom: 2px; }
-  .audit-case {
-    display: flex; flex-direction: column; align-items: flex-start; gap: 5px;
-    width: 100%; text-align: left; font-family: inherit;
-    padding: 8px 10px; border-radius: 8px; cursor: pointer;
-    background: var(--paper-card); border: 1px solid var(--line); border-left: 3px solid var(--line);
-    color: var(--ink); transition: background 0.15s ease;
-  }
-  .audit-case:hover { background: var(--paper-sunk); }
-  .audit-case:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-  .audit-case-titre { font-size: 12.5px; font-weight: 600; line-height: 1.3; }
-  .audit-case .dot-label { white-space: normal; line-height: 1.3; }
-  .audit-case-alerte { border-left-color: var(--urgent); }
-  .audit-case-attention { border-left-color: var(--pret); }
-  .audit-case-ok { border-left-color: var(--success); }
-  .audit-case-non_controle, .audit-case-masque { border-style: dashed; border-left-style: solid; }
-  .audit-case-masque { opacity: 0.6; }
-  .audit-pieces { margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--line-soft); }
-  .audit-pieces ul { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
-  .audit-pieces li { display: flex; align-items: flex-start; gap: 6px; font-size: 12.5px; line-height: 1.35; color: var(--ink-soft); }
-  .audit-pieces li .icone { flex: none; margin-top: 2px; }
-  .audit-piece-fournie .icone { color: var(--success); }
-  .audit-piece-partielle .icone { color: var(--pret); }
-  .audit-piece-absente .icone { color: var(--urgent); }
-  .audit-vue-bascule { margin-top: 18px; }
-  /* La synthèse : un texte à envoyer, présenté comme une page (fond de carte, interligne de
-     lecture), modifiable sur place. */
-  .audit-synthese { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
-  .audit-synthese-barre { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
-  .audit-synthese-barre .hint { margin: 0; flex: 1 1 260px; }
-  .audit-synthese-actions { display: flex; gap: 8px; }
-  .audit-synthese textarea.audit-synthese-texte {
-    width: 100%; box-sizing: border-box; resize: vertical;
-    font-family: inherit; font-size: 13.5px; line-height: 1.6; color: var(--ink);
-    padding: 16px 18px; border-radius: 10px;
-    background: var(--paper-card); border: 1px solid var(--line);
-  }
+
   /* Commentaires : sous chaque constat, en mode commentaires. */
   .audit-commentaire { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; padding-top: 8px; border-top: 1px dashed var(--line); }
   .audit-commentaire-lu { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 8px; }
@@ -1449,7 +1314,7 @@
     background: var(--paper-card); border: 1px solid var(--line); color: var(--ink-soft);
   }
   .audit-verdict-btn:hover { border-color: var(--focus); color: var(--ink); }
-  .audit-verdict-btn.actif { background: var(--focus); border-color: var(--focus); color: #fff; }
+  .audit-verdict-btn.actif { background: var(--focus); border-color: var(--focus); color: var(--on-accent); }
   .audit-commentaire-ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; font-size: 12.5px; color: var(--ink-soft); }
   .audit-commentaire-ligne label { display: inline-flex; align-items: center; gap: 5px; margin: 0; font-weight: 400; }
   .audit-commentaire-ligne select { width: auto; }
@@ -2174,13 +2039,6 @@
     color: var(--muted);
     flex: 1 1 auto;
   }
-  .revision-valeur {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--ink);
-    font-variant-numeric: tabular-nums;
-  }
-  .revision-vide { color: var(--muted); font-weight: 400; }
 
   /* Chaque donnée est corrigeable SUR PLACE : le panneau montre l'extrait qui révèle l'erreur, il
      doit aussi permettre de la corriger sans quitter l'écran. Le champ écrit en même temps dans le
@@ -2464,10 +2322,10 @@
     align-items: center;
     justify-content: center;
     padding: 0;
-    border: 1.5px solid var(--line);
+    border: 1.5px solid var(--muted);
     border-radius: 4px;
     background: var(--paper-card);
-    color: #fff;
+    color: var(--on-accent);
     font-size: 12px;
   }
   button.piece-case { cursor: pointer; }
@@ -2478,7 +2336,12 @@
   .piece-ligne.manquante .piece-case { border-color: var(--pret); }
   .piece-ligne.manquante .piece-case .icone { color: var(--pret); }
   .piece-ligne.inconnu .piece-nom { color: var(--ink-soft); }
-  .piece-nom { min-width: 0; line-height: 1.3; overflow-wrap: anywhere; }
+  /* Nom + étiquettes (« Nouveau », « à la main ») dans un seul flux de texte : l'étiquette suit
+     le dernier mot du nom, au lieu d'une colonne flex séparée qui laissait un grand vide quand le
+     nom passait à la ligne. */
+  .piece-libelle { flex: 1 1 auto; min-width: 0; line-height: 1.3; overflow-wrap: anywhere; }
+  .piece-libelle .notif-nouveau-tag, .piece-libelle .piece-tag { display: inline-flex; vertical-align: 1px; margin-left: 6px; white-space: nowrap; }
+  .piece-nom { line-height: 1.3; }
   .piece-nom-lien {
     font: inherit;
     color: inherit;
@@ -2489,8 +2352,8 @@
     cursor: pointer;
   }
   .piece-nom-lien:hover { color: var(--focus); text-decoration: underline; text-underline-offset: 2px; }
-  .piece-tag { flex: none; font-size: 11.5px; color: var(--muted); }
-  .piece-ligne .notif-nouveau-tag { flex: none; font-size: 11.5px; }
+  .piece-tag { font-size: 11.5px; color: var(--muted); }
+  .piece-ligne .notif-nouveau-tag { font-size: 11.5px; }
   .piece-actions { margin-left: auto; display: flex; gap: 2px; flex: none; opacity: 0; transition: opacity .12s; }
   .piece-ligne:hover .piece-actions, .piece-ligne:focus-within .piece-actions { opacity: 1; }
   @media (hover: none) { .piece-actions { opacity: 1; } }
@@ -2857,7 +2720,7 @@
 
   button.primary {
     background: var(--focus);
-    color: #fff;
+    color: var(--on-accent);
     border: 1px solid var(--focus);
   }
   button.primary:hover { background: var(--focus-hover); border-color: var(--focus-hover); }
@@ -2922,6 +2785,7 @@
     gap: 6px;
     font-size: 13px;
     color: var(--ink-soft);
+    white-space: nowrap;
   }
   .toolbar-item select {
     font-family: inherit;
@@ -2959,7 +2823,7 @@
     transition: background 0.15s ease, color 0.15s ease;
   }
   .vue-bascule-btn:hover { color: var(--ink); }
-  .vue-bascule-btn.actif { background: var(--focus); color: #fff; }
+  .vue-bascule-btn.actif { background: var(--focus); color: var(--on-accent); }
 
   /* ---- Vue "Semaines" : les mêmes dossiers, regroupés par semaine d'échéance (une ligne par
      échéance, voir grouperEcheancesParSemaine). Chaque groupe réutilise .dossiers-table tel quel :
@@ -3137,17 +3001,8 @@
     color: var(--muted);
   }
 
-
   /* ---- archive ---- */
   .dossier.est-archive { opacity: 0.65; }
-
-  .offre-pret-ligne {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    margin-top: 4px;
-  }
-
 
   .lien-dossier-local {
     font-size: 12px;
@@ -3232,17 +3087,6 @@
     color: var(--ink-soft);
     font-size: 14.5px;
   }
-
-  .dossier {
-    background: var(--paper-card);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    padding: 24px 26px;
-    margin-bottom: 18px;
-    box-shadow: var(--shadow-card);
-    transition: box-shadow 0.15s ease;
-  }
-  .dossier:hover { box-shadow: 0 2px 4px rgba(22,35,60,0.06), 0 6px 16px rgba(22,35,60,0.07); }
 
   /* ---- vue tableau (alternative compacte à la liste de cartes, pour un grand nombre de
      dossiers) : une ligne résumée par dossier, qui déplie la carte complète (inchangée, mêmes
@@ -3407,20 +3251,10 @@
     .drawer-panneau { animation: none; }
   }
 
-
   /* Le tiroir gère son propre défilement : sans ça, arrivé en bout de course, la molette continue
      sur la liste derrière et l'utilisateur perd la position qu'on cherchait justement à préserver. */
   body.drawer-ouvert { overflow: hidden; }
 
-  /* La fiche remplit le tiroir : elle n'a plus besoin de son propre cadre (carte dans une carte)
-     ni de la respiration prévue quand elle s'affichait au milieu d'une liste. */
-  .drawer-panneau .dossier {
-    margin-bottom: 0;
-    padding: 0;
-    border: none;
-    box-shadow: none;
-    background: transparent;
-  }
   /* Deux échéances par rangée dans la largeur du tiroir (la valeur par défaut, 150px, en tasserait
      trois et l'échéance "prêt" porte en plus le statut de l'offre et son bouton Revérifier). */
   .drawer-panneau .tabs { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
@@ -3548,7 +3382,9 @@
     cursor: text;
   }
   .fiche-proprietes input.prop-champ { flex: 1 1 60px; width: auto; }
-  .fiche-proprietes select.prop-champ { flex: 0 1 auto; width: auto; cursor: pointer; }
+  /* Sans la flèche native : elle prenait ~20px et coupait « Bastien ANGLUMENT » dans une demi-case.
+     Le fond au survol et le curseur disent que la valeur se change, comme pour les champs texte. */
+  .fiche-proprietes select.prop-champ { flex: 0 1 auto; width: auto; cursor: pointer; -webkit-appearance: none; appearance: none; }
   .fiche-proprietes input.prop-champ:hover,
   .fiche-proprietes select.prop-champ:hover { background: var(--paper-sunk); }
   .fiche-proprietes input.prop-champ:focus,
@@ -3575,7 +3411,7 @@
 
   @media (max-width: 560px) {
     .fiche-proprietes { grid-template-columns: minmax(0, 1fr); }
-    .prop-ligne { grid-template-columns: 104px minmax(0, 1fr); }
+    .prop-ligne { grid-template-columns: 116px minmax(0, 1fr); }
   }
 
   /* Onglets en pilules, avec leur compteur. Collés sous la barre d'outils quand on défile. */
@@ -3617,7 +3453,7 @@
   .fiche-onglet.actif {
     color: var(--ink);
     background: var(--paper-card);
-    box-shadow: 0 1px 2px rgba(22,35,60,0.08), 0 0 0 1px var(--line);
+    box-shadow: var(--shadow-card), 0 0 0 1px var(--line);
   }
   .fiche-compteur {
     display: inline-flex;
@@ -3704,7 +3540,7 @@
     border: 1.5px solid var(--line);
     background: var(--paper-card);
   }
-  .fiche-etape.fait .fiche-etape-marque { background: var(--success); border-color: var(--success); color: #fff; }
+  .fiche-etape.fait .fiche-etape-marque { background: var(--success); border-color: var(--success); color: var(--on-accent); }
   .fiche-etape.encours .fiche-etape-marque { border-color: var(--focus); box-shadow: inset 0 0 0 3px var(--paper-card); background: var(--focus); }
   .fiche-etape.afaire .fiche-etape-libelle { color: var(--muted); }
   .fiche-etape.encours .fiche-etape-libelle { font-weight: 600; }
@@ -3732,10 +3568,6 @@
     .drawer-panneau.large .fiche-progression-detail { display: none; }
   }
 
-
-
-
-
   .classif-champ { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
   .classif-champ label {
     font-size: 11px;
@@ -3745,7 +3577,6 @@
     color: var(--muted);
   }
 
-  .classif-champ-entete { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   /* Sélecteur composé (2 classes + élément) : la règle générique `input[type="text"], …` combine
      élément+attribut, une spécificité qu'un simple `input.input-classif` ne bat pas — à égalité
      c'est l'ordre du fichier qui tranche, piège déjà rencontré quatre fois dans cette feuille
@@ -3809,8 +3640,6 @@
   .notaire-role-bouton:hover .icone { color: var(--focus); }
   .notaire-role-bouton:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
 
-
-
   /* Nom du dossier : affichage simple + crayon plutôt qu'un champ toujours modifiable au clic —
      évite de déclencher une édition par un simple clic sur le nom (voir activerEditionNom()). */
   .nom-dossier { margin: 0 0 3px -2px; }
@@ -3855,8 +3684,6 @@
   }
   .dossier-nom-input:focus { outline: none; }
 
-
-
   .apport-cercle {
     display: inline-block;
     width: 10px;
@@ -3867,7 +3694,6 @@
   .apport-cercle.apport-success { background: var(--success); }
   .apport-cercle.apport-pret { background: var(--pret); }
   .apport-cercle.apport-urgent { background: var(--urgent); }
-
 
   .icon-btn {
     background: none;
@@ -4165,16 +3991,6 @@
   .dot-label.dl-urgent.notif-nouveau-tag { color: var(--notif-nouveau); }
   .notif-nouveau-tag { margin-left: 6px; }
 
-
-
-
-  /* ---- en-tête et thème ---- */
-  .header-top {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 16px;
-  }
   .header-actions {
     display: flex;
     align-items: center;
@@ -4194,22 +4010,7 @@
     white-space: nowrap;
     transition: background-color 0.15s ease;
   }
-  .install-btn:hover { background: var(--focus); color: #fff; }
-
-  .theme-btn {
-    flex: 0 0 auto;
-    font-size: 15px;
-    line-height: 1;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    border: 1px solid var(--line);
-    background: var(--paper-card);
-    cursor: pointer;
-    transition: border-color 0.15s ease, transform 0.15s ease;
-  }
-  .theme-btn:hover { border-color: var(--focus); transform: scale(1.05); }
-
+  .install-btn:hover { background: var(--focus); color: var(--on-accent); }
 
   /* ---- barre de progression (lecture PDF / OCR) ---- */
   .progress-bar {
@@ -4240,9 +4041,9 @@
   /* ---- impression : une feuille A4 propre par dossier ---- */
   @media print {
     body { background: #fff; color: #000; font-size: 11pt; }
-    .panel, .pdf-viewer, .list-toolbar, .relances-ciblees, .envoi-action, .theme-btn,
+    .panel, .pdf-viewer, .list-toolbar, .relances-ciblees, .envoi-action,
     .confirm-overlay, .toast, footer.note, .dash-avancement,
-    .sidebar, .sidebar-burger, .sidebar-scrim, .dash-header, .kpis-dashboard, .actions-urgentes,
+    .sidebar, .sidebar-burger, .sidebar-scrim, .dash-header, .kpis-dashboard,
     .dash-nouveautes, .dash-rail, .dash-section-titre { display: none !important; }
     .app-main { padding: 0; }
     .layout-cols { display: block; }
@@ -4287,7 +4088,6 @@
     .icon-btn, .tab-select-icone-wrap, .icon-crayon, .icon-valider, .nom-edition, .tab-date-edition, .tab-suppr, .ajout-echeance-btn, .ajout-echeance-form, .piece-actions, .pieces-voir-plus, .ajout-piece-btn, .ajout-piece-form, .diagnostic-parcours, .extraction-dossier, .engagement-suppr, .analyse-doc-suppr, .analyse-engagement-edition, .ajout-engagement-btn, .ajout-engagement-form { display: none !important; }
   }
 
-
   /* ---- wizard "Nouveau dossier" (Importer / Vérifier / Finaliser) ---- */
   .wizard-stepper {
     display: flex;
@@ -4331,7 +4131,7 @@
     font-weight: 700;
     flex: 0 0 auto;
   }
-  .wizard-step-btn.actif .wizard-step-num { background: var(--focus); color: #fff; }
+  .wizard-step-btn.actif .wizard-step-num { background: var(--focus); color: var(--on-accent); }
 
   /* Sur téléphone, les quatre étapes ne tiennent pas côte à côte : la quatrière ("Finaliser")
      débordait, coupée par le bord de l'écran. On ne garde alors que le libellé de l'étape EN COURS
@@ -4363,34 +4163,6 @@
   }
   .wizard-nav .actions-row { margin-top: 0; }
 
-  /* Ajustements de contraste en mode sombre : les éléments qui reposaient sur un fond blanc
-     (boutons secondaires, bulles, badges pâles) deviennent illisibles sans ces reprises. */
-  [data-theme="dark"] button.secondary,
-  [data-theme="dark"] .toolbar-btn,
-  [data-theme="dark"] .mini-btn,
-  [data-theme="dark"] .file-btn,
-  [data-theme="dark"] .pdf-viewer-nav button {
-    background: #2E2E2E;
-    color: var(--ink);
-    border-color: #454545;
-  }
-  [data-theme="dark"] button.secondary:hover,
-  [data-theme="dark"] .toolbar-btn:hover,
-  [data-theme="dark"] .mini-btn:hover,
-  [data-theme="dark"] .file-btn:hover {
-    background: #383838;
-    border-color: var(--focus);
-    color: #fff;
-  }
-  [data-theme="dark"] .confirm-box { background: #2A2A2A; }
-  [data-theme="dark"] .confirm-box .btn-annuler { background: #2E2E2E; color: var(--ink); border-color: #454545; }
-  [data-theme="dark"] .toast { background: #2E2E2E; border-color: #454545; }
-  [data-theme="dark"] .switch .slider { background-color: #454545; }
-  [data-theme="dark"] .analyse-doc-badge { background: #2E2E2E; color: var(--ink); }
-  [data-theme="dark"] .tab { background: #2A2A2A; }
-  [data-theme="dark"] .pdf-viewer-canvas-wrap { background: #171717; }
-  [data-theme="dark"] .theme-btn { background: #2E2E2E; }
-  [data-theme="dark"] .dossier-nom-input:focus { background: #2E2E2E; }
   [data-theme="dark"] input, [data-theme="dark"] textarea, [data-theme="dark"] select { color-scheme: dark; }
 
   footer.note {
@@ -4418,7 +4190,7 @@
     padding: 22px 24px;
     max-width: 360px;
     width: calc(100% - 48px);
-    box-shadow: 0 12px 32px rgba(22,35,60,0.25);
+    box-shadow: var(--shadow-float);
   }
   .confirm-box p {
     margin: 0 0 18px;
@@ -4447,9 +4219,9 @@
   .confirm-box .btn-confirmer {
     border: 1px solid var(--urgent);
     background: var(--urgent);
-    color: #fff;
+    color: var(--on-accent);
   }
-  .confirm-box .btn-confirmer:hover { background: #b85e08; }
+  .confirm-box .btn-confirmer:hover { filter: brightness(0.92); }
   .confirm-box .btn-confirmer.btn-valider { border-color: var(--focus); background: var(--focus); }
   .confirm-box .btn-confirmer.btn-valider:hover { background: var(--focus-hover); }
 
@@ -4573,24 +4345,6 @@
     overflow-wrap: anywhere;
   }
   .apropos-qualite-actions { margin-top: 0; margin-bottom: 16px; }
-
-  /* Lien "À propos" en bas de la sidebar : volontairement discret (plus petit, muted) par rapport
-     aux autres liens du pied de sidebar (installer l'app, thème) — une aide occasionnelle, pas une
-     action fréquente. */
-  /* Bloc de code court à recopier (schéma JSON du flux Power Automate, écran Réglages). */
-  .code-bloc {
-    display: inline-block;
-    margin: 6px 0;
-    padding: 8px 10px;
-    background: var(--paper-sunk);
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    font-size: 12px;
-    line-height: 1.5;
-    white-space: pre-wrap;
-    word-break: break-word;
-    max-width: 100%;
-  }
 
 /* ==== GÉNÉRATEUR D'APPEL DE FONDS ====
    Deux moitiés, deux traitements. Le CHROME (colonne de gauche, boutons, champs) prend les
@@ -4814,7 +4568,7 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
 .reglages-onglets .vue-bascule-btn { font-size: 13px; padding: 6px 14px; display: inline-flex; align-items: center; gap: 6px; }
 .reglages-onglet-compteur {
   min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
-  background: var(--urgent); color: #fff; font-size: 11px; font-weight: 700;
+  background: var(--urgent); color: var(--on-accent); font-size: 11px; font-weight: 700;
   display: inline-flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums;
 }
 .reglages-onglet-compteur[hidden] { display: none; }
@@ -4962,7 +4716,7 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
   font-weight: 700;
   flex: 0 0 auto;
 }
-.relecture-step.actif .relecture-step-num { background: var(--focus); color: #fff; }
+.relecture-step.actif .relecture-step-num { background: var(--focus); color: var(--on-accent); }
 .relecture-step.fait .relecture-step-num { background: var(--success-bg); color: var(--success); }
 .relecture-step-trait { flex: 1 1 24px; max-width: 48px; height: 1px; background: var(--line); }
 @media (max-width: 640px) {
@@ -5279,18 +5033,7 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
 .point-citations { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .point-ligne.niveau-na .point-intitule { color: var(--muted); font-weight: 500; }
 @media (max-width: 640px) { .point-ligne { grid-template-columns: minmax(0, 1fr); gap: 4px; } }
-.grille-valides > summary {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  list-style: none;
-  font-size: 12.5px;
-  color: var(--success);
-  padding: 8px 0 4px;
-  border-top: 1px solid var(--line-soft);
-}
-.grille-valides > summary::-webkit-details-marker { display: none; }
+
 .grille-na { margin: 6px 0 4px; }
 
 .page-chip {
@@ -5477,7 +5220,7 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
 /* ---- Tableau de bord : actions urgentes par statut, dernières pièces, avancement ---- */
 .urgent-groupe { display: flex; flex-direction: column; gap: 6px; }
 .urgent-groupe + .urgent-groupe { margin-top: 10px; }
-.urgent-groupe-titre { display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 0 2px; }
+
 .urgent-groupe-nb {
   font-size: 11px; font-weight: 600; color: var(--muted);
   font-variant-numeric: tabular-nums;
@@ -5715,7 +5458,7 @@ button.avancement-ligne:hover { background: var(--paper-sunk); }
 }
 
 /* ---- Collaborateur du poste (voir « Collaborateur du poste » dans script.js) ---- */
-.dash-accueil { margin-top: 6px; display: flex; flex-direction: column; gap: 10px; }
+.dash-accueil { margin-top: 6px; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
 .dash-accueil-resume { margin: 0; color: var(--ink-soft); font-size: 14px; max-width: 70ch; }
 .dash-accueil-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 button.lien-discret {
@@ -5725,7 +5468,6 @@ button.lien-discret {
 }
 button.lien-discret:hover { color: var(--focus); text-decoration-color: currentColor; }
 button.lien-discret:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
-
 
 /* ---- Carte « Agenda » du tableau de bord (voir renderRendezVousDashboard) ---- */
 .agenda-carte {
@@ -5757,8 +5499,8 @@ button.lien-discret:focus-visible { outline: 2px solid var(--focus); outline-off
 .agenda-jour.passe .agenda-jour-num { color: var(--muted); font-weight: 500; }
 .agenda-jour.aujourdhui { background: var(--focus); }
 .agenda-jour.aujourdhui .agenda-jour-nom,
-.agenda-jour.aujourdhui .agenda-jour-num { color: #fff; }
-.agenda-jour.aujourdhui .agenda-jour-point.present { background: #fff; }
+.agenda-jour.aujourdhui .agenda-jour-num { color: var(--on-accent); }
+.agenda-jour.aujourdhui .agenda-jour-point.present { background: var(--on-accent); }
 .agenda-jour.selectionne { border-color: var(--focus); }
 .agenda-jour.aujourdhui.selectionne { box-shadow: 0 0 0 2px var(--paper-card), 0 0 0 3px var(--focus); }
 
@@ -5783,8 +5525,6 @@ button.lien-discret:focus-visible { outline: 2px solid var(--focus); outline-off
 .agenda-rdv-lieu { font-size: 12.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agenda-rdv-etats { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; margin-top: 2px; }
 .agenda-vide { font-size: 13px; color: var(--muted); padding: 6px 0 2px; }
-
-.h-auteur { color: var(--muted); }
 
 .poste-box { max-width: 420px; }
 .poste-titre { font-size: 17px; font-weight: 700; color: var(--ink); margin: 0 0 4px; }
@@ -5831,7 +5571,7 @@ button.lien-action:hover { text-decoration: underline; }
 .alerte-texte { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .alerte-titre { font-size: 14px; font-weight: 600; color: var(--ink); }
 .alerte-sous { font-size: 12.5px; color: var(--ink-soft); }
-.alerte-meta { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
 .alerte-gravite { font-weight: 600; }
 .alerte-ligne.g-critique .alerte-icone, .alerte-ligne.g-critique .alerte-gravite { color: var(--urgent); }
 .alerte-ligne.g-vigilance .alerte-icone, .alerte-ligne.g-vigilance .alerte-gravite { color: var(--pret); }
@@ -5844,8 +5584,8 @@ button.lien-action:hover { text-decoration: underline; }
 .rappel-perso-case {
   width: 20px; height: 20px; flex-shrink: 0; margin-top: 1px; padding: 0;
   display: inline-flex; align-items: center; justify-content: center;
-  background: var(--paper-card); border: 1.5px solid var(--line); border-radius: 5px;
-  color: #fff; font-size: 12px; cursor: pointer;
+  background: var(--paper-card); border: 1.5px solid var(--muted); border-radius: 5px;
+  color: var(--on-accent); font-size: 12px; cursor: pointer;
 }
 .rappel-perso-case:hover { border-color: var(--focus); }
 .rappel-perso-case:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }

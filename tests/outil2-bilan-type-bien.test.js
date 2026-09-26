@@ -77,9 +77,3 @@ test('analyses enregistrées : recherche sans accents sur le dossier et le docum
   assert.equal(app.filtrerHistoriqueRelectures(liste, '').length, 2);
 });
 
-test('tableau de bord : offre introuvable, J- avant la date butoir d’obtention du prêt', () => {
-  assert.equal(app.delaiButoirPret({ pret: '2026-10-04' }, '2026-09-24'), ' — J-10 avant le butoir');
-  assert.equal(app.delaiButoirPret({ pret: '2026-09-24' }, '2026-09-24'), " — butoir aujourd'hui");
-  assert.equal(app.delaiButoirPret({ pret: '2026-09-20' }, '2026-09-24'), ' — butoir dépassé de 4 j');
-  assert.equal(app.delaiButoirPret({ pret: '' }, '2026-09-24'), '');
-});

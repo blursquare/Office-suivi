@@ -209,23 +209,6 @@ test('« aucun écart » n’est affirmé que si la comparaison a réellement eu
   assert.match(avec, /Aucun écart relevé/);
 });
 
-test('l’en-tête distingue les trois états de la comparaison', () => {
-  const app = chargerApplication();
-  const nonCompare = app.renderEcartsAudit({ mode: 'acte', comparaisonFaite: false }, []);
-  assert.match(nonCompare, /Non comparé/);
-
-  const aucun = app.renderEcartsAudit({ mode: 'acte', comparaisonFaite: true }, []);
-  assert.match(aucun, /Aucun écart/);
-  assert.match(aucun, /dl-success/);
-
-  const ecarts = app.renderEcartsAudit({ mode: 'acte', comparaisonFaite: true },
-    [{ categorie: 'COMPARAISON_COMPROMIS' }, { categorie: 'COMPARAISON_COMPROMIS' }, { categorie: 'ACTE' }]);
-  assert.match(ecarts, /2 écart\(s\)/);
-  assert.match(ecarts, /dl-urgent/);
-
-  // En mode « compromis » il n'y a rien à comparer : le document analysé EST l'avant-contrat.
-  assert.equal(app.renderEcartsAudit({ mode: 'compromis', comparaisonFaite: false }, []), '');
-});
 
 test('comparaisonFaite dit si une référence était disponible, pas si un écart a été trouvé', () => {
   const app = chargerApplication();

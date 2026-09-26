@@ -31,20 +31,6 @@ function resultatActe(extra) {
   }, extra || {});
 }
 
-test('pièces attendues selon le type de bien', () => {
-  const app = chargerApplication();
-  const copro = app.piecesAttenduesOutil2(resultatActe());
-  const etat = cle => copro.find(p => p.cle === cle).etat;
-  assert.equal(etat('diagnostics'), 'fournie');
-  assert.equal(etat('cu'), 'fournie');
-  assert.equal(etat('etatDate'), 'partielle');
-  assert.equal(etat('carnet'), 'absente');
-  const maison = app.piecesAttenduesOutil2(resultatActe({ typeBien: 'maison', justificatifsReconnus: ['entretienChaudiere'] }));
-  assert.equal(maison.map(p => p.cle).join(','), 'diagnostics,cu');
-  assert.equal(maison[0].etat, 'absente');
-  const terrain = app.piecesAttenduesOutil2(resultatActe({ typeBien: 'terrain', permis: { permis: { date: '2026-01-01' }, constatsAffichage: [] } }));
-  assert.equal(terrain.filter(p => p.etat === 'fournie').map(p => p.cle).join(','), 'diagnostics,cu,permis');
-});
 
 test('commentaires : portée dossier, portée générale, gravité corrigée', () => {
   const app = chargerApplication();

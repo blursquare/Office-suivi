@@ -292,11 +292,6 @@ async function lireCorpsErreur(reponse) {
   return '';
 }
 
-// Conservée pour les appelants existants : lit le corps puis rend le diagnostic.
-async function diagnosticReponseIcs(reponse, adresse) {
-  return diagnosticDepuisCorps(reponse, adresse, await lireCorpsErreur(reponse));
-}
-
 async function messageEchecLecture(reponse, adresse) {
   const corps = await lireCorpsErreur(reponse);
   let hote = '';
@@ -428,7 +423,7 @@ function demarrerSurveillanceAgenda(depot, parametresRepo, fetchFn, intervalleMs
 }
 
 module.exports = {
-  adresseLisibleIcs, messageErreurCalendrier, diagnosticReponseIcs, ENTETES_LECTURE_ICS,
+  adresseLisibleIcs, messageErreurCalendrier, ENTETES_LECTURE_ICS,
   texteSansAdresses, causeProxy, telechargerIcs,
   appliquerDetectionsAgenda, appliquerRendezVousAgenda, dateDuJourParis, executerTourSurveillanceAgenda, executerEtEnregistrerTourAgenda,
   demarrerSurveillanceAgenda, INTERVALLE_SURVEILLANCE_AGENDA_MS

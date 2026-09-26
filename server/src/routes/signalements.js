@@ -21,7 +21,6 @@ const { mettreCopiesEnAttente } = require('../nettoyageGmail');
 
 const GRAVITES = ['bloquant', 'genant', 'idee'];
 const STATUTS = ['nouveau', 'transmis', 'corrige', 'doublon', 'ecarte'];
-const LIBELLES_GRAVITE = { bloquant: 'Bloquant', genant: 'Gênant', idee: "Idée d'amélioration" };
 
 // Une capture d'écran réduite côté client (voir reduireCaptureSignalement dans script.js) pèse
 // quelques centaines de Ko ; au-delà de ce plafond, c'est une image non réduite qu'on refuse
@@ -187,5 +186,5 @@ function creerRouteurSignalements(db, parametresRepo, envoyerFn) {
 
 module.exports = {
   creerRouteurSignalements, validerSignalement, texteNotificationSignalement,
-  GRAVITES, STATUTS, LIBELLES_GRAVITE
+  GRAVITES, STATUTS
 };

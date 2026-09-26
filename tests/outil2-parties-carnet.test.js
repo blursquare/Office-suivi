@@ -199,12 +199,7 @@ test('typeBienPourAudit : la correction à la main l’emporte sur toute déduct
   assert.strictEqual(force.origine, 'manuel');
   // Une valeur inconnue ne force rien : on retombe sur la déduction plutôt que sur un type inventé.
   assert.strictEqual(app.typeBienPourAudit({ typeBienForce: 'bureau', dossierLie: { typeVente: 'copropriete' } }).type, 'copropriete');
-  assert.ok(TYPES_BIEN_CLES(app).every(c => app.CONTROLES_PAR_TYPE_BIEN[c]));
 });
-
-function TYPES_BIEN_CLES(app) {
-  return app.TYPES_BIEN_AUDIT.map(t => t.valeur);
-}
 
 // --- Fiche d'identité --------------------------------------------------------------------------
 

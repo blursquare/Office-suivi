@@ -136,8 +136,6 @@ test('santé : critique dès un point critique, contrôles CLAIRE comptés, form
   const c = app.santeRelectureOutil2([{ lignes: [{ niveau: 'surveiller' }] }], ['critique']);
   assert.equal(c.niveau, 'critique');
   assert.equal(c.compte.critique, 1);
-  assert.equal(app.niveauAnomalieOutil2('elevee'), 'critique');
-  assert.equal(app.niveauAnomalieOutil2('faible'), 'surveiller');
   assert.equal(app.formaterCoutUsd(0.09).replace(/\s/g, ' '), '0,090 $');
   assert.equal(app.formaterCoutUsd(1.5).replace(/\s/g, ' '), '1,50 $');
   assert.equal(app.formaterDureeMs(72000), '1 min 12 s');
