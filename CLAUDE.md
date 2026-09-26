@@ -274,6 +274,7 @@ serveur n'est nécessaire : l'outil s'ouvre en double-cliquant sur `index.html`.
   testés via une page GitHub Pages construite sur la branche de développement). `index.html` pointe vers
   `tesseract.js@5` (version flottante sur jsdelivr, pas un patch figé comme pour pdf.js) tant
   qu'une version précise n'a pas été confirmée fonctionnelle — la figer une fois validée.
+  **Figée depuis en `tesseract.js@7.0.0`** (voir « Tesseract.js passé de 5 à 7 », plus bas).
 - **Apprentissage des corrections manuelles** (`memoriserCorrection()` / `trouverCorrectionApprise()`
   dans `script.js`, section "apprentissage des corrections") : quand un(e) collaborateur(rice)
   reclasse une date détectée (clic sur Prêt/Acte/Vente/Autre différent de la suggestion, y compris
@@ -8168,6 +8169,32 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   « Documents » de la relecture (`.relecture-groupe > .section-eyebrow`). `.section-eyebrow`
   lui-même (libellés de fiche, tuiles, historique) garde le registre discret : seuls les titres qui
   structurent un écran changent.
+
+- **Tesseract.js passé de 5 à 7, version figée** (26/09 soir, demandé par l'étude : « installe
+  tesseract 7 dans une instance, passe les compromis dedans et compare avec la version 5 »).
+  `index.html` chargeait `tesseract.js@5`, tag flottant qui résolvait vers 5.1.1, alors que la
+  dernière version publiée est 7.0.0 (6.x entre les deux) : il pointe désormais sur
+  `tesseract.js@7.0.0`, figé.
+  - **Banc de comparaison, fait avant de toucher au code** : les deux versions installées côte à
+    côte dans Node (scratchpad, jamais dans le dépôt), chacune avec son `tesseract.js-core`
+    (5.1.1 et 7.0.0 : binaires WASM réellement différents, empreintes distinctes, la 7 ajoute une
+    variante « relaxedsimd »). Entrée : les seuls PDF réels du stress test sans texte
+    extractible — compromis VERLAY (28 p.), compromis BANCQUART (24 p.), deux avis de taxe
+    foncière (2 p.) —, soit 56 pages rendues à 180 DPI, la résolution de `ocrPage()` (scale 2,5),
+    OCR `fra`, un seul worker réutilisé comme dans le vrai code.
+  - **Résultat** : texte reconnu **identique octet pour octet sur les 56 pages**, confiance
+    identique page par page (moyenne 87,52), et **27 % plus rapide** en 7.0.0 (108 s contre
+    148,5 s). La page déjà connue comme illisible (VERLAY p. 28) échoue exactement pareil dans
+    les deux versions : la faiblesse sur le manuscrit et les scans pauvres est celle du moteur
+    LSTM, une montée de version ne la corrige pas — seule une autre technologie (Mistral OCR, un
+    modèle vision-langage) le pourrait, discutée avec l'étude mais pas engagée.
+  - **API inchangée** : `createWorker('fra')`, `recognize()`, `terminate()` — `ocrPage()` et
+    `creerWorkerOcr()` n'ont pas bougé. Le worker, le cœur WASM et le modèle français viennent
+    toujours de cdn.jsdelivr.net (chemins de la 7 vérifiés en HTTP 200 : `worker.min.js`,
+    `tesseract.js-core@v7.0.0`, `@tesseract.js-data/fra/4.0.0_best_int`) : aucun nouveau domaine.
+  - **Non vérifié dans un vrai navigateur** : le banc tournait en Node sur des PNG, pas sur un
+    `canvas` chargé depuis le CDN. À confirmer par l'étude au premier import d'un compromis
+    scanné après la mise à jour de l'exécutable (le texte doit ressortir comme avant, plus vite).
 
 ## Comment tester
 

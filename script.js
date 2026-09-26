@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-26 20:40';
+  const VERSION_APP = '2026-09-26 21:39';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-26 21:39', resume: "Lecture des PDF scannés (OCR) environ 27 % plus rapide : moteur Tesseract passé en version 7, même texte reconnu qu'avant." },
     { version: '2026-09-26 20:40', resume: "Titres des cartes (« Analyses enregistrées », « Ce que vous relisez », « Documents », réglages, outils) en noir et plus appuyés, pour les repérer d'un coup d'œil." },
     { version: '2026-09-26 19:19', resume: "Thème (mode sombre et couleur) retrouvé à chaque relance : gardé au nom du collaborateur sur le serveur ; logo en tuile blanche et trait noir, icône de l'application au même dessin ; mot « Claire » moins gras." },
     { version: '2026-09-26 19:05', resume: "Thème de couleur au choix dans Réglages › Général (bordeaux, bleu, vert, prune, orange), retenu par poste ; logo et icône d'onglet en noir et blanc, identiques pour tous les thèmes." },
