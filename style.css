@@ -4692,7 +4692,9 @@
    la fusion destinataire/date (voir le commentaire dans index.html). Repasse pleine largeur sous
    700px, où 55 % de la colonne ne suffisent plus à tenir une ligne d'adresse sans la couper. */
 .af-entete-droite { margin: 0 0 20px auto; width: max-content; max-width: 55%; text-align: left; }
-.af-date-ligne { margin-top: 6px; }
+/* L'espacement avant la ligne lieu/date vient désormais des 4 <br> posés dans index.html
+   (demandé explicitement par l'étude), plus d'un margin-top qui l'aurait doublé. */
+.af-date-ligne { margin-top: 0; }
 /* Mention de mode d envoi : elle occupe la place de l adresse postale dans le bloc
    destinataire, en italique pour se lire comme une mention et non comme une ligne d adresse. */
 .af-mention-envoi { font-style: italic; }

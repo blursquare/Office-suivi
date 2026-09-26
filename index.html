@@ -1005,6 +1005,11 @@
             <div class="af-entete-droite">
               <div id="af-p-adresse"><u>Destinataire à compléter</u></div>
               <div class="af-mention-envoi" id="af-p-mention-ligne"><u><span class="af-champ" id="af-p-mention">Envoi par e-mail uniquement</span></u></div>
+              <!-- 4 sauts de ligne demandés explicitement par l'étude entre l'adresse/la mention
+                   et la ligne lieu/date — de vrais <br>, pas une marge : c'est exactement ce que
+                   décrit la demande, et ça n'interfère pas avec donneesCourrierAppelFonds() qui ne
+                   lit que le HTML de #af-p-adresse et le texte de chaque #af-p-* par id. -->
+              <br><br><br><br>
               <div class="af-date-ligne"><u><span class="af-champ" id="af-p-ville">Blois</span>, le <span class="af-champ" id="af-p-datelettre"></span></u></div>
             </div>
 

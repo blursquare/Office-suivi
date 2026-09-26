@@ -8130,6 +8130,23 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     inchangée (repli desktop neutralisé, burger/scrim intacts), lettre d'appel de fonds avec et sans
     destinataire rempli. `npm test` : 811 tests racine (inchangés, chantier entièrement visuel/CSS,
     aucune fonction pure ajoutée), 371 côté serveur.
+- **Appel de fonds : 4 sauts de ligne entre l'adresse/la mention d'envoi et la ligne lieu/date**,
+  demandé explicitement par l'étude juste après la fusion des deux blocs (voir l'entrée
+  précédente) — un simple bord gauche commun ne suffisait pas, il fallait aussi un vrai espace
+  vertical entre les deux avant que le courrier ne se lise comme un en-tête de lettre classique.
+  Quatre `<br>` littéraux insérés dans `index.html`, entre `#af-p-mention-ligne`
+  et `.af-date-ligne` — préférés à un `margin-top` calculé (ce qui avait été utilisé jusque-là,
+  `6px`, retiré) : « 4 sauts de ligne » est une demande littérale, et de vrais `<br>` sont
+  cohérents avec le mécanisme déjà en place pour l'adresse elle-même (`#af-p-adresse` autorise
+  aussi des retours à la ligne, reconstruits par `donneesCourrierAppelFonds()` via
+  `.innerHTML.split('<br>')`). **Sans effet sur cette fonction** : elle ne lit que le HTML de
+  `#af-p-adresse` et le texte de chaque `#af-p-*` par id — les 4 `<br>` posés comme frères de ces
+  blocs, à l'intérieur de `.af-entete-droite`, n'entrent dans aucune des deux lectures.
+  `.af-date-ligne { margin-top: 6px }` devient `margin-top: 0` (les `<br>` portent maintenant tout
+  l'espacement, un margin résiduel l'aurait doublé). Vérifié par une capture Playwright de
+  `.af-lettre` (serveur local, destinataire/mention/date renseignés) : espace net et net à 4 lignes
+  entre « Envoi par e-mail uniquement » et « Blois, le 14 novembre 2026 », bords gauches toujours
+  alignés. `npm test` : 811 tests racine (inchangés, changement HTML/CSS pur), 371 côté serveur.
 
 ## Comment tester
 

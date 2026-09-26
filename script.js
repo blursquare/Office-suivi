@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-26 11:11';
+  const VERSION_APP = '2026-09-26 13:59';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-26 13:59', resume: "Appel de fonds : 4 sauts de ligne entre l'adresse/la mention d'envoi et la ligne « Ville, le date » du courrier." },
     { version: '2026-09-26 11:11', resume: "Sidebar réductible en icônes seules (+ épingle pour la garder ouverte) ; « Outils » en sous-menu repliable avec trait de connexion ; logo/favicon sur tuile bleue à icône blanche ; appel de fonds : lieu/date aligné avec le destinataire." },
     { version: '2026-09-25 23:37', resume: "Pièces du dossier sur deux colonnes ; les noms longs passent à la ligne au lieu d'être coupés." },
     { version: '2026-09-25 23:32', resume: "Pièces du dossier en liste à cocher : compteur et barre de progression, une case par pièce (cocher = reçue à la main), « Voir les autres », ajout en pied de carte." },
