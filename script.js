@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-25 23:37';
+  const VERSION_APP = '2026-09-26 11:11';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-26 11:11', resume: "Sidebar réductible en icônes seules (+ épingle pour la garder ouverte) ; « Outils » en sous-menu repliable avec trait de connexion ; logo/favicon sur tuile bleue à icône blanche ; appel de fonds : lieu/date aligné avec le destinataire." },
     { version: '2026-09-25 23:37', resume: "Pièces du dossier sur deux colonnes ; les noms longs passent à la ligne au lieu d'être coupés." },
     { version: '2026-09-25 23:32', resume: "Pièces du dossier en liste à cocher : compteur et barre de progression, une case par pièce (cocher = reçue à la main), « Voir les autres », ajout en pied de carte." },
     { version: '2026-09-25 23:23', resume: "Fiche dossier : « Dépôt » devient « Séquestre », et l'ancien « Séquestre » (qui détient les fonds) devient « Versé à »." },
@@ -320,7 +321,13 @@
     home: '<path d="M2 7.4 8 2.4l6 5"/><path d="M3.6 6.2v7.4h8.8V6.2" stroke-linejoin="round"/><path d="M6.6 13.6V9.8h2.8v3.8"/>',
     user: '<circle cx="8" cy="5.2" r="2.6"/><path d="M2.8 14c0-2.8 2.3-4.8 5.2-4.8s5.2 2 5.2 4.8"/>',
     flag: '<path d="M3.6 14.4V2.2"/><path d="M3.6 2.8h8.6l-1.9 3.1 1.9 3.1H3.6"stroke-linejoin="round"/>',
-    settings: '<circle cx="8" cy="8" r="4.6"/><circle cx="8" cy="8" r="1.6"/><line x1="12.6" y1="8" x2="14.1" y2="8"/><line x1="11.3" y1="4.7" x2="12.3" y2="3.7"/><line x1="8" y1="3.4" x2="8" y2="1.9"/><line x1="4.7" y1="4.7" x2="3.7" y2="3.7"/><line x1="3.4" y1="8" x2="1.9" y2="8"/><line x1="4.7" y1="11.3" x2="3.7" y2="12.3"/><line x1="8" y1="12.6" x2="8" y2="14.1"/><line x1="11.3" y1="11.3" x2="12.3" y2="12.3"/>'
+    settings: '<circle cx="8" cy="8" r="4.6"/><circle cx="8" cy="8" r="1.6"/><line x1="12.6" y1="8" x2="14.1" y2="8"/><line x1="11.3" y1="4.7" x2="12.3" y2="3.7"/><line x1="8" y1="3.4" x2="8" y2="1.9"/><line x1="4.7" y1="4.7" x2="3.7" y2="3.7"/><line x1="3.4" y1="8" x2="1.9" y2="8"/><line x1="4.7" y1="11.3" x2="3.7" y2="12.3"/><line x1="8" y1="12.6" x2="8" y2="14.1"/><line x1="11.3" y1="11.3" x2="12.3" y2="12.3"/>',
+    // En-tête du groupe « Outils » de la sidebar (repliable) : un simple coffret, dans le même
+    // esprit que les autres pictos géométriques du jeu.
+    package: '<path d="M8 1.6 14 5v6L8 14.4 2 11V5Z" stroke-linejoin="round"/><path d="M2 5 8 8.4 14 5"/><line x1="8" y1="8.4" x2="8" y2="14.4"/>',
+    // Épingle (« garder la sidebar toujours ouverte ») : une tête + une tige, pour rester dans le
+    // même vocabulaire minimal (pas une punaise/pin réaliste).
+    pin: '<circle cx="8" cy="5" r="3.1"/><line x1="8" y1="8" x2="8" y2="14.2"/>'
   };
   // `cls` porte les classes de mise en page (taille via font-size hérité, marge...) ; `spin` anime
   // une rotation continue (voir @keyframes icone-spin) pour les icônes d'attente (ex. "spinner").
@@ -10665,6 +10672,82 @@
     const ouverte = typeof forcerOuvert === 'boolean' ? forcerOuvert : !sidebar.classList.contains('ouverte');
     sidebar.classList.toggle('ouverte', ouverte);
     scrim.classList.toggle('visible', ouverte);
+  }
+
+  // ==== Sidebar réduite en icônes seules + épingle (demandé par l'étude) ====
+  //
+  // Deux préférences distinctes, retenues par poste (localStorage, jamais transmises au serveur —
+  // c'est un réglage d'affichage local, comme le thème clair/sombre) : la sidebar peut être
+  // explicitement RÉDUITE (un clic sur le chevron), et/ou ÉPINGLÉE (un clic sur l'épingle).
+  // L'épingle l'emporte toujours : une sidebar épinglée reste grande ouverte même si elle avait
+  // été réduite juste avant — c'est le sens même d'« épingler ». Sans rapport avec le repli mobile
+  // (toggleSidebarMobile ci-dessus, sous 900px) : les deux boutons sont masqués à cette largeur
+  // (voir style.css), la sidebar y étant déjà un panneau réductible par le burger.
+  var CLE_SIDEBAR_REPLIEE = 'claire-sidebar-repliee';
+  var CLE_SIDEBAR_EPINGLEE = 'claire-sidebar-epinglee';
+  var CLE_SIDEBAR_GROUPE_OUTILS = 'claire-sidebar-groupe-outils';
+
+  function sidebarRepliee() {
+    try { return localStorage.getItem(CLE_SIDEBAR_REPLIEE) === '1'; } catch (e) { return false; }
+  }
+  function sidebarEpinglee() {
+    try { return localStorage.getItem(CLE_SIDEBAR_EPINGLEE) === '1'; } catch (e) { return false; }
+  }
+  // Ouvert par défaut (absence de préférence enregistrée) : ces cinq outils étaient jusqu'ici
+  // toujours visibles, les masquer d'entrée aurait surpris un usage déjà installé.
+  function groupeOutilsOuvert() {
+    try {
+      const v = localStorage.getItem(CLE_SIDEBAR_GROUPE_OUTILS);
+      return v === null ? true : v === '1';
+    } catch (e) { return true; }
+  }
+
+  // Point d'entrée unique qui pose l'état réel de la sidebar (classes CSS + icônes), à partir des
+  // trois préférences ci-dessus — appelé au démarrage et après chaque bascule, jamais l'inverse
+  // (les fonctions toggle* ne touchent que le localStorage puis rappellent celle-ci).
+  function appliquerEtatSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) return;
+    const epinglee = sidebarEpinglee();
+    const reduite = sidebarRepliee() && !epinglee;
+    sidebar.classList.toggle('repliee', reduite);
+    const btnPin = document.getElementById('sidebar-pin-btn');
+    if (btnPin) {
+      btnPin.setAttribute('aria-pressed', String(epinglee));
+      btnPin.classList.toggle('actif', epinglee);
+      btnPin.title = epinglee ? 'Détacher la sidebar (revenir au repli manuel)' : 'Épingler la sidebar (toujours ouverte)';
+    }
+    // Le bouton de repli n'a plus de sens tant que l'épingle force l'état ouvert : le masquer
+    // plutôt que le laisser cliquable sans effet visible.
+    const btnCollapse = document.getElementById('sidebar-collapse-btn');
+    if (btnCollapse) btnCollapse.style.display = epinglee ? 'none' : '';
+    const iconCollapse = document.getElementById('icon-sidebar-collapse');
+    if (iconCollapse) iconCollapse.innerHTML = icone(reduite ? 'chevron-right' : 'chevron-left');
+    if (btnCollapse) btnCollapse.title = reduite ? 'Agrandir la sidebar' : 'Réduire la sidebar';
+    if (btnCollapse) btnCollapse.setAttribute('aria-label', reduite ? 'Agrandir la sidebar' : 'Réduire la sidebar');
+    const ouvert = groupeOutilsOuvert();
+    const sousMenu = document.getElementById('sidebar-sousmenu-outils');
+    // Jamais fermé quand la sidebar est réduite : sans libellé de groupe visible, il n'y aurait
+    // plus aucun moyen de rouvrir ces cinq outils.
+    if (sousMenu) sousMenu.classList.toggle('ferme', !ouvert && !reduite);
+    const chevronGroupe = document.getElementById('icon-groupe-outils-chevron');
+    if (chevronGroupe) chevronGroupe.innerHTML = icone(ouvert ? 'chevron-up' : 'chevron-down');
+    const btnGroupe = document.getElementById('sidebar-groupe-outils');
+    if (btnGroupe) btnGroupe.setAttribute('aria-expanded', String(ouvert));
+  }
+
+  function toggleSidebarRepliee() {
+    try { localStorage.setItem(CLE_SIDEBAR_REPLIEE, sidebarRepliee() ? '0' : '1'); } catch (e) {}
+    appliquerEtatSidebar();
+  }
+  function toggleSidebarEpinglee() {
+    try { localStorage.setItem(CLE_SIDEBAR_EPINGLEE, sidebarEpinglee() ? '0' : '1'); } catch (e) {}
+    appliquerEtatSidebar();
+  }
+  function toggleGroupeSidebar(nom) {
+    if (nom !== 'outils') return;
+    try { localStorage.setItem(CLE_SIDEBAR_GROUPE_OUTILS, groupeOutilsOuvert() ? '0' : '1'); } catch (e) {}
+    appliquerEtatSidebar();
   }
 
   // Écran affiché, joint au contexte d'un signalement de problème (voir contexteSignalement).
@@ -23462,7 +23545,9 @@
       'icon-pdf-recherche': 'search',
       'icon-pdf-recherche-prec': 'chevron-up',
       'icon-pdf-recherche-suiv': 'chevron-down',
-      'icon-nav-reglages': 'settings'
+      'icon-nav-reglages': 'settings',
+      'icon-nav-outils-groupe': 'package',
+      'icon-sidebar-pin': 'pin'
     };
     for (const [id, nom] of Object.entries(cibles)) {
       const el = document.getElementById(id);
@@ -23470,6 +23555,9 @@
     }
   }
   initIconesStatiques();
+  // État initial de la sidebar (réduite/épinglée/groupe Outils) — pose aussi l'icône du chevron
+  // de repli, qu'initIconesStatiques() ne gère pas puisqu'elle change selon l'état.
+  appliquerEtatSidebar();
   initCalculateurFraisActe();
   initSelectDepartementAppelFonds();
 

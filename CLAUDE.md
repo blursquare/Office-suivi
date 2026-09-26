@@ -8072,6 +8072,65 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     orange de la case suffit, l'explication passe dans l'infobulle — et les noms longs passent à la
     ligne au lieu d'être coupés.
 
+- **Sidebar réductible en icônes + épingle, sous-menu « Outils » à la maquette fournie, logo/favicon
+  sur tuile bleue, alignement lieu/date de l'appel de fonds** (26/09, quatre demandes indépendantes) :
+  - **Repli en icônes seules + épingle** (`toggleSidebarRepliee`/`toggleSidebarEpinglee`/
+    `appliquerEtatSidebar`, script.js) : deux préférences distinctes retenues par poste
+    (`localStorage`, jamais transmises au serveur — un réglage d'affichage local, comme le thème).
+    L'épingle l'emporte toujours sur un repli déjà mémorisé (`reduite = sidebarRepliee() &&
+    !epinglee`) : épingler une sidebar réduite la rouvre et masque le bouton de repli, qui n'aurait
+    plus de sens tant que l'épingle force l'état ouvert. Réduite : `flex-basis`/`width` ramenés à
+    76px, libellés/titres de section/badges masqués. **Masquer le texte d'un bouton sans toucher au
+    HTML de chaque lien** (aucun `<span>` séparé n'entoure le libellé, un simple texte au fil du
+    bouton) : `font-size: 0` sur `.sidebar-link`/`.sidebar-groupe-titre`, qui ne fonctionne QUE parce
+    que `.sidebar-link-icone` déclare son propre `font-size` (14/17px) — l'icône, dimensionnée en
+    `1em` (voir `.icone`), garde donc sa taille malgré l'ancêtre à 0, sans qu'aucun des ~10 boutons
+    de la nav n'ait eu besoin d'être réécrit. **Scopé à `@media (min-width: 901px)`** : la sidebar
+    mobile (<900px) est déjà un panneau réductible via le burger/scrim existant, un second mécanisme
+    de repli par-dessus prêterait à confusion — un `display:none` posé pour le desktop ne peut pas
+    proprement se "révéler" sous 900px sans calques CSS (`revert` reviendrait au défaut du
+    navigateur, pas à la règle non-repliée), d'où le choix de ne JAMAIS appliquer ces règles sous
+    901px plutôt que de les défaire une par une dans le `@media` mobile.
+  - **« Outils » en groupe repliable**, sur le modèle envoyé par l'étude (capture d'un menu
+    "Order" avec chevron + sous-items reliés par un trait) — demandé pour ce groupe précisément,
+    "Dossier"/"Admin" restent de simples titres non interactifs. `sidebar-groupe-titre` (bouton,
+    icône `package` + libellé + chevron) + `sidebar-sousmenu` (les 5 liens existants inchangés,
+    seulement enveloppés) ; `toggleGroupeSidebar('outils')` retient l'état ouvert/fermé par poste
+    (ouvert par défaut : ces outils étaient déjà tous visibles, les masquer d'entrée aurait surpris
+    un usage installé). **Toujours forcé ouvert quand la sidebar est réduite** — sans libellé de
+    groupe visible en mode icônes, il n'y aurait plus aucun moyen de rouvrir ces cinq outils. Trait
+    de connexion en CSS pur (`.sidebar-sousmenu::before` = le tronc vertical, `.sidebar-sousmenu-
+    item::before` = une branche horizontale par item), masqué en mode réduit.
+  - **Logo (`.brand-mark`, 3 endroits : sidebar, écran de connexion, « À propos ») sur tuile bleue à
+    icône blanche** : un `<rect rx="12" fill="var(--focus)">` ajouté sous les deux tracés existants
+    (anneau + coche), dont le stroke passe de `var(--focus)`/`var(--focus-hover)` à `#fff` — un seul
+    blanc pour les deux traits, demandé ainsi ("le picto en blanc"). `icone.svg` (favicon/PWA) reçoit
+    le même traitement (fond `#12181F` → `#2563EB`, tracés → blancs) avec un trait **moins épais**
+    qu'avant (18/15 → 13/10, "un peu moins gras" demandé explicitement) — choisi après avoir rendu
+    trois variantes à 16/24/32/64/96px via Playwright (aucun outil de rasterisation SVG disponible
+    dans cet environnement, aucun n'installé non plus dans le projet) : 13/10 reste lisible comme
+    anneau+coche au plus petit format tout en étant sensiblement plus fin que l'original, sur fond
+    clair comme sur fond sombre.
+  - **Appel de fonds : lieu/date fusionné dans le même bloc que le destinataire** (`index.html`,
+    `.af-entete-droite`) — les deux étaient jusqu'ici deux éléments alignés chacun de son côté (le
+    destinataire en `width:max-content`+`margin-left:auto`, la date en `text-align:right` sur toute
+    la largeur du corps de lettre) : ils ne partageaient que leur bord DROIT, jamais leur bord
+    gauche, qui divergeait dès que les deux textes n'avaient pas la même largeur — lu comme deux
+    blocs disjoints plutôt qu'un seul en-tête de courrier. Fusionnés en un seul conteneur
+    (`.af-entete-droite`, reprend l'ancien `width:max-content; max-width:55%; text-align:left` de
+    `.af-adresse-bloc`, supprimée) : destinataire, mention d'envoi et ligne « Blois, le … » partagent
+    désormais le même bord gauche, quelle que soit la largeur de chacun — vérifié par mesure des
+    `getBoundingClientRect()` avant/après (bords gauches identiques au pixel près, avec le
+    destinataire par défaut ET avec un nom/une adresse réels plus larges que la date). Aucune
+    dépendance JS cassée : les deux blocs n'étaient référencés que par leurs id internes
+    (`af-p-adresse`, `af-p-ville`, `af-p-datelettre`…), jamais par leur classe englobante.
+  - Vérifié dans un vrai Chromium (serveur local, clair/sombre/mobile 400-650px) : repli/épingle
+    testés en cycle complet (repli → agrandir → épingler → recharger la page, l'épingle persiste →
+    désépingler, le bouton de repli réapparaît), groupe Outils ouvert/fermé, sidebar mobile
+    inchangée (repli desktop neutralisé, burger/scrim intacts), lettre d'appel de fonds avec et sans
+    destinataire rempli. `npm test` : 811 tests racine (inchangés, chantier entièrement visuel/CSS,
+    aucune fonction pure ajoutée), 371 côté serveur.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

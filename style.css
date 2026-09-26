@@ -654,6 +654,97 @@
   }
   .sidebar-nav-titre:first-child { padding-top: 4px; }
 
+  /* Épingle + repli en icônes (demandé par l'étude) : petite rangée d'icônes sous le logo, alignée
+     à droite (le logo reste la seule chose lue de gauche à droite dans cette rangée). */
+  .sidebar-controles {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 2px;
+    padding: 0 2px 10px;
+  }
+  .sidebar-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
+    border: none;
+    border-radius: 7px;
+    background: none;
+    color: var(--muted);
+    font-size: 13px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+  .sidebar-icon-btn:hover { background: var(--paper-sunk); color: var(--ink); }
+  /* Épingle active : seul repère de couleur --focus dans la sidebar (avec le lien "actif", resté
+     gris neutre) — cohérent avec le reste de l'outil, --focus réservé aux accents interactifs. */
+  .sidebar-icon-btn.actif { color: var(--focus); background: color-mix(in srgb, var(--focus) 15%, transparent); }
+
+  /* Groupe "Outils" repliable (chevron + trait de connexion vers ses sous-items, sur le modèle
+     fourni par l'étude) — un simple bouton au même gabarit que .sidebar-link, pas un composant
+     séparé, pour hériter du même hover/de la même grille icône+texte sans dupliquer de règles. */
+  .sidebar-groupe-titre {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    width: 100%;
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: none;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 10px 10px 8px;
+    margin-top: 4px;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+  .sidebar-groupe-titre:hover { background: var(--paper-sunk); color: var(--ink); }
+  .sidebar-groupe-titre .sidebar-link-icone { opacity: 0.85; font-size: 14px; }
+  .sidebar-groupe-label { flex: 1 1 auto; }
+  .sidebar-groupe-chevron { display: inline-flex; flex-shrink: 0; font-size: 12px; opacity: 0.7; }
+
+  /* Sous-items : indentation + trait vertical continu (le "tronc") duquel part un petit tiret
+     horizontal par item (la "branche") — même principe de tracé que la maquette fournie (Order >
+     Packing/Sent/Invoice/Rating). Peint en traits fins (--line-soft), jamais une bordure de plus
+     sur les boutons eux-mêmes. */
+  .sidebar-sousmenu {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-left: 21px;
+    padding-left: 12px;
+  }
+  .sidebar-sousmenu::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 14px;
+    left: 0;
+    width: 1px;
+    background: var(--line-soft);
+  }
+  .sidebar-sousmenu-item { position: relative; }
+  .sidebar-sousmenu-item::before {
+    content: '';
+    position: absolute;
+    left: -12px;
+    top: 50%;
+    width: 12px;
+    height: 1px;
+    background: var(--line-soft);
+  }
+  /* Fermé (repli du groupe, pas de la sidebar entière) : masqué, le trait avec. */
+  .sidebar-sousmenu.ferme { display: none; }
+
   /* Compteur de pièces reçues pas encore vues (voir majBadgeNotificationsSidebar() dans script.js) —
      seul badge à fond plein de la sidebar, volontairement : c'est un signal à remarquer d'un coup
      d'œil, pas un statut de navigation comme .sidebar-link.actif. Rouge (--urgent) à la demande de
@@ -685,6 +776,53 @@
     gap: 2px;
   }
   .sidebar-burger, .sidebar-scrim { display: none; }
+
+  /* Sidebar réduite en icônes seules (voir appliquerEtatSidebar dans script.js) : le libellé de
+     chaque lien est un simple texte au fil du bouton (pas un <span> à part) — le masquer sans
+     toucher au HTML de chaque bouton passe par font-size: 0 sur le conteneur, une astuce qui ne
+     fonctionne QUE parce que .sidebar-link-icone déclare son propre font-size (14px) : l'icône
+     (dimensionnée en 1em, voir .icone) garde donc sa taille malgré l'ancêtre à 0.
+     Réservé au DESKTOP (min-width 901px, symétrique du @media max-width:900px plus bas) : la
+     sidebar y est en flux normal, une largeur fixe a un sens. En mobile elle est de toute façon un
+     panneau plein overlay géré par le burger/scrim (voir plus bas), pas concerné par ce repli — y
+     laisser ces règles actives aurait demandé de toutes les défaire une par une dans le @media
+     mobile (un `display:none` ne se "révèle" pas proprement avec `revert` sans système de calques
+     CSS, qui n'est pas en place ici), plutôt que de simplement ne jamais les appliquer. */
+  @media (min-width: 901px) {
+    .sidebar.repliee {
+      flex-basis: 76px;
+      width: 76px;
+      padding-left: 14px;
+      padding-right: 14px;
+    }
+    .sidebar.repliee .brand-word,
+    .sidebar.repliee .sidebar-alpha-badge,
+    .sidebar.repliee .sidebar-nav-titre,
+    .sidebar.repliee .sidebar-groupe-titre,
+    .sidebar.repliee .sidebar-badge-notif,
+    .sidebar.repliee .stade-badge {
+      display: none;
+    }
+    .sidebar.repliee .sidebar-brand { justify-content: center; padding-left: 0; padding-right: 0; }
+    .sidebar.repliee .sidebar-controles { justify-content: center; }
+    .sidebar.repliee .sidebar-link,
+    .sidebar.repliee .sidebar-groupe-titre {
+      font-size: 0;
+      justify-content: center;
+      gap: 0;
+      padding-left: 0;
+      padding-right: 0;
+    }
+    .sidebar.repliee .sidebar-link-icone { font-size: 17px; }
+    .sidebar.repliee .sidebar-sousmenu {
+      margin-left: 0;
+      padding-left: 0;
+    }
+    .sidebar.repliee .sidebar-sousmenu::before,
+    .sidebar.repliee .sidebar-sousmenu-item::before {
+      display: none;
+    }
+  }
 
   .app-main {
     flex: 1;
@@ -1551,6 +1689,12 @@
        mangeait 64px de largeur utile, ce qui suffisait à tasser les cartes et le tableau du Suivi.
        Le retrait en haut, lui, reste celui qui dégage le bouton burger flottant. */
     .app-main { padding: 68px 16px 32px; }
+    /* Repli/épingle desktop sans objet ici : la sidebar mobile est déjà un panneau réductible via
+       le burger + le scrim ci-dessus — un second mécanisme de repli par-dessus prêterait à
+       confusion. Les règles de mise en forme de .sidebar.repliee sont scopées à
+       @media (min-width: 901px) (voir plus haut) : sous cette largeur, un état "repliee" mémorisé
+       depuis un poste desktop n'a donc aucun effet visuel, seuls les boutons restent à masquer. */
+    .sidebar-controles { display: none; }
   }
 
   .wrap-suivi { max-width: 1680px; margin: 0 auto; }
@@ -4542,16 +4686,17 @@
 .af-lettre-corps, .af-lettre-corps * { color: #26201a; }
 .af-champ { border-bottom: 1px dotted #c9c9c9; padding: 0 1px; }
 .af-champ:focus { outline: none; background: rgba(109, 35, 50, 0.08); }
-.af-date-ligne { text-align: right; margin: 6px 0 20px; }
-/* Le bloc destinataire est poussé à droite, comme sur un courrier réel — mais ses LIGNES restent
-   alignées à gauche entre elles (`text-align: left` + `width: max-content`) : une adresse en
-   drapeau à droite ne se lit pas comme une adresse. Repasse pleine largeur sous 700px, où 55 %
-   de la colonne ne suffisent plus à tenir une ligne d'adresse sans la couper. */
-.af-adresse-bloc { margin: 0 0 24px auto; width: max-content; max-width: 55%; text-align: left; }
+/* En-tête droit du courrier (destinataire, mention d'envoi, lieu/date) : UN SEUL bloc poussé à
+   droite, comme sur un courrier réel — ses LIGNES restent alignées à gauche entre elles
+   (`text-align: left` + `width: max-content`), un bord gauche commun étant justement le point de
+   la fusion destinataire/date (voir le commentaire dans index.html). Repasse pleine largeur sous
+   700px, où 55 % de la colonne ne suffisent plus à tenir une ligne d'adresse sans la couper. */
+.af-entete-droite { margin: 0 0 20px auto; width: max-content; max-width: 55%; text-align: left; }
+.af-date-ligne { margin-top: 6px; }
 /* Mention de mode d envoi : elle occupe la place de l adresse postale dans le bloc
    destinataire, en italique pour se lire comme une mention et non comme une ligne d adresse. */
 .af-mention-envoi { font-style: italic; }
-@media (max-width: 700px) { .af-adresse-bloc { margin-left: 0; max-width: 100%; } }
+@media (max-width: 700px) { .af-entete-droite { margin-left: 0; max-width: 100%; } }
 .af-signature { margin-top: 26px; text-align: right; }
 
 .af-lettre-pied {

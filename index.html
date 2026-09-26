@@ -21,16 +21,34 @@
 
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
+      <!-- Tuile bleue pleine + icône blanche (demandé par l'étude), à la place de l'ancien tracé
+           bleu sur fond transparent — même traitement que le favicon/icone.svg juste en dessous,
+           les deux repris à l'identique pour que la marque soit cohérente partout. -->
       <span class="brand-mark" aria-hidden="true">
         <svg width="40" height="40" viewBox="0 0 48 48" fill="none">
-          <path d="M33 12a15 15 0 1 0 0 24" stroke="var(--focus)" stroke-width="2.2" stroke-linecap="round"/>
-          <path d="M27 23.5 L31.5 29 L40 17" stroke="var(--focus-hover)" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect width="48" height="48" rx="12" fill="var(--focus)"/>
+          <path d="M33 12a15 15 0 1 0 0 24" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+          <path d="M27 23.5 L31.5 29 L40 17" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </span>
       <span class="brand-word">Claire</span>
       <!-- Déplacé ici (petit, à côté du logo) depuis un bloc séparé en haut à droite de la sidebar,
            demandé par l'étude. -->
       <span class="sidebar-alpha-badge" title="Version bêta : les fonctions principales sont stables et en usage au bureau ; seules des corrections et des retouches sont encore apportées. La relecture d'actes, plus récente, reste en alpha.">Bêta</span>
+    </div>
+
+    <!-- Réduction en icônes seules (un clic) + épingle (garder la sidebar toujours grande ouverte,
+         même repliée par ailleurs) — demandé par l'étude. Les deux préférences sont retenues par
+         poste (voir appliquerEtatSidebar dans script.js), l'épingle l'emportant toujours sur un
+         repli déjà mémorisé. Masqués sous 900px : la sidebar y est déjà un panneau réductible via
+         le bouton burger, ce contrôle-ci n'a pas de sens par-dessus ce mécanisme mobile. -->
+    <div class="sidebar-controles">
+      <button type="button" class="sidebar-icon-btn" id="sidebar-pin-btn" onclick="toggleSidebarEpinglee()" aria-pressed="false" title="Épingler la sidebar (toujours ouverte)">
+        <span id="icon-sidebar-pin" aria-hidden="true"></span>
+      </button>
+      <button type="button" class="sidebar-icon-btn" id="sidebar-collapse-btn" onclick="toggleSidebarRepliee()" title="Réduire la sidebar" aria-label="Réduire la sidebar">
+        <span id="icon-sidebar-collapse" aria-hidden="true"></span>
+      </button>
     </div>
 
     <!-- Liens groupés par catégorie (demandé par l'étude) : "Tableau de bord" reste seul, sans
@@ -57,31 +75,43 @@
         <span class="sidebar-link-icone" id="icon-nav-analyse-ia" aria-hidden="true"></span>Relecture d'actes<span class="stade-badge stade-badge-nav" title="Alpha : outil encore en test, à utiliser avec le mode commentaires.">Alpha</span>
       </button>
 
-      <span class="sidebar-nav-titre">Outils</span>
-      <button type="button" id="tab-calculateur" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('calculateur')">
-        <span class="sidebar-link-icone" id="icon-nav-calculateur" aria-hidden="true"></span>Simulateur de provision
+      <!-- Groupe repliable (chevron + trait de connexion vers ses sous-items, sur le modèle fourni
+           par l'étude) — demandé pour "Outils" spécifiquement, pas pour les autres catégories.
+           toggleGroupeSidebar('outils') bascule #sidebar-sousmenu-outils ; l'état (ouvert/fermé)
+           est retenu par poste, mais toujours forcé ouvert quand la sidebar elle-même est réduite
+           en icônes (voir appliquerEtatSidebar) — sans quoi ces cinq outils disparaîtraient sans
+           qu'aucun libellé ne reste pour les rouvrir. -->
+      <button type="button" class="sidebar-groupe-titre" id="sidebar-groupe-outils" aria-expanded="true" aria-controls="sidebar-sousmenu-outils" onclick="toggleGroupeSidebar('outils')">
+        <span class="sidebar-link-icone" id="icon-nav-outils-groupe" aria-hidden="true"></span>
+        <span class="sidebar-groupe-label">Outils</span>
+        <span class="sidebar-groupe-chevron" id="icon-groupe-outils-chevron" aria-hidden="true"></span>
       </button>
-      <button type="button" id="tab-prorata" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('prorata')">
-        <span class="sidebar-link-icone" id="icon-nav-prorata" aria-hidden="true"></span>Prorata & répartitions
-      </button>
-      <!-- Générateur d'appel de fonds : la convocation au rendez-vous de signature, avec le
-           décompte des sommes à virer. Relié à Outil 1 — « Préparer l'appel de fonds » sur une
-           fiche dossier ouvre cet onglet déjà prérempli (voir prefillAppelFonds). -->
-      <button type="button" id="tab-appel-fonds" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('appel-fonds')">
-        <span class="sidebar-link-icone" id="icon-nav-appel-fonds" aria-hidden="true"></span>Appel de fonds
-      </button>
-      <!-- Arbitrage du forfait mobilier : la prisée d'un commissaire de justice écarte le forfait
-           de 5 % de l'art. 764 CGI, mais elle a un coût — l'outil compare les deux. Sans dossier,
-           comme les deux simulateurs voisins : rien n'est enregistré. -->
-      <button type="button" id="tab-inventaire" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('inventaire')">
-        <span class="sidebar-link-icone" id="icon-nav-inventaire" aria-hidden="true"></span>Arbitrage forfait mobilier
-      </button>
-      <!-- Quotités d'acquisition : proportions de chaque acquéreur d'après l'origine du financement,
-           et annexe « Nature et quotités des droits acquis » en .docx. Porté d'un artefact de
-           l'étude (structure et textes des clauses), aux jetons de CLAIRE — voir CLAUDE.md. -->
-      <button type="button" id="tab-quotites" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('quotites')">
-        <span class="sidebar-link-icone" id="icon-nav-quotites" aria-hidden="true"></span>Quotités d'acquisition
-      </button>
+      <div class="sidebar-sousmenu" id="sidebar-sousmenu-outils">
+        <button type="button" id="tab-calculateur" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('calculateur')">
+          <span class="sidebar-link-icone" id="icon-nav-calculateur" aria-hidden="true"></span>Simulateur de provision
+        </button>
+        <button type="button" id="tab-prorata" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('prorata')">
+          <span class="sidebar-link-icone" id="icon-nav-prorata" aria-hidden="true"></span>Prorata & répartitions
+        </button>
+        <!-- Générateur d'appel de fonds : la convocation au rendez-vous de signature, avec le
+             décompte des sommes à virer. Relié à Outil 1 — « Préparer l'appel de fonds » sur une
+             fiche dossier ouvre cet onglet déjà prérempli (voir prefillAppelFonds). -->
+        <button type="button" id="tab-appel-fonds" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('appel-fonds')">
+          <span class="sidebar-link-icone" id="icon-nav-appel-fonds" aria-hidden="true"></span>Appel de fonds
+        </button>
+        <!-- Arbitrage du forfait mobilier : la prisée d'un commissaire de justice écarte le forfait
+             de 5 % de l'art. 764 CGI, mais elle a un coût — l'outil compare les deux. Sans dossier,
+             comme les deux simulateurs voisins : rien n'est enregistré. -->
+        <button type="button" id="tab-inventaire" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('inventaire')">
+          <span class="sidebar-link-icone" id="icon-nav-inventaire" aria-hidden="true"></span>Arbitrage forfait mobilier
+        </button>
+        <!-- Quotités d'acquisition : proportions de chaque acquéreur d'après l'origine du financement,
+             et annexe « Nature et quotités des droits acquis » en .docx. Porté d'un artefact de
+             l'étude (structure et textes des clauses), aux jetons de CLAIRE — voir CLAUDE.md. -->
+        <button type="button" id="tab-quotites" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('quotites')">
+          <span class="sidebar-link-icone" id="icon-nav-quotites" aria-hidden="true"></span>Quotités d'acquisition
+        </button>
+      </div>
 
       <span class="sidebar-nav-titre">Admin</span>
       <!-- Réglages de l'étude (URL du flux Power Automate + adresse email de chaque collaborateur) :
@@ -964,12 +994,19 @@
           </aside>
 
           <div class="af-lettre-corps">
-            <div class="af-adresse-bloc">
+            <!-- Destinataire ET lieu/date dans UN SEUL bloc (demandé par l'étude : les deux
+                 doivent s'aligner) — plutôt que deux éléments alignés chacun de son côté (le
+                 destinataire en `width:max-content`, la date en `text-align:right` sur toute la
+                 largeur du corps), qui ne partagent que leur bord DROIT : leurs bords gauches
+                 divergent dès que les deux textes n'ont pas la même largeur, ce qui les faisait
+                 lire comme deux blocs disjoints plutôt qu'un seul en-tête. Un bord gauche commun
+                 (voir .af-entete-droite dans style.css) les traite comme une seule colonne, sur le
+                 modèle d'un courrier réel où lieu/date suit directement l'adresse du destinataire. -->
+            <div class="af-entete-droite">
               <div id="af-p-adresse"><u>Destinataire à compléter</u></div>
               <div class="af-mention-envoi" id="af-p-mention-ligne"><u><span class="af-champ" id="af-p-mention">Envoi par e-mail uniquement</span></u></div>
+              <div class="af-date-ligne"><u><span class="af-champ" id="af-p-ville">Blois</span>, le <span class="af-champ" id="af-p-datelettre"></span></u></div>
             </div>
-
-            <div class="af-date-ligne"><u><span class="af-champ" id="af-p-ville">Blois</span>, le <span class="af-champ" id="af-p-datelettre"></span></u></div>
 
             <p><span class="af-champ" id="af-p-salut1">Madame, Monsieur,</span></p>
 
@@ -1663,8 +1700,9 @@
     <div class="apropos-header">
       <span class="brand-mark" aria-hidden="true">
         <svg width="34" height="34" viewBox="0 0 48 48" fill="none">
-          <path d="M33 12a15 15 0 1 0 0 24" stroke="var(--focus)" stroke-width="1.8" stroke-linecap="round"/>
-          <path d="M27 23.5 L31.5 29 L40 17" stroke="var(--focus-hover)" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect width="48" height="48" rx="12" fill="var(--focus)"/>
+          <path d="M33 12a15 15 0 1 0 0 24" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M27 23.5 L31.5 29 L40 17" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </span>
       <span class="brand-word">Claire</span>
@@ -1744,8 +1782,9 @@
     <div class="apropos-header">
       <span class="brand-mark" aria-hidden="true">
         <svg width="34" height="34" viewBox="0 0 48 48" fill="none">
-          <path d="M33 12a15 15 0 1 0 0 24" stroke="var(--focus)" stroke-width="1.8" stroke-linecap="round"/>
-          <path d="M27 23.5 L31.5 29 L40 17" stroke="var(--focus-hover)" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect width="48" height="48" rx="12" fill="var(--focus)"/>
+          <path d="M33 12a15 15 0 1 0 0 24" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M27 23.5 L31.5 29 L40 17" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </span>
       <span class="brand-word">Claire</span>
