@@ -9684,6 +9684,69 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
     citaient même la date butoir parmi les échéances rappelées : les deux sont réécrits avec le
     tableau réel.
 
+- **Palette bordeaux, sidebar toujours sombre et flottante, et trois retouches du tableau de
+  bord**, après une exploration comparative demandée par l'étude (bleu jugé « trop classique » —
+  pistes neumorphisme/glassmorphism, un moodboard Pantone « Blue Depths », un jeu de tokens neutres
+  chauds — comparées côte à côte dans des artefacts séparés avant toute modification des fichiers
+  réels, y compris une prévisualisation sur le VRAI tableau de bord via un serveur jetable seedé de
+  dossiers synthétiques). L'étude a tranché : bordeaux + sidebar toujours sombre, fond principal
+  inchangé (les neutres chauds, essayés en aperçu, n'ont pas été retenus).
+  - **`--focus`/`--focus-hover` passent au bordeaux** (`#6D2332`/`#551A26` en clair — la couleur
+    exacte du papier à en-tête déjà utilisée dans le courrier d'appel de fonds, donc aucune teinte
+    inventée pour l'occasion ; `#D08A98`/`#DFA3AE` en sombre, éclaircie/désaturée comme les autres
+    jetons de catégorie) — remplace le bleu `#2563EB` retenu lors de la précédente refonte.
+    Volontairement **découplé de `--acte`** (bleu nuit) et de `--ventebien` (bleu moyen), comme
+    `--acte` l'avait déjà été de `--focus` en son temps : les trois peuvent diverger sans qu'un
+    changement de l'un n'affecte accidentellement les autres.
+  - **Sidebar toujours sombre, quel que soit le thème de l'application** (contraste demandé par
+    l'étude) : plutôt qu'un second jeu de classes à maintenir, `.sidebar` redéclare localement TOUS
+    les jetons dont dépend son contenu (`--paper*`, `--ink*`, `--line*`, `--muted`, les quatre
+    couleurs de catégorie, `--urgent`, `--notif-nouveau`, `--success*`, `--focus*`,
+    `--sidebar-*`) aux valeurs déjà utilisées par `[data-theme="dark"]` — une simple redéclaration
+    de variables CSS qui l'emporte sur `:root`/`[data-theme]` pour tout ce sous-arbre, sans dupliquer
+    la moindre règle de rendu. Aucun changement de script.js : la sidebar reste construite par les
+    mêmes fonctions, seuls les jetons qu'elle consulte changent de source.
+  - **Détachée du bord, flottante, coins arrondis** : `margin: 16px 0 16px 16px` + `border-radius:
+    20px` + une ombre plus marquée (`0 18px 40px rgba(0,0,0,0.45)`) remplacent l'ancien
+    `border-right`/`height: 100vh` bord-à-bord — celui-ci n'a plus de sens une fois la sidebar
+    séparée du contenu par un espace. **Neutralisé en mobile** (`@media max-width:900px`) : le
+    tiroir plein écran reprend `margin:0; height:100vh; border-radius:0` (reste sombre, hérite des
+    jetons de la règle de base) — un tiroir tactile plein écran gagne à rester bord-à-bord, la
+    présentation flottante du desktop n'y apporte rien et gênerait l'atteinte au doigt.
+  - **Date du jour au-dessus de « Bonjour [Prénom] »** sur le tableau de bord, à la place de
+    l'étiquette statique « Tableau de bord » (demandé par l'étude) : nouvelle
+    `libelleDateDuJour()` (`toLocaleDateString('fr-FR', {weekday:'long', day:'numeric',
+    month:'long', year:'numeric'})`, première lettre remontée en capitale — le format
+    `fr-FR` rend déjà le reste en minuscules) posée dans `renderAccueilDashboard()`, avant son
+    retour anticipé pour qu'elle se mette à jour même sur la branche "qui utilise ce poste ?".
+    `#dash-eyebrow` garde "Tableau de bord" comme texte HTML de repli, écrasé au premier rendu JS.
+  - **Bug corrigé, trouvé en testant sur le vrai tableau de bord plutôt qu'en calculant à la main** :
+    « À traiter » et « Avancement des dossiers » (voir leur historique plus haut, disposition en
+    duo flex) ne tenaient côte à côte qu'à partir d'environ 1750px de fenêtre une fois la nouvelle
+    marge de la sidebar déduite — en dessous, ils repassaient l'un sous l'autre alors que la grille
+    à deux colonnes (rail à droite) reste active jusqu'à 1320px. Bases réduites (340→220px pour
+    « À traiter », 460→350px pour l'avancement, ratio 1:1.6 conservé) : les deux tiennent désormais
+    dès que la colonne principale dépasse ~620px, donc sur toute la plage où le rail est encore à
+    côté. Sans risque pour la lisibilité : chaque bloc a déjà son propre repli en dessous de 560px
+    via sa requête de conteneur `dashbloc` (voir l'historique de l'avancement par ligne).
+  - **Pastilles « nouvelle pièce » recolorées en rouge franc**, distinct du rouge-orangé
+    `--urgent` (demandé explicitement par l'étude après ce lot) : `--urgent` (`#C2410C` clair /
+    `#F08C4B` sombre) sert déjà aux dates dépassées et aux boutons de suppression, un rouge-orangé
+    qui ne se distinguait pas assez d'un vrai signal "à regarder maintenant". Nouveau jeton
+    `--notif-nouveau` (`#DC2626` clair / `#F87171` sombre, plus la variante sombre redéclarée dans
+    `.sidebar`) appliqué aux deux seuls consommateurs concernés : `.sidebar-badge-notif` (le
+    compteur de pièces reçues pas encore vues) et `.dot-label.dl-urgent.notif-nouveau-tag` (les
+    tags "Nouveau" sur une pièce/l'offre de prêt et la ligne "Dernières pièces trouvées" du tableau
+    de bord) — un simple override par sélecteur composé, sans toucher au HTML généré par script.js
+    (les trois endroits posent déjà `dl-urgent` + `notif-nouveau-tag` ensemble). `--urgent`
+    lui-même reste inchangé partout ailleurs (statut "Aucun document", tabs dépassés...).
+  - Vérifié dans un vrai Chromium (serveur jetable + dossiers synthétiques, clair et sombre,
+    1500px) : eyebrow "Samedi 26 septembre 2026", « À traiter »/« Avancement » bien côte à côte
+    (mesuré par `getBoundingClientRect`), pastilles rendues `rgb(220,38,38)` en clair et
+    `rgb(248,113,113)` en sombre (sidebar comme contenu). `npm test` reste vert (811 tests,
+    aucune fonction pure modifiée — `libelleDateDuJour()` dépend de `Date()`/du DOM, non testable
+    unitairement).
+
 ## Ce qui reste ouvert / pas encore fait
 
 - **Signature manuscrite de Bastien ANGLUMENT, conservée pour le courrier d'appel de fonds**

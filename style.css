@@ -27,14 +27,24 @@
     --projet: #B83E78;
     --ventebien-bg: #E3EEF7;
     --urgent: #C2410C;
+    /* Signal dédié aux "nouvelles pièces" (badge de sidebar, tags "Nouveau" sur une pièce/l'offre
+       de prêt, ligne "Dernières pièces trouvées" du tableau de bord) — demandé explicitement par
+       l'étude, distinct de --urgent : ce dernier est un rouge-orangé (dates dépassées, boutons de
+       suppression...), pas un vrai rouge, et ces deux signaux n'ont pas le même sens ("à
+       remarquer maintenant" contre "en retard/dangereux"). Rouge franc, jamais réutilisé ailleurs. */
+    --notif-nouveau: #DC2626;
     --success: #2F8F5B;
     --success-bg: #E4F3EB;
     --muted: #8A93A9;
-    /* Bleu d'action (boutons primaires, liens, focus, onglet actif) — distinct de --acte (couleur
-       réservée à la catégorie d'échéance "acte", ne pas les recoupler même s'ils se ressemblent) :
-       demandé par l'étude pour un rendu plus "professionnel" que l'ancien bleu terne (#2472B0). */
-    --focus: #2563EB;
-    --focus-hover: #1D4ED8;
+    /* Accent d'action (boutons primaires, liens, focus, onglet actif) — distinct de --acte (couleur
+       réservée à la catégorie d'échéance "acte", ne pas les recoupler même s'ils se ressemblent).
+       Bordeaux retenu après une comparaison de plusieurs pistes (voir CLAUDE.md) : l'étude a jugé
+       le bleu "trop classique" — ce bordeaux reprend exactement la couleur du papier à en-tête déjà
+       utilisé dans le courrier d'appel de fonds (#6D2332), et ne partage sa famille de couleur avec
+       aucun autre jeton de l'outil (contrairement à un bleu, qui aurait toujours concurrencé --acte
+       ou --ventebien). */
+    --focus: #6D2332;
+    --focus-hover: #551A26;
     --shadow-card: 0 1px 2px rgba(22,35,60,0.04), 0 2px 8px rgba(22,35,60,0.04);
     --shadow-float: 0 8px 28px rgba(22,35,60,0.16);
     /* Panneau "verre" de la sidebar : dégradé légèrement teinté (pas un simple à-plat de
@@ -71,14 +81,18 @@
     --projet: #E58AB5;
     --ventebien-bg: #263238;
     --urgent: #F08C4B;
+    /* Éclaircie pour rester lisible sur fond sombre, comme les autres jetons — voir :root pour la
+       raison de ce token séparé de --urgent. */
+    --notif-nouveau: #F87171;
     --success: #5FBF87;
     --success-bg: #223026;
     --muted: #8C8C8C;
     /* Surfaces (fond, cartes, encres) restent en gris neutre — décision explicite, voir plus bas
-       ("Palette bleue professionnelle"). Seul cet accent devient un bleu plus affirmé que l'ancien
-       #6FAEDB, pour rester lisible et "professionnel" sur fond sombre sans virer au navy. */
-    --focus: #5B9DF9;
-    --focus-hover: #7FB4FB;
+       ("Palette bleue professionnelle"). Variante sombre du bordeaux (voir :root) : éclaircie et
+       désaturée pour rester lisible sur fond sombre, même convention que les autres jetons de
+       catégorie (--acte, --ventebien...). */
+    --focus: #D08A98;
+    --focus-hover: #DFA3AE;
     --shadow-card: 0 1px 2px rgba(0,0,0,0.3), 0 2px 8px rgba(0,0,0,0.2);
     --shadow-float: 0 8px 28px rgba(0,0,0,0.5);
     --sidebar-bg: linear-gradient(165deg, rgba(46,46,46,0.94) 0%, rgba(30,30,30,0.9) 55%, rgba(36,44,58,0.88) 100%);
@@ -492,10 +506,29 @@
     min-height: 100vh;
   }
 
-  /* Sidebar "verre" : dégradé + flou (visible surtout en mobile, où elle passe en overlay fixe
-     par-dessus le contenu, voir @media 900px) + ombre portée et liseré de lumière en tête, plutôt
-     qu'un aplat uni + bordure plate — demandé pour donner de la profondeur au menu. */
+  /* Sidebar toujours sombre, flottante, coins arrondis (demandé par l'étude — contraste net avec un
+     contenu qui, lui, garde le thème courant). Plutôt qu'un second jeu de classes à maintenir, tous
+     les jetons dont dépend le CONTENU de la sidebar (.sidebar-link, .dot-label, badges...) sont
+     redéclarés ici aux valeurs déjà utilisées par [data-theme="dark"] — une simple redéclaration
+     locale de variables CSS, qui l'emporte sur celle de :root/[data-theme] pour tout ce sous-arbre,
+     sans dupliquer la moindre règle de rendu. --focus prend la variante sombre du bordeaux (plus
+     lisible sur ce fond que la variante claire) ; --sidebar-actif-bg (l'onglet actif) reste le même
+     gris neutre qu'avant, cohérent avec la palette déjà en place. Détachée du bord (marge + coins
+     arrondis + ombre plus marquée) : border-right retiré, il n'a plus de sens une fois la sidebar
+     séparée du contenu par un espace. */
   .sidebar {
+    --paper: #1E1E1E; --paper-card: #2A2A2A; --paper-sunk: #242424;
+    --ink: #ECECEC; --ink-soft: #ABABAB; --line: #3D3D3D; --line-soft: #333333; --muted: #8C8C8C;
+    --pret: #E0A93E; --pret-bg: #332B18; --acte: #8A9FD4; --acte-bg: #232736; --ventebien: #6FAEDB;
+    --ventebien-bg: #263238; --appelfonds: #A48BE0; --projet: #E58AB5; --urgent: #F08C4B;
+    --notif-nouveau: #F87171;
+    --success: #5FBF87; --success-bg: #223026;
+    --focus: #D08A98; --focus-hover: #DFA3AE;
+    --sidebar-bg: linear-gradient(165deg, rgba(46,46,46,0.94) 0%, rgba(30,30,30,0.9) 55%, rgba(36,44,58,0.88) 100%);
+    --sidebar-border: rgba(255,255,255,0.07);
+    --sidebar-highlight: rgba(255,255,255,0.09);
+    --sidebar-actif-bg: linear-gradient(155deg, #5C6369 0%, #454A50 100%);
+
     flex: 0 0 252px;
     display: flex;
     flex-direction: column;
@@ -504,11 +537,12 @@
     background: var(--sidebar-bg);
     backdrop-filter: blur(20px) saturate(160%);
     -webkit-backdrop-filter: blur(20px) saturate(160%);
-    border-right: 1px solid var(--sidebar-border);
-    box-shadow: var(--sidebar-shadow);
+    border-radius: 20px;
+    box-shadow: 0 18px 40px rgba(0,0,0,0.45);
     position: sticky;
-    top: 0;
-    height: 100vh;
+    top: 16px;
+    margin: 16px 0 16px 16px;
+    height: calc(100vh - 32px);
     overflow-y: auto;
     z-index: 2;
   }
@@ -753,9 +787,10 @@
 
   /* Compteur de pièces reçues pas encore vues (voir majBadgeNotificationsSidebar() dans script.js) —
      seul badge à fond plein de la sidebar, volontairement : c'est un signal à remarquer d'un coup
-     d'œil, pas un statut de navigation comme .sidebar-link.actif. Rouge (--urgent) à la demande de
-     l'étude : le vert --success disait la même chose que le statut "reçu" affiché juste à côté sur
-     la pièce elle-même, ce qui effaçait le caractère "à regarder maintenant" de ce compteur. */
+     d'œil, pas un statut de navigation comme .sidebar-link.actif. Rouge franc (--notif-nouveau) à
+     la demande de l'étude : le vert --success disait la même chose que le statut "reçu" affiché
+     juste à côté sur la pièce elle-même, et --urgent (rouge-orangé, déjà pris par les dates
+     dépassées/boutons de suppression) ne se distinguait pas assez d'un vrai signal d'alerte. */
   .sidebar-badge-notif {
     margin-left: auto;
     display: inline-flex;
@@ -765,7 +800,7 @@
     height: 18px;
     padding: 0 5px;
     border-radius: 999px;
-    background: var(--urgent);
+    background: var(--notif-nouveau);
     color: #fff;
     font-size: 11px;
     font-weight: 700;
@@ -1669,12 +1704,18 @@
       box-shadow: var(--shadow-float);
     }
     /* Overlay fixe par-dessus le contenu (contrairement au flux normal en desktop) : c'est ici que
-       le flou de .sidebar (voir plus haut) devient réellement visible, sur ce qui défile dessous. */
+       le flou de .sidebar (voir plus haut) devient réellement visible, sur ce qui défile dessous.
+       Le traitement "flottant" (marge/coins arrondis) du desktop n'a plus de sens sur un tiroir
+       mobile plein écran : reste sombre (jetons hérités de la règle de base), mais redevient
+       bord-à-bord pleine hauteur, plus pratique à atteindre au doigt. */
     .sidebar {
       position: fixed;
       z-index: 41;
       top: 0;
       left: 0;
+      margin: 0;
+      height: 100vh;
+      border-radius: 0;
       transform: translateX(-100%);
       box-shadow: var(--shadow-float);
       transition: transform 0.2s ease;
@@ -4149,9 +4190,12 @@
     border-radius: 10px;
   }
   /* Étiquette "Nouveau" posée à côté d'une pièce/l'offre de prêt qui vient d'être trouvée (voir
-     d.piecesNotifications dans script.js) : un .dot-label dl-success de plus, pas un composant
-     inventé — juste un peu d'espace pour ne pas coller au libellé qu'elle complète. Disparaît dès
-     que le tiroir de la fiche est refermé (fermerDossierDrawer), une fois la pièce "vue". */
+     d.piecesNotifications dans script.js), et ligne "Dernières pièces trouvées" du tableau de
+     bord : un .dot-label dl-urgent de plus côté HTML (script.js), pas un composant inventé —
+     recoloré ici en --notif-nouveau (rouge franc, distinct du rouge-orangé de --urgent, voir
+     :root) pour ce signal précis. Disparaît dès que le tiroir de la fiche est refermé
+     (fermerDossierDrawer), une fois la pièce "vue". */
+  .dot-label.dl-urgent.notif-nouveau-tag { color: var(--notif-nouveau); }
   .notif-nouveau-tag { margin-left: 6px; }
 
 
@@ -5581,12 +5625,17 @@ button.avancement-ligne:hover { background: var(--paper-sunk); }
 }
 .dash-principal .kpis-dashboard { margin-bottom: 24px; }
 /* À traiter (étroit) + avancement (large). Flex : un avancement masqué laisse À traiter prendre
-   toute la largeur, et les deux passent l'un sous l'autre dès que la colonne ne peut plus tenir
-   340 + 460 px. */
+   toute la largeur, et les deux passent l'un sous l'autre seulement en dessous de ~620px de
+   colonne principale — en pratique jamais tant que le rail reste à côté (grille 2 colonnes,
+   jusqu'à 1320px de viewport), la colonne principale y valant au moins ~624px. Bases réduites
+   par rapport à un premier essai (340+460, qui ne tenait qu'à partir de ~1750px de fenêtre une
+   fois la sidebar/rail déduits — vérifié en capture, pas seulement calculé) : chaque bloc a de
+   toute façon son propre repli en dessous de 560px via la requête de conteneur "dashbloc"
+   (voir plus bas), donc rien ne se casse à ces bases plus modestes. */
 .dash-duo { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px; }
 .dash-bloc { min-width: 0; container-type: inline-size; container-name: dashbloc; }
-.dash-duo > .dash-bloc-traiter { flex: 1 1 340px; }
-.dash-duo > .dash-avancement { flex: 1.5 1 460px; }
+.dash-duo > .dash-bloc-traiter { flex: 1 1 220px; }
+.dash-duo > .dash-avancement { flex: 1.6 1 350px; }
 /* Les quatre blocs sont des cartes au même gabarit (titre + sous-titre en tête, comme l'agenda
    et À traiter) : les listes qu'elles contiennent perdent leur propre cadre. */
 .agenda-carte .avancement-dossiers { border: 0; border-radius: 0; box-shadow: none; }

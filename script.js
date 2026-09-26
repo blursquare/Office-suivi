@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-26 17:07';
+  const VERSION_APP = '2026-09-26 18:19';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-26 18:19', resume: "Palette bordeaux + sidebar toujours sombre et flottante (coins arrondis, détachée du bord) ; tableau de bord : date du jour au-dessus de « Bonjour », « À traiter »/« Avancement » réellement côte à côte ; pastilles « Nouveau »/compteur de pièces en rouge franc, distinct du rouge-orangé --urgent." },
     { version: '2026-09-26 17:07', resume: "Sidebar : coin arrondi (au lieu d'un angle droit) entre le tronc et la branche du sous-menu « Outils »." },
     { version: '2026-09-26 13:59', resume: "Appel de fonds : 4 sauts de ligne entre l'adresse/la mention d'envoi et la ligne « Ville, le date » du courrier." },
     { version: '2026-09-26 11:11', resume: "Sidebar réductible en icônes seules (+ épingle pour la garder ouverte) ; « Outils » en sous-menu repliable avec trait de connexion ; logo/favicon sur tuile bleue à icône blanche ; appel de fonds : lieu/date aligné avec le destinataire." },
@@ -9652,6 +9653,16 @@
     return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
   }
 
+  // Date du jour affichée en tête du Tableau de bord, à la place de l'étiquette "Tableau de bord"
+  // (demandé par l'étude — l'accueil de l'outil gagne à afficher une information vivante plutôt
+  // qu'un simple titre de section). "Lundi 28 septembre 2026" : toLocaleDateString('fr-FR', ...)
+  // rend déjà le jour de semaine et le mois en minuscules, seule la première lettre est remontée
+  // en capitale.
+  function libelleDateDuJour() {
+    const texte = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    return texte.charAt(0).toUpperCase() + texte.slice(1);
+  }
+
   function optionsCategorie(typeActuel) {
     const options = [
       ['pret', 'Obtention du prêt'],
@@ -11486,6 +11497,8 @@
   }
 
   function renderAccueilDashboard(perimetreActifs, stats) {
+    const eyebrow = document.getElementById('dash-date-jour');
+    if (eyebrow) eyebrow.textContent = libelleDateDuJour();
     const titre = document.getElementById('dash-titre');
     const bloc = document.getElementById('dash-accueil');
     if (!titre || !bloc) return;

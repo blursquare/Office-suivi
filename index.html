@@ -147,7 +147,10 @@
   <div class="dash-disposition">
     <div class="dash-principal">
     <div class="dash-header dash-header-accueil">
-      <div class="dash-eyebrow">Tableau de bord</div>
+      <!-- Date du jour plutôt que l'étiquette "Tableau de bord" (demandé par l'étude) — texte posé
+           par renderAccueilDashboard() via libelleDateDuJour(), "Tableau de bord" n'est qu'un repli
+           avant l'exécution du JS. -->
+      <div class="dash-eyebrow" id="dash-date-jour">Tableau de bord</div>
       <!-- Titre à gauche, recherche et « + Nouveau dossier » sur la même ligne, alignés à droite. -->
       <div class="dash-accueil-ligne">
         <h1 class="dash-titre" id="dash-titre">Vue d'ensemble</h1>
