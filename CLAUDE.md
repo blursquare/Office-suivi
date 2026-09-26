@@ -8148,6 +8148,19 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   entre « Envoi par e-mail uniquement » et « Blois, le 14 novembre 2026 », bords gauches toujours
   alignés. `npm test` : 811 tests racine (inchangés, changement HTML/CSS pur), 371 côté serveur.
 
+- **Sidebar : coin arrondi entre le tronc et la branche du sous-menu « Outils »** (« essai pour
+  Outils des traits plus arrondi »). `.sidebar-sousmenu-item::before` dessinait jusqu'ici un angle
+  droit (une barre verticale continue partagée par tous les items, `.sidebar-sousmenu::before`, +
+  un tiret horizontal plat de 1px par item) — remplacé par un vrai coin : le pseudo-élément de
+  chaque item devient un cadre `border-left` (segment vertical, du haut de l'item à son milieu) +
+  `border-bottom` (segment horizontal vers le bouton) avec `border-bottom-left-radius: 8px`, posé
+  exactement sur la même colonne que le tronc (`left: -12px`, comme avant) donc sans décaler le
+  point d'arrivée sur le bouton. Le tronc continu (`.sidebar-sousmenu::before`) est inchangé : il
+  assure toujours la continuité verticale entre deux items, seul le raccord au niveau de chaque
+  branche devient une courbe plutôt qu'un angle. Vérifié par une capture macro (zoom ×4) d'un seul
+  coin : courbe nette, sans décalage ni double trait, dans les deux thèmes. `npm test` : 811 tests
+  racine (inchangés, retouche CSS pure), 371 côté serveur.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

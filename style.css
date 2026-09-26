@@ -733,14 +733,20 @@
     background: var(--line-soft);
   }
   .sidebar-sousmenu-item { position: relative; }
+  /* Essai : coin arrondi plutôt qu'un angle droit entre le tronc et la branche — un cadre
+     border-left + border-bottom avec border-bottom-left-radius, positionné pile sur la même
+     colonne que le tronc (voir .sidebar-sousmenu::before), la branche s'arrêtant à l'aplomb du
+     bouton de l'item comme avant. */
   .sidebar-sousmenu-item::before {
     content: '';
     position: absolute;
     left: -12px;
-    top: 50%;
+    top: 0;
     width: 12px;
-    height: 1px;
-    background: var(--line-soft);
+    height: 50%;
+    border-left: 1px solid var(--line-soft);
+    border-bottom: 1px solid var(--line-soft);
+    border-bottom-left-radius: 8px;
   }
   /* Fermé (repli du groupe, pas de la sidebar entière) : masqué, le trait avec. */
   .sidebar-sousmenu.ferme { display: none; }
