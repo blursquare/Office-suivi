@@ -1027,13 +1027,13 @@
     gap: 20px;
     align-items: start;
   }
-  /* Même registre que .section-eyebrow (10px / 0.1em / --muted), le seul style d'étiquette de
-     section de l'outil : à 13px/0.04em, les titres du Tableau de bord formaient un second registre
-     concurrent, juste à côté des libellés de tuiles KPI qui suivent pourtant déjà ce registre. */
+  /* Titre d'une carte (relecture, outils, réglages) : petites capitales comme .section-eyebrow,
+     mais à l'encre et plus appuyé — en --muted, on ne les repérait pas d'un coup d'œil (demande
+     de l'étude). Les libellés de tuiles et de fiche gardent le registre discret. */
   .dash-section-titre {
-    font-size: 10px;
-    font-weight: 600;
-    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--ink);
     text-transform: uppercase;
     letter-spacing: 0.1em;
     margin-bottom: 10px;
@@ -4781,7 +4781,7 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
 
 /* Étape 1 : documents groupés, annexes par nature */
 .relecture-groupe { margin-top: 16px; }
-.relecture-groupe > .section-eyebrow { display: block; margin-bottom: 6px; }
+.relecture-groupe > .section-eyebrow { display: block; margin-bottom: 6px; color: var(--ink); font-weight: 700; }
 .relecture-vide { margin: 4px 0 0; }
 .relecture-nature { margin: 8px 0 4px; }
 .relecture-nature-titre {

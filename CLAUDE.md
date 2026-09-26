@@ -8161,6 +8161,14 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   coin : courbe nette, sans décalage ni double trait, dans les deux thèmes. `npm test` : 811 tests
   racine (inchangés, retouche CSS pure), 371 côté serveur.
 
+- **Titres de carte en noir** (26/09 soir, « passe les titres comme Analyses enregistrées, Ce que
+  vous relisez en noir, on ne les voit pas d'un coup d'œil »). `.dash-section-titre` (le titre de
+  toutes les cartes : relecture d'actes, outils, réglages) passe de `--muted` 10px/600 à `--ink`
+  11px/700, en gardant les petites capitales ; même traitement pour les sous-titres du bloc
+  « Documents » de la relecture (`.relecture-groupe > .section-eyebrow`). `.section-eyebrow`
+  lui-même (libellés de fiche, tuiles, historique) garde le registre discret : seuls les titres qui
+  structurent un écran changent.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à
