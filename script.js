@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-26 18:45';
+  const VERSION_APP = '2026-09-26 19:05';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-26 19:05', resume: "Thème de couleur au choix dans Réglages › Général (bordeaux, bleu, vert, prune, orange), retenu par poste ; logo et icône d'onglet en noir et blanc, identiques pour tous les thèmes." },
     { version: '2026-09-26 18:45', resume: "Mode sombre repris de l'artefact de présentation (graphite froid, cartes bordées) ; relecture complète : code et styles inutilisés retirés, texte lisible sur les boutons roses en sombre, logo et icône d'onglet au bordeaux, étiquette « Nouveau » collée au nom de la pièce, cases à cocher visibles, nom du responsable plus coupé." },
     { version: '2026-09-26 18:19', resume: "Palette bordeaux + sidebar toujours sombre et flottante (coins arrondis, détachée du bord) ; tableau de bord : date du jour au-dessus de « Bonjour », « À traiter »/« Avancement » réellement côte à côte ; pastilles « Nouveau »/compteur de pièces en rouge franc, distinct du rouge-orangé --urgent." },
     { version: '2026-09-26 17:07', resume: "Sidebar : coin arrondi (au lieu d'un angle droit) entre le tronc et la branche du sous-menu « Outils »." },
@@ -17394,6 +17395,35 @@
     appliquerTheme(theme === 'dark' ? 'dark' : 'light');
   }
 
+  // ---- thème de couleur (accent) ----
+  // Choix de l'accent retenu par poste, comme le mode sombre (Réglages › Général › Sur ce poste).
+  // Les valeurs vivent dans style.css (--accent-* par :root[data-accent]) : ici on ne fait que
+  // poser l'attribut. Bordeaux = défaut, donc aucun attribut.
+  var ACCENTS_DISPONIBLES = ['bordeaux', 'bleu', 'vert', 'prune', 'orange'];
+  const CLE_ACCENT = 'claire-accent';
+
+  function accentValide(valeur) {
+    return ACCENTS_DISPONIBLES.indexOf(valeur) >= 0 ? valeur : 'bordeaux';
+  }
+
+  function appliquerAccent(valeur, enregistrer) {
+    const accent = accentValide(valeur);
+    const racine = document.documentElement;
+    if (!racine || typeof racine.setAttribute !== 'function') return;
+    if (accent === 'bordeaux' && typeof racine.removeAttribute === 'function') racine.removeAttribute('data-accent');
+    else racine.setAttribute('data-accent', accent);
+    const radio = document.getElementById('reglages-accent-' + accent);
+    if (radio) radio.checked = true;
+    if (enregistrer === false) return;
+    try { localStorage.setItem(CLE_ACCENT, accent); } catch (e) { /* préférence non enregistrée : sans conséquence */ }
+  }
+
+  function chargerAccent() {
+    let accent = null;
+    try { accent = localStorage.getItem(CLE_ACCENT); } catch (e) { /* aucune préférence enregistrée */ }
+    appliquerAccent(accent, false);
+  }
+
   // ---- barre de progression ----
 
   function majProgression(pourcent) {
@@ -22564,6 +22594,7 @@
     if (version) version.textContent = VERSION_APP;
     const inter = document.getElementById('reglages-theme-sombre');
     if (inter) inter.checked = document.documentElement.getAttribute('data-theme') === 'dark';
+    appliquerAccent(document.documentElement.getAttribute('data-accent') || 'bordeaux', false);
     try {
       const reponse = await fetchAvecAuth('/api/reglages');
       const reglages = await reponse.json();
@@ -23292,6 +23323,7 @@
   initSelectDepartementAppelFonds();
 
   chargerTheme();
+  chargerAccent();
   chargerApprentissage();
   chargerJournalCorrections();
   chargerMemoireAudit();

@@ -1,3 +1,31 @@
+  /* Thème de couleur (Réglages › Général › Sur ce poste, retenu par poste — voir appliquerAccent
+     dans script.js). Chaque thème fournit ses quatre valeurs : clair, clair survol, sombre, sombre
+     survol ; --focus/--focus-hover les reprennent selon le mode (et la sidebar, toujours sombre,
+     prend les valeurs sombres). Les couleurs de catégorie d'échéance ne changent jamais avec le
+     thème : c'est le code que l'œil a appris. Bordeaux par défaut (papier à en-tête de l'étude). */
+  :root {
+    --accent-clair: #6D2332; --accent-clair-hover: #551A26;
+    --accent-sombre: #D08A98; --accent-sombre-hover: #DFA3AE;
+  }
+  /* Bleu « Blue Depths » testé : proche du bleu nuit de --acte en clair, choisi en connaissance. */
+  :root[data-accent="bleu"] {
+    --accent-clair: #111F3A; --accent-clair-hover: #0A1526;
+    --accent-sombre: #8E97C5; --accent-sombre-hover: #A7AFD4;
+  }
+  :root[data-accent="vert"] {
+    --accent-clair: #1F5D52; --accent-clair-hover: #17453D;
+    --accent-sombre: #6FC2AE; --accent-sombre-hover: #8AD1BF;
+  }
+  :root[data-accent="prune"] {
+    --accent-clair: #5B2A4C; --accent-clair-hover: #45203A;
+    --accent-sombre: #C99BC0; --accent-sombre-hover: #D9B4D0;
+  }
+  /* Cuivre plutôt qu'orange vif : un orange saturé ne porte pas un texte blanc lisible. */
+  :root[data-accent="orange"] {
+    --accent-clair: #9A4A1F; --accent-clair-hover: #7C3A17;
+    --accent-sombre: #E39A6B; --accent-sombre-hover: #EDB08A;
+  }
+
   :root {
     --paper: #F4F6F8;
     --paper-card: #FFFFFF;
@@ -35,13 +63,10 @@
     --muted: #8A93A9;
     /* Accent d'action (boutons primaires, liens, focus, onglet actif) — distinct de --acte (couleur
        réservée à la catégorie d'échéance "acte", ne pas les recoupler même s'ils se ressemblent).
-       Bordeaux retenu après une comparaison de plusieurs pistes (voir CLAUDE.md) : l'étude a jugé
-       le bleu "trop classique" — ce bordeaux reprend exactement la couleur du papier à en-tête déjà
-       utilisé dans le courrier d'appel de fonds (#6D2332), et ne partage sa famille de couleur avec
-       aucun autre jeton de l'outil (contrairement à un bleu, qui aurait toujours concurrencé --acte
-       ou --ventebien). */
-    --focus: #6D2332;
-    --focus-hover: #551A26;
+       Sa valeur vient du thème de couleur choisi dans les Réglages (--accent-*, en tête de
+       fichier) ; bordeaux par défaut. */
+    --focus: var(--accent-clair);
+    --focus-hover: var(--accent-clair-hover);
     /* Texte posé sur un aplat d'accent (--focus, --urgent, --success, --notif-nouveau) : blanc en
        clair, graphite en sombre, où les accents éclaircis ne portent plus un texte blanc lisible. */
     --on-accent: #fff;
@@ -79,10 +104,10 @@
     --success: #5FBF87;
     --success-bg: #223026;
     --muted: #9AA0A8;
-    /* Variante sombre du bordeaux (voir :root) : éclaircie et désaturée pour rester lisible sur
-       fond sombre, même convention que les autres jetons de catégorie. */
-    --focus: #D08A98;
-    --focus-hover: #DFA3AE;
+    /* Variante sombre de l'accent (voir --accent-* en tête de fichier) : éclaircie pour rester
+       lisible sur fond sombre. */
+    --focus: var(--accent-sombre);
+    --focus-hover: var(--accent-sombre-hover);
     --on-accent: #14161A;
     --shadow-card: 0 1px 2px rgba(0,0,0,0.35);
     --shadow-float: 0 12px 32px -8px rgba(0,0,0,0.6);
@@ -504,7 +529,7 @@
     --ventebien-bg: #263238; --appelfonds: #A48BE0; --projet: #E58AB5; --urgent: #F08C4B;
     --notif-nouveau: #F87171;
     --success: #5FBF87; --success-bg: #223026;
-    --focus: #D08A98; --focus-hover: #DFA3AE; --on-accent: #14161A;
+    --focus: var(--accent-sombre); --focus-hover: var(--accent-sombre-hover); --on-accent: #14161A;
     --sidebar-bg: #1B1E23;
     --sidebar-border: #2F343C;
     --sidebar-actif-bg: #2C3139;
@@ -4560,6 +4585,22 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
 .reglages-option .hint:empty { display: none; }
 .reglages-switch input:checked + .slider { background-color: var(--focus); }
 .reglages-switch input:focus-visible + .slider { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* Thème de couleur : une pastille par accent, dans la variante du mode affiché (fixe — elle
+   montre le choix, elle ne suit pas l'accent courant). Le radio natif reste dans le DOM pour le clavier. */
+.reglages-option[role="group"] { cursor: default; flex-wrap: wrap; font-size: 13px; color: var(--ink-soft); }
+.accent-choix { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.accent-pastille {
+  position: relative; display: inline-flex; align-items: center; gap: 6px;
+  margin: 0; padding: 5px 10px 5px 6px; border: 1px solid var(--line); border-radius: 999px;
+  font-size: 12.5px; color: var(--ink-soft); cursor: pointer; background: var(--paper-card);
+}
+.accent-pastille:hover { border-color: var(--muted); color: var(--ink); }
+.accent-pastille input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+.accent-rond { width: 16px; height: 16px; border-radius: 50%; background: var(--pastille); flex: none; }
+[data-theme="dark"] .accent-rond { background: var(--pastille-sombre); }
+.accent-pastille:has(input:checked) { border-color: var(--ink); color: var(--ink); font-weight: 600; }
+.accent-pastille:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
+@media (max-width: 700px) { .accent-choix { justify-content: flex-start; } }
 /* Sous-onglets des Réglages (même composant .vue-bascule que le Suivi) et grille de cartes : deux
    colonnes sur un écran large, une seule en dessous. Les cartes perdent leur marge basse dans la
    grille, c'est le gap qui espace. min-width:0 : sans lui une carte au contenu large (tableau,

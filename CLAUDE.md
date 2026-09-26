@@ -9798,6 +9798,35 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
     Chromium (clair, sombre, 1500 et 400px) : aucune erreur JS, aucun débordement horizontal, aucun
     libellé coupé dans la fiche.
 
+- **Thème de couleur au choix, logo en noir et blanc** (26/09 soir, « fait voir puis intègre dans
+  les réglages la possibilité de changer de thème de couleurs : le bleu que l'on a testé, le vert
+  que l'on a testé, le prune, un orange. Pour le logo Claire, garder le même pour tous les thèmes et
+  icônes : en noir et blanc »). Aperçu publié d'abord en artefact (les cinq accents en situation,
+  clair et sombre), puis intégré.
+  - **Cinq accents** (Réglages › Général › Sur ce poste, pastilles radio) : **bordeaux** (défaut,
+    inchangé), **bleu** = le Pantone « Blue Depths » testé (#111F3A / sombre #8E97C5 — proche du
+    bleu nuit de `--acte` en clair, collision déjà relevée lors du test et laissée au choix de
+    l'étude), **vert** = la piste « forêt » testée (#1F5D52 / #6FC2AE), **prune** = la piste
+    aubergine testée (#5B2A4C / #C99BC0, même famille que `--appelfonds`), **orange** = nouveau,
+    un cuivre #9A4A1F / #E39A6B plutôt qu'un orange vif, pour porter un texte blanc lisible et ne
+    pas se confondre avec le rouge-orangé `--urgent`. Les couleurs de catégorie d'échéance ne
+    changent jamais avec le thème.
+  - **Mécanisme** : quatre jetons `--accent-clair`, `--accent-clair-hover`, `--accent-sombre`,
+    `--accent-sombre-hover` en tête de `style.css`, redéfinis par `:root[data-accent="…"]` ;
+    `--focus`/`--focus-hover` les reprennent (clair dans `:root`, sombre dans `[data-theme="dark"]`
+    et dans la sidebar toujours sombre). Aucune autre règle n'a bougé : tout l'outil passait déjà par
+    `--focus`. `appliquerAccent()`/`chargerAccent()`/`accentValide()` (script.js) posent l'attribut
+    (aucun pour le bordeaux) et retiennent le choix par poste (`localStorage`, clé `claire-accent`),
+    comme le mode sombre. `ACCENTS_DISPONIBLES` est une `var` pour rester testable
+    (`tests/theme-accent.test.js`). Les pastilles montrent la variante du mode affiché
+    (`--pastille`/`--pastille-sombre`) : en sombre, les teintes claires étaient invisibles sur la
+    carte.
+  - **Logo et favicon en noir et blanc** : tuile `#111418` (liserée `#3A3F47` dans les trois
+    `.brand-mark` d'index.html, pour se détacher de la sidebar sombre), anneau et coche blancs ;
+    `icone.svg` suit. Plus aucune couleur d'accent dans la marque.
+  - Vérifié dans un vrai Chromium (clair, sombre, 400 px) : `--focus` et celui de la sidebar
+    changent pour les cinq thèmes, choix relu après rechargement, aucun débordement, aucune erreur JS.
+
 ## Ce qui reste ouvert / pas encore fait
 
 - **Signature manuscrite de Bastien ANGLUMENT, conservée pour le courrier d'appel de fonds**

@@ -21,12 +21,12 @@
 
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
-      <!-- Tuile bleue pleine + icône blanche (demandé par l'étude), à la place de l'ancien tracé
-           bleu sur fond transparent — même traitement que le favicon/icone.svg juste en dessous,
-           les deux repris à l'identique pour que la marque soit cohérente partout. -->
+      <!-- Logo en noir et blanc (tuile noire, anneau et coche blancs), identique quel que soit le
+           thème de couleur choisi dans les Réglages — demandé par l'étude. Même dessin que
+           icone.svg (favicon/PWA). Le filet gris détache la tuile du fond, lui aussi sombre. -->
       <span class="brand-mark" aria-hidden="true">
         <svg width="40" height="40" viewBox="0 0 48 48" fill="none">
-          <rect width="48" height="48" rx="12" fill="#6D2332"/>
+          <rect x="0.5" y="0.5" width="47" height="47" rx="11.5" fill="#111418" stroke="#3A3F47"/>
           <path d="M33 12a15 15 0 1 0 0 24" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
           <path d="M27 23.5 L31.5 29 L40 17" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
@@ -1471,6 +1471,19 @@
               <span class="slider"></span>
             </span>
           </label>
+          <div class="reglages-option" role="group" aria-labelledby="reglages-accent-titre">
+            <span class="reglages-option-texte">
+              <span class="reglages-option-titre" id="reglages-accent-titre">Thème de couleur</span>
+              <span class="hint">Boutons, liens et onglet actif. Les couleurs des échéances ne changent pas.</span>
+            </span>
+            <span class="accent-choix">
+              <label class="accent-pastille" title="Bordeaux"><input type="radio" name="reglages-accent" id="reglages-accent-bordeaux" value="bordeaux" onchange="appliquerAccent(this.value)"><span class="accent-rond" style="--pastille:#6D2332; --pastille-sombre:#D08A98"></span><span class="accent-nom">Bordeaux</span></label>
+              <label class="accent-pastille" title="Bleu"><input type="radio" name="reglages-accent" id="reglages-accent-bleu" value="bleu" onchange="appliquerAccent(this.value)"><span class="accent-rond" style="--pastille:#111F3A; --pastille-sombre:#8E97C5"></span><span class="accent-nom">Bleu</span></label>
+              <label class="accent-pastille" title="Vert"><input type="radio" name="reglages-accent" id="reglages-accent-vert" value="vert" onchange="appliquerAccent(this.value)"><span class="accent-rond" style="--pastille:#1F5D52; --pastille-sombre:#6FC2AE"></span><span class="accent-nom">Vert</span></label>
+              <label class="accent-pastille" title="Prune"><input type="radio" name="reglages-accent" id="reglages-accent-prune" value="prune" onchange="appliquerAccent(this.value)"><span class="accent-rond" style="--pastille:#5B2A4C; --pastille-sombre:#C99BC0"></span><span class="accent-nom">Prune</span></label>
+              <label class="accent-pastille" title="Orange"><input type="radio" name="reglages-accent" id="reglages-accent-orange" value="orange" onchange="appliquerAccent(this.value)"><span class="accent-rond" style="--pastille:#9A4A1F; --pastille-sombre:#E39A6B"></span><span class="accent-nom">Orange</span></label>
+            </span>
+          </div>
           <label class="reglages-option" for="reglages-notif-navigateur">
             <span class="reglages-option-texte">
               <span class="reglages-option-titre">Notification d'une nouvelle pièce</span>
@@ -1708,7 +1721,7 @@
     <div class="apropos-header">
       <span class="brand-mark" aria-hidden="true">
         <svg width="34" height="34" viewBox="0 0 48 48" fill="none">
-          <rect width="48" height="48" rx="12" fill="#6D2332"/>
+          <rect x="0.5" y="0.5" width="47" height="47" rx="11.5" fill="#111418" stroke="#3A3F47"/>
           <path d="M33 12a15 15 0 1 0 0 24" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
           <path d="M27 23.5 L31.5 29 L40 17" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
@@ -1790,7 +1803,7 @@
     <div class="apropos-header">
       <span class="brand-mark" aria-hidden="true">
         <svg width="34" height="34" viewBox="0 0 48 48" fill="none">
-          <rect width="48" height="48" rx="12" fill="#6D2332"/>
+          <rect x="0.5" y="0.5" width="47" height="47" rx="11.5" fill="#111418" stroke="#3A3F47"/>
           <path d="M33 12a15 15 0 1 0 0 24" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
           <path d="M27 23.5 L31.5 29 L40 17" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
