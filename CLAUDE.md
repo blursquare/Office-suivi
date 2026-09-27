@@ -8383,6 +8383,17 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     trois constats de comparaison avant-contrat → projet : mobilier non repris (IMPORTANT, les droits
     porteraient sur tout le prix), différent (IMPORTANT), ajouté (A_VERIFIER). Une référence tirée d'un
     dossier créé avant cette détection (clé absente, pas « null ») ne permet aucune conclusion.
+  - **Dossiers déjà créés** (demande suivante de l'étude : « à détecter et mettre dans la fiche
+    dossier ») : `lireMobilierDepuisAvantContrat(id, viaClic)` lit l'avant-contrat du dossier relié
+    au NAS (même choix de fichier que « Ouvrir le compromis », `choisirAvantContratNas`), avec la
+    lecture légère `lireTextePdfVerification` (pas l'OCR complet), et reporte le montant dans
+    `d.prixMobilier` avec une ligne d'historique. **Une seule fois par dossier**
+    (`d.mobilierLuLe`, remis à `null` quand on relie un autre dossier NAS), déclenchée à l'ouverture
+    de la fiche — pas au démarrage, pour ne pas ouvrir un PDF par dossier du portefeuille à chaque
+    lancement. Bouton « Lire » sur la ligne « Dont mobilier » tant qu'elle est vide, pour relancer à
+    la main (toast du résultat, y compris « aucun mobilier »). Jamais par-dessus une valeur saisie ;
+    un montant qui n'est pas inférieur au prix est ignoré. Vérifié dans un vrai Chromium avec un faux
+    NAS (dossier `SRU` contenant le compromis) : lu une fois, rempli, non relu à la réouverture.
   - Tests : `tests/prix-mobilier.test.js` (10). Suite racine 830 → 840. Vérifié dans un vrai Chromium
     (fiche, refus d'un mobilier supérieur au prix, simulateur 16 767 € → 16 509 € avec 3 500 € de
     mobilier sur 200 000 €, préremplissage de l'appel de fonds, clair/sombre/400 px, aucune erreur JS).

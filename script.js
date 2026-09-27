@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-27 18:31';
+  const VERSION_APP = '2026-09-27 18:34';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-27 18:34', resume: "Dossiers déjà créés : le mobilier compris dans le prix est lu dans l'avant-contrat du NAS à l'ouverture de la fiche et reporté dans « Dont mobilier » (bouton « Lire » pour relancer)." },
     { version: '2026-09-27 18:31', resume: "Mobilier compris dans le prix : détecté à l'import (« ce prix comprenant celui du mobilier… », « aux meubles à concurrence de… »), modifiable sur la fiche, retiré de l'assiette des frais d'acte (simulateur et contrôle de l'appel de fonds), comparé entre avant-contrat et projet dans la relecture." },
     { version: '2026-09-27 18:19', resume: "Relecture d'actes : panneau « Diagnostic de la relecture » (clauses retenues et écartées par thème, avec la raison et la page). Import d'un acte : cadastre sur plusieurs parcelles avec contenance totale, prix contradictoires signalés, SIREN/siège/capital d'une société lus." },
     { version: '2026-09-27 17:37', resume: "Thème de couleur « Prune » retiré (cinq thèmes restants : bordeaux, bleu, vert, orange, noir et blanc)." },
@@ -10649,6 +10650,59 @@
     render();
   }
 
+  // Mobilier des dossiers créés avant sa détection (ou dont l'import l'a manqué) : lu dans
+  // l'avant-contrat du dossier relié au NAS, une fois par dossier (d.mobilierLuLe), à l'ouverture de
+  // la fiche — et à la demande par le bouton « Lire » de la ligne « Dont mobilier ». Lecture légère
+  // (lireTextePdfVerification, pas l'OCR de tout le document) : la clause du prix est dans le corps
+  // de l'acte. Jamais par-dessus une valeur déjà saisie.
+  var lecturesMobilierEnCours = new Set();
+
+  async function lireMobilierDepuisAvantContrat(id, viaClic) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d || lecturesMobilierEnCours.has(id)) return;
+    if (!d.dossierLie || !d.nasDossier) {
+      if (viaClic) afficherToast('Reliez d’abord le dossier du NAS : le mobilier est lu dans l’avant-contrat qui s’y trouve.', 'OK', null);
+      return;
+    }
+    if (!window.pdfjsLib) {
+      if (viaClic) afficherToast('Lecture des PDF indisponible sur ce poste.', 'OK', null);
+      return;
+    }
+    lecturesMobilierEnCours.add(id);
+    if (viaClic) render();
+    let message = null;
+    try {
+      const trouve = choisirAvantContratNas(await listerFichiersNas(d), d.compromisNomFichier).fichier;
+      if (!trouve) {
+        message = 'Avant-contrat introuvable dans le dossier du NAS : saisissez le mobilier à la main s’il y en a.';
+      } else {
+        const pdf = await ouvrirPdfNas(cheminNasComplet(d, trouve.chemin));
+        const texte = await lireTextePdfVerification(pdf);
+        const montant = detecterPrixMobilier(texte);
+        const courant = dossiers.find(x => x.id === id);
+        if (!courant) return;
+        courant.mobilierLuLe = new Date().toISOString().slice(0, 10);
+        if (courant.prixMobilier) {
+          // Saisi entre-temps : on ne touche à rien.
+        } else if (montant && (!courant.prixVente || montant < courant.prixVente)) {
+          courant.prixMobilier = montant;
+          ajouterHistorique(courant, `Mobilier compris dans le prix lu dans l’avant-contrat (${trouve.nom}) : ${formaterPrix(montant)}`);
+          message = `Mobilier compris dans le prix trouvé dans l’avant-contrat : ${formaterPrix(montant)}.`;
+        } else if (viaClic) {
+          message = `Aucun mobilier ventilé dans le prix de l’avant-contrat (${trouve.nom}).`;
+        }
+        sauvegarder(courant);
+      }
+    } catch (e) {
+      console.error('Lecture du mobilier dans l’avant-contrat impossible', e);
+      message = viaClic ? 'Lecture de l’avant-contrat impossible (NAS injoignable ou PDF illisible).' : null;
+    } finally {
+      lecturesMobilierEnCours.delete(id);
+      render();
+    }
+    if (message && (viaClic || /trouvé/.test(message))) afficherToast(message, 'OK', null);
+  }
+
   // Part du prix qui porte sur du mobilier (voir detecterPrixMobilier). Refusée si elle n'est pas
   // inférieure au prix : ce serait forcément une faute de saisie.
   function changerPrixMobilier(id, valeur) {
@@ -11701,6 +11755,12 @@
         <option value="terrain" ${d.typeVente === 'terrain' ? 'selected' : ''}>Terrain à bâtir</option>
       </select>`;
     const nas = `<span class="prop-texte${d.dossierLie ? '' : ' vide'}" title="${escapeAttr(d.nasDossier || '')}">${d.dossierLie ? escapeHtml(d.nasDossier || 'Relié') : 'Non relié'}</span>${boutonsDossierLocal}`;
+    // « Lire » : chercher le mobilier dans l'avant-contrat du NAS (voir lireMobilierDepuisAvantContrat).
+    const boutonLireMobilier = (!d.prixMobilier && d.dossierLie && d.nasDossier)
+      ? (lecturesMobilierEnCours.has(d.id)
+        ? `<button type="button" class="action-rapide" disabled>${icone('spinner', null, true)} Lecture…</button>`
+        : `<button type="button" class="action-rapide" onclick="lireMobilierDepuisAvantContrat('${d.id}', true)" title="${d.mobilierLuLe ? 'Relire' : 'Chercher'} le mobilier dans l’avant-contrat du dossier du NAS">${icone('file-text')} Lire</button>`)
+      : '';
     const avantContrat = `<span class="prop-texte${d.compromisNomFichier ? '' : ' vide'}" title="${escapeAttr(d.compromisNomFichier || '')}">${d.compromisNomFichier ? escapeHtml(d.compromisNomFichier) : 'Aucun fichier mémorisé'}</span>${boutonOuvrirCompromis}`;
 
     // Groupe 2 — le bien et son financement.
@@ -11748,7 +11808,7 @@
       <dl class="fiche-proprietes">
         ${ligne('map-pin', 'Adresse', saisie('adresse', d.adresseBien, 'changerAdresseBien'), `adresse-${d.id}`, 'prop-pleine')}
         ${ligne('banknote', 'Prix', saisie('prix', d.prixVente ? formaterPrix(d.prixVente) : '', 'changerPrixVente', ' inputmode="numeric"'), `prix-${d.id}`)}
-        ${ligne('package', 'Dont mobilier', saisie('mobilier', d.prixMobilier ? formaterPrix(d.prixMobilier) : '', 'changerPrixMobilier', ' inputmode="numeric" title="Part du prix qui porte sur des meubles : elle sort de l\'assiette des droits de mutation (frais d\'acte)."', 'Aucun'), `mobilier-${d.id}`)}
+        ${ligne('package', 'Dont mobilier', saisie('mobilier', d.prixMobilier ? formaterPrix(d.prixMobilier) : '', 'changerPrixMobilier', ' inputmode="numeric" title="Part du prix qui porte sur des meubles : elle sort de l\'assiette des droits de mutation (frais d\'acte)."', 'Aucun') + boutonLireMobilier, `mobilier-${d.id}`)}
         ${ligne('lock', 'Séquestre', saisie('depot', d.depotGarantie ? formaterPrix(d.depotGarantie) : '', 'changerDepotGarantie', ' inputmode="numeric" title="Montant séquestré (dépôt de garantie)"'), `depot-${d.id}`)}
         ${ligne('shield', 'Versé à', saisie('sequestre', d.sequestreDepot, 'changerSequestreDepot', ' title="Entre les mains de qui l\'acquéreur verse le dépôt : l\'office, l\'agence, la CARPA…"'), `sequestre-${d.id}`)}
         ${ligne('trend-up', 'Financement', financement)}
@@ -12665,6 +12725,7 @@
     engagementEnEdition = null;
     diagnosticParcoursOuvert = false;
     render();
+    if (d && !d.prixMobilier && !d.mobilierLuLe && d.dossierLie && d.nasDossier) lireMobilierDepuisAvantContrat(id, false);
   }
 
   function fermerDossierDrawer() {
@@ -17045,6 +17106,7 @@
       d.offrePretStatut = 'inconnu';
       d.montantPret = null;
       d.garantiesPret = []; // lues dans l'offre de l'ancien dossier : elles ne valent plus rien ici
+      d.mobilierLuLe = null; // l'avant-contrat du nouveau dossier pourra être relu
     // Pièces personnalisées cochées à la main avant que le drapeau piecesValideesManuellement ne
     // leur soit posé (voir basculerStatutPiecePersonnalisee) : reçues sans fichier mémorisé. À
     // relever AVANT de vider d.fichiersTrouves juste en dessous.
