@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-27 17:32';
+  const VERSION_APP = '2026-09-27 17:37';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-27 17:37', resume: "Thème de couleur « Prune » retiré (cinq thèmes restants : bordeaux, bleu, vert, orange, noir et blanc)." },
     { version: '2026-09-27 17:32', resume: "Nouveau thème de couleur « Noir & blanc » (gris strictement neutre, sans teinte) dans Réglages › Général › Sur ce poste, à côté du bordeaux/bleu/vert/prune/orange." },
     { version: '2026-09-27 16:29', resume: "Relecture d'actes : l'analyse passe par Mistral (société française), traitée dans l'Union européenne. Claude reste disponible dans Réglages → Relecture d'actes. Clé API Mistral à saisir au même endroit." },
     { version: '2026-09-26 21:39', resume: "Lecture des PDF scannés (OCR) environ 27 % plus rapide : moteur Tesseract passé en version 7, même texte reconnu qu'avant." },
@@ -17406,7 +17407,7 @@
   // Choix de l'accent retenu par poste, comme le mode sombre (Réglages › Général › Sur ce poste).
   // Les valeurs vivent dans style.css (--accent-* par :root[data-accent]) : ici on ne fait que
   // poser l'attribut. Bordeaux = défaut, donc aucun attribut.
-  var ACCENTS_DISPONIBLES = ['bordeaux', 'bleu', 'vert', 'prune', 'orange', 'noir'];
+  var ACCENTS_DISPONIBLES = ['bordeaux', 'bleu', 'vert', 'orange', 'noir'];
   const CLE_ACCENT = 'claire-accent';
 
   function accentValide(valeur) {

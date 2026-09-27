@@ -16,10 +16,6 @@
     --accent-clair: #1F5D52; --accent-clair-hover: #17453D;
     --accent-sombre: #6FC2AE; --accent-sombre-hover: #8AD1BF;
   }
-  :root[data-accent="prune"] {
-    --accent-clair: #5B2A4C; --accent-clair-hover: #45203A;
-    --accent-sombre: #C99BC0; --accent-sombre-hover: #D9B4D0;
-  }
   /* Cuivre plutôt qu'orange vif : un orange saturé ne porte pas un texte blanc lisible. */
   :root[data-accent="orange"] {
     --accent-clair: #9A4A1F; --accent-clair-hover: #7C3A17;

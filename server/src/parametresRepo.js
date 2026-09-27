@@ -130,7 +130,7 @@ function assainirRappelsPerso(brut) {
 // « sites » qui ne partagent pas leur localStorage.
 const CLE_PREFERENCES = 'preferences-collaborateurs';
 const THEMES_PREFERENCES = ['light', 'dark'];
-const ACCENTS_PREFERENCES = ['bordeaux', 'bleu', 'vert', 'prune', 'orange', 'noir'];
+const ACCENTS_PREFERENCES = ['bordeaux', 'bleu', 'vert', 'orange', 'noir'];
 
 function assainirPreference(brut) {
   const b = brut && typeof brut === 'object' ? brut : {};

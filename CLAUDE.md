@@ -8269,6 +8269,22 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     `data-accent="noir"` posé sur `<html>`, `--focus` résolu à `#262626` en clair et `#D4D4D4` en
     sombre, bouton "Vérifier" et onglet actif de Réglages bien dans ce gris neutre dans les deux
     thèmes, aucune erreur JS.
+- **Thème « Prune » retiré**, demandé par l'étude aussitôt après l'ajout du noir & blanc. Retrait du
+  seul bloc `:root[data-accent="prune"]` (`style.css`) et de sa valeur dans les trois listes blanches
+  qui l'accompagnaient (`ACCENTS_DISPONIBLES` côté script.js, `ACCENTS_PREFERENCES` côté
+  `server/src/parametresRepo.js`, pastille `#reglages-accent-prune` dans `index.html`) — cinq thèmes
+  restent : bordeaux (défaut), bleu, vert, orange, noir & blanc. Une préférence déjà enregistrée en
+  base avec `accent: "prune"` sur un collaborateur redevient invalide dès ce déploiement :
+  `chargerPreferencesCollaborateur()` ignorera silencieusement cette valeur au prochain chargement
+  (comme toute valeur hors liste, voir `accentValide()`) et le poste retombe sur le bordeaux par
+  défaut — aucune migration nécessaire, ce cas est déjà couvert par le mécanisme existant.
+  - `server/test/preferences.test.js` utilisait "prune" comme simple exemple de valeur valide dans
+    son test de round-trip des préférences : remplacé par "noir" (toujours valide), sans quoi le test
+    aurait échoué une fois "prune" sorti de la liste blanche serveur.
+  - Suite racine 809, serveur 383 (inchangées : un retrait, aucune fonction pure touchée). **Vérifié
+    dans un vrai Chromium** : cinq pastilles affichées (Bordeaux, Bleu, Vert, Orange, Noir & blanc),
+    plus aucun `#reglages-accent-prune` dans le DOM, mise en page de la grille de pastilles intacte,
+    aucune erreur JS.
 
 ## Comment tester
 

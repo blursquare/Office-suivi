@@ -41,9 +41,9 @@ test('route : chaque collaborateur retrouve son thème, un changement partiel co
   assert.equal(r.status, 200);
   await appeler('/api/preferences', 'PUT', { collaborateur: 'Jérémy SAUJOT', preferences: { accent: 'orange' } });
   // Un changement de couleur seul ne remet pas le mode sombre à zéro.
-  await appeler('/api/preferences', 'PUT', { collaborateur: 'Julie VASSELIN', preferences: { accent: 'prune' } });
+  await appeler('/api/preferences', 'PUT', { collaborateur: 'Julie VASSELIN', preferences: { accent: 'noir' } });
   r = await (await appeler('/api/preferences?collaborateur=' + encodeURIComponent('Julie VASSELIN'))).json();
-  assert.equal(JSON.stringify(r.preferences), JSON.stringify({ theme: 'dark', accent: 'prune' }));
+  assert.equal(JSON.stringify(r.preferences), JSON.stringify({ theme: 'dark', accent: 'noir' }));
   r = await (await appeler('/api/preferences?collaborateur=' + encodeURIComponent('Jérémy SAUJOT'))).json();
   assert.equal(r.preferences.accent, 'orange');
   r = await (await appeler('/api/preferences')).json();
