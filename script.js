@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-27 18:34';
+  const VERSION_APP = '2026-09-27 19:49';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-27 19:49', resume: "« Aujourd'hui » : la carte du tableau de bord remplace « À traiter » (une ligne par action, avec le geste prêt), une page « Aujourd'hui » dans la barre latérale (actions avec brouillons d'email, signatures des 7 jours, ce qui a changé depuis la dernière visite, votre journée, rappels, équipe) et le point du matin à la première connexion du jour." },
     { version: '2026-09-27 18:34', resume: "Dossiers déjà créés : le mobilier compris dans le prix est lu dans l'avant-contrat du NAS à l'ouverture de la fiche et reporté dans « Dont mobilier » (bouton « Lire » pour relancer)." },
     { version: '2026-09-27 18:31', resume: "Mobilier compris dans le prix : détecté à l'import (« ce prix comprenant celui du mobilier… », « aux meubles à concurrence de… »), modifiable sur la fiche, retiré de l'assiette des frais d'acte (simulateur et contrôle de l'appel de fonds), comparé entre avant-contrat et projet dans la relecture." },
     { version: '2026-09-27 18:19', resume: "Relecture d'actes : panneau « Diagnostic de la relecture » (clauses retenues et écartées par thème, avec la raison et la page). Import d'un acte : cadastre sur plusieurs parcelles avec contenance totale, prix contradictoires signalés, SIREN/siège/capital d'une société lus." },
@@ -286,6 +287,7 @@
     'alert-triangle': '<path d="M8 2.3 14.4 13.2a0.9 0.9 0 0 1-0.8 1.3H2.4a0.9 0.9 0 0 1-0.8-1.3L8 2.3Z" stroke-linejoin="round"/><line x1="8" y1="6" x2="8" y2="9.3"/><circle cx="8" cy="11.5" r="0.8" fill="currentColor" stroke="none"/>',
     'file-text': '<path d="M4 2h5.5L12 4.5V14H4Z" stroke-linejoin="round"/><path d="M9.5 2v2.5H12"/><line x1="6" y1="8" x2="10" y2="8"/><line x1="6" y1="10.5" x2="9" y2="10.5"/>',
     mail: '<rect x="1.4" y="3.5" width="13.2" height="9" rx="1.4"/><path d="M2 4.3 8 9l6-4.7"/>',
+    sun: '<circle cx="8" cy="8" r="2.8"/><path d="M8 1.6v1.6M8 12.8v1.6M1.6 8h1.6M12.8 8h1.6M3.5 3.5l1.1 1.1M11.4 11.4l1.1 1.1M12.5 3.5l-1.1 1.1M4.6 11.4l-1.1 1.1"/>',
     calendar: '<rect x="1.5" y="2.8" width="13" height="11.2" rx="1.7"/><rect x="1.5" y="2.8" width="13" height="3" rx="1" fill="currentColor" opacity="0.22" stroke="none"/><line x1="4.6" y1="1.3" x2="4.6" y2="3.6"/><line x1="11.4" y1="1.3" x2="11.4" y2="3.6"/>',
     link: '<path d="M6.6 9.4 9.4 6.6"/><path d="M7 4.2 8.3 2.9a2.6 2.6 0 0 1 3.7 3.7L9.7 8"/><path d="M9 11.8 7.7 13.1a2.6 2.6 0 0 1-3.7-3.7L6.3 8"/>',
     eye: '<path d="M1.3 8S3.8 3.3 8 3.3 14.7 8 14.7 8 12.2 12.7 8 12.7 1.3 8 1.3 8Z" stroke-linejoin="round"/><circle cx="8" cy="8" r="2.1"/>',
@@ -11326,7 +11328,7 @@
   // Écran affiché, joint au contexte d'un signalement de problème (voir contexteSignalement).
   var ongletActuel = 'dashboard';
   var LIBELLES_ONGLETS = {
-    dashboard: 'Tableau de bord', nouveau: 'Nouveau dossier', suivi: 'Suivi des dossiers',
+    dashboard: 'Tableau de bord', aujourdhui: "Aujourd'hui", nouveau: 'Nouveau dossier', suivi: 'Suivi des dossiers',
     calculateur: 'Simulateur de provision', prorata: 'Prorata & répartitions', 'appel-fonds': 'Appel de fonds',
     inventaire: 'Arbitrage forfait mobilier', quotites: "Quotités d'acquisition", 'analyse-ia': "Relecture d'actes",
     reglages: 'Réglages'
@@ -11337,6 +11339,7 @@
     // Sur mobile, choisir une section referme la sidebar repliable (voir toggleSidebarMobile).
     toggleSidebarMobile(false);
     document.getElementById('onglet-dashboard').style.display = nom === 'dashboard' ? '' : 'none';
+    document.getElementById('onglet-aujourdhui').style.display = nom === 'aujourdhui' ? '' : 'none';
     document.getElementById('onglet-nouveau').style.display = nom === 'nouveau' ? '' : 'none';
     document.getElementById('onglet-suivi').style.display = nom === 'suivi' ? '' : 'none';
     document.getElementById('onglet-calculateur').style.display = nom === 'calculateur' ? '' : 'none';
@@ -11347,6 +11350,7 @@
     document.getElementById('onglet-analyse-ia').style.display = nom === 'analyse-ia' ? '' : 'none';
     document.getElementById('onglet-reglages').style.display = nom === 'reglages' ? '' : 'none';
     document.getElementById('tab-dashboard').setAttribute('aria-selected', String(nom === 'dashboard'));
+    document.getElementById('tab-aujourdhui').setAttribute('aria-selected', String(nom === 'aujourdhui'));
     document.getElementById('tab-suivi').setAttribute('aria-selected', String(nom === 'suivi'));
     document.getElementById('tab-calculateur').setAttribute('aria-selected', String(nom === 'calculateur'));
     document.getElementById('tab-prorata').setAttribute('aria-selected', String(nom === 'prorata'));
@@ -11356,6 +11360,7 @@
     document.getElementById('tab-analyse-ia').setAttribute('aria-selected', String(nom === 'analyse-ia'));
     document.getElementById('tab-reglages').setAttribute('aria-selected', String(nom === 'reglages'));
     document.getElementById('tab-dashboard').classList.toggle('actif', nom === 'dashboard');
+    document.getElementById('tab-aujourdhui').classList.toggle('actif', nom === 'aujourdhui');
     document.getElementById('tab-suivi').classList.toggle('actif', nom === 'suivi');
     document.getElementById('tab-calculateur').classList.toggle('actif', nom === 'calculateur');
     document.getElementById('tab-prorata').classList.toggle('actif', nom === 'prorata');
@@ -11372,8 +11377,8 @@
     document.getElementById('tab-reglages').classList.toggle('actif', nom === 'reglages');
     if (nom === 'suivi') appliquerFiltreSuiviCollaborateur();
     // Relu à chaque retour sur le tableau de bord : un rappel ajouté depuis un autre poste.
-    if (nom === 'dashboard' && typeof chargerRappelsPerso === 'function' && authToken) chargerRappelsPerso();
-    if (nom === 'suivi' || nom === 'dashboard') render();
+    if ((nom === 'dashboard' || nom === 'aujourdhui') && typeof chargerRappelsPerso === 'function' && authToken) chargerRappelsPerso();
+    if (nom === 'suivi' || nom === 'dashboard' || nom === 'aujourdhui') render();
     // Vérifiée à chaque ouverture (appel léger) plutôt qu'une fois pour toutes : Ollama a pu être
     // installé/démarré/arrêté sur le serveur depuis la dernière visite de cet onglet.
     // Réglages relus à chaque ouverture (un collègue a pu les modifier depuis un autre poste,
@@ -12010,6 +12015,7 @@
     render();
     chargerRappelsPerso();
     chargerPreferencesCollaborateur();
+    ouvrirFenetreAujourdhuiSiPremiereFois();
   }
 
   function initUtilisateurPoste() {
@@ -12432,55 +12438,779 @@
     return `${lignes || (rappelsPersoCharges ? '<div class="rappels-perso-vide">Aucun rappel pour le moment.</div>' : '')}${formulaire}`;
   }
 
+  // ==== AUJOURD'HUI ====
+  //
+  // Demandé par l'étude (maquette « Ma matinée » validée le 27/09) : chaque collaborateur arrive le
+  // matin sur ce qu'il a à faire AUJOURD'HUI, avec le geste déjà prêt — le brouillon d'email rédigé
+  // avec les modèles de l'étude, l'envoi du projet à noter d'un clic — plutôt qu'une liste de
+  // constats. Trois surfaces lisent la même liste :
+  //  - la carte « Aujourd'hui » du tableau de bord, qui remplace « À traiter » ;
+  //  - la page « Aujourd'hui » (lien de la barre latérale), le rapport complet de la journée ;
+  //  - la fenêtre qui s'ouvre à la première connexion de la journée.
+  // Rien n'est jamais envoyé seul : un clic ouvre un brouillon dans la messagerie (contrainte
+  // fondamentale n°4). CLAIRE ne lit ni la boîte mail ni Teams (pas d'accès Microsoft Graph) : « une
+  // réponse oubliée » se lit ici comme un geste attendu que le dossier n'a pas encore enregistré.
+  //
+  // Toute la sélection est PURE et testable (tests/aujourdhui.test.js) : la date du jour est
+  // toujours passée en paramètre.
+
+  var JOURS_ACTIONS_RENDEZ_VOUS = 7;   // appel de fonds, projet, confirmation des fonds
+  var JOURS_RAPPEL_RIB = 3;            // email « RIB et pièce d'identité » avant la signature
+  var JOURS_QUESTIONNAIRE = 30;        // questionnaire proposé dans le mois qui suit la signature
+  var JOURS_A_VENIR = 30;              // horizon de « À venir »
+  var ORDRE_GRAVITE_JOUR = { critique: 0, vigilance: 1, normal: 2 };
+  var LIBELLE_HISTORIQUE_RIB = 'Relance manuelle envoyée — RIB';
+
+  function courtDateJour(iso) {
+    if (!iso) return '';
+    const d = new Date(iso + 'T00:00:00');
+    if (isNaN(d)) return '';
+    return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  }
+
+  // « aujourd'hui », « demain », « jeudi 1 octobre », ou « il y a 3 jours » : comme on le dirait.
+  function quandJour(iso, aujourdhuiIso) {
+    const j = ecartJours(aujourdhuiIso, iso);
+    if (j === null) return '';
+    if (j === 0) return "aujourd'hui";
+    if (j === 1) return 'demain';
+    if (j < 0) return `il y a ${-j} jour${-j > 1 ? 's' : ''}`;
+    return courtDateJour(iso);
+  }
+
+  // Le délai affiché d'une action : son propre texte quand « J-3 » n'aurait pas de sens (un acte
+  // déjà signé n'est pas « dépassé »).
+  function delaiAction(a) { return a.delaiTexte || libelleDelaiJour(a.jours); }
+
+  function libelleDelaiJour(j) {
+    if (j === null || j === undefined) return '';
+    if (j < 0) return `dépassé de ${-j} j`;
+    if (j === 0) return "aujourd'hui";
+    return `J-${j}`;
+  }
+
+  function historiqueContient(d, texte) {
+    return ((d && d.historique) || []).some(e => e && typeof e.texte === 'string' && e.texte.indexOf(texte) === 0);
+  }
+
+  function ribDejaDemande(d) {
+    return !!(d && (d.ribDemandeLe || historiqueContient(d, LIBELLE_HISTORIQUE_RIB)));
+  }
+
+  function phraseSignature(d, aujourdhuiIso) {
+    const heure = d.rendezVousSignatureHeure ? ' à ' + d.rendezVousSignatureHeure.replace(':', ' h ') : '';
+    return `Signature ${quandJour(d.rendezVousSignature, aujourdhuiIso)}${heure}`;
+  }
+
+  // Pure. Renvoie { actions, aVenir } :
+  //  - actions : ce qui est à faire aujourd'hui, du plus grave au moins grave puis du plus proche au
+  //    plus lointain, UNE entrée par geste (un dossier peut en porter deux : appel de fonds à
+  //    préparer ET RIB à demander). Chaque action a une clé stable « idDossier:type », qui sert au
+  //    report à demain ;
+  //  - aVenir : ce qui ne demande rien aujourd'hui mais arrive (échéances dans les 30 jours, offre
+  //    déjà relancée, dossiers à relier).
+  // Règles de sélection reprises des signaux déjà en place (alertesImportantes, pointsEtatDossier,
+  // relanceOffreDue) — ce qui n'a pas de geste prêt reste une action « Ouvrir la fiche ».
+  function actionsDuJour(dossiersActifs, aujourdhuiIso) {
+    const actions = [];
+    const aVenir = [];
+    for (const d of dossiersActifs || []) {
+      if (!d || d.archive) continue;
+      const couverts = new Set();
+      const typesAction = new Set();
+      const ajouter = (a) => { typesAction.add(a.type); actions.push(Object.assign({ cle: `${d.id}:${a.type}`, dossier: d }, a)); };
+      const dest = emailDestinataireRelance(d);
+
+      // 1. Offre de prêt attendue : relance due (première à J-15, puis tous les 10 jours, y compris
+      //    après la date butoir — même règle que la relance automatique, voir relanceOffreDue).
+      if (!d.sansPret && d.pret && !echeanceValidee(d, 'pret')) {
+        const j = ecartJours(aujourdhuiIso, d.pret);
+        if (j !== null && j <= FENETRE_RELANCE_OFFRE_JOURS) {
+          couverts.add('Relancer l’offre de prêt');
+          if (relanceOffreDue(d.derniereRelanceAuto, aujourdhuiIso)) {
+            const constat = d.offrePretStatut === 'manquante' ? 'Aucune offre trouvée sur le NAS.' : 'Offre pas encore reçue.';
+            const relance = d.derniereRelanceAuto ? ` Dernière relance ${quandJour(d.derniereRelanceAuto, aujourdhuiIso)}.` : ' Aucune relance encore envoyée.';
+            ajouter({
+              type: 'pret', categorie: 'pret', categorieLabel: 'Obtention du prêt',
+              titre: 'Relancer l’offre de prêt',
+              contexte: `Butoir ${courtDateJour(d.pret)}${j < 0 ? ` (dépassé de ${-j} j)` : ''}. ${constat}${relance}${dest ? '' : " Email de l'acquéreur non renseigné."}`,
+              jours: j, gravite: j <= 7 ? 'critique' : 'vigilance',
+              geste: dest ? { type: 'email', motif: 'pret' } : { type: 'fiche' },
+              bouton: dest ? 'Ouvrir la relance' : 'Ouvrir la fiche'
+            });
+          } else {
+            const prochaine = addDays(d.derniereRelanceAuto, JOURS_ENTRE_RELANCES_OFFRE);
+            aVenir.push({ dossier: d, titre: 'Offre de prêt relancée', detail: `Relancée ${quandJour(d.derniereRelanceAuto, aujourdhuiIso)} · prochaine relance ${quandJour(prochaine, aujourdhuiIso)}`, iso: prochaine });
+          }
+        }
+      }
+
+      // 2. Avant la signature : appel de fonds, projet, réception des fonds, RIB.
+      const jRdv = d.rendezVousSignature ? ecartJours(aujourdhuiIso, d.rendezVousSignature) : null;
+      if (jRdv !== null && jRdv >= 0) {
+        const af = echeanceValidee(d, 'appelFonds');
+        const pr = echeanceValidee(d, 'projetEnvoye');
+        ['Envoyer l’appel de fonds et le projet', 'Envoyer l’appel de fonds', 'Envoyer le projet'].forEach(t => couverts.add(t));
+        const signature = phraseSignature(d, aujourdhuiIso);
+        if (jRdv <= JOURS_ACTIONS_RENDEZ_VOUS && !af) {
+          ajouter({
+            type: 'appelFonds', categorie: 'appelFonds', categorieLabel: 'Envoi appel de fonds',
+            titre: 'Envoyer l’appel de fonds',
+            contexte: `${signature}. ${pr ? '' : 'Le projet d’acte reste aussi à envoyer.'}`.trim(),
+            jours: jRdv, gravite: jRdv <= 2 ? 'critique' : 'vigilance',
+            geste: { type: 'appelFonds' }, bouton: 'Préparer l’appel de fonds',
+            second: { type: 'marquer', champ: 'appelFonds', libelle: 'Déjà envoyé' }
+          });
+        }
+        if (jRdv <= JOURS_ACTIONS_RENDEZ_VOUS && af && !pr) {
+          ajouter({
+            type: 'projetEnvoye', categorie: 'projetEnvoye', categorieLabel: 'Envoi projet',
+            titre: 'Envoyer le projet d’acte',
+            contexte: `${signature}. Appel de fonds envoyé${d.appelFonds ? ' le ' + formatDateFr(d.appelFonds) : ''} ; le projet n’est pas encore noté comme envoyé.`,
+            jours: jRdv, gravite: jRdv <= 2 ? 'critique' : 'vigilance',
+            geste: { type: 'marquer', champ: 'projetEnvoye' }, bouton: 'Marquer envoyé',
+            second: { type: 'fiche', libelle: 'Ouvrir la fiche' }
+          });
+        }
+        if (jRdv <= JOURS_ACTIONS_RENDEZ_VOUS && af && !d.receptionFondsConfirmeeLe && dest) {
+          ajouter({
+            type: 'fonds', categorie: 'appelFonds', categorieLabel: 'Réception des fonds',
+            titre: 'Confirmer la réception des fonds',
+            contexte: `Appel de fonds envoyé${d.appelFonds ? ' le ' + formatDateFr(d.appelFonds) : ''}. ${signature}. À envoyer une fois les fonds arrivés en comptabilité.`,
+            jours: jRdv, gravite: jRdv <= 2 ? 'vigilance' : 'normal',
+            geste: { type: 'email', motif: 'fonds' }, bouton: 'Ouvrir la confirmation'
+          });
+        }
+        if (jRdv <= JOURS_RAPPEL_RIB && dest && !ribDejaDemande(d)) {
+          ajouter({
+            type: 'rib', categorie: 'rendezVousSignature', categorieLabel: 'Rendez-vous de signature',
+            titre: 'Demander le RIB et la pièce d’identité',
+            contexte: `${signature}. L’email de rappel n’est pas encore parti.`,
+            jours: jRdv, gravite: jRdv <= 1 ? 'critique' : 'vigilance',
+            geste: { type: 'email', motif: 'rib' }, bouton: 'Ouvrir l’email'
+          });
+        }
+      }
+
+      // 3. Après la signature : le questionnaire de satisfaction (jamais au confrère).
+      if (jRdv !== null && jRdv < 0 && jRdv >= -JOURS_QUESTIONNAIRE && !d.questionnaireEnvoyeLe
+          && !notaireParticipantRepresenteAcquereur(d) && d.emailAcquereur) {
+        ajouter({
+          type: 'questionnaire', categorie: 'neutre', categorieLabel: 'Signature passée',
+          titre: 'Envoyer le questionnaire de satisfaction',
+          contexte: `Acte signé le ${formatDateFr(d.rendezVousSignature)}. Le dossier sera archivé à l’envoi.`,
+          jours: jRdv, delaiTexte: `signé ${quandJour(d.rendezVousSignature, aujourdhuiIso)}`, gravite: 'normal',
+          geste: { type: 'questionnaire' }, bouton: 'Préparer le questionnaire'
+        });
+      }
+
+      // 4. Le reste des points qui demandent une décision (vente préalable, date butoir, pièces…) :
+      //    pas de geste tout prêt, la fiche s'ouvre.
+      const points = alertesImportantes([d], aujourdhuiIso).concat(pointsEtatDossier(d));
+      for (const p of points) {
+        if (couverts.has(p.titre)) continue;
+        couverts.add(p.titre);
+        if (p.gravite === 'info') {
+          aVenir.push({ dossier: d, titre: p.titre, detail: p.detail, iso: null });
+          continue;
+        }
+        const slug = normaliserPourRecherche(p.titre).replace(/[^a-z]+/g, '-');
+        ajouter({
+          type: 'point-' + slug, categorie: 'neutre', categorieLabel: 'À décider',
+          titre: p.titre, contexte: p.detail + '.', jours: p.jours, gravite: p.gravite,
+          geste: { type: 'fiche' }, bouton: 'Ouvrir la fiche'
+        });
+      }
+
+      // 5. À venir : la prochaine échéance du dossier dans les 30 jours, si rien ne la couvre déjà.
+      const prochaine = echeancesPlanning(d)
+        .map(e => Object.assign({ j: ecartJours(aujourdhuiIso, e.iso) }, e))
+        .filter(e => e.j !== null && e.j > 0 && e.j <= JOURS_A_VENIR && !typesAction.has(e.type))
+        .sort((a, b) => a.j - b.j)[0];
+      if (prochaine && !(prochaine.type === 'pret' && couverts.has('Relancer l’offre de prêt'))) {
+        aVenir.push({ dossier: d, titre: prochaine.label, detail: courtDateJour(prochaine.iso), iso: prochaine.iso });
+      }
+    }
+    const rang = (a) => [ORDRE_GRAVITE_JOUR[a.gravite], a.jours === null || a.jours === undefined ? 999 : a.jours];
+    actions.sort((a, b) => { const x = rang(a), y = rang(b); return (x[0] - y[0]) || (x[1] - y[1]) || String(a.dossier.nom).localeCompare(String(b.dossier.nom)); });
+    aVenir.sort((a, b) => (a.iso || '9999').localeCompare(b.iso || '9999'));
+    return { actions, aVenir };
+  }
+
+  // Pure : le brouillon qu'ouvrira l'action (destinataire, objet, corps), pour l'afficher AVANT le
+  // clic. Mêmes modèles que les boutons de la fiche — un seul texte par motif dans tout l'outil.
+  function brouillonAction(action) {
+    if (!action || !action.geste) return null;
+    const d = action.dossier;
+    if (action.geste.type === 'email') {
+      const modele = MODELES_EMAIL_RELANCE[action.geste.motif];
+      if (!modele) return null;
+      const { sujet, corps } = modele.construire(d);
+      return { a: emailDestinataireRelance(d), objet: sujet, corps };
+    }
+    if (action.geste.type === 'questionnaire') {
+      const { sujet, corps } = construireEmailQuestionnaireSatisfaction(d);
+      return { a: d.emailAcquereur || '', objet: sujet, corps };
+    }
+    return null;
+  }
+
+  // Pure : ce qui a changé depuis la visite précédente, par dossier — les pièces trouvées sur le
+  // NAS, puis les lignes d'historique écrites par un collègue ou par CLAIRE elle-même (relevés de
+  // l'agenda, parcours du NAS). Ce que le collaborateur a fait lui-même n'y figure pas : il le sait.
+  function evenementsDepuisVisite(dossiersActifs, depuisIso, utilisateur) {
+    if (!depuisIso) return [];
+    const depuis = Date.parse(depuisIso);
+    if (!Number.isFinite(depuis)) return [];
+    const groupes = [];
+    for (const d of dossiersActifs || []) {
+      if (!d) continue;
+      const lignes = [];
+      const pieces = [];
+      const dates = d.piecesTrouveesLe || {};
+      for (const cle of Object.keys(dates)) {
+        const t = Date.parse(dates[cle]);
+        if (Number.isFinite(t) && t > depuis) pieces.push({ t, libelle: libelleNotificationPiece(d, cle) });
+      }
+      if (pieces.length) {
+        lignes.push({
+          t: Math.max.apply(null, pieces.map(p => p.t)), type: 'pieces',
+          texte: `${pieces.length} pièce${pieces.length > 1 ? 's' : ''} trouvée${pieces.length > 1 ? 's' : ''} sur le NAS : ${pieces.map(p => p.libelle).join(', ')}`
+        });
+      }
+      for (const e of d.historique || []) {
+        if (!e || !e.texte) continue;
+        const t = Date.parse(e.date);
+        if (!Number.isFinite(t) || t <= depuis) continue;
+        if (utilisateur && e.auteur === utilisateur) continue;
+        lignes.push({ t, type: e.auteur ? 'collegue' : 'claire', auteur: e.auteur || '', texte: e.texte });
+      }
+      if (!lignes.length) continue;
+      lignes.sort((a, b) => b.t - a.t);
+      groupes.push({ dossier: d, dernier: lignes[0].t, lignes });
+    }
+    return groupes.sort((a, b) => b.dernier - a.dernier);
+  }
+
+  // Pure : ce que le collaborateur a fait aujourd'hui (historique signé de son nom, date LOCALE
+  // du jour — un historique est en UTC, une entrée de 0 h 30 appartient au bon jour).
+  function journalDuJour(listeDossiers, utilisateur, aujourdhuiIso) {
+    if (!utilisateur) return [];
+    const res = [];
+    const pad2 = (n) => String(n).padStart(2, '0');
+    for (const d of listeDossiers || []) {
+      for (const e of (d && d.historique) || []) {
+        if (!e || e.auteur !== utilisateur) continue;
+        const dt = new Date(e.date);
+        if (isNaN(dt)) continue;
+        const iso = `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`;
+        if (iso !== aujourdhuiIso) continue;
+        res.push({ dossier: d, t: dt.getTime(), heure: `${pad2(dt.getHours())} h ${pad2(dt.getMinutes())}`, texte: e.texte });
+      }
+    }
+    return res.sort((a, b) => b.t - a.t);
+  }
+
+  // Pure : pour chaque signature des 7 prochains jours, ce qui est prêt et ce qui manque.
+  function preparationSignatures(dossiersActifs, aujourdhuiIso, jours) {
+    return rendezVousProchains(dossiersActifs, aujourdhuiIso, Number.isFinite(jours) ? jours : JOURS_ACTIONS_RENDEZ_VOUS).map(r => {
+      const d = r.dossier;
+      const points = [];
+      if (!d.sansPret) points.push({ libelle: 'Offre de prêt', ok: echeanceValidee(d, 'pret') });
+      if (d.roleNotaire !== 'participant') {
+        const liste = checklistPieces(d.typeVente, d);
+        if (liste.length) {
+          const recues = liste.filter(p => (d.pieces || {})[p.cle] === 'recue').length;
+          points.push({ libelle: `Pièces ${recues}/${liste.length}`, ok: recues === liste.length });
+        }
+      }
+      points.push({ libelle: 'Appel de fonds', ok: r.appelFondsEnvoye });
+      points.push({ libelle: 'Fonds confirmés', ok: !!d.receptionFondsConfirmeeLe });
+      points.push({ libelle: 'Projet envoyé', ok: r.projetEnvoye });
+      points.push({ libelle: 'RIB demandé', ok: ribDejaDemande(d) });
+      return Object.assign({}, r, { points, pret: points.every(p => p.ok) });
+    });
+  }
+
+  // Pure : le nombre d'actions de chaque collaborateur (vue de l'administrateur).
+  function chargeEquipeDuJour(dossiersActifs, aujourdhuiIso) {
+    return RESPONSABLES.map(nom => {
+      const { actions } = actionsDuJour((dossiersActifs || []).filter(d => d && d.responsable === nom), aujourdhuiIso);
+      return { nom, total: actions.length, critiques: actions.filter(a => a.gravite === 'critique').length };
+    });
+  }
+
+  // Pure : la liste du jour en texte brut, à coller dans un message ou une réunion d'équipe.
+  function texteListeDuJour(actions, aujourdhuiIso, nom) {
+    const titre = `Aujourd'hui — ${courtDateJour(aujourdhuiIso)}${nom ? ' — ' + nom : ''}`;
+    if (!actions.length) return `${titre}\nRien à faire aujourd'hui.`;
+    return [titre].concat(actions.map(a => `- ${a.titre} — ${libelleDossierAffiche(a.dossier)}${a.jours !== null && a.jours !== undefined ? ' (' + delaiAction(a) + ')' : ''}`)).join('\n');
+  }
+
+  // ---- État de la journée (par collaborateur, sur ce poste) ----
+  // « Plus tard » reporte une action au lendemain ; « Traité aujourd'hui » garde la trace de ce qui
+  // vient d'être fait depuis ces écrans. Préférence de travail propre à la personne, gardée dans le
+  // navigateur (comme le collaborateur du poste) : rien à partager, et une perte ne coûte rien —
+  // l'action réapparaît simplement.
+  var PREFIXE_ETAT_JOUR = 'claire-aujourdhui:';
+  var PREFIXE_FENETRE_VUE = 'claire-aujourdhui-vue:';
+
+  function lireEtatJour() {
+    const vide = { reports: {}, traites: { date: '', liste: [] } };
+    if (!utilisateurPoste) return vide;
+    try {
+      const brut = JSON.parse(localStorage.getItem(PREFIXE_ETAT_JOUR + utilisateurPoste) || 'null');
+      if (!brut || typeof brut !== 'object') return vide;
+      const aujourdhui = isoAujourdhuiLocal();
+      const reports = {};
+      for (const [cle, iso] of Object.entries(brut.reports || {})) if (typeof iso === 'string' && iso > aujourdhui) reports[cle] = iso;
+      const traites = brut.traites && brut.traites.date === aujourdhui && Array.isArray(brut.traites.liste)
+        ? brut.traites : { date: aujourdhui, liste: [] };
+      return { reports, traites };
+    } catch (e) { return vide; }
+  }
+
+  function ecrireEtatJour(etat) {
+    if (!utilisateurPoste) return;
+    try { localStorage.setItem(PREFIXE_ETAT_JOUR + utilisateurPoste, JSON.stringify(etat)); } catch (e) { /* pas bloquant */ }
+  }
+
+  function dossiersPerimetreJour() {
+    return dossiersDuPerimetre(dossiers, utilisateurPoste, vueGlobaleDashboard()).filter(d => !d.archive);
+  }
+
+  // Les actions du jour telles que les écrans les montrent : sans celles reportées à demain.
+  function etatAujourdhui() {
+    const aujourdhui = isoAujourdhuiLocal();
+    const calcul = actionsDuJour(dossiersPerimetreJour(), aujourdhui);
+    const etat = lireEtatJour();
+    const reportees = calcul.actions.filter(a => etat.reports[a.cle]);
+    const actions = calcul.actions.filter(a => !etat.reports[a.cle]);
+    return { aujourdhui, actions, reportees, aVenir: calcul.aVenir, traites: etat.traites.liste };
+  }
+
+  function noterTraite(action, etatTexte) {
+    const etat = lireEtatJour();
+    etat.traites.date = isoAujourdhuiLocal();
+    etat.traites.liste = etat.traites.liste.filter(t => t.cle !== action.cle);
+    const dt = new Date();
+    etat.traites.liste.unshift({
+      cle: action.cle, titre: action.titre, dossier: action.dossier.nom, dossierId: action.dossier.id,
+      etat: etatTexte, heure: `${String(dt.getHours()).padStart(2, '0')} h ${String(dt.getMinutes()).padStart(2, '0')}`
+    });
+    etat.traites.liste = etat.traites.liste.slice(0, 50);
+    ecrireEtatJour(etat);
+  }
+
+  function trouverActionJour(cle) {
+    const aujourdhui = isoAujourdhuiLocal();
+    return actionsDuJour(dossiersPerimetreJour(), aujourdhui).actions.find(a => a.cle === cle) || null;
+  }
+
+  // Le geste principal d'une action (bouton plein).
+  function executerActionJour(cle, secondaire) {
+    const a = trouverActionJour(cle);
+    if (!a) return;
+    const geste = secondaire ? a.second : a.geste;
+    if (!geste) return;
+    const id = a.dossier.id;
+    if (geste.type === 'email') {
+      noterTraite(a, 'Brouillon ouvert');
+      envoyerRelanceCiblee(id, geste.motif);
+    } else if (geste.type === 'questionnaire') {
+      noterTraite(a, 'Brouillon ouvert, dossier archivé');
+      envoyerQuestionnaireSatisfaction(id);
+    } else if (geste.type === 'marquer') {
+      noterTraite(a, geste.champ === 'projetEnvoye' ? 'Projet noté envoyé' : 'Appel de fonds noté envoyé');
+      marquerEnvoiAujourdhui(id, geste.champ);
+    } else if (geste.type === 'appelFonds') {
+      fermerFenetreAujourdhui();
+      preparerAppelFondsDepuisDossier(id);
+    } else {
+      fermerFenetreAujourdhui();
+      ouvrirDossierDepuisDashboard(id);
+    }
+  }
+
+  // « Marquer envoyé » : même effet que saisir la date du jour dans la carte « Envoi au client ».
+  function marquerEnvoiAujourdhui(id, champ) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    const aujourdhui = isoAujourdhuiLocal();
+    d[champ] = aujourdhui;
+    if (champ === 'projetEnvoye') marquerProjetEnvoyeSelonDate(d, aujourdhui);
+    else marquerAppelFondsSelonDate(d, aujourdhui);
+    sauvegarder(d);
+    render();
+  }
+
+  function reporterActionJour(cle) {
+    const a = trouverActionJour(cle);
+    const etat = lireEtatJour();
+    etat.reports[cle] = addDays(isoAujourdhuiLocal(), 1);
+    ecrireEtatJour(etat);
+    if (a) noterTraite(a, 'Reporté à demain');
+    render();
+  }
+
+  function annulerTraiteJour(cle) {
+    const etat = lireEtatJour();
+    delete etat.reports[cle];
+    etat.traites.liste = etat.traites.liste.filter(t => t.cle !== cle);
+    ecrireEtatJour(etat);
+    render();
+  }
+
+  let apercusJour = new Set();
+  function basculerApercuJour(cle) {
+    if (apercusJour.has(cle)) apercusJour.delete(cle); else apercusJour.add(cle);
+    render();
+  }
+
+  function copierListeDuJour() {
+    const { actions, aujourdhui } = etatAujourdhui();
+    const texte = texteListeDuJour(actions, aujourdhui, utilisateurPoste);
+    const ok = copierTexteSilencieux(texte);
+    afficherToast(ok ? 'Liste du jour copiée.' : 'Copie impossible sur ce poste.', 'OK', null);
+  }
+
+  // ---- Rendu ----
+  function iconeGeste(a) {
+    if (!a.geste) return '';
+    if (a.geste.type === 'email' || a.geste.type === 'questionnaire') return icone('mail');
+    if (a.geste.type === 'marquer') return icone('check');
+    if (a.geste.type === 'appelFonds') return icone('file-text');
+    return '';
+  }
+
+  // Une action en carte détaillée (page et fenêtre du matin).
+  function renderCarteActionJour(a, global) {
+    const brouillon = brouillonAction(a);
+    const ouvert = apercusJour.has(a.cle);
+    const cle = escapeOnclickArg(a.cle);
+    const sous = [libelleDossierAffiche(a.dossier), global && a.dossier.responsable ? prenomCollaborateur(a.dossier.responsable) : ''].filter(Boolean).join(' · ');
+    const delai = delaiAction(a);
+    return `
+      <li class="jour-action g-${a.gravite}">
+        <div class="jour-action-tete">
+          <span class="dot-label dl-${a.categorie}"><span class="dot"></span>${escapeHtml(a.categorieLabel)}</span>
+          ${delai ? `<span class="jour-delai${a.gravite === 'critique' ? ' proche' : ''}">${escapeHtml(delai)}</span>` : ''}
+        </div>
+        <p class="jour-action-titre">${escapeHtml(a.titre)}</p>
+        <p class="jour-action-dossier"><button type="button" class="lien-discret" onclick="executerActionJourFiche('${cle}')">${escapeHtml(sous)}</button></p>
+        <p class="jour-action-contexte">${escapeHtml(a.contexte)}</p>
+        <div class="jour-action-boutons">
+          <button type="button" class="primary jour-bouton" onclick="executerActionJour('${cle}')">${iconeGeste(a)}${escapeHtml(a.bouton)}</button>
+          ${brouillon ? `<span class="jour-redige">${icone('check')} Rédigé</span>
+            <button type="button" class="lien-action" aria-expanded="${ouvert}" onclick="basculerApercuJour('${cle}')">${ouvert ? 'Masquer le texte' : 'Voir le texte'}</button>` : ''}
+          ${a.second ? `<button type="button" class="lien-action" onclick="executerActionJour('${cle}', true)">${escapeHtml(a.second.libelle)}</button>` : ''}
+          <button type="button" class="lien-discret jour-plus-tard" onclick="reporterActionJour('${cle}')">Plus tard</button>
+        </div>
+        ${brouillon && ouvert ? `
+          <div class="jour-brouillon">
+            <dl><dt>À</dt><dd>${escapeHtml(brouillon.a || '—')}</dd><dt>Objet</dt><dd>${escapeHtml(brouillon.objet)}</dd></dl>
+            ${brouillon.corps.split(/\n\n+/).map(p => `<p>${escapeHtml(p).replace(/\n/g, '<br>')}</p>`).join('')}
+          </div>` : ''}
+      </li>`;
+  }
+
+  function executerActionJourFiche(cle) {
+    const a = trouverActionJour(cle);
+    if (!a) return;
+    fermerFenetreAujourdhui();
+    ouvrirDossierDepuisDashboard(a.dossier.id);
+  }
+
+  function renderTraitesJour(traites) {
+    if (!traites.length) return '';
+    return `
+      <details class="jour-replie">
+        <summary>Traité ou reporté aujourd’hui · ${traites.length}${icone('chevron-down', 'jour-chevron')}</summary>
+        <ul class="jour-liste-simple">
+          ${traites.map(t => `<li><span${t.etat === 'Reporté à demain' ? '' : ' class="barre"'}>${escapeHtml(t.titre)} — ${escapeHtml(t.dossier)}</span>
+            <span class="jour-meta">${escapeHtml(t.etat)} · ${escapeHtml(t.heure)}</span>
+            <button type="button" class="lien-discret" onclick="annulerTraiteJour('${escapeOnclickArg(t.cle)}')">Annuler</button></li>`).join('')}
+        </ul>
+      </details>`;
+  }
+
+  function renderAVenirJour(aVenir, global, ouvert) {
+    if (!aVenir.length) return '';
+    return `
+      <details class="jour-replie"${ouvert ? ' open' : ''}>
+        <summary>À venir · ${aVenir.length}${icone('chevron-down', 'jour-chevron')}</summary>
+        <ul class="jour-liste-simple">
+          ${aVenir.map(v => `<li><button type="button" class="lien-discret" onclick="executerFicheDossierJour('${v.dossier.id}')">${escapeHtml(v.titre)} — ${escapeHtml(v.dossier.nom)}</button>
+            <span class="jour-meta">${escapeHtml([v.detail, global && v.dossier.responsable ? prenomCollaborateur(v.dossier.responsable) : ''].filter(Boolean).join(' · '))}</span></li>`).join('')}
+        </ul>
+      </details>`;
+  }
+
+  function executerFicheDossierJour(id) {
+    fermerFenetreAujourdhui();
+    ouvrirDossierDepuisDashboard(id);
+  }
+
+  function renderDepuisVisite(perimetre) {
+    const groupes = evenementsDepuisVisite(perimetre, derniereVisitePrecedente, utilisateurPoste);
+    const depuis = derniereVisitePrecedente ? new Date(derniereVisitePrecedente) : null;
+    const quand = depuis && !isNaN(depuis)
+      ? depuis.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) + ', ' + depuis.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+      : '';
+    const lignes = groupes.slice(0, 12).map(g => `
+      <li class="jour-fil-groupe">
+        <button type="button" class="jour-fil-dossier" onclick="executerFicheDossierJour('${g.dossier.id}')">${escapeHtml(libelleDossierAffiche(g.dossier))}</button>
+        <ul>${g.lignes.slice(0, 4).map(l => `<li class="jour-fil-ligne ${l.type}">
+          <span class="jour-fil-qui">${l.type === 'pieces' ? '<span class="jour-nouveau">Nouveau</span>' : escapeHtml(l.auteur ? prenomCollaborateur(l.auteur) : 'CLAIRE')}</span>
+          <span>${escapeHtml(l.texte)}</span></li>`).join('')}
+          ${g.lignes.length > 4 ? `<li class="jour-fil-ligne"><span class="jour-fil-qui"></span><span class="jour-meta">et ${g.lignes.length - 4} autre${g.lignes.length - 4 > 1 ? 's' : ''}</span></li>` : ''}
+        </ul>
+      </li>`).join('');
+    return `
+      <section class="jour-section">
+        <h3 class="jour-section-titre">Depuis votre dernière visite</h3>
+        <p class="jour-source">${quand ? escapeHtml(quand.charAt(0).toUpperCase() + quand.slice(1)) : 'Première visite sur ce poste'}</p>
+        ${lignes ? `<ul class="jour-fil">${lignes}</ul>` : '<p class="jour-vide">Rien de nouveau sur vos dossiers.</p>'}
+      </section>`;
+  }
+
+  function resumeJour(nb, groupes, pieces) {
+    const morceaux = [];
+    if (pieces) morceaux.push(`<b>${pieces} pièce${pieces > 1 ? 's' : ''}</b> arrivée${pieces > 1 ? 's' : ''}`);
+    if (groupes) morceaux.push(`<b>${groupes} dossier${groupes > 1 ? 's' : ''}</b> modifié${groupes > 1 ? 's' : ''}`);
+    const depuis = morceaux.length ? `Depuis votre dernière visite : ${morceaux.join(', ')}. ` : '';
+    const faire = nb ? `<b>${nb} chose${nb > 1 ? 's' : ''}</b> à faire aujourd’hui.` : 'Rien à faire aujourd’hui.';
+    return depuis + faire;
+  }
+
+  function renderProgressionJour(nbReste, nbTraites) {
+    const total = nbReste + nbTraites;
+    const pct = total ? Math.round(nbTraites / total * 100) : 100;
+    return `<div class="jour-progression"><span class="jour-barre"><span style="width:${pct}%"></span></span>
+      <span>${nbTraites} sur ${total} traitée${nbTraites > 1 ? 's' : ''}</span></div>`;
+  }
+
+  // Carte « Aujourd'hui » du tableau de bord : la version courte (titre, dossier, délai, geste).
+  var MAX_ACTIONS_CARTE_JOUR = 6;
   function renderAlertesDashboard(perimetreActifs) {
     const bloc = document.getElementById('alertes-dashboard');
     if (!bloc) return;
     const global = vueGlobaleDashboard();
-    const lignes = pointsATraiter(perimetreActifs, isoAujourdhuiLocal());
-    const nbDecision = lignes.filter(l => l.gravite !== 'info').length;
-    const sousTitre = lignes.length === 0 ? 'Rien à traiter pour le moment.'
-      : nbDecision ? `${nbDecision} dossier${nbDecision > 1 ? 's' : ''} demande${nbDecision > 1 ? 'nt' : ''} une action`
-        : `${lignes.length} dossier${lignes.length > 1 ? 's' : ''} à suivre`;
-    const groupes = ['critique', 'vigilance', 'info'].map(g => {
-      const du = lignes.filter(l => l.gravite === g);
-      if (!du.length) return '';
-      const visibles = du.slice(0, MAX_LIGNES_A_TRAITER[g]);
-      const reste = du.length - visibles.length;
+    const { actions, aVenir, traites } = etatAujourdhui();
+    const visibles = actions.slice(0, MAX_ACTIONS_CARTE_JOUR);
+    const reste = actions.length - visibles.length;
+    const lignes = visibles.map(a => {
+      const cle = escapeOnclickArg(a.cle);
+      const delai = delaiAction(a);
+      const sous = [a.dossier.nom, global && a.dossier.responsable ? prenomCollaborateur(a.dossier.responsable) : ''].filter(Boolean).join(' · ');
       return `
-        <div class="a-traiter-groupe g-${g}">
-          <div class="a-traiter-groupe-titre"><span class="alerte-gravite">${LIBELLES_GROUPES_A_TRAITER[g]}</span><span class="urgent-groupe-nb">${du.length}</span></div>
-          ${visibles.map(l => {
-            const a = l.principal;
-            const sous = [libelleDossierAffiche(l.dossier), a.detail, global && l.dossier.responsable ? prenomCollaborateur(l.dossier.responsable) : ''].filter(Boolean);
-            const delai = libelleDelaiAlerte(a.jours);
-            return `
-            <button type="button" class="alerte-ligne g-${a.gravite}" onclick="ouvrirDossierDepuisDashboard('${l.dossier.id}')">
-              <span class="alerte-icone" aria-hidden="true">${icone(a.gravite === 'info' ? 'info' : 'alert-triangle')}</span>
-              <span class="alerte-texte">
-                <span class="alerte-titre">${escapeHtml(a.titre)}</span>
-                <span class="alerte-sous">${sous.map(escapeHtml).join(' · ')}</span>
-                ${l.autres.length ? `<span class="alerte-autres">${l.autres.map(x => `<span class="alerte-autre g-${x.gravite}">+ ${escapeHtml(x.titre)}${x.jours !== null ? ' · ' + escapeHtml(libelleDelaiAlerte(x.jours)) : ''}</span>`).join('')}</span>` : ''}
-              </span>
-              ${delai ? `<span class="alerte-delai">${escapeHtml(delai)}</span>` : ''}
-            </button>`;
-          }).join('')}
-          ${reste > 0 ? `<button type="button" class="urgent-groupe-reste" onclick="definirOnglet('suivi')">et ${reste} autre${reste > 1 ? 's' : ''} — voir le Suivi</button>` : ''}
-        </div>`;
+        <li class="jour-ligne">
+          <span class="dot-label dl-${a.categorie}"><span class="dot"></span></span>
+          <div class="jour-ligne-texte">
+            <span class="jour-ligne-titre">${escapeHtml(a.titre)}</span>
+            <button type="button" class="lien-discret jour-ligne-dossier" onclick="executerActionJourFiche('${cle}')">${escapeHtml(sous)}</button>
+          </div>
+          <span class="jour-delai${a.gravite === 'critique' ? ' proche' : ''}">${escapeHtml(delai)}</span>
+          <span class="jour-ligne-boutons">
+            <button type="button" class="lien-discret" onclick="reporterActionJour('${cle}')">Plus tard</button>
+            <button type="button" class="primary jour-bouton-petit" onclick="executerActionJour('${cle}')" title="${escapeAttr(a.bouton)}">${escapeHtml(libelleCourtGeste(a))}</button>
+          </span>
+        </li>`;
     }).join('');
-    const premier = lignes.find(l => l.gravite !== 'info') || lignes[0];
+    const sousTitre = actions.length
+      ? `${actions.length} action${actions.length > 1 ? 's' : ''} à faire${traites.length ? ` · ${traites.length} traitée${traites.length > 1 ? 's' : ''}` : ''}`
+      : 'Rien à faire aujourd’hui.';
     bloc.innerHTML = `
       <div class="alertes-entete">
         <div>
-          <div class="agenda-titre">À traiter</div>
+          <div class="agenda-titre">Aujourd’hui</div>
           <div class="agenda-mois">${escapeHtml(sousTitre)}</div>
         </div>
-        ${premier ? `<button type="button" class="lien-action" onclick="ouvrirDossierDepuisDashboard('${premier.dossier.id}')">Traiter</button>` : ''}
+        <button type="button" class="lien-action" onclick="definirOnglet('aujourdhui')">Rapport du jour</button>
       </div>
-      ${groupes ? `<div class="alertes-liste">${groupes}</div>` : '<div class="a-traiter-vide">✓ Aucune action en attente sur vos dossiers.</div>'}
-      <div class="rappels-perso">
+      <div class="jour-carte-corps">
+        ${actions.length || traites.length ? renderProgressionJour(actions.length, traites.length) : ''}
+        ${lignes ? `<ul class="jour-lignes">${lignes}</ul>` : '<div class="a-traiter-vide">✓ Rien à faire aujourd’hui sur vos dossiers.</div>'}
+        ${reste > 0 ? `<button type="button" class="urgent-groupe-reste" onclick="definirOnglet('aujourdhui')">et ${reste} autre${reste > 1 ? 's' : ''} — voir le rapport du jour</button>` : ''}
+        ${renderTraitesJour(traites)}
+        ${renderAVenirJour(aVenir, global, false)}
+      </div>
+      ${ongletActuel === 'aujourdhui' ? '' : `<div class="rappels-perso">
         <div class="section-eyebrow">Mes rappels</div>
         ${renderMesRappels(perimetreActifs)}
+      </div>`}`;
+    majBadgeAujourdhui(actions.length);
+    if (ongletActuel === 'aujourdhui') renderPageAujourdhui();
+    renderFenetreAujourdhui();
+  }
+
+  function libelleCourtGeste(a) {
+    if (!a.geste) return 'Ouvrir';
+    if (a.geste.type === 'marquer') return 'Marquer envoyé';
+    if (a.geste.type === 'appelFonds') return 'Préparer';
+    if (a.geste.type === 'questionnaire') return 'Préparer';
+    return 'Ouvrir';
+  }
+
+  function majBadgeAujourdhui(n) {
+    const badge = document.getElementById('badge-aujourdhui');
+    if (!badge) return;
+    badge.textContent = String(n);
+    badge.style.display = n > 0 ? '' : 'none';
+  }
+
+  // Page « Aujourd'hui » : le rapport complet de la journée.
+  function renderPageAujourdhui() {
+    const bloc = document.getElementById('aujourdhui-contenu');
+    if (!bloc) return;
+    const perimetre = dossiersPerimetreJour();
+    const global = vueGlobaleDashboard();
+    const { aujourdhui, actions, aVenir, traites } = etatAujourdhui();
+    const groupes = evenementsDepuisVisite(perimetre, derniereVisitePrecedente, utilisateurPoste);
+    const nbPieces = piecesDepuisVisite(perimetre, derniereVisitePrecedente).length;
+    const signatures = preparationSignatures(perimetre, aujourdhui);
+    const journal = journalDuJour(dossiers, utilisateurPoste, aujourdhui);
+    const eyebrow = document.getElementById('aujourdhui-date');
+    if (eyebrow) eyebrow.textContent = libelleDateDuJour();
+    const titre = document.getElementById('aujourdhui-titre');
+    if (titre) titre.textContent = utilisateurPoste ? `Aujourd’hui, ${prenomCollaborateur(utilisateurPoste)}` : 'Aujourd’hui';
+
+    const equipe = global && utilisateurPoste && estAdministrateur(utilisateurPoste)
+      ? chargeEquipeDuJour(dossiers.filter(d => !d.archive), aujourdhui) : [];
+
+    bloc.innerHTML = `
+      <div class="jour-entete-page">
+        <p class="jour-resume">${resumeJour(actions.length, groupes.filter(g => g.lignes.some(l => l.type !== 'pieces')).length, nbPieces)}</p>
+        <div class="jour-entete-actions">
+          ${utilisateurPoste ? `<div class="vue-bascule" role="group" aria-label="Dossiers affichés">
+            <button type="button" class="vue-bascule-btn${global ? '' : ' actif'}" aria-pressed="${!global}" onclick="basculerVueDashboard(false)">Mes dossiers</button>
+            <button type="button" class="vue-bascule-btn${global ? ' actif' : ''}" aria-pressed="${global}" onclick="basculerVueDashboard(true)">Tous les dossiers</button>
+          </div>` : `<button type="button" class="lien-discret" onclick="ouvrirChoixPoste()">Qui utilise ce poste ? Choisir</button>`}
+          <button type="button" class="secondary" onclick="copierListeDuJour()">${icone('clipboard')} Copier ma liste</button>
+          <button type="button" class="secondary" onclick="ouvrirFenetreAujourdhui()">${icone('sun')} Revoir le point du matin</button>
+        </div>
+        ${renderProgressionJour(actions.length, traites.length)}
+      </div>
+      <div class="jour-grille">
+        <div class="jour-principal">
+          <section class="jour-section">
+            <h3 class="jour-section-titre">À faire maintenant <span class="jour-nb">${actions.length}</span></h3>
+            <p class="jour-source">Tiré des échéances de vos dossiers, de l’agenda de l’office et du NAS. Les emails s’ouvrent déjà rédigés : vous relisez et vous envoyez.</p>
+            ${actions.length ? `<ul class="jour-actions">${actions.map(a => renderCarteActionJour(a, global)).join('')}</ul>` : '<p class="jour-vide jour-vide-ok">✓ Tout est traité pour aujourd’hui.</p>'}
+            ${renderTraitesJour(traites)}
+          </section>
+          <section class="jour-section">
+            <h3 class="jour-section-titre">Signatures des 7 prochains jours <span class="jour-nb">${signatures.length}</span></h3>
+            <p class="jour-source">Ce qui est prêt et ce qui manque encore avant chaque rendez-vous.</p>
+            ${signatures.length ? `<ul class="jour-signatures">${signatures.map(s => {
+              const plage = plageHoraireRendezVous(s.heure, s.heureFin);
+              return `<li class="jour-signature${s.pret ? ' prete' : ''}">
+                <button type="button" class="jour-signature-tete" onclick="executerFicheDossierJour('${s.dossier.id}')">
+                  <span class="jour-signature-quand">${escapeHtml(quandJour(s.date, aujourdhui))}${plage ? ' · ' + escapeHtml(plage) : ''}</span>
+                  <span class="jour-signature-nom">${escapeHtml(libelleDossierAffiche(s.dossier))}</span>
+                  ${[s.lieu, global && s.dossier.responsable ? prenomCollaborateur(s.dossier.responsable) : ''].filter(Boolean).length ? `<span class="jour-meta">${escapeHtml([s.lieu, global && s.dossier.responsable ? prenomCollaborateur(s.dossier.responsable) : ''].filter(Boolean).join(' · '))}</span>` : ''}
+                </button>
+                <div class="jour-signature-points">${s.points.map(p => `<span class="dot-label ${p.ok ? 'dl-success' : 'dl-pret'}"><span class="dot"></span>${escapeHtml(p.libelle)}</span>`).join('')}</div>
+              </li>`;
+            }).join('')}</ul>` : '<p class="jour-vide">Aucune signature dans les 7 prochains jours.</p>'}
+          </section>
+          <section class="jour-section">
+            <h3 class="jour-section-titre">À venir <span class="jour-nb">${aVenir.length}</span></h3>
+            <p class="jour-source">Rien à faire aujourd’hui, mais dans les ${JOURS_A_VENIR} prochains jours.</p>
+            ${aVenir.length ? `<ul class="jour-liste-simple">${aVenir.map(v => `<li><button type="button" class="lien-discret" onclick="executerFicheDossierJour('${v.dossier.id}')">${escapeHtml(v.titre)} — ${escapeHtml(v.dossier.nom)}</button>
+              <span class="jour-meta">${escapeHtml([v.detail, global && v.dossier.responsable ? prenomCollaborateur(v.dossier.responsable) : ''].filter(Boolean).join(' · '))}</span></li>`).join('')}</ul>` : '<p class="jour-vide">Rien d’autre à l’horizon.</p>'}
+          </section>
+        </div>
+        <aside class="jour-rail">
+          ${renderDepuisVisite(perimetre)}
+          <section class="jour-section">
+            <h3 class="jour-section-titre">Votre journée</h3>
+            <p class="jour-source">Ce que vous avez enregistré aujourd’hui dans CLAIRE.</p>
+            ${journal.length ? `<ul class="jour-journal">${journal.slice(0, 15).map(j => `<li><span class="jour-meta">${escapeHtml(j.heure)}</span><span>${escapeHtml(j.texte)} — <button type="button" class="lien-discret" onclick="executerFicheDossierJour('${j.dossier.id}')">${escapeHtml(j.dossier.nom)}</button></span></li>`).join('')}</ul>` : '<p class="jour-vide">Rien encore aujourd’hui.</p>'}
+          </section>
+          <section class="jour-section">
+            <h3 class="jour-section-titre">Mes rappels</h3>
+            <div class="rappels-perso jour-rappels">${renderMesRappels(perimetre)}</div>
+          </section>
+          ${equipe.length ? `<section class="jour-section">
+            <h3 class="jour-section-titre">L’équipe aujourd’hui</h3>
+            <ul class="jour-equipe">${equipe.map(e => `<li><span>${escapeHtml(e.nom)}</span><span class="jour-meta">${e.total} action${e.total > 1 ? 's' : ''}${e.critiques ? ` · <b class="jour-critique">${e.critiques} urgente${e.critiques > 1 ? 's' : ''}</b>` : ''}</span></li>`).join('')}</ul>
+          </section>` : ''}
+        </aside>
       </div>`;
+  }
+
+  // ---- Fenêtre du matin ----
+  // S'ouvre à la première connexion de la journée de ce collaborateur sur ce poste, et se rouvre
+  // depuis la page « Aujourd'hui ». Même liste que la carte et la page.
+  let fenetreAujourdhuiOuverte = false;
+
+  function ouvrirFenetreAujourdhui() {
+    fenetreAujourdhuiOuverte = true;
+    renderFenetreAujourdhui();
+    const b = document.getElementById('jour-fenetre-fermer');
+    if (b) b.focus({ preventScroll: true });
+  }
+
+  function fermerFenetreAujourdhui() {
+    if (!fenetreAujourdhuiOuverte) return;
+    fenetreAujourdhuiOuverte = false;
+    renderFenetreAujourdhui();
+  }
+
+  function ouvrirRapportDepuisFenetre() {
+    fermerFenetreAujourdhui();
+    definirOnglet('aujourdhui');
+  }
+
+  function ouvrirFenetreAujourdhuiSiPremiereFois() {
+    if (!utilisateurPoste) return;
+    const cle = PREFIXE_FENETRE_VUE + utilisateurPoste;
+    const aujourdhui = isoAujourdhuiLocal();
+    let vue = '';
+    try { vue = localStorage.getItem(cle) || ''; } catch (e) { vue = aujourdhui; }
+    if (vue === aujourdhui) return;
+    try { localStorage.setItem(cle, aujourdhui); } catch (e) { /* pas bloquant */ }
+    ouvrirFenetreAujourdhui();
+  }
+
+  function renderFenetreAujourdhui() {
+    const overlay = document.getElementById('aujourdhui-overlay');
+    if (!overlay) return;
+    if (!fenetreAujourdhuiOuverte) { overlay.style.display = 'none'; return; }
+    const perimetre = dossiersPerimetreJour();
+    const global = vueGlobaleDashboard();
+    const { actions, aVenir, traites } = etatAujourdhui();
+    const groupes = evenementsDepuisVisite(perimetre, derniereVisitePrecedente, utilisateurPoste);
+    const nbPieces = piecesDepuisVisite(perimetre, derniereVisitePrecedente).length;
+    const maintenant = new Date();
+    const contenu = document.getElementById('aujourdhui-fenetre-contenu');
+    contenu.innerHTML = `
+      <header class="jour-fenetre-tete">
+        <div class="dash-eyebrow">${escapeHtml(libelleDateDuJour())} · ${escapeHtml(maintenant.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }).replace(':', ' h '))}</div>
+        <h2 class="jour-fenetre-titre" id="jour-fenetre-titre">Bonjour ${escapeHtml(prenomCollaborateur(utilisateurPoste) || '')}</h2>
+        <p class="jour-resume">${resumeJour(actions.length, groupes.filter(g => g.lignes.some(l => l.type !== 'pieces')).length, nbPieces)}</p>
+        ${renderProgressionJour(actions.length, traites.length)}
+        <button type="button" class="icon-btn jour-fenetre-x" id="jour-fenetre-fermer" onclick="fermerFenetreAujourdhui()" aria-label="Fermer">${icone('x')}</button>
+      </header>
+      <div class="jour-fenetre-corps">
+        <div>
+          <h3 class="jour-section-titre">À faire maintenant <span class="jour-nb">${actions.length}</span></h3>
+          ${actions.length ? `<ul class="jour-actions">${actions.map(a => renderCarteActionJour(a, global)).join('')}</ul>` : '<p class="jour-vide jour-vide-ok">✓ Tout est traité pour aujourd’hui.</p>'}
+          ${renderTraitesJour(traites)}
+        </div>
+        <div class="jour-fenetre-rail">
+          ${renderDepuisVisite(perimetre)}
+          ${renderAVenirJour(aVenir, global, false)}
+        </div>
+      </div>
+      <footer class="jour-fenetre-pied">
+        <span>S’ouvre à votre première connexion de la journée.</span>
+        <span class="jour-espace"></span>
+        <button type="button" class="secondary" onclick="ouvrirRapportDepuisFenetre()">Rapport du jour</button>
+        <button type="button" class="primary" onclick="fermerFenetreAujourdhui()">Voir le tableau de bord</button>
+      </footer>`;
+    overlay.style.display = 'flex';
   }
 
   function render() {
@@ -14075,7 +14805,7 @@
   var MODELES_EMAIL_RELANCE = {
     provision: { cle: 'provision', libelle: 'Provision + pièce d’identité', construire: construireEmailRelanceProvision, historique: 'Relance manuelle envoyée — provision sur frais et pièce d’identité' },
     pret: { cle: 'pret', libelle: 'Prêt manquant', construire: construireEmailRelancePret, historique: 'Relance manuelle envoyée — offre de prêt' },
-    rib: { cle: 'rib', libelle: 'RIB', construire: construireEmailRelanceRib, historique: 'Relance manuelle envoyée — RIB' },
+    rib: { cle: 'rib', libelle: 'RIB', construire: construireEmailRelanceRib, historique: 'Relance manuelle envoyée — RIB', date: 'ribDemandeLe' },
     // `date` : champ du dossier qui mémorise l'envoi, pour que la carte dise ensuite « confirmée le … ».
     fonds: { cle: 'fonds', libelle: 'Confirmer la réception des fonds', construire: construireEmailReceptionFonds, historique: 'Email envoyé — confirmation de réception des fonds en comptabilité', date: 'receptionFondsConfirmeeLe' }
   };
@@ -14095,8 +14825,11 @@
     const { sujet, corps } = modele.construire(d);
     ajouterHistorique(d, modele.historique);
     if (modele.date) d[modele.date] = new Date().toISOString().slice(0, 10);
+    // Une relance de l'offre faite à la main compte comme la relance du jour : la suivante, manuelle
+    // ou automatique, n'est reproposée que 10 jours plus tard (voir relanceOffreDue).
+    if (type === 'pret') d.derniereRelanceAuto = isoAujourdhuiLocal();
     sauvegarder(d);
-    if (modele.date) render();
+    if (modele.date || type === 'pret') render();
     const copie = ouvrirBrouillonEmail(destinataire, sujet, corps);
     afficherInfoAction(
       "Brouillon ouvert",
@@ -14609,6 +15342,8 @@
     initUtilisateurPoste();
     await charger();
     demanderUtilisateurPosteSiInconnu();
+    // Première connexion de la journée : le point du matin (voir « Aujourd'hui »).
+    ouvrirFenetreAujourdhuiSiPremiereFois();
     chargerRappelsPerso();
     chargerPreferencesCollaborateur();
     await chargerEtatNas();
@@ -15682,6 +16417,7 @@
       // questionnaire est un fait réel déjà accompli par l'utilisateur : conservé tel quel.
       questionnaireEnvoyeLe: typeof d.questionnaireEnvoyeLe === 'string' ? d.questionnaireEnvoyeLe : null,
       receptionFondsConfirmeeLe: typeof d.receptionFondsConfirmeeLe === 'string' ? d.receptionFondsConfirmeeLe : null,
+      ribDemandeLe: typeof d.ribDemandeLe === 'string' ? d.ribDemandeLe : null,
       adresseBien: typeof d.adresseBien === 'string' ? d.adresseBien : '',
       nomAgence: typeof d.nomAgence === 'string' ? d.nomAgence : '',
       prixVente: Number.isFinite(d.prixVente) && d.prixVente > 0 ? d.prixVente : null,
@@ -18182,6 +18918,9 @@
       } else if (overlay && overlay.style.display === 'flex') {
         e.preventDefault();
         annulerConfirmation();
+      } else if (fenetreAujourdhuiOuverte) {
+        e.preventDefault();
+        fermerFenetreAujourdhui();
       } else if (barreSelection && barreSelection.style.display !== 'none') {
         e.preventDefault();
         masquerBoutonAjoutEngagement();
@@ -24159,6 +24898,7 @@
     const cibles = {
       'icon-burger': 'menu',
       'icon-nav-dashboard': 'layout',
+      'icon-nav-aujourdhui': 'sun',
       'icon-nav-suivi': 'list',
       'icon-signaler': 'flag',
       'icon-install': 'download',

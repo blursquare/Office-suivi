@@ -1,0 +1,126 @@
+const test = require('node:test');
+const assert = require('node:assert');
+const { chargerApplication } = require('./helpers/load-app');
+
+// « Aujourd'hui » : sélection des actions du jour, de ce qui a changé depuis la dernière visite,
+// du journal de la journée et de la préparation des signatures. Dossiers inventés.
+
+const app = chargerApplication();
+const AUJ = '2026-09-28';
+
+function dossier(extra) {
+  return Object.assign({ id: 'd1', nom: 'DUPONT / MARTIN', responsable: 'Julie VASSELIN', emailAcquereur: 'client@exemple.fr', historique: [] }, extra);
+}
+const types = (r) => r.actions.map(a => a.type).join(',');
+
+test('offre de prêt : relance proposée à J-15 puis attendue 10 jours après la dernière', () => {
+  const d = dossier({ pret: '2026-10-02' });
+  const r1 = app.actionsDuJour([d], AUJ);
+  assert.strictEqual(types(r1), 'pret');
+  assert.strictEqual(r1.actions[0].gravite, 'critique');
+  assert.strictEqual(r1.actions[0].geste.motif, 'pret');
+  const relance = app.actionsDuJour([dossier({ pret: '2026-10-02', derniereRelanceAuto: '2026-09-25' })], AUJ);
+  assert.strictEqual(types(relance), '');
+  assert.match(relance.aVenir.map(v => v.titre).join('|'), /Offre de prêt relancée/);
+  // Offre reçue : plus rien.
+  assert.strictEqual(types(app.actionsDuJour([dossier({ pret: '2026-10-02', offrePretStatut: 'recue' })], AUJ)), '');
+  // Au-delà de 15 jours : rien aujourd'hui.
+  assert.strictEqual(types(app.actionsDuJour([dossier({ pret: '2026-11-30' })], AUJ)), '');
+});
+
+test('sans email, la relance de l’offre ouvre la fiche au lieu d’un brouillon', () => {
+  const r = app.actionsDuJour([dossier({ pret: '2026-10-02', emailAcquereur: '' })], AUJ);
+  assert.strictEqual(r.actions[0].geste.type, 'fiche');
+  assert.match(r.actions[0].contexte, /non renseigné/);
+});
+
+test('avant la signature : appel de fonds, puis projet, confirmation des fonds et RIB', () => {
+  const base = { rendezVousSignature: '2026-09-30', sansPret: true };
+  assert.strictEqual(types(app.actionsDuJour([dossier(base)], AUJ)), 'appelFonds,rib');
+  const apresAppel = dossier(Object.assign({}, base, { appelFonds: '2026-09-21', echeancesValidees: { appelFonds: true } }));
+  assert.strictEqual(types(app.actionsDuJour([apresAppel], AUJ)), 'projetEnvoye,fonds,rib');
+  const tout = dossier(Object.assign({}, base, {
+    appelFonds: '2026-09-21', projetEnvoye: '2026-09-24', receptionFondsConfirmeeLe: '2026-09-25', ribDemandeLe: '2026-09-26',
+    echeancesValidees: { appelFonds: true, projetEnvoye: true }
+  }));
+  assert.strictEqual(types(app.actionsDuJour([tout], AUJ)), '');
+  // Le RIB déjà demandé par l'ancienne relance (historique seul) compte aussi.
+  const ancien = dossier(Object.assign({}, base, { historique: [{ date: '2026-09-20T09:00:00Z', texte: 'Relance manuelle envoyée — RIB' }] }));
+  assert.ok(!types(app.actionsDuJour([ancien], AUJ)).includes('rib'));
+});
+
+test('signature lointaine : rien à faire, elle part dans « À venir »', () => {
+  const r = app.actionsDuJour([dossier({ rendezVousSignature: '2026-10-20', sansPret: true })], AUJ);
+  assert.strictEqual(types(r), '');
+  const datees = r.aVenir.filter(v => v.iso);
+  assert.strictEqual(datees.length, 1);
+  assert.strictEqual(datees[0].iso, '2026-10-20');
+  // Le dossier pas encore relié au NAS y figure aussi, sans date.
+  assert.ok(r.aVenir.some(v => v.titre === 'Relier le dossier du NAS'));
+});
+
+test('après la signature : questionnaire, jamais au confrère', () => {
+  const r = app.actionsDuJour([dossier({ rendezVousSignature: '2026-09-24', sansPret: true, echeancesValidees: { appelFonds: true, projetEnvoye: true } })], AUJ);
+  assert.strictEqual(types(r), 'questionnaire');
+  const confrere = app.actionsDuJour([dossier({ rendezVousSignature: '2026-09-24', sansPret: true, notaireAcquereur: 'Maître Paul LAMBERT', echeancesValidees: { appelFonds: true, projetEnvoye: true } })], AUJ);
+  assert.strictEqual(types(confrere), '');
+});
+
+test('les autres points ouvrent la fiche ; un dossier archivé ne produit rien', () => {
+  const r = app.actionsDuJour([dossier({ sansPret: true, ventebien: '2026-09-30' })], AUJ);
+  assert.strictEqual(r.actions.length, 1);
+  assert.strictEqual(r.actions[0].geste.type, 'fiche');
+  assert.strictEqual(r.actions[0].titre, 'Confirmer la vente préalable');
+  assert.strictEqual(app.actionsDuJour([dossier({ pret: '2026-10-02', archive: true })], AUJ).actions.length, 0);
+});
+
+test('tri : le plus grave puis le plus proche ; clés stables', () => {
+  const a = dossier({ id: 'a', nom: 'A / A', sansPret: true, rendezVousSignature: '2026-10-03' });
+  const b = dossier({ id: 'b', nom: 'B / B', pret: '2026-10-01' });
+  const r = app.actionsDuJour([a, b], AUJ);
+  assert.strictEqual(r.actions[0].cle, 'b:pret');
+  assert.ok(r.actions.every(x => x.cle === `${x.dossier.id}:${x.type}`));
+});
+
+test('brouillonAction reprend les modèles de l’étude', () => {
+  const r = app.actionsDuJour([dossier({ pret: '2026-10-02' })], AUJ);
+  const b = app.brouillonAction(r.actions[0]);
+  assert.strictEqual(b.a, 'client@exemple.fr');
+  assert.match(b.corps, /Nous n'avons pas encore reçu votre offre de prêt/);
+});
+
+test('depuis la dernière visite : pièces et changements des autres, pas les siens', () => {
+  const d = dossier({
+    piecesTrouveesLe: { titrePropriete: '2026-09-27T10:00:00Z' },
+    historique: [
+      { date: '2026-09-26T08:00:00Z', texte: 'Ancien', auteur: 'Bastien ANGLUMENT' },
+      { date: '2026-09-27T09:00:00Z', texte: 'Rendez-vous déplacé', auteur: 'Bastien ANGLUMENT' },
+      { date: '2026-09-27T11:00:00Z', texte: 'Moi', auteur: 'Julie VASSELIN' },
+      { date: '2026-09-27T12:00:00Z', texte: 'Envoi relevé dans l’agenda' }
+    ]
+  });
+  const g = app.evenementsDepuisVisite([d], '2026-09-26T18:00:00Z', 'Julie VASSELIN');
+  assert.strictEqual(g.length, 1);
+  const textes = g[0].lignes.map(l => l.texte).join('|');
+  assert.match(textes, /1 pièce trouvée sur le NAS/);
+  assert.match(textes, /Rendez-vous déplacé/);
+  assert.match(textes, /agenda/);
+  assert.doesNotMatch(textes, /Moi|Ancien/);
+  assert.strictEqual(app.evenementsDepuisVisite([d], null, 'Julie VASSELIN').length, 0);
+});
+
+test('préparation des signatures : ce qui est prêt et ce qui manque', () => {
+  const d = dossier({ rendezVousSignature: '2026-09-30', sansPret: true, roleNotaire: 'participant', echeancesValidees: { appelFonds: true } });
+  const s = app.preparationSignatures([d], AUJ);
+  assert.strictEqual(s.length, 1);
+  assert.strictEqual(s[0].points.map(p => p.libelle + ':' + p.ok).join(','), 'Appel de fonds:true,Fonds confirmés:false,Projet envoyé:false,RIB demandé:false');
+  assert.strictEqual(s[0].pret, false);
+});
+
+test('texte de la liste du jour', () => {
+  const r = app.actionsDuJour([dossier({ pret: '2026-10-02' })], AUJ);
+  const t = app.texteListeDuJour(r.actions, AUJ, 'Julie VASSELIN');
+  assert.match(t, /^Aujourd'hui — /);
+  assert.match(t, /- Relancer l’offre de prêt — VENTE DUPONT \/ MARTIN \(J-4\)/);
+  assert.match(app.texteListeDuJour([], AUJ, ''), /Rien à faire/);
+});

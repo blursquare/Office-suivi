@@ -837,6 +837,7 @@
     .sidebar.repliee .sidebar-nav-titre,
     .sidebar.repliee .sidebar-groupe-titre,
     .sidebar.repliee .sidebar-badge-notif,
+    .sidebar.repliee .sidebar-compteur,
     .sidebar.repliee .stade-badge {
       display: none;
     }
@@ -5694,3 +5695,186 @@ button.lien-action:hover { text-decoration: underline; }
 .alerte-autre.g-critique { color: var(--urgent); }
 .alerte-autre.g-vigilance { color: var(--pret); }
 .a-traiter-vide { padding: 16px 18px; font-size: 13.5px; color: var(--success); border-bottom: 1px solid var(--line-soft); }
+
+/* ---- « Aujourd'hui » : carte du tableau de bord, page du jour, point du matin (voir la section
+   AUJOURD'HUI de script.js) ---- */
+.sidebar-compteur {
+  margin-left: auto; display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
+  background: var(--line); color: var(--ink); font-size: 11px; font-weight: 700; line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.sidebar-link.actif .sidebar-compteur { background: var(--focus); color: var(--on-accent); }
+
+/* Barre de progression de la journée : verte, elle avance à chaque action traitée. */
+.jour-progression { display: flex; align-items: center; gap: 12px; font-size: 12.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.jour-barre { flex: 0 1 220px; min-width: 60px; height: 6px; border-radius: 6px; background: var(--line-soft); overflow: hidden; }
+.jour-barre > span { display: block; height: 100%; border-radius: 6px; background: var(--success); transition: width 0.25s ease; }
+
+/* Carte du tableau de bord : une ligne par action, geste à droite. */
+.jour-carte-corps { padding: 12px 18px 6px; display: flex; flex-direction: column; gap: 6px; }
+.jour-carte-corps .a-traiter-vide { padding: 8px 0; border-bottom: none; }
+.jour-lignes { list-style: none; margin: 0; padding: 0; }
+.jour-ligne {
+  display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; gap: 4px 10px; align-items: start;
+  grid-template-areas: "point texte delai" ". boutons boutons";
+  padding: 10px 0; border-top: 1px solid var(--line-soft);
+}
+.jour-ligne > .dot-label { grid-area: point; }
+.jour-ligne > .jour-ligne-texte { grid-area: texte; }
+.jour-ligne > .jour-delai { grid-area: delai; padding-top: 1px; }
+.jour-ligne > .jour-ligne-boutons { grid-area: boutons; justify-content: flex-end; }
+.jour-ligne:first-child { border-top: none; }
+.jour-ligne > .dot-label { padding-top: 6px; }
+.jour-ligne-texte { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.jour-ligne-titre { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+button.lien-discret.jour-ligne-dossier { align-self: flex-start; text-align: left; font-size: 12.5px; color: var(--ink-soft); text-decoration: none; }
+button.lien-discret.jour-ligne-dossier:hover { color: var(--focus); text-decoration: underline; }
+.jour-ligne-boutons { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+.jour-delai { font-size: 12px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.jour-delai.proche { color: var(--urgent); }
+.jour-ligne-boutons button.primary.jour-bouton-petit { padding: 4px 10px; font-size: 12px; font-weight: 600; border-radius: 6px; }
+
+/* Listes repliables (traité, à venir). */
+.jour-replie { border-top: 1px solid var(--line-soft); padding: 10px 0 4px; }
+.jour-replie summary {
+  list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px;
+  font-size: 12.5px; font-weight: 600; color: var(--ink-soft);
+}
+.jour-replie summary::-webkit-details-marker { display: none; }
+.jour-replie summary .jour-chevron { margin-left: auto; color: var(--muted); transition: transform 0.15s ease; }
+.jour-replie[open] summary .jour-chevron { transform: rotate(180deg); }
+.jour-liste-simple { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; }
+.jour-liste-simple li {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; padding: 6px 0;
+  border-top: 1px solid var(--line-soft); font-size: 13px;
+}
+.jour-liste-simple li:first-child { border-top: none; }
+.jour-liste-simple li .barre { text-decoration: line-through; text-decoration-color: var(--muted); color: var(--ink-soft); }
+.jour-liste-simple li > button.lien-discret:last-child { margin-left: auto; }
+.jour-liste-simple button.lien-discret { font-size: 13px; color: var(--ink); text-decoration: none; text-align: left; }
+.jour-liste-simple button.lien-discret:hover { color: var(--focus); text-decoration: underline; }
+.jour-meta { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* Sections de la page et de la fenêtre. */
+.jour-section-titre {
+  display: flex; align-items: baseline; gap: 8px; margin: 0 0 2px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink);
+}
+.jour-nb { font-weight: 600; color: var(--muted); letter-spacing: 0; }
+.jour-source { margin: 0 0 12px; font-size: 12.5px; color: var(--muted); max-width: 70ch; }
+.jour-vide { margin: 0; font-size: 13px; color: var(--muted); }
+.jour-vide-ok { color: var(--success); }
+.jour-resume { margin: 0; color: var(--ink-soft); max-width: 75ch; }
+.jour-resume b { color: var(--ink); font-weight: 600; }
+
+/* Action en carte : catégorie, titre, dossier, contexte, puis le geste. */
+.jour-actions { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.jour-action { border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; background: var(--paper-card); }
+.jour-action-tete { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+.jour-action-tete .jour-delai { margin-left: auto; }
+.jour-action-titre { margin: 6px 0 0; font-size: 15px; font-weight: 600; color: var(--ink); }
+.jour-action-dossier { margin: 1px 0 0; }
+.jour-action-dossier button.lien-discret { font-size: 13px; color: var(--ink-soft); text-decoration: none; font-weight: 500; text-align: left; }
+.jour-action-dossier button.lien-discret:hover { color: var(--focus); text-decoration: underline; }
+.jour-action-contexte { margin: 6px 0 0; font-size: 13px; color: var(--ink-soft); max-width: 75ch; }
+.jour-action-boutons { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 12px; }
+.jour-action-boutons button.primary.jour-bouton {
+  display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; font-size: 13px; font-weight: 600; border-radius: 8px;
+}
+.jour-action-boutons button.lien-action { font-size: 13px; font-weight: 500; }
+.jour-redige { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--success); }
+.jour-action-boutons .jour-plus-tard { margin-left: auto; text-decoration: none; }
+.jour-brouillon { margin-top: 12px; border: 1px solid var(--line-soft); border-radius: 10px; background: var(--paper-sunk); padding: 12px 14px; font-size: 13px; }
+.jour-brouillon dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 10px; margin: 0 0 10px; font-size: 12.5px; }
+.jour-brouillon dt { color: var(--muted); }
+.jour-brouillon dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
+.jour-brouillon p { margin: 0 0 8px; color: var(--ink-soft); max-width: 70ch; overflow-wrap: anywhere; }
+.jour-brouillon p:last-child { margin-bottom: 0; }
+
+/* Page « Aujourd'hui ». */
+.jour-entete-page { display: flex; flex-direction: column; gap: 12px; margin: 6px 0 22px; }
+.jour-entete-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.jour-entete-actions button.secondary { display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; font-size: 13px; border-radius: 8px; }
+.jour-grille { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+.jour-grille > * { min-width: 0; }
+.jour-principal, .jour-rail { display: flex; flex-direction: column; gap: 22px; }
+.jour-section {
+  background: var(--paper-card); border: 1px solid var(--line); border-radius: 12px;
+  box-shadow: var(--shadow-card); padding: 16px 18px;
+}
+.jour-section .jour-actions .jour-action { box-shadow: none; }
+.jour-rappels { padding: 0; }
+
+.jour-signatures { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.jour-signature { padding: 10px 0; border-top: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 6px; }
+.jour-signature:first-child { border-top: none; padding-top: 0; }
+.jour-signature-tete {
+  display: flex; flex-direction: column; gap: 1px; align-items: flex-start; text-align: left;
+  font-family: inherit; background: none; border: none; padding: 0; cursor: pointer; color: var(--ink);
+}
+.jour-signature-tete:hover .jour-signature-nom { color: var(--focus); }
+.jour-signature-quand { font-size: 12px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.jour-signature-quand:first-letter { text-transform: uppercase; }
+.jour-signature-nom { font-size: 14px; font-weight: 600; }
+.jour-signature-points { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; }
+
+.jour-fil { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.jour-fil-groupe { padding: 10px 0; border-top: 1px solid var(--line-soft); }
+.jour-fil-groupe:first-child { border-top: none; padding-top: 0; }
+.jour-fil-groupe ul { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.jour-fil-dossier { font-family: inherit; font-size: 13px; font-weight: 600; color: var(--ink); background: none; border: none; padding: 0; cursor: pointer; text-align: left; }
+.jour-fil-dossier:hover { color: var(--focus); text-decoration: underline; }
+.jour-fil-ligne { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 8px; font-size: 12.5px; color: var(--ink-soft); }
+.jour-fil-qui { font-size: 11.5px; font-weight: 600; color: var(--muted); }
+.jour-nouveau { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--notif-nouveau); }
+
+.jour-journal { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.jour-journal li { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 8px; font-size: 13px; color: var(--ink-soft); }
+.jour-journal button.lien-discret { font-size: 13px; }
+.jour-equipe { list-style: none; margin: 0; padding: 0; }
+.jour-equipe li { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; border-top: 1px solid var(--line-soft); font-size: 13px; }
+.jour-equipe li:first-child { border-top: none; }
+.jour-critique { color: var(--urgent); font-weight: 600; }
+
+/* Fenêtre du matin : sous les popups d'information et de confirmation (z-index 1000), qui peuvent
+   s'ouvrir par-dessus après un clic sur « Ouvrir la relance ». */
+.jour-overlay {
+  position: fixed; inset: 0; z-index: 950; background: rgba(20, 26, 38, 0.46);
+  display: flex; align-items: center; justify-content: center; padding: 24px 16px;
+}
+[data-theme="dark"] .jour-overlay { background: rgba(0, 0, 0, 0.58); }
+.jour-fenetre {
+  width: min(1000px, 100%); max-height: calc(100vh - 48px); display: flex; flex-direction: column; overflow: hidden;
+  background: var(--paper-card); color: var(--ink); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow-float);
+}
+.jour-fenetre-tete { position: relative; padding: 22px 28px 18px; border-bottom: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 8px; }
+.jour-fenetre-titre { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+.jour-fenetre-x { position: absolute; top: 14px; right: 14px; }
+.jour-fenetre-corps {
+  overflow-y: auto; padding: 20px 28px 24px;
+  display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); gap: 28px;
+}
+.jour-fenetre-corps > * { min-width: 0; }
+.jour-fenetre-corps .jour-section-titre { margin-bottom: 12px; }
+.jour-fenetre-rail { display: flex; flex-direction: column; gap: 18px; }
+.jour-fenetre-rail .jour-section { border: none; box-shadow: none; padding: 0; background: none; }
+.jour-fenetre-pied {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 14px 28px;
+  border-top: 1px solid var(--line-soft); background: var(--paper-sunk); font-size: 12.5px; color: var(--muted);
+}
+.jour-espace { flex: 1 1 auto; }
+.jour-fenetre-pied button.primary, .jour-fenetre-pied button.secondary { padding: 8px 14px; font-size: 13px; border-radius: 8px; }
+
+@media (max-width: 1100px) { .jour-grille { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 860px) { .jour-fenetre-corps { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 600px) {
+  .jour-overlay { padding: 0; align-items: stretch; }
+  .jour-fenetre { max-height: none; height: 100%; border-radius: 0; border: none; }
+  .jour-fenetre-tete, .jour-fenetre-corps, .jour-fenetre-pied { padding-left: 16px; padding-right: 16px; }
+  .jour-fenetre-titre { font-size: 22px; padding-right: 36px; }
+}
+@media print { .jour-overlay { display: none !important; } }
+.jour-page-tete { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
+.jour-page-tete .dash-titre { font-size: 32px; line-height: 1.15; }
+@media (max-width: 900px) { .jour-page-tete .dash-titre { font-size: 26px; } }

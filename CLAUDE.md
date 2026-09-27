@@ -8398,6 +8398,50 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     (fiche, refus d'un mobilier supérieur au prix, simulateur 16 767 € → 16 509 € avec 3 500 € de
     mobilier sur 200 000 €, préremplissage de l'appel de fonds, clair/sombre/400 px, aucune erreur JS).
 
+- **« Aujourd'hui » : carte du tableau de bord, page du jour et point du matin** (27/09 soir). Parti
+  de la présentation de « Today » (Copilot) montrée par l'étude, puis d'une maquette validée en
+  artefact (« C'est bien, fais le changement, permets d'accéder à une page du rapport de la journée
+  plus complet, pense à d'autres fonctions, mets un lien dans la sidebar, Aujourd'hui au lieu de
+  matinée »). Trois surfaces lisent la MÊME liste (section AUJOURD'HUI de `script.js`) :
+  - **Carte « Aujourd'hui »** à la place de « À traiter » (même conteneur `#alertes-dashboard`,
+    même fonction `renderAlertesDashboard`, appelée par les rappels) : une ligne par action (titre,
+    dossier, délai, « Plus tard » et le geste), barre de progression, « Traité ou reporté »,
+    « À venir » repliés, « Mes rappels » en pied. Lien « Rapport du jour ».
+  - **Page « Aujourd'hui »** (`#onglet-aujourdhui`, lien de sidebar sous « Tableau de bord » avec le
+    nombre d'actions restantes, `.sidebar-compteur`) : À faire maintenant (cartes détaillées, texte
+    du brouillon visible avant le clic), Signatures des 7 prochains jours (offre, pièces, appel de
+    fonds, fonds confirmés, projet, RIB — `preparationSignatures`), À venir (30 jours), Depuis votre
+    dernière visite (`evenementsDepuisVisite` : pièces trouvées, lignes d'historique écrites par un
+    collègue ou par CLAIRE — agenda, NAS — jamais les siennes), Votre journée (`journalDuJour`,
+    historique signé du collaborateur aujourd'hui), Mes rappels, et pour l'administrateur en vue
+    globale « L'équipe aujourd'hui » (`chargeEquipeDuJour`). « Copier ma liste » met la liste en
+    texte dans le presse-papiers (`texteListeDuJour`).
+  - **Point du matin** (`#aujourdhui-overlay`) : ouvert à la première connexion de la journée de ce
+    collaborateur sur ce poste (`claire-aujourdhui-vue:<nom>`), au démarrage ou juste après avoir
+    choisi qui utilise le poste ; rouvrable depuis la page. `z-index: 950`, sous les popups
+    d'information (1000) qui s'ouvrent par-dessus après un brouillon.
+  - **Sélection (`actionsDuJour`, pure, `tests/aujourdhui.test.js`)** : relance de l'offre de prêt
+    quand `relanceOffreDue` (J-15 puis tous les 10 jours, même règle que la relance automatique) ;
+    à 7 jours ou moins d'une signature, appel de fonds (« Préparer » ou « Déjà envoyé »), projet
+    (« Marquer envoyé » = saisir la date du jour, comme la carte « Envoi au client »), confirmation
+    des fonds ; RIB à 3 jours ; questionnaire dans les 30 jours après la signature (jamais au
+    confrère) ; puis les autres points d'`alertesImportantes`/`pointsEtatDossier` (vente préalable,
+    date butoir, pièces) qui ouvrent la fiche. Les points « info » et la prochaine échéance à
+    30 jours vont dans « À venir ». Clé stable `idDossier:type`. Les brouillons sont ceux de
+    `MODELES_EMAIL_RELANCE` (`brouillonAction`) : un seul texte par motif dans tout l'outil.
+  - **Deux changements de comportement associés** : une relance « Prêt manquant » envoyée à la main
+    pose `d.derniereRelanceAuto` (elle compte comme la relance du jour — sinon l'action revenait le
+    lendemain) ; l'email RIB mémorise `d.ribDemandeLe` (conservé à l'import) pour ne plus être
+    reproposé — l'ancienne ligne d'historique « Relance manuelle envoyée — RIB » compte aussi.
+  - **« Plus tard » et « Traité aujourd'hui »** sont gardés dans le navigateur, par collaborateur
+    (`claire-aujourdhui:<nom>`) : une préférence de travail, dont la perte ne coûte rien (l'action
+    revient). « Mes rappels » n'est rendu qu'une fois à la fois (page OU carte) : les deux
+    formulaires porteraient les mêmes id.
+  - Vérifié dans un vrai Chromium (serveur réel, 7 dossiers inventés, clair, sombre, 400 px) :
+    fenêtre ouverte au premier chargement, brouillon affiché, report et « Marquer envoyé » qui
+    retirent l'action et la notent dans « Traité », page complète, aucun débordement, aucune
+    erreur JS. Suite racine 840 → 851.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

@@ -61,6 +61,12 @@
       <button type="button" id="tab-dashboard" class="sidebar-link actif" role="tab" aria-selected="true" onclick="definirOnglet('dashboard')">
         <span class="sidebar-link-icone" id="icon-nav-dashboard" aria-hidden="true"></span>Tableau de bord
       </button>
+      <!-- « Aujourd'hui » : le rapport de la journée du collaborateur du poste (voir la section
+           AUJOURD'HUI de script.js). Le compteur dit combien d'actions restent à faire. -->
+      <button type="button" id="tab-aujourdhui" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('aujourdhui')">
+        <span class="sidebar-link-icone" id="icon-nav-aujourdhui" aria-hidden="true"></span>Aujourd’hui
+        <span class="sidebar-compteur" id="badge-aujourdhui" style="display:none;"></span>
+      </button>
 
       <span class="sidebar-nav-titre">Dossier</span>
       <button type="button" id="tab-suivi" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('suivi')">
@@ -138,6 +144,15 @@
   </aside>
 
   <main class="app-main">
+
+<!-- Page « Aujourd'hui » : rapport complet de la journée (renderPageAujourdhui). -->
+<div class="onglet-panel" id="onglet-aujourdhui" style="display:none;">
+  <div class="jour-page-tete">
+    <div class="dash-eyebrow" id="aujourdhui-date">Aujourd’hui</div>
+    <h1 class="dash-titre" id="aujourdhui-titre">Aujourd’hui</h1>
+  </div>
+  <div id="aujourdhui-contenu"></div>
+</div>
 
 <div class="onglet-panel" id="onglet-dashboard">
   <!-- Disposition en deux colonnes (demandée par l'étude d'après une maquette : quatre blocs de
@@ -1949,6 +1964,12 @@
       <button type="button" class="btn-confirmer btn-valider" id="signalement-envoyer" onclick="envoyerSignalement()">Envoyer le signalement</button>
     </div>
   </div>
+</div>
+
+<!-- Point du matin : s'ouvre à la première connexion de la journée (voir
+     ouvrirFenetreAujourdhuiSiPremiereFois dans script.js). -->
+<div class="jour-overlay" id="aujourdhui-overlay" style="display:none;" onclick="if (event.target === this) fermerFenetreAujourdhui()">
+  <section class="jour-fenetre" role="dialog" aria-modal="true" aria-labelledby="jour-fenetre-titre" id="aujourdhui-fenetre-contenu"></section>
 </div>
 
 <!-- Fiche dossier en tiroir latéral plutôt qu'en dépliant la ligne du tableau : sur une
