@@ -416,9 +416,13 @@
         </div>
 
         <div class="field-row">
-          <div style="grid-column: 1 / -1;">
+          <div>
             <label for="f-nom-agence">Agence immobilière (détectée automatiquement)</label>
             <input type="text" id="f-nom-agence" placeholder="Ex. CENTURY 21 Les Tilleuls">
+          </div>
+          <div>
+            <label for="f-prix-mobilier">Dont mobilier (compris dans le prix)</label>
+            <input type="text" id="f-prix-mobilier" inputmode="numeric" placeholder="Laisser vide s'il n'y en a pas" title="Part du prix qui porte sur des meubles : elle sort de l'assiette des droits de mutation.">
           </div>
         </div>
 
@@ -662,6 +666,11 @@
         <div class="calc-champ">
           <label for="calc-price">Prix / valeur d'assiette (€)</label>
           <input type="number" id="calc-price" min="1" step="1" placeholder="Saisir le prix" oninput="calculerFraisActe()">
+        </div>
+        <div class="calc-champ">
+          <label for="calc-mobilier">Dont mobilier (€)</label>
+          <input type="number" id="calc-mobilier" min="0" step="1" placeholder="Aucun" oninput="calculerFraisActe()">
+          <p class="hint">Les meubles vendus avec le bien sortent de l'assiette des droits de mutation.</p>
         </div>
         <div class="calc-champ">
           <label for="calc-dept">Département de situation du bien</label>
@@ -936,7 +945,11 @@
             </select>
           </div>
         </div>
-        <p class="hint">Repris tout seuls de l'adresse et de la désignation saisies ci-dessus, et modifiables. Servent uniquement à <b>contrôler</b> la ligne « frais et droits de l'acte de vente » du décompte : CLAIRE dit si le montant saisi est au-dessus ou en dessous de son barème, elle ne le remplit jamais. Ce barème n'a pas été audité — le chiffre reste le vôtre.</p>
+        <div class="calc-champ">
+          <label for="af-prix-mobilier">Dont mobilier compris dans le prix (€)</label>
+          <input type="text" id="af-prix-mobilier" inputmode="numeric" placeholder="Aucun" oninput="renderTableAppelFonds()">
+        </div>
+        <p class="hint">Repris tout seuls de l'adresse et de la désignation saisies ci-dessus (le mobilier, du dossier rattaché), et modifiables. Le mobilier est retiré du prix avant le contrôle : il n'entre pas dans l'assiette des droits de mutation. Servent uniquement à <b>contrôler</b> la ligne « frais et droits de l'acte de vente » du décompte : CLAIRE dit si le montant saisi est au-dessus ou en dessous de son barème, elle ne le remplit jamais. Ce barème n'a pas été audité — le chiffre reste le vôtre.</p>
       </div>
 
       <div class="dash-section-titre" style="margin-top:18px;">6 · Financement</div>

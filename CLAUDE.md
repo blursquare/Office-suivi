@@ -8355,6 +8355,38 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     `grep -c $'\x08' script.js` doit rendre 0.
   - Suites : racine 809 → 830, serveur 383 (inchangée, chantier client).
 
+- **Mobilier compris dans le prix de vente** (27/09/2026, « parfois le prix de vente comprend du
+  mobilier, il faut le prendre en compte »). **Le prix reste le prix TOTAL** (`d.prixVente`, ce que
+  paie l'acquéreur, ce que l'apport compare au prêt) ; la part du mobilier est un champ À PART,
+  `d.prixMobilier`, parce qu'elle sort de l'assiette des droits de mutation (art. 735 CGI, cité par
+  les actes eux-mêmes) — c'est là, et seulement là, qu'elle change un calcul.
+  - **Détection** (`detecterPrixMobilier`/`detecterMobilierPrixDetail`, `RES_MOBILIER_PRIX`),
+    écrite sur les formulations relevées dans les actes réels du stress test : « ce prix
+    comprenant celui du mobilier dont le montant est évalué à … (6110 €) » (FERNANDES), « s'appliquant
+    aux MEUBLES à concurrence de … (4 450,00 EUR) » (promesse et vente MOKADEM), « minorée de
+    l'évaluation des meubles » (assiette des droits), plus « dont 5 000 € de mobilier » et « prix du
+    mobilier : … » des trames d'agence. **Jamais la seule liste des meubles** (son total peut ne pas
+    être repris dans le prix) ni la clause « aucun meuble n'est vendu », et le mobilier d'une
+    acquisition antérieure (clause de plus-value) est écarté comme pour le prix. Rejoué sur les 29 PDF :
+    trouvé sur les trois actes qui en ventilent, rien ailleurs, aucun faux prix contradictoire.
+  - **Chaîne complète, comme le dépôt de garantie** : champ `prixMobilier` de l'extraction (avec sa
+    source), ligne « Dont mobilier » du panneau « Ce que l'outil a compris » (éditable), champ
+    `#f-prix-mobilier` à l'étape Finaliser, conservé à l'import d'une sauvegarde, ligne « Dont mobilier »
+    de la fiche (`changerPrixMobilier`, refuse un montant qui n'est pas inférieur au prix). Alerte
+    `MOBILIER_SUPERIEUR_PRIX` si le mobilier lu n'est pas inférieur au prix (l'un des deux est mal lu).
+  - **Frais d'acte** : `assietteImmobiliere(prix, mobilier)` (pure) — utilisée par le simulateur de
+    provision (nouveau champ « Dont mobilier », l'assiette retenue s'affiche dans le bandeau) et par le
+    contrôle du barème de l'appel de fonds (nouveau champ `#af-prix-mobilier`, prérempli du dossier
+    rattaché). Sans cela, un décompte de confrère qui a correctement déduit le mobilier paraissait
+    « sous le barème ». Le prix d'acquisition du décompte reste le prix total.
+  - **Relecture d'actes** : « Dont mobilier » dans la fiche d'identité quand l'acte en ventile, et
+    trois constats de comparaison avant-contrat → projet : mobilier non repris (IMPORTANT, les droits
+    porteraient sur tout le prix), différent (IMPORTANT), ajouté (A_VERIFIER). Une référence tirée d'un
+    dossier créé avant cette détection (clé absente, pas « null ») ne permet aucune conclusion.
+  - Tests : `tests/prix-mobilier.test.js` (10). Suite racine 830 → 840. Vérifié dans un vrai Chromium
+    (fiche, refus d'un mobilier supérieur au prix, simulateur 16 767 € → 16 509 € avec 3 500 € de
+    mobilier sur 200 000 €, préremplissage de l'appel de fonds, clair/sombre/400 px, aucune erreur JS).
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-27 18:19';
+  const VERSION_APP = '2026-09-27 18:31';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-27 18:31', resume: "Mobilier compris dans le prix : détecté à l'import (« ce prix comprenant celui du mobilier… », « aux meubles à concurrence de… »), modifiable sur la fiche, retiré de l'assiette des frais d'acte (simulateur et contrôle de l'appel de fonds), comparé entre avant-contrat et projet dans la relecture." },
     { version: '2026-09-27 18:19', resume: "Relecture d'actes : panneau « Diagnostic de la relecture » (clauses retenues et écartées par thème, avec la raison et la page). Import d'un acte : cadastre sur plusieurs parcelles avec contenance totale, prix contradictoires signalés, SIREN/siège/capital d'une société lus." },
     { version: '2026-09-27 17:37', resume: "Thème de couleur « Prune » retiré (cinq thèmes restants : bordeaux, bleu, vert, orange, noir et blanc)." },
     { version: '2026-09-27 17:32', resume: "Nouveau thème de couleur « Noir & blanc » (gris strictement neutre, sans teinte) dans Réglages › Général › Sur ce poste, à côté du bordeaux/bleu/vert/prune/orange." },
@@ -693,6 +694,59 @@
     });
     base.raison = `L’acte cite plusieurs prix pour cette vente : ${distincts.map(formaterPrix).join(' et ')}.`;
     return base;
+  }
+
+  // ---- Mobilier compris dans le prix ----------------------------------------------------------
+  // Une vente porte parfois aussi sur des meubles (cuisine équipée, électroménager…) valorisés à
+  // part. Le prix reste le prix TOTAL (c'est ce que l'acquéreur paie, et ce que l'apport compare au
+  // prêt), mais la part du mobilier sort de l'assiette des droits de mutation (art. 735 CGI) : elle
+  // doit donc être connue pour estimer les frais d'acte et relire la ventilation.
+  // Formulations relevées sur les actes réels du stress test, toutes dans la clause du PRIX :
+  //  - « Ce prix comprenant celui du mobilier dont le montant est évalué à SIX MILLE… (6110 €) » ;
+  //  - « s'appliquant : - Aux MEUBLES à concurrence de QUATRE MILLE… (4 450,00 EUR) » ;
+  //  - « Minorée de l'évaluation des meubles s'élevant à … (4 450,00 EUR) » (assiette des droits) ;
+  // plus deux écritures courtes des trames d'agence : « dont 5 000 € de mobilier », « prix du
+  // mobilier : 5 000 € ». Jamais la seule LISTE des meubles (son total peut ne pas être repris
+  // dans le prix), jamais une clause « aucun meuble n'est vendu ».
+  var MONTANT_MOBILIER = '([\\d](?:[\\d\\s.]{0,14})?(?:,\\d{2})?)\\s*(?:€|eur(?:os?)?\\b)';
+  var RES_MOBILIER_PRIX = [
+    new RegExp('(?:MEUBLES|mobilier|biens\\s+mobiliers|objets\\s+mobiliers)\\s+(?:à|a)\\s+concurrence\\s+de[^(.]{0,160}\\(\\s*' + MONTANT_MOBILIER + '\\s*\\.?\\s*\\)', 'i'),
+    new RegExp('(?:comprenant|comprend|incluant|inclut|y\\s+compris)\\s+(?:celui|le\\s+prix|la\\s+valeur)?\\s*(?:du|des|de\\s+la)?\\s*(?:mobilier|meubles|biens\\s+mobiliers)[^(.]{0,200}\\(\\s*' + MONTANT_MOBILIER + '\\s*\\.?\\s*\\)', 'i'),
+    new RegExp('(?:minor[ée]e?|diminu[ée]e?)\\s+de\\s+l[\'’][ée]valuation\\s+des\\s+(?:meubles|biens\\s+mobiliers|objets\\s+mobiliers)[^(.]{0,160}\\(\\s*' + MONTANT_MOBILIER + '\\s*\\.?\\s*\\)', 'i'),
+    new RegExp('(?:prix|valeur)\\s+(?:du|des)\\s+(?:mobilier|meubles|biens\\s+mobiliers)[^(.]{0,160}\\(\\s*' + MONTANT_MOBILIER + '\\s*\\.?\\s*\\)', 'i'),
+    new RegExp('\\bdont\\s+' + MONTANT_MOBILIER + '\\s+(?:de|du|pour\\s+le|au\\s+titre\\s+du|correspondant\\s+au)\\s+(?:mobilier|meubles|biens\\s+mobiliers)', 'i'),
+    new RegExp('(?:prix|valeur)\\s+(?:du|des)\\s+(?:mobilier|meubles|biens\\s+mobiliers)\\s*(?:est\\s+(?:fix[ée]|[ée]valu[ée])\\s+[àa]|:)\\s*(?:la\\s+somme\\s+de\\s+)?' + MONTANT_MOBILIER, 'i')
+  ];
+
+  // Pure : { montant, index } de la première mention du mobilier compris dans le prix, ou null.
+  function detecterMobilierPrixDetail(texte) {
+    const src = String(texte || '');
+    let meilleur = null;
+    for (const re of RES_MOBILIER_PRIX) {
+      const m = re.exec(src);
+      if (!m) continue;
+      const montant = parseInt(m[1].split(',')[0].replace(/[\s.]/g, ''), 10);
+      if (!Number.isFinite(montant) || montant <= 0) continue;
+      // Le prix de la vente précédente (clause de plus-value) peut citer ses propres meubles.
+      if (RE_PRIX_ACQUISITION_ANTERIEURE.test(phraseAutour(src, m.index, 250, 250).phrase)) continue;
+      if (!meilleur || m.index < meilleur.index) meilleur = { montant, index: m.index };
+    }
+    return meilleur;
+  }
+
+  function detecterPrixMobilier(texte) {
+    const d = detecterMobilierPrixDetail(texte);
+    return d ? d.montant : null;
+  }
+
+  // Assiette immobilière : le prix moins le mobilier, quand les deux sont connus et cohérents.
+  // Sert à l'estimation des frais d'acte (droits de mutation hors mobilier). Pure.
+  function assietteImmobiliere(prix, mobilier) {
+    const p = Number(prix);
+    if (!Number.isFinite(p) || p <= 0) return null;
+    const m = Number(mobilier);
+    if (!Number.isFinite(m) || m <= 0 || m >= p) return p;
+    return p - m;
   }
 
   // Dépôt de garantie / acompte sur le prix : la somme que l'acquéreur verse à la signature de
@@ -3203,6 +3257,7 @@
       champs: {
         nom: champAvecSource(source, 'nom', detecterNomDossier(source)),
         prixVente: champPrixVente(source),
+        prixMobilier: champAvecSource(source, 'prixMobilier', detecterPrixMobilier(source)),
         emailAcquereur: champAvecSource(source, 'emailAcquereur', detecterEmailAcquereur(source, typeActe.valeur)),
         nomAgence: champAvecSource(source, 'nomAgence', detecterNomAgence(source)),
         depotGarantie: champAvecSource(source, 'depotGarantie', detecterDepotGarantie(source)),
@@ -3277,6 +3332,15 @@
       alertes.push({
         code: 'PRIX_CONTRADICTOIRE', gravite: 'critique', champs: ['prixVente'],
         message: prix.raison || 'L’acte cite plusieurs prix différents pour cette vente.'
+      });
+    }
+
+    const mobilier = extraction.champs && extraction.champs.prixMobilier;
+    const prixVal = prix && prix.valeur;
+    if (mobilier && mobilier.valeur && prixVal && mobilier.valeur >= prixVal) {
+      alertes.push({
+        code: 'MOBILIER_SUPERIEUR_PRIX', gravite: 'attention', champs: ['prixMobilier', 'prixVente'],
+        message: `Le mobilier lu (${formaterPrix(mobilier.valeur)}) n’est pas inférieur au prix de vente (${formaterPrix(prixVal)}) : l’un des deux montants est mal lu.`
       });
     }
 
@@ -3452,7 +3516,10 @@
         BUTOIR_VENTE_PREALABLE: champExtraction(d.ventebien || null)
       },
       champs: {
-        prixVente: champExtraction(d.prixVente || null)
+        prixVente: champExtraction(d.prixVente || null),
+        // Absent (et non « null ») quand la fiche ne le porte pas : un dossier créé avant la
+        // détection du mobilier ne dit rien, il ne dit pas « aucun mobilier ».
+        ...(d.prixMobilier ? { prixMobilier: champExtraction(d.prixMobilier) } : {})
       }
     };
   }
@@ -3473,6 +3540,8 @@
     const prixTexte = ref.champs && ref.champs.prixVente && ref.champs.prixVente.valeur;
     const prixDossier = depuisDossier.champs.prixVente.valeur;
     if (prixTexte == null && prixDossier != null) ref.champs.prixVente = depuisDossier.champs.prixVente;
+    const mobilierTexte = ref.champs && ref.champs.prixMobilier && ref.champs.prixMobilier.valeur;
+    if (mobilierTexte == null && depuisDossier.champs.prixMobilier) ref.champs.prixMobilier = depuisDossier.champs.prixMobilier;
     ref.bien = ref.bien || { adresse: null, cadastre: null };
     const adresseDossier = depuisDossier.bien && depuisDossier.bien.adresse;
     if (!(ref.bien.adresse && adresseLisible(ref.bien.adresse)) && adresseDossier && adresseLisible(adresseDossier)) {
@@ -3541,6 +3610,37 @@
         description: `Prix du compromis/de la promesse : ${prixRef} € — prix du projet de vente : ${prixProjet} €.`,
         sources: []
       });
+    }
+
+    // Ventilation du prix entre l'immeuble et les meubles : elle fixe l'assiette des droits de
+    // mutation, l'acte de vente doit reprendre celle de l'avant-contrat. Une référence qui ne dit
+    // rien du mobilier (clé absente : dossier créé avant sa détection) ne permet pas de conclure.
+    const champRefMob = reference.champs && reference.champs.prixMobilier;
+    if (champRefMob) {
+      const mobRef = champRefMob.valeur || null;
+      const mobProjet = (projet.champs && projet.champs.prixMobilier && projet.champs.prixMobilier.valeur) || null;
+      if (mobRef && !mobProjet) {
+        constats.push({
+          categorie: 'COMPARAISON_COMPROMIS', gravite: 'IMPORTANT',
+          titre: 'Mobilier non repris dans le projet',
+          description: `L’avant-contrat ventile ${formaterPrix(mobRef)} de mobilier dans le prix ; le projet de vente n’en fait pas mention. Sans cette ventilation, les droits de mutation portent sur tout le prix.`,
+          sources: []
+        });
+      } else if (!mobRef && mobProjet) {
+        constats.push({
+          categorie: 'COMPARAISON_COMPROMIS', gravite: 'A_VERIFIER',
+          titre: 'Mobilier ajouté dans le projet',
+          description: `Le projet de vente ventile ${formaterPrix(mobProjet)} de mobilier dans le prix, que l’avant-contrat ne prévoyait pas.`,
+          sources: []
+        });
+      } else if (mobRef && mobProjet && Number(mobRef) !== Number(mobProjet)) {
+        constats.push({
+          categorie: 'COMPARAISON_COMPROMIS', gravite: 'IMPORTANT',
+          titre: 'Mobilier différent',
+          description: `Mobilier de l’avant-contrat : ${formaterPrix(mobRef)} — du projet de vente : ${formaterPrix(mobProjet)}.`,
+          sources: []
+        });
+      }
     }
 
     const adresseRef = reference.bien && reference.bien.adresse;
@@ -6311,7 +6411,7 @@
   // absents : la fiche d'identité affiche déjà ces deux lignes comme « non trouvé », en faire en
   // plus un constat dirait deux fois la même chose — la duplication que l'étude a fait retirer.
   var CODES_COHERENCE_ACTE = ['SIGNATURE_EGALE_REITERATION', 'PRET_APRES_ACTE', 'PRET_EGALE_VENTE_PREALABLE',
-    'DATE_EXPLICITE_VS_DELAI', 'NOTAIRES_IDENTIQUES', 'TYPE_ACTE_VS_QUALITES', 'PRIX_CONTRADICTOIRE', 'CONTENANCE_TOTALE_INCOHERENTE', 'SIREN_INVALIDE'];
+    'DATE_EXPLICITE_VS_DELAI', 'NOTAIRES_IDENTIQUES', 'TYPE_ACTE_VS_QUALITES', 'PRIX_CONTRADICTOIRE', 'CONTENANCE_TOTALE_INCOHERENTE', 'SIREN_INVALIDE', 'MOBILIER_SUPERIEUR_PRIX'];
 
   // Constats lus dans le SEUL acte principal — aucun autre document n'est nécessaire pour les
   // établir. La date du jour n'entre pas ici : rien de ce qui suit n'en dépend.
@@ -6435,6 +6535,10 @@
 
     const prix = champ('prixVente');
     ajouter('Prix', prix && prix.valeur ? formaterPrix(prix.valeur) : null, prix && prix.source);
+    // Affiché seulement quand l'acte ventile du mobilier : « non trouvé » sur chaque acte qui n'en
+    // vend pas serait du bruit, l'absence de mobilier étant le cas courant.
+    const mobilier = champ('prixMobilier');
+    if (mobilier && mobilier.valeur) ajouter('Dont mobilier', formaterPrix(mobilier.valeur), mobilier.source);
 
     const not = extraction.notaires || {};
     ajouter('Notaire du vendeur', libelleNotaire(not.vendeur) || null, null);
@@ -6576,6 +6680,7 @@
     const proposees = {
       nom: (champs.nom && champs.nom.valeur) || null,
       prixVente: (champs.prixVente && champs.prixVente.valeur) || null,
+      prixMobilier: (champs.prixMobilier && champs.prixMobilier.valeur) || null,
       emailAcquereur: (champs.emailAcquereur && champs.emailAcquereur.valeur) || null,
       nomAgence: (champs.nomAgence && champs.nomAgence.valeur) || null,
       depotGarantie: (champs.depotGarantie && champs.depotGarantie.valeur) || null,
@@ -6612,7 +6717,7 @@
   // Libellés lisibles pour le panneau « Qualité de l'extraction » (voir renderQualiteExtraction),
   // mêmes clés que celles produites par diffCorrectionsExtraction() ci-dessus.
   var LIBELLES_CHAMPS_CORRECTION = {
-    nom: 'Nom du dossier', adresseBien: 'Adresse du bien', prixVente: 'Prix de vente',
+    nom: 'Nom du dossier', adresseBien: 'Adresse du bien', prixVente: 'Prix de vente', prixMobilier: 'Mobilier compris dans le prix',
     emailAcquereur: 'Email de l’acquéreur', roleNotaire: 'Rôle de l’étude',
     pret: 'Obtention du prêt', acte: 'Réitération de l’acte', ventebien: 'Vente préalable'
   };
@@ -6787,7 +6892,7 @@
     if (cle === 'nom') {
       return brut.split('/').map(p => p.split('&')[0].trim()).filter(p => p.length >= 3);
     }
-    if (cle === 'prixVente' || cle === 'depotGarantie') {
+    if (cle === 'prixVente' || cle === 'depotGarantie' || cle === 'prixMobilier') {
       const n = Number(brut);
       if (!Number.isFinite(n)) return [brut];
       return [
@@ -7723,6 +7828,7 @@
     const champs = extraction.champs || {};
     if (champs.nom) appliquerValeurChamp('f-nom', champs.nom.valeur);
     if (champs.prixVente) appliquerValeurChamp('f-prix-vente', champs.prixVente.valeur);
+    if (champs.prixMobilier) appliquerValeurChamp('f-prix-mobilier', champs.prixMobilier.valeur);
     if (champs.emailAcquereur) appliquerValeurChamp('f-email-acquereur', champs.emailAcquereur.valeur);
     if (champs.nomAgence) appliquerValeurChamp('f-nom-agence', champs.nomAgence.valeur);
     if (champs.depotGarantie) appliquerValeurChamp('f-depot-garantie', champs.depotGarantie.valeur);
@@ -7809,6 +7915,7 @@
     { cle: 'ventebien', libelle: 'Vente préalable', type: 'date', champId: 'f-ventebien' },
     { cle: 'adresseBien', libelle: 'Adresse du bien', type: 'texte', champId: 'f-adresse-bien' },
     { cle: 'prixVente', libelle: 'Prix de vente', type: 'nombre', champId: 'f-prix-vente' },
+    { cle: 'prixMobilier', libelle: 'Dont mobilier', type: 'nombre', champId: 'f-prix-mobilier' },
     { cle: 'emailAcquereur', libelle: 'Email de l’acquéreur', type: 'texte', champId: 'f-email-acquereur' },
     { cle: 'nomAgence', libelle: 'Agence immobilière', type: 'texte', champId: 'f-nom-agence' },
     { cle: 'depotGarantie', libelle: 'Dépôt de garantie / acompte', type: 'nombre', champId: 'f-depot-garantie' },
@@ -7842,6 +7949,7 @@
     if (cle === 'typeActe') return extraction.typeActe || null;
     if (cle === 'nom') return champs.nom || null;
     if (cle === 'prixVente') return champs.prixVente || null;
+    if (cle === 'prixMobilier') return champs.prixMobilier || null;
     if (cle === 'emailAcquereur') return champs.emailAcquereur || null;
     if (cle === 'nomAgence') return champs.nomAgence || null;
     if (cle === 'depotGarantie') return champs.depotGarantie || null;
@@ -7893,6 +8001,7 @@
     if (cle === 'typeActe') { extraction.typeActe = extraction.typeActe || champExtraction(null); marquer(extraction.typeActe); }
     else if (cle === 'nom') { extraction.champs.nom = extraction.champs.nom || champExtraction(null); marquer(extraction.champs.nom); }
     else if (cle === 'prixVente') { extraction.champs.prixVente = extraction.champs.prixVente || champExtraction(null); marquer(extraction.champs.prixVente); }
+    else if (cle === 'prixMobilier') { extraction.champs.prixMobilier = extraction.champs.prixMobilier || champExtraction(null); marquer(extraction.champs.prixMobilier); }
     else if (cle === 'emailAcquereur') { extraction.champs.emailAcquereur = extraction.champs.emailAcquereur || champExtraction(null); marquer(extraction.champs.emailAcquereur); }
     else if (cle === 'nomAgence') { extraction.champs.nomAgence = extraction.champs.nomAgence || champExtraction(null); marquer(extraction.champs.nomAgence); }
     else if (cle === 'depotGarantie') { extraction.champs.depotGarantie = extraction.champs.depotGarantie || champExtraction(null); marquer(extraction.champs.depotGarantie); }
@@ -9643,6 +9752,7 @@
     document.getElementById('f-nom-agence').value = '';
     document.getElementById('f-adresse-bien').value = '';
     document.getElementById('f-prix-vente').value = '';
+    document.getElementById('f-prix-mobilier').value = '';
     document.getElementById('f-pret').value = '';
     document.getElementById('f-acte').value = '';
     // Oubli corrigé au passage : ce champ n'était vidé que par toggleEcheance('ventebien', false).
@@ -9715,6 +9825,8 @@
     const adresseBien = document.getElementById('f-adresse-bien').value.trim();
     const prixVenteBrut = document.getElementById('f-prix-vente').value.trim();
     const prixVente = prixVenteBrut ? parseInt(prixVenteBrut.replace(/[^\d]/g, ''), 10) : null;
+    const mobilierBrut = document.getElementById('f-prix-mobilier').value.trim();
+    const prixMobilier = mobilierBrut ? parseInt(mobilierBrut.replace(/[^\d]/g, ''), 10) : null;
     const depotBrut = document.getElementById('f-depot-garantie').value.trim();
     const depotGarantie = depotBrut ? parseInt(depotBrut.replace(/[^\d]/g, ''), 10) : null;
     const sequestreDepot = document.getElementById('f-sequestre-depot').value.trim();
@@ -9774,6 +9886,7 @@
       nomAgence,
       adresseBien,
       prixVente: Number.isFinite(prixVente) && prixVente > 0 ? prixVente : null,
+      prixMobilier: Number.isFinite(prixMobilier) && prixMobilier > 0 ? prixMobilier : null,
       // Dépôt de garantie / acompte sur le prix versé par l'acquéreur à la signature de
       // l'avant-contrat, et l'office/l'agence qui le séquestre (voir detecterDepotGarantie) :
       // une lecture de l'acte, corrigeable sur la fiche comme l'adresse ou le prix.
@@ -9843,6 +9956,7 @@
     journaliserCorrectionsExtraction(diffCorrectionsExtraction(extractionActuelle, {
       nom, adresseBien, emailAcquereur, roleNotaire, nomAgence, sequestreDepot,
       prixVente: Number.isFinite(prixVente) && prixVente > 0 ? prixVente : null,
+      prixMobilier: Number.isFinite(prixMobilier) && prixMobilier > 0 ? prixMobilier : null,
       depotGarantie: Number.isFinite(depotGarantie) && depotGarantie > 0 ? depotGarantie : null,
       pret, acte, ventebien
     }));
@@ -10531,6 +10645,26 @@
     if (normalise === (d.prixVente || null)) { render(); return; }
     ajouterHistorique(d, `Prix de vente modifié : ${d.prixVente ? formaterPrix(d.prixVente) : '—'} → ${normalise ? formaterPrix(normalise) : '—'}`);
     d.prixVente = normalise;
+    sauvegarder(d);
+    render();
+  }
+
+  // Part du prix qui porte sur du mobilier (voir detecterPrixMobilier). Refusée si elle n'est pas
+  // inférieure au prix : ce serait forcément une faute de saisie.
+  function changerPrixMobilier(id, valeur) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    const chiffres = String(valeur || '').replace(/[^\d]/g, '');
+    const nouveau = chiffres ? parseInt(chiffres, 10) : null;
+    const normalise = Number.isFinite(nouveau) && nouveau > 0 ? nouveau : null;
+    if (normalise && d.prixVente && normalise >= d.prixVente) {
+      afficherToast('Le mobilier doit être inférieur au prix de vente, qu’il comprend.', 'OK', null);
+      render();
+      return;
+    }
+    if (normalise === (d.prixMobilier || null)) { render(); return; }
+    ajouterHistorique(d, `Mobilier compris dans le prix modifié : ${d.prixMobilier ? formaterPrix(d.prixMobilier) : '—'} → ${normalise ? formaterPrix(normalise) : '—'}`);
+    d.prixMobilier = normalise;
     sauvegarder(d);
     render();
   }
@@ -11554,7 +11688,7 @@
         <dt>${pourId ? `<label for="${pourId}">` : '<span>'}${icone(ic)}<span>${libelle}</span>${pourId ? '</label>' : '</span>'}</dt>
         <dd>${valeur}</dd>
       </div>`;
-    const saisie = (id, valeur, fonction, extra) => `<input type="text" id="${id}-${d.id}" class="prop-champ" value="${escapeAttr(valeur || '')}" placeholder="Non détecté" onblur="${fonction}('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"${extra || ''}>`;
+    const saisie = (id, valeur, fonction, extra, placeholder) => `<input type="text" id="${id}-${d.id}" class="prop-champ" value="${escapeAttr(valeur || '')}" placeholder="${placeholder || 'Non détecté'}" onblur="${fonction}('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"${extra || ''}>`;
 
     // Groupe 1 — le dossier.
     const responsable = `<select id="resp-${d.id}" class="prop-champ" onchange="changerResponsable('${d.id}', this.value)">
@@ -11614,6 +11748,7 @@
       <dl class="fiche-proprietes">
         ${ligne('map-pin', 'Adresse', saisie('adresse', d.adresseBien, 'changerAdresseBien'), `adresse-${d.id}`, 'prop-pleine')}
         ${ligne('banknote', 'Prix', saisie('prix', d.prixVente ? formaterPrix(d.prixVente) : '', 'changerPrixVente', ' inputmode="numeric"'), `prix-${d.id}`)}
+        ${ligne('package', 'Dont mobilier', saisie('mobilier', d.prixMobilier ? formaterPrix(d.prixMobilier) : '', 'changerPrixMobilier', ' inputmode="numeric" title="Part du prix qui porte sur des meubles : elle sort de l\'assiette des droits de mutation (frais d\'acte)."', 'Aucun'), `mobilier-${d.id}`)}
         ${ligne('lock', 'Séquestre', saisie('depot', d.depotGarantie ? formaterPrix(d.depotGarantie) : '', 'changerDepotGarantie', ' inputmode="numeric" title="Montant séquestré (dépôt de garantie)"'), `depot-${d.id}`)}
         ${ligne('shield', 'Versé à', saisie('sequestre', d.sequestreDepot, 'changerSequestreDepot', ' title="Entre les mains de qui l\'acquéreur verse le dépôt : l\'office, l\'agence, la CARPA…"'), `sequestre-${d.id}`)}
         ${ligne('trend-up', 'Financement', financement)}
@@ -12798,7 +12933,7 @@
     }
 
     const LIBELLES_CHAMP_EXTRACTION = {
-      nom: 'Nom du dossier', prixVente: 'Prix de vente', emailAcquereur: 'Email de l’acquéreur',
+      nom: 'Nom du dossier', prixVente: 'Prix de vente', prixMobilier: 'Mobilier compris dans le prix', emailAcquereur: 'Email de l’acquéreur',
       adresseBien: 'Adresse du bien', pret: 'Obtention du prêt', acte: 'Signature de l’acte',
       ventebien: 'Vente préalable', typeVente: 'Type de vente'
     };
@@ -15489,6 +15624,7 @@
       adresseBien: typeof d.adresseBien === 'string' ? d.adresseBien : '',
       nomAgence: typeof d.nomAgence === 'string' ? d.nomAgence : '',
       prixVente: Number.isFinite(d.prixVente) && d.prixVente > 0 ? d.prixVente : null,
+      prixMobilier: Number.isFinite(d.prixMobilier) && d.prixMobilier > 0 ? d.prixMobilier : null,
       // Comme adresseBien/prixVente : une lecture de l'acte (ou une saisie de l'étude), identique
       // sur n'importe quel poste — conservée telle quelle, contrairement aux statuts dérivés d'un
       // scan du NAS juste en dessous.
@@ -18119,7 +18255,12 @@
       return;
     }
 
-    const prix = Math.max(1, prixSaisi);
+    // Le mobilier compris dans le prix sort de l'assiette des droits de mutation (art. 735 CGI) :
+    // le barème s'applique au seul prix de l'immeuble.
+    const mobilierEl = document.getElementById('calc-mobilier');
+    const mobilier = mobilierEl ? Number(mobilierEl.value) : 0;
+    const prix = assietteImmobiliere(Math.max(1, prixSaisi), mobilier);
+    const mobilierDeduit = prix < prixSaisi;
     const primoAccedant = document.querySelector('input[name="calc-first"]:checked').value === 'yes';
     const residencePrincipale = document.querySelector('input[name="calc-rp"]:checked').value === 'yes';
     const type = typeEl.value;
@@ -18135,7 +18276,8 @@
     const dmto = tauxApplique + 0.012 + tauxApplique * 0.0237;
 
     const libelleType = type === 'house' ? 'Immeuble hors copropriété' : type === 'condo' ? 'Immeuble en copropriété' : 'Terrain à bâtir';
-    document.getElementById('calc-tag').textContent = libelleType + ' · ' + (eligiblePrimoAccedant ? 'Primo-accédant éligible' : 'Régime sans exonération de la hausse');
+    document.getElementById('calc-tag').textContent = libelleType + ' · ' + (eligiblePrimoAccedant ? 'Primo-accédant éligible' : 'Régime sans exonération de la hausse')
+      + (mobilierDeduit ? ' · assiette hors mobilier : ' + formaterPrix(prix) : '');
     document.getElementById('calc-emol').textContent = formaterPrix(emoluments);
     document.getElementById('calc-tre').textContent = formaterPrix(tresor);
     document.getElementById('calc-total2').textContent = formaterPrix(total);
@@ -22415,6 +22557,7 @@
       designation: designationDepuisTypeVente(d.typeVente),
       dateRdv: d.rendezVousSignature || '',
       prixVente: d.prixVente || null,
+      prixMobilier: d.prixMobilier || null,
       depotGarantie: depot.deductible ? d.depotGarantie : null,
       depotMotif: depot.motif,
       departementFrais,
@@ -22666,6 +22809,7 @@
     // vente absent laisse le select vide, donc le contrôle silencieux, plutôt qu'un barème deviné.
     ecrire('af-frais-departement', p.departementFrais);
     ecrire('af-frais-type', p.typeBienFrais);
+    ecrire('af-prix-mobilier', p.prixMobilier ? String(p.prixMobilier) : '');
 
     afLignes = lignesDecompteDepuisPrefill(p);
 
@@ -22744,10 +22888,18 @@
 
   // La fourchette applicable à l'état actuel du formulaire, ou null si l'étude n'a pas encore
   // choisi le département et la nature du bien — sans eux, aucun contrôle n'est affiché.
+  // Mobilier compris dans le prix : sort de l'assiette des droits de mutation (art. 735 CGI).
+  // Sans le retirer, un décompte qui l'a correctement déduit paraîtrait « sous le barème ».
+  function mobilierPourControleFraisActe() {
+    const brut = String(afValeur('af-prix-mobilier') || '').replace(/[^\d]/g, '');
+    const n = brut ? parseInt(brut, 10) : 0;
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }
+
   function fourchetteFraisActeFormulaire() {
     const dept = afValeur('af-frais-departement');
     const type = afValeur('af-frais-type');
-    const prix = prixPourControleFraisActe();
+    const prix = assietteImmobiliere(prixPourControleFraisActe(), mobilierPourControleFraisActe());
     if (!dept || !type || !prix) return null;
     return fourchetteFraisActe(prix, dept, type);
   }
@@ -23147,7 +23299,7 @@
     afFraisChoisiALaMain = { departement: false, type: false };
     afClients = [{ civilite: 'M', prenom: '', nom: '' }];
     afLignes = lignesDecompteDepuisPrefill(null);
-    ['af-ref', 'af-designation', 'af-adresse-bien', 'af-adresse-clients', 'af-date-rdv', 'af-heure-rdv', 'af-lieu-autre', 'af-coller-texte', 'af-frais-departement', 'af-frais-type'].forEach(id => {
+    ['af-ref', 'af-designation', 'af-adresse-bien', 'af-adresse-clients', 'af-date-rdv', 'af-heure-rdv', 'af-lieu-autre', 'af-coller-texte', 'af-frais-departement', 'af-frais-type', 'af-prix-mobilier'].forEach(id => {
       const e = afEl(id);
       if (e) e.value = '';
     });
