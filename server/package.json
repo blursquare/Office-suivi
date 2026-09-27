@@ -12,6 +12,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",
     "express": "^5.2.1",
+    "httpntlm": "^1.8.13",
     "nodemailer": "^10.0.9"
   },
   "devDependencies": {

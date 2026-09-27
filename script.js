@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-27 20:35';
+  const VERSION_APP = '2026-09-27 21:34';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-27 21:34', resume: "Réglages : test de connexion à l'agenda Outlook de l'office (Exchange/EWS). Vérifie les identifiants sans rien enregistrer — première étape avant d'y créer les rendez-vous." },
     { version: '2026-09-27 20:35', resume: 'Aujourd’hui : phrase d’aide retirée du titre « À faire ».' },
     { version: '2026-09-27 20:14', resume: 'Aujourd’hui : en-tête sur une ligne (titre, progression, outils), titres de même taille que les autres écrans.' },
     { version: '2026-09-27 20:07', resume: "Page « Aujourd'hui » reprise : tout tient sur un écran, une action par ligne avec son geste en un clic (brouillon, « Marquer envoyé »), une notification avec « Annuler » au lieu d'une fenêtre, un anneau de progression, et un panneau à onglets (signatures, nouveautés, à venir, journal, rappels)." },
@@ -24642,6 +24643,43 @@
       if (resultat) { resultat.textContent = 'Serveur injoignable.'; resultat.className = 'hint reglages-email-resultat reglages-email-echec'; }
     } finally {
       if (bouton) { bouton.disabled = false; bouton.textContent = 'Tester maintenant'; }
+    }
+  }
+
+  // ---- Test de connexion à l'Exchange de l'office (voir server/src/exchange/ews.js) ----
+  // Vérifie que CLAIRE arrive à se connecter à la messagerie Exchange (Fichorga), première étape
+  // avant d'y créer des rendez-vous. Ne stocke rien : le mot de passe n'est envoyé que pour ce test
+  // et n'est jamais conservé côté client.
+  async function testerConnexionExchange() {
+    const bouton = document.getElementById('exchange-tester-btn');
+    const resultat = document.getElementById('exchange-resultat');
+    const champEmail = document.getElementById('exchange-email');
+    const champMdp = document.getElementById('exchange-motdepasse');
+    const email = champEmail ? champEmail.value.trim() : '';
+    const motDePasse = champMdp ? champMdp.value : '';
+    if (!email || !motDePasse) {
+      if (resultat) { resultat.textContent = 'Renseignez votre email et votre mot de passe.'; resultat.className = 'hint reglages-email-resultat reglages-email-echec'; }
+      return;
+    }
+    if (bouton) { bouton.disabled = true; bouton.textContent = 'Connexion en cours…'; }
+    if (resultat) { resultat.textContent = ''; resultat.className = 'hint'; }
+    try {
+      const reponse = await fetchAvecAuth('/api/exchange/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, motDePasse })
+      });
+      const corps = await reponse.json();
+      if (resultat) {
+        resultat.textContent = (corps.ok ? '✓ ' : '') + (corps.message || (corps.ok ? 'Connexion réussie.' : 'Échec de la connexion.'));
+        resultat.className = corps.ok ? 'hint' : 'hint reglages-email-resultat reglages-email-echec';
+      }
+    } catch (e) {
+      if (resultat) { resultat.textContent = 'Serveur injoignable.'; resultat.className = 'hint reglages-email-resultat reglages-email-echec'; }
+    } finally {
+      // Ne jamais garder le mot de passe en mémoire une fois le test fait.
+      if (champMdp) champMdp.value = '';
+      if (bouton) { bouton.disabled = false; bouton.textContent = 'Tester la connexion'; }
     }
   }
 

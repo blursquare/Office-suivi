@@ -1652,6 +1652,30 @@
         </div>
       </div>
 
+      <!-- Test de connexion à l'Exchange de l'office (Outlook de Fichorga / Authentic Connect), par
+           EWS/NTLM — voir server/src/exchange/ews.js. Ne stocke rien : vérifie seulement que les
+           identifiants passent, avant de construire la création de rendez-vous / les brouillons.
+           À tester sur un poste du bureau (le serveur Exchange n'est pas joignable ailleurs). -->
+      <div class="calc-card reglages-pleine">
+        <div class="dash-section-titre">Connexion à l'agenda Outlook de l'office (test)</div>
+        <p class="hint">Vérifie que CLAIRE arrive à se connecter à votre messagerie Exchange (Fichorga), première étape avant d'y créer les rendez-vous de signature. Rien n'est enregistré : les identifiants ne servent qu'à ce test. À faire depuis un poste du bureau.</p>
+        <div class="calc-champs">
+          <div class="calc-champ">
+            <label for="exchange-email">Adresse email de messagerie</label>
+            <input type="email" id="exchange-email" autocomplete="off" placeholder="prenom.nom@gossart.notaires.fr">
+          </div>
+          <div class="calc-champ">
+            <label for="exchange-motdepasse">Mot de passe de messagerie</label>
+            <input type="password" id="exchange-motdepasse" autocomplete="new-password" placeholder="Le mot de passe de votre boîte">
+            <p class="hint">Attention : un mot de passe erroné compte comme une tentative échouée. CLAIRE ne réessaie jamais toute seule.</p>
+          </div>
+        </div>
+        <div style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <button type="button" class="primary" id="exchange-tester-btn" onclick="testerConnexionExchange()">Tester la connexion</button>
+          <span id="exchange-resultat" class="hint" style="margin:0;"></span>
+        </div>
+      </div>
+
       <details class="calc-card reglages-aide reglages-pleine">
         <summary class="dash-section-titre">Comment ça marche</summary>
         <p>CLAIRE envoie un email à la boîte-passerelle : l'<strong>objet</strong> contient l'adresse du collaborateur, le <strong>corps</strong> le message. Le flux Power Automate, déjà créé, le poste dans Teams.</p>

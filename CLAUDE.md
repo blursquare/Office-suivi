@@ -8490,6 +8490,56 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   - Phrase d'aide du titre « À faire » retirée à la demande de l'étude (règle `.jour-aide` supprimée) :
     la ligne se comprend seule, le texte ouvre le détail et le bouton fait le geste.
 
+- **Test de connexion à l'Exchange de l'office (première brique EWS/NTLM)**, demandé par l'étude qui
+  souhaite que CLAIRE puisse à terme créer les rendez-vous de signature dans l'agenda Outlook et
+  préparer des brouillons. **Contexte tranché avant d'écrire une ligne** : la messagerie de l'étude
+  n'est PAS hébergée chez Microsoft 365 (vérifié — Graph répond `MailboxNotEnabledForRESTAPI`, la
+  boîte est « hosted on-premise »), elle est sur l'**Exchange 2019 de Fichorga / Authentic Connect**
+  (`mail.authentic-connect.fr`, domaine `connect.lan`). Microsoft Graph et Power Automate ne peuvent
+  donc rien y faire ; la seule porte est **EWS** (Exchange Web Services), la même qu'Outlook, en
+  **authentification Windows NTLMv2**. Confirmé par un sondage des points d'entrée publics du serveur
+  (EWS et ActiveSync ouverts, EWS exige Negotiate/NTLM). Teams, lui, EST chez Microsoft (message de
+  test posté avec succès dans « Notes pour vous-même »).
+  - **Ce lot ne fait QUE tester la connexion** : rien n'est stocké, rien n'est créé côté Exchange.
+    Objectif = vérifier au bureau que les identifiants passent avant de construire la création de
+    rendez-vous / les brouillons. L'étude a explicitement accepté que le mot de passe de messagerie
+    soit à terme stocké dans CLAIRE — mais ce n'est PAS encore fait ici (le test envoie les
+    identifiants pour un unique appel, puis les oublie ; le champ mot de passe est vidé côté client
+    après le test).
+  - **L'authentification NTLM est déléguée à la bibliothèque `httpntlm`** (ajoutée aux dépendances du
+    serveur), pas écrite à la main : `server/src/exchange/ews.js` ne fait qu'une requête HTTP
+    applicative. `httpntlm` fait bien du NTLMv2 (vérifié dans son code : `calc_ntlmv2_resp` avec
+    `targetInfo` + horodatage) et gère la poignée de main type1→type2→type3 sur une **socket unique
+    en keep-alive** — condition indispensable de NTLM (il authentifie une connexion, pas une
+    requête). **Limite connue, à documenter à l'étude** : `httpntlm` ne fait PAS la liaison au canal
+    TLS (« Extended Protection », activable côté Exchange 2019 CU14+) — si le serveur l'exige, des
+    identifiants pourtant justes seront refusés (401). C'est le premier point à regarder si le test
+    échoue avec un mot de passe certain. `httpntlm` et ses dépendances (`js-md4`, `des.js`,
+    `httpreq`, `underscore`) sont du CommonJS bundlé par esbuild dans le `.exe` (`--bundle`), rien de
+    spécial à déclarer.
+  - **La requête EWS est en LECTURE SEULE** (`corpsGetFolderCalendrier` : `GetFolder` sur le dossier
+    `calendar`) : elle prouve à la fois que l'authentification passe ET que le compte a accès à un
+    agenda, sans rien créer. `interpreterReponseEws(statut, corps)` est une fonction PURE et testable
+    (401/403 → identifiants refusés + mention de l'Extended Protection ; 200 + `ResponseClass="Success"`
+    → succès avec le nom de l'agenda ; 200 + erreur applicative → code EWS remonté ; 500 → erreur
+    serveur). `testerConnexionExchange()` a un `poster` injectable pour les tests (faux transport) et
+    **ne rejette jamais** : toujours `{ok, message}`. **Le mot de passe n'est jamais journalisé, ni
+    recopié dans un message d'erreur, ni renvoyé au client** (vérifié par test). **Une seule tentative
+    par appel, aucun réessai automatique** : plusieurs échecs verrouilleraient le compte de
+    messagerie, exactement comme Outlook — d'où l'avertissement affiché à l'étude sous le champ.
+  - Route `POST /api/exchange/test` (`server/src/routes/exchange.js`, derrière le mot de passe
+    d'app), URL EWS par défaut `https://mail.authentic-connect.fr/EWS/Exchange.asmx` (surchargeable).
+    Ne renvoie que `{ok, message}`. Carte « Connexion à l'agenda Outlook de l'office (test) » dans le
+    sous-onglet « Rappels et agenda » des Réglages ; `testerConnexionExchange()` (script.js) vide le
+    champ mot de passe après le test.
+  - **Non vérifié en conditions réelles** : le serveur Exchange de l'étude n'est joignable que depuis
+    le réseau du bureau, et aucun identifiant réel n'a été (ni ne doit être) saisi dans cet
+    environnement — le test est à faire par l'étude sur un poste du bureau. Les fonctions pures et le
+    transport sont couverts par `server/test/ews.test.js` (8 tests, faux transport). **Prochaine
+    étape si le test réussit** : stockage chiffré du mot de passe + création des rendez-vous de
+    signature dans l'agenda + brouillons Outlook. **S'il échoue** malgré des identifiants certains :
+    soupçonner l'Extended Protection (liaison au canal TLS), non gérée par `httpntlm`.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

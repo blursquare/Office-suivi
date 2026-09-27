@@ -27,6 +27,7 @@ const { creerRouteurRelectures } = require('./routes/relectures');
 const { creerRouteurSignalements } = require('./routes/signalements');
 const { creerRouteurMiseAJour } = require('./routes/miseAJour');
 const { creerRouteurAgenda } = require('./routes/agenda');
+const { creerRouteurExchange } = require('./routes/exchange');
 
 // Fichier statique → nom d'asset embarqué (voir server/scripts/build-windows-exe.mjs, section
 // `assets` de sea-config.json) + type MIME à renvoyer. Tous des fichiers texte (HTML/CSS/JS/JSON/
@@ -139,6 +140,10 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   // Agenda de l'office (voir agendaOffice.js/agendaWatch.js) : `agenda.fetchFn` est réservé aux
   // tests, jamais utilisé en production (repli sur le `fetch` global de Node).
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAgenda(parametresRepo, { depot, ...(agenda || {}) }));
+  // Test de connexion à l'Exchange de l'office (EWS/NTLM, voir exchange/ews.js) : ne stocke rien,
+  // vérifie seulement que les identifiants passent. Première brique avant création de rendez-vous /
+  // brouillons — à valider sur un poste du bureau.
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExchange());
 
   // Gestionnaire d'erreurs générique en dernier recours : évite qu'une exception inattendue
   // (JSON malformé, etc.) ne fasse planter le processus entier plutôt que de répondre 500.
