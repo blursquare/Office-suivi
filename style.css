@@ -5799,7 +5799,6 @@ button.lien-action:hover { text-decoration: underline; }
   display: flex; flex-wrap: wrap; align-items: center; gap: 4px 7px; margin: 0 0 8px;
   font-size: 14px; font-weight: 700; letter-spacing: 0; color: var(--ink);
 }
-.jour-aide { margin-left: auto; font-size: 12px; font-weight: 500; color: var(--muted); }
 .jour-source { margin: 0 0 10px; font-size: 12.5px; color: var(--muted); max-width: 70ch; }
 .jour-vide { margin: 0; font-size: 13px; color: var(--muted); }
 .jour-vide-ok { color: var(--success); padding: 6px; }
@@ -5958,7 +5957,6 @@ button.lien-action:hover { text-decoration: underline; }
   .ja.fait { grid-template-areas: none; }
   .ja-go span { display: none; }
   .ja button.primary.ja-go { padding: 6px 8px; }
-  .jour-aide { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   .jour-anneau-plein, .ja { transition: none; }

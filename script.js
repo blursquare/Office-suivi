@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-27 20:14';
+  const VERSION_APP = '2026-09-27 20:35';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-27 20:35', resume: 'Aujourd’hui : phrase d’aide retirée du titre « À faire ».' },
     { version: '2026-09-27 20:14', resume: 'Aujourd’hui : en-tête sur une ligne (titre, progression, outils), titres de même taille que les autres écrans.' },
     { version: '2026-09-27 20:07', resume: "Page « Aujourd'hui » reprise : tout tient sur un écran, une action par ligne avec son geste en un clic (brouillon, « Marquer envoyé »), une notification avec « Annuler » au lieu d'une fenêtre, un anneau de progression, et un panneau à onglets (signatures, nouveautés, à venir, journal, rappels)." },
     { version: '2026-09-27 19:49', resume: "« Aujourd'hui » : la carte du tableau de bord remplace « À traiter » (une ligne par action, avec le geste prêt), une page « Aujourd'hui » dans la barre latérale (actions avec brouillons d'email, signatures des 7 jours, ce qui a changé depuis la dernière visite, votre journée, rappels, équipe) et le point du matin à la première connexion du jour." },
@@ -13158,7 +13159,7 @@
     bloc.innerHTML = `
       <div class="jour-grille">
         <section class="jour-section jour-section-actions" aria-labelledby="jour-titre-actions">
-          <h2 class="jour-carte-titre" id="jour-titre-actions">À faire <span class="jour-onglet-nb">${actions.length}</span><span class="jour-aide">Bouton : l’action · texte : le détail</span></h2>
+          <h2 class="jour-carte-titre" id="jour-titre-actions">À faire <span class="jour-onglet-nb">${actions.length}</span></h2>
           <div class="jour-section-corps">${renderListeJour(actions, traites, global)}</div>
         </section>
         <section class="jour-section jour-panneau">

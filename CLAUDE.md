@@ -8487,7 +8487,8 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     la même hauteur que la barre d'onglets du panneau de droite, passée à 13px (12px sous 1440px pour
     tenir sur une ligne jusqu'à 1280px, mesuré). Les titres de la fenêtre du matin prennent le même
     registre (14px, pastille), et son titre passe à 26px comme la page. `.jour-nb` supprimée.
-  - Aide raccourcie : « Bouton : l'action · texte : le détail ».
+  - Phrase d'aide du titre « À faire » retirée à la demande de l'étude (règle `.jour-aide` supprimée) :
+    la ligne se comprend seule, le texte ouvre le détail et le bouton fait le geste.
 
 ## Comment tester
 
