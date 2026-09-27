@@ -124,3 +124,21 @@ test('texte de la liste du jour', () => {
   assert.match(t, /- Relancer l’offre de prêt — VENTE DUPONT \/ MARTIN \(J-4\)/);
   assert.match(app.texteListeDuJour([], AUJ, ''), /Rien à faire/);
 });
+
+test('message de progression : court, jamais culpabilisant', () => {
+  assert.strictEqual(app.messageProgressionJour(0, 0), 'Rien au programme aujourd’hui.');
+  assert.strictEqual(app.messageProgressionJour(0, 3), 'Journée bouclée.');
+  assert.strictEqual(app.messageProgressionJour(1, 0), 'Une seule chose aujourd’hui.');
+  assert.strictEqual(app.messageProgressionJour(5, 0), 'C’est parti : 5 choses aujourd’hui.');
+  assert.strictEqual(app.messageProgressionJour(1, 4), 'Plus qu’une !');
+  assert.strictEqual(app.messageProgressionJour(3, 2), 'Bien lancé — encore 3.');
+});
+
+test('une ligne d’action : un seul bouton de geste, « plus tard » à côté, verbe court', () => {
+  const r = app.actionsDuJour([dossier({ pret: '2026-10-02' })], AUJ);
+  const html = app.renderLigneActionJour(r.actions[0], false);
+  assert.strictEqual((html.match(/ja-go/g) || []).length, 1);
+  assert.match(html, /ja-plus-tard/);
+  assert.match(html, /<span>Relancer<\/span>/);
+  assert.match(html, /DUPONT \/ MARTIN/);
+});

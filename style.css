@@ -5706,121 +5706,169 @@ button.lien-action:hover { text-decoration: underline; }
 }
 .sidebar-link.actif .sidebar-compteur { background: var(--focus); color: var(--on-accent); }
 
-/* Barre de progression de la journée : verte, elle avance à chaque action traitée. */
-.jour-progression { display: flex; align-items: center; gap: 12px; font-size: 12.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.jour-barre { flex: 0 1 220px; min-width: 60px; height: 6px; border-radius: 6px; background: var(--line-soft); overflow: hidden; }
-.jour-barre > span { display: block; height: 100%; border-radius: 6px; background: var(--success); transition: width 0.25s ease; }
-
-/* Carte du tableau de bord : une ligne par action, geste à droite. */
-.jour-carte-corps { padding: 12px 18px 6px; display: flex; flex-direction: column; gap: 6px; }
-.jour-carte-corps .a-traiter-vide { padding: 8px 0; border-bottom: none; }
-.jour-lignes { list-style: none; margin: 0; padding: 0; }
-.jour-ligne {
-  display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; gap: 4px 10px; align-items: start;
-  grid-template-areas: "point texte delai" ". boutons boutons";
-  padding: 10px 0; border-top: 1px solid var(--line-soft);
+/* Anneau de la journée : se remplit en vert à chaque action traitée, coche au centre à la fin. */
+.jour-anneau { position: relative; display: inline-flex; flex: 0 0 auto; width: 50px; height: 50px; }
+.jour-anneau svg { display: block; }
+.jour-anneau-fond, .jour-anneau-plein { fill: none; stroke-width: 5; }
+.jour-anneau-fond { stroke: var(--line-soft); }
+.jour-anneau-plein { stroke: var(--success); stroke-linecap: round; transition: stroke-dashoffset 0.5s ease; }
+.jour-anneau-texte {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums;
 }
-.jour-ligne > .dot-label { grid-area: point; }
-.jour-ligne > .jour-ligne-texte { grid-area: texte; }
-.jour-ligne > .jour-delai { grid-area: delai; padding-top: 1px; }
-.jour-ligne > .jour-ligne-boutons { grid-area: boutons; justify-content: flex-end; }
-.jour-ligne:first-child { border-top: none; }
-.jour-ligne > .dot-label { padding-top: 6px; }
-.jour-ligne-texte { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.jour-ligne-titre { font-size: 13.5px; font-weight: 600; color: var(--ink); }
-button.lien-discret.jour-ligne-dossier { align-self: flex-start; text-align: left; font-size: 12.5px; color: var(--ink-soft); text-decoration: none; }
-button.lien-discret.jour-ligne-dossier:hover { color: var(--focus); text-decoration: underline; }
-.jour-ligne-boutons { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
-.jour-delai { font-size: 12px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.jour-delai.proche { color: var(--urgent); }
-.jour-ligne-boutons button.primary.jour-bouton-petit { padding: 4px 10px; font-size: 12px; font-weight: 600; border-radius: 6px; }
+.jour-anneau-texte small { font-size: 10px; font-weight: 600; color: var(--muted); }
+.jour-anneau.fini .jour-anneau-texte { color: var(--success); font-size: 20px; animation: jour-pop 0.4s ease; }
+@keyframes jour-pop { 0% { transform: scale(0.4); opacity: 0; } 70% { transform: scale(1.15); } 100% { transform: scale(1); opacity: 1; } }
+.jour-progres { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.jour-progres-texte { display: flex; flex-direction: column; gap: 1px; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.jour-progres-texte b { font-size: 15px; font-weight: 700; color: var(--ink); }
 
-/* Listes repliables (traité, à venir). */
-.jour-replie { border-top: 1px solid var(--line-soft); padding: 10px 0 4px; }
-.jour-replie summary {
-  list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px;
-  font-size: 12.5px; font-weight: 600; color: var(--ink-soft);
+/* Une action = une ligne : point, texte, délai, geste en un clic, « plus tard ». */
+.ja-liste { list-style: none; margin: 0; padding: 0; }
+.ja {
+  display: grid; grid-template-columns: 12px minmax(0, 1fr) auto auto auto; align-items: center; gap: 2px 10px;
+  padding: 8px 6px; border-top: 1px solid var(--line-soft); border-radius: 8px;
+  transition: background-color 0.15s ease;
 }
-.jour-replie summary::-webkit-details-marker { display: none; }
-.jour-replie summary .jour-chevron { margin-left: auto; color: var(--muted); transition: transform 0.15s ease; }
-.jour-replie[open] summary .jour-chevron { transform: rotate(180deg); }
-.jour-liste-simple { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; }
+.ja:first-child { border-top: none; }
+.ja:hover { background: var(--paper-sunk); }
+.ja.g-critique > .dot-label .dot { box-shadow: 0 0 0 3px color-mix(in srgb, var(--urgent) 22%, transparent); }
+.ja-texte {
+  display: flex; flex-direction: column; gap: 1px; min-width: 0; text-align: left;
+  font-family: inherit; background: none; border: none; padding: 0; cursor: pointer; color: var(--ink);
+}
+.ja-titre { font-size: 13.5px; font-weight: 600; color: var(--ink); line-height: 1.3; }
+.ja-sous { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ja-texte:hover .ja-titre { color: var(--focus); }
+.ja.ouverte .ja-sous { white-space: normal; }
+.ja-delai { font-size: 12px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ja-delai.proche { color: var(--urgent); }
+.ja button.primary.ja-go {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; font-size: 12.5px; font-weight: 600;
+  border-radius: 7px; white-space: nowrap;
+}
+.ja button.icon-btn.ja-plus-tard { color: var(--muted); }
+.ja button.icon-btn.ja-plus-tard:hover { color: var(--ink); }
+.ja-detail { grid-column: 2 / -1; padding: 4px 0 6px; font-size: 13px; color: var(--ink-soft); }
+.ja-detail > p { margin: 0; max-width: 72ch; }
+.ja-detail-liens { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; }
+.ja-detail-liens .lien-action { font-size: 12.5px; }
+
+/* Ce qui est traité reste dans la liste, coché : la journée se voit avancer. */
+.ja.fait { grid-template-columns: 20px minmax(0, 1fr) auto; animation: ja-fait 0.35s ease; }
+.ja.fait:hover { background: none; }
+.ja-coche {
+  display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%;
+  background: var(--success); color: var(--on-accent); font-size: 12px;
+}
+.ja.reporte .ja-coche { background: var(--line); color: var(--ink-soft); }
+.ja-texte-fait { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ja.fait .ja-titre { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--line); font-weight: 500; }
+.ja.fait .ja-annuler { font-size: 12px; }
+@keyframes ja-fait { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+
+/* Carte du tableau de bord : la colonne est étroite, le délai passe sous le titre. */
+.jour-carte-corps { padding: 6px 12px 6px; display: flex; flex-direction: column; gap: 4px; }
+.jour-carte-corps .a-traiter-vide { padding: 10px 6px; border-bottom: none; }
+.alertes-entete .jour-anneau { width: 44px; height: 44px; }
+.alertes-entete .jour-anneau svg { width: 44px; height: 44px; }
+.ja-compacte .ja { grid-template-columns: 12px minmax(0, 1fr) auto auto; grid-template-areas: "p t go tard" "p d go tard"; row-gap: 0; }
+.ja-compacte .ja > .dot-label { grid-area: p; }
+.ja-compacte .ja > .ja-texte { grid-area: t; }
+.ja-compacte .ja > .ja-delai { grid-area: d; font-size: 11.5px; }
+.ja-compacte .ja > .ja-go { grid-area: go; }
+.ja-compacte .ja > .ja-plus-tard { grid-area: tard; }
+.ja-compacte .ja > .ja-detail { grid-column: 2 / -1; grid-row: 3; }
+.ja-compacte .ja-titre { font-size: 13px; }
+.ja-compacte .ja-go span { display: none; }
+.ja-compacte .ja button.primary.ja-go { padding: 6px 8px; }
+
+/* Listes simples du panneau (à venir). */
+.jour-liste-simple { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .jour-liste-simple li {
-  display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; padding: 6px 0;
+  display: flex; flex-direction: column; gap: 1px; padding: 7px 0;
   border-top: 1px solid var(--line-soft); font-size: 13px;
 }
-.jour-liste-simple li:first-child { border-top: none; }
-.jour-liste-simple li .barre { text-decoration: line-through; text-decoration-color: var(--muted); color: var(--ink-soft); }
-.jour-liste-simple li > button.lien-discret:last-child { margin-left: auto; }
+.jour-liste-simple li:first-child { border-top: none; padding-top: 0; }
 .jour-liste-simple button.lien-discret { font-size: 13px; color: var(--ink); text-decoration: none; text-align: left; }
 .jour-liste-simple button.lien-discret:hover { color: var(--focus); text-decoration: underline; }
 .jour-meta { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 
-/* Sections de la page et de la fenêtre. */
 .jour-section-titre {
-  display: flex; align-items: baseline; gap: 8px; margin: 0 0 2px;
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin: 0 0 8px;
   font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink);
 }
 .jour-nb { font-weight: 600; color: var(--muted); letter-spacing: 0; }
-.jour-source { margin: 0 0 12px; font-size: 12.5px; color: var(--muted); max-width: 70ch; }
+.jour-aide { margin-left: auto; font-size: 11.5px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--muted); }
+.jour-source { margin: 0 0 10px; font-size: 12.5px; color: var(--muted); max-width: 70ch; }
 .jour-vide { margin: 0; font-size: 13px; color: var(--muted); }
-.jour-vide-ok { color: var(--success); }
-.jour-resume { margin: 0; color: var(--ink-soft); max-width: 75ch; }
-.jour-resume b { color: var(--ink); font-weight: 600; }
+.jour-vide-ok { color: var(--success); padding: 6px; }
 
-/* Action en carte : catégorie, titre, dossier, contexte, puis le geste. */
-.jour-actions { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-.jour-action { border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; background: var(--paper-card); }
-.jour-action-tete { display: flex; align-items: center; gap: 10px; font-size: 12px; }
-.jour-action-tete .jour-delai { margin-left: auto; }
-.jour-action-titre { margin: 6px 0 0; font-size: 15px; font-weight: 600; color: var(--ink); }
-.jour-action-dossier { margin: 1px 0 0; }
-.jour-action-dossier button.lien-discret { font-size: 13px; color: var(--ink-soft); text-decoration: none; font-weight: 500; text-align: left; }
-.jour-action-dossier button.lien-discret:hover { color: var(--focus); text-decoration: underline; }
-.jour-action-contexte { margin: 6px 0 0; font-size: 13px; color: var(--ink-soft); max-width: 75ch; }
-.jour-action-boutons { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 12px; }
-.jour-action-boutons button.primary.jour-bouton {
-  display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; font-size: 13px; font-weight: 600; border-radius: 8px;
-}
-.jour-action-boutons button.lien-action { font-size: 13px; font-weight: 500; }
-.jour-redige { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--success); }
-.jour-action-boutons .jour-plus-tard { margin-left: auto; text-decoration: none; }
-.jour-brouillon { margin-top: 12px; border: 1px solid var(--line-soft); border-radius: 10px; background: var(--paper-sunk); padding: 12px 14px; font-size: 13px; }
-.jour-brouillon dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 10px; margin: 0 0 10px; font-size: 12.5px; }
+.jour-brouillon { margin-top: 8px; border: 1px solid var(--line-soft); border-radius: 10px; background: var(--paper-card); padding: 10px 12px; font-size: 12.5px; }
+.jour-brouillon dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 10px; margin: 0 0 8px; font-size: 12px; }
 .jour-brouillon dt { color: var(--muted); }
 .jour-brouillon dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
-.jour-brouillon p { margin: 0 0 8px; color: var(--ink-soft); max-width: 70ch; overflow-wrap: anywhere; }
+.jour-brouillon p { margin: 0 0 6px; color: var(--ink-soft); max-width: 70ch; overflow-wrap: anywhere; }
 .jour-brouillon p:last-child { margin-bottom: 0; }
 
-/* Page « Aujourd'hui ». */
-.jour-entete-page { display: flex; flex-direction: column; gap: 12px; margin: 6px 0 22px; }
-.jour-entete-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-.jour-entete-actions button.secondary { display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; font-size: 13px; border-radius: 8px; }
-.jour-grille { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+/* Page : une barre (progression + outils), puis À faire à gauche et un panneau à onglets à droite. */
+.jour-barre-outils {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 18px;
+  margin: 4px 0 16px;
+}
+.jour-entete-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.jour-grille { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 20px; align-items: start; }
 .jour-grille > * { min-width: 0; }
-.jour-principal, .jour-rail { display: flex; flex-direction: column; gap: 22px; }
 .jour-section {
   background: var(--paper-card); border: 1px solid var(--line); border-radius: 12px;
-  box-shadow: var(--shadow-card); padding: 16px 18px;
+  box-shadow: var(--shadow-card); padding: 14px 14px 10px;
 }
-.jour-section .jour-actions .jour-action { box-shadow: none; }
+.jour-section-actions .jour-section-titre { padding: 0 6px; }
+.jour-panneau { position: sticky; top: 16px; padding: 0; overflow: hidden; }
+.jour-onglets {
+  display: flex; flex-wrap: wrap; gap: 0 2px; padding: 6px 6px 0; border-bottom: 1px solid var(--line-soft);
+}
+.jour-onglet {
+  display: inline-flex; align-items: center; gap: 5px; flex: 0 0 auto;
+  font-family: inherit; font-size: 12px; font-weight: 600; color: var(--muted);
+  background: none; border: none; border-bottom: 2px solid transparent; padding: 8px 7px 9px; margin-bottom: -1px; cursor: pointer;
+}
+.jour-onglet:hover { color: var(--ink); }
+.jour-onglet.actif { color: var(--ink); border-bottom-color: var(--focus); }
+.jour-onglet-nb {
+  min-width: 17px; height: 17px; padding: 0 5px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--line-soft); color: var(--ink-soft); font-size: 10.5px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.jour-onglet.actif .jour-onglet-nb { background: var(--focus); color: var(--on-accent); }
+.jour-panneau-corps { padding: 14px 16px; max-height: calc(100vh - 230px); overflow-y: auto; }
 .jour-rappels { padding: 0; }
 
 .jour-signatures { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-.jour-signature { padding: 10px 0; border-top: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 6px; }
+.jour-signature {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 10px; align-items: center;
+  padding: 9px 0; border-top: 1px solid var(--line-soft);
+}
 .jour-signature:first-child { border-top: none; padding-top: 0; }
 .jour-signature-tete {
-  display: flex; flex-direction: column; gap: 1px; align-items: flex-start; text-align: left;
+  display: flex; flex-direction: column; gap: 1px; align-items: flex-start; text-align: left; min-width: 0;
   font-family: inherit; background: none; border: none; padding: 0; cursor: pointer; color: var(--ink);
 }
 .jour-signature-tete:hover .jour-signature-nom { color: var(--focus); }
-.jour-signature-quand { font-size: 12px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.jour-signature-quand { font-size: 11.5px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
 .jour-signature-quand:first-letter { text-transform: uppercase; }
-.jour-signature-nom { font-size: 14px; font-weight: 600; }
-.jour-signature-points { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; }
+.jour-signature-nom { font-size: 13.5px; font-weight: 600; }
+.jour-signature-etat { font-size: 12px; font-weight: 600; color: var(--pret); white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
+.jour-signature-etat.ok { color: var(--success); }
+.jour-signature-points { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px; }
+.jour-pip {
+  display: inline-flex; align-items: center; gap: 3px; padding: 1px 7px; border-radius: 999px;
+  font-size: 11px; font-weight: 600; border: 1px solid color-mix(in srgb, var(--pret) 45%, transparent);
+  color: var(--pret); background: color-mix(in srgb, var(--pret) 9%, transparent);
+}
+.jour-pip.ok { border-color: color-mix(in srgb, var(--success) 40%, transparent); color: var(--success); background: color-mix(in srgb, var(--success) 9%, transparent); }
 
 .jour-fil { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-.jour-fil-groupe { padding: 10px 0; border-top: 1px solid var(--line-soft); }
+.jour-fil-groupe { padding: 9px 0; border-top: 1px solid var(--line-soft); }
 .jour-fil-groupe:first-child { border-top: none; padding-top: 0; }
 .jour-fil-groupe ul { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
 .jour-fil-dossier { font-family: inherit; font-size: 13px; font-weight: 600; color: var(--ink); background: none; border: none; padding: 0; cursor: pointer; text-align: left; }
@@ -5837,44 +5885,79 @@ button.lien-discret.jour-ligne-dossier:hover { color: var(--focus); text-decorat
 .jour-equipe li:first-child { border-top: none; }
 .jour-critique { color: var(--urgent); font-weight: 600; }
 
-/* Fenêtre du matin : sous les popups d'information et de confirmation (z-index 1000), qui peuvent
-   s'ouvrir par-dessus après un clic sur « Ouvrir la relance ». */
+/* Fenêtre du matin : sous les popups d'information et de confirmation (z-index 1000). */
 .jour-overlay {
   position: fixed; inset: 0; z-index: 950; background: rgba(20, 26, 38, 0.46);
   display: flex; align-items: center; justify-content: center; padding: 24px 16px;
 }
 [data-theme="dark"] .jour-overlay { background: rgba(0, 0, 0, 0.58); }
 .jour-fenetre {
-  width: min(1000px, 100%); max-height: calc(100vh - 48px); display: flex; flex-direction: column; overflow: hidden;
+  width: min(980px, 100%); max-height: calc(100vh - 48px); display: flex; flex-direction: column; overflow: hidden;
   background: var(--paper-card); color: var(--ink); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow-float);
 }
-.jour-fenetre-tete { position: relative; padding: 22px 28px 18px; border-bottom: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 8px; }
-.jour-fenetre-titre { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+.jour-fenetre-tete {
+  position: relative; padding: 18px 60px 16px 24px; border-bottom: 1px solid var(--line-soft);
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 20px;
+}
+.jour-fenetre-titre { margin: 2px 0 0; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
 .jour-fenetre-x { position: absolute; top: 14px; right: 14px; }
 .jour-fenetre-corps {
-  overflow-y: auto; padding: 20px 28px 24px;
-  display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); gap: 28px;
+  overflow-y: auto; padding: 16px 18px 18px;
+  display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 22px;
 }
 .jour-fenetre-corps > * { min-width: 0; }
-.jour-fenetre-corps .jour-section-titre { margin-bottom: 12px; }
-.jour-fenetre-rail { display: flex; flex-direction: column; gap: 18px; }
-.jour-fenetre-rail .jour-section { border: none; box-shadow: none; padding: 0; background: none; }
+.jour-fenetre-corps .jour-section-titre { padding: 0 6px; }
+.jour-fenetre-rail { border-left: 1px solid var(--line-soft); padding-left: 20px; }
 .jour-fenetre-pied {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 14px 28px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 24px;
   border-top: 1px solid var(--line-soft); background: var(--paper-sunk); font-size: 12.5px; color: var(--muted);
 }
 .jour-espace { flex: 1 1 auto; }
 .jour-fenetre-pied button.primary, .jour-fenetre-pied button.secondary { padding: 8px 14px; font-size: 13px; border-radius: 8px; }
 
-@media (max-width: 1100px) { .jour-grille { grid-template-columns: minmax(0, 1fr); } }
-@media (max-width: 860px) { .jour-fenetre-corps { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 1100px) {
+  .jour-grille { grid-template-columns: minmax(0, 1fr); }
+  .jour-panneau { position: static; }
+  .jour-panneau-corps { max-height: none; }
+}
+@media (max-width: 860px) {
+  .jour-fenetre-corps { grid-template-columns: minmax(0, 1fr); }
+  .jour-fenetre-rail { border-left: none; padding-left: 6px; border-top: 1px solid var(--line-soft); padding-top: 14px; }
+}
+/* Téléphone : le délai passe sous le titre, le bouton ne garde que son icône. */
 @media (max-width: 600px) {
   .jour-overlay { padding: 0; align-items: stretch; }
   .jour-fenetre { max-height: none; height: 100%; border-radius: 0; border: none; }
-  .jour-fenetre-tete, .jour-fenetre-corps, .jour-fenetre-pied { padding-left: 16px; padding-right: 16px; }
-  .jour-fenetre-titre { font-size: 22px; padding-right: 36px; }
+  .jour-fenetre-tete { padding-left: 16px; }
+  .jour-fenetre-corps { padding-left: 10px; padding-right: 10px; }
+  .jour-fenetre-pied { padding-left: 16px; padding-right: 16px; }
+  .jour-fenetre-titre { font-size: 21px; }
+  .ja { grid-template-columns: 12px minmax(0, 1fr) auto auto; grid-template-areas: "p t go tard" "p d go tard"; row-gap: 0; }
+  .ja > .dot-label { grid-area: p; }
+  .ja > .ja-texte { grid-area: t; }
+  .ja > .ja-delai { grid-area: d; font-size: 11.5px; }
+  .ja > .ja-go { grid-area: go; }
+  .ja > .ja-plus-tard { grid-area: tard; }
+  .ja > .ja-detail { grid-column: 2 / -1; grid-row: 3; }
+  .ja.fait { grid-template-areas: none; }
+  .ja-go span { display: none; }
+  .ja button.primary.ja-go { padding: 6px 8px; }
+  .jour-aide { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .jour-anneau-plein, .ja { transition: none; }
+  .jour-anneau.fini .jour-anneau-texte, .ja.fait { animation: none; }
 }
 @media print { .jour-overlay { display: none !important; } }
-.jour-page-tete { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
+.jour-page-tete { display: flex; flex-direction: column; gap: 2px; margin-bottom: 4px; }
 .jour-page-tete .dash-titre { font-size: 32px; line-height: 1.15; }
 @media (max-width: 900px) { .jour-page-tete .dash-titre { font-size: 26px; } }
+/* Boutons à icône seule des écrans « Aujourd'hui » (la règle .icon-btn générique est un lien souligné). */
+.jour-entete-actions button.icon-btn, .ja button.icon-btn.ja-plus-tard, .jour-fenetre button.icon-btn.jour-fenetre-x {
+  display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0;
+  border-radius: 8px; text-decoration: none; color: var(--muted); font-size: 15px;
+}
+.jour-entete-actions button.icon-btn { border: 1px solid var(--line); background: var(--paper-card); }
+.jour-entete-actions button.icon-btn:hover, .ja button.icon-btn.ja-plus-tard:hover, .jour-fenetre button.icon-btn.jour-fenetre-x:hover {
+  color: var(--ink); background: var(--line-soft);
+}

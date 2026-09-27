@@ -8442,6 +8442,38 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     retirent l'action et la notent dans « Traité », page complète, aucun débordement, aucune
     erreur JS. Suite racine 840 → 851.
 
+- **Page « Aujourd'hui » reprise : moins de défilement, un clic par action, une progression qui se
+  voit** (27/09 soir, « que l'on n'ait pas trop à scroller, gérer les actions en un clic, ludique
+  sans y passer trop de temps »). Seule la présentation change : `actionsDuJour` et les autres
+  fonctions pures de la section AUJOURD'HUI de script.js ne bougent pas.
+  - **Une action = une ligne** (`renderLigneActionJour`, `.ja`) : point de catégorie, titre +
+    dossier, délai, UN bouton de geste au verbe court (`libelleCourtGeste` : Relancer, Confirmer,
+    Envoyer, Marquer envoyé, Préparer, Ouvrir) et une horloge « plus tard ». Le contexte et le texte
+    du brouillon ne s'affichent qu'au clic sur le titre (`.ja-detail`). Les cartes d'action de la
+    première version, avec leur paragraphe et leurs trois boutons, faisaient défiler la page.
+  - **Plus de fenêtre à fermer entre deux actions** : `envoyerRelanceCiblee(id, type, discret)` et
+    `envoyerQuestionnaireSatisfaction(id, discret)` gagnent un paramètre `discret` — depuis
+    « Aujourd'hui », une notification remplace la fenêtre « Brouillon ouvert ». Les appels de la
+    fiche dossier sont inchangés. « Marquer envoyé » et « Plus tard » affichent une notification
+    avec **« Annuler »** (`annulerTraiteJour`) : le report est retiré, et une date d'envoi notée par
+    erreur est remise à sa valeur d'avant, avec une ligne d'historique. Un brouillon ouvert, lui,
+    ne se défait pas : il est déjà dans la messagerie.
+  - **Ludique, sans jeu** : un anneau qui se remplit en vert à chaque action traitée
+    (`renderAnneauJour`, coche au centre une fois la journée bouclée), une phrase courte
+    (`messageProgressionJour`, pure et testée : « C'est parti : 8 choses aujourd'hui », « Plus
+    qu'une ! », « Journée bouclée ») et les actions faites restent dans la liste, cochées et barrées,
+    au lieu de disparaître. Rien de culpabilisant, pas de points ni de classement.
+  - **Le reste passe dans un panneau à onglets** à droite (Signatures, Nouveautés, À venir, Journal,
+    Rappels, et Équipe pour l'administrateur), dernier onglet retenu par poste
+    (`claire-aujourdhui-panneau`). Les signatures des 7 jours tiennent en une ligne chacune, avec
+    des pastilles vertes (fait) ou ambre (à faire). Mesuré à 1500×900 : la page entière tient sans
+    défilement avec 8 actions.
+  - La carte du tableau de bord et le point du matin utilisent les mêmes lignes (version compacte
+    dans la carte : icône seule sur le bouton, délai sous le titre ; même chose sur téléphone).
+  - Tests : +2 dans `tests/aujourdhui.test.js`. Suites : racine 853, serveur 383. Vérifié dans un
+    vrai Chromium (clair, sombre, 400 px) : geste en un clic, annulation qui remet la date, report,
+    aucun débordement, aucune erreur JS.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à
