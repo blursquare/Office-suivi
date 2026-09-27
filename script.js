@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-27 17:37';
+  const VERSION_APP = '2026-09-27 18:19';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-27 18:19', resume: "Relecture d'actes : panneau « Diagnostic de la relecture » (clauses retenues et écartées par thème, avec la raison et la page). Import d'un acte : cadastre sur plusieurs parcelles avec contenance totale, prix contradictoires signalés, SIREN/siège/capital d'une société lus." },
     { version: '2026-09-27 17:37', resume: "Thème de couleur « Prune » retiré (cinq thèmes restants : bordeaux, bleu, vert, orange, noir et blanc)." },
     { version: '2026-09-27 17:32', resume: "Nouveau thème de couleur « Noir & blanc » (gris strictement neutre, sans teinte) dans Réglages › Général › Sur ce poste, à côté du bordeaux/bleu/vert/prune/orange." },
     { version: '2026-09-27 16:29', resume: "Relecture d'actes : l'analyse passe par Mistral (société française), traitée dans l'Union européenne. Claude reste disponible dans Réglages → Relecture d'actes. Clé API Mistral à saisir au même endroit." },
@@ -623,6 +624,75 @@
     // Un prix de vente immobilier réel ne descend jamais sous 1000 € : filtre les faux positifs
     // (un numéro d'article, une référence de loi capturée par erreur près du mot "prix").
     return Number.isFinite(valeur) && valeur >= 1000 ? valeur : null;
+  }
+
+  // ---- Prix contradictoires ------------------------------------------------------------------
+  // Toutes les mentions qui désignent LE prix de cette vente, pour signaler deux clauses qui ne
+  // disent pas le même montant. Un acte cite couramment d'autres sommes près du mot « prix », qui
+  // ne le contredisent pas — relevées sur le corpus réel et écartées :
+  //  - la ventilation (« ce prix s'applique aux MEUBLES à concurrence de… / au BIEN à concurrence
+  //    de… ») et le mobilier compris dans le prix ;
+  //  - le prix de la vente PRÉCÉDENTE, cité dans l'origine de propriété (« Suivant acte reçu par
+  //    Maître X… moyennant le prix de TRENTE-TROIS MILLE… ») ;
+  //  - le net vendeur après honoraires, la commission, l'origine des fonds (« à concurrence de la
+  //    somme de… au moyen d'un prêt »), les frais, le dépôt de garantie.
+  // Deux écritures : la reprise chiffrée entre parenthèses (« moyennant le prix de … (92 000,00
+  // EUR) ») et la ligne du tableau de financement (« Prix de vente : … 35 000,00 EUR »).
+  var RE_MENTION_PRIX_PARENTHESES = /\bprix\b([^(.]{0,120})\(\s*([\d](?:[\d\s.]{0,14})?(?:,\d{2})?)\s*(?:€|eur(?:os?)?\b)\s*\.?\s*\)/gi;
+  var RE_MENTION_PRIX_TABLEAU = /(?:^|[\s•-])(?:Prix|PRIX)(?:\s+de\s+vente)?\s*(?:\([^)]{0,80}\))?\s*[:|]?\s*(?:[A-ZÀ-Ü][A-ZÀ-Ü\s'’-]{3,90}EUROS?\s*\.?\s*)?(\d{1,3}(?:[\s.]\d{3})+(?:,\d{2})?)\s*(?:€|EUR\b)/g;
+  var RE_PRIX_AUTRE_SOMME = /mobilier|meubles?|concurrence|honoraires|commission|net\s+vendeur|revers|acompte|d[ée]p[ôo]t|frais|provision|fonds|pr[êe]t|somme|ventil|dont\b|droits/i;
+  var FENETRE_ORIGINE_PRIX = 220;
+  // Le prix payé par le vendeur lors de SON acquisition, cité dans la clause de plus-value (« l'immeuble
+  // a été acquis par eux moyennant le prix de 99 000 €, suivant acte du 02 août 2024 ») : le marqueur
+  // vient ici APRÈS le montant, d'où un jugement sur la phrase entière (acte PUV FERNANDES).
+  var RE_PRIX_ACQUISITION_ANTERIEURE = /\b(?:a|ont)\s+[ée]t[ée]\s+acquis|\bacquis\s+par\s+(?:eux|lui|elle|le\s+vendeur|le\s+promettant)|\bsuivant\s+acte\s+du\b|plus[-\s]?value/i;
+
+  function montantDepuisChiffres(brut) {
+    const valeur = parseInt(String(brut || '').split(',')[0].replace(/[\s.]/g, ''), 10);
+    return Number.isFinite(valeur) && valeur >= 1000 ? valeur : null;
+  }
+
+  // [{ montant, index }] dans l'ordre du texte. Pure, testable.
+  function detecterMentionsPrix(texte) {
+    const src = String(texte || '');
+    const mentions = [];
+    const retenir = (montant, index) => {
+      if (montant == null) return;
+      if (RE_ORIGINE_PROPRIETE.test(src.slice(Math.max(0, index - FENETRE_ORIGINE_PRIX), index))) return;
+      if (RE_PRIX_ACQUISITION_ANTERIEURE.test(phraseAutour(src, index, 250, 250).phrase)) return;
+      if (mentions.some(x => Math.abs(x.index - index) < 20)) return;
+      mentions.push({ montant, index });
+    };
+    let m;
+    const reP = new RegExp(RE_MENTION_PRIX_PARENTHESES.source, 'gi');
+    while ((m = reP.exec(src)) !== null) {
+      if (RE_PRIX_AUTRE_SOMME.test(m[1])) continue;
+      retenir(montantDepuisChiffres(m[2]), m.index);
+    }
+    const reT = new RegExp(RE_MENTION_PRIX_TABLEAU.source, 'g');
+    while ((m = reT.exec(src)) !== null) {
+      const avant = src.slice(Math.max(0, m.index - 40), m.index);
+      if (RE_PRIX_AUTRE_SOMME.test(m[0].replace(/\d[\d\s.,]*\s*(?:€|EUR)$/, '')) || /\bdont\b|concurrence/i.test(avant)) continue;
+      retenir(montantDepuisChiffres(m[1]), m.index);
+    }
+    return mentions.sort((a, b) => a.index - b.index);
+  }
+
+  // Le champ prix : la première mention fait la valeur (comme avant) ; si l'acte en porte une
+  // autre, différente, la donnée passe « à vérifier » avec les deux montants proposés.
+  function champPrixVente(source) {
+    const valeur = detecterPrixVente(source);
+    const mentions = detecterMentionsPrix(source);
+    const distincts = [...new Set(mentions.map(x => x.montant))];
+    const base = champAvecSource(source, 'prixVente', valeur);
+    if (distincts.length < 2) return base;
+    base.statut = 'NEEDS_REVIEW';
+    base.candidats = distincts.map(montant => {
+      const mention = mentions.find(x => x.montant === montant);
+      return { valeur: montant, origine: 'regex', source: { page: pageDepuisIndex(mention.index), extrait: extraitAutour(source, mention.index, 160) } };
+    });
+    base.raison = `L’acte cite plusieurs prix pour cette vente : ${distincts.map(formaterPrix).join(' et ')}.`;
+    return base;
   }
 
   // Dépôt de garantie / acompte sur le prix : la somme que l'acquéreur verse à la signature de
@@ -1485,6 +1555,67 @@
   var RE_PERSONNE_MORALE = /\b(SCI|SCCV|SARL|SASU|SAS|EURL|SCP|SA|SC)\b[\s,]*(?:d[ée]nomm[ée]e?\s+)?["«'’]?\s*([A-ZÀ-Ü0-9][^,.\n«»"'’]{2,60}?)\s*["»'’]?\s*(?=,|\.|\n|$|\bau\s+capital\b|\bdont\s+le\s+si[èe]ge\b|\brepr[ée]sent)/;
   var RE_REPRESENTANT = /repr[ée]sent[ée]e?\s+par\s+(?:Monsieur|Madame|Mademoiselle|M\.|Mme)?\s*([A-ZÀ-Ü][^,.\n]{2,60}?)(?=,|\.|\n|$|\ben\s+qualit[ée]\b|\bagissant\b)/i;
 
+  // ---- Identité d'une personne morale : SIREN, RCS, siège, capital ------------------------------
+  // Aucune société partie à un acte du corpus réel, mais trois sociétés y sont décrites avec la
+  // rédaction notariale exacte qu'emploie la présentation d'une partie — c'est sur elles que ces
+  // motifs ont été écrits (agence, prêteur, confrère) :
+  //  « SARLU au capital de 100 000 €, dont le siège social est situé 3 Avenue du Président Wilson -
+  //    41000 BLOIS, RCS BLOIS n° 410 876 361 » ;
+  //  « Société en nom collectif au capital de 5.100.000 €, dont le siège est à PARIS (75801), 19 rue
+  //    de Vienne, identifiée au SIREN sous le numéro 732014964 et immatriculée au Registre du Commerce
+  //    et des Sociétés de PARIS » ;
+  //  « SAS au capital de 1.507.656 €, dont le siège social est à BORDEAUX (33100), 28 avenue Thiers,
+  //    immatriculée au Registre du Commerce et des Sociétés de Bordeaux, sous le numéro 414 854 216
+  //    00010, n° SIREN 414 854 216 ».
+  // Le SIREN porte une clé de contrôle (algorithme de Luhn) : un numéro qui ne la vérifie pas est une
+  // coquille de l'acte ou une lecture fautive, et le dire vaut mieux que de le reprendre tel quel.
+  var RE_SIREN_EXPLICITE = /\bSIREN\b[^0-9]{0,40}?(\d{3}\s?\d{3}\s?\d{3})(?!\s?\d)/i;
+  var RE_RCS_NUMERO = /(?:\bR\.?\s?C\.?\s?S\.?|Registre\s+du\s+Commerce\s+et\s+des\s+Soci[ée]t[ée]s)[^0-9]{0,60}?(\d{3}\s?\d{3}\s?\d{3})(?:\s?\d{5})?(?!\s?\d)/i;
+  var RE_RCS_VILLE = /(?:\bR\.?\s?C\.?\s?S\.?|Registre\s+du\s+Commerce\s+et\s+des\s+Soci[ée]t[ée]s)\s+(?:de\s+|d['’]\s*)?([A-ZÀ-Ü][A-Za-zÀ-ÿ'’-]+(?:\s+[A-ZÀ-Ü][A-Za-zÀ-ÿ'’-]+){0,3})/;
+  var RE_SIEGE_SOCIETE = /dont\s+le\s+si[èe]ge(?:\s+social)?\s+est\s+(?:situ[ée]\s+|fix[ée]\s+|[ée]tabli\s+)?(?:[àa]u?\s+)?([^.;]{5,140}?)(?=\s*,\s*(?:identifi|immatricul|inscrit|repr[ée]sent|R\.?\s?C\.?\s?S|n[°ºo]\s*SIREN|SIREN)|\s+R\.?\s?C\.?\s?S|\s*[.;]|$)/i;
+  var RE_CAPITAL_SOCIETE = /au\s+capital\s+(?:social\s+)?(?:de\s+)?(\d[\d\s.]*(?:,\d{1,2})?)\s*(?:€|euros?|EUR\b)/i;
+
+  function sirenValide(siren) {
+    const chiffres = String(siren || '').replace(/\D/g, '');
+    if (chiffres.length !== 9) return false;
+    let somme = 0;
+    for (let i = 0; i < 9; i++) {
+      let n = Number(chiffres[8 - i]);
+      if (i % 2 === 1) { n *= 2; if (n > 9) n -= 9; }
+      somme += n;
+    }
+    return somme % 10 === 0;
+  }
+
+  // Pure : lit l'identité dans la présentation de la société (le bloc qui suit sa raison sociale).
+  function detecterIdentiteSociete(bloc) {
+    const t = String(bloc || '').replace(/\s+/g, ' ');
+    const brut = (RE_SIREN_EXPLICITE.exec(t) || RE_RCS_NUMERO.exec(t) || [])[1] || null;
+    const siren = brut ? brut.replace(/\s/g, '') : null;
+    const siege = RE_SIEGE_SOCIETE.exec(t);
+    const ville = RE_RCS_VILLE.exec(t);
+    const capital = RE_CAPITAL_SOCIETE.exec(t);
+    const capitalValeur = capital ? Number(capital[1].split(',')[0].replace(/[\s.]/g, '')) : null;
+    const identite = {
+      siren,
+      sirenValide: siren ? sirenValide(siren) : null,
+      rcs: ville ? ville[1].replace(/\s+/g, ' ').trim() : null,
+      siege: siege ? siege[1].replace(/\s+-\s+/g, ', ').replace(/\s+/g, ' ').replace(/\s+,/g, ',').trim() : null,
+      capital: Number.isFinite(capitalValeur) ? capitalValeur : null
+    };
+    return (identite.siren || identite.siege || identite.rcs || identite.capital != null) ? identite : null;
+  }
+
+  // « SIREN 410 876 361 (RCS BLOIS) · siège : 3 Avenue du Président Wilson, 41000 BLOIS ». Pure.
+  function libelleIdentiteSociete(soc) {
+    if (!soc) return '';
+    const morceaux = [];
+    if (soc.siren) morceaux.push(`SIREN ${soc.siren.replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3')}${soc.rcs ? ` (RCS ${soc.rcs})` : ''}${soc.sirenValide === false ? ' — numéro invalide, à vérifier' : ''}`);
+    else if (soc.rcs) morceaux.push(`RCS ${soc.rcs}`);
+    if (soc.siege) morceaux.push(`siège : ${soc.siege}`);
+    return morceaux.join(' · ');
+  }
+
   // Extrait les parties du document, chacune avec sa qualité TELLE QU'ÉCRITE dans l'acte et le rôle
   // qui en découle POUR CE TYPE D'ACTE. Gère plusieurs vendeurs et plusieurs acquéreurs (les noms
   // sont extraits un par un, voir extraireNomsParNaissance), ainsi qu'une personne morale avec son
@@ -1515,19 +1646,25 @@
       const borne = suivante && suivante.index > cote.index ? suivante.index : source.length;
       const resultat = nomsEtFinPourRole(source.slice(0, borne), cote.re, curseur);
       let noms = resultat.noms;
-      const bloc = source.slice(cote.index, Math.min(source.length, cote.index + 1200));
+      // Borné par la partie suivante, comme les noms : sans cette borne, un vendeur personne physique
+      // suivi d'une SCI acquéreuse devenait lui aussi « SCI … » (la raison sociale de l'acquéreur
+      // tombait dans les 1200 caractères lus après le titre du vendeur).
+      const bloc = source.slice(cote.index, Math.min(borne, cote.index + 1200));
 
       // Personne morale : sa raison sociale remplace les noms de personnes physiques du bloc, qui
       // ne sont alors que ceux du représentant.
       const morale = bloc.match(RE_PERSONNE_MORALE);
       if (morale) {
         const mRepresentant = bloc.match(RE_REPRESENTANT);
+        // L'identité est lue jusqu'au représentant : ce qui suit décrit une personne physique.
+        const presentation = bloc.slice(morale.index, mRepresentant ? mRepresentant.index : bloc.length);
         parties.push({
           nom: `${morale[1]} ${morale[2].trim()}`.replace(/\s+/g, ' ').trim(),
           qualiteActe: cote.qualite,
           role,
           qualitePersonne: 'morale',
           representant: mRepresentant ? mRepresentant[1].replace(/\s+/g, ' ').trim() : null,
+          societe: detecterIdentiteSociete(presentation),
           source: { extrait: extraireContexte(source, cote.index, cote.qualite.length), index: cote.index }
         });
         curseur = resultat.finAbsolue;
@@ -2795,8 +2932,6 @@
   // bien vendu sur un autre acte du corpus.
   var RE_ADRESSE_HORS_BIEN = /demeurant|domicili[ée]|r[ée]sidant|notaires?\s+[àa]\b|office\s+notarial|\bSCP\b|[ée]lection\s+de\s+domicile|aux\s+fins\s+de\s+recevoir|si[èe]ge\s+(?:social\s+)?(?:est|se\s+trouve|sis)?/i;
 
-  var RE_CADASTRE = /cadastr[ée]e?s?\s+(?:en\s+)?section\s+([A-Z]{1,3})\s*(?:n(?:um[ée]ro|[°ºo])?\s*)?(\d{1,4})/i;
-
   // La PARTIE NORMALISÉE d'un acte authentique présente le cadastre en TABLEAU, que pdf.js rend à
   // plat : « Figurant ainsi au cadastre : Section N° Lieudit BH 81 9 RUE D ESCURES » — l'en-tête
   // de colonnes suivi des valeurs. Le motif ci-dessus, écrit pour la rédaction en toutes lettres
@@ -2811,18 +2946,121 @@
   // la parcelle issue de la division. Une mention précédée d'un de ces mots est écartée.
   var RE_CADASTRE_ANCIEN = /(?:originairement|anciennement|pr[ée]c[ée]demment|autrefois|initialement|ci-devant)\s*$/i;
 
+  // ---- Désignation cadastrale complète : toutes les parcelles et leur contenance ----------------
+  // Le bien vendu porte souvent sur plusieurs parcelles (terre + jardin, maison + garage…) et la
+  // première seule ne suffisait ni à comparer deux actes ni à relire la désignation. Neuf formes
+  // relevées sur les actes réels du corpus, toutes reconnues ici :
+  //  - tableau à plat, avec ou sans colonnes « Préfixe », « Adresse ou lieudit », « Nature » :
+  //    « Section N° Lieudit Surface Nature C 438 Clos des Coudres 00 ha 22 a 00 ca Terre C 439 … » ;
+  //  - contenance écrite « 09 a 63 ca », « 99 ca », « 00 ha 02 a 75 ca », ou en trois colonnes
+  //    « ha a ca » (« ZY 37 510 rue de Pitouille 0 15 20 ») — alors seulement si l'en-tête le dit ;
+  //  - le même tableau passé à l'OCR, colonnes marquées de « [ » et « | » ;
+  //  - la forme rédigée « cadastré comme suit : Section HE numéro 95 pour une contenance de 05a 65ca ».
+  // Le total annoncé (« Contenance totale », « Total surface ») est gardé À CÔTÉ de la somme des
+  // parcelles : les deux doivent concorder, un écart est signalé (voir controlerCoherence).
+  var RE_ENTETE_TABLEAU_CADASTRE = /(?:c\s?adastr[ée]e?s?|au\s+c\s?adastre)(?:\s+comme\s+suit)?\s*:?[\s\[|_]*(?:Pr[ée]fixe[\s\[|_]+)?Section[\s\[|_]+(?:N[°ºo]?|Num[ée]ro)[\s\[|_]+(?:Adresse\s+ou\s+)?Lie\s?u\s?dit(?:\s+ou\s+voie)?[\s\[|_]+(?:Contenance|Surface)(?:[\s\[|_]+Nature)?(\s+ha\s+a\s+ca)?/i;
+  var CONTENANCE_SOURCE = '(?:\\d{1,3}\\s*ha\\s*)?(?:\\d{1,2}\\s*a\\s*)?\\d{1,2}\\s*ca';
+  var RE_TOTAL_CADASTRE = new RegExp('(?:(?:Contenance|Surface)\\s+totale|Total\\s+(?:surface|contenance))\\s*:?\\s*(' + CONTENANCE_SOURCE + ')', 'i');
+  // Ce qui clôt le tableau : la phrase qui reprend après lui. Majuscule initiale exigée, pour ne pas
+  // couper sur un lieudit écrit en minuscules.
+  var RE_FIN_TABLEAU_CADASTRE = /\s(?:Tels?\s+qu|Ainsi\s+que|Un\s+extrait|Le\(s\)\s+lot|Lot\s+num[ée]ro|Pr[ée]cision|Zone\s+d|Ledit|Il\s+est|Observation|L['’]immeuble|Le\s+lot)/;
+  var MAX_ZONE_TABLEAU_CADASTRE = 1500;
+
+  // « 01 ha 40 a 64 ca » → 14064 m². Trois colonnes « 0 15 20 » acceptées. Pure.
+  function contenanceEnM2(texte) {
+    const t = String(texte || '').trim();
+    const col = /^(\d{1,3})\s+(\d{1,2})\s+(\d{1,2})$/.exec(t);
+    if (col) return Number(col[1]) * 10000 + Number(col[2]) * 100 + Number(col[3]);
+    const m = /^(?:(\d{1,3})\s*ha\s*)?(?:(\d{1,2})\s*a\s*)?(\d{1,2})\s*ca$/i.exec(t);
+    if (!m) return null;
+    return Number(m[1] || 0) * 10000 + Number(m[2] || 0) * 100 + Number(m[3]);
+  }
+
+  // 14064 → « 1 ha 40 a 64 ca » ; 2060 → « 20 a 60 ca ». Pure.
+  function formaterContenance(m2) {
+    if (m2 == null || !Number.isFinite(m2)) return '';
+    const ha = Math.floor(m2 / 10000);
+    const a = Math.floor((m2 % 10000) / 100);
+    const ca = m2 % 100;
+    return [ha ? `${ha} ha` : '', (ha || a) ? `${a} a` : '', `${ca} ca`].filter(Boolean).join(' ');
+  }
+
+  function detecterTableauCadastral(source) {
+    const entete = RE_ENTETE_TABLEAU_CADASTRE.exec(source);
+    if (!entete) return null;
+    const debut = entete.index + entete[0].length;
+    let zone = source.slice(debut, debut + MAX_ZONE_TABLEAU_CADASTRE).replace(/[\[\]|_]/g, ' ');
+    const total = RE_TOTAL_CADASTRE.exec(zone);
+    let fin = zone.length;
+    if (total) fin = total.index;
+    const coupe = RE_FIN_TABLEAU_CADASTRE.exec(zone.slice(0, fin));
+    if (coupe) fin = coupe.index;
+    zone = zone.slice(0, fin);
+    const contenance = entete[1] ? `${CONTENANCE_SOURCE}|\\d{1,3}\\s+\\d{1,2}\\s+\\d{1,2}` : CONTENANCE_SOURCE;
+    const reLigne = new RegExp(`(?:^|\\s)([A-Z]{1,2})\\s+(\\d{1,5})\\b([\\s\\S]{0,90}?)\\s(${contenance})(?=\\s|$|[.,;])`, 'g');
+    const parcelles = [];
+    let m;
+    while ((m = reLigne.exec(zone)) !== null) {
+      parcelles.push({
+        section: m[1].toUpperCase(),
+        numero: m[2].replace(/^0+(?=\d)/, ''),
+        lieudit: m[3].replace(/\s+/g, ' ').trim() || null,
+        contenanceM2: contenanceEnM2(m[4])
+      });
+    }
+    if (!parcelles.length) return null;
+    return { parcelles, contenanceLueM2: total ? contenanceEnM2(total[1]) : null, index: entete.index };
+  }
+
+  var RE_CADASTRE_REDIGE = /cadastr[ée]e?s?(?:\s+comme\s+suit)?\s*:?\s*(?:en\s+)?section\s+([A-Z]{1,3})\s*(?:n(?:um[ée]ro|[°ºo])?\s*)?(\d{1,4})/i;
+  var RE_CONTENANCE_REDIGEE = new RegExp('^[^.]{0,60}?contenance\\s+de\\s+(' + CONTENANCE_SOURCE + ')', 'i');
+
   function detecterCadastre(texte) {
     const source = String(texte || '');
     // Le tableau de la partie normalisée est la désignation actuelle : il passe en premier.
+    const tableau = detecterTableauCadastral(source);
+    if (tableau) {
+      const somme = tableau.parcelles.every(p => p.contenanceM2 != null)
+        ? tableau.parcelles.reduce((s, p) => s + p.contenanceM2, 0) : null;
+      return { section: tableau.parcelles[0].section, numero: tableau.parcelles[0].numero,
+        parcelles: tableau.parcelles, contenanceTotaleM2: somme, contenanceLueM2: tableau.contenanceLueM2 };
+    }
     const t = RE_CADASTRE_TABLEAU.exec(source);
     if (t) return { section: t[1].toUpperCase(), numero: t[2] };
-    const re = new RegExp(RE_CADASTRE.source, 'gi');
+    const re = new RegExp(RE_CADASTRE_REDIGE.source, 'gi');
     let m;
     while ((m = re.exec(source)) !== null) {
       if (RE_CADASTRE_ANCIEN.test(source.slice(Math.max(0, m.index - 30), m.index))) continue;
-      return { section: m[1].toUpperCase(), numero: m[2] };
+      const section = m[1].toUpperCase();
+      const numero = m[2];
+      const cont = RE_CONTENANCE_REDIGEE.exec(source.slice(m.index + m[0].length, m.index + m[0].length + 90));
+      const contenanceM2 = cont ? contenanceEnM2(cont[1]) : null;
+      return contenanceM2 != null
+        ? { section, numero, parcelles: [{ section, numero, lieudit: null, contenanceM2 }], contenanceTotaleM2: contenanceM2, contenanceLueM2: null }
+        : { section, numero };
     }
     return null;
+  }
+
+  // Ce qu'on lit d'un coup d'œil : « section C n° 438, 439, 440, 441, 1339 — 1 ha 40 a 64 ca ». Pure.
+  function libelleCadastre(cad) {
+    if (!cad || !cad.section) return '';
+    const parcelles = Array.isArray(cad.parcelles) && cad.parcelles.length ? cad.parcelles : [cad];
+    const parSection = new Map();
+    for (const p of parcelles) {
+      if (!parSection.has(p.section)) parSection.set(p.section, []);
+      parSection.get(p.section).push(p.numero);
+    }
+    const refs = [...parSection.entries()].map(([s, nums]) => `section ${s} n° ${nums.filter(Boolean).join(', ')}`).join(' ; ');
+    const surface = cad.contenanceLueM2 != null ? cad.contenanceLueM2 : cad.contenanceTotaleM2;
+    return refs + (surface != null ? ` — ${formaterContenance(surface)}` : '');
+  }
+
+  // Ensemble des parcelles d'une désignation, pour comparer deux actes sans dépendre de l'ordre.
+  function clesParcelles(cad) {
+    if (!cad || !cad.section) return [];
+    const parcelles = Array.isArray(cad.parcelles) && cad.parcelles.length ? cad.parcelles : [cad];
+    return parcelles.map(p => `${p.section} ${String(p.numero || '').replace(/^0+(?=\d)/, '')}`).sort();
   }
 
   // Adresse du bien, découpée en composants. Cherche d'abord dans la section désignation, puis dans
@@ -2964,7 +3202,7 @@
       dates: construireDatesMetier(detectedDates, detecterDelais(source), dateCompromis),
       champs: {
         nom: champAvecSource(source, 'nom', detecterNomDossier(source)),
-        prixVente: champAvecSource(source, 'prixVente', detecterPrixVente(source)),
+        prixVente: champPrixVente(source),
         emailAcquereur: champAvecSource(source, 'emailAcquereur', detecterEmailAcquereur(source, typeActe.valeur)),
         nomAgence: champAvecSource(source, 'nomAgence', detecterNomAgence(source)),
         depotGarantie: champAvecSource(source, 'depotGarantie', detecterDepotGarantie(source)),
@@ -3023,6 +3261,32 @@
           message: `La date écrite dans l’acte et le délai qu’il énonce ne concordent pas (${Math.round(ecart)} jours d’écart) : c’est la date écrite qui a été retenue.`
         });
       }
+    }
+
+    for (const partie of (extraction.parties || [])) {
+      if (partie.societe && partie.societe.siren && partie.societe.sirenValide === false) {
+        alertes.push({
+          code: 'SIREN_INVALIDE', gravite: 'attention', champs: ['nom'],
+          message: `Le numéro SIREN lu pour ${partie.nom} (${partie.societe.siren}) ne vérifie pas sa clé de contrôle : coquille de l’acte ou lecture fautive, à vérifier sur l’extrait Kbis.`
+        });
+      }
+    }
+
+    const prix = extraction.champs && extraction.champs.prixVente;
+    if (prix && (prix.candidats || []).filter(c => c.origine === 'regex').length > 1) {
+      alertes.push({
+        code: 'PRIX_CONTRADICTOIRE', gravite: 'critique', champs: ['prixVente'],
+        message: prix.raison || 'L’acte cite plusieurs prix différents pour cette vente.'
+      });
+    }
+
+    const cadastre = extraction.bien && extraction.bien.cadastre;
+    if (cadastre && cadastre.contenanceLueM2 != null && cadastre.contenanceTotaleM2 != null
+        && cadastre.contenanceLueM2 !== cadastre.contenanceTotaleM2) {
+      alertes.push({
+        code: 'CONTENANCE_TOTALE_INCOHERENTE', gravite: 'attention', champs: ['adresseBien'],
+        message: `La contenance totale annoncée (${formaterContenance(cadastre.contenanceLueM2)}) ne correspond pas à la somme des parcelles (${formaterContenance(cadastre.contenanceTotaleM2)}) : une parcelle a pu être mal lue, ou le tableau de l’acte comporte une erreur.`
+      });
     }
 
     const adresse = extraction.bien && extraction.bien.adresse;
@@ -3128,7 +3392,8 @@
       parties: (extraction.parties || []).map(p => ({
         nom: p.nom, qualiteActe: p.qualiteActe, role: p.role,
         qualitePersonne: p.qualitePersonne || 'physique',
-        representant: p.representant || null
+        representant: p.representant || null,
+        societe: p.societe || null
       })),
       notaires: {
         vendeur: notairePersistable(notaires.vendeur),
@@ -3293,16 +3558,33 @@
       });
     }
 
+    // Toutes les parcelles sont comparées, pas seulement la première : une parcelle ajoutée ou
+    // oubliée au projet (le garage, la bande de jardin) change l'objet même de la vente.
     const cadastreRef = reference.bien && reference.bien.cadastre;
     const cadastreProjet = projet.bien && projet.bien.cadastre;
-    if (cadastreRef && cadastreProjet &&
-        (cadastreRef.section !== cadastreProjet.section || cadastreRef.numero !== cadastreProjet.numero)) {
+    const clesRef = clesParcelles(cadastreRef);
+    const clesProjet = clesParcelles(cadastreProjet);
+    if (clesRef.length && clesProjet.length && clesRef.join('|') !== clesProjet.join('|')) {
+      const absentes = clesRef.filter(k => clesProjet.indexOf(k) === -1);
+      const ajoutees = clesProjet.filter(k => clesRef.indexOf(k) === -1);
+      const detail = [absentes.length ? `absente(s) du projet : ${absentes.join(', ')}` : '', ajoutees.length ? `ajoutée(s) au projet : ${ajoutees.join(', ')}` : ''].filter(Boolean).join(' ; ');
       constats.push({
         categorie: 'COMPARAISON_COMPROMIS', gravite: 'CRITIQUE',
         titre: 'Référence cadastrale différente',
-        description: `Compromis/promesse : section ${cadastreRef.section} n°${cadastreRef.numero} — projet de vente : section ${cadastreProjet.section} n°${cadastreProjet.numero}.`,
+        description: `Compromis/promesse : ${libelleCadastre(cadastreRef)} — projet de vente : ${libelleCadastre(cadastreProjet)}.${detail ? ' Parcelle(s) ' + detail + '.' : ''}`,
         sources: []
       });
+    } else if (clesRef.length && clesProjet.length) {
+      const surfRef = cadastreRef.contenanceLueM2 != null ? cadastreRef.contenanceLueM2 : cadastreRef.contenanceTotaleM2;
+      const surfProjet = cadastreProjet.contenanceLueM2 != null ? cadastreProjet.contenanceLueM2 : cadastreProjet.contenanceTotaleM2;
+      if (surfRef != null && surfProjet != null && surfRef !== surfProjet) {
+        constats.push({
+          categorie: 'COMPARAISON_COMPROMIS', gravite: 'IMPORTANT',
+          titre: 'Contenance cadastrale différente',
+          description: `Mêmes parcelles, mais contenance ${formaterContenance(surfRef)} dans le compromis/la promesse et ${formaterContenance(surfProjet)} dans le projet de vente.`,
+          sources: []
+        });
+      }
     }
 
     const notaireRef = reference.notaires && reference.notaires.instrumentaire;
@@ -3586,6 +3868,82 @@
     return { phrase: t.slice(debut, fin).replace(/\s+/g, ' ').trim(), debut, fin };
   }
 
+  // --- Journal de diagnostic de la relecture ------------------------------------------------
+  // Pendant d'Outil 1 (renderDiagnosticParcours). Chaque détecteur note les clauses qu'il a
+  // examinées : retenues, ou ÉCARTÉES avec la raison (clause de style, engagement futur, texte de
+  // loi cité…). Le seul retour obtenu sur la relecture était « il rate des choses » : avec ce
+  // journal, un signalement devient « il a vu la clause p.12 et l'a écartée comme clause de style »,
+  // c'est-à-dire un correctif d'un seul tour.
+  // Le journal n'existe que pendant analyserCompromisOutil2 / analyserProjetVenteOutil2 : appelés
+  // ailleurs (import d'Outil 1, tests), les détecteurs ne notent rien et ne coûtent rien de plus.
+  var journalDiagnosticOutil2 = null;
+  var MAX_ENTREES_DIAGNOSTIC_OUTIL2 = 3000;
+
+  var THEMES_DIAGNOSTIC_OUTIL2 = [
+    { cle: 'travaux', libelle: 'Travaux déjà réalisés' },
+    { cle: 'engagements', libelle: 'Obligations du vendeur' },
+    { cle: 'diagnostics', libelle: 'Diagnostics et entretiens' },
+    { cle: 'procedures', libelle: 'Procédures et litiges' },
+    { cle: 'documentsNonEtablis', libelle: 'Documents déclarés non établis' },
+    { cle: 'statut', libelle: 'Statut des acquéreurs' },
+    { cle: 'ag', libelle: 'Assemblées générales' },
+    { cle: 'urbanisme', libelle: 'Certificat d’urbanisme' }
+  ];
+
+  function ouvrirJournalDiagnosticOutil2() {
+    journalDiagnosticOutil2 = { entrees: [], document: '', pages: null };
+  }
+
+  function fermerJournalDiagnosticOutil2() {
+    const j = journalDiagnosticOutil2;
+    journalDiagnosticOutil2 = null;
+    return j ? j.entrees : [];
+  }
+
+  // Le document en cours de lecture : les entrées suivantes lui sont rattachées, avec leur page.
+  function documentJournalDiagnosticOutil2(nom, pages) {
+    if (!journalDiagnosticOutil2) return;
+    journalDiagnosticOutil2.document = nom || '';
+    journalDiagnosticOutil2.pages = pages || null;
+  }
+
+  // `precision` nomme l'objet examiné (« DPE », « emplacement réservé ») sans fragmenter le
+  // regroupement par raison.
+  function noterDiagnosticOutil2(theme, verdict, raison, phrase, index, precision) {
+    const j = journalDiagnosticOutil2;
+    if (!j || j.entrees.length >= MAX_ENTREES_DIAGNOSTIC_OUTIL2) return;
+    j.entrees.push({
+      theme, verdict, raison, precision: precision || '',
+      phrase: String(phrase || '').replace(/\s+/g, ' ').trim().slice(0, 320),
+      document: j.document,
+      page: (index != null && j.pages && j.pages.length) ? pageDepuisIndexPages(j.pages, index) : null
+    });
+  }
+
+  // Regroupe le journal pour l'affichage : par thème, puis par verdict et par raison. Pure.
+  function syntheseDiagnosticOutil2(entrees) {
+    const parTheme = new Map();
+    for (const e of entrees || []) {
+      if (!parTheme.has(e.theme)) parTheme.set(e.theme, { retenues: [], ecartees: new Map() });
+      const t = parTheme.get(e.theme);
+      if (e.verdict === 'retenue') t.retenues.push(e);
+      else {
+        if (!t.ecartees.has(e.raison)) t.ecartees.set(e.raison, []);
+        t.ecartees.get(e.raison).push(e);
+      }
+    }
+    return THEMES_DIAGNOSTIC_OUTIL2
+      .filter(th => parTheme.has(th.cle))
+      .map(th => {
+        const t = parTheme.get(th.cle);
+        const ecartees = [...t.ecartees.entries()]
+          .map(([raison, liste]) => ({ raison, entrees: liste }))
+          .sort((a, b) => b.entrees.length - a.entrees.length);
+        return { cle: th.cle, libelle: th.libelle, retenues: t.retenues, ecartees,
+          nbEcartees: ecartees.reduce((s, g) => s + g.entrees.length, 0) };
+      });
+  }
+
   // --- Thème 1 : travaux DÉJÀ RÉALISÉS et déclarés dans l'acte -------------------------------
   // Le danger nommé par l'étude : des travaux touchant au GROS ŒUVRE ou à l'EXTÉRIEUR du bien
   // exigent une autorisation d'urbanisme, et engagent la garantie décennale s'ils ont moins de
@@ -3595,7 +3953,7 @@
   // Marqueur d'une réalisation PASSÉE : c'est lui qui distingue « des travaux ont été réalisés »
   // (thème 1) de « le vendeur s'engage à faire réaliser des travaux » (thème 4, déjà couvert par
   // extraireEngagementsVendeur).
-  var RE_TRAVAUX_PASSES = /(?:ont|a|ayant|avoir)\s+[ée]t[ée]\s+(?:r[ée]alis|effectu|ex[ée]cut|entrepr|achev|termin|construit|[ée]difi)|d[ée]clare\s+(?:avoir\s+)?(?:fait\s+)?(?:r[ée]alis|proc[ée]d|effectu|ex[ée]cut|construit|[ée]difi)|(?:(?:r[ée]alis|effectu|ex[ée]cut|achev|[ée]difi|refai|r[ée]nov)[ée]e?s?|construite?s?)\s+(?:en|le|courant|depuis|il\s+y\s+a|au\s+cours)\b/i;
+  var RE_TRAVAUX_PASSES = /(?:ont|a|ayant|avoir)\s+[ée]t[ée]\s+(?:r[ée]alis|effectu|ex[ée]cut|entrepr|achev|termin|construit|[ée]difi)|d[ée]clare\s+(?:avoir\s+)?(?:fait\s+)?(?:r[ée]alis|proc[ée]d|effectu|ex[ée]cut|construit|[ée]difi)|(?:(?:r[ée]alis|effectu|ex[ée]cut|achev|[ée]difi|r[ée]nov)[ée]e?s?|construite?s?|refaite?s?)\s+(?:en|le|courant|depuis|il\s+y\s+a|au\s+cours)\b/i;
 
   // Une déclaration de NON-travaux est la clause de style la plus fréquente de tout l'acte : la
   // retenir produirait un danger sur chaque compromis (même piège que la négation de copropriété,
@@ -3664,14 +4022,18 @@
       // le verdict. Sans ça, une clause écartée ne laissait aucune trace et son deuxième mot
       // « travaux » la faisait rejuger sur une fenêtre décalée, qui repassait les garde-fous.
       spans.push({ debut, fin });
-      if (!RE_TRAVAUX_PASSES.test(phrase)) continue;
-      if (RE_AUCUN_TRAVAUX.test(phrase)) continue;
-      if (RE_TRAVAUX_FUTURS.test(phrase)) continue;
-      if (RE_TRAVAUX_HYPOTHETIQUE.test(phrase)) continue;
-      if (RE_REFERENCE_TEXTE_LEGAL.test(phrase) && RE_ENONCIATION_LEGALE.test(phrase)) continue;
+      const ecarter = (raison) => { noterDiagnosticOutil2('travaux', 'ecartee', raison, phrase, m.index); };
+      if (!RE_TRAVAUX_PASSES.test(phrase)) { ecarter('Simple mention : aucun marqueur de travaux déjà réalisés'); continue; }
+      if (RE_AUCUN_TRAVAUX.test(phrase)) { ecarter('Clause de non-travaux (« aucun travaux… »)'); continue; }
+      if (RE_TRAVAUX_FUTURS.test(phrase)) { ecarter('Travaux à venir : relève des obligations du vendeur'); continue; }
+      if (RE_TRAVAUX_HYPOTHETIQUE.test(phrase)) { ecarter('Formulation conditionnelle (ce qu’un document doit mentionner)'); continue; }
+      if (RE_REFERENCE_TEXTE_LEGAL.test(phrase) && RE_ENONCIATION_LEGALE.test(phrase)) { ecarter('Texte de loi cité dans l’acte'); continue; }
 
       const grosOeuvre = RE_TRAVAUX_GROS_OEUVRE.test(phrase);
       const exterieur = RE_TRAVAUX_EXTERIEUR.test(phrase);
+      noterDiagnosticOutil2('travaux', 'retenue',
+        (grosOeuvre || exterieur) ? `Retenue : touche ${grosOeuvre ? 'le gros œuvre' : 'l’extérieur'}` : 'Retenue : travail intérieur, sans constat (pas d’autorisation exigée)',
+        phrase, m.index);
       const anneeMatch = phrase.match(RE_ANNEE_TRAVAUX);
       const annee = anneeMatch ? Number(anneeMatch[1]) : null;
       const anneeCourante = Number(String(aujourdHui || new Date().toISOString().slice(0, 10)).slice(0, 4));
@@ -3842,7 +4204,10 @@
         if (g.lastIndex === m.index) g.lastIndex++;
         if (zone && (m.index < zone.debut || m.index > zone.fin)) continue;
         const avant = src.slice(Math.max(0, m.index - FENETRE_NEGATION_STATUT), m.index);
-        if (RE_NEGATION_STATUT.test(avant)) continue;
+        if (RE_NEGATION_STATUT.test(avant)) {
+          noterDiagnosticOutil2('statut', 'ecartee', 'Statut nié (« non pacsés », « ne sont pas mariés »…)', phraseAutour(src, m.index, 120, 200).phrase, m.index);
+          continue;
+        }
         // La zone suffit quand elle est connue : sur un acte qui présente PUIS étiquette (« …, dénommés
         // ci-après le BÉNÉFICIAIRE »), le marqueur de rôle le plus proche en amont est celui du VENDEUR,
         // et le « célibataire » des bénéficiaires n'était jamais retenu.
@@ -3877,6 +4242,11 @@
       // pourtant écrit, ressortait « non précisé ».
       const mr = phraseContenant(src, retenu.index).texte.match(reRegime) || phrase.match(reRegime);
       if (mr) regime = mr[0].trim();
+      noterDiagnosticOutil2('statut', 'retenue', `Retenu : ${retenu.statut === 'marie' ? 'mariés' : retenu.statut === 'pacse' ? 'pacsés' : retenu.statut === 'concubins' ? 'concubins' : 'seul(e)'}`
+        + (retenu.statut === 'marie' || retenu.statut === 'pacse' ? (regime ? ` — régime lu : ${regime}` : ' — régime non lu dans la clause') : '')
+        + (zone ? '' : ' (présentation de l’acquéreur non délimitée : rôle déduit du marqueur le plus proche)'), phrase, p.debut);
+    } else {
+      noterDiagnosticOutil2('statut', 'ecartee', zone ? 'Aucun statut lu dans la présentation de l’acquéreur' : 'Présentation de l’acquéreur non délimitée et aucun statut rattaché à lui', '', null);
     }
 
     return {
@@ -4041,21 +4411,23 @@
   // « périmé » en CRITIQUE — alors qu'il n'y a précisément aucun repérage à produire.
   var RE_DIAG_NON_REQUIS = /n['’]\s*(?:entre|est|sont)\s+pas\s+(?:dans\s+le\s+champ|inclus|concern|soumis|n[ée]cessaire|requis|[ée]quip|situ[ée])|\bne\s+comporte\s+(?:aucune?|pas)\b|\bn['’]a\s+pas\s+[ée]t[ée]\s+(?:[ée]tabli|r[ée]alis)|\baucun\s+[ée]tat\b|construits?\s+(?:apr[èe]s|post[ée]rieurement\s+au)\s+(?:le\s+)?1(?:er)?\s+janvier\s+1949|(?:d[ée]livr[ée]|permis)[^.]{0,60}(?:apr[èe]s|post[ée]rieurement\s+au)\s+(?:le\s+)?1(?:er)?\s+juillet\s+1997|\bpas\s+n[ée]cessaire\b|\bil\s+n['’]y\s+a\s+pas\s+lieu\b/i;
 
-  function mentionDiagnosticUtile(src, m) {
+  function mentionDiagnosticUtile(src, m, label) {
     const apres = src.slice(m.index + m[0].length, m.index + m[0].length + 80);
-    if (RE_LIGNE_TABLEAU_VALIDITE.test(apres)) return null;
     const phrase = phraseAutour(src, m.index, 120, 260).phrase;
-    if (RE_MENTION_NORMATIVE_DIAG.test(phrase)) return null;
-    if (RE_DIAG_NON_REQUIS.test(phrase)) return null;
+    const ecarter = (raison) => { noterDiagnosticOutil2('diagnostics', 'ecartee', raison, phrase, m.index, label); return null; };
+    if (RE_LIGNE_TABLEAU_VALIDITE.test(apres)) return ecarter('Ligne du tableau légal des durées de validité');
+    if (RE_MENTION_NORMATIVE_DIAG.test(phrase)) return ecarter('Phrase normative (« doit être établi… »)');
+    if (RE_DIAG_NON_REQUIS.test(phrase)) return ecarter('Non requis pour ce bien, l’acte le dit');
     const fragment = fragmentApres(src, m.index, 300);
     let date = premiereDateDansFragment(fragment);
+    let dateLoi = false;
     if (date) {
       // La date n'est retenue que si rien, entre la mention et elle, n'en fait une date de loi.
       const posDate = fragment.search(/\d{1,2}(?:er)?[\s\/.-]/);
       const entre = posDate === -1 ? fragment : fragment.slice(0, posDate);
-      if (RE_DATE_CALENDRIER_LEGAL.test(entre)) date = null;
+      if (RE_DATE_CALENDRIER_LEGAL.test(entre)) { date = null; dateLoi = true; }
     }
-    return { index: m.index, date, phrase };
+    return { index: m.index, date, phrase, dateLoi };
   }
 
   function detecterDocumentsDatesOutil2(texte, pages, aujourdHui) {
@@ -4067,13 +4439,16 @@
       let m;
       let retenue = null;
       while ((m = re.exec(src)) !== null) {
-        const mention = mentionDiagnosticUtile(src, m);
+        const mention = mentionDiagnosticUtile(src, m, entree.label);
         if (mention && (!retenue || (!retenue.date && mention.date))) retenue = mention;
         if (retenue && retenue.date) break;
         if (re.lastIndex === m.index) re.lastIndex++;
       }
       if (!retenue) continue;
       const date = retenue.date;
+      noterDiagnosticOutil2('diagnostics', 'retenue',
+        `Retenue : ${entree.label}, ` + (date ? `daté du ${formatDateFr(date)}` : (retenue.dateLoi ? 'date lue écartée (date d’un texte de loi)' : 'aucune date lue dans la clause')),
+        retenue.phrase, retenue.index);
       m = { index: retenue.index };
       trouves.push({
         cle, label: entree.label, famille: entree.famille,
@@ -4289,23 +4664,32 @@
       // La date suit la mention (« assemblée générale du 12 mars 2025 ») dans la même phrase.
       const apres = fragmentApres(src, index + longueur, 120);
       const date = premiereDateDansFragment(apres);
-      if (!date) continue;
+      const phraseAg = () => phraseAutour(src, index, 80, 260).phrase;
+      if (!date) { noterDiagnosticOutil2('ag', 'ecartee', 'Mention sans date (clause générale sur les assemblées)', phraseAg(), index); continue; }
       // Le connecteur doit relier les deux : sans lui, la date qui suit parle d'autre chose
       // (« l'assemblée générale statuera sur les travaux avant le 30 juin 2026 »).
       const iNum = apres.search(RE_DATE_NUM_LIBRE);
       const iLettres = apres.search(RE_DATE_TEXTE_LIBRE);
       const candidats = [iNum, iLettres].filter(x => x >= 0);
       if (candidats.length === 0) continue;
-      if (!RE_CONNECTEUR_DATE_AG.test(apres.slice(0, Math.min(...candidats)))) continue;
+      if (!RE_CONNECTEUR_DATE_AG.test(apres.slice(0, Math.min(...candidats)))) {
+        noterDiagnosticOutil2('ag', 'ecartee', 'Date qui ne désigne pas la réunion (échéance, délai…)', phraseAg(), index);
+        continue;
+      }
 
       const finFenetre = Math.min(
         index + FENETRE_TRAVAUX_AG,
         i + 1 < mentions.length ? mentions[i + 1].index : src.length
       );
       const fenetre = src.slice(index, finFenetre);
-      const travauxVotes = RE_TRAVAUX_VOTES.test(fenetre)
+      const voteLu = RE_TRAVAUX_VOTES.test(fenetre);
+      const travauxVotes = voteLu
         && !RE_AUCUN_TRAVAUX_VOTE.test(fenetre)
         && !RE_RESOLUTION_REJETEE.test(fenetre);
+      noterDiagnosticOutil2('ag', 'retenue', `Retenue : AG du ${formatDateFr(date)}, `
+        + (travauxVotes ? 'travaux votés' : voteLu
+          ? (RE_AUCUN_TRAVAUX_VOTE.test(fenetre) ? 'vote écarté (clause « aucun travaux voté »)' : 'vote écarté (résolution rejetée ou ajournée)')
+          : 'aucun vote de travaux lu'), phraseAg(), index);
       const entree = {
         date,
         page: pageDepuisIndexPages(pages, index),
@@ -4405,12 +4789,36 @@
 
   // Point d'entrée du mode « lecture du compromis ». Tout est synchrone : le rapport s'affiche dès
   // que les PDF sont lus, sans le moindre aller-retour serveur.
+  // Chaque document déposé est lu avec son nom dans le journal de diagnostic.
+  function parDocumentJournal(documents, fn) {
+    return (documents || []).map(doc => {
+      documentJournalDiagnosticOutil2(doc && doc.nom, doc && doc.pages);
+      return fn(doc);
+    });
+  }
+
+  // Ouvre le journal de diagnostic le temps d'une analyse, et le joint au résultat.
+  function avecJournalDiagnosticOutil2(analyse, entree) {
+    ouvrirJournalDiagnosticOutil2();
+    let resultat;
+    let journal;
+    try { resultat = analyse(entree); } finally { journal = fermerJournalDiagnosticOutil2(); }
+    resultat.diagnostic = journal;
+    return resultat;
+  }
+
   function analyserCompromisOutil2(entree) {
+    return avecJournalDiagnosticOutil2(analyserCompromisOutil2Interne, entree);
+  }
+
+  function analyserCompromisOutil2Interne(entree) {
     const texte = (entree && entree.texte) || '';
     const pages = (entree && entree.pages) || [];
     const aujourdHui = (entree && entree.aujourdHui) || new Date().toISOString().slice(0, 10);
     const justificatifs = rapprocherJustificatifs((entree && entree.documentsDeposes) || []);
 
+    documentJournalDiagnosticOutil2((entree && entree.nomTexte) || 'Document relu', pages);
+    const lectureActe = constatsLectureActe(texte, pages);
     const travaux = detecterTravauxRealises(texte, pages, aujourdHui);
     const documents = detecterDocumentsDatesOutil2(texte, pages, aujourdHui);
     const engagements = typeof extraireEngagementsVendeur === 'function' ? extraireEngagementsVendeur(texte) : [];
@@ -4429,23 +4837,25 @@
     // volet « travaux votés » s'applique — voir constatsAssembleesGenerales.
     const typeBien = typeBienPourAudit(entree);
     const estCopropriete = typeBien.type === 'copropriete';
+    const agsActe = detecterAssembleesGenerales(texte, pages, null);
+    const deposes = (entree && entree.documentsDeposes) || [];
     const carnets = estCopropriete
-      ? ((entree && entree.documentsDeposes) || []).map(doc => analyserCarnetEntretien(doc, aujourdHui)).filter(Boolean)
+      ? parDocumentJournal(deposes, doc => analyserCarnetEntretien(doc, aujourdHui)).filter(Boolean)
       : [];
     const travauxCarnet = carnets.reduce((acc, c) => acc.concat(c.travaux || []), []);
     const ags = fusionnerAssembleesGenerales([
-      detecterAssembleesGenerales(texte, pages, null),
-      ...((entree && entree.documentsDeposes) || []).map(doc => detecterAssembleesGenerales(doc.texte, null, doc.nom))
+      agsActe,
+      ...parDocumentJournal(deposes, doc => detecterAssembleesGenerales(doc.texte, doc.pages || null, doc.nom))
     ]);
 
     // État daté / pré-état daté et certificat d'urbanisme : cherchés parmi les documents déposés
     // uniquement, jamais dans l'avant-contrat lui-même — celui-ci les CITE couramment sans en être
     // un (même piège que les pièces de la checklist, déjà payé une fois).
-    const etatsDates = ((entree && entree.documentsDeposes) || []).map(analyserEtatDate).filter(Boolean);
-    const certificatsUrbanisme = ((entree && entree.documentsDeposes) || []).map(analyserCertificatUrbanisme).filter(Boolean);
+    const etatsDates = parDocumentJournal(deposes, analyserEtatDate).filter(Boolean);
+    const certificatsUrbanisme = parDocumentJournal(deposes, analyserCertificatUrbanisme).filter(Boolean);
 
     const constats = []
-      .concat(constatsLectureActe(texte, pages))
+      .concat(lectureActe)
       .concat(constatsCoherenceActe(entree && entree.extraction))
       .concat(constatsStatutAcquereurs(statutAcquereurs, nbAcquereurs))
       .concat(constatsTravauxRealises(travaux))
@@ -4730,18 +5140,19 @@
   // Chaque occurrence est jugée séparément : une vraie mention plus loin dans le document compte.
   var RE_CLAUSE_STYLE_CU = /ne\s+v[ée]rifie\s+pas|droit\s+des\s+tiers|prorog[ée]|dur[ée]e\s+de\s+validit[ée]|n['’]ont\s+pas\s+[ée]volu[ée]/i;
 
-  function occurrenceUtileCertificat(motif, texte) {
+  function occurrenceUtileCertificat(motif, texte, libelle) {
     const re = new RegExp(motif.source, motif.flags.includes('g') ? motif.flags : motif.flags + 'g');
     let m;
     while ((m = re.exec(texte)) !== null) {
       const { phrase } = phraseAutour(texte, m.index, 120, 300);
-      if (RE_SIMPLE_RENVOI_PIECE.test(phrase)) continue;
+      const ecarter = (raison) => { if (libelle) noterDiagnosticOutil2('urbanisme', 'ecartee', raison, phrase, m.index, libelle); };
+      if (RE_SIMPLE_RENVOI_PIECE.test(phrase)) { ecarter('Simple renvoi vers une autre pièce'); continue; }
       // Un visa (« Vu le plan de prévention des risques… ») dit qu'un texte existe sur la
       // commune, pas qu'il concerne ce terrain : c'est l'article du certificat qui le dit.
-      if (RE_VISA_CU.test(texte.slice(Math.max(0, m.index - 320), m.index))) continue;
+      if (RE_VISA_CU.test(texte.slice(Math.max(0, m.index - 320), m.index))) { ecarter('Visa (texte applicable à la commune, pas au terrain)'); continue; }
       // La clause de style s'étend sur plusieurs phrases (et une énumération finie par « … ») :
       // elle est jugée sur une fenêtre autour de l'occurrence, pas sur la seule phrase.
-      if (RE_CLAUSE_STYLE_CU.test(texte.slice(Math.max(0, m.index - 250), m.index + 150))) continue;
+      if (RE_CLAUSE_STYLE_CU.test(texte.slice(Math.max(0, m.index - 250), m.index + 150))) { ecarter('Clause de style du certificat'); continue; }
       return m;
     }
     return null;
@@ -4784,11 +5195,12 @@
     const operationnel = /\bcertificat\s+d['’]?\s*urbanisme\s+op[ée]rationnel\b|\bCU\s*b\s*\)|\bL\.?\s*410-1\s*b\b|\b2[°º]\s*de\s+l['’]article\s+L\.?\s*410-1\b/i.test(texte);
     const points = [];
     for (const p of POINTS_CERTIFICAT_URBANISME) {
-      const m = occurrenceUtileCertificat(p.motif, texte);
+      const m = occurrenceUtileCertificat(p.motif, texte, p.libelle);
       if (!m) continue;
       const fragment = fragmentApres(texte, m.index, FENETRE_RUBRIQUE_ETAT_DATE);
-      if (RE_RUBRIQUE_VIDE.test(fragment)) continue;
       const contexte = phraseAutour(texte, m.index, 120, 300);
+      if (RE_RUBRIQUE_VIDE.test(fragment)) { noterDiagnosticOutil2('urbanisme', 'ecartee', 'Rubrique vide (« néant », « sans objet »)', contexte.phrase, m.index, p.libelle); continue; }
+      noterDiagnosticOutil2('urbanisme', 'retenue', `Retenu : ${p.libelle}`, contexte.phrase, m.index);
       points.push({ cle: p.cle, libelle: p.libelle, gravite: p.gravite, phrase: contexte.phrase,
         page: pages ? pageDepuisIndexPages(pages, m.index) : null,
         destinataire: p.destinataire, question: p.question });
@@ -5899,7 +6311,7 @@
   // absents : la fiche d'identité affiche déjà ces deux lignes comme « non trouvé », en faire en
   // plus un constat dirait deux fois la même chose — la duplication que l'étude a fait retirer.
   var CODES_COHERENCE_ACTE = ['SIGNATURE_EGALE_REITERATION', 'PRET_APRES_ACTE', 'PRET_EGALE_VENTE_PREALABLE',
-    'DATE_EXPLICITE_VS_DELAI', 'NOTAIRES_IDENTIQUES', 'TYPE_ACTE_VS_QUALITES'];
+    'DATE_EXPLICITE_VS_DELAI', 'NOTAIRES_IDENTIQUES', 'TYPE_ACTE_VS_QUALITES', 'PRIX_CONTRADICTOIRE', 'CONTENANCE_TOTALE_INCOHERENTE', 'SIREN_INVALIDE'];
 
   // Constats lus dans le SEUL acte principal — aucun autre document n'est nécessaire pour les
   // établir. La date du jour n'entre pas ici : rien de ce qui suit n'en dépend.
@@ -5926,8 +6338,9 @@
     while ((m = reProc.exec(src)) !== null) {
       const p = nouveau(m.index, 250, 500);
       if (!p) continue;
-      if (RE_AUCUN_LITIGE.test(p.phrase)) continue;
-      if (RE_PROCEDURE_NORMATIVE.test(p.phrase)) continue;
+      if (RE_AUCUN_LITIGE.test(p.phrase)) { noterDiagnosticOutil2('procedures', 'ecartee', 'Clause de non-litige (« aucune action ou litige… »)', p.phrase, m.index); continue; }
+      if (RE_PROCEDURE_NORMATIVE.test(p.phrase)) { noterDiagnosticOutil2('procedures', 'ecartee', 'Rappel de la loi, aucune procédure déclarée sur ce bien', p.phrase, m.index); continue; }
+      noterDiagnosticOutil2('procedures', 'retenue', 'Retenue : procédure déclarée dans l’acte', p.phrase, m.index);
       // La phrase citée s'arrête au premier point ; or « l'ACQUEREUR s'oblige à faire son affaire
       // personnelle de cette procédure » arrive deux phrases plus loin dans l'acte réel envoyé par
       // l'étude. On CITE court et on JUGE sur la clause entière — sans cette distinction, le cas
@@ -5949,7 +6362,8 @@
     while ((m = reDoc.exec(src)) !== null) {
       const p = nouveau(m.index, 250, 300);
       if (!p) continue;
-      if (RE_DISPENSE_DOCUMENT.test(p.phrase)) continue;
+      if (RE_DISPENSE_DOCUMENT.test(p.phrase)) { noterDiagnosticOutil2('documentsNonEtablis', 'ecartee', 'Dispense justifiée dans la même clause', p.phrase, m.index); continue; }
+      noterDiagnosticOutil2('documentsNonEtablis', 'retenue', 'Retenue : document non établi sans dispense écrite', p.phrase, m.index);
       constats.push({
         categorie: 'ACTE',
         gravite: 'A_VERIFIER',
@@ -6004,7 +6418,7 @@
     const parties = Array.isArray(extraction.parties) ? extraction.parties : [];
     const nomsPar = (role) => parties
       .filter(p => String(p.role || '').toUpperCase() === role)
-      .map(p => p.nom).join(' & ');
+      .map(p => p.nom + (p.societe && p.societe.siren ? ` (${libelleIdentiteSociete(p.societe)})` : '')).join(' & ');
     ajouter('Vendeur(s)', nomsPar('VENDEUR') || null, null);
     ajouter('Acquéreur(s)', nomsPar('ACQUEREUR') || null, null);
 
@@ -6017,7 +6431,7 @@
     const bien = extraction.bien || {};
     ajouter('Bien', (bien.adresse && bien.adresse.adresseComplete) || null, bien.source);
     const cad = bien.cadastre;
-    ajouter('Cadastre', cad ? `section ${cad.section} n° ${cad.numero}` : null, null);
+    ajouter('Cadastre', cad ? libelleCadastre(cad) : null, null);
 
     const prix = champ('prixVente');
     ajouter('Prix', prix && prix.valeur ? formaterPrix(prix.valeur) : null, prix && prix.source);
@@ -6049,16 +6463,27 @@
   }
 
   function analyserProjetVenteOutil2(entree) {
+    return avecJournalDiagnosticOutil2(analyserProjetVenteOutil2Interne, entree);
+  }
+
+  function analyserProjetVenteOutil2Interne(entree) {
     const aujourdHui = (entree && entree.aujourdHui) || new Date().toISOString().slice(0, 10);
     const texteAvantContrat = (entree && entree.texteAvantContrat) || '';
     const texteProjet = (entree && entree.texteProjet) || '';
     const pagesAvantContrat = (entree && entree.pagesAvantContrat) || [];
+    const nomAvantContrat = (entree && entree.nomAvantContrat) || 'Avant-contrat';
+    const nomProjet = (entree && entree.nomProjet) || 'Projet de vente';
 
+    documentJournalDiagnosticOutil2(nomAvantContrat, pagesAvantContrat);
     const obligations = verifierEngagementsTenus({ ...entree, aujourdHui });
     const comparaison = (entree && entree.reference && entree.projet)
       ? comparerCompromisEtProjet(entree.reference, entree.projet) : [];
     const travaux = detecterTravauxRealises(texteAvantContrat, pagesAvantContrat, aujourdHui);
+    const agsAvantContrat = detecterAssembleesGenerales(texteAvantContrat, pagesAvantContrat, null);
+    documentJournalDiagnosticOutil2(nomProjet, (entree && entree.pagesProjet) || []);
+    const lectureActe = constatsLectureActe(texteProjet, (entree && entree.pagesProjet) || []);
     const statutAcquereurs = detecterStatutAcquereurs(texteProjet, (entree && entree.pagesProjet) || []);
+    const agsProjet = detecterAssembleesGenerales(texteProjet, (entree && entree.pagesProjet) || [], null);
     const nbAcquereurs = (((entree && entree.projet) || {}).parties || [])
       .filter(pp => String(pp.role || '').toUpperCase() === 'ACQUEREUR').length;
 
@@ -6070,14 +6495,15 @@
     const dossierLie = (entree && entree.dossierLie) || null;
     const typeBien = typeBienPourAudit(entree);
     const estCopropriete = typeBien.type === 'copropriete';
+    const deposes = (entree && entree.documentsDeposes) || [];
     const carnets = estCopropriete
-      ? ((entree && entree.documentsDeposes) || []).map(doc => analyserCarnetEntretien(doc, aujourdHui)).filter(Boolean)
+      ? parDocumentJournal(deposes, doc => analyserCarnetEntretien(doc, aujourdHui)).filter(Boolean)
       : [];
     const travauxCarnet = carnets.reduce((acc, c) => acc.concat(c.travaux || []), []);
     const ags = fusionnerAssembleesGenerales([
-      detecterAssembleesGenerales(texteAvantContrat, pagesAvantContrat, null),
-      detecterAssembleesGenerales(texteProjet, pagesProjet, null),
-      ...((entree && entree.documentsDeposes) || []).map(doc => detecterAssembleesGenerales(doc.texte, null, doc.nom))
+      agsAvantContrat,
+      agsProjet,
+      ...parDocumentJournal(deposes, doc => detecterAssembleesGenerales(doc.texte, doc.pages || null, doc.nom))
     ]);
     const dateAvantContrat = typeof detecterDateCompromis === 'function' ? detecterDateCompromis(texteAvantContrat) : null;
     // La vente n'étant pas encore signée, sa date est celle du rendez-vous déjà pris, à défaut la
@@ -6088,8 +6514,8 @@
     // Mêmes analyses qu'en mode « compromis », sur les mêmes documents déposés : c'est justement
     // au moment de relire le projet de vente que l'état daté arrive, et un certificat d'urbanisme
     // périmé entre l'avant-contrat et la vente est exactement le genre de point à rattraper là.
-    const etatsDates = ((entree && entree.documentsDeposes) || []).map(analyserEtatDate).filter(Boolean);
-    const certificatsUrbanisme = ((entree && entree.documentsDeposes) || []).map(analyserCertificatUrbanisme).filter(Boolean);
+    const etatsDates = parDocumentJournal(deposes, analyserEtatDate).filter(Boolean);
+    const certificatsUrbanisme = parDocumentJournal(deposes, analyserCertificatUrbanisme).filter(Boolean);
 
     // Terrain à bâtir : le permis de l'acquéreur, son affichage et la purge des deux délais.
     // Branché ICI SEULEMENT, pas en mode « compromis » : à la signature de l'avant-contrat le
@@ -6106,7 +6532,7 @@
     const conditionPermis = RE_CONDITION_PERMIS.test(texteAvantContrat) || RE_CONDITION_PERMIS.test(texteProjet);
 
     const constats = []
-      .concat(constatsLectureActe(texteProjet, pagesProjet))
+      .concat(lectureActe)
       .concat(constatsCoherenceActe(entree && entree.projet))
       .concat(comparaison)
       .concat(constatsStatutAcquereurs(statutAcquereurs, nbAcquereurs))
@@ -6213,6 +6639,16 @@
 
   // Assainissement à l'import d'une sauvegarde JSON : on conserve ces objets s'ils ont la bonne
   // forme, sinon on repart de rien plutôt que de propager une structure inattendue dans le rendu.
+  // Une identité de société importée d'une sauvegarde : seuls les champs connus, typés.
+  function societePersistable(soc) {
+    if (!soc || typeof soc !== 'object' || Array.isArray(soc)) return null;
+    const texte = (v) => (typeof v === 'string' && v.trim()) ? v.trim().slice(0, 200) : null;
+    const siren = typeof soc.siren === 'string' && /^\d{9}$/.test(soc.siren) ? soc.siren : null;
+    const r = { siren, sirenValide: siren ? sirenValide(siren) : null, rcs: texte(soc.rcs), siege: texte(soc.siege),
+      capital: Number.isFinite(soc.capital) ? soc.capital : null };
+    return (r.siren || r.rcs || r.siege || r.capital != null) ? r : null;
+  }
+
   function normaliserExtractionImportee(d) {
     const objet = (v) => (v && typeof v === 'object' && !Array.isArray(v)) ? v : null;
     const source = objet(d) || {};
@@ -6232,7 +6668,8 @@
               qualiteActe: typeof p.qualiteActe === 'string' ? p.qualiteActe : '',
               role: p.role,
               qualitePersonne: p.qualitePersonne === 'morale' ? 'morale' : 'physique',
-              representant: typeof p.representant === 'string' ? p.representant : null
+              representant: typeof p.representant === 'string' ? p.representant : null,
+              societe: societePersistable(p.societe)
             }))
         : [],
       notaires: notaires
@@ -6629,6 +7066,8 @@
     return t;
   }
 
+  var LIBELLES_TYPE_ENGAGEMENT_DIAGNOSTIC = { entretien: 'entretien à justifier', travaux: 'travaux à faire', document: 'document à produire', autre: 'autre obligation' };
+
   function extraireEngagementsVendeur(texte) {
     const engagements = [];
     const vus = new Set();
@@ -6662,10 +7101,11 @@
       }
       const phrase = nettoyerDebutClause(texte.slice(debut, fin));
       if (phrase.length <= 25) continue;
-      if (EXCLUSION_ENGAGEMENT_RE.test(phrase)) continue;
-      if (LISTE_EQUIPEMENTS_RE.test(phrase)) continue;
-      if (CLAUSE_HYPOTHETIQUE_RE.test(phrase)) continue;
-      if (OCCUPATION_JOUISSANCE_RE.test(phrase)) continue;
+      const ecarter = (raison) => { noterDiagnosticOutil2('engagements', 'ecartee', raison, phrase, m.index); };
+      if (EXCLUSION_ENGAGEMENT_RE.test(phrase)) { ecarter('Clause de style (garantie, visite, origine de propriété…)'); continue; }
+      if (LISTE_EQUIPEMENTS_RE.test(phrase)) { ecarter('Énumération d’équipements vendus avec le bien'); continue; }
+      if (CLAUSE_HYPOTHETIQUE_RE.test(phrase)) { ecarter('Engagement conditionnel (« si… »)'); continue; }
+      if (OCCUPATION_JOUISSANCE_RE.test(phrase)) { ecarter('Occupation ou jouissance du bien'); continue; }
 
       const estEntretien = OBJET_ENTRETIEN_RE.test(phrase);
       const estTravaux = OBJET_TRAVAUX_RE.test(phrase);
@@ -6680,7 +7120,7 @@
         // ne s'applique jamais à une phrase qui n'aurait pas d'abord passé ce motif strict, donc ne
         // risque pas d'élargir la détection à des sentences arbitraires du document.
         const apprise = trouverCorrectionApprise(phrase, 'engagement');
-        if (!apprise) continue;
+        if (!apprise) { ecarter('Objet non reconnu : ni entretien, ni travaux, ni document à produire'); continue; }
         type = apprise.classification;
       } else {
         // L'entretien prime : « justifier du dernier ramonage » est un entretien à prouver, pas des
@@ -6693,6 +7133,7 @@
       const cle = phrase.slice(0, 70);
       if (!vus.has(cle)) {
         vus.add(cle);
+        noterDiagnosticOutil2('engagements', 'retenue', 'Retenue : ' + (LIBELLES_TYPE_ENGAGEMENT_DIAGNOSTIC[type] || type), phrase, m.index);
         engagements.push({ phrase, type, page: pageDepuisIndex(m.index) });
       }
     }
@@ -7679,7 +8120,7 @@
     }).join('');
 
     const parties = (extraction.parties || []).map(p =>
-      `<li>${escapeHtml(p.nom)} — <strong>${p.role === 'VENDEUR' ? 'vendeur' : 'acquéreur'}</strong> (désigné « ${escapeHtml(p.qualiteActe)} » dans l’acte${p.qualitePersonne === 'morale' ? ', personne morale' : ''})${p.representant ? `, représenté par ${escapeHtml(p.representant)}` : ''}${p.origine === 'ia' ? ' — <em>proposé par l’IA</em>' : ''}</li>`
+      `<li>${escapeHtml(p.nom)} — <strong>${p.role === 'VENDEUR' ? 'vendeur' : 'acquéreur'}</strong> (désigné « ${escapeHtml(p.qualiteActe)} » dans l’acte${p.qualitePersonne === 'morale' ? ', personne morale' : ''})${p.representant ? `, représenté par ${escapeHtml(p.representant)}` : ''}${p.origine === 'ia' ? ' — <em>proposé par l’IA</em>' : ''}${p.societe ? `<div class="revision-raison">${escapeHtml(libelleIdentiteSociete(p.societe))}</div>` : ''}</li>`
     ).join('');
 
     const notaires = extraction.notaires || {};
@@ -12343,7 +12784,7 @@
     }
     if (parties.length > 0) {
       blocs.push(`<div class="extraction-ligne"><span class="extraction-libelle">Parties</span>
-        <span>${parties.map(p => `${escapeHtml(p.nom)} <em>(${p.role === 'VENDEUR' ? 'vendeur' : 'acquéreur'}${p.qualiteActe ? ', désigné « ' + escapeHtml(p.qualiteActe) + ' »' : ''})</em>`).join(' · ')}</span></div>`);
+        <span>${parties.map(p => `${escapeHtml(p.nom)} <em>(${p.role === 'VENDEUR' ? 'vendeur' : 'acquéreur'}${p.qualiteActe ? ', désigné « ' + escapeHtml(p.qualiteActe) + ' »' : ''})</em>${p.societe ? ` <span class="hint">${escapeHtml(libelleIdentiteSociete(p.societe))}</span>` : ''}`).join(' · ')}</span></div>`);
     }
     if (notaires && (notaires.instrumentaire || notaires.participant)) {
       const nom = (n) => n ? `${escapeHtml(n.nom)}${n.office ? ' (' + escapeHtml(n.office) + ')' : ''}` : '—';
@@ -12353,7 +12794,7 @@
     const cadastre = d.bien && d.bien.cadastre;
     if (cadastre && cadastre.section) {
       blocs.push(`<div class="extraction-ligne"><span class="extraction-libelle">Cadastre</span>
-        <span>Section ${escapeHtml(cadastre.section)}${cadastre.numero ? ' n° ' + escapeHtml(cadastre.numero) : ''}</span></div>`);
+        <span>${escapeHtml(libelleCadastre(cadastre))}</span></div>`);
     }
 
     const LIBELLES_CHAMP_EXTRACTION = {
@@ -20391,6 +20832,8 @@
           pagesAvantContrat: ref ? ref.pages : [],
           texteProjet: principal.texte,
           pagesProjet: principal.pages,
+          nomProjet: principal.nom,
+          nomAvantContrat: ref ? (ref.nom || 'Avant-contrat') : 'Avant-contrat',
           documentsDeposes: justificatifs,
           dossierLie: auditDossierLie,
           reference: ref ? referenceAudit(ref.texte, ref.nom, auditDossierLie) : (auditDossierLie ? referenceDepuisDossier(auditDossierLie) : null),
@@ -20403,7 +20846,7 @@
       dernierAuditContexte = {
         mode: 'compromis',
         entree: {
-          texte: principal.texte, pages: principal.pages, documentsDeposes: justificatifs,
+          texte: principal.texte, pages: principal.pages, nomTexte: principal.nom, documentsDeposes: justificatifs,
           extraction: construireExtractionRegex(principal.texte, null, null, principal.nom)
         },
         nbJustificatifs: justificatifs.length,
@@ -20437,6 +20880,7 @@
     }, 1000);
     try {
       formCommentaireAudit = null;
+      diagnosticRelectureOuverts = new Set();
       await chargerRetoursAudit();
       await preparerControlesClaireRelecture();
       typeBienEnvoyeRelecture = typeBienRelectureCourante();
@@ -20777,6 +21221,105 @@
 
   let derniereSanteRelecture = null;
 
+  // ---- Diagnostic de la relecture ------------------------------------------------------------
+  // Ce que la relecture a réellement lu, et surtout ce qu'elle a ÉCARTÉ et pourquoi : pages lues
+  // par document, points que le modèle n'a pas traités, citations introuvables mot pour mot, puis,
+  // thème par thème, les clauses examinées par les contrôles CLAIRE. Replié par défaut : c'est un
+  // outil de dépannage, à ouvrir quand un point attendu manque au bilan.
+  let diagnosticRelectureOuverts = new Set();
+  let refsDiagnosticRelecture = [];
+  var MAX_LIGNES_DIAGNOSTIC_RAISON = 25;
+
+  function basculerDiagnosticRelecture(cle, ouvert) {
+    if (ouvert) diagnosticRelectureOuverts.add(cle); else diagnosticRelectureOuverts.delete(cle);
+  }
+
+  function ouvrirDiagnosticRelecture(idx) {
+    const ref = refsDiagnosticRelecture[idx];
+    if (!ref) return;
+    ouvrirVisionneuseRelecture(ref.fichierId, ref.page, ref.extrait, true);
+    const v = document.getElementById('relecture-visionneuse');
+    if (v && v.scrollIntoView) v.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  // Page cliquable quand le document est encore consultable (déposé dans cette session, ou relu
+  // depuis le NAS) ; sinon simple mention de la page.
+  function pageDiagnosticRelecture(e) {
+    if (!e.page) return e.document ? `<span class="diag-doc">${escapeHtml(e.document)}</span>` : '';
+    const f = fichiersAnalyseIa.find(x => x.nom === e.document);
+    const libelle = `${e.document ? escapeHtml(e.document) + ' · ' : ''}p.${e.page}`;
+    if (!f) return `<span class="diag-doc">${libelle}</span>`;
+    const idx = refsDiagnosticRelecture.push({ fichierId: f.id, page: e.page, extrait: e.phrase.slice(0, 120) }) - 1;
+    return `<button type="button" class="page-chip" onclick="ouvrirDiagnosticRelecture(${idx})">${icone('eye')}${libelle}</button>`;
+  }
+
+  function ligneDiagnosticRelecture(e, avecRaison) {
+    return `<li>${avecRaison ? `<strong>${escapeHtml(e.raison)}</strong> ` : ''}${e.precision && !avecRaison ? `<strong>${escapeHtml(e.precision)}</strong> ` : ''}${pageDiagnosticRelecture(e)}
+      ${e.phrase ? `<blockquote class="diag-clause">${escapeHtml(e.phrase)}</blockquote>` : ''}</li>`;
+  }
+
+  function detailsDiagnosticRelecture(cle, resume, corps) {
+    const ouvert = diagnosticRelectureOuverts.has(cle) ? ' open' : '';
+    return `<details class="diag-groupe"${ouvert} ontoggle="basculerDiagnosticRelecture('${cle}', this.open)">
+      <summary>${resume}</summary>${corps}</details>`;
+  }
+
+  function listeDiagnosticRelecture(entrees, avecRaison) {
+    const vus = entrees.slice(0, MAX_LIGNES_DIAGNOSTIC_RAISON);
+    const reste = entrees.length - vus.length;
+    return `<ul class="diag-liste">${vus.map(e => ligneDiagnosticRelecture(e, avecRaison)).join('')}</ul>
+      ${reste > 0 ? `<p class="hint">… et ${reste} autre(s), non affichée(s).</p>` : ''}`;
+  }
+
+  function renderDiagnosticRelecture(r, sections) {
+    refsDiagnosticRelecture = [];
+    const blocs = [];
+
+    const couverture = r.couvertureDocuments || [];
+    if (couverture.length) {
+      blocs.push(`<div class="diag-bloc"><span class="section-eyebrow">Documents lus</span>
+        <ul class="diag-liste">${couverture.map(c => `<li><strong>${escapeHtml(c.nom || 'Document')}</strong> — ${escapeHtml(libelleCouverturePages(c) || 'lu')}</li>`).join('')}</ul></div>`);
+    }
+
+    const lignes = (sections || []).reduce((acc, s) => acc.concat(s.lignes || []), []);
+    if (analyseClaudeRelecture) {
+      const omis = lignes.filter(l => l.omis);
+      const citations = [];
+      for (const l of lignes) for (const c of (l.citations || [])) if (!c.verifie) citations.push({ l, c });
+      for (const x of (analyseClaudeRelecture.anomalies || [])) for (const c of (x.citations || [])) if (!c.verifie) citations.push({ l: { intitule: x.titre }, c });
+      blocs.push(`<div class="diag-bloc"><span class="section-eyebrow">Lecture par l’IA</span>
+        <ul class="diag-liste">
+          <li>${lignes.length} point(s) posé(s), ${omis.length ? `<strong>${omis.length} non traité(s) par le modèle</strong> (affichés « à vérifier »)` : 'tous traités par le modèle'}.</li>
+          <li>${citations.length ? `<strong>${citations.length} citation(s) introuvable(s) mot pour mot</strong> dans les documents : à relire en priorité.` : 'Toutes les citations ont été retrouvées mot pour mot dans les documents.'}</li>
+        </ul>
+        ${omis.length ? detailsDiagnosticRelecture('omis', `Points non traités (${omis.length})`, `<ul class="diag-liste">${omis.map(l => `<li>${escapeHtml(l.intitule)}</li>`).join('')}</ul>`) : ''}
+        ${citations.length ? detailsDiagnosticRelecture('citations', `Citations introuvables (${citations.length})`,
+          `<ul class="diag-liste">${citations.map(({ l, c }) => `<li><strong>${escapeHtml(l.intitule)}</strong>${c.page ? ` · p.${c.page}` : ''}<blockquote class="diag-clause">${escapeHtml(c.extrait || '')}</blockquote></li>`).join('')}</ul>`) : ''}
+      </div>`);
+    }
+
+    const themes = syntheseDiagnosticOutil2(r.diagnostic || []);
+    if (themes.length) {
+      blocs.push(`<div class="diag-bloc"><span class="section-eyebrow">Contrôles CLAIRE : clauses examinées</span>
+        <p class="hint">Pour chaque thème, les clauses retenues et celles écartées avec la raison. Un point attendu qui manque au bilan se trouve en général dans une raison d’écart.</p>
+        ${themes.map(t => detailsDiagnosticRelecture('theme:' + t.cle,
+          `<strong>${escapeHtml(t.libelle)}</strong> <span class="diag-compte">${t.retenues.length} retenue(s) · ${t.nbEcartees} écartée(s)</span>`,
+          (t.retenues.length ? detailsDiagnosticRelecture(`ret:${t.cle}`, `Retenues (${t.retenues.length})`, listeDiagnosticRelecture(t.retenues, true)) : '')
+          + t.ecartees.map((g, i) => detailsDiagnosticRelecture(`ec:${t.cle}:${i}`, `Écartées — ${escapeHtml(g.raison)} (${g.entrees.length})`, listeDiagnosticRelecture(g.entrees, false))).join('')
+        )).join('')}
+      </div>`);
+    } else if (r.diagnostic) {
+      blocs.push('<p class="hint">Les contrôles CLAIRE n’ont examiné aucune clause des thèmes suivis.</p>');
+    }
+
+    if (!blocs.length) return '';
+    const ouvert = diagnosticRelectureOuverts.has('racine') ? ' open' : '';
+    return `<details class="diagnostic-parcours diagnostic-relecture"${ouvert} ontoggle="basculerDiagnosticRelecture('racine', this.open)">
+      <summary><span class="section-eyebrow">Diagnostic de la relecture</span></summary>
+      <div class="diagnostic-corps">${blocs.join('')}</div>
+    </details>`;
+  }
+
   function renderTableauDeBordRelecture() {
     const zone = document.getElementById('relecture-bilan');
     if (!zone) return;
@@ -20921,6 +21464,7 @@
         ${detailSections}
         ${anomaliesHtml}
         ${cout}
+        ${renderDiagnosticRelecture(r, sections)}
         <p class="hint relecture-cadre">${icone('info')} Aide à la relecture : chaque point est une proposition, citée page à l'appui, que le notaire vérifie et tranche. Les données identifiantes ont été masquées avant l'envoi et la correspondance est restée sur ce poste.</p>
       </div>
       <aside class="relecture-visionneuse" id="relecture-visionneuse" aria-label="Aperçu du document"></aside>

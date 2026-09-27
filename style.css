@@ -2477,6 +2477,27 @@
   .diagnostic-parcours[open] > summary::after { content: " ▾"; }
   .diagnostic-corps { margin-top: 10px; }
 
+  /* Diagnostic de la relecture (Relecture d'actes, voir renderDiagnosticRelecture) : même gabarit
+     replié que celui du parcours NAS, avec des groupes imbriqués par thème et par raison d'écart. */
+  .diagnostic-relecture { margin-top: 18px; }
+  .diagnostic-relecture .diag-bloc { display: flex; flex-direction: column; gap: 6px; padding: 10px 0; border-top: 1px solid var(--line-soft); }
+  .diagnostic-relecture .diag-bloc:first-child { border-top: 0; padding-top: 0; }
+  .diagnostic-relecture .diag-bloc > .hint { margin: 0; }
+  .diag-liste { margin: 4px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+  .diag-liste .page-chip { margin-left: 4px; }
+  .diag-doc { color: var(--muted); font-size: 12px; margin-left: 4px; }
+  .diag-clause {
+    margin: 4px 0 0; padding: 4px 0 4px 10px; border-left: 2px solid var(--line);
+    color: var(--ink-soft, var(--ink)); font-size: 12.5px; line-height: 1.45;
+  }
+  .diag-groupe { padding: 4px 0; }
+  .diag-groupe > summary { cursor: pointer; font-size: 13px; list-style: none; }
+  .diag-groupe > summary::-webkit-details-marker { display: none; }
+  .diag-groupe > summary::before { content: "▸ "; color: var(--muted); }
+  .diag-groupe[open] > summary::before { content: "▾ "; }
+  .diag-groupe .diag-groupe { margin-left: 14px; }
+  .diag-compte { color: var(--muted); font-size: 12px; margin-left: 6px; font-variant-numeric: tabular-nums; }
+
   /* Trace de l'extraction sur une fiche déjà enregistrée (voir renderExtractionDossier) : même
      gabarit replié que le diagnostic ci-dessus — une explication à consulter au besoin, pas un
      suivi actif. Réutilise .revision-alerte (panneau d'import) pour les alertes de cohérence :

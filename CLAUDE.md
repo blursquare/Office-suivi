@@ -8286,6 +8286,75 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     plus aucun `#reglages-accent-prune` dans le DOM, mise en page de la grille de pastilles intacte,
     aucune erreur JS.
 
+- **Diagnostic de la relecture et extraction phase 2** (27/09/2026, « met en place le 1 et le 4 »
+  sur les chantiers proposés à l'étude). Deux chantiers indépendants, livrés ensemble.
+  - **1. Panneau « Diagnostic de la relecture »** (relecture d'actes, étape 4, replié par défaut
+    sous le coût), pendant d'Outil 1 (`renderDiagnosticParcours`). Motif : le seul retour obtenu
+    sur Outil 2 était « il rate des choses », inexploitable sans savoir CE QUE l'outil a vu. Trois
+    blocs : les documents lus (pages lues / total) ; la lecture par l'IA (points non traités par le
+    modèle, citations introuvables mot pour mot) ; et surtout, **par thème, les clauses retenues ET
+    celles écartées regroupées par raison**, chacune avec son document, sa page (bouton qui ouvre
+    l'aperçu) et la phrase citée.
+    - **Journal côté client** (`journalDiagnosticOutil2`, `noterDiagnosticOutil2`,
+      `avecJournalDiagnosticOutil2`) : ouvert par `analyserCompromisOutil2`/`analyserProjetVenteOutil2`
+      (devenues des enveloppes des fonctions `…Interne`), refermé dans un `finally` — un détecteur
+      appelé HORS analyse ne note rien (testé), le journal ne fuit donc jamais d'un appel à l'autre.
+      Le résultat porte `diagnostic` (plafond `MAX_ENTREES_DIAGNOSTIC_OUTIL2` = 3000). Les
+      détecteurs instrumentés : travaux réalisés, lecture de l'acte (procédures, documents non
+      établis), mentions de diagnostics, engagements du vendeur, assemblées générales, statut des
+      acquéreurs, certificat d'urbanisme. **Chaque raison d'écart est la règle qui a tranché**
+      (« Clause de non-travaux », « Travaux à venir », « Formulation conditionnelle », « Texte de loi
+      cité », « Ligne du tableau légal », « Clause de style »…), pas une reformulation.
+    - `syntheseDiagnosticOutil2()` (pure, testée) regroupe par thème (`THEMES_DIAGNOSTIC_OUTIL2`,
+      ordre fixe) puis par raison, la plus fréquente d'abord ; 25 lignes au plus par raison.
+      L'état ouvert/fermé de chaque niveau survit aux re-rendus (`diagnosticRelectureOuverts`).
+    - **Bug trouvé en construisant le panneau** : `RE_TRAVAUX_PASSES` exigeait « refaite »
+      au participe AVANT une préposition — « la toiture a été refaite en 2021 » n'était JAMAIS
+      détectée (`refai[ée]` ne matchait pas « refaite » suivi d'un espace). Corrigé
+      (`refaite?s?`, `construite?s?`). Exactement le genre de trou que ce panneau rend visible.
+    - Vérifié dans un vrai Chromium sur le compromis réel BAUDRY (147 entrées de journal,
+      six thèmes, clair/sombre/400 px, aucune erreur JS, aucun débordement). Sur cet acte, le
+      panneau montre déjà un faux « travail intérieur » retenu (un certificat de superficie « aucun
+      aménagement ») : c'est son usage prévu, à corriger sur signalement.
+  - **4. Extraction phase 2** (tout client, `tests/extraction-phase2.test.js`, 15 tests) :
+    - **Cadastre multi-parcelles** (`detecterTableauCadastral`, `detecterCadastre` réécrite) :
+      lit le tableau « Section N° Lieudit Contenance » ligne par ligne (toutes les parcelles, avec
+      leur contenance en m², `contenanceEnM2` accepte « 00 ha 05 a 12 ca » comme « 512 m² »), puis
+      les rédactions en prose. Rend `{section, numero, parcelles, contenanceTotaleM2,
+      contenanceLueM2}` — `section`/`numero` restent ceux de la première parcelle pour les
+      appelants existants. `libelleCadastre` affiche « AB 24, AB 25 (1 024 m²) ». Le total
+      déclaré (« Contenance totale ») est comparé à la somme des lignes : alerte
+      `CONTENANCE_TOTALE_INCOHERENTE`. Outil 2 compare désormais l'ENSEMBLE des parcelles et la
+      contenance entre avant-contrat et projet (« Contenance cadastrale différente », IMPORTANT).
+      L'ancien `RE_CADASTRE` est retiré.
+    - **Prix contradictoires** (`detecterMentionsPrix`, `champPrixVente`) : toutes les mentions
+      du prix (reprise entre parenthèses et forme tableau « PRIX : … EUR ») sont relevées ; au
+      moins deux montants distincts → la donnée passe « Plusieurs valeurs possibles » avec les deux
+      montants en candidats et leur page, et l'alerte `PRIX_CONTRADICTOIRE` (critique). La valeur
+      retenue ne change pas (première mention, comme avant). Écartés : les autres sommes
+      (`RE_PRIX_AUTRE_SOMME` : mobilier, honoraires, acompte, dépôt, « dont »…), la clause
+      d'origine de propriété et **le prix d'une acquisition antérieure**
+      (`RE_PRIX_ACQUISITION_ANTERIEURE`, jugé sur la phrase entière : « a été acquis … moyennant »,
+      calcul de plus-value) — sans ce dernier, PUV FERNANDES sortait un faux conflit.
+    - **Personnes morales** (`detecterIdentiteSociete`, `libelleIdentiteSociete`) : SIREN (forme
+      explicite ou « RCS BLOIS 410 876 361 »), ville du RCS, siège, capital, lus dans la
+      présentation de la société. **SIREN contrôlé par la clé de Luhn** (`sirenValide`) : un
+      numéro faux ou mal lu déclenche l'alerte `SIREN_INVALIDE` plutôt que d'être repris tel
+      quel. Conservé sur le dossier (`partie.societe`, assaini par `societePersistable` à l'import),
+      affiché dans le panneau de révision, la fiche et le bilan d'Outil 2. Toujours **pas d'état
+      civil complet** pour les personnes physiques (décision de phase 1, inchangée).
+    - **Bug corrigé au passage** : le bloc d'une personne morale n'était pas borné par la partie
+      suivante — sur une vente à une SCI, le vendeur était pris pour la SCI. Borné comme les
+      personnes physiques (`borne`).
+    - Rejoué sur les 13 actes réels du stress test : noms de dossier inchangés, totaux cadastraux
+      égaux à la somme des lignes, **aucun faux prix contradictoire**, trois sociétés réelles lues
+      avec un SIREN valide.
+  - **Piège d'outillage, payé une troisième fois** : un `\b` écrit dans une chaîne Python non
+    brute devient un caractère BACKSPACE (U+0008) dans `script.js`, invisible et syntaxiquement
+    valide. Contrôle obligatoire après toute écriture de regex par script :
+    `grep -c $'\x08' script.js` doit rendre 0.
+  - Suites : racine 809 → 830, serveur 383 (inchangée, chantier client).
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à
@@ -10028,16 +10097,8 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
   d'été/hiver — utiliser `date` seul afficherait une heure fausse pour l'étude). Affichés dans
   l'écran "À propos", c'est actuellement le seul moyen pour l'étude de vérifier qu'elle a bien la
   dernière copie (et de voir CE QUI a changé) avant de resignaler un bug déjà corrigé.
-- **Outil 2 : panneau de diagnostic de la relecture — idée validée par l'étude, reportée par
-  elle (« plus tard mais bonne idée »).** Pendant d'Outil 1 (`renderDiagnosticParcours`, voir son
-  historique) : après chaque relecture, afficher les pages réellement lues, les clauses candidates
-  repérées, et surtout **celles qui ont été écartées AVEC LA RAISON** (clause de style, travail
-  futur et non réalisé, aucun marqueur de réalisation passée…). Motivation : le seul retour obtenu
-  jusqu'ici sur Outil 2 est « il rate des choses », ce qui ne permet aucun correctif ; ce panneau
-  transformerait le signalement en « il a vu la clause page 12 mais l'a écartée comme clause de
-  style », donc en correctif d'un seul tour. Sur un outil dont tous les motifs sont un premier jet
-  à resserrer acte par acte, c'est l'investissement le plus rentable — à relancer dès que l'étude
-  le redemande.
+- ~~**Outil 2 : panneau de diagnostic de la relecture**~~ — **fait le 27/09/2026** (voir « Diagnostic
+  de la relecture et extraction phase 2 » en fin de section « Mode serveur intranet »).
 - **Outil 2 : la question « ce qu'il rate est-il dans ou hors des quatre thèmes ? » est
   TRANCHÉE — et dans une troisième direction.** Interrogée directement, l'étude a répondu que le
   défaut n'est ni l'un ni l'autre : l'outil **« signale trop de choses sans intérêt »**. Il n'y a
@@ -10097,10 +10158,10 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
   ce diagnostic reste une déduction, même s'il reproduit exactement le symptôme décrit. Si le
   problème persiste, redemander l'extrait anonymisé du bloc d'état civil — `detecterNomDossier()` a
   déjà régressé plusieurs fois sur des suppositions de format non vérifiées.
-- **Refonte de l'extraction, phases 2 et 3 non engagées** (voir le détail en fin d'entrée dans
-  l'historique de la section « Mode serveur intranet ») : cadastre multi-parcelles, prix
-  contradictoires, personnes morales détaillées ; puis exploitation du journal
-  `corrections-extraction` et extraction ciblée itérative sur un champ resté à vérifier.
+- **Refonte de l'extraction : phase 2 faite le 27/09/2026** (cadastre multi-parcelles, prix
+  contradictoires, personnes morales — voir « Diagnostic de la relecture et extraction phase 2 »).
+  La phase 3 n'est engagée qu'en partie (le journal `corrections-extraction` a son panneau, la
+  relance ciblée d'un champ existe) ; reste à exploiter ces deux sources pour resserrer les motifs.
 
 - **Arborescence réelle des dossiers de l'étude, par type d'affaire** (reçue sous forme d'un
   modèle de dossier vide "DOSSIER TYPE.rar", sans données client — noms de sous-dossiers
