@@ -8244,6 +8244,32 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     Claude, avec le mode commentaires. **À demander à Mistral avant l'usage réel** : ZDR, absence
     d'entraînement, accord de sous-traitance.
 
+- **Nouveau thème de couleur « Noir & blanc »**, demandé par l'étude : « Crée un thème noir et blanc
+  avec nuance de gris que tu as déjà en plus des thèmes bordeaux, vert… ». Sixième valeur de
+  `:root[data-accent="…"]` (`style.css`), sur le même mécanisme que les cinq déjà en place —
+  quatre jetons `--accent-clair`/`--accent-clair-hover`/`--accent-sombre`/`--accent-sombre-hover`,
+  repris par `--focus`/`--focus-hover` (et par la sidebar, toujours sombre, qui prend directement les
+  valeurs sombres) — aucun changement de mécanique, seulement une nouvelle entrée dans la table de
+  couleurs.
+  - **Seul thème strictement neutre** : les cinq autres (bordeaux, bleu, vert, prune, orange) sont
+    tous teintés, celui-ci ne l'est pas — `#262626`/`#0D0D0D` en clair, `#D4D4D4`/`#EAEAEA` en sombre,
+    un gris pur sans composante de couleur, choisi pour rester lisible avec `--on-accent` (texte blanc
+    en clair, texte graphite en sombre) dans les deux sens.
+  - Trois listes blanches étendues en parallèle, comme pour chaque accent précédent :
+    `ACCENTS_DISPONIBLES` (`script.js`), `ACCENTS_PREFERENCES` (`server/src/parametresRepo.js`, pour
+    la préférence gardée par collaborateur sur le serveur), et la pastille radio dans
+    `#reglages-accent-noir` (`index.html`, Réglages › Général › Sur ce poste).
+  - Les couleurs de catégorie d'échéance (`--pret`/`--acte`/`--ventebien`/`--appelfonds`/`--projet`)
+    ne changent jamais avec le thème de couleur, comme pour les cinq autres — seul `--focus` (boutons
+    primaires, liens, onglet actif) suit l'accent choisi.
+  - Test : `tests/theme-accent.test.js` étendu aux six valeurs (`accentValide` sur chacune, repli sur
+    bordeaux pour toute valeur inconnue). Suite racine 809, serveur 383 (chantier entièrement CSS/HTML
+    + une ligne de liste blanche par endroit, aucune fonction pure nouvelle côté serveur). **Vérifié
+    dans un vrai Chromium** (serveur réel, clair et sombre) : pastille "Noir & blanc" sélectionnée,
+    `data-accent="noir"` posé sur `<html>`, `--focus` résolu à `#262626` en clair et `#D4D4D4` en
+    sombre, bouton "Vérifier" et onglet actif de Réglages bien dans ce gris neutre dans les deux
+    thèmes, aucune erreur JS.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

@@ -25,6 +25,13 @@
     --accent-clair: #9A4A1F; --accent-clair-hover: #7C3A17;
     --accent-sombre: #E39A6B; --accent-sombre-hover: #EDB08A;
   }
+  /* Noir & blanc : pas une nuance de plus, un gris strictement neutre (aucune teinte, contrairement
+     aux quatre autres qui restent tous colorés) — pour l'étude qui veut un accent qui ne "parle"
+     d'aucune couleur en particulier. */
+  :root[data-accent="noir"] {
+    --accent-clair: #262626; --accent-clair-hover: #0D0D0D;
+    --accent-sombre: #D4D4D4; --accent-sombre-hover: #EAEAEA;
+  }
 
   :root {
     --paper: #F4F6F8;
