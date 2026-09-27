@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-27 20:07';
+  const VERSION_APP = '2026-09-27 20:14';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-27 20:14', resume: 'Aujourd’hui : en-tête sur une ligne (titre, progression, outils), titres de même taille que les autres écrans.' },
     { version: '2026-09-27 20:07', resume: "Page « Aujourd'hui » reprise : tout tient sur un écran, une action par ligne avec son geste en un clic (brouillon, « Marquer envoyé »), une notification avec « Annuler » au lieu d'une fenêtre, un anneau de progression, et un panneau à onglets (signatures, nouveautés, à venir, journal, rappels)." },
     { version: '2026-09-27 19:49', resume: "« Aujourd'hui » : la carte du tableau de bord remplace « À traiter » (une ligne par action, avec le geste prêt), une page « Aujourd'hui » dans la barre latérale (actions avec brouillons d'email, signatures des 7 jours, ce qui a changé depuis la dernière visite, votre journée, rappels, équipe) et le point du matin à la première connexion du jour." },
     { version: '2026-09-27 18:34', resume: "Dossiers déjà créés : le mobilier compris dans le prix est lu dans l'avant-contrat du NAS à l'ouverture de la fiche et reporté dans « Dont mobilier » (bouton « Lire » pour relancer)." },
@@ -13142,8 +13143,8 @@
     else if (ongletPanneauJour === 'rappels') panneau = `<div class="rappels-perso jour-rappels">${renderMesRappels(perimetre)}</div>`;
     else if (ongletPanneauJour === 'equipe') panneau = `<ul class="jour-equipe">${equipe.map(e => `<li><span>${escapeHtml(e.nom)}</span><span class="jour-meta">${e.total} action${e.total > 1 ? 's' : ''}${e.critiques ? ` · <b class="jour-critique">${e.critiques} urgente${e.critiques > 1 ? 's' : ''}</b>` : ''}</span></li>`).join('')}</ul>`;
 
-    bloc.innerHTML = `
-      <div class="jour-barre-outils">
+    const outils = document.getElementById('aujourdhui-outils');
+    if (outils) outils.innerHTML = `
         ${renderProgressionJour(actions.length, traites.length)}
         <div class="jour-entete-actions">
           ${utilisateurPoste ? `<div class="vue-bascule" role="group" aria-label="Dossiers affichés">
@@ -13152,12 +13153,13 @@
           </div>` : `<button type="button" class="lien-discret" onclick="ouvrirChoixPoste()">Qui utilise ce poste ? Choisir</button>`}
           <button type="button" class="icon-btn" onclick="copierListeDuJour()" title="Copier ma liste" aria-label="Copier ma liste">${icone('clipboard')}</button>
           <button type="button" class="icon-btn" onclick="ouvrirFenetreAujourdhui()" title="Revoir le point du matin" aria-label="Revoir le point du matin">${icone('sun')}</button>
-        </div>
-      </div>
+        </div>`;
+
+    bloc.innerHTML = `
       <div class="jour-grille">
         <section class="jour-section jour-section-actions" aria-labelledby="jour-titre-actions">
-          <h3 class="jour-section-titre" id="jour-titre-actions">À faire <span class="jour-nb">${actions.length}</span><span class="jour-aide">Un clic sur le bouton fait l’action · un clic sur le texte montre le détail</span></h3>
-          ${renderListeJour(actions, traites, global)}
+          <h2 class="jour-carte-titre" id="jour-titre-actions">À faire <span class="jour-onglet-nb">${actions.length}</span><span class="jour-aide">Bouton : l’action · texte : le détail</span></h2>
+          <div class="jour-section-corps">${renderListeJour(actions, traites, global)}</div>
         </section>
         <section class="jour-section jour-panneau">
           <div class="jour-onglets" role="tablist">
@@ -13223,11 +13225,11 @@
       </header>
       <div class="jour-fenetre-corps">
         <div>
-          <h3 class="jour-section-titre">À faire <span class="jour-nb">${actions.length}</span></h3>
+          <h3 class="jour-section-titre">À faire <span class="jour-onglet-nb">${actions.length}</span></h3>
           ${renderListeJour(actions, traites, global)}
         </div>
         <div class="jour-fenetre-rail">
-          <h3 class="jour-section-titre">Nouveautés <span class="jour-nb">${groupes.length}</span></h3>
+          <h3 class="jour-section-titre">Nouveautés <span class="jour-onglet-nb">${groupes.length}</span></h3>
           <p class="jour-source">${escapeHtml(libelleDepuisVisite())}.</p>
           ${renderNouveautesListe(groupes)}
         </div>

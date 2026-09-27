@@ -5794,12 +5794,12 @@ button.lien-action:hover { text-decoration: underline; }
 .jour-liste-simple button.lien-discret:hover { color: var(--focus); text-decoration: underline; }
 .jour-meta { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 
-.jour-section-titre {
-  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin: 0 0 8px;
-  font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink);
+/* Titres des blocs : même corps que les onglets du panneau voisin, compteur en pastille. */
+.jour-section-titre, .jour-carte-titre {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 7px; margin: 0 0 8px;
+  font-size: 14px; font-weight: 700; letter-spacing: 0; color: var(--ink);
 }
-.jour-nb { font-weight: 600; color: var(--muted); letter-spacing: 0; }
-.jour-aide { margin-left: auto; font-size: 11.5px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--muted); }
+.jour-aide { margin-left: auto; font-size: 12px; font-weight: 500; color: var(--muted); }
 .jour-source { margin: 0 0 10px; font-size: 12.5px; color: var(--muted); max-width: 70ch; }
 .jour-vide { margin: 0; font-size: 13px; color: var(--muted); }
 .jour-vide-ok { color: var(--success); padding: 6px; }
@@ -5811,27 +5811,43 @@ button.lien-action:hover { text-decoration: underline; }
 .jour-brouillon p { margin: 0 0 6px; color: var(--ink-soft); max-width: 70ch; overflow-wrap: anywhere; }
 .jour-brouillon p:last-child { margin-bottom: 0; }
 
-/* Page : une barre (progression + outils), puis À faire à gauche et un panneau à onglets à droite. */
-.jour-barre-outils {
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 18px;
-  margin: 4px 0 16px;
+/* Page : un en-tête d'une ligne (titre, progression, outils), puis À faire à gauche et un
+   panneau à onglets à droite, les deux cartes ouvertes par un bandeau de même hauteur. */
+.jour-page-tete {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px; margin-bottom: 18px;
 }
+.jour-page-titres { display: flex; flex-direction: column; gap: 2px; }
+.jour-page-tete .dash-titre { font-size: 26px; line-height: 1.15; }
+.jour-page-outils {
+  flex: 1 1 auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 18px;
+  padding-left: 28px; border-left: 1px solid var(--line);
+}
+.jour-page-outils .jour-anneau, .jour-page-outils .jour-anneau svg { width: 42px; height: 42px; }
+.jour-page-outils .jour-progres-texte b { font-size: 14px; }
 .jour-entete-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.jour-grille { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.jour-grille { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; align-items: start; }
 .jour-grille > * { min-width: 0; }
 .jour-section {
   background: var(--paper-card); border: 1px solid var(--line); border-radius: 12px;
   box-shadow: var(--shadow-card); padding: 14px 14px 10px;
 }
-.jour-section-actions .jour-section-titre { padding: 0 6px; }
+.jour-section-actions { padding: 0; }
+.jour-section-actions .jour-carte-titre {
+  margin: 0; min-height: 44px; padding: 8px 18px; border-bottom: 1px solid var(--line-soft); box-sizing: border-box;
+}
+.jour-section-corps { padding: 6px 8px 8px; }
 .jour-panneau { position: sticky; top: 16px; padding: 0; overflow: hidden; }
 .jour-onglets {
-  display: flex; flex-wrap: wrap; gap: 0 2px; padding: 6px 6px 0; border-bottom: 1px solid var(--line-soft);
+  display: flex; flex-wrap: wrap; gap: 0; padding: 0 8px; border-bottom: 1px solid var(--line-soft);
 }
 .jour-onglet {
-  display: inline-flex; align-items: center; gap: 5px; flex: 0 0 auto;
-  font-family: inherit; font-size: 12px; font-weight: 600; color: var(--muted);
-  background: none; border: none; border-bottom: 2px solid transparent; padding: 8px 7px 9px; margin-bottom: -1px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; min-height: 44px; box-sizing: border-box;
+  font-family: inherit; font-size: 13px; font-weight: 600; color: var(--muted);
+  background: none; border: none; border-bottom: 2px solid transparent; padding: 0 6px; margin-bottom: -1px; cursor: pointer;
+}
+@media (max-width: 1440px) {
+  .jour-onglets { padding: 0 4px; }
+  .jour-onglet { font-size: 12px; padding: 0 5px; gap: 4px; }
 }
 .jour-onglet:hover { color: var(--ink); }
 .jour-onglet.actif { color: var(--ink); border-bottom-color: var(--focus); }
@@ -5899,7 +5915,7 @@ button.lien-action:hover { text-decoration: underline; }
   position: relative; padding: 18px 60px 16px 24px; border-bottom: 1px solid var(--line-soft);
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 20px;
 }
-.jour-fenetre-titre { margin: 2px 0 0; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+.jour-fenetre-titre { margin: 2px 0 0; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
 .jour-fenetre-x { position: absolute; top: 14px; right: 14px; }
 .jour-fenetre-corps {
   overflow-y: auto; padding: 16px 18px 18px;
@@ -5931,7 +5947,7 @@ button.lien-action:hover { text-decoration: underline; }
   .jour-fenetre-tete { padding-left: 16px; }
   .jour-fenetre-corps { padding-left: 10px; padding-right: 10px; }
   .jour-fenetre-pied { padding-left: 16px; padding-right: 16px; }
-  .jour-fenetre-titre { font-size: 21px; }
+  .jour-fenetre-titre { font-size: 23px; }
   .ja { grid-template-columns: 12px minmax(0, 1fr) auto auto; grid-template-areas: "p t go tard" "p d go tard"; row-gap: 0; }
   .ja > .dot-label { grid-area: p; }
   .ja > .ja-texte { grid-area: t; }
@@ -5949,9 +5965,10 @@ button.lien-action:hover { text-decoration: underline; }
   .jour-anneau.fini .jour-anneau-texte, .ja.fait { animation: none; }
 }
 @media print { .jour-overlay { display: none !important; } }
-.jour-page-tete { display: flex; flex-direction: column; gap: 2px; margin-bottom: 4px; }
-.jour-page-tete .dash-titre { font-size: 32px; line-height: 1.15; }
-@media (max-width: 900px) { .jour-page-tete .dash-titre { font-size: 26px; } }
+@media (max-width: 900px) {
+  .jour-page-tete .dash-titre { font-size: 23px; }
+  .jour-page-outils { flex-basis: 100%; padding-left: 0; border-left: none; }
+}
 /* Boutons à icône seule des écrans « Aujourd'hui » (la règle .icon-btn générique est un lien souligné). */
 .jour-entete-actions button.icon-btn, .ja button.icon-btn.ja-plus-tard, .jour-fenetre button.icon-btn.jour-fenetre-x {
   display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0;

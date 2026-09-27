@@ -8474,6 +8474,21 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     vrai Chromium (clair, sombre, 400 px) : geste en un clic, annulation qui remet la date, report,
     aucun débordement, aucune erreur JS.
 
+- **Page « Aujourd'hui » : en-tête d'une ligne et titres harmonisés** (27/09 soir, « revoir la
+  présentation, en haut, taille des titres »). Le haut empilait un titre à 32px, puis la progression
+  sur sa propre ligne, puis des titres de bloc à 11px en capitales : trois tailles sans rapport.
+  - **En-tête sur une seule ligne** : date + « Aujourd'hui, Julie » à 26px (la taille de `.dash-titre`
+    sur les autres écrans, 23px sous 900px), un filet vertical, la progression (anneau 42px), puis
+    « Mes dossiers / Tous » et les deux icônes à droite. La progression et les outils sont rendus
+    dans `#aujourdhui-outils`, à l'intérieur de `.jour-page-tete` (`index.html`) ; `.jour-barre-outils`
+    disparaît. Sous 900px, progression et outils repassent sous le titre, sans filet.
+  - **Deux cartes ouvertes par un bandeau de même hauteur (44px)** : « À faire » devient un titre de
+    carte (`.jour-carte-titre`, 14px, compteur en pastille comme les onglets) au-dessus d'un filet, à
+    la même hauteur que la barre d'onglets du panneau de droite, passée à 13px (12px sous 1440px pour
+    tenir sur une ligne jusqu'à 1280px, mesuré). Les titres de la fenêtre du matin prennent le même
+    registre (14px, pastille), et son titre passe à 26px comme la page. `.jour-nb` supprimée.
+  - Aide raccourcie : « Bouton : l'action · texte : le détail ».
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à
