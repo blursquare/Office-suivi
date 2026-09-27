@@ -149,7 +149,8 @@ test('route : sans clé, 503 et état « non configuré »', async () => {
 });
 
 test('route : la clé enregistrée ne ressort jamais, seul un booléen', async () => {
-  const r = await (await appeler('/api/relecture-claude/reglages', 'PUT', { cleApi: 'sk-ant-secret', modele: 'claude-sonnet-5' })).json();
+  // Mistral est le fournisseur par défaut depuis le 27/09/2026 : ces tests choisissent Claude.
+  const r = await (await appeler('/api/relecture-claude/reglages', 'PUT', { fournisseur: 'claude', cleApi: 'sk-ant-secret', modele: 'claude-sonnet-5' })).json();
   assert.equal(r.cleEnregistree, true);
   assert.equal(JSON.stringify(r).includes('sk-ant-secret'), false);
   const g = await (await appeler('/api/relecture-claude/reglages')).json();

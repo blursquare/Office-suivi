@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-26 21:39';
+  const VERSION_APP = '2026-09-27 16:29';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-27 16:29', resume: "Relecture d'actes : l'analyse passe par Mistral (société française), traitée dans l'Union européenne. Claude reste disponible dans Réglages → Relecture d'actes. Clé API Mistral à saisir au même endroit." },
     { version: '2026-09-26 21:39', resume: "Lecture des PDF scannés (OCR) environ 27 % plus rapide : moteur Tesseract passé en version 7, même texte reconnu qu'avant." },
     { version: '2026-09-26 20:40', resume: "Titres des cartes (« Analyses enregistrées », « Ce que vous relisez », « Documents », réglages, outils) en noir et plus appuyés, pour les repérer d'un coup d'œil." },
     { version: '2026-09-26 19:19', resume: "Thème (mode sombre et couleur) retrouvé à chaque relance : gardé au nom du collaborateur sur le serveur ; logo en tuile blanche et trait noir, icône de l'application au même dessin ; mot « Claire » moins gras." },
@@ -20285,6 +20286,7 @@
     }
     const e = etatClaudeRelecture;
     const modele = LIBELLES_MODELES_CLAUDE[e.modele] || e.modele || '';
+    const fournisseur = libelleFournisseurRelecture(e);
     const typeBien = typeBienRelectureCourante();
     const grille = grillePourModeOutil2(auditMode, typeBien);
     let estimation = '';
@@ -20297,7 +20299,7 @@
       } else {
         const c = estimationRelecture.coutEstime;
         estimation = `<div class="analyse-estimation"><span class="section-eyebrow">Coût estimé</span><strong>${c ? `${formaterCoutUsd(c.bas)} à ${formaterCoutUsd(c.haut)}` : '—'}</strong>
-          <span class="hint">${estimationRelecture.jetonsEntree.toLocaleString('fr-FR')} jetons à lire · facturé par Anthropic en dollars</span></div>`;
+          <span class="hint">${estimationRelecture.estime ? 'environ ' : ''}${estimationRelecture.jetonsEntree.toLocaleString('fr-FR')} jetons à lire · facturé par ${escapeHtml(fournisseur.societe)} en dollars</span></div>`;
         // Aucune limite de pages : la seule borne est ce que le modèle peut lire en une fois. Dit
         // AVANT le lancement, avec le compte exact, plutôt qu'un refus de l'API après coup.
         if (estimationRelecture.depasse) {
@@ -20307,18 +20309,18 @@
     }
     const enCours = analyseEnCoursRelecture
       ? `<div class="analyse-en-cours">${icone('spinner', null, true)}<div><strong>Analyse en cours — <span id="relecture-chrono">0 s</span></strong>
-          <p class="hint">Claude relit ${docs.length} document(s) point par point. Comptez en général une à quatre minutes ; vous pouvez consulter un autre écran en attendant.</p></div></div>`
+          <p class="hint">${escapeHtml(fournisseur.nom)} relit ${docs.length} document(s) point par point. Comptez en général une à quatre minutes ; vous pouvez consulter un autre écran en attendant.</p></div></div>`
       : '';
     const erreur = erreurClaudeRelecture ? `<p class="analyse-erreur">${icone('alert-triangle')} ${escapeHtml(erreurClaudeRelecture)}</p>` : '';
     zone.innerHTML = `<div class="analyse-recap">
         <div><span class="section-eyebrow">Documents</span><strong>${docs.length}</strong><span class="hint">${pages} pages</span></div>
         <div><span class="section-eyebrow">Grille</span><strong>${grille.length} points</strong><span class="hint">${auditMode === 'acte' ? 'projet de vente' : 'avant-contrat'}</span></div>
         <div><span class="section-eyebrow">Données masquées</span><strong>${anonymisationRelecture ? anonymisationRelecture.table.length : 0}</strong><span class="hint">table gardée sur ce poste</span></div>
-        <div><span class="section-eyebrow">Modèle</span><strong>${e.configure ? escapeHtml(modele) : '—'}</strong><span class="hint">${e.configure ? 'API Claude' : 'non configuré'}</span></div>
+        <div><span class="section-eyebrow">Modèle</span><strong>${e.configure ? escapeHtml(modele) : '—'}</strong><span class="hint">${e.configure ? escapeHtml(fournisseur.detail) : 'non configuré'}</span></div>
       </div>
       ${renderTypeBienEtapeRelecture(typeBien, grille.length)}
       ${estimation}
-      ${e.configure ? '' : `<div class="analyse-non-configure">${icone('key')}<div><strong>Aucune clé API Claude.</strong> <p class="hint">Renseignez-la dans Réglages → Relecture par Claude. En attendant, les contrôles automatiques de CLAIRE restent disponibles.</p></div></div>`}
+      ${e.configure ? '' : `<div class="analyse-non-configure">${icone('key')}<div><strong>Aucune clé API ${escapeHtml(fournisseur.nom)}.</strong> <p class="hint">Renseignez-la dans Réglages → Relecture d'actes. En attendant, les contrôles automatiques de CLAIRE restent disponibles.</p></div></div>`}
       ${enCours}${erreur}
       <div class="relecture-actions">
         <button type="button" class="secondary" onclick="definirEtapeRelecture(2)" ${analyseEnCoursRelecture ? 'disabled' : ''}>Retour</button>
@@ -20328,7 +20330,19 @@
       ${renderJournalCoutRelecture()}`;
   }
 
-  var LIBELLES_MODELES_CLAUDE = { 'claude-sonnet-5': 'Claude Sonnet 5', 'claude-opus-5': 'Claude Opus 5' };
+  // Libellés des modèles de la relecture, tous fournisseurs confondus (le nom historique de la
+  // table est conservé). Mistral est le fournisseur par défaut depuis le 27/09/2026.
+  var LIBELLES_MODELES_CLAUDE = {
+    'claude-sonnet-5': 'Claude Sonnet 5', 'claude-opus-5': 'Claude Opus 5',
+    'mistral-medium-3-5': 'Mistral Medium 3.5', 'mistral-large-2512': 'Mistral Large 3'
+  };
+
+  // Nom du fournisseur, société facturante et mention du lieu de traitement, pour l'écran.
+  function libelleFournisseurRelecture(etat) {
+    const e = etat || {};
+    if (e.fournisseur === 'claude') return { nom: 'Claude', societe: 'Anthropic', detail: 'API Claude (Anthropic)' };
+    return { nom: 'Mistral', societe: 'Mistral AI', detail: e.region === 'global' ? 'API Mistral' : 'API Mistral · Union européenne' };
+  }
 
   async function estimerCoutRelecture() {
     try {
@@ -20862,7 +20876,7 @@
     const cout = f ? `<section class="relecture-cout">
         <span class="section-eyebrow">Coût de l'analyse</span>
         <div class="relecture-cout-grille">
-          <div><strong>${formaterCoutUsd(f.coutUsd)}</strong><span>facturé par Anthropic</span></div>
+          <div><strong>${formaterCoutUsd(f.coutUsd)}</strong><span>facturé par ${(f.fournisseur || (String(f.modele || '').startsWith('mistral') ? 'mistral' : 'claude')) === 'mistral' ? 'Mistral AI' : 'Anthropic'}</span></div>
           <div><strong>${(f.jetonsEntree || 0).toLocaleString('fr-FR')}</strong><span>jetons lus</span></div>
           <div><strong>${(f.jetonsSortie || 0).toLocaleString('fr-FR')}</strong><span>jetons produits</span></div>
           <div><strong>${formaterDureeMs(f.dureeMs)}</strong><span>${escapeHtml(LIBELLES_MODELES_CLAUDE[f.modele] || f.modele || '')}</span></div>
@@ -20885,7 +20899,7 @@
             <span class="sante-compteur c-na"><strong>${sante.compte.na}</strong>sans objet</span>
           </div>
           ${a && a.synthese ? `<p class="sante-synthese">${escapeHtml(a.synthese)}</p>` : ''}
-          ${a ? '' : `<p class="hint">${erreurClaudeRelecture ? escapeHtml(erreurClaudeRelecture) + ' — ' : ''}Analyse Claude non effectuée : ce bilan ne repose que sur les contrôles automatiques de CLAIRE.</p>`}
+          ${a ? '' : `<p class="hint">${erreurClaudeRelecture ? escapeHtml(erreurClaudeRelecture) + ' — ' : ''}Analyse par l'IA non effectuée : ce bilan ne repose que sur les contrôles automatiques de CLAIRE.</p>`}
         </div>
         <label class="audit-bascule-commentaires" title="Donner votre avis sur chaque point : il est retenu pour les prochaines relectures (pour ce dossier ou pour tous).">
           <span class="switch small"><input type="checkbox" ${modeCommentairesAudit ? 'checked' : ''} onchange="basculerModeCommentairesAudit(this.checked)"><span class="slider"></span></span>
@@ -21153,26 +21167,59 @@
     }
   }
 
-  // ---- Réglages : clé API et modèle ------------------------------------------------------------
+  // ---- Réglages : fournisseur, clés API et modèles ---------------------------------------------
+  // Mistral par défaut (point d'accès de l'Union européenne), Claude en option. Un seul formulaire :
+  // seuls les champs du fournisseur choisi sont affichés. Les clés ne reviennent jamais du serveur.
+  let reglagesIaCharges = null;
+
+  function afficherChampsFournisseurIa() {
+    const sel = document.getElementById('reglages-ia-fournisseur');
+    const f = sel ? sel.value : 'mistral';
+    const m = document.getElementById('reglages-ia-mistral');
+    const c = document.getElementById('reglages-ia-claude');
+    // style.display et non l'attribut hidden : .calc-champs pose un display qui l'emporterait.
+    if (m) m.style.display = f === 'mistral' ? '' : 'none';
+    if (c) c.style.display = f === 'claude' ? '' : 'none';
+  }
+
   async function chargerReglagesClaude() {
     try {
       const r = await fetchAvecAuth('/api/relecture-claude/reglages');
       if (!r.ok) return;
       const data = await r.json();
-      const sel = document.getElementById('reglages-claude-modele');
-      if (sel) sel.value = data.modele;
-      const champ = document.getElementById('reglages-claude-cle');
-      if (champ) {
-        champ.value = '';
-        champ.placeholder = data.cleEnregistree ? '•••••••• enregistrée — saisir pour remplacer' : (data.cleEnvironnement ? 'Clé fournie par le serveur (variable ANTHROPIC_API_KEY)' : 'sk-ant-…');
+      reglagesIaCharges = data;
+      const valeur = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; };
+      valeur('reglages-ia-fournisseur', data.fournisseur || 'mistral');
+      valeur('reglages-claude-modele', data.modele);
+      valeur('reglages-mistral-modele', data.modeleMistral);
+      valeur('reglages-mistral-region', data.regionMistral);
+      const cleClaude = document.getElementById('reglages-claude-cle');
+      if (cleClaude) {
+        cleClaude.value = '';
+        cleClaude.placeholder = data.cleEnregistree ? '•••••••• enregistrée — saisir pour remplacer' : (data.cleEnvironnement ? 'Clé fournie par le serveur (variable ANTHROPIC_API_KEY)' : 'sk-ant-…');
       }
+      const cleMistral = document.getElementById('reglages-mistral-cle');
+      if (cleMistral) {
+        cleMistral.value = '';
+        cleMistral.placeholder = data.cleMistralEnregistree ? '•••••••• enregistrée — saisir pour remplacer' : (data.cleMistralEnvironnement ? 'Clé fournie par le serveur (variable MISTRAL_API_KEY)' : 'Clé API Mistral');
+      }
+      afficherChampsFournisseurIa();
     } catch (e) { /* écran Réglages : sans connexion, rien à afficher */ }
   }
 
   async function enregistrerReglagesClaude() {
-    const champ = document.getElementById('reglages-claude-cle');
-    const corps = { modele: document.getElementById('reglages-claude-modele').value };
-    if (champ && champ.value.trim()) corps.cleApi = champ.value.trim();
+    const lire = (id) => { const el = document.getElementById(id); return el ? el.value : undefined; };
+    const corps = {
+      fournisseur: lire('reglages-ia-fournisseur'),
+      modele: lire('reglages-claude-modele'),
+      modeleMistral: lire('reglages-mistral-modele'),
+      regionMistral: lire('reglages-mistral-region')
+    };
+    // Une clé n'est envoyée que si quelqu'un l'a tapée : sinon celle en place est conservée.
+    const cleClaude = (lire('reglages-claude-cle') || '').trim();
+    const cleMistral = (lire('reglages-mistral-cle') || '').trim();
+    if (cleClaude) corps.cleApi = cleClaude;
+    if (cleMistral) corps.cleMistral = cleMistral;
     const res = document.getElementById('reglages-claude-resultat');
     try {
       const r = await fetchAvecAuth('/api/relecture-claude/reglages', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) });
@@ -21186,22 +21233,33 @@
     }
   }
 
+  // Efface la clé du fournisseur AFFICHÉ, pas les deux.
   async function effacerCleClaude() {
-    demanderConfirmation('Effacer la clé API Claude enregistrée sur le serveur ?', async () => {
-      await fetchAvecAuth('/api/relecture-claude/reglages', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cleApi: '' }) });
+    const f = (document.getElementById('reglages-ia-fournisseur') || {}).value === 'claude' ? 'claude' : 'mistral';
+    const nom = f === 'claude' ? 'Claude' : 'Mistral';
+    demanderConfirmation(`Effacer la clé API ${nom} enregistrée sur le serveur ?`, async () => {
+      const corps = f === 'claude' ? { cleApi: '' } : { cleMistral: '' };
+      await fetchAvecAuth('/api/relecture-claude/reglages', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) });
       etatClaudeRelecture = null;
       await chargerReglagesClaude();
     });
   }
 
+  // Vérifie la clé du fournisseur ENREGISTRÉ (pas celui sélectionné sans avoir été enregistré).
   async function testerCleClaude() {
     const res = document.getElementById('reglages-claude-resultat');
+    const choisi = (document.getElementById('reglages-ia-fournisseur') || {}).value;
+    if (reglagesIaCharges && choisi && choisi !== reglagesIaCharges.fournisseur) {
+      if (res) res.innerHTML = `<span class="dot-label dl-pret">${icone('alert-triangle')}Enregistrez d'abord le changement de fournisseur</span>`;
+      return;
+    }
     if (res) res.innerHTML = `<span class="hint">${icone('spinner', null, true)} Vérification…</span>`;
     try {
       const r = await fetchAvecAuth('/api/relecture-claude/tester', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
       const data = await r.json().catch(() => ({}));
+      const lieu = data.fournisseur === 'mistral' ? (data.region === 'global' ? '' : ' · Union européenne') : '';
       if (res) res.innerHTML = r.ok
-        ? `<span class="dot-label dl-success">${icone('check')}Clé valide — ${escapeHtml(data.libelle || data.modele)} accessible</span>`
+        ? `<span class="dot-label dl-success">${icone('check')}Clé valide — ${escapeHtml(LIBELLES_MODELES_CLAUDE[data.modele] || data.libelle || data.modele)} accessible${lieu}</span>`
         : `<span class="dot-label dl-urgent">${icone('alert-triangle')}${escapeHtml(data.erreur || 'Échec')}</span>`;
     } catch (e) {
       if (res) res.innerHTML = `<span class="dot-label dl-urgent">${icone('alert-triangle')}Serveur injoignable</span>`;

@@ -77,7 +77,7 @@ function estSea() {
 
 // `envoyerEmailFn` : injection de la couche d'envoi (voir envoiEmail.js), utilisée uniquement par
 // les tests — sans elle, vérifier les routes qui notifient demanderait un vrai serveur SMTP.
-function creerApp({ db, config, envoyerEmailFn, creerClientClaude, miseAJour, agenda }) {
+function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistral, testerMistral, miseAJour, agenda }) {
   const app = express();
   const depot = creerDepot(db);
   const parametresRepo = creerRepoParametres(db);
@@ -130,7 +130,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, miseAJour, ag
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurCorrectionsApprises(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRappelsPerso(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurPreferences(parametresRepo));
-  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRelectureClaude(parametresRepo, db, { creerClient: creerClientClaude }));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRelectureClaude(parametresRepo, db, { creerClient: creerClientClaude, appelerMistral, testerMistral }));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRelectures(db));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurSignalements(db, parametresRepo, envoyerEmailFn));
   // Mise à jour en un clic : `miseAJour.redemarrer` est fourni par index.js (seul endroit qui tient

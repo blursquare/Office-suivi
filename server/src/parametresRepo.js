@@ -9,6 +9,8 @@
 // raison de complexifier le schéma — même principe que le blob `data` des dossiers.
 'use strict';
 
+const { MODELES_MISTRAL, MODELE_MISTRAL_PAR_DEFAUT, REGIONS_MISTRAL } = require('./relecture/mistral');
+
 const CLE_REGLAGES = 'reglages';
 
 // Compte rendu du DERNIER tour de la tâche de rappels (voir jobs/rappels.js). Stocké sous sa
@@ -372,14 +374,27 @@ const CLE_REGLAGES_CLAUDE = 'relecture-claude';
 const MODELES_CLAUDE = ['claude-sonnet-5', 'claude-opus-5'];
 const MODELE_CLAUDE_PAR_DEFAUT = 'claude-sonnet-5';
 
+// Depuis le 27/09/2026 la relecture passe par MISTRAL par défaut (demande de l'étude : un
+// fournisseur européen, point d'accès de l'UE) ; Claude reste sélectionnable. Des réglages
+// enregistrés avant ce changement n'ont pas de `fournisseur` : ils basculent donc sur Mistral.
+// La clé Mistral suit la même discipline que la clé Anthropic (jamais renvoyée, conservée si
+// absente de la requête, effacée sur une chaîne vide).
+const FOURNISSEURS_RELECTURE = ['mistral', 'claude'];
+
 function assainirReglagesClaude(brut, precedent) {
   const b = (brut && typeof brut === 'object') ? brut : {};
   const p = (precedent && typeof precedent === 'object') ? precedent : {};
   const cle = (typeof b.cleApi === 'string') ? b.cleApi.trim() : texteNettoye(p.cleApi);
+  const cleMistral = (typeof b.cleMistral === 'string') ? b.cleMistral.trim() : texteNettoye(p.cleMistral);
+  const choisir = (valeur, precedente, liste, defaut) =>
+    (liste.indexOf(valeur) >= 0 ? valeur : (liste.indexOf(precedente) >= 0 ? precedente : defaut));
   return {
+    fournisseur: choisir(b.fournisseur, p.fournisseur, FOURNISSEURS_RELECTURE, 'mistral'),
     cleApi: cle,
-    modele: MODELES_CLAUDE.indexOf(b.modele) >= 0 ? b.modele
-      : (MODELES_CLAUDE.indexOf(p.modele) >= 0 ? p.modele : MODELE_CLAUDE_PAR_DEFAUT)
+    modele: choisir(b.modele, p.modele, MODELES_CLAUDE, MODELE_CLAUDE_PAR_DEFAUT),
+    cleMistral,
+    modeleMistral: choisir(b.modeleMistral, p.modeleMistral, MODELES_MISTRAL, MODELE_MISTRAL_PAR_DEFAUT),
+    regionMistral: choisir(b.regionMistral, p.regionMistral, REGIONS_MISTRAL, 'eu')
   };
 }
 

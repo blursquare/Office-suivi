@@ -578,15 +578,23 @@ diagnostic du dernier parcours d'un dossier signale aussi tout fichier écarté,
 écarter ». Une pièce présente sur le NAS qui reste « manquante » sans raison apparente : regarder
 d'abord là.
 
-## Relecture d'actes par l'API Claude
+## Relecture d'actes par un modèle hébergé (Mistral par défaut, Claude en option)
 
 L'écran **Relecture d'actes** fait relire un projet d'avant-contrat ou un projet d'acte de vente
-point par point par Claude (Anthropic), sur une grille d'environ 45 points (parties, bien,
+point par point par un modèle d'IA hébergé, sur une grille d'environ 45 points (parties, bien,
 diagnostics, copropriété — y compris plusieurs copropriétés dans un même acte —, délais et clauses,
 urbanisme, volet financier ; en projet de vente, concordance avec l'avant-contrat signé).
 
-**Ce qui part chez Anthropic, et ce qui n'y part jamais.** Les noms, adresses, dates et lieux de
-naissance, emails, téléphones, IBAN, numéros de sécurité sociale, références cadastrales et
+**Fournisseur.** Depuis le 27/09/2026, **Mistral** (société française) par défaut, sur son point
+d'accès **Union européenne** (`api.eu.mistral.ai` : l'inférence est exécutée dans des centres de
+données de l'UE/AELE, tarif majoré de 10 %). Claude (Anthropic) reste sélectionnable dans Réglages →
+Relecture d'actes. Le prompt, la grille, le schéma de sortie et la vérification des citations sont
+identiques pour les deux (`relecture/claude.js`) ; seul l'appel change (`relecture/mistral.js`, un
+simple `fetch`, sans dépendance). Les chemins d'API gardent leur nom historique
+`/api/relecture-claude/…` ; c'est le réglage `fournisseur` qui décide.
+
+**Ce qui part chez le fournisseur, et ce qui n'y part jamais.** Les noms, adresses, dates et lieux
+de naissance, emails, téléphones, IBAN, numéros de sécurité sociale, références cadastrales et
 sociétés sont remplacés par des jetons (`⟦PERSONNE_1⟧`…) **dans le navigateur**, avant tout envoi.
 La correspondance jeton → valeur reste sur le poste ; le serveur ne la reçoit jamais. L'étape 2 de
 l'écran montre exactement le texte qui sera envoyé, et permet de masquer un terme oublié ou de
@@ -594,23 +602,46 @@ laisser en clair une valeur masquée à tort. Les noms de fichiers ne sont pas e
 (« Document 1 », « Annexe 2 »…). Cadre retenu : guide IEJ/CSN sur l'intelligence artificielle
 (secret professionnel, vérification humaine de chaque sortie, archivage des requêtes).
 
-**Clé API.** Réglages → *Relecture par Claude* : la clé est stockée dans la base du serveur et ne
-ressort jamais vers un navigateur (seul un « clé enregistrée » est renvoyé). À défaut, la variable
-d'environnement `ANTHROPIC_API_KEY` est utilisée. Le bouton *Tester* vérifie la clé sans rien
-facturer. Modèles proposés : Claude Sonnet 5 (défaut) et Claude Opus 5. Le poste serveur doit
-pouvoir joindre `api.anthropic.com` en HTTPS. Sans clé, l'écran reste utilisable avec les seuls
-contrôles automatiques de CLAIRE (règles locales, sans IA).
+**À demander à Mistral, par écrit, avant l'usage réel** : la **rétention zéro** (ZDR, sur demande
+au support pour une offre payante ; elle couvre `/v1/chat/completions`, et apparaît ensuite dans
+Admin → API → Privacy), la confirmation de l'**absence d'entraînement** sur vos données (réglage
+séparé de la ZDR) et l'accord de sous-traitance RGPD.
 
-**Coût.** Avant de lancer, l'écran affiche une fourchette calculée à partir du nombre exact de
-jetons à lire (comptage gratuit chez Anthropic). Après l'analyse, le coût réel facturé, les jetons
-lus et produits et la durée sont affichés en bas du bilan, avec le cumul du mois et depuis
-l'installation. Tarifs utilisés (dollars par million de jetons) : Sonnet 5 — 2 en entrée, 10 en
-sortie ; Opus 5 — 5 et 25. Un dossier complet (acte + avant-contrat + quelques annexes) représente
-en général quelques dizaines de centimes.
+**Clés API.** Réglages → *Relecture d'actes* : une clé par fournisseur, stockée dans la base du
+serveur, jamais renvoyée vers un navigateur (seul un « clé enregistrée » est renvoyé). À défaut,
+les variables d'environnement `MISTRAL_API_KEY` / `ANTHROPIC_API_KEY`. *Vérifier la clé* lit la
+fiche du modèle, sans rien facturer. Le poste serveur doit pouvoir joindre `api.eu.mistral.ai` (ou
+`api.anthropic.com`) en HTTPS. Sans clé, l'écran reste utilisable avec les seuls contrôles
+automatiques de CLAIRE (règles locales, sans IA).
+
+**Modèles et tarifs** (dollars par million de jetons, relevés sur docs.mistral.ai le 27/09/2026) :
+
+| Modèle | Contexte | Entrée | Sortie |
+|---|---|---|---|
+| Mistral Medium 3.5 (`mistral-medium-3-5`, défaut, raisonnement activé) | 256 000 | 1,5 | 7,5 |
+| Mistral Large 3 (`mistral-large-2512`, sans raisonnement) | 256 000 | 0,5 | 1,5 |
+| Claude Sonnet 5 | 1 000 000 | 2 | 10 |
+| Claude Opus 5 | 1 000 000 | 5 | 25 |
+
+Majoration de 10 % sur les tarifs Mistral en région UE. **Le contexte de Mistral est quatre fois plus
+petit** : un dossier au-delà d'environ 212 000 jetons (≈ 680 000 caractères) est signalé avant le
+lancement, à alléger en retirant des annexes.
+
+**Coût.** Avant de lancer, l'écran affiche une fourchette. Claude : nombre exact de jetons (comptage
+gratuit). Mistral : pas de comptage gratuit, **estimation** sur la longueur du texte (3,2 caractères
+par jeton, volontairement pessimiste). Après l'analyse, le coût réel, les jetons lus et produits et
+la durée sont affichés en bas du bilan, avec le cumul du mois et depuis l'installation.
+
+**Détails de l'appel Mistral.** `POST /v1/chat/completions` en flux (les en-têtes arrivent tout de
+suite, ce qui évite le délai d'attente de 5 minutes de `fetch` sur une longue analyse), sortie
+structurée `response_format: json_schema` strict, `temperature` 0,2, `reasoning_effort: high` sur
+Medium 3.5 (la trace de raisonnement est écartée, seul le texte de réponse est lu). Si le point
+d'accès refuse le raisonnement avec la sortie structurée (400/422), une seule relance sans. Délai
+maximal 15 minutes.
 
 **Archivage.** Chaque requête est conservée telle qu'envoyée — donc pseudonymisée — avec la
-réponse, les jetons et le coût, dans la table `analyses_claude` de la base. Seules les
-métadonnées (date, modèle, coût) sont exposées par `GET /api/relecture-claude/journal`.
+réponse, les jetons, le coût et le fournisseur, dans la table `analyses_claude` (nom historique).
+Seules les métadonnées (date, modèle, coût) sont exposées par `GET /api/relecture-claude/journal`.
 
 **Vérification des citations.** Chaque point cité doit renvoyer à un extrait du texte ; le serveur
 cherche l'extrait mot pour mot dans le document et recalcule la page d'après sa position réelle.

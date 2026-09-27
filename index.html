@@ -1341,7 +1341,7 @@
       <div class="relecture-cadre-icone" id="icon-relecture-cadre" aria-hidden="true"></div>
       <div>
         <strong>Rien d'identifiant ne quitte l'étude.</strong>
-        <p class="hint">Noms, adresses, naissances, contacts, références cadastrales et identifiants sont remplacés ici, dans votre navigateur, par des jetons (⟦PERSONNE_1⟧…). Seul le texte ainsi masqué est envoyé à l'API Claude d'Anthropic ; la correspondance reste sur ce poste et sert à rétablir les noms dans le bilan. Un même élément porte le même jeton dans tous les documents, ce qui laisse repérer une incohérence d'un acte à l'autre. Relisez l'aperçu : un nom resté en clair se masque en un clic.</p>
+        <p class="hint">Noms, adresses, naissances, contacts, références cadastrales et identifiants sont remplacés ici, dans votre navigateur, par des jetons (⟦PERSONNE_1⟧…). Seul le texte ainsi masqué est envoyé au modèle d'IA choisi dans les Réglages (Mistral, traité dans l'Union européenne, par défaut) ; la correspondance reste sur ce poste et sert à rétablir les noms dans le bilan. Un même élément porte le même jeton dans tous les documents, ce qui laisse repérer une incohérence d'un acte à l'autre. Relisez l'aperçu : un nom resté en clair se masque en un clic.</p>
       </div>
     </div>
     <div class="dash-grid relecture-anon-grid">
@@ -1638,22 +1638,53 @@
 
   <section class="reglages-panneau" id="reglages-panneau-relecture" role="tabpanel" aria-labelledby="reglages-onglet-relecture" hidden>
     <div class="reglages-grille">
-      <!-- Relecture d'actes par l'API Claude (Outil 2) : clé et modèle, lus/écrits par
-           server/src/routes/relectureClaude.js. La clé ne ressort jamais du serveur. -->
+      <!-- Relecture d'actes (Outil 2) : fournisseur, clé et modèle, lus/écrits par
+           server/src/routes/relectureClaude.js. Mistral par défaut (point d'accès de l'UE), Claude
+           en option. Les clés ne ressortent jamais du serveur. -->
       <div class="calc-card">
-        <div class="dash-section-titre">Relecture par Claude</div>
+        <div class="dash-section-titre">Modèle d'IA de la relecture</div>
         <div class="calc-champs">
           <div class="calc-champ">
-            <label for="reglages-claude-cle">Clé API Anthropic</label>
-            <input type="password" id="reglages-claude-cle" autocomplete="off" placeholder="sk-ant-…">
-            <p class="hint">Créée sur <code>console.anthropic.com</code>. Laisser vide conserve celle en place.</p>
-          </div>
-          <div class="calc-champ">
-            <label for="reglages-claude-modele">Modèle</label>
-            <select id="reglages-claude-modele">
-              <option value="claude-sonnet-5">Claude Sonnet 5 — recommandé (2 $ / 10 $ par million de jetons)</option>
-              <option value="claude-opus-5">Claude Opus 5 — plus approfondi, 2,5 fois plus cher (5 $ / 25 $)</option>
+            <label for="reglages-ia-fournisseur">Fournisseur</label>
+            <select id="reglages-ia-fournisseur" onchange="afficherChampsFournisseurIa()">
+              <option value="mistral">Mistral — société française</option>
+              <option value="claude">Claude — Anthropic, société américaine</option>
             </select>
+          </div>
+          <div id="reglages-ia-mistral" class="calc-champs">
+            <div class="calc-champ">
+              <label for="reglages-mistral-cle">Clé API Mistral</label>
+              <input type="password" id="reglages-mistral-cle" autocomplete="off" placeholder="Clé API Mistral">
+              <p class="hint">Créée sur <code>console.mistral.ai</code>. Laisser vide conserve celle en place.</p>
+            </div>
+            <div class="calc-champ">
+              <label for="reglages-mistral-modele">Modèle</label>
+              <select id="reglages-mistral-modele">
+                <option value="mistral-medium-3-5">Mistral Medium 3.5 — recommandé (1,5 $ / 7,5 $ par million de jetons)</option>
+                <option value="mistral-large-2512">Mistral Large 3 — moins cher, sans raisonnement (0,5 $ / 1,5 $)</option>
+              </select>
+            </div>
+            <div class="calc-champ">
+              <label for="reglages-mistral-region">Lieu de traitement</label>
+              <select id="reglages-mistral-region">
+                <option value="eu">Union européenne — recommandé (+10 %)</option>
+                <option value="global">Sans engagement de lieu</option>
+              </select>
+            </div>
+          </div>
+          <div id="reglages-ia-claude" class="calc-champs" style="display:none">
+            <div class="calc-champ">
+              <label for="reglages-claude-cle">Clé API Anthropic</label>
+              <input type="password" id="reglages-claude-cle" autocomplete="off" placeholder="sk-ant-…">
+              <p class="hint">Créée sur <code>console.anthropic.com</code>. Laisser vide conserve celle en place.</p>
+            </div>
+            <div class="calc-champ">
+              <label for="reglages-claude-modele">Modèle</label>
+              <select id="reglages-claude-modele">
+                <option value="claude-sonnet-5">Claude Sonnet 5 — recommandé (2 $ / 10 $ par million de jetons)</option>
+                <option value="claude-opus-5">Claude Opus 5 — plus approfondi, 2,5 fois plus cher (5 $ / 25 $)</option>
+              </select>
+            </div>
           </div>
           <div class="reglages-claude-actions">
             <button type="button" class="primary" onclick="enregistrerReglagesClaude()">Enregistrer</button>

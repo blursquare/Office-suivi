@@ -8196,6 +8196,54 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     `canvas` chargé depuis le CDN. À confirmer par l'étude au premier import d'un compromis
     scanné après la mise à jour de l'exécutable (le texte doit ressortir comme avant, plus vite).
 
+- **Relecture d'actes : Mistral remplace Claude par défaut** (27/09, « passe à Mistral pour
+  l'analyse des actes au lieu de Claude »). Origine : l'étude se disait « bloquée par le secret
+  professionnel » pour faire évoluer l'outil ; après discussion (ce qui reste local, ce qui part
+  pseudonymisé, ce qui ne part jamais), elle a choisi un fournisseur européen plutôt qu'un modèle
+  local, dont la qualité sur un raisonnement juridique ne suffisait pas (voir l'ancien Outil 2).
+  - **Seul l'appel change** : `server/src/relecture/mistral.js` (un `fetch`, aucune dépendance,
+    comme `llm.js`). Grille, prompt, schéma de sortie, vérification littérale des citations,
+    pseudonymisation dans le navigateur, archivage : identiques et partagés (`relecture/claude.js`).
+    La route (`routes/relectureClaude.js`) aiguille selon le réglage `fournisseur` ; les chemins
+    `/api/relecture-claude/…`, la table `analyses_claude` et plusieurs noms de fonctions client
+    (`chargerReglagesClaude`, `LIBELLES_MODELES_CLAUDE`…) gardent leur nom historique — les renommer
+    aurait tout touché pour rien.
+  - **Faits vérifiés sur docs.mistral.ai le 27/09/2026, pas de mémoire** : `mistral-medium-3-5`
+    (Medium 3.5, 256 000 jetons, 1,5 $ / 7,5 $, `reasoning_effort`) par défaut, `mistral-large-2512`
+    (Large 3, 256 000 jetons, 0,5 $ / 1,5 $) en option ; sortie structurée `json_schema` strict ;
+    point d'accès régional **UE** `api.eu.mistral.ai`, majoré de 10 %, retenu par défaut
+    (`regionMistral`, « Sans engagement de lieu » possible) ; rétention zéro sur demande. Le
+    raisonnement (réponse en chunks `thinking` puis texte) est lu en flux, seule la partie texte
+    est gardée ; si le point d'accès refuse raisonnement + sortie structurée (400/422), une relance
+    sans (une requête refusée n'est pas facturée).
+  - **Contexte quatre fois plus petit que Claude** (256 000 jetons contre 1 million) : limite
+    d'entrée `LIMITE_JETONS_ENTREE_MISTRAL` = 212 000. Mistral n'ayant pas de comptage gratuit, la
+    taille est **estimée** (3,2 caractères par jeton, pessimiste) et l'écran le dit (« environ »).
+  - **Réglages** : `assainirReglagesClaude()` gagne `fournisseur` (`mistral` par défaut — des réglages
+    enregistrés avant n'en ont pas, ils basculent donc sur Mistral **sans perdre la clé Anthropic**),
+    `cleMistral` (même discipline que les autres secrets : jamais renvoyée, conservée si absente,
+    effacée sur chaîne vide), `modeleMistral`, `regionMistral`. Carte « Modèle d'IA de la relecture »
+    : un sélecteur de fournisseur, seuls ses champs affichés. **Piège rencontré** : l'attribut
+    `hidden` sur un `.calc-champs` ne masquait rien, sa règle `display` l'emportant — bascule par
+    `style.display`. « Vérifier la clé » refuse de tester un fournisseur choisi mais pas encore
+    enregistré (il testerait l'autre).
+  - Textes de l'écran rendus neutres (« Mistral relit… », « facturé par Mistral AI », « Analyse par
+    l'IA non effectuée », étape de pseudonymisation) ; une facture enregistrée avant ce changement
+    sans champ `fournisseur` est attribuée d'après le nom du modèle.
+  - Tests : `server/test/relecture-mistral.test.js` (10 : tarifs et majoration UE, corps de requête,
+    lecture d'un flux SSE découpé n'importe où avec trace de raisonnement, relance sans raisonnement,
+    réglages et bascule par défaut, route complète avec un faux appel Mistral — clé jamais renvoyée,
+    estimation sans appel réseau, citations vérifiées, coût, archivage, réponse coupée, erreur 429).
+    Les tests de route Claude choisissent désormais `fournisseur: 'claude'`. Suites : racine 809,
+    serveur 383. Vérifié dans un vrai Chromium (clair, sombre) : carte Réglages, bascule des champs,
+    clé enregistrée relue comme « enregistrée », étape 3 affichant « Mistral Medium 3.5 — API Mistral
+    · Union européenne ».
+  - **Non vérifié avec une vraie clé** (aucune ici) : la qualité des fiches produites par Mistral
+    comparée à Claude, le temps de réponse, et l'acceptation effective de `reasoning_effort` avec la
+    sortie structurée sur le point d'accès UE. À faire par l'étude sur 3 ou 4 actes déjà relus avec
+    Claude, avec le mode commentaires. **À demander à Mistral avant l'usage réel** : ZDR, absence
+    d'entraînement, accord de sous-traitance.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à
