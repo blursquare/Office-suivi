@@ -64,6 +64,24 @@ function texteDossierComplet(dossierNom) {
   return `✅ CLAIRE — Dossier ${dossierNom} complet : offre de prêt et pièces reçues. Il est prêt à être rédigé.`;
 }
 
+// Demandé par l'étude : prévenir le responsable d'un dossier quand un AUTRE collaborateur y ajoute
+// ou y change une date (rendez-vous, échéance…). Le client ne l'appelle que si l'auteur n'est pas
+// le responsable (voir doitNotifierDateAjoutee dans script.js). Dates au format AAAA-MM-JJ.
+const MOIS_FR = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+function dateLongueFr(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
+  if (!m) return String(iso || '');
+  return `${parseInt(m[3], 10)} ${MOIS_FR[parseInt(m[2], 10) - 1] || m[2]} ${m[1]}`;
+}
+
+function texteDateAjoutee(dossierNom, auteur, libelle, date, ancienneDate) {
+  const qui = auteur || 'Un collaborateur';
+  if (ancienneDate) {
+    return `📅 CLAIRE — ${qui} a modifié une date du dossier ${dossierNom} : ${libelle} passe du ${dateLongueFr(ancienneDate)} au ${dateLongueFr(date)}.`;
+  }
+  return `📅 CLAIRE — ${qui} a ajouté une date au dossier ${dossierNom} : ${libelle} le ${dateLongueFr(date)}.`;
+}
+
 // Une pièce envoyée par le client : un libellé seul (ancienne forme), ou {label, chemin} quand le
 // fichier trouvé sur le NAS est connu — le chemin, relatif à la racine du NAS, sert au lien.
 function lirePiece(p) {
@@ -80,7 +98,9 @@ function lirePiece(p) {
 // notifiée. La copie Gmail est mise en attente d'effacement, jamais effacée tout de suite : le flux
 // doit d'abord avoir lu le message (voir nettoyageGmail.js).
 // `message` : chaîne, ou {texte, html} (voir envoiEmail.js).
-async function envoyerAuResponsable(parametresRepo, envoyer, reglages, responsable, message) {
+// `options.sansCopiePour` : adresse à qui la copie n'est pas envoyée (l'auteur d'un changement n'a
+// pas à recevoir le compte rendu de son propre geste).
+async function envoyerAuResponsable(parametresRepo, envoyer, reglages, responsable, message, options = {}) {
   const email = responsable ? reglages.emailsResponsables[responsable] : null;
   const resultat = { ok: true, envoyeResponsable: false, envoyeCopie: false, erreurs: [] };
   const messagesEnvoyes = [];
@@ -94,7 +114,8 @@ async function envoyerAuResponsable(parametresRepo, envoyer, reglages, responsab
     resultat.erreurs.push(`${responsable} : aucune adresse email configurée (voir Réglages).`);
   }
 
-  if (reglages.copieEmail && !memeAdresseEmail(reglages.copieEmail, email)) {
+  if (reglages.copieEmail && !memeAdresseEmail(reglages.copieEmail, email) &&
+      !(options.sansCopiePour && memeAdresseEmail(reglages.copieEmail, options.sansCopiePour))) {
     const copie = await envoyer(reglages, reglages.copieEmail, message);
     resultat.envoyeCopie = copie.ok;
     if (copie.ok && copie.messageId) messagesEnvoyes.push(copie.messageId);
@@ -150,7 +171,29 @@ function creerRouteurNotifications(parametresRepo, envoyerFn, options = {}) {
     res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, responsable, texteDossierComplet(dossierNom)));
   });
 
+  router.post('/notifications/date-ajoutee', async (req, res) => {
+    const corps = req.body || {};
+    const texteChamp = (v) => (typeof v === 'string' ? v.trim() : '');
+    const dossierNom = texteChamp(corps.dossierNom);
+    const responsable = texteChamp(corps.responsable);
+    const auteur = texteChamp(corps.auteur);
+    const libelle = texteChamp(corps.libelle) || 'Échéance';
+    const date = texteChamp(corps.date);
+    const ancienneDate = texteChamp(corps.ancienneDate);
+    if (!dossierNom) return res.status(400).json({ erreur: 'dossierNom manquant.' });
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ erreur: 'date manquante ou invalide.' });
+    if (!responsable) return res.status(400).json({ erreur: 'responsable manquant.' });
+    // Le client filtre déjà ce cas ; le serveur le refuse aussi pour qu'un appel direct ne fasse
+    // jamais notifier quelqu'un de son propre changement.
+    if (auteur && auteur === responsable) return res.json({ ok: true, ignore: true });
+    const reglages = parametresRepo.lireReglages();
+    if (!envoiConfigure(reglages)) return res.json({ ok: true, ignore: true });
+    const message = texteDateAjoutee(dossierNom, auteur, libelle, date, /^\d{4}-\d{2}-\d{2}$/.test(ancienneDate) ? ancienneDate : '');
+    const sansCopiePour = auteur ? reglages.emailsResponsables[auteur] : null;
+    res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, responsable, message, { sansCopiePour }));
+  });
+
   return router;
 }
 
-module.exports = { creerRouteurNotifications, texteNotificationPieces, htmlNotificationPieces, texteDossierComplet };
+module.exports = { creerRouteurNotifications, texteNotificationPieces, htmlNotificationPieces, texteDossierComplet, texteDateAjoutee };

@@ -9397,6 +9397,26 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     saisie de la date, focus sur l'heure, lieu « JV - Projet envoyé » annoncé, aucune erreur JS.
     **Non vérifié sur le vrai Exchange.**
 
+- **Teams : le responsable est prévenu quand un autre collaborateur ajoute ou change une date de
+  son dossier** (28/09 soir), et la carte « Portefeuille » du tableau de bord s'appelle désormais
+  « Dossiers ouverts » (libellé seul ; fonctions et classes `portefeuille`/`pf-*` inchangées).
+  - Client : `doitNotifierDateAjoutee(d, auteur, nouvelle, ancienne)` (pure, testée) — auteur =
+    collaborateur choisi sur le poste (`utilisateurPoste`), différent de `d.responsable`, date non
+    vide et différente de l'ancienne, dossier non archivé. Poste sans collaborateur choisi : rien
+    (impossible de savoir si le geste vient d'un autre). `notifierDateAjoutee()` (fire-and-forget)
+    est appelée par `validerEditionDate` (échéances fixes et personnalisées), `ajouterEcheanceApresCoup`
+    et « Marquer envoyé » d'Aujourd'hui (`marquerEnvoiAujourdhui`). Les dates écrites par le serveur
+    (agenda, NAS) ne passent pas par là et ne préviennent personne ; une date vidée non plus.
+  - Serveur : `POST /api/notifications/date-ajoutee` (`routes/notifications.js`,
+    `texteDateAjoutee` : « Julie VASSELIN a ajouté une date au dossier X : Rendez-vous de signature
+    le 14 octobre 2026 » / « … passe du … au … »), même chaîne que les autres notifications
+    (`envoyerAuResponsable`, email → passerelle → Teams). **La copie à l'étude n'est pas envoyée
+    quand elle est l'adresse de l'auteur** (`options.sansCopiePour`) : Bastien, qui reçoit toutes
+    les copies, ne reçoit pas le compte rendu de sa propre saisie. Un appel où auteur = responsable
+    est ignoré aussi côté serveur.
+  - Tests : `tests/notification-date.test.js` (1), +2 dans `server/test/notifications.test.js`.
+    Suites : racine 894, serveur 463. Ne parvient au bureau qu'avec le prochain `CLAIRE-serveur.exe`.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

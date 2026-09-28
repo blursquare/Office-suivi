@@ -136,3 +136,39 @@ test('copieEmail : reçoit un double, jamais si elle coïncide avec le destinata
   await appeler('/api/notifications/pieces-recues', { method: 'POST', body: JSON.stringify({ dossierNom: 'DUPONT / MARTIN', responsable: 'Bastien ANGLUMENT', pieces: ['ERP'] }) });
   assert.equal(envois.length, 1);
 });
+
+test('texteDateAjoutee : ajout et modification, date en toutes lettres', () => {
+  const { texteDateAjoutee } = require('../src/routes/notifications');
+  assert.equal(texteDateAjoutee('DUPONT / MARTIN', 'Julie VASSELIN', 'Rendez-vous de signature', '2026-10-14', ''),
+    '📅 CLAIRE — Julie VASSELIN a ajouté une date au dossier DUPONT / MARTIN : Rendez-vous de signature le 14 octobre 2026.');
+  assert.match(texteDateAjoutee('DUPONT / MARTIN', 'Julie VASSELIN', 'Obtention du prêt', '2026-11-02', '2026-10-01'),
+    /a modifié une date du dossier DUPONT \/ MARTIN : Obtention du prêt passe du 1 octobre 2026 au 2 novembre 2026\./);
+});
+
+test('POST /api/notifications/date-ajoutee : prévient le responsable, sans copie à l\'auteur', async () => {
+  envois.length = 0;
+  await appeler('/api/reglages', {
+    method: 'PUT',
+    body: JSON.stringify({ emailActif: true, smtpHote: 'smtp.test', emailPasserelle: 'passerelle@etude.fr', copieEmail: 'bastien@etude.fr', emailsResponsables: { 'Bastien ANGLUMENT': 'bastien@etude.fr', 'Julie VASSELIN': 'julie@etude.fr' } })
+  });
+  // Bastien (qui reçoit aussi la copie) ajoute une date sur un dossier de Julie : Julie seule.
+  let reponse = await appeler('/api/notifications/date-ajoutee', { method: 'POST', body: JSON.stringify({ dossierNom: 'DUPONT / MARTIN', responsable: 'Julie VASSELIN', auteur: 'Bastien ANGLUMENT', libelle: 'Rendez-vous de signature', date: '2026-10-14' }) });
+  assert.equal((await reponse.json()).envoyeResponsable, true);
+  assert.deepEqual(envois.map((e) => e.destinataire), ['julie@etude.fr']);
+  assert.match(envois[0].texte, /Bastien ANGLUMENT a ajouté une date/);
+
+  // Jérémy ajoute une date sur un dossier de Julie : Julie, et la copie à l'étude.
+  envois.length = 0;
+  await appeler('/api/notifications/date-ajoutee', { method: 'POST', body: JSON.stringify({ dossierNom: 'DUPONT / MARTIN', responsable: 'Julie VASSELIN', auteur: 'Jérémy SAUJOT', libelle: 'Appel de fonds', date: '2026-10-01' }) });
+  assert.deepEqual(envois.map((e) => e.destinataire).sort(), ['bastien@etude.fr', 'julie@etude.fr']);
+
+  // Le responsable lui-même : rien.
+  envois.length = 0;
+  reponse = await appeler('/api/notifications/date-ajoutee', { method: 'POST', body: JSON.stringify({ dossierNom: 'DUPONT / MARTIN', responsable: 'Julie VASSELIN', auteur: 'Julie VASSELIN', libelle: 'Appel de fonds', date: '2026-10-01' }) });
+  assert.deepEqual(await reponse.json(), { ok: true, ignore: true });
+  assert.equal(envois.length, 0);
+
+  // Date invalide : 400.
+  reponse = await appeler('/api/notifications/date-ajoutee', { method: 'POST', body: JSON.stringify({ dossierNom: 'DUPONT / MARTIN', responsable: 'Julie VASSELIN', date: '14/10/2026' }) });
+  assert.equal(reponse.status, 400);
+});

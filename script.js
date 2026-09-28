@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-28 17:29';
+  const VERSION_APP = '2026-09-28 17:43';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-28 17:43', resume: "Quand un collaborateur ajoute ou change une date sur le dossier d'un autre (échéance, rendez-vous, envoi, échéance personnalisée), le responsable du dossier est prévenu sur Teams. Tableau de bord : la carte « Portefeuille » s'appelle « Dossiers ouverts »." },
     { version: '2026-09-28 17:29', resume: "Agenda : l'envoi marqué depuis « Aujourd'hui » (« Marquer envoyé », « Déjà fait ») est aussi noté dans le rendez-vous ; un échec de note n'est plus silencieux (dit sur la carte « Envoi au client »). Saisir la date du rendez-vous de signature propose aussitôt l'heure pour le créer dans l'agenda, avec le lieu « initiales - envoi fait ». « Fixer le rendez-vous de signature » devient « Fixer le rendez-vous »." },
     { version: '2026-09-28 17:13', resume: "Tableau de bord : « Activité de l'étude » devient plus visuelle — le nombre d'actions du jour, des barres sur les 7 derniers jours, qui a agi aujourd'hui, et un fil en frise où chaque action porte une pastille de couleur selon son type (agenda, geste fait, email, pièce, archivage, date, fiche). Des pastilles filtrent le fil par type." },
     { version: '2026-09-28 17:08', resume: "Tableau de bord : la carte des dossiers actifs devient « Portefeuille » — un anneau de couleur répartit les dossiers par statut (prêt, réception de pièces, aucun document, à relier), trois jauges disent où en sont les signatures du mois, les offres de prêt reçues et l'avancement moyen, et une phrase résume la situation. Mes rappels : un crayon permet de modifier un rappel (texte, échéance, dossier)." },
@@ -11765,7 +11766,7 @@
     const sig = st.signaturesMois;
     const moisNom = new Date(aujourdhui + 'T00:00:00').toLocaleDateString('fr-FR', { month: 'long' });
     const carte = `<div class="kpi-tile portefeuille${anime ? ' anime' : ''}">
-      <div class="kpi-label">${icone('folder', 'kpi-icone')}Portefeuille<span class="kpi-tendance pf-tendance" title="${evolution.actuel} aujourd'hui contre ${evolution.moisDernier} il y a un mois">${tMois.icone}${tMois.texte} vs mois dernier</span></div>
+      <div class="kpi-label">${icone('folder', 'kpi-icone')}Dossiers ouverts<span class="kpi-tendance pf-tendance" title="${evolution.actuel} aujourd'hui contre ${evolution.moisDernier} il y a un mois">${tMois.icone}${tMois.texte} vs mois dernier</span></div>
       <div class="pf-haut">
         <div class="pf-anneau-bloc">${anneauPortefeuille(st)}<div class="pf-centre"><span class="pf-centre-num">${st.actifs}</span><span class="pf-centre-lib">actif${st.actifs > 1 ? 's' : ''}</span></div></div>
         <ul class="pf-legende">${legende}</ul>
@@ -14104,6 +14105,7 @@
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
     const aujourdhui = isoAujourdhuiLocal();
+    notifierDateAjoutee(d, LIBELLES_CATEGORIE[champ] || champ, aujourdhui, d[champ] || '');
     d[champ] = aujourdhui;
     if (champ === 'projetEnvoye') marquerProjetEnvoyeSelonDate(d, aujourdhui);
     else marquerAppelFondsSelonDate(d, aujourdhui);
@@ -15820,13 +15822,16 @@
       if (!item) return;
       if (nouvelleDate !== (item.date || '')) {
         ajouterHistorique(d, `Date « ${item.label} » modifiée : ${item.date ? formatDateFr(item.date) : 'non renseignée'} → ${nouvelleDate ? formatDateFr(nouvelleDate) : 'non renseignée'}`);
+        const ancienne = item.date || '';
         item.date = nouvelleDate || null;
         sauvegarder(d);
+        notifierDateAjoutee(d, item.label || 'Échéance', nouvelleDate, ancienne);
       }
     } else if (nouvelleDate !== (d[cle] || '')) {
       // L'heure et le lieu lus dans l'agenda se rapportaient à l'ancienne date du rendez-vous.
       if (cle === 'rendezVousSignature') effacerHoraireRendezVous(d);
       ajouterHistorique(d, `« ${LIBELLES_CATEGORIE[cle]} » modifiée : ${d[cle] ? formatDateFr(d[cle]) : 'non renseignée'} → ${nouvelleDate ? formatDateFr(nouvelleDate) : 'non renseignée'}`);
+      notifierDateAjoutee(d, LIBELLES_CATEGORIE[cle] || cle, nouvelleDate, d[cle] || '');
       d[cle] = nouvelleDate || '';
       d.confiance = d.confiance || {};
       d.confiance[cle] = 'manuel'; // corrigée à la main : à revérifier comme toute saisie manuelle
@@ -15907,6 +15912,7 @@
     ajouterHistorique(d, `Échéance « ${label} » ajoutée (${formatDateFr(iso)})`);
     ajoutEcheanceOuvert = false;
     sauvegarder(d);
+    notifierDateAjoutee(d, label, iso, '');
     render();
   }
 
@@ -20406,6 +20412,30 @@
   function doitNotifierDossierComplet(d) {
     if (!d || d.archive || d.roleNotaire === 'participant') return false;
     return dossierEntierementComplet(d) && !d.completNotifieLe;
+  }
+
+  // Prévenir le responsable du dossier, par la chaîne des rappels (email → passerelle → Teams),
+  // quand un AUTRE collaborateur y ajoute ou y change une date (demandé par l'étude). L'auteur est
+  // le collaborateur choisi sur ce poste : sans lui, on ne sait pas si le geste vient d'un autre,
+  // et rien n'est envoyé. Une date vidée ne prévient personne, ni une date écrite par le serveur
+  // (agenda, NAS) : ces chemins ne passent pas par ici. Pure, testable.
+  function doitNotifierDateAjoutee(d, auteur, nouvelleDate, ancienneDate) {
+    if (!d || d.archive || !nouvelleDate || nouvelleDate === ancienneDate) return false;
+    if (!auteur || !d.responsable) return false;
+    return auteur !== d.responsable;
+  }
+
+  function notifierDateAjoutee(d, libelle, nouvelleDate, ancienneDate) {
+    if (!doitNotifierDateAjoutee(d, utilisateurPoste, nouvelleDate, ancienneDate || '')) return;
+    // Fire-and-forget : un envoi impossible ne doit jamais faire échouer la saisie de la date.
+    fetchAvecAuth('/api/notifications/date-ajoutee', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        dossierNom: d.nom, responsable: d.responsable, auteur: utilisateurPoste,
+        libelle, date: nouvelleDate, ancienneDate: ancienneDate || ''
+      })
+    }).catch(e => console.warn('Notification « date ajoutée » impossible :', e.message));
   }
 
   function signalerSiDossierDevenuComplet(d) {
