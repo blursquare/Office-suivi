@@ -12,3 +12,6 @@ server/build/
 # JAMAIS commité — ces PDF contiennent des données clients. Les tests de régression
 # reproduisent la STRUCTURE des trames avec des noms inventés (voir CLAUDE.md).
 banc-essai/
+
+# Fichiers de vérification jetables (captures Playwright, scripts de bac à sable)
+scratchpad/
