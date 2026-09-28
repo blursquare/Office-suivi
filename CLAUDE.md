@@ -9349,6 +9349,26 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   - Vérifié dans un vrai Chromium (clair, sombre, 400 px, aucun débordement ni erreur JS, rappel
     modifié puis relu). Suite racine 887.
 
+- **« Activité de l'étude » (suivi en direct) rendue visuelle** (28/09 soir, « rends le suivi en
+  direct plus visuel et graphique aussi »). Même source qu'avant (`activiteEtude`, l'historique des
+  dossiers), présentation refaite dans `renderActiviteEtude` :
+  - **Résumé en tête** (`rythmeActivite`, pure) : nombre d'actions aujourd'hui, barres des 7
+    derniers jours (aujourd'hui en accent, hauteur relative au jour le plus chargé), et « qui a agi
+    aujourd'hui » — une barre par collaborateur, l'agenda de l'office compté à part.
+  - **Fil en frise** : chaque entrée porte une pastille d'icône colorée par catégorie
+    (`categorieActivite`, pure : agenda, geste fait, email, pièce, archivage, date, fiche — couleurs
+    de catégorie déjà en place : `--focus`, `--success`, `--ventebien`, `--pret`, `--muted`,
+    `--appelfonds`, `--ink-soft`), reliées par un trait vertical, groupées « Aujourd'hui / Hier /
+    Plus tôt » (`groupeJourActivite`). Une action de moins de 15 min porte un halo vert. **L'ordre
+    des règles de catégorie compte** : « Tâche du jour « Relancer… » : faite » est un geste fait, pas
+    un email — la règle « fait » passe avant « email ».
+  - **Filtres** par catégorie : une pastille par catégorie présente, icône + nombre (libellé sur la
+    pastille active), appliqués en CSS (`data-filtre` sur la carte) sans reconstruire la carte ; le
+    choix survit aux rendus (`filtreActivite`).
+  - La carte « Portefeuille » voisine répartit son contenu sur la hauteur (`space-between`).
+  - Tests : `tests/activite-direct.test.js` (3). Vérifié dans un vrai Chromium (clair, sombre,
+    filtre Emails, 400 px sans débordement).
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

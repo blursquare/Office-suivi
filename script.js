@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-28 17:08';
+  const VERSION_APP = '2026-09-28 17:13';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-28 17:13', resume: "Tableau de bord : « Activité de l'étude » devient plus visuelle — le nombre d'actions du jour, des barres sur les 7 derniers jours, qui a agi aujourd'hui, et un fil en frise où chaque action porte une pastille de couleur selon son type (agenda, geste fait, email, pièce, archivage, date, fiche). Des pastilles filtrent le fil par type." },
     { version: '2026-09-28 17:08', resume: "Tableau de bord : la carte des dossiers actifs devient « Portefeuille » — un anneau de couleur répartit les dossiers par statut (prêt, réception de pièces, aucun document, à relier), trois jauges disent où en sont les signatures du mois, les offres de prêt reçues et l'avancement moyen, et une phrase résume la situation. Mes rappels : un crayon permet de modifier un rappel (texte, échéance, dossier)." },
     { version: '2026-09-28 16:47', resume: "Tableau de bord : les tuiles « offres en attente » et « pièces manquantes » laissent place à « Activité de l'étude », le fil en direct de ce que font les collaborateurs (tâches du jour faites, dates saisies, emails préparés…) et de ce qui bouge dans l'agenda de l'office (rendez-vous relevé, déplacé ou retiré). « Dernières pièces » tient sur une ligne par pièce. Les tâches validées ne clignotent plus à la réouverture. Une tâche du jour ou un rappel non fait la veille revient marqué « Non faite hier ». Un rappel qui parle d'écrire propose un email vierge avec la signature. Fiche : les dates de la timeline tiennent sur une ou deux lignes." },
     { version: '2026-09-28 16:24', resume: "Emails : au clic, l'email s'ouvre de nouveau prêt à envoyer — un fichier .eml téléchargé qu'Outlook ouvre comme un nouveau message, en HTML, avec la signature de l'office (logos, couleurs, mentions) et les pièces jointes (questionnaire, courrier d'appel de fonds). Tout email à un confrère commence par « Mon Cher Maître, » et se termine par « Dans l'attente et vous en remerciant par avance, Votre bien dévoué. » ; relance de la vente préalable au confrère au texte de l'étude. Réglages › Sur ce poste : messagerie par défaut (texte seul) possible. Icône Windows nette à toutes les tailles." },
@@ -11780,26 +11781,139 @@
     return String(nom || '').split(/[\s-]+/).filter(Boolean).slice(0, 2).map(m => m[0].toUpperCase()).join('');
   }
 
+  // ---- Suivi en direct, version visuelle (demandé par l'étude : « plus visuel et graphique ») ----
+  // Chaque entrée reçoit une catégorie d'après son texte (pure et testable) : une icône et une
+  // couleur de catégorie déjà en place, jamais une couleur inventée. L'ordre des règles compte :
+  // l'agenda d'abord (source), puis les gestes terminés (« Tâche du jour « Relancer… » : faite »
+  // est un geste fait, pas un email), les emails, les pièces, l'archivage, les dates ; le reste
+  // est une simple modification de fiche.
+  var CATEGORIES_ACTIVITE = [
+    { cle: 'agenda', libelle: 'Agenda', icone: 'calendar' },
+    { cle: 'fait', libelle: 'Faits', icone: 'check', re: /faite?s?\b|r[ée]alis[ée]|valid[ée]|not[ée] fait|d[ée]j[àa] fait|complet/i },
+    { cle: 'email', libelle: 'Emails', icone: 'mail', re: /e-?mail|courriel|relance|questionnaire|brouillon|\.eml/i },
+    { cle: 'piece', libelle: 'Pièces', icone: 'file-text', re: /pi[èe]ce|document|offre de pr[êe]t|\bNAS\b|obligation|engagement/i },
+    { cle: 'archive', libelle: 'Archives', icone: 'archive', re: /archiv/i },
+    { cle: 'date', libelle: 'Dates', icone: 'clock', re: /date|[ée]ch[ée]ance|rendez-vous|butoir/i },
+    { cle: 'modif', libelle: 'Fiches', icone: 'pencil' }
+  ];
+
+  function categorieActivite(entree) {
+    const e = entree || {};
+    if (e.source === 'agenda') return CATEGORIES_ACTIVITE[0];
+    const texte = String(e.texte || '');
+    return CATEGORIES_ACTIVITE.find(c => c.re && c.re.test(texte)) || CATEGORIES_ACTIVITE[CATEGORIES_ACTIVITE.length - 1];
+  }
+
+  function isoLocalDepuisMs(ms) {
+    const d = new Date(ms);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  // Pure : le rythme de l'étude — actions par jour sur les 7 derniers jours (aujourd'hui en dernier)
+  // et, pour aujourd'hui, qui a fait quoi (l'agenda compte comme un contributeur à part).
+  function rythmeActivite(entrees, maintenantMs) {
+    const maintenant = maintenantMs || Date.now();
+    const jours = [];
+    for (let i = 6; i >= 0; i--) {
+      const ms = maintenant - i * 86400000;
+      const iso = isoLocalDepuisMs(ms);
+      const nom = new Date(ms).toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', '');
+      jours.push({ iso, n: 0, lettre: nom.charAt(0).toUpperCase(), nom, aujourdhui: i === 0 });
+    }
+    const index = {};
+    jours.forEach((j, i) => { index[j.iso] = i; });
+    const parQui = {};
+    (entrees || []).forEach(e => {
+      const t = Date.parse(e.date);
+      if (isNaN(t)) return;
+      const iso = isoLocalDepuisMs(t);
+      if (!(iso in index)) return;
+      jours[index[iso]].n++;
+      if (iso === jours[6].iso) {
+        const qui = e.auteur || 'Agenda';
+        parQui[qui] = (parQui[qui] || 0) + 1;
+      }
+    });
+    const equipe = Object.keys(parQui).map(nom => ({ nom, n: parQui[nom], agenda: nom === 'Agenda' }))
+      .sort((a, b) => b.n - a.n || a.nom.localeCompare(b.nom));
+    return { jours, aujourdhui: jours[6].n, equipe, max: Math.max(1, ...jours.map(j => j.n)) };
+  }
+
+  // Pure : l'intitulé du groupe d'une entrée dans le fil.
+  function groupeJourActivite(dateIso, maintenantMs) {
+    const t = Date.parse(dateIso);
+    if (isNaN(t)) return 'Plus tôt';
+    const iso = isoLocalDepuisMs(t);
+    const maintenant = maintenantMs || Date.now();
+    if (iso === isoLocalDepuisMs(maintenant)) return "Aujourd'hui";
+    if (iso === isoLocalDepuisMs(maintenant - 86400000)) return 'Hier';
+    return 'Plus tôt';
+  }
+
+  // Filtre du fil par catégorie : appliqué en CSS (attribut data-filtre sur la liste), sans
+  // reconstruire la carte ; retenu d'un rendu à l'autre.
+  let filtreActivite = 'tout';
+  function filtrerActivite(cle, bouton) {
+    filtreActivite = cle;
+    const carte = bouton ? bouton.closest('.activite-etude') : document.querySelector('.activite-etude');
+    if (!carte) return;
+    carte.setAttribute('data-filtre', cle);
+    carte.querySelectorAll('.act-filtre').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cle === cle)));
+  }
+
   function renderActiviteEtude(tousDossiers) {
-    const entrees = activiteEtude(tousDossiers);
     const maintenant = Date.now();
+    const toutes = activiteEtude(tousDossiers, 5000);
+    const entrees = toutes.slice(0, MAX_ACTIVITE_ETUDE);
+    const rythme = rythmeActivite(toutes, maintenant);
+
+    // Barres des 7 jours : hauteur proportionnelle au jour le plus chargé ; aujourd'hui en accent.
+    const barres = rythme.jours.map(j => `<span class="act-jour-col${j.aujourdhui ? ' auj' : ''}" title="${escapeAttr(`${j.nom} : ${j.n} action${j.n > 1 ? 's' : ''}`)}"><span class="act-barre"><span style="--h:${Math.round(100 * j.n / rythme.max)}%"></span></span><span class="act-lettre">${j.lettre}</span></span>`).join('');
+    const maxEquipe = Math.max(1, ...rythme.equipe.map(q => q.n));
+    const equipe = rythme.equipe.length ? rythme.equipe.slice(0, 4).map(q => `
+      <li class="act-qui" title="${escapeAttr(`${q.agenda ? 'Agenda de l’office' : q.nom} : ${q.n} aujourd’hui`)}">
+        <span class="activite-avatar${q.agenda ? ' agenda' : ''}" aria-hidden="true">${q.agenda ? icone('calendar') : escapeHtml(initialesCollaborateur(q.nom))}</span>
+        <span class="act-qui-barre"><span style="--w:${Math.round(100 * q.n / maxEquipe)}%"></span></span>
+        <b>${q.n}</b>
+      </li>`).join('') : '<li class="act-qui-vide">Personne encore aujourd’hui</li>';
+
+    // Filtres : une pastille par catégorie présente dans le fil, icône + nombre d'entrées (le
+    // libellé en infobulle, et affiché sur la pastille active) — tient sur une ligne.
+    const compte = {};
+    entrees.forEach(e => { const c = categorieActivite(e).cle; compte[c] = (compte[c] || 0) + 1; });
+    const filtres = [{ cle: 'tout', libelle: 'Tout', n: entrees.length }]
+      .concat(CATEGORIES_ACTIVITE.filter(c => compte[c.cle]).map(c => Object.assign({ n: compte[c.cle] }, c)));
+    const filtreCourant = filtres.some(f => f.cle === filtreActivite) ? filtreActivite : 'tout';
+    const puces = filtres.length > 2 ? `<div class="act-filtres" role="group" aria-label="Filtrer le fil">${filtres.map(f => `<button type="button" class="act-filtre act-cat-${f.cle}" data-cle="${f.cle}" aria-pressed="${f.cle === filtreCourant}" onclick="filtrerActivite('${f.cle}', this)" title="${escapeAttr(f.libelle)}" aria-label="${escapeAttr(`${f.libelle} (${f.n})`)}">${f.icone ? icone(f.icone) : ''}<span class="act-filtre-lib">${f.libelle}</span><span class="act-filtre-n">${f.n}</span></button>`).join('')}</div>` : '';
+
+    let groupe = '';
     const lignes = entrees.map(e => {
       const recent = maintenant - Date.parse(e.date) < 15 * 60000;
       const qui = e.auteur ? prenomCollaborateur(e.auteur) : 'Agenda';
-      const pastille = e.source === 'agenda' && !e.auteur
-        ? `<span class="activite-avatar agenda" aria-hidden="true">${icone('calendar')}</span>`
-        : `<span class="activite-avatar" aria-hidden="true">${escapeHtml(initialesCollaborateur(e.auteur))}</span>`;
-      return `<li><button type="button" class="activite-ligne${recent ? ' recente' : ''}" onclick="ouvrirDossierDepuisDashboard('${e.dossierId}')" title="${escapeAttr(qui + ' — ' + e.texte + ' — ' + e.dossierNom)}">
-        ${pastille}
+      const cat = categorieActivite(e);
+      const g = groupeJourActivite(e.date, maintenant);
+      const tete = g !== groupe ? `<li class="act-groupe">${escapeHtml(g)}</li>` : '';
+      groupe = g;
+      return `${tete}<li class="act-item" data-cat="${cat.cle}"><button type="button" class="activite-ligne${recent ? ' recente' : ''}" onclick="ouvrirDossierDepuisDashboard('${e.dossierId}')" title="${escapeAttr(qui + ' — ' + e.texte + ' — ' + e.dossierNom)}">
+        <span class="act-pastille act-cat-${cat.cle}" aria-hidden="true">${icone(cat.icone)}</span>
         <span class="activite-texte"><b>${escapeHtml(qui)}</b> ${escapeHtml(e.texte)}<span class="activite-dossier"> · ${escapeHtml(e.dossierNom)}</span></span>
         <span class="activite-quand">${escapeHtml(ilYaActivite(e.date, maintenant))}</span>
       </button></li>`;
     }).join('');
-    return `<div class="kpi-tile activite-etude">
+
+    const resume = `<div class="act-resume">
+        <div class="act-compteur"><span class="act-compteur-num">${rythme.aujourdhui}</span><span class="act-compteur-lib">action${rythme.aujourdhui > 1 ? 's' : ''} aujourd’hui</span></div>
+        <div class="act-semaine" role="img" aria-label="${escapeAttr('Actions par jour sur 7 jours : ' + rythme.jours.map(j => `${j.nom} ${j.n}`).join(', '))}">${barres}</div>
+        <ul class="act-equipe" aria-label="Qui a agi aujourd’hui">${equipe}</ul>
+      </div>`;
+    return `<div class="kpi-tile activite-etude" data-filtre="${filtreCourant}">
       <div class="kpi-label activite-entete">${icone('clock', 'kpi-icone')}Activité de l’étude<span class="activite-direct"><span class="activite-direct-point"></span>En direct</span></div>
+      ${resume}
+      ${puces}
       ${lignes ? `<ul class="activite-liste">${lignes}</ul>` : '<p class="activite-vide">Rien pour l’instant : les actions des collaborateurs et les changements de l’agenda s’afficheront ici.</p>'}
     </div>`;
   }
+
 
   // « Dernières pièces trouvées » (Tableau de bord, demandé par l'étude au carnet de bord) : un
   // RAPPEL des pièces arrivées sur le NAS ces derniers jours, qui reste lisible après consultation

@@ -999,12 +999,81 @@
   .activite-quand { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .activite-ligne.recente .activite-quand { color: var(--success); font-weight: 600; }
   .activite-vide { margin: 10px 4px 6px; font-size: 12.5px; color: var(--muted); }
+  /* Suivi en direct, version visuelle (voir renderActiviteEtude) : un résumé chiffré (actions du
+     jour, barres des 7 derniers jours, qui a agi), des filtres par catégorie, puis le fil en
+     frise — une pastille d'icône colorée par catégorie, reliée par un trait vertical. */
+  .activite-etude { container-type: inline-size; container-name: activite; }
+  .act-cat-agenda { --c: var(--focus); }
+  .act-cat-email { --c: var(--ventebien); }
+  .act-cat-fait { --c: var(--success); }
+  .act-cat-piece { --c: var(--pret); }
+  .act-cat-archive { --c: var(--muted); }
+  .act-cat-date { --c: var(--appelfonds); }
+  .act-cat-modif { --c: var(--ink-soft); }
+  .act-resume {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: end;
+    margin: 8px 4px 0; padding: 10px 12px; border-radius: 8px; background: var(--paper-sunk);
+  }
+  .act-compteur { display: flex; flex-direction: column; line-height: 1; }
+  .act-compteur-num { font-size: 28px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .act-compteur-lib { font-size: 11px; color: var(--muted); margin-top: 4px; max-width: 70px; line-height: 1.2; }
+  .act-semaine { display: flex; align-items: flex-end; gap: 5px; height: 52px; }
+  .act-jour-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; height: 100%; min-width: 0; }
+  .act-barre { flex: 1; width: 100%; max-width: 16px; display: flex; align-items: flex-end; border-radius: 3px; background: color-mix(in srgb, var(--line) 60%, transparent); overflow: hidden; }
+  .act-barre > span { display: block; width: 100%; height: var(--h); min-height: 2px; background: var(--muted); border-radius: 3px 3px 0 0; }
+  .act-jour-col.auj .act-barre > span { background: var(--focus); }
+  .act-lettre { font-size: 9.5px; font-weight: 600; color: var(--muted); }
+  .act-jour-col.auj .act-lettre { color: var(--ink); }
+  .act-equipe { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; align-self: center; }
+  .act-qui { display: grid; grid-template-columns: 22px minmax(0, 1fr) 18px; align-items: center; gap: 6px; font-size: 12px; }
+  .act-qui b { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }
+  .act-qui .activite-avatar { background: var(--paper-card); }
+  .act-qui-barre { height: 6px; border-radius: 999px; background: color-mix(in srgb, var(--line) 60%, transparent); overflow: hidden; }
+  .act-qui-barre > span { display: block; height: 100%; width: var(--w); border-radius: inherit; background: var(--success); }
+  .act-qui-vide { font-size: 11.5px; color: var(--muted); }
+  .act-filtres { display: flex; flex-wrap: wrap; gap: 4px; margin: 10px 4px 0; }
+  .act-filtre {
+    display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--paper-card); color: var(--ink-soft);
+    font: inherit; font-size: 11.5px; cursor: pointer;
+  }
+  .act-filtre .icone { color: var(--c, var(--ink-soft)); font-size: 11px; }
+  .act-filtre-n { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ink); }
+  /* Seule la pastille active (et « Tout ») porte son libellé : les autres = icône + nombre. */
+  .act-filtre:not([data-cle="tout"]):not([aria-pressed="true"]) .act-filtre-lib { display: none; }
+  .act-filtre:hover { border-color: var(--c, var(--focus)); }
+  .act-filtre[aria-pressed="true"] { background: color-mix(in srgb, var(--c, var(--focus)) 14%, var(--paper-card)); border-color: var(--c, var(--focus)); color: var(--ink); font-weight: 600; }
+  .act-filtre:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .activite-liste { position: relative; }
+  .act-groupe { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding: 8px 4px 2px; }
+  .act-item { position: relative; }
+  /* Le trait de la frise passe derrière les pastilles (colonne de 22 px, centre à 15 px). */
+  .act-item::before { content: ""; position: absolute; left: 14.5px; top: 0; bottom: 0; width: 1px; background: var(--line); }
+  .act-groupe + .act-item::before { top: 50%; }
+  .act-pastille {
+    position: relative; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px;
+    border-radius: 50%; font-size: 11px; color: var(--c); background: color-mix(in srgb, var(--c) 16%, var(--paper-card));
+    box-shadow: 0 0 0 2px var(--paper-card);
+  }
+  .activite-ligne.recente .act-pastille { box-shadow: 0 0 0 2px var(--paper-card), 0 0 0 4px color-mix(in srgb, var(--success) 45%, transparent); }
+  .activite-etude:not([data-filtre="tout"]) .act-groupe { display: none; }
+  .activite-etude[data-filtre="agenda"] .act-item:not([data-cat="agenda"]),
+  .activite-etude[data-filtre="email"] .act-item:not([data-cat="email"]),
+  .activite-etude[data-filtre="fait"] .act-item:not([data-cat="fait"]),
+  .activite-etude[data-filtre="piece"] .act-item:not([data-cat="piece"]),
+  .activite-etude[data-filtre="archive"] .act-item:not([data-cat="archive"]),
+  .activite-etude[data-filtre="date"] .act-item:not([data-cat="date"]),
+  .activite-etude[data-filtre="modif"] .act-item:not([data-cat="modif"]) { display: none; }
+  @container activite (max-width: 430px) {
+    .act-resume { grid-template-columns: auto minmax(0, 1fr); }
+    .act-equipe { grid-column: 1 / -1; }
+  }
   @media (prefers-reduced-motion: reduce) { .activite-direct-point { animation: none; } }
   /* Carte « Portefeuille » (voir renderKpisDashboard) : anneau des statuts, trois jauges et une
      phrase. Couleurs = celles du badge de statut (--success/--pret/--urgent/--muted), jamais d'autre.
      Les segments et les jauges ne s'animent qu'au premier affichage (.anime) : la carte est
      reconstruite à chaque sondage. */
-  .kpi-tile.portefeuille { display: flex; flex-direction: column; gap: 12px; min-width: 0; padding: 14px 16px; }
+  .kpi-tile.portefeuille { display: flex; flex-direction: column; justify-content: space-between; gap: 12px; min-width: 0; padding: 14px 16px; }
   .portefeuille .kpi-label { min-height: 0; }
   .pf-tendance { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 500; font-size: 11.5px; }
   .pf-haut { display: flex; align-items: center; gap: 16px; }
