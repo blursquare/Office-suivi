@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-28 23:18';
+  const VERSION_APP = '2026-09-28 23:20';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-28 23:20', resume: "« VTE - NOM » aussi dans l'objet des emails, les noms de fichiers exportés, les notifications Teams et les rappels ; la recherche trouve « vte dupont »." },
     { version: '2026-09-28 23:18', resume: "Le nom du dossier n'apparaît plus dans le corps des emails (il reste dans l'objet)." },
     { version: '2026-09-28 23:15', resume: "Les dossiers de vente s'affichent « VTE - NOM DU DOSSIER » (au lieu de « VENTE … »), la même référence que dans l'agenda de l'office." },
     { version: '2026-09-28 20:13', resume: "Relecture d'actes : nouvelle rubrique « Clauses contradictoires » — l'IA relève les clauses qui s'excluent (dans le projet ou entre le projet et ses annexes), les deux passages cités côte à côte avec leur page, vérifiés mot pour mot." },
@@ -12286,7 +12287,7 @@
       return;
     }
     const resultats = dossiersActifs
-      .filter(d => normaliserPourRecherche(d.nom + ' ' + (d.responsable || '')).includes(q))
+      .filter(d => normaliserPourRecherche(libelleDossierAffiche(d) + ' ' + (d.responsable || '')).includes(q))
       .slice(0, 8);
     bloc.innerHTML = resultats.length === 0
       ? '<div class="dash-recherche-vide">Aucun dossier ne correspond.</div>'
@@ -13712,7 +13713,7 @@
     if (!r) return;
     const d = r.dossierId ? dossiers.find(x => x.id === r.dossierId) : null;
     const adresse = (String(r.texte).match(EMAIL_RE) || [''])[0];
-    const res = await livrerEmailDossier({ destinataire: adresse, sujet: d ? `Dossier ${d.nom}` : '', corps: 'Bonjour,\n\n' });
+    const res = await livrerEmailDossier({ destinataire: adresse, sujet: d ? libelleDossierAffiche(d) : '', corps: 'Bonjour,\n\n' });
     if (!res.ok) { afficherToast(res.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }
     annoncerEmailPret(res, true);
   }
@@ -14803,7 +14804,7 @@
     }
 
     const dossiersAffiches = dossiersVisibles.filter(d => {
-      if (recherche && !normaliserPourRecherche(d.nom + ' ' + (d.responsable || '')).includes(recherche)) return false;
+      if (recherche && !normaliserPourRecherche(libelleDossierAffiche(d) + ' ' + (d.responsable || '')).includes(recherche)) return false;
       if (filtreResponsable && d.responsable !== filtreResponsable) return false;
       if (filtreOffre) {
         if (d.sansPret) return false;
@@ -16271,7 +16272,7 @@
     const blob = new Blob([body], { type: 'text/calendar;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    const safeName = d.nom.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+    const safeName = libelleDossierAffiche(d).replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase();
     a.href = url;
     // Format demandé par l'étude : rappel_echeance_<nom du dossier>.ics.
     a.download = `rappel_echeance_${safeName || 'dossier'}.ics`;
@@ -16598,7 +16599,7 @@
 
   function construireEmailRelancePret(d) {
     return {
-      sujet: `Relance — Offre de prêt attendue (dossier ${d.nom})`,
+      sujet: `Relance — Offre de prêt attendue — ${libelleDossierAffiche(d)}`,
       corps: corpsRelanceOffreManquante(d.nom, d.pret, d.pret ? joursRestants(d.pret) : null)
     };
   }
@@ -16607,7 +16608,7 @@
   // rendez-vous de signature. La signature de l'office est ajoutée à l'envoi (livrerEmailDossier).
   function construireEmailRelanceRib(d) {
     return {
-      sujet: `RIB et pièce d'identité pour le rendez-vous de signature — dossier ${d.nom}`,
+      sujet: `RIB et pièce d'identité pour le rendez-vous de signature — ${libelleDossierAffiche(d)}`,
       corps: ['Bonjour,',
         'En prévision du rendez-vous de signature je vous remercie de vous munir de votre RIB et de votre pièce d’identité.',
         'Bien cordialement,'].join('\n\n')
@@ -16626,7 +16627,7 @@
     const echeance = date ? (passee ? ` devait intervenir au plus tard le ${date}` : ` est prévue au plus tard le ${date}`) : ' reste à réaliser';
     if (notaireParticipantRepresenteAcquereur(d)) {
       return {
-        sujet: `Vente préalable — dossier ${d.nom}`,
+        sujet: `Vente préalable — ${libelleDossierAffiche(d)}`,
         corps: [FORMULE_APPEL_CONFRERE,
           `Dans le cadre de ce dossier, l'avant-contrat est conclu sous la condition de la vente préalable du bien de votre client, qui${echeance}.`,
           'Pourriez-vous nous indiquer si une date de réitération est déjà prévue sur votre agenda ou nous transmettre, le cas échéant, l’attestation de vente ?',
@@ -16634,7 +16635,7 @@
       };
     }
     return {
-      sujet: `Vente préalable de votre bien — dossier ${d.nom}`,
+      sujet: `Vente préalable de votre bien — ${libelleDossierAffiche(d)}`,
       corps: ['Bonjour,',
         `Votre acquisition est conclue sous la condition de la vente préalable de votre bien, qui${echeance}.`,
         'Pourriez-vous nous indiquer où en est cette vente (avant-contrat signé, date de signature prévue) ? Dès qu’elle sera signée, merci de nous transmettre l’attestation de vente.',
@@ -16659,7 +16660,7 @@
       paragraphes.push("Si votre acquisition est soumise à l'obtention d'un prêt, merci également de nous transmettre votre offre de prêt dès que vous l'aurez reçue.");
     }
     return {
-      sujet: `Demande de provision sur frais et pièce d'identité — dossier ${d.nom}`,
+      sujet: `Demande de provision sur frais et pièce d'identité — ${libelleDossierAffiche(d)}`,
       corps: paragraphes.join('\n\n')
     };
   }
@@ -16675,7 +16676,7 @@
       ? `\n\nNous vous rappelons que le rendez-vous de signature de l'acte authentique est fixé au ${formatDateFr(d.rendezVousSignature)}, en notre office.`
       : '';
     return {
-      sujet: `Réception des fonds — dossier ${d.nom}`,
+      sujet: `Réception des fonds — ${libelleDossierAffiche(d)}`,
       // Nom du dossier retiré du CORPS à la demande de l'étude (il reste dans l'objet) : le client
       // sait de quelle acquisition il s'agit, le rappeler dans le texte n'apporte rien.
       corps: `Bonjour,\n\nNous vous confirmons que les fonds destinés à votre acquisition ont bien été reçus en notre comptabilité.${rdv}\n\nNous restons à votre disposition pour toute question.`
@@ -18691,7 +18692,7 @@
     const blob = new Blob([docComplet], { type: 'application/msword' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    const safeName = d.nom.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+    const safeName = libelleDossierAffiche(d).replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase();
     a.href = url;
     a.download = `fiche-${safeName || 'dossier'}.doc`;
     document.body.appendChild(a);
@@ -19461,7 +19462,7 @@
       await fetchAvecAuth('/api/notifications/pieces-recues', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ dossierNom: d.nom, responsable: d.responsable || null, pieces })
+        body: JSON.stringify({ dossierNom: libelleDossierAffiche(d), responsable: d.responsable || null, pieces })
       });
     } catch (e) {
       console.warn('Notification par email (pièces reçues) impossible :', e.message);
@@ -20556,7 +20557,7 @@
     ajouterHistorique(d, `Relance automatique ouverte (offre de prêt introuvable, ${libelleEcheanceRelance(jours)})`);
     sauvegarder(d);
 
-    const subject = `Relance — Offre de prêt attendue (dossier ${d.nom})`;
+    const subject = `Relance — Offre de prêt attendue — ${libelleDossierAffiche(d)}`;
     const body = corpsRelanceOffreManquante(d.nom, d.pret, jours);
     livrerEmailDossier({ destinataire, sujet: subject, corps: body, confrere: notaireParticipantRepresenteAcquereur(d) })
       .then(r => afficherToast(r.ok
@@ -20612,7 +20613,7 @@
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        dossierNom: d.nom, responsable: d.responsable, auteur: utilisateurPoste,
+        dossierNom: libelleDossierAffiche(d), responsable: d.responsable, auteur: utilisateurPoste,
         libelle, date: nouvelleDate, ancienneDate: ancienneDate || ''
       })
     }).catch(e => console.warn('Notification « date ajoutée » impossible :', e.message));
@@ -20632,7 +20633,7 @@
     fetchAvecAuth('/api/notifications/dossier-complet', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ dossierNom: d.nom, responsable: d.responsable || null })
+      body: JSON.stringify({ dossierNom: libelleDossierAffiche(d), responsable: d.responsable || null })
     }).catch(e => console.warn('Notification « dossier complet » impossible :', e.message));
   }
 
@@ -21885,7 +21886,7 @@
     const q = normaliserPourRecherche(String(valeur || '').trim());
     if (!q) { boite.style.display = 'none'; boite.innerHTML = ''; return; }
     const trouves = dossiers.filter(d => !d.archive &&
-      (normaliserPourRecherche(d.nom || '').includes(q) || normaliserPourRecherche(d.responsable || '').includes(q)))
+      (normaliserPourRecherche(libelleDossierAffiche(d)).includes(q) || normaliserPourRecherche(d.responsable || '').includes(q)))
       .slice(0, 8);
     boite.innerHTML = trouves.length
       ? trouves.map(d => `<button type="button" class="dash-recherche-ligne" onclick="choisirDossierQuotites('${escapeOnclickArg(d.id)}')">
@@ -22109,7 +22110,7 @@
     const q = normaliserPourRecherche(String(valeur || '').trim());
     if (!q) { renderPropositionsDossierAudit(); return; }
     const resultats = dossiers
-      .filter(d => !d.archive && normaliserPourRecherche(d.nom + ' ' + (d.responsable || '')).includes(q))
+      .filter(d => !d.archive && normaliserPourRecherche(libelleDossierAffiche(d) + ' ' + (d.responsable || '')).includes(q))
       .slice(0, 8);
     bloc.innerHTML = resultats.length === 0
       ? '<div class="dash-recherche-vide">Aucun dossier ne correspond.</div>'
@@ -25430,7 +25431,7 @@
     const q = normaliserPourRecherche(String(valeur || '').trim());
     if (!q) { boite.style.display = 'none'; boite.innerHTML = ''; return; }
     const trouves = dossiers.filter(d => !d.archive &&
-      (normaliserPourRecherche(d.nom || '').includes(q) || normaliserPourRecherche(d.responsable || '').includes(q)))
+      (normaliserPourRecherche(libelleDossierAffiche(d)).includes(q) || normaliserPourRecherche(d.responsable || '').includes(q)))
       .slice(0, 8);
     if (!trouves.length) {
       boite.innerHTML = '<div class="dash-recherche-vide">Aucun dossier ne correspond.</div>';
@@ -26118,7 +26119,7 @@
       const r = await livrerEmailDossier({
         destinataire,
         confrere,
-        sujet: `Appel de fonds — rendez-vous de signature — dossier ${d.nom}`,
+        sujet: `Appel de fonds — rendez-vous de signature — ${libelleDossierAffiche(d)}`,
         corps: confrere
           ? 'Veuillez trouver ci-joint le courrier de convocation et d’appel de fonds destiné à votre client, en vue du rendez-vous de signature.'
           : 'Madame, Monsieur,\n\nVeuillez trouver ci-joint le courrier de convocation et d’appel de fonds relatif à votre acquisition.',

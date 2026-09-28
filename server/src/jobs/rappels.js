@@ -147,7 +147,7 @@ function calculerRappelsDus(dossiers, aujourdHui, dejaEnvoyes) {
         if (dejaEnvoyes && dejaEnvoyes.has(`${d.id}:${reminderKey}`)) continue;
         dus.push({
           dossierId: d.id,
-          nomDossier: d.nom,
+          nomDossier: 'VTE - ' + d.nom, // même préfixe que l'affichage (libelleDossierAffiche, script.js)
           responsable: d.responsable,
           type: e.type,
           libelle: e.label || 'Échéance',

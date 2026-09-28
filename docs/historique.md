@@ -11381,3 +11381,15 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
   dossier X » → « Dans le cadre de ce dossier »). Le nom reste dans l'OBJET de chaque email. Un
   test (`tests/relances-email.test.js`) vérifie tous les modèles de `MODELES_EMAIL_RELANCE`, le
   questionnaire et la relance automatique de l'offre, côté client comme côté confrère.
+
+- **28/09/2026 — « VTE - NOM » étendu hors de l'écran** (demandé par l'étude) : objet de tous les
+  emails (« Réception des fonds — VTE - DUPONT / MARTIN »), noms des fichiers exportés
+  (`rappel_echeance_vte-dupont-martin.ics`, `fiche-vte-….doc`), notifications Teams envoyées par le
+  client (pièces trouvées, dossier complet, date ajoutée) et rappels automatiques du serveur
+  (`nomDossier` dans `jobs/rappels.js`), recherche (« vte dupont » trouve le dossier). Tout passe
+  par `libelleDossierAffiche(d)` ; `d.nom` reste la valeur brute.
+  **Volontairement inchangé** : le titre des événements « journée entière » posés dans le
+  calendrier de Sophie (dates butoir prêt / vente préalable) et du flux `.ics` publié par CLAIRE,
+  qui gardent « Dossier NOM ». CLAIRE relit l'agenda de l'office et y prend tout titre « VTE - … »
+  pour la référence d'un dossier : ces dates ne doivent pas pouvoir être confondues avec le
+  rendez-vous de signature ou un envoi.

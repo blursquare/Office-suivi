@@ -403,3 +403,12 @@ test('aucun corps d’email ne contient le nom du dossier', () => {
     assert.ok(!/DUPONT/.test(app.corpsRelanceOffreManquante(d.nom, d.pret, 5)));
   }
 });
+
+// Demandé par l'étude (28/09) : l'objet reprend la référence « VTE - NOM » de l'affichage et de l'agenda.
+test('l’objet de chaque email porte « VTE - NOM DU DOSSIER »', () => {
+  const app = chargerApplication();
+  const d = dossierBase(app, { pret: '2099-11-15', ventebien: '2099-10-15', rendezVousSignature: '2099-12-01' });
+  for (const cle of Object.keys(app.MODELES_EMAIL_RELANCE)) {
+    assert.match(app.MODELES_EMAIL_RELANCE[cle].construire(d).sujet, /VTE - DUPONT \/ MARTIN/, cle);
+  }
+});
