@@ -206,7 +206,8 @@ test('echeancesOrdonneesFiche relègue les échéances sans date en fin, dans le
   const d = dossierBase({ pret: '', acte: '2026-09-30', rendezVousSignature: '' });
   assert.equal(
     ordreDesEcheances(app, d).join(' | '),
-    'Date butoir | Obtention du prêt | Signature'
+    // Dossier de base en achat comptant : la ligne du prêt s'appelle « Financement comptant ».
+    'Date butoir | Financement comptant | Signature'
   );
 });
 
@@ -233,7 +234,7 @@ test('echeancesOrdonneesFiche : les échéances sans date suivent l\'ordre méti
   // ventebien n'est rendue que si elle porte une date (comportement d'origine, inchangé).
   assert.equal(
     ordreDesEcheances(app, d).join(' | '),
-    'Obtention du prêt | Date butoir | Signature'
+    'Financement comptant | Date butoir | Signature'
   );
 });
 
@@ -424,4 +425,20 @@ test('copropriété : pas d\'attente de préemption, sauf pièce de préemption 
   // Une autre pièce personnalisée sans rapport ne bloque rien.
   const autre = Object.assign({}, d, { piecesPersonnalisees: [{ cle: 'perso-2', label: 'Attestation loi Carrez' }] });
   assert.equal(app.toutesEcheances(autre)[0].type, 'fixerRdv');
+});
+
+test('achat comptant : « Financement comptant », sans date, sans état ni rien à cocher', () => {
+  const app = chargerApplication();
+  const html = app.echeancesOrdonneesFiche(dossierBase({ sansPret: true, pret: '' }), {}, '');
+  const ligne = html.match(/<li class="ech ech-pret[^"]*">[\s\S]*?<\/li>/)[0];
+  assert.ok(ligne.includes('<span class="ech-nom">Financement comptant</span>'));
+  assert.ok(!html.includes('<span class="ech-nom">Obtention du prêt</span>'));
+  assert.ok(!ligne.includes('validerEcheance'));
+  assert.ok(!ligne.includes('supprimerDateEcheance'));
+  assert.ok(!ligne.includes('tab-select-icone'));
+  assert.ok(!ligne.includes('Sans prêt'));
+  assert.ok(ligne.includes('ech-info'));
+  // Seul le crayon reste : un prêt qui apparaît finalement se saisit ici.
+  assert.ok(ligne.includes("activerEditionDate('d1','pret')"));
+  assert.ok(ligne.includes('id="tabdate-d1-pret-input"'));
 });

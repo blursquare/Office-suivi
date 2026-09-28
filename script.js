@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-28 23:50';
+  const VERSION_APP = '2026-09-28 23:59';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-28 23:59', resume: "Achat comptant : la ligne « Obtention du prêt » devient « Financement comptant », sans date ni rien à cocher." },
     { version: '2026-09-28 23:50', resume: "Onglet Échanges selon le stade du dossier (conditions en cours, rendez-vous à fixer, signature en préparation, acte signé) : d'abord les emails et gestes utiles maintenant, au client ou au confrère ; le reste replié sous « Hors de ce stade »." },
     { version: '2026-09-28 23:46', resume: "Fiche plus lisible : les échéances tiennent sur une ligne chacune (date, état, gestes au survol) sous un encadré « Prochaine étape » ; chaque email ou action (relances, appel de fonds, fonds reçus, agenda, questionnaire) prend la même forme de ligne que la liste « À faire » ; un seul bouton « Ajouter » partout." },
     { version: '2026-09-28 23:20', resume: "« VTE - NOM » aussi dans l'objet des emails, les noms de fichiers exportés, les notifications Teams et les rappels ; la recherche trouve « vte dupont »." },
@@ -10360,10 +10361,14 @@
 
   // type, label (déjà échappé), iso, dossierId, page (PDF), confiance, autreIndex (null hors
   // personnalisée), offrePretRecue, sousHtml (seconde ligne ajoutée par l'appelant), sansPret,
-  // validee, opts : { etatSansDate, etatFait, sansValidation, fort }.
+  // validee, opts : { etatSansDate, etatFait, sansValidation, fort, comptant }.
+  // `comptant` (achat comptant, demandé par l'étude) : une ligne d'information « Financement
+  // comptant », sans date, sans état ni rien à cocher ; seul le crayon reste, au survol, pour saisir
+  // une date d'obtention si un prêt apparaît finalement (validerEditionDate repasse alors sansPret
+  // à false).
   function renderLigneEcheance(type, label, iso, dossierId, page, confiance, autreIndex, offrePretRecue, sousHtml, sansPret, validee, opts) {
     const o = opts || {};
-    const recategorisable = dossierId && autreIndex == null && (type === 'pret' || type === 'acte' || type === 'ventebien');
+    const recategorisable = !o.comptant && dossierId && autreIndex == null && (type === 'pret' || type === 'acte' || type === 'ventebien');
     const choixCategorie = recategorisable
       ? `<span class="tab-select-icone-wrap" title="Changer la catégorie de cette échéance">
           <select class="tab-select-icone" onchange="changerCategorie('${dossierId}','${type}', this.value)" aria-label="Changer la catégorie de cette échéance">${optionsCategorie(type)}</select>
@@ -10378,14 +10383,14 @@
       : (dossierId && iso && ['pret', 'acte', 'ventebien', 'appelFonds', 'projetEnvoye', 'rendezVousSignature'].includes(type))
         ? `<button type="button" class="ech-ico ech-ico-suppr" onclick="supprimerDateEcheance('${dossierId}', '${type}')" title="Supprimer cette date" aria-label="Supprimer cette date">${icone('x')}</button>`
         : '';
-    const modifiableManuellement = !(type === 'pret' && offrePretRecue) && !o.sansValidation;
+    const modifiableManuellement = !(type === 'pret' && offrePretRecue) && !o.sansValidation && !o.comptant;
     const validation = (dossierId && iso && modifiableManuellement)
       ? (validee
         ? `<button type="button" class="ech-ico" onclick="devaliderEcheance('${dossierId}','${cleEdition}')" title="Annuler la validation" aria-label="Annuler la validation">${icone('rotate-ccw')}</button>`
         : `<button type="button" class="ech-ico ech-ico-valider" onclick="validerEcheance('${dossierId}','${cleEdition}')" title="Marquer réalisée" aria-label="Marquer réalisée">${icone('check')}</button>`)
       : '';
     const crayon = editable
-      ? `<button type="button" class="ech-ico" onclick="activerEditionDate('${dossierId}','${cleEdition}')" title="${iso ? 'Corriger la date' : 'Saisir la date'}" aria-label="${iso ? 'Corriger la date' : 'Saisir la date'}">${icone('pencil')}</button>`
+      ? `<button type="button" class="ech-ico" onclick="activerEditionDate('${dossierId}','${cleEdition}')" title="${o.comptant ? 'Un prêt finalement ? Saisir sa date d’obtention' : (iso ? 'Corriger la date' : 'Saisir la date')}" aria-label="${o.comptant ? 'Saisir une date d’obtention du prêt' : (iso ? 'Corriger la date' : 'Saisir la date')}">${icone('pencil')}</button>`
       : '';
 
     const infoConfiance = confiance && LIBELLES_CONFIANCE_ECHEANCE[confiance];
@@ -10398,13 +10403,14 @@
       : '';
     const sous = [badgeConfiance, boutonVoir, sousHtml || ''].filter(Boolean).join('');
 
-    const etat = etatLigneEcheance(iso, { validee, offrePretRecue, sansPret: type === 'pret' && sansPret, etatSansDate: o.etatSansDate, etatFait: o.etatFait });
+    const etat = o.comptant ? { texte: '', cls: 'info' }
+      : etatLigneEcheance(iso, { validee, offrePretRecue, sansPret: type === 'pret' && sansPret, etatSansDate: o.etatSansDate, etatFait: o.etatFait });
     const faite = etat.cls === 'ok';
-    return `<li class="ech ech-${type}${faite ? ' fait' : ''}">
+    return `<li class="ech ech-${type}${faite ? ' fait' : ''}${o.comptant ? ' ech-info' : ''}">
       <span class="dot-label dl-${type} ech-pastille" aria-hidden="true"><span class="dot"></span></span>
       <span class="ech-nom-cell"><span class="ech-nom${o.fort ? ' ech-nom-fort' : ''}">${label}</span>${choixCategorie}</span>
       <span class="ech-date-cell">
-        <span class="ech-date" id="${idBase}-aff" title="${iso ? escapeAttr(formatDateFr(iso)) : ''}">${dateCourteEcheance(iso)}</span>
+        <span class="ech-date" id="${idBase}-aff" title="${iso ? escapeAttr(formatDateFr(iso)) : ''}">${o.comptant ? '' : dateCourteEcheance(iso)}</span>
         ${editable ? `<span class="tab-date-edition" id="${idBase}-edit" hidden>
           <input type="date" class="tab-date-input" id="${idBase}-input" value="${iso || ''}" onkeydown="if(event.key==='Enter'){event.preventDefault();validerEditionDate('${dossierId}','${cleEdition}');}">
           <button type="button" class="icon-valider" onclick="validerEditionDate('${dossierId}','${cleEdition}')" title="Valider" aria-label="Valider la date">✓</button>
@@ -11218,7 +11224,9 @@
     // Ordre d'INSERTION = l'ordre métier du dossier (vente préalable → prêt → date butoir → appel de
     // fonds → projet → rendez-vous de signature) : il ne décide que du sort des échéances sans date.
     if (d.ventebien) lignes.push({ iso: d.ventebien, html: renderLigneEcheance('ventebien', 'Vente préalable', d.ventebien, d.id, d.ventebienPage, confiance.ventebien, null, false, '', false, echeanceValidee(d, 'ventebien')) });
-    lignes.push({ iso: d.pret, html: renderLigneEcheance('pret', 'Obtention du prêt', d.pret, d.id, d.pretPage, confiance.pret, null, d.offrePretStatut === 'recue', offreBloc, d.sansPret, echeanceValidee(d, 'pret')) });
+    lignes.push({ iso: d.pret, html: d.sansPret && !d.pret
+      ? renderLigneEcheance('pret', 'Financement comptant', '', d.id, null, null, null, false, '', true, false, { comptant: true })
+      : renderLigneEcheance('pret', 'Obtention du prêt', d.pret, d.id, d.pretPage, confiance.pret, null, d.offrePretStatut === 'recue', offreBloc, d.sansPret, echeanceValidee(d, 'pret')) });
     // La date butoir n'a sa propre ligne que tant qu'aucun rendez-vous n'est fixé : ensuite elle
     // n'est plus qu'indicative, et devient une précision sous le rendez-vous (voir plus bas).
     const butoirSousRdv = !!(d.rendezVousSignature && d.acte);

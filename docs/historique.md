@@ -11460,3 +11460,10 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
   La demande de provision garde maintenant sa date (`provisionDemandeeLe`) ; pour les dossiers plus
   anciens, `dateDernierEmail` retrouve la date dans l'historique écrit à l'envoi.
   Pour les échéances, l'étude valide la présentation livrée juste avant (rien de changé).
+
+- **28/09/2026 — Achat comptant : « Financement comptant »** (demandé par l'étude). Sur un dossier
+  `sansPret` sans date de prêt, la ligne « Obtention du prêt — Sans prêt » devient une simple ligne
+  d'information « Financement comptant » (`renderLigneEcheance`, option `comptant`) : pastille
+  pleine neutre, ni date, ni état, ni validation, ni suppression, ni menu de catégorie. Seul le
+  crayon reste au survol (« Un prêt finalement ? Saisir sa date d'obtention ») : saisir une date
+  repasse le dossier avec prêt (`validerEditionDate`, inchangé).
