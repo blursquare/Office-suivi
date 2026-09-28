@@ -9135,6 +9135,19 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   relancer la mise à jour. Test dans `server/test/mise-a-jour.test.js` (effacement refusé → nom
   horodaté, puis nettoyage). Suite serveur 457.
 
+- **Aujourd'hui : une tâche validée restait aussi dans « À faire »** (28/09, capture de l'étude :
+  « Demander le RIB » à la fois en tête de liste et cochée « Déjà fait » plus bas). `etatAujourdhui()`
+  ne retirait que les actions reportées, jamais celles notées traitées : « Déjà fait » ne touchant
+  aucun champ du dossier, l'action restait calculée comme due. Les actions dont la clé figure dans
+  les traités du jour sont désormais retirées. Et pour que la tâche ne revienne pas le lendemain,
+  `marquerFaitJour()` pose le fait correspondant quand le geste en laisse un
+  (`CHAMP_FAIT_MAIN_PAR_TYPE` : relance de l'offre → `derniereRelanceAuto`, RIB → `ribDemandeLe`,
+  fonds → `receptionFondsConfirmeeLe`, questionnaire → `questionnaireEnvoyeLe` sans archivage,
+  appel de fonds / projet → date du jour comme « Marquer envoyé »), avec une ligne d'historique ;
+  « Annuler » remet les valeurs d'avant (`champsDossier` dans l'entrée du traité). Les points sans
+  trait sur le dossier (fixer le rendez-vous, confirmer la vente préalable…) restent masqués pour
+  la journée seulement, et reviennent tant que la fiche n'est pas à jour.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

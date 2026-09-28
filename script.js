@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-28 15:22';
+  const VERSION_APP = '2026-09-28 15:27';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-28 15:27', resume: "Aujourd'hui : une tâche validée (« Déjà fait », brouillon ouvert…) ne reste plus aussi dans « À faire ». « Déjà fait » note en plus le geste sur le dossier quand c'est possible (relance de l'offre, RIB demandé, fonds confirmés, envoi fait) pour que la tâche ne revienne pas le lendemain ; « Annuler » remet l'état d'avant." },
     { version: '2026-09-28 15:22', resume: "Mise à jour en un clic : si Windows refuse d'effacer l'ancienne copie de secours (« EPERM : operation not permitted »), la mise à jour se fait quand même — la nouvelle copie de secours prend un nom horodaté, et les copies en trop sont effacées au démarrage suivant." },
     { version: '2026-09-28 15:16', resume: "Planning : une fois l'offre de prêt reçue (ou sur un achat comptant, vente préalable réalisée), la prochaine étape est « Fixer le rendez-vous de signature », bornée par la date butoir ; une fois le rendez-vous placé, on passe à « Envoi appel de fonds ». Apparaît aussi dans « Aujourd'hui » et l'avancement du dossier." },
     { version: '2026-09-28 15:10', resume: "Agenda de l'office : les dates butoir d'obtention du prêt et de vente préalable sont posées directement dans le calendrier partagé (événement « toute la journée »), déplacées quand la date change et retirées quand l'offre est reçue, la vente préalable réalisée, la date effacée ou le dossier archivé. Un dossier existant n'y passe qu'à la prochaine modification de sa date — d'ici là le flux .ics de CLAIRE continue de le publier. À tester au bureau." },
@@ -13299,7 +13300,10 @@
     const calcul = actionsDuJour(dossiersPerimetreJour(), aujourdhui);
     const etat = lireEtatJour();
     const reportees = calcul.actions.filter(a => etat.reports[a.cle]);
-    const actions = calcul.actions.filter(a => !etat.reports[a.cle]);
+    // Une action déjà traitée aujourd'hui (« Déjà fait », brouillon ouvert…) ne reste pas dans
+    // « À faire » en plus de sa ligne cochée — c'était le doublon signalé par l'étude le 28/09.
+    const traitees = new Set(etat.traites.liste.map(t => t.cle));
+    const actions = calcul.actions.filter(a => !etat.reports[a.cle] && !traitees.has(a.cle));
     return { aujourdhui, actions, reportees, aVenir: calcul.aVenir, traites: etat.traites.liste };
   }
 
@@ -13379,10 +13383,36 @@
   // envoyé depuis Outlook, relance passée par téléphone…). La coche seule : aucun champ du dossier
   // n'est touché (contrairement à « Marquer envoyé », qui pose une date), donc « manuel » sert juste
   // à proposer « Annuler » dans la liste des traités. Défaisable tant que le repère du jour tient.
+  // Quand le geste laisse une trace sur le dossier (relance de l'offre, RIB demandé, fonds
+  // confirmés, envoi fait…), « Déjà fait » la pose aussi : sans elle, l'action reviendrait dès le
+  // lendemain alors qu'elle est faite. Les valeurs d'avant sont gardées pour « Annuler ».
+  var CHAMP_FAIT_MAIN_PAR_TYPE = {
+    pret: 'derniereRelanceAuto', rib: 'ribDemandeLe', fonds: 'receptionFondsConfirmeeLe',
+    questionnaire: 'questionnaireEnvoyeLe', appelFonds: 'appelFonds', projetEnvoye: 'projetEnvoye'
+  };
+
   function marquerFaitJour(cle) {
     const a = trouverActionJour(cle);
     if (!a) return;
-    noterTraite(a, 'Déjà fait', { manuel: true });
+    const champ = CHAMP_FAIT_MAIN_PAR_TYPE[a.type];
+    const d = champ ? dossiers.find(x => x.id === a.dossier.id) : null;
+    const annulation = { manuel: true };
+    if (d) {
+      const aujourdhui = isoAujourdhuiLocal();
+      if (champ === 'appelFonds' || champ === 'projetEnvoye') {
+        annulation.champ = champ;
+        annulation.precedent = d[champ] || '';
+        d[champ] = aujourdhui;
+        if (champ === 'projetEnvoye') marquerProjetEnvoyeSelonDate(d, aujourdhui);
+        else marquerAppelFondsSelonDate(d, aujourdhui);
+      } else {
+        annulation.champsDossier = { [champ]: d[champ] || null };
+        d[champ] = aujourdhui;
+      }
+      ajouterHistorique(d, `${a.titre} : noté fait à la main`);
+      sauvegarder(d);
+    }
+    noterTraite(a, 'Déjà fait', annulation);
     apercusJour.delete(cle);
     render();
     afficherToast(`Marqué fait — ${a.titre.toLowerCase()}.`, 'Annuler', () => annulerTraiteJour(cle));
@@ -13396,6 +13426,16 @@
     delete etat.reports[cle];
     etat.traites.liste = etat.traites.liste.filter(t => t.cle !== cle);
     ecrireEtatJour(etat);
+    if (entree && entree.champsDossier) {
+      const d = dossiers.find(x => x.id === entree.dossierId);
+      if (d) {
+        for (const [k, v] of Object.entries(entree.champsDossier)) {
+          if (v) d[k] = v; else delete d[k];
+        }
+        ajouterHistorique(d, `${entree.titre} : « déjà fait » annulé`);
+        sauvegarder(d);
+      }
+    }
     if (entree && entree.champ) {
       const d = dossiers.find(x => x.id === entree.dossierId);
       if (d) {
