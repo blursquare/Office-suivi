@@ -9275,7 +9275,7 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     demi-pixel à 16 px). Le `.ico` de l'exécutable reçoit la même règle (`traitIcone`) et les tailles
     intermédiaires de Windows à 125/150 % (20/30/36/40/60/72/80/96). Windows garde ses icônes en
     cache : l'ancienne peut rester visible jusqu'à la réouverture de la fenêtre, voire un redémarrage.
-  - Tests : 7 nouveaux dans `tests/relances-email.test.js`, 2 réécrits. Suite racine 883. Vérifié dans
+  - Tests : 7 nouveaux dans `tests/relances-email.test.js`, 2 réécrits. Suite racine 881. Vérifié dans
     Chromium (serveur réel) : clic sur la relance de vente préalable d'un dossier en participation →
     fichier « Vente prealable - dossier BOUVET - LE BLANC.eml » adressé au confrère, texte exact,
     trois images en ligne, rendu HTML de la signature, aucune erreur JS. **Non vérifié dans Outlook**
