@@ -94,3 +94,25 @@ test('POST /api/exchange/rendez-vous : date/heure/objet validés avant tout appe
   })).json();
   assert.match(sansObjet.message, /[Oo]bjet/);
 });
+
+test('POST /api/exchange/brouillon : destinataire et objet validés avant tout appel réseau', async () => {
+  // La connexion est active (test précédent), avec des identifiants — la validation échoue avant le réseau.
+  const mauvaisDest = await (await appeler('/api/exchange/brouillon', {
+    method: 'POST', body: JSON.stringify({ destinataire: 'pas-un-email', sujet: 'x' })
+  })).json();
+  assert.match(mauvaisDest.message, /[Dd]estinataire/);
+  const sansObjet = await (await appeler('/api/exchange/brouillon', {
+    method: 'POST', body: JSON.stringify({ destinataire: 'c@d.fr', sujet: '' })
+  })).json();
+  assert.match(sansObjet.message, /[Oo]bjet/);
+});
+
+test('POST /api/exchange/brouillon : refusé tant que la connexion n\'est pas activée', async () => {
+  await appeler('/api/exchange/reglages', { method: 'PUT', body: JSON.stringify({ actif: false, email: 'n@e.fr', motDePasse: '' }) });
+  const r = await appeler('/api/exchange/brouillon', {
+    method: 'POST', body: JSON.stringify({ destinataire: 'c@d.fr', sujet: 'x' })
+  });
+  assert.equal(r.status, 400);
+  const corps = await r.json();
+  assert.match(corps.message, /pas activée/i);
+});

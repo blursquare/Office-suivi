@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-28 09:51';
+  const VERSION_APP = '2026-09-28 10:09';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-28 10:09', resume: "Brouillons Outlook avec pièce jointe : sur la fiche dossier, CLAIRE prépare un brouillon Outlook du courrier d'appel de fonds (.docx joint) ou du questionnaire de satisfaction (PDF joint) — ce qu'un simple lien mailto ne sait pas faire. À tester au bureau." },
     { version: '2026-09-28 09:51', resume: "Agenda Outlook : CLAIRE peut créer le rendez-vous de signature directement dans l'agenda de l'office (bouton sur la fiche). Les identifiants de messagerie s'enregistrent dans les Réglages (mot de passe jamais réaffiché). À tester au bureau." },
     { version: '2026-09-27 21:34', resume: "Réglages : test de connexion à l'agenda Outlook de l'office (Exchange/EWS). Vérifie les identifiants sans rien enregistrer — première étape avant d'y créer les rendez-vous." },
     { version: '2026-09-27 20:35', resume: 'Aujourd’hui : phrase d’aide retirée du titre « À faire ».' },
@@ -15125,6 +15126,48 @@
     );
   }
 
+  // Variante Outlook du questionnaire : crée un BROUILLON avec le PDF DÉJÀ JOINT (ce qu'un mailto:
+  // ne sait pas faire — voir Brique 2). Réutilise la connexion Exchange configurée
+  // (exchangeAgendaPret). Mêmes garde-fous et mêmes effets que envoyerQuestionnaireSatisfaction
+  // (archive le dossier, historique, date), la seule différence étant que le PDF n'a pas à être
+  // téléchargé puis rattaché à la main. Ne lève jamais.
+  async function creerBrouillonQuestionnaireOutlook(id, btn) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d || notaireParticipantRepresenteAcquereur(d)) return;
+    const destinataire = d.emailAcquereur || '';
+    if (!destinataire) {
+      afficherToast("Aucun email d'acquéreur renseigné pour ce dossier — impossible de préparer le questionnaire.", 'OK', null);
+      return;
+    }
+    if (typeof QUESTIONNAIRE_SATISFACTION_PDF_BASE64 !== 'string' || !QUESTIONNAIRE_SATISFACTION_PDF_BASE64) {
+      afficherToast('Le PDF du questionnaire est indisponible — brouillon non créé.', 'OK', null);
+      return;
+    }
+    const { sujet, corps } = construireEmailQuestionnaireSatisfaction(d);
+    const libelleInitial = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Création…'; }
+    try {
+      const resultat = await envoyerBrouillonOutlook({
+        destinataire,
+        sujet,
+        corps,
+        pieces: [{ nom: 'Enquete_satisfaction.pdf', type: 'application/pdf', contenuBase64: QUESTIONNAIRE_SATISFACTION_PDF_BASE64 }]
+      });
+      if (resultat.ok) {
+        // Mêmes effets que l'envoi par mailto : le dossier est clôturé une fois le questionnaire parti.
+        d.questionnaireEnvoyeLe = new Date().toISOString().slice(0, 10);
+        ajouterHistorique(d, 'Brouillon Outlook du questionnaire de satisfaction créé (PDF joint)');
+        d.archive = true;
+        ajouterHistorique(d, 'Dossier archivé automatiquement (questionnaire de satisfaction envoyé)');
+        sauvegarder(d);
+        render();
+      }
+      afficherToast(resultat.message, 'OK', null);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = libelleInitial; }
+    }
+  }
+
   // Affichée juste après "Écrire par email" : absente pour un dossier déjà archivé (l'action n'a
   // plus de sens) et — demandé
   // explicitement par l'étude — dès que l'acquéreur est représenté par un notaire distinct du
@@ -15154,10 +15197,14 @@
         <p class="hint">Renseignez l’email de l’acquéreur.</p>
       </div>`;
     }
+    const boutonOutlook = exchangeAgendaPret()
+      ? `<button type="button" class="action-rapide" onclick="creerBrouillonQuestionnaireOutlook('${d.id}', this)" title="Crée un brouillon Outlook avec le questionnaire déjà joint, et archive le dossier">${icone('mail')} Brouillon Outlook (questionnaire joint)</button>`
+      : '';
     return `<div class="relances-ciblees">
       <span class="section-eyebrow">Clôturer le dossier</span>
       <div class="relances-boutons">
         <button type="button" class="action-rapide" onclick="envoyerQuestionnaireSatisfaction('${d.id}')" title="Ouvre le brouillon et archive le dossier">${icone('mail')} Questionnaire de satisfaction</button>
+        ${boutonOutlook}
       </div>
     </div>`;
   }
@@ -23617,6 +23664,7 @@
   }
 
   function renderPillDossierAppelFonds() {
+    majActionBrouillonAppelFonds();
     const cible = afEl('af-dossier-pill');
     if (!cible) return;
     const d = afDossierLie ? dossiers.find(x => x.id === afDossierLie) : null;
@@ -23625,6 +23673,15 @@
       <span class="dot-label dl-success"><span class="dot"></span>${escapeHtml(libelleDossierAffiche(d))}</span>
       <button type="button" class="action-rapide" onclick="retirerDossierAppelFonds()">Détacher</button>
     </div>`;
+  }
+
+  // Le bouton « Brouillon Outlook (courrier joint) » n'a de sens que si la connexion Exchange est
+  // prête ET qu'un dossier avec un email d'acquéreur est relié (le destinataire vient de là).
+  function majActionBrouillonAppelFonds() {
+    const bouton = afEl('af-brouillon-outlook');
+    if (!bouton) return;
+    const d = afDossierLie ? dossiers.find(x => x.id === afDossierLie) : null;
+    bouton.style.display = (exchangeAgendaPret() && d && d.emailAcquereur) ? '' : 'none';
   }
 
   // --- adresse du bien : reprise du dossier, ou suggestions de la Base Adresse Nationale --------
@@ -24208,25 +24265,64 @@
     return arr;
   }
 
+  // Génère le .docx du courrier et renvoie { blob, nom } — partagé par le téléchargement et la
+  // création d'un brouillon Outlook (pièce jointe). Lève si les bibliothèques ne sont pas chargées.
+  async function genererBlobAppelFonds() {
+    await chargerModeleAppelFonds();
+    const Ctor = window.docxtemplater.default || window.docxtemplater;
+    const zip = new window.PizZip(afBase64VersOctets(window.APPEL_FONDS_MODELE.docxB64));
+    const doc = new Ctor(zip, { paragraphLoop: true, linebreaks: true });
+    doc.render(donneesCourrierAppelFonds());
+    const blob = doc.getZip().generate({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+    return { blob, nom: afNomFichierDocx(afClients.filter(c => String(c.nom || '').trim())) };
+  }
+
   async function telechargerAppelFondsDocx(btn) {
     const libelleInitial = btn ? btn.textContent : '';
     if (btn) { btn.disabled = true; btn.textContent = 'Génération…'; }
     try {
-      await chargerModeleAppelFonds();
-      const Ctor = window.docxtemplater.default || window.docxtemplater;
-      const zip = new window.PizZip(afBase64VersOctets(window.APPEL_FONDS_MODELE.docxB64));
-      const doc = new Ctor(zip, { paragraphLoop: true, linebreaks: true });
-      doc.render(donneesCourrierAppelFonds());
-      const blob = doc.getZip().generate({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+      const { blob, nom } = await genererBlobAppelFonds();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = afNomFichierDocx(afClients.filter(c => String(c.nom || '').trim()));
+      a.download = nom;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 2000);
     } catch (e) {
       console.error(e);
       afficherToast('Le courrier n\'a pas pu être généré. Vérifiez que le poste a accès au réseau la première fois (deux bibliothèques sont téléchargées une seule fois).', 'OK', null);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = libelleInitial; }
+    }
+  }
+
+  // Crée un brouillon Outlook au CLIENT du dossier relié, avec le courrier d'appel de fonds en pièce
+  // jointe (.docx) — ce qu'un mailto: ne sait pas faire. Réservé au cas où un dossier CLAIRE avec un
+  // email d'acquéreur est relié (le destinataire vient de là) ET la connexion Exchange est prête ;
+  // sinon le bouton n'est pas affiché (voir renderActionsBrouillonAppelFonds).
+  async function creerBrouillonAppelFondsOutlook(btn) {
+    const d = afDossierLie ? dossiers.find(x => x.id === afDossierLie) : null;
+    const destinataire = d && d.emailAcquereur ? d.emailAcquereur : '';
+    if (!destinataire) {
+      afficherToast("Reliez un dossier ayant un email d'acquéreur pour créer le brouillon.", 'OK', null);
+      return;
+    }
+    const libelleInitial = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Création…'; }
+    try {
+      const { blob, nom } = await genererBlobAppelFonds();
+      const contenuBase64 = await blobVersBase64(blob);
+      const resultat = await envoyerBrouillonOutlook({
+        destinataire,
+        sujet: 'Appel de fonds — rendez-vous de signature',
+        corps: 'Madame, Monsieur,\n\nVeuillez trouver ci-joint le courrier d\'appel de fonds relatif à votre dossier.\n\nBien cordialement,',
+        pieces: [{ nom, type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', contenuBase64 }]
+      });
+      if (resultat.ok && d) { ajouterHistorique(d, 'Brouillon Outlook créé (courrier d\'appel de fonds joint)'); sauvegarder(d); }
+      afficherToast(resultat.message, 'OK', null);
+    } catch (e) {
+      console.error(e);
+      afficherToast('Le courrier n\'a pas pu être généré (accès réseau requis la première fois).', 'OK', null);
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = libelleInitial; }
     }
@@ -24751,6 +24847,33 @@
 
   function exchangeAgendaPret() {
     return !!(exchangeReglages && exchangeReglages.actif && exchangeReglages.email && exchangeReglages.motDePasseEnregistre);
+  }
+
+  // Un Blob (ex. le .docx d'appel de fonds généré côté client) → base64 sans le préfixe data:.
+  function blobVersBase64(blob) {
+    return new Promise((resolve, reject) => {
+      const lecteur = new FileReader();
+      lecteur.onload = () => resolve(String(lecteur.result || '').replace(/^data:[^,]*,/, ''));
+      lecteur.onerror = () => reject(lecteur.error || new Error('lecture du fichier'));
+      lecteur.readAsDataURL(blob);
+    });
+  }
+
+  // Crée un BROUILLON dans Outlook avec pièce(s) jointe(s) (voir server/src/exchange/ews.js), ce
+  // qu'un mailto: ne sait pas faire. Réutilise la connexion Exchange configurée (exchangeAgendaPret).
+  // `pieces` : [{ nom, type, contenuBase64 }]. Retourne { ok, message }, ne lève jamais.
+  async function envoyerBrouillonOutlook({ destinataire, sujet, corps, pieces }) {
+    try {
+      const reponse = await fetchAvecAuth('/api/exchange/brouillon', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ destinataire, sujet, corps, pieces: pieces || [] })
+      });
+      const c = await reponse.json();
+      return { ok: !!c.ok, message: c.message || (c.ok ? 'Brouillon créé.' : 'La création du brouillon a échoué.') };
+    } catch (e) {
+      return { ok: false, message: 'Serveur injoignable — brouillon non créé.' };
+    }
   }
 
   async function chargerReglagesExchange() {

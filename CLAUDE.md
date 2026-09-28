@@ -8592,6 +8592,56 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     est supprimable dans Outlook si besoin. **Reste à faire (brique 2)** : les brouillons Outlook
     avec pièces jointes (le .docx d'appel de fonds / le PDF du questionnaire DÉJÀ joints, ce qu'un
     `mailto:` ne sait pas faire).
+- **Brique 2 : brouillons Outlook avec pièce(s) jointe(s)** — la seconde moitié de la suite « les
+  deux dans cet ordre », construite tout de suite après la brique 1 sur demande de l'étude
+  (« construire la brique 2 maintenant »). C'est ce qu'un `mailto:` ne saura jamais faire : joindre
+  automatiquement le fichier. Même chemin d'écriture EWS que la création de rendez-vous
+  (`CreateItem`), donc mêmes garde-fous et mêmes limites (non testable hors du bureau).
+  - **Création EWS** (`ews.js`, `corpsCreateBrouillon`/`creerBrouillonExchange`) : `CreateItem
+    MessageDisposition="SaveOnly"` sur le dossier distingué `drafts` — le message est ENREGISTRÉ
+    dans les Brouillons Outlook, JAMAIS envoyé (l'étude le relit et l'envoie elle-même). Chaque
+    pièce est un `<t:FileAttachment>` (nom + `Content` en base64). **Piège de schéma EWS** :
+    `<t:Attachments>` (élément de `ItemType`) doit précéder `<t:ToRecipients>` (élément de
+    `MessageType`) — l'ordre est imposé par le WSDL, un test le verrouille explicitement. Mêmes
+    règles reprises du test/brique 1 : un seul essai, aucun réessai automatique, mot de passe jamais
+    journalisé/renvoyé. `interpreterReponseCreation` prend des libellés de succès/échec en paramètre
+    pour parler de « brouillon » plutôt que de « rendez-vous » sur ce chemin.
+  - **Route** `POST /exchange/brouillon` (`routes/exchange.js`) : identifiants pris dans les Réglages
+    ENREGISTRÉS (jamais dans la requête) ; valide le destinataire (`adresseValide`) et l'objet avant
+    tout appel réseau ; borne le nombre de pièces (`MAX_PIECES` = 5) et leur taille cumulée
+    (`MAX_BASE64_TOTAL` ≈ 11 Mo décodés) — un brouillon d'appel de fonds/questionnaire fait quelques
+    centaines de Ko, le plafond est large mais borné pour ne pas laisser passer un envoi énorme.
+  - **Côté client** (`envoyerBrouillonOutlook({destinataire, sujet, corps, pieces})`, ne lève jamais,
+    retourne `{ok, message}` ; `blobVersBase64` pour convertir un Blob généré côté client) :
+    - **Appel de fonds** : `creerBrouillonAppelFondsOutlook(btn)` — génère le `.docx` via la même
+      `genererBlobAppelFonds()` que le téléchargement, le joint, destinataire = l'email d'acquéreur
+      du dossier relié (`afDossierLie`). Bouton `#af-brouillon-outlook` dans l'en-tête de l'onglet
+      Appel de fonds, affiché par `majActionBrouillonAppelFonds()` UNIQUEMENT quand
+      `exchangeAgendaPret()` ET qu'un dossier avec email d'acquéreur est relié.
+    - **Questionnaire de satisfaction** : `creerBrouillonQuestionnaireOutlook(id, btn)` — joint le
+      PDF `QUESTIONNAIRE_SATISFACTION_PDF_BASE64` (le même que le téléchargement `mailto:`),
+      destinataire = `d.emailAcquereur`. Mêmes garde-fous et mêmes EFFETS que
+      `envoyerQuestionnaireSatisfaction` : sur succès, archive le dossier, pose `questionnaireEnvoyeLe`,
+      journalise (deux lignes : brouillon créé + archivage automatique), sauvegarde. Jamais proposé à
+      un notaire participant représentant l'acquéreur (`notaireParticipantRepresenteAcquereur`) —
+      même règle déontologique que le chemin `mailto:`. Bouton « Brouillon Outlook (questionnaire
+      joint) » ajouté dans `renderQuestionnaireSatisfaction`, à côté du bouton `mailto:` existant,
+      affiché seulement quand `exchangeAgendaPret()`.
+  - Tests : `server/test/ews.test.js` (+5 : `corpsCreateBrouillon` SaveOnly/drafts/pièce/ordre du
+    schéma, sans pièce → pas de bloc Attachments, objet et nom de pièce échappés, message de
+    brouillon, mot de passe non fuité), `server/test/exchange-route.test.js` (+2 :
+    destinataire/objet validés avant tout appel réseau, brouillon refusé si connexion inactive).
+    Suite serveur 406 → 413, suite racine inchangée (853).
+  - **Vérifié dans un vrai Chromium** (serveur réel, appel `/api/exchange/brouillon` intercepté pour
+    simuler un succès, Exchange non joignable ici) : le bouton « Brouillon Outlook (questionnaire
+    joint) » apparaît uniquement quand la connexion Exchange est prête (disparaît sinon, le bouton
+    `mailto:` restant), le clic archive le dossier, pose la date d'envoi et journalise les deux
+    lignes attendues ; aucune erreur JS, aucun débordement horizontal.
+  - **Non vérifié en conditions réelles** : l'écriture EWS elle-même (CreateItem du brouillon) n'a
+    PAS pu être testée ici (Exchange joignable uniquement au bureau) — à valider par l'étude en
+    cliquant l'un des deux boutons puis en vérifiant l'apparition du brouillon, PIÈCE JOINTE
+    COMPRISE, dans les Brouillons d'Outlook. Même réserve que la brique 1, et si l'écriture échoue
+    malgré des identifiants certains : soupçonner l'Extended Protection (non gérée par `httpntlm`).
 
 ## Comment tester
 
