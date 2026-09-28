@@ -153,3 +153,43 @@ test('une ligne d’action : un seul bouton de geste, « plus tard » à côté,
   assert.match(html, /<span>Relancer<\/span>/);
   assert.match(html, /DUPONT \/ MARTIN/);
 });
+
+test('Tâches non faites la veille : repérées le lendemain', () => {
+  const j1 = app.majVeilleJour(null, '2026-09-28', ['a', 'b']);
+  assert.equal(j1.hier.size, 0);
+  const j1bis = app.majVeilleJour(j1.stock, '2026-09-28', ['c']);
+  assert.equal(j1bis.stock.cles.join(','), 'a,b,c');
+  const j2 = app.majVeilleJour(j1bis.stock, '2026-09-29', ['a']);
+  assert.equal(j2.hier.has('b') && j2.hier.has('c') && j2.hier.has('a'), true);
+  assert.equal(j2.hierDate, '2026-09-28');
+  assert.equal(app.libelleNonFaite('2026-09-28', '2026-09-29'), 'Non faite hier');
+  assert.match(app.libelleNonFaite('2026-09-25', '2026-09-29'), /^Non faite depuis le 25 sept/);
+  // Le même jour, le repère d'hier ne bouge pas.
+  const j2bis = app.majVeilleJour(j2.stock, '2026-09-29', ['d']);
+  assert.equal(j2bis.hierDate, '2026-09-28');
+});
+
+test('Rappel qui parle d’écrire : email proposé', () => {
+  assert.equal(app.rappelParleEmail('Envoyer un mail au syndic'), true);
+  assert.equal(app.rappelParleEmail('Écrire à Me Denis'), true);
+  assert.equal(app.rappelParleEmail('Répondre au courriel de la banque'), true);
+  assert.equal(app.rappelParleEmail('Contacter jean@exemple.fr'), true);
+  assert.equal(app.rappelParleEmail('Appeler la mairie'), false);
+  assert.equal(app.rappelParleEmail('Vérifier le mailing'), false);
+});
+
+test('Activité de l’étude : gestes des collaborateurs et agenda, du plus récent au plus ancien', () => {
+  const dossiers = [
+    { id: 'd1', nom: 'A / B', historique: [
+      { date: '2026-09-28T08:00:00Z', texte: 'Dossier créé', auteur: 'Julie VASSELIN' },
+      { date: '2026-09-28T09:00:00Z', texte: 'Pièce trouvée sur le NAS' },
+      { date: '2026-09-28T10:00:00Z', texte: 'Rendez-vous de signature du 03/10/2026 relevé dans l’agenda de l’office (« VTE - A »)' }
+    ] },
+    { id: 'd2', nom: 'C / D', archive: true, historique: [{ date: '2026-09-28T09:30:00Z', texte: 'Dossier archivé', auteur: 'Bastien ANGLUMENT' }] }
+  ];
+  const l = app.activiteEtude(dossiers);
+  assert.equal(l.map(e => e.dossierId + ':' + e.source).join(','), 'd1:agenda,d2:dossier,d1:dossier');
+  const maintenant = Date.parse('2026-09-28T10:05:00Z');
+  assert.equal(app.ilYaActivite('2026-09-28T10:04:40Z', maintenant), 'à l’instant');
+  assert.equal(app.ilYaActivite('2026-09-28T09:50:00Z', maintenant), 'il y a 15 min');
+});

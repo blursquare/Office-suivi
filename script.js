@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-28 16:24';
+  const VERSION_APP = '2026-09-28 16:47';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-28 16:47', resume: "Tableau de bord : les tuiles « offres en attente » et « pièces manquantes » laissent place à « Activité de l'étude », le fil en direct de ce que font les collaborateurs (tâches du jour faites, dates saisies, emails préparés…) et de ce qui bouge dans l'agenda de l'office (rendez-vous relevé, déplacé ou retiré). « Dernières pièces » tient sur une ligne par pièce. Les tâches validées ne clignotent plus à la réouverture. Une tâche du jour ou un rappel non fait la veille revient marqué « Non faite hier ». Un rappel qui parle d'écrire propose un email vierge avec la signature. Fiche : les dates de la timeline tiennent sur une ou deux lignes." },
     { version: '2026-09-28 16:24', resume: "Emails : au clic, l'email s'ouvre de nouveau prêt à envoyer — un fichier .eml téléchargé qu'Outlook ouvre comme un nouveau message, en HTML, avec la signature de l'office (logos, couleurs, mentions) et les pièces jointes (questionnaire, courrier d'appel de fonds). Tout email à un confrère commence par « Mon Cher Maître, » et se termine par « Dans l'attente et vous en remerciant par avance, Votre bien dévoué. » ; relance de la vente préalable au confrère au texte de l'étude. Réglages › Sur ce poste : messagerie par défaut (texte seul) possible. Icône Windows nette à toutes les tailles." },
     { version: '2026-09-28 15:47', resume: "Fonds reçus : lecture adaptée aux vrais reçus comptables de l'étude (un reçu par page, « compte : N », une ligne par écriture). Seules les écritures dont le TITULAIRE du compte est l'acquéreur sont comptées — plus celles du vendeur citées dans la même référence de vente —, les remboursements de trop-perçu sont écartés, et chaque reçu affiche sa date réelle, son numéro de compte et « référence de la vente retrouvée » quand le libellé cite aussi le vendeur. Les fichiers nommés « RECUS_14-08 » (sans année) sont datés correctement." },
     { version: '2026-09-28 15:36', resume: "Fiche dossier, onglet Échanges : bloc « Fonds reçus ». CLAIRE lit les PDF « Reçus » du jour déposés à la racine du dossier commun du NAS, retrouve les versements au nom de l'acquéreur, les additionne et les compare au solde du décompte / de l'appel de fonds rangé dans le dossier NAS (ou à un montant saisi à la main) : tous les fonds reçus, reste à recevoir, ou aucun reçu. Chaque reçu retenu est listé avec son fichier, à vérifier." },
@@ -11634,7 +11635,7 @@
     if (!bloc) return;
     // Les tuiles « échéances ≤ 7 / 15 jours » sont retirées (demande de l'étude) : la carte À
     // traiter et l'Agenda disent déjà ce qui arrive, et avec le détail.
-    const { actifs, manquantes, piecesIncompletes } = calculerStatsPortefeuille(dossiersActifs);
+    const { actifs } = calculerStatsPortefeuille(dossiersActifs);
     // Tendance du nombre de dossiers actifs vs le mois précédent (voir calculerEvolutionPortefeuille)
     // affichée directement à côté du chiffre plutôt qu'en dessous — demandé par l'étude. Sur TOUS
     // les dossiers (dossiers, pas dossiersActifs) puisqu'un dossier archivé aujourd'hui a pu être
@@ -11645,14 +11646,81 @@
     const evolution = calculerEvolutionPortefeuille(dossiersTousPerimetre || dossiers);
     const tMois = formaterTendance(evolution.ecartMois);
     const tendanceMois = `<span class="kpi-tendance" title="${evolution.actuel} aujourd'hui contre ${evolution.moisDernier} il y a un mois">${tMois.icone}${tMois.texte} vs mois dernier</span>`;
+    // Les tuiles « offres de prêts en attente » et « dossiers avec pièces manquantes » sont
+    // remplacées par une carte unique « Activité de l'étude » (demandé par l'étude) : le suivi en
+    // direct de ce que font les collaborateurs et de ce qui bouge dans l'agenda de l'office.
     const tuiles = [
-      ['c-success', actifs, actifs > 1 ? 'dossiers actifs' : 'dossier actif', icone('folder', 'kpi-icone'), tendanceMois],
-      ['c-pret', manquantes, 'offres de prêts en attente', icone('alert-triangle', 'kpi-icone'), ''],
-      ['c-pret', piecesIncompletes, 'dossiers avec pièces manquantes', icone('clipboard', 'kpi-icone'), '']
+      ['c-success', actifs, actifs > 1 ? 'dossiers actifs' : 'dossier actif', icone('folder', 'kpi-icone'), tendanceMois]
     ];
     bloc.innerHTML = tuiles.map(([cls, valeur, libelle, iconeHtml, tendance]) =>
       `<div class="kpi-tile"><div class="kpi-label">${iconeHtml}${libelle}</div><div class="kpi-num-ligne"><span class="kpi-num ${cls}">${valeur}</span>${tendance}</div></div>`
-    ).join('');
+    ).join('') + renderActiviteEtude(dossiers);
+  }
+
+  // ---- Activité de l'étude (Tableau de bord) : suivi en direct, tous collaborateurs ----
+  // Une seule source : l'historique des dossiers, déjà synchronisé entre les postes par le sondage
+  // (toutes les 7 s) — la carte se met donc à jour toute seule, sans mécanisme de plus. On garde :
+  //   - tout ce qu'un collaborateur a fait (entrée signée d'un auteur, voir ajouterHistorique) :
+  //     tâche du jour validée, date saisie ou corrigée, pièce validée, email préparé, archivage… ;
+  //   - ce que l'agenda de l'office a changé (entrées écrites par le serveur qui citent l'agenda :
+  //     rendez-vous relevé, déplacé ou retiré, envoi relevé) et ce que CLAIRE y a écrit.
+  // Le reste des écritures automatiques (pièces trouvées sur le NAS…) a déjà son bloc « Dernières
+  // pièces » : le répéter ici noierait les gestes des collaborateurs. Tous les dossiers, archivés
+  // compris (archiver est une action), sans filtre de collaborateur : c'est le fil de l'étude.
+  var MAX_ACTIVITE_ETUDE = 25;
+  var RE_ENTREE_AGENDA = /agenda/i;
+
+  function activiteEtude(tousDossiers, limite) {
+    const entrees = [];
+    for (const d of tousDossiers || []) {
+      for (const h of d.historique || []) {
+        if (!h || !h.date || !h.texte) continue;
+        const agenda = RE_ENTREE_AGENDA.test(h.texte);
+        if (!h.auteur && !agenda) continue;
+        entrees.push({ date: h.date, auteur: h.auteur || '', texte: h.texte, source: agenda ? 'agenda' : 'dossier', dossierId: d.id, dossierNom: d.nom || '' });
+      }
+    }
+    entrees.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    return entrees.slice(0, limite || MAX_ACTIVITE_ETUDE);
+  }
+
+  // « à l'instant », « il y a 12 min », « il y a 3 h », « hier », « 24 sept. »
+  function ilYaActivite(dateIso, maintenantMs) {
+    const t = Date.parse(dateIso);
+    if (isNaN(t)) return '';
+    const maintenant = maintenantMs || Date.now();
+    const min = Math.max(0, Math.round((maintenant - t) / 60000));
+    if (min < 1) return 'à l’instant';
+    if (min < 60) return `il y a ${min} min`;
+    const auj = new Date(maintenant); auj.setHours(0, 0, 0, 0);
+    if (t >= auj.getTime()) return `il y a ${Math.round(min / 60)} h`;
+    if (t >= auj.getTime() - 86400000) return 'hier';
+    return new Date(t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  }
+
+  function initialesCollaborateur(nom) {
+    return String(nom || '').split(/[\s-]+/).filter(Boolean).slice(0, 2).map(m => m[0].toUpperCase()).join('');
+  }
+
+  function renderActiviteEtude(tousDossiers) {
+    const entrees = activiteEtude(tousDossiers);
+    const maintenant = Date.now();
+    const lignes = entrees.map(e => {
+      const recent = maintenant - Date.parse(e.date) < 15 * 60000;
+      const qui = e.auteur ? prenomCollaborateur(e.auteur) : 'Agenda';
+      const pastille = e.source === 'agenda' && !e.auteur
+        ? `<span class="activite-avatar agenda" aria-hidden="true">${icone('calendar')}</span>`
+        : `<span class="activite-avatar" aria-hidden="true">${escapeHtml(initialesCollaborateur(e.auteur))}</span>`;
+      return `<li><button type="button" class="activite-ligne${recent ? ' recente' : ''}" onclick="ouvrirDossierDepuisDashboard('${e.dossierId}')" title="${escapeAttr(qui + ' — ' + e.texte + ' — ' + e.dossierNom)}">
+        ${pastille}
+        <span class="activite-texte"><b>${escapeHtml(qui)}</b> ${escapeHtml(e.texte)}<span class="activite-dossier"> · ${escapeHtml(e.dossierNom)}</span></span>
+        <span class="activite-quand">${escapeHtml(ilYaActivite(e.date, maintenant))}</span>
+      </button></li>`;
+    }).join('');
+    return `<div class="kpi-tile activite-etude">
+      <div class="kpi-label activite-entete">${icone('clock', 'kpi-icone')}Activité de l’étude<span class="activite-direct"><span class="activite-direct-point"></span>En direct</span></div>
+      ${lignes ? `<ul class="activite-liste">${lignes}</ul>` : '<p class="activite-vide">Rien pour l’instant : les actions des collaborateurs et les changements de l’agenda s’afficheront ici.</p>'}
+    </div>`;
   }
 
   // « Dernières pièces trouvées » (Tableau de bord, demandé par l'étude au carnet de bord) : un
@@ -11699,12 +11767,11 @@
     bloc.innerHTML = entrees.map(e => {
       const quand = e.le ? new Date(e.le).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '';
       return `
-        <button type="button" class="action-urgente-ligne derniere-piece" onclick="ouvrirDossierDepuisDashboard('${e.dossier.id}')">
+        <button type="button" class="action-urgente-ligne derniere-piece${e.nouvelle ? ' nouvelle' : ''}" onclick="ouvrirDossierDepuisDashboard('${e.dossier.id}')"
+          title="${escapeAttr(libelleNotificationPiece(e.dossier, e.cle) + ' — ' + libelleDossierAffiche(e.dossier) + (e.nouvelle ? ' (nouveau)' : ''))}">
+          <span class="derniere-piece-point" aria-hidden="true"></span>
+          <span class="derniere-piece-texte"><b>${escapeHtml(libelleNotificationPiece(e.dossier, e.cle))}</b><span class="derniere-piece-dossier"> · ${escapeHtml(e.dossier.nom || '')}</span></span>
           <span class="derniere-piece-date">${escapeHtml(quand)}</span>
-          <span class="derniere-piece-texte"><b>${escapeHtml(libelleNotificationPiece(e.dossier, e.cle))}</b>
-            <span class="action-urgente-raison">${escapeHtml(libelleDossierAffiche(e.dossier))}</span></span>
-          ${e.nouvelle ? '<span class="dot-label dl-urgent notif-nouveau-tag"><span class="dot"></span>Nouveau</span>' : ''}
-          <span class="action-urgente-fleche">&rarr;</span>
         </button>`;
     }).join('');
   }
@@ -13127,7 +13194,10 @@
     if (!iso) return '';
     const j = ecartJours(aujourdhuiIso, iso);
     if (j === null) return '';
-    if (j < 0) return `En retard de ${-j} j`;
+    // Un rappel non coché passe au lendemain et le dit (demandé par l'étude) : il reste en tête de
+    // liste, marqué « non fait hier » plutôt qu'un compte de jours de retard.
+    if (j === -1) return 'Non fait hier';
+    if (j < 0) return `Non fait depuis ${-j} j`;
     if (j === 0) return "Aujourd'hui";
     if (j === 1) return 'Demain';
     const dt = new Date(iso + 'T00:00:00');
@@ -13215,6 +13285,25 @@
     catch (e) { afficherToast(`Rappel non supprimé : ${e.message}`, 'OK', null); chargerRappelsPerso(); }
   }
 
+  // Un rappel qui parle d'écrire (« Envoyer un mail au syndic », « Répondre à Me X »…) propose un
+  // email vierge, signature de l'office comprise (demandé par l'étude). Pure et testable. Une
+  // adresse écrite dans le rappel devient le destinataire ; un dossier rattaché donne l'objet.
+  var RE_RAPPEL_EMAIL = /(^|[^a-zà-ÿ])(e-?mails?|mails?|m[ée]ls?|courriels?|[ée]crire|[ée]cris|r[ée]pondre)(?![a-zà-ÿ])/i;
+  function rappelParleEmail(texte) {
+    const t = String(texte || '');
+    return RE_RAPPEL_EMAIL.test(t) || EMAIL_RE.test(t);
+  }
+
+  async function ouvrirEmailRappelPerso(id) {
+    const r = rappelsPerso.find(x => x.id === id);
+    if (!r) return;
+    const d = r.dossierId ? dossiers.find(x => x.id === r.dossierId) : null;
+    const adresse = (String(r.texte).match(EMAIL_RE) || [''])[0];
+    const res = await livrerEmailDossier({ destinataire: adresse, sujet: d ? `Dossier ${d.nom}` : '', corps: 'Bonjour,\n\n' });
+    if (!res.ok) { afficherToast(res.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }
+    annoncerEmailPret(res, true);
+  }
+
   function renderMesRappels(perimetreActifs) {
     if (!utilisateurPoste) {
       return `<div class="rappels-perso-vide">Pour noter vos rappels, <button type="button" class="lien-discret" onclick="ouvrirChoixPoste()">indiquez qui utilise ce poste</button>.</div>`;
@@ -13233,6 +13322,7 @@
             <span class="rappel-perso-titre">${escapeHtml(r.texte)}</span>
             ${sous.length ? `<span class="rappel-perso-sous${enRetard ? ' retard' : ''}">${sous.map((s, i) => i === 1 && d ? `<button type="button" class="lien-discret" onclick="ouvrirDossierDepuisDashboard('${d.id}')">${escapeHtml(s)}</button>` : escapeHtml(s)).join(' · ')}</span>` : ''}
           </div>
+          ${!r.fait && rappelParleEmail(r.texte) ? `<button type="button" class="icon-btn rappel-perso-email" onclick="ouvrirEmailRappelPerso('${escapeOnclickArg(r.id)}')" title="Préparer un email vierge avec la signature de l'office" aria-label="Préparer un email">${icone('mail')}</button>` : ''}
           <button type="button" class="rappel-perso-suppr" onclick="supprimerRappelPerso('${escapeOnclickArg(r.id)}')" aria-label="Supprimer le rappel" title="Supprimer">${icone('x')}</button>
         </div>`;
     }).join('');
@@ -13629,10 +13719,69 @@
     // « À faire » en plus de sa ligne cochée — c'était le doublon signalé par l'étude le 28/09.
     const traitees = new Set(etat.traites.liste.map(t => t.cle));
     const actions = calcul.actions.filter(a => !etat.reports[a.cle] && !traitees.has(a.cle));
+    // Ce qui n'a pas été fait la veille revient aujourd'hui (la liste est recalculée chaque jour
+    // depuis l'état des dossiers) et doit se REPÉRER comme tel (demandé par l'étude) : on retient,
+    // par collaborateur et par poste, les actions restées à faire (ou reportées) dans la journée.
+    const veille = majVeilleJour(lireVeilleJour(), aujourdhui, actions.concat(reportees).map(a => a.cle));
+    ecrireVeilleJour(veille.stock);
+    veilleJour = veille;
     return { aujourdhui, actions, reportees, aVenir: calcul.aVenir, traites: etat.traites.liste };
   }
 
+  // Tâches du jour restées non faites la veille (voir etatAujourdhui). Pure et testable :
+  // `stock` = { date, cles, hier, hierDate } tel que gardé dans le navigateur.
+  //   - même jour : on ajoute les clés vues depuis (vue globale, nouveaux dossiers…) ;
+  //   - nouveau jour : les clés de la dernière journée ouverte deviennent « non faites » —
+  //     seules celles encore à faire aujourd'hui seront marquées (voir renderLigneActionJour).
+  var PREFIXE_VEILLE_JOUR = 'claire-aujourdhui-veille:';
+  let veilleJour = { hier: new Set(), hierDate: '' };
+
+  function majVeilleJour(stock, aujourdhuiIso, clesEnCours) {
+    const s = stock && typeof stock === 'object' ? stock : {};
+    const cles = Array.isArray(s.cles) ? s.cles : [];
+    let nouveau;
+    if (s.date === aujourdhuiIso) {
+      nouveau = { date: aujourdhuiIso, cles: Array.from(new Set(cles.concat(clesEnCours))), hier: Array.isArray(s.hier) ? s.hier : [], hierDate: s.hierDate || '' };
+    } else if (s.date && s.date < aujourdhuiIso) {
+      nouveau = { date: aujourdhuiIso, cles: clesEnCours.slice(), hier: cles, hierDate: s.date };
+    } else {
+      nouveau = { date: aujourdhuiIso, cles: clesEnCours.slice(), hier: [], hierDate: '' };
+    }
+    nouveau.cles = nouveau.cles.slice(0, 300);
+    nouveau.hier = nouveau.hier.slice(0, 300);
+    return { stock: nouveau, hier: new Set(nouveau.hier), hierDate: nouveau.hierDate };
+  }
+
+  // « Non faite hier », ou « Non faite depuis le 26 sept. » si la dernière journée ouverte est plus ancienne.
+  function libelleNonFaite(hierDateIso, aujourdhuiIso) {
+    if (!hierDateIso) return '';
+    const j = ecartJours(hierDateIso, aujourdhuiIso);
+    if (j === 1) return 'Non faite hier';
+    return 'Non faite depuis le ' + new Date(hierDateIso + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  }
+
+  function lireVeilleJour() {
+    if (!utilisateurPoste) return null;
+    try { return JSON.parse(localStorage.getItem(PREFIXE_VEILLE_JOUR + utilisateurPoste) || 'null'); } catch (e) { return null; }
+  }
+  function ecrireVeilleJour(stock) {
+    if (!utilisateurPoste) return;
+    try { localStorage.setItem(PREFIXE_VEILLE_JOUR + utilisateurPoste, JSON.stringify(stock)); } catch (e) { /* pas bloquant */ }
+  }
+
+  // Seule la ligne qu'on vient de cocher s'anime : la liste est reconstruite à chaque rendu
+  // (sondage, réouverture de la page), et une animation posée sur toutes les lignes traitées
+  // les faisait « clignoter » à chaque fois.
+  var derniereCleTraiteeJour = null;
+  var derniereCleTraiteeJourLe = 0;
+  var DUREE_ANIMATION_TRAITE_MS = 700;
+  function vientDEtreTraitee(cle) {
+    return cle === derniereCleTraiteeJour && Date.now() - derniereCleTraiteeJourLe < DUREE_ANIMATION_TRAITE_MS;
+  }
+
   function noterTraite(action, etatTexte, annulation) {
+    derniereCleTraiteeJour = action.cle;
+    derniereCleTraiteeJourLe = Date.now();
     const etat = lireEtatJour();
     etat.traites.date = isoAujourdhuiLocal();
     etat.traites.liste = etat.traites.liste.filter(t => t.cle !== action.cle);
@@ -13737,6 +13886,15 @@
       }
       ajouterHistorique(d, `${a.titre} : noté fait à la main`);
       sauvegarder(d);
+    } else {
+      // Aucun champ du dossier à poser, mais le geste doit se voir dans l'activité de l'étude
+      // (tableau de bord, tous postes) : une ligne d'historique signée du collaborateur.
+      const dj = dossiers.find(x => x.id === a.dossier.id);
+      if (dj) {
+        ajouterHistorique(dj, `Tâche du jour « ${a.titre} » : faite`);
+        sauvegarder(dj);
+        annulation.journalSeul = true;
+      }
     }
     noterTraite(a, 'Déjà fait', annulation);
     apercusJour.delete(cle);
@@ -13759,6 +13917,13 @@
           if (v) d[k] = v; else delete d[k];
         }
         ajouterHistorique(d, `${entree.titre} : « déjà fait » annulé`);
+        sauvegarder(d);
+      }
+    }
+    if (entree && entree.journalSeul) {
+      const d = dossiers.find(x => x.id === entree.dossierId);
+      if (d) {
+        ajouterHistorique(d, `Tâche du jour « ${entree.titre} » : « fait » annulé`);
         sauvegarder(d);
       }
     }
@@ -13820,7 +13985,7 @@
     const part = total ? faits / total : 1;
     const fini = total > 0 && reste === 0;
     return `
-      <span class="jour-anneau${fini ? ' fini' : ''}" role="img" aria-label="${faits} sur ${total} traitée${faits > 1 ? 's' : ''}">
+      <span class="jour-anneau${fini ? ' fini' : ''}${fini && vientDEtreTraitee(derniereCleTraiteeJour) ? ' vient-de-finir' : ''}" role="img" aria-label="${faits} sur ${total} traitée${faits > 1 ? 's' : ''}">
         <svg viewBox="0 0 50 50" width="50" height="50" aria-hidden="true">
           <circle cx="25" cy="25" r="${r}" class="jour-anneau-fond"/>
           <circle cx="25" cy="25" r="${r}" class="jour-anneau-plein" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${(c * (1 - part)).toFixed(1)}" transform="rotate(-90 25 25)"/>
@@ -13847,7 +14012,7 @@
       <li class="ja g-${a.gravite}${ouverte ? ' ouverte' : ''}">
         <span class="dot-label dl-${a.categorie}" title="${escapeAttr(a.categorieLabel)}"><span class="dot"></span></span>
         <button type="button" class="ja-texte" aria-expanded="${ouverte}" onclick="basculerApercuJour('${cle}')" title="Voir le détail">
-          <span class="ja-titre">${escapeHtml(a.titre)}</span>
+          <span class="ja-titre">${escapeHtml(a.titre)}${veilleJour.hier.has(a.cle) ? `<span class="ja-non-faite">${escapeHtml(libelleNonFaite(veilleJour.hierDate, isoAujourdhuiLocal()))}</span>` : ''}</span>
           <span class="ja-sous">${escapeHtml(sous)}</span>
         </button>
         <span class="ja-delai${a.gravite === 'critique' ? ' proche' : ''}">${escapeHtml(delai)}</span>
@@ -13874,7 +14039,7 @@
   // Ce qui a été traité aujourd'hui, coché, dans la même liste : la journée se voit avancer.
   function renderLignesTraitees(traites) {
     return traites.map(t => `
-      <li class="ja fait${t.etat === 'Reporté à demain' ? ' reporte' : ''}">
+      <li class="ja fait${t.etat === 'Reporté à demain' ? ' reporte' : ''}${vientDEtreTraitee(t.cle) ? ' vient-de-finir' : ''}">
         <span class="ja-coche" aria-hidden="true">${t.etat === 'Reporté à demain' ? icone('clock') : icone('check')}</span>
         <span class="ja-texte-fait">
           <span class="ja-titre">${escapeHtml(t.titre)}</span>
@@ -17739,7 +17904,7 @@
       // un dossier réimporté verrait l'agenda réécrire ces dates à la date du nouvel import.
       detectionsAgenda: (d.detectionsAgenda && typeof d.detectionsAgenda === 'object' && !Array.isArray(d.detectionsAgenda))
         ? Object.fromEntries(Object.entries(d.detectionsAgenda)
-          .filter(([k, v]) => (k === 'appelFonds' || k === 'projetEnvoye' || k === 'rendezVousSignature') && typeof v === 'string'))
+          .filter(([k, v]) => (k === 'appelFonds' || k === 'projetEnvoye' || k === 'rendezVousSignature' || k === 'rendezVousDisparu') && typeof v === 'string'))
         : {},
       typeVente: (d.typeVente === 'copropriete' || d.typeVente === 'terrain') ? d.typeVente : 'maison',
       roleNotaire: d.roleNotaire === 'participant' ? 'participant' : 'instrumentaire',

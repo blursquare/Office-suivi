@@ -114,7 +114,8 @@ test('alertesImportantes : gravité, ordre, et rien quand tout est en ordre', ()
 test('rappels : libellé d’échéance et ordre d’affichage', () => {
   assert.equal(app.libelleEcheanceRappel('2026-09-25', '2026-09-25'), "Aujourd'hui");
   assert.equal(app.libelleEcheanceRappel('2026-09-26', '2026-09-25'), 'Demain');
-  assert.equal(app.libelleEcheanceRappel('2026-09-23', '2026-09-25'), 'En retard de 2 j');
+  assert.equal(app.libelleEcheanceRappel('2026-09-24', '2026-09-25'), 'Non fait hier');
+  assert.equal(app.libelleEcheanceRappel('2026-09-23', '2026-09-25'), 'Non fait depuis 2 j');
   assert.equal(app.libelleEcheanceRappel('2026-09-28', '2026-09-25'), 'Lundi');
   assert.equal(app.libelleEcheanceRappel('', '2026-09-25'), '');
   const l = [

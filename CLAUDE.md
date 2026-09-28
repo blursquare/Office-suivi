@@ -9281,6 +9281,45 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     trois images en ligne, rendu HTML de la signature, aucune erreur JS. **Non vérifié dans Outlook**
     (absent ici) : l'ouverture du .eml comme message à envoyer reste à confirmer par l'étude.
 
+- **Tableau de bord : « Activité de l'étude », pièces compactes, fin du clignotement ; tâches et
+  rappels non faits reportés ; email depuis un rappel ; timeline compacte** (28/09, cinq demandes
+  arrivées à la suite) :
+  - **Carte « Activité de l'étude »** (`renderActiviteEtude`, `activiteEtude`, `ilYaActivite`) à la
+    place des tuiles « offres de prêts en attente » et « dossiers avec pièces manquantes » (sur deux
+    colonnes de la rangée, à côté de « dossiers actifs »). Une seule source : l'historique des
+    dossiers, déjà synchronisé entre postes par le sondage (7 s), donc « en direct » sans mécanisme
+    de plus. Retenus : toute entrée signée d'un collaborateur (`auteur`, voir `ajouterHistorique`)
+    et toute entrée qui cite l'agenda (relevé, déplacé, retiré, noté par CLAIRE). Écartés : les
+    autres écritures automatiques (pièces du NAS — elles ont « Dernières pièces »). Tous les
+    dossiers, archivés compris, sans filtre de collaborateur ; clic → fiche. 25 lignes, le fil
+    défile dans la carte.
+    - « Déjà fait » sur une tâche du jour sans champ de dossier à poser (fixer le rendez-vous,
+      confirmer la vente préalable…) écrit maintenant une ligne d'historique (« Tâche du jour « X » :
+      faite ») pour paraître dans ce fil ; « Annuler » en écrit une autre (`journalSeul`).
+    - **Rendez-vous retiré de l'agenda** (`signalerRendezVousDisparus`, `server/src/agendaWatch.js`) :
+      un rendez-vous À VENIR dont la date avait été relevée dans l'agenda et qu'aucun événement
+      confirmé ne porte plus est signalé UNE fois dans l'historique ; la date n'est jamais effacée
+      (une absence ne prouve pas une annulation). Repère `detectionsAgenda.rendezVousDisparu`, levé
+      au retour de l'événement, conservé à l'import. Une date saisie à la main n'est jamais signalée.
+  - **« Dernières pièces » compact** : une ligne par pièce (point rouge si non vue, pièce en gras +
+    dossier, tronqués ensemble, date à droite), en-tête resserré, texte complet en infobulle.
+  - **Clignotement corrigé** : `.ja.fait` rejouait son fondu à chaque `render()` (sondage,
+    réouverture). Seule la ligne qu'on vient de cocher s'anime (`vient-de-finir`,
+    `vientDEtreTraitee`, fenêtre de 700 ms), de même pour la coche de l'anneau.
+  - **Non fait la veille** : `majVeilleJour` (pure) retient, par collaborateur et par poste, les
+    actions restées à faire ou reportées ; le lendemain, celles qui sont encore dues portent
+    « Non faite hier » (ou « Non faite depuis le 25 sept. »). Les rappels non cochés : « Non fait
+    hier » / « Non fait depuis N j » au lieu de « En retard de N j », toujours en tête.
+  - **Rappel qui parle d'écrire** (`rappelParleEmail` : mail, courriel, écrire, répondre, ou une
+    adresse) : bouton enveloppe → `.eml` vierge avec la signature (`livrerEmailDossier`), adresse
+    reprise du rappel s'il en contient une, objet « Dossier X » s'il est rattaché.
+  - **Timeline de la fiche compacte** : chaque carte d'échéance tient sur une ligne (titre en
+    colonne fixe de 170 px pour aligner les dates, date + crayon, décompte à droite), le reste
+    (Marquer réalisée, statut de l'offre, agenda) sur la suivante ; « Envoi au client » : un envoi
+    par ligne. Titre au-dessus de la date sous 560 px. CSS seule, `renderTab` inchangé.
+  - Tests : +3 dans `tests/aujourdhui.test.js`, libellés de rappel mis à jour, +2 dans
+    `server/test/agenda-watch.test.js`. Suites : racine 884, serveur 461.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

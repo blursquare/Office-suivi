@@ -67,7 +67,31 @@ function appliquerDetectionsAgenda(depot, detections, aujourdHui) {
     }
   }
   appliquerRendezVousAgenda(depot, detections, resultat);
+  if (typeof depot.tousActifs === 'function') signalerRendezVousDisparus(depot, detections, jour);
   return resultat;
+}
+
+// Rendez-vous retiré de l'agenda (demandé par l'étude pour le suivi en direct du tableau de bord) :
+// un rendez-vous de signature À VENIR dont la date avait été relevée dans l'agenda, et qu'aucun
+// événement « VTE - … » confirmé ne porte plus, est signalé UNE fois dans l'historique du dossier.
+// La date n'est JAMAIS effacée (voir plus haut : une absence ne prouve pas une annulation) ; le repère
+// d.detectionsAgenda.rendezVousDisparu = la date signalée empêche de le redire à chaque tour, et il
+// est retiré dès que le rendez-vous réapparaît (voir appliquerRendezVousAgenda).
+function signalerRendezVousDisparus(depot, detections, jour) {
+  const presents = new Set((detections || []).filter((det) => det.rendezVous && det.dossierId).map((det) => det.dossierId));
+  for (const d of depot.tousActifs()) {
+    if (!d || d.archive || !d.rendezVousSignature || d.rendezVousSignature < jour) continue;
+    const reperes = d.detectionsAgenda || {};
+    if (reperes.rendezVousSignature !== d.rendezVousSignature) continue;   // date saisie à la main
+    if (presents.has(d.id) || reperes.rendezVousDisparu === d.rendezVousSignature) continue;
+    d.detectionsAgenda = Object.assign({}, reperes, { rendezVousDisparu: d.rendezVousSignature });
+    d.historique = d.historique || [];
+    d.historique.push({
+      date: new Date().toISOString(),
+      texte: `Rendez-vous de signature du ${formatDateFr(d.rendezVousSignature)} retiré de l’agenda de l’office (supprimé, déplacé ou mis en attente) — date conservée sur la fiche`
+    });
+    depot.remplacer(d.id, d);
+  }
 }
 
 // Rendez-vous de signature (demandé par l'étude, 25/09) : la date du PLUS PROCHE rendez-vous
@@ -110,7 +134,9 @@ function appliquerRendezVousAgenda(depot, detections, resultat) {
       // Même date : l'heure, l'heure de fin et le lieu suivent l'agenda (affichés dans l'agenda du
       // tableau de bord) — un rendez-vous avancé de 9 h à 11 h le même jour doit s'y voir.
       const changeHoraire = poserHoraireRendezVous(d, det);
-      if (ecritParAgenda !== det.dateIso || changeHoraire) {
+      const revenu = Boolean(d.detectionsAgenda.rendezVousDisparu);
+      if (revenu) delete d.detectionsAgenda.rendezVousDisparu;
+      if (ecritParAgenda !== det.dateIso || changeHoraire || revenu) {
         d.detectionsAgenda.rendezVousSignature = det.dateIso;
         depot.remplacer(d.id, d);
       }
@@ -124,6 +150,7 @@ function appliquerRendezVousAgenda(depot, detections, resultat) {
     }
     d.rendezVousSignature = det.dateIso;
     d.detectionsAgenda.rendezVousSignature = det.dateIso;
+    delete d.detectionsAgenda.rendezVousDisparu;
     poserHoraireRendezVous(d, det);
     d.historique = d.historique || [];
     d.historique.push({

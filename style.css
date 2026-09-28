@@ -966,6 +966,39 @@
     box-shadow: var(--shadow-card);
   }
   .kpi-icone { font-size: 13px; line-height: 1; flex: none; opacity: 0.8; }
+  /* Carte « Activité de l'étude » (voir renderActiviteEtude) : prend la place des deux tuiles
+     « offres en attente » / « pièces manquantes », sur deux colonnes de la rangée. Le fil défile
+     dans la carte : la rangée garde la hauteur d'une tuile et demie. */
+  .kpi-tile.activite-etude { grid-column: span 2; padding: 12px 12px 8px; display: flex; flex-direction: column; min-width: 0; }
+  .activite-entete { padding: 0 4px; }
+  .activite-direct {
+    margin-left: auto; display: inline-flex; align-items: center; gap: 5px;
+    font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--success);
+  }
+  .activite-direct-point { width: 6px; height: 6px; border-radius: 50%; background: var(--success); animation: activite-pouls 2s ease-in-out infinite; }
+  @keyframes activite-pouls { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .activite-liste { list-style: none; margin: 6px 0 0; padding: 0; max-height: 156px; overflow-y: auto; }
+  .activite-ligne {
+    display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 8px;
+    width: 100%; padding: 4px; border: 0; border-radius: 6px; background: none; cursor: pointer;
+    font: inherit; color: var(--ink); text-align: left;
+  }
+  .activite-ligne:hover { background: var(--paper-sunk); }
+  .activite-ligne:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+  .activite-avatar {
+    display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%;
+    background: var(--paper-sunk); border: 1px solid var(--line); color: var(--ink-soft);
+    font-size: 9.5px; font-weight: 700; letter-spacing: 0.02em;
+  }
+  .activite-avatar.agenda { color: var(--focus); font-size: 11px; }
+  .activite-texte { font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .activite-texte b { font-weight: 600; }
+  .activite-dossier { color: var(--muted); }
+  .activite-quand { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .activite-ligne.recente .activite-quand { color: var(--success); font-weight: 600; }
+  .activite-vide { margin: 10px 4px 6px; font-size: 12.5px; color: var(--muted); }
+  @media (max-width: 640px) { .kpi-tile.activite-etude { grid-column: auto; } }
+  @media (prefers-reduced-motion: reduce) { .activite-direct-point { animation: none; } }
   /* Icône calendrier SVG partagée par les deux tuiles d'échéances (7j/15j), le seuil dessiné dans
      le corps du calendrier plutôt que deux emojis différents sans lien visuel entre eux. */
   .kpi-icone-calendrier {
@@ -3816,6 +3849,40 @@
   .tabs.tabs-timeline .tab.projetEnvoye::after { border-color: var(--projet); }
   .tabs.tabs-timeline .tab.autre::after { border-color: var(--muted); }
 
+  /* Carte compacte dans la timeline (demandé par l'étude : « les infos sur une seule ligne ou deux
+     max, pour ne pas avoir trop à scroller »). Ligne 1 : titre (colonne fixe, pour que les dates
+     s'alignent d'une carte à l'autre), date + crayon, décompte à droite. Tout le reste (bouton
+     « Marquer réalisée », statut de l'offre, envois, agenda) passe sur la ligne suivante, sur
+     toute la largeur. */
+  .tabs.tabs-timeline { gap: 8px; }
+  .tabs.tabs-timeline .tab {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px;
+    padding: 7px 34px 7px 12px;
+  }
+  .tabs.tabs-timeline .tab::after { top: 50%; margin-top: -6px; }
+  .tabs.tabs-timeline .tab > * { flex: 1 1 100%; min-width: 0; }
+  .tabs.tabs-timeline .tab > .tab-name,
+  .tabs.tabs-timeline .tab > .tab-titre-ligne { flex: 0 0 170px; margin: 0; max-width: none; }
+  .tabs.tabs-timeline .tab > .tab-date-affichage,
+  .tabs.tabs-timeline .tab > .tab-date-edition { flex: 0 1 auto; margin: 0; }
+  .tabs.tabs-timeline .tab .tab-date { font-size: 14px; margin: 0; white-space: nowrap; }
+  .tabs.tabs-timeline .tab > .tab-countdown { flex: 0 0 auto; margin-left: auto; font-size: 12.5px; white-space: nowrap; }
+  .tabs.tabs-timeline .tab > button.action-rapide,
+  .tabs.tabs-timeline .tab > button.lien-dossier-local { flex: 0 0 auto; }
+  .tabs.tabs-timeline .tab .tab-offre-pret { margin-top: 0; }
+  /* Carte « Envoi au client » : chaque envoi sur UNE ligne — libellé, date, statut. */
+  .tabs.tabs-timeline .envoi-ligne {
+    flex-direction: row; flex-wrap: wrap; align-items: center; gap: 2px 10px; padding-top: 4px;
+  }
+  .tabs.tabs-timeline .envoi-ligne + .envoi-ligne { margin-top: 4px; }
+  .tabs.tabs-timeline .envoi-ligne > .envoi-libelle { flex: 0 0 170px; white-space: nowrap; letter-spacing: 0.03em; }
+  .tabs.tabs-timeline .envoi-ligne > .envoi-action { flex: 1 1 100%; margin-top: 0; }
+  @media (max-width: 560px) {
+    .tabs.tabs-timeline .tab > .tab-name,
+    .tabs.tabs-timeline .tab > .tab-titre-ligne,
+    .tabs.tabs-timeline .envoi-ligne > .envoi-libelle { flex-basis: 100%; }
+  }
+
   /* Bloc aplati (bordure gauche colorée plutôt qu'un fond teinté pleine surface) : même langage
      visuel que .type-pill et .date-block (formulaire), plus proche de la maquette d'origine que
      l'ancien bloc à fond coloré, plus lourd. */
@@ -5351,16 +5418,31 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
 }
 .urgent-groupe-reste:hover { text-decoration: underline; }
 
-/* Bloc « Dernières pièces » condensé (demandé par l'étude) : lignes plus serrées et police plus
-   petite que les listes de dossiers cliquables, pour tenir plus d'entrées sans allonger le rail. */
-.derniere-piece { align-items: center; gap: 8px; }
-.dash-liste-carte .derniere-piece { padding: 7px 10px; }
-.derniere-piece-date {
-  flex: 0 0 46px; font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums;
+/* Bloc « Dernières pièces » compact (demandé deux fois par l'étude) : UNE ligne par pièce — un
+   point (rouge si pas encore vue), le nom de la pièce en gras suivi du dossier, tronqués ensemble,
+   la date à droite. Le texte complet est en infobulle. */
+.dash-liste-carte .action-urgente-ligne.derniere-piece {
+  display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; gap: 8px;
+  padding: 5px 8px;
 }
-.derniere-piece-texte { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
-.derniere-piece-texte b { font-size: 13px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.derniere-piece-texte .action-urgente-raison { font-size: 12px; }
+.derniere-piece-point { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
+.derniere-piece.nouvelle .derniere-piece-point { background: var(--notif-nouveau); box-shadow: 0 0 0 3px color-mix(in srgb, var(--notif-nouveau) 20%, transparent); }
+.derniere-piece-texte {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left;
+  font-size: 12.5px; color: var(--ink);
+}
+.derniere-piece-texte b { font-weight: 600; }
+.derniere-piece-dossier { color: var(--muted); }
+.derniere-piece-date {
+  font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.derniere-piece.nouvelle .derniere-piece-date { color: var(--notif-nouveau); font-weight: 600; }
+/* En-tête du bloc resserré : un seul titre, la période en petit à côté. */
+#dash-nouveautes .agenda-entete { padding: 10px 14px 8px; align-items: baseline; }
+#dash-nouveautes .agenda-entete > div { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+#dash-nouveautes .agenda-titre { font-size: 15px; }
+#dash-nouveautes .agenda-mois { margin-top: 0; font-size: 12px; }
+#dash-nouveautes .dash-liste-carte { padding: 3px 6px 5px; }
 
 .avancement-dossiers {
   background: var(--paper-card); border: 1px solid var(--line); border-radius: 10px;
@@ -5404,16 +5486,6 @@ button.avancement-ligne:hover { background: var(--paper-sunk); }
   button.avancement-ligne { grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; padding: 11px 8px; }
   .avancement-jauge { grid-column: 1 / -1; grid-row: 2; }
   .avancement-detail { white-space: normal; }
-}
-/* Même raison pour « Dernières pièces trouvées » : à ~300px, la flèche et le libellé tronqué
-   mangeaient le nom de la pièce. Le libellé passe à la ligne, la flèche disparaît (toute la ligne
-   est déjà cliquable). */
-@container dashbloc (max-width: 380px) {
-  .derniere-piece .action-urgente-fleche { display: none; }
-  .derniere-piece-texte b, .derniere-piece-texte .action-urgente-raison { white-space: normal; }
-  .derniere-piece { align-items: flex-start; flex-wrap: wrap; }
-  .derniere-piece-date { flex-basis: 44px; }
-  .derniere-piece .notif-nouveau-tag { margin-left: 54px; }
 }
 @media (max-width: 700px) {
   button.avancement-ligne { grid-template-columns: minmax(0, 1fr) auto; gap: 10px 14px; }
@@ -5761,6 +5833,14 @@ button.lien-action:hover { text-decoration: underline; }
 .rappel-perso-suppr:hover { color: var(--urgent); }
 @media (hover: none) { .rappel-perso-suppr { opacity: 1; } }
 .rappel-perso-ajout { align-self: flex-start; margin-top: 2px; }
+/* Rappel qui parle d'écrire : un email vierge, signature comprise (voir ouvrirEmailRappelPerso). */
+.rappel-perso button.icon-btn.rappel-perso-email { color: var(--focus); font-size: 14px; padding: 2px 4px; flex: none; }
+/* Tâche du jour restée non faite la veille (voir majVeilleJour). */
+.ja-non-faite {
+  display: inline-block; margin-left: 8px; padding: 0 6px; border-radius: 999px; vertical-align: 1px;
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.02em; white-space: nowrap;
+  color: var(--pret); background: color-mix(in srgb, var(--pret) 14%, transparent);
+}
 .rappel-perso-form { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
 .rappel-perso-form-ligne { display: flex; gap: 8px; flex-wrap: wrap; }
 .rappel-perso-form-ligne input[type="date"], .rappel-perso-form-ligne select { flex: 1 1 150px; width: auto; min-width: 0; }
@@ -5808,7 +5888,8 @@ button.lien-action:hover { text-decoration: underline; }
   font-size: 14px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums;
 }
 .jour-anneau-texte small { font-size: 10px; font-weight: 600; color: var(--muted); }
-.jour-anneau.fini .jour-anneau-texte { color: var(--success); font-size: 20px; animation: jour-pop 0.4s ease; }
+.jour-anneau.fini .jour-anneau-texte { color: var(--success); font-size: 20px; }
+.jour-anneau.fini.vient-de-finir .jour-anneau-texte { animation: jour-pop 0.4s ease; }
 @keyframes jour-pop { 0% { transform: scale(0.4); opacity: 0; } 70% { transform: scale(1.15); } 100% { transform: scale(1); opacity: 1; } }
 .jour-progres { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .jour-progres-texte { display: flex; flex-direction: column; gap: 1px; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -5849,7 +5930,10 @@ button.lien-action:hover { text-decoration: underline; }
 .ja-detail-liens .lien-action { font-size: 12.5px; }
 
 /* Ce qui est traité reste dans la liste, coché : la journée se voit avancer. */
-.ja.fait { grid-template-columns: 20px minmax(0, 1fr) auto; animation: ja-fait 0.35s ease; }
+/* Pas d'animation par défaut : la liste est reconstruite à chaque rendu. Seule la ligne qu'on vient
+   de cocher s'anime (vient-de-finir, voir vientDEtreTraitee). */
+.ja.fait { grid-template-columns: 20px minmax(0, 1fr) auto; }
+.ja.fait.vient-de-finir { animation: ja-fait 0.35s ease; }
 .ja.fait:hover { background: none; }
 .ja-coche {
   display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%;
@@ -6094,7 +6178,7 @@ button.lien-action:hover { text-decoration: underline; }
 }
 @media (prefers-reduced-motion: reduce) {
   .jour-anneau-plein, .ja { transition: none; }
-  .jour-anneau.fini .jour-anneau-texte, .ja.fait { animation: none; }
+  .jour-anneau.fini.vient-de-finir .jour-anneau-texte, .ja.fait.vient-de-finir { animation: none; }
 }
 @media print { .jour-overlay { display: none !important; } }
 @media (max-width: 900px) {

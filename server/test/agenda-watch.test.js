@@ -401,3 +401,31 @@ test('rendez-vous de signature : heure et lieu de l’agenda posés, suivis le m
   assert.equal(d.rendezVousSignatureLieu, 'Visio');
   db.close();
 });
+
+test('Rendez-vous retiré de l’agenda : signalé une fois, date conservée, repère levé à son retour', () => {
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  depot.creer({ id: 'd1', nom: 'DUPONT / MARTIN' });
+  const rdv = [{ dossierId: 'd1', reference: 'VTE - DUPONT', rendezVous: true, dateIso: '2099-10-03' }];
+  appliquerDetectionsAgenda(depot, rdv, '2099-09-25');
+  assert.equal(depot.trouverParId('d1').rendezVousSignature, '2099-10-03');
+  // Tour suivant : l'événement n'est plus dans l'agenda.
+  appliquerDetectionsAgenda(depot, [], '2099-09-26');
+  let d = depot.trouverParId('d1');
+  assert.equal(d.rendezVousSignature, '2099-10-03');
+  assert.equal(d.historique.filter(h => /retiré de l’agenda/.test(h.texte)).length, 1);
+  appliquerDetectionsAgenda(depot, [], '2099-09-27');
+  d = depot.trouverParId('d1');
+  assert.equal(d.historique.filter(h => /retiré de l’agenda/.test(h.texte)).length, 1);
+  // Il revient : le repère est levé.
+  appliquerDetectionsAgenda(depot, rdv, '2099-09-28');
+  assert.equal(depot.trouverParId('d1').detectionsAgenda.rendezVousDisparu, undefined);
+});
+
+test('Rendez-vous saisi à la main : jamais signalé comme retiré de l’agenda', () => {
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  depot.creer({ id: 'd1', nom: 'DUPONT / MARTIN', rendezVousSignature: '2099-10-03' });
+  appliquerDetectionsAgenda(depot, [], '2099-09-26');
+  assert.equal((depot.trouverParId('d1').historique || []).length, 0);
+});
