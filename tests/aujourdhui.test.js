@@ -221,3 +221,11 @@ test('Tâches faites ailleurs : cochées avec qui les a faites (CLAIRE, un coll�
   const autrePoste = app.tachesFaitesAilleurs([d1], 'Jérémy SAUJOT', auj, new Set(), new Set());
   assert.match(autrePoste.map(t => t.etat).join(' ; '), /Faite depuis un autre poste/);
 });
+
+test('Tâche faite sur le dossier d’un collègue : il est prévenu, jamais pour son propre geste', () => {
+  const d = { id: 'd1', responsable: 'Julie VASSELIN' };
+  assert.equal(app.doitNotifierTacheFaite(d, 'Jérémy SAUJOT'), true);
+  assert.equal(app.doitNotifierTacheFaite(d, 'Julie VASSELIN'), false);
+  assert.equal(app.doitNotifierTacheFaite(d, ''), false);
+  assert.equal(app.doitNotifierTacheFaite({ id: 'd2' }, 'Jérémy SAUJOT'), false);
+});

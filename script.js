@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 00:40';
+  const VERSION_APP = '2026-09-29 00:42';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 00:42', resume: "Tâche faite par un collègue sur votre dossier (envoi de l'appel de fonds ou du projet, « Déjà fait », email, questionnaire, étape marquée réalisée) : message Teams au responsable du dossier." },
     { version: '2026-09-29 00:40', resume: "« À faire » : une tâche faite ailleurs ne disparaît plus sans trace — elle reste cochée avec qui l'a faite (« Faite par Jérémy », « Faite par CLAIRE (courrier sur le NAS) », « Faite depuis un autre poste ») et compte dans la progression du jour." },
     { version: '2026-09-29 00:24', resume: "La ligne « Envoi appel de fonds » porte le lien vers le courrier (convocation ou décompte) rangé à la racine du dossier NAS : un clic l'ouvre ; « Retrouver le courrier » le cherche s'il n'est pas encore rattaché." },
     { version: '2026-09-29 00:22', resume: "Appel de fonds oublié : quand le courrier (« Convocation au rendez-vous contenant l'appel de fonds », « Décompte acquéreur »…) est à la racine du dossier NAS et que l'envoi n'est pas noté, CLAIRE met la date du jour comme date d'envoi et valide la tâche." },
@@ -11487,6 +11488,7 @@
     d.echeancesValidees = d.echeancesValidees || {};
     d.echeancesValidees[type] = true;
     ajouterHistorique(d, `${libelleEcheancePourHistorique(d, type)} marquée réalisée`);
+    notifierTacheFaite(d, libelleEcheancePourHistorique(d, type), 'marquée réalisée');
     sauvegarder(d);
     render();
     // Condition levée : l'événement posé dans l'agenda n'a plus lieu d'être.
@@ -14558,6 +14560,7 @@
       }
     }
     noterTraite(a, 'Déjà fait', annulation);
+    notifierTacheFaite(dossiers.find(x => x.id === a.dossier.id), a.titre, 'notée faite à la main');
     apercusJour.delete(cle);
     render();
     afficherToast(`Marqué fait — ${a.titre.toLowerCase()}.`, 'Annuler', () => annulerTraiteJour(cle));
@@ -16974,6 +16977,7 @@
     // Préparation impossible : ne rien marquer sur le dossier, l'email n'est pas parti.
     if (!r.ok) { afficherToast(r.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }
     ajouterHistorique(d, modele.historique);
+    notifierTacheFaite(d, (ACTIONS_EMAIL_DOSSIER[type] && ACTIONS_EMAIL_DOSSIER[type].titre) || modele.libelle, notaireParticipantRepresenteAcquereur(d) ? 'email préparé pour le confrère' : 'email préparé pour le client');
     if (modele.date) d[modele.date] = new Date().toISOString().slice(0, 10);
     // Une relance de l'offre faite à la main compte comme la relance du jour : la suivante, manuelle
     // ou automatique, n'est reproposée que 10 jours plus tard (voir relanceOffreDue).
@@ -17144,6 +17148,7 @@
     const pdfTelecharge = r.mode === 'mailto' ? telechargerPdfQuestionnaire() : false;
     d.questionnaireEnvoyeLe = new Date().toISOString().slice(0, 10);
     ajouterHistorique(d, 'Questionnaire de satisfaction envoyé');
+    notifierTacheFaite(d, 'Envoyer le questionnaire de satisfaction', 'dossier archivé');
     d.archive = true;
     ajouterHistorique(d, 'Dossier archivé automatiquement (questionnaire de satisfaction envoyé)');
     sauvegarder(d);
@@ -20982,6 +20987,23 @@
         libelle, date: nouvelleDate, ancienneDate: ancienneDate || ''
       })
     }).catch(e => console.warn('Notification « date ajoutée » impossible :', e.message));
+  }
+
+  // Une tâche faite sur le dossier d'un collègue : il est prévenu sur Teams (demandé par l'étude le
+  // 29/09, « comme pour la date du rendez-vous de signature »). Les dates d'envoi saisies passent
+  // déjà par notifierDateAjoutee (le serveur dit alors « a envoyé l'appel de fonds ») ; celle-ci
+  // couvre les autres gestes : « Déjà fait », emails, questionnaire, « Marquer réalisée ».
+  function doitNotifierTacheFaite(d, auteur) {
+    return !!(d && d.responsable && auteur && auteur !== d.responsable);
+  }
+
+  function notifierTacheFaite(d, tache, detail) {
+    if (!doitNotifierTacheFaite(d, utilisateurPoste)) return;
+    fetchAvecAuth('/api/notifications/tache-faite', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ dossierNom: libelleDossierAffiche(d), responsable: d.responsable, auteur: utilisateurPoste, tache, detail: detail || '' })
+    }).catch(e => console.warn('Notification « tâche faite » impossible :', e.message));
   }
 
   function signalerSiDossierDevenuComplet(d) {

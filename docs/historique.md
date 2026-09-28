@@ -11559,3 +11559,19 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
   (anneau, compteur, célébration de fin de journée) ; rien n'est écrit sur le poste.
   Attention : ces motifs suivent les textes d'historique ; renommer un de ces textes demande de
   mettre `TACHES_JOUR_PAR_TYPE` à jour.
+
+- **29/09/2026 — Teams : tâche faite par un collègue** (demandé par l'étude : « si une tâche est
+  faite par un autre collaborateur, le prévenir comme pour la date du rendez-vous de signature ;
+  je pense à l'envoi du projet et de l'appel de fonds »). Le responsable du dossier est prévenu dès
+  qu'un AUTRE collaborateur (utilisateurPoste ≠ d.responsable, `doitNotifierTacheFaite`) :
+  - saisit une date d'envoi de l'appel de fonds ou du projet (ou clique « Marquer envoyé ») — c'était
+    déjà notifié par `/notifications/date-ajoutee`, le message dit maintenant « ✅ Jérémy a envoyé
+    l'appel de fonds du dossier VTE - … (le 5 octobre 2026). La tâche est faite. » au lieu de « a
+    ajouté une date » (`ENVOIS_PAR_LIBELLE`, une correction de date reste « a modifié une date ») ;
+  - coche « Déjà fait » dans « À faire », prépare un email au client ou au confrère
+    (`envoyerRelanceCiblee`), le questionnaire de satisfaction, ou marque une étape réalisée
+    (`validerEcheance`) → nouvelle route `POST /api/notifications/tache-faite`
+    (`texteTacheFaite` : « ✅ Jérémy a fait une tâche de votre dossier VTE - … : Envoyer l'appel de
+    fonds (notée faite à la main) »). Jamais pour son propre geste (refusé aussi côté serveur),
+    même envoi que les autres messages (responsable, copie à l'étude sauf si c'est l'auteur).
+  Rien pour ce que CLAIRE fait seule (NAS, agenda) : ce n'est pas un collègue.

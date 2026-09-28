@@ -145,6 +145,33 @@ test('texteDateAjoutee : ajout et modification, date en toutes lettres', () => {
     /a modifié une date du dossier DUPONT \/ MARTIN : Obtention du prêt passe du 1 octobre 2026 au 2 novembre 2026\./);
 });
 
+test('texteDateAjoutee : une date d’envoi saisie se dit « a envoyé l’appel de fonds / le projet »', () => {
+  const { texteDateAjoutee } = require('../src/routes/notifications');
+  assert.match(texteDateAjoutee('VTE - DUPONT / MARTIN', 'Jérémy SAUJOT', 'Envoi appel de fonds', '2026-10-05', ''),
+    /Jérémy SAUJOT a envoyé l’appel de fonds du dossier VTE - DUPONT \/ MARTIN \(le 5 octobre 2026\)\. La tâche est faite\./);
+  assert.match(texteDateAjoutee('VTE - X', 'Julie VASSELIN', 'Envoi projet', '2026-10-06', ''), /a envoyé le projet d’acte/);
+  // Une correction de date reste dite comme telle.
+  assert.match(texteDateAjoutee('VTE - X', 'Julie VASSELIN', 'Envoi projet', '2026-10-06', '2026-10-05'), /a modifié une date/);
+});
+
+test('POST /api/notifications/tache-faite : prévient le responsable d’une tâche faite par un collègue', async () => {
+  envois.length = 0;
+  await appeler('/api/reglages', {
+    method: 'PUT',
+    body: JSON.stringify({ emailActif: true, smtpHote: 'smtp.test', emailPasserelle: 'passerelle@etude.fr', copieEmail: '', emailsResponsables: { 'Julie VASSELIN': 'julie@etude.fr', 'Jérémy SAUJOT': 'jeremy@etude.fr' } })
+  });
+  let reponse = await appeler('/api/notifications/tache-faite', { method: 'POST', body: JSON.stringify({ dossierNom: 'VTE - DUPONT / MARTIN', responsable: 'Julie VASSELIN', auteur: 'Jérémy SAUJOT', tache: 'Envoyer l’appel de fonds', detail: 'notée faite à la main' }) });
+  assert.equal((await reponse.json()).envoyeResponsable, true);
+  assert.deepEqual(envois.map((e) => e.destinataire), ['julie@etude.fr']);
+  assert.equal(envois[0].texte, '✅ CLAIRE — Jérémy SAUJOT a fait une tâche de votre dossier VTE - DUPONT / MARTIN : Envoyer l’appel de fonds (notée faite à la main).');
+  envois.length = 0;
+  reponse = await appeler('/api/notifications/tache-faite', { method: 'POST', body: JSON.stringify({ dossierNom: 'VTE - X', responsable: 'Julie VASSELIN', auteur: 'Julie VASSELIN', tache: 'Envoyer le projet d’acte' }) });
+  assert.deepEqual(await reponse.json(), { ok: true, ignore: true });
+  assert.equal(envois.length, 0);
+  reponse = await appeler('/api/notifications/tache-faite', { method: 'POST', body: JSON.stringify({ dossierNom: 'VTE - X', responsable: 'Julie VASSELIN', auteur: 'Jérémy SAUJOT' }) });
+  assert.equal(reponse.status, 400);
+});
+
 test('POST /api/notifications/date-ajoutee : prévient le responsable, sans copie à l\'auteur', async () => {
   envois.length = 0;
   await appeler('/api/reglages', {

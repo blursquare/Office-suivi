@@ -74,8 +74,15 @@ function dateLongueFr(iso) {
   return `${parseInt(m[3], 10)} ${MOIS_FR[parseInt(m[2], 10) - 1] || m[2]} ${m[1]}`;
 }
 
+// Une date d'envoi saisie vaut envoi fait : le message dit le geste, pas « une date ajoutée ».
+const ENVOIS_PAR_LIBELLE = { 'Envoi appel de fonds': 'l’appel de fonds', 'Envoi projet': 'le projet d’acte' };
+
 function texteDateAjoutee(dossierNom, auteur, libelle, date, ancienneDate) {
   const qui = auteur || 'Un collaborateur';
+  const envoi = ENVOIS_PAR_LIBELLE[libelle];
+  if (envoi && !ancienneDate) {
+    return `✅ CLAIRE — ${qui} a envoyé ${envoi} du dossier ${dossierNom} (le ${dateLongueFr(date)}). La tâche est faite.`;
+  }
   if (ancienneDate) {
     return `📅 CLAIRE — ${qui} a modifié une date du dossier ${dossierNom} : ${libelle} passe du ${dateLongueFr(ancienneDate)} au ${dateLongueFr(date)}.`;
   }
@@ -126,6 +133,13 @@ async function envoyerAuResponsable(parametresRepo, envoyer, reglages, responsab
     mettreCopiesEnAttente(parametresRepo, reglages, messagesEnvoyes);
   }
   return resultat;
+}
+
+// Une tâche d'un dossier faite par un autre collaborateur que son responsable (demandé par
+// l'étude le 29/09 : « le prévenir comme pour la date du rendez-vous de signature »).
+function texteTacheFaite(dossierNom, auteur, tache, detail) {
+  const qui = auteur || 'Un collaborateur';
+  return `✅ CLAIRE — ${qui} a fait une tâche de votre dossier ${dossierNom} : ${tache}${detail ? ` (${detail})` : ''}.`;
 }
 
 function creerRouteurNotifications(parametresRepo, envoyerFn, options = {}) {
@@ -193,7 +207,25 @@ function creerRouteurNotifications(parametresRepo, envoyerFn, options = {}) {
     res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, responsable, message, { sansCopiePour }));
   });
 
+  router.post('/notifications/tache-faite', async (req, res) => {
+    const corps = req.body || {};
+    const texteChamp = (v) => (typeof v === 'string' ? v.trim().slice(0, 300) : '');
+    const dossierNom = texteChamp(corps.dossierNom);
+    const responsable = texteChamp(corps.responsable);
+    const auteur = texteChamp(corps.auteur);
+    const tache = texteChamp(corps.tache);
+    if (!dossierNom || !tache) return res.status(400).json({ erreur: 'dossierNom ou tache manquant.' });
+    if (!responsable) return res.status(400).json({ erreur: 'responsable manquant.' });
+    // Jamais prévenir quelqu'un de son propre geste (le client filtre déjà ce cas).
+    if (!auteur || auteur === responsable) return res.json({ ok: true, ignore: true });
+    const reglages = parametresRepo.lireReglages();
+    if (!envoiConfigure(reglages)) return res.json({ ok: true, ignore: true });
+    const message = texteTacheFaite(dossierNom, auteur, tache, texteChamp(corps.detail));
+    const sansCopiePour = reglages.emailsResponsables[auteur] || null;
+    res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, responsable, message, { sansCopiePour }));
+  });
+
   return router;
 }
 
-module.exports = { creerRouteurNotifications, texteNotificationPieces, htmlNotificationPieces, texteDossierComplet, texteDateAjoutee };
+module.exports = { creerRouteurNotifications, texteNotificationPieces, htmlNotificationPieces, texteDossierComplet, texteDateAjoutee, texteTacheFaite };
