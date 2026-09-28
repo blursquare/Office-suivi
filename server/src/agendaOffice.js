@@ -199,6 +199,49 @@ function detecteProjetEnvoye(texte) {
   return matchNonNie(RE_PROJET_ENVOYE, t) || matchNonNie(RE_ENVOI_PROJET, t);
 }
 
+// Écriture dans l'agenda (voir routes/exchange.js, POST /exchange/rendez-vous/lieu) : l'INVERSE de la
+// détection ci-dessus. Compose le nouveau LIEU d'un rendez-vous à partir de son lieu actuel, en
+// garantissant que la mention d'envoi (« Appel de fonds envoyé », « Appel de fonds et projet
+// envoyé ») y figure — SANS la dupliquer et SANS toucher au reste (les initiales du collaborateur,
+// une note de visioconférence…). Une mention déjà présente (tapée à la main par l'étude, ou écrite
+// par un push précédent) est d'abord retirée puis réécrite dans sa forme canonique à jour. Fonction
+// pure, testable, jamais d'appel réseau.
+const MENTION_APPEL_SEUL = 'Appel de fonds envoyé';
+const MENTION_APPEL_PROJET = 'Appel de fonds et projet envoyé';
+const MENTION_PROJET_SEUL = 'Projet envoyé';
+const RE_MENTION_APPEL = new RegExp(String.raw`appel\s+de\s+fonds(?:\s+et\s+projet(?:\s+d['’]acte)?)?\s+` + ENVOYE, 'ig');
+const RE_MENTION_ENVOI_APPEL = /envoi\s+(?:de\s+l['’]\s*|d['’]\s*|de\s+)?appel\s+de\s+fonds/ig;
+const RE_MENTION_PROJET = new RegExp(String.raw`projet(?:\s+d['’]acte)?\s+` + ENVOYE, 'ig');
+
+function composerLieuAgenda(lieuExistant, etat) {
+  const e = etat || {};
+  // Retirer toute mention d'envoi déjà présente (à la main ou d'un push précédent), pour la réécrire
+  // à jour sans doublon. « appel de fonds [et projet] envoyé » d'abord (englobe la forme combinée),
+  // puis un « projet envoyé » resté seul, puis « envoi de l'appel de fonds ».
+  let base = String(lieuExistant || '')
+    .replace(RE_MENTION_APPEL, '')
+    .replace(RE_MENTION_ENVOI_APPEL, '')
+    .replace(RE_MENTION_PROJET, '');
+  // Nettoyer les séparateurs devenus orphelins après le retrait (doublés, ou en tête/fin, espaces
+  // doubles) — les INITIALES du collaborateur et le reste du lieu (note de visio…) sont préservés.
+  base = base
+    .replace(/\s*[—–-]\s*[—–-]\s*/g, ' - ')
+    .replace(/^[\s—–:,-]+/, '')
+    .replace(/[\s—–:,-]+$/, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  const mention = (e.appelFonds && e.projet) ? MENTION_APPEL_PROJET
+    : e.appelFonds ? MENTION_APPEL_SEUL
+      : e.projet ? MENTION_PROJET_SEUL
+        : '';
+  if (!mention) return base;
+  // La mention est ajoutée APRÈS le contenu existant (les initiales « AL - … »), avec le même
+  // séparateur « - » que la convention de l'étude. Le code couleur du rendez-vous (catégorie
+  // Outlook : vert = office, violet = visio, orange = confrère) n'est jamais touché : la mise à jour
+  // ne modifie que le champ Lieu, jamais la catégorie/couleur (voir corpsUpdateLieu).
+  return base ? base + ' - ' + mention : mention;
+}
+
 // Le LIEU d'abord (c'est là que l'étude note le déclencheur), puis le titre et la description.
 function detecterActionsEvenement(evenement) {
   const texte = [evenement.location, evenement.summary, evenement.description]
@@ -338,5 +381,5 @@ module.exports = {
   deplierLignesIcs, decoderTexteIcs, parseIcsEvenements, dateDepuisDtstart,
   extraireReferenceVte, referenceDossierEvenement, detecteAppelDeFonds, detecteProjetEnvoye,
   detecterActionsEvenement, dossierPourReferenceAgenda, actionsDetecteesDepuisIcs, motsVoisins,
-  estRendezVousSignature, heureDepuisDtstart
+  estRendezVousSignature, heureDepuisDtstart, composerLieuAgenda
 };

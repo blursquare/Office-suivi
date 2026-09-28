@@ -16,7 +16,11 @@
 'use strict';
 
 const express = require('express');
-const { testerConnexionExchange, creerRendezVousExchange, creerBrouillonExchange } = require('../exchange/ews');
+const {
+  testerConnexionExchange, creerRendezVousExchange, creerBrouillonExchange,
+  fenetreJourneeParis, trouverRendezVousExchange, mettreAJourLieuExchange
+} = require('../exchange/ews');
+const { extraireReferenceVte, dossierPourReferenceAgenda, composerLieuAgenda } = require('../agendaOffice');
 const { URL_EWS_DEFAUT } = require('../parametresRepo');
 
 // Garde-fou de taille : un brouillon avec pièce(s) jointe(s) reste modeste (un .docx d'appel de
@@ -153,6 +157,69 @@ function creerRouteurExchange(parametresRepo) {
       brouillon: { destinataire, sujet, corps: String(b.corps || ''), pieces }
     });
     res.json({ ok: !!resultat.ok, message: resultat.message });
+  });
+
+  // Note dans le LIEU d'un rendez-vous EXISTANT de l'agenda qu'un envoi vient d'être fait
+  // (« Appel de fonds envoyé », « Appel de fonds et projet envoyé ») — demandé par l'étude : quand
+  // elle marque l'appel de fonds fait dans CLAIRE, la mention doit apparaître dans l'agenda partagé,
+  // à côté des initiales du collaborateur. Deux temps : FindItem sur la journée du rendez-vous, puis
+  // UpdateItem sur le seul champ Location de l'événement rapproché. Le rapprochement se fait par la
+  // référence « VTE - … » du titre, avec les fonctions déjà éprouvées d'agendaOffice.js (mêmes
+  // tolérances que la lecture du flux .ics). Aucun rendez-vous n'est CRÉÉ ici : on ne modifie qu'un
+  // événement déjà présent, et on ne touche jamais à autre chose que son lieu.
+  routeur.post('/exchange/rendez-vous/lieu', async (req, res) => {
+    const reglages = parametresRepo.lireReglagesExchange();
+    if (!reglages.actif) {
+      return res.status(400).json({ ok: false, message: "La connexion à l'agenda n'est pas activée dans les Réglages." });
+    }
+    if (!reglages.email || !reglages.motDePasse) {
+      return res.status(400).json({ ok: false, message: "Identifiants de messagerie manquants dans les Réglages." });
+    }
+    const b = req.body || {};
+    const date = String(b.date || '').trim();
+    const reference = String(b.reference || '').trim();
+    const etat = { appelFonds: !!b.appelFonds, projet: !!b.projet };
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ ok: false, message: 'Date du rendez-vous invalide.' });
+    }
+    if (!reference) {
+      return res.status(400).json({ ok: false, message: 'Nom du dossier manquant.' });
+    }
+    if (!etat.appelFonds && !etat.projet) {
+      return res.status(400).json({ ok: false, message: "Rien à noter dans l'agenda." });
+    }
+    const { debutUtc, finUtc } = fenetreJourneeParis(date);
+    const trouve = await trouverRendezVousExchange({
+      url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse, debutUtc, finUtc
+    });
+    if (!trouve.ok) {
+      return res.json({ ok: false, message: trouve.message });
+    }
+    // Rapprochement par la référence « VTE - … » : on ne garde que les rendez-vous du bon dossier.
+    // dossierPourReferenceAgenda renvoie le dossier si un nom significatif est commun (avec ses
+    // tolérances) — appelé avec une liste d'un seul dossier, il sert ici de simple test de
+    // correspondance.
+    const candidats = (trouve.evenements || []).filter((evt) => {
+      const ref = extraireReferenceVte(evt.subject);
+      return ref && dossierPourReferenceAgenda(ref, [{ id: 'x', nom: reference }]);
+    });
+    if (candidats.length === 0) {
+      return res.json({ ok: false, message: "Aucun rendez-vous de ce dossier trouvé dans l'agenda à cette date — notez-le à la main dans Outlook." });
+    }
+    if (candidats.length > 1) {
+      // Ne jamais deviner : deux rendez-vous du même dossier le même jour, aucun modifié.
+      return res.json({ ok: false, message: 'Plusieurs rendez-vous correspondent à cette date : aucun modifié, notez-le à la main dans Outlook.' });
+    }
+    const evt = candidats[0];
+    const nouveauLieu = composerLieuAgenda(evt.location, etat);
+    if (nouveauLieu === (evt.location || '')) {
+      return res.json({ ok: true, message: 'Le rendez-vous portait déjà cette mention dans l\'agenda.' });
+    }
+    const maj = await mettreAJourLieuExchange({
+      url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse,
+      itemId: evt.itemId, changeKey: evt.changeKey, lieu: nouveauLieu
+    });
+    res.json({ ok: !!maj.ok, message: maj.ok ? ('Agenda mis à jour : « ' + nouveauLieu + ' ».') : maj.message });
   });
 
   return routeur;

@@ -12,7 +12,7 @@ const assert = require('node:assert/strict');
 const {
   deplierLignesIcs, decoderTexteIcs, parseIcsEvenements, dateDepuisDtstart,
   extraireReferenceVte, referenceDossierEvenement, detecteAppelDeFonds, detecteProjetEnvoye,
-  detecterActionsEvenement, dossierPourReferenceAgenda, actionsDetecteesDepuisIcs
+  detecterActionsEvenement, dossierPourReferenceAgenda, actionsDetecteesDepuisIcs, composerLieuAgenda
 } = require('../src/agendaOffice');
 
 test('deplierLignesIcs recolle une ligne repliee (RFC 5545) sans en perdre le contenu', () => {
@@ -317,4 +317,31 @@ test('heureDepuisDtstart : heure locale, conversion depuis UTC, rien pour une jo
   assert.equal(heureDepuisDtstart('20260930T120000Z'), '14:00'); // heure d'été
   assert.equal(heureDepuisDtstart('20261215T093000Z'), '10:30'); // heure d'hiver
   assert.equal(heureDepuisDtstart('20260930'), null);
+});
+
+// --- Écriture dans le lieu du rendez-vous (composerLieuAgenda, l'inverse de la détection) ---
+
+test('composerLieuAgenda : ajoute la mention APRÈS les initiales, sans les toucher', () => {
+  assert.equal(composerLieuAgenda('AL - ', { appelFonds: true }), 'AL - Appel de fonds envoyé');
+  assert.equal(composerLieuAgenda('AL', { appelFonds: true }), 'AL - Appel de fonds envoyé');
+  assert.equal(composerLieuAgenda('AL - visio', { appelFonds: true }), 'AL - visio - Appel de fonds envoyé');
+});
+
+test('composerLieuAgenda : appel de fonds + projet → mention combinée', () => {
+  assert.equal(composerLieuAgenda('AL', { appelFonds: true, projet: true }), 'AL - Appel de fonds et projet envoyé');
+  assert.equal(composerLieuAgenda('AL', { projet: true }), 'AL - Projet envoyé');
+});
+
+test('composerLieuAgenda : ne duplique pas une mention déjà présente, la met à jour', () => {
+  // Une mention « appel de fonds envoyé » déjà là (à la main ou d'un push précédent) est remplacée.
+  assert.equal(composerLieuAgenda('AL - Appel de fonds envoyé', { appelFonds: true }), 'AL - Appel de fonds envoyé');
+  // Passage de « appel de fonds » seul à « appel de fonds et projet ».
+  assert.equal(composerLieuAgenda('AL - Appel de fonds envoyé', { appelFonds: true, projet: true }), 'AL - Appel de fonds et projet envoyé');
+  // Forme combinée déjà présente, réécrite à l'identique.
+  assert.equal(composerLieuAgenda('AL - Appel de fonds et projet envoyé', { appelFonds: true, projet: true }), 'AL - Appel de fonds et projet envoyé');
+});
+
+test('composerLieuAgenda : lieu vide → mention seule ; rien à noter → lieu inchangé nettoyé', () => {
+  assert.equal(composerLieuAgenda('', { appelFonds: true }), 'Appel de fonds envoyé');
+  assert.equal(composerLieuAgenda('AL - visio', {}), 'AL - visio');
 });

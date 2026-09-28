@@ -8642,6 +8642,67 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     cliquant l'un des deux boutons puis en vérifiant l'apparition du brouillon, PIÈCE JOINTE
     COMPRISE, dans les Brouillons d'Outlook. Même réserve que la brique 1, et si l'écriture échoue
     malgré des identifiants certains : soupçonner l'Extended Protection (non gérée par `httpntlm`).
+- **Noter l'envoi dans le rendez-vous EXISTANT de l'agenda** (« quand je marque l'appel de fonds
+  fait, CLAIRE l'écrit dans le champ adresse à côté des initiales du dossier », demandé par l'étude).
+  C'est la première écriture qui MODIFIE un événement déjà présent — la brique 1 ne savait que CRÉER
+  un rendez-vous, il n'y avait aucun `UpdateItem` (voir la réponse « non » donnée à l'étude avant ce
+  chantier). Deux précisions de l'étude, toutes deux respectées : la mention va **après « INITIALES -
+   »** dans le champ Lieu, et le **code couleur** du rendez-vous (catégorie Outlook : vert = office,
+  violet = visio, orange = confrère) doit être préservé.
+  - **Deux opérations EWS, dans la route `POST /api/exchange/rendez-vous/lieu`** (`server/src/routes/
+    exchange.js`) : d'abord `FindItem`/`CalendarView` sur la journée du rendez-vous
+    (`corpsFindRendezVous`/`trouverRendezVousExchange`, `ews.js`) pour obtenir l'`ItemId` +
+    `ChangeKey` de l'événement, puis `UpdateItem`/`SetItemField` sur le **seul** champ
+    `calendar:Location` (`corpsUpdateLieu`/`mettreAJourLieuExchange`). Un seul `SetItemField`, jamais
+    `Categories`/couleur : **le code couleur est donc préservé par construction** (vérifié par test :
+    `corpsUpdateLieu` ne contient ni `Categories` ni `calendar:Color`). Mêmes règles que le reste du
+    fichier (mot de passe jamais journalisé/renvoyé, un seul essai par opération, aucun réessai
+    automatique). `fenetreJourneeParis(dateIso)` borne la `CalendarView` au jour civil de Paris en
+    UTC (réutilise `instantUtcDepuisParis`, gère l'heure d'été/hiver).
+  - **Rapprochement au bon rendez-vous par la référence « VTE - … » du titre**, avec les fonctions
+    déjà éprouvées d'`agendaOffice.js` (`extraireReferenceVte` + `dossierPourReferenceAgenda` appelée
+    sur une liste d'un seul dossier = test de correspondance, mêmes tolérances que la lecture du flux
+    `.ics`). **Ne jamais deviner** : zéro rendez-vous trouvé → message clair, rien écrit ; plusieurs
+    correspondances le même jour → aucun modifié, l'étude le note à la main. Aucun rendez-vous n'est
+    CRÉÉ par cette route, elle ne modifie qu'un événement déjà là.
+  - **`composerLieuAgenda(lieuExistant, etat)`** (`agendaOffice.js`, pure, testable) est l'INVERSE de
+    la détection « appel de fonds envoyé » du flux `.ics` : elle retire une mention d'envoi déjà
+    présente (tapée à la main ou d'un push précédent) puis réécrit la mention canonique à jour APRÈS
+    le contenu existant, avec le séparateur « - » de la convention de l'étude — les initiales du
+    collaborateur et le reste (note de visio…) sont préservés, jamais de doublon. Mention selon
+    l'état : « Appel de fonds envoyé », « Appel de fonds et projet envoyé », « Projet envoyé ». Si le
+    lieu porte déjà la bonne mention, la route ne fait aucun appel `UpdateItem` (« portait déjà cette
+    mention »).
+  - **Côté client** : bouton « Noter dans l'agenda : <mention> » (`renderNoterAgenda`/
+    `noterEnvoiDansAgenda`, dans la carte « Envoi au client » de la fiche), affiché seulement quand la
+    connexion Exchange est prête (`exchangeAgendaPret`), qu'un rendez-vous de signature est renseigné
+    (il faut une date pour retrouver l'événement) et qu'au moins un des deux envois est fait
+    (`echeanceValidee`). Le libellé reflète l'état courant : si le projet part plus tard, un nouveau
+    clic met la mention à jour (le serveur remplace l'ancienne sans doublon). Sur succès :
+    `d.agendaLieuNoteLe` (conservé à l'import comme `rdvAgendaCreeLe`), entrée d'historique, et une
+    puce « Noté dans l'agenda le … » à côté du bouton. **Choix assumé** : un bouton explicite plutôt
+    qu'une écriture automatique au moment où la date d'appel de fonds est saisie — écrire dans un
+    agenda partagé que des collègues lisent doit être un geste visible, et un échec (rendez-vous
+    introuvable, Exchange injoignable) doit se voir par un toast plutôt que d'échouer en silence.
+  - Tests : `server/test/ews.test.js` (+10 : `fenetreJourneeParis` heure d'été, `corpsFindRendezVous`
+    en lecture seule, `parseFindRendezVous` avec entités dés-échappées et item sans id ignoré,
+    `desechapperXml`, `corpsUpdateLieu` un seul SetItemField sans Categories/couleur,
+    `interpreterReponseUpdate`, `trouverRendezVousExchange` succès/401, `mettreAJourLieuExchange` —
+    mot de passe jamais dans le résultat partout), `server/test/agenda-office.test.js` (+4 :
+    `composerLieuAgenda` — après les initiales, forme combinée, pas de doublon/mise à jour, lieu
+    vide), `server/test/exchange-route.test.js` (+2 : refus si connexion inactive, validation
+    date/référence/contenu avant tout appel réseau). Suite serveur 413 → 429, racine inchangée (853).
+  - **Vérifié dans un vrai Chromium** (serveur réel, appel EWS intercepté pour simuler un succès,
+    Exchange non joignable ici) : le bouton n'apparaît PAS sur un dossier sans envoi fait, apparaît
+    avec le libellé « Noter dans l'agenda : Appel de fonds envoyé » sur un dossier dont l'appel de
+    fonds est validé, le clic poste bien `{date, reference, appelFonds:true, projet:false}`, le toast
+    de succès s'affiche, et la puce « Noté dans l'agenda le … » apparaît après ; aucune erreur JS.
+  - **Non vérifié en conditions réelles** : l'écriture EWS elle-même (FindItem + UpdateItem) n'a PAS
+    pu être testée ici (Exchange joignable uniquement au bureau) — à valider par l'étude en marquant
+    un appel de fonds fait sur un dossier dont le rendez-vous est déjà dans l'agenda, en cliquant
+    « Noter dans l'agenda », puis en vérifiant dans Outlook que le lieu du rendez-vous porte la
+    mention après les initiales ET que sa couleur n'a pas changé. Même réserve que les briques 1 et 2
+    (Extended Protection si l'écriture échoue malgré des identifiants certains).
 
 ## Comment tester
 

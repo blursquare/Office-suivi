@@ -116,3 +116,29 @@ test('POST /api/exchange/brouillon : refusé tant que la connexion n\'est pas ac
   const corps = await r.json();
   assert.match(corps.message, /pas activée/i);
 });
+
+test('POST /api/exchange/rendez-vous/lieu : refusé tant que la connexion n\'est pas activée', async () => {
+  await appeler('/api/exchange/reglages', { method: 'PUT', body: JSON.stringify({ actif: false, email: 'n@e.fr', motDePasse: '' }) });
+  const r = await appeler('/api/exchange/rendez-vous/lieu', {
+    method: 'POST', body: JSON.stringify({ date: '2026-10-14', reference: 'DUPONT', appelFonds: true })
+  });
+  assert.equal(r.status, 400);
+  assert.match((await r.json()).message, /pas activée/i);
+});
+
+test('POST /api/exchange/rendez-vous/lieu : date, référence et contenu validés avant tout appel réseau', async () => {
+  // Activer avec des identifiants : le réseau ne sera pas atteint, la validation échoue avant.
+  await appeler('/api/exchange/reglages', { method: 'PUT', body: JSON.stringify({ actif: true, email: 'notaire@gossart.notaires.fr', motDePasse: 'SECRET123' }) });
+  const dateInvalide = await (await appeler('/api/exchange/rendez-vous/lieu', {
+    method: 'POST', body: JSON.stringify({ date: '14/10/2026', reference: 'DUPONT', appelFonds: true })
+  })).json();
+  assert.match(dateInvalide.message, /[Dd]ate/);
+  const sansReference = await (await appeler('/api/exchange/rendez-vous/lieu', {
+    method: 'POST', body: JSON.stringify({ date: '2026-10-14', reference: '', appelFonds: true })
+  })).json();
+  assert.match(sansReference.message, /dossier/i);
+  const rienANoter = await (await appeler('/api/exchange/rendez-vous/lieu', {
+    method: 'POST', body: JSON.stringify({ date: '2026-10-14', reference: 'DUPONT', appelFonds: false, projet: false })
+  })).json();
+  assert.match(rienANoter.message, /[Rr]ien/);
+});

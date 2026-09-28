@@ -221,6 +221,191 @@ function creerRendezVousExchange({ url, email, motDePasse, rendezVous, delaiMs =
   });
 }
 
+// --- Noter dans un rendez-vous EXISTANT (FindItem pour le retrouver, UpdateItem pour son lieu) ---
+//
+// Sert à écrire « Appel de fonds envoyé » dans le LIEU du rendez-vous de signature, à la demande de
+// l'étude (voir routes/exchange.js, POST /exchange/rendez-vous/lieu). Deux opérations EWS : d'abord
+// FindItem (CalendarView sur la journée du rendez-vous) pour obtenir l'ItemId + ChangeKey de
+// l'événement, puis UpdateItem/SetItemField sur calendar:Location. Chacune est un seul essai, sans
+// réessai automatique — mêmes règles que le reste de ce fichier (mot de passe jamais journalisé ni
+// renvoyé). Le rapprochement de l'événement au dossier (par la référence « VTE - … » du titre) se
+// fait dans la route, avec les fonctions déjà écrites d'agendaOffice.js : ces fonctions-ci ne font
+// que le transport et l'analyse XML.
+
+function desechapperXml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&'); // &amp; en dernier pour ne pas re-décoder une entité déjà décodée
+}
+
+// Jour civil de Paris [00:00, lendemain 00:00[ en instants UTC (chaînes EWS), pour une CalendarView
+// couvrant tout le rendez-vous quel que soit son horaire. Réutilise instantUtcDepuisParis (gère
+// l'heure d'été/hiver), donc indépendant du fuseau du serveur.
+function dateSuivanteIso(dateIso) {
+  const [Y, M, D] = String(dateIso).split('-').map(Number);
+  const d = new Date(Date.UTC(Y, (M || 1) - 1, D || 1));
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+function fenetreJourneeParis(dateIso) {
+  return {
+    debutUtc: formatEwsUtc(instantUtcDepuisParis(dateIso, '00:00')),
+    finUtc: formatEwsUtc(instantUtcDepuisParis(dateSuivanteIso(dateIso), '00:00'))
+  };
+}
+
+// FindItem sur le dossier « Calendrier », vue calendrier bornée à la journée — renvoie l'ItemId,
+// le ChangeKey, le sujet et le lieu de chaque rendez-vous, de quoi retrouver le bon et le mettre à
+// jour ensuite. IdOnly + AdditionalProperties : on ne rapatrie que ce qu'il faut.
+function corpsFindRendezVous({ debutUtc, finUtc }) {
+  return '<?xml version="1.0" encoding="utf-8"?>'
+    + '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"'
+    + ' xmlns:t="http://schemas.microsoft.com/exchange/services/2006/types"'
+    + ' xmlns:m="http://schemas.microsoft.com/exchange/services/2006/messages">'
+    + '<soap:Header><t:RequestServerVersion Version="Exchange2013"/></soap:Header>'
+    + '<soap:Body><m:FindItem Traversal="Shallow">'
+    + '<m:ItemShape><t:BaseShape>IdOnly</t:BaseShape>'
+    + '<t:AdditionalProperties>'
+    + '<t:FieldURI FieldURI="item:Subject"/>'
+    + '<t:FieldURI FieldURI="calendar:Location"/>'
+    + '</t:AdditionalProperties></m:ItemShape>'
+    + '<m:CalendarView StartDate="' + debutUtc + '" EndDate="' + finUtc + '"/>'
+    + '<m:ParentFolderIds><t:DistinguishedFolderId Id="calendar"/></m:ParentFolderIds>'
+    + '</m:FindItem></soap:Body></soap:Envelope>';
+}
+
+// Analyse la réponse d'un FindItem. Fonction PURE, testable sans réseau. L'attribut ItemId est
+// auto-fermant (<t:ItemId Id="…" ChangeKey="…"/>) ; sujet et lieu sont dés-échappés. Un événement
+// sans Id ou ChangeKey exploitable est ignoré (on ne pourrait pas le mettre à jour).
+function parseFindRendezVous(corps) {
+  const texte = String(corps || '');
+  const evenements = [];
+  const re = /<t:CalendarItem\b[\s\S]*?<\/t:CalendarItem>/g;
+  let m;
+  while ((m = re.exec(texte)) !== null) {
+    const bloc = m[0];
+    const idTag = (bloc.match(/<t:ItemId\b[^>]*>/) || [])[0] || '';
+    const itemId = (idTag.match(/\bId="([^"]+)"/) || [])[1] || '';
+    const changeKey = (idTag.match(/\bChangeKey="([^"]+)"/) || [])[1] || '';
+    if (!itemId || !changeKey) continue;
+    const subject = desechapperXml((bloc.match(/<t:Subject>([\s\S]*?)<\/t:Subject>/) || [])[1] || '');
+    const location = desechapperXml((bloc.match(/<t:Location>([\s\S]*?)<\/t:Location>/) || [])[1] || '');
+    evenements.push({ itemId, changeKey, subject, location });
+  }
+  return evenements;
+}
+
+// UpdateItem/SetItemField sur le seul champ calendar:Location. SendMeetingInvitationsOrCancellations
+// ="SendToNone" : l'événement n'a aucun participant, aucune mise à jour n'est diffusée. Le wrapper
+// <t:CalendarItem> autour de <t:Location> est requis par le schéma EWS d'un SetItemField.
+function corpsUpdateLieu({ itemId, changeKey, lieu }) {
+  return '<?xml version="1.0" encoding="utf-8"?>'
+    + '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"'
+    + ' xmlns:t="http://schemas.microsoft.com/exchange/services/2006/types"'
+    + ' xmlns:m="http://schemas.microsoft.com/exchange/services/2006/messages">'
+    + '<soap:Header><t:RequestServerVersion Version="Exchange2013"/></soap:Header>'
+    + '<soap:Body>'
+    + '<m:UpdateItem ConflictResolution="AutoResolve" SendMeetingInvitationsOrCancellations="SendToNone">'
+    + '<m:ItemChanges><t:ItemChange>'
+    + '<t:ItemId Id="' + echapperXml(itemId) + '" ChangeKey="' + echapperXml(changeKey) + '"/>'
+    + '<t:Updates><t:SetItemField>'
+    + '<t:FieldURI FieldURI="calendar:Location"/>'
+    + '<t:CalendarItem><t:Location>' + echapperXml(lieu) + '</t:Location></t:CalendarItem>'
+    + '</t:SetItemField></t:Updates>'
+    + '</t:ItemChange></m:ItemChanges>'
+    + '</m:UpdateItem></soap:Body></soap:Envelope>';
+}
+
+// Réutilise l'interprétation de CreateItem (Success → ok), avec des libellés propres à la mise à jour.
+function interpreterReponseUpdate(statutHttp, corps) {
+  return interpreterReponseCreation(statutHttp, corps,
+    'Agenda mis à jour.', 'La mise à jour du rendez-vous a échoué');
+}
+
+// FindItem — un seul essai. Renvoie { ok:true, evenements:[…] } ou { ok:false, message }. Ne reçoit
+// jamais le mot de passe dans un message. `injections.poster` : uniquement pour les tests.
+function trouverRendezVousExchange({ url, email, motDePasse, debutUtc, finUtc, delaiMs = 20000 }, injections = {}) {
+  const poster = injections.poster || httpntlm.post;
+  return new Promise((resolve) => {
+    let repondu = false;
+    const fini = (r) => { if (!repondu) { repondu = true; resolve(r); } };
+    const minuteur = setTimeout(
+      () => fini({ ok: false, raison: 'reseau', message: 'Le serveur Exchange n\'a pas répondu à temps.' }),
+      delaiMs
+    );
+    try {
+      poster({
+        url,
+        username: String(email || ''),
+        password: String(motDePasse || ''),
+        domain: '',
+        headers: { 'Content-Type': 'text/xml; charset=utf-8' },
+        body: corpsFindRendezVous({ debutUtc, finUtc })
+      }, (err, res) => {
+        clearTimeout(minuteur);
+        if (err) {
+          fini({ ok: false, raison: 'reseau', message: 'Impossible de joindre le serveur Exchange : ' + (err.code || err.message || 'erreur réseau') + '.' });
+          return;
+        }
+        const statut = res && res.statusCode;
+        const body = String((res && res.body) || '');
+        if (statut === 401 || statut === 403) {
+          fini({ ok: false, raison: 'auth', message: 'Identifiants refusés par le serveur. Vérifiez les identifiants de messagerie dans les Réglages.' });
+          return;
+        }
+        if (statut >= 500 && !/ResponseCode|ResponseClass/.test(body)) {
+          fini({ ok: false, raison: 'serveur', message: 'Le serveur Exchange a renvoyé une erreur (' + statut + ').' });
+          return;
+        }
+        if (/ResponseClass="Success"/.test(body) || /<m:ResponseCode>NoError<\/m:ResponseCode>/.test(body)) {
+          fini({ ok: true, evenements: parseFindRendezVous(body) });
+          return;
+        }
+        const code = (body.match(/<m:ResponseCode>([^<]+)<\/m:ResponseCode>/) || [])[1]
+          || (body.match(/<faultstring[^>]*>([^<]+)<\/faultstring>/) || [])[1] || '';
+        fini({ ok: false, raison: 'ews', message: 'La lecture de l\'agenda a échoué' + (code ? ' (' + code + ')' : '') + '.' });
+      });
+    } catch (e) {
+      clearTimeout(minuteur);
+      fini({ ok: false, raison: 'reseau', message: 'Impossible de joindre le serveur Exchange.' });
+    }
+  });
+}
+
+// UpdateItem — un seul essai. `injections.poster` : uniquement pour les tests.
+function mettreAJourLieuExchange({ url, email, motDePasse, itemId, changeKey, lieu, delaiMs = 20000 }, injections = {}) {
+  const poster = injections.poster || httpntlm.post;
+  return new Promise((resolve) => {
+    let repondu = false;
+    const fini = (r) => { if (!repondu) { repondu = true; resolve(r); } };
+    const minuteur = setTimeout(
+      () => fini({ ok: false, raison: 'reseau', message: 'Le serveur Exchange n\'a pas répondu à temps.' }),
+      delaiMs
+    );
+    try {
+      poster({
+        url,
+        username: String(email || ''),
+        password: String(motDePasse || ''),
+        domain: '',
+        headers: { 'Content-Type': 'text/xml; charset=utf-8' },
+        body: corpsUpdateLieu({ itemId, changeKey, lieu })
+      }, (err, res) => {
+        clearTimeout(minuteur);
+        if (err) {
+          fini({ ok: false, raison: 'reseau', message: 'Impossible de joindre le serveur Exchange : ' + (err.code || err.message || 'erreur réseau') + '.' });
+          return;
+        }
+        fini(interpreterReponseUpdate(res && res.statusCode, res && res.body));
+      });
+    } catch (e) {
+      clearTimeout(minuteur);
+      fini({ ok: false, raison: 'reseau', message: 'Impossible de joindre le serveur Exchange.' });
+    }
+  });
+}
+
 // Interprète la réponse d'Exchange. Fonction PURE (statut HTTP + corps), testable sans réseau ni
 // serveur réel — voir server/test/ews.test.js. Ne reçoit jamais le mot de passe.
 function interpreterReponseEws(statutHttp, corps) {
@@ -290,5 +475,7 @@ module.exports = {
   corpsGetFolderCalendrier, interpreterReponseEws, testerConnexionExchange,
   corpsCreateRendezVous, interpreterReponseCreation, creerRendezVousExchange,
   corpsCreateBrouillon, creerBrouillonExchange,
-  instantUtcDepuisParis, decalageParisMinutes
+  instantUtcDepuisParis, decalageParisMinutes,
+  desechapperXml, fenetreJourneeParis, corpsFindRendezVous, parseFindRendezVous,
+  corpsUpdateLieu, interpreterReponseUpdate, trouverRendezVousExchange, mettreAJourLieuExchange
 };

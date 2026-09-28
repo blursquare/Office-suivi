@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-28 10:09';
+  const VERSION_APP = '2026-09-28 12:25';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-28 12:25', resume: "Agenda Outlook : une fois l'appel de fonds (et/ou le projet) marqué envoyé, un bouton « Noter dans l'agenda » écrit « Appel de fonds envoyé » dans le lieu du rendez-vous de signature, après les initiales, sans toucher au code couleur. À tester au bureau." },
     { version: '2026-09-28 10:09', resume: "Brouillons Outlook avec pièce jointe : sur la fiche dossier, CLAIRE prépare un brouillon Outlook du courrier d'appel de fonds (.docx joint) ou du questionnaire de satisfaction (PDF joint) — ce qu'un simple lien mailto ne sait pas faire. À tester au bureau." },
     { version: '2026-09-28 09:51', resume: "Agenda Outlook : CLAIRE peut créer le rendez-vous de signature directement dans l'agenda de l'office (bouton sur la fiche). Les identifiants de messagerie s'enregistrent dans les Réglages (mot de passe jamais réaffiché). À tester au bureau." },
     { version: '2026-09-27 21:34', resume: "Réglages : test de connexion à l'agenda Outlook de l'office (Exchange/EWS). Vérifie les identifiants sans rien enregistrer — première étape avant d'y créer les rendez-vous." },
@@ -10370,6 +10371,29 @@
     return `<div class="envoi-action"><button type="button" class="action-rapide" onclick="envoyerRelanceCiblee('${d.id}', 'fonds')">${icone('mail')} Confirmer la réception des fonds</button></div>`;
   }
 
+  // Noter dans l'agenda Outlook de l'office qu'un envoi vient d'être fait : écrit « Appel de fonds
+  // envoyé » (ou « … et projet envoyé ») dans le LIEU du rendez-vous de signature, APRÈS les
+  // initiales du collaborateur, sans toucher au code couleur du rendez-vous (voir la route
+  // /exchange/rendez-vous/lieu, qui ne modifie que le champ Lieu). Proposé seulement quand la
+  // connexion Exchange est configurée (exchangeAgendaPret), qu'un rendez-vous de signature est
+  // renseigné (il faut une date pour retrouver l'événement dans l'agenda) et qu'au moins un des deux
+  // envois est fait. Le libellé reflète l'état courant : si le projet part plus tard, un nouveau clic
+  // met la mention à jour (le serveur remplace l'ancienne sans doublon).
+  function renderNoterAgenda(d) {
+    if (!exchangeAgendaPret() || !d.rendezVousSignature) return '';
+    const af = echeanceValidee(d, 'appelFonds');
+    const pj = echeanceValidee(d, 'projetEnvoye');
+    if (!af && !pj) return '';
+    const mention = (af && pj) ? 'Appel de fonds et projet envoyé' : af ? 'Appel de fonds envoyé' : 'Projet envoyé';
+    const note = d.agendaLieuNoteLe
+      ? `<span class="dot-label dl-success"><span class="dot"></span>Noté dans l’agenda le ${formatDateFr(d.agendaLieuNoteLe.slice(0, 10))}</span>`
+      : '';
+    return `<div class="envoi-action">
+      <button type="button" class="action-rapide" onclick="noterEnvoiDansAgenda('${d.id}')" title="Écrire « ${escapeAttr(mention)} » dans le lieu du rendez-vous de signature, après les initiales, dans l'agenda Outlook de l'office">${icone('calendar')} Noter dans l'agenda : ${escapeHtml(mention)}</button>
+      ${note}
+    </div>`;
+  }
+
   function renderCarteEnvoisAvantSignature(d) {
     const lignes = ENVOIS_AVANT_SIGNATURE.map(({ cle, label }) => {
       const iso = d[cle] || '';
@@ -10400,6 +10424,7 @@
     return `<div class="tab appelFonds">
       <div class="tab-name tab-name-fort">Envoi au client</div>
       ${lignes}
+      ${renderNoterAgenda(d)}
     </div>`;
   }
 
@@ -10480,6 +10505,39 @@
       }
     } catch (e) {
       afficherToast('Serveur injoignable — rendez-vous non créé.', 'OK', null);
+    }
+  }
+
+  // Écrit la mention d'envoi dans le lieu du rendez-vous de signature EXISTANT (voir la route
+  // /exchange/rendez-vous/lieu). Le serveur retrouve le rendez-vous par sa date et sa référence
+  // « VTE - <nom> », ajoute « Appel de fonds [et projet] envoyé » après les initiales sans doublon,
+  // et laisse le code couleur intact. Rien n'est créé : si aucun rendez-vous n'est trouvé, un toast
+  // le dit et rien n'est écrit.
+  async function noterEnvoiDansAgenda(id) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d || !d.rendezVousSignature) return;
+    const af = echeanceValidee(d, 'appelFonds');
+    const pj = echeanceValidee(d, 'projetEnvoye');
+    if (!af && !pj) return;
+    try {
+      const reponse = await fetchAvecAuth('/api/exchange/rendez-vous/lieu', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: d.rendezVousSignature, reference: d.nom, appelFonds: af, projet: pj })
+      });
+      const corps = await reponse.json();
+      if (corps.ok) {
+        d.agendaLieuNoteLe = new Date().toISOString();
+        const libelle = (af && pj) ? 'appel de fonds et projet envoyé' : af ? 'appel de fonds envoyé' : 'projet envoyé';
+        ajouterHistorique(d, `Mention « ${libelle} » notée dans l'agenda Outlook.`);
+        sauvegarder(d);
+        render();
+        afficherToast(corps.message || 'Agenda mis à jour.', 'OK', null);
+      } else {
+        afficherToast(corps.message || "La mise à jour de l'agenda a échoué.", 'OK', null);
+      }
+    } catch (e) {
+      afficherToast('Serveur injoignable — agenda non mis à jour.', 'OK', null);
     }
   }
 
@@ -16601,6 +16659,9 @@
       // Rendez-vous créé dans l'agenda Outlook (voir creerRdvDansAgenda) : un fait accompli par
       // l'utilisateur, conservé à l'import comme le questionnaire ou la confirmation des fonds.
       rdvAgendaCreeLe: typeof d.rdvAgendaCreeLe === 'string' ? d.rdvAgendaCreeLe : null,
+      // Mention d'envoi notée dans le lieu du rendez-vous de l'agenda Outlook (voir
+      // noterEnvoiDansAgenda) : un fait accompli par l'utilisateur, conservé à l'import.
+      agendaLieuNoteLe: typeof d.agendaLieuNoteLe === 'string' ? d.agendaLieuNoteLe : null,
       ribDemandeLe: typeof d.ribDemandeLe === 'string' ? d.ribDemandeLe : null,
       adresseBien: typeof d.adresseBien === 'string' ? d.adresseBien : '',
       nomAgence: typeof d.nomAgence === 'string' ? d.nomAgence : '',
