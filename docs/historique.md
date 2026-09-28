@@ -11599,3 +11599,11 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
   Résumé relu toutes les 5 minutes ; à son arrivée, la fenêtre s'ouvre une fois dans la journée s'il
   y a des emails pour ce poste. Non vérifié ici : la lecture réelle de la boîte chez Fichorga
   (`item:Preview` suppose Exchange 2013 ou plus récent — Exchange 2019 l'a).
+
+- **29/09/2026 — Emails du matin : pour Bastien seulement** (demandé par l'étude : « que pour moi,
+  pas pour Julie et Jérémy »). `DESTINATAIRES_EMAILS_MATIN = ['Bastien ANGLUMENT']` /
+  `recoitEmailsMatin` : sur les autres postes, le résumé n'est ni chargé ni affiché et la fenêtre ne
+  se rouvre pas. Pour Bastien, tous les dossiers et les emails hors dossiers (c'est sa boîte), plus
+  seulement ceux de son périmètre. Limite connue : il n'y a pas de compte par collaborateur (accès
+  sans mot de passe, collaborateur choisi sur le poste) — la restriction est dans l'interface, la
+  route `/api/emails-matin` reste lisible par tout poste du réseau.

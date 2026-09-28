@@ -242,3 +242,9 @@ test('Emails du matin : chacun voit ses dossiers, l’administrateur aussi les e
   assert.equal(bastien.nb, 4);
   assert.equal(app.emailsMatinPourPoste(null, ['d1'], true).nb, 0);
 });
+
+test('Emails du matin : réservés à Bastien', () => {
+  assert.equal(app.recoitEmailsMatin('Bastien ANGLUMENT'), true);
+  assert.equal(app.recoitEmailsMatin('Julie VASSELIN'), false);
+  assert.equal(app.recoitEmailsMatin('Jérémy SAUJOT'), false);
+});

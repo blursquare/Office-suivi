@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 00:54';
+  const VERSION_APP = '2026-09-29 00:55';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 00:55', resume: "Emails du matin réservés à Bastien : la rubrique n'apparaît plus sur les postes de Julie et Jérémy." },
     { version: '2026-09-29 00:54', resume: "Emails du matin : à 8 h 50, CLAIRE lit la boîte de réception (emails reçus depuis la veille 18 h, le vendredi pour un lundi) et les range par dossier dans la fenêtre « Aujourd'hui ». Sans IA : rien ne quitte le bureau, seuls l'expéditeur, l'objet et l'heure sont gardés." },
     { version: '2026-09-29 00:42', resume: "Tâche faite par un collègue sur votre dossier (envoi de l'appel de fonds ou du projet, « Déjà fait », email, questionnaire, étape marquée réalisée) : message Teams au responsable du dossier." },
     { version: '2026-09-29 00:40', resume: "« À faire » : une tâche faite ailleurs ne disparaît plus sans trace — elle reste cochée avec qui l'a faite (« Faite par Jérémy », « Faite par CLAIRE (courrier sur le NAS) », « Faite depuis un autre poste ») et compte dans la progression du jour." },
@@ -14991,9 +14992,12 @@
 
   // ---- Emails du matin (voir server/src/emailsMatin.js) ----
   // Le serveur lit à 8 h 50 la boîte de réception du compte Exchange de l'office (celle de Bastien,
-  // qui reçoit tout en double) et range les emails reçus depuis la veille 18 h par dossier. Chaque
-  // collaborateur ne voit que ceux de SES dossiers (ou de tous en vue globale) ; les emails qu'aucun
-  // dossier ne reconnaît ne sont montrés qu'à l'administrateur — c'est sa boîte.
+  // qui reçoit tout en double) et range les emails reçus depuis la veille 18 h par dossier.
+  // Réservé à Bastien (demandé le 29/09 : « que pour moi, pas pour Julie et Jérémy ») : c'est sa
+  // boîte ; il voit tous les dossiers, et les emails qu'aucun dossier ne reconnaît. Sur les autres
+  // postes, rien n'est chargé ni affiché.
+  var DESTINATAIRES_EMAILS_MATIN = ['Bastien ANGLUMENT'];
+  function recoitEmailsMatin(nom) { return DESTINATAIRES_EMAILS_MATIN.indexOf(nom) !== -1; }
   var PREFIXE_EMAILS_VUS = 'claire-emails-matin-vus:';
   let resumeEmails = null;
 
@@ -15007,6 +15011,7 @@
   }
 
   async function chargerResumeEmails() {
+    if (!recoitEmailsMatin(utilisateurPoste)) { resumeEmails = null; return; }
     try {
       const reponse = await fetchAvecAuth('/api/emails-matin');
       if (!reponse.ok) return;
@@ -15021,7 +15026,7 @@
     let deja = '';
     try { deja = localStorage.getItem(vus) || ''; } catch (e) { deja = aujourdhui; }
     if (deja === aujourdhui) return;
-    const { nb } = emailsMatinPourPoste(resumeEmails, dossiersPerimetreJour().map(d => d.id), estAdministrateur(utilisateurPoste));
+    const { nb } = emailsMatinPourPoste(resumeEmails, dossiers.map(d => d.id), true);
     if (!nb) return;
     try { localStorage.setItem(vus, aujourdhui); } catch (e) { /* pas bloquant */ }
     if (!fenetreAujourdhuiOuverte) ouvrirFenetreAujourdhui();
@@ -15059,10 +15064,10 @@
     if (r.erreur) {
       return `<p class="jour-vide"><span class="dot-label dl-alerte">${escapeHtml(r.erreur)}</span> ${actualiser}</p>`;
     }
-    const { groupes, autres, nb } = emailsMatinPourPoste(r, dossiersPerimetreJour().map(d => d.id), estAdministrateur(utilisateurPoste));
+    const { groupes, autres, nb } = emailsMatinPourPoste(r, dossiers.map(d => d.id), true);
     const heure = r.genereLe ? new Date(r.genereLe).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }).replace(':', ' h ') : '';
     const source = `<p class="jour-source">Boîte lue à ${escapeHtml(heure)} · ${r.total || 0} email${(r.total || 0) > 1 ? 's' : ''} reçu${(r.total || 0) > 1 ? 's' : ''}. ${actualiser}</p>`;
-    if (!nb) return source + '<p class="jour-vide">Aucun email sur vos dossiers depuis hier 18 h.</p>';
+    if (!nb) return source + '<p class="jour-vide">Aucun email depuis hier 18 h.</p>';
     return `${source}
       <ul class="jour-fil">${groupes.map(g => `
         <li class="jour-fil-groupe">
@@ -15101,8 +15106,8 @@
           <h3 class="jour-section-titre">Nouveautés <span class="jour-onglet-nb">${groupes.length}</span></h3>
           <p class="jour-source">${escapeHtml(libelleDepuisVisite())}.</p>
           ${renderNouveautesListe(groupes)}
-          <h3 class="jour-section-titre jour-section-emails">Emails depuis hier 18 h</h3>
-          ${renderEmailsMatin()}
+          ${recoitEmailsMatin(utilisateurPoste) ? `<h3 class="jour-section-titre jour-section-emails">Emails depuis hier 18 h</h3>
+          ${renderEmailsMatin()}` : ''}
         </div>
       </div>
       <footer class="jour-fenetre-pied">
