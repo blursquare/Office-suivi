@@ -283,7 +283,7 @@ test('date butoir : pas d\'échéance propre, mais elle sert d\'ancre quand rien
   // Sans rendez-vous et sans autre échéance : le dossier reste visible, ancré sur le butoir
   // (demande de l'étude), mais jamais avec une échéance de TYPE 'acte'.
   const sansRdv = dossierBase({ acte: '2026-10-01' });
-  // Offre reçue, pas de rendez-vous : l'étape est « Fixer le rendez-vous de signature », avant
+  // Offre reçue, pas de rendez-vous : l'étape est « Fixer le rendez-vous », avant
   // l'appel de fonds (demande de l'étude du 28/09), bornée par la date butoir.
   const e2 = app.toutesEcheances(sansRdv);
   assert.equal(e2.map((e) => e.type).join(','), 'fixerRdv');
@@ -375,7 +375,7 @@ test("normaliserDossierImporte : conserve les envois déjà relevés dans l'agen
   assert.equal(JSON.stringify(d.detectionsAgenda), '{"appelFonds":"2026-09-25"}');
 });
 
-test('offre reçue : « Fixer le rendez-vous de signature » précède l’appel de fonds', () => {
+test('offre reçue : « Fixer le rendez-vous » précède l’appel de fonds', () => {
   const app = chargerApplication();
   const d = { id: 'f', nom: 'F / G', offrePretStatut: 'recue', acte: '2026-11-20' };
   assert.equal(app.toutesEcheances(d).map((e) => e.type).join(','), 'fixerRdv');

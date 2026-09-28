@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-28 17:13';
+  const VERSION_APP = '2026-09-28 17:29';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-28 17:29', resume: "Agenda : l'envoi marqué depuis « Aujourd'hui » (« Marquer envoyé », « Déjà fait ») est aussi noté dans le rendez-vous ; un échec de note n'est plus silencieux (dit sur la carte « Envoi au client »). Saisir la date du rendez-vous de signature propose aussitôt l'heure pour le créer dans l'agenda, avec le lieu « initiales - envoi fait ». « Fixer le rendez-vous de signature » devient « Fixer le rendez-vous »." },
     { version: '2026-09-28 17:13', resume: "Tableau de bord : « Activité de l'étude » devient plus visuelle — le nombre d'actions du jour, des barres sur les 7 derniers jours, qui a agi aujourd'hui, et un fil en frise où chaque action porte une pastille de couleur selon son type (agenda, geste fait, email, pièce, archivage, date, fiche). Des pastilles filtrent le fil par type." },
     { version: '2026-09-28 17:08', resume: "Tableau de bord : la carte des dossiers actifs devient « Portefeuille » — un anneau de couleur répartit les dossiers par statut (prêt, réception de pièces, aucun document, à relier), trois jauges disent où en sont les signatures du mois, les offres de prêt reçues et l'avancement moyen, et une phrase résume la situation. Mes rappels : un crayon permet de modifier un rappel (texte, échéance, dossier)." },
     { version: '2026-09-28 16:47', resume: "Tableau de bord : les tuiles « offres en attente » et « pièces manquantes » laissent place à « Activité de l'étude », le fil en direct de ce que font les collaborateurs (tâches du jour faites, dates saisies, emails préparés…) et de ce qui bouge dans l'agenda de l'office (rendez-vous relevé, déplacé ou retiré). « Dernières pièces » tient sur une ligne par pièce. Les tâches validées ne clignotent plus à la réouverture. Une tâche du jour ou un rappel non fait la veille revient marqué « Non faite hier ». Un rappel qui parle d'écrire propose un email vierge avec la signature. Fiche : les dates de la timeline tiennent sur une ou deux lignes." },
@@ -10776,15 +10777,42 @@
   // l'écriture auto a échoué (Exchange momentanément indisponible) ou quand le rendez-vous de
   // signature est fixé APRÈS l'envoi (il n'y avait alors aucun événement à annoter au moment de la
   // validation).
-  function renderNoterAgenda(d) {
-    if (!exchangeAgendaPret() || !d.rendezVousSignature) return '';
+  // Mention d'envoi écrite dans le lieu du rendez-vous (même texte que composerLieuAgenda côté
+  // serveur). Pure, testable. Chaîne vide si aucun des deux envois n'est fait.
+  function mentionEnvoisAgenda(d) {
     const af = echeanceValidee(d, 'appelFonds');
     const pj = echeanceValidee(d, 'projetEnvoye');
-    if (!af && !pj) return '';
-    const mention = (af && pj) ? 'Appel de fonds et projet envoyé' : af ? 'Appel de fonds envoyé' : 'Projet envoyé';
-    const note = d.agendaLieuNoteLe
+    if (af && pj) return 'Appel de fonds et projet envoyé';
+    if (af) return 'Appel de fonds envoyé';
+    if (pj) return 'Projet envoyé';
+    return '';
+  }
+
+  // Initiales du collaborateur responsable (« Bastien ANGLUMENT » → « BA ») : c'est ainsi que
+  // l'étude commence le lieu de ses rendez-vous. Pure, testable.
+  function initialesResponsable(d) {
+    return String((d && d.responsable) || '').trim().split(/[\s-]+/)
+      .map(m => m.charAt(0).toUpperCase()).filter(c => /[A-ZÀ-Ý]/.test(c)).join('');
+  }
+
+  // Lieu d'un rendez-vous créé par CLAIRE : « BA - Appel de fonds envoyé », selon la convention de
+  // l'étude, pour que la mention y soit dès la création quand l'envoi est déjà fait.
+  function lieuRdvAgenda(d) {
+    return [initialesResponsable(d), mentionEnvoisAgenda(d)].filter(Boolean).join(' - ');
+  }
+
+  function renderNoterAgenda(d) {
+    if (!exchangeAgendaPret() || !d.rendezVousSignature) return '';
+    const mention = mentionEnvoisAgenda(d);
+    if (!mention) return '';
+    let note = d.agendaLieuNoteLe
       ? `<span class="dot-label dl-success"><span class="dot"></span>Noté dans l’agenda le ${formatDateFr(d.agendaLieuNoteLe.slice(0, 10))}</span>`
       : '';
+    // Échec de la dernière écriture automatique : dit sur la carte, sinon rien ne distinguait
+    // « pas encore essayé » de « essayé et refusé » (cas signalé sur BANCQUART / MANDARD).
+    if (d.agendaLieuEchec && d.agendaLieuEchec.message) {
+      note = `<span class="dot-label dl-alerte" title="${escapeAttr(d.agendaLieuEchec.message)}">Non noté le ${formatDateFr(String(d.agendaLieuEchec.le || '').slice(0, 10))} : ${escapeHtml(d.agendaLieuEchec.message)}</span>`;
+    }
     return `<div class="envoi-action">
       <button type="button" class="action-rapide" onclick="noterEnvoiDansAgenda('${d.id}')" title="Écrire « ${escapeAttr(mention)} » dans le lieu du rendez-vous de signature, après les initiales, dans l'agenda Outlook de l'office">${icone('calendar')} Noter dans l'agenda : ${escapeHtml(mention)}</button>
       ${note}
@@ -10836,7 +10864,7 @@
     if (rdvAgendaOuvert && dossierOuvert === d.id) {
       const heure = d.rendezVousSignatureHeure || '14:00';
       return `<div class="rdv-agenda-form">
-        <div class="rdv-agenda-titre">Créer ce rendez-vous dans l'agenda Outlook</div>
+        <div class="rdv-agenda-titre">À quelle heure ? Créer ce rendez-vous dans l'agenda Outlook</div>
         <div class="rdv-agenda-champs">
           <label>Heure <input type="time" id="rdv-agenda-heure-${d.id}" value="${escapeAttr(heure)}"></label>
           <label>Durée
@@ -10848,7 +10876,7 @@
             </select>
           </label>
         </div>
-        <p class="hint" style="margin:4px 0 6px;">Écrit « VTE - ${escapeHtml(d.nom)} » le ${formatDateFr(d.rendezVousSignature)} dans l'agenda partagé de l'office.</p>
+        <p class="hint" style="margin:4px 0 6px;">Écrit « VTE - ${escapeHtml(d.nom)} » le ${formatDateFr(d.rendezVousSignature)} dans l'agenda partagé de l'office${lieuRdvAgenda(d) ? `, lieu « ${escapeHtml(lieuRdvAgenda(d))} »` : ''}.</p>
         <div class="rdv-agenda-actions">
           <button type="button" class="action-rapide" onclick="creerRdvDansAgenda('${d.id}')">${icone('calendar')} Créer le rendez-vous</button>
           <button type="button" class="lien-bouton" onclick="basculerRdvAgenda('${d.id}')">Annuler</button>
@@ -10877,6 +10905,8 @@
     const heure = champHeure ? champHeure.value : '';
     const dureeMinutes = champDuree ? parseInt(champDuree.value, 10) : 60;
     if (!/^\d{2}:\d{2}$/.test(heure)) { afficherToast('Renseignez une heure valide.', 'OK', null); return; }
+    const lieu = lieuRdvAgenda(d);
+    const mention = mentionEnvoisAgenda(d);
     try {
       const reponse = await fetchAvecAuth('/api/exchange/rendez-vous', {
         method: 'POST',
@@ -10886,13 +10916,17 @@
           date: d.rendezVousSignature,
           heure,
           dureeMinutes,
+          lieu,
           corps: 'Rendez-vous de signature créé depuis CLAIRE.'
         })
       });
       const corps = await reponse.json();
       if (corps.ok) {
         d.rdvAgendaCreeLe = new Date().toISOString();
-        ajouterHistorique(d, `Rendez-vous de signature créé dans l'agenda Outlook (${formatDateFr(d.rendezVousSignature)} à ${heure}).`);
+        d.rendezVousSignatureHeure = heure;
+        // L'envoi déjà fait est écrit dans le lieu dès la création : rien à noter ensuite.
+        if (mention) { d.agendaLieuNoteLe = d.rdvAgendaCreeLe; d.agendaLieuEchec = null; }
+        ajouterHistorique(d, `Rendez-vous de signature créé dans l'agenda Outlook (${formatDateFr(d.rendezVousSignature)} à ${heure}${lieu ? `, lieu « ${lieu} »` : ''}).`);
         sauvegarder(d);
         rdvAgendaOuvert = false;
         render();
@@ -10934,17 +10968,27 @@
       const corps = await reponse.json();
       if (corps.ok) {
         d.agendaLieuNoteLe = new Date().toISOString();
+        d.agendaLieuEchec = null;
         const libelle = (af && pj) ? 'appel de fonds et projet envoyé' : af ? 'appel de fonds envoyé' : 'projet envoyé';
         ajouterHistorique(d, `Mention « ${libelle} » notée dans l'agenda Outlook${auto ? ' (automatique)' : ''}.`);
         sauvegarder(d);
         render();
         afficherToast(corps.message || 'Agenda mis à jour.', 'OK', null);
-      } else if (!auto) {
-        afficherToast(corps.message || "La mise à jour de l'agenda a échoué.", 'OK', null);
+      } else {
+        signalerEchecNoteAgenda(d, corps.message || "La mise à jour de l'agenda a échoué.");
       }
     } catch (e) {
-      if (!auto) afficherToast('Serveur injoignable — agenda non mis à jour.', 'OK', null);
+      signalerEchecNoteAgenda(d, 'Serveur injoignable — agenda non mis à jour.');
     }
+  }
+
+  // Un échec (automatique ou non) est gardé sur le dossier et affiché sur la carte « Envoi au
+  // client », avec un toast : l'ancien mode silencieux laissait croire la mention écrite.
+  function signalerEchecNoteAgenda(d, message) {
+    d.agendaLieuEchec = { le: new Date().toISOString(), message };
+    sauvegarder(d);
+    render();
+    afficherToast(`Agenda non mis à jour (${d.nom}) : ${message}`, 'OK', null);
   }
 
   // --- Obtention du prêt et vente préalable tenues dans le calendrier partagé de l'office ---
@@ -11216,7 +11260,7 @@
   // demandé que son nom le dise et qu'elle disparaîsse du planning (voir echeancesPlanning).
   const LIBELLES_CATEGORIE = {
     pret: 'Obtention du prêt', acte: 'Date butoir', ventebien: 'Vente préalable',
-    fixerRdv: 'Fixer le rendez-vous de signature',
+    fixerRdv: 'Fixer le rendez-vous',
     appelFonds: 'Envoi appel de fonds', projetEnvoye: 'Envoi projet',
     rendezVousSignature: 'Rendez-vous de signature'
   };
@@ -12428,7 +12472,7 @@
     // Un appel de fonds déjà daté ou fait (cas où il est parti avant que le rendez-vous soit noté)
     // garde sa place : on ne recule pas d'une étape.
     if (!d.rendezVousSignature && pretLeve(d) && !d.appelFonds && !echeanceValidee(d, 'appelFonds')) {
-      etape = { type: 'fixerRdv', label: 'Fixer le rendez-vous de signature', iso: d.acte };
+      etape = { type: 'fixerRdv', label: 'Fixer le rendez-vous', iso: d.acte };
     } else if (!echeanceValidee(d, 'appelFonds')) {
       etape = { type: 'appelFonds', label: 'Envoi appel de fonds', iso: d.appelFonds || d.rendezVousSignature };
     } else if (!echeanceValidee(d, 'projetEnvoye')) {
@@ -13315,7 +13359,7 @@
       } else if (d.acte && ecartJours(aujourdhuiIso, d.acte) !== null && ecartJours(aujourdhuiIso, d.acte) <= 15) {
         // Date butoir proche, et aucun rendez-vous de signature fixé.
         const j = ecartJours(aujourdhuiIso, d.acte);
-        ajouter(d, j <= 5 ? 'critique' : 'vigilance', 'Fixer le rendez-vous de signature', `Aucun rendez-vous · butoir le ${court(d.acte)}`, j);
+        ajouter(d, j <= 5 ? 'critique' : 'vigilance', 'Fixer le rendez-vous', `Aucun rendez-vous · butoir le ${court(d.acte)}`, j);
       } else if (pretLeve(d)) {
         // Offre reçue (ou achat comptant) : placer le rendez-vous est l'étape suivante, avant
         // l'appel de fonds (demandé par l'étude). Le butoir, s'il existe, donne le délai.
@@ -13323,7 +13367,7 @@
         const detail = d.sansPret ? 'Achat comptant' : 'Offre de prêt reçue';
         // À faire (vigilance) quand l'offre vient d'arriver ; simple suivi sur un achat comptant,
         // où rien ne s'est produit qui appelle un geste aujourd'hui.
-        ajouter(d, d.sansPret ? 'info' : 'vigilance', 'Fixer le rendez-vous de signature', d.acte ? `${detail} · butoir le ${court(d.acte)}` : detail, j);
+        ajouter(d, d.sansPret ? 'info' : 'vigilance', 'Fixer le rendez-vous', d.acte ? `${detail} · butoir le ${court(d.acte)}` : detail, j);
       }
       // Vente préalable qui approche sans être confirmée.
       if (d.ventebien && !echeanceValidee(d, 'ventebien')) {
@@ -13333,7 +13377,7 @@
       // Dossier complet sans rendez-vous : il n'attend plus que d'être fixé (déjà signalé plus haut
       // quand l'offre est reçue — ne pas l'ajouter deux fois).
       if (!d.rendezVousSignature && dossierEntierementComplet(d) && !pretLeve(d)) {
-        ajouter(d, 'info', 'Fixer le rendez-vous de signature', 'Dossier complet : offre et pièces reçues', null);
+        ajouter(d, 'info', 'Fixer le rendez-vous', 'Dossier complet : offre et pièces reçues', null);
       }
     }
     return alertes.sort((a, b) => (ORDRE_GRAVITE_ALERTE[a.gravite] - ORDRE_GRAVITE_ALERTE[b.gravite])
@@ -14065,6 +14109,8 @@
     else marquerAppelFondsSelonDate(d, aujourdhui);
     sauvegarder(d);
     render();
+    // Même effet que la date saisie sur la fiche, agenda compris : ce chemin ne le notait pas.
+    noterEnvoiDansAgenda(id, true);
   }
 
   function reporterActionJour(cle) {
@@ -14097,6 +14143,7 @@
     const champ = CHAMP_FAIT_MAIN_PAR_TYPE[a.type];
     const d = champ ? dossiers.find(x => x.id === a.dossier.id) : null;
     const annulation = { manuel: true };
+    let envoiANoter = false;
     if (d) {
       const aujourdhui = isoAujourdhuiLocal();
       if (champ === 'appelFonds' || champ === 'projetEnvoye') {
@@ -14105,6 +14152,7 @@
         d[champ] = aujourdhui;
         if (champ === 'projetEnvoye') marquerProjetEnvoyeSelonDate(d, aujourdhui);
         else marquerAppelFondsSelonDate(d, aujourdhui);
+        envoiANoter = true;
       } else {
         annulation.champsDossier = { [champ]: d[champ] || null };
         d[champ] = aujourdhui;
@@ -14125,6 +14173,7 @@
     apercusJour.delete(cle);
     render();
     afficherToast(`Marqué fait — ${a.titre.toLowerCase()}.`, 'Annuler', () => annulerTraiteJour(cle));
+    if (envoiANoter) noterEnvoiDansAgenda(d.id, true);
   }
 
   // Défait un report, ou un « Marquer envoyé » (la date d'avant est remise). Un brouillon déjà
@@ -15804,8 +15853,29 @@
       // Date butoir du prêt ou de la vente préalable : posée, déplacée ou retirée dans le
       // calendrier partagé (voir synchroniserEcheanceAgenda). Seul geste qui en CRÉE une.
       if (cle === 'pret' || cle === 'ventebien') synchroniserEcheanceAgenda(d, cle, true);
+      // Rendez-vous de signature saisi à la main : proposer tout de suite l'horaire pour le créer
+      // dans l'agenda Outlook (demandé par l'étude). Pas quand la date vient de l'agenda lui-même :
+      // le rendez-vous y est déjà. Le formulaire reste une confirmation, rien n'est écrit sans clic.
+      if (cle === 'rendezVousSignature' && proposerHoraireRdv(d)) {
+        rdvAgendaOuvert = true;
+        render();
+        const champ = document.getElementById(`rdv-agenda-heure-${d.id}`);
+        if (champ) {
+          if (champ.scrollIntoView) champ.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          champ.focus();
+        }
+        return;
+      }
     }
     render();
+  }
+
+  // Faut-il proposer l'horaire (et la création dans l'agenda) juste après la saisie de la date du
+  // rendez-vous ? Pure, testable.
+  function proposerHoraireRdv(d) {
+    if (!d || !d.rendezVousSignature || !exchangeAgendaPret()) return false;
+    const releve = d.detectionsAgenda && d.detectionsAgenda.rendezVousSignature;
+    return releve !== d.rendezVousSignature;
   }
 
   // Ajouter une échéance personnalisée APRÈS l'enregistrement du dossier (pas seulement à la

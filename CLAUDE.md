@@ -9369,6 +9369,34 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   - Tests : `tests/activite-direct.test.js` (3). Vérifié dans un vrai Chromium (clair, sombre,
     filtre Emails, 400 px sans débordement).
 
+- **« Projet envoyé » non noté dans l'agenda (VENTE BANCQUART / MANDARD) et horaire proposé à la
+  saisie du rendez-vous** (28/09 soir). Trois demandes de l'étude :
+  - **Cause trouvée dans le code** : seule la date saisie sur la fiche (`validerEditionDate`)
+    déclenchait `noterEnvoiDansAgenda(id, true)`. « Marquer envoyé » (`marquerEnvoiAujourdhui`) et
+    « Déjà fait » (`marquerFaitJour`) de « Aujourd'hui » posaient la date **sans rien écrire dans
+    l'agenda** — cas le plus probable pour ce dossier. Les deux appellent maintenant la note. Autres
+    causes possibles, sans données réelles pour trancher : pas de rendez-vous de signature sur le
+    dossier au moment de l'envoi (rien à annoter), ou aucun (ou plusieurs) événement « VTE/VENTE »
+    rapproché ce jour-là. **Un échec n'est plus silencieux** : `signalerEchecNoteAgenda()` garde
+    `d.agendaLieuEchec {le, message}` (effacé au succès), affiche un toast et le motif sur la carte
+    « Envoi au client » à la place de « Noté le… ». Le bouton « Noter dans l'agenda » reste le
+    moyen de réessayer.
+  - **Horaire proposé à la saisie du rendez-vous** : valider une date de rendez-vous de signature
+    sur la fiche ouvre aussitôt le mini-formulaire heure/durée de création dans l'agenda Outlook,
+    champ heure au focus (`proposerHoraireRdv`, pure) — seulement si Exchange est prêt et que la
+    date ne vient pas de l'agenda lui-même (le rendez-vous y est déjà). Rien n'est écrit sans le
+    clic « Créer le rendez-vous ». Le rendez-vous créé porte le lieu de la convention de l'étude,
+    `lieuRdvAgenda` = initiales du responsable + mention d'envoi déjà faite (« JV - Projet envoyé »,
+    `initialesResponsable`, `mentionEnvoisAgenda`) : la mention y est dès la création, la note
+    ultérieure devient inutile (`agendaLieuNoteLe` posé). L'heure choisie est gardée
+    (`rendezVousSignatureHeure`).
+  - **« Fixer le rendez-vous de signature » devient « Fixer le rendez-vous »** partout (planning,
+    « Aujourd'hui », alertes, avancement, miroir serveur `jobs/rappels.js`).
+  - Tests : `tests/agenda-rdv-signature.test.js` (3). Suites : racine 893, serveur 461. Vérifié dans
+    un vrai Chromium (serveur réel, Exchange simulé comme configuré) : formulaire ouvert après la
+    saisie de la date, focus sur l'heure, lieu « JV - Projet envoyé » annoncé, aucune erreur JS.
+    **Non vérifié sur le vrai Exchange.**
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

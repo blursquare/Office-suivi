@@ -92,7 +92,7 @@ function toutesEcheances(d) {
   let etape = null;
   const pretLeve = (!!d.sansPret || echeanceValidee(d, 'pret')) && (!d.ventebien || echeanceValidee(d, 'ventebien'));
   if (!d.rendezVousSignature && pretLeve && !d.appelFonds && !echeanceValidee(d, 'appelFonds')) {
-    etape = { type: 'fixerRdv', label: 'Fixer le rendez-vous de signature', iso: d.acte };
+    etape = { type: 'fixerRdv', label: 'Fixer le rendez-vous', iso: d.acte };
   } else if (!echeanceValidee(d, 'appelFonds')) {
     etape = { type: 'appelFonds', label: 'Envoi appel de fonds', iso: d.appelFonds || d.rendezVousSignature };
   } else if (!echeanceValidee(d, 'projetEnvoye')) {

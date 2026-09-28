@@ -104,7 +104,7 @@ test('alertesImportantes : gravité, ordre, et rien quand tout est en ordre', ()
   ];
   const r = app.alertesImportantes(l, '2026-09-25');
   assert.equal(r.map(a => a.dossier.id + ':' + a.gravite).join(','), 'c:critique,a:critique,b:vigilance,d:vigilance,f:vigilance');
-  assert.equal(r[4].titre, 'Fixer le rendez-vous de signature');
+  assert.equal(r[4].titre, 'Fixer le rendez-vous');
   assert.equal(r[0].titre, 'Envoyer l’appel de fonds et le projet');
   assert.equal(r[1].titre, 'Relancer l’offre de prêt');
   assert.equal(r[2].titre, 'Envoyer le projet');
@@ -137,7 +137,7 @@ test('pointsATraiter : une ligne par dossier, le plus grave en titre, les autres
   const r = app.pointsATraiter(l, '2026-09-25');
   assert.equal(r.map(x => x.dossier.id + ':' + x.gravite).join(','), 'a:critique,b:info');
   assert.equal(r[0].principal.titre, 'Relancer l’offre de prêt');
-  assert.equal(r[0].autres.map(x => x.titre).join(','), 'Fixer le rendez-vous de signature');
+  assert.equal(r[0].autres.map(x => x.titre).join(','), 'Fixer le rendez-vous');
   // Achat comptant sans rendez-vous : « Fixer le rendez-vous » et « Relier le dossier du NAS », en suivi.
-  assert.equal([r[1].principal.titre].concat(r[1].autres.map(x => x.titre)).sort().join(','), 'Fixer le rendez-vous de signature,Relier le dossier du NAS');
+  assert.equal([r[1].principal.titre].concat(r[1].autres.map(x => x.titre)).sort().join(','), 'Fixer le rendez-vous,Relier le dossier du NAS');
 });
