@@ -131,18 +131,18 @@ test('renderQuestionnaireSatisfaction : absent pour un dossier archivé, propos�
 
 test('relances : ouvertes en participation, toujours routées vers le confrère quand un autre office représente l’acquéreur', () => {
   const app = chargerApplication();
-  const participant = app.renderRelancesCiblees(dossierBase(app, { roleNotaire: 'participant' }));
+  const participant = app.renderEchangesDossier(dossierBase(app, { roleNotaire: 'participant' }));
   assert.match(participant, /envoyerRelanceCiblee\('d1', 'provision'\)/);
   const confrere = dossierBase(app, { roleNotaire: 'participant', notaireAcquereur: 'Maître DURAND', emailNotaireParticipant: 'durand@notaires.fr' });
   assert.equal(app.emailDestinataireRelance(confrere), 'durand@notaires.fr');
-  assert.match(app.renderRelancesCiblees(confrere), /Adressé au notaire de l.acquéreur/);
+  assert.match(app.renderEchangesDossier(confrere), /Adressé au notaire de l.acquéreur/);
 });
 
 test('réception des fonds : ligne d’action de l’onglet Échanges, seulement une fois l’appel de fonds validé', () => {
   const app = chargerApplication();
   // Plus proposée parmi les relances de la fiche : elle vit à côté de l'appel de fonds.
   const avecRdv = dossierBase(app, { rendezVousSignature: '2026-11-20', acte: '2026-11-30' });
-  assert.doesNotMatch(app.renderRelancesCiblees(avecRdv), /'fonds'/);
+  assert.doesNotMatch(app.renderEchangesDossier(avecRdv), /'fonds'/);
   assert.equal(app.renderReceptionFonds(avecRdv), '');
   const fait = dossierBase(app, { rendezVousSignature: '2026-11-20', appelFonds: '2026-10-30', echeancesValidees: { appelFonds: true } });
   assert.match(app.renderReceptionFonds(fait), /envoyerRelanceCiblee\('d1', 'fonds'\)/);
@@ -195,6 +195,8 @@ test('normaliserDossierImporte conserve la date de confirmation de réception de
 test('renderQuestionnaireSatisfaction : absent tant que la date de signature de l’acte manque', () => {
   const app = chargerApplication();
   assert.equal(app.renderQuestionnaireSatisfaction(dossierBase(app, { acte: '' })), '');
+  // Le rendez-vous de signature suffit à le rendre disponible.
+  assert.match(app.renderQuestionnaireSatisfaction(dossierBase(app, { acte: '', rendezVousSignature: '2026-12-01' })), /Questionnaire de satisfaction/);
 });
 
 test('renderQuestionnaireSatisfaction : une fois envoyé, affiche la date et propose de renvoyer', () => {
@@ -412,4 +414,58 @@ test('l’objet de chaque email porte « VTE - NOM DU DOSSIER »', () => {
   for (const cle of Object.keys(app.MODELES_EMAIL_RELANCE)) {
     assert.match(app.MODELES_EMAIL_RELANCE[cle].construire(d).sujet, /VTE - DUPONT \/ MARTIN/, cle);
   }
+});
+
+// --- Échanges selon le stade du dossier (28/09) ------------------------------------------------
+test('stadeDossier : conditions → rendez-vous à fixer → signature → acte signé', () => {
+  const app = chargerApplication();
+  const auj = '2026-10-01';
+  assert.equal(app.stadeDossier(dossierBase(app, { pret: '2026-10-20' }), auj), 'conditions');
+  assert.equal(app.stadeDossier(dossierBase(app, { sansPret: true, ventebien: '2026-10-05' }), auj), 'conditions');
+  assert.equal(app.stadeDossier(dossierBase(app, { pret: '2026-10-20', offrePretStatut: 'recue' }), auj), 'rendezVous');
+  assert.equal(app.stadeDossier(dossierBase(app, { sansPret: true }), auj), 'rendezVous');
+  assert.equal(app.stadeDossier(dossierBase(app, { sansPret: true, rendezVousSignature: '2026-10-01' }), auj), 'signature');
+  assert.equal(app.stadeDossier(dossierBase(app, { sansPret: true, rendezVousSignature: '2026-09-30' }), auj), 'signe');
+  assert.equal(app.stadeDossier(dossierBase(app, { sansPret: true, rendezVousSignature: '2026-10-09', echeancesValidees: { rendezVousSignature: true } }), auj), 'signe');
+});
+
+test('echangesSelonStade : ce qui sert maintenant d’abord, le reste replié, rien de périmé', () => {
+  const app = chargerApplication();
+  const auj = '2026-10-01';
+  const ouverture = app.echangesSelonStade(dossierBase(app, { pret: '2026-10-20', ventebien: '2026-10-10' }), auj);
+  assert.equal(ouverture.utiles.join(','), 'provision,ventePrealable,pret');
+  assert.equal(ouverture.autres.join(','), 'appelFonds,fondsRecus,fonds,rib,agenda,questionnaire');
+
+  const rdvAFixer = app.echangesSelonStade(dossierBase(app, { pret: '2026-09-20', offrePretStatut: 'recue' }), auj);
+  assert.equal(rdvAFixer.utiles.join(','), 'provision,appelFonds');
+
+  // Rendez-vous fixé : la provision passe « hors de ce stade », l'offre reçue ne se relance plus.
+  const signature = app.echangesSelonStade(dossierBase(app, { sansPret: true, rendezVousSignature: '2026-10-15' }), auj);
+  assert.equal(signature.utiles.join(','), 'appelFonds,fondsRecus,fonds,rib,agenda');
+  assert.ok(signature.autres.includes('provision'));
+
+  const signe = app.echangesSelonStade(dossierBase(app, { sansPret: true, rendezVousSignature: '2026-09-15' }), auj);
+  assert.equal(signe.utiles.join(','), 'questionnaire');
+});
+
+test('renderEchangesDossier : le destinataire, le stade, puis les lignes utiles ; le reste replié', () => {
+  const app = chargerApplication();
+  const html = app.renderEchangesDossier(dossierBase(app, { sansPret: true, rendezVousSignature: '2099-12-01' }));
+  assert.match(html, /Rendez-vous de signature fixé/);
+  assert.match(html, /Échanges avec le client/);
+  const [utile, replie] = html.split('<details class="echanges-autres">');
+  assert.match(utile, /envoyerRelanceCiblee\('d1', 'rib'\)/);
+  assert.doesNotMatch(utile, /'provision'/);
+  assert.match(replie, /envoyerRelanceCiblee\('d1', 'provision'\)/);
+  const confrere = app.renderEchangesDossier(dossierBase(app, { roleNotaire: 'participant', notaireAcquereur: 'Maître DURAND', emailNotaireParticipant: 'durand@notaires.fr' }));
+  assert.match(confrere, /Échanges avec le confrère/);
+  assert.doesNotMatch(confrere, /Questionnaire de satisfaction/);
+});
+
+test('dateDernierEmail : champ daté, à défaut la ligne d’historique écrite à l’envoi', () => {
+  const app = chargerApplication();
+  const d = dossierBase(app, { historique: [{ date: '2026-09-02T10:00:00.000Z', texte: 'Relance manuelle envoyée — provision sur frais et pièce d’identité' }] });
+  assert.equal(app.dateDernierEmail(d, 'provision'), '2026-09-02');
+  assert.equal(app.dateDernierEmail(dossierBase(app, { provisionDemandeeLe: '2026-09-05' }), 'provision'), '2026-09-05');
+  assert.equal(app.dateDernierEmail(dossierBase(app), 'rib'), null);
 });

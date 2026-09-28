@@ -11441,3 +11441,22 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
   - Vérifié dans Chromium (serveur réel, dossiers inventés, clair/sombre/390 px) : dates alignées
     à la même colonne, aucun débordement horizontal du tiroir, édition de date au crayon, action d'un
     dossier de collègue retrouvée, aucune erreur JS. Non vérifié ici : l'écriture EWS réelle.
+
+- **28/09/2026 — Échanges avec le client ou le confrère selon le stade du dossier** (demandé par
+  l'étude). `stadeDossier(d, aujourdhui)` lit le stade dans les dates, sans rien à saisir :
+  `conditions` (vente préalable ou prêt encore attendus) → `rendezVous` (conditions levées, pas de
+  rendez-vous) → `signature` (rendez-vous fixé, à venir ou du jour) → `signe` (rendez-vous passé ou
+  marqué réalisé). `echangesSelonStade` range chaque échange en `utiles` / `autres` :
+  provision tant qu'aucun rendez-vous n'est fixé ; vente préalable et offre de prêt tant qu'elles
+  sont attendues ; appel de fonds à préparer dès les conditions levées ; fonds reçus, confirmation
+  de réception des fonds, RIB et note d'agenda une fois le rendez-vous fixé ; questionnaire après
+  la signature. L'onglet (`renderEchangesDossier`) montre le destinataire (titre « Échanges avec le
+  client » ou « … avec le confrère » quand un autre office représente l'acquéreur), le stade, les
+  lignes utiles, puis le reste replié sous « Hors de ce stade (N) » : **rien n'est retiré**, un
+  email hors stade reste à un clic. Ce qui n'a plus de sens reste absent comme avant (relance d'une
+  vente préalable faite, d'une offre reçue ; réception des fonds avant l'appel de fonds ;
+  questionnaire au confrère). Le questionnaire est désormais disponible dès qu'une date de
+  signature est connue (rendez-vous, à défaut date butoir) et mis en avant après la signature.
+  La demande de provision garde maintenant sa date (`provisionDemandeeLe`) ; pour les dossiers plus
+  anciens, `dateDernierEmail` retrouve la date dans l'historique écrit à l'envoi.
+  Pour les échéances, l'étude valide la présentation livrée juste avant (rien de changé).

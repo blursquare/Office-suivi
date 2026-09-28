@@ -6492,3 +6492,18 @@ button.bouton-ajout.bouton-ajout-court { display: inline-flex; width: auto; marg
 button.bouton-ajout.ajout-piece-btn { width: calc(100% - 24px); margin: 10px 12px 12px; border-top: 1px dashed var(--line); }
 @media (prefers-reduced-motion: reduce) { button.bouton-ajout { transition: none; } }
 .qt-ajout-sources { margin-top: 10px; }
+
+/* Onglet Échanges selon le stade du dossier (voir echangesSelonStade). */
+.echanges-tete { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; padding-right: 6px; }
+.echanges-stade { font-size: 12px; font-weight: 600; color: var(--ink-soft); }
+details.echanges-autres { margin: -6px 0 18px; }
+details.echanges-autres > summary {
+  cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 6px; font-size: 12.5px; color: var(--muted); border-radius: 6px;
+}
+details.echanges-autres > summary::-webkit-details-marker { display: none; }
+details.echanges-autres > summary::before { content: '▸'; font-size: 11px; }
+details.echanges-autres[open] > summary::before { content: '▾'; }
+details.echanges-autres > summary:hover { color: var(--ink); background: var(--paper-sunk); }
+details.echanges-autres > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+details.echanges-autres .ja-titre { font-weight: 500; }

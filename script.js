@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-28 23:46';
+  const VERSION_APP = '2026-09-28 23:50';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-28 23:50', resume: "Onglet Échanges selon le stade du dossier (conditions en cours, rendez-vous à fixer, signature en préparation, acte signé) : d'abord les emails et gestes utiles maintenant, au client ou au confrère ; le reste replié sous « Hors de ce stade »." },
     { version: '2026-09-28 23:46', resume: "Fiche plus lisible : les échéances tiennent sur une ligne chacune (date, état, gestes au survol) sous un encadré « Prochaine étape » ; chaque email ou action (relances, appel de fonds, fonds reçus, agenda, questionnaire) prend la même forme de ligne que la liste « À faire » ; un seul bouton « Ajouter » partout." },
     { version: '2026-09-28 23:20', resume: "« VTE - NOM » aussi dans l'objet des emails, les noms de fichiers exportés, les notifications Teams et les rappels ; la recherche trouve « vte dupont »." },
     { version: '2026-09-28 23:18', resume: "Le nom du dossier n'apparaît plus dans le corps des emails (il reste dans l'objet)." },
@@ -16721,9 +16722,9 @@
 
   // Une entrée par motif de relance : le libellé du bouton, le modèle d'email, et la condition qui
   // le rend pertinent pour CE dossier (pas de relance "prêt" sur un achat comptant, pas de relance
-  // "pièces" si tout est déjà reçu) — évaluée à l'affichage par renderRelancesCiblees().
+  // "pièces" si tout est déjà reçu) — évaluée à l'affichage par echangesSelonStade().
   var MODELES_EMAIL_RELANCE = {
-    provision: { cle: 'provision', libelle: 'Provision + pièce d’identité', construire: construireEmailRelanceProvision, historique: 'Relance manuelle envoyée — provision sur frais et pièce d’identité' },
+    provision: { cle: 'provision', libelle: 'Provision + pièce d’identité', construire: construireEmailRelanceProvision, historique: 'Relance manuelle envoyée — provision sur frais et pièce d’identité', date: 'provisionDemandeeLe' },
     pret: { cle: 'pret', libelle: 'Prêt manquant', construire: construireEmailRelancePret, historique: 'Relance manuelle envoyée — offre de prêt' },
     rib: { cle: 'rib', libelle: 'RIB', construire: construireEmailRelanceRib, historique: 'Relance manuelle envoyée — RIB', date: 'ribDemandeLe' },
     ventePrealable: { cle: 'ventePrealable', libelle: 'Vente préalable', construire: construireEmailRelanceVentePrealable, historique: 'Relance envoyée — vente préalable', date: 'relanceVentePrealableLe' },
@@ -16819,11 +16820,15 @@
     rib: { titre: 'Demander le RIB et la pièce d’identité', verbe: 'Envoyer', categorie: 'rendezVousSignature', categorieLabel: 'Avant la signature' }
   };
 
-  // Date du dernier envoi d'un email (null s'il n'est pas daté : la provision ne l'est pas).
+  // Date du dernier envoi d'un email : le champ daté du dossier, à défaut la dernière ligne
+  // d'historique écrite à l'envoi (dossiers antérieurs au champ daté).
   function dateDernierEmail(d, motif) {
-    if (motif === 'pret') return d.derniereRelanceAuto || null;
+    if (motif === 'pret' && d.derniereRelanceAuto) return d.derniereRelanceAuto;
     const m = MODELES_EMAIL_RELANCE[motif];
-    return (m && m.date && d[m.date]) || null;
+    if (!m) return null;
+    if (m.date && d[m.date]) return d[m.date];
+    const entrees = (d.historique || []).filter(e => e && typeof e.texte === 'string' && e.texte.indexOf(m.historique) === 0 && typeof e.date === 'string');
+    return entrees.length ? entrees[entrees.length - 1].date.slice(0, 10) : null;
   }
 
   function renderLigneEmailDossier(d, motif) {
@@ -16845,35 +16850,6 @@
       apercu: cle,
       detail: brouillon ? renderBrouillonEmail(brouillon) : ''
     });
-  }
-
-  // Les emails au client qu'il est utile de proposer sur ce dossier, dans l'ordre de sa vie : la
-  // provision (ouverture), la vente préalable et l'offre de prêt tant qu'elles sont attendues, le RIB.
-  // « Confirmer la réception des fonds » n'y est pas : il dépend de l'appel de fonds, voir
-  // renderReceptionFonds. `suite` : les lignes qui complètent la même liste (réception des fonds,
-  // questionnaire), pour que tous les emails du dossier forment une seule liste.
-  function renderRelancesCiblees(d, suite) {
-    const notaireParticipant = notaireParticipantRepresenteAcquereur(d);
-    const reste = suite || '';
-    if (!emailDestinataireRelance(d)) {
-      const hint = notaireParticipant
-        ? 'Renseignez l’email du confrère (ci-dessus) pour écrire : l’acquéreur a son propre notaire.'
-        : 'Renseignez l’email de l’acquéreur pour écrire.';
-      return `<div class="echanges-destinataire">
-        ${renderEmailAcquereurDossier(d)}
-        <p class="hint">${hint}</p>
-      </div>
-      ${reste ? `<ul class="ja-liste">${reste}</ul>` : ''}`;
-    }
-    const motifs = ['provision'];
-    if (d.ventebien && !echeanceValidee(d, 'ventebien')) motifs.push('ventePrealable');
-    if (!d.sansPret && d.offrePretStatut !== 'recue') motifs.push('pret');
-    motifs.push('rib');
-    return `<div class="echanges-destinataire">
-      ${renderEmailAcquereurDossier(d)}
-      ${notaireParticipant ? '<p class="hint">Adressé au notaire de l’acquéreur.</p>' : ''}
-    </div>
-    <ul class="ja-liste">${motifs.map(m => renderLigneEmailDossier(d, m)).join('')}${reste}</ul>`;
   }
 
   // ==== Questionnaire de satisfaction + archivage automatique (clôture du dossier) ====
@@ -16973,9 +16949,10 @@
       }));
     }
     if (d.archive) return '';
-    // Demandé par l'étude : proposé seulement une fois la date de signature de l'acte renseignée —
-    // avant, le dossier n'est pas fini et le questionnaire n'a pas d'objet.
-    if (!d.acte) return '';
+    // Demandé par l'étude : proposé seulement une fois une date de signature connue (rendez-vous,
+    // à défaut date butoir) — avant, le dossier n'est pas fini et le questionnaire n'a pas d'objet.
+    // Avant la signature elle-même, il reste replié « hors de ce stade » (echangesSelonStade).
+    if (!d.acte && !d.rendezVousSignature) return '';
     if (!d.emailAcquereur) {
       return renderLigneAction(Object.assign(base, { sous: 'Renseignez l’email de l’acquéreur.' }));
     }
@@ -17012,20 +16989,96 @@
     });
   }
 
-  // Onglet Échanges de la fiche : tout ce qu'on envoie ou prépare pour ce dossier, en lignes
-  // d'action (même forme que « À faire »). Deux groupes : les emails au client, puis l'appel de
-  // fonds, les fonds reçus et l'agenda.
+  // ---- Échanges selon le stade du dossier (demandé par l'étude le 28/09) ----
+  // Quatre stades, lus dans les données du dossier (rien à saisir) : conditions suspensives en
+  // cours → conditions levées, rendez-vous à fixer → rendez-vous fixé (préparation de la signature)
+  // → acte signé (rendez-vous passé ou marqué réalisé).
+  var STADES_DOSSIER = {
+    conditions: 'Conditions suspensives en cours',
+    rendezVous: 'Conditions levées — rendez-vous à fixer',
+    signature: 'Rendez-vous de signature fixé',
+    signe: 'Acte signé'
+  };
+
+  function stadeDossier(d, aujourdhuiIso) {
+    if (d.rendezVousSignature) {
+      const j = ecartJours(aujourdhuiIso, d.rendezVousSignature);
+      return (j !== null && j < 0) || echeanceValidee(d, 'rendezVousSignature') ? 'signe' : 'signature';
+    }
+    const venteAttendue = !!d.ventebien && !echeanceValidee(d, 'ventebien');
+    const pretAttendu = !d.sansPret && !echeanceValidee(d, 'pret');
+    return venteAttendue || pretAttendu ? 'conditions' : 'rendezVous';
+  }
+
+  // Pure : les échanges proposés sur ce dossier, rangés pour son stade, dans l'ordre de la vie du
+  // dossier. `utiles` : ce qui sert maintenant ; `autres` : ce qui reste possible mais hors de propos
+  // à ce stade (affiché replié, rien n'est retiré). Ce qui n'a plus aucun sens n'est nulle part :
+  // relance de la vente préalable une fois faite, de l'offre une fois reçue, réception des fonds
+  // avant l'appel de fonds (voir les render* de chaque ligne pour ces conditions d'existence).
+  //   provision    ouverture du dossier, tant qu'aucun rendez-vous n'est fixé
+  //   vente préal. tant qu'elle est attendue (avant la signature)
+  //   prêt         tant que l'offre est attendue et la condition non levée
+  //   appel fonds  à préparer dès les conditions levées, et jusqu'à la signature
+  //   fonds reçus, réception des fonds, RIB, note d'agenda : rendez-vous fixé
+  //   questionnaire : acte signé
+  function echangesSelonStade(d, aujourdhuiIso) {
+    const stade = stadeDossier(d, aujourdhuiIso);
+    const avantRdv = stade === 'conditions' || stade === 'rendezVous';
+    const utiles = [], autres = [];
+    const ranger = (cle, utile) => (utile ? utiles : autres).push(cle);
+    ranger('provision', avantRdv);
+    if (d.ventebien && !echeanceValidee(d, 'ventebien')) ranger('ventePrealable', stade !== 'signe');
+    if (!d.sansPret && d.offrePretStatut !== 'recue') ranger('pret', stade !== 'signe' && !echeanceValidee(d, 'pret'));
+    ranger('appelFonds', stade === 'rendezVous' || stade === 'signature');
+    ranger('fondsRecus', stade === 'signature');
+    ranger('fonds', stade === 'signature');
+    ranger('rib', stade === 'signature');
+    ranger('agenda', stade === 'signature');
+    ranger('questionnaire', stade === 'signe');
+    return { stade, utiles, autres };
+  }
+
+  // Une ligne par clé de echangesSelonStade ; '' quand le geste n'existe pas pour ce dossier.
+  function renderLigneEchange(d, cle) {
+    const avecDestinataire = !!emailDestinataireRelance(d);
+    if (cle === 'appelFonds') return renderAppelFondsDossier(d);
+    if (cle === 'fondsRecus') return renderFondsRecus(d);
+    if (cle === 'agenda') return renderNoterAgenda(d);
+    if (cle === 'questionnaire') return renderQuestionnaireSatisfaction(d);
+    if (!avecDestinataire) return '';
+    if (cle === 'fonds') return renderReceptionFonds(d);
+    return renderLigneEmailDossier(d, cle);
+  }
+
+  // Onglet Échanges de la fiche : le destinataire (client, ou confrère quand un autre office
+  // représente l'acquéreur), puis ce qui sert À CE STADE du dossier en lignes d'action (même forme
+  // que « À faire »), puis le reste replié.
   function renderEchangesDossier(d) {
-    const suite = [renderReceptionFonds(d), renderQuestionnaireSatisfaction(d)].filter(Boolean).join('');
-    const autres = [renderAppelFondsDossier(d), renderFondsRecus(d), renderNoterAgenda(d)].filter(Boolean).join('');
+    const notaireParticipant = notaireParticipantRepresenteAcquereur(d);
+    const { stade, utiles, autres } = echangesSelonStade(d, isoAujourdhuiLocal());
+    const lignes = (cles) => cles.map(c => renderLigneEchange(d, c)).filter(Boolean);
+    const lignesUtiles = lignes(utiles);
+    const lignesAutres = lignes(autres);
+    const hint = emailDestinataireRelance(d)
+      ? (notaireParticipant ? 'Adressé au notaire de l’acquéreur.' : '')
+      : (notaireParticipant
+        ? 'Renseignez l’email du confrère (ci-dessus) pour écrire : l’acquéreur a son propre notaire.'
+        : 'Renseignez l’email de l’acquéreur pour écrire.');
     return `<div class="echanges-groupe">
-        <span class="section-eyebrow">Emails au client</span>
-        ${renderRelancesCiblees(d, suite)}
+        <div class="echanges-tete">
+          <span class="section-eyebrow">${notaireParticipant ? 'Échanges avec le confrère' : 'Échanges avec le client'}</span>
+          <span class="echanges-stade" title="Stade du dossier, lu dans ses dates">${escapeHtml(STADES_DOSSIER[stade])}</span>
+        </div>
+        <div class="echanges-destinataire">
+          ${renderEmailAcquereurDossier(d)}
+          ${hint ? `<p class="hint">${hint}</p>` : ''}
+        </div>
+        ${lignesUtiles.length ? `<ul class="ja-liste">${lignesUtiles.join('')}</ul>` : '<p class="fiche-vide">Rien à envoyer à ce stade.</p>'}
       </div>
-      ${autres ? `<div class="echanges-groupe">
-        <span class="section-eyebrow">Appel de fonds et agenda</span>
-        <ul class="ja-liste">${autres}</ul>
-      </div>` : ''}`;
+      ${lignesAutres.length ? `<details class="echanges-autres">
+        <summary>Hors de ce stade (${lignesAutres.length})</summary>
+        <ul class="ja-liste">${lignesAutres.join('')}</ul>
+      </details>` : ''}`;
   }
 
   // ---- persistence (serveur intranet) ----
@@ -18417,6 +18470,7 @@
       // plus déplacer ni retirer l'événement, et le reposerait en double.
       agendaEcheances: agendaEcheancesImportees(d.agendaEcheances),
       ribDemandeLe: typeof d.ribDemandeLe === 'string' ? d.ribDemandeLe : null,
+      provisionDemandeeLe: typeof d.provisionDemandeeLe === 'string' ? d.provisionDemandeeLe : null,
       relanceVentePrealableLe: typeof d.relanceVentePrealableLe === 'string' ? d.relanceVentePrealableLe : null,
       // Montant attendu saisi à la main : conservé. Le rapprochement des reçus (fondsRecus) dérive du NAS
       // de CE serveur : il repart de zéro, comme les pièces.
