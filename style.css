@@ -5336,6 +5336,17 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
 .point-intitule { font-size: 13.5px; font-weight: 600; color: var(--ink); }
 .point-commentaire { margin: 4px 0 0; font-size: 13.5px; line-height: 1.55; color: var(--ink-soft); max-width: 90ch; }
 .point-citations { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+/* Clauses contradictoires : les deux passages côte à côte (A ‖ B), l'un sous l'autre en étroit. */
+.contradiction-paire { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 8px; }
+.contradiction-clause { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.contradiction-clause .point-citations { margin-top: 4px; }
+.contradiction-lettre {
+  align-self: flex-start; font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+  color: var(--muted); text-transform: uppercase;
+}
+.contradiction-lettre::before { content: 'Clause '; }
+.contradiction-clause .obligation-clause.non-verifiee { border-left-color: var(--pret); }
+@media (max-width: 720px) { .contradiction-paire { grid-template-columns: minmax(0, 1fr); } }
 .point-ligne.niveau-na .point-intitule { color: var(--muted); font-weight: 500; }
 @media (max-width: 640px) { .point-ligne { grid-template-columns: minmax(0, 1fr); gap: 4px; } }
 

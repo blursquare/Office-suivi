@@ -9478,6 +9478,35 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     c'est l'étude qui l'a ajoutée, donc qui a dit qu'il fallait l'attendre. Même règle dans le miroir
     serveur. +1 test de chaque côté. Suites : racine 898, serveur 474.
 
+- **Relecture d'actes : rubrique « Clauses contradictoires »** (28/09 soir, « Analyse projet :
+  vérifier les clauses contradictoires »). Ajoutée à l'analyse par l'IA (Claude ou Mistral — même
+  prompt, même schéma), pas aux contrôles déterministes : repérer deux clauses qui s'excluent
+  suppose de lire tout l'acte en langage libre, ce qu'aucune regex ne fait sans produire le bruit que
+  l'étude a déjà demandé de réduire.
+  - **Schéma** (`SCHEMA_RELECTURE`, `server/src/relecture/claude.js`) : nouveau champ requis
+    `contradictions` — `{sujet, explication, gravite, clause_a, clause_b}`, chaque clause au format
+    citation (document, page, extrait). **Deux clauses obligatoires** : `normaliserAnalyse` écarte
+    toute contradiction qui n'en cite pas deux (le notaire ne pourrait pas la vérifier), et vérifie
+    chacune mot pour mot (`verifierCitations`, page recalculée) comme les autres citations.
+  - **Prompt** : ce qui compte (deux prix/dates/montants, libre vs loué, charge attribuée aux deux
+    parties, condition stipulée puis écartée, diagnostic absent puis annexé, surface/lot/parcelle
+    divergents) et ce qui ne compte pas (règle générale et sa dérogation expresse — « sauf », « par
+    dérogation », « nonobstant » —, clauses complémentaires, clause de style, simple imprécision).
+    Jamais répétée en anomalie ni dans un point de la grille ; liste vide plutôt qu'inventée. En mode
+    projet de vente, les divergences AVEC L'AVANT-CONTRAT restent dans « anomalies » (règle
+    existante) : la rubrique porte sur les clauses du projet et de ses annexes entre elles.
+  - **Bilan** : section « Clauses contradictoires » avant « Autres points relevés », les deux
+    passages côte à côte (A ‖ B, empilés sous 720px) avec leur puce de page vers l'aperçu ; une
+    clause non retrouvée mot pour mot a son filet en ambre. Chaque contradiction est un constat de
+    catégorie `CONTRADICTION_CLAUDE` : mode commentaires, faux positif, gravité — et elle compte
+    dans la santé globale. Affichée « Aucune contradiction relevée » quand l'IA a tourné ; **absente
+    sur une analyse enregistrée avant ce changement** (pas de liste = rien n'a été cherché). Les
+    citations introuvables apparaissent dans le diagnostic de la relecture.
+  - Tests : +1 dans `server/test/relecture-claude.test.js`. Suites : racine 898, serveur 475. Rendu
+    vérifié en bac à sable (deux clauses, échappement, clause non vérifiée). **Non vérifié avec une
+    vraie clé API** : la qualité des contradictions relevées reste à juger par l'étude sur des
+    projets réels, avec le mode commentaires.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

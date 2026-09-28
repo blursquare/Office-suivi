@@ -251,7 +251,22 @@ ce qui a été trouvé, ou pourquoi le point reste ouvert. Ne le développe que 
   Bâtiments de France, site patrimonial remarquable) : signale-la dans le point urbanisme dès qu'un
   document la mentionne ; tu ne peux consulter aucune base extérieure, n'en suppose jamais l'absence.
 
-Tout autre point d'attention (incohérence de dates ou de montants, clause ambiguë, contradiction
+Clauses contradictoires — relève dans "contradictions" chaque paire de clauses qui ne peuvent pas
+s'appliquer ensemble, dans un même document ou entre le projet et ses annexes : deux prix, deux
+montants ou deux dates pour la même chose ; un bien déclaré libre ici et loué là ; une charge mise
+sur le vendeur puis sur l'acquéreur ; une condition suspensive stipulée puis écartée ; un diagnostic
+dit absent puis annexé ; une surface, un lot ou une parcelle qui diffère d'une clause à l'autre.
+- Cite les DEUX clauses mot pour mot ("clause_a" et "clause_b"), chacune avec son document et sa
+  page, et explique en une ou deux phrases pourquoi elles s'excluent.
+- Ne relève pas : une règle générale et sa dérogation expresse (« sauf », « par dérogation »,
+  « nonobstant »), deux clauses qui se complètent, une clause de style reprise telle quelle, ni une
+  simple imprécision (qui relève d'un point de la grille ou des anomalies).
+- Gravité : "elevee" quand la contradiction porte sur le prix, les parties, le bien, une condition
+  ou la répartition d'une charge ; "moyenne" sinon ; "faible" pour une coquille sans effet.
+- Une contradiction relevée ici n'est répétée ni en anomalie ni dans le commentaire d'un point.
+- Aucune contradiction : renvoie une liste vide, n'en invente jamais pour remplir la rubrique.
+
+Tout autre point d'attention (incohérence de dates ou de montants, clause ambiguë, divergence
 entre documents) va dans "anomalies", avec sa gravité : "elevee" (à régler avant signature),
 "moyenne" (à surveiller), "faible" (à noter).
 - Une anomalie ne répète JAMAIS un point de la grille : si le sujet relève d'un point (superficie
@@ -286,7 +301,7 @@ const SCHEMA_CITATION = {
 const SCHEMA_RELECTURE = {
   type: 'object',
   additionalProperties: false,
-  required: ['type_acte', 'synthese', 'coproprietes', 'points', 'anomalies'],
+  required: ['type_acte', 'synthese', 'coproprietes', 'points', 'contradictions', 'anomalies'],
   properties: {
     type_acte: { type: 'string' },
     synthese: { type: 'string' },
@@ -314,6 +329,21 @@ const SCHEMA_RELECTURE = {
           statut: { type: 'string', enum: STATUTS_POINT },
           commentaire: { type: 'string' },
           citations: { type: 'array', items: SCHEMA_CITATION }
+        }
+      }
+    },
+    contradictions: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['sujet', 'explication', 'gravite', 'clause_a', 'clause_b'],
+        properties: {
+          sujet: { type: 'string' },
+          explication: { type: 'string' },
+          gravite: { type: 'string', enum: GRAVITES_ANOMALIE },
+          clause_a: SCHEMA_CITATION,
+          clause_b: SCHEMA_CITATION
         }
       }
     },
@@ -388,6 +418,19 @@ function normaliserAnalyse(brute, grille, documents) {
       gravite: GRAVITES_ANOMALIE.indexOf(x.gravite) >= 0 ? x.gravite : 'moyenne',
       citations: verifierCitations(x.citations, documents)
     }));
+  // Une contradiction n'a de sens qu'avec SES DEUX clauses : sans l'une des deux citations, elle est
+  // écartée (le notaire ne pourrait pas la vérifier). Chaque clause est vérifiée mot pour mot.
+  const contradictions = (Array.isArray(a.contradictions) ? a.contradictions : [])
+    .filter(x => x && typeof x.sujet === 'string' && x.sujet.trim()
+      && x.clause_a && x.clause_b && String(x.clause_a.extrait || '').trim() && String(x.clause_b.extrait || '').trim())
+    .slice(0, 20)
+    .map(x => ({
+      sujet: texteCourt(x.sujet, 200),
+      explication: texteCourt(x.explication, 1200),
+      gravite: GRAVITES_ANOMALIE.indexOf(x.gravite) >= 0 ? x.gravite : 'moyenne',
+      clause_a: verifierCitations([x.clause_a], documents)[0],
+      clause_b: verifierCitations([x.clause_b], documents)[0]
+    }));
   const coproprietes = (Array.isArray(a.coproprietes) ? a.coproprietes : [])
     .filter(c => c && typeof c.designation === 'string')
     .slice(0, 6)
@@ -397,6 +440,7 @@ function normaliserAnalyse(brute, grille, documents) {
     synthese: texteCourt(a.synthese, 2000),
     coproprietes,
     points,
+    contradictions,
     anomalies
   };
 }

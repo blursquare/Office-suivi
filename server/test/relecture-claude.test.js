@@ -96,6 +96,35 @@ test('normaliserAnalyse : point oublié = à vérifier (jamais présent), point 
   assert.equal(a.anomalies[0].gravite, 'moyenne');
 });
 
+test('contradictions : deux clauses citées et vérifiées, incomplète écartée, règle dans le prompt', () => {
+  const d = validerDocuments(documents).documents;
+  const a = normaliserAnalyse({
+    synthese: '',
+    points: [],
+    contradictions: [
+      { sujet: 'Date du diagnostic', explication: 'Deux dates.', gravite: 'elevee',
+        clause_a: { document: 1, page: 9, extrait: 'Le diagnostic de performance énergétique a été établi le 12 mars 2025' },
+        clause_b: { document: 1, page: 2, extrait: 'Le vendeur déclare que la toiture a été refaite en 2019' } },
+      { sujet: 'Sans seconde clause', explication: '', gravite: 'moyenne',
+        clause_a: { document: 1, page: 1, extrait: 'Le diagnostic de performance énergétique' }, clause_b: { document: 1, page: 1, extrait: '' } },
+      { sujet: 'Gravité inconnue', explication: '', gravite: 'zz',
+        clause_a: { document: 1, page: 1, extrait: 'a' }, clause_b: { document: 1, page: 1, extrait: 'b' } }
+    ],
+    anomalies: []
+  }, grille, d);
+  assert.equal(a.contradictions.length, 2);
+  assert.equal(a.contradictions[0].clause_a.verifie, true);
+  assert.equal(a.contradictions[0].clause_a.page, 2); // page recalculée
+  assert.equal(a.contradictions[0].clause_b.verifie, false);
+  assert.equal(a.contradictions[1].gravite, 'moyenne');
+  assert.deepEqual(normaliserAnalyse({}, grille, d).contradictions, []);
+  const s = construireSystemPrompt('compromis', grille);
+  assert.match(s, /Clauses contradictoires/);
+  assert.match(s, /par dérogation/);
+  const { SCHEMA_RELECTURE } = require('../src/relecture/claude');
+  assert.ok(SCHEMA_RELECTURE.required.includes('contradictions'));
+});
+
 test('assainirReglagesClaude : clé conservée si absente, effacée si vide, modèle borné', () => {
   const p = assainirReglagesClaude({ cleApi: 'sk-ant-x', modele: 'claude-opus-5' });
   assert.equal(assainirReglagesClaude({ modele: 'claude-sonnet-5' }, p).cleApi, 'sk-ant-x');

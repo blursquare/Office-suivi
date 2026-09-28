@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-28 20:10';
+  const VERSION_APP = '2026-09-28 20:13';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-28 20:13', resume: "Relecture d'actes : nouvelle rubrique « Clauses contradictoires » — l'IA relève les clauses qui s'excluent (dans le projet ou entre le projet et ses annexes), les deux passages cités côte à côte avec leur page, vérifiés mot pour mot." },
     { version: '2026-09-28 20:10', resume: "Copropriété : plus d'attente de la renonciation au droit de préemption avant « Fixer le rendez-vous », sauf si une pièce de préemption (DPU, DIA…) a été ajoutée à la main au dossier et n'est pas encore reçue." },
     { version: '2026-09-28 20:01', resume: "« Fixer le rendez-vous » n'apparaît plus tant que la renonciation au droit de préemption n'est pas reçue (planning, « Aujourd'hui », rappels) : le dossier affiche à la place « Renonciation de préemption attendue ». Sans objet si la pièce est retirée du dossier ou en participation." },
     { version: '2026-09-28 18:09', resume: "Agenda Outlook : le rendez-vous de signature créé depuis CLAIRE prend la couleur de l'étude (vert à l'office, violet en visio, orange chez un confrère — noms des catégories réglables). Supprimer le rendez-vous dans CLAIRE le retire de l'agenda ; changer sa date le déplace au nouveau jour, même heure." },
@@ -24020,6 +24021,13 @@
           titre: l.intitule, description: l.commentaire, phrase: cit ? cit.extrait : '', page: cit ? cit.page : null, ligne: l });
       }
     }
+    // Clauses contradictoires : une catégorie à part, pour qu'un avis sur une contradiction ne
+    // s'applique jamais à une anomalie (et inversement).
+    (a.contradictions || []).forEach((x, i) => {
+      const cit = [x.clause_a, x.clause_b].find(c => c && c.verifie) || x.clause_a;
+      constatsClaudeRelecture.push({ uid: 'x-' + i, categorie: 'CONTRADICTION_CLAUDE', gravite: x.gravite === 'elevee' ? 'CRITIQUE' : 'A_VERIFIER',
+        titre: x.sujet, description: x.explication, phrase: cit ? cit.extrait : '', page: cit ? cit.page : null, contradiction: x });
+    });
     (a.anomalies || []).forEach((x, i) => {
       const cit = (x.citations || []).find(c => c.verifie) || (x.citations || [])[0];
       constatsClaudeRelecture.push({ uid: 'a-' + i, categorie: 'ANOMALIE_CLAUDE', gravite: x.gravite === 'elevee' ? 'CRITIQUE' : 'A_VERIFIER',
@@ -24175,6 +24183,7 @@
       const citations = [];
       for (const l of lignes) for (const c of (l.citations || [])) if (!c.verifie) citations.push({ l, c });
       for (const x of (analyseClaudeRelecture.anomalies || [])) for (const c of (x.citations || [])) if (!c.verifie) citations.push({ l: { intitule: x.titre }, c });
+      for (const x of (analyseClaudeRelecture.contradictions || [])) for (const c of [x.clause_a, x.clause_b]) if (c && !c.verifie) citations.push({ l: { intitule: 'Contradiction — ' + x.sujet }, c });
       blocs.push(`<div class="diag-bloc"><span class="section-eyebrow">Lecture par l’IA</span>
         <ul class="diag-liste">
           <li>${lignes.length} point(s) posé(s), ${omis.length ? `<strong>${omis.length} non traité(s) par le modèle</strong> (affichés « à vérifier »)` : 'tous traités par le modèle'}.</li>
@@ -24223,7 +24232,8 @@
     appliquerRetoursAuxConstats(constatsClaudeRelecture, retoursAudit, dernierAuditContexte ? dernierAuditContexte.dossierCle : '');
 
     const anomalies = constatsClaudeRelecture.filter(c => c.anomalie);
-    const extras = anomalies.filter(c => !(c.retour && c.retour.verdict === 'faux_positif')).map(c => niveauDepuisGraviteRelecture(c.gravite));
+    const contradictions = constatsClaudeRelecture.filter(c => c.contradiction);
+    const extras = anomalies.concat(contradictions).filter(c => !(c.retour && c.retour.verdict === 'faux_positif')).map(c => niveauDepuisGraviteRelecture(c.gravite));
     // Les contrôles CLAIRE affichés comptent aussi : une procédure en cours relevée par nos règles
     // est un point critique, qu'une ligne de grille l'ait vue ou non.
     const catsClaire = categoriesClaireBilanRelecture();
@@ -24279,6 +24289,32 @@
         ${na.length ? `<p class="hint grille-na">${na.length} point(s) sans objet : ${escapeHtml(na.map(l => l.intitule.split(' (')[0]).join(' · '))}</p>` : ''}
       </section>`;
     }).join('');
+
+    // Clauses contradictoires : les deux passages côte à côte, chacun avec sa page — c'est en les
+    // lisant ensemble que le notaire tranche. Affichée même vide quand l'IA a tourné : « aucune
+    // contradiction relevée » est une information, pas un silence.
+    const clauseContradiction = (c, lettre) => c ? `<div class="contradiction-clause">
+        <span class="contradiction-lettre">${lettre}</span>
+        <blockquote class="obligation-clause${c.verifie ? '' : ' non-verifiee'}">${escapeHtml(c.extrait || '')}</blockquote>
+        <div class="point-citations">${pastilleCitationRelecture(c)}</div>
+      </div>` : '';
+    // Une analyse enregistrée avant cette rubrique n'a pas de liste : rien n'y a été cherché, on
+    // n'affiche donc pas « aucune contradiction ».
+    const contradictionsHtml = a && Array.isArray(a.contradictions) ? `<section class="grille-section" id="relecture-section-contradictions">
+        <h3 class="grille-section-titre"><span>Clauses contradictoires</span><span class="audit-section-compte">${contradictions.length}</span></h3>
+        ${contradictions.length ? contradictions.map(c => {
+          const exclu = c.retour && c.retour.verdict === 'faux_positif';
+          const niv = exclu ? 'na' : niveauDepuisGraviteRelecture(c.gravite);
+          const nn = NIVEAUX_RELECTURE_OUTIL2[niv];
+          const pied = modeCommentairesAudit ? renderCommentaireConstatAudit(c) : renderRetourResumeAudit(c);
+          return `<div class="point-ligne niveau-${niv}" id="audit-constat-${c.uid}">
+            <span class="dot-label ${nn.dl}">${icone(nn.icone)}${exclu ? 'Faux positif' : nn.texte}</span>
+            <div class="point-corps"><div class="point-intitule">${escapeHtml(c.titre)}</div>
+              ${c.description ? `<p class="point-commentaire">${escapeHtml(c.description)}</p>` : ''}
+              <div class="contradiction-paire">${clauseContradiction(c.contradiction.clause_a, 'A')}${clauseContradiction(c.contradiction.clause_b, 'B')}</div>${pied}</div>
+          </div>`;
+        }).join('') : '<p class="hint grille-col-vide">Aucune contradiction relevée entre les clauses.</p>'}
+      </section>` : '';
 
     const anomaliesHtml = anomalies.length ? `<section class="grille-section" id="relecture-section-anomalies">
         <h3 class="grille-section-titre"><span>Autres points relevés</span><span class="audit-section-compte">${anomalies.length}</span></h3>
@@ -24350,6 +24386,7 @@
       <div class="relecture-bilan-principal">
         ${tuiles ? `<div class="sante-tuiles">${tuiles}</div>` : ''}
         ${detailSections}
+        ${contradictionsHtml}
         ${anomaliesHtml}
         ${cout}
         ${renderDiagnosticRelecture(r, sections)}
