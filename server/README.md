@@ -744,7 +744,6 @@ quelle version il fait tourner.
 - **Dépôt privé** : l'accès aux releases demande un jeton GitHub *fine-grained* limité au dépôt
   Office-suivi, permission **Contents : Read-only** — la procédure est affichée dans la carte. Il
   est gardé en base (`parametres`, clé `mise-a-jour`) et ne ressort par aucune route.
-- (voir aussi « Reçus comptables » plus bas)
 - **Retour arrière** : `Arreter-CLAIRE.bat`, supprimer `CLAIRE-serveur.exe`, renommer
   `CLAIRE-serveur.ancien.exe` en `CLAIRE-serveur.exe`, relancer. Si Windows avait refusé
   d'effacer la copie précédente (EPERM : antivirus, fichier en lecture seule, ancien processus
