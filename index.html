@@ -61,9 +61,11 @@
       <button type="button" id="tab-dashboard" class="sidebar-link actif" role="tab" aria-selected="true" onclick="definirOnglet('dashboard')">
         <span class="sidebar-link-icone" id="icon-nav-dashboard" aria-hidden="true"></span>Tableau de bord
       </button>
-      <!-- « Aujourd'hui » : le rapport de la journée du collaborateur du poste (voir la section
-           AUJOURD'HUI de script.js). Le compteur dit combien d'actions restent à faire. -->
-      <button type="button" id="tab-aujourdhui" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('aujourdhui')">
+      <!-- « Aujourd'hui » : la PAGE dédiée est masquée pour le moment (demande de l'étude) — seules
+           la carte « Aujourd'hui » du tableau de bord et la fenêtre du point du matin restent. Le
+           bouton reste dans le DOM (masqué) pour que definirOnglet() garde ses getElementById
+           valides et que la page se réactive en une ligne (retirer le style + rendre le bouton). -->
+      <button type="button" id="tab-aujourdhui" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('aujourdhui')" style="display:none;">
         <span class="sidebar-link-icone" id="icon-nav-aujourdhui" aria-hidden="true"></span>Aujourd’hui
         <span class="sidebar-compteur" id="badge-aujourdhui" style="display:none;"></span>
       </button>

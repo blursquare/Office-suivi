@@ -8822,6 +8822,29 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     par défaut, dossier participation offre reçue sans rendez-vous dont le planning reste non vide
     (`toutesEcheances` → `['appelFonds']`), bouton de réception des fonds présent dans l'onglet
     Échanges, aucune erreur JS.
+- **Page « Aujourd'hui » dédiée masquée « pour le moment » (demande de l'étude) : seules restent la
+  carte du tableau de bord et la fenêtre du point du matin.** L'étude a demandé de « ne plus afficher
+  la page dédiée, juste garder la section sur le tableau de bord et à l'ouverture ». Traité de façon
+  **volontairement réversible** (« pour le moment ») plutôt qu'en supprimant le code de la page :
+  - Le lien de sidebar `#tab-aujourdhui` passe en `display:none` dans `index.html` — l'élément reste
+    dans le DOM pour que `definirOnglet()` garde ses `getElementById('tab-aujourdhui')` valides (il en
+    lit trois : display, aria-selected, classList) et que la page se réactive en une ligne (retirer le
+    style). La page `#onglet-aujourdhui` reste elle aussi dans le DOM, `display:none`, jamais
+    sélectionnée. `renderPageAujourdhui()` et tous ses helpers sont conservés intacts.
+  - Les deux seuls points d'entrée restants vers la page sont redirigés : le bouton « reste » au bas de
+    la carte du tableau de bord (`renderAlertesDashboard`) appelle désormais `ouvrirFenetreAujourdhui()`
+    (la fenêtre du matin, qui montre la liste complète) au lieu de `definirOnglet('aujourdhui')` — libellé
+    « et N autres — tout voir » ou « Revoir le point du matin » ; et le bouton « Page Aujourd'hui » du
+    pied de la fenêtre du matin est retiré (il ne reste que « C'est noté »). `ouvrirRapportDepuisFenetre()`
+    devient sans appelant mais est conservé (marqueur pour la réactivation).
+  - Rien d'autre ne navigue vers `'aujourdhui'` : la page est donc inatteignable, sans qu'aucune
+    fonction ne soit supprimée. `majBadgeAujourdhui()` continue de mettre à jour le compteur dans le
+    lien masqué (sans effet visible), et la ligne `if (ongletActuel === 'aujourdhui') renderPageAujourdhui()`
+    de la carte est laissée telle quelle (inerte, `ongletActuel` ne pouvant plus valoir `'aujourdhui'`).
+  - Vérifié dans un vrai Chromium (serveur réel) : lien de sidebar présent mais masqué, carte
+    « Aujourd'hui » du tableau de bord rendue, bouton « reste » pointant sur `ouvrirFenetreAujourdhui()`,
+    fenêtre du matin qui s'ouvre sans bouton « Page Aujourd'hui » (« C'est noté » présent), aucune
+    erreur JS. `npm test` reste vert (855 racine).
 
 ## Comment tester
 

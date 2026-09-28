@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-28 13:20';
+  const VERSION_APP = '2026-09-28 13:31';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-28 13:31', resume: "« Aujourd'hui » : la page dédiée n'est plus affichée — seules restent la carte « Aujourd'hui » du tableau de bord et la fenêtre du point du matin (rouvrable depuis la carte)." },
     { version: '2026-09-28 13:20', resume: "Lot de 13 retouches : « Obtention du prêt » décochable si pas de prêt, bandeau « Date de signature détectée » retiré (déjà dans « Ce que l'outil a compris »), un dossier en participation offre reçue sans rendez-vous ne disparaît plus (date butoir en repli), bouton « Réception des fonds » dans l'onglet Échanges, « Mes rappels » détachée en carte du tableau de bord, « À faire » limité aux 15 jours, agenda du jour uniquement, dernières pièces limitées à 6, plus d'alerte de report si le rendez-vous est après le butoir, icône d'application non pixelisée, et — pour la relecture d'actes — le conjoint d'un vendeur marié seul propriétaire de la résidence principale est signalé." },
     { version: '2026-09-28 12:34', resume: "Agenda Outlook : nouveau réglage « Calendrier partagé de l'office (Sophie) » — les rendez-vous sont créés et mis à jour dans CE calendrier partagé, pas dans celui du compte de connexion. À renseigner dans Réglages et tester au bureau." },
     { version: '2026-09-28 12:25', resume: "Agenda Outlook : une fois l'appel de fonds (et/ou le projet) marqué envoyé, un bouton « Noter dans l'agenda » écrit « Appel de fonds envoyé » dans le lieu du rendez-vous de signature, après les initiales, sans toucher au code couleur. À tester au bureau." },
@@ -13317,7 +13318,7 @@
       </div>
       <div class="jour-carte-corps">
         ${actions.length ? `<ul class="ja-liste ja-compacte">${visibles.map(a => renderLigneActionJour(a, global)).join('')}</ul>` : '<div class="a-traiter-vide">✓ Rien à faire aujourd’hui sur vos dossiers.</div>'}
-        <button type="button" class="urgent-groupe-reste" onclick="definirOnglet('aujourdhui')">${reste > 0 ? `et ${reste} autre${reste > 1 ? 's' : ''} — ` : ''}ouvrir la page Aujourd’hui</button>
+        <button type="button" class="urgent-groupe-reste" onclick="ouvrirFenetreAujourdhui()">${reste > 0 ? `et ${reste} autre${reste > 1 ? 's' : ''} — tout voir` : 'Revoir le point du matin'}</button>
       </div>`;
     majBadgeAujourdhui(actions.length);
     if (ongletActuel === 'aujourdhui') renderPageAujourdhui();
@@ -13486,7 +13487,6 @@
       <footer class="jour-fenetre-pied">
         <span>S’ouvre à votre première connexion de la journée.</span>
         <span class="jour-espace"></span>
-        <button type="button" class="secondary" onclick="ouvrirRapportDepuisFenetre()">Page Aujourd’hui</button>
         <button type="button" class="primary" onclick="fermerFenetreAujourdhui()">C’est noté</button>
       </footer>`;
     overlay.style.display = 'flex';
