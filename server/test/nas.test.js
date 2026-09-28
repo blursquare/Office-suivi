@@ -236,3 +236,11 @@ test('reçus comptables : lus à la racine seulement, datés par leur nom, born�
   assert.ok(estNomRecu('reçu du jour.pdf'));
   assert.ok(!estNomRecu('Recueil.pdf'));
 });
+
+test('reçus nommés par jour et mois seulement : année tirée de la date du fichier', () => {
+  const { dateDepuisNomRecu: f } = require('../src/nas');
+  assert.equal(f('RECUS_14-08.pdf', Date.parse('2026-08-14T18:00:00')), '2026-08-14');
+  assert.equal(f('recus_14-09.pdf', Date.parse('2026-09-15T08:00:00')), '2026-09-14');
+  // Reçu du 30 décembre déposé le 2 janvier : année précédente.
+  assert.equal(f('Recus 30-12.pdf', Date.parse('2027-01-02T08:00:00')), '2026-12-30');
+});

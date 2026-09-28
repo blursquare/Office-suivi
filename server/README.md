@@ -930,6 +930,7 @@ dépendances de l'autre.
 `GET /api/nas/recus?depuis=AAAA-MM-JJ` liste les PDF déposés chaque jour par le logiciel comptable à
 la **racine** du dossier NAS configuré (`nasRacine`) dont le nom contient « Reçus » (avec ou sans
 accent, au singulier ou au pluriel), datés par leur nom (`Reçus 28-09-2026.pdf`, `RECUS_2026-09-28.pdf`,
-`Reçus 28092026.pdf`…) ou, à défaut, par leur date de modification. Seule la racine est lue ; les
+`Reçus 28092026.pdf`, ou `RECUS_14-08.pdf` sans année — l'année vient alors de la date de
+modification du fichier) ou, à défaut, par leur date de modification. Seule la racine est lue ; les
 dossiers clients ne le sont jamais par cette route. Le contenu est lu côté navigateur (pdf.js), comme
 les autres PDF du NAS.

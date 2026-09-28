@@ -74,6 +74,20 @@ function dateDepuisNomRecu(nom, mtimeMs) {
   if (m) return iso(m[3].length === 2 ? '20' + m[3] : m[3], m[2], m[1]);
   m = /(?<!\d)(\d{2})(\d{2})(\d{4})(?!\d)/.exec(s);
   if (m) return iso(m[3], m[2], m[1]);
+  // Jour et mois sans année (« RECUS_14-08.pdf », le nom réel des reçus de l'étude) : l'année est
+  // celle de la date de modification du fichier, ou l'année précédente si le jour ainsi obtenu
+  // tombe plus d'une semaine APRÈS cette date (un reçu du 30-12 déposé le 2 janvier).
+  m = /(?<!\d)(\d{1,2})[-_. ](\d{1,2})(?![-_. ]?\d)/.exec(s);
+  if (m) {
+    const ref = Number.isFinite(mtimeMs) ? new Date(mtimeMs) : new Date();
+    let an = ref.getFullYear();
+    const candidat = iso(an, m[2], m[1]);
+    if (candidat) {
+      const limite = new Date(ref.getTime() + 7 * 86400000);
+      const limiteIso = iso(limite.getFullYear(), limite.getMonth() + 1, limite.getDate());
+      return candidat > limiteIso ? iso(an - 1, m[2], m[1]) : candidat;
+    }
+  }
   if (Number.isFinite(mtimeMs)) {
     const d = new Date(mtimeMs);
     return iso(d.getFullYear(), d.getMonth() + 1, d.getDate());

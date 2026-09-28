@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-28 15:36';
+  const VERSION_APP = '2026-09-28 15:47';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-28 15:47', resume: "Fonds reçus : lecture adaptée aux vrais reçus comptables de l'étude (un reçu par page, « compte : N », une ligne par écriture). Seules les écritures dont le TITULAIRE du compte est l'acquéreur sont comptées — plus celles du vendeur citées dans la même référence de vente —, les remboursements de trop-perçu sont écartés, et chaque reçu affiche sa date réelle, son numéro de compte et « référence de la vente retrouvée » quand le libellé cite aussi le vendeur. Les fichiers nommés « RECUS_14-08 » (sans année) sont datés correctement." },
     { version: '2026-09-28 15:36', resume: "Fiche dossier, onglet Échanges : bloc « Fonds reçus ». CLAIRE lit les PDF « Reçus » du jour déposés à la racine du dossier commun du NAS, retrouve les versements au nom de l'acquéreur, les additionne et les compare au solde du décompte / de l'appel de fonds rangé dans le dossier NAS (ou à un montant saisi à la main) : tous les fonds reçus, reste à recevoir, ou aucun reçu. Chaque reçu retenu est listé avec son fichier, à vérifier." },
     { version: '2026-09-28 15:33', resume: "Vente préalable : bouton « Vente préalable » dans « Écrire par email » tant qu'elle n'est pas réalisée — un brouillon de relance au client, ou au confrère quand un autre office représente l'acquéreur, à ajuster avant envoi. Dans « Aujourd'hui », « Relancer la vente préalable » ouvre ce brouillon en un clic (pas plus d'une relance tous les 5 jours)." },
     { version: '2026-09-28 15:27', resume: "Aujourd'hui : une tâche validée (« Déjà fait », brouillon ouvert…) ne reste plus aussi dans « À faire ». « Déjà fait » note en plus le geste sur le dossier quand c'est possible (relance de l'offre, RIB demandé, fonds confirmés, envoi fait) pour que la tâche ne revienne pas le lendemain ; « Annuler » remet l'état d'avant." },
@@ -10487,16 +10488,102 @@
     return mots.some(m => n.includes(' ' + m + ' '));
   }
 
+  // ---- Mise en page RÉELLE des reçus de l'étude (JasperReports, un reçu par page, vue sur les
+  // PDF « RECUS_14-08 » et « recus_14-09 » envoyés le 28/09) :
+  //   <émetteur : confrère, DRFIP, assureur… et son adresse, sur plusieurs lignes>
+  //   14/09/2026 SGOSSART/BDERO 127 988,65 € Euros        ← date du reçu et total
+  //   <montant en lettres>
+  //   compte : 3104                                      ← compte client de l'étude
+  //   SARADIN Pauline VIR RECU DE ... SOLDE PRIX DE 116 100,00 €   ← une ligne par écriture :
+  //   VENTE CHRETIEN/SARADIN                                          titulaire du compte, libellé
+  //   SARADIN Pauline VIR RECU DE ... SOLDE 11 550,00 €               (suite à la ligne), montant
+  //   PROVISION SUR FRAIS VTE CHRETIEN/SARADIN
+  //   127 988,65 €                                       ← total, puis la banque ou « VIREMENT »
+  // Le TITULAIRE du compte est ce qui désigne le client : c'est sur lui seul qu'on reconnaît
+  // l'acquéreur. Le libellé porte souvent la référence de la vente (« VTE CHRETIEN/SARADIN ») où le
+  // nom de l'acquéreur figure aussi — le lire ferait compter les fonds reçus sur le compte du
+  // VENDEUR du même dossier. La référence sert seulement à confirmer le rapprochement.
+  var RE_DATE_RECU = /^(\d{2})\/(\d{2})\/(\d{4})\b.*€\s*Euros?\s*$/i;
+  var RE_COMPTE_RECU = /^compte\s*:\s*([\d ]+)$/i;
+  var RE_DEBUT_LIBELLE_RECU = /\s(VIR|VIRT|VIREMENT|CHEQUE|CHQ|ESPECES|ESP|PRLV|PRELEVEMENT|REMISE|VERSEMENT|DEPOT|CB)\b/i;
+  var RE_MONTANT_SEUL_RECU = /^[\d  .]+,\d{2}\s*€?$/;
+  // Écritures qui ne sont pas des fonds versés par le client : un remboursement ou une restitution
+  // de trop-perçu (DDFIP, assureur) arrive sur le même compte après coup.
+  var RE_ECRITURE_NON_FONDS = /\b(trop\s+per[cç]u|restitution|remboursement)\b/i;
+
+  // Pure : lit une page au format ci-dessus. Rend null si la page n'a pas ce format (le lecteur
+  // générique prend alors le relais).
+  function lireRecuComptable(lignes) {
+    const iCompte = (lignes || []).findIndex(l => RE_COMPTE_RECU.test(String(l).trim()));
+    if (iCompte < 0) return null;
+    let date = null;
+    for (const l of lignes.slice(0, iCompte)) {
+      const m = RE_DATE_RECU.exec(String(l).trim());
+      if (m) { date = `${m[3]}-${m[2]}-${m[1]}`; break; }
+    }
+    const compte = RE_COMPTE_RECU.exec(String(lignes[iCompte]).trim())[1].trim().split(/\s+/)[0];
+    const ecritures = [];
+    for (const brute of lignes.slice(iCompte + 1)) {
+      const l = String(brute).trim();
+      if (!l) continue;
+      if (RE_MONTANT_SEUL_RECU.test(l)) break;
+      const ms = montantsDansLigne(l);
+      if (ms.length) {
+        const sansMontant = l.replace(/[\d  .]+,\d{2}\s*€?\s*$/, '').trim();
+        const m = RE_DEBUT_LIBELLE_RECU.exec(' ' + sansMontant);
+        ecritures.push({
+          titulaire: m ? sansMontant.slice(0, m.index).replace(/[\s-]+$/, '').trim() : '',
+          libelle: m ? sansMontant.slice(m.index).trim() : sansMontant,
+          montant: ms[ms.length - 1]
+        });
+      } else if (ecritures.length) {
+        ecritures[ecritures.length - 1].libelle += ' ' + l;
+      }
+    }
+    return { date, compte, ecritures };
+  }
+
+  // Pure : les écritures d'un reçu comptable versées au nom de l'acquéreur (`mots`). `motsVente` =
+  // les autres patronymes du dossier (vendeur) : quand le libellé les cite aussi, le rapprochement
+  // est confirmé par la référence de la vente.
+  function ecrituresDuPayeur(recu, mots, motsVente) {
+    const out = [];
+    for (const e of (recu && recu.ecritures) || []) {
+      const qui = e.titulaire || e.libelle;
+      if (!ligneNommeLePayeur(qui, mots)) continue;
+      if (RE_ECRITURE_NON_FONDS.test(e.libelle)) continue;
+      const confirme = (motsVente || []).length > 0 && ligneNommeLePayeur(e.libelle, motsVente);
+      out.push({ montant: e.montant, date: recu.date, compte: recu.compte, confirme,
+        extrait: ((e.titulaire ? e.titulaire + ' — ' : '') + e.libelle).replace(/\s+/g, ' ').slice(0, 180) });
+    }
+    return out;
+  }
+
+  // Pure : les patronymes du vendeur (pour confirmer par la référence de la vente).
+  function motsVendeurDossier(d) {
+    const parties = Array.isArray(d && d.parties) ? d.parties : [];
+    const vendeurs = parties.filter(p => p && String(p.role || '').toUpperCase() === 'VENDEUR').map(p => p.nom);
+    const source = vendeurs.length ? vendeurs.join(' ') : String(d && d.nom || '').split('/')[0];
+    const acquereur = motsPayeurDossier(d);
+    return [...new Set(normaliserPourRecherche(source).split(/[^a-z]+/)
+      .filter(m => m.length >= 3 && !MOTS_IGNORES_PAYEUR.includes(m) && !acquereur.includes(m)))];
+  }
+
   // Pure : les reçus d'un PDF qui concernent ce payeur. `pages` = tableau de pages, chacune un
   // tableau de lignes. Deux mises en page couvertes : un tableau (une ligne par reçu, le montant en
   // fin de ligne — on retient le DERNIER montant de la ligne) et un reçu par page (le nom sur une
   // ligne, la somme sur une autre — on retient la ligne « somme / montant / total » de la page, ou,
   // à défaut, l'unique montant de la page). Une page ambiguë ne produit rien plutôt qu'un montant
   // deviné.
-  function recusDuPayeurDansPages(pages, mots) {
+  function recusDuPayeurDansPages(pages, mots, motsVente) {
     const recus = [];
     if (!mots || !mots.length) return recus;
     (pages || []).forEach((lignes, i) => {
+      const recuComptable = lireRecuComptable(lignes);
+      if (recuComptable) {
+        for (const e of ecrituresDuPayeur(recuComptable, mots, motsVente)) recus.push(Object.assign({ page: i + 1 }, e));
+        return;
+      }
       const concernees = lignes.filter(l => ligneNommeLePayeur(l, mots));
       if (!concernees.length) return;
       const avecMontant = concernees.filter(l => montantsDansLigne(l).length);
@@ -10575,6 +10662,7 @@
     if (!d) return;
     if (!nasDisponible()) { afficherToast('Le NAS n’est pas accessible depuis le serveur : impossible de lire les reçus.', 'OK', null); return; }
     const mots = motsPayeurDossier(d);
+    const motsVente = motsVendeurDossier(d);
     if (!mots.length) { afficherToast('Nom de l’acquéreur inconnu : impossible de reconnaître ses reçus.', 'OK', null); return; }
     if (btn) { btn.disabled = true; btn.innerHTML = `${icone('spinner', null, true)} Lecture des reçus…`; }
     try {
@@ -10589,7 +10677,10 @@
         try {
           const pages = await pagesEnLignesNas(f.chemin);
           lus++;
-          for (const r of recusDuPayeurDansPages(pages, mots)) trouves.push(Object.assign({ fichier: f.nom, chemin: f.chemin, date: f.date }, r));
+          for (const r of recusDuPayeurDansPages(pages, mots, motsVente)) {
+            // La date lue DANS le reçu l'emporte sur celle déduite du nom du fichier.
+            trouves.push(Object.assign({ fichier: f.nom, chemin: f.chemin }, r, { date: r.date || f.date }));
+          }
         } catch (e) { /* reçu illisible : les autres suffisent */ }
       }
       let attendu = null;
@@ -10644,7 +10735,9 @@
     const liste = f && f.recus && f.recus.length ? `<ul class="fonds-recus-liste">${f.recus.map(r => `
         <li><span class="fonds-recus-date">${r.date ? formatDateFr(r.date) : '—'}</span>
           <strong>${formaterPrixCentimes(r.montant)}</strong>
-          <button type="button" class="lien-discret" onclick="ouvrirFichierNas('${escapeOnclickArg(r.chemin)}')" title="${escapeAttr(r.extrait || '')}">${escapeHtml(r.fichier)}${r.page > 1 ? ' p.' + r.page : ''}</button></li>`).join('')}</ul>` : '';
+          <button type="button" class="lien-discret" onclick="ouvrirFichierNas('${escapeOnclickArg(r.chemin)}')" title="${escapeAttr(r.extrait || '')}">${escapeHtml(r.fichier)}${r.page > 1 ? ' p.' + r.page : ''}</button>
+          ${r.compte ? `<span class="fonds-recus-compte">compte ${escapeHtml(r.compte)}</span>` : ''}
+          ${r.confirme ? '<span class="fonds-recus-confirme" title="Le libellé du reçu cite aussi le vendeur du dossier">référence de la vente retrouvée</span>' : ''}</li>`).join('')}</ul>` : '';
     return `<div class="fonds-recus">
       <span class="section-eyebrow">Fonds reçus</span>
       <div class="fonds-recus-etat">${etat}
@@ -10654,7 +10747,7 @@
           onblur="changerFondsAttendus('${d.id}', this.value)" onkeydown="if(event.key==='Enter')this.blur()">
         ${source ? `<span class="hint">${source}</span>` : ''}</label>
       ${liste}
-      ${f ? `<p class="hint">Reçus lus depuis le ${formatDateFr(f.depuis)} (${f.fichiersLus} fichier${f.fichiersLus > 1 ? 's' : ''}) — vérifié ${new Date(f.verifieLe).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}. Chaque reçu reconnu au nom de l’acquéreur est listé : vérifiez qu’il concerne bien ce dossier.</p>` : ''}
+      ${f ? `<p class="hint">Reçus lus depuis le ${formatDateFr(f.depuis)} (${f.fichiersLus} fichier${f.fichiersLus > 1 ? 's' : ''}) — vérifié ${new Date(f.verifieLe).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}. Chaque versement au nom de l’acquéreur est listé : vérifiez qu’il concerne bien ce dossier.</p>` : ''}
     </div>`;
   }
 

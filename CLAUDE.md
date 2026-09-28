@@ -9195,6 +9195,37 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     patronyme de l'acquéreur, un homonyme sur un autre dossier serait compté — c'est pour ça que
     chaque reçu est listé. À resserrer (référence de dossier, n° de reçu) sur le premier PDF réel.
 
+
+- **Fonds reçus : lecture calée sur les vrais reçus comptables de l'étude** (28/09, deux PDF réels
+  envoyés — `RECUS_14-08.pdf`, 7 reçus, et `recus_14-09.pdf`, 3 reçus — en réponse à la réserve
+  posée sur le premier jet, écrit sans exemple). Les PDF réels ne sont PAS dans le dépôt ; les tests
+  reprennent leur structure avec des noms, comptes et montants inventés.
+  - **Format réel** (JasperReports, un reçu par page) : émetteur (confrère, DRFIP, assureur, avec
+    adresse), ligne `14/09/2026 SGOSSART/BDERO 127 988,65 € Euros` (date et total), montant en
+    lettres, `compte : 3104` (compte client de l'étude), puis UNE LIGNE PAR ÉCRITURE — titulaire du
+    compte, libellé, montant — dont le libellé continue à la ligne suivante (« VENTE
+    CHRETIEN/SARADIN »), puis le total seul. Un reçu peut porter plusieurs écritures (prix, provision,
+    prorata : 116 100 + 11 550 + 338,65 = 127 988,65).
+  - `lireRecuComptable(lignes)` (pure) reconnaît ce format par la ligne `compte :` et rend
+    `{date, compte, ecritures:[{titulaire, libelle, montant}]}` ; le titulaire est ce qui précède le
+    premier mot d'opération (VIR, CHEQUE, ESPECES, PRLV…). `recusDuPayeurDansPages` l'essaie d'abord
+    sur chaque page, et ne retombe sur l'ancienne lecture générique que si la page n'a pas ce format.
+  - **On reconnaît l'acquéreur sur le TITULAIRE seul, jamais sur le libellé** : la référence de la
+    vente cite le vendeur ET l'acquéreur, la lire ferait compter les fonds reçus sur le compte du
+    vendeur du même dossier (testé). Quand le libellé cite aussi le vendeur (`motsVendeurDossier`),
+    l'écriture est marquée « référence de la vente retrouvée ». Un remboursement de trop-perçu
+    (`RE_ECRITURE_NON_FONDS` : trop perçu, restitution, remboursement) n'est pas compté.
+  - La date affichée est celle lue DANS le reçu ; le numéro de compte est affiché à côté. Rejoué sur
+    les 10 reçus réels : CHRETIEN/SARADIN → 3 écritures, 127 988,65 €, confirmées ; la restitution de
+    1 € (DUFOUR/FAVREAUX), les écritures du vendeur (SOCIETE CAGE) et les règlements de concours entre
+    offices (titulaire = le confrère) ne sont jamais retenus.
+  - Serveur : `dateDepuisNomRecu` lit aussi « JJ-MM » sans année (`RECUS_14-08.pdf`) — l'année est
+    celle de la date de modification du fichier, l'année précédente si le jour obtenu tombe plus
+    d'une semaine après elle. Avant, ces noms retombaient sur la date de modification seule.
+  - **Piste non engagée** : le `compte : N` identifie le compte client du dossier dans la
+    comptabilité de l'étude. Le mémoriser sur le dossier permettrait de reconnaître un versement fait
+    sous un autre nom (conjoint, SCI) — mais un seul rapprochement faux le propagerait à tous les
+    reçus suivants. À ne faire que sur demande, avec une confirmation explicite du compte.
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à
