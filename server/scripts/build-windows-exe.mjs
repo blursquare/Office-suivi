@@ -54,7 +54,16 @@ function etape(n, total, message) {
 // Tailles d'icône Windows usuelles : 16/32/48 (explorateur, barre des tâches) et 256 (grandes
 // vignettes du bureau — c'est celle qui manquait et faisait paraître l'icône « pixélisée » quand
 // Windows agrandissait une petite image). 24/64/128 comblent les tailles intermédiaires.
-const TAILLES_ICONE = [16, 24, 32, 48, 64, 128, 256];
+// Tailles intermédiaires (20/30/36/40/60/72/80/96) : Windows les demande à 125 %/150 %
+// d'affichage ; faute de les trouver, il agrandit la taille inférieure et l'icône paraît floue.
+const TAILLES_ICONE = [16, 20, 24, 30, 32, 36, 40, 48, 60, 64, 72, 80, 96, 128, 256];
+
+// Épaisseur du trait selon la taille : le trait du logo (2,2 sur 48) ne fait plus qu'un demi-pixel
+// ou moins en dessous de 32 px et se lit comme une tache grise. Même règle que les favicons PNG
+// d'index.html (voir CLAUDE.md, « icône pixelisée »).
+function traitIcone(px) {
+  return px <= 16 ? 4.2 : px <= 24 ? 3.4 : px <= 32 ? 2.9 : px <= 48 ? 2.5 : 2.2;
+}
 
 // Construit un .ico multi-résolutions (entrées PNG, format Vista+) à partir de icone.svg, rasterisé
 // net à chaque taille par resvg. Aucun agrandissement d'une image basse résolution — chaque taille
@@ -62,7 +71,8 @@ const TAILLES_ICONE = [16, 24, 32, 48, 64, 128, 256];
 function construireIcoDepuisSvg(svgPath) {
   const svg = fs.readFileSync(svgPath, 'utf8');
   const images = TAILLES_ICONE.map((px) => {
-    const rendu = new Resvg(svg, { fitTo: { mode: 'width', value: px }, background: 'rgba(0,0,0,0)' });
+    const svgTaille = svg.replace(/stroke-width="2\.2"/g, `stroke-width="${traitIcone(px)}"`);
+    const rendu = new Resvg(svgTaille, { fitTo: { mode: 'width', value: px }, background: 'rgba(0,0,0,0)' });
     return { px, buf: Buffer.from(rendu.render().asPng()) };
   });
   const n = images.length;

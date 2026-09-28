@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-28 15:47';
+  const VERSION_APP = '2026-09-28 16:24';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-28 16:24', resume: "Emails : au clic, l'email s'ouvre de nouveau prêt à envoyer — un fichier .eml téléchargé qu'Outlook ouvre comme un nouveau message, en HTML, avec la signature de l'office (logos, couleurs, mentions) et les pièces jointes (questionnaire, courrier d'appel de fonds). Tout email à un confrère commence par « Mon Cher Maître, » et se termine par « Dans l'attente et vous en remerciant par avance, Votre bien dévoué. » ; relance de la vente préalable au confrère au texte de l'étude. Réglages › Sur ce poste : messagerie par défaut (texte seul) possible. Icône Windows nette à toutes les tailles." },
     { version: '2026-09-28 15:47', resume: "Fonds reçus : lecture adaptée aux vrais reçus comptables de l'étude (un reçu par page, « compte : N », une ligne par écriture). Seules les écritures dont le TITULAIRE du compte est l'acquéreur sont comptées — plus celles du vendeur citées dans la même référence de vente —, les remboursements de trop-perçu sont écartés, et chaque reçu affiche sa date réelle, son numéro de compte et « référence de la vente retrouvée » quand le libellé cite aussi le vendeur. Les fichiers nommés « RECUS_14-08 » (sans année) sont datés correctement." },
     { version: '2026-09-28 15:36', resume: "Fiche dossier, onglet Échanges : bloc « Fonds reçus ». CLAIRE lit les PDF « Reçus » du jour déposés à la racine du dossier commun du NAS, retrouve les versements au nom de l'acquéreur, les additionne et les compare au solde du décompte / de l'appel de fonds rangé dans le dossier NAS (ou à un montant saisi à la main) : tous les fonds reçus, reste à recevoir, ou aucun reçu. Chaque reçu retenu est listé avec son fichier, à vérifier." },
     { version: '2026-09-28 15:33', resume: "Vente préalable : bouton « Vente préalable » dans « Écrire par email » tant qu'elle n'est pas réalisée — un brouillon de relance au client, ou au confrère quand un autre office représente l'acquéreur, à ajuster avant envoi. Dans « Aujourd'hui », « Relancer la vente préalable » ouvre ce brouillon en un clic (pas plus d'une relance tous les 5 jours)." },
@@ -12776,6 +12777,8 @@
     }
     const resp = document.getElementById('f-responsable');
     if (resp && !resp.value && utilisateurPoste) resp.value = utilisateurPoste;
+    const modeEmail = document.getElementById('reglages-mode-email');
+    if (modeEmail) modeEmail.value = modeEmailPoste();
   }
 
   function ouvrirChoixPoste() {
@@ -13483,11 +13486,11 @@
       const modele = MODELES_EMAIL_RELANCE[action.geste.motif];
       if (!modele) return null;
       const { sujet, corps } = modele.construire(d);
-      return { a: emailDestinataireRelance(d), objet: sujet, corps };
+      return { a: emailDestinataireRelance(d), objet: sujet, corps: adapterCorpsEmail(corps, notaireParticipantRepresenteAcquereur(d)) };
     }
     if (action.geste.type === 'questionnaire') {
       const { sujet, corps } = construireEmailQuestionnaireSatisfaction(d);
-      return { a: d.emailAcquereur || '', objet: sujet, corps };
+      return { a: d.emailAcquereur || '', objet: sujet, corps: adapterCorpsEmail(corps, false) };
     }
     return null;
   }
@@ -15654,30 +15657,235 @@
   // relancerSiOffreManquante() déjà en place) : chacun cible un motif de relance précis, pour ne
   // plus avoir à réécrire le même email à la main selon ce qui manque réellement au dossier — un
   // usage distinct, non couvert par les rappels automatiques.
-  // Signature commune de tous les emails pré-rédigés (relances, réception des fonds, questionnaire,
-  // relance automatique de l'offre de prêt), fournie par l'étude : « Bien cordialement / Office de
-  // Maître Sophie GOSSART », les coordonnées de l'office, puis les mentions légales. Version TEXTE
-  // de la signature Outlook de l'étude : un brouillon mailto: ne porte que du texte, les bandeaux
-  // en image (photo de l'office, logos, encart visioconférence) ne peuvent pas y être insérés.
-  // Texte des mentions repris mot pour mot — ne pas le reformuler sans le document de l'étude.
-  var SIGNATURE_EMAIL_OFFICE = '\n\nBien cordialement,\n\n'
-    + 'Office de Maître Sophie GOSSART\n'
-    + 'Office Notarial de la Salamandre\n'
-    + '3 rue Bout des Haies - 41000 BLOIS\n'
-    + 'Tél. 02 54 78 61 70\n'
-    + 'office.gossart@notaires.fr\n'
-    + 'sophie-gossart-blois.notaires.fr\n\n'
-    + '---\n'
-    + 'Ainsi qu’il résulte des dispositions de l’article L.112-6-1 du Code Monétaire et Financier, désormais, tous les versements supérieurs à 3.000 € doivent être effectués par virement uniquement. Les notaires ne sont plus autorisés à accepter ou à établir des chèques pour le compte des parties à un acte donnant lieu à publicité foncière : seuls les virements sont autorisés.\n'
-    + 'Pour l’envoi de vos prix de vente, solde, fonds dépendant d’une succession, vous devrez impérativement nous fournir un RIB signé par vous.\n\n'
-    + 'Ce message contient des informations confidentielles protégées par le secret professionnel.\n'
-    + 'Au cas où il ne vous serait pas destiné, nous vous remercions de bien vouloir nous en aviser immédiatement et de le supprimer. Les liaisons internet ne sont pas sécurisées et en conséquence l’Office ne pourra être responsable de tout changement qui pourrait être effectué concernant ce message après son envoi.\n\n'
-    + 'Attention fraude : tous les notaires de France ont l’obligation de communiquer uniquement avec une adresse mail notaires.fr (notaires au pluriel avec un s). Un notaire ou un collaborateur de notaire ne vous écrira jamais avec une adresse orange, free, gmail ou autres.';
+  // ==== Préparation des emails : formule selon le destinataire, HTML, signature, fichier .eml ====
+  //
+  // Demandé par l'étude (28/09) : au clic, l'email s'OUVRE prêt à être envoyé (comme au temps du
+  // mailto:, et non plus un brouillon déposé en silence dans Outlook par EWS), mais en HTML, avec
+  // la signature de l'office — images et texte en couleur — et les pièces jointes. Un mailto: ne
+  // porte ni HTML, ni image, ni pièce jointe : la seule voie navigateur qui fait les trois est un
+  // fichier .eml marqué « X-Unsent: 1 », qu'Outlook ouvre comme un NOUVEAU message, éditable, avec
+  // son bouton Envoyer. Le fichier est téléchargé au clic ; l'ouvrir suffit (et Chrome peut
+  // l'ouvrir tout seul : clic droit sur le téléchargement › « Toujours ouvrir ce type de fichier »).
+  // Le mailto: reste disponible poste par poste (Réglages › Sur ce poste), texte seul, pour un
+  // poste sans Outlook.
 
-  // Un brouillon mailto: long (la signature et ses mentions légales en font plus de 2 000
-  // caractères une fois encodés) peut être tronqué par certaines messageries Windows. Le corps
-  // complet est donc AUSSI copié dans le presse-papiers, dans le même geste : si le brouillon
-  // s'arrête en cours de route, un Ctrl+A puis Ctrl+V dans le corps le rétablit en entier.
+  // Coordonnées et mentions de la signature de l'office, fournies par l'étude — texte des mentions
+  // repris mot pour mot, ne pas le reformuler sans le document de l'étude. Une seule source pour la
+  // version texte (SIGNATURE_EMAIL_OFFICE) et la version HTML (signatureHtmlOffice).
+  // Sans formule de politesse : elle appartient au CORPS (« Bien cordialement, » au client, « Votre
+  // bien dévoué. » à un confrère — voir adapterCorpsEmail), sinon elle se doublerait.
+  var COORDONNEES_EMAIL_OFFICE = [
+    'Office de Maître Sophie GOSSART',
+    'Office Notarial de la Salamandre',
+    '3 rue Bout des Haies - 41000 BLOIS',
+    'Tél. 02 54 78 61 70',
+    'office.gossart@notaires.fr',
+    'sophie-gossart-blois.notaires.fr'
+  ];
+  var MENTIONS_EMAIL_OFFICE = [
+    'Ainsi qu’il résulte des dispositions de l’article L.112-6-1 du Code Monétaire et Financier, désormais, tous les versements supérieurs à 3.000 € doivent être effectués par virement uniquement. Les notaires ne sont plus autorisés à accepter ou à établir des chèques pour le compte des parties à un acte donnant lieu à publicité foncière : seuls les virements sont autorisés.',
+    'Pour l’envoi de vos prix de vente, solde, fonds dépendant d’une succession, vous devrez impérativement nous fournir un RIB signé par vous.',
+    'Ce message contient des informations confidentielles protégées par le secret professionnel.',
+    'Au cas où il ne vous serait pas destiné, nous vous remercions de bien vouloir nous en aviser immédiatement et de le supprimer. Les liaisons internet ne sont pas sécurisées et en conséquence l’Office ne pourra être responsable de tout changement qui pourrait être effectué concernant ce message après son envoi.',
+    'Attention fraude : tous les notaires de France ont l’obligation de communiquer uniquement avec une adresse mail notaires.fr (notaires au pluriel avec un s). Un notaire ou un collaborateur de notaire ne vous écrira jamais avec une adresse orange, free, gmail ou autres.'
+  ];
+  var SIGNATURE_EMAIL_OFFICE = '\n\n' + COORDONNEES_EMAIL_OFFICE.join('\n') + '\n\n---\n' + MENTIONS_EMAIL_OFFICE.join('\n\n');
+
+  // Formules imposées par l'étude dès qu'on écrit à un CONFRÈRE (le notaire de l'acquéreur quand un
+  // autre office le représente — voir emailDestinataireRelance) : tous les emails, sans exception.
+  var FORMULE_APPEL_CONFRERE = 'Mon Cher Maître,';
+  var FORMULE_CLOTURE_CONFRERE = 'Dans l’attente et vous en remerciant par avance,\n\nVotre bien dévoué.';
+  var FORMULE_CLOTURE_CLIENT = 'Bien cordialement,';
+  var RE_FORMULE_APPEL_EMAIL = /^(?:bonjour|madame,?\s+monsieur|cher\s+confr[èe]re|mon\s+cher\s+ma[îi]tre|ma[îi]tre)\b[^\n]*,$/i;
+  var RE_FORMULE_CLOTURE_EMAIL = /^(?:bien\s+cordialement|cordialement|votre\s+bien\s+d[ée]vou[ée]|dans\s+l[’']attente)/i;
+
+  // Pure : pose les formules qui conviennent au destinataire. Au confrère, la formule d'appel du
+  // modèle est remplacée par « Mon Cher Maître, » et ses formules de clôture par « Dans l’attente…
+  // Votre bien dévoué. » ; au client, le modèle est gardé tel quel et reçoit seulement « Bien
+  // cordialement, » s'il n'a aucune formule de clôture. Idempotente.
+  function adapterCorpsEmail(corps, confrere) {
+    const paragraphes = String(corps || '').split(/\n{2,}/).map(p => p.replace(/\s+$/, ''));
+    while (paragraphes.length && !paragraphes[paragraphes.length - 1].trim()) paragraphes.pop();
+    if (!confrere) {
+      const dernier = paragraphes.length ? paragraphes[paragraphes.length - 1].trim() : '';
+      if (!/cordialement|d[ée]vou[ée]/i.test(dernier)) paragraphes.push(FORMULE_CLOTURE_CLIENT);
+      return paragraphes.join('\n\n');
+    }
+    if (paragraphes.length && RE_FORMULE_APPEL_EMAIL.test(paragraphes[0].trim())) paragraphes.shift();
+    while (paragraphes.length && RE_FORMULE_CLOTURE_EMAIL.test(paragraphes[paragraphes.length - 1].trim())) paragraphes.pop();
+    return [FORMULE_APPEL_CONFRERE, ...paragraphes, FORMULE_CLOTURE_CONFRERE].join('\n\n');
+  }
+
+  // --- HTML ---------------------------------------------------------------------------------------
+  // Mise en forme volontairement simple et « à l'ancienne » (tableaux, styles en ligne) : c'est ce
+  // qu'Outlook sait afficher, il ignore les feuilles de style et la mise en page moderne.
+  var COULEUR_EMAIL_OFFICE = '#6D2332';
+  var POLICE_EMAIL = "font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#1F1F1F;";
+
+  function echapperHtmlEmail(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // Une ligne « Cliquez ici … : https://… » devient un lien sur « Cliquez ici … » (l'adresse, très
+  // longue, disparaît) ; toute autre adresse web reste visible et devient cliquable.
+  function ligneHtmlEmail(ligne) {
+    const cliquez = /^(.*?cliquez ici[^:]*?)\s*:\s*(https?:\/\/\S+)\s*$/i.exec(ligne);
+    if (cliquez) {
+      return `${echapperHtmlEmail(cliquez[1].replace(/cliquez ici.*$/i, ''))}<a href="${echapperHtmlEmail(cliquez[2])}" style="color:${COULEUR_EMAIL_OFFICE};">${echapperHtmlEmail(cliquez[1].replace(/^.*?(cliquez ici)/i, '$1'))}</a>`;
+    }
+    return echapperHtmlEmail(ligne).replace(/https?:\/\/[^\s<]+/g, u => `<a href="${u}" style="color:${COULEUR_EMAIL_OFFICE};">${u}</a>`);
+  }
+
+  // `images` : cid des images disponibles ({ logoOffice, logoNotaires, iconVisio } → cid ou rien).
+  // Une image absente est simplement omise : la signature texte tient seule.
+  function signatureHtmlOffice(images) {
+    const img = images || {};
+    const lien = (href, texte) => `<a href="${href}" style="color:${COULEUR_EMAIL_OFFICE};text-decoration:none;">${echapperHtmlEmail(texte)}</a>`;
+    const c = COORDONNEES_EMAIL_OFFICE;
+    const logo = img.logoOffice
+      ? `<td style="padding:0 16px 0 0;vertical-align:middle;"><img src="cid:${img.logoOffice}" width="150" height="88" alt="Office notarial de la Salamandre" style="display:block;border:0;"></td>`
+      : '';
+    const bandeau = [];
+    if (img.logoNotaires) bandeau.push(`<td style="padding:0 14px 0 0;vertical-align:middle;"><img src="cid:${img.logoNotaires}" width="70" height="36" alt="Notaires de France" style="display:block;border:0;"></td>`);
+    if (img.iconVisio) {
+      bandeau.push(`<td style="padding:0 6px 0 0;vertical-align:middle;"><img src="cid:${img.iconVisio}" width="26" height="23" alt="" style="display:block;border:0;"></td>`);
+      bandeau.push(`<td style="vertical-align:middle;font-family:Calibri,Arial,sans-serif;font-size:8pt;font-weight:bold;color:${COULEUR_EMAIL_OFFICE};">OFFICE ÉQUIPÉ DE LA VISIOCONFÉRENCE DE LA PROFESSION</td>`);
+    }
+    const mentions = MENTIONS_EMAIL_OFFICE.map(m => {
+      const fraude = /^Attention fraude\s*:/.exec(m);
+      return fraude
+        ? `<p style="margin:0 0 6pt;"><b style="color:${COULEUR_EMAIL_OFFICE};">Attention fraude :</b>${echapperHtmlEmail(m.slice(fraude[0].length))}</p>`
+        : `<p style="margin:0 0 6pt;">${echapperHtmlEmail(m)}</p>`;
+    }).join('');
+    return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin-top:14pt;">`
+      + `<tr>${logo}<td style="border-left:2px solid ${COULEUR_EMAIL_OFFICE};padding:0 0 0 14px;vertical-align:middle;font-family:Calibri,Arial,sans-serif;font-size:10pt;color:#3B3B3B;">`
+      + `<div style="font-size:11pt;font-weight:bold;color:${COULEUR_EMAIL_OFFICE};">${echapperHtmlEmail(c[0])}</div>`
+      + `<div style="color:${COULEUR_EMAIL_OFFICE};">${echapperHtmlEmail(c[1])}</div>`
+      + `<div style="margin-top:4pt;">${echapperHtmlEmail(c[2])}</div>`
+      + `<div>${echapperHtmlEmail(c[3])}</div>`
+      + `<div>${lien('mailto:' + c[4], c[4])} · ${lien('https://' + c[5], c[5])}</div>`
+      + `</td></tr></table>`
+      + (bandeau.length ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin-top:8pt;"><tr>${bandeau.join('')}</tr></table>` : '')
+      + `<div style="margin-top:10pt;font-family:Calibri,Arial,sans-serif;font-size:8pt;line-height:1.35;color:#6B6B6B;">${mentions}</div>`;
+  }
+
+  // Pure : le corps (déjà adapté au destinataire) en HTML, suivi de la signature.
+  function htmlEmail(corps, images) {
+    const paragraphes = String(corps || '').split(/\n{2,}/).map(p =>
+      `<p style="margin:0 0 11pt;">${p.split('\n').map(ligneHtmlEmail).join('<br>')}</p>`).join('');
+    return `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="${POLICE_EMAIL}">`
+      + `<div style="${POLICE_EMAIL}">${paragraphes}</div>${signatureHtmlOffice(images)}</body></html>`;
+  }
+
+  // --- fichier .eml -------------------------------------------------------------------------------
+  // Pur : pas de btoa (absent hors navigateur), l'UTF-8 est encodé à la main.
+  var ALPHABET_BASE64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  function base64Utf8(texte) {
+    const binaire = unescape(encodeURIComponent(String(texte == null ? '' : texte)));
+    let sortie = '';
+    for (let i = 0; i < binaire.length; i += 3) {
+      const a = binaire.charCodeAt(i), b = binaire.charCodeAt(i + 1), c = binaire.charCodeAt(i + 2);
+      const n = (a << 16) | ((b || 0) << 8) | (c || 0);
+      sortie += ALPHABET_BASE64[(n >> 18) & 63] + ALPHABET_BASE64[(n >> 12) & 63]
+        + (i + 1 < binaire.length ? ALPHABET_BASE64[(n >> 6) & 63] : '=')
+        + (i + 2 < binaire.length ? ALPHABET_BASE64[n & 63] : '=');
+    }
+    return sortie;
+  }
+  function plierBase64(b64) {
+    return String(b64 || '').replace(/\s+/g, '').replace(/.{1,76}/g, '$&\r\n').replace(/\r\n$/, '');
+  }
+  // En-tête non ASCII (objet accentué) : mots encodés RFC 2047, découpés court pour rester sous la
+  // longueur de ligne permise (jamais au milieu d'un caractère : on découpe par caractère).
+  function enteteEncodee(texte) {
+    const t = String(texte || '').replace(/[\r\n]+/g, ' ');
+    if (/^[\x20-\x7e]*$/.test(t)) return t;
+    const morceaux = [];
+    const caracteres = Array.from(t);
+    for (let i = 0; i < caracteres.length; i += 10) morceaux.push(`=?UTF-8?B?${base64Utf8(caracteres.slice(i, i + 10).join(''))}?=`);
+    return morceaux.join('\r\n ');
+  }
+  function nomFichierEntete(nom) {
+    const ascii = String(nom || 'piece').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\x20-\x7e]|["\\]/g, '_');
+    return `name="${ascii}"; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(String(nom || 'piece'))}`;
+  }
+
+  // Pur. `images` : [{ cid, type, base64 }] (en ligne, citées par cid: dans le HTML) ; `pieces` :
+  // [{ nom, type, contenuBase64 }] (jointes). « X-Unsent: 1 » : Outlook ouvre le fichier comme un
+  // nouveau message à envoyer, pas comme un message reçu. Pas d'expéditeur : Outlook prend le compte
+  // de la personne qui l'ouvre.
+  function construireEml({ destinataire, sujet, texte, html, images = [], pieces = [] }) {
+    const L = '\r\n';
+    const partieTexte = (type, contenu) => `Content-Type: ${type}; charset="utf-8"${L}Content-Transfer-Encoding: base64${L}${L}${plierBase64(base64Utf8(contenu))}`;
+    const multipart = (sousType, frontiere, parties) =>
+      `Content-Type: multipart/${sousType}; boundary="${frontiere}"${L}${L}`
+      + parties.map(p => `--${frontiere}${L}${p}${L}`).join('') + `--${frontiere}--`;
+
+    let corps = multipart('alternative', 'claire_alt_0', [partieTexte('text/plain', texte), partieTexte('text/html', html)]);
+    if (images.length) {
+      corps = multipart('related', 'claire_rel_0', [corps, ...images.map(im =>
+        `Content-Type: ${im.type || 'image/png'}${L}Content-Transfer-Encoding: base64${L}Content-ID: <${im.cid}>${L}Content-Disposition: inline; filename="${im.cid}.png"${L}${L}${plierBase64(im.base64)}`)]);
+    }
+    if (pieces.length) {
+      corps = multipart('mixed', 'claire_mix_0', [corps, ...pieces.map(p =>
+        `Content-Type: ${p.type || 'application/octet-stream'}; ${nomFichierEntete(p.nom).replace(/; filename.*$/, '')}${L}Content-Transfer-Encoding: base64${L}Content-Disposition: attachment; ${nomFichierEntete(p.nom).replace(/^name="[^"]*"; /, '')}${L}${L}${plierBase64(p.contenuBase64)}`)]);
+    }
+    const entetes = [];
+    if (destinataire) entetes.push(`To: ${String(destinataire).replace(/[\r\n]+/g, ' ')}`);
+    entetes.push(`Subject: ${enteteEncodee(sujet)}`, 'X-Unsent: 1', 'MIME-Version: 1.0');
+    return entetes.join(L) + L + corps + L;
+  }
+
+  // Nom en ASCII seulement : un nom accentué ou avec un tiret long (« — ») était remplacé par
+  // « download » par Chrome (constaté en vérification), sans extension, donc plus ouvrable.
+  function nomFichierEml(sujet) {
+    const base = String(sujet || 'Email').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[\\/:*?"<>|]+/g, '-').replace(/[^\x20-\x7e]+/g, '-')
+      .replace(/\s+/g, ' ').replace(/-+/g, '-').trim().slice(0, 90);
+    return (base || 'Email') + '.eml';
+  }
+
+  function telechargerFichier(contenu, nom, type) {
+    const lien = document.createElement('a');
+    lien.href = URL.createObjectURL(contenu instanceof Blob ? contenu : new Blob([contenu], { type }));
+    lien.download = nom;
+    document.body.appendChild(lien);
+    lien.click();
+    document.body.removeChild(lien);
+    setTimeout(() => URL.revokeObjectURL(lien.href), 60000);
+  }
+
+  // Images de la signature : reprises des logos de l'en-tête du courrier d'appel de fonds
+  // (appel-de-fonds-modele.js, chargé à la demande). Sans elles, la signature part en texte seul.
+  var IMAGES_SIGNATURE_EMAIL = { logoOffice: 'claire-logo-office', logoNotaires: 'claire-logo-notaires', iconVisio: 'claire-visio' };
+  async function imagesSignatureEmail() {
+    try {
+      if (!window.APPEL_FONDS_MODELE) await afChargerScript('appel-de-fonds-modele.js');
+    } catch (e) { return { cids: {}, parties: [] }; }
+    const a = (window.APPEL_FONDS_MODELE && window.APPEL_FONDS_MODELE.assets) || {};
+    const cids = {};
+    const parties = [];
+    for (const [cle, cid] of Object.entries(IMAGES_SIGNATURE_EMAIL)) {
+      const m = /^data:(image\/[a-z]+);base64,(.+)$/.exec(a[cle] || '');
+      if (!m) continue;
+      cids[cle] = cid;
+      parties.push({ cid, type: m[1], base64: m[2] });
+    }
+    return { cids, parties };
+  }
+
+  // Façon d'ouvrir les emails sur CE poste (Réglages › Sur ce poste) : 'outlook' (fichier .eml en
+  // HTML, défaut) ou 'mailto' (messagerie par défaut, texte seul, sans pièce jointe).
+  var CLE_MODE_EMAIL_POSTE = 'claire-mode-email';
+  function modeEmailPoste() {
+    try { return localStorage.getItem(CLE_MODE_EMAIL_POSTE) === 'mailto' ? 'mailto' : 'outlook'; } catch (e) { return 'outlook'; }
+  }
+  function choisirModeEmailPoste(valeur) {
+    try { localStorage.setItem(CLE_MODE_EMAIL_POSTE, valeur === 'mailto' ? 'mailto' : 'outlook'); } catch (e) { /* préférence perdue, sans gravité */ }
+  }
+
+  // Un brouillon mailto: long peut être tronqué par certaines messageries Windows : le corps est
+  // AUSSI copié dans le presse-papiers, dans le même geste (Ctrl+A puis Ctrl+V le rétablit).
   // navigator.clipboard n'existe qu'en contexte sécurisé (absent sur un poste qui rejoint le
   // serveur par son adresse IP) : repli sur un textarea + execCommand, qui marche partout.
   function copierTexteSilencieux(texte) {
@@ -15707,30 +15915,47 @@
 
   var PHRASE_COPIE_BROUILLON = ' Texte également copié : si le brouillon est coupé, Ctrl+A puis Ctrl+V.';
 
-  // Un brouillon créé par EWS ne reçoit PAS la signature Outlook automatique : Outlook n'insère sa
-  // signature que quand ON compose un nouveau message dans son interface, jamais sur un brouillon
-  // déposé de l'extérieur. On l'ajoute donc au texte pour la voie Outlook (demandé par l'étude :
-  // « ajouter la signature d'email »). Jamais deux fois — l'email de réception des fonds la porte
-  // déjà dans son modèle (repérée par une phrase stable de la signature).
-  function corpsAvecSignatureOffice(corps) {
-    if (/Office Notarial de la Salamandre|Attention fraude/.test(corps)) return corps;
-    return corps + SIGNATURE_EMAIL_OFFICE;
+  // Voie d'envoi unique pour les emails d'un dossier. Pose les formules du destinataire
+  // (adapterCorpsEmail), puis, selon le poste : fichier .eml HTML avec signature et pièces jointes
+  // (défaut), ou mailto: texte seul. Ne toaste pas : { ok, mode, copie, piecesNonJointes } est
+  // laissé à l'appelant, qui connaît le contexte. Rien n'est jamais envoyé : l'étude relit, puis
+  // clique sur Envoyer.
+  async function livrerEmailDossier({ destinataire, sujet, corps, pieces = [], confrere = false }) {
+    const corpsFinal = adapterCorpsEmail(corps, confrere);
+    if (modeEmailPoste() === 'mailto') {
+      const copie = ouvrirBrouillonEmail(destinataire, sujet, corpsFinal);
+      return { ok: true, mode: 'mailto', copie, piecesNonJointes: pieces.length > 0 };
+    }
+    try {
+      const images = await imagesSignatureEmail();
+      const eml = construireEml({
+        destinataire, sujet,
+        texte: corpsFinal + SIGNATURE_EMAIL_OFFICE,
+        html: htmlEmail(corpsFinal, images.cids),
+        images: images.parties,
+        pieces
+      });
+      telechargerFichier(eml, nomFichierEml(sujet), 'message/rfc822');
+      return { ok: true, mode: 'eml' };
+    } catch (e) {
+      console.error(e);
+      return { ok: false, mode: 'eml', message: "L'email n'a pas pu être préparé." };
+    }
   }
 
-  // Voie d'envoi unique pour tous les emails d'un dossier (demandé par l'étude : « pour tous les
-  // emails, les envoyer sur Outlook en brouillon automatiquement, avec pièces jointes et
-  // signature »). Quand la connexion Exchange est configurée (exchangeAgendaPret), crée un vrai
-  // BROUILLON Outlook via EWS — signature ajoutée, pièces jointes portées (ce qu'un mailto: ne sait
-  // pas faire). Sinon, repli sur le brouillon mailto: (le client de messagerie ajoute alors sa
-  // propre signature). Ne toaste pas : le résultat ({ok, viaOutlook, message, copie}) est laissé à
-  // l'appelant, qui connaît le contexte (discret depuis « Aujourd'hui », effets à conditionner…).
-  async function livrerEmailDossier({ destinataire, sujet, corps, pieces = [] }) {
-    if (exchangeAgendaPret()) {
-      const r = await envoyerBrouillonOutlook({ destinataire, sujet, corps: corpsAvecSignatureOffice(corps), pieces });
-      return { ok: r.ok, viaOutlook: true, message: r.message };
+  var MESSAGE_EMAIL_PRET = 'Ouvrez le fichier téléchargé : il s’ouvre dans Outlook, prêt à envoyer. Pour qu’il s’ouvre seul la prochaine fois : clic droit sur le téléchargement › « Toujours ouvrir ce type de fichier ».';
+
+  // Message à afficher après une préparation réussie (fenêtre si `discret` est faux, notification
+  // sinon). `detail` complète le message (ex. dossier archivé).
+  function annoncerEmailPret(r, discret, detail) {
+    const suite = detail ? ' ' + detail : '';
+    if (r.mode === 'eml') {
+      if (discret) { afficherToast('Email prêt — ouvrez le fichier téléchargé.' + suite, 'OK', null); return; }
+      afficherInfoAction('Email prêt', MESSAGE_EMAIL_PRET + suite);
+      return;
     }
-    const copie = ouvrirBrouillonEmail(destinataire, sujet, corps);
-    return { ok: true, viaOutlook: false, copie };
+    if (discret) { afficherToast('Brouillon ouvert — relisez-le puis envoyez-le.' + suite, 'OK', null); return; }
+    afficherInfoAction('Brouillon ouvert', 'Relisez-le puis envoyez-le depuis votre messagerie.' + suite + (r.copie ? PHRASE_COPIE_BROUILLON : ''));
   }
 
   function construireEmailRelancePret(d) {
@@ -15741,8 +15966,7 @@
   }
 
   // Texte fourni mot pour mot par l'étude (25/09) : RIB et pièce d'identité à apporter au
-  // rendez-vous de signature. Il se termine par « Bien cordialement, » comme l'étude l'a écrit,
-  // sans SIGNATURE_EMAIL_OFFICE : la signature Outlook (avec ses images) s'ajoute d'elle-même.
+  // rendez-vous de signature. La signature de l'office est ajoutée à l'envoi (livrerEmailDossier).
   function construireEmailRelanceRib(d) {
     return {
       sujet: `RIB et pièce d'identité pour le rendez-vous de signature — dossier ${d.nom}`,
@@ -15753,36 +15977,36 @@
   }
 
   // Relance sur la vente préalable (demandée par l'étude, 28/09) : au client, ou au confrère quand
-  // un autre office représente l'acquéreur — le texte change avec le destinataire, et reste un
-  // brouillon à ajuster au dossier avant l'envoi. Sans signature de l'office, comme les autres
-  // relances (Outlook ajoute la sienne). Le temps s'accorde à la date : « prévue » tant qu'elle est
-  // à venir, « devait intervenir » une fois passée.
+  // un autre office représente l'acquéreur. Le texte au CONFRÈRE est celui fourni mot pour mot par
+  // l'étude (seule retouche : « une date … est déjà prévue », accord de « prévu » corrigé) ; celui au
+  // client reste un brouillon à ajuster. Le temps s'accorde à la date : « est prévue » tant qu'elle
+  // est à venir, « devait intervenir » une fois passée. Les formules d'appel et de clôture sont
+  // reposées à l'envoi selon le destinataire (adapterCorpsEmail).
   function construireEmailRelanceVentePrealable(d) {
     const date = d.ventebien ? formatDateFr(d.ventebien) : '';
     const passee = d.ventebien && ecartJours(isoAujourdhuiLocal(), d.ventebien) < 0;
-    const echeance = date ? (passee ? ` devait intervenir au plus tard le ${date}` : ` est prévue au plus tard le ${date}`) : '';
+    const echeance = date ? (passee ? ` devait intervenir au plus tard le ${date}` : ` est prévue au plus tard le ${date}`) : ' reste à réaliser';
     if (notaireParticipantRepresenteAcquereur(d)) {
       return {
         sujet: `Vente préalable — dossier ${d.nom}`,
-        corps: ['Cher Confrère,',
-          `Dans le dossier ${d.nom}, l'avant-contrat est conclu sous la condition de la vente préalable du bien de votre client, qui${echeance || ' reste à réaliser'}.`,
-          'Pourriez-vous nous indiquer où en est cette vente (avant-contrat signé, date de signature prévue) et nous transmettre, le cas échéant, l’attestation de vente ?',
-          'Bien cordialement,'].join('\n\n')
+        corps: [FORMULE_APPEL_CONFRERE,
+          `Dans le cadre du dossier ${d.nom}, l'avant-contrat est conclu sous la condition de la vente préalable du bien de votre client, qui${echeance}.`,
+          'Pourriez-vous nous indiquer si une date de réitération est déjà prévue sur votre agenda ou nous transmettre, le cas échéant, l’attestation de vente ?',
+          FORMULE_CLOTURE_CONFRERE].join('\n\n')
       };
     }
     return {
       sujet: `Vente préalable de votre bien — dossier ${d.nom}`,
       corps: ['Bonjour,',
-        `Votre acquisition est conclue sous la condition de la vente préalable de votre bien, qui${echeance || ' reste à réaliser'}.`,
+        `Votre acquisition est conclue sous la condition de la vente préalable de votre bien, qui${echeance}.`,
         'Pourriez-vous nous indiquer où en est cette vente (avant-contrat signé, date de signature prévue) ? Dès qu’elle sera signée, merci de nous transmettre l’attestation de vente.',
         'Bien cordialement,'].join('\n\n')
     };
   }
 
   // Email de "démarrage" du dossier : texte fourni mot pour mot par l'étude (25/09). Une ligne
-  // vide entre chaque paragraphe, les deux pièces demandées sur deux lignes consécutives, et PAS
-  // de SIGNATURE_EMAIL_OFFICE (même choix que la relance de l'offre de prêt : la signature
-  // Outlook de l'étude, avec ses images, s'ajoute d'elle-même). Seul écart au texte : le nom de
+  // vide entre chaque paragraphe, les deux pièces demandées sur deux lignes consécutives ; la
+  // formule de clôture et la signature sont ajoutées à l'envoi. Seul écart au texte : le nom de
   // l'agence suit « auprès de l'agence » quand il a été détecté (voir detecterNomAgence()). La
   // phrase sur l'offre de prêt n'est ajoutée que si une condition de prêt est active et pas
   // encore levée — inutile de la réclamer sur un achat comptant ou une offre déjà reçue.
@@ -15816,7 +16040,7 @@
       sujet: `Réception des fonds — dossier ${d.nom}`,
       // Nom du dossier retiré du CORPS à la demande de l'étude (il reste dans l'objet) : le client
       // sait de quelle acquisition il s'agit, le rappeler dans le texte n'apporte rien.
-      corps: `Bonjour,\n\nNous vous confirmons que les fonds destinés à votre acquisition ont bien été reçus en notre comptabilité.${rdv}\n\nNous restons à votre disposition pour toute question.${SIGNATURE_EMAIL_OFFICE}`
+      corps: `Bonjour,\n\nNous vous confirmons que les fonds destinés à votre acquisition ont bien été reçus en notre comptabilité.${rdv}\n\nNous restons à votre disposition pour toute question.`
     };
   }
 
@@ -15847,29 +16071,17 @@
       return;
     }
     const { sujet, corps } = modele.construire(d);
-    // Brouillon Outlook prioritaire (voir livrerEmailDossier). En cas d'échec de la création du
-    // brouillon Outlook, ne rien marquer sur le dossier : la relance n'est pas partie.
-    const r = await livrerEmailDossier({ destinataire, sujet, corps });
-    if (!r.ok) { afficherToast(r.message || 'Brouillon non créé.', 'OK', null); return; }
-    ajouterHistorique(d, modele.historique + (r.viaOutlook ? ' (brouillon Outlook)' : ''));
+    const r = await livrerEmailDossier({ destinataire, sujet, corps, confrere: notaireParticipantRepresenteAcquereur(d) });
+    // Préparation impossible : ne rien marquer sur le dossier, l'email n'est pas parti.
+    if (!r.ok) { afficherToast(r.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }
+    ajouterHistorique(d, modele.historique);
     if (modele.date) d[modele.date] = new Date().toISOString().slice(0, 10);
     // Une relance de l'offre faite à la main compte comme la relance du jour : la suivante, manuelle
     // ou automatique, n'est reproposée que 10 jours plus tard (voir relanceOffreDue).
     if (type === 'pret') d.derniereRelanceAuto = isoAujourdhuiLocal();
     sauvegarder(d);
     render();
-    if (r.viaOutlook) {
-      afficherToast(discret ? 'Brouillon Outlook créé.' : (r.message || 'Brouillon Outlook créé — à relire dans Outlook.'), 'OK', null);
-      return;
-    }
-    if (discret) {
-      afficherToast('Brouillon ouvert — relisez-le puis envoyez-le depuis votre messagerie.', 'OK', null);
-      return;
-    }
-    afficherInfoAction(
-      "Brouillon ouvert",
-      "Relisez-le puis envoyez-le depuis votre messagerie." + (r.copie ? PHRASE_COPIE_BROUILLON : '')
-    );
+    annoncerEmailPret(r, discret);
   }
 
   // Champ "Email de l'acquéreur" directement sur la fiche, au-dessus des boutons de relance
@@ -15962,11 +16174,11 @@
   // Page d'avis Google de l'office (lien fourni par l'étude, il ouvre directement les avis).
   var LIEN_AVIS_GOOGLE_OFFICE = 'https://www.google.com/maps/place/Office+Notarial+de+Ma%C3%AEtre+Sophie+Gossart/@47.6135912,1.3271913,15z/data=!4m7!3m6!1s0x0:0x9b95fcc14ccb0c41!8m2!3d47.6134738!4d1.3273035!9m1!1b1';
 
-  // Texte fourni mot pour mot par l'étude, une ligne vide entre chaque paragraphe, sans
-  // SIGNATURE_EMAIL_OFFICE (le texte se termine lui-même par « Bien cordialement. »). Un mailto
-  // ne porte que du texte : le lien « Cliquez ici » est écrit en clair, Outlook le rend cliquable.
-  // Le questionnaire lui-même est un PDF téléchargé au même clic, à joindre à la main
-  // (contrainte fondamentale n°4).
+  // Texte fourni mot pour mot par l'étude, une ligne vide entre chaque paragraphe (il se termine
+  // lui-même par « Bien cordialement. », la signature de l'office est ajoutée à l'envoi). La ligne
+  // « Cliquez ici … : adresse » devient un lien sur « Cliquez ici » dans la version HTML
+  // (ligneHtmlEmail). Le PDF du questionnaire est joint à l'email (.eml), ou téléchargé à côté en
+  // mode messagerie par défaut.
   function construireEmailQuestionnaireSatisfaction(d) {
     return {
       sujet: 'Questionnaire de satisfaction',
@@ -16013,50 +16225,22 @@
     }
     const { sujet, corps } = construireEmailQuestionnaireSatisfaction(d);
     const pdfDispo = typeof QUESTIONNAIRE_SATISFACTION_PDF_BASE64 === 'string' && QUESTIONNAIRE_SATISFACTION_PDF_BASE64;
-
-    // Voie Outlook : brouillon avec le PDF DÉJÀ joint (aucun téléchargement à rattacher à la main).
-    // On ne clôture le dossier QUE si le brouillon a bien été créé.
-    if (exchangeAgendaPret() && pdfDispo) {
-      const r = await livrerEmailDossier({
-        destinataire, sujet, corps,
-        pieces: [{ nom: 'Enquete_satisfaction.pdf', type: 'application/pdf', contenuBase64: QUESTIONNAIRE_SATISFACTION_PDF_BASE64 }]
-      });
-      if (!r.ok) { afficherToast(r.message || 'Brouillon Outlook non créé.', 'OK', null); return; }
-      d.questionnaireEnvoyeLe = new Date().toISOString().slice(0, 10);
-      ajouterHistorique(d, 'Brouillon Outlook du questionnaire de satisfaction créé (PDF joint)');
-      d.archive = true;
-      ajouterHistorique(d, 'Dossier archivé automatiquement (questionnaire de satisfaction envoyé)');
-      sauvegarder(d);
-      render();
-      afficherToast(discret ? 'Brouillon Outlook créé, dossier archivé.' : (r.message || 'Brouillon Outlook créé (PDF joint), dossier archivé.'), 'OK', null);
-      return;
-    }
-
-    // Repli mailto : le PDF est téléchargé dans le même geste, à joindre à la main.
-    const pdfOk = telechargerPdfQuestionnaire();
+    const pieces = pdfDispo ? [{ nom: 'Enquete_satisfaction.pdf', type: 'application/pdf', contenuBase64: QUESTIONNAIRE_SATISFACTION_PDF_BASE64 }] : [];
+    const r = await livrerEmailDossier({ destinataire, sujet, corps, pieces });
+    if (!r.ok) { afficherToast(r.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }
+    // Le fichier .eml porte le PDF ; en mode mailto (texte seul), il est téléchargé à côté, à joindre.
+    const pdfTelecharge = r.mode === 'mailto' ? telechargerPdfQuestionnaire() : false;
     d.questionnaireEnvoyeLe = new Date().toISOString().slice(0, 10);
     ajouterHistorique(d, 'Questionnaire de satisfaction envoyé');
     d.archive = true;
     ajouterHistorique(d, 'Dossier archivé automatiquement (questionnaire de satisfaction envoyé)');
     sauvegarder(d);
     render();
-    const copie = ouvrirBrouillonEmail(destinataire, sujet, corps);
-    if (discret) {
-      afficherToast(pdfOk ? 'Brouillon ouvert, dossier archivé — joignez le PDF téléchargé.' : 'Brouillon ouvert, dossier archivé — PDF non téléchargé.', 'OK', null);
-      return;
-    }
-    afficherInfoAction(
-      "Brouillon ouvert, dossier archivé",
-      (pdfOk
-        ? "Joignez le PDF du questionnaire, qui vient d'être téléchargé, puis envoyez."
-        : "Le PDF du questionnaire n'a pas pu être téléchargé : le brouillon est ouvert sans lui.")
-        + (copie ? PHRASE_COPIE_BROUILLON : '')
-    );
+    let detail = 'Dossier archivé.';
+    if (r.mode === 'eml' && !pdfDispo) detail += ' Le PDF du questionnaire n’a pas pu être joint.';
+    if (r.mode === 'mailto') detail += pdfTelecharge ? ' Joignez le PDF du questionnaire, qui vient d’être téléchargé.' : ' Le PDF du questionnaire n’a pas pu être téléchargé.';
+    annoncerEmailPret(r, discret, detail);
   }
-
-  // (L'ancienne fonction creerBrouillonQuestionnaireOutlook a été retirée : envoyerQuestionnaireSatisfaction
-  // crée désormais lui-même le brouillon Outlook avec le PDF joint quand Exchange est configuré,
-  // donc un seul bouton et une seule fonction — voir livrerEmailDossier.)
 
   // Affichée juste après "Écrire par email" : absente pour un dossier déjà archivé (l'action n'a
   // plus de sens) et — demandé
@@ -16087,12 +16271,9 @@
         <p class="hint">Renseignez l’email de l’acquéreur.</p>
       </div>`;
     }
-    // Un seul bouton : quand Exchange est configuré, envoyerQuestionnaireSatisfaction crée
-    // automatiquement un brouillon Outlook avec le PDF déjà joint ; sinon il ouvre un brouillon
-    // mailto et télécharge le PDF à joindre à la main (voir la fonction). L'infobulle dit lequel.
-    const titre = exchangeAgendaPret()
-      ? 'Crée un brouillon Outlook avec le questionnaire déjà joint, et archive le dossier'
-      : 'Ouvre le brouillon, télécharge le PDF à joindre, et archive le dossier';
+    const titre = modeEmailPoste() === 'mailto'
+      ? 'Ouvre le brouillon, télécharge le PDF à joindre, et archive le dossier'
+      : 'Prépare l’email avec le questionnaire joint, et archive le dossier';
     return `<div class="relances-ciblees">
       <span class="section-eyebrow">Clôturer le dossier</span>
       <div class="relances-boutons">
@@ -19731,8 +19912,10 @@
 
     const subject = `Relance — Offre de prêt attendue (dossier ${d.nom})`;
     const body = corpsRelanceOffreManquante(d.nom, d.pret, jours);
-    afficherToast(`Relance « offre de prêt » ouverte pour ${d.nom} — vérifiez puis envoyez.`, 'OK', null);
-    ouvrirBrouillonEmail(destinataire, subject, body);
+    livrerEmailDossier({ destinataire, sujet: subject, corps: body, confrere: notaireParticipantRepresenteAcquereur(d) })
+      .then(r => afficherToast(r.ok
+        ? `Relance « offre de prêt » prête pour ${d.nom} — ${r.mode === 'eml' ? 'ouvrez le fichier téléchargé' : 'vérifiez'} puis envoyez.`
+        : `Relance « offre de prêt » de ${d.nom} non préparée.`, 'OK', null));
   }
 
   // Statut de l'offre de prêt à afficher, dans le même vocabulaire court partout où il apparaît
@@ -24588,13 +24771,13 @@
     </div>`;
   }
 
-  // Le bouton « Brouillon Outlook (courrier joint) » n'a de sens que si la connexion Exchange est
-  // prête ET qu'un dossier avec un email d'acquéreur est relié (le destinataire vient de là).
+  // Le bouton « Email (courrier joint) » n'a de sens que si un dossier est relié ET que l'email de
+  // son destinataire (client, ou confrère) est connu : c'est de là que vient l'adresse.
   function majActionBrouillonAppelFonds() {
     const bouton = afEl('af-brouillon-outlook');
     if (!bouton) return;
     const d = afDossierLie ? dossiers.find(x => x.id === afDossierLie) : null;
-    bouton.style.display = (exchangeAgendaPret() && d && d.emailAcquereur) ? '' : 'none';
+    bouton.style.display = (d && emailDestinataireRelance(d)) ? '' : 'none';
   }
 
   // --- adresse du bien : reprise du dossier, ou suggestions de la Base Adresse Nationale --------
@@ -25209,30 +25392,37 @@
     }
   }
 
-  // Crée un brouillon Outlook au CLIENT du dossier relié, avec le courrier d'appel de fonds en pièce
-  // jointe (.docx) — ce qu'un mailto: ne sait pas faire. Réservé au cas où un dossier CLAIRE avec un
-  // email d'acquéreur est relié (le destinataire vient de là) ET la connexion Exchange est prête ;
-  // sinon le bouton n'est pas affiché (voir renderActionsBrouillonAppelFonds).
-  async function creerBrouillonAppelFondsOutlook(btn) {
+  // Prépare l'email du courrier d'appel de fonds, le .docx DÉJÀ joint (ce qu'un mailto: ne sait pas
+  // faire), au destinataire du dossier relié : le client, ou le confrère quand un autre office
+  // représente l'acquéreur (formules adaptées, voir livrerEmailDossier). En mode messagerie par
+  // défaut, le .docx est téléchargé à côté, à joindre à la main.
+  async function preparerEmailAppelFonds(btn) {
     const d = afDossierLie ? dossiers.find(x => x.id === afDossierLie) : null;
-    const destinataire = d && d.emailAcquereur ? d.emailAcquereur : '';
+    const destinataire = d ? emailDestinataireRelance(d) : '';
     if (!destinataire) {
-      afficherToast("Reliez un dossier ayant un email d'acquéreur pour créer le brouillon.", 'OK', null);
+      afficherToast("Reliez un dossier dont l'email du destinataire est renseigné pour préparer l'email.", 'OK', null);
       return;
     }
     const libelleInitial = btn ? btn.textContent : '';
-    if (btn) { btn.disabled = true; btn.textContent = 'Création…'; }
+    if (btn) { btn.disabled = true; btn.textContent = 'Préparation…'; }
     try {
       const { blob, nom } = await genererBlobAppelFonds();
       const contenuBase64 = await blobVersBase64(blob);
-      const resultat = await envoyerBrouillonOutlook({
+      const confrere = notaireParticipantRepresenteAcquereur(d);
+      const r = await livrerEmailDossier({
         destinataire,
-        sujet: 'Appel de fonds — rendez-vous de signature',
-        corps: 'Madame, Monsieur,\n\nVeuillez trouver ci-joint le courrier d\'appel de fonds relatif à votre dossier.\n\nBien cordialement,',
+        confrere,
+        sujet: `Appel de fonds — rendez-vous de signature — dossier ${d.nom}`,
+        corps: confrere
+          ? 'Veuillez trouver ci-joint le courrier de convocation et d’appel de fonds destiné à votre client, en vue du rendez-vous de signature.'
+          : 'Madame, Monsieur,\n\nVeuillez trouver ci-joint le courrier de convocation et d’appel de fonds relatif à votre acquisition.',
         pieces: [{ nom, type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', contenuBase64 }]
       });
-      if (resultat.ok && d) { ajouterHistorique(d, 'Brouillon Outlook créé (courrier d\'appel de fonds joint)'); sauvegarder(d); }
-      afficherToast(resultat.message, 'OK', null);
+      if (!r.ok) { afficherToast(r.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }
+      if (r.mode === 'mailto') telechargerFichier(blob, nom);
+      ajouterHistorique(d, 'Email du courrier d’appel de fonds préparé');
+      sauvegarder(d);
+      annoncerEmailPret(r, false, r.mode === 'mailto' ? 'Joignez le courrier, qui vient d’être téléchargé.' : '');
     } catch (e) {
       console.error(e);
       afficherToast('Le courrier n\'a pas pu être généré (accès réseau requis la première fois).', 'OK', null);
@@ -25771,23 +25961,6 @@
       lecteur.onerror = () => reject(lecteur.error || new Error('lecture du fichier'));
       lecteur.readAsDataURL(blob);
     });
-  }
-
-  // Crée un BROUILLON dans Outlook avec pièce(s) jointe(s) (voir server/src/exchange/ews.js), ce
-  // qu'un mailto: ne sait pas faire. Réutilise la connexion Exchange configurée (exchangeAgendaPret).
-  // `pieces` : [{ nom, type, contenuBase64 }]. Retourne { ok, message }, ne lève jamais.
-  async function envoyerBrouillonOutlook({ destinataire, sujet, corps, pieces }) {
-    try {
-      const reponse = await fetchAvecAuth('/api/exchange/brouillon', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ destinataire, sujet, corps, pieces: pieces || [] })
-      });
-      const c = await reponse.json();
-      return { ok: !!c.ok, message: c.message || (c.ok ? 'Brouillon créé.' : 'La création du brouillon a échoué.') };
-    } catch (e) {
-      return { ok: false, message: 'Serveur injoignable — brouillon non créé.' };
-    }
   }
 
   async function chargerReglagesExchange() {

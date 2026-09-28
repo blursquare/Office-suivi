@@ -56,8 +56,15 @@ test('relance de la vente préalable : au client, ou au confrère quand un autre
   const passee = app.construireEmailRelanceVentePrealable(dossierBase(app, { ventebien: '2020-01-10' }));
   assert.match(passee.corps, /devait intervenir au plus tard le/);
   const confrere = app.construireEmailRelanceVentePrealable(dossierBase(app, { ventebien: '2099-10-15', notaireAcquereur: 'Maître Paul LAMBERT' }));
-  assert.match(confrere.corps, /^Cher Confrère,/);
-  assert.match(confrere.corps, /bien de votre client/);
+  assert.equal(confrere.corps, [
+    'Mon Cher Maître,',
+    "Dans le cadre du dossier DUPONT / MARTIN, l'avant-contrat est conclu sous la condition de la vente préalable du bien de votre client, qui est prévue au plus tard le 15 octobre 2099.",
+    'Pourriez-vous nous indiquer si une date de réitération est déjà prévue sur votre agenda ou nous transmettre, le cas échéant, l’attestation de vente ?',
+    'Dans l’attente et vous en remerciant par avance,',
+    'Votre bien dévoué.'
+  ].join('\n\n'));
+  // Déjà aux formules du confrère : les reposer ne change rien.
+  assert.equal(app.adapterCorpsEmail(confrere.corps, true), confrere.corps);
 });
 
 test('construireEmailRelanceProvision mentionne l’agence quand elle est connue, sinon reste générique', () => {
@@ -162,18 +169,14 @@ test('réception des fonds : l’email confirme la réception en comptabilité e
   assert.doesNotMatch(corps, /30 novembre 2026/);
 });
 
-test('signature commune : tous les emails pré-rédigés se terminent par la signature de l’office', () => {
+test('signature de l’office : coordonnées puis mentions légales, sans formule de politesse', () => {
   const app = chargerApplication();
-  const d = dossierBase(app, { pret: '2026-11-15', rendezVousSignature: '2026-11-20' });
-  const corps = [
-    app.construireEmailReceptionFonds(d).corps
-  ];
-  for (const c of corps) {
-    assert.ok(c.endsWith(app.SIGNATURE_EMAIL_OFFICE), c.slice(0, 60));
-    assert.doesNotMatch(c, /\n\nCordialement\./);
-  }
+  const d = dossierBase(app, { rendezVousSignature: '2026-11-20' });
+  // La signature n'est plus dans le modèle : elle est ajoutée à l'envoi (texte et HTML).
+  assert.doesNotMatch(app.construireEmailReceptionFonds(d).corps, /Attention fraude/);
   const sig = app.SIGNATURE_EMAIL_OFFICE;
-  assert.match(sig, /^\n\nBien cordialement,\n\nOffice de Maître Sophie GOSSART\n/);
+  assert.match(sig, /^\n\nOffice de Maître Sophie GOSSART\n/);
+  assert.doesNotMatch(sig, /cordialement/i);
   assert.match(sig, /L\.112-6-1 du Code Monétaire et Financier/);
   assert.match(sig, /RIB signé par vous/);
   assert.match(sig, /secret professionnel/);
@@ -304,4 +307,82 @@ test('corpsRelanceOffreManquante : le jour même reste au présent, pas au pass�
   const jourJ = app.corpsRelanceOffreManquante('DUPONT / MARTIN', '2026-11-01', 0);
   assert.ok(jourJ.includes('est fixée au'), jourJ);
   assert.ok(!jourJ.includes('dépassée'), jourJ);
+});
+
+test('adapterCorpsEmail : au confrère, « Mon Cher Maître, » et « Votre bien dévoué. » remplacent les formules du client', () => {
+  const app = chargerApplication();
+  const corps = 'Bonjour,\n\nEn prévision du rendez-vous de signature je vous remercie de vous munir de votre RIB.\n\nBien cordialement,';
+  assert.equal(app.adapterCorpsEmail(corps, true),
+    'Mon Cher Maître,\n\nEn prévision du rendez-vous de signature je vous remercie de vous munir de votre RIB.\n\nDans l’attente et vous en remerciant par avance,\n\nVotre bien dévoué.');
+  // Au client, le modèle est gardé tel quel.
+  assert.equal(app.adapterCorpsEmail(corps, false), corps);
+});
+
+test('adapterCorpsEmail : un email au client sans formule de clôture reçoit « Bien cordialement, »', () => {
+  const app = chargerApplication();
+  const corps = app.corpsRelanceOffreManquante('DUPONT / MARTIN', '2026-08-30', 5);
+  assert.ok(app.adapterCorpsEmail(corps, false).endsWith('\n\nBien cordialement,'));
+  // Le questionnaire se termine déjà par une formule : rien n'est ajouté.
+  const q = app.construireEmailQuestionnaireSatisfaction(dossierBase(app, {})).corps;
+  assert.equal(app.adapterCorpsEmail(q, false), q);
+});
+
+test('adapterCorpsEmail : « Madame, Monsieur, » et les formules composées sont retirées pour un confrère', () => {
+  const app = chargerApplication();
+  const r = app.adapterCorpsEmail('Madame, Monsieur,\n\nLe texte.\n\nDans l’attente et vous en remerciant vivement par avance,\n\nBien cordialement.', true);
+  assert.equal(r, 'Mon Cher Maître,\n\nLe texte.\n\nDans l’attente et vous en remerciant par avance,\n\nVotre bien dévoué.');
+});
+
+test('htmlEmail : paragraphes, lien « Cliquez ici », signature en couleur et images citées par cid', () => {
+  const app = chargerApplication();
+  const html = app.htmlEmail('Bonjour,\n\nCliquez ici pour laisser votre avis : https://exemple.fr/avis?a=1&b=2\n\nA <b> & C',
+    { logoOffice: 'claire-logo-office', iconVisio: 'claire-visio' });
+  assert.match(html, /<a href="https:\/\/exemple\.fr\/avis\?a=1&amp;b=2"[^>]*>Cliquez ici pour laisser votre avis<\/a>/);
+  assert.match(html, /A &lt;b&gt; &amp; C/);
+  assert.match(html, /src="cid:claire-logo-office"/);
+  assert.match(html, /src="cid:claire-visio"/);
+  assert.doesNotMatch(html, /cid:claire-logo-notaires/);
+  assert.match(html, /#6D2332/);
+  assert.match(html, /Office de Maître Sophie GOSSART/);
+  assert.match(html, /Attention fraude :<\/b>/);
+});
+
+test('construireEml : message non envoyé, HTML + texte, image en ligne, pièce jointe, objet accentué', () => {
+  const app = chargerApplication();
+  const eml = app.construireEml({
+    destinataire: 'client@exemple.fr',
+    sujet: 'Réception des fonds — dossier DUPONT',
+    texte: 'Bonjour é',
+    html: '<p>Bonjour é</p>',
+    images: [{ cid: 'claire-visio', type: 'image/png', base64: 'iVBORw0KGgo=' }],
+    pieces: [{ nom: 'Enquête satisfaction.pdf', type: 'application/pdf', contenuBase64: 'JVBERi0=' }]
+  });
+  assert.match(eml, /^To: client@exemple\.fr\r\n/);
+  assert.match(eml, /\r\nX-Unsent: 1\r\n/);
+  assert.match(eml, /Subject: =\?UTF-8\?B\?/);
+  assert.match(eml, /multipart\/mixed/);
+  assert.match(eml, /multipart\/related/);
+  assert.match(eml, /multipart\/alternative/);
+  assert.match(eml, /Content-ID: <claire-visio>/);
+  assert.match(eml, /filename\*=UTF-8''Enqu%C3%AAte%20satisfaction\.pdf/);
+  assert.match(eml, /Content-Disposition: attachment/);
+  // L'UTF-8 est encodé correctement (« Bonjour é » → Qm9uam91ciDDqQ==).
+  assert.match(eml, /Qm9uam91ciDDqQ==/);
+  assert.ok(eml.split('\r\n').every(l => l.length <= 998));
+  // Sans image ni pièce jointe : seulement la partie alternative.
+  const simple = app.construireEml({ destinataire: 'a@b.fr', sujet: 'Objet', texte: 't', html: '<p>t</p>' });
+  assert.doesNotMatch(simple, /multipart\/mixed|multipart\/related/);
+  assert.match(simple, /Subject: Objet\r\n/);
+});
+
+test('base64Utf8 correspond à Buffer.from(…).toString("base64")', () => {
+  const app = chargerApplication();
+  for (const t of ['', 'a', 'ab', 'abc', 'Réception — l’office €', 'x'.repeat(100)]) {
+    assert.equal(app.base64Utf8(t), Buffer.from(t, 'utf8').toString('base64'));
+  }
+});
+
+test('nomFichierEml : caractères interdits sous Windows remplacés', () => {
+  const app = chargerApplication();
+  assert.equal(app.nomFichierEml('Réception — dossier DUPONT / MARTIN'), 'Reception - dossier DUPONT - MARTIN.eml');
 });

@@ -9226,6 +9226,61 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     comptabilité de l'étude. Le mémoriser sur le dossier permettrait de reconnaître un versement fait
     sous un autre nom (conjoint, SCI) — mais un seul rapprochement faux le propagerait à tous les
     reçus suivants. À ne faire que sur demande, avec une confirmation explicite du compte.
+- **Emails : ouverts de nouveau prêts à envoyer, en HTML avec la signature, formules du confrère,
+  icône Windows nette** (28/09, quatre demandes de l'étude : le texte de relance de la vente préalable
+  au confrère ; « Mon Cher Maître, » / « Dans l’attente et vous en remerciant par avance, Votre bien
+  dévoué. » dès qu'on écrit à un confrère ; « au clic, ouvrir l'email prêt à être envoyé comme
+  avant », en HTML avec les images et le texte en couleurs de la signature ; « logo toujours pixelisé
+  dans Windows »).
+  - **Fin du brouillon Outlook déposé en silence par EWS** (voir « Tous les emails en brouillon
+    Outlook ») : l'étude veut voir l'email s'ouvrir. Un mailto: ne porte ni HTML, ni image, ni pièce
+    jointe ; la seule voie navigateur qui fait les trois est un **fichier .eml marqué `X-Unsent: 1`**,
+    qu'Outlook ouvre comme un NOUVEAU message, éditable, avec son bouton Envoyer. Il est téléchargé
+    au clic (`livrerEmailDossier`) ; l'ouvrir suffit, et Chrome peut l'ouvrir tout seul (clic droit
+    sur le téléchargement › « Toujours ouvrir ce type de fichier »). Le mailto: texte reste possible
+    poste par poste (Réglages › Sur ce poste › Ouverture des emails, `modeEmailPoste`, `localStorage`),
+    pour un poste sans Outlook ; les pièces jointes y sont alors téléchargées à côté.
+  - `construireEml` (pur, testé) : multipart/alternative (texte + HTML) dans multipart/related (images
+    en ligne `cid:`) dans multipart/mixed (pièces jointes), UTF-8 encodé à la main (`base64Utf8`, sans
+    btoa, absent du harnais), objet en mots encodés RFC 2047, nom de pièce en `filename*`. Pas
+    d'expéditeur : Outlook prend le compte de la personne qui ouvre le fichier. **Nom du fichier en
+    ASCII seulement** (`nomFichierEml`) : un nom accentué ou avec « — » ressortait « download », sans
+    extension (constaté dans Chromium).
+  - **Signature** : `COORDONNEES_EMAIL_OFFICE` + `MENTIONS_EMAIL_OFFICE` (mentions mot pour mot), une
+    seule source pour la version texte (`SIGNATURE_EMAIL_OFFICE`) et HTML (`signatureHtmlOffice` :
+    tableau à l'ancienne pour Outlook, logo de l'office à gauche, filet et nom en bordeaux #6D2332,
+    logo Notaires de France + encart visioconférence, mentions en petit gris, « Attention fraude » en
+    gras bordeaux). Images reprises de l'en-tête du courrier d'appel de fonds
+    (`appel-de-fonds-modele.js`, chargé à la demande) ; sans elles, signature en texte seul. **La
+    photo de l'office de la vraie signature Outlook n'est pas dans le dépôt** — si l'étude envoie son
+    fichier de signature (dossier `%APPDATA%\Microsoft\Signatures`), la reproduire à l'identique.
+    La signature ne porte plus « Bien cordialement » : la formule de politesse appartient au corps.
+  - **Formules** (`adapterCorpsEmail`, pure, idempotente) : au confrère (`notaireParticipantRepresenteAcquereur`),
+    la formule d'appel du modèle devient « Mon Cher Maître, » et ses clôtures « Dans l’attente et vous
+    en remerciant par avance, / Votre bien dévoué. » — pour TOUS les emails (relances, RIB, provision,
+    fonds, vente préalable, courrier d'appel de fonds, relance automatique de l'offre). Au client, le
+    modèle reste tel quel et reçoit « Bien cordialement, » s'il n'a aucune clôture. Le reste du corps
+    n'est pas réécrit : « votre offre de prêt » reste adressé au client — textes confrère à demander
+    à l'étude si besoin. Relance de la vente préalable au confrère : texte de l'étude mot pour mot,
+    sauf « une date … est déjà prévue » (accord corrigé).
+  - Questionnaire : le PDF est JOINT à l'.eml. Courrier d'appel de fonds : bouton « Email (courrier
+    joint) » (`preparerEmailAppelFonds`), affiché dès qu'un dossier relié a un destinataire, adressé au
+    confrère le cas échéant. `envoyerBrouillonOutlook` est retirée côté client ; la route serveur
+    `POST /api/exchange/brouillon` reste en place, sans appelant. L'email de réception des fonds ne
+    porte plus la signature dans son modèle (ajoutée à l'envoi).
+  - **Icône** : la fenêtre d'application Chrome prend son icône de barre des tâches dans le favicon, et
+    le seul favicon était `icone.svg`, rasterisé à 16 px puis agrandi. `index.html` porte maintenant
+    des favicons PNG en data-URI de 16 à 256 px, rendus depuis `icone.svg` avec un **trait épaissi en
+    petite taille** (4,2 à 16 px, 3,4 à 24, 2,9 à 32, 2,5 à 48 — le trait de 2,2/48 fait moins d'un
+    demi-pixel à 16 px). Le `.ico` de l'exécutable reçoit la même règle (`traitIcone`) et les tailles
+    intermédiaires de Windows à 125/150 % (20/30/36/40/60/72/80/96). Windows garde ses icônes en
+    cache : l'ancienne peut rester visible jusqu'à la réouverture de la fenêtre, voire un redémarrage.
+  - Tests : 7 nouveaux dans `tests/relances-email.test.js`, 2 réécrits. Suite racine 883. Vérifié dans
+    Chromium (serveur réel) : clic sur la relance de vente préalable d'un dossier en participation →
+    fichier « Vente prealable - dossier BOUVET - LE BLANC.eml » adressé au confrère, texte exact,
+    trois images en ligne, rendu HTML de la signature, aucune erreur JS. **Non vérifié dans Outlook**
+    (absent ici) : l'ouverture du .eml comme message à envoyer reste à confirmer par l'étude.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à
