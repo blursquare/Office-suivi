@@ -23,7 +23,7 @@ test('offre de prêt : relance proposée à J-15 puis attendue 10 jours après l
   assert.strictEqual(types(relance), '');
   assert.match(relance.aVenir.map(v => v.titre).join('|'), /Offre de prêt relancée/);
   // Offre reçue : plus de relance, l'étape suivante est de fixer le rendez-vous de signature.
-  const recue = app.actionsDuJour([dossier({ pret: '2026-10-02', offrePretStatut: 'recue' })], AUJ);
+  const recue = app.actionsDuJour([dossier({ pret: '2026-10-02', offrePretStatut: 'recue', pieces: { renonciationPreemption: 'recue' } })], AUJ);
   assert.ok(!types(recue).includes('pret'));
   assert.strictEqual(recue.actions[0].titre, 'Fixer le rendez-vous');
   // Au-delà de 15 jours : rien aujourd'hui.

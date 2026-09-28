@@ -110,7 +110,7 @@ test('toutesEcheances : offre reçue, pas de rendez-vous → ancré sur la date 
   // Cas participation signalé par l'étude : plus aucune échéance datée, le dossier disparaissait du
   // planning. Il reste visible — étape « Fixer le rendez-vous » (28/09) ancrée sur la date butoir —,
   // mais jamais un item 'acte'.
-  const d = { offrePretStatut: 'recue', acte: '2026-12-01' };
+  const d = { offrePretStatut: 'recue', acte: '2026-12-01', pieces: { renonciationPreemption: 'recue' } };
   const items = toutesEcheances(d);
   assert.deepEqual(items.map((e) => e.type), ['fixerRdv']);
   assert.equal(items[0].iso, '2026-12-01');
@@ -585,7 +585,7 @@ test('executerTacheRappels : aucun envoi réussi → rien en attente, aucune ten
 
 test('offre reçue sans rendez-vous : « Fixer le rendez-vous » avant l’appel de fonds, ancré sur le butoir', () => {
   const { toutesEcheances } = require('../src/jobs/rappels');
-  const base = { id: 'x', offrePretStatut: 'recue', acte: '2026-11-15' };
+  const base = { id: 'x', offrePretStatut: 'recue', acte: '2026-11-15', pieces: { renonciationPreemption: 'recue' } };
   assert.equal(toutesEcheances(base).map((e) => e.type).join(','), 'fixerRdv');
   assert.equal(toutesEcheances(base)[0].iso, '2026-11-15');
   // Une fois le rendez-vous placé : l'appel de fonds prend le relais.
@@ -594,4 +594,17 @@ test('offre reçue sans rendez-vous : « Fixer le rendez-vous » avant l’appel
   // Vente préalable encore en attente : pas encore le moment.
   const vp = Object.assign({}, base, { ventebien: '2026-10-20' });
   assert.ok(!toutesEcheances(vp).some((e) => e.type === 'fixerRdv'));
+});
+
+test('renonciation au droit de préemption non reçue : pas de « Fixer le rendez-vous »', () => {
+  const { toutesEcheances } = require('../src/jobs/rappels');
+  const d = { id: 'p', offrePretStatut: 'recue', acte: '2026-11-15', pieces: { renonciationPreemption: 'manquante' } };
+  const items = toutesEcheances(d);
+  assert.ok(!items.some((e) => e.type === 'fixerRdv'));
+  // Rien d'autre à surveiller : l'attente reste visible, ancrée sur la date butoir.
+  assert.equal(items.map((e) => e.type).join(','), 'preemption');
+  assert.equal(items[0].iso, '2026-11-15');
+  // Sans objet : pièce retirée du dossier, ou étude en participation.
+  assert.equal(toutesEcheances(Object.assign({}, d, { piecesRetirees: ['renonciationPreemption'] }))[0].type, 'fixerRdv');
+  assert.equal(toutesEcheances(Object.assign({}, d, { roleNotaire: 'participant' }))[0].type, 'fixerRdv');
 });

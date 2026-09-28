@@ -91,8 +91,16 @@ function toutesEcheances(d) {
   // de fonds (étude, 28/09). Ancré sur la date butoir ; seuils par défaut (15/7).
   let etape = null;
   const pretLeve = (!!d.sansPret || echeanceValidee(d, 'pret')) && (!d.ventebien || echeanceValidee(d, 'ventebien'));
+  // Pas de « Fixer le rendez-vous » tant que la renonciation au droit de préemption n'est pas
+  // reçue (miroir de preemptionLevee() côté client) : l'étape devient cette attente, sans date
+  // propre — seul le filet de sécurité ci-dessous l'ancre sur la date butoir.
+  const preemptionLevee = d.roleNotaire === 'participant'
+    || (d.piecesRetirees || []).includes('renonciationPreemption')
+    || !!(d.pieces && d.pieces.renonciationPreemption === 'recue');
   if (!d.rendezVousSignature && pretLeve && !d.appelFonds && !echeanceValidee(d, 'appelFonds')) {
-    etape = { type: 'fixerRdv', label: 'Fixer le rendez-vous', iso: d.acte };
+    etape = preemptionLevee
+      ? { type: 'fixerRdv', label: 'Fixer le rendez-vous', iso: d.acte }
+      : { type: 'preemption', label: 'Renonciation préemption attendue', iso: null };
   } else if (!echeanceValidee(d, 'appelFonds')) {
     etape = { type: 'appelFonds', label: 'Envoi appel de fonds', iso: d.appelFonds || d.rendezVousSignature };
   } else if (!echeanceValidee(d, 'projetEnvoye')) {

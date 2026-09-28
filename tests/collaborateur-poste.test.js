@@ -98,9 +98,9 @@ test('alertesImportantes : gravité, ordre, et rien quand tout est en ordre', ()
     { id: 'a', nom: 'A', pret: '2026-09-28', offrePretStatut: 'manquante' },            // butoir J-3 → critique
     { id: 'b', nom: 'B', rendezVousSignature: '2026-10-01', echeancesValidees: { appelFonds: true } }, // J-6, projet manquant → vigilance
     { id: 'c', nom: 'C', rendezVousSignature: '2026-09-26' },                            // J-1, rien envoyé → critique
-    { id: 'd', nom: 'D', acte: '2026-10-05' },                                           // butoir J-10 sans rdv → vigilance
+    { id: 'd', nom: 'D', acte: '2026-10-05', pieces: { renonciationPreemption: 'recue' } },                                           // butoir J-10 sans rdv → vigilance
     { id: 'e', nom: 'E', pret: '2026-12-01', offrePretStatut: 'manquante' },            // loin → rien
-    { id: 'f', nom: 'F', pret: '2026-09-28', offrePretStatut: 'recue' }                 // offre reçue → fixer le rendez-vous
+    { id: 'f', nom: 'F', pret: '2026-09-28', offrePretStatut: 'recue', pieces: { renonciationPreemption: 'recue' } }                 // offre reçue → fixer le rendez-vous
   ];
   const r = app.alertesImportantes(l, '2026-09-25');
   assert.equal(r.map(a => a.dossier.id + ':' + a.gravite).join(','), 'c:critique,a:critique,b:vigilance,d:vigilance,f:vigilance');
@@ -131,13 +131,14 @@ test('rappels : libellé d’échéance et ordre d’affichage', () => {
 test('pointsATraiter : une ligne par dossier, le plus grave en titre, les autres en dessous', () => {
   const l = [
     // Même dossier : offre non reçue (J-3, critique) et butoir sans rendez-vous (J-10, vigilance).
-    { id: 'a', nom: 'A', pret: '2026-09-28', offrePretStatut: 'manquante', acte: '2026-10-05' },
+    { id: 'a', nom: 'A', pret: '2026-09-28', offrePretStatut: 'manquante', acte: '2026-10-05', pieces: { renonciationPreemption: 'recue' } },
     { id: 'b', nom: 'B', typeVente: 'maison', sansPret: true }  // jamais relié : À suivre
   ];
   const r = app.pointsATraiter(l, '2026-09-25');
   assert.equal(r.map(x => x.dossier.id + ':' + x.gravite).join(','), 'a:critique,b:info');
   assert.equal(r[0].principal.titre, 'Relancer l’offre de prêt');
   assert.equal(r[0].autres.map(x => x.titre).join(','), 'Fixer le rendez-vous');
-  // Achat comptant sans rendez-vous : « Fixer le rendez-vous » et « Relier le dossier du NAS », en suivi.
-  assert.equal([r[1].principal.titre].concat(r[1].autres.map(x => x.titre)).sort().join(','), 'Fixer le rendez-vous,Relier le dossier du NAS');
+  // Achat comptant sans rendez-vous, renonciation de préemption pas encore reçue : pas de « Fixer le
+  // rendez-vous » tant qu'elle manque — l'attente et « Relier le dossier du NAS », en suivi.
+  assert.equal([r[1].principal.titre].concat(r[1].autres.map(x => x.titre)).sort().join(','), 'Relier le dossier du NAS,Renonciation de préemption attendue');
 });

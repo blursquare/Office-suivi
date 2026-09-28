@@ -9454,6 +9454,23 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     **Non vérifié sur le vrai Exchange** : noms exacts des catégories de la boîte de Sophie, et
     droit de suppression sur son calendrier partagé.
 
+- **« Fixer le rendez-vous » attend la renonciation au droit de préemption** (28/09 soir, « ne pas
+  mettre fixer le rendez-vous si la pièce droit de préemption n'est pas reçue »). Le rendez-vous ne
+  se prend qu'une fois la DIA purgée : l'étape `fixerRdv` exige désormais `preemptionLevee(d)` —
+  `d.pieces.renonciationPreemption === 'recue'` (une validation à la main pose aussi `'recue'`), ou
+  sans objet : pièce retirée du dossier (`d.piecesRetirees`) ou étude en participation (pas de
+  checklist suivie). Dossier non relié au NAS = pièce jamais reçue = pas d'étape, voulu.
+  - **Planning** (`echeancesPlanning`, miroir serveur `toutesEcheances` dans `jobs/rappels.js`) :
+    à la place, une étape `preemption` (« Renonciation préemption attendue ») **sans date propre** —
+    elle ne ressort que par le filet de sécurité existant (dossier qui n'a plus rien d'autre à
+    surveiller, ancré sur la date butoir), pour qu'un dossier au prêt levé ne disparaisse pas du
+    planning. Pastille `dl-preemption` en `--pret`. L'avancement (« Rendez-vous fixé ») est inchangé.
+  - **Alertes / « Aujourd'hui »** (`alertesImportantes`) : butoir à 15 jours sans rendez-vous →
+    « Obtenir la renonciation de préemption » (même gravité qu'avant) ; prêt levé → « Renonciation
+    de préemption attendue » en simple suivi (info), jamais « Fixer le rendez-vous ».
+  - Tests : fixtures des cas « Fixer le rendez-vous » complétées de la pièce reçue, +1 test de
+    chaque côté (sans objet par retrait ou participation compris). Suites : racine 897, serveur 473.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

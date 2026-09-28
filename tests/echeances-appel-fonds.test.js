@@ -282,7 +282,7 @@ test('date butoir : pas d\'échéance propre, mais elle sert d\'ancre quand rien
 
   // Sans rendez-vous et sans autre échéance : le dossier reste visible, ancré sur le butoir
   // (demande de l'étude), mais jamais avec une échéance de TYPE 'acte'.
-  const sansRdv = dossierBase({ acte: '2026-10-01' });
+  const sansRdv = dossierBase({ acte: '2026-10-01', pieces: { renonciationPreemption: 'recue' } });
   // Offre reçue, pas de rendez-vous : l'étape est « Fixer le rendez-vous », avant
   // l'appel de fonds (demande de l'étude du 28/09), bornée par la date butoir.
   const e2 = app.toutesEcheances(sansRdv);
@@ -377,7 +377,7 @@ test("normaliserDossierImporte : conserve les envois déjà relevés dans l'agen
 
 test('offre reçue : « Fixer le rendez-vous » précède l’appel de fonds', () => {
   const app = chargerApplication();
-  const d = { id: 'f', nom: 'F / G', offrePretStatut: 'recue', acte: '2026-11-20' };
+  const d = { id: 'f', nom: 'F / G', offrePretStatut: 'recue', acte: '2026-11-20', pieces: { renonciationPreemption: 'recue' } };
   assert.equal(app.toutesEcheances(d).map((e) => e.type).join(','), 'fixerRdv');
   // Rendez-vous placé : l'appel de fonds est à faire, à la date du rendez-vous.
   const place = Object.assign({}, d, { rendezVousSignature: '2026-11-18' });
@@ -389,4 +389,21 @@ test('offre reçue : « Fixer le rendez-vous » précède l’appel de fonds', (
   assert.ok(!app.toutesEcheances(Object.assign({}, d, { ventebien: '2026-10-25' })).some((x) => x.type === 'fixerRdv'));
   // Appel de fonds déjà parti avant que le rendez-vous soit noté : on ne recule pas.
   assert.ok(!app.toutesEcheances(Object.assign({}, d, { appelFonds: '2026-10-01' })).some((x) => x.type === 'fixerRdv'));
+});
+
+test('renonciation au droit de préemption non reçue : pas de « Fixer le rendez-vous »', () => {
+  const app = chargerApplication();
+  const d = { id: 'p', nom: 'P / Q', offrePretStatut: 'recue', acte: '2026-11-20', pieces: {} };
+  const e = app.toutesEcheances(d);
+  assert.ok(!e.some((x) => x.type === 'fixerRdv'));
+  assert.equal(e.map((x) => x.type).join(','), 'preemption');
+  assert.equal(e[0].iso, '2026-11-20');
+  // Reçue (y compris validée à la main), retirée du dossier, ou participation : l'étape revient.
+  assert.equal(app.toutesEcheances(Object.assign({}, d, { pieces: { renonciationPreemption: 'recue' } }))[0].type, 'fixerRdv');
+  assert.equal(app.toutesEcheances(Object.assign({}, d, { piecesRetirees: ['renonciationPreemption'] }))[0].type, 'fixerRdv');
+  assert.equal(app.toutesEcheances(Object.assign({}, d, { roleNotaire: 'participant' }))[0].type, 'fixerRdv');
+  // Alertes : l'étude est invitée à obtenir la renonciation, jamais à fixer le rendez-vous.
+  const titres = app.alertesImportantes([d], '2026-11-10').map((a) => a.titre).join('|');
+  assert.ok(!titres.includes('Fixer le rendez-vous'));
+  assert.ok(titres.includes('renonciation'));
 });

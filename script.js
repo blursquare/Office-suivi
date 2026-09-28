@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-28 18:09';
+  const VERSION_APP = '2026-09-28 20:01';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-28 20:01', resume: "« Fixer le rendez-vous » n'apparaît plus tant que la renonciation au droit de préemption n'est pas reçue (planning, « Aujourd'hui », rappels) : le dossier affiche à la place « Renonciation de préemption attendue ». Sans objet si la pièce est retirée du dossier ou en participation." },
     { version: '2026-09-28 18:09', resume: "Agenda Outlook : le rendez-vous de signature créé depuis CLAIRE prend la couleur de l'étude (vert à l'office, violet en visio, orange chez un confrère — noms des catégories réglables). Supprimer le rendez-vous dans CLAIRE le retire de l'agenda ; changer sa date le déplace au nouveau jour, même heure." },
     { version: '2026-09-28 17:43', resume: "Quand un collaborateur ajoute ou change une date sur le dossier d'un autre (échéance, rendez-vous, envoi, échéance personnalisée), le responsable du dossier est prévenu sur Teams. Tableau de bord : la carte « Portefeuille » s'appelle « Dossiers ouverts »." },
     { version: '2026-09-28 17:29', resume: "Agenda : l'envoi marqué depuis « Aujourd'hui » (« Marquer envoyé », « Déjà fait ») est aussi noté dans le rendez-vous ; un échec de note n'est plus silencieux (dit sur la carte « Envoi au client »). Saisir la date du rendez-vous de signature propose aussitôt l'heure pour le créer dans l'agenda, avec le lieu « initiales - envoi fait ». « Fixer le rendez-vous de signature » devient « Fixer le rendez-vous »." },
@@ -11380,7 +11381,7 @@
   // demandé que son nom le dise et qu'elle disparaîsse du planning (voir echeancesPlanning).
   const LIBELLES_CATEGORIE = {
     pret: 'Obtention du prêt', acte: 'Date butoir', ventebien: 'Vente préalable',
-    fixerRdv: 'Fixer le rendez-vous',
+    fixerRdv: 'Fixer le rendez-vous', preemption: 'Renonciation préemption attendue',
     appelFonds: 'Envoi appel de fonds', projetEnvoye: 'Envoi projet',
     rendezVousSignature: 'Rendez-vous de signature'
   };
@@ -12591,8 +12592,14 @@
     let etape = null;
     // Un appel de fonds déjà daté ou fait (cas où il est parti avant que le rendez-vous soit noté)
     // garde sa place : on ne recule pas d'une étape.
+    // Demandé par l'étude : pas de « Fixer le rendez-vous » tant que la renonciation au droit de
+    // préemption n'est pas reçue — le rendez-vous ne peut pas être pris avant. L'étape devient alors
+    // cette attente, SANS date propre : elle ne ressort que par le filet de sécurité ci-dessous
+    // (dossier qui n'a plus rien d'autre à surveiller), ancrée sur la date butoir.
     if (!d.rendezVousSignature && pretLeve(d) && !d.appelFonds && !echeanceValidee(d, 'appelFonds')) {
-      etape = { type: 'fixerRdv', label: 'Fixer le rendez-vous', iso: d.acte };
+      etape = preemptionLevee(d)
+        ? { type: 'fixerRdv', label: 'Fixer le rendez-vous', iso: d.acte }
+        : { type: 'preemption', label: 'Renonciation préemption attendue', iso: null };
     } else if (!echeanceValidee(d, 'appelFonds')) {
       etape = { type: 'appelFonds', label: 'Envoi appel de fonds', iso: d.appelFonds || d.rendezVousSignature };
     } else if (!echeanceValidee(d, 'projetEnvoye')) {
@@ -12716,6 +12723,15 @@
   // rendez-vous de signature ne se place qu'une fois ces deux conditions tombées.
   function pretLeve(d) {
     return (!!d.sansPret || echeanceValidee(d, 'pret')) && (!d.ventebien || echeanceValidee(d, 'ventebien'));
+  }
+
+  // Renonciation au droit de préemption reçue — ou sans objet : pièce retirée de la checklist de
+  // ce dossier, ou étude en participation (pas de checklist suivie). Une validation à la main compte
+  // (elle pose aussi 'recue'). Conditionne l'étape « Fixer le rendez-vous » (demande de l'étude).
+  function preemptionLevee(d) {
+    if (d.roleNotaire === 'participant') return true;
+    if ((d.piecesRetirees || []).indexOf('renonciationPreemption') !== -1) return true;
+    return !!(d.pieces && d.pieces.renonciationPreemption === 'recue');
   }
 
   function echeanceValidee(d, type) {
@@ -13480,7 +13496,8 @@
       } else if (d.acte && ecartJours(aujourdhuiIso, d.acte) !== null && ecartJours(aujourdhuiIso, d.acte) <= 15) {
         // Date butoir proche, et aucun rendez-vous de signature fixé.
         const j = ecartJours(aujourdhuiIso, d.acte);
-        ajouter(d, j <= 5 ? 'critique' : 'vigilance', 'Fixer le rendez-vous', `Aucun rendez-vous · butoir le ${court(d.acte)}`, j);
+        if (preemptionLevee(d)) ajouter(d, j <= 5 ? 'critique' : 'vigilance', 'Fixer le rendez-vous', `Aucun rendez-vous · butoir le ${court(d.acte)}`, j);
+        else ajouter(d, j <= 5 ? 'critique' : 'vigilance', 'Obtenir la renonciation de préemption', `Rendez-vous impossible sans elle · butoir le ${court(d.acte)}`, j);
       } else if (pretLeve(d)) {
         // Offre reçue (ou achat comptant) : placer le rendez-vous est l'étape suivante, avant
         // l'appel de fonds (demandé par l'étude). Le butoir, s'il existe, donne le délai.
@@ -13488,7 +13505,8 @@
         const detail = d.sansPret ? 'Achat comptant' : 'Offre de prêt reçue';
         // À faire (vigilance) quand l'offre vient d'arriver ; simple suivi sur un achat comptant,
         // où rien ne s'est produit qui appelle un geste aujourd'hui.
-        ajouter(d, d.sansPret ? 'info' : 'vigilance', 'Fixer le rendez-vous', d.acte ? `${detail} · butoir le ${court(d.acte)}` : detail, j);
+        if (preemptionLevee(d)) ajouter(d, d.sansPret ? 'info' : 'vigilance', 'Fixer le rendez-vous', d.acte ? `${detail} · butoir le ${court(d.acte)}` : detail, j);
+        else ajouter(d, 'info', 'Renonciation de préemption attendue', `${detail} · rendez-vous à fixer ensuite`, j);
       }
       // Vente préalable qui approche sans être confirmée.
       if (d.ventebien && !echeanceValidee(d, 'ventebien')) {
