@@ -8986,6 +8986,33 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     présente) reste à confirmer par l'étude au bureau, comme pour les briques 1 et 2. Vérifié ici :
     `node -c script.js` OK, `npm test` vert (860 tests), et la logique de repli/dédoublonnage de
     signature relue.
+- **L'envoi (appel de fonds / projet) est noté AUTOMATIQUEMENT dans l'agenda de l'office à la
+  validation de sa date, sans clic** — demandé par l'étude (« quand une date d'envoi d'appel de
+  fonds et/ou d'envoi de projet est validée, le noter automatiquement dans l'agenda, pas besoin
+  d'appuyer sur un bouton »). Généralise la brique « Écrire "appel de fonds envoyé" dans le RDV
+  d'agenda existant » (EWS `UpdateItem` sur le seul champ Lieu, sans toucher au code couleur — voir
+  son historique) : la même écriture est déclenchée sans le bouton.
+  - `noterEnvoiDansAgenda(id, auto)` gagne un paramètre `auto`. En mode auto : **rien si Exchange
+    n'est pas configuré** (`exchangeAgendaPret()` faux → best-effort silencieux, pas d'erreur sur
+    chaque saisie de date) et **rien à l'écran en cas d'ÉCHEC** — l'absence de la pastille « Noté
+    le… » et la présence du bouton signalent qu'il reste à faire, et le bouton permet de réessayer
+    avec un retour complet. Sur SUCCÈS, un toast bref confirme quand même : écrire dans un agenda
+    partagé que des collègues lisent doit rester un geste visible (principe déjà posé pour le bouton
+    manuel).
+  - Déclenchée depuis `validerEditionDate()` : quand une date NON VIDE est enregistrée pour
+    `appelFonds` ou `projetEnvoye` (donc l'envoi vient d'être fait — `marquerAppelFondsSelonDate` /
+    `marquerProjetEnvoyeSelonDate` a posé la validation juste avant), `noterEnvoiDansAgenda(id, true)`
+    est appelée en fire-and-forget (re-render à la résolution du fetch). C'est le SEUL point d'entrée
+    de validation de ces deux envois (la carte « Envoi au client » n'a pas de bouton « Marquer
+    réalisée », la date EST la validation — voir `renderCarteEnvoisAvantSignature`), donc pas de
+    second chemin à couvrir. Aucun risque de boucle avec la détection agenda serveur
+    (`agendaWatch.js`, sens LECTURE) : elle revient par le polling, pas par `validerEditionDate`.
+  - **Le bouton « Noter dans l'agenda » (`renderNoterAgenda`) est conservé** comme repli : écriture
+    auto en échec (Exchange momentanément indisponible), ou rendez-vous de signature fixé APRÈS
+    l'envoi (il n'y avait alors aucun événement à annoter au moment de la validation, l'auto-note
+    sort tôt sur `!d.rendezVousSignature`).
+  - Non vérifié en conditions réelles (Exchange indisponible ici), comme les briques 1 et 2 —
+    `node -c` OK, `npm test` vert (860 tests).
 
 ## Comment tester
 

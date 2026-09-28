@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-28 14:36';
+  const VERSION_APP = '2026-09-28 14:42';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-28 14:42', resume: "Agenda de l'office : dès qu'une date d'envoi (appel de fonds ou projet) est validée sur la fiche, la mention « appel de fonds envoyé » est écrite automatiquement dans le lieu du rendez-vous de signature, sans clic — le bouton « Noter dans l'agenda » reste comme repli si l'écriture auto a échoué ou si le rendez-vous est fixé après l'envoi. À tester au bureau." },
     { version: '2026-09-28 14:36', resume: "Emails : tous les courriers pré-rédigés de la fiche (relances, réception des fonds, questionnaire de satisfaction…) partent en brouillon Outlook quand la connexion Exchange est prête — signature de l'office ajoutée et pièce jointe déjà attachée (PDF du questionnaire), ce qu'un lien mailto ne sait pas faire. Sinon, brouillon mailto comme avant. À tester au bureau." },
     { version: '2026-09-28 14:18', resume: "Aujourd'hui : chaque action « À faire » a un bouton « Déjà fait » pour la valider à la main (geste fait hors CLAIRE). Fiche dossier : plus de « Aucun fichier mémorisé » quand l'avant-contrat est joignable dans le dossier NAS relié (le fichier retrouvé et le dossier relié sont désormais reconnus). Icône du .exe Windows : vraie icône CLAIRE multi-résolutions (16 à 256 px) au lieu de l'icône Node, plus nette sur le bureau." },
     { version: '2026-09-28 14:01', resume: "Tableau de bord : la carte « Aujourd'hui » reprend la présentation complète de la page (une ligne par action avec son geste), « Mes rappels » repasse juste en dessous avec « + Ajouter un rappel », une petite animation festive salue une journée bouclée, et le bloc « Dernières pièces » est plus compact." },
@@ -10455,6 +10456,11 @@
   // renseigné (il faut une date pour retrouver l'événement dans l'agenda) et qu'au moins un des deux
   // envois est fait. Le libellé reflète l'état courant : si le projet part plus tard, un nouveau clic
   // met la mention à jour (le serveur remplace l'ancienne sans doublon).
+  // Depuis Batch D, la note est ÉCRITE AUTOMATIQUEMENT à la validation d'une date d'envoi (voir
+  // validerEditionDate → noterEnvoiDansAgenda(auto)) : ce bouton reste comme repli/re-note quand
+  // l'écriture auto a échoué (Exchange momentanément indisponible) ou quand le rendez-vous de
+  // signature est fixé APRÈS l'envoi (il n'y avait alors aucun événement à annoter au moment de la
+  // validation).
   function renderNoterAgenda(d) {
     if (!exchangeAgendaPret() || !d.rendezVousSignature) return '';
     const af = echeanceValidee(d, 'appelFonds');
@@ -10589,12 +10595,21 @@
   // « VTE - <nom> », ajoute « Appel de fonds [et projet] envoyé » après les initiales sans doublon,
   // et laisse le code couleur intact. Rien n'est créé : si aucun rendez-vous n'est trouvé, un toast
   // le dit et rien n'est écrit.
-  async function noterEnvoiDansAgenda(id) {
+  // `auto` : appelée automatiquement à la validation d'une date d'envoi (voir validerEditionDate),
+  // pas par un clic sur le bouton. Demandé par l'étude (« quand une date d'envoi d'appel de fonds
+  // et/ou de projet est validée, le noter automatiquement dans l'agenda, pas besoin d'appuyer sur
+  // un bouton »). En mode auto : rien si Exchange n'est pas configuré (best-effort silencieux, pas
+  // d'erreur sur chaque saisie de date), et sur ÉCHEC on reste silencieux — l'absence de la pastille
+  // « Noté le… » et la présence du bouton signalent qu'il reste à faire, et le bouton permet de
+  // réessayer avec un retour complet. Sur SUCCÈS, un toast bref confirme quand même : écrire dans un
+  // agenda partagé que des collègues lisent doit rester un geste visible.
+  async function noterEnvoiDansAgenda(id, auto) {
     const d = dossiers.find(x => x.id === id);
     if (!d || !d.rendezVousSignature) return;
     const af = echeanceValidee(d, 'appelFonds');
     const pj = echeanceValidee(d, 'projetEnvoye');
     if (!af && !pj) return;
+    if (auto && !exchangeAgendaPret()) return;
     try {
       const reponse = await fetchAvecAuth('/api/exchange/rendez-vous/lieu', {
         method: 'POST',
@@ -10605,15 +10620,15 @@
       if (corps.ok) {
         d.agendaLieuNoteLe = new Date().toISOString();
         const libelle = (af && pj) ? 'appel de fonds et projet envoyé' : af ? 'appel de fonds envoyé' : 'projet envoyé';
-        ajouterHistorique(d, `Mention « ${libelle} » notée dans l'agenda Outlook.`);
+        ajouterHistorique(d, `Mention « ${libelle} » notée dans l'agenda Outlook${auto ? ' (automatique)' : ''}.`);
         sauvegarder(d);
         render();
         afficherToast(corps.message || 'Agenda mis à jour.', 'OK', null);
-      } else {
+      } else if (!auto) {
         afficherToast(corps.message || "La mise à jour de l'agenda a échoué.", 'OK', null);
       }
     } catch (e) {
-      afficherToast('Serveur injoignable — agenda non mis à jour.', 'OK', null);
+      if (!auto) afficherToast('Serveur injoignable — agenda non mis à jour.', 'OK', null);
     }
   }
 
@@ -14845,6 +14860,13 @@
       if (cle === 'appelFonds') marquerAppelFondsSelonDate(d, nouvelleDate);
       if (cle === 'projetEnvoye') marquerProjetEnvoyeSelonDate(d, nouvelleDate);
       sauvegarder(d);
+      // Batch D : noter automatiquement l'envoi dans l'agenda de l'office dès qu'une date d'envoi
+      // (appel de fonds / projet) est validée, sans clic sur « Noter dans l'agenda ». Best-effort et
+      // silencieux si Exchange n'est pas prêt ou en cas d'échec (voir noterEnvoiDansAgenda(auto)) ;
+      // le bouton reste disponible pour réessayer. Fire-and-forget : re-render à la résolution.
+      if ((cle === 'appelFonds' || cle === 'projetEnvoye') && nouvelleDate) {
+        noterEnvoiDansAgenda(d.id, true);
+      }
     }
     render();
   }
