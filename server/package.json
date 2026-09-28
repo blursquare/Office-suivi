@@ -16,7 +16,9 @@
     "nodemailer": "^10.0.9"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "esbuild": "^0.28.2",
-    "postject": "^1.0.0-alpha.6"
+    "postject": "^1.0.0-alpha.6",
+    "resedit": "^3.1.0"
   }
 }

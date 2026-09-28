@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-28 14:01';
+  const VERSION_APP = '2026-09-28 14:18';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-28 14:18', resume: "Aujourd'hui : chaque action « À faire » a un bouton « Déjà fait » pour la valider à la main (geste fait hors CLAIRE). Fiche dossier : plus de « Aucun fichier mémorisé » quand l'avant-contrat est joignable dans le dossier NAS relié (le fichier retrouvé et le dossier relié sont désormais reconnus). Icône du .exe Windows : vraie icône CLAIRE multi-résolutions (16 à 256 px) au lieu de l'icône Node, plus nette sur le bureau." },
     { version: '2026-09-28 14:01', resume: "Tableau de bord : la carte « Aujourd'hui » reprend la présentation complète de la page (une ligne par action avec son geste), « Mes rappels » repasse juste en dessous avec « + Ajouter un rappel », une petite animation festive salue une journée bouclée, et le bloc « Dernières pièces » est plus compact." },
     { version: '2026-09-28 13:48', resume: "Agenda du tableau de bord : les absences des collaborateurs notées dans l'agenda de l'office (congés, RTT…) sont affichées (« Absent cette semaine : … ») et un rendez-vous de signature dont le responsable est absent ce jour-là est signalé." },
     { version: '2026-09-28 13:31', resume: "« Aujourd'hui » : la page dédiée n'est plus affichée — seules restent la carte « Aujourd'hui » du tableau de bord et la fenêtre du point du matin (rouvrable depuis la carte)." },
@@ -12007,7 +12008,21 @@
         ? `<button type="button" class="action-rapide" disabled>${icone('spinner', null, true)} Lecture…</button>`
         : `<button type="button" class="action-rapide" onclick="lireMobilierDepuisAvantContrat('${d.id}', true)" title="${d.mobilierLuLe ? 'Relire' : 'Chercher'} le mobilier dans l’avant-contrat du dossier du NAS">${icone('file-text')} Lire</button>`)
       : '';
-    const avantContrat = `<span class="prop-texte${d.compromisNomFichier ? '' : ' vide'}" title="${escapeAttr(d.compromisNomFichier || '')}">${d.compromisNomFichier ? escapeHtml(d.compromisNomFichier) : 'Aucun fichier mémorisé'}</span>${boutonOuvrirCompromis}`;
+    // Ce que « Ouvrir le compromis » ouvrira, dans l'ordre où ouvrirCompromisTrouve() le résout :
+    // le fichier DÉJÀ retrouvé (mémorisé dans d.fichiersTrouves après une première ouverture), sinon
+    // le nom importé à la création, sinon — dossier NAS relié — il sera cherché à l'ouverture. Le
+    // « Aucun fichier mémorisé » alarmant ne reste que pour un dossier sans NAS relié, où il n'y a
+    // effectivement rien à ouvrir. Avant ce correctif, la ligne ne regardait que d.compromisNomFichier
+    // et affichait donc « Aucun fichier mémorisé » même sur un dossier relié dont l'avant-contrat est
+    // parfaitement joignable (et même après l'avoir ouvert une fois, le fichier trouvé étant rangé
+    // dans d.fichiersTrouves, pas dans d.compromisNomFichier). Signalé par l'étude.
+    const cheminCompromisTrouve = fichierTrouve(d, NAS_CLE_COMPROMIS);
+    const nomCompromisTrouve = cheminCompromisTrouve ? (String(cheminCompromisTrouve).split(/[\\/]/).pop() || '') : '';
+    const compromisConnu = !!(d.compromisNomFichier || nomCompromisTrouve);
+    const libelleCompromis = d.compromisNomFichier
+      ? d.compromisNomFichier
+      : (nomCompromisTrouve || (d.dossierLie ? 'Recherché dans le dossier NAS à l’ouverture' : 'Aucun fichier mémorisé'));
+    const avantContrat = `<span class="prop-texte${compromisConnu ? '' : ' vide'}" title="${escapeAttr(cheminCompromisTrouve || d.compromisNomFichier || '')}">${escapeHtml(libelleCompromis)}</span>${boutonOuvrirCompromis}`;
 
     // Groupe 2 — le bien et son financement.
     const offre = statutOffreAffichage(d);
@@ -13167,6 +13182,19 @@
     if (a) afficherToast(`Reporté à demain — ${a.titre.toLowerCase()}.`, 'Annuler', () => annulerTraiteJour(cle));
   }
 
+  // « Déjà fait » : valider une action à la main, quand le geste a été fait hors de CLAIRE (email
+  // envoyé depuis Outlook, relance passée par téléphone…). La coche seule : aucun champ du dossier
+  // n'est touché (contrairement à « Marquer envoyé », qui pose une date), donc « manuel » sert juste
+  // à proposer « Annuler » dans la liste des traités. Défaisable tant que le repère du jour tient.
+  function marquerFaitJour(cle) {
+    const a = trouverActionJour(cle);
+    if (!a) return;
+    noterTraite(a, 'Déjà fait', { manuel: true });
+    apercusJour.delete(cle);
+    render();
+    afficherToast(`Marqué fait — ${a.titre.toLowerCase()}.`, 'Annuler', () => annulerTraiteJour(cle));
+  }
+
   // Défait un report, ou un « Marquer envoyé » (la date d'avant est remise). Un brouillon déjà
   // ouvert ne se défait pas : il est parti dans la messagerie.
   function annulerTraiteJour(cle) {
@@ -13265,7 +13293,10 @@
         </button>
         <span class="ja-delai${a.gravite === 'critique' ? ' proche' : ''}">${escapeHtml(delai)}</span>
         <button type="button" class="primary ja-go" onclick="executerActionJour('${cle}')" title="${escapeAttr(a.bouton)}">${iconeGeste(a)}<span>${escapeHtml(libelleCourtGeste(a))}</span></button>
-        <button type="button" class="icon-btn ja-plus-tard" onclick="reporterActionJour('${cle}')" title="Plus tard (demain)" aria-label="Reporter à demain">${icone('clock')}</button>
+        <span class="ja-actions-sec">
+          <button type="button" class="icon-btn ja-fait-manuel" onclick="marquerFaitJour('${cle}')" title="Déjà fait — valider à la main" aria-label="Marquer comme déjà fait">${icone('check')}</button>
+          <button type="button" class="icon-btn ja-plus-tard" onclick="reporterActionJour('${cle}')" title="Plus tard (demain)" aria-label="Reporter à demain">${icone('clock')}</button>
+        </span>
         ${ouverte ? `
           <div class="ja-detail">
             <p>${escapeHtml(a.contexte)}</p>
@@ -13290,7 +13321,7 @@
           <span class="ja-titre">${escapeHtml(t.titre)}</span>
           <span class="ja-sous">${escapeHtml(t.dossier)} · ${escapeHtml(t.etat)} · ${escapeHtml(t.heure)}</span>
         </span>
-        ${t.etat === 'Reporté à demain' || t.champ ? `<button type="button" class="lien-discret ja-annuler" onclick="annulerTraiteJour('${escapeOnclickArg(t.cle)}')">Annuler</button>` : ''}
+        ${t.etat === 'Reporté à demain' || t.champ || t.manuel ? `<button type="button" class="lien-discret ja-annuler" onclick="annulerTraiteJour('${escapeOnclickArg(t.cle)}')">Annuler</button>` : ''}
       </li>`).join('');
   }
 

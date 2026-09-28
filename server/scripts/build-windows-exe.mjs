@@ -27,9 +27,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 import https from 'node:https';
 import { fileURLToPath } from 'node:url';
+// Icône Windows de l'exe (voir étape « Icône Windows » plus bas) : rasterisation du SVG (resvg,
+// binaire préconstruit, aucune dépendance système) puis écriture de la ressource icône du PE
+// (resedit, pur JS). Les deux sont des dépendances de build (server/package.json), installées par
+// `npm ci` sur le runner — pas besoin d'un paquet apt (rsvg/imagemagick) ni de wine.
+import { Resvg } from '@resvg/resvg-js';
+import { NtExecutable, NtExecutableResource, Data, Resource } from 'resedit';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SERVER_DIR = path.resolve(__dirname, '..');
+const ROOT_DIR = path.resolve(SERVER_DIR, '..');
 const BUILD_DIR = path.join(SERVER_DIR, 'build');
 
 // Même version que celle utilisée pour développer/tester ce serveur (node:sqlite, node:sea) —
@@ -42,6 +49,69 @@ const SEA_FUSE = 'NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2'; // constante 
 
 function etape(n, total, message) {
   console.log(`\n=== [${n}/${total}] ${message} ===`);
+}
+
+// Tailles d'icône Windows usuelles : 16/32/48 (explorateur, barre des tâches) et 256 (grandes
+// vignettes du bureau — c'est celle qui manquait et faisait paraître l'icône « pixélisée » quand
+// Windows agrandissait une petite image). 24/64/128 comblent les tailles intermédiaires.
+const TAILLES_ICONE = [16, 24, 32, 48, 64, 128, 256];
+
+// Construit un .ico multi-résolutions (entrées PNG, format Vista+) à partir de icone.svg, rasterisé
+// net à chaque taille par resvg. Aucun agrandissement d'une image basse résolution — chaque taille
+// est rendue depuis le vectoriel.
+function construireIcoDepuisSvg(svgPath) {
+  const svg = fs.readFileSync(svgPath, 'utf8');
+  const images = TAILLES_ICONE.map((px) => {
+    const rendu = new Resvg(svg, { fitTo: { mode: 'width', value: px }, background: 'rgba(0,0,0,0)' });
+    return { px, buf: Buffer.from(rendu.render().asPng()) };
+  });
+  const n = images.length;
+  const entete = Buffer.alloc(6 + 16 * n);
+  entete.writeUInt16LE(0, 0);      // réservé
+  entete.writeUInt16LE(1, 2);      // type 1 = icône
+  entete.writeUInt16LE(n, 4);      // nombre d'images
+  let offset = 6 + 16 * n;
+  const corps = [];
+  images.forEach((img, i) => {
+    const e = 6 + 16 * i;
+    entete.writeUInt8(img.px >= 256 ? 0 : img.px, e + 0); // largeur (0 = 256)
+    entete.writeUInt8(img.px >= 256 ? 0 : img.px, e + 1); // hauteur (0 = 256)
+    entete.writeUInt8(0, e + 2);   // palette
+    entete.writeUInt8(0, e + 3);   // réservé
+    entete.writeUInt16LE(1, e + 4);  // plans
+    entete.writeUInt16LE(32, e + 6); // bits par pixel
+    entete.writeUInt32LE(img.buf.length, e + 8);  // taille de l'image
+    entete.writeUInt32LE(offset, e + 12);         // offset de l'image
+    offset += img.buf.length;
+    corps.push(img.buf);
+  });
+  return Buffer.concat([entete, ...corps]);
+}
+
+// Pose l'icône Windows sur l'exe DÉJÀ produit par postject (ordre vérifié : resedit APRÈS postject —
+// dans l'autre sens, postject signale « Relocation corrupted » car resedit décale la section de
+// ressources ; ici resedit réécrit proprement les ressources en préservant la ressource
+// NODE_SEA_BLOB, confirmé par un contrôle après coup). Non bloquant : si quoi que ce soit échoue,
+// l'exe fonctionnel (sans icône) est conservé plutôt que de casser le build.
+function poserIconeWindows(exePath, icoBuffer) {
+  const exe = NtExecutable.from(fs.readFileSync(exePath), { ignoreCert: true });
+  const res = NtExecutableResource.from(exe);
+  const iconFile = Data.IconFile.from(icoBuffer);
+  Resource.IconGroupEntry.replaceIconsForResource(
+    res.entries, 1, 1033, iconFile.icons.map((i) => i.data)
+  );
+  res.outputResource(exe);
+  const sortie = Buffer.from(exe.generate());
+  // Garde-fou : l'icône ne doit jamais faire disparaître le blob SEA (sinon l'exe ne démarrerait
+  // plus). On relit le binaire produit et on vérifie que NODE_SEA_BLOB est toujours là AVANT de
+  // remplacer le fichier.
+  const verif = NtExecutableResource.from(NtExecutable.from(sortie, { ignoreCert: true }));
+  const blobPresent = verif.entries.some((e) => e.type === 10 && String(e.id) === 'NODE_SEA_BLOB');
+  const iconePresente = verif.entries.some((e) => e.type === 14); // RT_GROUP_ICON
+  if (!blobPresent || !iconePresente) {
+    throw new Error(`contrôle post-icône échoué (blob SEA: ${blobPresent}, icône: ${iconePresente})`);
+  }
+  fs.writeFileSync(exePath, sortie);
 }
 
 function telecharger(url, dest) {
@@ -112,14 +182,14 @@ async function main() {
   execSync('node --experimental-sea-config sea-config.json', { cwd: SERVER_DIR, stdio: 'inherit' });
   fs.rmSync(seaConfigPath); // fichier de travail uniquement, pas utile une fois le blob produit
 
-  etape(3, 6, `Téléchargement de Node ${NODE_VERSION} pour Windows x64`);
+  etape(3, 7, `Téléchargement de Node ${NODE_VERSION} pour Windows x64`);
   const zipPath = path.join(BUILD_DIR, 'node-win.zip');
   await telecharger(NODE_ZIP_URL, zipPath);
   execSync(`unzip -o -q "${zipPath}" -d "${BUILD_DIR}"`, { stdio: 'inherit' });
   const exePath = path.join(BUILD_DIR, 'CLAIRE-serveur.exe');
   fs.copyFileSync(path.join(BUILD_DIR, NODE_ZIP_DIRNAME, 'node.exe'), exePath);
 
-  etape(4, 6, 'Retrait de la signature Authenticode existante (si outil disponible)');
+  etape(4, 7, 'Retrait de la signature Authenticode existante (si outil disponible)');
   // Procédure officielle Node SEA sur Windows : `signtool remove /s` avant l'injection — outil
   // Windows absent de ce sandbox Linux. `osslsigncode` fait le même travail sur un exécutable PE
   // depuis Linux ; s'il est absent ou échoue, on tente l'injection directe sur le binaire signé
@@ -133,14 +203,26 @@ async function main() {
     console.warn(`osslsigncode indisponible ou a échoué (${err.message.split('\n')[0]}) — injection directe tentée.`);
   }
 
-  etape(5, 6, 'Injection du blob dans le binaire (postject)');
+  etape(5, 7, 'Injection du blob dans le binaire (postject)');
   execSync(
     `npx --no-install postject "${exePath}" NODE_SEA_BLOB build/sea-prep.blob ` +
       `--sentinel-fuse ${SEA_FUSE} --overwrite`,
     { cwd: SERVER_DIR, stdio: 'inherit' }
   );
 
-  etape(6, 6, 'Vérification du fichier produit');
+  etape(6, 7, 'Icône Windows de l’exe (resedit, APRÈS postject)');
+  // Non bloquant : une icône ratée ne doit jamais empêcher de livrer un exe fonctionnel. Le
+  // garde-fou dans poserIconeWindows() vérifie en plus que le blob SEA survit avant de remplacer
+  // le fichier.
+  try {
+    const ico = construireIcoDepuisSvg(path.join(ROOT_DIR, 'icone.svg'));
+    poserIconeWindows(exePath, ico);
+    console.log(`Icône posée (${TAILLES_ICONE.join('/')} px), blob SEA préservé.`);
+  } catch (err) {
+    console.warn(`Icône Windows non posée (${err.message.split('\n')[0]}) — exe livré avec l'icône Node par défaut.`);
+  }
+
+  etape(7, 7, 'Vérification du fichier produit');
   execSync(`file "${exePath}"`, { stdio: 'inherit' });
   const taille = fs.statSync(exePath).size;
   console.log(`\nOK : ${exePath} (${(taille / 1024 / 1024).toFixed(1)} Mo)`);

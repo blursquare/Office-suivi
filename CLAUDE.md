@@ -8911,6 +8911,43 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   - Vérifié dans un vrai Chromium (clair et sombre) : « Mes rappels » bien dans la carte « Aujourd'hui »
     sous « À faire », la carte séparée du rail disparue, aucune erreur JS. `npm test` reste vert
     (860 tests racine, 445 serveur — chantier entièrement présentation, aucune fonction pure modifiée).
+- **Lot de trois retouches indépendantes** :
+  - **« Aujourd'hui » : bouton « Déjà fait » pour valider une action à la main** (demandé par
+    l'étude). Sur chaque ligne d'action de « À faire » (carte du tableau de bord, page, fenêtre du
+    matin — toutes rendues par `renderLigneActionJour`), une coche à côté de « Plus tard » marque
+    l'action traitée quand le geste a été fait hors de CLAIRE (email envoyé depuis Outlook, relance
+    par téléphone…). `marquerFaitJour(cle)` note « Déjà fait » dans les traités du jour
+    (`noterTraite(..., { manuel: true })`) — la coche seule, aucun champ du dossier touché
+    (contrairement à « Marquer envoyé » qui pose une date), donc défaisable par « Annuler » tant que
+    le repère du jour tient. Les deux boutons secondaires (Déjà fait + Plus tard) sont regroupés
+    dans un `<span class="ja-actions-sec">` : le nombre d'enfants directs de la grille `.ja` reste
+    inchangé, donc les gabarits compact/mobile (grid-areas) ne bougent pas — seul le sélecteur de
+    grille-area `.ja-plus-tard` devient `.ja-actions-sec`.
+  - **Fiche dossier : plus de « Aucun fichier mémorisé » quand l'avant-contrat est joignable**
+    (signalé par l'étude). La ligne « Avant-contrat » ne regardait que `d.compromisNomFichier` (le
+    nom du PDF importé au wizard) — vide pour un dossier créé autrement ou relié au NAS après coup,
+    et TOUJOURS vide après une première ouverture réussie (le fichier retrouvé est rangé dans
+    `d.fichiersTrouves`, pas dans `compromisNomFichier`). Elle reflète maintenant ce que « Ouvrir »
+    ouvrira, dans l'ordre de `ouvrirCompromisTrouve()` : le fichier déjà retrouvé (nom depuis
+    `fichierTrouve(d, NAS_CLE_COMPROMIS)`), sinon le nom importé, sinon — dossier NAS relié —
+    « Recherché dans le dossier NAS à l'ouverture ». Le « Aucun fichier mémorisé » alarmant ne reste
+    que pour un dossier sans NAS relié, où il n'y a effectivement rien à ouvrir.
+  - **Icône du .exe Windows : vraie icône CLAIRE multi-résolutions** (signalé « toujours
+    pixélisé » — le correctif #237 portait sur le favicon/PWA, jamais sur l'icône du .exe, que le
+    build n'a jamais posée : l'exe gardait l'icône de `node.exe`). `server/scripts/build-windows-exe.mjs`
+    rasterise `icone.svg` à 16/24/32/48/64/128/256 px (`@resvg/resvg-js`, binaire préconstruit — pas
+    de dépendance système ni de wine), assemble un `.ico` (entrées PNG, format Vista+) et pose la
+    ressource icône du PE avec `resedit` (pur JS). **Ordre vérifié : resedit APRÈS postject** — dans
+    l'autre sens postject signale « Relocation corrupted » car resedit décale la section de
+    ressources ; à l'endroit, resedit réécrit proprement les ressources en préservant
+    `NODE_SEA_BLOB` (contrôlé après coup par `poserIconeWindows()`, qui n'écrit le fichier que si le
+    blob SEA ET le groupe d'icônes sont bien présents — sinon l'exe fonctionnel sans icône est
+    conservé, l'étape est non bloquante). Les deux paquets sont des `devDependencies` de `server/`,
+    installés par `npm ci` sur le runner (aucun apt). **Non vérifié sur un vrai bureau Windows** :
+    la chaîne (rasterisation → .ico → embed → contrôle du blob) est prouvée de bout en bout dans cet
+    environnement (PE32+ valide, `RT_GROUP_ICON` + `RT_ICON` + `NODE_SEA_BLOB` présents après
+    postject), mais le rendu réel de l'icône sur le bureau reste à confirmer par l'étude au prochain
+    `.exe`.
 
 ## Comment tester
 

@@ -5784,8 +5784,11 @@ button.lien-action:hover { text-decoration: underline; }
   display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; font-size: 12.5px; font-weight: 600;
   border-radius: 7px; white-space: nowrap;
 }
+.ja-actions-sec { display: inline-flex; align-items: center; gap: 2px; }
 .ja button.icon-btn.ja-plus-tard { color: var(--muted); }
 .ja button.icon-btn.ja-plus-tard:hover { color: var(--ink); }
+.ja button.icon-btn.ja-fait-manuel { color: var(--muted); }
+.ja button.icon-btn.ja-fait-manuel:hover { color: var(--success); }
 .ja-detail { grid-column: 2 / -1; padding: 4px 0 6px; font-size: 13px; color: var(--ink-soft); }
 .ja-detail > p { margin: 0; max-width: 72ch; }
 .ja-detail-liens { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; }
@@ -5814,7 +5817,7 @@ button.lien-action:hover { text-decoration: underline; }
 .ja-compacte .ja > .ja-texte { grid-area: t; }
 .ja-compacte .ja > .ja-delai { grid-area: d; font-size: 11.5px; }
 .ja-compacte .ja > .ja-go { grid-area: go; }
-.ja-compacte .ja > .ja-plus-tard { grid-area: tard; }
+.ja-compacte .ja > .ja-actions-sec { grid-area: tard; }
 .ja-compacte .ja > .ja-detail { grid-column: 2 / -1; grid-row: 3; }
 .ja-compacte .ja-titre { font-size: 13px; }
 .ja-compacte .ja-go span { display: none; }
@@ -6029,7 +6032,7 @@ button.lien-action:hover { text-decoration: underline; }
   .ja > .ja-texte { grid-area: t; }
   .ja > .ja-delai { grid-area: d; font-size: 11.5px; }
   .ja > .ja-go { grid-area: go; }
-  .ja > .ja-plus-tard { grid-area: tard; }
+  .ja > .ja-actions-sec { grid-area: tard; }
   .ja > .ja-detail { grid-column: 2 / -1; grid-row: 3; }
   .ja.fait { grid-template-areas: none; }
   .ja-go span { display: none; }
