@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-28 16:47';
+  const VERSION_APP = '2026-09-28 17:08';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-28 17:08', resume: "Tableau de bord : la carte des dossiers actifs devient « Portefeuille » — un anneau de couleur répartit les dossiers par statut (prêt, réception de pièces, aucun document, à relier), trois jauges disent où en sont les signatures du mois, les offres de prêt reçues et l'avancement moyen, et une phrase résume la situation. Mes rappels : un crayon permet de modifier un rappel (texte, échéance, dossier)." },
     { version: '2026-09-28 16:47', resume: "Tableau de bord : les tuiles « offres en attente » et « pièces manquantes » laissent place à « Activité de l'étude », le fil en direct de ce que font les collaborateurs (tâches du jour faites, dates saisies, emails préparés…) et de ce qui bouge dans l'agenda de l'office (rendez-vous relevé, déplacé ou retiré). « Dernières pièces » tient sur une ligne par pièce. Les tâches validées ne clignotent plus à la réouverture. Une tâche du jour ou un rappel non fait la veille revient marqué « Non faite hier ». Un rappel qui parle d'écrire propose un email vierge avec la signature. Fiche : les dates de la timeline tiennent sur une ou deux lignes." },
     { version: '2026-09-28 16:24', resume: "Emails : au clic, l'email s'ouvre de nouveau prêt à envoyer — un fichier .eml téléchargé qu'Outlook ouvre comme un nouveau message, en HTML, avec la signature de l'office (logos, couleurs, mentions) et les pièces jointes (questionnaire, courrier d'appel de fonds). Tout email à un confrère commence par « Mon Cher Maître, » et se termine par « Dans l'attente et vous en remerciant par avance, Votre bien dévoué. » ; relance de la vente préalable au confrère au texte de l'étude. Réglages › Sur ce poste : messagerie par défaut (texte seul) possible. Icône Windows nette à toutes les tailles." },
     { version: '2026-09-28 15:47', resume: "Fonds reçus : lecture adaptée aux vrais reçus comptables de l'étude (un reçu par page, « compte : N », une ligne par écriture). Seules les écritures dont le TITULAIRE du compte est l'acquéreur sont comptées — plus celles du vendeur citées dans la même référence de vente —, les remboursements de trop-perçu sont écartés, et chaque reçu affiche sa date réelle, son numéro de compte et « référence de la vente retrouvée » quand le libellé cite aussi le vendeur. Les fichiers nommés « RECUS_14-08 » (sans année) sont datés correctement." },
@@ -11630,31 +11631,108 @@
     </svg>`;
   }
 
+  // ---- Carte « Portefeuille » du tableau de bord ----
+  // Demandé par l'étude : rendre la carte des dossiers actifs « attractive, visuelle et ludique »,
+  // avec les statistiques qui comptent. Toutes les valeurs viennent de fonctions déjà en place
+  // (statutDossier, avancementDossier, offrePretStatut) : aucune nouvelle règle métier. Pure et
+  // testable (tests/portefeuille.test.js) — la date du jour est passée en paramètre.
+  //  - répartition des dossiers actifs par statut (anneau) : les mêmes quatre états que le badge ;
+  //  - signatures du mois : rendez-vous de signature tombant dans le mois en cours, dont ceux déjà
+  //    passés (dossiers archivés compris : un dossier signé est souvent archivé ensuite) ;
+  //  - offres de prêt reçues sur les dossiers financés ;
+  //  - avancement moyen (même pourcentage que la liste « Avancement des dossiers »).
+  var ORDRE_STATUTS_PORTEFEUILLE = ['pret', 'aconfirmer', 'blocage', 'arelier'];
+
+  function statsPortefeuilleVisuel(dossiersActifs, dossiersTous, aujourdhuiIso) {
+    const actifs = (dossiersActifs || []).filter(d => !d.archive);
+    const parStatut = { pret: 0, aconfirmer: 0, blocage: 0, arelier: 0 };
+    actifs.forEach(d => { const s = statutDossier(d); if (s in parStatut) parStatut[s]++; });
+    const mois = String(aujourdhuiIso || '').slice(0, 7);
+    const duMois = (dossiersTous || actifs).filter(d => d.rendezVousSignature && String(d.rendezVousSignature).slice(0, 7) === mois);
+    const signaturesMois = { total: duMois.length, faites: duMois.filter(d => d.rendezVousSignature < aujourdhuiIso).length };
+    const finances = actifs.filter(d => !d.sansPret);
+    const offres = { total: finances.length, recues: finances.filter(d => d.offrePretStatut === 'recue').length };
+    const avancementMoyen = actifs.length
+      ? Math.round(actifs.reduce((t, d) => t + avancementDossier(d, aujourdhuiIso).pct, 0) / actifs.length)
+      : 0;
+    return { actifs: actifs.length, parStatut, signaturesMois, offres, avancementMoyen };
+  }
+
+  // Pure : une phrase courte qui dit ce que la carte montre, sur le ton d'un collègue — jamais un
+  // reproche. La première règle qui s'applique l'emporte.
+  function phrasePortefeuille(st) {
+    if (!st.actifs) return 'Aucun dossier en cours.';
+    const { pret, blocage } = st.parStatut;
+    if (pret === st.actifs) return 'Tous les dossiers sont prêts à signer.';
+    if (st.signaturesMois.total && st.signaturesMois.faites === st.signaturesMois.total) return 'Toutes les signatures du mois sont faites.';
+    if (blocage) return `${blocage} dossier${blocage > 1 ? 's' : ''} sans aucun document reçu.`;
+    const restantes = st.signaturesMois.total - st.signaturesMois.faites;
+    if (restantes) return `Encore ${restantes} signature${restantes > 1 ? 's' : ''} d'ici la fin du mois.`;
+    if (pret) return `${pret} dossier${pret > 1 ? 's' : ''} prêt${pret > 1 ? 's' : ''} à signer.`;
+    return 'Les pièces arrivent : rien de bloquant.';
+  }
+
+  // L'animation d'entrée (anneau qui se dessine, barres qui se remplissent) ne joue qu'au premier
+  // affichage : render() reconstruit le tableau de bord à chaque action et à chaque sondage, la
+  // rejouer ferait clignoter la carte toutes les 7 secondes.
+  let portefeuilleDejaAnime = false;
+
+  function anneauPortefeuille(st) {
+    const total = st.actifs;
+    let debut = 0;
+    const presents = ORDRE_STATUTS_PORTEFEUILLE.filter(k => st.parStatut[k]);
+    // Un petit blanc entre deux segments pour qu'ils se lisent séparément ; aucun s'il n'y en a qu'un.
+    const ecart = presents.length > 1 ? 1.2 : 0;
+    const segments = total ? presents.map(k => {
+      const part = 100 * st.parStatut[k] / total;
+      const long = Math.max(0.6, part - ecart);
+      const seg = `<circle class="pf-seg pf-${k}" cx="21" cy="21" r="15.9155" style="--l:${long.toFixed(2)};stroke-dashoffset:${(25 - debut).toFixed(2)}"></circle>`;
+      debut += part;
+      return seg;
+    }).join('') : '';
+    return `<svg class="pf-anneau" viewBox="0 0 42 42" role="img" aria-label="${escapeAttr(ORDRE_STATUTS_PORTEFEUILLE.map(k => `${LIBELLES_STATUT[k].texte} : ${st.parStatut[k]}`).join(', '))}">
+      <circle class="pf-fond" cx="21" cy="21" r="15.9155"></circle>${segments}
+    </svg>`;
+  }
+
+  function barrePortefeuille(libelle, valeur, total, detail, ton) {
+    const pct = total ? Math.round(100 * valeur / total) : 0;
+    return `<div class="pf-mesure">
+      <div class="pf-mesure-tete"><span>${libelle}</span><b>${detail}</b></div>
+      <div class="pf-barre" role="img" aria-label="${escapeAttr(libelle + ' : ' + detail)}"><span class="pf-barre-remplie ${ton}" style="--p:${pct}%"></span></div>
+    </div>`;
+  }
+
   function renderKpisDashboard(dossiersActifs, dossiersTousPerimetre) {
     const bloc = document.getElementById('kpis-dashboard');
     if (!bloc) return;
-    // Les tuiles « échéances ≤ 7 / 15 jours » sont retirées (demande de l'étude) : la carte À
-    // traiter et l'Agenda disent déjà ce qui arrive, et avec le détail.
-    const { actifs } = calculerStatsPortefeuille(dossiersActifs);
-    // Tendance du nombre de dossiers actifs vs le mois précédent (voir calculerEvolutionPortefeuille)
-    // affichée directement à côté du chiffre plutôt qu'en dessous — demandé par l'étude. Sur TOUS
-    // les dossiers (dossiers, pas dossiersActifs) puisqu'un dossier archivé aujourd'hui a pu être
-    // actif il y a un mois — l'exclure fausserait la comparaison. La comparaison à l'année
-    // précédente reste calculée (evolution.ecartAn) mais volontairement pas affichée pour
-    // l'instant, sur demande explicite de l'étude ("ne pas afficher l'option pour l'année pour le
-    // moment") — à réactiver ici le jour où elle le redemande, sans retoucher le calcul.
+    const aujourdhui = isoAujourdhuiLocal();
+    const st = statsPortefeuilleVisuel(dossiersActifs, dossiersTousPerimetre, aujourdhui);
+    // Tendance du nombre de dossiers actifs vs le mois précédent (calculerEvolutionPortefeuille),
+    // sur TOUS les dossiers du périmètre : un dossier archivé aujourd'hui a pu être actif il y a
+    // un mois. La comparaison à l'année reste calculée mais n'est pas affichée (demande de l'étude).
     const evolution = calculerEvolutionPortefeuille(dossiersTousPerimetre || dossiers);
     const tMois = formaterTendance(evolution.ecartMois);
-    const tendanceMois = `<span class="kpi-tendance" title="${evolution.actuel} aujourd'hui contre ${evolution.moisDernier} il y a un mois">${tMois.icone}${tMois.texte} vs mois dernier</span>`;
-    // Les tuiles « offres de prêts en attente » et « dossiers avec pièces manquantes » sont
-    // remplacées par une carte unique « Activité de l'étude » (demandé par l'étude) : le suivi en
-    // direct de ce que font les collaborateurs et de ce qui bouge dans l'agenda de l'office.
-    const tuiles = [
-      ['c-success', actifs, actifs > 1 ? 'dossiers actifs' : 'dossier actif', icone('folder', 'kpi-icone'), tendanceMois]
-    ];
-    bloc.innerHTML = tuiles.map(([cls, valeur, libelle, iconeHtml, tendance]) =>
-      `<div class="kpi-tile"><div class="kpi-label">${iconeHtml}${libelle}</div><div class="kpi-num-ligne"><span class="kpi-num ${cls}">${valeur}</span>${tendance}</div></div>`
-    ).join('') + renderActiviteEtude(dossiers);
+    const anime = !portefeuilleDejaAnime && st.actifs > 0;
+    if (st.actifs > 0) portefeuilleDejaAnime = true;
+    const legende = ORDRE_STATUTS_PORTEFEUILLE.map(k => `
+      <li class="pf-legende-ligne${st.parStatut[k] ? '' : ' vide'}"><span class="pf-point pf-${k}"></span><span>${LIBELLES_STATUT[k].texte}</span><b>${st.parStatut[k]}</b></li>`).join('');
+    const sig = st.signaturesMois;
+    const moisNom = new Date(aujourdhui + 'T00:00:00').toLocaleDateString('fr-FR', { month: 'long' });
+    const carte = `<div class="kpi-tile portefeuille${anime ? ' anime' : ''}">
+      <div class="kpi-label">${icone('folder', 'kpi-icone')}Portefeuille<span class="kpi-tendance pf-tendance" title="${evolution.actuel} aujourd'hui contre ${evolution.moisDernier} il y a un mois">${tMois.icone}${tMois.texte} vs mois dernier</span></div>
+      <div class="pf-haut">
+        <div class="pf-anneau-bloc">${anneauPortefeuille(st)}<div class="pf-centre"><span class="pf-centre-num">${st.actifs}</span><span class="pf-centre-lib">actif${st.actifs > 1 ? 's' : ''}</span></div></div>
+        <ul class="pf-legende">${legende}</ul>
+      </div>
+      <div class="pf-mesures">
+        ${barrePortefeuille(`Signatures de ${moisNom}`, sig.faites, sig.total, sig.total ? `${sig.faites} / ${sig.total}` : 'aucune', 'focus')}
+        ${barrePortefeuille('Offres de prêt reçues', st.offres.recues, st.offres.total, st.offres.total ? `${st.offres.recues} / ${st.offres.total}` : 'sans prêt', 'pret')}
+        ${barrePortefeuille('Avancement moyen', st.avancementMoyen, 100, `${st.avancementMoyen} %`, 'success')}
+      </div>
+      <div class="pf-phrase">${escapeHtml(phrasePortefeuille(st))}</div>
+    </div>`;
+    bloc.innerHTML = carte + renderActiviteEtude(dossiers);
   }
 
   // ---- Activité de l'étude (Tableau de bord) : suivi en direct, tous collaborateurs ----
@@ -13217,6 +13295,8 @@
   let rappelsPerso = [];
   let rappelsPersoCharges = false;
   let ajoutRappelOuvert = false;
+  // Un seul formulaire à la fois (ajout OU modification d'un rappel) : les deux portent les mêmes id.
+  let rappelEnEdition = null;
 
   async function chargerRappelsPerso() {
     if (!utilisateurPoste) { rappelsPerso = []; rappelsPersoCharges = true; return; }
@@ -13246,6 +13326,7 @@
 
   function ouvrirAjoutRappel(ouvrir) {
     ajoutRappelOuvert = !!ouvrir;
+    if (ajoutRappelOuvert) rappelEnEdition = null;
     renderAlertesDashboard(dossiersPerimetreDashboard());
     if (ajoutRappelOuvert) setTimeout(() => { const c = document.getElementById('rappel-perso-texte'); if (c) c.focus(); }, 0);
   }
@@ -13267,6 +13348,27 @@
     ajoutRappelOuvert = false;
     renderAlertesDashboard(dossiersPerimetreDashboard());
     enregistrerRappelPerso(rappel);
+  }
+
+  // Modifier un rappel existant (demandé par l'étude) : texte, échéance et dossier, dans le même
+  // formulaire que l'ajout, ouvert à la place de la ligne. Le serveur fusionne par id.
+  function ouvrirEditionRappel(id) {
+    rappelEnEdition = id || null;
+    if (rappelEnEdition) ajoutRappelOuvert = false;
+    renderAlertesDashboard(dossiersPerimetreDashboard());
+    if (rappelEnEdition) setTimeout(() => { const c = document.getElementById('rappel-perso-texte'); if (c) { c.focus(); c.select(); } }, 0);
+  }
+
+  function validerEditionRappel() {
+    const r = rappelsPerso.find(x => x.id === rappelEnEdition);
+    const texte = (document.getElementById('rappel-perso-texte').value || '').trim();
+    if (!r || !texte) return;
+    r.texte = texte.slice(0, 200);
+    r.echeance = document.getElementById('rappel-perso-date').value || '';
+    r.dossierId = document.getElementById('rappel-perso-dossier').value || '';
+    rappelEnEdition = null;
+    renderAlertesDashboard(dossiersPerimetreDashboard());
+    enregistrerRappelPerso(r);
   }
 
   function basculerRappelPerso(id) {
@@ -13310,7 +13412,28 @@
     }
     const aujourdhui = isoAujourdhuiLocal();
     const liste = rappelsAffiches(rappelsPerso, aujourdhui);
+    const optionsDossiers = (selection) => perimetreActifs.slice().sort((a, b) => String(a.nom).localeCompare(String(b.nom)))
+      .map(d => `<option value="${escapeAttr(d.id)}"${d.id === selection ? ' selected' : ''}>${escapeHtml(libelleDossierAffiche(d))}</option>`).join('');
+    const formulaireRappel = (r) => {
+      // Un rappel rattaché à un dossier sorti du périmètre (archivé, autre collaborateur) garde
+      // son rattachement : l'option est ajoutée pour ne pas le perdre en enregistrant.
+      const hors = r && r.dossierId && !perimetreActifs.some(d => d.id === r.dossierId)
+        ? (d => d ? `<option value="${escapeAttr(d.id)}" selected>${escapeHtml(libelleDossierAffiche(d))}</option>` : '')(dossiers.find(x => x.id === r.dossierId)) : '';
+      return `
+      <form class="rappel-perso-form" onsubmit="event.preventDefault(); ${r ? 'validerEditionRappel()' : 'ajouterRappelPerso()'};">
+        <input type="text" id="rappel-perso-texte" maxlength="200" placeholder="Ex. Relancer le syndic pour l'état daté" value="${r ? escapeAttr(r.texte) : ''}" required>
+        <div class="rappel-perso-form-ligne">
+          <input type="date" id="rappel-perso-date" aria-label="Échéance" value="${r ? escapeAttr(r.echeance || '') : ''}">
+          <select id="rappel-perso-dossier" aria-label="Dossier"><option value="">Sans dossier</option>${hors}${optionsDossiers(r ? r.dossierId : '')}</select>
+        </div>
+        <div class="rappel-perso-form-ligne">
+          <button type="submit" class="primary">${r ? 'Enregistrer' : 'Ajouter'}</button>
+          <button type="button" class="secondary" onclick="${r ? 'ouvrirEditionRappel(null)' : 'ouvrirAjoutRappel(false)'}">Annuler</button>
+        </div>
+      </form>`;
+    };
     const lignes = liste.map(r => {
+      if (r.id === rappelEnEdition) return formulaireRappel(r);
       const d = r.dossierId ? dossiers.find(x => x.id === r.dossierId) : null;
       const quand = libelleEcheanceRappel(r.echeance, aujourdhui);
       const enRetard = !r.fait && r.echeance && r.echeance < aujourdhui;
@@ -13323,23 +13446,11 @@
             ${sous.length ? `<span class="rappel-perso-sous${enRetard ? ' retard' : ''}">${sous.map((s, i) => i === 1 && d ? `<button type="button" class="lien-discret" onclick="ouvrirDossierDepuisDashboard('${d.id}')">${escapeHtml(s)}</button>` : escapeHtml(s)).join(' · ')}</span>` : ''}
           </div>
           ${!r.fait && rappelParleEmail(r.texte) ? `<button type="button" class="icon-btn rappel-perso-email" onclick="ouvrirEmailRappelPerso('${escapeOnclickArg(r.id)}')" title="Préparer un email vierge avec la signature de l'office" aria-label="Préparer un email">${icone('mail')}</button>` : ''}
+          <button type="button" class="rappel-perso-suppr rappel-perso-modif" onclick="ouvrirEditionRappel('${escapeOnclickArg(r.id)}')" aria-label="Modifier le rappel" title="Modifier">${icone('pencil')}</button>
           <button type="button" class="rappel-perso-suppr" onclick="supprimerRappelPerso('${escapeOnclickArg(r.id)}')" aria-label="Supprimer le rappel" title="Supprimer">${icone('x')}</button>
         </div>`;
     }).join('');
-    const options = perimetreActifs.slice().sort((a, b) => String(a.nom).localeCompare(String(b.nom)))
-      .map(d => `<option value="${escapeAttr(d.id)}">${escapeHtml(libelleDossierAffiche(d))}</option>`).join('');
-    const formulaire = ajoutRappelOuvert ? `
-      <form class="rappel-perso-form" onsubmit="event.preventDefault(); ajouterRappelPerso();">
-        <input type="text" id="rappel-perso-texte" maxlength="200" placeholder="Ex. Relancer le syndic pour l'état daté" required>
-        <div class="rappel-perso-form-ligne">
-          <input type="date" id="rappel-perso-date" aria-label="Échéance">
-          <select id="rappel-perso-dossier" aria-label="Dossier"><option value="">Sans dossier</option>${options}</select>
-        </div>
-        <div class="rappel-perso-form-ligne">
-          <button type="submit" class="primary">Ajouter</button>
-          <button type="button" class="secondary" onclick="ouvrirAjoutRappel(false)">Annuler</button>
-        </div>
-      </form>` : `<button type="button" class="action-rapide rappel-perso-ajout" onclick="ouvrirAjoutRappel(true)">+ Ajouter un rappel</button>`;
+    const formulaire = ajoutRappelOuvert ? formulaireRappel(null) : `<button type="button" class="action-rapide rappel-perso-ajout" onclick="ouvrirAjoutRappel(true)">+ Ajouter un rappel</button>`;
     return `${lignes || (rappelsPersoCharges ? '<div class="rappels-perso-vide">Aucun rappel pour le moment.</div>' : '')}${formulaire}`;
   }
 

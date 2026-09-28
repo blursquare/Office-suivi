@@ -954,7 +954,8 @@
 
   .kpis-dashboard {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    /* Deux cartes : « Portefeuille » (anneau + jauges) et « Activité de l'étude » (fil). */
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.7fr);
     gap: 12px;
     margin-bottom: 28px;
   }
@@ -966,10 +967,9 @@
     box-shadow: var(--shadow-card);
   }
   .kpi-icone { font-size: 13px; line-height: 1; flex: none; opacity: 0.8; }
-  /* Carte « Activité de l'étude » (voir renderActiviteEtude) : prend la place des deux tuiles
-     « offres en attente » / « pièces manquantes », sur deux colonnes de la rangée. Le fil défile
-     dans la carte : la rangée garde la hauteur d'une tuile et demie. */
-  .kpi-tile.activite-etude { grid-column: span 2; padding: 12px 12px 8px; display: flex; flex-direction: column; min-width: 0; }
+  /* Carte « Activité de l'étude » (voir renderActiviteEtude) : seconde carte de la rangée, à côté
+     de « Portefeuille ». Le fil défile dans la carte, qui garde la hauteur de sa voisine. */
+  .kpi-tile.activite-etude { padding: 12px 12px 8px; display: flex; flex-direction: column; min-width: 0; }
   .activite-entete { padding: 0 4px; }
   .activite-direct {
     margin-left: auto; display: inline-flex; align-items: center; gap: 5px;
@@ -977,7 +977,9 @@
   }
   .activite-direct-point { width: 6px; height: 6px; border-radius: 50%; background: var(--success); animation: activite-pouls 2s ease-in-out infinite; }
   @keyframes activite-pouls { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-  .activite-liste { list-style: none; margin: 6px 0 0; padding: 0; max-height: 156px; overflow-y: auto; }
+  /* Le fil remplit la hauteur de la carte voisine (« Portefeuille ») : contain:size l'empêche
+     d'agrandir la rangée, min-height garde au moins cinq lignes visibles. */
+  .activite-liste { list-style: none; margin: 6px 0 0; padding: 0; flex: 1 1 0; min-height: 156px; contain: size; overflow-y: auto; }
   .activite-ligne {
     display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 8px;
     width: 100%; padding: 4px; border: 0; border-radius: 6px; background: none; cursor: pointer;
@@ -997,8 +999,54 @@
   .activite-quand { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .activite-ligne.recente .activite-quand { color: var(--success); font-weight: 600; }
   .activite-vide { margin: 10px 4px 6px; font-size: 12.5px; color: var(--muted); }
-  @media (max-width: 640px) { .kpi-tile.activite-etude { grid-column: auto; } }
   @media (prefers-reduced-motion: reduce) { .activite-direct-point { animation: none; } }
+  /* Carte « Portefeuille » (voir renderKpisDashboard) : anneau des statuts, trois jauges et une
+     phrase. Couleurs = celles du badge de statut (--success/--pret/--urgent/--muted), jamais d'autre.
+     Les segments et les jauges ne s'animent qu'au premier affichage (.anime) : la carte est
+     reconstruite à chaque sondage. */
+  .kpi-tile.portefeuille { display: flex; flex-direction: column; gap: 12px; min-width: 0; padding: 14px 16px; }
+  .portefeuille .kpi-label { min-height: 0; }
+  .pf-tendance { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 500; font-size: 11.5px; }
+  .pf-haut { display: flex; align-items: center; gap: 16px; }
+  .pf-anneau-bloc { position: relative; width: 92px; height: 92px; flex: none; }
+  .pf-anneau { width: 100%; height: 100%; transform: rotate(0deg); }
+  .pf-anneau circle { fill: none; stroke-width: 5; }
+  .pf-fond { stroke: var(--paper-sunk); }
+  .pf-seg { stroke-dasharray: var(--l) calc(100 - var(--l)); stroke-linecap: butt; }
+  .pf-seg.pf-pret, .pf-point.pf-pret { stroke: var(--success); background: var(--success); }
+  .pf-seg.pf-aconfirmer, .pf-point.pf-aconfirmer { stroke: var(--pret); background: var(--pret); }
+  .pf-seg.pf-blocage, .pf-point.pf-blocage { stroke: var(--urgent); background: var(--urgent); }
+  .pf-seg.pf-arelier, .pf-point.pf-arelier { stroke: var(--muted); background: var(--muted); }
+  .pf-centre { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; }
+  .pf-centre-num { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink); }
+  .pf-centre-lib { font-size: 10.5px; color: var(--muted); margin-top: 3px; }
+  .pf-legende { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0; }
+  .pf-legende-ligne { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-soft); }
+  .pf-legende-ligne span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pf-legende-ligne b { font-variant-numeric: tabular-nums; color: var(--ink); }
+  .pf-legende-ligne.vide { opacity: 0.45; }
+  .pf-point { width: 8px; height: 8px; border-radius: 50%; }
+  .pf-mesures { display: flex; flex-direction: column; gap: 8px; }
+  .pf-mesure-tete { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .pf-mesure-tete b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .pf-barre { height: 6px; border-radius: 999px; background: var(--paper-sunk); overflow: hidden; }
+  .pf-barre-remplie { display: block; height: 100%; width: var(--p); border-radius: inherit; transform-origin: left center; }
+  .pf-barre-remplie.focus { background: var(--focus); }
+  .pf-barre-remplie.pret { background: var(--pret); }
+  .pf-barre-remplie.success { background: var(--success); }
+  .pf-phrase { font-size: 12.5px; color: var(--ink-soft); padding-top: 10px; border-top: 1px solid var(--line-soft); }
+  .portefeuille.anime .pf-seg { animation: pf-anneau 900ms cubic-bezier(.2,.7,.2,1) both; }
+  .portefeuille.anime .pf-seg:nth-of-type(3) { animation-delay: 120ms; }
+  .portefeuille.anime .pf-seg:nth-of-type(4) { animation-delay: 240ms; }
+  .portefeuille.anime .pf-seg:nth-of-type(5) { animation-delay: 360ms; }
+  .portefeuille.anime .pf-barre-remplie { animation: pf-barre 800ms 200ms cubic-bezier(.2,.7,.2,1) both; }
+  .portefeuille.anime .pf-centre-num { animation: pf-centre 500ms ease-out both; }
+  @keyframes pf-anneau { from { stroke-dasharray: 0 100; } }
+  @keyframes pf-barre { from { transform: scaleX(0); } }
+  @keyframes pf-centre { from { opacity: 0; transform: scale(0.8); } }
+  @media (prefers-reduced-motion: reduce) {
+    .portefeuille.anime .pf-seg, .portefeuille.anime .pf-barre-remplie, .portefeuille.anime .pf-centre-num { animation: none; }
+  }
   /* Icône calendrier SVG partagée par les deux tuiles d'échéances (7j/15j), le seuil dessiné dans
      le corps du calendrier plutôt que deux emojis différents sans lien visuel entre eux. */
   .kpi-icone-calendrier {
@@ -1114,7 +1162,7 @@
      retombaient en 3+2, laissant un trou dans la seconde rangée — la rangée ne se lisait plus
      comme un seul objet. */
   @media (max-width: 1150px) {
-    .kpis-dashboard { grid-template-columns: repeat(3, 1fr); }
+    .kpis-dashboard { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   }
   @media (max-width: 640px) {
     .kpis-dashboard { grid-template-columns: 1fr; }
@@ -5831,6 +5879,8 @@ button.lien-action:hover { text-decoration: underline; }
 }
 .rappel-perso:hover .rappel-perso-suppr, .rappel-perso-suppr:focus-visible { opacity: 1; }
 .rappel-perso-suppr:hover { color: var(--urgent); }
+.rappel-perso-modif:hover { color: var(--focus); }
+.rappel-perso .rappel-perso-modif { font-size: 12px; }
 @media (hover: none) { .rappel-perso-suppr { opacity: 1; } }
 .rappel-perso-ajout { align-self: flex-start; margin-top: 2px; }
 /* Rappel qui parle d'écrire : un email vierge, signature comprise (voir ouvrirEmailRappelPerso). */

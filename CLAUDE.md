@@ -9320,6 +9320,35 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   - Tests : +3 dans `tests/aujourdhui.test.js`, libellés de rappel mis à jour, +2 dans
     `server/test/agenda-watch.test.js`. Suites : racine 884, serveur 461.
 
+- **Carte « Portefeuille » sur le tableau de bord, et rappels modifiables** (28/09 soir, « dans la
+  carte sur le dashboard rends cela attractif avec des statistiques que tu penses importantes,
+  visuel et ludique », puis « permettre de modifier un rappel »).
+  - La tuile « dossiers actifs » (seul chiffre à côté d'« Activité de l'étude ») devient une carte
+    « Portefeuille » (`renderKpisDashboard`) : un **anneau** SVG qui répartit les dossiers actifs par
+    statut — les quatre états du badge (`statutDossier`, `LIBELLES_STATUT`), mêmes couleurs
+    (`--success`/`--pret`/`--urgent`/`--muted`) — avec le nombre au centre et une légende chiffrée ;
+    trois **jauges** : signatures du mois (rendez-vous de signature du mois en cours, déjà passés /
+    total, dossiers archivés compris puisqu'un dossier signé est souvent archivé), offres de prêt
+    reçues sur les dossiers financés, avancement moyen (`avancementDossier`, le même pourcentage que
+    la liste d'avancement) ; et une **phrase** (`phrasePortefeuille`, première règle qui s'applique :
+    tout prêt, signatures du mois faites, dossiers sans aucun document, signatures restantes…).
+    La tendance « vs mois dernier » passe dans l'en-tête de la carte. Tout est calculé par
+    `statsPortefeuilleVisuel` (pure, `tests/portefeuille.test.js`), sur le périmètre du tableau de
+    bord (ses dossiers ou tous) ; aucune nouvelle règle métier.
+  - **Ludique sans clignoter** : l'anneau se dessine et les jauges se remplissent au premier
+    affichage seulement (`portefeuilleDejaAnime`) — `render()` reconstruit la carte à chaque sondage
+    (7 s), rejouer l'animation la ferait clignoter. `prefers-reduced-motion` la coupe.
+  - La rangée passe à deux cartes (`minmax(0,1.1fr) minmax(0,1.7fr)`, une seule colonne sous 640 px) ;
+    le fil d'activité remplit la hauteur de sa voisine (`contain: size` + `flex: 1`, pour ne pas
+    agrandir la rangée) au lieu d'un plafond fixe.
+  - **Mes rappels** : un crayon (au survol, toujours visible sur écran tactile) ouvre le même
+    formulaire que l'ajout, prérempli, à la place de la ligne (`ouvrirEditionRappel` /
+    `validerEditionRappel`) ; le serveur fusionne le rappel par id. Un seul formulaire à la fois
+    (`rappelEnEdition`, les deux portent les mêmes id). Un rappel rattaché à un dossier sorti du
+    périmètre garde son rattachement.
+  - Vérifié dans un vrai Chromium (clair, sombre, 400 px, aucun débordement ni erreur JS, rappel
+    modifié puis relu). Suite racine 887.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à
