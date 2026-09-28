@@ -19,7 +19,8 @@ const express = require('express');
 const {
   testerConnexionExchange, creerRendezVousExchange, creerBrouillonExchange,
   fenetreJourneeParis, trouverRendezVousExchange, mettreAJourLieuExchange,
-  creerEcheanceExchange, mettreAJourEcheanceExchange, supprimerEcheanceExchange
+  creerEcheanceExchange, mettreAJourEcheanceExchange, supprimerEcheanceExchange,
+  horaireDeplace, deplacerRendezVousExchange
 } = require('../exchange/ews');
 const { extraireReferenceVte, dossierPourReferenceAgenda, composerLieuAgenda } = require('../agendaOffice');
 const { URL_EWS_DEFAUT } = require('../parametresRepo');
@@ -29,6 +30,30 @@ const { URL_EWS_DEFAUT } = require('../parametresRepo');
 // ne pas laisser passer un envoi énorme vers Exchange.
 const MAX_PIECES = 5;
 const MAX_BASE64_TOTAL = 15 * 1024 * 1024; // ~11 Mo de fichier une fois décodé
+// Le rendez-vous d'un dossier parmi ceux d'une journée. Pure, testable. L'identifiant mémorisé
+// quand CLAIRE a créé l'événement l'emporte ; sinon le titre « VTE - … » doit correspondre au nom du
+// dossier (mêmes tolérances que la lecture du flux .ics), et un seul événement doit correspondre —
+// jamais deviner entre deux.
+function choisirRendezVousDossier(evenements, reference, itemId) {
+  const liste = Array.isArray(evenements) ? evenements : [];
+  if (itemId) {
+    const exact = liste.find((e) => e.itemId === itemId);
+    if (exact) return { evt: exact };
+  }
+  const candidats = liste.filter((evt) => {
+    const ref = extraireReferenceVte(evt.subject);
+    return ref && dossierPourReferenceAgenda(ref, [{ id: 'x', nom: reference }]);
+  });
+  if (candidats.length === 1) return { evt: candidats[0] };
+  return candidats.length ? { plusieurs: true } : { aucun: true };
+}
+
+// Nom de catégorie Outlook : texte court, sans caractère de contrôle.
+function categorieValide(c) {
+  const t = String(c || '').replace(/[\u0000-\u001f]/g, '').trim();
+  return t.slice(0, 100);
+}
+
 function adresseValide(a) {
   return typeof a === 'string' && /^[^\s@]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$/.test(a.trim());
 }
@@ -107,12 +132,96 @@ function creerRouteurExchange(parametresRepo) {
         dureeMinutes,
         lieu: String(b.lieu || '').trim(),
         corps: String(b.corps || '').trim(),
+        categorie: categorieValide(b.categorie),
         // Créer le rendez-vous dans le calendrier PARTAGÉ (celui de Sophie) quand il est configuré,
         // sinon dans le calendrier du compte de connexion. Voir ews.js/folderCalendrierXml.
         mailbox: reglages.calendrierPartage
       }
     });
-    res.json({ ok: !!resultat.ok, message: resultat.message });
+    // L'identifiant de l'événement : le client le garde pour pouvoir le retirer ou le déplacer.
+    res.json({ ok: !!resultat.ok, message: resultat.message, raison: resultat.raison || '',
+      itemId: resultat.itemId || '', changeKey: resultat.changeKey || '' });
+  });
+
+  // Retire de l'agenda le rendez-vous de signature d'un dossier, quand l'étude le supprime dans
+  // CLAIRE (demandé par l'étude). MoveToDeletedItems : il se récupère dans les éléments supprimés.
+  // L'événement est désigné par l'identifiant mémorisé si CLAIRE l'a créé, sinon retrouvé à sa date
+  // par la référence « VTE - … » — et un seul doit correspondre, sinon rien n'est retiré.
+  routeur.post('/exchange/rendez-vous/supprimer', async (req, res) => {
+    const reglages = parametresRepo.lireReglagesExchange();
+    if (!reglages.actif) {
+      return res.status(400).json({ ok: false, message: "La connexion à l'agenda n'est pas activée dans les Réglages." });
+    }
+    if (!reglages.email || !reglages.motDePasse) {
+      return res.status(400).json({ ok: false, message: 'Identifiants de messagerie manquants dans les Réglages.' });
+    }
+    const b = req.body || {};
+    const date = String(b.date || '').trim();
+    const reference = String(b.reference || '').trim();
+    const itemId = String(b.itemId || '').trim();
+    const changeKey = String(b.changeKey || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ ok: false, message: 'Date du rendez-vous invalide.' });
+    }
+    if (!reference && !itemId) {
+      return res.status(400).json({ ok: false, message: 'Nom du dossier manquant.' });
+    }
+    const acces = { url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse };
+    const { debutUtc, finUtc } = fenetreJourneeParis(date);
+    const trouve = await trouverRendezVousExchange({ ...acces, debutUtc, finUtc, mailbox: reglages.calendrierPartage });
+    if (!trouve.ok) return res.json({ ok: false, message: trouve.message, raison: trouve.raison || '' });
+    const choix = choisirRendezVousDossier(trouve.evenements, reference, itemId);
+    if (choix.aucun) {
+      return res.json({ ok: true, introuvable: true, message: "Aucun rendez-vous de ce dossier dans l'agenda à cette date : rien à retirer." });
+    }
+    if (choix.plusieurs) {
+      return res.json({ ok: false, message: 'Plusieurs rendez-vous correspondent à cette date : aucun retiré, faites-le à la main dans Outlook.' });
+    }
+    const r = await supprimerEcheanceExchange({ ...acces, itemId: choix.evt.itemId, changeKey: choix.evt.changeKey || changeKey });
+    res.json({ ok: !!r.ok, message: r.ok ? "Rendez-vous retiré de l'agenda de l'office." : r.message, raison: r.raison || '' });
+  });
+
+  // Déplace le rendez-vous de signature quand l'étude change sa date dans CLAIRE : même heure, même
+  // durée, même lieu et même couleur, seul le jour change. Même rapprochement que le retrait ;
+  // `introuvable` dit au client qu'il n'y avait rien à déplacer (il propose alors de le créer).
+  routeur.post('/exchange/rendez-vous/deplacer', async (req, res) => {
+    const reglages = parametresRepo.lireReglagesExchange();
+    if (!reglages.actif) {
+      return res.status(400).json({ ok: false, message: "La connexion à l'agenda n'est pas activée dans les Réglages." });
+    }
+    if (!reglages.email || !reglages.motDePasse) {
+      return res.status(400).json({ ok: false, message: 'Identifiants de messagerie manquants dans les Réglages.' });
+    }
+    const b = req.body || {};
+    const ancienneDate = String(b.ancienneDate || '').trim();
+    const nouvelleDate = String(b.nouvelleDate || '').trim();
+    const reference = String(b.reference || '').trim();
+    const itemId = String(b.itemId || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(ancienneDate) || !/^\d{4}-\d{2}-\d{2}$/.test(nouvelleDate)) {
+      return res.status(400).json({ ok: false, message: 'Date du rendez-vous invalide.' });
+    }
+    if (!reference && !itemId) {
+      return res.status(400).json({ ok: false, message: 'Nom du dossier manquant.' });
+    }
+    const acces = { url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse };
+    const { debutUtc, finUtc } = fenetreJourneeParis(ancienneDate);
+    const trouve = await trouverRendezVousExchange({ ...acces, debutUtc, finUtc, mailbox: reglages.calendrierPartage });
+    if (!trouve.ok) return res.json({ ok: false, message: trouve.message, raison: trouve.raison || '' });
+    const choix = choisirRendezVousDossier(trouve.evenements, reference, itemId);
+    if (choix.aucun) {
+      return res.json({ ok: true, introuvable: true, message: "Aucun rendez-vous de ce dossier dans l'agenda à l'ancienne date." });
+    }
+    if (choix.plusieurs) {
+      return res.json({ ok: false, message: "Plusieurs rendez-vous correspondent à l'ancienne date : aucun déplacé, faites-le à la main dans Outlook." });
+    }
+    const horaire = horaireDeplace(choix.evt, nouvelleDate);
+    const r = await deplacerRendezVousExchange({
+      ...acces, itemId: choix.evt.itemId, changeKey: choix.evt.changeKey, debut: horaire.debut, fin: horaire.fin
+    });
+    res.json({
+      ok: !!r.ok, message: r.message, raison: r.raison || '', heure: r.ok ? horaire.heure : '',
+      itemId: r.itemId || choix.evt.itemId, changeKey: r.changeKey || ''
+    });
   });
 
   // Crée un BROUILLON d'email dans Outlook, avec pièce(s) jointe(s) — ce qu'un mailto: ne sait pas
@@ -282,4 +391,4 @@ function creerRouteurExchange(parametresRepo) {
   return routeur;
 }
 
-module.exports = { creerRouteurExchange, reglagesExchangePublics, URL_EWS_DEFAUT };
+module.exports = { creerRouteurExchange, reglagesExchangePublics, choisirRendezVousDossier, URL_EWS_DEFAUT };

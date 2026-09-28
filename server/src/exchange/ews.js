@@ -83,7 +83,7 @@ function formatEwsUtc(date) {
 // puis de CalendarItemType) : le respecter est obligatoire, Exchange rejette un ordre différent.
 // StartTimeZone/EndTimeZone (« Romance Standard Time » = Paris) associent le bon fuseau à l'instant
 // UTC fourni, pour que l'affichage tombe sur la bonne heure locale dans Outlook.
-function corpsCreateRendezVous({ sujet, dateStr, heureStr, dureeMinutes, lieu, corps, mailbox }) {
+function corpsCreateRendezVous({ sujet, dateStr, heureStr, dureeMinutes, lieu, corps, mailbox, categorie }) {
   const debut = instantUtcDepuisParis(dateStr, heureStr);
   const fin = new Date(debut.getTime() + (dureeMinutes > 0 ? dureeMinutes : 60) * 60000);
   return '<?xml version="1.0" encoding="utf-8"?>'
@@ -96,6 +96,11 @@ function corpsCreateRendezVous({ sujet, dateStr, heureStr, dureeMinutes, lieu, c
     + '<m:Items><t:CalendarItem>'
     + '<t:Subject>' + echapperXml(sujet) + '</t:Subject>'
     + '<t:Body BodyType="Text">' + echapperXml(corps || '') + '</t:Body>'
+    // Catégorie Outlook = code couleur de l'étude (office, visio, confrère). Élément de ItemType :
+    // après Body, avant les éléments de rappel — l'ordre du schéma EWS est obligatoire. La couleur
+    // vient de la liste des catégories de la boîte : un nom qu'elle ne connaît pas s'affiche sans
+    // couleur, d'où des noms réglables dans CLAIRE.
+    + (categorie ? '<t:Categories><t:String>' + echapperXml(categorie) + '</t:String></t:Categories>' : '')
     + '<t:ReminderIsSet>true</t:ReminderIsSet>'
     + '<t:ReminderMinutesBeforeStart>1440</t:ReminderMinutesBeforeStart>'
     + '<t:Start>' + formatEwsUtc(debut) + '</t:Start>'
@@ -284,6 +289,8 @@ function corpsFindRendezVous({ debutUtc, finUtc, mailbox }) {
     + '<t:AdditionalProperties>'
     + '<t:FieldURI FieldURI="item:Subject"/>'
     + '<t:FieldURI FieldURI="calendar:Location"/>'
+    + '<t:FieldURI FieldURI="calendar:Start"/>'
+    + '<t:FieldURI FieldURI="calendar:End"/>'
     + '</t:AdditionalProperties></m:ItemShape>'
     + '<m:CalendarView StartDate="' + debutUtc + '" EndDate="' + finUtc + '"/>'
     + '<m:ParentFolderIds>' + folderCalendrierXml(mailbox) + '</m:ParentFolderIds>'
@@ -306,7 +313,9 @@ function parseFindRendezVous(corps) {
     if (!itemId || !changeKey) continue;
     const subject = desechapperXml((bloc.match(/<t:Subject>([\s\S]*?)<\/t:Subject>/) || [])[1] || '');
     const location = desechapperXml((bloc.match(/<t:Location>([\s\S]*?)<\/t:Location>/) || [])[1] || '');
-    evenements.push({ itemId, changeKey, subject, location });
+    const start = ((bloc.match(/<t:Start>([^<]+)<\/t:Start>/) || [])[1] || '').trim();
+    const end = ((bloc.match(/<t:End>([^<]+)<\/t:End>/) || [])[1] || '').trim();
+    evenements.push({ itemId, changeKey, subject, location, start, end });
   }
   return evenements;
 }
@@ -486,6 +495,41 @@ function corpsUpdateEcheanceDate({ itemId, changeKey, dateStr }) {
     + '</m:UpdateItem>' + ENVELOPPE_FIN;
 }
 
+// Heure d'horloge à Paris (« 14:30 ») d'un instant EWS (« 2026-10-14T12:30:00Z »). Pure.
+function heureParisDepuisInstant(isoUtc) {
+  const t = Date.parse(isoUtc);
+  if (!Number.isFinite(t)) return '';
+  const local = new Date(t + decalageParisMinutes(new Date(t)) * 60000);
+  return local.toISOString().slice(11, 16);
+}
+
+// Nouveau début/fin d'un rendez-vous déplacé à `nouvelleDate` : même heure d'horloge à Paris, même
+// durée. Pure, testable. Durée illisible → 1 h.
+function horaireDeplace({ start, end }, nouvelleDate) {
+  const heure = heureParisDepuisInstant(start) || '14:00';
+  const debut = instantUtcDepuisParis(nouvelleDate, heure);
+  const duree = Date.parse(end) - Date.parse(start);
+  const fin = new Date(debut.getTime() + (Number.isFinite(duree) && duree > 0 ? duree : 3600000));
+  return { heure, debut: formatEwsUtc(debut), fin: formatEwsUtc(fin) };
+}
+
+// Déplace un rendez-vous horodaté : Start et End dans la même requête, rien d'autre (ni titre, ni
+// lieu, ni catégorie de couleur).
+function corpsUpdateRendezVousHoraire({ itemId, changeKey, debut, fin }) {
+  return ENVELOPPE_DEBUT
+    + '<m:UpdateItem ConflictResolution="AutoResolve" SendMeetingInvitationsOrCancellations="SendToNone">'
+    + '<m:ItemChanges><t:ItemChange>'
+    + '<t:ItemId Id="' + echapperXml(itemId) + '" ChangeKey="' + echapperXml(changeKey) + '"/>'
+    + '<t:Updates>'
+    + '<t:SetItemField><t:FieldURI FieldURI="calendar:Start"/>'
+    + '<t:CalendarItem><t:Start>' + debut + '</t:Start></t:CalendarItem></t:SetItemField>'
+    + '<t:SetItemField><t:FieldURI FieldURI="calendar:End"/>'
+    + '<t:CalendarItem><t:End>' + fin + '</t:End></t:CalendarItem></t:SetItemField>'
+    + '</t:Updates>'
+    + '</t:ItemChange></m:ItemChanges>'
+    + '</m:UpdateItem>' + ENVELOPPE_FIN;
+}
+
 // MoveToDeletedItems, jamais HardDelete : un retrait par erreur se récupère dans les éléments
 // supprimés de la boîte partagée.
 function corpsDeleteEcheance({ itemId, changeKey }) {
@@ -566,6 +610,13 @@ async function supprimerEcheanceExchange({ url, email, motDePasse, itemId, chang
   return interpreterReponseSuppression(r.statut, r.corps);
 }
 
+async function deplacerRendezVousExchange({ url, email, motDePasse, itemId, changeKey, debut, fin, delaiMs }, injections) {
+  const r = await posterEws({ url, email, motDePasse, delaiMs, body: corpsUpdateRendezVousHoraire({ itemId, changeKey, debut, fin }) }, injections);
+  if (r.echec) return r.echec;
+  return interpreterReponseCreation(r.statut, r.corps,
+    "Rendez-vous déplacé dans l'agenda.", 'Le déplacement du rendez-vous a échoué');
+}
+
 // Interprète la réponse d'Exchange. Fonction PURE (statut HTTP + corps), testable sans réseau ni
 // serveur réel — voir server/test/ews.test.js. Ne reçoit jamais le mot de passe.
 function interpreterReponseEws(statutHttp, corps) {
@@ -640,5 +691,6 @@ module.exports = {
   corpsUpdateLieu, interpreterReponseUpdate, trouverRendezVousExchange, mettreAJourLieuExchange,
   folderCalendrierXml,
   corpsCreateEcheance, corpsUpdateEcheanceDate, corpsDeleteEcheance, interpreterReponseSuppression,
-  creerEcheanceExchange, mettreAJourEcheanceExchange, supprimerEcheanceExchange
+  creerEcheanceExchange, mettreAJourEcheanceExchange, supprimerEcheanceExchange,
+  heureParisDepuisInstant, horaireDeplace, corpsUpdateRendezVousHoraire, deplacerRendezVousExchange
 };

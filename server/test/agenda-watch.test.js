@@ -429,3 +429,18 @@ test('Rendez-vous saisi à la main : jamais signalé comme retiré de l’agenda
   appliquerDetectionsAgenda(depot, [], '2099-09-26');
   assert.equal((depot.trouverParId('d1').historique || []).length, 0);
 });
+
+test('rendez-vous supprimé dans CLAIRE : le flux encore à jour ne le remet pas, une autre date oui', () => {
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  depot.creer({ id: 'd1', nom: 'DUPONT', rendezVousSignature: '', detectionsAgenda: { rendezVousRetire: '2099-11-10' } });
+  const det = (dateIso) => ({ dossierId: 'd1', dossierNom: 'x', reference: 'DUPONT', dateIso, rendezVous: true, appelFonds: false, projetEnvoye: false, categories: ['Catégorie Verte'] });
+  appliquerDetectionsAgenda(depot, [det('2099-11-10')], '2026-09-25');
+  assert.equal(depot.trouverParId('d1').rendezVousSignature, '', 'la date retirée ne revient pas');
+  appliquerDetectionsAgenda(depot, [det('2099-11-20')], '2026-09-25');
+  const d = depot.trouverParId('d1');
+  assert.equal(d.rendezVousSignature, '2099-11-20');
+  assert.equal(d.detectionsAgenda.rendezVousRetire, undefined, 'repère levé par la nouvelle date');
+  assert.equal(d.rendezVousSignatureCategories.join(','), 'Catégorie Verte', 'catégorie de couleur conservée');
+  db.close();
+});

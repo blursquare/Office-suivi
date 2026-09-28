@@ -161,3 +161,50 @@ test('POST /api/exchange/echeance : action, date, objet et identifiant validés 
   assert.match((await poster({ action: 'modifier', date: '2026-10-14', itemId: 'A' })).message, /[Ii]dentifiant/);
   assert.match((await poster({ action: 'supprimer' })).message, /[Ii]dentifiant/);
 });
+
+test('choisirRendezVousDossier : identifiant mémorisé d\'abord, sinon un seul titre correspondant', () => {
+  const { choisirRendezVousDossier } = require('../src/routes/exchange');
+  const evts = [
+    { itemId: 'A', subject: 'VTE - DUPONT / MARTIN' },
+    { itemId: 'B', subject: 'VTE - DURAND / PETIT' },
+    { itemId: 'C', subject: 'Réunion équipe' }
+  ];
+  assert.equal(choisirRendezVousDossier(evts, 'DURAND / PETIT', '').evt.itemId, 'B');
+  assert.equal(choisirRendezVousDossier(evts, 'AUTRE / NOM', 'C').evt.itemId, 'C', 'identifiant mémorisé');
+  assert.ok(choisirRendezVousDossier(evts, 'LEROY / BLANC', '').aucun);
+  const doubles = [...evts, { itemId: 'D', subject: 'VTE - DUPONT / MARTIN (2)' }];
+  assert.ok(choisirRendezVousDossier(doubles, 'DUPONT / MARTIN', '').plusieurs, 'jamais deviner entre deux');
+});
+
+test('POST /api/exchange/rendez-vous/supprimer et /deplacer : refusés tant que la connexion n\'est pas activée', async () => {
+  await appeler('/api/exchange/reglages', { method: 'PUT', body: JSON.stringify({ actif: false }) });
+  const r1 = await appeler('/api/exchange/rendez-vous/supprimer', { method: 'POST', body: JSON.stringify({ date: '2026-10-14', reference: 'DUPONT' }) });
+  assert.equal(r1.status, 400);
+  const r2 = await appeler('/api/exchange/rendez-vous/deplacer', { method: 'POST', body: JSON.stringify({ ancienneDate: '2026-10-14', nouvelleDate: '2026-10-20', reference: 'DUPONT' }) });
+  assert.equal(r2.status, 400);
+});
+
+test('POST /api/exchange/rendez-vous/supprimer et /deplacer : dates et dossier validés avant tout appel réseau', async () => {
+  await appeler('/api/exchange/reglages', { method: 'PUT', body: JSON.stringify({ actif: true, email: 'a@b.fr', motDePasse: 'x' }) });
+  const r1 = await appeler('/api/exchange/rendez-vous/supprimer', { method: 'POST', body: JSON.stringify({ date: '14/10/2026', reference: 'DUPONT' }) });
+  assert.equal(r1.status, 400);
+  const r2 = await appeler('/api/exchange/rendez-vous/supprimer', { method: 'POST', body: JSON.stringify({ date: '2026-10-14' }) });
+  assert.equal(r2.status, 400);
+  const r3 = await appeler('/api/exchange/rendez-vous/deplacer', { method: 'POST', body: JSON.stringify({ ancienneDate: '2026-10-14', nouvelleDate: 'demain', reference: 'DUPONT' }) });
+  assert.equal(r3.status, 400);
+  await appeler('/api/exchange/reglages', { method: 'PUT', body: JSON.stringify({ actif: false }) });
+});
+
+test('Réglages Exchange : catégories de couleur par défaut, remplacées et conservées', async () => {
+  const lu = await (await appeler('/api/exchange/reglages')).json();
+  assert.equal(lu.categoriesRdv.office, 'Catégorie Verte');
+  assert.equal(lu.categoriesRdv.visio, 'Catégorie Violette');
+  assert.equal(lu.categoriesRdv.confrere, 'Catégorie Orange');
+  await appeler('/api/exchange/reglages', { method: 'PUT', body: JSON.stringify({ categoriesRdv: { office: 'Office', visio: 'Visio' } }) });
+  const relu = await (await appeler('/api/exchange/reglages')).json();
+  assert.equal(relu.categoriesRdv.office, 'Office');
+  assert.equal(relu.categoriesRdv.confrere, 'Catégorie Orange');
+  await appeler('/api/exchange/reglages', { method: 'PUT', body: JSON.stringify({ email: 'a@b.fr' }) });
+  const encore = await (await appeler('/api/exchange/reglages')).json();
+  assert.equal(encore.categoriesRdv.visio, 'Visio', 'conservées quand le formulaire ne les réémet pas');
+});

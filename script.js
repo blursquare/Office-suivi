@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-28 17:43';
+  const VERSION_APP = '2026-09-28 18:09';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-28 18:09', resume: "Agenda Outlook : le rendez-vous de signature créé depuis CLAIRE prend la couleur de l'étude (vert à l'office, violet en visio, orange chez un confrère — noms des catégories réglables). Supprimer le rendez-vous dans CLAIRE le retire de l'agenda ; changer sa date le déplace au nouveau jour, même heure." },
     { version: '2026-09-28 17:43', resume: "Quand un collaborateur ajoute ou change une date sur le dossier d'un autre (échéance, rendez-vous, envoi, échéance personnalisée), le responsable du dossier est prévenu sur Teams. Tableau de bord : la carte « Portefeuille » s'appelle « Dossiers ouverts »." },
     { version: '2026-09-28 17:29', resume: "Agenda : l'envoi marqué depuis « Aujourd'hui » (« Marquer envoyé », « Déjà fait ») est aussi noté dans le rendez-vous ; un échec de note n'est plus silencieux (dit sur la carte « Envoi au client »). Saisir la date du rendez-vous de signature propose aussitôt l'heure pour le créer dans l'agenda, avec le lieu « initiales - envoi fait ». « Fixer le rendez-vous de signature » devient « Fixer le rendez-vous »." },
     { version: '2026-09-28 17:13', resume: "Tableau de bord : « Activité de l'étude » devient plus visuelle — le nombre d'actions du jour, des barres sur les 7 derniers jours, qui a agi aujourd'hui, et un fil en frise où chaque action porte une pastille de couleur selon son type (agenda, geste fait, email, pièce, archivage, date, fiche). Des pastilles filtrent le fil par type." },
@@ -10778,6 +10779,37 @@
   // l'écriture auto a échoué (Exchange momentanément indisponible) ou quand le rendez-vous de
   // signature est fixé APRÈS l'envoi (il n'y avait alors aucun événement à annoter au moment de la
   // validation).
+  // Code couleur des rendez-vous de signature de l'étude (catégories Outlook) : vert = à l'office,
+  // violet = en visio, orange = chez un confrère. Le NOM de chaque catégorie se règle dans les
+  // Réglages (exchangeReglages.categoriesRdv) : c'est lui qui porte la couleur dans Outlook.
+  var TYPES_RDV = {
+    office: { libelle: "À l'office", court: 'Office' },
+    visio: { libelle: 'En visio', court: 'Visio' },
+    confrere: { libelle: 'Chez un confrère', court: 'Confrère' }
+  };
+
+  function normaliserNomCategorie(t) {
+    return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+  }
+
+  // Type (office / visio / confrère) d'un rendez-vous de signature : celui choisi à sa création dans
+  // CLAIRE, sinon déduit de la catégorie Outlook relevée dans l'agenda. Pure, testable. '' si inconnu.
+  function typeRendezVous(d, categoriesRdv) {
+    if (!d) return '';
+    if (d.rendezVousType && TYPES_RDV[d.rendezVousType]) return d.rendezVousType;
+    const cats = Array.isArray(d.rendezVousSignatureCategories) ? d.rendezVousSignatureCategories.map(normaliserNomCategorie) : [];
+    if (!cats.length) return '';
+    const noms = categoriesRdv || {};
+    for (const cle of Object.keys(TYPES_RDV)) {
+      if (noms[cle] && cats.includes(normaliserNomCategorie(noms[cle]))) return cle;
+    }
+    return '';
+  }
+
+  function categoriesRdvReglees() {
+    return (exchangeReglages && exchangeReglages.categoriesRdv) || {};
+  }
+
   // Mention d'envoi écrite dans le lieu du rendez-vous (même texte que composerLieuAgenda côté
   // serveur). Pure, testable. Chaîne vide si aucun des deux envois n'est fait.
   function mentionEnvoisAgenda(d) {
@@ -10877,6 +10909,12 @@
             </select>
           </label>
         </div>
+        <div class="rdv-type-choix" role="radiogroup" aria-label="Lieu du rendez-vous">
+          ${Object.entries(TYPES_RDV).map(([cle, t]) => `<label class="rdv-type-option">
+            <input type="radio" name="rdv-agenda-type-${d.id}" value="${cle}"${(typeRendezVous(d, categoriesRdvReglees()) || 'office') === cle ? ' checked' : ''}>
+            <span class="rdv-type-pastille rdv-type-${cle}"></span>${t.libelle}
+          </label>`).join('')}
+        </div>
         <p class="hint" style="margin:4px 0 6px;">Écrit « VTE - ${escapeHtml(d.nom)} » le ${formatDateFr(d.rendezVousSignature)} dans l'agenda partagé de l'office${lieuRdvAgenda(d) ? `, lieu « ${escapeHtml(lieuRdvAgenda(d))} »` : ''}.</p>
         <div class="rdv-agenda-actions">
           <button type="button" class="action-rapide" onclick="creerRdvDansAgenda('${d.id}')">${icone('calendar')} Créer le rendez-vous</button>
@@ -10884,12 +10922,16 @@
         </div>
       </div>`;
     }
+    const typeRdv = typeRendezVous(d, categoriesRdvReglees());
     const dejaCree = d.rdvAgendaCreeLe
       ? `<span class="dot-label dl-success" style="margin-left:6px;"><span class="dot"></span>Créé le ${formatDateFr(d.rdvAgendaCreeLe.slice(0, 10))}</span>`
       : '';
+    const pastilleType = typeRdv
+      ? `<span class="rdv-type-etiquette"><span class="rdv-type-pastille rdv-type-${typeRdv}"></span>${TYPES_RDV[typeRdv].libelle}</span>`
+      : '';
     return `<div class="rdv-agenda-bloc">
       <button type="button" class="action-rapide" onclick="basculerRdvAgenda('${d.id}')">${icone('calendar')} ${d.rdvAgendaCreeLe ? 'Recréer dans l\'agenda' : 'Créer ce RDV dans l\'agenda Outlook'}</button>
-      ${dejaCree}
+      ${dejaCree}${pastilleType}
     </div>`;
   }
 
@@ -10906,6 +10948,9 @@
     const heure = champHeure ? champHeure.value : '';
     const dureeMinutes = champDuree ? parseInt(champDuree.value, 10) : 60;
     if (!/^\d{2}:\d{2}$/.test(heure)) { afficherToast('Renseignez une heure valide.', 'OK', null); return; }
+    const choixType = document.querySelector(`input[name="rdv-agenda-type-${id}"]:checked`);
+    const typeRdv = choixType && TYPES_RDV[choixType.value] ? choixType.value : 'office';
+    const categorie = categoriesRdvReglees()[typeRdv] || '';
     const lieu = lieuRdvAgenda(d);
     const mention = mentionEnvoisAgenda(d);
     try {
@@ -10918,6 +10963,7 @@
           heure,
           dureeMinutes,
           lieu,
+          categorie,
           corps: 'Rendez-vous de signature créé depuis CLAIRE.'
         })
       });
@@ -10925,9 +10971,12 @@
       if (corps.ok) {
         d.rdvAgendaCreeLe = new Date().toISOString();
         d.rendezVousSignatureHeure = heure;
+        d.rendezVousType = typeRdv;
+        // Identifiant de l'événement : pour le retirer ou le déplacer quand la date change dans CLAIRE.
+        d.rdvAgendaItem = corps.itemId ? { itemId: corps.itemId, changeKey: corps.changeKey || '', date: d.rendezVousSignature } : null;
         // L'envoi déjà fait est écrit dans le lieu dès la création : rien à noter ensuite.
         if (mention) { d.agendaLieuNoteLe = d.rdvAgendaCreeLe; d.agendaLieuEchec = null; }
-        ajouterHistorique(d, `Rendez-vous de signature créé dans l'agenda Outlook (${formatDateFr(d.rendezVousSignature)} à ${heure}${lieu ? `, lieu « ${lieu} »` : ''}).`);
+        ajouterHistorique(d, `Rendez-vous de signature créé dans l'agenda Outlook (${formatDateFr(d.rendezVousSignature)} à ${heure}, ${TYPES_RDV[typeRdv].libelle.toLowerCase()}${lieu ? `, lieu « ${lieu} »` : ''}).`);
         sauvegarder(d);
         rdvAgendaOuvert = false;
         render();
@@ -10937,6 +10986,76 @@
       }
     } catch (e) {
       afficherToast('Serveur injoignable — rendez-vous non créé.', 'OK', null);
+    }
+  }
+
+  // Le rendez-vous de signature vient d'être supprimé dans CLAIRE : le retirer aussi de l'agenda de
+  // l'office (demandé par l'étude). Le serveur le désigne par l'identifiant mémorisé quand CLAIRE l'a
+  // créé, sinon le retrouve à sa date par « VTE - <nom> » — et n'en retire aucun si deux
+  // correspondent. Il part dans les éléments supprimés d'Outlook (récupérable). Un seul essai.
+  async function retirerRdvDeAgenda(d, ancienneDate) {
+    if (!d || !ancienneDate || !exchangeAgendaPret()) return;
+    const item = d.rdvAgendaItem || {};
+    try {
+      const reponse = await fetchAvecAuth('/api/exchange/rendez-vous/supprimer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: ancienneDate, reference: d.nom, itemId: item.itemId || '', changeKey: item.changeKey || '' })
+      });
+      const corps = await reponse.json();
+      if (corps.ok) {
+        d.rdvAgendaItem = null;
+        d.rdvAgendaCreeLe = null;
+        d.agendaLieuNoteLe = null;
+        d.agendaLieuEchec = null;
+        if (!corps.introuvable) ajouterHistorique(d, `Rendez-vous de signature du ${formatDateFr(ancienneDate)} retiré de l'agenda Outlook de l'office.`);
+        sauvegarder(d);
+        render();
+      }
+      afficherToast(corps.ok ? (corps.message || "Rendez-vous retiré de l'agenda.") : `Rendez-vous non retiré de l'agenda : ${corps.message || 'échec'}`, 'OK', null);
+    } catch (e) {
+      afficherToast("Serveur injoignable — le rendez-vous reste dans l'agenda Outlook, à retirer à la main.", 'OK', null);
+    }
+  }
+
+  // La date du rendez-vous a changé dans CLAIRE : déplacer l'événement de l'agenda au nouveau jour,
+  // à la même heure, sans toucher à son lieu ni à sa couleur. Renvoie 'deplace', 'introuvable'
+  // (aucun rendez-vous de ce dossier à l'ancienne date : rien à déplacer) ou 'echec'.
+  async function deplacerRdvDansAgenda(d, ancienneDate, nouvelleDate) {
+    if (!d || !ancienneDate || !nouvelleDate || !exchangeAgendaPret()) return 'echec';
+    const item = d.rdvAgendaItem || {};
+    try {
+      const reponse = await fetchAvecAuth('/api/exchange/rendez-vous/deplacer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ancienneDate, nouvelleDate, reference: d.nom, itemId: item.itemId || '' })
+      });
+      const corps = await reponse.json();
+      if (corps.ok && corps.introuvable) return 'introuvable';
+      if (!corps.ok) {
+        afficherToast(`Rendez-vous non déplacé dans l'agenda : ${corps.message || 'échec'}`, 'OK', null);
+        return 'echec';
+      }
+      if (corps.heure) d.rendezVousSignatureHeure = corps.heure;
+      d.rdvAgendaItem = { itemId: corps.itemId || item.itemId || '', changeKey: corps.changeKey || '', date: nouvelleDate };
+      ajouterHistorique(d, `Rendez-vous de signature déplacé dans l'agenda Outlook : ${formatDateFr(ancienneDate)} → ${formatDateFr(nouvelleDate)}${corps.heure ? ` à ${corps.heure}` : ''}.`);
+      sauvegarder(d);
+      render();
+      afficherToast("Rendez-vous déplacé dans l'agenda de l'office.", 'OK', null);
+      return 'deplace';
+    } catch (e) {
+      afficherToast("Serveur injoignable — rendez-vous non déplacé dans l'agenda.", 'OK', null);
+      return 'echec';
+    }
+  }
+
+  function ouvrirFormRdvAgenda(d) {
+    rdvAgendaOuvert = true;
+    render();
+    const champ = document.getElementById(`rdv-agenda-heure-${d.id}`);
+    if (champ) {
+      if (champ.scrollIntoView) champ.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      champ.focus();
     }
   }
 
@@ -12998,6 +13117,7 @@
     d.rendezVousSignatureHeure = '';
     d.rendezVousSignatureHeureFin = '';
     d.rendezVousSignatureLieu = '';
+    d.rendezVousSignatureCategories = [];
   }
 
   // Pure : les pièces trouvées APRÈS `depuisIso` (horodatage de la visite précédente).
@@ -13280,7 +13400,7 @@
       return `
         <button type="button" class="agenda-rdv ton-${tonRendezVous(r)}${responsableAbsent ? ' rdv-absent' : ''}" onclick="ouvrirDossierDepuisDashboard('${r.dossier.id}')">
           <span class="agenda-rdv-titre">${escapeHtml(libelleDossierAffiche(r.dossier))}</span>
-          <span class="agenda-rdv-meta">${escapeHtml(meta)}</span>
+          <span class="agenda-rdv-meta">${escapeHtml(meta)}${(() => { const t = typeRendezVous(r.dossier, categoriesRdvReglees()); return t ? ` <span class="rdv-type-etiquette"><span class="rdv-type-pastille rdv-type-${t}"></span>${TYPES_RDV[t].court}</span>` : ''; })()}</span>
           ${lieu.length ? `<span class="agenda-rdv-lieu">${lieu.map(escapeHtml).join(' · ')}</span>` : ''}
           ${responsableAbsent ? `<span class="agenda-rdv-alerte">${icone('alert-triangle')} ${escapeHtml(prenomCollaborateur(r.dossier.responsable))} absent(e) ce jour</span>` : ''}
           <span class="agenda-rdv-etats">${etat(r.appelFondsEnvoye, 'Appel de fonds envoyé', 'Appel de fonds à envoyer')}${etat(r.projetEnvoye, 'Projet envoyé', 'Projet à envoyer')}</span>
@@ -15827,7 +15947,14 @@
         sauvegarder(d);
         notifierDateAjoutee(d, item.label || 'Échéance', nouvelleDate, ancienne);
       }
+    } else if (cle === 'rendezVousSignature' && !nouvelleDate && d[cle]) {
+      // Vider la date du rendez-vous, c'est le supprimer : même chemin (et même confirmation) que la
+      // croix, qui le retire aussi de l'agenda de l'office.
+      render();
+      supprimerDateEcheance(dossierId, cle);
+      return;
     } else if (nouvelleDate !== (d[cle] || '')) {
+      const ancienneRdv = cle === 'rendezVousSignature' ? (d[cle] || '') : '';
       // L'heure et le lieu lus dans l'agenda se rapportaient à l'ancienne date du rendez-vous.
       if (cle === 'rendezVousSignature') effacerHoraireRendezVous(d);
       ajouterHistorique(d, `« ${LIBELLES_CATEGORIE[cle]} » modifiée : ${d[cle] ? formatDateFr(d[cle]) : 'non renseignée'} → ${nouvelleDate ? formatDateFr(nouvelleDate) : 'non renseignée'}`);
@@ -15861,14 +15988,17 @@
       // Rendez-vous de signature saisi à la main : proposer tout de suite l'horaire pour le créer
       // dans l'agenda Outlook (demandé par l'étude). Pas quand la date vient de l'agenda lui-même :
       // le rendez-vous y est déjà. Le formulaire reste une confirmation, rien n'est écrit sans clic.
-      if (cle === 'rendezVousSignature' && proposerHoraireRdv(d)) {
-        rdvAgendaOuvert = true;
+      // Rendez-vous déplacé : l'événement déjà dans l'agenda suit (même heure, même couleur) ; il
+      // n'est proposé d'en créer un que s'il n'y en avait aucun à l'ancienne date.
+      if (cle === 'rendezVousSignature' && ancienneRdv && exchangeAgendaPret()) {
         render();
-        const champ = document.getElementById(`rdv-agenda-heure-${d.id}`);
-        if (champ) {
-          if (champ.scrollIntoView) champ.scrollIntoView({ block: 'center', behavior: 'smooth' });
-          champ.focus();
-        }
+        deplacerRdvDansAgenda(d, ancienneRdv, nouvelleDate).then((r) => {
+          if (r === 'introuvable' && proposerHoraireRdv(d)) ouvrirFormRdvAgenda(d);
+        });
+        return;
+      }
+      if (cle === 'rendezVousSignature' && proposerHoraireRdv(d)) {
+        ouvrirFormRdvAgenda(d);
         return;
       }
     }
@@ -15942,7 +16072,9 @@
   function supprimerDateEcheance(dossierId, type) {
     const d = dossiers.find(x => x.id === dossierId);
     if (!d || !d[type]) return;
-    demanderConfirmation(`Supprimer la date « ${LIBELLES_CATEGORIE[type]} » ?`, () => {
+    const retraitAgenda = type === 'rendezVousSignature' && exchangeAgendaPret();
+    demanderConfirmation(`Supprimer la date « ${LIBELLES_CATEGORIE[type]} » ?${retraitAgenda ? " Le rendez-vous sera aussi retiré de l'agenda Outlook de l'office (il reste récupérable dans ses éléments supprimés)." : ''}`, () => {
+      const ancienne = d[type];
       d[type] = '';
       d.confiance = d.confiance || {};
       d.confiance[type] = null;
@@ -15953,11 +16085,19 @@
       if (type === 'pret') d.sansPret = true;
       if (type === 'appelFonds') marquerAppelFondsSelonDate(d, '');
       if (type === 'projetEnvoye') marquerProjetEnvoyeSelonDate(d, '');
-      if (type === 'rendezVousSignature') effacerHoraireRendezVous(d);
+      if (type === 'rendezVousSignature') {
+        effacerHoraireRendezVous(d);
+        d.rendezVousType = '';
+        // Le flux publié de l'agenda peut porter ce rendez-vous encore quelques heures : il ne doit
+        // pas revenir tout seul sur la fiche (voir appliquerRendezVousAgenda côté serveur).
+        d.detectionsAgenda = d.detectionsAgenda || {};
+        d.detectionsAgenda.rendezVousRetire = ancienne;
+      }
       ajouterHistorique(d, `« ${LIBELLES_CATEGORIE[type]} » supprimée`);
       sauvegarder(d);
       render();
       if (type === 'pret' || type === 'ventebien') synchroniserEcheanceAgenda(d, type, false);
+      if (retraitAgenda) retirerRdvDeAgenda(d, ancienne);
     });
   }
 
@@ -18146,6 +18286,12 @@
       // Rendez-vous créé dans l'agenda Outlook (voir creerRdvDansAgenda) : un fait accompli par
       // l'utilisateur, conservé à l'import comme le questionnaire ou la confirmation des fonds.
       rdvAgendaCreeLe: typeof d.rdvAgendaCreeLe === 'string' ? d.rdvAgendaCreeLe : null,
+      // Identifiant Exchange de l'événement créé par CLAIRE et sa couleur (office/visio/confrère) :
+      // valables pour tout l'office, conservés pour pouvoir le retirer ou le déplacer ensuite.
+      rdvAgendaItem: (d.rdvAgendaItem && typeof d.rdvAgendaItem.itemId === 'string' && d.rdvAgendaItem.itemId)
+        ? { itemId: d.rdvAgendaItem.itemId, changeKey: typeof d.rdvAgendaItem.changeKey === 'string' ? d.rdvAgendaItem.changeKey : '', date: typeof d.rdvAgendaItem.date === 'string' ? d.rdvAgendaItem.date : '' }
+        : null,
+      rendezVousType: TYPES_RDV[d.rendezVousType] ? d.rendezVousType : '',
       // Mention d'envoi notée dans le lieu du rendez-vous de l'agenda Outlook (voir
       // noterEnvoiDansAgenda) : un fait accompli par l'utilisateur, conservé à l'import.
       agendaLieuNoteLe: typeof d.agendaLieuNoteLe === 'string' ? d.agendaLieuNoteLe : null,
@@ -18186,6 +18332,8 @@
       rendezVousSignatureHeure: /^\d{2}:\d{2}$/.test(d.rendezVousSignatureHeure || '') ? d.rendezVousSignatureHeure : '',
       rendezVousSignatureHeureFin: /^\d{2}:\d{2}$/.test(d.rendezVousSignatureHeureFin || '') ? d.rendezVousSignatureHeureFin : '',
       rendezVousSignatureLieu: typeof d.rendezVousSignatureLieu === 'string' ? d.rendezVousSignatureLieu.slice(0, 160) : '',
+      rendezVousSignatureCategories: Array.isArray(d.rendezVousSignatureCategories)
+        ? d.rendezVousSignatureCategories.filter((c) => typeof c === 'string').slice(0, 5) : [],
       ventebien: dateValide(d.ventebien),
       autres: Array.isArray(d.autres)
         ? d.autres.filter(a => a && typeof a === 'object' && dateValide(a.date))
@@ -18205,7 +18353,7 @@
       // un dossier réimporté verrait l'agenda réécrire ces dates à la date du nouvel import.
       detectionsAgenda: (d.detectionsAgenda && typeof d.detectionsAgenda === 'object' && !Array.isArray(d.detectionsAgenda))
         ? Object.fromEntries(Object.entries(d.detectionsAgenda)
-          .filter(([k, v]) => (k === 'appelFonds' || k === 'projetEnvoye' || k === 'rendezVousSignature' || k === 'rendezVousDisparu') && typeof v === 'string'))
+          .filter(([k, v]) => (k === 'appelFonds' || k === 'projetEnvoye' || k === 'rendezVousSignature' || k === 'rendezVousDisparu' || k === 'rendezVousRetire') && typeof v === 'string'))
         : {},
       typeVente: (d.typeVente === 'copropriete' || d.typeVente === 'terrain') ? d.typeVente : 'maison',
       roleNotaire: d.roleNotaire === 'participant' ? 'participant' : 'instrumentaire',
@@ -26469,6 +26617,12 @@
       if (email && document.activeElement !== email) email.value = corps.email || '';
       if (url && document.activeElement !== url) url.value = corps.url || '';
       if (partage && document.activeElement !== partage) partage.value = corps.calendrierPartage || '';
+      const cats = corps.categoriesRdv || {};
+      for (const cle of Object.keys(TYPES_RDV)) {
+        const champ = document.getElementById(`exchange-cat-${cle}`);
+        if (champ && document.activeElement !== champ) champ.value = cats[cle] || '';
+      }
+      chargerCategoriesAgendaVues();
       if (note) {
         note.textContent = corps.motDePasseEnregistre
           ? 'Un mot de passe est déjà enregistré. Laissez le champ vide pour le conserver. Un mot de passe erroné compte comme une tentative échouée — CLAIRE ne réessaie jamais toute seule.'
@@ -26476,6 +26630,26 @@
       }
     } catch (e) {
       // Session expirée : déjà géré par fetchAvecAuth.
+    }
+  }
+
+  // Noms des catégories Outlook vus dans le flux de l'agenda : proposés dans les champs de couleur,
+  // pour ne pas avoir à deviner le nom exact que porte chaque couleur dans la boîte de l'office.
+  async function chargerCategoriesAgendaVues() {
+    const liste = document.getElementById('exchange-categories-vues');
+    const note = document.getElementById('exchange-categories-note');
+    if (!liste) return;
+    try {
+      const corps = await (await fetchAvecAuth('/api/agenda')).json();
+      const vues = Array.isArray(corps.categories) ? corps.categories : [];
+      liste.innerHTML = vues.map((c) => `<option value="${escapeAttr(c)}"></option>`).join('');
+      if (note) {
+        note.textContent = vues.length
+          ? `Catégories vues dans l'agenda de l'office : ${vues.join(', ')}. Un nom que la boîte ne connaît pas s'affiche sans couleur.`
+          : "Le nom exact de la catégorie dans Outlook. Un nom que la boîte ne connaît pas s'affiche sans couleur.";
+      }
+    } catch (e) {
+      // Sans agenda lu, les champs restent libres.
     }
   }
 
@@ -26491,7 +26665,11 @@
       actif: !!(actif && actif.checked),
       email: champEmail ? champEmail.value.trim() : '',
       url: champUrl ? champUrl.value.trim() : '',
-      calendrierPartage: champPartage ? champPartage.value.trim() : ''
+      calendrierPartage: champPartage ? champPartage.value.trim() : '',
+      categoriesRdv: Object.fromEntries(Object.keys(TYPES_RDV).map((cle) => {
+        const champ = document.getElementById(`exchange-cat-${cle}`);
+        return [cle, champ ? champ.value.trim() : ''];
+      }))
     };
     // N'envoyer le mot de passe que s'il a été saisi : un champ vide conserve celui déjà enregistré.
     if (champMdp && champMdp.value) corpsEnvoye.motDePasse = champMdp.value;

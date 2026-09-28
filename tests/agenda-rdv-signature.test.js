@@ -31,3 +31,28 @@ test("l'horaire n'est pas proposé sans connexion à l'agenda ni sans date", () 
   // Connexion Exchange non configurée dans le banc d'essai.
   assert.equal(app.proposerHoraireRdv({ rendezVousSignature: '2026-10-14' }), false);
 });
+
+test('typeRendezVous : choix fait dans CLAIRE, sinon catégorie Outlook relevée (casse et accents ignorés)', () => {
+
+  const noms = { office: 'Catégorie Verte', visio: 'Catégorie Violette', confrere: 'Catégorie Orange' };
+  assert.equal(app.typeRendezVous({ rendezVousType: 'visio' }, noms), 'visio');
+  assert.equal(app.typeRendezVous({ rendezVousSignatureCategories: ['categorie orange'] }, noms), 'confrere');
+  assert.equal(app.typeRendezVous({ rendezVousSignatureCategories: ['Autre'] }, noms), '');
+  assert.equal(app.typeRendezVous({}, noms), '');
+  assert.equal(app.typeRendezVous({ rendezVousType: 'inconnu', rendezVousSignatureCategories: ['Catégorie Verte'] }, noms), 'office');
+});
+
+test('import : couleur, identifiant de l\'événement et date retirée conservés', () => {
+
+  const d = app.normaliserDossierImporte({
+    id: 'x', nom: 'A / B', rendezVousType: 'confrere',
+    rdvAgendaItem: { itemId: 'AAA', changeKey: 'K', date: '2026-10-14' },
+    rendezVousSignatureCategories: ['Catégorie Orange', 3],
+    detectionsAgenda: { rendezVousRetire: '2026-10-14' }
+  });
+  assert.equal(d.rendezVousType, 'confrere');
+  assert.equal(d.rdvAgendaItem.itemId, 'AAA');
+  assert.equal(d.rendezVousSignatureCategories.join('|'), 'Catégorie Orange');
+  assert.equal(d.detectionsAgenda.rendezVousRetire, '2026-10-14');
+  assert.equal(app.normaliserDossierImporte({ id: 'y', nom: 'C', rendezVousType: 'plage' }).rendezVousType, '');
+});

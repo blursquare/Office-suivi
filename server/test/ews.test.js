@@ -342,3 +342,35 @@ test('supprimerEcheanceExchange : identifiants refusés → raison auth', async 
   assert.equal(r.ok, false);
   assert.equal(r.raison, 'auth');
 });
+
+test('rendez-vous : catégorie de couleur posée entre Body et le rappel, absente sans nom', () => {
+  const ews = require('../src/exchange/ews');
+  const avec = ews.corpsCreateRendezVous({ sujet: 'VTE - A', dateStr: '2026-10-14', heureStr: '14:30', dureeMinutes: 60, categorie: 'Catégorie <Verte>' });
+  assert.ok(avec.includes('<t:Categories><t:String>Catégorie &lt;Verte&gt;</t:String></t:Categories>'));
+  assert.ok(avec.indexOf('</t:Body>') < avec.indexOf('<t:Categories>'));
+  assert.ok(avec.indexOf('<t:Categories>') < avec.indexOf('<t:ReminderIsSet>'));
+  const sans = ews.corpsCreateRendezVous({ sujet: 'VTE - A', dateStr: '2026-10-14', heureStr: '14:30', dureeMinutes: 60 });
+  assert.ok(!sans.includes('Categories'));
+});
+
+test('rendez-vous déplacé : même heure à Paris et même durée, y compris au passage à l\'heure d\'hiver', () => {
+  const ews = require('../src/exchange/ews');
+  assert.equal(ews.heureParisDepuisInstant('2026-10-14T12:30:00Z'), '14:30');
+  const h = ews.horaireDeplace({ start: '2026-10-14T12:30:00Z', end: '2026-10-14T13:30:00Z' }, '2026-11-04');
+  assert.equal(h.heure, '14:30');
+  assert.equal(h.debut, '2026-11-04T13:30:00Z');
+  assert.equal(h.fin, '2026-11-04T14:30:00Z');
+  const corps = ews.corpsUpdateRendezVousHoraire({ itemId: 'I', changeKey: 'C', debut: h.debut, fin: h.fin });
+  assert.ok(corps.includes('calendar:Start') && corps.includes('calendar:End'));
+  assert.ok(!corps.includes('Categories') && !corps.includes('Location'), 'ni couleur ni lieu touchés');
+});
+
+test('FindItem : début et fin de chaque rendez-vous relus', () => {
+  const ews = require('../src/exchange/ews');
+  const corps = '<m:FindItemResponse><t:CalendarItem><t:ItemId Id="A1" ChangeKey="K1"/><t:Subject>VTE - DUPONT</t:Subject>'
+    + '<t:Start>2026-10-14T12:30:00Z</t:Start><t:End>2026-10-14T13:30:00Z</t:End></t:CalendarItem></m:FindItemResponse>';
+  const [e] = ews.parseFindRendezVous(corps);
+  assert.equal(e.start, '2026-10-14T12:30:00Z');
+  assert.equal(e.end, '2026-10-14T13:30:00Z');
+  assert.ok(ews.corpsFindRendezVous({ debutUtc: 'a', finUtc: 'b' }).includes('calendar:Start'));
+});

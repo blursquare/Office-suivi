@@ -5786,6 +5786,39 @@ button.avancement-ligne:hover { background: var(--paper-sunk); }
   border: 1px solid var(--line); border-radius: 6px; background: var(--paper-card); color: var(--ink);
 }
 .rdv-agenda-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* Code couleur des rendez-vous de signature (catégories Outlook de l'étude) : vert = office,
+   violet = visio, orange = confrère. L'orange est fixe : aucun jeton de la palette ne l'est
+   (--pret est ambre, --urgent rouge-orangé), et il se lit sur les deux fonds. */
+.rdv-type-pastille {
+  display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+  flex: 0 0 auto; background: var(--muted);
+}
+.rdv-type-pastille.rdv-type-office { background: var(--success); }
+.rdv-type-pastille.rdv-type-visio { background: var(--appelfonds); }
+.rdv-type-pastille.rdv-type-confrere { background: #E07B20; }
+.rdv-type-choix { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0 2px; }
+.rdv-type-option {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  font-size: 12.5px; padding: 4px 10px; border: 1px solid var(--line);
+  border-radius: 999px; background: var(--paper-card); color: var(--ink-soft);
+}
+.rdv-type-option input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.rdv-type-option:has(input:checked) { border-color: var(--focus); color: var(--ink); font-weight: 600; }
+.rdv-type-option:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
+.rdv-type-etiquette {
+  display: inline-flex; align-items: center; gap: 5px; margin-left: 6px;
+  font-size: 12px; color: var(--ink-soft); white-space: nowrap;
+}
+.rdv-categories-reglages { display: flex; flex-direction: column; gap: 6px; }
+.calc-champ label.rdv-categorie-ligne {
+  display: grid; grid-template-columns: 12px 130px minmax(0, 1fr); align-items: center; gap: 8px;
+  font-size: 13px; color: var(--ink-soft);
+}
+@media (max-width: 560px) {
+  .calc-champ label.rdv-categorie-ligne { grid-template-columns: 12px minmax(0, 1fr); }
+  .rdv-categorie-ligne input { grid-column: 1 / -1; }
+}
 button.lien-bouton {
   font-family: inherit; font-size: 12.5px; color: var(--muted);
   background: none; border: none; padding: 0; cursor: pointer; text-decoration: underline;

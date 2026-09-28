@@ -77,7 +77,7 @@ function parseIcsEvenements(texte) {
     const ligne = ligneBrute.replace(/\s+$/, '');
     const majLigne = ligne.trim().toUpperCase();
     if (majLigne === 'BEGIN:VEVENT') {
-      courant = { summary: '', description: '', location: '', dtstart: '', status: '' };
+      courant = { summary: '', description: '', location: '', dtstart: '', status: '', categories: [] };
       profondeurSousComposant = 0;
       continue;
     }
@@ -103,6 +103,14 @@ function parseIcsEvenements(texte) {
     else if (cle === 'DTSTART') courant.dtstart = valeur.trim();
     else if (cle === 'DTEND') courant.dtend = valeur.trim();
     else if (cle === 'STATUS') courant.status = valeur.trim().toUpperCase();
+    // CATEGORIES : liste séparée par des virgules (une virgule échappée « \, » appartient au nom).
+    // C'est la catégorie Outlook qui donne sa couleur à l'événement.
+    else if (cle === 'CATEGORIES') {
+      for (const nom of valeur.split(/(?<!\\),/)) {
+        const t = decoderTexteIcs(nom).trim();
+        if (t) courant.categories.push(t);
+      }
+    }
   }
   return evenements;
 }
@@ -370,11 +378,25 @@ function actionsDetecteesDepuisIcs(icsTexte, dossiersActifs, aujourdHui) {
       heure: heureDepuisDtstart(evt.dtstart),
       heureFin: heureDepuisDtstart(evt.dtend),
       lieu: String(evt.location || '').slice(0, 160),
+      categories: (evt.categories || []).slice(0, 5),
       dossierId: dossier ? dossier.id : null,
       dossierNom: dossier ? dossier.nom : null
     });
   }
   return resultats;
+}
+
+// Noms distincts des catégories Outlook portées par les événements du flux, pour que les Réglages
+// proposent les noms exacts de la boîte (la couleur d'un rendez-vous tient à ce nom). Pure.
+function categoriesDistinctesIcs(icsTexte) {
+  const vus = new Map();
+  for (const evt of parseIcsEvenements(icsTexte)) {
+    for (const c of evt.categories || []) {
+      const cle = c.toLowerCase();
+      if (!vus.has(cle)) vus.set(cle, c);
+    }
+  }
+  return [...vus.values()].sort((a, b) => a.localeCompare(b, 'fr')).slice(0, 40);
 }
 
 // ---- Absences des collaborateurs (demandé par l'étude, 28/09) ----
@@ -462,5 +484,6 @@ module.exports = {
   extraireReferenceVte, referenceDossierEvenement, detecteAppelDeFonds, detecteProjetEnvoye,
   detecterActionsEvenement, dossierPourReferenceAgenda, actionsDetecteesDepuisIcs, motsVoisins,
   estRendezVousSignature, heureDepuisDtstart, composerLieuAgenda,
-  absencesDepuisIcs, estEvenementJourneeEntiere, collaborateursDansTexte, COLLABORATEURS_ABSENCE
+  absencesDepuisIcs, estEvenementJourneeEntiere, collaborateursDansTexte, COLLABORATEURS_ABSENCE,
+  categoriesDistinctesIcs
 };

@@ -9417,6 +9417,43 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   - Tests : `tests/notification-date.test.js` (1), +2 dans `server/test/notifications.test.js`.
     Suites : racine 894, serveur 463. Ne parvient au bureau qu'avec le prochain `CLAIRE-serveur.exe`.
 
+- **Rendez-vous de signature : couleurs dans l'agenda Outlook, retrait et déplacement depuis CLAIRE**
+  (28/09 soir, « tu peux mettre des couleurs au rendez-vous ? » puis « quand un rendez-vous est
+  supprimé de CLAIRE, le supprimer de l'agenda »).
+  - **Couleur = catégorie Outlook**, le code de l'étude : vert = à l'office, violet = en visio,
+    orange = chez un confrère. Le formulaire de création (`renderCreationRdvAgenda`) propose les trois
+    en pastilles (`TYPES_RDV`, défaut « À l'office ») ; `corpsCreateRendezVous` pose
+    `<t:Categories>` après `Body`, avant les éléments de rappel (ordre du schéma EWS). **La couleur
+    n'est pas dans l'événement mais dans la liste des catégories de la boîte** : il faut le NOM exact.
+    Noms réglables dans Réglages › Rappels et agenda (`categoriesRdv`, défauts « Catégorie Verte /
+    Violette / Orange », les noms français d'Outlook), avec en suggestion les catégories réellement
+    vues dans le flux `.ics` (propriété `CATEGORIES`, relue par `parseIcsEvenements`, listée par
+    `categoriesDistinctesIcs`, clé `categories-agenda`, exposée par `GET /api/agenda`). **Un nom que
+    la boîte ne connaît pas s'affiche sans couleur** : c'est le premier point à vérifier si le
+    rendez-vous sort gris. `d.rendezVousType` garde le choix ; pour un rendez-vous relevé dans
+    l'agenda, `typeRendezVous()` (pure, testée) le déduit de `d.rendezVousSignatureCategories`
+    (posées par `poserHoraireRendezVous`). Pastille affichée sur la fiche et dans l'agenda du tableau
+    de bord. L'orange est fixe (#E07B20) : aucun jeton de la palette ne l'est.
+  - **Suppression** : la croix (ou vider la date au crayon, redirigé vers le même chemin et la même
+    confirmation, qui annonce le retrait) appelle `POST /api/exchange/rendez-vous/supprimer`. Le
+    serveur désigne l'événement par l'identifiant gardé à la création (`d.rdvAgendaItem`, conservé à
+    l'import), sinon le retrouve à sa date par « VTE - <nom> » (`choisirRendezVousDossier`, testée :
+    aucun retrait si deux correspondent). **Retire aussi un rendez-vous posé à la main dans Outlook** —
+    c'est ce que l'étude a demandé ; `MoveToDeletedItems`, donc récupérable. `d.detectionsAgenda.rendezVousRetire`
+    empêche le flux publié, qui peut porter l'événement quelques heures encore, de remettre la date
+    sur la fiche (`appliquerRendezVousAgenda`) ; seule une autre date le relève.
+  - **Déplacement** (non demandé, mais sans lui un rendez-vous resterait à l'ancienne date et la
+    création proposée en ferait un doublon) : changer la date appelle
+    `POST /api/exchange/rendez-vous/deplacer` — même heure à Paris, même durée (`horaireDeplace`,
+    testée au passage à l'heure d'hiver), rien d'autre touché (ni lieu, ni couleur). `FindItem` relit
+    désormais `calendar:Start`/`End`. La création n'est proposée que s'il n'y avait rien à déplacer.
+  - Tests : +7 serveur (catégorie dans le XML, déplacement horaire, FindItem, rapprochement, routes,
+    réglages, CATEGORIES du flux, garde-fou `rendezVousRetire`), +2 client. Suites : racine 896,
+    serveur 472. Vérifié dans un vrai Chromium (EWS simulé, clair et sombre) : choix « En visio »
+    envoyé en « Catégorie Violette », déplacement puis suppression avec les bons identifiants.
+    **Non vérifié sur le vrai Exchange** : noms exacts des catégories de la boîte de Sophie, et
+    droit de suppression sur son calendrier partagé.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

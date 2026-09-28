@@ -1711,6 +1711,16 @@
             <input type="email" id="exchange-calendrier-partage" autocomplete="off" placeholder="sophie@gossart.notaires.fr">
             <p class="hint">Adresse de la boîte dont le calendrier partagé contient les rendez-vous de l'office. Laissez vide si les rendez-vous sont dans le calendrier du compte de connexion ci-dessus. Le compte de connexion doit avoir un accès en écriture sur ce calendrier.</p>
           </div>
+          <div class="calc-champ">
+            <label>Couleurs des rendez-vous (catégories Outlook)</label>
+            <div class="rdv-categories-reglages">
+              <label class="rdv-categorie-ligne" for="exchange-cat-office"><span class="rdv-type-pastille rdv-type-office"></span>À l'office<input type="text" id="exchange-cat-office" list="exchange-categories-vues" autocomplete="off" placeholder="Catégorie Verte"></label>
+              <label class="rdv-categorie-ligne" for="exchange-cat-visio"><span class="rdv-type-pastille rdv-type-visio"></span>En visio<input type="text" id="exchange-cat-visio" list="exchange-categories-vues" autocomplete="off" placeholder="Catégorie Violette"></label>
+              <label class="rdv-categorie-ligne" for="exchange-cat-confrere"><span class="rdv-type-pastille rdv-type-confrere"></span>Chez un confrère<input type="text" id="exchange-cat-confrere" list="exchange-categories-vues" autocomplete="off" placeholder="Catégorie Orange"></label>
+            </div>
+            <datalist id="exchange-categories-vues"></datalist>
+            <p class="hint" id="exchange-categories-note">Le nom exact de la catégorie dans Outlook. Un nom que la boîte ne connaît pas s'affiche sans couleur.</p>
+          </div>
           <details>
             <summary class="hint" style="cursor:pointer;">Réglage avancé : adresse du serveur EWS</summary>
             <div class="calc-champ" style="margin-top:8px;">

@@ -95,6 +95,17 @@ entre les deux. Après un refus d'identifiants, plus aucune tentative automatiqu
 lancement (plusieurs échecs verrouillent le compte de messagerie). **Non vérifié sur le vrai
 Exchange** : à confirmer au bureau sur un dossier dont on modifie la date de prêt.
 
+**Rendez-vous de signature (28/09/2026).** Créé depuis la fiche (`POST /api/exchange/rendez-vous`)
+avec une **catégorie Outlook** qui lui donne la couleur de l'étude : vert à l'office, violet en
+visio, orange chez un confrère. Le nom exact de chaque catégorie se règle dans Réglages › Rappels
+et agenda (catégories vues dans le flux `.ics` proposées) — un nom inconnu de la boîte s'affiche
+sans couleur. Supprimer le rendez-vous dans CLAIRE le retire de l'agenda
+(`POST /api/exchange/rendez-vous/supprimer`, vers les éléments supprimés) ; changer sa date le
+déplace au nouveau jour, même heure et même durée (`POST /api/exchange/rendez-vous/deplacer`).
+L'événement est désigné par l'identifiant gardé à sa création, sinon retrouvé à sa date par
+« VTE - <nom> » ; si deux correspondent, rien n'est touché. Le compte de connexion doit avoir le
+droit de supprimer dans le calendrier partagé.
+
 1. Au démarrage du serveur (`.exe` ou `npm start`), la console affiche une ou plusieurs adresses
    du type `http://<ip>:3000/calendrier.ics?token=...` — la même liste est écrite dans
    `Adresses-du-serveur.txt` à côté de l'exécutable en mode `.exe`. Le jeton (`token=...`) est

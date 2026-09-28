@@ -345,3 +345,12 @@ test('composerLieuAgenda : lieu vide → mention seule ; rien à noter → lieu 
   assert.equal(composerLieuAgenda('', { appelFonds: true }), 'Appel de fonds envoyé');
   assert.equal(composerLieuAgenda('AL - visio', {}), 'AL - visio');
 });
+
+test('CATEGORIES : catégories Outlook relues (virgule échappée comprise) et listées sans doublon', () => {
+  const { parseIcsEvenements: parse, categoriesDistinctesIcs } = require('../src/agendaOffice');
+  const ics = 'BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:VTE - DUPONT\r\nCATEGORIES:Catégorie Verte,Visio\\, client\r\nEND:VEVENT\r\n'
+    + 'BEGIN:VEVENT\r\nSUMMARY:VTE - MARTIN\r\nCATEGORIES:catégorie verte\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n';
+  const [e] = parse(ics);
+  assert.equal(e.categories.join('|'), 'Catégorie Verte|Visio, client');
+  assert.equal(categoriesDistinctesIcs(ics).join('|'), 'Catégorie Verte|Visio, client');
+});

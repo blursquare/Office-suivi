@@ -424,6 +424,24 @@ function assainirReglagesMiseAJour(brut, precedent) {
 const CLE_REGLAGES_EXCHANGE = 'exchange-office';
 const URL_EWS_DEFAUT = 'https://mail.authentic-connect.fr/EWS/Exchange.asmx';
 
+// Catégories Outlook qui donnent sa couleur à un rendez-vous de signature créé par CLAIRE — le
+// code couleur de l'étude : vert = à l'office, violet = en visio, orange = chez un confrère. La
+// couleur n'est pas dans l'événement mais dans la liste des catégories de la boîte : il faut donc le
+// NOM exact de la catégorie. Par défaut, les noms qu'Outlook donne en français aux catégories de
+// couleur ; l'étude les ajuste dans les Réglages si elle les a renommées.
+const CATEGORIES_RDV_DEFAUT = { office: 'Catégorie Verte', visio: 'Catégorie Violette', confrere: 'Catégorie Orange' };
+
+function assainirCategoriesRdv(brut, precedent) {
+  const b = (brut && typeof brut === 'object') ? brut : {};
+  const p = (precedent && typeof precedent === 'object') ? precedent : {};
+  const res = {};
+  for (const cle of Object.keys(CATEGORIES_RDV_DEFAUT)) {
+    const v = typeof b[cle] === 'string' ? b[cle] : p[cle];
+    res[cle] = texteBorne(v, 100) || CATEGORIES_RDV_DEFAUT[cle];
+  }
+  return res;
+}
+
 function assainirReglagesExchange(brut, precedent) {
   const b = (brut && typeof brut === 'object') ? brut : {};
   const p = (precedent && typeof precedent === 'object') ? precedent : {};
@@ -440,7 +458,8 @@ function assainirReglagesExchange(brut, precedent) {
     // vide si c'est le calendrier du compte de connexion lui-même. Quand elle est renseignée, les
     // opérations EWS ciblent le calendrier de cette boîte (voir ews.js, folderCalendrierXml) : le
     // compte de connexion doit alors avoir un accès délégué en écriture sur ce calendrier.
-    calendrierPartage: texteNettoye(b.calendrierPartage) || texteNettoye(p.calendrierPartage)
+    calendrierPartage: texteNettoye(b.calendrierPartage) || texteNettoye(p.calendrierPartage),
+    categoriesRdv: assainirCategoriesRdv(b.categoriesRdv, p.categoriesRdv)
   };
 }
 
@@ -490,6 +509,24 @@ function assainirEntreeDetectionAgenda(brut) {
 // dernier tour, c'est un état PRODUIT par le serveur, pas un réglage saisi. Exposées au client par
 // GET /api/agenda pour que l'agenda du tableau de bord signale « Absent cette semaine : … ».
 const CLE_ABSENCES_AGENDA = 'absences-agenda';
+
+// Noms des catégories Outlook rencontrées dans le flux de l'agenda (propriété CATEGORIES) : proposés
+// dans les Réglages pour régler les couleurs des rendez-vous sans deviner leur nom exact.
+const CLE_CATEGORIES_AGENDA = 'categories-agenda';
+const MAX_CATEGORIES_AGENDA = 40;
+function assainirCategoriesAgenda(brut) {
+  if (!Array.isArray(brut)) return [];
+  const vus = new Set();
+  const res = [];
+  for (const c of brut) {
+    const t = texteBorne(c, 100);
+    if (!t || vus.has(t.toLowerCase())) continue;
+    vus.add(t.toLowerCase());
+    res.push(t);
+    if (res.length >= MAX_CATEGORIES_AGENDA) break;
+  }
+  return res;
+}
 const MAX_ABSENCES_AGENDA = 200;
 
 function assainirAbsenceAgenda(brut) {
@@ -773,6 +810,22 @@ function creerRepoParametres(db) {
     return propre;
   }
 
+  function lireCategoriesAgenda() {
+    const ligne = lireStmt.get(CLE_CATEGORIES_AGENDA);
+    if (!ligne) return [];
+    try {
+      return assainirCategoriesAgenda(JSON.parse(ligne.valeur));
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function ecrireCategoriesAgenda(categories) {
+    const propre = assainirCategoriesAgenda(categories);
+    ecrireStmt.run(CLE_CATEGORIES_AGENDA, JSON.stringify(propre));
+    return propre;
+  }
+
   function lireReglagesExchange() {
     const ligne = lireStmt.get(CLE_REGLAGES_EXCHANGE);
     if (!ligne) return assainirReglagesExchange({});
@@ -809,7 +862,7 @@ function creerRepoParametres(db) {
     lireReglagesMiseAJour, ecrireReglagesMiseAJour,
     lireReglagesExchange, ecrireReglagesExchange,
     lireReglagesAgenda, ecrireReglagesAgenda, lireDernierTourAgenda, ecrireDernierTourAgenda,
-    lireAbsencesAgenda, ecrireAbsencesAgenda,
+    lireAbsencesAgenda, ecrireAbsencesAgenda, lireCategoriesAgenda, ecrireCategoriesAgenda,
     lireReglageSauvegarde, ecrireReglageSauvegarde, lireEtatSauvegarde, ecrireEtatSauvegarde,
     lireReglages, ecrireReglages, lireDernierTour, ecrireDernierTour,
     lireCopiesEnAttente, ecrireCopiesEnAttente, lireRetoursAudit, ecrireRetoursAudit,
@@ -824,7 +877,7 @@ module.exports = {
   assainirRetourAudit, assainirRetoursAudit, MAX_RETOURS_AUDIT,
   assainirRappelPerso, assainirRappelsPerso, MAX_RAPPELS_PERSO, assainirPreference, assainirPreferences,
   assainirReglagesClaude, assainirReglagesMiseAJour, MODELES_CLAUDE, MODELE_CLAUDE_PAR_DEFAUT,
-  assainirReglagesExchange, URL_EWS_DEFAUT,
+  assainirReglagesExchange, assainirCategoriesRdv, CATEGORIES_RDV_DEFAUT, URL_EWS_DEFAUT, assainirCategoriesAgenda,
   assainirReglagesAgenda, assainirDernierTourAgenda, assainirAbsenceAgenda, assainirAbsencesAgenda,
   REGLAGES_PAR_DEFAUT, PORT_SMTP_PAR_DEFAUT
 };

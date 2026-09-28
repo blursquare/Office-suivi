@@ -8,7 +8,7 @@
 // à jour les dossiers SANS QUE RIEN NE LE SIGNALE, exactement le défaut déjà corrigé une fois pour
 // les rappels par email (voir CLE_DERNIER_TOUR dans parametresRepo.js).
 
-const { actionsDetecteesDepuisIcs, absencesDepuisIcs } = require('./agendaOffice');
+const { actionsDetecteesDepuisIcs, absencesDepuisIcs, categoriesDistinctesIcs } = require('./agendaOffice');
 
 const CHAMP_PAR_ACTION = { appelFonds: 'appelFonds', projetEnvoye: 'projetEnvoye' };
 const LIBELLE_PAR_ACTION = { appelFonds: 'Envoi appel de fonds', projetEnvoye: 'Envoi projet' };
@@ -110,11 +110,15 @@ function signalerRendezVousDisparus(depot, detections, jour) {
 // différente n'a pas d'horaire connu, lui en coller un serait mentir. Rend vrai si quelque chose
 // a changé.
 function poserHoraireRendezVous(d, det) {
-  const avant = [d.rendezVousSignatureHeure, d.rendezVousSignatureHeureFin, d.rendezVousSignatureLieu].join('|');
+  const cle = (x) => [x.rendezVousSignatureHeure, x.rendezVousSignatureHeureFin, x.rendezVousSignatureLieu,
+    (x.rendezVousSignatureCategories || []).join(',')].join('|');
+  const avant = cle(d);
   d.rendezVousSignatureHeure = det.heure || '';
   d.rendezVousSignatureHeureFin = det.heureFin || '';
   d.rendezVousSignatureLieu = det.lieu || '';
-  return avant !== [d.rendezVousSignatureHeure, d.rendezVousSignatureHeureFin, d.rendezVousSignatureLieu].join('|');
+  // Catégories Outlook du rendez-vous (sa couleur) : le client en déduit office / visio / confrère.
+  d.rendezVousSignatureCategories = Array.isArray(det.categories) ? det.categories.slice(0, 5) : [];
+  return avant !== cle(d);
 }
 
 function appliquerRendezVousAgenda(depot, detections, resultat) {
@@ -130,6 +134,10 @@ function appliquerRendezVousAgenda(depot, detections, resultat) {
     d.detectionsAgenda = d.detectionsAgenda || {};
     const ecritParAgenda = d.detectionsAgenda.rendezVousSignature || null;
     const actuel = d.rendezVousSignature || null;
+    // Rendez-vous supprimé à la main dans CLAIRE : le flux publié peut le porter encore quelques
+    // heures (ou toujours, s'il n'a pas pu être retiré d'Outlook). Il ne doit pas revenir tout seul
+    // sur la fiche ; seule une AUTRE date le relève à nouveau.
+    if (!actuel && d.detectionsAgenda.rendezVousRetire === det.dateIso) continue;
     if (actuel === det.dateIso) {
       // Même date : l'heure, l'heure de fin et le lieu suivent l'agenda (affichés dans l'agenda du
       // tableau de bord) — un rendez-vous avancé de 9 h à 11 h le même jour doit s'y voir.
@@ -151,6 +159,7 @@ function appliquerRendezVousAgenda(depot, detections, resultat) {
     d.rendezVousSignature = det.dateIso;
     d.detectionsAgenda.rendezVousSignature = det.dateIso;
     delete d.detectionsAgenda.rendezVousDisparu;
+    delete d.detectionsAgenda.rendezVousRetire;
     poserHoraireRendezVous(d, det);
     d.historique = d.historique || [];
     d.historique.push({
@@ -375,7 +384,7 @@ async function telechargerIcs(icsUrl, fetchFn, pauseMs, infos) {
 // (injectable pour que les tests ne patientent pas trois secondes).
 async function executerTourSurveillanceAgenda(depot, icsUrl, fetchFn, pauseMs) {
   const resultat = {
-    ok: false, dossiersVerifies: 0, misAJour: [], dejaRenseignes: [], sansCorrespondance: [], absences: [], erreur: null
+    ok: false, dossiersVerifies: 0, misAJour: [], dejaRenseignes: [], sansCorrespondance: [], absences: [], categories: [], erreur: null
   };
   if (!icsUrl) {
     resultat.erreur = "Aucune adresse d'agenda enregistrée.";
@@ -399,6 +408,7 @@ async function executerTourSurveillanceAgenda(depot, icsUrl, fetchFn, pauseMs) {
     // Absences des collaborateurs (voir absencesDepuisIcs) : lues au même passage, persistées à part
     // par l'appelant (executerEtEnregistrerTourAgenda) — elles ne sont rattachées à aucun dossier.
     resultat.absences = absencesDepuisIcs(texte, jour);
+    resultat.categories = categoriesDistinctesIcs(texte);
   } catch (e) {
     resultat.erreur = e.message;
   }
@@ -419,7 +429,10 @@ async function executerEtEnregistrerTourAgenda(depot, parametresRepo, fetchFn, d
   // Les absences remplacent la liste précédente à chaque tour réussi (l'agenda fait foi) ; un tour en
   // échec (flux injoignable) ne les efface pas — la dernière liste connue reste affichée.
   if (resultat.ok) parametresRepo.ecrireAbsencesAgenda(resultat.absences || []);
-  const { adresseCorrigee, absences, ...compteRendu } = resultat;
+  if (resultat.ok && typeof parametresRepo.ecrireCategoriesAgenda === 'function') {
+    parametresRepo.ecrireCategoriesAgenda(resultat.categories || []);
+  }
+  const { adresseCorrigee, absences, categories, ...compteRendu } = resultat;
   parametresRepo.ecrireDernierTourAgenda({
     ...compteRendu,
     lienPasseEnHttps: Boolean(adresseCorrigee),

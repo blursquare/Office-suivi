@@ -23,7 +23,9 @@ function creerRouteurAgenda(parametresRepo, options) {
       // Absences des collaborateurs lues dans l'agenda (voir absencesDepuisIcs) : l'agenda du tableau
       // de bord les affiche (« Absent cette semaine : … ») et signale les rendez-vous d'un
       // collaborateur absent ce jour-là.
-      absences: parametresRepo.lireAbsencesAgenda()
+      absences: parametresRepo.lireAbsencesAgenda(),
+      // Catégories Outlook vues dans le flux : suggestions pour régler les couleurs des rendez-vous.
+      categories: typeof parametresRepo.lireCategoriesAgenda === 'function' ? parametresRepo.lireCategoriesAgenda() : []
     });
   });
 
