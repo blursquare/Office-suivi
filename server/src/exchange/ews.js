@@ -35,6 +35,17 @@ function echapperXml(valeur) {
     .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 }
 
+// Cible du dossier « Calendrier » : celui du compte de connexion par défaut, ou — quand `mailbox`
+// est renseignée — le calendrier PARTAGÉ d'une autre boîte (celui de Sophie, où vivent réellement
+// les rendez-vous de l'office). Un <t:Mailbox><t:EmailAddress> dans le DistinguishedFolderId adresse
+// le dossier « calendar » de CETTE boîte ; le compte de connexion doit y avoir un accès délégué.
+function folderCalendrierXml(mailbox) {
+  const m = typeof mailbox === 'string' ? mailbox.trim() : '';
+  if (!m) return '<t:DistinguishedFolderId Id="calendar"/>';
+  return '<t:DistinguishedFolderId Id="calendar"><t:Mailbox><t:EmailAddress>'
+    + echapperXml(m) + '</t:EmailAddress></t:Mailbox></t:DistinguishedFolderId>';
+}
+
 // Décalage de Paris (en minutes à AJOUTER à UTC pour obtenir l'heure locale : +120 l'été, +60
 // l'hiver) à un instant donné. Calculé via Intl pour ne JAMAIS dépendre du fuseau du serveur (le
 // poste du bureau est à l'heure de Paris, mais l'environnement de développement tourne en UTC).
@@ -72,7 +83,7 @@ function formatEwsUtc(date) {
 // puis de CalendarItemType) : le respecter est obligatoire, Exchange rejette un ordre différent.
 // StartTimeZone/EndTimeZone (« Romance Standard Time » = Paris) associent le bon fuseau à l'instant
 // UTC fourni, pour que l'affichage tombe sur la bonne heure locale dans Outlook.
-function corpsCreateRendezVous({ sujet, dateStr, heureStr, dureeMinutes, lieu, corps }) {
+function corpsCreateRendezVous({ sujet, dateStr, heureStr, dureeMinutes, lieu, corps, mailbox }) {
   const debut = instantUtcDepuisParis(dateStr, heureStr);
   const fin = new Date(debut.getTime() + (dureeMinutes > 0 ? dureeMinutes : 60) * 60000);
   return '<?xml version="1.0" encoding="utf-8"?>'
@@ -81,7 +92,7 @@ function corpsCreateRendezVous({ sujet, dateStr, heureStr, dureeMinutes, lieu, c
     + ' xmlns:m="http://schemas.microsoft.com/exchange/services/2006/messages">'
     + '<soap:Header><t:RequestServerVersion Version="Exchange2013"/></soap:Header>'
     + '<soap:Body><m:CreateItem SendMeetingInvitations="SendToNone">'
-    + '<m:SavedItemFolderId><t:DistinguishedFolderId Id="calendar"/></m:SavedItemFolderId>'
+    + '<m:SavedItemFolderId>' + folderCalendrierXml(mailbox) + '</m:SavedItemFolderId>'
     + '<m:Items><t:CalendarItem>'
     + '<t:Subject>' + echapperXml(sujet) + '</t:Subject>'
     + '<t:Body BodyType="Text">' + echapperXml(corps || '') + '</t:Body>'
@@ -258,7 +269,7 @@ function fenetreJourneeParis(dateIso) {
 // FindItem sur le dossier « Calendrier », vue calendrier bornée à la journée — renvoie l'ItemId,
 // le ChangeKey, le sujet et le lieu de chaque rendez-vous, de quoi retrouver le bon et le mettre à
 // jour ensuite. IdOnly + AdditionalProperties : on ne rapatrie que ce qu'il faut.
-function corpsFindRendezVous({ debutUtc, finUtc }) {
+function corpsFindRendezVous({ debutUtc, finUtc, mailbox }) {
   return '<?xml version="1.0" encoding="utf-8"?>'
     + '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"'
     + ' xmlns:t="http://schemas.microsoft.com/exchange/services/2006/types"'
@@ -271,7 +282,7 @@ function corpsFindRendezVous({ debutUtc, finUtc }) {
     + '<t:FieldURI FieldURI="calendar:Location"/>'
     + '</t:AdditionalProperties></m:ItemShape>'
     + '<m:CalendarView StartDate="' + debutUtc + '" EndDate="' + finUtc + '"/>'
-    + '<m:ParentFolderIds><t:DistinguishedFolderId Id="calendar"/></m:ParentFolderIds>'
+    + '<m:ParentFolderIds>' + folderCalendrierXml(mailbox) + '</m:ParentFolderIds>'
     + '</m:FindItem></soap:Body></soap:Envelope>';
 }
 
@@ -325,7 +336,7 @@ function interpreterReponseUpdate(statutHttp, corps) {
 
 // FindItem — un seul essai. Renvoie { ok:true, evenements:[…] } ou { ok:false, message }. Ne reçoit
 // jamais le mot de passe dans un message. `injections.poster` : uniquement pour les tests.
-function trouverRendezVousExchange({ url, email, motDePasse, debutUtc, finUtc, delaiMs = 20000 }, injections = {}) {
+function trouverRendezVousExchange({ url, email, motDePasse, debutUtc, finUtc, mailbox, delaiMs = 20000 }, injections = {}) {
   const poster = injections.poster || httpntlm.post;
   return new Promise((resolve) => {
     let repondu = false;
@@ -341,7 +352,7 @@ function trouverRendezVousExchange({ url, email, motDePasse, debutUtc, finUtc, d
         password: String(motDePasse || ''),
         domain: '',
         headers: { 'Content-Type': 'text/xml; charset=utf-8' },
-        body: corpsFindRendezVous({ debutUtc, finUtc })
+        body: corpsFindRendezVous({ debutUtc, finUtc, mailbox })
       }, (err, res) => {
         clearTimeout(minuteur);
         if (err) {
@@ -477,5 +488,6 @@ module.exports = {
   corpsCreateBrouillon, creerBrouillonExchange,
   instantUtcDepuisParis, decalageParisMinutes,
   desechapperXml, fenetreJourneeParis, corpsFindRendezVous, parseFindRendezVous,
-  corpsUpdateLieu, interpreterReponseUpdate, trouverRendezVousExchange, mettreAJourLieuExchange
+  corpsUpdateLieu, interpreterReponseUpdate, trouverRendezVousExchange, mettreAJourLieuExchange,
+  folderCalendrierXml
 };

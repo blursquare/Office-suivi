@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-28 12:25';
+  const VERSION_APP = '2026-09-28 12:34';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-28 12:34', resume: "Agenda Outlook : nouveau réglage « Calendrier partagé de l'office (Sophie) » — les rendez-vous sont créés et mis à jour dans CE calendrier partagé, pas dans celui du compte de connexion. À renseigner dans Réglages et tester au bureau." },
     { version: '2026-09-28 12:25', resume: "Agenda Outlook : une fois l'appel de fonds (et/ou le projet) marqué envoyé, un bouton « Noter dans l'agenda » écrit « Appel de fonds envoyé » dans le lieu du rendez-vous de signature, après les initiales, sans toucher au code couleur. À tester au bureau." },
     { version: '2026-09-28 10:09', resume: "Brouillons Outlook avec pièce jointe : sur la fiche dossier, CLAIRE prépare un brouillon Outlook du courrier d'appel de fonds (.docx joint) ou du questionnaire de satisfaction (PDF joint) — ce qu'un simple lien mailto ne sait pas faire. À tester au bureau." },
     { version: '2026-09-28 09:51', resume: "Agenda Outlook : CLAIRE peut créer le rendez-vous de signature directement dans l'agenda de l'office (bouton sur la fiche). Les identifiants de messagerie s'enregistrent dans les Réglages (mot de passe jamais réaffiché). À tester au bureau." },
@@ -24947,10 +24948,12 @@
       const actif = document.getElementById('exchange-actif');
       const email = document.getElementById('exchange-email');
       const url = document.getElementById('exchange-url');
+      const partage = document.getElementById('exchange-calendrier-partage');
       const note = document.getElementById('exchange-mdp-note');
       if (actif) actif.checked = !!corps.actif;
       if (email && document.activeElement !== email) email.value = corps.email || '';
       if (url && document.activeElement !== url) url.value = corps.url || '';
+      if (partage && document.activeElement !== partage) partage.value = corps.calendrierPartage || '';
       if (note) {
         note.textContent = corps.motDePasseEnregistre
           ? 'Un mot de passe est déjà enregistré. Laissez le champ vide pour le conserver. Un mot de passe erroné compte comme une tentative échouée — CLAIRE ne réessaie jamais toute seule.'
@@ -24968,10 +24971,12 @@
     const champEmail = document.getElementById('exchange-email');
     const champMdp = document.getElementById('exchange-motdepasse');
     const champUrl = document.getElementById('exchange-url');
+    const champPartage = document.getElementById('exchange-calendrier-partage');
     const corpsEnvoye = {
       actif: !!(actif && actif.checked),
       email: champEmail ? champEmail.value.trim() : '',
-      url: champUrl ? champUrl.value.trim() : ''
+      url: champUrl ? champUrl.value.trim() : '',
+      calendrierPartage: champPartage ? champPartage.value.trim() : ''
     };
     // N'envoyer le mot de passe que s'il a été saisi : un champ vide conserve celui déjà enregistré.
     if (champMdp && champMdp.value) corpsEnvoye.motDePasse = champMdp.value;

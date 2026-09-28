@@ -7,7 +7,8 @@ const {
   corpsCreateRendezVous, interpreterReponseCreation, creerRendezVousExchange, instantUtcDepuisParis,
   corpsCreateBrouillon, creerBrouillonExchange,
   desechapperXml, fenetreJourneeParis, corpsFindRendezVous, parseFindRendezVous,
-  corpsUpdateLieu, interpreterReponseUpdate, trouverRendezVousExchange, mettreAJourLieuExchange
+  corpsUpdateLieu, interpreterReponseUpdate, trouverRendezVousExchange, mettreAJourLieuExchange,
+  folderCalendrierXml
 } = require('../src/exchange/ews');
 
 test('succès EWS : ResponseClass Success + nom d\'agenda', () => {
@@ -188,6 +189,21 @@ test('corpsFindRendezVous : CalendarView sur le calendrier, sujet + lieu demand�
   assert.match(c, /FieldURI="item:Subject"/);
   assert.match(c, /FieldURI="calendar:Location"/);
   assert.doesNotMatch(c, /CreateItem|UpdateItem|DeleteItem/);
+});
+
+test('folderCalendrierXml : calendrier par défaut sans boîte, calendrier partagé avec boîte', () => {
+  assert.equal(folderCalendrierXml(''), '<t:DistinguishedFolderId Id="calendar"/>');
+  assert.equal(folderCalendrierXml('   '), '<t:DistinguishedFolderId Id="calendar"/>');
+  const partage = folderCalendrierXml('sophie@gossart.notaires.fr');
+  assert.match(partage, /<t:DistinguishedFolderId Id="calendar"><t:Mailbox><t:EmailAddress>sophie@gossart\.notaires\.fr<\/t:EmailAddress><\/t:Mailbox><\/t:DistinguishedFolderId>/);
+});
+
+test('corpsFindRendezVous / corpsCreateRendezVous : ciblent le calendrier partagé quand mailbox fournie', () => {
+  const f = fenetreJourneeParis('2026-10-14');
+  const find = corpsFindRendezVous({ ...f, mailbox: 'sophie@gossart.notaires.fr' });
+  assert.match(find, /<t:Mailbox><t:EmailAddress>sophie@gossart\.notaires\.fr<\/t:EmailAddress><\/t:Mailbox>/);
+  const create = corpsCreateRendezVous({ sujet: 'VTE - X', dateStr: '2026-10-14', heureStr: '14:00', dureeMinutes: 60, mailbox: 'sophie@gossart.notaires.fr' });
+  assert.match(create, /<m:SavedItemFolderId><t:DistinguishedFolderId Id="calendar"><t:Mailbox><t:EmailAddress>sophie@gossart\.notaires\.fr<\/t:EmailAddress>/);
 });
 
 test('parseFindRendezVous : ItemId + ChangeKey + sujet + lieu, entités dés-échappées', () => {

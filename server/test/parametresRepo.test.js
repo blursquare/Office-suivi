@@ -61,6 +61,15 @@ test('réglages Exchange : URL par défaut, actif par défaut faux', () => {
   assert.equal(r.url, URL_EWS_DEFAUT);
   assert.equal(r.email, '');
   assert.equal(r.motDePasse, '');
+  assert.equal(r.calendrierPartage, '');
+});
+
+test('réglages Exchange : calendrier partagé enregistré et conservé', () => {
+  const precedent = assainirReglagesExchange({ actif: true, email: 'a@b.fr', calendrierPartage: 'sophie@gossart.notaires.fr' });
+  assert.equal(precedent.calendrierPartage, 'sophie@gossart.notaires.fr');
+  // Un enregistrement qui ne renvoie pas le calendrier partagé le conserve.
+  const conserve = assainirReglagesExchange({ actif: true, email: 'a@b.fr' }, precedent);
+  assert.equal(conserve.calendrierPartage, 'sophie@gossart.notaires.fr');
 });
 
 test('réglages Exchange : mot de passe conservé quand la requête ne le renvoie pas, effacé sur chaîne vide', () => {

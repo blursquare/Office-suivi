@@ -435,7 +435,12 @@ function assainirReglagesExchange(brut, precedent) {
     // retombe sur l'URL par défaut de Fichorga plutôt que d'enregistrer une adresse inutilisable.
     url: /^https:\/\//i.test(url) ? url : URL_EWS_DEFAUT,
     email: texteNettoye(b.email) || texteNettoye(p.email),
-    motDePasse: motDePasse.trim()
+    motDePasse: motDePasse.trim(),
+    // Adresse du calendrier PARTAGÉ où vivent les rendez-vous de l'office (celui de Sophie) —
+    // vide si c'est le calendrier du compte de connexion lui-même. Quand elle est renseignée, les
+    // opérations EWS ciblent le calendrier de cette boîte (voir ews.js, folderCalendrierXml) : le
+    // compte de connexion doit alors avoir un accès délégué en écriture sur ce calendrier.
+    calendrierPartage: texteNettoye(b.calendrierPartage) || texteNettoye(p.calendrierPartage)
   };
 }
 

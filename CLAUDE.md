@@ -8703,6 +8703,38 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     « Noter dans l'agenda », puis en vérifiant dans Outlook que le lieu du rendez-vous porte la
     mention après les initiales ET que sa couleur n'a pas changé. Même réserve que les briques 1 et 2
     (Extended Protection si l'écriture échoue malgré des identifiants certains).
+- **Calendrier PARTAGÉ de l'office (Sophie), et non celui du compte de connexion** — précision de
+  l'étude : « les rendez-vous de l'office sont dans un calendrier partagé par Sophie, les
+  modifications sont à faire dessus ». Le code EWS ciblait jusqu'ici le calendrier par défaut du
+  compte de connexion (`DistinguishedFolderId Id="calendar"`), ce qui n'est pas celui de Sophie si
+  les identifiants stockés sont ceux d'un autre collaborateur.
+  - **Nouveau réglage `calendrierPartage`** (Réglages → carte Exchange, champ « Calendrier partagé
+    de l'office (Sophie) ») : l'adresse de la boîte dont le calendrier partagé porte les rendez-vous.
+    **Laissé vide** si les identifiants de connexion sont ceux de ce calendrier (le calendrier par
+    défaut convient alors, comportement inchangé) ; renseigné sinon. Stocké dans
+    `parametresRepo.assainirReglagesExchange`/`lireReglagesExchange`, conservé quand le formulaire ne
+    le réémet pas, jamais un secret (renvoyé normalement au client).
+  - **`folderCalendrierXml(mailbox)`** (`ews.js`) : sans boîte →
+    `<t:DistinguishedFolderId Id="calendar"/>` (défaut) ; avec boîte →
+    `<t:DistinguishedFolderId Id="calendar"><t:Mailbox><t:EmailAddress>…</t:EmailAddress></t:Mailbox>…`
+    qui adresse le dossier « calendar » de CETTE boîte. Utilisé par `corpsFindRendezVous`
+    (ParentFolderIds) ET `corpsCreateRendezVous` (SavedItemFolderId, brique 1) : la **création** ET
+    la **note d'envoi** visent donc le calendrier partagé. L'`UpdateItem` n'a pas besoin de re-cibler
+    le dossier — l'`ItemId` renvoyé par le FindItem sur le calendrier partagé porte déjà le contexte
+    de la boîte de Sophie.
+  - **Prérequis côté office** : le compte de connexion doit avoir un **accès délégué en écriture** sur
+    le calendrier partagé de Sophie (sinon `ErrorAccessDenied` à la création/mise à jour). C'est un
+    réglage de permissions Exchange/Outlook côté bureau, hors de portée du code — à vérifier par
+    l'étude si l'écriture échoue avec des identifiants pourtant corrects.
+  - **La lecture du flux `.ics`** (`agendaWatch.js`, détection auto « appel de fonds envoyé ») n'est
+    pas concernée : elle lit déjà l'URL publiée du calendrier de Sophie, indépendante d'EWS.
+  - Tests : `server/test/ews.test.js` (+2 : `folderCalendrierXml` défaut vs boîte, `corpsFindRendezVous`/
+    `corpsCreateRendezVous` ciblant la boîte partagée quand `mailbox` est fournie),
+    `server/test/parametresRepo.test.js` (+1 : `calendrierPartage` enregistré et conservé). Suite
+    serveur 429 → 432. **Vérifié dans un vrai Chromium** : le champ des Réglages charge la valeur
+    enregistrée, un nouvel enregistrement la persiste, le mot de passe reste conservé, aucune erreur
+    JS. L'écriture EWS réelle dans le calendrier partagé reste à confirmer au bureau (mêmes réserves
+    que ci-dessus, plus l'accès délégué).
 
 ## Comment tester
 

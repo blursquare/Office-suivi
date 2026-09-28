@@ -105,7 +105,10 @@ function creerRouteurExchange(parametresRepo) {
         heureStr,
         dureeMinutes,
         lieu: String(b.lieu || '').trim(),
-        corps: String(b.corps || '').trim()
+        corps: String(b.corps || '').trim(),
+        // Créer le rendez-vous dans le calendrier PARTAGÉ (celui de Sophie) quand il est configuré,
+        // sinon dans le calendrier du compte de connexion. Voir ews.js/folderCalendrierXml.
+        mailbox: reglages.calendrierPartage
       }
     });
     res.json({ ok: !!resultat.ok, message: resultat.message });
@@ -189,8 +192,12 @@ function creerRouteurExchange(parametresRepo) {
       return res.status(400).json({ ok: false, message: "Rien à noter dans l'agenda." });
     }
     const { debutUtc, finUtc } = fenetreJourneeParis(date);
+    // Chercher dans le calendrier PARTAGÉ (celui de Sophie) s'il est configuré. L'ItemId renvoyé
+    // par FindItem porte déjà le contexte de cette boîte : l'UpdateItem qui suit n'a pas besoin de
+    // re-cibler le dossier, il opère sur cet ItemId.
     const trouve = await trouverRendezVousExchange({
-      url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse, debutUtc, finUtc
+      url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse,
+      debutUtc, finUtc, mailbox: reglages.calendrierPartage
     });
     if (!trouve.ok) {
       return res.json({ ok: false, message: trouve.message });
