@@ -11467,3 +11467,17 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
   pleine neutre, ni date, ni état, ni validation, ni suppression, ni menu de catégorie. Seul le
   crayon reste au survol (« Un prêt finalement ? Saisir sa date d'obtention ») : saisir une date
   repasse le dossier avec prêt (`validerEditionDate`, inchangé).
+
+- **28/09/2026 — « Fonds reçus » et « Confirmer la réception des fonds » fusionnés** (demandé par
+  l'étude, qui ne voyait pas la différence entre les deux lignes). La première est une vérification
+  interne (lecture des reçus comptables du NAS, total comparé au montant attendu), la seconde
+  l'email au client ou au confrère : une seule ligne `renderFondsRecus` enchaîne désormais les deux.
+  Geste principal : « Vérifier / Revérifier » tant que les fonds ne sont pas tous lus dans les reçus ;
+  « Confirmer » (email `fonds`) dès qu'ils le sont, « Revérifier » passant en icône ; « Renvoyer »
+  une fois la confirmation envoyée, sa date en précision. La lecture des reçus n'étant vérifiée que
+  sur deux PDF réels, un lien « Confirmer la réception des fonds quand même » reste dans le détail
+  (appel de fonds fait, confirmation pas encore envoyée) : un versement absent des reçus lus ne
+  bloque jamais l'email. `renderReceptionFonds` et la clé `fonds` de `echangesSelonStade` sont
+  retirées. Dans « À faire », l'action « Confirmer la réception des fonds » est inchangée mais son
+  détail dit ce qu'a trouvé la dernière lecture des reçus (tout reçu, reçu partiel avec le reste,
+  ou « vérifiez les reçus sur la fiche »).

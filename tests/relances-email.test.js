@@ -138,25 +138,40 @@ test('relances : ouvertes en participation, toujours routées vers le confrère 
   assert.match(app.renderEchangesDossier(confrere), /Adressé au notaire de l.acquéreur/);
 });
 
-test('réception des fonds : ligne d’action de l’onglet Échanges, seulement une fois l’appel de fonds validé', () => {
+test('fonds reçus : vérifier d’abord, « Confirmer » une fois tous les fonds reçus', () => {
   const app = chargerApplication();
-  // Plus proposée parmi les relances de la fiche : elle vit à côté de l'appel de fonds.
+  // Appel de fonds pas encore fait : rien à confirmer, seulement vérifier.
   const avecRdv = dossierBase(app, { rendezVousSignature: '2026-11-20', acte: '2026-11-30' });
-  assert.doesNotMatch(app.renderEchangesDossier(avecRdv), /'fonds'/);
-  assert.equal(app.renderReceptionFonds(avecRdv), '');
-  const fait = dossierBase(app, { rendezVousSignature: '2026-11-20', appelFonds: '2026-10-30', echeancesValidees: { appelFonds: true } });
-  assert.match(app.renderReceptionFonds(fait), /envoyerRelanceCiblee\('d1', 'fonds'\)/);
-  assert.match(app.renderReceptionFonds(fait), /Confirmer la réception des fonds/);
-  assert.match(app.renderEchangesDossier(fait), /Confirmer la réception des fonds/);
+  assert.doesNotMatch(app.renderFondsRecus(avecRdv), /'fonds'/);
   assert.doesNotMatch(app.renderEchangesDossier(avecRdv), /Confirmer la réception des fonds/);
+
+  // Appel de fonds fait, reçus pas encore lus : « Vérifier » en geste principal ; la confirmation
+  // reste possible « quand même » depuis le détail.
+  const fait = dossierBase(app, { rendezVousSignature: '2026-11-20', appelFonds: '2026-10-30', echeancesValidees: { appelFonds: true } });
+  const pasVerifie = app.renderFondsRecus(fait);
+  assert.match(pasVerifie, /<span>Vérifier<\/span>/);
+  assert.match(pasVerifie, /Confirmer la réception des fonds quand même/);
+  assert.match(app.renderEchangesDossier(fait), /Confirmer la réception des fonds/);
+
+  // Tous les fonds reçus : « Confirmer » devient le geste principal, « Revérifier » passe en icône.
+  const complet = Object.assign({}, fait, { fondsRecus: { total: 1500, attendu: 1500, recus: [], depuis: '2026-10-15', fichiersLus: 1, verifieLe: '2026-11-02T10:00:00Z' } });
+  const html = app.renderFondsRecus(complet);
+  assert.match(html, /<span>Confirmer<\/span>/);
+  assert.match(html, /envoyerRelanceCiblee\('d1', 'fonds'\)/);
+  assert.match(html, /title="Revérifier les reçus"/);
+  assert.doesNotMatch(html, /quand même/);
+
+  // Reçus partiels : pas de « Confirmer » en geste principal.
+  const partiel = Object.assign({}, fait, { fondsRecus: Object.assign({}, complet.fondsRecus, { total: 1000 }) });
+  assert.match(app.renderFondsRecus(partiel), /<span>Revérifier<\/span>/);
 });
 
-test('réception des fonds : une fois confirmée, la carte affiche la date et propose de renvoyer', () => {
+test('fonds reçus : une fois la confirmation envoyée, la date s’affiche et « Renvoyer » est proposé', () => {
   const app = chargerApplication();
   const d = dossierBase(app, { appelFonds: '2026-10-30', echeancesValidees: { appelFonds: true }, receptionFondsConfirmeeLe: '2026-11-02' });
-  const html = app.renderReceptionFonds(d);
+  const html = app.renderFondsRecus(d);
   assert.match(html, /confirmée le 2 novembre 2026/);
-  assert.match(html, /Renvoyer/);
+  assert.match(html, /<span>Renvoyer<\/span>/);
   assert.equal(app.MODELES_EMAIL_RELANCE.fonds.date, 'receptionFondsConfirmeeLe');
 });
 
@@ -434,14 +449,14 @@ test('echangesSelonStade : ce qui sert maintenant d’abord, le reste replié, r
   const auj = '2026-10-01';
   const ouverture = app.echangesSelonStade(dossierBase(app, { pret: '2026-10-20', ventebien: '2026-10-10' }), auj);
   assert.equal(ouverture.utiles.join(','), 'provision,ventePrealable,pret');
-  assert.equal(ouverture.autres.join(','), 'appelFonds,fondsRecus,fonds,rib,agenda,questionnaire');
+  assert.equal(ouverture.autres.join(','), 'appelFonds,fondsRecus,rib,agenda,questionnaire');
 
   const rdvAFixer = app.echangesSelonStade(dossierBase(app, { pret: '2026-09-20', offrePretStatut: 'recue' }), auj);
   assert.equal(rdvAFixer.utiles.join(','), 'provision,appelFonds');
 
   // Rendez-vous fixé : la provision passe « hors de ce stade », l'offre reçue ne se relance plus.
   const signature = app.echangesSelonStade(dossierBase(app, { sansPret: true, rendezVousSignature: '2026-10-15' }), auj);
-  assert.equal(signature.utiles.join(','), 'appelFonds,fondsRecus,fonds,rib,agenda');
+  assert.equal(signature.utiles.join(','), 'appelFonds,fondsRecus,rib,agenda');
   assert.ok(signature.autres.includes('provision'));
 
   const signe = app.echangesSelonStade(dossierBase(app, { sansPret: true, rendezVousSignature: '2026-09-15' }), auj);

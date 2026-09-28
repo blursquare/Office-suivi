@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-28 23:59';
+  const VERSION_APP = '2026-09-29 00:05';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 00:05', resume: "« Fonds reçus » et « Confirmer la réception des fonds » ne font plus qu'une ligne : on vérifie les reçus, puis « Confirmer » (email au client) apparaît quand tous les fonds sont reçus ; « confirmer quand même » reste possible si un versement n'est pas dans les reçus lus." },
     { version: '2026-09-28 23:59', resume: "Achat comptant : la ligne « Obtention du prêt » devient « Financement comptant », sans date ni rien à cocher." },
     { version: '2026-09-28 23:50', resume: "Onglet Échanges selon le stade du dossier (conditions en cours, rendez-vous à fixer, signature en préparation, acte signé) : d'abord les emails et gestes utiles maintenant, au client ou au confrère ; le reste replié sous « Hors de ce stade »." },
     { version: '2026-09-28 23:46', resume: "Fiche plus lisible : les échéances tiennent sur une ligne chacune (date, état, gestes au survol) sous un encadré « Prochaine étape » ; chaque email ou action (relances, appel de fonds, fonds reçus, agenda, questionnaire) prend la même forme de ligne que la liste « À faire » ; un seul bouton « Ajouter » partout." },
@@ -10683,7 +10684,7 @@
       sauvegarder(d);
       render();
       const b = bilanFondsRecus(d.fondsRecus.total, d.fondsRecus.attendu);
-      afficherToast(b.etat === 'complet' ? 'Tous les fonds attendus sont reçus.'
+      afficherToast(b.etat === 'complet' ? 'Tous les fonds attendus sont reçus : la confirmation au client est prête.'
         : `${trouves.length} reçu${trouves.length > 1 ? 's' : ''} trouvé${trouves.length > 1 ? 's' : ''} dans ${lus} fichier${lus > 1 ? 's' : ''} de reçus.`, 'OK', null);
     } catch (e) {
       afficherToast('Lecture des reçus impossible : ' + e.message, 'OK', null);
@@ -10707,9 +10708,16 @@
     render();
   }
 
-  // Ligne d'action « Fonds reçus » (onglet Échanges) : l'état en précision, « Vérifier » à droite,
-  // et en dessous, toujours visibles, le montant attendu et chaque reçu retenu — l'indicateur ne
-  // dit jamais « complet » sans montrer sur quoi il se fonde.
+  // Ligne d'action « Fonds reçus » (onglet Échanges) : vérifier PUIS confirmer au client, sur une
+  // seule ligne (demandé par l'étude le 28/09 : les deux lignes séparées ne disaient pas que l'une
+  // précède l'autre). L'état en précision ; en dessous, toujours visibles, le montant attendu et
+  // chaque reçu retenu — l'indicateur ne dit jamais « complet » sans montrer sur quoi il se fonde.
+  // Le geste principal suit l'avancement :
+  //   pas vérifié / incomplet → « Vérifier » (lire les reçus du NAS) ;
+  //   tous les fonds reçus    → « Confirmer » (email au client ou au confrère), « Revérifier » en icône ;
+  //   confirmation envoyée    → « Renvoyer », la date de l'envoi en précision.
+  // La lecture des reçus peut manquer un versement (nom inattendu, reçu pas encore déposé) : la
+  // confirmation reste possible « quand même » depuis le détail, une fois l'appel de fonds fait.
   function renderFondsRecus(d) {
     if (!echeanceValidee(d, 'appelFonds') && !d.fondsRecus && !d.rendezVousSignature) return '';
     const f = d.fondsRecus;
@@ -10737,20 +10745,24 @@
       ${liste}
       ${f ? `<p class="hint">Reçus lus depuis le ${formatDateFr(f.depuis)} (${f.fichiersLus} fichier${f.fichiersLus > 1 ? 's' : ''}) — vérifié ${new Date(f.verifieLe).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}. Chaque versement au nom de l’acquéreur est listé : vérifiez qu’il concerne bien ce dossier.</p>` : ''}
     </div>`;
+    const complet = !!f && b.etat === 'complet';
+    const peutConfirmer = echeanceValidee(d, 'appelFonds') && !!emailDestinataireRelance(d);
+    const confirmee = d.receptionFondsConfirmeeLe;
+    const confirmer = `envoyerRelanceCiblee('${d.id}', 'fonds')`;
+    const verifier = { libelle: f ? 'Revérifier' : 'Vérifier', icone: icone('rotate-ccw'), onclick: `verifierFondsRecus('${d.id}', this)`, titre: 'Lire les reçus comptables déposés sur le NAS' };
+    let bouton = verifier;
+    if (peutConfirmer && confirmee) bouton = { libelle: 'Renvoyer', icone: icone('mail'), onclick: confirmer, titre: 'Renvoyer la confirmation de réception des fonds' };
+    else if (peutConfirmer && complet) bouton = { libelle: 'Confirmer', icone: icone('mail'), onclick: confirmer, titre: 'Confirmer la réception des fonds au client' };
+    const reverifierIcone = bouton === verifier ? '' : `<button type="button" class="icon-btn ja-plus-tard" onclick="verifierFondsRecus('${d.id}', this)" title="${f ? 'Revérifier les reçus' : 'Vérifier les reçus'}" aria-label="${f ? 'Revérifier les reçus' : 'Vérifier les reçus'}">${icone('rotate-ccw')}</button>`;
+    const sousHtml = etat + (confirmee ? ` <span class="fonds-confirmation">· Réception des fonds confirmée le ${formatDateFr(confirmee)}</span>` : '');
+    const confirmerQuandMeme = peutConfirmer && !confirmee && !complet
+      ? `<p class="hint">Fonds arrivés mais absents des reçus lus ? <button type="button" class="lien-action" onclick="${confirmer}">Confirmer la réception des fonds quand même</button></p>`
+      : '';
     return renderLigneAction({
       categorie: 'appelFonds', categorieLabel: 'Fonds reçus', titre: 'Fonds reçus en comptabilité',
-      sousHtml: etat, faite: !!f && b.etat === 'complet',
-      bouton: { libelle: f ? 'Revérifier' : 'Vérifier', icone: icone('rotate-ccw'), onclick: `verifierFondsRecus('${d.id}', this)`, titre: 'Lire les reçus comptables déposés sur le NAS' },
-      detail, detailOuvert: true
+      sousHtml, faite: !!confirmee, bouton, secondaires: reverifierIcone,
+      detail: detail + confirmerQuandMeme, detailOuvert: true
     });
-  }
-
-  // « Confirmer la réception des fonds » : proposé une fois l'appel de fonds validé (date saisie,
-  // validation manuelle ou relevé dans l'agenda). Une fois envoyé, la date s'affiche et le bouton
-  // devient « Renvoyer », comme pour le questionnaire de satisfaction.
-  function renderReceptionFonds(d) {
-    if (!echeanceValidee(d, 'appelFonds')) return '';
-    return renderLigneEmailDossier(d, 'fonds');
   }
 
   // Noter dans l'agenda Outlook de l'office qu'un envoi vient d'être fait : écrit « Appel de fonds
@@ -13915,10 +13927,17 @@
           });
         }
         if (jRdv <= JOURS_ACTIONS_RENDEZ_VOUS && af && !d.receptionFondsConfirmeeLe && dest) {
+          // Ce que dit la dernière lecture des reçus (onglet Échanges › Fonds reçus), s'il y en a une.
+          const fr = d.fondsRecus;
+          const bilan = fr ? bilanFondsRecus(fr.total, d.fondsAttendusManuel || fr.attendu) : null;
+          const etatFonds = !bilan ? 'À envoyer une fois les fonds arrivés en comptabilité (vérifiez les reçus sur la fiche).'
+            : bilan.etat === 'complet' ? 'Tous les fonds sont reçus d’après les reçus comptables.'
+            : bilan.etat === 'partiel' ? `Reçus comptables : ${formaterPrixCentimes(bilan.total)} sur ${formaterPrixCentimes(bilan.attendu)}, reste ${formaterPrixCentimes(bilan.reste)}.`
+            : 'Aucun reçu complet trouvé à la dernière vérification.';
           ajouter({
             type: 'fonds', categorie: 'appelFonds', categorieLabel: 'Réception des fonds',
             titre: 'Confirmer la réception des fonds',
-            contexte: `Appel de fonds envoyé${d.appelFonds ? ' le ' + formatDateFr(d.appelFonds) : ''}. ${signature}. À envoyer une fois les fonds arrivés en comptabilité.`,
+            contexte: `Appel de fonds envoyé${d.appelFonds ? ' le ' + formatDateFr(d.appelFonds) : ''}. ${signature}. ${etatFonds}`,
             jours: jRdv, gravite: jRdv <= 2 ? 'vigilance' : 'normal',
             geste: { type: 'email', motif: 'fonds' }, bouton: 'Ouvrir la confirmation'
           });
@@ -16713,7 +16732,7 @@
   // Confirmation de réception des fonds, demandée par l'étude : l'acquéreur a viré le montant de
   // l'appel de fonds, on lui confirme que les fonds sont bien arrivés en comptabilité. La ligne
   // d'action vit dans l'onglet Échanges et n'apparaît qu'une fois
-  // cet appel de fonds validé (voir renderReceptionFonds) : avant, il n'y a rien à
+  // cet appel de fonds validé (voir renderFondsRecus, qui la propose une fois les fonds vérifiés) : avant, il n'y a rien à
   // confirmer. Le rendez-vous de signature n'est rappelé que s'il est fixé — jamais la date butoir
   // de l'avant-contrat, qui n'est qu'indicative et induirait le client en erreur.
   function construireEmailReceptionFonds(d) {
@@ -17027,7 +17046,7 @@
   //   vente préal. tant qu'elle est attendue (avant la signature)
   //   prêt         tant que l'offre est attendue et la condition non levée
   //   appel fonds  à préparer dès les conditions levées, et jusqu'à la signature
-  //   fonds reçus, réception des fonds, RIB, note d'agenda : rendez-vous fixé
+  //   fonds reçus (vérifier puis confirmer au client), RIB, note d'agenda : rendez-vous fixé
   //   questionnaire : acte signé
   function echangesSelonStade(d, aujourdhuiIso) {
     const stade = stadeDossier(d, aujourdhuiIso);
@@ -17039,7 +17058,6 @@
     if (!d.sansPret && d.offrePretStatut !== 'recue') ranger('pret', stade !== 'signe' && !echeanceValidee(d, 'pret'));
     ranger('appelFonds', stade === 'rendezVous' || stade === 'signature');
     ranger('fondsRecus', stade === 'signature');
-    ranger('fonds', stade === 'signature');
     ranger('rib', stade === 'signature');
     ranger('agenda', stade === 'signature');
     ranger('questionnaire', stade === 'signe');
@@ -17054,7 +17072,6 @@
     if (cle === 'agenda') return renderNoterAgenda(d);
     if (cle === 'questionnaire') return renderQuestionnaireSatisfaction(d);
     if (!avecDestinataire) return '';
-    if (cle === 'fonds') return renderReceptionFonds(d);
     return renderLigneEmailDossier(d, cle);
   }
 
