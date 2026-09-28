@@ -16,6 +16,8 @@ on:
       - 'manifest.json'
       - 'sw.js'
       - 'icone.svg'
+      - 'appel-de-fonds-modele.js'
+      - 'questionnaire-satisfaction-pdf.js'
       - '.github/workflows/build-exe.yml'
   workflow_dispatch:
 
@@ -38,6 +40,15 @@ jobs:
       - name: Installer les dépendances serveur
         working-directory: server
         run: npm ci
+
+      # Un exécutable n'est publié que si les deux suites de tests passent : sinon la mise à jour
+      # en un clic pourrait installer au bureau une version qui casse une fonction déjà en place.
+      - name: Tests côté client
+        run: npm test
+
+      - name: Tests côté serveur
+        working-directory: server
+        run: npm test
 
       - name: Construire l'exécutable Windows
         working-directory: server
