@@ -80,6 +80,21 @@ distinct de l'export `.ics` ponctuel d'un seul dossier depuis l'outil lui-même 
 (.ics) » sur une fiche, limité à la seule date de prêt) : celui-ci est un abonnement continu qui se
 tient à jour tout seul, pour tout le portefeuille, sans jamais rouvrir l'outil.
 
+**En cours de remplacement par le calendrier partagé de l'office (28/09/2026).** Quand la connexion
+à l'agenda Outlook est activée (Réglages › Rappels et agenda), CLAIRE pose ces deux dates
+directement dans le calendrier partagé par EWS (`POST /api/exchange/echeance`, actions
+`creer` / `modifier` / `supprimer`) : un événement « toute la journée », marqué Libre, sans rappel
+Outlook, titré comme avant (« Obtention du prêt — ACQUÉREUR - Dossier … »). CLAIRE garde son
+identifiant sur le dossier (`d.agendaEcheances[type]`), le déplace quand la date change et le
+retire (vers les éléments supprimés, récupérable) quand l'offre est reçue, la vente préalable
+réalisée, la date effacée ou le dossier archivé. Rien n'est repris d'office : un dossier existant
+n'y passe qu'à la prochaine modification de sa date, et **une date posée dans le calendrier
+partagé n'est plus publiée par ce flux** (sinon elle apparaîtrait deux fois). Tant qu'un dossier
+n'a pas été repris, ou si la création a échoué, il reste publié ici : aucune date ne disparaît
+entre les deux. Après un refus d'identifiants, plus aucune tentative automatique jusqu'au prochain
+lancement (plusieurs échecs verrouillent le compte de messagerie). **Non vérifié sur le vrai
+Exchange** : à confirmer au bureau sur un dossier dont on modifie la date de prêt.
+
 1. Au démarrage du serveur (`.exe` ou `npm start`), la console affiche une ou plusieurs adresses
    du type `http://<ip>:3000/calendrier.ics?token=...` — la même liste est écrite dans
    `Adresses-du-serveur.txt` à côté de l'exécutable en mode `.exe`. Le jeton (`token=...`) est

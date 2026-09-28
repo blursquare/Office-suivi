@@ -9033,6 +9033,70 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     vérifications visuelles des sessions précédentes s'appuyaient dessus) — `node -c` OK, `npm test`
     vert (860), CSS relue. Rendu visuel (rail, nœuds, alignement, clair/sombre) à confirmer par
     l'étude.
+- **Dates butoir d'obtention du prêt et de vente préalable posées directement dans le calendrier
+  partagé de l'office, sans passer par le `.ics` de CLAIRE** — seconde moitié du lot ci-dessus
+  (« VU que l'on a maintenant accès à l'agenda on peut mettre directement les dates butoir […] et
+  ne plus passer par le .ics de claire »). Deux arbitrages demandés à l'étude avant d'écrire une
+  ligne (événements écrits dans un agenda partagé par tout le bureau, ~60 dossiers, impossible à
+  vérifier ici) : **automatique sans toucher l'existant** (un dossier n'est posé qu'à la prochaine
+  modification de sa date, rien n'est repris en masse), et **mise à jour / retrait** (l'événement
+  suit la date, et disparaît quand la condition est levée).
+  - **EWS** (`server/src/exchange/ews.js`) : `corpsCreateEcheance` (CalendarItem « toute la
+    journée », minuit→minuit à Paris via `instantUtcDepuisParis`, `LegacyFreeBusyStatus=Free` — une
+    date butoir ne bloque pas la journée —, **sans rappel Outlook**, les rappels J-15/J-7 partant
+    déjà par email), `corpsUpdateEcheanceDate` (SetItemField sur `calendar:Start` ET `calendar:End`
+    dans la même requête, rien d'autre — ni titre ni catégorie de couleur posée à la main),
+    `corpsDeleteEcheance` (**`MoveToDeletedItems`, jamais `HardDelete`** : un retrait par erreur se
+    récupère). Les trois ciblent le calendrier partagé (`folderCalendrierXml(calendrierPartage)`).
+    Un transport commun `posterEws` pour ces trois-là (les fonctions déjà en place n'ont pas été
+    refactorisées). `interpreterReponseCreation` renvoie désormais aussi le **ChangeKey** : un
+    UpdateItem en attribue un nouveau, que le déplacement suivant doit présenter.
+    `ErrorItemNotFound` n'est pas un échec pour un retrait (l'état voulu est atteint) et devient
+    `introuvable: true` pour un déplacement — le client oublie l'identifiant et repose l'événement.
+  - **Route** `POST /api/exchange/echeance` (`action` = `creer` | `modifier` | `supprimer`),
+    identifiants pris dans les Réglages enregistrés, validation avant tout appel réseau, renvoie
+    `raison` pour que le client reconnaisse un refus d'identifiants. **Le serveur ne décide
+    jamais** : il n'agit que sur l'identifiant qu'on lui présente.
+  - **Client** (`script.js`, juste après `noterEnvoiDansAgenda`) : `actionEcheanceAgenda(d, type,
+    creerSiAbsent)` (pure, testée) décide ; `synchroniserEcheanceAgenda` exécute et garde
+    `d.agendaEcheances[type] = { itemId, changeKey, date }`. **Seul un geste de l'étude sur la date
+    crée** (`creerSiAbsent` : saisie ou correction de la date, recatégorisation, validation annulée,
+    désarchivage) ; les contrôles automatiques (parcours du NAS quand l'offre devient reçue,
+    reconciliation au démarrage) ne font que déplacer ou retirer ce que CLAIRE a déjà posé.
+    Branchée dans `validerEditionDate`, `supprimerDateEcheance`, `validerEcheance`/
+    `devaliderEcheance`, `changerCategorie`, `archiverDossier` et `verifierDossierLocal`.
+    `reconcilierEcheancesAgenda()` au démarrage (après `chargerReglagesExchange`) retente les
+    retraits/déplacements restés en attente, sur les seuls dossiers déjà posés, et **s'arrête au
+    premier échec**.
+  - **Verrouillage du compte de messagerie** : un refus d'identifiants (`raison: 'auth'`) suspend
+    toute synchronisation automatique jusqu'au prochain lancement (`syncEcheancesAgendaSuspendue`,
+    un toast le dit une fois) — sans ce disjoncteur, le parcours périodique du NAS aurait retenté un
+    retrait en attente toutes les 5 minutes avec un mauvais mot de passe. Un seul appel à la fois
+    par échéance (`echeancesAgendaEnCours`) : deux saisies rapprochées ne créent pas deux événements.
+  - **Transition sans trou ni doublon** (`echeancePublieeAgenda`, `server/src/routes/calendrier.js`) :
+    le flux `.ics` n'est PAS vidé — il cesse seulement de publier une date déjà posée dans le
+    calendrier partagé (`d.agendaEcheances[type].itemId`). Les ~60 dossiers existants restent donc
+    publiés par le flux jusqu'à leur prochaine modification, et une création qui échoue reste
+    couverte par lui. Vider le flux d'un coup aurait fait disparaître toutes les dates existantes
+    de l'agenda des collaborateurs abonnés, puisque rien n'est repris d'office. **Le `.ics` de LECTURE
+    de l'agenda de l'office (`agendaWatch.js`) n'est pas touché** (demandé explicitement : « on garde
+    le .ics pour la lecture »). Le titre des événements reprend celui du flux (« Obtention du prêt —
+    ACQUÉREUR - Dossier … ») et **ne contient jamais « VTE - »** : relu par `agendaWatch`, il serait
+    pris pour une référence de dossier (l'événement étant « toute la journée », il ne serait de
+    toute façon jamais pris pour un rendez-vous de signature, ni pour une absence faute de mot
+    d'absence).
+  - `d.agendaEcheances` est **conservé à l'import** (`agendaEcheancesImportees`, deux clés connues,
+    identifiant non vide) : c'est un identifiant Exchange valable pour tout l'office, sans lequel
+    CLAIRE reposerait l'événement en double.
+  - Tests : `server/test/ews.test.js` (+7 : journée entière à Paris été/hiver, déplacement sans
+    titre ni couleur, retrait récupérable, `ErrorItemNotFound`, ChangeKey renvoyé, refus
+    d'identifiants), `server/test/exchange-route.test.js` (+2), `server/test/calendrier.test.js`
+    (+1 : une date posée quitte le flux, l'autre y reste), `tests/agenda-echeances.test.js` (4).
+    Suites : racine 864, serveur 455. **Non vérifié sur le vrai Exchange** (joignable seulement au
+    bureau) : à confirmer en modifiant la date de prêt d'un dossier, puis en vérifiant dans Outlook
+    l'événement du jour dans le calendrier partagé, son déplacement à la date suivante, et son
+    retrait une fois l'offre marquée reçue. Si le déplacement d'un événement « toute la journée »
+    était refusé par Exchange, la voie de repli est retrait + recréation.
 
 ## Comment tester
 

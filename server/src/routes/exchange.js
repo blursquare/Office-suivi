@@ -18,7 +18,8 @@
 const express = require('express');
 const {
   testerConnexionExchange, creerRendezVousExchange, creerBrouillonExchange,
-  fenetreJourneeParis, trouverRendezVousExchange, mettreAJourLieuExchange
+  fenetreJourneeParis, trouverRendezVousExchange, mettreAJourLieuExchange,
+  creerEcheanceExchange, mettreAJourEcheanceExchange, supprimerEcheanceExchange
 } = require('../exchange/ews');
 const { extraireReferenceVte, dossierPourReferenceAgenda, composerLieuAgenda } = require('../agendaOffice');
 const { URL_EWS_DEFAUT } = require('../parametresRepo');
@@ -227,6 +228,55 @@ function creerRouteurExchange(parametresRepo) {
       itemId: evt.itemId, changeKey: evt.changeKey, lieu: nouveauLieu
     });
     res.json({ ok: !!maj.ok, message: maj.ok ? ('Agenda mis à jour : « ' + nouveauLieu + ' ».') : maj.message });
+  });
+
+  // Dates butoir (obtention du prêt, vente préalable) tenues dans le calendrier partagé — voir
+  // ews.js. Trois actions : créer (renvoie l'identifiant de l'événement, que le client garde sur le
+  // dossier), déplacer (même événement, nouvelle date) et retirer. C'est le CLIENT qui décide de
+  // l'action d'après l'état du dossier (voir synchroniserEcheanceAgenda dans script.js) : ce serveur
+  // ne crée jamais un événement de lui-même, et n'agit que sur l'identifiant qu'on lui présente.
+  routeur.post('/exchange/echeance', async (req, res) => {
+    const reglages = parametresRepo.lireReglagesExchange();
+    if (!reglages.actif) {
+      return res.status(400).json({ ok: false, message: "La connexion à l'agenda n'est pas activée dans les Réglages." });
+    }
+    if (!reglages.email || !reglages.motDePasse) {
+      return res.status(400).json({ ok: false, message: 'Identifiants de messagerie manquants dans les Réglages.' });
+    }
+    const b = req.body || {};
+    const action = String(b.action || '');
+    const date = String(b.date || '').trim();
+    const itemId = String(b.itemId || '').trim();
+    const changeKey = String(b.changeKey || '').trim();
+    const acces = { url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse };
+    const dateValide = /^\d{4}-\d{2}-\d{2}$/.test(date);
+
+    if (action === 'creer') {
+      const sujet = String(b.sujet || '').trim().slice(0, 250);
+      if (!dateValide) return res.status(400).json({ ok: false, message: 'Date invalide.' });
+      if (!sujet) return res.status(400).json({ ok: false, message: "Objet de l'événement manquant." });
+      const r = await creerEcheanceExchange({
+        ...acces,
+        echeance: { sujet, dateStr: date, corps: String(b.corps || '').slice(0, 2000), mailbox: reglages.calendrierPartage }
+      });
+      return res.json({ ok: !!r.ok, message: r.message, raison: r.raison || '', itemId: r.itemId || '', changeKey: r.changeKey || '' });
+    }
+    if (action === 'modifier') {
+      if (!dateValide) return res.status(400).json({ ok: false, message: 'Date invalide.' });
+      if (!itemId || !changeKey) return res.status(400).json({ ok: false, message: "Identifiant de l'événement manquant." });
+      const r = await mettreAJourEcheanceExchange({ ...acces, itemId, changeKey, dateStr: date });
+      // Un UpdateItem renvoie un NOUVEAU ChangeKey : c'est lui que le client doit garder.
+      return res.json({
+        ok: !!r.ok, message: r.message, raison: r.raison || '', introuvable: !!r.introuvable,
+        itemId: r.itemId || itemId, changeKey: r.changeKey || changeKey
+      });
+    }
+    if (action === 'supprimer') {
+      if (!itemId) return res.status(400).json({ ok: false, message: "Identifiant de l'événement manquant." });
+      const r = await supprimerEcheanceExchange({ ...acces, itemId, changeKey });
+      return res.json({ ok: !!r.ok, message: r.message, raison: r.raison || '' });
+    }
+    return res.status(400).json({ ok: false, message: 'Action inconnue.' });
   });
 
   return routeur;

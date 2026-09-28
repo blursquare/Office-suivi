@@ -142,3 +142,22 @@ test('POST /api/exchange/rendez-vous/lieu : date, référence et contenu validé
   })).json();
   assert.match(rienANoter.message, /[Rr]ien/);
 });
+
+test('POST /api/exchange/echeance : refusé tant que la connexion n\'est pas activée', async () => {
+  await appeler('/api/exchange/reglages', { method: 'PUT', body: JSON.stringify({ actif: false, email: 'n@e.fr', motDePasse: '' }) });
+  const r = await appeler('/api/exchange/echeance', {
+    method: 'POST', body: JSON.stringify({ action: 'creer', date: '2026-10-14', sujet: 'Obtention du prêt — X' })
+  });
+  assert.equal(r.status, 400);
+  assert.match((await r.json()).message, /pas activée/i);
+});
+
+test('POST /api/exchange/echeance : action, date, objet et identifiant validés avant tout appel réseau', async () => {
+  await appeler('/api/exchange/reglages', { method: 'PUT', body: JSON.stringify({ actif: true, email: 'notaire@gossart.notaires.fr', motDePasse: 'SECRET123' }) });
+  const poster = (corps) => appeler('/api/exchange/echeance', { method: 'POST', body: JSON.stringify(corps) }).then((r) => r.json());
+  assert.match((await poster({ action: 'inventer' })).message, /[Aa]ction/);
+  assert.match((await poster({ action: 'creer', date: '14/10/2026', sujet: 'x' })).message, /[Dd]ate/);
+  assert.match((await poster({ action: 'creer', date: '2026-10-14', sujet: '' })).message, /[Oo]bjet/);
+  assert.match((await poster({ action: 'modifier', date: '2026-10-14', itemId: 'A' })).message, /[Ii]dentifiant/);
+  assert.match((await poster({ action: 'supprimer' })).message, /[Ii]dentifiant/);
+});

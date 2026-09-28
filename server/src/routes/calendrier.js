@@ -130,9 +130,17 @@ var TYPES_PUBLIES_AGENDA = ['pret', 'ventebien'];
 // Une échéance est publiée si elle est ACTIVE sur le dossier (date renseignée ; pour le prêt, pas
 // un achat comptant) et pas encore obtenue : offre de prêt reçue (statut NAS ou validation à la
 // main), vente préalable marquée réalisée. Même définition que les rappels email (echeanceValidee).
+//
+// Transition vers le calendrier partagé (demandé par l'étude, 28/09) : une date déjà posée dans
+// l'agenda Outlook par CLAIRE (d.agendaEcheances[type].itemId, voir /exchange/echeance) n'est plus
+// publiée ici — elle y figurerait deux fois. Les dossiers existants, jamais repris d'office, restent
+// publiés par ce flux jusqu'à leur prochaine modification de date : aucune date ne disparaît de
+// l'agenda entre les deux.
 function echeancePublieeAgenda(d, type) {
   if (!d || d.archive || !d[type]) return false;
   if (type === 'pret' && d.sansPret) return false;
+  const pose = d.agendaEcheances && d.agendaEcheances[type];
+  if (pose && pose.itemId) return false;
   return !echeanceValidee(d, type);
 }
 

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-28 14:48';
+  const VERSION_APP = '2026-09-28 15:10';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-28 15:10', resume: "Agenda de l'office : les dates butoir d'obtention du prêt et de vente préalable sont posées directement dans le calendrier partagé (événement « toute la journée »), déplacées quand la date change et retirées quand l'offre est reçue, la vente préalable réalisée, la date effacée ou le dossier archivé. Un dossier existant n'y passe qu'à la prochaine modification de sa date — d'ici là le flux .ics de CLAIRE continue de le publier. À tester au bureau." },
     { version: '2026-09-28 14:48', resume: "Fiche dossier : les échéances (prêt, vente préalable, date butoir, envois, rendez-vous…) sont présentées en timeline verticale — un rail avec un point coloré par échéance dans l'ordre chronologique. Mêmes contrôles qu'avant (crayon, croix, validation)." },
     { version: '2026-09-28 14:42', resume: "Agenda de l'office : dès qu'une date d'envoi (appel de fonds ou projet) est validée sur la fiche, la mention « appel de fonds envoyé » est écrite automatiquement dans le lieu du rendez-vous de signature, sans clic — le bouton « Noter dans l'agenda » reste comme repli si l'écriture auto a échoué ou si le rendez-vous est fixé après l'envoi. À tester au bureau." },
     { version: '2026-09-28 14:36', resume: "Emails : tous les courriers pré-rédigés de la fiche (relances, réception des fonds, questionnaire de satisfaction…) partent en brouillon Outlook quand la connexion Exchange est prête — signature de l'office ajoutée et pièce jointe déjà attachée (PDF du questionnaire), ce qu'un lien mailto ne sait pas faire. Sinon, brouillon mailto comme avant. À tester au bureau." },
@@ -10633,6 +10634,143 @@
     }
   }
 
+  // --- Obtention du prêt et vente préalable tenues dans le calendrier partagé de l'office ---
+  //
+  // Demandé par l'étude (28/09) : ces deux dates butoir ne passent plus par le flux .ics de CLAIRE,
+  // elles sont posées directement dans le calendrier partagé (voir /exchange/echeance et ews.js).
+  // Un événement « toute la journée » par échéance, dont CLAIRE garde l'identifiant sur le dossier
+  // (d.agendaEcheances[type] = { itemId, changeKey, date }) : il est DÉPLACÉ quand la date change et
+  // RETIRÉ quand la condition est levée (offre reçue, vente préalable réalisée), la date effacée ou
+  // le dossier archivé.
+  //
+  // Deux décisions de l'étude, à ne pas rouvrir sans elle :
+  //   - rien n'est repris d'office : un dossier existant n'est posé dans l'agenda qu'à la prochaine
+  //     modification de sa date (creerSiAbsent). D'ici là, le flux .ics continue de le publier
+  //     (voir echeancePublieeAgenda côté serveur) — aucune date ne disparaît entre les deux, et une
+  //     création qui échoue reste de même couverte par le flux ;
+  //   - mise à jour et retrait automatiques, sur le seul identifiant mémorisé : jamais d'événement
+  //     deviné d'après son titre.
+  var LIBELLES_ECHEANCE_AGENDA = { pret: 'Obtention du prêt', ventebien: 'Vente préalable' };
+
+  function echeanceAgendaSouhaitee(d, type) {
+    if (!d || d.archive || !d[type]) return false;
+    if (type === 'pret' && d.sansPret) return false;
+    return !echeanceValidee(d, type);
+  }
+
+  // Ce qu'il faut faire pour que l'agenda reflète le dossier : 'creer', 'modifier', 'supprimer' ou
+  // null. Pure, testable. `creerSiAbsent` n'est vrai que sur un geste de l'étude sur CETTE date
+  // (saisie, recatégorisation, validation annulée, désarchivage) : un contrôle automatique (NAS,
+  // démarrage) ne crée jamais, il ne fait que déplacer ou retirer ce que CLAIRE a déjà posé.
+  function actionEcheanceAgenda(d, type, creerSiAbsent) {
+    const pose = d && d.agendaEcheances && d.agendaEcheances[type];
+    const souhaitee = echeanceAgendaSouhaitee(d, type);
+    if (pose && pose.itemId) {
+      if (!souhaitee) return 'supprimer';
+      return pose.date === d[type] ? null : 'modifier';
+    }
+    return souhaitee && creerSiAbsent ? 'creer' : null;
+  }
+
+  // Un seul appel à la fois par échéance (deux saisies rapprochées ne créent pas deux événements),
+  // et plus aucune tentative automatique après un refus d'identifiants : chaque essai raté compte
+  // comme une tentative échouée sur le compte de messagerie, et plusieurs le verrouillent.
+  const echeancesAgendaEnCours = new Set();
+  let syncEcheancesAgendaSuspendue = false;
+
+  // Retourne { ok, message } quand un appel a eu lieu, undefined quand il n'y avait rien à faire.
+  async function synchroniserEcheanceAgenda(d, type, creerSiAbsent) {
+    if (!d || !LIBELLES_ECHEANCE_AGENDA[type]) return undefined;
+    const action = actionEcheanceAgenda(d, type, creerSiAbsent);
+    if (!action || syncEcheancesAgendaSuspendue || !exchangeAgendaPret()) return undefined;
+    const cle = d.id + ':' + type;
+    if (echeancesAgendaEnCours.has(cle)) return undefined;
+    echeancesAgendaEnCours.add(cle);
+    const libelle = LIBELLES_ECHEANCE_AGENDA[type];
+    const pose = (d.agendaEcheances && d.agendaEcheances[type]) || {};
+    let recreer = false;
+    try {
+      const corps = { action, date: d[type] || '', itemId: pose.itemId || '', changeKey: pose.changeKey || '' };
+      if (action === 'creer') {
+        // Même titre que celui que publiait le flux .ics : l'étude retrouve ses repères. Jamais
+        // « VTE - … » : l'agenda de l'office relu par CLAIRE prendrait l'événement pour un
+        // rendez-vous de signature.
+        corps.sujet = `${libelle} — ${extraireNomAcquereur(d.nom)} - Dossier ${d.nom}`;
+        corps.corps = type === 'pret'
+          ? 'Date butoir posée par CLAIRE. Retirée automatiquement une fois l’offre de prêt reçue.'
+          : 'Date butoir posée par CLAIRE. Retirée automatiquement une fois la vente préalable signée.';
+      }
+      const reponse = await fetchAvecAuth('/api/exchange/echeance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(corps)
+      });
+      const r = await reponse.json();
+      if (r.ok) {
+        d.agendaEcheances = d.agendaEcheances || {};
+        if (action === 'supprimer') {
+          delete d.agendaEcheances[type];
+          ajouterHistorique(d, `« ${libelle} » retirée de l’agenda Outlook`);
+        } else {
+          d.agendaEcheances[type] = { itemId: r.itemId || pose.itemId, changeKey: r.changeKey || pose.changeKey, date: d[type] };
+          ajouterHistorique(d, action === 'creer'
+            ? `« ${libelle} » posée dans l’agenda Outlook (${formatDateFr(d[type])})`
+            : `« ${libelle} » déplacée au ${formatDateFr(d[type])} dans l’agenda Outlook`);
+        }
+        sauvegarder(d);
+        render();
+        afficherToast(r.message || 'Agenda mis à jour.', 'OK', null);
+      } else if (r.introuvable) {
+        // Effacé à la main dans Outlook : l'identifiant ne sert plus, on repose l'événement.
+        delete d.agendaEcheances[type];
+        sauvegarder(d);
+        recreer = true;
+      } else if (r.raison === 'auth') {
+        syncEcheancesAgendaSuspendue = true;
+        afficherToast('Identifiants de messagerie refusés : les dates ne sont plus envoyées à l’agenda jusqu’au prochain lancement. Vérifiez les Réglages.', 'OK', null);
+      }
+      // Autre échec : silencieux. La date reste publiée par le flux .ics tant qu'elle n'est pas
+      // posée, et un retrait ou un déplacement en attente est retenté au prochain lancement.
+      return { ok: !!r.ok, message: r.message };
+    } catch (e) {
+      return { ok: false, message: 'Serveur injoignable.' };
+    } finally {
+      echeancesAgendaEnCours.delete(cle);
+      if (recreer) synchroniserEcheanceAgenda(d, type, true);
+    }
+  }
+
+  // Assainit d.agendaEcheances à l'import d'une sauvegarde : seules les deux clés connues, et
+  // seulement avec un identifiant exploitable. Pure, testable.
+  function agendaEcheancesImportees(v) {
+    const sortie = {};
+    if (!v || typeof v !== 'object') return sortie;
+    for (const type of Object.keys(LIBELLES_ECHEANCE_AGENDA)) {
+      const e = v[type];
+      if (!e || typeof e.itemId !== 'string' || !e.itemId) continue;
+      sortie[type] = {
+        itemId: e.itemId,
+        changeKey: typeof e.changeKey === 'string' ? e.changeKey : '',
+        date: typeof e.date === 'string' ? e.date : ''
+      };
+    }
+    return sortie;
+  }
+
+  // Au démarrage : retente ce qui a pu échouer (retrait après une offre reçue pendant une coupure,
+  // déplacement…). Ne regarde que les dossiers dont CLAIRE a déjà posé une date — jamais de
+  // création — et s'arrête au premier échec plutôt que d'enchaîner les tentatives.
+  async function reconcilierEcheancesAgenda() {
+    if (!exchangeAgendaPret()) return;
+    for (const d of dossiers) {
+      if (!d.agendaEcheances) continue;
+      for (const type of Object.keys(LIBELLES_ECHEANCE_AGENDA)) {
+        const r = await synchroniserEcheanceAgenda(d, type, false);
+        if (r && !r.ok) return;
+      }
+    }
+  }
+
   // Ordre d'affichage des cartes d'échéance sur la fiche : CHRONOLOGIQUE (demandé par l'étude),
   // et non plus l'ordre fixe prêt → appel de fonds → acte → rendez-vous → vente préalable →
   // personnalisées, qui ne disait rien de ce qui arrive en premier. Une échéance sans date
@@ -10712,6 +10850,8 @@
     ajouterHistorique(d, `${libelleEcheancePourHistorique(d, type)} marquée réalisée`);
     sauvegarder(d);
     render();
+    // Condition levée : l'événement posé dans l'agenda n'a plus lieu d'être.
+    synchroniserEcheanceAgenda(d, type, false);
   }
 
   // Une date d'appel de fonds renseignée vaut appel de fonds fait (voir validerEditionDate) ;
@@ -10752,6 +10892,8 @@
     ajouterHistorique(d, `${libelleEcheancePourHistorique(d, type)} : validation annulée`);
     sauvegarder(d);
     render();
+    // Geste de l'étude sur cette échéance : elle redevient à suivre, on la repose dans l'agenda.
+    synchroniserEcheanceAgenda(d, type, true);
   }
 
   // Échange le contenu de deux échéances fixes d'un dossier (aucune perte de données : si la
@@ -10804,6 +10946,8 @@
     ajouterHistorique(d, `« ${LIBELLES_CATEGORIE[ancienType]} » recatégorisée en « ${LIBELLES_CATEGORIE[nouveauType]} »`);
     sauvegarder(d);
     render();
+    synchroniserEcheanceAgenda(d, ancienType, true);
+    synchroniserEcheanceAgenda(d, nouveauType, true);
   }
 
   // Corrections après coup du type de vente et du rôle de l'étude — utile quand l'un des deux a
@@ -11055,6 +11199,9 @@
     ajouterHistorique(d, archive ? 'Dossier archivé' : 'Dossier désarchivé');
     sauvegarder(d);
     render();
+    // Archivé : ses dates quittent l'agenda. Désarchivé : geste de l'étude, elles y reviennent.
+    synchroniserEcheanceAgenda(d, 'pret', !archive);
+    synchroniserEcheanceAgenda(d, 'ventebien', !archive);
   }
 
   // Évolution du nombre de dossiers actifs dans le temps, demandée par l'étude pour le Tableau de
@@ -14868,6 +15015,9 @@
       if ((cle === 'appelFonds' || cle === 'projetEnvoye') && nouvelleDate) {
         noterEnvoiDansAgenda(d.id, true);
       }
+      // Date butoir du prêt ou de la vente préalable : posée, déplacée ou retirée dans le
+      // calendrier partagé (voir synchroniserEcheanceAgenda). Seul geste qui en CRÉE une.
+      if (cle === 'pret' || cle === 'ventebien') synchroniserEcheanceAgenda(d, cle, true);
     }
     render();
   }
@@ -14945,6 +15095,7 @@
       ajouterHistorique(d, `« ${LIBELLES_CATEGORIE[type]} » supprimée`);
       sauvegarder(d);
       render();
+      if (type === 'pret' || type === 'ventebien') synchroniserEcheanceAgenda(d, type, false);
     });
   }
 
@@ -15845,7 +15996,8 @@
     chargerPreferencesCollaborateur();
     // Connexion à l'agenda Outlook : chargée au démarrage pour que la fiche dossier sache si le
     // bouton « Créer dans l'agenda » doit apparaître, sans attendre l'ouverture des Réglages.
-    chargerReglagesExchange();
+    // Une fois connue, retente les retraits/déplacements de dates butoir restés en attente.
+    chargerReglagesExchange().then(reconcilierEcheancesAgenda);
     // Absences des collaborateurs lues dans l'agenda (voir chargerAbsencesOffice) : chargées au
     // démarrage pour que l'agenda du tableau de bord les affiche d'emblée, puis rafraîchies au même
     // rythme que le tour serveur (15 min) et à chaque ouverture du tableau de bord.
@@ -16928,6 +17080,10 @@
       // Mention d'envoi notée dans le lieu du rendez-vous de l'agenda Outlook (voir
       // noterEnvoiDansAgenda) : un fait accompli par l'utilisateur, conservé à l'import.
       agendaLieuNoteLe: typeof d.agendaLieuNoteLe === 'string' ? d.agendaLieuNoteLe : null,
+      // Dates butoir posées dans le calendrier PARTAGÉ (voir synchroniserEcheanceAgenda) : un
+      // identifiant Exchange valable pour tout l'office, conservé — sans lui, CLAIRE ne pourrait
+      // plus déplacer ni retirer l'événement, et le reposerait en double.
+      agendaEcheances: agendaEcheancesImportees(d.agendaEcheances),
       ribDemandeLe: typeof d.ribDemandeLe === 'string' ? d.ribDemandeLe : null,
       adresseBien: typeof d.adresseBien === 'string' ? d.adresseBien : '',
       nomAgence: typeof d.nomAgence === 'string' ? d.nomAgence : '',
@@ -18988,6 +19144,9 @@
 
     await sauvegarder(d);
     render();
+    // Offre de prêt désormais reçue : retire la date butoir que CLAIRE avait posée dans l'agenda.
+    // Jamais de création depuis un parcours automatique (voir actionEcheanceAgenda).
+    synchroniserEcheanceAgenda(d, 'pret', false);
 
     if (chercherOffre && offreTrouvee && offreEtaitManquante) {
       ajouterHistorique(d, 'Offre de prêt retrouvée dans le dossier NAS');

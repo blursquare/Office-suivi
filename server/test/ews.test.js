@@ -276,3 +276,69 @@ test('mettreAJourLieuExchange : mot de passe jamais dans le résultat', async ()
   assert.equal(r.ok, true);
   assert.doesNotMatch(JSON.stringify(r), /SECRET123/);
 });
+
+// --- Dates butoir (prêt, vente préalable) dans le calendrier partagé ---
+const {
+  corpsCreateEcheance, corpsUpdateEcheanceDate, corpsDeleteEcheance, interpreterReponseSuppression,
+  creerEcheanceExchange, mettreAJourEcheanceExchange, supprimerEcheanceExchange
+} = require('../src/exchange/ews');
+
+test('corpsCreateEcheance : journée entière, libre, sans rappel, dans le calendrier partagé', () => {
+  const c = corpsCreateEcheance({ sujet: 'Obtention du prêt — MARTIN - Dossier DUPONT / MARTIN', dateStr: '2026-07-14', mailbox: 'sophie@etude.fr' });
+  assert.match(c, /<t:IsAllDayEvent>true<\/t:IsAllDayEvent>/);
+  assert.match(c, /<t:LegacyFreeBusyStatus>Free<\/t:LegacyFreeBusyStatus>/);
+  assert.match(c, /<t:ReminderIsSet>false<\/t:ReminderIsSet>/);
+  assert.match(c, /<t:EmailAddress>sophie@etude\.fr<\/t:EmailAddress>/);
+  // Minuit à Paris en été = 22:00 UTC la veille ; fin = minuit le lendemain.
+  assert.match(c, /<t:Start>2026-07-13T22:00:00Z<\/t:Start>/);
+  assert.match(c, /<t:End>2026-07-14T22:00:00Z<\/t:End>/);
+  assert.match(c, /SendMeetingInvitations="SendToNone"/);
+});
+
+test('corpsUpdateEcheanceDate : déplace Start et End, rien d\'autre (ni titre ni couleur)', () => {
+  const c = corpsUpdateEcheanceDate({ itemId: 'AAA=', changeKey: 'CK1', dateStr: '2026-12-01' });
+  assert.match(c, /FieldURI="calendar:Start"/);
+  assert.match(c, /FieldURI="calendar:End"/);
+  assert.match(c, /<t:Start>2026-11-30T23:00:00Z<\/t:Start>/); // hiver : UTC+1
+  assert.doesNotMatch(c, /Subject|Categories|calendar:Color/);
+  assert.match(c, /ChangeKey="CK1"/);
+});
+
+test('corpsDeleteEcheance : récupérable (éléments supprimés), jamais HardDelete', () => {
+  const c = corpsDeleteEcheance({ itemId: 'AAA=', changeKey: 'CK1' });
+  assert.match(c, /DeleteType="MoveToDeletedItems"/);
+  assert.doesNotMatch(c, /HardDelete/);
+});
+
+test('interpreterReponseSuppression : un événement déjà effacé à la main vaut succès', () => {
+  const r = interpreterReponseSuppression(200, '<m:DeleteItemResponseMessage ResponseClass="Error"><m:ResponseCode>ErrorItemNotFound</m:ResponseCode></m:DeleteItemResponseMessage>');
+  assert.equal(r.ok, true);
+  assert.equal(interpreterReponseSuppression(200, '<m:ResponseCode>ErrorAccessDenied</m:ResponseCode>').ok, false);
+});
+
+test('creerEcheanceExchange : renvoie ItemId et ChangeKey, jamais le mot de passe', async () => {
+  const poster = (opts, cb) => cb(null, { statusCode: 200, body: '<m:CreateItemResponseMessage ResponseClass="Success"><t:ItemId Id="ID1" ChangeKey="CK1"/></m:CreateItemResponseMessage>' });
+  const r = await creerEcheanceExchange({ url: 'https://x/EWS/Exchange.asmx', email: 'a@b.fr', motDePasse: 'SECRET123', echeance: { sujet: 'x', dateStr: '2026-07-14' } }, { poster });
+  assert.equal(r.ok, true);
+  assert.equal(r.itemId, 'ID1');
+  assert.equal(r.changeKey, 'CK1');
+  assert.doesNotMatch(JSON.stringify(r), /SECRET123/);
+});
+
+test('mettreAJourEcheanceExchange : nouveau ChangeKey renvoyé ; événement effacé → introuvable', async () => {
+  const ok = await mettreAJourEcheanceExchange({ url: 'https://x', email: 'a@b.fr', motDePasse: 's', itemId: 'ID1', changeKey: 'CK1', dateStr: '2026-07-20' },
+    { poster: (o, cb) => cb(null, { statusCode: 200, body: '<m:UpdateItemResponseMessage ResponseClass="Success"><t:ItemId Id="ID1" ChangeKey="CK2"/></m:UpdateItemResponseMessage>' }) });
+  assert.equal(ok.ok, true);
+  assert.equal(ok.changeKey, 'CK2');
+  const perdu = await mettreAJourEcheanceExchange({ url: 'https://x', email: 'a@b.fr', motDePasse: 's', itemId: 'ID1', changeKey: 'CK1', dateStr: '2026-07-20' },
+    { poster: (o, cb) => cb(null, { statusCode: 200, body: '<m:ResponseCode>ErrorItemNotFound</m:ResponseCode>' }) });
+  assert.equal(perdu.ok, false);
+  assert.equal(perdu.introuvable, true);
+});
+
+test('supprimerEcheanceExchange : identifiants refusés → raison auth', async () => {
+  const r = await supprimerEcheanceExchange({ url: 'https://x', email: 'a@b.fr', motDePasse: 's', itemId: 'ID1', changeKey: 'CK1' },
+    { poster: (o, cb) => cb(null, { statusCode: 401, body: '' }) });
+  assert.equal(r.ok, false);
+  assert.equal(r.raison, 'auth');
+});

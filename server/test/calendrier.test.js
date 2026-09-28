@@ -244,3 +244,17 @@ test('echapperTexteIcs : antislash, point-virgule, virgule et saut de ligne', ()
   assert.equal(echapperTexteIcs('a' + ANTISLASH + 'b;c,d\ne'), attendu);
   assert.equal(echapperTexteIcs(null), '');
 });
+
+test('une date déjà posée dans l\'agenda partagé par CLAIRE n\'est plus publiée par le flux (pas de doublon)', () => {
+  const { echeancePublieeAgenda } = require('../src/routes/calendrier');
+  const base = { id: 'd1', nom: 'DUPONT / MARTIN', pret: '2026-10-14', ventebien: '2026-09-30' };
+  // Dossier existant, jamais repris : toujours publié par le flux.
+  assert.equal(echeancePublieeAgenda(base, 'pret'), true);
+  // Posé dans l'agenda : le flux s'efface pour ce type seulement.
+  const pose = { ...base, agendaEcheances: { pret: { itemId: 'ID1', changeKey: 'CK', date: '2026-10-14' } } };
+  assert.equal(echeancePublieeAgenda(pose, 'pret'), false);
+  assert.equal(echeancePublieeAgenda(pose, 'ventebien'), true);
+  const flux = genererFluxIcs([pose]);
+  assert.doesNotMatch(flux, /Obtention du prêt/);
+  assert.match(flux, /Vente préalable/);
+});

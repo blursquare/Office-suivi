@@ -124,8 +124,12 @@ function interpreterReponseCreation(statutHttp, corps, messageSucces, actionEche
     return { ok: false, raison: 'serveur', message: 'Le serveur Exchange a renvoyé une erreur (' + statutHttp + ').' };
   }
   if (/ResponseClass="Success"/.test(texte) || /<m:ResponseCode>NoError<\/m:ResponseCode>/.test(texte)) {
-    const itemId = (texte.match(/<t:ItemId[^>]*\bId="([^"]+)"/) || [])[1] || '';
-    return { ok: true, message: succes, itemId };
+    // ChangeKey aussi : un UpdateItem en renvoie un NOUVEAU, et le prochain UpdateItem sur le même
+    // événement doit présenter celui-là (voir mettreAJourEcheanceExchange).
+    const idTag = (texte.match(/<t:ItemId\b[^>]*>/) || [])[0] || '';
+    const itemId = (idTag.match(/\bId="([^"]+)"/) || [])[1] || '';
+    const changeKey = (idTag.match(/\bChangeKey="([^"]+)"/) || [])[1] || '';
+    return { ok: true, message: succes, itemId, changeKey };
   }
   const code = (texte.match(/<m:ResponseCode>([^<]+)<\/m:ResponseCode>/) || [])[1]
     || (texte.match(/<faultstring[^>]*>([^<]+)<\/faultstring>/) || [])[1] || '';
@@ -417,6 +421,151 @@ function mettreAJourLieuExchange({ url, email, motDePasse, itemId, changeKey, li
   });
 }
 
+// --- Dates butoir (obtention du prêt, vente préalable) posées dans l'agenda partagé ---
+//
+// Demandé par l'étude : ces deux dates ne passent plus par le flux .ics de CLAIRE, elles sont
+// écrites directement dans le calendrier partagé de l'office. Un événement « toute la journée » par
+// échéance, sans rappel Outlook (les rappels J-15/J-7 partent déjà par email) et marqué « Libre » :
+// une date butoir ne bloque pas la journée. CLAIRE garde l'ItemId + ChangeKey de chaque événement
+// créé, ce qui permet de le DÉPLACER quand la date change et de le RETIRER quand la condition est
+// levée (offre reçue, vente préalable réalisée) ou la date effacée — jamais de le deviner par son
+// titre. Mêmes règles que le reste du fichier : un seul essai, mot de passe jamais renvoyé.
+
+const ENVELOPPE_DEBUT = '<?xml version="1.0" encoding="utf-8"?>'
+  + '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"'
+  + ' xmlns:t="http://schemas.microsoft.com/exchange/services/2006/types"'
+  + ' xmlns:m="http://schemas.microsoft.com/exchange/services/2006/messages">'
+  + '<soap:Header><t:RequestServerVersion Version="Exchange2013"/></soap:Header><soap:Body>';
+const ENVELOPPE_FIN = '</soap:Body></soap:Envelope>';
+
+// Minuit à Paris le jour J → minuit le lendemain : les bornes d'un événement « toute la journée ».
+// Associées au fuseau Romance Standard Time à la création, elles tombent sur le bon jour dans
+// Outlook quel que soit le fuseau du serveur.
+function bornesJourneeEntiere(dateStr) {
+  return {
+    debut: formatEwsUtc(instantUtcDepuisParis(dateStr, '00:00')),
+    fin: formatEwsUtc(instantUtcDepuisParis(dateSuivanteIso(dateStr), '00:00'))
+  };
+}
+
+function corpsCreateEcheance({ sujet, dateStr, corps, mailbox }) {
+  const { debut, fin } = bornesJourneeEntiere(dateStr);
+  return ENVELOPPE_DEBUT
+    + '<m:CreateItem SendMeetingInvitations="SendToNone">'
+    + '<m:SavedItemFolderId>' + folderCalendrierXml(mailbox) + '</m:SavedItemFolderId>'
+    + '<m:Items><t:CalendarItem>'
+    + '<t:Subject>' + echapperXml(sujet) + '</t:Subject>'
+    + '<t:Body BodyType="Text">' + echapperXml(corps || '') + '</t:Body>'
+    + '<t:ReminderIsSet>false</t:ReminderIsSet>'
+    + '<t:Start>' + debut + '</t:Start>'
+    + '<t:End>' + fin + '</t:End>'
+    + '<t:IsAllDayEvent>true</t:IsAllDayEvent>'
+    + '<t:LegacyFreeBusyStatus>Free</t:LegacyFreeBusyStatus>'
+    + '<t:StartTimeZone Id="Romance Standard Time"/>'
+    + '<t:EndTimeZone Id="Romance Standard Time"/>'
+    + '</t:CalendarItem></m:Items>'
+    + '</m:CreateItem>' + ENVELOPPE_FIN;
+}
+
+// Déplace l'événement : Start et End dans la même requête (Exchange refuse un End antérieur au
+// Start, même transitoirement). Rien d'autre n'est touché — ni le titre, ni une catégorie de
+// couleur que l'étude aurait posée à la main.
+function corpsUpdateEcheanceDate({ itemId, changeKey, dateStr }) {
+  const { debut, fin } = bornesJourneeEntiere(dateStr);
+  return ENVELOPPE_DEBUT
+    + '<m:UpdateItem ConflictResolution="AutoResolve" SendMeetingInvitationsOrCancellations="SendToNone">'
+    + '<m:ItemChanges><t:ItemChange>'
+    + '<t:ItemId Id="' + echapperXml(itemId) + '" ChangeKey="' + echapperXml(changeKey) + '"/>'
+    + '<t:Updates>'
+    + '<t:SetItemField><t:FieldURI FieldURI="calendar:Start"/>'
+    + '<t:CalendarItem><t:Start>' + debut + '</t:Start></t:CalendarItem></t:SetItemField>'
+    + '<t:SetItemField><t:FieldURI FieldURI="calendar:End"/>'
+    + '<t:CalendarItem><t:End>' + fin + '</t:End></t:CalendarItem></t:SetItemField>'
+    + '</t:Updates>'
+    + '</t:ItemChange></m:ItemChanges>'
+    + '</m:UpdateItem>' + ENVELOPPE_FIN;
+}
+
+// MoveToDeletedItems, jamais HardDelete : un retrait par erreur se récupère dans les éléments
+// supprimés de la boîte partagée.
+function corpsDeleteEcheance({ itemId, changeKey }) {
+  return ENVELOPPE_DEBUT
+    + '<m:DeleteItem DeleteType="MoveToDeletedItems" SendMeetingCancellations="SendToNone">'
+    + '<m:ItemIds><t:ItemId Id="' + echapperXml(itemId) + '"'
+    + (changeKey ? ' ChangeKey="' + echapperXml(changeKey) + '"' : '') + '/></m:ItemIds>'
+    + '</m:DeleteItem>' + ENVELOPPE_FIN;
+}
+
+// Un événement déjà effacé à la main dans Outlook (ErrorItemNotFound) : l'état voulu — plus
+// d'événement — est atteint, ce n'est pas un échec.
+function interpreterReponseSuppression(statutHttp, corps) {
+  const texte = String(corps || '');
+  const code = (texte.match(/<m:ResponseCode>([^<]+)<\/m:ResponseCode>/) || [])[1] || '';
+  if (code === 'ErrorItemNotFound') {
+    return { ok: true, message: "L'événement n'était déjà plus dans l'agenda." };
+  }
+  return interpreterReponseCreation(statutHttp, corps,
+    "Événement retiré de l'agenda.", 'Le retrait de l\'événement a échoué');
+}
+
+// Transport commun aux trois opérations ci-dessus : un seul essai, délai borné, erreur réseau
+// réduite à son code (jamais les identifiants). `injections.poster` : pour les tests.
+function posterEws({ url, email, motDePasse, body, delaiMs = 20000 }, injections = {}) {
+  const poster = injections.poster || httpntlm.post;
+  return new Promise((resolve) => {
+    let repondu = false;
+    const fini = (r) => { if (!repondu) { repondu = true; resolve(r); } };
+    const minuteur = setTimeout(
+      () => fini({ echec: { ok: false, raison: 'reseau', message: 'Le serveur Exchange n\'a pas répondu à temps.' } }),
+      delaiMs
+    );
+    try {
+      poster({
+        url,
+        username: String(email || ''),
+        password: String(motDePasse || ''),
+        domain: '',
+        headers: { 'Content-Type': 'text/xml; charset=utf-8' },
+        body
+      }, (err, res) => {
+        clearTimeout(minuteur);
+        if (err) {
+          fini({ echec: { ok: false, raison: 'reseau', message: 'Impossible de joindre le serveur Exchange : ' + (err.code || err.message || 'erreur réseau') + '.' } });
+          return;
+        }
+        fini({ statut: res && res.statusCode, corps: res && res.body });
+      });
+    } catch (e) {
+      clearTimeout(minuteur);
+      fini({ echec: { ok: false, raison: 'reseau', message: 'Impossible de joindre le serveur Exchange.' } });
+    }
+  });
+}
+
+async function creerEcheanceExchange({ url, email, motDePasse, echeance, delaiMs }, injections) {
+  const r = await posterEws({ url, email, motDePasse, delaiMs, body: corpsCreateEcheance(echeance || {}) }, injections);
+  if (r.echec) return r.echec;
+  return interpreterReponseCreation(r.statut, r.corps,
+    "Date posée dans l'agenda.", 'La création de l\'événement a échoué');
+}
+
+async function mettreAJourEcheanceExchange({ url, email, motDePasse, itemId, changeKey, dateStr, delaiMs }, injections) {
+  const r = await posterEws({ url, email, motDePasse, delaiMs, body: corpsUpdateEcheanceDate({ itemId, changeKey, dateStr }) }, injections);
+  if (r.echec) return r.echec;
+  // Effacé à la main dans Outlook : rien à déplacer, le client oubliera l'identifiant et recréera.
+  if (/<m:ResponseCode>ErrorItemNotFound<\/m:ResponseCode>/.test(String(r.corps || ''))) {
+    return { ok: false, introuvable: true, raison: 'ews', message: "L'événement n'est plus dans l'agenda." };
+  }
+  return interpreterReponseCreation(r.statut, r.corps,
+    "Date déplacée dans l'agenda.", 'Le déplacement de l\'événement a échoué');
+}
+
+async function supprimerEcheanceExchange({ url, email, motDePasse, itemId, changeKey, delaiMs }, injections) {
+  const r = await posterEws({ url, email, motDePasse, delaiMs, body: corpsDeleteEcheance({ itemId, changeKey }) }, injections);
+  if (r.echec) return r.echec;
+  return interpreterReponseSuppression(r.statut, r.corps);
+}
+
 // Interprète la réponse d'Exchange. Fonction PURE (statut HTTP + corps), testable sans réseau ni
 // serveur réel — voir server/test/ews.test.js. Ne reçoit jamais le mot de passe.
 function interpreterReponseEws(statutHttp, corps) {
@@ -489,5 +638,7 @@ module.exports = {
   instantUtcDepuisParis, decalageParisMinutes,
   desechapperXml, fenetreJourneeParis, corpsFindRendezVous, parseFindRendezVous,
   corpsUpdateLieu, interpreterReponseUpdate, trouverRendezVousExchange, mettreAJourLieuExchange,
-  folderCalendrierXml
+  folderCalendrierXml,
+  corpsCreateEcheance, corpsUpdateEcheanceDate, corpsDeleteEcheance, interpreterReponseSuppression,
+  creerEcheanceExchange, mettreAJourEcheanceExchange, supprimerEcheanceExchange
 };
