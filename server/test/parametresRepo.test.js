@@ -9,7 +9,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 
 const { ouvrirDb } = require('../src/db');
-const { creerRepoParametres, assainirReglages, REGLAGES_PAR_DEFAUT, PORT_SMTP_PAR_DEFAUT , assainirDernierTour, assainirReglagesAgenda, assainirDernierTourAgenda } = require('../src/parametresRepo');
+const { creerRepoParametres, assainirReglages, REGLAGES_PAR_DEFAUT, PORT_SMTP_PAR_DEFAUT , assainirDernierTour, assainirReglagesAgenda, assainirDernierTourAgenda, assainirReglagesExchange, URL_EWS_DEFAUT } = require('../src/parametresRepo');
 
 const REGLAGES_TEST = Object.freeze({
   emailActif: true,
@@ -52,6 +52,38 @@ test('un second ecrireReglages() REMPLACE la valeur (l\'upsert met bien à jour,
   // Une seule ligne en base pour cette clé, pas un doublon accumulé par l'upsert.
   const n = db.prepare("SELECT COUNT(*) AS n FROM parametres WHERE cle = 'reglages'").get().n;
   assert.equal(n, 1);
+  db.close();
+});
+
+test('réglages Exchange : URL par défaut, actif par défaut faux', () => {
+  const r = assainirReglagesExchange({});
+  assert.equal(r.actif, false);
+  assert.equal(r.url, URL_EWS_DEFAUT);
+  assert.equal(r.email, '');
+  assert.equal(r.motDePasse, '');
+});
+
+test('réglages Exchange : mot de passe conservé quand la requête ne le renvoie pas, effacé sur chaîne vide', () => {
+  const precedent = { actif: true, url: URL_EWS_DEFAUT, email: 'a@b.fr', motDePasse: 'SECRET' };
+  // Enregistrement sans mot de passe (le formulaire ne le réémet pas) → conservé.
+  const conserve = assainirReglagesExchange({ actif: true, email: 'a@b.fr' }, precedent);
+  assert.equal(conserve.motDePasse, 'SECRET');
+  // Chaîne vide explicite → effacé.
+  const efface = assainirReglagesExchange({ actif: false, email: 'a@b.fr', motDePasse: '' }, precedent);
+  assert.equal(efface.motDePasse, '');
+});
+
+test('réglages Exchange : upsert en base + round-trip', () => {
+  const db = ouvrirDb(':memory:');
+  const repo = creerRepoParametres(db);
+  repo.ecrireReglagesExchange({ actif: true, email: 'notaire@gossart.notaires.fr', motDePasse: 'MDP' });
+  const lu = repo.lireReglagesExchange();
+  assert.equal(lu.actif, true);
+  assert.equal(lu.email, 'notaire@gossart.notaires.fr');
+  assert.equal(lu.motDePasse, 'MDP');
+  // Un enregistrement de l'interrupteur seul (sans mot de passe) ne l'efface pas.
+  repo.ecrireReglagesExchange({ actif: false, email: 'notaire@gossart.notaires.fr' });
+  assert.equal(repo.lireReglagesExchange().motDePasse, 'MDP');
   db.close();
 });
 

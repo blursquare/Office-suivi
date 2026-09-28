@@ -1652,26 +1652,46 @@
         </div>
       </div>
 
-      <!-- Test de connexion à l'Exchange de l'office (Outlook de Fichorga / Authentic Connect), par
-           EWS/NTLM — voir server/src/exchange/ews.js. Ne stocke rien : vérifie seulement que les
-           identifiants passent, avant de construire la création de rendez-vous / les brouillons.
-           À tester sur un poste du bureau (le serveur Exchange n'est pas joignable ailleurs). -->
+      <!-- Connexion à l'agenda Outlook de l'office (Exchange de Fichorga / Authentic Connect), par
+           EWS/NTLM — voir server/src/exchange/ews.js. Enregistre les identifiants de messagerie
+           (le mot de passe ne ressort jamais de la base) pour créer les rendez-vous de signature
+           dans l'agenda depuis la fiche dossier. À tester sur un poste du bureau (le serveur
+           Exchange n'est joignable que depuis le réseau de l'étude). -->
       <div class="calc-card reglages-pleine">
-        <div class="dash-section-titre">Connexion à l'agenda Outlook de l'office (test)</div>
-        <p class="hint">Vérifie que CLAIRE arrive à se connecter à votre messagerie Exchange (Fichorga), première étape avant d'y créer les rendez-vous de signature. Rien n'est enregistré : les identifiants ne servent qu'à ce test. À faire depuis un poste du bureau.</p>
+        <div class="dash-section-titre">Agenda Outlook de l'office</div>
+        <p class="hint">Permet à CLAIRE de créer les rendez-vous de signature directement dans l'agenda Outlook de l'office (Fichorga), depuis la fiche d'un dossier. Les identifiants sont enregistrés sur le serveur ; le mot de passe n'est jamais réaffiché. À configurer et tester depuis un poste du bureau.</p>
         <div class="calc-champs">
+          <label class="reglages-option" for="exchange-actif">
+            <span class="reglages-option-texte">
+              <span class="reglages-option-titre">Créer les rendez-vous dans l'agenda</span>
+              <span class="hint">Un bouton apparaît alors sur la fiche des dossiers ayant une date de rendez-vous.</span>
+            </span>
+            <span class="switch reglages-switch">
+              <input type="checkbox" id="exchange-actif">
+              <span class="slider"></span>
+            </span>
+          </label>
           <div class="calc-champ">
             <label for="exchange-email">Adresse email de messagerie</label>
             <input type="email" id="exchange-email" autocomplete="off" placeholder="prenom.nom@gossart.notaires.fr">
           </div>
           <div class="calc-champ">
             <label for="exchange-motdepasse">Mot de passe de messagerie</label>
-            <input type="password" id="exchange-motdepasse" autocomplete="new-password" placeholder="Le mot de passe de votre boîte">
-            <p class="hint">Attention : un mot de passe erroné compte comme une tentative échouée. CLAIRE ne réessaie jamais toute seule.</p>
+            <input type="password" id="exchange-motdepasse" autocomplete="new-password" placeholder="Laissez vide pour conserver le mot de passe enregistré">
+            <p class="hint" id="exchange-mdp-note">Attention : un mot de passe erroné compte comme une tentative échouée. CLAIRE ne réessaie jamais toute seule.</p>
           </div>
+          <details>
+            <summary class="hint" style="cursor:pointer;">Réglage avancé : adresse du serveur EWS</summary>
+            <div class="calc-champ" style="margin-top:8px;">
+              <label for="exchange-url">Adresse EWS</label>
+              <input type="text" id="exchange-url" autocomplete="off" placeholder="https://mail.authentic-connect.fr/EWS/Exchange.asmx">
+              <p class="hint">Ne changez ceci que si Fichorga vous a donné une autre adresse.</p>
+            </div>
+          </details>
         </div>
         <div style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-          <button type="button" class="primary" id="exchange-tester-btn" onclick="testerConnexionExchange()">Tester la connexion</button>
+          <button type="button" class="primary" id="exchange-enregistrer-btn" onclick="enregistrerReglagesExchange()">Enregistrer</button>
+          <button type="button" class="secondary" id="exchange-tester-btn" onclick="testerConnexionExchange()">Tester la connexion</button>
           <span id="exchange-resultat" class="hint" style="margin:0;"></span>
         </div>
       </div>

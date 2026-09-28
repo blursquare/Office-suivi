@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-27 21:34';
+  const VERSION_APP = '2026-09-28 09:51';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-28 09:51', resume: "Agenda Outlook : CLAIRE peut créer le rendez-vous de signature directement dans l'agenda de l'office (bouton sur la fiche). Les identifiants de messagerie s'enregistrent dans les Réglages (mot de passe jamais réaffiché). À tester au bureau." },
     { version: '2026-09-27 21:34', resume: "Réglages : test de connexion à l'agenda Outlook de l'office (Exchange/EWS). Vérifie les identifiants sans rien enregistrer — première étape avant d'y créer les rendez-vous." },
     { version: '2026-09-27 20:35', resume: 'Aujourd’hui : phrase d’aide retirée du titre « À faire ».' },
     { version: '2026-09-27 20:14', resume: 'Aujourd’hui : en-tête sur une ligne (titre, progression, outils), titres de même taille que les autres écrans.' },
@@ -10401,6 +10402,86 @@
     </div>`;
   }
 
+  // Création du rendez-vous de signature DANS l'agenda Outlook de l'office (voir
+  // server/src/exchange/ews.js). Proposée seulement quand la connexion Exchange est activée et
+  // configurée (exchangeAgendaPret) et qu'une date de rendez-vous existe. La fiche ne stocke qu'une
+  // DATE : le mini-formulaire demande l'heure et la durée (préremplies depuis l'heure relevée dans
+  // l'agenda si elle existe, sinon 14:00 / 60 min). Le formulaire visible EST la confirmation
+  // explicite d'une écriture dans l'agenda partagé — pas de seconde boîte de dialogue par-dessus.
+  function renderCreationRdvAgenda(d) {
+    if (!exchangeAgendaPret() || !d.rendezVousSignature) return '';
+    if (rdvAgendaOuvert && dossierOuvert === d.id) {
+      const heure = d.rendezVousSignatureHeure || '14:00';
+      return `<div class="rdv-agenda-form">
+        <div class="rdv-agenda-titre">Créer ce rendez-vous dans l'agenda Outlook</div>
+        <div class="rdv-agenda-champs">
+          <label>Heure <input type="time" id="rdv-agenda-heure-${d.id}" value="${escapeAttr(heure)}"></label>
+          <label>Durée
+            <select id="rdv-agenda-duree-${d.id}">
+              <option value="30">30 min</option>
+              <option value="60" selected>1 h</option>
+              <option value="90">1 h 30</option>
+              <option value="120">2 h</option>
+            </select>
+          </label>
+        </div>
+        <p class="hint" style="margin:4px 0 6px;">Écrit « VTE - ${escapeHtml(d.nom)} » le ${formatDateFr(d.rendezVousSignature)} dans l'agenda partagé de l'office.</p>
+        <div class="rdv-agenda-actions">
+          <button type="button" class="action-rapide" onclick="creerRdvDansAgenda('${d.id}')">${icone('calendar')} Créer le rendez-vous</button>
+          <button type="button" class="lien-bouton" onclick="basculerRdvAgenda('${d.id}')">Annuler</button>
+        </div>
+      </div>`;
+    }
+    const dejaCree = d.rdvAgendaCreeLe
+      ? `<span class="dot-label dl-success" style="margin-left:6px;"><span class="dot"></span>Créé le ${formatDateFr(d.rdvAgendaCreeLe.slice(0, 10))}</span>`
+      : '';
+    return `<div class="rdv-agenda-bloc">
+      <button type="button" class="action-rapide" onclick="basculerRdvAgenda('${d.id}')">${icone('calendar')} ${d.rdvAgendaCreeLe ? 'Recréer dans l\'agenda' : 'Créer ce RDV dans l\'agenda Outlook'}</button>
+      ${dejaCree}
+    </div>`;
+  }
+
+  function basculerRdvAgenda(id) {
+    rdvAgendaOuvert = !(rdvAgendaOuvert && dossierOuvert === id);
+    render();
+  }
+
+  async function creerRdvDansAgenda(id) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d || !d.rendezVousSignature) return;
+    const champHeure = document.getElementById(`rdv-agenda-heure-${id}`);
+    const champDuree = document.getElementById(`rdv-agenda-duree-${id}`);
+    const heure = champHeure ? champHeure.value : '';
+    const dureeMinutes = champDuree ? parseInt(champDuree.value, 10) : 60;
+    if (!/^\d{2}:\d{2}$/.test(heure)) { afficherToast('Renseignez une heure valide.', 'OK', null); return; }
+    try {
+      const reponse = await fetchAvecAuth('/api/exchange/rendez-vous', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sujet: 'VTE - ' + d.nom,
+          date: d.rendezVousSignature,
+          heure,
+          dureeMinutes,
+          corps: 'Rendez-vous de signature créé depuis CLAIRE.'
+        })
+      });
+      const corps = await reponse.json();
+      if (corps.ok) {
+        d.rdvAgendaCreeLe = new Date().toISOString();
+        ajouterHistorique(d, `Rendez-vous de signature créé dans l'agenda Outlook (${formatDateFr(d.rendezVousSignature)} à ${heure}).`);
+        sauvegarder(d);
+        rdvAgendaOuvert = false;
+        render();
+        afficherToast(corps.message || 'Rendez-vous créé dans l\'agenda.', 'OK', null);
+      } else {
+        afficherToast(corps.message || 'La création du rendez-vous a échoué.', 'OK', null);
+      }
+    } catch (e) {
+      afficherToast('Serveur injoignable — rendez-vous non créé.', 'OK', null);
+    }
+  }
+
   // Ordre d'affichage des cartes d'échéance sur la fiche : CHRONOLOGIQUE (demandé par l'étude),
   // et non plus l'ordre fixe prêt → appel de fonds → acte → rendez-vous → vente préalable →
   // personnalisées, qui ne disait rien de ce qui arrive en premier. Une échéance sans date
@@ -10448,8 +10529,11 @@
     }
     // Date relevée dans l'agenda de l'office (voir agendaWatch.js) : dite sur la carte, tant qu'elle
     // n'a pas été corrigée à la main (la date saisie ne correspond alors plus au repère).
-    const rdvAgenda = d.rendezVousSignature && d.detectionsAgenda && d.detectionsAgenda.rendezVousSignature === d.rendezVousSignature
+    const noteAgenda = d.rendezVousSignature && d.detectionsAgenda && d.detectionsAgenda.rendezVousSignature === d.rendezVousSignature
       ? '<div class="tab-note-agenda">Relevé dans l’agenda de l’office</div>' : '';
+    // Création du rendez-vous DANS l'agenda Outlook (voir renderCreationRdvAgenda) : proposée quand
+    // la connexion Exchange est activée et configurée et qu'une date de rendez-vous est renseignée.
+    const rdvAgenda = noteAgenda + renderCreationRdvAgenda(d);
     cartes.push({ iso: d.rendezVousSignature, html: renderTab('rendezVousSignature', 'Rendez-vous de signature', d.rendezVousSignature, d.id, null, null, null, false, rdvAgenda, false, echeanceValidee(d, 'rendezVousSignature')) });
     (d.autres || []).forEach((a, i) => cartes.push({ iso: a.date, html: renderTab('autre', escapeHtml(a.label), a.date, d.id, a.page, null, i, false, '', false, echeanceValidee(d, 'autre-' + i)) }));
     // Les dates sont au format ISO AAAA-MM-JJ partout dans l'outil (valeur d'un <input type="date">) :
@@ -11387,7 +11471,7 @@
     // installé/démarré/arrêté sur le serveur depuis la dernière visite de cet onglet.
     // Réglages relus à chaque ouverture (un collègue a pu les modifier depuis un autre poste,
     // même principe que la disponibilité d'Ollama ci-dessus).
-    if (nom === 'reglages') { definirSousOngletReglages(sousOngletReglagesRetenu()); chargerReglages(); chargerReglagesClaude(); chargerSignalements(); }
+    if (nom === 'reglages') { definirSousOngletReglages(sousOngletReglagesRetenu()); chargerReglages(); chargerReglagesClaude(); chargerReglagesExchange(); chargerSignalements(); }
     if (nom === 'analyse-ia') initRelecture();
     // Date du jour et bornes de période posées au premier affichage seulement (voir initProrata).
     if (nom === 'prorata') initProrata();
@@ -13486,6 +13570,7 @@
     piecesToutesVisibles = false;
     engagementEnEdition = null;
     diagnosticParcoursOuvert = false;
+    rdvAgendaOuvert = false;
     render();
     if (d && !d.prixMobilier && !d.mobilierLuLe && d.dossierLie && d.nasDossier) lireMobilierDepuisAvantContrat(id, false);
   }
@@ -13507,6 +13592,7 @@
     piecesToutesVisibles = false;
     engagementEnEdition = null;
     diagnosticParcoursOuvert = false;
+    rdvAgendaOuvert = false;
     render();
   }
 
@@ -13562,6 +13648,9 @@
   // renderAjoutEngagement) : même principe que ajoutEcheanceOuvert/ajoutPieceOuvert.
   let ajoutEngagementOuvert = false;
   let diagnosticParcoursOuvert = false;
+  // Formulaire de création du rendez-vous de signature dans l'agenda Outlook (voir
+  // renderCreationRdvAgenda) : même principe qu'ajoutEcheanceOuvert.
+  let rdvAgendaOuvert = false;
 
   // Édition d'un engagement du vendeur déjà présent (import OU fiche enregistrée) : un seul
   // engagement en édition à la fois (dossierId null = pendant l'import, sur
@@ -15388,6 +15477,9 @@
     ouvrirFenetreAujourdhuiSiPremiereFois();
     chargerRappelsPerso();
     chargerPreferencesCollaborateur();
+    // Connexion à l'agenda Outlook : chargée au démarrage pour que la fiche dossier sache si le
+    // bouton « Créer dans l'agenda » doit apparaître, sans attendre l'ouverture des Réglages.
+    chargerReglagesExchange();
     await chargerEtatNas();
     // Avant toute relecture du NAS : un parcours lancé sans elles reconnaîtrait des fichiers que
     // l'étude a écartés.
@@ -16459,6 +16551,9 @@
       // questionnaire est un fait réel déjà accompli par l'utilisateur : conservé tel quel.
       questionnaireEnvoyeLe: typeof d.questionnaireEnvoyeLe === 'string' ? d.questionnaireEnvoyeLe : null,
       receptionFondsConfirmeeLe: typeof d.receptionFondsConfirmeeLe === 'string' ? d.receptionFondsConfirmeeLe : null,
+      // Rendez-vous créé dans l'agenda Outlook (voir creerRdvDansAgenda) : un fait accompli par
+      // l'utilisateur, conservé à l'import comme le questionnaire ou la confirmation des fonds.
+      rdvAgendaCreeLe: typeof d.rdvAgendaCreeLe === 'string' ? d.rdvAgendaCreeLe : null,
       ribDemandeLe: typeof d.ribDemandeLe === 'string' ? d.ribDemandeLe : null,
       adresseBien: typeof d.adresseBien === 'string' ? d.adresseBien : '',
       nomAgence: typeof d.nomAgence === 'string' ? d.nomAgence : '',
@@ -24646,28 +24741,98 @@
     }
   }
 
-  // ---- Test de connexion à l'Exchange de l'office (voir server/src/exchange/ews.js) ----
-  // Vérifie que CLAIRE arrive à se connecter à la messagerie Exchange (Fichorga), première étape
-  // avant d'y créer des rendez-vous. Ne stocke rien : le mot de passe n'est envoyé que pour ce test
-  // et n'est jamais conservé côté client.
+  // ---- Connexion à l'agenda Outlook de l'office (voir server/src/exchange/ews.js) ----
+  // CLAIRE enregistre les identifiants de messagerie (le mot de passe ne ressort jamais du serveur)
+  // pour créer les rendez-vous de signature dans l'agenda Outlook depuis la fiche dossier.
+
+  // État partagé, chargé au démarrage : la fiche dossier n'affiche le bouton « Créer dans l'agenda »
+  // que si la connexion est activée ET configurée (identifiants enregistrés).
+  let exchangeReglages = { actif: false, motDePasseEnregistre: false, email: '' };
+
+  function exchangeAgendaPret() {
+    return !!(exchangeReglages && exchangeReglages.actif && exchangeReglages.email && exchangeReglages.motDePasseEnregistre);
+  }
+
+  async function chargerReglagesExchange() {
+    try {
+      const reponse = await fetchAvecAuth('/api/exchange/reglages');
+      const corps = await reponse.json();
+      exchangeReglages = corps || { actif: false };
+      // Ne remplir les champs que si l'écran Réglages est présent (chargé aussi au démarrage, où il
+      // ne l'est peut-être pas encore) et hors saisie en cours.
+      const actif = document.getElementById('exchange-actif');
+      const email = document.getElementById('exchange-email');
+      const url = document.getElementById('exchange-url');
+      const note = document.getElementById('exchange-mdp-note');
+      if (actif) actif.checked = !!corps.actif;
+      if (email && document.activeElement !== email) email.value = corps.email || '';
+      if (url && document.activeElement !== url) url.value = corps.url || '';
+      if (note) {
+        note.textContent = corps.motDePasseEnregistre
+          ? 'Un mot de passe est déjà enregistré. Laissez le champ vide pour le conserver. Un mot de passe erroné compte comme une tentative échouée — CLAIRE ne réessaie jamais toute seule.'
+          : 'Attention : un mot de passe erroné compte comme une tentative échouée. CLAIRE ne réessaie jamais toute seule.';
+      }
+    } catch (e) {
+      // Session expirée : déjà géré par fetchAvecAuth.
+    }
+  }
+
+  async function enregistrerReglagesExchange() {
+    const bouton = document.getElementById('exchange-enregistrer-btn');
+    const resultat = document.getElementById('exchange-resultat');
+    const actif = document.getElementById('exchange-actif');
+    const champEmail = document.getElementById('exchange-email');
+    const champMdp = document.getElementById('exchange-motdepasse');
+    const champUrl = document.getElementById('exchange-url');
+    const corpsEnvoye = {
+      actif: !!(actif && actif.checked),
+      email: champEmail ? champEmail.value.trim() : '',
+      url: champUrl ? champUrl.value.trim() : ''
+    };
+    // N'envoyer le mot de passe que s'il a été saisi : un champ vide conserve celui déjà enregistré.
+    if (champMdp && champMdp.value) corpsEnvoye.motDePasse = champMdp.value;
+    if (bouton) bouton.disabled = true;
+    if (resultat) { resultat.textContent = ''; resultat.className = 'hint'; }
+    try {
+      const reponse = await fetchAvecAuth('/api/exchange/reglages', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(corpsEnvoye)
+      });
+      const corps = await reponse.json();
+      exchangeReglages = corps || exchangeReglages;
+      if (resultat) { resultat.textContent = 'Enregistré.'; resultat.className = 'hint'; }
+      // Vider le champ mot de passe et rafraîchir la note « déjà enregistré ».
+      if (champMdp) champMdp.value = '';
+      chargerReglagesExchange();
+      render();
+    } catch (e) {
+      if (resultat) { resultat.textContent = 'Serveur injoignable.'; resultat.className = 'hint reglages-email-resultat reglages-email-echec'; }
+    } finally {
+      if (bouton) bouton.disabled = false;
+    }
+  }
+
+  // Teste la connexion (lecture seule). Envoie les identifiants saisis s'ils sont là, sinon le
+  // serveur retombe sur ceux enregistrés — ce qui permet de retester une config stockée sans
+  // retaper le mot de passe. Ne conserve jamais le mot de passe côté client.
   async function testerConnexionExchange() {
     const bouton = document.getElementById('exchange-tester-btn');
     const resultat = document.getElementById('exchange-resultat');
     const champEmail = document.getElementById('exchange-email');
     const champMdp = document.getElementById('exchange-motdepasse');
-    const email = champEmail ? champEmail.value.trim() : '';
-    const motDePasse = champMdp ? champMdp.value : '';
-    if (!email || !motDePasse) {
-      if (resultat) { resultat.textContent = 'Renseignez votre email et votre mot de passe.'; resultat.className = 'hint reglages-email-resultat reglages-email-echec'; }
-      return;
-    }
+    const champUrl = document.getElementById('exchange-url');
+    const corpsEnvoye = {};
+    if (champEmail && champEmail.value.trim()) corpsEnvoye.email = champEmail.value.trim();
+    if (champMdp && champMdp.value) corpsEnvoye.motDePasse = champMdp.value;
+    if (champUrl && champUrl.value.trim()) corpsEnvoye.url = champUrl.value.trim();
     if (bouton) { bouton.disabled = true; bouton.textContent = 'Connexion en cours…'; }
     if (resultat) { resultat.textContent = ''; resultat.className = 'hint'; }
     try {
       const reponse = await fetchAvecAuth('/api/exchange/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, motDePasse })
+        body: JSON.stringify(corpsEnvoye)
       });
       const corps = await reponse.json();
       if (resultat) {

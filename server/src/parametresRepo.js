@@ -411,6 +411,34 @@ function assainirReglagesMiseAJour(brut, precedent) {
   return { jetonGithub: /^[A-Za-z0-9_]{20,255}$/.test(jeton) ? jeton : '' };
 }
 
+// Connexion à l'Exchange de l'office (voir exchange/ews.js) : l'URL EWS, l'adresse de messagerie et
+// son mot de passe, plus un interrupteur d'activation. Rangés sous leur PROPRE clé, comme les
+// réglages Claude/agenda : ce sont des identifiants d'écriture dans l'agenda Outlook, sans rapport
+// avec l'envoi d'email.
+//
+// Le mot de passe suit EXACTEMENT la discipline du mot de passe SMTP et des clés API : il ne ressort
+// JAMAIS de la base (voir routes/exchange.js, reglagesExchangePublics), et `precedent` permet de le
+// conserver quand le formulaire ne le renvoie pas — absent ou `null`, on garde celui en base ;
+// chaîne vide explicite, on l'efface. Un mot de passe de messagerie n'a aucune raison de
+// retraverser le réseau du bureau à chaque ouverture de l'écran.
+const CLE_REGLAGES_EXCHANGE = 'exchange-office';
+const URL_EWS_DEFAUT = 'https://mail.authentic-connect.fr/EWS/Exchange.asmx';
+
+function assainirReglagesExchange(brut, precedent) {
+  const b = (brut && typeof brut === 'object') ? brut : {};
+  const p = (precedent && typeof precedent === 'object') ? precedent : {};
+  const url = texteNettoye(b.url) || texteNettoye(p.url) || URL_EWS_DEFAUT;
+  const motDePasse = (typeof b.motDePasse === 'string') ? b.motDePasse : texteNettoye(p.motDePasse);
+  return {
+    actif: b.actif === true,
+    // Toujours en https (NTLM sur du texte clair exposerait les identifiants) — un collage raté
+    // retombe sur l'URL par défaut de Fichorga plutôt que d'enregistrer une adresse inutilisable.
+    url: /^https:\/\//i.test(url) ? url : URL_EWS_DEFAUT,
+    email: texteNettoye(b.email) || texteNettoye(p.email),
+    motDePasse: motDePasse.trim()
+  };
+}
+
 // Agenda de l'office (voir agendaOffice.js/agendaWatch.js) : une seule URL, publiée depuis Outlook
 // (« Publier ce calendrier », sans authentification — même flux que l'artefact « brief du matin »
 // de l'étude), rangée sous sa PROPRE clé plutôt que dans le blob `reglages` (envoi d'email) — deux
@@ -697,6 +725,22 @@ function creerRepoParametres(db) {
     return propre;
   }
 
+  function lireReglagesExchange() {
+    const ligne = lireStmt.get(CLE_REGLAGES_EXCHANGE);
+    if (!ligne) return assainirReglagesExchange({});
+    try {
+      return assainirReglagesExchange(JSON.parse(ligne.valeur));
+    } catch (e) {
+      return assainirReglagesExchange({});
+    }
+  }
+
+  function ecrireReglagesExchange(reglages) {
+    const propre = assainirReglagesExchange(reglages, lireReglagesExchange());
+    ecrireStmt.run(CLE_REGLAGES_EXCHANGE, JSON.stringify(propre));
+    return propre;
+  }
+
   function lireReglagesMiseAJour() {
     const ligne = lireStmt.get(CLE_MISE_A_JOUR);
     if (!ligne) return assainirReglagesMiseAJour({});
@@ -715,6 +759,7 @@ function creerRepoParametres(db) {
 
   return {
     lireReglagesMiseAJour, ecrireReglagesMiseAJour,
+    lireReglagesExchange, ecrireReglagesExchange,
     lireReglagesAgenda, ecrireReglagesAgenda, lireDernierTourAgenda, ecrireDernierTourAgenda,
     lireReglageSauvegarde, ecrireReglageSauvegarde, lireEtatSauvegarde, ecrireEtatSauvegarde,
     lireReglages, ecrireReglages, lireDernierTour, ecrireDernierTour,
@@ -730,6 +775,7 @@ module.exports = {
   assainirRetourAudit, assainirRetoursAudit, MAX_RETOURS_AUDIT,
   assainirRappelPerso, assainirRappelsPerso, MAX_RAPPELS_PERSO, assainirPreference, assainirPreferences,
   assainirReglagesClaude, assainirReglagesMiseAJour, MODELES_CLAUDE, MODELE_CLAUDE_PAR_DEFAUT,
+  assainirReglagesExchange, URL_EWS_DEFAUT,
   assainirReglagesAgenda, assainirDernierTourAgenda,
   REGLAGES_PAR_DEFAUT, PORT_SMTP_PAR_DEFAUT
 };

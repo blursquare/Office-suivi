@@ -2,7 +2,10 @@
 
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { interpreterReponseEws, testerConnexionExchange, corpsGetFolderCalendrier } = require('../src/exchange/ews');
+const {
+  interpreterReponseEws, testerConnexionExchange, corpsGetFolderCalendrier,
+  corpsCreateRendezVous, interpreterReponseCreation, creerRendezVousExchange, instantUtcDepuisParis
+} = require('../src/exchange/ews');
 
 test('succès EWS : ResponseClass Success + nom d\'agenda', () => {
   const corps = '<m:GetFolderResponseMessage ResponseClass="Success"><m:ResponseCode>NoError</m:ResponseCode>'
@@ -58,4 +61,66 @@ test('testerConnexionExchange : succès transmis', async () => {
   const poster = (opts, cb) => cb(null, { statusCode: 200, body: '<m:ResponseCode>NoError</m:ResponseCode>' });
   const r = await testerConnexionExchange({ url: 'https://x/EWS/Exchange.asmx', email: 'a@b.fr', motDePasse: 'x' }, { poster });
   assert.equal(r.ok, true);
+});
+
+// --- Création de rendez-vous ---
+
+test('instantUtcDepuisParis : heure d\'été (14:30 Paris CEST = 12:30 UTC)', () => {
+  // Juillet : Paris est à UTC+2.
+  const d = instantUtcDepuisParis('2026-07-14', '14:30');
+  assert.equal(d.toISOString(), '2026-07-14T12:30:00.000Z');
+});
+
+test('instantUtcDepuisParis : heure d\'hiver (14:30 Paris CET = 13:30 UTC)', () => {
+  // Décembre : Paris est à UTC+1.
+  const d = instantUtcDepuisParis('2026-12-14', '14:30');
+  assert.equal(d.toISOString(), '2026-12-14T13:30:00.000Z');
+});
+
+test('corpsCreateRendezVous : CreateItem sur le calendrier, sans invitation, fuseau Paris', () => {
+  const c = corpsCreateRendezVous({ sujet: 'VTE - DUPONT', dateStr: '2026-07-14', heureStr: '14:30', dureeMinutes: 60, lieu: 'Étude', corps: 'Rendez-vous de signature' });
+  assert.match(c, /CreateItem SendMeetingInvitations="SendToNone"/);
+  assert.match(c, /DistinguishedFolderId Id="calendar"/);
+  assert.match(c, /<t:CalendarItem>/);
+  assert.match(c, /<t:Subject>VTE - DUPONT<\/t:Subject>/);
+  assert.match(c, /<t:Start>2026-07-14T12:30:00Z<\/t:Start>/);
+  assert.match(c, /<t:End>2026-07-14T13:30:00Z<\/t:End>/);
+  assert.match(c, /Romance Standard Time/);
+});
+
+test('corpsCreateRendezVous : XML échappé dans l\'objet (pas d\'injection)', () => {
+  const c = corpsCreateRendezVous({ sujet: 'VTE - A & B <x>', dateStr: '2026-07-14', heureStr: '09:00', dureeMinutes: 30 });
+  assert.match(c, /VTE - A &amp; B &lt;x&gt;/);
+  assert.doesNotMatch(c, /<x>/);
+});
+
+test('interpreterReponseCreation : succès + ItemId récupéré', () => {
+  const corps = '<m:CreateItemResponseMessage ResponseClass="Success"><m:ResponseCode>NoError</m:ResponseCode>'
+    + '<m:Items><t:CalendarItem><t:ItemId Id="AAA123" ChangeKey="CK"/></t:CalendarItem></m:Items></m:CreateItemResponseMessage>';
+  const r = interpreterReponseCreation(200, corps);
+  assert.equal(r.ok, true);
+  assert.equal(r.itemId, 'AAA123');
+});
+
+test('interpreterReponseCreation : 401 → auth', () => {
+  const r = interpreterReponseCreation(401, '');
+  assert.equal(r.ok, false);
+  assert.equal(r.raison, 'auth');
+});
+
+test('interpreterReponseCreation : erreur applicative → code EWS', () => {
+  const corps = '<m:CreateItemResponseMessage ResponseClass="Error"><m:ResponseCode>ErrorImpersonateUserDenied</m:ResponseCode></m:CreateItemResponseMessage>';
+  const r = interpreterReponseCreation(200, corps);
+  assert.equal(r.ok, false);
+  assert.match(r.message, /ErrorImpersonateUserDenied/);
+});
+
+test('creerRendezVousExchange : mot de passe jamais dans le résultat', async () => {
+  const poster = (opts, cb) => cb(null, { statusCode: 200, body: '<m:ResponseCode>NoError</m:ResponseCode><t:ItemId Id="X"/>' });
+  const r = await creerRendezVousExchange({
+    url: 'https://x/EWS/Exchange.asmx', email: 'a@b.fr', motDePasse: 'SECRET123',
+    rendezVous: { sujet: 'VTE - X', dateStr: '2026-07-14', heureStr: '14:30', dureeMinutes: 60 }
+  }, { poster });
+  assert.equal(r.ok, true);
+  assert.doesNotMatch(JSON.stringify(r), /SECRET123/);
 });

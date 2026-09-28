@@ -8539,6 +8539,59 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     étape si le test réussit** : stockage chiffré du mot de passe + création des rendez-vous de
     signature dans l'agenda + brouillons Outlook. **S'il échoue** malgré des identifiants certains :
     soupçonner l'Extended Protection (liaison au canal TLS), non gérée par `httpntlm`.
+- **Le test de connexion a réussi au bureau — CLAIRE crée maintenant le rendez-vous de signature
+  dans l'agenda Outlook (brique 1 de la suite « les deux dans cet ordre » demandée par l'étude :
+  d'abord les RDV, puis les brouillons Outlook avec pièces jointes).** Le succès du test de lecture
+  a levé le principal risque : l'authentification NTLM passe ET l'Extended Protection ne bloque pas.
+  - **Identifiants enregistrés en base** (`exchange-office` dans `parametres`, voir
+    `assainirReglagesExchange`/`lireReglagesExchange`/`ecrireReglagesExchange` dans
+    `parametresRepo.js`) : `actif`, `url` (défaut EWS Fichorga), `email`, `motDePasse`. Le mot de
+    passe suit EXACTEMENT la discipline du mot de passe SMTP et des clés API — jamais renvoyé par une
+    route (`reglagesExchangePublics` le remplace par un booléen `motDePasseEnregistre`), conservé
+    quand le formulaire ne le réémet pas (`precedent`), effacé sur chaîne vide explicite. L'étude
+    avait accepté ce stockage (« ça me dérange pas de stocker le mot de passe dans CLAIRE »).
+  - **Création EWS** (`ews.js`, `corpsCreateRendezVous`/`interpreterReponseCreation`/
+    `creerRendezVousExchange`) : `CreateItem` sur un `CalendarItem`, `SendMeetingInvitations="SendToNone"`
+    (aucun participant, aucune invitation — un simple repère dans l'agenda, comme ceux que l'étude
+    saisit à la main). **Fuseau de Paris géré sans dépendre du fuseau du serveur**
+    (`instantUtcDepuisParis`/`decalageParisMinutes` via `Intl`, l'environnement de dev tournant en
+    UTC) : l'heure d'horloge saisie est convertie en instant UTC, envoyée en `Z`, avec
+    `StartTimeZone`/`EndTimeZone` = « Romance Standard Time » pour l'affichage local. **Mêmes règles
+    que le test** : un seul essai, aucun réessai automatique, mot de passe jamais journalisé/renvoyé.
+    L'ORDRE des éléments du `CalendarItem` suit le schéma EWS (obligatoire).
+  - **Routes** (`routes/exchange.js`, `creerRouteurExchange(parametresRepo)`) : `GET/PUT
+    /exchange/reglages` (mot de passe rédigé), `POST /exchange/test` (utilise les identifiants saisis
+    ou, à défaut, ceux enregistrés), `POST /exchange/rendez-vous` (crée à partir des identifiants
+    ENREGISTRÉS, jamais d'un mot de passe transitant dans la requête ; valide date/heure/objet avant
+    tout appel réseau).
+  - **Côté client** : la carte Réglages « Agenda Outlook de l'office » devient un vrai écran de
+    configuration (interrupteur `Créer les rendez-vous dans l'agenda`, email, mot de passe avec note
+    « déjà enregistré », URL EWS en réglage avancé, Enregistrer + Tester) —
+    `chargerReglagesExchange`/`enregistrerReglagesExchange`/`testerConnexionExchange`.
+    `exchangeReglages`/`exchangeAgendaPret()` chargés au démarrage pour que la fiche sache afficher
+    le bouton. Sur la fiche, sous le rendez-vous de signature, `renderCreationRdvAgenda(d)` propose
+    « Créer ce RDV dans l'agenda Outlook » quand la connexion est prête et qu'une date existe ; le
+    clic ouvre un mini-formulaire (heure préremplie depuis `rendezVousSignatureHeure` sinon 14:00,
+    durée) — **ce formulaire visible EST la confirmation** d'une écriture dans l'agenda partagé.
+    `creerRdvDansAgenda(id)` poste `VTE - <nom>`, journalise dans l'historique et pose
+    `d.rdvAgendaCreeLe` (conservé à l'import comme les autres faits accomplis). État
+    `rdvAgendaOuvert` remis à zéro à l'ouverture/fermeture du tiroir, comme `ajoutEcheanceOuvert`.
+  - Tests : `server/test/ews.test.js` (+9 : conversion de fuseau été/hiver, corps CreateItem, XML
+    échappé, interprétation succès/401/erreur, mot de passe non fuité), `server/test/parametresRepo.test.js`
+    (+3 : défauts, conservation/effacement du mot de passe, round-trip base),
+    `server/test/exchange-route.test.js` (nouveau, 5 : réglages rédigés, RDV refusé si inactif,
+    validation date/heure/objet). Suite serveur 391 → 406, suite racine inchangée (853).
+    **Vérifié dans un vrai Chromium** (serveur réel, faux Exchange non appelé) : carte Réglages avec
+    tous ses champs, `renderCreationRdvAgenda` — rien sans connexion prête, bouton quand prête + date,
+    formulaire (heure/durée/résumé « VTE - … ») quand ouvert, rien sans date ; toutes les fonctions
+    exposées globalement ; clair et sombre.
+  - **Non vérifié en conditions réelles** : l'écriture EWS (CreateItem) n'a PAS pu être testée ici
+    (Exchange joignable uniquement au bureau ; le test de la veille était en lecture seule) — à
+    valider par l'étude en cliquant « Créer ce RDV dans l'agenda » sur un vrai dossier, puis en
+    vérifiant l'apparition du rendez-vous (bon jour, bonne heure) dans Outlook. Le rendez-vous créé
+    est supprimable dans Outlook si besoin. **Reste à faire (brique 2)** : les brouillons Outlook
+    avec pièces jointes (le .docx d'appel de fonds / le PDF du questionnaire DÉJÀ joints, ce qu'un
+    `mailto:` ne sait pas faire).
 
 ## Comment tester
 

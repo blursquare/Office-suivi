@@ -140,10 +140,11 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   // Agenda de l'office (voir agendaOffice.js/agendaWatch.js) : `agenda.fetchFn` est réservé aux
   // tests, jamais utilisé en production (repli sur le `fetch` global de Node).
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAgenda(parametresRepo, { depot, ...(agenda || {}) }));
-  // Test de connexion à l'Exchange de l'office (EWS/NTLM, voir exchange/ews.js) : ne stocke rien,
-  // vérifie seulement que les identifiants passent. Première brique avant création de rendez-vous /
-  // brouillons — à valider sur un poste du bureau.
-  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExchange());
+  // Connexion à l'agenda Outlook de l'office (EWS/NTLM, voir exchange/ews.js) : enregistre les
+  // identifiants de messagerie (mot de passe jamais renvoyé au navigateur), teste la connexion et
+  // crée les rendez-vous de signature dans l'agenda. À valider sur un poste du bureau (l'Exchange
+  // n'est joignable que depuis le réseau de l'étude).
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExchange(parametresRepo));
 
   // Gestionnaire d'erreurs générique en dernier recours : évite qu'une exception inattendue
   // (JSON malformé, etc.) ne fasse planter le processus entier plutôt que de répondre 500.
