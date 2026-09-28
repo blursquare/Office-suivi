@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-28 15:10';
+  const VERSION_APP = '2026-09-28 15:16';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-28 15:16', resume: "Planning : une fois l'offre de prêt reçue (ou sur un achat comptant, vente préalable réalisée), la prochaine étape est « Fixer le rendez-vous de signature », bornée par la date butoir ; une fois le rendez-vous placé, on passe à « Envoi appel de fonds ». Apparaît aussi dans « Aujourd'hui » et l'avancement du dossier." },
     { version: '2026-09-28 15:10', resume: "Agenda de l'office : les dates butoir d'obtention du prêt et de vente préalable sont posées directement dans le calendrier partagé (événement « toute la journée »), déplacées quand la date change et retirées quand l'offre est reçue, la vente préalable réalisée, la date effacée ou le dossier archivé. Un dossier existant n'y passe qu'à la prochaine modification de sa date — d'ici là le flux .ics de CLAIRE continue de le publier. À tester au bureau." },
     { version: '2026-09-28 14:48', resume: "Fiche dossier : les échéances (prêt, vente préalable, date butoir, envois, rendez-vous…) sont présentées en timeline verticale — un rail avec un point coloré par échéance dans l'ordre chronologique. Mêmes contrôles qu'avant (crayon, croix, validation)." },
     { version: '2026-09-28 14:42', resume: "Agenda de l'office : dès qu'une date d'envoi (appel de fonds ou projet) est validée sur la fiche, la mention « appel de fonds envoyé » est écrite automatiquement dans le lieu du rendez-vous de signature, sans clic — le bouton « Noter dans l'agenda » reste comme repli si l'écriture auto a échoué ou si le rendez-vous est fixé après l'envoi. À tester au bureau." },
@@ -10903,6 +10904,7 @@
   // demandé que son nom le dise et qu'elle disparaîsse du planning (voir echeancesPlanning).
   const LIBELLES_CATEGORIE = {
     pret: 'Obtention du prêt', acte: 'Date butoir', ventebien: 'Vente préalable',
+    fixerRdv: 'Fixer le rendez-vous de signature',
     appelFonds: 'Envoi appel de fonds', projetEnvoye: 'Envoi projet',
     rendezVousSignature: 'Rendez-vous de signature'
   };
@@ -11410,6 +11412,7 @@
   var ETAPES_AVANCEMENT = [
     { type: 'ventebien', label: 'Vente préalable' },
     { type: 'pret', label: 'Obtention du prêt' },
+    { type: 'fixerRdv', label: 'Rendez-vous fixé' },
     { type: 'appelFonds', label: 'Envoi appel de fonds' },
     { type: 'projetEnvoye', label: 'Envoi projet' },
     { type: 'signature', label: 'Signature' }
@@ -11460,7 +11463,7 @@
       const fait = e.type === 'signature'
         ? !!d.rendezVousSignature && d.rendezVousSignature < aujourdhuiIso
         : echeanceValidee(d, e.type) || ((e.type === 'appelFonds' || e.type === 'projetEnvoye') && !!d[e.type]);
-      const iso = e.type === 'signature' ? (d.rendezVousSignature || '') : (d[e.type] || '');
+      const iso = (e.type === 'signature' || e.type === 'fixerRdv') ? (d.rendezVousSignature || '') : (d[e.type] || '');
       return { type: e.type, label: e.label, fait, iso };
     });
   }
@@ -11849,8 +11852,16 @@
     // façon être faite avant lui). La date butoir de réitération (d.acte) n'y sert PAS d'ancre par
     // défaut : elle vient de l'avant-contrat, n'est qu'indicative, et l'utiliser partout ferait
     // apparaître un « Envoi appel de fonds » prématuré sur chaque dossier encore en cours de prêt.
+    // Étape ajoutée à la demande de l'étude (28/09) : une fois l'offre de prêt reçue (ou sur un
+    // achat comptant), la première chose à faire est de PLACER le rendez-vous de signature ; l'appel
+    // de fonds ne vient qu'ensuite. Ancrée sur la date butoir, seule date qui borne ce rendez-vous
+    // tant qu'il n'est pas pris. Close d'elle-même dès que d.rendezVousSignature est renseignée.
     let etape = null;
-    if (!echeanceValidee(d, 'appelFonds')) {
+    // Un appel de fonds déjà daté ou fait (cas où il est parti avant que le rendez-vous soit noté)
+    // garde sa place : on ne recule pas d'une étape.
+    if (!d.rendezVousSignature && pretLeve(d) && !d.appelFonds && !echeanceValidee(d, 'appelFonds')) {
+      etape = { type: 'fixerRdv', label: 'Fixer le rendez-vous de signature', iso: d.acte };
+    } else if (!echeanceValidee(d, 'appelFonds')) {
       etape = { type: 'appelFonds', label: 'Envoi appel de fonds', iso: d.appelFonds || d.rendezVousSignature };
     } else if (!echeanceValidee(d, 'projetEnvoye')) {
       etape = { type: 'projetEnvoye', label: 'Envoi projet', iso: d.projetEnvoye || d.rendezVousSignature };
@@ -11968,7 +11979,15 @@
   //    on signe avant ou après ». Elle continue donc de s'afficher sur la fiche (avec l'écart, voir
   //    renderTab/butoirRemplacePar), mais elle sort du planning : plus de décompte à surveiller,
   //    plus de rappel automatique, plus de « prochaine échéance ». Le rendez-vous réel prend le relais.
+  // Prêt « levé » : offre reçue (ou validée à la main), ou pas de prêt du tout — et la vente
+  // préalable, s'il y en a une, réalisée : elle précède le prêt dans l'ordre du dossier, et le
+  // rendez-vous de signature ne se place qu'une fois ces deux conditions tombées.
+  function pretLeve(d) {
+    return (!!d.sansPret || echeanceValidee(d, 'pret')) && (!d.ventebien || echeanceValidee(d, 'ventebien'));
+  }
+
   function echeanceValidee(d, type) {
+    if (type === 'fixerRdv') return !!d.rendezVousSignature;
     if (type === 'pret') return d.offrePretStatut === 'recue' || !!(d.echeancesValidees && d.echeancesValidees.pret);
     if (type === 'acte') return !!d.rendezVousSignature || !!(d.echeancesValidees && d.echeancesValidees.acte);
     return !!(d.echeancesValidees && d.echeancesValidees[type]);
@@ -12723,18 +12742,27 @@
         // (les parties ont convenu d'une date plus tardive) ; le butoir n'étant qu'indicatif, il n'y
         // a rien à « vérifier » ni à relancer — l'écart reste visible sur la fiche (voir renderTab /
         // butoirRemplacePar), la synthèse n'a pas à le répéter.
-      } else if (d.acte) {
+      } else if (d.acte && ecartJours(aujourdhuiIso, d.acte) !== null && ecartJours(aujourdhuiIso, d.acte) <= 15) {
         // Date butoir proche, et aucun rendez-vous de signature fixé.
         const j = ecartJours(aujourdhuiIso, d.acte);
-        if (j !== null && j <= 15) ajouter(d, j <= 5 ? 'critique' : 'vigilance', 'Fixer le rendez-vous de signature', `Aucun rendez-vous · butoir le ${court(d.acte)}`, j);
+        ajouter(d, j <= 5 ? 'critique' : 'vigilance', 'Fixer le rendez-vous de signature', `Aucun rendez-vous · butoir le ${court(d.acte)}`, j);
+      } else if (pretLeve(d)) {
+        // Offre reçue (ou achat comptant) : placer le rendez-vous est l'étape suivante, avant
+        // l'appel de fonds (demandé par l'étude). Le butoir, s'il existe, donne le délai.
+        const j = d.acte ? ecartJours(aujourdhuiIso, d.acte) : null;
+        const detail = d.sansPret ? 'Achat comptant' : 'Offre de prêt reçue';
+        // À faire (vigilance) quand l'offre vient d'arriver ; simple suivi sur un achat comptant,
+        // où rien ne s'est produit qui appelle un geste aujourd'hui.
+        ajouter(d, d.sansPret ? 'info' : 'vigilance', 'Fixer le rendez-vous de signature', d.acte ? `${detail} · butoir le ${court(d.acte)}` : detail, j);
       }
       // Vente préalable qui approche sans être confirmée.
       if (d.ventebien && !echeanceValidee(d, 'ventebien')) {
         const j = ecartJours(aujourdhuiIso, d.ventebien);
         if (j !== null && j <= 7) ajouter(d, j < 0 ? 'critique' : 'vigilance', 'Confirmer la vente préalable', `Prévue le ${court(d.ventebien)}`, j);
       }
-      // Dossier complet sans rendez-vous : il n'attend plus que d'être fixé.
-      if (!d.rendezVousSignature && dossierEntierementComplet(d)) {
+      // Dossier complet sans rendez-vous : il n'attend plus que d'être fixé (déjà signalé plus haut
+      // quand l'offre est reçue — ne pas l'ajouter deux fois).
+      if (!d.rendezVousSignature && dossierEntierementComplet(d) && !pretLeve(d)) {
         ajouter(d, 'info', 'Fixer le rendez-vous de signature', 'Dossier complet : offre et pièces reçues', null);
       }
     }

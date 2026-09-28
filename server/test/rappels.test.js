@@ -108,10 +108,11 @@ test('toutesEcheances : un dossier sans prêt (sansPret) garde ses autres éché
 
 test('toutesEcheances : offre reçue, pas de rendez-vous → ancré sur la date butoir (ne disparaît pas)', () => {
   // Cas participation signalé par l'étude : plus aucune échéance datée, le dossier disparaissait du
-  // planning. Il reste visible, l'appel de fonds ancré sur la date butoir, mais jamais un item 'acte'.
+  // planning. Il reste visible — étape « Fixer le rendez-vous » (28/09) ancrée sur la date butoir —,
+  // mais jamais un item 'acte'.
   const d = { offrePretStatut: 'recue', acte: '2026-12-01' };
   const items = toutesEcheances(d);
-  assert.deepEqual(items.map((e) => e.type), ['appelFonds']);
+  assert.deepEqual(items.map((e) => e.type), ['fixerRdv']);
   assert.equal(items[0].iso, '2026-12-01');
   assert.ok(!items.some((e) => e.type === 'acte'));
 
@@ -580,4 +581,17 @@ test('executerTacheRappels : aucun envoi réussi → rien en attente, aucune ten
   assert.equal(appels, 0);
   assert.equal(parametresRepo.lireCopiesEnAttente().length, 0);
   db.close();
+});
+
+test('offre reçue sans rendez-vous : « Fixer le rendez-vous » avant l’appel de fonds, ancré sur le butoir', () => {
+  const { toutesEcheances } = require('../src/jobs/rappels');
+  const base = { id: 'x', offrePretStatut: 'recue', acte: '2026-11-15' };
+  assert.equal(toutesEcheances(base).map((e) => e.type).join(','), 'fixerRdv');
+  assert.equal(toutesEcheances(base)[0].iso, '2026-11-15');
+  // Une fois le rendez-vous placé : l'appel de fonds prend le relais.
+  const place = Object.assign({}, base, { rendezVousSignature: '2026-11-10' });
+  assert.equal(toutesEcheances(place).map((e) => e.type).join(','), 'appelFonds');
+  // Vente préalable encore en attente : pas encore le moment.
+  const vp = Object.assign({}, base, { ventebien: '2026-10-20' });
+  assert.ok(!toutesEcheances(vp).some((e) => e.type === 'fixerRdv'));
 });

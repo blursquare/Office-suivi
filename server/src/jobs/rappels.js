@@ -57,6 +57,7 @@ function seuilsPourType(type) {
 // « Obtention du prêt », et un rendez-vous de signature fixé pour la date butoir de réitération —
 // relancer sur un butoir dont le rendez-vous réel est déjà pris n'aurait plus d'objet.
 function echeanceValidee(d, type) {
+  if (type === 'fixerRdv') return !!d.rendezVousSignature;
   if (type === 'pret') return d.offrePretStatut === 'recue' || !!(d.echeancesValidees && d.echeancesValidees.pret);
   if (type === 'acte') return !!d.rendezVousSignature || !!(d.echeancesValidees && d.echeancesValidees.acte);
   return !!(d.echeancesValidees && d.echeancesValidees[type]);
@@ -86,8 +87,13 @@ function toutesEcheances(d) {
   const items = [];
   if (!echeanceValidee(d, 'ventebien')) items.push({ type: 'ventebien', label: 'Vente préalable', iso: d.ventebien });
   if (!echeanceValidee(d, 'pret')) items.push({ type: 'pret', label: 'Obtention du prêt', iso: d.pret });
+  // Offre reçue (ou achat comptant) sans rendez-vous : placer le rendez-vous vient avant l'appel
+  // de fonds (étude, 28/09). Ancré sur la date butoir ; seuils par défaut (15/7).
   let etape = null;
-  if (!echeanceValidee(d, 'appelFonds')) {
+  const pretLeve = (!!d.sansPret || echeanceValidee(d, 'pret')) && (!d.ventebien || echeanceValidee(d, 'ventebien'));
+  if (!d.rendezVousSignature && pretLeve && !d.appelFonds && !echeanceValidee(d, 'appelFonds')) {
+    etape = { type: 'fixerRdv', label: 'Fixer le rendez-vous de signature', iso: d.acte };
+  } else if (!echeanceValidee(d, 'appelFonds')) {
     etape = { type: 'appelFonds', label: 'Envoi appel de fonds', iso: d.appelFonds || d.rendezVousSignature };
   } else if (!echeanceValidee(d, 'projetEnvoye')) {
     etape = { type: 'projetEnvoye', label: 'Envoi projet', iso: d.projetEnvoye || d.rendezVousSignature };

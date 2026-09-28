@@ -100,10 +100,11 @@ test('alertesImportantes : gravité, ordre, et rien quand tout est en ordre', ()
     { id: 'c', nom: 'C', rendezVousSignature: '2026-09-26' },                            // J-1, rien envoyé → critique
     { id: 'd', nom: 'D', acte: '2026-10-05' },                                           // butoir J-10 sans rdv → vigilance
     { id: 'e', nom: 'E', pret: '2026-12-01', offrePretStatut: 'manquante' },            // loin → rien
-    { id: 'f', nom: 'F', pret: '2026-09-28', offrePretStatut: 'recue' }                 // offre reçue → rien
+    { id: 'f', nom: 'F', pret: '2026-09-28', offrePretStatut: 'recue' }                 // offre reçue → fixer le rendez-vous
   ];
   const r = app.alertesImportantes(l, '2026-09-25');
-  assert.equal(r.map(a => a.dossier.id + ':' + a.gravite).join(','), 'c:critique,a:critique,b:vigilance,d:vigilance');
+  assert.equal(r.map(a => a.dossier.id + ':' + a.gravite).join(','), 'c:critique,a:critique,b:vigilance,d:vigilance,f:vigilance');
+  assert.equal(r[4].titre, 'Fixer le rendez-vous de signature');
   assert.equal(r[0].titre, 'Envoyer l’appel de fonds et le projet');
   assert.equal(r[1].titre, 'Relancer l’offre de prêt');
   assert.equal(r[2].titre, 'Envoyer le projet');
@@ -136,5 +137,6 @@ test('pointsATraiter : une ligne par dossier, le plus grave en titre, les autres
   assert.equal(r.map(x => x.dossier.id + ':' + x.gravite).join(','), 'a:critique,b:info');
   assert.equal(r[0].principal.titre, 'Relancer l’offre de prêt');
   assert.equal(r[0].autres.map(x => x.titre).join(','), 'Fixer le rendez-vous de signature');
-  assert.equal(r[1].principal.titre, 'Relier le dossier du NAS');
+  // Achat comptant sans rendez-vous : « Fixer le rendez-vous » et « Relier le dossier du NAS », en suivi.
+  assert.equal([r[1].principal.titre].concat(r[1].autres.map(x => x.titre)).sort().join(','), 'Fixer le rendez-vous de signature,Relier le dossier du NAS');
 });

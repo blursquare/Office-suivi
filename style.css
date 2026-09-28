@@ -4064,6 +4064,7 @@
   .dot-label .icone { flex: none; }
   .dot-label.dl-neutre, .dot-label.dl-autre { color: var(--muted); }
   .dot-label.dl-projetEnvoye { color: var(--projet); }
+  .dot-label.dl-fixerRdv { color: var(--acte); }
   .dot-label.dl-pret { color: var(--pret); }
   .dot-label.dl-acte { color: var(--acte); }
   .dot-label.dl-ventebien { color: var(--ventebien); }

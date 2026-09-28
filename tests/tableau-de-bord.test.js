@@ -33,12 +33,12 @@ test('avancementDossier : moitié étapes, moitié pièces ; seules les étapes 
     pieces: { certificatUrbanisme: 'recue', erp: 'recue' }
   };
   const a = app.avancementDossier(d, '2026-09-24');
-  // Sans prêt ni vente préalable : appel de fonds, projet, signature — l'appel de fonds est fait.
-  assert.equal(a.etapesTotal, 3);
-  assert.equal(a.etapesFaites, 1);
+  // Sans prêt ni vente préalable : rendez-vous fixé, appel de fonds, projet, signature — les deux premiers faits.
+  assert.equal(a.etapesTotal, 4);
+  assert.equal(a.etapesFaites, 2);
   assert.ok(a.piecesTotal > 2);
   assert.equal(a.piecesRecues, 2);
-  assert.equal(a.pct, Math.round(50 / 3 + 50 * 2 / a.piecesTotal));
+  assert.equal(a.pct, Math.round(50 * 2 / 4 + 50 * 2 / a.piecesTotal));
   assert.equal(a.prochaine, 'Envoi projet');
 });
 
@@ -65,10 +65,10 @@ test('etapesAvancement : chaque étape porte sa date et son état, dans l\'ordre
   const d = { id: 'e', typeVente: 'maison', ventebien: '2026-10-02', pret: '2026-10-15', rendezVousSignature: '2026-12-04',
     appelFonds: '2026-11-20', echeancesValidees: { ventebien: true } };
   const e = app.etapesAvancement(d, '2026-09-25');
-  assert.equal(e.map(x => x.type).join(','), 'ventebien,pret,appelFonds,projetEnvoye,signature');
-  assert.equal(e.map(x => x.fait ? 1 : 0).join(''), '10100');
-  assert.equal(e.map(x => x.iso).join('|'), '2026-10-02|2026-10-15|2026-11-20||2026-12-04');
+  assert.equal(e.map(x => x.type).join(','), 'ventebien,pret,fixerRdv,appelFonds,projetEnvoye,signature');
+  assert.equal(e.map(x => x.fait ? 1 : 0).join(''), '101100');
+  assert.equal(e.map(x => x.iso).join('|'), '2026-10-02|2026-10-15|2026-12-04|2026-11-20||2026-12-04');
   // Sans prêt ni vente préalable, ces deux étapes ne s'appliquent pas.
   const cash = app.etapesAvancement({ id: 'c', sansPret: true }, '2026-09-25');
-  assert.equal(cash.map(x => x.type).join(','), 'appelFonds,projetEnvoye,signature');
+  assert.equal(cash.map(x => x.type).join(','), 'fixerRdv,appelFonds,projetEnvoye,signature');
 });

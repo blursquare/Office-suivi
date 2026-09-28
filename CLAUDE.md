@@ -9098,6 +9098,29 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     retrait une fois l'offre marquée reçue. Si le déplacement d'un événement « toute la journée »
     était refusé par Exchange, la voie de repli est retrait + recréation.
 
+- **Nouvelle étape « Fixer le rendez-vous de signature » avant l'appel de fonds** (28/09, « ajouter
+  une étape avant appel de fonds si l'offre est reçue : placer le rendez-vous de signature puis une
+  fois placé passer en appel de fonds à faire »). Les deux autres demandes du même message (page
+  « Aujourd'hui » masquée, absences dans l'agenda) étaient déjà livrées (`518ba42`, `10158ca`).
+  - `echeancesPlanning()` (et son miroir `toutesEcheances()` dans `server/src/jobs/rappels.js`) :
+    l'étape courante avant signature devient `fixerRdv` (« Fixer le rendez-vous de signature »,
+    ancrée sur la date butoir `d.acte`) tant que **(a)** aucun rendez-vous n'est renseigné, **(b)** le
+    prêt est levé — offre reçue ou validée à la main, ou achat comptant — **et** la vente préalable,
+    s'il y en a une, est réalisée (`pretLeve()`, l'ordre métier du dossier), **(c)** l'appel de fonds
+    n'est ni daté ni fait (on ne recule jamais d'une étape si l'appel est parti avant que le
+    rendez-vous soit noté). Dès que `d.rendezVousSignature` est posée (saisie ou relevée dans
+    l'agenda), l'étape passe à « Envoi appel de fonds » comme avant. `echeanceValidee(d, 'fixerRdv')`
+    = rendez-vous renseigné. Rappels email : seuils par défaut (J-15/J-7) avant le butoir.
+  - `alertesImportantes()` : hors fenêtre du butoir (≤ 15 j, déjà traitée), un dossier au prêt levé
+    sans rendez-vous produit « Fixer le rendez-vous de signature » — **vigilance** (donc dans
+    « À faire » d'Aujourd'hui) quand l'offre est reçue, **info** (« À venir ») sur un achat comptant,
+    où rien ne s'est produit qui appelle un geste le jour même. L'ancien point « Dossier complet sans
+    rendez-vous » ne s'ajoute plus en double quand celui-ci est déjà là.
+  - Avancement : nouvelle étape « Rendez-vous fixé » entre le prêt et l'appel de fonds
+    (`ETAPES_AVANCEMENT`), faite dès qu'un rendez-vous existe. Pastille `.dl-fixerRdv` en `--acte`.
+  - Tests réécrits sur le nouvel enchaînement (6 côté client, 2 côté serveur) + 1 test dédié de chaque
+    côté. Suites : racine 865, serveur 456.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à
