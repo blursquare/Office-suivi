@@ -9121,6 +9121,20 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   - Tests réécrits sur le nouvel enchaînement (6 côté client, 2 côté serveur) + 1 test dédié de chaque
     côté. Suites : racine 865, serveur 456.
 
+- **Mise à jour en un clic : « EPERM: operation not permitted, unlink …CLAIRE-serveur.ancien.exe »**
+  (signalé par l'étude le 28/09, la mise à jour s'arrêtait et CLAIRE restait sur l'ancienne version).
+  `echangerExecutables()` commençait par effacer la copie de secours de la mise à jour PRÉCÉDENTE,
+  et un refus de Windows (fichier en lecture seule, verrouillé par l'antivirus, ou encore exécuté par
+  un ancien processus CLAIRE resté ouvert — indiscernables, tous donnent EPERM) annulait tout.
+  Désormais : on retire l'attribut lecture seule et on réessaie ; si le fichier résiste, la nouvelle
+  copie de secours prend un nom horodaté (`CLAIRE-serveur.ancien-<ms>.exe`) — renommer l'exécutable
+  EN COURS reste toujours permis, c'est ce qui rend l'échange possible. `nettoyerAnciensExecutables()`,
+  lancée au démarrage du `.exe` sans le bloquer, ne garde que la copie la plus récente (mtime) et
+  efface les autres au mieux. **La version en service au bureau n'a pas ce correctif** : pour cette
+  fois, supprimer à la main `CLAIRE-serveur.ancien.exe` (ou redémarrer le PC s'il résiste), puis
+  relancer la mise à jour. Test dans `server/test/mise-a-jour.test.js` (effacement refusé → nom
+  horodaté, puis nettoyage). Suite serveur 457.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

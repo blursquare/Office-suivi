@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-28 15:16';
+  const VERSION_APP = '2026-09-28 15:22';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-28 15:22', resume: "Mise à jour en un clic : si Windows refuse d'effacer l'ancienne copie de secours (« EPERM : operation not permitted »), la mise à jour se fait quand même — la nouvelle copie de secours prend un nom horodaté, et les copies en trop sont effacées au démarrage suivant." },
     { version: '2026-09-28 15:16', resume: "Planning : une fois l'offre de prêt reçue (ou sur un achat comptant, vente préalable réalisée), la prochaine étape est « Fixer le rendez-vous de signature », bornée par la date butoir ; une fois le rendez-vous placé, on passe à « Envoi appel de fonds ». Apparaît aussi dans « Aujourd'hui » et l'avancement du dossier." },
     { version: '2026-09-28 15:10', resume: "Agenda de l'office : les dates butoir d'obtention du prêt et de vente préalable sont posées directement dans le calendrier partagé (événement « toute la journée »), déplacées quand la date change et retirées quand l'offre est reçue, la vente préalable réalisée, la date effacée ou le dossier archivé. Un dossier existant n'y passe qu'à la prochaine modification de sa date — d'ici là le flux .ics de CLAIRE continue de le publier. À tester au bureau." },
     { version: '2026-09-28 14:48', resume: "Fiche dossier : les échéances (prêt, vente préalable, date butoir, envois, rendez-vous…) sont présentées en timeline verticale — un rail avec un point coloré par échéance dans l'ordre chronologique. Mêmes contrôles qu'avant (crayon, croix, validation)." },

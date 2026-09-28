@@ -15,7 +15,7 @@ const { creerApp } = require('../src/app');
 const { ouvrirDb } = require('../src/db');
 const {
   numeroBuild, comparerVersions, lireBuildInstalle, messageErreurGithub, derniereVersionDisponible,
-  telechargerExecutable, echangerExecutables, cheminsExecutable
+  telechargerExecutable, echangerExecutables, cheminsExecutable, nettoyerAnciensExecutables
 } = require('../src/miseAJour');
 
 const CONTENU = Buffer.from('MZ' + 'x'.repeat(4096));
@@ -240,4 +240,30 @@ test('route : refusée hors exécutable', async () => {
   assert.equal(r.status, 409);
   s.close();
   db2.close();
+});
+
+test('échange : une ancienne copie impossible à effacer ne bloque pas la mise à jour', async () => {
+  const dossier = dossierTemp();
+  const c = cheminsExecutable(dossier);
+  fs.writeFileSync(c.actuel, 'v1');
+  fs.writeFileSync(c.ancien, 'v0');
+  fs.writeFileSync(c.nouveau, 'v2');
+  // Windows refuse l'effacement (EPERM : antivirus, ancien processus encore ouvert…).
+  const refus = Object.assign(new Error("EPERM: operation not permitted, unlink"), { code: 'EPERM' });
+  const fsBloque = {
+    rm: async (p, o) => { if (p === c.ancien) throw refus; return fs.promises.rm(p, o); },
+    chmod: async () => {},
+    rename: (a, b) => fs.promises.rename(a, b)
+  };
+  const r = await echangerExecutables(c, fsBloque, () => 1234);
+  assert.equal(fs.readFileSync(c.actuel, 'utf8'), 'v2');
+  assert.equal(r.ancien, c.ancien.replace(/\.exe$/, '-1234.exe'));
+  assert.equal(fs.readFileSync(r.ancien, 'utf8'), 'v1');
+  assert.equal(fs.readFileSync(c.ancien, 'utf8'), 'v0');
+
+  // Au démarrage suivant : seule la copie la plus récente est gardée.
+  fs.utimesSync(c.ancien, new Date(2026, 0, 1), new Date(2026, 0, 1));
+  const effaces = await nettoyerAnciensExecutables(dossier);
+  assert.equal(effaces.join(','), 'CLAIRE-serveur.ancien.exe');
+  assert.equal(fs.existsSync(r.ancien), true);
 });

@@ -745,7 +745,10 @@ quelle version il fait tourner.
   Office-suivi, permission **Contents : Read-only** — la procédure est affichée dans la carte. Il
   est gardé en base (`parametres`, clé `mise-a-jour`) et ne ressort par aucune route.
 - **Retour arrière** : `Arreter-CLAIRE.bat`, supprimer `CLAIRE-serveur.exe`, renommer
-  `CLAIRE-serveur.ancien.exe` en `CLAIRE-serveur.exe`, relancer.
+  `CLAIRE-serveur.ancien.exe` en `CLAIRE-serveur.exe`, relancer. Si Windows avait refusé
+  d'effacer la copie précédente (EPERM : antivirus, fichier en lecture seule, ancien processus
+  resté ouvert), la copie porte un nom horodaté (`CLAIRE-serveur.ancien-<horodatage>.exe`) : c'est
+  la plus récente qui sert au retour arrière. Les copies en trop sont effacées au démarrage suivant.
 - **La toute première fois**, l'exécutable en place n'a pas encore cette fonction : il faut
   installer à la main une version qui la contient. Il affiche ensuite « version inconnue » s'il
   est antérieur à l'embarquement du numéro de build — l'installation reste possible.

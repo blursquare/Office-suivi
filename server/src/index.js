@@ -233,6 +233,11 @@ function demarrer() {
 
     if (config.estSea()) {
       const dossierExe = path.dirname(process.execPath);
+      // Copies de secours en trop laissées par une mise à jour dont l'effacement avait été refusé
+      // (voir miseAJour.js) : en arrière-plan, sans jamais bloquer le démarrage.
+      require('./miseAJour').nettoyerAnciensExecutables(dossierExe)
+        .then((effaces) => { if (effaces.length) console.log(`[CLAIRE] Anciennes copies effacées : ${effaces.join(', ')}`); })
+        .catch(() => {});
       try {
         const crees = assurerScriptsAssistants(dossierExe);
         if (crees.length) console.log(`[CLAIRE] Scripts assistants créés à côté de l'exécutable : ${crees.join(', ')}`);

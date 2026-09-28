@@ -181,19 +181,60 @@ async function telechargerExecutable({ asset, jeton, destination, fetchFn = fetc
 
 // Échange les fichiers : actuel → ancien, nouveau → actuel. Si la seconde étape échoue, la
 // première est défaite : on ne laisse jamais le dossier sans CLAIRE-serveur.exe.
-async function echangerExecutables(chemins, fsImpl = fsp) {
-  await fsImpl.rm(chemins.ancien, { force: true });
-  await fsImpl.rename(chemins.actuel, chemins.ancien);
+//
+// La copie de secours de la mise à jour PRÉCÉDENTE doit d'abord céder la place. Sa suppression
+// peut être refusée par Windows (EPERM, signalé au bureau le 28/09) : fichier en lecture seule,
+// verrouillé par l'antivirus, ou encore exécuté par un ancien processus CLAIRE resté ouvert. Ce
+// n'est jamais une raison d'abandonner la mise à jour : on retire l'attribut lecture seule puis,
+// si le fichier résiste encore, la nouvelle copie de secours prend un nom horodaté
+// (CLAIRE-serveur.ancien-<horodatage>.exe) — renommer l'exécutable EN COURS reste toujours permis.
+// Les copies en trop sont effacées au démarrage suivant (nettoyerAnciensExecutables).
+async function liberer(chemin, fsImpl) {
+  try { await fsImpl.rm(chemin, { force: true }); return true; } catch (_) { /* voir ci-dessous */ }
+  try {
+    if (fsImpl.chmod) await fsImpl.chmod(chemin, 0o666);
+    await fsImpl.rm(chemin, { force: true });
+    return true;
+  } catch (_) { return false; }
+}
+
+async function echangerExecutables(chemins, fsImpl = fsp, maintenant = Date.now) {
+  let ancien = chemins.ancien;
+  if (!(await liberer(ancien, fsImpl))) {
+    ancien = chemins.ancien.replace(/\.exe$/i, `-${maintenant()}.exe`);
+  }
+  await fsImpl.rename(chemins.actuel, ancien);
   try {
     await fsImpl.rename(chemins.nouveau, chemins.actuel);
   } catch (e) {
-    try { await fsImpl.rename(chemins.ancien, chemins.actuel); } catch (_) { /* voir message */ }
+    try { await fsImpl.rename(ancien, chemins.actuel); } catch (_) { /* voir message */ }
     throw new Error(`Remplacement de l'exécutable impossible (${e.message}). L'ancienne version est conservée.`);
   }
+  return { ancien };
+}
+
+// Au démarrage : ne garde que la copie de secours la plus récente (le retour arrière), efface les
+// autres `CLAIRE-serveur.ancien*.exe` laissées par un effacement refusé. Au mieux : un fichier
+// encore verrouillé est simplement laissé là, il sera repris au démarrage suivant.
+async function nettoyerAnciensExecutables(dossierExe, fsImpl = fsp) {
+  let noms;
+  try { noms = await fsImpl.readdir(dossierExe); } catch (_) { return []; }
+  const anciens = noms.filter((n) => /^CLAIRE-serveur\.ancien(-\d+)?\.exe$/i.test(n));
+  if (anciens.length < 2) return [];
+  const avecDate = [];
+  for (const nom of anciens) {
+    try { avecDate.push({ nom, ms: (await fsImpl.stat(path.join(dossierExe, nom))).mtimeMs }); } catch (_) { /* disparu */ }
+  }
+  avecDate.sort((a, b) => b.ms - a.ms);
+  const effaces = [];
+  for (const { nom } of avecDate.slice(1)) {
+    if (await liberer(path.join(dossierExe, nom), fsImpl)) effaces.push(nom);
+  }
+  return effaces;
 }
 
 module.exports = {
   DEPOT_GITHUB, NOM_EXE, NOM_EXE_ANCIEN, TAILLE_MIN_EXE,
   numeroBuild, lireBuildInstalle, messageErreurGithub, derniereVersionDisponible, comparerVersions,
-  cheminsExecutable, telechargerExecutable, echangerExecutables
+  cheminsExecutable, telechargerExecutable, echangerExecutables, nettoyerAnciensExecutables
 };
