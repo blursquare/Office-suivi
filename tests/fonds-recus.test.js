@@ -148,3 +148,16 @@ test('fichiersDecompteRacine : noms employés par l’étude, jamais un décompt
   ], '');
   assert.equal(parNom.map(f => f.nom).sort().join(' | '), 'Convocation au rendez-vous contenant l’appel de fonds.pdf | Décompte acquéreur.pdf');
 });
+
+test('ligne « Envoi appel de fonds » : lien vers le courrier rattaché, ou « Retrouver le courrier »', () => {
+  const app = chargerApplication();
+  const base = { id: 'd1', nom: 'X / Y', nasDossier: 'X', appelFonds: '2026-10-01', echeancesValidees: { appelFonds: true } };
+  assert.match(app.renderLienCourrierAppelFonds(Object.assign({ appelFondsCourrier: 'Décompte acquéreur.pdf' }, base)), /ouvrirCourrierAppelFonds\('d1'\)[^>]*>.*Décompte acquéreur<\/button>/s);
+  assert.match(app.renderLienCourrierAppelFonds(base), /Retrouver le courrier/);
+  assert.equal(app.renderLienCourrierAppelFonds(Object.assign({}, base, { nasDossier: '' })), '');
+  assert.equal(app.renderLienCourrierAppelFonds(Object.assign({}, base, { appelFonds: '', echeancesValidees: {} })), '');
+  // Sur la fiche : sous la ligne de l'envoi.
+  const html = app.echeancesOrdonneesFiche(Object.assign({ sansPret: true, rendezVousSignature: '2099-01-01', appelFondsCourrier: 'Convocation au rendez-vous.pdf', historique: [], pieces: {}, autres: [] }, base), {}, '');
+  const ligne = html.match(/<li class="ech ech-appelFonds[^"]*">[\s\S]*?<\/li>/)[0];
+  assert.match(ligne, /Convocation au rendez-vous<\/button>/);
+});

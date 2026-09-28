@@ -165,3 +165,14 @@ test('tour de surveillance : l’appel de fonds trouvé est enregistré sur le d
     assert.equal(d.appelFonds, '2026-10-05');
   } finally { fs.rmSync(racine, { recursive: true, force: true }); }
 });
+
+test('courrier d’appel de fonds rattaché au dossier : gardé tant qu’il existe, remplacé s’il disparaît', () => {
+  const { courrierAppelFondsARattacher } = require('../src/nasWatch');
+  const d = { id: 'd1', appelFonds: '2026-10-01' };
+  assert.equal(courrierAppelFondsARattacher(d, ['Décompte acquéreur.pdf']), 'Décompte acquéreur.pdf');
+  const rattache = Object.assign({}, d, { appelFondsCourrier: 'Décompte acquéreur.pdf' });
+  assert.equal(courrierAppelFondsARattacher(rattache, ['Décompte acquéreur.pdf', 'Convocation RDV.pdf']), null);
+  assert.equal(courrierAppelFondsARattacher(rattache, ['Convocation RDV.pdf']), 'Convocation RDV.pdf');
+  assert.equal(courrierAppelFondsARattacher(rattache, ['AAE/Convocation RDV.pdf']), null);
+  assert.equal(courrierAppelFondsARattacher(Object.assign({}, d, { archive: true }), ['Décompte acquéreur.pdf']), null);
+});

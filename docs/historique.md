@@ -11531,3 +11531,15 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
   attendu (`RE_NOM_DECOMPTE_EXCLU`, à garder identique au motif serveur).
   À noter pour le premier déploiement : tout dossier en cours dont le courrier est déjà sur le NAS
   sans date d'envoi recevra la date du jour du premier tour.
+
+- **29/09/2026 — Courrier d'appel de fonds rattaché à sa ligne** (demandé par l'étude : « relier le
+  document à la carte appel de fonds pour s'y référer si besoin »). `d.appelFondsCourrier` = chemin
+  du PDF relatif au dossier NAS. Rattaché par le serveur à chaque tour de surveillance
+  (`courrierAppelFondsARattacher`, nasWatch.js : même reconnaissance par le nom que la détection
+  de l'envoi ; un courrier déjà rattaché et toujours présent est gardé, renommé ou retiré il est
+  remplacé), que l'envoi ait été noté à la main ou par CLAIRE. Sur la fiche, sous « Envoi appel de
+  fonds » : lien au nom du fichier qui l'ouvre (`ouvrirCourrierAppelFonds`) ; faute de courrier
+  rattaché (dossier NAS relié, appel de fonds fait), « Retrouver le courrier » le cherche à la
+  racine, le mémorise et l'ouvre (onglet ouvert pendant le clic, `ouvrirFichierNas(chemin,
+  ongletOuvert)`, sinon bloqué comme fenêtre surgissante). La lecture du montant attendu (« Fonds
+  reçus ») commence par ce courrier.

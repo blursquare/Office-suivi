@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 00:22';
+  const VERSION_APP = '2026-09-29 00:24';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 00:24', resume: "La ligne « Envoi appel de fonds » porte le lien vers le courrier (convocation ou décompte) rangé à la racine du dossier NAS : un clic l'ouvre ; « Retrouver le courrier » le cherche s'il n'est pas encore rattaché." },
     { version: '2026-09-29 00:22', resume: "Appel de fonds oublié : quand le courrier (« Convocation au rendez-vous contenant l'appel de fonds », « Décompte acquéreur »…) est à la racine du dossier NAS et que l'envoi n'est pas noté, CLAIRE met la date du jour comme date d'envoi et valide la tâche." },
     { version: '2026-09-29 00:11', resume: "Fonds de l'acquéreur : message Teams au collaborateur quand tous les fonds sont reçus, ou s'ils ne le sont pas en entier 48 h avant le rendez-vous (le vendredi pour un rendez-vous le lundi ou le mardi). Les reçus sont revérifiés automatiquement chaque heure ; le montant attendu est lu dans le décompte ou la convocation à la racine du dossier relié." },
     { version: '2026-09-29 00:05', resume: "« Fonds reçus » et « Confirmer la réception des fonds » ne font plus qu'une ligne : on vérifie les reçus, puis « Confirmer » (email au client) apparaît quand tous les fonds sont reçus ; « confirmer quand même » reste possible si un versement n'est pas dans les reçus lus." },
@@ -10659,6 +10660,9 @@
   async function montantAttenduDepuisNas(d) {
     if (!d.nasDossier) return null;
     const { parNom, autres } = fichiersDecompteRacine(await listerFichiersNas(d), d.compromisNomFichier || '');
+    // Le courrier déjà rattaché à la ligne « Envoi appel de fonds » est lu en premier.
+    const rattache = courrierAppelFondsDossier(d);
+    parNom.sort((a, b) => (b.chemin === rattache) - (a.chemin === rattache));
     const lire = async (f, strict) => {
       const chemin = cheminNasComplet(d, f.chemin);
       const pdf = await ouvrirPdfNas(chemin);
@@ -11326,8 +11330,9 @@
         // Envoi noté automatiquement parce que le courrier est sur le NAS (voir nasWatch.js), tant
         // que la date n'a pas été corrigée à la main.
         const nas = cle === 'appelFonds' && iso && d.detectionsNas && d.detectionsNas.appelFonds === iso;
-        const note = detecte ? '<span class="ech-note">Relevé dans l’agenda</span>'
-          : nas ? `<span class="ech-note" title="${escapeAttr(d.detectionsNas.appelFondsFichier || '')}">Noté automatiquement : courrier trouvé sur le NAS</span>` : '';
+        const note = (detecte ? '<span class="ech-note">Relevé dans l’agenda</span>'
+          : nas ? '<span class="ech-note">Noté automatiquement : courrier trouvé sur le NAS</span>' : '')
+          + (cle === 'appelFonds' ? renderLienCourrierAppelFonds(d) : '');
         lignes.push({ iso, html: renderLigneEcheance(cle, label, iso, d.id, null, null, null, false,
           note, false,
           iso ? true : echeanceValidee(d, cle), { etatSansDate: 'À envoyer', etatFait: '✓ Envoyé', sansValidation: true }) });
@@ -11345,6 +11350,47 @@
       return 0;
     });
     return `<ul class="ech-liste">${lignes.map(l => l.html).join('')}</ul>`;
+  }
+
+  // Le courrier d'appel de fonds (convocation, décompte acquéreur…) rattaché à la ligne « Envoi
+  // appel de fonds », pour s'y reporter (demandé par l'étude le 29/09). Rattaché par le serveur
+  // (d.appelFondsCourrier, voir courrierAppelFondsARattacher dans nasWatch.js) ; à défaut, et si un
+  // dossier du NAS est relié, le lien le cherche à la racine au premier clic.
+  function courrierAppelFondsDossier(d) {
+    return (d && (d.appelFondsCourrier || (d.detectionsNas && d.detectionsNas.appelFondsFichier))) || '';
+  }
+
+  function renderLienCourrierAppelFonds(d) {
+    const courrier = courrierAppelFondsDossier(d);
+    if (courrier) {
+      const nom = courrier.split(/[\\/]/).pop().replace(/\.pdf$/i, '');
+      return `<button type="button" class="lien-action" onclick="ouvrirCourrierAppelFonds('${d.id}')" title="Ouvrir le courrier d’appel de fonds rangé sur le NAS">${icone('file-text')} ${escapeHtml(nom)}</button>`;
+    }
+    if (!d.nasDossier || !(d.appelFonds || echeanceValidee(d, 'appelFonds'))) return '';
+    return `<button type="button" class="lien-action" onclick="ouvrirCourrierAppelFonds('${d.id}')" title="Chercher la convocation ou le décompte à la racine du dossier du NAS">${icone('file-text')} Retrouver le courrier</button>`;
+  }
+
+  async function ouvrirCourrierAppelFonds(id) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    const connu = courrierAppelFondsDossier(d);
+    if (connu) { ouvrirFichierNas(cheminNasComplet(d, connu)); return; }
+    const onglet = window.open('', '_blank');
+    try {
+      const { parNom } = fichiersDecompteRacine(await listerFichiersNas(d), d.compromisNomFichier || '');
+      if (!parNom.length) {
+        if (onglet) onglet.close();
+        afficherToast('Aucune convocation ni décompte à la racine du dossier du NAS.', 'OK', null);
+        return;
+      }
+      d.appelFondsCourrier = parNom[0].chemin;
+      sauvegarder(d);
+      render();
+      ouvrirFichierNas(cheminNasComplet(d, d.appelFondsCourrier), onglet);
+    } catch (e) {
+      if (onglet) onglet.close();
+      afficherToast('Lecture du dossier du NAS impossible : ' + e.message, 'OK', null);
+    }
   }
 
   // Seconde ligne du rendez-vous de signature : l'écart avec la date butoir (corrigeable sur place,
@@ -19852,12 +19898,15 @@
   // L'onglet est ouvert AVANT l'await, tant que le clic de l'utilisateur est encore actif :
   // ouvert après, il serait bloqué comme une fenêtre surgissante (même contrainte d'activation que
   // celle déjà documentée pour requestPermission).
-  async function ouvrirFichierNas(cheminComplet) {
+  // `ongletOuvert` : un onglet déjà ouvert par l'appelant pendant le clic (quand il doit d'abord
+  // chercher le fichier : ouvert après un await, l'onglet serait bloqué comme fenêtre surgissante).
+  async function ouvrirFichierNas(cheminComplet, ongletOuvert) {
     if (!cheminComplet) {
+      if (ongletOuvert) ongletOuvert.close();
       afficherToast("Ce fichier n'a pas encore été localisé — cliquez sur « Revérifier ».", 'OK', null);
       return;
     }
-    const onglet = window.open('', '_blank');
+    const onglet = ongletOuvert || window.open('', '_blank');
     try {
       const reponse = await fetchAvecAuth('/api/nas/fichier?chemin=' + encodeURIComponent(cheminComplet));
       if (!reponse.ok) throw new Error('statut ' + reponse.status);

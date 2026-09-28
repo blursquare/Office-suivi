@@ -79,6 +79,7 @@ function noterAppelFondsDetecte(d, chemins, jour) {
   return {
     ...d,
     appelFonds: jour,
+    appelFondsCourrier: fichier,
     echeancesValidees: { ...(d.echeancesValidees || {}), appelFonds: true },
     detectionsNas: { ...(d.detectionsNas || {}), appelFonds: jour, appelFondsFichier: fichier },
     historique: [...(d.historique || []), {
@@ -86,6 +87,18 @@ function noterAppelFondsDetecte(d, chemins, jour) {
       texte: `Envoi de l’appel de fonds noté automatiquement : « ${fichier} » trouvé dans le dossier du NAS`
     }]
   };
+}
+
+// Le courrier d'appel de fonds rattaché au dossier (d.appelFondsCourrier, chemin relatif au dossier
+// NAS), pour l'ouvrir depuis la ligne « Envoi appel de fonds » de la fiche (demandé par l'étude le
+// 29/09) — que l'envoi ait été noté à la main ou par CLAIRE. Pure : le chemin à mémoriser, ou null
+// si rien ne change. Un courrier déjà rattaché et toujours présent est gardé (pas de va-et-vient
+// entre deux fichiers) ; renommé ou retiré, il est remplacé par celui qu'on trouve.
+function courrierAppelFondsARattacher(d, chemins) {
+  if (!d || d.archive) return null;
+  if (d.appelFondsCourrier && (chemins || []).includes(d.appelFondsCourrier)) return null;
+  const trouve = fichierAppelFondsRacine(chemins);
+  return trouve && trouve !== d.appelFondsCourrier ? trouve : null;
 }
 
 // Un tour de surveillance : pour chaque dossier actif relié au NAS, relit la liste de ses PDF (nom
@@ -125,12 +138,14 @@ async function executerTourSurveillanceNas(depot, racineNas, aujourdHui) {
     }
     const nouveaux = detecterNouveauxFichiers(d.nasInventaire, fichiers);
     const avecAppelFonds = noterAppelFondsDetecte(d, fichiers, jour);
-    const base = avecAppelFonds || d;
+    let base = avecAppelFonds || d;
     if (avecAppelFonds) resultat.appelsFondsNotes++;
+    const courrier = courrierAppelFondsARattacher(base, fichiers);
+    if (courrier) base = { ...base, appelFondsCourrier: courrier };
     if (nouveaux.length > 0) {
       resultat.dossiersNotifies++;
       depot.remplacer(d.id, { ...base, nasInventaire: fichiers, nasNouveaute: { at: Date.now(), fichiers: nouveaux } });
-    } else if (avecAppelFonds || !memeInventaire(d.nasInventaire, fichiers)) {
+    } else if (base !== d || !memeInventaire(d.nasInventaire, fichiers)) {
       // Rien de neuf à signaler, mais l'inventaire mémorisé a changé (fichier renommé/retiré) :
       // on le rafraîchit silencieusement pour que le prochain tour compare au bon référentiel.
       depot.remplacer(d.id, { ...base, nasInventaire: fichiers });
@@ -166,6 +181,6 @@ function demarrerSurveillanceNas(depot, config, intervalleMs) {
 
 module.exports = {
   detecterNouveauxFichiers, memeInventaire, executerTourSurveillanceNas,
-  fichierAppelFondsRacine, appelFondsANoter, noterAppelFondsDetecte,
+  fichierAppelFondsRacine, appelFondsANoter, noterAppelFondsDetecte, courrierAppelFondsARattacher,
   demarrerSurveillanceNas, INTERVALLE_SURVEILLANCE_NAS_MS
 };
