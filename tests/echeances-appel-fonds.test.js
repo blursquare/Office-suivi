@@ -1,6 +1,6 @@
 'use strict';
 
-// Trois demandes traitées ensemble (voir script.js, section "renderTab"/CLAUDE.md) :
+// Trois demandes traitées ensemble (voir script.js, section "renderLigneEcheance") :
 // - une échéance "Appel de fonds", visible seulement une fois le dossier complet
 //   (dossierEntierementComplet) et positionnée juste avant "Signature de l'acte" ;
 // - une échéance fixe "Rendez-vous de signature", distincte de la date butoir "Signature de
@@ -64,7 +64,7 @@ test('appel de fonds affiché dès qu\'un rendez-vous de signature est fixé, m�
   const app = chargerApplication();
   const d = dossierBase({ sansPret: false, offrePretStatut: 'inconnu', rendezVousSignature: '2026-12-01' });
   assert.equal(app.dossierEntierementComplet(d), false, 'le dossier doit bien être incomplet pour que le test ait un sens');
-  assert.ok(ordreDesEcheances(app, d).includes('Envoi au client'));
+  assert.ok(ordreDesEcheances(app, d).includes('Envoi appel de fonds'));
 });
 
 test('une date d\'appel de fonds déjà saisie ne disparaît jamais, même si le dossier redevient incomplet', () => {
@@ -73,45 +73,45 @@ test('une date d\'appel de fonds déjà saisie ne disparaît jamais, même si le
   const app = chargerApplication();
   const d = dossierBase({ sansPret: false, offrePretStatut: 'inconnu', appelFonds: '2026-11-20' });
   assert.equal(app.dossierEntierementComplet(d), false);
-  assert.ok(ordreDesEcheances(app, d).includes('Envoi au client'));
+  assert.ok(ordreDesEcheances(app, d).includes('Envoi appel de fonds'));
 });
 
 test('appel de fonds masqué tant que rien ne le justifie', () => {
   // La règle d'origine reste : ni date saisie, ni rendez-vous, ni dossier complet → pas de carte.
   const app = chargerApplication();
   const d = dossierBase({ sansPret: false, offrePretStatut: 'inconnu' });
-  assert.ok(!ordreDesEcheances(app, d).includes('Envoi au client'));
+  assert.ok(!ordreDesEcheances(app, d).includes('Envoi appel de fonds'));
 });
 
-test('renderTab : croix de suppression et bouton de validation présents sur les deux nouveaux types', () => {
+test('renderLigneEcheance : croix de suppression et bouton de validation présents sur les deux nouveaux types', () => {
   const app = chargerApplication();
-  const htmlAppelFonds = app.renderTab('appelFonds', 'Appel de fonds', '2026-11-20', 'd1', null, null, null, false, '', false, false);
+  const htmlAppelFonds = app.renderLigneEcheance('appelFonds', 'Appel de fonds', '2099-11-20', 'd1', null, null, null, false, '', false, false);
   assert.match(htmlAppelFonds, /supprimerDateEcheance\('d1', 'appelFonds'\)/);
   assert.match(htmlAppelFonds, /validerEcheance\('d1','appelFonds'\)/);
   assert.match(htmlAppelFonds, /Marquer réalisée/);
 
-  const htmlRdv = app.renderTab('rendezVousSignature', 'Rendez-vous de signature', '2026-12-01', 'd1', null, null, null, false, '', false, true);
+  const htmlRdv = app.renderLigneEcheance('rendezVousSignature', 'Rendez-vous de signature', '2026-12-01', 'd1', null, null, null, false, '', false, true);
   assert.match(htmlRdv, /supprimerDateEcheance\('d1', 'rendezVousSignature'\)/);
   assert.match(htmlRdv, /devaliderEcheance\('d1','rendezVousSignature'\)/);
   assert.match(htmlRdv, /Annuler la validation/);
 });
 
-test('renderTab : le bouton de validation utilise la clé "autre-N" pour une échéance personnalisée', () => {
+test('renderLigneEcheance : le bouton de validation utilise la clé "autre-N" pour une échéance personnalisée', () => {
   const app = chargerApplication();
-  const html = app.renderTab('autre', 'Diagnostic amiante', '2026-10-01', 'd1', null, null, 2, false, '', false, false);
+  const html = app.renderLigneEcheance('autre', 'Diagnostic amiante', '2026-10-01', 'd1', null, null, 2, false, '', false, false);
   assert.match(html, /validerEcheance\('d1','autre-2'\)/);
 });
 
-test('renderTab : aucun bouton "Annuler la validation" mort quand le prêt est déjà auto-confirmé reçu', () => {
+test('renderLigneEcheance : aucun bouton "Annuler la validation" mort quand le prêt est déjà auto-confirmé reçu', () => {
   const app = chargerApplication();
-  const html = app.renderTab('pret', 'Obtention du prêt', '2026-09-01', 'd1', null, null, null, true, '', false, true);
+  const html = app.renderLigneEcheance('pret', 'Obtention du prêt', '2026-09-01', 'd1', null, null, null, true, '', false, true);
   assert.doesNotMatch(html, /devaliderEcheance/);
   assert.doesNotMatch(html, /validerEcheance/);
 });
 
-test('renderTab : le prêt non encore reçu propose bien "Marquer réalisée" (validation manuelle possible)', () => {
+test('renderLigneEcheance : le prêt non encore reçu propose bien "Marquer réalisée" (validation manuelle possible)', () => {
   const app = chargerApplication();
-  const html = app.renderTab('pret', 'Obtention du prêt', '2026-09-01', 'd1', null, null, null, false, '', false, false);
+  const html = app.renderLigneEcheance('pret', 'Obtention du prêt', '2026-09-01', 'd1', null, null, null, false, '', false, false);
   assert.match(html, /validerEcheance\('d1','pret'\)/);
 });
 
@@ -176,23 +176,12 @@ test('normaliserDossierImporte écarte une date mal formée pour les deux nouvea
   assert.equal(d.appelFonds, '');
 });
 
-// Ordre CHRONOLOGIQUE des cartes d'échéance sur la fiche (demandé par l'étude) — remplace
-// l'ordre fixe prêt → appel de fonds → acte → rendez-vous → vente préalable → personnalisées.
-// On lit l'ordre dans le HTML produit en cherchant la position de chaque libellé.
+// Ordre CHRONOLOGIQUE des lignes d'échéance sur la fiche (demandé par l'étude). On lit l'ordre
+// dans le HTML produit, ancré sur le nom de chaque ligne (jamais sur le libellé seul : le petit
+// menu de recatégorisation contient les TROIS libellés en <option>).
 function ordreDesEcheances(app, d) {
   const html = app.echeancesOrdonneesFiche(d, {}, '');
-  // « Envoi au client » : titre de la carte qui porte l'envoi de l'appel de fonds et du projet.
-  const libelles = ['Obtention du prêt', 'Envoi au client', 'Date butoir',
-    'Rendez-vous de signature', 'Vente préalable'].concat((d.autres || []).map((a) => a.label));
-  // Ancrage sur le titre de la carte, jamais sur le libellé seul : les tabs recatégorisables
-  // (prêt/acte/vente préalable) embarquent un <select> qui contient les TROIS libellés en
-  // <option>, donc un simple indexOf du libellé retombe sur la mauvaise carte.
-  return libelles
-    // La classe peut porter un modificateur (tab-name-fort sur le rendez-vous de signature).
-    .map((l) => ({ l, i: html.search(new RegExp('<div class="tab-name[^"]*">' + l.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '</div>')) }))
-    .filter((x) => x.i >= 0)
-    .sort((a, b) => a.i - b.i)
-    .map((x) => x.l);
+  return [...html.matchAll(/<span class="ech-nom[^"]*">([^<]*)<\/span>/g)].map((m) => m[1]);
 }
 
 test('echeancesOrdonneesFiche classe les échéances datées par date croissante', () => {
@@ -204,9 +193,9 @@ test('echeancesOrdonneesFiche classe les échéances datées par date croissante
   });
   assert.equal(
     ordreDesEcheances(app, d).join(' | '),
-    // L'appel de fonds est désormais affiché dès qu'un rendez-vous est fixé ; sans date propre,
-    // il part en fin de liste comme toute échéance non renseignée.
-    'Diagnostic amiante | Vente préalable | Date butoir | Rendez-vous de signature | Obtention du prêt | Envoi au client'
+    // Rendez-vous fixé : la date butoir n'a plus sa propre ligne (elle est dite sous la signature).
+    // Les deux envois, affichés dès qu'un rendez-vous est fixé, partent sans date en fin de liste.
+    'Diagnostic amiante | Vente préalable | Signature | Obtention du prêt | Envoi appel de fonds | Envoi projet'
   );
 });
 
@@ -217,7 +206,7 @@ test('echeancesOrdonneesFiche relègue les échéances sans date en fin, dans le
   const d = dossierBase({ pret: '', acte: '2026-09-30', rendezVousSignature: '' });
   assert.equal(
     ordreDesEcheances(app, d).join(' | '),
-    'Date butoir | Obtention du prêt | Rendez-vous de signature'
+    'Date butoir | Obtention du prêt | Signature'
   );
 });
 
@@ -230,7 +219,7 @@ test('echeancesOrdonneesFiche garde l\'index réel d\'une échéance personnalis
     autres: [{ label: 'Tardive', date: '2026-11-01' }, { label: 'Ancienne', date: '2026-01-15' }]
   });
   const html = app.echeancesOrdonneesFiche(d, {}, '');
-  assert.ok(html.indexOf('<div class="tab-name">Ancienne</div>') < html.indexOf('<div class="tab-name">Tardive</div>'));
+  assert.ok(html.indexOf('<span class="ech-nom">Ancienne</span>') < html.indexOf('<span class="ech-nom">Tardive</span>'));
   assert.ok(html.includes("supprimerEcheanceAutre('d1', 1)"));
   assert.ok(html.includes("supprimerEcheanceAutre('d1', 0)"));
 });
@@ -244,7 +233,7 @@ test('echeancesOrdonneesFiche : les échéances sans date suivent l\'ordre méti
   // ventebien n'est rendue que si elle porte une date (comportement d'origine, inchangé).
   assert.equal(
     ordreDesEcheances(app, d).join(' | '),
-    'Obtention du prêt | Date butoir | Rendez-vous de signature'
+    'Obtention du prêt | Date butoir | Signature'
   );
 });
 
@@ -292,26 +281,27 @@ test('date butoir : pas d\'échéance propre, mais elle sert d\'ancre quand rien
   assert.equal(app.prochaineEcheanceDetail(sansRdv).type, 'fixerRdv');
 });
 
-test('renderTab : la date butoir remplacée affiche l\'écart avec le rendez-vous, pas un décompte', () => {
+test('rendez-vous fixé : la date butoir devient une précision sous la signature, avec son écart', () => {
   const app = chargerApplication();
-  const apres = app.renderTab('acte', 'Date butoir', '2026-10-01', 'd1', null, null, null, false, '', false, true, '2026-10-06');
-  assert.ok(apres.includes('Signature 5 j APRÈS la date butoir'), apres);
-  assert.ok(apres.includes('tab-countdown passed'));
-  // Aucun bouton de validation : ce n'est pas une décision manuelle, l'annuler n'annulerait rien.
-  assert.ok(!apres.includes('devaliderEcheance'));
-  assert.ok(!apres.includes('validerEcheance'));
+  assert.equal(app.ecartButoirRendezVous('2026-10-01', '2026-10-06').texte, 'Signature 5 j APRÈS la date butoir');
+  assert.equal(app.ecartButoirRendezVous('2026-10-01', '2026-10-06').alerte, true);
+  assert.equal(app.ecartButoirRendezVous('2026-10-10', '2026-10-07').texte, 'Signature 3 j avant la date butoir');
+  assert.equal(app.ecartButoirRendezVous('2026-10-10', '2026-10-07').alerte, false);
+  assert.equal(app.ecartButoirRendezVous('2026-10-10', '2026-10-10').texte, 'Signature le jour même');
 
-  const avant = app.renderTab('acte', 'Date butoir', '2026-10-10', 'd1', null, null, null, false, '', false, true, '2026-10-07');
-  assert.ok(avant.includes('Signature 3 j avant la date butoir'), avant);
-  assert.ok(avant.includes('tab-countdown recue'));
+  const html = app.echeancesOrdonneesFiche(dossierBase({ acte: '2026-10-01', rendezVousSignature: '2026-10-06' }), {}, '');
+  assert.ok(!html.includes('<span class="ech-nom">Date butoir</span>'), 'plus de ligne propre');
+  assert.ok(html.includes('Signature 5 j APRÈS la date butoir'));
+  assert.ok(html.includes('ech-butoir alerte'));
+  // Toujours corrigeable sur place : mêmes ids que ceux attendus par validerEditionDate.
+  assert.ok(html.includes('id="tabdate-d1-acte-input"'));
+  assert.ok(html.includes("validerEditionDate('d1','acte')"));
 
-  const memeJour = app.renderTab('acte', 'Date butoir', '2026-10-10', 'd1', null, null, null, false, '', false, true, '2026-10-10');
-  assert.ok(memeJour.includes('Signature le jour même'), memeJour);
-
-  // Sans rendez-vous, le comportement d'origine est intact.
-  const normal = app.renderTab('acte', 'Date butoir', '2026-10-01', 'd1', null, null, null, false, '', false, false, '');
+  // Sans rendez-vous, la date butoir garde sa ligne et sa validation manuelle.
+  const normal = app.echeancesOrdonneesFiche(dossierBase({ acte: '2099-10-01' }), {}, '');
+  assert.ok(normal.includes('<span class="ech-nom">Date butoir</span>'));
+  assert.ok(normal.includes("validerEcheance('d1','acte')"));
   assert.ok(!normal.includes('la date butoir'));
-  assert.ok(normal.includes('validerEcheance'));
 });
 
 test("saisir une date d'appel de fonds le marque réalisé, la vider annule la validation", () => {
@@ -330,43 +320,54 @@ test("saisir une date d'appel de fonds le marque réalisé, la vider annule la v
 test("la section « Appel de fonds » du bas de fiche disparaît une fois l'appel fait", () => {
   const app = chargerApplication();
   const d = { id: 'd1', rendezVousSignature: '2026-11-01', prixVente: 200000, adresseBien: 'x' };
-  assert.ok(app.renderAppelFondsDossier(d).includes("Préparer l'appel de fonds"));
+  assert.ok(app.renderAppelFondsDossier(d).includes('Préparer l’appel de fonds'));
+  assert.ok(app.renderAppelFondsDossier(d).includes("preparerAppelFondsDepuisDossier('d1')"));
   d.echeancesValidees = { appelFonds: true };
   assert.equal(app.renderAppelFondsDossier(d), '');
 });
 
-test('le titre de la carte « Appel de fonds » est en gras', () => {
+test('le rendez-vous de signature est la seule ligne au nom en gras', () => {
   const app = chargerApplication();
-  const html = app.renderTab('appelFonds', 'Appel de fonds', '2026-11-20', 'd1', null, null, null, false, '', false, false);
-  assert.ok(html.includes('tab-name tab-name-fort'));
+  const html = app.echeancesOrdonneesFiche(dossierBase({ rendezVousSignature: '2026-12-01' }), {}, '');
+  assert.equal((html.match(/ech-nom-fort/g) || []).length, 1);
+  assert.ok(html.includes('<span class="ech-nom ech-nom-fort">Signature</span>'));
 });
 
-// Carte « Appel de fonds » de la fiche (25/09) : deux entrées, chacune sa date — « Envoi appel de
-// fonds » et « Envoi projet » — au lieu de deux cartes séparées.
-test('renderCarteEnvoisAvantSignature : deux entrées, dates et statuts propres à chacune', () => {
+// Ancienne carte « Envoi au client » (25/09) : ses deux entrées sont deux lignes de la liste,
+// chacune sa date — « Envoi appel de fonds » et « Envoi projet ».
+test('envois avant signature : deux lignes, dates et états propres à chacune', () => {
   const app = chargerApplication();
-  const vide = app.renderCarteEnvoisAvantSignature(dossierBase());
-  assert.ok(vide.includes('Envoi appel de fonds'));
-  assert.ok(vide.includes('Envoi projet'));
-  assert.equal((vide.match(/À compléter/g) || []).length, 2);
+  const vide = app.echeancesOrdonneesFiche(dossierBase({ rendezVousSignature: '2099-12-01' }), {}, '');
+  assert.ok(vide.includes('<span class="ech-nom">Envoi appel de fonds</span>'));
+  assert.ok(vide.includes('<span class="ech-nom">Envoi projet</span>'));
+  assert.equal((vide.match(/À envoyer/g) || []).length, 2);
   // Les deux champs de saisie existent, avec les id attendus par validerEditionDate.
   assert.ok(vide.includes('id="tabdate-d1-appelFonds-input"'));
   assert.ok(vide.includes('id="tabdate-d1-projetEnvoye-input"'));
+  // La date EST la validation : pas de « Marquer réalisée » sur un envoi.
+  assert.ok(!vide.includes("validerEcheance('d1','appelFonds')"));
 
-  const html = app.renderCarteEnvoisAvantSignature(dossierBase({
-    appelFonds: '2026-09-25', echeancesValidees: { appelFonds: true },
+  const html = app.echeancesOrdonneesFiche(dossierBase({
+    rendezVousSignature: '2099-12-01', appelFonds: '2026-09-25', echeancesValidees: { appelFonds: true },
     detectionsAgenda: { appelFonds: '2026-09-25' }
-  }));
-  assert.ok(html.includes('25 septembre 2026'));
-  assert.ok(html.includes('relevé dans l’agenda'));
-  assert.equal((html.match(/À compléter/g) || []).length, 1, "l'envoi du projet reste à compléter");
+  }), {}, '');
+  assert.ok(html.includes('25 sept. 2026'));
+  assert.ok(html.includes('title="25 septembre 2026"'));
+  assert.ok(html.includes('Relevé dans l’agenda'));
+  assert.ok(html.includes('✓ Envoyé'));
+  assert.equal((html.match(/À envoyer/g) || []).length, 1, "l'envoi du projet reste à faire");
 });
 
-test('echeancesOrdonneesFiche : une seule carte « Envoi au client », plus de carte « Projet » séparée', () => {
+test('etatLigneEcheance : un mot par état', () => {
   const app = chargerApplication();
-  const html = app.echeancesOrdonneesFiche(dossierBase({ rendezVousSignature: '2026-12-01', projetEnvoye: '2026-11-20' }), {}, '');
-  assert.equal((html.match(/<div class="tab appelFonds">/g) || []).length, 1);
-  assert.ok(!html.includes('class="tab projetEnvoye"'));
+  assert.equal(app.etatLigneEcheance('', {}).texte, 'Non renseignée');
+  assert.equal(app.etatLigneEcheance('', { sansPret: true }).texte, 'Sans prêt');
+  assert.equal(app.etatLigneEcheance('', { etatSansDate: 'À envoyer' }).texte, 'À envoyer');
+  assert.equal(app.etatLigneEcheance('', { validee: true, etatFait: '✓ Envoyé' }).texte, '✓ Fait');
+  assert.equal(app.etatLigneEcheance('2000-01-01', { offrePretRecue: true }).texte, '✓ Offre reçue');
+  assert.equal(app.etatLigneEcheance('2000-01-01', { validee: true }).texte, '✓ Réalisée');
+  assert.equal(app.etatLigneEcheance('2000-01-01', {}).texte, 'Dépassée');
+  assert.match(app.etatLigneEcheance('2099-01-01', {}).texte, /^J-\d+$/);
 });
 
 test("normaliserDossierImporte : conserve les envois déjà relevés dans l'agenda", () => {

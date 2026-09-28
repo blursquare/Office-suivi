@@ -11393,3 +11393,51 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
   qui gardent « Dossier NOM ». CLAIRE relit l'agenda de l'office et y prend tout titre « VTE - … »
   pour la référence d'un dossier : ces dates ne doivent pas pouvoir être confondues avec le
   rendez-vous de signature ou un envoi.
+
+- **28/09/2026 — Fiche : échéances en liste épurée + encadré « Prochaine étape »** (demandé par
+  l'étude : « la partie des dates butoir est trop brouillonne, trop d'information parfois inutile » ;
+  trois présentations proposées dans un artefact, choix « A + encadré B »). Les cartes de
+  `renderTab` sont remplacées par `renderLigneEcheance` : une ligne par étape (pastille en anneau à
+  venir / pleine une fois faite, nom, date courte « 20 oct. 2026 » alignée en colonne, état en un mot
+  via `etatLigneEcheance`), les gestes d'édition en icônes au survol (toujours visibles au tactile) :
+  corriger la date, marquer réalisée / annuler, supprimer. La seconde ligne discrète porte le reste :
+  statut de l'offre et garanties (prêt), badge de confiance, « Voir p.X », relevé dans l'agenda.
+  Mécanismes gardés tels quels : ids `tabdate-<id>-<clé>-aff/-edit/-input`, clé `autre-N` (index
+  réel), chevron de recatégorisation, pas de validation manuelle quand l'offre est confirmée reçue.
+  - **Date butoir** : sa propre ligne tant qu'aucun rendez-vous n'est fixé ; ensuite elle devient
+    une précision sous « Signature » (`ecartButoirRendezVous` : « Signature 4 j APRÈS la date butoir
+    (7 nov. 2026) », en rouge seulement si APRÈS), toujours corrigeable sur place.
+  - **Envoi appel de fonds / Envoi projet** : deux lignes de la liste (fin de la carte « Envoi au
+    client »), chacune triée par sa date ; « À envoyer » / « ✓ Envoyé » ; la date reste la validation.
+  - **Encadré « Prochaine étape »** (`renderProchaineEtapeFiche`) : la prochaine échéance (nom,
+    date, J-n, bord ambre ≤ 15 j, rouge ≤ 3 j ou dépassée), puis les actions de CE dossier telles que
+    « À faire » les calcule (`actionsFicheDossier` = `actionsDuJour([d])` moins reports et traités du
+    jour : mêmes clés, cocher ici coche là-bas), plus « Créer le rendez-vous dans l'agenda Outlook »
+    (le formulaire heure/durée/lieu s'y déplie, toujours ouvert tout seul après la saisie de la date)
+    et « Noter dans l'agenda » en cas d'échec de la note automatique. `trouverActionJour` cherche
+    désormais aussi hors du périmètre du poste : les boutons marchent sur le dossier d'un collègue.
+  - La puce « prochaine échéance » de l'en-tête de fiche est retirée (doublon de l'encadré).
+
+- **28/09/2026 — Un seul composant pour tout geste : la ligne d'action** (demandé par l'étude :
+  « reprends tous les boutons d'action ou d'envoi d'e-mail de la même forme que la liste de tâches
+  du jour … il y a parfois des boutons qui font la même chose sous des formes différentes » ; choix
+  « lignes d'action partout »). `renderLigneAction(o)` produit la ligne `.ja` de « À faire »
+  (pastille, titre + précision, délai, geste principal à droite, icônes secondaires, détail dépliable
+  par la même mémoire `apercusJour`) ; `renderLigneActionJour` s'appuie dessus (variante `dansFiche`
+  sans le nom du dossier ni « Ouvrir la fiche »). Une ligne « faite » (email déjà envoyé…) garde son
+  bouton en contour (« Renvoyer », « Renoter ») et une pastille verte.
+  - **Onglet Échanges** (`renderEchangesDossier`) : « Emails au client » = une seule liste —
+    provision, vente préalable, offre de prêt, RIB, réception des fonds, questionnaire — avec les
+    MÊMES titres et verbes que « À faire » (`ACTIONS_EMAIL_DOSSIER` : « Relancer l'offre de prêt »,
+    « Demander le RIB et la pièce d'identité »…), la date du dernier envoi en précision, et le
+    brouillon exact en dépliant la ligne. « Appel de fonds et agenda » = préparer l'appel de fonds,
+    fonds reçus (état en précision, montant attendu et reçus toujours visibles dessous), noter dans
+    l'agenda. Les textes des emails ne changent pas.
+  - **« Ajouter … »** : un seul bouton `.bouton-ajout` (pointillés, « + » en CSS, pleine largeur)
+    pour échéance, pièce, obligation du vendeur, rappel, échéance et engagement du wizard, client de
+    l'appel de fonds, acquéreur / ligne / apport / prêt des quotités. Les boutons de formulaire
+    (Enregistrer, Annuler, Créer le rendez-vous) restent des boutons ; les liens d'appoint
+    (Revérifier, Voir p.X, Recréer dans l'agenda) passent en `.lien-action`.
+  - Vérifié dans Chromium (serveur réel, dossiers inventés, clair/sombre/390 px) : dates alignées
+    à la même colonne, aucun débordement horizontal du tiroir, édition de date au crayon, action d'un
+    dossier de collègue retrouvée, aucune erreur JS. Non vérifié ici : l'écriture EWS réelle.

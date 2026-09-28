@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-28 23:20';
+  const VERSION_APP = '2026-09-28 23:46';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-28 23:46', resume: "Fiche plus lisible : les échéances tiennent sur une ligne chacune (date, état, gestes au survol) sous un encadré « Prochaine étape » ; chaque email ou action (relances, appel de fonds, fonds reçus, agenda, questionnaire) prend la même forme de ligne que la liste « À faire » ; un seul bouton « Ajouter » partout." },
     { version: '2026-09-28 23:20', resume: "« VTE - NOM » aussi dans l'objet des emails, les noms de fichiers exportés, les notifications Teams et les rappels ; la recherche trouve « vte dupont »." },
     { version: '2026-09-28 23:18', resume: "Le nom du dossier n'apparaît plus dans le corps des emails (il reste dans l'objet)." },
     { version: '2026-09-28 23:15', resume: "Les dossiers de vente s'affichent « VTE - NOM DU DOSSIER » (au lieu de « VENTE … »), la même référence que dans l'agenda de l'office." },
@@ -10295,156 +10296,123 @@
     ).join('');
   }
 
-  function renderTab(type, label, iso, dossierId, page, confiance, autreIndex, offrePretRecue, offreBloc, sansPret, validee, butoirRemplacePar) {
-    // Les tabs Prêt / Acte / Vente d'un dossier enregistré sont recatégorisables au clic ;
-    // les échéances "Autre" gardent leur libellé personnalisé (non concerné par ce sélecteur).
-    // Redessiné sur retour de l'étude : le titre est maintenant un texte statique (coloré selon la
-    // catégorie), avec juste une petite flèche à côté pour changer de catégorie — plutôt que le
-    // titre entier comme <select> (ambigu : rien n'indiquait qu'il s'agissait d'un menu déroulant
-    // avant d'y cliquer). Le <select> natif reste fonctionnellement identique (mêmes <option>, même
-    // onchange) mais devient invisible (opacity:0), superposé pile sur la petite flèche
-    // (.tab-select-icone-chevron, pointer-events:none) qui, elle, est purement décorative.
-    const recategorisable = dossierId && autreIndex == null && (type === 'pret' || type === 'acte' || type === 'ventebien');
-    const enTete = recategorisable
-      ? `<div class="tab-titre-ligne">
-          <div class="tab-name">${label}</div>
-          <span class="tab-select-icone-wrap" title="Changer la catégorie de cette échéance">
-            <select class="tab-select-icone" onchange="changerCategorie('${dossierId}','${type}', this.value)" aria-label="Changer la catégorie de cette échéance">${optionsCategorie(type)}</select>
-            <span class="tab-select-icone-chevron">${icone('chevron-down')}</span>
-          </span>
-        </div>`
-      : `<div class="tab-name${type === 'rendezVousSignature' || type === 'appelFonds' || type === 'projetEnvoye' ? ' tab-name-fort' : ''}">${label}</div>`;
+  // ---- Échéances de la fiche : une ligne par étape (refonte du 28/09, demandée par l'étude) ----
+  // Les anciennes cartes empilaient titre, grande date, décompte, boutons et blocs d'état : « trop
+  // brouillon, trop chargé ». Chaque étape tient maintenant sur une ligne : pastille (anneau = à
+  // venir, pleine = faite), nom, date courte alignée en colonne, état en un mot, et les gestes
+  // d'édition en icônes (corriger la date, marquer réalisée / annuler, supprimer) qui n'apparaissent
+  // qu'au survol — toujours visibles sur tablette. Ce qu'il faut savoir en plus (offre de prêt,
+  // confiance de la date, page du PDF, écart avec la date butoir, agenda) passe sur une seconde
+  // ligne discrète. Les gestes qui AGISSENT (relancer, créer le rendez-vous…) sont dans l'encadré
+  // « Prochaine étape » au-dessus, sous forme de lignes d'action (renderLigneAction).
+  //
+  // Mécanismes conservés tels quels : crayon → champ date natif → ✓ (ids tabdate-<id>-<clé>-aff /
+  // -edit / -input, voir activerEditionDate/validerEditionDate) ; clé "autre-N" pour une échéance
+  // personnalisée (index réel dans d.autres, pas son rang après tri) ; recatégorisation du prêt, de
+  // la date butoir et de la vente préalable par le petit chevron (select natif invisible posé
+  // dessus) ; pas de « Marquer réalisée » quand c'est un FAIT du dossier qui clôt l'échéance (offre
+  // de prêt confirmée reçue) — le bouton n'annulerait rien.
+  //
+  // Badge de confiance : seulement pour une date « estimée » (formulation approximative) ou « à
+  // vérifier » (choisie parmi plusieurs candidates) ; une date lue sans ambiguïté ou saisie à la
+  // main n'en porte aucun (un badge partout n'attirait l'attention sur rien).
+  var LIBELLES_CONFIANCE_ECHEANCE = {
+    estime: { titre: 'Calculée à partir d’une formulation approximative ("fin septembre", délai relatif...) — à vérifier précisément', texte: 'Estimée', dl: 'dl-pret' },
+    incertain: { titre: 'Choisie parmi plusieurs dates possibles dans le texte — à vérifier en priorité', texte: 'À vérifier', dl: 'dl-alerte', icone: 'alert-triangle' }
+  };
 
-    // Petite croix en haut à droite pour retirer une échéance : "autre" passe par
-    // supprimerEcheanceAutre (retire l'entrée de d.autres) ; Prêt/Acte/Vente préalable, tant qu'une
-    // date y est renseignée, passent par supprimerDateEcheance (vide juste la date — la tab
-    // elle-même n'est jamais retirée du modèle, voir son historique). Avant ce bouton dédié, seul
-    // le crayon (vider le champ date natif puis valider) permettait de l'effacer — peu visible,
-    // demandé par l'étude sous forme d'un vrai bouton de suppression.
-    const croixSuppression = (dossierId && autreIndex != null)
-      ? `<button type="button" class="tab-suppr" onclick="supprimerEcheanceAutre('${dossierId}', ${autreIndex})" title="Supprimer cette échéance" aria-label="Supprimer cette échéance">${icone('x')}</button>`
-      : (dossierId && autreIndex == null && iso && (type === 'pret' || type === 'acte' || type === 'ventebien' || type === 'appelFonds' || type === 'projetEnvoye' || type === 'rendezVousSignature'))
-        ? `<button type="button" class="tab-suppr" onclick="supprimerDateEcheance('${dossierId}', '${type}')" title="Supprimer cette date" aria-label="Supprimer cette date">${icone('x')}</button>`
-        : '';
+  // Date courte d'une ligne (« 20 oct. 2026 ») : les dates s'alignent en colonne ; la date en
+  // toutes lettres reste en infobulle.
+  function dateCourteEcheance(iso) {
+    if (!iso) return '—';
+    const dt = new Date(iso + 'T00:00:00');
+    if (isNaN(dt)) return iso;
+    return dt.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
 
-    // Retrouve la date dans l'aperçu PDF (uniquement si le PDF encore chargé est bien celui d'origine).
-    const boutonVoir = (iso && page && pdfActuel)
-      ? `<button type="button" class="voir-pdf-btn" onclick="voirDateDansPdf(${page}, '${iso.split('-')[0]}')">${icone('eye')} Voir p.${page}</button>`
-      : '';
+  // Pure : l'état d'une échéance en un mot, et sa classe de couleur.
+  function etatLigneEcheance(iso, opts) {
+    const o = opts || {};
+    if (!iso) {
+      if (o.validee && o.etatFait) return { texte: '✓ Fait', cls: 'ok' };
+      return { texte: o.sansPret ? 'Sans prêt' : (o.etatSansDate || 'Non renseignée'), cls: 'neutre' };
+    }
+    if (o.offrePretRecue) return { texte: '✓ Offre reçue', cls: 'ok' };
+    if (o.validee) return { texte: o.etatFait || '✓ Réalisée', cls: 'ok' };
+    const jours = joursRestants(iso);
+    if (jours < 0) return { texte: 'Dépassée', cls: 'alerte' };
+    if (jours === 0) return { texte: "Aujourd'hui", cls: 'urgent' };
+    return { texte: `J-${jours}`, cls: jours <= 3 ? 'urgent' : '' };
+  }
 
-    // Indique si la date a été choisie parmi plusieurs candidates sans formulation de délai pour
-    // trancher (à vérifier en priorité — voir meilleureCandidateEcheance), calculée à partir d'une
-    // formulation approximative, ou vient d'une saisie/correction manuelle. Le cas par défaut
-    // ("auto" : repérée sans ambiguïté) n'affiche volontairement RIEN — c'est la lecture directe
-    // du texte, le cas normal ; lui donner le même traitement visuel que les trois exceptions
-    // ci-dessous revenait à mettre un badge sur chaque date de chaque dossier, qui finissait par
-    // n'attirer l'attention sur rien de particulier.
-    // "manuel" (saisie/corrigée à la main) n'a plus d'entrée du tout, comme "auto" : le bouton
-    // crayon juste à côté (icon-crayon) porte déjà cette information à lui seul — signalé par
-    // l'étude comme redondant à côté du crayon dans le dossier ouvert.
-    const LIBELLES_CONFIANCE = {
-      estime: { titre: 'Calculée à partir d’une formulation approximative ("fin septembre", délai relatif...) — à vérifier précisément', texte: 'Estimée', dl: 'dl-pret' },
-      incertain: { titre: 'Choisie parmi plusieurs dates possibles dans le texte — à vérifier en priorité', texte: 'À vérifier', dl: 'dl-alerte', icone: 'alert-triangle' }
+  // Pure : l'écart entre la date butoir et le rendez-vous de signature, dit sous le rendez-vous.
+  // La date butoir ne pilote plus rien une fois le rendez-vous pris, mais reste « indicative pour
+  // savoir si on signe avant ou après » (l'étude) : signer APRÈS est le seul cas qui alerte.
+  function ecartButoirRendezVous(butoirIso, rdvIso) {
+    const ecart = ecartJours(butoirIso, rdvIso);
+    if (ecart === null) return null;
+    return {
+      ecart, alerte: ecart > 0,
+      texte: ecart === 0 ? 'Signature le jour même' : (ecart > 0 ? `Signature ${ecart} j APRÈS la date butoir` : `Signature ${-ecart} j avant la date butoir`)
     };
-    const infoConfiance = confiance && LIBELLES_CONFIANCE[confiance];
-    const badgeConfiance = infoConfiance
-      ? `<span class="dot-label ${infoConfiance.dl}" title="${infoConfiance.titre}">${infoConfiance.icone ? icone(infoConfiance.icone) : '<span class="dot"></span>'}${infoConfiance.texte}</span>`
-      : '';
+  }
 
-    // Une date d'un dossier déjà enregistré reste corrigeable après coup (erreur repérée plus
-    // tard) : crayon → champ date natif → valider, même mécanisme que le nom du dossier. cleEdition
-    // identifie la cible de validerEditionDate() : le type directement pour pret/acte/ventebien,
-    // l'index dans d.autres pour une échéance personnalisée (pas d'id stable sur ces entrées).
+  // type, label (déjà échappé), iso, dossierId, page (PDF), confiance, autreIndex (null hors
+  // personnalisée), offrePretRecue, sousHtml (seconde ligne ajoutée par l'appelant), sansPret,
+  // validee, opts : { etatSansDate, etatFait, sansValidation, fort }.
+  function renderLigneEcheance(type, label, iso, dossierId, page, confiance, autreIndex, offrePretRecue, sousHtml, sansPret, validee, opts) {
+    const o = opts || {};
+    const recategorisable = dossierId && autreIndex == null && (type === 'pret' || type === 'acte' || type === 'ventebien');
+    const choixCategorie = recategorisable
+      ? `<span class="tab-select-icone-wrap" title="Changer la catégorie de cette échéance">
+          <select class="tab-select-icone" onchange="changerCategorie('${dossierId}','${type}', this.value)" aria-label="Changer la catégorie de cette échéance">${optionsCategorie(type)}</select>
+          <span class="tab-select-icone-chevron">${icone('chevron-down')}</span>
+        </span>` : '';
     const editable = dossierId != null;
     const cleEdition = autreIndex != null ? 'autre-' + autreIndex : type;
     const idBase = `tabdate-${dossierId}-${cleEdition}`;
-    const editionDate = editable ? `
-        <span class="tab-date-edition" id="${idBase}-edit" hidden>
-          <input type="date" class="tab-date-input" id="${idBase}-input" value="${iso || ''}">
-          <button type="button" class="icon-valider" onclick="validerEditionDate('${dossierId}','${cleEdition}')" title="Valider" aria-label="Valider la date">✓</button>
-        </span>` : '';
-    const crayonDate = editable
-      ? `<button type="button" class="icon-crayon" onclick="activerEditionDate('${dossierId}','${cleEdition}')" title="Corriger cette date" aria-label="Corriger cette date">${icone('pencil')}</button>`
-      : '';
 
-    if (!iso) {
-      // "Achat comptant — sans prêt" plutôt que "Non renseigné" : ce dernier laissait croire à un
-      // oubli sur un dossier où cette échéance ne s'applique tout simplement pas (sansPret vrai,
-      // qu'il vienne de la création ou d'une suppression de date après coup — voir
-      // supprimerDateEcheance). Le crayon reste affiché : si un prêt finit par exister malgré tout,
-      // saisir une date ici doit rester possible (voir validerEditionDate, qui repasse alors
-      // sansPret à false).
-      const texteVide = (type === 'pret' && sansPret) ? 'Achat comptant — sans prêt' : 'Non renseigné';
-      return `<div class="tab ${type}">
-        ${croixSuppression}
-        ${enTete}
-        <span class="tab-date-affichage" id="${idBase}-aff"><div class="tab-date">${texteVide}</div>${crayonDate}${badgeConfiance}</span>
-        ${editionDate}
-        ${offreBloc || ''}
-      </div>`;
-    }
-    // Échéance déclarée réalisée : la date reste affichée (elle fait partie du dossier) mais le
-    // décompte n'a plus de sens, et la carte porte de quoi revenir en arrière. D'abord réservé à la
-    // vente préalable, généralisé ensuite (demandé explicitement) à N'IMPORTE QUELLE échéance —
-    // fixe (pret/acte/ventebien/appelFonds/rendezVousSignature) ou personnalisée (cleEdition vaut
-    // alors "autre-N", voir libelleEcheancePourHistorique). Seule exception : le prêt une fois
-    // effectivement confirmé reçu (offrePretRecue) — la source de vérité est alors le parcours NAS,
-    // afficher "Annuler la validation" à cet endroit n'annulerait rien (voir echeanceValidee) et
-    // laisserait croire à un bouton sans effet.
-    // Même raison que pour le prêt reçu : quand c'est un FAIT du dossier qui clôt l'échéance (ici
-    // un rendez-vous de signature fixé), « Annuler la validation » n'annulerait rien — le bouton
-    // serait sans effet. La date butoir se rouvre en effaçant le rendez-vous, pas ici.
-    const modifiableManuellement = !(type === 'pret' && offrePretRecue) && !butoirRemplacePar;
-    const boutonValidation = (dossierId && iso && modifiableManuellement)
+    const suppression = (dossierId && autreIndex != null)
+      ? `<button type="button" class="ech-ico ech-ico-suppr" onclick="supprimerEcheanceAutre('${dossierId}', ${autreIndex})" title="Supprimer cette échéance" aria-label="Supprimer cette échéance">${icone('x')}</button>`
+      : (dossierId && iso && ['pret', 'acte', 'ventebien', 'appelFonds', 'projetEnvoye', 'rendezVousSignature'].includes(type))
+        ? `<button type="button" class="ech-ico ech-ico-suppr" onclick="supprimerDateEcheance('${dossierId}', '${type}')" title="Supprimer cette date" aria-label="Supprimer cette date">${icone('x')}</button>`
+        : '';
+    const modifiableManuellement = !(type === 'pret' && offrePretRecue) && !o.sansValidation;
+    const validation = (dossierId && iso && modifiableManuellement)
       ? (validee
-        ? `<button type="button" class="lien-dossier-local" onclick="devaliderEcheance('${dossierId}','${cleEdition}')">Annuler la validation</button>`
-        : `<button type="button" class="action-rapide" onclick="validerEcheance('${dossierId}','${cleEdition}')" title="Marquer cette échéance comme réalisée">${icone('check')} Marquer réalisée</button>`)
+        ? `<button type="button" class="ech-ico" onclick="devaliderEcheance('${dossierId}','${cleEdition}')" title="Annuler la validation" aria-label="Annuler la validation">${icone('rotate-ccw')}</button>`
+        : `<button type="button" class="ech-ico ech-ico-valider" onclick="validerEcheance('${dossierId}','${cleEdition}')" title="Marquer réalisée" aria-label="Marquer réalisée">${icone('check')}</button>`)
+      : '';
+    const crayon = editable
+      ? `<button type="button" class="ech-ico" onclick="activerEditionDate('${dossierId}','${cleEdition}')" title="${iso ? 'Corriger la date' : 'Saisir la date'}" aria-label="${iso ? 'Corriger la date' : 'Saisir la date'}">${icone('pencil')}</button>`
       : '';
 
-    const jours = joursRestants(iso);
-    let countdownClass = '';
-    let countdownText = '';
-    // Une fois l'offre de prêt confirmée reçue, la date n'a plus lieu d'être signalée comme
-    // "dépassée" (condition résolue, pas un retard) : le décompte le dit à la place. Il a été un
-    // temps masqué entièrement dans ce cas, pour éviter de répéter ce que disait déjà offreBloc en
-    // toutes lettres ("✓ Offre de prêt reçue") — l'étude a demandé de revenir en arrière, la carte
-    // se retrouvait trop vide. Le doublon est réglé de l'autre côté : offreBloc est maintenant une
-    // puce de couleur compacte, plus une phrase (voir renderCarteDossier).
-    if (offrePretRecue) {
-      countdownClass = 'recue';
-      countdownText = '✓ Offre reçue';
-    } else if (butoirRemplacePar) {
-      // La date butoir de réitération ne pilote plus rien une fois le rendez-vous pris, mais reste
-      // « indicative pour savoir si on signe avant ou après » (l'étude) : c'est cet écart qu'on
-      // affiche, et lui seul qui décide de la couleur — signer après la date butoir est le cas qui
-      // mérite l'alerte, signer avant ou le jour même ne pose aucun problème.
-      const ecart = ecartJours(iso, butoirRemplacePar);
-      countdownClass = ecart > 0 ? 'passed' : 'recue';
-      countdownText = ecart === 0
-        ? 'Signature le jour même'
-        : (ecart > 0 ? `Signature ${ecart} j APRÈS la date butoir` : `Signature ${-ecart} j avant la date butoir`);
-    } else if (validee) {
-      countdownClass = 'recue';
-      countdownText = '✓ Réalisée';
-    } else if (jours < 0) {
-      countdownClass = 'passed';
-      countdownText = 'Échéance dépassée';
-    } else if (jours === 0) {
-      countdownClass = 'urgent';
-      countdownText = "Aujourd'hui";
-    } else {
-      countdownText = `J-${jours}`;
-      if (jours <= 3) countdownClass = 'urgent';
-    }
-    return `<div class="tab ${type}">
-      ${croixSuppression}
-      ${enTete}
-      <span class="tab-date-affichage" id="${idBase}-aff"><div class="tab-date">${formatDateFr(iso)}${boutonVoir}</div>${crayonDate}${badgeConfiance}</span>
-      ${editionDate}
-      <div class="tab-countdown ${countdownClass}">${countdownText}</div>
-      ${boutonValidation}
-      ${offreBloc || ''}
-    </div>`;
+    const infoConfiance = confiance && LIBELLES_CONFIANCE_ECHEANCE[confiance];
+    const badgeConfiance = infoConfiance
+      ? `<span class="dot-label ${infoConfiance.dl}" title="${infoConfiance.titre}">${infoConfiance.icone ? icone(infoConfiance.icone) : '<span class="dot"></span>'}${infoConfiance.texte}</span>`
+      : '';
+    // Retrouve la date dans l'aperçu PDF (uniquement si le PDF encore chargé est bien celui d'origine).
+    const boutonVoir = (iso && page && pdfActuel)
+      ? `<button type="button" class="lien-action" onclick="voirDateDansPdf(${page}, '${iso.split('-')[0]}')">${icone('eye')} Voir p.${page}</button>`
+      : '';
+    const sous = [badgeConfiance, boutonVoir, sousHtml || ''].filter(Boolean).join('');
+
+    const etat = etatLigneEcheance(iso, { validee, offrePretRecue, sansPret: type === 'pret' && sansPret, etatSansDate: o.etatSansDate, etatFait: o.etatFait });
+    const faite = etat.cls === 'ok';
+    return `<li class="ech ech-${type}${faite ? ' fait' : ''}">
+      <span class="dot-label dl-${type} ech-pastille" aria-hidden="true"><span class="dot"></span></span>
+      <span class="ech-nom-cell"><span class="ech-nom${o.fort ? ' ech-nom-fort' : ''}">${label}</span>${choixCategorie}</span>
+      <span class="ech-date-cell">
+        <span class="ech-date" id="${idBase}-aff" title="${iso ? escapeAttr(formatDateFr(iso)) : ''}">${dateCourteEcheance(iso)}</span>
+        ${editable ? `<span class="tab-date-edition" id="${idBase}-edit" hidden>
+          <input type="date" class="tab-date-input" id="${idBase}-input" value="${iso || ''}" onkeydown="if(event.key==='Enter'){event.preventDefault();validerEditionDate('${dossierId}','${cleEdition}');}">
+          <button type="button" class="icon-valider" onclick="validerEditionDate('${dossierId}','${cleEdition}')" title="Valider" aria-label="Valider la date">✓</button>
+        </span>` : ''}
+      </span>
+      <span class="ech-etat ${etat.cls}">${etat.texte}</span>
+      <span class="ech-actions">${crayon}${validation}${suppression}</span>
+      ${sous ? `<div class="ech-sous">${sous}</div>` : ''}
+    </li>`;
   }
 
   // Carte « Envoi au client » de la fiche : deux entrées, chacune avec sa date — « Envoi appel de
@@ -10732,6 +10700,9 @@
     render();
   }
 
+  // Ligne d'action « Fonds reçus » (onglet Échanges) : l'état en précision, « Vérifier » à droite,
+  // et en dessous, toujours visibles, le montant attendu et chaque reçu retenu — l'indicateur ne
+  // dit jamais « complet » sans montrer sur quoi il se fonde.
   function renderFondsRecus(d) {
     if (!echeanceValidee(d, 'appelFonds') && !d.fondsRecus && !d.rendezVousSignature) return '';
     const f = d.fondsRecus;
@@ -10751,10 +10722,7 @@
           <button type="button" class="lien-discret" onclick="ouvrirFichierNas('${escapeOnclickArg(r.chemin)}')" title="${escapeAttr(r.extrait || '')}">${escapeHtml(r.fichier)}${r.page > 1 ? ' p.' + r.page : ''}</button>
           ${r.compte ? `<span class="fonds-recus-compte">compte ${escapeHtml(r.compte)}</span>` : ''}
           ${r.confirme ? '<span class="fonds-recus-confirme" title="Le libellé du reçu cite aussi le vendeur du dossier">référence de la vente retrouvée</span>' : ''}</li>`).join('')}</ul>` : '';
-    return `<div class="fonds-recus">
-      <span class="section-eyebrow">Fonds reçus</span>
-      <div class="fonds-recus-etat">${etat}
-        <button type="button" class="action-rapide" onclick="verifierFondsRecus('${d.id}', this)">${icone('rotate-ccw')} ${f ? 'Revérifier' : 'Vérifier les reçus'}</button></div>
+    const detail = `<div class="fonds-recus">
       <label class="fonds-recus-attendu">Montant attendu
         <input type="text" inputmode="decimal" value="${attendu ? escapeAttr(String(attendu).replace('.', ',')) : ''}" placeholder="lu dans le décompte"
           onblur="changerFondsAttendus('${d.id}', this.value)" onkeydown="if(event.key==='Enter')this.blur()">
@@ -10762,14 +10730,20 @@
       ${liste}
       ${f ? `<p class="hint">Reçus lus depuis le ${formatDateFr(f.depuis)} (${f.fichiersLus} fichier${f.fichiersLus > 1 ? 's' : ''}) — vérifié ${new Date(f.verifieLe).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}. Chaque versement au nom de l’acquéreur est listé : vérifiez qu’il concerne bien ce dossier.</p>` : ''}
     </div>`;
+    return renderLigneAction({
+      categorie: 'appelFonds', categorieLabel: 'Fonds reçus', titre: 'Fonds reçus en comptabilité',
+      sousHtml: etat, faite: !!f && b.etat === 'complet',
+      bouton: { libelle: f ? 'Revérifier' : 'Vérifier', icone: icone('rotate-ccw'), onclick: `verifierFondsRecus('${d.id}', this)`, titre: 'Lire les reçus comptables déposés sur le NAS' },
+      detail, detailOuvert: true
+    });
   }
 
+  // « Confirmer la réception des fonds » : proposé une fois l'appel de fonds validé (date saisie,
+  // validation manuelle ou relevé dans l'agenda). Une fois envoyé, la date s'affiche et le bouton
+  // devient « Renvoyer », comme pour le questionnaire de satisfaction.
   function renderReceptionFonds(d) {
     if (!echeanceValidee(d, 'appelFonds')) return '';
-    if (d.receptionFondsConfirmeeLe) {
-      return `<div class="envoi-action"><span class="dot-label dl-success"><span class="dot"></span>Réception des fonds confirmée le ${formatDateFr(d.receptionFondsConfirmeeLe)}</span><button type="button" class="action-rapide" onclick="envoyerRelanceCiblee('${d.id}', 'fonds')">${icone('mail')} Renvoyer</button></div>`;
-    }
-    return `<div class="envoi-action"><button type="button" class="action-rapide" onclick="envoyerRelanceCiblee('${d.id}', 'fonds')">${icone('mail')} Confirmer la réception des fonds</button></div>`;
+    return renderLigneEmailDossier(d, 'fonds');
   }
 
   // Noter dans l'agenda Outlook de l'office qu'un envoi vient d'être fait : écrit « Appel de fonds
@@ -10844,101 +10818,68 @@
     if (!exchangeAgendaPret() || !d.rendezVousSignature) return '';
     const mention = mentionEnvoisAgenda(d);
     if (!mention) return '';
-    let note = d.agendaLieuNoteLe
-      ? `<span class="dot-label dl-success"><span class="dot"></span>Noté dans l’agenda le ${formatDateFr(d.agendaLieuNoteLe.slice(0, 10))}</span>`
-      : '';
-    // Échec de la dernière écriture automatique : dit sur la carte, sinon rien ne distinguait
+    // Échec de la dernière écriture automatique : dit sur la ligne, sinon rien ne distinguait
     // « pas encore essayé » de « essayé et refusé » (cas signalé sur BANCQUART / MANDARD).
-    if (d.agendaLieuEchec && d.agendaLieuEchec.message) {
-      note = `<span class="dot-label dl-alerte" title="${escapeAttr(d.agendaLieuEchec.message)}">Non noté le ${formatDateFr(String(d.agendaLieuEchec.le || '').slice(0, 10))} : ${escapeHtml(d.agendaLieuEchec.message)}</span>`;
-    }
-    return `<div class="envoi-action">
-      <button type="button" class="action-rapide" onclick="noterEnvoiDansAgenda('${d.id}')" title="Écrire « ${escapeAttr(mention)} » dans le lieu du rendez-vous de signature, après les initiales, dans l'agenda Outlook de l'office">${icone('calendar')} Noter dans l'agenda : ${escapeHtml(mention)}</button>
-      ${note}
+    const echec = d.agendaLieuEchec && d.agendaLieuEchec.message;
+    const sousHtml = echec
+      ? `<span class="dot-label dl-alerte" title="${escapeAttr(d.agendaLieuEchec.message)}">Non noté le ${formatDateFr(String(d.agendaLieuEchec.le || '').slice(0, 10))} : ${escapeHtml(d.agendaLieuEchec.message)}</span>`
+      : (d.agendaLieuNoteLe ? `Noté le ${formatDateFr(d.agendaLieuNoteLe.slice(0, 10))}, dans le lieu du rendez-vous` : 'Écrit dans le lieu du rendez-vous de signature, après les initiales');
+    const faite = !!d.agendaLieuNoteLe && !echec;
+    return renderLigneAction({
+      categorie: 'rendezVousSignature', categorieLabel: 'Agenda de l’office',
+      titre: `Noter dans l’agenda : ${mention}`, sousHtml, faite, gravite: echec ? 'critique' : '',
+      bouton: { libelle: faite ? 'Renoter' : (echec ? 'Réessayer' : 'Noter'), icone: icone('calendar'), onclick: `noterEnvoiDansAgenda('${d.id}')`, titre: `Écrire « ${mention} » dans le lieu du rendez-vous de signature, après les initiales, dans l'agenda Outlook de l'office` }
+    });
+  }
+
+  // Formulaire de création du rendez-vous de signature DANS l'agenda Outlook de l'office (voir
+  // server/src/exchange/ews.js). La fiche ne stocke qu'une DATE : il demande l'heure et la durée
+  // (préremplies depuis l'heure relevée dans l'agenda si elle existe, sinon 14:00 / 60 min) et le
+  // lieu (couleur). Le formulaire visible EST la confirmation explicite d'une écriture dans l'agenda
+  // partagé — pas de seconde boîte de dialogue par-dessus. Affiché dans la ligne d'action « Créer le
+  // rendez-vous » de l'encadré Prochaine étape, ou sous la ligne du rendez-vous pour le recréer.
+  function renderFormRdvAgenda(d) {
+    const heure = d.rendezVousSignatureHeure || '14:00';
+    return `<div class="rdv-agenda-form">
+      <div class="rdv-agenda-champs">
+        <label>Heure <input type="time" id="rdv-agenda-heure-${d.id}" value="${escapeAttr(heure)}"></label>
+        <label>Durée
+          <select id="rdv-agenda-duree-${d.id}">
+            <option value="30">30 min</option>
+            <option value="60" selected>1 h</option>
+            <option value="90">1 h 30</option>
+            <option value="120">2 h</option>
+          </select>
+        </label>
+      </div>
+      <div class="rdv-type-choix" role="radiogroup" aria-label="Lieu du rendez-vous">
+        ${Object.entries(TYPES_RDV).map(([cle, t]) => `<label class="rdv-type-option">
+          <input type="radio" name="rdv-agenda-type-${d.id}" value="${cle}"${(typeRendezVous(d, categoriesRdvReglees()) || 'office') === cle ? ' checked' : ''}>
+          <span class="rdv-type-pastille rdv-type-${cle}"></span>${t.libelle}
+        </label>`).join('')}
+      </div>
+      <p class="hint" style="margin:4px 0 6px;">Écrit « VTE - ${escapeHtml(d.nom)} » le ${formatDateFr(d.rendezVousSignature)} dans l'agenda partagé de l'office${lieuRdvAgenda(d) ? `, lieu « ${escapeHtml(lieuRdvAgenda(d))} »` : ''}.</p>
+      <div class="rdv-agenda-actions">
+        <button type="button" class="primary" onclick="creerRdvDansAgenda('${d.id}')">${icone('calendar')} Créer le rendez-vous</button>
+        <button type="button" class="lien-bouton" onclick="basculerRdvAgenda('${d.id}')">Annuler</button>
+      </div>
     </div>`;
   }
 
-  function renderCarteEnvoisAvantSignature(d) {
-    const lignes = ENVOIS_AVANT_SIGNATURE.map(({ cle, label }) => {
-      const iso = d[cle] || '';
-      const idBase = `tabdate-${d.id}-${cle}`;
-      const detecte = d.detectionsAgenda && d.detectionsAgenda[cle];
-      let statut;
-      if (iso) {
-        statut = `<span class="dot-label dl-success"><span class="dot"></span>Envoyé${detecte ? ' — relevé dans l’agenda' : ''}</span>`;
-      } else if (echeanceValidee(d, cle)) {
-        statut = '<span class="dot-label dl-success"><span class="dot"></span>Fait, date non renseignée</span>';
-      } else {
-        statut = '<span class="dot-label dl-neutre"><span class="dot"></span>À compléter</span>';
-      }
-      const croix = iso
-        ? `<button type="button" class="icon-crayon" onclick="supprimerDateEcheance('${d.id}', '${cle}')" title="Effacer cette date" aria-label="Effacer cette date">${icone('x')}</button>`
-        : '';
-      return `<div class="envoi-ligne">
-        <div class="envoi-libelle envoi-${cle}">${label}</div>
-        <span class="tab-date-affichage" id="${idBase}-aff"><div class="tab-date">${iso ? formatDateFr(iso) : 'Non renseignée'}</div><button type="button" class="icon-crayon" onclick="activerEditionDate('${d.id}','${cle}')" title="Saisir ou corriger cette date" aria-label="Saisir ou corriger cette date">${icone('pencil')}</button>${croix}</span>
-        <span class="tab-date-edition" id="${idBase}-edit" hidden>
-          <input type="date" class="tab-date-input" id="${idBase}-input" value="${iso}">
-          <button type="button" class="icon-valider" onclick="validerEditionDate('${d.id}','${cle}')" title="Valider" aria-label="Valider la date">✓</button>
-        </span>
-        ${statut}
-        ${cle === 'appelFonds' ? renderReceptionFonds(d) : ''}
-      </div>`;
-    }).join('');
-    return `<div class="tab appelFonds">
-      <div class="tab-name tab-name-fort">Envoi au client</div>
-      ${lignes}
-      ${renderNoterAgenda(d)}
-    </div>`;
-  }
-
-  // Création du rendez-vous de signature DANS l'agenda Outlook de l'office (voir
-  // server/src/exchange/ews.js). Proposée seulement quand la connexion Exchange est activée et
-  // configurée (exchangeAgendaPret) et qu'une date de rendez-vous existe. La fiche ne stocke qu'une
-  // DATE : le mini-formulaire demande l'heure et la durée (préremplies depuis l'heure relevée dans
-  // l'agenda si elle existe, sinon 14:00 / 60 min). Le formulaire visible EST la confirmation
-  // explicite d'une écriture dans l'agenda partagé — pas de seconde boîte de dialogue par-dessus.
-  function renderCreationRdvAgenda(d) {
-    if (!exchangeAgendaPret() || !d.rendezVousSignature) return '';
-    if (rdvAgendaOuvert && dossierOuvert === d.id) {
-      const heure = d.rendezVousSignatureHeure || '14:00';
-      return `<div class="rdv-agenda-form">
-        <div class="rdv-agenda-titre">À quelle heure ? Créer ce rendez-vous dans l'agenda Outlook</div>
-        <div class="rdv-agenda-champs">
-          <label>Heure <input type="time" id="rdv-agenda-heure-${d.id}" value="${escapeAttr(heure)}"></label>
-          <label>Durée
-            <select id="rdv-agenda-duree-${d.id}">
-              <option value="30">30 min</option>
-              <option value="60" selected>1 h</option>
-              <option value="90">1 h 30</option>
-              <option value="120">2 h</option>
-            </select>
-          </label>
-        </div>
-        <div class="rdv-type-choix" role="radiogroup" aria-label="Lieu du rendez-vous">
-          ${Object.entries(TYPES_RDV).map(([cle, t]) => `<label class="rdv-type-option">
-            <input type="radio" name="rdv-agenda-type-${d.id}" value="${cle}"${(typeRendezVous(d, categoriesRdvReglees()) || 'office') === cle ? ' checked' : ''}>
-            <span class="rdv-type-pastille rdv-type-${cle}"></span>${t.libelle}
-          </label>`).join('')}
-        </div>
-        <p class="hint" style="margin:4px 0 6px;">Écrit « VTE - ${escapeHtml(d.nom)} » le ${formatDateFr(d.rendezVousSignature)} dans l'agenda partagé de l'office${lieuRdvAgenda(d) ? `, lieu « ${escapeHtml(lieuRdvAgenda(d))} »` : ''}.</p>
-        <div class="rdv-agenda-actions">
-          <button type="button" class="action-rapide" onclick="creerRdvDansAgenda('${d.id}')">${icone('calendar')} Créer le rendez-vous</button>
-          <button type="button" class="lien-bouton" onclick="basculerRdvAgenda('${d.id}')">Annuler</button>
-        </div>
-      </div>`;
-    }
-    const typeRdv = typeRendezVous(d, categoriesRdvReglees());
-    const dejaCree = d.rdvAgendaCreeLe
-      ? `<span class="dot-label dl-success" style="margin-left:6px;"><span class="dot"></span>Créé le ${formatDateFr(d.rdvAgendaCreeLe.slice(0, 10))}</span>`
-      : '';
-    const pastilleType = typeRdv
-      ? `<span class="rdv-type-etiquette"><span class="rdv-type-pastille rdv-type-${typeRdv}"></span>${TYPES_RDV[typeRdv].libelle}</span>`
-      : '';
-    return `<div class="rdv-agenda-bloc">
-      <button type="button" class="action-rapide" onclick="basculerRdvAgenda('${d.id}')">${icone('calendar')} ${d.rdvAgendaCreeLe ? 'Recréer dans l\'agenda' : 'Créer ce RDV dans l\'agenda Outlook'}</button>
-      ${dejaCree}${pastilleType}
-    </div>`;
+  // Ligne d'action « Créer le rendez-vous dans l'agenda » : proposée quand la connexion Exchange est
+  // activée et configurée (exchangeAgendaPret), qu'une date de rendez-vous existe et qu'il n'a pas
+  // encore été créé depuis CLAIRE. Le formulaire s'y déplie (s'ouvre tout seul après la saisie de la
+  // date, voir validerEditionDate).
+  function renderLigneCreerRdvAgenda(d) {
+    if (!exchangeAgendaPret() || !d.rendezVousSignature || d.rdvAgendaCreeLe || d.archive) return '';
+    const ouvert = rdvAgendaOuvert && dossierOuvert === d.id;
+    return renderLigneAction({
+      categorie: 'rendezVousSignature', categorieLabel: 'Agenda de l’office',
+      titre: 'Créer le rendez-vous dans l’agenda Outlook',
+      sous: `Signature le ${formatDateFr(d.rendezVousSignature)} · calendrier partagé de l’office`,
+      bouton: ouvert ? null : { libelle: 'Créer', icone: icone('calendar'), onclick: `basculerRdvAgenda('${d.id}')`, titre: 'Choisir l’heure et le lieu, puis créer le rendez-vous' },
+      detail: ouvert ? renderFormRdvAgenda(d) : '', detailOuvert: ouvert
+    });
   }
 
   function basculerRdvAgenda(id) {
@@ -11260,71 +11201,132 @@
   // renseignée n'a rien à classer : elle part en fin de liste, dans ce même ordre naturel (le tri
   // de JS est stable, donc les non datées gardent leur ordre d'insertion) — les reléguer en tête
   // ferait disparaître les vraies échéances sous des cartes vides.
-  // Ne touche QUE l'affichage : l'index passé à renderTab pour une échéance personnalisée reste
+  // Ne touche QUE l'affichage : l'index passé à renderLigneEcheance pour une échéance personnalisée reste
   // sa position réelle dans d.autres (c'est lui qui identifie l'entrée pour l'édition et la
   // suppression, voir supprimerEcheanceAutre), pas son rang une fois trié.
+  // Carte « Envoi au client » d'autrefois : ses deux entrées sont maintenant deux lignes de la
+  // liste, chacune sa date — « Envoi appel de fonds » (d.appelFonds) et « Envoi projet »
+  // (d.projetEnvoye). Une date saisie vaut envoi fait (marquerAppelFondsSelonDate /
+  // marquerProjetEnvoyeSelonDate, via validerEditionDate) : pas de « Marquer réalisée », la date EST
+  // la validation. La confirmation de réception des fonds et la note d'agenda sont des gestes :
+  // elles vivent dans l'onglet Échanges, en lignes d'action.
+  // Trois raisons d'afficher ces deux lignes (il faut les trois, voir l'historique) : une date déjà
+  // saisie ne disparaît jamais ; un rendez-vous de signature fixé les rend dues ; le dossier complet.
   function echeancesOrdonneesFiche(d, confiance, offreBloc) {
-    const cartes = [];
-    // Ordre d'INSERTION = l'ordre métier du dossier donné par l'étude (compromis signé → vente
-    // préalable → obtention du prêt → date butoir de réitération → appel de fonds → rendez-vous de
-    // signature). Il ne décide que du sort des échéances sans date, le tri ci-dessous classant les
-    // autres par date.
-    if (d.ventebien) cartes.push({ iso: d.ventebien, html: renderTab('ventebien', 'Vente préalable', d.ventebien, d.id, d.ventebienPage, confiance.ventebien, null, false, '', false, echeanceValidee(d, 'ventebien')) });
-    cartes.push({ iso: d.pret, html: renderTab('pret', 'Obtention du prêt', d.pret, d.id, d.pretPage, confiance.pret, null, d.offrePretStatut === 'recue', offreBloc, d.sansPret, echeanceValidee(d, 'pret')) });
-    // La date butoir reste affichée une fois le rendez-vous fixé, mais devient indicative : le
-    // 12e argument lui fait afficher l'écart (« signature 5 j APRÈS la date butoir ») au lieu d'un
-    // décompte, voir renderTab.
-    cartes.push({ iso: d.acte, html: renderTab('acte', 'Date butoir', d.acte, d.id, d.actePage, confiance.acte, null, false, '', false, echeanceValidee(d, 'acte'), d.acte ? (d.rendezVousSignature || '') : '') });
-    // Trois raisons d'afficher l'appel de fonds, et il faut les trois — la règle d'origine
-    // (« seulement quand le dossier est prêt à signer ») était seule, et elle masquait deux cas
-    // que l'étude a signalés ou qui l'auraient été tôt ou tard :
-    //   1. une date DÉJÀ SAISIE ne doit jamais disparaître de l'écran. Une pièce de la checklist
-    //      repasse automatiquement à « manquante » quand son fichier disparaît du NAS : le dossier
-    //      cessait alors d'être « complet » et l'appel de fonds déjà renseigné devenait invisible
-    //      ET non modifiable, sans que rien ne l'explique ;
-    //   2. un RENDEZ-VOUS DE SIGNATURE fixé rend l'appel de fonds dû par définition — c'est
-    //      l'étape juste avant (voir l'ordre métier). Le planning l'annonçait d'ailleurs déjà
-    //      (echeancesPlanning, qui retombe sur la date du rendez-vous faute de date propre)
-    //      pendant que la fiche, elle, ne donnait aucun moyen de le renseigner : les deux se
-    //      contredisaient ;
-    //   3. le dossier complet, la règle d'origine, conservée telle quelle.
-    // La reconnaissance des pièces se fait par NOM DE FICHIER : une pièce bien présente mais
-    // nommée autrement suffit à faire échouer la condition 3, ce qui rendait le masquage d'autant
-    // plus arbitraire vu de l'étude.
-    // Une seule carte « Envoi au client » porte les DEUX envois qui précèdent la signature — l'appel
-    // de fonds puis le projet d'acte —, chacun avec sa propre date (demandé par l'étude : ce sont
-    // deux étapes d'un même moment du dossier, deux cartes séparées dispersaient l'information).
-    // Les dates restent stockées dans d.appelFonds / d.projetEnvoye : le planning, le Gantt et les
-    // rappels n'ont rien à changer.
+    const lignes = [];
+    // Ordre d'INSERTION = l'ordre métier du dossier (vente préalable → prêt → date butoir → appel de
+    // fonds → projet → rendez-vous de signature) : il ne décide que du sort des échéances sans date.
+    if (d.ventebien) lignes.push({ iso: d.ventebien, html: renderLigneEcheance('ventebien', 'Vente préalable', d.ventebien, d.id, d.ventebienPage, confiance.ventebien, null, false, '', false, echeanceValidee(d, 'ventebien')) });
+    lignes.push({ iso: d.pret, html: renderLigneEcheance('pret', 'Obtention du prêt', d.pret, d.id, d.pretPage, confiance.pret, null, d.offrePretStatut === 'recue', offreBloc, d.sansPret, echeanceValidee(d, 'pret')) });
+    // La date butoir n'a sa propre ligne que tant qu'aucun rendez-vous n'est fixé : ensuite elle
+    // n'est plus qu'indicative, et devient une précision sous le rendez-vous (voir plus bas).
+    const butoirSousRdv = !!(d.rendezVousSignature && d.acte);
+    if (!butoirSousRdv) lignes.push({ iso: d.acte, html: renderLigneEcheance('acte', 'Date butoir', d.acte, d.id, d.actePage, confiance.acte, null, false, '', false, echeanceValidee(d, 'acte')) });
     if (d.appelFonds || d.projetEnvoye || d.rendezVousSignature || dossierEntierementComplet(d)) {
-      cartes.push({ iso: d.appelFonds || d.projetEnvoye || null, html: renderCarteEnvoisAvantSignature(d) });
+      ENVOIS_AVANT_SIGNATURE.forEach(({ cle, label }) => {
+        const iso = d[cle] || '';
+        const detecte = iso && d.detectionsAgenda && d.detectionsAgenda[cle];
+        lignes.push({ iso, html: renderLigneEcheance(cle, label, iso, d.id, null, null, null, false,
+          detecte ? '<span class="ech-note">Relevé dans l’agenda</span>' : '', false,
+          iso ? true : echeanceValidee(d, cle), { etatSansDate: 'À envoyer', etatFait: '✓ Envoyé', sansValidation: true }) });
+      });
     }
-    // Date relevée dans l'agenda de l'office (voir agendaWatch.js) : dite sur la carte, tant qu'elle
-    // n'a pas été corrigée à la main (la date saisie ne correspond alors plus au repère).
-    const noteAgenda = d.rendezVousSignature && d.detectionsAgenda && d.detectionsAgenda.rendezVousSignature === d.rendezVousSignature
-      ? '<div class="tab-note-agenda">Relevé dans l’agenda de l’office</div>' : '';
-    // Création du rendez-vous DANS l'agenda Outlook (voir renderCreationRdvAgenda) : proposée quand
-    // la connexion Exchange est activée et configurée et qu'une date de rendez-vous est renseignée.
-    const rdvAgenda = noteAgenda + renderCreationRdvAgenda(d);
-    cartes.push({ iso: d.rendezVousSignature, html: renderTab('rendezVousSignature', 'Rendez-vous de signature', d.rendezVousSignature, d.id, null, null, null, false, rdvAgenda, false, echeanceValidee(d, 'rendezVousSignature')) });
-    (d.autres || []).forEach((a, i) => cartes.push({ iso: a.date, html: renderTab('autre', escapeHtml(a.label), a.date, d.id, a.page, null, i, false, '', false, echeanceValidee(d, 'autre-' + i)) }));
-    // Les dates sont au format ISO AAAA-MM-JJ partout dans l'outil (valeur d'un <input type="date">) :
-    // la comparaison de chaînes suffit à les classer, sans construire de Date ni risquer un
-    // décalage de fuseau horaire.
-    cartes.sort((a, b) => {
+    lignes.push({ iso: d.rendezVousSignature, html: renderLigneEcheance('rendezVousSignature', 'Signature', d.rendezVousSignature, d.id, null, null, null, false, renderSousRendezVous(d, butoirSousRdv), false, echeanceValidee(d, 'rendezVousSignature'), { fort: true }) });
+    (d.autres || []).forEach((a, i) => lignes.push({ iso: a.date, html: renderLigneEcheance('autre', escapeHtml(a.label), a.date, d.id, a.page, null, i, false, '', false, echeanceValidee(d, 'autre-' + i)) }));
+    // Dates ISO AAAA-MM-JJ : la comparaison de chaînes suffit. Le tri de JS est stable : les
+    // échéances sans date gardent l'ordre métier, en fin de liste. L'index passé pour une échéance
+    // personnalisée reste sa position réelle dans d.autres (c'est lui qui identifie l'entrée).
+    lignes.sort((a, b) => {
       if (a.iso && b.iso) return a.iso < b.iso ? -1 : (a.iso > b.iso ? 1 : 0);
       if (a.iso) return -1;
       if (b.iso) return 1;
       return 0;
     });
-    return cartes.map(c => c.html).join('');
+    return `<ul class="ech-liste">${lignes.map(l => l.html).join('')}</ul>`;
+  }
+
+  // Seconde ligne du rendez-vous de signature : l'écart avec la date butoir (corrigeable sur place,
+  // mêmes ids d'édition que l'ancienne ligne « Date butoir »), le relevé dans l'agenda de l'office,
+  // le rendez-vous déjà posé dans Outlook et, pour le recréer, le formulaire.
+  function renderSousRendezVous(d, avecButoir) {
+    const parts = [];
+    if (avecButoir) {
+      const e = ecartButoirRendezVous(d.acte, d.rendezVousSignature);
+      const idBase = `tabdate-${d.id}-acte`;
+      parts.push(`<span class="ech-butoir${e && e.alerte ? ' alerte' : ''}">
+        <span class="ech-butoir-aff" id="${idBase}-aff">${e ? escapeHtml(e.texte) : 'Date butoir'} (${dateCourteEcheance(d.acte)})<button type="button" class="ech-ico" onclick="activerEditionDate('${d.id}','acte')" title="Corriger la date butoir" aria-label="Corriger la date butoir">${icone('pencil')}</button></span>
+        <span class="tab-date-edition" id="${idBase}-edit" hidden>Date butoir
+          <input type="date" class="tab-date-input" id="${idBase}-input" value="${d.acte}" onkeydown="if(event.key==='Enter'){event.preventDefault();validerEditionDate('${d.id}','acte');}">
+          <button type="button" class="icon-valider" onclick="validerEditionDate('${d.id}','acte')" title="Valider" aria-label="Valider la date">✓</button>
+        </span>
+      </span>`);
+    }
+    // Date relevée dans l'agenda de l'office (voir agendaWatch.js), tant qu'elle n'a pas été
+    // corrigée à la main (la date saisie ne correspond alors plus au repère).
+    if (d.rendezVousSignature && d.detectionsAgenda && d.detectionsAgenda.rendezVousSignature === d.rendezVousSignature) {
+      parts.push('<span class="ech-note">Relevé dans l’agenda de l’office</span>');
+    }
+    const typeRdv = d.rendezVousSignature ? typeRendezVous(d, categoriesRdvReglees()) : '';
+    if (d.rendezVousSignature && d.rdvAgendaCreeLe) {
+      parts.push(`<span class="ech-note">${icone('calendar')} Dans l’agenda depuis le ${formatDateFr(d.rdvAgendaCreeLe.slice(0, 10))}</span>`);
+    }
+    if (typeRdv) parts.push(`<span class="rdv-type-etiquette"><span class="rdv-type-pastille rdv-type-${typeRdv}"></span>${TYPES_RDV[typeRdv].libelle}</span>`);
+    if (d.rendezVousSignature && d.rdvAgendaCreeLe && exchangeAgendaPret()) {
+      parts.push(rdvAgendaOuvert && dossierOuvert === d.id
+        ? `<div class="ech-sous-bloc">${renderFormRdvAgenda(d)}</div>`
+        : `<button type="button" class="lien-action" onclick="basculerRdvAgenda('${d.id}')">Recréer dans l’agenda</button>`);
+    }
+    return parts.join('');
+  }
+
+  // Les actions de ce dossier telles que « À faire » les montre (mêmes clés, mêmes gestes : cocher
+  // ici coche aussi là-bas), sans celles reportées ou déjà traitées aujourd'hui sur ce poste.
+  function actionsFicheDossier(d) {
+    if (!d || d.archive) return [];
+    const etat = lireEtatJour();
+    const traitees = new Set(etat.traites.liste.map(t => t.cle));
+    return actionsDuJour([d], isoAujourdhuiLocal()).actions.filter(a => !etat.reports[a.cle] && !traitees.has(a.cle));
+  }
+
+  // Encadré en tête de l'onglet Échéances : la prochaine échéance du dossier, et en dessous ce qu'il
+  // y a à faire maintenant, en lignes d'action (renderLigneActionJour). Rien à faire et rien à venir :
+  // pas d'encadré.
+  function renderProchaineEtapeFiche(d) {
+    if (!d || d.archive) return '';
+    const prochaine = prochaineEcheanceDetail(d);
+    const lignes = actionsFicheDossier(d).map(a => renderLigneActionJour(a, false, true));
+    const creerRdv = renderLigneCreerRdvAgenda(d);
+    if (creerRdv) lignes.push(creerRdv);
+    // Échec de la note d'agenda automatique : à reprendre, donc à faire.
+    if (d.agendaLieuEchec && d.agendaLieuEchec.message) lignes.push(renderNoterAgenda(d));
+    if (!prochaine && !lignes.length) return '';
+    let tete = '<div class="prochaine-tete"><span class="section-eyebrow">À faire sur ce dossier</span></div>';
+    let ton = '';
+    if (prochaine) {
+      const j = prochaine.jours;
+      ton = j < 0 || j <= 3 ? 'urgent' : (j <= 15 ? 'proche' : '');
+      const delai = j < 0 ? `dépassée de ${-j} j` : (j === 0 ? "aujourd'hui" : `J-${j}`);
+      tete = `<div class="prochaine-tete">
+        <span class="section-eyebrow">Prochaine étape</span>
+        <div class="prochaine-ligne">
+          <span class="dot-label dl-${prochaine.type}" aria-hidden="true"><span class="dot"></span></span>
+          <strong>${escapeHtml(prochaine.label)}</strong>
+          <span class="prochaine-date">${formatDateFr(prochaine.iso)}</span>
+          <span class="prochaine-delai">${escapeHtml(delai)}</span>
+        </div>
+      </div>`;
+    }
+    return `<div class="prochaine-etape${ton ? ' ' + ton : ''}">
+      ${tete}
+      ${lignes.length ? `<ul class="ja-liste">${lignes.join('')}</ul>` : ''}
+    </div>`;
   }
 
   // Marque une échéance comme réalisée (ou revient en arrière). La date n'est jamais effacée —
   // c'est la différence avec supprimerDateEcheance : le dossier garde la trace de la date butoir,
   // seule sa présence dans le planning change. `type` peut être une clé fixe (pret/acte/ventebien/
   // appelFonds/rendezVousSignature) ou "autre-N" pour une échéance personnalisée — voir cleEdition
-  // dans renderTab() et libelleEcheancePourHistorique() juste en dessous.
+  // dans renderLigneEcheance() et libelleEcheancePourHistorique() juste en dessous.
   function validerEcheance(id, type) {
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
@@ -12561,7 +12563,7 @@
   //
   //  1. La DATE BUTOIR (`acte`) n'y figure jamais. Elle vient de l'avant-contrat et n'est
   //     qu'indicative : ce qui engage l'étude, c'est le rendez-vous pris à l'office. Elle reste
-  //     visible sur la fiche (avec l'écart entre les deux, voir renderTab) mais n'annonce plus
+  //     visible sur la fiche (avec l'écart entre les deux, voir renderLigneEcheance) mais n'annonce plus
   //     rien dans le planning.
   //  2. Tant que l'APPEL DE FONDS n'est pas fait, c'est lui qu'il reste à faire, même si le
   //     rendez-vous est déjà fixé : le planning annonce donc « Appel de fonds ». Faute de date
@@ -12713,7 +12715,7 @@
   // "permettre de valider n'importe quelle date d'échéance" (demandé explicitement) doit aussi
   // couvrir un dossier où cette confirmation automatique n'a pas lieu (prêt confirmé par un autre
   // moyen, dossier non relié au NAS...). Le drapeau manuel n'intervient qu'en complément : dès que
-  // l'offre est effectivement reçue, c'est ce statut-là qui fait foi (voir aussi renderTab, qui
+  // l'offre est effectivement reçue, c'est ce statut-là qui fait foi (voir aussi renderLigneEcheance, qui
   // évite d'afficher un bouton "Annuler la validation" sans effet dans ce cas).
   // Une échéance peut être close par une décision manuelle (d.echeancesValidees) ou par un fait du
   // dossier qui la résout d'office. Deux tels faits, l'un et l'autre décrits par l'étude :
@@ -12721,7 +12723,7 @@
   //  - un rendez-vous de signature FIXÉ clôt la date butoir de réitération : « une fois que cette
   //    date est rentrée la date butoir n'a plus lieu d'être, mais reste indicative pour savoir si
   //    on signe avant ou après ». Elle continue donc de s'afficher sur la fiche (avec l'écart, voir
-  //    renderTab/butoirRemplacePar), mais elle sort du planning : plus de décompte à surveiller,
+  //    renderSousRendezVous), mais elle sort du planning : plus de décompte à surveiller,
   //    plus de rappel automatique, plus de « prochaine échéance ». Le rendez-vous réel prend le relais.
   // Prêt « levé » : offre reçue (ou validée à la main), ou pas de prêt du tout — et la vente
   // préalable, s'il y en a une, réalisée : elle précède le prêt dans l'ordre du dossier, et le
@@ -13506,7 +13508,7 @@
         // Signature fixée APRÈS la date butoir de l'avant-contrat : plus d'alerte de « report » à la
         // demande de l'étude. Fixer un rendez-vous postérieur au butoir est une décision assumée
         // (les parties ont convenu d'une date plus tardive) ; le butoir n'étant qu'indicatif, il n'y
-        // a rien à « vérifier » ni à relancer — l'écart reste visible sur la fiche (voir renderTab /
+        // a rien à « vérifier » ni à relancer — l'écart reste visible sur la fiche (voir renderLigneEcheance /
         // butoirRemplacePar), la synthèse n'a pas à le répéter.
       } else if (d.acte && ecartJours(aujourdhuiIso, d.acte) !== null && ecartJours(aujourdhuiIso, d.acte) <= 15) {
         // Date butoir proche, et aucun rendez-vous de signature fixé.
@@ -13762,7 +13764,7 @@
           <button type="button" class="rappel-perso-suppr" onclick="supprimerRappelPerso('${escapeOnclickArg(r.id)}')" aria-label="Supprimer le rappel" title="Supprimer">${icone('x')}</button>
         </div>`;
     }).join('');
-    const formulaire = ajoutRappelOuvert ? formulaireRappel(null) : `<button type="button" class="action-rapide rappel-perso-ajout" onclick="ouvrirAjoutRappel(true)">+ Ajouter un rappel</button>`;
+    const formulaire = ajoutRappelOuvert ? formulaireRappel(null) : `<button type="button" class="bouton-ajout rappel-perso-ajout" onclick="ouvrirAjoutRappel(true)">Ajouter un rappel</button>`;
     return `${lignes || (rappelsPersoCharges ? '<div class="rappels-perso-vide">Aucun rappel pour le moment.</div>' : '')}${formulaire}`;
   }
 
@@ -14218,9 +14220,17 @@
     ecrireEtatJour(etat);
   }
 
+  // Cherche d'abord dans le périmètre du poste (écrans « Aujourd'hui »), puis dans le dossier
+  // lui-même : la fiche d'un dossier d'un collègue montre aussi ses actions (encadré « Prochaine
+  // étape »), leurs boutons doivent y fonctionner.
   function trouverActionJour(cle) {
     const aujourdhui = isoAujourdhuiLocal();
-    return actionsDuJour(dossiersPerimetreJour(), aujourdhui).actions.find(a => a.cle === cle) || null;
+    const trouve = (liste) => actionsDuJour(liste, aujourdhui).actions.find(a => a.cle === cle) || null;
+    const a = trouve(dossiersPerimetreJour());
+    if (a) return a;
+    const id = String(cle).slice(0, String(cle).lastIndexOf(':'));
+    const d = dossiers.find(x => x.id === id && !x.archive);
+    return d ? trouve([d]) : null;
   }
 
   // Le geste d'une action, en UN clic : l'email s'ouvre déjà rédigé, l'envoi se note, et une simple
@@ -14429,40 +14439,71 @@
       <span>${faits} sur ${reste + faits} traitée${faits > 1 ? 's' : ''}</span></span></div>`;
   }
 
+  // ---- Ligne d'action : LE composant de CLAIRE pour tout geste (email, préparer, noter…) ----
+  // Même forme que la liste « À faire » (demandé par l'étude le 28/09 : un même geste ne doit plus
+  // prendre trois formes selon l'écran) : pastille de catégorie, titre et précision, délai, le
+  // geste en un bouton à droite, des icônes secondaires à côté. Un clic sur le texte déplie le
+  // détail quand il y en a un (clé `apercu`, même mémoire que « À faire »). Une ligne `faite` garde
+  // son bouton (Renvoyer…), en contour, et une pastille verte.
+  //   o = { categorie, categorieLabel, titre, titreHtml?, sous?, sousHtml?, delai?, delaiProche?,
+  //         gravite?, bouton?: { libelle, icone? (html), onclick, titre? }, secondaires?: html,
+  //         faite?, apercu?, detail?: html, detailOuvert?, classe? }
+  function renderLigneAction(o) {
+    const ouverte = !!o.detailOuvert || !!(o.apercu && apercusJour.has(o.apercu));
+    const sous = o.sousHtml != null ? o.sousHtml : (o.sous ? escapeHtml(o.sous) : '');
+    const contenu = `<span class="ja-titre">${escapeHtml(o.titre)}${o.titreHtml || ''}</span>${sous ? `<span class="ja-sous">${sous}</span>` : ''}`;
+    const texte = o.apercu
+      ? `<button type="button" class="ja-texte" aria-expanded="${ouverte}" onclick="basculerApercuJour('${escapeOnclickArg(o.apercu)}')" title="Voir le détail">${contenu}</button>`
+      : `<span class="ja-texte ja-texte-fixe">${contenu}</span>`;
+    const b = o.bouton;
+    const go = b
+      ? `<button type="button" class="${o.faite ? 'ja-go ja-go-contour' : 'primary ja-go'}" onclick="${b.onclick}" title="${escapeAttr(b.titre || b.libelle)}">${b.icone || ''}<span>${escapeHtml(b.libelle)}</span></button>`
+      : '<span class="ja-go ja-go-vide"></span>';
+    const classes = ['ja', o.gravite ? 'g-' + o.gravite : '', o.faite ? 'ja-faite' : '', ouverte ? 'ouverte' : '', o.classe || ''].filter(Boolean).join(' ');
+    return `
+      <li class="${classes}">
+        <span class="dot-label dl-${o.faite ? 'success' : (o.categorie || 'neutre')}" title="${escapeAttr(o.categorieLabel || '')}"><span class="dot"></span></span>
+        ${texte}
+        <span class="ja-delai${o.delaiProche ? ' proche' : ''}">${escapeHtml(o.delai || '')}</span>
+        ${go}
+        <span class="ja-actions-sec">${o.secondaires || ''}</span>
+        ${ouverte && o.detail ? `<div class="ja-detail">${o.detail}</div>` : ''}
+      </li>`;
+  }
+
+  function renderBrouillonEmail(brouillon) {
+    if (!brouillon) return '';
+    return `<div class="jour-brouillon">
+      <dl><dt>À</dt><dd>${escapeHtml(brouillon.a || '—')}</dd><dt>Objet</dt><dd>${escapeHtml(brouillon.objet)}</dd></dl>
+      ${brouillon.corps.split(/\n\n+/).map(p => `<p>${escapeHtml(p).replace(/\n/g, '<br>')}</p>`).join('')}
+    </div>`;
+  }
+
   // Une action sur UNE ligne : le geste à droite (un clic), « Plus tard » à côté ; un clic sur le
-  // texte déplie le contexte et le texte du brouillon.
-  function renderLigneActionJour(a, global) {
+  // texte déplie le contexte et le texte du brouillon. `dansFiche` : la même ligne dans la fiche du
+  // dossier (encadré « Prochaine étape ») — sans le nom du dossier, et sans « Ouvrir la fiche ».
+  function renderLigneActionJour(a, global, dansFiche) {
     const cle = escapeOnclickArg(a.cle);
     const ouverte = apercusJour.has(a.cle);
-    const delai = delaiAction(a);
     const brouillon = ouverte ? brouillonAction(a) : null;
-    const sous = [a.dossier.nom, global && a.dossier.responsable ? prenomCollaborateur(a.dossier.responsable) : '', a.categorieLabel].filter(Boolean).join(' · ');
-    return `
-      <li class="ja g-${a.gravite}${ouverte ? ' ouverte' : ''}">
-        <span class="dot-label dl-${a.categorie}" title="${escapeAttr(a.categorieLabel)}"><span class="dot"></span></span>
-        <button type="button" class="ja-texte" aria-expanded="${ouverte}" onclick="basculerApercuJour('${cle}')" title="Voir le détail">
-          <span class="ja-titre">${escapeHtml(a.titre)}${veilleJour.hier.has(a.cle) ? `<span class="ja-non-faite">${escapeHtml(libelleNonFaite(veilleJour.hierDate, isoAujourdhuiLocal()))}</span>` : ''}</span>
-          <span class="ja-sous">${escapeHtml(sous)}</span>
-        </button>
-        <span class="ja-delai${a.gravite === 'critique' ? ' proche' : ''}">${escapeHtml(delai)}</span>
-        <button type="button" class="primary ja-go" onclick="executerActionJour('${cle}')" title="${escapeAttr(a.bouton)}">${iconeGeste(a)}<span>${escapeHtml(libelleCourtGeste(a))}</span></button>
-        <span class="ja-actions-sec">
-          <button type="button" class="icon-btn ja-fait-manuel" onclick="marquerFaitJour('${cle}')" title="Déjà fait — valider à la main" aria-label="Marquer comme déjà fait">${icone('check')}</button>
-          <button type="button" class="icon-btn ja-plus-tard" onclick="reporterActionJour('${cle}')" title="Plus tard (demain)" aria-label="Reporter à demain">${icone('clock')}</button>
-        </span>
-        ${ouverte ? `
-          <div class="ja-detail">
-            <p>${escapeHtml(a.contexte)}</p>
-            ${brouillon ? `<div class="jour-brouillon">
-              <dl><dt>À</dt><dd>${escapeHtml(brouillon.a || '—')}</dd><dt>Objet</dt><dd>${escapeHtml(brouillon.objet)}</dd></dl>
-              ${brouillon.corps.split(/\n\n+/).map(p => `<p>${escapeHtml(p).replace(/\n/g, '<br>')}</p>`).join('')}
-            </div>` : ''}
+    const sous = [dansFiche ? '' : a.dossier.nom, global && a.dossier.responsable ? prenomCollaborateur(a.dossier.responsable) : '', a.categorieLabel].filter(Boolean).join(' · ');
+    const sansGeste = dansFiche && (!a.geste || a.geste.type === 'fiche');
+    return renderLigneAction({
+      categorie: a.categorie, categorieLabel: a.categorieLabel, gravite: a.gravite,
+      titre: a.titre,
+      titreHtml: veilleJour.hier.has(a.cle) ? `<span class="ja-non-faite">${escapeHtml(libelleNonFaite(veilleJour.hierDate, isoAujourdhuiLocal()))}</span>` : '',
+      sous, delai: delaiAction(a), delaiProche: a.gravite === 'critique',
+      bouton: sansGeste ? null : { libelle: libelleCourtGeste(a), icone: iconeGeste(a), onclick: `executerActionJour('${cle}')`, titre: a.bouton },
+      secondaires: `<button type="button" class="icon-btn ja-fait-manuel" onclick="marquerFaitJour('${cle}')" title="Déjà fait — valider à la main" aria-label="Marquer comme déjà fait">${icone('check')}</button>
+          <button type="button" class="icon-btn ja-plus-tard" onclick="reporterActionJour('${cle}')" title="Plus tard (demain)" aria-label="Reporter à demain">${icone('clock')}</button>`,
+      apercu: a.cle,
+      detail: `<p>${escapeHtml(a.contexte)}</p>
+            ${renderBrouillonEmail(brouillon)}
             <div class="ja-detail-liens">
-              ${a.second ? `<button type="button" class="lien-action" onclick="executerActionJour('${cle}', true)">${escapeHtml(a.second.libelle)}</button>` : ''}
-              ${a.geste && a.geste.type !== 'fiche' ? `<button type="button" class="lien-action" onclick="executerActionJourFiche('${cle}')">Ouvrir la fiche</button>` : ''}
-            </div>
-          </div>` : ''}
-      </li>`;
+              ${a.second && !(dansFiche && a.second.type === 'fiche') ? `<button type="button" class="lien-action" onclick="executerActionJour('${cle}', true)">${escapeHtml(a.second.libelle)}</button>` : ''}
+              ${!dansFiche && a.geste && a.geste.type !== 'fiche' ? `<button type="button" class="lien-action" onclick="executerActionJourFiche('${cle}')">Ouvrir la fiche</button>` : ''}
+            </div>`
+    });
   }
 
   // Ce qui a été traité aujourd'hui, coché, dans la même liste : la journée se voit avancer.
@@ -15078,7 +15119,7 @@
   let ajoutEngagementOuvert = false;
   let diagnosticParcoursOuvert = false;
   // Formulaire de création du rendez-vous de signature dans l'agenda Outlook (voir
-  // renderCreationRdvAgenda) : même principe qu'ajoutEcheanceOuvert.
+  // renderLigneCreerRdvAgenda) : même principe qu'ajoutEcheanceOuvert.
   let rdvAgendaOuvert = false;
 
   // Édition d'un engagement du vendeur déjà présent (import OU fiche enregistrée) : un seul
@@ -15204,7 +15245,7 @@
 
   function renderAjoutPiece(d) {
     if (!ajoutPieceOuvert) {
-      return `<button type="button" class="ajout-piece-btn" onclick="afficherFormAjoutPiece()">${icone('plus')}Ajouter une pièce</button>`;
+      return `<button type="button" class="bouton-ajout ajout-piece-btn" onclick="afficherFormAjoutPiece()">Ajouter une pièce</button>`;
     }
     return `
       <div class="ajout-piece-form">
@@ -15611,7 +15652,7 @@
           // Même sans prêt (achat comptant), le dossier NAS reste nécessaire pour suivre
           // la checklist de pièces (urbanisme...) — voir renderPiecesDossier ci-dessous.
           : `<button type="button" class="action-rapide" onclick="lierDossierLocal('${d.id}')" title="Relier ce dossier à son dossier du NAS">${icone('link')} Relier</button>`;
-      // Statut de l'offre sous la date de la carte "Obtention du prêt" (voir renderTab, paramètre
+      // Statut de l'offre sous la date de la carte "Obtention du prêt" (voir renderLigneEcheance, paramètre
       // offreBloc). Une puce de couleur plutôt qu'une phrase : le décompte juste au-dessus dit déjà
       // "✓ Offre reçue" en toutes lettres, la puce ne fait que confirmer d'un coup d'œil sans
       // répéter — c'est ce doublon de phrases qui avait été signalé. Même texte/couleur que le
@@ -15629,21 +15670,21 @@
       // "Obtention du prêt", emplacement choisi par l'étude.
       const garanties = libellesGarantiesPret(d.garantiesPret);
       const garantiesBloc = garanties.length
-        ? `<div class="tab-garanties" title="Garantie(s) relevée(s) dans l’offre de prêt">${icone('key')} ${garanties.map(escapeHtml).join(' · ')}</div>`
+        ? `<span class="tab-garanties" title="Garantie(s) relevée(s) dans l’offre de prêt">${icone('key')} ${garanties.map(escapeHtml).join(' · ')}</span>`
         : '';
       // Voir d.piecesNotifications/fermerDossierDrawer : l'offre de prêt partage le même
       // mécanisme "Nouveau" que les pièces de la checklist (pseudo-cle CLE_NOTIF_OFFRE_PRET).
       const offreEstNouvelle = (d.piecesNotifications || []).includes(CLE_NOTIF_OFFRE_PRET);
       const offreBloc = !d.sansPret ? `
-        <div class="tab-offre-pret">
+        <span class="tab-offre-pret">
           ${offreOuvrable
               ? `<button type="button" class="dot-label ${offreStatut.dl}" title="${d.offrePretStatut === 'recue' ? 'Offre de prêt reçue — cliquer pour ouvrir le fichier trouvé' : 'Document trouvé mais non confirmé — cliquer pour l’ouvrir et vérifier'}" onclick="ouvrirOffreTrouvee('${d.id}')"><span class="dot"></span>${d.offrePretStatut === 'recue' ? 'Ouvrir le fichier' : 'À confirmer — ouvrir'}</button>`
               : `<span class="dot-label ${offreStatut.dl}" title="${d.dossierLie ? escapeAttr(offreStatut.texte) : 'Aucun dossier du NAS relié : l’offre n’a pas encore pu être cherchée'}"><span class="dot"></span>${offreStatut.texte}</span>`}
           ${offreEstNouvelle ? '<span class="dot-label dl-urgent notif-nouveau-tag">Nouveau</span>' : ''}
           ${d.dossierLie
-              ? `<button type="button" class="lien-dossier-local" onclick="verifierDossierLocalDepuisBouton('${d.id}', this)">Revérifier</button>`
-              : `<button type="button" class="lien-dossier-local" onclick="lierDossierLocal('${d.id}')">${icone('link')} Relier un dossier du NAS</button>`}
-        </div>${garantiesBloc}` : '';
+              ? `<button type="button" class="lien-action" onclick="verifierDossierLocalDepuisBouton('${d.id}', this)">Revérifier</button>`
+              : `<button type="button" class="lien-action" onclick="lierDossierLocal('${d.id}')">${icone('link')} Relier un dossier du NAS</button>`}
+        </span>${garantiesBloc}` : '';
       const aujourdhui = isoAujourdHui();
       const avancement = avancementDossier(d, aujourdhui);
       const etapes = etapesAvancement(d, aujourdhui);
@@ -15669,8 +15710,8 @@
         { cle: 'historique', libelle: 'Historique', compteur: historique.length ? String(historique.length) : '', titre: `${historique.length} entrée(s)` }
       ].filter(Boolean);
 
-      const prochaine = prochaineEcheanceDetail(d);
-      const puceProchaine = prochaine ? `<span class="dot-label dl-${prochaine.type}" title="Prochaine échéance"><span class="dot"></span>${escapeHtml(prochaine.label)} · ${formatDateFr(prochaine.iso)} · ${prochaine.jours >= 0 ? 'J-' + prochaine.jours : 'dépassée de ' + (-prochaine.jours) + ' j'}</span>` : '';
+      // La prochaine échéance n'est plus une puce de l'en-tête : l'onglet Échéances s'ouvre sur
+      // l'encadré « Prochaine étape » (voir renderProchaineEtapeFiche), la dire deux fois chargeait la fiche.
 
       const analyseVide = analyse.documents.length === 0 && analyse.engagements.length === 0;
       return `
@@ -15694,7 +15735,7 @@
         <div class="fiche-colonnes">
           <div class="fiche-principale">
             <header class="fiche-entete">
-              <div class="fiche-meta">${renderBadgeStatut(d)}${puceProchaine}</div>
+              <div class="fiche-meta">${renderBadgeStatut(d)}</div>
               <div class="nom-dossier">
                 <span class="nom-affichage" id="nom-affichage-${d.id}">
                   <span class="nom-texte">${escapeHtml(libelleDossierAffiche(d))}</span>
@@ -15715,9 +15756,8 @@
             </div>
 
             <section class="fiche-panneau" data-onglet="echeances" role="tabpanel"${cache('echeances')}>
-              <div class="tabs tabs-timeline">
-                ${echeancesOrdonneesFiche(d, confiance, offreBloc)}
-              </div>
+              ${renderProchaineEtapeFiche(d)}
+              ${echeancesOrdonneesFiche(d, confiance, offreBloc)}
               ${renderAjoutEcheance(d)}
             </section>
 
@@ -15749,11 +15789,7 @@
             </section>
 
             <section class="fiche-panneau" data-onglet="echanges" role="tabpanel"${cache('echanges')}>
-              ${renderRelancesCiblees(d)}
-              ${renderFondsRecus(d)}
-              ${renderReceptionFonds(d)}
-              ${renderQuestionnaireSatisfaction(d)}
-              ${renderAppelFondsDossier(d)}
+              ${renderEchangesDossier(d)}
             </section>
 
             <section class="fiche-panneau" data-onglet="historique" role="tabpanel"${cache('historique')}>
@@ -15949,7 +15985,7 @@
 
   // Même principe pour corriger une date après coup (erreur repérée une fois le dossier
   // enregistré) : crayon → champ date natif → valider. cleEdition vaut le type (pret/acte/
-  // ventebien) ou "autre-<index>" pour une échéance personnalisée — voir renderTab().
+  // ventebien) ou "autre-<index>" pour une échéance personnalisée — voir renderLigneEcheance().
   function activerEditionDate(dossierId, cle) {
     const idBase = `tabdate-${dossierId}-${cle}`;
     const aff = document.getElementById(idBase + '-aff');
@@ -16080,7 +16116,7 @@
   }
 
   // Pendant du bouton "+ Ajouter une échéance" ci-dessus : ne concerne que les échéances
-  // personnalisées (croix visible uniquement sur les tabs "autre", voir renderTab) — une entrée de
+  // personnalisées (croix visible uniquement sur les tabs "autre", voir renderLigneEcheance) — une entrée de
   // d.autres est réellement retirée du tableau. Obtention du prêt/Signature de l'acte/Vente
   // préalable ne sont jamais retirées du modèle (voir supprimerDateEcheance juste en dessous, qui
   // vide seulement leur date).
@@ -16101,7 +16137,7 @@
   // champ date natif puis valider — mais rien n'indiquait que c'était possible, ni ne le
   // confirmait). Contrairement à supprimerEcheanceAutre, la tab elle-même n'est pas retirée du
   // modèle : seule sa date repart à vide (déjà le cas d'affichage pour "Non renseigné" sur un
-  // dossier créé sans cette échéance active — voir renderTab).
+  // dossier créé sans cette échéance active — voir renderLigneEcheance).
   function supprimerDateEcheance(dossierId, type) {
     const d = dossiers.find(x => x.id === dossierId);
     if (!d || !d[type]) return;
@@ -16136,7 +16172,7 @@
 
   function renderAjoutEcheance(d) {
     if (!ajoutEcheanceOuvert) {
-      return `<button type="button" class="action-rapide ajout-echeance-btn" onclick="afficherFormAjoutEcheance()">+ Ajouter une échéance</button>`;
+      return `<button type="button" class="bouton-ajout ajout-echeance-btn" onclick="afficherFormAjoutEcheance()">Ajouter une échéance</button>`;
     }
     return `
       <div class="date-block autre ajout-echeance-form">
@@ -16198,7 +16234,7 @@
 
   function renderAjoutEngagement(d) {
     if (!ajoutEngagementOuvert) {
-      return `<button type="button" class="action-rapide ajout-engagement-btn" onclick="afficherFormAjoutEngagementDossier()">+ Ajouter une obligation du vendeur</button>`;
+      return `<button type="button" class="bouton-ajout ajout-engagement-btn" onclick="afficherFormAjoutEngagementDossier()">Ajouter une obligation du vendeur</button>`;
     }
     return `
       <div class="date-block autre ajout-engagement-form">
@@ -16666,9 +16702,9 @@
   }
 
   // Confirmation de réception des fonds, demandée par l'étude : l'acquéreur a viré le montant de
-  // l'appel de fonds, on lui confirme que les fonds sont bien arrivés en comptabilité. Le bouton
-  // vit dans la carte « Envoi au client », sous « Envoi appel de fonds », et n'apparaît qu'une fois
-  // cet appel de fonds validé (voir renderCarteEnvoisAvantSignature) : avant, il n'y a rien à
+  // l'appel de fonds, on lui confirme que les fonds sont bien arrivés en comptabilité. La ligne
+  // d'action vit dans l'onglet Échanges et n'apparaît qu'une fois
+  // cet appel de fonds validé (voir renderReceptionFonds) : avant, il n'y a rien à
   // confirmer. Le rendez-vous de signature n'est rappelé que s'il est fixé — jamais la date butoir
   // de l'avant-contrat, qui n'est qu'indicative et induirait le client en erreur.
   function construireEmailReceptionFonds(d) {
@@ -16772,34 +16808,72 @@
   // participation, permettre d'écrire à l'acquéreur »). Seule reste la règle déontologique : si
   // l'acquéreur est représenté par un AUTRE office, on écrit à ce confrère, jamais au client
   // (emailDestinataireRelance).
-  function renderRelancesCiblees(d) {
+  // Les emails au client de l'onglet Échanges, en lignes d'action : le même titre et le même verbe
+  // que dans « À faire » (une relance de l'offre s'appelle partout « Relancer l'offre de prêt »), la
+  // date du dernier envoi en précision, et le brouillon exact en dépliant la ligne.
+  var ACTIONS_EMAIL_DOSSIER = {
+    provision: { titre: 'Demander la provision et la pièce d’identité', verbe: 'Envoyer', categorie: 'neutre', categorieLabel: 'Ouverture du dossier' },
+    ventePrealable: { titre: 'Relancer la vente préalable', verbe: 'Relancer', categorie: 'ventebien', categorieLabel: 'Vente préalable' },
+    pret: { titre: 'Relancer l’offre de prêt', verbe: 'Relancer', categorie: 'pret', categorieLabel: 'Obtention du prêt' },
+    fonds: { titre: 'Confirmer la réception des fonds', verbe: 'Confirmer', categorie: 'appelFonds', categorieLabel: 'Réception des fonds' },
+    rib: { titre: 'Demander le RIB et la pièce d’identité', verbe: 'Envoyer', categorie: 'rendezVousSignature', categorieLabel: 'Avant la signature' }
+  };
+
+  // Date du dernier envoi d'un email (null s'il n'est pas daté : la provision ne l'est pas).
+  function dateDernierEmail(d, motif) {
+    if (motif === 'pret') return d.derniereRelanceAuto || null;
+    const m = MODELES_EMAIL_RELANCE[motif];
+    return (m && m.date && d[m.date]) || null;
+  }
+
+  function renderLigneEmailDossier(d, motif) {
+    const a = ACTIONS_EMAIL_DOSSIER[motif];
+    if (!a) return '';
+    const envoye = dateDernierEmail(d, motif);
+    const cle = `email:${d.id}:${motif}`;
+    const ouverte = apercusJour.has(cle);
+    const brouillon = ouverte ? brouillonAction({ dossier: d, geste: { type: 'email', motif } }) : null;
+    let sous = '';
+    if (motif === 'fonds' && envoye) sous = `Réception des fonds confirmée le ${formatDateFr(envoye)}`;
+    else if (envoye) sous = `${motif === 'pret' ? 'Dernière relance' : 'Envoyé'} le ${formatDateFr(envoye)}`;
+    // L'offre de prêt se relance tous les 10 jours : « faite » seulement tant que la dernière
+    // relance est récente, sinon la ligne redevient une action à faire.
+    const faite = !!envoye && (motif !== 'pret' || !relanceOffreDue(envoye, isoAujourdhuiLocal()));
+    return renderLigneAction({
+      categorie: a.categorie, categorieLabel: a.categorieLabel, titre: a.titre, sous, faite,
+      bouton: { libelle: faite ? 'Renvoyer' : a.verbe, icone: icone('mail'), onclick: `envoyerRelanceCiblee('${d.id}', '${motif}')`, titre: MODELES_EMAIL_RELANCE[motif].libelle },
+      apercu: cle,
+      detail: brouillon ? renderBrouillonEmail(brouillon) : ''
+    });
+  }
+
+  // Les emails au client qu'il est utile de proposer sur ce dossier, dans l'ordre de sa vie : la
+  // provision (ouverture), la vente préalable et l'offre de prêt tant qu'elles sont attendues, le RIB.
+  // « Confirmer la réception des fonds » n'y est pas : il dépend de l'appel de fonds, voir
+  // renderReceptionFonds. `suite` : les lignes qui complètent la même liste (réception des fonds,
+  // questionnaire), pour que tous les emails du dossier forment une seule liste.
+  function renderRelancesCiblees(d, suite) {
     const notaireParticipant = notaireParticipantRepresenteAcquereur(d);
+    const reste = suite || '';
     if (!emailDestinataireRelance(d)) {
       const hint = notaireParticipant
         ? 'Renseignez l’email du confrère (ci-dessus) pour écrire : l’acquéreur a son propre notaire.'
         : 'Renseignez l’email de l’acquéreur pour écrire.';
-      return `<div class="relances-ciblees">
-        <span class="section-eyebrow">Écrire par email</span>
+      return `<div class="echanges-destinataire">
         ${renderEmailAcquereurDossier(d)}
         <p class="hint">${hint}</p>
-      </div>`;
+      </div>
+      ${reste ? `<ul class="ja-liste">${reste}</ul>` : ''}`;
     }
-    const boutons = [MODELES_EMAIL_RELANCE.provision];
-    if (!d.sansPret && d.offrePretStatut !== 'recue') {
-      boutons.push(MODELES_EMAIL_RELANCE.pret);
-    }
-    if (d.ventebien && !echeanceValidee(d, 'ventebien')) boutons.push(MODELES_EMAIL_RELANCE.ventePrealable);
-    boutons.push(MODELES_EMAIL_RELANCE.rib);
-    // « Confirmer la réception des fonds » n'est pas ici : il vit dans la carte « Envoi au client »,
-    // à côté de l'appel de fonds dont il dépend (voir renderCarteEnvoisAvantSignature).
-    return `<div class="relances-ciblees">
-      <span class="section-eyebrow">Écrire par email</span>
+    const motifs = ['provision'];
+    if (d.ventebien && !echeanceValidee(d, 'ventebien')) motifs.push('ventePrealable');
+    if (!d.sansPret && d.offrePretStatut !== 'recue') motifs.push('pret');
+    motifs.push('rib');
+    return `<div class="echanges-destinataire">
       ${renderEmailAcquereurDossier(d)}
       ${notaireParticipant ? '<p class="hint">Adressé au notaire de l’acquéreur.</p>' : ''}
-      <div class="relances-boutons">
-        ${boutons.map(m => `<button type="button" class="action-rapide" onclick="envoyerRelanceCiblee('${d.id}', '${m.cle}')">${escapeHtml(m.libelle)}</button>`).join('')}
-      </div>
-    </div>`;
+    </div>
+    <ul class="ja-liste">${motifs.map(m => renderLigneEmailDossier(d, m)).join('')}${reste}</ul>`;
   }
 
   // ==== Questionnaire de satisfaction + archivage automatique (clôture du dossier) ====
@@ -16888,37 +16962,33 @@
   // autres relances ciblées qui, elles, transitent par lui dans ce cas.
   function renderQuestionnaireSatisfaction(d) {
     if (notaireParticipantRepresenteAcquereur(d)) return '';
+    const base = { categorie: 'neutre', categorieLabel: 'Clôture du dossier', titre: 'Questionnaire de satisfaction' };
     // Déjà envoyé : on le dit, avec la date, et on laisse la possibilité de renvoyer. Affiché même
     // sur un dossier archivé (l'envoi archive le dossier, voir envoyerQuestionnaireSatisfaction) —
     // sinon la trace disparaîtrait à l'instant même où elle devient utile.
     if (d.questionnaireEnvoyeLe) {
-      return `<div class="relances-ciblees">
-        <span class="section-eyebrow">Clôturer le dossier</span>
-        <p class="hint">${icone('check')} Questionnaire envoyé le ${formatDateFr(d.questionnaireEnvoyeLe)}.</p>
-        ${d.emailAcquereur ? `<div class="relances-boutons">
-          <button type="button" class="action-rapide" onclick="envoyerQuestionnaireSatisfaction('${d.id}')">${icone('mail')} Renvoyer</button>
-        </div>` : ''}
-      </div>`;
+      return renderLigneAction(Object.assign(base, {
+        sous: `Envoyé le ${formatDateFr(d.questionnaireEnvoyeLe)} — dossier archivé`, faite: true,
+        bouton: d.emailAcquereur ? { libelle: 'Renvoyer', icone: icone('mail'), onclick: `envoyerQuestionnaireSatisfaction('${d.id}')` } : null
+      }));
     }
     if (d.archive) return '';
     // Demandé par l'étude : proposé seulement une fois la date de signature de l'acte renseignée —
     // avant, le dossier n'est pas fini et le questionnaire n'a pas d'objet.
     if (!d.acte) return '';
     if (!d.emailAcquereur) {
-      return `<div class="relances-ciblees">
-        <span class="section-eyebrow">Clôturer le dossier</span>
-        <p class="hint">Renseignez l’email de l’acquéreur.</p>
-      </div>`;
+      return renderLigneAction(Object.assign(base, { sous: 'Renseignez l’email de l’acquéreur.' }));
     }
     const titre = modeEmailPoste() === 'mailto'
       ? 'Ouvre le brouillon, télécharge le PDF à joindre, et archive le dossier'
       : 'Prépare l’email avec le questionnaire joint, et archive le dossier';
-    return `<div class="relances-ciblees">
-      <span class="section-eyebrow">Clôturer le dossier</span>
-      <div class="relances-boutons">
-        <button type="button" class="action-rapide" onclick="envoyerQuestionnaireSatisfaction('${d.id}')" title="${escapeAttr(titre)}">${icone('mail')} Questionnaire de satisfaction</button>
-      </div>
-    </div>`;
+    const cle = `questionnaire:${d.id}`;
+    const brouillon = apercusJour.has(cle) ? brouillonAction({ dossier: d, geste: { type: 'questionnaire' } }) : null;
+    return renderLigneAction(Object.assign(base, {
+      sous: 'Le PDF est joint ; le dossier est archivé à l’envoi',
+      bouton: { libelle: 'Envoyer', icone: icone('mail'), onclick: `envoyerQuestionnaireSatisfaction('${d.id}')`, titre },
+      apercu: cle, detail: brouillon ? renderBrouillonEmail(brouillon) : ''
+    }));
   }
 
   // Passerelle de la fiche vers le générateur d'appel de fonds : bascule d'onglet avec le dossier
@@ -16928,20 +16998,34 @@
   // prépare un .docx, l'étude le relit et l'envoie.
   function renderAppelFondsDossier(d) {
     if (d.archive) return '';
-    // Appel de fonds déjà fait : plus rien à préparer, la section disparaît (demandé par l'étude).
+    // Appel de fonds déjà fait : plus rien à préparer, la ligne disparaît (demandé par l'étude).
     if (echeanceValidee(d, 'appelFonds')) return '';
     // Ce qui manquera au courrier, dit AVANT le clic plutôt que découvert sur l'écran suivant.
     const manques = [];
     if (!d.rendezVousSignature) manques.push('la date du rendez-vous');
     if (!d.prixVente) manques.push('le prix');
     if (!d.adresseBien) manques.push("l'adresse du bien");
-    return `<div class="relances-ciblees">
-      <span class="section-eyebrow">Appel de fonds</span>
-      <div class="relances-boutons">
-        <button type="button" class="action-rapide" onclick="preparerAppelFondsDepuisDossier('${d.id}')" title="Convocation et décompte des sommes à virer">${icone('mail')} Préparer l'appel de fonds</button>
+    return renderLigneAction({
+      categorie: 'appelFonds', categorieLabel: 'Envoi appel de fonds', titre: 'Préparer l’appel de fonds',
+      sous: manques.length ? `À saisir ensuite : ${manques.join(', ')}` : 'Convocation et décompte des sommes à virer',
+      bouton: { libelle: 'Préparer', icone: icone('file-text'), onclick: `preparerAppelFondsDepuisDossier('${d.id}')`, titre: 'Convocation et décompte des sommes à virer' }
+    });
+  }
+
+  // Onglet Échanges de la fiche : tout ce qu'on envoie ou prépare pour ce dossier, en lignes
+  // d'action (même forme que « À faire »). Deux groupes : les emails au client, puis l'appel de
+  // fonds, les fonds reçus et l'agenda.
+  function renderEchangesDossier(d) {
+    const suite = [renderReceptionFonds(d), renderQuestionnaireSatisfaction(d)].filter(Boolean).join('');
+    const autres = [renderAppelFondsDossier(d), renderFondsRecus(d), renderNoterAgenda(d)].filter(Boolean).join('');
+    return `<div class="echanges-groupe">
+        <span class="section-eyebrow">Emails au client</span>
+        ${renderRelancesCiblees(d, suite)}
       </div>
-      ${manques.length ? `<p class="hint">À saisir ensuite : ${escapeHtml(manques.join(', '))}.</p>` : ''}
-    </div>`;
+      ${autres ? `<div class="echanges-groupe">
+        <span class="section-eyebrow">Appel de fonds et agenda</span>
+        <ul class="ja-liste">${autres}</ul>
+      </div>` : ''}`;
   }
 
   // ---- persistence (serveur intranet) ----

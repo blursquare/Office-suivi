@@ -206,6 +206,10 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
 - **Garder l'interface cohérente** : jetons CSS existants (`--focus` = accent du thème choisi,
   couleurs de catégorie fixes), icônes SVG du jeu `ICONES`, composant `.dot-label` pour les statuts,
   pas d'emoji comme icône, pas de couleur inventée. Mode clair et sombre, largeur téléphone.
+  **Tout geste** (email, préparer, noter, créer…) est une ligne d'action `renderLigneAction` (forme
+  de « À faire », même titre et même verbe qu'elle pour le même geste) ; tout « Ajouter … » est un
+  `button.bouton-ajout` ; l'édition d'une donnée passe par des icônes (crayon, ✓, ×) ; seuls les
+  formulaires gardent des boutons classiques.
 - **Texte d'aide** : ne décrit pas ce que le bouton dit déjà ; il dit ce qui manque. Une toute
   nouvelle confirmation commence par son verbe d'action (`boutonConfirmation`).
 - **Toute nouvelle fonction pure** : la déclarer `function` (ou `var` pour une table) pour la

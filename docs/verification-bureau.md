@@ -25,8 +25,9 @@ dans l'agenda, et le supprimer à la fin.
 Réglages › Rappels et agenda › Agenda Outlook de l'office.
 
 - [ ] « Tester » répond en vert avec le nom du calendrier.
-- [ ] Sur le dossier de test, saisir une date de **rendez-vous de signature** → le formulaire
-      heure/durée s'ouvre. Choisir « À l'office », 14:00, puis « Créer le rendez-vous ».
+- [ ] Sur le dossier de test, saisir une date de **rendez-vous de signature** → dans l'encadré
+      « Prochaine étape », la ligne « Créer le rendez-vous dans l'agenda Outlook » s'ouvre sur le
+      formulaire heure/durée. Choisir « À l'office », 14:00, puis « Créer le rendez-vous ».
       Dans Outlook, **calendrier partagé de Sophie** : le rendez-vous « VTE - TEST / ESSAI »
       apparaît au bon jour, à la bonne heure, **en vert**.
 - [ ] Refaire avec « En visio » sur un autre dossier de test → **violet** ; « Chez un confrère » →
@@ -38,15 +39,18 @@ Réglages › Rappels et agenda › Agenda Outlook de l'office.
       par « Appel de fonds envoyé », et la couleur n'a pas changé.
 - [ ] Saisir une date d'**obtention du prêt** → un événement « journée entière » apparaît ce jour-là
       dans le calendrier de Sophie. Marquer l'offre reçue (ou retirer la date) → il disparaît.
-- [ ] Supprimer le rendez-vous de signature sur la fiche (croix) → il disparaît d'Outlook
+- [ ] Supprimer le rendez-vous de signature sur la fiche (croix, au survol de la ligne
+      « Signature ») → il disparaît d'Outlook
       (il reste récupérable dans « Éléments supprimés »).
 
 ## 3. Emails
 
-- [ ] Sur un dossier avec un email d'acquéreur, cliquer « Provision + pièce d'identité » →
+- [ ] Sur un dossier avec un email d'acquéreur, onglet Échanges, ligne « Demander la provision et
+      la pièce d'identité » → « Envoyer » →
       un fichier `.eml` se télécharge ; l'ouvrir → Outlook affiche un **nouveau message prêt à
       envoyer**, avec la signature en couleurs et les logos. (Ne pas l'envoyer.)
-- [ ] « Questionnaire de satisfaction » sur un dossier de test → le PDF est **déjà joint** au message.
+- [ ] Ligne « Questionnaire de satisfaction » → « Envoyer » sur un dossier de test → le PDF est
+      **déjà joint** au message.
 - [ ] Réglages › Rappels et agenda : « Tester » sur votre adresse → le message arrive dans **Teams**.
 - [ ] Quand une notification de pièce trouvée arrive dans Teams, **cliquer sur le nom de la pièce**
       → le PDF s'ouvre. (Si Teams bloque l'adresse `http://192.168…`, le noter.)

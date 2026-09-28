@@ -138,7 +138,7 @@ test('relances : ouvertes en participation, toujours routées vers le confrère 
   assert.match(app.renderRelancesCiblees(confrere), /Adressé au notaire de l.acquéreur/);
 });
 
-test('réception des fonds : bouton dans la carte « Envoi au client », seulement une fois l’appel de fonds validé', () => {
+test('réception des fonds : ligne d’action de l’onglet Échanges, seulement une fois l’appel de fonds validé', () => {
   const app = chargerApplication();
   // Plus proposée parmi les relances de la fiche : elle vit à côté de l'appel de fonds.
   const avecRdv = dossierBase(app, { rendezVousSignature: '2026-11-20', acte: '2026-11-30' });
@@ -147,7 +147,8 @@ test('réception des fonds : bouton dans la carte « Envoi au client », seuleme
   const fait = dossierBase(app, { rendezVousSignature: '2026-11-20', appelFonds: '2026-10-30', echeancesValidees: { appelFonds: true } });
   assert.match(app.renderReceptionFonds(fait), /envoyerRelanceCiblee\('d1', 'fonds'\)/);
   assert.match(app.renderReceptionFonds(fait), /Confirmer la réception des fonds/);
-  assert.match(app.renderCarteEnvoisAvantSignature(fait), /Confirmer la réception des fonds/);
+  assert.match(app.renderEchangesDossier(fait), /Confirmer la réception des fonds/);
+  assert.doesNotMatch(app.renderEchangesDossier(avecRdv), /Confirmer la réception des fonds/);
 });
 
 test('réception des fonds : une fois confirmée, la carte affiche la date et propose de renvoyer', () => {
@@ -202,7 +203,7 @@ test('renderQuestionnaireSatisfaction : une fois envoyé, affiche la date et pro
   const html = app.renderQuestionnaireSatisfaction(dossierBase(app, {
     acte: '2026-10-01', archive: true, questionnaireEnvoyeLe: '2026-09-21'
   }));
-  assert.match(html, /envoyé le 21 septembre 2026/);
+  assert.match(html, /Envoyé le 21 septembre 2026/);
   assert.match(html, /Renvoyer/);
 });
 

@@ -370,7 +370,7 @@
 
           <div id="autres-list"></div>
 
-          <button type="button" class="secondary add-autre-btn" onclick="ajouterAutreVide()">+ Ajouter une échéance personnalisée</button>
+          <button type="button" class="bouton-ajout add-autre-btn" onclick="ajouterAutreVide()">Ajouter une échéance personnalisée</button>
         </fieldset>
 
         <div class="wizard-nav">
@@ -393,7 +393,7 @@
                le vendeur, par ex.). Toujours visible, y compris quand rien n'a encore été détecté
                automatiquement — voir afficherFormAjoutEngagementManuel()/
                ajouterEngagementDepuisFormulaire() dans script.js. -->
-          <button type="button" class="action-rapide" id="ajout-engagement-manuel-btn" onclick="afficherFormAjoutEngagementManuel()">+ Ajouter un engagement du vendeur</button>
+          <button type="button" class="bouton-ajout" id="ajout-engagement-manuel-btn" onclick="afficherFormAjoutEngagementManuel()">Ajouter un engagement du vendeur</button>
           <div id="ajout-engagement-manuel-form" class="ajout-engagement-manuel-form" style="display:none;">
             <input type="text" id="nouvel-engagement-texte" placeholder="Décrire l'engagement (ex. Justifier de l'entretien annuel de la chaudière)">
             <select id="nouvel-engagement-type">
@@ -910,7 +910,7 @@
 
       <div class="dash-section-titre" style="margin-top:18px;">3 · Client(s)</div>
       <div id="af-clients"></div>
-      <button type="button" class="action-rapide" onclick="ajouterClientAppelFonds()">+ Ajouter un client</button>
+      <button type="button" class="bouton-ajout" onclick="ajouterClientAppelFonds()">Ajouter un client</button>
       <div class="calc-champs" style="margin-top:10px;">
         <div class="calc-champ">
           <label for="af-adresse-clients">Adresse des clients</label>
@@ -1280,18 +1280,18 @@
 
       <div class="dash-section-titre qt-titre">Acquéreurs</div>
       <div id="qt-acquereurs" class="qt-liste"></div>
-      <button type="button" class="action-rapide" onclick="ajouterAcquereurQuotites()">+ Ajouter un acquéreur</button>
+      <button type="button" class="bouton-ajout" onclick="ajouterAcquereurQuotites()">Ajouter un acquéreur</button>
 
       <div class="dash-section-titre qt-titre">Montant de l'opération</div>
       <div id="qt-lignes" class="qt-liste"></div>
-      <button type="button" class="action-rapide" onclick="ajouterLigneQuotites()">+ Ajouter une ligne</button>
+      <button type="button" class="bouton-ajout" onclick="ajouterLigneQuotites()">Ajouter une ligne</button>
       <div class="qt-total-ligne"><span>Total de l'opération</span><strong id="qt-total-operation">—</strong></div>
 
       <div class="dash-section-titre qt-titre">Origine du financement</div>
       <div id="qt-sources" class="qt-liste"></div>
       <div class="qt-ajout-sources">
-        <button type="button" class="action-rapide" onclick="ajouterSourceQuotites('apport')">+ Apport personnel</button>
-        <button type="button" class="action-rapide" onclick="ajouterSourceQuotites('pret')">+ Prêt</button>
+        <button type="button" class="bouton-ajout bouton-ajout-court" onclick="ajouterSourceQuotites('apport')">Apport personnel</button>
+        <button type="button" class="bouton-ajout bouton-ajout-court" onclick="ajouterSourceQuotites('pret')">Prêt</button>
       </div>
       <div class="qt-total-ligne"><span>Total du financement</span><strong id="qt-total-financement">—</strong></div>
     </div>
