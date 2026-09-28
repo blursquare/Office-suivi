@@ -216,3 +216,23 @@ test('sans racine configurée, l’état le dit plutôt que de rendre une liste 
   serveur2.close();
   db2.close();
 });
+
+test('reçus comptables : lus à la racine seulement, datés par leur nom, bornés par « depuis »', async () => {
+  const { listerRecusRacine, dateDepuisNomRecu, estNomRecu } = require('../src/nas');
+  const os = require('node:os');
+  const fsx = require('node:fs');
+  const pth = require('node:path');
+  const racine = fsx.mkdtempSync(pth.join(os.tmpdir(), 'recus-'));
+  fsx.writeFileSync(pth.join(racine, 'Reçus 25-09-2026.pdf'), 'x');
+  fsx.writeFileSync(pth.join(racine, 'RECUS_2026-09-27.pdf'), 'x');
+  fsx.writeFileSync(pth.join(racine, 'Recus 01-08-2026.pdf'), 'x');
+  fsx.writeFileSync(pth.join(racine, 'Recueil des actes.pdf'), 'x');
+  fsx.mkdirSync(pth.join(racine, 'DUPONT'));
+  fsx.writeFileSync(pth.join(racine, 'DUPONT', 'Reçus 26-09-2026.pdf'), 'x');
+  const liste = await listerRecusRacine(racine, '2026-09-01');
+  assert.equal(liste.map((r) => r.date).join(','), '2026-09-27,2026-09-25');
+  assert.equal(dateDepuisNomRecu('Reçus 28092026.pdf'), '2026-09-28');
+  assert.equal(dateDepuisNomRecu('Recus 3.9.26.pdf'), '2026-09-03');
+  assert.ok(estNomRecu('reçu du jour.pdf'));
+  assert.ok(!estNomRecu('Recueil.pdf'));
+});

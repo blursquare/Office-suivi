@@ -9162,6 +9162,39 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   pendant `JOURS_ENTRE_RELANCES_VENTE` (5) jours après une relance. Sans email, il ouvre la fiche
   comme avant. « Déjà fait » pose aussi `relanceVentePrealableLe`.
 
+- **« Fonds reçus » : reçus comptables du jour rapprochés du dossier** (28/09, « lire les reçus à
+  la racine du dossier local commun pour comptabiliser les sommes reçues dans un dossier ouvert ;
+  indicateur pour savoir si l'on a reçu l'ensemble des fonds en comparant avec le courrier d'appel de
+  fonds ou le décompte acquéreur présent dans le dossier local », précisé : « un PDF avec marqué
+  reçus et la date, des reçus comptables qui sortent tous les jours »).
+  - **Serveur** : `listerRecusRacine(racine, depuis)` (`server/src/nas.js`) ne lit que la RACINE du
+    NAS (jamais les dossiers clients), garde les `.pdf` dont le nom contient « reçu(s) » en mot
+    entier (`estNomRecu` — « Recueil » écarté), datés par leur nom (`dateDepuisNomRecu` :
+    JJ-MM-AAAA, AAAA-MM-JJ, JJMMAAAA, année sur deux chiffres) à défaut par la date de modification,
+    plus récents d'abord, 200 au plus. Route `GET /api/nas/recus?depuis=AAAA-MM-JJ`.
+  - **Client** (fonctions pures testées, `tests/fonds-recus.test.js`) : `motsPayeurDossier(d)` — les
+    patronymes de l'ACQUÉREUR (`d.parties`, sinon la partie droite du nom), c'est lui qui vire ;
+    `recusDuPayeurDansPages(pages, mots)` couvre deux mises en page : un TABLEAU (une ligne par reçu,
+    le dernier montant de la ligne) et UN REÇU PAR PAGE (le nom sur une ligne, la somme sur la ligne
+    « somme / montant / total », à défaut l'unique montant de la page) — une page ambiguë ne rend
+    rien ; `soldeAttenduDepuisDecompte(texte)` réutilise `parserDecompteConfrere` (solde annoncé,
+    sinon débit − crédit) ; `bilanFondsRecus(total, attendu)` → complet (tolérance 1 €) / partiel /
+    aucun / inconnu.
+  - `verifierFondsRecus(id)` (bouton « Vérifier les reçus » / « Revérifier » du bloc) lit les reçus
+    depuis la date d'appel de fonds − 15 jours (à défaut les 90 derniers jours), un cache de session
+    évitant de relire un reçu d'un jour déjà lu ; le montant attendu vient du PDF du dossier NAS dont
+    le nom dit « appel de fonds / décompte / convocation » (le plus récent), ou d'un montant saisi à
+    la main (`d.fondsAttendusManuel`, prioritaire, conservé à l'import). Le résultat
+    (`d.fondsRecus`) est enregistré sur le dossier, donc visible de tous les postes, et repart de
+    zéro à l'import (dérivé du NAS de ce serveur, comme les pièces).
+  - `renderFondsRecus(d)` dans l'onglet Échanges, au-dessus de « Confirmer la réception des fonds »,
+    dès que l'appel de fonds est fait ou qu'un rendez-vous est fixé : l'état (vert tout reçu, ambre
+    reste X €, rouge aucun reçu, gris montant attendu inconnu), le montant attendu modifiable avec
+    sa source cliquable, et la liste des reçus retenus (date, montant, fichier cliquable, ligne lue
+    en infobulle). **Premier jet écrit sans reçu réel** : le rapprochement se fait sur le seul
+    patronyme de l'acquéreur, un homonyme sur un autre dossier serait compté — c'est pour ça que
+    chaque reçu est listé. À resserrer (référence de dossier, n° de reçu) sur le premier PDF réel.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à

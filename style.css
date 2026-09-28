@@ -6110,3 +6110,13 @@ button.lien-action:hover { text-decoration: underline; }
 .jour-entete-actions button.icon-btn:hover, .ja button.icon-btn.ja-plus-tard:hover, .jour-fenetre button.icon-btn.jour-fenetre-x:hover {
   color: var(--ink); background: var(--line-soft);
 }
+
+/* Fonds reçus (onglet Échanges de la fiche) : reçus comptables rapprochés de l'acquéreur. */
+.fonds-recus { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 14px; }
+.fonds-recus-etat { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; justify-content: space-between; }
+.fonds-recus-attendu { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.fonds-recus .fonds-recus-attendu input[type="text"] { width: 140px; padding: 5px 8px; font-size: 13px; }
+.fonds-recus-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.fonds-recus-liste li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; padding: 5px 8px; border-radius: 6px; background: var(--paper-sunk); }
+.fonds-recus-liste strong { font-variant-numeric: tabular-nums; }
+.fonds-recus-date { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 96px; }

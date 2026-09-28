@@ -744,6 +744,7 @@ quelle version il fait tourner.
 - **Dépôt privé** : l'accès aux releases demande un jeton GitHub *fine-grained* limité au dépôt
   Office-suivi, permission **Contents : Read-only** — la procédure est affichée dans la carte. Il
   est gardé en base (`parametres`, clé `mise-a-jour`) et ne ressort par aucune route.
+- (voir aussi « Reçus comptables » plus bas)
 - **Retour arrière** : `Arreter-CLAIRE.bat`, supprimer `CLAIRE-serveur.exe`, renommer
   `CLAIRE-serveur.ancien.exe` en `CLAIRE-serveur.exe`, relancer. Si Windows avait refusé
   d'effacer la copie précédente (EPERM : antivirus, fichier en lecture seule, ancien processus
@@ -923,3 +924,13 @@ dépendances de l'autre.
   jet volontairement prudent — sans racinisation des mots comparés, il peut laisser passer plus de
   répétitions qu'un algorithme plus sophistiqué ne le ferait ; chaque suggestion reste de toute
   façon retirable d'un clic.
+
+
+## Reçus comptables (bloc « Fonds reçus » de la fiche)
+
+`GET /api/nas/recus?depuis=AAAA-MM-JJ` liste les PDF déposés chaque jour par le logiciel comptable à
+la **racine** du dossier NAS configuré (`nasRacine`) dont le nom contient « Reçus » (avec ou sans
+accent, au singulier ou au pluriel), datés par leur nom (`Reçus 28-09-2026.pdf`, `RECUS_2026-09-28.pdf`,
+`Reçus 28092026.pdf`…) ou, à défaut, par leur date de modification. Seule la racine est lue ; les
+dossiers clients ne le sont jamais par cette route. Le contenu est lu côté navigateur (pdf.js), comme
+les autres PDF du NAS.

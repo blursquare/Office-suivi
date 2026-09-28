@@ -62,6 +62,54 @@ async function listerPdfRecursif(racineAbsolue, fsImpl = fsp) {
   return fichiers;
 }
 
+// Reçus comptables du jour (demandé par l'étude, 28/09) : un PDF par jour, déposé à la RACINE du
+// dossier commun, dont le nom porte « Reçus » et la date. Seule la racine est lue (jamais les
+// dossiers clients) : c'est là que le logiciel de l'office les dépose. La date est tirée du nom
+// (JJ-MM-AAAA, JJ.MM.AAAA, AAAA-MM-JJ, JJMMAAAA…), à défaut de la date de modification du fichier.
+function dateDepuisNomRecu(nom, mtimeMs) {
+  const s = String(nom || '');
+  let m = /(\d{4})[-_. ](\d{1,2})[-_. ](\d{1,2})/.exec(s);
+  if (m) return iso(m[1], m[2], m[3]);
+  m = /(\d{1,2})[-_. ](\d{1,2})[-_. ](\d{4}|\d{2})(?!\d)/.exec(s);
+  if (m) return iso(m[3].length === 2 ? '20' + m[3] : m[3], m[2], m[1]);
+  m = /(?<!\d)(\d{2})(\d{2})(\d{4})(?!\d)/.exec(s);
+  if (m) return iso(m[3], m[2], m[1]);
+  if (Number.isFinite(mtimeMs)) {
+    const d = new Date(mtimeMs);
+    return iso(d.getFullYear(), d.getMonth() + 1, d.getDate());
+  }
+  return null;
+  function iso(a, mo, j) {
+    const an = Number(a), mois = Number(mo), jour = Number(j);
+    if (!(an > 1999 && mois >= 1 && mois <= 12 && jour >= 1 && jour <= 31)) return null;
+    return `${an}-${String(mois).padStart(2, '0')}-${String(jour).padStart(2, '0')}`;
+  }
+}
+
+function estNomRecu(nom) {
+  const n = String(nom || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  return /\.pdf$/.test(n) && /(^|[^a-z])recus?([^a-z]|$)/.test(n);
+}
+
+async function listerRecusRacine(racineAbsolue, depuisIso, fsImpl = fsp) {
+  let entrees;
+  try {
+    entrees = await fsImpl.readdir(racineAbsolue, { withFileTypes: true });
+  } catch (_) {
+    return [];
+  }
+  const recus = [];
+  for (const e of entrees) {
+    if (!e.isFile() || !estNomRecu(e.name)) continue;
+    let mtimeMs = null;
+    try { mtimeMs = (await fsImpl.stat(path.join(racineAbsolue, e.name))).mtimeMs; } catch (_) { /* date du nom seule */ }
+    const date = dateDepuisNomRecu(e.name, mtimeMs);
+    if (depuisIso && date && date < depuisIso) continue;
+    recus.push({ nom: e.name, chemin: e.name, date });
+  }
+  return recus.sort((a, b) => String(b.date || '').localeCompare(String(a.date || ''))).slice(0, 200);
+}
+
 async function listerSousDossiers(racineAbsolue, fsImpl = fsp) {
   let entrees;
   try {
@@ -172,6 +220,9 @@ async function resoudreCheminNas(racine, cheminRelatif, fsImpl = fsp) {
 module.exports = {
   listerPdfRecursif,
   listerSousDossiers,
+  listerRecusRacine,
+  dateDepuisNomRecu,
+  estNomRecu,
   normaliserNomRapprochement,
   motsSignificatifs,
   rapprocherParNom,

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-28 15:33';
+  const VERSION_APP = '2026-09-28 15:36';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-28 15:36', resume: "Fiche dossier, onglet Échanges : bloc « Fonds reçus ». CLAIRE lit les PDF « Reçus » du jour déposés à la racine du dossier commun du NAS, retrouve les versements au nom de l'acquéreur, les additionne et les compare au solde du décompte / de l'appel de fonds rangé dans le dossier NAS (ou à un montant saisi à la main) : tous les fonds reçus, reste à recevoir, ou aucun reçu. Chaque reçu retenu est listé avec son fichier, à vérifier." },
     { version: '2026-09-28 15:33', resume: "Vente préalable : bouton « Vente préalable » dans « Écrire par email » tant qu'elle n'est pas réalisée — un brouillon de relance au client, ou au confrère quand un autre office représente l'acquéreur, à ajuster avant envoi. Dans « Aujourd'hui », « Relancer la vente préalable » ouvre ce brouillon en un clic (pas plus d'une relance tous les 5 jours)." },
     { version: '2026-09-28 15:27', resume: "Aujourd'hui : une tâche validée (« Déjà fait », brouillon ouvert…) ne reste plus aussi dans « À faire ». « Déjà fait » note en plus le geste sur le dossier quand c'est possible (relance de l'offre, RIB demandé, fonds confirmés, envoi fait) pour que la tâche ne revienne pas le lendemain ; « Annuler » remet l'état d'avant." },
     { version: '2026-09-28 15:22', resume: "Mise à jour en un clic : si Windows refuse d'effacer l'ancienne copie de secours (« EPERM : operation not permitted »), la mise à jour se fait quand même — la nouvelle copie de secours prend un nom horodaté, et les copies en trop sont effacées au démarrage suivant." },
@@ -10446,6 +10447,217 @@
   // relevé dans l'agenda) : « Confirmer la réception des fonds » ouvre l'email au client (voir
   // construireEmailReceptionFonds). Une fois envoyé, la date s'affiche et le bouton devient
   // « Renvoyer », comme pour le questionnaire de satisfaction.
+  // ==== Fonds reçus : reçus comptables du jour rapprochés du dossier (demandé par l'étude, 28/09) ====
+  //
+  // Le logiciel comptable de l'office dépose chaque jour un PDF « Reçus » daté à la RACINE du dossier
+  // commun du NAS (voir listerRecusRacine côté serveur). On y cherche les versements de l'ACQUÉREUR
+  // (c'est lui qui vire les fonds) en reconnaissant son patronyme, on additionne, et on compare au
+  // montant attendu : le solde du décompte / de l'appel de fonds rangé dans le dossier NAS du
+  // dossier, ou un montant saisi à la main. Premier jet écrit SANS exemple de reçu réel : chaque reçu
+  // retenu est listé avec son fichier et la ligne lue, pour qu'une erreur de rapprochement se voie
+  // d'un coup d'œil — l'indicateur ne dit jamais « complet » sans montrer sur quoi il se fonde.
+  var MOTS_IGNORES_PAYEUR = ['monsieur', 'madame', 'mme', 'mlle', 'mr', 'epoux', 'epouse', 'les', 'des', 'et',
+    'sci', 'sarl', 'sas', 'societe', 'consorts', 'indivision', 'acquereur', 'acquereurs'];
+
+  // Pure : les patronymes de l'acquéreur, normalisés (sans accent, minuscules), 3 lettres au moins.
+  function motsPayeurDossier(d) {
+    const parties = Array.isArray(d && d.parties) ? d.parties : [];
+    const acquereurs = parties.filter(p => p && String(p.role || '').toUpperCase() === 'ACQUEREUR').map(p => p.nom);
+    const source = acquereurs.length ? acquereurs.join(' ') : extraireNomAcquereur(d && d.nom || '');
+    const mots = normaliserPourRecherche(source).split(/[^a-z]+/).filter(m => m.length >= 3 && !MOTS_IGNORES_PAYEUR.includes(m));
+    return [...new Set(mots)];
+  }
+
+  var RE_MONTANT_RECU = /(?<![\d,])(\d{1,3}(?:[ .  ]\d{3})+|\d+),(\d{2})(?!\d)/g;
+  var RE_LIGNE_MONTANT_RECU = /\b(somme|montant|total|net|re[cç]u\s+de|versement)\b/i;
+
+  // Pure : les montants (à deux décimales) d'une ligne, dans leur ordre d'apparition.
+  function montantsDansLigne(ligne) {
+    const out = [];
+    const re = new RegExp(RE_MONTANT_RECU.source, 'g');
+    let m;
+    while ((m = re.exec(String(ligne || ''))) !== null) {
+      out.push(Number(m[1].replace(/[ .  ]/g, '') + '.' + m[2]));
+    }
+    return out;
+  }
+
+  function ligneNommeLePayeur(ligne, mots) {
+    const n = ' ' + normaliserPourRecherche(ligne).replace(/[^a-z0-9]+/g, ' ') + ' ';
+    return mots.some(m => n.includes(' ' + m + ' '));
+  }
+
+  // Pure : les reçus d'un PDF qui concernent ce payeur. `pages` = tableau de pages, chacune un
+  // tableau de lignes. Deux mises en page couvertes : un tableau (une ligne par reçu, le montant en
+  // fin de ligne — on retient le DERNIER montant de la ligne) et un reçu par page (le nom sur une
+  // ligne, la somme sur une autre — on retient la ligne « somme / montant / total » de la page, ou,
+  // à défaut, l'unique montant de la page). Une page ambiguë ne produit rien plutôt qu'un montant
+  // deviné.
+  function recusDuPayeurDansPages(pages, mots) {
+    const recus = [];
+    if (!mots || !mots.length) return recus;
+    (pages || []).forEach((lignes, i) => {
+      const concernees = lignes.filter(l => ligneNommeLePayeur(l, mots));
+      if (!concernees.length) return;
+      const avecMontant = concernees.filter(l => montantsDansLigne(l).length);
+      if (avecMontant.length) {
+        for (const l of avecMontant) {
+          const ms = montantsDansLigne(l);
+          recus.push({ montant: ms[ms.length - 1], page: i + 1, extrait: l.trim().slice(0, 180) });
+        }
+        return;
+      }
+      const ligneSomme = lignes.find(l => RE_LIGNE_MONTANT_RECU.test(l) && montantsDansLigne(l).length);
+      if (ligneSomme) {
+        const ms = montantsDansLigne(ligneSomme);
+        recus.push({ montant: ms[ms.length - 1], page: i + 1, extrait: (concernees[0].trim() + ' — ' + ligneSomme.trim()).slice(0, 180) });
+        return;
+      }
+      const distincts = [...new Set(lignes.flatMap(montantsDansLigne))];
+      if (distincts.length === 1) recus.push({ montant: distincts[0], page: i + 1, extrait: concernees[0].trim().slice(0, 180) });
+    });
+    return recus;
+  }
+
+  // Pure : le montant attendu d'après un décompte / appel de fonds (même lecteur que l'écran Appel
+  // de fonds) — le solde annoncé s'il est lu, sinon débit moins crédit. Rien de positif : null.
+  function soldeAttenduDepuisDecompte(texte) {
+    const r = parserDecompteConfrere(texte);
+    const somme = (l) => l.filter(x => !x.memoire).reduce((t, x) => t + (Number(x.montant) || 0), 0);
+    const calcule = Math.round((somme(r.lignes.debit) - somme(r.lignes.credit)) * 100) / 100;
+    const declare = Number(r.meta && r.meta.soldeDeclare);
+    const solde = declare > 0 ? declare : calcule;
+    return solde > 0 ? solde : null;
+  }
+
+  // Pure : l'état de l'indicateur. Tolérance d'un euro (arrondis, frais bancaires).
+  function bilanFondsRecus(total, attendu) {
+    const t = Math.round((Number(total) || 0) * 100) / 100;
+    if (!(attendu > 0)) return { etat: t > 0 ? 'inconnu' : 'aucun', total: t, attendu: null, reste: null };
+    const reste = Math.round((attendu - t) * 100) / 100;
+    return { etat: reste <= 1 ? 'complet' : (t > 0 ? 'partiel' : 'aucun'), total: t, attendu, reste: Math.max(0, reste) };
+  }
+
+  var RE_NOM_DECOMPTE = /(appel\s*de\s*fonds|d[ée]compte|convocation)/i;
+  var cachePagesRecus = new Map();   // chemin → pages de lignes (les reçus d'un jour ne changent plus)
+
+  async function pagesEnLignesNas(chemin) {
+    if (cachePagesRecus.has(chemin)) return cachePagesRecus.get(chemin);
+    const pdf = await ouvrirPdfNas(chemin);
+    const pages = [];
+    for (let p = 1; p <= Math.min(pdf.numPages, PLAFOND_PAGES_VERIFICATION); p++) {
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent();
+      pages.push(lignesDepuisItemsPdf(content.items));
+    }
+    cachePagesRecus.set(chemin, pages);
+    return pages;
+  }
+
+  async function montantAttenduDepuisNas(d) {
+    if (!d.nasDossier) return null;
+    const fichiers = (await listerFichiersNas(d)).filter(f => RE_NOM_DECOMPTE.test(normaliserNomPourMotif(f.nom)));
+    // Le décompte le plus récent l'emporte : un nom portant une date plus récente, sinon le dernier listé.
+    fichiers.sort((a, b) => (anneeDansNomFichier(a.nom) || 0) - (anneeDansNomFichier(b.nom) || 0));
+    for (const f of fichiers.reverse()) {
+      try {
+        const chemin = cheminNasComplet(d, f.chemin);
+        const pdf = await ouvrirPdfNas(chemin);
+        const solde = soldeAttenduDepuisDecompte(await lireTextePdfEnLignes(pdf));
+        if (solde) return { montant: solde, source: f.nom, chemin };
+      } catch (e) { /* fichier suivant */ }
+    }
+    return null;
+  }
+
+  async function verifierFondsRecus(id, btn) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    if (!nasDisponible()) { afficherToast('Le NAS n’est pas accessible depuis le serveur : impossible de lire les reçus.', 'OK', null); return; }
+    const mots = motsPayeurDossier(d);
+    if (!mots.length) { afficherToast('Nom de l’acquéreur inconnu : impossible de reconnaître ses reçus.', 'OK', null); return; }
+    if (btn) { btn.disabled = true; btn.innerHTML = `${icone('spinner', null, true)} Lecture des reçus…`; }
+    try {
+      const aujourdhui = isoAujourdhuiLocal();
+      const depuis = d.appelFonds ? addDays(d.appelFonds, -15) : addDays(aujourdhui, -90);
+      const reponse = await fetchAvecAuth('/api/nas/recus?depuis=' + encodeURIComponent(depuis));
+      if (!reponse.ok) throw new Error('liste des reçus : erreur ' + reponse.status);
+      const { recus: fichiers } = await reponse.json();
+      const trouves = [];
+      let lus = 0;
+      for (const f of fichiers || []) {
+        try {
+          const pages = await pagesEnLignesNas(f.chemin);
+          lus++;
+          for (const r of recusDuPayeurDansPages(pages, mots)) trouves.push(Object.assign({ fichier: f.nom, chemin: f.chemin, date: f.date }, r));
+        } catch (e) { /* reçu illisible : les autres suffisent */ }
+      }
+      let attendu = null;
+      if (d.fondsAttendusManuel > 0) attendu = { montant: d.fondsAttendusManuel, source: 'saisi à la main' };
+      else { try { attendu = await montantAttenduDepuisNas(d); } catch (e) { attendu = null; } }
+      const total = trouves.reduce((t, r) => t + r.montant, 0);
+      d.fondsRecus = {
+        verifieLe: new Date().toISOString(), depuis, fichiersLus: lus,
+        recus: trouves.slice(0, 60), total: Math.round(total * 100) / 100,
+        attendu: attendu ? attendu.montant : null, attenduSource: attendu ? attendu.source : '', attenduChemin: attendu && attendu.chemin || ''
+      };
+      sauvegarder(d);
+      render();
+      const b = bilanFondsRecus(d.fondsRecus.total, d.fondsRecus.attendu);
+      afficherToast(b.etat === 'complet' ? 'Tous les fonds attendus sont reçus.'
+        : `${trouves.length} reçu${trouves.length > 1 ? 's' : ''} trouvé${trouves.length > 1 ? 's' : ''} dans ${lus} fichier${lus > 1 ? 's' : ''} de reçus.`, 'OK', null);
+    } catch (e) {
+      afficherToast('Lecture des reçus impossible : ' + e.message, 'OK', null);
+      render();
+    }
+  }
+
+  function changerFondsAttendus(id, valeur) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    const n = Number(String(valeur || '').replace(/[\s  €]/g, '').replace(',', '.'));
+    const avant = d.fondsAttendusManuel || null;
+    d.fondsAttendusManuel = n > 0 ? Math.round(n * 100) / 100 : null;
+    if (avant === d.fondsAttendusManuel) return;
+    if (d.fondsRecus) {
+      d.fondsRecus.attendu = d.fondsAttendusManuel || null;
+      d.fondsRecus.attenduSource = d.fondsAttendusManuel ? 'saisi à la main' : '';
+    }
+    ajouterHistorique(d, d.fondsAttendusManuel ? `Montant attendu des fonds saisi : ${formaterPrixCentimes(d.fondsAttendusManuel)}` : 'Montant attendu des fonds effacé');
+    sauvegarder(d);
+    render();
+  }
+
+  function renderFondsRecus(d) {
+    if (!echeanceValidee(d, 'appelFonds') && !d.fondsRecus && !d.rendezVousSignature) return '';
+    const f = d.fondsRecus;
+    const attendu = d.fondsAttendusManuel || (f && f.attendu) || null;
+    const b = bilanFondsRecus(f ? f.total : 0, attendu);
+    const etat = !f ? '<span class="dot-label dl-neutre"><span class="dot"></span>Pas encore vérifié</span>'
+      : b.etat === 'complet' ? `<span class="dot-label dl-success"><span class="dot"></span>Tous les fonds sont reçus — ${formaterPrixCentimes(b.total)}</span>`
+      : b.etat === 'partiel' ? `<span class="dot-label dl-pret"><span class="dot"></span>${formaterPrixCentimes(b.total)} reçus sur ${formaterPrixCentimes(b.attendu)} — reste ${formaterPrixCentimes(b.reste)}</span>`
+      : b.etat === 'inconnu' ? `<span class="dot-label dl-neutre"><span class="dot"></span>${formaterPrixCentimes(b.total)} reçus — montant attendu inconnu</span>`
+      : '<span class="dot-label dl-urgent"><span class="dot"></span>Aucun reçu trouvé</span>';
+    const source = f && f.attenduSource && !d.fondsAttendusManuel
+      ? (f.attenduChemin ? `<button type="button" class="lien-discret" onclick="ouvrirFichierNas('${escapeOnclickArg(f.attenduChemin)}')">${escapeHtml(f.attenduSource)}</button>` : escapeHtml(f.attenduSource))
+      : (d.fondsAttendusManuel ? 'saisi à la main' : '');
+    const liste = f && f.recus && f.recus.length ? `<ul class="fonds-recus-liste">${f.recus.map(r => `
+        <li><span class="fonds-recus-date">${r.date ? formatDateFr(r.date) : '—'}</span>
+          <strong>${formaterPrixCentimes(r.montant)}</strong>
+          <button type="button" class="lien-discret" onclick="ouvrirFichierNas('${escapeOnclickArg(r.chemin)}')" title="${escapeAttr(r.extrait || '')}">${escapeHtml(r.fichier)}${r.page > 1 ? ' p.' + r.page : ''}</button></li>`).join('')}</ul>` : '';
+    return `<div class="fonds-recus">
+      <span class="section-eyebrow">Fonds reçus</span>
+      <div class="fonds-recus-etat">${etat}
+        <button type="button" class="action-rapide" onclick="verifierFondsRecus('${d.id}', this)">${icone('rotate-ccw')} ${f ? 'Revérifier' : 'Vérifier les reçus'}</button></div>
+      <label class="fonds-recus-attendu">Montant attendu
+        <input type="text" inputmode="decimal" value="${attendu ? escapeAttr(String(attendu).replace('.', ',')) : ''}" placeholder="lu dans le décompte"
+          onblur="changerFondsAttendus('${d.id}', this.value)" onkeydown="if(event.key==='Enter')this.blur()">
+        ${source ? `<span class="hint">${source}</span>` : ''}</label>
+      ${liste}
+      ${f ? `<p class="hint">Reçus lus depuis le ${formatDateFr(f.depuis)} (${f.fichiersLus} fichier${f.fichiersLus > 1 ? 's' : ''}) — vérifié ${new Date(f.verifieLe).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}. Chaque reçu reconnu au nom de l’acquéreur est listé : vérifiez qu’il concerne bien ce dossier.</p>` : ''}
+    </div>`;
+  }
+
   function renderReceptionFonds(d) {
     if (!echeanceValidee(d, 'appelFonds')) return '';
     if (d.receptionFondsConfirmeeLe) {
@@ -14848,6 +15060,7 @@
 
             <section class="fiche-panneau" data-onglet="echanges" role="tabpanel"${cache('echanges')}>
               ${renderRelancesCiblees(d)}
+              ${renderFondsRecus(d)}
               ${renderReceptionFonds(d)}
               ${renderQuestionnaireSatisfaction(d)}
               ${renderAppelFondsDossier(d)}
@@ -17202,6 +17415,10 @@
       agendaEcheances: agendaEcheancesImportees(d.agendaEcheances),
       ribDemandeLe: typeof d.ribDemandeLe === 'string' ? d.ribDemandeLe : null,
       relanceVentePrealableLe: typeof d.relanceVentePrealableLe === 'string' ? d.relanceVentePrealableLe : null,
+      // Montant attendu saisi à la main : conservé. Le rapprochement des reçus (fondsRecus) dérive du NAS
+      // de CE serveur : il repart de zéro, comme les pièces.
+      fondsAttendusManuel: Number(d.fondsAttendusManuel) > 0 ? Number(d.fondsAttendusManuel) : null,
+      fondsRecus: null,
       adresseBien: typeof d.adresseBien === 'string' ? d.adresseBien : '',
       nomAgence: typeof d.nomAgence === 'string' ? d.nomAgence : '',
       prixVente: Number.isFinite(d.prixVente) && d.prixVente > 0 ? d.prixVente : null,

@@ -17,7 +17,7 @@
 const express = require('express');
 const fs = require('node:fs');
 const path = require('node:path');
-const { listerPdfRecursif, listerSousDossiers, resoudreCheminNas, rapprocherParNom, rapprochementParfait } = require('../nas');
+const { listerPdfRecursif, listerSousDossiers, listerRecusRacine, resoudreCheminNas, rapprocherParNom, rapprochementParfait } = require('../nas');
 const fsp = require('node:fs/promises');
 
 // Toute lecture du NAS est asynchrone depuis qu'un balayage synchrone a été identifié comme la
@@ -98,6 +98,18 @@ function creerRouteurNas(config) {
     // appeler /nas/fichier. Garder cette base explicite évite toute ambiguïté des deux côtés.
     const fichiers = await listerPdfRecursif(cible);
     res.json({ base: path.relative(path.resolve(racine), cible), fichiers });
+  }));
+
+  // Reçus comptables du jour, à la racine du dossier commun (voir listerRecusRacine). `depuis`
+  // (AAAA-MM-JJ) borne la liste : inutile de relire un an de reçus pour un appel de fonds récent.
+  routeur.get('/nas/recus', routeAsync(async (req, res) => {
+    const racine = config.nasRacine;
+    if (!racine || !(await existe(racine))) {
+      res.status(503).json({ erreur: 'Aucun dossier NAS configuré ou accessible depuis le serveur.' });
+      return;
+    }
+    const depuis = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.depuis || '')) ? String(req.query.depuis) : null;
+    res.json({ recus: await listerRecusRacine(racine, depuis) });
   }));
 
   routeur.get('/nas/fichier', routeAsync(async (req, res) => {
