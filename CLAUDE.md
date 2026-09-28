@@ -9470,6 +9470,13 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     de préemption attendue » en simple suivi (info), jamais « Fixer le rendez-vous ».
   - Tests : fixtures des cas « Fixer le rendez-vous » complétées de la pièce reçue, +1 test de
     chaque côté (sans objet par retrait ou participation compris). Suites : racine 897, serveur 473.
+  - **Exception copropriété** (demandée juste après, « en copropriété ne pas mettre l'attente du
+    droit de préemption sauf si ajouté dans les pièces à la main ») : sur un dossier
+    `typeVente === 'copropriete'`, la pièce standard `renonciationPreemption` ne bloque plus rien.
+    Seule une **pièce personnalisée** (`d.piecesPersonnalisees`) dont le libellé parle de préemption
+    (`RE_PIECE_PREEMPTION` : préemption, DPU, DIA) et qui n'est pas encore reçue remet l'attente —
+    c'est l'étude qui l'a ajoutée, donc qui a dit qu'il fallait l'attendre. Même règle dans le miroir
+    serveur. +1 test de chaque côté. Suites : racine 898, serveur 474.
 
 ## Comment tester
 

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-28 20:01';
+  const VERSION_APP = '2026-09-28 20:10';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-28 20:10', resume: "Copropriété : plus d'attente de la renonciation au droit de préemption avant « Fixer le rendez-vous », sauf si une pièce de préemption (DPU, DIA…) a été ajoutée à la main au dossier et n'est pas encore reçue." },
     { version: '2026-09-28 20:01', resume: "« Fixer le rendez-vous » n'apparaît plus tant que la renonciation au droit de préemption n'est pas reçue (planning, « Aujourd'hui », rappels) : le dossier affiche à la place « Renonciation de préemption attendue ». Sans objet si la pièce est retirée du dossier ou en participation." },
     { version: '2026-09-28 18:09', resume: "Agenda Outlook : le rendez-vous de signature créé depuis CLAIRE prend la couleur de l'étude (vert à l'office, violet en visio, orange chez un confrère — noms des catégories réglables). Supprimer le rendez-vous dans CLAIRE le retire de l'agenda ; changer sa date le déplace au nouveau jour, même heure." },
     { version: '2026-09-28 17:43', resume: "Quand un collaborateur ajoute ou change une date sur le dossier d'un autre (échéance, rendez-vous, envoi, échéance personnalisée), le responsable du dossier est prévenu sur Teams. Tableau de bord : la carte « Portefeuille » s'appelle « Dossiers ouverts »." },
@@ -12728,8 +12729,16 @@
   // Renonciation au droit de préemption reçue — ou sans objet : pièce retirée de la checklist de
   // ce dossier, ou étude en participation (pas de checklist suivie). Une validation à la main compte
   // (elle pose aussi 'recue'). Conditionne l'étape « Fixer le rendez-vous » (demande de l'étude).
+  // En copropriété, la vente d'un lot n'appelle pas cette attente (demande de l'étude) — sauf si
+  // une pièce de préemption a été AJOUTÉE À LA MAIN au dossier (pièce personnalisée) et n'est pas
+  // encore reçue : c'est alors l'étude qui a dit qu'il fallait l'attendre.
+  var RE_PIECE_PREEMPTION = /pr[ée]emption|\bDPU\b|\bDIA\b/i;
   function preemptionLevee(d) {
     if (d.roleNotaire === 'participant') return true;
+    if (d.typeVente === 'copropriete') {
+      return !(d.piecesPersonnalisees || []).some(p => p && RE_PIECE_PREEMPTION.test(p.label || '')
+        && !(d.pieces && d.pieces[p.cle] === 'recue'));
+    }
     if ((d.piecesRetirees || []).indexOf('renonciationPreemption') !== -1) return true;
     return !!(d.pieces && d.pieces.renonciationPreemption === 'recue');
   }

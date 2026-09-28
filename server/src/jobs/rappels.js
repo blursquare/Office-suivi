@@ -94,9 +94,13 @@ function toutesEcheances(d) {
   // Pas de « Fixer le rendez-vous » tant que la renonciation au droit de préemption n'est pas
   // reçue (miroir de preemptionLevee() côté client) : l'étape devient cette attente, sans date
   // propre — seul le filet de sécurité ci-dessous l'ancre sur la date butoir.
+  // En copropriété : pas d'attente, sauf pièce de préemption ajoutée à la main et non reçue.
   const preemptionLevee = d.roleNotaire === 'participant'
-    || (d.piecesRetirees || []).includes('renonciationPreemption')
-    || !!(d.pieces && d.pieces.renonciationPreemption === 'recue');
+    || (d.typeVente === 'copropriete'
+      ? !(d.piecesPersonnalisees || []).some(p => p && /pr[ée]emption|\bDPU\b|\bDIA\b/i.test(p.label || '')
+        && !(d.pieces && d.pieces[p.cle] === 'recue'))
+      : (d.piecesRetirees || []).includes('renonciationPreemption')
+        || !!(d.pieces && d.pieces.renonciationPreemption === 'recue'));
   if (!d.rendezVousSignature && pretLeve && !d.appelFonds && !echeanceValidee(d, 'appelFonds')) {
     etape = preemptionLevee
       ? { type: 'fixerRdv', label: 'Fixer le rendez-vous', iso: d.acte }

@@ -608,3 +608,12 @@ test('renonciation au droit de préemption non reçue : pas de « Fixer le rende
   assert.equal(toutesEcheances(Object.assign({}, d, { piecesRetirees: ['renonciationPreemption'] }))[0].type, 'fixerRdv');
   assert.equal(toutesEcheances(Object.assign({}, d, { roleNotaire: 'participant' }))[0].type, 'fixerRdv');
 });
+
+test('copropriété : pas d\'attente de préemption, sauf pièce ajoutée à la main et non reçue', () => {
+  const { toutesEcheances } = require('../src/jobs/rappels');
+  const d = { id: 'c', typeVente: 'copropriete', offrePretStatut: 'recue', acte: '2026-11-15', pieces: {} };
+  assert.equal(toutesEcheances(d)[0].type, 'fixerRdv');
+  const avec = Object.assign({}, d, { piecesPersonnalisees: [{ cle: 'perso-1', label: 'Purge du droit de préemption' }] });
+  assert.equal(toutesEcheances(avec).map((e) => e.type).join(','), 'preemption');
+  assert.equal(toutesEcheances(Object.assign({}, avec, { pieces: { 'perso-1': 'recue' } }))[0].type, 'fixerRdv');
+});

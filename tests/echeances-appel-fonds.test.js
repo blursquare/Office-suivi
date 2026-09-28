@@ -407,3 +407,20 @@ test('renonciation au droit de préemption non reçue : pas de « Fixer le rende
   assert.ok(!titres.includes('Fixer le rendez-vous'));
   assert.ok(titres.includes('renonciation'));
 });
+
+test('copropriété : pas d\'attente de préemption, sauf pièce de préemption ajoutée à la main', () => {
+  const app = chargerApplication();
+  const d = { id: 'c', nom: 'C / D', typeVente: 'copropriete', offrePretStatut: 'recue', acte: '2026-11-20', pieces: {} };
+  assert.equal(app.toutesEcheances(d)[0].type, 'fixerRdv');
+  const titres = app.alertesImportantes([d], '2026-11-10').map((a) => a.titre).join('|');
+  assert.ok(!titres.includes('renonciation'));
+  // Pièce personnalisée « Renonciation DPU » ajoutée par l'étude, pas encore reçue : on l'attend.
+  const avecPiece = Object.assign({}, d, { piecesPersonnalisees: [{ cle: 'perso-1', label: 'Renonciation DPU' }] });
+  assert.equal(app.toutesEcheances(avecPiece).map((x) => x.type).join(','), 'preemption');
+  // Reçue : l'étape « Fixer le rendez-vous » revient.
+  const recue = Object.assign({}, avecPiece, { pieces: { 'perso-1': 'recue' } });
+  assert.equal(app.toutesEcheances(recue)[0].type, 'fixerRdv');
+  // Une autre pièce personnalisée sans rapport ne bloque rien.
+  const autre = Object.assign({}, d, { piecesPersonnalisees: [{ cle: 'perso-2', label: 'Attestation loi Carrez' }] });
+  assert.equal(app.toutesEcheances(autre)[0].type, 'fixerRdv');
+});
