@@ -58,7 +58,7 @@ test('relance de la vente préalable : au client, ou au confrère quand un autre
   const confrere = app.construireEmailRelanceVentePrealable(dossierBase(app, { ventebien: '2099-10-15', notaireAcquereur: 'Maître Paul LAMBERT' }));
   assert.equal(confrere.corps, [
     'Mon Cher Maître,',
-    "Dans le cadre du dossier DUPONT / MARTIN, l'avant-contrat est conclu sous la condition de la vente préalable du bien de votre client, qui est prévue au plus tard le 15 octobre 2099.",
+    "Dans le cadre de ce dossier, l'avant-contrat est conclu sous la condition de la vente préalable du bien de votre client, qui est prévue au plus tard le 15 octobre 2099.",
     'Pourriez-vous nous indiquer si une date de réitération est déjà prévue sur votre agenda ou nous transmettre, le cas échéant, l’attestation de vente ?',
     'Dans l’attente et vous en remerciant par avance,',
     'Votre bien dévoué.'
@@ -385,4 +385,21 @@ test('base64Utf8 correspond à Buffer.from(…).toString("base64")', () => {
 test('nomFichierEml : caractères interdits sous Windows remplacés', () => {
   const app = chargerApplication();
   assert.equal(app.nomFichierEml('Réception — dossier DUPONT / MARTIN'), 'Reception - dossier DUPONT - MARTIN.eml');
+});
+
+// Demandé par l'étude (28/09) : le nom du dossier reste dans l'OBJET, jamais dans le CORPS.
+test('aucun corps d’email ne contient le nom du dossier', () => {
+  const app = chargerApplication();
+  const cas = [
+    dossierBase(app, { pret: '2099-11-15', ventebien: '2099-10-15', rendezVousSignature: '2099-12-01', nomAgence: 'IMMO BLOIS' }),
+    dossierBase(app, { pret: '2099-11-15', ventebien: '2099-10-15', notaireAcquereur: 'Maître Paul DURAND', notaireVendeur: 'Maître Sophie GOSSART', emailNotaireParticipant: 'durand@notaires.fr' })
+  ];
+  for (const d of cas) {
+    for (const cle of Object.keys(app.MODELES_EMAIL_RELANCE)) {
+      const { corps } = app.MODELES_EMAIL_RELANCE[cle].construire(d);
+      assert.ok(!/DUPONT/.test(corps), `corps « ${cle} » contient le nom du dossier`);
+    }
+    assert.ok(!/DUPONT/.test(app.construireEmailQuestionnaireSatisfaction(d).corps));
+    assert.ok(!/DUPONT/.test(app.corpsRelanceOffreManquante(d.nom, d.pret, 5)));
+  }
 });

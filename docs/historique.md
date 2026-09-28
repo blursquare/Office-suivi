@@ -11375,3 +11375,9 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
   rendez-vous de l'agenda de l'office. Affichage seulement : `d.nom` reste la valeur brute (emails,
   exports, recherche). Tant qu'aucun autre type d'affaire n'existe, le préfixe est posé sur tous les
   dossiers ; à l'arrivée des successions, il devra dépendre du type d'affaire du dossier.
+
+- **28/09/2026 — Plus de nom de dossier dans le corps des emails** (demandé par l'étude). Seul le
+  corps de la relance de la vente préalable au confrère le contenait encore (« Dans le cadre du
+  dossier X » → « Dans le cadre de ce dossier »). Le nom reste dans l'OBJET de chaque email. Un
+  test (`tests/relances-email.test.js`) vérifie tous les modèles de `MODELES_EMAIL_RELANCE`, le
+  questionnaire et la relance automatique de l'offre, côté client comme côté confrère.

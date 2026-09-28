@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-28 23:15';
+  const VERSION_APP = '2026-09-28 23:18';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-28 23:18', resume: "Le nom du dossier n'apparaît plus dans le corps des emails (il reste dans l'objet)." },
     { version: '2026-09-28 23:15', resume: "Les dossiers de vente s'affichent « VTE - NOM DU DOSSIER » (au lieu de « VENTE … »), la même référence que dans l'agenda de l'office." },
     { version: '2026-09-28 20:13', resume: "Relecture d'actes : nouvelle rubrique « Clauses contradictoires » — l'IA relève les clauses qui s'excluent (dans le projet ou entre le projet et ses annexes), les deux passages cités côte à côte avec leur page, vérifiés mot pour mot." },
     { version: '2026-09-28 20:10', resume: "Copropriété : plus d'attente de la renonciation au droit de préemption avant « Fixer le rendez-vous », sauf si une pièce de préemption (DPU, DIA…) a été ajoutée à la main au dossier et n'est pas encore reçue." },
@@ -16627,7 +16628,7 @@
       return {
         sujet: `Vente préalable — dossier ${d.nom}`,
         corps: [FORMULE_APPEL_CONFRERE,
-          `Dans le cadre du dossier ${d.nom}, l'avant-contrat est conclu sous la condition de la vente préalable du bien de votre client, qui${echeance}.`,
+          `Dans le cadre de ce dossier, l'avant-contrat est conclu sous la condition de la vente préalable du bien de votre client, qui${echeance}.`,
           'Pourriez-vous nous indiquer si une date de réitération est déjà prévue sur votre agenda ou nous transmettre, le cas échéant, l’attestation de vente ?',
           FORMULE_CLOTURE_CONFRERE].join('\n\n')
       };
