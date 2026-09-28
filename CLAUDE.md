@@ -9013,6 +9013,26 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     sort tôt sur `!d.rendezVousSignature`).
   - Non vérifié en conditions réelles (Exchange indisponible ici), comme les briques 1 et 2 —
     `node -c` OK, `npm test` vert (860 tests).
+- **Fiche dossier : les échéances passent d'une grille de cartes à une TIMELINE verticale**
+  (demandé par l'étude : « pour les dates butoir revoir la présentation sous forme de timeline »),
+  première moitié d'un lot en deux temps (l'autre — pousser les dates butoir prêt/vente préalable
+  directement dans l'agenda Outlook et ne plus passer par le `.ics` de CLAIRE — traitée à part).
+  - **Changement purement visuel, `renderTab` n'est pas touché** : le conteneur de l'onglet
+    « Échéances » du tiroir passe de `<div class="tabs">` à `<div class="tabs tabs-timeline">`, et
+    une règle CSS scopée à `.tabs.tabs-timeline` remplace la grille par une colonne verticale avec
+    un rail (`::before`) et un nœud rond par carte (`.tab::after`), coloré selon la catégorie
+    (`--pret`/`--acte`/`--ventebien`/`--appelfonds`/`--projet`/`--success`/`--muted`, aucune couleur
+    inventée). Tous les contrôles des cartes (crayon, croix, changement de catégorie, validation,
+    offre de prêt, réception des fonds, création/notation d'agenda…) restent identiques.
+  - **`.tabs` n'est utilisée que par la fiche** (vérifié) : la classe modificatrice évite malgré
+    tout de toucher les règles de base `.tabs`/`.drawer-panneau .tabs` et la règle d'impression.
+    La timeline est **neutralisée à l'impression** (`@media print` : `.tabs.tabs-timeline` repasse
+    en `display: block`, rail et nœuds masqués) — sans quoi sa spécificité (0,2,0) battrait le
+    `.tabs { display: block }` de l'impression et décalerait la fiche imprimée.
+  - Pas de test unitaire (CSS pur) ; **Playwright n'est pas installé dans cet environnement** (les
+    vérifications visuelles des sessions précédentes s'appuyaient dessus) — `node -c` OK, `npm test`
+    vert (860), CSS relue. Rendu visuel (rail, nœuds, alignement, clair/sombre) à confirmer par
+    l'étude.
 
 ## Comment tester
 

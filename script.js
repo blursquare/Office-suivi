@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-28 14:42';
+  const VERSION_APP = '2026-09-28 14:48';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-28 14:48', resume: "Fiche dossier : les échéances (prêt, vente préalable, date butoir, envois, rendez-vous…) sont présentées en timeline verticale — un rail avec un point coloré par échéance dans l'ordre chronologique. Mêmes contrôles qu'avant (crayon, croix, validation)." },
     { version: '2026-09-28 14:42', resume: "Agenda de l'office : dès qu'une date d'envoi (appel de fonds ou projet) est validée sur la fiche, la mention « appel de fonds envoyé » est écrite automatiquement dans le lieu du rendez-vous de signature, sans clic — le bouton « Noter dans l'agenda » reste comme repli si l'écriture auto a échoué ou si le rendez-vous est fixé après l'envoi. À tester au bureau." },
     { version: '2026-09-28 14:36', resume: "Emails : tous les courriers pré-rédigés de la fiche (relances, réception des fonds, questionnaire de satisfaction…) partent en brouillon Outlook quand la connexion Exchange est prête — signature de l'office ajoutée et pièce jointe déjà attachée (PDF du questionnaire), ce qu'un lien mailto ne sait pas faire. Sinon, brouillon mailto comme avant. À tester au bureau." },
     { version: '2026-09-28 14:18', resume: "Aujourd'hui : chaque action « À faire » a un bouton « Déjà fait » pour la valider à la main (geste fait hors CLAIRE). Fiche dossier : plus de « Aucun fichier mémorisé » quand l'avant-contrat est joignable dans le dossier NAS relié (le fichier retrouvé et le dossier relié sont désormais reconnus). Icône du .exe Windows : vraie icône CLAIRE multi-résolutions (16 à 256 px) au lieu de l'icône Node, plus nette sur le bureau." },
@@ -14578,7 +14579,7 @@
             </div>
 
             <section class="fiche-panneau" data-onglet="echeances" role="tabpanel"${cache('echeances')}>
-              <div class="tabs">
+              <div class="tabs tabs-timeline">
                 ${echeancesOrdonneesFiche(d, confiance, offreBloc)}
               </div>
               ${renderAjoutEcheance(d)}

@@ -3768,6 +3768,54 @@
     .tabs { grid-template-columns: 1fr; }
   }
 
+  /* Présentation en TIMELINE verticale des échéances de la fiche dossier (demandé par l'étude :
+     « pour les dates butoir revoir la présentation sous forme de timeline »). Un rail vertical à
+     gauche, un nœud rond coloré selon la catégorie de chaque échéance, les cartes .tab inchangées
+     à droite (tous leurs contrôles conservés — c'est un simple ré-agencement visuel, renderTab
+     n'est pas touché). Ne s'applique qu'au conteneur .tabs.tabs-timeline de la fiche : la grille
+     .tabs de base et les règles d'impression restent intactes. Le rail se cale sur le milieu des
+     nœuds (left: 7px + 1px de rayon interne = 8px), les cartes sont décalées de padding-left pour
+     lui laisser la place. */
+  .tabs.tabs-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    position: relative;
+    padding-left: 26px;
+  }
+  .tabs.tabs-timeline::before {
+    content: "";
+    position: absolute;
+    left: 7px;
+    top: 8px;
+    bottom: 8px;
+    width: 2px;
+    background: var(--line);
+    border-radius: 1px;
+  }
+  /* Nœud posé sur le rail, aligné avec le titre de chaque carte. Le halo (box-shadow de la couleur
+     du fond) masque le rail derrière le nœud pour qu'il ne le traverse pas. .tab est déjà
+     position:relative (voir plus bas), le nœud se place donc relativement à la carte. */
+  .tabs.tabs-timeline .tab::after {
+    content: "";
+    position: absolute;
+    left: -24px;
+    top: 13px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--paper-card);
+    border: 2px solid var(--line);
+    box-shadow: 0 0 0 3px var(--paper);
+  }
+  .tabs.tabs-timeline .tab.pret::after { border-color: var(--pret); }
+  .tabs.tabs-timeline .tab.appelFonds::after { border-color: var(--appelfonds); }
+  .tabs.tabs-timeline .tab.acte::after { border-color: var(--acte); }
+  .tabs.tabs-timeline .tab.rendezVousSignature::after { border-color: var(--success); }
+  .tabs.tabs-timeline .tab.ventebien::after { border-color: var(--ventebien); }
+  .tabs.tabs-timeline .tab.projetEnvoye::after { border-color: var(--projet); }
+  .tabs.tabs-timeline .tab.autre::after { border-color: var(--muted); }
+
   /* Bloc aplati (bordure gauche colorée plutôt qu'un fond teinté pleine surface) : même langage
      visuel que .type-pill et .date-block (formulaire), plus proche de la maquette d'origine que
      l'ancien bloc à fond coloré, plus lourd. */
@@ -4133,6 +4181,11 @@
     .fiche-panneau[hidden] { display: block !important; }
     .fiche-proprietes input.prop-champ, .fiche-proprietes select.prop-champ { border: none; background: none; box-shadow: none; }
     .tabs { display: block; }
+    /* La timeline (rail + nœuds + décalage) est décorative : neutralisée à l'impression, où chaque
+       échéance redevient un simple bloc. La spécificité de .tabs.tabs-timeline battrait sinon le
+       .tabs { display: block } ci-dessus. */
+    .tabs.tabs-timeline { display: block; padding-left: 0; }
+    .tabs.tabs-timeline::before, .tabs.tabs-timeline .tab::after { display: none; }
     .tab { border: 1px solid #999; margin-bottom: 6pt; padding: 6pt; background: #fff !important; }
     .analyse-juridique { background: #fff; border: 1px solid #999; }
     .icon-btn, .tab-select-icone-wrap, .icon-crayon, .icon-valider, .nom-edition, .tab-date-edition, .tab-suppr, .ajout-echeance-btn, .ajout-echeance-form, .piece-actions, .pieces-voir-plus, .ajout-piece-btn, .ajout-piece-form, .diagnostic-parcours, .extraction-dossier, .engagement-suppr, .analyse-doc-suppr, .analyse-engagement-edition, .ajout-engagement-btn, .ajout-engagement-form { display: none !important; }
