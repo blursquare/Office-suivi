@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 00:05';
+  const VERSION_APP = '2026-09-29 00:11';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 00:11', resume: "Fonds de l'acquéreur : message Teams au collaborateur quand tous les fonds sont reçus, ou s'ils ne le sont pas en entier 48 h avant le rendez-vous (le vendredi pour un rendez-vous le lundi ou le mardi). Les reçus sont revérifiés automatiquement chaque heure ; le montant attendu est lu dans le décompte ou la convocation à la racine du dossier relié." },
     { version: '2026-09-29 00:05', resume: "« Fonds reçus » et « Confirmer la réception des fonds » ne font plus qu'une ligne : on vérifie les reçus, puis « Confirmer » (email au client) apparaît quand tous les fonds sont reçus ; « confirmer quand même » reste possible si un versement n'est pas dans les reçus lus." },
     { version: '2026-09-28 23:59', resume: "Achat comptant : la ligne « Obtention du prêt » devient « Financement comptant », sans date ni rien à cocher." },
     { version: '2026-09-28 23:50', resume: "Onglet Échanges selon le stade du dossier (conditions en cours, rendez-vous à fixer, signature en préparation, acte signé) : d'abord les emails et gestes utiles maintenant, au client ou au confrère ; le reste replié sous « Hors de ce stade »." },
@@ -10614,7 +10615,10 @@
     return { etat: reste <= 1 ? 'complet' : (t > 0 ? 'partiel' : 'aucun'), total: t, attendu, reste: Math.max(0, reste) };
   }
 
-  var RE_NOM_DECOMPTE = /(appel\s*de\s*fonds|d[ée]compte|convocation)/i;
+  var RE_NOM_DECOMPTE = /(appel\s*de\s*fonds|d[ée]compte|convocation|tableau|fonds\s*[àa]\s*(verser|virer)|sommes?\s*[àa]\s*(verser|virer))/i;
+  var RE_NOM_DECOMPTE_SUR = /(appel\s*de\s*fonds|d[ée]compte|convocation)/i;
+  // Ce qui n'est jamais un décompte, écarté de la lecture par le contenu (voir fichiersDecompteRacine).
+  var RE_NOM_PAS_DECOMPTE = /(compromis|promesse|avant\s*contrat|offre|pr[eê]t|diagnostic|ddt|dpe|titre|plan|cadastre|urbanisme|r[èe]glement|reglement|proc[eè]s|pv|identit|cni|passeport|rib|mandat|facture|devis|re[cç]u|amortissement)/i;
   var cachePagesRecus = new Map();   // chemin → pages de lignes (les reçus d'un jour ne changent plus)
 
   async function pagesEnLignesNas(chemin) {
@@ -10630,29 +10634,59 @@
     return pages;
   }
 
+  // Montant attendu : le décompte rangé à la RACINE du dossier NAS relié (précisé par l'étude le
+  // 28/09 : un simple tableau envoyé au confrère, ou la convocation au rendez-vous envoyée au
+  // client — toujours à la racine, jamais dans un sous-dossier).
+  //   1. d'abord les PDF dont le nom le dit (décompte, appel de fonds, convocation, tableau…) ;
+  //   2. à défaut, les autres PDF courts de la racine (4 pages au plus), mais seulement si le texte
+  //      annonce lui-même un solde (« solde à verser », « total »…) — jamais un montant recalculé :
+  //      l'avant-contrat, lui aussi à la racine, cite des prix sans être un décompte.
+  function fichiersDecompteRacine(fichiers, nomAvantContrat) {
+    const racine = (fichiers || []).filter(f => f && f.chemin && !/[\\/]/.test(f.chemin));
+    const recent = (a, b) => (anneeDansNomFichier(b.nom) || 0) - (anneeDansNomFichier(a.nom) || 0);
+    const n = (f) => normaliserNomPourMotif(f.nom);
+    const parNom = racine.filter(f => RE_NOM_DECOMPTE_SUR.test(n(f))
+      || (RE_NOM_DECOMPTE.test(n(f)) && !RE_NOM_PAS_DECOMPTE.test(n(f)))).sort(recent);
+    const autres = racine.filter(f => !parNom.includes(f) && f.nom !== nomAvantContrat
+      && !RE_NOM_PAS_DECOMPTE.test(normaliserNomPourMotif(f.nom))).sort(recent);
+    return { parNom, autres };
+  }
+
   async function montantAttenduDepuisNas(d) {
     if (!d.nasDossier) return null;
-    const fichiers = (await listerFichiersNas(d)).filter(f => RE_NOM_DECOMPTE.test(normaliserNomPourMotif(f.nom)));
-    // Le décompte le plus récent l'emporte : un nom portant une date plus récente, sinon le dernier listé.
-    fichiers.sort((a, b) => (anneeDansNomFichier(a.nom) || 0) - (anneeDansNomFichier(b.nom) || 0));
-    for (const f of fichiers.reverse()) {
-      try {
-        const chemin = cheminNasComplet(d, f.chemin);
-        const pdf = await ouvrirPdfNas(chemin);
-        const solde = soldeAttenduDepuisDecompte(await lireTextePdfEnLignes(pdf));
-        if (solde) return { montant: solde, source: f.nom, chemin };
-      } catch (e) { /* fichier suivant */ }
+    const { parNom, autres } = fichiersDecompteRacine(await listerFichiersNas(d), d.compromisNomFichier || '');
+    const lire = async (f, strict) => {
+      const chemin = cheminNasComplet(d, f.chemin);
+      const pdf = await ouvrirPdfNas(chemin);
+      if (strict && pdf.numPages > 4) return null;
+      const texte = await lireTextePdfEnLignes(pdf);
+      if (strict) {
+        const declare = Number(parserDecompteConfrere(texte).meta.soldeDeclare);
+        return declare > 0 ? { montant: declare, source: f.nom, chemin } : null;
+      }
+      const solde = soldeAttenduDepuisDecompte(texte);
+      return solde ? { montant: solde, source: f.nom, chemin } : null;
+    };
+    // Un nom seulement « tableau… » ne suffit pas (un tableau d'amortissement en porte aussi un) :
+    // il faut alors, comme pour les autres fichiers, un solde annoncé dans le texte.
+    for (const f of parNom) {
+      const nomSur = RE_NOM_DECOMPTE_SUR.test(normaliserNomPourMotif(f.nom));
+      try { const r = await lire(f, !nomSur); if (r) return r; } catch (e) { /* fichier suivant */ }
     }
+    for (const f of autres) { try { const r = await lire(f, true); if (r) return r; } catch (e) { /* fichier suivant */ } }
     return null;
   }
 
-  async function verifierFondsRecus(id, btn) {
+  // `discret` : vérification automatique (voir verifierFondsRecusAuto) — aucune notification à
+  // l'écran, et rien n'est réécrit si la lecture ne change rien.
+  async function verifierFondsRecus(id, btn, discret) {
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
-    if (!nasDisponible()) { afficherToast('Le NAS n’est pas accessible depuis le serveur : impossible de lire les reçus.', 'OK', null); return; }
+    const signaler = (m) => { if (!discret) afficherToast(m, 'OK', null); };
+    if (!nasDisponible()) { signaler('Le NAS n’est pas accessible depuis le serveur : impossible de lire les reçus.'); return; }
     const mots = motsPayeurDossier(d);
     const motsVente = motsVendeurDossier(d);
-    if (!mots.length) { afficherToast('Nom de l’acquéreur inconnu : impossible de reconnaître ses reçus.', 'OK', null); return; }
+    if (!mots.length) { signaler('Nom de l’acquéreur inconnu : impossible de reconnaître ses reçus.'); return; }
     if (btn) { btn.disabled = true; btn.innerHTML = `${icone('spinner', null, true)} Lecture des reçus…`; }
     try {
       const aujourdhui = isoAujourdhuiLocal();
@@ -10676,6 +10710,9 @@
       if (d.fondsAttendusManuel > 0) attendu = { montant: d.fondsAttendusManuel, source: 'saisi à la main' };
       else { try { attendu = await montantAttenduDepuisNas(d); } catch (e) { attendu = null; } }
       const total = trouves.reduce((t, r) => t + r.montant, 0);
+      const avant = d.fondsRecus;
+      if (discret && avant && Math.abs((avant.total || 0) - Math.round(total * 100) / 100) < 0.005
+          && (avant.attendu || null) === (attendu ? attendu.montant : null)) return;
       d.fondsRecus = {
         verifieLe: new Date().toISOString(), depuis, fichiersLus: lus,
         recus: trouves.slice(0, 60), total: Math.round(total * 100) / 100,
@@ -10684,12 +10721,47 @@
       sauvegarder(d);
       render();
       const b = bilanFondsRecus(d.fondsRecus.total, d.fondsRecus.attendu);
-      afficherToast(b.etat === 'complet' ? 'Tous les fonds attendus sont reçus : la confirmation au client est prête.'
-        : `${trouves.length} reçu${trouves.length > 1 ? 's' : ''} trouvé${trouves.length > 1 ? 's' : ''} dans ${lus} fichier${lus > 1 ? 's' : ''} de reçus.`, 'OK', null);
+      signaler(b.etat === 'complet' ? 'Tous les fonds attendus sont reçus : la confirmation au client est prête.'
+        : `${trouves.length} reçu${trouves.length > 1 ? 's' : ''} trouvé${trouves.length > 1 ? 's' : ''} dans ${lus} fichier${lus > 1 ? 's' : ''} de reçus.`);
     } catch (e) {
-      afficherToast('Lecture des reçus impossible : ' + e.message, 'OK', null);
-      render();
+      signaler('Lecture des reçus impossible : ' + e.message);
+      if (!discret) render();
     }
+  }
+
+  // Vérification automatique des reçus (demandé par l'étude le 28/09, pour que le serveur puisse
+  // prévenir le collaborateur sur Teams — voir alertesFondsDues dans server/src/jobs/rappels.js :
+  // la lecture des PDF se fait ici, dans le navigateur, le serveur ne lit que son résultat).
+  // Chaque poste ne vérifie que les dossiers DE SON collaborateur (pas de lectures en double d'un
+  // poste à l'autre), une fois l'appel de fonds fait, jusqu'au rendez-vous, tant que la réception
+  // n'est ni complète ni confirmée, et au plus une fois par heure et par dossier.
+  var JOURS_VERIF_FONDS_AVANT_RDV = 15;
+  var DELAI_VERIF_FONDS_MS = 55 * 60 * 1000;
+
+  // Pure : les dossiers à revérifier maintenant.
+  function dossiersAVerifierFonds(liste, utilisateur, aujourdhuiIso, maintenantMs) {
+    if (!utilisateur) return [];
+    return (liste || []).filter(d => {
+      if (!d || d.archive || d.responsable !== utilisateur || d.receptionFondsConfirmeeLe) return false;
+      if (!(d.appelFonds || echeanceValidee(d, 'appelFonds')) || !d.rendezVousSignature) return false;
+      const j = ecartJours(aujourdhuiIso, d.rendezVousSignature);
+      if (j === null || j < 0 || j > JOURS_VERIF_FONDS_AVANT_RDV) return false;
+      const f = d.fondsRecus;
+      if (f && bilanFondsRecus(f.total, d.fondsAttendusManuel || f.attendu).etat === 'complet') return false;
+      const derniere = f && Date.parse(f.verifieLe);
+      return !(Number.isFinite(derniere) && maintenantMs - derniere < DELAI_VERIF_FONDS_MS);
+    });
+  }
+
+  let verifFondsAutoEnCours = false;
+  async function verifierFondsRecusAuto() {
+    if (verifFondsAutoEnCours || !nasDisponible()) return;
+    verifFondsAutoEnCours = true;
+    try {
+      for (const d of dossiersAVerifierFonds(dossiers, utilisateurPoste, isoAujourdhuiLocal(), Date.now())) {
+        try { await verifierFondsRecus(d.id, null, true); } catch (e) { /* dossier suivant */ }
+      }
+    } finally { verifFondsAutoEnCours = false; }
   }
 
   function changerFondsAttendus(id, valeur) {
@@ -17430,6 +17502,9 @@
     majBadgeSignalements();
     setInterval(majBadgeSignalements, 5 * 60 * 1000);
     revérifierDossiersLiesAuDemarrage().catch(e => console.error('Relecture des dossiers NAS', e));
+    // Reçus comptables des dossiers du poste : au démarrage, puis toutes les heures.
+    setTimeout(() => verifierFondsRecusAuto().catch(e => console.error('Vérification des fonds', e)), 60 * 1000);
+    setInterval(() => verifierFondsRecusAuto().catch(e => console.error('Vérification des fonds', e)), 60 * 60 * 1000);
   }
 
   // ---- apprentissage des corrections (dates) ----

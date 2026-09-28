@@ -162,6 +162,85 @@ function calculerRappelsDus(dossiers, aujourdHui, dejaEnvoyes) {
   return dus;
 }
 
+// ---- Fonds de l'acquéreur (demandé par l'étude le 28/09) ----
+// Deux messages Teams au collaborateur responsable, à partir de la dernière lecture des reçus
+// comptables faite par CLAIRE (d.fondsRecus, écrit par le client : la lecture des PDF se fait dans
+// le navigateur, le serveur ne fait que lire le résultat) :
+//   1. « tous les fonds sont reçus » — une seule fois par dossier, dès que la lecture le montre ;
+//   2. « fonds pas encore reçus en entier » — une seule fois par date de rendez-vous : 48 h avant
+//      (J-2), ou LE VENDREDI quand le rendez-vous tombe un lundi ou un mardi (J-2 serait alors un
+//      week-end). Jamais le samedi ni le dimanche ; si le vendredi a été manqué, le premier jour
+//      ouvré suivant avant le rendez-vous rattrape.
+// Rien quand la réception a déjà été confirmée au client (receptionFondsConfirmeeLe) : les fonds
+// sont là, le collaborateur le sait. Rien non plus avant l'appel de fonds.
+
+// Miroir de bilanFondsRecus (script.js) : tolérance d'un euro. À modifier ensemble.
+function bilanFonds(total, attendu) {
+  const t = Math.round((Number(total) || 0) * 100) / 100;
+  if (!(attendu > 0)) return { etat: t > 0 ? 'inconnu' : 'aucun', total: t, attendu: null, reste: null };
+  const reste = Math.round((attendu - t) * 100) / 100;
+  return { etat: reste <= 1 ? 'complet' : (t > 0 ? 'partiel' : 'aucun'), total: t, attendu, reste: Math.max(0, reste) };
+}
+
+// 0 = dimanche … 6 = samedi, pour une date AAAA-MM-JJ (lue en UTC : pas de décalage de fuseau).
+function jourSemaine(iso) {
+  return new Date(iso + 'T00:00:00Z').getUTCDay();
+}
+
+function alertesFondsDues(dossiers, aujourdHui, dejaEnvoyes) {
+  const dus = [];
+  const deja = (d, cle) => !!(dejaEnvoyes && dejaEnvoyes.has(`${d.id}:${cle}`));
+  const jourAuj = jourSemaine(aujourdHui);
+  for (const d of dossiers || []) {
+    if (!d || d.archive || !d.responsable || d.receptionFondsConfirmeeLe) continue;
+    if (!(d.appelFonds || echeanceValidee(d, 'appelFonds'))) continue;
+    const j = d.rendezVousSignature ? joursRestants(d.rendezVousSignature, aujourdHui) : null;
+    if (j !== null && j < 0) continue;
+    const f = d.fondsRecus && typeof d.fondsRecus === 'object' ? d.fondsRecus : null;
+    const bilan = f ? bilanFonds(f.total, d.fondsAttendusManuel || f.attendu) : null;
+    const base = {
+      dossierId: d.id, nomDossier: 'VTE - ' + d.nom, responsable: d.responsable, libelle: 'Fonds reçus',
+      rdv: d.rendezVousSignature || '', heure: d.rendezVousSignatureHeure || '', bilan, verifieLe: f ? f.verifieLe || '' : ''
+    };
+    if (bilan && bilan.etat === 'complet') {
+      if (!deja(d, 'fonds-complets')) dus.push(Object.assign(base, { genre: 'complets', reminderKey: 'fonds-complets' }));
+      continue;
+    }
+    if (j === null || jourAuj === 0 || jourAuj === 6) continue;
+    const rdvLundiMardi = [1, 2].includes(jourSemaine(d.rendezVousSignature));
+    const leVendredi = jourAuj === 5 && rdvLundiMardi && j <= 4;
+    if (!leVendredi && j > 2) continue;
+    const cle = `fonds-incomplets:${d.rendezVousSignature}`;
+    if (!deja(d, cle)) dus.push(Object.assign(base, { genre: 'incomplets', reminderKey: cle }));
+  }
+  return dus;
+}
+
+function formaterEuros(n) {
+  return Number(n).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+}
+
+function formaterJourRdv(iso, heure) {
+  const jour = new Date(iso + 'T00:00:00Z').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+  return jour + (heure ? ` à ${heure.replace(':', ' h ')}` : '');
+}
+
+function texteAlerteFonds(a) {
+  const rdv = a.rdv ? ` Rendez-vous de signature le ${formaterJourRdv(a.rdv, a.heure)}.` : '';
+  if (a.genre === 'complets') {
+    return `💶 CLAIRE — Tous les fonds sont reçus pour le dossier ${a.nomDossier} (${formaterEuros(a.bilan.total)}).${rdv}
+Vous pouvez confirmer la réception des fonds au client depuis la fiche (onglet Échanges).`;
+  }
+  const b = a.bilan;
+  const quand = a.verifieLe ? ` (reçus lus le ${new Date(a.verifieLe).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', timeZone: 'Europe/Paris' })})` : '';
+  const etat = !b ? 'les reçus comptables n’ont pas encore été vérifiés dans CLAIRE'
+    : b.etat === 'partiel' ? `${formaterEuros(b.total)} reçus sur ${formaterEuros(b.attendu)}, il manque ${formaterEuros(b.reste)}${quand}`
+    : b.etat === 'inconnu' ? `${formaterEuros(b.total)} reçus, montant attendu inconnu${quand}`
+    : `aucun versement de l’acquéreur trouvé dans les reçus${quand}`;
+  return `⚠️ CLAIRE — Fonds pas encore reçus en entier pour le dossier ${a.nomDossier} :${rdv}
+À ce jour, ${etat}.`;
+}
+
 // Les pièces reçues/manquantes (voir piecesChecklist.js) sont ajoutées au message SEULEMENT si le
 // dossier a une checklist applicable (jamais pour un rôle "participant", voir la fonction) — sans
 // quoi le message afficherait deux lignes vides "(0) : aucune" sur chaque rappel de ce type de
@@ -217,7 +296,8 @@ async function executerTacheRappels(depot, db, parametresRepo, envoyerFn, aujour
       .map((l) => `${l.dossier_id}:${l.reminder_key}`)
   );
 
-  const dus = calculerRappelsDus(dossiers, jour, dejaEnvoyes);
+  const dus = calculerRappelsDus(dossiers, jour, dejaEnvoyes)
+    .concat(alertesFondsDues(dossiers, jour, dejaEnvoyes).map((a) => Object.assign(a, { texte: texteAlerteFonds(a) })));
   resultat.rappelsDus = dus.length;
 
   const marquerStmt = db.prepare('INSERT OR IGNORE INTO reminder_log (dossier_id, reminder_key, sent_at) VALUES (?, ?, ?)');
@@ -230,7 +310,7 @@ async function executerTacheRappels(depot, db, parametresRepo, envoyerFn, aujour
       resultat.erreurs.push(`${r.responsable} : aucune adresse email configurée (voir Réglages).`);
       continue;
     }
-    const texte = texteRappel(r);
+    const texte = r.texte || texteRappel(r);
     const envoi = await envoyer(reglages, email, texte);
     if (envoi.ok) {
       resultat.rappelsEnvoyes++;
@@ -289,5 +369,6 @@ function demarrerTacheRappels(depot, db, config, parametresRepo, envoyerFn) {
 
 module.exports = {
   SEUILS_RAPPELS_PAR_TYPE, SEUILS_RAPPELS_DEFAUT, seuilsPourType, echeanceValidee, toutesEcheances, joursRestants,
-  calculerRappelsDus, texteRappel, executerTacheRappels, demarrerTacheRappels
+  calculerRappelsDus, texteRappel, executerTacheRappels, demarrerTacheRappels,
+  bilanFonds, jourSemaine, alertesFondsDues, texteAlerteFonds
 };

@@ -55,6 +55,12 @@ Réglages › Rappels et agenda › Agenda Outlook de l'office.
 - [ ] Quand une notification de pièce trouvée arrive dans Teams, **cliquer sur le nom de la pièce**
       → le PDF s'ouvre. (Si Teams bloque l'adresse `http://192.168…`, le noter.)
 
+- [ ] Fonds de l'acquéreur : sur un dossier dont l'appel de fonds est fait et dont le décompte
+      (tableau au confrère ou convocation, en PDF) est à la **racine** du dossier NAS, onglet
+      Échanges › « Fonds reçus » → « Vérifier » : le montant attendu est repris du décompte (son nom
+      s'affiche sous le champ). Quand tous les fonds sont lus dans les reçus, un message Teams
+      « Tous les fonds sont reçus » arrive dans la demi-heure.
+
 ## 4. Mise à jour en un clic
 
 À faire au prochain nouvel exécutable publié.

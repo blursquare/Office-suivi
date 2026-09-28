@@ -11481,3 +11481,30 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
   retirées. Dans « À faire », l'action « Confirmer la réception des fonds » est inchangée mais son
   détail dit ce qu'a trouvé la dernière lecture des reçus (tout reçu, reçu partiel avec le reste,
   ou « vérifiez les reçus sur la fiche »).
+
+- **29/09/2026 — Alerte Teams sur les fonds de l'acquéreur + décompte à la racine** (demandé par
+  l'étude). **Serveur** (`jobs/rappels.js`, même tour de 30 min et même envoi que les rappels
+  d'échéance, `reminder_log` contre les doublons) : `alertesFondsDues` → au collaborateur
+  responsable (1) « 💶 Tous les fonds sont reçus … Vous pouvez confirmer la réception au client »,
+  une fois par dossier (`fonds-complets`) ; (2) « ⚠️ Fonds pas encore reçus en entier … » avec ce
+  qui manque, une fois par date de rendez-vous (`fonds-incomplets:<date>`), à J-2 — ou le
+  **vendredi** quand le rendez-vous tombe un lundi ou un mardi (J-2 serait un week-end) ; jamais le
+  samedi ni le dimanche ; un vendredi manqué est rattrapé le premier jour ouvré suivant. Rien avant
+  l'appel de fonds, rien une fois la réception confirmée au client. `bilanFonds` est le miroir de
+  `bilanFondsRecus` (script.js) : à modifier ensemble.
+  **Client** : la lecture des reçus PDF se fait dans le navigateur (pdf.js), le serveur ne lit que
+  son résultat (`d.fondsRecus`). D'où `verifierFondsRecusAuto` : chaque poste revérifie, au
+  démarrage puis toutes les heures, les dossiers DE SON collaborateur (appel de fonds fait,
+  rendez-vous dans les 15 jours, fonds ni complets ni confirmés, dernière lecture de plus de 55 min —
+  `dossiersAVerifierFonds`, pure), sans rien afficher et sans réécrire le dossier si rien ne change.
+  Poste éteint : l'alerte part quand même, en disant « pas encore vérifiés » ou la date de la
+  dernière lecture.
+  **Décompte** (`montantAttenduDepuisNas`) : cherché uniquement à la **racine** du dossier NAS relié
+  (« un simple tableau envoyé au confrère ou une convocation au rendez-vous au client, toujours à la
+  racine »). D'abord les noms parlants (`décompte`, `appel de fonds`, `convocation` — lus
+  normalement ; `tableau`, `sommes à verser/virer` — solde annoncé exigé) ; à défaut les autres PDF
+  de 4 pages au plus, hors avant-contrat et noms qui ne sont jamais un décompte
+  (`RE_NOM_PAS_DECOMPTE` : compromis, offre, prêt, diagnostic, tableau d'amortissement…), retenus
+  seulement si leur texte annonce lui-même un solde (`meta.soldeDeclare`), jamais sur un montant
+  recalculé. Seuls les PDF sont lus (un décompte resté en Word n'est pas vu : saisir le montant).
+  Non vérifié ici : Teams réel, reçus et décomptes réels au-delà des exemples fournis.

@@ -103,3 +103,38 @@ test('reçu comptable réel : remboursement de trop-perçu et reçu d’un autre
   const r = app.recusDuPayeurDansPages([remboursement, autre], ['lemoine'], ['bertin']);
   assert.equal(r.length, 0);
 });
+
+// --- Décompte à la racine du dossier relié, vérification automatique (28/09) -----------------
+test('fichiersDecompteRacine : racine seulement, noms parlants d’abord, jamais l’avant-contrat', () => {
+  const app = chargerApplication();
+  const { parNom, autres } = app.fichiersDecompteRacine([
+    { nom: 'Décompte acquéreur.pdf', chemin: 'Décompte acquéreur.pdf' },
+    { nom: 'Convocation RDV 2026.pdf', chemin: 'Convocation RDV 2026.pdf' },
+    { nom: 'Décompte ancien.pdf', chemin: 'AAE/Décompte ancien.pdf' },
+    { nom: 'Compromis signé.pdf', chemin: 'Compromis signé.pdf' },
+    { nom: 'SCAN0042.pdf', chemin: 'SCAN0042.pdf' },
+    { nom: 'Pour Me DURAND.pdf', chemin: 'Pour Me DURAND.pdf' },
+    { nom: 'Offre de prêt.pdf', chemin: 'Offre de prêt.pdf' },
+    { nom: 'Tableau d’amortissement.pdf', chemin: 'Tableau d’amortissement.pdf' }
+  ], 'SCAN0042.pdf');
+  assert.equal(parNom.map(f => f.nom).join(' | '), 'Convocation RDV 2026.pdf | Décompte acquéreur.pdf');
+  assert.equal(autres.map(f => f.nom).join(' | '), 'Pour Me DURAND.pdf');
+});
+
+test('dossiersAVerifierFonds : dossiers du poste, appel de fonds fait, avant le rendez-vous, une fois par heure', () => {
+  const app = chargerApplication();
+  const maintenant = Date.parse('2026-10-05T10:00:00Z');
+  const base = { responsable: 'Julie VASSELIN', appelFonds: '2026-10-01', echeancesValidees: { appelFonds: true }, rendezVousSignature: '2026-10-12' };
+  const liste = [
+    Object.assign({ id: 'a' }, base),
+    Object.assign({ id: 'b' }, base, { responsable: 'Jérémy SAUJOT' }),
+    Object.assign({ id: 'c' }, base, { appelFonds: '', echeancesValidees: {} }),
+    Object.assign({ id: 'd' }, base, { receptionFondsConfirmeeLe: '2026-10-04' }),
+    Object.assign({ id: 'e' }, base, { fondsRecus: { total: 100, attendu: 100, verifieLe: '2026-10-01T10:00:00Z' } }),
+    Object.assign({ id: 'f' }, base, { fondsRecus: { total: 50, attendu: 100, verifieLe: '2026-10-05T09:30:00Z' } }),
+    Object.assign({ id: 'g' }, base, { fondsRecus: { total: 50, attendu: 100, verifieLe: '2026-10-05T08:00:00Z' } }),
+    Object.assign({ id: 'h' }, base, { rendezVousSignature: '2026-10-01' })
+  ];
+  assert.equal(app.dossiersAVerifierFonds(liste, 'Julie VASSELIN', '2026-10-05', maintenant).map(d => d.id).join(','), 'a,g');
+  assert.equal(app.dossiersAVerifierFonds(liste, '', '2026-10-05', maintenant).length, 0);
+});

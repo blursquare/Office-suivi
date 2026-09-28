@@ -617,3 +617,60 @@ test('copropriété : pas d\'attente de préemption, sauf pièce ajoutée à la 
   assert.equal(toutesEcheances(avec).map((e) => e.type).join(','), 'preemption');
   assert.equal(toutesEcheances(Object.assign({}, avec, { pieces: { 'perso-1': 'recue' } }))[0].type, 'fixerRdv');
 });
+
+// --- Alertes « fonds » au collaborateur (28/09) ----------------------------------------------
+const { alertesFondsDues, texteAlerteFonds, jourSemaine } = require('../src/jobs/rappels');
+
+function dossierFonds(extra) {
+  return Object.assign({
+    id: 'f1', nom: 'DUPONT / MARTIN', responsable: 'Julie VASSELIN',
+    appelFonds: '2026-10-01', echeancesValidees: { appelFonds: true }
+  }, extra || {});
+}
+const recus = (total, attendu) => ({ total, attendu, recus: [], verifieLe: '2026-10-05T08:00:00Z' });
+
+test('fonds : jourSemaine lit la date sans décalage (2026-10-09 est un vendredi)', () => {
+  assert.equal(jourSemaine('2026-10-09'), 5);
+  assert.equal(jourSemaine('2026-10-12'), 1);
+});
+
+test('fonds : tous reçus → une seule alerte par dossier, rien si la réception est déjà confirmée', () => {
+  const d = dossierFonds({ rendezVousSignature: '2026-10-20', fondsRecus: recus(150000, 150000) });
+  const dus = alertesFondsDues([d], '2026-10-06', new Set());
+  assert.equal(dus.length, 1);
+  assert.equal(dus[0].genre, 'complets');
+  assert.match(texteAlerteFonds(dus[0]), /Tous les fonds sont reçus pour le dossier VTE - DUPONT \/ MARTIN \(150\s000,00\s€\)/);
+  assert.equal(alertesFondsDues([d], '2026-10-06', new Set(['f1:fonds-complets'])).length, 0);
+  assert.equal(alertesFondsDues([Object.assign({}, d, { receptionFondsConfirmeeLe: '2026-10-06' })], '2026-10-06', new Set()).length, 0);
+  // Pas avant l'appel de fonds.
+  assert.equal(alertesFondsDues([dossierFonds({ appelFonds: '', echeancesValidees: {}, fondsRecus: recus(1, 1) })], '2026-10-06', new Set()).length, 0);
+});
+
+test('fonds incomplets : 48 h avant le rendez-vous (mercredi → lundi précédent)', () => {
+  const d = dossierFonds({ rendezVousSignature: '2026-10-14', fondsRecus: recus(100000, 150000) }); // mercredi
+  assert.equal(alertesFondsDues([d], '2026-10-09', new Set()).length, 0, 'vendredi, J-5 : trop tôt');
+  const dus = alertesFondsDues([d], '2026-10-12', new Set()); // lundi, J-2
+  assert.equal(dus.length, 1);
+  assert.equal(dus[0].reminderKey, 'fonds-incomplets:2026-10-14');
+  const texte = texteAlerteFonds(dus[0]);
+  assert.match(texte, /Fonds pas encore reçus en entier/);
+  assert.match(texte, /100\s000,00\s€ reçus sur 150\s000,00\s€, il manque 50\s000,00\s€/);
+  assert.match(texte, /mercredi 14 octobre/);
+  // Une seule fois par date de rendez-vous.
+  assert.equal(alertesFondsDues([d], '2026-10-13', new Set(['f1:fonds-incomplets:2026-10-14'])).length, 0);
+});
+
+test('fonds incomplets : rendez-vous lundi ou mardi → alerte le vendredi, jamais le week-end', () => {
+  const lundi = dossierFonds({ rendezVousSignature: '2026-10-12' });
+  const mardi = dossierFonds({ id: 'f2', rendezVousSignature: '2026-10-13' });
+  assert.equal(alertesFondsDues([lundi, mardi], '2026-10-08', new Set()).length, 0, 'jeudi : pas encore');
+  const vendredi = alertesFondsDues([lundi, mardi], '2026-10-09', new Set());
+  assert.equal(vendredi.length, 2);
+  assert.match(texteAlerteFonds(vendredi[0]), /pas encore été vérifiés dans CLAIRE/);
+  assert.equal(alertesFondsDues([lundi, mardi], '2026-10-10', new Set()).length, 0, 'samedi');
+  assert.equal(alertesFondsDues([lundi, mardi], '2026-10-11', new Set()).length, 0, 'dimanche');
+  // Vendredi manqué (serveur éteint) : rattrapé le lundi, avant le rendez-vous du mardi.
+  assert.equal(alertesFondsDues([mardi], '2026-10-12', new Set()).length, 1);
+  // Rendez-vous passé : plus rien.
+  assert.equal(alertesFondsDues([lundi], '2026-10-13', new Set()).length, 0);
+});
