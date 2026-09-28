@@ -193,3 +193,31 @@ test('Activité de l’étude : gestes des collaborateurs et agenda, du plus ré
   assert.equal(app.ilYaActivite('2026-09-28T10:04:40Z', maintenant), 'à l’instant');
   assert.equal(app.ilYaActivite('2026-09-28T09:50:00Z', maintenant), 'il y a 15 min');
 });
+
+test('Tâches faites ailleurs : cochées avec qui les a faites (CLAIRE, un collègue, un autre poste)', () => {
+  const auj = '2026-10-05';
+  const a = (h) => new Date(2026, 9, 5, h, 10).toISOString();
+  const d1 = { id: 'd1', nom: 'DUPONT / MARTIN', historique: [
+    { date: a(3), texte: 'Envoi de l’appel de fonds noté automatiquement : « Décompte acquéreur.pdf » trouvé dans le dossier du NAS' },
+    { date: a(9), auteur: 'Jérémy SAUJOT', texte: 'Relance manuelle envoyée — RIB' },
+    { date: a(10), auteur: 'Julie VASSELIN', texte: 'Projet d’acte envoyé marqué réalisé (date saisie)' },
+    { date: new Date(2026, 9, 4, 11).toISOString(), auteur: 'Jérémy SAUJOT', texte: 'Email envoyé — confirmation de réception des fonds en comptabilité' }
+  ] };
+  const d2 = { id: 'd2', nom: 'LEROY / BERNARD', historique: [
+    { date: a(11), auteur: 'Jérémy SAUJOT', texte: 'Relancer l’offre de prêt : noté fait à la main' },
+    { date: a(12), auteur: 'Jérémy SAUJOT', texte: 'Relance manuelle envoyée — vente préalable' }
+  ] };
+  const liste = app.tachesFaitesAilleurs([d1, d2], 'Julie VASSELIN', auj, new Set(['d2:ventePrealable']), new Set(['d1:projetEnvoye']));
+  const lignes = liste.map(t => `${t.cle}|${t.etat}`).join(' ; ');
+  assert.match(lignes, /d1:appelFonds\|Faite par CLAIRE \(courrier sur le NAS\)/);
+  assert.match(lignes, /d1:rib\|Faite par Jérémy/);
+  assert.match(lignes, /d2:pret\|Faite par Jérémy/);
+  assert.doesNotMatch(lignes, /d1:projetEnvoye/, 'déjà cochée sur ce poste');
+  assert.doesNotMatch(lignes, /d2:ventePrealable/, 'toujours due');
+  assert.doesNotMatch(lignes, /d1:fonds/, 'hier');
+  assert.equal(liste.find(t => t.cle === 'd1:appelFonds').courrier, true);
+  assert.equal(liste[0].cle, 'd2:pret', 'la plus récente d’abord');
+  // Faite par soi-même sur un autre poste.
+  const autrePoste = app.tachesFaitesAilleurs([d1], 'Jérémy SAUJOT', auj, new Set(), new Set());
+  assert.match(autrePoste.map(t => t.etat).join(' ; '), /Faite depuis un autre poste/);
+});

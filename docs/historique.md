@@ -11543,3 +11543,19 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
   racine, le mémorise et l'ouvre (onglet ouvert pendant le clic, `ouvrirFichierNas(chemin,
   ongletOuvert)`, sinon bloqué comme fenêtre surgissante). La lecture du montant attendu (« Fonds
   reçus ») commence par ce courrier.
+
+- **29/09/2026 — « À faire » : les tâches faites ailleurs restent cochées, avec qui les a faites**
+  (demandé par l'étude). Jusqu'ici une tâche faite hors du poste (par CLAIRE — appel de fonds
+  trouvé sur le NAS, envoi relevé dans l'agenda —, par un collègue, ou par soi-même sur un autre
+  poste) s'effaçait de la liste sans trace, et ne comptait pas dans la progression du jour.
+  `tachesFaitesAilleurs` (pure) lit l'historique DU JOUR des dossiers du périmètre et reconnaît,
+  par type de tâche (`TACHES_JOUR_PAR_TYPE` : appel de fonds, projet, relance de l'offre, fonds,
+  RIB, vente préalable, questionnaire), les lignes écrites à l'accomplissement (« Appel de fonds
+  marqué réalisé », « Envoi de l'appel de fonds noté automatiquement », « Relance manuelle envoyée
+  — RIB », « … : noté fait à la main »…). Une tâche encore due ou déjà cochée sur ce poste n'est
+  jamais reprise. Sur la ligne cochée : « Faite par Jérémy » (auteur de l'entrée), « Faite depuis un
+  autre poste » (soi-même), « Faite par CLAIRE (courrier sur le NAS) » avec « Voir le courrier »,
+  « Faite par CLAIRE (relevée dans l'agenda) ». Ces lignes s'ajoutent aux traitées d'`etatAujourdhui`
+  (anneau, compteur, célébration de fin de journée) ; rien n'est écrit sur le poste.
+  Attention : ces motifs suivent les textes d'historique ; renommer un de ces textes demande de
+  mettre `TACHES_JOUR_PAR_TYPE` à jour.

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 00:24';
+  const VERSION_APP = '2026-09-29 00:40';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 00:40', resume: "« À faire » : une tâche faite ailleurs ne disparaît plus sans trace — elle reste cochée avec qui l'a faite (« Faite par Jérémy », « Faite par CLAIRE (courrier sur le NAS) », « Faite depuis un autre poste ») et compte dans la progression du jour." },
     { version: '2026-09-29 00:24', resume: "La ligne « Envoi appel de fonds » porte le lien vers le courrier (convocation ou décompte) rangé à la racine du dossier NAS : un clic l'ouvre ; « Retrouver le courrier » le cherche s'il n'est pas encore rattaché." },
     { version: '2026-09-29 00:22', resume: "Appel de fonds oublié : quand le courrier (« Convocation au rendez-vous contenant l'appel de fonds », « Décompte acquéreur »…) est à la racine du dossier NAS et que l'envoi n'est pas noté, CLAIRE met la date du jour comme date d'envoi et valide la tâche." },
     { version: '2026-09-29 00:11', resume: "Fonds de l'acquéreur : message Teams au collaborateur quand tous les fonds sont reçus, ou s'ils ne le sont pas en entier 48 h avant le rendez-vous (le vendredi pour un rendez-vous le lundi ou le mardi). Les reçus sont revérifiés automatiquement chaque heure ; le montant attendu est lu dans le décompte ou la convocation à la racine du dossier relié." },
@@ -14294,6 +14295,66 @@
     return dossiersDuPerimetre(dossiers, utilisateurPoste, vueGlobaleDashboard()).filter(d => !d.archive);
   }
 
+  // ---- Tâches faites ailleurs (demandé par l'étude le 29/09) ----
+  // Une tâche du jour peut disparaître parce qu'elle a été faite HORS de ce poste : par CLAIRE
+  // elle-même (appel de fonds trouvé sur le NAS, envoi relevé dans l'agenda), par un collègue, ou
+  // par le collaborateur sur un autre poste. Elle ne s'effaçait alors sans laisser de trace ; elle
+  // reste maintenant dans la liste, cochée, avec qui l'a faite. Source : l'historique du dossier
+  // (daté, signé du collaborateur, sans auteur quand c'est CLAIRE), lu pour les seuls types de
+  // tâche de « À faire », et seulement quand la tâche n'est plus due.
+  var TACHES_JOUR_PAR_TYPE = {
+    appelFonds: { titre: 'Envoyer l’appel de fonds', categorie: 'appelFonds',
+      re: /^(Appel de fonds marqué réalisé|Envoi de l’appel de fonds noté automatiquement|Envoi appel de fonds relevé dans l’agenda|Envoi appel de fonds marquée réalisée)/ },
+    projetEnvoye: { titre: 'Envoyer le projet d’acte', categorie: 'projetEnvoye',
+      re: /^(Projet d’acte envoyé marqué réalisé|Envoi projet relevé dans l’agenda|Envoi projet marquée réalisée)/ },
+    pret: { titre: 'Relancer l’offre de prêt', categorie: 'pret',
+      re: /^(Relance manuelle envoyée — offre de prêt|Relance automatique ouverte)/ },
+    fonds: { titre: 'Confirmer la réception des fonds', categorie: 'appelFonds',
+      re: /^Email envoyé — confirmation de réception des fonds/ },
+    rib: { titre: 'Demander le RIB et la pièce d’identité', categorie: 'rendezVousSignature',
+      re: /^Relance manuelle envoyée — RIB/ },
+    ventePrealable: { titre: 'Relancer la vente préalable', categorie: 'ventebien',
+      re: /^(Relance envoyée — vente préalable|Vente préalable marquée réalisée)/ },
+    questionnaire: { titre: 'Envoyer le questionnaire de satisfaction', categorie: 'neutre',
+      re: /^Questionnaire de satisfaction envoyé/ }
+  };
+
+  // Pure : « qui » a fait la tâche, dit sur la ligne cochée.
+  function libelleFaitAilleurs(entree, utilisateur) {
+    if (entree.auteur) return entree.auteur === utilisateur ? 'Faite depuis un autre poste' : `Faite par ${prenomCollaborateur(entree.auteur)}`;
+    if (/noté automatiquement/.test(entree.texte)) return 'Faite par CLAIRE (courrier sur le NAS)';
+    if (/relevé dans l’agenda/.test(entree.texte)) return 'Faite par CLAIRE (relevée dans l’agenda)';
+    return 'Faite par CLAIRE';
+  }
+
+  // Pure et testable. `clesDues` : les tâches encore dues (elles ne sont pas faites) ;
+  // `clesIci` : celles déjà cochées sur ce poste (elles ont déjà leur ligne).
+  function tachesFaitesAilleurs(dossiersPerimetre, utilisateur, aujourdhuiIso, clesDues, clesIci) {
+    const pad2 = (n) => String(n).padStart(2, '0');
+    const parCle = new Map();
+    for (const d of dossiersPerimetre || []) {
+      for (const e of (d && d.historique) || []) {
+        if (!e || typeof e.texte !== 'string') continue;
+        const dt = new Date(e.date);
+        if (isNaN(dt) || `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}` !== aujourdhuiIso) continue;
+        for (const [type, t] of Object.entries(TACHES_JOUR_PAR_TYPE)) {
+          const noteeALaMain = e.texte.indexOf(t.titre + ' : noté fait') === 0 || e.texte.indexOf(`Tâche du jour « ${t.titre} »`) === 0;
+          if (!t.re.test(e.texte) && !noteeALaMain) continue;
+          const cle = `${d.id}:${type}`;
+          if ((clesDues && clesDues.has(cle)) || (clesIci && clesIci.has(cle))) continue;
+          const precedente = parCle.get(cle);
+          if (precedente && precedente.t >= dt.getTime()) continue;
+          parCle.set(cle, {
+            cle, titre: t.titre, categorie: t.categorie, dossier: d.nom, dossierId: d.id, t: dt.getTime(),
+            etat: libelleFaitAilleurs(e, utilisateur), heure: `${pad2(dt.getHours())} h ${pad2(dt.getMinutes())}`,
+            ailleurs: true, courrier: /noté automatiquement/.test(e.texte) && type === 'appelFonds'
+          });
+        }
+      }
+    }
+    return [...parCle.values()].sort((a, b) => b.t - a.t);
+  }
+
   // Les actions du jour telles que les écrans les montrent : sans celles reportées à demain.
   function etatAujourdhui() {
     const aujourdhui = isoAujourdhuiLocal();
@@ -14310,7 +14371,9 @@
     const veille = majVeilleJour(lireVeilleJour(), aujourdhui, actions.concat(reportees).map(a => a.cle));
     ecrireVeilleJour(veille.stock);
     veilleJour = veille;
-    return { aujourdhui, actions, reportees, aVenir: calcul.aVenir, traites: etat.traites.liste };
+    const faitesAilleurs = tachesFaitesAilleurs(dossiersPerimetreJour(), utilisateurPoste, aujourdhui,
+      new Set(calcul.actions.map(a => a.cle)), traitees);
+    return { aujourdhui, actions, reportees, aVenir: calcul.aVenir, traites: etat.traites.liste.concat(faitesAilleurs) };
   }
 
   // Tâches du jour restées non faites la veille (voir etatAujourdhui). Pure et testable :
@@ -14676,6 +14739,7 @@
           <span class="ja-sous">${escapeHtml(t.dossier)} · ${escapeHtml(t.etat)} · ${escapeHtml(t.heure)}</span>
         </span>
         ${t.etat === 'Reporté à demain' || t.champ || t.manuel ? `<button type="button" class="lien-discret ja-annuler" onclick="annulerTraiteJour('${escapeOnclickArg(t.cle)}')">Annuler</button>` : ''}
+        ${t.courrier ? `<button type="button" class="lien-discret ja-annuler" onclick="ouvrirCourrierAppelFonds('${escapeOnclickArg(t.dossierId)}')">Voir le courrier</button>` : ''}
       </li>`).join('');
   }
 
