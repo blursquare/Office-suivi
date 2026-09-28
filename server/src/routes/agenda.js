@@ -19,7 +19,11 @@ function creerRouteurAgenda(parametresRepo, options) {
   routeur.get('/agenda', (req, res) => {
     res.json({
       reglages: parametresRepo.lireReglagesAgenda(),
-      dernierTour: parametresRepo.lireDernierTourAgenda()
+      dernierTour: parametresRepo.lireDernierTourAgenda(),
+      // Absences des collaborateurs lues dans l'agenda (voir absencesDepuisIcs) : l'agenda du tableau
+      // de bord les affiche (« Absent cette semaine : … ») et signale les rendez-vous d'un
+      // collaborateur absent ce jour-là.
+      absences: parametresRepo.lireAbsencesAgenda()
     });
   });
 

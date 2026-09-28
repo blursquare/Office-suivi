@@ -56,7 +56,7 @@ test('GET /api/agenda sans authentification : 401', async () => {
 
 test('GET /api/agenda renvoie les valeurs par defaut au premier appel', async () => {
   const corps = await (await appeler('/api/agenda')).json();
-  assert.deepEqual(corps, { reglages: { icsUrl: '' }, dernierTour: null });
+  assert.deepEqual(corps, { reglages: { icsUrl: '' }, dernierTour: null, absences: [] });
 });
 
 test('PUT /api/agenda enregistre l\'URL, refuse ce qui n\'est pas http(s)', async () => {

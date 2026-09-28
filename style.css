@@ -5604,6 +5604,9 @@ button.lien-discret:focus-visible { outline: 2px solid var(--focus); outline-off
 }
 .agenda-rdv.ton-ok::before { background: var(--success); }
 .agenda-rdv.ton-urgent::before { background: var(--urgent); }
+/* Responsable absent ce jour-là : le liseré passe au rouge, quel que soit l'état d'envoi. Placé
+   après les règles ton-* pour l'emporter à spécificité égale. */
+.agenda-rdv.rdv-absent::before { background: var(--urgent); }
 .agenda-rdv:hover { background: var(--paper-sunk); }
 .agenda-rdv:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .agenda-rdv-titre { font-size: 14px; font-weight: 600; color: var(--ink); }
@@ -5611,6 +5614,14 @@ button.lien-discret:focus-visible { outline: 2px solid var(--focus); outline-off
 .agenda-rdv-lieu { font-size: 12.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agenda-rdv-etats { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; margin-top: 2px; }
 .agenda-vide { font-size: 13px; color: var(--muted); padding: 6px 0 2px; }
+/* « Absent cette semaine : … » — un repère amber sous la bande de la semaine (absences lues dans
+   l'agenda de l'office, voir absencesDepuisIcs). L'icône hérite de la taille du texte (.icone = 1em). */
+.agenda-absences {
+  display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--pret);
+  background: color-mix(in srgb, var(--pret) 12%, transparent);
+  border-radius: 6px; padding: 5px 10px; margin: 8px 0 2px;
+}
+.agenda-rdv-alerte { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--urgent); margin-top: 1px; }
 
 .poste-box { max-width: 420px; }
 .poste-titre { font-size: 17px; font-weight: 700; color: var(--ink); margin: 0 0 4px; }

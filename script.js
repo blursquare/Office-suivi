@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-28 13:31';
+  const VERSION_APP = '2026-09-28 13:48';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-28 13:48', resume: "Agenda du tableau de bord : les absences des collaborateurs notées dans l'agenda de l'office (congés, RTT…) sont affichées (« Absent cette semaine : … ») et un rendez-vous de signature dont le responsable est absent ce jour-là est signalé." },
     { version: '2026-09-28 13:31', resume: "« Aujourd'hui » : la page dédiée n'est plus affichée — seules restent la carte « Aujourd'hui » du tableau de bord et la fenêtre du point du matin (rouvrable depuis la carte)." },
     { version: '2026-09-28 13:20', resume: "Lot de 13 retouches : « Obtention du prêt » décochable si pas de prêt, bandeau « Date de signature détectée » retiré (déjà dans « Ce que l'outil a compris »), un dossier en participation offre reçue sans rendez-vous ne disparaît plus (date butoir en repli), bouton « Réception des fonds » dans l'onglet Échanges, « Mes rappels » détachée en carte du tableau de bord, « À faire » limité aux 15 jours, agenda du jour uniquement, dernières pièces limitées à 6, plus d'alerte de report si le rendez-vous est après le butoir, icône d'application non pixelisée, et — pour la relecture d'actes — le conjoint d'un vendeur marié seul propriétaire de la résidence principale est signalé." },
     { version: '2026-09-28 12:34', resume: "Agenda Outlook : nouveau réglage « Calendrier partagé de l'office (Sophie) » — les rendez-vous sont créés et mis à jour dans CE calendrier partagé, pas dans celui du compte de connexion. À renseigner dans Réglages et tester au bureau." },
@@ -11597,6 +11598,7 @@
     if (nom === 'suivi') appliquerFiltreSuiviCollaborateur();
     // Relu à chaque retour sur le tableau de bord : un rappel ajouté depuis un autre poste.
     if ((nom === 'dashboard' || nom === 'aujourdhui') && typeof chargerRappelsPerso === 'function' && authToken) chargerRappelsPerso();
+    if (nom === 'dashboard' && authToken) chargerAbsencesOffice();
     if (nom === 'suivi' || nom === 'dashboard' || nom === 'aujourdhui') render();
     // Vérifiée à chaque ouverture (appel léger) plutôt qu'une fois pour toutes : Ollama a pu être
     // installé/démarré/arrêté sur le serveur depuis la dernière visite de cet onglet.
@@ -12345,6 +12347,11 @@
   var SEMAINES_AGENDA_MAX = 2;
   let agendaDecalageSemaine = 0;
   let agendaJourSelectionne = null;
+  // Absences des collaborateurs lues dans l'agenda de l'office (voir absencesDepuisIcs côté serveur,
+  // exposées par GET /api/agenda). Chargées au démarrage et à chaque ouverture du tableau de bord
+  // (chargerAbsencesOffice) : l'agenda signale « Absent cette semaine : … » et marque les
+  // rendez-vous d'un collaborateur absent ce jour-là.
+  let absencesOffice = [];
 
   function decalerSemaineAgenda(pas) {
     agendaDecalageSemaine = Math.max(0, Math.min(SEMAINES_AGENDA_MAX, agendaDecalageSemaine + pas));
@@ -12362,6 +12369,51 @@
   function tonRendezVous(r) {
     if (r.appelFondsEnvoye && r.projetEnvoye) return 'ok';
     return r.jours <= 2 ? 'urgent' : 'attente';
+  }
+
+  // ---- Absences des collaborateurs sur l'agenda (pures, testables) ----
+  // Une absence {collaborateur, debut, fin} couvre un jour ISO si debut <= jour <= fin.
+  function absenceCouvreJour(absence, iso) {
+    if (!absence || !absence.debut || !iso) return false;
+    return iso >= absence.debut && iso <= (absence.fin || absence.debut);
+  }
+
+  // Les noms complets des collaborateurs absents au moins un jour de la semaine affichée (la bande
+  // du tableau de bord) — c'est le « Absent cette semaine : … » demandé par l'étude.
+  function collaborateursAbsentsSemaine(absences, joursSemaine) {
+    const noms = [];
+    const vus = new Set();
+    for (const a of absences || []) {
+      if (vus.has(a.collaborateur)) continue;
+      if ((joursSemaine || []).some((j) => absenceCouvreJour(a, j.iso))) {
+        vus.add(a.collaborateur);
+        noms.push(a.collaborateur);
+      }
+    }
+    return noms;
+  }
+
+  // Le responsable d'un dossier est-il absent le jour affiché ? Sert à signaler un rendez-vous de
+  // signature qui tombe pendant l'absence du collaborateur qui le porte.
+  function responsableAbsentLeJour(absences, responsable, iso) {
+    if (!responsable) return false;
+    return (absences || []).some((a) => a.collaborateur === responsable && absenceCouvreJour(a, iso));
+  }
+
+  // Recharge la liste des absences depuis le serveur (mise à jour par le tour de surveillance de
+  // l'agenda, toutes les 15 min). Appelée au démarrage et à chaque ouverture du tableau de bord —
+  // les absences changent rarement, pas besoin de la rafraîchir à chaque sondage.
+  async function chargerAbsencesOffice() {
+    if (!authToken) return;
+    try {
+      const reponse = await fetchAvecAuth('/api/agenda');
+      const corps = await reponse.json();
+      const avant = JSON.stringify(absencesOffice);
+      absencesOffice = Array.isArray(corps.absences) ? corps.absences : [];
+      if (ongletActuel === 'dashboard' && JSON.stringify(absencesOffice) !== avant) render();
+    } catch (e) {
+      // Session expirée : déjà géré par fetchAvecAuth. Absences laissées telles quelles.
+    }
   }
 
   function renderRendezVousDashboard(perimetreActifs) {
@@ -12399,6 +12451,7 @@
         </button>`;
     }).join('');
 
+    const absentsSemaine = collaborateursAbsentsSemaine(absencesOffice, semaine);
     const etat = (ok, fait, reste) => `<span class="dot-label ${ok ? 'dl-success' : 'dl-pret'}"><span class="dot"></span>${ok ? fait : reste}</span>`;
     const lignes = liste.length ? liste.map(r => {
       const plage = plageHoraireRendezVous(r.heure, r.heureFin);
@@ -12407,11 +12460,15 @@
       // seuls l'horaire et le décompte sont utiles ici.
       const meta = [plage, delai].filter(Boolean).join(' · ');
       const lieu = [r.lieu, global && r.dossier.responsable ? prenomCollaborateur(r.dossier.responsable) : ''].filter(Boolean);
+      // Le responsable de ce dossier est-il absent le jour affiché ? Un rendez-vous de signature ne
+      // peut pas se tenir sans lui — on le signale pour le déplacer.
+      const responsableAbsent = responsableAbsentLeJour(absencesOffice, r.dossier.responsable, jourAffiche);
       return `
-        <button type="button" class="agenda-rdv ton-${tonRendezVous(r)}" onclick="ouvrirDossierDepuisDashboard('${r.dossier.id}')">
+        <button type="button" class="agenda-rdv ton-${tonRendezVous(r)}${responsableAbsent ? ' rdv-absent' : ''}" onclick="ouvrirDossierDepuisDashboard('${r.dossier.id}')">
           <span class="agenda-rdv-titre">${escapeHtml(libelleDossierAffiche(r.dossier))}</span>
           <span class="agenda-rdv-meta">${escapeHtml(meta)}</span>
           ${lieu.length ? `<span class="agenda-rdv-lieu">${lieu.map(escapeHtml).join(' · ')}</span>` : ''}
+          ${responsableAbsent ? `<span class="agenda-rdv-alerte">${icone('alert-triangle')} ${escapeHtml(prenomCollaborateur(r.dossier.responsable))} absent(e) ce jour</span>` : ''}
           <span class="agenda-rdv-etats">${etat(r.appelFondsEnvoye, 'Appel de fonds envoyé', 'Appel de fonds à envoyer')}${etat(r.projetEnvoye, 'Projet envoyé', 'Projet à envoyer')}</span>
         </button>`;
     }).join('') : `<div class="agenda-vide">${jourAffiche === aujourdhui ? "Aucun rendez-vous de signature aujourd'hui." : 'Aucun rendez-vous de signature ce jour-là.'}</div>`;
@@ -12428,6 +12485,7 @@
         </div>
       </div>
       <div class="agenda-bande" role="group" aria-label="Jours de la semaine">${bande}</div>
+      ${absentsSemaine.length ? `<div class="agenda-absences">${icone('alert-triangle')} Absent cette semaine : ${absentsSemaine.map(n => escapeHtml(prenomCollaborateur(n))).join(', ')}</div>` : ''}
       <div class="agenda-liste">
         <div class="agenda-liste-titre">
           <span class="section-eyebrow">${escapeHtml(titreListe)}</span>
@@ -15693,6 +15751,11 @@
     // Connexion à l'agenda Outlook : chargée au démarrage pour que la fiche dossier sache si le
     // bouton « Créer dans l'agenda » doit apparaître, sans attendre l'ouverture des Réglages.
     chargerReglagesExchange();
+    // Absences des collaborateurs lues dans l'agenda (voir chargerAbsencesOffice) : chargées au
+    // démarrage pour que l'agenda du tableau de bord les affiche d'emblée, puis rafraîchies au même
+    // rythme que le tour serveur (15 min) et à chaque ouverture du tableau de bord.
+    chargerAbsencesOffice();
+    setInterval(chargerAbsencesOffice, 15 * 60 * 1000);
     await chargerEtatNas();
     // Avant toute relecture du NAS : un parcours lancé sans elles reconnaîtrait des fichiers que
     // l'étude a écartés.
@@ -24891,6 +24954,7 @@
       // Ne jamais écraser une saisie en cours : un tour automatique de rappels a pu recharger cet
       // écran pendant que l'étude collait l'URL.
       if (champ && document.activeElement !== champ) champ.value = (corps.reglages && corps.reglages.icsUrl) || '';
+      if (Array.isArray(corps.absences)) absencesOffice = corps.absences;
       renderDernierTourAgenda(corps.dernierTour);
     } catch (e) {
       // Session expirée : déjà géré par fetchAvecAuth (écran de connexion réaffiché).

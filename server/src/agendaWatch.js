@@ -8,7 +8,7 @@
 // à jour les dossiers SANS QUE RIEN NE LE SIGNALE, exactement le défaut déjà corrigé une fois pour
 // les rappels par email (voir CLE_DERNIER_TOUR dans parametresRepo.js).
 
-const { actionsDetecteesDepuisIcs } = require('./agendaOffice');
+const { actionsDetecteesDepuisIcs, absencesDepuisIcs } = require('./agendaOffice');
 
 const CHAMP_PAR_ACTION = { appelFonds: 'appelFonds', projetEnvoye: 'projetEnvoye' };
 const LIBELLE_PAR_ACTION = { appelFonds: 'Envoi appel de fonds', projetEnvoye: 'Envoi projet' };
@@ -348,7 +348,7 @@ async function telechargerIcs(icsUrl, fetchFn, pauseMs, infos) {
 // (injectable pour que les tests ne patientent pas trois secondes).
 async function executerTourSurveillanceAgenda(depot, icsUrl, fetchFn, pauseMs) {
   const resultat = {
-    ok: false, dossiersVerifies: 0, misAJour: [], dejaRenseignes: [], sansCorrespondance: [], erreur: null
+    ok: false, dossiersVerifies: 0, misAJour: [], dejaRenseignes: [], sansCorrespondance: [], absences: [], erreur: null
   };
   if (!icsUrl) {
     resultat.erreur = "Aucune adresse d'agenda enregistrée.";
@@ -362,12 +362,16 @@ async function executerTourSurveillanceAgenda(depot, icsUrl, fetchFn, pauseMs) {
     }
     const dossiersActifs = depot.tousActifs().filter((d) => !d.archive);
     resultat.dossiersVerifies = dossiersActifs.length;
-    const detections = actionsDetecteesDepuisIcs(texte, dossiersActifs, dateDuJourParis());
+    const jour = dateDuJourParis();
+    const detections = actionsDetecteesDepuisIcs(texte, dossiersActifs, jour);
     const applique = appliquerDetectionsAgenda(depot, detections);
     resultat.ok = true;
     resultat.misAJour = applique.misAJour;
     resultat.dejaRenseignes = applique.dejaRenseignes;
     resultat.sansCorrespondance = applique.sansCorrespondance;
+    // Absences des collaborateurs (voir absencesDepuisIcs) : lues au même passage, persistées à part
+    // par l'appelant (executerEtEnregistrerTourAgenda) — elles ne sont rattachées à aucun dossier.
+    resultat.absences = absencesDepuisIcs(texte, jour);
   } catch (e) {
     resultat.erreur = e.message;
   }
@@ -385,7 +389,10 @@ async function executerEtEnregistrerTourAgenda(depot, parametresRepo, fetchFn, d
   if (resultat.adresseCorrigee) {
     parametresRepo.ecrireReglagesAgenda({ ...reglages, icsUrl: resultat.adresseCorrigee });
   }
-  const { adresseCorrigee, ...compteRendu } = resultat;
+  // Les absences remplacent la liste précédente à chaque tour réussi (l'agenda fait foi) ; un tour en
+  // échec (flux injoignable) ne les efface pas — la dernière liste connue reste affichée.
+  if (resultat.ok) parametresRepo.ecrireAbsencesAgenda(resultat.absences || []);
+  const { adresseCorrigee, absences, ...compteRendu } = resultat;
   parametresRepo.ecrireDernierTourAgenda({
     ...compteRendu,
     lienPasseEnHttps: Boolean(adresseCorrigee),

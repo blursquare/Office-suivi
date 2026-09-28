@@ -485,6 +485,33 @@ function assainirEntreeDetectionAgenda(brut) {
   };
 }
 
+// Absences des collaborateurs, lues dans l'agenda de l'office à chaque tour (voir
+// agendaOffice.js/absencesDepuisIcs) et rangées sous leur propre clé — comme le compte rendu du
+// dernier tour, c'est un état PRODUIT par le serveur, pas un réglage saisi. Exposées au client par
+// GET /api/agenda pour que l'agenda du tableau de bord signale « Absent cette semaine : … ».
+const CLE_ABSENCES_AGENDA = 'absences-agenda';
+const MAX_ABSENCES_AGENDA = 200;
+
+function assainirAbsenceAgenda(brut) {
+  const b = (brut && typeof brut === 'object') ? brut : null;
+  if (!b) return null;
+  const debut = texteBorne(b.debut, 10);
+  const collaborateur = texteBorne(b.collaborateur, 120);
+  if (!debut || !collaborateur) return null;
+  return {
+    collaborateur,
+    initiales: texteBorne(b.initiales, 8),
+    debut,
+    fin: texteBorne(b.fin, 10) || debut,
+    resume: texteBorne(b.resume, 160)
+  };
+}
+
+function assainirAbsencesAgenda(brut) {
+  if (!Array.isArray(brut)) return [];
+  return brut.map(assainirAbsenceAgenda).filter(Boolean).slice(0, MAX_ABSENCES_AGENDA);
+}
+
 function assainirDernierTourAgenda(brut) {
   const b = (brut && typeof brut === 'object') ? brut : {};
   const listeBornee = (v) => (Array.isArray(v) ? v.map(assainirEntreeDetectionAgenda).filter(Boolean).slice(0, MAX_ENTREES_TOUR_AGENDA) : []);
@@ -730,6 +757,22 @@ function creerRepoParametres(db) {
     return propre;
   }
 
+  function lireAbsencesAgenda() {
+    const ligne = lireStmt.get(CLE_ABSENCES_AGENDA);
+    if (!ligne) return [];
+    try {
+      return assainirAbsencesAgenda(JSON.parse(ligne.valeur));
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function ecrireAbsencesAgenda(absences) {
+    const propre = assainirAbsencesAgenda(absences);
+    ecrireStmt.run(CLE_ABSENCES_AGENDA, JSON.stringify(propre));
+    return propre;
+  }
+
   function lireReglagesExchange() {
     const ligne = lireStmt.get(CLE_REGLAGES_EXCHANGE);
     if (!ligne) return assainirReglagesExchange({});
@@ -766,6 +809,7 @@ function creerRepoParametres(db) {
     lireReglagesMiseAJour, ecrireReglagesMiseAJour,
     lireReglagesExchange, ecrireReglagesExchange,
     lireReglagesAgenda, ecrireReglagesAgenda, lireDernierTourAgenda, ecrireDernierTourAgenda,
+    lireAbsencesAgenda, ecrireAbsencesAgenda,
     lireReglageSauvegarde, ecrireReglageSauvegarde, lireEtatSauvegarde, ecrireEtatSauvegarde,
     lireReglages, ecrireReglages, lireDernierTour, ecrireDernierTour,
     lireCopiesEnAttente, ecrireCopiesEnAttente, lireRetoursAudit, ecrireRetoursAudit,
@@ -781,6 +825,6 @@ module.exports = {
   assainirRappelPerso, assainirRappelsPerso, MAX_RAPPELS_PERSO, assainirPreference, assainirPreferences,
   assainirReglagesClaude, assainirReglagesMiseAJour, MODELES_CLAUDE, MODELE_CLAUDE_PAR_DEFAUT,
   assainirReglagesExchange, URL_EWS_DEFAUT,
-  assainirReglagesAgenda, assainirDernierTourAgenda,
+  assainirReglagesAgenda, assainirDernierTourAgenda, assainirAbsenceAgenda, assainirAbsencesAgenda,
   REGLAGES_PAR_DEFAUT, PORT_SMTP_PAR_DEFAUT
 };

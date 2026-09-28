@@ -8845,6 +8845,49 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     « Aujourd'hui » du tableau de bord rendue, bouton « reste » pointant sur `ouvrirFenetreAujourdhui()`,
     fenêtre du matin qui s'ouvre sans bouton « Page Aujourd'hui » (« C'est noté » présent), aucune
     erreur JS. `npm test` reste vert (855 racine).
+- **Agenda du tableau de bord : tient compte des absences des collaborateurs (demande de l'étude —
+  « prendre en compte sur l'agenda si la personne est présente ou non la semaine suivante, parfois
+  JV ou JS absent »).** Source choisie par l'étude : l'agenda de l'office lui-même — les absences y
+  sont posées en événements « toute la journée » (congés, RTT, absent…), CLAIRE les lit sans double
+  saisie. Effet choisi : les afficher **et** signaler les rendez-vous concernés.
+  - **Serveur — détection pure** (`absencesDepuisIcs`, `server/src/agendaOffice.js`) : un événement
+    « toute la journée » (DTSTART date seule) dont le titre porte un mot d'absence
+    (`RE_MOT_ABSENCE` : congé(s), absent(e)(s), absence, vacances, RTT, indisponible, repos —
+    volontairement PAS « télétravail »/« formation », où une signature reste possible) ET nomme un
+    collaborateur (`COLLABORATEURS_ABSENCE` : initiales BA/JV/JS, prénom ou nom de famille, tous
+    comparés comme des mots entiers d'un texte normalisé via `normaliserNomRapprochement` — donc
+    sans accent : « Jeremy » retrouve « Jérémy »). **Une absence anonyme (« Congés » sans nom) n'est
+    jamais retenue** (on ne devine pas à qui elle appartient), ni un all-day sans mot d'absence (une
+    réunion), ni un événement horaire. DTEND d'un all-day étant EXCLUSIF (RFC 5545), `fin` = la
+    veille du DTEND ; sans DTEND, un seul jour. Une absence entièrement passée (`fin < aujourdHui`)
+    est écartée. `collaborateur` = le nom complet, tel qu'il figure dans `d.responsable` côté client
+    (comparaison directe, aucun mapping). Premier jet, comme les autres motifs de ce fichier.
+  - **Serveur — stockage et tour** : `absencesDepuisIcs` est appelée au même passage que la
+    détection des envois (`executerTourSurveillanceAgenda`, `agendaWatch.js`), le résultat est
+    persisté sous sa propre clé (`parametresRepo.ecrireAbsencesAgenda`, clé `absences-agenda`,
+    plafond 200) par `executerEtEnregistrerTourAgenda` — un état produit par le serveur, comme le
+    compte rendu du dernier tour, jamais un réglage. Un tour en échec (flux injoignable) ne vide pas
+    la liste (la dernière connue reste affichée). Exposée au client par `GET /api/agenda`
+    (`absences: […]`).
+  - **Client — affichage** (`renderRendezVousDashboard`, `script.js`) : `absencesOffice` chargé au
+    démarrage, à chaque ouverture du tableau de bord et toutes les 15 min (`chargerAbsencesOffice`,
+    au même rythme que le tour serveur). Sous la bande de la semaine affichée (qui suit les ‹ › de
+    navigation, donc « la semaine suivante » quand on avance), un repère amber
+    « Absent cette semaine : … » (`collaborateursAbsentsSemaine`, pure, testable). Et chaque
+    rendez-vous de signature dont le responsable est absent le jour affiché
+    (`responsableAbsentLeJour`, pure) porte un liseré rouge + « … absent(e) ce jour ». Les trois
+    helpers (`absenceCouvreJour`/`collaborateursAbsentsSemaine`/`responsableAbsentLeJour`) sont purs
+    et testés (`tests/agenda-absences.test.js`).
+  - Tests : `server/test/agenda-absences.test.js` (12 — détection, DTEND exclusif, anonyme/réunion/
+    horaire écartés, passé filtré, annulé ignoré, deux collaborateurs, prénom accentué),
+    `tests/agenda-absences.test.js` (5, helpers client), `server/test/agenda-route.test.js` mis à
+    jour (`GET /api/agenda` renvoie désormais aussi `absences`). Suites : racine 855 → 860, serveur
+    433 → 445. **Vérifié dans un vrai Chromium** (serveur réel, absence seedée en base) : le repère
+    s'affiche sous la bande, aucune erreur JS.
+  - **Non vérifié en conditions réelles** : aucun vrai agenda Outlook publié n'est accessible dans
+    cet environnement — la reconnaissance du vocabulaire d'absence réel de l'étude (comment elle
+    nomme ces événements) reste à confirmer une fois l'URL de l'agenda renseignée, comme pour la
+    détection des envois déjà en place.
 
 ## Comment tester
 

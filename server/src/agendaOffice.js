@@ -377,9 +377,90 @@ function actionsDetecteesDepuisIcs(icsTexte, dossiersActifs, aujourdHui) {
   return resultats;
 }
 
+// ---- Absences des collaborateurs (demandé par l'étude, 28/09) ----
+// « Prendre en compte sur l'agenda si la personne est présente ou non la semaine suivante (parfois
+// JV ou JS absent) ». Source choisie par l'étude : l'agenda de l'office lui-même — les absences y
+// sont posées en événements « toute la journée » (congés, absent, RTT…), CLAIRE les lit sans double
+// saisie. On ne devine JAMAIS à qui appartient une absence : le titre doit nommer un collaborateur
+// (initiales JV/JS/BA, prénom ou nom de famille) ET porter un mot d'absence — sinon rien n'est retenu
+// (un « Congés » anonyme ne dit pas de qui il s'agit ; une journée entière « Réunion équipe » n'est
+// pas une absence).
+//
+// `collaborateur` = le nom complet, tel qu'il figure dans d.responsable côté client (comparaison
+// directe, aucun mapping à tenir à jour). Premier jet, comme les autres motifs de ce fichier : à
+// resserrer/élargir sur retour réel de l'étude (le vocabulaire d'absence réel de son agenda).
+const COLLABORATEURS_ABSENCE = [
+  { nom: 'Bastien ANGLUMENT', prenom: 'Bastien', nomFamille: 'ANGLUMENT', initiales: 'BA' },
+  { nom: 'Julie VASSELIN', prenom: 'Julie', nomFamille: 'VASSELIN', initiales: 'JV' },
+  { nom: 'Jérémy SAUJOT', prenom: 'Jérémy', nomFamille: 'SAUJOT', initiales: 'JS' }
+];
+
+// Testé sur le titre NORMALISÉ (majuscules, sans accent — voir normaliserNomRapprochement) : « congés »
+// y devient « CONGES ». Volontairement limité aux mots qui disent clairement « pas à l'office »
+// (congé, absent, absence, vacances, RTT, indisponible, repos) — pas « télétravail »/« formation »/
+// « déplacement », où une signature reste possible : les inclure produirait de fausses alertes.
+const RE_MOT_ABSENCE = /\b(?:CONGE|CONGES|ABSENT|ABSENTE|ABSENTS|ABSENTES|ABSENCE|VACANCES|RTT|INDISPONIBLE|INDISPO|REPOS)\b/;
+
+function estEvenementJourneeEntiere(evenement) {
+  return /^\d{8}$/.test(String(evenement.dtstart || '').trim());
+}
+
+// Le jour civil précédent (AAAA-MM-JJ), en UTC pour ne pas dépendre du fuseau du serveur : le DTEND
+// d'un événement « toute la journée » est EXCLUSIF en iCalendar (le lendemain du dernier jour réel).
+function veilleDe(iso) {
+  const d = new Date(String(iso) + 'T00:00:00Z');
+  if (isNaN(d.getTime())) return iso;
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
+function motsNormalises(texte) {
+  return new Set(normaliserNomRapprochement(texte).split(' ').filter(Boolean));
+}
+
+// Les collaborateurs nommés dans un titre : initiales (BA/JV/JS), prénom ou nom de famille, tous
+// comparés comme des MOTS ENTIERS d'un texte normalisé — « Congés Julie », « JV absente », « Absence
+// VASSELIN » se rattachent tous à Julie VASSELIN. Plusieurs peuvent être nommés dans le même
+// événement (rare, mais possible).
+function collaborateursDansTexte(texte) {
+  const mots = motsNormalises(texte);
+  return COLLABORATEURS_ABSENCE.filter((c) =>
+    mots.has(c.initiales)
+    || mots.has(normaliserNomRapprochement(c.prenom))
+    || mots.has(normaliserNomRapprochement(c.nomFamille)));
+}
+
+// Pure et testable : les périodes d'absence lues dans le flux .ics. Une entrée par (événement,
+// collaborateur nommé). `aujourdHui` (AAAA-MM-JJ) : une absence entièrement passée est écartée (elle
+// n'intéresse plus l'agenda, tourné vers la semaine en cours et les suivantes). Omis : aucun filtre
+// de date (tests).
+function absencesDepuisIcs(icsTexte, aujourdHui) {
+  const evenements = parseIcsEvenements(icsTexte);
+  const absences = [];
+  for (const evt of evenements) {
+    if (evt.status === 'CANCELLED') continue;
+    if (!estEvenementJourneeEntiere(evt)) continue;
+    const titre = String(evt.summary || '');
+    if (!RE_MOT_ABSENCE.test(normaliserNomRapprochement(titre))) continue;
+    const debut = dateDepuisDtstart(evt.dtstart);
+    if (!debut) continue;
+    const finBrute = dateDepuisDtstart(evt.dtend);
+    let fin = finBrute ? veilleDe(finBrute) : debut;
+    if (fin < debut) fin = debut;
+    if (aujourdHui && fin < aujourdHui) continue;
+    const collaborateurs = collaborateursDansTexte(titre);
+    if (collaborateurs.length === 0) continue;
+    for (const c of collaborateurs) {
+      absences.push({ collaborateur: c.nom, initiales: c.initiales, debut, fin, resume: titre.slice(0, 120) });
+    }
+  }
+  return absences;
+}
+
 module.exports = {
   deplierLignesIcs, decoderTexteIcs, parseIcsEvenements, dateDepuisDtstart,
   extraireReferenceVte, referenceDossierEvenement, detecteAppelDeFonds, detecteProjetEnvoye,
   detecterActionsEvenement, dossierPourReferenceAgenda, actionsDetecteesDepuisIcs, motsVoisins,
-  estRendezVousSignature, heureDepuisDtstart, composerLieuAgenda
+  estRendezVousSignature, heureDepuisDtstart, composerLieuAgenda,
+  absencesDepuisIcs, estEvenementJourneeEntiere, collaborateursDansTexte, COLLABORATEURS_ABSENCE
 };
