@@ -565,6 +565,33 @@ function assainirDernierTourAgenda(brut) {
   };
 }
 
+// Résumé des emails du matin (voir emailsMatin.js) : produit par le serveur, relu par les postes.
+// Seulement l'expéditeur, l'objet, l'heure et les sujets repérés — jamais le corps d'un email.
+const CLE_RESUME_EMAILS = 'resume-emails-matin';
+function assainirEmailResume(e) {
+  const b = e && typeof e === 'object' ? e : {};
+  return {
+    de: texteBorne(b.de, 200), adresse: texteBorne(b.adresse, 200), sujet: texteBorne(b.sujet, 300),
+    recuLe: texteBorne(b.recuLe, 40), heure: texteBorne(b.heure, 20), pj: !!b.pj,
+    sujets: Array.isArray(b.sujets) ? b.sujets.filter(x => typeof x === 'string').slice(0, 8).map(x => texteBorne(x, 40)) : []
+  };
+}
+function assainirResumeEmails(brut) {
+  const b = brut && typeof brut === 'object' ? brut : {};
+  const emails = (l) => (Array.isArray(l) ? l.slice(0, 200).map(assainirEmailResume) : []);
+  return {
+    date: /^\d{4}-\d{2}-\d{2}$/.test(b.date || '') ? b.date : null,
+    depuis: texteBorne(b.depuis, 40), genereLe: texteBorne(b.genereLe, 40),
+    erreur: b.erreur ? texteBorne(String(b.erreur), 500) : null,
+    total: Number.isFinite(b.total) ? b.total : 0,
+    dossiers: Array.isArray(b.dossiers) ? b.dossiers.slice(0, 200).map(g => ({
+      dossierId: texteBorne(g && g.dossierId, 100), dossierNom: texteBorne(g && g.dossierNom, 200),
+      responsable: texteBorne(g && g.responsable, 100), emails: emails(g && g.emails)
+    })) : [],
+    autres: emails(b.autres)
+  };
+}
+
 function creerRepoParametres(db) {
   const lireStmt = db.prepare('SELECT valeur FROM parametres WHERE cle = ?');
   const ecrireStmt = db.prepare(
@@ -858,7 +885,20 @@ function creerRepoParametres(db) {
     return propre;
   }
 
+  function lireResumeEmails() {
+    const ligne = lireStmt.get(CLE_RESUME_EMAILS);
+    if (!ligne) return null;
+    try { return assainirResumeEmails(JSON.parse(ligne.valeur)); } catch (e) { return null; }
+  }
+
+  function ecrireResumeEmails(resume) {
+    const propre = assainirResumeEmails(resume);
+    ecrireStmt.run(CLE_RESUME_EMAILS, JSON.stringify(propre));
+    return propre;
+  }
+
   return {
+    lireResumeEmails, ecrireResumeEmails,
     lireReglagesMiseAJour, ecrireReglagesMiseAJour,
     lireReglagesExchange, ecrireReglagesExchange,
     lireReglagesAgenda, ecrireReglagesAgenda, lireDernierTourAgenda, ecrireDernierTourAgenda,
@@ -879,5 +919,5 @@ module.exports = {
   assainirReglagesClaude, assainirReglagesMiseAJour, MODELES_CLAUDE, MODELE_CLAUDE_PAR_DEFAUT,
   assainirReglagesExchange, assainirCategoriesRdv, CATEGORIES_RDV_DEFAUT, URL_EWS_DEFAUT, assainirCategoriesAgenda,
   assainirReglagesAgenda, assainirDernierTourAgenda, assainirAbsenceAgenda, assainirAbsencesAgenda,
-  REGLAGES_PAR_DEFAUT, PORT_SMTP_PAR_DEFAUT
+  REGLAGES_PAR_DEFAUT, PORT_SMTP_PAR_DEFAUT, assainirResumeEmails
 };

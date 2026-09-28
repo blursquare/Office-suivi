@@ -229,3 +229,16 @@ test('Tâche faite sur le dossier d’un collègue : il est prévenu, jamais pou
   assert.equal(app.doitNotifierTacheFaite(d, ''), false);
   assert.equal(app.doitNotifierTacheFaite({ id: 'd2' }, 'Jérémy SAUJOT'), false);
 });
+
+test('Emails du matin : chacun voit ses dossiers, l’administrateur aussi les emails hors dossiers', () => {
+  const resume = { date: '2026-10-06', dossiers: [
+    { dossierId: 'd1', emails: [{ sujet: 'a' }, { sujet: 'b' }] },
+    { dossierId: 'd2', emails: [{ sujet: 'c' }] }
+  ], autres: [{ sujet: 'perso' }] };
+  const julie = app.emailsMatinPourPoste(resume, ['d1'], false);
+  assert.equal(julie.nb, 2);
+  assert.equal(julie.autres.length, 0);
+  const bastien = app.emailsMatinPourPoste(resume, ['d1', 'd2'], true);
+  assert.equal(bastien.nb, 4);
+  assert.equal(app.emailsMatinPourPoste(null, ['d1'], true).nb, 0);
+});

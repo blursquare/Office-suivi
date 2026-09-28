@@ -6510,3 +6510,13 @@ details.echanges-autres .ja-titre { font-weight: 500; }
 /* Achat comptant : ligne d'information, pastille pleine et neutre, rien à cocher. */
 .ech.ech-info .ech-pastille { color: var(--muted); }
 .ech.ech-info .ech-pastille .dot { background: currentColor; box-shadow: none; }
+
+/* Emails du matin dans la fenêtre « Aujourd'hui » (voir renderEmailsMatin). */
+.jour-section-titre.jour-section-emails { margin-top: 18px; }
+.email-matin-texte { min-width: 0; overflow-wrap: anywhere; }
+.email-matin-pj { color: var(--muted); font-size: 12px; vertical-align: -1px; }
+.email-matin-sujet {
+  display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 999px; vertical-align: 1px;
+  font-size: 10.5px; font-weight: 600; color: var(--ink-soft); background: var(--line-soft); white-space: nowrap;
+}
+.email-matin-autres { margin: 6px 0 0; }

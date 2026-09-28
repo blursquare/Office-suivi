@@ -43,6 +43,10 @@ Réglages › Rappels et agenda › Agenda Outlook de l'office.
       « Signature ») → il disparaît d'Outlook
       (il reste récupérable dans « Éléments supprimés »).
 
+- [ ] Emails du matin : un jour ouvré après 8 h 50, la fenêtre « Aujourd'hui » affiche « Emails
+      depuis hier 18 h » avec les emails rangés sous leurs dossiers (« Actualiser » relit la boîte).
+      Si un message d'erreur apparaît à la place (droit de lecture refusé, code EWS), le noter.
+
 ## 3. Emails
 
 - [ ] Sur un dossier avec un email d'acquéreur, onglet Échanges, ligne « Demander la provision et

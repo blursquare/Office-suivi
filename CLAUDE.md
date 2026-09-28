@@ -90,7 +90,10 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
    note « Appel de fonds (et projet) envoyé » dans le Lieu, dates butoir prêt / vente préalable en
    journée entière. **Un seul essai par appel, aucun réessai automatique** (verrouillage du compte),
    disjoncteur sur refus d'identifiants. Suppression = `MoveToDeletedItems`, jamais `HardDelete`.
-   Microsoft Graph / Power Automate premium ne sont pas disponibles.
+   Microsoft Graph / Power Automate premium ne sont pas disponibles. **Lecture de la boîte de
+   réception** du même compte (celle de Bastien, qui reçoit tout en double) à 8 h 50 pour le résumé
+   des emails du matin (`emailsMatin.js`, FindItem seul, sans IA) : seuls expéditeur, objet et
+   heure sont gardés, jamais le corps ; les emails hors dossiers ne sont montrés qu'à l'administrateur.
 6. **Secrets** (mot de passe SMTP, clés API Mistral/Anthropic, mot de passe Exchange, jeton GitHub
    de mise à jour) : stockés en base, **jamais renvoyés par une route** (remplacés par un booléen
    « enregistré »), conservés si le formulaire ne les réémet pas, effacés sur chaîne vide explicite,

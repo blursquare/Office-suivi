@@ -11575,3 +11575,27 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
     fonds (notée faite à la main) »). Jamais pour son propre geste (refusé aussi côté serveur),
     même envoi que les autres messages (responsable, copie à l'étude sauf si c'est l'auteur).
   Rien pour ce que CLAIRE fait seule (NAS, agenda) : ce n'est pas un collègue.
+
+- **29/09/2026 — Résumé des emails du matin** (demandé par l'étude : « lire les emails reçus depuis
+  18 h la veille et faire un résumé le matin à 8 h 50 dans le pop-up Aujourd'hui » ; boîte choisie :
+  celle du compte Exchange déjà configuré, « qui reçoit tout en double »). Choix fait sans IA (ma
+  recommandation, restée sans objection) : les emails contiennent des données clients, rien ne
+  quitte le bureau ; une IA locale (Ollama) pourra s'ajouter plus tard.
+  **Serveur** `server/src/emailsMatin.js` : `corpsFindEmails` (EWS FindItem, lecture seule, boîte
+  de réception du compte, `item:Subject/From/DateTimeReceived/HasAttachments/Preview`, 200 au plus)
+  depuis `debutFenetreEmails` (18 h Paris le jour ouvré précédent, heure d'été gérée) ;
+  `parseFindEmails` ; `classerEmails` (pur) — dossier reconnu par l'adresse de l'expéditeur
+  (acquéreur ou confrère), « VTE - NOM » dans l'objet ou l'aperçu, ou un nom du dossier (≥ 4 lettres,
+  hors mots vides) en mot entier dans l'OBJET ; sujets repérés (offre de prêt, fonds, RIB,
+  rendez-vous, projet d'acte, pièces, urgent) ; les copies de CLAIRE (compte SMTP, passerelle) sont
+  écartées. Gardé en base (`parametres`, clé `resume-emails-matin`, remplacé chaque jour) :
+  expéditeur, objet, heure, sujets, pièce jointe — jamais le corps. `demarrerResumeEmails` : jours
+  ouvrés, à partir de 8 h 50, UNE fois par jour, aucun nouvel essai automatique (erreur gardée pour
+  la journée, identifiants refusés compris). Routes `GET /api/emails-matin`,
+  `POST /api/emails-matin/actualiser` (un essai par clic).
+  **Client** : rubrique « Emails depuis hier 18 h » dans la fenêtre du matin (`renderEmailsMatin`),
+  groupée par dossier (clic = fiche), sujets en pastilles ; chacun voit les emails de SES dossiers
+  (`emailsMatinPourPoste`), « Hors dossiers » seulement pour l'administrateur (c'est sa boîte).
+  Résumé relu toutes les 5 minutes ; à son arrivée, la fenêtre s'ouvre une fois dans la journée s'il
+  y a des emails pour ce poste. Non vérifié ici : la lecture réelle de la boîte chez Fichorga
+  (`item:Preview` suppose Exchange 2013 ou plus récent — Exchange 2019 l'a).

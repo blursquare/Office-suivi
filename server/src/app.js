@@ -28,6 +28,7 @@ const { creerRouteurSignalements } = require('./routes/signalements');
 const { creerRouteurMiseAJour } = require('./routes/miseAJour');
 const { creerRouteurAgenda } = require('./routes/agenda');
 const { creerRouteurExchange } = require('./routes/exchange');
+const { creerRouteurEmailsMatin } = require('./routes/emailsMatin');
 
 // Fichier statique → nom d'asset embarqué (voir server/scripts/build-windows-exe.mjs, section
 // `assets` de sea-config.json) + type MIME à renvoyer. Tous des fichiers texte (HTML/CSS/JS/JSON/
@@ -78,7 +79,7 @@ function estSea() {
 
 // `envoyerEmailFn` : injection de la couche d'envoi (voir envoiEmail.js), utilisée uniquement par
 // les tests — sans elle, vérifier les routes qui notifient demanderait un vrai serveur SMTP.
-function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistral, testerMistral, miseAJour, agenda }) {
+function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistral, testerMistral, miseAJour, agenda, emailsMatin }) {
   const app = express();
   const depot = creerDepot(db);
   const parametresRepo = creerRepoParametres(db);
@@ -126,6 +127,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurReglages(parametresRepo, envoyerEmailFn, { depot, db }));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurSauvegarde(parametresRepo, db, config));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNotifications(parametresRepo, envoyerEmailFn));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurEmailsMatin(parametresRepo, depot, emailsMatin || {}));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAuditRetours(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExclusionsPieces(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurCorrectionsApprises(parametresRepo));

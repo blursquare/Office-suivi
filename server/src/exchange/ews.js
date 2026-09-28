@@ -692,5 +692,6 @@ module.exports = {
   folderCalendrierXml,
   corpsCreateEcheance, corpsUpdateEcheanceDate, corpsDeleteEcheance, interpreterReponseSuppression,
   creerEcheanceExchange, mettreAJourEcheanceExchange, supprimerEcheanceExchange,
-  heureParisDepuisInstant, horaireDeplace, corpsUpdateRendezVousHoraire, deplacerRendezVousExchange
+  heureParisDepuisInstant, horaireDeplace, corpsUpdateRendezVousHoraire, deplacerRendezVousExchange,
+  posterEws
 };

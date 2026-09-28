@@ -61,6 +61,7 @@ const { resoudreCheminNavigateurApp } = require('./navigateurApp');
 const { demarrerSurveillanceNas } = require('./nasWatch');
 const { demarrerSurveillanceAgenda } = require('./agendaWatch');
 const { demarrerTacheRappels } = require('./jobs/rappels');
+const { demarrerResumeEmails } = require('./emailsMatin');
 const { demarrerSauvegardeAutomatique } = require('./sauvegarde');
 
 // Journal de secours à côté de la base (même dossier `data/`, déjà résolu correctement en mode
@@ -206,6 +207,10 @@ function demarrer() {
   // Sauvegarde quotidienne de la base (voir sauvegarde.js) : vérifiée toutes les heures, faite
   // une fois par jour. Même règle que les deux minuteurs ci-dessus : démarrée ici seulement.
   demarrerSauvegardeAutomatique(db, config, parametresRepo);
+
+  // Résumé des emails du matin (voir emailsMatin.js) : 8 h 50 les jours ouvrés, un seul essai par
+  // jour. Silencieux tant que la connexion Exchange n'est pas configurée. Démarré ici seulement.
+  demarrerResumeEmails(depot, parametresRepo);
 
   serveur = app.listen(config.port, () => {
     const url = `http://localhost:${config.port}/`;
