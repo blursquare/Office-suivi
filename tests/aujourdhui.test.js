@@ -132,7 +132,7 @@ test('texte de la liste du jour', () => {
   const r = app.actionsDuJour([dossier({ pret: '2026-10-02' })], AUJ);
   const t = app.texteListeDuJour(r.actions, AUJ, 'Julie VASSELIN');
   assert.match(t, /^Aujourd'hui — /);
-  assert.match(t, /- Relancer l’offre de prêt — VENTE DUPONT \/ MARTIN \(J-4\)/);
+  assert.match(t, /- Relancer l’offre de prêt — VTE - DUPONT \/ MARTIN \(J-4\)/);
   assert.match(app.texteListeDuJour([], AUJ, ''), /Rien à faire/);
 });
 

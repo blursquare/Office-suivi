@@ -257,6 +257,9 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   (`changerCategorie`) ; panneau de gestion des mémoires apprises ; mémoriser le compte client
   (`compte : N`) des reçus comptables ; exploiter le journal `corrections-extraction` pour resserrer
   les motifs (phase 3 de l'extraction).
+- **Dossiers de succession à venir** : aujourd'hui tous les dossiers sont des ventes, affichés
+  « VTE - NOM » (`libelleDossierAffiche`). À l'arrivée des successions, ce préfixe, le planning, la
+  checklist et les emails devront dépendre d'un type d'affaire du dossier.
 - **Arborescence type des dossiers clients sur le NAS** (MAISON, COPRO, TERRAIN, SUCC, CESSION DE
   FONDS) : détaillée dans `docs/historique.md` (fin du fichier). L'avant-contrat signé est à la
   racine du dossier client ou sous « SRU » ; la rubrique « AAE » contient les pièces réunies entre

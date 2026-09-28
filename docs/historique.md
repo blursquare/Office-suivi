@@ -11368,3 +11368,10 @@ outils de navigateur si disponibles dans cet environnement plutôt que de tout r
 ## Entrées postérieures au 28/09/2026
 
 _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.)_
+
+- **28/09/2026 — Préfixe « VTE - » devant le nom des dossiers de vente** (demandé par l'étude :
+  CLAIRE accueillera aussi des dossiers de succession). `libelleDossierAffiche(d)` rend désormais
+  « VTE - NOM DU DOSSIER » au lieu de « VENTE NOM DU DOSSIER » — la même référence que celle des
+  rendez-vous de l'agenda de l'office. Affichage seulement : `d.nom` reste la valeur brute (emails,
+  exports, recherche). Tant qu'aucun autre type d'affaire n'existe, le préfixe est posé sur tous les
+  dossiers ; à l'arrivée des successions, il devra dépendre du type d'affaire du dossier.
