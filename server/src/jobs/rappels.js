@@ -76,17 +76,30 @@ function toutesEcheances(d) {
   //  • une fois l'appel de fonds fait, c'est l'envoi du projet d'acte au client qu'on rappelle
   //    (ajouté sur demande de l'étude, détecté depuis l'agenda de l'office — voir agendaWatch.js) ;
   //  • une fois le projet envoyé, on rappelle la signature.
+  // Aligné sur echeancesPlanning() côté client (voir son commentaire). L'étape courante prend à
+  // défaut la date du rendez-vous ; la date butoir (d.acte) N'EST PAS une ancre par défaut (elle
+  // n'est qu'indicative, l'utiliser partout rappellerait un appel de fonds prématuré). Filet de
+  // sécurité (étude) : un dossier — typiquement en participation — dont l'offre est reçue mais dont
+  // le rendez-vous n'est pas encore placé n'avait plus aucune échéance, donc plus aucun rappel, au
+  // moment précis où il faut placer le rendez-vous. Si rien ne reste, on garde l'étape courante
+  // ancrée sur la date butoir. Le butoir ne crée jamais SA PROPRE échéance (aucun item de type `acte`).
   const items = [];
   if (!echeanceValidee(d, 'ventebien')) items.push({ type: 'ventebien', label: 'Vente préalable', iso: d.ventebien });
   if (!echeanceValidee(d, 'pret')) items.push({ type: 'pret', label: 'Obtention du prêt', iso: d.pret });
+  let etape = null;
   if (!echeanceValidee(d, 'appelFonds')) {
-    items.push({ type: 'appelFonds', label: 'Envoi appel de fonds', iso: d.appelFonds || d.rendezVousSignature });
+    etape = { type: 'appelFonds', label: 'Envoi appel de fonds', iso: d.appelFonds || d.rendezVousSignature };
   } else if (!echeanceValidee(d, 'projetEnvoye')) {
-    items.push({ type: 'projetEnvoye', label: 'Envoi projet', iso: d.projetEnvoye || d.rendezVousSignature });
+    etape = { type: 'projetEnvoye', label: 'Envoi projet', iso: d.projetEnvoye || d.rendezVousSignature };
   } else if (!echeanceValidee(d, 'rendezVousSignature')) {
-    items.push({ type: 'rendezVousSignature', label: 'Signature de l’acte', iso: d.rendezVousSignature });
+    etape = { type: 'rendezVousSignature', label: 'Signature de l’acte', iso: d.rendezVousSignature };
   }
-  return items.concat(autres).filter((it) => it.iso);
+  if (etape) items.push(etape);
+  let reels = items.concat(autres).filter((it) => it.iso);
+  if (!reels.length && etape && !etape.iso && d.acte && !d.rendezVousSignature && !echeanceValidee(d, 'acte')) {
+    reels = [Object.assign({}, etape, { iso: d.acte })];
+  }
+  return reels;
 }
 
 // Compté en UTC (même piège déjà documenté pour joursEntre() côté prorata — une différence entre

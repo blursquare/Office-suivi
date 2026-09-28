@@ -269,16 +269,25 @@ test('echeanceValidee : un rendez-vous fixé clôt la date butoir de réitérati
   assert.equal(app.echeanceValidee(dossierBase({ acte: '2026-10-01', echeancesValidees: { acte: true } }), 'acte'), true);
 });
 
-test('la date butoir ne figure JAMAIS au planning, rendez-vous fixé ou non', () => {
-  // Elle vient de l'avant-contrat et n'est qu'indicative : c'est le rendez-vous pris à l'office
-  // qui engage l'étude. Elle reste visible sur la fiche, avec l'écart entre les deux.
+test('date butoir : pas d\'échéance propre, mais elle sert d\'ancre quand rien d\'autre ne reste', () => {
+  // La date butoir vient de l'avant-contrat et n'est qu'indicative : elle ne crée jamais une
+  // échéance de type 'acte'. Mais quand un rendez-vous est fixé, l'appel de fonds prend sa date ;
+  // et quand rien d'autre ne reste (offre reçue, pas encore de rendez-vous — cas participation),
+  // le dossier ne doit pas disparaître : l'étape courante est alors ancrée sur la date butoir.
   const app = chargerApplication();
   const avecRdv = dossierBase({ acte: '2026-10-01', rendezVousSignature: '2026-10-06' });
-  assert.equal(app.toutesEcheances(avecRdv).map((e) => e.type).join(','), 'appelFonds');
+  const e1 = app.toutesEcheances(avecRdv);
+  assert.equal(e1.map((e) => e.type).join(','), 'appelFonds');
+  assert.equal(e1[0].iso, '2026-10-06');
 
+  // Sans rendez-vous et sans autre échéance : le dossier reste visible, ancré sur le butoir
+  // (demande de l'étude), mais jamais avec une échéance de TYPE 'acte'.
   const sansRdv = dossierBase({ acte: '2026-10-01' });
-  assert.equal(app.toutesEcheances(sansRdv).length, 0);
-  assert.equal(app.prochaineEcheanceDetail(sansRdv), null);
+  const e2 = app.toutesEcheances(sansRdv);
+  assert.equal(e2.map((e) => e.type).join(','), 'appelFonds');
+  assert.equal(e2[0].iso, '2026-10-01');
+  assert.ok(!e2.some((e) => e.type === 'acte'));
+  assert.equal(app.prochaineEcheanceDetail(sansRdv).type, 'appelFonds');
 });
 
 test('renderTab : la date butoir remplacée affiche l\'écart avec le rendez-vous, pas un décompte', () => {

@@ -8735,6 +8735,93 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     enregistrée, un nouvel enregistrement la persiste, le mot de passe reste conservé, aucune erreur
     JS. L'écriture EWS réelle dans le calendrier partagé reste à confirmer au bureau (mêmes réserves
     que ci-dessus, plus l'accès délégué).
+- **Lot de 13 retouches remontées ensemble par l'étude**, traitées indépendamment (chacune vérifiée,
+  `npm test` vert aux deux endroits — racine 855, serveur 433) :
+  - **Wizard : « Obtention du prêt » redevient décochable à la création** — le libellé de la case
+    d'échéance prêt de l'étape « Vérifier » précise « (condition suspensive) », et décocher pose
+    `d.sansPret = true` comme avant (déjà le cas ; la retouche est le libellé, pour dire à l'étude
+    qu'un achat comptant se déclare là).
+  - **Bandeau « Date de signature détectée : … · Corriger » retiré de l'étape « Vérifier »** :
+    l'information figure déjà dans le panneau « Ce que l'outil a compris » (ligne éditable de la date
+    de l'avant-contrat), l'afficher deux fois sur le même écran était redondant.
+    `majAffichageCompromis()` masque désormais `#compromis-info` au lieu de le remplir ;
+    `corrigerDateCompromis()`/`toggleCompromisEdit()` restent en place mais sans point d'entrée
+    visible (la date se corrige dans le panneau).
+  - **Un dossier en participation, offre reçue mais rendez-vous de signature pas encore fixé, ne
+    disparaît plus du planning** : signalé par l'étude. `echeancesPlanning(d)` (et son miroir serveur
+    `toutesEcheances` dans `rappels.js`) enchaîne appel de fonds → projet envoyé → rendez-vous de
+    signature, chacune prenant à défaut la date du rendez-vous (voir « La date butoir devient
+    informative ») — mais une fois l'offre reçue sur un dossier participant, aucune de ces trois n'a
+    de date tant que le rendez-vous n'est pas pris, et le dossier sortait du planning entièrement.
+    Nouveau **repli sur la date butoir** (`d.acte`) : quand plus aucune échéance datée ne reste ET
+    que l'étape en cours (rendez-vous de signature) n'a pas encore de date ET que le rendez-vous
+    n'est pas validé, l'étape est ancrée sur `d.acte` — la date butoir, indicative, sert alors
+    d'alerte pour aller fixer le rendez-vous avec le confrère. Volontairement **borné à ce cas
+    précis** (`!reels.length && etape && !etape.iso && d.acte && !d.rendezVousSignature &&
+    !echeanceValidee(d, 'acte')`) : un premier essai plus large ajoutait une échéance appel de fonds
+    prématurée à TOUT dossier portant une date butoir, ce qui a cassé deux tests — le repli ne joue
+    que quand rien d'autre ne reste. Miroir serveur appliqué à l'identique.
+  - **Bouton « Réception des fonds » ajouté dans l'onglet Échanges de la fiche** (il n'existait que
+    sur la carte « Envoi au client ») : `renderReceptionFonds(d)` inséré entre les relances ciblées
+    et le questionnaire de satisfaction, même fonction, même routage (`envoyerRelanceCiblee(id,
+    'fonds')`, vers le confrère si un autre office représente l'acquéreur). **Nom du dossier retiré
+    du CORPS de l'email** (`construireEmailReceptionFonds`) — il reste dans l'objet, le répéter dans
+    le corps alourdissait un message court.
+  - **Confirmation de réception des fonds vérifiée** (demande explicite « vérifier le
+    fonctionnement ») : le bouton n'apparaît qu'une fois l'appel de fonds réalisé
+    (`echeanceValidee(d, 'appelFonds')`), pose `d.receptionFondsConfirmeeLe`, journalise et passe à
+    « confirmée le … » avec un bouton « Renvoyer » — comportement inchangé, confirmé conforme.
+  - **Tableau de bord : « Dernières pièces trouvées » limité à 6** (`MAX_DERNIERES_PIECES`, était
+    10) — demandé pour alléger la colonne.
+  - **Vue agenda du tableau de bord : uniquement les rendez-vous DU JOUR par défaut**
+    (`renderRendezVousDashboard`) : la bande de semaine reste, mais la liste sous elle ne montre que
+    le jour sélectionné (aujourd'hui par défaut) au lieu des 15 jours à venir — un clic sur un autre
+    jour de la bande le sélectionne, « Revenir à aujourd'hui » rétablit. Titre « Aujourd'hui » quand
+    aucun autre jour n'est choisi.
+  - **Plus d'alerte « Vérifier le report de la date butoir » quand le rendez-vous de signature est
+    déjà après le butoir** : signalé par l'étude — c'est le cas NORMAL (le rendez-vous réel est
+    souvent postérieur au butoir indicatif), pas un incident. Le bloc correspondant est retiré
+    d'`alertesImportantes()` ; la carte de la date butoir affiche toujours l'écart (« signature 5 j
+    après ce butoir »), mais ce n'est plus une alerte du tableau de bord.
+  - **Page « Aujourd'hui » : « À faire » limité aux 15 jours à venir** (`JOURS_HORIZON_A_FAIRE`) —
+    une action au-delà de 15 jours (ou sans échéance datée) passe dans « À venir » plutôt que dans la
+    liste du jour. `actionsDuJour` renvoie `{ actions, aVenir }` filtré sur ce seuil.
+  - **« Mes rappels » détachée en carte du tableau de bord** (interprétation de « détacher la to-do
+    liste ») : la liste personnelle de rappels, jusque-là en pied de la carte « À traiter »/
+    « Aujourd'hui », devient sa propre carte dans le rail de droite (`#rappels-dashboard`,
+    `renderRappelsDashboard`, appelée dans `render()`) — elle ne dépend plus de la carte d'actions,
+    et se lit comme un objet distinct.
+  - **Icône d'application non pixelisée** : l'installation PWA/le raccourci reprenaient une icône
+    matricielle basse résolution. `manifest.json` est réécrit avec un tableau d'icônes complet — le
+    SVG `icone.svg` (`sizes="any"`, net à toute taille), plus des PNG data-URI 192/512
+    (`purpose="any"`) et un 512 `purpose="maskable"` — et `index.html` porte une balise
+    `apple-touch-icon` 180×180 en data-URI (iOS n'utilise pas le manifest). Tout en data-URI, aucun
+    fichier binaire à servir statiquement (donc aucune déclaration `ASSETS_STATIQUES`/blob SEA à
+    ajouter, contrairement aux modèles Word/PDF).
+  - **Relecture d'actes : le conjoint d'un vendeur marié seul propriétaire de la résidence principale
+    est signalé** (art. 215 al. 3 du Code civil : la vente du logement de la famille exige le
+    consentement des deux époux, même si un seul en est propriétaire). Nouvelles fonctions
+    `detecterStatutVendeur(texte, pages)` (renvoie `{marie, phrase, page}`, ancrée sur la
+    présentation du vendeur via `zonePresentationVendeur`) et `constatsConjointVendeur(statutVendeur,
+    nbVendeurs, texte)` : un constat IMPORTANT si le bien est la résidence principale
+    (`RE_RESIDENCE_PRINCIPALE`), A_VERIFIER sinon. **Aucun constat** si le bien est vendu par deux
+    vendeurs (`nbVendeurs >= 2` — les deux époux sont alors déjà parties), si le consentement du
+    conjoint est déjà présent dans l'acte (`RE_CONSENTEMENT_CONJOINT`), ou si le vendeur n'est pas
+    marié. Branché dans `analyserCompromisOutil2` et `analyserProjetVenteOutil2` (catégorie PARTIES).
+    - **Bug latent corrigé en écrivant ce code, le même que déjà documenté plusieurs fois ici** :
+      `RE_STATUT_MARIE` finissait par `\bmari[ée]e?s?\b` — le `\b` après une lettre accentuée ne
+      matche jamais (« é » ∉ `\w`), donc « marié » au masculin singulier n'était JAMAIS reconnu (les
+      tests des acquéreurs employaient « mariés »/« mariée », qui passaient par une autre branche).
+      Trailing `\b` remplacé par `(?![a-zà-ÿ])`.
+  - Tests : `tests/outil2-parties-carnet.test.js` (+2 : `detecterStatutVendeur` lit le statut du
+    vendeur, `constatsConjointVendeur` sur un vendeur marié seul propriétaire) ;
+    `tests/echeances-appel-fonds.test.js` (test de la date butoir en repli réécrit) ;
+    `server/test/rappels.test.js` (+1 : `toutesEcheances` ancré sur la date butoir quand l'offre est
+    reçue sans rendez-vous). **Vérifié dans un vrai Chromium** (serveur réel, clair et sombre,
+    dossiers synthétiques) : carte « Mes rappels » présente dans le rail, agenda titré « Aujourd'hui »
+    par défaut, dossier participation offre reçue sans rendez-vous dont le planning reste non vide
+    (`toutesEcheances` → `['appelFonds']`), bouton de réception des fonds présent dans l'onglet
+    Échanges, aucune erreur JS.
 
 ## Comment tester
 

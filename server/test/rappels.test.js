@@ -106,6 +106,20 @@ test('toutesEcheances : un dossier sans prêt (sansPret) garde ses autres éché
   assert.deepEqual(types, ['ventebien']);
 });
 
+test('toutesEcheances : offre reçue, pas de rendez-vous → ancré sur la date butoir (ne disparaît pas)', () => {
+  // Cas participation signalé par l'étude : plus aucune échéance datée, le dossier disparaissait du
+  // planning. Il reste visible, l'appel de fonds ancré sur la date butoir, mais jamais un item 'acte'.
+  const d = { offrePretStatut: 'recue', acte: '2026-12-01' };
+  const items = toutesEcheances(d);
+  assert.deepEqual(items.map((e) => e.type), ['appelFonds']);
+  assert.equal(items[0].iso, '2026-12-01');
+  assert.ok(!items.some((e) => e.type === 'acte'));
+
+  // Mais si une autre échéance datée reste, la date butoir ne crée aucun appel de fonds prématuré.
+  const avecPret = { pret: '2026-10-01', acte: '2026-12-01' };
+  assert.deepEqual(toutesEcheances(avecPret).map((e) => e.type), ['pret']);
+});
+
 test('joursRestants compte en UTC, insensible aux bascules heure d\'été/hiver', () => {
   assert.equal(joursRestants('2026-11-11', '2026-10-27'), 15);
   assert.equal(joursRestants('2026-11-11', '2026-11-04'), 7);

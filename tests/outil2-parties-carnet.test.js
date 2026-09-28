@@ -108,6 +108,39 @@ test('constatsStatutAcquereurs signale l’acquéreur marié qui achète seul', 
   assert.match(c[0].titre, /achetant seul/);
 });
 
+// --- Conjoint du vendeur : logement de la famille (art. 215 al. 3 C. civ.) --------------------
+
+test('detecterStatutVendeur lit le statut du VENDEUR, pas celui de l’acquéreur', () => {
+  const app = chargerApplication();
+  const st = app.detecterStatutVendeur(ACTE_DEUX_STATUTS, pagesFactices(ACTE_DEUX_STATUTS));
+  assert.strictEqual(st.marie, true);
+  assert.match(st.phrase, /DURANDEAU/);
+  assert.doesNotMatch(st.phrase, /LEBEGUE/);
+  // Un vendeur célibataire ne déclenche rien.
+  const seul = 'VENDEUR Monsieur Paul DURANDEAU, célibataire, demeurant à BLOIS. ACQUEREUR Madame Julie FONTAINE.';
+  assert.strictEqual(app.detecterStatutVendeur(seul, null).marie, false);
+});
+
+test('constatsConjointVendeur : vendeur marié seul propriétaire → intervention du conjoint', () => {
+  const app = chargerApplication();
+  const st = { marie: true, phrase: 'Monsieur X, marié…', page: 1 };
+  // Résidence principale mentionnée → IMPORTANT, art. 215.
+  const rp = app.constatsConjointVendeur(st, 1, 'Le bien constitue la résidence principale du vendeur.');
+  assert.strictEqual(rp.length, 1);
+  assert.strictEqual(rp[0].gravite, 'IMPORTANT');
+  assert.match(rp[0].description, /215/);
+  // Sans mention de résidence principale → simple A_VERIFIER.
+  const av = app.constatsConjointVendeur(st, 1, 'Un bien vendu par le vendeur.');
+  assert.strictEqual(av.length, 1);
+  assert.strictEqual(av[0].gravite, 'A_VERIFIER');
+  // Deux vendeurs (les deux époux) → le conjoint intervient déjà, rien à signaler.
+  assert.strictEqual(app.constatsConjointVendeur(st, 2, 'résidence principale').length, 0);
+  // L'acte prévoit déjà l'intervention du conjoint → rien.
+  assert.strictEqual(app.constatsConjointVendeur(st, 1, 'résidence principale ; le conjoint intervient aux présentes').length, 0);
+  // Vendeur non marié → rien.
+  assert.strictEqual(app.constatsConjointVendeur({ marie: false }, 1, 'résidence principale').length, 0);
+});
+
 // --- Travaux : facture, libellé, catégorie ----------------------------------------------------
 
 test('detecterTravauxRealises relève la facture et produit un libellé court', () => {

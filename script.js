@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-28 12:34';
+  const VERSION_APP = '2026-09-28 13:20';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-28 13:20', resume: "Lot de 13 retouches : « Obtention du prêt » décochable si pas de prêt, bandeau « Date de signature détectée » retiré (déjà dans « Ce que l'outil a compris »), un dossier en participation offre reçue sans rendez-vous ne disparaît plus (date butoir en repli), bouton « Réception des fonds » dans l'onglet Échanges, « Mes rappels » détachée en carte du tableau de bord, « À faire » limité aux 15 jours, agenda du jour uniquement, dernières pièces limitées à 6, plus d'alerte de report si le rendez-vous est après le butoir, icône d'application non pixelisée, et — pour la relecture d'actes — le conjoint d'un vendeur marié seul propriétaire de la résidence principale est signalé." },
     { version: '2026-09-28 12:34', resume: "Agenda Outlook : nouveau réglage « Calendrier partagé de l'office (Sophie) » — les rendez-vous sont créés et mis à jour dans CE calendrier partagé, pas dans celui du compte de connexion. À renseigner dans Réglages et tester au bureau." },
     { version: '2026-09-28 12:25', resume: "Agenda Outlook : une fois l'appel de fonds (et/ou le projet) marqué envoyé, un bouton « Noter dans l'agenda » écrit « Appel de fonds envoyé » dans le lieu du rendez-vous de signature, après les initiales, sans toucher au code couleur. À tester au bureau." },
     { version: '2026-09-28 10:09', resume: "Brouillons Outlook avec pièce jointe : sur la fiche dossier, CLAIRE prépare un brouillon Outlook du courrier d'appel de fonds (.docx joint) ou du questionnaire de satisfaction (PDF joint) — ce qu'un simple lien mailto ne sait pas faire. À tester au bureau." },
@@ -4225,7 +4226,11 @@
   // appartient la mention. Les regex de rôle sont prises via qualitePourRole(), qui tient compte
   // du type d'acte : sur une promesse d'ACHAT, « promettant » désigne l'acquéreur, pas le vendeur.
 
-  var RE_STATUT_MARIE = /\bmari[ée]e?s?\b|\b[ée]pou(?:x|se|ses)\b|\bconjoints?\b|\bcontrat\s+de\s+mariage\b/i;
+  // `mari[ée]e?s?` : le `\b` final est remplacé par un lookahead négatif de lettre — un mot qui finit
+  // par une lettre accentuée (« marié ») n'a PAS de frontière `\b` derrière lui (é n'est pas dans \w),
+  // donc `\bmari[ée]e?s?\b` ne matchait jamais le masculin singulier « marié ». Piège récurrent
+  // documenté dans ce fichier. Le lookahead couvre aussi les majuscules via le flag i.
+  var RE_STATUT_MARIE = /\bmari[ée]e?s?(?![a-zà-ÿ])|\b[ée]pou(?:x|se|ses)\b|\bconjoints?\b|\bcontrat\s+de\s+mariage\b/i;
   var RE_STATUT_PACSE = /pacte\s+civil\s+de\s+solidarit[ée]|\bpacs[ée]e?s?\b|\bPACS\b/i;
   var RE_STATUT_CONCUBINS = /\bconcubin(?:s|e|es|age)?\b|vivant\s+maritalement|union\s+libre/i;
   // « divorcé DE Madame X » est un lien familial cité dans l'état civil, pas le statut actuel :
@@ -4420,6 +4425,73 @@
         description: "Selon le régime, le bien peut tomber en communauté malgré l'achat au nom d'un seul époux. Vérifier s'il faut une déclaration d'emploi ou de remploi, et l'intervention du conjoint." });
     }
     return constats;
+  }
+
+  // --- Conjoint du VENDEUR : logement de la famille (art. 215 al. 3 C. civ.) ------------------
+  //
+  // Demandé par l'étude : si le vendeur est marié mais SEUL propriétaire, penser à faire intervenir
+  // le conjoint pour la vente de la résidence principale. Le consentement du conjoint est exigé pour
+  // aliéner le logement de la famille (art. 215, al. 3 C. civ.), QUEL QUE SOIT le régime matrimonial
+  // et même quand le bien est un propre du vendeur. Détecté en parallèle du statut des acquéreurs,
+  // mais dans la présentation du VENDEUR (même piège d'attribution : ne pas prendre le statut de
+  // l'acquéreur pour celui du vendeur, d'où la zone dédiée ci-dessous).
+  var RE_RESIDENCE_PRINCIPALE = /r[ée]sidence\s+principale|logement\s+de\s+la\s+famille|logement\s+familial|[àa]\s+usage\s+d['’]habitation\s+principale/i;
+  // L'acte prévoit déjà l'intervention/le consentement du conjoint : on ne signale alors rien.
+  var RE_CONSENTEMENT_CONJOINT = /consentement\s+(?:de\s+son|du|de\s+la)\s+conjoint|conjoint\s+(?:intervient|comparant|comparante|consent|donne\s+son\s+consentement)|intervention\s+du\s+conjoint|article\s+215|[àa]\s+l['’]effet\s+de\s+consentir\s+[àa]\s+la\s+vente/i;
+
+  // Présentation du vendeur : le bloc AVANT son étiquette (« …, ci-après dénommé LE VENDEUR »), ou
+  // le bloc qui SUIT le titre (« VENDEUR : Monsieur X… »), borné par la présentation de l'acquéreur.
+  // null si le vendeur n'est pas localisé — on ne cherche alors rien (mieux vaut ne rien dire que de
+  // confondre les deux parties).
+  function zonePresentationVendeur(src, qV, qA) {
+    if (!qV || qV.index == null || qV.index < 0) return null;
+    const idx = qV.index;
+    if (estStyleLabelEntreGuillemets(src, idx)) {
+      return { debut: Math.max(0, idx - 1500), fin: idx };
+    }
+    const bloc = extraireBlocPartie(src, qV.re, idx);
+    let fin = bloc ? bloc.finAbsolue : Math.min(src.length, idx + 1500);
+    if (qA && qA.index != null && qA.index > idx && qA.index < fin) fin = qA.index;
+    return { debut: idx, fin };
+  }
+
+  function detecterStatutVendeur(texte, pages) {
+    const src = String(texte || '');
+    if (!src) return { marie: false, phrase: '', page: null };
+    const type = typeof detecterTypeActe === 'function' ? (detecterTypeActe(src).valeur || 'INCONNU') : 'INCONNU';
+    const qV = typeof qualitePourRole === 'function' ? qualitePourRole(src, type, 'VENDEUR') : null;
+    const qA = typeof qualitePourRole === 'function' ? qualitePourRole(src, type, 'ACQUEREUR') : null;
+    const zone = zonePresentationVendeur(src, qV, qA);
+    if (!zone) return { marie: false, phrase: '', page: null };
+    const g = new RegExp(RE_STATUT_MARIE.source, 'gi');
+    let m;
+    while ((m = g.exec(src)) !== null) {
+      if (g.lastIndex === m.index) g.lastIndex++;
+      if (m.index < zone.debut || m.index > zone.fin) continue;
+      const avant = src.slice(Math.max(0, m.index - FENETRE_NEGATION_STATUT), m.index);
+      if (RE_NEGATION_STATUT.test(avant)) continue;
+      const p = phraseAutour(src, m.index, 200, 300);
+      return { marie: true, phrase: p.phrase, page: pageDepuisIndexPages(pages, p.debut) };
+    }
+    return { marie: false, phrase: '', page: null };
+  }
+
+  // nbVendeurs vient de l'extraction (detecterParties) : deux vendeurs (les deux époux) → le conjoint
+  // intervient déjà, rien à signaler ; un seul vendeur marié → c'est le cas visé.
+  function constatsConjointVendeur(statutVendeur, nbVendeurs, texte) {
+    if (!statutVendeur || !statutVendeur.marie) return [];
+    if ((Number(nbVendeurs) || 0) >= 2) return [];
+    const src = String(texte || '');
+    if (RE_CONSENTEMENT_CONJOINT.test(src)) return []; // l'acte prévoit déjà l'intervention du conjoint
+    const rp = RE_RESIDENCE_PRINCIPALE.test(src);
+    const base = { categorie: 'PARTIES', phrase: statutVendeur.phrase || '', page: statutVendeur.page || null };
+    return [rp
+      ? { ...base, gravite: 'IMPORTANT',
+          titre: 'Logement de la famille : intervention du conjoint du vendeur',
+          description: "Le vendeur est marié et seul propriétaire, et le bien est présenté comme résidence principale. La vente du logement de la famille exige le consentement du conjoint (art. 215, al. 3 C. civ.), quel que soit le régime matrimonial et même si le bien est un propre du vendeur : faire intervenir le conjoint à l'acte." }
+      : { ...base, gravite: 'A_VERIFIER',
+          titre: 'Vendeur marié seul propriétaire : intervention du conjoint à vérifier',
+          description: "Le vendeur est marié et vend seul. Si le bien constitue le logement de la famille (résidence principale), le conjoint doit consentir à la vente (art. 215, al. 3 C. civ.), même si le bien est un propre du vendeur : le faire alors intervenir à l'acte." }];
   }
 
   // --- Carnet d'entretien de l'immeuble (copropriété) -----------------------------------------
@@ -4934,8 +5006,11 @@
     const documents = detecterDocumentsDatesOutil2(texte, pages, aujourdHui);
     const engagements = typeof extraireEngagementsVendeur === 'function' ? extraireEngagementsVendeur(texte) : [];
     const statutAcquereurs = detecterStatutAcquereurs(texte, pages);
+    const statutVendeur = detecterStatutVendeur(texte, pages);
     const nbAcquereurs = (((entree && entree.extraction) || {}).parties || [])
       .filter(pp => String(pp.role || '').toUpperCase() === 'ACQUEREUR').length;
+    const nbVendeurs = (((entree && entree.extraction) || {}).parties || [])
+      .filter(pp => String(pp.role || '').toUpperCase() === 'VENDEUR').length;
 
     const clesEngagees = new Set();
     for (const e of engagements) {
@@ -4969,6 +5044,7 @@
       .concat(lectureActe)
       .concat(constatsCoherenceActe(entree && entree.extraction))
       .concat(constatsStatutAcquereurs(statutAcquereurs, nbAcquereurs))
+      .concat(constatsConjointVendeur(statutVendeur, nbVendeurs, texte))
       .concat(constatsTravauxRealises(travaux))
       .concat(constatsTravauxRealises(travauxCarnet, 'CARNET_ENTRETIEN'))
       .concat(constatsDocumentsDates(documents.filter(d => !clesEngagees.has(d.cle))))
@@ -6598,9 +6674,12 @@
     documentJournalDiagnosticOutil2(nomProjet, (entree && entree.pagesProjet) || []);
     const lectureActe = constatsLectureActe(texteProjet, (entree && entree.pagesProjet) || []);
     const statutAcquereurs = detecterStatutAcquereurs(texteProjet, (entree && entree.pagesProjet) || []);
+    const statutVendeur = detecterStatutVendeur(texteProjet, (entree && entree.pagesProjet) || []);
     const agsProjet = detecterAssembleesGenerales(texteProjet, (entree && entree.pagesProjet) || [], null);
     const nbAcquereurs = (((entree && entree.projet) || {}).parties || [])
       .filter(pp => String(pp.role || '').toUpperCase() === 'ACQUEREUR').length;
+    const nbVendeurs = (((entree && entree.projet) || {}).parties || [])
+      .filter(pp => String(pp.role || '').toUpperCase() === 'VENDEUR').length;
 
     // Copropriété : les deux volets s'appliquent ici, puisque l'avant-contrat EST signé et que la
     // date de vente est connue (ou, à défaut, bornée par le jour de la relecture). Les trois
@@ -6651,6 +6730,7 @@
       .concat(constatsCoherenceActe(entree && entree.projet))
       .concat(comparaison)
       .concat(constatsStatutAcquereurs(statutAcquereurs, nbAcquereurs))
+      .concat(constatsConjointVendeur(statutVendeur, nbVendeurs, texteProjet))
       .concat(constatsObligationsOutil2(obligations))
       .concat(constatsTravauxNonRepris(travaux, texteProjet))
       .concat(constatsTravauxRealises(travauxCarnet, 'CARNET_ENTRETIEN'))
@@ -7657,22 +7737,14 @@
   }
 
   function majAffichageCompromis() {
+    // Bandeau « Date de signature détectée » retiré de l'étape Vérifier à la demande de l'étude :
+    // la date de signature figure déjà dans le panneau « Ce que l'outil a compris » (ligne
+    // « signature », éditable — voir CHAMPS_REVISION et modifierDonneeRevision, qui appelle
+    // corrigerDateCompromis, y compris quand la date n'a pas été trouvée). Le bloc #compromis-info
+    // reste dans le DOM (encore référencé par toggleCompromisEdit/corrigerDateCompromis) mais n'est
+    // plus jamais affiché : une seule surface pour cette date.
     const info = document.getElementById('compromis-info');
-    const texte = document.getElementById('compromis-info-text');
-    info.style.display = 'flex';
-    if (dateCompromisDetectee && !dateCompromisEstimee) {
-      info.classList.remove('warn');
-      texte.textContent = `Date de signature détectée : ${formatDateFr(dateCompromisDetectee)}`;
-      document.getElementById('f-date-compromis').style.display = 'none';
-    } else if (dateCompromisDetectee && dateCompromisEstimee) {
-      info.classList.add('warn');
-      texte.textContent = `Date de signature estimée : ${formatDateFr(dateCompromisDetectee)} — à vérifier.`;
-      document.getElementById('f-date-compromis').style.display = 'none';
-    } else {
-      info.classList.add('warn');
-      texte.textContent = "Date de signature non trouvée — indiquez-la :";
-      document.getElementById('f-date-compromis').style.display = 'inline-block';
-    }
+    if (info) info.style.display = 'none';
   }
 
   function toggleCompromisEdit() {
@@ -8196,15 +8268,12 @@
           <button type="button" class="action-rapide" onclick="accepterPropositionIa('${cle}')">Utiliser</button>
           ${champ.propositionIa.extraitTrouve ? '' : '<span class="revision-raison">Le modèle cite une phrase qui ne figure pas dans le document : à traiter avec prudence.</span>'}
         </div>` : '';
-    // Relance ciblée à l'IA locale (voir redemanderChampIa) : proposée tant que la donnée n'a pas
-    // été relue, sur les seuls champs qui correspondent à une vraie lecture du texte (voir
-    // CLES_CIBLE_IA) — inutile de la proposer sur une valeur déjà saisie à la main ou déjà cochée.
-    const vide = !champ || champ.valeur === null || champ.valeur === undefined || champ.valeur === '';
-    const cibleEligible = CLES_CIBLE_IA.has(cle) && dernierTexteTraite && !verifie
-      && (vide || (champ && champ.statut === 'NEEDS_REVIEW'));
-    const boutonCible = cibleEligible
-      ? `<button type="button" class="action-rapide" id="revision-cible-${cle}" onclick="redemanderChampIa('${cle}')" title="Redemander cette seule donnée au modèle local, avec une fenêtre de texte plus large">${icone('rotate-ccw')} Redemander à l’IA</button>`
-      : '';
+    // Relance ciblée à l'IA locale (redemanderChampIa) DÉSACTIVÉE pour la création d'un nouveau
+    // dossier, comme l'enrichissement IA de l'import (voir traiterFichierPdf) : à la demande de
+    // l'étude, le modèle local ne participe plus à la relecture d'un nouveau dossier. Le bouton
+    // "Redemander à l'IA" n'est plus rendu ; redemanderChampIa/CLES_CIBLE_IA restent en place, sans
+    // appelant, pour un éventuel retour arrière. La correction d'un champ reste manuelle.
+    const boutonCible = '';
     return `<div class="revision-ligne${verifie ? ' revision-verifiee' : ''}">
       <div class="revision-tete">
         <span class="revision-libelle">${escapeHtml(definition.libelle)}</span>
@@ -9186,11 +9255,12 @@
       ambiguiteParType = { pret: false, acte: false, ventebien: false };
       approxParType = { pret: false, acte: false, ventebien: false };
       traiterTexte(texteComplet);
-      // Lancée EN ARRIÈRE-PLAN (jamais attendue ici) : la détection par regex ci-dessus reste le
-      // chemin principal, immédiat et déjà éprouvé — l'IA locale ne fait qu'enrichir ensuite ce
-      // qu'elle n'a pas trouvé, silencieusement si Ollama n'est pas disponible. Ne doit jamais
-      // retarder la suite de l'import (bascule d'étape, aperçu PDF...).
-      lancerExtractionIa(texteComplet, monImport);
+      // Enrichissement par IA locale (Ollama) DÉSACTIVÉ pour la création d'un nouveau dossier, à la
+      // demande de l'étude : la détection par regex ci-dessus reste seule à l'œuvre, chemin
+      // immédiat et éprouvé. L'appel `lancerExtractionIa(texteComplet, monImport)` a été retiré ici
+      // (la fonction et la route /api/extraction-ia restent en place, sans appelant, pour un
+      // éventuel retour arrière ou un usage futur — voir aussi "Redemander à l'IA" retiré du
+      // panneau de révision). Le modèle local ne sert plus qu'à l'Outil 2 (relecture d'actes).
       // Bascule automatiquement vers l'étape "Vérifier" : les dates/chips sont déjà là, plus besoin
       // de cliquer soi-même sur "Suivant" après un import qui vient de réussir.
       definirEtapeWizard(2);
@@ -11115,7 +11185,7 @@
   // pièce trouvée ou renouvelée ; une notification plus ancienne que ce champ n'a pas de date et
   // s'affiche quand même, en tête, marquée « Nouveau ».
   var JOURS_DERNIERES_PIECES = 14;
-  var MAX_DERNIERES_PIECES = 10;
+  var MAX_DERNIERES_PIECES = 6;   // demandé par l'étude : au plus 6 sur le tableau de bord
 
   // Pure et testable : une entrée par (dossier, pièce), les non vues d'abord puis la plus récente.
   function dernieresPiecesTrouvees(dossiersActifs, maintenantMs) {
@@ -11605,19 +11675,38 @@
     // prêt » comme la prochaine chose à surveiller alors qu'il n'y a plus rien à y suivre.
     if (!echeanceValidee(d, 'pret')) items.push({ type: 'pret', label: 'Obtention du prêt', iso: d.pret });
 
-    const appelFondsFait = echeanceValidee(d, 'appelFonds');
-    if (!appelFondsFait) {
-      items.push({ type: 'appelFonds', label: 'Envoi appel de fonds', iso: d.appelFonds || d.rendezVousSignature });
+    // L'étape courante avant signature : appel de fonds, puis projet d'acte envoyé, puis signature.
+    // À défaut de date propre, elle prend celle du rendez-vous de signature (elle doit de toute
+    // façon être faite avant lui). La date butoir de réitération (d.acte) n'y sert PAS d'ancre par
+    // défaut : elle vient de l'avant-contrat, n'est qu'indicative, et l'utiliser partout ferait
+    // apparaître un « Envoi appel de fonds » prématuré sur chaque dossier encore en cours de prêt.
+    let etape = null;
+    if (!echeanceValidee(d, 'appelFonds')) {
+      etape = { type: 'appelFonds', label: 'Envoi appel de fonds', iso: d.appelFonds || d.rendezVousSignature };
     } else if (!echeanceValidee(d, 'projetEnvoye')) {
-      items.push({ type: 'projetEnvoye', label: 'Envoi projet', iso: d.projetEnvoye || d.rendezVousSignature });
+      etape = { type: 'projetEnvoye', label: 'Envoi projet', iso: d.projetEnvoye || d.rendezVousSignature };
     } else if (!echeanceValidee(d, 'rendezVousSignature')) {
-      items.push({ type: 'rendezVousSignature', label: 'Signature de l’acte', iso: d.rendezVousSignature });
+      etape = { type: 'rendezVousSignature', label: 'Signature de l’acte', iso: d.rendezVousSignature };
     }
+    if (etape) items.push(etape);
 
     (d.autres || []).forEach((a, i) => {
       if (!echeanceValidee(d, 'autre-' + i)) items.push({ type: 'autre', label: a.label, iso: a.date, index: i });
     });
-    return items.filter(it => it.iso);
+    let reels = items.filter(it => it.iso);
+
+    // Filet de sécurité (demandé par l'étude) : un dossier dont l'offre est reçue mais dont le
+    // rendez-vous n'est pas encore placé — typiquement une participation — n'avait plus AUCUNE
+    // échéance datée et DISPARAISSAIT du planning, au moment précis où il faut placer le rendez-vous
+    // avec le confrère. Si rien ne reste, qu'une étape avant signature est encore à faire mais sans
+    // date, et qu'une date butoir existe (sans rendez-vous ni butoir déjà validé), on garde le
+    // dossier visible en ancrant cette étape sur la date butoir — seule échéance opérante tant
+    // qu'aucun rendez-vous ne la remplace. Ciblé sur ce seul cas : jamais une échéance sur le butoir
+    // quand le dossier a déjà autre chose à surveiller (prêt, vente préalable…).
+    if (!reels.length && etape && !etape.iso && d.acte && !d.rendezVousSignature && !echeanceValidee(d, 'acte')) {
+      reels = [Object.assign({}, etape, { iso: d.acte })];
+    }
+    return reels;
   }
 
   function toutesEcheances(d) {
@@ -12283,17 +12372,16 @@
     const moisRef = new Date((agendaJourSelectionne || semaine[3].iso) + 'T00:00:00');
     const mois = moisRef.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
 
-    let liste;
-    let titreListe;
-    if (agendaJourSelectionne) {
-      liste = trierRendezVous(perimetreActifs
-        .filter(d => d.rendezVousSignature === agendaJourSelectionne)
-        .map(d => rendezVousDepuisDossier(d, ecartJours(aujourdhui, agendaJourSelectionne))));
-      titreListe = new Date(agendaJourSelectionne + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-    } else {
-      liste = rendezVousProchains(perimetreActifs, aujourdhui);
-      titreListe = `Prochains rendez-vous — ${JOURS_RENDEZ_VOUS_DASHBOARD} jours`;
-    }
+    // Le jour effectivement affiché : celui cliqué dans la bande, sinon AUJOURD'HUI. Demandé par
+    // l'étude — l'agenda du tableau de bord ne montre par défaut que les rendez-vous du jour (la
+    // bande reste cliquable pour consulter un autre jour), et non plus les N jours à venir en bloc.
+    const jourAffiche = agendaJourSelectionne || aujourdhui;
+    const liste = trierRendezVous(perimetreActifs
+      .filter(d => d.rendezVousSignature === jourAffiche)
+      .map(d => rendezVousDepuisDossier(d, ecartJours(aujourdhui, jourAffiche))));
+    const titreListe = jourAffiche === aujourdhui
+      ? "Aujourd'hui"
+      : new Date(jourAffiche + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 
     const bande = semaine.map(j => {
       const dt = new Date(j.iso + 'T00:00:00');
@@ -12312,10 +12400,11 @@
 
     const etat = (ok, fait, reste) => `<span class="dot-label ${ok ? 'dl-success' : 'dl-pret'}"><span class="dot"></span>${ok ? fait : reste}</span>`;
     const lignes = liste.length ? liste.map(r => {
-      const quand = new Date(r.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
       const plage = plageHoraireRendezVous(r.heure, r.heureFin);
       const delai = r.jours === 0 ? "aujourd'hui" : r.jours > 0 ? `J-${r.jours}` : '';
-      const meta = [agendaJourSelectionne ? '' : quand, plage, delai].filter(Boolean).join(' · ');
+      // Le jour est déjà porté par le titre de la liste (« Aujourd'hui » ou la date sélectionnée) :
+      // seuls l'horaire et le décompte sont utiles ici.
+      const meta = [plage, delai].filter(Boolean).join(' · ');
       const lieu = [r.lieu, global && r.dossier.responsable ? prenomCollaborateur(r.dossier.responsable) : ''].filter(Boolean);
       return `
         <button type="button" class="agenda-rdv ton-${tonRendezVous(r)}" onclick="ouvrirDossierDepuisDashboard('${r.dossier.id}')">
@@ -12324,7 +12413,7 @@
           ${lieu.length ? `<span class="agenda-rdv-lieu">${lieu.map(escapeHtml).join(' · ')}</span>` : ''}
           <span class="agenda-rdv-etats">${etat(r.appelFondsEnvoye, 'Appel de fonds envoyé', 'Appel de fonds à envoyer')}${etat(r.projetEnvoye, 'Projet envoyé', 'Projet à envoyer')}</span>
         </button>`;
-    }).join('') : `<div class="agenda-vide">${agendaJourSelectionne ? 'Aucun rendez-vous de signature ce jour-là.' : `Aucun rendez-vous de signature dans les ${JOURS_RENDEZ_VOUS_DASHBOARD} prochains jours.`}</div>`;
+    }).join('') : `<div class="agenda-vide">${jourAffiche === aujourdhui ? "Aucun rendez-vous de signature aujourd'hui." : 'Aucun rendez-vous de signature ce jour-là.'}</div>`;
 
     bloc.innerHTML = `
       <div class="agenda-entete">
@@ -12341,7 +12430,7 @@
       <div class="agenda-liste">
         <div class="agenda-liste-titre">
           <span class="section-eyebrow">${escapeHtml(titreListe)}</span>
-          ${agendaJourSelectionne ? '<button type="button" class="lien-discret" onclick="selectionnerJourAgenda(null)">Tout voir</button>' : ''}
+          ${agendaJourSelectionne ? '<button type="button" class="lien-discret" onclick="selectionnerJourAgenda(null)">Revenir à aujourd’hui</button>' : ''}
         </div>
         ${lignes}
       </div>`;
@@ -12390,11 +12479,11 @@
             ajouter(d, j <= 2 ? 'critique' : 'vigilance', titre, `Signature le ${court(d.rendezVousSignature)}${heure ? ' à ' + heure : ''}`, j);
           }
         }
-        // Signature fixée après la date butoir de l'avant-contrat.
-        if (d.acte && j !== null && j >= 0) {
-          const ecart = ecartJours(d.acte, d.rendezVousSignature);
-          if (ecart > 0) ajouter(d, 'vigilance', 'Vérifier le report de la date butoir', `Signature ${ecart} j après le butoir du ${court(d.acte)}`, j);
-        }
+        // Signature fixée APRÈS la date butoir de l'avant-contrat : plus d'alerte de « report » à la
+        // demande de l'étude. Fixer un rendez-vous postérieur au butoir est une décision assumée
+        // (les parties ont convenu d'une date plus tardive) ; le butoir n'étant qu'indicatif, il n'y
+        // a rien à « vérifier » ni à relancer — l'écart reste visible sur la fiche (voir renderTab /
+        // butoirRemplacePar), la synthèse n'a pas à le répéter.
       } else if (d.acte) {
         // Date butoir proche, et aucun rendez-vous de signature fixé.
         const j = ecartJours(aujourdhuiIso, d.acte);
@@ -12606,6 +12695,7 @@
   var JOURS_RAPPEL_RIB = 3;            // email « RIB et pièce d'identité » avant la signature
   var JOURS_QUESTIONNAIRE = 30;        // questionnaire proposé dans le mois qui suit la signature
   var JOURS_A_VENIR = 30;              // horizon de « À venir »
+  var JOURS_HORIZON_A_FAIRE = 15;      // « À faire » ne couvre que les 15 jours à venir (étude)
   var ORDRE_GRAVITE_JOUR = { critique: 0, vigilance: 1, normal: 2 };
   var LIBELLE_HISTORIQUE_RIB = 'Relance manuelle envoyée — RIB';
 
@@ -12779,10 +12869,18 @@
         aVenir.push({ dossier: d, titre: prochaine.label, detail: courtDateJour(prochaine.iso), iso: prochaine.iso });
       }
     }
+    // Demandé par l'étude : « À faire » ne couvre que les 15 jours à venir. On garde ce qui est en
+    // retard (jours < 0 — c'est le plus urgent) et les points d'état sans date (jours null :
+    // « Réclamer les pièces »…), on écarte seulement une action dont l'échéance est à plus de
+    // 15 jours ; elle réapparaîtra le moment venu, et la prochaine échéance lointaine reste, elle,
+    // dans « À venir ». Les fenêtres par règle ci-dessus sont déjà ≤ 15 jours : ce plafond en fait
+    // une garantie explicite et uniforme plutôt qu'une somme de bornes éparses.
+    const dansHorizonAFaire = (a) => a.jours === null || a.jours === undefined || a.jours <= JOURS_HORIZON_A_FAIRE;
+    const actionsHorizon = actions.filter(dansHorizonAFaire);
     const rang = (a) => [ORDRE_GRAVITE_JOUR[a.gravite], a.jours === null || a.jours === undefined ? 999 : a.jours];
-    actions.sort((a, b) => { const x = rang(a), y = rang(b); return (x[0] - y[0]) || (x[1] - y[1]) || String(a.dossier.nom).localeCompare(String(b.dossier.nom)); });
+    actionsHorizon.sort((a, b) => { const x = rang(a), y = rang(b); return (x[0] - y[0]) || (x[1] - y[1]) || String(a.dossier.nom).localeCompare(String(b.dossier.nom)); });
     aVenir.sort((a, b) => (a.iso || '9999').localeCompare(b.iso || '9999'));
-    return { actions, aVenir };
+    return { actions: actionsHorizon, aVenir };
   }
 
   // Pure : le brouillon qu'ouvrira l'action (destinataire, objet, corps), pour l'afficher AVANT le
@@ -13220,14 +13318,19 @@
       <div class="jour-carte-corps">
         ${actions.length ? `<ul class="ja-liste ja-compacte">${visibles.map(a => renderLigneActionJour(a, global)).join('')}</ul>` : '<div class="a-traiter-vide">✓ Rien à faire aujourd’hui sur vos dossiers.</div>'}
         <button type="button" class="urgent-groupe-reste" onclick="definirOnglet('aujourdhui')">${reste > 0 ? `et ${reste} autre${reste > 1 ? 's' : ''} — ` : ''}ouvrir la page Aujourd’hui</button>
-      </div>
-      ${ongletActuel === 'aujourdhui' ? '' : `<div class="rappels-perso">
-        <div class="section-eyebrow">Mes rappels</div>
-        ${renderMesRappels(perimetreActifs)}
-      </div>`}`;
+      </div>`;
     majBadgeAujourdhui(actions.length);
     if (ongletActuel === 'aujourdhui') renderPageAujourdhui();
     renderFenetreAujourdhui();
+  }
+
+  // « Mes rappels » détaché dans sa propre carte du tableau de bord (demandé par l'étude) plutôt
+  // que glissé au bas de la carte « Aujourd'hui ». Rempli à chaque render(), comme les autres cartes
+  // du rail.
+  function renderRappelsDashboard(perimetreActifs) {
+    const bloc = document.getElementById('rappels-dashboard');
+    if (!bloc) return;
+    bloc.innerHTML = renderMesRappels(perimetreActifs);
   }
 
   function majBadgeAujourdhui(n) {
@@ -13413,6 +13516,7 @@
     renderAccueilDashboard(perimetreActifs, calculerStatsPortefeuille(perimetreActifs));
     renderRendezVousDashboard(perimetreActifs);
     renderAlertesDashboard(perimetreActifs);
+    renderRappelsDashboard(perimetreActifs);
     renderPiecesRecuesDashboard(perimetreActifs);
     renderRechercheDashboard(dossiersActifs);
     majBadgeNotificationsSidebar();
@@ -14381,6 +14485,7 @@
 
             <section class="fiche-panneau" data-onglet="echanges" role="tabpanel"${cache('echanges')}>
               ${renderRelancesCiblees(d)}
+              ${renderReceptionFonds(d)}
               ${renderQuestionnaireSatisfaction(d)}
               ${renderAppelFondsDossier(d)}
             </section>
@@ -14976,7 +15081,9 @@
       : '';
     return {
       sujet: `Réception des fonds — dossier ${d.nom}`,
-      corps: `Bonjour,\n\nNous vous confirmons que les fonds destinés à votre acquisition (dossier ${d.nom}) ont bien été reçus en notre comptabilité.${rdv}\n\nNous restons à votre disposition pour toute question.${SIGNATURE_EMAIL_OFFICE}`
+      // Nom du dossier retiré du CORPS à la demande de l'étude (il reste dans l'objet) : le client
+      // sait de quelle acquisition il s'agit, le rappeler dans le texte n'apporte rien.
+      corps: `Bonjour,\n\nNous vous confirmons que les fonds destinés à votre acquisition ont bien été reçus en notre comptabilité.${rdv}\n\nNous restons à votre disposition pour toute question.${SIGNATURE_EMAIL_OFFICE}`
     };
   }
 
