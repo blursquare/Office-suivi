@@ -138,3 +138,13 @@ test('dossiersAVerifierFonds : dossiers du poste, appel de fonds fait, avant le 
   assert.equal(app.dossiersAVerifierFonds(liste, 'Julie VASSELIN', '2026-10-05', maintenant).map(d => d.id).join(','), 'a,g');
   assert.equal(app.dossiersAVerifierFonds(liste, '', '2026-10-05', maintenant).length, 0);
 });
+
+test('fichiersDecompteRacine : noms employés par l’étude, jamais un décompte de remboursement de prêt', () => {
+  const app = chargerApplication();
+  const { parNom } = app.fichiersDecompteRacine([
+    { nom: 'Convocation au rendez-vous contenant l’appel de fonds.pdf', chemin: 'Convocation au rendez-vous contenant l’appel de fonds.pdf' },
+    { nom: 'Décompte acquéreur.pdf', chemin: 'Décompte acquéreur.pdf' },
+    { nom: 'DECOMPTE de remboursement ECO PRET.pdf', chemin: 'DECOMPTE de remboursement ECO PRET.pdf' }
+  ], '');
+  assert.equal(parNom.map(f => f.nom).sort().join(' | '), 'Convocation au rendez-vous contenant l’appel de fonds.pdf | Décompte acquéreur.pdf');
+});

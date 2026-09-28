@@ -11508,3 +11508,26 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
   seulement si leur texte annonce lui-même un solde (`meta.soldeDeclare`), jamais sur un montant
   recalculé. Seuls les PDF sont lus (un décompte resté en Word n'est pas vu : saisir le montant).
   Non vérifié ici : Teams réel, reçus et décomptes réels au-delà des exemples fournis.
+
+- **29/09/2026 — Appel de fonds noté automatiquement depuis le NAS** (demandé par l'étude : « si le
+  document est détecté et que le collaborateur a oublié de le noter, mettre la date du jour de la
+  détection comme date d'envoi de l'appel de fonds et valider la tâche »). Noms donnés par l'étude :
+  « Convocation au rendez-vous contenant l'appel de fonds », « Décompte acquéreur ».
+  **Serveur** (`nasWatch.js`, tour de 10 min, sans poste ouvert) : `fichierAppelFondsRacine` —
+  PDF à la **racine** du dossier relié dont le nom contient « appel de fonds », « décompte » ou
+  « convocation », hors `RE_NOM_APPEL_FONDS_EXCLU` (remboursement, prêt, amortissement, offre,
+  crédit, reçu : le « DECOMPTE de remboursement ECO PRET » d'une pièce n'est pas un appel de fonds).
+  `noterAppelFondsDetecte` : `appelFonds` = jour de la détection (heure de Paris),
+  `echeancesValidees.appelFonds`, ligne d'historique signée CLAIRE, repère
+  `d.detectionsNas = { appelFonds, appelFondsFichier }`. Mêmes garde-fous que l'agenda
+  (agendaWatch.js) : jamais par-dessus une date ou une validation connues, une seule fois par dossier
+  (le repère empêche de réécrire une date effacée à la main), jamais sur un dossier archivé ou dont
+  le rendez-vous est passé. La tâche « Envoyer l'appel de fonds » et les rappels d'appel de fonds
+  s'arrêtent d'eux-mêmes (échéance validée).
+  **Client** : la ligne « Envoi appel de fonds » dit « Noté automatiquement : courrier trouvé sur le
+  NAS » (nom du fichier en infobulle) ; le serveur n'écrivant pas dans l'agenda Outlook, l'encadré
+  « Prochaine étape » propose « Noter dans l'agenda : Appel de fonds envoyé » tant que ce n'est pas
+  fait (connexion Exchange configurée seulement). Même exclusion ajoutée à la recherche du montant
+  attendu (`RE_NOM_DECOMPTE_EXCLU`, à garder identique au motif serveur).
+  À noter pour le premier déploiement : tout dossier en cours dont le courrier est déjà sur le NAS
+  sans date d'envoi recevra la date du jour du premier tour.

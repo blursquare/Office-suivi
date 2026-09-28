@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 00:11';
+  const VERSION_APP = '2026-09-29 00:22';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 00:22', resume: "Appel de fonds oublié : quand le courrier (« Convocation au rendez-vous contenant l'appel de fonds », « Décompte acquéreur »…) est à la racine du dossier NAS et que l'envoi n'est pas noté, CLAIRE met la date du jour comme date d'envoi et valide la tâche." },
     { version: '2026-09-29 00:11', resume: "Fonds de l'acquéreur : message Teams au collaborateur quand tous les fonds sont reçus, ou s'ils ne le sont pas en entier 48 h avant le rendez-vous (le vendredi pour un rendez-vous le lundi ou le mardi). Les reçus sont revérifiés automatiquement chaque heure ; le montant attendu est lu dans le décompte ou la convocation à la racine du dossier relié." },
     { version: '2026-09-29 00:05', resume: "« Fonds reçus » et « Confirmer la réception des fonds » ne font plus qu'une ligne : on vérifie les reçus, puis « Confirmer » (email au client) apparaît quand tous les fonds sont reçus ; « confirmer quand même » reste possible si un versement n'est pas dans les reçus lus." },
     { version: '2026-09-28 23:59', resume: "Achat comptant : la ligne « Obtention du prêt » devient « Financement comptant », sans date ni rien à cocher." },
@@ -10617,6 +10618,9 @@
 
   var RE_NOM_DECOMPTE = /(appel\s*de\s*fonds|d[ée]compte|convocation|tableau|fonds\s*[àa]\s*(verser|virer)|sommes?\s*[àa]\s*(verser|virer))/i;
   var RE_NOM_DECOMPTE_SUR = /(appel\s*de\s*fonds|d[ée]compte|convocation)/i;
+  // Un « décompte » qui n'est pas celui de la vente (remboursement d'un prêt, amortissement…).
+  // Même motif que RE_NOM_APPEL_FONDS_EXCLU (server/src/nasWatch.js) : à modifier ensemble.
+  var RE_NOM_DECOMPTE_EXCLU = /(rembours|pr[eê]t|amortissement|offre|cr[ée]dit|re[cç]u)/i;
   // Ce qui n'est jamais un décompte, écarté de la lecture par le contenu (voir fichiersDecompteRacine).
   var RE_NOM_PAS_DECOMPTE = /(compromis|promesse|avant\s*contrat|offre|pr[eê]t|diagnostic|ddt|dpe|titre|plan|cadastre|urbanisme|r[èe]glement|reglement|proc[eè]s|pv|identit|cni|passeport|rib|mandat|facture|devis|re[cç]u|amortissement)/i;
   var cachePagesRecus = new Map();   // chemin → pages de lignes (les reçus d'un jour ne changent plus)
@@ -10645,7 +10649,7 @@
     const racine = (fichiers || []).filter(f => f && f.chemin && !/[\\/]/.test(f.chemin));
     const recent = (a, b) => (anneeDansNomFichier(b.nom) || 0) - (anneeDansNomFichier(a.nom) || 0);
     const n = (f) => normaliserNomPourMotif(f.nom);
-    const parNom = racine.filter(f => RE_NOM_DECOMPTE_SUR.test(n(f))
+    const parNom = racine.filter(f => (RE_NOM_DECOMPTE_SUR.test(n(f)) && !RE_NOM_DECOMPTE_EXCLU.test(n(f)))
       || (RE_NOM_DECOMPTE.test(n(f)) && !RE_NOM_PAS_DECOMPTE.test(n(f)))).sort(recent);
     const autres = racine.filter(f => !parNom.includes(f) && f.nom !== nomAvantContrat
       && !RE_NOM_PAS_DECOMPTE.test(normaliserNomPourMotif(f.nom))).sort(recent);
@@ -11319,8 +11323,13 @@
       ENVOIS_AVANT_SIGNATURE.forEach(({ cle, label }) => {
         const iso = d[cle] || '';
         const detecte = iso && d.detectionsAgenda && d.detectionsAgenda[cle];
+        // Envoi noté automatiquement parce que le courrier est sur le NAS (voir nasWatch.js), tant
+        // que la date n'a pas été corrigée à la main.
+        const nas = cle === 'appelFonds' && iso && d.detectionsNas && d.detectionsNas.appelFonds === iso;
+        const note = detecte ? '<span class="ech-note">Relevé dans l’agenda</span>'
+          : nas ? `<span class="ech-note" title="${escapeAttr(d.detectionsNas.appelFondsFichier || '')}">Noté automatiquement : courrier trouvé sur le NAS</span>` : '';
         lignes.push({ iso, html: renderLigneEcheance(cle, label, iso, d.id, null, null, null, false,
-          detecte ? '<span class="ech-note">Relevé dans l’agenda</span>' : '', false,
+          note, false,
           iso ? true : echeanceValidee(d, cle), { etatSansDate: 'À envoyer', etatFait: '✓ Envoyé', sansValidation: true }) });
       });
     }
@@ -11390,8 +11399,13 @@
     const lignes = actionsFicheDossier(d).map(a => renderLigneActionJour(a, false, true));
     const creerRdv = renderLigneCreerRdvAgenda(d);
     if (creerRdv) lignes.push(creerRdv);
-    // Échec de la note d'agenda automatique : à reprendre, donc à faire.
-    if (d.agendaLieuEchec && d.agendaLieuEchec.message) lignes.push(renderNoterAgenda(d));
+    // Échec de la note d'agenda automatique, ou envoi noté par CLAIRE depuis le NAS (le serveur ne
+    // l'écrit pas dans l'agenda) : à reprendre, donc à faire.
+    const envoiNoteParNas = d.detectionsNas && d.detectionsNas.appelFonds && d.detectionsNas.appelFonds === d.appelFonds && !d.agendaLieuNoteLe;
+    if ((d.agendaLieuEchec && d.agendaLieuEchec.message) || envoiNoteParNas) {
+      const ligneAgenda = renderNoterAgenda(d);
+      if (ligneAgenda) lignes.push(ligneAgenda);
+    }
     if (!prochaine && !lignes.length) return '';
     let tete = '<div class="prochaine-tete"><span class="section-eyebrow">À faire sur ce dossier</span></div>';
     let ton = '';

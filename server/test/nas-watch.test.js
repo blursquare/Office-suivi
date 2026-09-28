@@ -115,3 +115,53 @@ test('un fichier renommé (retiré + ajouté) redéclenche bien une notification
   const d1 = depot.trouverParId('d1');
   assert.deepEqual(d1.nasNouveaute.fichiers, ['Offre de pret signee.pdf']);
 });
+
+// --- Appel de fonds noté automatiquement depuis le NAS (29/09) --------------------------------
+const { fichierAppelFondsRacine, appelFondsANoter, noterAppelFondsDetecte } = require('../src/nasWatch');
+
+test('appel de fonds : noms de l’étude reconnus à la racine, jamais un décompte de prêt ni un sous-dossier', () => {
+  assert.equal(fichierAppelFondsRacine(['Convocation au rendez-vous contenant l’appel de fonds.pdf']), 'Convocation au rendez-vous contenant l’appel de fonds.pdf');
+  assert.equal(fichierAppelFondsRacine(['Compromis.pdf', 'Décompte acquéreur.pdf']), 'Décompte acquéreur.pdf');
+  assert.equal(fichierAppelFondsRacine(['DECOMPTE_acquereur.pdf']), 'DECOMPTE_acquereur.pdf');
+  assert.equal(fichierAppelFondsRacine(['AAE/Décompte acquéreur.pdf']), null);
+  assert.equal(fichierAppelFondsRacine(['AAE\\Décompte acquéreur.pdf']), null);
+  assert.equal(fichierAppelFondsRacine(['DECOMPTE de remboursement ECO PRET.pdf', 'Tableau amortissement.pdf']), null);
+});
+
+test('appel de fonds : noté à la date de détection, validé, une seule fois, jamais par-dessus une date connue', () => {
+  const d = { id: 'd1', nom: 'X / Y', rendezVousSignature: '2026-10-20', historique: [] };
+  const chemins = ['Décompte acquéreur.pdf'];
+  const maj = noterAppelFondsDetecte(d, chemins, '2026-10-05');
+  assert.equal(maj.appelFonds, '2026-10-05');
+  assert.equal(maj.echeancesValidees.appelFonds, true);
+  assert.equal(maj.detectionsNas.appelFonds, '2026-10-05');
+  assert.equal(maj.detectionsNas.appelFondsFichier, 'Décompte acquéreur.pdf');
+  assert.match(maj.historique[0].texte, /noté automatiquement : « Décompte acquéreur\.pdf »/);
+  assert.equal(d.appelFonds, undefined, 'le dossier d’origine n’est pas modifié');
+  // Déjà noté (date saisie, validation manuelle, ou détection passée même si la date a été effacée).
+  assert.equal(appelFondsANoter(Object.assign({}, d, { appelFonds: '2026-10-01' }), chemins, '2026-10-05'), null);
+  assert.equal(appelFondsANoter(Object.assign({}, d, { echeancesValidees: { appelFonds: true } }), chemins, '2026-10-05'), null);
+  assert.equal(appelFondsANoter(Object.assign({}, d, { detectionsNas: { appelFonds: '2026-10-02' } }), chemins, '2026-10-05'), null);
+  // Rendez-vous passé, ou dossier archivé : la date du jour serait fausse.
+  assert.equal(appelFondsANoter(Object.assign({}, d, { rendezVousSignature: '2026-10-01' }), chemins, '2026-10-05'), null);
+  assert.equal(appelFondsANoter(Object.assign({}, d, { archive: true }), chemins, '2026-10-05'), null);
+});
+
+test('tour de surveillance : l’appel de fonds trouvé est enregistré sur le dossier', async () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const racine = fs.mkdtempSync(path.join(os.tmpdir(), 'claire-af-'));
+  try {
+    fs.mkdirSync(path.join(racine, 'DUPONT'));
+    fs.writeFileSync(path.join(racine, 'DUPONT', 'Convocation au rendez-vous contenant l’appel de fonds.pdf'), '%PDF-1.4');
+    let d = { id: 'd1', nom: 'DUPONT / MARTIN', nasDossier: 'DUPONT', rendezVousSignature: '2099-01-10', historique: [] };
+    const depot = { tousActifs: () => [d], remplacer: (id, nouveau) => { d = nouveau; } };
+    const r = await executerTourSurveillanceNas(depot, racine, '2026-10-05');
+    assert.equal(r.appelsFondsNotes, 1);
+    assert.equal(d.appelFonds, '2026-10-05');
+    const r2 = await executerTourSurveillanceNas(depot, racine, '2026-10-06');
+    assert.equal(r2.appelsFondsNotes, 0);
+    assert.equal(d.appelFonds, '2026-10-05');
+  } finally { fs.rmSync(racine, { recursive: true, force: true }); }
+});

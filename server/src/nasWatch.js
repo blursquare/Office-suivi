@@ -36,6 +36,58 @@ function memeInventaire(a, b) {
   return sa.every((valeur, i) => valeur === sb[i]);
 }
 
+// ---- Appel de fonds oublié (demandé par l'étude le 29/09) ----
+// Le courrier d'appel de fonds (« Convocation au rendez-vous contenant l'appel de fonds »,
+// « Décompte acquéreur », tableau envoyé au confrère…) est rangé à la RACINE du dossier NAS relié.
+// Quand il y est et que l'envoi n'est pas noté sur le dossier, CLAIRE le note elle-même : date
+// d'envoi = jour de la détection, échéance validée (la tâche « Envoyer l'appel de fonds » disparaît).
+// Même règle que les envois relevés dans l'agenda (agendaWatch.js) : un repère
+// (d.detectionsNas.appelFonds) empêche de repasser dessus, même si la date est ensuite effacée ou
+// corrigée à la main. Jamais par-dessus une date ou une validation déjà connues, jamais sur un
+// dossier dont le rendez-vous de signature est passé (la date du jour y serait fausse).
+// Nom seulement, comme pour les pièces : « décompte », « convocation », « appel de fonds », en
+// écartant les décomptes qui n'en sont pas (remboursement d'un prêt, tableau d'amortissement…).
+const RE_NOM_APPEL_FONDS = /(appel\s*de\s*fonds|d[ée]compte|convocation)/i;
+const RE_NOM_APPEL_FONDS_EXCLU = /(rembours|pr[eê]t|amortissement|offre|cr[ée]dit|re[cç]u)/i;
+
+function dateDuJourParis() {
+  return new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });
+}
+
+// Pure : le premier PDF de la racine (chemin relatif sans séparateur) qui est un appel de fonds.
+function fichierAppelFondsRacine(chemins) {
+  return (chemins || []).find((c) => {
+    if (typeof c !== 'string' || /[\\/]/.test(c)) return false;
+    const nom = c.normalize('NFC').replace(/[_-]+/g, ' ');
+    return RE_NOM_APPEL_FONDS.test(nom) && !RE_NOM_APPEL_FONDS_EXCLU.test(nom);
+  }) || null;
+}
+
+// Pure : le fichier qui justifie de noter l'envoi sur ce dossier, ou null.
+function appelFondsANoter(d, chemins, jour) {
+  if (!d || d.archive || d.appelFonds) return null;
+  if (d.echeancesValidees && d.echeancesValidees.appelFonds) return null;
+  if (d.detectionsNas && d.detectionsNas.appelFonds) return null;
+  if (d.rendezVousSignature && d.rendezVousSignature < jour) return null;
+  return fichierAppelFondsRacine(chemins);
+}
+
+// Applique la détection à une copie du dossier (renvoyée), ou renvoie null si rien à faire.
+function noterAppelFondsDetecte(d, chemins, jour) {
+  const fichier = appelFondsANoter(d, chemins, jour);
+  if (!fichier) return null;
+  return {
+    ...d,
+    appelFonds: jour,
+    echeancesValidees: { ...(d.echeancesValidees || {}), appelFonds: true },
+    detectionsNas: { ...(d.detectionsNas || {}), appelFonds: jour, appelFondsFichier: fichier },
+    historique: [...(d.historique || []), {
+      date: new Date().toISOString(),
+      texte: `Envoi de l’appel de fonds noté automatiquement : « ${fichier} » trouvé dans le dossier du NAS`
+    }]
+  };
+}
+
 // Un tour de surveillance : pour chaque dossier actif relié au NAS, relit la liste de ses PDF (nom
 // seul, jamais leur contenu) et compare à l'inventaire déjà connu. `depot.remplacer` n'est appelé
 // que si quelque chose a changé — pas à chaque tour sur un portefeuille inchangé, ce qui ferait
@@ -55,9 +107,10 @@ function memeInventaire(a, b) {
 //      qu'un portefeuille qui grandit ne puisse jamais monopoliser le serveur à nouveau.
 const respirer = () => new Promise((resolve) => setImmediate(resolve));
 
-async function executerTourSurveillanceNas(depot, racineNas) {
-  const resultat = { dossiersVerifies: 0, dossiersNotifies: 0 };
+async function executerTourSurveillanceNas(depot, racineNas, aujourdHui) {
+  const resultat = { dossiersVerifies: 0, dossiersNotifies: 0, appelsFondsNotes: 0 };
   if (!racineNas) return resultat;
+  const jour = aujourdHui || dateDuJourParis();
   for (const d of depot.tousActifs()) {
     if (d.archive || !d.nasDossier) continue;
     const chemin = await resoudreCheminNas(racineNas, d.nasDossier);
@@ -71,13 +124,16 @@ async function executerTourSurveillanceNas(depot, racineNas) {
       continue; // dossier illisible entretemps (déplacé, permissions) : jamais fatal pour les autres
     }
     const nouveaux = detecterNouveauxFichiers(d.nasInventaire, fichiers);
+    const avecAppelFonds = noterAppelFondsDetecte(d, fichiers, jour);
+    const base = avecAppelFonds || d;
+    if (avecAppelFonds) resultat.appelsFondsNotes++;
     if (nouveaux.length > 0) {
       resultat.dossiersNotifies++;
-      depot.remplacer(d.id, { ...d, nasInventaire: fichiers, nasNouveaute: { at: Date.now(), fichiers: nouveaux } });
-    } else if (!memeInventaire(d.nasInventaire, fichiers)) {
+      depot.remplacer(d.id, { ...base, nasInventaire: fichiers, nasNouveaute: { at: Date.now(), fichiers: nouveaux } });
+    } else if (avecAppelFonds || !memeInventaire(d.nasInventaire, fichiers)) {
       // Rien de neuf à signaler, mais l'inventaire mémorisé a changé (fichier renommé/retiré) :
       // on le rafraîchit silencieusement pour que le prochain tour compare au bon référentiel.
-      depot.remplacer(d.id, { ...d, nasInventaire: fichiers });
+      depot.remplacer(d.id, { ...base, nasInventaire: fichiers });
     }
   }
   return resultat;
@@ -110,5 +166,6 @@ function demarrerSurveillanceNas(depot, config, intervalleMs) {
 
 module.exports = {
   detecterNouveauxFichiers, memeInventaire, executerTourSurveillanceNas,
+  fichierAppelFondsRacine, appelFondsANoter, noterAppelFondsDetecte,
   demarrerSurveillanceNas, INTERVALLE_SURVEILLANCE_NAS_MS
 };
