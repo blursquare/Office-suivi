@@ -8888,6 +8888,29 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     cet environnement — la reconnaissance du vocabulaire d'absence réel de l'étude (comment elle
     nomme ces événements) reste à confirmer une fois l'URL de l'agenda renseignée, comme pour la
     détection des envois déjà en place.
+- **Carte « Aujourd'hui » du tableau de bord alignée sur la page** (demandé par l'étude, juste après
+  avoir masqué la page dédiée) : la carte reprend la MÊME présentation de « À faire » que la page /
+  la fenêtre du matin (`renderListeJour` — une ligne par action avec son geste), au lieu de la
+  version compacte `.ja-compacte` d'avant. « Mes rappels » repasse **sous** cette liste, dans la même
+  carte (`.dash-rappels-bloc` + `.jour-carte-sous-titre`), avec « + Ajouter un rappel » : sa carte
+  séparée du rail (`#rappels-dashboard`) est supprimée, `renderRappelsDashboard` avec elle —
+  `renderAlertesDashboard` insère directement `renderMesRappels(perimetreActifs)`.
+  `.dash-bloc-traiter` et `.dash-avancement` passent à `flex: 1 1 340px` **à égalité** (au lieu de
+  220/350 et 1/1.6), pour que « Aujourd'hui » et « Avancement des dossiers » se lisent aussi bien
+  l'un que l'autre quand les deux sont visibles ; quand l'avancement est masqué (aucun dossier),
+  « Aujourd'hui » prend toute la largeur, comme avant.
+  - **Animation festive** (`renderFeteJour`) quand toutes les tâches du jour sont faites
+    (`actions.length === 0 && traites.length > 0`) : un bandeau vert « Journée bouclée, bravo ! » et,
+    **une seule fois par jour et par poste** (repère `localStorage` `claire-fete-jour:<poste>`), une
+    courte pluie de confettis — rejouer l'animation à chaque `render()` (relancé à chaque action)
+    serait pénible. Respecte `prefers-reduced-motion` (confettis masqués). Couleurs : jetons
+    existants (`--success`/`--focus`/`--pret`), aucune inventée.
+  - **Bloc « Dernières pièces » condensé** (`.derniere-piece` : padding 7px, police 13px/12px au lieu
+    des lignes de dossiers cliquables) — demandé par l'étude, pour tenir plus d'entrées sans allonger
+    le rail. Le plafond reste à 6.
+  - Vérifié dans un vrai Chromium (clair et sombre) : « Mes rappels » bien dans la carte « Aujourd'hui »
+    sous « À faire », la carte séparée du rail disparue, aucune erreur JS. `npm test` reste vert
+    (860 tests racine, 445 serveur — chantier entièrement présentation, aucune fonction pure modifiée).
 
 ## Comment tester
 

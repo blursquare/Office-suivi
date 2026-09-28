@@ -5297,13 +5297,16 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
 }
 .urgent-groupe-reste:hover { text-decoration: underline; }
 
-.derniere-piece { align-items: center; }
+/* Bloc « Dernières pièces » condensé (demandé par l'étude) : lignes plus serrées et police plus
+   petite que les listes de dossiers cliquables, pour tenir plus d'entrées sans allonger le rail. */
+.derniere-piece { align-items: center; gap: 8px; }
+.dash-liste-carte .derniere-piece { padding: 7px 10px; }
 .derniere-piece-date {
-  flex: 0 0 52px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums;
+  flex: 0 0 46px; font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums;
 }
 .derniere-piece-texte { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
-.derniere-piece-texte b { font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.derniere-piece-texte .action-urgente-raison { font-size: 12.5px; }
+.derniere-piece-texte b { font-size: 13px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.derniere-piece-texte .action-urgente-raison { font-size: 12px; }
 
 .avancement-dossiers {
   background: var(--paper-card); border: 1px solid var(--line); border-radius: 10px;
@@ -5410,8 +5413,11 @@ button.avancement-ligne:hover { background: var(--paper-sunk); }
    (voir plus bas), donc rien ne se casse à ces bases plus modestes. */
 .dash-duo { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px; }
 .dash-bloc { min-width: 0; container-type: inline-size; container-name: dashbloc; }
-.dash-duo > .dash-bloc-traiter { flex: 1 1 220px; }
-.dash-duo > .dash-avancement { flex: 1.6 1 350px; }
+/* « Aujourd'hui » (À faire + Mes rappels) et « Avancement des dossiers » à égalité, pour que les
+   deux se lisent aussi bien l'un que l'autre (demandé par l'étude). Même base et même croissance :
+   ils partagent la largeur à parts égales, et passent l'un sous l'autre quand elle manque. */
+.dash-duo > .dash-bloc-traiter { flex: 1 1 340px; }
+.dash-duo > .dash-avancement { flex: 1 1 340px; }
 /* Les quatre blocs sont des cartes au même gabarit (titre + sous-titre en tête, comme l'agenda
    et À traiter) : les listes qu'elles contiennent perdent leur propre cadre. */
 .agenda-carte .avancement-dossiers { border: 0; border-radius: 0; box-shadow: none; }
@@ -5813,6 +5819,46 @@ button.lien-action:hover { text-decoration: underline; }
 .ja-compacte .ja-titre { font-size: 13px; }
 .ja-compacte .ja-go span { display: none; }
 .ja-compacte .ja button.primary.ja-go { padding: 6px 8px; }
+
+/* « Mes rappels » sous la liste « À faire » de la carte Aujourd'hui (voir renderAlertesDashboard) :
+   un filet et un petit titre le séparent de la liste du dessus. */
+.dash-rappels-bloc { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line-soft); }
+.jour-carte-sous-titre {
+  margin: 0 0 6px; font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted);
+}
+
+/* Célébration quand toutes les tâches du jour sont faites (renderFeteJour). Discrète : un bandeau
+   vert avec un emoji et, une seule fois par jour, une petite pluie de confettis. */
+.jour-fete {
+  display: flex; align-items: center; gap: 8px; margin: 4px 0 8px; padding: 10px 12px;
+  border-radius: 8px; position: relative; overflow: hidden;
+  background: color-mix(in srgb, var(--success) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--success) 35%, transparent);
+}
+.jour-fete-emoji { font-size: 18px; line-height: 1; }
+.jour-fete-texte { font-size: 13.5px; font-weight: 600; color: var(--success); }
+.jour-confettis { position: absolute; inset: 0; pointer-events: none; }
+.jour-confetti {
+  position: absolute; top: -8px; left: calc(6% + var(--i) * 9%);
+  width: 6px; height: 6px; border-radius: 1px; opacity: 0;
+}
+.jour-confetti-0 { background: var(--success); }
+.jour-confetti-1 { background: var(--focus); }
+.jour-confetti-2 { background: var(--pret); }
+.jour-fete.anime .jour-confetti {
+  animation: jour-confetti-chute 1100ms ease-in forwards;
+  animation-delay: calc(var(--i) * 45ms);
+}
+@keyframes jour-confetti-chute {
+  0% { opacity: 0; transform: translateY(-8px) rotate(0deg); }
+  15% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(60px) rotate(220deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .jour-fete.anime .jour-confetti { animation: none; }
+  .jour-confettis { display: none; }
+}
 
 /* Listes simples du panneau (à venir). */
 .jour-liste-simple { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }

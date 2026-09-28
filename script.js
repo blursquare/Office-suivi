@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-28 13:48';
+  const VERSION_APP = '2026-09-28 14:01';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-28 14:01', resume: "Tableau de bord : la carte « Aujourd'hui » reprend la présentation complète de la page (une ligne par action avec son geste), « Mes rappels » repasse juste en dessous avec « + Ajouter un rappel », une petite animation festive salue une journée bouclée, et le bloc « Dernières pièces » est plus compact." },
     { version: '2026-09-28 13:48', resume: "Agenda du tableau de bord : les absences des collaborateurs notées dans l'agenda de l'office (congés, RTT…) sont affichées (« Absent cette semaine : … ») et un rendez-vous de signature dont le responsable est absent ce jour-là est signalé." },
     { version: '2026-09-28 13:31', resume: "« Aujourd'hui » : la page dédiée n'est plus affichée — seules restent la carte « Aujourd'hui » du tableau de bord et la fenêtre du point du matin (rouvrable depuis la carte)." },
     { version: '2026-09-28 13:20', resume: "Lot de 13 retouches : « Obtention du prêt » décochable si pas de prêt, bandeau « Date de signature détectée » retiré (déjà dans « Ce que l'outil a compris »), un dossier en participation offre reçue sans rendez-vous ne disparaît plus (date butoir en repli), bouton « Réception des fonds » dans l'onglet Échanges, « Mes rappels » détachée en carte du tableau de bord, « À faire » limité aux 15 jours, agenda du jour uniquement, dernières pièces limitées à 6, plus d'alerte de report si le rendez-vous est après le butoir, icône d'application non pixelisée, et — pour la relecture d'actes — le conjoint d'un vendeur marié seul propriétaire de la résidence principale est signalé." },
@@ -13357,15 +13358,44 @@
     }).join('')}</ul>`;
   }
 
-  // Carte « Aujourd'hui » du tableau de bord : la version courte, mêmes lignes que la page.
-  var MAX_ACTIONS_CARTE_JOUR = 5;
+  // Célébration quand toutes les tâches DU JOUR (les actions, pas les rappels) sont faites — demandé
+  // par l'étude. Jouée UNE SEULE FOIS par jour et par poste : render() se relance à chaque action,
+  // rejouer l'animation à chaque fois serait pénible. Le repère est en localStorage (par poste), donc
+  // elle ne rejoue pas non plus à un rechargement le même jour.
+  var CLE_FETE_JOUR = 'claire-fete-jour:';
+  function feteJourDejaCelebree(dateIso) {
+    try { return localStorage.getItem(CLE_FETE_JOUR + (utilisateurPoste || 'poste')) === dateIso; }
+    catch (e) { return false; }
+  }
+  function marquerFeteJourCelebree(dateIso) {
+    try { localStorage.setItem(CLE_FETE_JOUR + (utilisateurPoste || 'poste'), dateIso); }
+    catch (e) { /* pas bloquant */ }
+  }
+  function renderFeteJour(animer) {
+    const confettis = Array.from({ length: 10 }, (_, i) => `<span class="jour-confetti jour-confetti-${i % 3}" style="--i:${i}"></span>`).join('');
+    return `<div class="jour-fete${animer ? ' anime' : ''}" role="status">
+      <div class="jour-confettis" aria-hidden="true">${confettis}</div>
+      <span class="jour-fete-emoji" aria-hidden="true">🎉</span>
+      <span class="jour-fete-texte">Journée bouclée, bravo !</span>
+    </div>`;
+  }
+
+  // Carte « Aujourd'hui » du tableau de bord : MÊME présentation de « À faire » que la fenêtre du
+  // matin (renderListeJour), avec « Mes rappels » juste en dessous (demandé par l'étude — la liste
+  // personnelle n'a plus sa propre carte dans le rail). Le bloc est dimensionné à égalité avec
+  // « Avancement des dossiers » (voir .dash-duo dans style.css) pour que les deux se lisent bien.
   function renderAlertesDashboard(perimetreActifs) {
     const bloc = document.getElementById('alertes-dashboard');
     if (!bloc) return;
     const global = vueGlobaleDashboard();
-    const { actions, traites } = etatAujourdhui();
-    const visibles = actions.slice(0, MAX_ACTIONS_CARTE_JOUR);
-    const reste = actions.length - visibles.length;
+    const { aujourdhui, actions, traites } = etatAujourdhui();
+    const fini = actions.length === 0 && traites.length > 0;
+    let feteHtml = '';
+    if (fini) {
+      const animer = !feteJourDejaCelebree(aujourdhui);
+      if (animer) marquerFeteJourCelebree(aujourdhui);
+      feteHtml = renderFeteJour(animer);
+    }
     bloc.innerHTML = `
       <div class="alertes-entete">
         <div>
@@ -13375,21 +13405,15 @@
         ${actions.length || traites.length ? renderAnneauJour(actions.length, traites.length) : ''}
       </div>
       <div class="jour-carte-corps">
-        ${actions.length ? `<ul class="ja-liste ja-compacte">${visibles.map(a => renderLigneActionJour(a, global)).join('')}</ul>` : '<div class="a-traiter-vide">✓ Rien à faire aujourd’hui sur vos dossiers.</div>'}
-        <button type="button" class="urgent-groupe-reste" onclick="ouvrirFenetreAujourdhui()">${reste > 0 ? `et ${reste} autre${reste > 1 ? 's' : ''} — tout voir` : 'Revoir le point du matin'}</button>
+        ${feteHtml}
+        ${renderListeJour(actions, traites, global)}
+        <div class="dash-rappels-bloc">
+          <h3 class="jour-carte-sous-titre">Mes rappels</h3>
+          <div class="rappels-perso">${renderMesRappels(perimetreActifs)}</div>
+        </div>
       </div>`;
     majBadgeAujourdhui(actions.length);
-    if (ongletActuel === 'aujourdhui') renderPageAujourdhui();
     renderFenetreAujourdhui();
-  }
-
-  // « Mes rappels » détaché dans sa propre carte du tableau de bord (demandé par l'étude) plutôt
-  // que glissé au bas de la carte « Aujourd'hui ». Rempli à chaque render(), comme les autres cartes
-  // du rail.
-  function renderRappelsDashboard(perimetreActifs) {
-    const bloc = document.getElementById('rappels-dashboard');
-    if (!bloc) return;
-    bloc.innerHTML = renderMesRappels(perimetreActifs);
   }
 
   function majBadgeAujourdhui(n) {
@@ -13574,7 +13598,6 @@
     renderAccueilDashboard(perimetreActifs, calculerStatsPortefeuille(perimetreActifs));
     renderRendezVousDashboard(perimetreActifs);
     renderAlertesDashboard(perimetreActifs);
-    renderRappelsDashboard(perimetreActifs);
     renderPiecesRecuesDashboard(perimetreActifs);
     renderRechercheDashboard(dossiersActifs);
     majBadgeNotificationsSidebar();

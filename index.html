@@ -225,20 +225,11 @@
         </div>
       </div>
       <!-- Carte Agenda : semaine, rendez-vous de signature, état des envois (voir
-           renderRendezVousDashboard). Toujours affichée, même sans rendez-vous. -->
+           renderRendezVousDashboard). Toujours affichée, même sans rendez-vous.
+           « Mes rappels » n'a plus sa propre carte : elle est repassée sous la liste « À faire »
+           de la carte « Aujourd'hui » (voir renderAlertesDashboard), à la demande de l'étude. -->
       <div class="dash-bloc">
         <div class="agenda-carte" id="agenda-dashboard"></div>
-      </div>
-      <!-- « Mes rappels » : liste personnelle (to-do), détachée de la carte « Aujourd'hui » à la
-           demande de l'étude — sa propre carte, remplie par renderRappelsDashboard(). -->
-      <div class="dash-bloc">
-        <div class="agenda-carte">
-          <div class="agenda-entete"><div>
-            <div class="agenda-titre">Mes rappels</div>
-            <div class="agenda-mois">Votre liste personnelle</div>
-          </div></div>
-          <div id="rappels-dashboard" class="rappels-perso"></div>
-        </div>
       </div>
     </aside>
   </div>
