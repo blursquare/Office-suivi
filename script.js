@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-28 14:18';
+  const VERSION_APP = '2026-09-28 14:36';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-28 14:36', resume: "Emails : tous les courriers pré-rédigés de la fiche (relances, réception des fonds, questionnaire de satisfaction…) partent en brouillon Outlook quand la connexion Exchange est prête — signature de l'office ajoutée et pièce jointe déjà attachée (PDF du questionnaire), ce qu'un lien mailto ne sait pas faire. Sinon, brouillon mailto comme avant. À tester au bureau." },
     { version: '2026-09-28 14:18', resume: "Aujourd'hui : chaque action « À faire » a un bouton « Déjà fait » pour la valider à la main (geste fait hors CLAIRE). Fiche dossier : plus de « Aucun fichier mémorisé » quand l'avant-contrat est joignable dans le dossier NAS relié (le fichier retrouvé et le dossier relié sont désormais reconnus). Icône du .exe Windows : vraie icône CLAIRE multi-résolutions (16 à 256 px) au lieu de l'icône Node, plus nette sur le bureau." },
     { version: '2026-09-28 14:01', resume: "Tableau de bord : la carte « Aujourd'hui » reprend la présentation complète de la page (une ligne par action avec son geste), « Mes rappels » repasse juste en dessous avec « + Ajouter un rappel », une petite animation festive salue une journée bouclée, et le bloc « Dernières pièces » est plus compact." },
     { version: '2026-09-28 13:48', resume: "Agenda du tableau de bord : les absences des collaborateurs notées dans l'agenda de l'office (congés, RTT…) sont affichées (« Absent cette semaine : … ») et un rendez-vous de signature dont le responsable est absent ce jour-là est signalé." },
@@ -15139,6 +15140,32 @@
 
   var PHRASE_COPIE_BROUILLON = ' Texte également copié : si le brouillon est coupé, Ctrl+A puis Ctrl+V.';
 
+  // Un brouillon créé par EWS ne reçoit PAS la signature Outlook automatique : Outlook n'insère sa
+  // signature que quand ON compose un nouveau message dans son interface, jamais sur un brouillon
+  // déposé de l'extérieur. On l'ajoute donc au texte pour la voie Outlook (demandé par l'étude :
+  // « ajouter la signature d'email »). Jamais deux fois — l'email de réception des fonds la porte
+  // déjà dans son modèle (repérée par une phrase stable de la signature).
+  function corpsAvecSignatureOffice(corps) {
+    if (/Office Notarial de la Salamandre|Attention fraude/.test(corps)) return corps;
+    return corps + SIGNATURE_EMAIL_OFFICE;
+  }
+
+  // Voie d'envoi unique pour tous les emails d'un dossier (demandé par l'étude : « pour tous les
+  // emails, les envoyer sur Outlook en brouillon automatiquement, avec pièces jointes et
+  // signature »). Quand la connexion Exchange est configurée (exchangeAgendaPret), crée un vrai
+  // BROUILLON Outlook via EWS — signature ajoutée, pièces jointes portées (ce qu'un mailto: ne sait
+  // pas faire). Sinon, repli sur le brouillon mailto: (le client de messagerie ajoute alors sa
+  // propre signature). Ne toaste pas : le résultat ({ok, viaOutlook, message, copie}) est laissé à
+  // l'appelant, qui connaît le contexte (discret depuis « Aujourd'hui », effets à conditionner…).
+  async function livrerEmailDossier({ destinataire, sujet, corps, pieces = [] }) {
+    if (exchangeAgendaPret()) {
+      const r = await envoyerBrouillonOutlook({ destinataire, sujet, corps: corpsAvecSignatureOffice(corps), pieces });
+      return { ok: r.ok, viaOutlook: true, message: r.message };
+    }
+    const copie = ouvrirBrouillonEmail(destinataire, sujet, corps);
+    return { ok: true, viaOutlook: false, copie };
+  }
+
   function construireEmailRelancePret(d) {
     return {
       sujet: `Relance — Offre de prêt attendue (dossier ${d.nom})`,
@@ -15212,7 +15239,7 @@
 
   // discret : appelée depuis « Aujourd'hui », où la ligne se coche d'elle-même — une notification
   // suffit, pas de fenêtre à fermer entre deux actions.
-  function envoyerRelanceCiblee(id, type, discret) {
+  async function envoyerRelanceCiblee(id, type, discret) {
     const d = dossiers.find(x => x.id === id);
     const modele = MODELES_EMAIL_RELANCE[type];
     if (!d || !modele) return;
@@ -15225,21 +15252,28 @@
       return;
     }
     const { sujet, corps } = modele.construire(d);
-    ajouterHistorique(d, modele.historique);
+    // Brouillon Outlook prioritaire (voir livrerEmailDossier). En cas d'échec de la création du
+    // brouillon Outlook, ne rien marquer sur le dossier : la relance n'est pas partie.
+    const r = await livrerEmailDossier({ destinataire, sujet, corps });
+    if (!r.ok) { afficherToast(r.message || 'Brouillon non créé.', 'OK', null); return; }
+    ajouterHistorique(d, modele.historique + (r.viaOutlook ? ' (brouillon Outlook)' : ''));
     if (modele.date) d[modele.date] = new Date().toISOString().slice(0, 10);
     // Une relance de l'offre faite à la main compte comme la relance du jour : la suivante, manuelle
     // ou automatique, n'est reproposée que 10 jours plus tard (voir relanceOffreDue).
     if (type === 'pret') d.derniereRelanceAuto = isoAujourdhuiLocal();
     sauvegarder(d);
-    if (modele.date || type === 'pret') render();
-    const copie = ouvrirBrouillonEmail(destinataire, sujet, corps);
+    render();
+    if (r.viaOutlook) {
+      afficherToast(discret ? 'Brouillon Outlook créé.' : (r.message || 'Brouillon Outlook créé — à relire dans Outlook.'), 'OK', null);
+      return;
+    }
     if (discret) {
       afficherToast('Brouillon ouvert — relisez-le puis envoyez-le depuis votre messagerie.', 'OK', null);
       return;
     }
     afficherInfoAction(
       "Brouillon ouvert",
-      "Relisez-le puis envoyez-le depuis votre messagerie." + (copie ? PHRASE_COPIE_BROUILLON : '')
+      "Relisez-le puis envoyez-le depuis votre messagerie." + (r.copie ? PHRASE_COPIE_BROUILLON : '')
     );
   }
 
@@ -15373,7 +15407,7 @@
     }
   }
 
-  function envoyerQuestionnaireSatisfaction(id, discret) {
+  async function envoyerQuestionnaireSatisfaction(id, discret) {
     const d = dossiers.find(x => x.id === id);
     if (!d || notaireParticipantRepresenteAcquereur(d)) return;
     const destinataire = d.emailAcquereur || '';
@@ -15382,8 +15416,28 @@
       return;
     }
     const { sujet, corps } = construireEmailQuestionnaireSatisfaction(d);
+    const pdfDispo = typeof QUESTIONNAIRE_SATISFACTION_PDF_BASE64 === 'string' && QUESTIONNAIRE_SATISFACTION_PDF_BASE64;
+
+    // Voie Outlook : brouillon avec le PDF DÉJÀ joint (aucun téléchargement à rattacher à la main).
+    // On ne clôture le dossier QUE si le brouillon a bien été créé.
+    if (exchangeAgendaPret() && pdfDispo) {
+      const r = await livrerEmailDossier({
+        destinataire, sujet, corps,
+        pieces: [{ nom: 'Enquete_satisfaction.pdf', type: 'application/pdf', contenuBase64: QUESTIONNAIRE_SATISFACTION_PDF_BASE64 }]
+      });
+      if (!r.ok) { afficherToast(r.message || 'Brouillon Outlook non créé.', 'OK', null); return; }
+      d.questionnaireEnvoyeLe = new Date().toISOString().slice(0, 10);
+      ajouterHistorique(d, 'Brouillon Outlook du questionnaire de satisfaction créé (PDF joint)');
+      d.archive = true;
+      ajouterHistorique(d, 'Dossier archivé automatiquement (questionnaire de satisfaction envoyé)');
+      sauvegarder(d);
+      render();
+      afficherToast(discret ? 'Brouillon Outlook créé, dossier archivé.' : (r.message || 'Brouillon Outlook créé (PDF joint), dossier archivé.'), 'OK', null);
+      return;
+    }
+
+    // Repli mailto : le PDF est téléchargé dans le même geste, à joindre à la main.
     const pdfOk = telechargerPdfQuestionnaire();
-    // Mémorisé sur le dossier : le bouton dit ensuite qu'il a déjà été envoyé, et à quelle date.
     d.questionnaireEnvoyeLe = new Date().toISOString().slice(0, 10);
     ajouterHistorique(d, 'Questionnaire de satisfaction envoyé');
     d.archive = true;
@@ -15404,47 +15458,9 @@
     );
   }
 
-  // Variante Outlook du questionnaire : crée un BROUILLON avec le PDF DÉJÀ JOINT (ce qu'un mailto:
-  // ne sait pas faire — voir Brique 2). Réutilise la connexion Exchange configurée
-  // (exchangeAgendaPret). Mêmes garde-fous et mêmes effets que envoyerQuestionnaireSatisfaction
-  // (archive le dossier, historique, date), la seule différence étant que le PDF n'a pas à être
-  // téléchargé puis rattaché à la main. Ne lève jamais.
-  async function creerBrouillonQuestionnaireOutlook(id, btn) {
-    const d = dossiers.find(x => x.id === id);
-    if (!d || notaireParticipantRepresenteAcquereur(d)) return;
-    const destinataire = d.emailAcquereur || '';
-    if (!destinataire) {
-      afficherToast("Aucun email d'acquéreur renseigné pour ce dossier — impossible de préparer le questionnaire.", 'OK', null);
-      return;
-    }
-    if (typeof QUESTIONNAIRE_SATISFACTION_PDF_BASE64 !== 'string' || !QUESTIONNAIRE_SATISFACTION_PDF_BASE64) {
-      afficherToast('Le PDF du questionnaire est indisponible — brouillon non créé.', 'OK', null);
-      return;
-    }
-    const { sujet, corps } = construireEmailQuestionnaireSatisfaction(d);
-    const libelleInitial = btn ? btn.textContent : '';
-    if (btn) { btn.disabled = true; btn.textContent = 'Création…'; }
-    try {
-      const resultat = await envoyerBrouillonOutlook({
-        destinataire,
-        sujet,
-        corps,
-        pieces: [{ nom: 'Enquete_satisfaction.pdf', type: 'application/pdf', contenuBase64: QUESTIONNAIRE_SATISFACTION_PDF_BASE64 }]
-      });
-      if (resultat.ok) {
-        // Mêmes effets que l'envoi par mailto : le dossier est clôturé une fois le questionnaire parti.
-        d.questionnaireEnvoyeLe = new Date().toISOString().slice(0, 10);
-        ajouterHistorique(d, 'Brouillon Outlook du questionnaire de satisfaction créé (PDF joint)');
-        d.archive = true;
-        ajouterHistorique(d, 'Dossier archivé automatiquement (questionnaire de satisfaction envoyé)');
-        sauvegarder(d);
-        render();
-      }
-      afficherToast(resultat.message, 'OK', null);
-    } finally {
-      if (btn) { btn.disabled = false; btn.textContent = libelleInitial; }
-    }
-  }
+  // (L'ancienne fonction creerBrouillonQuestionnaireOutlook a été retirée : envoyerQuestionnaireSatisfaction
+  // crée désormais lui-même le brouillon Outlook avec le PDF joint quand Exchange est configuré,
+  // donc un seul bouton et une seule fonction — voir livrerEmailDossier.)
 
   // Affichée juste après "Écrire par email" : absente pour un dossier déjà archivé (l'action n'a
   // plus de sens) et — demandé
@@ -15475,14 +15491,16 @@
         <p class="hint">Renseignez l’email de l’acquéreur.</p>
       </div>`;
     }
-    const boutonOutlook = exchangeAgendaPret()
-      ? `<button type="button" class="action-rapide" onclick="creerBrouillonQuestionnaireOutlook('${d.id}', this)" title="Crée un brouillon Outlook avec le questionnaire déjà joint, et archive le dossier">${icone('mail')} Brouillon Outlook (questionnaire joint)</button>`
-      : '';
+    // Un seul bouton : quand Exchange est configuré, envoyerQuestionnaireSatisfaction crée
+    // automatiquement un brouillon Outlook avec le PDF déjà joint ; sinon il ouvre un brouillon
+    // mailto et télécharge le PDF à joindre à la main (voir la fonction). L'infobulle dit lequel.
+    const titre = exchangeAgendaPret()
+      ? 'Crée un brouillon Outlook avec le questionnaire déjà joint, et archive le dossier'
+      : 'Ouvre le brouillon, télécharge le PDF à joindre, et archive le dossier';
     return `<div class="relances-ciblees">
       <span class="section-eyebrow">Clôturer le dossier</span>
       <div class="relances-boutons">
-        <button type="button" class="action-rapide" onclick="envoyerQuestionnaireSatisfaction('${d.id}')" title="Ouvre le brouillon et archive le dossier">${icone('mail')} Questionnaire de satisfaction</button>
-        ${boutonOutlook}
+        <button type="button" class="action-rapide" onclick="envoyerQuestionnaireSatisfaction('${d.id}')" title="${escapeAttr(titre)}">${icone('mail')} Questionnaire de satisfaction</button>
       </div>
     </div>`;
   }

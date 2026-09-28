@@ -8948,6 +8948,44 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
     environnement (PE32+ valide, `RT_GROUP_ICON` + `RT_ICON` + `NODE_SEA_BLOB` présents après
     postject), mais le rendu réel de l'icône sur le bureau reste à confirmer par l'étude au prochain
     `.exe`.
+- **Tous les emails pré-rédigés de la fiche partent en brouillon Outlook quand Exchange est
+  configuré, avec la signature de l'office et la pièce jointe déjà attachée** — demandé par l'étude
+  (« pour tous les emails les envoyer sur outlook en brouillon automatiquement et ajouter les
+  fichiers joints (ex : questionnaire de satisfaction) et la signature d'email »). Généralise la
+  brique 2 (brouillons Outlook, voir son historique) : au lieu de deux boutons (mailto + « Brouillon
+  Outlook » séparé) par courrier, un SEUL bouton dont le comportement suit la connexion Exchange.
+  - **Voie d'envoi unique** : `livrerEmailDossier({destinataire, sujet, corps, pieces})`. Si
+    `exchangeAgendaPret()`, crée un vrai BROUILLON Outlook (`envoyerBrouillonOutlook`, EWS
+    `CreateItem SaveOnly`) avec la signature ajoutée et les pièces portées — ce qu'un `mailto:` ne
+    sait pas faire. Sinon, repli sur `ouvrirBrouillonEmail()` (le brouillon `mailto:` d'avant, où
+    c'est le client de messagerie qui ajoute sa propre signature). Ne toaste rien : le résultat
+    `{ok, viaOutlook, message, copie}` est laissé à l'appelant, qui connaît le contexte (mode
+    `discret` depuis « Aujourd'hui », effets à conditionner au succès…).
+  - **Signature ajoutée pour la seule voie Outlook** (`corpsAvecSignatureOffice`) : un brouillon
+    déposé de l'extérieur par EWS ne reçoit PAS la signature Outlook automatique (Outlook ne
+    l'insère que lorsqu'on compose un nouveau message dans son interface). On ajoute donc
+    `SIGNATURE_EMAIL_OFFICE` au texte — **jamais deux fois** : l'email de réception des fonds la
+    porte déjà dans son propre modèle, repérée par une phrase stable de la signature (« Office
+    Notarial de la Salamandre » / « Attention fraude »), présente dans `SIGNATURE_EMAIL_OFFICE`
+    (vérifié). Le brouillon `mailto:`, lui, ne reçoit jamais cette signature texte : le client de
+    messagerie ajoute la sienne (avec ses images), comme déjà documenté pour la relance de l'offre.
+  - **`envoyerRelanceCiblee(id, type, discret)` et `envoyerQuestionnaireSatisfaction(id, discret)`
+    passent en `async`** et routent par `livrerEmailDossier`. **Rien n'est marqué sur le dossier si
+    le brouillon Outlook a échoué** (`if (!r.ok) return`) : la relance/le questionnaire n'est pas
+    parti, ne pas journaliser ni archiver dans ce cas. Sur succès, l'entrée d'historique porte le
+    suffixe « (brouillon Outlook) » quand `viaOutlook`. Le questionnaire joint le PDF
+    (`QUESTIONNAIRE_SATISFACTION_PDF_BASE64`) directement au brouillon Outlook (plus de
+    téléchargement à rattacher à la main) ; en repli `mailto:`, le PDF reste téléchargé au même
+    geste comme avant.
+  - **`creerBrouillonQuestionnaireOutlook` retirée** : `envoyerQuestionnaireSatisfaction` crée
+    désormais lui-même le brouillon Outlook avec le PDF joint quand Exchange est configuré, donc UN
+    seul bouton « Questionnaire de satisfaction » (l'infobulle dit lequel des deux comportements
+    s'appliquera), plus le bouton « Brouillon Outlook (questionnaire joint) » séparé.
+  - **Non vérifié en conditions réelles** : aucun Exchange joignable dans cet environnement de
+    développement — la création effective du brouillon Outlook (signature affichée, pièce jointe
+    présente) reste à confirmer par l'étude au bureau, comme pour les briques 1 et 2. Vérifié ici :
+    `node -c script.js` OK, `npm test` vert (860 tests), et la logique de repli/dédoublonnage de
+    signature relue.
 
 ## Comment tester
 
