@@ -42,9 +42,22 @@ test('construireEmailRelanceRib reprend mot pour mot le texte de l’étude, san
   assert.equal(corps, 'Bonjour,\n\nEn prévision du rendez-vous de signature je vous remercie de vous munir de votre RIB et de votre pièce d’identité.\n\nBien cordialement,');
 });
 
-test('MODELES_EMAIL_RELANCE couvre exactement les quatre motifs', () => {
+test('MODELES_EMAIL_RELANCE couvre exactement les cinq motifs', () => {
   const app = chargerApplication();
-  assert.equal(Object.keys(app.MODELES_EMAIL_RELANCE).sort().join(','), 'fonds,pret,provision,rib');
+  assert.equal(Object.keys(app.MODELES_EMAIL_RELANCE).sort().join(','), 'fonds,pret,provision,rib,ventePrealable');
+});
+
+test('relance de la vente préalable : au client, ou au confrère quand un autre office représente l’acquéreur', () => {
+  const app = chargerApplication();
+  const client = app.construireEmailRelanceVentePrealable(dossierBase(app, { ventebien: '2099-10-15' }));
+  assert.match(client.corps, /^Bonjour,/);
+  assert.match(client.corps, /vente préalable de votre bien, qui est prévue au plus tard le 15 octobre 2099/);
+  assert.match(client.corps, /attestation de vente/);
+  const passee = app.construireEmailRelanceVentePrealable(dossierBase(app, { ventebien: '2020-01-10' }));
+  assert.match(passee.corps, /devait intervenir au plus tard le/);
+  const confrere = app.construireEmailRelanceVentePrealable(dossierBase(app, { ventebien: '2099-10-15', notaireAcquereur: 'Maître Paul LAMBERT' }));
+  assert.match(confrere.corps, /^Cher Confrère,/);
+  assert.match(confrere.corps, /bien de votre client/);
 });
 
 test('construireEmailRelanceProvision mentionne l’agence quand elle est connue, sinon reste générique', () => {

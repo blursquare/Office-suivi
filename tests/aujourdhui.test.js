@@ -69,10 +69,19 @@ test('après la signature : questionnaire, jamais au confrère', () => {
 });
 
 test('les autres points ouvrent la fiche ; un dossier archivé ne produit rien', () => {
+  // Vente préalable qui approche : un brouillon de relance en un clic (client ou confrère)…
   const r = app.actionsDuJour([dossier({ sansPret: true, ventebien: '2026-09-30' })], AUJ);
   assert.strictEqual(r.actions.length, 1);
-  assert.strictEqual(r.actions[0].geste.type, 'fiche');
-  assert.strictEqual(r.actions[0].titre, 'Confirmer la vente préalable');
+  assert.strictEqual(r.actions[0].geste.type, 'email');
+  assert.strictEqual(r.actions[0].geste.motif, 'ventePrealable');
+  assert.strictEqual(r.actions[0].titre, 'Relancer la vente préalable');
+  // … sans email connu, la fiche s'ouvre ; relancée il y a moins de 5 jours, elle attend.
+  const sansEmail = app.actionsDuJour([dossier({ sansPret: true, ventebien: '2026-09-30', emailAcquereur: '' })], AUJ);
+  assert.strictEqual(sansEmail.actions[0].geste.type, 'fiche');
+  assert.strictEqual(sansEmail.actions[0].titre, 'Confirmer la vente préalable');
+  const relancee = app.actionsDuJour([dossier({ sansPret: true, ventebien: '2026-09-30', relanceVentePrealableLe: '2026-09-25' })], AUJ);
+  assert.strictEqual(relancee.actions.length, 0);
+  assert.ok(relancee.aVenir.some(v => v.titre === 'Vente préalable relancée'));
   assert.strictEqual(app.actionsDuJour([dossier({ pret: '2026-10-02', archive: true })], AUJ).actions.length, 0);
 });
 

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-28 15:27';
+  const VERSION_APP = '2026-09-28 15:33';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-28 15:33', resume: "Vente préalable : bouton « Vente préalable » dans « Écrire par email » tant qu'elle n'est pas réalisée — un brouillon de relance au client, ou au confrère quand un autre office représente l'acquéreur, à ajuster avant envoi. Dans « Aujourd'hui », « Relancer la vente préalable » ouvre ce brouillon en un clic (pas plus d'une relance tous les 5 jours)." },
     { version: '2026-09-28 15:27', resume: "Aujourd'hui : une tâche validée (« Déjà fait », brouillon ouvert…) ne reste plus aussi dans « À faire ». « Déjà fait » note en plus le geste sur le dossier quand c'est possible (relance de l'offre, RIB demandé, fonds confirmés, envoi fait) pour que la tâche ne revienne pas le lendemain ; « Annuler » remet l'état d'avant." },
     { version: '2026-09-28 15:22', resume: "Mise à jour en un clic : si Windows refuse d'effacer l'ancienne copie de secours (« EPERM : operation not permitted »), la mise à jour se fait quand même — la nouvelle copie de secours prend un nom horodaté, et les copies en trop sont effacées au démarrage suivant." },
     { version: '2026-09-28 15:16', resume: "Planning : une fois l'offre de prêt reçue (ou sur un achat comptant, vente préalable réalisée), la prochaine étape est « Fixer le rendez-vous de signature », bornée par la date butoir ; une fois le rendez-vous placé, on passe à « Envoi appel de fonds ». Apparaît aussi dans « Aujourd'hui » et l'avancement du dossier." },
@@ -13018,6 +13019,8 @@
   //    déjà relancée, dossiers à relier).
   // Règles de sélection reprises des signaux déjà en place (alertesImportantes, pointsEtatDossier,
   // relanceOffreDue) — ce qui n'a pas de geste prêt reste une action « Ouvrir la fiche ».
+  var JOURS_ENTRE_RELANCES_VENTE = 5;
+
   function actionsDuJour(dossiersActifs, aujourdhuiIso) {
     const actions = [];
     const aVenir = [];
@@ -13119,6 +13122,20 @@
         couverts.add(p.titre);
         if (p.gravite === 'info') {
           aVenir.push({ dossier: d, titre: p.titre, detail: p.detail, iso: null });
+          continue;
+        }
+        if (p.titre === 'Confirmer la vente préalable' && dest) {
+          // Relancée il y a moins de JOURS_ENTRE_RELANCES_VENTE jours : on laisse le temps de répondre.
+          if (d.relanceVentePrealableLe && ecartJours(d.relanceVentePrealableLe, aujourdhuiIso) < JOURS_ENTRE_RELANCES_VENTE) {
+            aVenir.push({ dossier: d, titre: 'Vente préalable relancée', detail: `Relancée ${quandJour(d.relanceVentePrealableLe, aujourdhuiIso)}`, iso: null });
+            continue;
+          }
+          ajouter({
+            type: 'ventePrealable', categorie: 'ventebien', categorieLabel: 'Vente préalable',
+            titre: 'Relancer la vente préalable', contexte: p.detail + (notaireParticipantRepresenteAcquereur(d) ? ' — email au confrère.' : ' — email au client.'),
+            jours: p.jours, gravite: p.gravite,
+            geste: { type: 'email', motif: 'ventePrealable' }, bouton: 'Ouvrir l’email'
+          });
           continue;
         }
         const slug = normaliserPourRecherche(p.titre).replace(/[^a-z]+/g, '-');
@@ -13388,7 +13405,8 @@
   // lendemain alors qu'elle est faite. Les valeurs d'avant sont gardées pour « Annuler ».
   var CHAMP_FAIT_MAIN_PAR_TYPE = {
     pret: 'derniereRelanceAuto', rib: 'ribDemandeLe', fonds: 'receptionFondsConfirmeeLe',
-    questionnaire: 'questionnaireEnvoyeLe', appelFonds: 'appelFonds', projetEnvoye: 'projetEnvoye'
+    questionnaire: 'questionnaireEnvoyeLe', appelFonds: 'appelFonds', projetEnvoye: 'projetEnvoye',
+    ventePrealable: 'relanceVentePrealableLe'
   };
 
   function marquerFaitJour(cle) {
@@ -13465,7 +13483,7 @@
   // ---- Rendu ----
   // Libellé du bouton d'une ligne : un verbe court, le même à chaque fois pour le même geste.
   function libelleCourtGeste(a) {
-    const parType = { pret: 'Relancer', fonds: 'Confirmer', rib: 'Envoyer', questionnaire: 'Envoyer', projetEnvoye: 'Marquer envoyé', appelFonds: 'Préparer' };
+    const parType = { pret: 'Relancer', ventePrealable: 'Relancer', fonds: 'Confirmer', rib: 'Envoyer', questionnaire: 'Envoyer', projetEnvoye: 'Marquer envoyé', appelFonds: 'Préparer' };
     if (parType[a.type]) return parType[a.type];
     return 'Ouvrir';
   }
@@ -15428,6 +15446,33 @@
     };
   }
 
+  // Relance sur la vente préalable (demandée par l'étude, 28/09) : au client, ou au confrère quand
+  // un autre office représente l'acquéreur — le texte change avec le destinataire, et reste un
+  // brouillon à ajuster au dossier avant l'envoi. Sans signature de l'office, comme les autres
+  // relances (Outlook ajoute la sienne). Le temps s'accorde à la date : « prévue » tant qu'elle est
+  // à venir, « devait intervenir » une fois passée.
+  function construireEmailRelanceVentePrealable(d) {
+    const date = d.ventebien ? formatDateFr(d.ventebien) : '';
+    const passee = d.ventebien && ecartJours(isoAujourdhuiLocal(), d.ventebien) < 0;
+    const echeance = date ? (passee ? ` devait intervenir au plus tard le ${date}` : ` est prévue au plus tard le ${date}`) : '';
+    if (notaireParticipantRepresenteAcquereur(d)) {
+      return {
+        sujet: `Vente préalable — dossier ${d.nom}`,
+        corps: ['Cher Confrère,',
+          `Dans le dossier ${d.nom}, l'avant-contrat est conclu sous la condition de la vente préalable du bien de votre client, qui${echeance || ' reste à réaliser'}.`,
+          'Pourriez-vous nous indiquer où en est cette vente (avant-contrat signé, date de signature prévue) et nous transmettre, le cas échéant, l’attestation de vente ?',
+          'Bien cordialement,'].join('\n\n')
+      };
+    }
+    return {
+      sujet: `Vente préalable de votre bien — dossier ${d.nom}`,
+      corps: ['Bonjour,',
+        `Votre acquisition est conclue sous la condition de la vente préalable de votre bien, qui${echeance || ' reste à réaliser'}.`,
+        'Pourriez-vous nous indiquer où en est cette vente (avant-contrat signé, date de signature prévue) ? Dès qu’elle sera signée, merci de nous transmettre l’attestation de vente.',
+        'Bien cordialement,'].join('\n\n')
+    };
+  }
+
   // Email de "démarrage" du dossier : texte fourni mot pour mot par l'étude (25/09). Une ligne
   // vide entre chaque paragraphe, les deux pièces demandées sur deux lignes consécutives, et PAS
   // de SIGNATURE_EMAIL_OFFICE (même choix que la relance de l'offre de prêt : la signature
@@ -15476,6 +15521,7 @@
     provision: { cle: 'provision', libelle: 'Provision + pièce d’identité', construire: construireEmailRelanceProvision, historique: 'Relance manuelle envoyée — provision sur frais et pièce d’identité' },
     pret: { cle: 'pret', libelle: 'Prêt manquant', construire: construireEmailRelancePret, historique: 'Relance manuelle envoyée — offre de prêt' },
     rib: { cle: 'rib', libelle: 'RIB', construire: construireEmailRelanceRib, historique: 'Relance manuelle envoyée — RIB', date: 'ribDemandeLe' },
+    ventePrealable: { cle: 'ventePrealable', libelle: 'Vente préalable', construire: construireEmailRelanceVentePrealable, historique: 'Relance envoyée — vente préalable', date: 'relanceVentePrealableLe' },
     // `date` : champ du dossier qui mémorise l'envoi, pour que la carte dise ensuite « confirmée le … ».
     fonds: { cle: 'fonds', libelle: 'Confirmer la réception des fonds', construire: construireEmailReceptionFonds, historique: 'Email envoyé — confirmation de réception des fonds en comptabilité', date: 'receptionFondsConfirmeeLe' }
   };
@@ -15585,6 +15631,7 @@
     if (!d.sansPret && d.offrePretStatut !== 'recue') {
       boutons.push(MODELES_EMAIL_RELANCE.pret);
     }
+    if (d.ventebien && !echeanceValidee(d, 'ventebien')) boutons.push(MODELES_EMAIL_RELANCE.ventePrealable);
     boutons.push(MODELES_EMAIL_RELANCE.rib);
     // « Confirmer la réception des fonds » n'est pas ici : il vit dans la carte « Envoi au client »,
     // à côté de l'appel de fonds dont il dépend (voir renderCarteEnvoisAvantSignature).
@@ -17154,6 +17201,7 @@
       // plus déplacer ni retirer l'événement, et le reposerait en double.
       agendaEcheances: agendaEcheancesImportees(d.agendaEcheances),
       ribDemandeLe: typeof d.ribDemandeLe === 'string' ? d.ribDemandeLe : null,
+      relanceVentePrealableLe: typeof d.relanceVentePrealableLe === 'string' ? d.relanceVentePrealableLe : null,
       adresseBien: typeof d.adresseBien === 'string' ? d.adresseBien : '',
       nomAgence: typeof d.nomAgence === 'string' ? d.nomAgence : '',
       prixVente: Number.isFinite(d.prixVente) && d.prixVente > 0 ? d.prixVente : null,

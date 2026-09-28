@@ -9148,6 +9148,20 @@ mode 100% local, qui n'a subi aucune régression de ce chantier.
   trait sur le dossier (fixer le rendez-vous, confirmer la vente préalable…) restent masqués pour
   la journée seulement, et reviennent tant que la fiche n'est pas à jour.
 
+- **Relance de la vente préalable par email** (28/09, « si vente préalable : créer un email de
+  relance au client ou au confrère à ajuster en fonction des dossiers »).
+  `construireEmailRelanceVentePrealable(d)`, motif `ventePrealable` de `MODELES_EMAIL_RELANCE` :
+  deux textes selon le destinataire (`emailDestinataireRelance`) — « Bonjour, » au client, « Cher
+  Confrère, » quand `notaireParticipantRepresenteAcquereur(d)` — avec la date de la vente préalable
+  au présent tant qu'elle est à venir, au passé une fois dépassée. Rédigé par moi, sans modèle de
+  l'étude : c'est un brouillon, à ajuster avant envoi (et à remplacer mot pour mot si l'étude
+  fournit son texte). Proposé dans « Écrire par email » tant que la vente préalable n'est pas
+  réalisée ; `d.relanceVentePrealableLe` mémorise l'envoi (conservé à l'import). Dans
+  « Aujourd'hui », le point « Confirmer la vente préalable » (≤ 7 jours) devient « Relancer la vente
+  préalable » avec ce brouillon en un clic quand un destinataire est connu, et part dans « À venir »
+  pendant `JOURS_ENTRE_RELANCES_VENTE` (5) jours après une relance. Sans email, il ouvre la fiche
+  comme avant. « Déjà fait » pose aussi `relanceVentePrealableLe`.
+
 ## Comment tester
 
 Une suite de tests est committée dans `tests/` (Node natif, `node:test` — aucune dépendance à
