@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 15:09';
+  const VERSION_APP = '2026-09-29 15:22';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 15:22', resume: "Adresses : tirets et CEDEX conservés dans la commune (« SAINT-AIGNAN (41110), 2 rue … », « BLOIS CEDEX (41018), … »). Appel de fonds : l'adresse du destinataire reste en présentation postale, la voie puis « 41110 SAINT-AIGNAN » en dernière ligne, même saisie sur une ligne." },
     { version: '2026-09-29 15:09', resume: "Montants partout au format « 360.000,00 € » (point pour les milliers). Adresses partout au format « SAINT AIGNAN (41110), 2 rue des Cours de Meusnes » (fiche, nouveau dossier, appel de fonds, carnet des confrères). Appel de fonds : référence « VTE - NOM » pour un dossier de vente ; dans le .docx, la date du courrier est alignée à gauche avec le nom de l'acquéreur." },
     { version: '2026-09-29 15:02', resume: "Appel de fonds : une ligne du décompte modifiée dans le courrier (texte ou montant) garde sa nouvelle valeur quand on supprime ou ajoute une autre ligne — l'ancien texte réapparaissait. Nouvelle case « Achat sans prêt » (cochée d'après le dossier) : le paragraphe du R.I.B. dit alors « … faire le point sur le déblocage, correspondant à votre apport personnel. », dans l'aperçu et dans le .docx." },
     { version: '2026-09-29 14:25', resume: "Icône floue dans la barre des tâches : au démarrage, le serveur crée un raccourci « CLAIRE » dans le menu Démarrer, relié à la fenêtre CLAIRE et portant l'icône haute définition de CLAIRE-serveur.exe ; Windows affiche alors cette icône nette pour la fenêtre. Rien à installer." },
@@ -656,25 +657,49 @@
   // capture, la préposition ne faisait que restreindre inutilement les formulations acceptées.
   const ADRESSE_BIEN_RE = /(?:sis|sise|situ[ée]e?|se\s+trouvant)\s+(?:(?:[àa]|au|sur\s+la\s+commune\s+de|dans\s+la\s+commune\s+de|commune\s+de)\s+)?((?:[^.\n]{3,120}?\(\d{5}\)[^.]{0,40})|(?:[^.\n]{3,120}?\d{5}[^.,;]{0,40}))/i;
 
-  // Forme des adresses dans tout CLAIRE, demandée par l'étude le 29/09 : « SAINT AIGNAN (41110),
-  // 2 rue des Cours de Meusnes » — la commune en capitales (tirets remplacés par des espaces, comme
-  // dans l'exemple donné), le code postal entre parenthèses, puis la voie telle qu'écrite. Accepte
-  // « 2 rue … 41110 Saint-Aignan », « 2 rue …, 41110 Saint-Aignan », « 41110 Saint-Aignan, 2 rue … »
-  // et une adresse déjà normée (idempotente). Une adresse sans code postal reste telle quelle.
-  // Pure.
+  // Forme des adresses dans tout CLAIRE, demandée par l'étude le 29/09 (Saint-Aignan n'était qu'un
+  // exemple) : « SAINT-AIGNAN (41110), 2 rue des Cours de Meusnes » — la commune en capitales,
+  // tirets et mention CEDEX conservés (précisé par l'étude le même jour), le code postal entre
+  // parenthèses, puis la voie telle qu'écrite. Accepte « 2 rue … 41110 Saint-Aignan »,
+  // « 2 rue …, 41110 Saint-Aignan », « 41110 Saint-Aignan, 2 rue … » et une adresse déjà normée
+  // (idempotente). Une adresse sans code postal reste telle quelle. Le destinataire d'un courrier
+  // garde, lui, la présentation postale (voir adressePostaleCourrier). Pures.
   function communeNormee(commune) {
-    return String(commune || '').replace(/[-‐‑–]+/g, ' ').replace(/\s+/g, ' ').trim().toUpperCase();
+    return String(commune || '').replace(/\s+/g, ' ').trim().toUpperCase();
+  }
+  // { voie, codePostal, commune } ou null si aucun code postal n'est reconnu.
+  function decomposerAdresse(texte) {
+    const brut = String(texte || '').replace(/\s*\n+\s*/g, ', ').replace(/\s+/g, ' ').trim();
+    if (!brut) return null;
+    const commune = '([^,()\\d]+?(?:\\s+cedex(?:\\s*\\d+)?)?)';
+    let m = brut.match(/^([^,(]+?)\s*\((\d{5})\)\s*,\s*(.+)$/);
+    if (m) return { voie: m[3].trim(), codePostal: m[2], commune: communeNormee(m[1]) };
+    m = brut.match(new RegExp('^(\\d{5})\\s+' + commune + '\\s*,\\s*(.+)$', 'i'));
+    if (m) return { voie: m[3].trim(), codePostal: m[1], commune: communeNormee(m[2]) };
+    m = brut.match(new RegExp('^(.+?)[\\s,]+(\\d{5})\\s+' + commune + '\\s*$', 'i'));
+    if (m) return { voie: m[1].replace(/[\s,]+$/, ''), codePostal: m[2], commune: communeNormee(m[3]) };
+    return null;
   }
   function normaliserAdresse(texte) {
-    const brut = String(texte || '').replace(/\s*\n+\s*/g, ', ').replace(/\s+/g, ' ').trim();
-    if (!brut) return '';
-    let m = brut.match(/^([^,(]+?)\s*\((\d{5})\)\s*,\s*(.+)$/);
-    if (m) return `${communeNormee(m[1])} (${m[2]}), ${m[3].trim()}`;
-    m = brut.match(/^(\d{5})\s+([^,\d]+?)\s*,\s*(.+)$/);
-    if (m) return `${communeNormee(m[2])} (${m[1]}), ${m[3].trim()}`;
-    m = brut.match(/^(.+?)[\s,]+(\d{5})\s+([^,\d]+?)(?:\s+cedex(?:\s*\d+)?)?\s*$/i);
-    if (m) return `${communeNormee(m[3])} (${m[2]}), ${m[1].replace(/[\s,]+$/, '')}`;
-    return brut;
+    const a = decomposerAdresse(texte);
+    if (a) return `${a.commune} (${a.codePostal}), ${a.voie}`;
+    return String(texte || '').replace(/\s*\n+\s*/g, ', ').replace(/\s+/g, ' ').trim();
+  }
+  // Adresse du destinataire d'un courrier : présentation postale, la voie puis « 41110 SAINT-AIGNAN »
+  // (commune en capitales, CEDEX gardé) sur la dernière ligne. Une adresse saisie sur une seule
+  // ligne, ou déjà à la forme CLAIRE, est remise sur deux lignes ; des lignes déjà séparées
+  // (résidence, bâtiment…) restent dans leur ordre. Renvoie un tableau de lignes.
+  function adressePostaleCourrier(texte) {
+    const lignes = String(texte || '').split('\n').map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
+    const sortie = [];
+    lignes.forEach(l => {
+      const cpSeul = l.match(/^(\d{5})\s+(.+)$/);
+      if (cpSeul) { sortie.push(`${cpSeul[1]} ${communeNormee(cpSeul[2])}`); return; }
+      const a = decomposerAdresse(l);
+      if (a) { sortie.push(a.voie, `${a.codePostal} ${a.commune}`); return; }
+      sortie.push(l);
+    });
+    return sortie;
   }
 
   function detecterAdresseBien(texte) {
@@ -27217,7 +27242,7 @@
     const bloc = afEl('af-p-adresse');
     if (bloc) {
       const lignes = clientsRemplis.map(ligneClientComplete).filter(Boolean);
-      if (adresse) adresse.split('\n').forEach(l => { if (l.trim()) lignes.push(l.trim()); });
+      if (adresse) adressePostaleCourrier(adresse).forEach(l => lignes.push(l));
       bloc.innerHTML = lignes.length ? '<u>' + lignes.map(escapeHtml).join('<br>') + '</u>' : '<u>Destinataire à compléter</u>';
     }
     const ligneMention = afEl('af-p-mention-ligne');

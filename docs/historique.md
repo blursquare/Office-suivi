@@ -11993,3 +11993,18 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
   fonds (réf. « VTE - MARTIN / DURAND », adresse normée, montants et solde au nouveau format, case
   sans prêt cochée d'après le dossier). Rendu Word non vérifié ici (LibreOffice ne charge pas le
   fichier dans cet environnement) ; remplissage du modèle vérifié avec docxtemplater.
+
+### 29/09 15:22 — Adresses : tirets, CEDEX, destinataire des courriers
+
+Demande : « Tu peux laisser les tirets pour les communes. Tu gardes les cedex. Tu peux ajuster pour
+les courriers. Tu as compris que saint aignan était un exemple de format d'adresse ? »
+  - `normaliserAdresse` garde les tirets (« SAINT-AIGNAN », « ROMORANTIN-LANTHENAY ») et la mention
+    CEDEX, rattachée à la commune (« BLOIS CEDEX 2 (41018), BP 40 »). Découpage commun dans
+    `decomposerAdresse` ({ voie, codePostal, commune }). Saint-Aignan n'était qu'un exemple : la
+    règle vaut pour toute adresse munie d'un code postal.
+  - « Ajuster pour les courriers » compris comme : le bloc du destinataire d'un courrier reste en
+    présentation postale. `adressePostaleCourrier` rend la voie puis « 41110 SAINT-AIGNAN » en
+    dernière ligne (commune en capitales, CEDEX gardé), remet sur deux lignes une adresse saisie sur
+    une seule ou déjà à la forme CLAIRE, et garde l'ordre des lignes déjà séparées. Branchée sur le
+    destinataire de l'appel de fonds (aperçu et `addrLines` du .docx), seul courrier à adresse
+    postale. L'adresse du bien dans le corps de la lettre garde la forme CLAIRE.
