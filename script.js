@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 11:37';
+  const VERSION_APP = '2026-09-29 13:45';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 13:45', resume: "Icône de CLAIRE (barre des tâches, raccourci, exe, onglet) : retour à un pictogramme plein — carré foncé, anneau et coche blancs épais — comme avant le 26/09. Le carré blanc au trait fin devenait illisible une fois agrandi par Windows." },
     { version: '2026-09-29 11:37', resume: "Icône floue de l'application CLAIRE déjà installée : au démarrage, le serveur remplace les icônes que le navigateur avait fabriquées à l'installation (basse définition) par l'icône haute définition de CLAIRE, puis rafraîchit le cache d'icônes de Windows. Rien à réinstaller." },
     { version: '2026-09-29 11:22', resume: "Icône floue dans la barre des tâches : une fenêtre CLAIRE non installée prend l'icône de l'onglet en 16 px. Réglages › Sur ce poste › « Installer CLAIRE » (ou menu ⋮ du navigateur) l'installe comme application, avec son icône nette ; le serveur ouvre ensuite directement l'application installée." },
     { version: '2026-09-29 11:19', resume: "Fiche imprimée : les cases de la procédure « Appels et réception des fonds » se remplissent d'après le dossier — cochées avec leur date quand c'est fait (appel de fonds envoyé, projet envoyé, fonds complets, réception confirmée, appel de fonds trouvé sur le commun), et une information utile sinon (rendez-vous, offre de prêt, séquestre, fonds reçus et reste à recevoir)." },

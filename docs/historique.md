@@ -11886,3 +11886,16 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
   l'identité de l'application déjà installée (sans "id", Chrome prenait l'adresse de départ).
   **Non vérifié sur Windows** : emplacement exact des fichiers de Chrome, effet immédiat sur une
   icône épinglée (peut demander de fermer/rouvrir CLAIRE, voire une session Windows).
+
+- **29/09/2026 — Icône : retour au pictogramme plein** (« toujours pas. Pourtant avant c'était
+  plus simple »). Jusqu'au 26/09 17 h, `icone.svg` était un carré plein foncé avec l'anneau et la
+  coche en blanc épais ; il est alors devenu un carré BLANC au trait fin (2,2 sur 48) pour être
+  identique au logo de la barre latérale. Or Windows affiche l'icône d'une fenêtre Chrome à partir
+  du favicon 16 px agrandi : un trait fin sur fond blanc y devient une bouillie grise, un
+  pictogramme plein à trait épais reste lisible (comparaison rendue à 16 px agrandi en 32 :
+  `scratchpad`, non commitée). Nouvelle `icone.svg` : carré #111418 (rx 44/192), anneau blanc 22,
+  coche blanche 20 — la version d'avant le 26/09, trait épaissi. Régénérés depuis elle (resvg) :
+  les 10 favicons PNG et l'apple-touch-icon d'`index.html`, les PNG 192/512 du manifeste (le
+  maskable : fond plein jusqu'aux bords, pictogramme dans la zone sûre de 80 %), et au build le
+  .ico de l'exe (qui sert aussi au remplacement de l'icône de l'application installée). Le logo
+  de la barre latérale, dans la page, ne change pas.

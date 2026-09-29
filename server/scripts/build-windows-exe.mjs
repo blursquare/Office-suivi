@@ -71,6 +71,8 @@ function traitIcone(px) {
 function construireIcoDepuisSvg(svgPath) {
   const svg = fs.readFileSync(svgPath, 'utf8');
   const images = TAILLES_ICONE.map((px) => {
+    // icone.svg est redevenu un pictogramme plein à trait épais (29/09) : lisible tel quel à
+    // 16 px, sans épaissir le trait (traitIcone ne s'applique qu'à un trait de 2,2 sur 48).
     const svgTaille = svg.replace(/stroke-width="2\.2"/g, `stroke-width="${traitIcone(px)}"`);
     const rendu = new Resvg(svgTaille, { fitTo: { mode: 'width', value: px }, background: 'rgba(0,0,0,0)' });
     return { px, buf: Buffer.from(rendu.render().asPng()) };
