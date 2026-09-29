@@ -216,8 +216,12 @@ function alertesFondsDues(dossiers, aujourdHui, dejaEnvoyes) {
   return dus;
 }
 
+// « 360.000,00 € » : même format que formaterMontantEuros côté client (demandé par l'étude, 29/09).
 function formaterEuros(n) {
-  return Number(n).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+  const v = Number(n);
+  if (!Number.isFinite(v)) return '';
+  const [entier, dec] = Math.abs(v).toFixed(2).split('.');
+  return (v < 0 ? '-' : '') + entier.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + dec + '\u00a0€';
 }
 
 function formaterJourRdv(iso, heure) {

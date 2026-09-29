@@ -21,13 +21,25 @@ test('etatProcedureFonds : cocher sur les faits enregistrés, informer sinon', (
   assert.match(e[1].note, /lundi 5 octobre 2026 à 11h/);
   assert.match(e[2].note, /Offre de prêt reçue/);
   assert.match(e[3].note, /Appel de fonds\.pdf/);
-  assert.match(e[4].note, /Séquestre : 1\s000,00 € — Agence du Parc/);
+  assert.match(e[4].note, /Séquestre : 1\.000,00\s€ — Agence du Parc/);
 });
 
 test('etatProcedureFonds : dossier sans rien d’enregistré, fonds partiels', () => {
   const app = chargerApplication();
   const e = app.etatProcedureFonds({ fondsRecus: { verifieLe: '2026-09-28T08:00:00Z', total: 50000, attendu: 150000, recus: [] } });
   assert.equal(resume(e), '1:- 2:- 3:- 4:- 5:- 6:- 7:- 8:- 9:-');
-  assert.match(e[7].note, /Reçu 50\s000,00 € sur 150\s000,00 € — reste 100\s000,00 €/);
+  assert.match(e[7].note, /Reçu 50\.000,00\s€ sur 150\.000,00\s€ — reste 100\.000,00\s€/);
   assert.match(e[2].note, /non reçue/);
+});
+
+test('formaterMontantEuros et eurosDepuisSaisie : « 360.000,00 € », relecture sans multiplier par 100', () => {
+  const app = chargerApplication();
+  assert.equal(app.formaterPrix(360000), '360.000,00 €');
+  assert.equal(app.formaterPrixCentimes(1234567.5), '1.234.567,50 €');
+  assert.equal(app.formaterPrixCentimes(999.999), '1.000,00 €');
+  assert.equal(app.formaterPrixCentimes(-230.13), '-230,13 €');
+  assert.equal(app.eurosDepuisSaisie('360.000,00 €'), 360000);
+  assert.equal(app.eurosDepuisSaisie('250 000'), 250000);
+  assert.equal(app.eurosDepuisSaisie('250000'), 250000);
+  assert.equal(app.eurosDepuisSaisie(''), null);
 });

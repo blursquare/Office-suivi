@@ -221,6 +221,11 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   de « À faire », même titre et même verbe qu'elle pour le même geste) ; tout « Ajouter … » est un
   `button.bouton-ajout` ; l'édition d'une donnée passe par des icônes (crayon, ✓, ×) ; seuls les
   formulaires gardent des boutons classiques.
+- **Formats (étude, 29/09)** : tout montant en euros passe par `formaterMontantEuros`
+  (`formaterPrix`/`formaterPrixCentimes`, « 360.000,00 € », miroir `formaterEuros` dans
+  `jobs/rappels.js`) et toute saisie de montant par `eurosDepuisSaisie` (jamais « ne garder que les
+  chiffres » : « 250.000,00 » deviendrait 25 000 000). Toute adresse passe par `normaliserAdresse`
+  (« SAINT AIGNAN (41110), 2 rue des Cours de Meusnes »).
 - **Texte d'aide** : ne décrit pas ce que le bouton dit déjà ; il dit ce qui manque. Une toute
   nouvelle confirmation commence par son verbe d'action (`boutonConfirmation`).
 - **Toute nouvelle fonction pure** : la déclarer `function` (ou `var` pour une table) pour la

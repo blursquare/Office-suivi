@@ -11970,3 +11970,26 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
     du document.xml réécrit, base64 régénéré ; rendu vérifié avec docxtemplater). Au passage, le
     .docx avec prêt dit « Je vous invite… » comme l'aperçu, au lieu de « A cet effet, je vous
     invite… » (deux « A cet effet » dans le même paragraphe).
+
+- **29/09/2026 — Formats des montants et des adresses, référence VTE et date du .docx** (quatre
+  demandes de l'étude à la suite).
+  - Montants : « 360.000,00 € » partout (point des milliers, deux décimales). `formaterMontantEuros`
+    remplace les deux `Intl.NumberFormat` (`formaterPrix` passe aussi à deux décimales, comme
+    l'exemple de l'étude) ; `formaterEuros` du serveur (rappels Teams) aligné. Les saisies de
+    montant (fiche : prix, mobilier, séquestre ; nouveau dossier ; mobilier de l'appel de fonds)
+    passent par `eurosDepuisSaisie` (`montantDepuisTexteFr` arrondi) : elles ne gardaient que les
+    chiffres, ce qui aurait lu « 360.000,00 € » comme 36 000 000.
+  - Adresses : `normaliserAdresse` (« SAINT AIGNAN (41110), 2 rue des Cours de Meusnes » — commune
+    en capitales, tirets remplacés par des espaces comme dans l'exemple, code postal entre
+    parenthèses, puis la voie ; idempotente ; sans code postal, inchangée ; « Cedex » retiré).
+    Appliquée à l'enregistrement (nouveau dossier, modification sur la fiche, lecture de l'acte) et
+    à l'affichage (fiche, appel de fonds et son .docx, carnet des confrères) — les dossiers déjà
+    enregistrés s'affichent normés et le sont en base à leur prochaine modification. Le bloc
+    postal du destinataire d'un courrier reste en forme postale (non touché).
+  - Appel de fonds : référence « VTE - NOM » (`libelleDossierAffiche`) au préremplissage depuis un
+    dossier ; dans le modèle Word, le paragraphe « {ville}, le {dateLettre} » perd son alignement
+    à droite : il part du même bord gauche que le destinataire (`{addrLines}`, à la marge).
+  Vérifié dans Chromium avec un dossier inventé : fiche (adresse normée, 360.000,00 €), appel de
+  fonds (réf. « VTE - MARTIN / DURAND », adresse normée, montants et solde au nouveau format, case
+  sans prêt cochée d'après le dossier). Rendu Word non vérifié ici (LibreOffice ne charge pas le
+  fichier dans cet environnement) ; remplissage du modèle vérifié avec docxtemplater.

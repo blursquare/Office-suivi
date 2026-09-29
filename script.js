@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 15:02';
+  const VERSION_APP = '2026-09-29 15:09';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 15:09', resume: "Montants partout au format « 360.000,00 € » (point pour les milliers). Adresses partout au format « SAINT AIGNAN (41110), 2 rue des Cours de Meusnes » (fiche, nouveau dossier, appel de fonds, carnet des confrères). Appel de fonds : référence « VTE - NOM » pour un dossier de vente ; dans le .docx, la date du courrier est alignée à gauche avec le nom de l'acquéreur." },
     { version: '2026-09-29 15:02', resume: "Appel de fonds : une ligne du décompte modifiée dans le courrier (texte ou montant) garde sa nouvelle valeur quand on supprime ou ajoute une autre ligne — l'ancien texte réapparaissait. Nouvelle case « Achat sans prêt » (cochée d'après le dossier) : le paragraphe du R.I.B. dit alors « … faire le point sur le déblocage, correspondant à votre apport personnel. », dans l'aperçu et dans le .docx." },
     { version: '2026-09-29 14:25', resume: "Icône floue dans la barre des tâches : au démarrage, le serveur crée un raccourci « CLAIRE » dans le menu Démarrer, relié à la fenêtre CLAIRE et portant l'icône haute définition de CLAIRE-serveur.exe ; Windows affiche alors cette icône nette pour la fenêtre. Rien à installer." },
     { version: '2026-09-29 14:17', resume: "Acquéreur accompagné par un confrère : l'email « Provision + pièce d'identité » est de nouveau proposé, adressé au confrère. Le RIB et la phrase RIB / pièces d'identité de l'email de réception des fonds restent retirés." },
@@ -655,6 +656,27 @@
   // capture, la préposition ne faisait que restreindre inutilement les formulations acceptées.
   const ADRESSE_BIEN_RE = /(?:sis|sise|situ[ée]e?|se\s+trouvant)\s+(?:(?:[àa]|au|sur\s+la\s+commune\s+de|dans\s+la\s+commune\s+de|commune\s+de)\s+)?((?:[^.\n]{3,120}?\(\d{5}\)[^.]{0,40})|(?:[^.\n]{3,120}?\d{5}[^.,;]{0,40}))/i;
 
+  // Forme des adresses dans tout CLAIRE, demandée par l'étude le 29/09 : « SAINT AIGNAN (41110),
+  // 2 rue des Cours de Meusnes » — la commune en capitales (tirets remplacés par des espaces, comme
+  // dans l'exemple donné), le code postal entre parenthèses, puis la voie telle qu'écrite. Accepte
+  // « 2 rue … 41110 Saint-Aignan », « 2 rue …, 41110 Saint-Aignan », « 41110 Saint-Aignan, 2 rue … »
+  // et une adresse déjà normée (idempotente). Une adresse sans code postal reste telle quelle.
+  // Pure.
+  function communeNormee(commune) {
+    return String(commune || '').replace(/[-‐‑–]+/g, ' ').replace(/\s+/g, ' ').trim().toUpperCase();
+  }
+  function normaliserAdresse(texte) {
+    const brut = String(texte || '').replace(/\s*\n+\s*/g, ', ').replace(/\s+/g, ' ').trim();
+    if (!brut) return '';
+    let m = brut.match(/^([^,(]+?)\s*\((\d{5})\)\s*,\s*(.+)$/);
+    if (m) return `${communeNormee(m[1])} (${m[2]}), ${m[3].trim()}`;
+    m = brut.match(/^(\d{5})\s+([^,\d]+?)\s*,\s*(.+)$/);
+    if (m) return `${communeNormee(m[2])} (${m[1]}), ${m[3].trim()}`;
+    m = brut.match(/^(.+?)[\s,]+(\d{5})\s+([^,\d]+?)(?:\s+cedex(?:\s*\d+)?)?\s*$/i);
+    if (m) return `${communeNormee(m[3])} (${m[2]}), ${m[1].replace(/[\s,]+$/, '')}`;
+    return brut;
+  }
+
   function detecterAdresseBien(texte) {
     const m = ADRESSE_BIEN_RE.exec(texte);
     if (!m) return null;
@@ -988,18 +1010,35 @@
 
   // Affichage français ("250 000 €", pas de décimales : un prix notarié est toujours un compte
   // rond en euros dans ce contexte). Intl.NumberFormat plutôt qu'un formatage manuel des milliers.
-  const FORMAT_PRIX = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+  // Montants au format demandé par l'étude (29/09) : « 360.000,00 € » — point pour les milliers,
+  // virgule et deux décimales, espace insécable avant l'euro. Un seul formateur pour tout CLAIRE
+  // (fiche, emails, courriers, outils). Pure.
+  function formaterMontantEuros(valeur, decimales) {
+    const n = Number(valeur);
+    if (!Number.isFinite(n)) return '';
+    const d = decimales == null ? 2 : decimales;
+    const [entier, dec] = Math.abs(n).toFixed(d).split('.');
+    const milliers = entier.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    const negatif = n < 0 && Number(Math.abs(n).toFixed(d)) !== 0;
+    return (negatif ? '-' : '') + milliers + (dec ? ',' + dec : '') + '\u00a0€';
+  }
   function formaterPrix(valeur) {
-    return FORMAT_PRIX.format(valeur);
+    return formaterMontantEuros(valeur, 2);
+  }
+  // Saisie d'un montant en euros entiers (« 250000 », « 250 000 », « 250.000,00 € ») : jamais
+  // en ne gardant que les chiffres, qui ferait de « 250.000,00 » 25 000 000. Pure.
+  function eurosDepuisSaisie(texte) {
+    if (texte == null || String(texte).trim() === '') return null;
+    const n = montantDepuisTexteFr(texte);
+    return Number.isFinite(n) ? Math.round(n) : null;
   }
 
   // Variante AVEC les centimes, pour les montants où ils comptent — une répartition de prorata est
   // une somme réclamée à un client, l'arrondir à l'euro ferait perdre le complément exact entre les
   // deux parts (voir calculerProrata). Le prix de vente et l'apport, eux, restent à l'euro près :
   // formaterPrix() est inchangée.
-  const FORMAT_PRIX_CENTIMES = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 });
   function formaterPrixCentimes(valeur) {
-    return FORMAT_PRIX_CENTIMES.format(valeur);
+    return formaterMontantEuros(valeur, 2);
   }
 
   // Montant emprunté, lu dans le texte de l'offre de prêt elle-même (pas le compromis) une fois
@@ -7950,7 +7989,7 @@
 
     // Même remarque que pour le nom/l'email ci-dessus : c'est ici le fragment BRUT du vieux
     // détecteur, que la passe structurée doit pouvoir remplacer par l'adresse reconstruite.
-    appliquerValeurChamp('f-adresse-bien', detecterAdresseBien(texte));
+    appliquerValeurChamp('f-adresse-bien', normaliserAdresse(detecterAdresseBien(texte)));
     const prixDetecte = detecterPrixVente(texte);
     if (prixDetecte) appliquerValeurChamp('f-prix-vente', String(prixDetecte));
 
@@ -8002,7 +8041,7 @@
     if (champs.depotGarantie) appliquerValeurChamp('f-depot-garantie', champs.depotGarantie.valeur);
     if (champs.sequestreDepot) appliquerValeurChamp('f-sequestre-depot', champs.sequestreDepot.valeur);
     const adresse = extraction.bien && extraction.bien.adresse;
-    if (adresse && adresse.adresseComplete) appliquerValeurChamp('f-adresse-bien', adresse.adresseComplete);
+    if (adresse && adresse.adresseComplete) appliquerValeurChamp('f-adresse-bien', normaliserAdresse(adresse.adresseComplete));
 
     // Dates butoir : traiterTexte() remplit déjà les champs à partir des chips, mais l'objet
     // d'extraction connaît aussi les échéances qui n'ont PAS donné de chip — typiquement une date
@@ -10022,13 +10061,13 @@
     const responsable = document.getElementById('f-responsable').value.trim();
     const emailAcquereur = document.getElementById('f-email-acquereur').value.trim();
     const nomAgence = document.getElementById('f-nom-agence').value.trim();
-    const adresseBien = document.getElementById('f-adresse-bien').value.trim();
+    const adresseBien = normaliserAdresse(document.getElementById('f-adresse-bien').value);
     const prixVenteBrut = document.getElementById('f-prix-vente').value.trim();
-    const prixVente = prixVenteBrut ? parseInt(prixVenteBrut.replace(/[^\d]/g, ''), 10) : null;
+    const prixVente = eurosDepuisSaisie(prixVenteBrut);
     const mobilierBrut = document.getElementById('f-prix-mobilier').value.trim();
-    const prixMobilier = mobilierBrut ? parseInt(mobilierBrut.replace(/[^\d]/g, ''), 10) : null;
+    const prixMobilier = eurosDepuisSaisie(mobilierBrut);
     const depotBrut = document.getElementById('f-depot-garantie').value.trim();
-    const depotGarantie = depotBrut ? parseInt(depotBrut.replace(/[^\d]/g, ''), 10) : null;
+    const depotGarantie = eurosDepuisSaisie(depotBrut);
     const sequestreDepot = document.getElementById('f-sequestre-depot').value.trim();
     const pret = echeanceActive.pret ? document.getElementById('f-pret').value : '';
     const acte = echeanceActive.acte ? document.getElementById('f-acte').value : '';
@@ -11309,7 +11348,7 @@
   }
 
   function renderOfficeCarnet(o, dossiersOffice) {
-    const adresse = [o.adresse, [o.codePostal, o.ville].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    const adresse = normaliserAdresse([o.adresse, [o.codePostal, o.ville].filter(Boolean).join(' ')].filter(Boolean).join(', '));
     const contacts = [
       o.telephone ? `<a href="tel:${escapeAttr(o.telephone.replace(/\s+/g, ''))}">${escapeHtml(o.telephone)}</a>` : '',
       o.email ? `<a href="mailto:${escapeAttr(o.email)}">${escapeHtml(o.email)}</a>` : '<span class="carnet-manque">Email non renseigné</span>'
@@ -12210,7 +12249,7 @@
   function changerAdresseBien(id, valeur) {
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
-    const nouvelle = valeur.trim();
+    const nouvelle = normaliserAdresse(valeur);
     if (nouvelle === (d.adresseBien || '')) return;
     ajouterHistorique(d, `Adresse du bien modifiée`);
     d.adresseBien = nouvelle;
@@ -12223,8 +12262,7 @@
   function changerDepotGarantie(id, valeur) {
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
-    const chiffres = valeur.replace(/[^\d]/g, '');
-    const nouveau = chiffres ? parseInt(chiffres, 10) : null;
+    const nouveau = eurosDepuisSaisie(valeur);
     const normalise = Number.isFinite(nouveau) && nouveau > 0 ? nouveau : null;
     if (normalise === (d.depotGarantie || null)) { render(); return; }
     ajouterHistorique(d, `Dépôt de garantie modifié : ${d.depotGarantie ? formaterPrix(d.depotGarantie) : '—'} → ${normalise ? formaterPrix(normalise) : '—'}`);
@@ -12247,8 +12285,7 @@
   function changerPrixVente(id, valeur) {
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
-    const chiffres = valeur.replace(/[^\d]/g, '');
-    const nouveau = chiffres ? parseInt(chiffres, 10) : null;
+    const nouveau = eurosDepuisSaisie(valeur);
     const normalise = Number.isFinite(nouveau) && nouveau > 0 ? nouveau : null;
     if (normalise === (d.prixVente || null)) { render(); return; }
     ajouterHistorique(d, `Prix de vente modifié : ${d.prixVente ? formaterPrix(d.prixVente) : '—'} → ${normalise ? formaterPrix(normalise) : '—'}`);
@@ -12315,8 +12352,7 @@
   function changerPrixMobilier(id, valeur) {
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
-    const chiffres = String(valeur || '').replace(/[^\d]/g, '');
-    const nouveau = chiffres ? parseInt(chiffres, 10) : null;
+    const nouveau = eurosDepuisSaisie(valeur);
     const normalise = Number.isFinite(nouveau) && nouveau > 0 ? nouveau : null;
     if (normalise && d.prixVente && normalise >= d.prixVente) {
       afficherToast('Le mobilier doit être inférieur au prix de vente, qu’il comprend.', 'OK', null);
@@ -13768,7 +13804,7 @@
         ${ligne('file-text', 'Avant-contrat', avantContrat, null, 'prop-pleine')}
       </dl>
       <dl class="fiche-proprietes">
-        ${ligne('map-pin', 'Adresse', saisie('adresse', d.adresseBien, 'changerAdresseBien'), `adresse-${d.id}`, 'prop-pleine')}
+        ${ligne('map-pin', 'Adresse', saisie('adresse', normaliserAdresse(d.adresseBien), 'changerAdresseBien'), `adresse-${d.id}`, 'prop-pleine')}
         ${ligne('banknote', 'Prix', saisie('prix', d.prixVente ? formaterPrix(d.prixVente) : '', 'changerPrixVente', ' inputmode="numeric"'), `prix-${d.id}`)}
         ${ligne('package', 'Dont mobilier', saisie('mobilier', d.prixMobilier ? formaterPrix(d.prixMobilier) : '', 'changerPrixMobilier', ' inputmode="numeric" title="Part du prix qui porte sur des meubles : elle sort de l\'assiette des droits de mutation (frais d\'acte)."', 'Aucun') + boutonLireMobilier, `mobilier-${d.id}`)}
         ${ligne('lock', 'Séquestre', saisie('depot', d.depotGarantie ? formaterPrix(d.depotGarantie) : '', 'changerDepotGarantie', ' inputmode="numeric" title="Montant séquestré (dépôt de garantie)"'), `depot-${d.id}`)}
@@ -19812,7 +19848,7 @@
   // envoyée, appel de fonds trouvé sur le commun) ; sinon seule une information utile est écrite,
   // la case reste à cocher à la main. Même ordre que PROCEDURE_FONDS. Pure.
   function etatProcedureFonds(d, formatMontant) {
-    const euros = formatMontant || (n => Number(n).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €');
+    const euros = formatMontant || formaterPrixCentimes;
     const etat = PROCEDURE_FONDS.map(() => ({ fait: false, date: '', note: '' }));
     const iso = v => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v)) ? v.slice(0, 10) : '';
     // 1 — Envoi de l'appel de fonds : une date saisie vaut envoi fait.
@@ -26676,9 +26712,10 @@
 
     return {
       dossierId: d.id,
-      dossierNom: d.nom || '',
+      // Référence du courrier : « VTE - NOM » pour un dossier de vente (demandé par l'étude, 29/09).
+      dossierNom: d.nom ? libelleDossierAffiche(d) : '',
       clients,
-      adresseBien: d.adresseBien || '',
+      adresseBien: normaliserAdresse(d.adresseBien),
       designation: designationDepuisTypeVente(d.typeVente),
       dateRdv: d.rendezVousSignature || '',
       prixVente: d.prixVente || null,
@@ -27029,8 +27066,7 @@
   // Mobilier compris dans le prix : sort de l'assiette des droits de mutation (art. 735 CGI).
   // Sans le retirer, un décompte qui l'a correctement déduit paraîtrait « sous le barème ».
   function mobilierPourControleFraisActe() {
-    const brut = String(afValeur('af-prix-mobilier') || '').replace(/[^\d]/g, '');
-    const n = brut ? parseInt(brut, 10) : 0;
+    const n = eurosDepuisSaisie(afValeur('af-prix-mobilier')) || 0;
     return Number.isFinite(n) && n > 0 ? n : 0;
   }
 
@@ -27193,7 +27229,7 @@
     poser('af-p-ref', afValeur('af-ref') || 'RÉF. DOSSIER');
     poser('af-p-datelettre', formatDateFr(afValeur('af-date-lettre')));
     poser('af-p-designation', afValeur('af-designation') || 'un bien');
-    poser('af-p-adressebien', afValeur('af-adresse-bien').replace(/\n+/g, ', ') || 'adresse à compléter');
+    poser('af-p-adressebien', normaliserAdresse(afValeur('af-adresse-bien')) || 'adresse à compléter');
     poser('af-p-rdv', phraseRdvAppelFonds(afValeur('af-date-rdv'), afValeur('af-heure-rdv'), lieuAppelFonds()));
     const sansPret = afEl('af-sans-pret');
     poser('af-p-deblocage', phraseDeblocageAppelFonds(!!(sansPret && sansPret.checked)));

@@ -639,7 +639,7 @@ test('fonds : tous reçus → une seule alerte par dossier, rien si la réceptio
   const dus = alertesFondsDues([d], '2026-10-06', new Set());
   assert.equal(dus.length, 1);
   assert.equal(dus[0].genre, 'complets');
-  assert.match(texteAlerteFonds(dus[0]), /Tous les fonds sont reçus pour le dossier VTE - DUPONT \/ MARTIN \(150\s000,00\s€\)/);
+  assert.match(texteAlerteFonds(dus[0]), /Tous les fonds sont reçus pour le dossier VTE - DUPONT \/ MARTIN \(150\.000,00\s€\)/);
   assert.equal(alertesFondsDues([d], '2026-10-06', new Set(['f1:fonds-complets'])).length, 0);
   assert.equal(alertesFondsDues([Object.assign({}, d, { receptionFondsConfirmeeLe: '2026-10-06' })], '2026-10-06', new Set()).length, 0);
   // Pas avant l'appel de fonds.
@@ -654,7 +654,7 @@ test('fonds incomplets : 48 h avant le rendez-vous (mercredi → lundi précéde
   assert.equal(dus[0].reminderKey, 'fonds-incomplets:2026-10-14');
   const texte = texteAlerteFonds(dus[0]);
   assert.match(texte, /Fonds pas encore reçus en entier/);
-  assert.match(texte, /100\s000,00\s€ reçus sur 150\s000,00\s€, il manque 50\s000,00\s€/);
+  assert.match(texte, /100\.000,00\s€ reçus sur 150\.000,00\s€, il manque 50\.000,00\s€/);
   assert.match(texte, /mercredi 14 octobre/);
   // Une seule fois par date de rendez-vous.
   assert.equal(alertesFondsDues([d], '2026-10-13', new Set(['f1:fonds-incomplets:2026-10-14'])).length, 0);
