@@ -11751,3 +11751,15 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
   l'installateur, dedans, bloque la propagation pour ne pas basculer l'option). Télécharger
   l'installateur active aussi l'option sur le poste. Vérifié dans Chromium : clic → coché et
   mémorisé, conservé après rechargement, lien → installateur téléchargé et option activée.
+
+- **29/09/2026 — Reçus : le client est le nom en début de ligne, jamais le libellé** (reçu réel
+  `recus_28-09-26.pdf`, hors dépôt : « MANDELBLI Valérian et MARTIN VIR RECU DE SCP … SOLDE PRIX DE
+  VENTE PRIEUR-YAICH/MANDELBLI » ; l'étude : le libellé peut citer un autre client, ici les PRIEUR,
+  qui ont un autre dossier d'acquisition). Rejoué page par page : les trois écritures MANDELBLI
+  (375 000,00 + 30 395,11 + 582,80 €) allaient déjà au seul acquéreur MANDELBLI et à aucun dossier des
+  PRIEUR. Faille trouvée sur les pages 2 et 3 : « BARON Philippe RECU DE MME BARON MARIE … » — un
+  libellé qui commence par « RECU » (sans VIR) n'était pas reconnu, le titulaire restait vide et
+  `ecrituresDuPayeur` lisait alors la ligne entière, libellé compris. `RE_DEBUT_LIBELLE_RECU` connaît
+  maintenant « RECU/REÇU » ; sans aucun mot d'opération, le titulaire est pris sur les deux premiers
+  mots ; et le rapprochement ne lit plus JAMAIS le libellé (`e.titulaire` seul). Test
+  `tests/fonds-recus.test.js` (structure réelle, noms inventés) : il échoue sur l'ancien code.

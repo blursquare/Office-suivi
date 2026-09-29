@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 09:43';
+  const VERSION_APP = '2026-09-29 09:53';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 09:53', resume: "Fonds reçus : un versement n'est compté que pour le client nommé en DÉBUT de ligne du reçu (le titulaire du compte), jamais d'après le libellé du virement, qui peut citer un autre client — y compris sur les lignes qui commencent par « RECU DE » sans « VIR »." },
     { version: '2026-09-29 09:43', resume: "Réglages › Sur ce poste : l'interrupteur « Ouvrir les documents dès leur téléchargement » se coche enfin au clic (il ne réagissait pas), et s'active tout seul quand on télécharge l'installateur." },
     { version: '2026-09-29 09:34', resume: "Emails : signature selon le modèle de l'étude — carte du collaborateur (nom, fonction, téléphone, adresse notaires.fr, logos), bannière Visio, mentions en orange, rouge et gris (fonction de chacun dans Réglages). Échéances dans l'ordre du dossier (le prêt ne descend plus en bas) et heure du rendez-vous sur la ligne Signature. Email de réception des fonds : jour, date et heure du rendez-vous en gras souligné (« lundi 5 octobre 2026 à 11h ») et rappel des pièces d'identité et du RIB. Réglages › Sur ce poste : ouvrir les documents dès leur téléchargement (relais à installer une fois par poste)." },
     { version: '2026-09-29 09:09', resume: "Fonds reçus : les reçus comptables sont aussi cherchés dans le dossier « DOSSIER » à la racine du NAS (\\\\192.168.60.5\\Commun\\DOSSIER) — c'est là que l'étude les range ; seule la racine des dossiers clients était lue. La fiche dit sous quel nom et dans quels dossiers les reçus ont été cherchés. Agenda : « Noter dans l'agenda » est coché quand la mention (appel de fonds, projet) figure déjà dans le lieu du rendez-vous relevé dans l'agenda." },
@@ -10517,7 +10518,9 @@
   // VENDEUR du même dossier. La référence sert seulement à confirmer le rapprochement.
   var RE_DATE_RECU = /^(\d{2})\/(\d{2})\/(\d{4})\b.*€\s*Euros?\s*$/i;
   var RE_COMPTE_RECU = /^compte\s*:\s*([\d ]+)$/i;
-  var RE_DEBUT_LIBELLE_RECU = /\s(VIR|VIRT|VIREMENT|CHEQUE|CHQ|ESPECES|ESP|PRLV|PRELEVEMENT|REMISE|VERSEMENT|DEPOT|CB)\b/i;
+  // « RECU » seul ouvre aussi un libellé (« BARON Philippe RECU DE MME BARON MARIE… », reçu du
+  // 28/09) : sans lui, le titulaire n'était pas isolé et toute la ligne était lue.
+  var RE_DEBUT_LIBELLE_RECU = /\s(VIR|VIRT|VIREMENT|CHEQUE|CHQ|ESPECES|ESP|PRLV|PRELEVEMENT|REMISE|VERSEMENT|DEPOT|CB|RE[CÇ]U)(?![A-Za-zÀ-ɏ])/i;
   var RE_MONTANT_SEUL_RECU = /^[\d  .]+,\d{2}\s*€?$/;
   // Écritures qui ne sont pas des fonds versés par le client : un remboursement ou une restitution
   // de trop-perçu (DDFIP, assureur) arrive sur le même compte après coup.
@@ -10543,9 +10546,12 @@
       if (ms.length) {
         const sansMontant = l.replace(/[\d  .]+,\d{2}\s*€?\s*$/, '').trim();
         const m = RE_DEBUT_LIBELLE_RECU.exec(' ' + sansMontant);
+        // Sans mot d'opération reconnu : le titulaire est pris sur les deux premiers mots (NOM
+        // Prénom), jamais sur la ligne entière — le libellé peut citer un autre client.
+        const mots = sansMontant.split(/\s+/);
         ecritures.push({
-          titulaire: m ? sansMontant.slice(0, m.index).replace(/[\s-]+$/, '').trim() : '',
-          libelle: m ? sansMontant.slice(m.index).trim() : sansMontant,
+          titulaire: m ? sansMontant.slice(0, m.index).replace(/[\s-]+$/, '').trim() : mots.slice(0, 2).join(' '),
+          libelle: m ? sansMontant.slice(m.index).trim() : mots.slice(2).join(' '),
           montant: ms[ms.length - 1]
         });
       } else if (ecritures.length) {
@@ -10561,8 +10567,10 @@
   function ecrituresDuPayeur(recu, mots, motsVente) {
     const out = [];
     for (const e of (recu && recu.ecritures) || []) {
-      const qui = e.titulaire || e.libelle;
-      if (!ligneNommeLePayeur(qui, mots)) continue;
+      // Le client est le TITULAIRE, en début de ligne (règle rappelée par l'étude le 29/09) : le
+      // libellé du virement peut nommer un autre client (« … VTE PRIEUR-YAICH/MANDELBLI » sur le
+      // compte de MANDELBLI ne concerne pas un autre dossier des PRIEUR). Jamais lu pour rapprocher.
+      if (!e.titulaire || !ligneNommeLePayeur(e.titulaire, mots)) continue;
       if (RE_ECRITURE_NON_FONDS.test(e.libelle)) continue;
       const confirme = (motsVente || []).length > 0 && ligneNommeLePayeur(e.libelle, motsVente);
       out.push({ montant: e.montant, date: recu.date, compte: recu.compte, confirme,

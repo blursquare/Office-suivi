@@ -104,6 +104,38 @@ test('reçu comptable réel : remboursement de trop-perçu et reçu d’un autre
   assert.equal(r.length, 0);
 });
 
+// Reçu du 28/09 (structure réelle, noms inventés) : le libellé cite les vendeurs d'une autre vente
+// (« VTE FAURE-LEGRAND/VASSEUR ») — le versement est celui de VASSEUR, titulaire en début de ligne,
+// jamais celui d'un autre dossier des FAURE. Et une ligne qui commence par « RECU » (sans VIR) isole
+// aussi son titulaire : le libellé « RECU DE MME ROLLAND CLAIRE » ne compte pas pour les ROLLAND.
+test('reçu comptable : seul le titulaire en début de ligne désigne le client, jamais le libellé', () => {
+  const vente = [
+    'SCP NOTAIRES DU VAL', '28/09/2026 SGOSSART/JSAUJO 405 977,91 € Euros', 'quatre cent cinq mille…',
+    'compte : 3064 3064 3064',
+    'VASSEUR Léon et BERNARD VIR RECU DE SCP NOTAIRES DU VAL SOLDE PRIX DE VENTE 375 000,00 €',
+    'FAURE-LEGRAND/VASSEUR',
+    'VASSEUR Léon et BERNARD VIR RECU DE SCP NOTAIRES DU VAL SOLDE PROVISION SUR 30 395,11 €',
+    'FRAIS VTE FAURE-LEGRAND/VASSEUR',
+    'VASSEUR Léon et BERNARD VIR RECU DE SCP NOTAIRES DU VAL PRORATA DE TAXE 582,80 €',
+    'FONCIERE VTE FAURE-LEGRAND/VASSEUR',
+    '405 977,91 €'
+  ];
+  const sansVir = [
+    'MME ROLLAND CLAIRE', '28/09/2026 SGOSSART/ 2 000,00 € Euros', 'deux mille Euros', 'compte : 3039',
+    'PERRIN Jacques RECU DE MME ROLLAND CLAIRE QUOTE-PART PASSIF À RÉGLER 2 000,00 €', '2 000,00 €'
+  ];
+  assert.equal(app.lireRecuComptable(sansVir).ecritures[0].titulaire, 'PERRIN Jacques');
+  // L'acquéreur VASSEUR : les trois écritures, confirmées par la référence de la vente.
+  const vasseur = app.recusDuPayeurDansPages([vente], ['vasseur'], ['faure', 'legrand']);
+  assert.equal(vasseur.map(r => r.montant).join(' + '), '375000 + 30395.11 + 582.8');
+  assert.ok(vasseur.every(r => r.confirme));
+  // Un autre dossier où les FAURE achètent : rien, malgré « FAURE-LEGRAND » dans le libellé.
+  assert.equal(app.recusDuPayeurDansPages([vente], ['faure', 'legrand'], ['dupont']).length, 0);
+  // Les ROLLAND ne récupèrent pas le versement porté au compte de PERRIN.
+  assert.equal(app.recusDuPayeurDansPages([sansVir], ['rolland'], []).length, 0);
+  assert.equal(app.recusDuPayeurDansPages([sansVir], ['perrin'], []).length, 1);
+});
+
 // --- Décompte à la racine du dossier relié, vérification automatique (28/09) -----------------
 test('fichiersDecompteRacine : racine seulement, noms parlants d’abord, jamais l’avant-contrat', () => {
   const app = chargerApplication();
