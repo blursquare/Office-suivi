@@ -11763,3 +11763,20 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
   maintenant « RECU/REÇU » ; sans aucun mot d'opération, le titulaire est pris sur les deux premiers
   mots ; et le rapprochement ne lit plus JAMAIS le libellé (`e.titulaire` seul). Test
   `tests/fonds-recus.test.js` (structure réelle, noms inventés) : il échoue sur l'ancien code.
+
+- **29/09/2026 — Signature des emails : images de l'étude déposées dans Réglages** (l'étude a
+  envoyé ses PNG — carte « Collaborateur » et bannière « Pas le temps de passer chez votre
+  notaire ? » — en images collées dans la conversation, qui n'arrivent pas en fichiers : impossible
+  de les embarquer dans le dépôt). Réglages › Général › « Signature des emails » : deux
+  emplacements (Carte de l'office, Bannière Visio), PNG/JPEG, 1,5 Mo au plus, aperçu, remplacer,
+  retirer. Stockés en base (`parametres`, clé `images-signature-email`, base64 + dimensions),
+  communs à tous les postes — route `server/src/routes/signatureImages.js`
+  (`GET/PUT/DELETE /api/signature-images[/:emplacement]`, type et taille contrôlés côté serveur).
+  `imagesSignatureEmail()` les ajoute aux pièces `cid:` du .eml (`claire-carte`,
+  `claire-banniere-visio`) ; `signatureHtmlOffice` les pose à la place de la carte et de la bannière
+  composées en HTML, 600 px de large au plus (hauteur à l'échelle), les mentions en couleur restant
+  en texte dessous. Pour l'instant la même carte pour tous les collaborateurs (« toujours les mêmes
+  pour le moment ») ; la version texte (mailto, partie texte du .eml) garde nom et fonction du
+  signataire. Vérifié dans Chromium (clair/sombre, 390 px) : dépôt d'une image d'essai → aperçu,
+  `<img src="cid:claire-carte" width="600" height="165">` dans l'email, plus de carte HTML.
+  Non vérifié : rendu dans Outlook au bureau.

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 09:53';
+  const VERSION_APP = '2026-09-29 09:58';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 09:58', resume: "Emails : la carte de l'office et la bannière Visio de la signature peuvent être les images de l'étude (PNG ou JPEG), déposées une fois dans Réglages › Signature des emails. Elles figurent telles quelles, 600 px de large au plus, dans tous les emails préparés par CLAIRE ; sans image, CLAIRE compose la carte elle-même comme avant." },
     { version: '2026-09-29 09:53', resume: "Fonds reçus : un versement n'est compté que pour le client nommé en DÉBUT de ligne du reçu (le titulaire du compte), jamais d'après le libellé du virement, qui peut citer un autre client — y compris sur les lignes qui commencent par « RECU DE » sans « VIR »." },
     { version: '2026-09-29 09:43', resume: "Réglages › Sur ce poste : l'interrupteur « Ouvrir les documents dès leur téléchargement » se coche enfin au clic (il ne réagissait pas), et s'active tout seul quand on télécharge l'installateur." },
     { version: '2026-09-29 09:34', resume: "Emails : signature selon le modèle de l'étude — carte du collaborateur (nom, fonction, téléphone, adresse notaires.fr, logos), bannière Visio, mentions en orange, rouge et gris (fonction de chacun dans Réglages). Échéances dans l'ordre du dossier (le prêt ne descend plus en bas) et heure du rendez-vous sur la ligne Signature. Email de réception des fonds : jour, date et heure du rendez-vous en gras souligné (« lundi 5 octobre 2026 à 11h ») et rappel des pièces d'identité et du RIB. Réglages › Sur ce poste : ouvrir les documents dès leur téléchargement (relais à installer une fois par poste)." },
@@ -13136,7 +13137,7 @@
     // installé/démarré/arrêté sur le serveur depuis la dernière visite de cet onglet.
     // Réglages relus à chaque ouverture (un collègue a pu les modifier depuis un autre poste,
     // même principe que la disponibilité d'Ollama ci-dessus).
-    if (nom === 'reglages') { definirSousOngletReglages(sousOngletReglagesRetenu()); chargerReglages(); chargerReglagesClaude(); chargerReglagesExchange(); chargerSignalements(); }
+    if (nom === 'reglages') { definirSousOngletReglages(sousOngletReglagesRetenu()); chargerReglages(); chargerReglagesClaude(); chargerReglagesExchange(); chargerSignalements(); renderReglagesSignatureImages(true); }
     if (nom === 'analyse-ia') initRelecture();
     // Date du jour et bornes de période posées au premier affichage seulement (voir initProrata).
     if (nom === 'prorata') initProrata();
@@ -17277,14 +17278,22 @@
       + (img.logoNotaires ? `<img src="cid:${img.logoNotaires}" width="120" height="62" alt="Notaires de France" style="display:block;border:0;margin:-6px auto 0;">` : '')
       + (reseaux ? `<div style="margin-top:8px;">${reseaux}</div>` : '')
       + `</td>`;
-    const carte = `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560" style="border-collapse:collapse;margin-top:14pt;border:1px solid #E8DCC4;background:#FFFFFF;"><tr>${gauche}${droite}</tr></table>`;
+    // Image déposée dans Réglages : reprise telle quelle, 600 px de large au plus (taille d'une
+    // signature Outlook), à la place de la version composée par CLAIRE.
+    const imageDeposee = (d, marge) => {
+      const largeur = Math.min(Number(d.largeur) || 600, 600);
+      const hauteur = Math.round((Number(d.hauteur) || 0) * largeur / (Number(d.largeur) || largeur)) || '';
+      return `<img src="cid:${d.cid}" width="${largeur}"${hauteur ? ` height="${hauteur}"` : ''} alt="" style="display:block;border:0;margin-top:${marge};max-width:100%;">`;
+    };
+    const carte = img.carteImage ? imageDeposee(img.carteImage, '14pt')
+      : `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560" style="border-collapse:collapse;margin-top:14pt;border:1px solid #E8DCC4;background:#FFFFFF;"><tr>${gauche}${droite}</tr></table>`;
     const texteVisio = BANNIERE_VISIO_EMAIL.morceaux.map(([t, st]) => st === 'bleu'
       ? `<span style="color:${BLEU_VISIO_EMAIL};">${echapperHtmlEmail(t)}</span>` : echapperHtmlEmail(t)).join('');
-    const visio = `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560" style="border-collapse:collapse;margin-top:12pt;border:1px solid #E3E3E3;background:#FFFFFF;"><tr>`
+    const visio = img.visioImage ? imageDeposee(img.visioImage, '12pt') : (`<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560" style="border-collapse:collapse;margin-top:12pt;border:1px solid #E3E3E3;background:#FFFFFF;"><tr>`
       + (img.iconVisio ? `<td width="56" style="padding:8px 6px 8px 10px;vertical-align:middle;"><img src="cid:${img.iconVisio}" width="46" height="41" alt="Visio" style="display:block;border:0;"></td>` : '')
       + `<td style="padding:8px 10px;vertical-align:middle;${police}">`
       + `<div style="font-size:11pt;font-weight:bold;color:${BLEU_VISIO_EMAIL};">${echapperHtmlEmail(BANNIERE_VISIO_EMAIL.titre)}</div>`
-      + `<div style="font-size:8pt;line-height:1.35;color:#1F1F1F;margin-top:2px;">${texteVisio}</div></td></tr></table>`;
+      + `<div style="font-size:8pt;line-height:1.35;color:#1F1F1F;margin-top:2px;">${texteVisio}</div></td></tr></table>`);
     const mentions = MENTIONS_SIGNATURE_EMAIL.map((m, i) => {
       const couleur = COULEURS_MENTIONS_EMAIL[m.ton] || '#7F7F7F';
       const html = m.morceaux.map(([t, st]) => st === 'b' ? `<b>${echapperHtmlEmail(t)}</b>`
@@ -17438,7 +17447,32 @@
   // Images de la signature : reprises des logos de l'en-tête du courrier d'appel de fonds
   // (appel-de-fonds-modele.js, chargé à la demande). Sans elles, la signature part en texte seul.
   var IMAGES_SIGNATURE_EMAIL = { logoOffice: 'claire-logo-office', logoNotaires: 'claire-logo-notaires', iconVisio: 'claire-visio', iconFacebook: 'claire-facebook', iconInstagram: 'claire-instagram' };
+  // Carte et bannière Visio déposées dans Réglages (images de l'étude) : lues une fois par session,
+  // relues après un dépôt ou un retrait.
+  let imagesSignatureDeposees = null;
+  async function chargerImagesSignatureDeposees(forcer) {
+    if (imagesSignatureDeposees && !forcer) return imagesSignatureDeposees;
+    try {
+      const r = await fetchAvecAuth('/api/signature-images');
+      imagesSignatureDeposees = r.ok ? await r.json() : {};
+    } catch (e) { imagesSignatureDeposees = {}; }
+    return imagesSignatureDeposees;
+  }
+  var CIDS_IMAGES_DEPOSEES = { carte: 'claire-carte', visio: 'claire-banniere-visio' };
+
   async function imagesSignatureEmail() {
+    const deposees = await chargerImagesSignatureDeposees();
+    const res = await imagesSignatureLogos();
+    for (const [cle, cid] of Object.entries(CIDS_IMAGES_DEPOSEES)) {
+      const img = deposees && deposees[cle];
+      if (!img || !img.base64) continue;
+      res.cids[cle + 'Image'] = { cid, largeur: img.largeur, hauteur: img.hauteur };
+      res.parties.push({ cid, type: img.type, base64: img.base64 });
+    }
+    return res;
+  }
+
+  async function imagesSignatureLogos() {
     try {
       if (!window.APPEL_FONDS_MODELE) await afChargerScript('appel-de-fonds-modele.js');
     } catch (e) { return { cids: {}, parties: [] }; }
@@ -27446,6 +27480,84 @@
       fonctionsResponsables: (reglages && reglages.fonctionsResponsables) || {}
     };
     reglagesSignatureCache = null;
+  }
+
+  // Réglages › Signature des emails : la carte de l'office et la bannière Visio, déposées en PNG ou
+  // JPEG (demandé par l'étude le 29/09 : « les png seront toujours les mêmes pour les emails envoyés
+  // par CLAIRE »). Un aperçu, « Déposer une image », et × pour revenir à la version composée.
+  var EMPLACEMENTS_SIGNATURE = [
+    { cle: 'carte', libelle: 'Carte de l’office', aide: 'Carte complète (façade, coordonnées, logos), environ 624 × 208 px.' },
+    { cle: 'visio', libelle: 'Bannière Visio', aide: '« Pas le temps de passer chez votre notaire ? », environ 620 × 70 px.' }
+  ];
+
+  async function renderReglagesSignatureImages(forcer) {
+    const zone = document.getElementById('reglages-signature-images');
+    if (!zone) return;
+    const images = await chargerImagesSignatureDeposees(forcer);
+    zone.innerHTML = EMPLACEMENTS_SIGNATURE.map(e => {
+      const img = images && images[e.cle];
+      return `<div class="signature-image-ligne">
+        <div class="signature-image-tete">
+          <span class="reglages-option-titre">${e.libelle}</span>
+          ${img ? `<button type="button" class="ech-ico ech-ico-suppr" onclick="retirerImageSignature('${e.cle}')" title="Retirer l’image" aria-label="Retirer l’image : ${escapeAttr(e.libelle)}">${icone('x')}</button>` : ''}
+        </div>
+        ${img
+          ? `<img class="signature-image-apercu" src="data:${img.type};base64,${img.base64}" alt="${escapeAttr(e.libelle)}">`
+          : `<span class="hint">${e.aide} Aucune image : version composée par CLAIRE.</span>`}
+        <input type="file" id="signature-image-${e.cle}" accept="image/png,image/jpeg" hidden onchange="deposerImageSignature('${e.cle}', this)">
+        <button type="button" class="bouton-ajout bouton-ajout-court" onclick="document.getElementById('signature-image-${e.cle}').click()">${img ? 'Remplacer l’image' : 'Déposer une image'}</button>
+      </div>`;
+    }).join('');
+  }
+
+  function lireImageFichier(fichier) {
+    return new Promise((resolve, reject) => {
+      const lecteur = new FileReader();
+      lecteur.onerror = () => reject(new Error('lecture impossible'));
+      lecteur.onload = () => {
+        const url = String(lecteur.result || '');
+        const image = new Image();
+        image.onload = () => resolve({ url, largeur: image.naturalWidth, hauteur: image.naturalHeight });
+        image.onerror = () => reject(new Error('image illisible'));
+        image.src = url;
+      };
+      lecteur.readAsDataURL(fichier);
+    });
+  }
+
+  async function deposerImageSignature(cle, input) {
+    const fichier = input && input.files && input.files[0];
+    if (!fichier) return;
+    if (!/^image\/(png|jpeg)$/.test(fichier.type)) { afficherToast('Choisissez une image PNG ou JPEG.', 'OK', null); return; }
+    if (fichier.size > 1.5 * 1024 * 1024) { afficherToast('Image trop lourde : 1,5 Mo au plus.', 'OK', null); return; }
+    try {
+      const { url, largeur, hauteur } = await lireImageFichier(fichier);
+      const r = await fetchAvecAuth('/api/signature-images/' + cle, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: fichier.type, base64: url.replace(/^data:[^,]*,/, ''), largeur, hauteur })
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.erreur || 'enregistrement refusé');
+      imagesSignatureDeposees = j;
+      await renderReglagesSignatureImages();
+      afficherToast('Image enregistrée : elle figure désormais dans les emails préparés par CLAIRE.', 'OK', null);
+    } catch (e) {
+      afficherToast('Image non enregistrée : ' + e.message, 'OK', null);
+    } finally {
+      input.value = '';
+    }
+  }
+
+  function retirerImageSignature(cle) {
+    const e = EMPLACEMENTS_SIGNATURE.find(x => x.cle === cle);
+    demanderConfirmation(`Retirer l’image « ${e ? e.libelle : cle} » de la signature ?`, async () => {
+      try {
+        const r = await fetchAvecAuth('/api/signature-images/' + cle, { method: 'DELETE' });
+        if (!r.ok) throw new Error('statut ' + r.status);
+        imagesSignatureDeposees = await r.json();
+        await renderReglagesSignatureImages();
+      } catch (err) { afficherToast('Retrait impossible : ' + err.message, 'OK', null); }
+    });
   }
 
   // Adresse de chaque collaborateur (rappels Teams, et adresse de sa carte de signature) et sa

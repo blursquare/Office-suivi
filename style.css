@@ -6590,3 +6590,10 @@ button.confrere-carnet-office:focus-visible, button.carnet-dossier:focus-visible
    composé pour battre input[type="text"] générique. */
 #reglages-emails-liste input.reglages-fonction { margin-top: 6px; width: 100%; }
 .ech-heure { color: var(--muted); font-weight: 400; }
+
+/* Réglages › Signature des emails : une ligne par image (titre, aperçu, dépôt). */
+.signature-images { display: flex; flex-direction: column; gap: 14px; }
+.signature-image-ligne { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; min-width: 0; }
+.signature-image-tete { display: flex; align-items: center; gap: 6px; }
+.signature-image-apercu { display: block; max-width: 100%; height: auto; border: 1px solid var(--line); border-radius: 6px; background: #FFFFFF; }
+.signature-image-ligne .bouton-ajout { margin: 0; }

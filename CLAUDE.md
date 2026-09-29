@@ -40,7 +40,8 @@ server/                              Serveur (son propre package.json ; le packa
   src/db.js, dossiersRepo.js,        Base SQLite (dossiers en blob JSON, table `parametres`
        parametresRepo.js             clé→JSON pour réglages et états produits par le serveur)
   src/routes/*.js                    API (dossiers, nas, reglages, notifications, agenda, exchange,
-                                     relectureClaude, relectures, extractionIa, offrePret, …)
+                                     relectureClaude, relectures, extractionIa, offrePret,
+                                     signatureImages — images de la signature des emails, …)
   src/carnetConfreres.js             Carnet des confrères (relevé initial des offices du 41, liste blanche)
   src/ouvertureAuto.js               Installateur du relais « claire-ouvrir: » (ouverture auto des téléchargements)
   src/jobs/rappels.js                Rappels par email (miroir serveur du planning client)

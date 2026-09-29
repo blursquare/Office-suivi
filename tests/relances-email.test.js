@@ -512,3 +512,23 @@ test('dateDernierEmail : champ daté, à défaut la ligne d’historique écrite
   assert.equal(app.dateDernierEmail(dossierBase(app, { provisionDemandeeLe: '2026-09-05' }), 'provision'), '2026-09-05');
   assert.equal(app.dateDernierEmail(dossierBase(app), 'rib'), null);
 });
+
+test('signatureHtmlOffice : la carte et la bannière déposées remplacent la version composée, 600 px au plus', () => {
+  const app = chargerApplication();
+  const s = app.signataireEmail('Julie VASSELIN', {});
+  const html = app.signatureHtmlOffice({
+    logoOffice: 'claire-logo-office',
+    carteImage: { cid: 'claire-carte', largeur: 1200, hauteur: 330 },
+    visioImage: { cid: 'claire-banniere-visio', largeur: 500, hauteur: 60 }
+  }, s);
+  assert.match(html, /<img src="cid:claire-carte" width="600" height="165"/);
+  assert.match(html, /<img src="cid:claire-banniere-visio" width="500" height="60"/);
+  assert.doesNotMatch(html, /claire-logo-office/);
+  assert.doesNotMatch(html, /Pas le temps de passer/);
+  // Mentions en couleur toujours présentes sous les images.
+  assert.match(html, /<p style="margin:0 0 0;color:/);
+  // Sans image déposée : version composée par CLAIRE.
+  const compose = app.signatureHtmlOffice({ logoOffice: 'claire-logo-office' }, s);
+  assert.match(compose, /cid:claire-logo-office/);
+  assert.doesNotMatch(compose, /claire-carte/);
+});
