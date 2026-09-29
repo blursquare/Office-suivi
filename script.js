@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 09:58';
+  const VERSION_APP = '2026-09-29 10:35';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 10:35', resume: "Emails : les logos ne sont plus joints au message quand la carte et la bannière de l'étude les remplacent (seules les images affichées dans l'email l'accompagnent). Deux lignes vides entre la carte et la bannière Visio, comme dans le modèle de l'étude." },
     { version: '2026-09-29 09:58', resume: "Emails : la carte de l'office et la bannière Visio de la signature peuvent être les images de l'étude (PNG ou JPEG), déposées une fois dans Réglages › Signature des emails. Elles figurent telles quelles, 600 px de large au plus, dans tous les emails préparés par CLAIRE ; sans image, CLAIRE compose la carte elle-même comme avant." },
     { version: '2026-09-29 09:53', resume: "Fonds reçus : un versement n'est compté que pour le client nommé en DÉBUT de ligne du reçu (le titulaire du compte), jamais d'après le libellé du virement, qui peut citer un autre client — y compris sur les lignes qui commencent par « RECU DE » sans « VIR »." },
     { version: '2026-09-29 09:43', resume: "Réglages › Sur ce poste : l'interrupteur « Ouvrir les documents dès leur téléchargement » se coche enfin au clic (il ne réagissait pas), et s'active tout seul quand on télécharge l'installateur." },
@@ -17289,7 +17290,9 @@
       : `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560" style="border-collapse:collapse;margin-top:14pt;border:1px solid #E8DCC4;background:#FFFFFF;"><tr>${gauche}${droite}</tr></table>`;
     const texteVisio = BANNIERE_VISIO_EMAIL.morceaux.map(([t, st]) => st === 'bleu'
       ? `<span style="color:${BLEU_VISIO_EMAIL};">${echapperHtmlEmail(t)}</span>` : echapperHtmlEmail(t)).join('');
-    const visio = img.visioImage ? imageDeposee(img.visioImage, '12pt') : (`<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560" style="border-collapse:collapse;margin-top:12pt;border:1px solid #E3E3E3;background:#FFFFFF;"><tr>`
+    // Deux lignes vides entre la carte et la bannière, comme dans le modèle de l'étude.
+    const lignesVides = `<p style="margin:0;${police}font-size:11pt;">&nbsp;</p>`.repeat(2);
+    const visio = img.visioImage ? imageDeposee(img.visioImage, '0') : (`<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560" style="border-collapse:collapse;margin-top:0;border:1px solid #E3E3E3;background:#FFFFFF;"><tr>`
       + (img.iconVisio ? `<td width="56" style="padding:8px 6px 8px 10px;vertical-align:middle;"><img src="cid:${img.iconVisio}" width="46" height="41" alt="Visio" style="display:block;border:0;"></td>` : '')
       + `<td style="padding:8px 10px;vertical-align:middle;${police}">`
       + `<div style="font-size:11pt;font-weight:bold;color:${BLEU_VISIO_EMAIL};">${echapperHtmlEmail(BANNIERE_VISIO_EMAIL.titre)}</div>`
@@ -17301,7 +17304,7 @@
       const marge = i === 0 ? '0' : (m.colle ? '0' : '10pt');
       return `<p style="margin:${marge} 0 0;color:${couleur};${m.gras ? 'font-weight:bold;' : ''}">${html}</p>`;
     }).join('');
-    return carte + visio + `<div style="margin-top:14pt;${police}font-size:10pt;line-height:1.4;">${mentions}</div>`;
+    return carte + lignesVides + visio + `<div style="margin-top:14pt;${police}font-size:10pt;line-height:1.4;">${mentions}</div>`;
   }
 
   // Pure : le corps (déjà adapté au destinataire) en HTML, suivi de la signature.
@@ -17357,9 +17360,12 @@
       + parties.map(p => `--${frontiere}${L}${p}${L}`).join('') + `--${frontiere}--`;
 
     let corps = multipart('alternative', 'claire_alt_0', [partieTexte('text/plain', texte), partieTexte('text/html', html)]);
-    if (images.length) {
-      corps = multipart('related', 'claire_rel_0', [corps, ...images.map(im =>
-        `Content-Type: ${im.type || 'image/png'}${L}Content-Transfer-Encoding: base64${L}Content-ID: <${im.cid}>${L}Content-Disposition: inline; filename="${im.cid}.png"${L}${L}${plierBase64(im.base64)}`)]);
+    // Seules les images réellement affichées dans le corps : une image non citée (logo remplacé
+    // par la carte déposée) apparaîtrait comme pièce jointe dans Outlook.
+    const affichees = images.filter(im => im && im.cid && String(html || '').indexOf('cid:' + im.cid) !== -1);
+    if (affichees.length) {
+      corps = multipart('related', 'claire_rel_0', [corps, ...affichees.map(im =>
+        `Content-Type: ${im.type || 'image/png'}${L}Content-Transfer-Encoding: base64${L}Content-ID: <${im.cid}>${L}Content-Disposition: inline; filename="${im.cid}.${im.type === 'image/jpeg' ? 'jpg' : 'png'}"${L}${L}${plierBase64(im.base64)}`)]);
     }
     if (pieces.length) {
       corps = multipart('mixed', 'claire_mix_0', [corps, ...pieces.map(p =>

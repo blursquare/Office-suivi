@@ -11780,3 +11780,12 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
   signataire. Vérifié dans Chromium (clair/sombre, 390 px) : dépôt d'une image d'essai → aperçu,
   `<img src="cid:claire-carte" width="600" height="165">` dans l'email, plus de carte HTML.
   Non vérifié : rendu dans Outlook au bureau.
+
+- **29/09/2026 — Signature : plus de logos en pièces jointes, deux lignes vides avant la bannière**
+  (retour de l'étude après dépôt de ses PNG). Les logos de la carte composée (office, Notaires de
+  France, Facebook, Instagram, pictogramme Visio) restaient joints au .eml alors que la carte et la
+  bannière déposées les remplacent : une image `cid:` que le corps n'affiche pas, Outlook la montre
+  en pièce jointe. `construireEml` ne garde plus que les images dont le `cid:` figure dans le HTML
+  (extension .jpg pour un JPEG). Entre la carte et la bannière : deux paragraphes vides (`&nbsp;`,
+  Calibri 11 pt) au lieu d'une marge, comme les deux retours à la ligne du modèle. Tests
+  `tests/relances-email.test.js`.

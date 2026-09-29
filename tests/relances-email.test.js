@@ -399,8 +399,8 @@ test('construireEml : message non envoyé, HTML + texte, image en ligne, pièce 
     destinataire: 'client@exemple.fr',
     sujet: 'Réception des fonds — dossier DUPONT',
     texte: 'Bonjour é',
-    html: '<p>Bonjour é</p>',
-    images: [{ cid: 'claire-visio', type: 'image/png', base64: 'iVBORw0KGgo=' }],
+    html: '<p>Bonjour é</p><img src="cid:claire-visio">',
+    images: [{ cid: 'claire-visio', type: 'image/png', base64: 'iVBORw0KGgo=' }, { cid: 'claire-logo-office', type: 'image/png', base64: 'iVBORw0KGgo=' }],
     pieces: [{ nom: 'Enquête satisfaction.pdf', type: 'application/pdf', contenuBase64: 'JVBERi0=' }]
   });
   assert.match(eml, /^To: client@exemple\.fr\r\n/);
@@ -410,6 +410,8 @@ test('construireEml : message non envoyé, HTML + texte, image en ligne, pièce 
   assert.match(eml, /multipart\/related/);
   assert.match(eml, /multipart\/alternative/);
   assert.match(eml, /Content-ID: <claire-visio>/);
+  // Une image que le corps n'affiche pas n'est pas jointe (Outlook la montrerait en pièce jointe).
+  assert.doesNotMatch(eml, /claire-logo-office/);
   assert.match(eml, /filename\*=UTF-8''Enqu%C3%AAte%20satisfaction\.pdf/);
   assert.match(eml, /Content-Disposition: attachment/);
   // L'UTF-8 est encodé correctement (« Bonjour é » → Qm9uam91ciDDqQ==).
@@ -525,6 +527,8 @@ test('signatureHtmlOffice : la carte et la bannière déposées remplacent la ve
   assert.match(html, /<img src="cid:claire-banniere-visio" width="500" height="60"/);
   assert.doesNotMatch(html, /claire-logo-office/);
   assert.doesNotMatch(html, /Pas le temps de passer/);
+  // Deux lignes vides entre la carte et la bannière, comme dans le modèle.
+  assert.match(html, /cid:claire-carte[^>]*>(<p style="margin:0;[^"]*">&nbsp;<\/p>){2}<img src="cid:claire-banniere-visio"/);
   // Mentions en couleur toujours présentes sous les images.
   assert.match(html, /<p style="margin:0 0 0;color:/);
   // Sans image déposée : version composée par CLAIRE.
