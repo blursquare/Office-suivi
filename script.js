@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 08:54';
+  const VERSION_APP = '2026-09-29 08:57';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 08:57', resume: "Échéances : « Créer le rendez-vous dans l'agenda Outlook » n'est plus proposé quand le rendez-vous de signature est déjà dans l'agenda de l'office — créé depuis CLAIRE ou posé à la main dans Outlook et relevé par CLAIRE. Il revient seulement si le rendez-vous disparaît de l'agenda ou si la date est changée à la main." },
     { version: '2026-09-29 08:54', resume: "Carnet des confrères : notre office y figure de base, en tête de liste (proposé dans les champs notaire des fiches, jamais retiré). Tableau de bord : bouton « Point du matin » sur la carte « Aujourd'hui » pour rouvrir la fenêtre du matin." },
     { version: '2026-09-29 08:50', resume: "Carnet des confrères (Outils) : les 35 offices notariaux du Loir-et-Cher déjà remplis (notaires, adresse, téléphone, email), à corriger ou compléter sur place. Sur la fiche d'un dossier, le notaire est rapproché de son office : office, téléphone et email s'affichent dessous, l'email de l'office sert aux relances au confrère tant qu'aucune adresse n'est saisie, et un notaire inconnu s'ajoute au carnet en un clic." },
     { version: '2026-09-29 07:16', resume: "Agenda : le confrère figure dans le lieu du rendez-vous de signature — « BA - Me DURAND en 1er - Appel de fonds envoyé » s'il reçoit l'acte, « … en 2nd … » s'il est en participation." },
@@ -11356,8 +11357,19 @@
   // activée et configurée (exchangeAgendaPret), qu'une date de rendez-vous existe et qu'il n'a pas
   // encore été créé depuis CLAIRE. Le formulaire s'y déplie (s'ouvre tout seul après la saisie de la
   // date, voir validerEditionDate).
+  // Le rendez-vous est-il déjà dans l'agenda de l'office ? Créé depuis CLAIRE (rdvAgendaCreeLe), ou
+  // posé à la main dans Outlook et relevé à la même date par la lecture de l'agenda (agendaWatch.js)
+  // — sauf s'il en a disparu depuis. Demandé par l'étude le 29/09 : ne plus proposer de créer un
+  // rendez-vous déjà placé. Pure.
+  function rdvDejaDansAgenda(d) {
+    if (!d || !d.rendezVousSignature) return false;
+    if (d.rdvAgendaCreeLe) return true;
+    const rep = d.detectionsAgenda || {};
+    return rep.rendezVousSignature === d.rendezVousSignature && rep.rendezVousDisparu !== d.rendezVousSignature;
+  }
+
   function renderLigneCreerRdvAgenda(d) {
-    if (!exchangeAgendaPret() || !d.rendezVousSignature || d.rdvAgendaCreeLe || d.archive) return '';
+    if (!exchangeAgendaPret() || !d.rendezVousSignature || rdvDejaDansAgenda(d) || d.archive) return '';
     const ouvert = rdvAgendaOuvert && dossierOuvert === d.id;
     return renderLigneAction({
       categorie: 'rendezVousSignature', categorieLabel: 'Agenda de l’office',

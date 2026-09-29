@@ -11652,3 +11652,12 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
   `estEtude`) ; jamais présenté comme un confrère (`officeConfrereDossier` écarte l'étude). Tableau
   de bord : bouton « Point du matin » (icône soleil) dans l'en-tête de la carte « Aujourd'hui »,
   sous l'anneau de progression — il appelle `ouvrirFenetreAujourdhui()`, comme l'icône de la page.
+
+- **29/09/2026 — Ne plus proposer de créer un rendez-vous déjà dans l'agenda** (demandé par
+  l'étude : « ne pas proposer créer le rendez-vous de signature dans les échéances si le rendez-vous
+  est déjà placé et créé »). La ligne « Créer le rendez-vous dans l'agenda Outlook » ne se cachait
+  que pour un rendez-vous créé depuis CLAIRE (`rdvAgendaCreeLe`) ; un rendez-vous posé à la main
+  dans Outlook et relevé par la lecture de l'agenda (agendaWatch.js) la faisait encore apparaître.
+  `rdvDejaDansAgenda(d)` : créé depuis CLAIRE, ou `detectionsAgenda.rendezVousSignature` égal à la
+  date de la fiche et pas marqué `rendezVousDisparu`. La ligne revient si le rendez-vous disparaît
+  de l'agenda ou si la date est corrigée à la main (le rendez-vous de l'agenda n'est plus le même).
