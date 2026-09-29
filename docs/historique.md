@@ -12140,3 +12140,16 @@ honoraires affichés sur la fiche et ajoutés à l'appel de fonds (à la charge 
   travaux lu dans l'état daté pour l'appel de fonds, frais de garantie lus dans l'offre, repérage
   automatique d'un avis sur plusieurs biens. Lecture de l'avis non vérifiée sur un vrai PDF ici
   (pdf.js injoignable) : règle testée sur des positions reprises de l'avis type.
+
+### 29/09 21:08 — Réception des fonds : plus claire, plus visuelle
+
+Demande : « Revois aussi la partie réception des fonds pour que ce soit plus clair et visuel, moins
+de texte. » `renderFondsRecus` : sous le titre, un état court (Tous les fonds sont reçus / Reste
+X / Écart à vérifier / Montant attendu à saisir / Aucun reçu trouvé / Pas encore vérifié) ; dans
+le détail, trois chiffres (Reçu, Attendu, Reste ou Écart, en couleur d'état) et une jauge
+(reçu / attendu ; verte complète, ambre en attente, orange en excédent) ; les versements en lignes
+courtes « 28/09 · montant · ✓ · icône du reçu » (fichier, page, compte et libellé au survol) ; en
+pied, les noms cherchés et le montant attendu modifiables au crayon (✓ / ×, `champFondsEditable`),
+la dernière lecture avec sa pastille « i », et « Confirmer quand même ». Les deux champs de saisie
+permanents et les phrases d'explication ont disparu. Vérifié dans Chromium (quatre états, clair
+900 px, sombre 400 px, pas de défilement horizontal).

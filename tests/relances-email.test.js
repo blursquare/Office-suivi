@@ -150,8 +150,8 @@ test('fonds reçus : vérifier d’abord, « Confirmer » une fois tous les fond
   const fait = dossierBase(app, { rendezVousSignature: '2026-11-20', appelFonds: '2026-10-30', echeancesValidees: { appelFonds: true } });
   const pasVerifie = app.renderFondsRecus(fait);
   assert.match(pasVerifie, /<span>Vérifier<\/span>/);
-  assert.match(pasVerifie, /Confirmer la réception des fonds quand même/);
-  assert.match(app.renderEchangesDossier(fait), /Confirmer la réception des fonds/);
+  assert.match(pasVerifie, /Confirmer quand même/);
+  assert.match(app.renderEchangesDossier(fait), /Confirmer quand même/);
 
   // Tous les fonds reçus : « Confirmer » devient le geste principal, « Revérifier » passe en icône.
   const complet = Object.assign({}, fait, { fondsRecus: { total: 1500, attendu: 1500, recus: [], depuis: '2026-10-15', fichiersLus: 1, verifieLe: '2026-11-02T10:00:00Z' } });
@@ -170,7 +170,7 @@ test('fonds reçus : une fois la confirmation envoyée, la date s’affiche et �
   const app = chargerApplication();
   const d = dossierBase(app, { appelFonds: '2026-10-30', echeancesValidees: { appelFonds: true }, receptionFondsConfirmeeLe: '2026-11-02' });
   const html = app.renderFondsRecus(d);
-  assert.match(html, /confirmée le 2 novembre 2026/);
+  assert.match(html, /confirmé au client le 2 novembre 2026/);
   assert.match(html, /<span>Renvoyer<\/span>/);
   assert.equal(app.MODELES_EMAIL_RELANCE.fonds.date, 'receptionFondsConfirmeeLe');
 });

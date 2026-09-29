@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 21:04';
+  const VERSION_APP = '2026-09-29 21:08';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 21:08', resume: "Réception des fonds plus visuelle : trois chiffres (reçu, attendu, reste ou écart) et une jauge colorée, les versements en lignes courtes (date, montant, coche si la référence de la vente est retrouvée, icône du reçu), le montant attendu et les noms cherchés modifiables au crayon ; le détail passe dans les pastilles « i »." },
     { version: '2026-09-29 21:04', resume: "Nouveau dossier : CLAIRE lit les honoraires de négociation (agence ou confrère, montant TTC, à la charge de qui) et le remboursement du fonds de travaux loi ALUR, affichés sur la fiche. Appel de fonds : choix « Établi par l'office » / « Décompte du confrère » ; décompte de l'office complété seul avec les honoraires à la charge de l'acquéreur, le fonds de travaux remboursé, le prêt hypothécaire (montant déduit, frais de garantie appelés) et le prorata de taxe foncière lu sur l'avis. Prorata : lecture d'un avis de taxe foncière, avec la répartition des ordures ménagères si l'avis porte sur plusieurs biens." },
     { version: '2026-09-29 20:52', resume: "Réglages réorganisés comme ceux de Claude : les rubriques à gauche (Général, Rappels Teams, Signature des emails, Agenda, Relecture d'actes, Pièces, Signalements, Mise à jour et sauvegarde), une seule colonne de réglages à droite, sans les trous des anciennes cartes. Partout, les paragraphes d'explication laissent place à une petite pastille « i » : l'aide s'affiche au survol ou au toucher." },
     { version: '2026-09-29 20:17', resume: "Offre de prêt : « contrat de prêt », « contrat de crédit » et « offre de contrat de prêt » reconnus dans le nom du fichier comme dans le titre de la page de garde (et examinés en priorité, comme « offre de prêt »)." },
@@ -11201,54 +11202,105 @@
     return `${nom ? `Versements cherchés ${nom}` : ''}${nom && lieux ? ' — ' : ''}${lieux}.`;
   }
 
+  // Édition sur place (crayon, ✓, ×) du montant attendu et des noms cherchés sur les reçus.
+  var fondsEdition = {};
+  function editerChampFonds(id, champ) { fondsEdition[id + ':' + champ] = true; render(); setTimeout(() => { const e = document.getElementById(`fonds-${champ}-${id}`); if (e) { e.focus(); e.select && e.select(); } }, 0); }
+  function annulerChampFonds(id, champ) { delete fondsEdition[id + ':' + champ]; render(); }
+  function validerChampFonds(id, champ) {
+    const e = document.getElementById(`fonds-${champ}-${id}`);
+    const valeur = e ? e.value : '';
+    delete fondsEdition[id + ':' + champ];
+    if (champ === 'attendu') changerFondsAttendus(id, valeur); else changerNomsRecus(id, valeur);
+    render();
+  }
+  function champFondsEditable(d, champ, affichage, valeur, placeholder, attrs) {
+    if (fondsEdition[d.id + ':' + champ]) {
+      return `<span class="fonds-edition">
+        <input type="text" id="fonds-${champ}-${d.id}" value="${escapeAttr(valeur)}" placeholder="${escapeAttr(placeholder)}" ${attrs || ''}
+          onkeydown="if(event.key==='Enter')validerChampFonds('${d.id}','${champ}');if(event.key==='Escape')annulerChampFonds('${d.id}','${champ}')">
+        <button type="button" class="icon-btn" onclick="validerChampFonds('${d.id}','${champ}')" title="Valider" aria-label="Valider">${icone('check')}</button>
+        <button type="button" class="icon-btn" onclick="annulerChampFonds('${d.id}','${champ}')" title="Annuler" aria-label="Annuler">${icone('x')}</button></span>`;
+    }
+    return `${affichage}<button type="button" class="icon-btn fonds-crayon" onclick="editerChampFonds('${d.id}','${champ}')" title="Modifier" aria-label="Modifier">${icone('pencil')}</button>`;
+  }
+
+  // Réception des fonds, en visuel (demandé par l'étude le 29/09 : « plus clair, moins de texte ») :
+  // trois chiffres (reçu, attendu, reste ou écart), une jauge, puis les versements retenus en lignes
+  // courtes. Le détail (fichiers lus, noms cherchés, marge de 50 €) passe dans les pastilles « i ».
   function renderFondsRecus(d) {
     if (!echeanceValidee(d, 'appelFonds') && !d.fondsRecus && !d.rendezVousSignature) return '';
     const f = d.fondsRecus;
     const attendu = d.fondsAttendusManuel || (f && f.attendu) || null;
     const b = bilanFondsRecus(f ? f.total : 0, attendu);
-    const etat = !f ? '<span class="dot-label dl-neutre"><span class="dot"></span>Pas encore vérifié</span>'
-      : b.etat === 'complet' ? `<span class="dot-label dl-success"><span class="dot"></span>Tous les fonds sont reçus — ${formaterPrixCentimes(b.total)}${precisionEcartFonds(b)}</span>`
-      : b.etat === 'excedent' ? `<span class="dot-label dl-pret"><span class="dot"></span>${formaterPrixCentimes(b.total)} reçus pour ${formaterPrixCentimes(b.attendu)} attendus — ${formaterPrixCentimes(b.ecart)} de trop : vérifiez les reçus retenus</span>`
-      : b.etat === 'partiel' ? `<span class="dot-label dl-pret"><span class="dot"></span>${formaterPrixCentimes(b.total)} reçus sur ${formaterPrixCentimes(b.attendu)} — reste ${formaterPrixCentimes(b.reste)}</span>`
-      : b.etat === 'inconnu' ? `<span class="dot-label dl-neutre"><span class="dot"></span>${formaterPrixCentimes(b.total)} reçus — montant attendu inconnu</span>`
-      : '<span class="dot-label dl-urgent"><span class="dot"></span>Aucun reçu trouvé</span>';
-    const source = f && f.attenduSource && !d.fondsAttendusManuel
-      ? (f.attenduChemin ? `<button type="button" class="lien-discret" onclick="ouvrirFichierNas('${escapeOnclickArg(f.attenduChemin)}')">${escapeHtml(f.attenduSource)}</button>` : escapeHtml(f.attenduSource))
-      : (d.fondsAttendusManuel ? 'saisi à la main' : '');
-    const liste = f && f.recus && f.recus.length ? `<ul class="fonds-recus-liste">${f.recus.map(r => `
-        <li><span class="fonds-recus-date">${r.date ? formatDateFr(r.date) : '—'}</span>
-          <strong>${formaterPrixCentimes(r.montant)}</strong>
-          <button type="button" class="lien-discret" onclick="ouvrirFichierNas('${escapeOnclickArg(r.chemin)}')" title="${escapeAttr(r.extrait || '')}">${escapeHtml(r.fichier)}${r.page > 1 ? ' p.' + r.page : ''}</button>
-          ${r.compte ? `<span class="fonds-recus-compte">compte ${escapeHtml(r.compte)}</span>` : ''}
-          ${r.confirme ? '<span class="fonds-recus-confirme" title="Le libellé du reçu cite aussi le vendeur du dossier">référence de la vente retrouvée</span>' : ''}</li>`).join('')}</ul>` : '';
-    const detail = `<div class="fonds-recus">
-      <label class="fonds-recus-attendu">Montant attendu
-        <input type="text" inputmode="decimal" value="${attendu ? escapeAttr(String(attendu).replace('.', ',')) : ''}" placeholder="lu dans le décompte"
-          onblur="changerFondsAttendus('${d.id}', this.value)" onkeydown="if(event.key==='Enter')this.blur()">
-        ${source ? `<span class="hint">${source}</span>` : ''}</label>
-      <label class="fonds-recus-attendu">Autre nom sur les reçus
-        <input type="text" value="${escapeAttr(d.nomsRecus || '')}" placeholder="nom d’usage, d’épouse…"
-          onblur="changerNomsRecus('${d.id}', this.value)" onkeydown="if(event.key==='Enter')this.blur()"></label>
-      ${liste}
-      ${f ? `<p class="hint fonds-recus-lieux">${f.fichiersLus} fichier${f.fichiersLus > 1 ? 's' : ''} de reçus lu${f.fichiersLus > 1 ? 's' : ''} depuis le ${formatDateFr(f.depuis)} · vérifié ${new Date(f.verifieLe).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })} ${infoBulle(['Chaque versement au nom de l’acquéreur est listé : vérifiez qu’il concerne bien ce dossier.', renderDossiersRecusLus(f, motsPayeurDossier(d))].filter(Boolean).join(' '))}</p>` : ''}
-    </div>`;
-    const complet = !!f && b.etat === 'complet';
-    const peutConfirmer = echeanceValidee(d, 'appelFonds') && !!emailDestinataireRelance(d);
     const confirmee = d.receptionFondsConfirmeeLe;
+    const etatCourt = !f ? ['dl-neutre', 'Pas encore vérifié']
+      : b.etat === 'complet' ? ['dl-success', 'Tous les fonds sont reçus']
+      : b.etat === 'excedent' ? ['dl-pret', 'Écart à vérifier']
+      : b.etat === 'partiel' ? ['dl-pret', `Reste ${formaterPrixCentimes(b.reste)}`]
+      : b.etat === 'inconnu' ? ['dl-neutre', 'Montant attendu à saisir']
+      : ['dl-urgent', 'Aucun reçu trouvé'];
+    const sousHtml = `<span class="dot-label ${etatCourt[0]}"><span class="dot"></span>${etatCourt[1]}</span>`
+      + (confirmee ? ` <span class="fonds-confirmation">· confirmé au client le ${formatDateFr(confirmee)}</span>` : '');
+
+    // Les trois chiffres et la jauge.
+    const sourceAttendu = f && f.attenduChemin && !d.fondsAttendusManuel
+      ? `<button type="button" class="icon-btn fonds-source" onclick="ouvrirFichierNas('${escapeOnclickArg(f.attenduChemin)}')" title="${escapeAttr('Lu dans ' + (f.attenduSource || 'le décompte'))}" aria-label="Ouvrir le décompte">${icone('file-text')}</button>`
+      : '';
+    const valeurAttendu = attendu ? formaterPrixCentimes(attendu) : '—';
+    const troisieme = b.etat === 'excedent'
+      ? { libelle: 'Écart', valeur: '+' + formaterPrixCentimes(b.ecart), cls: 'fonds-chiffre-alerte' }
+      : b.attendu
+        ? (b.etat === 'complet' && Math.abs(b.ecart) >= 1
+          ? { libelle: 'Écart', valeur: (b.ecart > 0 ? '+' : '−') + formaterPrixCentimes(Math.abs(b.ecart)), cls: '' }
+          : { libelle: 'Reste', valeur: formaterPrixCentimes(b.reste), cls: b.reste > 0 ? 'fonds-chiffre-attente' : 'fonds-chiffre-ok' })
+        : null;
+    const pct = b.attendu ? Math.min(100, Math.round((b.total / b.attendu) * 100)) : 0;
+    const clsBarre = b.etat === 'complet' ? 'fonds-barre-ok' : b.etat === 'excedent' ? 'fonds-barre-alerte' : 'fonds-barre-attente';
+    const jauge = `<div class="fonds-jauge">
+        <div class="fonds-chiffres">
+          ${f ? `<div class="fonds-chiffre"><span class="fonds-chiffre-libelle">Reçu</span><strong>${formaterPrixCentimes(b.total)}</strong></div>` : ''}
+          <div class="fonds-chiffre"><span class="fonds-chiffre-libelle">Attendu ${infoBulle('À 50 € près : au-delà, en plus ou en moins, CLAIRE signale un écart.')}</span>
+            <span class="fonds-chiffre-valeur">${champFondsEditable(d, 'attendu', `<strong>${valeurAttendu}</strong>${sourceAttendu}`, attendu ? String(attendu).replace('.', ',') : '', 'lu dans le décompte', 'inputmode="decimal"')}</span></div>
+          ${troisieme ? `<div class="fonds-chiffre ${troisieme.cls}"><span class="fonds-chiffre-libelle">${troisieme.libelle}</span><strong>${troisieme.valeur}</strong></div>` : ''}
+        </div>
+        ${b.attendu ? `<div class="fonds-barre ${clsBarre}" role="img" aria-label="${pct} % des fonds attendus reçus"><span style="width:${pct}%"></span></div>` : ''}
+      </div>`;
+
+    // Les versements retenus, une ligne courte chacun.
+    const versements = f && f.recus && f.recus.length ? `<ul class="fonds-versements">${f.recus.map(r => `
+        <li>
+          <span class="fonds-v-date">${r.date ? r.date.slice(8, 10) + '/' + r.date.slice(5, 7) : '—'}</span>
+          <strong class="fonds-v-montant">${formaterPrixCentimes(r.montant)}</strong>
+          ${r.confirme ? `<span class="fonds-v-ref" title="La référence de la vente est retrouvée dans le libellé">${icone('check')}</span>` : '<span class="fonds-v-ref"></span>'}
+          <button type="button" class="icon-btn" onclick="ouvrirFichierNas('${escapeOnclickArg(r.chemin)}')" title="${escapeAttr(`${r.fichier}${r.page > 1 ? ' p.' + r.page : ''}${r.compte ? ' · compte ' + r.compte : ''}${r.extrait ? '\n' + r.extrait : ''}`)}" aria-label="Ouvrir le reçu">${icone('file-text')}</button>
+        </li>`).join('')}</ul>` : '';
+
+    // Pied : noms cherchés (modifiables), dernière lecture, confirmation « quand même ».
+    const mots = motsPayeurDossier(d);
+    const noms = champFondsEditable(d, 'noms', `<span>${mots.length ? escapeHtml(mots.map(m => m.toUpperCase()).join(' / ')) : 'nom de l’acquéreur inconnu'}</span>`, d.nomsRecus || '', 'autre nom : d’usage, d’épouse…');
+    const lecture = f ? `${f.fichiersLus} reçu${f.fichiersLus > 1 ? 's' : ''} lu${f.fichiersLus > 1 ? 's' : ''} · ${new Date(f.verifieLe).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} ${infoBulle([`Reçus lus depuis le ${formatDateFr(f.depuis)}.`, 'Chaque versement au nom de l’acquéreur est listé : vérifiez qu’il concerne bien ce dossier.', renderDossiersRecusLus(f, mots)].filter(Boolean).join(' '))}` : '';
+    const peutConfirmer = echeanceValidee(d, 'appelFonds') && !!emailDestinataireRelance(d);
+    const complet = !!f && b.etat === 'complet';
     const confirmer = `envoyerRelanceCiblee('${d.id}', 'fonds')`;
+    const quandMeme = peutConfirmer && !confirmee && !complet
+      ? `<button type="button" class="lien-action" onclick="${confirmer}">Confirmer quand même</button>${infoBulle('Fonds arrivés mais absents des reçus lus : la confirmation au client reste possible.')}`
+      : '';
+    const pied = `<div class="fonds-pied">
+        <span class="fonds-noms">${icone('user')} ${noms}</span>
+        ${lecture ? `<span class="fonds-lecture">${lecture}</span>` : ''}
+        ${quandMeme ? `<span class="fonds-quand-meme">${quandMeme}</span>` : ''}
+      </div>`;
+    const detail = `<div class="fonds-recus">${jauge}${versements}${pied}</div>`;
+
     const verifier = { libelle: f ? 'Revérifier' : 'Vérifier', icone: icone('rotate-ccw'), onclick: `verifierFondsRecus('${d.id}', this)`, titre: 'Lire les reçus comptables déposés sur le NAS' };
     let bouton = verifier;
     if (peutConfirmer && confirmee) bouton = { libelle: 'Renvoyer', icone: icone('mail'), onclick: confirmer, titre: 'Renvoyer la confirmation de réception des fonds' };
     else if (peutConfirmer && complet) bouton = { libelle: 'Confirmer', icone: icone('mail'), onclick: confirmer, titre: 'Confirmer la réception des fonds au client' };
     const reverifierIcone = bouton === verifier ? '' : `<button type="button" class="icon-btn ja-plus-tard" onclick="verifierFondsRecus('${d.id}', this)" title="${f ? 'Revérifier les reçus' : 'Vérifier les reçus'}" aria-label="${f ? 'Revérifier les reçus' : 'Vérifier les reçus'}">${icone('rotate-ccw')}</button>`;
-    const sousHtml = etat + (confirmee ? ` <span class="fonds-confirmation">· Réception des fonds confirmée le ${formatDateFr(confirmee)}</span>` : '');
-    const confirmerQuandMeme = peutConfirmer && !confirmee && !complet
-      ? `<p class="hint">Fonds arrivés mais absents des reçus lus ? <button type="button" class="lien-action" onclick="${confirmer}">Confirmer la réception des fonds quand même</button></p>`
-      : '';
     return renderLigneAction({
       categorie: 'appelFonds', categorieLabel: 'Fonds reçus', titre: 'Fonds reçus en comptabilité',
       sousHtml, faite: !!confirmee, bouton, secondaires: reverifierIcone,
-      detail: detail + confirmerQuandMeme, detailOuvert: true
+      detail, detailOuvert: true
     });
   }
 

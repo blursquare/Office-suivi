@@ -6665,3 +6665,34 @@ button.confrere-carnet-office:focus-visible, button.carnet-dossier:focus-visible
 .af-mode-decompte { margin: 6px 0 12px; }
 .af-mode-panneau { margin-bottom: 4px; }
 .af-mode-aide { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-soft); margin-bottom: 8px; }
+
+/* ---- Réception des fonds, en visuel (29/09) : trois chiffres, une jauge, des versements courts ---- */
+.fonds-recus { gap: 12px; }
+.fonds-jauge { display: flex; flex-direction: column; gap: 8px; }
+.fonds-chiffres { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.fonds-chiffre { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.fonds-chiffre-libelle { display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.fonds-chiffre strong { font-size: 17px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fonds-chiffre-valeur { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
+.fonds-chiffre-ok strong { color: var(--success); }
+.fonds-chiffre-attente strong { color: var(--pret); }
+.fonds-chiffre-alerte strong { color: var(--urgent); }
+.fonds-barre { height: 8px; border-radius: 999px; background: var(--line-soft); overflow: hidden; }
+.fonds-barre > span { display: block; height: 100%; border-radius: inherit; transition: width .3s ease; }
+.fonds-barre-ok > span { background: var(--success); }
+.fonds-barre-attente > span { background: var(--pret); }
+.fonds-barre-alerte > span { background: var(--urgent); }
+.fonds-crayon, .fonds-source { color: var(--muted); }
+.fonds-edition { display: inline-flex; align-items: center; gap: 2px; }
+.fonds-recus .fonds-edition input[type="text"] { width: 150px; padding: 4px 8px; font-size: 13px; }
+.fonds-versements { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border-top: 1px solid var(--line-soft); }
+.fonds-versements { max-width: 360px; }
+.fonds-versements li { display: grid; grid-template-columns: 48px minmax(0, 1fr) 20px 30px; align-items: center; gap: 8px; padding: 2px 0; border-bottom: 1px solid var(--line-soft); font-size: 13px; }
+.fonds-v-date { color: var(--muted); font-variant-numeric: tabular-nums; }
+.fonds-v-montant { text-align: right; font-variant-numeric: tabular-nums; }
+.fonds-v-ref { color: var(--success); display: inline-flex; }
+.fonds-pied { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; font-size: 12.5px; color: var(--muted); }
+.fonds-noms, .fonds-lecture, .fonds-quand-meme { display: inline-flex; align-items: center; gap: 4px; }
+.fonds-noms > svg { width: 13px; height: 13px; }
+@media (max-width: 520px) { .fonds-chiffre strong { font-size: 15px; } .fonds-chiffres { gap: 8px; } }
+@media (prefers-reduced-motion: reduce) { .fonds-barre > span { transition: none; } }
