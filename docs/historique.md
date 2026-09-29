@@ -11899,3 +11899,18 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
   maskable : fond plein jusqu'aux bords, pictogramme dans la zone sûre de 80 %), et au build le
   .ico de l'exe (qui sert aussi au remplacement de l'icône de l'application installée). Le logo
   de la barre latérale, dans la page, ne change pas.
+
+- **29/09/2026 — Icône : retour à l'état d'avant le 28/09, essais du jour retirés** (« je préfère
+  en blanc et moins épais ; avant, la mise à jour de l'icône fonctionnait toute seule »). La vraie
+  régression datait du 28/09 14 h 25 (cbd72e9) : jusque-là `index.html` ne déclarait que
+  `<link rel="icon" href="icone.svg">`, que Chrome redessine net à la taille demandée, et chaque
+  nouvelle icône apparaissait d'elle-même à la mise à jour. Les favicons PNG 16→256 px ajoutés ce
+  jour-là pour « rendre l'icône nette » ont fait l'inverse : Chrome retient le PNG 16 px et Windows
+  l'agrandit. Retirés : `index.html` a de nouveau exactement l'en-tête d'avant (SVG seul +
+  apple-touch-icon), `icone.svg` redevient le carré blanc au trait fin (2,2 sur 48), `manifest.json`
+  celui d'avant (sans "id"). Annulés (git revert) : l'installation depuis Réglages et l'ouverture
+  par `--app-id` (f721095), le remplacement des icônes de l'application installée par le serveur
+  (7397b85, `iconeApplication.js` supprimé), le pictogramme plein (3e54d63). Conservé du 28/09 :
+  le .ico multi-tailles de l'exe. **Leçon** : pour un favicon, un SVG seul vaut mieux qu'une
+  série de PNG — ne pas rajouter de PNG en `rel="icon"` ; avant de « corriger » un rendu, rejouer
+  l'état qui fonctionnait (ici, l'en-tête d'avant le 28/09) plutôt qu'empiler les mécanismes.

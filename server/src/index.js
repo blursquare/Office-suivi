@@ -57,7 +57,7 @@ try {
 
 const { ouvrirDb } = require('./db');
 const { creerApp } = require('./app');
-const { resoudreCheminNavigateurApp, argumentFenetreApp } = require('./navigateurApp');
+const { resoudreCheminNavigateurApp } = require('./navigateurApp');
 const { demarrerSurveillanceNas } = require('./nasWatch');
 const { demarrerSurveillanceAgenda } = require('./agendaWatch');
 const { demarrerTacheRappels } = require('./jobs/rappels');
@@ -127,27 +127,12 @@ function ouvrirNavigateur(url) {
     ouvrirParDefaut();
     return;
   }
-  exec(`start "" "${cheminNavigateur}" --profile-directory="ClaireServeur" ${argumentFenetreApp(url, cheminNavigateur, process.env, fs.existsSync, 'ClaireServeur')}`, (err) => {
+  exec(`start "" "${cheminNavigateur}" --profile-directory="ClaireServeur" --app="${url}"`, (err) => {
     if (err) {
       console.warn('[CLAIRE] Ouverture en fenêtre applicative impossible, repli sur le navigateur par défaut :', err.message);
       ouvrirParDefaut();
     }
   });
-}
-
-// Icône de l'application CLAIRE installée dans Chrome/Edge (voir iconeApplication.js) : l'icône
-// haute définition embarquée remplace celle que le navigateur avait fabriquée à l'installation,
-// puis le cache d'icônes de Windows est rafraîchi. Silencieux en cas d'échec.
-async function rafraichirIconeInstallee(adresses) {
-  let ico;
-  try { ico = Buffer.from(require('node:sea').getAsset('icone.ico')); } catch (e) { return; }
-  const { rafraichirIconesApplication } = require('./iconeApplication');
-  const remplaces = await rafraichirIconesApplication({
-    env: process.env, fsp: fs.promises, icoBuffer: ico, port: config.port, adresses
-  });
-  if (!remplaces.length) return;
-  console.log(`[CLAIRE] Icône de l'application installée remplacée (${remplaces.length} fichier(s)).`);
-  exec('ie4uinit.exe -show', () => {});
 }
 
 // Scripts assistants (lanceur sans fenêtre, arrêt, démarrage avec la session Windows) : voir
@@ -284,15 +269,7 @@ function demarrer() {
     }
 
     // Après une mise à jour en un clic, la fenêtre déjà ouverte se recharge d'elle-même.
-    // Avant d'ouvrir la fenêtre : l'icône de l'application CLAIRE installée est remplacée par
-    // l'icône haute définition (voir iconeApplication.js), attendue au plus 5 s.
-    const ouvrir = () => { if (!process.env.CLAIRE_APRES_MISE_A_JOUR) ouvrirNavigateur(url); };
-    if (config.estSea() && process.platform === 'win32') {
-      Promise.race([rafraichirIconeInstallee(adresses), new Promise((r) => setTimeout(r, 5000))])
-        .catch(() => {}).finally(ouvrir);
-    } else {
-      ouvrir();
-    }
+    if (!process.env.CLAIRE_APRES_MISE_A_JOUR) ouvrirNavigateur(url);
   });
 
   // Port déjà occupé (un serveur CLAIRE déjà lancé, masqué par Lancer-CLAIRE-en-arriere-plan.vbs,

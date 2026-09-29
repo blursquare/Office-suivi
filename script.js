@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 13:45';
+  const VERSION_APP = '2026-09-29 13:51';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 13:51', resume: "Icône de CLAIRE : retour à l'icône blanche au trait fin, déclarée comme avant le 28/09 (icone.svg seul, que le navigateur redessine net à chaque taille) — les petites icônes PNG ajoutées le 28/09 faisaient prendre à Windows l'image de 16 px agrandie. Retrait des essais du jour (installation, remplacement des icônes par le serveur)." },
     { version: '2026-09-29 13:45', resume: "Icône de CLAIRE (barre des tâches, raccourci, exe, onglet) : retour à un pictogramme plein — carré foncé, anneau et coche blancs épais — comme avant le 26/09. Le carré blanc au trait fin devenait illisible une fois agrandi par Windows." },
     { version: '2026-09-29 11:37', resume: "Icône floue de l'application CLAIRE déjà installée : au démarrage, le serveur remplace les icônes que le navigateur avait fabriquées à l'installation (basse définition) par l'icône haute définition de CLAIRE, puis rafraîchit le cache d'icônes de Windows. Rien à réinstaller." },
     { version: '2026-09-29 11:22', resume: "Icône floue dans la barre des tâches : une fenêtre CLAIRE non installée prend l'icône de l'onglet en 16 px. Réglages › Sur ce poste › « Installer CLAIRE » (ou menu ⋮ du navigateur) l'installe comme application, avec son icône nette ; le serveur ouvre ensuite directement l'application installée." },
@@ -13255,7 +13256,7 @@
     // installé/démarré/arrêté sur le serveur depuis la dernière visite de cet onglet.
     // Réglages relus à chaque ouverture (un collègue a pu les modifier depuis un autre poste,
     // même principe que la disponibilité d'Ollama ci-dessus).
-    if (nom === 'reglages') { majInstallationReglages(); definirSousOngletReglages(sousOngletReglagesRetenu()); chargerReglages(); chargerReglagesClaude(); chargerReglagesExchange(); chargerSignalements(); renderReglagesSignatureImages(true); }
+    if (nom === 'reglages') { definirSousOngletReglages(sousOngletReglagesRetenu()); chargerReglages(); chargerReglagesClaude(); chargerReglagesExchange(); chargerSignalements(); renderReglagesSignatureImages(true); }
     if (nom === 'analyse-ia') initRelecture();
     // Date du jour et bornes de période posées au premier affichage seulement (voir initProrata).
     if (nom === 'prorata') initProrata();
@@ -22231,30 +22232,13 @@
     });
   }
 
-  var evenementInstallation = null;
+  let evenementInstallation = null;
 
   // Le pied de la sidebar porte « Signaler un problème », toujours visible, et ce bouton-ci,
   // seulement quand le navigateur propose l'installation.
   function afficherBoutonInstallation(visible) {
     const btn = document.getElementById('install-btn');
     if (btn) btn.style.display = visible ? 'inline-block' : 'none';
-    majInstallationReglages();
-  }
-
-  // Réglages › Sur ce poste : le bouton d'installation quand le navigateur la propose ; sinon, si
-  // CLAIRE ne tourne pas déjà en application installée, le chemin dans le menu du navigateur.
-  function majInstallationReglages() {
-    const btn = document.getElementById('reglages-installer-app');
-    const texte = document.getElementById('reglages-installation-texte');
-    if (!btn || !texte) return;
-    btn.style.display = evenementInstallation ? '' : 'none';
-    let installee = false;
-    try { installee = window.matchMedia('(display-mode: standalone)').matches && !evenementInstallation; } catch (e) { /* sans gravité */ }
-    texte.textContent = evenementInstallation
-      ? 'Installée, CLAIRE a une icône nette dans la barre des tâches. Au prochain démarrage du serveur, elle s’ouvre dans sa fenêtre d’application.'
-      : installee
-        ? 'Si l’icône de la barre des tâches reste floue, installez CLAIRE depuis le menu ⋮ du navigateur › « Installer CLAIRE » (ou « Caster, enregistrer et partager › Installer la page en tant qu’application »).'
-        : 'Pour une icône nette dans la barre des tâches, installez CLAIRE depuis le menu ⋮ du navigateur › « Installer CLAIRE ».';
   }
 
   window.addEventListener('beforeinstallprompt', (e) => {

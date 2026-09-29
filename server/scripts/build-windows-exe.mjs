@@ -71,8 +71,6 @@ function traitIcone(px) {
 function construireIcoDepuisSvg(svgPath) {
   const svg = fs.readFileSync(svgPath, 'utf8');
   const images = TAILLES_ICONE.map((px) => {
-    // icone.svg est redevenu un pictogramme plein à trait épais (29/09) : lisible tel quel à
-    // 16 px, sans épaissir le trait (traitIcone ne s'applique qu'à un trait de 2,2 sur 48).
     const svgTaille = svg.replace(/stroke-width="2\.2"/g, `stroke-width="${traitIcone(px)}"`);
     const rendu = new Resvg(svgTaille, { fitTo: { mode: 'width', value: px }, background: 'rgba(0,0,0,0)' });
     return { px, buf: Buffer.from(rendu.render().asPng()) };
@@ -171,15 +169,6 @@ async function main() {
     commit: process.env.CLAIRE_COMMIT || '',
     date: new Date().toISOString()
   }));
-  // Icône haute définition, construite une seule fois : posée sur l'exe (étape 6) et embarquée
-  // dans le blob pour remplacer celle de l'application CLAIRE installée (src/iconeApplication.js).
-  let icoBuffer = null;
-  try {
-    icoBuffer = construireIcoDepuisSvg(path.join(ROOT_DIR, 'icone.svg'));
-    fs.writeFileSync(path.join(BUILD_DIR, 'icone.ico'), icoBuffer);
-  } catch (err) {
-    console.warn(`Icône non construite (${err.message.split('\n')[0]}).`);
-  }
   const seaConfig = {
     main: 'build/claire-server.cjs',
     output: 'build/sea-prep.blob',
@@ -195,8 +184,7 @@ async function main() {
       'manifest.json': '../manifest.json',
       'sw.js': '../sw.js',
       'icone.svg': '../icone.svg',
-      'build-info.json': 'build/build-info.json',
-      ...(icoBuffer ? { 'icone.ico': 'build/icone.ico' } : {})
+      'build-info.json': 'build/build-info.json'
     }
   };
   const seaConfigPath = path.join(SERVER_DIR, 'sea-config.json');
@@ -237,8 +225,8 @@ async function main() {
   // garde-fou dans poserIconeWindows() vérifie en plus que le blob SEA survit avant de remplacer
   // le fichier.
   try {
-    if (!icoBuffer) throw new Error('icône non construite');
-    poserIconeWindows(exePath, icoBuffer);
+    const ico = construireIcoDepuisSvg(path.join(ROOT_DIR, 'icone.svg'));
+    poserIconeWindows(exePath, ico);
     console.log(`Icône posée (${TAILLES_ICONE.join('/')} px), blob SEA préservé.`);
   } catch (err) {
     console.warn(`Icône Windows non posée (${err.message.split('\n')[0]}) — exe livré avec l'icône Node par défaut.`);
