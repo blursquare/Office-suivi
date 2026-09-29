@@ -12,7 +12,8 @@
 // d'événement neutre (voir evenementDepuisEws) : aucun appel réseau ici.
 //
 // Convention réelle donnée par l'étude, à ne pas généraliser au-delà de ce qu'elle a décrit :
-//   - chaque rendez-vous de vente porte « VTE - NOM DU DOSSIER » dans son titre — ce nom ne reprend
+//   - chaque rendez-vous de vente porte « VTE - NOM DU DOSSIER » (ou « VENTE - NOM DU DOSSIER »)
+//     dans son titre — ce nom ne reprend
 //     pas forcément TOUS les noms de famille du dossier CLAIRE ;
 //   - le déclencheur est noté dans le LIEU du rendez-vous : les initiales du collaborateur suivies
 //     de « Appel de fonds envoyé » ou de « Appel de fonds et projet envoyé » — le titre est lu aussi,
@@ -93,10 +94,16 @@ const RE_REFERENCE_VTE = /\bVTE\b\s*[-–:]?\s*(.+)/i;
 // vente » au fil d'une description ne doivent pas le devenir. « VTE » est un sigle de l'étude, il
 // reste reconnu où qu'il soit.
 const RE_REFERENCE_VENTE = /^\s*VENTE\b\s*[-–:]?\s*(.+)/im;
+// « VENTE - … » (demandé par l'étude, 29/09) : reconnu aussi AU MILIEU du titre (« RDV VENTE -
+// DUPONT », « Signature VENTE - DUPONT ») — mais seulement écrit en CAPITALES et suivi d'un tiret
+// ou de deux-points, la forme d'une référence : « Visite de la vente - point » en minuscules, ou
+// « VENTE » sans tiret au fil du texte, ne le deviennent pas. Jamais à l'intérieur d'un mot
+// (« PREVENTE - … »).
+const RE_REFERENCE_VENTE_TIRET = /(?<![A-Za-zÀ-ɏ])VENTE\s*[-–:]\s*(.+)/;
 
 function extraireReferenceVte(texte) {
   const source = String(texte || '');
-  const m = RE_REFERENCE_VTE.exec(source) || RE_REFERENCE_VENTE.exec(source);
+  const m = RE_REFERENCE_VTE.exec(source) || RE_REFERENCE_VENTE.exec(source) || RE_REFERENCE_VENTE_TIRET.exec(source);
   return m ? m[1].trim() : '';
 }
 

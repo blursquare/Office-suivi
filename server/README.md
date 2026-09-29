@@ -132,8 +132,10 @@ compte. « Tester maintenant » fait toujours un essai ; un succès lève la sus
 « Relier CLAIRE à l'agenda » désactivé coupe aussi la lecture.
 
 **Convention attendue** (voir `server/src/agendaOffice.js`) : un rendez-vous porte la référence
-« VTE - NOM DU DOSSIER » dans son titre — « VENTE NOM DU DOSSIER » est accepté aussi, mais
-seulement en début de ligne (« Visite de la vente DUPONT » n'est pas une référence) ; son **lieu**
+« VTE - NOM DU DOSSIER » dans son titre — « VENTE - NOM DU DOSSIER » aussi, n'importe où dans
+le titre (« RDV VENTE - DUPONT ») pourvu que VENTE soit en capitales et suivi d'un tiret ou de
+deux-points, et « VENTE NOM » sans tiret en début de titre (« Visite de la vente DUPONT » n'est pas
+une référence) ; son **lieu**
 porte les initiales du collaborateur suivies de « Appel de fonds envoyé » ou « Appel de fonds et
 projet envoyé » (le titre est lu aussi). Il faut un ENVOI FAIT : « appel de fonds à faire »,
 « projet à envoyer » ou « non envoyé » ne déclenchent rien. **Seuls les rendez-vous à venir**

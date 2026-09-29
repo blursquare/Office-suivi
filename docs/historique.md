@@ -12212,3 +12212,14 @@ publiés par le flux `/calendrier.ics` (abonnement Outlook) tant que leur date n
   de pose le cas échéant (`echeancesPosees`, `erreurEcheances`).
 - Vérifié : tests serveur (plan, adoption, délai, création dans le calendrier partagé, refus
   d'identifiants), Chromium (compte rendu, 404 du flux). Non vérifié : Exchange réel.
+
+### 29/09 22:37 — « VENTE - … » reconnu comme « VTE - … »
+
+Demande : « Détecter aussi un rendez-vous avec le mot VENTE - … ». Jusqu'ici « VENTE » n'était
+accepté qu'en tête du titre. `RE_REFERENCE_VENTE_TIRET` (`agendaOffice.js`) : « VENTE » en
+CAPITALES, pas à l'intérieur d'un mot, suivi d'un tiret (simple ou demi-cadratin) ou de deux-points,
+n'importe où dans le titre (« RDV VENTE - DUPONT », « Signature VENTE – DURAND »). Écartés : « vente
+- … » en minuscules au fil du titre, « RDV VENTE DUPONT » sans tiret, « PREVENTE - ». La règle
+précédente (VENTE en tête, tiret facultatif) est conservée. Même ajout dans le résumé des emails du
+matin (`classerEmails` : « VENTE - NOM » comme « VTE - NOM »). Tests : agenda-office (référence et
+rendez-vous de bout en bout), emails-matin (échoue sans la correction).

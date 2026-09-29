@@ -67,6 +67,24 @@ test('extraireReferenceVte reconnait aussi VENTE, mais seulement en tete de lign
   assert.equal(extraireReferenceVte('Prevente DUPONT'), '');
 });
 
+test('extraireReferenceVte reconnait « VENTE - » au milieu du titre, en capitales avec tiret seulement', () => {
+  assert.equal(extraireReferenceVte('RDV VENTE - DUPONT / MARTIN'), 'DUPONT / MARTIN');
+  assert.equal(extraireReferenceVte('Signature VENTE – DURAND'), 'DURAND');
+  assert.equal(extraireReferenceVte('Signature VENTE: DURAND'), 'DURAND');
+  assert.equal(extraireReferenceVte('Visite de la vente - point'), '', 'en minuscules : pas une référence');
+  assert.equal(extraireReferenceVte('RDV VENTE DUPONT'), '', 'sans tiret au milieu du titre : pas une référence');
+  assert.equal(extraireReferenceVte('RDV PREVENTE - DUPONT'), '', 'jamais à l’intérieur d’un mot');
+});
+
+test('un rendez-vous « RDV VENTE - … » est relevé comme rendez-vous de signature du bon dossier', () => {
+  const evenements = [rdv({ sujet: 'RDV VENTE - DUPONT / MARTIN', lieu: 'BA Appel de fonds envoyé' })];
+  const r = actionsDetecteesDepuisEvenements(evenements, [{ id: 'd1', nom: 'DUPONT / MARTIN' }, { id: 'd2', nom: 'DURAND / LEROY' }], '2026-09-25');
+  assert.equal(r.length, 1);
+  assert.equal(r[0].dossierId, 'd1');
+  assert.equal(r[0].rendezVous, true);
+  assert.equal(r[0].appelFonds, true);
+});
+
 test('un rendez-vous VENTE ... porte les deux envois comme un rendez-vous VTE', () => {
   const evenements = [rdv({ sujet: 'VENTE MOKADEM / DE SOUSA MARTINS', lieu: 'Me DENIS en 1er - Appel de fonds et projet envoyé', start: '2099-10-14T14:00:00Z' })];
   const dossiers = [{ id: 'a', nom: 'MOKADEM / DE SOUSA MARTINS' }, { id: 'b', nom: 'DUPONT / MARTIN' }];

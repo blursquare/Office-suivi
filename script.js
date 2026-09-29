@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 22:25';
+  const VERSION_APP = '2026-09-29 22:37';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 22:37', resume: "Agenda de l'office : un rendez-vous intitulé « VENTE - NOM DU DOSSIER » est reconnu comme « VTE - NOM », même au milieu du titre (« RDV VENTE - DUPONT ») — rendez-vous de signature, envois notés dans le lieu. VENTE doit être en capitales et suivi d'un tiret. Le résumé des emails du matin rattache aussi « VENTE - NOM » au dossier." },
     { version: '2026-09-29 22:25', resume: "Dates butoir d'obtention du prêt et de vente préalable : elles passent uniquement par l'agenda partagé de Sophie. Le calendrier .ics que CLAIRE publiait est supprimé (retirer l'abonnement « CLAIRE — Échéances » dans Outlook). Au premier passage après la mise à jour, CLAIRE pose d'elle-même les dates à venir des dossiers existants, sans doublon : un événement déjà présent au même nom et à la même date est repris tel quel. Compte rendu dans Réglages › Agenda. À vérifier au bureau." },
     { version: '2026-09-29 22:12', resume: "Agenda de l'office : CLAIRE lit désormais directement le calendrier partagé de Sophie par la connexion Exchange, toutes les 15 minutes (six mois à venir), au lieu du lien .ics publié — plus d'adresse à coller ni d'erreur de proxy. Mêmes détections : rendez-vous de signature, « Appel de fonds (et projet) envoyé » dans le lieu, absences, couleurs. Un mot de passe refusé suspend la lecture automatique jusqu'à sa correction, pour ne jamais verrouiller le compte. Réglages › Agenda : « Lecture de l'agenda » sous la connexion. À tester au bureau." },
     { version: '2026-09-29 21:08', resume: "Réception des fonds plus visuelle : trois chiffres (reçu, attendu, reste ou écart) et une jauge colorée, les versements en lignes courtes (date, montant, coche si la référence de la vente est retrouvée, icône du reçu), le montant attendu et les noms cherchés modifiables au crayon ; le détail passe dans les pastilles « i »." },

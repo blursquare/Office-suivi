@@ -147,8 +147,9 @@ function classerEmails(emails, dossiers, adressesIgnorees) {
     const texteN = sujetN + ' ' + normaliser(e.apercu);
     let dossier = parAdresse.get(e.deAdresse) || null;
     if (!dossier) {
-      // « VTE - NOM » cité dans l'objet ou le début du message.
-      dossier = actifs.find(d => d.nom && texteN.includes(normaliser('VTE - ' + d.nom))) || null;
+      // « VTE - NOM » ou « VENTE - NOM » cité dans l'objet ou le début du message.
+      dossier = actifs.find(d => d.nom && (texteN.includes(normaliser('VTE - ' + d.nom))
+        || texteN.includes(normaliser('VENTE - ' + d.nom)))) || null;
     }
     if (!dossier) {
       // Un nom du dossier, en mot entier, dans l'OBJET seulement (le corps cite trop de noms).

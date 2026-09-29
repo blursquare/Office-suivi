@@ -59,6 +59,15 @@ test('classement : par adresse du client, par nom du dossier dans l’objet, le 
   assert.ok(!JSON.stringify(r).includes('Veuillez trouver'));
 });
 
+test('classement : « VENTE - NOM » cité dans l’objet rattache au dossier comme « VTE - NOM »', () => {
+  const dossiers = [{ id: 'd1', nom: 'DUPONT / LEROY' }, { id: 'd2', nom: 'DUPONT / MARTIN' }];
+  // Référence dans le début du message seulement : le rapprochement par noms ne lit que l'objet.
+  const email = (apercu) => ({ sujet: 'Pièces', deAdresse: 'x@exemple.fr', deNom: 'X', recuLe: '2026-10-06T06:10:00Z', apercu });
+  const r = classerEmails([email('Bonjour, pour la VENTE - DUPONT / MARTIN'), email('Bonjour, VTE - DUPONT / LEROY')], dossiers, []);
+  assert.equal(r.dossiers.find(g => g.dossierId === 'd2').emails.length, 1);
+  assert.equal(r.dossiers.find(g => g.dossierId === 'd1').emails.length, 1);
+});
+
 test('résumé : une fois par jour ouvré, à partir de 8 h 50 (Paris)', () => {
   assert.equal(resumeDu(new Date('2026-10-06T06:49:00Z'), null), false); // 8 h 49
   assert.equal(resumeDu(new Date('2026-10-06T06:50:00Z'), null), true);  // 8 h 50
