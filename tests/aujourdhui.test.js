@@ -249,14 +249,15 @@ test('Emails du matin : réservés à Bastien', () => {
   assert.equal(app.recoitEmailsMatin('Jérémy SAUJOT'), false);
 });
 
-test('acquéreur accompagné par un confrère : ni RIB ni pièce d’identité à lui demander', () => {
+test('acquéreur accompagné par un confrère : pas de RIB, provision et pièce d’identité demandées au confrère', () => {
   const confrere = { notaireVendeur: 'Maître Sophie GOSSART (Blois)', notaireAcquereur: 'Maître Jules VERNAY (Cellettes)',
     emailNotaireParticipant: 'office.vernay@notaires.fr', rendezVousSignature: '2026-09-30', sansPret: true };
   assert.strictEqual(types(app.actionsDuJour([dossier(confrere)], AUJ)), 'appelFonds');
-  // Onglet Échanges : ni provision (avec pièce d'identité) ni RIB.
+  // Onglet Échanges : pas de RIB ; la provision et la pièce d'identité restent demandées au confrère.
   const e = app.echangesSelonStade(dossier(confrere), AUJ);
   const tout = e.utiles.concat(e.autres).join(',');
-  assert.ok(!/rib|provision/.test(tout), tout);
+  assert.ok(!/rib/.test(tout), tout);
+  assert.ok(/provision/.test(tout), tout);
   // Email de réception des fonds au confrère : sans la phrase RIB / pièces d'identité.
   const fonds = app.construireEmailReceptionFonds(dossier(confrere));
   assert.doesNotMatch(fonds.corps, /RIB|pièces d’identité/);

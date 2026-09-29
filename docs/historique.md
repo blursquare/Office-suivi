@@ -11924,3 +11924,8 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
   remercie de vous munir de vos pièces d'identité et de votre RIB pour le rendez-vous. » (seul
   écart au texte de l'étude, sur sa demande). Rien ne change quand l'acquéreur est notre client.
   Test `tests/aujourdhui.test.js`.
+  - **Précision de l'étude (même jour)** : « on demande la provision et la pièce d'identité au
+    confrère ». La ligne « Provision + pièce d'identité » de l'onglet Échanges est rétablie pour un
+    acquéreur accompagné par un confrère (email adressé au confrère, formules « Mon Cher Maître »).
+    Restent retirés : l'action et la ligne « RIB », le point « RIB demandé », et la phrase RIB /
+    pièces d'identité de l'email de réception des fonds.

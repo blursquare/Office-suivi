@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 14:16';
+  const VERSION_APP = '2026-09-29 14:17';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 14:17', resume: "Acquéreur accompagné par un confrère : l'email « Provision + pièce d'identité » est de nouveau proposé, adressé au confrère. Le RIB et la phrase RIB / pièces d'identité de l'email de réception des fonds restent retirés." },
     { version: '2026-09-29 14:16', resume: "Acquéreur accompagné par un confrère : CLAIRE ne propose plus de lui demander le RIB ni la pièce d'identité (À faire, onglet Échanges, email de provision), et l'email de réception des fonds au confrère ne contient plus la phrase sur les pièces d'identité et le RIB." },
     { version: '2026-09-29 13:51', resume: "Icône de CLAIRE : retour à l'icône blanche au trait fin, déclarée comme avant le 28/09 (icone.svg seul, que le navigateur redessine net à chaque taille) — les petites icônes PNG ajoutées le 28/09 faisaient prendre à Windows l'image de 16 px agrandie. Retrait des essais du jour (installation, remplacement des icônes par le serveur)." },
     { version: '2026-09-29 13:45', resume: "Icône de CLAIRE (barre des tâches, raccourci, exe, onglet) : retour à un pictogramme plein — carré foncé, anneau et coche blancs épais — comme avant le 26/09. Le carré blanc au trait fin devenait illisible une fois agrandi par Windows." },
@@ -18141,10 +18142,10 @@
     const avantRdv = stade === 'conditions' || stade === 'rendezVous';
     const utiles = [], autres = [];
     const ranger = (cle, utile) => (utile ? utiles : autres).push(cle);
-    // Acquéreur accompagné par un confrère : ni provision et pièce d'identité, ni RIB à lui
-    // demander — son notaire s'en charge (demandé par l'étude le 29/09).
+    // Acquéreur accompagné par un confrère : pas de RIB à lui demander, son notaire s'en charge ;
+    // la provision et la pièce d'identité, elles, sont bien demandées au confrère (étude, 29/09).
     const confrere = notaireParticipantRepresenteAcquereur(d);
-    if (!confrere) ranger('provision', avantRdv);
+    ranger('provision', avantRdv);
     if (d.ventebien && !echeanceValidee(d, 'ventebien')) ranger('ventePrealable', stade !== 'signe');
     if (!d.sansPret && d.offrePretStatut !== 'recue') ranger('pret', stade !== 'signe' && !echeanceValidee(d, 'pret'));
     ranger('appelFonds', stade === 'rendezVous' || stade === 'signature');
