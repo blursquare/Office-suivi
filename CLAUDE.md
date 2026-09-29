@@ -136,8 +136,9 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   « À relier » (jamais relié au NAS), « Attente de pièces » (pièce de la checklist ou offre de prêt
   manquante ; participation : l'offre seule), « Complet » (tout reçu), « Prêt » (complet + rendez-vous
   placé), et **« Urgent »** dès qu'une date butoir est dépassée (vente préalable, prêt, date butoir
-  sans rendez-vous) — prioritaire, calculé, il disparaît dès l'échéance levée. Un rendez-vous placé
-  avec une pièce manquante reste « Attente de pièces ». Couleurs : rouge, gris, ambre, bleu `--acte`
+  sans rendez-vous) — prioritaire, calculé, il disparaît dès l'échéance levée. Confirmé par l'étude :
+  un rendez-vous placé avec une pièce manquante reste « Attente de pièces » ; une vente préalable non
+  réalisée (financement, comme l'offre) empêche « Complet » et « Prêt ». Couleurs : rouge, gris, ambre, bleu `--acte`
   (jamais l'accent, qui peut être orange ou vert), vert. L'échéance a sa propre colonne (« Prochaine
   échéance ») ; `statutDossier` (pièces trouvées) ne sert plus qu'aux points « À traiter ».
 - **Seuils des rappels email** : prêt J-15/J-7, vente préalable J-15/J-7, appel de fonds J-15/J-10,

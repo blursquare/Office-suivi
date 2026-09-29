@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 23:45';
+  const VERSION_APP = '2026-09-29 23:50';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 23:50', resume: "Statut d'un dossier : une vente préalable pas encore réalisée compte comme le financement (au même titre que l'offre de prêt) — le dossier reste « Attente de pièces », jamais « Complet » ni « Prêt », tant qu'elle n'est pas faite. Le survol du badge l'indique (« En attente : Vente préalable »)." },
     { version: '2026-09-29 23:45', resume: "Tableau de bord : nouvelle disposition par défaut, en rectangle plein — Aujourd'hui en grand à gauche, l'Agenda à côté, Dossiers ouverts et Dernières pièces dessous, puis Avancement et Activité côte à côte. Chaque collaborateur y est ramené une fois (une disposition réglée avant cette version est remplacée), puis peut la réarranger dans « Personnaliser »." },
     { version: '2026-09-29 23:36', resume: "Tableau de bord : « Dernières pièces » et « Activité de l'étude » (en direct) sont toujours affichées — elles disparaissaient faute de pièce récente ou d'action. Sans pièce arrivée, la carte dit ce qui est encore attendu ; le fil « en direct » reprend aussi ce que CLAIRE a relevé seule (pièces trouvées sur le NAS). Chaque carte se règle désormais en largeur (1, 2 colonnes ou toute la ligne) et en hauteur (1, 2 ou 3 rangées) dans « Personnaliser ». L'Agenda liste aussi les prochaines échéances." },
     { version: '2026-09-29 23:30', resume: "Tableau de bord : grille de 4 colonnes et toutes les cartes en petit, moyen ou grand, comme les widgets iPhone. Chaque carte change de contenu avec sa taille (chiffre clé en petit, liste en moyen, détail en grand) et se remplit sans blanc : ce qui ne tient pas passe dans « Voir N de plus », la place libre reçoit les prochaines signatures, ce qui arrive, les pièces encore attendues. « Personnaliser » : attraper une carte et la glisser à sa place (souris ou doigt) ; un appui long sur le titre d'une carte ouvre aussi ce mode." },
@@ -14065,8 +14066,9 @@
   // Remplace « l'étape du dossier » du même jour : l'étape et la prochaine échéance disaient la même
   // chose, l'étude veut que le statut dise l'état GÉNÉRAL du dossier, dans cet ordre :
   //   À relier          — jamais relié à son dossier du NAS : rien n'a pu être vérifié ;
-  //   Attente de pièces — il manque une pièce de la checklist ou l'offre de prêt ;
-  //   Complet           — toutes les pièces sont reçues (et l'offre, s'il y a un prêt) ;
+  //   Attente de pièces — il manque une pièce de la checklist, l'offre de prêt, ou la vente
+  //                       préalable n'est pas réalisée (financement, étude 29/09) ;
+  //   Complet           — toutes les pièces sont reçues, financement acquis (offre, vente préalable) ;
   //   Prêt              — complet ET rendez-vous de signature placé ;
   //   Urgent            — une date butoir est dépassée (vente préalable, obtention du prêt, date
   //                       butoir de réitération tant qu'aucun rendez-vous n'est fixé) : passe avant
@@ -14095,10 +14097,13 @@
     return depassees;
   }
 
-  // Pure : ce qui manque encore (libellés) — pièces de la checklist non reçues (sauf participation,
-  // où l'étude ne suit pas la checklist) et offre de prêt non reçue.
+  // Pure : ce qui manque encore (libellés) — le financement d'abord (vente préalable non réalisée,
+  // offre de prêt non reçue), puis les pièces de la checklist non reçues (sauf participation, où
+  // l'étude ne suit pas la checklist). La vente préalable compte comme l'offre : elle finance
+  // l'achat, un dossier qui l'attend n'est pas complet (étude, 29/09 au soir).
   function piecesAttenduesDossier(d) {
     const manque = [];
+    if (d.ventebien && !echeanceValidee(d, 'ventebien')) manque.push('Vente préalable');
     if (!d.sansPret && !echeanceValidee(d, 'pret')) manque.push('Offre de prêt');
     if (d.roleNotaire !== 'participant') {
       const pieces = d.pieces || {};

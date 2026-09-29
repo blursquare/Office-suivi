@@ -75,3 +75,20 @@ test('couleurs : urgent rouge, à relier neutre, attente ambre, complet accent, 
     'urgent:dl-urgent,arelier:dl-neutre,attente:dl-pret,complet:dl-complet,pret:dl-success');
   assert.equal(app.ORDRE_ETAT_DOSSIER.join(','), 'urgent,arelier,attente,complet,pret,archive');
 });
+
+test('vente préalable en cours : liée au financement, le dossier n’est ni complet ni prêt tant qu’elle n’est pas réalisée', () => {
+  const d = toutesRecues(dossier({ dossierLie: true, sansPret: true, ventebien: '2026-11-15', rendezVousSignature: '2026-12-01' }));
+  const e = etat(d);
+  assert.equal(e.cle, 'attente');
+  assert.match(e.detail, /En attente : Vente préalable/);
+  assert.equal(etat(Object.assign({}, d, { echeancesValidees: { ventebien: true } })).cle, 'pret');
+  const sansRdv = Object.assign({}, d, { rendezVousSignature: '', echeancesValidees: { ventebien: true } });
+  assert.equal(etat(sansRdv).cle, 'complet');
+});
+
+test('rendez-vous placé avec une pièce manquante : reste « Attente de pièces » (confirmé par l’étude)', () => {
+  const d = toutesRecues(dossier({ dossierLie: true, sansPret: true, rendezVousSignature: '2026-10-20' }));
+  const cle = Object.keys(d.pieces)[0];
+  d.pieces = Object.assign({}, d.pieces, { [cle]: 'manquante' });
+  assert.equal(etat(d).cle, 'attente');
+});

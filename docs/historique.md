@@ -12381,3 +12381,13 @@ forme un beau rectangle de widgets. »
   disposition par défaut, puis le collaborateur la réarrange librement. Cache local renommé
   (`claire-widgets-v2:`). Vérifié dans Chromium : disposition ancienne en base → rectangle 4 × 4 affiché
   et réenregistré avec la version, 2 × 8 à 400 px, aucune erreur.
+
+### 29/09 23:50 — Statut : vente préalable = financement ; rendez-vous + pièce manquante confirmé
+
+Réponses de l'étude aux deux choix faits sans question le 29/09 :
+- « Un rendez-vous placé alors qu'il manque une pièce reste Attente de pièces : oui. » Inchangé, test ajouté.
+- « Une vente préalable encore en cours n'empêche pas Complet : non, c'est lié au financement. »
+  `piecesAttenduesDossier` place désormais « Vente préalable » en tête de ce qui manque tant qu'elle
+  n'est pas réalisée (`echeanceValidee(d, 'ventebien')`), comme l'offre de prêt : le dossier reste
+  « Attente de pièces » (ni Complet ni Prêt). Dépassée, elle reste « Urgent » comme avant. Tests dans
+  `tests/etat-dossier.test.js`.
