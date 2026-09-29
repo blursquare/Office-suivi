@@ -11868,3 +11868,21 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
   **Non vérifié sur Windows** : le calcul de l'identifiant (testé sur sa forme seulement), le nom
   du dossier « Manifest Resources », et l'icône de l'application installée dans la barre des
   tâches. Si `--app-id` n'ouvrait rien, supprimer ce dossier suffit à revenir à `--app=<url>`.
+
+- **29/09/2026 — Icône floue de l'application déjà installée : remplacée par le serveur** (« je
+  n'ai plus la possibilité de le réinstaller, trouver autre chose »). CLAIRE est déjà installée
+  comme application : Chrome ne propose plus l'installation, et il ne régénère pas les fichiers
+  d'icône qu'il a fabriqués à l'installation, à partir des icônes basse définition d'alors (les
+  PNG 192/512 du manifeste datent du 28/09). `server/src/iconeApplication.js` : au démarrage de
+  l'exe (Windows), avant d'ouvrir la fenêtre (5 s au plus), le serveur parcourt les profils Chrome
+  et Edge de l'utilisateur et, pour les seuls identifiants de l'application CLAIRE (localhost,
+  127.0.0.1, adresses du réseau × « /index.html » et « / », `idsApplicationClaire`), remplace
+  `Web Applications\_crx_<id>\*.ico` (icône du raccourci et de la barre des tâches) par le .ico
+  haute définition de l'exe, et `Web Applications\Manifest Resources\<id>\Icons\<taille>.png` par
+  la même taille du .ico (tailles absentes laissées). Réécriture seulement si le contenu diffère,
+  jamais de création de fichier ; puis `ie4uinit.exe -show` (cache d'icônes de Windows). Le .ico
+  est construit une fois par le script de build et embarqué dans le blob (`icone.ico`).
+  `manifest.json` : `"id": "/index.html"` (et non « / », posé le matin même) pour garder
+  l'identité de l'application déjà installée (sans "id", Chrome prenait l'adresse de départ).
+  **Non vérifié sur Windows** : emplacement exact des fichiers de Chrome, effet immédiat sur une
+  icône épinglée (peut demander de fermer/rouvrir CLAIRE, voire une session Windows).

@@ -135,6 +135,21 @@ function ouvrirNavigateur(url) {
   });
 }
 
+// Icône de l'application CLAIRE installée dans Chrome/Edge (voir iconeApplication.js) : l'icône
+// haute définition embarquée remplace celle que le navigateur avait fabriquée à l'installation,
+// puis le cache d'icônes de Windows est rafraîchi. Silencieux en cas d'échec.
+async function rafraichirIconeInstallee(adresses) {
+  let ico;
+  try { ico = Buffer.from(require('node:sea').getAsset('icone.ico')); } catch (e) { return; }
+  const { rafraichirIconesApplication } = require('./iconeApplication');
+  const remplaces = await rafraichirIconesApplication({
+    env: process.env, fsp: fs.promises, icoBuffer: ico, port: config.port, adresses
+  });
+  if (!remplaces.length) return;
+  console.log(`[CLAIRE] Icône de l'application installée remplacée (${remplaces.length} fichier(s)).`);
+  exec('ie4uinit.exe -show', () => {});
+}
+
 // Scripts assistants (lanceur sans fenêtre, arrêt, démarrage avec la session Windows) : voir
 // scriptsAssistants.js, module séparé pour rester testable sans exécutable réel.
 const { assurerScriptsAssistants } = require('./scriptsAssistants');
@@ -269,7 +284,15 @@ function demarrer() {
     }
 
     // Après une mise à jour en un clic, la fenêtre déjà ouverte se recharge d'elle-même.
-    if (!process.env.CLAIRE_APRES_MISE_A_JOUR) ouvrirNavigateur(url);
+    // Avant d'ouvrir la fenêtre : l'icône de l'application CLAIRE installée est remplacée par
+    // l'icône haute définition (voir iconeApplication.js), attendue au plus 5 s.
+    const ouvrir = () => { if (!process.env.CLAIRE_APRES_MISE_A_JOUR) ouvrirNavigateur(url); };
+    if (config.estSea() && process.platform === 'win32') {
+      Promise.race([rafraichirIconeInstallee(adresses), new Promise((r) => setTimeout(r, 5000))])
+        .catch(() => {}).finally(ouvrir);
+    } else {
+      ouvrir();
+    }
   });
 
   // Port déjà occupé (un serveur CLAIRE déjà lancé, masqué par Lancer-CLAIRE-en-arriere-plan.vbs,

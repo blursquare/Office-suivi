@@ -39,7 +39,7 @@ function resoudreCheminNavigateurApp(env, existsSyncImpl) {
 // l'ouvre donc par son identifiant (`--app-id`) plutôt que par son adresse.
 
 // Identifiant d'application web de Chrome/Edge : SHA-256 de l'identifiant du manifeste (ici
-// « http://localhost:<port>/ », `"id": "/"` dans manifest.json), 16 premiers octets en
+// « http://localhost:<port>/index.html », `"id"` de manifest.json), 16 premiers octets en
 // hexadécimal, chaque chiffre 0-f transcrit en lettre a-p (crx_file::id_util::GenerateId). Pure.
 function idApplicationWeb(idManifeste) {
   const hex = crypto.createHash('sha256').update(String(idManifeste)).digest('hex').slice(0, 32);
@@ -59,10 +59,14 @@ function dossierProfilNavigateur(cheminNavigateur, env, profil) {
 function argumentFenetreApp(url, cheminNavigateur, env, existsSyncImpl, profil) {
   try {
     const origine = new URL(url).origin;
-    const id = idApplicationWeb(origine + '/');
     const dossier = dossierProfilNavigateur(cheminNavigateur, env, profil);
-    if (dossier && existsSyncImpl(path.win32.join(dossier, 'Web Applications', 'Manifest Resources', id))) {
-      return `--app-id=${id}`;
+    // « /index.html » : identifiant d'une installation faite avant l'ajout de "id" au manifeste
+    // (l'adresse de départ en tenait lieu) — gardé tel quel pour ne pas changer d'application.
+    for (const chemin of ['/index.html', '/']) {
+      const id = idApplicationWeb(origine + chemin);
+      if (dossier && existsSyncImpl(path.win32.join(dossier, 'Web Applications', 'Manifest Resources', id))) {
+        return `--app-id=${id}`;
+      }
     }
   } catch (e) { /* adresse illisible : ouverture par l'adresse */ }
   return `--app="${url}"`;
