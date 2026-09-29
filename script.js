@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 20:06';
+  const VERSION_APP = '2026-09-29 20:17';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 20:17', resume: "Offre de prêt : « contrat de prêt », « contrat de crédit » et « offre de contrat de prêt » reconnus dans le nom du fichier comme dans le titre de la page de garde (et examinés en priorité, comme « offre de prêt »)." },
     { version: '2026-09-29 20:06', resume: "Offre de prêt reconnue plus vite : un PDF dont le nom dit « offre de prêt », ou qu'un nouveau dépôt sur le NAS vient de faire apparaître, est examiné dès le tour suivant (5 minutes au plus) au lieu d'attendre que les autres dossiers aient été relus. Un nouveau document signalé par le serveur fait vérifier son dossier aussitôt, et les PDF déjà écartés ne sont plus relus à chaque ouverture de CLAIRE." },
     { version: '2026-09-29 15:45', resume: "Nouveau dossier : le nom d'usage d'une partie veuve ou mariée est lu dans son état civil (« Madame Yvette MARTIN … Veuve de Monsieur … CRIL » → nom d'usage CRIL), affiché à côté de son nom et utilisé pour retrouver ses versements dans les reçus comptables." },
     { version: '2026-09-29 15:39', resume: "Fonds reçus : un versement porté au compte de deux personnes (« DUPONT Jean et MARTIN ») ne compte plus pour un dossier MARTIN si la référence de la vente cite une autre vente. Les fonds doivent correspondre au montant attendu à 50 € près : au-delà, CLAIRE signale un écart à vérifier au lieu de « Tous les fonds sont reçus ». Nom d'usage ou d'épouse : repris du courrier d'appel de fonds (« … - CRIL »), du nom du dossier, ou saisi dans « Autre nom sur les reçus ». Une lecture faite avec l'ancienne règle est refaite automatiquement." },
@@ -20547,7 +20548,7 @@
   // document il s'agit (offre, contrat, accord) à côté de « prêt »/« crédit » : un « Décompte de
   // remboursement ÉCO PRÊT » (l'exemple donné par l'étude) contient « prêt » mais n'est pas une
   // offre, et ne doit pas en devenir une.
-  var FORMES_NOM_OFFRE_PRET = ['offre pret', 'offre credit', 'offre financement', 'offre prealable credit', 'accord pret', 'contrat pret', 'contrat credit'];
+  var FORMES_NOM_OFFRE_PRET = ['offre pret', 'offre credit', 'offre financement', 'offre prealable credit', 'accord pret', 'contrat pret', 'contrat credit', 'offre contrat pret', 'offre contrat credit'];
 
   function nomDitOffrePret(nomNormalise) {
     if (OFFRE_PRET_RE.test(nomNormalise)) return true;
@@ -20625,7 +20626,9 @@
   // signé/accepté (couvre aussi "Contrat de crédit immobilier.pdf" grâce au \s* déjà en place).
   // var (pas const) : exposée globalement comme les fonctions du fichier, pour rester testable
   // depuis tests/helpers/load-app.js sans dupliquer le motif dans les tests.
-  var OFFRE_PRET_RE = /offre\s*de\s*pr[êe]t|offre\s*pr[ée]alable\s*de\s*cr[ée]dit|offre\s*de\s*cr[ée]dit|offre\s*de\s*financement|accord\s*de\s*pr[êe]t|contrat\s*de\s*cr[ée]dit|contrat\s*de\s*pr[êe]t/i;
+  // « contrat de prêt », « contrat de crédit » et « offre de contrat de prêt » : termes rappelés
+  // par l'étude le 29/09 (les deux premiers suffisaient déjà à reconnaître le troisième).
+  var OFFRE_PRET_RE = /offre\s*de\s*contrat\s*de\s*(?:pr[êe]t|cr[ée]dit)|offre\s*de\s*pr[êe]t|offre\s*pr[ée]alable\s*de\s*cr[ée]dit|offre\s*de\s*cr[ée]dit|offre\s*de\s*financement|accord\s*de\s*pr[êe]t|contrat\s*de\s*cr[ée]dit|contrat\s*de\s*pr[êe]t/i;
 
   // ==== OFFRE DE PRÊT : reconnaissance par le titre de la page de garde ====
   // Troisième méthode de reconnaissance de ce document, après le contenu intégral (abandonné :

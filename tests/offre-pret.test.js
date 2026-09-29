@@ -239,3 +239,18 @@ test('seuls des paragraphes « Garanties » d’assurance ne disent pas « Sans 
   const vide = "GARANTIES\nAucune garantie n'est exigée pour ce prêt.\nASSURANCES\nSuite.";
   assert.equal(app.detecterGarantiesPret(vide).join(','), 'sansGarantie');
 });
+
+// Termes rappelés par l'étude le 29/09 : « contrat de prêt », « contrat de crédit », « offre de
+// contrat de prêt » — dans le nom du fichier comme dans le titre de la page de garde.
+test('offre de prêt : contrat de prêt, contrat de crédit, offre de contrat de prêt', () => {
+  const app = chargerApplication();
+  const nom = (n) => app.nomDitOffrePret(app.normaliserNomPourMotif(n));
+  for (const n of ['Contrat de prêt CIC.pdf', 'CONTRAT DE CREDIT.pdf', 'contrat_de_credit_immobilier.pdf',
+    'Offre de contrat de prêt.pdf', 'offre-contrat-pret.pdf', 'OFFRE DE CONTRAT DE CRÉDIT.pdf', 'Contrats de prêts.pdf']) {
+    assert.equal(nom(n), true, n);
+  }
+  for (const n of ['Contrat de travail.pdf', 'Contrat de réservation.pdf', 'Contrat de mariage.pdf']) assert.equal(nom(n), false, n);
+  for (const t of ['OFFRE DE CONTRAT DE PRÊT IMMOBILIER', 'CONTRAT DE CRÉDIT IMMOBILIER', 'Contrat de prêt n° 00012']) {
+    assert.equal(app.OFFRE_PRET_RE.test(t), true, t);
+  }
+});

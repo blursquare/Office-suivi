@@ -12070,3 +12070,12 @@ consommaient le budget tour après tour ; le fichier de l'offre attendait son to
     400 chemins par dossier) ; « Revérifier » l'oublie toujours pour le dossier.
   Délai attendu : ≤ 5 min pour une offre nommée « offre de prêt », ≤ 10 min (tour de nasWatch) + la
   vérification pour un fichier au nom muet. Non vérifié au bureau (NAS et Ollama injoignables ici).
+
+### 29/09 20:17 — Offre de prêt : contrat de prêt, contrat de crédit, offre de contrat de prêt
+
+Demande : « Prends aussi en compte les termes contrat de prêt et contrat de crédit et offre de
+contrat de prêt ». Les deux premiers étaient déjà reconnus (`OFFRE_PRET_RE`, `FORMES_NOM_OFFRE_PRET`,
+ajoutés le 18/09) et suffisaient au troisième ; rendus explicites (« offre de contrat de prêt/crédit »,
+formes `offre contrat pret/credit`) et figés par un test (noms de fichiers et titres, « contrat de
+travail / réservation / mariage » refusés). Un nom qui les porte est examiné hors budget
+(`pdfPrioritairePourOffre`).
