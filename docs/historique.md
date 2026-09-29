@@ -12312,3 +12312,34 @@ Urgent si on dépasse une date butoir puis quand revient dans l'ordre reprendre 
 - Portefeuille : l'anneau compte par état (`parEtat`), phrase de synthèse reformulée (urgent
   d'abord). Tests : `tests/etat-dossier.test.js` (remplace `etape-dossier.test.js`), portefeuille,
   semaines. Vérifié dans Chromium (clair, sombre, 400 px, sans débordement ni erreur).
+
+### 29/09 23:30 — Widgets : grille de 4 colonnes, trois tailles partout, glisser-déposer au pointeur
+
+Demande : « Pour les widgets il faut pouvoir faire un glisser-déposer pour réorganiser. Mettre une
+grille sur 4 colonnes et prévoir des widgets petit moyen grand pour toutes les cartes. Pas de grand
+blanc dans les cartes. Ajoute du contenu ou réorganise les cartes dans leur contenu, pas de slop IA. »
+- Grille : 4 colonnes (2 sous 720 px de zone), rangées de hauteur fixe (`--w-rang`, ≈ une largeur de
+  colonne, bornée), `grid-auto-flow: dense`. Petit 1 × 1, moyen 2 × 1, grand 2 × 2. Disposition par
+  défaut : Aujourd'hui (grand), Agenda (moyen), Dossiers ouverts et Dernières pièces (petits),
+  Avancement et Activité (grands) — la grille se remplit sans trou.
+- Contenu selon la taille (chaque fonction de rendu lit `tailleWidget`) : Aujourd'hui (nombre + première
+  action / liste + rappels / + à venir) ; Agenda (jour façon icône Calendrier + prochaine signature /
+  semaine compacte + signatures du jour ou prochaines / détail avec envois et absences) ; Avancement
+  (moyenne + répartition / ligne compacte / deux lignes : état, étapes, pièces, prix, prochaine
+  étape, jauge) ; Dossiers ouverts (anneau + mesures qui tiennent / anneau + mesures + phrase / +
+  dossiers « À regarder » : urgents, à relier, en attente) ; Activité (chiffre du jour + 7 jours +
+  dernière action / résumé et fil côte à côte / résumé, filtres, fil qui défile) ; Dernières pièces
+  (nombre + nouvelles + dernière / liste / + « Encore attendues », regroupées par pièce).
+- `ajusterWidgets` (après chaque rendu et au redimensionnement) : replie tout, puis remplit les listes
+  `data-ajuster` par priorité, ligne par ligne, tant que ça tient ; « Voir N de plus » si coupé ; une
+  section d'appoint sans ligne disparaît ; une liste coupée répartit ses lignes sur la hauteur.
+  Mesuré dans Chromium (1440 clair/sombre, 1024, 400 px) : plus de blanc au bas des cartes (reste le
+  seul padding), aucun débordement horizontal, aucune erreur.
+- Glisser-déposer au pointeur (remplace le glisser HTML5) : en mode Personnaliser, on attrape la carte
+  n'importe où hors boutons ; un fantôme suit le pointeur, la place reste en pointillé, les autres
+  cartes s'écartent (FLIP), défilement près des bords, Échap annule. Appui long (0,45 s) sur le titre
+  hors mode : ouvre la personnalisation. Contrôles posés sur la carte : « − » (masquer), P/M/G, flèches.
+  Vérifié à la souris (ordre enregistré en base, retrouvé après rechargement) ; au doigt, pas vérifié
+  sur un vrai écran tactile.
+- Tests : `dispositionDansOrdre`, trois tailles pour toutes les cartes, `piecesEncoreAttendues`,
+  `prochainesSignatures` (`tests/widgets-dashboard.test.js`).

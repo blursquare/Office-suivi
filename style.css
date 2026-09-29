@@ -6722,62 +6722,212 @@ button.confrere-carnet-office:focus-visible, button.carnet-dossier:focus-visible
 .etape-cellule { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
 
 /* ==== Widgets du tableau de bord (renderWidgetsDashboard) ====
-   Grille de 3 colonnes : petit = 1, moyen = 2, grand = toute la largeur ; 2 colonnes puis 1 quand
-   la place manque (requête de conteneur sur la largeur réelle de la zone, sidebar déduite). */
+   Comme les widgets iOS : grille de 4 colonnes à rangées de hauteur fixe (2 colonnes quand la
+   zone est étroite). Petit = 1 × 1, moyen = 2 × 1, grand = 2 × 2 ; `dense` bouche les trous.
+   La hauteur de rangée suit la largeur d'une colonne (tuile presque carrée), bornée. */
 .widgets-conteneur { container-type: inline-size; container-name: widgets; margin-top: 4px; }
-.widgets-grille { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; align-items: start; }
-.widget { position: relative; min-width: 0; grid-column: span 1; }
+.widgets-grille {
+  --w-gap: 16px;
+  --w-rang: clamp(212px, calc((100cqw - 3 * var(--w-gap)) / 4 * 0.86), 250px);
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: var(--w-rang);
+  grid-auto-flow: row dense; gap: var(--w-gap);
+}
+.widget { position: relative; min-width: 0; min-height: 0; grid-column: span 1; grid-row: span 1; }
 .widget[data-taille="moyen"] { grid-column: span 2; }
-.widget[data-taille="grand"] { grid-column: 1 / -1; }
-@container widgets (max-width: 900px) {
-  .widgets-grille { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .widget[data-taille="moyen"], .widget[data-taille="grand"] { grid-column: 1 / -1; }
+.widget[data-taille="grand"] { grid-column: span 2; grid-row: span 2; }
+@container widgets (max-width: 720px) {
+  .widgets-grille {
+    --w-gap: 12px;
+    --w-rang: clamp(200px, calc((100cqw - var(--w-gap)) / 2 * 0.95), 240px);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
-@container widgets (max-width: 560px) {
-  .widgets-grille { grid-template-columns: minmax(0, 1fr); gap: 16px; }
-  .widget, .widget[data-taille] { grid-column: 1 / -1; }
-}
-/* Chaque carte remplit son widget ; la carte « Dossiers ouverts » perd son ancienne marge de grille. */
-.widget > .dash-bloc > .kpi-tile { margin: 0; }
+.widget > .dash-bloc { height: 100%; }
 
-/* Personnalisation : un contour pointillé, une barre de réglage au-dessus de chaque widget, et le
-   contenu rendu inerte (on range, on ne travaille pas). */
-.widgets-grille.edition .widget {
-  border: 1.5px dashed var(--line); border-radius: 14px; padding: 8px; background: var(--paper-sunk);
-  cursor: grab;
+/* Coque commune (carteWidget) : en-tête, puis un corps qui prend le reste de la tuile. Ce qui ne
+   tient pas est coupé proprement par ajusterWidgets (jamais à mi-ligne). */
+.w-carte {
+  height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
+  background: var(--paper-card); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-card);
 }
-/* Le contenu frémit (repère « mode rangement » des widgets iOS) ; la barre de réglage, elle, reste
-   immobile pour que ses boutons se cliquent sans viser une cible qui bouge. */
+.w-tete { flex: none; display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 14px 16px 10px; }
+.w-tete-texte { min-width: 0; }
+.w-titre { font-size: 15px; font-weight: 700; color: var(--ink); line-height: 1.25; }
+.w-sous { font-size: 12.5px; color: var(--muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.w-tete-droite { flex: none; display: flex; align-items: center; gap: 6px; }
+.w-corps { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 10px; padding: 0 16px 14px; }
+.w-corps > * { flex: none; }
+.w-corps.w-defile { overflow-y: auto; }
+.w-petit .w-tete { padding: 12px 14px 6px; }
+.w-petit .w-corps { padding: 0 14px 12px; gap: 8px; }
+.w-section { display: flex; flex-direction: column; gap: 4px; padding-top: 8px; border-top: 1px solid var(--line-soft); }
+.w-section > .jour-carte-sous-titre { margin: 0; }
+.w-carte .dash-rappels-bloc { margin-top: 0; }
+.w-section-seule { border-top: 0; padding-top: 0; }
+.w-note { font-size: 12px; color: var(--muted); margin-left: auto; }
+/* Liste coupée (ajusterWidgets) : les lignes se répartissent la hauteur, « Voir N de plus » en bas. */
+.w-corps > .w-coupee { flex: 1 1 auto; }
+.w-corps .w-coupee:not(.w-section) { display: flex; flex-direction: column; justify-content: space-between; }
+.w-corps .w-section.w-coupee > .w-coupee { flex: 1 1 auto; }
+
+/* Chiffre clé des petites tuiles. */
+.w-chiffre-bloc { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.w-chiffre { font-size: 40px; font-weight: 700; line-height: 1; letter-spacing: -0.02em; color: var(--ink); font-variant-numeric: tabular-nums; }
+.w-chiffre small { font-size: 20px; font-weight: 600; margin-left: 1px; }
+.w-chiffre-lib { font-size: 13px; color: var(--muted); }
+.w-message { margin: 0; font-size: 13px; color: var(--muted); list-style: none; }
+/* Bloc d'appoint poussé en bas de la petite tuile (dernière pièce, prochaine signature…). */
+.w-bas { margin-top: auto; }
+button.w-prochaine {
+  display: flex; flex-direction: column; gap: 2px; width: 100%; padding: 8px 10px;
+  border: 0; border-radius: 8px; background: var(--paper-sunk); font: inherit; text-align: left; color: var(--ink); cursor: pointer;
+}
+button.w-prochaine:hover { background: color-mix(in srgb, var(--focus) 8%, var(--paper-sunk)); }
+button.w-prochaine.g-critique { box-shadow: inset 3px 0 0 var(--urgent); }
+button.w-prochaine.g-vigilance { box-shadow: inset 3px 0 0 var(--pret); }
+.w-prochaine-titre { font-size: 13px; font-weight: 600; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.w-prochaine-sous { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+button.w-pied { align-self: flex-start; font-size: 12.5px; }
+.w-barre { width: 100%; }
+.w-repartition { list-style: none; margin: auto 0 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.w-repartition li { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12.5px; }
+.w-repartition b { font-variant-numeric: tabular-nums; color: var(--ink); }
+
+/* Lignes compactes (agenda, à venir, à regarder, avancement en moyen, pièces attendues). */
+.w-lignes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+.w-ligne {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; padding: 6px 8px; margin: 0 -8px;
+  box-sizing: content-box; max-width: 100%;
+  border: 0; border-radius: 8px; background: none; font: inherit; font-size: 13px; text-align: left; color: var(--ink);
+}
+button.w-ligne { cursor: pointer; }
+button.w-ligne:hover { background: var(--paper-sunk); }
+button.w-ligne:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.w-ligne-texte { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.w-ligne-texte b { font-weight: 600; }
+.w-ligne-date { flex: none; width: 76px; font-size: 12px; font-weight: 600; color: var(--ink-soft); }
+.w-ligne-date:first-letter { text-transform: uppercase; }
+.w-ligne-meta { flex: none; max-width: 45%; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.w-ligne .dot-label { flex: none; }
+.w-ligne-avancement .avancement-barre { flex: none; width: 64px; }
+/* Avancement en grand : deux lignes par dossier — nom et état, puis détail, prix, jauge. */
+.w-avancement-riche { gap: 0; }
+.w-avancement-riche > li + li { border-top: 1px solid var(--line-soft); }
+button.w-avancement-ligne {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "nom nom etat" "detail barre pct";
+  align-items: center; column-gap: 10px; row-gap: 4px; width: 100%; padding: 8px 0;
+  border: 0; background: none; font: inherit; text-align: left; color: var(--ink); cursor: pointer;
+}
+button.w-avancement-ligne:hover .w-av-nom { color: var(--focus); }
+button.w-avancement-ligne:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 6px; }
+.w-av-nom { grid-area: nom; font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.w-avancement-ligne .avancement-pilule { grid-area: etat; justify-self: end; }
+.w-av-detail { grid-area: detail; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.w-avancement-ligne .avancement-barre { grid-area: barre; width: 90px; }
+.w-avancement-ligne .w-ligne-pct { grid-area: pct; }
+.w-avancement-ligne.statut-surveiller .avancement-barre > span { background: var(--pret); }
+.w-avancement-ligne.statut-retard .avancement-barre > span { background: var(--urgent); }
+.w-ligne-pct { flex: none; width: 34px; text-align: right; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.w-ligne-avancement .avancement-pilule { flex: none; }
+.w-ligne-avancement.statut-surveiller .avancement-barre > span { background: var(--pret); }
+.w-ligne-avancement.statut-retard .avancement-barre > span { background: var(--urgent); }
+button.w-plus { align-self: flex-start; margin-top: 2px; font-size: 12.5px; list-style: none; }
+.w-lignes > button.w-plus, .ja-liste > button.w-plus { margin-left: 0; }
+
+/* Cartes existantes remises dans la coque. */
+.w-carte .ja-liste .ja { padding-left: 0; padding-right: 0; }
+.w-carte .agenda-bande { padding: 0 0 8px; border-bottom: 1px solid var(--line-soft); }
+/* En moyen, la semaine tient sur une bande basse : la place va aux signatures. */
+.w-moyen .agenda-jour { padding-top: 3px; padding-bottom: 3px; gap: 1px; }
+.w-moyen .agenda-bande { padding-bottom: 6px; }
+.w-moyen .w-corps { gap: 8px; }
+.w-carte .agenda-liste { padding: 0; gap: 6px; }
+.w-carte .avancement-dossiers { border: 0; box-shadow: none; padding: 0; background: none; border-radius: 0; }
+.w-carte button.avancement-ligne { padding: 10px 4px; gap: 14px; }
+.w-carte .dash-liste-carte { padding: 0; }
+.w-carte .dash-liste-carte .action-urgente-ligne.derniere-piece { padding-left: 0; padding-right: 0; }
+.w-agenda-petit .w-titre { color: var(--focus); text-transform: capitalize; }
+.w-agenda-petit .w-sous { text-transform: capitalize; }
+.w-jour-num { font-size: 34px; font-weight: 700; line-height: 1; color: var(--ink); font-variant-numeric: tabular-nums; }
+.w-carte.portefeuille .pf-duo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: center; }
+.w-carte.portefeuille .pf-phrase { padding-top: 8px; }
+.w-petit.portefeuille .pf-haut { gap: 12px; }
+.w-petit.portefeuille .pf-legende { font-size: 12px; }
+.w-carte.activite-etude { padding: 0; }
+.w-carte.activite-etude .act-resume { margin: 0; }
+.w-carte.activite-etude .act-filtres { margin: 0; }
+.w-carte.activite-etude .activite-liste { margin: 0; }
+.w-grand.activite-etude .activite-liste { flex: 1 1 0; min-height: 0; contain: none; overflow-y: auto; }
+.w-moyen.activite-etude .activite-liste { flex: none; min-height: 0; contain: none; overflow: visible; }
+.w-carte.activite-etude .act-duo { display: grid; grid-template-columns: minmax(0, 190px) minmax(0, 1fr); gap: 14px; align-items: start; }
+.w-carte.activite-etude .act-duo .act-resume { grid-template-columns: auto minmax(0, 1fr); align-items: end; }
+.w-carte.activite-etude .act-duo .act-equipe { grid-column: 1 / -1; }
+.w-petit.activite-etude .act-resume { grid-template-columns: auto minmax(0, 1fr); gap: 10px; padding: 8px 10px; }
+.w-petit.activite-etude .act-semaine { height: 40px; }
+.w-petit.activite-etude .act-compteur-lib { max-width: none; }
+.w-petit .activite-direct { font-size: 0; gap: 0; }
+@container dashbloc (max-width: 230px) {
+  .w-petit.portefeuille .pf-haut { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .w-petit.portefeuille .pf-anneau-bloc { width: 66px; height: 66px; }
+  .w-petit.portefeuille .pf-centre-num { font-size: 20px; }
+  .w-chiffre { font-size: 34px; }
+}
+@container dashbloc (max-width: 360px) {
+  .w-carte .agenda-bande { gap: 2px; }
+}
+
+/* Personnalisation : la carte garde sa taille et frémit (repère « mode rangement » d'iOS) ; les
+   réglages se posent par-dessus — pastille « − » en haut à gauche, tailles et flèches en bas. On
+   attrape la carte n'importe où pour la glisser. */
+.widgets-grille.edition .widget { cursor: grab; touch-action: none; }
 .widgets-grille.edition .widget > .dash-bloc { pointer-events: none; user-select: none; animation: widget-frisson 0.35s ease-in-out infinite alternate; }
 .widgets-grille.edition .widget:nth-child(2n) > .dash-bloc { animation-delay: -0.17s; }
 .widgets-grille.edition .widget.widget-vide > .dash-bloc { display: none !important; }
+.widgets-grille.edition .widget.widget-vide {
+  border: 1.5px dashed var(--line); border-radius: 12px; background: var(--paper-sunk);
+}
 .widgets-grille.edition .widget.widget-vide::after {
-  content: 'Rien à afficher pour l’instant'; display: block; padding: 18px 10px; font-size: 13px; color: var(--muted); text-align: center;
+  content: 'Rien à afficher pour l’instant'; display: block; padding: 40px 12px; font-size: 13px; color: var(--muted); text-align: center;
 }
-.widget.widget-glisse { opacity: 0.45; }
-.widget.widget-cible-avant { box-shadow: -4px 0 0 0 var(--focus); }
-.widget.widget-cible-apres { box-shadow: 4px 0 0 0 var(--focus); }
-@keyframes widget-frisson { from { transform: rotate(-0.25deg); } to { transform: rotate(0.25deg); } }
+@keyframes widget-frisson { from { transform: rotate(-0.3deg); } to { transform: rotate(0.3deg); } }
 @media (prefers-reduced-motion: reduce) { .widgets-grille.edition .widget > .dash-bloc { animation: none; } }
-
-.widget-barre { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 2px 2px 8px; }
-.widget-poignee { display: inline-flex; color: var(--muted); cursor: grab; }
-.widget-poignee svg { width: 14px; height: 14px; }
-.widget-barre-titre { font-size: 13px; font-weight: 600; color: var(--ink); margin-right: auto; min-width: 0; }
-.widget-tailles { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--paper-card); }
-button.widget-taille {
-  border: 0; background: none; padding: 4px 9px; font: inherit; font-size: 12px; color: var(--ink-soft); cursor: pointer;
+.widget.widget-place > * { visibility: hidden; }
+.widget.widget-place { border: 2px dashed var(--focus); border-radius: 12px; background: color-mix(in srgb, var(--focus) 6%, transparent); }
+.widget-fantome {
+  position: fixed; z-index: 1000; margin: 0; pointer-events: none; cursor: grabbing;
+  transform: scale(1.03); transition: transform 0.12s ease;
+  border-radius: 12px; box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
 }
-button.widget-taille + button.widget-taille { border-left: 1px solid var(--line); }
+.widget-fantome > .dash-bloc { animation: none !important; }
+.widget-fantome .widget-barre, .widget-fantome .widget-retirer { display: none; }
+body.widgets-glisse-en-cours { cursor: grabbing; user-select: none; -webkit-user-select: none; }
+
+button.widget-retirer {
+  position: absolute; top: -9px; left: -9px; z-index: 3; display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; padding: 0; border: 2px solid var(--paper); border-radius: 50%;
+  background: var(--ink-soft); color: var(--paper-card); cursor: pointer;
+}
+button.widget-retirer svg { width: 12px; height: 12px; stroke-width: 2.4; }
+button.widget-retirer:hover { background: var(--urgent); }
+.widget-barre {
+  position: absolute; left: 50%; bottom: 10px; z-index: 3; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 4px; padding: 4px; white-space: nowrap;
+  background: var(--paper-card); border: 1px solid var(--line); border-radius: 999px; box-shadow: var(--shadow-card);
+}
+.widget-tailles { display: inline-flex; gap: 2px; }
+button.widget-taille {
+  width: 28px; height: 26px; padding: 0; border: 0; border-radius: 999px; background: none;
+  font: inherit; font-size: 12px; font-weight: 600; color: var(--ink-soft); cursor: pointer;
+}
 button.widget-taille.actif { background: var(--focus); color: var(--paper-card); }
 button.widget-outil {
   display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0;
-  border: 1px solid var(--line); border-radius: 7px; background: var(--paper-card); color: var(--ink-soft); cursor: pointer;
+  border: 0; border-radius: 999px; background: none; color: var(--ink-soft); cursor: pointer;
 }
-button.widget-outil:hover:not(:disabled) { color: var(--focus); border-color: var(--focus); }
-button.widget-outil:disabled { opacity: 0.35; cursor: default; }
+button.widget-outil:hover:not(:disabled), button.widget-taille:hover:not(.actif) { background: var(--paper-sunk); color: var(--ink); }
+button.widget-outil:disabled { opacity: 0.3; cursor: default; }
 button.widget-outil svg { width: 13px; height: 13px; }
-button.widget-taille:focus-visible, button.widget-outil:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+button.widget-taille:focus-visible, button.widget-outil:focus-visible, button.widget-retirer:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 
 .widgets-masques { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 18px; }
 .widgets-masques button.bouton-ajout { width: auto; margin: 0; }

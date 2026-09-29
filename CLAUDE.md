@@ -257,12 +257,16 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   chiffres » : « 250.000,00 » deviendrait 25 000 000). Toute adresse passe par `normaliserAdresse`
   (format « SAINT-AIGNAN (41110), 2 rue des Cours de Meusnes » : commune en capitales, tirets et
   CEDEX gardés) ; le destinataire d'un courrier garde la forme postale (`adressePostaleCourrier`).
-- **Tableau de bord en widgets** (29/09) : chaque bloc est une `section.widget[data-widget]`
-  (aujourdhui, agenda, avancement, portefeuille, activite, pieces) de taille petit/moyen/grand dans
-  une grille de 3 colonnes ; « Personnaliser » permet de glisser, redimensionner, masquer. Disposition
-  par collaborateur : préférence `widgets` en base (liste blanche `WIDGETS_PREFERENCES` côté serveur,
-  `WIDGETS_DASHBOARD` côté client — à modifier ensemble pour ajouter un widget). Un nouveau bloc du
-  tableau de bord = un nouveau widget, jamais un bloc hors grille.
+- **Tableau de bord en widgets** (29/09, comme iOS) : grille de **4 colonnes** (2 sur écran étroit) à
+  rangées de hauteur fixe ; petit = 1 × 1, moyen = 2 × 1, grand = 2 × 2, **toutes les cartes dans les
+  trois tailles**, chacune rendue selon sa taille (`tailleWidget(id)` dans sa fonction de rendu, coque
+  `carteWidget`). **Jamais de vide dans une carte** : les listes portent `data-ajuster="N"` et
+  `ajusterWidgets` les remplit par priorité (N petit d'abord) jusqu'à la hauteur de la tuile, avec
+  « Voir N de plus » ; une carte qui a de la place reçoit du contenu d'appoint (à venir, prochaines
+  signatures, pièces encore attendues…), pas un blanc. « Personnaliser » (ou appui long sur un titre) :
+  glisser-déposer au pointeur, tailles P/M/G, masquer. Disposition par collaborateur : préférence
+  `widgets` en base (liste blanche `WIDGETS_PREFERENCES` côté serveur, `WIDGETS_DASHBOARD` côté
+  client — à modifier ensemble). Un nouveau bloc du tableau de bord = un nouveau widget.
 - **Texte d'aide** : ne décrit pas ce que le bouton dit déjà ; il dit ce qui manque. Une toute
   nouvelle confirmation commence par son verbe d'action (`boutonConfirmation`). **Une explication
   n'est jamais un paragraphe** (étude, 29/09 : « ça charge trop l'interface ») : elle va dans une

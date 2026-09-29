@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 23:12';
+  const VERSION_APP = '2026-09-29 23:30';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 23:30', resume: "Tableau de bord : grille de 4 colonnes et toutes les cartes en petit, moyen ou grand, comme les widgets iPhone. Chaque carte change de contenu avec sa taille (chiffre clé en petit, liste en moyen, détail en grand) et se remplit sans blanc : ce qui ne tient pas passe dans « Voir N de plus », la place libre reçoit les prochaines signatures, ce qui arrive, les pièces encore attendues. « Personnaliser » : attraper une carte et la glisser à sa place (souris ou doigt) ; un appui long sur le titre d'une carte ouvre aussi ce mode." },
     { version: '2026-09-29 23:12', resume: "Statut d'un dossier = son état général, partout : « À relier », « Attente de pièces » (pièces ou offre de prêt manquantes), « Complet » (tout est reçu), « Prêt » (rendez-vous placé), et « Urgent » dès qu'une date butoir est dépassée — le dossier reprend son état normal une fois l'échéance levée. Suivi : colonnes « Statut » (triable) et « Prochaine échéance » à nouveau séparées ; le statut apparaît aussi dans la vue Échéances. Survoler le badge dit ce qui manque ou quelle date est dépassée." },
     { version: '2026-09-29 23:03', resume: "Tableau de bord en widgets, comme sur iPhone : « Personnaliser » (à côté de « Mes dossiers ») permet de glisser chaque bloc à sa place (ou de le déplacer avec les flèches), de choisir sa taille (petit, moyen, grand) et de le masquer ; « Terminé » range. Chaque collaborateur garde sa propre disposition, retrouvée sur tous les postes. Suivi : l'étape et sa date sont réunies dans une seule colonne « Étape » (elles faisaient doublon avec « Prochaine échéance »)." },
     { version: '2026-09-29 22:56', resume: "Un seul statut par dossier, partout : son étape — « Attente de l'offre de prêt », « Pièces manquantes », « Rendez-vous à fixer », « Appel de fonds à envoyer », « Projet à envoyer », « Prêt à signer »… en rouge si l'échéance de l'étape est à 7 jours ou moins, en ambre à 15 jours. Il remplace « Aucun document », « À relier », « En retard » et consorts sur le tableau de bord, le Suivi, la fiche et la recherche. L'anneau du portefeuille compte les dossiers par étape." },
@@ -364,6 +365,7 @@
   const ICONES = {
     layout: '<rect x="1.5" y="2" width="13" height="12" rx="1.6"/><line x1="6" y1="2" x2="6" y2="14"/>',
     plus: '<line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/>',
+    minus: '<line x1="3.5" y1="8" x2="12.5" y2="8"/>',
     list: '<circle cx="2.3" cy="4" r="0.9" fill="currentColor" stroke="none"/><line x1="5.4" y1="4" x2="14" y2="4"/><circle cx="2.3" cy="8" r="0.9" fill="currentColor" stroke="none"/><line x1="5.4" y1="8" x2="14" y2="8"/><circle cx="2.3" cy="12" r="0.9" fill="currentColor" stroke="none"/><line x1="5.4" y1="12" x2="14" y2="12"/>',
     menu: '<line x1="2.4" y1="4.5" x2="13.6" y2="4.5"/><line x1="2.4" y1="8" x2="13.6" y2="8"/><line x1="2.4" y1="11.5" x2="13.6" y2="11.5"/>',
     download: '<path d="M8 2v8"/><path d="M4.5 7 8 10.5 11.5 7"/><path d="M3 13.5h10"/>',
@@ -12953,11 +12955,16 @@
     </div>`;
   }
 
+  // Cartes « Dossiers ouverts » et « Activité de l'étude », selon la taille de chaque widget.
+  // Dossiers ouverts :
+  //  - petit : l'anneau des états et les états présents ;
+  //  - moyen : l'anneau et sa légende, les trois mesures (signatures du mois, offres, avancement) ;
+  //  - grand : la même chose et les dossiers à regarder (urgents, à relier, en attente de pièces).
   function renderKpisDashboard(dossiersActifs, dossiersTousPerimetre) {
-    // Deux widgets distincts depuis le 29/09 : « Dossiers ouverts » et « Activité de l'étude ».
     const bloc = document.getElementById('kpi-portefeuille');
     const blocActivite = document.getElementById('kpi-activite');
     if (!bloc) return;
+    const taille = tailleWidget('portefeuille');
     const aujourdhui = isoAujourdhuiLocal();
     const st = statsPortefeuilleVisuel(dossiersActifs, dossiersTousPerimetre, aujourdhui);
     // Tendance du nombre de dossiers actifs vs le mois précédent (calculerEvolutionPortefeuille),
@@ -12967,31 +12974,52 @@
     const tMois = formaterTendance(evolution.ecartMois);
     const anime = !portefeuilleDejaAnime && st.actifs > 0;
     if (st.actifs > 0) portefeuilleDejaAnime = true;
-    const legende = ETATS_DOSSIER.map(g => `
+    const etats = taille === 'petit' ? ETATS_DOSSIER.filter(g => st.parEtat[g.cle]) : ETATS_DOSSIER;
+    const legende = etats.map(g => `
       <li class="pf-legende-ligne${st.parEtat[g.cle] ? '' : ' vide'}"><span class="pf-point pf-${g.cle}"></span><span>${g.texte}</span><b>${st.parEtat[g.cle]}</b></li>`).join('');
     const sig = st.signaturesMois;
     const moisNom = new Date(aujourdhui + 'T00:00:00').toLocaleDateString('fr-FR', { month: 'long' });
-    const carte = `<div class="kpi-tile portefeuille${anime ? ' anime' : ''}">
-      <div class="kpi-label">${icone('folder', 'kpi-icone')}Dossiers ouverts<span class="kpi-tendance pf-tendance" title="${evolution.actuel} aujourd'hui contre ${evolution.moisDernier} il y a un mois">${tMois.icone}${tMois.texte} vs mois dernier</span></div>
-      <div class="pf-haut">
+    const haut = `<div class="pf-haut">
         <div class="pf-anneau-bloc">${anneauPortefeuille(st)}<div class="pf-centre"><span class="pf-centre-num">${st.actifs}</span><span class="pf-centre-lib">actif${st.actifs > 1 ? 's' : ''}</span></div></div>
-        <ul class="pf-legende">${legende}</ul>
-      </div>
-      <div class="pf-mesures">
-        ${barrePortefeuille(`Signatures de ${moisNom}`, sig.faites, sig.total, sig.total ? `${sig.faites} / ${sig.total}` : 'aucune', 'focus')}
-        ${barrePortefeuille('Offres de prêt reçues', st.offres.recues, st.offres.total, st.offres.total ? `${st.offres.recues} / ${st.offres.total}` : 'sans prêt', 'pret')}
-        ${barrePortefeuille('Avancement moyen', st.avancementMoyen, 100, `${st.avancementMoyen} %`, 'success')}
-      </div>
-      <div class="pf-phrase">${escapeHtml(phrasePortefeuille(st))}</div>
-    </div>`;
+        <ul class="pf-legende" data-ajuster="1">${legende}</ul>
+      </div>`;
+    const barres = barrePortefeuille(`Signatures de ${moisNom}`, sig.faites, sig.total, sig.total ? `${sig.faites} / ${sig.total}` : 'aucune', 'focus')
+      + barrePortefeuille('Offres de prêt reçues', st.offres.recues, st.offres.total, st.offres.total ? `${st.offres.recues} / ${st.offres.total}` : 'sans prêt', 'pret')
+      + barrePortefeuille('Avancement moyen', st.avancementMoyen, 100, `${st.avancementMoyen} %`, 'success');
+    const mesures = `<div class="pf-mesures">${barres}</div>`;
+    let corps;
+    // En petit, les mesures remplissent la place laissée sous l'anneau (autant qu'il en tient).
+    if (taille === 'petit') corps = `${haut}<div class="pf-mesures" data-ajuster="2">${barres}</div>`;
+    else {
+      const aRegarder = taille === 'grand'
+        ? (dossiersActifs || []).filter(d => !d.archive).map(d => ({ d, e: etatDossier(d, aujourdhui) }))
+          .filter(x => x.e.cle === 'urgent' || x.e.cle === 'arelier' || x.e.cle === 'attente')
+          .sort((x, y) => ORDRE_ETAT_DOSSIER.indexOf(x.e.cle) - ORDRE_ETAT_DOSSIER.indexOf(y.e.cle))
+        : [];
+      corps = `<div class="pf-duo">${haut}${mesures}</div>
+        <div class="pf-phrase w-fixe">${escapeHtml(phrasePortefeuille(st))}</div>
+        ${aRegarder.length ? `<div class="w-section">
+          <h3 class="jour-carte-sous-titre">À regarder</h3>
+          <ul class="w-lignes" data-ajuster="2">${aRegarder.map(x => `<li><button type="button" class="w-ligne" onclick="ouvrirDossierDepuisDashboard('${x.d.id}')" title="${escapeAttr(x.e.detail)}">
+            <span class="dot-label ${x.e.dl}"><span class="dot"></span>${escapeHtml(x.e.texte)}</span>
+            <span class="w-ligne-texte">${escapeHtml(libelleDossierAffiche(x.d))}</span>
+            <span class="w-ligne-meta">${escapeHtml(x.e.detail)}</span></button></li>`).join('')}${plusWidget("definirOnglet('suivi')")}</ul>
+        </div>` : ''}`;
+    }
+    bloc.innerHTML = carteWidget({
+      taille, classe: `portefeuille${anime ? ' anime' : ''}`,
+      titre: 'Dossiers ouverts',
+      sous: `<span class="kpi-tendance pf-tendance" title="${evolution.actuel} aujourd'hui contre ${evolution.moisDernier} il y a un mois">${tMois.icone}${tMois.texte} vs mois dernier</span>`,
+      corps
+    });
     // La carte d'activité n'a rien à dire sans aucune action sur les 7 derniers jours : elle
     // occupait alors une place de choix pour afficher « 0 » (revue de l'interface, 29/09).
-    const activite = renderActiviteEtude(dossiers);
-    bloc.innerHTML = carte;
+    const activite = renderActiviteEtude(dossiers, tailleWidget('activite'));
     if (blocActivite) {
       blocActivite.innerHTML = activite;
       blocActivite.style.display = activite ? '' : 'none';
     }
+    planifierAjustementWidgets();
   }
 
   // ---- Activité de l'étude (Tableau de bord) : suivi en direct, tous collaborateurs ----
@@ -13119,7 +13147,11 @@
     carte.querySelectorAll('.act-filtre').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cle === cle)));
   }
 
-  function renderActiviteEtude(tousDossiers) {
+  // Activité de l'étude, selon la taille du widget :
+  //  - petit : les actions du jour et les barres des 7 jours ;
+  //  - moyen : ce résumé à gauche, le fil à droite (coupé à la hauteur de la tuile) ;
+  //  - grand : résumé, filtres par catégorie et fil complet qui défile dans la carte.
+  function renderActiviteEtude(tousDossiers, taille) {
     const maintenant = Date.now();
     const toutes = activiteEtude(tousDossiers, 5000);
     const entrees = toutes.slice(0, MAX_ACTIVITE_ETUDE);
@@ -13163,14 +13195,25 @@
     const resume = `<div class="act-resume">
         <div class="act-compteur"><span class="act-compteur-num">${rythme.aujourdhui}</span><span class="act-compteur-lib">action${rythme.aujourdhui > 1 ? 's' : ''} aujourd’hui</span></div>
         <div class="act-semaine" role="img" aria-label="${escapeAttr('Actions par jour sur 7 jours : ' + rythme.jours.map(j => `${j.nom} ${j.n}`).join(', '))}">${barres}</div>
-        <ul class="act-equipe" aria-label="Qui a agi aujourd’hui">${equipe}</ul>
+        ${taille === 'petit' ? '' : `<ul class="act-equipe" aria-label="Qui a agi aujourd’hui">${equipe}</ul>`}
       </div>`;
-    return `<div class="kpi-tile activite-etude" data-filtre="${filtreCourant}">
-      <div class="kpi-label activite-entete">${icone('clock', 'kpi-icone')}Activité de l’étude<span class="activite-direct"><span class="activite-direct-point"></span>En direct</span></div>
-      ${resume}
-      ${puces}
-      ${lignes ? `<ul class="activite-liste">${lignes}</ul>` : '<p class="activite-vide">Rien pour l’instant : les actions des collaborateurs et les changements de l’agenda s’afficheront ici.</p>'}
-    </div>`;
+    const fil = lignes
+      ? `<ul class="activite-liste" ${taille === 'grand' ? '' : 'data-ajuster="1"'}>${lignes}</ul>`
+      : '<p class="activite-vide">Rien pour l’instant : les actions des collaborateurs et les changements de l’agenda s’afficheront ici.</p>';
+    // En petit, la dernière action de l'étude occupe le bas de la tuile.
+    const derniere = entrees[0];
+    const derniereHtml = derniere ? `<div class="w-bas" data-ajuster="2"><button type="button" class="w-prochaine" onclick="ouvrirDossierDepuisDashboard('${derniere.dossierId}')">
+        <span class="w-prochaine-sous">${escapeHtml(derniere.auteur ? prenomCollaborateur(derniere.auteur) : 'Agenda')} · ${escapeHtml(ilYaActivite(derniere.date, maintenant))}</span>
+        <span class="w-prochaine-titre">${escapeHtml(derniere.texte)}</span></button></div>` : '';
+    const corps = taille === 'petit' ? resume + derniereHtml
+      : taille === 'moyen' ? `<div class="act-duo">${resume}${fil}</div>`
+        : `${resume}${puces}${fil}`;
+    return carteWidget({
+      taille: taille || 'grand', classe: 'activite-etude',
+      titre: 'Activité de l’étude',
+      droite: '<span class="activite-direct"><span class="activite-direct-point"></span>En direct</span>',
+      corps
+    }).replace('class="w-carte', `data-filtre="${filtreCourant}" class="w-carte`);
   }
 
 
@@ -13204,18 +13247,40 @@
     return entrees.slice(0, MAX_DERNIERES_PIECES);
   }
 
+  // Pure : les pièces encore attendues sur les dossiers reliés (hors participation), regroupées par
+  // pièce — « Diagnostics techniques · 4 dossiers » — les plus attendues d'abord.
+  function piecesEncoreAttendues(dossiersActifs) {
+    const parLibelle = new Map();
+    (dossiersActifs || []).forEach(d => {
+      if (!d || d.archive || !d.dossierLie || d.roleNotaire === 'participant') return;
+      checklistPieces(d.typeVente, d).forEach(p => {
+        if ((d.pieces || {})[p.cle] === 'recue') return;
+        const l = parLibelle.get(p.label) || [];
+        l.push(d);
+        parLibelle.set(p.label, l);
+      });
+    });
+    return Array.from(parLibelle, ([libelle, ds]) => ({ libelle, dossiers: ds }))
+      .sort((a, b) => b.dossiers.length - a.dossiers.length || a.libelle.localeCompare(b.libelle, 'fr'));
+  }
+
+  // Carte « Dernières pièces », selon la taille du widget :
+  //  - petit : combien de pièces sont arrivées en 14 jours, dont les nouvelles, et la dernière ;
+  //  - moyen : la liste (au plus 6, demandé par l'étude) ;
+  //  - grand : la liste, puis les pièces encore attendues, regroupées par pièce.
   function renderPiecesRecuesDashboard(dossiersActifs) {
     const section = document.getElementById('dash-nouveautes');
-    const bloc = document.getElementById('pieces-recues-dashboard');
-    if (!section || !bloc) return;
+    if (!section) return;
     const entrees = dernieresPiecesTrouvees(dossiersActifs);
-    if (entrees.length === 0) {
+    const taille = tailleWidget('pieces');
+    const attendues = taille === 'grand' ? piecesEncoreAttendues(dossiersActifs) : [];
+    if (entrees.length === 0 && !attendues.length) {
       section.style.display = 'none';
-      bloc.innerHTML = '';
+      section.innerHTML = '';
       return;
     }
     section.style.display = '';
-    bloc.innerHTML = entrees.map(e => {
+    const ligne = (e) => {
       const quand = e.le ? new Date(e.le).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '';
       return `
         <button type="button" class="action-urgente-ligne derniere-piece${e.nouvelle ? ' nouvelle' : ''}" onclick="ouvrirDossierDepuisDashboard('${e.dossier.id}')"
@@ -13224,7 +13289,31 @@
           <span class="derniere-piece-texte"><b>${escapeHtml(libelleNotificationPiece(e.dossier, e.cle))}</b><span class="derniere-piece-dossier"> · ${escapeHtml(e.dossier.nom || '')}</span></span>
           <span class="derniere-piece-date">${escapeHtml(quand)}</span>
         </button>`;
-    }).join('');
+    };
+    const nouvelles = entrees.filter(e => e.nouvelle).length;
+    let corps;
+    if (taille === 'petit') {
+      corps = `<div class="w-chiffre-bloc"><span class="w-chiffre">${entrees.length}</span><span class="w-chiffre-lib">pièce${entrees.length > 1 ? 's' : ''} en ${JOURS_DERNIERES_PIECES} jours</span></div>
+        ${nouvelles ? `<span class="dot-label dl-urgent notif-nouveau-tag w-fixe"><span class="dot"></span>${nouvelles} nouvelle${nouvelles > 1 ? 's' : ''}</span>` : ''}
+        ${entrees[0] ? `<div class="w-bas" data-ajuster="2"><button type="button" class="w-prochaine" onclick="ouvrirDossierDepuisDashboard('${entrees[0].dossier.id}')">
+          <span class="w-prochaine-titre">${escapeHtml(libelleNotificationPiece(entrees[0].dossier, entrees[0].cle))}</span>
+          <span class="w-prochaine-sous">${escapeHtml(entrees[0].dossier.nom || '')}</span></button></div>` : ''}`;
+    } else {
+      corps = `${entrees.length ? `<div class="dash-liste dash-liste-carte" data-ajuster="1" data-min="1">${entrees.map(ligne).join('')}</div>` : '<p class="w-message">Aucune pièce arrivée ces 14 derniers jours.</p>'}
+        ${attendues.length ? `<div class="w-section">
+          <h3 class="jour-carte-sous-titre">Encore attendues</h3>
+          <ul class="w-lignes" data-ajuster="2">${attendues.map(p => `<li class="w-ligne w-ligne-fixe" title="${escapeAttr(p.dossiers.map(d => d.nom).join(', '))}">
+            <span class="w-ligne-texte">${escapeHtml(p.libelle)}</span>
+            <span class="w-ligne-meta">${p.dossiers.length} dossier${p.dossiers.length > 1 ? 's' : ''}</span></li>`).join('')}</ul>
+        </div>` : ''}`;
+    }
+    section.innerHTML = carteWidget({
+      taille,
+      titre: 'Dernières pièces',
+      sous: `NAS · ${JOURS_DERNIERES_PIECES} derniers jours`,
+      corps
+    });
+    planifierAjustementWidgets();
   }
 
   // ---- Avancement des dossiers (Tableau de bord) ----
@@ -13235,7 +13324,6 @@
   // pour moitié les PIÈCES de sa checklist reçues ; sans checklist (participation), les étapes
   // seules. Le statut ne se calcule pas une seconde fois : c'est la gravité du point le plus
   // urgent de « À traiter » (pointsATraiter), pour que les deux blocs disent toujours la même chose.
-  var MAX_LIGNES_AVANCEMENT = 6;   // demandé par l'étude : 6 dossiers, puis « Afficher les N »
   var ETAPES_AVANCEMENT = [
     { type: 'ventebien', label: 'Vente préalable' },
     { type: 'pret', label: 'Obtention du prêt' },
@@ -13249,7 +13337,6 @@
     surveiller: { texte: 'À surveiller', dl: 'dl-pret', ordre: 1 },
     delais: { texte: 'Dans les délais', dl: 'dl-success', ordre: 2 }
   };
-  let avancementToutAfficher = false;
 
   function isoDepuisMs(ms) {
     const d = new Date(ms);
@@ -13311,48 +13398,66 @@
     }).sort((a, b) => (STATUTS_AVANCEMENT[a.statut].ordre - STATUTS_AVANCEMENT[b.statut].ordre) || (a.pct - b.pct));
   }
 
-  function basculerAvancementComplet() {
-    avancementToutAfficher = !avancementToutAfficher;
-    render();
-  }
-
+  // Carte « Avancement des dossiers », selon la taille du widget :
+  //  - petit : l'avancement moyen et la répartition En retard / À surveiller / Dans les délais ;
+  //  - moyen : une ligne compacte par dossier (nom, jauge, pourcentage, état) ;
+  //  - grand : deux lignes par dossier (état, étapes, pièces, prochaine étape, prix, jauge).
+  // Les plus urgents d'abord ; ce qui ne tient pas mène au Suivi (« Voir N de plus »).
   function renderAvancementDossiers(dossiersActifs) {
     const section = document.getElementById('dash-avancement');
-    const bloc = document.getElementById('avancement-dossiers');
-    if (!section || !bloc) return;
+    if (!section) return;
     const toutes = lignesAvancement(dossiersActifs, isoDepuisMs(Date.now()));
     if (!toutes.length) {
       section.style.display = 'none';
+      section.innerHTML = '';
       return;
     }
     section.style.display = '';
-    const lignes = avancementToutAfficher ? toutes : toutes.slice(0, MAX_LIGNES_AVANCEMENT);
-    const reste = toutes.length - lignes.length;
-    bloc.innerHTML = lignes.map(l => {
-      // Le badge est l'état du dossier (même badge que le Suivi et la fiche) ; l'ordre de la liste
-      // reste celui de l'urgence (lignesAvancement).
-      const s = etatDossier(l.dossier);
-      const detail = [`${l.etapesFaites}/${l.etapesTotal} étapes`];
-      if (l.piecesTotal) detail.push(`${l.piecesRecues}/${l.piecesTotal} pièces`);
-      const nom = libelleDossierAffiche(l.dossier);
-      return `
-        <button type="button" class="avancement-ligne statut-${l.statut}" onclick="ouvrirDossierDepuisDashboard('${l.dossier.id}')" title="Ouvrir le dossier ${escapeAttr(nom)}">
-          <span class="avancement-nom">
-            <span class="avancement-titre">${escapeHtml(nom)}</span>
-            <span class="avancement-detail">${escapeHtml(detail.join(' · '))}</span>
-          </span>
-          <span class="avancement-jauge">
-            <span class="avancement-jauge-tete"><span>Avancement</span><b>${l.pct}%</b></span>
-            <span class="avancement-barre" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${l.pct}" aria-label="Avancement ${l.pct} %"><span style="width:${l.pct}%"></span></span>
-          </span>
-          <span class="avancement-statut">
-            <span class="avancement-pilule ${s.dl}" title="${escapeAttr(s.detail)}">${escapeHtml(s.texte)}</span>
-            <span class="avancement-montant">${l.dossier.prixVente ? escapeHtml(formaterPrix(l.dossier.prixVente)) : '—'}</span>
-          </span>
-        </button>`;
-    }).join('') + (reste > 0 || avancementToutAfficher
-      ? `<div class="avancement-pied"><button type="button" class="action-rapide" onclick="basculerAvancementComplet()">${avancementToutAfficher ? 'Réduire' : `Afficher les ${toutes.length} dossiers`}</button></div>`
-      : '');
+    const taille = tailleWidget('avancement');
+    const moyenne = Math.round(toutes.reduce((t, l) => t + l.pct, 0) / toutes.length);
+    const parStatut = { retard: 0, surveiller: 0, delais: 0 };
+    toutes.forEach(l => { parStatut[l.statut]++; });
+    const sous = `${toutes.length} dossier${toutes.length > 1 ? 's' : ''} · ${moyenne} % en moyenne`;
+    let corps;
+    if (taille === 'petit') {
+      corps = `<div class="w-chiffre-bloc"><span class="w-chiffre">${moyenne}<small>%</small></span><span class="w-chiffre-lib">en moyenne</span></div>
+        <span class="avancement-barre w-barre" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${moyenne}" aria-label="Avancement moyen ${moyenne} %"><span style="width:${moyenne}%"></span></span>
+        <ul class="w-repartition">${Object.keys(STATUTS_AVANCEMENT).map(k => `<li><span class="dot-label ${STATUTS_AVANCEMENT[k].dl}"><span class="dot"></span>${STATUTS_AVANCEMENT[k].texte}</span><b>${parStatut[k]}</b></li>`).join('')}</ul>`;
+    } else if (taille === 'moyen') {
+      corps = `<ul class="w-lignes w-avancement" data-ajuster="1" data-min="1">${toutes.map(l => {
+        const e = etatDossier(l.dossier);
+        const nom = libelleDossierAffiche(l.dossier);
+        return `<li><button type="button" class="w-ligne w-ligne-avancement statut-${l.statut}" onclick="ouvrirDossierDepuisDashboard('${l.dossier.id}')" title="${escapeAttr(nom + ' — ' + e.detail)}">
+          <span class="w-ligne-texte">${escapeHtml(nom)}</span>
+          <span class="avancement-barre" aria-hidden="true"><span style="width:${l.pct}%"></span></span>
+          <span class="w-ligne-pct">${l.pct}%</span>
+          <span class="avancement-pilule ${e.dl}">${escapeHtml(e.texte)}</span></button></li>`;
+      }).join('')}${plusWidget("definirOnglet('suivi')")}</ul>`;
+    } else {
+      corps = `<ul class="w-lignes w-avancement-riche" data-ajuster="1" data-min="1">${toutes.map(l => {
+        // Le badge est l'état du dossier (même badge que le Suivi et la fiche) ; l'ordre de la liste
+        // reste celui de l'urgence (lignesAvancement).
+        const e = etatDossier(l.dossier);
+        const detail = [`${l.etapesFaites}/${l.etapesTotal} étapes`];
+        if (l.piecesTotal) detail.push(`${l.piecesRecues}/${l.piecesTotal} pièces`);
+        if (l.dossier.prixVente) detail.push(formaterPrix(l.dossier.prixVente));
+        if (l.prochaine) detail.push(l.prochaine);
+        const nom = libelleDossierAffiche(l.dossier);
+        return `<li><button type="button" class="w-avancement-ligne statut-${l.statut}" onclick="ouvrirDossierDepuisDashboard('${l.dossier.id}')" title="${escapeAttr(nom + ' — ' + e.detail)}">
+          <span class="w-av-nom">${escapeHtml(nom)}</span>
+          <span class="avancement-pilule ${e.dl}">${escapeHtml(e.texte)}</span>
+          <span class="w-av-detail">${escapeHtml(detail.join(' · '))}</span>
+          <span class="avancement-barre" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${l.pct}" aria-label="Avancement ${l.pct} %"><span style="width:${l.pct}%"></span></span>
+          <span class="w-ligne-pct">${l.pct}%</span></button></li>`;
+      }).join('')}${plusWidget("definirOnglet('suivi')")}</ul>`;
+    }
+    section.innerHTML = carteWidget({
+      taille,
+      titre: taille === 'petit' ? 'Avancement' : 'Avancement des dossiers',
+      sous: taille === 'petit' ? `${toutes.length} dossier${toutes.length > 1 ? 's' : ''}` : escapeHtml(sous),
+      corps
+    });
+    planifierAjustementWidgets();
   }
 
   // Ouvre un dossier depuis le tableau de bord : bascule vers le Suivi et ouvre sa fiche dans le
@@ -14497,22 +14602,24 @@
   }
 
   // ---- Widgets du tableau de bord (demandé par l'étude le 29/09 : « comme les widgets iOS ») ----
-  // Chaque bloc est un widget : petit (1 colonne), moyen (2) ou grand (toute la largeur) dans une
-  // grille de 3 colonnes (2 puis 1 sur un écran étroit). En mode « Personnaliser » : glisser pour
-  // déplacer (ou flèches, au clavier et au doigt), choisir la taille, masquer ; les widgets masqués
-  // se remettent depuis le bas de la grille. La disposition est propre à chaque collaborateur :
-  // préférence « widgets » en base (voir routes/preferences.js), cache localStorage pour l'affichage
-  // immédiat. Un widget sans contenu (aucune pièce récente, aucune activité) ne prend pas de place
-  // hors personnalisation.
+  // Grille de 4 colonnes (2 sur un écran étroit) à hauteur de rangée fixe, comme sur iPhone : petit
+  // = 1 × 1, moyen = 2 × 1, grand = 2 × 2. Toutes les cartes existent dans les trois tailles et
+  // leur CONTENU change avec la taille (chiffre clé en petit, liste courte en moyen, détail en grand)
+  // — jamais une carte étirée avec du vide dedans (étude, 29/09 au soir). Les listes sont coupées à
+  // ce qui tient réellement (ajusterWidgets), avec « Voir N de plus ». En mode « Personnaliser » :
+  // glisser-déposer au pointeur (souris ou doigt), taille, flèches au clavier, masquer ; un appui
+  // long sur le titre d'une carte ouvre aussi ce mode. Disposition propre à chaque collaborateur :
+  // préférence « widgets » en base (voir routes/preferences.js), cache localStorage.
   var WIDGETS_DASHBOARD = [
-    { id: 'aujourdhui', titre: 'Aujourd’hui', tailles: ['moyen', 'grand'], defaut: 'moyen' },
-    { id: 'agenda', titre: 'Agenda', tailles: ['petit', 'moyen'], defaut: 'petit' },
-    { id: 'avancement', titre: 'Avancement des dossiers', tailles: ['moyen', 'grand'], defaut: 'moyen' },
-    { id: 'portefeuille', titre: 'Dossiers ouverts', tailles: ['petit', 'moyen'], defaut: 'petit' },
-    { id: 'activite', titre: 'Activité de l’étude', tailles: ['moyen', 'grand'], defaut: 'moyen' },
-    { id: 'pieces', titre: 'Dernières pièces', tailles: ['petit', 'moyen', 'grand'], defaut: 'petit' }
+    { id: 'aujourdhui', titre: 'Aujourd’hui', tailles: ['petit', 'moyen', 'grand'], defaut: 'grand' },
+    { id: 'agenda', titre: 'Agenda', tailles: ['petit', 'moyen', 'grand'], defaut: 'moyen' },
+    { id: 'portefeuille', titre: 'Dossiers ouverts', tailles: ['petit', 'moyen', 'grand'], defaut: 'petit' },
+    { id: 'pieces', titre: 'Dernières pièces', tailles: ['petit', 'moyen', 'grand'], defaut: 'petit' },
+    { id: 'avancement', titre: 'Avancement des dossiers', tailles: ['petit', 'moyen', 'grand'], defaut: 'grand' },
+    { id: 'activite', titre: 'Activité de l’étude', tailles: ['petit', 'moyen', 'grand'], defaut: 'grand' }
   ];
-  var LIBELLES_TAILLE_WIDGET = { petit: 'Petit', moyen: 'Moyen', grand: 'Grand' };
+  var LIBELLES_TAILLE_WIDGET = { petit: 'P', moyen: 'M', grand: 'G' };
+  var NOMS_TAILLE_WIDGET = { petit: 'Petit', moyen: 'Moyen', grand: 'Grand' };
   var CLE_WIDGETS_LOCAL = 'claire-widgets:';
   let modeEditionWidgets = false;
   let dispositionWidgets = null;   // null = pas encore chargée : disposition par défaut
@@ -14556,6 +14663,17 @@
     return deplacerWidgetDans(dispo, id, dispo.findIndex(w => w.id === voisin.id));
   }
 
+  // Pure : la disposition réordonnée selon une liste d'identifiants (l'ordre du DOM après un
+  // glisser-déposer) ; un identifiant inconnu est ignoré, un widget absent de la liste garde sa
+  // place relative à la fin.
+  function dispositionDansOrdre(dispo, ids) {
+    const parId = new Map(dispo.map(w => [w.id, w]));
+    const out = [];
+    (ids || []).forEach(id => { if (parId.has(id)) { out.push(parId.get(id)); parId.delete(id); } });
+    dispo.forEach(w => { if (parId.has(w.id)) out.push(w); });
+    return out;
+  }
+
   function dispositionWidgetsCourante() {
     if (!dispositionWidgets) {
       let locale = null;
@@ -14565,22 +14683,28 @@
     return dispositionWidgets;
   }
 
+  // Taille courante d'un widget : les fonctions de rendu des cartes en dépendent.
+  function tailleWidget(id) {
+    const w = dispositionWidgetsCourante().find(x => x.id === id);
+    return w ? w.taille : 'moyen';
+  }
+
   function enregistrerDispositionWidgets(dispo) {
     dispositionWidgets = dispo;
     try { localStorage.setItem(CLE_WIDGETS_LOCAL + utilisateurPoste, JSON.stringify(dispo)); } catch (e) { /* cache facultatif */ }
     enregistrerPreferenceCollaborateur({ widgets: dispo });
-    renderWidgetsDashboard();
+    render();   // le contenu des cartes dépend de leur taille
   }
 
   // Appliquée par chargerPreferencesCollaborateur : la disposition enregistrée sur le serveur.
   function appliquerDispositionWidgets(preference) {
     dispositionWidgets = dispositionWidgetsDepuis(preference);
     try { localStorage.setItem(CLE_WIDGETS_LOCAL + utilisateurPoste, JSON.stringify(dispositionWidgets)); } catch (e) { /* cache facultatif */ }
-    renderWidgetsDashboard();
+    render();
   }
 
-  function basculerEditionWidgets() {
-    modeEditionWidgets = !modeEditionWidgets;
+  function basculerEditionWidgets(forcer) {
+    modeEditionWidgets = typeof forcer === 'boolean' ? forcer : !modeEditionWidgets;
     render();
   }
 
@@ -14600,21 +14724,121 @@
     enregistrerDispositionWidgets(dispositionWidgetsDepuis(null));
   }
 
-  // Barre de réglage d'un widget en mode Personnaliser : poignée, titre, tailles, flèches, masquer.
-  function barreEditionWidget(def, w, rang, total) {
-    const tailles = def.tailles.map(t => `<button type="button" class="widget-taille${w.taille === t ? ' actif' : ''}" aria-pressed="${w.taille === t}" onclick="changerTailleWidget('${def.id}', '${t}')">${LIBELLES_TAILLE_WIDGET[t]}</button>`).join('');
-    return `<div class="widget-barre">
-      <span class="widget-poignee" title="Glisser pour déplacer" aria-hidden="true">${icone('menu')}</span>
-      <span class="widget-barre-titre">${escapeHtml(def.titre)}</span>
-      <span class="widget-tailles" role="group" aria-label="Taille du widget ${escapeAttr(def.titre)}">${tailles}</span>
-      <button type="button" class="widget-outil" onclick="decalerWidget('${def.id}', -1)" ${rang === 0 ? 'disabled' : ''} title="Avancer" aria-label="Avancer ${escapeAttr(def.titre)}">${icone('chevron-left')}</button>
-      <button type="button" class="widget-outil" onclick="decalerWidget('${def.id}', 1)" ${rang === total - 1 ? 'disabled' : ''} title="Reculer" aria-label="Reculer ${escapeAttr(def.titre)}">${icone('chevron-right')}</button>
-      <button type="button" class="widget-outil" onclick="masquerWidget('${def.id}', true)" title="Masquer" aria-label="Masquer ${escapeAttr(def.titre)}">${icone('x')}</button>
+  // Coque commune des cartes : en-tête (titre, précision, contrôles) et corps qui remplit le reste
+  // de la tuile. o = { titre, sous?, droite?, corps, classe?, taille }
+  function carteWidget(o) {
+    return `<div class="w-carte w-${o.taille || 'moyen'}${o.classe ? ' ' + o.classe : ''}">
+      <div class="w-tete">
+        <div class="w-tete-texte"><div class="w-titre">${o.titre}</div>${o.sous ? `<div class="w-sous">${o.sous}</div>` : ''}</div>
+        ${o.droite ? `<div class="w-tete-droite">${o.droite}</div>` : ''}
+      </div>
+      <div class="w-corps">${o.corps}</div>
     </div>`;
   }
 
+  // Lien « Voir N de plus » d'une liste ajustée : caché tant que tout tient (voir ajusterWidgets).
+  function plusWidget(onclick) {
+    return `<button type="button" class="w-plus lien-discret" style="display:none" onclick="${onclick}"></button>`;
+  }
+
+  // Remplit chaque carte avec ce qui tient réellement dans la tuile, sans jamais couper une ligne.
+  // Une liste ajustable porte data-ajuster="N" (N petit = prioritaire) : les listes sont remplies
+  // dans cet ordre, ligne par ligne, tant que le corps ne déborde pas — la liste principale d'abord,
+  // puis les listes d'appoint (rappels, à venir, prochaines signatures…) dans la place restante.
+  // Une liste coupée affiche « Voir N de plus » ; une section d'appoint vide disparaît avec son
+  // titre ; data-min garde un minimum de lignes (le corps défile alors, plutôt que de rien montrer).
+  var SELECTEUR_FIXE_WIDGET = '.w-plus, .w-fixe, .rappel-perso-ajout, .rappel-perso-form';
+  function ajusterWidgets() {
+    const grille = document.getElementById('widgets-dashboard');
+    if (!grille) return;
+    grille.querySelectorAll('.widget').forEach(w => {
+      if (w.style.display === 'none') return;
+      const corps = w.querySelector('.w-corps');
+      if (!corps) return;
+      corps.classList.remove('w-defile');
+      const deborde = () => corps.scrollHeight > corps.clientHeight + 1;
+      const items = (l) => Array.from(l.children).filter(c => !c.matches(SELECTEUR_FIXE_WIDGET));
+      const plusDe = (l) => { const sec = l.closest('.w-section'); return l.querySelector(':scope > .w-plus') || (sec && sec.querySelector('.w-plus')); };
+      const listes = Array.from(corps.querySelectorAll('[data-ajuster]'))
+        .map((l, i) => ({ l, i, prio: Number(l.dataset.ajuster) || 0, sec: l.closest('.w-section') }))
+        .sort((a, b) => a.prio - b.prio || a.i - b.i);
+      // Tout replier, puis remplir.
+      listes.forEach(x => {
+        x.l.classList.remove('w-coupee');
+        if (x.sec) x.sec.classList.remove('w-coupee');
+        items(x.l).forEach(c => { c.style.display = 'none'; });
+        const plus = plusDe(x.l);
+        if (plus) plus.style.display = 'none';
+        if (x.sec) x.sec.style.display = 'none';
+      });
+      listes.forEach(x => {
+        const tous = items(x.l);
+        const min = Number(x.l.dataset.min || 0);
+        if (x.sec) {
+          x.sec.style.display = '';
+          if (deborde() && !min) { x.sec.style.display = 'none'; return; }
+        }
+        let montres = 0;
+        for (const c of tous) {
+          c.style.display = '';
+          if (deborde() && montres >= min) { c.style.display = 'none'; break; }
+          montres++;
+        }
+        const caches = tous.length - montres;
+        const plus = plusDe(x.l);
+        if (caches > 0 && plus) {
+          plus.style.display = '';
+          plus.textContent = `Voir ${caches} de plus`;
+          // Le lien prend une ligne : on rend la dernière si besoin.
+          while (deborde() && montres > min) {
+            tous[montres - 1].style.display = 'none';
+            montres--;
+            plus.textContent = `Voir ${tous.length - montres} de plus`;
+          }
+          // Plus de place pour le lien ET une ligne : une ligne d'appoint vaut mieux que le lien seul.
+          if (!montres) {
+            plus.style.display = 'none';
+            for (const c of tous) {
+              c.style.display = '';
+              if (deborde()) { c.style.display = 'none'; break; }
+              montres++;
+            }
+          }
+        }
+        // Liste coupée : ses lignes se répartissent la hauteur restante (pas de vide en bas).
+        x.l.classList.toggle('w-coupee', montres < tous.length && montres > 0);
+        if (x.sec) x.sec.classList.toggle('w-coupee', montres < tous.length && montres > 0);
+        // Un intitulé de groupe (« Hier ») resté seul en fin de liste part aussi.
+        const der = tous[montres - 1];
+        if (der && montres > 1 && der.classList.contains('act-groupe')) der.style.display = 'none';
+        // Section d'appoint sans aucune ligne ni contenu fixe : elle disparaît avec son titre.
+        if (x.sec && !montres && !x.sec.querySelector(SELECTEUR_FIXE_WIDGET.split(', ').filter(sel => sel !== '.w-plus').join(', '))) x.sec.style.display = 'none';
+      });
+      if (deborde()) corps.classList.add('w-defile');
+    });
+  }
+
+  let ajustementWidgetsPrevu = false;
+  function planifierAjustementWidgets() {
+    if (ajustementWidgetsPrevu || typeof requestAnimationFrame !== 'function') return;
+    ajustementWidgetsPrevu = true;
+    requestAnimationFrame(() => { ajustementWidgetsPrevu = false; ajusterWidgets(); });
+  }
+
+  // Contrôles d'un widget en mode Personnaliser, posés PAR-DESSUS la carte (elle garde sa taille) :
+  // pastille « retirer » en haut à gauche, tailles et flèches en bas.
+  function barreEditionWidget(def, w, rang, total) {
+    const tailles = def.tailles.map(t => `<button type="button" class="widget-taille${w.taille === t ? ' actif' : ''}" aria-pressed="${w.taille === t}" onclick="changerTailleWidget('${def.id}', '${t}')" title="${NOMS_TAILLE_WIDGET[t]}" aria-label="${NOMS_TAILLE_WIDGET[t]}">${LIBELLES_TAILLE_WIDGET[t]}</button>`).join('');
+    return `<button type="button" class="widget-retirer" onclick="masquerWidget('${def.id}', true)" title="Masquer" aria-label="Masquer ${escapeAttr(def.titre)}">${icone('minus')}</button>
+      <div class="widget-barre">
+        <button type="button" class="widget-outil" onclick="decalerWidget('${def.id}', -1)" ${rang === 0 ? 'disabled' : ''} title="Avancer" aria-label="Avancer ${escapeAttr(def.titre)}">${icone('chevron-left')}</button>
+        <span class="widget-tailles" role="group" aria-label="Taille du widget ${escapeAttr(def.titre)}">${tailles}</span>
+        <button type="button" class="widget-outil" onclick="decalerWidget('${def.id}', 1)" ${rang === total - 1 ? 'disabled' : ''} title="Reculer" aria-label="Reculer ${escapeAttr(def.titre)}">${icone('chevron-right')}</button>
+      </div>`;
+  }
+
   // Place les widgets (ordre, taille, visibilité) sans toucher à leur contenu : les fonctions de
-  // rendu de chaque bloc écrivent dans leurs propres conteneurs, déplacés tels quels.
+  // rendu de chaque carte écrivent dans leurs propres conteneurs, déplacés tels quels.
   function renderWidgetsDashboard() {
     const grille = document.getElementById('widgets-dashboard');
     if (!grille) return;
@@ -14634,11 +14858,9 @@
       el.hidden = false;
       el.style.display = w.masque || (vide && !modeEditionWidgets) ? 'none' : '';
       el.classList.toggle('widget-vide', vide);
-      el.draggable = modeEditionWidgets;
-      let barre = el.querySelector(':scope > .widget-barre');
-      if (barre) barre.remove();
+      el.querySelectorAll(':scope > .widget-barre, :scope > .widget-retirer').forEach(x => x.remove());
       if (modeEditionWidgets && !w.masque) {
-        el.insertAdjacentHTML('afterbegin', barreEditionWidget(defs.get(w.id), w, visibles.indexOf(w), visibles.length));
+        el.insertAdjacentHTML('beforeend', barreEditionWidget(defs.get(w.id), w, visibles.indexOf(w), visibles.length));
       }
     });
     const masques = document.getElementById('widgets-masques');
@@ -14650,50 +14872,136 @@
         : '';
       masques.style.display = modeEditionWidgets ? '' : 'none';
     }
+    planifierAjustementWidgets();
   }
 
-  // Glisser-déposer (souris) : on dépose AVANT le widget survolé, ou après s'il est pointé dans sa
-  // moitié droite/basse. Au doigt et au clavier, les flèches de la barre font la même chose.
-  let widgetGlisse = null;
+  // ---- Glisser-déposer au pointeur (souris, doigt, stylet) ----
+  // En mode Personnaliser, on attrape une carte n'importe où (hors boutons) : elle suit le pointeur,
+  // sa place reste marquée en pointillé et les autres cartes s'écartent en glissant (animation
+  // FLIP) ; au lâcher, l'ordre du DOM devient la disposition enregistrée. Hors de ce mode, un appui
+  // long (0,45 s) sur le titre d'une carte ouvre le mode, comme sur iPhone.
+  var DELAI_APPUI_LONG_WIDGET = 450;
+  let glisseWidget = null;
+
+  function animerDeplacementWidgets(grille, deplacer) {
+    const avant = new Map();
+    grille.querySelectorAll('.widget').forEach(el => { if (el.style.display !== 'none') avant.set(el, el.getBoundingClientRect()); });
+    deplacer();
+    avant.forEach((r, el) => {
+      if (el.classList.contains('widget-place')) return;
+      const n = el.getBoundingClientRect();
+      const dx = r.left - n.left, dy = r.top - n.top;
+      if (!dx && !dy) return;
+      el.style.transition = 'none';
+      el.style.transform = `translate(${dx}px, ${dy}px)`;
+      requestAnimationFrame(() => {
+        el.style.transition = 'transform 0.22s cubic-bezier(.2,.8,.2,1)';
+        el.style.transform = '';
+      });
+    });
+  }
+
+  function commencerGlisserWidget(el, x, y) {
+    const r = el.getBoundingClientRect();
+    const fantome = el.cloneNode(true);
+    fantome.classList.add('widget-fantome');
+    fantome.removeAttribute('data-widget');
+    fantome.querySelectorAll('[id]').forEach(n => n.removeAttribute('id'));
+    fantome.style.width = r.width + 'px';
+    fantome.style.height = r.height + 'px';
+    fantome.style.left = r.left + 'px';
+    fantome.style.top = r.top + 'px';
+    document.body.appendChild(fantome);
+    el.classList.add('widget-place');
+    glisseWidget = { el, fantome, dx: x - r.left, dy: y - r.top, verrou: 0, x, y };
+    document.body.classList.add('widgets-glisse-en-cours');
+  }
+
+  function suivreGlisserWidget(x, y) {
+    const g = glisseWidget;
+    if (!g) return;
+    g.x = x; g.y = y;
+    g.fantome.style.left = (x - g.dx) + 'px';
+    g.fantome.style.top = (y - g.dy) + 'px';
+    // Défilement de la page quand la carte approche du haut ou du bas de la fenêtre.
+    if (y < 70) window.scrollBy(0, -14);
+    else if (y > window.innerHeight - 70) window.scrollBy(0, 14);
+    if (Date.now() < g.verrou) return;
+    const sous = document.elementFromPoint(x, y);
+    const cible = sous && sous.closest ? sous.closest('#widgets-dashboard > .widget') : null;
+    if (!cible || cible === g.el) return;
+    const grille = g.el.parentNode;
+    const ordre = Array.from(grille.children);
+    const avant = ordre.indexOf(g.el) > ordre.indexOf(cible);
+    animerDeplacementWidgets(grille, () => grille.insertBefore(g.el, avant ? cible : cible.nextSibling));
+    g.verrou = Date.now() + 240;
+  }
+
+  function finirGlisserWidget(annuler) {
+    const g = glisseWidget;
+    if (!g) return;
+    glisseWidget = null;
+    document.body.classList.remove('widgets-glisse-en-cours');
+    const r = g.el.getBoundingClientRect();
+    g.fantome.style.transition = 'left 0.18s ease, top 0.18s ease, transform 0.18s ease';
+    g.fantome.style.left = r.left + 'px';
+    g.fantome.style.top = r.top + 'px';
+    g.fantome.style.transform = 'none';
+    setTimeout(() => {
+      g.fantome.remove();
+      g.el.classList.remove('widget-place');
+      if (annuler) { renderWidgetsDashboard(); return; }
+      const ids = Array.from(g.el.parentNode.querySelectorAll(':scope > .widget')).map(el => el.dataset.widget);
+      const dispo = dispositionWidgetsCourante();
+      const nouvelle = dispositionDansOrdre(dispo, ids);
+      if (nouvelle.map(w => w.id).join() !== dispo.map(w => w.id).join()) enregistrerDispositionWidgets(nouvelle);
+      else renderWidgetsDashboard();
+    }, 190);
+  }
+
   function initialiserGlisserWidgets() {
     const grille = document.getElementById('widgets-dashboard');
     if (!grille || grille.dataset.glisser) return;
     grille.dataset.glisser = '1';
-    const cibleDe = (e) => e.target.closest && e.target.closest('.widget');
-    const nettoyer = () => grille.querySelectorAll('.widget-cible-avant, .widget-cible-apres, .widget-glisse')
-      .forEach(el => el.classList.remove('widget-cible-avant', 'widget-cible-apres', 'widget-glisse'));
-    const apres = (el, e) => {
-      const r = el.getBoundingClientRect();
-      return (e.clientX - r.left) > r.width / 2 || (e.clientY - r.top) > r.height * 0.75;
-    };
-    grille.addEventListener('dragstart', (e) => {
-      const el = cibleDe(e);
-      if (!modeEditionWidgets || !el) return;
-      widgetGlisse = el.dataset.widget;
-      el.classList.add('widget-glisse');
-      try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', widgetGlisse); } catch (err) { /* navigateur ancien */ }
+    let attente = null;   // { el, x, y, id, minuteur }
+    const annulerAttente = () => { if (attente && attente.minuteur) clearTimeout(attente.minuteur); attente = null; };
+    grille.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0 || glisseWidget) return;
+      const el = e.target.closest('#widgets-dashboard > .widget');
+      if (!el) return;
+      if (modeEditionWidgets) {
+        if (e.target.closest('button, a, input, select, textarea')) return;
+        e.preventDefault();
+        attente = { el, x: e.clientX, y: e.clientY, id: e.pointerId, pret: true };
+        return;
+      }
+      // Appui long sur le titre : ouvre la personnalisation et garde la carte en main.
+      if (!e.target.closest('.w-tete') || e.target.closest('button, a, input, select')) return;
+      attente = { el, x: e.clientX, y: e.clientY, id: e.pointerId, pret: false };
+      attente.minuteur = setTimeout(() => {
+        if (!attente) return;
+        attente.pret = true;
+        attente.minuteur = null;
+        const id = attente.el.dataset.widget;
+        basculerEditionWidgets(true);
+        attente.el = grille.querySelector(`.widget[data-widget="${id}"]`) || attente.el;
+      }, DELAI_APPUI_LONG_WIDGET);
     });
-    grille.addEventListener('dragover', (e) => {
-      const el = cibleDe(e);
-      if (!widgetGlisse || !el || el.dataset.widget === widgetGlisse) return;
-      e.preventDefault();
-      grille.querySelectorAll('.widget-cible-avant, .widget-cible-apres').forEach(x => x.classList.remove('widget-cible-avant', 'widget-cible-apres'));
-      el.classList.add(apres(el, e) ? 'widget-cible-apres' : 'widget-cible-avant');
-    });
-    grille.addEventListener('drop', (e) => {
-      const el = cibleDe(e);
-      if (!widgetGlisse || !el) return;
-      e.preventDefault();
-      const dispo = dispositionWidgetsCourante();
-      const sansLui = dispo.filter(w => w.id !== widgetGlisse);
-      let index = sansLui.findIndex(w => w.id === el.dataset.widget);
-      if (index !== -1 && apres(el, e)) index++;
-      const id = widgetGlisse;
-      widgetGlisse = null;
-      nettoyer();
-      if (index !== -1) enregistrerDispositionWidgets(deplacerWidgetDans(dispo, id, index));
-    });
-    grille.addEventListener('dragend', () => { widgetGlisse = null; nettoyer(); });
+    window.addEventListener('pointermove', (e) => {
+      if (glisseWidget) { e.preventDefault(); suivreGlisserWidget(e.clientX, e.clientY); return; }
+      if (!attente || e.pointerId !== attente.id) return;
+      const loin = Math.abs(e.clientX - attente.x) + Math.abs(e.clientY - attente.y) > 6;
+      if (!loin) return;
+      if (!attente.pret) { annulerAttente(); return; }   // le doigt défile : pas d'appui long
+      const el = attente.el;
+      annulerAttente();
+      commencerGlisserWidget(el, e.clientX, e.clientY);
+      suivreGlisserWidget(e.clientX, e.clientY);
+    }, { passive: false });
+    window.addEventListener('pointerup', () => { annulerAttente(); if (glisseWidget) finirGlisserWidget(false); });
+    window.addEventListener('pointercancel', () => { annulerAttente(); if (glisseWidget) finirGlisserWidget(true); });
+    window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && glisseWidget) finirGlisserWidget(true); });
+    if (typeof ResizeObserver === 'function') new ResizeObserver(() => planifierAjustementWidgets()).observe(grille);
   }
 
   // Carte « Agenda » du tableau de bord (maquette fournie par l'étude) : une bande de la semaine,
@@ -14773,11 +15081,56 @@
     }
   }
 
+  // Pure : les prochaines signatures (à partir d'aujourd'hui), par date puis heure, hors un jour
+  // donné (celui déjà détaillé par la carte).
+  function prochainesSignatures(dossiersActifs, aujourdhuiIso, saufIso, limite) {
+    return (dossiersActifs || [])
+      .filter(d => d && !d.archive && d.rendezVousSignature && d.rendezVousSignature >= aujourdhuiIso && d.rendezVousSignature !== saufIso)
+      .sort((a, b) => (a.rendezVousSignature + (a.rendezVousSignatureHeure || '')).localeCompare(b.rendezVousSignature + (b.rendezVousSignatureHeure || '')))
+      .slice(0, limite || 20);
+  }
+
+  function lignesProchainesSignatures(liste, aujourdhui, global) {
+    return liste.map(d => {
+      const dt = new Date(d.rendezVousSignature + 'T00:00:00');
+      const j = ecartJours(aujourdhui, d.rendezVousSignature);
+      const quand = j === 0 ? "Aujourd'hui" : j === 1 ? 'Demain' : dt.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+      const meta = [plageHoraireRendezVous(d.rendezVousSignatureHeure, ''), global && d.responsable ? prenomCollaborateur(d.responsable) : ''].filter(Boolean).join(' · ');
+      return `<li><button type="button" class="w-ligne" onclick="ouvrirDossierDepuisDashboard('${d.id}')">
+        <span class="w-ligne-date">${escapeHtml(quand)}</span>
+        <span class="w-ligne-texte">${escapeHtml(libelleDossierAffiche(d))}</span>
+        <span class="w-ligne-meta">${escapeHtml(meta)}</span></button></li>`;
+    }).join('');
+  }
+
+  // Carte « Agenda », selon la taille du widget :
+  //  - petit : le jour (comme l'icône Calendrier), les signatures du jour et la prochaine ;
+  //  - moyen : la bande de la semaine, les signatures du jour choisi, puis les prochaines ;
+  //  - grand : la même chose en détail (horaire, lieu, envois faits ou non, absences).
   function renderRendezVousDashboard(perimetreActifs) {
     const bloc = document.getElementById('agenda-dashboard');
     if (!bloc) return;
     const aujourdhui = isoAujourdhuiLocal();
     const global = vueGlobaleDashboard();
+    const taille = tailleWidget('agenda');
+    if (taille === 'petit') {
+      const dt = new Date(aujourdhui + 'T00:00:00');
+      const duJour = perimetreActifs.filter(d => d.rendezVousSignature === aujourdhui);
+      const suivante = prochainesSignatures(perimetreActifs, aujourdhui, aujourdhui, 1)[0];
+      const nomJour = dt.toLocaleDateString('fr-FR', { weekday: 'long' });
+      bloc.innerHTML = carteWidget({
+        taille, classe: 'w-agenda-petit',
+        titre: escapeHtml(nomJour.charAt(0).toUpperCase() + nomJour.slice(1)),
+        sous: escapeHtml(dt.toLocaleDateString('fr-FR', { month: 'long' })),
+        droite: `<span class="w-jour-num">${dt.getDate()}</span>`,
+        corps: `<ul class="w-lignes" data-ajuster="1">${duJour.length ? lignesProchainesSignatures(duJour, aujourdhui, global) : '<li class="w-message">Aucune signature aujourd’hui.</li>'}${plusWidget("definirOnglet('suivi')")}</ul>
+          ${suivante ? `<div class="w-bas" data-ajuster="2"><button type="button" class="w-prochaine" onclick="ouvrirDossierDepuisDashboard('${suivante.id}')">
+            <span class="w-prochaine-sous">Prochaine signature · ${escapeHtml(new Date(suivante.rendezVousSignature + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }))}</span>
+            <span class="w-prochaine-titre">${escapeHtml(libelleDossierAffiche(suivante))}</span></button></div>` : ''}`
+      });
+      planifierAjustementWidgets();
+      return;
+    }
     const semaine = semaineAgenda(perimetreActifs, aujourdhui, agendaDecalageSemaine);
     const moisRef = new Date((agendaJourSelectionne || semaine[3].iso) + 'T00:00:00');
     const mois = moisRef.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
@@ -14810,6 +15163,7 @@
 
     const absentsSemaine = collaborateursAbsentsSemaine(absencesOffice, semaine);
     const etat = (ok, fait, reste) => `<span class="dot-label ${ok ? 'dl-success' : 'dl-pret'}"><span class="dot"></span>${ok ? fait : reste}</span>`;
+    const detaille = taille === 'grand';
     const lignes = liste.length ? liste.map(r => {
       const plage = plageHoraireRendezVous(r.heure, r.heureFin);
       const delai = r.jours === 0 ? "aujourd'hui" : r.jours > 0 ? `J-${r.jours}` : '';
@@ -14824,32 +15178,40 @@
         <button type="button" class="agenda-rdv ton-${tonRendezVous(r)}${responsableAbsent ? ' rdv-absent' : ''}" onclick="ouvrirDossierDepuisDashboard('${r.dossier.id}')">
           <span class="agenda-rdv-titre">${escapeHtml(libelleDossierAffiche(r.dossier))}</span>
           <span class="agenda-rdv-meta">${escapeHtml(meta)}${(() => { const t = typeRendezVous(r.dossier, categoriesRdvReglees()); return t ? ` <span class="rdv-type-etiquette"><span class="rdv-type-pastille rdv-type-${t}"></span>${TYPES_RDV[t].court}</span>` : ''; })()}</span>
-          ${lieu.length ? `<span class="agenda-rdv-lieu">${lieu.map(escapeHtml).join(' · ')}</span>` : ''}
+          ${detaille && lieu.length ? `<span class="agenda-rdv-lieu">${lieu.map(escapeHtml).join(' · ')}</span>` : ''}
           ${responsableAbsent ? `<span class="agenda-rdv-alerte">${icone('alert-triangle')} ${escapeHtml(prenomCollaborateur(r.dossier.responsable))} absent(e) ce jour</span>` : ''}
-          <span class="agenda-rdv-etats">${etat(r.appelFondsEnvoye, 'Appel de fonds envoyé', 'Appel de fonds à envoyer')}${etat(r.projetEnvoye, 'Projet envoyé', 'Projet à envoyer')}</span>
+          ${detaille ? `<span class="agenda-rdv-etats">${etat(r.appelFondsEnvoye, 'Appel de fonds envoyé', 'Appel de fonds à envoyer')}${etat(r.projetEnvoye, 'Projet envoyé', 'Projet à envoyer')}</span>` : ''}
         </button>`;
-    }).join('') : `<div class="agenda-vide">${jourAffiche === aujourdhui ? "Aucun rendez-vous de signature aujourd'hui." : 'Aucun rendez-vous de signature ce jour-là.'}</div>`;
+    }).join('') : '';
+    const suivantes = prochainesSignatures(perimetreActifs, aujourdhui, jourAffiche, 20);
+    const revenir = agendaJourSelectionne ? '<button type="button" class="lien-discret" onclick="selectionnerJourAgenda(null)">Revenir à aujourd’hui</button>' : '';
 
-    bloc.innerHTML = `
-      <div class="agenda-entete">
-        <div>
-          <div class="agenda-titre">Agenda</div>
-          <div class="agenda-mois">${escapeHtml(mois.charAt(0).toUpperCase() + mois.slice(1))}</div>
-        </div>
-        <div class="agenda-nav">
+    bloc.innerHTML = carteWidget({
+      taille,
+      titre: 'Agenda',
+      sous: escapeHtml(mois.charAt(0).toUpperCase() + mois.slice(1)),
+      droite: `<div class="agenda-nav">
           <button type="button" class="icon-btn" onclick="decalerSemaineAgenda(-1)" ${agendaDecalageSemaine <= 0 ? 'disabled' : ''} aria-label="Semaine précédente">${icone('chevron-left')}</button>
           <button type="button" class="icon-btn" onclick="decalerSemaineAgenda(1)" ${agendaDecalageSemaine >= SEMAINES_AGENDA_MAX ? 'disabled' : ''} aria-label="Semaine suivante">${icone('chevron-right')}</button>
-        </div>
-      </div>
-      <div class="agenda-bande" role="group" aria-label="Jours de la semaine">${bande}</div>
-      ${absentsSemaine.length ? `<div class="agenda-absences">${icone('alert-triangle')} Absent cette semaine : ${absentsSemaine.map(n => escapeHtml(prenomCollaborateur(n))).join(', ')}</div>` : ''}
-      <div class="agenda-liste">
+        </div>`,
+      corps: `<div class="agenda-bande w-fixe" role="group" aria-label="Jours de la semaine">${bande}</div>
+      ${detaille && absentsSemaine.length ? `<div class="agenda-absences">${icone('alert-triangle')} Absent cette semaine : ${absentsSemaine.map(n => escapeHtml(prenomCollaborateur(n))).join(', ')}</div>` : ''}
+      ${lignes ? `<div class="w-section">
         <div class="agenda-liste-titre">
           <span class="section-eyebrow">${escapeHtml(titreListe)}</span>
-          ${agendaJourSelectionne ? '<button type="button" class="lien-discret" onclick="selectionnerJourAgenda(null)">Revenir à aujourd’hui</button>' : ''}
+          ${revenir}
         </div>
-        ${lignes}
-      </div>`;
+        <div class="agenda-liste" data-ajuster="1" data-min="1">${lignes}</div>
+      </div>` : ''}
+      ${suivantes.length || !lignes ? `<div class="w-section${lignes ? '' : ' w-section-seule'}">
+        <div class="agenda-liste-titre">
+          <span class="section-eyebrow">Prochaines signatures</span>
+          ${lignes ? '' : `<span class="w-note">${jourAffiche === aujourdhui ? 'Aucune aujourd’hui' : 'Aucune ce jour-là'}</span>${revenir}`}
+        </div>
+        ${suivantes.length ? `<ul class="w-lignes" data-ajuster="${lignes ? 2 : 1}">${lignesProchainesSignatures(suivantes, aujourdhui, global)}</ul>` : '<p class="w-message w-fixe">Aucune signature prévue.</p>'}
+      </div>` : ''}`
+    });
+    planifierAjustementWidgets();
   }
 
   // ---- Alertes importantes et « Mes rappels » (tableau de bord) ----
@@ -16069,45 +16431,68 @@
     </div>`;
   }
 
-  // Carte « Aujourd'hui » du tableau de bord : MÊME présentation de « À faire » que la fenêtre du
-  // matin (renderListeJour), avec « Mes rappels » juste en dessous (demandé par l'étude — la liste
-  // personnelle n'a plus sa propre carte dans le rail). Le bloc est dimensionné à égalité avec
-  // « Avancement des dossiers » (voir .dash-duo dans style.css) pour que les deux se lisent bien.
+  // Carte « Aujourd'hui » du tableau de bord, selon la taille du widget :
+  //  - petit : le nombre de choses à faire, l'anneau de la journée et la première action ;
+  //  - moyen : la liste « À faire » (même présentation que la fenêtre du matin, renderListeJour),
+  //    puis « Mes rappels » pour remplir la tuile quand la journée est courte ;
+  //  - grand : la même chose avec « À venir » (les 30 jours) en appoint et la saisie d'un rappel.
+  // Les listes sont coupées à la hauteur de la tuile (ajusterWidgets), « Voir N de plus » ouvre la
+  // page Aujourd'hui.
   function renderAlertesDashboard(perimetreActifs) {
     const bloc = document.getElementById('alertes-dashboard');
     if (!bloc) return;
     const global = vueGlobaleDashboard();
-    const { aujourdhui, actions, traites } = etatAujourdhui();
+    const taille = tailleWidget('aujourdhui');
+    const { aujourdhui, actions, traites, aVenir } = etatAujourdhui();
     const fini = actions.length === 0 && traites.length > 0;
-    let feteHtml = '';
-    if (fini) {
-      const animer = !feteJourDejaCelebree(aujourdhui);
-      if (animer) marquerFeteJourCelebree(aujourdhui);
-      feteHtml = renderFeteJour(animer);
-    }
-    bloc.innerHTML = `
-      <div class="alertes-entete">
-        <div>
-          <div class="alertes-titre-ligne">
-            <div class="agenda-titre">Aujourd’hui</div>
-            <button type="button" class="action-rapide alertes-point-matin" onclick="ouvrirFenetreAujourdhui()" title="Rouvrir la fenêtre du point du matin">${icone('sun')}Point du matin</button>
-          </div>
-          <div class="agenda-mois">${escapeHtml(messageProgressionJour(actions.length, traites.length))}</div>
+    const anneau = actions.length || traites.length ? renderAnneauJour(actions.length, traites.length) : '';
+    const versPage = "definirOnglet('aujourdhui')";
+    let corps;
+    if (taille === 'petit') {
+      const premiere = actions[0];
+      const rappelsAFaire = rappelsPerso.filter(r => !r.fait).length;
+      corps = `<div class="w-chiffre-bloc">
+          <span class="w-chiffre">${actions.length}</span>
+          <span class="w-chiffre-lib">${actions.length > 1 ? 'choses à faire' : actions.length ? 'chose à faire' : 'rien à faire'}</span>
         </div>
-        <div class="alertes-entete-droite">
-          ${actions.length || traites.length ? renderAnneauJour(actions.length, traites.length) : ''}
-        </div>
-      </div>
-      <div class="jour-carte-corps">
-        ${feteHtml}
-        ${renderListeJour(actions, traites, global)}
-        <div class="dash-rappels-bloc">
+        ${premiere ? `<div class="w-bas" data-ajuster="2"><button type="button" class="w-prochaine g-${premiere.gravite}" onclick="${versPage}">
+            <span class="w-prochaine-titre">${escapeHtml(premiere.titre)}</span>
+            <span class="w-prochaine-sous">${escapeHtml(premiere.dossier.nom)}</span>
+          </button></div>` : `<p class="w-message">${escapeHtml(messageProgressionJour(actions.length, traites.length))}</p>`}
+        ${rappelsAFaire ? `<button type="button" class="w-pied lien-discret" onclick="${versPage}">${rappelsAFaire} rappel${rappelsAFaire > 1 ? 's' : ''} à faire</button>` : ''}`;
+    } else {
+      let feteHtml = '';
+      if (fini) {
+        const animer = !feteJourDejaCelebree(aujourdhui);
+        if (animer) marquerFeteJourCelebree(aujourdhui);
+        feteHtml = renderFeteJour(animer);
+      }
+      const liste = actions.length || traites.length
+        ? `<ul class="ja-liste" data-ajuster="1" data-min="1">${actions.map(a => renderLigneActionJour(a, global)).join('')}${renderLignesTraitees(traites)}${plusWidget(versPage)}</ul>`
+        : '<p class="jour-vide jour-vide-ok">✓ Rien à faire aujourd’hui sur vos dossiers.</p>';
+      const aVenirHtml = taille === 'grand' && aVenir.length ? `<div class="w-section">
+          <h3 class="jour-carte-sous-titre">À venir</h3>
+          <ul class="w-lignes" data-ajuster="3">${aVenir.map(v => `<li><button type="button" class="w-ligne" onclick="ouvrirDossierDepuisDashboard('${v.dossier.id}')">
+            <span class="w-ligne-texte"><b>${escapeHtml(v.titre)}</b> · ${escapeHtml(v.dossier.nom)}</span>
+            <span class="w-ligne-meta">${escapeHtml(v.detail || '')}</span></button></li>`).join('')}${plusWidget(versPage)}</ul>
+        </div>` : '';
+      corps = `${feteHtml}${liste}
+        <div class="w-section dash-rappels-bloc">
           <h3 class="jour-carte-sous-titre">Mes rappels</h3>
-          <div class="rappels-perso">${renderMesRappels(perimetreActifs)}</div>
+          <div class="rappels-perso" data-ajuster="2">${renderMesRappels(perimetreActifs)}</div>
         </div>
-      </div>`;
+        ${aVenirHtml}`;
+    }
+    bloc.innerHTML = carteWidget({
+      taille,
+      titre: 'Aujourd’hui',
+      sous: taille === 'petit' ? '' : escapeHtml(messageProgressionJour(actions.length, traites.length)),
+      droite: `${taille === 'grand' ? `<button type="button" class="icon-btn" onclick="ouvrirFenetreAujourdhui()" title="Rouvrir la fenêtre du point du matin" aria-label="Point du matin">${icone('sun')}</button>` : ''}${anneau}`,
+      corps
+    });
     majBadgeAujourdhui(actions.length);
     renderFenetreAujourdhui();
+    planifierAjustementWidgets();
   }
 
   function majBadgeAujourdhui(n) {

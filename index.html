@@ -197,47 +197,16 @@
   <div id="dash-alerte-sauvegarde" class="dash-alerte-sauvegarde" style="display:none;"></div>
 
   <div class="widgets-conteneur">
+    <!-- Widgets du tableau de bord (renderWidgetsDashboard) : chaque carte est rendue par sa
+         fonction selon sa taille (petit, moyen, grand) ; l'ordre et la taille sont ceux du
+         collaborateur du poste. -->
     <div class="widgets-grille" id="widgets-dashboard">
-      <section class="widget" data-widget="aujourdhui">
-        <div class="dash-bloc dash-bloc-traiter">
-          <div class="agenda-carte alertes-carte" id="alertes-dashboard"></div>
-        </div>
-      </section>
-      <section class="widget" data-widget="agenda">
-        <!-- Carte Agenda : semaine, rendez-vous de signature, état des envois (voir
-             renderRendezVousDashboard). Toujours affichée, même sans rendez-vous. -->
-        <div class="dash-bloc">
-          <div class="agenda-carte" id="agenda-dashboard"></div>
-        </div>
-      </section>
-      <section class="widget" data-widget="avancement">
-        <div class="dash-bloc dash-avancement" id="dash-avancement" style="display:none;">
-          <div class="agenda-carte">
-            <div class="agenda-entete"><div>
-              <div class="agenda-titre">Avancement des dossiers</div>
-              <div class="agenda-mois">Étapes et pièces, du plus urgent au plus avancé</div>
-            </div></div>
-            <div id="avancement-dossiers" class="avancement-dossiers"></div>
-          </div>
-        </div>
-      </section>
-      <section class="widget" data-widget="portefeuille">
-        <div class="dash-bloc" id="kpi-portefeuille"></div>
-      </section>
-      <section class="widget" data-widget="activite">
-        <div class="dash-bloc" id="kpi-activite"></div>
-      </section>
-      <section class="widget" data-widget="pieces">
-        <div class="dash-bloc" id="dash-nouveautes" style="display:none;">
-          <div class="agenda-carte">
-            <div class="agenda-entete"><div>
-              <div class="agenda-titre">Dernières pièces</div>
-              <div class="agenda-mois">NAS · 14 derniers jours</div>
-            </div></div>
-            <div id="pieces-recues-dashboard" class="dash-liste dash-liste-carte"></div>
-          </div>
-        </div>
-      </section>
+      <section class="widget" data-widget="aujourdhui"><div class="dash-bloc" id="alertes-dashboard"></div></section>
+      <section class="widget" data-widget="agenda"><div class="dash-bloc" id="agenda-dashboard"></div></section>
+      <section class="widget" data-widget="avancement"><div class="dash-bloc" id="dash-avancement" style="display:none;"></div></section>
+      <section class="widget" data-widget="portefeuille"><div class="dash-bloc" id="kpi-portefeuille"></div></section>
+      <section class="widget" data-widget="activite"><div class="dash-bloc" id="kpi-activite"></div></section>
+      <section class="widget" data-widget="pieces"><div class="dash-bloc" id="dash-nouveautes" style="display:none;"></div></section>
     </div>
     <div class="widgets-masques" id="widgets-masques"></div>
   </div>
