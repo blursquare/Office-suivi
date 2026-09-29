@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 11:15';
+  const VERSION_APP = '2026-09-29 11:16';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 11:16', resume: "Tableau de bord : le bouton « Point du matin » est à côté du titre « Aujourd'hui »." },
     { version: '2026-09-29 11:15', resume: "Nouveau dossier : l'étape Finaliser propose le notaire du vendeur et celui de l'acquéreur (lus dans l'acte, modifiables, liste du carnet) ; celui qui reçoit l'acte découle du rôle choisi et du côté de l'étude. L'email de l'acquéreur saisi n'est plus effacé quand un confrère est lu côté acquéreur. Lecture des compromis d'agence en formulaire (« Notaire du VENDEUR : Maître X Adresse : … ») : nom, ville et côté corrects. Fiche : sous le notaire, l'office seul (téléphone et email dans le carnet)." },
     { version: '2026-09-29 10:39', resume: "Fiche du dossier : un notaire écrit avec son seul prénom (« Maître SOPHIE (BLOIS) ») est complété par le carnet des confrères — prénom et NOM, « Maître Sophie GOSSART (BLOIS) » — quand un seul notaire de ce prénom exerce dans cette ville. Corrigé aussi sur les dossiers existants à l'ouverture de CLAIRE ; l'office est alors retrouvé (plus de « Ajouter au carnet » injustifié)." },
     { version: '2026-09-29 10:35', resume: "Emails : les logos ne sont plus joints au message quand la carte et la bannière de l'étude les remplacent (seules les images affichées dans l'email l'accompagnent). Deux lignes vides entre la carte et la bannière Visio, comme dans le modèle de l'étude." },
@@ -15440,12 +15441,14 @@
     bloc.innerHTML = `
       <div class="alertes-entete">
         <div>
-          <div class="agenda-titre">Aujourd’hui</div>
+          <div class="alertes-titre-ligne">
+            <div class="agenda-titre">Aujourd’hui</div>
+            <button type="button" class="action-rapide alertes-point-matin" onclick="ouvrirFenetreAujourdhui()" title="Rouvrir la fenêtre du point du matin">${icone('sun')}Point du matin</button>
+          </div>
           <div class="agenda-mois">${escapeHtml(messageProgressionJour(actions.length, traites.length))}</div>
         </div>
         <div class="alertes-entete-droite">
           ${actions.length || traites.length ? renderAnneauJour(actions.length, traites.length) : ''}
-          <button type="button" class="action-rapide alertes-point-matin" onclick="ouvrirFenetreAujourdhui()" title="Rouvrir la fenêtre du point du matin">${icone('sun')}Point du matin</button>
         </div>
       </div>
       <div class="jour-carte-corps">

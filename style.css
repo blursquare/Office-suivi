@@ -6583,6 +6583,7 @@ button.confrere-carnet-office:focus-visible, button.carnet-dossier:focus-visible
 
 /* Carte « Aujourd'hui » du tableau de bord : anneau et bouton de la fenêtre du point du matin. */
 .alertes-entete-droite { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex: none; }
+.alertes-titre-ligne { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }
 .action-rapide.alertes-point-matin { display: inline-flex; align-items: center; gap: 5px; margin: 0; padding: 3px 10px; white-space: nowrap; }
 /* Notre office en tête du carnet : même carte, pastille « Notre office ». */
 .carnet-etude-badge { align-self: flex-start; }

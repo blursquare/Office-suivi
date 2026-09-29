@@ -11832,3 +11832,7 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
   Vérifié dans Chromium (clair, sombre, 390 px) : champs pré-remplis LACOUR (CELLETTES) / GOSSART
   (BLOIS), email conservé après changement du notaire de l'acquéreur, dossier enregistré
   participant avec l'acte reçu côté vendeur.
+
+- **29/09/2026 — « Point du matin » à côté du titre « Aujourd'hui »** (demande de l'étude) : le
+  bouton quitte la colonne de droite de la carte (sous l'anneau) pour la ligne du titre
+  (`.alertes-titre-ligne`, qui passe à la ligne en largeur téléphone). Vérifié dans Chromium.
