@@ -1564,16 +1564,16 @@
           </div>
           <!-- Ouverture automatique des documents téléchargés (voir server/src/ouvertureAuto.js) :
                un relais Windows installé une fois par poste, puis activé ici. -->
-          <div class="reglages-option">
+          <label class="reglages-option" for="reglages-ouverture-auto">
             <span class="reglages-option-texte">
               <span class="reglages-option-titre">Ouvrir les documents dès leur téléchargement</span>
-              <span class="hint">Emails dans Outlook, courriers dans Word. À installer une fois sur ce poste : <a href="#" onclick="telechargerInstallateurOuvertureAuto(); return false;">télécharger l’installateur</a>, l’ouvrir, puis activer.</span>
+              <span class="hint">Emails dans Outlook, courriers dans Word. À installer une fois sur ce poste : <a href="#" onclick="event.preventDefault(); event.stopPropagation(); telechargerInstallateurOuvertureAuto();">télécharger l’installateur</a>, puis l’ouvrir.</span>
             </span>
             <span class="switch reglages-switch">
-              <input type="checkbox" id="reglages-ouverture-auto" aria-label="Ouvrir les documents dès leur téléchargement" onchange="choisirOuvertureAuto(this.checked)">
+              <input type="checkbox" id="reglages-ouverture-auto" onchange="choisirOuvertureAuto(this.checked)">
               <span class="slider"></span>
             </span>
-          </div>
+          </label>
           <label class="reglages-option" for="reglages-mode-email">
             <span class="reglages-option-texte">
               <span class="reglages-option-titre">Ouverture des emails</span>

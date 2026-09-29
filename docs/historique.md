@@ -11742,3 +11742,12 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
   dernières minutes (il attend jusqu'à 10 s) — ni chemin reçu du navigateur, ni autre dossier, ni
   autre extension. Le navigateur demande une fois d'autoriser le lien. **Non vérifié sur Windows**
   (script écrit et testé sur son texte seulement).
+
+- **29/09/2026 — Bug : l'option « Ouvrir les documents dès leur téléchargement » restait décochée**
+  (signalé par l'étude après avoir lancé l'installateur). L'interrupteur était dans un simple bloc,
+  pas dans un `<label for>` comme les autres options de l'écran : la case réelle est invisible
+  (`.switch input { width: 0; height: 0; opacity: 0 }`), seul le label lui transmet le clic — cliquer
+  sur l'interrupteur ne faisait donc rien. Passé en `label.reglages-option` (le lien de
+  l'installateur, dedans, bloque la propagation pour ne pas basculer l'option). Télécharger
+  l'installateur active aussi l'option sur le poste. Vérifié dans Chromium : clic → coché et
+  mémorisé, conservé après rechargement, lien → installateur téléchargé et option activée.

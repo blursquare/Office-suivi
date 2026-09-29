@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 09:34';
+  const VERSION_APP = '2026-09-29 09:43';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 09:43', resume: "Réglages › Sur ce poste : l'interrupteur « Ouvrir les documents dès leur téléchargement » se coche enfin au clic (il ne réagissait pas), et s'active tout seul quand on télécharge l'installateur." },
     { version: '2026-09-29 09:34', resume: "Emails : signature selon le modèle de l'étude — carte du collaborateur (nom, fonction, téléphone, adresse notaires.fr, logos), bannière Visio, mentions en orange, rouge et gris (fonction de chacun dans Réglages). Échéances dans l'ordre du dossier (le prêt ne descend plus en bas) et heure du rendez-vous sur la ligne Signature. Email de réception des fonds : jour, date et heure du rendez-vous en gras souligné (« lundi 5 octobre 2026 à 11h ») et rappel des pièces d'identité et du RIB. Réglages › Sur ce poste : ouvrir les documents dès leur téléchargement (relais à installer une fois par poste)." },
     { version: '2026-09-29 09:09', resume: "Fonds reçus : les reçus comptables sont aussi cherchés dans le dossier « DOSSIER » à la racine du NAS (\\\\192.168.60.5\\Commun\\DOSSIER) — c'est là que l'étude les range ; seule la racine des dossiers clients était lue. La fiche dit sous quel nom et dans quels dossiers les reçus ont été cherchés. Agenda : « Noter dans l'agenda » est coché quand la mention (appel de fonds, projet) figure déjà dans le lieu du rendez-vous relevé dans l'agenda." },
     { version: '2026-09-29 08:57', resume: "Échéances : « Créer le rendez-vous dans l'agenda Outlook » n'est plus proposé quand le rendez-vous de signature est déjà dans l'agenda de l'office — créé depuis CLAIRE ou posé à la main dans Outlook et relevé par CLAIRE. Il revient seulement si le rendez-vous disparaît de l'agenda ou si la date est changée à la main." },
@@ -17416,7 +17417,11 @@
       lien.click();
       document.body.removeChild(lien);
       setTimeout(() => URL.revokeObjectURL(lien.href), 60000);
-      afficherInfoAction('Installateur téléchargé', 'Ouvrez le fichier téléchargé (le navigateur peut demander de le conserver), puis activez l’option ici. Au premier document, autorisez l’ouverture du lien « claire-ouvrir » en cochant « Toujours autoriser ».');
+      // Télécharger l'installateur, c'est vouloir l'option : elle s'active d'elle-même sur ce poste.
+      choisirOuvertureAuto(true);
+      const inter = document.getElementById('reglages-ouverture-auto');
+      if (inter) inter.checked = true;
+      afficherInfoAction('Installateur téléchargé', 'Ouvrez le fichier téléchargé (le navigateur peut demander de le conserver) : un message confirme l’installation. L’option est activée sur ce poste. Au premier document, autorisez l’ouverture du lien « claire-ouvrir » en cochant « Toujours autoriser ».');
     } catch (e) {
       afficherToast('Téléchargement de l’installateur impossible : ' + e.message, 'OK', null);
     }
