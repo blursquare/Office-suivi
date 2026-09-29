@@ -12223,3 +12223,26 @@ n'importe où dans le titre (« RDV VENTE - DUPONT », « Signature VENTE – DU
 précédente (VENTE en tête, tiret facultatif) est conservée. Même ajout dans le résumé des emails du
 matin (`classerEmails` : « VENTE - NOM » comme « VTE - NOM »). Tests : agenda-office (référence et
 rendez-vous de bout en bout), emails-matin (échoue sans la correction).
+
+### 29/09 22:50 — Revue de l'interface : premier lot (tableau de bord, fiche, Suivi)
+
+Question : « Que penses-tu de l'interface de CLAIRE ? », puis « Va y » sur les corrections proposées
+(captures faites dans Chromium avec 7 dossiers inventés, 1440 px et 400 px).
+- Tableau de bord : `#kpis-dashboard` (portefeuille + activité) déplacé SOUS `.dash-duo`
+  (Aujourd'hui + Avancement) : ce qui est à faire passe avant les statistiques, y compris au
+  téléphone (Aujourd'hui était au troisième écran). `renderActiviteEtude` rend '' sans aucune
+  entrée ni action sur 7 jours (la carte affichait « 0 » à une place de choix) ; classe
+  `sans-activite` : le portefeuille garde la largeur d'une colonne (max 520 px).
+- « Aujourd'hui » : `.ja-sous` sur deux lignes au lieu d'une coupée (« ROUSSEL / CHE… »).
+- Recherche : texte d'aide raccourci « Rechercher un dossier… » (il était coupé), le reste en title.
+- Fiche : mobilier, séquestre, « versé à » et notaires vides (`prop-vide`) repliés derrière
+  « Compléter la fiche (N) » (`fichesChampsVidesOuverts`, `basculerChampsVidesFiche`) ; prix et
+  adresse restent toujours visibles. Remplace la règle « un champ vide dit Non détecté plutôt que de
+  disparaître » (une fiche en alignait cinq avant les onglets).
+- Suivi : tuiles `#stats-suivi` retirées (`renderStatsSuivi` supprimée) — elles répétaient le
+  tableau de bord et leur « dossiers actifs » (tout l'office) contredisait le compte de la liste ;
+  note de bas de page retirée ; Export / Import JSON déplacés dans Réglages › Mise à jour et
+  sauvegarde (section « Export des dossiers »).
+- En attente de l'étude : le vocabulaire des statuts (un seul statut principal par dossier — sur
+  un même dossier on lisait « Aucun document », « En retard », « Offre non vérifiée », « Non
+  vérifiée », « 0 % »).

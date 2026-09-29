@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 22:37';
+  const VERSION_APP = '2026-09-29 22:50';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 22:50', resume: "Interface allégée. Tableau de bord : « Aujourd'hui » et l'avancement des dossiers passent en tête, les chiffres du portefeuille dessous, et la carte « Activité de l'étude » ne s'affiche que s'il y a eu de l'activité dans la semaine. Les noms de dossiers ne sont plus coupés dans « Aujourd'hui ». Fiche : les champs secondaires vides (mobilier, séquestre, versé à, notaires) sont repliés derrière « Compléter la fiche (N) ». Suivi : les tuiles de chiffres, qui répétaient le tableau de bord, et la note du bas sont retirées ; l'export/import JSON passe dans Réglages › Mise à jour et sauvegarde." },
     { version: '2026-09-29 22:37', resume: "Agenda de l'office : un rendez-vous intitulé « VENTE - NOM DU DOSSIER » est reconnu comme « VTE - NOM », même au milieu du titre (« RDV VENTE - DUPONT ») — rendez-vous de signature, envois notés dans le lieu. VENTE doit être en capitales et suivi d'un tiret. Le résumé des emails du matin rattache aussi « VENTE - NOM » au dossier." },
     { version: '2026-09-29 22:25', resume: "Dates butoir d'obtention du prêt et de vente préalable : elles passent uniquement par l'agenda partagé de Sophie. Le calendrier .ics que CLAIRE publiait est supprimé (retirer l'abonnement « CLAIRE — Échéances » dans Outlook). Au premier passage après la mise à jour, CLAIRE pose d'elle-même les dates à venir des dossiers existants, sans doublon : un événement déjà présent au même nom et à la même date est repris tel quel. Compte rendu dans Réglages › Agenda. À vérifier au bureau." },
     { version: '2026-09-29 22:12', resume: "Agenda de l'office : CLAIRE lit désormais directement le calendrier partagé de Sophie par la connexion Exchange, toutes les 15 minutes (six mois à venir), au lieu du lien .ics publié — plus d'adresse à coller ni d'erreur de proxy. Mêmes détections : rendez-vous de signature, « Appel de fonds (et projet) envoyé » dans le lieu, absences, couleurs. Un mot de passe refusé suspend la lecture automatique jusqu'à sa correction, pour ne jamais verrouiller le compte. Réglages › Agenda : « Lecture de l'agenda » sous la connexion. À tester au bureau." },
@@ -12852,25 +12853,7 @@
     return { actifs: dossiersActifs.length, urgents, urgents15, manquantes, aVerifier, piecesIncompletes };
   }
 
-  // Bandeau de synthèse en tête de l'onglet "Suivi des dossiers" : donne un état global du
-  // portefeuille (dossiers actifs, hors filtres/recherche de la liste) avant de la parcourir.
-  function renderStatsSuivi(dossiersActifs) {
-    const bloc = document.getElementById('stats-suivi');
-    if (!bloc) return;
-
-    const { actifs, urgents, manquantes, piecesIncompletes } = calculerStatsPortefeuille(dossiersActifs);
-    const tuiles = [
-      ['c-neutre', actifs, actifs > 1 ? 'dossiers actifs' : 'dossier actif'],
-      ['c-urgent', urgents, 'échéances ≤ 7 jours'],
-      ['c-pret', manquantes, 'offres de prêts en attente'],
-      ['c-pret', piecesIncompletes, 'dossiers avec pièces manquantes']
-    ];
-    bloc.innerHTML = tuiles.map(([cls, valeur, libelle]) =>
-      `<div class="stat-tile"><div class="stat-label">${libelle}</div><div class="stat-num ${cls}">${valeur}</div></div>`
-    ).join('');
-  }
-
-  // Tuiles KPI du "Tableau de bord" : mêmes chiffres que renderStatsSuivi (calculerStatsPortefeuille),
+  // Tuiles KPI du "Tableau de bord" (calculerStatsPortefeuille),
   // avec une 5e tuile propre au tableau de bord (pièces manquantes) — l'aperçu d'ensemble le plus
   // synthétique de l'outil, avant même d'ouvrir un dossier.
   // Icône calendrier commune aux deux tuiles d'échéances (7j/15j) avec le seuil incrusté dedans,
@@ -12989,7 +12972,11 @@
       </div>
       <div class="pf-phrase">${escapeHtml(phrasePortefeuille(st))}</div>
     </div>`;
-    bloc.innerHTML = carte + renderActiviteEtude(dossiers);
+    // La carte d'activité n'a rien à dire sans aucune action sur les 7 derniers jours : elle
+    // occupait alors une place de choix pour afficher « 0 » (revue de l'interface, 29/09).
+    const activite = renderActiviteEtude(dossiers);
+    bloc.classList.toggle('sans-activite', !activite);
+    bloc.innerHTML = carte + activite;
   }
 
   // ---- Activité de l'étude (Tableau de bord) : suivi en direct, tous collaborateurs ----
@@ -13122,6 +13109,7 @@
     const toutes = activiteEtude(tousDossiers, 5000);
     const entrees = toutes.slice(0, MAX_ACTIVITE_ETUDE);
     const rythme = rythmeActivite(toutes, maintenant);
+    if (!entrees.length && !rythme.jours.some(j => j.n)) return '';
 
     // Barres des 7 jours : hauteur proportionnelle au jour le plus chargé ; aujourd'hui en accent.
     const barres = rythme.jours.map(j => `<span class="act-jour-col${j.aujourdhui ? ' auj' : ''}" title="${escapeAttr(`${j.nom} : ${j.n} action${j.n > 1 ? 's' : ''}`)}"><span class="act-barre"><span style="--h:${Math.round(100 * j.n / rythme.max)}%"></span></span><span class="act-lettre">${j.lettre}</span></span>`).join('');
@@ -14022,12 +14010,26 @@
   // Propriétés du dossier, une ligne par donnée : icône et libellé à gauche, valeur à droite,
   // directement modifiable (même identifiants et mêmes fonctions que l'ancienne fiche — seule la
   // présentation change). Trois groupes séparés par un filet : le dossier lui-même, le bien et son
-  // financement, les notaires. Un champ vide dit « Non détecté » plutôt que de disparaître : c'est
-  // justement là qu'il faut le remplir.
+  // financement, les notaires.
+  //
+  // Champs secondaires vides (revue de l'interface, 29/09 : une fiche alignait cinq « Non détecté »
+  // avant les onglets) : mobilier, séquestre, « versé à » et notaires sans valeur sont repliés
+  // derrière « Compléter la fiche (N) ». Le prix et l'adresse restent toujours visibles, même vides :
+  // un dossier sans eux doit se voir.
+  const fichesChampsVidesOuverts = new Set();
+
+  function basculerChampsVidesFiche(id) {
+    if (fichesChampsVidesOuverts.has(id)) fichesChampsVidesOuverts.delete(id);
+    else fichesChampsVidesOuverts.add(id);
+    render();
+  }
+
   function renderProprietesDossier(d, boutonOuvrirCompromis, boutonsDossierLocal) {
     // Une case de la grille : libellé court à gauche, valeur à droite. `cls` : 'prop-pleine' pour
     // une valeur longue (adresse, dossier du NAS, avant-contrat, notaires) qui prend toute la
-    // largeur ; les autres vont deux par ligne.
+    // largeur ; les autres vont deux par ligne. 'prop-vide' : champ secondaire vide, replié.
+    let nbVides = 0;
+    const siVide = (vide) => { if (vide) nbVides++; return vide ? ' prop-vide' : ''; };
     const ligne = (ic, libelle, valeur, pourId, cls) => `
       <div class="prop-ligne${cls ? ' ' + cls : ''}">
         <dt>${pourId ? `<label for="${pourId}">` : '<span>'}${icone(ic)}<span>${libelle}</span>${pourId ? '</label>' : '</span>'}</dt>
@@ -14107,7 +14109,7 @@
       ? ligne('mail', 'Confrère', `<input type="email" id="not-email-participant-${d.id}" class="prop-champ" value="${escapeAttr(d.emailNotaireParticipant || '')}" placeholder="${escapeAttr(emailOfficeConfrereAcquereur(d) ? emailOfficeConfrereAcquereur(d) + ' (carnet)' : 'Non renseigné')}" title="Les relances (prêt, RIB) seront adressées à cette adresse plutôt qu'à l'acquéreur lui-même. Vide : l'email de l'office tiré du carnet des confrères." onblur="changerEmailNotaireParticipant('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">`, `not-email-participant-${d.id}`)
       : '';
 
-    return `
+    const blocBien = `
       <dl class="fiche-proprietes">
         ${ligne('user', 'Responsable', responsable, `resp-${d.id}`)}
         ${ligne('home', 'Type de vente', typeVente, `tv-${d.id}`)}
@@ -14117,20 +14119,25 @@
       <dl class="fiche-proprietes">
         ${ligne('map-pin', 'Adresse', saisie('adresse', normaliserAdresse(d.adresseBien), 'changerAdresseBien'), `adresse-${d.id}`, 'prop-pleine')}
         ${ligne('banknote', 'Prix', saisie('prix', d.prixVente ? formaterPrix(d.prixVente) : '', 'changerPrixVente', ' inputmode="numeric"'), `prix-${d.id}`)}
-        ${ligne('package', 'Dont mobilier', saisie('mobilier', d.prixMobilier ? formaterPrix(d.prixMobilier) : '', 'changerPrixMobilier', ' inputmode="numeric" title="Part du prix qui porte sur des meubles : elle sort de l\'assiette des droits de mutation (frais d\'acte)."', 'Aucun') + boutonLireMobilier, `mobilier-${d.id}`)}
-        ${ligne('lock', 'Séquestre', saisie('depot', d.depotGarantie ? formaterPrix(d.depotGarantie) : '', 'changerDepotGarantie', ' inputmode="numeric" title="Montant séquestré (dépôt de garantie)"'), `depot-${d.id}`)}
-        ${ligne('shield', 'Versé à', saisie('sequestre', d.sequestreDepot, 'changerSequestreDepot', ' title="Entre les mains de qui l\'acquéreur verse le dépôt : l\'office, l\'agence, la CARPA…"'), `sequestre-${d.id}`)}
+        ${ligne('package', 'Dont mobilier', saisie('mobilier', d.prixMobilier ? formaterPrix(d.prixMobilier) : '', 'changerPrixMobilier', ' inputmode="numeric" title="Part du prix qui porte sur des meubles : elle sort de l\'assiette des droits de mutation (frais d\'acte)."', 'Aucun') + boutonLireMobilier, `mobilier-${d.id}`, siVide(!d.prixMobilier).trim())}
+        ${ligne('lock', 'Séquestre', saisie('depot', d.depotGarantie ? formaterPrix(d.depotGarantie) : '', 'changerDepotGarantie', ' inputmode="numeric" title="Montant séquestré (dépôt de garantie)"'), `depot-${d.id}`, siVide(!d.depotGarantie).trim())}
+        ${ligne('shield', 'Versé à', saisie('sequestre', d.sequestreDepot, 'changerSequestreDepot', ' title="Entre les mains de qui l\'acquéreur verse le dépôt : l\'office, l\'agence, la CARPA…"'), `sequestre-${d.id}`, siVide(!d.sequestreDepot).trim())}
         ${ligne('trend-up', 'Financement', financement)}
         ${d.honoraires && !d.honoraires.direct ? ligne('users', 'Négociation', `<span class="prop-texte">${escapeHtml(libelleHonoraires(d.honoraires).replace(/^Négociée par /, ''))}</span>`, null, 'prop-pleine') : ''}
         ${d.fondsTravaux ? ligne('package', 'Fonds de travaux', `<span class="prop-texte">${escapeHtml(libelleFondsTravaux(d.fondsTravaux))}</span>`, null, 'prop-pleine') : ''}
       </dl>
       <dl class="fiche-proprietes">
-        ${ligne('scale', 'Notaire vendeur', notaire('vendeur', d.notaireVendeur), `not-vendeur-${d.id}`, 'prop-pleine')}
-        ${ligne('scale', 'Notaire acquéreur', notaire('acquereur', d.notaireAcquereur), `not-acquereur-${d.id}`, 'prop-pleine')}
+        ${ligne('scale', 'Notaire vendeur', notaire('vendeur', d.notaireVendeur), `not-vendeur-${d.id}`, 'prop-pleine' + siVide(!d.notaireVendeur && d.coteInstrumentaire !== 'vendeur'))}
+        ${ligne('scale', 'Notaire acquéreur', notaire('acquereur', d.notaireAcquereur), `not-acquereur-${d.id}`, 'prop-pleine' + siVide(!d.notaireAcquereur && d.coteInstrumentaire !== 'acquereur'))}
         ${emailParticipant}
         ${ligne('flag', 'Notre étude', ligneRole)}
       </dl>
       ${optionsNotaires.length ? `<datalist id="${listeId}">${optionsNotaires.map(n => `<option value="${escapeAttr(n)}"></option>`).join('')}</datalist>` : ''}`;
+    const ouvert = fichesChampsVidesOuverts.has(d.id);
+    const bascule = nbVides
+      ? `<button type="button" class="bouton-ajout bouton-ajout-court fiche-completer${ouvert ? ' ouvert' : ''}" onclick="basculerChampsVidesFiche('${d.id}')" aria-expanded="${ouvert}">${ouvert ? 'Masquer les champs vides' : `Compléter la fiche (${nbVides})`}</button>`
+      : '';
+    return `<div class="fiche-proprietes-bloc${ouvert ? ' champs-vides-ouverts' : ''}">${blocBien}${bascule}</div>`;
   }
 
   // ---- Collaborateur du poste ----
@@ -16091,7 +16098,6 @@
     const perimetreTous = dossiersDuPerimetre(dossiers, utilisateurPoste, globalDash);
     const perimetreActifs = perimetreTous.filter(d => !d.archive);
     renderAvancementDossiers(perimetreActifs);
-    renderStatsSuivi(dossiersActifs);
     renderKpisDashboard(perimetreActifs, perimetreTous);
     renderAccueilDashboard(perimetreActifs, calculerStatsPortefeuille(perimetreActifs));
     renderRendezVousDashboard(perimetreActifs);

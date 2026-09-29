@@ -182,7 +182,7 @@
         <h1 class="dash-titre" id="dash-titre">Vue d'ensemble</h1>
         <div class="dash-header-actions">
           <div class="dash-recherche">
-            <input type="search" id="recherche-dashboard" placeholder="Rechercher un dossier ou un responsable…" oninput="render()" autocomplete="off">
+            <input type="search" id="recherche-dashboard" placeholder="Rechercher un dossier…" title="Par nom de dossier ou de responsable" oninput="render()" autocomplete="off">
             <div class="dash-recherche-resultats" id="dash-recherche-resultats" style="display:none;"></div>
           </div>
           <button type="button" class="primary dash-header-nouveau" onclick="definirOnglet('nouveau')">+ Nouveau dossier</button>
@@ -197,8 +197,6 @@
          renderAlerteSauvegardeDashboard dans script.js) : un échec qui ne se voit que dans les
          Réglages, personne ne le verrait. -->
     <div id="dash-alerte-sauvegarde" class="dash-alerte-sauvegarde" style="display:none;"></div>
-
-    <div class="kpis-dashboard" id="kpis-dashboard"></div>
 
     <!-- À traiter + Mes rappels (étroit) à côté de l'avancement (large). En flex et non en
          grille : quand l'avancement est masqué (aucun dossier), À traiter prend toute la
@@ -217,6 +215,11 @@
         </div>
       </div>
     </div>
+
+    <!-- Chiffres du portefeuille et activité de l'étude SOUS « Aujourd'hui » (revue de
+         l'interface, 29/09) : ce qui est à faire passe avant les statistiques. La carte
+         d'activité n'est affichée que s'il y a eu de l'activité (voir renderKpisDashboard). -->
+    <div class="kpis-dashboard" id="kpis-dashboard"></div>
     </div>
 
     <aside class="dash-rail">
@@ -582,7 +585,9 @@
 
 <div class="wrap-suivi" id="onglet-suivi" style="display:none;">
 
-  <div class="stats-suivi" id="stats-suivi"></div>
+  <!-- Les tuiles de chiffres (dossiers actifs, échéances, offres, pièces) ont été retirées du
+       Suivi (revue de l'interface, 29/09) : elles répétaient le tableau de bord, et leur « dossiers
+       actifs » (tout l'office) contredisait le compte de la liste juste en dessous. -->
 
   <div class="list-heading">
     <div class="list-heading-titre">
@@ -596,7 +601,7 @@
 
   <div class="list-toolbar">
     <label class="toolbar-item toolbar-recherche">
-      <input type="search" id="recherche-dossiers" placeholder="Rechercher un dossier ou un responsable…" oninput="render()">
+      <input type="search" id="recherche-dossiers" placeholder="Rechercher un dossier…" title="Par nom de dossier ou de responsable" oninput="render()">
     </label>
     <label class="toolbar-item">
       Responsable
@@ -663,19 +668,6 @@
   </div>
 
   <div id="dossier-list"></div>
-
-  <div class="list-toolbar list-toolbar-bas">
-    <button type="button" class="toolbar-btn" onclick="exporterDonnees()">⬇ Exporter (JSON)</button>
-    <label class="toolbar-btn toolbar-btn-label">
-      ⬆ Importer (JSON)
-      <input type="file" id="f-import" accept="application/json" onchange="importerDonnees(event)" style="display:none;">
-    </label>
-  </div>
-
-  <footer class="note">
-    Seul le compromis est analysé, sans ses annexes. Le PDF reste sur votre poste, rien n'est envoyé sur internet.<br>
-    <strong>Toute date détectée automatiquement doit être vérifiée</strong>, en particulier si elle est signalée « estimée ».
-  </footer>
 
 </div>
 
@@ -1832,6 +1824,17 @@
           <li>La base a été sauvegardée juste avant la mise à jour (voir « Sauvegarde de la base » ci-dessous).</li>
         </ol>
       </details>
+    </div>
+
+    <!-- Export / import de tous les dossiers en JSON : outil d'administration, déplacé du bas du
+         Suivi (revue de l'interface, 29/09) où il s'offrait à chaque collaborateur. -->
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Export des dossiers <span class="info-i" tabindex="0" data-info="Un fichier JSON de tous les dossiers, pour une copie ponctuelle ou un transfert. La sauvegarde quotidienne ci-dessous reste la protection normale."></span></h3>
+      <div class="reglages-actions">
+        <button type="button" class="secondary" onclick="exporterDonnees()">Exporter (JSON)</button>
+        <button type="button" class="secondary" onclick="document.getElementById('f-import').click()">Importer (JSON)</button>
+        <input type="file" id="f-import" accept="application/json" onchange="importerDonnees(event)" style="display:none;">
+      </div>
     </div>
 
     <div class="reglages-section">

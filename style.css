@@ -3541,6 +3541,10 @@
     min-width: 0;
   }
   .prop-ligne.prop-pleine { grid-column: 1 / -1; }
+  /* Champs secondaires vides repliés derrière « Compléter la fiche (N) » (renderProprietesDossier). */
+  .fiche-proprietes-bloc:not(.champs-vides-ouverts) .prop-ligne.prop-vide { display: none; }
+  .fiche-proprietes-bloc > button.bouton-ajout.fiche-completer { margin: 2px 0 8px; }
+  .fiche-proprietes-bloc > button.bouton-ajout.fiche-completer.ouvert::before { content: none; }
   .prop-ligne dt { margin: 0; min-width: 0; }
   .prop-ligne dt > label, .prop-ligne dt > span {
     display: flex;
@@ -5716,7 +5720,10 @@ button.avancement-ligne:hover { background: var(--paper-sunk); }
   .dash-accueil-ligne .dash-header-actions { width: 100%; margin-left: 0; flex-direction: column; align-items: stretch; }
   .dash-accueil-ligne .dash-recherche { width: 100%; flex: none; }
 }
-.dash-principal .kpis-dashboard { margin-bottom: 24px; }
+.dash-principal .kpis-dashboard { margin: 24px 0 0; }
+/* Sans activité récente, la carte « Activité de l'étude » est masquée : le portefeuille garde
+   la largeur d'une colonne plutôt que de s'étirer sur toute la ligne. */
+.kpis-dashboard.sans-activite { grid-template-columns: minmax(0, 1fr); max-width: 520px; }
 /* À traiter (étroit) + avancement (large). Flex : un avancement masqué laisse À traiter prendre
    toute la largeur, et les deux passent l'un sous l'autre seulement en dessous de ~620px de
    colonne principale — en pratique jamais tant que le rail reste à côté (grille 2 colonnes,
@@ -6133,9 +6140,11 @@ button.lien-action:hover { text-decoration: underline; }
   font-family: inherit; background: none; border: none; padding: 0; cursor: pointer; color: var(--ink);
 }
 .ja-titre { font-size: 13.5px; font-weight: 600; color: var(--ink); line-height: 1.3; }
-.ja-sous { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Deux lignes plutôt qu'une coupée : le nom du dossier est justement ce qu'on cherche à lire
+   (« ROUSSEL / CHE… » coupé dans la carte étroite du tableau de bord — revue de l'interface, 29/09). */
+.ja-sous { font-size: 12px; color: var(--muted); overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow-wrap: anywhere; }
 .ja-texte:hover .ja-titre { color: var(--focus); }
-.ja.ouverte .ja-sous { white-space: normal; }
+.ja.ouverte .ja-sous { -webkit-line-clamp: unset; line-clamp: unset; }
 .ja-delai { font-size: 12px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ja-delai.proche { color: var(--urgent); }
 .ja button.primary.ja-go {
