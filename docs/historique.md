@@ -11951,3 +11951,22 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
   sur Windows** : l'effet dans la barre des tâches. Si une icône floue est épinglée, la détacher
   puis réépingler la fenêtre une fois.
   - **Confirmé par l'étude le 29/09** (« c'est bon ») : l'icône de la barre des tâches est nette.
+
+- **29/09/2026 — Appel de fonds : texte effacé qui réapparaissait, paragraphe du R.I.B. sans prêt**
+  - « Quand on supprime du texte dans une ligne, puis une autre ligne vierge, le texte réapparaît. »
+    Cause : le courrier est UN bloc `contenteditable` (`#af-lettre`) ; le navigateur n'y émet
+    l'événement `input` que sur l'hôte d'édition, jamais sur la cellule — les `oninput` posés sur
+    les `.af-champ` du décompte ne se déclenchaient JAMAIS : le modèle `afLignes` gardait l'ancien
+    texte (et l'ancien montant, totaux jamais recalculés à la frappe), et tout nouveau rendu du
+    tableau (suppression par double-clic, ajout, contrôle des frais) le remettait. Reproduit dans
+    Chromium sur l'ancien commit (frappe → `afLignes` inchangé → « Nouvelle ligne » revenue après
+    la suppression), corrigé : `oninput="saisieApercuAppelFonds()"` sur `#af-lettre`, qui relit
+    toutes les cellules (`synchroniserDecompteDepuisApercu`, cellules marquées `data-af-champ`)
+    et recalcule les totaux ; relu aussi avant une suppression ou un ajout de ligne.
+  - Achat sans prêt : case « Achat sans prêt (apport personnel seul) » (section 6 · Financement,
+    cochée d'après `d.sansPret` du dossier relié). La dernière phrase du paragraphe « À cet effet…
+    R.I.B. de l'étude » vit dans `#af-p-deblocage` (`phraseDeblocageAppelFonds`, texte de l'étude
+    mot pour mot sans prêt) et dans le modèle Word via le nouveau champ `{phraseDeblocage}` (le run
+    du document.xml réécrit, base64 régénéré ; rendu vérifié avec docxtemplater). Au passage, le
+    .docx avec prêt dit « Je vous invite… » comme l'aperçu, au lieu de « A cet effet, je vous
+    invite… » (deux « A cet effet » dans le même paragraphe).

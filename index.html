@@ -994,6 +994,7 @@
 
       <div class="dash-section-titre" style="margin-top:18px;">6 · Financement</div>
       <div class="calc-champs">
+        <label class="af-checkline"><input type="checkbox" id="af-sans-pret" onchange="majApercuAppelFonds()"> Achat sans prêt (apport personnel seul)</label>
         <label class="af-checkline"><input type="checkbox" id="af-pret-hypothecaire" onchange="majApercuAppelFonds()"> Prêt garanti par une hypothèque (acte de prêt à recevoir)</label>
         <p class="hint">Un prêt cautionné (Crédit Logement…) ne donne lieu à aucun acte notarié, donc à aucun frais d'acte de prêt à appeler. CLAIRE coche cette case toute seule quand elle a lu une garantie hypothécaire dans l'offre de prêt du dossier.</p>
       </div>
@@ -1007,7 +1008,7 @@
         <span class="hint">Aperçu — cliquez pour modifier un texte ou un montant, double-cliquez une ligne du tableau pour la supprimer.</span>
       </div>
 
-      <div class="af-lettre" id="af-lettre" contenteditable="true" spellcheck="false">
+      <div class="af-lettre" id="af-lettre" contenteditable="true" spellcheck="false" oninput="saisieApercuAppelFonds()">
         <div class="af-topbar" contenteditable="false">
           <img class="af-logo-notaires" id="af-logo-notaires" alt="Notaires de France">
           <div class="af-office-id">
@@ -1091,7 +1092,7 @@
 
             <p style="margin-top:20px"><b>ATTENTION : Les paiements effectués ou reçus par un notaire doivent être assurés par virement (article L.112-6-1 du Code monétaire et financier).</b></p>
 
-            <p><b>À cet effet, vous trouverez ci-joint le R.I.B. de l'étude et je vous remercie de prendre toutes dispositions pour que le compte de l'étude soit crédité, au plus tard, <u>2 jours ouvrés avant la date de signature</u>. Je vous invite à vous rapprocher de votre établissement bancaire afin de faire le point sur le déblocage de votre prêt (total ou partiel si vous financez des travaux), ainsi que sur le virement du solde correspondant à votre apport personnel.</b></p>
+            <p><b>À cet effet, vous trouverez ci-joint le R.I.B. de l'étude et je vous remercie de prendre toutes dispositions pour que le compte de l'étude soit crédité, au plus tard, <u>2 jours ouvrés avant la date de signature</u>. <span id="af-p-deblocage">Je vous invite à vous rapprocher de votre établissement bancaire afin de faire le point sur le déblocage de votre prêt (total ou partiel si vous financez des travaux), ainsi que sur le virement du solde correspondant à votre apport personnel.</span></b></p>
 
             <p><b>Par ailleurs, conformément à la réglementation en vigueur et aux directives de notre profession, je vous remercie de bien vouloir vous munir d'une <u>pièce d'identité</u>, d'un <u>RIB</u> et d'une <u>attestation émanant de la banque</u> qui aura émis le virement justifiant de l'origine des fonds.</b></p>
 

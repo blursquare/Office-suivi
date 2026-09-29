@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 14:25';
+  const VERSION_APP = '2026-09-29 15:02';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 15:02', resume: "Appel de fonds : une ligne du décompte modifiée dans le courrier (texte ou montant) garde sa nouvelle valeur quand on supprime ou ajoute une autre ligne — l'ancien texte réapparaissait. Nouvelle case « Achat sans prêt » (cochée d'après le dossier) : le paragraphe du R.I.B. dit alors « … faire le point sur le déblocage, correspondant à votre apport personnel. », dans l'aperçu et dans le .docx." },
     { version: '2026-09-29 14:25', resume: "Icône floue dans la barre des tâches : au démarrage, le serveur crée un raccourci « CLAIRE » dans le menu Démarrer, relié à la fenêtre CLAIRE et portant l'icône haute définition de CLAIRE-serveur.exe ; Windows affiche alors cette icône nette pour la fenêtre. Rien à installer." },
     { version: '2026-09-29 14:17', resume: "Acquéreur accompagné par un confrère : l'email « Provision + pièce d'identité » est de nouveau proposé, adressé au confrère. Le RIB et la phrase RIB / pièces d'identité de l'email de réception des fonds restent retirés." },
     { version: '2026-09-29 14:16', resume: "Acquéreur accompagné par un confrère : CLAIRE ne propose plus de lui demander le RIB ni la pièce d'identité (À faire, onglet Échanges, email de provision), et l'email de réception des fonds au confrère ne contient plus la phrase sur les pièces d'identité et le RIB." },
@@ -26687,6 +26688,7 @@
       departementFrais,
       typeBienFrais,
       pretHypothecaire: hypo === true,
+      sansPret: !!d.sansPret,
       repris,
       aCompleter
     };
@@ -26939,6 +26941,8 @@
     ecrire('af-date-rdv', p.dateRdv);
     const casePret = afEl('af-pret-hypothecaire');
     if (casePret) casePret.checked = !!p.pretHypothecaire;
+    const caseSansPret = afEl('af-sans-pret');
+    if (caseSansPret) caseSansPret.checked = !!p.sansPret;
     // Préremplis seulement quand le dossier tranche : un département ambigu (69) ou un type de
     // vente absent laisse le select vide, donc le contrôle silencieux, plutôt qu'un barème deviné.
     ecrire('af-frais-departement', p.departementFrais);
@@ -27061,8 +27065,8 @@
           else if (f.statut === 'sur') badge = `<span class="af-verif af-verif-ecart" title="${escapeAttr(plage)}">↑ ${escapeHtml(montantVersTexteFr(f.ecart))} au-dessus du barème</span>`;
         }
         const montantTexte = l.memoire ? 'Mémoire' : montantVersTexteFr(l.montant || 0);
-        const cellMontant = `<span class="af-champ" data-af-section="${section}" data-af-index="${i}" oninput="modifierMontantAppelFonds(this)">${escapeHtml(montantTexte)}</span>`;
-        const cellLibelle = `<td><span class="af-champ" data-af-section="${section}" data-af-index="${i}" oninput="modifierLibelleAppelFonds(this)">${escapeHtml(l.libelle)}</span>${badge}${l.formule ? `<span class="af-formule">${escapeHtml(l.formule)}</span>` : ''}</td>`;
+        const cellMontant = `<span class="af-champ" data-af-section="${section}" data-af-index="${i}" data-af-champ="montant">${escapeHtml(montantTexte)}</span>`;
+        const cellLibelle = `<td><span class="af-champ" data-af-section="${section}" data-af-index="${i}" data-af-champ="libelle">${escapeHtml(l.libelle)}</span>${badge}${l.formule ? `<span class="af-formule">${escapeHtml(l.formule)}</span>` : ''}</td>`;
         html += `<tr title="Double-cliquez pour supprimer cette ligne" ondblclick="supprimerLigneAppelFonds('${section}', ${i})">` + (section === 'debit'
           ? `${cellLibelle}<td class="af-montant"></td><td class="af-montant">${cellMontant}</td>`
           : `${cellLibelle}<td class="af-montant">${cellMontant}</td><td class="af-montant"></td>`) + '</tr>';
@@ -27116,12 +27120,34 @@
     if (solde) solde.textContent = montantVersTexteFr(debit - credit);
   }
 
+  // Le courrier entier est UN bloc modifiable (#af-lettre, contenteditable) : le navigateur n'y
+  // signale une frappe qu'au bloc, jamais à la cellule du décompte — un `oninput` posé sur la
+  // cellule ne se déclenchait donc pas, le modèle gardait l'ancien texte, et le tableau redessiné
+  // (suppression d'une autre ligne, ajout, contrôle des frais) le faisait réapparaître (signalé
+  // par l'étude le 29/09). Chaque frappe dans le courrier relit donc toutes les cellules.
+  function synchroniserDecompteDepuisApercu() {
+    ['af-tbody-debit', 'af-tbody-credit'].forEach(id => {
+      const tbody = afEl(id);
+      if (!tbody) return;
+      tbody.querySelectorAll('.af-champ[data-af-champ]').forEach(span => {
+        if (span.getAttribute('data-af-champ') === 'montant') modifierMontantAppelFonds(span);
+        else modifierLibelleAppelFonds(span);
+      });
+    });
+  }
+  function saisieApercuAppelFonds() {
+    synchroniserDecompteDepuisApercu();
+    recalculerTotauxAppelFonds();
+  }
+
   function ajouterLigneAppelFonds(section) {
+    synchroniserDecompteDepuisApercu();
     afLignes[section].push({ libelle: 'Nouvelle ligne', montant: 0, formule: null, id: afIdLigne() });
     renderTableAppelFonds();
   }
 
   function supprimerLigneAppelFonds(section, i) {
+    synchroniserDecompteDepuisApercu();
     if (!afLignes[section] || !afLignes[section][i]) return;
     afLignes[section].splice(i, 1);
     renderTableAppelFonds();
@@ -27169,6 +27195,16 @@
     poser('af-p-designation', afValeur('af-designation') || 'un bien');
     poser('af-p-adressebien', afValeur('af-adresse-bien').replace(/\n+/g, ', ') || 'adresse à compléter');
     poser('af-p-rdv', phraseRdvAppelFonds(afValeur('af-date-rdv'), afValeur('af-heure-rdv'), lieuAppelFonds()));
+    const sansPret = afEl('af-sans-pret');
+    poser('af-p-deblocage', phraseDeblocageAppelFonds(!!(sansPret && sansPret.checked)));
+  }
+
+  // Dernière phrase du paragraphe « À cet effet… R.I.B. de l'étude » : sans prêt, texte donné par
+  // l'étude le 29/09, mot pour mot. Pure.
+  function phraseDeblocageAppelFonds(sansPret) {
+    return sansPret
+      ? 'Je vous invite à vous rapprocher de votre établissement bancaire afin de faire le point sur le déblocage, correspondant à votre apport personnel.'
+      : 'Je vous invite à vous rapprocher de votre établissement bancaire afin de faire le point sur le déblocage de votre prêt (total ou partiel si vous financez des travaux), ainsi que sur le virement du solde correspondant à votre apport personnel.';
   }
 
   // --- import du décompte du confrère -----------------------------------------------------------
@@ -27393,6 +27429,7 @@
       totalCredit: sousTotal('af-tbody-credit', 1),
       solde: lire('af-p-solde'),
       salut2: lire('af-p-salut2'),
+      phraseDeblocage: lire('af-p-deblocage'),
       notaire: lire('af-p-notaire')
     };
   }
@@ -27487,6 +27524,8 @@
     });
     const casePret = afEl('af-pret-hypothecaire');
     if (casePret) casePret.checked = false;
+    const caseSansPret = afEl('af-sans-pret');
+    if (caseSansPret) caseSansPret.checked = false;
     const lieu = afEl('af-lieu');
     if (lieu) lieu.value = "en l'étude";
     const mention = afEl('af-p-mention');
