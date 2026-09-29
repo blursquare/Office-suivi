@@ -795,6 +795,12 @@
   <div class="dash-grid">
     <div class="calc-card">
       <div class="dash-section-titre">Somme à répartir</div>
+      <div class="tf-import">
+        <label for="prorata-avis-tf" class="file-btn">Lire un avis de taxe foncière</label>
+        <input type="file" id="prorata-avis-tf" accept="application/pdf" hidden onchange="importerAvisTaxeFonciere('prorata', this.files && this.files[0]); this.value='';">
+        <span class="info-i" tabindex="0" data-info="Le montant de l'avis est lu en bas à droite de la page 2. Si l'avis porte sur plusieurs biens, indiquez la taxe foncière du bien vendu : la taxe d'ordures ménagères est répartie au prorata de la taxe foncière de chaque bien, puis ajoutée."></span>
+      </div>
+      <div id="prorata-tf-bloc" class="tf-bloc"></div>
       <div class="calc-champs">
         <div class="calc-champ">
           <label for="prorata-montant">Montant appelé (€)</label>
@@ -896,7 +902,21 @@
         <div id="af-recap-prefill" class="af-recap"></div>
       </div>
 
-      <div class="dash-section-titre" style="margin-top:18px;">2 · Décompte du confrère <span class="info-i" tabindex="0" data-info="Quand le décompte vient d&#x27;un confrère (étude en participation), collez-le ou déposez son PDF : ses lignes remplissent le tableau du courrier, et les prorata écrits sous forme de formule sont recalculés pour contrôle."></span></div>
+      <div class="dash-section-titre" style="margin-top:18px;">2 · Décompte</div>
+      <div class="vue-bascule af-mode-decompte" role="group" aria-label="Qui établit le décompte">
+        <button type="button" class="vue-bascule-btn actif" id="af-mode-btn-office" onclick="definirModeDecompteAppelFonds('office')">Établi par l'office</button>
+        <button type="button" class="vue-bascule-btn" id="af-mode-btn-confrere" onclick="definirModeDecompteAppelFonds('confrere')">Décompte du confrère</button>
+      </div>
+      <div id="af-mode-office" class="af-mode-panneau">
+        <div class="tf-import">
+          <label for="af-avis-tf" class="file-btn">Avis de taxe foncière</label>
+          <input type="file" id="af-avis-tf" accept="application/pdf" hidden onchange="importerAvisTaxeFonciere('af', this.files && this.files[0]); this.value='';">
+          <span class="info-i" tabindex="0" data-info="Ajoute au débit le prorata de taxe foncière à la charge de l'acquéreur, du jour du rendez-vous au 31 décembre. Honoraires de négociation, fonds de travaux et prêt hypothécaire sont repris du dossier rattaché."></span>
+        </div>
+        <div id="af-tf-bloc" class="tf-bloc"></div>
+      </div>
+      <div id="af-mode-confrere" class="af-mode-panneau" style="display:none;">
+      <div class="af-mode-aide">Collez ou déposez le décompte du confrère <span class="info-i" tabindex="0" data-info="Quand le décompte vient d&#x27;un confrère (étude en participation), collez-le ou déposez son PDF : ses lignes remplissent le tableau du courrier, et les prorata écrits sous forme de formule sont recalculés pour contrôle."></span></div>
       <div class="pdf-dropzone af-dropzone" id="af-dropzone" ondragover="gererSurvolDepotAppelFonds(event)" ondragleave="gererQuitteDepotAppelFonds(event)" ondrop="gererDepotAppelFonds(event)">
         <span class="pdf-dropzone-icone" id="icon-af-dropzone" aria-hidden="true"></span>
         <label for="af-fichier" class="file-btn">Choisir le PDF du décompte</label>
@@ -909,6 +929,7 @@
         <button type="button" class="secondary" onclick="importerDecompteColle()">Lire ce texte</button>
       </details>
       <div id="af-rapport-parse" class="af-rapport"></div>
+      </div>
 
       <div class="dash-section-titre" style="margin-top:18px;">3 · Client(s)</div>
       <div id="af-clients"></div>
@@ -933,7 +954,7 @@
         <div class="calc-champ calc-champ-paire">
           <div>
             <label for="af-date-rdv">Date du rendez-vous</label>
-            <input type="date" id="af-date-rdv" onchange="majApercuAppelFonds()">
+            <input type="date" id="af-date-rdv" onchange="majLigneTfAppelFonds(); majApercuAppelFonds()">
           </div>
           <div>
             <label for="af-heure-rdv">Heure</label>

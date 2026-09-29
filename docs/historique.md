@@ -12107,3 +12107,36 @@ les réglages de Claude. »
     pastille (`renderDossiersRecusLus` rend désormais du texte brut).
   Vérifié dans Chromium (réglages clair 1440 px et sombre 400 px, bulle au survol, appel de fonds,
   pas de défilement horizontal).
+
+### 29/09 21:04 — Honoraires, fonds de travaux, appel de fonds de l'office, avis de taxe foncière
+
+Demande : prorata depuis l'avis de taxe foncière (« montant toujours en bas à droite en fin de page
+deux », plusieurs biens → montant de référence à choisir + prorata des ordures ménagères) ; détection
+du remboursement du fonds de travaux ALUR et des honoraires de l'agence ou du confrère négociateur
+(TTC) à la lecture du compromis ; appel de fonds plus poussé (avis TF, relevé de compte, état daté,
+dernier appel de charges, offre de prêt si hypothécaire), en distinguant le décompte de l'office de
+celui du confrère en participation.
+Cadrage (réponses de l'étude) : prêt hypothécaire → montant du prêt déduit, frais de garantie au
+débit (« prêt en débit, frais en crédit » écrit dans la demande était inversé) ; TEOM d'un avis sur
+plusieurs biens au prorata de la taxe foncière ; relevé de compte = sommes déjà versées à déduire ;
+honoraires affichés sur la fiche et ajoutés à l'appel de fonds (à la charge de l'acquéreur).
+  - `detecterHonorairesNegociation` (structure réelle : « REMUNERATION DU MANDATAIRE A LA CHARGE DU
+    PROMETTANT … négociées par l'agence "…" … la somme, TVA incluse, de 15.000,00 € ») ; pièges
+    réels écartés : « NEGOCIATION DIRECTE ENTRE LES PARTIES » et « HONORAIRES DE PROMESSE DE VENTE »
+    (honoraires du notaire, 240 € TTC). `detecterFondsTravaux` (« FONDS TRAVAUX LOI ALUR … Le
+    BENEFICIAIRE remboursera au PROMETTANT le fonds travaux », sans montant). Rejoués sur les deux
+    promesses réelles envoyées : CRIL → négociation directe, fonds remboursé ; YAICH → agence,
+    15.000,00 € TTC, à la charge du vendeur. Stockés `d.honoraires`, `d.fondsTravaux` ; panneau de
+    révision et fiche (lignes « Négociation », « Fonds de travaux »).
+  - Appel de fonds : bascule « Établi par l'office » / « Décompte du confrère » (participation par
+    défaut sur le second). Lignes préremplies : honoraires TTC (charge acquéreur), remboursement du
+    fonds de travaux, « Frais d'acte de prêt (garantie hypothécaire) » au débit et « Montant du prêt
+    (versé par la banque) » en déduction, prorata de taxe foncière du jour du rendez-vous au 31/12
+    (`ligneProrataTaxeFonciere`, recalculé quand la date change).
+  - Avis de taxe foncière (Prorata et appel de fonds) : `montantBasDroitePage` (montant le plus bas
+    puis le plus à droite de la page 2), `montantTfBienAvecTeom` pour un avis sur plusieurs biens
+    (saisie assistée : TF du bien, TF de tous les biens, TEOM).
+  Non fait, faute d'exemple réel : relevé de compte, dernier appel de charges, montant du fonds de
+  travaux lu dans l'état daté pour l'appel de fonds, frais de garantie lus dans l'offre, repérage
+  automatique d'un avis sur plusieurs biens. Lecture de l'avis non vérifiée sur un vrai PDF ici
+  (pdf.js injoignable) : règle testée sur des positions reprises de l'avis type.

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 20:52';
+  const VERSION_APP = '2026-09-29 21:04';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 21:04', resume: "Nouveau dossier : CLAIRE lit les honoraires de négociation (agence ou confrère, montant TTC, à la charge de qui) et le remboursement du fonds de travaux loi ALUR, affichés sur la fiche. Appel de fonds : choix « Établi par l'office » / « Décompte du confrère » ; décompte de l'office complété seul avec les honoraires à la charge de l'acquéreur, le fonds de travaux remboursé, le prêt hypothécaire (montant déduit, frais de garantie appelés) et le prorata de taxe foncière lu sur l'avis. Prorata : lecture d'un avis de taxe foncière, avec la répartition des ordures ménagères si l'avis porte sur plusieurs biens." },
     { version: '2026-09-29 20:52', resume: "Réglages réorganisés comme ceux de Claude : les rubriques à gauche (Général, Rappels Teams, Signature des emails, Agenda, Relecture d'actes, Pièces, Signalements, Mise à jour et sauvegarde), une seule colonne de réglages à droite, sans les trous des anciennes cartes. Partout, les paragraphes d'explication laissent place à une petite pastille « i » : l'aide s'affiche au survol ou au toucher." },
     { version: '2026-09-29 20:17', resume: "Offre de prêt : « contrat de prêt », « contrat de crédit » et « offre de contrat de prêt » reconnus dans le nom du fichier comme dans le titre de la page de garde (et examinés en priorité, comme « offre de prêt »)." },
     { version: '2026-09-29 20:06', resume: "Offre de prêt reconnue plus vite : un PDF dont le nom dit « offre de prêt », ou qu'un nouveau dépôt sur le NAS vient de faire apparaître, est examiné dès le tour suivant (5 minutes au plus) au lieu d'attendre que les autres dossiers aient été relus. Un nouveau document signalé par le serveur fait vérifier son dossier aussitôt, et les PDF déjà écartés ne sont plus relus à chaque ouverture de CLAIRE." },
@@ -727,6 +728,122 @@
     if (!m) return null;
     return m[1].replace(/\s+/g, ' ').trim().replace(/[,\s]+$/, '');
   }
+  // ---- Honoraires de négociation (demandé par l'étude le 29/09) --------------------------------
+  // Qui a négocié la vente (agence ou confrère), combien (TTC) et à la charge de qui. Structure réelle
+  // d'une promesse (noms changés) : « REMUNERATION DU MANDATAIRE A LA CHARGE DU PROMETTANT Les
+  // parties reconnaissent : - Que les présentes ont été négociées par l'agence "X", par
+  // l'intermédiaire de … - Qu'en conformité de ce mandat, il lui est accordé … la somme, TVA incluse,
+  // de 15.000,00 €, à titre de rémunération. » Deux pièges vus sur de vrais actes :
+  //   - « NEGOCIATION DIRECTE ENTRE LES PARTIES … sans le concours ni la participation d'un
+  //     intermédiaire » : aucun honoraire, et le « Frais de négociation … néant » du coût de
+  //     l'opération le confirme ;
+  //   - les « HONORAIRES DE PROMESSE DE VENTE » (240,00 EUR TTC) sont ceux du NOTAIRE pour l'acte :
+  //     jamais des honoraires de négociation. Le motif ne part donc que d'une tournure de
+  //     négociation (« négocié(e)s par … »), jamais du seul mot « honoraires ».
+  var RE_NEGOCIATION_DIRECTE = /n[ée]goci[ée]e?s\s+directement\s+entre\s+(?:elles|les\s+parties)|sans\s+le\s+concours\s+(?:ni\s+la\s+participation\s+)?d['’]un\s+interm[ée]diaire/i;
+  var RE_NEGOCIE_PAR = /n[ée]goci[ée]e?s?\s+par\s+(l['’]agence|l['’]office\s+notarial|l['’][ée]tude|Ma[îi]tre|Me|la\s+soci[ée]t[ée]|la\s+SARL|la\s+SAS|la\s+SCP|la\s+SELARL|la\s+SELAS|le\s+cabinet)\s*["«“]?\s*([^,.;"»”(]{2,70})/i;
+  var RE_CHARGE_NEGOCIATION = /[àa]\s+la\s+charge\s+(?:exclusive\s+)?(?:du|de\s+l['’])\s*(PROMETTANT|B[ÉE]N[ÉE]FICIAIRE|VENDEUR|ACQU[ÉE]REUR)/i;
+  var RE_MONTANT_TTC = /(\d{1,3}(?:[ .  ]\d{3})*(?:,\d{2})?)\s*(?:€|eur(?:os?)?)(?![A-Za-zÀ-ɏ])/gi;
+  var FENETRE_HONORAIRES = 900;
+
+  function montantHonorairesDansFenetre(fenetre) {
+    const re = new RegExp(RE_MONTANT_TTC.source, 'gi');
+    const montants = [];
+    let m;
+    while ((m = re.exec(fenetre)) !== null) {
+      const n = montantDepuisTexteFr(m[1]);
+      if (!(n > 0)) continue;
+      const autour = fenetre.slice(Math.max(0, m.index - 80), m.index + m[0].length + 60);
+      montants.push({ n, ttc: /TVA\s+incluse|TTC|toutes\s+taxes\s+comprises|taxes?\s+incluses?/i.test(autour), ht: /\bHT\b|hors\s+taxes?/i.test(autour.slice(80)) });
+    }
+    const ttc = montants.find(x => x.ttc && !x.ht);
+    return ttc ? ttc.n : (montants.find(x => !x.ht) || montants[0] || { n: null }).n;
+  }
+
+  // Pure. { negociateur: 'agence'|'confrere', nom, montantTTC, charge: 'VENDEUR'|'ACQUEREUR'|null,
+  // source } ; { direct: true } pour une vente négociée entre les parties ; null si rien n'est dit.
+  function detecterHonorairesNegociation(texte, typeActe) {
+    const t = String(texte || '').replace(/\s+/g, ' ');
+    const m = RE_NEGOCIE_PAR.exec(t);
+    if (!m) return RE_NEGOCIATION_DIRECTE.test(t) ? { direct: true } : null;
+    const introducteur = m[1].toLowerCase();
+    const negociateur = /ma[îi]tre|^me$|office\s+notarial|[ée]tude|scp|selarl|selas/.test(introducteur) ? 'confrere' : 'agence';
+    let nom = m[2].replace(/\s+par\s+l['’]interm[ée]diaire.*$/i, '').replace(/\s+/g, ' ').trim();
+    if (/^ma[îi]tre|^me$/i.test(m[1])) nom = 'Maître ' + nom;
+    const fenetre = t.slice(m.index, m.index + FENETRE_HONORAIRES);
+    const avant = t.slice(Math.max(0, m.index - 300), m.index);
+    const charge = RE_CHARGE_NEGOCIATION.exec(avant) || RE_CHARGE_NEGOCIATION.exec(fenetre);
+    let role = null;
+    if (charge) {
+      const q = charge[1].toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+      role = q === 'vendeur' ? 'VENDEUR' : q === 'acquereur' ? 'ACQUEREUR' : roleDepuisQualite(typeActe, q);
+    }
+    return {
+      negociateur, nom, montantTTC: montantHonorairesDansFenetre(fenetre), charge: role,
+      source: { extrait: t.slice(Math.max(0, m.index - 60), m.index + 260).trim(), index: m.index }
+    };
+  }
+
+  // ---- Fonds de travaux « loi ALUR » : remboursé ou non par l'acquéreur (29/09) ------------------
+  // Structure réelle : « FONDS TRAVAUX LOI ALUR Le PROMETTANT déclare qu'un fonds travaux « Loi ALUR »
+  // a été versé au syndic ainsi qu'il résulte du pré état-daté susvisé. Le BENEFICIAIRE remboursera
+  // au PROMETTANT le fonds travaux. » — sans montant (il est dans l'état daté). Seule une phrase qui
+  // TRANCHE compte : les clauses générales qui rappellent que le fonds reste attaché au lot, sans dire
+  // qui rembourse quoi, ne décident rien. Pure : { rembourse: true|false, montant, source } ou null.
+  var RE_FONDS_TRAVAUX = /fonds\s+(?:de\s+)?travaux/gi;
+  var RE_FONDS_NON_REMBOURSE = /ne\s+(?:le\s+|lui\s+)?rembourser(?:a|ont)\s+pas|ne\s+(?:sera|seront|donnera|donneront)\s+(?:pas|lieu\s+[àa]\s+aucun)\s*(?:rembours|lieu)?|sans\s+(?:aucun\s+)?rembours|aucun\s+remboursement|n['’](?:est|sera)\s+pas\s+rembours|pas\s+de\s+remboursement/i;
+  var RE_FONDS_REMBOURSE = /(?:B[ÉE]N[ÉE]FICIAIRE|ACQU[ÉE]REUR)S?\s+(?:s['’](?:engage|oblige)\s+[àa]\s+)?rembours(?:er|era|eront|e)\b/i;
+  var FENETRE_FONDS_TRAVAUX = 420;
+
+  function detecterFondsTravaux(texte) {
+    const t = String(texte || '').replace(/\s+/g, ' ');
+    const re = new RegExp(RE_FONDS_TRAVAUX.source, 'gi');
+    let m;
+    while ((m = re.exec(t)) !== null) {
+      const fenetre = t.slice(m.index, m.index + FENETRE_FONDS_TRAVAUX);
+      const phrase = fenetre.split(/(?<=[.;])\s+(?=[A-ZÀ-Ý])/).slice(0, 4).join(' ');
+      let rembourse = null;
+      if (RE_FONDS_NON_REMBOURSE.test(phrase) && /rembours/i.test(phrase)) rembourse = false;
+      else if (RE_FONDS_REMBOURSE.test(phrase)) rembourse = true;
+      if (rembourse === null) continue;
+      const montant = montantHonorairesDansFenetre(phrase);
+      return { rembourse, montant: montant > 0 ? montant : null, source: { extrait: phrase.slice(0, 300).trim(), index: m.index } };
+    }
+    return null;
+  }
+
+  // Formes enregistrées sur le dossier (et reprises d'une sauvegarde) : champs connus seulement. Pures.
+  function honorairesPersistables(h) {
+    if (!h || typeof h !== 'object') return null;
+    if (h.direct === true) return { direct: true };
+    const montant = Number(h.montantTTC);
+    return {
+      negociateur: h.negociateur === 'confrere' ? 'confrere' : 'agence',
+      nom: typeof h.nom === 'string' ? h.nom.slice(0, 120) : '',
+      montantTTC: montant > 0 ? Math.round(montant * 100) / 100 : null,
+      charge: h.charge === 'ACQUEREUR' || h.charge === 'VENDEUR' ? h.charge : null
+    };
+  }
+  function fondsTravauxPersistable(f) {
+    if (!f || typeof f !== 'object' || typeof f.rembourse !== 'boolean') return null;
+    const montant = Number(f.montant);
+    return { rembourse: f.rembourse, montant: montant > 0 ? Math.round(montant * 100) / 100 : null };
+  }
+  // Libellés courts pour la fiche et le panneau de révision. Purs.
+  function libelleHonoraires(h) {
+    if (!h) return '';
+    if (h.direct) return 'Négociation directe entre les parties : pas d’honoraires';
+    const qui = h.negociateur === 'confrere' ? (h.nom || 'un confrère') : (h.nom ? 'agence ' + h.nom : 'une agence');
+    const montant = h.montantTTC ? ` — ${formaterPrixCentimes(h.montantTTC)} TTC` : '';
+    const charge = h.charge === 'ACQUEREUR' ? ', à la charge de l’acquéreur' : h.charge === 'VENDEUR' ? ', à la charge du vendeur' : '';
+    return `Négociée par ${qui}${montant}${charge}`;
+  }
+  function libelleFondsTravaux(f) {
+    if (!f) return '';
+    return (f.rembourse ? 'Remboursé par l’acquéreur au vendeur' : 'Non remboursé par l’acquéreur')
+      + (f.montant ? ` — ${formaterPrixCentimes(f.montant)}` : '');
+  }
+
 
   // Prix de vente : le montant en lettres est presque toujours suivi de sa forme chiffrée entre
   // parenthèses (usage notarial constant, ex. "CENT MILLE EUROS (100 000 €)") — bien plus fiable à
@@ -3436,6 +3553,8 @@
       version: 1,
       typeActe,
       parties: detecterParties(source, typeActe.valeur),
+      honoraires: detecterHonorairesNegociation(source, typeActe.valeur),
+      fondsTravaux: detecterFondsTravaux(source),
       notaires,
       bien: {
         adresse: bien.adresse,
@@ -3649,6 +3768,8 @@
         societe: p.societe || null,
         ...(p.nomUsage ? { nomUsage: p.nomUsage } : {})
       })),
+      honoraires: honorairesPersistables(extraction.honoraires),
+      fondsTravaux: fondsTravauxPersistable(extraction.fondsTravaux),
       notaires: {
         vendeur: notairePersistable(notaires.vendeur),
         acquereur: notairePersistable(notaires.acquereur),
@@ -8539,6 +8660,8 @@
       ${alertes}
       ${parties ? `<div class="revision-parties"><ul>${parties}</ul></div>` : ''}
       ${ligneNotaires}
+      ${extraction.honoraires ? `<div class="revision-raison">${escapeHtml(libelleHonoraires(extraction.honoraires))}</div>` : ''}
+      ${extraction.fondsTravaux ? `<div class="revision-raison">Fonds de travaux (loi ALUR) : ${escapeHtml(libelleFondsTravaux(extraction.fondsTravaux).toLowerCase())}</div>` : ''}
       <div class="revision-grille">${lignes}</div>
     `;
     panneau.style.display = 'block';
@@ -10240,6 +10363,8 @@
       },
       typeActe: instantane ? instantane.typeActe : null,
       parties: instantane ? instantane.parties : [],
+      honoraires: instantane ? instantane.honoraires : null,
+      fondsTravaux: instantane ? instantane.fondsTravaux : null,
       notaires: instantane ? instantane.notaires : null,
       bien: instantane ? instantane.bien : null,
       extraction: instantane ? instantane.extraction : null,
@@ -13939,6 +14064,8 @@
         ${ligne('lock', 'Séquestre', saisie('depot', d.depotGarantie ? formaterPrix(d.depotGarantie) : '', 'changerDepotGarantie', ' inputmode="numeric" title="Montant séquestré (dépôt de garantie)"'), `depot-${d.id}`)}
         ${ligne('shield', 'Versé à', saisie('sequestre', d.sequestreDepot, 'changerSequestreDepot', ' title="Entre les mains de qui l\'acquéreur verse le dépôt : l\'office, l\'agence, la CARPA…"'), `sequestre-${d.id}`)}
         ${ligne('trend-up', 'Financement', financement)}
+        ${d.honoraires && !d.honoraires.direct ? ligne('users', 'Négociation', `<span class="prop-texte">${escapeHtml(libelleHonoraires(d.honoraires).replace(/^Négociée par /, ''))}</span>`, null, 'prop-pleine') : ''}
+        ${d.fondsTravaux ? ligne('package', 'Fonds de travaux', `<span class="prop-texte">${escapeHtml(libelleFondsTravaux(d.fondsTravaux))}</span>`, null, 'prop-pleine') : ''}
       </dl>
       <dl class="fiche-proprietes">
         ${ligne('scale', 'Notaire vendeur', notaire('vendeur', d.notaireVendeur), `not-vendeur-${d.id}`, 'prop-pleine')}
@@ -19846,6 +19973,8 @@
       fondsRecus: null,
       adresseBien: typeof d.adresseBien === 'string' ? d.adresseBien : '',
       nomAgence: typeof d.nomAgence === 'string' ? d.nomAgence : '',
+      honoraires: honorairesPersistables(d.honoraires),
+      fondsTravaux: fondsTravauxPersistable(d.fondsTravaux),
       prixVente: Number.isFinite(d.prixVente) && d.prixVente > 0 ? d.prixVente : null,
       prixMobilier: Number.isFinite(d.prixMobilier) && d.prixMobilier > 0 ? d.prixMobilier : null,
       // Comme adresseBien/prixVente : une lecture de l'acte (ou une saisie de l'étude), identique
@@ -26944,8 +27073,22 @@
       else if (depot.motif === 'indetermine') aCompleter.push('Dépôt de garantie déduit, mais le dossier ne dit pas clairement qui le détient — à confirmer avant envoi.');
     }
 
-    if (hypo === true) repris.push('Prêt garanti par une hypothèque : frais d’acte de prêt à appeler');
-    else if (hypo === null) aCompleter.push('Garanties du prêt inconnues : à cocher vous-même si un acte de prêt est à recevoir.');
+    if (hypo === true) {
+      repris.push('Prêt garanti par une hypothèque : montant du prêt déduit, frais de garantie à appeler');
+      if (!(d.montantPret > 0)) aCompleter.push('Montant du prêt — l’offre de prêt n’en a pas donné.');
+    } else if (hypo === null) aCompleter.push('Garanties du prêt inconnues : à cocher vous-même si un acte de prêt est à recevoir.');
+
+    // Lus dans l'avant-contrat (voir detecterHonorairesNegociation / detecterFondsTravaux).
+    const honoraires = d.honoraires && !d.honoraires.direct && d.honoraires.charge === 'ACQUEREUR' ? d.honoraires : null;
+    if (honoraires) {
+      if (honoraires.montantTTC) repris.push('Honoraires de négociation à la charge de l’acquéreur');
+      else aCompleter.push('Honoraires de négociation à la charge de l’acquéreur : montant TTC non lu.');
+    }
+    const fondsTravaux = d.fondsTravaux && d.fondsTravaux.rembourse ? d.fondsTravaux : null;
+    if (fondsTravaux) {
+      if (fondsTravaux.montant) repris.push('Remboursement du fonds de travaux (loi ALUR)');
+      else aCompleter.push('Fonds de travaux remboursé au vendeur : montant à reprendre de l’état daté.');
+    }
 
     aCompleter.push('Montant des frais et droits de l’acte de vente — à reprendre de votre provision.');
 
@@ -26971,6 +27114,12 @@
       departementFrais,
       typeBienFrais,
       pretHypothecaire: hypo === true,
+      montantPret: hypo === true && d.montantPret > 0 ? d.montantPret : null,
+      honoraires: honoraires ? { nom: honoraires.nom || '', negociateur: honoraires.negociateur, montantTTC: honoraires.montantTTC || null } : null,
+      fondsTravaux: fondsTravaux ? { montant: fondsTravaux.montant || null } : null,
+      // Décompte établi par l'office, ou repris de celui d'un confrère quand l'étude est en
+      // participation (demandé par l'étude le 29/09).
+      modeDecompte: modeDecompteParDefaut(d),
       sansPret: !!d.sansPret,
       repris,
       aCompleter
@@ -26985,7 +27134,14 @@
       { libelle: "Montant des frais et droits de l'acte de vente", montant: 0, formule: null, id: afIdLigne() }
     ];
     if (p && p.pretHypothecaire) {
-      debit.push({ libelle: "Frais d'acte de prêt", montant: 0, formule: null, id: afIdLigne() });
+      debit.push({ libelle: "Frais d'acte de prêt (garantie hypothécaire)", montant: 0, formule: null, id: afIdLigne() });
+    }
+    if (p && p.honoraires) {
+      const qui = p.honoraires.nom ? ` (${p.honoraires.nom})` : '';
+      debit.push({ libelle: `Honoraires de négociation TTC${qui}`, montant: p.honoraires.montantTTC || 0, formule: null, id: afIdLigne() });
+    }
+    if (p && p.fondsTravaux) {
+      debit.push({ libelle: 'Remboursement du fonds de travaux (loi ALUR)', montant: p.fondsTravaux.montant || 0, formule: null, id: afIdLigne() });
     }
     const credit = [];
     if (p && p.depotGarantie) {
@@ -26996,8 +27152,63 @@
         : 'Acompte sur prix déjà versé';
       credit.push({ libelle: libelleAcompte, montant: p.depotGarantie, formule: null, id: afIdLigne() });
     }
+    // Prêt garanti par une hypothèque : les fonds de la banque transitent par l'étude et viennent en
+    // déduction ; les frais de l'acte de prêt (garantie) sont appelés au débit (règle confirmée par
+    // l'étude le 29/09).
+    if (p && p.pretHypothecaire) {
+      credit.push({ libelle: 'Montant du prêt (versé par la banque)', montant: p.montantPret || 0, formule: null, id: afIdLigne() });
+    }
     credit.push({ libelle: "Acompte sur frais versé à l'étude", montant: 0, formule: null, id: afIdLigne() });
     return { debit, credit };
+  }
+
+  // Pure : l'office établit le décompte, sauf quand l'étude est en participation (le décompte vient
+  // alors du confrère qui reçoit l'acte).
+  function modeDecompteParDefaut(d) {
+    return d && d.roleNotaire === 'participant' ? 'confrere' : 'office';
+  }
+
+  // ---- Avis de taxe foncière (demandé par l'étude le 29/09) ----------------------------------
+  // « Le montant est toujours en bas à droite, en fin de page deux. » Pure : parmi les items pdf.js
+  // de la page ({ str, x, y }, y croissant vers le haut), le montant le plus bas, puis le plus à
+  // droite. Un montant est un nombre avec centimes, ou suivi de « € » (l'avis arrondit à l'euro).
+  var RE_ITEM_MONTANT_AVIS = /^(\d{1,3}(?:[ .\u00a0\u202f]\d{3})*)(,\d{2})?\s*(€)?$/;
+  function montantBasDroitePage(items) {
+    const liste = (items || []).filter(it => it && typeof it.str === 'string');
+    const candidats = [];
+    liste.forEach((it, i) => {
+      const m = RE_ITEM_MONTANT_AVIS.exec(it.str.trim());
+      if (!m) return;
+      const suivant = liste[i + 1];
+      const euroApres = suivant && suivant.str.trim() === '€' && Math.abs(suivant.y - it.y) < 3;
+      if (!m[2] && !m[3] && !euroApres) return;
+      const n = montantDepuisTexteFr(m[1] + (m[2] || ''));
+      if (n > 0) candidats.push({ n, x: it.x, y: it.y });
+    });
+    if (!candidats.length) return null;
+    const yMin = Math.min(...candidats.map(c => c.y));
+    const bas = candidats.filter(c => c.y - yMin < 6);
+    return bas.reduce((a, b) => (b.x > a.x ? b : a)).n;
+  }
+
+  // Pure : avis portant sur plusieurs biens — la taxe d'ordures ménagères de l'avis est répartie au
+  // prorata de la taxe foncière de chaque bien (règle de l'étude, 29/09), puis ajoutée à celle du
+  // bien vendu.
+  function montantTfBienAvecTeom(tfBien, tfTotale, teomTotale) {
+    const bien = Number(tfBien), total = Number(tfTotale), teom = Number(teomTotale) || 0;
+    if (!(bien > 0) || !(total > 0) || bien > total) return null;
+    const partTeom = Math.round(teom * bien / total * 100) / 100;
+    return { tf: bien, teom: partTeom, total: Math.round((bien + partTeom) * 100) / 100 };
+  }
+
+  // Pure : la ligne « prorata de taxe foncière » d'un décompte acquéreur — du jour de l'acte (inclus)
+  // au 31 décembre, année civile de l'acte.
+  function ligneProrataTaxeFonciere(montantAnnuel, dateActeIso) {
+    if (!dateActeIso) return null;
+    const annee = dateActeIso.slice(0, 4);
+    const r = calculerProrata(montantAnnuel, `${annee}-01-01`, `${annee}-12-31`, dateActeIso);
+    if (!r) return null;
+    return { libelle: `Prorata de taxe foncière ${annee} (du ${dateActeIso.slice(8, 10) + '/' + dateActeIso.slice(5, 7)} au 31/12)`, montant: r.partAcquereur, detail: r };
   }
   // --- fin du socle pur -------------------------------------------------------------------------
 
@@ -27233,6 +27444,8 @@
     ecrire('af-prix-mobilier', p.prixMobilier ? String(p.prixMobilier) : '');
 
     afLignes = lignesDecompteDepuisPrefill(p);
+    definirModeDecompteAppelFonds(p.modeDecompte);
+    if (tfAvis.af) majLigneTfAppelFonds();
 
     renderPillDossierAppelFonds();
     renderClientsAppelFonds();
@@ -27498,6 +27711,131 @@
     if (z) z.classList.remove('dragover');
     const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
     if (f) importerDecompteAppelFonds(f);
+  }
+
+  // ---- Décompte établi par l'office, ou repris d'un confrère (29/09) ----
+  var afModeDecompte = 'office';
+  function definirModeDecompteAppelFonds(mode) {
+    afModeDecompte = mode === 'confrere' ? 'confrere' : 'office';
+    const office = afEl('af-mode-office'), confrere = afEl('af-mode-confrere');
+    if (office) office.style.display = afModeDecompte === 'office' ? '' : 'none';
+    if (confrere) confrere.style.display = afModeDecompte === 'confrere' ? '' : 'none';
+    const bOffice = afEl('af-mode-btn-office'), bConfrere = afEl('af-mode-btn-confrere');
+    if (bOffice) bOffice.classList.toggle('actif', afModeDecompte === 'office');
+    if (bConfrere) bConfrere.classList.toggle('actif', afModeDecompte === 'confrere');
+  }
+
+  // ---- Avis de taxe foncière : prorata et appel de fonds (29/09) ----
+  // `cible` : 'prorata' (outil Prorata) ou 'af' (appel de fonds). Rien n'est enregistré.
+  var tfAvis = { prorata: null, af: null };
+
+  async function lireAvisTaxeFonciere(fichier) {
+    const buffer = await fichier.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+    const page = await pdf.getPage(Math.min(2, pdf.numPages));
+    const contenu = await page.getTextContent();
+    const items = contenu.items.map(it => ({ str: it.str, x: it.transform[4], y: it.transform[5] }));
+    return { montant: montantBasDroitePage(items), pages: pdf.numPages };
+  }
+
+  async function importerAvisTaxeFonciere(cible, fichier) {
+    if (!fichier) return;
+    if (typeof pdfjsLib === 'undefined') { afficherToast('Le lecteur PDF n\'est pas disponible.', 'OK', null); return; }
+    try {
+      const lu = await lireAvisTaxeFonciere(fichier);
+      if (!lu.montant) {
+        tfAvis[cible] = { fichier: fichier.name, montantAvis: null, retenu: null, erreur: true };
+      } else {
+        tfAvis[cible] = { fichier: fichier.name, montantAvis: lu.montant, retenu: lu.montant };
+      }
+    } catch (e) {
+      console.error(e);
+      tfAvis[cible] = { fichier: fichier.name, montantAvis: null, retenu: null, erreur: true };
+    }
+    renderBlocTaxeFonciere(cible);
+    appliquerTaxeFonciere(cible);
+  }
+
+  function renderBlocTaxeFonciere(cible) {
+    const zone = document.getElementById(cible + '-tf-bloc');
+    const t = tfAvis[cible];
+    if (!zone) return;
+    if (!t) { zone.innerHTML = ''; return; }
+    if (t.erreur) {
+      zone.innerHTML = `<p class="hint">${icone('alert-triangle')} ${escapeHtml(t.fichier)} : montant introuvable en bas de la page 2 — saisissez-le.</p>`;
+      return;
+    }
+    const retenu = t.retenu !== t.montantAvis
+      ? ` · retenu : <strong>${formaterPrixCentimes(t.retenu)}</strong>` : '';
+    zone.innerHTML = `
+      <p class="hint tf-lu">${escapeHtml(t.fichier)} : <strong>${formaterPrixCentimes(t.montantAvis)}</strong>${retenu}
+        <button type="button" class="icon-btn" onclick="effacerTaxeFonciere('${cible}')" title="Retirer l'avis" aria-label="Retirer l'avis">${icone('x')}</button></p>
+      <details class="tf-multi"${t.multi ? ' open' : ''}>
+        <summary>L'avis porte sur plusieurs biens</summary>
+        <div class="calc-champs tf-multi-champs">
+          <div class="calc-champ"><label for="${cible}-tf-bien">Taxe foncière du bien vendu (€)</label>
+            <input type="text" inputmode="decimal" id="${cible}-tf-bien" value="${t.tfBien ? escapeAttr(String(t.tfBien).replace('.', ',')) : ''}" oninput="majTaxeFonciereMulti('${cible}')"></div>
+          <div class="calc-champ"><label for="${cible}-tf-total">Taxe foncière de tous les biens (€)</label>
+            <input type="text" inputmode="decimal" id="${cible}-tf-total" value="${t.tfTotal ? escapeAttr(String(t.tfTotal).replace('.', ',')) : ''}" oninput="majTaxeFonciereMulti('${cible}')"></div>
+          <div class="calc-champ"><label for="${cible}-tf-teom">Ordures ménagères de l'avis (€)</label>
+            <input type="text" inputmode="decimal" id="${cible}-tf-teom" value="${t.teom ? escapeAttr(String(t.teom).replace('.', ',')) : ''}" oninput="majTaxeFonciereMulti('${cible}')"></div>
+        </div>
+        <p class="hint" id="${cible}-tf-multi-resultat"></p>
+      </details>`;
+    majTaxeFonciereMulti(cible, true);
+  }
+
+  function majTaxeFonciereMulti(cible, sansAppliquer) {
+    const t = tfAvis[cible];
+    if (!t) return;
+    const lire = (id) => { const e = document.getElementById(`${cible}-tf-${id}`); return e ? montantDepuisTexteFr(e.value) : null; };
+    t.tfBien = lire('bien'); t.tfTotal = lire('total'); t.teom = lire('teom');
+    const r = montantTfBienAvecTeom(t.tfBien, t.tfTotal, t.teom);
+    t.multi = !!(t.tfBien || t.tfTotal || t.teom);
+    const sortie = document.getElementById(`${cible}-tf-multi-resultat`);
+    if (sortie) sortie.innerHTML = r
+      ? `Montant retenu : <strong>${formaterPrixCentimes(r.total)}</strong> (taxe foncière ${formaterPrixCentimes(r.tf)} + ordures ménagères ${formaterPrixCentimes(r.teom)})`
+      : (t.multi ? 'Renseignez la taxe foncière du bien et celle de tous les biens.' : '');
+    t.retenu = r ? r.total : t.montantAvis;
+    if (!sansAppliquer) appliquerTaxeFonciere(cible);
+  }
+
+  function effacerTaxeFonciere(cible) {
+    tfAvis[cible] = null;
+    renderBlocTaxeFonciere(cible);
+    appliquerTaxeFonciere(cible);
+  }
+
+  function appliquerTaxeFonciere(cible) {
+    const t = tfAvis[cible];
+    if (cible === 'prorata') {
+      if (!t || !t.retenu) return;
+      const montant = document.getElementById('prorata-montant');
+      const periode = document.getElementById('prorata-periode');
+      if (montant) montant.value = String(t.retenu);
+      if (periode && periode.value !== 'annee') { periode.value = 'annee'; majPeriodeProrata(); }
+      calculerProrataAffichage();
+      return;
+    }
+    majLigneTfAppelFonds();
+  }
+
+  // La ligne « Prorata de taxe foncière » du décompte : recalculée quand l'avis ou la date du
+  // rendez-vous change, retirée quand l'avis est retiré.
+  var AF_ID_LIGNE_TF = 'af-ligne-tf';
+  function majLigneTfAppelFonds() {
+    const t = tfAvis.af;
+    const avant = afLignes.debit.findIndex(l => l.id === AF_ID_LIGNE_TF);
+    const date = afValeur('af-date-rdv');
+    const ligne = t && t.retenu ? ligneProrataTaxeFonciere(t.retenu, date) : null;
+    if (avant !== -1) afLignes.debit.splice(avant, 1);
+    if (ligne) afLignes.debit.push({ libelle: ligne.libelle, montant: ligne.montant, formule: null, id: AF_ID_LIGNE_TF });
+    const zone = document.getElementById('af-tf-bloc');
+    const note = zone && zone.querySelector('.tf-date-manquante');
+    if (t && t.retenu && !date && zone && !note) zone.insertAdjacentHTML('beforeend', '<p class="hint tf-date-manquante">Date du rendez-vous nécessaire pour le prorata.</p>');
+    if (note && (date || !t)) note.remove();
+    renderTableAppelFonds();
+    majApercuAppelFonds();
   }
 
   async function importerDecompteAppelFonds(fichier) {
@@ -27800,6 +28138,9 @@
     afFraisChoisiALaMain = { departement: false, type: false };
     afClients = [{ civilite: 'M', prenom: '', nom: '' }];
     afLignes = lignesDecompteDepuisPrefill(null);
+    tfAvis.af = null;
+    renderBlocTaxeFonciere('af');
+    definirModeDecompteAppelFonds('office');
     ['af-ref', 'af-designation', 'af-adresse-bien', 'af-adresse-clients', 'af-date-rdv', 'af-heure-rdv', 'af-lieu-autre', 'af-coller-texte', 'af-frais-departement', 'af-frais-type', 'af-prix-mobilier'].forEach(id => {
       const e = afEl(id);
       if (e) e.value = '';

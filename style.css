@@ -6654,3 +6654,14 @@ button.confrere-carnet-office:focus-visible, button.carnet-dossier:focus-visible
 .signature-image-tete { display: flex; align-items: center; gap: 6px; }
 .signature-image-apercu { display: block; max-width: 100%; height: auto; border: 1px solid var(--line); border-radius: 6px; background: #FFFFFF; }
 .signature-image-ligne .bouton-ajout { margin: 0; }
+
+/* ---- Avis de taxe foncière (Prorata, appel de fonds) et mode du décompte (29/09) ---- */
+.tf-import { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0 10px; }
+.tf-bloc:empty { display: none; }
+.tf-bloc { margin-bottom: 12px; }
+.tf-bloc .tf-lu { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 6px; }
+.tf-multi > summary { cursor: pointer; color: var(--focus); font-size: 13px; font-weight: 500; }
+.tf-multi-champs { margin-top: 8px; }
+.af-mode-decompte { margin: 6px 0 12px; }
+.af-mode-panneau { margin-bottom: 4px; }
+.af-mode-aide { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-soft); margin-bottom: 8px; }

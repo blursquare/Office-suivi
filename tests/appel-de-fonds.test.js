@@ -189,9 +189,13 @@ test('lignesDecompteDepuisPrefill garde une ligne à zéro plutôt que de la mas
   assert.strictEqual(l.debit[0].montant, 100000);
   assert.strictEqual(l.debit[1].montant, 0);
   assert.strictEqual(l.credit.length, 1);
-  const avecPret = app.lignesDecompteDepuisPrefill({ prixVente: 1, depotGarantie: 5000, pretHypothecaire: true });
+  // Prêt hypothécaire : frais de garantie au débit, montant du prêt en déduction (règle de l'étude, 29/09).
+  const avecPret = app.lignesDecompteDepuisPrefill({ prixVente: 1, depotGarantie: 5000, pretHypothecaire: true, montantPret: 180000 });
   assert.strictEqual(avecPret.debit.length, 3);
-  assert.strictEqual(avecPret.credit.length, 2);
+  assert.match(avecPret.debit[2].libelle, /Frais d'acte de prêt \(garantie hypothécaire\)/);
+  assert.strictEqual(avecPret.credit.length, 3);
+  assert.strictEqual(avecPret.credit[1].libelle, 'Montant du prêt (versé par la banque)');
+  assert.strictEqual(avecPret.credit[1].montant, 180000);
 });
 
 test('phraseRdvAppelFonds écrit ce qu’on sait, jamais une date inventée', () => {

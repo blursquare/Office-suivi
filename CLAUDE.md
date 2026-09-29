@@ -147,6 +147,15 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   serveur `bilanFonds`) ; au-delà, « excédent » à vérifier, jamais « complet ». Noms cherchés :
   parties acquéreurs (et leur `nomUsage`, lu dans l'état civil « Veuve/Épouse de Monsieur … NOM » par
   `nomsUsageDansBloc`) + nom du dossier + nom du courrier d'appel de fonds + `d.nomsRecus`.
+- **Honoraires de négociation / fonds de travaux** (lus dans l'avant-contrat, 29/09) : honoraires
+  seulement depuis une tournure « négocié(e)s par … » (jamais les honoraires du notaire pour la
+  promesse ; « négociation directe » = aucun) ; fonds de travaux seulement sur une phrase qui tranche
+  le remboursement. À la charge de l'acquéreur / remboursé → ligne au débit de l'appel de fonds.
+- **Appel de fonds** : établi par l'office, ou repris du décompte du confrère quand l'étude est en
+  participation. Prêt hypothécaire : montant du prêt **déduit**, frais de garantie **appelés au
+  débit**. Taxe foncière : montant de l'avis lu en bas à droite de la page 2 ; avis sur plusieurs
+  biens → TEOM répartie **au prorata de la taxe foncière** de chaque bien, ajoutée au bien vendu ;
+  prorata acquéreur du jour de l'acte au 31/12. Relevé de compte = sommes déjà versées (à déduire).
 - **Mobilier** : le prix reste le prix total ; `d.prixMobilier` sort seulement de l'assiette des
   droits (frais d'acte, contrôle du barème).
 - **Prorata** : jours réels, jour de l'acte à la charge de l'acquéreur, arrondi du vendeur par
@@ -271,7 +280,10 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   l'image dans `word/document.xml` + `word/media/` et régénérer le base64, et déclarer tout nouveau
   fichier dans les deux listes d'assets.
 - **Appel de fonds** : aperçu de pagination A4 non repris ; frais et droits de l'acte de vente à
-  saisir à la main (barème non audité).
+  saisir à la main (barème non audité). **Pièces à lire, en attente d'exemples réels** : relevé de
+  compte (versements à déduire), dernier appel de charges (prorata de charges), état daté (montant du
+  fonds de travaux), montant des frais de garantie dans l'offre de prêt, détection automatique d'un
+  avis de taxe foncière portant sur plusieurs biens (aujourd'hui saisie assistée).
 - **Banc d'essai d'extraction** : cadré dans `docs/spec-banc-essai-extraction.md`, délégué, pas
   encore engagé.
 - **Relecture d'actes** : non vérifiée avec une vraie clé API (qualité, durée, coût, contradictions)
