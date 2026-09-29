@@ -11621,3 +11621,23 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
   mention, ou remplace une forme déjà présente (« Me DURAND » sans rang, « Maître DURAND en 1er »…)
   — jamais de doublon, mot entier seulement ; les rendez-vous créés à la main dans Outlook le
   reçoivent donc à la première note d'envoi.
+
+- **29/09/2026 — Carnet des confrères** (demandé par l'étude : « fais le carnet des confrères,
+  essaie de récupérer un listing en ligne pour le département 41 pour commencer »). Premier
+  remplissage : les 36 offices du Loir-et-Cher de l'annuaire public immonot (35 sans le nôtre),
+  relevés le 29/09/2026 depuis les données structurées de chaque fiche (email et téléphone de
+  l'office, adresse, notaires, bureaux secondaires) ; notaires.fr refuse la lecture automatique
+  (403), data.gouv.fr était injoignable. Coordonnées professionnelles publiques, pas des données
+  clients ; un relevé daté, à corriger au fil des dossiers. Serveur : `carnetConfreres.js`
+  (`CARNET_INITIAL_41`, liste blanche `assainirOffice`), clé `carnet-confreres` de `parametres`,
+  écrite à la première lecture (supprimer la clé recharge le relevé ; un carnet vidé à la main reste
+  vide), routes `GET/POST /api/confreres` (un office à la fois, fusion par identifiant, comme les
+  corrections apprises) et `DELETE /api/confreres/:id`. Client : page Outils › Carnet des confrères
+  (recherche, cartes par office avec les dossiers en cours où il intervient, crayon/×, « Ajouter un
+  office ») ; rapprochement notaire → office `trouverOfficeConfrere` par NOM DE FAMILLE (mots en
+  capitales), départagé par le prénom puis la ville (y compris d'un bureau secondaire), jamais deviné
+  quand deux offices restent possibles. Sur la fiche : office, téléphone et email sous le notaire
+  (`renderConfrereCarnetFiche`), notaires du carnet proposés dans la liste déroulante des champs
+  notaire, « Ajouter au carnet » pour un notaire inconnu ; `emailDestinataireRelance` prend l'email
+  de l'office du carnet quand `emailNotaireParticipant` est vide (affiché en indication dans le
+  champ « Confrère ») ; un email saisi sur un dossier complète l'office du carnet qui n'en avait pas.

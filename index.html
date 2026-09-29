@@ -131,6 +131,11 @@
         <button type="button" id="tab-quotites" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('quotites')">
           <span class="sidebar-link-icone" id="icon-nav-quotites" aria-hidden="true"></span>Quotités d'acquisition
         </button>
+        <!-- Carnet des confrères : les offices notariaux avec qui l'étude traite (notaires, adresse,
+             téléphone, email), partagé en base — voir server/src/carnetConfreres.js. -->
+        <button type="button" id="tab-confreres" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('confreres')">
+          <span class="sidebar-link-icone" id="icon-nav-confreres" aria-hidden="true"></span>Carnet des confrères
+        </button>
       </div>
 
       <span class="sidebar-nav-titre">Admin</span>
@@ -1423,6 +1428,31 @@
       <button type="button" class="secondary" onclick="viderAnalyseIa()">Nouvelle relecture</button>
     </div>
   </section>
+</div>
+
+<!-- Carnet des confrères — voir renderCarnetConfreres (script.js). Parti du relevé de l'annuaire
+     du Loir-et-Cher, complété par l'étude ; la fiche d'un dossier rapproche chaque notaire de son
+     office (trouverOfficeConfrere). -->
+<div class="onglet-panel" id="onglet-confreres" style="display:none;">
+  <div class="dash-header">
+    <div>
+      <div class="dash-eyebrow">Outils</div>
+      <div class="dash-titre-ligne">
+        <h1 class="dash-titre">Carnet des confrères</h1>
+      </div>
+    </div>
+    <div class="dash-header-actions">
+      <button type="button" class="bouton-ajout" onclick="nouvelOfficeCarnet()">Ajouter un office</button>
+    </div>
+  </div>
+  <div class="carnet-outils">
+    <div class="dash-recherche carnet-recherche">
+      <input type="search" id="carnet-recherche" placeholder="Rechercher un notaire, un office, une ville…" oninput="rechercherCarnet(this.value)" autocomplete="off" aria-label="Rechercher dans le carnet">
+    </div>
+    <span class="carnet-compte" id="carnet-compte"></span>
+  </div>
+  <p class="carnet-source">Premier remplissage : offices du Loir-et-Cher relevés le 29/09/2026 sur l'annuaire public immonot. À vérifier au fil des dossiers.</p>
+  <div id="carnet-liste" class="carnet-liste"></div>
 </div>
 
 <!-- Réglages : URL du flux Power Automate + adresse email de chaque responsable (voir

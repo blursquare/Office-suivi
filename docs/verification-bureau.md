@@ -82,6 +82,10 @@ Réglages › Rappels et agenda › Agenda Outlook de l'office.
 - [ ] L'icône de CLAIRE est **nette** dans la barre des tâches et sur le bureau (pas pixelisée).
       Si elle l'est encore : redémarrer le poste une fois, Windows garde les icônes en cache.
 
+- [ ] **Carnet des confrères** (Outils) : 35 offices du Loir-et-Cher présents. Ouvrir un dossier
+      dont le confrère est du 41 : son office, son téléphone et son email s'affichent sous son nom.
+      Signaler toute coordonnée fausse (relevé d'annuaire du 29/09/2026, pas vérifié office par office).
+
 ---
 
 **À la fin** : supprimer les dossiers de test, et vérifier qu'aucun rendez-vous « TEST » ne reste

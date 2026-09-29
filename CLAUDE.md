@@ -41,6 +41,7 @@ server/                              Serveur (son propre package.json ; le packa
        parametresRepo.js             clé→JSON pour réglages et états produits par le serveur)
   src/routes/*.js                    API (dossiers, nas, reglages, notifications, agenda, exchange,
                                      relectureClaude, relectures, extractionIa, offrePret, …)
+  src/carnetConfreres.js             Carnet des confrères (relevé initial des offices du 41, liste blanche)
   src/jobs/rappels.js                Rappels par email (miroir serveur du planning client)
   src/nas.js, nasWatch.js            Lecture du NAS par le serveur, surveillance périodique
   src/agendaOffice.js, agendaWatch.js  Lecture du .ics de l'agenda de l'office

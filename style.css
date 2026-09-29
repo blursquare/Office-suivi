@@ -6520,3 +6520,63 @@ details.echanges-autres .ja-titre { font-weight: 500; }
   font-size: 10.5px; font-weight: 600; color: var(--ink-soft); background: var(--line-soft); white-space: nowrap;
 }
 .email-matin-autres { margin: 6px 0 0; }
+
+/* Carnet des confrères (voir renderCarnetConfreres). Une carte par office, en grille ; la fiche
+   d'un dossier reprend l'office sous le notaire (.confrere-carnet). */
+.carnet-outils { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+.dash-recherche.carnet-recherche { width: 360px; }
+.carnet-compte { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.carnet-source { margin: 0 0 16px; font-size: 12px; color: var(--muted); }
+.carnet-liste {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+.carnet-liste > * { min-width: 0; }
+.carnet-office {
+  background: var(--paper-card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 5px;
+  font-size: 13px;
+}
+.carnet-office-tete { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.carnet-office-nom { margin: 0; font-size: 14px; font-weight: 650; color: var(--ink); line-height: 1.3; text-wrap: balance; }
+.carnet-office-icones { display: flex; gap: 2px; flex: none; margin: -3px -6px 0 0; }
+.carnet-notaires { display: flex; flex-wrap: wrap; gap: 2px 10px; color: var(--ink-soft); }
+.carnet-ligne { display: flex; align-items: baseline; gap: 6px; color: var(--ink-soft); min-width: 0; overflow-wrap: anywhere; }
+.carnet-ligne .icone { flex: none; color: var(--muted); align-self: center; }
+.carnet-bureaux, .carnet-notes { font-size: 12px; color: var(--muted); }
+.carnet-contacts { flex-wrap: wrap; }
+.carnet-contacts a, .confrere-carnet a { color: var(--focus); text-decoration: none; }
+.carnet-contacts a:hover, .confrere-carnet a:hover { text-decoration: underline; }
+.carnet-sep { color: var(--muted); }
+.carnet-manque { color: var(--muted); font-style: italic; }
+.carnet-dossiers { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-top: 4px; padding-top: 7px; border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 12px; }
+.carnet-dossiers .icone { color: var(--muted); }
+button.carnet-dossier {
+  font: inherit; font-size: 12px; font-weight: 600; color: var(--ink-soft);
+  background: var(--line-soft); border: none; border-radius: 999px; padding: 1px 8px; cursor: pointer;
+}
+button.carnet-dossier:hover { color: var(--ink); background: var(--line); }
+.carnet-vide { color: var(--muted); font-size: 13px; }
+.carnet-form { grid-column: 1 / -1; max-width: 640px; }
+.carnet-form textarea { width: 100%; font: inherit; resize: vertical; }
+.carnet-form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+
+.prop-ligne dd:has(.confrere-carnet) { flex-wrap: wrap; row-gap: 2px; }
+.confrere-carnet { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; font-size: 12px; color: var(--muted); min-width: 0; }
+button.confrere-carnet-office {
+  display: inline-flex; align-items: center; gap: 5px; min-width: 0;
+  font: inherit; font-size: 12px; color: var(--ink-soft); background: none; border: none; padding: 0; cursor: pointer; text-align: left;
+}
+button.confrere-carnet-office:hover { color: var(--ink); text-decoration: underline; }
+button.confrere-carnet-office:focus-visible, button.carnet-dossier:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.confrere-carnet-contacts { overflow-wrap: anywhere; }
+.confrere-carnet .bouton-ajout { margin: 0; }
+@media (max-width: 600px) {
+  .dash-recherche.carnet-recherche { width: 100%; }
+  .carnet-liste { grid-template-columns: 1fr; }
+}

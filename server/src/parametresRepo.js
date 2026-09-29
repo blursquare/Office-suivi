@@ -10,6 +10,7 @@
 'use strict';
 
 const { MODELES_MISTRAL, MODELE_MISTRAL_PAR_DEFAUT, REGIONS_MISTRAL } = require('./relecture/mistral');
+const { assainirCarnet, carnetInitial } = require('./carnetConfreres');
 
 const CLE_REGLAGES = 'reglages';
 
@@ -568,6 +569,10 @@ function assainirDernierTourAgenda(brut) {
 // Résumé des emails du matin (voir emailsMatin.js) : produit par le serveur, relu par les postes.
 // Seulement l'expéditeur, l'objet, l'heure et les sujets repérés — jamais le corps d'un email.
 const CLE_RESUME_EMAILS = 'resume-emails-matin';
+
+// Carnet des confrères (voir carnetConfreres.js). Absent = jamais ouvert : il part alors du relevé
+// de l'annuaire du 41, écrit en base à la première lecture pour que les postes partagent la même liste.
+const CLE_CARNET_CONFRERES = 'carnet-confreres';
 function assainirEmailResume(e) {
   const b = e && typeof e === 'object' ? e : {};
   return {
@@ -897,7 +902,20 @@ function creerRepoParametres(db) {
     return propre;
   }
 
+  function lireCarnetConfreres() {
+    const ligne = lireStmt.get(CLE_CARNET_CONFRERES);
+    if (!ligne) return ecrireCarnetConfreres(carnetInitial());
+    try { return assainirCarnet(JSON.parse(ligne.valeur)); } catch (e) { return []; }
+  }
+
+  function ecrireCarnetConfreres(carnet) {
+    const propre = assainirCarnet(carnet);
+    ecrireStmt.run(CLE_CARNET_CONFRERES, JSON.stringify(propre));
+    return propre;
+  }
+
   return {
+    lireCarnetConfreres, ecrireCarnetConfreres,
     lireResumeEmails, ecrireResumeEmails,
     lireReglagesMiseAJour, ecrireReglagesMiseAJour,
     lireReglagesExchange, ecrireReglagesExchange,

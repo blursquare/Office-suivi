@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 07:16';
+  const VERSION_APP = '2026-09-29 08:50';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 08:50', resume: "Carnet des confrères (Outils) : les 35 offices notariaux du Loir-et-Cher déjà remplis (notaires, adresse, téléphone, email), à corriger ou compléter sur place. Sur la fiche d'un dossier, le notaire est rapproché de son office : office, téléphone et email s'affichent dessous, l'email de l'office sert aux relances au confrère tant qu'aucune adresse n'est saisie, et un notaire inconnu s'ajoute au carnet en un clic." },
     { version: '2026-09-29 07:16', resume: "Agenda : le confrère figure dans le lieu du rendez-vous de signature — « BA - Me DURAND en 1er - Appel de fonds envoyé » s'il reçoit l'acte, « … en 2nd … » s'il est en participation." },
     { version: '2026-09-29 00:55', resume: "Emails du matin réservés à Bastien : la rubrique n'apparaît plus sur les postes de Julie et Jérémy." },
     { version: '2026-09-29 00:54', resume: "Emails du matin : à 8 h 50, CLAIRE lit la boîte de réception (emails reçus depuis la veille 18 h, le vendredi pour un lundi) et les range par dossier dans la fenêtre « Aujourd'hui ». Sans IA : rien ne quitte le bureau, seuls l'expéditeur, l'objet et l'heure sont gardés." },
@@ -367,6 +368,7 @@
     'part-disque': '<circle cx="8" cy="8" r="5.6"/><path d="M8 2.4V8l4 3.8"/>',
     // Balance à deux plateaux : l'arbitrage du forfait mobilier met en regard ce que la prisée
     // fait gagner et ce qu'elle coûte. Même grille 16x16 et même trait 1.4 que le reste du jeu.
+    book: '<path d="M3 2.5h8.2a1.3 1.3 0 0 1 1.3 1.3v9.7H4.3A1.3 1.3 0 0 1 3 12.2z"/><path d="M3 12.2a1.3 1.3 0 0 1 1.3-1.3h8.2"/><line x1="6" y1="5.6" x2="9.8" y2="5.6"/>',
     users: '<circle cx="6" cy="5.4" r="2.2"/><path d="M2 13c0-2.2 1.8-3.8 4-3.8s4 1.6 4 3.8"/><path d="M10.4 3.3a2.1 2.1 0 0 1 0 4.2"/><path d="M11.6 9.4c1.4.4 2.4 1.7 2.4 3.6"/>',
     scale: '<line x1="8" y1="3.2" x2="8" y2="13.2"/><line x1="5.2" y1="13.2" x2="10.8" y2="13.2"/><line x1="3" y1="4.4" x2="13" y2="4.4"/><path d="M3 4.4 1.4 8.4h3.2L3 4.4Z" stroke-linejoin="round"/><path d="M13 4.4 11.4 8.4h3.2L13 4.4Z" stroke-linejoin="round"/>',
     // Réglages : une vraie roue crantée (anneau + trou central + 8 dents), demandée par l'étude
@@ -3009,9 +3011,17 @@
   // Email à utiliser pour toute relance normalement adressée à l'acquéreur (prêt manquant, RIB) :
   // celui du notaire qui le représente si un office distinct a été identifié (jamais l'adresse
   // personnelle du client dans ce cas), sinon l'email de l'acquéreur lui-même.
+  // À défaut d'adresse saisie sur le dossier, celle de l'office du confrère dans le carnet.
   function emailDestinataireRelance(d) {
-    if (notaireParticipantRepresenteAcquereur(d)) return d.emailNotaireParticipant || '';
+    if (notaireParticipantRepresenteAcquereur(d)) return d.emailNotaireParticipant || emailOfficeConfrereAcquereur(d);
     return d.emailAcquereur || '';
+  }
+
+  // Email de l'office qui représente l'acquéreur, tiré du carnet des confrères ('' sinon).
+  function emailOfficeConfrereAcquereur(d) {
+    if (!notaireParticipantRepresenteAcquereur(d)) return '';
+    const t = trouverOfficeConfrere(d.notaireAcquereur, typeof carnetConfreres !== 'undefined' ? carnetConfreres : []);
+    return (t && t.office.email) || '';
   }
 
   // ==== EXTRACTION STRUCTURÉE : adresse du bien vendu ====
@@ -10953,6 +10963,339 @@
     return [initialesResponsable(d), confrereLieuAgenda(d), mentionEnvoisAgenda(d)].filter(Boolean).join(' - ');
   }
 
+  // ==== CARNET DES CONFRÈRES ====
+  //
+  // Demandé par l'étude le 29/09 : les offices avec qui elle traite, remplis une fois et proposés
+  // dans chaque dossier. Partagé en base (server/src/carnetConfreres.js) ; parti des 35 offices du
+  // Loir-et-Cher relevés sur l'annuaire public immonot. Un notaire saisi sur une fiche est
+  // rapproché de son office par son NOM DE FAMILLE (trouverOfficeConfrere) : l'office, sa ville,
+  // son téléphone et son email s'affichent alors sous le notaire, et l'email de l'office sert aux
+  // relances au confrère tant qu'aucune adresse n'est saisie sur le dossier.
+  var carnetConfreres = [];
+  var carnetRecherche = '';
+  // Office en cours de modification sur la page du carnet ('nouveau' pour un ajout).
+  var carnetEdition = null;
+  var carnetBrouillon = null;
+
+  // « Maître Paul DURAND (ORLEANS) » → { famille: 'durand', prenom: 'paul', ville: 'orleans' }.
+  // Le nom de famille = les mots en capitales (convention des actes et de l'annuaire), sinon le
+  // dernier mot. Minuscules, sans accents ni tirets, pour comparer. Pure.
+  function decomposerNomNotaire(nom) {
+    const brut = String(nom || '');
+    const norm = t => normaliserPourRecherche(t).replace(/[^a-z0-9]+/g, ' ').trim();
+    const ville = (brut.match(/\(([^)]*)\)/) || [])[1] || '';
+    const sans = brut.replace(/\([^)]*\)/g, ' ').replace(/,.*$/, ' ')
+      .replace(/^\s*(ma[iî]tre|me)\.?\s+/i, '');
+    const mots = sans.split(/\s+/).filter(Boolean);
+    const estCapitales = m => /^[A-ZÀ-ÖØ-Þ][A-ZÀ-ÖØ-Þ'’-]+$/.test(m);
+    const capitales = mots.filter(estCapitales);
+    const famille = capitales.length ? capitales.join(' ') : (mots[mots.length - 1] || '');
+    const prenom = capitales.length
+      ? mots.filter(m => !estCapitales(m) && !/^(de|du|des|d'|d’|le|la)$/i.test(m)).join(' ')
+      : mots.slice(0, -1).join(' ');
+    return { famille: norm(famille), prenom: norm(prenom), ville: norm(ville) };
+  }
+
+  // L'office du carnet où exerce ce notaire, ou null. Le nom de famille doit correspondre ; s'il
+  // désigne plusieurs offices, le prénom puis la ville départagent — sinon rien n'est deviné
+  // (deux DURAND dans deux offices : l'étude choisira). Pure.
+  function trouverOfficeConfrere(nom, carnet) {
+    const cible = decomposerNomNotaire(nom);
+    if (!cible.famille || !Array.isArray(carnet)) return null;
+    const candidats = [];
+    for (const office of carnet) {
+      for (const n of (office && office.notaires) || []) {
+        const c = decomposerNomNotaire(n);
+        if (c.famille && c.famille === cible.famille) candidats.push({ office, notaire: n, c });
+      }
+    }
+    const offices = liste => Array.from(new Set(liste.map(x => x.office)));
+    let restants = candidats;
+    if (offices(restants).length > 1 && cible.prenom) {
+      const parPrenom = restants.filter(x => x.c.prenom === cible.prenom);
+      if (parPrenom.length) restants = parPrenom;
+    }
+    if (offices(restants).length > 1 && cible.ville) {
+      const parVille = restants.filter(x => {
+        const lieux = [x.office.ville].concat(x.office.bureaux || []).map(v => normaliserPourRecherche(v || '').replace(/[^a-z0-9]+/g, ' '));
+        return lieux.some(l => (' ' + l + ' ').indexOf(' ' + cible.ville + ' ') !== -1);
+      });
+      if (parVille.length) restants = parVille;
+    }
+    if (offices(restants).length !== 1) return null;
+    return { office: restants[0].office, notaire: restants[0].notaire };
+  }
+
+  // Les notaires du carnet, au format des champs de la fiche (« Maître Eve CHAMPION (Blois) »),
+  // proposés dans la liste déroulante des notaires. Pure.
+  function optionsNotairesCarnet(carnet) {
+    const options = [];
+    for (const o of carnet || []) {
+      for (const n of o.notaires || []) options.push(`Maître ${n}${o.ville ? ` (${o.ville})` : ''}`);
+    }
+    return options.sort((a, b) => a.localeCompare(b, 'fr'));
+  }
+
+  // Recherche dans le carnet : nom de l'office, notaires, ville, bureaux, email. Triée par ville
+  // puis par office. Pure.
+  function filtrerCarnet(carnet, recherche) {
+    const mots = normaliserPourRecherche(recherche || '').split(/\s+/).filter(Boolean);
+    return (carnet || []).filter(o => {
+      if (!mots.length) return true;
+      const botte = normaliserPourRecherche([o.office, (o.notaires || []).join(' '), o.ville, o.codePostal, (o.bureaux || []).join(' '), o.email].join(' '));
+      return mots.every(m => botte.indexOf(m) !== -1);
+    }).sort((a, b) => (a.ville || '').localeCompare(b.ville || '', 'fr') || (a.office || '').localeCompare(b.office || '', 'fr'));
+  }
+
+  // Office du confrère de ce côté de la fiche, jamais le nôtre.
+  function officeConfrereDossier(d, cote) {
+    const nom = cote === 'vendeur' ? d.notaireVendeur : d.notaireAcquereur;
+    if (!nom || estEtude({ nom })) return null;
+    return trouverOfficeConfrere(nom, carnetConfreres);
+  }
+
+  // Dossiers en cours où intervient chaque office : { idOffice: [dossiers] }.
+  function dossiersParOfficeConfrere(liste, carnet) {
+    const parOffice = {};
+    for (const d of liste || []) {
+      if (!d || d.archive) continue;
+      const vus = new Set();
+      for (const nom of [d.notaireVendeur, d.notaireAcquereur]) {
+        if (!nom || estEtude({ nom })) continue;
+        const t = trouverOfficeConfrere(nom, carnet);
+        if (t && !vus.has(t.office.id)) {
+          vus.add(t.office.id);
+          (parOffice[t.office.id] = parOffice[t.office.id] || []).push(d);
+        }
+      }
+    }
+    return parOffice;
+  }
+
+  async function chargerCarnetConfreres() {
+    try {
+      const r = await fetchAvecAuth('/api/confreres');
+      if (!r.ok) return;
+      carnetConfreres = (await r.json()).offices || [];
+      if (ongletActuel === 'confreres') renderCarnetConfreres();
+    } catch (e) { console.warn('Carnet des confrères indisponible :', e.message); }
+  }
+
+  async function enregistrerOfficeCarnet(office) {
+    const r = await fetchAvecAuth('/api/confreres', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ office })
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.erreur || 'Enregistrement impossible.');
+    carnetConfreres = j.offices || carnetConfreres;
+  }
+
+  // Sous le notaire d'une fiche : son office tel que le carnet le connaît, ou de quoi l'ajouter.
+  function renderConfrereCarnetFiche(d, cote) {
+    const nom = cote === 'vendeur' ? d.notaireVendeur : d.notaireAcquereur;
+    if (!nom || estEtude({ nom })) return '';
+    const t = officeConfrereDossier(d, cote);
+    if (!t) {
+      return `<div class="confrere-carnet"><button type="button" class="bouton-ajout bouton-ajout-court" onclick="ajouterAuCarnetDepuisFiche('${escapeOnclickArg(nom)}')">Ajouter au carnet</button></div>`;
+    }
+    const o = t.office;
+    const contacts = [
+      o.telephone ? `<a href="tel:${escapeAttr(o.telephone.replace(/\s+/g, ''))}">${escapeHtml(o.telephone)}</a>` : '',
+      o.email ? `<a href="mailto:${escapeAttr(o.email)}">${escapeHtml(o.email)}</a>` : ''
+    ].filter(Boolean).join(' · ');
+    return `<div class="confrere-carnet">
+      <button type="button" class="confrere-carnet-office" onclick="ouvrirOfficeCarnet('${escapeOnclickArg(o.id)}')" title="Voir dans le carnet des confrères">${icone('book')}${escapeHtml(o.office)}${o.ville ? ` — ${escapeHtml(o.ville)}` : ''}</button>
+      ${contacts ? `<span class="confrere-carnet-contacts">${contacts}</span>` : ''}
+    </div>`;
+  }
+
+  function ouvrirOfficeCarnet(id) {
+    const o = carnetConfreres.find(x => x.id === id);
+    carnetRecherche = o ? o.office : '';
+    fermerDossierDrawer();
+    definirOnglet('confreres');
+  }
+
+  // « Ajouter au carnet » depuis une fiche : le formulaire s'ouvre avec le notaire déjà écrit.
+  function ajouterAuCarnetDepuisFiche(nom) {
+    const brut = String(nom || '');
+    const ville = (brut.match(/\(([^)]*)\)/) || [])[1] || '';
+    const notaire = brut.replace(/\([^)]*\)/g, ' ').replace(/^\s*(ma[iî]tre|me)\.?\s+/i, '').replace(/\s+/g, ' ').trim();
+    carnetRecherche = '';
+    carnetEdition = 'nouveau';
+    carnetBrouillon = { office: '', notaires: [notaire], ville: ville ? ville.charAt(0) + ville.slice(1).toLowerCase() : '' };
+    fermerDossierDrawer();
+    definirOnglet('confreres');
+  }
+
+  function renderCarnetConfreres() {
+    const zone = document.getElementById('carnet-liste');
+    if (!zone) return;
+    const champ = document.getElementById('carnet-recherche');
+    if (champ && champ.value !== carnetRecherche && document.activeElement !== champ) champ.value = carnetRecherche;
+    const liste = filtrerCarnet(carnetConfreres, carnetRecherche);
+    const parOffice = dossiersParOfficeConfrere(dossiers, carnetConfreres);
+    const compte = document.getElementById('carnet-compte');
+    if (compte) {
+      compte.textContent = carnetRecherche
+        ? `${liste.length} sur ${carnetConfreres.length} offices`
+        : `${carnetConfreres.length} offices`;
+    }
+    const formNouveau = carnetEdition === 'nouveau' ? renderFormOfficeCarnet(carnetBrouillon || {}) : '';
+    if (!liste.length && !formNouveau) {
+      zone.innerHTML = `<p class="carnet-vide">${carnetConfreres.length ? 'Aucun office ne correspond à cette recherche.' : 'Le carnet est vide.'}</p>`;
+      return;
+    }
+    zone.innerHTML = formNouveau + liste.map(o => carnetEdition === o.id
+      ? renderFormOfficeCarnet(o)
+      : renderOfficeCarnet(o, parOffice[o.id] || [])).join('');
+  }
+
+  // Office au nom de son seul notaire (« Me Camille GATARD ») : la liste des notaires répéterait
+  // le titre.
+  function memeNomOfficeNotaire(o) {
+    return (o.notaires || []).length === 1 && normaliserPourRecherche(o.office || '') === normaliserPourRecherche('Me ' + o.notaires[0]);
+  }
+
+  function renderOfficeCarnet(o, dossiersOffice) {
+    const adresse = [o.adresse, [o.codePostal, o.ville].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    const contacts = [
+      o.telephone ? `<a href="tel:${escapeAttr(o.telephone.replace(/\s+/g, ''))}">${escapeHtml(o.telephone)}</a>` : '',
+      o.email ? `<a href="mailto:${escapeAttr(o.email)}">${escapeHtml(o.email)}</a>` : '<span class="carnet-manque">Email non renseigné</span>'
+    ].filter(Boolean).join('<span class="carnet-sep">·</span>');
+    const enCours = dossiersOffice.length
+      ? `<div class="carnet-dossiers">${icone('folder')}${dossiersOffice.slice(0, 4).map(d => `<button type="button" class="carnet-dossier" onclick="ouvrirDossierDepuisDashboard('${escapeOnclickArg(d.id)}')">${escapeHtml(libelleDossierAffiche(d))}</button>`).join('')}${dossiersOffice.length > 4 ? `<span>+${dossiersOffice.length - 4}</span>` : ''}</div>`
+      : '';
+    return `<article class="carnet-office">
+      <div class="carnet-office-tete">
+        <h3 class="carnet-office-nom">${escapeHtml(o.office || o.notaires[0] || '')}</h3>
+        <span class="carnet-office-icones">
+          <button type="button" class="ech-ico" onclick="modifierOfficeCarnet('${escapeOnclickArg(o.id)}')" title="Modifier" aria-label="Modifier cet office">${icone('pencil')}</button>
+          <button type="button" class="ech-ico ech-ico-suppr" onclick="retirerOfficeCarnet('${escapeOnclickArg(o.id)}')" title="Retirer du carnet" aria-label="Retirer cet office du carnet">${icone('x')}</button>
+        </span>
+      </div>
+      ${memeNomOfficeNotaire(o) ? '' : `<div class="carnet-notaires">${(o.notaires || []).map(n => `<span>Me ${escapeHtml(n)}</span>`).join('')}</div>`}
+      ${adresse ? `<div class="carnet-ligne">${icone('map-pin')}${escapeHtml(adresse)}</div>` : ''}
+      ${(o.bureaux || []).length ? `<div class="carnet-ligne carnet-bureaux">Bureaux : ${o.bureaux.map(escapeHtml).join(' ; ')}</div>` : ''}
+      <div class="carnet-ligne carnet-contacts">${icone('mail')}${contacts}</div>
+      ${o.notes ? `<div class="carnet-ligne carnet-notes">${escapeHtml(o.notes)}</div>` : ''}
+      ${enCours}
+    </article>`;
+  }
+
+  function renderFormOfficeCarnet(o) {
+    const v = x => escapeAttr(x || '');
+    return `<form class="carnet-office carnet-form" onsubmit="event.preventDefault(); validerOfficeCarnet()">
+      <div class="calc-champs">
+        <div class="calc-champ"><label for="carnet-f-office">Office</label>
+          <input type="text" id="carnet-f-office" value="${v(o.office)}" placeholder="SELARL DURAND et associés"></div>
+        <div class="calc-champ"><label for="carnet-f-notaires">Notaires (un par ligne, prénom puis NOM)</label>
+          <textarea id="carnet-f-notaires" rows="3" placeholder="Paul DURAND">${escapeHtml((o.notaires || []).join('\n'))}</textarea></div>
+        <div class="calc-champ"><label for="carnet-f-adresse">Adresse</label>
+          <input type="text" id="carnet-f-adresse" value="${v(o.adresse)}"></div>
+        <div class="calc-champ-paire">
+          <div class="calc-champ"><label for="carnet-f-cp">Code postal</label>
+            <input type="text" id="carnet-f-cp" inputmode="numeric" maxlength="5" value="${v(o.codePostal)}"></div>
+          <div class="calc-champ"><label for="carnet-f-ville">Ville</label>
+            <input type="text" id="carnet-f-ville" value="${v(o.ville)}"></div>
+        </div>
+        <div class="calc-champ-paire">
+          <div class="calc-champ"><label for="carnet-f-tel">Téléphone</label>
+            <input type="text" inputmode="tel" id="carnet-f-tel" value="${v(o.telephone)}"></div>
+          <div class="calc-champ"><label for="carnet-f-email">Email de l’office</label>
+            <input type="email" id="carnet-f-email" value="${v(o.email)}"></div>
+        </div>
+        <div class="calc-champ"><label for="carnet-f-notes">Notes</label>
+          <input type="text" id="carnet-f-notes" value="${v(o.notes)}" placeholder="Clerc habituel, habitudes de l’office…"></div>
+      </div>
+      <div class="carnet-form-actions">
+        <button type="button" class="secondary" onclick="annulerEditionCarnet()">Annuler</button>
+        <button type="submit" class="primary" id="carnet-f-valider">Enregistrer</button>
+      </div>
+    </form>`;
+  }
+
+  function modifierOfficeCarnet(id) {
+    carnetEdition = id;
+    carnetBrouillon = null;
+    renderCarnetConfreres();
+  }
+
+  function nouvelOfficeCarnet() {
+    carnetEdition = 'nouveau';
+    carnetBrouillon = {};
+    renderCarnetConfreres();
+    const champ = document.getElementById('carnet-f-office');
+    if (champ) champ.focus();
+  }
+
+  function annulerEditionCarnet() {
+    carnetEdition = null;
+    carnetBrouillon = null;
+    renderCarnetConfreres();
+  }
+
+  async function validerOfficeCarnet() {
+    const val = id => (document.getElementById(id) || {}).value || '';
+    const existant = carnetEdition && carnetEdition !== 'nouveau' ? carnetConfreres.find(o => o.id === carnetEdition) : null;
+    const office = Object.assign({}, existant || { id: 'saisie-' + Date.now().toString(36), source: 'Saisi par l’étude' }, {
+      office: val('carnet-f-office').trim(),
+      notaires: val('carnet-f-notaires').split(/\n+/).map(s => s.replace(/^\s*(ma[iî]tre|me)\.?\s+/i, '').trim()).filter(Boolean),
+      adresse: val('carnet-f-adresse').trim(),
+      codePostal: val('carnet-f-cp').trim(),
+      ville: val('carnet-f-ville').trim(),
+      telephone: val('carnet-f-tel').trim(),
+      email: val('carnet-f-email').trim(),
+      notes: val('carnet-f-notes').trim()
+    });
+    if (!office.office && !office.notaires.length) {
+      afficherToast('Indiquez au moins le nom de l’office ou un notaire.', 'OK', null);
+      return;
+    }
+    if (office.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(office.email)) {
+      afficherToast('Cet email n’est pas valide.', 'OK', null);
+      return;
+    }
+    const bouton = document.getElementById('carnet-f-valider');
+    if (bouton) bouton.disabled = true;
+    try {
+      await enregistrerOfficeCarnet(office);
+      carnetEdition = null;
+      carnetBrouillon = null;
+      renderCarnetConfreres();
+      render();
+    } catch (e) {
+      if (bouton) bouton.disabled = false;
+      afficherToast(e.message, 'OK', null);
+    }
+  }
+
+  function retirerOfficeCarnet(id) {
+    const o = carnetConfreres.find(x => x.id === id);
+    if (!o) return;
+    demanderConfirmation(`Retirer ${o.office || 'cet office'} du carnet ?`, async () => {
+      try {
+        const r = await fetchAvecAuth('/api/confreres/' + encodeURIComponent(id), { method: 'DELETE' });
+        if (!r.ok) throw new Error('Retrait impossible.');
+        carnetConfreres = (await r.json()).offices || [];
+        renderCarnetConfreres();
+      } catch (e) { afficherToast(e.message, 'OK', null); }
+    });
+  }
+
+  function rechercherCarnet(valeur) {
+    carnetRecherche = valeur;
+    renderCarnetConfreres();
+  }
+
+  // Un email de confrère saisi sur un dossier complète l'office du carnet qui n'en avait pas.
+  function completerEmailCarnet(nomNotaire, email) {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+    const t = trouverOfficeConfrere(nomNotaire, carnetConfreres);
+    if (!t || t.office.email) return;
+    enregistrerOfficeCarnet(Object.assign({}, t.office, { email })).catch(() => {});
+  }
+
   function renderNoterAgenda(d) {
     if (!exchangeAgendaPret() || !d.rendezVousSignature) return '';
     const mention = mentionEnvoisAgenda(d);
@@ -11822,6 +12165,7 @@
     if (nouveau === (d.emailNotaireParticipant || '')) return;
     d.emailNotaireParticipant = nouveau;
     ajouterHistorique(d, `Email du notaire de l’acquéreur : ${nouveau || '—'}`);
+    completerEmailCarnet(d.notaireAcquereur, nouveau);
     sauvegarder(d);
     render();
   }
@@ -12653,7 +12997,7 @@
   var LIBELLES_ONGLETS = {
     dashboard: 'Tableau de bord', aujourdhui: "Aujourd'hui", nouveau: 'Nouveau dossier', suivi: 'Suivi des dossiers',
     calculateur: 'Simulateur de provision', prorata: 'Prorata & répartitions', 'appel-fonds': 'Appel de fonds',
-    inventaire: 'Arbitrage forfait mobilier', quotites: "Quotités d'acquisition", 'analyse-ia': "Relecture d'actes",
+    inventaire: 'Arbitrage forfait mobilier', quotites: "Quotités d'acquisition", confreres: 'Carnet des confrères', 'analyse-ia': "Relecture d'actes",
     reglages: 'Réglages'
   };
 
@@ -12670,6 +13014,7 @@
     document.getElementById('onglet-appel-fonds').style.display = nom === 'appel-fonds' ? '' : 'none';
     document.getElementById('onglet-inventaire').style.display = nom === 'inventaire' ? '' : 'none';
     document.getElementById('onglet-quotites').style.display = nom === 'quotites' ? '' : 'none';
+    document.getElementById('onglet-confreres').style.display = nom === 'confreres' ? '' : 'none';
     document.getElementById('onglet-analyse-ia').style.display = nom === 'analyse-ia' ? '' : 'none';
     document.getElementById('onglet-reglages').style.display = nom === 'reglages' ? '' : 'none';
     document.getElementById('tab-dashboard').setAttribute('aria-selected', String(nom === 'dashboard'));
@@ -12680,6 +13025,7 @@
     document.getElementById('tab-appel-fonds').setAttribute('aria-selected', String(nom === 'appel-fonds'));
     document.getElementById('tab-inventaire').setAttribute('aria-selected', String(nom === 'inventaire'));
     document.getElementById('tab-quotites').setAttribute('aria-selected', String(nom === 'quotites'));
+    document.getElementById('tab-confreres').setAttribute('aria-selected', String(nom === 'confreres'));
     document.getElementById('tab-analyse-ia').setAttribute('aria-selected', String(nom === 'analyse-ia'));
     document.getElementById('tab-reglages').setAttribute('aria-selected', String(nom === 'reglages'));
     document.getElementById('tab-dashboard').classList.toggle('actif', nom === 'dashboard');
@@ -12690,6 +13036,7 @@
     document.getElementById('tab-appel-fonds').classList.toggle('actif', nom === 'appel-fonds');
     document.getElementById('tab-inventaire').classList.toggle('actif', nom === 'inventaire');
     document.getElementById('tab-quotites').classList.toggle('actif', nom === 'quotites');
+    document.getElementById('tab-confreres').classList.toggle('actif', nom === 'confreres');
     // Ctrl+P depuis cet onglet doit sortir la FEUILLE, pas l'application autour (voir @media
     // print dans style.css) — un onglet n'ayant pas de classe sur <body>, on la pose ici.
     document.body.classList.toggle('onglet-appel-fonds-actif', nom === 'appel-fonds');
@@ -12717,6 +13064,8 @@
     // Formulaire des quotités construit au premier affichage seulement : le quitter puis y revenir
     // ne doit pas effacer une saisie en cours.
     if (nom === 'quotites') initQuotites();
+    // Relu à chaque ouverture : un collègue a pu compléter le carnet depuis un autre poste.
+    if (nom === 'confreres') { renderCarnetConfreres(); if (authToken) chargerCarnetConfreres(); }
     // Premier passage : coûts habituels posés, droits vides — le verdict et le message d'invite
     // sont posés dans la foulée (voir initInventaire / reinitialiserInventaire).
     if (nom === 'inventaire') initInventaire();
@@ -13179,12 +13528,16 @@
     // basculerCoteInstrumentaire), sur les deux lignes au même endroit.
     const detectes = (Array.isArray(d.notairesDetectes) ? d.notairesDetectes : []).filter(n => n && n.nom);
     const listeId = `notaires-detectes-${d.id}`;
+    // Liste déroulante : les notaires lus dans l'acte d'abord, puis ceux du carnet des confrères.
+    const nomsDetectes = detectes.map(n => n.nom);
+    const optionsNotaires = nomsDetectes.concat(optionsNotairesCarnet(carnetConfreres).filter(n => nomsDetectes.indexOf(n) === -1));
     const notaire = (cote, valeur) => {
       const actif = d.coteInstrumentaire === cote;
-      return `<input type="text" id="not-${cote}-${d.id}" class="prop-champ"${detectes.length ? ` list="${listeId}"` : ''} value="${escapeAttr(valeur || '')}" placeholder="Non détecté" onblur="affecterNotaire('${d.id}', '${cote}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
+      return `<input type="text" id="not-${cote}-${d.id}" class="prop-champ"${optionsNotaires.length ? ` list="${listeId}"` : ''} value="${escapeAttr(valeur || '')}" placeholder="Non détecté" onblur="affecterNotaire('${d.id}', '${cote}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
         <button type="button" class="dot-label ${actif ? 'dl-success' : 'dl-neutre'} notaire-redacteur${actif ? ' actif' : ''}"
           onclick="basculerCoteInstrumentaire('${d.id}', '${cote}')"
-          title="${actif ? 'Ce notaire reçoit l’acte. Cliquez pour retirer.' : 'Désigner ce notaire comme celui qui reçoit l’acte.'}">${actif ? icone('check') : '<span class="dot"></span>'}Reçoit l’acte</button>`;
+          title="${actif ? 'Ce notaire reçoit l’acte. Cliquez pour retirer.' : 'Désigner ce notaire comme celui qui reçoit l’acte.'}">${actif ? icone('check') : '<span class="dot"></span>'}Reçoit l’acte</button>
+        ${renderConfrereCarnetFiche(d, cote)}`;
     };
     // Rôle de l'étude : déduit dès que notre étude est reconnue d'un côté ET qu'un côté reçoit
     // l'acte (voir deduireRoleNotaireDossier) ; sinon cliquable, seul moyen de marquer un dossier
@@ -13198,7 +13551,7 @@
     // L'acquéreur représenté par un office distinct : la déontologie interdit de le contacter
     // directement, les relances vont à son notaire (voir emailDestinataireRelance).
     const emailParticipant = notaireParticipantRepresenteAcquereur(d)
-      ? ligne('mail', 'Confrère', `<input type="email" id="not-email-participant-${d.id}" class="prop-champ" value="${escapeAttr(d.emailNotaireParticipant || '')}" placeholder="Non renseigné" title="Les relances (prêt, RIB) seront adressées à cette adresse plutôt qu'à l'acquéreur lui-même." onblur="changerEmailNotaireParticipant('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">`, `not-email-participant-${d.id}`)
+      ? ligne('mail', 'Confrère', `<input type="email" id="not-email-participant-${d.id}" class="prop-champ" value="${escapeAttr(d.emailNotaireParticipant || '')}" placeholder="${escapeAttr(emailOfficeConfrereAcquereur(d) ? emailOfficeConfrereAcquereur(d) + ' (carnet)' : 'Non renseigné')}" title="Les relances (prêt, RIB) seront adressées à cette adresse plutôt qu'à l'acquéreur lui-même. Vide : l'email de l'office tiré du carnet des confrères." onblur="changerEmailNotaireParticipant('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">`, `not-email-participant-${d.id}`)
       : '';
 
     return `
@@ -13222,7 +13575,7 @@
         ${emailParticipant}
         ${ligne('flag', 'Notre étude', ligneRole)}
       </dl>
-      ${detectes.length ? `<datalist id="${listeId}">${detectes.map(n => `<option value="${escapeAttr(n.nom)}"></option>`).join('')}</datalist>` : ''}`;
+      ${optionsNotaires.length ? `<datalist id="${listeId}">${optionsNotaires.map(n => `<option value="${escapeAttr(n)}"></option>`).join('')}</datalist>` : ''}`;
   }
 
   // ---- Collaborateur du poste ----
@@ -17743,6 +18096,8 @@
     // Avant le premier import : un dossier créé juste après la connexion doit profiter des
     // corrections faites par les collègues (voir chargerApprentissageServeur).
     await chargerApprentissageServeur();
+    // Carnet des confrères : la fiche rapproche chaque notaire de son office dès le premier rendu.
+    chargerCarnetConfreres().then(() => render());
     // Le polling démarre AVANT la relecture du NAS, et celle-ci n'est plus attendue : sur un
     // portefeuille d'une soixantaine de dossiers, ce parcours peut prendre plusieurs minutes
     // (il ouvre des PDF, voir verifierDossierLocal) — tant qu'il n'avait pas fini, aucune synchro
@@ -27628,6 +27983,7 @@
       'icon-af-dropzone': 'upload',
       'icon-reglages-apropos': 'info',
       'icon-nav-quotites': 'users',
+      'icon-nav-confreres': 'book',
       'icon-calc-warning': 'alert-triangle',
       'icon-inv-warning': 'alert-triangle',
       'icon-nav-analyse-ia': 'eye',
