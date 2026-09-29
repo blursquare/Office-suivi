@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 23:50';
+  const VERSION_APP = '2026-09-30 00:04';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 00:04', resume: "Relecture du code de la soirée (agenda, statut, widgets) : mêmes règles garanties entre le poste et le serveur pour les dates butoir posées dans l'agenda (un test les compare), une date de modification qui ne s'écrit plus dans le dossier lui-même, code et styles devenus inutiles retirés. Rien ne change à l'écran." },
     { version: '2026-09-29 23:50', resume: "Statut d'un dossier : une vente préalable pas encore réalisée compte comme le financement (au même titre que l'offre de prêt) — le dossier reste « Attente de pièces », jamais « Complet » ni « Prêt », tant qu'elle n'est pas faite. Le survol du badge l'indique (« En attente : Vente préalable »)." },
     { version: '2026-09-29 23:45', resume: "Tableau de bord : nouvelle disposition par défaut, en rectangle plein — Aujourd'hui en grand à gauche, l'Agenda à côté, Dossiers ouverts et Dernières pièces dessous, puis Avancement et Activité côte à côte. Chaque collaborateur y est ramené une fois (une disposition réglée avant cette version est remplacée), puis peut la réarranger dans « Personnaliser »." },
     { version: '2026-09-29 23:36', resume: "Tableau de bord : « Dernières pièces » et « Activité de l'étude » (en direct) sont toujours affichées — elles disparaissaient faute de pièce récente ou d'action. Sans pièce arrivée, la carte dit ce qui est encore attendu ; le fil « en direct » reprend aussi ce que CLAIRE a relevé seule (pièces trouvées sur le NAS). Chaque carte se règle désormais en largeur (1, 2 colonnes ou toute la ligne) et en hauteur (1, 2 ou 3 rangées) dans « Personnaliser ». L'Agenda liste aussi les prochaines échéances." },
@@ -12097,9 +12098,24 @@
   //   - mise à jour et retrait automatiques, sur le seul identifiant mémorisé : jamais d'événement
   //     deviné d'après son titre.
   var LIBELLES_ECHEANCE_AGENDA = { pret: 'Obtention du prêt', ventebien: 'Vente préalable' };
+  var CORPS_ECHEANCE_AGENDA = {
+    pret: 'Date butoir posée par CLAIRE. Retirée automatiquement une fois l’offre de prêt reçue.',
+    ventebien: 'Date butoir posée par CLAIRE. Retirée automatiquement une fois la vente préalable signée.'
+  };
 
+  // Titre de l'événement — IDENTIQUE à celui que compose le serveur (server/src/echeancesAgenda.js,
+  // vérifié par tests/echeances-agenda-client.test.js) : c'est lui qui permet au serveur de
+  // retrouver l'événement au lieu de le doubler. Jamais « VTE - … » : l'agenda de l'office relu par
+  // CLAIRE prendrait l'événement pour un rendez-vous de signature.
+  function sujetEcheanceAgenda(d, type) {
+    return `${LIBELLES_ECHEANCE_AGENDA[type]} — ${extraireNomAcquereur(d.nom)} - Dossier ${d.nom}`;
+  }
+
+  // Miroir de echeanceAgendaSouhaitee côté serveur (même verdict, vérifié par test) : seule une vraie
+  // date AAAA-MM-JJ peut être posée dans l'agenda.
   function echeanceAgendaSouhaitee(d, type) {
-    if (!d || d.archive || !d[type]) return false;
+    if (!d || d.archive || !LIBELLES_ECHEANCE_AGENDA[type]) return false;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(d[type] || ''))) return false;
     if (type === 'pret' && d.sansPret) return false;
     return !echeanceValidee(d, type);
   }
@@ -12138,14 +12154,8 @@
     try {
       const corps = { action, date: d[type] || '', itemId: pose.itemId || '', changeKey: pose.changeKey || '' };
       if (action === 'creer') {
-        // Même titre que celui que compose le serveur (sujetEcheanceAgenda) : c'est lui qui permet
-        // au serveur de retrouver l'événement au lieu de le doubler. Jamais
-        // « VTE - … » : l'agenda de l'office relu par CLAIRE prendrait l'événement pour un
-        // rendez-vous de signature.
-        corps.sujet = `${libelle} — ${extraireNomAcquereur(d.nom)} - Dossier ${d.nom}`;
-        corps.corps = type === 'pret'
-          ? 'Date butoir posée par CLAIRE. Retirée automatiquement une fois l’offre de prêt reçue.'
-          : 'Date butoir posée par CLAIRE. Retirée automatiquement une fois la vente préalable signée.';
+        corps.sujet = sujetEcheanceAgenda(d, type);
+        corps.corps = CORPS_ECHEANCE_AGENDA[type];
       }
       const reponse = await fetchAvecAuth('/api/exchange/echeance', {
         method: 'POST',
@@ -12837,9 +12847,8 @@
   }
 
   // Chiffres de synthèse du portefeuille (dossiers actifs, hors filtres/recherche de la liste) —
-  // calculés une seule fois, partagés par le bandeau de l'onglet "Suivi" (renderStatsSuivi) et les
-  // tuiles KPI du "Tableau de bord" (renderKpisDashboard), pour ne jamais faire diverger ces deux
-  // lectures d'un même portefeuille.
+  // calculés une seule fois, partagés par l'accueil du tableau de bord (renderAccueilDashboard) et
+  // ses cartes, pour ne jamais faire diverger deux lectures d'un même portefeuille.
   function calculerStatsPortefeuille(dossiersActifs) {
     const dansNJours = (n) => dossiersActifs.filter(d => {
       const prochaine = prochaineEcheanceDetail(d);
@@ -12882,20 +12891,16 @@
   // ---- Carte « Portefeuille » du tableau de bord ----
   // Demandé par l'étude : rendre la carte des dossiers actifs « attractive, visuelle et ludique »,
   // avec les statistiques qui comptent. Toutes les valeurs viennent de fonctions déjà en place
-  // (statutDossier, avancementDossier, offrePretStatut) : aucune nouvelle règle métier. Pure et
+  // (etatDossier, avancementDossier, offrePretStatut) : aucune nouvelle règle métier. Pure et
   // testable (tests/portefeuille.test.js) — la date du jour est passée en paramètre.
-  //  - répartition des dossiers actifs par statut (anneau) : les mêmes quatre états que le badge ;
+  //  - répartition des dossiers actifs par état (anneau) : les mêmes états que le badge ;
   //  - signatures du mois : rendez-vous de signature tombant dans le mois en cours, dont ceux déjà
   //    passés (dossiers archivés compris : un dossier signé est souvent archivé ensuite) ;
   //  - offres de prêt reçues sur les dossiers financés ;
   //  - avancement moyen (même pourcentage que la liste « Avancement des dossiers »).
-  var ORDRE_STATUTS_PORTEFEUILLE = ['pret', 'aconfirmer', 'blocage', 'arelier'];
-
   function statsPortefeuilleVisuel(dossiersActifs, dossiersTous, aujourdhuiIso) {
     const actifs = (dossiersActifs || []).filter(d => !d.archive);
-    const parStatut = { pret: 0, aconfirmer: 0, blocage: 0, arelier: 0 };
-    actifs.forEach(d => { const s = statutDossier(d); if (s in parStatut) parStatut[s]++; });
-    // Répartition affichée : par état du dossier (le badge vu partout).
+    // Répartition : par état du dossier (le badge vu partout).
     const parEtat = {};
     ETATS_DOSSIER.forEach(g => { parEtat[g.cle] = 0; });
     actifs.forEach(d => { const c = etatDossier(d, aujourdhuiIso).cle; if (c in parEtat) parEtat[c]++; });
@@ -12907,7 +12912,7 @@
     const avancementMoyen = actifs.length
       ? Math.round(actifs.reduce((t, d) => t + avancementDossier(d, aujourdhuiIso).pct, 0) / actifs.length)
       : 0;
-    return { actifs: actifs.length, parStatut, parEtat, signaturesMois, offres, avancementMoyen };
+    return { actifs: actifs.length, parEtat, signaturesMois, offres, avancementMoyen };
   }
 
   // Pure : une phrase courte qui dit ce que la carte montre, sur le ton d'un collègue — jamais un
@@ -12958,7 +12963,7 @@
     </div>`;
   }
 
-  // Cartes « Dossiers ouverts » et « Activité de l'étude », selon la taille de chaque widget.
+  // Cartes « Dossiers ouverts » et « Activité de l'étude », selon la présentation de chaque widget (presentationWidget).
   // Dossiers ouverts :
   //  - petit : l'anneau des états et les états présents ;
   //  - moyen : l'anneau et sa légende, les trois mesures (signatures du mois, offres, avancement) ;
@@ -12967,7 +12972,7 @@
     const bloc = document.getElementById('kpi-portefeuille');
     const blocActivite = document.getElementById('kpi-activite');
     if (!bloc) return;
-    const taille = tailleWidget('portefeuille');
+    const presentation = presentationWidget('portefeuille');
     const aujourdhui = isoAujourdhuiLocal();
     const st = statsPortefeuilleVisuel(dossiersActifs, dossiersTousPerimetre, aujourdhui);
     // Tendance du nombre de dossiers actifs vs le mois précédent (calculerEvolutionPortefeuille),
@@ -12977,7 +12982,7 @@
     const tMois = formaterTendance(evolution.ecartMois);
     const anime = !portefeuilleDejaAnime && st.actifs > 0;
     if (st.actifs > 0) portefeuilleDejaAnime = true;
-    const etats = taille === 'petit' ? ETATS_DOSSIER.filter(g => st.parEtat[g.cle]) : ETATS_DOSSIER;
+    const etats = presentation === 'petit' ? ETATS_DOSSIER.filter(g => st.parEtat[g.cle]) : ETATS_DOSSIER;
     const legende = etats.map(g => `
       <li class="pf-legende-ligne${st.parEtat[g.cle] ? '' : ' vide'}"><span class="pf-point pf-${g.cle}"></span><span>${g.texte}</span><b>${st.parEtat[g.cle]}</b></li>`).join('');
     const sig = st.signaturesMois;
@@ -12992,9 +12997,9 @@
     const mesures = `<div class="pf-mesures">${barres}</div>`;
     let corps;
     // En petit, les mesures remplissent la place laissée sous l'anneau (autant qu'il en tient).
-    if (taille === 'petit') corps = `${haut}<div class="pf-mesures" data-ajuster="2">${barres}</div>`;
+    if (presentation === 'petit') corps = `${haut}<div class="pf-mesures" data-ajuster="2">${barres}</div>`;
     else {
-      const aRegarder = taille === 'grand'
+      const aRegarder = presentation === 'grand'
         ? (dossiersActifs || []).filter(d => !d.archive).map(d => ({ d, e: etatDossier(d, aujourdhui) }))
           .filter(x => x.e.cle === 'urgent' || x.e.cle === 'arelier' || x.e.cle === 'attente')
           .sort((x, y) => ORDRE_ETAT_DOSSIER.indexOf(x.e.cle) - ORDRE_ETAT_DOSSIER.indexOf(y.e.cle))
@@ -13010,7 +13015,7 @@
         </div>` : ''}`;
     }
     bloc.innerHTML = carteWidget({
-      taille, classe: `portefeuille${anime ? ' anime' : ''}`,
+      presentation, classe: `portefeuille${anime ? ' anime' : ''}`,
       titre: 'Dossiers ouverts',
       sous: `<span class="kpi-tendance pf-tendance" title="${evolution.actuel} aujourd'hui contre ${evolution.moisDernier} il y a un mois">${tMois.icone}${tMois.texte} vs mois dernier</span>`,
       corps
@@ -13018,7 +13023,7 @@
     // Toujours affichée (étude, 29/09 au soir : « je ne vois pas le widget du direct ») : sans action
     // récente, elle montre la semaine vide et ce qui s'y affichera.
     if (blocActivite) {
-      blocActivite.innerHTML = renderActiviteEtude(dossiers, tailleWidget('activite'));
+      blocActivite.innerHTML = renderActiviteEtude(dossiers, presentationWidget('activite'));
       blocActivite.style.display = '';
     }
     planifierAjustementWidgets();
@@ -13164,11 +13169,11 @@
     carte.querySelectorAll('.act-filtre').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cle === cle)));
   }
 
-  // Activité de l'étude, selon la taille du widget :
+  // Activité de l'étude, selon la présentation du widget (presentationWidget) :
   //  - petit : les actions du jour et les barres des 7 jours ;
   //  - moyen : ce résumé à gauche, le fil à droite (coupé à la hauteur de la tuile) ;
   //  - grand : résumé, filtres par catégorie et fil complet qui défile dans la carte.
-  function renderActiviteEtude(tousDossiers, taille) {
+  function renderActiviteEtude(tousDossiers, presentation) {
     const maintenant = Date.now();
     const toutes = activiteEtude(tousDossiers, 5000);
     const rythme = rythmeActivite(toutes, maintenant);
@@ -13215,25 +13220,25 @@
     const resume = `<div class="act-resume">
         <div class="act-compteur"><span class="act-compteur-num">${rythme.aujourdhui}</span><span class="act-compteur-lib">action${rythme.aujourdhui > 1 ? 's' : ''} aujourd’hui</span></div>
         <div class="act-semaine" role="img" aria-label="${escapeAttr('Actions par jour sur 7 jours : ' + rythme.jours.map(j => `${j.nom} ${j.n}`).join(', '))}">${barres}</div>
-        ${taille === 'petit' ? '' : `<ul class="act-equipe" aria-label="Qui a agi aujourd’hui">${equipe}</ul>`}
+        ${presentation === 'petit' ? '' : `<ul class="act-equipe" aria-label="Qui a agi aujourd’hui">${equipe}</ul>`}
       </div>`;
     const fil = lignes
-      ? `<ul class="activite-liste" ${taille === 'grand' ? '' : 'data-ajuster="1"'}>${lignes}</ul>`
+      ? `<ul class="activite-liste" ${presentation === 'grand' ? '' : 'data-ajuster="1"'}>${lignes}</ul>`
       : '<p class="activite-vide">Rien pour l’instant : les actions des collaborateurs et les changements de l’agenda s’afficheront ici.</p>';
     // En petit, la dernière action de l'étude occupe le bas de la tuile.
     const derniere = entrees[0];
     const derniereHtml = derniere ? `<div class="w-bas" data-ajuster="2"><button type="button" class="w-prochaine" onclick="ouvrirDossierDepuisDashboard('${derniere.dossierId}')">
         <span class="w-prochaine-sous">${escapeHtml(derniere.auteur ? prenomCollaborateur(derniere.auteur) : derniere.source === 'claire' ? 'CLAIRE' : 'Agenda')} · ${escapeHtml(ilYaActivite(derniere.date, maintenant))}</span>
         <span class="w-prochaine-titre">${escapeHtml(derniere.texte)}</span></button></div>` : '';
-    const corps = taille === 'petit' ? resume + derniereHtml
-      : taille === 'moyen' ? `<div class="act-duo">${resume}${fil}</div>`
+    const corps = presentation === 'petit' ? resume + derniereHtml
+      : presentation === 'moyen' ? `<div class="act-duo">${resume}${fil}</div>`
         : `${resume}${puces}${fil}`;
     return carteWidget({
-      taille: taille || 'grand', classe: 'activite-etude',
+      presentation: presentation || 'grand', classe: 'activite-etude', attributs: `data-filtre="${filtreCourant}"`,
       titre: 'Activité de l’étude',
       droite: '<span class="activite-direct"><span class="activite-direct-point"></span>En direct</span>',
       corps
-    }).replace('class="w-carte', `data-filtre="${filtreCourant}" class="w-carte`);
+    });
   }
 
 
@@ -13284,7 +13289,7 @@
       .sort((a, b) => b.dossiers.length - a.dossiers.length || a.libelle.localeCompare(b.libelle, 'fr'));
   }
 
-  // Carte « Dernières pièces », selon la taille du widget :
+  // Carte « Dernières pièces », selon la présentation du widget (presentationWidget) :
   //  - petit : combien de pièces sont arrivées en 14 jours, dont les nouvelles, et la dernière ;
   //  - moyen : la liste (au plus 6, demandé par l'étude) ;
   //  - grand : la liste, puis les pièces encore attendues, regroupées par pièce.
@@ -13292,7 +13297,7 @@
     const section = document.getElementById('dash-nouveautes');
     if (!section) return;
     const entrees = dernieresPiecesTrouvees(dossiersActifs);
-    const taille = tailleWidget('pieces');
+    const presentation = presentationWidget('pieces');
     // Toujours affichée (étude, 29/09 au soir : elle disparaissait sans pièce récente) : sans arrivée
     // sur 14 jours, elle dit ce qui est encore attendu.
     const attendues = piecesEncoreAttendues(dossiersActifs);
@@ -13309,7 +13314,7 @@
     };
     const nouvelles = entrees.filter(e => e.nouvelle).length;
     let corps;
-    if (taille === 'petit') {
+    if (presentation === 'petit') {
       corps = `<div class="w-chiffre-bloc"><span class="w-chiffre">${entrees.length}</span><span class="w-chiffre-lib">pièce${entrees.length > 1 ? 's' : ''} en ${JOURS_DERNIERES_PIECES} jours</span></div>
         ${nouvelles ? `<span class="dot-label dl-urgent notif-nouveau-tag w-fixe"><span class="dot"></span>${nouvelles} nouvelle${nouvelles > 1 ? 's' : ''}</span>` : ''}
         ${entrees[0] ? `<div class="w-bas" data-ajuster="2"><button type="button" class="w-prochaine" onclick="ouvrirDossierDepuisDashboard('${entrees[0].dossier.id}')">
@@ -13322,13 +13327,13 @@
       corps = `${entrees.length ? `<div class="dash-liste dash-liste-carte" data-ajuster="1" data-min="1">${entrees.map(ligne).join('')}</div>` : '<p class="w-message w-fixe">Aucune pièce arrivée ces 14 derniers jours.</p>'}
         ${attendues.length ? `<div class="w-section">
           <h3 class="jour-carte-sous-titre">Encore attendues</h3>
-          <ul class="w-lignes" data-ajuster="2">${attendues.map(p => `<li class="w-ligne w-ligne-fixe" title="${escapeAttr(p.dossiers.map(d => d.nom).join(', '))}">
+          <ul class="w-lignes" data-ajuster="2">${attendues.map(p => `<li class="w-ligne" title="${escapeAttr(p.dossiers.map(d => d.nom).join(', '))}">
             <span class="w-ligne-texte">${escapeHtml(p.libelle)}</span>
             <span class="w-ligne-meta">${p.dossiers.length} dossier${p.dossiers.length > 1 ? 's' : ''}</span></li>`).join('')}</ul>
         </div>` : ''}`;
     }
     section.innerHTML = carteWidget({
-      taille,
+      presentation,
       titre: 'Dernières pièces',
       sous: `NAS · ${JOURS_DERNIERES_PIECES} derniers jours`,
       corps
@@ -13418,7 +13423,7 @@
     }).sort((a, b) => (STATUTS_AVANCEMENT[a.statut].ordre - STATUTS_AVANCEMENT[b.statut].ordre) || (a.pct - b.pct));
   }
 
-  // Carte « Avancement des dossiers », selon la taille du widget :
+  // Carte « Avancement des dossiers », selon la présentation du widget (presentationWidget) :
   //  - petit : l'avancement moyen et la répartition En retard / À surveiller / Dans les délais ;
   //  - moyen : une ligne compacte par dossier (nom, jauge, pourcentage, état) ;
   //  - grand : deux lignes par dossier (état, étapes, pièces, prochaine étape, prix, jauge).
@@ -13433,17 +13438,17 @@
       return;
     }
     section.style.display = '';
-    const taille = tailleWidget('avancement');
+    const presentation = presentationWidget('avancement');
     const moyenne = Math.round(toutes.reduce((t, l) => t + l.pct, 0) / toutes.length);
     const parStatut = { retard: 0, surveiller: 0, delais: 0 };
     toutes.forEach(l => { parStatut[l.statut]++; });
     const sous = `${toutes.length} dossier${toutes.length > 1 ? 's' : ''} · ${moyenne} % en moyenne`;
     let corps;
-    if (taille === 'petit') {
+    if (presentation === 'petit') {
       corps = `<div class="w-chiffre-bloc"><span class="w-chiffre">${moyenne}<small>%</small></span><span class="w-chiffre-lib">en moyenne</span></div>
         <span class="avancement-barre w-barre" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${moyenne}" aria-label="Avancement moyen ${moyenne} %"><span style="width:${moyenne}%"></span></span>
         <ul class="w-repartition">${Object.keys(STATUTS_AVANCEMENT).map(k => `<li><span class="dot-label ${STATUTS_AVANCEMENT[k].dl}"><span class="dot"></span>${STATUTS_AVANCEMENT[k].texte}</span><b>${parStatut[k]}</b></li>`).join('')}</ul>`;
-    } else if (taille === 'moyen') {
+    } else if (presentation === 'moyen') {
       corps = `<ul class="w-lignes w-avancement" data-ajuster="1" data-min="1">${toutes.map(l => {
         const e = etatDossier(l.dossier);
         const nom = libelleDossierAffiche(l.dossier);
@@ -13472,9 +13477,9 @@
       }).join('')}${plusWidget("definirOnglet('suivi')")}</ul>`;
     }
     section.innerHTML = carteWidget({
-      taille,
-      titre: taille === 'petit' ? 'Avancement' : 'Avancement des dossiers',
-      sous: taille === 'petit' ? `${toutes.length} dossier${toutes.length > 1 ? 's' : ''}` : escapeHtml(sous),
+      presentation,
+      titre: presentation === 'petit' ? 'Avancement' : 'Avancement des dossiers',
+      sous: presentation === 'petit' ? `${toutes.length} dossier${toutes.length > 1 ? 's' : ''}` : escapeHtml(sous),
       corps
     });
     planifierAjustementWidgets();
@@ -14005,18 +14010,9 @@
     return score;
   }
 
-  // Statut de synthèse ("où en est ce dossier ?"), distinct du score de priorité qui sert au tri :
-  // celui-ci répond d'un coup d'œil plutôt que de classer.
-  // dl : modificateur de couleur du composant .dot-label commun (voir style.css) ; icone :
-  // uniquement pour "archive", où un point de couleur dirait "actif" alors que le dossier ne
-  // l'est plus — un cadenas marque sans ambiguïté un état "hors service", pas une couleur de plus.
-  const LIBELLES_STATUT = {
-    pret: { texte: 'Prêt', dl: 'dl-success' },
-    arelier: { texte: 'À relier', dl: 'dl-neutre' },
-    aconfirmer: { texte: 'Réception de pièces', dl: 'dl-pret' },
-    blocage: { texte: 'Aucun document', dl: 'dl-urgent' },
-    archive: { texte: 'Archivé', dl: 'dl-neutre', icone: 'lock' }
-  };
+  // Statut des PIÈCES d'un dossier ('pret', 'arelier', 'aconfirmer', 'blocage', 'archive') — plus
+  // affiché depuis le 29/09 (le badge est l'état général, voir etatDossier) ; il alimente les points
+  // « À traiter » (pointsEtatDossier) et le statut d'avancement.
   // Logique donnée explicitement par l'étude, fondée uniquement sur les documents effectivement
   // retrouvés (offre de prêt + checklist de pièces), pas sur les échéances ni la confiance des
   // dates détectées (ces deux derniers signaux restent visibles ailleurs — bandeau "accès à
@@ -14030,8 +14026,7 @@
   //   🔴 rouge   : tout ce qui a été recherché a été confirmé absent ("Aucun document").
   // Un dossier jamais relié à un dossier local n'est donc plus confondu avec un dossier dont la
   // recherche a échoué : le premier est neutre (gris), le second est un vrai signal (rouge) — même
-  // principe déjà appliqué à l'offre de prêt "inconnue" ailleurs dans l'outil (voir
-  // renderStatsSuivi). Un dossier sans rien à vérifier (achat comptant + rôle participant, qui ne
+  // principe déjà appliqué à l'offre de prêt "inconnue" ailleurs dans l'outil. Un dossier sans rien à vérifier (achat comptant + rôle participant, qui ne
   // suit pas la checklist de pièces) est trivialement "prêt".
   function statutDossier(d) {
     if (d.archive) return 'archive';
@@ -14760,8 +14755,8 @@
     return taille === 'petit' ? 'petit' : 'moyen';
   }
 
-  // Présentation courante d'une carte : les fonctions de rendu en dépendent.
-  function tailleWidget(id) {
+  // Présentation courante d'une carte ('petit' | 'moyen' | 'grand') : les fonctions de rendu en dépendent.
+  function presentationWidget(id) {
     const w = dispositionWidgetsCourante().find(x => x.id === id);
     return w ? varianteWidget(w.taille, w.hauteur) : 'moyen';
   }
@@ -14806,9 +14801,11 @@
   }
 
   // Coque commune des cartes : en-tête (titre, précision, contrôles) et corps qui remplit le reste
-  // de la tuile. o = { titre, sous?, droite?, corps, classe?, taille }
+  // de la tuile. o = { titre, sous?, droite?, corps, classe?, attributs?, presentation } — titre,
+  // sous, droite et corps sont du HTML déjà échappé ; attributs : attributs HTML supplémentaires de
+  // la carte (« data-filtre="…" »), déjà échappés.
   function carteWidget(o) {
-    return `<div class="w-carte w-${o.taille || 'moyen'}${o.classe ? ' ' + o.classe : ''}">
+    return `<div class="w-carte w-${o.presentation || 'moyen'}${o.classe ? ' ' + o.classe : ''}"${o.attributs ? ' ' + o.attributs : ''}>
       <div class="w-tete">
         <div class="w-tete-texte"><div class="w-titre">${o.titre}</div>${o.sous ? `<div class="w-sous">${o.sous}</div>` : ''}</div>
         ${o.droite ? `<div class="w-tete-droite">${o.droite}</div>` : ''}
@@ -14828,7 +14825,10 @@
   // puis les listes d'appoint (rappels, à venir, prochaines signatures…) dans la place restante.
   // Une liste coupée affiche « Voir N de plus » ; une section d'appoint vide disparaît avec son
   // titre ; data-min garde un minimum de lignes (le corps défile alors, plutôt que de rien montrer).
-  var SELECTEUR_FIXE_WIDGET = '.w-plus, .w-fixe, .rappel-perso-ajout, .rappel-perso-form';
+  // Éléments d'une liste ajustable qui ne comptent pas comme des lignes (jamais repliés) — et, hors
+  // le lien « Voir N de plus », ce qui justifie de garder une section même sans ligne.
+  var SELECTEUR_CONTENU_FIXE_WIDGET = '.w-fixe, .rappel-perso-ajout, .rappel-perso-form';
+  var SELECTEUR_FIXE_WIDGET = '.w-plus, ' + SELECTEUR_CONTENU_FIXE_WIDGET;
   function ajusterWidgets() {
     const grille = document.getElementById('widgets-dashboard');
     if (!grille) return;
@@ -14893,7 +14893,7 @@
         const der = tous[montres - 1];
         if (der && montres > 1 && der.classList.contains('act-groupe')) der.style.display = 'none';
         // Section d'appoint sans aucune ligne ni contenu fixe : elle disparaît avec son titre.
-        if (x.sec && !montres && !x.sec.querySelector(SELECTEUR_FIXE_WIDGET.split(', ').filter(sel => sel !== '.w-plus').join(', '))) x.sec.style.display = 'none';
+        if (x.sec && !montres && !x.sec.querySelector(SELECTEUR_CONTENU_FIXE_WIDGET)) x.sec.style.display = 'none';
       });
       if (deborde()) corps.classList.add('w-defile');
     });
@@ -14943,7 +14943,6 @@
       // sauf en personnalisation où il reste visible pour être rangé.
       const interieur = el.querySelector('.dash-bloc');
       const vide = !!interieur && interieur.style.display === 'none';
-      el.hidden = false;
       el.style.display = w.masque || (vide && !modeEditionWidgets) ? 'none' : '';
       el.classList.toggle('widget-vide', vide);
       el.querySelectorAll(':scope > .widget-barre, :scope > .widget-retirer, :scope > .widget-fleche').forEach(x => x.remove());
@@ -15217,7 +15216,7 @@
     }).join('');
   }
 
-  // Carte « Agenda », selon la taille du widget :
+  // Carte « Agenda », selon la présentation du widget (presentationWidget) :
   //  - petit : le jour (comme l'icône Calendrier), les signatures du jour et la prochaine ;
   //  - moyen : la bande de la semaine, les signatures du jour choisi, puis les prochaines ;
   //  - grand : la même chose en détail (horaire, lieu, envois faits ou non, absences).
@@ -15226,14 +15225,14 @@
     if (!bloc) return;
     const aujourdhui = isoAujourdhuiLocal();
     const global = vueGlobaleDashboard();
-    const taille = tailleWidget('agenda');
-    if (taille === 'petit') {
+    const presentation = presentationWidget('agenda');
+    if (presentation === 'petit') {
       const dt = new Date(aujourdhui + 'T00:00:00');
       const duJour = perimetreActifs.filter(d => d.rendezVousSignature === aujourdhui);
       const suivante = prochainesSignatures(perimetreActifs, aujourdhui, aujourdhui, 1)[0];
       const nomJour = dt.toLocaleDateString('fr-FR', { weekday: 'long' });
       bloc.innerHTML = carteWidget({
-        taille, classe: 'w-agenda-petit',
+        presentation, classe: 'w-agenda-petit',
         titre: escapeHtml(nomJour.charAt(0).toUpperCase() + nomJour.slice(1)),
         sous: escapeHtml(dt.toLocaleDateString('fr-FR', { month: 'long' })),
         droite: `<span class="w-jour-num">${dt.getDate()}</span>`,
@@ -15277,7 +15276,7 @@
 
     const absentsSemaine = collaborateursAbsentsSemaine(absencesOffice, semaine);
     const etat = (ok, fait, reste) => `<span class="dot-label ${ok ? 'dl-success' : 'dl-pret'}"><span class="dot"></span>${ok ? fait : reste}</span>`;
-    const detaille = taille === 'grand';
+    const detaille = presentation === 'grand';
     const lignes = liste.length ? liste.map(r => {
       const plage = plageHoraireRendezVous(r.heure, r.heureFin);
       const delai = r.jours === 0 ? "aujourd'hui" : r.jours > 0 ? `J-${r.jours}` : '';
@@ -15302,7 +15301,7 @@
     const revenir = agendaJourSelectionne ? '<button type="button" class="lien-discret" onclick="selectionnerJourAgenda(null)">Revenir à aujourd’hui</button>' : '';
 
     bloc.innerHTML = carteWidget({
-      taille,
+      presentation,
       titre: 'Agenda',
       sous: escapeHtml(mois.charAt(0).toUpperCase() + mois.slice(1)),
       droite: `<div class="agenda-nav">
@@ -16550,7 +16549,7 @@
     </div>`;
   }
 
-  // Carte « Aujourd'hui » du tableau de bord, selon la taille du widget :
+  // Carte « Aujourd'hui » du tableau de bord, selon la présentation du widget (presentationWidget) :
   //  - petit : le nombre de choses à faire, l'anneau de la journée et la première action ;
   //  - moyen : la liste « À faire » (même présentation que la fenêtre du matin, renderListeJour),
   //    puis « Mes rappels » pour remplir la tuile quand la journée est courte ;
@@ -16561,13 +16560,13 @@
     const bloc = document.getElementById('alertes-dashboard');
     if (!bloc) return;
     const global = vueGlobaleDashboard();
-    const taille = tailleWidget('aujourdhui');
+    const presentation = presentationWidget('aujourdhui');
     const { aujourdhui, actions, traites, aVenir } = etatAujourdhui();
     const fini = actions.length === 0 && traites.length > 0;
     const anneau = actions.length || traites.length ? renderAnneauJour(actions.length, traites.length) : '';
     const versPage = "definirOnglet('aujourdhui')";
     let corps;
-    if (taille === 'petit') {
+    if (presentation === 'petit') {
       const premiere = actions[0];
       const rappelsAFaire = rappelsPerso.filter(r => !r.fait).length;
       corps = `<div class="w-chiffre-bloc">
@@ -16589,7 +16588,7 @@
       const liste = actions.length || traites.length
         ? `<ul class="ja-liste" data-ajuster="1" data-min="1">${actions.map(a => renderLigneActionJour(a, global)).join('')}${renderLignesTraitees(traites)}${plusWidget(versPage)}</ul>`
         : '<p class="jour-vide jour-vide-ok">✓ Rien à faire aujourd’hui sur vos dossiers.</p>';
-      const aVenirHtml = taille === 'grand' && aVenir.length ? `<div class="w-section">
+      const aVenirHtml = presentation === 'grand' && aVenir.length ? `<div class="w-section">
           <h3 class="jour-carte-sous-titre">À venir</h3>
           <ul class="w-lignes" data-ajuster="3">${aVenir.map(v => `<li><button type="button" class="w-ligne" onclick="ouvrirDossierDepuisDashboard('${v.dossier.id}')">
             <span class="w-ligne-texte"><b>${escapeHtml(v.titre)}</b> · ${escapeHtml(v.dossier.nom)}</span>
@@ -16603,10 +16602,10 @@
         ${aVenirHtml}`;
     }
     bloc.innerHTML = carteWidget({
-      taille,
+      presentation,
       titre: 'Aujourd’hui',
-      sous: taille === 'petit' ? '' : escapeHtml(messageProgressionJour(actions.length, traites.length)),
-      droite: `${taille === 'grand' ? `<button type="button" class="icon-btn" onclick="ouvrirFenetreAujourdhui()" title="Rouvrir la fenêtre du point du matin" aria-label="Point du matin">${icone('sun')}</button>` : ''}${anneau}`,
+      sous: presentation === 'petit' ? '' : escapeHtml(messageProgressionJour(actions.length, traites.length)),
+      droite: `${presentation === 'grand' ? `<button type="button" class="icon-btn" onclick="ouvrirFenetreAujourdhui()" title="Rouvrir la fenêtre du point du matin" aria-label="Point du matin">${icone('sun')}</button>` : ''}${anneau}`,
       corps
     });
     majBadgeAujourdhui(actions.length);
@@ -22010,7 +22009,7 @@
   }
 
   // Met à jour le badge numérique de la sidebar — appelée depuis render(), comme les autres
-  // synthèses de portefeuille (renderStatsSuivi, renderKpisDashboard...). Masqué à zéro plutôt
+  // synthèses de portefeuille (renderKpisDashboard...). Masqué à zéro plutôt
   // qu'affiché à "0", cohérent avec les autres compteurs de l'outil.
   function majBadgeNotificationsSidebar() {
     const el = document.getElementById('badge-notif-suivi');

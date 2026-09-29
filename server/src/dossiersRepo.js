@@ -38,10 +38,18 @@ function creerDepot(db) {
     return { ...JSON.parse(ligne.data), updatedAt: ligne.updated_at };
   }
 
+  // Le blob JSON ne porte jamais `updatedAt` : c'est la colonne `updated_at` qui fait foi, jointe
+  // à la lecture (ligneVersReponse). Un dossier relu puis réécrit tel quel (agendaWatch, nasWatch…)
+  // la recopierait sinon dans le blob, où elle serait fausse dès la modification suivante.
+  function blobDossier(d) {
+    const { updatedAt, ...reste } = d;
+    return JSON.stringify(reste);
+  }
+
   function creer(d) {
     const c = colonnesPromues(d);
     const maintenant = Date.now();
-    insererStmt.run(d.id, JSON.stringify(d), c.responsable, c.archive, c.pret, c.acte, c.ventebien, maintenant);
+    insererStmt.run(d.id, blobDossier(d), c.responsable, c.archive, c.pret, c.acte, c.ventebien, maintenant);
     return maintenant;
   }
 
@@ -51,7 +59,7 @@ function creerDepot(db) {
   function remplacer(id, d) {
     const c = colonnesPromues(d);
     const maintenant = Date.now();
-    const resultat = remplacerStmt.run(JSON.stringify(d), c.responsable, c.archive, c.pret, c.acte, c.ventebien, maintenant, id);
+    const resultat = remplacerStmt.run(blobDossier(d), c.responsable, c.archive, c.pret, c.acte, c.ventebien, maintenant, id);
     return resultat.changes > 0 ? maintenant : null;
   }
 

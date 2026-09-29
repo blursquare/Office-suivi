@@ -18,7 +18,7 @@
 
 const crypto = require('node:crypto');
 const {
-  actionsDetecteesDepuisEvenements, absencesDepuisEvenements, categoriesDistinctes, evenementsDepuisEws
+  actionsDetecteesDepuisEvenements, absencesDepuisEvenements, categoriesDistinctes, evenementsDepuisEws, formatDateFr
 } = require('./agendaOffice');
 const { lireCalendrierExchange } = require('./exchange/ews');
 const { poserEcheancesManquantes } = require('./echeancesAgenda');
@@ -189,11 +189,6 @@ function appliquerRendezVousAgenda(depot, detections, resultat) {
   }
 }
 
-function formatDateFr(iso) {
-  const [a, m, j] = String(iso).split('-');
-  return a && m && j ? `${j}/${m}/${a}` : String(iso);
-}
-
 let empreinteRefusee = null;
 
 function empreinteIdentifiants(reglages) {
@@ -244,7 +239,7 @@ async function executerTourSurveillanceAgenda(depot, reglagesExchange, injection
     const dossiersActifs = depot.tousActifs().filter((d) => !d.archive);
     resultat.dossiersVerifies = dossiersActifs.length;
     const detections = actionsDetecteesDepuisEvenements(evenements, dossiersActifs, jour);
-    const applique = appliquerDetectionsAgenda(depot, detections);
+    const applique = appliquerDetectionsAgenda(depot, detections, jour);
     resultat.ok = true;
     resultat.misAJour = applique.misAJour;
     resultat.dejaRenseignes = applique.dejaRenseignes;

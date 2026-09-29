@@ -952,13 +952,6 @@
   .dash-recherche-resp { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .dash-recherche-vide { padding: 12px; font-size: 13px; color: var(--muted); }
 
-  .kpis-dashboard {
-    display: grid;
-    /* Deux cartes : « Portefeuille » (anneau + jauges) et « Activité de l'étude » (fil). */
-    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.7fr);
-    gap: 12px;
-    margin-bottom: 28px;
-  }
   .kpi-tile {
     background: var(--paper-card);
     border: 1px solid var(--line);
@@ -969,7 +962,6 @@
   .kpi-icone { font-size: 13px; line-height: 1; flex: none; opacity: 0.8; }
   /* Carte « Activité de l'étude » (voir renderActiviteEtude) : seconde carte de la rangée, à côté
      de « Portefeuille ». Le fil défile dans la carte, qui garde la hauteur de sa voisine. */
-  .kpi-tile.activite-etude { padding: 12px 12px 8px; display: flex; flex-direction: column; min-width: 0; }
   .activite-entete { padding: 0 4px; }
   .activite-direct {
     margin-left: auto; display: inline-flex; align-items: center; gap: 5px;
@@ -977,9 +969,9 @@
   }
   .activite-direct-point { width: 6px; height: 6px; border-radius: 50%; background: var(--success); animation: activite-pouls 2s ease-in-out infinite; }
   @keyframes activite-pouls { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-  /* Le fil remplit la hauteur de la carte voisine (« Portefeuille ») : contain:size l'empêche
-     d'agrandir la rangée, min-height garde au moins cinq lignes visibles. */
-  .activite-liste { list-style: none; margin: 6px 0 0; padding: 0; flex: 1 1 0; min-height: 156px; contain: size; overflow-y: auto; }
+  /* Le fil : sa hauteur et son défilement dépendent de la présentation de la carte (voir plus bas,
+     .w-grand.activite-etude / .w-moyen.activite-etude). */
+  .activite-liste { list-style: none; margin: 0; padding: 0; }
   .activite-ligne {
     display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 8px;
     width: 100%; padding: 4px; border: 0; border-radius: 6px; background: none; cursor: pointer;
@@ -1073,8 +1065,6 @@
      phrase. Couleurs = celles du badge de statut (--success/--pret/--urgent/--muted), jamais d'autre.
      Les segments et les jauges ne s'animent qu'au premier affichage (.anime) : la carte est
      reconstruite à chaque sondage. */
-  .kpi-tile.portefeuille { display: flex; flex-direction: column; justify-content: space-between; gap: 12px; min-width: 0; padding: 14px 16px; }
-  .portefeuille .kpi-label { min-height: 0; }
   .pf-tendance { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 500; font-size: 11.5px; }
   .pf-haut { display: flex; align-items: center; gap: 16px; }
   .pf-anneau-bloc { position: relative; width: 92px; height: 92px; flex: none; }
@@ -1228,15 +1218,6 @@
     .dash-grid { grid-template-columns: 1fr; }
     .dash-header-actions { width: 100%; }
     .dash-recherche { flex: 1 1 auto; width: auto; }
-  }
-  /* Les cinq tuiles restent sur UNE ligne jusqu'à 1150px : au seuil précédent (1300px) elles
-     retombaient en 3+2, laissant un trou dans la seconde rangée — la rangée ne se lisait plus
-     comme un seul objet. */
-  @media (max-width: 1150px) {
-    .kpis-dashboard { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  }
-  @media (max-width: 640px) {
-    .kpis-dashboard { grid-template-columns: 1fr; }
   }
 
   /* ---- Calculateur de provision sur frais d'acte (onglet indépendant) ----
@@ -4340,9 +4321,9 @@
   @media print {
     body { background: #fff; color: #000; font-size: 11pt; }
     .panel, .pdf-viewer, .list-toolbar, .relances-ciblees, .envoi-action,
-    .confirm-overlay, .toast, footer.note, .dash-avancement,
-    .sidebar, .sidebar-burger, .sidebar-scrim, .dash-header, .kpis-dashboard, .widgets-conteneur,
-    .dash-nouveautes, .dash-rail, .dash-section-titre { display: none !important; }
+    .confirm-overlay, .toast, footer.note,
+    .sidebar, .sidebar-burger, .sidebar-scrim, .dash-header, .widgets-conteneur,
+    .dash-section-titre { display: none !important; }
     .app-main { padding: 0; }
     .layout-cols { display: block; }
     .wrap { max-width: 100%; padding: 0; }
@@ -5639,37 +5620,10 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
   font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 .derniere-piece.nouvelle .derniere-piece-date { color: var(--notif-nouveau); font-weight: 600; }
-/* En-tête du bloc resserré : un seul titre, la période en petit à côté. */
-#dash-nouveautes .agenda-entete { padding: 10px 14px 8px; align-items: baseline; }
-#dash-nouveautes .agenda-entete > div { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-#dash-nouveautes .agenda-titre { font-size: 15px; }
-#dash-nouveautes .agenda-mois { margin-top: 0; font-size: 12px; }
-#dash-nouveautes .dash-liste-carte { padding: 3px 6px 5px; }
 
-.avancement-dossiers {
-  background: var(--paper-card); border: 1px solid var(--line); border-radius: 10px;
-  padding: 6px 8px; box-shadow: var(--shadow-card);
-}
-/* Une ligne par dossier : nom, jauge, statut. Le filet de séparation est porté par la ligne
-   suivante (+ ~), pour qu'aucune ligne n'en ait sous elle en fin de liste. */
-button.avancement-ligne {
-  display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto; align-items: center; gap: 20px;
-  width: 100%; padding: 12px 10px; background: none; border: none; border-radius: 8px;
-  font: inherit; text-align: left; color: inherit; cursor: pointer;
-}
-button.avancement-ligne:hover { background: var(--paper-sunk); }
-.avancement-ligne + .avancement-ligne { border-top: 1px solid var(--line-soft); border-radius: 0; }
-.avancement-ligne + .avancement-ligne:hover { border-radius: 0; }
-.avancement-nom { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.avancement-titre { font-size: 13.5px; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
-.avancement-detail { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.avancement-jauge { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.avancement-jauge-tete { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: var(--muted); }
-.avancement-jauge-tete b { font-size: 13px; color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+/* Jauge et pilule d'avancement : cartes du tableau de bord (Avancement, Aujourd'hui) et fiche. */
 .avancement-barre { display: block; height: 6px; border-radius: 3px; background: var(--line-soft); overflow: hidden; }
 .avancement-barre > span { display: block; height: 100%; border-radius: 3px; background: var(--success); }
-.avancement-ligne.statut-surveiller .avancement-barre > span { background: var(--pret); }
-.avancement-ligne.statut-retard .avancement-barre > span { background: var(--urgent); }
 .avancement-statut { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
 /* Pilule pleine teintée : le seul endroit du tableau de bord où le statut se lit en couleur de
    fond — c'est ce que la ligne a de plus important à dire. Couleurs = jetons de statut existants. */
@@ -5681,42 +5635,11 @@ button.avancement-ligne:hover { background: var(--paper-sunk); }
 .avancement-pilule.dl-urgent { color: var(--urgent); background: color-mix(in srgb, var(--urgent) 14%, transparent); }
 .avancement-pilule.dl-neutre { color: var(--ink-soft); background: var(--paper-sunk); }
 .avancement-pilule.dl-complet { color: var(--acte); background: color-mix(in srgb, var(--acte) 14%, transparent); }
-.avancement-montant { font-size: 12.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
-.avancement-pied { display: flex; justify-content: flex-end; padding: 8px 10px 6px; border-top: 1px solid var(--line-soft); }
-/* Dans une colonne étroite (à côté de « À traiter » sur le tableau de bord), la ligne passe sur deux
-   rangées : nom + statut en haut, jauge pleine largeur dessous. Requête de CONTENEUR et non de
-   fenêtre : c'est la largeur du bloc qui compte, pas celle de l'écran. */
-@container dashbloc (max-width: 560px) {
-  button.avancement-ligne { grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; padding: 11px 8px; }
-  .avancement-jauge { grid-column: 1 / -1; grid-row: 2; }
-  .avancement-detail { white-space: normal; }
-}
-@media (max-width: 700px) {
-  button.avancement-ligne { grid-template-columns: minmax(0, 1fr) auto; gap: 10px 14px; }
-  .avancement-jauge { grid-column: 1 / -1; grid-row: 2; }
-}
 
-/* ---- Tableau de bord : colonne principale + rail à droite ----
-   Le rail (dernières pièces, agenda) démarre à hauteur du titre, comme sur la maquette fournie
-   par l'étude ; la colonne principale porte l'en-tête, les chiffres, puis À traiter à côté de
-   l'avancement. Chaque bloc garde min-width:0 (un enfant de grille ou de flex ne descend sinon
-   pas sous la largeur de son contenu) et reste un conteneur « dashbloc » pour ses requêtes de
-   conteneur. */
-.dash-disposition {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
-  gap: 24px;
-  align-items: start;
-}
-.dash-principal { min-width: 0; }
-.dash-rail { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
-/* L'en-tête vit dans la colonne principale : plus de place perdue sous le titre, la marge
-   suffit à séparer les chiffres. */
-.dash-principal .dash-header { margin-bottom: 20px; }
 /* En-tête du tableau de bord : titre à gauche, recherche et « + Nouveau dossier » à droite sur la
    MÊME ligne ; le résumé du jour dessous. Placé après les @media génériques de .dash-header-actions
    (width: 100% dès 1300px) pour que ceux-ci ne renvoient pas les actions sous le titre. */
-.dash-header.dash-header-accueil { display: block; }
+.dash-header.dash-header-accueil { display: block; margin-bottom: 20px; }
 .dash-accueil-ligne {
   display: flex;
   align-items: center;
@@ -5733,36 +5656,15 @@ button.avancement-ligne:hover { background: var(--paper-sunk); }
   .dash-accueil-ligne .dash-recherche { width: 100%; flex: none; }
 }
 
-/* À traiter (étroit) + avancement (large). Flex : un avancement masqué laisse À traiter prendre
-   toute la largeur, et les deux passent l'un sous l'autre seulement en dessous de ~620px de
-   colonne principale — en pratique jamais tant que le rail reste à côté (grille 2 colonnes,
-   jusqu'à 1320px de viewport), la colonne principale y valant au moins ~624px. Bases réduites
-   par rapport à un premier essai (340+460, qui ne tenait qu'à partir de ~1750px de fenêtre une
-   fois la sidebar/rail déduits — vérifié en capture, pas seulement calculé) : chaque bloc a de
-   toute façon son propre repli en dessous de 560px via la requête de conteneur "dashbloc"
-   (voir plus bas), donc rien ne se casse à ces bases plus modestes. */
-.dash-duo { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px; }
+/* Chaque bloc du tableau de bord est un conteneur (requêtes « dashbloc » : les cartes adaptent leur
+   mise en page à leur propre largeur, pas à celle de l'écran). */
 .dash-bloc { min-width: 0; container-type: inline-size; container-name: dashbloc; }
-/* « Aujourd'hui » (À faire + Mes rappels) et « Avancement des dossiers » à égalité, pour que les
-   deux se lisent aussi bien l'un que l'autre (demandé par l'étude). Même base et même croissance :
-   ils partagent la largeur à parts égales, et passent l'un sous l'autre quand elle manque. */
-.dash-duo > .dash-bloc-traiter { flex: 1 1 340px; }
-.dash-duo > .dash-avancement { flex: 1 1 340px; }
-/* Les quatre blocs sont des cartes au même gabarit (titre + sous-titre en tête, comme l'agenda
-   et À traiter) : les listes qu'elles contiennent perdent leur propre cadre. */
-.agenda-carte .avancement-dossiers { border: 0; border-radius: 0; box-shadow: none; }
 .dash-liste-carte { gap: 0; padding: 4px 8px 8px; }
 .dash-liste-carte .action-urgente-ligne {
   border: 0; border-radius: 6px; box-shadow: none; background: none; padding: 11px 10px;
 }
 .dash-liste-carte .action-urgente-ligne + .action-urgente-ligne { border-top: 1px solid var(--line-soft); border-radius: 0; }
 .dash-liste-carte .action-urgente-ligne:hover { background: var(--paper-sunk); }
-@media (max-width: 1320px) {
-  .dash-disposition { grid-template-columns: minmax(0, 1fr); }
-  /* Le rail passe sous la colonne principale : pièces et agenda côte à côte. */
-  .dash-rail { flex-direction: row; flex-wrap: wrap; align-items: flex-start; }
-  .dash-rail > .dash-bloc { flex: 1 1 320px; }
-}
 
 /* ==== Signalements de problèmes (voir ouvrirSignalement / renderSignalements dans script.js) ==== */
 .sidebar-link.sidebar-signaler { color: var(--ink-soft); }
@@ -5982,7 +5884,6 @@ button.lien-discret:focus-visible { outline: 2px solid var(--focus); outline-off
 .agenda-rdv-meta { font-size: 12.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .agenda-rdv-lieu { font-size: 12.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agenda-rdv-etats { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; margin-top: 2px; }
-.agenda-vide { font-size: 13px; color: var(--muted); padding: 6px 0 2px; }
 /* « Absent cette semaine : … » — un repère amber sous la bande de la semaine (absences lues dans
    l'agenda de l'office, voir absencesDepuisIcs). L'icône hérite de la taille du texte (.icone = 1em). */
 .agenda-absences {
@@ -6015,11 +5916,7 @@ button.lien-discret:focus-visible { outline: 2px solid var(--focus); outline-off
   .action-urgente-raison { white-space: normal; }
 }
 
-/* ---- Alertes importantes + Mes rappels (voir renderAlertesDashboard) ---- */
-.alertes-entete {
-  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
-  padding: 16px 18px 14px; border-bottom: 1px solid var(--line-soft);
-}
+/* ---- Lignes d'action et rappels du tableau de bord (voir renderAlertesDashboard) ---- */
 button.lien-action {
   font-family: inherit; font-size: 13.5px; font-weight: 600; color: var(--focus);
   background: none; border: none; padding: 2px 0; cursor: pointer;
@@ -6104,7 +6001,6 @@ button.lien-action:hover { text-decoration: underline; }
 .alerte-autre { font-size: 12px; color: var(--muted); }
 .alerte-autre.g-critique { color: var(--urgent); }
 .alerte-autre.g-vigilance { color: var(--pret); }
-.a-traiter-vide { padding: 16px 18px; font-size: 13.5px; color: var(--success); border-bottom: 1px solid var(--line-soft); }
 
 /* ---- « Aujourd'hui » : carte du tableau de bord, page du jour, point du matin (voir la section
    AUJOURD'HUI de script.js) ---- */
@@ -6186,11 +6082,9 @@ button.lien-action:hover { text-decoration: underline; }
 .ja.fait .ja-annuler { font-size: 12px; }
 @keyframes ja-fait { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
 
-/* Carte du tableau de bord : la colonne est étroite, le délai passe sous le titre. */
-.jour-carte-corps { padding: 6px 12px 6px; display: flex; flex-direction: column; gap: 4px; }
-.jour-carte-corps .a-traiter-vide { padding: 10px 6px; border-bottom: none; }
-.alertes-entete .jour-anneau { width: 44px; height: 44px; }
-.alertes-entete .jour-anneau svg { width: 44px; height: 44px; }
+/* Anneau de la journée dans l'en-tête de la carte « Aujourd'hui » du tableau de bord. */
+.w-tete-droite .jour-anneau { width: 44px; height: 44px; }
+.w-tete-droite .jour-anneau svg { width: 44px; height: 44px; }
 .ja-compacte .ja { grid-template-columns: 12px minmax(0, 1fr) auto auto; grid-template-areas: "p t go tard" "p d go tard"; row-gap: 0; }
 .ja-compacte .ja > .dot-label { grid-area: p; }
 .ja-compacte .ja > .ja-texte { grid-area: t; }
@@ -6658,10 +6552,6 @@ button.confrere-carnet-office:focus-visible, button.carnet-dossier:focus-visible
   .carnet-liste { grid-template-columns: 1fr; }
 }
 
-/* Carte « Aujourd'hui » du tableau de bord : anneau et bouton de la fenêtre du point du matin. */
-.alertes-entete-droite { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex: none; }
-.alertes-titre-ligne { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }
-.action-rapide.alertes-point-matin { display: inline-flex; align-items: center; gap: 5px; margin: 0; padding: 3px 10px; white-space: nowrap; }
 /* Notre office en tête du carnet : même carte, pastille « Notre office ». */
 .carnet-etude-badge { align-self: flex-start; }
 /* Réglages › collaborateurs : fonction écrite sous le nom dans la signature des emails. Sélecteur
@@ -6846,8 +6736,6 @@ button.w-plus { align-self: flex-start; margin-top: 2px; font-size: 12.5px; list
 .w-moyen .agenda-bande { padding-bottom: 6px; }
 .w-moyen .w-corps { gap: 8px; }
 .w-carte .agenda-liste { padding: 0; gap: 6px; }
-.w-carte .avancement-dossiers { border: 0; box-shadow: none; padding: 0; background: none; border-radius: 0; }
-.w-carte button.avancement-ligne { padding: 10px 4px; gap: 14px; }
 .w-carte .dash-liste-carte { padding: 0; }
 .w-carte .dash-liste-carte .action-urgente-ligne.derniere-piece { padding-left: 0; padding-right: 0; }
 .w-agenda-petit .w-titre { color: var(--focus); text-transform: capitalize; }

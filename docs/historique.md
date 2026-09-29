@@ -12391,3 +12391,33 @@ Réponses de l'étude aux deux choix faits sans question le 29/09 :
   n'est pas réalisée (`echeanceValidee(d, 'ventebien')`), comme l'offre de prêt : le dossier reste
   « Attente de pièces » (ni Complet ni Prêt). Dépassée, elle reste « Urgent » comme avant. Tests dans
   `tests/etat-dossier.test.js`.
+
+### 30/09 00:04 — Audit du code de la soirée
+
+Demande : « Relis tout ton code, trouve les incohérences ou anomalies et corrige ; il faut être
+professionnel dans le code et les technologies. » Relecture des commits du 29/09 (agenda EWS, dates
+butoir, statut, widgets) ; corrections sans changement d'écran :
+- **Client ↔ serveur** : `echeanceAgendaSouhaitee` client acceptait n'importe quelle valeur de date
+  (le serveur exige AAAA-MM-JJ) ; le titre et le corps de l'événement d'échéance étaient recopiés en
+  chaînes littérales côté client. Désormais `sujetEcheanceAgenda`/`CORPS_ECHEANCE_AGENDA` existent
+  des deux côtés et `tests/echeances-agenda-client.test.js` compare les deux implémentations (titre,
+  corps, verdict « date souhaitée ») — c'est ce test qui a révélé l'écart.
+- **Base** : `updatedAt` (colonne `updated_at`) était recopié dans le blob JSON dès qu'un dossier
+  relu (tours du NAS et de l'agenda) était réécrit tel quel ; `blobDossier` le retire, test
+  `server/test/dossiers-repo.test.js`.
+- **Serveur** : `formatDateFr` dupliqué dans agendaWatch.js et echeancesAgenda.js → une seule
+  définition (agendaOffice.js) ; la date du jour calculée dans le tour est passée à
+  `appliquerDetectionsAgenda` au lieu d'être recalculée ; la date à Paris de chaque journée entière est
+  calculée une fois par événement dans `planPoseEcheances`, pas à chaque dossier.
+- **Client** : `carteWidget` reçoit des `attributs` (fin du `.replace()` sur le HTML rendu pour
+  poser `data-filtre`) ; `tailleWidget` → `presentationWidget` (elle rend la présentation, pas la
+  largeur) et variables locales renommées ; sélecteurs fixes en deux constantes (fin du `split`) ;
+  code mort retiré (`ORDRE_STATUTS_PORTEFEUILLE`, `parStatut`, `LIBELLES_STATUT`, `el.hidden`,
+  classe `w-ligne-fixe`), commentaires qui citaient `renderStatsSuivi` (supprimée) corrigés.
+- **CSS** : ≈ 140 lignes orphelines retirées (grille `.kpis-dashboard`, `.kpi-tile.portefeuille`,
+  `.dash-duo`, ancienne liste `button.avancement-ligne`, en-têtes `#dash-nouveautes`, `.alertes-*`,
+  `.jour-carte-corps`, `.dash-disposition`/`.dash-rail`, `.agenda-vide`, `.a-traiter-vide`) ; l'anneau
+  de la carte Aujourd'hui est stylé sur `.w-tete-droite`. Piège rencontré : un retrait par plage a
+  emporté l'en-tête d'accueil (`.dash-accueil-ligne`), remis — vérifié par capture.
+- Vérifié : 980 tests client, 487 serveur ; rendu Chromium identique (1440, 1024, 400 px, mode
+  Personnaliser).

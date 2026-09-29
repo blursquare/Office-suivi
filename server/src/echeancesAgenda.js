@@ -23,7 +23,7 @@
 // et au plus MAX_CREATIONS_PAR_TOUR créations par tour pour étaler la reprise initiale.
 
 const { echeanceValidee } = require('./jobs/rappels');
-const { momentParisDepuisIso } = require('./agendaOffice');
+const { momentParisDepuisIso, formatDateFr } = require('./agendaOffice');
 const { creerEcheanceExchange } = require('./exchange/ews');
 
 const LIBELLES_ECHEANCE_AGENDA = { pret: 'Obtention du prêt', ventebien: 'Vente préalable' };
@@ -60,7 +60,11 @@ function echeanceAgendaSouhaitee(d, type) {
 // Rend [{ dossierId, type, date, sujet, action: 'adopter'|'creer', itemId?, changeKey? }].
 function planPoseEcheances(dossiers, evenementsEws, aujourdHui, maintenantMs) {
   const plan = [];
-  const journees = (evenementsEws || []).filter((e) => e && e.allDay && !e.cancelled && e.itemId);
+  // Journées entières lisibles, avec leur date à Paris calculée une fois (pas à chaque dossier).
+  const journees = (evenementsEws || [])
+    .filter((e) => e && e.allDay && !e.cancelled && e.itemId)
+    .map((e) => ({ e, date: (momentParisDepuisIso(e.start) || {}).date }))
+    .filter((x) => x.date);
   for (const d of dossiers || []) {
     for (const type of Object.keys(LIBELLES_ECHEANCE_AGENDA)) {
       if (!echeanceAgendaSouhaitee(d, type)) continue;
@@ -69,12 +73,9 @@ function planPoseEcheances(dossiers, evenementsEws, aujourdHui, maintenantMs) {
       const date = d[type];
       if (aujourdHui && date < aujourdHui) continue;
       const sujet = sujetEcheanceAgenda(d, type);
-      const existant = journees.find((e) => {
-        const debut = momentParisDepuisIso(e.start);
-        return e.subject === sujet && debut && debut.date === date;
-      });
+      const existant = journees.find((x) => x.e.subject === sujet && x.date === date);
       if (existant) {
-        plan.push({ dossierId: d.id, type, date, sujet, action: 'adopter', itemId: existant.itemId, changeKey: existant.changeKey || '' });
+        plan.push({ dossierId: d.id, type, date, sujet, action: 'adopter', itemId: existant.e.itemId, changeKey: existant.e.changeKey || '' });
         continue;
       }
       const majLe = Number(d.updatedAt);
@@ -83,11 +84,6 @@ function planPoseEcheances(dossiers, evenementsEws, aujourdHui, maintenantMs) {
     }
   }
   return plan;
-}
-
-function formatDateFr(iso) {
-  const [a, m, j] = String(iso).split('-');
-  return a && m && j ? `${j}/${m}/${a}` : String(iso);
 }
 
 // Applique le plan : adopte sans rien écrire dans l'agenda, crée un événement sinon. Chaque
@@ -139,6 +135,6 @@ async function poserEcheancesManquantes(depot, reglagesExchange, evenementsEws, 
 }
 
 module.exports = {
-  LIBELLES_ECHEANCE_AGENDA, DELAI_APRES_MODIFICATION_MS, MAX_CREATIONS_PAR_TOUR,
+  LIBELLES_ECHEANCE_AGENDA, CORPS_ECHEANCE_AGENDA, DELAI_APRES_MODIFICATION_MS, MAX_CREATIONS_PAR_TOUR,
   extraireNomAcquereur, sujetEcheanceAgenda, echeanceAgendaSouhaitee, planPoseEcheances, poserEcheancesManquantes
 };

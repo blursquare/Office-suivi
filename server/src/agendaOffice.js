@@ -43,6 +43,12 @@ function momentParisDepuisIso(iso) {
   return { date: `${p.year}-${p.month}-${p.day}`, heure: `${p.hour}:${p.minute}` };
 }
 
+// « JJ/MM/AAAA » pour les libellés d'historique écrits par le serveur (agendaWatch, echeancesAgenda).
+function formatDateFr(iso) {
+  const [a, m, j] = String(iso).split('-');
+  return a && m && j ? `${j}/${m}/${a}` : String(iso);
+}
+
 // Le jour civil précédent (AAAA-MM-JJ), en UTC pour ne pas dépendre du fuseau du serveur : la fin
 // d'un événement « toute la journée » est EXCLUSIVE (minuit du lendemain du dernier jour réel).
 function veilleDe(iso) {
@@ -422,7 +428,7 @@ function absencesDepuisEvenements(evenements, aujourdHui) {
 }
 
 module.exports = {
-  momentParisDepuisIso, veilleDe, evenementDepuisEws, evenementsDepuisEws,
+  momentParisDepuisIso, veilleDe, formatDateFr, evenementDepuisEws, evenementsDepuisEws,
   extraireReferenceVte, referenceDossierEvenement, detecteAppelDeFonds, detecteProjetEnvoye,
   detecterActionsEvenement, dossierPourReferenceAgenda, actionsDetecteesDepuisEvenements, motsVoisins,
   estRendezVousSignature, composerLieuAgenda,

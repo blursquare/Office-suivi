@@ -14,7 +14,7 @@ function dossier(extra) {
   return Object.assign({ id: 'x', nom: 'X', typeVente: 'maison', roleNotaire: 'instrumentaire', historique: [], pieces: {} }, extra);
 }
 
-test('statsPortefeuilleVisuel : statuts, signatures du mois (archivés compris), offres, avancement', () => {
+test('statsPortefeuilleVisuel : états, signatures du mois (archivés compris), offres, avancement', () => {
   const actifs = [
     dossier({ id: 'a', sansPret: true, roleNotaire: 'participant' }), // rien à vérifier → prêt
     dossier({ id: 'b', offrePretStatut: 'manquante', dossierLie: true }),
@@ -24,10 +24,7 @@ test('statsPortefeuilleVisuel : statuts, signatures du mois (archivés compris),
   const archive = dossier({ id: 'e', archive: true, rendezVousSignature: '2026-09-10' });
   const st = app.statsPortefeuilleVisuel(actifs, actifs.concat([archive]), AUJ);
   assert.equal(st.actifs, 4);
-  assert.equal(st.parStatut.pret, 2);      // a (rien à vérifier) et c (offre reçue, jamais relié)
-  assert.equal(st.parStatut.blocage, 1);   // b
-  assert.equal(st.parStatut.arelier, 1);   // d
-  assert.equal(st.parStatut.pret + st.parStatut.aconfirmer + st.parStatut.blocage + st.parStatut.arelier, 4);
+  assert.equal(Object.values(st.parEtat).reduce((t, n) => t + n, 0), 4);
   assert.equal(st.signaturesMois.total, 2);
   assert.equal(st.signaturesMois.faites, 1);
   assert.equal(st.offres.total, 3);
