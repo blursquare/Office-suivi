@@ -145,7 +145,8 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   (« VTE VENDEUR/ACQUÉREUR ») cite le vendeur du dossier ; une référence qui ne nomme personne du
   dossier écarte l'écriture. Complet = montant attendu **à 50 € près** (`MARGE_FONDS_RECUS`, miroir
   serveur `bilanFonds`) ; au-delà, « excédent » à vérifier, jamais « complet ». Noms cherchés :
-  parties acquéreurs + nom du dossier + nom du courrier d'appel de fonds + `d.nomsRecus` (nom d'usage).
+  parties acquéreurs (et leur `nomUsage`, lu dans l'état civil « Veuve/Épouse de Monsieur … NOM » par
+  `nomsUsageDansBloc`) + nom du dossier + nom du courrier d'appel de fonds + `d.nomsRecus`.
 - **Mobilier** : le prix reste le prix total ; `d.prixMobilier` sort seulement de l'assiette des
   droits (frais d'acte, contrôle du barème).
 - **Prorata** : jours réels, jour de l'acte à la charge de l'acquéreur, arrondi du vendeur par

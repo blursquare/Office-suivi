@@ -12034,3 +12034,23 @@ maximum si le client a fait une erreur ».
   Rejoué sur le PDF réel des reçus du 28/09 (non commité) : rien pour le dossier concerné, les trois
   versements pour le bon client. Tests avec noms inventés. Lecture du nom d'épouse dans l'acte lui-même
   (« épouse de Monsieur … ») non faite : sans acte réel, le motif serait deviné.
+
+### 29/09 15:45 — Nom d'usage lu dans l'état civil des parties
+
+L'étude a envoyé les deux promesses concernées (non commitées) : « Madame CRIL est veuve, à prendre
+en compte ; dans l'autre dossier, monsieur et madame YAICH sont mariés ». Le reçu « MANDELBLI Valérian
+et MARTIN » était celui du couple bénéficiaire de l'autre promesse (Madame Séverine MARTIN, épouse
+MANDELBLI) : une autre Madame MARTIN que la bénéficiaire veuve CRIL.
+  - `nomsUsageDansBloc` / `RE_NOM_USAGE_CONJOINT` : dans le bloc d'une partie, « Veuve de Monsieur
+    Prénom NOM » ou « Épouse de Monsieur Prénom NOM » donne `nomUsage` = NOM à la partie nommée
+    juste avant la mention (jamais à elle-même). « Divorcée de » n'en donne pas. Conservé dans
+    l'extraction, à l'import, dans la mise à jour depuis la relecture d'actes ; affiché dans le
+    panneau de révision (« MARTIN (nom d'usage CRIL) ») ; ajouté aux noms cherchés sur les reçus
+    (acquéreur) et aux noms du vendeur qui confirment la référence de la vente.
+  - Un couple marié dont les deux membres sont parties (« Monsieur et Madame YAÏCH mariés ») n'a
+    rien à ajouter : le nom d'usage de l'épouse est déjà celui d'une partie.
+  Rejoué sur les deux actes réels et les reçus du 28/09 : dossier CRIL → aucun versement (MARTIN/CRIL,
+  vendeur ANNE) ; dossier MANDELBLI → les trois écritures, référence de la vente retrouvée
+  (YAÏCH/PRIEUR). Tests avec la même structure et des noms inventés (tests/parties.test.js).
+  Un dossier déjà créé ne relit pas son acte : pour lui, le nom du courrier d'appel de fonds ou le
+  champ « Autre nom sur les reçus » prend le relais.

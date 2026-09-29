@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 15:39';
+  const VERSION_APP = '2026-09-29 15:45';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 15:45', resume: "Nouveau dossier : le nom d'usage d'une partie veuve ou mariée est lu dans son état civil (« Madame Yvette MARTIN … Veuve de Monsieur … CRIL » → nom d'usage CRIL), affiché à côté de son nom et utilisé pour retrouver ses versements dans les reçus comptables." },
     { version: '2026-09-29 15:39', resume: "Fonds reçus : un versement porté au compte de deux personnes (« DUPONT Jean et MARTIN ») ne compte plus pour un dossier MARTIN si la référence de la vente cite une autre vente. Les fonds doivent correspondre au montant attendu à 50 € près : au-delà, CLAIRE signale un écart à vérifier au lieu de « Tous les fonds sont reçus ». Nom d'usage ou d'épouse : repris du courrier d'appel de fonds (« … - CRIL »), du nom du dossier, ou saisi dans « Autre nom sur les reçus ». Une lecture faite avec l'ancienne règle est refaite automatiquement." },
     { version: '2026-09-29 15:22', resume: "Adresses : tirets et CEDEX conservés dans la commune (« SAINT-AIGNAN (41110), 2 rue … », « BLOIS CEDEX (41018), … »). Appel de fonds : l'adresse du destinataire reste en présentation postale, la voie puis « 41110 SAINT-AIGNAN » en dernière ligne, même saisie sur une ligne." },
     { version: '2026-09-29 15:09', resume: "Montants partout au format « 360.000,00 € » (point pour les milliers). Adresses partout au format « SAINT AIGNAN (41110), 2 rue des Cours de Meusnes » (fiche, nouveau dossier, appel de fonds, carnet des confrères). Appel de fonds : référence « VTE - NOM » pour un dossier de vente ; dans le .docx, la date du courrier est alignée à gauche avec le nom de l'acquéreur." },
@@ -1812,6 +1813,28 @@
   // qui en découle POUR CE TYPE D'ACTE. Gère plusieurs vendeurs et plusieurs acquéreurs (les noms
   // sont extraits un par un, voir extraireNomsParNaissance), ainsi qu'une personne morale avec son
   // représentant.
+  // Nom d'usage d'une partie mariée ou veuve, lu dans son état civil : « Madame Yvette MARTIN, …
+  // Veuve de Monsieur Jean CRIL » → MARTIN verse et signe sous le nom CRIL (reçus comptables,
+  // courriers). Rattaché à la partie nommée juste avant la mention. Pure : renvoie { NOM: usage }.
+  var RE_NOM_USAGE_CONJOINT = /(?:[Vv]euve|[ÉéEe]pouse)\s+(?:en\s+\S+\s+noces\s+)?de\s+Monsieur\s+(?:[A-ZÀ-Ý][a-zà-ÿ'’]+(?:-[A-ZÀ-Ý][a-zà-ÿ'’]+)*\s+)+([A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,}(?:[^\S\n]*-[^\S\n]*[A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,}|[^\S\n]+[A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,})*)/g;
+  function nomsUsageDansBloc(bloc, noms) {
+    const out = {};
+    const texte = String(bloc || '');
+    const re = new RegExp(RE_NOM_USAGE_CONJOINT.source, 'g');
+    let m;
+    while ((m = re.exec(texte)) !== null) {
+      const usage = normaliserEspacesNom(m[1]);
+      if (!estNomValide(usage)) continue;
+      let titulaire = null, pos = -1;
+      for (const nom of noms || []) {
+        const i = texte.lastIndexOf(nom, m.index);
+        if (i > pos) { pos = i; titulaire = nom; }
+      }
+      if (titulaire && titulaire !== usage && !out[titulaire]) out[titulaire] = usage;
+    }
+    return out;
+  }
+
   function detecterParties(texte, typeActe) {
     const source = String(texte || '');
     if (!source) return [];
@@ -1870,15 +1893,16 @@
       // du nom des vendeurs.
       const dejaVus = new Set(parties.map(p => p.nom));
       noms = [...new Set(noms.map(normaliserEspacesNom))].filter(n => !dejaVus.has(n));
+      const usages = nomsUsageDansBloc(bloc, noms);
       for (const nom of noms) {
-        parties.push({
+        parties.push(Object.assign({
           nom,
           qualiteActe: cote.qualite,
           role,
           qualitePersonne: 'physique',
           representant: null,
           source: { extrait: extraireContexte(source, cote.index, cote.qualite.length), index: cote.index }
-        });
+        }, usages[nom] ? { nomUsage: usages[nom] } : {}));
       }
       curseur = resultat.finAbsolue;
     }
@@ -3619,7 +3643,8 @@
         nom: p.nom, qualiteActe: p.qualiteActe, role: p.role,
         qualitePersonne: p.qualitePersonne || 'physique',
         representant: p.representant || null,
-        societe: p.societe || null
+        societe: p.societe || null,
+        ...(p.nomUsage ? { nomUsage: p.nomUsage } : {})
       })),
       notaires: {
         vendeur: notairePersistable(notaires.vendeur),
@@ -7015,7 +7040,8 @@
               role: p.role,
               qualitePersonne: p.qualitePersonne === 'morale' ? 'morale' : 'physique',
               representant: typeof p.representant === 'string' ? p.representant : null,
-              societe: societePersistable(p.societe)
+              societe: societePersistable(p.societe),
+              ...(typeof p.nomUsage === 'string' && p.nomUsage ? { nomUsage: p.nomUsage.slice(0, 80) } : {})
             }))
         : [],
       notaires: notaires
@@ -8490,7 +8516,7 @@
     }).join('');
 
     const parties = (extraction.parties || []).map(p =>
-      `<li>${escapeHtml(p.nom)} — <strong>${p.role === 'VENDEUR' ? 'vendeur' : 'acquéreur'}</strong> (désigné « ${escapeHtml(p.qualiteActe)} » dans l’acte${p.qualitePersonne === 'morale' ? ', personne morale' : ''})${p.representant ? `, représenté par ${escapeHtml(p.representant)}` : ''}${p.origine === 'ia' ? ' — <em>proposé par l’IA</em>' : ''}${p.societe ? `<div class="revision-raison">${escapeHtml(libelleIdentiteSociete(p.societe))}</div>` : ''}</li>`
+      `<li>${escapeHtml(p.nom)}${p.nomUsage ? ` (nom d’usage ${escapeHtml(p.nomUsage)})` : ''} — <strong>${p.role === 'VENDEUR' ? 'vendeur' : 'acquéreur'}</strong> (désigné « ${escapeHtml(p.qualiteActe)} » dans l’acte${p.qualitePersonne === 'morale' ? ', personne morale' : ''})${p.representant ? `, représenté par ${escapeHtml(p.representant)}` : ''}${p.origine === 'ia' ? ' — <em>proposé par l’IA</em>' : ''}${p.societe ? `<div class="revision-raison">${escapeHtml(libelleIdentiteSociete(p.societe))}</div>` : ''}</li>`
     ).join('');
 
     const notaires = extraction.notaires || {};
@@ -10624,7 +10650,7 @@
   // verse sous son nom d'épouse, que l'acte lu ne donnait pas (29/09).
   function motsPayeurDossier(d) {
     const parties = Array.isArray(d && d.parties) ? d.parties : [];
-    const acquereurs = parties.filter(p => p && String(p.role || '').toUpperCase() === 'ACQUEREUR').map(p => p.nom);
+    const acquereurs = parties.filter(p => p && String(p.role || '').toUpperCase() === 'ACQUEREUR').map(p => [p.nom, p.nomUsage].filter(Boolean).join(' '));
     const nom = String(d && d.nom || '');
     const source = [
       acquereurs.length ? acquereurs.join(' ') : extraireNomAcquereur(nom),
@@ -10752,7 +10778,7 @@
   // Pure : les patronymes du vendeur (pour confirmer par la référence de la vente).
   function motsVendeurDossier(d) {
     const parties = Array.isArray(d && d.parties) ? d.parties : [];
-    const vendeurs = parties.filter(p => p && String(p.role || '').toUpperCase() === 'VENDEUR').map(p => p.nom);
+    const vendeurs = parties.filter(p => p && String(p.role || '').toUpperCase() === 'VENDEUR').map(p => [p.nom, p.nomUsage].filter(Boolean).join(' '));
     const source = vendeurs.length ? vendeurs.join(' ') : String(d && d.nom || '').split('/')[0];
     const acquereur = motsPayeurDossier(d);
     return [...new Set(normaliserPourRecherche(source).split(/[^a-z]+/)
@@ -24389,7 +24415,8 @@
     if (!d || !ctx || !ctx.entree || !ctx.entree.reference) return;
     const parties = (ctx.entree.reference.parties || []).map(p => ({
       nom: p.nom, qualiteActe: p.qualiteActe, role: p.role,
-      qualitePersonne: p.qualitePersonne || 'physique', representant: p.representant || null
+      qualitePersonne: p.qualitePersonne || 'physique', representant: p.representant || null,
+      ...(p.nomUsage ? { nomUsage: p.nomUsage } : {})
     }));
     if (!parties.length) return;
     demanderConfirmation("Remplacer les parties de la fiche par celles lues dans l'avant-contrat ? Le nom du dossier n'est pas modifié.", () => {

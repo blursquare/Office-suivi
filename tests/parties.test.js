@@ -377,3 +377,32 @@ test('une mention du rôle au fil d’une phrase ne coupe jamais le bloc', () =>
   assert.equal(parties.filter(p => p.role === 'VENDEUR').map(p => p.nom).join(' & '), 'DURAND & LEROY');
   assert.equal(parties.filter(p => p.role === 'ACQUEREUR').map(p => p.nom).join(' & '), 'PETIT');
 });
+
+// Nom d'usage lu dans l'état civil (29/09) : structure réelle de deux promesses authentiques, noms
+// inventés. Une bénéficiaire veuve désignée sous son nom de naissance verse sous le nom de son
+// défunt mari ; un couple marié, tous deux parties, n'a pas de nom d'usage à ajouter.
+test('parties : nom d’usage d’une veuve ou d’une épouse, rattaché à la bonne partie', () => {
+  const app = chargerApplication();
+  const veuve = `PROMESSE DE VENTE PROMETTANT Monsieur Lucien Marcel BERTRAND, retraité, demeurant à BLOIS (41000) 12
+rue des Fossés. Né à CONTRES (41700) le 3 mars 1954. Célibataire. Non lié par un pacte civil de solidarité.
+BENEFICIAIRE Madame Odette Lucienne Marie FAVIER, retraitée, demeurant à MER (41500) 4 rue du Four.
+Née à ANGERS (49000), le 12 avril 1950. Veuve de Monsieur Jean-Marc BRUNEL et non remariée.
+Non liée par un pacte civil de solidarité. QUOTITES ACQUISES Madame Odette BRUNEL fera l’acquisition de la pleine propriété du BIEN.`;
+  const p1 = app.detecterParties(veuve.replace(/\n/g, ' '), 'PROMESSE_VENTE');
+  assert.equal(p1.map(p => `${p.role}:${p.nom}:${p.nomUsage || ''}`).join(' | '), 'VENDEUR:BERTRAND: | ACQUEREUR:FAVIER:BRUNEL');
+  // Reçus comptables : cherchés aussi sous le nom d'usage.
+  assert.equal(app.motsPayeurDossier({ parties: p1, nom: 'BERTRAND / FAVIER' }).join(','), 'favier,brunel');
+
+  const couple = `PROMESSE UNILATERALE DE VENTE D'IMMEUBLE IDENTIFICATION DES PARTIES 1) Promettants
+Monsieur Karim BENALI, consultant, et Madame Isabelle Elise ROYER, gérante, demeurant ensemble à BLOIS (41000), 6 rue du Puits.
+Nés, savoir : Monsieur à TOURS (37000), le 15 mars 1967. Madame à CALAIS (62100), le 29 décembre 1966.
+Monsieur et Madame BENALI mariés à la Mairie de BLOIS (41000), le 16 mai 2017, sous le régime légal.
+Ci-après dénommés, ensemble, "LE PROMETTANT" D'UNE PART 2) Bénéficiaires
+Monsieur Hugo LEFORT, agent, et Madame Claire Anne GIRAUD, épouse de Monsieur Hugo LEFORT, demeurant ensemble à CELLETTES (41120).
+Ci-après dénommés, ensemble, "LE BENEFICIAIRE"`;
+  const p2 = app.detecterParties(couple.replace(/\n/g, ' '), 'PROMESSE_VENTE');
+  const lu = p2.map(p => `${p.nom}:${p.nomUsage || ''}`).join(' | ');
+  assert.match(lu, /BENALI: \| ROYER:/);
+  assert.match(lu, /GIRAUD:LEFORT/);
+  assert.doesNotMatch(lu, /LEFORT:LEFORT/);
+});
