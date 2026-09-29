@@ -66,6 +66,9 @@ test('widgets du tableau de bord : liste blanche des identifiants et des tailles
     { id: 'aujourdhui', taille: 'moyen', masque: true }
   ]));
   assert.equal(assainirWidgetsPreference('pas une liste'), null);
+  const { assainirPreference } = require('../src/parametresRepo');
+  assert.equal(assainirPreference({ widgetsVersion: 2 }).widgetsVersion, 2);
+  assert.equal(assainirPreference({ widgetsVersion: 'x' }).widgetsVersion, undefined);
   // Enregistrés par collaborateur, sans toucher au thème.
   await appeler('/api/preferences', 'PUT', { collaborateur: 'Julie VASSELIN', preferences: { widgets: [{ id: 'avancement', taille: 'grand' }] } });
   const r = await (await appeler('/api/preferences?collaborateur=' + encodeURIComponent('Julie VASSELIN'))).json();

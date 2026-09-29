@@ -12365,3 +12365,19 @@ niveaux de hauteur de widget. »
   légende empilés, lignes resserrées.
 - Vérifié dans Chromium (1440 et 400 px, clair) : les deux cartes s'affichent sans pièce récente ni
   action ; combinaisons largeur × hauteur, clic sur « Hauteur » enregistré ; aucun débordement ni erreur.
+
+### 29/09 23:45 — Widgets : disposition par défaut en rectangle plein
+
+Demande : « Mets par défaut une sélection de widgets que tu estimes importants en premier et que ça
+forme un beau rectangle de widgets. »
+- Ordre retenu (du plus utile au quotidien au plus contextuel) : Aujourd'hui (moyen × 2 : le travail
+  du jour, en haut à gauche), Agenda (moyen × 1), Dossiers ouverts et Dernières pièces (petit × 1
+  chacun, sous l'agenda), Avancement et Activité (moyen × 2, côte à côte). 4 colonnes × 4 rangées sans
+  trou ; 2 × 8 sur téléphone.
+- `placementWidgets(dispo, colonnes)` (pure) reproduit le placement `grid-auto-flow: row dense` et
+  compte les cases vides : le test garantit 0 trou à 4 et 2 colonnes.
+- `VERSION_DISPOSITION_WIDGETS = 2`, enregistrée avec la préférence (`widgetsVersion`, liste blanche
+  serveur) ; une disposition d'une version antérieure est remplacée une fois par la nouvelle
+  disposition par défaut, puis le collaborateur la réarrange librement. Cache local renommé
+  (`claire-widgets-v2:`). Vérifié dans Chromium : disposition ancienne en base → rectangle 4 × 4 affiché
+  et réenregistré avec la version, 2 × 8 à 400 px, aucune erreur.

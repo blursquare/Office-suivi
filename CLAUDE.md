@@ -268,7 +268,10 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   signatures, pièces encore attendues…), pas un blanc. « Personnaliser » (ou appui long sur un titre) :
   glisser-déposer au pointeur, largeur et hauteur, masquer. Disposition par collaborateur : préférence
   `widgets` en base (liste blanche `WIDGETS_PREFERENCES` côté serveur, `WIDGETS_DASHBOARD` côté
-  client — à modifier ensemble). Un nouveau bloc du tableau de bord = un nouveau widget.
+  client — à modifier ensemble). Un nouveau bloc du tableau de bord = un nouveau widget. Disposition
+  par défaut = rectangle plein (4 × 4, 2 × 8 sur téléphone, vérifié par `placementWidgets` dans les
+  tests), les plus utiles d'abord ; la changer = incrémenter `VERSION_DISPOSITION_WIDGETS` (chaque
+  collaborateur y est ramené une fois).
 - **Texte d'aide** : ne décrit pas ce que le bouton dit déjà ; il dit ce qui manque. Une toute
   nouvelle confirmation commence par son verbe d'action (`boutonConfirmation`). **Une explication
   n'est jamais un paragraphe** (étude, 29/09 : « ça charge trop l'interface ») : elle va dans une

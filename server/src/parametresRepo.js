@@ -162,6 +162,9 @@ function assainirPreference(brut) {
   if (ACCENTS_PREFERENCES.includes(b.accent)) out.accent = b.accent;
   const widgets = assainirWidgetsPreference(b.widgets);
   if (widgets && widgets.length) out.widgets = widgets;
+  // Version de la disposition par défaut à laquelle se rapporte `widgets` (le client repart de la
+  // nouvelle disposition par défaut quand elle change).
+  if (Number.isInteger(b.widgetsVersion) && b.widgetsVersion > 0 && b.widgetsVersion < 100) out.widgetsVersion = b.widgetsVersion;
   return out;
 }
 

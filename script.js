@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 23:36';
+  const VERSION_APP = '2026-09-29 23:45';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 23:45', resume: "Tableau de bord : nouvelle disposition par défaut, en rectangle plein — Aujourd'hui en grand à gauche, l'Agenda à côté, Dossiers ouverts et Dernières pièces dessous, puis Avancement et Activité côte à côte. Chaque collaborateur y est ramené une fois (une disposition réglée avant cette version est remplacée), puis peut la réarranger dans « Personnaliser »." },
     { version: '2026-09-29 23:36', resume: "Tableau de bord : « Dernières pièces » et « Activité de l'étude » (en direct) sont toujours affichées — elles disparaissaient faute de pièce récente ou d'action. Sans pièce arrivée, la carte dit ce qui est encore attendu ; le fil « en direct » reprend aussi ce que CLAIRE a relevé seule (pièces trouvées sur le NAS). Chaque carte se règle désormais en largeur (1, 2 colonnes ou toute la ligne) et en hauteur (1, 2 ou 3 rangées) dans « Personnaliser ». L'Agenda liste aussi les prochaines échéances." },
     { version: '2026-09-29 23:30', resume: "Tableau de bord : grille de 4 colonnes et toutes les cartes en petit, moyen ou grand, comme les widgets iPhone. Chaque carte change de contenu avec sa taille (chiffre clé en petit, liste en moyen, détail en grand) et se remplit sans blanc : ce qui ne tient pas passe dans « Voir N de plus », la place libre reçoit les prochaines signatures, ce qui arrive, les pièces encore attendues. « Personnaliser » : attraper une carte et la glisser à sa place (souris ou doigt) ; un appui long sur le titre d'une carte ouvre aussi ce mode." },
     { version: '2026-09-29 23:12', resume: "Statut d'un dossier = son état général, partout : « À relier », « Attente de pièces » (pièces ou offre de prêt manquantes), « Complet » (tout est reçu), « Prêt » (rendez-vous placé), et « Urgent » dès qu'une date butoir est dépassée — le dossier reprend son état normal une fois l'échéance levée. Suivi : colonnes « Statut » (triable) et « Prochaine échéance » à nouveau séparées ; le statut apparaît aussi dans la vue Échéances. Survoler le badge dit ce qui manque ou quelle date est dépassée." },
@@ -14630,6 +14631,13 @@
   // glisser-déposer au pointeur (souris ou doigt), taille, flèches au clavier, masquer ; un appui
   // long sur le titre d'une carte ouvre aussi ce mode. Disposition propre à chaque collaborateur :
   // préférence « widgets » en base (voir routes/preferences.js), cache localStorage.
+  // Disposition par défaut (étude, 29/09 au soir : « les widgets importants en premier, en un beau
+  // rectangle ») : Aujourd'hui (le travail du jour) en grand carré à gauche, l'Agenda à côté, les deux
+  // chiffres clés (dossiers ouverts, pièces arrivées) dessous, puis Avancement et Activité côte à côte.
+  // 4 colonnes × 4 rangées sans un trou — et 2 × 8 sur téléphone (voir placementWidgets, testé).
+  // Changer cette disposition = incrémenter VERSION_DISPOSITION_WIDGETS : chaque collaborateur y est
+  // ramené une fois, puis garde ses réglages.
+  var VERSION_DISPOSITION_WIDGETS = 2;
   var TAILLES_WIDGET = ['petit', 'moyen', 'grand'];
   var HAUTEURS_WIDGET = [1, 2, 3];
   var WIDGETS_DASHBOARD = [
@@ -14642,7 +14650,7 @@
   ];
   var NOMS_TAILLE_WIDGET = { petit: 'Étroit (1 colonne)', moyen: 'Moyen (2 colonnes)', grand: 'Large (toute la ligne)' };
   var NOMS_HAUTEUR_WIDGET = { 1: 'Basse (1 rangée)', 2: 'Moyenne (2 rangées)', 3: 'Haute (3 rangées)' };
-  var CLE_WIDGETS_LOCAL = 'claire-widgets:';
+  var CLE_WIDGETS_LOCAL = 'claire-widgets-v2:';
   let modeEditionWidgets = false;
   let dispositionWidgets = null;   // null = pas encore chargée : disposition par défaut
 
@@ -14671,6 +14679,33 @@
       if (!vus.has(def.id)) out.push({ id: def.id, taille: def.defaut, hauteur: def.hauteur, masque: false });
     });
     return out;
+  }
+
+  // Pure : où chaque widget visible tombe dans la grille (même règle que CSS `grid-auto-flow: row
+  // dense` : chaque carte à la première place libre, en lisant ligne par ligne). Renvoie le nombre de
+  // rangées et de cases vides — 0 case vide = un rectangle plein.
+  function placementWidgets(dispo, colonnes) {
+    const occupe = [];
+    const libre = (r, c, l, h) => {
+      for (let y = r; y < r + h; y++) for (let x = c; x < c + l; x++) if (occupe[y] && occupe[y][x]) return false;
+      return c + l <= colonnes;
+    };
+    const place = {};
+    (dispo || []).filter(w => !w.masque).forEach(w => {
+      const l = Math.min(colonnes, w.taille === 'grand' ? colonnes : w.taille === 'moyen' ? 2 : 1);
+      const h = w.hauteur || 1;
+      for (let r = 0; ; r++) {
+        let ok = -1;
+        for (let c = 0; c <= colonnes - l; c++) if (libre(r, c, l, h)) { ok = c; break; }
+        if (ok === -1) continue;
+        for (let y = r; y < r + h; y++) { occupe[y] = occupe[y] || []; for (let x = ok; x < ok + l; x++) occupe[y][x] = w.id; }
+        place[w.id] = { rangee: r, colonne: ok, largeur: l, hauteur: h };
+        break;
+      }
+    });
+    let vides = 0;
+    occupe.forEach(ligne => { for (let x = 0; x < colonnes; x++) if (!ligne[x]) vides++; });
+    return { rangees: occupe.length, vides, place };
   }
 
   // Pure : `id` déplacé à la position `index` parmi les widgets (bornée), les autres dans le même ordre.
@@ -14729,7 +14764,7 @@
   function enregistrerDispositionWidgets(dispo) {
     dispositionWidgets = dispo;
     try { localStorage.setItem(CLE_WIDGETS_LOCAL + utilisateurPoste, JSON.stringify(dispo)); } catch (e) { /* cache facultatif */ }
-    enregistrerPreferenceCollaborateur({ widgets: dispo });
+    enregistrerPreferenceCollaborateur({ widgets: dispo, widgetsVersion: VERSION_DISPOSITION_WIDGETS });
     render();   // le contenu des cartes dépend de leur taille
   }
 
@@ -23370,7 +23405,13 @@
     } catch (e) { return; }
     if (serveur.theme) appliquerTheme(serveur.theme);
     if (serveur.accent) appliquerAccent(serveur.accent);
-    if (Array.isArray(serveur.widgets)) appliquerDispositionWidgets(serveur.widgets);
+    // Disposition enregistrée pour une ancienne disposition par défaut : on repart de la nouvelle, une
+    // fois (voir VERSION_DISPOSITION_WIDGETS) ; le collaborateur la réarrange ensuite à son goût.
+    if (Array.isArray(serveur.widgets) && serveur.widgetsVersion === VERSION_DISPOSITION_WIDGETS) appliquerDispositionWidgets(serveur.widgets);
+    else if (Array.isArray(serveur.widgets)) {
+      appliquerDispositionWidgets(null);
+      enregistrerPreferenceCollaborateur({ widgets: dispositionWidgetsCourante(), widgetsVersion: VERSION_DISPOSITION_WIDGETS });
+    }
     // Premier passage de ce collaborateur : on reprend le choix déjà fait sur ce poste.
     const manquant = {};
     const locales = preferencesLocales();

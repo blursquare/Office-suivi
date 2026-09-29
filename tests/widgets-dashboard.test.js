@@ -114,3 +114,19 @@ test('activité : les relevés de CLAIRE (sans auteur, hors agenda) servent d’
   ] }]);
   assert.equal(l.map(e => e.source + ':' + e.texte).join('|'), 'claire:Pièce trouvée sur le NAS : Diagnostics');
 });
+
+test('disposition par défaut : les plus importants d’abord, un rectangle plein (4 × 4 ; 2 × 8 sur téléphone)', () => {
+  const d = app.dispositionWidgetsDepuis(null);
+  assert.equal(ids(d).split(',').slice(0, 2).join(','), 'aujourdhui,agenda');
+  const quatre = app.placementWidgets(d, 4);
+  assert.equal(quatre.vides + ':' + quatre.rangees, '0:4');
+  assert.equal(JSON.stringify(quatre.place.aujourdhui), JSON.stringify({ rangee: 0, colonne: 0, largeur: 2, hauteur: 2 }));
+  const deux = app.placementWidgets(d, 2);
+  assert.equal(deux.vides + ':' + deux.rangees, '0:8');
+});
+
+test('placement : un trou se voit, et « dense » remonte une petite carte dans le premier trou', () => {
+  const p = app.placementWidgets([{ id: 'a', taille: 'moyen', hauteur: 1 }, { id: 'b', taille: 'grand', hauteur: 1 }, { id: 'c', taille: 'petit', hauteur: 1 }], 4);
+  assert.equal(p.vides + ':' + p.rangees, '1:2');
+  assert.equal(p.place.c.rangee + ':' + p.place.c.colonne, '0:2');
+});
