@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 09:09';
+  const VERSION_APP = '2026-09-29 09:34';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 09:34', resume: "Emails : signature selon le modèle de l'étude — carte du collaborateur (nom, fonction, téléphone, adresse notaires.fr, logos), bannière Visio, mentions en orange, rouge et gris (fonction de chacun dans Réglages). Échéances dans l'ordre du dossier (le prêt ne descend plus en bas) et heure du rendez-vous sur la ligne Signature. Email de réception des fonds : jour, date et heure du rendez-vous en gras souligné (« lundi 5 octobre 2026 à 11h ») et rappel des pièces d'identité et du RIB. Réglages › Sur ce poste : ouvrir les documents dès leur téléchargement (relais à installer une fois par poste)." },
     { version: '2026-09-29 09:09', resume: "Fonds reçus : les reçus comptables sont aussi cherchés dans le dossier « DOSSIER » à la racine du NAS (\\\\192.168.60.5\\Commun\\DOSSIER) — c'est là que l'étude les range ; seule la racine des dossiers clients était lue. La fiche dit sous quel nom et dans quels dossiers les reçus ont été cherchés. Agenda : « Noter dans l'agenda » est coché quand la mention (appel de fonds, projet) figure déjà dans le lieu du rendez-vous relevé dans l'agenda." },
     { version: '2026-09-29 08:57', resume: "Échéances : « Créer le rendez-vous dans l'agenda Outlook » n'est plus proposé quand le rendez-vous de signature est déjà dans l'agenda de l'office — créé depuis CLAIRE ou posé à la main dans Outlook et relevé par CLAIRE. Il revient seulement si le rendez-vous disparaît de l'agenda ou si la date est changée à la main." },
     { version: '2026-09-29 08:54', resume: "Carnet des confrères : notre office y figure de base, en tête de liste (proposé dans les champs notaire des fiches, jamais retiré). Tableau de bord : bouton « Point du matin » sur la carte « Aujourd'hui » pour rouvrir la fenêtre du matin." },
@@ -10432,7 +10433,7 @@
       <span class="dot-label dl-${type} ech-pastille" aria-hidden="true"><span class="dot"></span></span>
       <span class="ech-nom-cell"><span class="ech-nom${o.fort ? ' ech-nom-fort' : ''}">${label}</span>${choixCategorie}</span>
       <span class="ech-date-cell">
-        <span class="ech-date" id="${idBase}-aff" title="${iso ? escapeAttr(formatDateFr(iso)) : ''}">${o.comptant ? '' : dateCourteEcheance(iso)}</span>
+        <span class="ech-date" id="${idBase}-aff" title="${iso ? escapeAttr(formatDateFr(iso)) : ''}">${o.comptant ? '' : dateCourteEcheance(iso)}${iso && o.heure ? `<span class="ech-heure"> · ${escapeHtml(o.heure)}</span>` : ''}</span>
         ${editable ? `<span class="tab-date-edition" id="${idBase}-edit" hidden>
           <input type="date" class="tab-date-input" id="${idBase}-input" value="${iso || ''}" onkeydown="if(event.key==='Enter'){event.preventDefault();validerEditionDate('${dossierId}','${cleEdition}');}">
           <button type="button" class="icon-valider" onclick="validerEditionDate('${dossierId}','${cleEdition}')" title="Valider" aria-label="Valider la date">✓</button>
@@ -11752,8 +11753,8 @@
   // saisie ne disparaît jamais ; un rendez-vous de signature fixé les rend dues ; le dossier complet.
   function echeancesOrdonneesFiche(d, confiance, offreBloc) {
     const lignes = [];
-    // Ordre d'INSERTION = l'ordre métier du dossier (vente préalable → prêt → date butoir → appel de
-    // fonds → projet → rendez-vous de signature) : il ne décide que du sort des échéances sans date.
+    // Ordre d'INSERTION = l'ordre du dossier (vente préalable → prêt → date butoir → appel de
+    // fonds → projet → rendez-vous de signature) : c'est l'ordre affiché (ordonnerEcheancesFiche).
     if (d.ventebien) lignes.push({ iso: d.ventebien, html: renderLigneEcheance('ventebien', 'Vente préalable', d.ventebien, d.id, d.ventebienPage, confiance.ventebien, null, false, '', false, echeanceValidee(d, 'ventebien')) });
     lignes.push({ iso: d.pret, html: d.sansPret && !d.pret
       ? renderLigneEcheance('pret', 'Financement comptant', '', d.id, null, null, null, false, '', true, false, { comptant: true })
@@ -11777,18 +11778,33 @@
           iso ? true : echeanceValidee(d, cle), { etatSansDate: 'À envoyer', etatFait: '✓ Envoyé', sansValidation: true }) });
       });
     }
-    lignes.push({ iso: d.rendezVousSignature, html: renderLigneEcheance('rendezVousSignature', 'Signature', d.rendezVousSignature, d.id, null, null, null, false, renderSousRendezVous(d, butoirSousRdv), false, echeanceValidee(d, 'rendezVousSignature'), { fort: true }) });
-    (d.autres || []).forEach((a, i) => lignes.push({ iso: a.date, html: renderLigneEcheance('autre', escapeHtml(a.label), a.date, d.id, a.page, null, i, false, '', false, echeanceValidee(d, 'autre-' + i)) }));
-    // Dates ISO AAAA-MM-JJ : la comparaison de chaînes suffit. Le tri de JS est stable : les
-    // échéances sans date gardent l'ordre métier, en fin de liste. L'index passé pour une échéance
-    // personnalisée reste sa position réelle dans d.autres (c'est lui qui identifie l'entrée).
-    lignes.sort((a, b) => {
-      if (a.iso && b.iso) return a.iso < b.iso ? -1 : (a.iso > b.iso ? 1 : 0);
-      if (a.iso) return -1;
-      if (b.iso) return 1;
-      return 0;
-    });
-    return `<ul class="ech-liste">${lignes.map(l => l.html).join('')}</ul>`;
+    lignes.push({ iso: d.rendezVousSignature, html: renderLigneEcheance('rendezVousSignature', 'Signature', d.rendezVousSignature, d.id, null, null, null, false, renderSousRendezVous(d, butoirSousRdv), false, echeanceValidee(d, 'rendezVousSignature'), { fort: true, heure: plageHoraireRendezVous(d.rendezVousSignatureHeure, d.rendezVousSignatureHeureFin) }) });
+    (d.autres || []).forEach((a, i) => lignes.push({ autre: true, iso: a.date, html: renderLigneEcheance('autre', escapeHtml(a.label), a.date, d.id, a.page, null, i, false, '', false, echeanceValidee(d, 'autre-' + i)) }));
+    return `<ul class="ech-liste">${ordonnerEcheancesFiche(lignes).map(l => l.html).join('')}</ul>`;
+  }
+
+  // Ordre des lignes (demandé par l'étude le 29/09 : « pourquoi en bas de liste ? le mettre dans
+  // l'ordre du dossier ») : les étapes du dossier restent dans l'ORDRE DU DOSSIER (vente préalable →
+  // prêt → date butoir → appel de fonds → projet → signature), quelles que soient leurs dates — une
+  // date de prêt postérieure au rendez-vous ne fait plus descendre le prêt en bas. Seules les
+  // échéances personnalisées (`autre: true`) se placent par leur date, après la dernière étape datée
+  // au plus tard ce jour-là ; sans date, en fin de liste. Pure : lignes {iso, html, autre}.
+  function ordonnerEcheancesFiche(lignes) {
+    const etapes = (lignes || []).filter(l => !l.autre);
+    const perso = (lignes || []).filter(l => l.autre);
+    const datees = perso.filter(l => l.iso).sort((a, b) => (a.iso < b.iso ? -1 : (a.iso > b.iso ? 1 : 0)));
+    // Chaque échéance personnalisée datée va juste après la DERNIÈRE étape datée au plus tard le même
+    // jour (en tête si aucune) : l'ordre des étapes, lui, ne bouge jamais.
+    const apres = etapes.map(() => []);
+    const enTete = [];
+    for (const p of datees) {
+      let j = -1;
+      etapes.forEach((e, k) => { if (e.iso && e.iso <= p.iso) j = k; });
+      (j < 0 ? enTete : apres[j]).push(p);
+    }
+    const out = enTete.slice();
+    etapes.forEach((e, k) => { out.push(e); out.push(...apres[k]); });
+    return out.concat(perso.filter(l => !l.iso));
   }
 
   // Le courrier d'appel de fonds (convocation, décompte acquéreur…) rattaché à la ligne « Envoi
@@ -13840,6 +13856,8 @@
     if (resp && !resp.value && utilisateurPoste) resp.value = utilisateurPoste;
     const modeEmail = document.getElementById('reglages-mode-email');
     if (modeEmail) modeEmail.value = modeEmailPoste();
+    const ouvertureAuto = document.getElementById('reglages-ouverture-auto');
+    if (ouvertureAuto) ouvertureAuto.checked = ouvertureAutoActive();
   }
 
   function ouvrirChoixPoste() {
@@ -15149,7 +15167,7 @@
     if (!brouillon) return '';
     return `<div class="jour-brouillon">
       <dl><dt>À</dt><dd>${escapeHtml(brouillon.a || '—')}</dd><dt>Objet</dt><dd>${escapeHtml(brouillon.objet)}</dd></dl>
-      ${brouillon.corps.split(/\n\n+/).map(p => `<p>${escapeHtml(p).replace(/\n/g, '<br>')}</p>`).join('')}
+      ${brouillon.corps.split(/\n\n+/).map(p => `<p>${marquesEnHtml(escapeHtml(p).replace(/\n/g, '<br>'))}</p>`).join('')}
     </div>`;
   }
 
@@ -17082,6 +17100,7 @@
     a.download = `rappel_echeance_${safeName || 'dossier'}.ics`;
     document.body.appendChild(a);
     a.click();
+    ouvrirApresTelechargement(a.download);
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     afficherInfoAction(
@@ -17125,14 +17144,50 @@
     'office.gossart@notaires.fr',
     'sophie-gossart-blois.notaires.fr'
   ];
-  var MENTIONS_EMAIL_OFFICE = [
-    'Ainsi qu’il résulte des dispositions de l’article L.112-6-1 du Code Monétaire et Financier, désormais, tous les versements supérieurs à 3.000 € doivent être effectués par virement uniquement. Les notaires ne sont plus autorisés à accepter ou à établir des chèques pour le compte des parties à un acte donnant lieu à publicité foncière : seuls les virements sont autorisés.',
-    'Pour l’envoi de vos prix de vente, solde, fonds dépendant d’une succession, vous devrez impérativement nous fournir un RIB signé par vous.',
-    'Ce message contient des informations confidentielles protégées par le secret professionnel.',
-    'Au cas où il ne vous serait pas destiné, nous vous remercions de bien vouloir nous en aviser immédiatement et de le supprimer. Les liaisons internet ne sont pas sécurisées et en conséquence l’Office ne pourra être responsable de tout changement qui pourrait être effectué concernant ce message après son envoi.',
-    'Attention fraude : tous les notaires de France ont l’obligation de communiquer uniquement avec une adresse mail notaires.fr (notaires au pluriel avec un s). Un notaire ou un collaborateur de notaire ne vous écrira jamais avec une adresse orange, free, gmail ou autres.'
+  // Mentions du bas de chaque email, dans l'ordre, les couleurs et la mise en forme du modèle de
+  // l'étude (29/09 : « pour les signatures d'email reprendre toujours ce modèle ») — texte repris mot
+  // pour mot, y compris « seuls les virement sont autorisés ». Chaque mention : un ton (orange,
+  // rouge, gris) et des morceaux, chacun en gras (b) ou souligné (u) au besoin.
+  var MENTIONS_SIGNATURE_EMAIL = [
+    { ton: 'orange', morceaux: [['Ainsi qu’il résulte des dispositions de l’article L.112-6-1 du Code Monétaire et Financier, désormais, tous les versements supérieurs à 3.000 € doivent être effectués par virement uniquement. Les notaires ne sont plus autorisés à accepter ou à établir des chèques pour le compte des parties à un acte donnant lieu à publicité foncière : seuls les virement sont autorisés.']] },
+    { ton: 'orange', gras: true, colle: true, morceaux: [['Pour l’envoi de vos prix de vente, solde, fonds dépendant d’une succession, vous devrez impérativement nous fournir '], ['un RIB signé par vous.', 'u']] },
+    { ton: 'rouge', morceaux: [['Attention fraude', 'b'], [' : tous les notaires de France ont l’obligation de communiquer uniquement avec une adresse mail notaires.fr ('], ['notaires au pluriel avec un s', 'u'], ['). Un notaire ou un collaborateur de notaire ne vous écrira jamais avec une adresse orange, free, gmail ou autres.']] },
+    { ton: 'rouge', morceaux: [['Attention fraude aux RIB', 'b'], [' : tous les notaires de France ont l’obligation de détenir un compte à la '], ['CAISSE DES DEPOTS ET CONSIGNATIONS (CDC). Seulement la CDC, uniquement la CDC.', 'b'], [' '], ['Ne jamais effectuer de virement sur un compte ouvert auprès d’une autre banque.', 'u']] },
+    { ton: 'gris', morceaux: [['Ce message contient des informations confidentielles protégées par le secret professionnel.']] },
+    { ton: 'gris', colle: true, morceaux: [['Au cas où il ne vous serait pas destiné, nous vous remercions de bien vouloir nous en aviser immédiatement et de le supprimer. Les liaisons internet ne sont pas sécurisées et en conséquence l’Office ne pourra être responsable de tout changement qui pourrait être effectué concernant ce message après son envoi.']] }
   ];
-  var SIGNATURE_EMAIL_OFFICE = '\n\n' + COORDONNEES_EMAIL_OFFICE.join('\n') + '\n\n---\n' + MENTIONS_EMAIL_OFFICE.join('\n\n');
+  var MENTIONS_EMAIL_OFFICE = MENTIONS_SIGNATURE_EMAIL.map(m => m.morceaux.map(x => x[0]).join(''));
+  var COULEURS_MENTIONS_EMAIL = { orange: '#E36C0A', rouge: '#E0393E', gris: '#7F7F7F' };
+
+  // Bannière Visio du modèle (« Pas le temps de passer chez votre notaire ? »), texte mot pour mot ;
+  // les passages en bleu sont marqués « bleu ».
+  var BANNIERE_VISIO_EMAIL = {
+    titre: 'Pas le temps de passer chez votre notaire ?',
+    morceaux: [['Vous disposez d’une tablette ou d’un ordinateur doté d’une caméra et d’un micro ? Vous avez alors l’équipement nécessaire pour réaliser '], ['un entretien en visioconférence avec votre notaire', 'bleu'], ['. Simple, '], ['en toute confidentialité', 'bleu'], [', grâce au lien internet sécurisé qui vous est communiqué, '], ['vous pouvez, de chez vous, dialoguer avec lui', 'bleu'], ['.']]
+  };
+
+  // Fonction affichée sous le nom du collaborateur dans sa carte de signature (Réglages ›
+  // Collaborateurs). Par défaut « Collaborateur », comme sur la carte vierge de l'étude.
+  var FONCTIONS_SIGNATURE_DEFAUT = { 'Bastien ANGLUMENT': 'Responsable qualité et relation client' };
+
+  // Pure : qui signe l'email — le collaborateur du poste, à défaut le responsable du dossier ; son
+  // adresse notaires.fr et sa fonction viennent des Réglages. Sans nom : la carte de l'office.
+  function signataireEmail(nom, reglages) {
+    const r = reglages || {};
+    const n = String(nom || '').trim();
+    const email = (n && r.emailsResponsables && r.emailsResponsables[n]) || COORDONNEES_EMAIL_OFFICE[4];
+    const fonction = (n && r.fonctionsResponsables && r.fonctionsResponsables[n]) || FONCTIONS_SIGNATURE_DEFAUT[n] || 'Collaborateur';
+    return { nom: n, fonction, email };
+  }
+
+  function texteSignatureEmail(signataire) {
+    const s = signataire || signataireEmail('', {});
+    const identite = s.nom ? [s.nom, s.fonction, ''] : [COORDONNEES_EMAIL_OFFICE[0]];
+    return '\n\n' + identite.concat([COORDONNEES_EMAIL_OFFICE[3], s.email, COORDONNEES_EMAIL_OFFICE[1], COORDONNEES_EMAIL_OFFICE[2], COORDONNEES_EMAIL_OFFICE[5]]).join('\n')
+      + '\n\n' + BANNIERE_VISIO_EMAIL.titre + '\n' + BANNIERE_VISIO_EMAIL.morceaux.map(x => x[0]).join('')
+      + '\n\n---\n' + MENTIONS_EMAIL_OFFICE.join('\n\n');
+  }
+  var SIGNATURE_EMAIL_OFFICE = texteSignatureEmail(null);
 
   // Formules imposées par l'étude dès qu'on écrit à un CONFRÈRE (le notaire de l'acquéreur quand un
   // autre office le représente — voir emailDestinataireRelance) : tous les emails, sans exception.
@@ -17179,45 +17234,64 @@
     return echapperHtmlEmail(ligne).replace(/https?:\/\/[^\s<]+/g, u => `<a href="${u}" style="color:${COULEUR_EMAIL_OFFICE};">${u}</a>`);
   }
 
-  // `images` : cid des images disponibles ({ logoOffice, logoNotaires, iconVisio } → cid ou rien).
-  // Une image absente est simplement omise : la signature texte tient seule.
-  function signatureHtmlOffice(images) {
+  // `images` : cid des images disponibles ({ logoOffice, logoNotaires, iconVisio, iconFacebook,
+  // iconInstagram } → cid ou rien). Une image absente est simplement omise.
+  // Mise en page du modèle de l'étude (29/09) : la CARTE du collaborateur (à gauche son nom, sa
+  // fonction, téléphone, email, adresse et site ; à droite le logo de l'office, celui des Notaires de
+  // France et les réseaux), la bannière Visio, puis les mentions en couleur. En tableaux et styles en
+  // ligne : Outlook ignore le reste. La photo de la façade du modèle n'est pas encore fournie en
+  // fichier : la carte s'en passe.
+  var OR_SIGNATURE_EMAIL = '#C29A5B';
+  var BLEU_VISIO_EMAIL = '#1B9AD6';
+  function signatureHtmlOffice(images, signataire) {
     const img = images || {};
-    const lien = (href, texte) => `<a href="${href}" style="color:${COULEUR_EMAIL_OFFICE};text-decoration:none;">${echapperHtmlEmail(texte)}</a>`;
+    const s = signataire || signataireEmail('', {});
     const c = COORDONNEES_EMAIL_OFFICE;
-    const logo = img.logoOffice
-      ? `<td style="padding:0 16px 0 0;vertical-align:middle;"><img src="cid:${img.logoOffice}" width="150" height="88" alt="Office notarial de la Salamandre" style="display:block;border:0;"></td>`
-      : '';
-    const bandeau = [];
-    if (img.logoNotaires) bandeau.push(`<td style="padding:0 14px 0 0;vertical-align:middle;"><img src="cid:${img.logoNotaires}" width="70" height="36" alt="Notaires de France" style="display:block;border:0;"></td>`);
-    if (img.iconVisio) {
-      bandeau.push(`<td style="padding:0 6px 0 0;vertical-align:middle;"><img src="cid:${img.iconVisio}" width="26" height="23" alt="" style="display:block;border:0;"></td>`);
-      bandeau.push(`<td style="vertical-align:middle;font-family:Calibri,Arial,sans-serif;font-size:8pt;font-weight:bold;color:${COULEUR_EMAIL_OFFICE};">OFFICE ÉQUIPÉ DE LA VISIOCONFÉRENCE DE LA PROFESSION</td>`);
-    }
-    const mentions = MENTIONS_EMAIL_OFFICE.map(m => {
-      const fraude = /^Attention fraude\s*:/.exec(m);
-      return fraude
-        ? `<p style="margin:0 0 6pt;"><b style="color:${COULEUR_EMAIL_OFFICE};">Attention fraude :</b>${echapperHtmlEmail(m.slice(fraude[0].length))}</p>`
-        : `<p style="margin:0 0 6pt;">${echapperHtmlEmail(m)}</p>`;
+    const police = 'font-family:Calibri,Arial,sans-serif;';
+    const lien = (href, texte) => `<a href="${href}" style="color:#4A4A4A;text-decoration:none;">${echapperHtmlEmail(texte)}</a>`;
+    const ligne = (contenu) => `<tr><td style="${police}font-size:9.5pt;color:#4A4A4A;padding:2px 0;line-height:1.3;">${contenu}</td></tr>`;
+    const tete = s.nom
+      ? `<div style="font-family:Georgia,'Times New Roman',serif;font-size:15pt;color:${COULEUR_EMAIL_OFFICE};">${echapperHtmlEmail(s.nom)}</div>`
+        + `<div style="${police}font-size:7.5pt;letter-spacing:1.5px;color:${OR_SIGNATURE_EMAIL};text-transform:uppercase;">${echapperHtmlEmail(s.fonction)}</div>`
+      : `<div style="font-family:Georgia,'Times New Roman',serif;font-size:15pt;color:${COULEUR_EMAIL_OFFICE};">${echapperHtmlEmail(c[0])}</div>`;
+    const gauche = `<td width="360" style="padding:14px 18px;vertical-align:top;">${tete}`
+      + `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin-top:12px;">`
+      + ligne(echapperHtmlEmail(c[3].replace(/^T[ée]l\.\s*/, '')))
+      + ligne(lien('mailto:' + s.email, s.email))
+      + ligne(`${echapperHtmlEmail(c[1])}<br>${echapperHtmlEmail(c[2].replace(' - ', ' - '))}`)
+      + ligne(lien('https://' + c[5], c[5]))
+      + `</table></td>`;
+    const reseaux = [img.iconFacebook, img.iconInstagram].filter(Boolean)
+      .map(cid => `<img src="cid:${cid}" width="14" height="14" alt="" style="border:0;margin:0 4px;">`).join('');
+    const droite = `<td width="200" style="padding:6px 6px;vertical-align:middle;text-align:center;border-left:1px solid #E8DCC4;">`
+      + (img.logoOffice ? `<img src="cid:${img.logoOffice}" width="190" height="111" alt="Me Sophie GOSSART — Office notarial de la Salamandre" style="display:block;border:0;margin:0 auto;">` : `<div style="${police}font-size:10pt;color:${COULEUR_EMAIL_OFFICE};">${echapperHtmlEmail(c[1])}</div>`)
+      + (img.logoNotaires ? `<img src="cid:${img.logoNotaires}" width="120" height="62" alt="Notaires de France" style="display:block;border:0;margin:-6px auto 0;">` : '')
+      + (reseaux ? `<div style="margin-top:8px;">${reseaux}</div>` : '')
+      + `</td>`;
+    const carte = `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560" style="border-collapse:collapse;margin-top:14pt;border:1px solid #E8DCC4;background:#FFFFFF;"><tr>${gauche}${droite}</tr></table>`;
+    const texteVisio = BANNIERE_VISIO_EMAIL.morceaux.map(([t, st]) => st === 'bleu'
+      ? `<span style="color:${BLEU_VISIO_EMAIL};">${echapperHtmlEmail(t)}</span>` : echapperHtmlEmail(t)).join('');
+    const visio = `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560" style="border-collapse:collapse;margin-top:12pt;border:1px solid #E3E3E3;background:#FFFFFF;"><tr>`
+      + (img.iconVisio ? `<td width="56" style="padding:8px 6px 8px 10px;vertical-align:middle;"><img src="cid:${img.iconVisio}" width="46" height="41" alt="Visio" style="display:block;border:0;"></td>` : '')
+      + `<td style="padding:8px 10px;vertical-align:middle;${police}">`
+      + `<div style="font-size:11pt;font-weight:bold;color:${BLEU_VISIO_EMAIL};">${echapperHtmlEmail(BANNIERE_VISIO_EMAIL.titre)}</div>`
+      + `<div style="font-size:8pt;line-height:1.35;color:#1F1F1F;margin-top:2px;">${texteVisio}</div></td></tr></table>`;
+    const mentions = MENTIONS_SIGNATURE_EMAIL.map((m, i) => {
+      const couleur = COULEURS_MENTIONS_EMAIL[m.ton] || '#7F7F7F';
+      const html = m.morceaux.map(([t, st]) => st === 'b' ? `<b>${echapperHtmlEmail(t)}</b>`
+        : st === 'u' ? `<u>${echapperHtmlEmail(t)}</u>` : echapperHtmlEmail(t)).join('');
+      const marge = i === 0 ? '0' : (m.colle ? '0' : '10pt');
+      return `<p style="margin:${marge} 0 0;color:${couleur};${m.gras ? 'font-weight:bold;' : ''}">${html}</p>`;
     }).join('');
-    return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin-top:14pt;">`
-      + `<tr>${logo}<td style="border-left:2px solid ${COULEUR_EMAIL_OFFICE};padding:0 0 0 14px;vertical-align:middle;font-family:Calibri,Arial,sans-serif;font-size:10pt;color:#3B3B3B;">`
-      + `<div style="font-size:11pt;font-weight:bold;color:${COULEUR_EMAIL_OFFICE};">${echapperHtmlEmail(c[0])}</div>`
-      + `<div style="color:${COULEUR_EMAIL_OFFICE};">${echapperHtmlEmail(c[1])}</div>`
-      + `<div style="margin-top:4pt;">${echapperHtmlEmail(c[2])}</div>`
-      + `<div>${echapperHtmlEmail(c[3])}</div>`
-      + `<div>${lien('mailto:' + c[4], c[4])} · ${lien('https://' + c[5], c[5])}</div>`
-      + `</td></tr></table>`
-      + (bandeau.length ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin-top:8pt;"><tr>${bandeau.join('')}</tr></table>` : '')
-      + `<div style="margin-top:10pt;font-family:Calibri,Arial,sans-serif;font-size:8pt;line-height:1.35;color:#6B6B6B;">${mentions}</div>`;
+    return carte + visio + `<div style="margin-top:14pt;${police}font-size:10pt;line-height:1.4;">${mentions}</div>`;
   }
 
   // Pure : le corps (déjà adapté au destinataire) en HTML, suivi de la signature.
-  function htmlEmail(corps, images) {
+  function htmlEmail(corps, images, signataire) {
     const paragraphes = String(corps || '').split(/\n{2,}/).map(p =>
-      `<p style="margin:0 0 11pt;">${p.split('\n').map(ligneHtmlEmail).join('<br>')}</p>`).join('');
+      `<p style="margin:0 0 11pt;">${marquesEnHtml(p.split('\n').map(ligneHtmlEmail).join('<br>'))}</p>`).join('');
     return `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="${POLICE_EMAIL}">`
-      + `<div style="${POLICE_EMAIL}">${paragraphes}</div>${signatureHtmlOffice(images)}</body></html>`;
+      + `<div style="${POLICE_EMAIL}">${paragraphes}</div>${signatureHtmlOffice(images, signataire)}</body></html>`;
   }
 
   // --- fichier .eml -------------------------------------------------------------------------------
@@ -17296,11 +17370,61 @@
     lien.click();
     document.body.removeChild(lien);
     setTimeout(() => URL.revokeObjectURL(lien.href), 60000);
+    ouvrirApresTelechargement(nom);
+  }
+
+  // Ouverture automatique des documents téléchargés (demandé par l'étude le 29/09) : le navigateur
+  // ne peut pas ouvrir seul un fichier téléchargé ; sur un poste où le relais Windows est installé
+  // (server/src/ouvertureAuto.js) et l'option activée (Réglages › Sur ce poste), CLAIRE appelle
+  // `claire-ouvrir:<extension>` juste après le téléchargement, et le relais ouvre le fichier le plus
+  // récent de ce type dans Téléchargements (Outlook pour un .eml, Word pour un .docx…).
+  var CLE_OUVERTURE_AUTO = 'claire-ouverture-auto';
+  var EXTENSIONS_OUVERTURE_AUTO = ['eml', 'docx', 'doc', 'ics'];
+  function ouvertureAutoActive() {
+    try { return localStorage.getItem(CLE_OUVERTURE_AUTO) === '1'; } catch (e) { return false; }
+  }
+  function choisirOuvertureAuto(actif) {
+    try { localStorage.setItem(CLE_OUVERTURE_AUTO, actif ? '1' : '0'); } catch (e) { /* sans gravité */ }
+  }
+  // Pure : l'extension à ouvrir, '' si ce type de fichier n'est pas ouvert automatiquement.
+  function extensionOuvertureAuto(nom) {
+    const m = /\.([a-z0-9]+)$/i.exec(String(nom || ''));
+    const ext = m ? m[1].toLowerCase() : '';
+    return EXTENSIONS_OUVERTURE_AUTO.indexOf(ext) !== -1 ? ext : '';
+  }
+  function ouvrirApresTelechargement(nom) {
+    const ext = extensionOuvertureAuto(nom);
+    if (!ext || !ouvertureAutoActive()) return;
+    // Laisser au navigateur le temps d'écrire le fichier ; le relais attend encore jusqu'à 10 s.
+    setTimeout(() => {
+      const lien = document.createElement('a');
+      lien.href = 'claire-ouvrir:' + ext;
+      document.body.appendChild(lien);
+      lien.click();
+      document.body.removeChild(lien);
+    }, 900);
+  }
+  async function telechargerInstallateurOuvertureAuto() {
+    try {
+      const r = await fetchAvecAuth('/api/poste/installer-ouverture-automatique');
+      if (!r.ok) throw new Error('statut ' + r.status);
+      const blob = await r.blob();
+      const lien = document.createElement('a');
+      lien.href = URL.createObjectURL(blob);
+      lien.download = 'Installer-ouverture-automatique-CLAIRE.vbs';
+      document.body.appendChild(lien);
+      lien.click();
+      document.body.removeChild(lien);
+      setTimeout(() => URL.revokeObjectURL(lien.href), 60000);
+      afficherInfoAction('Installateur téléchargé', 'Ouvrez le fichier téléchargé (le navigateur peut demander de le conserver), puis activez l’option ici. Au premier document, autorisez l’ouverture du lien « claire-ouvrir » en cochant « Toujours autoriser ».');
+    } catch (e) {
+      afficherToast('Téléchargement de l’installateur impossible : ' + e.message, 'OK', null);
+    }
   }
 
   // Images de la signature : reprises des logos de l'en-tête du courrier d'appel de fonds
   // (appel-de-fonds-modele.js, chargé à la demande). Sans elles, la signature part en texte seul.
-  var IMAGES_SIGNATURE_EMAIL = { logoOffice: 'claire-logo-office', logoNotaires: 'claire-logo-notaires', iconVisio: 'claire-visio' };
+  var IMAGES_SIGNATURE_EMAIL = { logoOffice: 'claire-logo-office', logoNotaires: 'claire-logo-notaires', iconVisio: 'claire-visio', iconFacebook: 'claire-facebook', iconInstagram: 'claire-instagram' };
   async function imagesSignatureEmail() {
     try {
       if (!window.APPEL_FONDS_MODELE) await afChargerScript('appel-de-fonds-modele.js');
@@ -17363,18 +17487,32 @@
   // (défaut), ou mailto: texte seul. Ne toaste pas : { ok, mode, copie, piecesNonJointes } est
   // laissé à l'appelant, qui connaît le contexte. Rien n'est jamais envoyé : l'étude relit, puis
   // clique sur Envoyer.
-  async function livrerEmailDossier({ destinataire, sujet, corps, pieces = [], confrere = false }) {
+  // Réglages lus pour la signature (adresses et fonctions des collaborateurs) : ceux déjà chargés
+  // par l'écran Réglages, sinon une lecture unique.
+  let reglagesSignatureCache = null;
+  async function reglagesSignature() {
+    if (reglagesEnregistres && Object.keys(reglagesEnregistres.emailsResponsables || {}).length) return reglagesEnregistres;
+    if (reglagesSignatureCache) return reglagesSignatureCache;
+    try {
+      const r = await fetchAvecAuth('/api/reglages');
+      if (r.ok) reglagesSignatureCache = await r.json();
+    } catch (e) { /* carte avec l'adresse de l'office */ }
+    return reglagesSignatureCache || {};
+  }
+
+  async function livrerEmailDossier({ destinataire, sujet, corps, pieces = [], confrere = false, responsableSignature = '' }) {
     const corpsFinal = adapterCorpsEmail(corps, confrere);
     if (modeEmailPoste() === 'mailto') {
-      const copie = ouvrirBrouillonEmail(destinataire, sujet, corpsFinal);
+      const copie = ouvrirBrouillonEmail(destinataire, sujet, texteSansMarques(corpsFinal));
       return { ok: true, mode: 'mailto', copie, piecesNonJointes: pieces.length > 0 };
     }
     try {
       const images = await imagesSignatureEmail();
+      const signataire = signataireEmail(utilisateurPoste || responsableSignature, await reglagesSignature());
       const eml = construireEml({
         destinataire, sujet,
-        texte: corpsFinal + SIGNATURE_EMAIL_OFFICE,
-        html: htmlEmail(corpsFinal, images.cids),
+        texte: texteSansMarques(corpsFinal) + texteSignatureEmail(signataire),
+        html: htmlEmail(corpsFinal, images.cids, signataire),
         images: images.parties,
         pieces
       });
@@ -17387,13 +17525,14 @@
   }
 
   var MESSAGE_EMAIL_PRET = 'Ouvrez le fichier téléchargé : il s’ouvre dans Outlook, prêt à envoyer. Pour qu’il s’ouvre seul la prochaine fois : clic droit sur le téléchargement › « Toujours ouvrir ce type de fichier ».';
+  var MESSAGE_EMAIL_PRET_AUTO = 'L’email s’ouvre dans Outlook, prêt à envoyer.';
 
   // Message à afficher après une préparation réussie (fenêtre si `discret` est faux, notification
   // sinon). `detail` complète le message (ex. dossier archivé).
   function annoncerEmailPret(r, discret, detail) {
     const suite = detail ? ' ' + detail : '';
     if (r.mode === 'eml') {
-      if (discret) { afficherToast('Email prêt — ouvrez le fichier téléchargé.' + suite, 'OK', null); return; }
+      if (discret || ouvertureAutoActive()) { afficherToast((ouvertureAutoActive() ? 'Email prêt — il s’ouvre dans Outlook.' : 'Email prêt — ouvrez le fichier téléchargé.') + suite, 'OK', null); return; }
       afficherInfoAction('Email prêt', MESSAGE_EMAIL_PRET + suite);
       return;
     }
@@ -17475,9 +17614,39 @@
   // cet appel de fonds validé (voir renderFondsRecus, qui la propose une fois les fonds vérifiés) : avant, il n'y a rien à
   // confirmer. Le rendez-vous de signature n'est rappelé que s'il est fixé — jamais la date butoir
   // de l'avant-contrat, qui n'est qu'indicative et induirait le client en erreur.
+  // Pure : « 11:00 » → « 11h », « 10:30 » → « 10h30 » (forme du modèle de l'étude).
+  function heureEmail(heure) {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(String(heure || ''));
+    if (!m) return '';
+    return `${Number(m[1])}h${m[2] === '00' ? '' : m[2]}`;
+  }
+
+  // « lundi 5 octobre 2026 » : le jour de la semaine devant la date (demandé par l'étude le 29/09).
+  function dateAvecJourFr(iso) {
+    if (!iso) return '';
+    return new Date(iso + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  }
+
+  // Passage à mettre en gras et souligné dans l'email HTML (date et heure du rendez-vous) : marqué
+  // dans le corps par deux caractères privés, rendus <b><u> par htmlEmail et l'aperçu, retirés du
+  // texte simple (mailto, version texte du .eml).
+  var MARQUE_FORT_DEBUT = '\uE000';
+  var MARQUE_FORT_FIN = '\uE001';
+  function texteSansMarques(t) {
+    return String(t == null ? '' : t).split(MARQUE_FORT_DEBUT).join('').split(MARQUE_FORT_FIN).join('');
+  }
+  function marquesEnHtml(html) {
+    return String(html).split(MARQUE_FORT_DEBUT).join('<b><u>').split(MARQUE_FORT_FIN).join('</u></b>');
+  }
+
+  // Texte fourni par l'étude le 29/09, repris mot pour mot (heure du rendez-vous, pièces d'identité
+  // et RIB) ; l'heure n'est écrite que si elle est connue (saisie à la création du rendez-vous ou
+  // relevée dans l'agenda).
   function construireEmailReceptionFonds(d) {
+    const heure = heureEmail(d.rendezVousSignatureHeure);
     const rdv = d.rendezVousSignature
-      ? `\n\nNous vous rappelons que le rendez-vous de signature de l'acte authentique est fixé au ${formatDateFr(d.rendezVousSignature)}, en notre office.`
+      ? `\n\nNous vous rappelons que le rendez-vous de signature de l'acte authentique est fixé au ${MARQUE_FORT_DEBUT}${dateAvecJourFr(d.rendezVousSignature)}${heure ? ' à ' + heure : ''}${MARQUE_FORT_FIN}, en notre office.`
+        + '\n\nJe vous remercie de vous munir de vos pièces d’identité et de votre RIB pour le rendez-vous.'
       : '';
     return {
       sujet: `Réception des fonds — ${libelleDossierAffiche(d)}`,
@@ -17514,7 +17683,7 @@
       return;
     }
     const { sujet, corps } = modele.construire(d);
-    const r = await livrerEmailDossier({ destinataire, sujet, corps, confrere: notaireParticipantRepresenteAcquereur(d) });
+    const r = await livrerEmailDossier({ destinataire, sujet, corps, confrere: notaireParticipantRepresenteAcquereur(d), responsableSignature: d.responsable });
     // Préparation impossible : ne rien marquer sur le dossier, l'email n'est pas parti.
     if (!r.ok) { afficherToast(r.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }
     ajouterHistorique(d, modele.historique);
@@ -17683,7 +17852,7 @@
     const { sujet, corps } = construireEmailQuestionnaireSatisfaction(d);
     const pdfDispo = typeof QUESTIONNAIRE_SATISFACTION_PDF_BASE64 === 'string' && QUESTIONNAIRE_SATISFACTION_PDF_BASE64;
     const pieces = pdfDispo ? [{ nom: 'Enquete_satisfaction.pdf', type: 'application/pdf', contenuBase64: QUESTIONNAIRE_SATISFACTION_PDF_BASE64 }] : [];
-    const r = await livrerEmailDossier({ destinataire, sujet, corps, pieces });
+    const r = await livrerEmailDossier({ destinataire, sujet, corps, pieces, responsableSignature: d.responsable });
     if (!r.ok) { afficherToast(r.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }
     // Le fichier .eml porte le PDF ; en mode mailto (texte seul), il est téléchargé à côté, à joindre.
     const pdfTelecharge = r.mode === 'mailto' ? telechargerPdfQuestionnaire() : false;
@@ -19610,6 +19779,7 @@
     a.download = `fiche-${safeName || 'dossier'}.doc`;
     document.body.appendChild(a);
     a.click();
+    ouvrirApresTelechargement(a.download);
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }
@@ -21475,7 +21645,7 @@
 
     const subject = `Relance — Offre de prêt attendue — ${libelleDossierAffiche(d)}`;
     const body = corpsRelanceOffreManquante(d.nom, d.pret, jours);
-    livrerEmailDossier({ destinataire, sujet: subject, corps: body, confrere: notaireParticipantRepresenteAcquereur(d) })
+    livrerEmailDossier({ destinataire, sujet: subject, corps: body, confrere: notaireParticipantRepresenteAcquereur(d), responsableSignature: d.responsable })
       .then(r => afficherToast(r.ok
         ? `Relance « offre de prêt » prête pour ${d.nom} — ${r.mode === 'eml' ? 'ouvrez le fichier téléchargé' : 'vérifiez'} puis envoyez.`
         : `Relance « offre de prêt » de ${d.nom} non préparée.`, 'OK', null));
@@ -22934,6 +23104,7 @@
       lien.download = `Quotites_acquisition_${noms || 'acte'}.docx`;
       document.body.appendChild(lien);
       lien.click();
+      ouvrirApresTelechargement(lien.download);
       lien.remove();
       setTimeout(() => URL.revokeObjectURL(lien.href), 5000);
     } catch (e) {
@@ -27023,6 +27194,7 @@
       a.href = url;
       a.download = nom;
       a.click();
+      ouvrirApresTelechargement(nom);
       setTimeout(() => URL.revokeObjectURL(url), 2000);
     } catch (e) {
       console.error(e);
@@ -27052,6 +27224,7 @@
       const r = await livrerEmailDossier({
         destinataire,
         confrere,
+        responsableSignature: d.responsable,
         sujet: `Appel de fonds — rendez-vous de signature — ${libelleDossierAffiche(d)}`,
         corps: confrere
           ? 'Veuillez trouver ci-joint le courrier de convocation et d’appel de fonds destiné à votre client, en vue du rendez-vous de signature.'
@@ -27203,7 +27376,7 @@
         : '16 caractères';
       document.getElementById('reglages-copie-email').value = reglages.copieEmail || '';
       memoriserReglagesEnregistres(reglages);
-      renderReglagesEmails(reglages.emailsResponsables || {});
+      renderReglagesEmails(reglages.emailsResponsables || {}, reglages.fonctionsResponsables || {});
       document.getElementById('reglages-etat').style.display = 'none';
       chargerDernierTourRappels();
       chargerReglagesAgenda();
@@ -27256,18 +27429,24 @@
   function memoriserReglagesEnregistres(reglages) {
     reglagesEnregistres = {
       emailPasserelle: (reglages && reglages.emailPasserelle) || '',
-      emailsResponsables: (reglages && reglages.emailsResponsables) || {}
+      emailsResponsables: (reglages && reglages.emailsResponsables) || {},
+      fonctionsResponsables: (reglages && reglages.fonctionsResponsables) || {}
     };
+    reglagesSignatureCache = null;
   }
 
-  function renderReglagesEmails(emailsResponsables) {
+  // Adresse de chaque collaborateur (rappels Teams, et adresse de sa carte de signature) et sa
+  // fonction, écrite sous son nom dans la signature de ses emails.
+  function renderReglagesEmails(emailsResponsables, fonctionsResponsables) {
+    const fonctions = fonctionsResponsables || {};
     document.getElementById('reglages-emails-liste').innerHTML = RESPONSABLES.map((nom, i) => `
       <div class="calc-champ">
         <label for="reglages-email-${i}">${escapeHtml(nom)}</label>
         <div style="display:flex; gap:8px; align-items:center;">
-          <input type="email" id="reglages-email-${i}" data-responsable="${escapeAttr(nom)}" placeholder="prenom.nom@etude.fr" value="${escapeAttr(emailsResponsables[nom] || '')}" style="flex:1;">
+          <input type="email" id="reglages-email-${i}" data-responsable="${escapeAttr(nom)}" placeholder="prenom.nom@notaires.fr" value="${escapeAttr(emailsResponsables[nom] || '')}" style="flex:1;">
           <button type="button" class="secondary" onclick="testerEnvoiResponsable('${escapeOnclickArg(nom)}')">Tester</button>
         </div>
+        <input type="text" id="reglages-fonction-${i}" class="reglages-fonction" aria-label="Fonction de ${escapeAttr(nom)} dans la signature" placeholder="Fonction dans la signature : ${escapeAttr(FONCTIONS_SIGNATURE_DEFAUT[nom] || 'Collaborateur')}" value="${escapeAttr(fonctions[nom] || '')}">
         <p class="hint reglages-email-resultat" id="reglages-email-resultat-${i}"></p>
       </div>
     `).join('');
@@ -27275,10 +27454,13 @@
 
   function reglagesFormulaireVersObjet() {
     const emailsResponsables = {};
+    const fonctionsResponsables = {};
     RESPONSABLES.forEach((nom, i) => {
       const champ = document.getElementById(`reglages-email-${i}`);
       const valeur = champ ? champ.value.trim() : '';
       if (valeur) emailsResponsables[nom] = valeur;
+      const fonction = document.getElementById(`reglages-fonction-${i}`);
+      if (fonction && fonction.value.trim()) fonctionsResponsables[nom] = fonction.value.trim();
     });
     const objet = {
       emailActif: document.getElementById('reglages-envoi-actif').checked,
@@ -27292,7 +27474,8 @@
       smtpUtilisateur: document.getElementById('reglages-smtp-utilisateur').value.trim(),
       smtpExpediteur: '',
       copieEmail: document.getElementById('reglages-copie-email').value.trim(),
-      emailsResponsables
+      emailsResponsables,
+      fonctionsResponsables
     };
     // Le mot de passe n'accompagne l'enregistrement QUE si quelqu'un vient d'en taper un : la clé
     // absente veut dire « garde celui qui est en base » (voir assainirReglages côté serveur).
@@ -27314,7 +27497,7 @@
       });
       const reglages = await reponse.json();
       memoriserReglagesEnregistres(reglages);
-      renderReglagesEmails(reglages.emailsResponsables || {});
+      renderReglagesEmails(reglages.emailsResponsables || {}, reglages.fonctionsResponsables || {});
       zone.style.display = 'flex';
       zone.className = 'analyse-ia-dispo dispo-ok';
       zone.innerHTML = `${icone('check')}Réglages enregistrés.`;

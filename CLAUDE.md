@@ -42,6 +42,7 @@ server/                              Serveur (son propre package.json ; le packa
   src/routes/*.js                    API (dossiers, nas, reglages, notifications, agenda, exchange,
                                      relectureClaude, relectures, extractionIa, offrePret, …)
   src/carnetConfreres.js             Carnet des confrères (relevé initial des offices du 41, liste blanche)
+  src/ouvertureAuto.js               Installateur du relais « claire-ouvrir: » (ouverture auto des téléchargements)
   src/jobs/rappels.js                Rappels par email (miroir serveur du planning client)
   src/nas.js, nasWatch.js            Lecture du NAS par le serveur, surveillance périodique
   src/agendaOffice.js, agendaWatch.js  Lecture du .ics de l'agenda de l'office

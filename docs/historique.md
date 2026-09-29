@@ -11692,3 +11692,53 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
   CLAIRE ou à la main dans Outlook. La ligne passe alors « faite » (« Déjà dans l'agenda : « … » »,
   bouton Renoter), même après un échec d'écriture, et ne reste plus dans l'encadré « À faire sur ce
   dossier ».
+
+- **29/09/2026 — Signature des emails selon le modèle de l'étude** (« pour les signatures d'email
+  reprendre toujours ce modèle et la carte à modifier en signature », deux captures : l'email de
+  Bastien ANGLUMENT et la carte vierge « Collaborateur », puis la bannière Visio). Les captures
+  collées dans la conversation ne sont pas arrivées en fichiers : la carte est reconstruite en
+  tableau HTML (styles en ligne, pour Outlook) avec les images déjà embarquées
+  (`appel-de-fonds-modele.js` : logo salamandre « Me Sophie GOSSART », Notaires de France, Visio,
+  Facebook, Instagram). **Manquent** : la photo de la façade de l'office (panneau central de la
+  carte), la photo du collaborateur et l'icône LinkedIn — à fournir en fichiers pour les intégrer.
+  - `signataireEmail(nom, reglages)` : le collaborateur du POSTE (à défaut le responsable du
+    dossier), son adresse notaires.fr (`emailsResponsables` des Réglages, déjà utilisée pour Teams)
+    et sa fonction (`fonctionsResponsables`, nouveau champ par collaborateur dans Réglages ; défaut
+    « Responsable qualité et relation client » pour Bastien, « Collaborateur » sinon, comme la
+    carte vierge). `signatureHtmlOffice(images, signataire)` : carte (nom en bordeaux, fonction en
+    or espacé, téléphone, email, adresse, site ; logos à droite), bannière Visio en HTML (texte du
+    modèle mot pour mot, passages en bleu), puis `MENTIONS_SIGNATURE_EMAIL` dans l'ordre et les
+    couleurs du modèle (orange ; orange gras « un RIB signé par vous. » souligné ; rouge « Attention
+    fraude » ; rouge « Attention fraude aux RIB » avec la CDC en gras — nouvelle mention ; gris
+    confidentialité). Texte repris mot pour mot, y compris « seuls les virement sont autorisés ».
+    Version texte : `texteSignatureEmail(signataire)`.
+- **29/09/2026 — Échéances dans l'ordre du dossier** (« pourquoi en bas de liste ? le mettre dans
+  l'ordre du dossier », capture : « Obtention du prêt — offre reçue » en dernier). Le tri par date
+  (demandé plus tôt) faisait descendre le prêt quand sa date suivait le rendez-vous.
+  `ordonnerEcheancesFiche` : les étapes gardent l'ordre du dossier (vente préalable → prêt → date
+  butoir → appel de fonds → projet → signature) ; seules les échéances personnalisées se placent par
+  date, après la dernière étape datée au plus tard ce jour-là.
+- **29/09/2026 — Heure du rendez-vous** (« dans la ligne signature rajouter l'horaire et aussi dans
+  l'email de confirmation de réception des fonds », puis le texte exact de l'email). Ligne
+  « Signature » : « 5 oct. 2026 · 11 h 00 » (heure saisie à la création ou relevée dans l'agenda).
+  `construireEmailReceptionFonds` reprend le texte de l'étude mot pour mot : « … fixé au lundi
+  5 octobre 2026 à 11h, en notre office. » (`dateAvecJourFr`, `heureEmail` ; jour de la semaine
+  demandé ensuite), puis « Je vous remercie de vous munir de vos pièces d'identité et de votre RIB
+  pour le rendez-vous. » ; sans heure connue, le jour et la date seuls. Date et heure **en gras et
+  soulignées** dans l'email HTML : le corps les encadre de deux caractères privés
+  (`MARQUE_FORT_DEBUT`/`FIN`), rendus `<b><u>` par `htmlEmail` et l'aperçu (`marquesEnHtml`),
+  retirés du texte simple (`texteSansMarques` : mailto, version texte du .eml).
+- **29/09/2026 — Ouvrir les documents dès leur téléchargement** (« ouvrir automatiquement les
+  documents une fois téléchargés dans CLAIRE »). Un navigateur n'ouvre jamais seul un
+  téléchargement ; « Toujours ouvrir ce type de fichier » se règle à la main type par type, et la
+  stratégie AutoOpenFileTypes n'agit que sur un poste joint à un domaine. Relais Windows installé
+  une fois par poste (sans droits d'administrateur) : `server/src/ouvertureAuto.js` produit
+  `Installer-ouverture-automatique-CLAIRE.vbs` (route `GET /api/poste/installer-ouverture-automatique`,
+  lien dans Réglages › Sur ce poste), qui déclare le protocole `claire-ouvrir:` dans
+  HKCU\Software\Classes et écrit `%APPDATA%\CLAIRE\ouvrir-telechargement.vbs`. Après chaque
+  téléchargement d'un .eml, .docx, .doc ou .ics (`ouvrirApresTelechargement`), si l'option du poste
+  est activée, CLAIRE appelle `claire-ouvrir:<extension>` ; le relais ouvre avec son application
+  (Outlook, Word…) le fichier de ce type le plus récent de Téléchargements, modifié dans les deux
+  dernières minutes (il attend jusqu'à 10 s) — ni chemin reçu du navigateur, ni autre dossier, ni
+  autre extension. Le navigateur demande une fois d'autoriser le lien. **Non vérifié sur Windows**
+  (script écrit et testé sur son texte seulement).

@@ -21,7 +21,8 @@ const REGLAGES_TEST = Object.freeze({
   smtpMotDePasse: '',
   smtpExpediteur: 'claire@etude.fr',
   copieEmail: 'gossart@etude.fr',
-  emailsResponsables: { 'Bastien ANGLUMENT': 'bastien@etude.fr' }
+  emailsResponsables: { 'Bastien ANGLUMENT': 'bastien@etude.fr' },
+  fonctionsResponsables: { 'Bastien ANGLUMENT': 'Responsable qualité et relation client' }
 });
 
 test('lireReglages() renvoie les valeurs par défaut quand rien n\'a jamais été écrit', () => {

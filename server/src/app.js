@@ -21,6 +21,7 @@ const { creerRouteurNotifications } = require('./routes/notifications');
 const { creerRouteurExclusionsPieces } = require('./routes/exclusionsPieces');
 const { creerRouteurCorrectionsApprises } = require('./routes/correctionsApprises');
 const { creerRouteurConfreres } = require('./routes/confreres');
+const { creerRouteurPoste } = require('./routes/poste');
 const { creerRouteurRappelsPerso } = require('./routes/rappelsPerso');
 const { creerRouteurPreferences } = require('./routes/preferences');
 const { creerRouteurRelectureClaude } = require('./routes/relectureClaude');
@@ -133,6 +134,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExclusionsPieces(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurCorrectionsApprises(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurConfreres(parametresRepo));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurPoste());
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRappelsPerso(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurPreferences(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRelectureClaude(parametresRepo, db, { creerClient: creerClientClaude, appelerMistral, testerMistral }));

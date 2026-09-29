@@ -6586,3 +6586,7 @@ button.confrere-carnet-office:focus-visible, button.carnet-dossier:focus-visible
 .action-rapide.alertes-point-matin { display: inline-flex; align-items: center; gap: 5px; margin: 0; padding: 3px 10px; white-space: nowrap; }
 /* Notre office en tête du carnet : même carte, pastille « Notre office ». */
 .carnet-etude-badge { align-self: flex-start; }
+/* Réglages › collaborateurs : fonction écrite sous le nom dans la signature des emails. Sélecteur
+   composé pour battre input[type="text"] générique. */
+#reglages-emails-liste input.reglages-fonction { margin-top: 6px; width: 100%; }
+.ech-heure { color: var(--muted); font-weight: 400; }

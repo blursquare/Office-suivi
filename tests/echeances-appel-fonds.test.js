@@ -176,38 +176,37 @@ test('normaliserDossierImporte écarte une date mal formée pour les deux nouvea
   assert.equal(d.appelFonds, '');
 });
 
-// Ordre CHRONOLOGIQUE des lignes d'échéance sur la fiche (demandé par l'étude). On lit l'ordre
-// dans le HTML produit, ancré sur le nom de chaque ligne (jamais sur le libellé seul : le petit
-// menu de recatégorisation contient les TROIS libellés en <option>).
+// Ordre des lignes d'échéance sur la fiche : l'ORDRE DU DOSSIER (demandé par l'étude le 29/09,
+// « le mettre dans l'ordre du dossier » — auparavant par date, le prêt tombait en bas quand sa date
+// suivait le rendez-vous). On lit l'ordre dans le HTML produit, ancré sur le nom de chaque ligne
+// (jamais sur le libellé seul : le petit menu de recatégorisation contient les TROIS libellés).
 function ordreDesEcheances(app, d) {
   const html = app.echeancesOrdonneesFiche(d, {}, '');
   return [...html.matchAll(/<span class="ech-nom[^"]*">([^<]*)<\/span>/g)].map((m) => m[1]);
 }
 
-test('echeancesOrdonneesFiche classe les échéances datées par date croissante', () => {
+test('echeancesOrdonneesFiche : étapes dans l’ordre du dossier, échéances personnalisées placées par date', () => {
   const app = chargerApplication();
   const d = dossierBase({
-    pret: '2026-11-15', acte: '2026-09-30', ventebien: '2026-08-01',
+    sansPret: false, pret: '2026-11-15', acte: '2026-09-30', ventebien: '2026-08-01',
     rendezVousSignature: '2026-10-05',
-    autres: [{ label: 'Diagnostic amiante', date: '2026-07-01' }]
+    autres: [{ label: 'Diagnostic amiante', date: '2026-07-01' }, { label: 'Relance syndic', date: '2026-10-20' }]
   });
   assert.equal(
     ordreDesEcheances(app, d).join(' | '),
+    // Le prêt (15/11) reste à sa place d'étape, avant les envois et la signature (05/10).
     // Rendez-vous fixé : la date butoir n'a plus sa propre ligne (elle est dite sous la signature).
-    // Les deux envois, affichés dès qu'un rendez-vous est fixé, partent sans date en fin de liste.
-    'Diagnostic amiante | Vente préalable | Signature | Obtention du prêt | Envoi appel de fonds | Envoi projet'
+    'Diagnostic amiante | Vente préalable | Obtention du prêt | Envoi appel de fonds | Envoi projet | Signature | Relance syndic'
   );
 });
 
-test('echeancesOrdonneesFiche relègue les échéances sans date en fin, dans leur ordre naturel', () => {
+test('echeancesOrdonneesFiche : une date seule ne fait pas remonter une étape', () => {
   const app = chargerApplication();
-  // Seule "Signature de l'acte" porte une date : elle passe devant le prêt et le rendez-vous,
-  // qui gardent entre eux l'ordre d'affichage historique.
   const d = dossierBase({ pret: '', acte: '2026-09-30', rendezVousSignature: '' });
   assert.equal(
     ordreDesEcheances(app, d).join(' | '),
     // Dossier de base en achat comptant : la ligne du prêt s'appelle « Financement comptant ».
-    'Date butoir | Financement comptant | Signature'
+    'Financement comptant | Date butoir | Signature'
   );
 });
 

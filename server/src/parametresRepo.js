@@ -274,7 +274,8 @@ const REGLAGES_PAR_DEFAUT = Object.freeze({
   smtpMotDePasse: '',
   smtpExpediteur: '',
   copieEmail: '',
-  emailsResponsables: {}
+  emailsResponsables: {},
+  fonctionsResponsables: {}
 });
 
 function texteNettoye(valeur) {
@@ -300,6 +301,14 @@ function assainirReglages(brut, precedent) {
     if (typeof nom === 'string' && typeof email === 'string' && email.trim()) {
       emailsPropres[nom] = email.trim();
     }
+  }
+
+  // Fonction de chaque collaborateur, écrite sous son nom dans la signature de ses emails.
+  const fonctions = (b.fonctionsResponsables && typeof b.fonctionsResponsables === 'object' && !Array.isArray(b.fonctionsResponsables))
+    ? b.fonctionsResponsables : {};
+  const fonctionsPropres = {};
+  for (const [nom, f] of Object.entries(fonctions)) {
+    if (typeof nom === 'string' && typeof f === 'string' && f.trim()) fonctionsPropres[nom] = f.trim().slice(0, 80);
   }
 
   const port = Number.parseInt(b.smtpPort, 10);
@@ -329,7 +338,8 @@ function assainirReglages(brut, precedent) {
     // actuelle l'emporte dès qu'elle est présente, même vide : sans ça, vider cette adresse ne
     // tiendrait pas tant que l'ancienne clé Teams en porterait encore une.
     copieEmail: (typeof b.copieEmail === 'string') ? b.copieEmail.trim() : texteNettoye(b.teamsCopieEmail),
-    emailsResponsables: emailsPropres
+    emailsResponsables: emailsPropres,
+    fonctionsResponsables: fonctionsPropres
   };
 }
 
@@ -605,11 +615,11 @@ function creerRepoParametres(db) {
 
   function lireReglages() {
     const ligne = lireStmt.get(CLE_REGLAGES);
-    if (!ligne) return { ...REGLAGES_PAR_DEFAUT, emailsResponsables: {} };
+    if (!ligne) return { ...REGLAGES_PAR_DEFAUT, emailsResponsables: {}, fonctionsResponsables: {} };
     try {
       return assainirReglages(JSON.parse(ligne.valeur));
     } catch (e) {
-      return { ...REGLAGES_PAR_DEFAUT, emailsResponsables: {} };
+      return { ...REGLAGES_PAR_DEFAUT, emailsResponsables: {}, fonctionsResponsables: {} };
     }
   }
 

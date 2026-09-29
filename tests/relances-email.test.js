@@ -362,7 +362,35 @@ test('htmlEmail : paragraphes, lien « Cliquez ici », signature en couleur et i
   assert.doesNotMatch(html, /cid:claire-logo-notaires/);
   assert.match(html, /#6D2332/);
   assert.match(html, /Office de Maître Sophie GOSSART/);
-  assert.match(html, /Attention fraude :<\/b>/);
+  assert.match(html, /<b>Attention fraude<\/b> :/);
+});
+
+test('signature du modèle de l’étude : carte du collaborateur, bannière Visio, mentions en couleur', () => {
+  const app = chargerApplication();
+  const reglages = { emailsResponsables: { 'Bastien ANGLUMENT': 'bastien.anglument.41089@notaires.fr', 'Julie VASSELIN': 'julie.vasselin@notaires.fr' }, fonctionsResponsables: { 'Julie VASSELIN': 'Clerc de notaire' } };
+  const bastien = app.signataireEmail('Bastien ANGLUMENT', reglages);
+  assert.equal(bastien.fonction, 'Responsable qualité et relation client');
+  assert.equal(bastien.email, 'bastien.anglument.41089@notaires.fr');
+  assert.equal(app.signataireEmail('Julie VASSELIN', reglages).fonction, 'Clerc de notaire');
+  // Carte vierge de l'étude : « Collaborateur » et l'adresse de l'office par défaut.
+  const inconnu = app.signataireEmail('Jérémy SAUJOT', {});
+  assert.equal(inconnu.fonction, 'Collaborateur');
+  assert.equal(inconnu.email, 'office.gossart@notaires.fr');
+  const html = app.htmlEmail('Bonjour,', { logoOffice: 'a', logoNotaires: 'b', iconVisio: 'c', iconFacebook: 'd', iconInstagram: 'e' }, bastien);
+  // Ordre du modèle : carte, bannière Visio, mentions orange puis rouges puis grises.
+  const i = (t) => html.indexOf(t);
+  assert.ok(i('Bastien ANGLUMENT') > 0 && i('Bastien ANGLUMENT') < i('Pas le temps de passer chez votre notaire ?'));
+  assert.ok(i('Pas le temps de passer') < i('L.112-6-1') && i('L.112-6-1') < i('Attention fraude aux RIB') && i('Attention fraude aux RIB') < i('secret professionnel'));
+  assert.match(html, /mailto:bastien\.anglument\.41089@notaires\.fr/);
+  assert.match(html, /Responsable qualité et relation client/);
+  assert.match(html, /<u>un RIB signé par vous\.<\/u>/);
+  assert.match(html, /<u>notaires au pluriel avec un s<\/u>/);
+  assert.match(html, /<b>CAISSE DES DEPOTS ET CONSIGNATIONS \(CDC\)\. Seulement la CDC, uniquement la CDC\.<\/b>/);
+  assert.match(html, /color:#E36C0A;font-weight:bold;/);
+  assert.match(html, /cid:d/);
+  const texte = app.texteSignatureEmail(bastien);
+  assert.match(texte, /^\n\nBastien ANGLUMENT\nResponsable qualité et relation client\n/);
+  assert.match(texte, /Attention fraude aux RIB/);
 });
 
 test('construireEml : message non envoyé, HTML + texte, image en ligne, pièce jointe, objet accentué', () => {

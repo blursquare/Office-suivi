@@ -64,7 +64,7 @@ test('GET /api/reglages renvoie les valeurs par défaut au premier appel', async
   const corps = await (await appeler('/api/reglages')).json();
   assert.deepEqual(corps, {
     emailActif: false, emailPasserelle: '', smtpHote: '', smtpPort: 25, smtpSecurise: false,
-    smtpUtilisateur: '', smtpExpediteur: '', copieEmail: '', emailsResponsables: {},
+    smtpUtilisateur: '', smtpExpediteur: '', copieEmail: '', emailsResponsables: {}, fonctionsResponsables: {},
     smtpMotDePasseEnregistre: false
   });
 });
@@ -73,7 +73,8 @@ test('PUT /api/reglages enregistre, GET relit la même chose ensuite (y compris 
   const envoye = {
     emailActif: true, ...SMTP, smtpPort: 587, smtpSecurise: false,
     smtpUtilisateur: '', smtpExpediteur: 'claire@etude.fr',
-    copieEmail: 'gossart@etude.fr', emailsResponsables: { 'Bastien ANGLUMENT': 'bastien@etude.fr' }
+    copieEmail: 'gossart@etude.fr', emailsResponsables: { 'Bastien ANGLUMENT': 'bastien@etude.fr' },
+    fonctionsResponsables: { 'Julie VASSELIN': 'Clerc de notaire' }
   };
   const attendu = { ...envoye, smtpMotDePasseEnregistre: false };
   const corpsEcrit = await (await appeler('/api/reglages', { method: 'PUT', body: JSON.stringify(envoye) })).json();
