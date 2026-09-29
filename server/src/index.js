@@ -127,12 +127,55 @@ function ouvrirNavigateur(url) {
     ouvrirParDefaut();
     return;
   }
-  exec(`start "" "${cheminNavigateur}" --profile-directory="ClaireServeur" --app="${url}"`, (err) => {
+  const lancer = () => exec(`start "" "${cheminNavigateur}" --profile-directory="ClaireServeur" --app="${url}"`, (err) => {
     if (err) {
       console.warn('[CLAIRE] Ouverture en fenêtre applicative impossible, repli sur le navigateur par défaut :', err.message);
       ouvrirParDefaut();
     }
   });
+  // Raccourci du menu Démarrer portant l'identifiant de cette fenêtre et l'icône nette de l'exe
+  // (voir raccourciWindows.js) : posé AVANT d'ouvrir la fenêtre, 15 s au plus.
+  Promise.race([assurerRaccourciMenuDemarrer(url, cheminNavigateur), new Promise((r) => setTimeout(r, 15000))])
+    .catch((e) => console.warn('[CLAIRE] Raccourci du menu Démarrer non créé :', e.message))
+    .finally(lancer);
+}
+
+// Crée ou met à jour %APPDATA%\Microsoft\Windows\Start Menu\Programs\CLAIRE.lnk (voir
+// raccourciWindows.js). Refait seulement si l'identifiant, la cible ou l'icône ont changé (repère
+// dans %APPDATA%\CLAIRE\raccourci.json) ou si le raccourci a disparu : PowerShell compile un peu
+// de C# à chaque appel, inutile de le relancer à chaque démarrage.
+async function assurerRaccourciMenuDemarrer(url, cheminNavigateur) {
+  const appdata = process.env.APPDATA;
+  if (!appdata || !config.estSea()) return;
+  const r = require('./raccourciWindows');
+  const profil = 'ClaireServeur';
+  const aumid = r.appUserModelIdFenetreApp({ baseAppId: r.baseAppIdNavigateur(cheminNavigateur), url, dossierDonnees: 'User Data', profil });
+  const voulu = {
+    chemin: path.join(appdata, 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'CLAIRE.lnk'),
+    cible: cheminNavigateur,
+    argumentsLigne: `--profile-directory="${profil}" --app="${url}"`,
+    icone: process.execPath,
+    aumid,
+    description: 'CLAIRE — Registre des échéances notariales'
+  };
+  const repere = path.join(appdata, 'CLAIRE', 'raccourci.json');
+  try {
+    const ancien = JSON.parse(await fs.promises.readFile(repere, 'utf8'));
+    await fs.promises.access(voulu.chemin);
+    if (JSON.stringify(ancien) === JSON.stringify(voulu)) return;
+  } catch (e) { /* absent ou différent : on (re)crée */ }
+  const script = r.scriptPowerShellRaccourci(voulu);
+  await new Promise((resolve, reject) => {
+    const ps = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+      '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')], { windowsHide: true });
+    let erreur = '';
+    ps.stderr.on('data', (d) => { erreur += d; });
+    ps.on('error', reject);
+    ps.on('close', (code) => (code === 0 ? resolve() : reject(new Error((erreur || `code ${code}`).split('\n')[0]))));
+  });
+  await fs.promises.mkdir(path.dirname(repere), { recursive: true });
+  await fs.promises.writeFile(repere, JSON.stringify(voulu));
+  console.log(`[CLAIRE] Raccourci du menu Démarrer créé (${aumid}) : icône nette dans la barre des tâches.`);
 }
 
 // Scripts assistants (lanceur sans fenêtre, arrêt, démarrage avec la session Windows) : voir

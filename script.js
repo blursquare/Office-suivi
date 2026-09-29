@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 14:17';
+  const VERSION_APP = '2026-09-29 14:25';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 14:25', resume: "Icône floue dans la barre des tâches : au démarrage, le serveur crée un raccourci « CLAIRE » dans le menu Démarrer, relié à la fenêtre CLAIRE et portant l'icône haute définition de CLAIRE-serveur.exe ; Windows affiche alors cette icône nette pour la fenêtre. Rien à installer." },
     { version: '2026-09-29 14:17', resume: "Acquéreur accompagné par un confrère : l'email « Provision + pièce d'identité » est de nouveau proposé, adressé au confrère. Le RIB et la phrase RIB / pièces d'identité de l'email de réception des fonds restent retirés." },
     { version: '2026-09-29 14:16', resume: "Acquéreur accompagné par un confrère : CLAIRE ne propose plus de lui demander le RIB ni la pièce d'identité (À faire, onglet Échanges, email de provision), et l'email de réception des fonds au confrère ne contient plus la phrase sur les pièces d'identité et le RIB." },
     { version: '2026-09-29 13:51', resume: "Icône de CLAIRE : retour à l'icône blanche au trait fin, déclarée comme avant le 28/09 (icone.svg seul, que le navigateur redessine net à chaque taille) — les petites icônes PNG ajoutées le 28/09 faisaient prendre à Windows l'image de 16 px agrandie. Retrait des essais du jour (installation, remplacement des icônes par le serveur)." },

@@ -11929,3 +11929,24 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
     acquéreur accompagné par un confrère (email adressé au confrère, formules « Mon Cher Maître »).
     Restent retirés : l'action et la ligne « RIB », le point « RIB demandé », et la phrase RIB /
     pièces d'identité de l'email de réception des fonds.
+
+- **29/09/2026 — Icône de la barre des tâches : raccourci du menu Démarrer lié à la fenêtre** (après
+  le retour à l'icône blanche : « l'icône a bien été changée, plus claire, mais toujours très
+  pixelisée » ; CLAIRE s'ouvre au démarrage ou par le VBS, fenêtre sans menu ⋮ = fenêtre Chrome
+  `--app` non installée). Cause établie : pour une telle fenêtre, Chrome donne à Windows l'icône de
+  l'onglet (16 px) et la barre des tâches l'agrandit. Parade : Windows affiche pour une fenêtre
+  l'icône du raccourci du menu Démarrer qui porte le même AppUserModelID. Identifiant de la
+  fenêtre relu dans le code source de Chrome (29/09, branche main) : `GetAppUserModelIdForApp`
+  (shell_integration_win.cc) = base_app_id « Chrome » (google_chrome_install_modes.h ; « MSEdge »
+  supposé pour Edge) + `GenerateApplicationNameFromURL` (hôte + "_" + chemin = « localhost_/ »,
+  sans le port) + identifiant de profil (« User Data » + "." + « ClaireServeur », lettres, chiffres
+  et points seulement), chaque composant raccourci au milieu pour tenir en 64 caractères
+  (`ShellUtil::BuildAppUserModelId`) → « Chrome.localhost_/.UserData.CireServeur ».
+  `server/src/raccourciWindows.js` (pur, testé) + `assurerRaccourciMenuDemarrer` (index.js) :
+  avant d'ouvrir la fenêtre (15 s au plus), crée `%APPDATA%\Microsoft\Windows\Start Menu\Programs\
+  CLAIRE.lnk` (cible Chrome/Edge avec les mêmes arguments que l'ouverture, icône = l'exe, dont le
+  .ico multi-tailles est net) par PowerShell + C# (IShellLinkW, IPropertyStore, PKEY_AppUserModel_ID
+  — WScript.Shell ne sait pas poser cette propriété). Refait seulement si quelque chose change
+  (repère `%APPDATA%\CLAIRE\raccourci.json`). Le C# compile (vérifié avec mcs) ; **non vérifié
+  sur Windows** : l'effet dans la barre des tâches. Si une icône floue est épinglée, la détacher
+  puis réépingler la fenêtre une fois.
