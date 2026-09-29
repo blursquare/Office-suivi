@@ -12054,3 +12054,19 @@ MANDELBLI) : une autre Madame MARTIN que la bénéficiaire veuve CRIL.
   (YAÏCH/PRIEUR). Tests avec la même structure et des noms inventés (tests/parties.test.js).
   Un dossier déjà créé ne relit pas son acte : pour lui, le nom du courrier d'appel de fonds ou le
   champ « Autre nom sur les reçus » prend le relais.
+
+### 29/09 20:06 — Offre de prêt reconnue 2 h 30 après son dépôt
+
+Signalé : « J'ai enregistré une offre de prêt à 16 h, elle a été détectée à 18 h 30 ». Cause (d'après
+le code, sans journal du poste) : la recherche de l'offre se fait dans le navigateur, par tours de
+5 minutes, avec un budget de 25 PDF ouverts par tour PARTAGÉ par tous les dossiers, et une mémoire
+des PDF écartés perdue à chaque ouverture de CLAIRE. Après un démarrage, les dossiers placés avant
+consommaient le budget tour après tour ; le fichier de l'offre attendait son tour (≈ 30 tours).
+  - `pdfPrioritairePourOffre` : un PDF dont le nom dit « offre de prêt » (`nomDitOffrePret`) ou
+    signalé nouveau par la surveillance du NAS (`d.nasNouveaute.fichiers`) est ouvert hors budget.
+  - Arrivée d'un `nasNouveaute` par la synchronisation : vérification immédiate de ce dossier sur
+    le poste de son responsable (`appliquerChangementsDistants`), toast « CLAIRE le vérifie ».
+  - Mémoire des PDF écartés gardée 3 jours sur le poste (`claire-pdf-ecartes-offre`, localStorage,
+    400 chemins par dossier) ; « Revérifier » l'oublie toujours pour le dossier.
+  Délai attendu : ≤ 5 min pour une offre nommée « offre de prêt », ≤ 10 min (tour de nasWatch) + la
+  vérification pour un fichier au nom muet. Non vérifié au bureau (NAS et Ollama injoignables ici).

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 15:45';
+  const VERSION_APP = '2026-09-29 20:06';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 20:06', resume: "Offre de prêt reconnue plus vite : un PDF dont le nom dit « offre de prêt », ou qu'un nouveau dépôt sur le NAS vient de faire apparaître, est examiné dès le tour suivant (5 minutes au plus) au lieu d'attendre que les autres dossiers aient été relus. Un nouveau document signalé par le serveur fait vérifier son dossier aussitôt, et les PDF déjà écartés ne sont plus relus à chaque ouverture de CLAIRE." },
     { version: '2026-09-29 15:45', resume: "Nouveau dossier : le nom d'usage d'une partie veuve ou mariée est lu dans son état civil (« Madame Yvette MARTIN … Veuve de Monsieur … CRIL » → nom d'usage CRIL), affiché à côté de son nom et utilisé pour retrouver ses versements dans les reçus comptables." },
     { version: '2026-09-29 15:39', resume: "Fonds reçus : un versement porté au compte de deux personnes (« DUPONT Jean et MARTIN ») ne compte plus pour un dossier MARTIN si la référence de la vente cite une autre vente. Les fonds doivent correspondre au montant attendu à 50 € près : au-delà, CLAIRE signale un écart à vérifier au lieu de « Tous les fonds sont reçus ». Nom d'usage ou d'épouse : repris du courrier d'appel de fonds (« … - CRIL »), du nom du dossier, ou saisi dans « Autre nom sur les reçus ». Une lecture faite avec l'ancienne règle est refaite automatiquement." },
     { version: '2026-09-29 15:22', resume: "Adresses : tirets et CEDEX conservés dans la commune (« SAINT-AIGNAN (41110), 2 rue … », « BLOIS CEDEX (41018), … »). Appel de fonds : l'adresse du destinataire reste en présentation postale, la voie puis « 41110 SAINT-AIGNAN » en dernière ligne, même saisie sur une ligne." },
@@ -18599,9 +18600,15 @@
       if (index !== -1 && d.nasNouveaute && (!dossiers[index].nasNouveaute || dossiers[index].nasNouveaute.at !== d.nasNouveaute.at)) {
         const nb = (d.nasNouveaute.fichiers || []).length;
         afficherToast(
-          `${nb > 1 ? nb + ' nouveaux documents détectés' : 'Nouveau document détecté'} dans le dossier « ${d.nom} » — pensez à revérifier.`,
+          `${nb > 1 ? nb + ' nouveaux documents détectés' : 'Nouveau document détecté'} dans le dossier « ${d.nom} » — CLAIRE le vérifie.`,
           'OK', null
         );
+        // Vérifié tout de suite (offre de prêt, pièces), sans attendre le tour des 5 minutes — le
+        // dossier est d'abord mis à jour ci-dessous, d'où le report. Sur le poste de son
+        // responsable (ou, dossier sans responsable, sur chaque poste) : pas de lecture en double.
+        if (!d.archive && d.dossierLie && (!d.responsable || d.responsable === utilisateurPoste)) {
+          setTimeout(() => { verifierDossierLocal(d.id, false).catch(e => console.error('Vérification du nouveau document', e)); }, 0);
+        }
       }
       if (index !== -1) dossiers[index] = d; else dossiers.push(d);
     }
@@ -20653,6 +20660,44 @@
   let budgetOuverturesTourAuto = 0;
   const pdfEcartesPourOffre = {};
 
+  // Offre de prêt enregistrée à 16 h, reconnue à 18 h 30 (signalé le 29/09) : le budget ci-dessus
+  // est partagé par TOUS les dossiers d'un tour, et la mémoire des PDF écartés repartait de zéro à
+  // chaque ouverture de CLAIRE — les dossiers placés avant consommaient les 25 ouvertures tour
+  // après tour, et le fichier de l'offre attendait son tour pendant des heures. Désormais :
+  //   - un PDF dont le NOM dit « offre de prêt », ou que la surveillance du NAS vient de signaler
+  //     comme nouveau (d.nasNouveaute), est ouvert dès qu'il est rencontré, hors budget ;
+  //   - l'arrivée d'un nouveau document signalée par le serveur relance aussitôt la vérification de
+  //     CE dossier (voir appliquerChangementsDistants), sans attendre le tour suivant ;
+  //   - la mémoire des PDF écartés est gardée sur le poste 3 jours (localStorage), pour ne pas
+  //     tout relire à chaque démarrage.
+  // Pure : ce PDF doit-il être examiné pour l'offre même quand le budget du tour est épuisé ?
+  function pdfPrioritairePourOffre(nomNormalise, chemin, cheminsNouveaux) {
+    return nomDitOffrePret(nomNormalise) || (cheminsNouveaux || []).includes(chemin);
+  }
+  var CLE_PDF_ECARTES_OFFRE = 'claire-pdf-ecartes-offre';
+  var DUREE_MEMOIRE_PDF_ECARTES_MS = 3 * 24 * 60 * 60 * 1000;
+  function chargerPdfEcartesOffre() {
+    try {
+      const o = JSON.parse(localStorage.getItem(CLE_PDF_ECARTES_OFFRE) || 'null');
+      if (!o || !o.le || Date.now() - o.le > DUREE_MEMOIRE_PDF_ECARTES_MS) return;
+      for (const [id, liste] of Object.entries(o.dossiers || {})) {
+        if (Array.isArray(liste) && !pdfEcartesPourOffre[id]) pdfEcartesPourOffre[id] = new Set(liste);
+      }
+    } catch (e) { /* mémoire indisponible : tout sera relu, comme avant */ }
+  }
+  function enregistrerPdfEcartesOffre() {
+    try {
+      const dossiersEcartes = {};
+      for (const [id, s] of Object.entries(pdfEcartesPourOffre)) if (s.size) dossiersEcartes[id] = [...s].slice(-400);
+      const ancien = JSON.parse(localStorage.getItem(CLE_PDF_ECARTES_OFFRE) || 'null');
+      // La date de départ est gardée : la mémoire expire 3 jours après sa création, pas 3 jours
+      // après la dernière écriture (un PDF écarté à tort ne le reste jamais indéfiniment).
+      const le = ancien && ancien.le && Date.now() - ancien.le <= DUREE_MEMOIRE_PDF_ECARTES_MS ? ancien.le : Date.now();
+      localStorage.setItem(CLE_PDF_ECARTES_OFFRE, JSON.stringify({ le, dossiers: dossiersEcartes }));
+    } catch (e) { /* stockage plein ou bloqué : sans conséquence */ }
+  }
+  chargerPdfEcartesOffre();
+
   // Le texte d'une page de PDF arrive en fragments dont l'espacement ne reflète pas la mise en
   // page : on le remet à plat avant tout test de motif, comme ailleurs dans ce fichier.
   function titrePagePdf(textePremierePage) {
@@ -21558,6 +21603,7 @@
     // l'offre est oubliée pour CE dossier, et aucun budget ne s'applique (voir leur déclaration).
     if (viaClicUtilisateur) delete pdfEcartesPourOffre[id];
     const pdfEcartes = pdfEcartesPourOffre[id] || (pdfEcartesPourOffre[id] = new Set());
+    const cheminsNouveaux = (d.nasNouveaute && Array.isArray(d.nasNouveaute.fichiers)) ? d.nasNouveaute.fichiers : [];
 
     let offreTrouvee = false;
     let offreAConfirmer = false; // trouvée par son titre, mais sans confirmation du modèle local
@@ -21604,9 +21650,10 @@
       // Le PDF n'est ouvert que tant que l'offre n'a pas été trouvée.
       // Le budget et la mémoire ne concernent que les tours automatiques : un clic explicite
       // ouvre tout ce qu'il faut, aussi longtemps qu'il faut.
+      const prioritaire = !viaClicUtilisateur && pdfPrioritairePourOffre(nomNormalise, fichier.chemin, cheminsNouveaux);
       if (chercherOffre && !offreTrouvee && !pdfEcartes.has(fichier.chemin) &&
-          (viaClicUtilisateur || budgetOuverturesTourAuto > 0)) {
-        if (!viaClicUtilisateur) budgetOuverturesTourAuto--;
+          (viaClicUtilisateur || prioritaire || budgetOuverturesTourAuto > 0)) {
+        if (!viaClicUtilisateur && !prioritaire) budgetOuverturesTourAuto--;
         try {
           nbAnalyses++;
           const pdf = await ouvrirPdfNas(cheminComplet);
@@ -21881,6 +21928,7 @@
     // fois qu'elle a mené jusqu'ici, qu'elle vienne d'un clic explicite sur "Revérifier" ou de la
     // revérification automatique périodique — rien à laisser affiché après coup.
     if (d.nasNouveaute) d.nasNouveaute = null;
+    enregistrerPdfEcartesOffre();
 
     await sauvegarder(d);
     render();

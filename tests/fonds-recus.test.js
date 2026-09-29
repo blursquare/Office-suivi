@@ -255,3 +255,13 @@ test('ligne « Envoi appel de fonds » : lien vers le courrier rattaché, ou « 
   const ligne = html.match(/<li class="ech ech-appelFonds[^"]*">[\s\S]*?<\/li>/)[0];
   assert.match(ligne, /Convocation au rendez-vous<\/button>/);
 });
+
+// Offre de prêt enregistrée à 16 h, reconnue à 18 h 30 (29/09) : un PDF qui dit « offre de prêt »
+// dans son nom, ou que la surveillance du NAS vient de signaler, passe avant le budget du tour.
+test('pdfPrioritairePourOffre : nom explicite ou fichier signalé nouveau', () => {
+  const app = chargerApplication();
+  assert.equal(app.pdfPrioritairePourOffre('Offre de pret Credit Agricole', 'Offre de prêt Crédit Agricole.pdf', []), true);
+  assert.equal(app.pdfPrioritairePourOffre('SCAN0042', 'AAE/SCAN0042.pdf', ['AAE/SCAN0042.pdf']), true);
+  assert.equal(app.pdfPrioritairePourOffre('SCAN0042', 'AAE/SCAN0042.pdf', []), false);
+  assert.equal(app.pdfPrioritairePourOffre('Diagnostics', 'Diagnostics.pdf', null), false);
+});
