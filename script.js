@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 10:39';
+  const VERSION_APP = '2026-09-29 11:15';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 11:15', resume: "Nouveau dossier : l'étape Finaliser propose le notaire du vendeur et celui de l'acquéreur (lus dans l'acte, modifiables, liste du carnet) ; celui qui reçoit l'acte découle du rôle choisi et du côté de l'étude. L'email de l'acquéreur saisi n'est plus effacé quand un confrère est lu côté acquéreur. Lecture des compromis d'agence en formulaire (« Notaire du VENDEUR : Maître X Adresse : … ») : nom, ville et côté corrects. Fiche : sous le notaire, l'office seul (téléphone et email dans le carnet)." },
     { version: '2026-09-29 10:39', resume: "Fiche du dossier : un notaire écrit avec son seul prénom (« Maître SOPHIE (BLOIS) ») est complété par le carnet des confrères — prénom et NOM, « Maître Sophie GOSSART (BLOIS) » — quand un seul notaire de ce prénom exerce dans cette ville. Corrigé aussi sur les dossiers existants à l'ouverture de CLAIRE ; l'office est alors retrouvé (plus de « Ajouter au carnet » injustifié)." },
     { version: '2026-09-29 10:35', resume: "Emails : les logos ne sont plus joints au message quand la carte et la bannière de l'étude les remplacent (seules les images affichées dans l'email l'accompagnent). Deux lignes vides entre la carte et la bannière Visio, comme dans le modèle de l'étude." },
     { version: '2026-09-29 09:58', resume: "Emails : la carte de l'office et la bannière Visio de la signature peuvent être les images de l'étude (PNG ou JPEG), déposées une fois dans Réglages › Signature des emails. Elles figurent telles quelles, 600 px de large au plus, dans tous les emails préparés par CLAIRE ; sans image, CLAIRE compose la carte elle-même comme avant." },
@@ -2449,6 +2450,19 @@
 
   var PORTEE_QUALITE_NOTAIRE = 220;
 
+  // Trame de compromis d'agence en « formulaire » (constaté le 29/09) : « Notaire du VENDEUR :
+  // Maître Aurélien LACOUR Adresse : 12 route … 41120 CELLETTES Notaire de l'ACQUEREUR : Maître … ».
+  // Le mot en majuscule qui suit le nom est l'intitulé du champ suivant, pas un patronyme : le nom
+  // s'arrête au premier de ces intitulés.
+  var RE_INTITULE_APRES_NOM_NOTAIRE = /\s+(?:Adresse|Adr|T[ée]l(?:[ée]phone)?|Portable|Fax|E-?mail|Courriel|Mail|Notaire|Office|[ÉE]tude|SCP|SELARL|SELAS|SAS|SARL|CRPCEN|Demeurant|Domicili[ée]e?|Si[èe]ge)(?![A-Za-zÀ-ÿ])/;
+  function couperNomNotaire(nom) {
+    const m = String(nom || '').match(RE_INTITULE_APRES_NOM_NOTAIRE);
+    return (m ? nom.slice(0, m.index) : String(nom || '')).trim();
+  }
+  // Dans cette trame, le côté est l'intitulé qui PRÉCÈDE immédiatement le nom (« Notaire du
+  // VENDEUR : Maître X ») ; celui qui suit le nom est l'intitulé du notaire suivant.
+  var RE_COTE_AVANT_NOM_NOTAIRE = /(?:notaire|conseil)\s+(?:d[eu]\s+|de\s+la\s+|de\s+l['’]|des\s+)?(vendeurs?|promettants?|acqu[ée]reurs?|acheteurs?|b[ée]n[ée]ficiaires?)\s*:?\s*$/i;
+
   var RE_CRPCEN = /CRPCEN\s*n?[°º]?\s*:?\s*(\d{2})\d{3}\b/i;
 
   // La capture de la commune court jusqu'à la ponctuation suivante et ramasse au passage ce qui
@@ -2656,11 +2670,13 @@
     const re = new RegExp(RE_MENTION_NOTAIRE.source, 'g');
     let m;
     while ((m = re.exec(source)) !== null) {
-      const nom = m[1].replace(/\s+/g, ' ').trim();
-      if (!estNomValide(nom)) continue;
+      const nom = couperNomNotaire(m[1].replace(/\s+/g, ' ').trim());
+      if (!nom || !estNomValide(nom)) continue;
       // La qualité doit être portée par le voisinage immédiat, sans quoi « Maître » peut désigner
-      // un avocat ou apparaître dans une citation.
-      if (!RE_QUALITE_NOTAIRE.test(source.slice(m.index, m.index + PORTEE_QUALITE_NOTAIRE))) continue;
+      // un avocat ou apparaître dans une citation. Un intitulé « Notaire de l'ACQUEREUR : » juste
+      // avant le nom la porte aussi (trame en formulaire, où rien ne suit le nom que l'adresse).
+      if (!RE_QUALITE_NOTAIRE.test(source.slice(m.index, m.index + PORTEE_QUALITE_NOTAIRE))
+        && !RE_COTE_AVANT_NOM_NOTAIRE.test(source.slice(Math.max(0, m.index - 60), m.index))) continue;
       mentions.push({ index: m.index, longueur: m[0].length, nom });
     }
 
@@ -2718,7 +2734,8 @@
       // fenêtre entière reste nécessaire pour la rédaction inverse, « le notaire du vendeur,
       // Maître X », où la qualité précède le nom.
       const apresNom = source.slice(mention.index + mention.longueur, fin).replace(RE_INTRODUCTION_NOTAIRE_SUIVANT, ' ');
-      const mCote = apresNom.match(RE_COTE_NOTAIRE) || fenetre.match(RE_COTE_NOTAIRE);
+      const mCote = source.slice(Math.max(debut, mention.index - 60), mention.index).match(RE_COTE_AVANT_NOM_NOTAIRE)
+        || apresNom.match(RE_COTE_NOTAIRE) || fenetre.match(RE_COTE_NOTAIRE);
       const qualite = mCote ? qualiteDepuisMot(mCote[1]) : null;
       const cote = qualite ? (roleDepuisQualite(type, qualite) === 'VENDEUR' ? 'vendeur' : 'acquereur') : 'inconnu';
 
@@ -2742,14 +2759,14 @@
       const mCrpcen = fenetreApresNom.match(RE_CRPCEN);
       const departement = mCrpcen ? mCrpcen[1] : (adresseUtile ? adresseUtile.departement : null);
       const mOffice = fenetreApresNom.match(RE_OFFICE_NOTAIRE);
-      const ville = mOffice ? nettoyerCommuneNotaire(mOffice[1]) : '';
+      const ville = mOffice ? couperNomNotaire(nettoyerCommuneNotaire(mOffice[1])).replace(/\s*:$/, '') : '';
 
       resultats.push({
         nom: mention.nom,
         office: ville,
         adresse: adresseUtile,
         codePostal: adresseUtile ? adresseUtile.codePostal : null,
-        commune: ville || (adresseUtile ? adresseUtile.commune : null),
+        commune: ville || (adresseUtile ? couperNomNotaire(nettoyerCommuneNotaire(adresseUtile.commune)) : null),
         departement,
         cote,
         roleExplicite,
@@ -8008,6 +8025,37 @@
         majApercuPieces();
       }
     }
+    // Notaire de chaque côté, lu dans l'acte et complété par le carnet : proposé dans les deux
+    // champs de l'étape Finaliser, où l'étude le corrige avant d'enregistrer.
+    const cotes = cotesNotairesPourDossier(extraction.notaires);
+    appliquerValeurChamp('f-notaire-vendeur', completerNomNotaire(cotes.vendeur, carnetConfreres));
+    appliquerValeurChamp('f-notaire-acquereur', completerNomNotaire(cotes.acquereur, carnetConfreres));
+    remplirListeNotairesWizard(cotes.detectes.map(n => n.nom));
+    majApercuPieces();
+  }
+
+  // Liste proposée sous les deux champs notaire de l'assistant : les notaires lus dans l'acte,
+  // puis ceux du carnet des confrères (notre étude comprise).
+  function remplirListeNotairesWizard(detectes) {
+    const liste = document.getElementById('f-notaires-liste');
+    if (!liste) return;
+    const noms = (detectes || []).filter(Boolean);
+    const options = noms.concat(optionsNotairesCarnet(carnetConfreres).filter(n => noms.indexOf(n) === -1));
+    liste.innerHTML = options.map(n => `<option value="${escapeAttr(n)}"></option>`).join('');
+  }
+
+  // Côté qui reçoit l'acte pour un nouveau dossier. Celui lu dans l'acte tant que le notaire de ce
+  // côté n'a pas été changé ; sinon il découle du rôle choisi et du côté où figure notre étude
+  // (instrumentaire : notre côté ; participant : l'autre). Rien n'est deviné sinon. Pure.
+  function coteInstrumentaireNouveauDossier(cotesDetectes, vendeur, acquereur, roleNotaire) {
+    const c = cotesDetectes || {};
+    if (c.coteInstrumentaire === 'vendeur' && vendeur && vendeur === completerNomNotaire(c.vendeur, carnetConfreres)) return 'vendeur';
+    if (c.coteInstrumentaire === 'acquereur' && acquereur && acquereur === completerNomNotaire(c.acquereur, carnetConfreres)) return 'acquereur';
+    const etude = vendeur && estEtude({ nom: vendeur }) ? 'vendeur' : (acquereur && estEtude({ nom: acquereur }) ? 'acquereur' : null);
+    if (!etude) return null;
+    const autre = etude === 'vendeur' ? 'acquereur' : 'vendeur';
+    if (roleNotaire === 'participant') return (autre === 'vendeur' ? vendeur : acquereur) ? autre : null;
+    return etude;
   }
 
   // ==== PANNEAU « CE QUE L'OUTIL A COMPRIS » ====
@@ -9888,6 +9936,9 @@
     document.getElementById('f-role-notaire').value = 'instrumentaire';
     majApercuPieces();
     document.getElementById('f-email-acquereur').value = '';
+    document.getElementById('f-notaire-vendeur').value = '';
+    document.getElementById('f-notaire-acquereur').value = '';
+    remplirListeNotairesWizard([]);
     document.getElementById('f-nom-agence').value = '';
     document.getElementById('f-adresse-bien').value = '';
     document.getElementById('f-prix-vente').value = '';
@@ -10016,6 +10067,9 @@
     // détectés (que l'instantané ne conserve pas) pour proposer ceux dont l'acte ne dit pas de
     // quel côté ils interviennent.
     const cotesNotaires = cotesNotairesPourDossier(extractionActuelle ? extractionActuelle.notaires : null);
+    // Les deux notaires tels que l'étude les a laissés à l'étape Finaliser.
+    const notaireVendeur = completerNomNotaire(document.getElementById('f-notaire-vendeur').value.trim(), carnetConfreres);
+    const notaireAcquereur = completerNomNotaire(document.getElementById('f-notaire-acquereur').value.trim(), carnetConfreres);
 
     const dossier = {
       id: (crypto.randomUUID ? crypto.randomUUID() : 'd-' + Date.now() + '-' + Math.random().toString(16).slice(2)),
@@ -10037,9 +10091,9 @@
       // Champs libres, corrigeables à tout moment sur la fiche (voir affecterNotaire) : vides
       // quand l'acte ne dit pas qui représente qui — les noms détectés restent alors proposés
       // dans notairesDetectes, à l'étude de les affecter.
-      notaireVendeur: completerNomNotaire(cotesNotaires.vendeur, carnetConfreres),
-      notaireAcquereur: completerNomNotaire(cotesNotaires.acquereur, carnetConfreres),
-      coteInstrumentaire: cotesNotaires.coteInstrumentaire,
+      notaireVendeur,
+      notaireAcquereur,
+      coteInstrumentaire: coteInstrumentaireNouveauDossier(cotesNotaires, notaireVendeur, notaireAcquereur, roleNotaire),
       notairesDetectes: cotesNotaires.detectes,
       // Email de l'office du notaire de l'acquéreur, à renseigner UNIQUEMENT quand cet office est
       // distinct du nôtre (voir notaireParticipantRepresenteAcquereur/emailDestinataireRelance) :
@@ -11032,12 +11086,24 @@
     return { famille: norm(famille), prenom: norm(prenom), ville: norm(ville) };
   }
 
+  // Libellé lu dans un compromis d'agence en formulaire avant le correctif du 29/09 : « Maître
+  // Aurélien LACOUR Adresse (CELLETTES Notaire de l'ACQUEREUR) » → « Maître Aurélien LACOUR
+  // (CELLETTES) ». L'intitulé du champ suivant est retiré du nom et de la ville. Pure.
+  function nettoyerLibelleNotaire(valeur) {
+    const brut = String(valeur || '').trim();
+    const m = brut.match(/^(.*?)\s*\(([^)]*)\)\s*$/);
+    const nom = couperNomNotaire(m ? m[1] : brut);
+    const ville = m ? couperNomNotaire(m[2]).replace(/\s*:$/, '').trim() : '';
+    if (!nom) return brut;
+    return ville ? `${nom} (${ville})` : nom;
+  }
+
   // Notaire nommé par son seul prénom (« Maître SOPHIE (BLOIS) », constaté sur des fiches de
   // l'étude le 29/09) : complété par le carnet quand un seul notaire de ce prénom exerce dans
   // cette ville — « Maître Sophie GOSSART (BLOIS) ». Sans ville, ou si plusieurs notaires
   // correspondent, rien n'est deviné : la valeur revient telle quelle. Pure.
   function completerNomNotaire(valeur, carnet) {
-    const brut = String(valeur || '').trim();
+    const brut = nettoyerLibelleNotaire(valeur);
     const sans = brut.replace(/\([^)]*\)/g, ' ').replace(/^\s*(ma[iî]tre|me)\.?\s+/i, '').trim();
     const ville = ((brut.match(/\(([^)]*)\)/) || [])[1] || '').trim();
     if (!sans || /\s/.test(sans) || !ville || !Array.isArray(carnet)) return brut;
@@ -11176,14 +11242,11 @@
     if (!t) {
       return `<div class="confrere-carnet"><button type="button" class="bouton-ajout bouton-ajout-court" onclick="ajouterAuCarnetDepuisFiche('${escapeOnclickArg(nom)}')">Ajouter au carnet</button></div>`;
     }
+    // L'office seul (jugé trop chargé avec téléphone et email, retour de l'étude du 29/09) : les
+    // coordonnées sont dans le carnet, à un clic.
     const o = t.office;
-    const contacts = [
-      o.telephone ? `<a href="tel:${escapeAttr(o.telephone.replace(/\s+/g, ''))}">${escapeHtml(o.telephone)}</a>` : '',
-      o.email ? `<a href="mailto:${escapeAttr(o.email)}">${escapeHtml(o.email)}</a>` : ''
-    ].filter(Boolean).join(' · ');
     return `<div class="confrere-carnet">
-      <button type="button" class="confrere-carnet-office" onclick="ouvrirOfficeCarnet('${escapeOnclickArg(o.id)}')" title="Voir dans le carnet des confrères">${icone('book')}${escapeHtml(o.office)}${o.ville ? ` — ${escapeHtml(o.ville)}` : ''}</button>
-      ${contacts ? `<span class="confrere-carnet-contacts">${contacts}</span>` : ''}
+      <button type="button" class="confrere-carnet-office" onclick="ouvrirOfficeCarnet('${escapeOnclickArg(o.id)}')" title="Voir les coordonnées dans le carnet des confrères">${icone('book')}${escapeHtml(o.office)}${o.ville ? ` — ${escapeHtml(o.ville)}` : ''}</button>
     </div>`;
   }
 
@@ -12989,7 +13052,11 @@
       document.getElementById('wizard-step-' + i).classList.toggle('actif', i === n);
       document.getElementById('wizard-step-btn-' + i).classList.toggle('actif', i === n);
     }
-    if (n === 4) majApercuPieces();
+    if (n === 4) {
+      const c = cotesNotairesPourDossier(extractionActuelle ? extractionActuelle.notaires : null);
+      remplirListeNotairesWizard(c.detectes.map(x => x.nom));
+      majApercuPieces();
+    }
     const wrap = document.querySelector('.wrap');
     if (wrap) wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -13009,11 +13076,14 @@
     // un dossier déjà enregistré) : on ne doit alors pas collecter son email personnel.
     const champEmailAcquereur = document.getElementById('champ-email-acquereur');
     if (champEmailAcquereur) {
-      const cotesWizard = cotesNotairesPourDossier(extractionActuelle ? extractionActuelle.notaires : null);
-      const acquereurRepresenteParAutre = !!(cotesWizard.acquereur && !estEtude({ nom: cotesWizard.acquereur }));
-      const masquer = acquereurRepresenteParAutre;
-      champEmailAcquereur.style.display = masquer ? 'none' : '';
-      if (masquer) document.getElementById('f-email-acquereur').value = '';
+      // D'après le champ « Notaire de l'acquéreur » de l'étape Finaliser, corrigeable. Une adresse
+      // déjà saisie n'est JAMAIS effacée ni cachée : une lecture fausse de l'acte (confrère pris
+      // pour le notaire de l'acquéreur) la faisait disparaître sans prévenir (signalé le 29/09).
+      const champNotaireAcq = document.getElementById('f-notaire-acquereur');
+      const notaireAcq = champNotaireAcq ? champNotaireAcq.value.trim() : '';
+      const acquereurRepresenteParAutre = !!(notaireAcq && !estEtude({ nom: notaireAcq }));
+      const saisi = !!document.getElementById('f-email-acquereur').value.trim();
+      champEmailAcquereur.style.display = acquereurRepresenteParAutre && !saisi ? 'none' : '';
     }
     if (!select || !bloc) return;
     // Notaire participant/concourant : l'étude ne constitue pas le dossier complet, seuls le prêt

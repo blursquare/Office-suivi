@@ -11804,3 +11804,31 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
   réécrits en base, l'office d'Herbault est retrouvé. Test `tests/carnet-confreres.test.js`.
   Vu en passant : un trait d'union insécable (U+2011) ou un tiret long dans le nom coupe le
   patronyme à la détection (« Ophélie TURBIL ») — non corrigé, pas encore rencontré sur un acte.
+
+- **29/09/2026 — Notaires : trame « formulaire » des compromis d'agence, deux notaires à la
+  création, email de l'acquéreur perdu** (capture de l'étude, dossier JOUANNET DAUM / GIRY :
+  « Maître Aurélien LACOUR Adresse (CELLETTES Notaire de l'ACQUEREUR) » des deux côtés alors que
+  l'étude représentait l'acquéreur ; email de l'acquéreur saisi à la création, disparu).
+  - Lecture : reproduit sur « Notaire du VENDEUR : Maître X Adresse : … 41120 CELLETTES Notaire de
+    l'ACQUEREUR : Maître Y Adresse : … ». Trois défauts : « Adresse » pris dans le nom (mot à
+    majuscule), la commune lue jusqu'à l'intitulé suivant, et le côté lu APRÈS le nom — donc sur
+    l'intitulé du notaire suivant ; Y, sans « notaire » après son nom, n'était pas retenu. Corrigé :
+    `couperNomNotaire` (arrêt au premier intitulé : Adresse, Tél., Email, Notaire, Office, SCP…,
+    appliqué au nom, à la ville et à la commune de l'adresse), `RE_COTE_AVANT_NOM_NOTAIRE`
+    (l'intitulé qui précède immédiatement le nom prime et vaut qualité de notaire). Rejoué sur tous
+    les PDF réels disponibles (pdftotext) : un seul écart, « Maître Laura DENIS » désormais reconnu
+    dans un courrier de convocation. Test `tests/notaires.test.js`.
+  - Création : deux champs « Notaire du vendeur » / « Notaire de l'acquéreur » à l'étape Finaliser
+    (pré-remplis par la lecture, complétés par le carnet, liste = notaires lus + carnet).
+    `coteInstrumentaireNouveauDossier` : côté lu dans l'acte si le notaire n'a pas été changé,
+    sinon déduit du rôle choisi (instrumentaire : côté de l'étude ; participant : l'autre côté).
+  - Email : `majApercuPieces` masquait le champ ET effaçait sa valeur dès qu'un confrère était lu
+    côté acquéreur — ici à tort. Une adresse saisie n'est plus jamais effacée ni cachée ; le
+    masquage suit le champ « Notaire de l'acquéreur », corrigeable.
+  - Dossiers existants : `nettoyerLibelleNotaire` (via `completerNomNotaire`, au chargement du
+    carnet) retire l'intitulé collé au nom et à la ville.
+  - Fiche : sous le notaire, l'office seul (téléphone et email retirés, « trop d'info ») ; les
+    coordonnées restent dans le carnet, à un clic.
+  Vérifié dans Chromium (clair, sombre, 390 px) : champs pré-remplis LACOUR (CELLETTES) / GOSSART
+  (BLOIS), email conservé après changement du notaire de l'acquéreur, dossier enregistré
+  participant avec l'acte reçu côté vendeur.

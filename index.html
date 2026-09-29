@@ -496,6 +496,18 @@
         </div>
 
         <div class="field-row">
+          <div>
+            <label for="f-notaire-vendeur">Notaire du vendeur</label>
+            <input type="text" id="f-notaire-vendeur" list="f-notaires-liste" placeholder="Ex. Maître Sophie GOSSART (Blois)" oninput="majApercuPieces()">
+          </div>
+          <div>
+            <label for="f-notaire-acquereur">Notaire de l'acquéreur</label>
+            <input type="text" id="f-notaire-acquereur" list="f-notaires-liste" placeholder="Ex. Maître Sophie GOSSART (Blois)" oninput="majApercuPieces()">
+          </div>
+          <datalist id="f-notaires-liste"></datalist>
+        </div>
+
+        <div class="field-row">
           <div id="champ-email-acquereur">
             <label for="f-email-acquereur">Email de l'acquéreur (pour relance prêt)</label>
             <input type="email" id="f-email-acquereur" placeholder="acquereur@exemple.fr">

@@ -89,3 +89,10 @@ test('completerNomNotaire : un notaire nommé par son seul prénom est complét�
   const t = app.trouverOfficeConfrere('Maître OPHELIE (HERBAULT)', carnet);
   assert.equal(t && t.office.id, 'a');
 });
+
+test('nettoyerLibelleNotaire : retire l’intitulé du champ suivant d’un compromis en formulaire', () => {
+  const app = chargerApplication();
+  assert.equal(app.nettoyerLibelleNotaire("Maître Jules VERNAY Adresse (CELLETTES Notaire de l'ACQUEREUR)"), 'Maître Jules VERNAY (CELLETTES)');
+  assert.equal(app.nettoyerLibelleNotaire('Maître Hélène MARCHAND (Blois)'), 'Maître Hélène MARCHAND (Blois)');
+  assert.equal(app.nettoyerLibelleNotaire('Maître Hélène MARCHAND'), 'Maître Hélène MARCHAND');
+});

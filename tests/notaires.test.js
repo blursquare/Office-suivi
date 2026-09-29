@@ -592,3 +592,28 @@ test('confrère dans le lieu du rendez-vous : « Me NOM en 1er » s’il reçoit
   assert.equal(app.lieuRdvAgenda({ responsable: 'Bastien ANGLUMENT', notaireVendeur: etude, notaireAcquereur: 'Paul DURAND (ORLEANS)', coteInstrumentaire: 'vendeur', echeancesValidees: { appelFonds: true } }),
     'BA - Me DURAND en 2nd - Appel de fonds envoyé');
 });
+
+test('compromis d’agence en formulaire : « Notaire du VENDEUR : Maître X Adresse : … »', () => {
+  const app = chargerApplication();
+  const texte = "NOTAIRES Notaire du VENDEUR : Maître Jules VERNAY Adresse : 12 route de Blois 41120 CELLETTES "
+    + "Notaire de l'ACQUEREUR : Maître Hélène MARCHAND Adresse : 8 rue des Lices 41000 BLOIS";
+  const liste = app.detecterNotaires(texte, 'COMPROMIS');
+  assert.equal(liste.map(n => `${n.nom}|${n.commune}|${n.cote}`).join(' ; '),
+    'Jules VERNAY|CELLETTES|vendeur ; Hélène MARCHAND|BLOIS|acquereur');
+  const enLigne = app.detecterNotaires("Notaire du VENDEUR : Maître Jules VERNAY, notaire à CELLETTES Notaire de l'ACQUEREUR : Maître Hélène MARCHAND, notaire à BLOIS", 'COMPROMIS');
+  assert.equal(enLigne.map(n => `${n.nom}|${n.office}|${n.cote}`).join(' ; '),
+    'Jules VERNAY|CELLETTES|vendeur ; Hélène MARCHAND|BLOIS|acquereur');
+});
+
+test('coteInstrumentaireNouveauDossier : lu dans l’acte, sinon déduit du rôle et du côté de l’étude', () => {
+  const app = chargerApplication();
+  const etude = 'Maître Sophie GOSSART (Blois)';
+  const confrere = 'Maître Jules VERNAY (Cellettes)';
+  // Participant, étude côté acquéreur : l'acte est reçu par le confrère du vendeur.
+  assert.equal(app.coteInstrumentaireNouveauDossier({}, confrere, etude, 'participant'), 'vendeur');
+  assert.equal(app.coteInstrumentaireNouveauDossier({}, confrere, etude, 'instrumentaire'), 'acquereur');
+  // Étude non reconnue : rien n'est deviné.
+  assert.equal(app.coteInstrumentaireNouveauDossier({}, confrere, 'Maître Paul DURAND (Tours)', 'participant'), null);
+  // Côté lu dans l'acte, notaire inchangé : conservé.
+  assert.equal(app.coteInstrumentaireNouveauDossier({ coteInstrumentaire: 'vendeur', vendeur: confrere }, confrere, etude, 'instrumentaire'), 'vendeur');
+});
