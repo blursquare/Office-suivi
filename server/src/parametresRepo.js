@@ -474,27 +474,10 @@ function assainirReglagesExchange(brut, precedent) {
   };
 }
 
-// Agenda de l'office (voir agendaOffice.js/agendaWatch.js) : une seule URL, publiée depuis Outlook
-// (« Publier ce calendrier », sans authentification — même flux que l'artefact « brief du matin »
-// de l'étude), rangée sous sa PROPRE clé plutôt que dans le blob `reglages` (envoi d'email) — deux
-// écrans différents, deux réglages indépendants.
-const CLE_REGLAGES_AGENDA = 'agenda-office';
-
-function assainirReglagesAgenda(brut) {
-  const b = (brut && typeof brut === 'object') ? brut : {};
-  // Une adresse copiée depuis Outlook commence parfois par webcal:// (protocole d'abonnement) :
-  // c'est la même adresse en https, convertie ici pour être acceptée et lisible par fetch.
-  const url = texteBorne(b.icsUrl, 2000).replace(/^webcals?:\/\//i, 'https://');
-  // Contrôle de forme minimal (schéma http/https) : n'empêche pas d'enregistrer une URL fausse,
-  // mais attrape un collage manifestement raté (un chemin de fichier, du texte au hasard) avant
-  // que le tour de surveillance ne s'y casse les dents en silence.
-  return { icsUrl: /^https?:\/\//i.test(url) ? url : '' };
-}
-
-// Compte rendu du DERNIER tour de lecture de l'agenda — même raison d'être que CLE_DERNIER_TOUR
-// pour les rappels par email : un flux devenu injoignable (lien de publication révoqué, calendrier
-// dépublié dans Outlook) arrêterait de mettre à jour les dossiers SANS RIEN LE SIGNALER si personne
-// ne consultait ce compte rendu. Plafonné comme les autres listes de ce fichier.
+// Compte rendu du DERNIER tour de lecture de l'agenda (EWS, voir agendaWatch.js) — même raison
+// d'être que CLE_DERNIER_TOUR pour les rappels par email : un agenda devenu illisible (mot de passe
+// changé, partage retiré) arrêterait de mettre à jour les dossiers SANS RIEN LE SIGNALER si
+// personne ne consultait ce compte rendu. Plafonné comme les autres listes de ce fichier.
 const CLE_DERNIER_TOUR_AGENDA = 'dernier-tour-agenda';
 const MAX_ENTREES_TOUR_AGENDA = 50;
 
@@ -516,7 +499,7 @@ function assainirEntreeDetectionAgenda(brut) {
 }
 
 // Absences des collaborateurs, lues dans l'agenda de l'office à chaque tour (voir
-// agendaOffice.js/absencesDepuisIcs) et rangées sous leur propre clé — comme le compte rendu du
+// agendaOffice.js/absencesDepuisEvenements) et rangées sous leur propre clé — comme le compte rendu du
 // dernier tour, c'est un état PRODUIT par le serveur, pas un réglage saisi. Exposées au client par
 // GET /api/agenda pour que l'agenda du tableau de bord signale « Absent cette semaine : … ».
 const CLE_ABSENCES_AGENDA = 'absences-agenda';
@@ -570,8 +553,10 @@ function assainirDernierTourAgenda(brut) {
     misAJour: listeBornee(b.misAJour),
     dejaRenseignes: listeBornee(b.dejaRenseignes),
     sansCorrespondance: listeBornee(b.sansCorrespondance),
+    evenementsLus: Number.isFinite(b.evenementsLus) && b.evenementsLus >= 0 ? Math.floor(b.evenementsLus) : 0,
     erreur: b.erreur ? texteBorne(String(b.erreur), 1500) : null,
-    lienPasseEnHttps: !!b.lienPasseEnHttps,
+    identifiantsRefuses: !!b.identifiantsRefuses,
+    calendrier: texteBorne(b.calendrier, 200),
     declenche: b.declenche === 'manuel' ? 'manuel' : 'automatique'
   };
 }
@@ -801,25 +786,7 @@ function creerRepoParametres(db) {
     return propre;
   }
 
-  function lireReglagesAgenda() {
-    const ligne = lireStmt.get(CLE_REGLAGES_AGENDA);
-    if (!ligne) return assainirReglagesAgenda({});
-    try {
-      return assainirReglagesAgenda(JSON.parse(ligne.valeur));
-    } catch (e) {
-      return assainirReglagesAgenda({});
-    }
-  }
-
-  function ecrireReglagesAgenda(reglages) {
-    const propre = assainirReglagesAgenda(reglages);
-    ecrireStmt.run(CLE_REGLAGES_AGENDA, JSON.stringify(propre));
-    return propre;
-  }
-
-  // Absent = jamais tenté depuis l'installation, ou l'URL n'a jamais été renseignée (voir
-  // executerEtEnregistrerTourAgenda, qui écrit systématiquement — même sans URL — pour que
-  // l'écran Réglages distingue « jamais essayé » de « essayé, mais rien à lire »).
+  // Absent = jamais tenté depuis l'installation (voir executerEtEnregistrerTourAgenda).
   function lireDernierTourAgenda() {
     const ligne = lireStmt.get(CLE_DERNIER_TOUR_AGENDA);
     if (!ligne) return null;
@@ -932,7 +899,7 @@ function creerRepoParametres(db) {
     lireResumeEmails, ecrireResumeEmails,
     lireReglagesMiseAJour, ecrireReglagesMiseAJour,
     lireReglagesExchange, ecrireReglagesExchange,
-    lireReglagesAgenda, ecrireReglagesAgenda, lireDernierTourAgenda, ecrireDernierTourAgenda,
+    lireDernierTourAgenda, ecrireDernierTourAgenda,
     lireAbsencesAgenda, ecrireAbsencesAgenda, lireCategoriesAgenda, ecrireCategoriesAgenda,
     lireReglageSauvegarde, ecrireReglageSauvegarde, lireEtatSauvegarde, ecrireEtatSauvegarde,
     lireReglages, ecrireReglages, lireDernierTour, ecrireDernierTour,
@@ -949,6 +916,6 @@ module.exports = {
   assainirRappelPerso, assainirRappelsPerso, MAX_RAPPELS_PERSO, assainirPreference, assainirPreferences,
   assainirReglagesClaude, assainirReglagesMiseAJour, MODELES_CLAUDE, MODELE_CLAUDE_PAR_DEFAUT,
   assainirReglagesExchange, assainirCategoriesRdv, CATEGORIES_RDV_DEFAUT, URL_EWS_DEFAUT, assainirCategoriesAgenda,
-  assainirReglagesAgenda, assainirDernierTourAgenda, assainirAbsenceAgenda, assainirAbsencesAgenda,
+  assainirDernierTourAgenda, assainirAbsenceAgenda, assainirAbsencesAgenda,
   REGLAGES_PAR_DEFAUT, PORT_SMTP_PAR_DEFAUT, assainirResumeEmails
 };

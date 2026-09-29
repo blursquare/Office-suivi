@@ -12153,3 +12153,38 @@ pied, les noms cherchés et le montant attendu modifiables au crayon (✓ / ×, 
 la dernière lecture avec sa pastille « i », et « Confirmer quand même ». Les deux champs de saisie
 permanents et les phrases d'explication ont disparu. Vérifié dans Chromium (quatre états, clair
 900 px, sombre 400 px, pas de défilement horizontal).
+
+### 29/09 22:12 — Agenda de l'office lu par EWS, fin de la lecture du .ics
+
+Question de l'étude : « Aujourd'hui le .ics permet de détecter les modifications sur l'agenda. Ça ne
+serait pas plus simple de passer par l'agenda partagé de Sophie ? », puis « Ce sont les mêmes
+agendas. Tu peux faire la modification et ajuster les fonctions, détections et supprimer le ics ».
+- Lecture : `lireCalendrierExchange` (`exchange/ews.js`) — FindItem en vue calendrier (lecture
+  seule, récurrences développées) sur le calendrier partagé (`calendrierPartage` des réglages
+  Exchange), six mois à partir d'aujourd'hui en 3 tranches de 62 jours (limite de 1 000 résultats
+  d'un FindItem), dédoublonnage par ItemId (une absence à cheval sur deux tranches), arrêt au
+  premier échec. Propriétés : sujet, lieu, début, fin, IsAllDayEvent, IsCancelled, Categories —
+  le corps n'est pas lu (FindItem ne le rend pas ; la convention tient dans le titre et le lieu,
+  la description n'est donc plus un repli pour la référence VTE). Liste coupée par Exchange
+  (`IncludesLastItemInRange="false"`) → tour en échec, rien appliqué.
+- `agendaOffice.js` : le parseur iCalendar est supprimé ; modèle neutre `evenementDepuisEws`
+  ({ sujet, lieu, date, heure, dateFin, heureFin, journeeEntiere, annule, categories }, date et
+  heure de Paris via `momentParisDepuisIso` ; journée entière : fin exclusive ramenée au dernier
+  jour). `actionsDetecteesDepuisEvenements`, `absencesDepuisEvenements`, `categoriesDistinctes`
+  remplacent les versions `…Ics` ; règles de détection et de rapprochement inchangées.
+- `agendaWatch.js` : plus de téléchargement (en-têtes de navigateur, relance sur 503, diagnostic
+  du proxy Squid, bascule http→https, lien webcal — tout retiré). Le tour lit les réglages
+  Exchange (switch « Relier CLAIRE à l'agenda » + adresse + mot de passe). **Disjoncteur** : un
+  refus d'identifiants suspend les tours automatiques tant que l'empreinte (sha256 en mémoire)
+  de url/email/mot de passe/calendrier ne change pas ; « Tester maintenant » fait toujours un
+  essai, un succès lève la suspension ; un redémarrage du serveur autorise un nouvel essai.
+- Réglages : clé `agenda-office` (URL .ics) et `PUT /api/agenda` supprimés ; `GET /api/agenda`
+  rend `source` { configuree, calendrier, suspendue } ; compte rendu enrichi (`evenementsLus`,
+  `identifiantsRefuses`, `calendrier`). Réglages › Agenda : la connexion Exchange d'abord, puis
+  « Lecture de l'agenda » (calendrier lu, Tester maintenant, dernier tour, mention de suspension).
+- Conservé : le flux `/calendrier.ics` **publié par CLAIRE** (prêt et vente préalable pas encore
+  posés par EWS, abonnement Outlook) — autre sens, non concerné par la demande.
+- Vérifié : tests serveur (faux transport EWS : tranches, dédoublonnage, liste coupée, accès
+  refusé, disjoncteur, route), Chromium (tour manuel → dossier mis à jour, refus → suspension
+  affichée, 400 px sans défilement). Non vérifié : Exchange réel (droits de lecture sur le
+  calendrier de Sophie, forme exacte des journées entières, volume par tranche).

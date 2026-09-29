@@ -397,6 +397,125 @@ function trouverRendezVousExchange({ url, email, motDePasse, debutUtc, finUtc, m
   });
 }
 
+// --- Lecture de l'agenda de l'office (remplace le flux .ics publié, 29/09) ---
+//
+// Le calendrier partagé de Sophie est lu directement par EWS (FindItem + CalendarView, qui développe
+// les rendez-vous récurrents) : les rendez-vous « VTE - … », la mention d'envoi notée dans le Lieu,
+// les catégories (couleurs) et les absences en journée entière. Le corps du rendez-vous n'est pas
+// lu : FindItem ne le renvoie pas, et la convention de l'étude tient dans le titre et le Lieu.
+
+// Fenêtre lue à chaque tour : six mois à partir d'aujourd'hui, en tranches de 62 jours pour rester
+// loin de la limite de résultats d'un FindItem (1 000 par défaut sur Exchange 2019).
+const JOURS_PAR_TRANCHE_CALENDRIER = 62;
+const TRANCHES_CALENDRIER = 3;
+
+function corpsLireCalendrier({ debutUtc, finUtc, mailbox }) {
+  return ENVELOPPE_DEBUT
+    + '<m:FindItem Traversal="Shallow">'
+    + '<m:ItemShape><t:BaseShape>IdOnly</t:BaseShape>'
+    + '<t:AdditionalProperties>'
+    + '<t:FieldURI FieldURI="item:Subject"/>'
+    + '<t:FieldURI FieldURI="item:Categories"/>'
+    + '<t:FieldURI FieldURI="calendar:Location"/>'
+    + '<t:FieldURI FieldURI="calendar:Start"/>'
+    + '<t:FieldURI FieldURI="calendar:End"/>'
+    + '<t:FieldURI FieldURI="calendar:IsAllDayEvent"/>'
+    + '<t:FieldURI FieldURI="calendar:IsCancelled"/>'
+    + '</t:AdditionalProperties></m:ItemShape>'
+    + '<m:CalendarView StartDate="' + debutUtc + '" EndDate="' + finUtc + '"/>'
+    + '<m:ParentFolderIds>' + folderCalendrierXml(mailbox) + '</m:ParentFolderIds>'
+    + '</m:FindItem>' + ENVELOPPE_FIN;
+}
+
+// Réponse d'un FindItem de lecture → { evenements, complet }. PURE. `complet` est faux quand
+// Exchange a coupé la liste (IncludesLastItemInRange="false") : l'appelant ne doit alors rien en
+// conclure (un rendez-vous manquant passerait pour retiré de l'agenda).
+function parseCalendrierEws(corps) {
+  const texte = String(corps || '');
+  const evenements = [];
+  const re = /<t:CalendarItem\b[\s\S]*?<\/t:CalendarItem>/g;
+  let m;
+  while ((m = re.exec(texte)) !== null) {
+    const bloc = m[0];
+    const idTag = (bloc.match(/<t:ItemId\b[^>]*>/) || [])[0] || '';
+    const valeur = (balise) => {
+      const r = new RegExp('<t:' + balise + '>([\\s\\S]*?)</t:' + balise + '>');
+      return desechapperXml((bloc.match(r) || [])[1] || '').trim();
+    };
+    const blocCategories = (bloc.match(/<t:Categories>([\s\S]*?)<\/t:Categories>/) || [])[1] || '';
+    const categories = [];
+    const reCat = /<t:String>([\s\S]*?)<\/t:String>/g;
+    let c;
+    while ((c = reCat.exec(blocCategories)) !== null) {
+      const nom = desechapperXml(c[1]).trim();
+      if (nom) categories.push(nom);
+    }
+    evenements.push({
+      itemId: (idTag.match(/\bId="([^"]+)"/) || [])[1] || '',
+      subject: valeur('Subject'),
+      location: valeur('Location'),
+      start: valeur('Start'),
+      end: valeur('End'),
+      allDay: valeur('IsAllDayEvent') === 'true',
+      cancelled: valeur('IsCancelled') === 'true',
+      categories
+    });
+  }
+  return { evenements, complet: !/IncludesLastItemInRange="false"/.test(texte) };
+}
+
+// Lit la fenêtre complète (toutes les tranches), en s'arrêtant au PREMIER échec : un refus
+// d'identifiants n'est jamais présenté une seconde fois dans le même tour. Chaque tranche est un
+// seul essai. Renvoie { ok:true, evenements } (dédoublonnés par ItemId : une absence à cheval sur
+// deux tranches revient deux fois) ou { ok:false, raison, message }.
+async function lireCalendrierExchange({ url, email, motDePasse, mailbox, aujourdHui, tranches, delaiMs }, injections) {
+  const nb = tranches || TRANCHES_CALENDRIER;
+  const vus = new Set();
+  const evenements = [];
+  let debut = aujourdHui;
+  for (let i = 0; i < nb; i++) {
+    let fin = debut;
+    for (let j = 0; j < JOURS_PAR_TRANCHE_CALENDRIER; j++) fin = dateSuivanteIso(fin);
+    const r = await posterEws({
+      url, email, motDePasse, delaiMs,
+      body: corpsLireCalendrier({
+        debutUtc: formatEwsUtc(instantUtcDepuisParis(debut, '00:00')),
+        finUtc: formatEwsUtc(instantUtcDepuisParis(fin, '00:00')),
+        mailbox
+      })
+    }, injections);
+    if (r.echec) return r.echec;
+    const corpsTexte = String(r.corps || '');
+    if (r.statut === 401 || r.statut === 403) {
+      return { ok: false, raison: 'auth', message: 'Identifiants de messagerie refusés par le serveur Exchange.' };
+    }
+    if (!/ResponseClass="Success"/.test(corpsTexte)) {
+      const code = (corpsTexte.match(/<m:ResponseCode>([^<]+)<\/m:ResponseCode>/) || [])[1]
+        || (corpsTexte.match(/<faultstring[^>]*>([^<]+)<\/faultstring>/) || [])[1] || '';
+      const acces = /ErrorAccessDenied|ErrorFolderNotFound|ErrorNonExistentMailbox|ErrorItemNotFound/.test(code);
+      return {
+        ok: false,
+        raison: acces ? 'acces' : 'ews',
+        message: acces
+          ? `Le compte de connexion n'a pas accès au calendrier partagé (${code}) : vérifiez l'adresse du calendrier et le partage dans Outlook.`
+          : `La lecture de l'agenda a échoué${code ? ' (' + code + ')' : r.statut ? ' (' + r.statut + ')' : ''}.`
+      };
+    }
+    const lu = parseCalendrierEws(corpsTexte);
+    if (!lu.complet) {
+      return { ok: false, raison: 'tronque', message: "Exchange n'a pas renvoyé tous les rendez-vous de la période : rien n'a été appliqué." };
+    }
+    for (const e of lu.evenements) {
+      const cle = e.itemId || `${e.subject}|${e.start}|${e.end}`;
+      if (vus.has(cle)) continue;
+      vus.add(cle);
+      evenements.push(e);
+    }
+    debut = fin;
+  }
+  return { ok: true, evenements };
+}
+
 // UpdateItem — un seul essai. `injections.poster` : uniquement pour les tests.
 function mettreAJourLieuExchange({ url, email, motDePasse, itemId, changeKey, lieu, delaiMs = 20000 }, injections = {}) {
   const poster = injections.poster || httpntlm.post;
@@ -693,5 +812,6 @@ module.exports = {
   corpsCreateEcheance, corpsUpdateEcheanceDate, corpsDeleteEcheance, interpreterReponseSuppression,
   creerEcheanceExchange, mettreAJourEcheanceExchange, supprimerEcheanceExchange,
   heureParisDepuisInstant, horaireDeplace, corpsUpdateRendezVousHoraire, deplacerRendezVousExchange,
-  posterEws
+  posterEws, corpsLireCalendrier, parseCalendrierEws, lireCalendrierExchange,
+  JOURS_PAR_TRANCHE_CALENDRIER, TRANCHES_CALENDRIER
 };

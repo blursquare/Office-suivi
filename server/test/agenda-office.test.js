@@ -1,96 +1,52 @@
 'use strict';
 
-// Lecture de l'agenda de l'office (voir src/agendaOffice.js) : parsing .ics et rapprochement au
-// dossier, tous deux purs. Le plus important à couvrir : ne jamais se tromper de dossier (une
-// ambiguïté doit rendre `null`, jamais un choix arbitraire) et ne jamais planter sur un flux mal
-// formé (un vrai calendrier Outlook publié peut contenir des lignes repliées, des caractères
-// échappés, des événements annulés).
+// Lecture de l'agenda de l'office (voir src/agendaOffice.js) : conversion des rendez-vous EWS et
+// rapprochement au dossier, tous deux purs. Le plus important à couvrir : ne jamais se tromper de
+// dossier (une ambiguïté doit rendre `null`, jamais un choix arbitraire), ne jamais relever un
+// rendez-vous annulé, et lire la date et l'heure à l'heure de Paris.
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
-  deplierLignesIcs, decoderTexteIcs, parseIcsEvenements, dateDepuisDtstart,
+  evenementDepuisEws, evenementsDepuisEws, momentParisDepuisIso,
   extraireReferenceVte, referenceDossierEvenement, detecteAppelDeFonds, detecteProjetEnvoye,
-  detecterActionsEvenement, dossierPourReferenceAgenda, actionsDetecteesDepuisIcs, composerLieuAgenda
+  detecterActionsEvenement, dossierPourReferenceAgenda, actionsDetecteesDepuisEvenements, composerLieuAgenda,
+  categoriesDistinctes
 } = require('../src/agendaOffice');
 
-test('deplierLignesIcs recolle une ligne repliee (RFC 5545) sans en perdre le contenu', () => {
-  // Le dépliage retire exactement UN caractère d'espacement en tête de la ligne de continuation
-  // (RFC 5545 §3.1) — pour conserver l'espace réel du texte d'origine entre « DUPONT » et « / »,
-  // la ligne repliée doit donc en porter DEUX : celui qu'exige le repliement, et celui du contenu.
-  const brut = 'BEGIN:VEVENT\r\nSUMMARY:VTE - DUPONT\r\n  / MARTIN - Appel de fonds\r\nEND:VEVENT';
-  const lignes = deplierLignesIcs(brut);
-  assert.deepEqual(lignes, ['BEGIN:VEVENT', 'SUMMARY:VTE - DUPONT / MARTIN - Appel de fonds', 'END:VEVENT']);
-});
-
-test('decoderTexteIcs retire les echappements standard (virgule, point-virgule, retour a la ligne)', () => {
-  assert.equal(decoderTexteIcs('VTE - DUPONT\\, MARTIN'), 'VTE - DUPONT, MARTIN');
-  assert.equal(decoderTexteIcs('Appel de fonds\\; projet envoye'), 'Appel de fonds; projet envoye');
-  assert.equal(decoderTexteIcs('Ligne 1\\nLigne 2'), 'Ligne 1\nLigne 2');
-});
-
-function icsEvenement({ summary, description, location, dtstart, status }) {
-  return [
-    'BEGIN:VCALENDAR',
-    'BEGIN:VEVENT',
-    summary !== undefined ? `SUMMARY:${summary}` : null,
-    description !== undefined ? `DESCRIPTION:${description}` : null,
-    location !== undefined ? `LOCATION:${location}` : null,
-    dtstart !== undefined ? `DTSTART:${dtstart}` : null,
-    status !== undefined ? `STATUS:${status}` : null,
-    'END:VEVENT',
-    'END:VCALENDAR'
-  ].filter((l) => l !== null).join('\r\n');
+// Un rendez-vous tel que le rend exchange/ews.js (parseCalendrierEws), converti en modèle neutre.
+function rdv({ sujet = '', lieu = '', start = '2099-10-14T09:00:00Z', end, allDay = false, cancelled = false, categories = [] }) {
+  return evenementDepuisEws({ subject: sujet, location: lieu, start, end: end || start, allDay, cancelled, categories });
 }
 
-test('parseIcsEvenements lit summary/description/dtstart/status d\'un vrai flux', () => {
-  const texte = icsEvenement({ summary: 'VTE - DUPONT / MARTIN - Appel de fonds', dtstart: '20261014T140000Z' });
-  const evts = parseIcsEvenements(texte);
-  assert.equal(evts.length, 1);
-  assert.equal(evts[0].summary, 'VTE - DUPONT / MARTIN - Appel de fonds');
-  assert.equal(evts[0].dtstart, '20261014T140000Z');
+test('evenementDepuisEws : date et heure à Paris (été, hiver), fin du rendez-vous', () => {
+  const ete = evenementDepuisEws({ subject: 'VTE - DUPONT', location: 'BA', start: '2026-09-30T12:00:00Z', end: '2026-09-30T13:30:00Z' });
+  assert.equal(ete.date, '2026-09-30');
+  assert.equal(ete.heure, '14:00');
+  assert.equal(ete.heureFin, '15:30');
+  assert.equal(ete.journeeEntiere, false);
+  const hiver = evenementDepuisEws({ subject: 'x', start: '2026-12-15T09:30:00Z', end: '2026-12-15T10:30:00Z' });
+  assert.equal(hiver.heure, '10:30');
+  // 23 h 30 UTC la veille = 1 h 30 à Paris le jour même : la date suit Paris, jamais UTC.
+  assert.equal(evenementDepuisEws({ subject: 'x', start: '2026-10-13T23:30:00Z' }).date, '2026-10-14');
 });
 
-test('parseIcsEvenements ignore ce qui est hors VEVENT et gere plusieurs evenements', () => {
-  const texte = [
-    'BEGIN:VCALENDAR',
-    'X-WR-CALNAME:Office',
-    icsEvenement({ summary: 'VTE - A / B', dtstart: '20261001' }).split('\r\n').slice(1, -1).join('\r\n'),
-    icsEvenement({ summary: 'VTE - C / D', dtstart: '20261002' }).split('\r\n').slice(1, -1).join('\r\n'),
-    'END:VCALENDAR'
-  ].join('\r\n');
-  const evts = parseIcsEvenements(texte);
-  assert.equal(evts.length, 2);
-  assert.equal(evts[0].summary, 'VTE - A / B');
-  assert.equal(evts[1].summary, 'VTE - C / D');
+test('evenementDepuisEws : journée entière → sans heure, fin ramenée au dernier jour réel', () => {
+  // Exchange rend minuit de Paris en UTC ; la fin est minuit du lendemain du dernier jour.
+  const conges = evenementDepuisEws({ subject: 'Congés JV', start: '2026-10-11T22:00:00Z', end: '2026-10-16T22:00:00Z', allDay: true });
+  assert.equal(conges.date, '2026-10-12');
+  assert.equal(conges.dateFin, '2026-10-16');
+  assert.equal(conges.heure, null);
+  assert.equal(conges.journeeEntiere, true);
+  const unJour = evenementDepuisEws({ subject: 'RTT BA', start: '2026-10-11T22:00:00Z', end: '2026-10-12T22:00:00Z', allDay: true });
+  assert.equal(unJour.dateFin, '2026-10-12');
 });
 
-test('parseIcsEvenements ne laisse pas un VALARM imbrique ecraser la description de l\'evenement', () => {
-  const texte = [
-    'BEGIN:VCALENDAR',
-    'BEGIN:VEVENT',
-    'SUMMARY:VTE - DUPONT / MARTIN',
-    'DESCRIPTION:Appel de fonds envoye',
-    'DTSTART:20261014',
-    'BEGIN:VALARM',
-    'ACTION:DISPLAY',
-    'DESCRIPTION:Rappel',
-    'END:VALARM',
-    'END:VEVENT',
-    'END:VCALENDAR'
-  ].join('\r\n');
-  const evts = parseIcsEvenements(texte);
-  assert.equal(evts.length, 1);
-  assert.equal(evts[0].description, 'Appel de fonds envoye');
-});
-
-test('dateDepuisDtstart accepte la forme toute-la-journee et la forme horodatee', () => {
-  assert.equal(dateDepuisDtstart('20261014'), '2026-10-14');
-  assert.equal(dateDepuisDtstart('20261014T140000Z'), '2026-10-14');
-  assert.equal(dateDepuisDtstart('20261014T140000'), '2026-10-14');
-  assert.equal(dateDepuisDtstart(''), null);
-  assert.equal(dateDepuisDtstart(undefined), null);
+test('evenementsDepuisEws : un rendez-vous sans début lisible est écarté, jamais un plantage', () => {
+  const liste = evenementsDepuisEws([{ subject: 'VTE - A', start: '' }, { subject: 'VTE - B', start: '2026-10-14T09:00:00Z' }, null]);
+  assert.equal(liste.map((e) => e.sujet).join('|'), 'VTE - B');
+  assert.equal(momentParisDepuisIso('pas une date'), null);
 });
 
 test('extraireReferenceVte reconnait VTE avec differents separateurs, et rien sans le mot VTE', () => {
@@ -112,14 +68,9 @@ test('extraireReferenceVte reconnait aussi VENTE, mais seulement en tete de lign
 });
 
 test('un rendez-vous VENTE ... porte les deux envois comme un rendez-vous VTE', () => {
-  const ics = [
-    'BEGIN:VCALENDAR', 'BEGIN:VEVENT',
-    'SUMMARY:VENTE MOKADEM / DE SOUSA MARTINS',
-    'LOCATION:Me DENIS en 1er - Appel de fonds et projet envoyé',
-    'DTSTART:20991014T140000Z', 'END:VEVENT', 'END:VCALENDAR'
-  ].join('\r\n');
+  const evenements = [rdv({ sujet: 'VENTE MOKADEM / DE SOUSA MARTINS', lieu: 'Me DENIS en 1er - Appel de fonds et projet envoyé', start: '2099-10-14T14:00:00Z' })];
   const dossiers = [{ id: 'a', nom: 'MOKADEM / DE SOUSA MARTINS' }, { id: 'b', nom: 'DUPONT / MARTIN' }];
-  const actions = actionsDetecteesDepuisIcs(ics, dossiers, '2026-09-25');
+  const actions = actionsDetecteesDepuisEvenements(evenements, dossiers, '2026-09-25');
   assert.equal(actions.length, 1);
   assert.equal(actions[0].dossierId, 'a');
   assert.equal(actions[0].appelFonds, true);
@@ -130,10 +81,9 @@ test('extraireReferenceVte garde les mots-cles d\'action colles a la reference (
   assert.equal(extraireReferenceVte('VTE - DUPONT / MARTIN - Appel de fonds'), 'DUPONT / MARTIN - Appel de fonds');
 });
 
-test('referenceDossierEvenement cherche d\'abord le resume, puis la description en repli', () => {
-  assert.equal(referenceDossierEvenement({ summary: 'VTE - A / B', description: '' }), 'A / B');
-  assert.equal(referenceDossierEvenement({ summary: 'RDV signature', description: 'VTE - A / B - projet envoye' }), 'A / B - projet envoye');
-  assert.equal(referenceDossierEvenement({ summary: 'RDV signature', description: '' }), '');
+test('referenceDossierEvenement lit le titre du rendez-vous', () => {
+  assert.equal(referenceDossierEvenement({ sujet: 'VTE - A / B', lieu: '' }), 'A / B');
+  assert.equal(referenceDossierEvenement({ sujet: 'RDV signature', lieu: 'VTE - A / B' }), '', 'le lieu ne porte pas la référence');
 });
 
 test('detecteAppelDeFonds : un appel de fonds ENVOYE, jamais une simple mention ou une note de preparation', () => {
@@ -161,20 +111,15 @@ test('detecteProjetEnvoye : les deux ordres de mots, jamais un texte sans rappor
   assert.equal(detecteProjetEnvoye('JV Appel de fonds et projet envoyé'), true);
 });
 
-test('detecterActionsEvenement combine resume et description', () => {
-  const actions = detecterActionsEvenement({ summary: 'VTE - DUPONT / MARTIN', description: 'Appel de fonds + projet envoyé' });
+test('detecterActionsEvenement lit le titre en repli du lieu', () => {
+  const actions = detecterActionsEvenement({ sujet: 'VTE - DUPONT / MARTIN - Appel de fonds + projet envoyé', lieu: '' });
   assert.deepEqual(actions, { appelFonds: true, projetEnvoye: true });
 });
 
 test('detecterActionsEvenement lit le LIEU du rendez-vous (initiales + declencheur)', () => {
-  assert.deepEqual(detecterActionsEvenement({ summary: 'VTE - DUPONT', location: 'BA Appel de fonds envoyé' }), { appelFonds: true, projetEnvoye: false });
-  assert.deepEqual(detecterActionsEvenement({ summary: 'VTE - DUPONT', location: 'JS Appel de fonds et projet envoyé' }), { appelFonds: true, projetEnvoye: true });
-  assert.deepEqual(detecterActionsEvenement({ summary: 'VTE - DUPONT', location: 'Office' }), { appelFonds: false, projetEnvoye: false });
-});
-
-test('parseIcsEvenements lit le lieu (LOCATION), echappements compris', () => {
-  const evts = parseIcsEvenements(icsEvenement({ summary: 'VTE - DUPONT', location: 'BA Appel de fonds\\, projet envoyé', dtstart: '20991014' }));
-  assert.equal(evts[0].location, 'BA Appel de fonds, projet envoyé');
+  assert.deepEqual(detecterActionsEvenement({ sujet: 'VTE - DUPONT', lieu: 'BA Appel de fonds envoyé' }), { appelFonds: true, projetEnvoye: false });
+  assert.deepEqual(detecterActionsEvenement({ sujet: 'VTE - DUPONT', lieu: 'JS Appel de fonds et projet envoyé' }), { appelFonds: true, projetEnvoye: true });
+  assert.deepEqual(detecterActionsEvenement({ sujet: 'VTE - DUPONT', lieu: 'Office' }), { appelFonds: false, projetEnvoye: false });
 });
 
 test('dossierPourReferenceAgenda : correspondance sans ambiguite uniquement', () => {
@@ -228,95 +173,81 @@ test('dossierPourReferenceAgenda : a egalite, le dossier le mieux couvert gagne,
   assert.equal(dossierPourReferenceAgenda('DUPONT', homonymes), null, 'deux dossiers egalement couverts : rien');
 });
 
-test('actionsDetecteesDepuisIcs : bout en bout sur un flux realiste, un evenement = une detection', () => {
-  const texte = [
-    'BEGIN:VCALENDAR',
-    'BEGIN:VEVENT',
-    'SUMMARY:VTE - DUPONT / MARTIN',
-    'LOCATION:BA Appel de fonds envoyé',
-    'DTSTART:20261014T090000Z',
-    'END:VEVENT',
-    'BEGIN:VEVENT',
-    'SUMMARY:VTE - DURAND / LEROY - projet envoye',
-    'DTSTART:20261015',
-    'END:VEVENT',
-    'BEGIN:VEVENT',
-    'SUMMARY:Reunion interne',
-    'DTSTART:20261016',
-    'END:VEVENT',
-    'END:VCALENDAR'
-  ].join('\r\n');
+test('actionsDetecteesDepuisEvenements : bout en bout, un evenement = une detection', () => {
+  const evenements = [
+    rdv({ sujet: 'VTE - DUPONT / MARTIN', lieu: 'BA Appel de fonds envoyé', start: '2026-10-14T09:00:00Z' }),
+    rdv({ sujet: 'VTE - DURAND / LEROY - projet envoye', start: '2026-10-14T22:00:00Z', end: '2026-10-15T22:00:00Z', allDay: true }),
+    rdv({ sujet: 'Reunion interne', start: '2026-10-16T08:00:00Z' })
+  ];
   const dossiers = [
     { id: 'd1', nom: 'DUPONT / MARTIN' },
     { id: 'd2', nom: 'DURAND / LEROY' }
   ];
-  const resultats = actionsDetecteesDepuisIcs(texte, dossiers);
+  const resultats = actionsDetecteesDepuisEvenements(evenements, dossiers);
   assert.equal(resultats.length, 2);
   assert.equal(resultats[0].dossierId, 'd1');
   assert.equal(resultats[0].appelFonds, true);
   assert.equal(resultats[0].projetEnvoye, false);
   assert.equal(resultats[0].dateIso, '2026-10-14');
+  assert.equal(resultats[0].heure, '11:00');
   assert.equal(resultats[1].dossierId, 'd2');
   assert.equal(resultats[1].projetEnvoye, true);
+  assert.equal(resultats[1].dateIso, '2026-10-15');
+  assert.equal(resultats[1].rendezVous, false, 'journée entière : une note, pas le rendez-vous');
 });
 
-test('actionsDetecteesDepuisIcs : ignore un evenement annule (STATUS:CANCELLED)', () => {
-  const texte = icsEvenement({ summary: 'VTE - DUPONT / MARTIN', location: 'BA Appel de fonds envoyé', dtstart: '20261014', status: 'CANCELLED' });
-  assert.deepEqual(actionsDetecteesDepuisIcs(texte, [{ id: 'd1', nom: 'DUPONT / MARTIN' }]), []);
+test('actionsDetecteesDepuisEvenements : ignore un rendez-vous annulé', () => {
+  const evenements = [rdv({ sujet: 'VTE - DUPONT / MARTIN', lieu: 'BA Appel de fonds envoyé', cancelled: true })];
+  assert.deepEqual(actionsDetecteesDepuisEvenements(evenements, [{ id: 'd1', nom: 'DUPONT / MARTIN' }]), []);
 });
 
-test('actionsDetecteesDepuisIcs : un evenement sans VTE ou sans date exploitable est ignore', () => {
-  const sansVte = icsEvenement({ summary: 'DUPONT', location: 'Appel de fonds envoyé', dtstart: '20261014' });
-  assert.deepEqual(actionsDetecteesDepuisIcs(sansVte, [{ id: 'd1', nom: 'DUPONT / MARTIN' }]), []);
-  const sansDate = icsEvenement({ summary: 'VTE - DUPONT / MARTIN', location: 'Appel de fonds envoyé' });
-  assert.deepEqual(actionsDetecteesDepuisIcs(sansDate, [{ id: 'd1', nom: 'DUPONT / MARTIN' }]), []);
+test('actionsDetecteesDepuisEvenements : un evenement sans VTE est ignore', () => {
+  const sansVte = [rdv({ sujet: 'DUPONT', lieu: 'Appel de fonds envoyé' })];
+  assert.deepEqual(actionsDetecteesDepuisEvenements(sansVte, [{ id: 'd1', nom: 'DUPONT / MARTIN' }]), []);
 });
 
-test('actionsDetecteesDepuisIcs : sans correspondance sure, dossierId reste null (jamais devine)', () => {
-  const texte = icsEvenement({ summary: 'VTE - INCONNU / PERSONNE', location: 'Appel de fonds envoyé', dtstart: '20261014' });
-  const resultats = actionsDetecteesDepuisIcs(texte, [{ id: 'd1', nom: 'DUPONT / MARTIN' }]);
+test('actionsDetecteesDepuisEvenements : sans correspondance sure, dossierId reste null (jamais devine)', () => {
+  const evenements = [rdv({ sujet: 'VTE - INCONNU / PERSONNE', lieu: 'Appel de fonds envoyé' })];
+  const resultats = actionsDetecteesDepuisEvenements(evenements, [{ id: 'd1', nom: 'DUPONT / MARTIN' }]);
   assert.equal(resultats.length, 1);
   assert.equal(resultats[0].dossierId, null);
 });
 
-test('actionsDetecteesDepuisIcs : seuls les rendez-vous a partir du jour de lecture sont lus', () => {
-  const texte = [
-    'BEGIN:VCALENDAR',
-    'BEGIN:VEVENT', 'SUMMARY:VTE - DUPONT', 'LOCATION:BA Appel de fonds envoyé', 'DTSTART:20260924', 'END:VEVENT',
-    'BEGIN:VEVENT', 'SUMMARY:VTE - DUPONT', 'LOCATION:BA Appel de fonds envoyé', 'DTSTART:20260925T140000Z', 'END:VEVENT',
-    'BEGIN:VEVENT', 'SUMMARY:VTE - DUPONT', 'LOCATION:BA Appel de fonds envoyé', 'DTSTART:20261014', 'END:VEVENT',
-    'END:VCALENDAR'
-  ].join('\r\n');
-  const resultats = actionsDetecteesDepuisIcs(texte, [{ id: 'd1', nom: 'DUPONT / MARTIN' }], '2026-09-25');
+test('actionsDetecteesDepuisEvenements : seuls les rendez-vous a partir du jour de lecture sont lus', () => {
+  const evenements = ['2026-09-24T08:00:00Z', '2026-09-25T14:00:00Z', '2026-10-14T08:00:00Z']
+    .map((start) => rdv({ sujet: 'VTE - DUPONT', lieu: 'BA Appel de fonds envoyé', start }));
+  const resultats = actionsDetecteesDepuisEvenements(evenements, [{ id: 'd1', nom: 'DUPONT / MARTIN' }], '2026-09-25');
   assert.equal(resultats.map((r) => r.dateIso).join(','), '2026-09-25,2026-10-14');
 });
 
 test('rendez-vous de signature : un VTE à venir avec une heure, sans « ? », est le rendez-vous', () => {
   const { estRendezVousSignature } = require('../src/agendaOffice');
-  assert.equal(estRendezVousSignature({ summary: 'VTE - DUPONT', location: 'Office', dtstart: '20991014T090000Z' }), true);
-  assert.equal(estRendezVousSignature({ summary: 'VTE - DUPONT ?', location: '', dtstart: '20991014T090000Z' }), false, '« ? » dans le titre');
-  assert.equal(estRendezVousSignature({ summary: 'VTE - DUPONT', location: 'Visio ??', dtstart: '20991014T090000Z' }), false, '« ? » dans le lieu');
-  assert.equal(estRendezVousSignature({ summary: 'VTE - DUPONT', location: 'https://teams.microsoft.com/l/meetup?id=1', dtstart: '20991014T090000Z' }), true, 'le « ? » d\'un lien ne compte pas');
-  assert.equal(estRendezVousSignature({ summary: 'VTE - DUPONT', location: '', dtstart: '20991014' }), false, 'toute la journee : une note, pas un rendez-vous');
+  assert.equal(estRendezVousSignature(rdv({ sujet: 'VTE - DUPONT', lieu: 'Office' })), true);
+  assert.equal(estRendezVousSignature(rdv({ sujet: 'VTE - DUPONT ?', lieu: '' })), false, '« ? » dans le titre');
+  assert.equal(estRendezVousSignature(rdv({ sujet: 'VTE - DUPONT', lieu: 'Visio ??' })), false, '« ? » dans le lieu');
+  assert.equal(estRendezVousSignature(rdv({ sujet: 'VTE - DUPONT', lieu: 'https://teams.microsoft.com/l/meetup?id=1' })), true, 'le « ? » d\'un lien ne compte pas');
+  assert.equal(estRendezVousSignature(rdv({ sujet: 'VTE - DUPONT', allDay: true })), false, 'toute la journee : une note, pas un rendez-vous');
 });
 
-test('actionsDetecteesDepuisIcs : un rendez-vous sans déclencheur d\'envoi est quand même relevé', () => {
-  const texte = icsEvenement({ summary: 'VTE - DUPONT / MARTIN', location: 'Office', dtstart: '20991014T090000Z' });
-  const r = actionsDetecteesDepuisIcs(texte, [{ id: 'd1', nom: 'DUPONT / MARTIN' }], '2026-09-25');
+test('actionsDetecteesDepuisEvenements : un rendez-vous sans déclencheur d\'envoi est quand même relevé', () => {
+  const r = actionsDetecteesDepuisEvenements([rdv({ sujet: 'VTE - DUPONT / MARTIN', lieu: 'Office' })], [{ id: 'd1', nom: 'DUPONT / MARTIN' }], '2026-09-25');
   assert.equal(r.length, 1);
   assert.equal(r[0].rendezVous, true);
   assert.equal(r[0].appelFonds, false);
   assert.equal(r[0].dateIso, '2099-10-14');
-  const douteux = icsEvenement({ summary: 'VTE - DUPONT / MARTIN ?', location: 'Office', dtstart: '20991014T090000Z' });
-  assert.deepEqual(actionsDetecteesDepuisIcs(douteux, [{ id: 'd1', nom: 'DUPONT / MARTIN' }], '2026-09-25'), []);
+  const douteux = [rdv({ sujet: 'VTE - DUPONT / MARTIN ?', lieu: 'Office' })];
+  assert.deepEqual(actionsDetecteesDepuisEvenements(douteux, [{ id: 'd1', nom: 'DUPONT / MARTIN' }], '2026-09-25'), []);
 });
 
-test('heureDepuisDtstart : heure locale, conversion depuis UTC, rien pour une journée entière', () => {
-  const { heureDepuisDtstart } = require('../src/agendaOffice');
-  assert.equal(heureDepuisDtstart('20260930T143000'), '14:30');
-  assert.equal(heureDepuisDtstart('20260930T120000Z'), '14:00'); // heure d'été
-  assert.equal(heureDepuisDtstart('20261215T093000Z'), '10:30'); // heure d'hiver
-  assert.equal(heureDepuisDtstart('20260930'), null);
+test('catégories Outlook : relevées sur le rendez-vous et listées sans doublon', () => {
+  const evenements = [
+    rdv({ sujet: 'VTE - DUPONT', categories: ['Catégorie Verte', 'Visio, client'] }),
+    rdv({ sujet: 'VTE - MARTIN', categories: ['catégorie verte'] })
+  ];
+  assert.equal(evenements[0].categories.join('|'), 'Catégorie Verte|Visio, client');
+  assert.equal(categoriesDistinctes(evenements).join('|'), 'Catégorie Verte|Visio, client');
+  const r = actionsDetecteesDepuisEvenements(evenements, [{ id: 'd1', nom: 'DUPONT' }], '2026-09-25');
+  assert.equal(r[0].categories.join('|'), 'Catégorie Verte|Visio, client');
 });
 
 // --- Écriture dans le lieu du rendez-vous (composerLieuAgenda, l'inverse de la détection) ---
@@ -344,15 +275,6 @@ test('composerLieuAgenda : ne duplique pas une mention déjà présente, la met 
 test('composerLieuAgenda : lieu vide → mention seule ; rien à noter → lieu inchangé nettoyé', () => {
   assert.equal(composerLieuAgenda('', { appelFonds: true }), 'Appel de fonds envoyé');
   assert.equal(composerLieuAgenda('AL - visio', {}), 'AL - visio');
-});
-
-test('CATEGORIES : catégories Outlook relues (virgule échappée comprise) et listées sans doublon', () => {
-  const { parseIcsEvenements: parse, categoriesDistinctesIcs } = require('../src/agendaOffice');
-  const ics = 'BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:VTE - DUPONT\r\nCATEGORIES:Catégorie Verte,Visio\\, client\r\nEND:VEVENT\r\n'
-    + 'BEGIN:VEVENT\r\nSUMMARY:VTE - MARTIN\r\nCATEGORIES:catégorie verte\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n';
-  const [e] = parse(ics);
-  assert.equal(e.categories.join('|'), 'Catégorie Verte|Visio, client');
-  assert.equal(categoriesDistinctesIcs(ics).join('|'), 'Catégorie Verte|Visio, client');
 });
 
 test('composerLieuAgenda : le confrère (« Me DURAND en 1er / en 2nd ») entre les initiales et la mention', () => {

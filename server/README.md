@@ -98,7 +98,7 @@ Exchange** : à confirmer au bureau sur un dossier dont on modifie la date de pr
 **Rendez-vous de signature (28/09/2026).** Créé depuis la fiche (`POST /api/exchange/rendez-vous`)
 avec une **catégorie Outlook** qui lui donne la couleur de l'étude : vert à l'office, violet en
 visio, orange chez un confrère. Le nom exact de chaque catégorie se règle dans Réglages › Rappels
-et agenda (catégories vues dans le flux `.ics` proposées) — un nom inconnu de la boîte s'affiche
+et agenda (catégories vues dans l'agenda proposées) — un nom inconnu de la boîte s'affiche
 sans couleur. Supprimer le rendez-vous dans CLAIRE le retire de l'agenda
 (`POST /api/exchange/rendez-vous/supprimer`, vers les éléments supprimés) ; changer sa date le
 déplace au nouveau jour, même heure et même durée (`POST /api/exchange/rendez-vous/deplacer`).
@@ -125,75 +125,65 @@ droit de supprimer dans le calendrier partagé.
    pas renseigné dans `.env` (voir `.env.example`) — sans jeton, `GET /calendrier.ics` répond 503
    plutôt que de générer un flux non protégé.
 
-## Agenda de l'office (lecture automatique du .ics publié)
+## Agenda de l'office (lecture automatique par EWS)
 
 À l'inverse du flux ci-dessus (CLAIRE **publie** un calendrier qu'Outlook lit), ce mécanisme fait
-lire à CLAIRE le calendrier **de l'office**, publié depuis Outlook — même lien `.ics` que celui déjà
-utilisé par l'artefact « brief du matin » de l'étude. Objectif : reporter automatiquement sur un
-dossier la date d'un appel de fonds ou d'un projet d'acte envoyé, dès que le rendez-vous
-correspondant est noté dans l'agenda, sans ressaisie côté CLAIRE.
+lire à CLAIRE le calendrier **de l'office** : le calendrier partagé de Sophie, lu directement par
+EWS avec la connexion Exchange de Réglages › Agenda (`server/src/exchange/ews.js`,
+`lireCalendrierExchange`). Il remplace depuis le 29/09/2026 la lecture du lien `.ics` publié du
+même agenda (plus de lien de publication à entretenir, plus de proxy ni de 503 d'Outlook).
+Objectif : reporter automatiquement sur un dossier la date d'un appel de fonds ou d'un projet
+d'acte envoyé, le rendez-vous de signature et les absences, sans ressaisie côté CLAIRE.
+
+**Lecture** : toutes les **15 minutes**, un `FindItem` en vue calendrier (lecture seule, les
+rendez-vous récurrents sont développés) sur les **six prochains mois**, en trois tranches de
+62 jours pour rester sous la limite de résultats d'Exchange. Sont lus : titre, lieu, début, fin,
+« toute la journée », annulé, catégories — jamais le corps du rendez-vous. Une liste coupée par
+Exchange (`IncludesLastItemInRange="false"`) fait échouer le tour sans rien appliquer (un
+rendez-vous manquant passerait pour retiré).
+
+**Identifiants** : chaque tranche est un seul essai, et le tour s'arrête au premier échec. Un
+**refus d'identifiants suspend la lecture automatique** tant que l'adresse, le mot de passe ou le
+calendrier enregistrés ne changent pas (empreinte en mémoire seulement, jamais en base ni renvoyée) :
+sans ce disjoncteur, un mauvais mot de passe serait présenté 96 fois par jour et verrouillerait le
+compte. « Tester maintenant » fait toujours un essai ; un succès lève la suspension. Le switch
+« Relier CLAIRE à l'agenda » désactivé coupe aussi la lecture.
 
 **Convention attendue** (voir `server/src/agendaOffice.js`) : un rendez-vous porte la référence
-« VTE - NOM DU DOSSIER » dans son titre (ou sa description) — « VENTE NOM DU DOSSIER » est
-accepté aussi, mais seulement en début de ligne (« Visite de la vente DUPONT » n'est pas une
-référence) ; son **lieu** porte les initiales du
-collaborateur suivies de « Appel de fonds envoyé » ou « Appel de fonds et projet envoyé » (le
-titre et la description sont lus aussi). Il faut un ENVOI FAIT : « appel de fonds à faire »,
+« VTE - NOM DU DOSSIER » dans son titre — « VENTE NOM DU DOSSIER » est accepté aussi, mais
+seulement en début de ligne (« Visite de la vente DUPONT » n'est pas une référence) ; son **lieu**
+porte les initiales du collaborateur suivies de « Appel de fonds envoyé » ou « Appel de fonds et
+projet envoyé » (le titre est lu aussi). Il faut un ENVOI FAIT : « appel de fonds à faire »,
 « projet à envoyer » ou « non envoyé » ne déclenchent rien. **Seuls les rendez-vous à venir**
-(à partir du jour de la lecture) sont pris en compte. Le nom noté dans l'agenda peut ne reprendre
-qu'une partie des noms de famille du dossier, ou comporter une faute de frappe sur un nom d'au
-moins cinq lettres : le dossier qui partage le plus de noms avec la référence est retenu, à
-condition d'être seul en tête — deux dossiers ex æquo, ou une référence qui cite des noms de deux
-dossiers différents, ne donnent rien. Les couleurs de rendez-vous (vert = office, violet =
-visio, orange = confrère) indiquent seulement le LIEU et ne jouent aucun rôle dans cette lecture.
+(à partir du jour de la lecture) sont pris en compte, et jamais un rendez-vous annulé. Le nom noté
+dans l'agenda peut ne reprendre qu'une partie des noms de famille du dossier, ou comporter une
+faute de frappe sur un nom d'au moins cinq lettres : le dossier qui partage le plus de noms avec
+la référence est retenu, à condition d'être seul en tête — deux dossiers ex æquo, ou une référence
+qui cite des noms de deux dossiers différents, ne donnent rien.
 
-1. Dans **Réglages › Agenda de l'office**, coller l'adresse `.ics` publiée du calendrier de
-   l'office (Outlook : **Paramètres → Calendrier → Calendriers partagés → Publier un calendrier**,
-   ou récupérer le lien déjà utilisé par le brief du matin) et cliquer **Enregistrer**.
-2. Le serveur relit ce calendrier toutes les **15 minutes**. Dès qu'un rendez-vous correspond à la
-   convention ci-dessus ET à un seul dossier actif (rapprochement tolérant décrit ci-dessus — jamais
-   sur un dossier ambigu entre plusieurs candidats), **la date du jour de la détection** (et non celle du rendez-vous)
-   est reportée sur `appelFonds`/`projetEnvoye`, **uniquement si le champ est encore vide** — une
-   date déjà saisie n'est jamais écrasée. Chaque envoi relevé est mémorisé sur le dossier
-   (`detectionsAgenda`) : il n'est **plus jamais retraité**, même si la date est ensuite effacée
-   ou corrigée à la main. Sur la fiche, les deux dates se lisent et se corrigent dans la carte
-   « Envoi au client » (« Envoi appel de fonds », « Envoi projet »).
-3. **Rendez-vous de signature** : tout rendez-vous « VTE - … » à venir, avec une heure (un
+1. **Envois** : dès qu'un rendez-vous correspond à la convention ci-dessus ET à un seul dossier
+   actif, **la date du jour de la détection** (et non celle du rendez-vous) est reportée sur
+   `appelFonds`/`projetEnvoye`, **uniquement si le champ est encore vide**. Chaque envoi relevé
+   est mémorisé sur le dossier (`detectionsAgenda`) : il n'est **plus jamais retraité**, même si
+   la date est ensuite effacée ou corrigée à la main.
+2. **Rendez-vous de signature** : tout rendez-vous « VTE - … » à venir, avec une heure (un
    événement « toute la journée » est une note, pas une signature), rattaché à un seul dossier,
-   remplit `rendezVousSignature` avec **la date du rendez-vous** — le plus proche s'il y en a
-   plusieurs. **Un « ? » dans le titre ou le lieu** (rendez-vous pas encore confirmé) l'écarte ;
+   remplit `rendezVousSignature` avec **la date du rendez-vous** (heure, fin, lieu et catégories
+   suivent) — le plus proche s'il y en a plusieurs. **Un « ? » dans le titre ou le lieu** l'écarte ;
    le « ? » d'un lien de visioconférence ne compte pas. La date suit l'agenda tant qu'elle n'a pas
-   été touchée à la main : si le rendez-vous est déplacé, la fiche l'est aussi (repère
-   `detectionsAgenda.rendezVousSignature` = dernière date écrite par l'agenda). Une date saisie à
-   la main n'est jamais écrasée ; l'écart avec l'agenda est seulement signalé dans le compte rendu
-   des Réglages. Un rendez-vous qui disparaît de l'agenda n'efface jamais la date.
-
-   **CLAIRE ne peut pas écrire dans l'agenda de l'office** : elle le LIT seulement. Y écrire
-   demanderait une application Microsoft 365 autorisée par un administrateur (Microsoft Graph),
-   dont l'étude ne dispose pas.
-3. **« Tester maintenant »** déclenche un vrai tour de lecture immédiatement, sans attendre le
-   prochain passage automatique, et affiche le compte rendu (dossiers vérifiés, mis à jour,
-   références sans dossier correspondant, erreur éventuelle).
-4. Un dossier archivé n'est jamais mis à jour par ce mécanisme.
-5. Une adresse qui ne commence pas par `http://` ou `https://` (chemin de fichier collé par erreur,
-   texte au hasard) est refusée à l'enregistrement plutôt que d'échouer en silence au premier tour.
-   Une adresse `webcal://` (copiée depuis Outlook) est convertie en `https://`.
-7. **Erreur 503 / 429 / 502 / 504** : le serveur du calendrier demande de revenir plus tard. CLAIRE
-   se présente comme un client d'agenda ordinaire (User-Agent de navigateur, `Accept: text/calendar`
-   — sans eux, Outlook refusait la requête de Node), relance une fois après 3 s, puis réessaie au
-   tour suivant. Si l'erreur persiste plusieurs tours, ouvrir le lien dans un navigateur : s'il
-   télécharge bien un fichier `calendar.ics`, le problème vient du réseau du poste serveur ;
-   sinon, republier le calendrier. Un lien HTML (page d'affichage, sans `BEGIN:VCALENDAR`) est
-   signalé comme tel plutôt que de rendre « 0 dossier mis à jour ». Le message d'erreur se termine
-   par un **détail technique** (domaine appelé, en-têtes `server`/`via`, identifiant de requête,
-   début du texte renvoyé — jamais le jeton du lien) : il dit si c'est Microsoft ou un équipement du
-   réseau du bureau qui a répondu. Quand c'est le proxy du bureau (Squid), le message le nomme et
-   donne sa cause (DNS, connexion, filtrage, délai) : c'est alors au prestataire réseau d'autoriser
-   le site. Un lien en `http://` refusé par ce proxy est retenté en `https://`, et corrigé s'il passe.
+   été touchée à la main ; une date saisie à la main n'est jamais écrasée (écart signalé dans le
+   compte rendu). Un rendez-vous qui disparaît de l'agenda n'efface jamais la date.
+3. **Absences** : un événement « toute la journée » dont le titre nomme un collaborateur
+   (initiales, prénom ou nom) et porte un mot d'absence (congé, absent, RTT, vacances…).
+4. **« Tester maintenant »** déclenche un vrai tour immédiatement et affiche le compte rendu
+   (rendez-vous lus, dossiers mis à jour, références sans dossier, erreur éventuelle).
+5. Un dossier archivé n'est jamais mis à jour par ce mécanisme.
 6. **Premier jet de détection de mots-clés** (« appel de fonds »/« AF », « projet … envoyé »),
-   comme les autres détections heuristiques de CLAIRE (`motifNom`, `PIECES_*`…) — à resserrer si un
-   faux positif ou un rendez-vous non reconnu remonte, avec la formulation exacte qui a posé
-   problème.
+   comme les autres détections heuristiques de CLAIRE — à resserrer si un faux positif ou un
+   rendez-vous non reconnu remonte, avec la formulation exacte qui a posé problème.
+
+**Non vérifié sur le vrai Exchange** : droits de lecture du compte de connexion sur le calendrier
+de Sophie, forme exacte des dates « toute la journée » renvoyées, volume réel par tranche.
 
 ## Rappels automatiques par email
 

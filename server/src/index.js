@@ -234,8 +234,8 @@ function demarrer() {
   // vrai point d'entrée du serveur.
   demarrerSurveillanceNas(depot, config);
 
-  // Lecture périodique de l'agenda de l'office (voir agendaWatch.js) : silencieuse tant que
-  // l'étude n'a pas renseigné l'URL du calendrier publié depuis l'écran Réglages — même principe
+  // Lecture périodique de l'agenda de l'office par EWS (voir agendaWatch.js) : silencieuse tant que
+  // la connexion Exchange n'est pas configurée dans Réglages › Agenda — même principe
   // que la surveillance du NAS ci-dessus, et démarrée au même seul endroit réel (jamais dans
   // app.js, pour ne pas déclencher ce minuteur dans les tests qui montent creerApp() directement).
   demarrerSurveillanceAgenda(depot, parametresRepo);

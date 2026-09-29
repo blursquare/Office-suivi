@@ -145,8 +145,8 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   // Mise à jour en un clic : `miseAJour.redemarrer` est fourni par index.js (seul endroit qui tient
   // le serveur HTTP et la base) ; les tests y injectent aussi un faux `sea` et un faux `fetch`.
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurMiseAJour(parametresRepo, db, config, miseAJour || {}));
-  // Agenda de l'office (voir agendaOffice.js/agendaWatch.js) : `agenda.fetchFn` est réservé aux
-  // tests, jamais utilisé en production (repli sur le `fetch` global de Node).
+  // Agenda de l'office (voir agendaOffice.js/agendaWatch.js) : `agenda.poster` (faux transport EWS)
+  // est réservé aux tests, jamais utilisé en production.
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAgenda(parametresRepo, { depot, ...(agenda || {}) }));
   // Connexion à l'agenda Outlook de l'office (EWS/NTLM, voir exchange/ews.js) : enregistre les
   // identifiants de messagerie (mot de passe jamais renvoyé au navigateur), teste la connexion et

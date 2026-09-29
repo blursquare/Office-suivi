@@ -46,7 +46,7 @@ server/                              Serveur (son propre package.json ; le packa
   src/ouvertureAuto.js               Installateur du relais « claire-ouvrir: » (ouverture auto des téléchargements)
   src/jobs/rappels.js                Rappels par email (miroir serveur du planning client)
   src/nas.js, nasWatch.js            Lecture du NAS par le serveur, surveillance périodique
-  src/agendaOffice.js, agendaWatch.js  Lecture du .ics de l'agenda de l'office
+  src/agendaOffice.js, agendaWatch.js  Lecture de l'agenda de l'office (EWS, toutes les 15 min)
   src/exchange/ews.js                Écriture dans l'agenda Outlook (EWS/NTLM)
   src/relecture/{claude,mistral}.js  Relecture d'actes par API (prompt, schéma, vérification)
   src/extraction/                    Passe IA locale (Ollama) de l'extraction du wizard
@@ -86,13 +86,16 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
    SMTP Gmail + mot de passe d'application → boîte-passerelle (Objet = adresse du destinataire) →
    flux Power Automate → Teams. La copie gardée par Gmail est effacée **2 h après** (le flux relève
    la boîte Gmail elle-même : l'effacer tout de suite l'empêcherait de passer).
-5. **Agenda de l'office** (Exchange 2019 de Fichorga, `mail.authentic-connect.fr`) : **lecture** par
-   son lien `.ics` publié (envois relevés, rendez-vous de signature, absences) ; **écriture** par EWS
-   en NTLMv2 (`httpntlm`) dans le **calendrier partagé de Sophie** : création/déplacement/retrait
+5. **Agenda de l'office** (Exchange 2019 de Fichorga, `mail.authentic-connect.fr`), tout par EWS en
+   NTLMv2 (`httpntlm`) sur le **calendrier partagé de Sophie** : **lecture** toutes les 15 min
+   (`lireCalendrierExchange`, FindItem en vue calendrier, 6 mois en 3 tranches ; envois relevés,
+   rendez-vous de signature, absences, catégories — le lien `.ics` publié n'est plus lu depuis le
+   29/09) ; **écriture** : création/déplacement/retrait
    d'un rendez-vous de signature (catégorie = couleur : vert office, violet visio, orange confrère),
    note « Appel de fonds (et projet) envoyé » dans le Lieu, dates butoir prêt / vente préalable en
    journée entière. **Un seul essai par appel, aucun réessai automatique** (verrouillage du compte),
-   disjoncteur sur refus d'identifiants. Suppression = `MoveToDeletedItems`, jamais `HardDelete`.
+   disjoncteur sur refus d'identifiants (côté client pour les écritures ; côté serveur, la lecture
+   automatique est suspendue tant que les identifiants refusés restent enregistrés). Suppression = `MoveToDeletedItems`, jamais `HardDelete`.
    Microsoft Graph / Power Automate premium ne sont pas disponibles. **Lecture de la boîte de
    réception** du même compte (celle de Bastien, qui reçoit tout en double) à 8 h 50 pour le résumé
    des emails du matin (`emailsMatin.js`, FindItem seul, sans IA) : seuls expéditeur, objet et
@@ -205,7 +208,11 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   doit le poser, sinon le serveur reçoit un corps vide.
 - **Outlook (abonnement Internet)** remplace le calendrier à chaque synchro et **affiche** les
   événements `STATUS:CANCELLED` : omettre un événement suffit à le retirer. Le flux `.ics` publié
-  par CLAIRE ne contient que le prêt et la vente préalable non encore posés par EWS.
+  par CLAIRE (`/calendrier.ics`) ne contient que le prêt et la vente préalable non encore posés par
+  EWS — distinct de la lecture de l'agenda de l'office, qui passe par EWS.
+- **Dates EWS** : Exchange rend tout en UTC ; un rendez-vous « toute la journée » commence à minuit
+  de Paris exprimé en UTC (la veille à 22 h l'été) et finit à minuit du lendemain du dernier jour.
+  Toujours convertir par `momentParisDepuisIso` (jamais `slice(0, 10)` sur la chaîne UTC).
 - **Icône de la barre des tâches Windows** : la fenêtre CLAIRE (Chrome `--app`, non installée) ne
   donne à Windows que le favicon 16 px. L'icône nette vient du raccourci `CLAIRE.lnk` du menu
   Démarrer que crée le serveur (`raccourciWindows.js`, même AppUserModelID que la fenêtre, icône de
@@ -294,7 +301,8 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   rendez-vous, note du Lieu, dates butoir, noms exacts des catégories de couleur, droits sur le
   calendrier de Sophie) ; démarrage automatique et service NSSM ; mise à jour en un clic (renommage
   de l'exe en cours) ; lien signé d'une pièce ouvert depuis Teams ; ouverture des `.eml` dans
-  Outlook ; icône de l'exe ; reçus comptables (« Fonds reçus ») au-delà des deux PDF fournis.
+  Outlook ; lecture EWS du calendrier de Sophie (droits de lecture, forme réelle des journées
+  entières, volume par tranche) ; icône de l'exe ; reçus comptables (« Fonds reçus ») au-delà des deux PDF fournis.
 - **Critères de sortie de bêta** (convenus) : quelques semaines sans bug bloquant, une restauration
   de sauvegarde testée, les points ci-dessus confirmés ; en bêta, seulement des corrections. Relecture
   d'actes en bêta après une dizaine d'actes relus avec commentaires et un coût jugé acceptable.

@@ -1638,32 +1638,17 @@
     </div>
   </section>
 
-  <!-- ===== Agenda : lecture du calendrier publié (.ics, server/src/agendaOffice.js + agendaWatch.js)
-       et écriture dans l'agenda Outlook de l'office par EWS/NTLM (server/src/exchange/ews.js). ===== -->
+  <!-- ===== Agenda : connexion à l'agenda Outlook de l'office par EWS/NTLM (server/src/exchange/ews.js),
+       qui sert à la fois à LIRE le calendrier partagé de Sophie (server/src/agendaOffice.js +
+       agendaWatch.js, toutes les 15 minutes) et à y ÉCRIRE (rendez-vous, dates butoir, mention d'envoi). ===== -->
   <section class="reglages-panneau" id="reglages-panneau-agenda" role="tabpanel" aria-labelledby="reglages-onglet-agenda" hidden>
     <h2 class="reglages-titre">Agenda</h2>
     <div class="reglages-section">
-      <h3 class="reglages-section-titre">Calendrier publié (.ics) <span class="info-i" tabindex="0" data-info="Un rendez-vous à venir « VTE - NOM DU DOSSIER » (ou « VENTE NOM DU DOSSIER » en début de titre) remplit le rendez-vous de signature du dossier, sauf s'il porte un « ? ». Si son lieu indique « Appel de fonds envoyé » ou « Appel de fonds et projet envoyé », la date du jour est inscrite sur l'envoi correspondant."></span></h3>
-      <div class="reglages-liste">
-        <div class="reglages-champ">
-          <div class="reglages-champ-libelle"><label for="reglages-agenda-url">Adresse .ics du calendrier</label></div>
-          <input type="text" id="reglages-agenda-url" autocomplete="off" placeholder="https://outlook.office.com/owa/calendar/…/reachcalendar.ics">
-        </div>
-      </div>
-      <div class="reglages-actions">
-        <button type="button" class="primary" onclick="enregistrerReglagesAgenda()">Enregistrer</button>
-        <button type="button" class="secondary" id="reglages-agenda-lancer" onclick="lancerTourAgenda()">Tester maintenant</button>
-        <span id="reglages-agenda-resultat" class="hint" style="margin:0;"></span>
-      </div>
-      <div id="reglages-agenda-dernier-tour" class="reglages-dernier-tour"></div>
-    </div>
-
-    <div class="reglages-section">
-      <h3 class="reglages-section-titre">Agenda Outlook de l'office <span class="info-i" tabindex="0" data-info="Permet à CLAIRE de créer les rendez-vous de signature dans l'agenda Outlook de l'office (Fichorga). Le mot de passe n'est jamais réaffiché. À configurer et tester depuis un poste du bureau."></span></h3>
+      <h3 class="reglages-section-titre">Agenda Outlook de l'office <span class="info-i" tabindex="0" data-info="Connexion à l'agenda Outlook de l'office (Fichorga) : CLAIRE y lit les rendez-vous et y écrit les rendez-vous de signature, les dates butoir et les mentions d'envoi. Le mot de passe n'est jamais réaffiché. À configurer et tester depuis un poste du bureau."></span></h3>
       <div class="reglages-liste">
         <label class="reglages-option" for="exchange-actif">
           <span class="reglages-option-texte">
-            <span class="reglages-option-titre">Créer les rendez-vous dans l'agenda <span class="info-i" tabindex="0" data-info="Un bouton apparaît alors sur la fiche des dossiers ayant une date de rendez-vous."></span></span>
+            <span class="reglages-option-titre">Relier CLAIRE à l'agenda <span class="info-i" tabindex="0" data-info="Désactivé : CLAIRE ne se connecte plus à Exchange, ni pour lire l'agenda ni pour y écrire."></span></span>
           </span>
           <span class="switch reglages-switch">
             <input type="checkbox" id="exchange-actif">
@@ -1675,11 +1660,11 @@
           <input type="email" id="exchange-email" autocomplete="off" placeholder="prenom.nom@gossart.notaires.fr">
         </div>
         <div class="reglages-champ">
-          <div class="reglages-champ-libelle"><label for="exchange-motdepasse">Mot de passe</label><span class="info-i" tabindex="0" id="exchange-mdp-note" data-info="Un mot de passe erroné compte comme une tentative échouée. CLAIRE ne réessaie jamais toute seule."></span></div>
+          <div class="reglages-champ-libelle"><label for="exchange-motdepasse">Mot de passe</label><span class="info-i" tabindex="0" id="exchange-mdp-note" data-info="Un mot de passe erroné compte comme une tentative échouée. Après un refus, CLAIRE suspend la lecture automatique jusqu'à ce que le mot de passe soit changé ici."></span></div>
           <input type="password" id="exchange-motdepasse" autocomplete="new-password" placeholder="Laisser vide pour conserver l'actuel">
         </div>
         <div class="reglages-champ">
-          <div class="reglages-champ-libelle"><label for="exchange-calendrier-partage">Calendrier partagé (Sophie)</label><span class="info-i" tabindex="0" data-info="Boîte dont le calendrier partagé contient les rendez-vous de l'office. Vide : calendrier du compte de connexion. Le compte de connexion doit pouvoir y écrire."></span></div>
+          <div class="reglages-champ-libelle"><label for="exchange-calendrier-partage">Calendrier partagé (Sophie)</label><span class="info-i" tabindex="0" data-info="Boîte dont le calendrier partagé contient les rendez-vous de l'office : c'est lui que CLAIRE lit et où elle écrit. Vide : calendrier du compte de connexion. Le compte de connexion doit pouvoir y écrire."></span></div>
           <input type="email" id="exchange-calendrier-partage" autocomplete="off" placeholder="sophie@gossart.notaires.fr">
         </div>
         <div class="reglages-champ reglages-champ-haut">
@@ -1701,6 +1686,21 @@
         <button type="button" class="secondary" id="exchange-tester-btn" onclick="testerConnexionExchange()">Tester la connexion</button>
         <span id="exchange-resultat" class="hint" style="margin:0;"></span>
       </div>
+    </div>
+
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Lecture de l'agenda <span class="info-i" tabindex="0" data-info="Toutes les 15 minutes, CLAIRE lit les six prochains mois du calendrier partagé. Un rendez-vous « VTE - NOM DU DOSSIER » (ou « VENTE NOM DU DOSSIER » en début de titre) remplit le rendez-vous de signature du dossier, sauf s'il porte un « ? ». Si son lieu indique « Appel de fonds envoyé » ou « Appel de fonds et projet envoyé », la date du jour est inscrite sur l'envoi correspondant. Les congés en journée entière nommant un collaborateur sont relevés comme absences."></span></h3>
+      <div class="reglages-liste">
+        <div class="reglages-champ">
+          <div class="reglages-champ-libelle"><span>Calendrier lu</span></div>
+          <span id="reglages-agenda-source" class="reglages-valeur">—</span>
+        </div>
+      </div>
+      <div class="reglages-actions">
+        <button type="button" class="secondary" id="reglages-agenda-lancer" onclick="lancerTourAgenda()">Tester maintenant</button>
+        <span id="reglages-agenda-resultat" class="hint" style="margin:0;"></span>
+      </div>
+      <div id="reglages-agenda-dernier-tour" class="reglages-dernier-tour"></div>
     </div>
   </section>
 

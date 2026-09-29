@@ -32,7 +32,7 @@ const MAX_PIECES = 5;
 const MAX_BASE64_TOTAL = 15 * 1024 * 1024; // ~11 Mo de fichier une fois décodé
 // Le rendez-vous d'un dossier parmi ceux d'une journée. Pure, testable. L'identifiant mémorisé
 // quand CLAIRE a créé l'événement l'emporte ; sinon le titre « VTE - … » doit correspondre au nom du
-// dossier (mêmes tolérances que la lecture du flux .ics), et un seul événement doit correspondre —
+// dossier (mêmes tolérances que la lecture de l’agenda), et un seul événement doit correspondre —
 // jamais deviner entre deux.
 function choisirRendezVousDossier(evenements, reference, itemId) {
   const liste = Array.isArray(evenements) ? evenements : [];
@@ -278,7 +278,7 @@ function creerRouteurExchange(parametresRepo) {
   // à côté des initiales du collaborateur. Deux temps : FindItem sur la journée du rendez-vous, puis
   // UpdateItem sur le seul champ Location de l'événement rapproché. Le rapprochement se fait par la
   // référence « VTE - … » du titre, avec les fonctions déjà éprouvées d'agendaOffice.js (mêmes
-  // tolérances que la lecture du flux .ics). Aucun rendez-vous n'est CRÉÉ ici : on ne modifie qu'un
+  // tolérances que la lecture de l’agenda). Aucun rendez-vous n'est CRÉÉ ici : on ne modifie qu'un
   // événement déjà présent, et on ne touche jamais à autre chose que son lieu.
   routeur.post('/exchange/rendez-vous/lieu', async (req, res) => {
     const reglages = parametresRepo.lireReglagesExchange();

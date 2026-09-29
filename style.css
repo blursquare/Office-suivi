@@ -4906,6 +4906,9 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
 .reglages-champ-haut .reglages-champ-libelle { padding-top: 8px; }
 .reglages-champ-libelle { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 14px; font-weight: 500; color: var(--ink); }
 .reglages-champ-libelle label { margin: 0; font: inherit; color: inherit; }
+/* Valeur lue, non saisissable (ex. calendrier lu par CLAIRE). */
+.reglages-valeur { min-width: 0; font-size: 14px; color: var(--ink); overflow-wrap: anywhere; }
+.reglages-valeur.reglages-valeur-vide { color: var(--muted); }
 .reglages-champ input[type="text"], .reglages-champ input[type="email"], .reglages-champ input[type="password"],
 .reglages-champ select { width: 100%; margin: 0; }
 .reglages-champ-pile { display: flex; flex-direction: column; gap: 6px; min-width: 0; }

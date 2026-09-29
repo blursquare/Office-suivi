@@ -1,27 +1,55 @@
 'use strict';
 
-// Tour périodique de lecture de l'agenda de l'office (voir src/agendaWatch.js). Le plus important
-// à couvrir : ne JAMAIS écraser une date déjà connue (saisie manuelle ou tour précédent), et ne
-// jamais planter le tour entier si le flux est injoignable ou mal formé.
+// Tour périodique de lecture de l'agenda de l'office par EWS (voir src/agendaWatch.js). Le plus
+// important à couvrir : ne JAMAIS écraser une date déjà connue (saisie manuelle ou tour précédent),
+// ne jamais planter le tour entier si Exchange est injoignable, et ne jamais représenter des
+// identifiants refusés (verrouillage du compte de messagerie).
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
-  appliquerDetectionsAgenda, executerTourSurveillanceAgenda, executerEtEnregistrerTourAgenda, dateDuJourParis
+  appliquerDetectionsAgenda, executerTourSurveillanceAgenda, executerEtEnregistrerTourAgenda, dateDuJourParis,
+  reinitialiserDisjoncteurAgenda, lectureAgendaSuspendue
 } = require('../src/agendaWatch');
 const { ouvrirDb } = require('../src/db');
 const { creerDepot } = require('../src/dossiersRepo');
 const { creerRepoParametres } = require('../src/parametresRepo');
 
-function fauxFetch(reponses) {
-  let appel = 0;
-  return async () => {
-    const r = reponses[Math.min(appel, reponses.length - 1)];
-    appel++;
-    return r;
+const REGLAGES_EXCHANGE = {
+  actif: true, url: 'https://mail.exemple.test/EWS/Exchange.asmx', email: 'bastien@etude.test',
+  motDePasse: 'mdp-secret', calendrierPartage: 'sophie@etude.test'
+};
+
+// Réponse FindItem d'Exchange pour une liste de rendez-vous (forme réelle : UTC, ItemId auto-fermant).
+function reponseFindItem(items, options) {
+  const o = options || {};
+  const blocs = (items || []).map((it, i) => '<t:CalendarItem>'
+    + `<t:ItemId Id="${it.id || 'id' + i}" ChangeKey="ck"/>`
+    + `<t:Subject>${it.sujet || ''}</t:Subject>`
+    + (it.categories ? `<t:Categories>${it.categories.map((c) => `<t:String>${c}</t:String>`).join('')}</t:Categories>` : '')
+    + `<t:Start>${it.start}</t:Start><t:End>${it.end || it.start}</t:End>`
+    + `<t:IsAllDayEvent>${it.allDay ? 'true' : 'false'}</t:IsAllDayEvent>`
+    + `<t:IsCancelled>${it.cancelled ? 'true' : 'false'}</t:IsCancelled>`
+    + `<t:Location>${it.lieu || ''}</t:Location>`
+    + '</t:CalendarItem>').join('');
+  return '<?xml version="1.0"?><s:Envelope><s:Body><m:FindItemResponse><m:ResponseMessages>'
+    + '<m:FindItemResponseMessage ResponseClass="Success"><m:ResponseCode>NoError</m:ResponseCode>'
+    + `<m:RootFolder TotalItemsInView="${(items || []).length}" IncludesLastItemInRange="${o.tronque ? 'false' : 'true'}"><t:Items>`
+    + blocs + '</t:Items></m:RootFolder></m:FindItemResponseMessage></m:ResponseMessages></m:FindItemResponse></s:Body></s:Envelope>';
+}
+
+// Faux transport EWS : une réponse par tranche lue (la dernière est répétée), chaque appel noté.
+function fauxPoster(reponses, appels) {
+  let n = 0;
+  return (options, rappel) => {
+    if (appels) appels.push(options);
+    const r = reponses[Math.min(n, reponses.length - 1)];
+    n++;
+    setImmediate(() => rappel(null, r));
   };
 }
+const ok = (items, options) => ({ statusCode: 200, body: reponseFindItem(items, options) });
 
 test('appliquerDetectionsAgenda : renseigne appelFonds et projetEnvoye, journalise, marque validé', () => {
   const db = ouvrirDb(':memory:');
@@ -140,188 +168,161 @@ test('appliquerDetectionsAgenda : deux detections separees pour le meme dossier 
   db.close();
 });
 
-test('executerTourSurveillanceAgenda : sans URL, renvoie une erreur sans jamais planter', async () => {
+test('executerTourSurveillanceAgenda : connexion non configurée → erreur, aucun appel, jamais un plantage', async () => {
   const db = ouvrirDb(':memory:');
   const depot = creerDepot(db);
-  const resultat = await executerTourSurveillanceAgenda(depot, '', fauxFetch([]));
+  const appels = [];
+  const resultat = await executerTourSurveillanceAgenda(depot, { ...REGLAGES_EXCHANGE, motDePasse: '' }, { poster: fauxPoster([ok([])], appels) });
   assert.equal(resultat.ok, false);
-  assert.match(resultat.erreur, /Aucune adresse/);
+  assert.match(resultat.erreur, /pas configurée/);
+  assert.equal(appels.length, 0);
+  const inactif = await executerTourSurveillanceAgenda(depot, { ...REGLAGES_EXCHANGE, actif: false }, { poster: fauxPoster([ok([])], appels) });
+  assert.equal(inactif.ok, false);
+  assert.equal(appels.length, 0);
   db.close();
 });
 
-test('executerTourSurveillanceAgenda : une reponse HTTP en erreur est rapportee proprement', async () => {
-  const db = ouvrirDb(':memory:');
-  const depot = creerDepot(db);
-  const resultat = await executerTourSurveillanceAgenda(depot, 'https://example.test/agenda.ics', fauxFetch([{ ok: false, status: 404 }]));
-  assert.equal(resultat.ok, false);
-  assert.match(resultat.erreur, /404/);
-  db.close();
-});
-
-test('executerTourSurveillanceAgenda : bout en bout avec un vrai flux et un vrai depot', async () => {
+test('executerTourSurveillanceAgenda : bout en bout, calendrier de Sophie lu par tranches, dossier mis à jour', async () => {
   const db = ouvrirDb(':memory:');
   const depot = creerDepot(db);
   depot.creer({ id: 'd1', nom: 'DUPONT / MARTIN' });
-  const ics = [
-    'BEGIN:VCALENDAR',
-    'BEGIN:VEVENT',
-    'SUMMARY:VTE - DUPONT / MARTIN',
-    'LOCATION:BA Appel de fonds envoyé',
-    'DTSTART:20991014',
-    'END:VEVENT',
-    'END:VCALENDAR'
-  ].join('\r\n');
-  const fetchFn = fauxFetch([{ ok: true, status: 200, text: async () => ics }]);
-  const resultat = await executerTourSurveillanceAgenda(depot, 'https://example.test/agenda.ics', fetchFn);
-  assert.equal(resultat.ok, true);
+  const appels = [];
+  const items = [
+    { sujet: 'VTE - DUPONT / MARTIN', lieu: 'BA Appel de fonds envoyé', start: '2099-10-14T08:00:00Z', end: '2099-10-14T09:00:00Z', categories: ['Catégorie Verte'] },
+    { sujet: 'Congés JV', start: '2099-10-19T22:00:00Z', end: '2099-10-22T22:00:00Z', allDay: true }
+  ];
+  const resultat = await executerTourSurveillanceAgenda(depot, REGLAGES_EXCHANGE, { poster: fauxPoster([ok(items), ok([])], appels) });
+  assert.equal(resultat.ok, true, resultat.erreur);
+  assert.equal(appels.length, 3, 'trois tranches de 62 jours');
+  assert.match(appels[0].body, /<t:EmailAddress>sophie@etude\.test<\/t:EmailAddress>/);
+  assert.match(appels[0].body, /<m:CalendarView StartDate="[^"]+" EndDate="[^"]+"\/>/);
+  assert.equal(appels[0].password, 'mdp-secret');
   assert.equal(resultat.dossiersVerifies, 1);
-  assert.equal(resultat.misAJour.length, 1);
-  assert.equal(depot.trouverParId('d1').appelFonds, dateDuJourParis());
+  assert.equal(resultat.evenementsLus, 2);
+  assert.equal(resultat.misAJour.length, 2, 'appel de fonds + rendez-vous de signature');
+  const d = depot.trouverParId('d1');
+  assert.equal(d.appelFonds, dateDuJourParis());
+  assert.equal(d.rendezVousSignature, '2099-10-14');
+  assert.equal(d.rendezVousSignatureHeure, '10:00');
+  assert.equal(d.rendezVousSignatureCategories.join('|'), 'Catégorie Verte');
+  assert.equal(resultat.absences.length, 1);
+  assert.equal(resultat.absences[0].debut, '2099-10-20');
+  assert.equal(resultat.absences[0].fin, '2099-10-22');
+  assert.equal(resultat.categories.join('|'), 'Catégorie Verte');
   db.close();
 });
 
-test('executerTourSurveillanceAgenda : un rendez-vous deja passe ne declenche plus rien', async () => {
+test('executerTourSurveillanceAgenda : un rendez-vous annulé ou passé ne déclenche rien', async () => {
   const db = ouvrirDb(':memory:');
   const depot = creerDepot(db);
   depot.creer({ id: 'd1', nom: 'DUPONT / MARTIN' });
-  const ics = 'BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:VTE - DUPONT\r\nLOCATION:BA Appel de fonds envoyé\r\nDTSTART:20000101\r\nEND:VEVENT\r\nEND:VCALENDAR';
-  const resultat = await executerTourSurveillanceAgenda(depot, 'https://example.test/agenda.ics', fauxFetch([{ ok: true, status: 200, text: async () => ics }]));
+  const items = [
+    { sujet: 'VTE - DUPONT', lieu: 'BA Appel de fonds envoyé', start: '2000-01-01T08:00:00Z' },
+    { sujet: 'VTE - DUPONT', lieu: 'BA Appel de fonds envoyé', start: '2099-10-14T08:00:00Z', cancelled: true }
+  ];
+  const resultat = await executerTourSurveillanceAgenda(depot, REGLAGES_EXCHANGE, { poster: fauxPoster([ok(items), ok([])]) });
   assert.equal(resultat.ok, true);
   assert.equal(resultat.misAJour.length, 0);
   assert.equal(depot.trouverParId('d1').appelFonds || '', '');
   db.close();
 });
 
-test('executerEtEnregistrerTourAgenda : persiste le compte rendu, y compris quand l\'URL manque', async () => {
+test('executerTourSurveillanceAgenda : un même rendez-vous rendu par deux tranches n’est compté qu’une fois', async () => {
   const db = ouvrirDb(':memory:');
   const depot = creerDepot(db);
-  const parametresRepo = creerRepoParametres(db);
-  await executerEtEnregistrerTourAgenda(depot, parametresRepo, fauxFetch([]), 'manuel');
-  const dernierTour = parametresRepo.lireDernierTourAgenda();
-  assert.equal(dernierTour.ok, false);
-  assert.equal(dernierTour.declenche, 'manuel');
+  const conges = { id: 'abs1', sujet: 'Congés JS', start: '2099-10-19T22:00:00Z', end: '2099-10-29T23:00:00Z', allDay: true };
+  const resultat = await executerTourSurveillanceAgenda(depot, REGLAGES_EXCHANGE, { poster: fauxPoster([ok([conges]), ok([conges]), ok([])]) });
+  assert.equal(resultat.evenementsLus, 1);
+  assert.equal(resultat.absences.length, 1);
   db.close();
 });
 
-test('executerEtEnregistrerTourAgenda : un tour reussi met a jour le compte rendu (automatique par defaut)', async () => {
+test('executerTourSurveillanceAgenda : liste coupée par Exchange → rien n’est appliqué', async () => {
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  depot.creer({ id: 'd1', nom: 'DUPONT / MARTIN' });
+  const items = [{ sujet: 'VTE - DUPONT', lieu: 'BA Appel de fonds envoyé', start: '2099-10-14T08:00:00Z' }];
+  const resultat = await executerTourSurveillanceAgenda(depot, REGLAGES_EXCHANGE, { poster: fauxPoster([ok(items, { tronque: true })]) });
+  assert.equal(resultat.ok, false);
+  assert.match(resultat.erreur, /tous les rendez-vous/);
+  assert.equal(depot.trouverParId('d1').appelFonds || '', '');
+  db.close();
+});
+
+test('executerTourSurveillanceAgenda : calendrier partagé inaccessible → message qui le dit', async () => {
+  const depot = { tousActifs: () => [] };
+  const corps = '<m:FindItemResponseMessage ResponseClass="Error"><m:ResponseCode>ErrorAccessDenied</m:ResponseCode></m:FindItemResponseMessage>';
+  const resultat = await executerTourSurveillanceAgenda(depot, REGLAGES_EXCHANGE, { poster: fauxPoster([{ statusCode: 200, body: corps }]) });
+  assert.equal(resultat.ok, false);
+  assert.equal(resultat.identifiantsRefuses, false);
+  assert.match(resultat.erreur, /n'a pas accès au calendrier partagé \(ErrorAccessDenied\)/);
+});
+
+test('identifiants refusés : un seul essai, lecture automatique suspendue jusqu’au changement des identifiants', async () => {
+  reinitialiserDisjoncteurAgenda();
   const db = ouvrirDb(':memory:');
   const depot = creerDepot(db);
   const parametresRepo = creerRepoParametres(db);
-  parametresRepo.ecrireReglagesAgenda({ icsUrl: 'https://example.test/agenda.ics' });
+  parametresRepo.ecrireReglagesExchange(REGLAGES_EXCHANGE);
+  const appels = [];
+  const refus = fauxPoster([{ statusCode: 401, body: '' }], appels);
+
+  const r1 = await executerEtEnregistrerTourAgenda(depot, parametresRepo, { poster: refus });
+  assert.equal(r1.ok, false);
+  assert.equal(r1.identifiantsRefuses, true);
+  assert.equal(appels.length, 1, 'arrêt au premier refus, jamais les tranches suivantes');
+  const tour = parametresRepo.lireDernierTourAgenda();
+  assert.equal(tour.identifiantsRefuses, true);
+  assert.doesNotMatch(JSON.stringify(tour), /mdp-secret/);
+  assert.equal(lectureAgendaSuspendue(parametresRepo.lireReglagesExchange()), true);
+
+  // Tour automatique suivant : aucun appel, rien n'est réécrit.
+  const r2 = await executerEtEnregistrerTourAgenda(depot, parametresRepo, { poster: refus });
+  assert.equal(r2.suspendu, true);
+  assert.equal(appels.length, 1);
+
+  // « Tester maintenant » : un essai, demandé par une personne.
+  await executerEtEnregistrerTourAgenda(depot, parametresRepo, { poster: refus }, 'manuel');
+  assert.equal(appels.length, 2);
+
+  // Nouveau mot de passe enregistré : la lecture automatique reprend d'elle-même.
+  parametresRepo.ecrireReglagesExchange({ ...REGLAGES_EXCHANGE, motDePasse: 'nouveau' });
+  assert.equal(lectureAgendaSuspendue(parametresRepo.lireReglagesExchange()), false);
+  const r3 = await executerEtEnregistrerTourAgenda(depot, parametresRepo, { poster: fauxPoster([ok([])], appels) });
+  assert.equal(r3.ok, true);
+  assert.equal(parametresRepo.lireDernierTourAgenda().identifiantsRefuses, false);
+  reinitialiserDisjoncteurAgenda();
+  db.close();
+});
+
+test('executerEtEnregistrerTourAgenda : un tour réussi met à jour le compte rendu (automatique par défaut)', async () => {
+  reinitialiserDisjoncteurAgenda();
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  const parametresRepo = creerRepoParametres(db);
+  parametresRepo.ecrireReglagesExchange(REGLAGES_EXCHANGE);
   depot.creer({ id: 'd1', nom: 'DURAND / LEROY' });
-  const ics = 'BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:VTE - DURAND / LEROY - projet envoye\r\nDTSTART:20991020\r\nEND:VEVENT\r\nEND:VCALENDAR';
-  await executerEtEnregistrerTourAgenda(depot, parametresRepo, fauxFetch([{ ok: true, status: 200, text: async () => ics }]));
+  const items = [{ sujet: 'VTE - DURAND / LEROY - projet envoye', start: '2099-10-19T22:00:00Z', end: '2099-10-20T22:00:00Z', allDay: true }];
+  const retour = await executerEtEnregistrerTourAgenda(depot, parametresRepo, { poster: fauxPoster([ok(items), ok([])]) });
+  assert.equal(retour.calendrier, 'sophie@etude.test');
   const dernierTour = parametresRepo.lireDernierTourAgenda();
   assert.equal(dernierTour.ok, true);
   assert.equal(dernierTour.declenche, 'automatique');
+  assert.equal(dernierTour.calendrier, 'sophie@etude.test');
+  assert.equal(dernierTour.evenementsLus, 1);
   assert.equal(dernierTour.misAJour.length, 1);
   assert.equal(depot.trouverParId('d1').projetEnvoye, dateDuJourParis());
   db.close();
 });
 
-// Erreur 503 signalée par l'étude (25/09) : le serveur du calendrier refusait la requête de Node.
-test('lecture ics : en-tetes de client d\'agenda, webcal converti en https, relance sur 503', async () => {
-  const db = ouvrirDb(':memory:');
-  const depot = creerDepot(db);
-  const appels = [];
-  const ics = 'BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n';
-  const reponses = [{ ok: false, status: 503 }, { ok: true, status: 200, text: async () => ics }];
-  const fetchFn = async (url, options) => { appels.push({ url, options }); return reponses[appels.length - 1]; };
-  const resultat = await executerTourSurveillanceAgenda(depot, 'webcal://outlook.example/owa/calendar/x/calendar.ics', fetchFn, 0);
-  assert.equal(resultat.ok, true, resultat.erreur);
-  assert.equal(appels.length, 2, 'une seule relance apres le 503');
-  assert.equal(appels[0].url, 'https://outlook.example/owa/calendar/x/calendar.ics');
-  assert.match(appels[0].options.headers['User-Agent'], /Mozilla/);
-  assert.match(appels[0].options.headers.Accept, /text\/calendar/);
-  db.close();
-});
-
-test('lecture ics : 503 persistant → message clair, jamais plus d\'une relance', async () => {
-  const db = ouvrirDb(':memory:');
-  const depot = creerDepot(db);
-  let n = 0;
-  const resultat = await executerTourSurveillanceAgenda(depot, 'https://x.test/calendar.ics', async () => { n++; return { ok: false, status: 503 }; }, 0);
-  assert.equal(resultat.ok, false);
-  assert.equal(n, 2);
-  assert.match(resultat.erreur, /indisponible pour l'instant \(erreur 503\)/);
-  db.close();
-});
-
-test('lecture ics : l\'erreur dit qui a repondu (hote, serveur, identifiant, texte) sans jamais le jeton', async () => {
-  const db = ouvrirDb(':memory:');
-  const depot = creerDepot(db);
-  const entetes = { server: 'Microsoft-HTTPAPI/2.0', 'request-id': 'abc-123' };
-  const reponse = () => ({
-    ok: false, status: 503,
-    headers: { get: (n) => entetes[n.toLowerCase()] || null },
-    text: async () => '<html><head><style>b{}</style></head><body><h1>Service Unavailable</h1></body></html>'
-  });
-  const resultat = await executerTourSurveillanceAgenda(depot, 'https://outlook.office365.com/owa/calendar/JETONSECRET/calendar.ics', async () => reponse(), 0);
-  assert.match(resultat.erreur, /hôte outlook\.office365\.com/);
-  assert.match(resultat.erreur, /serveur « Microsoft-HTTPAPI\/2\.0 »/);
-  assert.match(resultat.erreur, /requête abc-123/);
-  assert.match(resultat.erreur, /réponse « Service Unavailable »/);
-  assert.doesNotMatch(resultat.erreur, /JETONSECRET/);
-  db.close();
-});
-
-test('lecture ics : un lien HTML (sans VCALENDAR) est signale au lieu de rendre 0 mise a jour', async () => {
-  const db = ouvrirDb(':memory:');
-  const depot = creerDepot(db);
-  const resultat = await executerTourSurveillanceAgenda(depot, 'https://x.test/calendar.html',
-    async () => ({ ok: true, status: 200, text: async () => '<html><body>Calendrier</body></html>' }), 0);
-  assert.equal(resultat.ok, false);
-  assert.match(resultat.erreur, /calendar\.ics/);
-  db.close();
-});
-
-test('lecture ics : proxy Squid du bureau → message qui nomme le proxy et la cause, sans jeton', async () => {
-  const db = ouvrirDb(':memory:');
-  const depot = creerDepot(db);
-  const entetes = { server: 'squid', via: '1.1 nacXwan-Proxy (squid)', 'x-squid-error': 'ERR_DNS_FAIL 0' };
-  const corps = '<html><body><h1>ERREUR</h1><p>L\'erreur suivante s\'est produite en essayant d\'accéder à l\'URL : '
-    + '<a href="https://mail.authentic-connect.fr/cal/JETONSECRET/agenda.ics">https://mail.authentic-connect.fr/cal/JETONSECRET/agenda.ics</a></p>'
-    + '<p>Impossible de déterminer l\'adresse IP du nom d\'hôte mail.authentic-connect.fr</p></body></html>';
-  const reponse = () => ({ ok: false, status: 503, headers: { get: (n) => entetes[n.toLowerCase()] || null }, text: async () => corps });
-  const resultat = await executerTourSurveillanceAgenda(depot, 'https://mail.authentic-connect.fr/cal/JETONSECRET/agenda.ics', async () => reponse(), 0);
-  assert.match(resultat.erreur, /proxy du réseau du bureau \(« nacXwan-Proxy »\)/);
-  assert.match(resultat.erreur, /résolution DNS/);
-  assert.match(resultat.erreur, /ERR_DNS_FAIL/);
-  assert.match(resultat.erreur, /Impossible de déterminer l'adresse IP/);
-  assert.doesNotMatch(resultat.erreur, /JETONSECRET/);
-  db.close();
-});
-
-test('lecture ics : sans en-tete X-Squid-Error, la cause est lue dans la page du proxy', () => {
-  const { causeProxy, texteSansAdresses } = require('../src/agendaWatch');
-  const entetes = { via: '1.1 nacXwan-Proxy (squid)' };
-  const rep = { headers: { get: (n) => entetes[n.toLowerCase()] || null } };
-  const cause = causeProxy(rep, texteSansAdresses('<p>La tentative de connexion à 1.2.3.4 a échoué.</p>'));
-  assert.equal(cause.nom, 'nacXwan-Proxy');
-  assert.equal(cause.code, 'ERR_CONNECT_FAIL');
-  assert.equal(causeProxy({ headers: { get: (n) => (n === 'server' ? 'Microsoft-HTTPAPI/2.0' : null) } }, ''), null);
-  assert.equal(texteSansAdresses('voir http://a.b/c/SECRET?x=1 fin'), 'voir a.b fin');
-});
-
-test('lecture ics : lien en http bloque par le proxy → relu en https et lien enregistre corrige', async () => {
+test('executerEtEnregistrerTourAgenda : persiste le compte rendu, y compris sans connexion configurée', async () => {
   const db = ouvrirDb(':memory:');
   const depot = creerDepot(db);
   const parametresRepo = creerRepoParametres(db);
-  parametresRepo.ecrireReglagesAgenda({ icsUrl: 'http://mail.exemple.test/cal/x/agenda.ics' });
-  const ics = 'BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n';
-  const urls = [];
-  const fetchFn = async (url) => {
-    urls.push(url);
-    if (url.startsWith('http://')) return { ok: false, status: 403, headers: { get: (n) => (n === 'server' ? 'squid' : null) }, text: async () => '' };
-    return { ok: true, status: 200, text: async () => ics };
-  };
-  const retour = await executerEtEnregistrerTourAgenda(depot, parametresRepo, fetchFn);
-  assert.equal(retour.ok, true);
-  assert.equal(retour.lienPasseEnHttps, true);
-  assert.equal(retour.adresseCorrigee, undefined);
-  assert.equal(parametresRepo.lireReglagesAgenda().icsUrl, 'https://mail.exemple.test/cal/x/agenda.ics');
-  assert.equal(parametresRepo.lireDernierTourAgenda().lienPasseEnHttps, true);
-  assert.ok(urls.some((u) => u.startsWith('https://')));
+  await executerEtEnregistrerTourAgenda(depot, parametresRepo, { poster: fauxPoster([ok([])]) }, 'manuel');
+  const dernierTour = parametresRepo.lireDernierTourAgenda();
+  assert.equal(dernierTour.ok, false);
+  assert.equal(dernierTour.declenche, 'manuel');
   db.close();
 });
 
@@ -365,22 +366,6 @@ test('rendez-vous de signature : un dossier archivé n\'est jamais touché', () 
   appliquerDetectionsAgenda(depot, [{ dossierId: 'd1', dateIso: '2099-11-10', rendezVous: true, reference: 'DUPONT' }], '2026-09-25');
   assert.equal(depot.trouverParId('d1').rendezVousSignature || '', '');
   db.close();
-});
-
-// Erreur 500 signalée par l'étude (25/09) : Exchange (IIS) répond 500 + X-CasErrorCode
-// « DirectoryOperationError » quand le calendrier du lien est introuvable.
-test('lecture ics : 500 Exchange DirectoryOperationError → une relance puis message explicite', async () => {
-  const depot = { tousActifs: () => [] };
-  const entetes = { server: 'Microsoft-IIS/10.0', 'x-caserrorcode': 'DirectoryOperationError', 'request-id': 'abc-123' };
-  let n = 0;
-  const resultat = await executerTourSurveillanceAgenda(depot,
-    'https://mail.exemple.test/owa/calendar/secret-jeton@etude.fr/xyz/calendar.ics',
-    async () => { n++; return { ok: false, status: 500, headers: { get: (k) => entetes[k.toLowerCase()] || null }, text: async () => '' }; }, 0);
-  assert.equal(n, 2, 'une seule relance apres le 500');
-  assert.equal(resultat.ok, false);
-  assert.match(resultat.erreur, /ne retrouve pas le calendrier/);
-  assert.match(resultat.erreur, /code Exchange DirectoryOperationError/);
-  assert.doesNotMatch(resultat.erreur, /secret-jeton/);
 });
 
 test('rendez-vous de signature : heure et lieu de l’agenda posés, suivis le même jour', () => {

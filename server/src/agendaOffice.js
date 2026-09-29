@@ -1,25 +1,25 @@
 'use strict';
 
-// Lecture de l'agenda de l'office (flux .ics) : détecte automatiquement, dans les rendez-vous que
-// l'étude note elle-même, qu'un appel de fonds vient de partir ou qu'un projet d'acte vient d'être
-// envoyé au client — pour renseigner d.appelFonds/d.projetEnvoye sans ressaisie (voir agendaWatch.js
-// pour le tour périodique et l'écriture sur les dossiers). Demandé par l'étude, qui utilise déjà ce
-// même flux dans un autre artefact (« brief du matin ») — rien de nouveau à créer côté agenda.
+// Lecture de l'agenda de l'office : détecte automatiquement, dans les rendez-vous que l'étude note
+// elle-même, qu'un appel de fonds vient de partir ou qu'un projet d'acte vient d'être envoyé au
+// client — pour renseigner d.appelFonds/d.projetEnvoye sans ressaisie — ainsi que les rendez-vous de
+// signature et les absences des collaborateurs (voir agendaWatch.js pour le tour périodique et
+// l'écriture sur les dossiers).
+//
+// Source (29/09) : le calendrier partagé de Sophie, lu par EWS (exchange/ews.js,
+// lireCalendrierExchange) — le même agenda que le flux .ics publié qu'on lisait avant, sans lien de
+// publication à entretenir. Les fonctions de ce fichier sont PURES et ne connaissent qu'un modèle
+// d'événement neutre (voir evenementDepuisEws) : aucun appel réseau ici.
 //
 // Convention réelle donnée par l'étude, à ne pas généraliser au-delà de ce qu'elle a décrit :
-//   - chaque rendez-vous de vente porte « VTE - NOM DU DOSSIER » dans son titre (ou sa
-//     description) — ce nom ne reprend pas forcément TOUS les noms de famille du dossier CLAIRE ;
-//   - le déclencheur est le plus souvent noté dans le LIEU du rendez-vous (propriété LOCATION) :
-//     les initiales du collaborateur suivies de « Appel de fonds envoyé » ou de « Appel de fonds et
-//     projet envoyé » — le titre et la description sont lus aussi, en repli ;
+//   - chaque rendez-vous de vente porte « VTE - NOM DU DOSSIER » dans son titre — ce nom ne reprend
+//     pas forcément TOUS les noms de famille du dossier CLAIRE ;
+//   - le déclencheur est noté dans le LIEU du rendez-vous : les initiales du collaborateur suivies
+//     de « Appel de fonds envoyé » ou de « Appel de fonds et projet envoyé » — le titre est lu aussi,
+//     en repli ;
 //   - seuls les rendez-vous À VENIR (à partir du jour de la lecture) sont pris en compte ;
-//   - trois couleurs Outlook distinguent le LIEU du rendez-vous (vert = office, violet = visio,
-//     orange = confrère) — sans rapport avec cette détection, jamais lues ici.
-//
-// Un lien .ics PUBLIC (Outlook > Publier ce calendrier), sans authentification, confirmé par
-// l'étude — exactement ce que son propre artefact « brief du matin » lit déjà. Aucun accès
-// Microsoft Graph n'est nécessaire (déjà écarté une fois pour les relances email/calendrier, voir
-// CLAUDE.md) : un simple GET HTTP suffit.
+//   - trois couleurs Outlook (catégories) distinguent le LIEU du rendez-vous (vert = office,
+//     violet = visio, orange = confrère).
 //
 // Rapprochement au dossier CLAIRE par MOTS SIGNIFICATIFS EN COMMUN (voir nas.js,
 // motsSignificatifs), avec TOLÉRANCE : l'agenda peut ne citer qu'une partie des noms du dossier, ou
@@ -30,116 +30,56 @@
 
 const { normaliserNomRapprochement, motsSignificatifs } = require('./nas');
 
-// RFC 5545 §3.1 : une ligne longue est repliée (« folded ») sur plusieurs lignes, chaque ligne de
-// continuation commençant par une unique espace ou tabulation. Sans ce dépliage, un SUMMARY/
-// DESCRIPTION un peu long arriverait tronqué au milieu d'un mot — potentiellement en plein milieu
-// de la référence VTE ou du mot-clé cherché.
-function deplierLignesIcs(texte) {
-  const brut = String(texte || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-  const lignesBrutes = brut.split('\n');
-  const lignes = [];
-  for (const ligne of lignesBrutes) {
-    if ((ligne.startsWith(' ') || ligne.startsWith('\t')) && lignes.length > 0) {
-      lignes[lignes.length - 1] += ligne.slice(1);
-    } else {
-      lignes.push(ligne);
-    }
-  }
-  return lignes;
+// Date (AAAA-MM-JJ) et heure (HH:MM) à Paris d'un instant ISO renvoyé par Exchange (en UTC,
+// « 2026-10-02T12:00:00Z »). Indépendant du fuseau du serveur.
+function momentParisDepuisIso(iso) {
+  const d = new Date(String(iso || ''));
+  if (isNaN(d.getTime())) return null;
+  const p = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Paris', hourCycle: 'h23',
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+  }).formatToParts(d).reduce((acc, x) => { acc[x.type] = x.value; return acc; }, {});
+  return { date: `${p.year}-${p.month}-${p.day}`, heure: `${p.hour}:${p.minute}` };
 }
 
-// Antislash-échappements du format iCalendar (RFC 5545 §3.3.11) : un texte réel de SUMMARY/
-// DESCRIPTION peut contenir une virgule ou un point-virgule échappés, ou un retour à la ligne
-// littéral encodé en « \n ».
-function decoderTexteIcs(valeur) {
-  return String(valeur || '')
-    .replace(/\\n/gi, '\n')
-    .replace(/\\,/g, ',')
-    .replace(/\\;/g, ';')
-    .replace(/\\\\/g, '\\')
-    .trim();
+// Le jour civil précédent (AAAA-MM-JJ), en UTC pour ne pas dépendre du fuseau du serveur : la fin
+// d'un événement « toute la journée » est EXCLUSIVE (minuit du lendemain du dernier jour réel).
+function veilleDe(iso) {
+  const d = new Date(String(iso) + 'T00:00:00Z');
+  if (isNaN(d.getTime())) return iso;
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
 }
 
-// Découpe le flux en ses VEVENT, avec seulement les propriétés utiles à cette détection —
-// jamais de gestion de RRULE (un événement récurrent développé sur plusieurs occurrences) : un
-// appel de fonds ou un envoi de projet est par nature un événement ponctuel, pas une répétition.
-// Un STATUS:CANCELLED est conservé tel quel (filtré par l'appelant) plutôt qu'ignoré ici : les deux
-// usages (diagnostic affiché à l'étude, détection réelle) ont besoin de savoir qu'il existait.
-function parseIcsEvenements(texte) {
-  const lignes = deplierLignesIcs(texte);
-  const evenements = [];
-  let courant = null;
-  // Un VEVENT réel embarque souvent un sous-composant VALARM (le rappel Outlook), qui porte SA
-  // PROPRE propriété DESCRIPTION (« Rappel »...) — sans ce compteur, elle écraserait celle de
-  // l'événement lui-même, faussant la recherche de la référence VTE/des mots-clés d'action.
-  let profondeurSousComposant = 0;
-  for (const ligneBrute of lignes) {
-    const ligne = ligneBrute.replace(/\s+$/, '');
-    const majLigne = ligne.trim().toUpperCase();
-    if (majLigne === 'BEGIN:VEVENT') {
-      courant = { summary: '', description: '', location: '', dtstart: '', status: '', categories: [] };
-      profondeurSousComposant = 0;
-      continue;
-    }
-    if (majLigne === 'END:VEVENT') {
-      if (courant) evenements.push(courant);
-      courant = null;
-      continue;
-    }
-    if (!courant) continue;
-    if (majLigne.startsWith('BEGIN:')) { profondeurSousComposant++; continue; }
-    if (majLigne.startsWith('END:')) { profondeurSousComposant = Math.max(0, profondeurSousComposant - 1); continue; }
-    if (profondeurSousComposant > 0) continue;
-    const idx = ligne.indexOf(':');
-    if (idx === -1) continue;
-    // Le nom de propriété et ses paramètres (avant le premier « : ») ne contiennent jamais de
-    // « : » eux-mêmes en usage normal — seule la VALEUR peut légitimement en porter d'autres
-    // (une URL dans une description, par exemple), d'où le premier « : » seul comme séparateur.
-    const cle = ligne.slice(0, idx).split(';')[0].trim().toUpperCase();
-    const valeur = ligne.slice(idx + 1);
-    if (cle === 'SUMMARY') courant.summary = decoderTexteIcs(valeur);
-    else if (cle === 'DESCRIPTION') courant.description = decoderTexteIcs(valeur);
-    else if (cle === 'LOCATION') courant.location = decoderTexteIcs(valeur);
-    else if (cle === 'DTSTART') courant.dtstart = valeur.trim();
-    else if (cle === 'DTEND') courant.dtend = valeur.trim();
-    else if (cle === 'STATUS') courant.status = valeur.trim().toUpperCase();
-    // CATEGORIES : liste séparée par des virgules (une virgule échappée « \, » appartient au nom).
-    // C'est la catégorie Outlook qui donne sa couleur à l'événement.
-    else if (cle === 'CATEGORIES') {
-      for (const nom of valeur.split(/(?<!\\),/)) {
-        const t = decoderTexteIcs(nom).trim();
-        if (t) courant.categories.push(t);
-      }
-    }
-  }
-  return evenements;
+// Un rendez-vous tel que rendu par parseCalendrierEws → le modèle lu par les détections :
+//   { sujet, lieu, date, heure, dateFin, heureFin, journeeEntiere, annule, categories }
+// Journée entière : Exchange renvoie minuit (heure de Paris) exprimé en UTC, la fin étant minuit du
+// lendemain du dernier jour — `dateFin` est ramené au dernier jour réel, et `heure` reste null.
+// Un rendez-vous sans début lisible rend null.
+function evenementDepuisEws(e) {
+  const x = e || {};
+  const debut = momentParisDepuisIso(x.start);
+  if (!debut) return null;
+  const fin = momentParisDepuisIso(x.end);
+  const journeeEntiere = x.allDay === true;
+  let dateFin = fin ? fin.date : debut.date;
+  if (journeeEntiere && fin) dateFin = veilleDe(fin.date);
+  if (dateFin < debut.date) dateFin = debut.date;
+  return {
+    sujet: String(x.subject || ''),
+    lieu: String(x.location || ''),
+    date: debut.date,
+    heure: journeeEntiere ? null : debut.heure,
+    dateFin,
+    heureFin: journeeEntiere || !fin ? null : fin.heure,
+    journeeEntiere,
+    annule: x.cancelled === true,
+    categories: Array.isArray(x.categories) ? x.categories.filter((c) => typeof c === 'string' && c.trim()) : []
+  };
 }
 
-// Une date AAAA-MM-JJ à partir de la forme « toute la journée » (20260930) comme de la forme
-// horodatée (20260930T140000Z ou ...T140000, sans zone) : les huit premiers chiffres suffisent
-// dans les deux cas, le modèle de dossier ne connaissant que des dates sans heure.
-function dateDepuisDtstart(dtstart) {
-  if (typeof dtstart !== 'string') return null;
-  const m = /^(\d{4})(\d{2})(\d{2})/.exec(dtstart.trim());
-  return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
-}
-
-// L'heure « HH:MM » d'un DTSTART/DTEND horodaté, à l'heure de Paris — null pour un événement
-// « toute la journée » (date seule). La forme en UTC (suffixe Z) est convertie ; la forme sans
-// zone, ou avec TZID (le paramètre est déjà retiré par parseIcsEvenements), est l'heure locale du
-// calendrier telle qu'écrite — Exchange publie dans la zone de l'agenda de l'office.
-function heureDepuisDtstart(dtstart) {
-  if (typeof dtstart !== 'string') return null;
-  const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})?(Z)?/.exec(dtstart.trim());
-  if (!m) return null;
-  if (!m[7]) return `${m[4]}:${m[5]}`;
-  const instant = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]));
-  const parties = new Intl.DateTimeFormat('fr-FR', {
-    timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
-  }).formatToParts(instant);
-  const h = (parties.find(p => p.type === 'hour') || {}).value;
-  const mn = (parties.find(p => p.type === 'minute') || {}).value;
-  return h && mn ? `${h}:${mn}` : null;
+function evenementsDepuisEws(liste) {
+  return (liste || []).map(evenementDepuisEws).filter(Boolean);
 }
 
 // « VTE » comme mot entier, suivi d'un séparateur optionnel (tiret cadratin/simple, deux-points),
@@ -160,10 +100,9 @@ function extraireReferenceVte(texte) {
   return m ? m[1].trim() : '';
 }
 
-// Cherchée dans le résumé D'ABORD, la description ensuite — l'étude a décrit le titre comme
-// support de la référence, la description reste un repli si elle l'a mise là à la place.
+// Cherchée dans le titre du rendez-vous, support de la référence décrit par l'étude.
 function referenceDossierEvenement(evenement) {
-  return extraireReferenceVte(evenement.summary) || extraireReferenceVte(evenement.description);
+  return extraireReferenceVte(evenement.sujet);
 }
 
 // Le déclencheur donné par l'étude est un ENVOI FAIT : « Appel de fonds envoyé », « Appel de fonds
@@ -260,10 +199,9 @@ function composerLieuAgenda(lieuExistant, etat) {
   return base ? base + ' - ' + mention : mention;
 }
 
-// Le LIEU d'abord (c'est là que l'étude note le déclencheur), puis le titre et la description.
+// Le LIEU d'abord (c'est là que l'étude note le déclencheur), puis le titre.
 function detecterActionsEvenement(evenement) {
-  const texte = [evenement.location, evenement.summary, evenement.description]
-    .filter(Boolean).join(' \n ');
+  const texte = [evenement.lieu, evenement.sujet].filter(Boolean).join(' \n ');
   return {
     appelFonds: detecteAppelDeFonds(texte),
     projetEnvoye: detecteProjetEnvoye(texte)
@@ -344,35 +282,33 @@ function dossierPourReferenceAgenda(reference, dossiersActifs) {
 //   - un point d'interrogation dans le titre ou le lieu (« VTE - DUPONT ? », « ?? ») : l'étude note
 //     ainsi un rendez-vous pas encore confirmé — il ne doit rien écrire sur la fiche. Les adresses
 //     (lien de visioconférence) sont retirées avant ce test, leur « ? » ne dit rien du rendez-vous ;
-//     la description n'est pas lue pour la même raison ;
-//   - un événement « toute la journée » (DTSTART sans heure) : un rendez-vous de signature a
+//   - un événement « toute la journée » : un rendez-vous de signature a
 //     toujours une heure, une journée entière est une note (« AF à envoyer »), pas une signature.
 function sansAdresses(texte) {
   return String(texte || '').replace(/\b(?:https?|webcals?):\/\/\S+/gi, ' ');
 }
 
 function estRendezVousSignature(evenement) {
-  if (!/^\d{8}T\d{4}/.test(String(evenement.dtstart || '').trim())) return false;
-  return !/\?/.test(sansAdresses(evenement.summary) + ' ' + sansAdresses(evenement.location));
+  if (evenement.journeeEntiere || !evenement.heure) return false;
+  return !/\?/.test(sansAdresses(evenement.sujet) + ' ' + sansAdresses(evenement.lieu));
 }
 
-// Fonction d'ensemble, pure et testable de bout en bout à partir d'un texte .ics et de la liste
-// des dossiers actifs (chacun avec au moins {id, nom}) : une entrée par (événement, action)
-// détectée — un même événement peut porter les deux actions à la fois, et être en plus le
-// rendez-vous de signature (`rendezVous`). `dossierId`/`dossierNom`
-// restent `null` quand aucune correspondance sûre n'a été trouvée : c'est à l'appelant de décider
-// quoi en faire (voir agendaWatch.js, qui les liste sans jamais rien écrire dans ce cas).
-// `aujourdHui` (AAAA-MM-JJ) : seuls les rendez-vous de ce jour ou postérieurs sont lus, comme
-// demandé par l'étude — un rendez-vous passé ne déclenche plus rien. Omis : aucun filtre (tests).
-function actionsDetecteesDepuisIcs(icsTexte, dossiersActifs, aujourdHui) {
-  const evenements = parseIcsEvenements(icsTexte);
+// Fonction d'ensemble, pure et testable de bout en bout à partir des événements (voir
+// evenementDepuisEws) et de la liste des dossiers actifs (chacun avec au moins {id, nom}) : une
+// entrée par événement porteur d'une référence et d'au moins une action — un même événement peut
+// porter les deux envois à la fois, et être en plus le rendez-vous de signature (`rendezVous`).
+// `dossierId`/`dossierNom` restent `null` quand aucune correspondance sûre n'a été trouvée : c'est
+// à l'appelant de décider quoi en faire (voir agendaWatch.js, qui les liste sans jamais rien écrire
+// dans ce cas). `aujourdHui` (AAAA-MM-JJ) : seuls les rendez-vous de ce jour ou postérieurs sont
+// lus, comme demandé par l'étude. Omis : aucun filtre (tests).
+function actionsDetecteesDepuisEvenements(evenements, dossiersActifs, aujourdHui) {
   const resultats = [];
-  for (const evt of evenements) {
-    if (evt.status === 'CANCELLED') continue;
+  for (const evt of evenements || []) {
+    if (!evt || evt.annule) continue;
     const reference = referenceDossierEvenement(evt);
     if (!reference) continue;
-    const dateIso = dateDepuisDtstart(evt.dtstart);
-    if (!dateIso) continue;
+    const dateIso = evt.date;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dateIso || ''))) continue;
     if (aujourdHui && dateIso < aujourdHui) continue;
     const actions = detecterActionsEvenement(evt);
     const rendezVous = estRendezVousSignature(evt);
@@ -381,13 +317,13 @@ function actionsDetecteesDepuisIcs(icsTexte, dossiersActifs, aujourdHui) {
     resultats.push({
       reference,
       dateIso,
-      resume: (evt.summary || reference).slice(0, 200),
+      resume: (evt.sujet || reference).slice(0, 200),
       appelFonds: actions.appelFonds,
       projetEnvoye: actions.projetEnvoye,
       rendezVous,
-      heure: heureDepuisDtstart(evt.dtstart),
-      heureFin: heureDepuisDtstart(evt.dtend),
-      lieu: String(evt.location || '').slice(0, 160),
+      heure: evt.heure || null,
+      heureFin: evt.heureFin || null,
+      lieu: String(evt.lieu || '').slice(0, 160),
       categories: (evt.categories || []).slice(0, 5),
       dossierId: dossier ? dossier.id : null,
       dossierNom: dossier ? dossier.nom : null
@@ -396,12 +332,12 @@ function actionsDetecteesDepuisIcs(icsTexte, dossiersActifs, aujourdHui) {
   return resultats;
 }
 
-// Noms distincts des catégories Outlook portées par les événements du flux, pour que les Réglages
+// Noms distincts des catégories Outlook portées par les rendez-vous lus, pour que les Réglages
 // proposent les noms exacts de la boîte (la couleur d'un rendez-vous tient à ce nom). Pure.
-function categoriesDistinctesIcs(icsTexte) {
+function categoriesDistinctes(evenements) {
   const vus = new Map();
-  for (const evt of parseIcsEvenements(icsTexte)) {
-    for (const c of evt.categories || []) {
+  for (const evt of evenements || []) {
+    for (const c of (evt && evt.categories) || []) {
       const cle = c.toLowerCase();
       if (!vus.has(cle)) vus.set(cle, c);
     }
@@ -434,16 +370,7 @@ const COLLABORATEURS_ABSENCE = [
 const RE_MOT_ABSENCE = /\b(?:CONGE|CONGES|ABSENT|ABSENTE|ABSENTS|ABSENTES|ABSENCE|VACANCES|RTT|INDISPONIBLE|INDISPO|REPOS)\b/;
 
 function estEvenementJourneeEntiere(evenement) {
-  return /^\d{8}$/.test(String(evenement.dtstart || '').trim());
-}
-
-// Le jour civil précédent (AAAA-MM-JJ), en UTC pour ne pas dépendre du fuseau du serveur : le DTEND
-// d'un événement « toute la journée » est EXCLUSIF en iCalendar (le lendemain du dernier jour réel).
-function veilleDe(iso) {
-  const d = new Date(String(iso) + 'T00:00:00Z');
-  if (isNaN(d.getTime())) return iso;
-  d.setUTCDate(d.getUTCDate() - 1);
-  return d.toISOString().slice(0, 10);
+  return Boolean(evenement && evenement.journeeEntiere);
 }
 
 function motsNormalises(texte) {
@@ -462,22 +389,20 @@ function collaborateursDansTexte(texte) {
     || mots.has(normaliserNomRapprochement(c.nomFamille)));
 }
 
-// Pure et testable : les périodes d'absence lues dans le flux .ics. Une entrée par (événement,
+// Pure et testable : les périodes d'absence lues dans l'agenda. Une entrée par (événement,
 // collaborateur nommé). `aujourdHui` (AAAA-MM-JJ) : une absence entièrement passée est écartée (elle
 // n'intéresse plus l'agenda, tourné vers la semaine en cours et les suivantes). Omis : aucun filtre
 // de date (tests).
-function absencesDepuisIcs(icsTexte, aujourdHui) {
-  const evenements = parseIcsEvenements(icsTexte);
+function absencesDepuisEvenements(evenements, aujourdHui) {
   const absences = [];
-  for (const evt of evenements) {
-    if (evt.status === 'CANCELLED') continue;
+  for (const evt of evenements || []) {
+    if (!evt || evt.annule) continue;
     if (!estEvenementJourneeEntiere(evt)) continue;
-    const titre = String(evt.summary || '');
+    const titre = String(evt.sujet || '');
     if (!RE_MOT_ABSENCE.test(normaliserNomRapprochement(titre))) continue;
-    const debut = dateDepuisDtstart(evt.dtstart);
+    const debut = evt.date;
     if (!debut) continue;
-    const finBrute = dateDepuisDtstart(evt.dtend);
-    let fin = finBrute ? veilleDe(finBrute) : debut;
+    let fin = evt.dateFin || debut;
     if (fin < debut) fin = debut;
     if (aujourdHui && fin < aujourdHui) continue;
     const collaborateurs = collaborateursDansTexte(titre);
@@ -490,10 +415,10 @@ function absencesDepuisIcs(icsTexte, aujourdHui) {
 }
 
 module.exports = {
-  deplierLignesIcs, decoderTexteIcs, parseIcsEvenements, dateDepuisDtstart,
+  momentParisDepuisIso, veilleDe, evenementDepuisEws, evenementsDepuisEws,
   extraireReferenceVte, referenceDossierEvenement, detecteAppelDeFonds, detecteProjetEnvoye,
-  detecterActionsEvenement, dossierPourReferenceAgenda, actionsDetecteesDepuisIcs, motsVoisins,
-  estRendezVousSignature, heureDepuisDtstart, composerLieuAgenda,
-  absencesDepuisIcs, estEvenementJourneeEntiere, collaborateursDansTexte, COLLABORATEURS_ABSENCE,
-  categoriesDistinctesIcs
+  detecterActionsEvenement, dossierPourReferenceAgenda, actionsDetecteesDepuisEvenements, motsVoisins,
+  estRendezVousSignature, composerLieuAgenda,
+  absencesDepuisEvenements, estEvenementJourneeEntiere, collaborateursDansTexte, COLLABORATEURS_ABSENCE,
+  categoriesDistinctes
 };

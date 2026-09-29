@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 21:08';
+  const VERSION_APP = '2026-09-29 22:12';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 22:12', resume: "Agenda de l'office : CLAIRE lit désormais directement le calendrier partagé de Sophie par la connexion Exchange, toutes les 15 minutes (six mois à venir), au lieu du lien .ics publié — plus d'adresse à coller ni d'erreur de proxy. Mêmes détections : rendez-vous de signature, « Appel de fonds (et projet) envoyé » dans le lieu, absences, couleurs. Un mot de passe refusé suspend la lecture automatique jusqu'à sa correction, pour ne jamais verrouiller le compte. Réglages › Agenda : « Lecture de l'agenda » sous la connexion. À tester au bureau." },
     { version: '2026-09-29 21:08', resume: "Réception des fonds plus visuelle : trois chiffres (reçu, attendu, reste ou écart) et une jauge colorée, les versements en lignes courtes (date, montant, coche si la référence de la vente est retrouvée, icône du reçu), le montant attendu et les noms cherchés modifiables au crayon ; le détail passe dans les pastilles « i »." },
     { version: '2026-09-29 21:04', resume: "Nouveau dossier : CLAIRE lit les honoraires de négociation (agence ou confrère, montant TTC, à la charge de qui) et le remboursement du fonds de travaux loi ALUR, affichés sur la fiche. Appel de fonds : choix « Établi par l'office » / « Décompte du confrère » ; décompte de l'office complété seul avec les honoraires à la charge de l'acquéreur, le fonds de travaux remboursé, le prêt hypothécaire (montant déduit, frais de garantie appelés) et le prorata de taxe foncière lu sur l'avis. Prorata : lecture d'un avis de taxe foncière, avec la répartition des ordures ménagères si l'avis porte sur plusieurs biens." },
     { version: '2026-09-29 20:52', resume: "Réglages réorganisés comme ceux de Claude : les rubriques à gauche (Général, Rappels Teams, Signature des emails, Agenda, Relecture d'actes, Pièces, Signalements, Mise à jour et sauvegarde), une seule colonne de réglages à droite, sans les trous des anciennes cartes. Partout, les paragraphes d'explication laissent place à une petite pastille « i » : l'aide s'affiche au survol ou au toucher." },
@@ -28661,51 +28662,36 @@
     zone.innerHTML = html;
   }
 
-  // ---- Agenda de l'office : lecture automatique du .ics publié (voir server/src/agendaWatch.js /
-  // agendaOffice.js) — même flux que celui déjà lu par l'artefact "brief du matin". Un rendez-vous
-  // portant "VTE - NOM DU DOSSIER" et mentionnant "appel de fonds"/"projet envoyé" reporte
-  // automatiquement la date sur le dossier, jamais si elle est déjà renseignée. ----
+  // ---- Agenda de l'office : lecture automatique du calendrier partagé de Sophie par EWS (voir
+  // server/src/agendaWatch.js / agendaOffice.js), avec la connexion Exchange de la même rubrique.
+  // Un rendez-vous « VTE - NOM DU DOSSIER » remplit le rendez-vous de signature ; une mention
+  // « appel de fonds / projet envoyé » dans son lieu reporte la date sur le dossier, jamais si elle
+  // est déjà renseignée. ----
 
   async function chargerReglagesAgenda() {
     try {
       const reponse = await fetchAvecAuth('/api/agenda');
       const corps = await reponse.json();
-      const champ = document.getElementById('reglages-agenda-url');
-      // Ne jamais écraser une saisie en cours : un tour automatique de rappels a pu recharger cet
-      // écran pendant que l'étude collait l'URL.
-      if (champ && document.activeElement !== champ) champ.value = (corps.reglages && corps.reglages.icsUrl) || '';
       if (Array.isArray(corps.absences)) absencesOffice = corps.absences;
-      renderDernierTourAgenda(corps.dernierTour);
+      renderSourceAgenda(corps.source);
+      renderDernierTourAgenda(corps.dernierTour, corps.source);
     } catch (e) {
       // Session expirée : déjà géré par fetchAvecAuth (écran de connexion réaffiché).
     }
   }
 
-  async function enregistrerReglagesAgenda() {
-    const resultat = document.getElementById('reglages-agenda-resultat');
-    const champ = document.getElementById('reglages-agenda-url');
-    try {
-      const reponse = await fetchAvecAuth('/api/agenda', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ icsUrl: champ ? champ.value.trim() : '' })
-      });
-      const corps = await reponse.json();
-      const urlEnregistree = (corps.reglages && corps.reglages.icsUrl) || '';
-      if (champ) champ.value = urlEnregistree;
-      if (resultat) {
-        if (champ && champ.value !== '' && !urlEnregistree) {
-          resultat.textContent = "Cette adresse ne ressemble pas à un lien de calendrier (http/https) — rien n'a été enregistré.";
-          resultat.className = 'hint reglages-email-resultat reglages-email-echec';
-        } else {
-          resultat.textContent = 'Enregistré.';
-          resultat.className = 'hint';
-        }
-      }
-      renderDernierTourAgenda(corps.dernierTour);
-    } catch (e) {
-      if (resultat) { resultat.textContent = 'Serveur injoignable.'; resultat.className = 'hint reglages-email-resultat reglages-email-echec'; }
-    }
+  // Le calendrier lu (adresse de la boîte, jamais un identifiant) ou ce qui manque pour le lire.
+  function renderSourceAgenda(source) {
+    const zone = document.getElementById('reglages-agenda-source');
+    if (!zone) return;
+    const s = source || {};
+    const configuree = Boolean(s.configuree);
+    zone.textContent = configuree
+      ? (s.calendrier || 'Calendrier du compte de connexion')
+      : 'Connexion à configurer ci-dessus';
+    zone.className = 'reglages-valeur' + (configuree ? '' : ' reglages-valeur-vide');
+    const bouton = document.getElementById('reglages-agenda-lancer');
+    if (bouton && !bouton.dataset.enCours) bouton.disabled = !configuree;
   }
 
   function libelleActionAgenda(action) {
@@ -28713,7 +28699,7 @@
     return action === 'projetEnvoye' ? 'Envoi projet' : 'Envoi appel de fonds';
   }
 
-  function renderDernierTourAgenda(tour) {
+  function renderDernierTourAgenda(tour, source) {
     const zone = document.getElementById('reglages-agenda-dernier-tour');
     if (!zone) return;
     if (!tour || !tour.at) {
@@ -28728,18 +28714,20 @@
     const origine = tour.declenche === 'manuel' ? 'déclenché à la main' : 'tour automatique';
     const misAJour = Array.isArray(tour.misAJour) ? tour.misAJour : [];
     const sansCorrespondance = Array.isArray(tour.sansCorrespondance) ? tour.sansCorrespondance : [];
-    // En erreur seulement si le calendrier n'a pas pu être lu du tout (URL révoquée, réseau) —
-    // aucune correspondance trouvée n'est pas un problème, c'est le cas normal la plupart du temps.
+    // En erreur seulement si le calendrier n'a pas pu être lu du tout (identifiants, partage, réseau)
+    // — aucune correspondance trouvée n'est pas un problème, c'est le cas normal la plupart du temps.
     const enErreur = !tour.ok && !!tour.erreur;
     zone.className = 'reglages-dernier-tour ' + (enErreur ? 'dernier-tour-alerte' : 'dernier-tour-ok');
     let html = `<div class="dernier-tour-ligne">${icone(enErreur ? 'alert-triangle' : 'check')}`;
     html += `<span><strong>${escapeHtml(quandTexte)}</strong> — ${escapeHtml(origine)} · `;
     html += enErreur
-      ? escapeHtml(tour.erreur)
+      ? escapeHtml(String(tour.erreur).replace(/\.\s*$/, ''))
       : `${tour.dossiersVerifies} dossier${tour.dossiersVerifies > 1 ? 's' : ''} vérifié${tour.dossiersVerifies > 1 ? 's' : ''}, ${misAJour.length} mis à jour`;
     html += '.</span></div>';
-    if (tour.lienPasseEnHttps) {
-      html += '<p class="hint" style="margin:6px 0 0;">Le lien enregistré en http ne passait pas le réseau du bureau : il a été lu en https, et le lien enregistré a été mis à jour.</p>';
+    // Disjoncteur (voir agendaWatch.js) : après un refus d'identifiants, plus aucun tour automatique
+    // tant que le mot de passe n'a pas changé — sinon le compte de messagerie serait verrouillé.
+    if (source && source.suspendue) {
+      html += '<p class="hint" style="margin:6px 0 0;">Lecture automatique suspendue : corrigez le mot de passe ci-dessus, elle reprendra d\'elle-même.</p>';
     }
     if (misAJour.length) {
       html += '<ul class="dernier-tour-erreurs" style="color:inherit;">' + misAJour.map((m) =>
@@ -28767,26 +28755,26 @@
   async function lancerTourAgenda() {
     const bouton = document.getElementById('reglages-agenda-lancer');
     const resultat = document.getElementById('reglages-agenda-resultat');
-    if (bouton) { bouton.disabled = true; bouton.textContent = 'Lecture en cours…'; }
+    if (bouton) { bouton.disabled = true; bouton.dataset.enCours = '1'; bouton.textContent = 'Lecture en cours…'; }
     try {
       const reponse = await fetchAvecAuth('/api/agenda/tester', { method: 'POST' });
       const corps = await reponse.json();
       if (resultat) {
         if (reponse.ok && corps.ok) {
-          resultat.textContent = `✓ ${corps.dossiersVerifies} dossier(s) vérifié(s), ${(corps.misAJour || []).length} mis à jour.`;
+          resultat.textContent = `${corps.evenementsLus || 0} rendez-vous lus, ${(corps.misAJour || []).length} dossier(s) mis à jour.`;
           resultat.className = 'hint';
         } else {
           resultat.textContent = corps.erreur || "La lecture de l'agenda a échoué.";
           resultat.className = 'hint reglages-email-resultat reglages-email-echec';
         }
       }
-      // Le compte rendu persisté (avec sa date et son origine) n'est disponible qu'en relisant
-      // /api/agenda — la réponse de /api/agenda/tester ne porte que le résultat brut du tour.
-      await chargerReglagesAgenda();
     } catch (e) {
       if (resultat) { resultat.textContent = 'Serveur injoignable.'; resultat.className = 'hint reglages-email-resultat reglages-email-echec'; }
     } finally {
-      if (bouton) { bouton.disabled = false; bouton.textContent = 'Tester maintenant'; }
+      // Le compte rendu persisté (avec sa date et son origine) n'est disponible qu'en relisant
+      // /api/agenda — la réponse de /api/agenda/tester ne porte que le résultat brut du tour.
+      if (bouton) { delete bouton.dataset.enCours; bouton.disabled = false; bouton.textContent = 'Tester maintenant'; }
+      await chargerReglagesAgenda();
     }
   }
 
@@ -28898,6 +28886,8 @@
       // Vider le champ mot de passe et rafraîchir la note « déjà enregistré ».
       if (champMdp) champMdp.value = '';
       chargerReglagesExchange();
+      // Le calendrier lu et la suspension éventuelle de la lecture dépendent de ces identifiants.
+      chargerReglagesAgenda();
       render();
     } catch (e) {
       if (resultat) { resultat.textContent = 'Serveur injoignable.'; resultat.className = 'hint reglages-email-resultat reglages-email-echec'; }

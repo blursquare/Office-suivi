@@ -1,7 +1,8 @@
 'use strict';
 
-// Route /api/agenda (voir src/routes/agenda.js) : lecture/écriture de l'URL du calendrier publié,
-// et déclenchement manuel d'un tour de lecture (« Tester maintenant »).
+// Route /api/agenda (voir src/routes/agenda.js) : état de la lecture de l'agenda de l'office (par
+// EWS, avec la connexion Exchange des Réglages) et déclenchement manuel d'un tour (« Tester
+// maintenant »). Aucun identifiant ne doit ressortir de ces routes.
 
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
@@ -9,28 +10,33 @@ const os = require('node:os');
 
 const { creerApp } = require('../src/app');
 const { ouvrirDb } = require('../src/db');
+const { creerRepoParametres } = require('../src/parametresRepo');
+const { reinitialiserDisjoncteurAgenda } = require('../src/agendaWatch');
 
 function config() {
   return { motDePasse: 'mdp-test', racineRepo: os.tmpdir(), port: 0, jetonCalendrier: '' };
 }
 
-let db, serveurApp, baseUrl, jeton, depot, reponsesFetch;
+let db, serveurApp, baseUrl, jeton, depot, parametresRepo, reponsesEws;
 
-function fauxFetchAgenda() {
-  return async () => {
-    const r = reponsesFetch.shift();
-    if (!r) throw new Error('Aucune réponse simulée disponible pour ce test.');
-    return r;
-  };
+// Faux transport EWS : rend la prochaine réponse simulée (ou une liste vide, pour les tranches suivantes).
+function fauxPoster(options, rappel) {
+  const r = reponsesEws.shift() || { statusCode: 200, body: findItem('') };
+  setImmediate(() => rappel(null, r));
+}
+
+function findItem(items) {
+  return '<m:FindItemResponseMessage ResponseClass="Success"><m:ResponseCode>NoError</m:ResponseCode>'
+    + '<m:RootFolder IncludesLastItemInRange="true"><t:Items>' + items + '</t:Items></m:RootFolder></m:FindItemResponseMessage>';
 }
 
 before(async () => {
+  reinitialiserDisjoncteurAgenda();
   db = ouvrirDb(':memory:');
-  reponsesFetch = [];
-  const { app, gestionnaireAuth, depot: d } = creerApp({
-    db, config: config(), agenda: { fetchFn: fauxFetchAgenda() }
-  });
+  reponsesEws = [];
+  const { app, gestionnaireAuth, depot: d } = creerApp({ db, config: config(), agenda: { poster: fauxPoster } });
   depot = d;
+  parametresRepo = creerRepoParametres(db);
   jeton = gestionnaireAuth.creerSession();
   serveurApp = app.listen(0);
   await new Promise((resolve) => serveurApp.once('listening', resolve));
@@ -38,6 +44,7 @@ before(async () => {
 });
 
 after(() => {
+  reinitialiserDisjoncteurAgenda();
   serveurApp.close();
   db.close();
 });
@@ -54,63 +61,57 @@ test('GET /api/agenda sans authentification : 401', async () => {
   assert.equal(reponse.status, 401);
 });
 
-test('GET /api/agenda renvoie les valeurs par defaut au premier appel', async () => {
+test('GET /api/agenda renvoie l’état par défaut au premier appel', async () => {
   const corps = await (await appeler('/api/agenda')).json();
-  assert.deepEqual(corps, { reglages: { icsUrl: '' }, dernierTour: null, absences: [], categories: [] });
+  assert.deepEqual(corps, {
+    source: { configuree: false, calendrier: '', suspendue: false }, dernierTour: null, absences: [], categories: []
+  });
 });
 
-test('PUT /api/agenda enregistre l\'URL, refuse ce qui n\'est pas http(s)', async () => {
-  const ok = await (await appeler('/api/agenda', { method: 'PUT', body: JSON.stringify({ icsUrl: 'https://outlook.office.com/owa/calendar/xyz/reachcalendar.ics' }) })).json();
-  assert.equal(ok.reglages.icsUrl, 'https://outlook.office.com/owa/calendar/xyz/reachcalendar.ics');
-
-  const relu = await (await appeler('/api/agenda')).json();
-  assert.equal(relu.reglages.icsUrl, 'https://outlook.office.com/owa/calendar/xyz/reachcalendar.ics');
-
-  const mauvais = await (await appeler('/api/agenda', { method: 'PUT', body: JSON.stringify({ icsUrl: 'C:\\Users\\etude\\agenda.ics' }) })).json();
-  assert.equal(mauvais.reglages.icsUrl, '', 'un chemin de fichier n\'est pas une URL de calendrier');
-});
-
-test('POST /api/agenda/tester sans URL enregistree : 400, rien tente', async () => {
-  await appeler('/api/agenda', { method: 'PUT', body: JSON.stringify({ icsUrl: '' }) });
+test('POST /api/agenda/tester sans connexion configurée : 400, rien tenté', async () => {
   const reponse = await appeler('/api/agenda/tester', { method: 'POST' });
   assert.equal(reponse.status, 400);
 });
 
-test('POST /api/agenda/tester : declenche un vrai tour, met a jour un dossier, persiste le compte rendu', async () => {
-  await appeler('/api/agenda', { method: 'PUT', body: JSON.stringify({ icsUrl: 'https://example.test/agenda.ics' }) });
-  const d = depot.creer({ id: 'd1', nom: 'DUPONT / MARTIN' });
-  void d;
-
-  const ics = [
-    'BEGIN:VCALENDAR',
-    'BEGIN:VEVENT',
-    'SUMMARY:VTE - DUPONT / MARTIN',
-    'LOCATION:BA Appel de fonds envoyé',
-    'DTSTART:20991014',
-    'END:VEVENT',
-    'END:VCALENDAR'
-  ].join('\r\n');
-  reponsesFetch.push({ ok: true, status: 200, text: async () => ics });
+test('POST /api/agenda/tester : déclenche un vrai tour, met à jour un dossier, persiste le compte rendu', async () => {
+  parametresRepo.ecrireReglagesExchange({
+    actif: true, email: 'bastien@etude.test', motDePasse: 'mdp-secret', calendrierPartage: 'sophie@etude.test'
+  });
+  depot.creer({ id: 'd1', nom: 'DUPONT / MARTIN' });
+  reponsesEws.push({
+    statusCode: 200,
+    body: findItem('<t:CalendarItem><t:ItemId Id="a" ChangeKey="b"/><t:Subject>VTE - DUPONT / MARTIN</t:Subject>'
+      + '<t:Start>2099-10-14T08:00:00Z</t:Start><t:End>2099-10-14T09:00:00Z</t:End><t:IsAllDayEvent>false</t:IsAllDayEvent>'
+      + '<t:IsCancelled>false</t:IsCancelled><t:Location>BA Appel de fonds envoyé</t:Location></t:CalendarItem>')
+  });
 
   const reponse = await appeler('/api/agenda/tester', { method: 'POST' });
   const corps = await reponse.json();
   assert.equal(reponse.status, 200);
-  assert.equal(corps.ok, true);
-  assert.equal(corps.misAJour.length, 1);
+  assert.equal(corps.ok, true, corps.erreur);
+  assert.equal(corps.calendrier, 'sophie@etude.test');
   assert.equal(depot.trouverParId('d1').appelFonds, require('../src/agendaWatch').dateDuJourParis());
 
   const relu = await (await appeler('/api/agenda')).json();
   assert.equal(relu.dernierTour.ok, true);
   assert.equal(relu.dernierTour.declenche, 'manuel');
+  assert.deepEqual(relu.source, { configuree: true, calendrier: 'sophie@etude.test', suspendue: false });
+  assert.doesNotMatch(JSON.stringify(relu), /mdp-secret/);
 });
 
-test('POST /api/agenda/tester : une erreur reseau est rapportee proprement (jamais un plantage)', async () => {
-  await appeler('/api/agenda', { method: 'PUT', body: JSON.stringify({ icsUrl: 'https://example.test/agenda.ics' }) });
-  // 404 plutôt que 500 : un 500 est désormais relancé une fois après 3 s (voir STATUTS_A_RELANCER).
-  reponsesFetch.push({ ok: false, status: 404 });
+test('POST /api/agenda/tester : identifiants refusés → rapporté proprement, lecture automatique suspendue', async () => {
+  reponsesEws.push({ statusCode: 401, body: '' });
   const reponse = await appeler('/api/agenda/tester', { method: 'POST' });
   const corps = await reponse.json();
-  assert.equal(reponse.status, 200, 'la route repond normalement, l\'echec est porte dans le compte rendu');
+  assert.equal(reponse.status, 200, 'la route répond normalement, l’échec est porté dans le compte rendu');
   assert.equal(corps.ok, false);
-  assert.match(corps.erreur, /404/);
+  assert.equal(corps.identifiantsRefuses, true);
+  assert.equal(corps.source.suspendue, true);
+  assert.match(corps.erreur, /refusés/);
+  assert.doesNotMatch(JSON.stringify(corps), /mdp-secret/);
+});
+
+test('PUT /api/agenda n’existe plus (plus d’adresse .ics à enregistrer)', async () => {
+  const reponse = await appeler('/api/agenda', { method: 'PUT', body: JSON.stringify({ icsUrl: 'https://x.test/a.ics' }) });
+  assert.equal(reponse.status, 404);
 });

@@ -1,55 +1,59 @@
 'use strict';
 
-// Écran Réglages › Agenda de l'office (voir agendaOffice.js/agendaWatch.js pour la lecture et le
-// rapprochement, tous deux purs) — montée derrière l'authentification comme le reste de /api.
+// Écran Réglages › Agenda : compte rendu de la lecture de l'agenda de l'office (voir
+// agendaOffice.js/agendaWatch.js) — montée derrière l'authentification comme le reste de /api. La
+// lecture passe par la connexion Exchange (routes/exchange.js) : aucun réglage propre ici.
 //
-// `options` porte `{ depot, fetchFn }` : `depot` est nécessaire au seul déclenchement manuel d'un
-// tour (« Tester maintenant »), optionnel comme pour /reglages/lancer-rappels — les tests qui ne
-// montent que la lecture/écriture des réglages n'ont pas à fabriquer un dépôt, et la route répond
-// alors 503 plutôt que de planter. `fetchFn` reste injectable pour les tests, jamais utilisé en
-// production (repli sur le `fetch` global de Node dans agendaWatch.js).
+// `options` porte `{ depot, poster }` : `depot` est nécessaire au seul déclenchement manuel d'un
+// tour (« Tester maintenant ») — sans lui la route répond 503 plutôt que de planter. `poster`
+// (faux transport EWS) est réservé aux tests.
 
 const express = require('express');
-const { executerEtEnregistrerTourAgenda } = require('../agendaWatch');
+const { executerEtEnregistrerTourAgenda, connexionAgendaConfiguree, lectureAgendaSuspendue } = require('../agendaWatch');
 
 function creerRouteurAgenda(parametresRepo, options) {
   const routeur = express.Router();
-  const { depot, fetchFn } = options || {};
+  const { depot, poster } = options || {};
+  const injections = poster ? { poster } : undefined;
+
+  // État de la source, sans aucun identifiant : le calendrier lu (adresse de boîte, pas un secret)
+  // et si la lecture automatique est suspendue après un refus d'identifiants.
+  function source() {
+    const r = typeof parametresRepo.lireReglagesExchange === 'function' ? parametresRepo.lireReglagesExchange() : {};
+    return {
+      configuree: connexionAgendaConfiguree(r),
+      calendrier: r.calendrierPartage || r.email || '',
+      suspendue: connexionAgendaConfiguree(r) && lectureAgendaSuspendue(r)
+    };
+  }
 
   routeur.get('/agenda', (req, res) => {
     res.json({
-      reglages: parametresRepo.lireReglagesAgenda(),
+      source: source(),
       dernierTour: parametresRepo.lireDernierTourAgenda(),
-      // Absences des collaborateurs lues dans l'agenda (voir absencesDepuisIcs) : l'agenda du tableau
-      // de bord les affiche (« Absent cette semaine : … ») et signale les rendez-vous d'un
-      // collaborateur absent ce jour-là.
+      // Absences des collaborateurs lues dans l'agenda (voir absencesDepuisEvenements) : l'agenda du
+      // tableau de bord les affiche et signale les rendez-vous d'un collaborateur absent ce jour-là.
       absences: parametresRepo.lireAbsencesAgenda(),
-      // Catégories Outlook vues dans le flux : suggestions pour régler les couleurs des rendez-vous.
+      // Catégories Outlook vues dans l'agenda : suggestions pour régler les couleurs des rendez-vous.
       categories: typeof parametresRepo.lireCategoriesAgenda === 'function' ? parametresRepo.lireCategoriesAgenda() : []
     });
   });
 
-  routeur.put('/agenda', (req, res) => {
-    res.json({ reglages: parametresRepo.ecrireReglagesAgenda(req.body || {}) });
-  });
-
-  // Déclenche un vrai tour de lecture tout de suite — le chemin de production
-  // (executerTourSurveillanceAgenda → appliquerDetectionsAgenda), pas une simulation : sans ce
-  // bouton, vérifier que le lien fonctionne supposerait d'attendre le prochain tour automatique
-  // (jusqu'à quinze minutes). Le compte rendu écrit est le même que celui du minuteur.
+  // Déclenche un vrai tour de lecture tout de suite — le chemin de production, pas une simulation.
+  // Un seul essai, même quand la lecture automatique est suspendue : c'est une personne qui le
+  // demande (et un succès lève la suspension).
   routeur.post('/agenda/tester', async (req, res) => {
     if (!depot) {
       res.status(503).json({ erreur: 'Déclenchement manuel indisponible sur ce serveur.' });
       return;
     }
-    const reglages = parametresRepo.lireReglagesAgenda();
-    if (!reglages.icsUrl) {
-      res.status(400).json({ erreur: "Aucune adresse d'agenda enregistrée — renseignez-la puis enregistrez avant de tester." });
+    if (!source().configuree) {
+      res.status(400).json({ erreur: "La connexion à l'agenda Outlook n'est pas configurée : renseignez-la et activez-la ci-dessous avant de tester." });
       return;
     }
     try {
-      const resultat = await executerEtEnregistrerTourAgenda(depot, parametresRepo, fetchFn, 'manuel');
-      res.json({ ok: true, ...resultat });
+      const resultat = await executerEtEnregistrerTourAgenda(depot, parametresRepo, injections, 'manuel');
+      res.json({ ...resultat, source: source() });
     } catch (e) {
       res.status(500).json({ erreur: `La lecture de l'agenda a échoué : ${e.message}` });
     }

@@ -374,3 +374,30 @@ test('FindItem : début et fin de chaque rendez-vous relus', () => {
   assert.equal(e.end, '2026-10-14T13:30:00Z');
   assert.ok(ews.corpsFindRendezVous({ debutUtc: 'a', finUtc: 'b' }).includes('calendar:Start'));
 });
+
+// --- Lecture de l'agenda de l'office (remplace le flux .ics publié) ---
+
+test('parseCalendrierEws : sujet et lieu dés-échappés, catégories, journée entière, annulation, liste coupée', () => {
+  const { parseCalendrierEws, corpsLireCalendrier } = require('../src/exchange/ews');
+  const corps = '<m:RootFolder IncludesLastItemInRange="true"><t:Items><t:CalendarItem><t:ItemId Id="X1" ChangeKey="C1"/>'
+    + '<t:Subject>VTE - DUPONT &amp; MARTIN</t:Subject><t:Categories><t:String>Catégorie Verte</t:String><t:String>Visio</t:String></t:Categories>'
+    + '<t:Start>2026-10-11T22:00:00Z</t:Start><t:End>2026-10-12T22:00:00Z</t:End><t:IsAllDayEvent>true</t:IsAllDayEvent>'
+    + '<t:IsCancelled>true</t:IsCancelled><t:Location>BA &lt;Visio&gt;</t:Location></t:CalendarItem></t:Items></m:RootFolder>';
+  const { evenements, complet } = parseCalendrierEws(corps);
+  assert.equal(complet, true);
+  assert.equal(evenements.length, 1);
+  const e = evenements[0];
+  assert.equal(e.itemId, 'X1');
+  assert.equal(e.subject, 'VTE - DUPONT & MARTIN');
+  assert.equal(e.location, 'BA <Visio>');
+  assert.equal(e.categories.join('|'), 'Catégorie Verte|Visio');
+  assert.equal(e.allDay, true);
+  assert.equal(e.cancelled, true);
+  assert.equal(parseCalendrierEws(corps.replace('"true"', '"false"')).complet, false);
+  // Lecture seule : FindItem sur une vue calendrier du calendrier partagé, jamais une écriture.
+  const requete = corpsLireCalendrier({ debutUtc: '2026-09-28T22:00:00Z', finUtc: '2026-11-29T23:00:00Z', mailbox: 'sophie@etude.test' });
+  assert.match(requete, /<m:FindItem Traversal="Shallow">/);
+  assert.match(requete, /FieldURI="calendar:IsAllDayEvent"/);
+  assert.match(requete, /FieldURI="item:Categories"/);
+  assert.doesNotMatch(requete, /CreateItem|UpdateItem|DeleteItem/);
+});
