@@ -4337,7 +4337,7 @@
     body { background: #fff; color: #000; font-size: 11pt; }
     .panel, .pdf-viewer, .list-toolbar, .relances-ciblees, .envoi-action,
     .confirm-overlay, .toast, footer.note, .dash-avancement,
-    .sidebar, .sidebar-burger, .sidebar-scrim, .dash-header, .kpis-dashboard,
+    .sidebar, .sidebar-burger, .sidebar-scrim, .dash-header, .kpis-dashboard, .widgets-conteneur,
     .dash-nouveautes, .dash-rail, .dash-section-titre { display: none !important; }
     .app-main { padding: 0; }
     .layout-cols { display: block; }
@@ -5727,10 +5727,7 @@ button.avancement-ligne:hover { background: var(--paper-sunk); }
   .dash-accueil-ligne .dash-header-actions { width: 100%; margin-left: 0; flex-direction: column; align-items: stretch; }
   .dash-accueil-ligne .dash-recherche { width: 100%; flex: none; }
 }
-.dash-principal .kpis-dashboard { margin: 24px 0 0; }
-/* Sans activité récente, la carte « Activité de l'étude » est masquée : le portefeuille garde
-   la largeur d'une colonne plutôt que de s'étirer sur toute la ligne. */
-.kpis-dashboard.sans-activite { grid-template-columns: minmax(0, 1fr); max-width: 520px; }
+
 /* À traiter (étroit) + avancement (large). Flex : un avancement masqué laisse À traiter prendre
    toute la largeur, et les deux passent l'un sous l'autre seulement en dessous de ~620px de
    colonne principale — en pratique jamais tant que le rail reste à côté (grille 2 colonnes,
@@ -6715,3 +6712,79 @@ button.confrere-carnet-office:focus-visible, button.carnet-dossier:focus-visible
 .fonds-noms > svg { width: 13px; height: 13px; }
 @media (max-width: 520px) { .fonds-chiffre strong { font-size: 15px; } .fonds-chiffres { gap: 8px; } }
 @media (prefers-reduced-motion: reduce) { .fonds-barre > span { transition: none; } }
+
+/* Colonne « Étape » du tableau du Suivi (celluleEtapeTableau) : badge et date sur une ligne. */
+.etape-cellule { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.etape-autre { margin-top: 3px; font-size: 12px; color: var(--muted); }
+
+/* ==== Widgets du tableau de bord (renderWidgetsDashboard) ====
+   Grille de 3 colonnes : petit = 1, moyen = 2, grand = toute la largeur ; 2 colonnes puis 1 quand
+   la place manque (requête de conteneur sur la largeur réelle de la zone, sidebar déduite). */
+.widgets-conteneur { container-type: inline-size; container-name: widgets; margin-top: 4px; }
+.widgets-grille { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; align-items: start; }
+.widget { position: relative; min-width: 0; grid-column: span 1; }
+.widget[data-taille="moyen"] { grid-column: span 2; }
+.widget[data-taille="grand"] { grid-column: 1 / -1; }
+@container widgets (max-width: 900px) {
+  .widgets-grille { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .widget[data-taille="moyen"], .widget[data-taille="grand"] { grid-column: 1 / -1; }
+}
+@container widgets (max-width: 560px) {
+  .widgets-grille { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .widget, .widget[data-taille] { grid-column: 1 / -1; }
+}
+/* Chaque carte remplit son widget ; la carte « Dossiers ouverts » perd son ancienne marge de grille. */
+.widget > .dash-bloc > .kpi-tile { margin: 0; }
+
+/* Personnalisation : un contour pointillé, une barre de réglage au-dessus de chaque widget, et le
+   contenu rendu inerte (on range, on ne travaille pas). */
+.widgets-grille.edition .widget {
+  border: 1.5px dashed var(--line); border-radius: 14px; padding: 8px; background: var(--paper-sunk);
+  cursor: grab;
+}
+/* Le contenu frémit (repère « mode rangement » des widgets iOS) ; la barre de réglage, elle, reste
+   immobile pour que ses boutons se cliquent sans viser une cible qui bouge. */
+.widgets-grille.edition .widget > .dash-bloc { pointer-events: none; user-select: none; animation: widget-frisson 0.35s ease-in-out infinite alternate; }
+.widgets-grille.edition .widget:nth-child(2n) > .dash-bloc { animation-delay: -0.17s; }
+.widgets-grille.edition .widget.widget-vide > .dash-bloc { display: none !important; }
+.widgets-grille.edition .widget.widget-vide::after {
+  content: 'Rien à afficher pour l’instant'; display: block; padding: 18px 10px; font-size: 13px; color: var(--muted); text-align: center;
+}
+.widget.widget-glisse { opacity: 0.45; }
+.widget.widget-cible-avant { box-shadow: -4px 0 0 0 var(--focus); }
+.widget.widget-cible-apres { box-shadow: 4px 0 0 0 var(--focus); }
+@keyframes widget-frisson { from { transform: rotate(-0.25deg); } to { transform: rotate(0.25deg); } }
+@media (prefers-reduced-motion: reduce) { .widgets-grille.edition .widget > .dash-bloc { animation: none; } }
+
+.widget-barre { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 2px 2px 8px; }
+.widget-poignee { display: inline-flex; color: var(--muted); cursor: grab; }
+.widget-poignee svg { width: 14px; height: 14px; }
+.widget-barre-titre { font-size: 13px; font-weight: 600; color: var(--ink); margin-right: auto; min-width: 0; }
+.widget-tailles { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--paper-card); }
+button.widget-taille {
+  border: 0; background: none; padding: 4px 9px; font: inherit; font-size: 12px; color: var(--ink-soft); cursor: pointer;
+}
+button.widget-taille + button.widget-taille { border-left: 1px solid var(--line); }
+button.widget-taille.actif { background: var(--focus); color: var(--paper-card); }
+button.widget-outil {
+  display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0;
+  border: 1px solid var(--line); border-radius: 7px; background: var(--paper-card); color: var(--ink-soft); cursor: pointer;
+}
+button.widget-outil:hover:not(:disabled) { color: var(--focus); border-color: var(--focus); }
+button.widget-outil:disabled { opacity: 0.35; cursor: default; }
+button.widget-outil svg { width: 13px; height: 13px; }
+button.widget-taille:focus-visible, button.widget-outil:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+
+.widgets-masques { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 18px; }
+.widgets-masques button.bouton-ajout { width: auto; margin: 0; }
+.widgets-reinitialiser { margin-left: auto; }
+
+/* Bouton « Personnaliser / Terminé » de l'accueil. */
+button.widgets-personnaliser {
+  display: inline-flex; align-items: center; gap: 6px; margin-left: auto; padding: 6px 12px;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--paper-card);
+  font: inherit; font-size: 12.5px; color: var(--ink-soft); cursor: pointer;
+}
+button.widgets-personnaliser svg { width: 14px; height: 14px; }
+button.widgets-personnaliser:hover { color: var(--focus); border-color: var(--focus); }
+button.widgets-personnaliser.actif { background: var(--focus); border-color: var(--focus); color: var(--paper-card); }

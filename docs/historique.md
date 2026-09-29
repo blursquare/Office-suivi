@@ -12264,3 +12264,25 @@ l'étape (≤ 7 j ou dépassée rouge, ≤ 15 j ambre, sinon neutre ; signature 
 - Portefeuille : l'anneau compte par groupe d'étapes (`GROUPES_ETAPE_DOSSIER` : conditions,
   pièces, rendez-vous, envois, signature) ; phrase de synthèse reformulée en étapes.
 - `statutDossier` (pièces trouvées) est conservé pour le tri « statut » et les points « À traiter ».
+
+### 29/09 23:03 — Widgets du tableau de bord ; étape et échéance réunies dans le Suivi
+
+Demande : « Créer un système comme les widgets iOS où l'on peut les agrandir et rétrécir sur le
+Dashboard et que l'on peut déplacer. Le statut et échéances font doublon. »
+- Tableau de bord : `.widgets-grille` de 3 colonnes (2 puis 1 par requête de conteneur), six
+  `section.widget[data-widget]` qui enveloppent les conteneurs existants (mêmes identifiants, les
+  fonctions de rendu n'ont pas changé ; `#kpis-dashboard` éclaté en `#kpi-portefeuille` et
+  `#kpi-activite`). Tailles permises par widget (`WIDGETS_DASHBOARD`) : petit = 1 colonne, moyen = 2,
+  grand = toute la largeur. « Personnaliser » : barre par widget (poignée, tailles, flèches, masquer),
+  glisser-déposer HTML5 à la souris, flèches au clavier et au doigt, widgets masqués remis depuis le
+  bas, « Disposition d'origine ». Le contenu frémit (repère iOS), la barre reste immobile.
+  `renderWidgetsDashboard` range les nœuds sans toucher au contenu ; un widget sans contenu (pas de
+  pièce récente, pas d'activité) ne prend pas de place hors personnalisation.
+- Persistance par collaborateur : préférence `widgets` (`assainirWidgetsPreference`, liste blanche
+  des identifiants et tailles, doublons écartés), cache `localStorage` pour l'affichage immédiat ;
+  `dispositionWidgetsDepuis` complète une préférence ancienne ou abîmée (tests
+  `tests/widgets-dashboard.test.js`, `server/test/preferences.test.js`). Vérifié dans Chromium :
+  taille, masquage, glisser, enregistrement en base, retour après rechargement, téléphone.
+- Suivi, vue Tableau : le badge d'étape quitte la colonne Dossier et rejoint sa date dans la colonne
+  « Étape » (`celluleEtapeTableau`) — « Attente de l'offre de prêt » répétait « Obtention du prêt »
+  de la colonne « Prochaine échéance ». Une échéance personnalisée plus proche reste signalée dessous.

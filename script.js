@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 22:56';
+  const VERSION_APP = '2026-09-29 23:03';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 23:03', resume: "Tableau de bord en widgets, comme sur iPhone : « Personnaliser » (à côté de « Mes dossiers ») permet de glisser chaque bloc à sa place (ou de le déplacer avec les flèches), de choisir sa taille (petit, moyen, grand) et de le masquer ; « Terminé » range. Chaque collaborateur garde sa propre disposition, retrouvée sur tous les postes. Suivi : l'étape et sa date sont réunies dans une seule colonne « Étape » (elles faisaient doublon avec « Prochaine échéance »)." },
     { version: '2026-09-29 22:56', resume: "Un seul statut par dossier, partout : son étape — « Attente de l'offre de prêt », « Pièces manquantes », « Rendez-vous à fixer », « Appel de fonds à envoyer », « Projet à envoyer », « Prêt à signer »… en rouge si l'échéance de l'étape est à 7 jours ou moins, en ambre à 15 jours. Il remplace « Aucun document », « À relier », « En retard » et consorts sur le tableau de bord, le Suivi, la fiche et la recherche. L'anneau du portefeuille compte les dossiers par étape." },
     { version: '2026-09-29 22:50', resume: "Interface allégée. Tableau de bord : « Aujourd'hui » et l'avancement des dossiers passent en tête, les chiffres du portefeuille dessous, et la carte « Activité de l'étude » ne s'affiche que s'il y a eu de l'activité dans la semaine. Les noms de dossiers ne sont plus coupés dans « Aujourd'hui ». Fiche : les champs secondaires vides (mobilier, séquestre, versé à, notaires) sont repliés derrière « Compléter la fiche (N) ». Suivi : les tuiles de chiffres, qui répétaient le tableau de bord, et la note du bas sont retirées ; l'export/import JSON passe dans Réglages › Mise à jour et sauvegarde." },
     { version: '2026-09-29 22:37', resume: "Agenda de l'office : un rendez-vous intitulé « VENTE - NOM DU DOSSIER » est reconnu comme « VTE - NOM », même au milieu du titre (« RDV VENTE - DUPONT ») — rendez-vous de signature, envois notés dans le lieu. VENTE doit être en capitales et suivi d'un tiret. Le résumé des emails du matin rattache aussi « VENTE - NOM » au dossier." },
@@ -12951,7 +12952,9 @@
   }
 
   function renderKpisDashboard(dossiersActifs, dossiersTousPerimetre) {
-    const bloc = document.getElementById('kpis-dashboard');
+    // Deux widgets distincts depuis le 29/09 : « Dossiers ouverts » et « Activité de l'étude ».
+    const bloc = document.getElementById('kpi-portefeuille');
+    const blocActivite = document.getElementById('kpi-activite');
     if (!bloc) return;
     const aujourdhui = isoAujourdhuiLocal();
     const st = statsPortefeuilleVisuel(dossiersActifs, dossiersTousPerimetre, aujourdhui);
@@ -12982,8 +12985,11 @@
     // La carte d'activité n'a rien à dire sans aucune action sur les 7 derniers jours : elle
     // occupait alors une place de choix pour afficher « 0 » (revue de l'interface, 29/09).
     const activite = renderActiviteEtude(dossiers);
-    bloc.classList.toggle('sans-activite', !activite);
-    bloc.innerHTML = carte + activite;
+    bloc.innerHTML = carte;
+    if (blocActivite) {
+      blocActivite.innerHTML = activite;
+      blocActivite.style.display = activite ? '' : 'none';
+    }
   }
 
   // ---- Activité de l'étude (Tableau de bord) : suivi en direct, tous collaborateurs ----
@@ -14392,6 +14398,7 @@
     const valide = RESPONSABLES.indexOf(nom) !== -1 ? nom : '';
     utilisateurPoste = valide;
     vueDashboardGlobale = null;
+    dispositionWidgets = null;   // disposition des widgets propre à chaque collaborateur
     filtreSuiviPose = false;
     try {
       if (valide) localStorage.setItem(CLE_UTILISATEUR_POSTE, valide);
@@ -14494,7 +14501,208 @@
           <button type="button" class="vue-bascule-btn${global ? ' actif' : ''}" aria-pressed="${global}" onclick="basculerVueDashboard(true)">Tous les dossiers</button>
         </div>
         <button type="button" class="lien-discret" onclick="ouvrirChoixPoste()">Pas ${escapeHtml(prenomCollaborateur(utilisateurPoste))} ? Changer</button>
+        <button type="button" class="widgets-personnaliser${modeEditionWidgets ? ' actif' : ''}" onclick="basculerEditionWidgets()" aria-pressed="${modeEditionWidgets}">${modeEditionWidgets ? `${icone('check')}Terminé` : `${icone('layout')}Personnaliser`}</button>
       </div>`;
+  }
+
+  // ---- Widgets du tableau de bord (demandé par l'étude le 29/09 : « comme les widgets iOS ») ----
+  // Chaque bloc est un widget : petit (1 colonne), moyen (2) ou grand (toute la largeur) dans une
+  // grille de 3 colonnes (2 puis 1 sur un écran étroit). En mode « Personnaliser » : glisser pour
+  // déplacer (ou flèches, au clavier et au doigt), choisir la taille, masquer ; les widgets masqués
+  // se remettent depuis le bas de la grille. La disposition est propre à chaque collaborateur :
+  // préférence « widgets » en base (voir routes/preferences.js), cache localStorage pour l'affichage
+  // immédiat. Un widget sans contenu (aucune pièce récente, aucune activité) ne prend pas de place
+  // hors personnalisation.
+  var WIDGETS_DASHBOARD = [
+    { id: 'aujourdhui', titre: 'Aujourd’hui', tailles: ['moyen', 'grand'], defaut: 'moyen' },
+    { id: 'agenda', titre: 'Agenda', tailles: ['petit', 'moyen'], defaut: 'petit' },
+    { id: 'avancement', titre: 'Avancement des dossiers', tailles: ['moyen', 'grand'], defaut: 'moyen' },
+    { id: 'portefeuille', titre: 'Dossiers ouverts', tailles: ['petit', 'moyen'], defaut: 'petit' },
+    { id: 'activite', titre: 'Activité de l’étude', tailles: ['moyen', 'grand'], defaut: 'moyen' },
+    { id: 'pieces', titre: 'Dernières pièces', tailles: ['petit', 'moyen', 'grand'], defaut: 'petit' }
+  ];
+  var LIBELLES_TAILLE_WIDGET = { petit: 'Petit', moyen: 'Moyen', grand: 'Grand' };
+  var CLE_WIDGETS_LOCAL = 'claire-widgets:';
+  let modeEditionWidgets = false;
+  let dispositionWidgets = null;   // null = pas encore chargée : disposition par défaut
+
+  // Pure : la disposition complète à partir d'une préférence enregistrée (éventuellement partielle,
+  // ancienne ou abîmée). Ordre enregistré pour les widgets connus, taille ramenée à une taille
+  // permise, widgets absents (nouveaux) ajoutés à la fin à leur taille par défaut.
+  function dispositionWidgetsDepuis(preference) {
+    const parId = new Map(WIDGETS_DASHBOARD.map(w => [w.id, w]));
+    const out = [];
+    const vus = new Set();
+    (Array.isArray(preference) ? preference : []).forEach(p => {
+      const def = p && parId.get(p.id);
+      if (!def || vus.has(p.id)) return;
+      vus.add(p.id);
+      out.push({ id: p.id, taille: def.tailles.indexOf(p.taille) !== -1 ? p.taille : def.defaut, masque: p.masque === true });
+    });
+    WIDGETS_DASHBOARD.forEach(def => {
+      if (!vus.has(def.id)) out.push({ id: def.id, taille: def.defaut, masque: false });
+    });
+    return out;
+  }
+
+  // Pure : `id` déplacé à la position `index` parmi les widgets (bornée), les autres dans le même ordre.
+  function deplacerWidgetDans(dispo, id, index) {
+    const liste = dispo.slice();
+    const i = liste.findIndex(w => w.id === id);
+    if (i === -1) return liste;
+    const [w] = liste.splice(i, 1);
+    const cible = Math.max(0, Math.min(liste.length, index));
+    liste.splice(cible, 0, w);
+    return liste;
+  }
+
+  // Pure : un pas vers l'avant ou l'arrière parmi les widgets VISIBLES (les masqués ne comptent pas).
+  function decalerWidgetDans(dispo, id, pas) {
+    const visibles = dispo.filter(w => !w.masque);
+    const i = visibles.findIndex(w => w.id === id);
+    const voisin = visibles[i + pas];
+    if (i === -1 || !voisin) return dispo.slice();
+    return deplacerWidgetDans(dispo, id, dispo.findIndex(w => w.id === voisin.id));
+  }
+
+  function dispositionWidgetsCourante() {
+    if (!dispositionWidgets) {
+      let locale = null;
+      try { locale = JSON.parse(localStorage.getItem(CLE_WIDGETS_LOCAL + utilisateurPoste) || 'null'); } catch (e) { locale = null; }
+      dispositionWidgets = dispositionWidgetsDepuis(locale);
+    }
+    return dispositionWidgets;
+  }
+
+  function enregistrerDispositionWidgets(dispo) {
+    dispositionWidgets = dispo;
+    try { localStorage.setItem(CLE_WIDGETS_LOCAL + utilisateurPoste, JSON.stringify(dispo)); } catch (e) { /* cache facultatif */ }
+    enregistrerPreferenceCollaborateur({ widgets: dispo });
+    renderWidgetsDashboard();
+  }
+
+  // Appliquée par chargerPreferencesCollaborateur : la disposition enregistrée sur le serveur.
+  function appliquerDispositionWidgets(preference) {
+    dispositionWidgets = dispositionWidgetsDepuis(preference);
+    try { localStorage.setItem(CLE_WIDGETS_LOCAL + utilisateurPoste, JSON.stringify(dispositionWidgets)); } catch (e) { /* cache facultatif */ }
+    renderWidgetsDashboard();
+  }
+
+  function basculerEditionWidgets() {
+    modeEditionWidgets = !modeEditionWidgets;
+    render();
+  }
+
+  function changerTailleWidget(id, taille) {
+    enregistrerDispositionWidgets(dispositionWidgetsCourante().map(w => w.id === id ? Object.assign({}, w, { taille }) : w));
+  }
+
+  function masquerWidget(id, masque) {
+    enregistrerDispositionWidgets(dispositionWidgetsCourante().map(w => w.id === id ? Object.assign({}, w, { masque }) : w));
+  }
+
+  function decalerWidget(id, pas) {
+    enregistrerDispositionWidgets(decalerWidgetDans(dispositionWidgetsCourante(), id, pas));
+  }
+
+  function reinitialiserWidgets() {
+    enregistrerDispositionWidgets(dispositionWidgetsDepuis(null));
+  }
+
+  // Barre de réglage d'un widget en mode Personnaliser : poignée, titre, tailles, flèches, masquer.
+  function barreEditionWidget(def, w, rang, total) {
+    const tailles = def.tailles.map(t => `<button type="button" class="widget-taille${w.taille === t ? ' actif' : ''}" aria-pressed="${w.taille === t}" onclick="changerTailleWidget('${def.id}', '${t}')">${LIBELLES_TAILLE_WIDGET[t]}</button>`).join('');
+    return `<div class="widget-barre">
+      <span class="widget-poignee" title="Glisser pour déplacer" aria-hidden="true">${icone('menu')}</span>
+      <span class="widget-barre-titre">${escapeHtml(def.titre)}</span>
+      <span class="widget-tailles" role="group" aria-label="Taille du widget ${escapeAttr(def.titre)}">${tailles}</span>
+      <button type="button" class="widget-outil" onclick="decalerWidget('${def.id}', -1)" ${rang === 0 ? 'disabled' : ''} title="Avancer" aria-label="Avancer ${escapeAttr(def.titre)}">${icone('chevron-left')}</button>
+      <button type="button" class="widget-outil" onclick="decalerWidget('${def.id}', 1)" ${rang === total - 1 ? 'disabled' : ''} title="Reculer" aria-label="Reculer ${escapeAttr(def.titre)}">${icone('chevron-right')}</button>
+      <button type="button" class="widget-outil" onclick="masquerWidget('${def.id}', true)" title="Masquer" aria-label="Masquer ${escapeAttr(def.titre)}">${icone('x')}</button>
+    </div>`;
+  }
+
+  // Place les widgets (ordre, taille, visibilité) sans toucher à leur contenu : les fonctions de
+  // rendu de chaque bloc écrivent dans leurs propres conteneurs, déplacés tels quels.
+  function renderWidgetsDashboard() {
+    const grille = document.getElementById('widgets-dashboard');
+    if (!grille) return;
+    const dispo = dispositionWidgetsCourante();
+    const defs = new Map(WIDGETS_DASHBOARD.map(w => [w.id, w]));
+    const visibles = dispo.filter(w => !w.masque);
+    grille.classList.toggle('edition', modeEditionWidgets);
+    dispo.forEach(w => {
+      const el = grille.querySelector(`.widget[data-widget="${w.id}"]`);
+      if (!el) return;
+      grille.appendChild(el);   // l'ordre du DOM est l'ordre d'affichage
+      el.dataset.taille = w.taille;
+      // Sans contenu (le bloc intérieur est masqué par sa fonction de rendu) : pas de place prise,
+      // sauf en personnalisation où il reste visible pour être rangé.
+      const interieur = el.querySelector('.dash-bloc');
+      const vide = !!interieur && interieur.style.display === 'none';
+      el.hidden = false;
+      el.style.display = w.masque || (vide && !modeEditionWidgets) ? 'none' : '';
+      el.classList.toggle('widget-vide', vide);
+      el.draggable = modeEditionWidgets;
+      let barre = el.querySelector(':scope > .widget-barre');
+      if (barre) barre.remove();
+      if (modeEditionWidgets && !w.masque) {
+        el.insertAdjacentHTML('afterbegin', barreEditionWidget(defs.get(w.id), w, visibles.indexOf(w), visibles.length));
+      }
+    });
+    const masques = document.getElementById('widgets-masques');
+    if (masques) {
+      const liste = dispo.filter(w => w.masque);
+      masques.innerHTML = modeEditionWidgets
+        ? `${liste.map(w => `<button type="button" class="bouton-ajout bouton-ajout-court" onclick="masquerWidget('${w.id}', false)">${escapeHtml(defs.get(w.id).titre)}</button>`).join('')}
+           <button type="button" class="lien-discret widgets-reinitialiser" onclick="reinitialiserWidgets()">Disposition d’origine</button>`
+        : '';
+      masques.style.display = modeEditionWidgets ? '' : 'none';
+    }
+  }
+
+  // Glisser-déposer (souris) : on dépose AVANT le widget survolé, ou après s'il est pointé dans sa
+  // moitié droite/basse. Au doigt et au clavier, les flèches de la barre font la même chose.
+  let widgetGlisse = null;
+  function initialiserGlisserWidgets() {
+    const grille = document.getElementById('widgets-dashboard');
+    if (!grille || grille.dataset.glisser) return;
+    grille.dataset.glisser = '1';
+    const cibleDe = (e) => e.target.closest && e.target.closest('.widget');
+    const nettoyer = () => grille.querySelectorAll('.widget-cible-avant, .widget-cible-apres, .widget-glisse')
+      .forEach(el => el.classList.remove('widget-cible-avant', 'widget-cible-apres', 'widget-glisse'));
+    const apres = (el, e) => {
+      const r = el.getBoundingClientRect();
+      return (e.clientX - r.left) > r.width / 2 || (e.clientY - r.top) > r.height * 0.75;
+    };
+    grille.addEventListener('dragstart', (e) => {
+      const el = cibleDe(e);
+      if (!modeEditionWidgets || !el) return;
+      widgetGlisse = el.dataset.widget;
+      el.classList.add('widget-glisse');
+      try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', widgetGlisse); } catch (err) { /* navigateur ancien */ }
+    });
+    grille.addEventListener('dragover', (e) => {
+      const el = cibleDe(e);
+      if (!widgetGlisse || !el || el.dataset.widget === widgetGlisse) return;
+      e.preventDefault();
+      grille.querySelectorAll('.widget-cible-avant, .widget-cible-apres').forEach(x => x.classList.remove('widget-cible-avant', 'widget-cible-apres'));
+      el.classList.add(apres(el, e) ? 'widget-cible-apres' : 'widget-cible-avant');
+    });
+    grille.addEventListener('drop', (e) => {
+      const el = cibleDe(e);
+      if (!widgetGlisse || !el) return;
+      e.preventDefault();
+      const dispo = dispositionWidgetsCourante();
+      const sansLui = dispo.filter(w => w.id !== widgetGlisse);
+      let index = sansLui.findIndex(w => w.id === el.dataset.widget);
+      if (index !== -1 && apres(el, e)) index++;
+      const id = widgetGlisse;
+      widgetGlisse = null;
+      nettoyer();
+      if (index !== -1) enregistrerDispositionWidgets(deplacerWidgetDans(dispo, id, index));
+    });
+    grille.addEventListener('dragend', () => { widgetGlisse = null; nettoyer(); });
   }
 
   // Carte « Agenda » du tableau de bord (maquette fournie par l'étude) : une bande de la semaine,
@@ -16183,6 +16391,8 @@
     renderRendezVousDashboard(perimetreActifs);
     renderAlertesDashboard(perimetreActifs);
     renderPiecesRecuesDashboard(perimetreActifs);
+    initialiserGlisserWidgets();
+    renderWidgetsDashboard();
     renderRechercheDashboard(dossiersActifs);
     majBadgeNotificationsSidebar();
     // Avant les retours anticipés sur liste vide ci-dessous : le tiroir doit se rafraîchir (ou se
@@ -16258,7 +16468,7 @@
             <th class="th-triable" onclick="definirTri('nom')">Dossier${flechesTri.nom}</th>
             <th class="th-triable" onclick="definirTri('responsable')">Responsable${flechesTri.responsable}</th>
             <th>Offre de prêt</th>
-            <th class="th-triable" onclick="definirTri('echeance')">Prochaine échéance${flechesTri.echeance}</th>
+            <th class="th-triable" onclick="definirTri('echeance')">Étape${flechesTri.echeance}</th>
           </tr></thead>
           <tbody>${tries.map(renderLigneTableau).join('')}</tbody>
         </table>
@@ -16304,23 +16514,35 @@
     return `<span class="dot-label dl-urgent notif-nouveau-tag" title="${n} document${n > 1 ? 's' : ''} nouvellement trouvé${n > 1 ? 's' : ''} — ouvrez la fiche pour les voir"><span class="dot"></span>${n} nouvelle${n > 1 ? 's' : ''} pièce${n > 1 ? 's' : ''}</span>`;
   }
 
-  function renderLigneTableau(d) {
+  // Colonne « Étape » : le badge d'étape ET sa date, dans la même case. Avant (29/09), le badge
+  // précédait le nom du dossier et la colonne « Prochaine échéance » répétait la même chose
+  // (« Attente de l'offre de prêt » … « Obtention du prêt »). Une échéance personnalisée plus proche
+  // que l'étape reste signalée en dessous.
+  function celluleEtapeTableau(d) {
+    const e = etapeDossier(d);
     const prochaine = prochaineEcheanceDetail(d);
+    const iso = e.iso || (prochaine && prochaine.iso) || null;
+    const jours = iso ? ecartJours(isoAujourdhuiLocal(), iso) : null;
+    const quand = iso
+      ? `<span class="echeance-jours ${jours !== null && jours <= 3 ? 'urgent' : 'calme'}">${formatDateFr(iso)} (${jours < 0 ? 'dépassée' : jours === 0 ? "aujourd'hui" : 'J-' + jours})</span>`
+      : '';
+    const autre = prochaine && prochaine.type === 'autre' && prochaine.iso && (!iso || prochaine.iso < iso)
+      ? `<div class="etape-autre">${escapeHtml(prochaine.label)} · ${formatDateFr(prochaine.iso)}</div>`
+      : '';
+    return `<div class="etape-cellule">${renderBadgeStatut(d)}${quand}</div>${autre}`;
+  }
+
+  function renderLigneTableau(d) {
     const offre = !d.sansPret ? statutOffreAffichage(d) : null;
     return `
       <tr class="ligne-resume${d.archive ? ' est-archive' : ''}${dossierOuvert === d.id ? ' ligne-active' : ''}" onclick="ouvrirDossierDrawer('${d.id}')">
-        <td><div class="dossier-nom-tableau">${renderBadgeStatut(d)}${escapeHtml(libelleDossierAffiche(d))}${tagNotificationsDossier(d)}</div></td>
+        <td><div class="dossier-nom-tableau">${escapeHtml(libelleDossierAffiche(d))}${tagNotificationsDossier(d)}</div></td>
         <td class="dossier-responsable-tableau">${escapeHtml(d.responsable || '—')}</td>
         <td>
           ${d.sansPret ? '<span class="echeance-jours calme">Comptant — sans prêt</span>' : `<span class="dot-label ${offre.dl}"><span class="dot"></span>${offre.texte}</span>`}
           ${(!d.sansPret && d.dossierLie) ? `<button type="button" class="action-rapide" onclick="event.stopPropagation(); verifierDossierLocalDepuisBouton('${d.id}', this)">Revérifier</button>` : ''}
         </td>
-        <td>
-          ${prochaine
-            ? `<span class="dot-label dl-${prochaine.type}"><span class="dot"></span>${escapeHtml(prochaine.label)}</span>
-               <span class="echeance-jours ${prochaine.jours <= 3 ? 'urgent' : 'calme'}">${formatDateFr(prochaine.iso)} (${prochaine.jours < 0 ? 'dépassée' : prochaine.jours === 0 ? "aujourd'hui" : 'J-' + prochaine.jours})</span>`
-            : '<span class="echeance-jours calme">—</span>'}
-        </td>
+        <td>${celluleEtapeTableau(d)}</td>
       </tr>
     `;
   }
@@ -22700,6 +22922,7 @@
     } catch (e) { return; }
     if (serveur.theme) appliquerTheme(serveur.theme);
     if (serveur.accent) appliquerAccent(serveur.accent);
+    if (Array.isArray(serveur.widgets)) appliquerDispositionWidgets(serveur.widgets);
     // Premier passage de ce collaborateur : on reprend le choix déjà fait sur ce poste.
     const manquant = {};
     const locales = preferencesLocales();

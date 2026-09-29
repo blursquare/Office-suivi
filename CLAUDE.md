@@ -256,6 +256,12 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   chiffres » : « 250.000,00 » deviendrait 25 000 000). Toute adresse passe par `normaliserAdresse`
   (format « SAINT-AIGNAN (41110), 2 rue des Cours de Meusnes » : commune en capitales, tirets et
   CEDEX gardés) ; le destinataire d'un courrier garde la forme postale (`adressePostaleCourrier`).
+- **Tableau de bord en widgets** (29/09) : chaque bloc est une `section.widget[data-widget]`
+  (aujourdhui, agenda, avancement, portefeuille, activite, pieces) de taille petit/moyen/grand dans
+  une grille de 3 colonnes ; « Personnaliser » permet de glisser, redimensionner, masquer. Disposition
+  par collaborateur : préférence `widgets` en base (liste blanche `WIDGETS_PREFERENCES` côté serveur,
+  `WIDGETS_DASHBOARD` côté client — à modifier ensemble pour ajouter un widget). Un nouveau bloc du
+  tableau de bord = un nouveau widget, jamais un bloc hors grille.
 - **Texte d'aide** : ne décrit pas ce que le bouton dit déjà ; il dit ce qui manque. Une toute
   nouvelle confirmation commence par son verbe d'action (`boutonConfirmation`). **Une explication
   n'est jamais un paragraphe** (étude, 29/09 : « ça charge trop l'interface ») : elle va dans une

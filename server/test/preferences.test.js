@@ -51,3 +51,24 @@ test('route : chaque collaborateur retrouve son thème, un changement partiel co
   r = await appeler('/api/preferences', 'PUT', { preferences: { theme: 'dark' } });
   assert.equal(r.status, 400);
 });
+
+test('widgets du tableau de bord : liste blanche des identifiants et des tailles, doublons écartés', async () => {
+  const { assainirWidgetsPreference } = require('../src/parametresRepo');
+  const w = assainirWidgetsPreference([
+    { id: 'agenda', taille: 'petit' },
+    { id: 'inconnu', taille: 'petit' },
+    { id: 'aujourdhui', taille: 'geant', masque: true },
+    { id: 'agenda', taille: 'grand' },
+    'n’importe quoi'
+  ]);
+  assert.equal(JSON.stringify(w), JSON.stringify([
+    { id: 'agenda', taille: 'petit', masque: false },
+    { id: 'aujourdhui', taille: 'moyen', masque: true }
+  ]));
+  assert.equal(assainirWidgetsPreference('pas une liste'), null);
+  // Enregistrés par collaborateur, sans toucher au thème.
+  await appeler('/api/preferences', 'PUT', { collaborateur: 'Julie VASSELIN', preferences: { widgets: [{ id: 'avancement', taille: 'grand' }] } });
+  const r = await (await appeler('/api/preferences?collaborateur=' + encodeURIComponent('Julie VASSELIN'))).json();
+  assert.equal(r.preferences.theme, 'dark');
+  assert.equal(JSON.stringify(r.preferences.widgets), JSON.stringify([{ id: 'avancement', taille: 'grand', masque: false }]));
+});

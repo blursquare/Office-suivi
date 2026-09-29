@@ -165,81 +165,81 @@
 </div>
 
 <div class="onglet-panel" id="onglet-dashboard">
-  <!-- Disposition en deux colonnes (demandée par l'étude d'après une maquette : quatre blocs de
-       même largeur côte à côte ne se lisaient pas) : une colonne principale — en-tête, chiffres,
-       puis À traiter à côté de l'avancement — et un rail à droite qui démarre tout en haut, à
-       hauteur du titre, avec les dernières pièces trouvées puis l'agenda. Sous 1320px le rail
-       passe sous la colonne principale. -->
-  <div class="dash-disposition">
-    <div class="dash-principal">
-    <div class="dash-header dash-header-accueil">
-      <!-- Date du jour plutôt que l'étiquette "Tableau de bord" (demandé par l'étude) — texte posé
-           par renderAccueilDashboard() via libelleDateDuJour(), "Tableau de bord" n'est qu'un repli
-           avant l'exécution du JS. -->
-      <div class="dash-eyebrow" id="dash-date-jour">Tableau de bord</div>
-      <!-- Titre à gauche, recherche et « + Nouveau dossier » sur la même ligne, alignés à droite. -->
-      <div class="dash-accueil-ligne">
-        <h1 class="dash-titre" id="dash-titre">Vue d'ensemble</h1>
-        <div class="dash-header-actions">
-          <div class="dash-recherche">
-            <input type="search" id="recherche-dashboard" placeholder="Rechercher un dossier…" title="Par nom de dossier ou de responsable" oninput="render()" autocomplete="off">
-            <div class="dash-recherche-resultats" id="dash-recherche-resultats" style="display:none;"></div>
+  <!-- Tableau de bord en WIDGETS (demandé par l'étude le 29/09, « comme les widgets iOS ») : chaque
+       bloc est un widget de taille petit / moyen / grand, déplaçable et masquable en mode
+       « Personnaliser » ; la disposition est propre à chaque collaborateur (préférence « widgets »
+       en base, voir renderWidgetsDashboard dans script.js). Les conteneurs internes gardent leurs
+       identifiants : chaque fonction de rendu écrit toujours au même endroit. -->
+  <div class="dash-header dash-header-accueil">
+    <!-- Date du jour plutôt que l'étiquette "Tableau de bord" (demandé par l'étude) — texte posé
+         par renderAccueilDashboard() via libelleDateDuJour(), "Tableau de bord" n'est qu'un repli
+         avant l'exécution du JS. -->
+    <div class="dash-eyebrow" id="dash-date-jour">Tableau de bord</div>
+    <!-- Titre à gauche, recherche et « + Nouveau dossier » sur la même ligne, alignés à droite. -->
+    <div class="dash-accueil-ligne">
+      <h1 class="dash-titre" id="dash-titre">Vue d'ensemble</h1>
+      <div class="dash-header-actions">
+        <div class="dash-recherche">
+          <input type="search" id="recherche-dashboard" placeholder="Rechercher un dossier…" title="Par nom de dossier ou de responsable" oninput="render()" autocomplete="off">
+          <div class="dash-recherche-resultats" id="dash-recherche-resultats" style="display:none;"></div>
+        </div>
+        <button type="button" class="primary dash-header-nouveau" onclick="definirOnglet('nouveau')">+ Nouveau dossier</button>
+      </div>
+    </div>
+    <!-- Accueil du collaborateur du poste : résumé du jour, bascule Mes dossiers / Tous, et le
+         bouton « Personnaliser » des widgets (voir renderAccueilDashboard dans script.js). -->
+    <div class="dash-accueil" id="dash-accueil"></div>
+  </div>
+
+  <!-- Affiché seulement quand la sauvegarde automatique est en retard ou a échoué (voir
+       renderAlerteSauvegardeDashboard dans script.js) : un échec qui ne se voit que dans les
+       Réglages, personne ne le verrait. -->
+  <div id="dash-alerte-sauvegarde" class="dash-alerte-sauvegarde" style="display:none;"></div>
+
+  <div class="widgets-conteneur">
+    <div class="widgets-grille" id="widgets-dashboard">
+      <section class="widget" data-widget="aujourdhui">
+        <div class="dash-bloc dash-bloc-traiter">
+          <div class="agenda-carte alertes-carte" id="alertes-dashboard"></div>
+        </div>
+      </section>
+      <section class="widget" data-widget="agenda">
+        <!-- Carte Agenda : semaine, rendez-vous de signature, état des envois (voir
+             renderRendezVousDashboard). Toujours affichée, même sans rendez-vous. -->
+        <div class="dash-bloc">
+          <div class="agenda-carte" id="agenda-dashboard"></div>
+        </div>
+      </section>
+      <section class="widget" data-widget="avancement">
+        <div class="dash-bloc dash-avancement" id="dash-avancement" style="display:none;">
+          <div class="agenda-carte">
+            <div class="agenda-entete"><div>
+              <div class="agenda-titre">Avancement des dossiers</div>
+              <div class="agenda-mois">Étapes et pièces, du plus urgent au plus avancé</div>
+            </div></div>
+            <div id="avancement-dossiers" class="avancement-dossiers"></div>
           </div>
-          <button type="button" class="primary dash-header-nouveau" onclick="definirOnglet('nouveau')">+ Nouveau dossier</button>
         </div>
-      </div>
-      <!-- Accueil du collaborateur du poste : résumé du jour, bascule Mes dossiers / Tous
-           (voir renderAccueilDashboard dans script.js). -->
-      <div class="dash-accueil" id="dash-accueil"></div>
-    </div>
-
-    <!-- Affiché seulement quand la sauvegarde automatique est en retard ou a échoué (voir
-         renderAlerteSauvegardeDashboard dans script.js) : un échec qui ne se voit que dans les
-         Réglages, personne ne le verrait. -->
-    <div id="dash-alerte-sauvegarde" class="dash-alerte-sauvegarde" style="display:none;"></div>
-
-    <!-- À traiter + Mes rappels (étroit) à côté de l'avancement (large). En flex et non en
-         grille : quand l'avancement est masqué (aucun dossier), À traiter prend toute la
-         largeur ; quand la colonne se rétrécit, les deux passent l'un sous l'autre. -->
-    <div class="dash-duo">
-      <div class="dash-bloc dash-bloc-traiter">
-        <div class="agenda-carte alertes-carte" id="alertes-dashboard"></div>
-      </div>
-      <div class="dash-bloc dash-avancement" id="dash-avancement" style="display:none;">
-        <div class="agenda-carte">
-          <div class="agenda-entete"><div>
-            <div class="agenda-titre">Avancement des dossiers</div>
-            <div class="agenda-mois">Étapes et pièces, du plus urgent au plus avancé</div>
-          </div></div>
-          <div id="avancement-dossiers" class="avancement-dossiers"></div>
+      </section>
+      <section class="widget" data-widget="portefeuille">
+        <div class="dash-bloc" id="kpi-portefeuille"></div>
+      </section>
+      <section class="widget" data-widget="activite">
+        <div class="dash-bloc" id="kpi-activite"></div>
+      </section>
+      <section class="widget" data-widget="pieces">
+        <div class="dash-bloc" id="dash-nouveautes" style="display:none;">
+          <div class="agenda-carte">
+            <div class="agenda-entete"><div>
+              <div class="agenda-titre">Dernières pièces</div>
+              <div class="agenda-mois">NAS · 14 derniers jours</div>
+            </div></div>
+            <div id="pieces-recues-dashboard" class="dash-liste dash-liste-carte"></div>
+          </div>
         </div>
-      </div>
+      </section>
     </div>
-
-    <!-- Chiffres du portefeuille et activité de l'étude SOUS « Aujourd'hui » (revue de
-         l'interface, 29/09) : ce qui est à faire passe avant les statistiques. La carte
-         d'activité n'est affichée que s'il y a eu de l'activité (voir renderKpisDashboard). -->
-    <div class="kpis-dashboard" id="kpis-dashboard"></div>
-    </div>
-
-    <aside class="dash-rail">
-      <div class="dash-bloc" id="dash-nouveautes" style="display:none;">
-        <div class="agenda-carte">
-          <div class="agenda-entete"><div>
-            <div class="agenda-titre">Dernières pièces</div>
-            <div class="agenda-mois">NAS · 14 derniers jours</div>
-          </div></div>
-          <div id="pieces-recues-dashboard" class="dash-liste dash-liste-carte"></div>
-        </div>
-      </div>
-      <!-- Carte Agenda : semaine, rendez-vous de signature, état des envois (voir
-           renderRendezVousDashboard). Toujours affichée, même sans rendez-vous.
-           « Mes rappels » n'a plus sa propre carte : elle est repassée sous la liste « À faire »
-           de la carte « Aujourd'hui » (voir renderAlertesDashboard), à la demande de l'étude. -->
-      <div class="dash-bloc">
-        <div class="agenda-carte" id="agenda-dashboard"></div>
-      </div>
-    </aside>
+    <div class="widgets-masques" id="widgets-masques"></div>
   </div>
 </div>
 

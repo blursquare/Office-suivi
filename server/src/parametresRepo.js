@@ -133,11 +133,31 @@ const CLE_PREFERENCES = 'preferences-collaborateurs';
 const THEMES_PREFERENCES = ['light', 'dark'];
 const ACCENTS_PREFERENCES = ['bordeaux', 'bleu', 'vert', 'orange', 'noir'];
 
+// Widgets du tableau de bord (29/09) : ordre, taille et visibilité propres à chaque collaborateur.
+// Liste blanche des identifiants et des tailles : tout le reste est écarté ; un doublon garde sa
+// première position. Le client complète avec les widgets absents (nouveaux widgets d'une mise à jour).
+const WIDGETS_PREFERENCES = ['aujourdhui', 'avancement', 'agenda', 'portefeuille', 'activite', 'pieces'];
+const TAILLES_WIDGETS = ['petit', 'moyen', 'grand'];
+
+function assainirWidgetsPreference(brut) {
+  if (!Array.isArray(brut)) return null;
+  const vus = new Set();
+  const out = [];
+  for (const w of brut.slice(0, 20)) {
+    if (!w || typeof w !== 'object' || !WIDGETS_PREFERENCES.includes(w.id) || vus.has(w.id)) continue;
+    vus.add(w.id);
+    out.push({ id: w.id, taille: TAILLES_WIDGETS.includes(w.taille) ? w.taille : 'moyen', masque: w.masque === true });
+  }
+  return out;
+}
+
 function assainirPreference(brut) {
   const b = brut && typeof brut === 'object' ? brut : {};
   const out = {};
   if (THEMES_PREFERENCES.includes(b.theme)) out.theme = b.theme;
   if (ACCENTS_PREFERENCES.includes(b.accent)) out.accent = b.accent;
+  const widgets = assainirWidgetsPreference(b.widgets);
+  if (widgets && widgets.length) out.widgets = widgets;
   return out;
 }
 
@@ -920,6 +940,7 @@ function creerRepoParametres(db) {
 }
 
 module.exports = {
+  assainirWidgetsPreference,
   creerRepoParametres, assainirReglages, assainirEtatSauvegarde, assainirExclusionsPieces, assainirCorrectionApprise, assainirCorrectionsApprises, MAX_CORRECTIONS_APPRISES, assainirDernierTour, assainirCopiesEnAttente,
   assainirRetourAudit, assainirRetoursAudit, MAX_RETOURS_AUDIT,
   assainirRappelPerso, assainirRappelsPerso, MAX_RAPPELS_PERSO, assainirPreference, assainirPreferences,
