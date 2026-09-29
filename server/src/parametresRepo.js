@@ -557,6 +557,15 @@ function assainirDernierTourAgenda(brut) {
     erreur: b.erreur ? texteBorne(String(b.erreur), 1500) : null,
     identifiantsRefuses: !!b.identifiantsRefuses,
     calendrier: texteBorne(b.calendrier, 200),
+    // Dates butoir posées (ou retrouvées) dans l'agenda pendant ce tour, voir echeancesAgenda.js.
+    echeancesPosees: Array.isArray(b.echeancesPosees) ? b.echeancesPosees.slice(0, MAX_ENTREES_TOUR_AGENDA).map((e) => ({
+      dossierId: texteBorne(e && e.dossierId, 80),
+      dossierNom: texteBorne(e && e.dossierNom, 200),
+      type: e && e.type === 'ventebien' ? 'ventebien' : 'pret',
+      date: texteBorne(e && e.date, 10),
+      adoptee: !!(e && e.adoptee)
+    })) : [],
+    erreurEcheances: b.erreurEcheances ? texteBorne(String(b.erreurEcheances), 500) : null,
     declenche: b.declenche === 'manuel' ? 'manuel' : 'automatique'
   };
 }

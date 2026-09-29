@@ -104,8 +104,8 @@ function courrierAppelFondsARattacher(d, chemins) {
 // Un tour de surveillance : pour chaque dossier actif relié au NAS, relit la liste de ses PDF (nom
 // seul, jamais leur contenu) et compare à l'inventaire déjà connu. `depot.remplacer` n'est appelé
 // que si quelque chose a changé — pas à chaque tour sur un portefeuille inchangé, ce qui ferait
-// inutilement grimper le SEQUENCE iCalendar de chaque dossier (voir routes/calendrier.js) sans
-// aucune raison fonctionnelle.
+// inutilement grimper la date de modification de chaque dossier (qui retarde aussi la pose de ses
+// dates butoir dans l'agenda, voir echeancesAgenda.js).
 // ASYNCHRONE depuis que ce balayage a été identifié comme la cause des gels du serveur signalés
 // par l'étude (« le serveur saute souvent »). Le parcours était synchrone et bouclait sur TOUS les
 // dossiers reliés : pendant tout le tour, Node — mono-thread — ne répondait plus à une seule

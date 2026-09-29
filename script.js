@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 22:12';
+  const VERSION_APP = '2026-09-29 22:25';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 22:25', resume: "Dates butoir d'obtention du prêt et de vente préalable : elles passent uniquement par l'agenda partagé de Sophie. Le calendrier .ics que CLAIRE publiait est supprimé (retirer l'abonnement « CLAIRE — Échéances » dans Outlook). Au premier passage après la mise à jour, CLAIRE pose d'elle-même les dates à venir des dossiers existants, sans doublon : un événement déjà présent au même nom et à la même date est repris tel quel. Compte rendu dans Réglages › Agenda. À vérifier au bureau." },
     { version: '2026-09-29 22:12', resume: "Agenda de l'office : CLAIRE lit désormais directement le calendrier partagé de Sophie par la connexion Exchange, toutes les 15 minutes (six mois à venir), au lieu du lien .ics publié — plus d'adresse à coller ni d'erreur de proxy. Mêmes détections : rendez-vous de signature, « Appel de fonds (et projet) envoyé » dans le lieu, absences, couleurs. Un mot de passe refusé suspend la lecture automatique jusqu'à sa correction, pour ne jamais verrouiller le compte. Réglages › Agenda : « Lecture de l'agenda » sous la connexion. À tester au bureau." },
     { version: '2026-09-29 21:08', resume: "Réception des fonds plus visuelle : trois chiffres (reçu, attendu, reste ou écart) et une jauge colorée, les versements en lignes courtes (date, montant, coche si la référence de la vente est retrouvée, icône du reçu), le montant attendu et les noms cherchés modifiables au crayon ; le détail passe dans les pastilles « i »." },
     { version: '2026-09-29 21:04', resume: "Nouveau dossier : CLAIRE lit les honoraires de négociation (agence ou confrère, montant TTC, à la charge de qui) et le remboursement du fonds de travaux loi ALUR, affichés sur la fiche. Appel de fonds : choix « Établi par l'office » / « Décompte du confrère » ; décompte de l'office complété seul avec les honoraires à la charge de l'acquéreur, le fonds de travaux remboursé, le prêt hypothécaire (montant déduit, frais de garantie appelés) et le prorata de taxe foncière lu sur l'avis. Prorata : lecture d'un avis de taxe foncière, avec la répartition des ordures ménagères si l'avis porte sur plusieurs biens." },
@@ -12071,18 +12072,18 @@
 
   // --- Obtention du prêt et vente préalable tenues dans le calendrier partagé de l'office ---
   //
-  // Demandé par l'étude (28/09) : ces deux dates butoir ne passent plus par le flux .ics de CLAIRE,
-  // elles sont posées directement dans le calendrier partagé (voir /exchange/echeance et ews.js).
-  // Un événement « toute la journée » par échéance, dont CLAIRE garde l'identifiant sur le dossier
+  // Demandé par l'étude (28/09, puis 29/09 : « passe par la connexion de l'agenda partagé ») : ces
+  // deux dates butoir sont posées directement dans le calendrier partagé de Sophie (voir
+  // /exchange/echeance et ews.js) — le flux .ics que publiait CLAIRE est supprimé. Un événement
+  // « toute la journée » par échéance, dont CLAIRE garde l'identifiant sur le dossier
   // (d.agendaEcheances[type] = { itemId, changeKey, date }) : il est DÉPLACÉ quand la date change et
   // RETIRÉ quand la condition est levée (offre reçue, vente préalable réalisée), la date effacée ou
   // le dossier archivé.
   //
-  // Deux décisions de l'étude, à ne pas rouvrir sans elle :
-  //   - rien n'est repris d'office : un dossier existant n'est posé dans l'agenda qu'à la prochaine
-  //     modification de sa date (creerSiAbsent). D'ici là, le flux .ics continue de le publier
-  //     (voir echeancePublieeAgenda côté serveur) — aucune date ne disparaît entre les deux, et une
-  //     création qui échoue reste de même couverte par le flux ;
+  //   - Ce poste crée l'événement au moment où l'étude touche la date (creerSiAbsent). Tout ce qui
+  //     manque encore (dossiers existants, création échouée) est posé par le SERVEUR à son tour de
+  //     lecture de l'agenda (server/src/echeancesAgenda.js), qui retrouve d'abord un événement au
+  //     même titre et à la même date plutôt que d'en créer un second ;
   //   - mise à jour et retrait automatiques, sur le seul identifiant mémorisé : jamais d'événement
   //     deviné d'après son titre.
   var LIBELLES_ECHEANCE_AGENDA = { pret: 'Obtention du prêt', ventebien: 'Vente préalable' };
@@ -12127,7 +12128,8 @@
     try {
       const corps = { action, date: d[type] || '', itemId: pose.itemId || '', changeKey: pose.changeKey || '' };
       if (action === 'creer') {
-        // Même titre que celui que publiait le flux .ics : l'étude retrouve ses repères. Jamais
+        // Même titre que celui que compose le serveur (sujetEcheanceAgenda) : c'est lui qui permet
+        // au serveur de retrouver l'événement au lieu de le doubler. Jamais
         // « VTE - … » : l'agenda de l'office relu par CLAIRE prendrait l'événement pour un
         // rendez-vous de signature.
         corps.sujet = `${libelle} — ${extraireNomAcquereur(d.nom)} - Dossier ${d.nom}`;
@@ -12164,8 +12166,9 @@
         syncEcheancesAgendaSuspendue = true;
         afficherToast('Identifiants de messagerie refusés : les dates ne sont plus envoyées à l’agenda jusqu’au prochain lancement. Vérifiez les Réglages.', 'OK', null);
       }
-      // Autre échec : silencieux. La date reste publiée par le flux .ics tant qu'elle n'est pas
-      // posée, et un retrait ou un déplacement en attente est retenté au prochain lancement.
+      // Autre échec : silencieux. Une date pas encore posée l'est par le serveur à son prochain tour
+      // de lecture de l'agenda, et un retrait ou un déplacement en attente est retenté au prochain
+      // lancement.
       return { ok: !!r.ok, message: r.message };
     } catch (e) {
       return { ok: false, message: 'Serveur injoignable.' };
@@ -28728,6 +28731,16 @@
     // tant que le mot de passe n'a pas changé — sinon le compte de messagerie serait verrouillé.
     if (source && source.suspendue) {
       html += '<p class="hint" style="margin:6px 0 0;">Lecture automatique suspendue : corrigez le mot de passe ci-dessus, elle reprendra d\'elle-même.</p>';
+    }
+    // Dates butoir posées (ou retrouvées) dans l'agenda par le serveur à ce tour.
+    const posees = Array.isArray(tour.echeancesPosees) ? tour.echeancesPosees : [];
+    if (posees.length) {
+      html += '<ul class="dernier-tour-erreurs" style="color:inherit;">' + posees.map((p) =>
+        `<li>${escapeHtml(p.dossierNom || '')} — ${p.type === 'ventebien' ? 'Vente préalable' : 'Obtention du prêt'} ${p.adoptee ? 'retrouvée dans' : 'posée dans'} l'agenda (${escapeHtml(formatDateFr(p.date))})</li>`
+      ).join('') + '</ul>';
+    }
+    if (tour.ok && tour.erreurEcheances) {
+      html += `<p class="hint" style="margin:6px 0 0;">Dates butoir non posées : ${escapeHtml(tour.erreurEcheances)}</p>`;
     }
     if (misAJour.length) {
       html += '<ul class="dernier-tour-erreurs" style="color:inherit;">' + misAJour.map((m) =>

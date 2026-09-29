@@ -93,7 +93,9 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
    29/09) ; **écriture** : création/déplacement/retrait
    d'un rendez-vous de signature (catégorie = couleur : vert office, violet visio, orange confrère),
    note « Appel de fonds (et projet) envoyé » dans le Lieu, dates butoir prêt / vente préalable en
-   journée entière. **Un seul essai par appel, aucun réessai automatique** (verrouillage du compte),
+   journée entière — seule voie depuis le 29/09 (plus de flux `.ics` publié) : le poste les pose au
+   geste, le serveur pose ce qui manque à chaque tour de lecture (`echeancesAgenda.js`) en adoptant
+   d'abord un événement de même titre et même date (jamais de doublon). **Un seul essai par appel, aucun réessai automatique** (verrouillage du compte),
    disjoncteur sur refus d'identifiants (côté client pour les écritures ; côté serveur, la lecture
    automatique est suspendue tant que les identifiants refusés restent enregistrés). Suppression = `MoveToDeletedItems`, jamais `HardDelete`.
    Microsoft Graph / Power Automate premium ne sont pas disponibles. **Lecture de la boîte de
@@ -206,10 +208,6 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   L'attribut `hidden` perd contre une règle `display` : basculer par `style.display`.
 - **`fetchAvecAuth` n'ajoute pas `Content-Type: application/json`** : tout appel avec un corps JSON
   doit le poser, sinon le serveur reçoit un corps vide.
-- **Outlook (abonnement Internet)** remplace le calendrier à chaque synchro et **affiche** les
-  événements `STATUS:CANCELLED` : omettre un événement suffit à le retirer. Le flux `.ics` publié
-  par CLAIRE (`/calendrier.ics`) ne contient que le prêt et la vente préalable non encore posés par
-  EWS — distinct de la lecture de l'agenda de l'office, qui passe par EWS.
 - **Dates EWS** : Exchange rend tout en UTC ; un rendez-vous « toute la journée » commence à minuit
   de Paris exprimé en UTC (la veille à 22 h l'été) et finit à minuit du lendemain du dernier jour.
   Toujours convertir par `momentParisDepuisIso` (jamais `slice(0, 10)` sur la chaîne UTC).
@@ -302,7 +300,8 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   calendrier de Sophie) ; démarrage automatique et service NSSM ; mise à jour en un clic (renommage
   de l'exe en cours) ; lien signé d'une pièce ouvert depuis Teams ; ouverture des `.eml` dans
   Outlook ; lecture EWS du calendrier de Sophie (droits de lecture, forme réelle des journées
-  entières, volume par tranche) ; icône de l'exe ; reçus comptables (« Fonds reçus ») au-delà des deux PDF fournis.
+  entières, volume par tranche) et reprise des dates butoir existantes au premier tour (une seule
+  fois chacune) ; icône de l'exe ; reçus comptables (« Fonds reçus ») au-delà des deux PDF fournis.
 - **Critères de sortie de bêta** (convenus) : quelques semaines sans bug bloquant, une restauration
   de sauvegarde testée, les points ci-dessus confirmés ; en bêta, seulement des corrections. Relecture
   d'actes en bêta après une dizaine d'actes relus avec commentaires et un coût jugé acceptable.

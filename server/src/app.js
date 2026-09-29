@@ -11,7 +11,6 @@ const { creerRepoParametres } = require('./parametresRepo');
 const { creerRouteurAuditRetours } = require('./routes/auditRetours');
 const { creerRouteurAuth } = require('./routes/auth');
 const { creerRouteurDossiers } = require('./routes/dossiers');
-const { creerRouteurCalendrier } = require('./routes/calendrier');
 const { creerRouteurExtractionIa } = require('./routes/extractionIa');
 const { creerRouteurOffrePret } = require('./routes/offrePret');
 const { creerRouteurNas, creerRouteurLienPiece } = require('./routes/nas');
@@ -114,12 +113,6 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   app.get('/api/health', (req, res) => res.json({ ok: true }));
 
   app.use('/api', creerRouteurAuth(gestionnaireAuth));
-  // Hors du middlewareAuth par jeton de session, volontairement : un abonnement webcal
-  // (Outlook...) ne sait pas se connecter via l'écran de mot de passe, il ne suit qu'une URL — la
-  // route elle-même vérifie son propre jeton dédié (config.jetonCalendrier), voir
-  // routes/calendrier.js. Montée à la racine (pas sous /api) pour rester une URL courte à coller
-  // dans un client calendrier, cohérent avec .env.example (`GET /calendrier.ics?token=...`).
-  app.use(creerRouteurCalendrier(depot, config));
   // Lien signé vers une pièce du NAS (notification Teams) : hors authentification par session, la
   // signature du lien en tient lieu — voir liensPieces.js.
   app.use(creerRouteurLienPiece(config, parametresRepo));

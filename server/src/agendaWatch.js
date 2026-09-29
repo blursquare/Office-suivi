@@ -21,6 +21,7 @@ const {
   actionsDetecteesDepuisEvenements, absencesDepuisEvenements, categoriesDistinctes, evenementsDepuisEws
 } = require('./agendaOffice');
 const { lireCalendrierExchange } = require('./exchange/ews');
+const { poserEcheancesManquantes } = require('./echeancesAgenda');
 
 const CHAMP_PAR_ACTION = { appelFonds: 'appelFonds', projetEnvoye: 'projetEnvoye' };
 const LIBELLE_PAR_ACTION = { appelFonds: 'Envoi appel de fonds', projetEnvoye: 'Envoi projet' };
@@ -221,7 +222,7 @@ function connexionAgendaConfiguree(reglagesExchange) {
 async function executerTourSurveillanceAgenda(depot, reglagesExchange, injections) {
   const resultat = {
     ok: false, dossiersVerifies: 0, evenementsLus: 0, misAJour: [], dejaRenseignes: [], sansCorrespondance: [],
-    absences: [], categories: [], erreur: null, identifiantsRefuses: false
+    absences: [], categories: [], echeancesPosees: [], erreurEcheances: null, erreur: null, identifiantsRefuses: false
   };
   const r = reglagesExchange || {};
   if (!connexionAgendaConfiguree(r)) {
@@ -252,6 +253,12 @@ async function executerTourSurveillanceAgenda(depot, reglagesExchange, injection
     // à part par l'appelant (executerEtEnregistrerTourAgenda) — rattachées à aucun dossier.
     resultat.absences = absencesDepuisEvenements(evenements, jour);
     resultat.categories = categoriesDistinctes(evenements);
+    // Dates butoir (prêt, vente préalable) pas encore dans l'agenda : posées ou retrouvées, avec
+    // la lecture qu'on vient de faire pour ne jamais créer de doublon (voir echeancesAgenda.js).
+    const poses = await poserEcheancesManquantes(depot, r, lu.evenements, jour, injections);
+    resultat.echeancesPosees = poses.posees;
+    resultat.erreurEcheances = poses.erreur;
+    if (poses.identifiantsRefuses) resultat.identifiantsRefuses = true;
   } catch (e) {
     resultat.erreur = e.message;
   }

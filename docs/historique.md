@@ -12188,3 +12188,27 @@ agendas. Tu peux faire la modification et ajuster les fonctions, détections et 
   refusé, disjoncteur, route), Chromium (tour manuel → dossier mis à jour, refus → suspension
   affichée, 400 px sans défilement). Non vérifié : Exchange réel (droits de lecture sur le
   calendrier de Sophie, forme exacte des journées entières, volume par tranche).
+
+### 29/09 22:25 — Dates butoir uniquement par l'agenda partagé, flux .ics publié supprimé
+
+Demande : « Si c'est plus simple pour mettre les dates butoir passe par la connexion de l'agenda
+partagé de Sophie ». Jusqu'ici, le prêt et la vente préalable d'un dossier existant restaient
+publiés par le flux `/calendrier.ics` (abonnement Outlook) tant que leur date n'était pas retouchée
+(décision du 28/09 « rien n'est repris d'office »). Cette demande la remplace : une seule voie.
+- `server/src/echeancesAgenda.js` : à chaque tour de lecture de l'agenda (après les détections),
+  `poserEcheancesManquantes` pose les dates souhaitées (même définition que le client :
+  renseignée, pas comptant, pas obtenue, dossier actif) qui n'ont pas d'identifiant. Anti-doublon :
+  adoption d'un événement « toute la journée » de même titre (`sujetEcheanceAgenda`, identique au
+  client) et même date dans l'agenda qu'on vient de lire ; dossier modifié depuis moins de 5 min
+  laissé au poste ; dates passées ignorées (hors fenêtre de lecture, donc non adoptables) ;
+  25 créations au plus par tour ; arrêt au premier échec, un refus d'identifiants ouvre le
+  disjoncteur de la lecture. `parseCalendrierEws` rend aussi le ChangeKey.
+- Supprimés : `routes/calendrier.js` (+ test), le montage dans `app.js`, les adresses d'abonnement
+  affichées au démarrage et dans `Adresses-du-serveur.txt`, `jetonCalendrier`/`calendrierToken`
+  de `config.js` (une ancienne clé de config.json est ignorée), `CALENDRIER_TOKEN` de
+  `.env.example`. `/calendrier.ics` répond 404 : l'abonnement Outlook est à retirer au bureau.
+- Conservé : l'export ponctuel « Rappels (.ics) » d'un dossier (bouton de la fiche, téléchargement).
+- Compte rendu (Réglages › Agenda) : dates « posée dans » / « retrouvée dans » l'agenda, et l'erreur
+  de pose le cas échéant (`echeancesPosees`, `erreurEcheances`).
+- Vérifié : tests serveur (plan, adoption, délai, création dans le calendrier partagé, refus
+  d'identifiants), Chromium (compte rendu, 404 du flux). Non vérifié : Exchange réel.

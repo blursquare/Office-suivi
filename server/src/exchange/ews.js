@@ -452,6 +452,7 @@ function parseCalendrierEws(corps) {
     }
     evenements.push({
       itemId: (idTag.match(/\bId="([^"]+)"/) || [])[1] || '',
+      changeKey: (idTag.match(/\bChangeKey="([^"]+)"/) || [])[1] || '',
       subject: valeur('Subject'),
       location: valeur('Location'),
       start: valeur('Start'),

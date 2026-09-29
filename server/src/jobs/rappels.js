@@ -11,14 +11,13 @@
 // actives d'un dossier (prêt, vente préalable, appel de fonds, signature, personnalisées) — pas
 // seulement le prêt comme l'export
 // .ics manuel (volontairement limité par l'étude à cette seule date pour un export ponctuel d'UN
-// dossier) : ce mécanisme est plus proche du flux calendrier connecté (routes/calendrier.js), qui
-// couvre déjà tout le portefeuille. `d.reminderDays` (propre au seul export .ics, vide sur un
+// dossier) : ce mécanisme couvre tout le portefeuille. `d.reminderDays` (propre au seul export .ics, vide sur un
 // dossier sans condition de prêt) n'est donc volontairement PAS utilisé ici : un dossier sans prêt
 // doit quand même être rappelé pour sa signature d'acte ou sa vente préalable.
 //
 // toutesEcheances()/echeanceValidee() sont une DUPLICATION volontaire de leurs équivalents dans
 // script.js (navigateur) : ce projet n'a pas de mécanisme de build partagé entre les deux mondes
-// (même choix déjà documenté pour buildEvent/icsDate dans routes/calendrier.js) — en modifiant
+// (choix assumé, documenté dans CLAUDE.md) — en modifiant
 // l'une des deux, vérifier si l'autre a besoin du même changement.
 
 const { envoyerEmail, envoiConfigure, memeAdresseEmail } = require('../envoiEmail');
@@ -52,7 +51,7 @@ function seuilsPourType(type) {
 // (voir echeancesValidees.pret, script.js) doit aussi être prise en compte ici — sans quoi un
 // dossier marqué réalisé côté client continuerait de recevoir des rappels sur cette échéance.
 // Miroir de echeanceValidee() côté client (duplication assumée : pas de build partagé entre le
-// navigateur et Node dans ce projet — même choix que buildEvent/icsDate dans routes/calendrier.js).
+// navigateur et Node dans ce projet).
 // Deux faits du dossier closent une échéance sans décision manuelle : l'offre de prêt reçue pour
 // « Obtention du prêt », et un rendez-vous de signature fixé pour la date butoir de réitération —
 // relancer sur un butoir dont le rendez-vous réel est déjà pris n'aurait plus d'objet.

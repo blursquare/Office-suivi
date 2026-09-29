@@ -6,7 +6,7 @@ réseau de l'étude. Voir `CLAUDE.md` à la racine du dépôt, section « Mode s
 (branche claude/serveur-intranet) », pour le contexte complet de ce chantier.
 
 **État actuel : registre des dossiers partagé en temps réel (authentification par mot de passe
-partagé), calendrier connecté (abonnement webcal en lecture seule) et, en option, un vrai service
+partagé), agenda de l'office lu et tenu par EWS et, en option, un vrai service
 Windows (NSSM) pour ne plus jamais dépendre d'une fenêtre de console restée ouverte.** Seules les
 relances email automatiques n'ont pas été poursuivies (arrêtées à la demande de l'étude) — voir le
 plan de ce chantier si ce point doit être repris un jour.
@@ -64,36 +64,38 @@ Un seul fichier à déposer sur le PC du bureau, sans installer Node.js, sans te
    donnée dans un simple onglet Chrome reste la façon normale de l'utiliser — la fenêtre applicative
    automatique ne concerne que le poste qui vient de démarrer le serveur lui-même.
 
-## Calendrier connecté (abonnement webcal)
+## Dates butoir dans le calendrier partagé de l'office
 
-Un flux calendrier en lecture seule, généré à la demande à partir de TOUS les dossiers actifs du
-registre. **Il ne publie que deux échéances** : l'obtention du prêt et la vente préalable, chacune
-seulement si elle est activée et datée sur le dossier. L'obtention du prêt disparaît dès que
-l'offre est reçue (ou l'échéance marquée réalisée), la vente préalable dès qu'elle est marquée
-réalisée. Les autres dates (date butoir, appel de fonds, rendez-vous de signature, échéances
-personnalisées) n'y figurent pas du tout. **Aucun événement n'est jamais publié « annulé »** : un
-abonnement Internet Outlook remplace le calendrier entier à chaque resynchronisation, donc ce qui
-n'est plus dans le flux disparaît de lui-même, alors qu'un événement annulé resterait affiché. Pour
-forcer la mise à jour sans attendre la resynchronisation d'Outlook (qui peut prendre quelques
-heures), supprimer l'abonnement puis le rajouter avec la même adresse. Ce flux est
-distinct de l'export `.ics` ponctuel d'un seul dossier depuis l'outil lui-même (bouton « Rappels
-(.ics) » sur une fiche, limité à la seule date de prêt) : celui-ci est un abonnement continu qui se
-tient à jour tout seul, pour tout le portefeuille, sans jamais rouvrir l'outil.
+Le flux `.ics` que CLAIRE publiait pour un abonnement Outlook (`/calendrier.ics?token=…`) est
+**supprimé depuis le 29/09/2026** (demande de l'étude : « passe par la connexion de l'agenda
+partagé de Sophie ») : l'adresse répond désormais 404. **À faire au bureau une fois : retirer
+l'abonnement « CLAIRE — Échéances » dans Outlook.** Une ancienne clé `calendrierToken` de
+`config.json` est simplement ignorée.
 
-**En cours de remplacement par le calendrier partagé de l'office (28/09/2026).** Quand la connexion
-à l'agenda Outlook est activée (Réglages › Rappels et agenda), CLAIRE pose ces deux dates
-directement dans le calendrier partagé par EWS (`POST /api/exchange/echeance`, actions
-`creer` / `modifier` / `supprimer`) : un événement « toute la journée », marqué Libre, sans rappel
-Outlook, titré comme avant (« Obtention du prêt — ACQUÉREUR - Dossier … »). CLAIRE garde son
-identifiant sur le dossier (`d.agendaEcheances[type]`), le déplace quand la date change et le
-retire (vers les éléments supprimés, récupérable) quand l'offre est reçue, la vente préalable
-réalisée, la date effacée ou le dossier archivé. Rien n'est repris d'office : un dossier existant
-n'y passe qu'à la prochaine modification de sa date, et **une date posée dans le calendrier
-partagé n'est plus publiée par ce flux** (sinon elle apparaîtrait deux fois). Tant qu'un dossier
-n'a pas été repris, ou si la création a échoué, il reste publié ici : aucune date ne disparaît
-entre les deux. Après un refus d'identifiants, plus aucune tentative automatique jusqu'au prochain
-lancement (plusieurs échecs verrouillent le compte de messagerie). **Non vérifié sur le vrai
-Exchange** : à confirmer au bureau sur un dossier dont on modifie la date de prêt.
+Seules deux échéances vont dans l'agenda : l'**obtention du prêt** et la **vente préalable**, tant
+qu'elles restent à obtenir (pas d'achat comptant, offre non reçue, vente préalable non réalisée,
+dossier actif). Un événement « toute la journée », marqué Libre, sans rappel Outlook, titré
+« Obtention du prêt — ACQUÉREUR - Dossier … » (jamais « VTE - », que la lecture de l'agenda
+prendrait pour un rendez-vous de signature). CLAIRE garde son identifiant sur le dossier
+(`d.agendaEcheances[type]`).
+
+- **Au geste** (le poste qui saisit ou modifie la date, `POST /api/exchange/echeance`, actions
+  `creer` / `modifier` / `supprimer`) : création, déplacement quand la date change, retrait (vers
+  les éléments supprimés, récupérable) quand l'offre est reçue, la vente préalable réalisée, la
+  date effacée ou le dossier archivé. Après un refus d'identifiants, le poste ne réessaie plus
+  jusqu'à son prochain lancement.
+- **Au tour de lecture de l'agenda** (serveur, toutes les 15 minutes, `echeancesAgenda.js`) : ce qui
+  manque encore est posé — les dossiers existants à la mise à jour (reprise d'office), une création
+  échouée côté poste. Avant de créer, le serveur cherche dans l'agenda qu'il vient de lire un
+  événement « toute la journée » au **même titre et à la même date** : il l'adopte au lieu d'en
+  créer un second. Un dossier modifié depuis moins de 5 minutes est laissé au poste qui le
+  modifie. Seules les dates d'aujourd'hui ou à venir ; au plus 25 créations par tour ; arrêt au
+  premier échec, et un refus d'identifiants suspend la lecture automatique (voir plus bas).
+  Chaque date posée ou retrouvée est notée dans l'historique du dossier et dans le compte rendu
+  de Réglages › Agenda.
+
+**Non vérifié sur le vrai Exchange** : à confirmer au bureau au premier tour après la mise à jour
+(les dates des dossiers existants doivent apparaître une seule fois dans l'agenda de Sophie).
 
 **Rendez-vous de signature (28/09/2026).** Créé depuis la fiche (`POST /api/exchange/rendez-vous`)
 avec une **catégorie Outlook** qui lui donne la couleur de l'étude : vert à l'office, violet en
@@ -106,29 +108,9 @@ L'événement est désigné par l'identifiant gardé à sa création, sinon retr
 « VTE - <nom> » ; si deux correspondent, rien n'est touché. Le compte de connexion doit avoir le
 droit de supprimer dans le calendrier partagé.
 
-1. Au démarrage du serveur (`.exe` ou `npm start`), la console affiche une ou plusieurs adresses
-   du type `http://<ip>:3000/calendrier.ics?token=...` — la même liste est écrite dans
-   `Adresses-du-serveur.txt` à côté de l'exécutable en mode `.exe`. Le jeton (`token=...`) est
-   généré automatiquement au premier lancement (mode `.exe`, dans `config.json`) et reste ensuite
-   inchangé — jamais le mot de passe de connexion à l'outil : un abonnement webcal ne peut pas
-   envoyer de mot de passe, ce jeton dédié en tient lieu dans l'URL elle-même.
-2. Dans Outlook : **Ajouter un calendrier → S'abonner depuis le web** (ou « À partir
-   d'Internet », selon la version), coller l'URL affichée par le serveur, valider.
-3. Outlook resynchronise cet abonnement selon **son propre calendrier interne** (typiquement
-   toutes les quelques heures, pas en temps réel) — une échéance ajoutée/modifiée dans CLAIRE
-   n'apparaît donc pas instantanément dans Outlook, contrairement à l'outil lui-même (synchronisé
-   par sondage toutes les 7 secondes entre postes). C'est une limite d'Outlook sur ce type
-   d'abonnement, pas un réglage ajustable côté serveur CLAIRE.
-4. Un dossier archivé n'apparaît plus dans ce flux. Le flux est en LECTURE SEULE : modifier/supprimer un événement dans Outlook
-   n'a aucun effet sur le registre CLAIRE, qui reste la seule source de vérité.
-5. En mode développeur (`npm start`), ce flux reste désactivé tant que `CALENDRIER_TOKEN` n'est
-   pas renseigné dans `.env` (voir `.env.example`) — sans jeton, `GET /calendrier.ics` répond 503
-   plutôt que de générer un flux non protégé.
-
 ## Agenda de l'office (lecture automatique par EWS)
 
-À l'inverse du flux ci-dessus (CLAIRE **publie** un calendrier qu'Outlook lit), ce mécanisme fait
-lire à CLAIRE le calendrier **de l'office** : le calendrier partagé de Sophie, lu directement par
+Ce mécanisme fait lire à CLAIRE le calendrier **de l'office** : le calendrier partagé de Sophie, lu directement par
 EWS avec la connexion Exchange de Réglages › Agenda (`server/src/exchange/ews.js`,
 `lireCalendrierExchange`). Il remplace depuis le 29/09/2026 la lecture du lien `.ics` publié du
 même agenda (plus de lien de publication à entretenir, plus de proxy ni de 503 d'Outlook).
@@ -490,7 +472,7 @@ Une seule chose à indiquer : le dossier qui CONTIENT les dossiers clients.
   `"nasRacine"`, puis redémarrer le serveur. La clé y est déjà présente, vide :
 
   ```json
-  { "authPassword": "…", "port": 3000, "calendrierToken": "…", "nasRacine": "\\\\serveur\\partage\\DOSSIERS CLIENTS" }
+  { "authPassword": "…", "port": 3000, "nasRacine": "\\\\serveur\\partage\\DOSSIERS CLIENTS" }
   ```
 
   Un chemin réseau s'écrit avec des antislashs DOUBLÉS dans un fichier JSON, comme ci-dessus
@@ -845,7 +827,7 @@ cp .env.example .env
 
 Éditer `.env` et renseigner au minimum `AUTH_PASSWORD` (le mot de passe partagé entre tous les
 collaborateurs de l'étude — sans lui, le serveur démarre mais personne ne peut se connecter).
-`CALENDRIER_TOKEN`/`SMTP_*` peuvent rester vides, ils ne servent à aucune fonctionnalité active
+`SMTP_*` peuvent rester vides, ils ne servent à aucune fonctionnalité active
 pour l'instant.
 
 ```bash
@@ -870,8 +852,7 @@ npm test
 
 178 tests (`node:test`, aucune dépendance de test supplémentaire) couvrant l'authentification, le
 cycle complet créer/lire/modifier/supprimer/restaurer un dossier, la résolution de configuration
-du mode `.exe` (mot de passe ET jeton calendrier), le service des fichiers statiques embarqués, le
-flux calendrier connecté (`/calendrier.ics`), l'extraction IA pour le wizard (`/api/extraction-ia`) et les rappels par email
+du mode `.exe`, le service des fichiers statiques embarqués, l'extraction IA pour le wizard (`/api/extraction-ia`) et les rappels par email
 (réglages, client Power Automate, job de rappels avec un envoi injecté) — les trois premières avec
 un faux serveur Ollama HTTP, la dernière avec un faux webhook HTTP local (voir
 `test/extraction-ia.test.js`, `test/parametresRepo.test.js`,
@@ -892,11 +873,6 @@ dépendances de l'autre.
   `Desinstaller-service-NSSM.bat` pilotent NSSM avec sa syntaxe documentée, mais aucune machine
   Windows n'était disponible dans cet environnement de développement pour un test réel de bout en
   bout (installation, redémarrage automatique après plantage simulé, démarrage au boot).
-- **Calendrier connecté (webcal) disponible mais non vérifié dans un vrai Outlook** — voir la
-  section « Calendrier connecté » plus haut : le flux `.ics` généré est vérifié par des tests
-  automatisés (format, jeton, filtrage des dossiers archivés), mais son abonnement réel depuis
-  Outlook (affichage des événements, comportement de resynchronisation) reste à confirmer par
-  l'étude.
 - **Pas d'import automatique** des dossiers déjà enregistrés sur la version 100% locale (`main`) :
   il faudrait aujourd'hui recréer les dossiers à la main dans cette nouvelle version.
 - **Rappels automatiques par email disponibles mais non vérifiés sur la messagerie réelle de

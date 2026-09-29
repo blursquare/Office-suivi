@@ -1,6 +1,6 @@
 // Couche d'accès aux dossiers en base — séparée des routes Express pour rester testable sans
-// monter un serveur HTTP, et réutilisable par le job de relances (jobs/rappels.js), le flux
-// calendrier (routes/calendrier.js) et l'import (M3) sans dupliquer les requêtes SQL.
+// monter un serveur HTTP, et réutilisable par le job de relances (jobs/rappels.js), la lecture de
+// l'agenda (agendaWatch.js) et l'import (M3) sans dupliquer les requêtes SQL.
 'use strict';
 
 function creerDepot(db) {
@@ -80,9 +80,8 @@ function creerDepot(db) {
   // Dossiers actifs (non supprimés) avec leur objet JSON complet déjà parsé — utilisé par les
   // tâches de fond (relances, flux calendrier) qui doivent lire `pieces`/`offrePretStatut`/etc.
   // depuis le blob JSON, pas seulement les colonnes promues.
-  // `updatedAt` est joint au dossier : le flux calendrier s'en sert comme numéro de SEQUENCE
-  // iCalendar (voir routes/calendrier.js), sans quoi un client ne remplace jamais un événement
-  // qu'il connaît déjà. Ajout purement additif pour les autres appelants.
+  // `updatedAt` est joint au dossier : la pose des dates butoir dans l'agenda s'en sert pour ne pas
+  // doubler un poste qui vient de modifier le dossier (voir echeancesAgenda.js).
   function tousActifs() {
     return tousActifsStmt.all().map((ligne) => ({ ...JSON.parse(ligne.data), updatedAt: ligne.updated_at }));
   }
