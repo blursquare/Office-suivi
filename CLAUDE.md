@@ -140,6 +140,12 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   d'une pièce « jamais reconnue » malgré un nom correct.
 - **Dépôt de garantie** : toujours déduit de l'appel de fonds (l'agence reverse la somme) ; le
   détenteur dit seulement quoi réclamer.
+- **Fonds reçus** (reçus comptables du NAS) : le client est le **titulaire** en début de ligne, et
+  seulement le premier nommé d'un compte à deux noms, sauf si la référence de la vente
+  (« VTE VENDEUR/ACQUÉREUR ») cite le vendeur du dossier ; une référence qui ne nomme personne du
+  dossier écarte l'écriture. Complet = montant attendu **à 50 € près** (`MARGE_FONDS_RECUS`, miroir
+  serveur `bilanFonds`) ; au-delà, « excédent » à vérifier, jamais « complet ». Noms cherchés :
+  parties acquéreurs + nom du dossier + nom du courrier d'appel de fonds + `d.nomsRecus` (nom d'usage).
 - **Mobilier** : le prix reste le prix total ; `d.prixMobilier` sort seulement de l'assiette des
   droits (frais d'acte, contrôle du barème).
 - **Prorata** : jours réels, jour de l'acte à la charge de l'acquéreur, arrondi du vendeur par

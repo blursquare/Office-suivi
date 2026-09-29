@@ -174,12 +174,18 @@ function calculerRappelsDus(dossiers, aujourdHui, dejaEnvoyes) {
 // Rien quand la réception a déjà été confirmée au client (receptionFondsConfirmeeLe) : les fonds
 // sont là, le collaborateur le sait. Rien non plus avant l'appel de fonds.
 
-// Miroir de bilanFondsRecus (script.js) : tolérance d'un euro. À modifier ensemble.
+// Miroir de bilanFondsRecus (script.js) : à l'euro près, 50 € d'écart au plus dans un sens comme
+// dans l'autre (règle de l'étude, 29/09) ; bien au-delà du montant attendu = « excedent », jamais
+// « complet ». À modifier ensemble.
+const MARGE_FONDS_RECUS = 50;
 function bilanFonds(total, attendu) {
   const t = Math.round((Number(total) || 0) * 100) / 100;
-  if (!(attendu > 0)) return { etat: t > 0 ? 'inconnu' : 'aucun', total: t, attendu: null, reste: null };
-  const reste = Math.round((attendu - t) * 100) / 100;
-  return { etat: reste <= 1 ? 'complet' : (t > 0 ? 'partiel' : 'aucun'), total: t, attendu, reste: Math.max(0, reste) };
+  if (!(attendu > 0)) return { etat: t > 0 ? 'inconnu' : 'aucun', total: t, attendu: null, reste: null, ecart: null };
+  const ecart = Math.round((t - attendu) * 100) / 100;
+  const etat = Math.abs(ecart) <= MARGE_FONDS_RECUS ? 'complet'
+    : ecart > 0 ? 'excedent'
+    : (t > 0 ? 'partiel' : 'aucun');
+  return { etat, total: t, attendu, reste: Math.max(0, -ecart), ecart };
 }
 
 // 0 = dimanche … 6 = samedi, pour une date AAAA-MM-JJ (lue en UTC : pas de décalage de fuseau).
@@ -240,6 +246,7 @@ Vous pouvez confirmer la réception des fonds au client depuis la fiche (onglet 
   const etat = !b ? 'les reçus comptables n’ont pas encore été vérifiés dans CLAIRE'
     : b.etat === 'partiel' ? `${formaterEuros(b.total)} reçus sur ${formaterEuros(b.attendu)}, il manque ${formaterEuros(b.reste)}${quand}`
     : b.etat === 'inconnu' ? `${formaterEuros(b.total)} reçus, montant attendu inconnu${quand}`
+    : b.etat === 'excedent' ? `${formaterEuros(b.total)} reçus pour ${formaterEuros(b.attendu)} attendus : l'écart est à vérifier dans CLAIRE${quand}`
     : `aucun versement de l’acquéreur trouvé dans les reçus${quand}`;
   return `⚠️ CLAIRE — Fonds pas encore reçus en entier pour le dossier ${a.nomDossier} :${rdv}
 À ce jour, ${etat}.`;

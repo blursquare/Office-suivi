@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 15:22';
+  const VERSION_APP = '2026-09-29 15:39';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 15:39', resume: "Fonds reçus : un versement porté au compte de deux personnes (« DUPONT Jean et MARTIN ») ne compte plus pour un dossier MARTIN si la référence de la vente cite une autre vente. Les fonds doivent correspondre au montant attendu à 50 € près : au-delà, CLAIRE signale un écart à vérifier au lieu de « Tous les fonds sont reçus ». Nom d'usage ou d'épouse : repris du courrier d'appel de fonds (« … - CRIL »), du nom du dossier, ou saisi dans « Autre nom sur les reçus ». Une lecture faite avec l'ancienne règle est refaite automatiquement." },
     { version: '2026-09-29 15:22', resume: "Adresses : tirets et CEDEX conservés dans la commune (« SAINT-AIGNAN (41110), 2 rue … », « BLOIS CEDEX (41018), … »). Appel de fonds : l'adresse du destinataire reste en présentation postale, la voie puis « 41110 SAINT-AIGNAN » en dernière ligne, même saisie sur une ligne." },
     { version: '2026-09-29 15:09', resume: "Montants partout au format « 360.000,00 € » (point pour les milliers). Adresses partout au format « SAINT AIGNAN (41110), 2 rue des Cours de Meusnes » (fiche, nouveau dossier, appel de fonds, carnet des confrères). Appel de fonds : référence « VTE - NOM » pour un dossier de vente ; dans le .docx, la date du courrier est alignée à gauche avec le nom de l'acquéreur." },
     { version: '2026-09-29 15:02', resume: "Appel de fonds : une ligne du décompte modifiée dans le courrier (texte ou montant) garde sa nouvelle valeur quand on supprime ou ajoute une autre ligne — l'ancien texte réapparaissait. Nouvelle case « Achat sans prêt » (cochée d'après le dossier) : le paragraphe du R.I.B. dit alors « … faire le point sur le déblocage, correspondant à votre apport personnel. », dans l'aperçu et dans le .docx." },
@@ -10605,10 +10606,32 @@
     'sci', 'sarl', 'sas', 'societe', 'consorts', 'indivision', 'acquereur', 'acquereurs'];
 
   // Pure : les patronymes de l'acquéreur, normalisés (sans accent, minuscules), 3 lettres au moins.
+  // Pure : les noms du client dans le nom du courrier d'appel de fonds produit par CLAIRE
+  // (« Convocation au rendez-vous contenant l'appel de fonds - CRIL.pdf », voir afNomFichierDocx) :
+  // l'étude y écrit le nom sous lequel elle connaît le client, souvent son nom d'usage.
+  function nomsCourrierAppelFonds(d) {
+    const chemins = [courrierAppelFondsDossier(d), d && d.fondsRecus && d.fondsRecus.attenduChemin];
+    for (const c of chemins) {
+      const m = /appel\s+de\s+fonds\s+-\s+(.+?)\.(?:pdf|docx?)$/i.exec(String(c || '').split(/[\\/]/).pop());
+      if (m) return m[1];
+    }
+    return '';
+  }
+
+  // S'y ajoutent le côté acquéreur du nom du dossier (« VENDEUR / ACQUÉREUR », que l'étude peut
+  // avoir écrit sous le nom d'usage) et les noms saisis à la main pour les reçus (`d.nomsRecus`) :
+  // une acquéreuse désignée dans l'acte sous son nom de naissance (« Yvette MARTIN, épouse … »)
+  // verse sous son nom d'épouse, que l'acte lu ne donnait pas (29/09).
   function motsPayeurDossier(d) {
     const parties = Array.isArray(d && d.parties) ? d.parties : [];
     const acquereurs = parties.filter(p => p && String(p.role || '').toUpperCase() === 'ACQUEREUR').map(p => p.nom);
-    const source = acquereurs.length ? acquereurs.join(' ') : extraireNomAcquereur(d && d.nom || '');
+    const nom = String(d && d.nom || '');
+    const source = [
+      acquereurs.length ? acquereurs.join(' ') : extraireNomAcquereur(nom),
+      acquereurs.length && nom.includes(' / ') ? extraireNomAcquereur(nom) : '',
+      nomsCourrierAppelFonds(d),
+      String(d && d.nomsRecus || '')
+    ].join(' ');
     const mots = normaliserPourRecherche(source).split(/[^a-z]+/).filter(m => m.length >= 3 && !MOTS_IGNORES_PAYEUR.includes(m));
     return [...new Set(mots)];
   }
@@ -10704,10 +10727,26 @@
       if (!e.titulaire || !ligneNommeLePayeur(e.titulaire, mots)) continue;
       if (RE_ECRITURE_NON_FONDS.test(e.libelle)) continue;
       const confirme = (motsVente || []).length > 0 && ligneNommeLePayeur(e.libelle, motsVente);
+      // Compte à deux noms (« DUPONT Jean et MARTIN ») : le client est le premier nommé. Un nom
+      // qui n'apparaît qu'après « et » (conjoint, co-titulaire) ne suffit pas sans la référence de
+      // la vente — faute de quoi le versement d'un DUPONT comptait pour un dossier MARTIN (29/09).
+      const principal = ligneNommeLePayeur(e.titulaire.split(/\s+(?:et|&)\s+/i)[0], mots);
+      if (!principal && !confirme) continue;
+      // Le libellé cite une vente (« VTE VENDEUR/ACQUÉREUR ») qui ne nomme personne du dossier :
+      // c'est le versement d'une autre vente.
+      const ref = referenceVenteLibelle(e.libelle);
+      if (ref && !ligneNommeLePayeur(ref, mots) && !confirme) continue;
       out.push({ montant: e.montant, date: recu.date, compte: recu.compte, confirme,
         extrait: ((e.titulaire ? e.titulaire + ' — ' : '') + e.libelle).replace(/\s+/g, ' ').slice(0, 180) });
     }
     return out;
+  }
+
+  // Pure : la référence de la vente citée dans un libellé de reçu (« … VTE FAURE-LEGRAND/VASSEUR »,
+  // « … PRIX DE VENTE FAURE-LEGRAND/VASSEUR ») — les deux côtés de la barre, ou '' si aucune.
+  function referenceVenteLibelle(libelle) {
+    const m = /(?:^|[^A-Za-z])(?:VTE|VENTE)\s+([^/]{2,60}?)\s*\/\s*([^\s/]{2,40})/i.exec(String(libelle || ''));
+    return m ? m[1] + ' / ' + m[2] : '';
   }
 
   // Pure : les patronymes du vendeur (pour confirmer par la référence de la vente).
@@ -10768,12 +10807,26 @@
     return solde > 0 ? solde : null;
   }
 
-  // Pure : l'état de l'indicateur. Tolérance d'un euro (arrondis, frais bancaires).
+  // Pure : l'état de l'indicateur. Les fonds doivent correspondre au montant attendu à l'euro près,
+  // avec une marge de quelques dizaines d'euros au plus pour une erreur du client (règle de l'étude,
+  // 29/09) — dans les DEUX sens : bien au-delà du montant attendu, ce n'est pas « complet » mais un
+  // écart à vérifier (des versements d'un autre dossier ont probablement été comptés).
+  // `ecart` = reçu − attendu (négatif s'il manque). Miroir bilanFonds (server/src/jobs/rappels.js).
+  var MARGE_FONDS_RECUS = 50;
   function bilanFondsRecus(total, attendu) {
     const t = Math.round((Number(total) || 0) * 100) / 100;
-    if (!(attendu > 0)) return { etat: t > 0 ? 'inconnu' : 'aucun', total: t, attendu: null, reste: null };
-    const reste = Math.round((attendu - t) * 100) / 100;
-    return { etat: reste <= 1 ? 'complet' : (t > 0 ? 'partiel' : 'aucun'), total: t, attendu, reste: Math.max(0, reste) };
+    if (!(attendu > 0)) return { etat: t > 0 ? 'inconnu' : 'aucun', total: t, attendu: null, reste: null, ecart: null };
+    const ecart = Math.round((t - attendu) * 100) / 100;
+    const etat = Math.abs(ecart) <= MARGE_FONDS_RECUS ? 'complet'
+      : ecart > 0 ? 'excedent'
+      : (t > 0 ? 'partiel' : 'aucun');
+    return { etat, total: t, attendu, reste: Math.max(0, -ecart), ecart };
+  }
+
+  // Pure : la précision qui suit « Tous les fonds sont reçus » quand le montant n'est pas exact.
+  function precisionEcartFonds(b) {
+    if (!b || b.etat !== 'complet' || !(Math.abs(b.ecart) >= 1)) return '';
+    return b.ecart > 0 ? ` (${formaterPrixCentimes(b.ecart)} de plus que prévu)` : ` (${formaterPrixCentimes(-b.ecart)} de moins que prévu)`;
   }
 
   var RE_NOM_DECOMPTE = /(appel\s*de\s*fonds|d[ée]compte|convocation|tableau|fonds\s*[àa]\s*(verser|virer)|sommes?\s*[àa]\s*(verser|virer))/i;
@@ -10878,10 +10931,10 @@
       else { try { attendu = await montantAttenduDepuisNas(d); } catch (e) { attendu = null; } }
       const total = trouves.reduce((t, r) => t + r.montant, 0);
       const avant = d.fondsRecus;
-      if (discret && avant && Math.abs((avant.total || 0) - Math.round(total * 100) / 100) < 0.005
+      if (discret && avant && avant.regle === REGLE_RAPPROCHEMENT_RECUS && Math.abs((avant.total || 0) - Math.round(total * 100) / 100) < 0.005
           && (avant.attendu || null) === (attendu ? attendu.montant : null)) return;
       d.fondsRecus = {
-        verifieLe: new Date().toISOString(), depuis, fichiersLus: lus,
+        verifieLe: new Date().toISOString(), regle: REGLE_RAPPROCHEMENT_RECUS, depuis, fichiersLus: lus,
         recus: trouves.slice(0, 60), total: Math.round(total * 100) / 100,
         // Où les reçus ont été cherchés (voir listerRecusNas côté serveur) : affiché sous la ligne,
         // pour qu'un reçu « jamais trouvé » se diagnostique d'un coup d'œil.
@@ -10892,6 +10945,7 @@
       render();
       const b = bilanFondsRecus(d.fondsRecus.total, d.fondsRecus.attendu);
       signaler(b.etat === 'complet' ? 'Tous les fonds attendus sont reçus : la confirmation au client est prête.'
+        : b.etat === 'excedent' ? 'Les reçus retenus dépassent le montant attendu : vérifiez qu’ils concernent bien ce dossier.'
         : !lus ? `Aucun fichier de reçus depuis le ${formatDateFr(depuis)} dans les dossiers lus (racine du NAS configurée et dossiers « DOSSIER »).`
         : `${trouves.length} reçu${trouves.length > 1 ? 's' : ''} trouvé${trouves.length > 1 ? 's' : ''} dans ${lus} fichier${lus > 1 ? 's' : ''} de reçus.`);
     } catch (e) {
@@ -10907,6 +10961,9 @@
   // poste à l'autre), une fois l'appel de fonds fait, jusqu'au rendez-vous, tant que la réception
   // n'est ni complète ni confirmée, et au plus une fois par heure et par dossier.
   var JOURS_VERIF_FONDS_AVANT_RDV = 15;
+  // Version de la règle de rapprochement : un résultat lu avec une règle plus ancienne est relu
+  // (même « complet ») — le 29/09, un reçu au nom d'un co-titulaire avait été compté à tort.
+  var REGLE_RAPPROCHEMENT_RECUS = 2;
   var DELAI_VERIF_FONDS_MS = 55 * 60 * 1000;
 
   // Pure : les dossiers à revérifier maintenant.
@@ -10918,6 +10975,7 @@
       const j = ecartJours(aujourdhuiIso, d.rendezVousSignature);
       if (j === null || j < 0 || j > JOURS_VERIF_FONDS_AVANT_RDV) return false;
       const f = d.fondsRecus;
+      if (f && f.regle !== REGLE_RAPPROCHEMENT_RECUS) return true;
       if (f && bilanFondsRecus(f.total, d.fondsAttendusManuel || f.attendu).etat === 'complet') return false;
       const derniere = f && Date.parse(f.verifieLe);
       return !(Number.isFinite(derniere) && maintenantMs - derniere < DELAI_VERIF_FONDS_MS);
@@ -10951,6 +11009,20 @@
     render();
   }
 
+  // Autres noms sous lesquels l'acquéreur verse (nom d'usage, d'épouse…), saisis à la main : les
+  // reçus sont relus aussitôt avec ces noms.
+  function changerNomsRecus(id, valeur) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    const nouveau = String(valeur || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+    if (nouveau === (d.nomsRecus || '')) return;
+    d.nomsRecus = nouveau;
+    ajouterHistorique(d, nouveau ? `Autres noms cherchés sur les reçus : ${nouveau}` : 'Autres noms cherchés sur les reçus effacés');
+    sauvegarder(d);
+    render();
+    if (nasDisponible()) verifierFondsRecus(id, null, false);
+  }
+
   // Ligne d'action « Fonds reçus » (onglet Échanges) : vérifier PUIS confirmer au client, sur une
   // seule ligne (demandé par l'étude le 28/09 : les deux lignes séparées ne disaient pas que l'une
   // précède l'autre). L'état en précision ; en dessous, toujours visibles, le montant attendu et
@@ -10981,7 +11053,8 @@
     const attendu = d.fondsAttendusManuel || (f && f.attendu) || null;
     const b = bilanFondsRecus(f ? f.total : 0, attendu);
     const etat = !f ? '<span class="dot-label dl-neutre"><span class="dot"></span>Pas encore vérifié</span>'
-      : b.etat === 'complet' ? `<span class="dot-label dl-success"><span class="dot"></span>Tous les fonds sont reçus — ${formaterPrixCentimes(b.total)}</span>`
+      : b.etat === 'complet' ? `<span class="dot-label dl-success"><span class="dot"></span>Tous les fonds sont reçus — ${formaterPrixCentimes(b.total)}${precisionEcartFonds(b)}</span>`
+      : b.etat === 'excedent' ? `<span class="dot-label dl-pret"><span class="dot"></span>${formaterPrixCentimes(b.total)} reçus pour ${formaterPrixCentimes(b.attendu)} attendus — ${formaterPrixCentimes(b.ecart)} de trop : vérifiez les reçus retenus</span>`
       : b.etat === 'partiel' ? `<span class="dot-label dl-pret"><span class="dot"></span>${formaterPrixCentimes(b.total)} reçus sur ${formaterPrixCentimes(b.attendu)} — reste ${formaterPrixCentimes(b.reste)}</span>`
       : b.etat === 'inconnu' ? `<span class="dot-label dl-neutre"><span class="dot"></span>${formaterPrixCentimes(b.total)} reçus — montant attendu inconnu</span>`
       : '<span class="dot-label dl-urgent"><span class="dot"></span>Aucun reçu trouvé</span>';
@@ -10999,6 +11072,9 @@
         <input type="text" inputmode="decimal" value="${attendu ? escapeAttr(String(attendu).replace('.', ',')) : ''}" placeholder="lu dans le décompte"
           onblur="changerFondsAttendus('${d.id}', this.value)" onkeydown="if(event.key==='Enter')this.blur()">
         ${source ? `<span class="hint">${source}</span>` : ''}</label>
+      <label class="fonds-recus-attendu">Autre nom sur les reçus
+        <input type="text" value="${escapeAttr(d.nomsRecus || '')}" placeholder="nom d’usage, d’épouse…"
+          onblur="changerNomsRecus('${d.id}', this.value)" onkeydown="if(event.key==='Enter')this.blur()"></label>
       ${liste}
       ${f ? `<p class="hint">Reçus lus depuis le ${formatDateFr(f.depuis)} (${f.fichiersLus} fichier${f.fichiersLus > 1 ? 's' : ''}) — vérifié ${new Date(f.verifieLe).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}. Chaque versement au nom de l’acquéreur est listé : vérifiez qu’il concerne bien ce dossier.</p>` : ''}
       ${f ? renderDossiersRecusLus(f, motsPayeurDossier(d)) : ''}
@@ -14727,6 +14803,7 @@
           const bilan = fr ? bilanFondsRecus(fr.total, d.fondsAttendusManuel || fr.attendu) : null;
           const etatFonds = !bilan ? 'À envoyer une fois les fonds arrivés en comptabilité (vérifiez les reçus sur la fiche).'
             : bilan.etat === 'complet' ? 'Tous les fonds sont reçus d’après les reçus comptables.'
+            : bilan.etat === 'excedent' ? `Reçus comptables : ${formaterPrixCentimes(bilan.total)} pour ${formaterPrixCentimes(bilan.attendu)} attendus — écart à vérifier.`
             : bilan.etat === 'partiel' ? `Reçus comptables : ${formaterPrixCentimes(bilan.total)} sur ${formaterPrixCentimes(bilan.attendu)}, reste ${formaterPrixCentimes(bilan.reste)}.`
             : 'Aucun reçu complet trouvé à la dernière vérification.';
           ajouter({
@@ -19663,6 +19740,7 @@
       // Montant attendu saisi à la main : conservé. Le rapprochement des reçus (fondsRecus) dérive du NAS
       // de CE serveur : il repart de zéro, comme les pièces.
       fondsAttendusManuel: Number(d.fondsAttendusManuel) > 0 ? Number(d.fondsAttendusManuel) : null,
+      nomsRecus: typeof d.nomsRecus === 'string' ? d.nomsRecus.slice(0, 120) : '',
       fondsRecus: null,
       adresseBien: typeof d.adresseBien === 'string' ? d.adresseBien : '',
       nomAgence: typeof d.nomAgence === 'string' ? d.nomAgence : '',
@@ -19901,6 +19979,7 @@
       const b = bilanFondsRecus(f.total, f.attendu);
       const derniere = (f.recus || []).map(r => iso(r.date)).filter(Boolean).sort().pop() || '';
       if (b.etat === 'complet') etat[7] = { fait: true, date: derniere, note: 'Fonds complets : ' + euros(b.total) + ' reçus.' };
+      else if (b.etat === 'excedent') etat[7].note = 'Reçu ' + euros(b.total) + ' pour ' + euros(b.attendu) + ' attendus — écart à vérifier.';
       else if (b.attendu) etat[7].note = 'Reçu ' + euros(b.total) + ' sur ' + euros(b.attendu) + ' — reste ' + euros(b.reste) + '.';
       else if (b.total > 0) etat[7].note = 'Reçu ' + euros(b.total) + ' (montant attendu inconnu).';
     }

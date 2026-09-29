@@ -674,3 +674,13 @@ test('fonds incomplets : rendez-vous lundi ou mardi → alerte le vendredi, jama
   // Rendez-vous passé : plus rien.
   assert.equal(alertesFondsDues([lundi], '2026-10-13', new Set()).length, 0);
 });
+
+test('fonds : à 50 € près ; un excédent n’est jamais « tous les fonds reçus »', () => {
+  const pres = dossierFonds({ rendezVousSignature: '2026-10-20', fondsRecus: recus(150030, 150000) });
+  assert.equal(alertesFondsDues([pres], '2026-10-06', new Set())[0].genre, 'complets');
+  const trop = dossierFonds({ rendezVousSignature: '2026-10-07', fondsRecus: recus(405977.91, 331158.76) });
+  const dus = alertesFondsDues([trop], '2026-10-05', new Set());
+  assert.equal(dus.length, 1);
+  assert.equal(dus[0].genre, 'incomplets');
+  assert.match(texteAlerteFonds(dus[0]), /405\.977,91\s€ reçus pour 331\.158,76\s€ attendus : l'écart est à vérifier/);
+});

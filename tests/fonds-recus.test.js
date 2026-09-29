@@ -51,6 +51,52 @@ test('montant attendu lu dans un décompte, et état de l’indicateur', () => {
   assert.equal(app.bilanFondsRecus(500, null).etat, 'inconnu');
 });
 
+// Règle de l'étude (29/09) : à l'euro près, quelques dizaines d'euros d'écart au plus (erreur du
+// client), dans un sens comme dans l'autre. Bien au-delà du montant attendu : écart à vérifier.
+test('bilanFondsRecus : complet à 50 € près, excédent jamais « complet »', () => {
+  assert.equal(app.bilanFondsRecus(331158.76, 331158.76).etat, 'complet');
+  const plus = app.bilanFondsRecus(331188.76, 331158.76);
+  assert.equal(plus.etat, 'complet');
+  assert.equal(plus.ecart, 30);
+  assert.match(app.precisionEcartFonds(plus), /^ \(30,00\s€ de plus que prévu\)$/);
+  assert.equal(app.bilanFondsRecus(331120, 331158.76).etat, 'complet');
+  assert.match(app.precisionEcartFonds(app.bilanFondsRecus(331120, 331158.76)), /de moins que prévu/);
+  assert.equal(app.precisionEcartFonds(app.bilanFondsRecus(331158.5, 331158.76)), '');
+  assert.equal(app.bilanFondsRecus(331100, 331158.76).etat, 'partiel');
+  const trop = app.bilanFondsRecus(405977.91, 331158.76);
+  assert.equal(trop.etat, 'excedent');
+  assert.equal(trop.reste, 0);
+  assert.equal(trop.ecart, 74819.15);
+});
+
+test('patronymes de l’acquéreur : nom d’usage du nom du dossier, du courrier d’appel de fonds, saisi à la main', () => {
+  const parties = [{ nom: 'DUPONT', role: 'VENDEUR' }, { nom: 'MARTIN', role: 'ACQUEREUR' }];
+  assert.equal(app.motsPayeurDossier({ parties, nom: 'DUPONT / CRIL' }).join(','), 'martin,cril');
+  assert.equal(app.motsPayeurDossier({ parties, nom: 'DUPONT / MARTIN',
+    appelFondsCourrier: "Convocation au rendez-vous contenant l'appel de fonds - CRIL.pdf" }).join(','), 'martin,cril');
+  assert.equal(app.motsPayeurDossier({ parties, nom: 'DUPONT / MARTIN',
+    fondsRecus: { attenduChemin: "Convocation au rendez-vous contenant l'appel de fonds - CRIL et ROUX.pdf" } }).join(','), 'martin,cril,roux');
+  assert.equal(app.motsPayeurDossier({ parties, nom: 'DUPONT / MARTIN', nomsRecus: 'Cril' }).join(','), 'martin,cril');
+  // Le vendeur n'est jamais pris pour l'acquéreur, et le nom d'usage ne passe pas côté vendeur.
+  assert.equal(app.motsVendeurDossier({ parties, nom: 'DUPONT / MARTIN', nomsRecus: 'CRIL' }).join(','), 'dupont');
+  // Import d'une sauvegarde : les noms saisis restent.
+  assert.equal(app.normaliserDossierImporte({ id: 'y', nom: 'A / B', nomsRecus: 'CRIL' }).nomsRecus, 'CRIL');
+});
+
+// Reçu au nom d'usage (structure réelle, noms inventés) : l'acquéreuse désignée dans l'acte sous son
+// nom de naissance MARTIN verse sous son nom d'épouse CRIL.
+test('reçu au nom d’épouse : retrouvé une fois le nom d’usage connu', () => {
+  const page = [
+    'CAISSE D’ÉPARGNE', '28/09/2026 SGOSSART/JSAUJO 331 158,76 € Euros', 'trois cent trente et un mille…',
+    'compte : 3071', 'CRIL Yvette VIR RECU DE MME CRIL YVETTE SOLDE PRIX ET FRAIS 331 158,76 €',
+    'VTE DUPONT/CRIL', '331 158,76 €'
+  ];
+  assert.equal(app.recusDuPayeurDansPages([page], ['martin'], ['dupont']).length, 0);
+  const r = app.recusDuPayeurDansPages([page], ['martin', 'cril'], ['dupont']);
+  assert.equal(r.map(x => x.montant).join('|'), '331158.76');
+  assert.ok(r[0].confirme);
+});
+
 test('import d’une sauvegarde : le montant saisi reste, le rapprochement repart de zéro', () => {
   const d = app.normaliserDossierImporte({ id: 'x', nom: 'A / B', fondsAttendusManuel: 1234.5, fondsRecus: { total: 10 } });
   assert.equal(d.fondsAttendusManuel, 1234.5);
@@ -87,6 +133,12 @@ test('reçu comptable réel : écritures au nom de l’acquéreur, date et compt
   // Le vendeur du même dossier n'est pas le payeur : son nom dans la référence ne compte pas.
   const vendeur = app.recusDuPayeurDansPages([RECU_CONFRERE], ['bertin'], ['lemoine']);
   assert.equal(vendeur.length, 0);
+});
+
+test('referenceVenteLibelle : les deux côtés de la référence de la vente', () => {
+  assert.equal(app.referenceVenteLibelle('VIR RECU DE SCP X SOLDE PRIX DE VENTE FAURE-LEGRAND/VASSEUR'), 'FAURE-LEGRAND / VASSEUR');
+  assert.equal(app.referenceVenteLibelle('VIR RECU PROVISION SUR FRAIS VTE BERTIN/LEMOINE'), 'BERTIN / LEMOINE');
+  assert.equal(app.referenceVenteLibelle('RECU DE MME ROLLAND CLAIRE QUOTE-PART PASSIF'), '');
 });
 
 test('reçu comptable réel : remboursement de trop-perçu et reçu d’un autre client écartés', () => {
@@ -131,6 +183,14 @@ test('reçu comptable : seul le titulaire en début de ligne désigne le client,
   assert.ok(vasseur.every(r => r.confirme));
   // Un autre dossier où les FAURE achètent : rien, malgré « FAURE-LEGRAND » dans le libellé.
   assert.equal(app.recusDuPayeurDansPages([vente], ['faure', 'legrand'], ['dupont']).length, 0);
+  // Un dossier où BERNARD (le co-titulaire nommé après « et ») achète une autre maison : rien — le
+  // client du compte est VASSEUR, et la référence cite une autre vente (reçu du 28/09).
+  assert.equal(app.recusDuPayeurDansPages([vente], ['bernard'], ['dupont']).length, 0);
+  assert.equal(app.recusDuPayeurDansPages([vente], ['bernard'], []).length, 0);
+  // Même co-titulaire, mais la référence est bien la vente de son dossier : retenu, confirmé.
+  const coTitulaire = app.recusDuPayeurDansPages([vente], ['bernard'], ['faure', 'legrand']);
+  assert.equal(coTitulaire.length, 3);
+  assert.ok(coTitulaire.every(r => r.confirme));
   // Les ROLLAND ne récupèrent pas le versement porté au compte de PERRIN.
   assert.equal(app.recusDuPayeurDansPages([sansVir], ['rolland'], []).length, 0);
   assert.equal(app.recusDuPayeurDansPages([sansVir], ['perrin'], []).length, 1);
@@ -162,12 +222,14 @@ test('dossiersAVerifierFonds : dossiers du poste, appel de fonds fait, avant le 
     Object.assign({ id: 'b' }, base, { responsable: 'Jérémy SAUJOT' }),
     Object.assign({ id: 'c' }, base, { appelFonds: '', echeancesValidees: {} }),
     Object.assign({ id: 'd' }, base, { receptionFondsConfirmeeLe: '2026-10-04' }),
-    Object.assign({ id: 'e' }, base, { fondsRecus: { total: 100, attendu: 100, verifieLe: '2026-10-01T10:00:00Z' } }),
-    Object.assign({ id: 'f' }, base, { fondsRecus: { total: 50, attendu: 100, verifieLe: '2026-10-05T09:30:00Z' } }),
-    Object.assign({ id: 'g' }, base, { fondsRecus: { total: 50, attendu: 100, verifieLe: '2026-10-05T08:00:00Z' } }),
-    Object.assign({ id: 'h' }, base, { rendezVousSignature: '2026-10-01' })
+    Object.assign({ id: 'e' }, base, { fondsRecus: { total: 100, attendu: 100, verifieLe: '2026-10-01T10:00:00Z', regle: 2 } }),
+    Object.assign({ id: 'f' }, base, { fondsRecus: { total: 5000, attendu: 10000, verifieLe: '2026-10-05T09:30:00Z', regle: 2 } }),
+    Object.assign({ id: 'g' }, base, { fondsRecus: { total: 5000, attendu: 10000, verifieLe: '2026-10-05T08:00:00Z', regle: 2 } }),
+    Object.assign({ id: 'h' }, base, { rendezVousSignature: '2026-10-01' }),
+    // « Complet » lu avec l'ancienne règle de rapprochement (avant le 29/09) : relu tout de suite.
+    Object.assign({ id: 'i' }, base, { fondsRecus: { total: 405977.91, attendu: 331158.76, verifieLe: '2026-10-05T09:50:00Z' } })
   ];
-  assert.equal(app.dossiersAVerifierFonds(liste, 'Julie VASSELIN', '2026-10-05', maintenant).map(d => d.id).join(','), 'a,g');
+  assert.equal(app.dossiersAVerifierFonds(liste, 'Julie VASSELIN', '2026-10-05', maintenant).map(d => d.id).join(','), 'a,g,i');
   assert.equal(app.dossiersAVerifierFonds(liste, '', '2026-10-05', maintenant).length, 0);
 });
 

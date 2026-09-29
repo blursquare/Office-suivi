@@ -12008,3 +12008,29 @@ les courriers. Tu as compris que saint aignan était un exemple de format d'adre
     une seule ou déjà à la forme CLAIRE, et garde l'ordre des lignes déjà séparées. Branchée sur le
     destinataire de l'appel de fonds (aperçu et `addrLines` du .docx), seul courrier à adresse
     postale. L'adresse du bien dans le corps de la lettre garde la forme CLAIRE.
+
+### 29/09 15:39 — Fonds reçus : mauvais dossier, marge de 50 €, nom d'usage
+
+Signalé : « CLAIRE a trouvé des sommes mais pas pour le bon dossier » (reçus du 28/09, 405.977,91 €
+comptés pour un dossier dont l'acquéreuse, désignée dans l'acte sous son nom de naissance, verse
+sous son nom d'épouse ; montant attendu 331.158,76 €). Cause : le reçu portait au compte d'un autre
+client un titulaire à deux noms « NOM1 Prénom et NOM2 », NOM2 étant celui du dossier. Précisions
+de l'étude : « martin est le nom de jeune fille de Yvette MARTIN épouse CRIL », « il faut trouver une
+parade », « les fonds trouvés doivent être à l'euro près avec une marge de quelques dizaines d'euros
+maximum si le client a fait une erreur ».
+  - `ecrituresDuPayeur` : un nom qui n'apparaît qu'après « et » dans le titulaire ne suffit plus
+    sans la référence de la vente (vendeur du dossier cité) ; une référence « VTE A/B »
+    (`referenceVenteLibelle`) qui ne nomme personne du dossier écarte l'écriture.
+  - `bilanFondsRecus` / `bilanFonds` (serveur) : complet à 50 € près (`MARGE_FONDS_RECUS`),
+    dans les deux sens ; au-delà du montant attendu, état « excedent » (orange, « … de trop :
+    vérifiez les reçus retenus »), jamais « complet » — ni sur la fiche, ni dans « Aujourd'hui »,
+    ni sur la fiche imprimée, ni dans le message Teams. Un écart toléré est affiché
+    (« 30,00 € de plus que prévu »).
+  - Nom d'usage : `motsPayeurDossier` ajoute le côté acquéreur du nom du dossier, le nom du courrier
+    d'appel de fonds (`nomsCourrierAppelFonds`, « Convocation … - CRIL.pdf ») et le champ « Autre
+    nom sur les reçus » (`d.nomsRecus`, relu aussitôt, conservé à l'import).
+  - `REGLE_RAPPROCHEMENT_RECUS = 2` : une lecture faite avec l'ancienne règle est refaite par la
+    vérification automatique, même si elle disait « complet ».
+  Rejoué sur le PDF réel des reçus du 28/09 (non commité) : rien pour le dossier concerné, les trois
+  versements pour le bon client. Tests avec noms inventés. Lecture du nom d'épouse dans l'acte lui-même
+  (« épouse de Monsieur … ») non faite : sans acte réel, le motif serait deviné.
