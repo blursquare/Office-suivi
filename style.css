@@ -4865,30 +4865,86 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
 .accent-pastille:has(input:checked) { border-color: var(--ink); color: var(--ink); font-weight: 600; }
 .accent-pastille:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
 @media (max-width: 700px) { .accent-choix { justify-content: flex-start; } }
-/* Sous-onglets des Réglages (même composant .vue-bascule que le Suivi) et grille de cartes : deux
-   colonnes sur un écran large, une seule en dessous. Les cartes perdent leur marge basse dans la
-   grille, c'est le gap qui espace. min-width:0 : sans lui une carte au contenu large (tableau,
-   lien long) élargirait sa piste au lieu de revenir à la ligne. */
-.reglages-onglets { margin-bottom: 18px; flex-wrap: wrap; }
-.reglages-onglets .vue-bascule-btn { font-size: 13px; padding: 6px 14px; display: inline-flex; align-items: center; gap: 6px; }
+/* ---- Réglages à la manière de ceux de Claude (29/09) -----------------------------------------
+   Rubriques à gauche, une seule colonne à droite : un titre de page, des sections, et dans chaque
+   section des LIGNES séparées par un filet (libellé à gauche, commande à droite). Plus de grille de
+   cartes : leurs hauteurs inégales laissaient de grands trous. */
+.reglages-corps { display: grid; grid-template-columns: 220px minmax(0, 760px); gap: 40px; align-items: start; }
+.reglages-corps > * { min-width: 0; }
+.reglages-nav { display: flex; flex-direction: column; gap: 2px; position: sticky; top: 16px; }
+.reglages-corps .reglages-nav-btn {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;
+  padding: 8px 12px; border: 0; border-radius: 8px; background: transparent;
+  color: var(--ink-soft); font-size: 14px; font-weight: 500; text-align: left; cursor: pointer;
+}
+.reglages-corps .reglages-nav-btn:hover { background: var(--paper-sunk); color: var(--ink); }
+.reglages-corps .reglages-nav-btn.actif { background: var(--paper-card); color: var(--ink); font-weight: 600; box-shadow: var(--shadow-card); }
+.reglages-corps .reglages-nav-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .reglages-onglet-compteur {
   min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
   background: var(--urgent); color: var(--on-accent); font-size: 11px; font-weight: 700;
   display: inline-flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums;
 }
 .reglages-onglet-compteur[hidden] { display: none; }
-.reglages-grille { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; }
-.reglages-grille > * { min-width: 0; margin-bottom: 0; }
-.reglages-grille .calc-card > p.hint + .calc-champs { margin-top: 12px; }
-@media (min-width: 1200px) {
-  .reglages-grille { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .reglages-grille > .reglages-pleine { grid-column: 1 / -1; }
-  #reglages-panneau-relecture .reglages-grille { grid-template-columns: minmax(0, 760px); }
+.reglages-titre { display: flex; align-items: center; gap: 8px; margin: 0 0 22px; font-size: 20px; font-weight: 600; color: var(--ink); }
+.reglages-titre-ligne { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 22px; }
+.reglages-titre-ligne .reglages-titre { margin: 0; }
+.reglages-section { margin-bottom: 36px; }
+.reglages-section:last-child { margin-bottom: 8px; }
+.reglages-section-titre {
+  display: flex; align-items: center; gap: 6px; margin: 0; padding-bottom: 10px;
+  border-bottom: 1px solid var(--line); font-size: 14px; font-weight: 600; color: var(--ink);
 }
-.reglages-apropos { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-.reglages-apropos .dash-section-titre { margin-bottom: 2px; }
-.reglages-apropos .hint { margin: 0; }
-.reglages-apropos button { display: inline-flex; align-items: center; gap: 6px; }
+.reglages-section .reglages-liste > * + *,
+.reglages-sous-liste > * + * { border-top: 1px solid var(--line-soft); }
+.reglages-sous-liste { display: flex; flex-direction: column; }
+.reglages-champ {
+  display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 16px; align-items: center;
+  padding: 12px 0;
+}
+.reglages-champ-haut { align-items: start; }
+.reglages-champ-haut .reglages-champ-libelle { padding-top: 8px; }
+.reglages-champ-libelle { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 14px; font-weight: 500; color: var(--ink); }
+.reglages-champ-libelle label { margin: 0; font: inherit; color: inherit; }
+.reglages-champ input[type="text"], .reglages-champ input[type="email"], .reglages-champ input[type="password"],
+.reglages-champ select { width: 100%; margin: 0; }
+.reglages-champ-pile { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.reglages-champ-ligne { display: flex; gap: 8px; align-items: center; }
+.reglages-champ-ligne input { flex: 1; min-width: 0; }
+.reglages-champ-pile .hint:empty { display: none; }
+.reglages-champ-pile .hint { margin: 0; }
+.reglages-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding-top: 14px; }
+.reglages-section .reglages-dernier-tour:not(:empty) { margin-top: 12px; }
+.reglages-option-fixe { cursor: default; }
+.reglages-option-fixe button { display: inline-flex; align-items: center; gap: 6px; }
+.reglages-lien { font-size: 12.5px; color: var(--focus); width: fit-content; }
+.reglages-section > .signature-images, .reglages-section > #reglages-exclusions { margin-top: 12px; }
+@media (max-width: 860px) {
+  .reglages-corps { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .reglages-nav { position: static; flex-direction: row; overflow-x: auto; padding-bottom: 4px; }
+  .reglages-corps .reglages-nav-btn { width: auto; white-space: nowrap; }
+}
+@media (max-width: 600px) {
+  .reglages-champ { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .reglages-champ-haut .reglages-champ-libelle { padding-top: 0; }
+}
+
+/* ---- Pastille d'information « i » (voir infoBulle/initialiserInfoBulles dans script.js) ------
+   Remplace les paragraphes d'explication : l'aide se lit au survol, au focus ou au toucher. */
+.info-i {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 16px; height: 16px; border-radius: 50%; border: 1.3px solid var(--muted);
+  color: var(--muted); cursor: help; vertical-align: middle; user-select: none;
+  font: italic 700 10.5px/1 Georgia, 'Times New Roman', serif;
+}
+.info-i::before { content: 'i'; }
+.info-i:hover, .info-i:focus-visible { border-color: var(--focus); color: var(--focus); outline: none; }
+.info-bulle {
+  position: fixed; z-index: 10000; display: none; max-width: min(320px, calc(100vw - 16px));
+  padding: 8px 11px; border-radius: 8px; background: var(--ink); color: var(--paper-card);
+  font-size: 12.5px; font-weight: 400; line-height: 1.45; box-shadow: var(--shadow-float);
+  pointer-events: none; white-space: normal; text-align: left;
+}
 
 /* ---- Quotités d'acquisition ------------------------------------------------------------------
    Formulaire à gauche (gabarit de l'appel de fonds : .af-grid/.af-form), résultat et aperçu de

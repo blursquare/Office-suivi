@@ -235,7 +235,13 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   (format « SAINT-AIGNAN (41110), 2 rue des Cours de Meusnes » : commune en capitales, tirets et
   CEDEX gardés) ; le destinataire d'un courrier garde la forme postale (`adressePostaleCourrier`).
 - **Texte d'aide** : ne décrit pas ce que le bouton dit déjà ; il dit ce qui manque. Une toute
-  nouvelle confirmation commence par son verbe d'action (`boutonConfirmation`).
+  nouvelle confirmation commence par son verbe d'action (`boutonConfirmation`). **Une explication
+  n'est jamais un paragraphe** (étude, 29/09 : « ça charge trop l'interface ») : elle va dans une
+  pastille « i » à côté du titre ou du libellé (`infoBulle(texte)` dans un gabarit, `<span
+  class="info-i" tabindex="0" data-info="…">` en HTML, `definirInfoBulle` pour la changer). Restent
+  en texte visible : un état, un résultat, une erreur, une liste vide. **Réglages** : rubriques à
+  gauche (`SOUS_ONGLETS_REGLAGES`), une colonne de lignes `.reglages-option` / `.reglages-champ`
+  dans des `.reglages-section` — pas de cartes en grille.
 - **Toute nouvelle fonction pure** : la déclarer `function` (ou `var` pour une table) pour la
   tester ; les fonctions qui touchent `dossiers`/le DOM se vérifient dans un vrai Chromium
   (Playwright, `/opt/pw-browsers/chromium`) avec un serveur réel et des dossiers inventés.

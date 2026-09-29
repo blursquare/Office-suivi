@@ -321,8 +321,7 @@
              pourtant ce qu'on vient lire en premier — demandé par l'étude. Rien n'est perdu : le
              classement d'une date se corrige toujours ici, une fois le bloc déplié. -->
         <details class="chips-repliable">
-          <summary>Toutes les dates repérées dans le document</summary>
-          <p class="hint">Diagnostics et dates passées sont écartés automatiquement. Cliquez sur une catégorie pour corriger un classement.</p>
+          <summary>Toutes les dates repérées dans le document <span class="info-i" tabindex="0" data-info="Diagnostics et dates passées sont écartés automatiquement. Cliquez sur une catégorie pour corriger un classement."></span></summary>
           <div class="chips" id="chips"></div>
         </details>
 
@@ -707,9 +706,8 @@
           <input type="number" id="calc-price" min="1" step="1" placeholder="Saisir le prix" oninput="calculerFraisActe()">
         </div>
         <div class="calc-champ">
-          <label for="calc-mobilier">Dont mobilier (€)</label>
+          <label for="calc-mobilier">Dont mobilier (€) <span class="info-i" tabindex="0" data-info="Les meubles vendus avec le bien sortent de l&#x27;assiette des droits de mutation."></span></label>
           <input type="number" id="calc-mobilier" min="0" step="1" placeholder="Aucun" oninput="calculerFraisActe()">
-          <p class="hint">Les meubles vendus avec le bien sortent de l'assiette des droits de mutation.</p>
         </div>
         <div class="calc-champ">
           <label for="calc-dept">Département de situation du bien</label>
@@ -816,7 +814,7 @@
         </div>
         <div class="calc-champ calc-champ-paire">
           <div>
-            <label for="prorata-debut">Début de période</label>
+            <label for="prorata-debut">Début de période <span class="info-i" tabindex="0" data-info="Les bornes se calent automatiquement sur la période choisie autour de la date de l&#x27;acte ; ajustez-les si l&#x27;appel de fonds couvre une période différente."></span></label>
             <input type="date" id="prorata-debut" onchange="calculerProrataAffichage()">
           </div>
           <div>
@@ -824,7 +822,6 @@
             <input type="date" id="prorata-fin" onchange="calculerProrataAffichage()">
           </div>
         </div>
-        <p class="hint">Les bornes se calent automatiquement sur la période choisie autour de la date de l'acte ; ajustez-les si l'appel de fonds couvre une période différente.</p>
       </div>
     </div>
 
@@ -899,8 +896,7 @@
         <div id="af-recap-prefill" class="af-recap"></div>
       </div>
 
-      <div class="dash-section-titre" style="margin-top:18px;">2 · Décompte du confrère</div>
-      <p class="hint">Quand le décompte vient d'un confrère (étude en participation), collez-le ou déposez son PDF : ses lignes remplissent le tableau du courrier, et les prorata écrits sous forme de formule sont recalculés pour contrôle.</p>
+      <div class="dash-section-titre" style="margin-top:18px;">2 · Décompte du confrère <span class="info-i" tabindex="0" data-info="Quand le décompte vient d&#x27;un confrère (étude en participation), collez-le ou déposez son PDF : ses lignes remplissent le tableau du courrier, et les prorata écrits sous forme de formule sont recalculés pour contrôle."></span></div>
       <div class="pdf-dropzone af-dropzone" id="af-dropzone" ondragover="gererSurvolDepotAppelFonds(event)" ondragleave="gererQuitteDepotAppelFonds(event)" ondrop="gererDepotAppelFonds(event)">
         <span class="pdf-dropzone-icone" id="icon-af-dropzone" aria-hidden="true"></span>
         <label for="af-fichier" class="file-btn">Choisir le PDF du décompte</label>
@@ -919,9 +915,8 @@
       <button type="button" class="bouton-ajout" onclick="ajouterClientAppelFonds()">Ajouter un client</button>
       <div class="calc-champs" style="margin-top:10px;">
         <div class="calc-champ">
-          <label for="af-adresse-clients">Adresse des clients</label>
+          <label for="af-adresse-clients">Adresse des clients <span class="info-i" tabindex="0" data-info="Laissé vide, le courrier porte la mention « Envoi par e-mail uniquement » à la place de l&#x27;adresse. Cette mention reste modifiable dans l&#x27;aperçu."></span></label>
           <textarea id="af-adresse-clients" rows="2" placeholder="Numéro et rue&#10;Code postal VILLE" oninput="majApercuAppelFonds()"></textarea>
-          <p class="hint">Laissé vide, le courrier porte la mention « Envoi par e-mail uniquement » à la place de l'adresse. Cette mention reste modifiable dans l'aperçu.</p>
         </div>
       </div>
 
@@ -986,26 +981,23 @@
           </div>
         </div>
         <div class="calc-champ">
-          <label for="af-prix-mobilier">Dont mobilier compris dans le prix (€)</label>
+          <label for="af-prix-mobilier">Dont mobilier compris dans le prix (€) <span class="info-i" tabindex="0" data-info="Repris tout seuls de l&#x27;adresse et de la désignation saisies ci-dessus (le mobilier, du dossier rattaché), et modifiables. Le mobilier est retiré du prix avant le contrôle : il n&#x27;entre pas dans l&#x27;assiette des droits de mutation. Servent uniquement à contrôler la ligne « frais et droits de l&#x27;acte de vente » du décompte : CLAIRE dit si le montant saisi est au-dessus ou en dessous de son barème, elle ne le remplit jamais. Ce barème n&#x27;a pas été audité — le chiffre reste le vôtre."></span></label>
           <input type="text" id="af-prix-mobilier" inputmode="numeric" placeholder="Aucun" oninput="renderTableAppelFonds()">
         </div>
-        <p class="hint">Repris tout seuls de l'adresse et de la désignation saisies ci-dessus (le mobilier, du dossier rattaché), et modifiables. Le mobilier est retiré du prix avant le contrôle : il n'entre pas dans l'assiette des droits de mutation. Servent uniquement à <b>contrôler</b> la ligne « frais et droits de l'acte de vente » du décompte : CLAIRE dit si le montant saisi est au-dessus ou en dessous de son barème, elle ne le remplit jamais. Ce barème n'a pas été audité — le chiffre reste le vôtre.</p>
       </div>
 
       <div class="dash-section-titre" style="margin-top:18px;">6 · Financement</div>
       <div class="calc-champs">
         <label class="af-checkline"><input type="checkbox" id="af-sans-pret" onchange="majApercuAppelFonds()"> Achat sans prêt (apport personnel seul)</label>
-        <label class="af-checkline"><input type="checkbox" id="af-pret-hypothecaire" onchange="majApercuAppelFonds()"> Prêt garanti par une hypothèque (acte de prêt à recevoir)</label>
-        <p class="hint">Un prêt cautionné (Crédit Logement…) ne donne lieu à aucun acte notarié, donc à aucun frais d'acte de prêt à appeler. CLAIRE coche cette case toute seule quand elle a lu une garantie hypothécaire dans l'offre de prêt du dossier.</p>
+        <label class="af-checkline"><input type="checkbox" id="af-pret-hypothecaire" onchange="majApercuAppelFonds()"> Prêt garanti par une hypothèque (acte de prêt à recevoir) <span class="info-i" tabindex="0" data-info="Un prêt cautionné (Crédit Logement…) ne donne lieu à aucun acte notarié, donc à aucun frais d&#x27;acte de prêt à appeler. CLAIRE coche cette case toute seule quand elle a lu une garantie hypothécaire dans l&#x27;offre de prêt du dossier."></span></label>
       </div>
 
-      <p class="hint" style="margin-top:16px;">Le courrier ci-contre se modifie directement : cliquez dans un texte ou un montant pour le corriger. Le <code>.docx</code> téléchargé reprend l'en-tête réel de l'étude.</p>
     </div>
 
     <!-- ---------- Colonne de droite : l'aperçu du courrier, identité papier de l'étude ---------- -->
     <div class="af-apercu">
       <div class="af-apercu-barre">
-        <span class="hint">Aperçu — cliquez pour modifier un texte ou un montant, double-cliquez une ligne du tableau pour la supprimer.</span>
+        <span class="hint">Aperçu modifiable <span class="info-i" tabindex="0" data-info="Cliquez dans un texte ou un montant pour le corriger ; double-cliquez une ligne du tableau pour la supprimer. Le .docx téléchargé reprend l&#x27;en-tête réel de l&#x27;étude."></span></span>
       </div>
 
       <div class="af-lettre" id="af-lettre" contenteditable="true" spellcheck="false" oninput="saisieApercuAppelFonds()">
@@ -1138,7 +1130,7 @@
   <div class="dash-grid">
     <div>
       <div class="calc-card">
-        <div class="dash-section-titre">Droits de succession simulés</div>
+        <div class="dash-section-titre">Droits de succession simulés <span class="info-i" tabindex="0" data-info="Ces deux montants viennent de votre propre simulation des droits : CLAIRE ne les calcule pas et ne connaît ni les abattements ni le degré de parenté."></span></div>
         <div class="calc-champs">
           <div class="calc-champ">
             <label for="inv-dossier">Dossier</label>
@@ -1152,12 +1144,11 @@
             <label for="inv-droits-avec">Avec prisée par commissaire de justice (€)</label>
             <input type="number" id="inv-droits-avec" min="0" step="1" placeholder="Droits dus sur la valeur réelle du mobilier" oninput="calculerInventaireAffichage()">
           </div>
-          <p class="hint">Ces deux montants viennent de votre propre simulation des droits : CLAIRE ne les calcule pas et ne connaît ni les abattements ni le degré de parenté.</p>
         </div>
       </div>
 
       <div class="calc-card">
-        <div class="dash-section-titre">Coût de l'inventaire</div>
+        <div class="dash-section-titre">Coût de l'inventaire <span class="info-i" tabindex="0" data-info="Montants habituels de l&#x27;étude posés d&#x27;office, à ajuster si besoin. Un poste vidé n&#x27;est pas compté ; serments et trajets n&#x27;apparaissent au décompte que s&#x27;ils sont chiffrés."></span></div>
         <div class="calc-champs">
           <div class="calc-champ">
             <label for="inv-frais-ouverture">Provision — acte d'inventaire (€)</label>
@@ -1197,7 +1188,6 @@
               <input type="number" id="inv-trajet-unit" min="0" step="0.01" placeholder="0" oninput="calculerInventaireAffichage()">
             </div>
           </div>
-          <p class="hint">Montants habituels de l'étude posés d'office, à ajuster si besoin. Un poste vidé n'est pas compté ; serments et trajets n'apparaissent au décompte que s'ils sont chiffrés.</p>
         </div>
       </div>
     </div>
@@ -1305,10 +1295,9 @@
 
     <div class="qt-colonne-droite">
       <div class="calc-card qt-resultat">
-        <div class="dash-section-titre">Quotités</div>
+        <div class="dash-section-titre">Quotités <span class="info-i" tabindex="0" data-info="Proportions arrondies au centième, ajustées pour totaliser exactement 100 %. Elles suivent le financement de chacun, pas le montant de l&#x27;opération."></span></div>
         <div id="qt-controle"></div>
         <div id="qt-quotites" class="qt-quotites"></div>
-        <p class="hint">Proportions arrondies au centième, ajustées pour totaliser exactement 100 %. Elles suivent le financement de chacun, pas le montant de l'opération.</p>
       </div>
 
       <div class="af-apercu qt-apercu">
@@ -1354,13 +1343,12 @@
         </select>
         <p class="hint" id="audit-aide-mode"></p>
 
-        <label for="audit-dossier-recherche" style="margin-top:14px;">Dossier CLAIRE <span class="hint">(facultatif)</span></label>
+        <label for="audit-dossier-recherche" style="margin-top:14px;">Dossier CLAIRE <span class="hint">(facultatif)</span> <span class="info-i" tabindex="0" data-info="Lié à un dossier, la relecture a accès à tout son dossier du NAS : pièces à choisir rubrique par rubrique, et avant-contrat repris tout seul pour un projet de vente."></span></label>
         <div class="dash-recherche" style="width:100%;">
           <input type="search" id="audit-dossier-recherche" placeholder="Rechercher un dossier par nom ou responsable…" oninput="rechercherDossierAudit(this.value)" autocomplete="off">
           <div id="audit-dossier-resultats" class="dash-recherche-resultats" style="display:none;"></div>
         </div>
         <div id="audit-dossier-pill"></div>
-        <p class="hint">Lié à un dossier, la relecture a accès à tout son dossier du NAS : pièces à choisir rubrique par rubrique, et avant-contrat repris tout seul pour un projet de vente.</p>
         <div id="relecture-nas" class="relecture-nas" style="display:none;"></div>
       </div>
 
@@ -1394,8 +1382,7 @@
     <div class="calc-card relecture-cadre-carte">
       <div class="relecture-cadre-icone" id="icon-relecture-cadre" aria-hidden="true"></div>
       <div>
-        <strong>Rien d'identifiant ne quitte l'étude.</strong>
-        <p class="hint">Noms, adresses, naissances, contacts, références cadastrales et identifiants sont remplacés ici, dans votre navigateur, par des jetons (⟦PERSONNE_1⟧…). Seul le texte ainsi masqué est envoyé au modèle d'IA choisi dans les Réglages (Mistral, traité dans l'Union européenne, par défaut) ; la correspondance reste sur ce poste et sert à rétablir les noms dans le bilan. Un même élément porte le même jeton dans tous les documents, ce qui laisse repérer une incohérence d'un acte à l'autre. Relisez l'aperçu : un nom resté en clair se masque en un clic.</p>
+        <strong>Rien d'identifiant ne quitte l'étude. <span class="info-i" tabindex="0" data-info="Noms, adresses, naissances, contacts, références cadastrales et identifiants sont remplacés ici, dans votre navigateur, par des jetons (⟦PERSONNE_1⟧…). Seul le texte ainsi masqué est envoyé au modèle d&#x27;IA choisi dans les Réglages (Mistral, traité dans l&#x27;Union européenne, par défaut) ; la correspondance reste sur ce poste et sert à rétablir les noms dans le bilan. Un même élément porte le même jeton dans tous les documents, ce qui laisse repérer une incohérence d&#x27;un acte à l&#x27;autre. Relisez l&#x27;aperçu : un nom resté en clair se masque en un clic."></span></strong>
       </div>
     </div>
     <div class="dash-grid relecture-anon-grid">
@@ -1474,420 +1461,386 @@
 
   <div id="reglages-etat" class="analyse-ia-dispo" style="display:none;"></div>
 
-  <!-- Réglages rangés en quatre sous-onglets (demandé par l'étude : « on doit trop scroller »),
-       la mise à jour de CLAIRE en tête du premier. Bascule : definirSousOngletReglages() dans
-       script.js ; le dernier sous-onglet ouvert est retenu sur ce poste. -->
-  <div class="vue-bascule reglages-onglets" role="tablist" aria-label="Rubriques des réglages">
-    <button type="button" class="vue-bascule-btn actif" role="tab" id="reglages-onglet-general" aria-controls="reglages-panneau-general" aria-selected="true" onclick="definirSousOngletReglages('general')">Général</button>
-    <button type="button" class="vue-bascule-btn" role="tab" id="reglages-onglet-rappels" aria-controls="reglages-panneau-rappels" aria-selected="false" onclick="definirSousOngletReglages('rappels')">Rappels et agenda</button>
-    <button type="button" class="vue-bascule-btn" role="tab" id="reglages-onglet-relecture" aria-controls="reglages-panneau-relecture" aria-selected="false" onclick="definirSousOngletReglages('relecture')">Relecture d'actes</button>
-    <button type="button" class="vue-bascule-btn" role="tab" id="reglages-onglet-pieces" aria-controls="reglages-panneau-pieces" aria-selected="false" onclick="definirSousOngletReglages('pieces')">Pièces et signalements<span class="reglages-onglet-compteur" id="reglages-onglet-compteur-signalements" hidden></span></button>
-  </div>
+  <!-- Réglages à la manière de ceux de Claude (demandé par l'étude le 29/09 : les cartes en grille
+       laissaient de grands trous) : rubriques à gauche, une seule colonne de lignes à droite
+       (libellé à gauche, commande à droite, filet entre deux lignes). Les explications passent dans
+       une petite pastille « i » (.info-i, voir initialiserInfoBulles dans script.js). Bascule :
+       definirSousOngletReglages() ; la dernière rubrique ouverte est retenue sur ce poste. -->
+  <div class="reglages-corps">
+    <nav class="reglages-nav" role="tablist" aria-label="Rubriques des réglages" aria-orientation="vertical">
+      <button type="button" class="reglages-nav-btn actif" role="tab" id="reglages-onglet-general" aria-controls="reglages-panneau-general" aria-selected="true" onclick="definirSousOngletReglages('general')">Général</button>
+      <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-rappels" aria-controls="reglages-panneau-rappels" aria-selected="false" onclick="definirSousOngletReglages('rappels')">Rappels Teams</button>
+      <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-signature" aria-controls="reglages-panneau-signature" aria-selected="false" onclick="definirSousOngletReglages('signature')">Signature des emails</button>
+      <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-agenda" aria-controls="reglages-panneau-agenda" aria-selected="false" onclick="definirSousOngletReglages('agenda')">Agenda</button>
+      <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-relecture" aria-controls="reglages-panneau-relecture" aria-selected="false" onclick="definirSousOngletReglages('relecture')">Relecture d'actes</button>
+      <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-pieces" aria-controls="reglages-panneau-pieces" aria-selected="false" onclick="definirSousOngletReglages('pieces')">Pièces</button>
+      <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-signalements" aria-controls="reglages-panneau-signalements" aria-selected="false" onclick="definirSousOngletReglages('signalements')">Signalements<span class="reglages-onglet-compteur" id="reglages-onglet-compteur-signalements" hidden></span></button>
+      <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-systeme" aria-controls="reglages-panneau-systeme" aria-selected="false" onclick="definirSousOngletReglages('systeme')">Mise à jour et sauvegarde</button>
+    </nav>
 
+    <div class="reglages-contenu">
+
+  <!-- ===== Général : réglages PROPRES À CE POSTE (localStorage) ===== -->
   <section class="reglages-panneau" id="reglages-panneau-general" role="tabpanel" aria-labelledby="reglages-onglet-general">
-    <div class="reglages-grille">
-      <!-- Mise à jour de CLAIRE en un clic (server/src/miseAJour.js) : rien ne s'installe sans le
-           bouton « Mettre à jour maintenant ». Voir chargerMiseAJour()/renderMiseAJour() dans script.js. -->
-      <div class="calc-card">
-        <div class="dash-section-titre">Mise à jour de CLAIRE</div>
-        <p class="hint">La mise à jour sauvegarde la base puis redémarre le serveur (environ une minute d'interruption).</p>
-        <div id="reglages-maj-etat" class="reglages-dernier-tour"></div>
-        <div style="margin-top:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-          <button type="button" class="secondary" id="reglages-maj-verifier" onclick="verifierMiseAJour()">Vérifier</button>
-          <button type="button" class="primary" id="reglages-maj-installer" style="display:none;" onclick="demanderInstallationMiseAJour()">Mettre à jour maintenant</button>
-        </div>
-        <details class="reglages-restauration">
-          <summary>Jeton d'accès GitHub (dépôt privé)</summary>
-          <p class="hint">Jeton en <strong>lecture seule</strong>, jamais réaffiché une fois enregistré.</p>
-          <ol>
-            <li>Sur github.com, connecté au compte propriétaire du dépôt : photo de profil › <em>Settings</em> › <em>Developer settings</em> › <em>Personal access tokens</em> › <em>Fine-grained tokens</em> › <em>Generate new token</em>.</li>
-            <li>Nom : « CLAIRE mise à jour ». Expiration : la plus longue proposée (à renouveler ensuite).</li>
-            <li><em>Repository access</em> : <em>Only select repositories</em> › <strong>Office-suivi</strong>.</li>
-            <li><em>Permissions</em> › <em>Repository permissions</em> › <strong>Contents : Read-only</strong>. Rien d'autre.</li>
-            <li><em>Generate token</em>, copier le jeton (il commence par <code>github_pat_</code>) et le coller ci-dessous.</li>
-          </ol>
-          <div class="calc-champs" style="margin-top:8px;">
-            <div class="calc-champ">
-              <label for="reglages-maj-jeton">Jeton GitHub</label>
-              <input type="password" id="reglages-maj-jeton" autocomplete="off" placeholder="github_pat_…">
-            </div>
-          </div>
-          <div style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-            <button type="button" class="primary" onclick="enregistrerJetonMiseAJour()">Enregistrer le jeton</button>
-            <span id="reglages-maj-jeton-resultat" class="hint" style="margin:0;"></span>
-          </div>
-        </details>
-        <details class="reglages-restauration">
-          <summary>Si la nouvelle version ne démarre pas</summary>
-          <ol>
-            <li>Sur le poste serveur, lire <code>erreur-demarrage.txt</code> à côté de <code>CLAIRE-serveur.exe</code> (il dit pourquoi).</li>
-            <li>Pour revenir à la version précédente : lancer <code>Arreter-CLAIRE.bat</code>, supprimer <code>CLAIRE-serveur.exe</code>, renommer <code>CLAIRE-serveur.ancien.exe</code> en <code>CLAIRE-serveur.exe</code>, puis le relancer.</li>
-            <li>La base a été sauvegardée juste avant la mise à jour (voir « Sauvegarde de la base » ci-dessous).</li>
-          </ol>
-        </details>
-      </div>
-
-      <!-- Réglage PROPRE À CE POSTE (localStorage, jamais dans parametresRepo côté serveur) : la
-           permission Notification du navigateur est elle-même propre à ce poste/ce profil Chrome, un
-           réglage partagé n'aurait aucun sens ici. Voir notifierNavigateurPieces()/
-           CLE_LOCALSTORAGE_NOTIF_NAVIGATEUR dans script.js. -->
-      <div class="calc-card">
-        <div class="dash-section-titre">Sur ce poste</div>
-        <div class="reglages-liste">
-          <label class="reglages-option" for="reglages-utilisateur-poste">
-            <span class="reglages-option-texte">
-              <span class="reglages-option-titre">Collaborateur de ce poste</span>
-              <span class="hint">Le tableau de bord, le Suivi et l’historique s’adaptent à cette personne.</span>
-            </span>
-            <select id="reglages-utilisateur-poste" class="reglages-select-poste" onchange="definirUtilisateurPoste(this.value)"></select>
-          </label>
-          <label class="reglages-option" for="reglages-theme-sombre">
-            <span class="reglages-option-texte">
-              <span class="reglages-option-titre">Mode sombre</span>
-              <span class="hint">Retenu sur ce poste uniquement.</span>
-            </span>
-            <span class="switch reglages-switch">
-              <input type="checkbox" id="reglages-theme-sombre" onchange="choisirTheme(this.checked ? 'dark' : 'light')">
-              <span class="slider"></span>
-            </span>
-          </label>
-          <div class="reglages-option" role="group" aria-labelledby="reglages-accent-titre">
-            <span class="reglages-option-texte">
-              <span class="reglages-option-titre" id="reglages-accent-titre">Thème de couleur</span>
-              <span class="hint">Boutons, liens et onglet actif. Les couleurs des échéances ne changent pas.</span>
-            </span>
-            <span class="accent-choix">
-              <label class="accent-pastille" title="Bordeaux"><input type="radio" name="reglages-accent" id="reglages-accent-bordeaux" value="bordeaux" onchange="choisirAccent(this.value)"><span class="accent-rond" style="--pastille:#6D2332; --pastille-sombre:#D08A98"></span><span class="accent-nom">Bordeaux</span></label>
-              <label class="accent-pastille" title="Bleu"><input type="radio" name="reglages-accent" id="reglages-accent-bleu" value="bleu" onchange="choisirAccent(this.value)"><span class="accent-rond" style="--pastille:#111F3A; --pastille-sombre:#8E97C5"></span><span class="accent-nom">Bleu</span></label>
-              <label class="accent-pastille" title="Vert"><input type="radio" name="reglages-accent" id="reglages-accent-vert" value="vert" onchange="choisirAccent(this.value)"><span class="accent-rond" style="--pastille:#1F5D52; --pastille-sombre:#6FC2AE"></span><span class="accent-nom">Vert</span></label>
-              <label class="accent-pastille" title="Orange"><input type="radio" name="reglages-accent" id="reglages-accent-orange" value="orange" onchange="choisirAccent(this.value)"><span class="accent-rond" style="--pastille:#9A4A1F; --pastille-sombre:#E39A6B"></span><span class="accent-nom">Orange</span></label>
-              <label class="accent-pastille" title="Noir et blanc"><input type="radio" name="reglages-accent" id="reglages-accent-noir" value="noir" onchange="choisirAccent(this.value)"><span class="accent-rond" style="--pastille:#262626; --pastille-sombre:#D4D4D4"></span><span class="accent-nom">Noir &amp; blanc</span></label>
-            </span>
-          </div>
-          <!-- Ouverture automatique des documents téléchargés (voir server/src/ouvertureAuto.js) :
-               un relais Windows installé une fois par poste, puis activé ici. -->
-          <label class="reglages-option" for="reglages-ouverture-auto">
-            <span class="reglages-option-texte">
-              <span class="reglages-option-titre">Ouvrir les documents dès leur téléchargement</span>
-              <span class="hint">Emails dans Outlook, courriers dans Word. À installer une fois sur ce poste : <a href="#" onclick="event.preventDefault(); event.stopPropagation(); telechargerInstallateurOuvertureAuto();">télécharger l’installateur</a>, puis l’ouvrir.</span>
-            </span>
-            <span class="switch reglages-switch">
-              <input type="checkbox" id="reglages-ouverture-auto" onchange="choisirOuvertureAuto(this.checked)">
-              <span class="slider"></span>
-            </span>
-          </label>
-          <label class="reglages-option" for="reglages-mode-email">
-            <span class="reglages-option-texte">
-              <span class="reglages-option-titre">Ouverture des emails</span>
-              <span class="hint">Outlook : email en HTML avec la signature et les pièces jointes. Messagerie par défaut : texte seul, sans pièce jointe.</span>
-            </span>
-            <select id="reglages-mode-email" class="reglages-select-poste" onchange="choisirModeEmailPoste(this.value)">
-              <option value="outlook">Outlook (.eml)</option>
-              <option value="mailto">Messagerie par défaut</option>
-            </select>
-          </label>
-          <label class="reglages-option" for="reglages-notif-navigateur">
-            <span class="reglages-option-texte">
-              <span class="reglages-option-titre">Notification d'une nouvelle pièce</span>
-              <span class="hint">Notification Windows quand une pièce arrive sur le NAS. À activer sur chaque poste.</span>
-              <span class="hint" id="reglages-notif-navigateur-etat"></span>
-            </span>
-            <span class="switch reglages-switch">
-              <input type="checkbox" id="reglages-notif-navigateur" onchange="basculerNotifNavigateur(this.checked)">
-              <span class="slider"></span>
-            </span>
-          </label>
+    <h2 class="reglages-titre">Général</h2>
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Sur ce poste</h3>
+      <div class="reglages-liste">
+        <label class="reglages-option" for="reglages-utilisateur-poste">
+          <span class="reglages-option-texte">
+            <span class="reglages-option-titre">Collaborateur de ce poste <span class="info-i" tabindex="0" data-info="Le tableau de bord, le Suivi et l’historique s’adaptent à cette personne."></span></span>
+          </span>
+          <select id="reglages-utilisateur-poste" class="reglages-select-poste" onchange="definirUtilisateurPoste(this.value)"></select>
+        </label>
+        <label class="reglages-option" for="reglages-theme-sombre">
+          <span class="reglages-option-texte">
+            <span class="reglages-option-titre">Mode sombre</span>
+          </span>
+          <span class="switch reglages-switch">
+            <input type="checkbox" id="reglages-theme-sombre" onchange="choisirTheme(this.checked ? 'dark' : 'light')">
+            <span class="slider"></span>
+          </span>
+        </label>
+        <div class="reglages-option" role="group" aria-labelledby="reglages-accent-titre">
+          <span class="reglages-option-texte">
+            <span class="reglages-option-titre" id="reglages-accent-titre">Thème de couleur <span class="info-i" tabindex="0" data-info="Boutons, liens et onglet actif. Les couleurs des échéances ne changent pas."></span></span>
+          </span>
+          <span class="accent-choix">
+            <label class="accent-pastille" title="Bordeaux"><input type="radio" name="reglages-accent" id="reglages-accent-bordeaux" value="bordeaux" onchange="choisirAccent(this.value)"><span class="accent-rond" style="--pastille:#6D2332; --pastille-sombre:#D08A98"></span><span class="accent-nom">Bordeaux</span></label>
+            <label class="accent-pastille" title="Bleu"><input type="radio" name="reglages-accent" id="reglages-accent-bleu" value="bleu" onchange="choisirAccent(this.value)"><span class="accent-rond" style="--pastille:#111F3A; --pastille-sombre:#8E97C5"></span><span class="accent-nom">Bleu</span></label>
+            <label class="accent-pastille" title="Vert"><input type="radio" name="reglages-accent" id="reglages-accent-vert" value="vert" onchange="choisirAccent(this.value)"><span class="accent-rond" style="--pastille:#1F5D52; --pastille-sombre:#6FC2AE"></span><span class="accent-nom">Vert</span></label>
+            <label class="accent-pastille" title="Orange"><input type="radio" name="reglages-accent" id="reglages-accent-orange" value="orange" onchange="choisirAccent(this.value)"><span class="accent-rond" style="--pastille:#9A4A1F; --pastille-sombre:#E39A6B"></span><span class="accent-nom">Orange</span></label>
+            <label class="accent-pastille" title="Noir et blanc"><input type="radio" name="reglages-accent" id="reglages-accent-noir" value="noir" onchange="choisirAccent(this.value)"><span class="accent-rond" style="--pastille:#262626; --pastille-sombre:#D4D4D4"></span><span class="accent-nom">Noir &amp; blanc</span></label>
+          </span>
         </div>
       </div>
+    </div>
 
-      <!-- Sauvegarde automatique de la base (server/src/sauvegarde.js) : une copie par jour, les 14
-           dernières gardées. Voir chargerEtatSauvegarde()/renderEtatSauvegarde() dans script.js. -->
-      <div class="calc-card">
-        <div class="dash-section-titre">Sauvegarde de la base</div>
-        <p class="hint">Une copie par jour, les 14 dernières gardées. Choisir un dossier <strong>sur le NAS</strong>.</p>
-        <div id="reglages-sauvegarde-etat" class="reglages-dernier-tour"></div>
-        <div class="calc-champs" style="margin-top:12px;">
-          <div class="calc-champ">
-            <label for="reglages-sauvegarde-dossier">Dossier des sauvegardes</label>
-            <input type="text" id="reglages-sauvegarde-dossier" autocomplete="off" placeholder="\\NAS\Sauvegardes\CLAIRE">
-            <p class="hint">Chemin complet, hors du dossier des dossiers clients.</p>
-          </div>
-        </div>
-        <div style="margin-top:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-          <button type="button" class="primary" onclick="enregistrerDossierSauvegarde()">Enregistrer</button>
-          <button type="button" class="secondary" id="reglages-sauvegarde-lancer" onclick="lancerSauvegarde()">Sauvegarder maintenant</button>
-          <span id="reglages-sauvegarde-resultat" class="hint" style="margin:0;"></span>
-        </div>
-        <details class="reglages-restauration">
-          <summary>Restaurer une sauvegarde</summary>
-          <ol>
-            <li>Arrêter le serveur : double-cliquer sur <code>Arreter-CLAIRE.bat</code>, à côté de <code>CLAIRE-serveur.exe</code>.</li>
-            <li>Dans le dossier <code>data</code>, à côté de l'exécutable, renommer <code>claire.db</code> en <code>claire-avant-restauration.db</code> (à garder tant que la restauration n'est pas vérifiée).</li>
-            <li>Copier la sauvegarde voulue (par exemple <code>claire-2026-09-24.db</code>) dans ce dossier <code>data</code> et la renommer <code>claire.db</code>.</li>
-            <li>Relancer CLAIRE, puis vérifier dans le Suivi que les dossiers sont là.</li>
-          </ol>
-          <p class="hint">Tout ce qui a été saisi après la date de la sauvegarde est perdu : c'est l'état du dossier ce jour-là qui revient.</p>
-        </details>
-      </div>
-
-      <div class="calc-card reglages-apropos">
-        <div>
-          <div class="dash-section-titre">À propos de Claire</div>
-          <p class="hint">Version <strong id="reglages-version"></strong></p>
-        </div>
-        <button type="button" class="secondary" onclick="ouvrirAPropos()"><span id="icon-reglages-apropos" aria-hidden="true"></span>Ouvrir « À propos »</button>
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Documents et emails</h3>
+      <div class="reglages-liste">
+        <!-- Ouverture automatique des documents téléchargés (voir server/src/ouvertureAuto.js) :
+             un relais Windows installé une fois par poste, puis activé ici. -->
+        <label class="reglages-option" for="reglages-ouverture-auto">
+          <span class="reglages-option-texte">
+            <span class="reglages-option-titre">Ouvrir les documents dès leur téléchargement <span class="info-i" tabindex="0" data-info="Emails dans Outlook, courriers dans Word. À installer une fois sur chaque poste."></span></span>
+            <a href="#" class="reglages-lien" onclick="event.preventDefault(); event.stopPropagation(); telechargerInstallateurOuvertureAuto();">Télécharger l’installateur</a>
+          </span>
+          <span class="switch reglages-switch">
+            <input type="checkbox" id="reglages-ouverture-auto" onchange="choisirOuvertureAuto(this.checked)">
+            <span class="slider"></span>
+          </span>
+        </label>
+        <label class="reglages-option" for="reglages-mode-email">
+          <span class="reglages-option-texte">
+            <span class="reglages-option-titre">Ouverture des emails <span class="info-i" tabindex="0" data-info="Outlook : email en HTML avec la signature et les pièces jointes. Messagerie par défaut : texte seul, sans pièce jointe."></span></span>
+          </span>
+          <select id="reglages-mode-email" class="reglages-select-poste" onchange="choisirModeEmailPoste(this.value)">
+            <option value="outlook">Outlook (.eml)</option>
+            <option value="mailto">Messagerie par défaut</option>
+          </select>
+        </label>
+        <label class="reglages-option" for="reglages-notif-navigateur">
+          <span class="reglages-option-texte">
+            <span class="reglages-option-titre">Notification d'une nouvelle pièce <span class="info-i" tabindex="0" data-info="Notification Windows quand une pièce arrive sur le NAS. À activer sur chaque poste."></span></span>
+            <span class="hint" id="reglages-notif-navigateur-etat"></span>
+          </span>
+          <span class="switch reglages-switch">
+            <input type="checkbox" id="reglages-notif-navigateur" onchange="basculerNotifNavigateur(this.checked)">
+            <span class="slider"></span>
+          </span>
+        </label>
       </div>
     </div>
   </section>
 
+  <!-- ===== Rappels Teams : CLAIRE envoie elle-même un email vers la boîte-passerelle, dont
+       l'ARRIVÉE déclenche le flux Power Automate qui poste dans Teams (objet = adresse du
+       destinataire réel, voir server/src/envoiEmail.js). Gmail uniquement (décision de l'étude,
+       faute de droits d'administration Microsoft 365 — voir GMAIL_SMTP dans script.js). ===== -->
   <section class="reglages-panneau" id="reglages-panneau-rappels" role="tabpanel" aria-labelledby="reglages-onglet-rappels" hidden>
-    <div class="reglages-grille">
-      <!-- CLAIRE envoie elle-même un email vers la boîte-passerelle : c'est son ARRIVÉE qui déclenche
-           le flux Power Automate, lequel poste ensuite le message dans Teams. L'objet de cet email
-           porte l'adresse du destinataire réel, que le flux lit pour savoir à qui poster — voir
-           server/src/envoiEmail.js pour la convention complète. Envoi par un compte Gmail UNIQUEMENT
-           (décision de l'étude, faute de droits d'administration Microsoft 365) : serveur, port et
-           expéditeur ne sont plus saisis, voir GMAIL_SMTP dans script.js. -->
-      <div class="calc-card">
-        <div class="dash-section-titre">Envoi par Gmail</div>
-        <div class="calc-champs">
-          <label class="reglages-option" for="reglages-envoi-actif">
-            <span class="reglages-option-texte">
-              <span class="reglages-option-titre">Envoi automatique des rappels</span>
-              <span class="hint">Toutes les 30 minutes, au responsable du dossier.</span>
-            </span>
-            <span class="switch reglages-switch">
-              <input type="checkbox" id="reglages-envoi-actif">
-              <span class="slider"></span>
-            </span>
-          </label>
-          <div class="calc-champ">
-            <label for="reglages-smtp-utilisateur">Compte Gmail qui envoie</label>
-            <input type="email" id="reglages-smtp-utilisateur" placeholder="prenom.nom@gmail.com">
-          </div>
-          <div class="calc-champ">
-            <label for="reglages-smtp-motdepasse">Mot de passe d'application</label>
-            <input type="password" id="reglages-smtp-motdepasse" autocomplete="new-password" placeholder="16 caractères">
-            <p class="hint">Créé sur <code>myaccount.google.com/apppasswords</code>. Laisser vide conserve celui en place.</p>
-          </div>
-          <div class="calc-champ">
-            <label for="reglages-passerelle">Boîte qui déclenche le flux Teams</label>
-            <input type="email" id="reglages-passerelle" placeholder="prenom.nom@etude.fr">
-          </div>
-          <div class="calc-champ">
-            <label for="reglages-copie-email">Copie de tous les rappels</label>
-            <input type="email" id="reglages-copie-email" placeholder="Laisser vide : aucune copie">
-          </div>
-          <div>
-            <button type="button" class="primary" onclick="enregistrerReglages()">Enregistrer</button>
-          </div>
+    <h2 class="reglages-titre">Rappels Teams <span class="info-i" tabindex="0" data-info="CLAIRE envoie un email à la boîte-passerelle : l'objet porte l'adresse du collaborateur, le corps le message ; le flux Power Automate le poste dans Teams. Seuils : vente préalable et prêt J-15 / J-7, appel de fonds J-15 / J-10, signature J-25 / J-15, échéance personnalisée J-15 / J-7. Les rappels nomment le dossier et ses pièces : ces données transitent par le compte Gmail."></span></h2>
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Envoi par Gmail</h3>
+      <div class="reglages-liste">
+        <label class="reglages-option" for="reglages-envoi-actif">
+          <span class="reglages-option-texte">
+            <span class="reglages-option-titre">Envoi automatique des rappels <span class="info-i" tabindex="0" data-info="Toutes les 30 minutes, au responsable du dossier."></span></span>
+          </span>
+          <span class="switch reglages-switch">
+            <input type="checkbox" id="reglages-envoi-actif">
+            <span class="slider"></span>
+          </span>
+        </label>
+        <div class="reglages-champ">
+          <div class="reglages-champ-libelle"><label for="reglages-smtp-utilisateur">Compte Gmail qui envoie</label></div>
+          <input type="email" id="reglages-smtp-utilisateur" placeholder="prenom.nom@gmail.com">
+        </div>
+        <div class="reglages-champ">
+          <div class="reglages-champ-libelle"><label for="reglages-smtp-motdepasse">Mot de passe d'application</label><span class="info-i" tabindex="0" data-info="Validation en deux étapes activée sur le compte Gmail, puis mot de passe créé sur myaccount.google.com/apppasswords. Laisser vide conserve celui en place."></span></div>
+          <input type="password" id="reglages-smtp-motdepasse" autocomplete="new-password" placeholder="16 caractères">
+        </div>
+        <div class="reglages-champ">
+          <div class="reglages-champ-libelle"><label for="reglages-passerelle">Boîte qui déclenche le flux Teams</label></div>
+          <input type="email" id="reglages-passerelle" placeholder="prenom.nom@etude.fr">
+        </div>
+        <div class="reglages-champ">
+          <div class="reglages-champ-libelle"><label for="reglages-copie-email">Copie de tous les rappels</label></div>
+          <input type="email" id="reglages-copie-email" placeholder="Laisser vide : aucune copie">
         </div>
       </div>
-
-      <div class="calc-card">
-        <div class="dash-section-titre">Adresse email de chaque collaborateur</div>
-        <div class="calc-champs" id="reglages-emails-liste"></div>
+      <div class="reglages-actions">
+        <button type="button" class="primary" onclick="enregistrerReglages()">Enregistrer</button>
       </div>
+    </div>
 
-      <!-- Images de la signature des emails (carte de l'office, bannière Visio) : déposées une fois,
-           gardées sur le serveur, reprises telles quelles dans chaque email préparé par CLAIRE —
-           voir server/src/routes/signatureImages.js et signatureHtmlOffice (script.js). -->
-      <div class="calc-card">
-        <div class="dash-section-titre">Signature des emails</div>
-        <p class="hint" style="margin-top:0;">Sans image déposée, CLAIRE compose la carte et la bannière elle-même.</p>
-        <div id="reglages-signature-images" class="signature-images"></div>
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Adresse email de chaque collaborateur</h3>
+      <div class="reglages-liste" id="reglages-emails-liste"></div>
+    </div>
+
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Dernier tour de rappels <span class="info-i" tabindex="0" data-info="« Lancer un tour maintenant » envoie réellement les rappels dus : ils ne repartiront pas au tour suivant. Rien n'arrive dans Teams : voir l'historique du flux, puis les indésirables de la boîte-passerelle."></span></h3>
+      <div id="reglages-dernier-tour" class="reglages-dernier-tour"></div>
+      <div class="reglages-actions">
+        <button type="button" class="secondary" id="reglages-lancer-tour" onclick="lancerTourRappels()">Lancer un tour maintenant</button>
       </div>
+    </div>
+  </section>
 
-      <div class="calc-card">
-        <div class="dash-section-titre">Dernier tour de rappels</div>
-        <div id="reglages-dernier-tour" class="reglages-dernier-tour"></div>
-        <div style="margin-top:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-          <button type="button" class="secondary" id="reglages-lancer-tour" onclick="lancerTourRappels()">Lancer un tour maintenant</button>
+  <!-- ===== Signature des emails : images (carte de l'office, bannière Visio) déposées une fois,
+       gardées sur le serveur — voir server/src/routes/signatureImages.js et signatureHtmlOffice. ===== -->
+  <section class="reglages-panneau" id="reglages-panneau-signature" role="tabpanel" aria-labelledby="reglages-onglet-signature" hidden>
+    <h2 class="reglages-titre">Signature des emails <span class="info-i" tabindex="0" data-info="Sans image déposée, CLAIRE compose la carte et la bannière elle-même."></span></h2>
+    <div class="reglages-section">
+      <div id="reglages-signature-images" class="signature-images"></div>
+    </div>
+  </section>
+
+  <!-- ===== Agenda : lecture du calendrier publié (.ics, server/src/agendaOffice.js + agendaWatch.js)
+       et écriture dans l'agenda Outlook de l'office par EWS/NTLM (server/src/exchange/ews.js). ===== -->
+  <section class="reglages-panneau" id="reglages-panneau-agenda" role="tabpanel" aria-labelledby="reglages-onglet-agenda" hidden>
+    <h2 class="reglages-titre">Agenda</h2>
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Calendrier publié (.ics) <span class="info-i" tabindex="0" data-info="Un rendez-vous à venir « VTE - NOM DU DOSSIER » (ou « VENTE NOM DU DOSSIER » en début de titre) remplit le rendez-vous de signature du dossier, sauf s'il porte un « ? ». Si son lieu indique « Appel de fonds envoyé » ou « Appel de fonds et projet envoyé », la date du jour est inscrite sur l'envoi correspondant."></span></h3>
+      <div class="reglages-liste">
+        <div class="reglages-champ">
+          <div class="reglages-champ-libelle"><label for="reglages-agenda-url">Adresse .ics du calendrier</label></div>
+          <input type="text" id="reglages-agenda-url" autocomplete="off" placeholder="https://outlook.office.com/owa/calendar/…/reachcalendar.ics">
         </div>
       </div>
-
-      <!-- Lecture automatique du calendrier publié (.ics) de l'office — même flux que celui déjà lu par
-           l'artefact "brief du matin". Voir server/src/agendaOffice.js (lecture/repérage) et
-           server/src/agendaWatch.js (tour périodique, toutes les 15 minutes). Un rendez-vous portant la
-           référence "VTE - NOM DU DOSSIER" et, dans son lieu (ou son titre/sa description), "Appel de
-           fonds envoyé" / "Appel de fonds et projet envoyé" reporte automatiquement la date du jour sur
-           le dossier — rendez-vous à venir seulement, jamais si le champ est déjà renseigné. -->
-      <div class="calc-card">
-        <div class="dash-section-titre">Lecture automatique du calendrier publié (.ics)</div>
-        <p class="hint">Un rendez-vous à venir « VTE - NOM DU DOSSIER » (ou « VENTE NOM DU DOSSIER » en début de titre) remplit le rendez-vous de signature du dossier (ignoré s'il porte un « ? »). Si son lieu indique « Appel de fonds envoyé » ou « Appel de fonds et projet envoyé », la date du jour est inscrite sur l'envoi correspondant.</p>
-        <div class="calc-champs">
-          <div class="calc-champ">
-            <label for="reglages-agenda-url">Adresse .ics du calendrier de l'office</label>
-            <input type="text" id="reglages-agenda-url" autocomplete="off" placeholder="https://outlook.office.com/owa/calendar/…/reachcalendar.ics">
-          </div>
-        </div>
-        <div style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-          <button type="button" class="primary" onclick="enregistrerReglagesAgenda()">Enregistrer</button>
-          <span id="reglages-agenda-resultat" class="hint" style="margin:0;"></span>
-        </div>
-        <div id="reglages-agenda-dernier-tour" class="reglages-dernier-tour" style="margin-top:12px;"></div>
-        <div style="margin-top:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-          <button type="button" class="secondary" id="reglages-agenda-lancer" onclick="lancerTourAgenda()">Tester maintenant</button>
-        </div>
+      <div class="reglages-actions">
+        <button type="button" class="primary" onclick="enregistrerReglagesAgenda()">Enregistrer</button>
+        <button type="button" class="secondary" id="reglages-agenda-lancer" onclick="lancerTourAgenda()">Tester maintenant</button>
+        <span id="reglages-agenda-resultat" class="hint" style="margin:0;"></span>
       </div>
+      <div id="reglages-agenda-dernier-tour" class="reglages-dernier-tour"></div>
+    </div>
 
-      <!-- Connexion à l'agenda Outlook de l'office (Exchange de Fichorga / Authentic Connect), par
-           EWS/NTLM — voir server/src/exchange/ews.js. Enregistre les identifiants de messagerie
-           (le mot de passe ne ressort jamais de la base) pour créer les rendez-vous de signature
-           dans l'agenda depuis la fiche dossier. À tester sur un poste du bureau (le serveur
-           Exchange n'est joignable que depuis le réseau de l'étude). -->
-      <div class="calc-card reglages-pleine">
-        <div class="dash-section-titre">Agenda Outlook de l'office</div>
-        <p class="hint">Permet à CLAIRE de créer les rendez-vous de signature directement dans l'agenda Outlook de l'office (Fichorga), depuis la fiche d'un dossier. Les identifiants sont enregistrés sur le serveur ; le mot de passe n'est jamais réaffiché. À configurer et tester depuis un poste du bureau.</p>
-        <div class="calc-champs">
-          <label class="reglages-option" for="exchange-actif">
-            <span class="reglages-option-texte">
-              <span class="reglages-option-titre">Créer les rendez-vous dans l'agenda</span>
-              <span class="hint">Un bouton apparaît alors sur la fiche des dossiers ayant une date de rendez-vous.</span>
-            </span>
-            <span class="switch reglages-switch">
-              <input type="checkbox" id="exchange-actif">
-              <span class="slider"></span>
-            </span>
-          </label>
-          <div class="calc-champ">
-            <label for="exchange-email">Adresse email de messagerie</label>
-            <input type="email" id="exchange-email" autocomplete="off" placeholder="prenom.nom@gossart.notaires.fr">
-          </div>
-          <div class="calc-champ">
-            <label for="exchange-motdepasse">Mot de passe de messagerie</label>
-            <input type="password" id="exchange-motdepasse" autocomplete="new-password" placeholder="Laissez vide pour conserver le mot de passe enregistré">
-            <p class="hint" id="exchange-mdp-note">Attention : un mot de passe erroné compte comme une tentative échouée. CLAIRE ne réessaie jamais toute seule.</p>
-          </div>
-          <div class="calc-champ">
-            <label for="exchange-calendrier-partage">Calendrier partagé de l'office (Sophie)</label>
-            <input type="email" id="exchange-calendrier-partage" autocomplete="off" placeholder="sophie@gossart.notaires.fr">
-            <p class="hint">Adresse de la boîte dont le calendrier partagé contient les rendez-vous de l'office. Laissez vide si les rendez-vous sont dans le calendrier du compte de connexion ci-dessus. Le compte de connexion doit avoir un accès en écriture sur ce calendrier.</p>
-          </div>
-          <div class="calc-champ">
-            <label>Couleurs des rendez-vous (catégories Outlook)</label>
-            <div class="rdv-categories-reglages">
-              <label class="rdv-categorie-ligne" for="exchange-cat-office"><span class="rdv-type-pastille rdv-type-office"></span>À l'office<input type="text" id="exchange-cat-office" list="exchange-categories-vues" autocomplete="off" placeholder="Catégorie Verte"></label>
-              <label class="rdv-categorie-ligne" for="exchange-cat-visio"><span class="rdv-type-pastille rdv-type-visio"></span>En visio<input type="text" id="exchange-cat-visio" list="exchange-categories-vues" autocomplete="off" placeholder="Catégorie Violette"></label>
-              <label class="rdv-categorie-ligne" for="exchange-cat-confrere"><span class="rdv-type-pastille rdv-type-confrere"></span>Chez un confrère<input type="text" id="exchange-cat-confrere" list="exchange-categories-vues" autocomplete="off" placeholder="Catégorie Orange"></label>
-            </div>
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Agenda Outlook de l'office <span class="info-i" tabindex="0" data-info="Permet à CLAIRE de créer les rendez-vous de signature dans l'agenda Outlook de l'office (Fichorga). Le mot de passe n'est jamais réaffiché. À configurer et tester depuis un poste du bureau."></span></h3>
+      <div class="reglages-liste">
+        <label class="reglages-option" for="exchange-actif">
+          <span class="reglages-option-texte">
+            <span class="reglages-option-titre">Créer les rendez-vous dans l'agenda <span class="info-i" tabindex="0" data-info="Un bouton apparaît alors sur la fiche des dossiers ayant une date de rendez-vous."></span></span>
+          </span>
+          <span class="switch reglages-switch">
+            <input type="checkbox" id="exchange-actif">
+            <span class="slider"></span>
+          </span>
+        </label>
+        <div class="reglages-champ">
+          <div class="reglages-champ-libelle"><label for="exchange-email">Adresse de messagerie</label></div>
+          <input type="email" id="exchange-email" autocomplete="off" placeholder="prenom.nom@gossart.notaires.fr">
+        </div>
+        <div class="reglages-champ">
+          <div class="reglages-champ-libelle"><label for="exchange-motdepasse">Mot de passe</label><span class="info-i" tabindex="0" id="exchange-mdp-note" data-info="Un mot de passe erroné compte comme une tentative échouée. CLAIRE ne réessaie jamais toute seule."></span></div>
+          <input type="password" id="exchange-motdepasse" autocomplete="new-password" placeholder="Laisser vide pour conserver l'actuel">
+        </div>
+        <div class="reglages-champ">
+          <div class="reglages-champ-libelle"><label for="exchange-calendrier-partage">Calendrier partagé (Sophie)</label><span class="info-i" tabindex="0" data-info="Boîte dont le calendrier partagé contient les rendez-vous de l'office. Vide : calendrier du compte de connexion. Le compte de connexion doit pouvoir y écrire."></span></div>
+          <input type="email" id="exchange-calendrier-partage" autocomplete="off" placeholder="sophie@gossart.notaires.fr">
+        </div>
+        <div class="reglages-champ reglages-champ-haut">
+          <div class="reglages-champ-libelle"><label>Couleurs des rendez-vous</label><span class="info-i" tabindex="0" id="exchange-categories-note" data-info="Nom exact de la catégorie dans Outlook. Un nom que la boîte ne connaît pas s'affiche sans couleur."></span></div>
+          <div class="rdv-categories-reglages">
+            <label class="rdv-categorie-ligne" for="exchange-cat-office"><span class="rdv-type-pastille rdv-type-office"></span>À l'office<input type="text" id="exchange-cat-office" list="exchange-categories-vues" autocomplete="off" placeholder="Catégorie Verte"></label>
+            <label class="rdv-categorie-ligne" for="exchange-cat-visio"><span class="rdv-type-pastille rdv-type-visio"></span>En visio<input type="text" id="exchange-cat-visio" list="exchange-categories-vues" autocomplete="off" placeholder="Catégorie Violette"></label>
+            <label class="rdv-categorie-ligne" for="exchange-cat-confrere"><span class="rdv-type-pastille rdv-type-confrere"></span>Chez un confrère<input type="text" id="exchange-cat-confrere" list="exchange-categories-vues" autocomplete="off" placeholder="Catégorie Orange"></label>
             <datalist id="exchange-categories-vues"></datalist>
-            <p class="hint" id="exchange-categories-note">Le nom exact de la catégorie dans Outlook. Un nom que la boîte ne connaît pas s'affiche sans couleur.</p>
           </div>
-          <details>
-            <summary class="hint" style="cursor:pointer;">Réglage avancé : adresse du serveur EWS</summary>
-            <div class="calc-champ" style="margin-top:8px;">
-              <label for="exchange-url">Adresse EWS</label>
-              <input type="text" id="exchange-url" autocomplete="off" placeholder="https://mail.authentic-connect.fr/EWS/Exchange.asmx">
-              <p class="hint">Ne changez ceci que si Fichorga vous a donné une autre adresse.</p>
-            </div>
-          </details>
         </div>
-        <div style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-          <button type="button" class="primary" id="exchange-enregistrer-btn" onclick="enregistrerReglagesExchange()">Enregistrer</button>
-          <button type="button" class="secondary" id="exchange-tester-btn" onclick="testerConnexionExchange()">Tester la connexion</button>
-          <span id="exchange-resultat" class="hint" style="margin:0;"></span>
+        <div class="reglages-champ">
+          <div class="reglages-champ-libelle"><label for="exchange-url">Adresse EWS</label><span class="info-i" tabindex="0" data-info="Ne changez ceci que si Fichorga vous a donné une autre adresse."></span></div>
+          <input type="text" id="exchange-url" autocomplete="off" placeholder="https://mail.authentic-connect.fr/EWS/Exchange.asmx">
         </div>
       </div>
+      <div class="reglages-actions">
+        <button type="button" class="primary" id="exchange-enregistrer-btn" onclick="enregistrerReglagesExchange()">Enregistrer</button>
+        <button type="button" class="secondary" id="exchange-tester-btn" onclick="testerConnexionExchange()">Tester la connexion</button>
+        <span id="exchange-resultat" class="hint" style="margin:0;"></span>
+      </div>
+    </div>
+  </section>
 
-      <details class="calc-card reglages-aide reglages-pleine">
-        <summary class="dash-section-titre">Comment ça marche</summary>
-        <p>CLAIRE envoie un email à la boîte-passerelle : l'<strong>objet</strong> contient l'adresse du collaborateur, le <strong>corps</strong> le message. Le flux Power Automate, déjà créé, le poste dans Teams.</p>
+  <!-- ===== Relecture d'actes (Outil 2) : fournisseur, clé et modèle, lus/écrits par
+       server/src/routes/relectureClaude.js. Mistral par défaut, Claude en option. Les clés ne
+       ressortent jamais du serveur. ===== -->
+  <section class="reglages-panneau" id="reglages-panneau-relecture" role="tabpanel" aria-labelledby="reglages-onglet-relecture" hidden>
+    <h2 class="reglages-titre">Relecture d'actes</h2>
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Modèle d'IA</h3>
+      <div class="reglages-liste">
+        <div class="reglages-champ">
+          <div class="reglages-champ-libelle"><label for="reglages-ia-fournisseur">Fournisseur</label></div>
+          <select id="reglages-ia-fournisseur" onchange="afficherChampsFournisseurIa()">
+            <option value="mistral">Mistral — société française</option>
+            <option value="claude">Claude — Anthropic, société américaine</option>
+          </select>
+        </div>
+        <div id="reglages-ia-mistral" class="reglages-sous-liste">
+          <div class="reglages-champ">
+            <div class="reglages-champ-libelle"><label for="reglages-mistral-cle">Clé API Mistral</label><span class="info-i" tabindex="0" data-info="Créée sur console.mistral.ai. Laisser vide conserve celle en place."></span></div>
+            <input type="password" id="reglages-mistral-cle" autocomplete="off" placeholder="Clé API Mistral">
+          </div>
+          <div class="reglages-champ">
+            <div class="reglages-champ-libelle"><label for="reglages-mistral-modele">Modèle</label></div>
+            <select id="reglages-mistral-modele">
+              <option value="mistral-medium-3-5">Mistral Medium 3.5 — recommandé (1,5 $ / 7,5 $ par million de jetons)</option>
+              <option value="mistral-large-2512">Mistral Large 3 — moins cher, sans raisonnement (0,5 $ / 1,5 $)</option>
+            </select>
+          </div>
+          <div class="reglages-champ">
+            <div class="reglages-champ-libelle"><label for="reglages-mistral-region">Lieu de traitement</label></div>
+            <select id="reglages-mistral-region">
+              <option value="eu">Union européenne — recommandé (+10 %)</option>
+              <option value="global">Sans engagement de lieu</option>
+            </select>
+          </div>
+        </div>
+        <div id="reglages-ia-claude" class="reglages-sous-liste" style="display:none">
+          <div class="reglages-champ">
+            <div class="reglages-champ-libelle"><label for="reglages-claude-cle">Clé API Anthropic</label><span class="info-i" tabindex="0" data-info="Créée sur console.anthropic.com. Laisser vide conserve celle en place."></span></div>
+            <input type="password" id="reglages-claude-cle" autocomplete="off" placeholder="sk-ant-…">
+          </div>
+          <div class="reglages-champ">
+            <div class="reglages-champ-libelle"><label for="reglages-claude-modele">Modèle</label></div>
+            <select id="reglages-claude-modele">
+              <option value="claude-sonnet-5">Claude Sonnet 5 — recommandé (2 $ / 10 $ par million de jetons)</option>
+              <option value="claude-opus-5">Claude Opus 5 — plus approfondi, 2,5 fois plus cher (5 $ / 25 $)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="reglages-actions reglages-claude-actions">
+        <button type="button" class="primary" onclick="enregistrerReglagesClaude()">Enregistrer</button>
+        <button type="button" class="secondary" onclick="testerCleClaude()">Vérifier la clé</button>
+        <button type="button" class="secondary" onclick="effacerCleClaude()">Effacer la clé</button>
+        <span id="reglages-claude-resultat"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Pièces : fichiers écartés à la main (bouton « Réinitialiser » d'une pièce mal reconnue),
+       partagés par tout le bureau — voir retirerExclusionPiece() dans script.js. ===== -->
+  <section class="reglages-panneau" id="reglages-panneau-pieces" role="tabpanel" aria-labelledby="reglages-onglet-pieces" hidden>
+    <h2 class="reglages-titre">Pièces</h2>
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Fichiers écartés <span class="info-i" tabindex="0" data-info="Noms de fichiers qui ne sont plus reconnus pour la pièce indiquée (bouton « Réinitialiser » d'une pièce). Partagé par tout le bureau."></span></h3>
+      <div id="reglages-exclusions"></div>
+    </div>
+  </section>
+
+  <!-- ===== Signalements des collaborateurs (bouton « Signaler un problème ») : l'étude les trie ici
+       et exporte ceux à transmettre. Voir routes/signalements.js. ===== -->
+  <section class="reglages-panneau" id="reglages-panneau-signalements" role="tabpanel" aria-labelledby="reglages-onglet-signalements" hidden>
+    <div class="reglages-titre-ligne" id="reglages-carte-signalements">
+      <h2 class="reglages-titre">Signalements <span class="info-i" tabindex="0" data-info="Triez, puis exportez le fichier à transmettre pour correction."></span></h2>
+      <button type="button" class="secondary" onclick="exporterSignalements()">Exporter les signalements à trier</button>
+    </div>
+    <div class="reglages-section">
+      <div id="reglages-signalements"><p class="hint">Chargement…</p></div>
+    </div>
+  </section>
+
+  <!-- ===== Mise à jour de CLAIRE en un clic (server/src/miseAJour.js), sauvegarde quotidienne de
+       la base (server/src/sauvegarde.js), version. ===== -->
+  <section class="reglages-panneau" id="reglages-panneau-systeme" role="tabpanel" aria-labelledby="reglages-onglet-systeme" hidden>
+    <h2 class="reglages-titre">Mise à jour et sauvegarde</h2>
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Mise à jour de CLAIRE <span class="info-i" tabindex="0" data-info="La mise à jour sauvegarde la base puis redémarre le serveur (environ une minute d'interruption)."></span></h3>
+      <div class="reglages-liste">
+        <div class="reglages-option reglages-option-fixe">
+          <span class="reglages-option-texte">
+            <span class="reglages-option-titre">Version installée</span>
+            <span class="hint"><strong id="reglages-version"></strong></span>
+          </span>
+          <button type="button" class="secondary" onclick="ouvrirAPropos()"><span id="icon-reglages-apropos" aria-hidden="true"></span>À propos</button>
+        </div>
+      </div>
+      <div id="reglages-maj-etat" class="reglages-dernier-tour"></div>
+      <div class="reglages-actions">
+        <button type="button" class="secondary" id="reglages-maj-verifier" onclick="verifierMiseAJour()">Vérifier</button>
+        <button type="button" class="primary" id="reglages-maj-installer" style="display:none;" onclick="demanderInstallationMiseAJour()">Mettre à jour maintenant</button>
+      </div>
+      <details class="reglages-restauration">
+        <summary>Jeton d'accès GitHub (dépôt privé)</summary>
         <ol>
-          <li>Sur le compte Gmail : validation en deux étapes, puis un <strong>mot de passe d'application</strong> (<code>myaccount.google.com/apppasswords</code>).</li>
-          <li>Remplir les champs ci-dessus, activer l'envoi, <strong>Enregistrer</strong>.</li>
-          <li><strong>« Tester »</strong> puis vérifier dans Teams. Rien n'arrive : voir l'historique du flux, puis les indésirables de la boîte-passerelle.</li>
-          <li><strong>« Lancer un tour maintenant »</strong> envoie réellement les rappels dus : ils ne repartiront pas au tour suivant.</li>
+          <li>Sur github.com, connecté au compte propriétaire du dépôt : photo de profil › <em>Settings</em> › <em>Developer settings</em> › <em>Personal access tokens</em> › <em>Fine-grained tokens</em> › <em>Generate new token</em>.</li>
+          <li>Nom : « CLAIRE mise à jour ». Expiration : la plus longue proposée (à renouveler ensuite).</li>
+          <li><em>Repository access</em> : <em>Only select repositories</em> › <strong>Office-suivi</strong>.</li>
+          <li><em>Permissions</em> › <em>Repository permissions</em> › <strong>Contents : Read-only</strong>. Rien d'autre.</li>
+          <li><em>Generate token</em>, copier le jeton (il commence par <code>github_pat_</code>) et le coller ci-dessous. Il n'est jamais réaffiché.</li>
         </ol>
-        <p>Seuils : vente préalable et prêt <strong>J-15 / J-7</strong>, appel de fonds <strong>J-15 / J-10</strong>, signature <strong>J-25 / J-15</strong>, échéance personnalisée J-15 / J-7. Jamais de rappel sur la date butoir.</p>
-        <p class="reglages-avertissement">Les rappels nomment le dossier et ses pièces : ces données transitent par le compte Gmail.</p>
+        <div class="reglages-liste">
+          <div class="reglages-champ">
+            <div class="reglages-champ-libelle"><label for="reglages-maj-jeton">Jeton GitHub</label></div>
+            <input type="password" id="reglages-maj-jeton" autocomplete="off" placeholder="github_pat_…">
+          </div>
+        </div>
+        <div class="reglages-actions">
+          <button type="button" class="primary" onclick="enregistrerJetonMiseAJour()">Enregistrer le jeton</button>
+          <span id="reglages-maj-jeton-resultat" class="hint" style="margin:0;"></span>
+        </div>
+      </details>
+      <details class="reglages-restauration">
+        <summary>Si la nouvelle version ne démarre pas</summary>
+        <ol>
+          <li>Sur le poste serveur, lire <code>erreur-demarrage.txt</code> à côté de <code>CLAIRE-serveur.exe</code> (il dit pourquoi).</li>
+          <li>Pour revenir à la version précédente : lancer <code>Arreter-CLAIRE.bat</code>, supprimer <code>CLAIRE-serveur.exe</code>, renommer <code>CLAIRE-serveur.ancien.exe</code> en <code>CLAIRE-serveur.exe</code>, puis le relancer.</li>
+          <li>La base a été sauvegardée juste avant la mise à jour (voir « Sauvegarde de la base » ci-dessous).</li>
+        </ol>
+      </details>
+    </div>
+
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Sauvegarde de la base <span class="info-i" tabindex="0" data-info="Une copie par jour, les 14 dernières gardées. Choisir un dossier sur le NAS, hors du dossier des dossiers clients."></span></h3>
+      <div id="reglages-sauvegarde-etat" class="reglages-dernier-tour"></div>
+      <div class="reglages-liste">
+        <div class="reglages-champ">
+          <div class="reglages-champ-libelle"><label for="reglages-sauvegarde-dossier">Dossier des sauvegardes</label></div>
+          <input type="text" id="reglages-sauvegarde-dossier" autocomplete="off" placeholder="\\NAS\Sauvegardes\CLAIRE">
+        </div>
+      </div>
+      <div class="reglages-actions">
+        <button type="button" class="primary" onclick="enregistrerDossierSauvegarde()">Enregistrer</button>
+        <button type="button" class="secondary" id="reglages-sauvegarde-lancer" onclick="lancerSauvegarde()">Sauvegarder maintenant</button>
+        <span id="reglages-sauvegarde-resultat" class="hint" style="margin:0;"></span>
+      </div>
+      <details class="reglages-restauration">
+        <summary>Restaurer une sauvegarde</summary>
+        <ol>
+          <li>Arrêter le serveur : double-cliquer sur <code>Arreter-CLAIRE.bat</code>, à côté de <code>CLAIRE-serveur.exe</code>.</li>
+          <li>Dans le dossier <code>data</code>, à côté de l'exécutable, renommer <code>claire.db</code> en <code>claire-avant-restauration.db</code> (à garder tant que la restauration n'est pas vérifiée).</li>
+          <li>Copier la sauvegarde voulue (par exemple <code>claire-2026-09-24.db</code>) dans ce dossier <code>data</code> et la renommer <code>claire.db</code>.</li>
+          <li>Relancer CLAIRE, puis vérifier dans le Suivi que les dossiers sont là. Ce qui a été saisi après la date de la sauvegarde est perdu.</li>
+        </ol>
       </details>
     </div>
   </section>
 
-  <section class="reglages-panneau" id="reglages-panneau-relecture" role="tabpanel" aria-labelledby="reglages-onglet-relecture" hidden>
-    <div class="reglages-grille">
-      <!-- Relecture d'actes (Outil 2) : fournisseur, clé et modèle, lus/écrits par
-           server/src/routes/relectureClaude.js. Mistral par défaut (point d'accès de l'UE), Claude
-           en option. Les clés ne ressortent jamais du serveur. -->
-      <div class="calc-card">
-        <div class="dash-section-titre">Modèle d'IA de la relecture</div>
-        <div class="calc-champs">
-          <div class="calc-champ">
-            <label for="reglages-ia-fournisseur">Fournisseur</label>
-            <select id="reglages-ia-fournisseur" onchange="afficherChampsFournisseurIa()">
-              <option value="mistral">Mistral — société française</option>
-              <option value="claude">Claude — Anthropic, société américaine</option>
-            </select>
-          </div>
-          <div id="reglages-ia-mistral" class="calc-champs">
-            <div class="calc-champ">
-              <label for="reglages-mistral-cle">Clé API Mistral</label>
-              <input type="password" id="reglages-mistral-cle" autocomplete="off" placeholder="Clé API Mistral">
-              <p class="hint">Créée sur <code>console.mistral.ai</code>. Laisser vide conserve celle en place.</p>
-            </div>
-            <div class="calc-champ">
-              <label for="reglages-mistral-modele">Modèle</label>
-              <select id="reglages-mistral-modele">
-                <option value="mistral-medium-3-5">Mistral Medium 3.5 — recommandé (1,5 $ / 7,5 $ par million de jetons)</option>
-                <option value="mistral-large-2512">Mistral Large 3 — moins cher, sans raisonnement (0,5 $ / 1,5 $)</option>
-              </select>
-            </div>
-            <div class="calc-champ">
-              <label for="reglages-mistral-region">Lieu de traitement</label>
-              <select id="reglages-mistral-region">
-                <option value="eu">Union européenne — recommandé (+10 %)</option>
-                <option value="global">Sans engagement de lieu</option>
-              </select>
-            </div>
-          </div>
-          <div id="reglages-ia-claude" class="calc-champs" style="display:none">
-            <div class="calc-champ">
-              <label for="reglages-claude-cle">Clé API Anthropic</label>
-              <input type="password" id="reglages-claude-cle" autocomplete="off" placeholder="sk-ant-…">
-              <p class="hint">Créée sur <code>console.anthropic.com</code>. Laisser vide conserve celle en place.</p>
-            </div>
-            <div class="calc-champ">
-              <label for="reglages-claude-modele">Modèle</label>
-              <select id="reglages-claude-modele">
-                <option value="claude-sonnet-5">Claude Sonnet 5 — recommandé (2 $ / 10 $ par million de jetons)</option>
-                <option value="claude-opus-5">Claude Opus 5 — plus approfondi, 2,5 fois plus cher (5 $ / 25 $)</option>
-              </select>
-            </div>
-          </div>
-          <div class="reglages-claude-actions">
-            <button type="button" class="primary" onclick="enregistrerReglagesClaude()">Enregistrer</button>
-            <button type="button" class="secondary" onclick="testerCleClaude()">Vérifier la clé</button>
-            <button type="button" class="secondary" onclick="effacerCleClaude()">Effacer la clé</button>
-            <span id="reglages-claude-resultat"></span>
-          </div>
-        </div>
-      </div>
     </div>
-  </section>
-
-  <section class="reglages-panneau" id="reglages-panneau-pieces" role="tabpanel" aria-labelledby="reglages-onglet-pieces" hidden>
-    <div class="reglages-grille">
-      <!-- Fichiers écartés à la main pour une pièce (bouton « Réinitialiser » d'une pièce mal
-           reconnue). Partagés par tout le bureau, voir retirerExclusionPiece() dans script.js. -->
-      <div class="calc-card">
-        <div class="dash-section-titre">Fichiers écartés des pièces</div>
-        <p class="hint">Noms de fichiers qui ne sont plus reconnus pour la pièce indiquée.</p>
-        <div id="reglages-exclusions"></div>
-      </div>
-
-      <!-- Signalements des collaborateurs (bouton « Signaler un problème ») : l'étude les trie ici
-           et exporte ceux à transmettre. Voir routes/signalements.js. -->
-      <div class="calc-card reglages-pleine" id="reglages-carte-signalements">
-        <div class="reglages-signalements-tete">
-          <div class="dash-section-titre">Signalements des collaborateurs</div>
-          <button type="button" class="secondary" onclick="exporterSignalements()">Exporter les signalements à trier</button>
-        </div>
-        <p class="hint">Triez, puis exportez le fichier à transmettre pour correction.</p>
-        <div id="reglages-signalements"><p class="hint">Chargement…</p></div>
-      </div>
-    </div>
-  </section>
+  </div>
 </div>
 
   </main>
@@ -1990,8 +1943,7 @@
      script.js), retenu dans le navigateur, modifiable dans les Réglages. -->
 <div class="confirm-overlay" id="poste-overlay" style="display:none;" onclick="ecarterChoixPoste()">
   <div class="confirm-box poste-box" role="dialog" aria-labelledby="poste-titre" onclick="event.stopPropagation()">
-    <div class="poste-titre" id="poste-titre">Qui utilise ce poste ?</div>
-    <p class="hint">Le tableau de bord s’ouvrira sur vos dossiers. Choix retenu sur ce poste, modifiable dans les Réglages.</p>
+    <div class="poste-titre" id="poste-titre">Qui utilise ce poste ? <span class="info-i" tabindex="0" data-info="Le tableau de bord s’ouvrira sur vos dossiers. Choix retenu sur ce poste, modifiable dans les Réglages."></span></div>
     <div class="poste-choix-liste" id="poste-choix-liste"></div>
     <div class="confirm-actions">
       <button type="button" class="btn-annuler" onclick="ecarterChoixPoste()">Plus tard</button>

@@ -12079,3 +12079,31 @@ ajoutés le 18/09) et suffisaient au troisième ; rendus explicites (« offre de
 formes `offre contrat pret/credit`) et figés par un test (noms de fichiers et titres, « contrat de
 travail / réservation / mariage » refusés). Un nom qui les porte est examiné hors budget
 (`pdfPrioritairePourOffre`).
+
+### 29/09 20:52 — Réglages à la manière de Claude, pastilles « i » au lieu des paragraphes
+
+Demande : « Limiter de manière générale les paragraphes que tu places partout pour expliquer ce qu'il
+se passe. Ça charge trop l'interface. Fais plus simple ou mets des petits i d'information. Revois
+aussi l'organisation des réglages car les cartes laissent de grands trous. Fais quelque chose comme
+les réglages de Claude. »
+  - Réglages : colonne de rubriques à gauche (8 : Général, Rappels Teams, Signature des emails,
+    Agenda, Relecture d'actes, Pièces, Signalements avec son compteur, Mise à jour et sauvegarde),
+    une seule colonne de 760 px à droite : titre, sections, lignes séparées par un filet
+    (`.reglages-option` libellé + commande, `.reglages-champ` libellé + champ). Plus de grille
+    de cartes. Sous 860 px, les rubriques passent en bande horizontale défilante ; sous 600 px, le
+    champ passe sous son libellé. Tous les identifiants gardés ; anciennes clés de rubrique
+    (general, rappels, relecture, pieces) toujours valides ; l'alerte de sauvegarde du tableau de
+    bord ouvre « Mise à jour et sauvegarde ». « Comment ça marche » (rappels) fondu dans la
+    pastille du titre et celle du dernier tour ; la version affichée en ligne « Version installée ».
+  - Pastille « i » (`infoBulle`, `definirInfoBulle`, `initialiserInfoBulles`) : une seule bulle
+    flottante en position fixe, gardée dans l'écran, au survol, au focus clavier ou au toucher
+    (Échap ferme). Un clic sur la pastille ne coche pas la case du `<label>` qui la contient.
+  - Paragraphes remplacés par une pastille : réglages (tous), nouveau dossier (dates repérées),
+    simulateur (mobilier), prorata (bornes), appel de fonds (décompte du confrère, adresse des
+    clients, contrôle des frais, prêt hypothécaire, aperçu), inventaire (droits simulés, coût),
+    quotités, relecture d'actes (dossier lié, masquage, mode commentaires, parcours du NAS, analyse
+    en cours, type de bien, diagnostic, cadre du bilan), panneau « Ce que l'outil a compris », choix
+    du poste. Fonds reçus : une ligne d'état courte, le détail (noms cherchés, dossiers lus) dans la
+    pastille (`renderDossiersRecusLus` rend désormais du texte brut).
+  Vérifié dans Chromium (réglages clair 1440 px et sombre 400 px, bulle au survol, appel de fonds,
+  pas de défilement horizontal).

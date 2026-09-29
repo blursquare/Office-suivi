@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 20:17';
+  const VERSION_APP = '2026-09-29 20:52';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 20:52', resume: "Réglages réorganisés comme ceux de Claude : les rubriques à gauche (Général, Rappels Teams, Signature des emails, Agenda, Relecture d'actes, Pièces, Signalements, Mise à jour et sauvegarde), une seule colonne de réglages à droite, sans les trous des anciennes cartes. Partout, les paragraphes d'explication laissent place à une petite pastille « i » : l'aide s'affiche au survol ou au toucher." },
     { version: '2026-09-29 20:17', resume: "Offre de prêt : « contrat de prêt », « contrat de crédit » et « offre de contrat de prêt » reconnus dans le nom du fichier comme dans le titre de la page de garde (et examinés en priorité, comme « offre de prêt »)." },
     { version: '2026-09-29 20:06', resume: "Offre de prêt reconnue plus vite : un PDF dont le nom dit « offre de prêt », ou qu'un nouveau dépôt sur le NAS vient de faire apparaître, est examiné dès le tour suivant (5 minutes au plus) au lieu d'attendre que les autres dossiers aient été relus. Un nouveau document signalé par le serveur fait vérifier son dossier aussitôt, et les PDF déjà écartés ne sont plus relus à chaque ouverture de CLAIRE." },
     { version: '2026-09-29 15:45', resume: "Nouveau dossier : le nom d'usage d'une partie veuve ou mariée est lu dans son état civil (« Madame Yvette MARTIN … Veuve de Monsieur … CRIL » → nom d'usage CRIL), affiché à côté de son nom et utilisé pour retrouver ses versements dans les reçus comptables." },
@@ -8532,10 +8533,9 @@
 
     panneau.innerHTML = `
       <div class="revision-entete">
-        <div class="section-eyebrow">Ce que l’outil a compris</div>
+        <div class="section-eyebrow">Ce que l’outil a compris ${infoBulle("L’outil indique seulement d’où vient chaque donnée : il ne garantit rien. Corrigez directement ci-dessous — la valeur part aussi dans le formulaire — puis cochez « vérifié » quand vous l’avez contrôlée dans le document.")}</div>
         <span class="revision-compteur">${verifiees} / ${renseignees} donnée${renseignees > 1 ? 's' : ''} vérifiée${renseignees > 1 ? 's' : ''}</span>
       </div>
-      <p class="hint">L’outil indique seulement d’où vient chaque donnée : il ne garantit rien. Corrigez directement ci-dessous — la valeur part aussi dans le formulaire — puis cochez « vérifié » quand vous l’avez contrôlée dans le document.</p>
       ${alertes}
       ${parties ? `<div class="revision-parties"><ul>${parties}</ul></div>` : ''}
       ${ligneNotaires}
@@ -11068,11 +11068,12 @@
     const dossiersLus = (f && f.dossiersRecus) || [];
     const avecRecus = dossiersLus.filter(x => x.recus > 0);
     const lieux = avecRecus.length
-      ? 'fichiers de reçus lus dans : ' + avecRecus.map(x => `${escapeHtml(x.dossier)} (${x.recus} fichier${x.recus > 1 ? 's' : ''})`).join(' · ')
-      : (dossiersLus.length ? 'aucun fichier de reçus dans : ' + dossiersLus.map(x => escapeHtml(x.dossier)).join(' · ') : '');
-    const nom = (mots || []).length ? `au nom de ${escapeHtml(mots.map(m => m.toUpperCase()).join(' / '))}` : '';
+      ? 'fichiers de reçus lus dans : ' + avecRecus.map(x => `${x.dossier} (${x.recus} fichier${x.recus > 1 ? 's' : ''})`).join(' · ')
+      : (dossiersLus.length ? 'aucun fichier de reçus dans : ' + dossiersLus.map(x => x.dossier).join(' · ') : '');
+    const nom = (mots || []).length ? `au nom de ${mots.map(m => m.toUpperCase()).join(' / ')}` : '';
     if (!lieux && !nom) return '';
-    return `<p class="hint fonds-recus-lieux">${nom ? `Versements cherchés ${nom}` : ''}${nom && lieux ? ' — ' : ''}${lieux}.</p>`;
+    // Texte brut, lu dans la pastille « i » de la ligne (échappé par infoBulle).
+    return `${nom ? `Versements cherchés ${nom}` : ''}${nom && lieux ? ' — ' : ''}${lieux}.`;
   }
 
   function renderFondsRecus(d) {
@@ -11104,8 +11105,7 @@
         <input type="text" value="${escapeAttr(d.nomsRecus || '')}" placeholder="nom d’usage, d’épouse…"
           onblur="changerNomsRecus('${d.id}', this.value)" onkeydown="if(event.key==='Enter')this.blur()"></label>
       ${liste}
-      ${f ? `<p class="hint">Reçus lus depuis le ${formatDateFr(f.depuis)} (${f.fichiersLus} fichier${f.fichiersLus > 1 ? 's' : ''}) — vérifié ${new Date(f.verifieLe).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}. Chaque versement au nom de l’acquéreur est listé : vérifiez qu’il concerne bien ce dossier.</p>` : ''}
-      ${f ? renderDossiersRecusLus(f, motsPayeurDossier(d)) : ''}
+      ${f ? `<p class="hint fonds-recus-lieux">${f.fichiersLus} fichier${f.fichiersLus > 1 ? 's' : ''} de reçus lu${f.fichiersLus > 1 ? 's' : ''} depuis le ${formatDateFr(f.depuis)} · vérifié ${new Date(f.verifieLe).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })} ${infoBulle(['Chaque versement au nom de l’acquéreur est listé : vérifiez qu’il concerne bien ce dossier.', renderDossiersRecusLus(f, motsPayeurDossier(d))].filter(Boolean).join(' '))}</p>` : ''}
     </div>`;
     const complet = !!f && b.etat === 'complet';
     const peutConfirmer = echeanceValidee(d, 'appelFonds') && !!emailDestinataireRelance(d);
@@ -19346,9 +19346,77 @@
     } catch (e) { /* le badge attendra le prochain passage */ }
   }
 
+  // ---- Pastilles d'information « i » (demandé par l'étude le 29/09 : « limiter les paragraphes
+  // qui expliquent ce qui se passe, ça charge trop l'interface ») ----
+  // Une explication qui n'est pas un état (un résultat, une erreur, un compte) ne s'écrit plus en
+  // paragraphe sous un titre : elle va dans une pastille « i » à côté de lui, lue au survol, au
+  // focus clavier ou au toucher. Une seule bulle flottante pour toute la page, placée en position
+  // fixe et gardée dans l'écran — une bulle en CSS pur serait coupée par les conteneurs qui
+  // masquent leur débordement (tiroir, tableaux, cartes).
+  //   HTML statique : <span class="info-i" tabindex="0" data-info="…"></span>
+  //   Gabarit JS    : ${infoBulle('…')}
+  function infoBulle(texte) {
+    if (!texte) return '';
+    return `<span class="info-i" tabindex="0" role="button" aria-label="${escapeAttr(texte)}" data-info="${escapeAttr(texte)}"></span>`;
+  }
+  function definirInfoBulle(el, texte) {
+    if (!el) return;
+    el.setAttribute('data-info', texte || '');
+    el.setAttribute('aria-label', texte || '');
+  }
+  let infoBulleCible = null;
+  function afficherInfoBulle(cible) {
+    let bulle = document.getElementById('info-bulle');
+    if (!bulle) {
+      bulle = document.createElement('div');
+      bulle.id = 'info-bulle';
+      bulle.className = 'info-bulle';
+      bulle.setAttribute('role', 'tooltip');
+      document.body.appendChild(bulle);
+    }
+    bulle.textContent = cible.getAttribute('data-info') || '';
+    bulle.style.display = 'block';
+    const r = cible.getBoundingClientRect();
+    const larg = bulle.offsetWidth, haut = bulle.offsetHeight;
+    const marge = 8;
+    let gauche = Math.min(Math.max(marge, r.left + r.width / 2 - larg / 2), window.innerWidth - larg - marge);
+    let hautPos = r.bottom + 6;
+    if (hautPos + haut > window.innerHeight - marge) hautPos = Math.max(marge, r.top - haut - 6);
+    bulle.style.left = gauche + 'px';
+    bulle.style.top = hautPos + 'px';
+    infoBulleCible = cible;
+  }
+  function masquerInfoBulle() {
+    const bulle = document.getElementById('info-bulle');
+    if (bulle) bulle.style.display = 'none';
+    infoBulleCible = null;
+  }
+  function initialiserInfoBulles() {
+    if (typeof document === 'undefined' || !document.addEventListener || !document.querySelectorAll) return;
+    document.querySelectorAll('.info-i[data-info]:not([aria-label])').forEach(el => el.setAttribute('aria-label', el.getAttribute('data-info')));
+    const cible = (e) => e.target && e.target.closest ? e.target.closest('.info-i') : null;
+    document.addEventListener('mouseover', (e) => { const c = cible(e); if (c) afficherInfoBulle(c); });
+    document.addEventListener('mouseout', (e) => { const c = cible(e); if (c && c === infoBulleCible) masquerInfoBulle(); });
+    document.addEventListener('focusin', (e) => { const c = cible(e); if (c) afficherInfoBulle(c); });
+    document.addEventListener('focusout', (e) => { const c = cible(e); if (c) masquerInfoBulle(); });
+    // Toucher (téléphone) : bascule. En phase de capture, et sans suite : la pastille est souvent
+    // dans un <label> ou une ligne cliquable, qui ne doit pas réagir à la lecture d'une aide.
+    document.addEventListener('click', (e) => {
+      const c = cible(e);
+      if (!c) { if (infoBulleCible) masquerInfoBulle(); return; }
+      e.preventDefault(); e.stopPropagation();
+      if (infoBulleCible === c) masquerInfoBulle(); else afficherInfoBulle(c);
+    }, true);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && infoBulleCible) masquerInfoBulle(); });
+    if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('scroll', () => { if (infoBulleCible) masquerInfoBulle(); }, true);
+  }
+  initialiserInfoBulles();
+
   // Sous-onglets des Réglages (demandé par l'étude : « on doit trop scroller »). Le dernier ouvert
   // est retenu sur ce poste — confort seulement, repli sur « Général » si le stockage manque.
-  var SOUS_ONGLETS_REGLAGES = ['general', 'rappels', 'relecture', 'pieces'];
+  // Rubriques de la colonne de gauche, dans l'ordre (réorganisées le 29/09, à la manière des
+  // réglages de Claude).
+  var SOUS_ONGLETS_REGLAGES = ['general', 'rappels', 'signature', 'agenda', 'relecture', 'pieces', 'signalements', 'systeme'];
   const CLE_SOUS_ONGLET_REGLAGES = 'reglages-sous-onglet';
 
   function sousOngletReglagesRetenu() {
@@ -24518,8 +24586,7 @@
     return `<section class="audit-panneau-commentaires">
       <div class="audit-panneau-tete">
         <div>
-          <strong>Mode commentaires</strong>
-          <p class="hint">Sous chaque point : « Juste », « Faux positif », « Mal formulé » ou « Gravité à revoir », avec votre justification. Un faux positif est replié tout de suite (pour ce dossier ou pour tous) ; l'ensemble sert ensuite à corriger les règles de la relecture.</p>
+          <strong>Mode commentaires ${infoBulle("Sous chaque point : « Juste », « Faux positif », « Mal formulé » ou « Gravité à revoir », avec votre justification. Un faux positif est replié tout de suite (pour ce dossier ou pour tous) ; l'ensemble sert ensuite à corriger les règles de la relecture.")}</strong>
         </div>
         <button type="button" class="action-rapide" onclick="exporterRetoursAudit()">${icone('download')}Exporter les commentaires (${retoursAudit.length})</button>
       </div>
@@ -24909,13 +24976,12 @@
       </details>`;
     }).join('');
     zone.innerHTML = `<div class="relecture-nas-tete">
-        <span class="section-eyebrow">Dossier du NAS — ${escapeHtml(d.nasDossier || '')}</span>
+        <span class="section-eyebrow">Dossier du NAS — ${escapeHtml(d.nasDossier || '')} ${infoBulle("Rubrique AAE et avant-contrat cochés d'office. Chaque PDF coché est lu dans ce navigateur (OCR si c'est un scan).")}</span>
         <div class="relecture-nas-actions">
           <button type="button" class="secondary" onclick="fermerParcoursNasRelecture()">Fermer</button>
           <button type="button" class="primary" onclick="ajouterSelectionNasRelecture()" ${p.coches.size ? '' : 'disabled'}>Ajouter la sélection (${p.coches.size})</button>
         </div>
       </div>
-      <p class="hint">Rubrique AAE et avant-contrat cochés d'office. Chaque PDF coché est lu dans ce navigateur (OCR si c'est un scan).</p>
       ${blocs}`;
   }
 
@@ -25200,8 +25266,7 @@
       }
     }
     const enCours = analyseEnCoursRelecture
-      ? `<div class="analyse-en-cours">${icone('spinner', null, true)}<div><strong>Analyse en cours — <span id="relecture-chrono">0 s</span></strong>
-          <p class="hint">${escapeHtml(fournisseur.nom)} relit ${docs.length} document(s) point par point. Comptez en général une à quatre minutes ; vous pouvez consulter un autre écran en attendant.</p></div></div>`
+      ? `<div class="analyse-en-cours">${icone('spinner', null, true)}<div><strong>Analyse en cours — <span id="relecture-chrono">0 s</span> ${infoBulle(`${fournisseur.nom} relit ${docs.length} document(s) point par point. Comptez en général une à quatre minutes ; vous pouvez consulter un autre écran en attendant.`)}</strong></div></div>`
       : '';
     const erreur = erreurClaudeRelecture ? `<p class="analyse-erreur">${icone('alert-triangle')} ${escapeHtml(erreurClaudeRelecture)}</p>` : '';
     zone.innerHTML = `<div class="analyse-recap">
@@ -25381,7 +25446,7 @@
     return `<div class="relecture-type-bien">
       <label for="relecture-type-bien">Type de bien</label>
       <select id="relecture-type-bien" onchange="changerTypeBienRelecture(this.value)" ${analyseEnCoursRelecture ? 'disabled' : ''}>${options}</select>
-      <span class="hint">${typeBienAuditChoisi ? 'Choisi à la main' : 'Déduit des documents'} — la grille pose ${nbPoints} points adaptés à ce type de bien : à corriger avant de lancer l'analyse si la déduction est fausse.</span>
+      <span class="hint">${typeBienAuditChoisi ? 'Choisi à la main' : 'Déduit des documents'} · ${nbPoints} points ${infoBulle("La grille pose des points adaptés à ce type de bien : à corriger avant de lancer l'analyse si la déduction est fausse.")}</span>
     </div>`;
   }
 
@@ -25757,8 +25822,7 @@
 
     const themes = syntheseDiagnosticOutil2(r.diagnostic || []);
     if (themes.length) {
-      blocs.push(`<div class="diag-bloc"><span class="section-eyebrow">Contrôles CLAIRE : clauses examinées</span>
-        <p class="hint">Pour chaque thème, les clauses retenues et celles écartées avec la raison. Un point attendu qui manque au bilan se trouve en général dans une raison d’écart.</p>
+      blocs.push(`<div class="diag-bloc"><span class="section-eyebrow">Contrôles CLAIRE : clauses examinées ${infoBulle("Pour chaque thème, les clauses retenues et celles écartées avec la raison. Un point attendu qui manque au bilan se trouve en général dans une raison d’écart.")}</span>
         ${themes.map(t => detailsDiagnosticRelecture('theme:' + t.cle,
           `<strong>${escapeHtml(t.libelle)}</strong> <span class="diag-compte">${t.retenues.length} retenue(s) · ${t.nbEcartees} écartée(s)</span>`,
           (t.retenues.length ? detailsDiagnosticRelecture(`ret:${t.cle}`, `Retenues (${t.retenues.length})`, listeDiagnosticRelecture(t.retenues, true)) : '')
@@ -25950,7 +26014,7 @@
         ${anomaliesHtml}
         ${cout}
         ${renderDiagnosticRelecture(r, sections)}
-        <p class="hint relecture-cadre">${icone('info')} Aide à la relecture : chaque point est une proposition, citée page à l'appui, que le notaire vérifie et tranche. Les données identifiantes ont été masquées avant l'envoi et la correspondance est restée sur ce poste.</p>
+        <p class="hint relecture-cadre">Aide à la relecture ${infoBulle("Chaque point est une proposition, citée page à l'appui, que le notaire vérifie et tranche. Les données identifiantes ont été masquées avant l'envoi et la correspondance est restée sur ce poste.")}</p>
       </div>
       <aside class="relecture-visionneuse" id="relecture-visionneuse" aria-label="Aperçu du document"></aside>
     </div>`;
@@ -28007,14 +28071,16 @@
   function renderReglagesEmails(emailsResponsables, fonctionsResponsables) {
     const fonctions = fonctionsResponsables || {};
     document.getElementById('reglages-emails-liste').innerHTML = RESPONSABLES.map((nom, i) => `
-      <div class="calc-champ">
-        <label for="reglages-email-${i}">${escapeHtml(nom)}</label>
-        <div style="display:flex; gap:8px; align-items:center;">
-          <input type="email" id="reglages-email-${i}" data-responsable="${escapeAttr(nom)}" placeholder="prenom.nom@notaires.fr" value="${escapeAttr(emailsResponsables[nom] || '')}" style="flex:1;">
-          <button type="button" class="secondary" onclick="testerEnvoiResponsable('${escapeOnclickArg(nom)}')">Tester</button>
+      <div class="reglages-champ reglages-champ-haut">
+        <div class="reglages-champ-libelle"><label for="reglages-email-${i}">${escapeHtml(nom)}</label></div>
+        <div class="reglages-champ-pile">
+          <div class="reglages-champ-ligne">
+            <input type="email" id="reglages-email-${i}" data-responsable="${escapeAttr(nom)}" placeholder="prenom.nom@notaires.fr" value="${escapeAttr(emailsResponsables[nom] || '')}">
+            <button type="button" class="secondary" onclick="testerEnvoiResponsable('${escapeOnclickArg(nom)}')">Tester</button>
+          </div>
+          <input type="text" id="reglages-fonction-${i}" class="reglages-fonction" aria-label="Fonction de ${escapeAttr(nom)} dans la signature" placeholder="Fonction dans la signature : ${escapeAttr(FONCTIONS_SIGNATURE_DEFAUT[nom] || 'Collaborateur')}" value="${escapeAttr(fonctions[nom] || '')}">
+          <p class="hint reglages-email-resultat" id="reglages-email-resultat-${i}"></p>
         </div>
-        <input type="text" id="reglages-fonction-${i}" class="reglages-fonction" aria-label="Fonction de ${escapeAttr(nom)} dans la signature" placeholder="Fonction dans la signature : ${escapeAttr(FONCTIONS_SIGNATURE_DEFAUT[nom] || 'Collaborateur')}" value="${escapeAttr(fonctions[nom] || '')}">
-        <p class="hint reglages-email-resultat" id="reglages-email-resultat-${i}"></p>
       </div>
     `).join('');
   }
@@ -28376,9 +28442,9 @@
       }
       chargerCategoriesAgendaVues();
       if (note) {
-        note.textContent = corps.motDePasseEnregistre
-          ? 'Un mot de passe est déjà enregistré. Laissez le champ vide pour le conserver. Un mot de passe erroné compte comme une tentative échouée — CLAIRE ne réessaie jamais toute seule.'
-          : 'Attention : un mot de passe erroné compte comme une tentative échouée. CLAIRE ne réessaie jamais toute seule.';
+        definirInfoBulle(note, corps.motDePasseEnregistre
+          ? 'Un mot de passe est déjà enregistré : laisser le champ vide le conserve. Un mot de passe erroné compte comme une tentative échouée — CLAIRE ne réessaie jamais toute seule.'
+          : 'Un mot de passe erroné compte comme une tentative échouée. CLAIRE ne réessaie jamais toute seule.');
       }
     } catch (e) {
       // Session expirée : déjà géré par fetchAvecAuth.
@@ -28396,9 +28462,9 @@
       const vues = Array.isArray(corps.categories) ? corps.categories : [];
       liste.innerHTML = vues.map((c) => `<option value="${escapeAttr(c)}"></option>`).join('');
       if (note) {
-        note.textContent = vues.length
+        definirInfoBulle(note, vues.length
           ? `Catégories vues dans l'agenda de l'office : ${vues.join(', ')}. Un nom que la boîte ne connaît pas s'affiche sans couleur.`
-          : "Le nom exact de la catégorie dans Outlook. Un nom que la boîte ne connaît pas s'affiche sans couleur.";
+          : "Nom exact de la catégorie dans Outlook. Un nom que la boîte ne connaît pas s'affiche sans couleur.");
       }
     } catch (e) {
       // Sans agenda lu, les champs restent libres.
@@ -28535,7 +28601,7 @@
     if (!m || m.niveau !== 'alerte') { zone.style.display = 'none'; zone.innerHTML = ''; return; }
     zone.style.display = '';
     zone.innerHTML = `${icone('alert-triangle')}<span><strong>Sauvegarde de la base :</strong> ${escapeHtml(m.titre)}${m.detail ? ' ' + escapeHtml(m.detail) : ''}</span>
-      <button type="button" class="action-rapide" onclick="definirOnglet('reglages'); definirSousOngletReglages('general')">Voir les Réglages</button>`;
+      <button type="button" class="action-rapide" onclick="definirOnglet('reglages'); definirSousOngletReglages('systeme')">Voir les Réglages</button>`;
   }
 
   async function chargerEtatSauvegarde() {
