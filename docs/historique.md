@@ -12246,3 +12246,21 @@ Question : « Que penses-tu de l'interface de CLAIRE ? », puis « Va y » sur l
 - En attente de l'étude : le vocabulaire des statuts (un seul statut principal par dossier — sur
   un même dossier on lisait « Aucun document », « En retard », « Offre non vérifiée », « Non
   vérifiée », « 0 % »).
+
+### 29/09 22:56 — Un seul statut par dossier : son étape
+
+Suite de la revue de l'interface. Question posée à l'étude : quel statut principal afficher ?
+Réponse : « Étape du dossier ». `etapeDossier(d, aujourdhui)` (pure, `tests/etape-dossier.test.js`) :
+vente préalable → offre de prêt → préemption → rendez-vous à fixer (ou « Pièces manquantes » si le
+dossier relié en attend) → appel de fonds → projet → « Prêt à signer » (pièces reçues ou
+participation) / « Signature à venir » (non relié : pièces inconnues, jamais « prêt ») / « Pièces
+manquantes » ; « Signé » une fois le rendez-vous passé ; « Archivé ». Couleur selon l'échéance de
+l'étape (≤ 7 j ou dépassée rouge, ≤ 15 j ambre, sinon neutre ; signature en vert).
+- `renderBadgeStatut` rend l'étape : fiche, tableau du Suivi, recherche du tableau de bord et de
+  la relecture. Vue Échéances du Suivi : plus de badge (la ligne est déjà l'échéance).
+- Avancement des dossiers : la pilule dit l'étape (plus « En retard / À surveiller / Dans les
+  délais », qui affichait « En retard » à J-5) ; l'ordre reste celui de l'urgence ; « prochaine : … »
+  retiré (fiche et tableau de bord) ; noms de dossiers sur deux lignes au lieu d'être coupés.
+- Portefeuille : l'anneau compte par groupe d'étapes (`GROUPES_ETAPE_DOSSIER` : conditions,
+  pièces, rendez-vous, envois, signature) ; phrase de synthèse reformulée en étapes.
+- `statutDossier` (pièces trouvées) est conservé pour le tri « statut » et les points « À traiter ».

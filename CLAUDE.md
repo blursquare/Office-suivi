@@ -131,6 +131,14 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   seulement si une pièce personnalisée « préemption/DPU/DIA » a été ajoutée) → fixer le rendez-vous
   → envoi appel de fonds → envoi projet → signature. La **date butoir** est informative dès qu'un
   rendez-vous est fixé (hors planning et hors rappels). Une date d'envoi saisie vaut envoi fait.
+- **Statut affiché d'un dossier = son étape** (choix de l'étude, 29/09 : `etapeDossier`,
+  `renderBadgeStatut`) : un seul badge partout (tableau de bord, Suivi, fiche, recherche) —
+  « Attente de la vente préalable / de l'offre de prêt / de la préemption », « Pièces manquantes »,
+  « Rendez-vous à fixer », « Appel de fonds / Projet à envoyer », « Prêt à signer » (pièces toutes
+  reçues), « Signature à venir » (pièces inconnues, dossier non relié), « Signé ». Couleur selon
+  l'échéance de l'étape (≤ 7 j rouge, ≤ 15 j ambre). `statutDossier` (pièces trouvées) ne sert plus
+  qu'au tri et aux points « À traiter ». Pas de badge dans la vue Échéances du Suivi (la ligne est
+  déjà l'échéance).
 - **Seuils des rappels email** : prêt J-15/J-7, vente préalable J-15/J-7, appel de fonds J-15/J-10,
   signature J-25/J-15, personnalisées J-15/J-7 (`SEUILS_RAPPELS_PAR_TYPE`).
 - **Relance de l'offre de prêt au client** : première à J-15, puis tous les 10 jours, y compris

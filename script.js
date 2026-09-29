@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 22:50';
+  const VERSION_APP = '2026-09-29 22:56';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 22:56', resume: "Un seul statut par dossier, partout : son étape — « Attente de l'offre de prêt », « Pièces manquantes », « Rendez-vous à fixer », « Appel de fonds à envoyer », « Projet à envoyer », « Prêt à signer »… en rouge si l'échéance de l'étape est à 7 jours ou moins, en ambre à 15 jours. Il remplace « Aucun document », « À relier », « En retard » et consorts sur le tableau de bord, le Suivi, la fiche et la recherche. L'anneau du portefeuille compte les dossiers par étape." },
     { version: '2026-09-29 22:50', resume: "Interface allégée. Tableau de bord : « Aujourd'hui » et l'avancement des dossiers passent en tête, les chiffres du portefeuille dessous, et la carte « Activité de l'étude » ne s'affiche que s'il y a eu de l'activité dans la semaine. Les noms de dossiers ne sont plus coupés dans « Aujourd'hui ». Fiche : les champs secondaires vides (mobilier, séquestre, versé à, notaires) sont repliés derrière « Compléter la fiche (N) ». Suivi : les tuiles de chiffres, qui répétaient le tableau de bord, et la note du bas sont retirées ; l'export/import JSON passe dans Réglages › Mise à jour et sauvegarde." },
     { version: '2026-09-29 22:37', resume: "Agenda de l'office : un rendez-vous intitulé « VENTE - NOM DU DOSSIER » est reconnu comme « VTE - NOM », même au milieu du titre (« RDV VENTE - DUPONT ») — rendez-vous de signature, envois notés dans le lieu. VENTE doit être en capitales et suivi d'un tiret. Le résumé des emails du matin rattache aussi « VENTE - NOM » au dossier." },
     { version: '2026-09-29 22:25', resume: "Dates butoir d'obtention du prêt et de vente préalable : elles passent uniquement par l'agenda partagé de Sophie. Le calendrier .ics que CLAIRE publiait est supprimé (retirer l'abonnement « CLAIRE — Échéances » dans Outlook). Au premier passage après la mise à jour, CLAIRE pose d'elle-même les dates à venir des dossiers existants, sans doublon : un événement déjà présent au même nom et à la même date est repris tel quel. Compte rendu dans Réglages › Agenda. À vérifier au bureau." },
@@ -12887,6 +12888,10 @@
     const actifs = (dossiersActifs || []).filter(d => !d.archive);
     const parStatut = { pret: 0, aconfirmer: 0, blocage: 0, arelier: 0 };
     actifs.forEach(d => { const s = statutDossier(d); if (s in parStatut) parStatut[s]++; });
+    // Répartition affichée : par étape du dossier (le badge vu partout), regroupée.
+    const parEtape = {};
+    GROUPES_ETAPE_DOSSIER.forEach(g => { parEtape[g.cle] = 0; });
+    actifs.forEach(d => { const g = etapeDossier(d, aujourdhuiIso).groupe; if (g in parEtape) parEtape[g]++; });
     const mois = String(aujourdhuiIso || '').slice(0, 7);
     const duMois = (dossiersTous || actifs).filter(d => d.rendezVousSignature && String(d.rendezVousSignature).slice(0, 7) === mois);
     const signaturesMois = { total: duMois.length, faites: duMois.filter(d => d.rendezVousSignature < aujourdhuiIso).length };
@@ -12895,21 +12900,23 @@
     const avancementMoyen = actifs.length
       ? Math.round(actifs.reduce((t, d) => t + avancementDossier(d, aujourdhuiIso).pct, 0) / actifs.length)
       : 0;
-    return { actifs: actifs.length, parStatut, signaturesMois, offres, avancementMoyen };
+    return { actifs: actifs.length, parStatut, parEtape, signaturesMois, offres, avancementMoyen };
   }
 
   // Pure : une phrase courte qui dit ce que la carte montre, sur le ton d'un collègue — jamais un
   // reproche. La première règle qui s'applique l'emporte.
   function phrasePortefeuille(st) {
     if (!st.actifs) return 'Aucun dossier en cours.';
-    const { pret, blocage } = st.parStatut;
-    if (pret === st.actifs) return 'Tous les dossiers sont prêts à signer.';
+    const e = st.parEtape || {};
+    const pl = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
+    if (e.signature === st.actifs) return 'Tous les dossiers sont à l’étape de la signature.';
     if (st.signaturesMois.total && st.signaturesMois.faites === st.signaturesMois.total) return 'Toutes les signatures du mois sont faites.';
-    if (blocage) return `${blocage} dossier${blocage > 1 ? 's' : ''} sans aucun document reçu.`;
+    if (e.pieces) return `${pl(e.pieces, 'dossier')} avec des pièces manquantes.`;
     const restantes = st.signaturesMois.total - st.signaturesMois.faites;
     if (restantes) return `Encore ${restantes} signature${restantes > 1 ? 's' : ''} d'ici la fin du mois.`;
-    if (pret) return `${pret} dossier${pret > 1 ? 's' : ''} prêt${pret > 1 ? 's' : ''} à signer.`;
-    return 'Les pièces arrivent : rien de bloquant.';
+    if (e.rdv) return `${pl(e.rdv, 'rendez-vous')} de signature à fixer.`;
+    if (e.envois) return `${pl(e.envois, 'dossier')} avec un envoi à faire.`;
+    return 'Les conditions suivent leur cours : rien de bloquant.';
   }
 
   // L'animation d'entrée (anneau qui se dessine, barres qui se remplissent) ne joue qu'au premier
@@ -12920,17 +12927,17 @@
   function anneauPortefeuille(st) {
     const total = st.actifs;
     let debut = 0;
-    const presents = ORDRE_STATUTS_PORTEFEUILLE.filter(k => st.parStatut[k]);
+    const presents = GROUPES_ETAPE_DOSSIER.map(g => g.cle).filter(k => st.parEtape[k]);
     // Un petit blanc entre deux segments pour qu'ils se lisent séparément ; aucun s'il n'y en a qu'un.
     const ecart = presents.length > 1 ? 1.2 : 0;
     const segments = total ? presents.map(k => {
-      const part = 100 * st.parStatut[k] / total;
+      const part = 100 * st.parEtape[k] / total;
       const long = Math.max(0.6, part - ecart);
       const seg = `<circle class="pf-seg pf-${k}" cx="21" cy="21" r="15.9155" style="--l:${long.toFixed(2)};stroke-dashoffset:${(25 - debut).toFixed(2)}"></circle>`;
       debut += part;
       return seg;
     }).join('') : '';
-    return `<svg class="pf-anneau" viewBox="0 0 42 42" role="img" aria-label="${escapeAttr(ORDRE_STATUTS_PORTEFEUILLE.map(k => `${LIBELLES_STATUT[k].texte} : ${st.parStatut[k]}`).join(', '))}">
+    return `<svg class="pf-anneau" viewBox="0 0 42 42" role="img" aria-label="${escapeAttr(GROUPES_ETAPE_DOSSIER.map(g => `${g.texte} : ${st.parEtape[g.cle]}`).join(', '))}">
       <circle class="pf-fond" cx="21" cy="21" r="15.9155"></circle>${segments}
     </svg>`;
   }
@@ -12955,8 +12962,8 @@
     const tMois = formaterTendance(evolution.ecartMois);
     const anime = !portefeuilleDejaAnime && st.actifs > 0;
     if (st.actifs > 0) portefeuilleDejaAnime = true;
-    const legende = ORDRE_STATUTS_PORTEFEUILLE.map(k => `
-      <li class="pf-legende-ligne${st.parStatut[k] ? '' : ' vide'}"><span class="pf-point pf-${k}"></span><span>${LIBELLES_STATUT[k].texte}</span><b>${st.parStatut[k]}</b></li>`).join('');
+    const legende = GROUPES_ETAPE_DOSSIER.map(g => `
+      <li class="pf-legende-ligne${st.parEtape[g.cle] ? '' : ' vide'}"><span class="pf-point pf-${g.cle}"></span><span>${g.texte}</span><b>${st.parEtape[g.cle]}</b></li>`).join('');
     const sig = st.signaturesMois;
     const moisNom = new Date(aujourdhui + 'T00:00:00').toLocaleDateString('fr-FR', { month: 'long' });
     const carte = `<div class="kpi-tile portefeuille${anime ? ' anime' : ''}">
@@ -13314,10 +13321,11 @@
     const lignes = avancementToutAfficher ? toutes : toutes.slice(0, MAX_LIGNES_AVANCEMENT);
     const reste = toutes.length - lignes.length;
     bloc.innerHTML = lignes.map(l => {
-      const s = STATUTS_AVANCEMENT[l.statut];
+      // Le badge est l'étape du dossier (même badge que le Suivi et la fiche) ; l'ordre de la liste
+      // reste celui de l'urgence (lignesAvancement).
+      const s = etapeDossier(l.dossier);
       const detail = [`${l.etapesFaites}/${l.etapesTotal} étapes`];
       if (l.piecesTotal) detail.push(`${l.piecesRecues}/${l.piecesTotal} pièces`);
-      if (l.prochaine) detail.push(`prochaine : ${l.prochaine}`);
       const nom = libelleDossierAffiche(l.dossier);
       return `
         <button type="button" class="avancement-ligne statut-${l.statut}" onclick="ouvrirDossierDepuisDashboard('${l.dossier.id}')" title="Ouvrir le dossier ${escapeAttr(nom)}">
@@ -13926,6 +13934,76 @@
     return 'aconfirmer';
   }
 
+  // ---- Étape du dossier : LE statut affiché partout (choix de l'étude, 29/09) ----
+  // Revue de l'interface : sur un même dossier on lisait « Aucun document », « En retard », « Offre
+  // non vérifiée », « Non vérifiée » et « 0 % ». L'étude a choisi un seul badge qui dit où en est la
+  // vente — tableau de bord, Suivi, fiche, recherche. Les pièces, l'offre et le pourcentage restent
+  // en détail. statutDossier() (pièces trouvées) garde son rôle de tri et de points « À traiter ».
+  // Ordre des étapes = celui du planning (echeancesPlanning) : vente préalable → prêt → préemption →
+  // rendez-vous → appel de fonds → projet → signature. Une date d'envoi saisie vaut envoi fait.
+  // Couleur selon l'échéance de l'étape : ≤ 7 jours (ou dépassée) rouge, ≤ 15 jours ambre, sinon
+  // neutre ; « Prêt à signer » et « Signé » en vert.
+  var ETAPES_DOSSIER = {
+    ventebien: { texte: 'Attente de la vente préalable', groupe: 'conditions' },
+    pret: { texte: 'Attente de l’offre de prêt', groupe: 'conditions' },
+    preemption: { texte: 'Attente de la préemption', groupe: 'conditions' },
+    pieces: { texte: 'Pièces manquantes', groupe: 'pieces' },
+    fixerRdv: { texte: 'Rendez-vous à fixer', groupe: 'rdv' },
+    appelFonds: { texte: 'Appel de fonds à envoyer', groupe: 'envois' },
+    projetEnvoye: { texte: 'Projet à envoyer', groupe: 'envois' },
+    signatureAVenir: { texte: 'Signature à venir', groupe: 'signature' },
+    signature: { texte: 'Prêt à signer', groupe: 'signature' },
+    signe: { texte: 'Signé', groupe: 'signature' },
+    archive: { texte: 'Archivé', groupe: null }
+  };
+  // Regroupement de l'anneau du portefeuille (tableau de bord).
+  var GROUPES_ETAPE_DOSSIER = [
+    { cle: 'conditions', texte: 'Conditions en cours' },
+    { cle: 'pieces', texte: 'Pièces manquantes' },
+    { cle: 'rdv', texte: 'Rendez-vous à fixer' },
+    { cle: 'envois', texte: 'Envois à faire' },
+    { cle: 'signature', texte: 'Signature' }
+  ];
+
+  // Pure : 'completes' (ou sans objet : participation), 'manquantes', ou 'inconnu' (jamais relié au
+  // NAS : on ne sait pas, ce n'est pas une absence).
+  function etatPiecesDossier(d) {
+    if (d.roleNotaire === 'participant') return 'completes';
+    if (!d.dossierLie) return 'inconnu';
+    const pieces = d.pieces || {};
+    return checklistPieces(d.typeVente, d).every(p => pieces[p.cle] === 'recue') ? 'completes' : 'manquantes';
+  }
+
+  // Pure et testable : { cle, texte, groupe, iso, jours, dl }.
+  function etapeDossier(d, aujourdhuiIso) {
+    const auj = aujourdhuiIso || isoAujourdhuiLocal();
+    const fin = (cle, iso) => {
+      const e = ETAPES_DOSSIER[cle];
+      const jours = iso ? ecartJours(auj, iso) : null;
+      let dl = 'dl-neutre';
+      if (cle === 'signature' || cle === 'signe') dl = 'dl-success';
+      else if (cle !== 'archive' && jours !== null && jours <= 7) dl = 'dl-urgent';
+      else if (cle !== 'archive' && jours !== null && jours <= 15) dl = 'dl-pret';
+      return { cle, texte: e.texte, groupe: e.groupe, iso: iso || null, jours, dl };
+    };
+    if (d.archive) return fin('archive', null);
+    const rdv = d.rendezVousSignature || '';
+    if (rdv && rdv < auj) return fin('signe', null);
+    if (d.ventebien && !echeanceValidee(d, 'ventebien')) return fin('ventebien', d.ventebien);
+    if (!d.sansPret && !echeanceValidee(d, 'pret')) return fin('pret', d.pret || null);
+    const appelFait = echeanceValidee(d, 'appelFonds') || !!d.appelFonds;
+    const projetFait = echeanceValidee(d, 'projetEnvoye') || !!d.projetEnvoye;
+    const pieces = etatPiecesDossier(d);
+    if (!rdv && !appelFait) {
+      if (!preemptionLevee(d)) return fin('preemption', null);
+      return fin(pieces === 'manquantes' ? 'pieces' : 'fixerRdv', d.acte || null);
+    }
+    if (!appelFait) return fin('appelFonds', rdv || null);
+    if (!projetFait) return fin('projetEnvoye', rdv || null);
+    if (pieces === 'manquantes') return fin('pieces', rdv || null);
+    return fin(pieces === 'inconnu' ? 'signatureAVenir' : 'signature', rdv || null);
+  }
+
   // « Revérifier tous les dossiers » (barre d'outils du Suivi), à la place de l'ancien bouton du
   // registre partagé — demandé par l'étude. Remplace aussi, et rend inutiles, le bandeau
   // « reconfirmer les accès », sa popup de démarrage et le bouton groupé qui les accompagnaient :
@@ -13991,10 +14069,12 @@
     if (overlay) overlay.style.display = 'none';
   }
 
+  // Le badge de statut d'un dossier, partout : son étape (voir etapeDossier).
   function renderBadgeStatut(d) {
-    const s = LIBELLES_STATUT[statutDossier(d)];
-    const marqueur = s.icone ? icone(s.icone) : '<span class="dot"></span>';
-    return `<span class="dot-label ${s.dl}" title="Statut du dossier : ${s.texte}">${marqueur}${s.texte}</span>`;
+    const e = etapeDossier(d);
+    const marqueur = e.cle === 'archive' ? icone('lock') : '<span class="dot"></span>';
+    const quand = e.iso ? ` — échéance ${e.jours < 0 ? 'dépassée' : 'le ' + formatDateFr(e.iso)}` : '';
+    return `<span class="dot-label ${e.dl}" title="${escapeAttr('Étape du dossier : ' + e.texte + quand)}">${marqueur}${escapeHtml(e.texte)}</span>`;
   }
 
   // Nom du dossier tel qu'affiché à l'écran (« VTE - DUPONT / MARTIN »), demandé par l'étude —
@@ -16248,6 +16328,8 @@
   // Vue "Échéances" du Suivi : les mêmes dossiers (mêmes filtres, même recherche, même tiroir au
   // clic), regroupés par semaine. UNE ligne par dossier — sa prochaine échéance en attente, pas
   // toutes ses dates — voir grouperEcheancesParSemaine().
+  // Pas de badge d'étape ici (revue de l'interface, 29/09) : chaque ligne EST une échéance, la colonne
+  // « Échéance » dit déjà la même chose (« Envoi appel de fonds » à côté de « Appel de fonds à envoyer »).
   function renderVueSemaines(liste) {
     const aujourdHui = isoAujourdHui();
     const groupes = grouperEcheancesParSemaine(liste, aujourdHui);
@@ -16261,7 +16343,7 @@
           <tr class="ligne-resume${d.archive ? ' est-archive' : ''}${dossierOuvert === d.id ? ' ligne-active' : ''}" onclick="ouvrirDossierDrawer('${d.id}')">
             <td><span class="echeance-jours ${jours <= 3 ? 'urgent' : 'calme'}">${formatDateFr(e.iso)}</span></td>
             <td><span class="dot-label dl-${e.type}"><span class="dot"></span>${escapeHtml(e.label)}</span></td>
-            <td><div class="dossier-nom-tableau">${renderBadgeStatut(d)}${escapeHtml(libelleDossierAffiche(d))}${tagNotificationsDossier(d)}</div></td>
+            <td><div class="dossier-nom-tableau">${escapeHtml(libelleDossierAffiche(d))}${tagNotificationsDossier(d)}</div></td>
             <td class="dossier-responsable-tableau">${escapeHtml(d.responsable || '—')}</td>
           </tr>`;
       }).join('');
@@ -17126,7 +17208,7 @@
     if (!etapes.length) return '';
     const detail = [`${avancement.etapesFaites}/${avancement.etapesTotal} étapes`];
     if (avancement.piecesTotal) detail.push(`${avancement.piecesRecues}/${avancement.piecesTotal} pièces`);
-    if (prochaineEtape) detail.push(`prochaine : ${prochaineEtape.label}`);
+    // « prochaine : … » n'est plus écrit : le badge d'étape juste au-dessus le dit déjà.
     return `
       <div class="fiche-progression">
         <div class="fiche-segments" role="img" aria-label="Avancement : ${escapeAttr(detail.join(', '))}">

@@ -1086,6 +1086,12 @@
   .pf-seg.pf-aconfirmer, .pf-point.pf-aconfirmer { stroke: var(--pret); background: var(--pret); }
   .pf-seg.pf-blocage, .pf-point.pf-blocage { stroke: var(--urgent); background: var(--urgent); }
   .pf-seg.pf-arelier, .pf-point.pf-arelier { stroke: var(--muted); background: var(--muted); }
+  /* Groupes d'étapes du dossier (anneau du portefeuille, voir GROUPES_ETAPE_DOSSIER). */
+  .pf-seg.pf-conditions, .pf-point.pf-conditions { stroke: var(--pret); background: var(--pret); }
+  .pf-seg.pf-pieces, .pf-point.pf-pieces { stroke: var(--urgent); background: var(--urgent); }
+  .pf-seg.pf-rdv, .pf-point.pf-rdv { stroke: var(--muted); background: var(--muted); }
+  .pf-seg.pf-envois, .pf-point.pf-envois { stroke: var(--focus); background: var(--focus); }
+  .pf-seg.pf-signature, .pf-point.pf-signature { stroke: var(--success); background: var(--success); }
   .pf-centre { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; }
   .pf-centre-num { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink); }
   .pf-centre-lib { font-size: 10.5px; color: var(--muted); margin-top: 3px; }
@@ -5643,7 +5649,7 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
 /* Une ligne par dossier : nom, jauge, statut. Le filet de séparation est porté par la ligne
    suivante (+ ~), pour qu'aucune ligne n'en ait sous elle en fin de liste. */
 button.avancement-ligne {
-  display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 128px; align-items: center; gap: 20px;
+  display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto; align-items: center; gap: 20px;
   width: 100%; padding: 12px 10px; background: none; border: none; border-radius: 8px;
   font: inherit; text-align: left; color: inherit; cursor: pointer;
 }
@@ -5651,7 +5657,7 @@ button.avancement-ligne:hover { background: var(--paper-sunk); }
 .avancement-ligne + .avancement-ligne { border-top: 1px solid var(--line-soft); border-radius: 0; }
 .avancement-ligne + .avancement-ligne:hover { border-radius: 0; }
 .avancement-nom { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.avancement-titre { font-size: 13.5px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.avancement-titre { font-size: 13.5px; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
 .avancement-detail { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .avancement-jauge { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .avancement-jauge-tete { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: var(--muted); }
@@ -5669,6 +5675,7 @@ button.avancement-ligne:hover { background: var(--paper-sunk); }
 .avancement-pilule.dl-success { color: var(--success); background: color-mix(in srgb, var(--success) 14%, transparent); }
 .avancement-pilule.dl-pret { color: var(--pret); background: color-mix(in srgb, var(--pret) 16%, transparent); }
 .avancement-pilule.dl-urgent { color: var(--urgent); background: color-mix(in srgb, var(--urgent) 14%, transparent); }
+.avancement-pilule.dl-neutre { color: var(--ink-soft); background: var(--paper-sunk); }
 .avancement-montant { font-size: 12.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .avancement-pied { display: flex; justify-content: flex-end; padding: 8px 10px 6px; border-top: 1px solid var(--line-soft); }
 /* Dans une colonne étroite (à côté de « À traiter » sur le tableau de bord), la ligne passe sur deux
