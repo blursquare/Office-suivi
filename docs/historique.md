@@ -11836,3 +11836,15 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
 - **29/09/2026 — « Point du matin » à côté du titre « Aujourd'hui »** (demande de l'étude) : le
   bouton quitte la colonne de droite de la carte (sous l'anneau) pour la ligne du titre
   (`.alertes-titre-ligne`, qui passe à la ligne en largeur téléphone). Vérifié dans Chromium.
+
+- **29/09/2026 — Fiche imprimée : procédure des fonds remplie et cochée d'après le dossier**
+  (demande de l'étude : « remplir et cocher automatiquement les cases en dessous des dates butoir
+  avec toutes les informations que tu as déjà »). `etatProcedureFonds(d)` (pure, même ordre que
+  `PROCEDURE_FONDS`) : cochées seulement sur un fait enregistré — 1 appel de fonds (date saisie ou
+  envoi validé), 4 appel de fonds trouvé sur le commun (`fondsRecus.attenduChemin`), 7 projet
+  envoyé, 8 fonds complets d'après les reçus (date du dernier reçu), 9 réception confirmée au
+  client. Sinon une note sans cocher : 2 date et heure du rendez-vous, 3 offre de prêt reçue ou
+  non / achat comptant (l'offre n'est qu'un des justificatifs de provenance), 5 montant et
+  détenteur du séquestre, 8 reçu / attendu / reste. Étape 6 (factures) : rien de connu. Le
+  sous-titre dit la date à laquelle CLAIRE a coché. Test `tests/fiche-procedure-fonds.test.js` ;
+  rendu vérifié dans Chromium (le .doc est du HTML en tableaux, Word non vérifié ici).

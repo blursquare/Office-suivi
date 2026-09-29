@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 11:16';
+  const VERSION_APP = '2026-09-29 11:19';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 11:19', resume: "Fiche imprimée : les cases de la procédure « Appels et réception des fonds » se remplissent d'après le dossier — cochées avec leur date quand c'est fait (appel de fonds envoyé, projet envoyé, fonds complets, réception confirmée, appel de fonds trouvé sur le commun), et une information utile sinon (rendez-vous, offre de prêt, séquestre, fonds reçus et reste à recevoir)." },
     { version: '2026-09-29 11:16', resume: "Tableau de bord : le bouton « Point du matin » est à côté du titre « Aujourd'hui »." },
     { version: '2026-09-29 11:15', resume: "Nouveau dossier : l'étape Finaliser propose le notaire du vendeur et celui de l'acquéreur (lus dans l'acte, modifiables, liste du carnet) ; celui qui reçoit l'acte découle du rôle choisi et du côté de l'étude. L'email de l'acquéreur saisi n'est plus effacé quand un confrère est lu côté acquéreur. Lecture des compromis d'agence en formulaire (« Notaire du VENDEUR : Maître X Adresse : … ») : nom, ville et côté corrects. Fiche : sous le notaire, l'office seul (téléphone et email dans le carnet)." },
     { version: '2026-09-29 10:39', resume: "Fiche du dossier : un notaire écrit avec son seul prénom (« Maître SOPHIE (BLOIS) ») est complété par le carnet des confrères — prénom et NOM, « Maître Sophie GOSSART (BLOIS) » — quand un seul notaire de ce prénom exerce dans cette ville. Corrigé aussi sur les dossiers existants à l'ouverture de CLAIRE ; l'office est alors retrouvé (plus de « Ajouter au carnet » injustifié)." },
@@ -19791,6 +19792,48 @@
     { lead: 'Confirmer aux clients la bonne réception de leurs fonds', suite: ' et leur rappeler de se munir de leurs RIB et CNI pour le rendez-vous (acquéreurs et vendeurs).' }
   ];
 
+  // État de chaque étape de PROCEDURE_FONDS d'après ce que CLAIRE sait déjà du dossier (demandé
+  // par l'étude le 29/09 : « remplir et cocher automatiquement les cases » de la fiche imprimée).
+  // Une étape n'est cochée que sur un fait enregistré (date d'envoi, reçus complets, confirmation
+  // envoyée, appel de fonds trouvé sur le commun) ; sinon seule une information utile est écrite,
+  // la case reste à cocher à la main. Même ordre que PROCEDURE_FONDS. Pure.
+  function etatProcedureFonds(d, formatMontant) {
+    const euros = formatMontant || (n => Number(n).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €');
+    const etat = PROCEDURE_FONDS.map(() => ({ fait: false, date: '', note: '' }));
+    const iso = v => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v)) ? v.slice(0, 10) : '';
+    // 1 — Envoi de l'appel de fonds : une date saisie vaut envoi fait.
+    if (d.appelFonds || echeanceValidee(d, 'appelFonds')) etat[0] = { fait: true, date: iso(d.appelFonds), note: '' };
+    // 2 — Confirmation au vendeur : rien d'enregistré ; le rendez-vous à rappeler.
+    if (d.rendezVousSignature) {
+      etat[1].note = 'Rendez-vous : ' + dateAvecJourFr(d.rendezVousSignature)
+        + (d.rendezVousSignatureHeure ? ' à ' + heureEmail(d.rendezVousSignatureHeure) : '');
+    }
+    // 3 — Justificatifs de provenance : l'offre de prêt en est un, jamais le seul.
+    if (d.sansPret) etat[2].note = 'Achat comptant : attestation de provenance des fonds à obtenir.';
+    else if (d.offrePretStatut === 'recue') etat[2].note = 'Offre de prêt reçue. Attestation ou ordre de virement à vérifier.';
+    else etat[2].note = 'Offre de prêt non reçue.';
+    // 4 — Appel de fonds enregistré dans le dossier commun : trouvé sur le NAS.
+    const f = d.fondsRecus || {};
+    if (f.attenduChemin) {
+      etat[3] = { fait: true, date: '', note: 'Trouvé sur le commun : ' + String(f.attenduChemin).split(/[\\/]/).pop() };
+    }
+    // 5 — Séquestre.
+    if (d.depotGarantie) etat[4].note = 'Séquestre : ' + euros(d.depotGarantie) + (d.sequestreDepot ? ' — ' + d.sequestreDepot : '');
+    // 7 — Projet d'acte envoyé.
+    if (d.projetEnvoye || echeanceValidee(d, 'projetEnvoye')) etat[6] = { fait: true, date: iso(d.projetEnvoye), note: '' };
+    // 8 — Arrivée des fonds : cochée quand les reçus couvrent le montant attendu.
+    if (f.verifieLe) {
+      const b = bilanFondsRecus(f.total, f.attendu);
+      const derniere = (f.recus || []).map(r => iso(r.date)).filter(Boolean).sort().pop() || '';
+      if (b.etat === 'complet') etat[7] = { fait: true, date: derniere, note: 'Fonds complets : ' + euros(b.total) + ' reçus.' };
+      else if (b.attendu) etat[7].note = 'Reçu ' + euros(b.total) + ' sur ' + euros(b.attendu) + ' — reste ' + euros(b.reste) + '.';
+      else if (b.total > 0) etat[7].note = 'Reçu ' + euros(b.total) + ' (montant attendu inconnu).';
+    }
+    // 9 — Confirmation de réception des fonds envoyée au client.
+    if (d.receptionFondsConfirmeeLe) etat[8] = { fait: true, date: iso(d.receptionFondsConfirmeeLe), note: '' };
+    return etat;
+  }
+
   function imprimerFiche(id) {
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
@@ -19849,13 +19892,19 @@
         })}</table>`
       : '<p class="vide">Aucune échéance enregistrée.</p>';
 
-    const procHtml = `<table class="proc-table">${ligneParPaquets(PROCEDURE_FONDS, 2, (e, idx) =>
-      `<td class="pc">
+    const etapes = etatProcedureFonds(d);
+    const procHtml = `<table class="proc-table">${ligneParPaquets(PROCEDURE_FONDS, 2, (e, idx) => {
+      const et = etapes[idx] || {};
+      const fait = et.fait
+        ? `<div class="pc-fait pc-fait-ok">☑ Fait${et.date ? ` le <b>${formatDateFr(et.date)}</b>` : ''}</div>`
+        : '<div class="pc-fait">☐ Fait le <u>&nbsp;</u></div>';
+      return `<td class="pc">
         <div class="pc-h"><span class="pc-num">${idx + 1}</span></div>
         <div class="pc-txt"><b>${escapeHtml(e.lead.toUpperCase())}</b>${escapeHtml(e.suite)}</div>
-        <div class="pc-fait">☐ Fait le <u>&nbsp;</u></div>
-      </td>`
-    )}</table>`;
+        ${et.note ? `<div class="pc-note">${escapeHtml(et.note)}</div>` : ''}
+        ${fait}
+      </td>`;
+    })}</table>`;
 
     const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
 <title>Fiche dossier — ${escapeHtml(libelleDossierAffiche(d))}</title>
@@ -19896,6 +19945,8 @@
   .pc-txt { margin-bottom: 0.9mm; }
   .pc-fait { color: #666; font-size: 8pt; }
   .pc-fait u { text-decoration: none; border-bottom: 0.5pt solid #999; padding: 0 16mm; }
+  .pc-fait-ok { color: #1F6B45; }
+  .pc-note { color: #16233C; font-size: 7.8pt; font-style: italic; margin-bottom: 0.7mm; }
 
   .pied { margin-top: 1.2mm; padding-top: 0.6mm; border-top: 0.6pt solid #999; font-size: 6.6pt; color: #666; }
 </style></head><body>
@@ -19923,7 +19974,7 @@
     </td>
   </tr></table>
 
-  <div class="proc-title"><h2 style="display:inline">2 · Procédure — Appels et réception des fonds</h2><span class="tag">(à cocher au fil du dossier)</span></div>
+  <div class="proc-title"><h2 style="display:inline">2 · Procédure — Appels et réception des fonds</h2><span class="tag">(cochée d'après CLAIRE le ${new Date().toLocaleDateString('fr-FR')}, à compléter au fil du dossier)</span></div>
   ${procHtml}
 
   <div class="pied">
