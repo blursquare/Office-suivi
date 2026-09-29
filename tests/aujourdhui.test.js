@@ -248,3 +248,17 @@ test('Emails du matin : réservés à Bastien', () => {
   assert.equal(app.recoitEmailsMatin('Julie VASSELIN'), false);
   assert.equal(app.recoitEmailsMatin('Jérémy SAUJOT'), false);
 });
+
+test('acquéreur accompagné par un confrère : ni RIB ni pièce d’identité à lui demander', () => {
+  const confrere = { notaireVendeur: 'Maître Sophie GOSSART (Blois)', notaireAcquereur: 'Maître Jules VERNAY (Cellettes)',
+    emailNotaireParticipant: 'office.vernay@notaires.fr', rendezVousSignature: '2026-09-30', sansPret: true };
+  assert.strictEqual(types(app.actionsDuJour([dossier(confrere)], AUJ)), 'appelFonds');
+  // Onglet Échanges : ni provision (avec pièce d'identité) ni RIB.
+  const e = app.echangesSelonStade(dossier(confrere), AUJ);
+  const tout = e.utiles.concat(e.autres).join(',');
+  assert.ok(!/rib|provision/.test(tout), tout);
+  // Email de réception des fonds au confrère : sans la phrase RIB / pièces d'identité.
+  const fonds = app.construireEmailReceptionFonds(dossier(confrere));
+  assert.doesNotMatch(fonds.corps, /RIB|pièces d’identité/);
+  assert.match(app.construireEmailReceptionFonds(dossier({ rendezVousSignature: '2026-09-30' })).corps, /pièces d’identité et de votre RIB/);
+});

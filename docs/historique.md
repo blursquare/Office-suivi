@@ -11914,3 +11914,13 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
   le .ico multi-tailles de l'exe. **Leçon** : pour un favicon, un SVG seul vaut mieux qu'une
   série de PNG — ne pas rajouter de PNG en `rel="icon"` ; avant de « corriger » un rendu, rejouer
   l'état qui fonctionnait (ici, l'en-tête d'avant le 28/09) plutôt qu'empiler les mécanismes.
+
+- **29/09/2026 — Acquéreur accompagné par un confrère : ni RIB ni pièce d'identité à lui demander**
+  (demande de l'étude). Quand `notaireParticipantRepresenteAcquereur(d)` : pas d'action « Demander
+  le RIB et la pièce d'identité » dans À faire (`actionsDuJour`), pas de point « RIB demandé » dans
+  la préparation des signatures, ni ligne « RIB » ni ligne « Provision + pièce d'identité » dans
+  l'onglet Échanges (`echangesSelonStade` ; l'email de provision demande la pièce d'identité et
+  s'adresse à notre propre client), et l'email de réception des fonds perd sa phrase « Je vous
+  remercie de vous munir de vos pièces d'identité et de votre RIB pour le rendez-vous. » (seul
+  écart au texte de l'étude, sur sa demande). Rien ne change quand l'acquéreur est notre client.
+  Test `tests/aujourdhui.test.js`.

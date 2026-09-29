@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 13:51';
+  const VERSION_APP = '2026-09-29 14:16';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 14:16', resume: "Acquéreur accompagné par un confrère : CLAIRE ne propose plus de lui demander le RIB ni la pièce d'identité (À faire, onglet Échanges, email de provision), et l'email de réception des fonds au confrère ne contient plus la phrase sur les pièces d'identité et le RIB." },
     { version: '2026-09-29 13:51', resume: "Icône de CLAIRE : retour à l'icône blanche au trait fin, déclarée comme avant le 28/09 (icone.svg seul, que le navigateur redessine net à chaque taille) — les petites icônes PNG ajoutées le 28/09 faisaient prendre à Windows l'image de 16 px agrandie. Retrait des essais du jour (installation, remplacement des icônes par le serveur)." },
     { version: '2026-09-29 13:45', resume: "Icône de CLAIRE (barre des tâches, raccourci, exe, onglet) : retour à un pictogramme plein — carré foncé, anneau et coche blancs épais — comme avant le 26/09. Le carré blanc au trait fin devenait illisible une fois agrandi par Windows." },
     { version: '2026-09-29 11:37', resume: "Icône floue de l'application CLAIRE déjà installée : au démarrage, le serveur remplace les icônes que le navigateur avait fabriquées à l'installation (basse définition) par l'icône haute définition de CLAIRE, puis rafraîchit le cache d'icônes de Windows. Rien à réinstaller." },
@@ -14672,7 +14673,9 @@
             geste: { type: 'email', motif: 'fonds' }, bouton: 'Ouvrir la confirmation'
           });
         }
-        if (jRdv <= JOURS_RAPPEL_RIB && dest && !ribDejaDemande(d)) {
+        // Acquéreur accompagné par un confrère : c'est son notaire qui lui demande RIB et pièce
+        // d'identité, jamais nous (demandé par l'étude le 29/09).
+        if (jRdv <= JOURS_RAPPEL_RIB && dest && !ribDejaDemande(d) && !notaireParticipantRepresenteAcquereur(d)) {
           ajouter({
             type: 'rib', categorie: 'rendezVousSignature', categorieLabel: 'Rendez-vous de signature',
             titre: 'Demander le RIB et la pièce d’identité',
@@ -14840,7 +14843,7 @@
       points.push({ libelle: 'Appel de fonds', ok: r.appelFondsEnvoye });
       points.push({ libelle: 'Fonds confirmés', ok: !!d.receptionFondsConfirmeeLe });
       points.push({ libelle: 'Projet envoyé', ok: r.projetEnvoye });
-      points.push({ libelle: 'RIB demandé', ok: ribDejaDemande(d) });
+      if (!notaireParticipantRepresenteAcquereur(d)) points.push({ libelle: 'RIB demandé', ok: ribDejaDemande(d) });
       return Object.assign({}, r, { points, pret: points.every(p => p.ok) });
     });
   }
@@ -17819,7 +17822,8 @@
     const heure = heureEmail(d.rendezVousSignatureHeure);
     const rdv = d.rendezVousSignature
       ? `\n\nNous vous rappelons que le rendez-vous de signature de l'acte authentique est fixé au ${MARQUE_FORT_DEBUT}${dateAvecJourFr(d.rendezVousSignature)}${heure ? ' à ' + heure : ''}${MARQUE_FORT_FIN}, en notre office.`
-        + '\n\nJe vous remercie de vous munir de vos pièces d’identité et de votre RIB pour le rendez-vous.'
+        // Au confrère, pas de pièces d'identité ni de RIB à réclamer (demandé par l'étude le 29/09).
+        + (notaireParticipantRepresenteAcquereur(d) ? '' : '\n\nJe vous remercie de vous munir de vos pièces d’identité et de votre RIB pour le rendez-vous.')
       : '';
     return {
       sujet: `Réception des fonds — ${libelleDossierAffiche(d)}`,
@@ -18137,12 +18141,15 @@
     const avantRdv = stade === 'conditions' || stade === 'rendezVous';
     const utiles = [], autres = [];
     const ranger = (cle, utile) => (utile ? utiles : autres).push(cle);
-    ranger('provision', avantRdv);
+    // Acquéreur accompagné par un confrère : ni provision et pièce d'identité, ni RIB à lui
+    // demander — son notaire s'en charge (demandé par l'étude le 29/09).
+    const confrere = notaireParticipantRepresenteAcquereur(d);
+    if (!confrere) ranger('provision', avantRdv);
     if (d.ventebien && !echeanceValidee(d, 'ventebien')) ranger('ventePrealable', stade !== 'signe');
     if (!d.sansPret && d.offrePretStatut !== 'recue') ranger('pret', stade !== 'signe' && !echeanceValidee(d, 'pret'));
     ranger('appelFonds', stade === 'rendezVous' || stade === 'signature');
     ranger('fondsRecus', stade === 'signature');
-    ranger('rib', stade === 'signature');
+    if (!confrere) ranger('rib', stade === 'signature');
     ranger('agenda', stade === 'signature');
     ranger('questionnaire', stade === 'signe');
     return { stade, utiles, autres };
