@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 08:57';
+  const VERSION_APP = '2026-09-29 09:09';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 09:09', resume: "Fonds reçus : les reçus comptables sont aussi cherchés dans le dossier « DOSSIER » à la racine du NAS (\\\\192.168.60.5\\Commun\\DOSSIER) — c'est là que l'étude les range ; seule la racine des dossiers clients était lue. La fiche dit sous quel nom et dans quels dossiers les reçus ont été cherchés. Agenda : « Noter dans l'agenda » est coché quand la mention (appel de fonds, projet) figure déjà dans le lieu du rendez-vous relevé dans l'agenda." },
     { version: '2026-09-29 08:57', resume: "Échéances : « Créer le rendez-vous dans l'agenda Outlook » n'est plus proposé quand le rendez-vous de signature est déjà dans l'agenda de l'office — créé depuis CLAIRE ou posé à la main dans Outlook et relevé par CLAIRE. Il revient seulement si le rendez-vous disparaît de l'agenda ou si la date est changée à la main." },
     { version: '2026-09-29 08:54', resume: "Carnet des confrères : notre office y figure de base, en tête de liste (proposé dans les champs notaire des fiches, jamais retiré). Tableau de bord : bouton « Point du matin » sur la carte « Aujourd'hui » pour rouvrir la fenêtre du matin." },
     { version: '2026-09-29 08:50', resume: "Carnet des confrères (Outils) : les 35 offices notariaux du Loir-et-Cher déjà remplis (notaires, adresse, téléphone, email), à corriger ou compléter sur place. Sur la fiche d'un dossier, le notaire est rapproché de son office : office, téléphone et email s'affichent dessous, l'email de l'office sert aux relances au confrère tant qu'aucune adresse n'est saisie, et un notaire inconnu s'ajoute au carnet en un clic." },
@@ -10718,7 +10719,7 @@
       const depuis = d.appelFonds ? addDays(d.appelFonds, -15) : addDays(aujourdhui, -90);
       const reponse = await fetchAvecAuth('/api/nas/recus?depuis=' + encodeURIComponent(depuis));
       if (!reponse.ok) throw new Error('liste des reçus : erreur ' + reponse.status);
-      const { recus: fichiers } = await reponse.json();
+      const { recus: fichiers, dossiers: dossiersRecus } = await reponse.json();
       const trouves = [];
       let lus = 0;
       for (const f of fichiers || []) {
@@ -10741,12 +10742,16 @@
       d.fondsRecus = {
         verifieLe: new Date().toISOString(), depuis, fichiersLus: lus,
         recus: trouves.slice(0, 60), total: Math.round(total * 100) / 100,
+        // Où les reçus ont été cherchés (voir listerRecusNas côté serveur) : affiché sous la ligne,
+        // pour qu'un reçu « jamais trouvé » se diagnostique d'un coup d'œil.
+        dossiersRecus: Array.isArray(dossiersRecus) ? dossiersRecus.slice(0, 12).map(x => ({ dossier: String(x.dossier || ''), recus: Number(x.recus) || 0 })) : [],
         attendu: attendu ? attendu.montant : null, attenduSource: attendu ? attendu.source : '', attenduChemin: attendu && attendu.chemin || ''
       };
       sauvegarder(d);
       render();
       const b = bilanFondsRecus(d.fondsRecus.total, d.fondsRecus.attendu);
       signaler(b.etat === 'complet' ? 'Tous les fonds attendus sont reçus : la confirmation au client est prête.'
+        : !lus ? `Aucun fichier de reçus depuis le ${formatDateFr(depuis)} dans les dossiers lus (racine du NAS configurée et dossiers « DOSSIER »).`
         : `${trouves.length} reçu${trouves.length > 1 ? 's' : ''} trouvé${trouves.length > 1 ? 's' : ''} dans ${lus} fichier${lus > 1 ? 's' : ''} de reçus.`);
     } catch (e) {
       signaler('Lecture des reçus impossible : ' + e.message);
@@ -10815,6 +10820,20 @@
   //   confirmation envoyée    → « Renvoyer », la date de l'envoi en précision.
   // La lecture des reçus peut manquer un versement (nom inattendu, reçu pas encore déposé) : la
   // confirmation reste possible « quand même » depuis le détail, une fois l'appel de fonds fait.
+  // Où CLAIRE a cherché les reçus, et sous quel nom : ce qu'il faut savoir quand un versement n'a
+  // pas été retrouvé (demandé après le dossier GROFFAL, 29/09 : reçus rangés dans « DOSSIER »).
+  function renderDossiersRecusLus(f, mots) {
+    // Seuls les dossiers où des reçus ont été trouvés sont nommés ; aucun : tous ceux qui ont été lus.
+    const dossiersLus = (f && f.dossiersRecus) || [];
+    const avecRecus = dossiersLus.filter(x => x.recus > 0);
+    const lieux = avecRecus.length
+      ? 'fichiers de reçus lus dans : ' + avecRecus.map(x => `${escapeHtml(x.dossier)} (${x.recus} fichier${x.recus > 1 ? 's' : ''})`).join(' · ')
+      : (dossiersLus.length ? 'aucun fichier de reçus dans : ' + dossiersLus.map(x => escapeHtml(x.dossier)).join(' · ') : '');
+    const nom = (mots || []).length ? `au nom de ${escapeHtml(mots.map(m => m.toUpperCase()).join(' / '))}` : '';
+    if (!lieux && !nom) return '';
+    return `<p class="hint fonds-recus-lieux">${nom ? `Versements cherchés ${nom}` : ''}${nom && lieux ? ' — ' : ''}${lieux}.</p>`;
+  }
+
   function renderFondsRecus(d) {
     if (!echeanceValidee(d, 'appelFonds') && !d.fondsRecus && !d.rendezVousSignature) return '';
     const f = d.fondsRecus;
@@ -10841,6 +10860,7 @@
         ${source ? `<span class="hint">${source}</span>` : ''}</label>
       ${liste}
       ${f ? `<p class="hint">Reçus lus depuis le ${formatDateFr(f.depuis)} (${f.fichiersLus} fichier${f.fichiersLus > 1 ? 's' : ''}) — vérifié ${new Date(f.verifieLe).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}. Chaque versement au nom de l’acquéreur est listé : vérifiez qu’il concerne bien ce dossier.</p>` : ''}
+      ${f ? renderDossiersRecusLus(f, motsPayeurDossier(d)) : ''}
     </div>`;
     const complet = !!f && b.etat === 'complet';
     const peutConfirmer = echeanceValidee(d, 'appelFonds') && !!emailDestinataireRelance(d);
@@ -11301,17 +11321,37 @@
     enregistrerOfficeCarnet(Object.assign({}, t.office, { email })).catch(() => {});
   }
 
+  // La mention d'envoi figure-t-elle déjà dans le lieu du rendez-vous, tel que relevé dans l'agenda
+  // de l'office (agendaWatch.js : rendezVousSignatureLieu, posé seulement quand la date de l'agenda
+  // est celle de la fiche) ? Demandé par l'étude le 29/09 : « si déjà présent dans l'agenda,
+  // marquer comme fait » — une mention écrite à la main dans Outlook compte. Chaque envoi fait doit
+  // y être : « Appel de fonds » pour l'appel de fonds, « projet » pour le projet. Pure.
+  function mentionDejaDansAgenda(d) {
+    if (!d || !d.rendezVousSignature || !d.rendezVousSignatureLieu) return false;
+    const rep = d.detectionsAgenda || {};
+    if (rep.rendezVousSignature !== d.rendezVousSignature) return false;
+    const lieu = normaliserPourRecherche(d.rendezVousSignatureLieu).replace(/[^a-z0-9]+/g, ' ');
+    const af = echeanceValidee(d, 'appelFonds');
+    const pj = echeanceValidee(d, 'projetEnvoye');
+    if (!af && !pj) return false;
+    if (!/\benvoye/.test(lieu)) return false;
+    return (!af || /\bappel de fonds?\b/.test(lieu)) && (!pj || /\bprojets?\b/.test(lieu));
+  }
+
   function renderNoterAgenda(d) {
     if (!exchangeAgendaPret() || !d.rendezVousSignature) return '';
     const mention = mentionEnvoisAgenda(d);
     if (!mention) return '';
+    const dejaPresente = mentionDejaDansAgenda(d);
     // Échec de la dernière écriture automatique : dit sur la ligne, sinon rien ne distinguait
     // « pas encore essayé » de « essayé et refusé » (cas signalé sur BANCQUART / MANDARD).
-    const echec = d.agendaLieuEchec && d.agendaLieuEchec.message;
+    // Déjà dans l'agenda : fait, même après un échec d'écriture (écrit à la main dans Outlook).
+    const echec = !dejaPresente && d.agendaLieuEchec && d.agendaLieuEchec.message;
     const sousHtml = echec
       ? `<span class="dot-label dl-alerte" title="${escapeAttr(d.agendaLieuEchec.message)}">Non noté le ${formatDateFr(String(d.agendaLieuEchec.le || '').slice(0, 10))} : ${escapeHtml(d.agendaLieuEchec.message)}</span>`
+      : dejaPresente ? `Déjà dans l’agenda : « ${escapeHtml(d.rendezVousSignatureLieu)} »`
       : (d.agendaLieuNoteLe ? `Noté le ${formatDateFr(d.agendaLieuNoteLe.slice(0, 10))}, dans le lieu du rendez-vous` : 'Écrit dans le lieu du rendez-vous de signature, après les initiales');
-    const faite = !!d.agendaLieuNoteLe && !echec;
+    const faite = dejaPresente || (!!d.agendaLieuNoteLe && !echec);
     return renderLigneAction({
       categorie: 'rendezVousSignature', categorieLabel: 'Agenda de l’office',
       titre: `Noter dans l’agenda : ${mention}`, sousHtml, faite, gravite: echec ? 'critique' : '',
@@ -11847,7 +11887,8 @@
     // Échec de la note d'agenda automatique, ou envoi noté par CLAIRE depuis le NAS (le serveur ne
     // l'écrit pas dans l'agenda) : à reprendre, donc à faire.
     const envoiNoteParNas = d.detectionsNas && d.detectionsNas.appelFonds && d.detectionsNas.appelFonds === d.appelFonds && !d.agendaLieuNoteLe;
-    if ((d.agendaLieuEchec && d.agendaLieuEchec.message) || envoiNoteParNas) {
+    // Déjà dans l'agenda (écrit par CLAIRE ou à la main dans Outlook) : plus rien à faire.
+    if (((d.agendaLieuEchec && d.agendaLieuEchec.message) || envoiNoteParNas) && !mentionDejaDansAgenda(d)) {
       const ligneAgenda = renderNoterAgenda(d);
       if (ligneAgenda) lignes.push(ligneAgenda);
     }

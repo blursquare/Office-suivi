@@ -124,6 +124,65 @@ async function listerRecusRacine(racineAbsolue, depuisIso, fsImpl = fsp) {
   return recus.sort((a, b) => String(b.date || '').localeCompare(String(a.date || ''))).slice(0, 200);
 }
 
+// Où chercher les reçus (demandé par l'étude le 29/09 : « les reçus sont à la racine du NAS, dans
+// le dossier DOSSIER » — racine du NAS = \\192.168.60.5\Commun) : la racine configurée
+// (`nasRacine`, celle des dossiers clients) n'est pas forcément ce dossier-là. On lit donc, dans cet
+// ordre : la racine configurée, son sous-dossier « DOSSIER », puis chacun de ses dossiers parents
+// jusqu'à la racine du partage réseau (ou du lecteur) et leur sous-dossier « DOSSIER ». Une liste
+// FIXE (les absents sont simplement vides) : l'indice d'un dossier ne change pas quand un autre
+// apparaît, il peut donc servir d'identifiant dans le chemin d'un reçu. Seuls les PDF nommés
+// « reçus » de ces dossiers sont listés et servis (jamais leurs sous-dossiers). Pure ; `p` = module
+// path (path.win32 dans les tests, pour les chemins \\serveur\partage du bureau).
+const NOM_DOSSIER_RECUS = 'DOSSIER';
+const NIVEAUX_PARENTS_MAX = 8;
+function dossiersRecusCandidats(racine, p = path) {
+  if (!racine) return [];
+  const niveaux = [p.resolve(racine)];
+  for (let i = 0; i < NIVEAUX_PARENTS_MAX; i++) {
+    const dernier = niveaux[niveaux.length - 1];
+    const parent = p.dirname(dernier);
+    if (!parent || parent === dernier) break;
+    niveaux.push(parent);
+  }
+  const out = [];
+  for (const n of niveaux) {
+    out.push(n);
+    if (p.basename(n).toUpperCase() !== NOM_DOSSIER_RECUS) out.push(p.join(n, NOM_DOSSIER_RECUS));
+  }
+  return out;
+}
+
+// Chemin d'un reçu hors de la racine configurée : « recus:<indice>/<nom> » (l'indice dans
+// dossiersRecusCandidats). Un reçu de la racine garde son simple nom, comme avant.
+const RE_CHEMIN_RECU = /^recus:(\d{1,2})\/([^\\/]+)$/;
+
+async function listerRecusNas(racine, depuisIso, fsImpl = fsp) {
+  const candidats = dossiersRecusCandidats(racine);
+  const vus = new Set();
+  const recus = [];
+  const dossiers = [];
+  for (let i = 0; i < candidats.length; i++) {
+    let reel;
+    try { reel = await fsImpl.realpath(candidats[i]); } catch (_) { continue; }
+    const cle = reel.toLowerCase();
+    if (vus.has(cle)) continue;   // même dossier atteint par deux chemins (casse, lien)
+    vus.add(cle);
+    const liste = await listerRecusRacine(candidats[i], depuisIso, fsImpl);
+    dossiers.push({ dossier: candidats[i], recus: liste.length });
+    for (const r of liste) recus.push(Object.assign({}, r, { chemin: i === 0 ? r.chemin : `recus:${i}/${r.nom}`, dossier: candidats[i] }));
+  }
+  recus.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+  return { recus: recus.slice(0, 200), dossiers };
+}
+
+// Chemin absolu d'un reçu désigné par « recus:<indice>/<nom> », ou null.
+function resoudreCheminRecu(racine, chemin) {
+  const m = RE_CHEMIN_RECU.exec(String(chemin || ''));
+  if (!m || !estNomRecu(m[2]) || m[2].includes('\0')) return null;
+  const dossier = dossiersRecusCandidats(racine)[Number(m[1])];
+  return dossier ? path.join(dossier, m[2]) : null;
+}
+
 async function listerSousDossiers(racineAbsolue, fsImpl = fsp) {
   let entrees;
   try {
@@ -235,6 +294,9 @@ module.exports = {
   listerPdfRecursif,
   listerSousDossiers,
   listerRecusRacine,
+  listerRecusNas,
+  dossiersRecusCandidats,
+  resoudreCheminRecu,
   dateDepuisNomRecu,
   estNomRecu,
   normaliserNomRapprochement,

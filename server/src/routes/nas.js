@@ -17,7 +17,7 @@
 const express = require('express');
 const fs = require('node:fs');
 const path = require('node:path');
-const { listerPdfRecursif, listerSousDossiers, listerRecusRacine, resoudreCheminNas, rapprocherParNom, rapprochementParfait } = require('../nas');
+const { listerPdfRecursif, listerSousDossiers, listerRecusNas, resoudreCheminRecu, resoudreCheminNas, rapprocherParNom, rapprochementParfait } = require('../nas');
 const fsp = require('node:fs/promises');
 
 // Toute lecture du NAS est asynchrone depuis qu'un balayage synchrone a été identifié comme la
@@ -100,8 +100,9 @@ function creerRouteurNas(config) {
     res.json({ base: path.relative(path.resolve(racine), cible), fichiers });
   }));
 
-  // Reçus comptables du jour, à la racine du dossier commun (voir listerRecusRacine). `depuis`
-  // (AAAA-MM-JJ) borne la liste : inutile de relire un an de reçus pour un appel de fonds récent.
+  // Reçus comptables du jour : racine configurée, son « DOSSIER » et ceux des dossiers parents (voir
+  // listerRecusNas). `depuis` (AAAA-MM-JJ) borne la liste : inutile de relire un an de reçus pour
+  // un appel de fonds récent. `dossiers` dit où CLAIRE a cherché, affiché sur la fiche.
   routeur.get('/nas/recus', routeAsync(async (req, res) => {
     const racine = config.nasRacine;
     if (!racine || !(await existe(racine))) {
@@ -109,7 +110,7 @@ function creerRouteurNas(config) {
       return;
     }
     const depuis = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.depuis || '')) ? String(req.query.depuis) : null;
-    res.json({ recus: await listerRecusRacine(racine, depuis) });
+    res.json(await listerRecusNas(racine, depuis));
   }));
 
   routeur.get('/nas/fichier', routeAsync(async (req, res) => {
@@ -118,7 +119,12 @@ function creerRouteurNas(config) {
       res.status(503).json({ erreur: 'Aucun dossier NAS configuré.' });
       return;
     }
-    const cible = await resoudreCheminNas(racine, req.query.chemin || '');
+    // Un reçu comptable rangé hors de la racine configurée (« recus:<n>/<nom> », voir
+    // listerRecusNas) : seul un PDF nommé « reçus » d'un des dossiers de reçus est servi.
+    const demande = String(req.query.chemin || '');
+    const cible = demande.startsWith('recus:')
+      ? resoudreCheminRecu(racine, demande)
+      : await resoudreCheminNas(racine, demande);
     if (!cible || !/\.pdf$/i.test(cible)) {
       // L'extension est vérifiée ici et pas seulement à la liste : cette route sert des octets
       // bruts, elle ne doit jamais pouvoir rendre autre chose qu'un PDF du NAS.

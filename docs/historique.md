@@ -11661,3 +11661,34 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
   `rdvDejaDansAgenda(d)` : créé depuis CLAIRE, ou `detectionsAgenda.rendezVousSignature` égal à la
   date de la fiche et pas marqué `rendezVousDisparu`. La ligne revient si le rendez-vous disparaît
   de l'agenda ou si la date est corrigée à la main (le rendez-vous de l'agenda n'est plus le même).
+
+- **29/09/2026 — Fonds reçus : reçus du dossier GROFFAL non détectés — reçus rangés dans « DOSSIER »**
+  (signalé par l'étude avec deux reçus réels, `ATTENTION_RECUS_23-09.pdf` et
+  `attention_recus_25-09.pdf`, puis précisé : « les reçus sont à la racine du NAS dans le dossier
+  DOSSIER », racine du NAS = `\\192.168.60.5\Commun`). Diagnostic, en rejouant les deux PDF réels
+  (pdf.js + `lignesDepuisItemsPdf`, hors dépôt) : la LECTURE était bonne — noms reconnus
+  (`estNomRecu`), dates lues (23/09, 25/09), écritures GROFFAL retrouvées (17 496,00 € et
+  103 399,29 €, compte 3153). Ce qui manquait : `listerRecusRacine` ne lisait que la racine
+  configurée (`nasRacine`, celle des dossiers clients), pas `…\Commun\DOSSIER`.
+  - Serveur : `dossiersRecusCandidats(racine, p)` — liste FIXE : la racine configurée, son
+    `DOSSIER`, puis chaque parent jusqu'à la racine du partage et son `DOSSIER` (testé en
+    `path.win32` sur `\\192.168.60.5\Commun…`) ; `listerRecusNas` lit chacun (un niveau, doublons
+    écartés par `realpath`) et rend `{ recus, dossiers }`. Un reçu hors racine a pour chemin
+    `recus:<indice>/<nom>` ; `/api/nas/fichier` le sert via `resoudreCheminRecu` (PDF nommé
+    « reçus » d'un de ces dossiers seulement — `../`, autre nom, indice inconnu refusés, testé).
+  - Client : `d.fondsRecus.dossiersRecus` enregistré ; `renderDossiersRecusLus` dit sous « Fonds
+    reçus » sous quel nom les versements ont été cherchés et dans quels dossiers des reçus ont été
+    lus (tous les dossiers lus quand il n'y en a aucun) ; message dédié quand aucun fichier de reçus.
+  - Vérifié dans Chromium (pdf.js local, serveur réel, NAS de test `NAS/CLIENTS` + `NAS/DOSSIER`
+    avec les deux reçus réels copiés hors dépôt) : GROFFAL → 120 895,29 €, « Tous les fonds sont
+    reçus ». Non vérifié au bureau : la racine réellement configurée et les droits de lecture du
+    service sur `\\192.168.60.5\Commun\DOSSIER`.
+
+- **29/09/2026 — « Noter dans l'agenda » coché quand la mention y est déjà** (demandé par l'étude :
+  « Noter dans l'agenda : Appel de fonds et projet envoyé — si déjà présent dans l'agenda : marquer
+  comme fait »). `mentionDejaDansAgenda(d)` : le lieu du rendez-vous relevé dans l'agenda
+  (`rendezVousSignatureLieu`, posé par agendaWatch.js quand la date de l'agenda est celle de la
+  fiche) contient « envoyé » et, pour chaque envoi fait, « appel de fonds » / « projet » — écrit par
+  CLAIRE ou à la main dans Outlook. La ligne passe alors « faite » (« Déjà dans l'agenda : « … » »,
+  bouton Renoter), même après un échec d'écriture, et ne reste plus dans l'encadré « À faire sur ce
+  dossier ».

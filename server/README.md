@@ -938,10 +938,15 @@ dépendances de l'autre.
 
 ## Reçus comptables (bloc « Fonds reçus » de la fiche)
 
-`GET /api/nas/recus?depuis=AAAA-MM-JJ` liste les PDF déposés chaque jour par le logiciel comptable à
-la **racine** du dossier NAS configuré (`nasRacine`) dont le nom contient « Reçus » (avec ou sans
+`GET /api/nas/recus?depuis=AAAA-MM-JJ` liste les PDF déposés chaque jour par le logiciel comptable
+dont le nom contient « Reçus » (avec ou sans
 accent, au singulier ou au pluriel), datés par leur nom (`Reçus 28-09-2026.pdf`, `RECUS_2026-09-28.pdf`,
 `Reçus 28092026.pdf`, ou `RECUS_14-08.pdf` sans année — l'année vient alors de la date de
-modification du fichier) ou, à défaut, par leur date de modification. Seule la racine est lue ; les
-dossiers clients ne le sont jamais par cette route. Le contenu est lu côté navigateur (pdf.js), comme
+modification du fichier) ou, à défaut, par leur date de modification. Dossiers lus (un niveau
+chacun, jamais leurs sous-dossiers) : la racine configurée (`nasRacine`), son sous-dossier
+`DOSSIER`, puis chaque dossier parent jusqu'à la racine du partage et son `DOSSIER` — à l'étude, les
+reçus sont dans `\\192.168.60.5\Commun\DOSSIER`. Un reçu hors de la racine configurée a pour chemin
+`recus:<n>/<nom>`, que `/api/nas/fichier` sert seulement s'il s'agit d'un PDF nommé « reçus » de l'un
+de ces dossiers. La réponse porte aussi `dossiers` (où CLAIRE a cherché, et combien de fichiers dans
+chacun), affiché sous « Fonds reçus ». Les dossiers clients ne sont jamais lus par cette route. Le contenu est lu côté navigateur (pdf.js), comme
 les autres PDF du NAS.

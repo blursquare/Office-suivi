@@ -244,3 +244,70 @@ test('reçus nommés par jour et mois seulement : année tirée de la date du fi
   // Reçu du 30 décembre déposé le 2 janvier : année précédente.
   assert.equal(f('Recus 30-12.pdf', Date.parse('2027-01-02T08:00:00')), '2026-12-30');
 });
+
+// Reçus rangés dans le dossier « DOSSIER » à la racine du NAS (précisé par l'étude le 29/09) : la
+// racine configurée pour les dossiers clients n'est pas forcément ce dossier. Trois dispositions.
+test('reçus : trouvés dans « DOSSIER », qu’il soit sous-dossier, voisin ou parent de la racine configurée', async () => {
+  const { listerRecusNas, dossiersRecusCandidats } = require('../src/nas');
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'nas-recus-'));
+  const ecrire = (...p) => { fs.mkdirSync(path.join(base, ...p.slice(0, -1)), { recursive: true }); fs.writeFileSync(path.join(base, ...p), 'x'); };
+  ecrire('NAS', 'DOSSIER', 'ATTENTION_RECUS_23-09-2026.pdf');
+  ecrire('NAS', 'DOSSIER', 'ANCIEN', 'RECUS_24-09-2026.pdf');   // sous-dossier : jamais lu
+  ecrire('NAS', 'DOSSIER', 'VENTES', 'DUPONT', 'Compromis.pdf');
+  ecrire('NAS', 'CLIENTS', 'DUPONT', 'Compromis.pdf');
+
+  // A. La racine configurée est un VOISIN de « DOSSIER ».
+  let r = await listerRecusNas(path.join(base, 'NAS', 'CLIENTS'), '2026-09-01');
+  assert.equal(r.recus.map((x) => x.nom).join(), 'ATTENTION_RECUS_23-09-2026.pdf');
+  assert.match(r.recus[0].chemin, /^recus:\d+\/ATTENTION_RECUS_23-09-2026\.pdf$/);
+  assert.ok(r.dossiers.some((x) => x.dossier === path.join(base, 'NAS', 'DOSSIER') && x.recus === 1));
+  // B. La racine configurée est DANS « DOSSIER ».
+  r = await listerRecusNas(path.join(base, 'NAS', 'DOSSIER', 'VENTES'), '2026-09-01');
+  assert.equal(r.recus.map((x) => x.nom).join(), 'ATTENTION_RECUS_23-09-2026.pdf');
+  // C. La racine configurée est le NAS lui-même.
+  r = await listerRecusNas(path.join(base, 'NAS'), '2026-09-01');
+  assert.equal(r.recus.map((x) => x.nom).join(), 'ATTENTION_RECUS_23-09-2026.pdf');
+  // D. La racine configurée EST « DOSSIER » : chemin simple, comme avant.
+  r = await listerRecusNas(path.join(base, 'NAS', 'DOSSIER'), '2026-09-01');
+  assert.equal(r.recus.map((x) => x.chemin).join(), 'ATTENTION_RECUS_23-09-2026.pdf');
+  // Liste fixe : l'ordre ne dépend pas de ce qui existe.
+  assert.equal(dossiersRecusCandidats(path.join(base, 'NAS', 'CLIENTS'))[1], path.join(base, 'NAS', 'CLIENTS', 'DOSSIER'));
+  // Chemins réseau du bureau (racine du NAS = \\192.168.60.5\Commun) : « DOSSIER » du partage
+  // atteint quelle que soit la profondeur de la racine configurée.
+  const w = path.win32;
+  for (const racine of ['\\\\192.168.60.5\\Commun', '\\\\192.168.60.5\\Commun\\DOSSIERS CLIENTS\\VENTES\\2026']) {
+    assert.ok(dossiersRecusCandidats(racine, w).includes('\\\\192.168.60.5\\Commun\\DOSSIER'), racine);
+  }
+});
+
+test('reçus hors racine : servis par /api/nas/fichier, rien d’autre dans ces dossiers', async () => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'nas-recus-route-'));
+  fs.mkdirSync(path.join(base, 'NAS', 'DOSSIER'), { recursive: true });
+  fs.mkdirSync(path.join(base, 'NAS', 'CLIENTS'), { recursive: true });
+  fs.writeFileSync(path.join(base, 'NAS', 'DOSSIER', 'ATTENTION_RECUS_23-09-2026.pdf'), '%PDF-1.4 reçu');
+  fs.writeFileSync(path.join(base, 'NAS', 'DOSSIER', 'Notes.pdf'), '%PDF-1.4 notes');
+  const dbx = ouvrirDb(':memory:');
+  const { app, gestionnaireAuth } = creerApp({ db: dbx, config: { motDePasse: 'm', racineRepo: os.tmpdir(), port: 0, jetonCalendrier: '', nasRacine: path.join(base, 'NAS', 'CLIENTS') } });
+  const jetonx = gestionnaireAuth.creerSession();
+  const srv = app.listen(0);
+  await new Promise((r) => srv.once('listening', r));
+  const url = (c) => `http://127.0.0.1:${srv.address().port}${c}`;
+  const get = (c) => fetch(url(c), { headers: { Authorization: `Bearer ${jetonx}` } });
+  try {
+    const liste = await (await get('/api/nas/recus?depuis=2026-09-01')).json();
+    assert.equal(liste.recus.length, 1);
+    assert.ok(liste.dossiers.length >= 1);
+    const chemin = liste.recus[0].chemin;
+    let r = await get('/api/nas/fichier?chemin=' + encodeURIComponent(chemin));
+    assert.equal(r.status, 200);
+    assert.equal(await r.text(), '%PDF-1.4 reçu');
+    const i = /^recus:(\d+)\//.exec(chemin)[1];
+    for (const mauvais of [`recus:${i}/Notes.pdf`, `recus:${i}/../CLIENTS/x.pdf`, `recus:${i}/..\\x_recus.pdf`, 'recus:99/RECUS_01-01.pdf']) {
+      r = await get('/api/nas/fichier?chemin=' + encodeURIComponent(mauvais));
+      assert.ok(r.status === 400 || r.status === 404, mauvais + ' → ' + r.status);
+    }
+  } finally {
+    srv.close();
+    dbx.close();
+  }
+});
