@@ -155,10 +155,10 @@ test('libelleSemaine nomme les groupes en français, année tue si c’est la m�
   assert.equal(app.libelleSemaine(groupes[1], AUJOURDHUI), 'Semaine du 14 septembre');
 });
 
-test('ORDRE_STATUT classe du plus bloquant au terminé', () => {
-  // C'est lui qui pilote le tri "Statut" du tableau : ce qui bloque en premier.
+test('ORDRE_ETAT_DOSSIER classe du plus pressant au terminé', () => {
+  // C'est lui qui pilote le tri "Statut" du tableau : ce qui presse en premier.
   const app = chargerApplication();
-  assert.equal(app.ORDRE_STATUT.join(','), 'blocage,aconfirmer,arelier,pret,archive');
+  assert.equal(app.ORDRE_ETAT_DOSSIER.join(','), 'urgent,arelier,attente,complet,pret,archive');
 });
 
 test('la vue Échéances porte des titres de colonne, une seule fois, en haut', () => {

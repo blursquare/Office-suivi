@@ -131,14 +131,15 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   seulement si une pièce personnalisée « préemption/DPU/DIA » a été ajoutée) → fixer le rendez-vous
   → envoi appel de fonds → envoi projet → signature. La **date butoir** est informative dès qu'un
   rendez-vous est fixé (hors planning et hors rappels). Une date d'envoi saisie vaut envoi fait.
-- **Statut affiché d'un dossier = son étape** (choix de l'étude, 29/09 : `etapeDossier`,
+- **Statut affiché d'un dossier = son état général** (étude, 29/09 au soir : `etatDossier`,
   `renderBadgeStatut`) : un seul badge partout (tableau de bord, Suivi, fiche, recherche) —
-  « Attente de la vente préalable / de l'offre de prêt / de la préemption », « Pièces manquantes »,
-  « Rendez-vous à fixer », « Appel de fonds / Projet à envoyer », « Prêt à signer » (pièces toutes
-  reçues), « Signature à venir » (pièces inconnues, dossier non relié), « Signé ». Couleur selon
-  l'échéance de l'étape (≤ 7 j rouge, ≤ 15 j ambre). `statutDossier` (pièces trouvées) ne sert plus
-  qu'au tri et aux points « À traiter ». Pas de badge dans la vue Échéances du Suivi (la ligne est
-  déjà l'échéance).
+  « À relier » (jamais relié au NAS), « Attente de pièces » (pièce de la checklist ou offre de prêt
+  manquante ; participation : l'offre seule), « Complet » (tout reçu), « Prêt » (complet + rendez-vous
+  placé), et **« Urgent »** dès qu'une date butoir est dépassée (vente préalable, prêt, date butoir
+  sans rendez-vous) — prioritaire, calculé, il disparaît dès l'échéance levée. Un rendez-vous placé
+  avec une pièce manquante reste « Attente de pièces ». Couleurs : rouge, gris, ambre, bleu `--acte`
+  (jamais l'accent, qui peut être orange ou vert), vert. L'échéance a sa propre colonne (« Prochaine
+  échéance ») ; `statutDossier` (pièces trouvées) ne sert plus qu'aux points « À traiter ».
 - **Seuils des rappels email** : prêt J-15/J-7, vente préalable J-15/J-7, appel de fonds J-15/J-10,
   signature J-25/J-15, personnalisées J-15/J-7 (`SEUILS_RAPPELS_PAR_TYPE`).
 - **Relance de l'offre de prêt au client** : première à J-15, puis tous les 10 jours, y compris

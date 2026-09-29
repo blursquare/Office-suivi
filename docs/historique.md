@@ -12286,3 +12286,29 @@ Dashboard et que l'on peut déplacer. Le statut et échéances font doublon. »
 - Suivi, vue Tableau : le badge d'étape quitte la colonne Dossier et rejoint sa date dans la colonne
   « Étape » (`celluleEtapeTableau`) — « Attente de l'offre de prêt » répétait « Obtention du prêt »
   de la colonne « Prochaine échéance ». Une échéance personnalisée plus proche reste signalée dessous.
+
+### 29/09 23:12 — Statut = état général du dossier (remplace l'étape)
+
+Demande : « Pour le statut il faut plutôt dire l'état général du dossier : À relier / Attente de
+pièces (pièces et offre…) / Complet (toutes les pièces sont reçues) / Prêt (rendez-vous placé) /
+Urgent si on dépasse une date butoir puis quand revient dans l'ordre reprendre l'ordre normal. »
+- `etatDossier(d, aujourdhui)` remplace `etapeDossier` (supprimée avec `ETAPES_DOSSIER` et
+  `GROUPES_ETAPE_DOSSIER`). Ordre : archivé → **Urgent** (`datesButoirDepassees` : vente préalable
+  non réalisée, prêt sans offre reçue ni validation, date butoir sans rendez-vous ni validation ;
+  la date du jour n'est pas dépassée ; même un dossier non relié) → **À relier** (`!dossierLie`) →
+  **Attente de pièces** (`piecesAttenduesDossier` : offre de prêt si financé, pièces de la
+  checklist non reçues hors participation) → **Prêt** (rendez-vous placé) → **Complet**. Rien n'est
+  stocké : l'urgence tombe d'elle-même quand l'échéance est levée.
+- Lecture retenue sans question : un rendez-vous placé avec une pièce manquante reste « Attente de
+  pièces » (Prêt = complet + rendez-vous). La vente préalable en cours (date non dépassée) ne compte
+  pas comme pièce.
+- Couleurs : Urgent rouge, À relier gris, Attente ambre, Complet bleu `--acte` (`dl-complet` ; pas
+  l'accent du thème, qui peut être orange ou vert), Prêt vert. Bulle du badge : la date dépassée ou
+  la liste de ce qui manque.
+- Suivi : colonnes « Statut » (triable, `ORDRE_ETAT_DOSSIER` remplace `ORDRE_STATUT`) et « Prochaine
+  échéance » (`celluleEcheanceTableau`) de nouveau séparées — elles ne se répètent plus. Colonne
+  « Statut » ajoutée à la vue Échéances ; un libellé d'échéance long y passe à la ligne au lieu de
+  déborder sur la colonne Dossier.
+- Portefeuille : l'anneau compte par état (`parEtat`), phrase de synthèse reformulée (urgent
+  d'abord). Tests : `tests/etat-dossier.test.js` (remplace `etape-dossier.test.js`), portefeuille,
+  semaines. Vérifié dans Chromium (clair, sombre, 400 px, sans débordement ni erreur).

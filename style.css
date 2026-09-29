@@ -1082,16 +1082,12 @@
   .pf-anneau circle { fill: none; stroke-width: 5; }
   .pf-fond { stroke: var(--paper-sunk); }
   .pf-seg { stroke-dasharray: var(--l) calc(100 - var(--l)); stroke-linecap: butt; }
-  .pf-seg.pf-pret, .pf-point.pf-pret { stroke: var(--success); background: var(--success); }
-  .pf-seg.pf-aconfirmer, .pf-point.pf-aconfirmer { stroke: var(--pret); background: var(--pret); }
-  .pf-seg.pf-blocage, .pf-point.pf-blocage { stroke: var(--urgent); background: var(--urgent); }
+  /* États du dossier (anneau du portefeuille, voir ETATS_DOSSIER) : mêmes couleurs que le badge. */
+  .pf-seg.pf-urgent, .pf-point.pf-urgent { stroke: var(--urgent); background: var(--urgent); }
   .pf-seg.pf-arelier, .pf-point.pf-arelier { stroke: var(--muted); background: var(--muted); }
-  /* Groupes d'étapes du dossier (anneau du portefeuille, voir GROUPES_ETAPE_DOSSIER). */
-  .pf-seg.pf-conditions, .pf-point.pf-conditions { stroke: var(--pret); background: var(--pret); }
-  .pf-seg.pf-pieces, .pf-point.pf-pieces { stroke: var(--urgent); background: var(--urgent); }
-  .pf-seg.pf-rdv, .pf-point.pf-rdv { stroke: var(--muted); background: var(--muted); }
-  .pf-seg.pf-envois, .pf-point.pf-envois { stroke: var(--focus); background: var(--focus); }
-  .pf-seg.pf-signature, .pf-point.pf-signature { stroke: var(--success); background: var(--success); }
+  .pf-seg.pf-attente, .pf-point.pf-attente { stroke: var(--pret); background: var(--pret); }
+  .pf-seg.pf-complet, .pf-point.pf-complet { stroke: var(--acte); background: var(--acte); }
+  .pf-seg.pf-pret, .pf-point.pf-pret { stroke: var(--success); background: var(--success); }
   .pf-centre { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; }
   .pf-centre-num { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink); }
   .pf-centre-lib { font-size: 10.5px; color: var(--muted); margin-top: 3px; }
@@ -3041,7 +3037,11 @@
   .echeances-table { table-layout: fixed; }
   .col-echeance-date { width: 160px; } /* « 22 septembre 2026 » tient sur une seule ligne */
   .col-echeance-type { width: 196px; }
+  .col-echeance-statut { width: 150px; }
   .col-echeance-resp { width: 148px; }
+  /* Colonnes fixes : un libellé long (« Renonciation préemption attendue ») passe à la ligne au lieu
+     de déborder sur la colonne voisine. */
+  .echeances-table td .dot-label { white-space: normal; line-height: 1.3; }
   .echeances-table td { vertical-align: middle; }
   .semaine-entete {
     display: flex;
@@ -4269,6 +4269,10 @@
   .dot-label.dl-appelFonds { color: var(--appelfonds); }
   .dot-label.dl-rendezVousSignature { color: var(--success); }
   .dot-label.dl-success { color: var(--success); }
+  /* « Complet » (etatDossier) : toutes les pièces reçues, rendez-vous pas encore placé — bleu fixe
+     (--acte), jamais l'accent du thème : un accent orange ou vert le confondrait avec « Attente de
+     pièces » ou « Prêt ». */
+  .dot-label.dl-complet { color: var(--acte); }
   .dot-label.dl-urgent { color: var(--urgent); }
   .dot-label.dl-alerte {
     color: var(--urgent);
@@ -5676,6 +5680,7 @@ button.avancement-ligne:hover { background: var(--paper-sunk); }
 .avancement-pilule.dl-pret { color: var(--pret); background: color-mix(in srgb, var(--pret) 16%, transparent); }
 .avancement-pilule.dl-urgent { color: var(--urgent); background: color-mix(in srgb, var(--urgent) 14%, transparent); }
 .avancement-pilule.dl-neutre { color: var(--ink-soft); background: var(--paper-sunk); }
+.avancement-pilule.dl-complet { color: var(--acte); background: color-mix(in srgb, var(--acte) 14%, transparent); }
 .avancement-montant { font-size: 12.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .avancement-pied { display: flex; justify-content: flex-end; padding: 8px 10px 6px; border-top: 1px solid var(--line-soft); }
 /* Dans une colonne étroite (à côté de « À traiter » sur le tableau de bord), la ligne passe sur deux
@@ -6713,9 +6718,8 @@ button.confrere-carnet-office:focus-visible, button.carnet-dossier:focus-visible
 @media (max-width: 520px) { .fonds-chiffre strong { font-size: 15px; } .fonds-chiffres { gap: 8px; } }
 @media (prefers-reduced-motion: reduce) { .fonds-barre > span { transition: none; } }
 
-/* Colonne « Étape » du tableau du Suivi (celluleEtapeTableau) : badge et date sur une ligne. */
+/* Colonne « Prochaine échéance » du tableau du Suivi (celluleEcheanceTableau) : libellé et date sur une ligne. */
 .etape-cellule { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
-.etape-autre { margin-top: 3px; font-size: 12px; color: var(--muted); }
 
 /* ==== Widgets du tableau de bord (renderWidgetsDashboard) ====
    Grille de 3 colonnes : petit = 1, moyen = 2, grand = toute la largeur ; 2 colonnes puis 1 quand

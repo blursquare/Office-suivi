@@ -41,26 +41,28 @@ test('statsPortefeuilleVisuel : un rendez-vous d\'un autre mois ne compte pas', 
   assert.equal(st.signaturesMois.total, 0);
 });
 
-test('phrasePortefeuille : la première règle qui s\'applique (par étape du dossier)', () => {
-  const vide = { conditions: 0, pieces: 0, rdv: 0, envois: 0, signature: 0 };
-  const base = { actifs: 3, parEtape: Object.assign({}, vide, { conditions: 3 }), signaturesMois: { total: 0, faites: 0 } };
-  const avec = (e) => Object.assign({}, base, { parEtape: Object.assign({}, vide, e) });
+test('phrasePortefeuille : la première règle qui s\'applique (par état du dossier)', () => {
+  const vide = { urgent: 0, arelier: 0, attente: 0, complet: 0, pret: 0 };
+  const base = { actifs: 3, parEtat: Object.assign({}, vide, { arelier: 3 }), signaturesMois: { total: 0, faites: 0 } };
+  const avec = (e) => Object.assign({}, base, { parEtat: Object.assign({}, vide, e) });
   assert.equal(app.phrasePortefeuille(Object.assign({}, base, { actifs: 0 })), 'Aucun dossier en cours.');
-  assert.equal(app.phrasePortefeuille(avec({ signature: 3 })), 'Tous les dossiers sont à l’étape de la signature.');
-  assert.equal(app.phrasePortefeuille(avec({ conditions: 1, pieces: 2 })), '2 dossiers avec des pièces manquantes.');
-  assert.equal(app.phrasePortefeuille(Object.assign({}, base, { signaturesMois: { total: 3, faites: 1 } })), "Encore 2 signatures d'ici la fin du mois.");
+  assert.equal(app.phrasePortefeuille(avec({ urgent: 1, attente: 2 })), '1 dossier avec une date butoir dépassée.');
+  assert.equal(app.phrasePortefeuille(avec({ pret: 3 })), 'Tous les dossiers sont prêts à signer.');
+  assert.equal(app.phrasePortefeuille(avec({ complet: 1, attente: 2 })), '2 dossiers en attente de pièces.');
+  assert.equal(app.phrasePortefeuille(Object.assign({}, avec({ complet: 3 }), { signaturesMois: { total: 3, faites: 1 } })), "Encore 2 signatures d'ici la fin du mois.");
   assert.equal(app.phrasePortefeuille(Object.assign({}, base, { signaturesMois: { total: 2, faites: 2 } })), 'Toutes les signatures du mois sont faites.');
-  assert.equal(app.phrasePortefeuille(avec({ conditions: 2, rdv: 1 })), '1 rendez-vous de signature à fixer.');
-  assert.equal(app.phrasePortefeuille(base), 'Les conditions suivent leur cours : rien de bloquant.');
+  assert.equal(app.phrasePortefeuille(avec({ complet: 2, pret: 1 })), '2 dossiers complets : rendez-vous à placer.');
+  assert.equal(app.phrasePortefeuille(base), '3 dossiers à relier au NAS.');
 });
 
-test('statsPortefeuilleVisuel : répartition par étape du dossier', () => {
+test('statsPortefeuilleVisuel : répartition par état du dossier', () => {
   const actifs = [
-    dossier({ id: 'a', pret: '2026-10-20' }),                                        // attente de l'offre
-    dossier({ id: 'b', sansPret: true, roleNotaire: 'participant' }),                 // rendez-vous à fixer
-    dossier({ id: 'c', sansPret: true, roleNotaire: 'participant', rendezVousSignature: '2026-10-10' }), // appel de fonds
-    dossier({ id: 'd', sansPret: true, roleNotaire: 'participant', rendezVousSignature: '2026-10-10', appelFonds: '2026-09-20', projetEnvoye: '2026-09-25' }) // prêt à signer
+    dossier({ id: 'a', pret: '2026-09-20', dossierLie: true }),                        // urgent (prêt dépassé)
+    dossier({ id: 'b', pret: '2026-10-20' }),                                          // à relier
+    dossier({ id: 'c', pret: '2026-10-20', dossierLie: true }),                        // attente de pièces
+    dossier({ id: 'd', sansPret: true, roleNotaire: 'participant', dossierLie: true }), // complet
+    dossier({ id: 'e', sansPret: true, roleNotaire: 'participant', dossierLie: true, rendezVousSignature: '2026-10-10' }) // prêt
   ];
   const st = app.statsPortefeuilleVisuel(actifs, actifs, AUJ);
-  assert.equal([st.parEtape.conditions, st.parEtape.pieces, st.parEtape.rdv, st.parEtape.envois, st.parEtape.signature].join(','), '1,0,1,1,1');
+  assert.equal([st.parEtat.urgent, st.parEtat.arelier, st.parEtat.attente, st.parEtat.complet, st.parEtat.pret].join(','), '1,1,1,1,1');
 });
