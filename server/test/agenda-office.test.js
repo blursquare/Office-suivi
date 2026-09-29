@@ -354,3 +354,17 @@ test('CATEGORIES : catégories Outlook relues (virgule échappée comprise) et l
   assert.equal(e.categories.join('|'), 'Catégorie Verte|Visio, client');
   assert.equal(categoriesDistinctesIcs(ics).join('|'), 'Catégorie Verte|Visio, client');
 });
+
+test('composerLieuAgenda : le confrère (« Me DURAND en 1er / en 2nd ») entre les initiales et la mention', () => {
+  assert.equal(composerLieuAgenda('BA', { appelFonds: true, confrere: 'Me DURAND en 2nd' }), 'BA - Me DURAND en 2nd - Appel de fonds envoyé');
+  // Déjà écrit à la main sans rang, ou avec l'autre rang : remis à jour, jamais doublé.
+  assert.equal(composerLieuAgenda('BA - Me DURAND - Appel de fonds envoyé', { appelFonds: true, projet: true, confrere: 'Me DURAND en 2nd' }),
+    'BA - Me DURAND en 2nd - Appel de fonds et projet envoyé');
+  assert.equal(composerLieuAgenda('BA - Maître DURAND en 1er', { appelFonds: true, confrere: 'Me DURAND en 2nd' }), 'BA - Me DURAND en 2nd - Appel de fonds envoyé');
+  // Nom composé, autre note conservée.
+  assert.equal(composerLieuAgenda('BA - Visio', { projet: true, confrere: 'Me LE GALL en 1er' }), 'BA - Visio - Me LE GALL en 1er - Projet envoyé');
+  // Sans confrère : inchangé.
+  assert.equal(composerLieuAgenda('BA', { appelFonds: true }), 'BA - Appel de fonds envoyé');
+  // Un mot qui CONTIENT le nom n'est pas pris pour lui.
+  assert.equal(composerLieuAgenda('BA - DURANDIERE', { appelFonds: true, confrere: 'Me DURAND en 2nd' }), 'BA - DURANDIERE - Me DURAND en 2nd - Appel de fonds envoyé');
+});

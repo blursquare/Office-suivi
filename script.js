@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 00:55';
+  const VERSION_APP = '2026-09-29 07:16';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 07:16', resume: "Agenda : le confrère figure dans le lieu du rendez-vous de signature — « BA - Me DURAND en 1er - Appel de fonds envoyé » s'il reçoit l'acte, « … en 2nd … » s'il est en participation." },
     { version: '2026-09-29 00:55', resume: "Emails du matin réservés à Bastien : la rubrique n'apparaît plus sur les postes de Julie et Jérémy." },
     { version: '2026-09-29 00:54', resume: "Emails du matin : à 8 h 50, CLAIRE lit la boîte de réception (emails reçus depuis la veille 18 h, le vendredi pour un lundi) et les range par dossier dans la fenêtre « Aujourd'hui ». Sans IA : rien ne quitte le bureau, seuls l'expéditeur, l'objet et l'heure sont gardés." },
     { version: '2026-09-29 00:42', resume: "Tâche faite par un collègue sur votre dossier (envoi de l'appel de fonds ou du projet, « Déjà fait », email, questionnaire, étape marquée réalisée) : message Teams au responsable du dossier." },
@@ -10911,10 +10912,45 @@
       .map(m => m.charAt(0).toUpperCase()).filter(c => /[A-ZÀ-Ý]/.test(c)).join('');
   }
 
-  // Lieu d'un rendez-vous créé par CLAIRE : « BA - Appel de fonds envoyé », selon la convention de
-  // l'étude, pour que la mention y soit dès la création quand l'envoi est déjà fait.
+  // « Maître Paul DURAND (ORLEANS) » → « Me DURAND » : le nom de famille (mots en capitales), sans
+  // prénom, titre ni ville. Pure, testable.
+  function nomConfrereCourt(nom) {
+    const sansVille = String(nom || '').replace(/\([^)]*\)/g, ' ').replace(/,.*$/, ' ');
+    const mots = sansVille.replace(/^\s*(ma[iî]tre|me)\.?\s+/i, '').split(/\s+/).filter(Boolean);
+    const capitales = mots.filter(m => /^[A-ZÀ-ÖØ-Þ][A-ZÀ-ÖØ-Þ'’-]+$/.test(m));
+    const famille = capitales.length ? capitales.join(' ') : (mots[mots.length - 1] || '');
+    return famille ? 'Me ' + famille : '';
+  }
+
+  // Le confrère dans le lieu du rendez-vous (demandé par l'étude le 29/09) : « Me DURAND en 1er »
+  // s'il reçoit l'acte, « Me DURAND en 2nd » s'il est en participation — le vocabulaire des
+  // notaires (notaire en premier / en second). Le confrère est le notaire de l'AUTRE partie que
+  // celle de l'étude ; sans étude reconnue sur la fiche, seulement s'il n'y a qu'un nom possible.
+  // Pure, testable. '' quand aucun autre office n'intervient.
+  function confrereLieuAgenda(d) {
+    if (!d) return '';
+    const cote = coteEtudeDossier(d);
+    let coteConfrere = cote === 'vendeur' ? 'acquereur' : (cote === 'acquereur' ? 'vendeur' : null);
+    if (!coteConfrere) {
+      const autres = ['vendeur', 'acquereur'].filter(c => {
+        const n = c === 'vendeur' ? d.notaireVendeur : d.notaireAcquereur;
+        return n && !estEtude({ nom: n });
+      });
+      if (autres.length !== 1) return '';
+      coteConfrere = autres[0];
+    }
+    const nom = coteConfrere === 'vendeur' ? d.notaireVendeur : d.notaireAcquereur;
+    if (!nom || estEtude({ nom })) return '';
+    const court = nomConfrereCourt(nom);
+    if (!court) return '';
+    const recoitActe = d.coteInstrumentaire ? d.coteInstrumentaire === coteConfrere : d.roleNotaire === 'participant';
+    return `${court} ${recoitActe ? 'en 1er' : 'en 2nd'}`;
+  }
+
+  // Lieu d'un rendez-vous créé par CLAIRE : « BA - Me DURAND en 2nd - Appel de fonds envoyé » —
+  // initiales, confrère éventuel, puis la mention d'envoi quand elle est déjà due.
   function lieuRdvAgenda(d) {
-    return [initialesResponsable(d), mentionEnvoisAgenda(d)].filter(Boolean).join(' - ');
+    return [initialesResponsable(d), confrereLieuAgenda(d), mentionEnvoisAgenda(d)].filter(Boolean).join(' - ');
   }
 
   function renderNoterAgenda(d) {
@@ -11133,7 +11169,7 @@
       const reponse = await fetchAvecAuth('/api/exchange/rendez-vous/lieu', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: d.rendezVousSignature, reference: d.nom, appelFonds: af, projet: pj })
+        body: JSON.stringify({ date: d.rendezVousSignature, reference: d.nom, appelFonds: af, projet: pj, confrere: confrereLieuAgenda(d) })
       });
       const corps = await reponse.json();
       if (corps.ok) {

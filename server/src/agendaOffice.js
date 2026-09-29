@@ -238,6 +238,16 @@ function composerLieuAgenda(lieuExistant, etat) {
     .replace(/[\s—–:,-]+$/, '')
     .replace(/\s{2,}/g, ' ')
     .trim();
+  // Le confrère (« Me DURAND en 1er » / « en 2nd », voir confrereLieuAgenda côté client) entre les
+  // initiales et la mention : ajouté s'il manque, remis à jour s'il y figure déjà sous une autre
+  // forme (sans rang, ou avec l'autre rang), jamais en double.
+  const confrere = typeof e.confrere === 'string' ? e.confrere.replace(/\s+/g, ' ').trim().slice(0, 80) : '';
+  const mConfrere = /^Me\s+(.+?)\s+en\s+(1er|2nd)$/i.exec(confrere);
+  if (mConfrere) {
+    const famille = mConfrere[1].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const reExistant = new RegExp(String.raw`(?<![A-Za-zÀ-ÿ])(?:M(?:e|a[iî]tre)\.?\s+)?` + famille + String.raw`(?![A-Za-zÀ-ÿ])(?:\s+en\s+(?:1er|2nd|premier|second))?`, 'i');
+    base = reExistant.test(base) ? base.replace(reExistant, confrere) : (base ? base + ' - ' + confrere : confrere);
+  }
   const mention = (e.appelFonds && e.projet) ? MENTION_APPEL_PROJET
     : e.appelFonds ? MENTION_APPEL_SEUL
       : e.projet ? MENTION_PROJET_SEUL

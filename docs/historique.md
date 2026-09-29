@@ -11607,3 +11607,17 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
   seulement ceux de son périmètre. Limite connue : il n'y a pas de compte par collaborateur (accès
   sans mot de passe, collaborateur choisi sur le poste) — la restriction est dans l'interface, la
   route `/api/emails-matin` reste lisible par tout poste du réseau.
+
+- **29/09/2026 — Le confrère dans le lieu du rendez-vous de signature** (demandé par l'étude :
+  « Me DURAND, en 1er s'il reçoit l'acte, en 2nd s'il est en participation » — notaire en premier /
+  en second). Lieu : « BA - Me DURAND en 2nd - Appel de fonds et projet envoyé » (initiales, confrère,
+  mention d'envoi). Client : `nomConfrereCourt` (« Maître Paul DURAND (ORLEANS) » → « Me DURAND » :
+  nom en capitales, sans prénom, titre ni ville) et `confrereLieuAgenda` — le notaire de l'AUTRE
+  partie que l'étude (`coteEtudeDossier`) ; sans étude reconnue, seulement s'il n'y a qu'un nom
+  possible ; « en 1er » s'il est du côté qui reçoit l'acte (`coteInstrumentaire`, à défaut
+  `roleNotaire === 'participant'`), sinon « en 2nd » ; rien si aucun autre office. Posé à la
+  création (`lieuRdvAgenda`) et envoyé avec chaque note d'envoi (`noterEnvoiDansAgenda` →
+  `/exchange/rendez-vous/lieu`, champ `confrere`). Serveur : `composerLieuAgenda` l'insère avant la
+  mention, ou remplace une forme déjà présente (« Me DURAND » sans rang, « Maître DURAND en 1er »…)
+  — jamais de doublon, mot entier seulement ; les rendez-vous créés à la main dans Outlook le
+  reçoivent donc à la première note d'envoi.

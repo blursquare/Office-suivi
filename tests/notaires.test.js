@@ -573,3 +573,22 @@ test('coteDepuisAttribution ne déduit un côté que si la règle est vérifiabl
   // Département inconnu : aucune branche n'est vérifiable.
   assert.equal(app.coteDepuisAttribution(null, '41', '41'), null);
 });
+
+test('confrère dans le lieu du rendez-vous : « Me NOM en 1er » s’il reçoit l’acte, « en 2nd » s’il est en participation', () => {
+  const app = chargerApplication();
+  assert.equal(app.nomConfrereCourt('Maître Paul DURAND (ORLEANS)'), 'Me DURAND');
+  assert.equal(app.nomConfrereCourt('Paul LE GALL'), 'Me LE GALL');
+  assert.equal(app.nomConfrereCourt('Me Jean-Marc DUPUIS-MARTIN, notaire à Tours'), 'Me DUPUIS-MARTIN');
+  const etude = 'Maître Sophie GOSSART (BLOIS)';
+  // Nous recevons l'acte (côté vendeur), le notaire de l'acquéreur est en participation.
+  assert.equal(app.confrereLieuAgenda({ notaireVendeur: etude, notaireAcquereur: 'Maître Paul DURAND (ORLEANS)', coteInstrumentaire: 'vendeur' }), 'Me DURAND en 2nd');
+  // Le confrère reçoit l'acte : nous sommes en participation.
+  assert.equal(app.confrereLieuAgenda({ notaireVendeur: 'Maître Paul DURAND (ORLEANS)', notaireAcquereur: etude, coteInstrumentaire: 'vendeur' }), 'Me DURAND en 1er');
+  assert.equal(app.confrereLieuAgenda({ notaireVendeur: 'Paul DURAND', notaireAcquereur: etude, roleNotaire: 'participant' }), 'Me DURAND en 1er');
+  // Aucun autre office : rien.
+  assert.equal(app.confrereLieuAgenda({ notaireVendeur: etude, notaireAcquereur: etude }), '');
+  assert.equal(app.confrereLieuAgenda({ notaireVendeur: etude }), '');
+  // Lieu complet d'un rendez-vous créé par CLAIRE.
+  assert.equal(app.lieuRdvAgenda({ responsable: 'Bastien ANGLUMENT', notaireVendeur: etude, notaireAcquereur: 'Paul DURAND (ORLEANS)', coteInstrumentaire: 'vendeur', echeancesValidees: { appelFonds: true } }),
+    'BA - Me DURAND en 2nd - Appel de fonds envoyé');
+});
