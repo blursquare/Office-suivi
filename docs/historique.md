@@ -11789,3 +11789,18 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
   (extension .jpg pour un JPEG). Entre la carte et la bannière : deux paragraphes vides (`&nbsp;`,
   Calibri 11 pt) au lieu d'une marge, comme les deux retours à la ligne du modèle. Tests
   `tests/relances-email.test.js`.
+
+- **29/09/2026 — Notaire nommé par son seul prénom : complété par le carnet** (capture de l'étude :
+  « Maître SOPHIE (BLOIS) » et « Maître OPHELIE (HERBAULT) » sur une fiche, chacun avec « Ajouter au
+  carnet »). Origine non retrouvée : `detecterNotaires` rend le prénom ET le nom sur toutes les
+  formes essayées et sur les actes réels disponibles (« Maître Sophie GOSSART, notaire à BLOIS »,
+  majuscules, CRPCEN, signature « Me GOSSART SOPHIE ») — l'acte de ce dossier n'a pas été fourni.
+  Correctif à l'arrivée : `completerNomNotaire(valeur, carnet)` (pure) — un nom d'un seul mot
+  suivi d'une ville est complété quand un seul notaire du carnet porte ce prénom dans cette ville
+  (siège ou bureau) ; plusieurs candidats ou pas de ville : rien n'est deviné. Appliqué à la
+  création du dossier, dans `trouverOfficeConfrere` et, au chargement du carnet, sur les dossiers
+  existants (`completerNotairesDossiers`, enregistré, rôle de l'étude re-déduit). Vérifié dans
+  Chromium avec un dossier d'essai enregistré sur le serveur : les deux noms sont complétés et
+  réécrits en base, l'office d'Herbault est retrouvé. Test `tests/carnet-confreres.test.js`.
+  Vu en passant : un trait d'union insécable (U+2011) ou un tiret long dans le nom coupe le
+  patronyme à la détection (« Ophélie TURBIL ») — non corrigé, pas encore rencontré sur un acte.

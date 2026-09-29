@@ -69,3 +69,23 @@ test('emailDestinataireRelance : l’email de l’office du carnet à défaut d�
   const parts = app.dossiersParOfficeConfrere([d, { notaireVendeur: 'Maître Luc PETIT', archive: true }], CARNET);
   assert.equal(Object.keys(parts).join(), 'a');
 });
+
+test('completerNomNotaire : un notaire nommé par son seul prénom est complété par le carnet (prénom + ville)', () => {
+  const app = chargerApplication();
+  const carnet = [
+    { id: 'etude', office: 'Office de la Rivière', notaires: ['Hélène MARCHAND'], ville: 'Blois', bureaux: [] },
+    { id: 'a', office: 'SELARL DES COTEAUX', notaires: ['Alicia BRUNET', 'Ophélie LANGLOIS-VERDIER'], ville: 'Herbault', bureaux: [] },
+    { id: 'b', office: 'SCP DU VAL', notaires: ['Hélène ROUSSEL'], ville: 'Vendôme', bureaux: ['Blois'] },
+    { id: 'c', office: 'Office du Parc', notaires: ['Marc PETIT'], ville: 'Tours', bureaux: [] }
+  ];
+  assert.equal(app.completerNomNotaire('Maître OPHELIE (HERBAULT)', carnet), 'Maître Ophélie LANGLOIS-VERDIER (HERBAULT)');
+  // Deux Hélène exercent à Blois (dont un bureau secondaire) : rien n'est deviné.
+  assert.equal(app.completerNomNotaire('Maître HÉLÈNE (BLOIS)', carnet), 'Maître HÉLÈNE (BLOIS)');
+  // Sans ville, ou nom déjà complet : inchangé.
+  assert.equal(app.completerNomNotaire('Maître MARC', carnet), 'Maître MARC');
+  assert.equal(app.completerNomNotaire('Maître Marc PETIT (TOURS)', carnet), 'Maître Marc PETIT (TOURS)');
+  assert.equal(app.completerNomNotaire('', carnet), '');
+  // L'office est alors retrouvé, ce qui retire « Ajouter au carnet » de la fiche.
+  const t = app.trouverOfficeConfrere('Maître OPHELIE (HERBAULT)', carnet);
+  assert.equal(t && t.office.id, 'a');
+});

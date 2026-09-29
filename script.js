@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 10:35';
+  const VERSION_APP = '2026-09-29 10:39';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 10:39', resume: "Fiche du dossier : un notaire écrit avec son seul prénom (« Maître SOPHIE (BLOIS) ») est complété par le carnet des confrères — prénom et NOM, « Maître Sophie GOSSART (BLOIS) » — quand un seul notaire de ce prénom exerce dans cette ville. Corrigé aussi sur les dossiers existants à l'ouverture de CLAIRE ; l'office est alors retrouvé (plus de « Ajouter au carnet » injustifié)." },
     { version: '2026-09-29 10:35', resume: "Emails : les logos ne sont plus joints au message quand la carte et la bannière de l'étude les remplacent (seules les images affichées dans l'email l'accompagnent). Deux lignes vides entre la carte et la bannière Visio, comme dans le modèle de l'étude." },
     { version: '2026-09-29 09:58', resume: "Emails : la carte de l'office et la bannière Visio de la signature peuvent être les images de l'étude (PNG ou JPEG), déposées une fois dans Réglages › Signature des emails. Elles figurent telles quelles, 600 px de large au plus, dans tous les emails préparés par CLAIRE ; sans image, CLAIRE compose la carte elle-même comme avant." },
     { version: '2026-09-29 09:53', resume: "Fonds reçus : un versement n'est compté que pour le client nommé en DÉBUT de ligne du reçu (le titulaire du compte), jamais d'après le libellé du virement, qui peut citer un autre client — y compris sur les lignes qui commencent par « RECU DE » sans « VIR »." },
@@ -10036,8 +10037,8 @@
       // Champs libres, corrigeables à tout moment sur la fiche (voir affecterNotaire) : vides
       // quand l'acte ne dit pas qui représente qui — les noms détectés restent alors proposés
       // dans notairesDetectes, à l'étude de les affecter.
-      notaireVendeur: cotesNotaires.vendeur,
-      notaireAcquereur: cotesNotaires.acquereur,
+      notaireVendeur: completerNomNotaire(cotesNotaires.vendeur, carnetConfreres),
+      notaireAcquereur: completerNomNotaire(cotesNotaires.acquereur, carnetConfreres),
       coteInstrumentaire: cotesNotaires.coteInstrumentaire,
       notairesDetectes: cotesNotaires.detectes,
       // Email de l'office du notaire de l'acquéreur, à renseigner UNIQUEMENT quand cet office est
@@ -11031,11 +11032,51 @@
     return { famille: norm(famille), prenom: norm(prenom), ville: norm(ville) };
   }
 
+  // Notaire nommé par son seul prénom (« Maître SOPHIE (BLOIS) », constaté sur des fiches de
+  // l'étude le 29/09) : complété par le carnet quand un seul notaire de ce prénom exerce dans
+  // cette ville — « Maître Sophie GOSSART (BLOIS) ». Sans ville, ou si plusieurs notaires
+  // correspondent, rien n'est deviné : la valeur revient telle quelle. Pure.
+  function completerNomNotaire(valeur, carnet) {
+    const brut = String(valeur || '').trim();
+    const sans = brut.replace(/\([^)]*\)/g, ' ').replace(/^\s*(ma[iî]tre|me)\.?\s+/i, '').trim();
+    const ville = ((brut.match(/\(([^)]*)\)/) || [])[1] || '').trim();
+    if (!sans || /\s/.test(sans) || !ville || !Array.isArray(carnet)) return brut;
+    const norm = t => normaliserPourRecherche(t || '').replace(/[^a-z0-9]+/g, ' ').trim();
+    const prenom = norm(sans);
+    const cibleVille = norm(ville);
+    const trouves = [];
+    for (const office of carnet) {
+      const lieux = [office && office.ville].concat((office && office.bureaux) || []).map(norm);
+      if (!lieux.some(l => l && (' ' + l + ' ').indexOf(' ' + cibleVille + ' ') !== -1)) continue;
+      for (const n of (office && office.notaires) || []) {
+        if (decomposerNomNotaire(n).prenom === prenom && trouves.indexOf(n) === -1) trouves.push(n);
+      }
+    }
+    return trouves.length === 1 ? `Maître ${trouves[0]} (${ville})` : brut;
+  }
+
+  // Complète, une fois le carnet chargé, les notaires des fiches nommés par leur seul prénom
+  // (voir completerNomNotaire) — enregistré sur le dossier, pour que l'étude soit reconnue et que
+  // l'office du confrère soit retrouvé partout (emails, rôle de l'étude).
+  function completerNotairesDossiers() {
+    for (const d of dossiers || []) {
+      let change = false;
+      for (const champ of ['notaireVendeur', 'notaireAcquereur']) {
+        if (!d[champ]) continue;
+        const complet = completerNomNotaire(d[champ], carnetConfreres);
+        if (complet !== d[champ]) { d[champ] = complet; change = true; }
+      }
+      if (!change) continue;
+      deduireRoleNotaireDossier(d);
+      sauvegarder(d);
+    }
+  }
+
   // L'office du carnet où exerce ce notaire, ou null. Le nom de famille doit correspondre ; s'il
   // désigne plusieurs offices, le prénom puis la ville départagent — sinon rien n'est deviné
   // (deux DURAND dans deux offices : l'étude choisira). Pure.
   function trouverOfficeConfrere(nom, carnet) {
-    const cible = decomposerNomNotaire(nom);
+    const cible = decomposerNomNotaire(completerNomNotaire(nom, carnet));
     if (!cible.famille || !Array.isArray(carnet)) return null;
     const candidats = [];
     for (const office of carnet) {
@@ -11113,6 +11154,7 @@
       const r = await fetchAvecAuth('/api/confreres');
       if (!r.ok) return;
       carnetConfreres = (await r.json()).offices || [];
+      completerNotairesDossiers();
       if (ongletActuel === 'confreres') renderCarnetConfreres();
     } catch (e) { console.warn('Carnet des confrères indisponible :', e.message); }
   }
