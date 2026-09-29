@@ -190,6 +190,11 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
 - **Outlook (abonnement Internet)** remplace le calendrier à chaque synchro et **affiche** les
   événements `STATUS:CANCELLED` : omettre un événement suffit à le retirer. Le flux `.ics` publié
   par CLAIRE ne contient que le prêt et la vente préalable non encore posés par EWS.
+- **Icône de la barre des tâches Windows** : la fenêtre CLAIRE (Chrome `--app`, non installée) ne
+  donne à Windows que le favicon 16 px. L'icône nette vient du raccourci `CLAIRE.lnk` du menu
+  Démarrer que crée le serveur (`raccourciWindows.js`, même AppUserModelID que la fenêtre, icône de
+  l'exe) — confirmé par l'étude le 29/09. Ne jamais ajouter de favicons PNG (`icone.svg` seul) :
+  Chrome prendrait le 16 px. Changer le profil `ClaireServeur` ou l'URL change l'identifiant.
 - **Un test qui ferme une ressource en dernière ligne** (au lieu d'un `after`) fait pendre la suite
   au premier échec. Diagnostiquer avec `timeout` fichier par fichier.
 - **Un filet posé après l'endroit qui tombe ne protège rien** : `erreur-demarrage.txt` et le

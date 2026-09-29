@@ -11950,3 +11950,4 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
   (repère `%APPDATA%\CLAIRE\raccourci.json`). Le C# compile (vérifié avec mcs) ; **non vérifié
   sur Windows** : l'effet dans la barre des tâches. Si une icône floue est épinglée, la détacher
   puis réépingler la fenêtre une fois.
+  - **Confirmé par l'étude le 29/09** (« c'est bon ») : l'icône de la barre des tâches est nette.
