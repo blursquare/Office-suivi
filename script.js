@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 08:50';
+  const VERSION_APP = '2026-09-29 08:54';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 08:54', resume: "Carnet des confrères : notre office y figure de base, en tête de liste (proposé dans les champs notaire des fiches, jamais retiré). Tableau de bord : bouton « Point du matin » sur la carte « Aujourd'hui » pour rouvrir la fenêtre du matin." },
     { version: '2026-09-29 08:50', resume: "Carnet des confrères (Outils) : les 35 offices notariaux du Loir-et-Cher déjà remplis (notaires, adresse, téléphone, email), à corriger ou compléter sur place. Sur la fiche d'un dossier, le notaire est rapproché de son office : office, téléphone et email s'affichent dessous, l'email de l'office sert aux relances au confrère tant qu'aucune adresse n'est saisie, et un notaire inconnu s'ajoute au carnet en un clic." },
     { version: '2026-09-29 07:16', resume: "Agenda : le confrère figure dans le lieu du rendez-vous de signature — « BA - Me DURAND en 1er - Appel de fonds envoyé » s'il reçoit l'acte, « … en 2nd … » s'il est en participation." },
     { version: '2026-09-29 00:55', resume: "Emails du matin réservés à Bastien : la rubrique n'apparaît plus sur les postes de Julie et Jérémy." },
@@ -10966,8 +10967,9 @@
   // ==== CARNET DES CONFRÈRES ====
   //
   // Demandé par l'étude le 29/09 : les offices avec qui elle traite, remplis une fois et proposés
-  // dans chaque dossier. Partagé en base (server/src/carnetConfreres.js) ; parti des 35 offices du
-  // Loir-et-Cher relevés sur l'annuaire public immonot. Un notaire saisi sur une fiche est
+  // dans chaque dossier. Partagé en base (server/src/carnetConfreres.js) ; parti de notre office
+  // (toujours en tête, jamais retiré) et des 35 autres offices du Loir-et-Cher relevés sur
+  // l'annuaire public immonot. Un notaire saisi sur une fiche est
   // rapproché de son office par son NOM DE FAMILLE (trouverOfficeConfrere) : l'office, sa ville,
   // son téléphone et son email s'affichent alors sous le notaire, et l'email de l'office sert aux
   // relances au confrère tant qu'aucune adresse n'est saisie sur le dossier.
@@ -11036,15 +11038,16 @@
     return options.sort((a, b) => a.localeCompare(b, 'fr'));
   }
 
-  // Recherche dans le carnet : nom de l'office, notaires, ville, bureaux, email. Triée par ville
-  // puis par office. Pure.
+  // Recherche dans le carnet : nom de l'office, notaires, ville, bureaux, email. Notre office en
+  // tête, puis triée par ville et par office. Pure.
   function filtrerCarnet(carnet, recherche) {
     const mots = normaliserPourRecherche(recherche || '').split(/\s+/).filter(Boolean);
     return (carnet || []).filter(o => {
       if (!mots.length) return true;
       const botte = normaliserPourRecherche([o.office, (o.notaires || []).join(' '), o.ville, o.codePostal, (o.bureaux || []).join(' '), o.email].join(' '));
       return mots.every(m => botte.indexOf(m) !== -1);
-    }).sort((a, b) => (a.ville || '').localeCompare(b.ville || '', 'fr') || (a.office || '').localeCompare(b.office || '', 'fr'));
+    }).sort((a, b) => (b.etude ? 1 : 0) - (a.etude ? 1 : 0)
+      || (a.ville || '').localeCompare(b.ville || '', 'fr') || (a.office || '').localeCompare(b.office || '', 'fr'));
   }
 
   // Office du confrère de ce côté de la fiche, jamais le nôtre.
@@ -11166,12 +11169,13 @@
     const enCours = dossiersOffice.length
       ? `<div class="carnet-dossiers">${icone('folder')}${dossiersOffice.slice(0, 4).map(d => `<button type="button" class="carnet-dossier" onclick="ouvrirDossierDepuisDashboard('${escapeOnclickArg(d.id)}')">${escapeHtml(libelleDossierAffiche(d))}</button>`).join('')}${dossiersOffice.length > 4 ? `<span>+${dossiersOffice.length - 4}</span>` : ''}</div>`
       : '';
-    return `<article class="carnet-office">
+    return `<article class="carnet-office${o.etude ? ' carnet-office-etude' : ''}">
+      ${o.etude ? '<span class="dot-label dl-success carnet-etude-badge"><span class="dot"></span>Notre office</span>' : ''}
       <div class="carnet-office-tete">
         <h3 class="carnet-office-nom">${escapeHtml(o.office || o.notaires[0] || '')}</h3>
         <span class="carnet-office-icones">
           <button type="button" class="ech-ico" onclick="modifierOfficeCarnet('${escapeOnclickArg(o.id)}')" title="Modifier" aria-label="Modifier cet office">${icone('pencil')}</button>
-          <button type="button" class="ech-ico ech-ico-suppr" onclick="retirerOfficeCarnet('${escapeOnclickArg(o.id)}')" title="Retirer du carnet" aria-label="Retirer cet office du carnet">${icone('x')}</button>
+          ${o.etude ? '' : `<button type="button" class="ech-ico ech-ico-suppr" onclick="retirerOfficeCarnet('${escapeOnclickArg(o.id)}')" title="Retirer du carnet" aria-label="Retirer cet office du carnet">${icone('x')}</button>`}
         </span>
       </div>
       ${memeNomOfficeNotaire(o) ? '' : `<div class="carnet-notaires">${(o.notaires || []).map(n => `<span>Me ${escapeHtml(n)}</span>`).join('')}</div>`}
@@ -11272,7 +11276,7 @@
 
   function retirerOfficeCarnet(id) {
     const o = carnetConfreres.find(x => x.id === id);
-    if (!o) return;
+    if (!o || o.etude) return;
     demanderConfirmation(`Retirer ${o.office || 'cet office'} du carnet ?`, async () => {
       try {
         const r = await fetchAvecAuth('/api/confreres/' + encodeURIComponent(id), { method: 'DELETE' });
@@ -15245,7 +15249,10 @@
           <div class="agenda-titre">Aujourd’hui</div>
           <div class="agenda-mois">${escapeHtml(messageProgressionJour(actions.length, traites.length))}</div>
         </div>
-        ${actions.length || traites.length ? renderAnneauJour(actions.length, traites.length) : ''}
+        <div class="alertes-entete-droite">
+          ${actions.length || traites.length ? renderAnneauJour(actions.length, traites.length) : ''}
+          <button type="button" class="action-rapide alertes-point-matin" onclick="ouvrirFenetreAujourdhui()" title="Rouvrir la fenêtre du point du matin">${icone('sun')}Point du matin</button>
+        </div>
       </div>
       <div class="jour-carte-corps">
         ${feteHtml}

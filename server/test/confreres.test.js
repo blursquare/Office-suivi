@@ -9,7 +9,7 @@ const os = require('node:os');
 
 const { creerApp } = require('../src/app');
 const { ouvrirDb } = require('../src/db');
-const { assainirOffice, assainirCarnet, carnetInitial, CARNET_INITIAL_41 } = require('../src/carnetConfreres');
+const { assainirOffice, assainirCarnet, carnetInitial, avecOfficeEtude, CARNET_INITIAL_41, ID_OFFICE_ETUDE } = require('../src/carnetConfreres');
 
 let db, serveurApp, baseUrl, jeton;
 
@@ -30,13 +30,26 @@ const appeler = (chemin, methode, corps) => fetch(`${baseUrl}${chemin}`, {
   body: corps ? JSON.stringify(corps) : undefined
 });
 
-test('relevé du 41 : 35 offices valides, sans notre étude, identifiants uniques', () => {
+test('carnet initial : notre office en tête, puis les 35 offices du 41, identifiants uniques', () => {
   const carnet = carnetInitial();
-  assert.equal(carnet.length, CARNET_INITIAL_41.length);
-  assert.equal(carnet.length, 35);
+  assert.equal(CARNET_INITIAL_41.length, 35);
+  assert.equal(carnet.length, 36);
+  assert.equal(carnet[0].id, ID_OFFICE_ETUDE);
+  assert.equal(carnet[0].etude, true);
+  assert.equal(carnet[0].email, 'office.gossart@notaires.fr');
   assert.ok(carnet.every((o) => o.notaires.length && o.codePostal.startsWith('41') && o.source));
-  assert.ok(!carnet.some((o) => /GOSSART/i.test(o.office + o.notaires.join(' '))));
+  assert.equal(carnet.filter((o) => /GOSSART/i.test(o.office + o.notaires.join(' '))).length, 1);
+  assert.ok(carnet.slice(1).every((o) => o.etude === false));
   assert.equal(new Set(carnet.map((o) => o.id)).size, carnet.length);
+});
+
+test('avecOfficeEtude : remet notre office s’il manque, ne le double jamais', () => {
+  const r = avecOfficeEtude([{ id: 'x', office: 'X', notaires: ['A B'] }]);
+  assert.equal(r.ajoute, true);
+  assert.equal(r.carnet.map((o) => o.id).join(), ID_OFFICE_ETUDE + ',x');
+  assert.equal(avecOfficeEtude(r.carnet).ajoute, false);
+  // Un office quelconque ne peut pas se déclarer « notre office ».
+  assert.equal(assainirOffice({ id: 'y', office: 'Y', etude: true }).etude, false);
 });
 
 test('assainirOffice : liste blanche, email invalide vidé, office vide refusé', () => {
@@ -55,17 +68,17 @@ test('GET part du relevé du 41 ; POST ajoute puis corrige un office ; DELETE le
   let r = await appeler('/api/confreres');
   assert.equal(r.status, 200);
   let j = await r.json();
-  assert.equal(j.offices.length, 35);
+  assert.equal(j.offices.length, 36);
 
   const nouveau = { id: 'saisie-1', office: 'SELARL Paul DURAND', notaires: ['Paul DURAND'], email: 'office.durand@notaires.fr', ville: 'Orléans', codePostal: '45000' };
   r = await appeler('/api/confreres', 'POST', { office: nouveau });
   j = await r.json();
-  assert.equal(j.offices.length, 36);
+  assert.equal(j.offices.length, 37);
   assert.ok(j.offices.find((o) => o.id === 'saisie-1').modifieLe);
 
   r = await appeler('/api/confreres', 'POST', { office: Object.assign({}, nouveau, { telephone: '02 38 00 00 00' }) });
   j = await r.json();
-  assert.equal(j.offices.length, 36);
+  assert.equal(j.offices.length, 37);
   assert.equal(j.offices.find((o) => o.id === 'saisie-1').telephone, '02 38 00 00 00');
 
   r = await appeler('/api/confreres', 'POST', { office: { id: 'x', office: '' } });
@@ -73,9 +86,13 @@ test('GET part du relevé du 41 ; POST ajoute puis corrige un office ; DELETE le
 
   r = await appeler('/api/confreres/saisie-1', 'DELETE');
   j = await r.json();
-  assert.equal(j.offices.length, 35);
-  // Un carnet vidé à la main reste vide : le relevé n'est rechargé que si la clé disparaît.
+  assert.equal(j.offices.length, 36);
+  // Notre office ne se retire pas.
+  r = await appeler('/api/confreres/' + ID_OFFICE_ETUDE, 'DELETE');
+  assert.equal(r.status, 400);
+  // Un carnet vidé à la main garde seulement notre office : le relevé n'est rechargé que si la
+  // clé disparaît.
   for (const o of j.offices) await appeler('/api/confreres/' + o.id, 'DELETE');
   j = await (await appeler('/api/confreres')).json();
-  assert.equal(j.offices.length, 0);
+  assert.equal(j.offices.map((o) => o.id).join(), ID_OFFICE_ETUDE);
 });

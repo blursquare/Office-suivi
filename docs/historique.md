@@ -11641,3 +11641,14 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
   notaire, « Ajouter au carnet » pour un notaire inconnu ; `emailDestinataireRelance` prend l'email
   de l'office du carnet quand `emailNotaireParticipant` est vide (affiché en indication dans le
   champ « Confrère ») ; un email saisi sur un dossier complète l'office du carnet qui n'en avait pas.
+
+- **29/09/2026 — Notre office dans le carnet ; « Point du matin » sur le tableau de bord**
+  (demandé par l'étude : « proposer notre office aussi de base » et « un bouton dans Aujourd'hui sur
+  le Dashboard pour revoir la pop-up »). Carnet : `OFFICE_ETUDE` (id `etude-gossart`, coordonnées de
+  la signature des emails, `etude: true` réservé à cet identifiant) en tête du carnet initial ;
+  `avecOfficeEtude` le remet à la lecture s'il manque (carnet créé la veille sans lui) ; la route
+  refuse de le retirer, la page n'affiche pas de × et la pastille « Notre office » la distingue. Proposé dans la
+  liste déroulante des notaires des fiches (« Maître Sophie GOSSART (Blois) », reconnu par
+  `estEtude`) ; jamais présenté comme un confrère (`officeConfrereDossier` écarte l'étude). Tableau
+  de bord : bouton « Point du matin » (icône soleil) dans l'en-tête de la carte « Aujourd'hui »,
+  sous l'anneau de progression — il appelle `ouvrirFenetreAujourdhui()`, comme l'icône de la page.

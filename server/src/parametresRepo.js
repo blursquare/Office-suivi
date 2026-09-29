@@ -10,7 +10,7 @@
 'use strict';
 
 const { MODELES_MISTRAL, MODELE_MISTRAL_PAR_DEFAUT, REGIONS_MISTRAL } = require('./relecture/mistral');
-const { assainirCarnet, carnetInitial } = require('./carnetConfreres');
+const { assainirCarnet, carnetInitial, avecOfficeEtude } = require('./carnetConfreres');
 
 const CLE_REGLAGES = 'reglages';
 
@@ -905,7 +905,10 @@ function creerRepoParametres(db) {
   function lireCarnetConfreres() {
     const ligne = lireStmt.get(CLE_CARNET_CONFRERES);
     if (!ligne) return ecrireCarnetConfreres(carnetInitial());
-    try { return assainirCarnet(JSON.parse(ligne.valeur)); } catch (e) { return []; }
+    let carnet;
+    try { carnet = assainirCarnet(JSON.parse(ligne.valeur)); } catch (e) { carnet = []; }
+    const r = avecOfficeEtude(carnet);
+    return r.ajoute ? ecrireCarnetConfreres(r.carnet) : carnet;
   }
 
   function ecrireCarnetConfreres(carnet) {

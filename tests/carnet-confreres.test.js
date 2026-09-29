@@ -52,6 +52,11 @@ test('optionsNotairesCarnet et filtrerCarnet', () => {
   assert.equal(app.filtrerCarnet(CARNET, 'moree').map(o => o.id).join(), 'b');
   // Sans recherche : triés par ville.
   assert.equal(app.filtrerCarnet(CARNET, '').map(o => o.id).join(), 'c,a,b');
+  // Notre office toujours en tête.
+  const avecEtude = CARNET.concat([{ id: 'etude-gossart', etude: true, office: 'Office Notarial de la Salamandre — Me Sophie GOSSART', notaires: ['Sophie GOSSART'], ville: 'Blois', bureaux: [] }]);
+  assert.equal(app.filtrerCarnet(avecEtude, '').map(o => o.id).join(), 'etude-gossart,c,a,b');
+  assert.ok(app.optionsNotairesCarnet(avecEtude).includes('Maître Sophie GOSSART (Blois)'));
+  assert.equal(app.estEtude({ nom: 'Maître Sophie GOSSART (Blois)' }), true);
 });
 
 test('emailDestinataireRelance : l’email de l’office du carnet à défaut d’adresse saisie', () => {

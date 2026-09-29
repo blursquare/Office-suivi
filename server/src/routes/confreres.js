@@ -5,7 +5,7 @@
 // identifiant — deux collaborateurs qui complètent le carnet en même temps ne s'écrasent pas.
 
 const express = require('express');
-const { assainirOffice, MAX_OFFICES } = require('../carnetConfreres');
+const { assainirOffice, MAX_OFFICES, ID_OFFICE_ETUDE } = require('../carnetConfreres');
 
 function creerRouteurConfreres(parametresRepo) {
   const routeur = express.Router();
@@ -26,6 +26,7 @@ function creerRouteurConfreres(parametresRepo) {
   });
 
   routeur.delete('/confreres/:id', (req, res) => {
+    if (req.params.id === ID_OFFICE_ETUDE) return res.status(400).json({ erreur: 'Notre office reste dans le carnet.' });
     const carnet = parametresRepo.lireCarnetConfreres();
     res.json({ offices: parametresRepo.ecrireCarnetConfreres(carnet.filter((o) => o.id !== req.params.id)) });
   });

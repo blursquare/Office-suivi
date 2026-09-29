@@ -4,9 +4,9 @@
 // traite, avec leurs notaires, adresse, téléphone et email — rempli une fois, partagé entre les
 // postes (table `parametres`, clé `carnet-confreres`), proposé ensuite dans chaque dossier.
 //
-// Premier remplissage : les 35 offices du Loir-et-Cher (le nôtre exclu), relevés le 29/09/2026
-// sur l'annuaire public immonot (fiches « office notarial », données structurées de chaque
-// page ; notaires.fr refuse la lecture automatique). Ce sont des coordonnées professionnelles
+// Premier remplissage : notre office (OFFICE_ETUDE ci-dessous) et les 35 autres offices du
+// Loir-et-Cher, relevés le 29/09/2026 sur l'annuaire public immonot (fiches « office notarial »,
+// données structurées de chaque page ; notaires.fr refuse la lecture automatique). Ce sont des coordonnées professionnelles
 // publiques, pas des données clients. Un relevé daté, pas une source tenue à jour : l'étude
 // corrige ou complète sur place (Outils › Carnet des confrères), et une fiche modifiée garde
 // sa propre valeur. Pour recharger ce relevé, effacer la clé : le carnet repart de cette liste.
@@ -54,6 +54,25 @@ const CARNET_INITIAL_41 = [
   {"id": "annuaire-18410", "office": "Actanov - Office Notarial - Maître Sarah Guechi", "notaires": ["Sarah GUECHI"], "email": "office@actanov.notaires.fr", "telephone": "02 54 97 10 11", "adresse": "7 rue du 8 mai", "codePostal": "41200", "ville": "Romorantin-Lanthenay", "bureaux": []}
 ];
 
+// Notre office, proposé de base dans le carnet (demandé par l'étude le 29/09) : en tête de liste,
+// proposé dans les champs notaire des fiches, jamais retiré (la route refuse de le supprimer et
+// la lecture le remet s'il manque). Coordonnées = celles de la signature des emails (script.js,
+// COORDONNEES_EMAIL_OFFICE).
+const ID_OFFICE_ETUDE = 'etude-gossart';
+const OFFICE_ETUDE = {
+  id: ID_OFFICE_ETUDE,
+  office: 'Office Notarial de la Salamandre — Me Sophie GOSSART',
+  notaires: ['Sophie GOSSART'],
+  email: 'office.gossart@notaires.fr',
+  telephone: '02 54 78 61 70',
+  adresse: '3 rue Bout des Haies',
+  codePostal: '41000',
+  ville: 'Blois',
+  bureaux: [],
+  etude: true,
+  source: 'Notre office'
+};
+
 const MAX_OFFICES = 500;
 const MAX_NOTAIRES = 12;
 const MAX_BUREAUX = 8;
@@ -84,6 +103,7 @@ function assainirOffice(brut) {
     ville: texte(b.ville, 80),
     bureaux: Array.isArray(b.bureaux) ? b.bureaux.map((x) => texte(x, 160)).filter(Boolean).slice(0, MAX_BUREAUX) : [],
     notes: texte(b.notes, 300),
+    etude: b.id === ID_OFFICE_ETUDE,
     source: texte(b.source, 80),
     modifieLe: typeof b.modifieLe === 'string' ? b.modifieLe.slice(0, 40) : ''
   };
@@ -100,7 +120,14 @@ function assainirCarnet(brut) {
 }
 
 function carnetInitial() {
-  return assainirCarnet(CARNET_INITIAL_41.map((o) => Object.assign({}, o, { source: SOURCE_ANNUAIRE_41 })));
+  return assainirCarnet([OFFICE_ETUDE].concat(CARNET_INITIAL_41.map((o) => Object.assign({}, o, { source: SOURCE_ANNUAIRE_41 }))));
 }
 
-module.exports = { CARNET_INITIAL_41, SOURCE_ANNUAIRE_41, assainirOffice, assainirCarnet, carnetInitial, MAX_OFFICES };
+// Remet notre office en tête s'il manque (carnet créé avant qu'il n'y figure). Pure.
+function avecOfficeEtude(carnet) {
+  const liste = Array.isArray(carnet) ? carnet : [];
+  if (liste.some((o) => o && o.id === ID_OFFICE_ETUDE)) return { carnet: liste, ajoute: false };
+  return { carnet: [assainirOffice(OFFICE_ETUDE)].concat(liste), ajoute: true };
+}
+
+module.exports = { CARNET_INITIAL_41, OFFICE_ETUDE, ID_OFFICE_ETUDE, avecOfficeEtude, SOURCE_ANNUAIRE_41, assainirOffice, assainirCarnet, carnetInitial, MAX_OFFICES };
