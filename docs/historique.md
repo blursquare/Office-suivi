@@ -11848,3 +11848,23 @@ _(Les nouvelles entrées d'historique s'ajoutent ici, les plus récentes en bas.
   détenteur du séquestre, 8 reçu / attendu / reste. Étape 6 (factures) : rien de connu. Le
   sous-titre dit la date à laquelle CLAIRE a coché. Test `tests/fiche-procedure-fonds.test.js` ;
   rendu vérifié dans Chromium (le .doc est du HTML en tableaux, Word non vérifié ici).
+
+- **29/09/2026 — Icône toujours pixelisée dans la barre des tâches : la vraie cause** (« le logo est
+  toujours très pixélisé », après les favicons 16→256 px du 28/09). Une fenêtre Chrome ouverte par
+  `--app=<url>` sans être INSTALLÉE prend pour icône de fenêtre le favicon de l'onglet à 16 px
+  (taille des favicons de Chrome), que Windows agrandit : fournir de plus grands favicons n'y
+  change rien. Seule une application web installée utilise les grandes icônes du manifeste
+  (SVG, PNG 192/512). Donc :
+  - `manifest.json` reçoit `"id": "/"` (identifiant stable : `http://localhost:<port>/`).
+  - `server/src/navigateurApp.js` : `idApplicationWeb` (identifiant Chrome : SHA-256 de l'id du
+    manifeste, 16 octets, chiffres hexadécimaux transcrits a-p), `argumentFenetreApp` : si le
+    dossier `…\User Data\ClaireServeur\Web Applications\Manifest Resources\<id>` existe (CLAIRE
+    installée dans le profil dédié), le serveur ouvre `--app-id=<id>`, sinon `--app=<url>` comme
+    avant. Chrome ou Edge selon l'exécutable trouvé.
+  - Réglages › Sur ce poste › « Application CLAIRE sur ce poste » : bouton « Installer CLAIRE »
+    quand le navigateur propose l'installation (`beforeinstallprompt`, localhost seulement : un
+    poste qui ouvre CLAIRE par l'adresse IP n'est pas une origine sécurisée), sinon le chemin dans
+    le menu ⋮ du navigateur. `evenementInstallation` passe en `var` (lu depuis `definirOnglet`).
+  **Non vérifié sur Windows** : le calcul de l'identifiant (testé sur sa forme seulement), le nom
+  du dossier « Manifest Resources », et l'icône de l'application installée dans la barre des
+  tâches. Si `--app-id` n'ouvrait rien, supprimer ce dossier suffit à revenir à `--app=<url>`.

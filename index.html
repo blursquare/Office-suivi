@@ -1574,6 +1574,15 @@
               <label class="accent-pastille" title="Noir et blanc"><input type="radio" name="reglages-accent" id="reglages-accent-noir" value="noir" onchange="choisirAccent(this.value)"><span class="accent-rond" style="--pastille:#262626; --pastille-sombre:#D4D4D4"></span><span class="accent-nom">Noir &amp; blanc</span></label>
             </span>
           </div>
+          <!-- Icône nette dans la barre des tâches : seule une application installée l'obtient (voir
+               argumentFenetreApp dans server/src/navigateurApp.js). -->
+          <div class="reglages-option">
+            <span class="reglages-option-texte">
+              <span class="reglages-option-titre">Application CLAIRE sur ce poste</span>
+              <span class="hint" id="reglages-installation-texte">Installée, CLAIRE a une icône nette dans la barre des tâches et s’ouvre dans sa propre fenêtre.</span>
+            </span>
+            <button type="button" class="secondary" id="reglages-installer-app" onclick="installerApplication()" style="display:none;">Installer CLAIRE</button>
+          </div>
           <!-- Ouverture automatique des documents téléchargés (voir server/src/ouvertureAuto.js) :
                un relais Windows installé une fois par poste, puis activé ici. -->
           <label class="reglages-option" for="reglages-ouverture-auto">

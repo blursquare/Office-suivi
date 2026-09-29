@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 11:19';
+  const VERSION_APP = '2026-09-29 11:22';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 11:22', resume: "Icône floue dans la barre des tâches : une fenêtre CLAIRE non installée prend l'icône de l'onglet en 16 px. Réglages › Sur ce poste › « Installer CLAIRE » (ou menu ⋮ du navigateur) l'installe comme application, avec son icône nette ; le serveur ouvre ensuite directement l'application installée." },
     { version: '2026-09-29 11:19', resume: "Fiche imprimée : les cases de la procédure « Appels et réception des fonds » se remplissent d'après le dossier — cochées avec leur date quand c'est fait (appel de fonds envoyé, projet envoyé, fonds complets, réception confirmée, appel de fonds trouvé sur le commun), et une information utile sinon (rendez-vous, offre de prêt, séquestre, fonds reçus et reste à recevoir)." },
     { version: '2026-09-29 11:16', resume: "Tableau de bord : le bouton « Point du matin » est à côté du titre « Aujourd'hui »." },
     { version: '2026-09-29 11:15', resume: "Nouveau dossier : l'étape Finaliser propose le notaire du vendeur et celui de l'acquéreur (lus dans l'acte, modifiables, liste du carnet) ; celui qui reçoit l'acte découle du rôle choisi et du côté de l'étude. L'email de l'acquéreur saisi n'est plus effacé quand un confrère est lu côté acquéreur. Lecture des compromis d'agence en formulaire (« Notaire du VENDEUR : Maître X Adresse : … ») : nom, ville et côté corrects. Fiche : sous le notaire, l'office seul (téléphone et email dans le carnet)." },
@@ -13252,7 +13253,7 @@
     // installé/démarré/arrêté sur le serveur depuis la dernière visite de cet onglet.
     // Réglages relus à chaque ouverture (un collègue a pu les modifier depuis un autre poste,
     // même principe que la disponibilité d'Ollama ci-dessus).
-    if (nom === 'reglages') { definirSousOngletReglages(sousOngletReglagesRetenu()); chargerReglages(); chargerReglagesClaude(); chargerReglagesExchange(); chargerSignalements(); renderReglagesSignatureImages(true); }
+    if (nom === 'reglages') { majInstallationReglages(); definirSousOngletReglages(sousOngletReglagesRetenu()); chargerReglages(); chargerReglagesClaude(); chargerReglagesExchange(); chargerSignalements(); renderReglagesSignatureImages(true); }
     if (nom === 'analyse-ia') initRelecture();
     // Date du jour et bornes de période posées au premier affichage seulement (voir initProrata).
     if (nom === 'prorata') initProrata();
@@ -22228,13 +22229,30 @@
     });
   }
 
-  let evenementInstallation = null;
+  var evenementInstallation = null;
 
   // Le pied de la sidebar porte « Signaler un problème », toujours visible, et ce bouton-ci,
   // seulement quand le navigateur propose l'installation.
   function afficherBoutonInstallation(visible) {
     const btn = document.getElementById('install-btn');
     if (btn) btn.style.display = visible ? 'inline-block' : 'none';
+    majInstallationReglages();
+  }
+
+  // Réglages › Sur ce poste : le bouton d'installation quand le navigateur la propose ; sinon, si
+  // CLAIRE ne tourne pas déjà en application installée, le chemin dans le menu du navigateur.
+  function majInstallationReglages() {
+    const btn = document.getElementById('reglages-installer-app');
+    const texte = document.getElementById('reglages-installation-texte');
+    if (!btn || !texte) return;
+    btn.style.display = evenementInstallation ? '' : 'none';
+    let installee = false;
+    try { installee = window.matchMedia('(display-mode: standalone)').matches && !evenementInstallation; } catch (e) { /* sans gravité */ }
+    texte.textContent = evenementInstallation
+      ? 'Installée, CLAIRE a une icône nette dans la barre des tâches. Au prochain démarrage du serveur, elle s’ouvre dans sa fenêtre d’application.'
+      : installee
+        ? 'Si l’icône de la barre des tâches reste floue, installez CLAIRE depuis le menu ⋮ du navigateur › « Installer CLAIRE » (ou « Caster, enregistrer et partager › Installer la page en tant qu’application »).'
+        : 'Pour une icône nette dans la barre des tâches, installez CLAIRE depuis le menu ⋮ du navigateur › « Installer CLAIRE ».';
   }
 
   window.addEventListener('beforeinstallprompt', (e) => {

@@ -45,3 +45,24 @@ test('resoudreCheminNavigateurApp : préfère Chrome à Edge si les deux sont pr
   const chemin = resoudreCheminNavigateurApp(env, () => true);
   assert.match(chemin, /chrome\.exe$/);
 });
+
+const { idApplicationWeb, dossierProfilNavigateur, argumentFenetreApp } = require('../src/navigateurApp');
+
+test('idApplicationWeb : 32 lettres a-p, stable pour un même identifiant de manifeste', () => {
+  const id = idApplicationWeb('http://localhost:3000/');
+  assert.match(id, /^[a-p]{32}$/);
+  assert.equal(id, idApplicationWeb('http://localhost:3000/'));
+  assert.notEqual(id, idApplicationWeb('http://localhost:3001/'));
+});
+
+test('argumentFenetreApp : application installée dans le profil → --app-id, sinon --app=<url>', () => {
+  const env = { 'LocalAppData': 'C:\\Users\\etude\\AppData\\Local' };
+  const chrome = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+  const url = 'http://localhost:3000/';
+  const id = idApplicationWeb('http://localhost:3000/');
+  const dossier = 'C:\\Users\\etude\\AppData\\Local\\Google\\Chrome\\User Data\\ClaireServeur\\Web Applications\\Manifest Resources\\' + id;
+  assert.equal(argumentFenetreApp(url, chrome, env, (p) => p === dossier, 'ClaireServeur'), `--app-id=${id}`);
+  assert.equal(argumentFenetreApp(url, chrome, env, () => false, 'ClaireServeur'), `--app="${url}"`);
+  assert.equal(dossierProfilNavigateur('C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe', env, 'ClaireServeur'),
+    'C:\\Users\\etude\\AppData\\Local\\Microsoft\\Edge\\User Data\\ClaireServeur');
+});

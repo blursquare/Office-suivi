@@ -6,6 +6,7 @@
 'use strict';
 
 const path = require('node:path');
+const crypto = require('node:crypto');
 
 // Chemins Windows usuels de Chrome/Edge (Chromium), dans l'ordre de préférence — Chrome d'abord
 // (navigateur de référence de l'outil, voir CLAUDE.md contraintes n°3/7), Edge en repli pour un
@@ -30,4 +31,41 @@ function resoudreCheminNavigateurApp(env, existsSyncImpl) {
   return candidats.find((p) => existsSyncImpl(p)) || null;
 }
 
-module.exports = { resoudreCheminNavigateurApp };
+// ---- Icône nette dans la barre des tâches (29/09) ------------------------------------------------
+// Une fenêtre `--app=<url>` NON installée prend pour icône de barre des tâches le favicon de la page
+// en 16 px, agrandi par Windows : pixelisé quels que soient les favicons fournis (constaté après
+// l'ajout de favicons 16 à 256 px le 28/09). Seule une application INSTALLÉE (Chrome › Installer
+// CLAIRE) utilise ses grandes icônes. Une fois CLAIRE installée dans le profil dédié, le serveur
+// l'ouvre donc par son identifiant (`--app-id`) plutôt que par son adresse.
+
+// Identifiant d'application web de Chrome/Edge : SHA-256 de l'identifiant du manifeste (ici
+// « http://localhost:<port>/ », `"id": "/"` dans manifest.json), 16 premiers octets en
+// hexadécimal, chaque chiffre 0-f transcrit en lettre a-p (crx_file::id_util::GenerateId). Pure.
+function idApplicationWeb(idManifeste) {
+  const hex = crypto.createHash('sha256').update(String(idManifeste)).digest('hex').slice(0, 32);
+  return hex.replace(/[0-9a-f]/g, (c) => String.fromCharCode(97 + parseInt(c, 16)));
+}
+
+// Dossier du profil navigateur dédié (voir PROFIL_NAVIGATEUR) : Chrome ou Edge selon l'exécutable.
+function dossierProfilNavigateur(cheminNavigateur, env, profil) {
+  const base = env['LocalAppData'] || env['LOCALAPPDATA'];
+  if (!base || !cheminNavigateur) return null;
+  const edge = /msedge\.exe$/i.test(cheminNavigateur);
+  return path.win32.join(base, ...(edge ? ['Microsoft', 'Edge'] : ['Google', 'Chrome']), 'User Data', profil);
+}
+
+// Argument d'ouverture de la fenêtre : `--app-id=<id>` si CLAIRE est installée dans le profil
+// (Chrome y range ses icônes : « Web Applications\Manifest Resources\<id> »), sinon `--app=<url>`.
+function argumentFenetreApp(url, cheminNavigateur, env, existsSyncImpl, profil) {
+  try {
+    const origine = new URL(url).origin;
+    const id = idApplicationWeb(origine + '/');
+    const dossier = dossierProfilNavigateur(cheminNavigateur, env, profil);
+    if (dossier && existsSyncImpl(path.win32.join(dossier, 'Web Applications', 'Manifest Resources', id))) {
+      return `--app-id=${id}`;
+    }
+  } catch (e) { /* adresse illisible : ouverture par l'adresse */ }
+  return `--app="${url}"`;
+}
+
+module.exports = { resoudreCheminNavigateurApp, idApplicationWeb, dossierProfilNavigateur, argumentFenetreApp };

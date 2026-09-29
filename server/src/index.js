@@ -57,7 +57,7 @@ try {
 
 const { ouvrirDb } = require('./db');
 const { creerApp } = require('./app');
-const { resoudreCheminNavigateurApp } = require('./navigateurApp');
+const { resoudreCheminNavigateurApp, argumentFenetreApp } = require('./navigateurApp');
 const { demarrerSurveillanceNas } = require('./nasWatch');
 const { demarrerSurveillanceAgenda } = require('./agendaWatch');
 const { demarrerTacheRappels } = require('./jobs/rappels');
@@ -127,7 +127,7 @@ function ouvrirNavigateur(url) {
     ouvrirParDefaut();
     return;
   }
-  exec(`start "" "${cheminNavigateur}" --profile-directory="ClaireServeur" --app="${url}"`, (err) => {
+  exec(`start "" "${cheminNavigateur}" --profile-directory="ClaireServeur" ${argumentFenetreApp(url, cheminNavigateur, process.env, fs.existsSync, 'ClaireServeur')}`, (err) => {
     if (err) {
       console.warn('[CLAIRE] Ouverture en fenêtre applicative impossible, repli sur le navigateur par défaut :', err.message);
       ouvrirParDefaut();
