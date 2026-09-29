@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-29 23:30';
+  const VERSION_APP = '2026-09-29 23:36';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-29 23:36', resume: "Tableau de bord : « Dernières pièces » et « Activité de l'étude » (en direct) sont toujours affichées — elles disparaissaient faute de pièce récente ou d'action. Sans pièce arrivée, la carte dit ce qui est encore attendu ; le fil « en direct » reprend aussi ce que CLAIRE a relevé seule (pièces trouvées sur le NAS). Chaque carte se règle désormais en largeur (1, 2 colonnes ou toute la ligne) et en hauteur (1, 2 ou 3 rangées) dans « Personnaliser ». L'Agenda liste aussi les prochaines échéances." },
     { version: '2026-09-29 23:30', resume: "Tableau de bord : grille de 4 colonnes et toutes les cartes en petit, moyen ou grand, comme les widgets iPhone. Chaque carte change de contenu avec sa taille (chiffre clé en petit, liste en moyen, détail en grand) et se remplit sans blanc : ce qui ne tient pas passe dans « Voir N de plus », la place libre reçoit les prochaines signatures, ce qui arrive, les pièces encore attendues. « Personnaliser » : attraper une carte et la glisser à sa place (souris ou doigt) ; un appui long sur le titre d'une carte ouvre aussi ce mode." },
     { version: '2026-09-29 23:12', resume: "Statut d'un dossier = son état général, partout : « À relier », « Attente de pièces » (pièces ou offre de prêt manquantes), « Complet » (tout est reçu), « Prêt » (rendez-vous placé), et « Urgent » dès qu'une date butoir est dépassée — le dossier reprend son état normal une fois l'échéance levée. Suivi : colonnes « Statut » (triable) et « Prochaine échéance » à nouveau séparées ; le statut apparaît aussi dans la vue Échéances. Survoler le badge dit ce qui manque ou quelle date est dépassée." },
     { version: '2026-09-29 23:03', resume: "Tableau de bord en widgets, comme sur iPhone : « Personnaliser » (à côté de « Mes dossiers ») permet de glisser chaque bloc à sa place (ou de le déplacer avec les flèches), de choisir sa taille (petit, moyen, grand) et de le masquer ; « Terminé » range. Chaque collaborateur garde sa propre disposition, retrouvée sur tous les postes. Suivi : l'étape et sa date sont réunies dans une seule colonne « Étape » (elles faisaient doublon avec « Prochaine échéance »)." },
@@ -13012,12 +13013,11 @@
       sous: `<span class="kpi-tendance pf-tendance" title="${evolution.actuel} aujourd'hui contre ${evolution.moisDernier} il y a un mois">${tMois.icone}${tMois.texte} vs mois dernier</span>`,
       corps
     });
-    // La carte d'activité n'a rien à dire sans aucune action sur les 7 derniers jours : elle
-    // occupait alors une place de choix pour afficher « 0 » (revue de l'interface, 29/09).
-    const activite = renderActiviteEtude(dossiers, tailleWidget('activite'));
+    // Toujours affichée (étude, 29/09 au soir : « je ne vois pas le widget du direct ») : sans action
+    // récente, elle montre la semaine vide et ce qui s'y affichera.
     if (blocActivite) {
-      blocActivite.innerHTML = activite;
-      blocActivite.style.display = activite ? '' : 'none';
+      blocActivite.innerHTML = renderActiviteEtude(dossiers, tailleWidget('activite'));
+      blocActivite.style.display = '';
     }
     planifierAjustementWidgets();
   }
@@ -13034,6 +13034,21 @@
   // compris (archiver est une action), sans filtre de collaborateur : c'est le fil de l'étude.
   var MAX_ACTIVITE_ETUDE = 25;
   var RE_ENTREE_AGENDA = /agenda/i;
+
+  // Pure : ce que CLAIRE a relevé seule (pièces trouvées sur le NAS, offre reconnue…) — les entrées
+  // d'historique sans auteur, hors agenda. Appoint du fil quand les collaborateurs ont peu agi : la
+  // carte « En direct » ne reste jamais vide sur un dossier qui vit (étude, 29/09 au soir).
+  function activiteAutomatique(tousDossiers, limite) {
+    const entrees = [];
+    for (const d of tousDossiers || []) {
+      for (const h of d.historique || []) {
+        if (!h || !h.date || !h.texte || h.auteur || RE_ENTREE_AGENDA.test(h.texte)) continue;
+        entrees.push({ date: h.date, auteur: '', texte: h.texte, source: 'claire', dossierId: d.id, dossierNom: d.nom || '' });
+      }
+    }
+    entrees.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    return entrees.slice(0, limite || MAX_ACTIVITE_ETUDE);
+  }
 
   function activiteEtude(tousDossiers, limite) {
     const entrees = [];
@@ -13154,9 +13169,12 @@
   function renderActiviteEtude(tousDossiers, taille) {
     const maintenant = Date.now();
     const toutes = activiteEtude(tousDossiers, 5000);
-    const entrees = toutes.slice(0, MAX_ACTIVITE_ETUDE);
     const rythme = rythmeActivite(toutes, maintenant);
-    if (!entrees.length && !rythme.jours.some(j => j.n)) return '';
+    // Peu d'actions des collaborateurs : les relevés de CLAIRE complètent le fil (le rythme et
+    // « qui a agi » restent ceux des collaborateurs).
+    const entrees = toutes.length >= MAX_ACTIVITE_ETUDE ? toutes.slice(0, MAX_ACTIVITE_ETUDE)
+      : toutes.concat(activiteAutomatique(tousDossiers, MAX_ACTIVITE_ETUDE - toutes.length))
+        .sort((a, b) => String(b.date).localeCompare(String(a.date)));
 
     // Barres des 7 jours : hauteur proportionnelle au jour le plus chargé ; aujourd'hui en accent.
     const barres = rythme.jours.map(j => `<span class="act-jour-col${j.aujourdhui ? ' auj' : ''}" title="${escapeAttr(`${j.nom} : ${j.n} action${j.n > 1 ? 's' : ''}`)}"><span class="act-barre"><span style="--h:${Math.round(100 * j.n / rythme.max)}%"></span></span><span class="act-lettre">${j.lettre}</span></span>`).join('');
@@ -13180,7 +13198,7 @@
     let groupe = '';
     const lignes = entrees.map(e => {
       const recent = maintenant - Date.parse(e.date) < 15 * 60000;
-      const qui = e.auteur ? prenomCollaborateur(e.auteur) : 'Agenda';
+      const qui = e.auteur ? prenomCollaborateur(e.auteur) : e.source === 'claire' ? 'CLAIRE' : 'Agenda';
       const cat = categorieActivite(e);
       const g = groupeJourActivite(e.date, maintenant);
       const tete = g !== groupe ? `<li class="act-groupe">${escapeHtml(g)}</li>` : '';
@@ -13203,7 +13221,7 @@
     // En petit, la dernière action de l'étude occupe le bas de la tuile.
     const derniere = entrees[0];
     const derniereHtml = derniere ? `<div class="w-bas" data-ajuster="2"><button type="button" class="w-prochaine" onclick="ouvrirDossierDepuisDashboard('${derniere.dossierId}')">
-        <span class="w-prochaine-sous">${escapeHtml(derniere.auteur ? prenomCollaborateur(derniere.auteur) : 'Agenda')} · ${escapeHtml(ilYaActivite(derniere.date, maintenant))}</span>
+        <span class="w-prochaine-sous">${escapeHtml(derniere.auteur ? prenomCollaborateur(derniere.auteur) : derniere.source === 'claire' ? 'CLAIRE' : 'Agenda')} · ${escapeHtml(ilYaActivite(derniere.date, maintenant))}</span>
         <span class="w-prochaine-titre">${escapeHtml(derniere.texte)}</span></button></div>` : '';
     const corps = taille === 'petit' ? resume + derniereHtml
       : taille === 'moyen' ? `<div class="act-duo">${resume}${fil}</div>`
@@ -13273,12 +13291,9 @@
     if (!section) return;
     const entrees = dernieresPiecesTrouvees(dossiersActifs);
     const taille = tailleWidget('pieces');
-    const attendues = taille === 'grand' ? piecesEncoreAttendues(dossiersActifs) : [];
-    if (entrees.length === 0 && !attendues.length) {
-      section.style.display = 'none';
-      section.innerHTML = '';
-      return;
-    }
+    // Toujours affichée (étude, 29/09 au soir : elle disparaissait sans pièce récente) : sans arrivée
+    // sur 14 jours, elle dit ce qui est encore attendu.
+    const attendues = piecesEncoreAttendues(dossiersActifs);
     section.style.display = '';
     const ligne = (e) => {
       const quand = e.le ? new Date(e.le).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '';
@@ -13297,9 +13312,12 @@
         ${nouvelles ? `<span class="dot-label dl-urgent notif-nouveau-tag w-fixe"><span class="dot"></span>${nouvelles} nouvelle${nouvelles > 1 ? 's' : ''}</span>` : ''}
         ${entrees[0] ? `<div class="w-bas" data-ajuster="2"><button type="button" class="w-prochaine" onclick="ouvrirDossierDepuisDashboard('${entrees[0].dossier.id}')">
           <span class="w-prochaine-titre">${escapeHtml(libelleNotificationPiece(entrees[0].dossier, entrees[0].cle))}</span>
-          <span class="w-prochaine-sous">${escapeHtml(entrees[0].dossier.nom || '')}</span></button></div>` : ''}`;
+          <span class="w-prochaine-sous">${escapeHtml(entrees[0].dossier.nom || '')}</span></button></div>`
+          : attendues[0] ? `<div class="w-bas" data-ajuster="2"><div class="w-prochaine w-prochaine-info">
+          <span class="w-prochaine-sous">La plus attendue</span>
+          <span class="w-prochaine-titre">${escapeHtml(attendues[0].libelle)} · ${attendues[0].dossiers.length} dossier${attendues[0].dossiers.length > 1 ? 's' : ''}</span></div></div>` : ''}`;
     } else {
-      corps = `${entrees.length ? `<div class="dash-liste dash-liste-carte" data-ajuster="1" data-min="1">${entrees.map(ligne).join('')}</div>` : '<p class="w-message">Aucune pièce arrivée ces 14 derniers jours.</p>'}
+      corps = `${entrees.length ? `<div class="dash-liste dash-liste-carte" data-ajuster="1" data-min="1">${entrees.map(ligne).join('')}</div>` : '<p class="w-message w-fixe">Aucune pièce arrivée ces 14 derniers jours.</p>'}
         ${attendues.length ? `<div class="w-section">
           <h3 class="jour-carte-sous-titre">Encore attendues</h3>
           <ul class="w-lignes" data-ajuster="2">${attendues.map(p => `<li class="w-ligne w-ligne-fixe" title="${escapeAttr(p.dossiers.map(d => d.nom).join(', '))}">
@@ -14602,31 +14620,37 @@
   }
 
   // ---- Widgets du tableau de bord (demandé par l'étude le 29/09 : « comme les widgets iOS ») ----
-  // Grille de 4 colonnes (2 sur un écran étroit) à hauteur de rangée fixe, comme sur iPhone : petit
-  // = 1 × 1, moyen = 2 × 1, grand = 2 × 2. Toutes les cartes existent dans les trois tailles et
-  // leur CONTENU change avec la taille (chiffre clé en petit, liste courte en moyen, détail en grand)
+  // Grille de 4 colonnes (2 sur un écran étroit) à hauteur de rangée fixe, comme sur iPhone. Deux
+  // réglages par carte (étude, 29/09 au soir) : la LARGEUR (petit = 1 colonne, moyen = 2, grand =
+  // toute la ligne) et la HAUTEUR (1, 2 ou 3 rangées). Toutes les cartes acceptent toutes les
+  // combinaisons ; leur CONTENU suit la place (varianteWidget : chiffre clé sur une case, liste
+  // compacte sur une rangée, détail dès deux rangées)
   // — jamais une carte étirée avec du vide dedans (étude, 29/09 au soir). Les listes sont coupées à
   // ce qui tient réellement (ajusterWidgets), avec « Voir N de plus ». En mode « Personnaliser » :
   // glisser-déposer au pointeur (souris ou doigt), taille, flèches au clavier, masquer ; un appui
   // long sur le titre d'une carte ouvre aussi ce mode. Disposition propre à chaque collaborateur :
   // préférence « widgets » en base (voir routes/preferences.js), cache localStorage.
+  var TAILLES_WIDGET = ['petit', 'moyen', 'grand'];
+  var HAUTEURS_WIDGET = [1, 2, 3];
   var WIDGETS_DASHBOARD = [
-    { id: 'aujourdhui', titre: 'Aujourd’hui', tailles: ['petit', 'moyen', 'grand'], defaut: 'grand' },
-    { id: 'agenda', titre: 'Agenda', tailles: ['petit', 'moyen', 'grand'], defaut: 'moyen' },
-    { id: 'portefeuille', titre: 'Dossiers ouverts', tailles: ['petit', 'moyen', 'grand'], defaut: 'petit' },
-    { id: 'pieces', titre: 'Dernières pièces', tailles: ['petit', 'moyen', 'grand'], defaut: 'petit' },
-    { id: 'avancement', titre: 'Avancement des dossiers', tailles: ['petit', 'moyen', 'grand'], defaut: 'grand' },
-    { id: 'activite', titre: 'Activité de l’étude', tailles: ['petit', 'moyen', 'grand'], defaut: 'grand' }
+    { id: 'aujourdhui', titre: 'Aujourd’hui', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 2 },
+    { id: 'agenda', titre: 'Agenda', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 1 },
+    { id: 'portefeuille', titre: 'Dossiers ouverts', tailles: TAILLES_WIDGET, defaut: 'petit', hauteur: 1 },
+    { id: 'pieces', titre: 'Dernières pièces', tailles: TAILLES_WIDGET, defaut: 'petit', hauteur: 1 },
+    { id: 'avancement', titre: 'Avancement des dossiers', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 2 },
+    { id: 'activite', titre: 'Activité de l’étude', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 2 }
   ];
-  var LIBELLES_TAILLE_WIDGET = { petit: 'P', moyen: 'M', grand: 'G' };
-  var NOMS_TAILLE_WIDGET = { petit: 'Petit', moyen: 'Moyen', grand: 'Grand' };
+  var NOMS_TAILLE_WIDGET = { petit: 'Étroit (1 colonne)', moyen: 'Moyen (2 colonnes)', grand: 'Large (toute la ligne)' };
+  var NOMS_HAUTEUR_WIDGET = { 1: 'Basse (1 rangée)', 2: 'Moyenne (2 rangées)', 3: 'Haute (3 rangées)' };
   var CLE_WIDGETS_LOCAL = 'claire-widgets:';
   let modeEditionWidgets = false;
   let dispositionWidgets = null;   // null = pas encore chargée : disposition par défaut
 
   // Pure : la disposition complète à partir d'une préférence enregistrée (éventuellement partielle,
-  // ancienne ou abîmée). Ordre enregistré pour les widgets connus, taille ramenée à une taille
-  // permise, widgets absents (nouveaux) ajoutés à la fin à leur taille par défaut.
+  // ancienne ou abîmée). Ordre enregistré pour les widgets connus, largeur et hauteur ramenées à des
+  // valeurs permises, widgets absents (nouveaux) ajoutés à la fin à leur taille par défaut. Une
+  // préférence d'avant la hauteur réglable (pas de champ `hauteur`) : « grand » y voulait dire
+  // 2 colonnes × 2 rangées, il devient moyen × 2 ; le reste garde une rangée.
   function dispositionWidgetsDepuis(preference) {
     const parId = new Map(WIDGETS_DASHBOARD.map(w => [w.id, w]));
     const out = [];
@@ -14635,10 +14659,16 @@
       const def = p && parId.get(p.id);
       if (!def || vus.has(p.id)) return;
       vus.add(p.id);
-      out.push({ id: p.id, taille: def.tailles.indexOf(p.taille) !== -1 ? p.taille : def.defaut, masque: p.masque === true });
+      let taille = def.tailles.indexOf(p.taille) !== -1 ? p.taille : def.defaut;
+      let hauteur = HAUTEURS_WIDGET.indexOf(p.hauteur) !== -1 ? p.hauteur : def.hauteur;
+      if (!('hauteur' in p) && def.tailles.indexOf(p.taille) !== -1) {
+        hauteur = p.taille === 'grand' ? 2 : 1;
+        if (p.taille === 'grand') taille = 'moyen';
+      }
+      out.push({ id: p.id, taille, hauteur, masque: p.masque === true });
     });
     WIDGETS_DASHBOARD.forEach(def => {
-      if (!vus.has(def.id)) out.push({ id: def.id, taille: def.defaut, masque: false });
+      if (!vus.has(def.id)) out.push({ id: def.id, taille: def.defaut, hauteur: def.hauteur, masque: false });
     });
     return out;
   }
@@ -14683,10 +14713,17 @@
     return dispositionWidgets;
   }
 
-  // Taille courante d'un widget : les fonctions de rendu des cartes en dépendent.
+  // Pure : la présentation du contenu selon la place — 'petit' (une seule case : le chiffre clé),
+  // 'moyen' (une rangée : liste compacte), 'grand' (deux rangées ou plus : le détail).
+  function varianteWidget(taille, hauteur) {
+    if ((hauteur || 1) >= 2) return 'grand';
+    return taille === 'petit' ? 'petit' : 'moyen';
+  }
+
+  // Présentation courante d'une carte : les fonctions de rendu en dépendent.
   function tailleWidget(id) {
     const w = dispositionWidgetsCourante().find(x => x.id === id);
-    return w ? w.taille : 'moyen';
+    return w ? varianteWidget(w.taille, w.hauteur) : 'moyen';
   }
 
   function enregistrerDispositionWidgets(dispo) {
@@ -14710,6 +14747,10 @@
 
   function changerTailleWidget(id, taille) {
     enregistrerDispositionWidgets(dispositionWidgetsCourante().map(w => w.id === id ? Object.assign({}, w, { taille }) : w));
+  }
+
+  function changerHauteurWidget(id, hauteur) {
+    enregistrerDispositionWidgets(dispositionWidgetsCourante().map(w => w.id === id ? Object.assign({}, w, { hauteur }) : w));
   }
 
   function masquerWidget(id, masque) {
@@ -14826,14 +14867,20 @@
   }
 
   // Contrôles d'un widget en mode Personnaliser, posés PAR-DESSUS la carte (elle garde sa taille) :
-  // pastille « retirer » en haut à gauche, tailles et flèches en bas.
+  // pastille « − » (masquer) en haut à gauche, flèches sur les bords (clavier), et un petit panneau
+  // « Largeur / Hauteur » en bas. Chaque bouton dessine ce qu'il donne : 1, 2 ou 4 colonnes pleines
+  // sur 4 ; 1, 2 ou 3 rangées pleines sur 3.
+  var CASES_TAILLE_WIDGET = { petit: 1, moyen: 2, grand: 4 };
   function barreEditionWidget(def, w, rang, total) {
-    const tailles = def.tailles.map(t => `<button type="button" class="widget-taille${w.taille === t ? ' actif' : ''}" aria-pressed="${w.taille === t}" onclick="changerTailleWidget('${def.id}', '${t}')" title="${NOMS_TAILLE_WIDGET[t]}" aria-label="${NOMS_TAILLE_WIDGET[t]}">${LIBELLES_TAILLE_WIDGET[t]}</button>`).join('');
+    const cases = (n, sur, sens) => `<span class="widget-glyphe widget-glyphe-${sens}" aria-hidden="true">${Array.from({ length: sur }, (_, i) => `<i${i < n ? ' class="plein"' : ''}></i>`).join('')}</span>`;
+    const largeurs = def.tailles.map(t => `<button type="button" class="widget-taille${w.taille === t ? ' actif' : ''}" aria-pressed="${w.taille === t}" onclick="changerTailleWidget('${def.id}', '${t}')" title="Largeur : ${NOMS_TAILLE_WIDGET[t]}" aria-label="Largeur ${NOMS_TAILLE_WIDGET[t]}">${cases(CASES_TAILLE_WIDGET[t], 4, 'l')}</button>`).join('');
+    const hauteurs = HAUTEURS_WIDGET.map(h => `<button type="button" class="widget-taille${w.hauteur === h ? ' actif' : ''}" aria-pressed="${w.hauteur === h}" onclick="changerHauteurWidget('${def.id}', ${h})" title="Hauteur : ${NOMS_HAUTEUR_WIDGET[h]}" aria-label="Hauteur ${NOMS_HAUTEUR_WIDGET[h]}">${cases(h, 3, 'h')}</button>`).join('');
     return `<button type="button" class="widget-retirer" onclick="masquerWidget('${def.id}', true)" title="Masquer" aria-label="Masquer ${escapeAttr(def.titre)}">${icone('minus')}</button>
+      <button type="button" class="widget-outil widget-fleche widget-fleche-avant" onclick="decalerWidget('${def.id}', -1)" ${rang === 0 ? 'disabled' : ''} title="Avancer" aria-label="Avancer ${escapeAttr(def.titre)}">${icone('chevron-left')}</button>
+      <button type="button" class="widget-outil widget-fleche widget-fleche-apres" onclick="decalerWidget('${def.id}', 1)" ${rang === total - 1 ? 'disabled' : ''} title="Reculer" aria-label="Reculer ${escapeAttr(def.titre)}">${icone('chevron-right')}</button>
       <div class="widget-barre">
-        <button type="button" class="widget-outil" onclick="decalerWidget('${def.id}', -1)" ${rang === 0 ? 'disabled' : ''} title="Avancer" aria-label="Avancer ${escapeAttr(def.titre)}">${icone('chevron-left')}</button>
-        <span class="widget-tailles" role="group" aria-label="Taille du widget ${escapeAttr(def.titre)}">${tailles}</span>
-        <button type="button" class="widget-outil" onclick="decalerWidget('${def.id}', 1)" ${rang === total - 1 ? 'disabled' : ''} title="Reculer" aria-label="Reculer ${escapeAttr(def.titre)}">${icone('chevron-right')}</button>
+        <div class="widget-reglage" role="group" aria-label="Largeur du widget ${escapeAttr(def.titre)}"><span class="widget-reglage-lib">Largeur</span>${largeurs}</div>
+        <div class="widget-reglage" role="group" aria-label="Hauteur du widget ${escapeAttr(def.titre)}"><span class="widget-reglage-lib">Hauteur</span>${hauteurs}</div>
       </div>`;
   }
 
@@ -14851,6 +14898,7 @@
       if (!el) return;
       grille.appendChild(el);   // l'ordre du DOM est l'ordre d'affichage
       el.dataset.taille = w.taille;
+      el.dataset.hauteur = String(w.hauteur || 1);
       // Sans contenu (le bloc intérieur est masqué par sa fonction de rendu) : pas de place prise,
       // sauf en personnalisation où il reste visible pour être rangé.
       const interieur = el.querySelector('.dash-bloc');
@@ -14858,7 +14906,7 @@
       el.hidden = false;
       el.style.display = w.masque || (vide && !modeEditionWidgets) ? 'none' : '';
       el.classList.toggle('widget-vide', vide);
-      el.querySelectorAll(':scope > .widget-barre, :scope > .widget-retirer').forEach(x => x.remove());
+      el.querySelectorAll(':scope > .widget-barre, :scope > .widget-retirer, :scope > .widget-fleche').forEach(x => x.remove());
       if (modeEditionWidgets && !w.masque) {
         el.insertAdjacentHTML('beforeend', barreEditionWidget(defs.get(w.id), w, visibles.indexOf(w), visibles.length));
       }
@@ -15090,6 +15138,32 @@
       .slice(0, limite || 20);
   }
 
+  // Pure : les prochaines échéances des dossiers (hors signature, déjà listée à part) — dates butoir
+  // de prêt et de vente préalable, envois, rendez-vous à fixer —, de la plus proche à la plus
+  // lointaine. Sert d'appoint à l'Agenda quand il reste de la place.
+  function prochainesEcheancesAgenda(dossiersActifs, aujourdhuiIso, limite) {
+    const out = [];
+    (dossiersActifs || []).forEach(d => {
+      if (!d || d.archive) return;
+      echeancesPlanning(d).forEach(e => {
+        if (!e.iso || e.iso < aujourdhuiIso || e.type === 'rendezVousSignature' || e.type === 'signature') return;
+        out.push({ dossier: d, type: e.type, label: e.label, iso: e.iso });
+      });
+    });
+    return out.sort((a, b) => a.iso.localeCompare(b.iso)).slice(0, limite || 20);
+  }
+
+  function lignesProchainesEcheances(liste, aujourdhui) {
+    return liste.map(e => {
+      const j = ecartJours(aujourdhui, e.iso);
+      const quand = j === 0 ? "Aujourd'hui" : j === 1 ? 'Demain' : new Date(e.iso + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+      return `<li><button type="button" class="w-ligne" onclick="ouvrirDossierDepuisDashboard('${e.dossier.id}')" title="${escapeAttr(e.label + ' — ' + libelleDossierAffiche(e.dossier))}">
+        <span class="w-ligne-date">${escapeHtml(quand)}</span>
+        <span class="dot-label dl-${e.type}"><span class="dot"></span></span>
+        <span class="w-ligne-texte"><b>${escapeHtml(e.label)}</b> · ${escapeHtml(e.dossier.nom || '')}</span></button></li>`;
+    }).join('');
+  }
+
   function lignesProchainesSignatures(liste, aujourdhui, global) {
     return liste.map(d => {
       const dt = new Date(d.rendezVousSignature + 'T00:00:00');
@@ -15184,6 +15258,7 @@
         </button>`;
     }).join('') : '';
     const suivantes = prochainesSignatures(perimetreActifs, aujourdhui, jourAffiche, 20);
+    const echeances = prochainesEcheancesAgenda(perimetreActifs, aujourdhui, 20);
     const revenir = agendaJourSelectionne ? '<button type="button" class="lien-discret" onclick="selectionnerJourAgenda(null)">Revenir à aujourd’hui</button>' : '';
 
     bloc.innerHTML = carteWidget({
@@ -15209,6 +15284,10 @@
           ${lignes ? '' : `<span class="w-note">${jourAffiche === aujourdhui ? 'Aucune aujourd’hui' : 'Aucune ce jour-là'}</span>${revenir}`}
         </div>
         ${suivantes.length ? `<ul class="w-lignes" data-ajuster="${lignes ? 2 : 1}">${lignesProchainesSignatures(suivantes, aujourdhui, global)}</ul>` : '<p class="w-message w-fixe">Aucune signature prévue.</p>'}
+      </div>` : ''}
+      ${echeances.length ? `<div class="w-section">
+        <div class="agenda-liste-titre"><span class="section-eyebrow">Prochaines échéances</span></div>
+        <ul class="w-lignes" data-ajuster="3">${lignesProchainesEcheances(echeances, aujourdhui)}</ul>
       </div>` : ''}`
     });
     planifierAjustementWidgets();

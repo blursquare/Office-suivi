@@ -258,13 +258,15 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   (format « SAINT-AIGNAN (41110), 2 rue des Cours de Meusnes » : commune en capitales, tirets et
   CEDEX gardés) ; le destinataire d'un courrier garde la forme postale (`adressePostaleCourrier`).
 - **Tableau de bord en widgets** (29/09, comme iOS) : grille de **4 colonnes** (2 sur écran étroit) à
-  rangées de hauteur fixe ; petit = 1 × 1, moyen = 2 × 1, grand = 2 × 2, **toutes les cartes dans les
-  trois tailles**, chacune rendue selon sa taille (`tailleWidget(id)` dans sa fonction de rendu, coque
-  `carteWidget`). **Jamais de vide dans une carte** : les listes portent `data-ajuster="N"` et
+  rangées de hauteur fixe ; deux réglages par carte : **largeur** (petit = 1 colonne, moyen = 2, grand =
+  toute la ligne) et **hauteur** (1, 2 ou 3 rangées), toutes combinaisons permises. Le contenu suit la
+  place (`varianteWidget` : une case = chiffre clé, une rangée = liste compacte, 2+ rangées = détail ;
+  `tailleWidget(id)` dans la fonction de rendu, coque `carteWidget`). Toutes les cartes sont toujours
+  affichées (sauf Avancement sans aucun dossier) : sans donnée récente, elles montrent l'appoint. **Jamais de vide dans une carte** : les listes portent `data-ajuster="N"` et
   `ajusterWidgets` les remplit par priorité (N petit d'abord) jusqu'à la hauteur de la tuile, avec
   « Voir N de plus » ; une carte qui a de la place reçoit du contenu d'appoint (à venir, prochaines
   signatures, pièces encore attendues…), pas un blanc. « Personnaliser » (ou appui long sur un titre) :
-  glisser-déposer au pointeur, tailles P/M/G, masquer. Disposition par collaborateur : préférence
+  glisser-déposer au pointeur, largeur et hauteur, masquer. Disposition par collaborateur : préférence
   `widgets` en base (liste blanche `WIDGETS_PREFERENCES` côté serveur, `WIDGETS_DASHBOARD` côté
   client — à modifier ensemble). Un nouveau bloc du tableau de bord = un nouveau widget.
 - **Texte d'aide** : ne décrit pas ce que le bouton dit déjà ; il dit ce qui manque. Une toute

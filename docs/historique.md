@@ -12343,3 +12343,25 @@ blanc dans les cartes. Ajoute du contenu ou réorganise les cartes dans leur con
   sur un vrai écran tactile.
 - Tests : `dispositionDansOrdre`, trois tailles pour toutes les cartes, `piecesEncoreAttendues`,
   `prochainesSignatures` (`tests/widgets-dashboard.test.js`).
+
+### 29/09 23:36 — Widgets : cartes toujours visibles, trois hauteurs
+
+Demande : « Je ne vois pas le widget des dernières pièces reçues et du direct. Permettre d'avoir trois
+niveaux de hauteur de widget. »
+- Cause : « Dernières pièces » se masquait sans pièce trouvée depuis 14 jours (`piecesTrouveesLe`) et
+  « Activité de l'étude » sans action signée d'un collaborateur sur 7 jours — cas probable au bureau.
+  Les deux sont maintenant toujours affichées. Pièces : « Aucune pièce arrivée ces 14 derniers jours »
+  puis « Encore attendues » (toutes tailles ; en petit, « La plus attendue »). Activité : le fil est
+  complété par ce que CLAIRE a relevé seule (`activiteAutomatique` : historique sans auteur, hors
+  agenda, signé « CLAIRE ») ; le rythme et « qui a agi » restent ceux des collaborateurs.
+- Hauteur réglable : chaque carte a une largeur (petit = 1 colonne, moyen = 2, grand = toute la ligne)
+  et une hauteur (1, 2, 3 rangées, `data-hauteur`). Présentation du contenu (`varianteWidget`) : une
+  case = chiffre clé, une rangée = liste compacte, deux rangées ou plus = détail. Ancienne préférence
+  (sans `hauteur`) : « grand » (2 × 2) devient moyen × 2. Serveur : `hauteur` 1-3 en liste blanche.
+- Personnaliser : panneau « Largeur / Hauteur » en bas de la carte, pictogrammes en cases (colonnes
+  pleines sur 4, rangées pleines sur 3), flèches de rang sur les bords.
+- Agenda : appoint « Prochaines échéances » (`prochainesEcheancesAgenda`, hors signatures) ; bande de la
+  semaine masquée sur une carte d'une colonne de téléphone. Cartes étroites et hautes : anneau et
+  légende empilés, lignes resserrées.
+- Vérifié dans Chromium (1440 et 400 px, clair) : les deux cartes s'affichent sans pièce récente ni
+  action ; combinaisons largeur × hauteur, clic sur « Hauteur » enregistré ; aucun débordement ni erreur.

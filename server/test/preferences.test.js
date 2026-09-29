@@ -55,14 +55,14 @@ test('route : chaque collaborateur retrouve son thème, un changement partiel co
 test('widgets du tableau de bord : liste blanche des identifiants et des tailles, doublons écartés', async () => {
   const { assainirWidgetsPreference } = require('../src/parametresRepo');
   const w = assainirWidgetsPreference([
-    { id: 'agenda', taille: 'petit' },
+    { id: 'agenda', taille: 'petit', hauteur: 3 },
     { id: 'inconnu', taille: 'petit' },
-    { id: 'aujourdhui', taille: 'geant', masque: true },
+    { id: 'aujourdhui', taille: 'geant', masque: true, hauteur: 7 },
     { id: 'agenda', taille: 'grand' },
     'n’importe quoi'
   ]);
   assert.equal(JSON.stringify(w), JSON.stringify([
-    { id: 'agenda', taille: 'petit', masque: false },
+    { id: 'agenda', taille: 'petit', masque: false, hauteur: 3 },
     { id: 'aujourdhui', taille: 'moyen', masque: true }
   ]));
   assert.equal(assainirWidgetsPreference('pas une liste'), null);

@@ -6723,7 +6723,8 @@ button.confrere-carnet-office:focus-visible, button.carnet-dossier:focus-visible
 
 /* ==== Widgets du tableau de bord (renderWidgetsDashboard) ====
    Comme les widgets iOS : grille de 4 colonnes à rangées de hauteur fixe (2 colonnes quand la
-   zone est étroite). Petit = 1 × 1, moyen = 2 × 1, grand = 2 × 2 ; `dense` bouche les trous.
+   zone est étroite). Largeur : petit = 1 colonne, moyen = 2, grand = toute la ligne ; hauteur : 1, 2
+   ou 3 rangées (data-hauteur) ; `dense` bouche les trous.
    La hauteur de rangée suit la largeur d'une colonne (tuile presque carrée), bornée. */
 .widgets-conteneur { container-type: inline-size; container-name: widgets; margin-top: 4px; }
 .widgets-grille {
@@ -6734,7 +6735,9 @@ button.confrere-carnet-office:focus-visible, button.carnet-dossier:focus-visible
 }
 .widget { position: relative; min-width: 0; min-height: 0; grid-column: span 1; grid-row: span 1; }
 .widget[data-taille="moyen"] { grid-column: span 2; }
-.widget[data-taille="grand"] { grid-column: span 2; grid-row: span 2; }
+.widget[data-taille="grand"] { grid-column: 1 / -1; }
+.widget[data-hauteur="2"] { grid-row: span 2; }
+.widget[data-hauteur="3"] { grid-row: span 3; }
 @container widgets (max-width: 720px) {
   .widgets-grille {
     --w-gap: 12px;
@@ -6782,6 +6785,7 @@ button.w-prochaine {
   display: flex; flex-direction: column; gap: 2px; width: 100%; padding: 8px 10px;
   border: 0; border-radius: 8px; background: var(--paper-sunk); font: inherit; text-align: left; color: var(--ink); cursor: pointer;
 }
+div.w-prochaine-info { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 8px; background: var(--paper-sunk); }
 button.w-prochaine:hover { background: color-mix(in srgb, var(--focus) 8%, var(--paper-sunk)); }
 button.w-prochaine.g-critique { box-shadow: inset 3px 0 0 var(--urgent); }
 button.w-prochaine.g-vigilance { box-shadow: inset 3px 0 0 var(--pret); }
@@ -6867,13 +6871,24 @@ button.w-plus { align-self: flex-start; margin-top: 2px; font-size: 12.5px; list
 .w-petit.activite-etude .act-compteur-lib { max-width: none; }
 .w-petit .activite-direct { font-size: 0; gap: 0; }
 @container dashbloc (max-width: 230px) {
-  .w-petit.portefeuille .pf-haut { flex-direction: column; align-items: flex-start; gap: 8px; }
-  .w-petit.portefeuille .pf-anneau-bloc { width: 66px; height: 66px; }
-  .w-petit.portefeuille .pf-centre-num { font-size: 20px; }
+  /* Agenda sur une colonne de téléphone : la bande de 7 jours n'y tient pas, la liste suffit. */
+  .w-carte .agenda-bande { display: none; }
+  .w-carte.portefeuille .pf-haut { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .w-carte.portefeuille .pf-legende { align-self: stretch; }
+  .w-carte.portefeuille .pf-anneau-bloc { width: 66px; height: 66px; }
+  .w-carte.portefeuille .pf-centre-num { font-size: 20px; }
+  .w-ligne-date { width: 56px; }
+  .w-ligne .dot-label:not(:has(> :not(.dot))) { display: none; }
   .w-chiffre { font-size: 34px; }
 }
 @container dashbloc (max-width: 360px) {
   .w-carte .agenda-bande { gap: 2px; }
+  .w-avancement-ligne .avancement-barre { width: 48px; }
+}
+/* Une carte étroite (1 colonne) sur plusieurs rangées : le détail passe sur une colonne. */
+@container dashbloc (max-width: 420px) {
+  .w-carte.portefeuille .pf-duo { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .w-carte.activite-etude .act-duo { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* Personnalisation : la carte garde sa taille et frémit (repère « mode rangement » d'iOS) ; les
@@ -6899,7 +6914,8 @@ button.w-plus { align-self: flex-start; margin-top: 2px; font-size: 12.5px; list
   border-radius: 12px; box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
 }
 .widget-fantome > .dash-bloc { animation: none !important; }
-.widget-fantome .widget-barre, .widget-fantome .widget-retirer { display: none; }
+.widget-fantome .widget-barre, .widget-fantome .widget-retirer, .widget-fantome .widget-fleche { display: none; }
+button.widget-fleche:disabled { display: none; }
 body.widgets-glisse-en-cours { cursor: grabbing; user-select: none; -webkit-user-select: none; }
 
 button.widget-retirer {
@@ -6911,19 +6927,32 @@ button.widget-retirer svg { width: 12px; height: 12px; stroke-width: 2.4; }
 button.widget-retirer:hover { background: var(--urgent); }
 .widget-barre {
   position: absolute; left: 50%; bottom: 10px; z-index: 3; transform: translateX(-50%);
-  display: flex; align-items: center; gap: 4px; padding: 4px; white-space: nowrap;
-  background: var(--paper-card); border: 1px solid var(--line); border-radius: 999px; box-shadow: var(--shadow-card);
+  display: flex; flex-direction: column; gap: 2px; padding: 5px 8px;
+  background: var(--paper-card); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-card);
 }
-.widget-tailles { display: inline-flex; gap: 2px; }
+.widget-reglage { display: flex; align-items: center; gap: 2px; }
+.widget-reglage-lib { width: 54px; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; color: var(--muted); }
 button.widget-taille {
-  width: 28px; height: 26px; padding: 0; border: 0; border-radius: 999px; background: none;
-  font: inherit; font-size: 12px; font-weight: 600; color: var(--ink-soft); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 24px; padding: 0;
+  border: 0; border-radius: 7px; background: none; color: var(--ink-soft); cursor: pointer;
 }
 button.widget-taille.actif { background: var(--focus); color: var(--paper-card); }
+/* Pictogramme : des cases, les pleines = la place prise (colonnes sur 4, rangées sur 3). */
+.widget-glyphe { display: inline-grid; gap: 1.5px; }
+.widget-glyphe-l { grid-template-columns: repeat(4, 3.5px); }
+.widget-glyphe-l i { height: 10px; }
+.widget-glyphe-h { grid-template-rows: repeat(3, 3px); }
+.widget-glyphe-h i { width: 14px; }
+.widget-glyphe i { display: block; border-radius: 1px; background: currentColor; opacity: 0.22; }
+.widget-glyphe i.plein { opacity: 1; }
 button.widget-outil {
   display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0;
-  border: 0; border-radius: 999px; background: none; color: var(--ink-soft); cursor: pointer;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--paper-card); color: var(--ink-soft); cursor: pointer;
+  box-shadow: var(--shadow-card);
 }
+button.widget-fleche { position: absolute; top: 50%; z-index: 3; transform: translateY(-50%); }
+button.widget-fleche-avant { left: -10px; }
+button.widget-fleche-apres { right: -10px; }
 button.widget-outil:hover:not(:disabled), button.widget-taille:hover:not(.actif) { background: var(--paper-sunk); color: var(--ink); }
 button.widget-outil:disabled { opacity: 0.3; cursor: default; }
 button.widget-outil svg { width: 13px; height: 13px; }

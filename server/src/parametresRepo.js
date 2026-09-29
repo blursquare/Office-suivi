@@ -138,6 +138,7 @@ const ACCENTS_PREFERENCES = ['bordeaux', 'bleu', 'vert', 'orange', 'noir'];
 // première position. Le client complète avec les widgets absents (nouveaux widgets d'une mise à jour).
 const WIDGETS_PREFERENCES = ['aujourdhui', 'avancement', 'agenda', 'portefeuille', 'activite', 'pieces'];
 const TAILLES_WIDGETS = ['petit', 'moyen', 'grand'];
+const HAUTEURS_WIDGETS = [1, 2, 3];
 
 function assainirWidgetsPreference(brut) {
   if (!Array.isArray(brut)) return null;
@@ -146,7 +147,10 @@ function assainirWidgetsPreference(brut) {
   for (const w of brut.slice(0, 20)) {
     if (!w || typeof w !== 'object' || !WIDGETS_PREFERENCES.includes(w.id) || vus.has(w.id)) continue;
     vus.add(w.id);
-    out.push({ id: w.id, taille: TAILLES_WIDGETS.includes(w.taille) ? w.taille : 'moyen', masque: w.masque === true });
+    const entree = { id: w.id, taille: TAILLES_WIDGETS.includes(w.taille) ? w.taille : 'moyen', masque: w.masque === true };
+    // Hauteur en rangées (1 à 3) ; absente d'une préférence ancienne, que le client convertit.
+    if (HAUTEURS_WIDGETS.includes(w.hauteur)) entree.hauteur = w.hauteur;
+    out.push(entree);
   }
   return out;
 }
