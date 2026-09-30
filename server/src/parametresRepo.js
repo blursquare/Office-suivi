@@ -611,7 +611,8 @@ const MAX_SCANS_JOURNAL = 300;
 const MAX_SCANS_ECARTES = 500;
 function assainirReglagesScans(brut) {
   const b = brut && typeof brut === 'object' ? brut : {};
-  const depuis = typeof b.depuis === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(b.depuis) ? b.depuis : null;
+  // Date choisie (AAAA-MM-JJ) ou heure exacte de l'activation (ISO complet, voir routes/scans.js).
+  const depuis = typeof b.depuis === 'string' && /^\d{4}-\d{2}-\d{2}(T[\d:.]+Z)?$/.test(b.depuis) ? b.depuis : null;
   // Rangement automatique ACTIF par défaut (demandé par l'étude le 30/09 : « automatique pour
   // ceux détectés, sans validation ») ; seul un « non » explicite le coupe.
   return { actif: b.actif === true, auto: b.auto !== false, depuis };

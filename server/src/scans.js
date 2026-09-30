@@ -49,17 +49,30 @@ function parentsCandidats(racine, p = path) {
   return niveaux;
 }
 
+// Pure : le dossier du copieur peut être un PARTAGE à part du même NAS, à côté du partage des
+// dossiers clients : chez l'étude, `\\192.168.60.5\Scan` alors que les dossiers sont sous
+// `\\192.168.60.5\Commun` (réponse du 30/09). Remonter les dossiers parents ne l'atteint jamais —
+// on ne liste pas les partages d'un serveur —, d'où ces candidats `\\serveur\Scan` construits à
+// partir du chemin UNC de la racine. Rien pour un chemin local.
+function partagesScansCandidats(racine) {
+  const m = /^\\\\([^\\/]+)[\\/]/.exec(String(racine || '').replace(/\//g, '\\'));
+  if (!m) return [];
+  return ['Scan', 'Scans', 'SCAN'].map((nom) => `\\\\${m[1]}\\${nom}`);
+}
+
+async function estDossier(chemin, fsImpl) {
+  try { return (await fsImpl.stat(chemin)).isDirectory(); } catch (_) { return false; }
+}
+
 // Le dossier Scan : `config.nasScans` s'il est renseigné (config.json, réservé à l'administrateur
-// du poste), sinon le premier dossier nommé « Scan » trouvé dans la racine des dossiers clients ou
-// l'un de ses parents. Jamais un chemin reçu d'une requête HTTP.
+// du poste), sinon le partage `\\serveur\Scan` du même NAS, sinon le premier dossier nommé « Scan »
+// dans la racine des dossiers clients ou l'un de ses parents. Jamais un chemin reçu d'une requête.
 async function trouverDossierScans(config, fsImpl = fsp) {
   if (config && config.nasScans) {
-    try {
-      const st = await fsImpl.stat(config.nasScans);
-      return st.isDirectory() ? path.resolve(config.nasScans) : null;
-    } catch (_) {
-      return null;
-    }
+    return (await estDossier(config.nasScans, fsImpl)) ? path.resolve(config.nasScans) : null;
+  }
+  for (const partage of partagesScansCandidats(config && config.nasRacine)) {
+    if (await estDossier(partage, fsImpl)) return partage;
   }
   for (const dossier of parentsCandidats(config && config.nasRacine)) {
     let entrees;
@@ -68,6 +81,16 @@ async function trouverDossierScans(config, fsImpl = fsp) {
     if (trouve) return path.join(dossier, trouve.name);
   }
   return null;
+}
+
+// Pure : l'instant à partir duquel un scan est « nouveau ». `depuis` est l'heure exacte de
+// l'activation (ISO complet) — seuls les scans arrivés APRÈS sont traités, jamais ceux déjà dans
+// le dossier du copieur ce jour-là — ou une date AAAA-MM-JJ choisie dans les réglages (minuit).
+function depuisMsScans(depuis) {
+  const v = String(depuis || '');
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return Date.parse(v + 'T00:00:00');
+  const n = Date.parse(v);
+  return Number.isFinite(n) ? n : NaN;
 }
 
 // Pure : un nom de scan acceptable venant d'une requête — un simple nom de PDF, sans séparateur,
@@ -233,7 +256,7 @@ function ajouterAuJournal(journal, entree) {
 }
 
 module.exports = {
-  trouverDossierScans, parentsCandidats, nomScanValide, listerScans, nomRubriqueNormalise,
+  trouverDossierScans, parentsCandidats, partagesScansCandidats, depuisMsScans, nomScanValide, listerScans, nomRubriqueNormalise,
   resoudreRubrique, nomFichierSur, cheminLibre, rangerScan, ajouterAuJournal,
   RUBRIQUES_SCANS, NOM_ARCHIVE_SCANS, DELAI_STABILITE_MS, MAX_JOURNAL
 };

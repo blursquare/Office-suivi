@@ -16,6 +16,7 @@ const { accorderRelais, DUREE_RELAIS_MS } = require('../src/routes/scans');
 const { assainirReglagesScans } = require('../src/parametresRepo');
 const { ouvrirDb } = require('../src/db');
 const {
+  partagesScansCandidats, depuisMsScans,
   trouverDossierScans, parentsCandidats, nomScanValide, listerScans, nomRubriqueNormalise,
   resoudreRubrique, nomFichierSur, rangerScan, NOM_ARCHIVE_SCANS
 } = require('../src/scans');
@@ -214,4 +215,48 @@ test('route relais : refusé tant que le classement ou le mode automatique est c
   r = await (await envoyer('POST', '/api/scans/relais', { fenetre: 'fenetre-essai-1' })).json();
   assert.equal(r.accorde, true);
   assert.equal((await envoyer('POST', '/api/scans/relais', { fenetre: '../x' })).status, 400);
+});
+
+test('dossier du copieur : partage « Scan » du même NAS, à côté du partage des dossiers clients', () => {
+  // Chez l'étude : \\192.168.60.5\Scan alors que les dossiers sont sous \\192.168.60.5\Commun.
+  const c = partagesScansCandidats('\\\\192.168.60.5\\Commun\\DOSSIERS CLIENTS');
+  assert.equal(c[0], '\\\\192.168.60.5\\Scan');
+  assert.equal(partagesScansCandidats('C:\\Dossiers').length, 0);
+  assert.equal(partagesScansCandidats('').length, 0);
+});
+
+test('nouveaux scans : heure exacte d’activation, ou minuit d’une date choisie', () => {
+  assert.equal(depuisMsScans('2026-09-30T11:40:00.000Z'), Date.parse('2026-09-30T11:40:00.000Z'));
+  assert.equal(depuisMsScans('2026-09-01'), Date.parse('2026-09-01T00:00:00'));
+  assert.ok(Number.isNaN(depuisMsScans(null)));
+});
+
+test('activation : les scans déjà présents ne sont pas pris, seuls ceux qui arrivent ensuite', async () => {
+  const base2 = fs.mkdtempSync(path.join(os.tmpdir(), 'claire-scans-nouveaux-'));
+  const nas2 = path.join(base2, 'DOSSIERS'), scan2 = path.join(base2, 'Scan');
+  fs.mkdirSync(nas2, { recursive: true });
+  fs.mkdirSync(scan2, { recursive: true });
+  const avant = new Date(Date.now() - 60 * 1000);
+  fs.writeFileSync(path.join(scan2, 'DEJA_LA.pdf'), '%PDF-1.4 déjà là ce matin');
+  fs.utimesSync(path.join(scan2, 'DEJA_LA.pdf'), avant, avant);
+  const db2 = ouvrirDb(':memory:');
+  const { app } = creerApp({ db: db2, config: { motDePasse: '', authActive: false, racineRepo: os.tmpdir(), port: 0, jetonCalendrier: '', nasRacine: nas2 } });
+  const srv2 = app.listen(0);
+  await new Promise((r) => srv2.once('listening', r));
+  const u = (c) => `http://127.0.0.1:${srv2.address().port}${c}`;
+  try {
+    const reg = await (await fetch(u('/api/scans/reglages'), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actif: true }) })).json();
+    assert.ok(reg.reglages.depuis.length > 10, 'heure exacte retenue : ' + reg.reglages.depuis);
+    let etat = await (await fetch(u('/api/scans'))).json();
+    assert.equal(etat.scans.length, 0, 'le scan déjà présent n’est pas pris');
+    const apres = new Date(Date.now() + 5000);
+    fs.writeFileSync(path.join(scan2, 'NOUVEAU.pdf'), '%PDF-1.4 nouveau');
+    fs.utimesSync(path.join(scan2, 'NOUVEAU.pdf'), apres, apres);
+    etat = await (await fetch(u('/api/scans'))).json();
+    assert.equal(etat.scans.map((s) => s.nom).join(','), 'NOUVEAU.pdf');
+  } finally {
+    srv2.close();
+    db2.close();
+    fs.rmSync(base2, { recursive: true, force: true });
+  }
 });

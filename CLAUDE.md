@@ -189,8 +189,11 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   items) → acomptes sur prix et sur frais versés à l'étude, qui **remplacent** la ligne d'acompte du
   dossier (même somme), reversements au confrère signalés. Rien n'est enregistré sur le dossier.
 - **Classeur des scans du copieur** (30/09, `TYPES_SCAN`, `propositionScan`, `server/src/scans.js`) :
-  le dossier « Scan » est cherché sous ce nom dans `nasRacine` puis ses parents (ou `nasScans` dans
-  config.json). Lecture dans le navigateur (pdf.js, OCR tesseract.js des 2 premières pages d'un scan
+  dossier du copieur = **`\\192.168.60.5\Scan`, partage à part** du NAS (étude, 30/09) — trouvé
+  comme `\\serveur\Scan` du serveur de `nasRacine` (`partagesScansCandidats`), sinon un dossier
+  « Scan » dans `nasRacine` ou ses parents, ou `nasScans` dans config.json. **Seuls les nouveaux
+  scans** : `depuis` = heure exacte de l'activation (les scans déjà présents ne sont jamais touchés),
+  ou une date choisie dans les réglages. Lecture dans le navigateur (pdf.js, OCR tesseract.js des 2 premières pages d'un scan
   sans texte). **Type de pièce lu sur le haut de la page 1 seulement** (1 500 caractères), la mention
   la plus haute l'emporte ; un acte notarié (« L'AN DEUX MILLE… ») est une promesse/un compromis s'il
   le dit, sinon un titre de propriété — jamais compter les mots de tout le document (un compromis cite
@@ -362,8 +365,9 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   le NAS sur la fiche (`d.fondsTravaux.montant`) — aujourd'hui l'outil Appel de fonds n'écrit rien.
 - **Classeur des scans** : **à confirmer par l'étude** — la rubrique de chaque type (urbanisme et
   entretien en « AAE » d'après l'arborescence, avis de taxe foncière à la racine faute de rubrique,
-  voir `TYPES_SCAN`) ; **non vérifié au bureau** — détection du dossier « Scan » sur le vrai NAS,
-  droits d'écriture du compte qui fait tourner le serveur sur les dossiers clients, OCR des scans
+  voir `TYPES_SCAN`) ; **non vérifié au bureau** — accès du serveur au partage `\\192.168.60.5\Scan`,
+  droits d'écriture du compte qui fait tourner le serveur sur les dossiers clients ET sur ce partage
+  (l'original y est déplacé dans « CLAIRE - scans rangés »), OCR des scans
   du copieur Toshiba (temps, qualité), volume quotidien. Le script Python fourni
   (`claire-classeur-scans`) n'est pas repris : il visait une autre application (Electron,
   arborescence et numérotation inventées) et se trompait de type sur les pièces réelles.

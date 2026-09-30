@@ -13,7 +13,7 @@
 const express = require('express');
 const fs = require('node:fs');
 const path = require('node:path');
-const { trouverDossierScans, listerScans, nomScanValide, rangerScan, ajouterAuJournal } = require('../scans');
+const { trouverDossierScans, listerScans, nomScanValide, rangerScan, ajouterAuJournal, depuisMsScans } = require('../scans');
 
 const routeAsync = (fn) => (req, res) => {
   Promise.resolve(fn(req, res)).catch((err) => {
@@ -56,11 +56,11 @@ function creerRouteurScans(config, parametresRepo, horloge = () => Date.now()) {
     }
     const dossier = await trouverDossierScans(config);
     if (!dossier) {
-      res.json({ configure: false, raison: 'Aucun dossier « Scan » trouvé à côté des dossiers clients ni à la racine du NAS.', reglages, scans: [], journal });
+      res.json({ configure: false, raison: 'Dossier du copieur introuvable depuis le serveur : ni le partage « Scan » du NAS (\\\\serveur\\Scan), ni un dossier « Scan » à côté des dossiers clients. Renseignez "nasScans" dans config.json si son nom est différent.', reglages, scans: [], journal });
       return;
     }
     const ecartes = new Set(parametresRepo.lireScansEcartes().map((e) => e.nom));
-    const depuisMs = reglages.depuis ? Date.parse(reglages.depuis + 'T00:00:00') : NaN;
+    const depuisMs = depuisMsScans(reglages.depuis);
     const tous = reglages.actif ? await listerScans(dossier, depuisMs) : [];
     res.json({
       configure: true, dossier, reglages, journal,
@@ -89,9 +89,11 @@ function creerRouteurScans(config, parametresRepo, horloge = () => Date.now()) {
       auto: typeof b.auto === 'boolean' ? b.auto : avant.auto,
       depuis: typeof b.depuis === 'string' ? b.depuis : avant.depuis
     };
-    // À la première activation, seuls les scans du jour et des suivants sont proposés : le
-    // dossier Scan garde tout l'historique du copieur.
-    if (suivant.actif && !suivant.depuis) suivant.depuis = new Date().toISOString().slice(0, 10);
+    // « Ne prendre que les nouveaux scans » (étude, 30/09) : à l'activation, l'heure exacte est
+    // retenue, et seuls les scans arrivés après sont traités — ni l'historique du copieur, ni les
+    // scans déjà posés plus tôt dans la journée.
+    if (suivant.actif && !avant.actif && typeof b.depuis !== 'string') suivant.depuis = new Date().toISOString();
+    if (suivant.actif && !suivant.depuis) suivant.depuis = new Date().toISOString();
     res.json({ reglages: parametresRepo.ecrireReglagesScans(suivant) });
   }));
 

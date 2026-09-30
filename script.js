@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 13:33';
+  const VERSION_APP = '2026-09-30 14:03';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 14:03', resume: "Scans du copieur : CLAIRE trouve seule le dossier du copieur \\\\192.168.60.5\\Scan (partage à part du NAS, à côté de Commun). Seuls les nouveaux scans sont traités : ceux arrivés après l'activation du classement, à la minute près ; ceux déjà présents dans le dossier Scan ne sont pas touchés." },
     { version: '2026-09-30 13:33', resume: "Scans du copieur : le rangement est désormais automatique, sans validation, pour chaque scan dont la pièce est identifiée et le dossier reconnu avec certitude (option activée d'office, désactivable dans Réglages › Pièces). Il suffit qu'une fenêtre CLAIRE soit ouverte au bureau, celle du poste serveur en priorité. Le score de chaque scan est affiché (partie nommée 3 points, adresse du bien 4, parcelle 5, rangé à partir de 6 avec une marge sur le dossier suivant), ainsi que dans la liste des dossiers et le journal des rangements." },
     { version: '2026-09-30 13:29', resume: "Nouveau : « Scans à ranger » (menu Dossier). CLAIRE lit chaque scan déposé par le copieur dans le dossier « Scan » du NAS, reconnaît le dossier client (parties, adresse du bien ou parcelle) et la pièce (état daté, CU, diagnostics, offre de prêt, compromis, pièce d'identité…), puis range une copie dans la bonne rubrique du dossier sous un nom que la checklist reconnaît : la pièce passe « reçue » toute seule. L'original est gardé dans « Scan/CLAIRE - scans rangés ». À activer dans Réglages › Pièces ; le rangement sans intervention des cas sûrs est une option à part. Au passage, un pré-état daté ne fait plus passer l'état daté « reçu »." },
     { version: '2026-09-30 09:44', resume: "Appel de fonds (décompte établi par l'office) : trois pièces à déposer en plus de l'avis de taxe foncière — l'appel de charges du syndic (prorata de charges du jour du rendez-vous à la fin de la période, hors cotisation au fonds de travaux), l'état daté (montant du fonds de travaux attaché au lot, repris si l'avant-contrat prévoit son remboursement) et le relevé de compte client (sommes déjà versées à l'étude, reversements au confrère signalés). Prorata : « Lire un appel de charges » remplit le montant et la période. Avis de taxe foncière : le montant est lu en page 1 et contrôlé en bas de page 2 (l'avis 2026 fourni n'était plus lu)." },
@@ -31111,6 +31112,14 @@
     await chargerScans();
   }
 
+  // Date locale (AAAA-MM-JJ) du point de départ des scans, pour le champ date des réglages.
+  function dateLocaleDepuisScans(depuis) {
+    if (!depuis) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(depuis)) return depuis;
+    const d = new Date(depuis);
+    return isNaN(d) ? '' : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
   function renderReglagesScans() {
     const zone = document.getElementById('reglages-scans');
     if (!zone) return;
@@ -31130,8 +31139,9 @@
           <span class="switch reglages-switch"><input type="checkbox" id="reglages-scans-auto"${r.auto ? ' checked' : ''}${r.actif ? '' : ' disabled'} onchange="enregistrerReglagesScans({ auto: this.checked })"><span class="slider"></span></span>
         </label>
         <label class="reglages-option" for="reglages-scans-depuis">
-          <span class="reglages-option-texte"><span class="reglages-option-titre">Scans arrivés depuis le ${infoBulle('Les scans plus anciens restent dans le dossier Scan, sans être proposés.')}</span></span>
-          <input type="date" id="reglages-scans-depuis" value="${escapeAttr(r.depuis || '')}"${r.actif ? '' : ' disabled'} onchange="enregistrerReglagesScans({ depuis: this.value })">
+          <span class="reglages-option-texte"><span class="reglages-option-titre">Nouveaux scans à partir du ${infoBulle('Seuls les scans arrivés après ce moment sont traités (à l’activation : l’heure exacte). Les plus anciens restent dans le dossier Scan sans être touchés. Choisir une date plus ancienne pour reprendre des scans déjà présents.')}</span>
+            ${r.depuis && r.depuis.length > 10 ? `<span class="hint">${escapeHtml(new Date(r.depuis).toLocaleString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }))}</span>` : ''}</span>
+          <input type="date" id="reglages-scans-depuis" value="${escapeAttr(dateLocaleDepuisScans(r.depuis))}"${r.actif ? '' : ' disabled'} onchange="enregistrerReglagesScans({ depuis: this.value })">
         </label>
       </div>`;
   }

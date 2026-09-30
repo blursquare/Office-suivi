@@ -12581,3 +12581,22 @@ j'aimais bien le système de score. »
   par défaut : l'état daté (score 7) est rangé seul dans « 8 - COPRO et ETAT DATE › ETAT DATE »,
   la pièce d'identité (score 3) et le courrier inconnu (score 0) attendent. 1 007 tests client,
   503 serveur.
+
+### 30/09 14:03 — Scans : dossier du copieur `\\192.168.60.5\Scan`, nouveaux scans seulement
+
+Réponse de l'étude : « Voici l'adresse du scan : \\192.168.60.5\Scan — ne prendre que les nouveaux
+scans. »
+- **Partage à part** : le dossier du copieur n'est pas un sous-dossier de `\\192.168.60.5\Commun`
+  mais un partage du même NAS. La recherche par dossiers parents de `nasRacine` s'arrêtait à la
+  racine du partage `Commun` et ne pouvait pas le trouver (on ne liste pas les partages d'un
+  serveur). `partagesScansCandidats` construit `\\serveur\Scan` (puis `Scans`, `SCAN`) à partir du
+  chemin UNC de la racine, essayé avant les dossiers parents ; `nasScans` dans config.json reste
+  prioritaire. Message d'erreur explicite si rien n'est trouvé.
+- **Nouveaux scans seulement** : `depuis` retenait la DATE de l'activation (minuit), donc les scans
+  déjà posés plus tôt le même jour étaient pris. Il retient maintenant l'heure exacte (ISO complet,
+  `depuisMsScans`) ; une date choisie dans les réglages reste possible pour reprendre des scans
+  plus anciens. Test serveur : un scan déjà présent à l'activation n'est pas listé, un scan arrivé
+  après l'est.
+- Réglages › Pièces affiche l'heure exacte de départ sous « Nouveaux scans à partir du ».
+- Non vérifié ici : l'accès réel du serveur au partage `Scan` et son droit d'y écrire (l'original
+  y est déplacé dans « CLAIRE - scans rangés »). 1 007 tests client, 506 serveur.
