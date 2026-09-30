@@ -237,7 +237,7 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   jamais les dates d'un acte de vente). Pièces reconnues par nom de document → reçues « à la main »
   (`piecesValideesManuellement`, case décochable). Succession reconnue (`typeAffaireAuthentic`) mais
   refusée tant que CLAIRE ne suit que des ventes.
-- **Classeur des scans du copieur** — nom affiché **« Claire Scan »**, bouton au pied de la barre latérale (30/09, `TYPES_SCAN`, `propositionScan`, `server/src/scans.js`) :
+- **Classeur des scans du copieur** — nom affiché **« Claire Scan »**, **bannette à papier** (icône `bannette`, `#tab-scans`) avec pastille du nombre de scans à ranger, dans la rangée d'icônes sous le logo de la barre latérale (étude, 30/09 — visible barre repliée et sur téléphone) (30/09, `TYPES_SCAN`, `propositionScan`, `server/src/scans.js`) :
   dossier du copieur = **`\\192.168.60.5\Scan`, partage à part** du NAS (étude, 30/09) — trouvé
   comme `\\serveur\Scan` du serveur de `nasRacine` (`partagesScansCandidats`), sinon un dossier
   « Scan » dans `nasRacine` ou ses parents, ou `nasScans` dans config.json. **Surveillance de fond dès le démarrage**
@@ -271,13 +271,13 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
 - **Page Agenda** (30/09, `renderPageAgenda`, **à la manière d'Outlook** — étude, 30/09 au soir : « plus
   professionnel, pour ne pas dépayser les collaborateurs » ; lien juste sous le tableau de bord) : une carte,
   en tête pastille du jour, date, ‹ Aujourd'hui ›, liste Vue mois/semaine/jour, « Nouveau rendez-vous » ;
-  Semaine (lundi → samedi, 7 h – 20 h) · Jour · Mois (`agendaVue`, `agendaJour` ; Jour par défaut sur
+  Semaine (lundi → samedi, **9 h – 19 h**, `AGENDA_HEURE_DEBUT/FIN`, étude 30/09) · Jour · Mois (`agendaVue`, `agendaJour` ; Jour par défaut sur
   téléphone), en-têtes « Lundi / 28 sept. 2026 », colonne du jour teintée, trait de l'heure ; rendez-vous =
   liseré gauche + fond clair de la couleur Outlook, heure de début, de fin et durée (`dureeRendezVous`) ;
   **sur un rendez-vous d'un dossier, comme dans Outlook : responsable (prénom), confrère (`confrereLieuAgenda`),
   appel de fonds fait (`echeanceValidee`) et décompte acquéreur fait** (`decompteAcquereurFait` : courrier
   d'appel de fonds/décompte trouvé sur le NAS ou lu pour les fonds reçus — choix de l'étude) —
-  `infosRendezVousDossier`. Colonne de gauche : mini-calendrier du mois, légende, **panneau de détail du
+  `infosRendezVousDossier`. Trait rouge de l'heure mis à jour toutes les 30 s (`traitHeureAgenda`, `majTraitHeureAgenda`). Colonne de gauche : mini-calendrier du mois (sans légende des couleurs, étude 30/09), **panneau de détail du
   rendez-vous choisi** (`agendaSelection`, `renderPanneauDetailAgenda` — plus de fenêtre modale sauf pour
   la création), anticipations ; rendez-vous lus par le serveur (stock `agenda-office`, tenu à jour à la création/suppression
   depuis CLAIRE entre deux tours) ; signatures de CLAIRE absentes d'Outlook en pointillé. Agenda
