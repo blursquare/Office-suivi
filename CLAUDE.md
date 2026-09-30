@@ -414,10 +414,9 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   le NAS sur la fiche (`d.fondsTravaux.montant`) — aujourd'hui l'outil Appel de fonds n'écrit rien.
 - **Classeur des scans** : **à confirmer par l'étude** — la rubrique de chaque type (urbanisme et
   entretien en « AAE » d'après l'arborescence, voir `TYPES_SCAN` ; avis de taxe foncière en
-  « Comptabilité », confirmé par l'étude le 30/09) ; **non vérifié au bureau** — accès du serveur au partage `\\192.168.60.5\Scan`,
-  droits d'écriture du compte qui fait tourner le serveur sur les dossiers clients ET sur ce partage
-  (l'original y est déplacé dans « CLAIRE - scans rangés »), OCR des scans
-  du copieur Toshiba (temps, qualité), volume quotidien. Le script Python fourni
+  « Comptabilité », confirmé par l'étude le 30/09) ; **testé au bureau le 30/09 au soir : « le scan
+  fonctionne »** (partage `\\192.168.60.5\Scan` joint, rangement dans les dossiers clients) ; restent
+  à observer à l'usage : temps et qualité de l'OCR des scans du copieur Toshiba, volume quotidien. Le script Python fourni
   (`claire-classeur-scans`) n'est pas repris : il visait une autre application (Electron,
   arborescence et numérotation inventées) et se trompait de type sur les pièces réelles.
 - **Banc d'essai d'extraction** : cadré dans `docs/spec-banc-essai-extraction.md`, délégué, pas
@@ -427,13 +426,15 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   demander à Mistral : rétention zéro, absence d'entraînement, accord de sous-traitance. Connecteur
   openlegi : pas construit, seulement sur demande explicite.
 - **Confirmé au bureau le 30/09** : la connexion EWS au calendrier partagé de Sophie fonctionne en
-  lecture et en écriture (« la connexion et modification fonctionne pour l'agenda partagé »).
+  lecture et en écriture (« la connexion et modification fonctionne pour l'agenda partagé ») ; au soir,
+  testés par l'étude et déclarés fonctionnels : l'agenda, Claire Scan, les brouillons d'email (`.eml`
+  ouverts dans Outlook), la création d'un nouveau dossier depuis l'export Authentic (ZIP).
 - **Non vérifié au bureau** : le détail des écritures EWS (déplacement et suppression d'un
   rendez-vous, note du Lieu, dates butoir en journée entière, noms exacts des catégories de couleur,
   reprise des dates butoir existantes au premier tour — une seule fois chacune) et de la lecture
   (forme réelle des journées entières, volume par tranche) ; démarrage automatique et service NSSM ;
   mise à jour en un clic (renommage de l'exe en cours) ; lien signé d'une pièce ouvert depuis Teams ;
-  ouverture des `.eml` dans Outlook ; icône de l'exe ; reçus comptables (« Fonds reçus ») au-delà des
+  icône de l'exe ; reçus comptables (« Fonds reçus ») au-delà des
   deux PDF fournis.
 - **Critères de sortie de bêta** (convenus) : quelques semaines sans bug bloquant, une restauration
   de sauvegarde testée, les points ci-dessus confirmés ; en bêta, seulement des corrections. Relecture

@@ -13090,3 +13090,15 @@ pour s'y référer si besoin. Aujourd'hui on est obligé de passer par la vue ta
   fiche.
 - Vérifié dans Chromium (deux archivés inventés, clair, sombre, 390 px) : section absente sans la
   case, présente avec, aucune ligne archivée dans une semaine, fiche ouverte au clic.
+
+### 30/09/2026 soir — Retour de tests au bureau
+
+Message de l'étude : « J'ai testé : l'agenda fonctionne, le scan aussi, la gestion des brouillons
+d'e-mail, la création de nouveau dossier avec l'archive. » Reporté dans CLAUDE.md (« Ce qui reste
+ouvert ») : agenda (EWS, calendrier partagé de Sophie), Claire Scan (partage `\\192.168.60.5\Scan`
+joint, rangement dans les dossiers clients), brouillons `.eml` ouverts dans Outlook, création d'un
+dossier depuis l'export Authentic (ZIP) — confirmés. Restent non vérifiés au bureau, faute de retour
+détaillé : chacune des écritures EWS prise isolément (déplacement, suppression, note du Lieu, dates
+butoir en journée entière, catégories de couleur), le temps et la qualité de l'OCR des scans, le
+démarrage automatique / NSSM, la mise à jour en un clic, le lien signé ouvert depuis Teams, l'icône de
+l'exe, les reçus comptables au-delà des deux PDF fournis. Aucun changement de code.
