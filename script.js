@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 15:01';
+  const VERSION_APP = '2026-09-30 15:17';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 15:17', resume: "Scans du copieur : le score est désormais noté sur 6 (« Score 6/6 : 1 partie nommée +3, adresse du bien +4 » au lieu de « Score 7/4 »). Rangement automatique toujours dès 4/6 ; au-delà de 6 points la note reste 6/6, le détail des points reste affiché." },
     { version: '2026-09-30 15:01', resume: "Réglages › Pièces : le classement des scans ne semble plus désactivé à chaque ouverture de CLAIRE. Le réglage était bien conservé, mais l'écran affichait « désactivé » et « dossier Scan introuvable » tant que le serveur n'avait pas fini de parcourir le dossier du copieur et de lire les scans en attente. L'interrupteur reste désormais grisé (« Lecture des réglages… ») jusqu'à la réponse du serveur, puis montre le vrai état." },
     { version: '2026-09-30 14:54', resume: "Nouveau dossier : on peut désormais déposer l'export d'un sous-dossier Authentic (.zip) à la place du PDF du compromis. CLAIRE y reprend les parties (vendeurs, acquéreurs), l'adresse et le type du bien, les notaires (confrère en participation, étude qui reçoit l'acte), l'email de l'acquéreur, le nom du dossier, et propose de marquer reçues les pièces déjà présentes dans Authentic. Les dates et le prix viennent de l'avant-contrat contenu dans l'export ; si l'export ne contient que l'acte de vente, seul le prix est repris et les dates butoir restent à saisir. Un export de succession est reconnu mais pas encore suivi." },
     { version: '2026-09-30 14:42', resume: "Scans du copieur : la copie rangée s'appelle désormais « nom de la pièce - Claire Scan » (ex. « État daté - Claire Scan »), sans date ni référence du scan. Une pastille rouge signale les scans en attente de rangement : le nombre à côté de « Scans à ranger », un point sur l'icône quand la barre latérale est repliée et sur le bouton du menu sur téléphone." },
@@ -31389,7 +31390,15 @@
   // se départagent pas par un seul nom). Modifier ici change le rangement automatique.
   // Seuil abaissé de 6 à 4 par l'étude (30/09) : l'adresse du bien seule, ou une partie nommée avec
   // un autre indice, suffit ; une partie nommée seule (3) reste une suggestion à valider.
-  var BAREME_SCORE_SCAN = { partie: 3, partiesMax: 2, adresse: 4, parcelle: 5, seuil: 4, marge: 1.3 };
+  // Affichée sur 6 (étude, 30/09 : « Score 7/4 » ne se lisait pas) : note plafonnée à `noteMax`,
+  // seuil lu « 4/6 ». Les comparaisons (seuil, marge sur le suivant) gardent le score brut.
+  var BAREME_SCORE_SCAN = { partie: 3, partiesMax: 2, adresse: 4, parcelle: 5, seuil: 4, marge: 1.3, noteMax: 6 };
+
+  // Note affichée d'un score brut : « 6/6 » pour 7 points ou plus. Pure.
+  function noteScoreScan(score) {
+    const n = Math.max(0, Math.min(BAREME_SCORE_SCAN.noteMax, Number(score) || 0));
+    return `${n}/${BAREME_SCORE_SCAN.noteMax}`;
+  }
 
   // Score d'un dossier pour un scan, avec le détail des points (`raisons`, lisibles telles quelles
   // à l'écran : « 2 parties nommées +6 »). Pure.
@@ -31436,14 +31445,14 @@
       candidats: classes.slice(0, 5).map(c => ({ id: c.dossier.id, score: c.score })) };
   }
 
-  // « Score 10/4 : 2 parties nommées +6, adresse du bien +4 », et ce qui manque quand ce n'est pas
-  // sûr (seuil non atteint, ou deuxième dossier trop proche). Pure.
+  // « Score 6/6 : 2 parties nommées +6, adresse du bien +4 », et ce qui manque quand ce n'est pas
+  // sûr (seuil de 4/6 non atteint, ou deuxième dossier trop proche). Pure.
   function explicationScoreScan(p) {
-    if (!p || !p.score) return 'Aucun dossier reconnu (score 0)';
+    if (!p || !p.score) return `Aucun dossier reconnu (score 0/${BAREME_SCORE_SCAN.noteMax})`;
     const b = BAREME_SCORE_SCAN;
-    const detail = `Score ${p.score}/${b.seuil} : ${p.raisons.join(', ')}`;
-    if (p.score < b.seuil) return `${detail} — sous le seuil`;
-    if (p.second && p.score < p.second * b.marge) return `${detail} — un autre dossier est à ${p.second}`;
+    const detail = `Score ${noteScoreScan(p.score)} : ${p.raisons.join(', ')}`;
+    if (p.score < b.seuil) return `${detail} — sous le seuil de ${noteScoreScan(b.seuil)}`;
+    if (p.second && p.score < p.second * b.marge) return `${detail} — un autre dossier est à ${noteScoreScan(p.second)}`;
     return detail;
   }
 
@@ -31772,7 +31781,7 @@
           <span class="switch reglages-switch"><input type="checkbox" id="reglages-scans-actif"${r.actif ? ' checked' : ''}${inconnu ? ' disabled' : ''} onchange="enregistrerReglagesScans({ actif: this.checked })"><span class="slider"></span></span>
         </label>
         <label class="reglages-option" for="reglages-scans-auto">
-          <span class="reglages-option-texte"><span class="reglages-option-titre">Ranger automatiquement les scans reconnus ${infoBulle(`Sans validation, dès que la pièce est identifiée et que le dossier atteint le score de ${BAREME_SCORE_SCAN.seuil} avec une marge sur le suivant : partie nommée ${BAREME_SCORE_SCAN.partie} points (deux au plus), adresse du bien ${BAREME_SCORE_SCAN.adresse}, parcelle ${BAREME_SCORE_SCAN.parcelle}. Il suffit qu’une fenêtre CLAIRE soit ouverte au bureau (celle du poste serveur en priorité). Les autres scans attendent dans « Scans à ranger ».`)}</span></span>
+          <span class="reglages-option-texte"><span class="reglages-option-titre">Ranger automatiquement les scans reconnus ${infoBulle(`Sans validation, dès que la pièce est identifiée et que le dossier atteint le score de ${noteScoreScan(BAREME_SCORE_SCAN.seuil)} avec une marge sur le suivant : partie nommée ${BAREME_SCORE_SCAN.partie} points (deux au plus), adresse du bien ${BAREME_SCORE_SCAN.adresse}, parcelle ${BAREME_SCORE_SCAN.parcelle}. Il suffit qu’une fenêtre CLAIRE soit ouverte au bureau (celle du poste serveur en priorité). Les autres scans attendent dans « Scans à ranger ».`)}</span></span>
           <span class="switch reglages-switch"><input type="checkbox" id="reglages-scans-auto"${r.auto ? ' checked' : ''}${r.actif && !inconnu ? '' : ' disabled'} onchange="enregistrerReglagesScans({ auto: this.checked })"><span class="slider"></span></span>
         </label>
         <label class="reglages-option" for="reglages-scans-depuis">
@@ -31788,7 +31797,7 @@
     const scores = new Map(((proposition && proposition.candidats) || []).map(c => [c.id, c.score]));
     const suggeres = candidats.filter(d => scores.has(d.id)).sort((a, b) => scores.get(b.id) - scores.get(a.id));
     const autres = candidats.filter(d => !scores.has(d.id));
-    const opt = d => `<option value="${escapeAttr(d.id)}"${d.id === choisi ? ' selected' : ''}>${escapeHtml(libelleDossierAffiche(d))}${scores.has(d.id) ? ` — score ${scores.get(d.id)}` : ''}${d.nasDossier ? '' : ' (non relié au NAS)'}</option>`;
+    const opt = d => `<option value="${escapeAttr(d.id)}"${d.id === choisi ? ' selected' : ''}>${escapeHtml(libelleDossierAffiche(d))}${scores.has(d.id) ? ` — score ${noteScoreScan(scores.get(d.id))}` : ''}${d.nasDossier ? '' : ' (non relié au NAS)'}</option>`;
     return `<option value=""${choisi ? '' : ' selected'}>Choisir le dossier…</option>`
       + (suggeres.length ? `<optgroup label="Reconnus dans le scan">${suggeres.map(opt).join('')}</optgroup>` : '')
       + `<optgroup label="Tous les dossiers">${autres.map(opt).join('')}</optgroup>`;
@@ -31858,7 +31867,7 @@
         <div class="dash-section-titre">Derniers rangements</div>
         <ul>${journal.map(j => `<li><span class="scan-date">${escapeHtml(new Date(j.date).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</span>
           <span>${escapeHtml(j.nom)} → <strong>${escapeHtml(j.dossier || '')}</strong>${j.rubrique ? ' › ' + escapeHtml(j.rubrique.replace(/[\\/]+/g, ' › ')) : ''}</span>
-          <span class="hint">${j.auto ? 'automatique' : escapeHtml(j.auteur || '')}${j.score != null ? ' · score ' + j.score : ''}</span></li>`).join('')}</ul>
+          <span class="hint">${j.auto ? 'automatique' : escapeHtml(j.auteur || '')}${j.score != null ? ' · score ' + noteScoreScan(j.score) : ''}</span></li>`).join('')}</ul>
       </div>` : '';
     const ecartes = (e.ecartes || []);
     const ecartesHtml = ecartes.length ? `<details class="scans-ecartes"><summary>Laissés dans Scan (${ecartes.length})</summary>

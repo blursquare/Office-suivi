@@ -12700,3 +12700,14 @@ scans. »
   du GET, avant le relais et la lecture des scans ; plus de `.then` dans `definirOnglet`.
 - Vérifié dans Chromium (serveur réel, GET `/api/scans` retardé de 3 s) : grisé à +0,1/0,4/1,5 s,
   coché à +4 s ; état serveur inchangé.
+
+### 30/09/2026 15:17 — Scans : score affiché sur 6
+
+- Signalé par l'étude : « Score 7/4 : 1 partie nommée +3, adresse du bien +4 · texte lu par OCR —
+  faire un score sur 6 ». Question posée : note sur 6 plafonnée (choisie), retour au seuil de 6, ou
+  « 7 points (rangé dès 4) ».
+- `BAREME_SCORE_SCAN.noteMax = 6` et `noteScoreScan` (pure) : note affichée = min(score, 6) sur 6,
+  partout (explication sous le scan, liste des dossiers proposés, journal, info-bulle du réglage :
+  « score de 4/6 »). « sous le seuil de 4/6 », « un autre dossier est à 6/6 ». Le seuil, la marge
+  ×1,3 et le rangement automatique restent calculés sur le score brut (7 reste plus sûr que 6 face à
+  un second dossier). Tests mis à jour + cas 7 points → « 6/6 ».

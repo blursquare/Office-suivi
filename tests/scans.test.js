@@ -156,20 +156,25 @@ test('nom d’un scan non reconnu : « Claire Scan », sans date ni référence'
 test('score : barème du script de l’étude (partie 3, adresse 4, parcelle 5), seuil 4 (étude, 30/09), marge ×1,3', () => {
   const app = chargerApplication();
   const b = app.BAREME_SCORE_SCAN;
-  assert.equal([b.partie, b.partiesMax, b.adresse, b.parcelle, b.seuil, b.marge].join(','), '3,2,4,5,4,1.3');
+  assert.equal([b.partie, b.partiesMax, b.adresse, b.parcelle, b.seuil, b.marge, b.noteMax].join(','), '3,2,4,5,4,1.3,6');
   // Deux parties nommées : 6, au-dessus du seuil — sûr.
   const deux = app.propositionScan({ texte: 'Entre Monsieur Paul MARTIN et Madame Sophie DURAND' }, DOSSIERS, '2026-10-01');
-  assert.equal(app.explicationScoreScan(deux), 'Score 6/4 : 2 parties nommées +6');
+  assert.equal(app.explicationScoreScan(deux), 'Score 6/6 : 2 parties nommées +6');
   // L'adresse du bien seule : 4, exactement le seuil — sûr, rangé sans validation.
   const adresse = app.propositionScan({ texte: 'ÉTAT DATÉ IMMEUBLE SIS A : 12 RUE DES LILAS 41000 BLOIS' }, DOSSIERS, '2026-10-01');
-  assert.equal(app.explicationScoreScan(adresse), 'Score 4/4 : adresse du bien +4');
+  assert.equal(app.explicationScoreScan(adresse), 'Score 4/6 : adresse du bien +4');
   assert.equal(adresse.dossierSur, true);
   assert.equal(adresse.automatique, true);
   // Une partie seule : 3, sous le seuil — suggestion à valider.
   const une = app.propositionScan({ texte: 'CARTE NATIONALE D’IDENTITÉ Nom : LEROY Prénom(s) : Sophie' }, DOSSIERS, '2026-10-01');
-  assert.equal(app.explicationScoreScan(une), 'Score 3/4 : 1 partie nommée +3 — sous le seuil');
+  assert.equal(app.explicationScoreScan(une), 'Score 3/6 : 1 partie nommée +3 — sous le seuil de 4/6');
   assert.equal(une.automatique, false);
-  assert.equal(app.explicationScoreScan({ score: 0 }), 'Aucun dossier reconnu (score 0)');
+  // Au-delà de 6 points, la note reste 6/6 (le détail garde les points) ; le rangement suit le score brut.
+  const complet = app.propositionScan({ texte: 'ÉTAT DATÉ Madame Sophie DURAND IMMEUBLE SIS A : 12 RUE DES LILAS 41000 BLOIS' }, DOSSIERS, '2026-10-01');
+  assert.equal(app.explicationScoreScan(complet), 'Score 6/6 : 1 partie nommée +3, adresse du bien +4');
+  assert.equal(complet.score, 7);
+  assert.equal(app.noteScoreScan(15), '6/6');
+  assert.equal(app.explicationScoreScan({ score: 0 }), 'Aucun dossier reconnu (score 0/6)');
 });
 
 test('score : deux dossiers trop proches ne se départagent pas, même au-dessus du seuil', () => {
@@ -182,7 +187,7 @@ test('score : deux dossiers trop proches ne se départagent pas, même au-dessus
   const p = app.propositionScan({ texte: 'ÉTAT DATÉ copropriétaire cédant Monsieur Paul MARTIN et Madame Sophie DURAND' }, famille, '2026-10-01');
   assert.equal(p.dossierSur, false);
   assert.equal(p.automatique, false);
-  assert.equal(app.explicationScoreScan(p), 'Score 6/4 : 2 parties nommées +6 — un autre dossier est à 6');
+  assert.equal(app.explicationScoreScan(p), 'Score 6/6 : 2 parties nommées +6 — un autre dossier est à 6/6');
 });
 
 test('pastille : scans en attente de rangement, sans ceux que la fenêtre range seule', () => {
