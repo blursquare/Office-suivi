@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 23:46';
+  const VERSION_APP = '2026-09-30 23:48';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 23:48', resume: "Agenda : la probabilité de maintien d'une signature passe en bas à gauche du rendez-vous, plus discrète (petit point de couleur et chiffre en gris, devant appel de fonds et décompte) ; le titre prend toute la largeur de la carte." },
     { version: '2026-09-30 23:46', resume: "Agenda : un clic sur un rendez-vous ouvre son détail dans une fenêtre posée à côté de lui sur l'agenda (plus dans la colonne de gauche) ; elle se ferme par la croix, Échap ou un clic ailleurs. Vue semaine : le nom du dossier s'affiche en entier sur plusieurs lignes, avec en dessous seulement l'heure de début et les initiales du collaborateur (l'heure de fin et la durée restent dans le détail)." },
     { version: '2026-09-30 23:29', resume: "Barre latérale fermée : le volet des outils s'ouvre sous l'icône Outils, aligné sur elle ; l'icône reste marquée ouverte avec son nom dans la bulle à côté tant que le volet est affiché." },
     { version: '2026-09-30 23:28', resume: "Barre latérale : l'épingle est retirée ; nouveau réglage « Barre latérale au démarrage » (ouverte ou fermée) dans Réglages › Général — la flèche la replie ou la déplie pour la séance seulement. Le groupe Outils est fermé au démarrage (son titre est surligné quand un outil est ouvert). Le logo est aligné sur la bannette Claire Scan." },
@@ -18912,8 +18913,8 @@
     return `<button type="button" class="ag-evt ag-evt-compact ajd-${teinte}${e.horsAgenda ? ' ag-hors-agenda' : ''}${court ? ' ag-evt-court' : ''}${agendaSelection === cle ? ' selection' : ''}" style="${style}"
         data-cle="${escapeAttr(cle)}" onclick="ouvrirDetailAgenda('${escapeOnclickArg(cle)}')" title="${escapeAttr(bulle)}">
         <span class="ag-evt-titre" style="--lignes:${lignes}">${court ? heure + ' ' : ''}${escapeHtml(e.sujet || '(sans titre)')}</span>
-        ${court ? '' : `<span class="ag-evt-meta">${heure}${meta.length ? ` · ${escapeHtml(meta.join(' · '))}` : (e.lieu && !d ? ` · ${escapeHtml(e.lieu)}` : '')}${proba ? renderPastilleProbabilite(proba) : ''}</span>`}
-        ${etats ? `<span class="ag-evt-etats">${renderEtatsRendezVous(infos)}</span>` : ''}
+        ${court ? '' : `<span class="ag-evt-meta">${heure}${meta.length ? ` · ${escapeHtml(meta.join(' · '))}` : (e.lieu && !d ? ` · ${escapeHtml(e.lieu)}` : '')}</span>`}
+        ${etats || (proba && !court) ? `<span class="ag-evt-etats">${proba ? renderPastilleProbabilite(proba) : ''}${etats ? renderEtatsRendezVous(infos) : ''}</span>` : ''}
       </button>`;
   }
 
@@ -18940,11 +18941,10 @@
       proba ? `${proba.pourcent} % de chances que la signature se tienne` : ''].filter(Boolean).join(' · ');
     return `<button type="button" class="ag-evt ajd-${teinte}${e.horsAgenda ? ' ag-hors-agenda' : ''}${court ? ' ag-evt-court' : ''}${haut ? ' ag-evt-haut' : ''}${etroit ? ' ag-evt-etroit' : ''}${selection ? ' selection' : ''}${proba ? ' ag-evt-avec-proba' : ''}" style="${style}"
         data-cle="${escapeAttr(cleEvenementAgenda(e))}" onclick="ouvrirDetailAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')" title="${escapeAttr(bulle)}">
-        ${proba ? renderPastilleProbabilite(proba) : ''}
         <span class="ag-evt-titre">${escapeHtml(e.sujet || '(sans titre)')}</span>
         <span class="ag-evt-heure"><span>${escapeHtml(e.heure)}</span>${e.heureFin ? `<span class="ag-evt-fin">– ${escapeHtml(e.heureFin)}</span>` : ''}${duree ? `<span class="ag-evt-duree">${escapeHtml(duree)}</span>` : ''}</span>
         ${qui ? `<span class="ag-evt-qui">${escapeHtml(qui)}</span>` : (e.lieu ? `<span class="ag-evt-qui">${escapeHtml(e.lieu)}</span>` : '')}
-        ${infos && e.signature ? `<span class="ag-evt-etats">${renderEtatsRendezVous(infos)}</span>` : ''}
+        ${infos && e.signature ? `<span class="ag-evt-etats">${proba ? renderPastilleProbabilite(proba) : ''}${renderEtatsRendezVous(infos)}</span>` : ''}
       </button>`;
   }
 

@@ -13413,3 +13413,12 @@ rendez-vous à 9 h, entre 12 h et 14 h et après 18 h, sauf exception ; maximum 
   sous l'ellipse — `flex: none` sur le titre.
 - Vérifié dans Chromium : fenêtre à côté du rendez-vous, clic ailleurs / Échap / autre rendez-vous, note
   modifiée et enregistrée dans la fenêtre, suppression et placement confirmés, téléphone.
+
+### 30/09/2026, soir — Probabilité discrète en bas à gauche du rendez-vous
+
+- Demande de l'étude : « Pastille de probabilité à mettre en bas à gauche du rendez-vous, plus discrètement. »
+- Vues Semaine et Jour : `renderPastilleProbabilite` placée en tête de la ligne du bas (`.ag-evt-etats`,
+  devant appel de fonds / décompte ; seule sur la ligne s'il n'y a pas d'états) ; style dans `.ag-evt` :
+  plus de fond ni de position absolue, point de 5 px à la couleur du niveau, chiffre en `--muted` 10 px. Le
+  titre récupère la largeur que lui prenait la pastille en haut à droite. Détail, listes de gauche et
+  carte « Probable » inchangés.

@@ -7265,10 +7265,10 @@ button.primary.ag-ajout svg { width: 14px; height: 14px; }
 .ag-evt-haut .ag-evt-titre { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
 .ag-evt-court .ag-evt-fin, .ag-evt-court .ag-evt-duree, .ag-evt-court .ag-evt-qui, .ag-evt-court .ag-evt-etats { display: none; }
 .ag-evt-etroit .ag-evt-heure, .ag-evt-etroit .ag-proba { display: none; }
-.ag-evt .ag-proba { position: absolute; top: 3px; right: 4px; font-size: 10px; padding: 0 5px; border-radius: 999px; background: var(--paper-card); }
-.ag-evt .ag-proba .dot { display: none; }
-.ag-evt-avec-proba:not(.ag-evt-court) .ag-evt-titre { padding-right: 32px; }
-.ag-evt-court .ag-proba { position: static; flex: none; }
+/* Probabilité de maintien (étude, 30/09) : discrète, en bas à gauche de la carte, en tête de la ligne
+   appel de fonds / décompte — un point de couleur et le chiffre en gris. */
+.ag-evt .ag-proba { position: static; flex: none; display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 600; color: var(--muted); padding: 0; background: none; }
+.ag-evt .ag-proba .dot { width: 5px; height: 5px; }
 /* Vue Semaine : titre sur plusieurs lignes, puis « 10:00 · BA ». */
 .ag-evt.ag-evt-compact { gap: 2px; }
 .ag-evt-compact .ag-evt-titre { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: var(--lignes, 2); overflow-wrap: anywhere; line-height: 1.22; padding-right: 0; }
@@ -7278,7 +7278,6 @@ button.primary.ag-ajout svg { width: 14px; height: 14px; }
 .ag-evt-meta { display: flex; align-items: center; gap: 0 4px; font-size: 11px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; flex: none; font-variant-numeric: tabular-nums; }
 .ag-evt-debut { font-weight: 700; color: var(--ink); }
 .ag-evt-compact .ag-evt-titre .ag-evt-debut { font-weight: 700; margin-right: 2px; }
-.ag-evt-compact .ag-evt-meta .ag-proba { position: static; margin-left: auto; flex: none; }
 .ag-hors-agenda { background: var(--paper-card); border: 1.5px dashed var(--ag-teinte, var(--line)); border-left-width: 4px; }
 /* Carte fantôme : signature probable cette semaine, pas encore placée (proposition de CLAIRE). */
 .ag-evt.ag-fantome, .ag-journee-evt.ag-fantome {
