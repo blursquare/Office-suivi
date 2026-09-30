@@ -188,6 +188,16 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   de compte client JurisWeb (`analyserReleveCompteClient`, colonne Débit/Crédit par position des
   items) → acomptes sur prix et sur frais versés à l'étude, qui **remplacent** la ligne d'acompte du
   dossier (même somme), reversements au confrère signalés. Rien n'est enregistré sur le dossier.
+- **Import d'un export Authentic** (30/09, « Nouveau dossier », même zone de dépôt que le PDF) : ZIP
+  d'un sous-dossier (`DATA.xml` au format notaires.fr + pièces + Word de l'acte en cours), lu dans le
+  navigateur (`entreesZip`, `arbreXml`, `lireExportAuthentic`). Parties par les références du flux,
+  sinon par l'intitulé « VTE VENDEUR / ACQUÉREUR » (une personne absente de l'intitulé — ex-conjoint —
+  n'est pas partie) ; Disposant = vendeur, Bénéficiaire = acquéreur. Les données structurées priment
+  sur le texte (`completerExtractionDepuisAuthentic`, origine « Reprise d'Authentic ») ; dates et prix
+  viennent de l'avant-contrat (PDF signé de l'export, sinon le Word si c'est l'avant-contrat —
+  jamais les dates d'un acte de vente). Pièces reconnues par nom de document → reçues « à la main »
+  (`piecesValideesManuellement`, case décochable). Succession reconnue (`typeAffaireAuthentic`) mais
+  refusée tant que CLAIRE ne suit que des ventes.
 - **Classeur des scans du copieur** (30/09, `TYPES_SCAN`, `propositionScan`, `server/src/scans.js`) :
   dossier du copieur = **`\\192.168.60.5\Scan`, partage à part** du NAS (étude, 30/09) — trouvé
   comme `\\serveur\Scan` du serveur de `nasRacine` (`partagesScansCandidats`), sinon un dossier
@@ -396,7 +406,9 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   les motifs (phase 3 de l'extraction).
 - **Dossiers de succession à venir** : aujourd'hui tous les dossiers sont des ventes, affichés
   « VTE - NOM » (`libelleDossierAffiche`). À l'arrivée des successions, ce préfixe, le planning, la
-  checklist et les emails devront dépendre d'un type d'affaire du dossier.
+  checklist et les emails devront dépendre d'un type d'affaire du dossier. L'import Authentic lit
+  déjà tout export (personnes, parties et leurs qualités, documents) et reconnaît une succession :
+  il restera à brancher la création d'un dossier de succession sur `lireExportAuthentic`.
 - **Arborescence type des dossiers clients sur le NAS** (MAISON, COPRO, TERRAIN, SUCC, CESSION DE
   FONDS) : détaillée dans `docs/historique.md` (fin du fichier). L'avant-contrat signé est à la
   racine du dossier client ou sous « SRU » ; la rubrique « AAE » contient les pièces réunies entre

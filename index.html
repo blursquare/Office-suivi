@@ -244,12 +244,12 @@
 
       <div class="wizard-step actif" id="wizard-step-1">
         <div class="extract-box">
-          <label for="f-pdf">Importer le PDF du compromis</label>
+          <label for="f-pdf">Importer le PDF du compromis ou un export Authentic <span class="info-i" tabindex="0" data-info="Export Authentic : le fichier .zip d’un sous-dossier (« EXPORT_SousDossier-… »). CLAIRE y lit les parties, l’adresse et le type du bien, les notaires, l’email de l’acquéreur et les pièces déjà présentes ; les dates et le prix viennent de l’avant-contrat qu’il contient (PDF signé, sinon le Word de l’acte). Rien ne quitte le poste."></span></label>
           <div class="pdf-dropzone" id="pdf-dropzone" ondragover="gererSurvolDepot(event)" ondragleave="gererQuitteDepot(event)" ondrop="gererDepotPdf(event)">
             <span class="pdf-dropzone-icone" id="icon-dropzone" aria-hidden="true"></span>
-            <label for="f-pdf" class="file-btn">Choisir un fichier PDF</label>
-            <input type="file" id="f-pdf" accept="application/pdf" onchange="gererUploadPdf(event)">
-            <span class="pdf-dropzone-hint">ou glissez-déposez le fichier ici</span>
+            <label for="f-pdf" class="file-btn">Choisir un fichier</label>
+            <input type="file" id="f-pdf" accept="application/pdf,.zip,application/zip" onchange="gererUploadPdf(event)">
+            <span class="pdf-dropzone-hint">PDF du compromis ou export Authentic (.zip) — ou glissez-déposez le fichier ici</span>
           </div>
           <div id="pdf-status" class="pdf-status"></div>
           <div class="progress-bar" id="pdf-progress"><div class="progress-bar-fill" id="pdf-progress-fill"></div></div>
@@ -487,6 +487,7 @@
         </div>
 
         <div class="pieces-apercu" id="pieces-apercu"></div>
+        <div class="pieces-authentic" id="pieces-authentic" style="display:none;"></div>
 
         <fieldset id="rappel-fieldset">
           <legend>Envoyer un rappel</legend>

@@ -2707,6 +2707,11 @@
   /* Aperçu de la checklist à l'étape "Finaliser" du wizard, avant l'enregistrement du dossier :
      de simples puces .piece-item, sans compteur ni case (rien à vérifier encore). */
   .pieces-apercu { margin: 4px 0 20px; }
+  /* Export Authentic : pièces déjà présentes, marquées reçues à l'enregistrement (majPiecesAuthentic). */
+  .pieces-authentic { margin: -8px 0 20px; font-size: 13px; color: var(--ink-soft); }
+  .pieces-authentic label { display: flex; align-items: center; gap: 8px; font-weight: 500; color: var(--ink); }
+  .pieces-authentic-liste { margin: 6px 0 0; padding-left: 26px; display: grid; gap: 2px; }
+  .pieces-authentic-liste .jour-meta { margin-left: 6px; }
   .pieces-apercu-liste { display: flex; flex-wrap: wrap; gap: 8px; }
   .pieces-apercu-titre {
     font-size: 12.5px;

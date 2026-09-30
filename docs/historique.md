@@ -12644,3 +12644,44 @@ scans. »
   barre repliée (style en ligne `inline-flex` plus fort que la règle qui le masque).
 - Vérifié dans Chromium (serveur réel, dossier Scan inventé avec deux PDF) : bureau, barre repliée,
   390 px.
+
+### 30/09/2026 14:54 — Nouveau dossier : import d'un export Authentic
+
+- Demande de l'étude : « reprend le projet de création de nouveau dossier à l'aide de l'export de
+  Authentic. Met une option en place dans l'outil de création. Il sera aussi utile pour les autres
+  dossiers de succession à venir. » Export réel fourni (ZIP « EXPORT_SousDossier-… », non commité).
+- **Forme de l'export** (lue sur l'exemple) : `DATA.xml` (UTF-8, espace
+  `http://notaires.fr/interoperabilite/1.0`) avec `personnePhysique` (état civil, contact, adresses,
+  emails séparés par « ; », situations matrimoniales, documents d'état civil « clientNNNN\… »),
+  `immeuble` (localisation/adresse, lot/maison avec surface, pas de cadastre dans l'exemple),
+  `dossier` (intitulé « VTE VENDEUR / ACQUÉREUR », `parties` Disposant/Beneficiaire avec notaire et
+  `roleNotaire` « Participation » mais **références de personne vides**, intervenants, documents
+  « sous2\… », `documentActe` = Word de l'acte en cours). Chemins en « \ », casse variable
+  (« Sous2 » dans le XML, « sous2 » dans le ZIP). Le « AC_NNNN.doc » est un .docx, et c'est ici
+  l'**acte de vente** (projet), pas l'avant-contrat ; texte truffé de codes de fusion
+  (« {VIDA:…} », « [:V_41.1] », lignes « BLOC | … | BLOC », « TELEACTES | … »).
+- Lecture 100 % navigateur, sans bibliothèque : `entreesZip` (répertoire central), décompression
+  par `DecompressionStream('deflate-raw')`, `arbreXml` (parseur minimal), `lireExportAuthentic`,
+  `texteDepuisDocumentWord` + `nettoyerTexteAuthentic`. Tout pur sauf la décompression.
+- Parties : références si présentes, sinon intitulé (nom ou nom d'usage de la personne dans un seul
+  des deux côtés) ; l'ex-épouse de l'acquéreur (présente dans le flux) n'est pas partie. Notaires :
+  confrère attaché à une partie en « Participation » → l'étude reçoit l'acte de l'autre côté
+  (CONFIRMED) ; sinon NEEDS_REVIEW. Utilisés seulement si le texte n'a rien établi.
+- Texte : PDF d'avant-contrat signé présent dans l'export → import PDF ordinaire (aperçu compris) ;
+  sinon Word de l'acte ; s'il s'agit de l'acte de vente (`acteAuthenticEstAvantContrat` faux),
+  seuls prix/parties/notaires servent, les dates sont effacées (la date du projet était prise pour
+  la signature de l'avant-contrat) et le compte rendu dit « dates butoir à saisir ».
+- Pièces : `piecesExportAuthentic` (nom de fichier ou intitulé, `correspondancePieceNom` exact, même
+  règle que le NAS) ; sur l'exemple, 6 pièces : CU, alignement, numérotage, renonciation DPU, DDT, ERP.
+  Case « Pièces présentes dans Authentic : les marquer reçues » à l'étape Finaliser ; à
+  l'enregistrement, `pieces[cle] = 'recue'` + `piecesValideesManuellement` (précédent SAFER : une
+  pièce détenue dans Authentic ne doit pas être repassée manquante par le NAS) et une ligne
+  d'historique qui les nomme.
+- Succession : `typeAffaireAuthentic` (intitulé « SUCC… », qualités Défunt/Héritier…) → message
+  « pas encore suivi », rien n'est rempli.
+- Vérifié : rejeu de l'export réel en Node (2 parties, adresse normalisée, maison, prix, notaires,
+  6 pièces) et parcours complet dans Chromium avec un
+  serveur réel (dépôt du ZIP → étapes 2 et 4 → enregistrement → dossier en base avec pièces reçues).
+  Non vérifié : un export contenant l'avant-contrat (PDF ou Word) — pdf.js indisponible ici ; un
+  export de succession réel ; un export avec références de parties remplies (testé sur données
+  inventées). Tests : `tests/authentic.test.js` (10).
