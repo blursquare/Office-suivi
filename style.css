@@ -7021,3 +7021,5 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
   .suivi-barre-recherche { flex-wrap: wrap; }
   .suivi-barre-recherche .vue-bascule { margin-left: auto; }
 }
+/* Aperçu du rapport technique (Réglages › Mise à jour) : le texte exact qui part sur GitHub. */
+.reglages-rapport-apercu { margin: 10px 0 0; max-height: 360px; overflow: auto; padding: 12px 14px; background: var(--paper-sunk); border: 1px solid var(--line); border-radius: 8px; font-size: 12px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; color: var(--ink-soft); }

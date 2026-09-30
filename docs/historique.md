@@ -13111,3 +13111,33 @@ CLAIRE au lancement du serveur, lien vers une pièce ouvert depuis une notificat
 vérifiés : chaque écriture EWS prise isolément, OCR des scans (temps, qualité), icône de l'exe,
 reçus comptables au-delà des deux PDF fournis, restauration d'une sauvegarde. Aucun changement de code.
 - Icône de CLAIRE-serveur.exe : « Oui c'est bon » (nette) — confirmée au bureau le 30/09 au soir.
+
+### 30/09/2026 soir — Rapport technique anonymisé sur GitHub, relu par une routine Claude
+
+Demande de l'étude : « Comment tu pourrais avoir des rapports de ce qui s'est passé pour ajuster
+les fonctions et le code, de manière automatique ? Par GitHub peut-être ? » Accord de l'étude pour
+envoyer un rapport anonymisé vers GitHub, demandes de fusion + rapport, horaires : rapport du serveur
+à 12 h et 17 h, relecture par Claude juste après (résultat attendu vers 12 h 30 et 18 h).
+- `server/src/journalTechnique.js` : table `journal_technique` ; `console.error`/`console.warn` du
+  serveur capturés (`installerCaptureConsole`, index.js) ; un même message dans les 10 min est compté
+  (`fois`), purge à 14 jours.
+- Postes → `POST /api/journal-technique` (liste blanche `evenementPoste`) : erreurs du navigateur
+  (message, fichier:ligne, écran, version), corrections à la main après extraction (nom du champ et
+  origine seulement), lecture d'un scan (durée, OCR, type reconnu, dossier sûr). Côté client :
+  `noterJournalTechnique`, file bornée à 50, envoyée au plus une fois par minute.
+- `server/src/rapportTechnique.js` : `construireRapport` (erreurs regroupées, signalements, corrections
+  par champ, agenda, rappels, Claire Scan, sauvegarde, activité) ; **anonymisation avant l'envoi**
+  (`anonymiserTexte`, `motsSensibles` tirés des dossiers et des collaborateurs) ; `creneauDu` (12 h,
+  17 h, jours ouvrés, rattrapage, un seul essai par créneau) ; `envoyerIssue` (étiquette
+  `rapport-claire`, réessai sans étiquette sur 422) ; la période suivante commence à la fin du dernier
+  envoi réussi. État : clé `rapport-technique` (actif par défaut).
+- Réglages › Mise à jour : interrupteur, « Voir ce qui part », « Envoyer maintenant » ; consigne du
+  jeton complétée (« Issues : Read and write »).
+- Routine Claude (Claude Code, nouvelle session à chaque tir, 12 h 05 et 17 h 05 heure de Paris, jours
+  ouvrés) : lit les issues `rapport-claire` ouvertes, corrige sur une branche `claude/rapport-…`, ouvre
+  une demande de fusion (jamais de push sur main), commente l'issue avec le résumé et la ferme.
+- Tests : `server/test/rapport-technique.test.js` (9, dont « aucun nom inventé ne sort » sur le
+  rapport, l'aperçu et le corps réellement posté), `tests/rapport-technique.test.js`. Vérifié dans
+  Chromium : une erreur provoquée contenant « DURAND / MARTIN » ressort « [nom] / [nom] » dans l'aperçu.
+- Remarque : le mode automatique de la session a d'abord bloqué l'envoi vers GitHub (« exfiltration
+  de données ») ; repris après passage de la session en validation manuelle par l'étude.

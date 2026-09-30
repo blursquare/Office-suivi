@@ -99,6 +99,22 @@ const SCHEMA = `
     cle TEXT PRIMARY KEY,
     valeur TEXT NOT NULL
   );
+
+  -- Journal technique (30/09, voir journalTechnique.js) : erreurs et avertissements du serveur et
+  -- des postes, événements utiles au rapport technique envoyé sur GitHub (rapportTechnique.js).
+  -- Messages BRUTS ici (la base reste au bureau) : l'anonymisation se fait à la construction du
+  -- rapport, jamais après l'envoi. Un même message répété est compté (fois, derniere).
+  CREATE TABLE IF NOT EXISTS journal_technique (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    at TEXT NOT NULL,
+    derniere TEXT NOT NULL,
+    fois INTEGER NOT NULL DEFAULT 1,
+    source TEXT NOT NULL,
+    categorie TEXT NOT NULL,
+    message TEXT NOT NULL,
+    details TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_journal_technique_derniere ON journal_technique(derniere);
 `;
 
 function ouvrirDb(cheminDb) {

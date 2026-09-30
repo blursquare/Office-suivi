@@ -652,6 +652,28 @@ function assainirScansEcartes(brut) {
     .slice(0, MAX_SCANS_ECARTES);
 }
 
+// Rapport technique envoyé sur GitHub (30/09, voir rapportTechnique.js) : interrupteur (actif par
+// défaut, accord de l'étude) et état produit par le serveur — dernier créneau traité, dernier envoi
+// réussi (sa fin sert de début à la période suivante), dernière erreur.
+const CLE_RAPPORT_TECHNIQUE = 'rapport-technique';
+function assainirRapportTechnique(brut) {
+  const b = brut && typeof brut === 'object' ? brut : {};
+  const txt = (v, max) => (typeof v === 'string' && v ? v.slice(0, max) : null);
+  const e = b.dernierEnvoi && typeof b.dernierEnvoi === 'object' ? b.dernierEnvoi : null;
+  return {
+    actif: b.actif !== false,
+    dernierCreneau: txt(b.dernierCreneau, 20),
+    derniereTentative: txt(b.derniereTentative, 40),
+    derniereErreur: txt(b.derniereErreur, 500),
+    dernierEnvoi: e && typeof e.jusqua === 'string' ? {
+      at: txt(e.at, 40), depuis: txt(e.depuis, 40), jusqua: e.jusqua.slice(0, 40),
+      numero: Number.isInteger(e.numero) ? e.numero : null,
+      url: typeof e.url === 'string' && /^https:\/\/github\.com\//.test(e.url) ? e.url.slice(0, 300) : null,
+      calme: !!e.calme, points: Number.isInteger(e.points) ? e.points : 0
+    } : null
+  };
+}
+
 // Carnet des confrères (voir carnetConfreres.js). Absent = jamais ouvert : il part alors du relevé
 // de l'annuaire du 41, écrit en base à la première lecture pour que les postes partagent la même liste.
 const CLE_CARNET_CONFRERES = 'carnet-confreres';
@@ -963,6 +985,8 @@ function creerRepoParametres(db) {
     try { return assainir(JSON.parse(ligne.valeur)); } catch (e) { return defaut; }
   }
   function lireReglagesScans() { return lireJson(CLE_SCANS_REGLAGES, assainirReglagesScans, assainirReglagesScans({})); }
+  function lireRapportTechnique() { return lireJson(CLE_RAPPORT_TECHNIQUE, assainirRapportTechnique, assainirRapportTechnique({})); }
+  function ecrireRapportTechnique(r) { const p = assainirRapportTechnique(r); ecrireStmt.run(CLE_RAPPORT_TECHNIQUE, JSON.stringify(p)); return p; }
   function ecrireReglagesScans(r) { const p = assainirReglagesScans(r); ecrireStmt.run(CLE_SCANS_REGLAGES, JSON.stringify(p)); return p; }
   function lireJournalScans() { return lireJson(CLE_SCANS_JOURNAL, assainirJournalScans, []); }
   function ecrireJournalScans(j) { const p = assainirJournalScans(j); ecrireStmt.run(CLE_SCANS_JOURNAL, JSON.stringify(p)); return p; }
@@ -1011,6 +1035,7 @@ function creerRepoParametres(db) {
   }
 
   return {
+    lireRapportTechnique, ecrireRapportTechnique,
     lireReglagesScans, ecrireReglagesScans, lireJournalScans, ecrireJournalScans, lireScansEcartes, ecrireScansEcartes,
     lirePiecesNotifiees, ecrirePiecesNotifiees,
     lireCarnetConfreres, ecrireCarnetConfreres,
@@ -1038,5 +1063,5 @@ module.exports = {
   assainirReglagesExchange, assainirCategoriesRdv, CATEGORIES_RDV_DEFAUT, URL_EWS_DEFAUT, assainirCategoriesAgenda,
   assainirDernierTourAgenda, assainirAbsenceAgenda, assainirAbsencesAgenda,
   REGLAGES_PAR_DEFAUT, PORT_SMTP_PAR_DEFAUT, assainirResumeEmails,
-  assainirReglagesScans, assainirJournalScans, assainirScansEcartes, assainirPiecesNotifiees
+  assainirReglagesScans, assainirJournalScans, assainirScansEcartes, assainirPiecesNotifiees, assainirRapportTechnique
 };

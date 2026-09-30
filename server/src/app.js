@@ -32,6 +32,10 @@ const { creerRouteurMiseAJour } = require('./routes/miseAJour');
 const { creerRouteurAgenda } = require('./routes/agenda');
 const { creerRouteurExchange } = require('./routes/exchange');
 const { creerRouteurEmailsMatin } = require('./routes/emailsMatin');
+const { creerRouteurRapportTechnique } = require('./routes/rapportTechnique');
+const { creerJournalTechnique } = require('./journalTechnique');
+const { COLLABORATEURS_ABSENCE } = require('./agendaOffice');
+const { lireBuildInstalle } = require('./miseAJour');
 
 // Fichier statique → nom d'asset embarqué (voir server/scripts/build-windows-exe.mjs, section
 // `assets` de sea-config.json) + type MIME à renvoyer. Tous des fichiers texte (HTML/CSS/JS/JSON/
@@ -82,10 +86,16 @@ function estSea() {
 
 // `envoyerEmailFn` : injection de la couche d'envoi (voir envoiEmail.js), utilisée uniquement par
 // les tests — sans elle, vérifier les routes qui notifient demanderait un vrai serveur SMTP.
-function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistral, testerMistral, miseAJour, agenda, emailsMatin }) {
+function seaOuNull() {
+  try { return require('node:sea'); } catch (_) { return null; }
+}
+
+function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistral, testerMistral, miseAJour, agenda, emailsMatin, rapportTechnique }) {
   const app = express();
   const depot = creerDepot(db);
   const parametresRepo = creerRepoParametres(db);
+  // Journal technique (erreurs, événements des postes) : alimente le rapport technique GitHub.
+  const journalTechnique = creerJournalTechnique(db);
   // authActive === false : accès sans mot de passe (défaut en production, voir config.js). Absent
   // (tests qui construisent leur propre config) : l'authentification reste active.
   const gestionnaireAuth = creerGestionnaireAuth(config.motDePasse, { desactivee: config.authActive === false });
@@ -148,6 +158,14 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   // crée les rendez-vous de signature dans l'agenda. À valider sur un poste du bureau (l'Exchange
   // n'est joignable que depuis le réseau de l'étude).
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExchange(parametresRepo));
+  // Rapport technique anonymisé déposé sur GitHub à 12 h et 17 h (voir rapportTechnique.js) ; le
+  // minuteur est démarré par index.js seulement. `rapportTechnique.fetchFn` : tests uniquement.
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRapportTechnique({
+    journal: journalTechnique, parametresRepo, depot, db,
+    buildInstalle: () => lireBuildInstalle(seaOuNull()),
+    collaborateurs: COLLABORATEURS_ABSENCE.map((c) => c.nom),
+    fetchFn: (rapportTechnique && rapportTechnique.fetchFn) || fetch
+  }));
 
   // Gestionnaire d'erreurs générique en dernier recours : évite qu'une exception inattendue
   // (JSON malformé, etc.) ne fasse planter le processus entier plutôt que de répondre 500.
@@ -156,7 +174,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
     res.status(400).json({ erreur: 'Requête invalide.' });
   });
 
-  return { app, depot, parametresRepo, gestionnaireAuth };
+  return { app, depot, parametresRepo, gestionnaireAuth, journalTechnique };
 }
 
 // creerMiddlewareAssetsSea/ASSETS_STATIQUES exposées pour les tests uniquement (voir

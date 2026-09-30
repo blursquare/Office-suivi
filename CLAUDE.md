@@ -55,6 +55,8 @@ server/                              Serveur (son propre package.json ; le packa
   src/envoiEmail.js, imapGmail.js,   Envoi SMTP, effacement différé des copies Gmail
        nettoyageGmail.js
   src/sauvegarde.js, miseAJour.js    Sauvegarde quotidienne de la base, mise à jour en un clic
+  src/journalTechnique.js,           Journal technique (console.error/warn du serveur, événements des
+       rapportTechnique.js           postes) et rapport anonymisé déposé en issue GitHub (12 h, 17 h)
   scripts/build-windows-exe.mjs      Construction du .exe (esbuild + SEA + postject + icône)
 tests/                               Tests client (node:test) ; server/test/ pour le serveur
 docs/historique.md                   Historique détaillé (voir plus haut)
@@ -71,7 +73,12 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
    cadrées par l'étude : l'API de relecture d'actes (Mistral par défaut, Claude en option), qui ne
    reçoit que du texte **pseudonymisé dans le navigateur** (la table de correspondance ne quitte
    jamais le poste) ; l'autocomplétion d'adresse `api-adresse.data.gouv.fr` (seul le texte tapé part) ;
-   les CDN de bibliothèques (pdf.js, tesseract.js 7.0.0, docxtemplater, docx).
+   les CDN de bibliothèques (pdf.js, tesseract.js 7.0.0, docxtemplater, docx) ; le **rapport technique**
+   (accord de l'étude du 30/09, `rapportTechnique.js`) : issue GitHub à 12 h et 17 h les jours ouvrés,
+   **anonymisée par le serveur avant l'envoi** (`anonymiserTexte` : chemins, fichiers, emails, montants,
+   téléphones, mots tirés des dossiers et des collaborateurs, mots en capitales hors sigles techniques ;
+   jamais d'auteur de signalement, de capture, de nom de dossier ni de valeur de champ) — tout ajout
+   au rapport passe par `anonymiserTexte` et un test « aucun nom ne sort ».
 2. **Accès sans mot de passe par défaut** (le réseau du bureau protège l'accès ;
    `"authActive": true` dans `config.json` le rétablit). Pas de compte par collaborateur : le
    collaborateur du poste est choisi une fois (`localStorage`), ses préférences vivent en base.

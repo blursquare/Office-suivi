@@ -63,6 +63,13 @@ const { demarrerSurveillanceAgenda } = require('./agendaWatch');
 const { demarrerTacheRappels } = require('./jobs/rappels');
 const { demarrerResumeEmails } = require('./emailsMatin');
 const { demarrerSauvegardeAutomatique } = require('./sauvegarde');
+const { installerCaptureConsole } = require('./journalTechnique');
+const { demarrerRapportTechnique } = require('./rapportTechnique');
+const { COLLABORATEURS_ABSENCE } = require('./agendaOffice');
+const { lireBuildInstalle } = require('./miseAJour');
+function seaOuNull() {
+  try { return require('node:sea'); } catch (_) { return null; }
+}
 
 // Journal de secours à côté de la base (même dossier `data/`, déjà résolu correctement en mode
 // développement comme en mode exécutable autonome — voir config.js) : signalé par l'étude, le
@@ -222,7 +229,7 @@ function redemarrerApresMiseAJour(serveur, db) {
 function demarrer() {
   const db = ouvrirDb(config.cheminDb);
   let serveur = null;
-  const { app, depot, parametresRepo } = creerApp({
+  const { app, depot, parametresRepo, journalTechnique } = creerApp({
     db,
     config,
     miseAJour: { redemarrer: () => redemarrerApresMiseAJour(serveur, db) }
@@ -254,6 +261,16 @@ function demarrer() {
   // Résumé des emails du matin (voir emailsMatin.js) : 8 h 50 les jours ouvrés, un seul essai par
   // jour. Silencieux tant que la connexion Exchange n'est pas configurée. Démarré ici seulement.
   demarrerResumeEmails(depot, parametresRepo);
+
+  // Rapport technique (voir rapportTechnique.js) : les erreurs et avertissements du serveur, lancé
+  // sans fenêtre, sont gardés dans le journal technique ; à 12 h et 17 h les jours ouvrés, un
+  // rapport anonymisé part en issue sur GitHub, lu ensuite par la routine Claude. Démarré ici seulement.
+  installerCaptureConsole(journalTechnique);
+  demarrerRapportTechnique({
+    journal: journalTechnique, parametresRepo, depot, db,
+    buildInstalle: lireBuildInstalle(seaOuNull()),
+    collaborateurs: COLLABORATEURS_ABSENCE.map((c) => c.nom)
+  });
 
   serveur = app.listen(config.port, () => {
     const url = `http://localhost:${config.port}/`;

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 19:09';
+  const VERSION_APP = '2026-09-30 20:19';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 20:19', resume: "Nouveau : rapport technique. Les jours ouvrés à 12 h et 17 h, CLAIRE dépose sur GitHub un résumé de la période (erreurs du serveur et des postes, signalements, champs corrigés à la main après une extraction, agenda, rappels, Claire Scan, sauvegarde), après avoir retiré noms, adresses, montants, chemins et noms de fichiers. Claude le relit ensuite et propose ses corrections, à valider sur GitHub. Réglages › Mise à jour : interrupteur, « Voir ce qui part » (le texte exact envoyé) et « Envoyer maintenant ». Le jeton GitHub doit avoir le droit « Issues : Read and write »." },
     { version: '2026-09-30 19:09', resume: "Suivi des dossiers, vue Échéances : en cochant « Archivés », les dossiers archivés apparaissent dans une section « Archivés » en bas de la liste, les plus récents d'abord, avec leur date de signature (ou d'archivage). Un clic ouvre la fiche, comme ailleurs : plus besoin de passer par la vue Tableau pour les retrouver." },
     { version: '2026-09-30 18:37', resume: "Suivi des dossiers : la barre au-dessus de la liste passe sur trois lignes. En haut, un grand champ de recherche (avec la bascule Échéances / Tableau). Dessous, les options pour affiner sur une seule ligne : responsable, échéance, offre de prêt, rôle, archivés. En bas, les statuts en couleur. Doublons retirés : la recherche porte sur le nom du dossier seulement (le collaborateur se choisit dans « Responsable », qui reste pré-réglé sur celui du poste) ; « Trier par » n'apparaît qu'en vue Tableau, la seule qu'il trie." },
     { version: '2026-09-30 18:34', resume: "La page « Aujourd'hui » est supprimée. La carte « Aujourd'hui » du tableau de bord et la fenêtre du point du matin restent : « Voir plus » dans la carte ouvre désormais cette fenêtre. Le classeur des scans s'appelle « Claire Scan » partout : barre latérale, écran, rubrique des Réglages, carte « Dernières pièces »." },
@@ -339,21 +340,50 @@
     return tampon;
   }
 
+  // Journal technique (30/09, voir server/src/rapportTechnique.js) : les erreurs du navigateur, les
+  // corrections faites à la main après une extraction et la lecture des scans partent au serveur,
+  // qui les résume dans le rapport technique anonymisé de 12 h et 17 h. Seuls des champs neutres
+  // partent (message d'erreur, nom du champ corrigé, durée) — jamais une valeur de dossier ; le
+  // serveur refiltre par liste blanche (routes/rapportTechnique.js). Envoi groupé, au plus une fois
+  // par minute ; un échec ne relance rien (la file est simplement vidée).
+  var fileJournalTechnique = [];
+  var envoiJournalTechniquePrevu = false;
+  var MAX_FILE_JOURNAL_TECHNIQUE = 50;
+  function noterJournalTechnique(evenement) {
+    if (!evenement || !evenement.categorie) return;
+    try {
+      const e = Object.assign({ version: typeof VERSION_APP !== 'undefined' ? VERSION_APP : '' }, evenement);
+      if (e.categorie === 'erreur-poste' && typeof ongletActuel !== 'undefined') e.onglet = (typeof LIBELLES_ONGLETS !== 'undefined' && LIBELLES_ONGLETS[ongletActuel]) || String(ongletActuel || '');
+      if (fileJournalTechnique.length >= MAX_FILE_JOURNAL_TECHNIQUE) return;
+      fileJournalTechnique.push(e);
+      if (!envoiJournalTechniquePrevu && typeof setTimeout === 'function') {
+        envoiJournalTechniquePrevu = true;
+        setTimeout(envoyerJournalTechnique, 60000);
+      }
+    } catch (err) { /* jamais bloquant */ }
+  }
+  async function envoyerJournalTechnique() {
+    envoiJournalTechniquePrevu = false;
+    const lot = fileJournalTechnique.splice(0, MAX_FILE_JOURNAL_TECHNIQUE);
+    if (!lot.length || typeof fetchAvecAuth !== 'function') return;
+    try {
+      await fetchAvecAuth('/api/journal-technique', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ evenements: lot }) });
+    } catch (err) { /* serveur injoignable : ces événements sont perdus, sans conséquence */ }
+  }
+
   if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
     window.addEventListener('error', (e) => {
-      ajouterErreurTampon(erreursRecentes, {
-        message: (e && e.message) || 'Erreur',
-        source: e && e.filename ? `${String(e.filename).split('/').pop()}:${e.lineno || '?'}` : '',
-        at: new Date().toISOString()
-      });
+      const source = e && e.filename ? `${String(e.filename).split('/').pop()}:${e.lineno || '?'}` : '';
+      ajouterErreurTampon(erreursRecentes, { message: (e && e.message) || 'Erreur', source, at: new Date().toISOString() });
+      noterJournalTechnique({ categorie: 'erreur-poste', message: (e && e.message) || 'Erreur', source });
     });
     window.addEventListener('unhandledrejection', (e) => {
       const r = e && e.reason;
-      ajouterErreurTampon(erreursRecentes, {
-        message: (r && (r.message || String(r))) || 'Promesse rejetée',
-        source: 'promesse',
-        at: new Date().toISOString()
-      });
+      const message = (r && (r.message || String(r))) || 'Promesse rejetée';
+      ajouterErreurTampon(erreursRecentes, { message, source: 'promesse', at: new Date().toISOString() });
+      // La pile d'une promesse rejetée donne la ligne fautive (script.js:1234) au rapport technique.
+      const pile = r && r.stack ? String(r.stack).split('\n').slice(0, 4).join(' | ') : '';
+      noterJournalTechnique({ categorie: 'erreur-poste', message: pile && !pile.includes(message) ? `${message} | ${pile}` : (pile || message), source: 'promesse' });
     });
   }
 
@@ -21110,6 +21140,8 @@
   function journaliserCorrectionsExtraction(entrees) {
     if (!Array.isArray(entrees) || entrees.length === 0) return;
     journalCorrectionsExtraction.push(...entrees);
+    // Rapport technique : le nom du champ et qui l'avait proposé, jamais les valeurs.
+    entrees.forEach(e => noterJournalTechnique({ categorie: 'correction-extraction', champ: e.champ, origine: e.origine }));
     // On garde les plus récentes : c'est l'état actuel de l'extraction qui intéresse, pas ses
     // erreurs d'il y a deux ans sur des regex depuis corrigées.
     if (journalCorrectionsExtraction.length > MAX_CORRECTIONS_EXTRACTION) {
@@ -31035,6 +31067,7 @@
       chargerReglagesAgenda();
       chargerEtatSauvegarde();
       chargerMiseAJour();
+      chargerRapportTechnique();
     } catch (e) {
       // Session expirée : déjà géré par fetchAvecAuth (écran de connexion réaffiché).
     }
@@ -31826,6 +31859,88 @@
     }
   }
 
+  // ===== Rapport technique (server/src/rapportTechnique.js) =====
+  // Déposé sur GitHub à 12 h et 17 h les jours ouvrés, anonymisé par le serveur ; « Voir ce qui
+  // part » montre le texte exact avant tout envoi.
+  let etatRapportTechnique = null;
+
+  // Pure et testable : l'encart d'état. `etat` : GET /api/rapport-technique.
+  function messageRapportTechnique(etat) {
+    if (!etat) return { niveau: 'neutre', titre: 'État du rapport technique indisponible.', detail: '' };
+    if (!etat.actif) return { niveau: 'neutre', titre: 'Rapport technique désactivé.', detail: 'Rien n’est envoyé sur GitHub.' };
+    if (!etat.jetonEnregistre) return { niveau: 'alerte', titre: 'Aucun jeton GitHub enregistré.', detail: 'Enregistrez-en un ci-dessus, avec le droit « Issues : Read and write ».' };
+    const envoi = etat.dernierEnvoi;
+    const quand = (iso) => {
+      const d = new Date(iso);
+      return isNaN(d) ? '' : `${formatDateFr(isoLocalDepuisDate(d))} à ${String(d.getHours()).padStart(2, '0')} h ${String(d.getMinutes()).padStart(2, '0')}`;
+    };
+    if (etat.derniereErreur) {
+      return { niveau: 'alerte', titre: 'Le dernier rapport n’est pas parti.', detail: etat.derniereErreur + (envoi ? ` Dernier envoi réussi : ${quand(envoi.at)}.` : '') };
+    }
+    if (envoi) {
+      return { niveau: 'ok', titre: `Dernier rapport envoyé le ${quand(envoi.at)}${envoi.numero ? ` (n° ${envoi.numero})` : ''}.`, detail: envoi.calme ? 'Rien à signaler.' : `${envoi.points} point(s) à examiner.`, url: envoi.url || '' };
+    }
+    return { niveau: 'neutre', titre: 'Aucun rapport envoyé pour l’instant.', detail: 'Prochain envoi à 12 h ou 17 h (jours ouvrés).' };
+  }
+
+  function renderRapportTechnique() {
+    const zone = document.getElementById('reglages-rapport-etat');
+    if (!zone) return;
+    const m = messageRapportTechnique(etatRapportTechnique);
+    zone.className = 'reglages-dernier-tour' + (m.niveau === 'ok' ? ' dernier-tour-ok' : m.niveau === 'alerte' ? ' dernier-tour-alerte' : '');
+    zone.innerHTML = `<div class="dernier-tour-ligne">${icone(m.niveau === 'ok' ? 'check' : m.niveau === 'alerte' ? 'alert-triangle' : 'info')}<span><strong>${escapeHtml(m.titre)}</strong>${m.detail ? ' ' + escapeHtml(m.detail) : ''}${m.url ? ` <a href="${escapeAttr(m.url)}" target="_blank" rel="noopener">Ouvrir sur GitHub</a>` : ''}</span></div>`;
+    const actif = document.getElementById('reglages-rapport-actif');
+    if (actif && etatRapportTechnique) actif.checked = !!etatRapportTechnique.actif;
+  }
+
+  async function chargerRapportTechnique() {
+    try {
+      const reponse = await fetchAvecAuth('/api/rapport-technique');
+      if (!reponse.ok) return;
+      etatRapportTechnique = await reponse.json();
+      renderRapportTechnique();
+    } catch (e) { /* serveur injoignable : déjà signalé ailleurs */ }
+  }
+
+  async function basculerRapportTechnique(actif) {
+    try {
+      const reponse = await fetchAvecAuth('/api/rapport-technique', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actif: !!actif }) });
+      if (reponse.ok) etatRapportTechnique = await reponse.json();
+    } catch (e) { /* on réaffiche l'état connu */ }
+    renderRapportTechnique();
+  }
+
+  async function afficherApercuRapportTechnique() {
+    const zone = document.getElementById('reglages-rapport-apercu');
+    if (!zone) return;
+    if (zone.style.display !== 'none') { zone.style.display = 'none'; return; }
+    zone.style.display = '';
+    zone.textContent = 'Préparation de l’aperçu…';
+    try {
+      const reponse = await fetchAvecAuth('/api/rapport-technique/apercu');
+      const corps = await reponse.json();
+      zone.textContent = reponse.ok ? `${corps.titre}\n\n${corps.corps}` : (corps.erreur || 'Aperçu impossible.');
+    } catch (e) {
+      zone.textContent = 'Serveur injoignable.';
+    }
+  }
+
+  async function envoyerRapportTechnique() {
+    const bouton = document.getElementById('reglages-rapport-envoyer');
+    if (bouton) { bouton.disabled = true; bouton.textContent = 'Envoi…'; }
+    try {
+      const reponse = await fetchAvecAuth('/api/rapport-technique/envoyer', { method: 'POST' });
+      const corps = await reponse.json();
+      if (corps && typeof corps.actif === 'boolean') etatRapportTechnique = corps;
+      else if (corps && corps.erreur) etatRapportTechnique = Object.assign({}, etatRapportTechnique, { derniereErreur: corps.erreur });
+    } catch (e) {
+      etatRapportTechnique = Object.assign({}, etatRapportTechnique, { derniereErreur: 'Serveur injoignable.' });
+    } finally {
+      if (bouton) { bouton.disabled = false; bouton.textContent = 'Envoyer maintenant'; }
+      renderRapportTechnique();
+    }
+  }
+
   async function enregistrerJetonMiseAJour() {
     const champ = document.getElementById('reglages-maj-jeton');
     const resultat = document.getElementById('reglages-maj-jeton-resultat');
@@ -32377,8 +32492,10 @@
           lecturesScans[cle] = { statut: 'lecture' };
           if (ongletActuel === 'scans') renderScans();
           try {
+            const debutLecture = Date.now();
             const lecture = await lireScan(scan);
             const proposition = propositionScan(lecture, dossiersCandidatsScans(), scan.date);
+            noterJournalTechnique({ categorie: 'scan-lu', dureeMs: Date.now() - debutLecture, ocr: !!lecture.viaOcr, reconnu: !!(proposition && proposition.type), sur: !!(proposition && proposition.automatique), type: (proposition && proposition.type) || '' });
             lecturesScans[cle] = { statut: 'pret', lecture: { viaOcr: lecture.viaOcr, pages: lecture.pages, texte: lecture.texte }, proposition, choix: choixDepuisProposition(proposition) };
           } catch (e) {
             lecturesScans[cle] = { statut: 'erreur', erreur: e.message || 'Lecture impossible', choix: choixDepuisProposition(null, scan.date) };

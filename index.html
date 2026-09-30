@@ -1805,7 +1805,7 @@
           <li>Sur github.com, connecté au compte propriétaire du dépôt : photo de profil › <em>Settings</em> › <em>Developer settings</em> › <em>Personal access tokens</em> › <em>Fine-grained tokens</em> › <em>Generate new token</em>.</li>
           <li>Nom : « CLAIRE mise à jour ». Expiration : la plus longue proposée (à renouveler ensuite).</li>
           <li><em>Repository access</em> : <em>Only select repositories</em> › <strong>Office-suivi</strong>.</li>
-          <li><em>Permissions</em> › <em>Repository permissions</em> › <strong>Contents : Read-only</strong>. Rien d'autre.</li>
+          <li><em>Permissions</em> › <em>Repository permissions</em> › <strong>Contents : Read-only</strong> et <strong>Issues : Read and write</strong> (pour le rapport technique ci-dessous). Rien d'autre.</li>
           <li><em>Generate token</em>, copier le jeton (il commence par <code>github_pat_</code>) et le coller ci-dessous. Il n'est jamais réaffiché.</li>
         </ol>
         <div class="reglages-liste">
@@ -1827,6 +1827,29 @@
           <li>La base a été sauvegardée juste avant la mise à jour (voir « Sauvegarde de la base » ci-dessous).</li>
         </ol>
       </details>
+    </div>
+
+    <!-- Rapport technique anonymisé déposé sur GitHub à 12 h et 17 h (server/src/rapportTechnique.js),
+         lu par la routine Claude qui propose ses corrections en demande de fusion. -->
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Rapport technique <span class="info-i" tabindex="0" data-info="Les jours ouvrés à 12 h et 17 h, CLAIRE dépose sur GitHub un résumé des erreurs, signalements et corrections de la période. Noms, adresses, montants, chemins et fichiers sont retirés avant l'envoi. Claude le lit ensuite et propose ses corrections, à valider sur GitHub. Le jeton ci-dessus doit avoir le droit « Issues : Read and write »."></span></h3>
+      <div class="reglages-liste">
+        <label class="reglages-option" for="reglages-rapport-actif">
+          <span class="reglages-option-texte">
+            <span class="reglages-option-titre">Envoyer le rapport à 12 h et 17 h</span>
+          </span>
+          <span class="switch reglages-switch">
+            <input type="checkbox" id="reglages-rapport-actif" onchange="basculerRapportTechnique(this.checked)">
+            <span class="slider"></span>
+          </span>
+        </label>
+      </div>
+      <div id="reglages-rapport-etat" class="reglages-dernier-tour"></div>
+      <div class="reglages-actions">
+        <button type="button" class="secondary" onclick="afficherApercuRapportTechnique()">Voir ce qui part</button>
+        <button type="button" class="secondary" id="reglages-rapport-envoyer" onclick="envoyerRapportTechnique()">Envoyer maintenant</button>
+      </div>
+      <pre id="reglages-rapport-apercu" class="reglages-rapport-apercu" style="display:none;"></pre>
     </div>
 
     <!-- Export / import de tous les dossiers en JSON : outil d'administration, déplacé du bas du
