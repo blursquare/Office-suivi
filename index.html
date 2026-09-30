@@ -560,19 +560,27 @@
 
 <div class="wrap-suivi" id="onglet-suivi" style="display:none;">
 
-  <!-- Les tuiles de chiffres (dossiers actifs, échéances, offres, pièces) ont été retirées du
-       Suivi (revue de l'interface, 29/09) : elles répétaient le tableau de bord, et leur « dossiers
-       actifs » (tout l'office) contredisait le compte de la liste juste en dessous. -->
-
-  <div class="list-heading">
-    <div class="list-heading-titre">
-      <h2>Dossiers suivis</h2>
-      <span class="count" id="dossier-count"></span>
+  <!-- En-tête au format des autres pages (surtitre + titre = libellé de la sidebar), étude 30/09.
+       Les anciennes tuiles (dossiers actifs, échéances, offres, pièces), retirées le 29/09, sont
+       remplacées par la répartition des dossiers par statut (renderEtatsSuivi) : ses chiffres sont
+       ceux de la liste en dessous (mêmes filtres), et chaque statut filtre la liste d'un clic. -->
+  <div class="dash-header">
+    <div>
+      <div class="dash-eyebrow">Portefeuille de l'office</div>
+      <div class="dash-titre-ligne">
+        <h1 class="dash-titre">Suivi des dossiers</h1>
+        <span class="suivi-compte" id="dossier-count"></span>
+      </div>
     </div>
-    <!-- Raccourci de création directement en haut du Suivi, en plus du CTA permanent de la
-         sidebar et de celui du Tableau de bord — demandé par l'étude. -->
-    <button type="button" class="primary list-heading-nouveau" onclick="definirOnglet('nouveau')">+ Nouveau dossier</button>
+    <div class="dash-header-actions">
+      <!-- Relance le parcours du NAS pour TOUS les dossiers reliés — voir reverifierTousLesDossiers(). -->
+      <button type="button" class="secondary" onclick="reverifierTousLesDossiers(this)"
+              title="Relit le dossier NAS de chaque dossier relié : offre de prêt et pièces">Revérifier tous les dossiers</button>
+      <button type="button" class="primary dash-header-nouveau" onclick="definirOnglet('nouveau')">+ Nouveau dossier</button>
+    </div>
   </div>
+
+  <div class="suivi-etats" id="suivi-etats"></div>
 
   <div class="list-toolbar">
     <label class="toolbar-item toolbar-recherche">
@@ -629,11 +637,6 @@
       Afficher les dossiers archivés
     </label>
     <span class="toolbar-spacer"></span>
-    <!-- Relance le parcours du NAS pour TOUS les dossiers reliés, en un clic — demandé par
-         l'étude, à la place de l'ancien bouton du registre partagé. Voir
-         reverifierTousLesDossiers(). -->
-    <button type="button" class="toolbar-btn" onclick="reverifierTousLesDossiers(this)"
-            title="Relit le dossier NAS de chaque dossier relié : offre de prêt et pièces">Revérifier tous les dossiers</button>
     <!-- Bascule d'affichage de la MÊME liste (mêmes filtres, même recherche) : le tableau habituel,
          ou les mêmes dossiers regroupés par semaine d'échéance. Voir definirVueSuivi(). -->
     <div class="vue-bascule" role="group" aria-label="Mode d'affichage de la liste">

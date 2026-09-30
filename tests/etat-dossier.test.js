@@ -92,3 +92,27 @@ test('rendez-vous placé avec une pièce manquante : reste « Attente de pièces
   d.pieces = Object.assign({}, d.pieces, { [cle]: 'manquante' });
   assert.equal(etat(d).cle, 'attente');
 });
+
+test('syntheseEtatsSuivi : un compte par statut et le fait qui compte (Suivi, 30/09)', () => {
+  const lie = { dossierLie: true };
+  const complet = toutesRecues(dossier({ dossierLie: true, pret: '2026-11-20', offrePretStatut: 'recue' }));
+  const liste = [
+    dossier({ pret: '2026-09-26', ...lie }),                        // urgent, 3 j
+    dossier({ ventebien: '2026-09-19', pret: '2026-12-01', ...lie }), // urgent, 10 j
+    dossier({ pret: '2026-11-20' }),                                 // à relier
+    toutesRecues(dossier({ pret: '2026-11-20', ...lie })),           // attente : offre de prêt
+    toutesRecues(dossier({ pret: '2026-12-20', ...lie })),           // attente : offre de prêt
+    complet,
+    Object.assign({}, complet, { rendezVousSignature: '2026-10-20' }),
+    Object.assign({}, complet, { rendezVousSignature: '2026-10-08' })
+  ];
+  const s = app.syntheseEtatsSuivi(liste, AUJ);
+  assert.equal(s.map(e => `${e.cle}:${e.nombre}`).join(' '), 'urgent:2 arelier:1 attente:2 complet:1 pret:2');
+  const detail = (cle) => s.find(e => e.cle === cle).detail;
+  assert.equal(detail('urgent'), "jusqu'à 10 j de retard");
+  assert.equal(detail('attente'), 'surtout : Offre de prêt (2)');
+  assert.match(detail('pret'), /^prochaine signature 8 oct/);
+  // Aucun dossier : cinq statuts à zéro, sans détail.
+  const vide = app.syntheseEtatsSuivi([], AUJ);
+  assert.equal(vide.map(e => e.nombre + e.detail).join(''), '00000');
+});

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 16:24';
+  const VERSION_APP = '2026-09-30 16:29';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 16:29', resume: "Suivi des dossiers : en-tête aligné sur les autres pages (surtitre « Portefeuille de l'office », titre « Suivi des dossiers » comme dans le menu), « Revérifier tous les dossiers » à côté de « + Nouveau dossier ». Nouvelle répartition des dossiers par statut (Urgent, À relier, Attente de pièces, Complet, Prêt) avec, pour chacun, le plus long retard, la pièce la plus attendue ou la prochaine signature ; un clic sur un statut filtre la liste, un second clic retire le filtre. Les chiffres suivent les filtres de la liste." },
     { version: '2026-09-30 16:24', resume: "Avis de taxe foncière portant sur plusieurs biens : CLAIRE lit chaque bien et sa taxe foncière en page 2 et demande lequel est vendu (présélectionné dans l'appel de fonds quand l'adresse du dossier le désigne). Les frais de gestion de la fiscalité directe locale de l'avis sont répartis au prorata de la taxe de chaque bien (produit en croix) et ajoutés à celle du bien vendu. Appel de fonds et Prorata : les pièces peuvent être glissées sur la ligne des boutons, plusieurs à la fois — leur type est reconnu sur la première page." },
     { version: '2026-09-30 16:13', resume: "Offre de prêt : la garantie est lue aussi quand le paragraphe s'intitule « 5 LES GARANTIES » (offres CIC) — une caution Crédit Logement s'affiche désormais sur la ligne « Obtention du prêt ». Le montant du prêt est lu aussi sous la forme « Le montant du crédit est de : … » (plusieurs prêts additionnés). Pour un dossier existant : « Revérifier » sur la fiche." },
     { version: '2026-09-30 15:53', resume: "Notifications Teams des pièces : une même pièce (même dossier, même fichier) n'est plus notifiée deux fois. Deux fenêtres CLAIRE qui relisaient le même dossier, ou une pièce qui repassait un instant « manquante », envoyaient un second message. Une pièce renouvelée (autre fichier) est toujours signalée." },
@@ -14819,6 +14820,64 @@
     return etat('complet', 'Toutes les pièces sont reçues ; rendez-vous de signature à placer');
   }
 
+  // Pure : répartition des dossiers par statut pour l'en-tête du Suivi (étude, 30/09 : « les
+  // statistiques des actes, en fonction des statuts »), dans l'ordre de ETATS_DOSSIER, avec pour
+  // chacun le fait qui compte : le plus long retard, la pièce la plus attendue, la prochaine
+  // signature. `liste` = dossiers non archivés, déjà filtrés comme la liste affichée.
+  function syntheseEtatsSuivi(liste, aujourdhuiIso) {
+    const auj = aujourdhuiIso || isoAujourdhuiLocal();
+    const parEtat = {};
+    ETATS_DOSSIER.forEach(e => { parEtat[e.cle] = []; });
+    (liste || []).forEach(d => { const e = etatDossier(d, auj); if (parEtat[e.cle]) parEtat[e.cle].push(d); });
+    const jourCourt = (iso) => new Date(iso + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+    const detail = (cle, ds) => {
+      if (!ds.length) return '';
+      if (cle === 'urgent') {
+        const plusAncienne = ds.map(d => datesButoirDepassees(d, auj).map(x => x.iso).sort()[0]).sort()[0];
+        const retard = joursEntre(plusAncienne, auj) - 1;
+        return `${ds.length > 1 ? "jusqu'à " : ''}${retard} j de retard`;
+      }
+      if (cle === 'arelier') return 'pièces non vérifiées';
+      if (cle === 'attente') {
+        const compte = {};
+        ds.forEach(d => piecesAttenduesDossier(d).forEach(p => { compte[p] = (compte[p] || 0) + 1; }));
+        const [piece, n] = Object.entries(compte).sort((a, b) => b[1] - a[1])[0] || [];
+        return piece ? `surtout : ${piece}${n > 1 ? ` (${n})` : ''}` : '';
+      }
+      if (cle === 'complet') return 'rendez-vous à placer';
+      const prochaine = ds.map(d => d.rendezVousSignature).filter(iso => iso && iso >= auj).sort()[0];
+      return prochaine ? `prochaine signature ${jourCourt(prochaine)}` : '';
+    };
+    return ETATS_DOSSIER.map(e => ({ cle: e.cle, texte: e.texte, nombre: parEtat[e.cle].length, detail: detail(e.cle, parEtat[e.cle]) }));
+  }
+
+  // Filtre de la liste par statut, posé par un clic sur la répartition (un second clic le retire).
+  var filtreEtatSuivi = '';
+  function filtrerEtatSuivi(cle) {
+    filtreEtatSuivi = filtreEtatSuivi === cle ? '' : cle;
+    render();
+  }
+
+  var LIBELLES_COURTS_ETATS = { attente: 'Attente' };
+  function renderEtatsSuivi(synthese) {
+    const zone = document.getElementById('suivi-etats');
+    if (!zone) return;
+    const total = synthese.reduce((t, e) => t + e.nombre, 0);
+    if (!total && !filtreEtatSuivi) { zone.innerHTML = ''; return; }
+    const barre = synthese.filter(e => e.nombre).map(e =>
+      `<span class="suivi-etats-seg pf-point pf-${e.cle}" style="flex-grow:${e.nombre}" title="${escapeAttr(`${e.texte} : ${e.nombre}`)}"></span>`).join('');
+    const cases = synthese.map(e => {
+      const actif = filtreEtatSuivi === e.cle;
+      return `<button type="button" class="suivi-etat${actif ? ' actif' : ''}${e.nombre ? '' : ' vide'}" data-etat="${e.cle}" aria-pressed="${actif}"
+          onclick="filtrerEtatSuivi('${e.cle}')" title="${escapeAttr((e.detail ? e.detail.charAt(0).toUpperCase() + e.detail.slice(1) + ' — ' : '') + (actif ? 'afficher tous les statuts' : `afficher seulement : ${e.texte}`))}">
+        <span class="suivi-etat-nombre">${e.nombre}</span>
+        <span class="suivi-etat-libelle"><span class="pf-point pf-${e.cle}"></span><span class="suivi-etat-long">${escapeHtml(e.texte)}</span><span class="suivi-etat-court">${escapeHtml(LIBELLES_COURTS_ETATS[e.cle] || e.texte)}</span></span>
+        <span class="suivi-etat-detail">${escapeHtml(e.detail)}</span>
+      </button>`;
+    }).join('');
+    zone.innerHTML = `<div class="suivi-etats-barre" aria-hidden="true">${barre}</div><div class="suivi-etats-cases" role="group" aria-label="Dossiers par statut">${cases}</div>`;
+  }
+
   // « Revérifier tous les dossiers » (barre d'outils du Suivi), à la place de l'ancien bouton du
   // registre partagé — demandé par l'étude. Remplace aussi, et rend inutiles, le bandeau
   // « reconfirmer les accès », sa popup de démarrage et le bouton groupé qui les accompagnaient :
@@ -17591,6 +17650,7 @@
 
     const dossiersVisibles = voirArchives ? dossiers : dossiersActifs;
 
+    if (dossiers.length === 0 || dossiersVisibles.length === 0) renderEtatsSuivi([]);
     if (dossiers.length === 0) {
       count.textContent = '';
       list.innerHTML = '<div class="empty-state">Aucun dossier suivi pour le moment. Ajoutez votre premier dossier ci-dessus.</div>';
@@ -17602,7 +17662,7 @@
       return;
     }
 
-    const dossiersAffiches = dossiersVisibles.filter(d => {
+    const avantEtat = dossiersVisibles.filter(d => {
       if (recherche && !normaliserPourRecherche(libelleDossierAffiche(d) + ' ' + (d.responsable || '')).includes(recherche)) return false;
       if (filtreResponsable && d.responsable !== filtreResponsable) return false;
       if (filtreOffre) {
@@ -17616,6 +17676,9 @@
       if (filtreRole && (d.roleNotaire || 'instrumentaire') !== filtreRole) return false;
       return true;
     });
+    // Répartition par statut : mêmes filtres que la liste (sauf le statut lui-même), hors archives.
+    renderEtatsSuivi(syntheseEtatsSuivi(avantEtat.filter(d => !d.archive)));
+    const dossiersAffiches = filtreEtatSuivi ? avantEtat.filter(d => etatDossier(d).cle === filtreEtatSuivi) : avantEtat;
 
     count.textContent = dossiersAffiches.length ? `${dossiersAffiches.length} dossier${dossiersAffiches.length > 1 ? 's' : ''}` : '';
 

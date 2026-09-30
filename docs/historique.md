@@ -12825,3 +12825,21 @@ glisser-déposer des pièces ».
   `PIECES_DEPOT_OUTILS` ; plusieurs PDF à la fois ; une pièce non reconnue ou inutile ici → message.
   Vérifié : les types des vrais avis (2025, 2026), appel de charges, états datés et relevé de compte
   sont reconnus (`rejouer-pdf.mjs` affiche désormais `typePiece`).
+
+### 30/09 16:29 — Suivi des dossiers : en-tête et répartition par statut
+
+Demande de l'étude : « reprendre la page Suivi (pas cohérent sur le titre et le surtitre ; il n'y a
+plus les statistiques des actes — les proposer en fonction des statuts ; une proposition claire,
+attractive, pas de slop IA) ».
+- **En-tête** : le Suivi était la seule page sans surtitre, avec un petit « Dossiers suivis » (h2)
+  qui ne reprenait pas le libellé du menu. Désormais au format des autres pages (`dash-header`) :
+  surtitre « Portefeuille de l'office », titre « Suivi des dossiers », compte de la liste à côté ;
+  « Revérifier tous les dossiers » quitte la barre de filtres pour rejoindre « + Nouveau dossier ».
+- **Répartition par statut** (remplace les tuiles retirées le 29/09, qui répétaient le tableau de
+  bord et contredisaient le compte de la liste) : une carte, une barre empilée aux proportions du
+  portefeuille, puis une case par statut de `ETATS_DOSSIER` — chiffre, libellé, et un seul fait
+  calculé : plus long retard (Urgent), pièces non vérifiées (À relier), pièce la plus attendue et son
+  nombre (Attente de pièces), rendez-vous à placer (Complet), prochaine signature (Prêt). Mêmes
+  couleurs que le badge. Les chiffres suivent les autres filtres (recherche, responsable, échéance,
+  offre, rôle), jamais les archives ; un clic filtre la liste sur ce statut, un second le retire.
+  Téléphone : chiffre et libellé court seulement. Test `tests/etat-dossier.test.js`.

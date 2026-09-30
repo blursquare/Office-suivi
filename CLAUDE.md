@@ -144,7 +144,8 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   sans rendez-vous) — prioritaire, calculé, il disparaît dès l'échéance levée. Confirmé par l'étude :
   un rendez-vous placé avec une pièce manquante reste « Attente de pièces » ; une vente préalable non
   réalisée (financement, comme l'offre) empêche « Complet » et « Prêt ». Couleurs : rouge, gris, ambre, bleu `--acte`
-  (jamais l'accent, qui peut être orange ou vert), vert. L'échéance a sa propre colonne (« Prochaine
+  (jamais l'accent, qui peut être orange ou vert), vert. **En-tête du Suivi** (30/09) : répartition par statut
+  (`syntheseEtatsSuivi`, `renderEtatsSuivi`), mêmes filtres que la liste, un clic = filtre par statut. L'échéance a sa propre colonne (« Prochaine
   échéance ») ; `statutDossier` (pièces trouvées) ne sert plus qu'aux points « À traiter ».
 - **Seuils des rappels email** : prêt J-15/J-7, vente préalable J-15/J-7, appel de fonds J-15/J-10,
   signature J-25/J-15, personnalisées J-15/J-7 (`SEUILS_RAPPELS_PAR_TYPE`).
