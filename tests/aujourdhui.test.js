@@ -263,3 +263,27 @@ test('acquéreur accompagné par un confrère : pas de RIB, provision et pièce 
   assert.doesNotMatch(fonds.corps, /RIB|pièces d’identité/);
   assert.match(app.construireEmailReceptionFonds(dossier({ rendezVousSignature: '2026-09-30' })).corps, /pièces d’identité et de votre RIB/);
 });
+
+test('projet d’acte (30/09) : email avec rappel du rendez-vous, proposé une fois le rendez-vous fixé, et « À faire » l’ouvre', () => {
+  const avecRdv = dossier({ rendezVousSignature: '2026-10-05', rendezVousSignatureHeure: '14:30', emailAcquereur: 'client@exemple.fr' });
+  const email = app.construireEmailProjetActe(avecRdv);
+  assert.match(email.sujet, /^Projet d'acte de vente — VTE - /);
+  assert.match(app.texteSansMarques(email.corps), /ci-joint le projet de l'acte de vente/);
+  assert.match(app.texteSansMarques(email.corps), /fixé au lundi 5 octobre 2026 à 14h30, en notre office\./);
+  assert.doesNotMatch(app.construireEmailProjetActe(dossier({})).corps, /rendez-vous/);
+  // Onglet Échanges : utile au stade « rendez-vous fixé », replié avant, absent une fois signé.
+  assert.ok(app.echangesSelonStade(avecRdv, AUJ).utiles.includes('projet'));
+  assert.ok(app.echangesSelonStade(dossier({ sansPret: true }), AUJ).autres.includes('projet'));
+  assert.ok(!app.echangesSelonStade(dossier({ rendezVousSignature: '2026-09-01' }), AUJ).utiles.concat(app.echangesSelonStade(dossier({ rendezVousSignature: '2026-09-01' }), AUJ).autres).includes('projet'));
+  // « À faire » : appel de fonds envoyé, projet pas encore → le geste est l'email (un destinataire existe).
+  const d = dossier({ rendezVousSignature: '2026-10-02', appelFonds: '2026-09-25', echeancesValidees: { appelFonds: true }, emailAcquereur: 'client@exemple.fr', sansPret: true });
+  const a = app.actionsDuJour([d], AUJ).actions.find(x => x.type === 'projetEnvoye');
+  assert.ok(a, 'action attendue');
+  assert.equal(a.geste.type + ':' + a.geste.motif, 'email:projet');
+  assert.equal(app.libelleCourtGeste(a), 'Envoyer');
+  assert.equal(a.second.type + ':' + a.second.champ, 'marquer:projetEnvoye');
+  // Sans destinataire : on note seulement.
+  const sans = app.actionsDuJour([Object.assign({}, d, { emailAcquereur: '' })], AUJ).actions.find(x => x.type === 'projetEnvoye');
+  assert.equal(sans.geste.type, 'marquer');
+  assert.equal(app.libelleCourtGeste(sans), 'Marquer envoyé');
+});

@@ -42,9 +42,9 @@ test('construireEmailRelanceRib reprend mot pour mot le texte de l’étude, san
   assert.equal(corps, 'Bonjour,\n\nEn prévision du rendez-vous de signature je vous remercie de vous munir de votre RIB et de votre pièce d’identité.\n\nBien cordialement,');
 });
 
-test('MODELES_EMAIL_RELANCE couvre exactement les cinq motifs', () => {
+test('MODELES_EMAIL_RELANCE couvre exactement les six motifs', () => {
   const app = chargerApplication();
-  assert.equal(Object.keys(app.MODELES_EMAIL_RELANCE).sort().join(','), 'fonds,pret,provision,rib,ventePrealable');
+  assert.equal(Object.keys(app.MODELES_EMAIL_RELANCE).sort().join(','), 'fonds,pret,projet,provision,rib,ventePrealable');
 });
 
 test('relance de la vente préalable : au client, ou au confrère quand un autre office représente l’acquéreur', () => {
@@ -479,14 +479,14 @@ test('echangesSelonStade : ce qui sert maintenant d’abord, le reste replié, r
   const auj = '2026-10-01';
   const ouverture = app.echangesSelonStade(dossierBase(app, { pret: '2026-10-20', ventebien: '2026-10-10' }), auj);
   assert.equal(ouverture.utiles.join(','), 'provision,ventePrealable,pret');
-  assert.equal(ouverture.autres.join(','), 'appelFonds,fondsRecus,rib,agenda,questionnaire');
+  assert.equal(ouverture.autres.join(','), 'appelFonds,projet,fondsRecus,rib,agenda,questionnaire');
 
   const rdvAFixer = app.echangesSelonStade(dossierBase(app, { pret: '2026-09-20', offrePretStatut: 'recue' }), auj);
   assert.equal(rdvAFixer.utiles.join(','), 'provision,appelFonds');
 
   // Rendez-vous fixé : la provision passe « hors de ce stade », l'offre reçue ne se relance plus.
   const signature = app.echangesSelonStade(dossierBase(app, { sansPret: true, rendezVousSignature: '2026-10-15' }), auj);
-  assert.equal(signature.utiles.join(','), 'appelFonds,fondsRecus,rib,agenda');
+  assert.equal(signature.utiles.join(','), 'appelFonds,projet,fondsRecus,rib,agenda');
   assert.ok(signature.autres.includes('provision'));
 
   const signe = app.echangesSelonStade(dossierBase(app, { sansPret: true, rendezVousSignature: '2026-09-15' }), auj);

@@ -177,7 +177,9 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   complément.
 - **Textes d'emails fournis par l'étude** (provision, prêt manquant, RIB, réception des fonds,
   questionnaire, vente préalable au confrère) : repris **mot pour mot**, à ne pas reformuler.
-  Même règle pour `PROCEDURE_FONDS` et les clauses de l'annexe des quotités.
+  Même règle pour `PROCEDURE_FONDS` et les clauses de l'annexe des quotités. Exception : l'email
+  d'envoi du **projet d'acte** (`construireEmailProjetActe`, 30/09) est un premier jet de CLAIRE,
+  à remplacer par le texte de l'étude dès qu'elle le fournit.
 - **Barème du simulateur de provision : jamais audité.** Indicatif seulement, jamais recopié dans
   un courrier ; le contrôle du barème de l'appel de fonds est un signal, il ne remplit rien.
 - **Rendez-vous retiré de CLAIRE** → retiré aussi de l'agenda (et repère `rendezVousRetire` pour
@@ -320,13 +322,15 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   — à juger par l'étude sur des actes déjà relus, avec le mode commentaires. Avant l'usage réel,
   demander à Mistral : rétention zéro, absence d'entraînement, accord de sous-traitance. Connecteur
   openlegi : pas construit, seulement sur demande explicite.
-- **Non vérifié au bureau** : écritures EWS réelles (création, déplacement, suppression de
-  rendez-vous, note du Lieu, dates butoir, noms exacts des catégories de couleur, droits sur le
-  calendrier de Sophie) ; démarrage automatique et service NSSM ; mise à jour en un clic (renommage
-  de l'exe en cours) ; lien signé d'une pièce ouvert depuis Teams ; ouverture des `.eml` dans
-  Outlook ; lecture EWS du calendrier de Sophie (droits de lecture, forme réelle des journées
-  entières, volume par tranche) et reprise des dates butoir existantes au premier tour (une seule
-  fois chacune) ; icône de l'exe ; reçus comptables (« Fonds reçus ») au-delà des deux PDF fournis.
+- **Confirmé au bureau le 30/09** : la connexion EWS au calendrier partagé de Sophie fonctionne en
+  lecture et en écriture (« la connexion et modification fonctionne pour l'agenda partagé »).
+- **Non vérifié au bureau** : le détail des écritures EWS (déplacement et suppression d'un
+  rendez-vous, note du Lieu, dates butoir en journée entière, noms exacts des catégories de couleur,
+  reprise des dates butoir existantes au premier tour — une seule fois chacune) et de la lecture
+  (forme réelle des journées entières, volume par tranche) ; démarrage automatique et service NSSM ;
+  mise à jour en un clic (renommage de l'exe en cours) ; lien signé d'une pièce ouvert depuis Teams ;
+  ouverture des `.eml` dans Outlook ; icône de l'exe ; reçus comptables (« Fonds reçus ») au-delà des
+  deux PDF fournis.
 - **Critères de sortie de bêta** (convenus) : quelques semaines sans bug bloquant, une restauration
   de sauvegarde testée, les points ci-dessus confirmés ; en bêta, seulement des corrections. Relecture
   d'actes en bêta après une dizaine d'actes relus avec commentaires et un coût jugé acceptable.

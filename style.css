@@ -6402,6 +6402,8 @@ button.lien-action:hover { text-decoration: underline; }
 .ech-etat.ok { color: var(--success); }
 .ech-etat.neutre { color: var(--muted); font-weight: 500; }
 .ech-etat.urgent, .ech-etat.alerte { color: var(--urgent); }
+/* Geste en un clic à la place de l'état (« Projet envoyé ») : toujours visible, pas seulement au survol. */
+.ech-etat .ech-action { margin-left: 0; white-space: nowrap; }
 /* Gestes d'édition : au survol ou au clavier ; toujours visibles sur écran tactile. */
 .ech-actions { display: inline-flex; align-items: center; gap: 1px; min-width: 84px; justify-content: flex-end; opacity: 0; transition: opacity 0.12s ease; }
 .ech:hover .ech-actions, .ech:focus-within .ech-actions { opacity: 1; }

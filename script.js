@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 00:04';
+  const VERSION_APP = '2026-09-30 09:24';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 09:24', resume: "Projet d'acte : dans Échanges, un email « Envoyer le projet d'acte » prêt dans Outlook (le projet s'y joint) qui rappelle la date et l'heure du rendez-vous de signature ; l'envoi note la date, valide l'échéance et l'inscrit dans l'agenda comme pour l'appel de fonds. Dans Échéances, un bouton « Projet envoyé » valide l'envoi d'un clic (envoi fait hors de CLAIRE). Le texte de cet email est un premier jet, à remplacer par celui de l'étude." },
     { version: '2026-09-30 00:04', resume: "Relecture du code de la soirée (agenda, statut, widgets) : mêmes règles garanties entre le poste et le serveur pour les dates butoir posées dans l'agenda (un test les compare), une date de modification qui ne s'écrit plus dans le dossier lui-même, code et styles devenus inutiles retirés. Rien ne change à l'écran." },
     { version: '2026-09-29 23:50', resume: "Statut d'un dossier : une vente préalable pas encore réalisée compte comme le financement (au même titre que l'offre de prêt) — le dossier reste « Attente de pièces », jamais « Complet » ni « Prêt », tant qu'elle n'est pas faite. Le survol du badge l'indique (« En attente : Vente préalable »)." },
     { version: '2026-09-29 23:45', resume: "Tableau de bord : nouvelle disposition par défaut, en rectangle plein — Aujourd'hui en grand à gauche, l'Agenda à côté, Dossiers ouverts et Dernières pièces dessous, puis Avancement et Activité côte à côte. Chaque collaborateur y est ramené une fois (une disposition réglée avant cette version est remplacée), puis peut la réarranger dans « Personnaliser »." },
@@ -10730,6 +10731,10 @@
     const etat = o.comptant ? { texte: '', cls: 'info' }
       : etatLigneEcheance(iso, { validee, offrePretRecue, sansPret: type === 'pret' && sansPret, etatSansDate: o.etatSansDate, etatFait: o.etatFait });
     const faite = etat.cls === 'ok';
+    // Sans date, un geste en un clic à la place de l'état (« Projet envoyé » : voir echeancesOrdonneesFiche).
+    const etatHtml = !iso && o.action
+      ? `<button type="button" class="action-rapide ech-action" onclick="${o.action.onclick}" title="${escapeAttr(o.action.titre || o.action.libelle)}">${escapeHtml(o.action.libelle)}</button>`
+      : etat.texte;
     return `<li class="ech ech-${type}${faite ? ' fait' : ''}${o.comptant ? ' ech-info' : ''}">
       <span class="dot-label dl-${type} ech-pastille" aria-hidden="true"><span class="dot"></span></span>
       <span class="ech-nom-cell"><span class="ech-nom${o.fort ? ' ech-nom-fort' : ''}">${label}</span>${choixCategorie}</span>
@@ -10740,7 +10745,7 @@
           <button type="button" class="icon-valider" onclick="validerEditionDate('${dossierId}','${cleEdition}')" title="Valider" aria-label="Valider la date">✓</button>
         </span>` : ''}
       </span>
-      <span class="ech-etat ${etat.cls}">${etat.texte}</span>
+      <span class="ech-etat ${etat.cls}">${etatHtml}</span>
       <span class="ech-actions">${crayon}${validation}${suppression}</span>
       ${sous ? `<div class="ech-sous">${sous}</div>` : ''}
     </li>`;
@@ -12268,9 +12273,14 @@
         const note = (detecte ? '<span class="ech-note">Relevé dans l’agenda</span>'
           : nas ? '<span class="ech-note">Noté automatiquement : courrier trouvé sur le NAS</span>' : '')
           + (cle === 'appelFonds' ? renderLienCourrierAppelFonds(d) : '');
+        // « Projet envoyé » (demandé par l'étude le 30/09) : un clic note l'envoi à la date du jour,
+        // même effet que la date saisie (agenda compris, voir marquerEnvoiAujourdhui).
+        const action = cle === 'projetEnvoye' && !iso
+          ? { libelle: 'Projet envoyé', onclick: `marquerEnvoiAujourdhui('${d.id}','projetEnvoye')`, titre: 'Noter le projet d’acte envoyé aujourd’hui' }
+          : null;
         lignes.push({ iso, html: renderLigneEcheance(cle, label, iso, d.id, null, null, null, false,
           note, false,
-          iso ? true : echeanceValidee(d, cle), { etatSansDate: 'À envoyer', etatFait: '✓ Envoyé', sansValidation: true }) });
+          iso ? true : echeanceValidee(d, cle), { etatSansDate: 'À envoyer', etatFait: '✓ Envoyé', sansValidation: true, action }) });
       });
     }
     lignes.push({ iso: d.rendezVousSignature, html: renderLigneEcheance('rendezVousSignature', 'Signature', d.rendezVousSignature, d.id, null, null, null, false, renderSousRendezVous(d, butoirSousRdv), false, echeanceValidee(d, 'rendezVousSignature'), { fort: true, heure: plageHoraireRendezVous(d.rendezVousSignatureHeure, d.rendezVousSignatureHeureFin) }) });
@@ -15771,8 +15781,9 @@
             titre: 'Envoyer le projet d’acte',
             contexte: `${signature}. Appel de fonds envoyé${d.appelFonds ? ' le ' + formatDateFr(d.appelFonds) : ''} ; le projet n’est pas encore noté comme envoyé.`,
             jours: jRdv, gravite: jRdv <= 2 ? 'critique' : 'vigilance',
-            geste: { type: 'marquer', champ: 'projetEnvoye' }, bouton: 'Marquer envoyé',
-            second: { type: 'fiche', libelle: 'Ouvrir la fiche' }
+            geste: dest ? { type: 'email', motif: 'projet' } : { type: 'marquer', champ: 'projetEnvoye' },
+            bouton: dest ? 'Envoyer le projet d’acte' : 'Marquer envoyé',
+            second: dest ? { type: 'marquer', champ: 'projetEnvoye', libelle: 'Déjà envoyé' } : { type: 'fiche', libelle: 'Ouvrir la fiche' }
           });
         }
         if (jRdv <= JOURS_ACTIONS_RENDEZ_VOUS && af && !d.receptionFondsConfirmeeLe && dest) {
@@ -16025,7 +16036,7 @@
     appelFonds: { titre: 'Envoyer l’appel de fonds', categorie: 'appelFonds',
       re: /^(Appel de fonds marqué réalisé|Envoi de l’appel de fonds noté automatiquement|Envoi appel de fonds relevé dans l’agenda|Envoi appel de fonds marquée réalisée)/ },
     projetEnvoye: { titre: 'Envoyer le projet d’acte', categorie: 'projetEnvoye',
-      re: /^(Projet d’acte envoyé marqué réalisé|Envoi projet relevé dans l’agenda|Envoi projet marquée réalisée)/ },
+      re: /^(Projet d’acte envoyé marqué réalisé|Envoi projet relevé dans l’agenda|Envoi projet marquée réalisée|Email envoyé — projet d’acte)/ },
     pret: { titre: 'Relancer l’offre de prêt', categorie: 'pret',
       re: /^(Relance manuelle envoyée — offre de prêt|Relance automatique ouverte)/ },
     fonds: { titre: 'Confirmer la réception des fonds', categorie: 'appelFonds',
@@ -16338,7 +16349,8 @@
   // ---- Rendu ----
   // Libellé du bouton d'une ligne : un verbe court, le même à chaque fois pour le même geste.
   function libelleCourtGeste(a) {
-    const parType = { pret: 'Relancer', ventePrealable: 'Relancer', fonds: 'Confirmer', rib: 'Envoyer', questionnaire: 'Envoyer', projetEnvoye: 'Marquer envoyé', appelFonds: 'Préparer' };
+    const parType = { pret: 'Relancer', ventePrealable: 'Relancer', fonds: 'Confirmer', rib: 'Envoyer', questionnaire: 'Envoyer', appelFonds: 'Préparer' };
+    if (a.type === 'projetEnvoye') return a.geste && a.geste.type === 'email' ? 'Envoyer' : 'Marquer envoyé';
     if (parType[a.type]) return parType[a.type];
     return 'Ouvrir';
   }
@@ -18983,6 +18995,22 @@
     };
   }
 
+  // Envoi du projet d'acte au client (demandé par l'étude le 30/09), avec le rappel du rendez-vous
+  // de signature comme dans la confirmation de réception des fonds. Le projet lui-même est un
+  // document Word de l'office que CLAIRE ne détient pas : il se joint dans Outlook, l'email le dit.
+  // Texte : premier jet de CLAIRE (l'étude n'a pas encore fourni le sien — à remplacer mot pour mot
+  // dès qu'elle le donne, comme les autres emails).
+  function construireEmailProjetActe(d) {
+    const heure = heureEmail(d.rendezVousSignatureHeure);
+    const rdv = d.rendezVousSignature
+      ? `\n\nNous vous rappelons que le rendez-vous de signature de l'acte authentique est fixé au ${MARQUE_FORT_DEBUT}${dateAvecJourFr(d.rendezVousSignature)}${heure ? ' à ' + heure : ''}${MARQUE_FORT_FIN}, en notre office.`
+      : '';
+    return {
+      sujet: `Projet d'acte de vente — ${libelleDossierAffiche(d)}`,
+      corps: `Bonjour,\n\nVeuillez trouver ci-joint le projet de l'acte de vente, pour lecture avant la signature.${rdv}\n\nNous restons à votre disposition pour toute question ou remarque sur ce projet.`
+    };
+  }
+
   // Une entrée par motif de relance : le libellé du bouton, le modèle d'email, et la condition qui
   // le rend pertinent pour CE dossier (pas de relance "prêt" sur un achat comptant, pas de relance
   // "pièces" si tout est déjà reçu) — évaluée à l'affichage par echangesSelonStade().
@@ -18992,7 +19020,10 @@
     rib: { cle: 'rib', libelle: 'RIB', construire: construireEmailRelanceRib, historique: 'Relance manuelle envoyée — RIB', date: 'ribDemandeLe' },
     ventePrealable: { cle: 'ventePrealable', libelle: 'Vente préalable', construire: construireEmailRelanceVentePrealable, historique: 'Relance envoyée — vente préalable', date: 'relanceVentePrealableLe' },
     // `date` : champ du dossier qui mémorise l'envoi, pour que la carte dise ensuite « confirmée le … ».
-    fonds: { cle: 'fonds', libelle: 'Confirmer la réception des fonds', construire: construireEmailReceptionFonds, historique: 'Email envoyé — confirmation de réception des fonds en comptabilité', date: 'receptionFondsConfirmeeLe' }
+    fonds: { cle: 'fonds', libelle: 'Confirmer la réception des fonds', construire: construireEmailReceptionFonds, historique: 'Email envoyé — confirmation de réception des fonds en comptabilité', date: 'receptionFondsConfirmeeLe' },
+    // L'envoi du projet EST l'étape « Envoi projet » du dossier : sa date est d.projetEnvoye (même
+    // effet que la date saisie sur la fiche ou « Marquer envoyé », agenda compris).
+    projet: { cle: 'projet', libelle: 'Projet d’acte', construire: construireEmailProjetActe, historique: 'Email envoyé — projet d’acte', date: 'projetEnvoye' }
   };
 
   // discret : appelée depuis « Aujourd'hui », où la ligne se coche d'elle-même — une notification
@@ -19015,13 +19046,17 @@
     if (!r.ok) { afficherToast(r.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }
     ajouterHistorique(d, modele.historique);
     notifierTacheFaite(d, (ACTIONS_EMAIL_DOSSIER[type] && ACTIONS_EMAIL_DOSSIER[type].titre) || modele.libelle, notaireParticipantRepresenteAcquereur(d) ? 'email préparé pour le confrère' : 'email préparé pour le client');
-    if (modele.date) d[modele.date] = new Date().toISOString().slice(0, 10);
+    const aujourdhui = isoAujourdhuiLocal();
+    if (modele.date) d[modele.date] = aujourdhui;
+    if (type === 'projet') marquerProjetEnvoyeSelonDate(d, aujourdhui);
     // Une relance de l'offre faite à la main compte comme la relance du jour : la suivante, manuelle
     // ou automatique, n'est reproposée que 10 jours plus tard (voir relanceOffreDue).
     if (type === 'pret') d.derniereRelanceAuto = isoAujourdhuiLocal();
     sauvegarder(d);
     render();
     annoncerEmailPret(r, discret);
+    // Projet envoyé : noté aussi dans le rendez-vous de l'agenda (voir noterEnvoiDansAgenda).
+    if (type === 'projet') noterEnvoiDansAgenda(id, true);
   }
 
   // Champ "Email de l'acquéreur" directement sur la fiche, au-dessus des boutons de relance
@@ -19081,6 +19116,7 @@
     ventePrealable: { titre: 'Relancer la vente préalable', verbe: 'Relancer', categorie: 'ventebien', categorieLabel: 'Vente préalable' },
     pret: { titre: 'Relancer l’offre de prêt', verbe: 'Relancer', categorie: 'pret', categorieLabel: 'Obtention du prêt' },
     fonds: { titre: 'Confirmer la réception des fonds', verbe: 'Confirmer', categorie: 'appelFonds', categorieLabel: 'Réception des fonds' },
+    projet: { titre: 'Envoyer le projet d’acte', verbe: 'Envoyer', categorie: 'projetEnvoye', categorieLabel: 'Envoi projet' },
     rib: { titre: 'Demander le RIB et la pièce d’identité', verbe: 'Envoyer', categorie: 'rendezVousSignature', categorieLabel: 'Avant la signature' }
   };
 
@@ -19105,6 +19141,7 @@
     let sous = '';
     if (motif === 'fonds' && envoye) sous = `Réception des fonds confirmée le ${formatDateFr(envoye)}`;
     else if (envoye) sous = `${motif === 'pret' ? 'Dernière relance' : 'Envoyé'} le ${formatDateFr(envoye)}`;
+    else if (motif === 'projet') sous = 'Le projet d’acte se joint dans Outlook';
     // L'offre de prêt se relance tous les 10 jours : « faite » seulement tant que la dernière
     // relance est récente, sinon la ligne redevient une action à faire.
     const faite = !!envoye && (motif !== 'pret' || !relanceOffreDue(envoye, isoAujourdhuiLocal()));
@@ -19298,6 +19335,9 @@
     if (d.ventebien && !echeanceValidee(d, 'ventebien')) ranger('ventePrealable', stade !== 'signe');
     if (!d.sansPret && d.offrePretStatut !== 'recue') ranger('pret', stade !== 'signe' && !echeanceValidee(d, 'pret'));
     ranger('appelFonds', stade === 'rendezVous' || stade === 'signature');
+    // Le projet d'acte se lit avant la signature : utile une fois le rendez-vous fixé, sans objet
+    // une fois l'acte signé.
+    if (stade !== 'signe') ranger('projet', stade === 'signature');
     ranger('fondsRecus', stade === 'signature');
     if (!confrere) ranger('rib', stade === 'signature');
     ranger('agenda', stade === 'signature');

@@ -12421,3 +12421,33 @@ butoir, statut, widgets) ; corrections sans changement d'écran :
   emporté l'en-tête d'accueil (`.dash-accueil-ligne`), remis — vérifié par capture.
 - Vérifié : 980 tests client, 487 serveur ; rendu Chromium identique (1440, 1024, 400 px, mode
   Personnaliser).
+
+### 30/09 09:24 — Email « projet d'acte » dans Échanges et bouton « Projet envoyé » dans Échéances
+
+Demande : « Rajouter dans Échanges un email d'envoi pour le projet d'acte en rappelant la date du
+rendez-vous. Prévoir aussi un bouton “projet envoyé” dans la partie Échéances pour valider l'envoi. »
+- **Email** : nouveau modèle `MODELES_EMAIL_RELANCE.projet` (`construireEmailProjetActe`) — objet
+  « Projet d'acte de vente — VTE - NOM », corps qui rappelle le rendez-vous de signature en gras
+  (`dateAvecJourFr` + `heureEmail`, « fixé au lundi 5 octobre 2026 à 14h30, en notre office ») ou
+  s'en passe si aucun rendez-vous n'est fixé. Livré comme les autres (`.eml` ouvert dans Outlook,
+  adapté au confrère par `adapterCorpsEmail`) ; **le projet lui-même est à joindre dans Outlook**
+  (sous-titre de la ligne d'action). **Le texte est un premier jet de CLAIRE**, pas un texte de
+  l'étude : à remplacer mot pour mot dès qu'elle le fournit (noté dans CLAUDE.md).
+- **Effets de l'envoi** (`envoyerRelanceCiblee`) : `projetEnvoye` = date du jour, échéance validée
+  (`marquerProjetEnvoyeSelonDate`), historique « Email envoyé — projet d'acte » (reconnu par
+  `TACHES_JOUR_PAR_TYPE.projetEnvoye`), note dans l'agenda de l'office (`noterEnvoiDansAgenda`,
+  comme l'appel de fonds).
+- **Échanges** : `ACTIONS_EMAIL_DOSSIER.projet` (« Envoyer le projet d'acte », catégorie
+  `projetEnvoye`), proposé au stade signature par `echangesSelonStade`, rangé après l'appel de fonds
+  ; une fois envoyé : « Envoyé le … · Renvoyer ».
+- **À faire** (`actionsDuJour`) : la tâche « projet à envoyer » ouvre l'email quand le dossier a un
+  destinataire (second geste « Déjà envoyé »), sinon « Marquer envoyé » comme avant.
+- **Échéances** : `renderLigneEcheance` accepte une `action` ; pour `projetEnvoye` sans date,
+  l'état « À envoyer » devient un bouton « Projet envoyé » (`marquerEnvoiAujourdhui`, déjà existant)
+  — un clic date l'envoi, valide l'échéance et l'inscrit dans l'historique (« date saisie »).
+- Tests : `tests/aujourdhui.test.js` (contenu de l'email avec et sans rendez-vous, gestes),
+  `tests/echeances-appel-fonds.test.js` (bouton présent puis absent), `tests/relances-email.test.js`
+  (six modèles, ordre des échanges). Vérifié en Chromium : brouillon, clic du bouton, ligne
+  « Envoyé le 30 septembre 2026 · Renvoyer », aucune erreur console.
+- Information de l'étude reçue pendant ce chantier : « la connexion et modification fonctionne pour
+  l'agenda partagé » — lecture et écriture EWS confirmées au bureau (CLAUDE.md mis à jour).
