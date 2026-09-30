@@ -203,6 +203,11 @@ function lectureAgendaSuspendue(reglagesExchange) {
   return empreinteRefusee !== null && empreinteRefusee === empreinteIdentifiants(reglagesExchange);
 }
 
+// Un autre lecteur du même compte (sondages de créneaux) a essuyé un refus : même disjoncteur.
+function signalerIdentifiantsRefuses(reglagesExchange) {
+  empreinteRefusee = empreinteIdentifiants(reglagesExchange);
+}
+
 // Tests seulement : le disjoncteur est un état du module.
 function reinitialiserDisjoncteurAgenda() {
   empreinteRefusee = null;
@@ -331,5 +336,5 @@ function demarrerSurveillanceAgenda(depot, parametresRepo, injections, intervall
 module.exports = {
   appliquerDetectionsAgenda, appliquerRendezVousAgenda, dateDuJourParis, executerTourSurveillanceAgenda,
   executerEtEnregistrerTourAgenda, demarrerSurveillanceAgenda, INTERVALLE_SURVEILLANCE_AGENDA_MS,
-  connexionAgendaConfiguree, lectureAgendaSuspendue, reinitialiserDisjoncteurAgenda
+  connexionAgendaConfiguree, lectureAgendaSuspendue, reinitialiserDisjoncteurAgenda, signalerIdentifiantsRefuses
 };

@@ -62,6 +62,7 @@ const { demarrerSurveillanceNas } = require('./nasWatch');
 const { demarrerSurveillanceAgenda } = require('./agendaWatch');
 const { demarrerTacheRappels } = require('./jobs/rappels');
 const { demarrerResumeEmails } = require('./emailsMatin');
+const { demarrerSurveillanceSondages } = require('./sondagesCreneaux');
 const { demarrerSauvegardeAutomatique } = require('./sauvegarde');
 const { installerCaptureConsole } = require('./journalTechnique');
 const { demarrerRapportTechnique } = require('./rapportTechnique');
@@ -262,6 +263,8 @@ function demarrer() {
   // jour. Silencieux tant que la connexion Exchange n'est pas configurée. Démarré ici seulement.
   // Le résumé en texte est rédigé par le modèle local d'Ollama (config.ollama), s'il est installé.
   demarrerResumeEmails(depot, parametresRepo, undefined, config);
+  // Sondages de créneaux : réponses relues dans la boîte, options expirées retirées (5 min).
+  demarrerSurveillanceSondages(parametresRepo);
 
   // Rapport technique (voir rapportTechnique.js) : les erreurs et avertissements du serveur, lancé
   // sans fenêtre, sont gardés dans le journal technique ; à 12 h et 17 h les jours ouvrés, un

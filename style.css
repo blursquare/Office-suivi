@@ -7459,3 +7459,57 @@ textarea.ag-notes-champ:focus { outline: 2px solid var(--focus); outline-offset:
 .em-ia-points .jour-fil-dossier { font-size: 12.5px; }
 .em-ia-attente { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); background: none; border-style: dashed; }
 .em-ia-attente svg { width: 14px; height: 14px; }
+
+/* Sondage de créneaux (« comme un Doodle ») : options hachurées dans l'agenda, comme un rendez-vous
+   « Provisoire » d'Outlook ; fenêtre de création ; tableau des réponses dans la fiche. */
+.ag-evt.ag-option, .ag-journee-evt.ag-option, .ag-vm-evt.ag-option {
+  background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--ag-teinte, var(--line)) 16%, var(--paper-card)) 0 5px, var(--paper-card) 5px 10px);
+}
+.ag-sondage-en-cours { display: inline-flex; align-items: center; gap: 3px; font-size: 11.5px; color: var(--muted); padding: 2px 4px; }
+.ag-sondage-en-cours svg, .ag-sonder svg { width: 12px; height: 12px; }
+.sondage-modale { width: min(600px, 100%); }
+.sondage-bloc { display: flex; flex-direction: column; gap: 6px; }
+.sondage-bloc-titre { font-size: 12px; font-weight: 700; color: var(--ink); text-transform: uppercase; letter-spacing: 0.04em; display: flex; align-items: baseline; gap: 6px; }
+.sondage-bloc-titre .hint { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.sondage-creneaux, .sondage-participants { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.sondage-case { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; font-size: 13.5px; color: var(--ink); cursor: pointer; }
+.sondage-case > span:first-of-type::first-letter { text-transform: uppercase; }
+.sondage-note { display: inline-flex; align-items: center; gap: 3px; font-size: 11.5px; color: var(--pret); }
+.sondage-note svg { width: 12px; height: 12px; }
+.sondage-participants li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 6px 10px; }
+.ag-form input.sondage-email { font: inherit; font-size: 13px; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; min-width: 0; }
+.ag-form input.sondage-email:focus-visible { outline: 2px solid var(--focus); outline-offset: 0; }
+.sondage-ajout { align-items: end; }
+.sondage-ajout button.bouton-ajout { align-self: end; }
+@media (max-width: 520px) { .sondage-participants li { grid-template-columns: minmax(0, 1fr); } }
+
+.sondage-panneau { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: var(--paper-sunk); display: flex; flex-direction: column; gap: 8px; margin: 4px 0 8px; }
+.sondage-tete { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 10px; }
+.sondage-accord { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--success); font-weight: 600; }
+.sondage-accord svg { width: 14px; height: 14px; flex: none; }
+.sondage-table-cadre { overflow-x: auto; }
+.sondage-table { border-collapse: collapse; width: 100%; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.sondage-table th, .sondage-table td { padding: 5px 8px; border-bottom: 1px solid var(--line-soft); text-align: center; white-space: nowrap; }
+.sondage-table thead th { font-size: 11px; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.03em; vertical-align: bottom; }
+.sondage-table thead th span { display: block; text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--muted); max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+.sondage-table tbody th { text-align: left; font-weight: 600; color: var(--ink); }
+.sondage-table td svg { width: 15px; height: 15px; vertical-align: middle; }
+.sondage-table .sondage-oui { color: var(--success); }
+.sondage-table .sondage-non { color: var(--urgent); }
+.sondage-table .sondage-attente { color: var(--muted); }
+.sondage-table tr.sondage-tous { background: var(--success-bg); }
+.sondage-table tr.sondage-tous th { color: var(--success); }
+.sondage-table .action-rapide { padding: 3px 10px; }
+.sondage-option { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; margin-left: 4px; }
+.sondage-actions { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.sondage-actions .lien-bouton { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; }
+.sondage-actions .lien-bouton svg { width: 13px; height: 13px; }
+.sondage-actions .lien-bouton:disabled { opacity: 0.5; cursor: default; }
+.sondage-reponses { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; }
+.sondage-reponses li { display: flex; align-items: center; gap: 6px; color: var(--ink-soft); }
+.sondage-reponses svg { width: 13px; height: 13px; flex: none; }
+.sondage-reponses .sondage-oui svg { color: var(--success); }
+.sondage-reponses .sondage-non svg { color: var(--urgent); }
+.sondage-reponses .sondage-attente svg { color: var(--muted); }
+.sondage-panneau-agenda { margin: 0; }
+.ag-option-tete { color: var(--ink-soft); }

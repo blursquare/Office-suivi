@@ -83,7 +83,9 @@ function formatEwsUtc(date) {
 // puis de CalendarItemType) : le respecter est obligatoire, Exchange rejette un ordre différent.
 // StartTimeZone/EndTimeZone (« Romance Standard Time » = Paris) associent le bon fuseau à l'instant
 // UTC fourni, pour que l'affichage tombe sur la bonne heure locale dans Outlook.
-function corpsCreateRendezVous({ sujet, dateStr, heureStr, dureeMinutes, lieu, corps, mailbox, categorie }) {
+// `provisoire` : option d'un sondage de créneaux — « Provisoire » (Tentative) dans Outlook, sans
+// rappel.
+function corpsCreateRendezVous({ sujet, dateStr, heureStr, dureeMinutes, lieu, corps, mailbox, categorie, provisoire }) {
   const debut = instantUtcDepuisParis(dateStr, heureStr);
   const fin = new Date(debut.getTime() + (dureeMinutes > 0 ? dureeMinutes : 60) * 60000);
   return '<?xml version="1.0" encoding="utf-8"?>'
@@ -101,12 +103,12 @@ function corpsCreateRendezVous({ sujet, dateStr, heureStr, dureeMinutes, lieu, c
     // vient de la liste des catégories de la boîte : un nom qu'elle ne connaît pas s'affiche sans
     // couleur, d'où des noms réglables dans CLAIRE.
     + (categorie ? '<t:Categories><t:String>' + echapperXml(categorie) + '</t:String></t:Categories>' : '')
-    + '<t:ReminderIsSet>true</t:ReminderIsSet>'
-    + '<t:ReminderMinutesBeforeStart>1440</t:ReminderMinutesBeforeStart>'
+    + '<t:ReminderIsSet>' + (provisoire ? 'false' : 'true') + '</t:ReminderIsSet>'
+    + (provisoire ? '' : '<t:ReminderMinutesBeforeStart>1440</t:ReminderMinutesBeforeStart>')
     + '<t:Start>' + formatEwsUtc(debut) + '</t:Start>'
     + '<t:End>' + formatEwsUtc(fin) + '</t:End>'
     + '<t:IsAllDayEvent>false</t:IsAllDayEvent>'
-    + '<t:LegacyFreeBusyStatus>Busy</t:LegacyFreeBusyStatus>'
+    + '<t:LegacyFreeBusyStatus>' + (provisoire ? 'Tentative' : 'Busy') + '</t:LegacyFreeBusyStatus>'
     + (lieu ? '<t:Location>' + echapperXml(lieu) + '</t:Location>' : '')
     + '<t:StartTimeZone Id="Romance Standard Time"/>'
     + '<t:EndTimeZone Id="Romance Standard Time"/>'

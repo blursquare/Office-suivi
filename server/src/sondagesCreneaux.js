@@ -1,0 +1,345 @@
+'use strict';
+
+// Sondage de créneaux de signature « comme un Doodle », sans rien héberger (étude, 30/09 : « on
+// propose plusieurs créneaux et les clients votent »). CLAIRE ne publie aucune page : chaque
+// participant reçoit un email préparé par le poste (.eml, jamais envoyé seul — contrainte 4) dont
+// les boutons sont des liens `mailto:` vers la boîte du compte Exchange, avec un objet porteur d'un
+// jeton « [CLAIRE-CODE-n] ». Le serveur relit les OBJETS reçus dans cette boîte (FindItem seul,
+// jamais le corps), rapproche l'expéditeur d'un participant et compte les votes.
+//
+// Les créneaux proposés peuvent être bloqués « en option » dans l'agenda partagé (rendez-vous
+// provisoire, titre « VTE - NOM ? … » : le point d'interrogation est la marque de l'étude pour un
+// rendez-vous non confirmé, il n'écrit rien sur la fiche — voir agendaOffice.estRendezVousSignature).
+// Les options sont retirées (MoveToDeletedItems) au placement, à l'annulation, ou d'elles-mêmes
+// après 5 jours ouvrés sans décision.
+//
+// Règles EWS reprises d'ews.js : un seul essai par appel, disjoncteur partagé avec la lecture de
+// l'agenda (mêmes identifiants) — un refus suspend la relecture automatique.
+
+const crypto = require('node:crypto');
+
+const CLE_SONDAGES = 'sondages-creneaux';
+const MAX_SONDAGES = 200;
+const MAX_CRENEAUX = 5;
+const MAX_PARTICIPANTS = 6;
+const JOURS_OUVRES_OPTION = 5;
+const STATUTS = ['ouvert', 'place', 'annule', 'expire'];
+const ROLES_PARTICIPANT = ['vendeur', 'acquereur', 'confrere-vendeur', 'confrere-acquereur', 'autre'];
+const ALPHABET_CODE = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+function texteBorne(v, max) {
+  return String(v == null ? '' : v).replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, max);
+}
+const dateValide = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? String(v) : '');
+const heureValide = (v) => (/^\d{2}:\d{2}$/.test(String(v || '')) ? String(v) : '');
+function adresseValide(a) {
+  return typeof a === 'string' && /^[^\s@<>"]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$/.test(a.trim());
+}
+
+// Code du sondage : 6 caractères sans ambiguïté de lecture (ni O/0 ni I/1).
+function codeSondage(aleatoire) {
+  const octets = aleatoire || crypto.randomBytes(6);
+  let code = '';
+  for (let i = 0; i < 6; i++) code += ALPHABET_CODE[octets[i] % ALPHABET_CODE.length];
+  return code;
+}
+
+// Le jeton porté par l'objet de la réponse : n = numéro du créneau, 0 = « aucun ne convient ».
+function jetonReponse(code, n) {
+  return `[CLAIRE-${code}-${n}]`;
+}
+
+// Pure : les jetons d'un objet (« RE: [CLAIRE-ABC234-2] Créneau 2 … » → [{ code, n }]).
+function jetonsDansObjet(sujet) {
+  const liste = [];
+  const re = /CLAIRE-([A-HJ-NP-Z2-9]{6})-(\d)(?![0-9])/gi;
+  let m;
+  while ((m = re.exec(String(sujet || ''))) !== null) liste.push({ code: m[1].toUpperCase(), n: Number(m[2]) });
+  return liste;
+}
+
+// Pure : n jours ouvrés (lundi → vendredi) après une date.
+function joursOuvresApres(dateIso, n) {
+  const d = new Date(dateIso + 'T12:00:00Z');
+  let restants = n;
+  while (restants > 0) {
+    d.setUTCDate(d.getUTCDate() + 1);
+    const j = d.getUTCDay();
+    if (j !== 0 && j !== 6) restants--;
+  }
+  return d.toISOString().slice(0, 10);
+}
+
+function assainirCreneau(c, i) {
+  if (!c || typeof c !== 'object') return null;
+  const date = dateValide(c.date);
+  const heure = heureValide(c.heure);
+  if (!date || !heure) return null;
+  const duree = Number.parseInt(c.dureeMinutes, 10);
+  return {
+    n: Number.isInteger(c.n) && c.n > 0 && c.n <= MAX_CRENEAUX ? c.n : i + 1,
+    date, heure,
+    dureeMinutes: Number.isInteger(duree) && duree > 0 ? Math.min(600, duree) : 60,
+    option: c.option && typeof c.option === 'object' && c.option.itemId
+      ? { itemId: texteBorne(c.option.itemId, 400), changeKey: texteBorne(c.option.changeKey, 200) }
+      : null
+  };
+}
+
+function assainirParticipant(p) {
+  if (!p || typeof p !== 'object' || !adresseValide(p.email)) return null;
+  return {
+    role: ROLES_PARTICIPANT.includes(p.role) ? p.role : 'autre',
+    nom: texteBorne(p.nom, 120),
+    email: p.email.trim().toLowerCase(),
+    confrere: !!p.confrere
+  };
+}
+
+function assainirReponse(r) {
+  if (!r || typeof r !== 'object' || !adresseValide(r.email)) return null;
+  const choix = Array.isArray(r.choix) ? [...new Set(r.choix.filter((n) => Number.isInteger(n) && n > 0 && n <= MAX_CRENEAUX))].sort() : [];
+  return {
+    email: r.email.trim().toLowerCase(),
+    nom: texteBorne(r.nom, 120),
+    choix,
+    aucun: !!r.aucun && !choix.length,
+    recuLe: texteBorne(r.recuLe, 40)
+  };
+}
+
+function assainirSondage(s) {
+  if (!s || typeof s !== 'object') return null;
+  const id = texteBorne(s.id, 80);
+  const code = /^[A-HJ-NP-Z2-9]{6}$/.test(String(s.code || '')) ? s.code : '';
+  if (!id || !code) return null;
+  const creneaux = (Array.isArray(s.creneaux) ? s.creneaux : []).map(assainirCreneau).filter(Boolean).slice(0, MAX_CRENEAUX);
+  if (!creneaux.length) return null;
+  const participants = (Array.isArray(s.participants) ? s.participants : []).map(assainirParticipant).filter(Boolean).slice(0, MAX_PARTICIPANTS);
+  const reponses = (Array.isArray(s.reponses) ? s.reponses : []).map(assainirReponse).filter(Boolean).slice(0, 20);
+  return {
+    id, code,
+    dossierId: texteBorne(s.dossierId, 80),
+    dossierNom: texteBorne(s.dossierNom, 200),
+    statut: STATUTS.includes(s.statut) ? s.statut : 'ouvert',
+    creeLe: texteBorne(s.creeLe, 40),
+    creePar: texteBorne(s.creePar, 80),
+    expireLe: dateValide(s.expireLe),
+    adresseReponse: adresseValide(s.adresseReponse) ? s.adresseReponse.trim() : '',
+    typeRdv: texteBorne(s.typeRdv, 20),
+    creneaux, participants, reponses,
+    relances: (Array.isArray(s.relances) ? s.relances : []).map((x) => texteBorne(x, 40)).filter(Boolean).slice(-10),
+    choisi: Number.isInteger(s.choisi) && s.choisi > 0 ? s.choisi : null,
+    closLe: texteBorne(s.closLe, 40),
+    // Options qu'un retrait a manquées (Exchange injoignable) : retentées au tour suivant.
+    optionsARetirer: (Array.isArray(s.optionsARetirer) ? s.optionsARetirer : [])
+      .filter((o) => o && o.itemId).map((o) => ({ itemId: texteBorne(o.itemId, 400), changeKey: texteBorne(o.changeKey, 200) })).slice(0, MAX_CRENEAUX)
+  };
+}
+
+function assainirSondages(brut) {
+  const liste = Array.isArray(brut) ? brut : [];
+  return liste.map(assainirSondage).filter(Boolean).slice(-MAX_SONDAGES);
+}
+
+// Pure : applique des emails reçus ({ sujet, deAdresse, deNom, recuLe }) aux sondages. Emails
+// traités dans l'ordre de réception : un créneau s'ajoute aux choix de l'expéditeur, « aucun »
+// (n = 0) les efface. Seuls les sondages ouverts comptent ; un jeton d'un numéro de créneau qui
+// n'existe pas est ignoré. Rend { sondages, nouvelles } (nouvelles = réponses qui ont changé).
+function appliquerReponses(sondages, emails) {
+  const parCode = new Map(sondages.filter((s) => s.statut === 'ouvert').map((s) => [s.code, s]));
+  const nouvelles = [];
+  const tries = (emails || []).slice().sort((a, b) => String(a.recuLe || '').localeCompare(String(b.recuLe || '')));
+  for (const e of tries) {
+    const adresse = String(e.deAdresse || '').trim().toLowerCase();
+    if (!adresseValide(adresse)) continue;
+    for (const { code, n } of jetonsDansObjet(e.sujet)) {
+      const s = parCode.get(code);
+      if (!s) continue;
+      if (n > 0 && !s.creneaux.some((c) => c.n === n)) continue;
+      let r = s.reponses.find((x) => x.email === adresse);
+      // Un email déjà compté (même heure de réception) ne recompte rien : la boîte est relue à
+      // chaque tour depuis la création du sondage.
+      if (r && r.recuLe && e.recuLe && r.recuLe >= e.recuLe) continue;
+      if (!r) {
+        const p = s.participants.find((x) => x.email === adresse);
+        r = { email: adresse, nom: (p && p.nom) || texteBorne(e.deNom, 120), choix: [], aucun: false, recuLe: '' };
+        s.reponses.push(r);
+      }
+      if (n === 0) { r.choix = []; r.aucun = true; } else if (!r.choix.includes(n)) { r.choix = [...r.choix, n].sort(); r.aucun = false; }
+      r.recuLe = texteBorne(e.recuLe, 40);
+      nouvelles.push({ sondageId: s.id, dossierId: s.dossierId, email: adresse, n });
+    }
+  }
+  return { sondages, nouvelles };
+}
+
+// Pure : pour chaque créneau, qui l'accepte, et s'il convient à tous les participants.
+function syntheseSondage(s) {
+  const participants = s.participants || [];
+  return (s.creneaux || []).map((c) => {
+    const accepte = participants.filter((p) => (s.reponses || []).some((r) => r.email === p.email && r.choix.includes(c.n))).length;
+    return { n: c.n, date: c.date, heure: c.heure, accepte, total: participants.length, tous: participants.length > 0 && accepte === participants.length };
+  });
+}
+
+// Pure : sondages ouverts dont le délai des options est passé.
+function sondagesExpires(sondages, aujourdHui) {
+  return (sondages || []).filter((s) => s.statut === 'ouvert' && s.expireLe && s.expireLe < aujourdHui);
+}
+
+// FindItem sur la boîte de réception : objets contenant « CLAIRE- », depuis `depuisUtc`. Objet,
+// expéditeur et heure seulement — jamais le corps ni l'aperçu.
+const ENVELOPPE_DEBUT = '<?xml version="1.0" encoding="utf-8"?>'
+  + '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"'
+  + ' xmlns:t="http://schemas.microsoft.com/exchange/services/2006/types"'
+  + ' xmlns:m="http://schemas.microsoft.com/exchange/services/2006/messages">'
+  + '<soap:Header><t:RequestServerVersion Version="Exchange2013"/></soap:Header><soap:Body>';
+const ENVELOPPE_FIN = '</soap:Body></soap:Envelope>';
+
+function echapperXml(v) {
+  return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function corpsFindReponsesSondages(depuisUtc) {
+  return ENVELOPPE_DEBUT
+    + '<m:FindItem Traversal="Shallow">'
+    + '<m:ItemShape><t:BaseShape>IdOnly</t:BaseShape><t:AdditionalProperties>'
+    + '<t:FieldURI FieldURI="item:Subject"/>'
+    + '<t:FieldURI FieldURI="message:From"/>'
+    + '<t:FieldURI FieldURI="item:DateTimeReceived"/>'
+    + '</t:AdditionalProperties></m:ItemShape>'
+    + '<m:IndexedPageItemView MaxEntriesReturned="200" Offset="0" BasePoint="Beginning"/>'
+    + '<m:Restriction><t:And>'
+    + '<t:IsGreaterThanOrEqualTo><t:FieldURI FieldURI="item:DateTimeReceived"/>'
+    + `<t:FieldURIOrConstant><t:Constant Value="${echapperXml(depuisUtc)}"/></t:FieldURIOrConstant>`
+    + '</t:IsGreaterThanOrEqualTo>'
+    + '<t:Contains ContainmentMode="Substring" ContainmentComparison="IgnoreCase">'
+    + '<t:FieldURI FieldURI="item:Subject"/><t:Constant Value="CLAIRE-"/></t:Contains>'
+    + '</t:And></m:Restriction>'
+    + '<m:SortOrder><t:FieldOrder Order="Ascending"><t:FieldURI FieldURI="item:DateTimeReceived"/></t:FieldOrder></m:SortOrder>'
+    + '<m:ParentFolderIds><t:DistinguishedFolderId Id="inbox"/></m:ParentFolderIds>'
+    + '</m:FindItem>' + ENVELOPPE_FIN;
+}
+
+function dateDuJourParis(maintenant) {
+  return new Date(maintenant || Date.now()).toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });
+}
+
+function connexionPrete(r) {
+  return Boolean(r && r.actif && r.url && r.email && r.motDePasse);
+}
+
+// Retire les options d'un sondage (un essai par option). Rend { restantes, refus }.
+async function retirerOptions(options, reglages, injections) {
+  const { supprimerEcheanceExchange } = require('./exchange/ews');
+  const restantes = [];
+  let refus = false;
+  for (const o of options) {
+    if (refus) { restantes.push(o); continue; }
+    const r = await supprimerEcheanceExchange({ url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse, itemId: o.itemId, changeKey: o.changeKey }, injections);
+    // Déjà supprimée à la main dans Outlook : rien à retenter.
+    if (r.ok || /ErrorItemNotFound/.test(String(r.message || ''))) continue;
+    if (r.raison === 'auth') refus = true;
+    restantes.push(o);
+  }
+  return { restantes, refus };
+}
+
+// Clôt un sondage (placé, annulé, expiré) : ses options sont retirées de l'agenda. Pur sur la
+// liste passée ; les options non retirées restent dans `optionsARetirer`.
+async function clore(s, statut, reglages, parametresRepo, injections, choisi) {
+  const options = s.creneaux.filter((c) => c.option).map((c) => c.option).concat(s.optionsARetirer || []);
+  s.statut = statut;
+  s.closLe = new Date().toISOString();
+  if (choisi) s.choisi = choisi;
+  s.creneaux = s.creneaux.map((c) => ({ ...c, option: null }));
+  if (!options.length) { s.optionsARetirer = []; return { refus: false }; }
+  if (!connexionPrete(reglages)) { s.optionsARetirer = options; return { refus: false }; }
+  const { restantes, refus } = await retirerOptions(options, reglages, injections);
+  const retirees = options.filter((o) => !restantes.includes(o));
+  if (parametresRepo && typeof parametresRepo.retirerEvenementAgendaOffice === 'function') {
+    for (const o of retirees) parametresRepo.retirerEvenementAgendaOffice(o.itemId);
+  }
+  s.optionsARetirer = restantes;
+  return { refus };
+}
+
+// Un tour : relit la boîte (s'il y a des sondages ouverts), puis clôt les sondages expirés et
+// retente les options restées en place. `manuel` : demandé par une personne (le disjoncteur ne
+// l'empêche pas, comme « Tester maintenant »).
+async function executerTourSondages(parametresRepo, injections = {}, manuel = false) {
+  const agendaWatch = require('./agendaWatch');
+  const { posterEws } = require('./exchange/ews');
+  const { parseFindEmails } = require('./emailsMatin');
+  const reglages = parametresRepo.lireReglagesExchange ? parametresRepo.lireReglagesExchange() : {};
+  const sondages = parametresRepo.lireSondagesCreneaux();
+  const resultat = { ok: false, lus: 0, nouvelles: [], expires: [], erreur: null };
+  const ouverts = sondages.filter((s) => s.statut === 'ouvert');
+  const aRetirer = sondages.filter((s) => (s.optionsARetirer || []).length);
+  if (!ouverts.length && !aRetirer.length) { resultat.ok = true; return resultat; }
+  if (!connexionPrete(reglages)) { resultat.erreur = 'La connexion Exchange n’est pas configurée (Réglages › Rappels et agenda).'; return resultat; }
+  if (!manuel && agendaWatch.lectureAgendaSuspendue(reglages)) { resultat.erreur = 'Lecture suspendue : identifiants de messagerie refusés.'; return resultat; }
+
+  if (ouverts.length) {
+    const depuis = ouverts.map((s) => s.creeLe).filter(Boolean).sort()[0] || new Date(Date.now() - 30 * 86400000).toISOString();
+    const r = await posterEws({ url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse, body: corpsFindReponsesSondages(depuis) }, injections);
+    if (r.echec) { resultat.erreur = r.echec.message; return resultat; }
+    if (r.statut === 401 || r.statut === 403) {
+      agendaWatch.signalerIdentifiantsRefuses(reglages);
+      resultat.erreur = 'Identifiants de messagerie refusés : vérifiez les Réglages.';
+      return resultat;
+    }
+    if (!/ResponseClass="Success"/.test(String(r.corps || ''))) {
+      const code = (String(r.corps || '').match(/<m:ResponseCode>([^<]+)<\/m:ResponseCode>/) || [])[1] || String(r.statut || '');
+      resultat.erreur = `Lecture des réponses impossible${code ? ' (' + code + ')' : ''}.`;
+      return resultat;
+    }
+    const emails = parseFindEmails(r.corps).map(({ sujet, deNom, deAdresse, recuLe }) => ({ sujet, deNom, deAdresse, recuLe }));
+    resultat.lus = emails.length;
+    resultat.nouvelles = appliquerReponses(sondages, emails).nouvelles;
+  }
+
+  const aujourdHui = dateDuJourParis();
+  for (const s of sondagesExpires(sondages, aujourdHui)) {
+    const { refus } = await clore(s, 'expire', reglages, parametresRepo, injections);
+    resultat.expires.push(s.id);
+    if (refus) { agendaWatch.signalerIdentifiantsRefuses(reglages); break; }
+  }
+  for (const s of sondages.filter((x) => x.statut !== 'ouvert' && (x.optionsARetirer || []).length)) {
+    const { restantes, refus } = await retirerOptions(s.optionsARetirer, reglages, injections);
+    s.optionsARetirer = restantes;
+    if (refus) { agendaWatch.signalerIdentifiantsRefuses(reglages); break; }
+  }
+  parametresRepo.ecrireSondagesCreneaux(sondages);
+  resultat.ok = true;
+  return resultat;
+}
+
+// Toutes les 5 minutes, seulement s'il y a un sondage ouvert (ou une option à retirer).
+const INTERVALLE_SONDAGES_MS = 5 * 60 * 1000;
+
+function demarrerSurveillanceSondages(parametresRepo, injections, intervalleMs) {
+  let enCours = false;
+  const tour = async () => {
+    if (enCours) return;
+    enCours = true;
+    try {
+      const r = await executerTourSondages(parametresRepo, injections);
+      if (r.erreur && !/n’est pas configurée|suspendue/.test(r.erreur)) console.warn('[CLAIRE] Sondages de créneaux :', r.erreur);
+    } catch (e) {
+      console.warn('[CLAIRE] Sondages de créneaux interrompus :', e.message);
+    } finally {
+      enCours = false;
+    }
+  };
+  return setInterval(tour, intervalleMs || INTERVALLE_SONDAGES_MS);
+}
+
+module.exports = {
+  CLE_SONDAGES, MAX_CRENEAUX, MAX_PARTICIPANTS, JOURS_OUVRES_OPTION, ROLES_PARTICIPANT,
+  codeSondage, jetonReponse, jetonsDansObjet, joursOuvresApres, adresseValide,
+  assainirSondage, assainirSondages, appliquerReponses, syntheseSondage, sondagesExpires,
+  corpsFindReponsesSondages, executerTourSondages, demarrerSurveillanceSondages, clore, retirerOptions,
+  dateDuJourParis, connexionPrete
+};

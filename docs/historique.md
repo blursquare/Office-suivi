@@ -13449,3 +13449,56 @@ rendez-vous à 9 h, entre 12 h et 14 h et après 18 h, sauf exception ; maximum 
   heures de la grille à 90 px (`--ag-heure`, 80 avant) ; `lignesTitreEvenement` suit (90 px/h).
 - Essai intermédiaire écarté : pastille en position absolue en bas à droite — elle chevauchait « Projet »
   dans les colonnes étroites.
+
+### 01/10/2026 00 h 27 — Sondage de créneaux de signature (« comme un Doodle ») et email du vendeur
+
+Demande de l'étude : « Tu pourrais créer un outil de gestion de rendez-vous ? On propose plusieurs
+créneaux et les clients votent ? Comme un Doodle ? » puis « Ok vas-y, mets ça en place et rajoute un
+champ e-mail du vendeur lors de la création d'un nouveau dossier et dans la fiche dossier. » Choix par
+défaut annoncés (sans réponse contraire) : votants = les clients de l'office, remplacés par le confrère
+quand une partie a son propre notaire ; options gardées 5 jours ouvrés.
+
+**Email du vendeur** (`d.emailVendeur`) : champ `#f-email-vendeur` à l'étape Finaliser (à côté de
+l'acquéreur), ligne du panneau de révision, lecture dans l'acte (`detecterEmailVendeur`, même méthode que
+l'acquéreur via `detecterEmailPartie`, jamais l'adresse de l'acquéreur) et dans l'export Authentic
+(emails des parties vendeuses) ; champ sur la fiche (onglet Échanges, `renderEmailVendeurDossier`) ;
+masqué comme celui de l'acquéreur quand le vendeur a son propre notaire (`confrereRepresenteVendeur`),
+sauf s'il est déjà saisi. Le résumé des emails du matin rattache aussi un email venant du vendeur.
+
+**Sondage — aucun hébergement** (contrainte 1) : les emails sont des `.eml` préparés par le poste
+(contrainte 4). Chaque créneau est un bouton `mailto:` vers la boîte du compte Exchange des Réglages,
+objet `[CLAIRE-CODE-n] Créneau n : …` (`n = 0` : aucun ne convient). Code de 6 caractères sans O/0/I/1.
+Le serveur (`server/src/sondagesCreneaux.js`, toutes les 5 min s'il y a un sondage ouvert) fait un
+FindItem sur la boîte de réception, objet contenant « CLAIRE- », **objet/expéditeur/heure seulement**,
+jamais le corps ; un email par créneau accepté (un clic = un email), « aucun » efface les choix ;
+l'expéditeur est rapproché d'un participant par son adresse (une autre adresse est listée à part).
+Même disjoncteur que la lecture de l'agenda (`signalerIdentifiantsRefuses` dans `agendaWatch.js`).
+Stockage : clé `sondages-creneaux` (200 au plus). Routes `/api/sondages` (liste, création,
+`relire`, `placer`, `annuler`, `relance`).
+
+**Options dans l'agenda partagé** : rendez-vous « Provisoire » (`LegacyFreeBusyStatus Tentative`, sans
+rappel — `corpsCreateRendezVous({ provisoire })`), titre `VTE - NOM ? — option CLAIRE, créneau 2/4` : le
+« ? » est la marque de l'étude pour un rendez-vous non confirmé, il n'écrit rien sur la fiche
+(`estRendezVousSignature`). Reconnues à la lecture (`option: true`), hachurées dans la page Agenda,
+titre court « OPTION 2/4 · VTE - NOM ». Retirées (`MoveToDeletedItems`) au placement, à l'annulation,
+ou d'elles-mêmes après 5 jours ouvrés sans décision ; un retrait manqué est retenté au tour suivant.
+Pas de carte fantôme « Probable » pour un dossier en sondage.
+
+**Emails** (premiers jets de CLAIRE) : les clients ensemble (vendeur + acquéreur en destinataires), chaque
+confrère à part avec « Mon Cher Maître, … Votre bien dévoué. » ; boutons en cellules de tableau
+(`boutonsEmailHtml`, emplacement `{{BOUTONS}}`), version texte avec les liens. « Relancer » ne vise que
+ceux qui n'ont pas répondu. Une adresse saisie dans la fenêtre pour le vendeur ou l'acquéreur est gardée
+sur la fiche.
+
+**Interface** : onglet Échanges de la fiche — ligne « Proposer des créneaux de signature » tant qu'aucun
+rendez-vous n'est fixé, puis tableau des réponses (✓/✗/–, ligne verte si le créneau convient à tous) avec
+« Placer » (crée la signature, puis clôt le sondage), « Relancer », « Relire les réponses », « Annuler le
+sondage ». Page Agenda : bouton « Proposer » dans « Rendez-vous à placer », « Proposer ces créneaux aux
+parties » dans le détail d'une carte fantôme, détail d'une option avec les réponses et « Placer ce
+créneau ».
+
+Vérifié dans Chromium (serveur réel, faux Exchange injecté) : création avec 4 options, `.eml` à deux
+destinataires et 5 boutons, 3 réponses relues, placement du créneau accepté par tous (rendez-vous sur la
+fiche), 4 options retirées ; clair, sombre, téléphone (390 px sans défilement horizontal). **Non vérifié
+au bureau** : lecture réelle de la boîte (restriction `Contains` sur l'objet), rendu des boutons dans
+Outlook, statut « Provisoire » dans le calendrier partagé.

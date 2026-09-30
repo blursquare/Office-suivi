@@ -311,6 +311,16 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   absence, signature, autre — page Agenda et fenêtre du matin. Fenêtre du matin : « À faire » à gauche,
   onglets Agenda du jour · Emails · Nouveautés à droite (`ongletFenetreJour`), 660 px de haut au plus. Emails de confirmation,
   rappel et anniversaire = **premiers jets de CLAIRE**, à remplacer par les textes de l'étude.
+- **Sondage de créneaux de signature** (01/10, « comme un Doodle », `server/src/sondagesCreneaux.js`,
+  `routes/sondages.js`, client `ouvrirSondageCreneaux`/`renderSondageDossier`) : rien d'hébergé — un
+  `.eml` aux clients ensemble (et un par confrère, formule d'usage) dont chaque bouton est un `mailto:`
+  vers la boîte du compte Exchange, objet `[CLAIRE-CODE-n]` (0 = aucun) ; le serveur relit les **objets
+  seulement** (FindItem, 5 min, même disjoncteur que l'agenda), un email par créneau accepté. Options
+  « Provisoire » `VTE - NOM ? — option CLAIRE, créneau n/N` (le « ? » n'écrit rien sur la fiche),
+  hachurées dans l'agenda, retirées (`MoveToDeletedItems`) au placement, à l'annulation ou après
+  5 jours ouvrés. Votants par défaut : les clients, ou le confrère qui représente une partie. Textes =
+  premiers jets de CLAIRE. **Email du vendeur** (`d.emailVendeur`) : wizard, fiche, lecture de l'acte
+  (`detecterEmailVendeur`) et d'Authentic ; masqué si le vendeur a son propre notaire, sauf déjà saisi.
 - **Mobilier** : le prix reste le prix total ; `d.prixMobilier` sort seulement de l'assiette des
   droits (frais d'acte, contrôle du barème).
 - **Prorata** : jours réels, jour de l'acte à la charge de l'acquéreur, arrondi du vendeur par
@@ -491,7 +501,8 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   ouverts dans Outlook), la création d'un nouveau dossier depuis l'export Authentic (ZIP) ; puis la
   mise à jour en un clic (Réglages › Mise à jour), le démarrage automatique de CLAIRE au lancement du
   serveur, le lien vers une pièce ouvert depuis une notification Teams et l'icône de l'exe (nette).
-- **Non vérifié au bureau** : le détail des écritures EWS (déplacement et suppression d'un
+- **Non vérifié au bureau** : le sondage de créneaux (lecture réelle des réponses dans la boîte, boutons
+  dans Outlook, options « Provisoire ») ; le détail des écritures EWS (déplacement et suppression d'un
   rendez-vous, note du Lieu, dates butoir en journée entière, noms exacts des catégories de couleur,
   reprise des dates butoir existantes au premier tour — une seule fois chacune) et de la lecture
   (forme réelle des journées entières, volume par tranche) ; service NSSM (si utilisé) ; reçus comptables (« Fonds reçus ») au-delà des

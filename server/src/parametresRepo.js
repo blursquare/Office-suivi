@@ -12,6 +12,7 @@
 const { MODELES_MISTRAL, MODELE_MISTRAL_PAR_DEFAUT, REGIONS_MISTRAL } = require('./relecture/mistral');
 const { assainirCarnet, carnetInitial, avecOfficeEtude } = require('./carnetConfreres');
 const { assainirRepertoire, repertoireInitial } = require('./repertoire');
+const { CLE_SONDAGES, assainirSondages } = require('./sondagesCreneaux');
 
 const CLE_REGLAGES = 'reglages';
 
@@ -573,6 +574,7 @@ function assainirAgendaDuJour(brut) {
       categories: Array.isArray(e.categories) ? e.categories.map((c) => texteBorne(c, 100)).filter(Boolean).slice(0, 5) : [],
       signature: !!e.signature,
       absence: !!e.absence,
+      option: !!e.option,
       dossierId: e.dossierId ? texteBorne(e.dossierId, 80) : null,
       dossierNom: e.dossierNom ? texteBorne(e.dossierNom, 200) : null
     };
@@ -608,7 +610,8 @@ function assainirEvenementAgenda(e) {
     absence: !!e.absence,
     dossierId: e.dossierId ? texteBorne(e.dossierId, 80) : null,
     dossierNom: e.dossierNom ? texteBorne(e.dossierNom, 200) : null,
-    creeDansClaire: !!e.creeDansClaire
+    creeDansClaire: !!e.creeDansClaire,
+    option: !!e.option
   };
 }
 function assainirAgendaOffice(brut) {
@@ -1115,6 +1118,9 @@ function creerRepoParametres(db) {
     return propre;
   }
 
+  function lireSondagesCreneaux() { return lireJson(CLE_SONDAGES, assainirSondages, []); }
+  function ecrireSondagesCreneaux(l) { const p = assainirSondages(l); ecrireStmt.run(CLE_SONDAGES, JSON.stringify(p)); return p; }
+
   function lireJson(cle, assainir, defaut) {
     const ligne = lireStmt.get(cle);
     if (!ligne) return defaut;
@@ -1174,6 +1180,7 @@ function creerRepoParametres(db) {
     lireRapportTechnique, ecrireRapportTechnique,
     lireReglagesScans, ecrireReglagesScans, lireJournalScans, ecrireJournalScans, lireScansEcartes, ecrireScansEcartes,
     lirePiecesNotifiees, ecrirePiecesNotifiees,
+    lireSondagesCreneaux, ecrireSondagesCreneaux,
     lireCarnetConfreres, ecrireCarnetConfreres,
     lireRepertoire, ecrireRepertoire,
     lireResumeEmails, ecrireResumeEmails,

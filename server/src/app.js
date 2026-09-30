@@ -31,6 +31,7 @@ const { creerRouteurSignalements } = require('./routes/signalements');
 const { creerRouteurMiseAJour } = require('./routes/miseAJour');
 const { creerRouteurAgenda } = require('./routes/agenda');
 const { creerRouteurExchange } = require('./routes/exchange');
+const { creerRouteurSondages } = require('./routes/sondages');
 const { creerRouteurEmailsMatin } = require('./routes/emailsMatin');
 const { creerRouteurRapportTechnique } = require('./routes/rapportTechnique');
 const { creerJournalTechnique } = require('./journalTechnique');
@@ -90,7 +91,7 @@ function seaOuNull() {
   try { return require('node:sea'); } catch (_) { return null; }
 }
 
-function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistral, testerMistral, miseAJour, agenda, emailsMatin, rapportTechnique }) {
+function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistral, testerMistral, miseAJour, agenda, emailsMatin, rapportTechnique, sondages }) {
   const app = express();
   const depot = creerDepot(db);
   const parametresRepo = creerRepoParametres(db);
@@ -158,6 +159,9 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   // crée les rendez-vous de signature dans l'agenda. À valider sur un poste du bureau (l'Exchange
   // n'est joignable que depuis le réseau de l'étude).
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExchange(parametresRepo));
+  // Sondage de créneaux de signature (voir sondagesCreneaux.js). `sondages.poster` : faux transport
+  // EWS, tests seulement.
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurSondages(parametresRepo, sondages || {}));
   // Rapport technique anonymisé déposé sur GitHub à 12 h et 17 h (voir rapportTechnique.js) ; le
   // minuteur est démarré par index.js seulement. `rapportTechnique.fetchFn` : tests uniquement.
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRapportTechnique({

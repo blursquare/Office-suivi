@@ -1,0 +1,236 @@
+'use strict';
+
+// Sondage de créneaux de signature (src/sondagesCreneaux.js, src/routes/sondages.js). Aucun appel
+// réseau : le transport EWS est un faux qui répond selon l'opération demandée.
+
+const { test, before, after, beforeEach } = require('node:test');
+const assert = require('node:assert/strict');
+const os = require('node:os');
+
+const {
+  codeSondage, jetonReponse, jetonsDansObjet, joursOuvresApres, appliquerReponses, syntheseSondage,
+  sondagesExpires, corpsFindReponsesSondages, assainirSondage
+} = require('../src/sondagesCreneaux');
+const { corpsCreateRendezVous } = require('../src/exchange/ews');
+const { evenementsAgendaOffice } = require('../src/agendaOffice');
+const { reinitialiserDisjoncteurAgenda } = require('../src/agendaWatch');
+const { creerApp } = require('../src/app');
+const { ouvrirDb } = require('../src/db');
+
+function sondageExemple() {
+  return assainirSondage({
+    id: 's1', code: 'ABC234', dossierId: 'd1', dossierNom: 'DURAND', statut: 'ouvert',
+    creeLe: '2026-10-01T08:00:00.000Z', expireLe: '2026-10-08',
+    creneaux: [{ date: '2026-10-20', heure: '10:00' }, { date: '2026-10-21', heure: '15:00' }],
+    participants: [
+      { role: 'vendeur', nom: 'Paul DURAND', email: 'paul.durand@exemple.fr' },
+      { role: 'acquereur', nom: 'Léa MARTIN', email: 'Lea.Martin@exemple.fr' }
+    ],
+    reponses: []
+  });
+}
+
+test('code du sondage : 6 caractères sans O, 0, I ni 1', () => {
+  const code = codeSondage(Buffer.from([0, 8, 14, 24, 31, 200]));
+  assert.match(code, /^[A-HJ-NP-Z2-9]{6}$/);
+  assert.equal(jetonReponse('ABC234', 2), '[CLAIRE-ABC234-2]');
+});
+
+test('jetons lus dans un objet de réponse, préfixes RE:/TR: compris', () => {
+  assert.equal(JSON.stringify(jetonsDansObjet('RE: [CLAIRE-ABC234-2] Créneau 2 : mardi 20 octobre à 10 h 00')), JSON.stringify([{ code: 'ABC234', n: 2 }]));
+  assert.equal(JSON.stringify(jetonsDansObjet('TR: [claire-abc234-0] Aucun créneau ne convient')), JSON.stringify([{ code: 'ABC234', n: 0 }]));
+  assert.equal(jetonsDansObjet('Votre dossier DURAND').length, 0);
+  // Un code avec O/0/I/1 n'est pas un code de CLAIRE.
+  assert.equal(jetonsDansObjet('[CLAIRE-ABC0I1-2]').length, 0);
+});
+
+test('5 jours ouvrés : le week-end ne compte pas', () => {
+  assert.equal(joursOuvresApres('2026-10-01', 5), '2026-10-08'); // jeudi → jeudi suivant
+  assert.equal(joursOuvresApres('2026-10-02', 5), '2026-10-09'); // vendredi → vendredi suivant
+});
+
+test('réponses : un email par créneau s’ajoute, « aucun » efface, l’expéditeur est rapproché du participant', () => {
+  const s = sondageExemple();
+  const emails = [
+    { sujet: 'RE: [CLAIRE-ABC234-1] Créneau 1', deAdresse: 'paul.durand@exemple.fr', recuLe: '2026-10-01T09:00:00Z' },
+    { sujet: '[CLAIRE-ABC234-2] Créneau 2', deAdresse: 'paul.durand@exemple.fr', recuLe: '2026-10-01T09:01:00Z' },
+    { sujet: '[CLAIRE-ABC234-1] Créneau 1', deAdresse: 'lea.martin@exemple.fr', recuLe: '2026-10-01T10:00:00Z' },
+    { sujet: '[CLAIRE-ABC234-0] Aucun créneau ne convient', deAdresse: 'lea.martin@exemple.fr', recuLe: '2026-10-01T11:00:00Z' },
+    // Code d'un autre sondage, créneau inexistant : ignorés.
+    { sujet: '[CLAIRE-ZZZ234-1] Créneau 1', deAdresse: 'lea.martin@exemple.fr', recuLe: '2026-10-01T12:00:00Z' },
+    { sujet: '[CLAIRE-ABC234-4] Créneau 4', deAdresse: 'paul.durand@exemple.fr', recuLe: '2026-10-01T12:00:00Z' }
+  ];
+  const { nouvelles } = appliquerReponses([s], emails);
+  assert.equal(nouvelles.length, 4);
+  const paul = s.reponses.find((r) => r.email === 'paul.durand@exemple.fr');
+  const lea = s.reponses.find((r) => r.email === 'lea.martin@exemple.fr');
+  assert.equal(paul.choix.join(','), '1,2');
+  assert.equal(paul.nom, 'Paul DURAND');
+  assert.equal(lea.aucun, true);
+  assert.equal(lea.choix.length, 0);
+  // Relire la même boîte ne recompte rien.
+  assert.equal(appliquerReponses([s], emails).nouvelles.length, 0);
+  const synthese = syntheseSondage(s);
+  assert.equal(synthese[0].accepte, 1);
+  assert.equal(synthese[0].tous, false);
+});
+
+test('un créneau accepté par tous est signalé', () => {
+  const s = sondageExemple();
+  appliquerReponses([s], [
+    { sujet: '[CLAIRE-ABC234-2]', deAdresse: 'paul.durand@exemple.fr', recuLe: '2026-10-01T09:00:00Z' },
+    { sujet: '[CLAIRE-ABC234-2]', deAdresse: 'lea.martin@exemple.fr', recuLe: '2026-10-01T09:05:00Z' }
+  ]);
+  assert.equal(syntheseSondage(s).find((c) => c.n === 2).tous, true);
+});
+
+test('un sondage clos ne reçoit plus de réponse ; expiration après la date', () => {
+  const s = sondageExemple();
+  s.statut = 'annule';
+  assert.equal(appliquerReponses([s], [{ sujet: '[CLAIRE-ABC234-1]', deAdresse: 'paul.durand@exemple.fr', recuLe: '2026-10-01T09:00:00Z' }]).nouvelles.length, 0);
+  const o = sondageExemple();
+  assert.equal(sondagesExpires([o], '2026-10-08').length, 0);
+  assert.equal(sondagesExpires([o], '2026-10-09').length, 1);
+});
+
+test('FindItem des réponses : objet « CLAIRE- », boîte de réception, jamais le corps ni l’aperçu', () => {
+  const c = corpsFindReponsesSondages('2026-10-01T08:00:00.000Z');
+  assert.match(c, /<t:Constant Value="CLAIRE-"\/>/);
+  assert.match(c, /DistinguishedFolderId Id="inbox"/);
+  assert.doesNotMatch(c, /item:Body|item:Preview/);
+});
+
+test('option d’agenda : provisoire, sans rappel ; reconnue à la lecture et jamais prise pour la signature', () => {
+  const c = corpsCreateRendezVous({ sujet: 'VTE - DURAND ? — option CLAIRE, créneau 1/2', dateStr: '2026-10-20', heureStr: '10:00', dureeMinutes: 60, provisoire: true });
+  assert.match(c, /<t:LegacyFreeBusyStatus>Tentative<\/t:LegacyFreeBusyStatus>/);
+  assert.match(c, /<t:ReminderIsSet>false<\/t:ReminderIsSet>/);
+  const normal = corpsCreateRendezVous({ sujet: 'VTE - DURAND', dateStr: '2026-10-20', heureStr: '10:00', dureeMinutes: 60 });
+  assert.match(normal, /<t:LegacyFreeBusyStatus>Busy<\/t:LegacyFreeBusyStatus>/);
+  const [e] = evenementsAgendaOffice([{ sujet: 'VTE - DURAND ? — option CLAIRE, créneau 1/2', date: '2026-10-20', heure: '10:00', heureFin: '11:00' }], [{ id: 'd1', nom: 'DURAND' }]);
+  assert.equal(e.option, true);
+  assert.equal(e.signature, false);
+  assert.equal(e.dossierId, 'd1');
+});
+
+// ---- Routes ----
+
+let db, serveurApp, baseUrl, jeton;
+const appelsEws = [];
+let boite = [];
+let refuserIdentifiants = false;
+
+function fauxPoster(options, cb) {
+  const body = String(options.body || '');
+  appelsEws.push(body);
+  if (refuserIdentifiants) return cb(null, { statusCode: 401, body: '' });
+  if (/<m:CreateItem/.test(body)) {
+    const n = appelsEws.filter((b) => /<m:CreateItem/.test(b)).length;
+    return cb(null, { statusCode: 200, body: `<m:CreateItemResponseMessage ResponseClass="Success"><m:ResponseCode>NoError</m:ResponseCode><t:ItemId Id="OPT${n}" ChangeKey="CK${n}"/></m:CreateItemResponseMessage>` });
+  }
+  if (/<m:DeleteItem/.test(body)) return cb(null, { statusCode: 200, body: '<m:DeleteItemResponseMessage ResponseClass="Success"><m:ResponseCode>NoError</m:ResponseCode></m:DeleteItemResponseMessage>' });
+  if (/<m:FindItem/.test(body)) {
+    const messages = boite.map((m) => `<t:Message><t:Subject>${m.sujet}</t:Subject><t:From><t:Mailbox><t:Name>${m.nom}</t:Name><t:EmailAddress>${m.adresse}</t:EmailAddress></t:Mailbox></t:From><t:DateTimeReceived>${m.recuLe}</t:DateTimeReceived></t:Message>`).join('');
+    return cb(null, { statusCode: 200, body: `<m:FindItemResponseMessage ResponseClass="Success"><m:ResponseCode>NoError</m:ResponseCode><m:RootFolder><t:Items>${messages}</t:Items></m:RootFolder></m:FindItemResponseMessage>` });
+  }
+  cb(null, { statusCode: 500, body: '' });
+}
+
+before(async () => {
+  db = ouvrirDb(':memory:');
+  const { app, gestionnaireAuth } = creerApp({
+    db, config: { motDePasse: 'mdp-test', racineRepo: os.tmpdir(), port: 0, jetonCalendrier: '' },
+    sondages: { poster: fauxPoster, aleatoire: Buffer.from([0, 1, 2, 3, 4, 5]) }
+  });
+  jeton = gestionnaireAuth.creerSession();
+  serveurApp = app.listen(0);
+  await new Promise((resolve) => serveurApp.once('listening', resolve));
+  baseUrl = `http://127.0.0.1:${serveurApp.address().port}`;
+});
+
+after(() => {
+  serveurApp.close();
+  db.close();
+});
+
+beforeEach(() => { refuserIdentifiants = false; reinitialiserDisjoncteurAgenda(); });
+
+function appeler(chemin, options) {
+  return fetch(`${baseUrl}${chemin}`, {
+    ...options,
+    headers: { Authorization: `Bearer ${jeton}`, 'Content-Type': 'application/json', ...(options && options.headers) }
+  });
+}
+
+const corpsCreation = {
+  dossierId: 'd1', dossierNom: 'DURAND', libelle: 'VTE - DURAND', poserOptions: true,
+  creneaux: [{ date: '2026-10-20', heure: '10:00', dureeMinutes: 60 }, { date: '2026-10-21', heure: '15:00', dureeMinutes: 60 }],
+  participants: [
+    { role: 'vendeur', nom: 'Paul DURAND', email: 'paul.durand@exemple.fr' },
+    { role: 'acquereur', nom: 'Léa MARTIN', email: 'lea.martin@exemple.fr' }
+  ]
+};
+
+test('POST /api/sondages refuse sans connexion Exchange configurée', async () => {
+  const r = await appeler('/api/sondages', { method: 'POST', body: JSON.stringify(corpsCreation) });
+  assert.equal(r.status, 400);
+  assert.match((await r.json()).message, /Exchange/);
+});
+
+test('sondage complet : création avec options, réponses relues, placement qui retire les options', async () => {
+  await appeler('/api/exchange/reglages', { method: 'PUT', body: JSON.stringify({ actif: true, email: 'bastien@office.fr', motDePasse: 'SECRET' }) });
+  appelsEws.length = 0;
+  const cree = await (await appeler('/api/sondages', { method: 'POST', body: JSON.stringify(corpsCreation) })).json();
+  assert.equal(cree.ok, true);
+  const s = cree.sondage;
+  assert.equal(s.adresseReponse, 'bastien@office.fr');
+  assert.equal(s.creneaux.filter((c) => c.option).length, 2);
+  assert.equal(appelsEws.length, 2);
+  assert.match(appelsEws[0], /VTE - DURAND \? — option CLAIRE, créneau 1\/2/);
+  assert.match(appelsEws[0], /Tentative/);
+  // Aucun mot de passe ni changeKey renvoyé.
+  assert.doesNotMatch(JSON.stringify(cree), /SECRET|CK1/);
+
+  // Un second sondage ouvert sur le même dossier est refusé.
+  assert.equal((await appeler('/api/sondages', { method: 'POST', body: JSON.stringify(corpsCreation) })).status, 409);
+
+  boite = [
+    { sujet: `RE: [CLAIRE-${s.code}-2] Créneau 2`, nom: 'Paul', adresse: 'paul.durand@exemple.fr', recuLe: '2099-01-01T09:00:00Z' },
+    { sujet: `[CLAIRE-${s.code}-2] Créneau 2`, nom: 'Léa', adresse: 'lea.martin@exemple.fr', recuLe: '2099-01-01T09:10:00Z' }
+  ];
+  const relu = await (await appeler(`/api/sondages/${s.id}/relire`, { method: 'POST', body: '{}' })).json();
+  assert.equal(relu.ok, true);
+  assert.equal(relu.sondage.synthese.find((c) => c.n === 2).tous, true);
+
+  appelsEws.length = 0;
+  const place = await (await appeler(`/api/sondages/${s.id}/placer`, { method: 'POST', body: JSON.stringify({ n: 2 }) })).json();
+  assert.equal(place.ok, true);
+  assert.equal(place.sondage.statut, 'place');
+  assert.equal(place.sondage.choisi, 2);
+  assert.equal(appelsEws.filter((b) => /DeleteType="MoveToDeletedItems"/.test(b)).length, 2);
+  assert.equal(appelsEws.some((b) => /HardDelete/.test(b)), false);
+
+  const liste = await (await appeler('/api/sondages?dossierId=d1')).json();
+  assert.equal(liste.sondages.length, 1);
+  assert.equal(liste.sondages[0].statut, 'place');
+});
+
+test('annulation : options retirées ; identifiants refusés à la relecture → message, rien d’écrit', async () => {
+  const cree = await (await appeler('/api/sondages', { method: 'POST', body: JSON.stringify({ ...corpsCreation, dossierId: 'd2', poserOptions: false }) })).json();
+  assert.equal(cree.ok, true);
+  assert.equal(cree.sondage.creneaux.every((c) => !c.option), true);
+  refuserIdentifiants = true;
+  const relu = await (await appeler(`/api/sondages/${cree.sondage.id}/relire`, { method: 'POST', body: '{}' })).json();
+  assert.equal(relu.ok, false);
+  assert.match(relu.message, /refusés/);
+  refuserIdentifiants = false;
+  const annule = await (await appeler(`/api/sondages/${cree.sondage.id}/annuler`, { method: 'POST', body: '{}' })).json();
+  assert.equal(annule.sondage.statut, 'annule');
+  assert.equal((await appeler(`/api/sondages/${cree.sondage.id}/annuler`, { method: 'POST', body: '{}' })).status, 409);
+});
+
+test('créneau invalide ou adresse invalide : 400', async () => {
+  const r1 = await appeler('/api/sondages', { method: 'POST', body: JSON.stringify({ ...corpsCreation, dossierId: 'd3', creneaux: [{ date: '20/10/2026', heure: '10:00' }] }) });
+  assert.equal(r1.status, 400);
+  const r2 = await appeler('/api/sondages', { method: 'POST', body: JSON.stringify({ ...corpsCreation, dossierId: 'd3', participants: [{ role: 'vendeur', email: 'pas-une-adresse' }] }) });
+  assert.equal(r2.status, 400);
+});

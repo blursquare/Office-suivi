@@ -139,7 +139,7 @@ function contexteClassement(dossiers, adressesIgnorees) {
   const actifs = (dossiers || []).filter(d => d && !d.archive);
   const parAdresse = new Map();
   for (const d of actifs) {
-    for (const a of [d.emailAcquereur, d.emailNotaireParticipant]) {
+    for (const a of [d.emailAcquereur, d.emailVendeur, d.emailNotaireParticipant]) {
       if (typeof a === 'string' && a.trim()) parAdresse.set(a.trim().toLowerCase(), d);
     }
   }

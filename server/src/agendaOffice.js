@@ -382,6 +382,9 @@ const COLLABORATEURS_ABSENCE = [
 // y devient « CONGES ». Volontairement limité aux mots qui disent clairement « pas à l'office »
 // (congé, absent, absence, vacances, RTT, indisponible, repos) — pas « télétravail »/« formation »/
 // « déplacement », où une signature reste possible : les inclure produirait de fausses alertes.
+// Option posée par un sondage de créneaux (voir sondagesCreneaux.js) : « VTE - NOM ? — option
+// CLAIRE, créneau 2/3 ».
+const RE_OPTION_SONDAGE = /option CLAIRE/i;
 const RE_MOT_ABSENCE = /\b(?:CONGE|CONGES|ABSENT|ABSENTE|ABSENTS|ABSENTES|ABSENCE|VACANCES|RTT|INDISPONIBLE|INDISPO|REPOS)\b/;
 
 function estEvenementJourneeEntiere(evenement) {
@@ -455,6 +458,7 @@ function agendaDuJourDepuisEvenements(evenements, jour, dossiersActifs) {
       categories: (evt.categories || []).slice(0, 5),
       signature: !!reference && estRendezVousSignature(evt),
       absence: !!evt.journeeEntiere && RE_MOT_ABSENCE.test(normaliserNomRapprochement(titre)),
+      option: RE_OPTION_SONDAGE.test(titre),
       dossierId: dossier ? dossier.id : null,
       dossierNom: dossier ? dossier.nom : null
     });
@@ -501,6 +505,7 @@ function evenementsAgendaOffice(evenements, dossiersActifs) {
       categories: (evt.categories || []).slice(0, 5),
       signature: !!reference && estRendezVousSignature(evt),
       absence: !!evt.journeeEntiere && RE_MOT_ABSENCE.test(normaliserNomRapprochement(titre)),
+      option: RE_OPTION_SONDAGE.test(titre),
       dossierId: dossier ? dossier.id : null,
       dossierNom: dossier ? dossier.nom : null
     });
