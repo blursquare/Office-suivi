@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 18:31';
+  const VERSION_APP = '2026-09-30 18:34';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 18:34', resume: "La page « Aujourd'hui » est supprimée. La carte « Aujourd'hui » du tableau de bord et la fenêtre du point du matin restent : « Voir plus » dans la carte ouvre désormais cette fenêtre. Le classeur des scans s'appelle « Claire Scan » partout : barre latérale, écran, rubrique des Réglages, carte « Dernières pièces »." },
     { version: '2026-09-30 18:31', resume: "Partout dans CLAIRE, un dossier cité porte son type devant son nom : « VTE - DURAND / MARTIN » (et « SUCC - … » pour les successions, à venir). C'est désormais le cas aussi dans les cartes du tableau de bord (activité de l'étude, dernières pièces, à faire, signatures), dans « Prévu en … » du Suivi, dans le journal de Claire Scan et de l'agenda, dans les messages de CLAIRE et dans les rappels envoyés sur Teams." },
     { version: '2026-09-30 18:26', resume: "Le classeur des scans du copieur s'appelle désormais « Claire Scan » (menu et titre de l'écran). Tableau de bord : la carte « Activité de l'étude » sur une rangée et deux colonnes montre tout le fil, qui défile dans la carte au lieu d'être coupé. Suivi des dossiers : la section « À voir en premier » devient « Nouveau », et le bouton « Échéances » passe avant « Tableau »." },
     { version: '2026-09-30 18:23', resume: "Suivi des dossiers : « Prévu en octobre » est plus compact (environ deux fois moins haut). Une seule ligne d'en-tête : le mois, les compteurs en pastilles (un clic filtre), les retards et les délais moyens. Dessous, « À faire » et « Au calendrier » côte à côte, une ligne par échéance (quand · type · dossier), avec défilement au-delà de six lignes." },
@@ -14257,7 +14258,7 @@
     };
     const sectionsScans = !scans.actif ? '' : `
         ${scans.aRanger.length ? `<div class="w-section">
-          <h3 class="jour-carte-sous-titre">Scans à ranger · ${scans.aRanger.length}</h3>
+          <h3 class="jour-carte-sous-titre">Claire Scan · ${scans.aRanger.length} à ranger</h3>
           <div class="dash-liste dash-liste-carte" data-ajuster="2" data-min="1">${scans.aRanger.map(ligneARanger).join('')}</div>
         </div>` : ''}
         ${scans.ranges.length ? `<div class="w-section">
@@ -14636,18 +14637,19 @@
   // Écran affiché, joint au contexte d'un signalement de problème (voir contexteSignalement).
   var ongletActuel = 'dashboard';
   var LIBELLES_ONGLETS = {
-    dashboard: 'Tableau de bord', aujourdhui: "Aujourd'hui", nouveau: 'Nouveau dossier', suivi: 'Suivi des dossiers',
+    dashboard: 'Tableau de bord', nouveau: 'Nouveau dossier', suivi: 'Suivi des dossiers',
     calculateur: 'Simulateur de provision', prorata: 'Prorata & répartitions', 'appel-fonds': 'Appel de fonds',
-    inventaire: 'Arbitrage forfait mobilier', quotites: "Quotités d'acquisition", confreres: 'Répertoire', 'analyse-ia': "Relecture d'actes",
+    scans: 'Claire Scan', inventaire: 'Arbitrage forfait mobilier', quotites: "Quotités d'acquisition", confreres: 'Répertoire', 'analyse-ia': "Relecture d'actes",
     reglages: 'Réglages'
   };
 
   function definirOnglet(nom) {
+    // Page « Aujourd'hui » retirée (étude, 30/09) : un ancien lien mène au tableau de bord.
+    if (nom === 'aujourdhui') nom = 'dashboard';
     ongletActuel = nom;
     // Sur mobile, choisir une section referme la sidebar repliable (voir toggleSidebarMobile).
     toggleSidebarMobile(false);
     document.getElementById('onglet-dashboard').style.display = nom === 'dashboard' ? '' : 'none';
-    document.getElementById('onglet-aujourdhui').style.display = nom === 'aujourdhui' ? '' : 'none';
     document.getElementById('onglet-nouveau').style.display = nom === 'nouveau' ? '' : 'none';
     document.getElementById('onglet-suivi').style.display = nom === 'suivi' ? '' : 'none';
     document.getElementById('onglet-scans').style.display = nom === 'scans' ? '' : 'none';
@@ -14660,7 +14662,6 @@
     document.getElementById('onglet-analyse-ia').style.display = nom === 'analyse-ia' ? '' : 'none';
     document.getElementById('onglet-reglages').style.display = nom === 'reglages' ? '' : 'none';
     document.getElementById('tab-dashboard').setAttribute('aria-selected', String(nom === 'dashboard'));
-    document.getElementById('tab-aujourdhui').setAttribute('aria-selected', String(nom === 'aujourdhui'));
     document.getElementById('tab-suivi').setAttribute('aria-selected', String(nom === 'suivi'));
     document.getElementById('tab-scans').setAttribute('aria-selected', String(nom === 'scans'));
     document.getElementById('tab-calculateur').setAttribute('aria-selected', String(nom === 'calculateur'));
@@ -14672,7 +14673,6 @@
     document.getElementById('tab-analyse-ia').setAttribute('aria-selected', String(nom === 'analyse-ia'));
     document.getElementById('tab-reglages').setAttribute('aria-selected', String(nom === 'reglages'));
     document.getElementById('tab-dashboard').classList.toggle('actif', nom === 'dashboard');
-    document.getElementById('tab-aujourdhui').classList.toggle('actif', nom === 'aujourdhui');
     document.getElementById('tab-suivi').classList.toggle('actif', nom === 'suivi');
     document.getElementById('tab-scans').classList.toggle('actif', nom === 'scans');
     document.getElementById('tab-calculateur').classList.toggle('actif', nom === 'calculateur');
@@ -14691,9 +14691,9 @@
     document.getElementById('tab-reglages').classList.toggle('actif', nom === 'reglages');
     if (nom === 'suivi') appliquerFiltreSuiviCollaborateur();
     // Relu à chaque retour sur le tableau de bord : un rappel ajouté depuis un autre poste.
-    if ((nom === 'dashboard' || nom === 'aujourdhui') && typeof chargerRappelsPerso === 'function' && authToken) chargerRappelsPerso();
+    if (nom === 'dashboard' && typeof chargerRappelsPerso === 'function' && authToken) chargerRappelsPerso();
     if (nom === 'dashboard' && authToken) chargerAbsencesOffice();
-    if (nom === 'suivi' || nom === 'dashboard' || nom === 'aujourdhui') render();
+    if (nom === 'suivi' || nom === 'dashboard') render();
     // Vérifiée à chaque ouverture (appel léger) plutôt qu'une fois pour toutes : Ollama a pu être
     // installé/démarré/arrêté sur le serveur depuis la dernière visite de cet onglet.
     // Réglages relus à chaque ouverture (un collègue a pu les modifier depuis un autre poste,
@@ -16840,7 +16840,6 @@
   // avec les modèles de l'étude, l'envoi du projet à noter d'un clic — plutôt qu'une liste de
   // constats. Trois surfaces lisent la même liste :
   //  - la carte « Aujourd'hui » du tableau de bord, qui remplace « À traiter » ;
-  //  - la page « Aujourd'hui » (lien de la barre latérale), le rapport complet de la journée ;
   //  - la fenêtre qui s'ouvre à la première connexion de la journée.
   // Rien n'est jamais envoyé seul : un clic ouvre un brouillon dans la messagerie (contrainte
   // fondamentale n°4). CLAIRE ne lit ni la boîte mail ni Teams (pas d'accès Microsoft Graph) : « une
@@ -17123,60 +17122,6 @@
     return groupes.sort((a, b) => b.dernier - a.dernier);
   }
 
-  // Pure : ce que le collaborateur a fait aujourd'hui (historique signé de son nom, date LOCALE
-  // du jour — un historique est en UTC, une entrée de 0 h 30 appartient au bon jour).
-  function journalDuJour(listeDossiers, utilisateur, aujourdhuiIso) {
-    if (!utilisateur) return [];
-    const res = [];
-    const pad2 = (n) => String(n).padStart(2, '0');
-    for (const d of listeDossiers || []) {
-      for (const e of (d && d.historique) || []) {
-        if (!e || e.auteur !== utilisateur) continue;
-        const dt = new Date(e.date);
-        if (isNaN(dt)) continue;
-        const iso = `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`;
-        if (iso !== aujourdhuiIso) continue;
-        res.push({ dossier: d, t: dt.getTime(), heure: `${pad2(dt.getHours())} h ${pad2(dt.getMinutes())}`, texte: e.texte });
-      }
-    }
-    return res.sort((a, b) => b.t - a.t);
-  }
-
-  // Pure : pour chaque signature des 7 prochains jours, ce qui est prêt et ce qui manque.
-  function preparationSignatures(dossiersActifs, aujourdhuiIso, jours) {
-    return rendezVousProchains(dossiersActifs, aujourdhuiIso, Number.isFinite(jours) ? jours : JOURS_ACTIONS_RENDEZ_VOUS).map(r => {
-      const d = r.dossier;
-      const points = [];
-      if (!d.sansPret) points.push({ libelle: 'Offre de prêt', ok: echeanceValidee(d, 'pret') });
-      if (d.roleNotaire !== 'participant') {
-        const liste = checklistPieces(d.typeVente, d);
-        if (liste.length) {
-          const recues = liste.filter(p => (d.pieces || {})[p.cle] === 'recue').length;
-          points.push({ libelle: `Pièces ${recues}/${liste.length}`, ok: recues === liste.length });
-        }
-      }
-      points.push({ libelle: 'Appel de fonds', ok: r.appelFondsEnvoye });
-      points.push({ libelle: 'Fonds confirmés', ok: !!d.receptionFondsConfirmeeLe });
-      points.push({ libelle: 'Projet envoyé', ok: r.projetEnvoye });
-      if (!notaireParticipantRepresenteAcquereur(d)) points.push({ libelle: 'RIB demandé', ok: ribDejaDemande(d) });
-      return Object.assign({}, r, { points, pret: points.every(p => p.ok) });
-    });
-  }
-
-  // Pure : le nombre d'actions de chaque collaborateur (vue de l'administrateur).
-  function chargeEquipeDuJour(dossiersActifs, aujourdhuiIso) {
-    return RESPONSABLES.map(nom => {
-      const { actions } = actionsDuJour((dossiersActifs || []).filter(d => d && d.responsable === nom), aujourdhuiIso);
-      return { nom, total: actions.length, critiques: actions.filter(a => a.gravite === 'critique').length };
-    });
-  }
-
-  // Pure : la liste du jour en texte brut, à coller dans un message ou une réunion d'équipe.
-  function texteListeDuJour(actions, aujourdhuiIso, nom) {
-    const titre = `Aujourd'hui — ${courtDateJour(aujourdhuiIso)}${nom ? ' — ' + nom : ''}`;
-    if (!actions.length) return `${titre}\nRien à faire aujourd'hui.`;
-    return [titre].concat(actions.map(a => `- ${a.titre} — ${libelleDossierAffiche(a.dossier)}${a.jours !== null && a.jours !== undefined ? ' (' + delaiAction(a) + ')' : ''}`)).join('\n');
-  }
 
   // ---- État de la journée (par collaborateur, sur ce poste) ----
   // « Plus tard » reporte une action au lendemain ; « Traité aujourd'hui » garde la trace de ce qui
@@ -17524,12 +17469,6 @@
     render();
   }
 
-  function copierListeDuJour() {
-    const { actions, aujourdhui } = etatAujourdhui();
-    const texte = texteListeDuJour(actions, aujourdhui, utilisateurPoste);
-    const ok = copierTexteSilencieux(texte);
-    afficherToast(ok ? 'Liste du jour copiée.' : 'Copie impossible sur ce poste.', 'OK', null);
-  }
 
   // ---- Rendu ----
   // Libellé du bouton d'une ligne : un verbe court, le même à chaque fois pour le même geste.
@@ -17677,11 +17616,6 @@
     ouvrirDossierDepuisDashboard(id);
   }
 
-  function renderAVenirListe(aVenir, global) {
-    if (!aVenir.length) return '<p class="jour-vide">Rien d’autre à l’horizon.</p>';
-    return `<ul class="jour-liste-simple">${aVenir.map(v => `<li><button type="button" class="lien-discret" onclick="executerFicheDossierJour('${v.dossier.id}')">${escapeHtml(v.titre)} — ${escapeHtml(libelleDossierAffiche(v.dossier))}</button>
-      <span class="jour-meta">${escapeHtml([v.detail, global && v.dossier.responsable ? prenomCollaborateur(v.dossier.responsable) : ''].filter(Boolean).join(' · '))}</span></li>`).join('')}</ul>`;
-  }
 
   function renderNouveautesListe(groupes) {
     if (!groupes.length) return '<p class="jour-vide">Rien de nouveau sur vos dossiers.</p>';
@@ -17705,24 +17639,6 @@
 
   // Signatures : une ligne par rendez-vous, six pastilles courtes (vert = prêt, ambre = manque).
   var LIBELLES_COURTS_PREPARATION = { 'Offre de prêt': 'Prêt', 'Appel de fonds': 'Appel', 'Fonds confirmés': 'Fonds', 'Projet envoyé': 'Projet', 'RIB demandé': 'RIB' };
-  function renderSignaturesListe(signatures, aujourdhui, global) {
-    if (!signatures.length) return '<p class="jour-vide">Aucune signature dans les 7 prochains jours.</p>';
-    return `<ul class="jour-signatures">${signatures.map(s => {
-      const plage = plageHoraireRendezVous(s.heure, s.heureFin);
-      const manque = s.points.filter(p => !p.ok).length;
-      return `<li class="jour-signature${s.pret ? ' prete' : ''}">
-        <button type="button" class="jour-signature-tete" onclick="executerFicheDossierJour('${s.dossier.id}')">
-          <span class="jour-signature-quand">${escapeHtml(quandJour(s.date, aujourdhui))}${plage ? ' · ' + escapeHtml(plage) : ''}${global && s.dossier.responsable ? ' · ' + escapeHtml(prenomCollaborateur(s.dossier.responsable)) : ''}</span>
-          <span class="jour-signature-nom">${escapeHtml(libelleDossierAffiche(s.dossier))}</span>
-        </button>
-        <span class="jour-signature-etat${s.pret ? ' ok' : ''}">${s.pret ? icone('check') + ' Prête' : `${manque} à faire`}</span>
-        <div class="jour-signature-points">${s.points.map(p => {
-          const court = p.libelle.indexOf('Pièces') === 0 ? p.libelle : (LIBELLES_COURTS_PREPARATION[p.libelle] || p.libelle);
-          return `<span class="jour-pip${p.ok ? ' ok' : ''}" title="${escapeAttr(p.libelle + (p.ok ? ' : fait' : ' : à faire'))}">${p.ok ? icone('check') : ''}${escapeHtml(court)}</span>`;
-        }).join('')}</div>
-      </li>`;
-    }).join('')}</ul>`;
-  }
 
   // Célébration quand toutes les tâches DU JOUR (les actions, pas les rappels) sont faites — demandé
   // par l'étude. Jouée UNE SEULE FOIS par jour et par poste : render() se relance à chaque action,
@@ -17761,7 +17677,8 @@
     const { aujourdhui, actions, traites, aVenir } = etatAujourdhui();
     const fini = actions.length === 0 && traites.length > 0;
     const anneau = actions.length || traites.length ? renderAnneauJour(actions.length, traites.length) : '';
-    const versPage = "definirOnglet('aujourdhui')";
+    // La page « Aujourd'hui » est retirée (étude, 30/09) : « voir plus » ouvre la fenêtre du jour.
+    const versPage = "ouvrirFenetreAujourdhui()";
     let corps;
     if (presentation === 'petit') {
       const premiere = actions[0];
@@ -17805,100 +17722,16 @@
       droite: `${presentation === 'grand' ? `<button type="button" class="icon-btn" onclick="ouvrirFenetreAujourdhui()" title="Rouvrir la fenêtre du point du matin" aria-label="Point du matin">${icone('sun')}</button>` : ''}${anneau}`,
       corps
     });
-    majBadgeAujourdhui(actions.length);
     renderFenetreAujourdhui();
     planifierAjustementWidgets();
   }
 
-  function majBadgeAujourdhui(n) {
-    const badge = document.getElementById('badge-aujourdhui');
-    if (!badge) return;
-    badge.textContent = String(n);
-    badge.style.display = n > 0 ? '' : 'none';
-  }
 
-  // Panneau de droite de la page : un seul contenu à la fois, choisi par onglet — c'est ce qui
-  // évite de faire défiler cinq sections les unes sous les autres.
-  var CLE_ONGLET_PANNEAU_JOUR = 'claire-aujourdhui-panneau';
-  let ongletPanneauJour = null;
-  function choisirOngletPanneauJour(nom) {
-    ongletPanneauJour = nom;
-    try { localStorage.setItem(CLE_ONGLET_PANNEAU_JOUR, nom); } catch (e) { /* pas bloquant */ }
-    renderPageAujourdhui();
-  }
 
-  function renderPageAujourdhui() {
-    const bloc = document.getElementById('aujourdhui-contenu');
-    if (!bloc) return;
-    const perimetre = dossiersPerimetreJour();
-    const global = vueGlobaleDashboard();
-    const { aujourdhui, actions, aVenir, traites } = etatAujourdhui();
-    const groupes = evenementsDepuisVisite(perimetre, derniereVisitePrecedente, utilisateurPoste);
-    const signatures = preparationSignatures(perimetre, aujourdhui);
-    const journal = journalDuJour(dossiers, utilisateurPoste, aujourdhui);
-    const eyebrow = document.getElementById('aujourdhui-date');
-    if (eyebrow) eyebrow.textContent = libelleDateDuJour();
-    const titre = document.getElementById('aujourdhui-titre');
-    if (titre) titre.textContent = utilisateurPoste ? `Aujourd’hui, ${prenomCollaborateur(utilisateurPoste)}` : 'Aujourd’hui';
-    const equipe = global && utilisateurPoste && estAdministrateur(utilisateurPoste)
-      ? chargeEquipeDuJour(dossiers.filter(d => !d.archive), aujourdhui) : [];
-    const aFaireRappels = rappelsPerso.filter(r => !r.fait).length;
-
-    const onglets = [
-      { cle: 'signatures', libelle: 'Signatures', nb: signatures.filter(s => !s.pret).length },
-      { cle: 'nouveautes', libelle: 'Nouveautés', nb: groupes.length },
-      { cle: 'avenir', libelle: 'À venir', nb: aVenir.length },
-      { cle: 'journee', libelle: 'Journal', nb: journal.length },
-      { cle: 'rappels', libelle: 'Rappels', nb: aFaireRappels }
-    ];
-    if (equipe.length) onglets.push({ cle: 'equipe', libelle: 'Équipe', nb: 0 });
-    if (!ongletPanneauJour) {
-      let retenu = null;
-      try { retenu = localStorage.getItem(CLE_ONGLET_PANNEAU_JOUR); } catch (e) { retenu = null; }
-      ongletPanneauJour = onglets.some(o => o.cle === retenu) ? retenu : (signatures.length ? 'signatures' : 'nouveautes');
-    }
-    if (!onglets.some(o => o.cle === ongletPanneauJour)) ongletPanneauJour = 'signatures';
-
-    let panneau = '';
-    if (ongletPanneauJour === 'signatures') panneau = `<p class="jour-source">Les 7 prochains jours : ce qui est prêt, ce qui manque.</p>${renderSignaturesListe(signatures, aujourdhui, global)}`;
-    else if (ongletPanneauJour === 'nouveautes') panneau = `<p class="jour-source">${escapeHtml(libelleDepuisVisite())}.</p>${renderNouveautesListe(groupes)}`;
-    else if (ongletPanneauJour === 'avenir') panneau = `<p class="jour-source">Rien à faire aujourd’hui, mais dans les ${JOURS_A_VENIR} jours.</p>${renderAVenirListe(aVenir, global)}`;
-    else if (ongletPanneauJour === 'journee') panneau = journal.length
-      ? `<ul class="jour-journal">${journal.slice(0, 20).map(j => `<li><span class="jour-meta">${escapeHtml(j.heure)}</span><span>${escapeHtml(j.texte)} — <button type="button" class="lien-discret" onclick="executerFicheDossierJour('${j.dossier.id}')">${escapeHtml(libelleDossierAffiche(j.dossier))}</button></span></li>`).join('')}</ul>`
-      : '<p class="jour-vide">Rien encore aujourd’hui.</p>';
-    else if (ongletPanneauJour === 'rappels') panneau = `<div class="rappels-perso jour-rappels">${renderMesRappels(perimetre)}</div>`;
-    else if (ongletPanneauJour === 'equipe') panneau = `<ul class="jour-equipe">${equipe.map(e => `<li><span>${escapeHtml(e.nom)}</span><span class="jour-meta">${e.total} action${e.total > 1 ? 's' : ''}${e.critiques ? ` · <b class="jour-critique">${e.critiques} urgente${e.critiques > 1 ? 's' : ''}</b>` : ''}</span></li>`).join('')}</ul>`;
-
-    const outils = document.getElementById('aujourdhui-outils');
-    if (outils) outils.innerHTML = `
-        ${renderProgressionJour(actions.length, traites.length)}
-        <div class="jour-entete-actions">
-          ${utilisateurPoste ? `<div class="vue-bascule" role="group" aria-label="Dossiers affichés">
-            <button type="button" class="vue-bascule-btn${global ? '' : ' actif'}" aria-pressed="${!global}" onclick="basculerVueDashboard(false)">Mes dossiers</button>
-            <button type="button" class="vue-bascule-btn${global ? ' actif' : ''}" aria-pressed="${global}" onclick="basculerVueDashboard(true)">Tous</button>
-          </div>` : `<button type="button" class="lien-discret" onclick="ouvrirChoixPoste()">Qui utilise ce poste ? Choisir</button>`}
-          <button type="button" class="icon-btn" onclick="copierListeDuJour()" title="Copier ma liste" aria-label="Copier ma liste">${icone('clipboard')}</button>
-          <button type="button" class="icon-btn" onclick="ouvrirFenetreAujourdhui()" title="Revoir le point du matin" aria-label="Revoir le point du matin">${icone('sun')}</button>
-        </div>`;
-
-    bloc.innerHTML = `
-      <div class="jour-grille">
-        <section class="jour-section jour-section-actions" aria-labelledby="jour-titre-actions">
-          <h2 class="jour-carte-titre" id="jour-titre-actions">À faire <span class="jour-onglet-nb">${actions.length}</span></h2>
-          <div class="jour-section-corps">${renderListeJour(actions, traites, global)}</div>
-        </section>
-        <section class="jour-section jour-panneau">
-          <div class="jour-onglets" role="tablist">
-            ${onglets.map(o => `<button type="button" role="tab" class="jour-onglet${o.cle === ongletPanneauJour ? ' actif' : ''}" aria-selected="${o.cle === ongletPanneauJour}" onclick="choisirOngletPanneauJour('${o.cle}')">${escapeHtml(o.libelle)}${o.nb ? `<span class="jour-onglet-nb">${o.nb}</span>` : ''}</button>`).join('')}
-          </div>
-          <div class="jour-panneau-corps">${panneau}</div>
-        </section>
-      </div>`;
-  }
 
   // ---- Fenêtre du matin ----
   // S'ouvre à la première connexion de la journée de ce collaborateur sur ce poste, et se rouvre
-  // depuis la page « Aujourd'hui ». Même liste, mêmes lignes que la page.
+  // depuis la carte « Aujourd'hui » du tableau de bord (icône soleil, « voir plus »).
   let fenetreAujourdhuiOuverte = false;
 
   function ouvrirFenetreAujourdhui() {
@@ -17914,10 +17747,6 @@
     renderFenetreAujourdhui();
   }
 
-  function ouvrirRapportDepuisFenetre() {
-    fermerFenetreAujourdhui();
-    definirOnglet('aujourdhui');
-  }
 
   function ouvrirFenetreAujourdhuiSiPremiereFois() {
     if (!utilisateurPoste) return;
@@ -32667,7 +32496,7 @@
     zone.innerHTML = `
       <div class="reglages-liste">
         <label class="reglages-option" for="reglages-scans-actif">
-          <span class="reglages-option-texte"><span class="reglages-option-titre">Classer les scans du copieur ${infoBulle('CLAIRE lit chaque scan posé dans le dossier « Scan », reconnaît le dossier client et la pièce, puis range une copie dans la rubrique du dossier. L’original est conservé dans « CLAIRE - scans rangés », à l’intérieur du dossier Scan.')}</span>
+          <span class="reglages-option-texte"><span class="reglages-option-titre">Activer Claire Scan ${infoBulle('CLAIRE lit chaque scan posé dans le dossier « Scan », reconnaît le dossier client et la pièce, puis range une copie dans la rubrique du dossier. L’original est conservé dans « CLAIRE - scans rangés », à l’intérieur du dossier Scan.')}</span>
             <span class="hint">${etat}</span></span>
           <span class="switch reglages-switch"><input type="checkbox" id="reglages-scans-actif"${r.actif ? ' checked' : ''}${inconnu ? ' disabled' : ''} onchange="enregistrerReglagesScans({ actif: this.checked })"><span class="slider"></span></span>
         </label>
@@ -32744,8 +32573,8 @@
     const e = etatScans;
     if (!e.configure || !e.reglages.actif) {
       zone.innerHTML = `<div class="calc-card scans-vide">
-        <p>${e.configure ? 'Le classement des scans du copieur n’est pas activé.' : escapeHtml(e.raison || 'Dossier « Scan » introuvable.')}</p>
-        ${e.configure ? `<button type="button" class="primary" onclick="enregistrerReglagesScans({ actif: true })">Activer le classement</button>` : ''}
+        <p>${e.configure ? 'Claire Scan n’est pas activé.' : escapeHtml(e.raison || 'Dossier « Scan » introuvable.')}</p>
+        ${e.configure ? `<button type="button" class="primary" onclick="enregistrerReglagesScans({ actif: true })">Activer Claire Scan</button>` : ''}
       </div>`;
       return;
     }
@@ -32779,7 +32608,6 @@
     const cibles = {
       'icon-burger': 'menu',
       'icon-nav-dashboard': 'layout',
-      'icon-nav-aujourdhui': 'sun',
       'icon-nav-suivi': 'list',
       'icon-nav-scans': 'printer',
       'icon-signaler': 'flag',

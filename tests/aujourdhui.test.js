@@ -120,22 +120,6 @@ test('depuis la dernière visite : pièces et changements des autres, pas les si
   assert.strictEqual(app.evenementsDepuisVisite([d], null, 'Julie VASSELIN').length, 0);
 });
 
-test('préparation des signatures : ce qui est prêt et ce qui manque', () => {
-  const d = dossier({ rendezVousSignature: '2026-09-30', sansPret: true, roleNotaire: 'participant', echeancesValidees: { appelFonds: true } });
-  const s = app.preparationSignatures([d], AUJ);
-  assert.strictEqual(s.length, 1);
-  assert.strictEqual(s[0].points.map(p => p.libelle + ':' + p.ok).join(','), 'Appel de fonds:true,Fonds confirmés:false,Projet envoyé:false,RIB demandé:false');
-  assert.strictEqual(s[0].pret, false);
-});
-
-test('texte de la liste du jour', () => {
-  const r = app.actionsDuJour([dossier({ pret: '2026-10-02' })], AUJ);
-  const t = app.texteListeDuJour(r.actions, AUJ, 'Julie VASSELIN');
-  assert.match(t, /^Aujourd'hui — /);
-  assert.match(t, /- Relancer l’offre de prêt — VTE - DUPONT \/ MARTIN \(J-4\)/);
-  assert.match(app.texteListeDuJour([], AUJ, ''), /Rien à faire/);
-});
-
 test('message de progression : court, jamais culpabilisant', () => {
   assert.strictEqual(app.messageProgressionJour(0, 0), 'Rien au programme aujourd’hui.');
   assert.strictEqual(app.messageProgressionJour(0, 3), 'Journée bouclée.');

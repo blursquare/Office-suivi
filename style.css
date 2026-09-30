@@ -6157,18 +6157,10 @@ button.lien-action:hover { text-decoration: underline; }
 }
 
 /* Listes simples du panneau (à venir). */
-.jour-liste-simple { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-.jour-liste-simple li {
-  display: flex; flex-direction: column; gap: 1px; padding: 7px 0;
-  border-top: 1px solid var(--line-soft); font-size: 13px;
-}
-.jour-liste-simple li:first-child { border-top: none; padding-top: 0; }
-.jour-liste-simple button.lien-discret { font-size: 13px; color: var(--ink); text-decoration: none; text-align: left; }
-.jour-liste-simple button.lien-discret:hover { color: var(--focus); text-decoration: underline; }
 .jour-meta { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 
 /* Titres des blocs : même corps que les onglets du panneau voisin, compteur en pastille. */
-.jour-section-titre, .jour-carte-titre {
+.jour-section-titre {
   display: flex; flex-wrap: wrap; align-items: center; gap: 4px 7px; margin: 0 0 8px;
   font-size: 14px; font-weight: 700; letter-spacing: 0; color: var(--ink);
 }
@@ -6185,32 +6177,9 @@ button.lien-action:hover { text-decoration: underline; }
 
 /* Page : un en-tête d'une ligne (titre, progression, outils), puis À faire à gauche et un
    panneau à onglets à droite, les deux cartes ouvertes par un bandeau de même hauteur. */
-.jour-page-tete {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px; margin-bottom: 18px;
-}
-.jour-page-titres { display: flex; flex-direction: column; gap: 2px; }
-.jour-page-tete .dash-titre { font-size: 26px; line-height: 1.15; }
-.jour-page-outils {
-  flex: 1 1 auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 18px;
-  padding-left: 28px; border-left: 1px solid var(--line);
-}
-.jour-page-outils .jour-anneau, .jour-page-outils .jour-anneau svg { width: 42px; height: 42px; }
-.jour-page-outils .jour-progres-texte b { font-size: 14px; }
-.jour-entete-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.jour-grille { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; align-items: start; }
-.jour-grille > * { min-width: 0; }
 .jour-section {
   background: var(--paper-card); border: 1px solid var(--line); border-radius: 12px;
   box-shadow: var(--shadow-card); padding: 14px 14px 10px;
-}
-.jour-section-actions { padding: 0; }
-.jour-section-actions .jour-carte-titre {
-  margin: 0; min-height: 44px; padding: 8px 18px; border-bottom: 1px solid var(--line-soft); box-sizing: border-box;
-}
-.jour-section-corps { padding: 6px 8px 8px; }
-.jour-panneau { position: sticky; top: 16px; padding: 0; overflow: hidden; }
-.jour-onglets {
-  display: flex; flex-wrap: wrap; gap: 0; padding: 0 8px; border-bottom: 1px solid var(--line-soft);
 }
 .jour-onglet {
   display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; min-height: 44px; box-sizing: border-box;
@@ -6218,7 +6187,6 @@ button.lien-action:hover { text-decoration: underline; }
   background: none; border: none; border-bottom: 2px solid transparent; padding: 0 6px; margin-bottom: -1px; cursor: pointer;
 }
 @media (max-width: 1440px) {
-  .jour-onglets { padding: 0 4px; }
   .jour-onglet { font-size: 12px; padding: 0 5px; gap: 4px; }
 }
 .jour-onglet:hover { color: var(--ink); }
@@ -6228,32 +6196,6 @@ button.lien-action:hover { text-decoration: underline; }
   background: var(--line-soft); color: var(--ink-soft); font-size: 10.5px; font-weight: 700; font-variant-numeric: tabular-nums;
 }
 .jour-onglet.actif .jour-onglet-nb { background: var(--focus); color: var(--on-accent); }
-.jour-panneau-corps { padding: 14px 16px; max-height: calc(100vh - 230px); overflow-y: auto; }
-.jour-rappels { padding: 0; }
-
-.jour-signatures { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-.jour-signature {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 10px; align-items: center;
-  padding: 9px 0; border-top: 1px solid var(--line-soft);
-}
-.jour-signature:first-child { border-top: none; padding-top: 0; }
-.jour-signature-tete {
-  display: flex; flex-direction: column; gap: 1px; align-items: flex-start; text-align: left; min-width: 0;
-  font-family: inherit; background: none; border: none; padding: 0; cursor: pointer; color: var(--ink);
-}
-.jour-signature-tete:hover .jour-signature-nom { color: var(--focus); }
-.jour-signature-quand { font-size: 11.5px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
-.jour-signature-quand:first-letter { text-transform: uppercase; }
-.jour-signature-nom { font-size: 13.5px; font-weight: 600; }
-.jour-signature-etat { font-size: 12px; font-weight: 600; color: var(--pret); white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
-.jour-signature-etat.ok { color: var(--success); }
-.jour-signature-points { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px; }
-.jour-pip {
-  display: inline-flex; align-items: center; gap: 3px; padding: 1px 7px; border-radius: 999px;
-  font-size: 11px; font-weight: 600; border: 1px solid color-mix(in srgb, var(--pret) 45%, transparent);
-  color: var(--pret); background: color-mix(in srgb, var(--pret) 9%, transparent);
-}
-.jour-pip.ok { border-color: color-mix(in srgb, var(--success) 40%, transparent); color: var(--success); background: color-mix(in srgb, var(--success) 9%, transparent); }
 
 .jour-fil { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .jour-fil-groupe { padding: 9px 0; border-top: 1px solid var(--line-soft); }
@@ -6264,14 +6206,6 @@ button.lien-action:hover { text-decoration: underline; }
 .jour-fil-ligne { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 8px; font-size: 12.5px; color: var(--ink-soft); }
 .jour-fil-qui { font-size: 11.5px; font-weight: 600; color: var(--muted); }
 .jour-nouveau { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--notif-nouveau); }
-
-.jour-journal { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.jour-journal li { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 8px; font-size: 13px; color: var(--ink-soft); }
-.jour-journal button.lien-discret { font-size: 13px; }
-.jour-equipe { list-style: none; margin: 0; padding: 0; }
-.jour-equipe li { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; border-top: 1px solid var(--line-soft); font-size: 13px; }
-.jour-equipe li:first-child { border-top: none; }
-.jour-critique { color: var(--urgent); font-weight: 600; }
 
 /* Fenêtre du matin : sous les popups d'information et de confirmation (z-index 1000). */
 .jour-overlay {
@@ -6303,11 +6237,6 @@ button.lien-action:hover { text-decoration: underline; }
 .jour-espace { flex: 1 1 auto; }
 .jour-fenetre-pied button.primary, .jour-fenetre-pied button.secondary { padding: 8px 14px; font-size: 13px; border-radius: 8px; }
 
-@media (max-width: 1100px) {
-  .jour-grille { grid-template-columns: minmax(0, 1fr); }
-  .jour-panneau { position: static; }
-  .jour-panneau-corps { max-height: none; }
-}
 @media (max-width: 860px) {
   .jour-fenetre-corps { grid-template-columns: minmax(0, 1fr); }
   .jour-fenetre-rail { border-left: none; padding-left: 6px; border-top: 1px solid var(--line-soft); padding-top: 14px; }
@@ -6336,17 +6265,13 @@ button.lien-action:hover { text-decoration: underline; }
   .jour-anneau.fini.vient-de-finir .jour-anneau-texte, .ja.fait.vient-de-finir { animation: none; }
 }
 @media print { .jour-overlay { display: none !important; } }
-@media (max-width: 900px) {
-  .jour-page-tete .dash-titre { font-size: 23px; }
-  .jour-page-outils { flex-basis: 100%; padding-left: 0; border-left: none; }
-}
+
 /* Boutons à icône seule des écrans « Aujourd'hui » (la règle .icon-btn générique est un lien souligné). */
-.jour-entete-actions button.icon-btn, .ja button.icon-btn.ja-plus-tard, .jour-fenetre button.icon-btn.jour-fenetre-x {
+.ja button.icon-btn.ja-plus-tard, .jour-fenetre button.icon-btn.jour-fenetre-x {
   display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0;
   border-radius: 8px; text-decoration: none; color: var(--muted); font-size: 15px;
 }
-.jour-entete-actions button.icon-btn { border: 1px solid var(--line); background: var(--paper-card); }
-.jour-entete-actions button.icon-btn:hover, .ja button.icon-btn.ja-plus-tard:hover, .jour-fenetre button.icon-btn.jour-fenetre-x:hover {
+.ja button.icon-btn.ja-plus-tard:hover, .jour-fenetre button.icon-btn.jour-fenetre-x:hover {
   color: var(--ink); background: var(--line-soft);
 }
 

@@ -61,14 +61,6 @@
       <button type="button" id="tab-dashboard" class="sidebar-link actif" role="tab" aria-selected="true" onclick="definirOnglet('dashboard')">
         <span class="sidebar-link-icone" id="icon-nav-dashboard" aria-hidden="true"></span>Tableau de bord
       </button>
-      <!-- « Aujourd'hui » : la PAGE dédiée est masquée pour le moment (demande de l'étude) — seules
-           la carte « Aujourd'hui » du tableau de bord et la fenêtre du point du matin restent. Le
-           bouton reste dans le DOM (masqué) pour que definirOnglet() garde ses getElementById
-           valides et que la page se réactive en une ligne (retirer le style + rendre le bouton). -->
-      <button type="button" id="tab-aujourdhui" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('aujourdhui')" style="display:none;">
-        <span class="sidebar-link-icone" id="icon-nav-aujourdhui" aria-hidden="true"></span>Aujourd’hui
-        <span class="sidebar-compteur" id="badge-aujourdhui" style="display:none;"></span>
-      </button>
 
       <span class="sidebar-nav-titre">Dossier</span>
       <button type="button" id="tab-suivi" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('suivi')">
@@ -156,18 +148,6 @@
   </aside>
 
   <main class="app-main">
-
-<!-- Page « Aujourd'hui » : rapport complet de la journée (renderPageAujourdhui). -->
-<div class="onglet-panel" id="onglet-aujourdhui" style="display:none;">
-  <div class="jour-page-tete">
-    <div class="jour-page-titres">
-      <div class="dash-eyebrow" id="aujourdhui-date">Aujourd’hui</div>
-      <h1 class="dash-titre" id="aujourdhui-titre">Aujourd’hui</h1>
-    </div>
-    <div class="jour-page-outils" id="aujourdhui-outils"></div>
-  </div>
-  <div id="aujourdhui-contenu"></div>
-</div>
 
 <div class="onglet-panel" id="onglet-dashboard">
   <!-- Tableau de bord en WIDGETS (demandé par l'étude le 29/09, « comme les widgets iOS ») : chaque
@@ -1770,7 +1750,7 @@
   <section class="reglages-panneau" id="reglages-panneau-pieces" role="tabpanel" aria-labelledby="reglages-onglet-pieces" hidden>
     <h2 class="reglages-titre">Pièces</h2>
     <div class="reglages-section">
-      <h3 class="reglages-section-titre">Scans du copieur</h3>
+      <h3 class="reglages-section-titre">Claire Scan</h3>
       <div id="reglages-scans"></div>
     </div>
     <div class="reglages-section">

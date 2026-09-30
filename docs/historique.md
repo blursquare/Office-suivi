@@ -13031,3 +13031,25 @@ devant le type VTE pour vente et SUCC pour succession (nouvelle catégorie à ve
 - Tests : `tests/libelle-dossier.test.js`, cas `libelleDossier` dans `server/test/rappels.test.js`.
   Vérifié dans Chromium (dossiers inventés) : aucun nom de dossier sans préfixe dans le texte du
   tableau de bord, du Suivi (deux vues), de Claire Scan et d'une fiche.
+
+### 30/09/2026 soir — Page « Aujourd'hui » supprimée, « Claire Scan » partout
+
+Demandes de l'étude : « Modifie le nom de la fonction de scan par « Claire Scan » » et « Supprime la
+page aujourd'hui ».
+- **Claire Scan** : restaient l'ancien nom dans la rubrique des Réglages (« Scans du copieur »), le
+  réglage d'activation (« Classer les scans du copieur » → « Activer Claire Scan »), l'écran non activé
+  et son bouton, le sous-titre de la carte « Dernières pièces » (« Claire Scan · N à ranger ») et le
+  libellé d'écran joint aux signalements (`LIBELLES_ONGLETS.scans`, absent jusque-là).
+- **Page « Aujourd'hui »** (déjà masquée de la barre latérale, mais encore ouverte par « Voir plus » de
+  la carte et par la fenêtre du matin — c'est la page vide que l'étude voyait) : panneau
+  `#onglet-aujourdhui` et bouton caché retirés d'index.html ; retirés de script.js :
+  `renderPageAujourdhui`, `choisirOngletPanneauJour` et son état, `ouvrirRapportDepuisFenetre`,
+  `majBadgeAujourdhui`, `copierListeDuJour`, `renderAVenirListe`, `renderSignaturesListe`, et les
+  fonctions pures qui ne servaient qu'à la page (`journalDuJour`, `preparationSignatures`,
+  `chargeEquipeDuJour`, `texteListeDuJour`, avec leurs deux tests) ; 48 règles CSS de la page
+  retirées. « Voir plus » et la prochaine action de la carte ouvrent la fenêtre du jour
+  (`ouvrirFenetreAujourdhui`) ; `definirOnglet('aujourdhui')` mène au tableau de bord (ancien lien).
+  Restent : la carte « Aujourd'hui » (widget), la fenêtre du point du matin, toute la sélection pure
+  (`actionsDuJour`, `evenementsDepuisVisite`…).
+- Vérifié dans Chromium (dossiers inventés) : aucun élément ne mène plus à la page, la carte ouvre la
+  fenêtre, aucune erreur de page ; tests client verts.
