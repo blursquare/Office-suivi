@@ -12738,3 +12738,9 @@ scans. »
   main → fiche 2/13, « État daté » et « Facture » cochés « Nouveau », deux requêtes
   `/api/notifications/pieces-recues` avec le chemin du fichier. Non vérifié : réception réelle dans
   Teams (flux Power Automate du bureau).
+
+### 30/09/2026 15:39 — Scans : avis de taxe foncière en Comptabilité
+
+- Étude : « l'avis de taxes foncières s'il est scanné va dans comptabilité ». `TYPES_SCAN` :
+  `avisTaxeFonciere.rubriques = ['comptabilite']` (rubrique retrouvée par son nom, « COMPTABILITE »,
+  racine du dossier à défaut) au lieu de la racine faute de rubrique. Test ajouté.

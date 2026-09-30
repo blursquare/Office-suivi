@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 15:22';
+  const VERSION_APP = '2026-09-30 15:39';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 15:39', resume: "Scans du copieur : un avis de taxe foncière scanné est rangé dans la rubrique Comptabilité du dossier client (et non plus à sa racine)." },
     { version: '2026-09-30 15:22', resume: "Scans du copieur : le rangement automatique ne dépend plus de l'écran « Scans à ranger ». Les scans en image restaient bloqués tant que la fenêtre CLAIRE était réduite ou cachée ; ils sont maintenant lus fenêtre cachée. Et chaque scan rangé, à la main ou automatiquement, coche aussitôt sa pièce dans la liste du dossier. Si la pièce n'y figure pas (facture, courrier, pièce d'identité…), elle est ajoutée puis cochée. Le responsable est prévenu sur Teams avec le lien vers le fichier rangé." },
     { version: '2026-09-30 15:17', resume: "Scans du copieur : le score est désormais noté sur 6 (« Score 6/6 : 1 partie nommée +3, adresse du bien +4 » au lieu de « Score 7/4 »). Rangement automatique toujours dès 4/6 ; au-delà de 6 points la note reste 6/6, le détail des points reste affiché." },
     { version: '2026-09-30 15:01', resume: "Réglages › Pièces : le classement des scans ne semble plus désactivé à chaque ouverture de CLAIRE. Le réglage était bien conservé, mais l'écran affichait « désactivé » et « dossier Scan introuvable » tant que le serveur n'avait pas fini de parcourir le dossier du copieur et de lire les scans en attente. L'interrupteur reste désormais grisé (« Lecture des réglages… ») jusqu'à la réponse du serveur, puis montre le vrai état." },
@@ -31296,7 +31297,7 @@
     { cle: 'decompte', label: 'Décompte', motif: /decompte (previsionnel|financier|definitif|acquereur|vendeur)/, rubriques: ['comptabilite'] },
     { cle: 'convocation', label: 'Convocation', motif: /confirmer le rendez-vous|confirme le rendez-vous|convocation/, rubriques: [] },
     { cle: 'etatHypothecaire', label: 'État hypothécaire', motif: /etat hypothecaire|renseignements sommaires|etat (hors|sur) formalites?|demande de renseignements/, rubriques: ['hypotheque'] },
-    { cle: 'avisTaxeFonciere', label: 'Avis de taxe foncière', piece: 'avisTaxeFonciere', motif: /avis_tf|montant de vos taxes foncieres|avis d'impots? locaux|avis d'(impot|imposition).{0,80}foncier|taxes? foncieres? \d{4}/, rubriques: [] },
+    { cle: 'avisTaxeFonciere', label: 'Avis de taxe foncière', piece: 'avisTaxeFonciere', motif: /avis_tf|montant de vos taxes foncieres|avis d'impots? locaux|avis d'(impot|imposition).{0,80}foncier|taxes? foncieres? \d{4}/, rubriques: ['comptabilite'] },
     { cle: 'appelCharges', label: 'Appel de charges', motif: /appel (trimestriel|de fonds|de charges|provisionnel|de provisions?)/, exige: /coproprietaire|syndic|lot/, rubriques: ['copro'] },
     { cle: 'pvAssemblee', label: "Procès-verbal d'assemblée générale", motif: /proces[- ]verbal .{0,60}assemblee generale/, rubriques: ['copro'] },
     { cle: 'reglementCopro', label: 'Règlement de copropriété', motif: /reglement de copropriete|etat descriptif de division/, rubriques: ['copro'] },

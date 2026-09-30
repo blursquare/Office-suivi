@@ -379,8 +379,8 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   (choix par défaut, décochable). Piste : reporter le fonds de travaux lu dans l'état daté trouvé sur
   le NAS sur la fiche (`d.fondsTravaux.montant`) — aujourd'hui l'outil Appel de fonds n'écrit rien.
 - **Classeur des scans** : **à confirmer par l'étude** — la rubrique de chaque type (urbanisme et
-  entretien en « AAE » d'après l'arborescence, avis de taxe foncière à la racine faute de rubrique,
-  voir `TYPES_SCAN`) ; **non vérifié au bureau** — accès du serveur au partage `\\192.168.60.5\Scan`,
+  entretien en « AAE » d'après l'arborescence, voir `TYPES_SCAN` ; avis de taxe foncière en
+  « Comptabilité », confirmé par l'étude le 30/09) ; **non vérifié au bureau** — accès du serveur au partage `\\192.168.60.5\Scan`,
   droits d'écriture du compte qui fait tourner le serveur sur les dossiers clients ET sur ce partage
   (l'original y est déplacé dans « CLAIRE - scans rangés »), OCR des scans
   du copieur Toshiba (temps, qualité), volume quotidien. Le script Python fourni

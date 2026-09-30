@@ -232,3 +232,9 @@ test('scan rangé : pièce de la checklist cochée, sinon ajoutée à la liste d
   // Type inconnu, nom générique : « Scan du … ».
   assert.equal(app.pieceDepuisScanRange(d, '', 'Claire Scan', checklist, maintenant).label, 'Scan du ' + app.formatDateFr('2026-10-01'));
 });
+
+test('rubrique : l’avis de taxe foncière scanné va dans Comptabilité (étude, 30/09)', () => {
+  const app = chargerApplication();
+  const avis = app.TYPES_SCAN.find(t => t.cle === 'avisTaxeFonciere');
+  assert.equal(app.rubriquesScan(avis, null).join(','), 'comptabilite');
+});
