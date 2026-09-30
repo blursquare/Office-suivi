@@ -167,7 +167,9 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
 - **Fonds reçus** (reçus comptables du NAS) : le client est le **titulaire** en début de ligne, et
   seulement le premier nommé d'un compte à deux noms, sauf si la référence de la vente
   (« VTE VENDEUR/ACQUÉREUR ») cite le vendeur du dossier ; une référence qui ne nomme personne du
-  dossier écarte l'écriture. Complet = montant attendu **à 50 € près** (`MARGE_FONDS_RECUS`, miroir
+  dossier écarte l'écriture. Reçus **gardés en mémoire** : les fichiers sont supprimés du commun une fois traités, un versement déjà
+  retenu dont le fichier n'est plus relu reste compté (`fusionnerRecusMemorises`, `memorise`), retrait
+  à la main seulement. Complet = montant attendu **à 50 € près** (`MARGE_FONDS_RECUS`, miroir
   serveur `bilanFonds`) ; au-delà, « excédent » à vérifier, jamais « complet ». Noms cherchés :
   parties acquéreurs (et leur `nomUsage`, lu dans l'état civil « Veuve/Épouse de Monsieur … NOM » par
   `nomsUsageDansBloc`) + nom du dossier + nom du courrier d'appel de fonds + `d.nomsRecus`.

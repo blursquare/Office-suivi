@@ -265,3 +265,21 @@ test('pdfPrioritairePourOffre : nom explicite ou fichier signalé nouveau', () =
   assert.equal(app.pdfPrioritairePourOffre('SCAN0042', 'AAE/SCAN0042.pdf', []), false);
   assert.equal(app.pdfPrioritairePourOffre('Diagnostics', 'Diagnostics.pdf', null), false);
 });
+
+test('reçus supprimés du commun : les montants déjà retenus sont gardés en mémoire (30/09)', () => {
+  const r1 = { chemin: 'COMMUN/recus_25-09-26.pdf', fichier: 'recus_25-09-26.pdf', page: 1, montant: 20000, date: '2026-09-25', extrait: 'MARTIN Paul — virement' };
+  const r2 = { chemin: 'COMMUN/recus_28-09-26.pdf', fichier: 'recus_28-09-26.pdf', page: 2, montant: 5300, date: '2026-09-28', extrait: 'MARTIN Paul — virement' };
+  const r3 = { chemin: 'COMMUN/recus_30-09-26.pdf', fichier: 'recus_30-09-26.pdf', page: 1, montant: 1000, date: '2026-09-30', extrait: 'MARTIN Paul — virement' };
+  // Les deux premiers fichiers ont disparu ; seul le reçu du 30/09 est relu.
+  const f = app.fusionnerRecusMemorises([r1, r2], [r3], new Set([r3.chemin]));
+  assert.equal(f.map(r => `${r.montant}${r.memorise ? '*' : ''}`).join(' '), '20000* 5300* 1000');
+  assert.equal(f.reduce((t, r) => t + r.montant, 0), 26300);
+  // Un fichier encore présent et relu fait foi : un versement qu'il ne contient plus disparaît.
+  assert.equal(app.fusionnerRecusMemorises([r1, r2], [r2], new Set([r1.chemin, r2.chemin])).map(r => r.montant).join(' '), '5300');
+  // Retrouvé dans le fichier relu : pas de doublon, plus marqué « mémorisé ».
+  const g = app.fusionnerRecusMemorises([Object.assign({ memorise: true }, r2)], [r2], new Set([r2.chemin]));
+  assert.equal(g.length, 1);
+  assert.equal(!!g[0].memorise, false);
+  // Rien d'ancien : la lecture seule.
+  assert.equal(app.fusionnerRecusMemorises(null, [r3], new Set([r3.chemin])).length, 1);
+});

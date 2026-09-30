@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 16:29';
+  const VERSION_APP = '2026-09-30 16:35';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 16:35', resume: "Fonds reçus : un versement déjà retenu reste compté quand son fichier de reçus est supprimé du commun (icône boîte à côté du montant). Seul un fichier encore présent et relu peut retirer un versement ; un versement conservé peut être retiré à la main (croix), le retrait est noté dans l'historique." },
     { version: '2026-09-30 16:29', resume: "Suivi des dossiers : en-tête aligné sur les autres pages (surtitre « Portefeuille de l'office », titre « Suivi des dossiers » comme dans le menu), « Revérifier tous les dossiers » à côté de « + Nouveau dossier ». Nouvelle répartition des dossiers par statut (Urgent, À relier, Attente de pièces, Complet, Prêt) avec, pour chacun, le plus long retard, la pièce la plus attendue ou la prochaine signature ; un clic sur un statut filtre la liste, un second clic retire le filtre. Les chiffres suivent les filtres de la liste." },
     { version: '2026-09-30 16:24', resume: "Avis de taxe foncière portant sur plusieurs biens : CLAIRE lit chaque bien et sa taxe foncière en page 2 et demande lequel est vendu (présélectionné dans l'appel de fonds quand l'adresse du dossier le désigne). Les frais de gestion de la fiscalité directe locale de l'avis sont répartis au prorata de la taxe de chaque bien (produit en croix) et ajoutés à celle du bien vendu. Appel de fonds et Prorata : les pièces peuvent être glissées sur la ligne des boutons, plusieurs à la fois — leur type est reconnu sur la première page." },
     { version: '2026-09-30 16:13', resume: "Offre de prêt : la garantie est lue aussi quand le paragraphe s'intitule « 5 LES GARANTIES » (offres CIC) — une caution Crédit Logement s'affiche désormais sur la ligne « Obtention du prêt ». Le montant du prêt est lu aussi sous la forme « Le montant du crédit est de : … » (plusieurs prêts additionnés). Pour un dossier existant : « Revérifier » sur la fiche." },
@@ -11584,6 +11585,21 @@
     return solde > 0 ? solde : null;
   }
 
+  // Pure : les reçus retenus après une nouvelle lecture. Les fichiers de reçus sont supprimés du
+  // commun une fois traités (étude, 30/09 : « il faut alors garder en mémoire le montant ») : un
+  // versement déjà retenu dont le fichier n'a pas été relu cette fois (supprimé, illisible, ou hors
+  // de la période lue) est conservé, marqué `memorise`. Seul un fichier effectivement relu peut
+  // retirer un versement qu'il ne contient plus. `cheminsLus` : chemins lus avec succès.
+  function cleRecu(r) { return [r.chemin, r.page || 1, r.montant, r.extrait || ''].join('|'); }
+  function fusionnerRecusMemorises(anciens, trouves, cheminsLus) {
+    const lus = cheminsLus instanceof Set ? cheminsLus : new Set(cheminsLus || []);
+    const deja = new Set((trouves || []).map(cleRecu));
+    const gardes = (anciens || []).filter(r => r && r.montant > 0 && !lus.has(r.chemin) && !deja.has(cleRecu(r)))
+      .map(r => Object.assign({}, r, { memorise: true }));
+    return (trouves || []).map(r => { const c = Object.assign({}, r); delete c.memorise; return c; }).concat(gardes)
+      .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+  }
+
   // Pure : l'état de l'indicateur. Les fonds doivent correspondre au montant attendu à l'euro près,
   // avec une marge de quelques dizaines d'euros au plus pour une erreur du client (règle de l'étude,
   // 29/09) — dans les DEUX sens : bien au-delà du montant attendu, ce n'est pas « complet » mais un
@@ -11691,12 +11707,14 @@
       const reponse = await fetchAvecAuth('/api/nas/recus?depuis=' + encodeURIComponent(depuis));
       if (!reponse.ok) throw new Error('liste des reçus : erreur ' + reponse.status);
       const { recus: fichiers, dossiers: dossiersRecus } = await reponse.json();
-      const trouves = [];
+      let trouves = [];
       let lus = 0;
+      const cheminsLus = new Set();
       for (const f of fichiers || []) {
         try {
           const pages = await pagesEnLignesNas(f.chemin);
           lus++;
+          cheminsLus.add(f.chemin);
           for (const r of recusDuPayeurDansPages(pages, mots, motsVente)) {
             // La date lue DANS le reçu l'emporte sur celle déduite du nom du fichier.
             trouves.push(Object.assign({ fichier: f.nom, chemin: f.chemin }, r, { date: r.date || f.date }));
@@ -11706,13 +11724,14 @@
       let attendu = null;
       if (d.fondsAttendusManuel > 0) attendu = { montant: d.fondsAttendusManuel, source: 'saisi à la main' };
       else { try { attendu = await montantAttenduDepuisNas(d); } catch (e) { attendu = null; } }
-      const total = trouves.reduce((t, r) => t + r.montant, 0);
       const avant = d.fondsRecus;
+      trouves = fusionnerRecusMemorises(avant && avant.recus, trouves, cheminsLus);
+      const total = trouves.reduce((t, r) => t + r.montant, 0);
       if (discret && avant && avant.regle === REGLE_RAPPROCHEMENT_RECUS && Math.abs((avant.total || 0) - Math.round(total * 100) / 100) < 0.005
           && (avant.attendu || null) === (attendu ? attendu.montant : null)) return;
       d.fondsRecus = {
         verifieLe: new Date().toISOString(), regle: REGLE_RAPPROCHEMENT_RECUS, depuis, fichiersLus: lus,
-        recus: trouves.slice(0, 60), total: Math.round(total * 100) / 100,
+        recus: trouves.slice(-60), total: Math.round(total * 100) / 100,
         // Où les reçus ont été cherchés (voir listerRecusNas côté serveur) : affiché sous la ligne,
         // pour qu'un reçu « jamais trouvé » se diagnostique d'un coup d'œil.
         dossiersRecus: Array.isArray(dossiersRecus) ? dossiersRecus.slice(0, 12).map(x => ({ dossier: String(x.dossier || ''), recus: Number(x.recus) || 0 })) : [],
@@ -11782,6 +11801,21 @@
       d.fondsRecus.attenduSource = d.fondsAttendusManuel ? 'saisi à la main' : '';
     }
     ajouterHistorique(d, d.fondsAttendusManuel ? `Montant attendu des fonds saisi : ${formaterPrixCentimes(d.fondsAttendusManuel)}` : 'Montant attendu des fonds effacé');
+    sauvegarder(d);
+    render();
+  }
+
+  // Retire un versement conservé en mémoire (fichier supprimé du commun) : seul moyen de corriger
+  // un versement mal rattaché, le fichier n'étant plus là pour être relu.
+  function retirerRecuMemorise(id, cle) {
+    const d = dossiers.find(x => x.id === id);
+    const f = d && d.fondsRecus;
+    if (!f || !Array.isArray(f.recus)) return;
+    const r = f.recus.find(x => x.memorise && cleRecu(x) === cle);
+    if (!r) return;
+    f.recus = f.recus.filter(x => x !== r);
+    f.total = Math.round(f.recus.reduce((t, x) => t + x.montant, 0) * 100) / 100;
+    ajouterHistorique(d, `Versement retiré des fonds reçus : ${formaterPrixCentimes(r.montant)}${r.date ? ' du ' + formatDateFr(r.date) : ''} (${r.fichier || 'reçu'})`);
     sauvegarder(d);
     render();
   }
@@ -11891,17 +11925,20 @@
 
     // Les versements retenus, une ligne courte chacun.
     const versements = f && f.recus && f.recus.length ? `<ul class="fonds-versements">${f.recus.map(r => `
-        <li>
+        <li${r.memorise ? ' class="memorise"' : ''}>
           <span class="fonds-v-date">${r.date ? r.date.slice(8, 10) + '/' + r.date.slice(5, 7) : '—'}</span>
           <strong class="fonds-v-montant">${formaterPrixCentimes(r.montant)}</strong>
           ${r.confirme ? `<span class="fonds-v-ref" title="La référence de la vente est retrouvée dans le libellé">${icone('check')}</span>` : '<span class="fonds-v-ref"></span>'}
-          <button type="button" class="icon-btn" onclick="ouvrirFichierNas('${escapeOnclickArg(r.chemin)}')" title="${escapeAttr(`${r.fichier}${r.page > 1 ? ' p.' + r.page : ''}${r.compte ? ' · compte ' + r.compte : ''}${r.extrait ? '\n' + r.extrait : ''}`)}" aria-label="Ouvrir le reçu">${icone('file-text')}</button>
+          ${r.memorise
+            ? `<span class="fonds-v-actions"><span class="fonds-v-memorise" title="${escapeAttr(`${r.fichier || 'Reçu'}${r.page > 1 ? ' p.' + r.page : ''} — fichier retiré du commun, montant conservé${r.extrait ? '\n' + r.extrait : ''}`)}">${icone('archive')}</span><button type="button" class="icon-btn" onclick="retirerRecuMemorise('${d.id}', '${escapeOnclickArg(cleRecu(r))}')" title="Retirer ce versement" aria-label="Retirer ce versement">${icone('x')}</button></span>`
+            : `<button type="button" class="icon-btn" onclick="ouvrirFichierNas('${escapeOnclickArg(r.chemin)}')" title="${escapeAttr(`${r.fichier}${r.page > 1 ? ' p.' + r.page : ''}${r.compte ? ' · compte ' + r.compte : ''}${r.extrait ? '\n' + r.extrait : ''}`)}" aria-label="Ouvrir le reçu">${icone('file-text')}</button>`}
         </li>`).join('')}</ul>` : '';
 
     // Pied : noms cherchés (modifiables), dernière lecture, confirmation « quand même ».
     const mots = motsPayeurDossier(d);
     const noms = champFondsEditable(d, 'noms', `<span>${mots.length ? escapeHtml(mots.map(m => m.toUpperCase()).join(' / ')) : 'nom de l’acquéreur inconnu'}</span>`, d.nomsRecus || '', 'autre nom : d’usage, d’épouse…');
-    const lecture = f ? `${f.fichiersLus} reçu${f.fichiersLus > 1 ? 's' : ''} lu${f.fichiersLus > 1 ? 's' : ''} · ${new Date(f.verifieLe).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} ${infoBulle([`Reçus lus depuis le ${formatDateFr(f.depuis)}.`, 'Chaque versement au nom de l’acquéreur est listé : vérifiez qu’il concerne bien ce dossier.', renderDossiersRecusLus(f, mots)].filter(Boolean).join(' '))}` : '';
+    const lecture = f ? `${f.fichiersLus} reçu${f.fichiersLus > 1 ? 's' : ''} lu${f.fichiersLus > 1 ? 's' : ''} · ${new Date(f.verifieLe).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} ${infoBulle([`Reçus lus depuis le ${formatDateFr(f.depuis)}.`, 'Chaque versement au nom de l’acquéreur est listé : vérifiez qu’il concerne bien ce dossier.', renderDossiersRecusLus(f, mots),
+      (f.recus || []).some(r => r.memorise) ? 'Icône boîte : fichier de reçus supprimé du commun, montant conservé par CLAIRE.' : ''].filter(Boolean).join(' '))}` : '';
     const peutConfirmer = echeanceValidee(d, 'appelFonds') && !!emailDestinataireRelance(d);
     const complet = !!f && b.etat === 'complet';
     const confirmer = `envoyerRelanceCiblee('${d.id}', 'fonds')`;

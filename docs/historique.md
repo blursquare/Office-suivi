@@ -12843,3 +12843,20 @@ attractive, pas de slop IA) ».
   couleurs que le badge. Les chiffres suivent les autres filtres (recherche, responsable, échéance,
   offre, rôle), jamais les archives ; un clic filtre la liste sur ce statut, un second le retire.
   Téléphone : chiffre et libellé court seulement. Test `tests/etat-dossier.test.js`.
+
+### 30/09 16:35 — Fonds reçus : montants gardés en mémoire
+
+Précision de l'étude : « les reçus sont ensuite supprimés du commun, il faut alors garder en mémoire
+le montant ». Jusqu'ici, chaque vérification (manuelle ou automatique, toutes les heures avant le
+rendez-vous) reconstruisait `d.fondsRecus.recus` à partir des seuls fichiers présents : un reçu
+supprimé faisait retomber le total, et « Tous les fonds sont reçus » pouvait redevenir « Reste … ».
+- `fusionnerRecusMemorises(anciens, trouves, cheminsLus)` : un versement déjà retenu dont le fichier
+  n'a pas été relu avec succès cette fois (supprimé, illisible, hors période) est conservé, marqué
+  `memorise` ; un fichier encore présent et relu fait foi (un versement qu'il ne contient plus
+  disparaît) ; pas de doublon quand le fichier réapparaît. Le total et l'alerte Teams des fonds
+  (`alertesFondsDues`, qui lit `d.fondsRecus.total`) suivent sans changement côté serveur.
+- Affichage : icône boîte à la place du lien vers le reçu (le fichier n'existe plus), et une croix
+  pour retirer un versement mal rattaché — seule correction possible sans fichier ; le retrait est
+  noté dans l'historique du dossier. Vérifié dans Chromium avec un dossier inventé.
+- Limite connue : un versement conservé n'est plus recontrôlé si la règle de rapprochement change
+  (`REGLE_RAPPROCHEMENT_RECUS`) — faute de fichier, il reste tel quel jusqu'au retrait à la main.

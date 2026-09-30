@@ -6979,3 +6979,7 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
   .suivi-etat-long, .suivi-etat-detail { display: none; }
   .suivi-etat-court { display: inline; }
 }
+/* Versement conservé en mémoire : son fichier a été supprimé du commun (30/09). */
+.fonds-versements li.memorise { grid-template-columns: 48px minmax(0, 1fr) 20px auto; }
+.fonds-v-actions { display: inline-flex; align-items: center; gap: 2px; }
+.fonds-v-memorise { display: inline-flex; color: var(--muted); padding: 0 4px; }
