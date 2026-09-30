@@ -151,7 +151,10 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   ce mois-ci. Quatre listes de dossiers (signatures, envois appel de fonds/projet, rendez-vous à fixer,
   dates butoir ; retards d'abord ; clic = fiche) + délais moyens depuis l'ouverture du dossier dans
   CLAIRE. Mois suivant dans les 5 derniers jours (`moisPrevuSuivi`). Refusés par l'étude : graphique
-  par semaine, charge par collaborateur, montant des ventes, le mot « portefeuille ». L'échéance a sa propre colonne (« Prochaine
+  par semaine, charge par collaborateur, montant des ventes, le mot « portefeuille ». **Liste « intelligente »**
+  (30/09) : section « À voir en premier » en tête (`signauxDossierSuivi`, `partagerAVoirSuivi`) —
+  notifications (`piecesNotifications` : offre, pièces nommées) puis fonds tous reçus non confirmés ;
+  le dossier en sort à l'ouverture de sa fiche, sans doublon dans la suite de la liste. L'échéance a sa propre colonne (« Prochaine
   échéance ») ; `statutDossier` (pièces trouvées) ne sert plus qu'aux points « À traiter ».
 - **Seuils des rappels email** : prêt J-15/J-7, vente préalable J-15/J-7, appel de fonds J-15/J-10,
   signature J-25/J-15, personnalisées J-15/J-7 (`SEUILS_RAPPELS_PAR_TYPE`).

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 18:09';
+  const VERSION_APP = '2026-09-30 18:13';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 18:13', resume: "Suivi des dossiers : les dossiers qui ont du nouveau remontent en tête de liste, dans une section « À voir en premier » (vue Échéances comme vue Tableau) — offre de prêt reçue, nouvelle pièce (avec son nom), tous les fonds reçus sans confirmation au client. Ils reprennent leur place dès que la fiche est ouverte (ou la réception des fonds confirmée). Dans « Prévu en octobre », le type d'une date butoir en retard ne déborde plus de la carte." },
     { version: '2026-09-30 18:09', resume: "Suivi des dossiers : la vue d'ensemble devient « Prévu en octobre » — quatre cartes listant les dossiers du mois : signatures, envois à faire (appel de fonds, projet), rendez-vous à fixer, dates butoir (les retards en premier). Un clic sur un dossier ouvre sa fiche. Les délais moyens restent, en une ligne. Le graphique, la charge par collaborateur et le montant des ventes sont retirés ; le surtitre « Portefeuille de l'office » devient « Dossier »." },
     { version: '2026-09-30 17:59', resume: "Suivi des dossiers : nouvelle vue d'ensemble au-dessus de la liste — quatre chiffres (signatures et montant des ventes du mois, offres de prêt attendues, dates butoir sous 15 jours), les signatures et dates butoir des 8 prochaines semaines (un clic sur une semaine filtre la liste), la charge de chaque collaborateur (un clic filtre sur lui) et les délais moyens jusqu'à l'offre de prêt et à la signature. Les statuts deviennent des pastilles de filtre dans la barre de recherche. La vue d'ensemble se masque d'un clic." },
     { version: '2026-09-30 17:11', resume: "Outils › Répertoire (remplace le Carnet des confrères) : les offices notariaux et une centaine de contacts repris du répertoire Word de l'étude, classés par thème — banques (prêts et mainlevées, successions), assurances et assurance-vie, retraite et aide sociale, tribunaux, impôts, mairies et urbanisme, département, agences immobilières, chambres consulaires. Recherche commune, une pastille par thème, téléphones et emails cliquables ; chaque contact se corrige, s'ajoute ou se retire sur place, pour tous les postes." },
@@ -18097,8 +18098,11 @@
     // un portefeuille d'une soixantaine de dossiers) : le tableau est désormais la seule vue de la
     // LISTE. La vue "Semaines" ajoutée ensuite n'est pas une troisième liste mais un regroupement
     // des mêmes dossiers par échéance — mêmes filtres, même recherche, même tiroir au clic.
+    // Les dossiers qui ont du nouveau d'abord, dans les deux vues ; le reste suit, sans doublon.
+    const { aVoir, reste } = partagerAVoirSuivi(tries);
+    const blocAVoir = renderAVoirSuivi(aVoir);
     if (vueSuivi === 'semaines') {
-      list.innerHTML = renderVueSemaines(tries);
+      list.innerHTML = blocAVoir + (reste.length || !aVoir.length ? renderVueSemaines(reste) : '');
       return;
     }
 
@@ -18114,9 +18118,10 @@
             <th>Offre de prêt</th>
             <th class="th-triable" onclick="definirTri('echeance')">Prochaine échéance${flechesTri.echeance}</th>
           </tr></thead>
-          <tbody>${tries.map(renderLigneTableau).join('')}</tbody>
+          <tbody>${reste.map(renderLigneTableau).join('')}</tbody>
         </table>
       </div>`;
+    if (blocAVoir) list.innerHTML = blocAVoir + (reste.length ? list.innerHTML : '');
   }
 
   // Change le tri depuis un clic sur un en-tête de colonne : répercuté sur le menu "Trier par"
@@ -18156,6 +18161,63 @@
     const n = (d.piecesNotifications || []).length;
     if (!n) return '';
     return `<span class="dot-label dl-urgent notif-nouveau-tag" title="${n} document${n > 1 ? 's' : ''} nouvellement trouvé${n > 1 ? 's' : ''} — ouvrez la fiche pour les voir"><span class="dot"></span>${n} nouvelle${n > 1 ? 's' : ''} pièce${n > 1 ? 's' : ''}</span>`;
+  }
+
+  // ---- Suivi « intelligent » (étude, 30/09 : « les dossiers avec une notification remontent en haut
+  // de liste ») : ce qui fait remonter un dossier dans « À voir en premier », avec la raison écrite.
+  // Pure. Un dossier en sort de lui-même : ouvrir sa fiche vide ses notifications, confirmer la
+  // réception des fonds lève le second signal.
+  function signauxDossierSuivi(d) {
+    if (!d || d.archive) return [];
+    const out = [];
+    const notifs = d.piecesNotifications || [];
+    if (notifs.includes(CLE_NOTIF_OFFRE_PRET)) out.push({ cle: 'offre', rang: 0, texte: 'Offre de prêt reçue' });
+    const pieces = notifs.filter(c => c !== CLE_NOTIF_OFFRE_PRET);
+    if (pieces.length) {
+      const liste = checklistPieces(d.typeVente, d);
+      const noms = pieces.map(c => { const p = liste.find(x => x.cle === c); return p ? p.label : libellePieceParCle(c); });
+      out.push({ cle: 'pieces', rang: 0, texte: pieces.length === 1 ? `Nouvelle pièce : ${noms[0]}` : `${pieces.length} nouvelles pièces : ${noms.join(', ')}` });
+    }
+    const f = d.fondsRecus;
+    if (f && !d.receptionFondsConfirmeeLe && bilanFondsRecus(f.total, d.fondsAttendusManuel || f.attendu).etat === 'complet') {
+      out.push({ cle: 'fonds', rang: 1, texte: 'Tous les fonds reçus — confirmation à envoyer' });
+    }
+    return out;
+  }
+
+  // Pure : les dossiers de la liste qui ont un signal, du plus pressant au moins pressant (rang du
+  // signal, puis échéance la plus proche), et le reste, dans l'ordre reçu.
+  function partagerAVoirSuivi(liste) {
+    const aVoir = [], reste = [];
+    (liste || []).forEach(d => { const s = signauxDossierSuivi(d); if (s.length) aVoir.push({ d, s }); else reste.push(d); });
+    aVoir.sort((a, b) => (Math.min(...a.s.map(x => x.rang)) - Math.min(...b.s.map(x => x.rang))) || (calculerProchaineEcheance(a.d) - calculerProchaineEcheance(b.d)));
+    return { aVoir, reste };
+  }
+
+  function renderAVoirSuivi(aVoir) {
+    if (!aVoir.length) return '';
+    const lignes = aVoir.map(({ d, s }) => `
+      <tr class="ligne-resume${dossierOuvert === d.id ? ' ligne-active' : ''}" onclick="ouvrirDossierDrawer('${escapeOnclickArg(d.id)}')">
+        <td><div class="dossier-nom-tableau">${escapeHtml(libelleDossierAffiche(d))}</div>
+          <div class="a-voir-signaux">${s.map(x => `<span class="dot-label ${x.cle === 'fonds' ? 'dl-success' : 'dl-urgent notif-nouveau-tag'}"><span class="dot"></span>${escapeHtml(x.texte)}</span>`).join('')}</div></td>
+        <td>${celluleEcheanceTableau(d)}</td>
+        <td>${renderBadgeStatut(d)}</td>
+        <td class="dossier-responsable-tableau">${escapeHtml(d.responsable || '—')}</td>
+      </tr>`).join('');
+    return `
+      <section class="semaine-groupe a-voir">
+        <div class="semaine-entete">
+          <span class="section-eyebrow">À voir en premier ${infoBulle('Dossiers avec du nouveau : offre de prêt ou pièce trouvée depuis la dernière ouverture de la fiche, ou fonds tous reçus sans confirmation au client. Ils reprennent leur place dès que la fiche est ouverte (ou la réception confirmée).')}</span>
+          <span class="semaine-compteur">${aVoir.length} dossier${aVoir.length > 1 ? 's' : ''}</span>
+        </div>
+        <div class="table-scroll">
+          <table class="dossiers-table a-voir-table">
+            <colgroup><col><col class="col-a-voir-echeance"><col class="col-echeance-statut"><col class="col-echeance-resp"></colgroup>
+            <thead><tr><th>Dossier et nouveauté</th><th>Prochaine échéance</th><th>Statut</th><th>Responsable</th></tr></thead>
+            <tbody>${lignes}</tbody>
+          </table>
+        </div>
+      </section>`;
   }
 
   // Colonne « Prochaine échéance » : la plus proche en attente (prochaineEcheanceDetail), avec son

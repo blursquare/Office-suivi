@@ -12949,3 +12949,18 @@ n'aime pas le terme de portefeuille — retravaille sur un angle : quoi de prév
   dans l'en-tête. Supprimés : graphique par semaine (et son filtre), charge par collaborateur, montant
   des ventes, jetons `--graph-*`. Surtitre de la page : « Dossier » (groupe du menu).
 - Tests `tests/stats-suivi.test.js` réécrits ; vérifié dans Chromium (clair, sombre, 390 px, clic).
+
+### 30/09 18:13 — Suivi : les dossiers avec du nouveau remontent en tête
+
+Demande : « pour le suivi en tant que tel, permettre une gestion intelligente, par exemple les
+dossiers avec une notification remontent en haut de liste ».
+- `signauxDossierSuivi(d)` (pure) : ce qui fait remonter un dossier, écrit en clair — « Offre de
+  prêt reçue », « Nouvelle pièce : Diagnostics techniques » / « N nouvelles pièces : … » (clés de
+  `d.piecesNotifications`, libellés de la checklist du dossier), et « Tous les fonds reçus —
+  confirmation à envoyer » (`bilanFondsRecus` complet, `receptionFondsConfirmeeLe` vide).
+- `partagerAVoirSuivi` : section « À voir en premier » en tête de la liste, dans les deux vues
+  (Échéances et Tableau), triée notifications d'abord puis échéance la plus proche ; ces dossiers ne
+  sont pas répétés plus bas. Ils en sortent seuls : l'ouverture de la fiche vide
+  `piecesNotifications` (comportement existant), la confirmation des fonds lève le second signal.
+- Correctif : dans « Prévu en … », « En retard · Obtention du prêt » passe à la ligne au lieu de
+  déborder de la carte des dates butoir. Tests `tests/stats-suivi.test.js` ; vérifié dans Chromium.

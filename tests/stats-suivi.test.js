@@ -52,3 +52,27 @@ test('moisPrevuSuivi : le mois en cours, le suivant dans ses 5 derniers jours', 
   const vide = app.prevuDuMois([], [], '2026-09-10');
   assert.equal(`${vide.signatures.length}/${vide.delais.signature}/${vide.delais.offre}`, '0/null/null');
 });
+
+test('signauxDossierSuivi : notifications et fonds reçus à confirmer font remonter un dossier', () => {
+  const offre = { id: 'o', typeVente: 'maison', piecesNotifications: ['offre-pret', 'diagnosticsTechniques'], pret: '2026-10-20' };
+  assert.equal(app.signauxDossierSuivi(offre).map(s => s.texte).join(' | '), 'Offre de prêt reçue | Nouvelle pièce : Diagnostics techniques');
+  const deux = { id: 'p', typeVente: 'maison', piecesNotifications: ['erp', 'diagnosticsTechniques'] };
+  assert.match(app.signauxDossierSuivi(deux)[0].texte, /^2 nouvelles pièces : /);
+  const fonds = { id: 'f', fondsRecus: { total: 30000, attendu: 30000, recus: [] } };
+  assert.equal(app.signauxDossierSuivi(fonds)[0].cle, 'fonds');
+  assert.equal(app.signauxDossierSuivi(Object.assign({}, fonds, { receptionFondsConfirmeeLe: '2026-10-01' })).length, 0);
+  assert.equal(app.signauxDossierSuivi({ id: 'r' }).length, 0);
+  assert.equal(app.signauxDossierSuivi(Object.assign({ archive: true }, offre)).length, 0);
+});
+
+test('partagerAVoirSuivi : les notifications d’abord, puis les fonds, le reste dans l’ordre reçu', () => {
+  const liste = [
+    { id: 'calme', pret: '2026-10-10' },
+    { id: 'fonds', fondsRecus: { total: 100, attendu: 100 }, rendezVousSignature: '2026-10-12' },
+    { id: 'piece', typeVente: 'maison', piecesNotifications: ['erp'], pret: '2026-11-30' },
+    { id: 'calme2', pret: '2026-10-20' }
+  ];
+  const { aVoir, reste } = app.partagerAVoirSuivi(liste);
+  assert.equal(aVoir.map(x => x.d.id).join(','), 'piece,fonds');
+  assert.equal(reste.map(d => d.id).join(','), 'calme,calme2');
+});

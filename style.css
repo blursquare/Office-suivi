@@ -6971,7 +6971,7 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
 .pm-date { font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pm-nom { font-size: 13px; font-weight: 500; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
 .pm-etat { grid-column: 2; font-size: 11.5px; color: var(--muted); }
-.pm-etat.dot-label { font-weight: 500; }
+.pm-etat.dot-label { font-weight: 500; white-space: normal; }
 .pm-passee { color: var(--muted); }
 .pm-rien { margin: 0; padding: 0 4px; font-size: 12.5px; color: var(--muted); }
 .pm-carte.pm-vide { gap: 4px; }
@@ -7032,3 +7032,12 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
 }
 .rep-contact .carnet-ligne.carnet-contacts { flex-wrap: nowrap; }
 .rep-contact .rep-valeurs { flex: 1; }
+
+/* ---- Suivi : « À voir en premier » (30/09) — les dossiers avec du nouveau, en tête de liste ---- */
+.a-voir-table { table-layout: fixed; }
+.col-a-voir-echeance { width: 210px; }
+.a-voir .section-eyebrow { color: var(--notif-nouveau, var(--urgent)); display: inline-flex; align-items: center; gap: 6px; }
+.a-voir-signaux { display: flex; flex-wrap: wrap; gap: 2px 14px; margin-top: 4px; }
+.a-voir-table td .dot-label { white-space: normal; line-height: 1.3; }
+.a-voir-table .etape-cellule { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.a-voir-table td { vertical-align: middle; }
