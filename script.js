@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 14:54';
+  const VERSION_APP = '2026-09-30 15:01';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 15:01', resume: "Réglages › Pièces : le classement des scans ne semble plus désactivé à chaque ouverture de CLAIRE. Le réglage était bien conservé, mais l'écran affichait « désactivé » et « dossier Scan introuvable » tant que le serveur n'avait pas fini de parcourir le dossier du copieur et de lire les scans en attente. L'interrupteur reste désormais grisé (« Lecture des réglages… ») jusqu'à la réponse du serveur, puis montre le vrai état." },
     { version: '2026-09-30 14:54', resume: "Nouveau dossier : on peut désormais déposer l'export d'un sous-dossier Authentic (.zip) à la place du PDF du compromis. CLAIRE y reprend les parties (vendeurs, acquéreurs), l'adresse et le type du bien, les notaires (confrère en participation, étude qui reçoit l'acte), l'email de l'acquéreur, le nom du dossier, et propose de marquer reçues les pièces déjà présentes dans Authentic. Les dates et le prix viennent de l'avant-contrat contenu dans l'export ; si l'export ne contient que l'acte de vente, seul le prix est repris et les dates butoir restent à saisir. Un export de succession est reconnu mais pas encore suivi." },
     { version: '2026-09-30 14:42', resume: "Scans du copieur : la copie rangée s'appelle désormais « nom de la pièce - Claire Scan » (ex. « État daté - Claire Scan »), sans date ni référence du scan. Une pastille rouge signale les scans en attente de rangement : le nombre à côté de « Scans à ranger », un point sur l'icône quand la barre latérale est repliée et sur le bouton du menu sur téléphone." },
     { version: '2026-09-30 14:37', resume: "Scans du copieur : un scan est désormais rangé sans validation dès un score de 4 (au lieu de 6) — l'adresse du bien suffit, ou une partie nommée avec un autre indice. Une partie nommée seule (3 points) reste à valider, de même qu'un scan dont un autre dossier obtient un score proche." },
@@ -14359,7 +14360,7 @@
     // installé/démarré/arrêté sur le serveur depuis la dernière visite de cet onglet.
     // Réglages relus à chaque ouverture (un collègue a pu les modifier depuis un autre poste,
     // même principe que la disponibilité d'Ollama ci-dessus).
-    if (nom === 'reglages') { renderReglagesScans(); chargerScans().then(renderReglagesScans); definirSousOngletReglages(sousOngletReglagesRetenu()); chargerReglages(); chargerReglagesClaude(); chargerReglagesExchange(); chargerSignalements(); renderReglagesSignatureImages(true); }
+    if (nom === 'reglages') { renderReglagesScans(); chargerScans(); definirSousOngletReglages(sousOngletReglagesRetenu()); chargerReglages(); chargerReglagesClaude(); chargerReglagesExchange(); chargerSignalements(); renderReglagesSignatureImages(true); }
     if (nom === 'analyse-ia') initRelecture();
     // Date du jour et bornes de période posées au premier affichage seulement (voir initProrata).
     if (nom === 'prorata') initProrata();
@@ -31497,7 +31498,10 @@
   // ---- Écran « Scans à ranger » et rangement automatique ------------------------------------
   // État en mémoire : la liste du serveur, et pour chaque scan (clé nom + date) sa lecture et la
   // proposition, que l'étude peut corriger avant de ranger. Rien n'est enregistré côté poste.
-  var etatScans = { configure: false, raison: '', dossier: '', reglages: { actif: false, auto: false, depuis: null }, scans: [], ecartes: [], journal: [] };
+  // `charge` : faux tant que le serveur n'a pas répondu une première fois — les réglages ne sont alors
+  // PAS connus (et non « désactivés ») : l'interrupteur reste grisé plutôt que d'afficher un état faux
+  // (étude, 30/09 : « dès que je quitte CLAIRE je suis obligé de recocher »).
+  var etatScans = { charge: false, configure: false, raison: '', dossier: '', reglages: { actif: false, auto: false, depuis: null }, scans: [], ecartes: [], journal: [] };
   var lecturesScans = {};           // cle → { statut: 'lecture'|'pret'|'erreur', lecture, proposition, choix }
   var scansEnRangement = new Set();
   // Scans dont le rangement automatique a échoué : jamais retentés seuls (ils attendent un geste).
@@ -31532,9 +31536,12 @@
     try {
       const r = await fetchAvecAuth('/api/scans');
       if (!r.ok) return;
-      etatScans = Object.assign(etatScans, await r.json());
+      etatScans = Object.assign(etatScans, await r.json(), { charge: true });
     } catch (e) { return; }
     majBadgeScans();
+    // Réglages affichés dès la réponse, sans attendre la lecture des scans en attente (OCR : parfois
+    // plusieurs minutes, pendant lesquelles l'écran montrait l'interrupteur décoché).
+    renderReglagesScans();
     await demanderRelaisScans();
     const presents = new Set((etatScans.scans || []).map(cleScan));
     Object.keys(lecturesScans).forEach(k => { if (!presents.has(k)) delete lecturesScans[k]; });
@@ -31752,24 +31759,26 @@
     const zone = document.getElementById('reglages-scans');
     if (!zone) return;
     const r = etatScans.reglages || {};
-    const etat = etatScans.configure
-      ? `Dossier du copieur : <strong>${escapeHtml(etatScans.dossier)}</strong>`
-      : `${icone('alert-triangle')} ${escapeHtml(etatScans.raison || 'Dossier « Scan » introuvable.')}`;
+    const inconnu = !etatScans.charge;
+    const etat = inconnu ? 'Lecture des réglages sur le serveur…'
+      : etatScans.configure
+        ? `Dossier du copieur : <strong>${escapeHtml(etatScans.dossier)}</strong>`
+        : `${icone('alert-triangle')} ${escapeHtml(etatScans.raison || 'Dossier « Scan » introuvable.')}`;
     zone.innerHTML = `
       <div class="reglages-liste">
         <label class="reglages-option" for="reglages-scans-actif">
           <span class="reglages-option-texte"><span class="reglages-option-titre">Classer les scans du copieur ${infoBulle('CLAIRE lit chaque scan posé dans le dossier « Scan », reconnaît le dossier client et la pièce, puis range une copie dans la rubrique du dossier. L’original est conservé dans « CLAIRE - scans rangés », à l’intérieur du dossier Scan.')}</span>
             <span class="hint">${etat}</span></span>
-          <span class="switch reglages-switch"><input type="checkbox" id="reglages-scans-actif"${r.actif ? ' checked' : ''} onchange="enregistrerReglagesScans({ actif: this.checked })"><span class="slider"></span></span>
+          <span class="switch reglages-switch"><input type="checkbox" id="reglages-scans-actif"${r.actif ? ' checked' : ''}${inconnu ? ' disabled' : ''} onchange="enregistrerReglagesScans({ actif: this.checked })"><span class="slider"></span></span>
         </label>
         <label class="reglages-option" for="reglages-scans-auto">
           <span class="reglages-option-texte"><span class="reglages-option-titre">Ranger automatiquement les scans reconnus ${infoBulle(`Sans validation, dès que la pièce est identifiée et que le dossier atteint le score de ${BAREME_SCORE_SCAN.seuil} avec une marge sur le suivant : partie nommée ${BAREME_SCORE_SCAN.partie} points (deux au plus), adresse du bien ${BAREME_SCORE_SCAN.adresse}, parcelle ${BAREME_SCORE_SCAN.parcelle}. Il suffit qu’une fenêtre CLAIRE soit ouverte au bureau (celle du poste serveur en priorité). Les autres scans attendent dans « Scans à ranger ».`)}</span></span>
-          <span class="switch reglages-switch"><input type="checkbox" id="reglages-scans-auto"${r.auto ? ' checked' : ''}${r.actif ? '' : ' disabled'} onchange="enregistrerReglagesScans({ auto: this.checked })"><span class="slider"></span></span>
+          <span class="switch reglages-switch"><input type="checkbox" id="reglages-scans-auto"${r.auto ? ' checked' : ''}${r.actif && !inconnu ? '' : ' disabled'} onchange="enregistrerReglagesScans({ auto: this.checked })"><span class="slider"></span></span>
         </label>
         <label class="reglages-option" for="reglages-scans-depuis">
           <span class="reglages-option-texte"><span class="reglages-option-titre">Nouveaux scans à partir du ${infoBulle('Seuls les scans arrivés après ce moment sont traités (à l’activation : l’heure exacte). Les plus anciens restent dans le dossier Scan sans être touchés. Choisir une date plus ancienne pour reprendre des scans déjà présents.')}</span>
             ${r.depuis && r.depuis.length > 10 ? `<span class="hint">${escapeHtml(new Date(r.depuis).toLocaleString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }))}</span>` : ''}</span>
-          <input type="date" id="reglages-scans-depuis" value="${escapeAttr(dateLocaleDepuisScans(r.depuis))}"${r.actif ? '' : ' disabled'} onchange="enregistrerReglagesScans({ depuis: this.value })">
+          <input type="date" id="reglages-scans-depuis" value="${escapeAttr(dateLocaleDepuisScans(r.depuis))}"${r.actif && !inconnu ? '' : ' disabled'} onchange="enregistrerReglagesScans({ depuis: this.value })">
         </label>
       </div>`;
   }

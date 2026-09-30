@@ -12685,3 +12685,18 @@ scans. »
   Non vérifié : un export contenant l'avant-contrat (PDF ou Word) — pdf.js indisponible ici ; un
   export de succession réel ; un export avec références de parties remplies (testé sur données
   inventées). Tests : `tests/authentic.test.js` (10).
+
+### 30/09/2026 15:01 — Réglages des scans : plus d'état « désactivé » trompeur à l'ouverture
+
+- Signalé par l'étude : « dès que je quitte CLAIRE je suis obligé de recocher » (le classement des
+  scans). Le réglage est bien en base (`scans-reglages`, vérifié : conservé d'une session à l'autre).
+- Cause : `renderReglagesScans` dessinait d'abord l'état par défaut d'`etatScans` (actif faux,
+  « Dossier Scan introuvable ») ; le vrai état n'arrivait qu'après `chargerScans()` ENTIER — GET
+  `/api/scans` (parcours du partage du copieur, lent au bureau) puis relais et lecture/OCR des
+  scans en attente (`.then(renderReglagesScans)`), parfois plusieurs minutes. Pendant ce temps
+  l'interrupteur paraissait décoché et restait cliquable.
+- Correctif : `etatScans.charge` (faux avant la première réponse) → interrupteurs grisés et « Lecture
+  des réglages sur le serveur… » ; `renderReglagesScans()` appelé dans `chargerScans` dès la réponse
+  du GET, avant le relais et la lecture des scans ; plus de `.then` dans `definirOnglet`.
+- Vérifié dans Chromium (serveur réel, GET `/api/scans` retardé de 3 s) : grisé à +0,1/0,4/1,5 s,
+  coché à +4 s ; état serveur inchangé.
