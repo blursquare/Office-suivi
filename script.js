@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 09:24';
+  const VERSION_APP = '2026-09-30 09:44';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,8 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 09:44', resume: "Appel de fonds (décompte établi par l'office) : trois pièces à déposer en plus de l'avis de taxe foncière — l'appel de charges du syndic (prorata de charges du jour du rendez-vous à la fin de la période, hors cotisation au fonds de travaux), l'état daté (montant du fonds de travaux attaché au lot, repris si l'avant-contrat prévoit son remboursement) et le relevé de compte client (sommes déjà versées à l'étude, reversements au confrère signalés). Prorata : « Lire un appel de charges » remplit le montant et la période. Avis de taxe foncière : le montant est lu en page 1 et contrôlé en bas de page 2 (l'avis 2026 fourni n'était plus lu)." },
+    { version: '2026-09-30 09:30', resume: "Tableau de bord, carte Avancement en détail : la jauge et le pourcentage sont alignés sous le badge d'état, quelle que soit sa largeur." },
     { version: '2026-09-30 09:24', resume: "Projet d'acte : dans Échanges, un email « Envoyer le projet d'acte » prêt dans Outlook (le projet s'y joint) qui rappelle la date et l'heure du rendez-vous de signature ; l'envoi note la date, valide l'échéance et l'inscrit dans l'agenda comme pour l'appel de fonds. Dans Échéances, un bouton « Projet envoyé » valide l'envoi d'un clic (envoi fait hors de CLAIRE). Le texte de cet email est un premier jet, à remplacer par celui de l'étude." },
     { version: '2026-09-30 00:04', resume: "Relecture du code de la soirée (agenda, statut, widgets) : mêmes règles garanties entre le poste et le serveur pour les dates butoir posées dans l'agenda (un test les compare), une date de modification qui ne s'écrit plus dans le dossier lui-même, code et styles devenus inutiles retirés. Rien ne change à l'écran." },
     { version: '2026-09-29 23:50', resume: "Statut d'un dossier : une vente préalable pas encore réalisée compte comme le financement (au même titre que l'offre de prêt) — le dossier reste « Attente de pièces », jamais « Complet » ni « Prêt », tant qu'elle n'est pas faite. Le survol du badge l'indique (« En attente : Vente préalable »)." },
@@ -22601,7 +22603,22 @@
   // en deux une ligne écrite plus grand que les autres.
   var TOLERANCE_LIGNE_PDF = 0.6;
 
+  // Regroupe les items pdf.js en lignes (par position verticale), chaque ligne gardant ses items
+  // triés de gauche à droite avec leur abscisse — pour les lecteurs qui ont besoin de la COLONNE
+  // d'un nombre (relevé de compte : Débit ou Crédit). Pure.
+  function lignesAvecPositionsDepuisItems(items) {
+    return grouperItemsPdfEnLignes(items).map(l => ({
+      y: l.y,
+      items: l.items.sort((a, b) => a.x - b.x),
+      texte: l.items.map(i => i.str).join(' ').replace(/\s{2,}/g, ' ').trim()
+    })).filter(l => l.texte);
+  }
+
   function lignesDepuisItemsPdf(items) {
+    return lignesAvecPositionsDepuisItems(items).map(l => l.texte);
+  }
+
+  function grouperItemsPdfEnLignes(items) {
     const utiles = (items || []).filter(it => it && typeof it.str === 'string' && it.str.trim());
     const lignes = [];
     utiles.forEach(it => {
@@ -22621,13 +22638,7 @@
     // Y décroît vers le bas de la page en coordonnées PDF : on lit donc du plus grand au plus
     // petit pour retrouver l'ordre de lecture.
     lignes.sort((a, b) => b.y - a.y);
-    return lignes.map(l => l.items
-      .sort((a, b) => a.x - b.x)
-      .map(i => i.str)
-      .join(' ')
-      .replace(/\s{2,}/g, ' ')
-      .trim()
-    ).filter(Boolean);
+    return lignes;
   }
 
   async function lireTextePdfEnLignes(pdf) {
@@ -28074,6 +28085,10 @@
   // de la page ({ str, x, y }, y croissant vers le haut), le montant le plus bas, puis le plus à
   // droite. Un montant est un nombre avec centimes, ou suivi de « € » (l'avis arrondit à l'euro).
   var RE_ITEM_MONTANT_AVIS = /^(\d{1,3}(?:[ .\u00a0\u202f]\d{3})*)(,\d{2})?\s*(€)?$/;
+  // Sur l'avis réel de 2026 (SDIF de Loir-et-Cher), le total en bas à droite de la page 2 est un
+  // entier nu, « 921 », sans centimes ni € : un entier d'au moins 10 € et d'au plus six chiffres,
+  // sans zéro de tête, est donc un candidat (jamais un numéro de téléphone ni un « 0 » de colonne).
+  var RE_ENTIER_NU_AVIS = /^[1-9]\d{1,5}$/;
   function montantBasDroitePage(items) {
     const liste = (items || []).filter(it => it && typeof it.str === 'string');
     const candidats = [];
@@ -28082,7 +28097,7 @@
       if (!m) return;
       const suivant = liste[i + 1];
       const euroApres = suivant && suivant.str.trim() === '€' && Math.abs(suivant.y - it.y) < 3;
-      if (!m[2] && !m[3] && !euroApres) return;
+      if (!m[2] && !m[3] && !euroApres && !RE_ENTIER_NU_AVIS.test(m[1].replace(/[ .\u00a0\u202f]/g, ''))) return;
       const n = montantDepuisTexteFr(m[1] + (m[2] || ''));
       if (n > 0) candidats.push({ n, x: it.x, y: it.y });
     });
@@ -28110,6 +28125,229 @@
     const r = calculerProrata(montantAnnuel, `${annee}-01-01`, `${annee}-12-31`, dateActeIso);
     if (!r) return null;
     return { libelle: `Prorata de taxe foncière ${annee} (du ${dateActeIso.slice(8, 10) + '/' + dateActeIso.slice(5, 7)} au 31/12)`, montant: r.partAcquereur, detail: r };
+  }
+
+  // Page 1 de l'avis : « Montant de vos taxes foncières   921,00 € » (avis mensualisé, où « Somme à
+  // prélever » est le net après acomptes — jamais celle-là). Lu sur les lignes reconstruites
+  // (lignesDepuisItemsPdf) ; sert de première source, le bas de page 2 de contrôle. Pure.
+  var RE_MONTANT_TF_EN_TETE = /Montant\s+de\s+vos\s+taxes\s+fonci[èe]res\s*:?\s*(\d[\d\s  .]*(?:,\d{2})?)\s*€/i;
+  function montantAvisTaxeFonciereEnTete(lignes) {
+    for (const l of lignes || []) {
+      const m = RE_MONTANT_TF_EN_TETE.exec(String(l));
+      if (!m) continue;
+      const n = montantDepuisTexteFr(m[1]);
+      if (n > 0) return n;
+    }
+    return null;
+  }
+
+  // ---- Pièces lues pour l'appel de fonds et le prorata (exemples réels reçus le 30/09) --------
+  // Appel de charges d'un syndic, état daté, relevé de compte client de l'étude. Tout ce bloc est
+  // pur : il reçoit le texte en LIGNES (lireTextePdfEnLignes / lignesDepuisItemsPdf) et ne touche
+  // ni au DOM ni aux dossiers.
+
+  // Les syndics écrivent « 422.13 » (point décimal, CITYA) ou « 122.97 € » (Immo'Zel), l'étude
+  // « 1 380,43 » ou « 1.245,00 » : montantDepuisTexteFr lirait 42 213 dans « 422.13 ». Pure.
+  var RE_MONTANT_PIECE_SRC = '(\\d{1,3}(?:[ \\u00a0\\u202f.]\\d{3})*(?:[.,]\\d{1,2})?|\\d+(?:[.,]\\d{1,2})?)';
+  function montantSyndicDepuisTexte(texte) {
+    if (texte == null) return null;
+    let t = String(texte).replace(/[€\s  ]/g, '');
+    if (!t) return null;
+    if (/^\d+\.\d{1,2}$/.test(t)) return parseFloat(t);
+    if (/^\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?$/.test(t)) t = t.replace(/\./g, '');
+    const n = parseFloat(t.replace(',', '.'));
+    return Number.isFinite(n) ? Math.round(n * 100) / 100 : null;
+  }
+  function isoDepuisJjMmAaaa(texte) {
+    const m = /(\d{2})\/(\d{2})\/(\d{4})/.exec(String(texte || ''));
+    return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
+  }
+  function arrondiCentimes(n) { return Math.round(n * 100) / 100; }
+
+  // --- appel de charges de copropriété -------------------------------------------------------
+  // Structure réelle (appel trimestriel CITYA) : « Période du 01/10/2025 au 31/12/2025 », une ligne
+  // par poste et par lot (le dernier nombre de la ligne est la quote-part), « Montant de l'appel
+  // de fonds 422.13 € », puis un récapitulatif « MONTANT DE VOTRE APPEL » / « TOTAL A PAYER » (ce
+  // dernier peut inclure un solde antérieur : il vient en dernier recours).
+  var RE_PERIODE_APPEL_CHARGES = /P[ée]riode\s+(?:du\s+)?(\d{2}\/\d{2}\/\d{4})\s+au\s+(\d{2}\/\d{2}\/\d{4})/i;
+  var RE_MONTANTS_APPEL_CHARGES = [
+    { source: 'Montant de l’appel', re: new RegExp('Montant\\s+de\\s+l[\'’]appel(?:\\s+de\\s+fonds)?\\s*:?\\s*' + RE_MONTANT_PIECE_SRC + '\\s*€?', 'i') },
+    { source: 'Montant de votre appel', re: new RegExp('MONTANT\\s+DE\\s+VOTRE\\s+APPEL\\s*:?\\s*' + RE_MONTANT_PIECE_SRC, 'i') },
+    { source: 'Appel TTC', re: new RegExp('Appel\\s+TTC\\s*:?\\s*' + RE_MONTANT_PIECE_SRC, 'i') },
+    { source: 'Total à payer', re: new RegExp('TOTAL\\s+(?:DE\\s+L[\'’]APPEL|[ÀA]\\s+PAYER)\\s*:?\\s*' + RE_MONTANT_PIECE_SRC, 'i') }
+  ];
+  // La cotisation au fonds de travaux (art. 14-2) est attachée au lot : son sort entre vendeur et
+  // acquéreur est réglé par l'avant-contrat (voir detecterFondsTravaux), pas par un prorata de
+  // charges — elle est donc totalisée à part, pour être retirée du montant à répartir.
+  var RE_LIGNE_FONDS_TRAVAUX_APPEL = /(?:^|\s)(?:COTISATIONS?\s+(?:AU\s+)?)?FONDS\s+(?:DE\s+)?TRAVAUX(?:\s+ALUR)?(?![A-Za-z0-9_À-ɏ])/i;
+  var RE_NOMBRES_LIGNE = /\d{1,3}(?:[   ]\d{3})*(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?/g;
+
+  function typePeriodeAppelCharges(periode) {
+    if (!periode || !periode.debut || !periode.fin) return null;
+    const d = new Date(periode.debut + 'T00:00:00Z'), f = new Date(periode.fin + 'T00:00:00Z');
+    if (isNaN(d) || isNaN(f)) return null;
+    const lendemain = new Date(f.getTime() + 86400000);
+    if (d.getUTCDate() !== 1 || lendemain.getUTCDate() !== 1) return 'autre';
+    const mois = (lendemain.getUTCFullYear() - d.getUTCFullYear()) * 12 + lendemain.getUTCMonth() - d.getUTCMonth();
+    return mois === 12 && d.getUTCMonth() === 0 ? 'annee' : mois === 3 ? 'trimestre' : mois === 1 ? 'mois' : 'autre';
+  }
+
+  function analyserAppelCharges(texte) {
+    const lignes = String(texte || '').split('\n').map(l => l.trim()).filter(Boolean);
+    const out = { periode: null, typePeriode: null, montant: null, source: null, fondsTravaux: 0, lignesFondsTravaux: 0,
+      montantHorsFondsTravaux: null, coproprietaire: null, immeuble: null };
+    lignes.forEach(l => {
+      if (!out.periode) {
+        const m = RE_PERIODE_APPEL_CHARGES.exec(l);
+        if (m) out.periode = { debut: isoDepuisJjMmAaaa(m[1]), fin: isoDepuisJjMmAaaa(m[2]) };
+      }
+      if (!out.coproprietaire) { const m = /Copropri[ée]taire\s*:\s*(.+)$/i.exec(l); if (m) out.coproprietaire = m[1].trim(); }
+      if (!out.immeuble) { const m = /Immeuble\s*(?:\([^)]*\))?\s*:\s*(.+)$/i.exec(l); if (m) out.immeuble = m[1].trim(); }
+      if (RE_LIGNE_FONDS_TRAVAUX_APPEL.test(l) && !/^(?:Fonds\s+TRV|TOTAL)/i.test(l)) {
+        const nombres = l.match(RE_NOMBRES_LIGNE);
+        const n = nombres ? montantSyndicDepuisTexte(nombres[nombres.length - 1]) : null;
+        if (n != null && n >= 0) { out.fondsTravaux = arrondiCentimes(out.fondsTravaux + n); out.lignesFondsTravaux++; }
+      }
+    });
+    for (const motif of RE_MONTANTS_APPEL_CHARGES) {
+      for (const l of lignes) {
+        const m = motif.re.exec(l);
+        if (!m) continue;
+        const n = montantSyndicDepuisTexte(m[1]);
+        if (n > 0) { out.montant = n; out.source = motif.source; break; }
+      }
+      if (out.montant != null) break;
+    }
+    out.typePeriode = typePeriodeAppelCharges(out.periode);
+    if (out.montant != null) out.montantHorsFondsTravaux = arrondiCentimes(Math.max(0, out.montant - out.fondsTravaux));
+    return out;
+  }
+
+  // Ligne « Prorata de charges » du décompte acquéreur, du jour de l'acte (inclus) à la fin de la
+  // période appelée. Null si l'acte tombe hors de la période : rien à répartir. Pure.
+  function ligneProrataCharges(montant, periode, dateActeIso) {
+    if (!periode || !periode.debut || !periode.fin || !dateActeIso) return null;
+    const r = calculerProrata(montant, periode.debut, periode.fin, dateActeIso);
+    if (!r) return null;
+    const fr = (iso) => iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4);
+    return { libelle: `Prorata de charges de copropriété (du ${fr(dateActeIso)} au ${fr(periode.fin)})`, montant: r.partAcquereur, detail: r };
+  }
+
+  // --- état daté : fonds de travaux attaché au lot vendu -------------------------------------
+  // Cinq états datés réels, quatre formes : rubrique B12 « Montant de la part dudit fonds
+  // rattachée au lot principal cédé   662,00 » (le plus courant, y compris scanné et OCRisé :
+  // « principa vendu 1 380,431 »), « Fonds travaux attachés aux lots vendus : 1 380,43 € », « Pour
+  // information montant du fonds ALUR : 122.97 € » (Immo'Zel), et « Il n'y a pas de fonds ALUR ».
+  // La cotisation exigible (« 4.4 Fonds de travaux … 12.49 € ») et l'avance de l'exercice
+  // (« L'avance 'Fonds de Travaux - Exercice 2025' d'un montant de 197,97 € ») ne sont PAS le
+  // montant attaché au lot : elles sont laissées de côté volontairement.
+  var RE_FONDS_ETAT_DATE = [
+    { source: 'part du fonds rattachée au lot (B12)', re: new RegExp('part\\s+dudit\\s+fonds\\s+rattach[ée]e?\\s+au\\s+lot[^\\d€]{0,40}?' + RE_MONTANT_PIECE_SRC, 'i') },
+    { source: 'fonds travaux attachés aux lots vendus', re: new RegExp('fonds\\s+(?:de\\s+)?travaux\\s+attach[ée]s?\\s+aux?\\s+lots?\\s+(?:vendus?|c[ée]d[ée]s?)\\s*:?\\s*' + RE_MONTANT_PIECE_SRC, 'i') },
+    { source: 'montant du fonds ALUR', re: new RegExp('montant\\s+du\\s+fonds\\s+(?:ALUR|de\\s+travaux)(?:\\s*\\(loi\\s+ALUR\\))?\\s*:?\\s*' + RE_MONTANT_PIECE_SRC + '\\s*€', 'i') }
+  ];
+  var RE_SANS_FONDS_ETAT_DATE = /(?:n['’]y\s+a\s+pas|pas)\s+de\s+fonds\s+(?:ALUR|de\s+travaux|travaux)|aucun\s+fonds\s+(?:de\s+)?travaux|fonds\s+(?:de\s+)?travaux\s*:\s*n[ée]ant/i;
+  var RE_DERNIERE_COTISATION_ETAT_DATE = new RegExp('derni[èe]re\\s+cotisation\\s+vers[ée]e\\s+par\\s+le\\s+propri[ée]taire[^\\d]{0,60}?' + RE_MONTANT_PIECE_SRC, 'i');
+  var RE_DATE_SIGNATURE_ETAT_DATE = /date\s+de\s+signature\s+le\s*:?\s*(\d{2}\/\d{2}\/\d{4})/i;
+
+  function fondsTravauxDepuisEtatDate(texte) {
+    const plat = String(texte || '').replace(/\s+/g, ' ');
+    const out = { montant: null, absent: false, source: null, extrait: '', cotisation: null, dateSignature: null };
+    if (!plat) return out;
+    for (const motif of RE_FONDS_ETAT_DATE) {
+      const m = motif.re.exec(plat);
+      if (!m) continue;
+      const n = montantSyndicDepuisTexte(m[1]);
+      if (n == null) continue;
+      out.montant = n; out.source = motif.source;
+      out.extrait = plat.slice(Math.max(0, m.index), m.index + m[0].length).trim();
+      break;
+    }
+    if (out.montant == null && RE_SANS_FONDS_ETAT_DATE.test(plat)) { out.absent = true; out.montant = 0; out.source = 'aucun fonds de travaux'; }
+    const c = RE_DERNIERE_COTISATION_ETAT_DATE.exec(plat);
+    if (c) out.cotisation = montantSyndicDepuisTexte(c[1]);
+    const d = RE_DATE_SIGNATURE_ETAT_DATE.exec(plat);
+    if (d) out.dateSignature = isoDepuisJjMmAaaa(d[1]);
+    return out;
+  }
+
+  // --- relevé de compte client (JurisWeb) -----------------------------------------------------
+  // Une ligne par écriture : date, libellé, puis UN montant dans la colonne Débit ou Crédit.
+  // Reconstruit en texte, un seul montant ne dit plus sa colonne : elle est retrouvée par la
+  // position horizontale de l'item (en-tête « Débit » / « Crédit ») quand les positions sont
+  // fournies, sinon par le libellé (« VIR INST RECU » = reçu du client, « VIREMENT A … » = sorti).
+  var RE_LIGNE_RELEVE_COMPTE = /^(\d{2}\/\d{2}\/\d{4})\s+(.+)$/;
+  var RE_MONTANT_RELEVE_G = /\d{1,3}(?:[   ]\d{3})*,\d{2}(?!\d)/g;
+  var RE_ECRITURE_RECUE = /\bRE[CÇ]US?\b|\bREMISE\b|\bCH[EÈ]QUE\b|\bCHQ\b|\bVERSEMENT\b|\bENCAISS/i;
+  var RE_ECRITURE_SORTIE = /^VIR(?:EMENT)?\s+(?:A|[ÀÁ]|VERS|EMIS)\b|\bREMBOURS|\bRESTITUTION\b|\bR[ÈE]GLEMENT\b|\bPAIEMENT\b/i;
+  var RE_NATURE_FRAIS = /PROVISION\s+(?:SUR\s+)?FRAIS|PROV\.?\s*(?:SUR\s+)?FRAIS|\bFRAIS\b/i;
+  var RE_NATURE_PRIX = /INDEMNIT|IMMOBILISATION|D[ÉE]P[ÔO]T\s+DE\s+GARANTIE|S[ÉE]QUESTRE|ACOMPTE|\bPRIX\b|\bAPPORT\b|\bFONDS\b/i;
+  var RE_TIERS_VIREMENT = /^VIR(?:EMENT)?\s+(?:A|[ÀÁ]|VERS)\s+(.+?)(?:\s+(?:INDEMNIT|PROVISION|D[ÉE]P[ÔO]T|S[ÉE]QUESTRE|ACOMPTE|VTE|VENTE|FRAIS)\b|$)/i;
+
+  function natureEcritureReleve(libelle) {
+    if (RE_NATURE_FRAIS.test(libelle)) return 'frais';
+    if (RE_NATURE_PRIX.test(libelle)) return 'prix';
+    return 'autre';
+  }
+
+  // `lignes` : chaînes (texte collé) ou objets { texte, items:[{ x, str }] } (PDF avec positions).
+  function analyserReleveCompteClient(lignes) {
+    const out = { titre: false, nature: null, ecritures: [], recu: { prix: 0, frais: 0, autre: 0 }, reverse: { prix: 0, frais: 0, autre: 0 },
+      tiers: [], totalDebit: 0, totalCredit: 0, solde: null, ambigues: 0 };
+    let xDebit = null, xCredit = null;
+    (lignes || []).forEach(l => {
+      const texte = (typeof l === 'string' ? l : (l && l.texte) || '').trim();
+      const items = typeof l === 'string' ? null : (l && l.items) || null;
+      if (!texte) return;
+      if (/Relev[ée]\s+de\s+compte/i.test(texte)) out.titre = true;
+      const mNature = /Nature\s+du\s+compte\s*:\s*(.+?(?:\)|$))/i.exec(texte);
+      if (mNature) out.nature = mNature[1].trim();
+      if (xDebit == null && items && /\bD[ée]bit\b/.test(texte) && /\bCr[ée]dit\b/.test(texte)) {
+        items.forEach(it => {
+          if (/\bD[ée]bit\b/i.test(it.str)) xDebit = it.x;
+          if (/\bCr[ée]dit\b/i.test(it.str)) xCredit = it.x;
+        });
+        return;
+      }
+      const mSolde = /^Solde(?:\s+(?:cr[ée]diteur|d[ée]biteur))?\s*:?\s*(\d{1,3}(?:[   ]\d{3})*,\d{2})/i.exec(texte);
+      if (mSolde) { out.solde = montantDepuisTexteFr(mSolde[1]); if (/d[ée]biteur/i.test(texte)) out.solde = -out.solde; return; }
+      const m = RE_LIGNE_RELEVE_COMPTE.exec(texte);
+      if (!m) return;
+      const montants = Array.from(m[2].matchAll(RE_MONTANT_RELEVE_G));
+      if (!montants.length) return;
+      const libelle = m[2].slice(0, montants[0].index).trim();
+      let debit = 0, credit = 0;
+      if (montants.length >= 2) {
+        debit = montantDepuisTexteFr(montants[0][0]); credit = montantDepuisTexteFr(montants[1][0]);
+      } else {
+        const n = montantDepuisTexteFr(montants[0][0]);
+        let colonne = null;
+        if (items && xDebit != null && xCredit != null) {
+          const chaine = montants[0][0].replace(/[   ]/g, '');
+          const item = items.find(it => it.str.replace(/[   ]/g, '').endsWith(chaine));
+          if (item) colonne = Math.abs(item.x - xCredit) < Math.abs(item.x - xDebit) ? 'credit' : 'debit';
+        }
+        if (!colonne) {
+          if (RE_ECRITURE_SORTIE.test(libelle)) colonne = 'debit';
+          else if (RE_ECRITURE_RECUE.test(libelle)) colonne = 'credit';
+          else { colonne = 'credit'; out.ambigues++; }
+        }
+        if (colonne === 'credit') credit = n; else debit = n;
+      }
+      const nature = natureEcritureReleve(libelle);
+      const ecriture = { date: isoDepuisJjMmAaaa(m[1]), libelle, debit, credit, nature };
+      if (debit > 0) {
+        const t = RE_TIERS_VIREMENT.exec(libelle);
+        if (t) { ecriture.tiers = t[1].trim(); if (!out.tiers.includes(ecriture.tiers)) out.tiers.push(ecriture.tiers); }
+        out.reverse[nature] = arrondiCentimes(out.reverse[nature] + debit);
+      }
+      if (credit > 0) out.recu[nature] = arrondiCentimes(out.recu[nature] + credit);
+      out.totalDebit = arrondiCentimes(out.totalDebit + debit);
+      out.totalCredit = arrondiCentimes(out.totalCredit + credit);
+      out.ecritures.push(ecriture);
+    });
+    if (out.solde == null && out.ecritures.length) out.solde = arrondiCentimes(out.totalCredit - out.totalDebit);
+    return out;
   }
   // --- fin du socle pur -------------------------------------------------------------------------
 
@@ -28347,6 +28585,7 @@
     afLignes = lignesDecompteDepuisPrefill(p);
     definirModeDecompteAppelFonds(p.modeDecompte);
     if (tfAvis.af) majLigneTfAppelFonds();
+    ['charges', 'etatDate', 'releve'].forEach(type => { if (afPieces[type]) appliquerPieceAppelFonds(type); });
 
     renderPillDossierAppelFonds();
     renderClientsAppelFonds();
@@ -28630,13 +28869,19 @@
   // `cible` : 'prorata' (outil Prorata) ou 'af' (appel de fonds). Rien n'est enregistré.
   var tfAvis = { prorata: null, af: null };
 
+  // Deux sources sur l'avis réel : « Montant de vos taxes foncières » en page 1 (retenue en
+  // premier) et le total en bas à droite de la page 2 (contrôle) — quand elles divergent, c'est
+  // dit à l'écran plutôt que tranché en silence.
   async function lireAvisTaxeFonciere(fichier) {
     const buffer = await fichier.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+    const page1 = await pdf.getPage(1);
+    const enTete = montantAvisTaxeFonciereEnTete(lignesDepuisItemsPdf((await page1.getTextContent()).items));
     const page = await pdf.getPage(Math.min(2, pdf.numPages));
     const contenu = await page.getTextContent();
     const items = contenu.items.map(it => ({ str: it.str, x: it.transform[4], y: it.transform[5] }));
-    return { montant: montantBasDroitePage(items), pages: pdf.numPages };
+    const basDroite = montantBasDroitePage(items);
+    return { montant: enTete || basDroite, enTete, basDroite, pages: pdf.numPages };
   }
 
   async function importerAvisTaxeFonciere(cible, fichier) {
@@ -28647,7 +28892,8 @@
       if (!lu.montant) {
         tfAvis[cible] = { fichier: fichier.name, montantAvis: null, retenu: null, erreur: true };
       } else {
-        tfAvis[cible] = { fichier: fichier.name, montantAvis: lu.montant, retenu: lu.montant };
+        const divergence = lu.enTete && lu.basDroite && Math.abs(lu.enTete - lu.basDroite) > 0.5;
+        tfAvis[cible] = { fichier: fichier.name, montantAvis: lu.montant, retenu: lu.montant, enTete: lu.enTete, basDroite: lu.basDroite, divergence };
       }
     } catch (e) {
       console.error(e);
@@ -28668,9 +28914,12 @@
     }
     const retenu = t.retenu !== t.montantAvis
       ? ` · retenu : <strong>${formaterPrixCentimes(t.retenu)}</strong>` : '';
+    const divergence = t.divergence
+      ? `<p class="hint">${icone('alert-triangle')} Page 1 : ${escapeHtml(formaterPrixCentimes(t.enTete))} · bas de la page 2 : ${escapeHtml(formaterPrixCentimes(t.basDroite))} — le montant de la page 1 est retenu, à vérifier sur l'avis.</p>`
+      : '';
     zone.innerHTML = `
       <p class="hint tf-lu">${escapeHtml(t.fichier)} : <strong>${formaterPrixCentimes(t.montantAvis)}</strong>${retenu}
-        <button type="button" class="icon-btn" onclick="effacerTaxeFonciere('${cible}')" title="Retirer l'avis" aria-label="Retirer l'avis">${icone('x')}</button></p>
+        <button type="button" class="icon-btn" onclick="effacerTaxeFonciere('${cible}')" title="Retirer l'avis" aria-label="Retirer l'avis">${icone('x')}</button></p>${divergence}
       <details class="tf-multi"${t.multi ? ' open' : ''}>
         <summary>L'avis porte sur plusieurs biens</summary>
         <div class="calc-champs tf-multi-champs">
@@ -28737,6 +28986,289 @@
     if (note && (date || !t)) note.remove();
     renderTableAppelFonds();
     majApercuAppelFonds();
+  }
+
+  // ---- Appel de charges, état daté, relevé de compte client (exemples réels du 30/09) ----------
+  // Même principe que l'avis de taxe foncière : la pièce est lue dans le navigateur, rien n'est
+  // enregistré, et chaque pièce ajoute ou remplit UNE ligne du décompte (ou dit pourquoi elle ne
+  // le fait pas). État par pièce : { fichier, analyse, … } ou { fichier, erreur: true }.
+  var afPieces = { charges: null, etatDate: null, releve: null };
+  var AF_ID_LIGNE_CHARGES = 'af-ligne-charges';
+  var RE_LIBELLE_FONDS_TRAVAUX_AF = /fonds\s+de\s+travaux/i;
+  var RE_LIBELLE_ACOMPTE_PRIX = /acompte\s+sur\s+prix/i;
+  var RE_LIBELLE_ACOMPTE_FRAIS = /acompte\s+sur\s+frais/i;
+
+  // Texte en lignes (positions gardées pour la colonne Débit/Crédit d'un relevé) ; document
+  // scanné sans texte → repli OCR, en lignes mais sans positions.
+  async function lireTexteEtItemsPdf(fichier) {
+    const buffer = await fichier.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+    const lignesPositions = [];
+    for (let p = 1; p <= Math.min(pdf.numPages, PLAFOND_PAGES_VERIFICATION); p++) {
+      const page = await pdf.getPage(p);
+      const contenu = await page.getTextContent();
+      lignesAvecPositionsDepuisItems(contenu.items).forEach(l => lignesPositions.push(l));
+    }
+    let texte = lignesPositions.map(l => l.texte).join('\n');
+    let ocr = false;
+    if (texte.trim().length < 40) { texte = await lireTextePdfVerification(pdf); ocr = true; }
+    return { texte, lignesPositions: ocr ? null : lignesPositions };
+  }
+
+  async function importerPieceAppelFonds(type, fichier) {
+    if (!fichier || !Object.prototype.hasOwnProperty.call(afPieces, type)) return;
+    if (typeof pdfjsLib === 'undefined') { afficherToast('Le lecteur PDF n\'est pas disponible.', 'OK', null); return; }
+    effacerPieceAppelFonds(type, true);
+    try {
+      const lu = await lireTexteEtItemsPdf(fichier);
+      if (type === 'charges') afPieces.charges = { fichier: fichier.name, analyse: analyserAppelCharges(lu.texte), horsFondsTravaux: true };
+      else if (type === 'etatDate') afPieces.etatDate = { fichier: fichier.name, analyse: fondsTravauxDepuisEtatDate(lu.texte) };
+      else afPieces.releve = { fichier: fichier.name, analyse: analyserReleveCompteClient(lu.lignesPositions || lu.texte.split('\n')) };
+    } catch (e) {
+      console.error(e);
+      afPieces[type] = { fichier: fichier.name, erreur: true };
+    }
+    appliquerPieceAppelFonds(type);
+  }
+
+  // `pourRemplacer` : la pièce est retirée parce qu'une autre arrive — le bloc n'est pas redessiné.
+  function effacerPieceAppelFonds(type, pourRemplacer) {
+    const piece = afPieces[type];
+    afPieces[type] = null;
+    if (piece && !piece.erreur) {
+      if (type === 'charges') afLignes.debit = afLignes.debit.filter(l => l.id !== AF_ID_LIGNE_CHARGES);
+      else if (type === 'etatDate' && piece.ligne) {
+        const i = afLignes.debit.findIndex(l => l.id === piece.ligne.id);
+        if (i !== -1) { if (piece.ligne.inseree) afLignes.debit.splice(i, 1); else afLignes.debit[i].montant = piece.ligne.avant; }
+      } else if (type === 'releve' && piece.lignes) {
+        piece.lignes.forEach(m => {
+          const i = afLignes.credit.findIndex(l => l.id === m.id);
+          if (i === -1) return;
+          if (m.inseree) afLignes.credit.splice(i, 1); else afLignes.credit[i].montant = m.avant;
+        });
+      }
+    }
+    if (pourRemplacer) return;
+    renderBlocPieceAppelFonds(type);
+    renderTableAppelFonds();
+    majApercuAppelFonds();
+  }
+
+  function appliquerPieceAppelFonds(type) {
+    if (type === 'charges') majLigneChargesAppelFonds();
+    else if (type === 'etatDate') majLigneFondsTravauxAppelFonds();
+    else majLignesAcomptesAppelFonds();
+    renderBlocPieceAppelFonds(type);
+    renderTableAppelFonds();
+    majApercuAppelFonds();
+  }
+
+  // Toutes les lignes qui dépendent de la date du rendez-vous (prorata de taxe foncière et de
+  // charges) : appelé quand la date change, et après le préremplissage depuis un dossier.
+  function majLignesProrataAppelFonds() {
+    majLigneTfAppelFonds();
+    if (afPieces.charges) appliquerPieceAppelFonds('charges');
+  }
+
+  function afDateFr(iso) { return iso ? formatDateFr(iso) : ''; }
+
+  function majLigneChargesAppelFonds() {
+    const piece = afPieces.charges;
+    afLignes.debit = afLignes.debit.filter(l => l.id !== AF_ID_LIGNE_CHARGES);
+    if (!piece || piece.erreur) return;
+    const a = piece.analyse;
+    const retenu = piece.horsFondsTravaux && a.fondsTravaux > 0 ? a.montantHorsFondsTravaux : a.montant;
+    piece.retenu = retenu;
+    const date = afValeur('af-date-rdv');
+    piece.note = null;
+    if (a.montant == null) piece.note = 'Montant de l’appel introuvable : saisissez la ligne à la main.';
+    else if (!a.periode) piece.note = 'Période de l’appel introuvable (« Période du … au … ») : saisissez la ligne à la main.';
+    else if (!date) piece.note = 'Date du rendez-vous nécessaire pour le prorata.';
+    else {
+      const ligne = ligneProrataCharges(retenu, a.periode, date);
+      if (!ligne) piece.note = `Le rendez-vous (${afDateFr(date)}) n’est pas dans la période appelée (du ${afDateFr(a.periode.debut)} au ${afDateFr(a.periode.fin)}) : rien à répartir — demandez l’appel de la période du rendez-vous.`;
+      else {
+        afLignes.debit.push({ libelle: ligne.libelle, montant: ligne.montant, formule: null, id: AF_ID_LIGNE_CHARGES });
+        piece.note = `Ligne ajoutée : ${formaterPrixCentimes(ligne.montant)} (${formaterPrixCentimes(retenu)} × ${ligne.detail.joursAcquereur} / ${ligne.detail.joursPeriode} jours).`;
+        piece.ok = true;
+      }
+    }
+  }
+
+  function basculerHorsFondsTravauxCharges(cible, coche) {
+    if (cible === 'prorata') {
+      if (!prorataCharges) return;
+      prorataCharges.horsFondsTravaux = !!coche;
+      appliquerChargesProrata();
+      return;
+    }
+    if (!afPieces.charges) return;
+    afPieces.charges.horsFondsTravaux = !!coche;
+    appliquerPieceAppelFonds('charges');
+  }
+
+  // Le fonds de travaux n'entre au décompte que si l'avant-contrat prévoit son remboursement par
+  // l'acquéreur (règle détectée dans detecterFondsTravaux) : sans dossier, la ligne est posée mais
+  // signalée « à confirmer ».
+  function majLigneFondsTravauxAppelFonds() {
+    const piece = afPieces.etatDate;
+    if (!piece || piece.erreur) return;
+    const a = piece.analyse;
+    const d = afDossierLie ? dossiers.find(x => x.id === afDossierLie) : null;
+    const regle = d && d.fondsTravaux && typeof d.fondsTravaux.rembourse === 'boolean' ? d.fondsTravaux.rembourse : null;
+    const i = afLignes.debit.findIndex(l => RE_LIBELLE_FONDS_TRAVAUX_AF.test(l.libelle));
+    piece.note = null; piece.ok = false;
+    if (a.montant == null) { piece.note = 'Montant du fonds de travaux introuvable dans cette pièce.'; return; }
+    if (a.absent) {
+      if (i !== -1 && !(afLignes.debit[i].montant > 0)) { piece.ligne = { id: afLignes.debit[i].id, avant: 0, inseree: true }; afLignes.debit.splice(i, 1); }
+      piece.note = 'L’état daté indique qu’il n’y a pas de fonds de travaux : aucune ligne.'; piece.ok = true;
+      return;
+    }
+    if (regle === false) { piece.note = 'L’avant-contrat prévoit que l’acquéreur ne rembourse pas le fonds de travaux : aucune ligne ajoutée.'; piece.ok = true; return; }
+    if (i !== -1) {
+      piece.ligne = { id: afLignes.debit[i].id, avant: afLignes.debit[i].montant || 0, inseree: false };
+      afLignes.debit[i].montant = a.montant;
+    } else {
+      const id = afIdLigne();
+      afLignes.debit.push({ libelle: 'Remboursement du fonds de travaux (loi ALUR)', montant: a.montant, formule: null, id });
+      piece.ligne = { id, avant: 0, inseree: true };
+    }
+    piece.ok = true;
+    piece.note = regle === true
+      ? `Ligne « Remboursement du fonds de travaux » : ${formaterPrixCentimes(a.montant)}, remboursement prévu par l’avant-contrat.`
+      : `Ligne « Remboursement du fonds de travaux » : ${formaterPrixCentimes(a.montant)} — à confirmer : l’avant-contrat doit prévoir son remboursement par l’acquéreur.`;
+  }
+
+  // Sommes déjà versées à l'étude par le client : acompte sur prix (indemnité d'immobilisation,
+  // dépôt de garantie, séquestre) et provision sur frais. Le relevé est la vérité comptable : il
+  // REMPLACE le montant de la ligne d'acompte déjà déduite depuis le dossier (le dépôt de garantie
+  // de l'avant-contrat et l'indemnité reçue sont la même somme — deux lignes la déduiraient deux
+  // fois), et le dit quand les deux chiffres diffèrent.
+  function majLignesAcomptesAppelFonds() {
+    const piece = afPieces.releve;
+    if (!piece || piece.erreur) return;
+    const a = piece.analyse;
+    piece.lignes = [];
+    piece.notes = [];
+    piece.ok = false;
+    if (!a.ecritures.length) { piece.notes.push(a.titre ? 'Aucune écriture lue sur ce relevé.' : 'Ce document ne ressemble pas à un relevé de compte client (aucune écriture datée).'); return; }
+    const poser = (re, libelle, montant, quoi) => {
+      if (!(montant > 0)) return;
+      const i = afLignes.credit.findIndex(l => re.test(l.libelle));
+      if (i !== -1) {
+        const avant = afLignes.credit[i].montant || 0;
+        piece.lignes.push({ id: afLignes.credit[i].id, avant, inseree: false });
+        afLignes.credit[i].montant = montant;
+        if (avant > 0 && Math.abs(avant - montant) > 0.01) piece.notes.push(`${quoi} : ${formaterPrixCentimes(avant)} sur le dossier, ${formaterPrixCentimes(montant)} reçus d’après le relevé — le relevé est retenu.`);
+      } else {
+        const id = afIdLigne();
+        afLignes.credit.push({ libelle, montant, formule: null, id });
+        piece.lignes.push({ id, avant: 0, inseree: true });
+      }
+    };
+    poser(RE_LIBELLE_ACOMPTE_PRIX, 'Acompte sur prix versé à l’étude', a.recu.prix, 'Acompte sur prix');
+    poser(RE_LIBELLE_ACOMPTE_FRAIS, 'Acompte sur frais versé à l’étude', a.recu.frais, 'Acompte sur frais');
+    piece.ok = a.recu.prix > 0 || a.recu.frais > 0;
+    if (!piece.ok) piece.notes.push('Aucun versement du client reconnu (acompte sur prix ou provision sur frais).');
+    if (a.recu.autre > 0) piece.notes.push(`${formaterPrixCentimes(a.recu.autre)} reçus sans nature reconnue (ni prix, ni frais) : non repris, à vérifier sur le relevé.`);
+    const reverse = arrondiCentimes(a.reverse.prix + a.reverse.frais + a.reverse.autre);
+    if (reverse > 0) piece.notes.push(`${formaterPrixCentimes(reverse)} reversés${a.tiers.length ? ' à ' + a.tiers.join(', ') : ''} : ces sommes ne sont plus détenues par l’étude (solde du compte : ${formaterPrixCentimes(a.solde || 0)}). Si le confrère reçoit l’acte, reprenez son décompte.`);
+    if (a.ambigues > 0) piece.notes.push(`${a.ambigues} écriture(s) dont la colonne (débit ou crédit) n’a pas pu être lue avec certitude.`);
+  }
+
+  function renderBlocPieceAppelFonds(type) {
+    const zone = afEl('af-' + type + '-bloc');
+    if (!zone) return;
+    const piece = afPieces[type];
+    if (!piece) { zone.innerHTML = ''; return; }
+    const croix = `<button type="button" class="icon-btn" onclick="effacerPieceAppelFonds('${type}')" title="Retirer la pièce" aria-label="Retirer la pièce">${icone('x')}</button>`;
+    if (piece.erreur) { zone.innerHTML = `<p class="hint tf-lu">${icone('alert-triangle')} ${escapeHtml(piece.fichier)} : ce PDF n’a pas pu être lu. ${croix}</p>`; return; }
+    const a = piece.analyse;
+    const ligneNote = (texte, ok) => texte ? `<p class="hint">${ok ? '' : icone('alert-triangle') + ' '}${escapeHtml(texte)}</p>` : '';
+    let tete = '';
+    let corps = '';
+    if (type === 'charges') {
+      const periode = a.periode ? ` du ${afDateFr(a.periode.debut)} au ${afDateFr(a.periode.fin)}` : '';
+      tete = `${escapeHtml(piece.fichier)} : ${a.montant != null ? `<strong>${formaterPrixCentimes(a.montant)}</strong>${escapeHtml(periode)}` : 'montant introuvable'}`
+        + (a.fondsTravaux > 0 ? ` · dont fonds de travaux ${escapeHtml(formaterPrixCentimes(a.fondsTravaux))}` : '');
+      if (a.fondsTravaux > 0) corps += `<label class="tf-case"><input type="checkbox"${piece.horsFondsTravaux ? ' checked' : ''} onchange="basculerHorsFondsTravauxCharges('af', this.checked)"> Hors fonds de travaux ${infoBulle('La cotisation au fonds de travaux est attachée au lot : son remboursement est réglé par l’avant-contrat (état daté), pas par le prorata de charges.')}</label>`;
+      corps += ligneNote(piece.note, piece.ok);
+    } else if (type === 'etatDate') {
+      tete = `${escapeHtml(piece.fichier)} : ` + (a.montant == null ? 'fonds de travaux introuvable'
+        : a.absent ? 'pas de fonds de travaux'
+        : `fonds de travaux attaché au lot <strong>${formaterPrixCentimes(a.montant)}</strong> (${escapeHtml(a.source)})`);
+      if (a.cotisation) tete += ` · dernière cotisation ${escapeHtml(formaterPrixCentimes(a.cotisation))}`;
+      corps += ligneNote(piece.note, piece.ok);
+      const date = afValeur('af-date-rdv');
+      if (a.dateSignature && date && a.dateSignature !== date) corps += ligneNote(`État daté établi pour une signature le ${afDateFr(a.dateSignature)}, le rendez-vous est le ${afDateFr(date)} : demandez sa mise à jour au syndic si l’écart compte.`, false);
+    } else {
+      const recu = [];
+      if (a.recu.prix > 0) recu.push(`${formaterPrixCentimes(a.recu.prix)} sur le prix`);
+      if (a.recu.frais > 0) recu.push(`${formaterPrixCentimes(a.recu.frais)} sur frais`);
+      tete = `${escapeHtml(piece.fichier)} : ${recu.length ? 'reçu du client <strong>' + escapeHtml(recu.join(', ')) + '</strong>' : 'aucun versement du client lu'}`
+        + (a.nature ? ` · ${escapeHtml(a.nature)}` : '');
+      (piece.notes || []).forEach(n => { corps += ligneNote(n, false); });
+    }
+    zone.innerHTML = `<p class="hint tf-lu">${tete} ${croix}</p>${corps}`;
+  }
+
+  // ---- Prorata : appel de charges (30/09) ------------------------------------------------------
+  var prorataCharges = null;
+
+  async function importerAppelChargesProrata(fichier) {
+    if (!fichier) return;
+    if (typeof pdfjsLib === 'undefined') { afficherToast('Le lecteur PDF n\'est pas disponible.', 'OK', null); return; }
+    try {
+      const lu = await lireTexteEtItemsPdf(fichier);
+      prorataCharges = { fichier: fichier.name, analyse: analyserAppelCharges(lu.texte), horsFondsTravaux: true };
+    } catch (e) {
+      console.error(e);
+      prorataCharges = { fichier: fichier.name, erreur: true };
+    }
+    renderBlocChargesProrata();
+    appliquerChargesProrata();
+  }
+
+  function effacerChargesProrata() {
+    prorataCharges = null;
+    renderBlocChargesProrata();
+  }
+
+  function renderBlocChargesProrata() {
+    const zone = document.getElementById('prorata-charges-bloc');
+    if (!zone) return;
+    const t = prorataCharges;
+    if (!t) { zone.innerHTML = ''; return; }
+    const croix = `<button type="button" class="icon-btn" onclick="effacerChargesProrata()" title="Retirer l'appel" aria-label="Retirer l'appel">${icone('x')}</button>`;
+    if (t.erreur) { zone.innerHTML = `<p class="hint tf-lu">${icone('alert-triangle')} ${escapeHtml(t.fichier)} : ce PDF n’a pas pu être lu. ${croix}</p>`; return; }
+    const a = t.analyse;
+    if (a.montant == null || !a.periode) {
+      zone.innerHTML = `<p class="hint tf-lu">${icone('alert-triangle')} ${escapeHtml(t.fichier)} : ${a.montant == null ? 'montant de l’appel' : 'période'} introuvable — saisissez-les. ${croix}</p>`;
+      return;
+    }
+    const retenu = t.horsFondsTravaux && a.fondsTravaux > 0 ? a.montantHorsFondsTravaux : a.montant;
+    zone.innerHTML = `<p class="hint tf-lu">${escapeHtml(t.fichier)} : <strong>${formaterPrixCentimes(a.montant)}</strong> du ${escapeHtml(afDateFr(a.periode.debut))} au ${escapeHtml(afDateFr(a.periode.fin))}`
+      + (a.fondsTravaux > 0 ? ` · dont fonds de travaux ${escapeHtml(formaterPrixCentimes(a.fondsTravaux))} · retenu <strong>${formaterPrixCentimes(retenu)}</strong>` : '')
+      + ` ${croix}</p>`
+      + (a.fondsTravaux > 0 ? `<label class="tf-case"><input type="checkbox"${t.horsFondsTravaux ? ' checked' : ''} onchange="basculerHorsFondsTravauxCharges('prorata', this.checked)"> Hors fonds de travaux ${infoBulle('La cotisation au fonds de travaux est attachée au lot : son remboursement est réglé par l’avant-contrat (état daté), pas par le prorata de charges.')}</label>` : '');
+  }
+
+  function appliquerChargesProrata() {
+    const t = prorataCharges;
+    if (!t || t.erreur) return;
+    const a = t.analyse;
+    if (a.montant == null || !a.periode) return;
+    const retenu = t.horsFondsTravaux && a.fondsTravaux > 0 ? a.montantHorsFondsTravaux : a.montant;
+    const montant = document.getElementById('prorata-montant');
+    const periode = document.getElementById('prorata-periode');
+    const debut = document.getElementById('prorata-debut');
+    const fin = document.getElementById('prorata-fin');
+    if (montant) montant.value = String(retenu);
+    if (periode && ['annee', 'trimestre', 'mois'].includes(a.typePeriode)) periode.value = a.typePeriode;
+    if (debut) debut.value = a.periode.debut;
+    if (fin) fin.value = a.periode.fin;
+    renderBlocChargesProrata();
+    calculerProrataAffichage();
   }
 
   async function importerDecompteAppelFonds(fichier) {
@@ -29041,6 +29573,7 @@
     afLignes = lignesDecompteDepuisPrefill(null);
     tfAvis.af = null;
     renderBlocTaxeFonciere('af');
+    ['charges', 'etatDate', 'releve'].forEach(type => { afPieces[type] = null; renderBlocPieceAppelFonds(type); });
     definirModeDecompteAppelFonds('office');
     ['af-ref', 'af-designation', 'af-adresse-bien', 'af-adresse-clients', 'af-date-rdv', 'af-heure-rdv', 'af-lieu-autre', 'af-coller-texte', 'af-frais-departement', 'af-frais-type', 'af-prix-mobilier'].forEach(id => {
       const e = afEl(id);

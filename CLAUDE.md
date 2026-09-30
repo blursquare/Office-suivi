@@ -168,9 +168,21 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   le remboursement. À la charge de l'acquéreur / remboursé → ligne au débit de l'appel de fonds.
 - **Appel de fonds** : établi par l'office, ou repris du décompte du confrère quand l'étude est en
   participation. Prêt hypothécaire : montant du prêt **déduit**, frais de garantie **appelés au
-  débit**. Taxe foncière : montant de l'avis lu en bas à droite de la page 2 ; avis sur plusieurs
-  biens → TEOM répartie **au prorata de la taxe foncière** de chaque bien, ajoutée au bien vendu ;
-  prorata acquéreur du jour de l'acte au 31/12. Relevé de compte = sommes déjà versées (à déduire).
+  débit**. Taxe foncière : montant lu en page 1 (« Montant de vos taxes foncières », jamais la
+  « somme à prélever ») et contrôlé en bas à droite de la page 2 (entier nu possible) ; avis sur
+  plusieurs biens → TEOM répartie **au prorata de la taxe foncière** de chaque bien, ajoutée au bien
+  vendu ; prorata acquéreur du jour de l'acte au 31/12. **Pièces lues sur exemples réels (30/09,
+  `tests/pieces-appel-fonds.test.js`)** : appel de charges du syndic (`analyserAppelCharges` :
+  période « du … au … », « Montant de l'appel » avant « Total à payer », montants à point décimal
+  `montantSyndicDepuisTexte`) → prorata de charges du jour de l'acte à la fin de la période, **hors
+  cotisation au fonds de travaux** (attachée au lot, réglée par l'avant-contrat — case décochable,
+  règle à confirmer par l'étude) ; état daté (`fondsTravauxDepuisEtatDate` : rubrique B12 « part
+  dudit fonds rattachée au lot », « fonds travaux attachés aux lots vendus », « montant du fonds
+  ALUR », « pas de fonds ALUR » ; jamais la cotisation exigible ni l'avance d'exercice) → ligne
+  « Remboursement du fonds de travaux » seulement si `d.fondsTravaux.rembourse !== false` ; relevé
+  de compte client JurisWeb (`analyserReleveCompteClient`, colonne Débit/Crédit par position des
+  items) → acomptes sur prix et sur frais versés à l'étude, qui **remplacent** la ligne d'acompte du
+  dossier (même somme), reversements au confrère signalés. Rien n'est enregistré sur le dossier.
 - **Mobilier** : le prix reste le prix total ; `d.prixMobilier` sort seulement de l'assiette des
   droits (frais d'acte, contrôle du barème).
 - **Prorata** : jours réels, jour de l'acte à la charge de l'acquéreur, arrondi du vendeur par
@@ -312,10 +324,12 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   l'image dans `word/document.xml` + `word/media/` et régénérer le base64, et déclarer tout nouveau
   fichier dans les deux listes d'assets.
 - **Appel de fonds** : aperçu de pagination A4 non repris ; frais et droits de l'acte de vente à
-  saisir à la main (barème non audité). **Pièces à lire, en attente d'exemples réels** : relevé de
-  compte (versements à déduire), dernier appel de charges (prorata de charges), état daté (montant du
-  fonds de travaux), montant des frais de garantie dans l'offre de prêt, détection automatique d'un
-  avis de taxe foncière portant sur plusieurs biens (aujourd'hui saisie assistée).
+  saisir à la main (barème non audité). **Encore à lire, en attente d'exemples réels** : montant des
+  frais de garantie dans l'offre de prêt ; détection automatique d'un avis de taxe foncière portant
+  sur plusieurs biens (aujourd'hui saisie assistée ; les deux avis reçus portent sur un seul bien).
+  **À confirmer par l'étude** : exclusion de la cotisation au fonds de travaux du prorata de charges
+  (choix par défaut, décochable). Piste : reporter le fonds de travaux lu dans l'état daté trouvé sur
+  le NAS sur la fiche (`d.fondsTravaux.montant`) — aujourd'hui l'outil Appel de fonds n'écrit rien.
 - **Banc d'essai d'extraction** : cadré dans `docs/spec-banc-essai-extraction.md`, délégué, pas
   encore engagé.
 - **Relecture d'actes** : non vérifiée avec une vraie clé API (qualité, durée, coût, contradictions)

@@ -759,9 +759,12 @@
       <div class="tf-import">
         <label for="prorata-avis-tf" class="file-btn">Lire un avis de taxe foncière</label>
         <input type="file" id="prorata-avis-tf" accept="application/pdf" hidden onchange="importerAvisTaxeFonciere('prorata', this.files && this.files[0]); this.value='';">
-        <span class="info-i" tabindex="0" data-info="Le montant de l'avis est lu en bas à droite de la page 2. Si l'avis porte sur plusieurs biens, indiquez la taxe foncière du bien vendu : la taxe d'ordures ménagères est répartie au prorata de la taxe foncière de chaque bien, puis ajoutée."></span>
+        <label for="prorata-appel-charges" class="file-btn">Lire un appel de charges</label>
+        <input type="file" id="prorata-appel-charges" accept="application/pdf" hidden onchange="importerAppelChargesProrata(this.files && this.files[0]); this.value='';">
+        <span class="info-i" tabindex="0" data-info="Avis de taxe foncière : le montant est lu en page 1 (« Montant de vos taxes foncières ») et contrôlé en bas à droite de la page 2 ; si l'avis porte sur plusieurs biens, indiquez la taxe foncière du bien vendu, la taxe d'ordures ménagères est répartie au prorata puis ajoutée. Appel de charges : le montant et la période appelée sont repris, hors cotisation au fonds de travaux (attachée au lot)."></span>
       </div>
       <div id="prorata-tf-bloc" class="tf-bloc"></div>
+      <div id="prorata-charges-bloc" class="tf-bloc"></div>
       <div class="calc-champs">
         <div class="calc-champ">
           <label for="prorata-montant">Montant appelé (€)</label>
@@ -872,9 +875,18 @@
         <div class="tf-import">
           <label for="af-avis-tf" class="file-btn">Avis de taxe foncière</label>
           <input type="file" id="af-avis-tf" accept="application/pdf" hidden onchange="importerAvisTaxeFonciere('af', this.files && this.files[0]); this.value='';">
-          <span class="info-i" tabindex="0" data-info="Ajoute au débit le prorata de taxe foncière à la charge de l'acquéreur, du jour du rendez-vous au 31 décembre. Honoraires de négociation, fonds de travaux et prêt hypothécaire sont repris du dossier rattaché."></span>
+          <label for="af-appel-charges" class="file-btn">Appel de charges</label>
+          <input type="file" id="af-appel-charges" accept="application/pdf" hidden onchange="importerPieceAppelFonds('charges', this.files && this.files[0]); this.value='';">
+          <label for="af-etat-date" class="file-btn">État daté</label>
+          <input type="file" id="af-etat-date" accept="application/pdf" hidden onchange="importerPieceAppelFonds('etatDate', this.files && this.files[0]); this.value='';">
+          <label for="af-releve-compte" class="file-btn">Relevé de compte client</label>
+          <input type="file" id="af-releve-compte" accept="application/pdf" hidden onchange="importerPieceAppelFonds('releve', this.files && this.files[0]); this.value='';">
+          <span class="info-i" tabindex="0" data-info="Chaque pièce ajoute ou remplit une ligne du décompte : l'avis de taxe foncière et l'appel de charges donnent le prorata à la charge de l'acquéreur (du jour du rendez-vous à la fin de la période), l'état daté le fonds de travaux attaché au lot (repris seulement si l'avant-contrat prévoit son remboursement), le relevé de compte client les sommes déjà versées à l'étude. Honoraires de négociation et prêt hypothécaire sont repris du dossier rattaché."></span>
         </div>
         <div id="af-tf-bloc" class="tf-bloc"></div>
+        <div id="af-charges-bloc" class="tf-bloc"></div>
+        <div id="af-etatDate-bloc" class="tf-bloc"></div>
+        <div id="af-releve-bloc" class="tf-bloc"></div>
       </div>
       <div id="af-mode-confrere" class="af-mode-panneau" style="display:none;">
       <div class="af-mode-aide">Collez ou déposez le décompte du confrère <span class="info-i" tabindex="0" data-info="Quand le décompte vient d&#x27;un confrère (étude en participation), collez-le ou déposez son PDF : ses lignes remplissent le tableau du courrier, et les prorata écrits sous forme de formule sont recalculés pour contrôle."></span></div>
@@ -915,7 +927,7 @@
         <div class="calc-champ calc-champ-paire">
           <div>
             <label for="af-date-rdv">Date du rendez-vous</label>
-            <input type="date" id="af-date-rdv" onchange="majLigneTfAppelFonds(); majApercuAppelFonds()">
+            <input type="date" id="af-date-rdv" onchange="majLignesProrataAppelFonds(); majApercuAppelFonds()">
           </div>
           <div>
             <label for="af-heure-rdv">Heure</label>

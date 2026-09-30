@@ -6575,6 +6575,8 @@ button.confrere-carnet-office:focus-visible, button.carnet-dossier:focus-visible
 .tf-bloc { margin-bottom: 12px; }
 .tf-bloc .tf-lu { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 6px; }
 .tf-multi > summary { cursor: pointer; color: var(--focus); font-size: 13px; font-weight: 500; }
+.tf-case { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-soft); margin: 0 0 6px; }
+.tf-case input { margin: 0; }
 .tf-multi-champs { margin-top: 8px; }
 .af-mode-decompte { margin: 6px 0 12px; }
 .af-mode-panneau { margin-bottom: 4px; }

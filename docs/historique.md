@@ -12460,3 +12460,53 @@ jauge et le pourcentage glissaient d'une ligne à l'autre selon la largeur du ba
 Correction CSS seule : colonnes fixes à droite (jauge 96 px, pourcentage 40 px), le badge occupe
 les deux et s'aligne à droite ; toutes les pilules d'état ont la même largeur minimale (122 px,
 texte centré), ce qui aligne aussi la variante compacte. Vérifié en Chromium (1440 et 400 px).
+
+### 30/09 09:44 — Appel de fonds et prorata : appel de charges, état daté, relevé de compte, avis 2026
+
+L'étude a fourni les pièces attendues (« voici les documents dont tu avais besoin ») : un avis de
+taxe foncière 2026, un appel trimestriel de charges CITYA, un relevé de compte client JurisWeb et
+cinq états datés de syndics différents (dont un scanné/OCRisé). Aucun n'est commité ; les tests
+reprennent leur structure avec des noms et montants inventés (`tests/pieces-appel-fonds.test.js`).
+- **Avis de taxe foncière : le lecteur existant ne lisait plus l'avis réel.** Le total en bas à
+  droite de la page 2 y est un entier nu (« 921 », sans centimes ni €) et la règle « centimes ou € »
+  ramenait « 11,26 » (un taux) ; sur la page 1 elle aurait pris « 92,00 € » (une mensualité).
+  Désormais : `montantAvisTaxeFonciereEnTete` lit « Montant de vos taxes foncières 921,00 € » en
+  page 1 (jamais « Somme à prélever », net des acomptes), `montantBasDroitePage` accepte un entier
+  nu de 10 à 999 999 (jamais un numéro de téléphone ni un « 0 »), et le bloc signale une divergence
+  entre les deux sources au lieu de trancher en silence. L'ancien avis d'essai était un scan sans
+  texte : le lecteur n'avait jamais été confronté à un avis textuel réel.
+- **Appel de charges** (`analyserAppelCharges`) : « Période du 01/10/2025 au 31/12/2025 »,
+  « Montant de l'appel de fonds 422.13 € » (priorité sur « MONTANT DE VOTRE APPEL », « Appel TTC »,
+  puis « TOTAL A PAYER » qui peut inclure un solde antérieur), lignes « FONDS TRAVAUX ALUR »
+  totalisées à part (17,43 €, dernier nombre de chaque ligne). Montants à point décimal :
+  `montantSyndicDepuisTexte` (« 422.13 » = 422,13, « 1.245,00 » = 1 245). Prorata : « Lire un
+  appel de charges » remplit montant, période (trimestre/mois/année reconnus) et bornes ; Appel de
+  fonds : ligne « Prorata de charges de copropriété (du JJ/MM/AAAA au JJ/MM/AAAA) » recalculée
+  avec la date du rendez-vous (`majLignesProrataAppelFonds`), message si le rendez-vous est hors
+  période. Par défaut **hors fonds de travaux** (cotisation attachée au lot, réglée par
+  l'avant-contrat), case décochable — règle à confirmer par l'étude.
+- **État daté** (`fondsTravauxDepuisEtatDate`) : quatre formes rencontrées — B12 « Montant de la
+  part dudit fonds rattachée au lot principal cédé 662,00 » (y compris OCR : « principa vendu
+  1 380,431 », libellé coupé sur deux lignes), « Fonds travaux attachés aux lots vendus: 1 380,43 € »,
+  « Pour information montant du fonds ALUR : 122.97 € » (Immo'Zel), « Il n'y a pas de fonds ALUR ».
+  Écartées volontairement : la cotisation exigible (« 4.4 Fonds de travaux … 12.49 € ») et l'avance
+  d'exercice (« L'avance 'Fonds de Travaux - Exercice 2025' … 197,97 € »). Lus aussi : dernière
+  cotisation, « Pour une date de signature le » (signalée si elle diffère du rendez-vous). Dans
+  l'Appel de fonds, la ligne « Remboursement du fonds de travaux » est remplie si le dossier relié
+  dit `rembourse: true` (ou sans dossier, « à confirmer »), jamais si `rembourse: false`.
+- **Relevé de compte client** (`analyserReleveCompteClient`) : lignes « date libellé montant », la
+  colonne Débit/Crédit retrouvée par la position horizontale des items (`lignesAvecPositionsDepuisItems`,
+  refactor de `lignesDepuisItemsPdf` en `grouperItemsPdfEnLignes`), à défaut par le libellé
+  (« VIR INST RECU » reçu, « VIREMENT A … » sorti). Nature : indemnité d'immobilisation / dépôt /
+  séquestre = prix, « PROVISION SUR FRAIS » = frais. Le relevé **remplace** le montant de l'acompte
+  déjà déduit depuis le dossier (même somme — une seconde ligne la déduirait deux fois, bug vu en
+  Chromium et corrigé), et signale les reversements au confrère (« 3 500,00 € reversés à SELARL … :
+  ces sommes ne sont plus détenues par l'étude »). Le relevé fourni montrait justement un dossier en
+  participation (tout reversé, solde 0).
+- Écran : quatre boutons de pièce dans « Décompte établi par l'office », un bloc par pièce (montant
+  lu, ligne ajoutée ou raison de ne pas l'ajouter, croix pour retirer — les lignes reviennent à
+  leur état d'avant), préremplissage depuis un dossier réappliqué aux pièces déjà déposées.
+- Vérifié : les huit PDF réels rejoués dans un bac à sable avec pdfjs-dist 4.10 (mêmes items que
+  le pdf.js 3.11 du client) — avis 921 € par les deux sources, CITYA 422,13 € dont 17,43 €, relevé
+  3 000 € + 500 € reversés, états datés 122,97 / 662 / 1 380,43 / aucun / 400,36 € ; rendu Chromium
+  (analyses injectées, pdf.js étant sur CDN) ; 992 tests client, 487 serveur.
