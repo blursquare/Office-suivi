@@ -12451,3 +12451,12 @@ rendez-vous. Prévoir aussi un bouton “projet envoyé” dans la partie Éché
   « Envoyé le 30 septembre 2026 · Renvoyer », aucune erreur console.
 - Information de l'étude reçue pendant ce chantier : « la connexion et modification fonctionne pour
   l'agenda partagé » — lecture et écriture EWS confirmées au bureau (CLAUDE.md mis à jour).
+
+### 30/09 09:30 — Widget Avancement : jauge alignée sous le badge
+
+Capture de l'étude (« À ajuster ») : dans la carte Avancement en détail (2 lignes par dossier), la
+jauge et le pourcentage glissaient d'une ligne à l'autre selon la largeur du badge d'état
+(« Urgent » court, « Attente de pièces » long), la grille donnant à la jauge la colonne du badge.
+Correction CSS seule : colonnes fixes à droite (jauge 96 px, pourcentage 40 px), le badge occupe
+les deux et s'aligne à droite ; toutes les pilules d'état ont la même largeur minimale (122 px,
+texte centré), ce qui aligne aussi la variante compacte. Vérifié en Chromium (1440 et 400 px).

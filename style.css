@@ -5628,7 +5628,8 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
 /* Pilule pleine teintée : le seul endroit du tableau de bord où le statut se lit en couleur de
    fond — c'est ce que la ligne a de plus important à dire. Couleurs = jetons de statut existants. */
 .avancement-pilule {
-  display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 600; white-space: nowrap;
+  display: inline-block; min-width: 122px; box-sizing: border-box; padding: 3px 10px; border-radius: 999px; text-align: center;
+  font-size: 11.5px; font-weight: 600; white-space: nowrap;
 }
 .avancement-pilule.dl-success { color: var(--success); background: color-mix(in srgb, var(--success) 14%, transparent); }
 .avancement-pilule.dl-pret { color: var(--pret); background: color-mix(in srgb, var(--pret) 16%, transparent); }
@@ -6709,8 +6710,11 @@ button.w-ligne:focus-visible { outline: 2px solid var(--focus); outline-offset: 
 /* Avancement en grand : deux lignes par dossier — nom et état, puis détail, prix, jauge. */
 .w-avancement-riche { gap: 0; }
 .w-avancement-riche > li + li { border-top: 1px solid var(--line-soft); }
+/* Colonnes FIXES à droite (jauge, pourcentage) : l'état, de largeur variable, occupe les deux et
+   s'aligne à droite — sinon la jauge glissait d'une ligne à l'autre selon la longueur du badge
+   (« Urgent » contre « Attente de pièces »), signalé par l'étude le 30/09. */
 button.w-avancement-ligne {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "nom nom etat" "detail barre pct";
+  display: grid; grid-template-columns: minmax(0, 1fr) auto 96px 40px; grid-template-areas: "nom nom etat etat" "detail detail barre pct";
   align-items: center; column-gap: 10px; row-gap: 4px; width: 100%; padding: 8px 0;
   border: 0; background: none; font: inherit; text-align: left; color: var(--ink); cursor: pointer;
 }
@@ -6719,7 +6723,7 @@ button.w-avancement-ligne:focus-visible { outline: 2px solid var(--focus); outli
 .w-av-nom { grid-area: nom; font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .w-avancement-ligne .avancement-pilule { grid-area: etat; justify-self: end; }
 .w-av-detail { grid-area: detail; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.w-avancement-ligne .avancement-barre { grid-area: barre; width: 90px; }
+.w-avancement-ligne .avancement-barre { grid-area: barre; width: 100%; }
 .w-avancement-ligne .w-ligne-pct { grid-area: pct; }
 .w-avancement-ligne.statut-surveiller .avancement-barre > span { background: var(--pret); }
 .w-avancement-ligne.statut-retard .avancement-barre > span { background: var(--urgent); }
