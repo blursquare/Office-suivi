@@ -13384,3 +13384,12 @@ rendez-vous à 9 h, entre 12 h et 14 h et après 18 h, sauf exception ; maximum 
   outil ouvert, son titre est surligné (aplat + trait d'accent, `:has(+ .sidebar-sousmenu.ferme .actif)`).
 - Logo aligné sur la bannette : `.sidebar-brand` à 2 px de marge gauche (comme la rangée d'icônes), bannette
   en 40 × 36 px — bords gauches et centres identiques, barre ouverte comme repliée (mesuré dans Chromium).
+
+### 30/09/2026, soir — Volet Outils sous son icône
+
+- Demande de l'étude : « Sidebar fermée : le panneau doit se placer sous l'icône sélectionnée et ouverte. »
+- `ouvrirVoletOutils` : volet posé 8 px sous l'icône Outils, bord gauche aligné sur elle (au-dessus
+  seulement s'il manque la place en bas) ; l'icône porte `.volet-ouvert` (aplat actif) et sa bulle
+  « Outils » reste affichée tant que le volet est ouvert (`libelleBoutonSidebar` lit `.sidebar-groupe-label`).
+- Vérifié dans Chromium : icône bas 394 px → volet haut 402 px, bords gauches identiques (31 px), bulle
+  « Outils » visible, en clair et en sombre.

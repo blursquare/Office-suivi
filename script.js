@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 23:28';
+  const VERSION_APP = '2026-09-30 23:29';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 23:29', resume: "Barre latérale fermée : le volet des outils s'ouvre sous l'icône Outils, aligné sur elle ; l'icône reste marquée ouverte avec son nom dans la bulle à côté tant que le volet est affiché." },
     { version: '2026-09-30 23:28', resume: "Barre latérale : l'épingle est retirée ; nouveau réglage « Barre latérale au démarrage » (ouverte ou fermée) dans Réglages › Général — la flèche la replie ou la déplie pour la séance seulement. Le groupe Outils est fermé au démarrage (son titre est surligné quand un outil est ouvert). Le logo est aligné sur la bannette Claire Scan." },
     { version: '2026-09-30 23:25', resume: "Barre latérale repliée : au survol d'une icône, son nom s'affiche dans une bulle sombre à côté ; les outils sont regroupés sous une seule icône « Outils » qui ouvre un volet sombre avec la liste des outils (l'outil ouvert surligné, avec une flèche), comme sur l'exemple fourni." },
     { version: '2026-09-30 23:21', resume: "Notifications : la bulle redevient noire, centrée en bas de l'écran, et passe au premier plan même quand la fiche d'un dossier est ouverte (elle ne se glisse plus sous le voile transparent)." },
@@ -14696,14 +14697,20 @@
     const sidebar = document.getElementById('sidebar');
     if (!titre || !menu || !sidebarReduiteBureau()) return;
     clearTimeout(voletOutilsMinuteur);
-    masquerInfobulleSidebar();
     sidebar.classList.add('volet-ouvert');
     menu.classList.add('volet-ouvert');
+    titre.classList.add('volet-ouvert');
+    // Étude, 30/09 : le volet se place SOUS l'icône Outils (bord gauche aligné sur elle), l'icône
+    // restant marquée ouverte avec son nom dans la bulle à côté ; au-dessus seulement s'il manque
+    // la place en bas de l'écran.
     const r = titre.getBoundingClientRect();
     const h = menu.offsetHeight;
-    menu.style.left = `${Math.round(r.right + 14)}px`;
-    menu.style.top = `${Math.round(Math.max(12, Math.min(r.top - 10, window.innerHeight - h - 12)))}px`;
+    const dessous = r.bottom + 8;
+    const top = dessous + h + 12 <= window.innerHeight ? dessous : Math.max(12, r.top - 8 - h);
+    menu.style.left = `${Math.round(r.left)}px`;
+    menu.style.top = `${Math.round(top)}px`;
     titre.setAttribute('aria-expanded', 'true');
+    afficherInfobulleSidebar(titre);
   }
 
   function fermerVoletOutils(delai) {
@@ -14714,6 +14721,8 @@
       if (menu) { menu.classList.remove('volet-ouvert'); menu.style.left = ''; menu.style.top = ''; }
       if (sidebar) sidebar.classList.remove('volet-ouvert');
       const titre = document.getElementById('sidebar-groupe-outils');
+      if (titre) titre.classList.remove('volet-ouvert');
+      masquerInfobulleSidebar();
       if (titre) titre.setAttribute('aria-expanded', String(groupeOutilsOuvert()));
     };
     if (delai) voletOutilsMinuteur = setTimeout(fermer, delai); else fermer();
@@ -14723,6 +14732,8 @@
   function libelleBoutonSidebar(el) {
     const aria = el.getAttribute('aria-label');
     if (aria) return aria;
+    const label = el.querySelector('.sidebar-groupe-label');
+    if (label) return label.textContent.trim();
     return Array.from(el.childNodes).filter(n => n.nodeType === 3).map(n => n.textContent).join(' ').replace(/\s+/g, ' ').trim();
   }
 
@@ -14776,7 +14787,9 @@
     sidebar.addEventListener('focusin', (e) => { const el = cible(e); if (el && el.id !== 'sidebar-groupe-outils') afficherInfobulleSidebar(el); });
     sidebar.addEventListener('mouseout', (e) => {
       const el = e.target.closest && e.target.closest('.sidebar-link, .sidebar-scan-bannette, .sidebar-icon-btn, .sidebar-groupe-titre');
-      if (el && !(e.relatedTarget && el.contains(e.relatedTarget))) masquerInfobulleSidebar();
+      // Le nom de l'icône Outils reste affiché tant que son volet est ouvert.
+      const voletOuvert = el && el.id === 'sidebar-groupe-outils' && el.classList.contains('volet-ouvert');
+      if (el && !voletOuvert && !(e.relatedTarget && el.contains(e.relatedTarget))) masquerInfobulleSidebar();
       const titre = document.getElementById('sidebar-groupe-outils');
       const menu = document.getElementById('sidebar-sousmenu-outils');
       const vers = e.relatedTarget;
@@ -14784,7 +14797,7 @@
         if ((titre && titre.contains(e.target)) || menu.contains(e.target)) fermerVoletOutils(250);
       }
     });
-    sidebar.addEventListener('focusout', masquerInfobulleSidebar);
+    sidebar.addEventListener('focusout', (e) => { if (!(e.target.classList && e.target.classList.contains('volet-ouvert'))) masquerInfobulleSidebar(); });
     sidebar.addEventListener('scroll', () => { masquerInfobulleSidebar(); fermerVoletOutils(0); }, { passive: true });
     const menu = document.getElementById('sidebar-sousmenu-outils');
     if (menu) {

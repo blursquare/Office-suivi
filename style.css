@@ -908,7 +908,8 @@
     .sidebar.repliee .sidebar-groupe-titre { display: flex; margin-top: 0; }
     .sidebar.repliee .sidebar-groupe-titre .sidebar-link-icone { font-size: 17px; opacity: 1; }
     .sidebar.repliee .sidebar-groupe-titre:has(+ .sidebar-sousmenu .actif),
-    .sidebar.repliee .sidebar-groupe-titre:hover { background: var(--sidebar-actif-bg); color: var(--ink); }
+    .sidebar.repliee .sidebar-groupe-titre:hover,
+    .sidebar.repliee .sidebar-groupe-titre.volet-ouvert { background: var(--sidebar-actif-bg); color: var(--ink); }
     .sidebar.repliee .sidebar-groupe-titre:has(+ .sidebar-sousmenu .actif) { color: var(--ink); box-shadow: inset 3px 0 0 var(--focus); }
     .sidebar.repliee .sidebar-groupe-chevron, .sidebar.repliee .sidebar-groupe-label { display: none; }
     .sidebar.repliee .sidebar-sousmenu { display: none; }
