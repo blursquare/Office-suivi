@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 14:37';
+  const VERSION_APP = '2026-09-30 14:42';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 14:42', resume: "Scans du copieur : la copie rangée s'appelle désormais « nom de la pièce - Claire Scan » (ex. « État daté - Claire Scan »), sans date ni référence du scan. Une pastille rouge signale les scans en attente de rangement : le nombre à côté de « Scans à ranger », un point sur l'icône quand la barre latérale est repliée et sur le bouton du menu sur téléphone." },
     { version: '2026-09-30 14:37', resume: "Scans du copieur : un scan est désormais rangé sans validation dès un score de 4 (au lieu de 6) — l'adresse du bien suffit, ou une partie nommée avec un autre indice. Une partie nommée seule (3 points) reste à valider, de même qu'un scan dont un autre dossier obtient un score proche." },
     { version: '2026-09-30 14:16', resume: "Fiche › Prochaine étape : seules les actions liées à l'étape affichée restent dessous (ex. « Relancer l'offre de prêt » sous « Obtention du prêt ») ; les autres, comme la renonciation au droit de préemption, passent sous « Aussi à faire » et portent leur propre libellé (« Droit de préemption » au lieu de « À décider »)." },
     { version: '2026-09-30 14:03', resume: "Scans du copieur : CLAIRE trouve seule le dossier du copieur \\\\192.168.60.5\\Scan (partage à part du NAS, à côté de Commun). Seuls les nouveaux scans sont traités : ceux arrivés après l'activation du classement, à la minute près ; ceux déjà présents dans le dossier Scan ne sont pas touchés." },
@@ -22091,10 +22092,13 @@
     const n = totalNotificationsPieces();
     if (n > 0) {
       el.textContent = n > 99 ? '99+' : String(n);
-      el.style.display = 'inline-flex';
+      el.style.display = '';
     } else {
       el.style.display = 'none';
     }
+    const lien = el.closest('.sidebar-link');
+    if (lien) lien.classList.toggle('a-notif', n > 0);
+    majPastilleMenuMobile();
   }
 
   // Prévient par email le collaborateur responsable qu'une ou plusieurs pièces viennent d'être
@@ -30862,21 +30866,16 @@
     return detail;
   }
 
-  // Date « JJ-MM-AAAA » d'un ISO ou d'une date. Pure.
-  function dateCourteScan(dateIso) {
-    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(dateIso || ''));
-    return m ? `${m[3]}-${m[2]}-${m[1]}` : '';
-  }
-
   // Nom de la copie rangée : le libellé du type (celui de la pièce de la checklist quand il y en
   // a une, que CLAIRE reconnaîtra donc par son nom), la personne pour une pièce d'identité ou
-  // d'état civil, puis « scan du JJ-MM-AAAA ». Pure.
+  // d'état civil, puis « - Claire Scan » (étude, 30/09 : ni date ni référence du scan).
+  // « Nom (2).pdf » côté serveur si le nom existe déjà. Pure.
+  var SUFFIXE_NOM_SCAN = 'Claire Scan';
   function nomCibleScan(type, options) {
     const o = options || {};
-    const date = dateCourteScan(o.date);
-    if (!type) return date ? `Scan du ${date}` : 'Scan';
+    if (!type) return SUFFIXE_NOM_SCAN;
     const personne = type.parPartie && o.personne ? ' - ' + String(o.personne).replace(/\s+/g, ' ').trim() : '';
-    return `${type.label}${personne}${date ? ' - scan du ' + date : ''}`;
+    return `${type.label}${personne} - ${SUFFIXE_NOM_SCAN}`;
   }
 
   // Rubriques essayées pour ce type et ce dossier (la partie reconnue décide pour une pièce
@@ -30964,12 +30963,39 @@
     if (visible || rangementAutoScansActif()) await lireScansEnAttente();
   }
 
+  // Scans qui attendent quelqu'un : tous ceux du dossier Scan, sauf ceux que cette fenêtre est en
+  // train de ranger seule (rangement automatique, dossier et pièce sûrs, pas d'échec). Pure.
+  function nombreScansEnAttente(etat, lectures, echecs, autoActif) {
+    if (!etat || !etat.reglages || !etat.reglages.actif) return 0;
+    return (etat.scans || []).filter(s => {
+      const l = lectures && lectures[s.nom + '|' + s.date];
+      const rangeSeul = autoActif && l && l.statut === 'pret' && l.proposition && l.proposition.automatique && !(echecs && echecs.has(s.nom + '|' + s.date));
+      return !rangeSeul;
+    }).length;
+  }
+
+  // Pastille « Scans à ranger » (étude, 30/09) : le nombre à côté du lien, un point sur l'icône
+  // quand la barre est repliée et sur le bouton du menu en largeur téléphone (voir
+  // majPastilleMenuMobile).
   function majBadgeScans() {
     const badge = document.getElementById('badge-scans');
     if (!badge) return;
-    const n = etatScans.reglages.actif ? (etatScans.scans || []).length : 0;
+    const n = nombreScansEnAttente(etatScans, lecturesScans, echecsAutoScans, rangementAutoScansActif());
     badge.textContent = n > 99 ? '99+' : String(n);
+    // '' et non 'inline-flex' : la barre repliée masque le nombre par sa feuille de style.
     badge.style.display = n ? '' : 'none';
+    badge.title = n ? `${n} scan${n > 1 ? 's' : ''} en attente de rangement` : '';
+    const lien = document.getElementById('tab-scans');
+    if (lien) lien.classList.toggle('a-notif', n > 0);
+    majPastilleMenuMobile();
+  }
+
+  // Un point sur le bouton du menu (téléphone) dès qu'une pastille de la barre latérale est
+  // allumée : sans lui, rien ne se voit tant que le menu est fermé.
+  function majPastilleMenuMobile() {
+    const burger = document.getElementById('sidebar-burger');
+    if (!burger) return;
+    burger.classList.toggle('a-notif', !!document.querySelector('.sidebar-link.a-notif'));
   }
 
   function demarrerSurveillanceScans() {
@@ -31034,6 +31060,7 @@
             lecturesScans[cle] = { statut: 'erreur', erreur: e.message || 'Lecture impossible', choix: choixDepuisProposition(null, scan.date) };
           }
           if (ongletActuel === 'scans') renderScans();
+          majBadgeScans();
         }
         const l = lecturesScans[cle];
         if (rangementAutoScansActif() && l && l.statut === 'pret' && l.proposition.automatique && !echecsAutoScans.has(cle)) await rangerScanChoisi(scan.nom, true);

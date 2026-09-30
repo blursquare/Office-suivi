@@ -44,7 +44,7 @@ test('nomRubriqueNormalise retire numéro de rubrique, accents et ponctuation', 
 });
 
 test('nomFichierSur : nom Windows valide, extension .pdf unique, longueur bornée', () => {
-  assert.equal(nomFichierSur('État daté - scan du 01-10-2026'), 'État daté - scan du 01-10-2026.pdf');
+  assert.equal(nomFichierSur('État daté - Claire Scan'), 'État daté - Claire Scan.pdf');
   assert.equal(nomFichierSur('a/b\\c:d*e?.pdf'), 'a b c d e.pdf');
   assert.equal(nomFichierSur('  ..  '), 'Scan.pdf');
   assert.ok(nomFichierSur('x'.repeat(300)).length <= 124);
@@ -153,15 +153,15 @@ test('routes : un scan est servi par son nom seul', async () => {
 
 test('routes : ranger copie dans la rubrique, garde l’original, n’écrase jamais', async () => {
   const cible = path.join(nas, 'DURAND Camille', '8 - COPRO et ETAT DATE', 'ETAT DATE');
-  fs.writeFileSync(path.join(cible, 'État daté - scan du 30-09-2026.pdf'), '%PDF-1.4 existant');
+  fs.writeFileSync(path.join(cible, 'État daté - Claire Scan.pdf'), '%PDF-1.4 existant');
   const r = await envoyer('POST', '/api/scans/ranger', {
-    nom: 'SCAN_0001.pdf', dossierNas: 'DURAND Camille', rubriques: ['etatDate'], nomCible: 'État daté - scan du 30-09-2026',
+    nom: 'SCAN_0001.pdf', dossierNas: 'DURAND Camille', rubriques: ['etatDate'], nomCible: 'État daté - Claire Scan',
     dossierId: 'd1', dossier: 'VTE - DURAND', type: 'etatDate', auteur: 'Julie VASSELIN'
   });
   const corps = await r.json();
   assert.equal(r.status, 200, JSON.stringify(corps));
-  assert.equal(corps.chemin, path.join('DURAND Camille', '8 - COPRO et ETAT DATE', 'ETAT DATE', 'État daté - scan du 30-09-2026 (2).pdf'));
-  assert.equal(fs.readFileSync(path.join(cible, 'État daté - scan du 30-09-2026.pdf'), 'utf8'), '%PDF-1.4 existant');
+  assert.equal(corps.chemin, path.join('DURAND Camille', '8 - COPRO et ETAT DATE', 'ETAT DATE', 'État daté - Claire Scan (2).pdf'));
+  assert.equal(fs.readFileSync(path.join(cible, 'État daté - Claire Scan.pdf'), 'utf8'), '%PDF-1.4 existant');
   assert.equal(fs.readFileSync(path.join(nas, corps.chemin), 'utf8'), '%PDF-1.4 etat date');
   // L'original a quitté la file du dossier Scan pour son archive, intact.
   assert.equal(fs.existsSync(path.join(scan, 'SCAN_0001.pdf')), false);

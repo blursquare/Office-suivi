@@ -12625,3 +12625,22 @@ scans. »
   dossiers à égalité ne sont jamais départagés au hasard), et les autres conditions du rangement
   automatique (pièce identifiée, dossier relié au NAS, option activée).
 - Tests : scan à l'adresse seule rangé automatiquement, partie seule à valider.
+
+### 30/09/2026 14:42 — Scans : nom « … - Claire Scan » et pastille des scans en attente
+
+- Demande de l'étude : « ne pas mettre la référence du scan. Mettre le nom du fichier - Claire
+  Scan ». `nomCibleScan` rend « <libellé de la pièce> - Claire Scan » (la personne reste pour une
+  pièce d'identité / d'état civil / un RIB) ; type inconnu : « Claire Scan ». Le libellé reste celui
+  de la checklist, donc la pièce est toujours cochée par le parcours du NAS (test sur tous les
+  types). Deux copies du même nom : « … (2).pdf » côté serveur, comme avant. `dateCourteScan`
+  supprimée (plus utilisée).
+- Demande de l'étude : « mettre une pastille de notification quand un scan est en attente de
+  rangement ». Le compteur existait mais disparaissait barre repliée et sur téléphone.
+  `nombreScansEnAttente` (pure, testée) : les scans du dossier Scan, moins ceux que la fenêtre range
+  seule. Pastille rouge (`--notif-nouveau`) : nombre + infobulle à côté du lien ; point sur l'icône
+  barre repliée ; point sur le bouton du menu en largeur téléphone (`majPastilleMenuMobile`, aussi
+  allumé par les pièces nouvelles du Suivi). Mise à jour après chaque lecture de scan.
+- Corrigé au passage : le compteur des pièces nouvelles (Suivi) restait affiché en chiffre sur la
+  barre repliée (style en ligne `inline-flex` plus fort que la règle qui le masque).
+- Vérifié dans Chromium (serveur réel, dossier Scan inventé avec deux PDF) : bureau, barre repliée,
+  390 px.

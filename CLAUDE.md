@@ -202,7 +202,7 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   partie nommée (tous ses mots, ou nom d'usage + prénom) 3 pts, deux au plus ; voie de l'adresse du
   bien 4 ; parcelle 5 ; sûr à 4 (abaissé de 6 par l'étude le 30/09) et ×1,3 devant le second, sinon suggestion ; score et détail affichés
   (`explicationScoreScan`) et journalisés. **Copie
-  nommée du libellé de la pièce de la checklist** (« État daté - scan du JJ-MM-AAAA ») pour que le
+  nommée du libellé de la pièce de la checklist** (« État daté - Claire Scan », sans date ni référence du scan — « Nom (2) » si le nom existe) pour que le
   parcours du NAS la coche seul ; « Compromis signé » / « Promesse de vente signée » pour
   `choisirAvantContratNas`. **Rubrique retrouvée par son nom** (`RUBRIQUES_SCANS`, numéro ignoré),
   racine du dossier à défaut ; pièce d'identité / état civil / RIB → Vendeur ou Acquéreur selon la

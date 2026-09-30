@@ -75,16 +75,16 @@ test('copie nommée d’après la checklist : la pièce passe « reçue » au pa
   }
   assert.equal(echecs.join(' | '), '');
   // Offre de prêt et avant-contrat : reconnus par leurs propres règles de nom.
-  assert.equal(app.nomDitOffrePret(app.normaliserNomPourMotif('Offre de prêt - scan du 01-10-2026.pdf')), true);
-  assert.equal(app.RE_NOM_COMPROMIS.test('Compromis signé - scan du 01-10-2026.pdf'), true);
+  assert.equal(app.nomDitOffrePret(app.normaliserNomPourMotif('Offre de prêt - Claire Scan.pdf')), true);
+  assert.equal(app.RE_NOM_COMPROMIS.test('Compromis signé - Claire Scan.pdf'), true);
 });
 
 test('checklist : un pré-état daté ne fait plus passer l’état daté « reçu »', () => {
   const app = chargerApplication();
   const etatDate = app.PIECES_COPROPRIETE.find(p => p.cle === 'etatDate');
-  assert.equal(app.correspondancePieceNom(etatDate, app.normaliserNomPourMotif('Pré-état daté - scan du 01-10-2026.pdf')), null);
+  assert.equal(app.correspondancePieceNom(etatDate, app.normaliserNomPourMotif('Pré-état daté - Claire Scan.pdf')), null);
   assert.equal(app.correspondancePieceNom(etatDate, app.normaliserNomPourMotif('Pre etat date.pdf')), null);
-  assert.equal(app.correspondancePieceNom(etatDate, app.normaliserNomPourMotif('État daté - scan du 01-10-2026.pdf')), 'exact');
+  assert.equal(app.correspondancePieceNom(etatDate, app.normaliserNomPourMotif('État daté - Claire Scan.pdf')), 'exact');
   assert.equal(app.correspondancePieceNom(etatDate, app.normaliserNomPourMotif('Etat_date_POMONE.pdf')), 'exact');
 });
 
@@ -135,22 +135,22 @@ test('proposition : nom, rubrique selon la partie, rangement automatique seuleme
   const id = app.propositionScan({ texte: 'CARTE NATIONALE D’IDENTITÉ Nom : LEROY Prénom(s) : Sophie' }, DOSSIERS, '2026-10-01T09:00:00Z');
   assert.equal(id.type, 'identite');
   assert.equal(id.rubriques.join(','), 'acquereur');
-  assert.equal(id.nomCible, 'Pièce d’identité - Sophie DURAND - scan du 01-10-2026'.replace('’', "'"));
+  assert.equal(id.nomCible, 'Pièce d’identité - Sophie DURAND - Claire Scan'.replace('’', "'"));
   assert.equal(id.automatique, false);
   const ed = app.propositionScan({ texte: 'IMMEUBLE SIS A : 12 RUE DES LILAS 41000 BLOIS COPROPRIÉTAIRE CÉDANT : Paul MARTIN, lots AB 123' }, DOSSIERS, '2026-10-01');
   assert.equal(ed.type, 'etatDate');
   assert.equal(ed.rubriques.join(','), 'etatDate,copro');
-  assert.equal(ed.nomCible, 'État daté - scan du 01-10-2026');
+  assert.equal(ed.nomCible, 'État daté - Claire Scan');
   assert.equal(ed.automatique, true);
   // Dossier sûr mais pas relié au NAS : jamais rangé seul.
   const sansNas = DOSSIERS.map(d => Object.assign({}, d, { nasDossier: null }));
   assert.equal(app.propositionScan({ texte: 'IMMEUBLE SIS A : 12 RUE DES LILAS 41000 BLOIS COPROPRIÉTAIRE CÉDANT : Paul MARTIN' }, sansNas, '2026-10-01').automatique, false);
 });
 
-test('nom d’un scan non reconnu : « Scan du JJ-MM-AAAA »', () => {
+test('nom d’un scan non reconnu : « Claire Scan », sans date ni référence', () => {
   const app = chargerApplication();
-  assert.equal(app.nomCibleScan(null, { date: '2026-10-01T08:00:00Z' }), 'Scan du 01-10-2026');
-  assert.equal(app.nomCibleScan(null, {}), 'Scan');
+  assert.equal(app.nomCibleScan(null, { date: '2026-10-01T08:00:00Z' }), 'Claire Scan');
+  assert.equal(app.nomCibleScan(null, {}), 'Claire Scan');
 });
 
 test('score : barème du script de l’étude (partie 3, adresse 4, parcelle 5), seuil 4 (étude, 30/09), marge ×1,3', () => {
@@ -183,4 +183,21 @@ test('score : deux dossiers trop proches ne se départagent pas, même au-dessus
   assert.equal(p.dossierSur, false);
   assert.equal(p.automatique, false);
   assert.equal(app.explicationScoreScan(p), 'Score 6/4 : 2 parties nommées +6 — un autre dossier est à 6');
+});
+
+test('pastille : scans en attente de rangement, sans ceux que la fenêtre range seule', () => {
+  const app = chargerApplication();
+  const etat = { reglages: { actif: true }, scans: [{ nom: 'a.pdf', date: '1' }, { nom: 'b.pdf', date: '2' }, { nom: 'c.pdf', date: '3' }] };
+  const lectures = {
+    'a.pdf|1': { statut: 'pret', proposition: { automatique: true } },
+    'b.pdf|2': { statut: 'pret', proposition: { automatique: false } },
+    'c.pdf|3': { statut: 'pret', proposition: { automatique: true } }
+  };
+  // Rangement automatique actif : a et c partent seuls, b attend (sauf échec de c : il attend aussi).
+  assert.equal(app.nombreScansEnAttente(etat, lectures, new Set(), true), 1);
+  assert.equal(app.nombreScansEnAttente(etat, lectures, new Set(['c.pdf|3']), true), 2);
+  // Sans rangement automatique dans cette fenêtre : tous attendent.
+  assert.equal(app.nombreScansEnAttente(etat, lectures, new Set(), false), 3);
+  // Classement désactivé : pas de pastille.
+  assert.equal(app.nombreScansEnAttente({ reglages: { actif: false }, scans: etat.scans }, {}, new Set(), false), 0);
 });

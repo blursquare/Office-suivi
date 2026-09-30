@@ -802,6 +802,16 @@
     font-weight: 700;
     line-height: 1;
   }
+  /* Barre repliée (le nombre est masqué) et bouton du menu sur téléphone : un point de la même
+     couleur signale qu'une pastille est allumée (majBadgeScans / majPastilleMenuMobile). */
+  .sidebar.repliee .sidebar-link.a-notif .sidebar-link-icone { position: relative; }
+  .sidebar.repliee .sidebar-link.a-notif .sidebar-link-icone::after,
+  .sidebar-burger.a-notif::after {
+    content: ''; position: absolute; width: 9px; height: 9px; border-radius: 50%;
+    background: var(--notif-nouveau); box-shadow: 0 0 0 2px var(--sidebar-bg);
+  }
+  .sidebar.repliee .sidebar-link.a-notif .sidebar-link-icone::after { top: -3px; right: -3px; }
+  .sidebar-burger.a-notif::after { top: 5px; right: 5px; }
 
   /* « Signaler un problème » (toujours) et le bouton d'installation (quand il est proposé). */
   .sidebar-footer {
