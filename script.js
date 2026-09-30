@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 22:34';
+  const VERSION_APP = '2026-09-30 22:46';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 22:46', resume: "Page Agenda redessinée d'après l'exemple fourni : le mois en titre, les vues Mois · Semaine · Jour, les flèches et « Aujourd'hui » ; les jours de la semaine en cartes (foncée = aujourd'hui, ou le jour affiché ; un clic ouvre la vue Jour) ; chaque rendez-vous est une carte de la couleur de sa catégorie Outlook avec son titre, son heure de début et de fin et sa durée (« 10:00 – 11:00 · 1 h »). Vue Mois : trois rendez-vous par jour, « + N » ensuite. Légende des couleurs sous le calendrier du mois. La durée s'affiche aussi dans la fenêtre du matin et dans le détail d'un rendez-vous. Barre latérale : l'Agenda prend la place de Claire Scan, qui devient un bouton au pied de la barre, avec son compteur." },
     { version: '2026-09-30 22:34', resume: "Agenda relu toutes les 2 minutes (au lieu de 15) : la page Agenda et la fenêtre du matin suivent Outlook de près. Emails du matin : l'IA locale (Llama, sur le serveur de l'office, rien ne sort du bureau) lit l'expéditeur, l'objet et le début de chaque email et rédige un résumé avec les points importants rattachés à leurs dossiers ; les chiffres et la liste restent dessous. Fenêtre du matin plus compacte : « À faire » à gauche, et à droite des onglets Agenda du jour · Emails · Nouveautés, chaque colonne défile seule. Couleurs des rendez-vous : celles des catégories Outlook (rouge, orange, jaune, vert, bleu, violet…), dans la page Agenda comme dans la fenêtre du matin." },
     { version: '2026-09-30 22:26', resume: "Nouveau : page Agenda (barre latérale). La semaine du lundi au samedi de 7 h à 20 h avec tous les rendez-vous de l'agenda de l'office, le calendrier du mois à droite pour naviguer. Un clic sur un rendez-vous l'ouvre : fiche du dossier, et suppression après confirmation (il part dans les éléments supprimés d'Outlook). Un clic sur une case vide, ou « Nouveau rendez-vous », en crée un (avec ou sans dossier ; case « rendez-vous de signature » pour le noter sur la fiche). Agenda intelligent : pour chaque signature, la probabilité qu'elle se tienne à sa date et ce qui la fait baisser ; pour chaque dossier prêt à signer sans rendez-vous, trois créneaux libres proposés (jours ouvrés, hors fériés et absences), placés en un clic ; relation client : confirmation et rappel du rendez-vous, questionnaire après la signature, un mot un an après, prêts à envoyer. Barre latérale : le trait du menu Outils est plus visible." },
     { version: '2026-09-30 22:06', resume: "Fenêtre du matin : nouvelle rubrique « Agenda du jour » avec tous les rendez-vous du jour de l'agenda de l'office (heure de début en gras et de fin dessous, liseré de la couleur du rendez-vous, type au-dessus du titre ; un clic sur un rendez-vous relié ouvre le dossier). Les emails depuis hier 18 h sont maintenant résumés : nombre d'emails, sujets qui comptent (urgent, offre de prêt, fonds, rendez-vous…) avec leurs dossiers, une ligne par dossier et les expéditeurs hors dossiers ; la liste complète reste dépliable. Sur la carte « Aujourd'hui », le soleil retrouve son texte « Point du matin »." },
@@ -18072,7 +18073,7 @@
       const moment = momentEvenementAgenda(e, heureActuelle);
       const heures = e.journeeEntiere || !e.heure
         ? '<b>Journée</b>'
-        : `<b>${escapeHtml(e.heure)}</b>${e.heureFin && e.heureFin !== e.heure ? `<span>${escapeHtml(e.heureFin)}</span>` : ''}`;
+        : `<b>${escapeHtml(e.heure)}</b>${e.heureFin && e.heureFin !== e.heure ? `<span>${escapeHtml(e.heureFin)}</span>` : ''}${dureeRendezVous(e.heure, e.heureFin) ? `<span class="ajd-duree">${escapeHtml(dureeRendezVous(e.heure, e.heureFin))}</span>` : ''}`;
       const connu = e.dossierId && dossiers.some(d => d.id === e.dossierId);
       // Dossier reconnu : le titre ouvre sa fiche ; son nom n'est ajouté dessous que si le titre de
       // l'agenda ne le cite pas déjà (« VTE - DUPONT » n'est pas répété).
@@ -18385,8 +18386,13 @@
   }
 
   // ---- État de la page ----
+  // Trois vues (étude, 30/09, sur un exemple de design fourni) : Mois, Semaine (lundi → samedi),
+  // Jour. `agendaJour` est le jour sélectionné (vue Jour, carte foncée de la bande des jours).
+  var VUES_AGENDA = ['mois', 'semaine', 'jour'];
+  let agendaVue = 'semaine';
+  let agendaJour = null;           // jour sélectionné (AAAA-MM-JJ)
   let agendaLundi = null;          // lundi de la semaine affichée
-  let agendaMois = null;           // « AAAA-MM » du calendrier du mois
+  let agendaMois = null;           // « AAAA-MM » du mois affiché (vue Mois et calendrier de droite)
   let agendaEvenements = [];
   let agendaLu = '';
   let agendaSource = null;
@@ -18401,9 +18407,35 @@
     return (jours.indexOf(aujourdhuiIso) !== -1 ? aujourdhuiIso : addDays(lundiIso, 3)).slice(0, 7);
   }
 
+  // Pure : durée lisible d'un rendez-vous (« 30 min », « 1 h », « 1 h 30 ») ; '' sans heure de fin.
+  function dureeRendezVous(heure, heureFin) {
+    const a = minutesHeure(heure);
+    const b = minutesHeure(heureFin);
+    if (a === null || b === null || b <= a) return '';
+    const m = b - a;
+    const h = Math.floor(m / 60);
+    const r = m % 60;
+    return h ? `${h} h${r ? ' ' + String(r).padStart(2, '0') : ''}` : `${r} min`;
+  }
+
+  // Pure : le jour affiché après un pas en vue Jour — le dimanche est sauté (agenda lundi → samedi).
+  function jourSuivantAgenda(iso, pas) {
+    let j = addDays(iso, pas);
+    if (new Date(j + 'T00:00:00').getDay() === 0) j = addDays(j, pas > 0 ? 1 : -1);
+    return j;
+  }
+
+  function positionnerAgenda(jourIso) {
+    const auj = isoAujourdhuiLocal();
+    agendaJour = new Date(jourIso + 'T00:00:00').getDay() === 0 ? addDays(jourIso, 1) : jourIso;
+    agendaLundi = debutSemaine(agendaJour);
+    agendaMois = agendaVue === 'mois' ? agendaJour.slice(0, 7) : moisDeSemaineAgenda(agendaLundi, joursSemaineAgenda(agendaLundi).indexOf(agendaJour) !== -1 ? agendaJour : auj);
+  }
+
   function initAgenda() {
-    if (!agendaLundi) agendaLundi = debutSemaine(isoAujourdhuiLocal());
-    if (!agendaMois) agendaMois = moisDeSemaineAgenda(agendaLundi, isoAujourdhuiLocal());
+    // Premier affichage sur un écran étroit (téléphone) : la vue Jour, lisible sans défilement latéral.
+    if (!agendaJour && window.innerWidth && window.innerWidth < 700) agendaVue = 'jour';
+    if (!agendaJour) positionnerAgenda(isoAujourdhuiLocal());
     renderPageAgenda();
     chargerAgendaSemaine();
   }
@@ -18435,13 +18467,39 @@
     if (ongletActuel === 'agenda') renderPageAgenda();
   }
 
-  function naviguerSemaineAgenda(pas) {
-    agendaLundi = pas === 0 ? debutSemaine(isoAujourdhuiLocal()) : addDays(agendaLundi, pas * 7);
-    agendaMois = moisDeSemaineAgenda(agendaLundi, isoAujourdhuiLocal());
+  // Précédent / Aujourd'hui / Suivant, selon la vue : un mois, une semaine ou un jour.
+  function naviguerAgenda(pas) {
+    if (pas === 0) positionnerAgenda(isoAujourdhuiLocal());
+    else if (agendaVue === 'jour') positionnerAgenda(jourSuivantAgenda(agendaJour, pas));
+    else if (agendaVue === 'semaine') positionnerAgenda(addDays(agendaJour, pas * 7));
+    else {
+      const d = new Date(agendaMois + '-01T00:00:00');
+      d.setMonth(d.getMonth() + pas);
+      positionnerAgenda(isoLocalDepuisDate(d));
+    }
+    renderPageAgenda();
+    chargerAgendaSemaine();
+  }
+  // Ancien nom (boutons déjà rendus, tests) : la semaine.
+  function naviguerSemaineAgenda(pas) { naviguerAgenda(pas); }
+
+  function choisirVueAgenda(vue) {
+    if (VUES_AGENDA.indexOf(vue) === -1) return;
+    agendaVue = vue;
+    positionnerAgenda(agendaJour || isoAujourdhuiLocal());
     renderPageAgenda();
     chargerAgendaSemaine();
   }
 
+  // Un jour choisi (carte de la bande, case du mois) : la vue Jour s'ouvre sur lui.
+  function choisirJourAgenda(iso) {
+    agendaVue = 'jour';
+    positionnerAgenda(iso);
+    renderPageAgenda();
+    chargerAgendaSemaine();
+  }
+
+  // Calendrier de droite : ses flèches changent seulement le mois qu'il montre.
   function naviguerMoisAgenda(pas) {
     const d = new Date(agendaMois + '-01T00:00:00');
     d.setMonth(d.getMonth() + pas);
@@ -18451,7 +18509,7 @@
   }
 
   function allerAuJourAgenda(iso) {
-    agendaLundi = debutSemaine(iso);
+    positionnerAgenda(iso);
     renderPageAgenda();
     chargerAgendaSemaine();
   }
@@ -18474,9 +18532,13 @@
       }));
   }
 
+  function joursAffichesAgenda() {
+    if (agendaVue === 'mois') return grilleMoisAgenda(agendaMois).reduce((t, s) => t.concat(s), []);
+    return joursSemaineAgenda(agendaLundi);
+  }
+
   function evenementsAffichesAgenda() {
-    const jours = joursSemaineAgenda(agendaLundi);
-    return agendaEvenements.concat(signaturesHorsAgenda(dossiers, agendaEvenements, jours));
+    return agendaEvenements.concat(signaturesHorsAgenda(dossiers, agendaEvenements, joursAffichesAgenda()));
   }
 
   function dossierDeEvenement(e) {
@@ -18489,41 +18551,58 @@
     return `<span class="ag-proba dot-label ${dl}" title="Probabilité que la signature se tienne à cette date"><span class="dot"></span>${p.pourcent} %</span>`;
   }
 
+  // Carte d'un rendez-vous dans la grille : le titre, puis l'heure de début et de fin et la durée
+  // (étude, 30/09 : « remettre l'heure et la durée du rendez-vous »), le lieu s'il reste de la place.
   function renderEvenementGrille(place, auj) {
     const e = place.e;
     const teinte = teinteEvenementAgenda(e, categoriesRdvReglees());
     const d = dossierDeEvenement(e);
     const proba = d && e.signature ? probabiliteTenueSignature(d, auj, absencesOffice) : null;
     const largeur = 100 / place.colonnes;
-    const style = `top:${place.haut.toFixed(2)}%;height:${place.hauteur.toFixed(2)}%;left:calc(${(place.colonne * largeur).toFixed(2)}% + 2px);width:calc(${largeur.toFixed(2)}% - 4px)`;
-    const heures = `${e.heure}${e.heureFin ? '–' + e.heureFin : ''}`;
-    // Dans la case : l'heure de début seule (la fin se lit à la hauteur, et dans la bulle).
-    return `<button type="button" class="ag-evt ajd-${teinte}${e.horsAgenda ? ' ag-hors-agenda' : ''}${place.hauteur < 5 ? ' ag-evt-court' : ''}" style="${style}"
-        onclick="ouvrirDetailAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')" title="${escapeAttr(`${heures} · ${e.sujet}${e.lieu ? ' · ' + e.lieu : ''}`)}">
-        <span class="ag-evt-heure">${escapeHtml(e.heure)}${proba ? renderPastilleProbabilite(proba) : ''}</span>
+    const style = `top:${place.haut.toFixed(2)}%;height:${place.hauteur.toFixed(2)}%;left:calc(${(place.colonne * largeur).toFixed(2)}% + 3px);width:calc(${largeur.toFixed(2)}% - 6px)`;
+    const heures = `${e.heure}${e.heureFin ? ' – ' + e.heureFin : ''}`;
+    const duree = dureeRendezVous(e.heure, e.heureFin);
+    // Moins de 45 min à l'écran : une seule ligne (titre, heure de début) ; en colonne partagée, le titre seul.
+    const court = place.hauteur * (AGENDA_HEURE_FIN - AGENDA_HEURE_DEBUT) * 60 / 100 < 45;
+    const etroit = court && place.colonnes > 1;
+    return `<button type="button" class="ag-evt ajd-${teinte}${e.horsAgenda ? ' ag-hors-agenda' : ''}${court ? ' ag-evt-court' : ''}${etroit ? ' ag-evt-etroit' : ''}${proba ? ' ag-evt-avec-proba' : ''}" style="${style}"
+        onclick="ouvrirDetailAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')" title="${escapeAttr(`${heures}${duree ? ' (' + duree + ')' : ''} · ${e.sujet}${e.lieu ? ' · ' + e.lieu : ''}${proba ? ` · ${proba.pourcent} % de chances que la signature se tienne` : ''}`)}">
+        ${proba ? renderPastilleProbabilite(proba) : ''}
         <span class="ag-evt-titre">${escapeHtml(e.sujet || '(sans titre)')}</span>
+        <span class="ag-evt-heure"><span>${escapeHtml(e.heure)}</span>${e.heureFin ? `<span class="ag-evt-fin">– ${escapeHtml(e.heureFin)}</span>` : ''}${duree ? `<span class="ag-evt-duree">${escapeHtml(duree)}</span>` : ''}</span>
         ${e.lieu ? `<span class="ag-evt-lieu">${escapeHtml(e.lieu)}</span>` : ''}
       </button>`;
   }
 
+  // Bande des jours (lundi → samedi) en cartes : nom du jour, grand numéro ; carte foncée = aujourd'hui
+  // (vue Semaine) ou le jour affiché (vue Jour). Un clic ouvre la vue Jour.
+  function renderBandeJoursAgenda() {
+    const auj = isoAujourdhuiLocal();
+    const choisi = agendaVue === 'jour' ? agendaJour : auj;
+    return `<div class="ag-bande">${joursSemaineAgenda(agendaLundi).map(iso => {
+      const dt = new Date(iso + 'T00:00:00');
+      const absents = (absencesOffice || []).filter(a => absenceCouvreJour(a, iso)).map(a => a.initiales || prenomCollaborateur(a.collaborateur));
+      const nb = evenementsJourAgenda(agendaEvenements, iso).length;
+      const note = estJourFerie(iso) ? 'Férié' : absents.length ? `Absent : ${absents.join(', ')}` : nb ? `${nb} rendez-vous` : '';
+      const nom = dt.toLocaleDateString('fr-FR', { weekday: 'long' });
+      return `<button type="button" class="ag-jour-carte${iso === choisi ? ' choisi' : ''}${iso === auj ? ' aujourdhui' : ''}${estJourFerie(iso) ? ' ferie' : ''}"
+          onclick="choisirJourAgenda('${iso}')" aria-pressed="${iso === choisi}" title="Voir le ${escapeAttr(formatDateFr(iso))}">
+          <span class="ag-jour-nom">${escapeHtml(nom.charAt(0).toUpperCase() + nom.slice(1))}</span>
+          <span class="ag-jour-num">${dt.getDate()}</span>
+          <span class="ag-jour-note">${escapeHtml(note)}</span>
+        </button>`;
+    }).join('')}</div>`;
+  }
+
   function renderGrilleAgenda() {
     const auj = isoAujourdhuiLocal();
-    const jours = joursSemaineAgenda(agendaLundi);
+    const jours = agendaVue === 'jour' ? [agendaJour] : joursSemaineAgenda(agendaLundi);
     const evenements = evenementsAffichesAgenda();
     const heures = [];
     for (let h = AGENDA_HEURE_DEBUT; h < AGENDA_HEURE_FIN; h++) heures.push(h);
-    const tetes = jours.map(iso => {
-      const dt = new Date(iso + 'T00:00:00');
-      const absents = (absencesOffice || []).filter(a => absenceCouvreJour(a, iso)).map(a => a.initiales || prenomCollaborateur(a.collaborateur));
-      return `<div class="ag-tete-jour${iso === auj ? ' ag-aujourdhui' : ''}${estJourFerie(iso) ? ' ag-ferie' : ''}">
-          <span class="ag-tete-nom">${escapeHtml(dt.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', ''))}</span>
-          <button type="button" class="ag-tete-num" onclick="ouvrirCreationAgenda('${iso}', '09:00')" title="Nouveau rendez-vous ce jour">${dt.getDate()}</button>
-          ${estJourFerie(iso) ? '<span class="ag-tete-note">Férié</span>' : absents.length ? `<span class="ag-tete-note" title="Absent ce jour">${icone('user')} ${escapeHtml(absents.join(', '))}</span>` : ''}
-        </div>`;
-    }).join('');
     const journees = jours.map(iso => {
       const liste = evenementsJourAgenda(evenements, iso).filter(e => e.journeeEntiere || !e.heure || e.date !== iso);
-      return `<div class="ag-journee${iso === auj ? ' ag-aujourdhui' : ''}">${liste.map(e => `<button type="button"
+      return `<div class="ag-journee">${liste.map(e => `<button type="button"
           class="ag-journee-evt ajd-${teinteEvenementAgenda(e, categoriesRdvReglees())}${e.horsAgenda ? ' ag-hors-agenda' : ''}"
           onclick="ouvrirDetailAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')" title="${escapeAttr(e.sujet || '')}">${escapeHtml(e.sujet || '(sans titre)')}</button>`).join('')}</div>`;
     }).join('');
@@ -18536,19 +18615,56 @@
         ${disposerEvenementsJour(evenements, iso).map(p => renderEvenementGrille(p, auj)).join('')}
         ${iso === auj ? ligneMaintenant : ''}
       </div>`).join('');
-    return `<div class="ag-grille-defil"><div class="ag-grille">
-        <div class="ag-coin"></div>${tetes}
-        <div class="ag-coin ag-coin-journee">Journée</div>${journees}
-        <div class="ag-heures">${heures.map(h => `<span>${String(h).padStart(2, '0')}:00</span>`).join('')}</div>
+    const avecJournees = jours.some(iso => evenementsJourAgenda(evenements, iso).some(e => e.journeeEntiere || !e.heure || e.date !== iso));
+    return `<div class="ag-grille-defil"><div class="ag-grille ag-vue-${agendaVue}" style="--ag-colonnes:${jours.length}">
+        <div class="ag-bande-ligne"><div class="ag-coin"></div>${renderBandeJoursAgenda()}</div>
+        ${avecJournees ? `<div class="ag-coin ag-coin-journee">Journée</div><div class="ag-journees">${journees}</div>` : ''}
+        <div class="ag-heures">${heures.map(h => `<span>${h} h</span>`).join('')}</div>
         <div class="ag-corps">${colonnes}</div>
       </div></div>`;
+  }
+
+  // Vue Mois : une case par jour (lundi → dimanche), trois rendez-vous au plus, « + N » ensuite.
+  function renderVueMoisAgenda() {
+    const auj = isoAujourdhuiLocal();
+    const evenements = evenementsAffichesAgenda();
+    const semaines = grilleMoisAgenda(agendaMois);
+    return `<div class="ag-vue-mois">
+        ${['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'].map(j => `<span class="ag-vm-jsem">${j}</span>`).join('')}
+        ${semaines.map(s => s.map(iso => {
+          const liste = evenementsJourAgenda(evenements, iso)
+            .sort((a, b) => (a.journeeEntiere ? 0 : 1) - (b.journeeEntiere ? 0 : 1) || String(a.heure || '').localeCompare(String(b.heure || '')));
+          const classes = ['ag-vm-case'];
+          if (iso.slice(0, 7) !== agendaMois) classes.push('hors-mois');
+          if (iso === auj) classes.push('aujourdhui');
+          return `<div class="${classes.join(' ')}">
+              <button type="button" class="ag-vm-num" onclick="choisirJourAgenda('${iso}')" title="Voir le ${escapeAttr(formatDateFr(iso))}">${Number(iso.slice(8))}</button>
+              ${liste.slice(0, 3).map(e => `<button type="button" class="ag-vm-evt ajd-${teinteEvenementAgenda(e, categoriesRdvReglees())}${e.horsAgenda ? ' ag-hors-agenda' : ''}"
+                  onclick="ouvrirDetailAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')" title="${escapeAttr(`${e.heure ? e.heure + (e.heureFin ? ' – ' + e.heureFin : '') + ' · ' : ''}${e.sujet || ''}`)}">
+                  ${e.heure && !e.journeeEntiere ? `<b>${escapeHtml(e.heure)}</b> ` : ''}${escapeHtml(e.sujet || '(sans titre)')}</button>`).join('')}
+              ${liste.length > 3 ? `<button type="button" class="ag-vm-plus" onclick="choisirJourAgenda('${iso}')">+ ${liste.length - 3}</button>` : ''}
+            </div>`;
+        }).join('')).join('')}
+      </div>`;
+  }
+
+  // Couleurs vues dans la période affichée, avec leur catégorie (légende sous le calendrier du mois).
+  function renderLegendeAgenda() {
+    const vues = new Map();
+    evenementsAffichesAgenda().forEach(e => {
+      const teinte = teinteEvenementAgenda(e, categoriesRdvReglees());
+      if (vues.has(teinte)) return;
+      vues.set(teinte, etiquetteEvenementAgenda(e, natureEvenementAgenda(e, categoriesRdvReglees())).replace(/^Signature · /, 'Signature — '));
+    });
+    if (!vues.size) return '';
+    return `<ul class="ag-legende">${[...vues.entries()].map(([t, l]) => `<li class="ajd-${t}"><i></i>${escapeHtml(l)}</li>`).join('')}</ul>`;
   }
 
   function renderMoisAgenda() {
     const auj = isoAujourdhuiLocal();
     const semaines = grilleMoisAgenda(agendaMois);
     const titre = new Date(agendaMois + '-01T00:00:00').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
-    const semaineAffichee = joursSemaineAgenda(agendaLundi);
+    const semaineAffichee = agendaVue === 'jour' ? [agendaJour] : joursSemaineAgenda(agendaLundi);
     const compte = (iso) => evenementsJourAgenda(agendaEvenements, iso).length;
     const signature = (iso) => evenementsJourAgenda(agendaEvenements, iso).some(e => e.signature)
       || dossiers.some(d => !d.archive && d.rendezVousSignature === iso);
@@ -18565,13 +18681,14 @@
             const classes = ['ag-mois-jour'];
             if (iso.slice(0, 7) !== agendaMois) classes.push('hors-mois');
             if (iso === auj) classes.push('aujourdhui');
-            if (semaineAffichee.indexOf(iso) !== -1) classes.push('dans-semaine');
+            if (agendaVue !== 'mois' && semaineAffichee.indexOf(iso) !== -1) classes.push('dans-semaine');
             return `<button type="button" class="${classes.join(' ')}" onclick="allerAuJourAgenda('${iso}')" title="${escapeAttr(`${formatDateFr(iso)} — ${n ? n + ' rendez-vous' : 'aucun rendez-vous'}`)}">
                 <span>${Number(iso.slice(8))}</span>
                 <span class="ag-mois-points">${n ? `<i class="${signature(iso) ? 'sig' : ''}"></i>` : ''}</span>
               </button>`;
           }).join('')).join('')}
         </div>
+        ${renderLegendeAgenda()}
       </div>`;
   }
 
@@ -18580,13 +18697,13 @@
     const auj = isoAujourdhuiLocal();
     const global = vueGlobaleDashboard();
     const perimetre = dossiersDuPerimetre(dossiers, utilisateurPoste, global);
-    const jours = joursSemaineAgenda(agendaLundi);
+    const jours = joursAffichesAgenda();
     // Signatures de la semaine affichée, de la moins probable à la plus probable.
     const signatures = perimetre.filter(d => !d.archive && jours.indexOf(d.rendezVousSignature) !== -1)
       .map(d => ({ d, p: probabiliteTenueSignature(d, auj, absencesOffice) }))
       .filter(x => x.p).sort((a, b) => a.p.pourcent - b.p.pourcent);
     const blocSignatures = `<section class="ag-anticipe">
-        <h3 class="jour-section-titre">Signatures de la semaine ${infoBulle('Probabilité que chaque signature se tienne à sa date : 97 % moins les points de ce qui reste à faire (financement, préemption, pièces, envois, fonds, absence du collaborateur), d’autant plus que la date approche. Indicatif, sans IA : le détail est dans chaque rendez-vous.')}</h3>
+        <h3 class="jour-section-titre">Signatures ${agendaVue === 'mois' ? 'du mois' : agendaVue === 'jour' ? 'du jour' : 'de la semaine'} ${infoBulle('Probabilité que chaque signature se tienne à sa date : 97 % moins les points de ce qui reste à faire (financement, préemption, pièces, envois, fonds, absence du collaborateur), d’autant plus que la date approche. Indicatif, sans IA : le détail est dans chaque rendez-vous.')}</h3>
         ${signatures.length ? `<ul class="ag-liste">${signatures.map(({ d, p }) => {
           const reste = p.facteurs.filter(x => !x.ok);
           return `<li><button type="button" class="ag-ligne" onclick="ouvrirDetailDossierAgenda('${d.id}')">
@@ -18594,7 +18711,7 @@
               <span class="ag-ligne-texte"><b>${escapeHtml(libelleDossierAffiche(d))}</b>
               <span>${escapeHtml(new Date(d.rendezVousSignature + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric' }))}${d.rendezVousSignatureHeure ? ' · ' + escapeHtml(d.rendezVousSignatureHeure) : ''}${reste.length ? ' · ' + escapeHtml(reste[0].libelle) : ''}</span></span>
             </button></li>`;
-        }).join('')}</ul>` : '<p class="jour-vide">Aucune signature cette semaine.</p>'}
+        }).join('')}</ul>` : `<p class="jour-vide">Aucune signature ${agendaVue === 'mois' ? 'ce mois-ci' : agendaVue === 'jour' ? 'ce jour-là' : 'cette semaine'}.</p>`}
       </section>`;
     // Dossiers prêts à signer sans rendez-vous : trois créneaux libres chacun.
     const aPlacer = dossiersAPlacer(perimetre).sort((a, b) => (a.acte || '9999').localeCompare(b.acte || '9999')).slice(0, 6);
@@ -18649,29 +18766,38 @@
   function renderPageAgenda() {
     const zone = document.getElementById('agenda-contenu');
     if (!zone) return;
-    if (!agendaLundi) agendaLundi = debutSemaine(isoAujourdhuiLocal());
-    if (!agendaMois) agendaMois = moisDeSemaineAgenda(agendaLundi, isoAujourdhuiLocal());
+    if (!agendaJour) positionnerAgenda(isoAujourdhuiLocal());
     const samedi = addDays(agendaLundi, 5);
-    const debutTxt = new Date(agendaLundi + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: agendaLundi.slice(5, 7) === samedi.slice(5, 7) ? undefined : 'long' });
-    const finTxt = new Date(samedi + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+    const moisRef = agendaVue === 'mois' ? agendaMois + '-01' : (agendaVue === 'jour' ? agendaJour : moisDeSemaineAgenda(agendaLundi, isoAujourdhuiLocal()) + '-01');
+    const titre = new Date(moisRef + 'T00:00:00').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    const sous = agendaVue === 'jour' ? dateAvecJourFr(agendaJour)
+      : agendaVue === 'semaine' ? `Du ${new Date(agendaLundi + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} au ${new Date(samedi + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`
+      : '';
     const lu = agendaLu ? new Date(agendaLu).toLocaleString('fr-FR', { weekday: 'short', hour: '2-digit', minute: '2-digit' }).replace(':', ' h ') : '';
     const source = agendaErreur ? `<span class="dot-label dl-alerte"><span class="dot"></span>${escapeHtml(agendaErreur)}</span>`
       : !agendaCharge ? 'Lecture de l’agenda…'
       : agendaSource && !agendaSource.configuree ? 'Connexion à l’agenda Outlook à configurer (Réglages › Agenda).'
       : lu ? `Agenda de l’office lu ${escapeHtml(lu)}` : 'Agenda pas encore lu par le serveur.';
+    const libellesVues = { mois: 'Mois', semaine: 'Semaine', jour: 'Jour' };
+    const pasLibelle = { mois: 'Mois', semaine: 'Semaine', jour: 'Jour' }[agendaVue];
     zone.innerHTML = `<div class="ag-page">
         <div class="ag-principal">
           <div class="ag-barre">
-            <div class="ag-nav">
-              <button type="button" class="icon-btn" onclick="naviguerSemaineAgenda(-1)" aria-label="Semaine précédente">${icone('chevron-left')}</button>
-              <button type="button" class="secondary ag-auj" onclick="naviguerSemaineAgenda(0)">Aujourd’hui</button>
-              <button type="button" class="icon-btn" onclick="naviguerSemaineAgenda(1)" aria-label="Semaine suivante">${icone('chevron-right')}</button>
-              <h2 class="ag-semaine">Du ${escapeHtml(debutTxt)} au ${escapeHtml(finTxt)}</h2>
+            <div class="ag-titre-bloc">
+              <h2 class="ag-titre">${escapeHtml(titre.charAt(0).toUpperCase() + titre.slice(1))}</h2>
+              <span class="ag-sous">${escapeHtml(sous ? sous.charAt(0).toUpperCase() + sous.slice(1) : '')}${sous ? ' · ' : ''}${source}</span>
             </div>
-            <span class="ag-source">${source}</span>
-            ${exchangeAgendaPret() ? '<button type="button" class="bouton-ajout" onclick="ouvrirCreationAgenda()">Nouveau rendez-vous</button>' : ''}
+            <div class="ag-vues" role="group" aria-label="Vue de l’agenda">
+              ${VUES_AGENDA.map(v => `<button type="button" class="ag-vue${agendaVue === v ? ' actif' : ''}" aria-pressed="${agendaVue === v}" onclick="choisirVueAgenda('${v}')">${libellesVues[v]}</button>`).join('')}
+            </div>
+            <div class="ag-nav">
+              <button type="button" class="ag-nav-btn" onclick="naviguerAgenda(-1)" aria-label="${pasLibelle} précédent${agendaVue === 'semaine' ? 'e' : ''}">${icone('chevron-left')}</button>
+              <button type="button" class="ag-nav-btn ag-auj" onclick="naviguerAgenda(0)">Aujourd’hui</button>
+              <button type="button" class="ag-nav-btn" onclick="naviguerAgenda(1)" aria-label="${pasLibelle} suivant${agendaVue === 'semaine' ? 'e' : ''}">${icone('chevron-right')}</button>
+            </div>
           </div>
-          ${renderGrilleAgenda()}
+          ${agendaVue === 'mois' ? renderVueMoisAgenda() : renderGrilleAgenda()}
+          ${exchangeAgendaPret() ? '<button type="button" class="bouton-ajout ag-ajout" onclick="ouvrirCreationAgenda()">Nouveau rendez-vous</button>' : ''}
         </div>
         <aside class="ag-cote">
           ${renderMoisAgenda()}
@@ -18706,7 +18832,7 @@
     const d = dossierDeEvenement(e);
     const quand = e.journeeEntiere || !e.heure
       ? (e.dateFin && e.dateFin !== e.date ? `Du ${dateAvecJourFr(e.date)} au ${dateAvecJourFr(e.dateFin)}` : `${dateAvecJourFr(e.date)}, toute la journée`)
-      : `${dateAvecJourFr(e.date)}, ${e.heure}${e.heureFin ? ' – ' + e.heureFin : ''}`;
+      : `${dateAvecJourFr(e.date)}, ${e.heure}${e.heureFin ? ' – ' + e.heureFin : ''}${dureeRendezVous(e.heure, e.heureFin) ? ` (${dureeRendezVous(e.heure, e.heureFin)})` : ''}`;
     const proba = d && e.signature ? probabiliteTenueSignature(d, auj, absencesOffice) : null;
     const blocProba = proba ? `<div class="ag-detail-proba">
         <div class="ag-detail-proba-tete">${renderPastilleProbabilite(proba)} <b>de chances que la signature se tienne ce jour-là</b> ${infoBulle('Indicatif : 97 % moins les points de ce qui reste à faire, pondérés par la proximité de la date. Sans IA.')}</div>
@@ -18743,7 +18869,7 @@
   function ouvrirCreationAgenda(date, heure) {
     if (!exchangeAgendaPret()) { afficherToast('Connexion à l’agenda Outlook à activer dans les Réglages pour créer un rendez-vous.', 'OK', null); return; }
     const auj = isoAujourdhuiLocal();
-    const jour = date || (joursSemaineAgenda(agendaLundi).indexOf(auj) !== -1 ? auj : agendaLundi);
+    const jour = date || (agendaVue === 'jour' ? agendaJour : joursSemaineAgenda(agendaLundi).indexOf(auj) !== -1 ? auj : agendaLundi);
     agendaModale = { type: 'creation', date: jour, heure: heure || '09:00' };
     const contenu = document.getElementById('agenda-modale-contenu');
     if (contenu) contenu.innerHTML = '';

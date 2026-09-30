@@ -237,7 +237,7 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   jamais les dates d'un acte de vente). Pièces reconnues par nom de document → reçues « à la main »
   (`piecesValideesManuellement`, case décochable). Succession reconnue (`typeAffaireAuthentic`) mais
   refusée tant que CLAIRE ne suit que des ventes.
-- **Classeur des scans du copieur** — nom affiché **« Claire Scan »** (30/09, `TYPES_SCAN`, `propositionScan`, `server/src/scans.js`) :
+- **Classeur des scans du copieur** — nom affiché **« Claire Scan »**, bouton au pied de la barre latérale (30/09, `TYPES_SCAN`, `propositionScan`, `server/src/scans.js`) :
   dossier du copieur = **`\\192.168.60.5\Scan`, partage à part** du NAS (étude, 30/09) — trouvé
   comme `\\serveur\Scan` du serveur de `nasRacine` (`partagesScansCandidats`), sinon un dossier
   « Scan » dans `nasRacine` ou ses parents, ou `nasScans` dans config.json. **Surveillance de fond dès le démarrage**
@@ -268,8 +268,10 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   (`scansPourCarte`). **OCR d'un scan : `page.render(… intent: 'print')`** — en « display », pdf.js 3.11 cadence
   le dessin sur `requestAnimationFrame`, arrêté fenêtre réduite/cachée (lecture bloquée sans fin). Un pré-état daté n'est
   pas un état daté (checklist corrigée le même jour).
-- **Page Agenda** (30/09, `renderPageAgenda`) : semaine lundi → samedi, 7 h – 20 h, calendrier du mois
-  à droite ; rendez-vous lus par le serveur (stock `agenda-office`, tenu à jour à la création/suppression
+- **Page Agenda** (30/09, `renderPageAgenda`, dessin d'après l'exemple de l'étude) : vues Mois ·
+  Semaine (lundi → samedi, 7 h – 20 h) · Jour (`agendaVue`, `agendaJour` ; Jour par défaut sur
+  téléphone), bande des jours en cartes, rendez-vous en cartes à la couleur Outlook avec heure de début,
+  de fin et durée (`dureeRendezVous`), calendrier du mois et légende des couleurs à droite ; rendez-vous lus par le serveur (stock `agenda-office`, tenu à jour à la création/suppression
   depuis CLAIRE entre deux tours) ; signatures de CLAIRE absentes d'Outlook en pointillé. Agenda
   « intelligent », **sans IA, chaque point expliqué** : `probabiliteTenueSignature` (97 % moins des
   retraits pondérés par la proximité : financement, vente préalable, préemption, pièces, envois, fonds,

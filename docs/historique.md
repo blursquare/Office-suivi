@@ -13230,3 +13230,24 @@ reprends le code couleur des rendez-vous ».
   français/anglais, mot entier) prioritaire ; jetons `--cat-*` clair/sombre ; `typeEvenementAgenda` /
   `natureEvenementAgenda` gardent l'étiquette « Signature · Office » quand la couleur vient du nom.
 - Non vérifié ici : Ollama et Exchange réels (temps de rédaction du résumé sur le CPU du serveur).
+
+### 30/09/2026 soir — Page Agenda d'après l'exemple de design, durée des rendez-vous, Claire Scan en bouton
+
+Demande de l'étude (avec une maquette d'agenda en exemple : titre du mois, bascule Month/Week/Day,
+cartes des jours, rendez-vous en cartes pastel « titre / 06:00 - 07:30 ») : « dans le rendez-vous,
+remettre l'heure et la durée ; mettre [l'Agenda] à la place de Claire Scan et décaler Claire Scan en
+bas de la sidebar sous forme de bouton ».
+- Page Agenda : titre du mois, vues Mois · Semaine · Jour (`agendaVue`, `choisirVueAgenda`,
+  `naviguerAgenda` — un jour, une semaine ou un mois ; le dimanche sauté en vue Jour, `jourSuivantAgenda`),
+  bande des jours en cartes (`renderBandeJoursAgenda` : foncée = aujourd'hui, ou le jour affiché en vue
+  Jour ; note « Absent : JV », « Férié », nombre de rendez-vous ; un clic ouvre la vue Jour), grille sur
+  fond gris, rendez-vous en cartes à la couleur Outlook : titre (2 lignes au plus), « 10:00 – 11:00 ·
+  1 h » (`dureeRendezVous`), lieu ; pastille de probabilité dans le coin ; moins de 45 min : une ligne.
+  Vue Mois (`renderVueMoisAgenda`) : trois rendez-vous par case, « + N » vers la vue Jour. Légende des
+  couleurs sous le calendrier du mois (`renderLegendeAgenda`). Sur téléphone, vue Jour au premier
+  affichage. Durée aussi dans le détail d'un rendez-vous et dans l'agenda du jour de la fenêtre du matin.
+- Barre latérale : Claire Scan retiré de la rubrique Dossier (l'Agenda prend sa place, sous le Suivi)
+  et placé en bouton au pied de la barre, au-dessus de « Signaler un problème » (même id `tab-scans`,
+  même compteur `badge-scans`).
+- Tests : `tests/agenda-page.test.js` (durée, jour suivant). Vérifié dans Chromium : vues Semaine, Mois,
+  Jour, navigation d'un jour, clair / sombre / téléphone.

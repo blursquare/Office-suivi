@@ -73,11 +73,6 @@
       <button type="button" id="tab-agenda" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('agenda')">
         <span class="sidebar-link-icone" id="icon-nav-agenda" aria-hidden="true"></span>Agenda
       </button>
-      <!-- Scans du copieur à ranger (voir server/src/scans.js) : compteur des scans en attente. -->
-      <button type="button" id="tab-scans" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('scans')">
-        <span class="sidebar-link-icone" id="icon-nav-scans" aria-hidden="true"></span>Claire Scan
-        <span class="sidebar-badge-notif" id="badge-scans" style="display:none;"></span>
-      </button>
       <!-- Outil 2, relecture d'un acte (règles déterministes, sans IA depuis le 23/09/2026) :
            distinct du wizard "Nouveau dossier" — ici on dépose l'acte ET ses annexes séparément
            pour une relecture croisée, sans créer de dossier. -->
@@ -140,6 +135,12 @@
     </nav>
 
     <div class="sidebar-footer">
+      <!-- Scans du copieur à ranger (voir server/src/scans.js), en bouton au pied de la barre depuis le
+           30/09 : compteur des scans en attente. -->
+      <button type="button" id="tab-scans" class="sidebar-link sidebar-scan-bouton" aria-selected="false" onclick="definirOnglet('scans')">
+        <span class="sidebar-link-icone" id="icon-nav-scans" aria-hidden="true"></span>Claire Scan
+        <span class="sidebar-badge-notif" id="badge-scans" style="display:none;"></span>
+      </button>
       <!-- Remontée des problèmes par les équipes (voir ouvrirSignalement dans script.js) : sur tous
            les écrans, et le signalement part vers l'étude, qui trie et transmet. -->
       <button type="button" class="sidebar-link sidebar-signaler" onclick="ouvrirSignalement()">

@@ -134,3 +134,18 @@ test('emails de relation client : date et heure en gras, lieu selon le type, for
   const auConfrere = app.construireEmailConfirmationRdv(Object.assign({}, d, { notaireAcquereur: 'Maître DUPUIS', rendezVousType: 'confrere' }));
   assert.match(auConfrere.corps, /Je vous confirme .* en votre office/);
 });
+
+test('dureeRendezVous : minutes, heures, heures et minutes ; rien sans fin', () => {
+  assert.equal(app.dureeRendezVous('09:00', '09:30'), '30 min');
+  assert.equal(app.dureeRendezVous('10:00', '11:00'), '1 h');
+  assert.equal(app.dureeRendezVous('14:00', '15:30'), '1 h 30');
+  assert.equal(app.dureeRendezVous('08:00', '10:05'), '2 h 05');
+  assert.equal(app.dureeRendezVous('10:00', null), '');
+  assert.equal(app.dureeRendezVous('10:00', '09:00'), '');
+});
+
+test('jourSuivantAgenda : le dimanche est sauté dans les deux sens', () => {
+  assert.equal(app.jourSuivantAgenda('2026-10-03', 1), '2026-10-05', 'samedi → lundi');
+  assert.equal(app.jourSuivantAgenda('2026-10-05', -1), '2026-10-03', 'lundi → samedi');
+  assert.equal(app.jourSuivantAgenda('2026-10-01', 1), '2026-10-02');
+});
