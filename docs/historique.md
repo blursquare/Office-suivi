@@ -13102,3 +13102,11 @@ détaillé : chacune des écritures EWS prise isolément (déplacement, suppress
 butoir en journée entière, catégories de couleur), le temps et la qualité de l'OCR des scans, le
 démarrage automatique / NSSM, la mise à jour en un clic, le lien signé ouvert depuis Teams, l'icône de
 l'exe, les reçus comptables au-delà des deux PDF fournis. Aucun changement de code.
+
+### 30/09/2026 soir — Retour de tests au bureau (suite)
+
+Message de l'étude : mise à jour en un clic depuis Réglages › Mise à jour, démarrage automatique de
+CLAIRE au lancement du serveur, lien vers une pièce ouvert depuis une notification Teams :
+« fonctionne » pour les trois. Reportés en « Confirmé au bureau » dans CLAUDE.md. Restent non
+vérifiés : chaque écriture EWS prise isolément, OCR des scans (temps, qualité), icône de l'exe,
+reçus comptables au-delà des deux PDF fournis, restauration d'une sauvegarde. Aucun changement de code.
