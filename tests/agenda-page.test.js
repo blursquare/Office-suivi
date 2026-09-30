@@ -180,10 +180,10 @@ test('infosRendezVousDossier : responsable, confrère, appel de fonds et décomp
   const rien = app.infosRendezVousDossier(base);
   assert.equal(rien.responsable, 'Bastien');
   assert.match(rien.confrere, /LEBRUN/);
-  assert.equal(rien.etats.map(x => `${x.cle}:${x.fait}`).join(','), 'appelFonds:false,decompte:false');
+  assert.equal(rien.etats.map(x => `${x.cle}:${x.fait}`).join(','), 'appelFonds:false,decompte:false,projet:false');
 
   const faits = app.infosRendezVousDossier({ ...base, echeancesValidees: { appelFonds: true }, detectionsNas: { appelFondsFichier: 'Comptabilité/Appel de fonds DURAND.pdf' } });
-  assert.equal(faits.etats.map(x => `${x.cle}:${x.fait}`).join(','), 'appelFonds:true,decompte:true');
+  assert.equal(faits.etats.map(x => `${x.cle}:${x.fait}`).join(','), 'appelFonds:true,decompte:true,projet:false');
 
   // Le décompte vaut aussi fait quand le montant attendu a été lu dans un courrier pour les fonds reçus.
   assert.equal(app.decompteAcquereurFait({ fondsRecus: { attenduChemin: 'Comptabilité/Décompte.pdf' } }), true);

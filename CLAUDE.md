@@ -275,7 +275,7 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   téléphone), en-têtes « Lundi / 28 sept. 2026 », colonne du jour teintée, trait de l'heure ; rendez-vous =
   liseré gauche + fond clair de la couleur Outlook, heure de début, de fin et durée (`dureeRendezVous`) ;
   **sur un rendez-vous d'un dossier, comme dans Outlook : responsable (prénom), confrère (`confrereLieuAgenda`),
-  appel de fonds fait (`echeanceValidee`) et décompte acquéreur fait** (`decompteAcquereurFait` : courrier
+  appel de fonds fait (`echeanceValidee`), décompte acquéreur fait et projet envoyé** (`decompteAcquereurFait` : courrier
   d'appel de fonds/décompte trouvé sur le NAS ou lu pour les fonds reçus — choix de l'étude) —
   `infosRendezVousDossier`. Trait rouge de l'heure mis à jour toutes les 30 s (`traitHeureAgenda`, `majTraitHeureAgenda`). Colonne de gauche : mini-calendrier du mois (sans légende des couleurs, étude 30/09) et anticipations ;
   **détail du rendez-vous choisi dans une fenêtre posée sur l'agenda, à côté du rendez-vous cliqué**

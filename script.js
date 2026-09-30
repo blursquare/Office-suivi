@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 23:54';
+  const VERSION_APP = '2026-09-30 23:57';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 23:57', resume: "Agenda : chaque signature montre aussi si le projet d'acte est envoyé (Appel de fonds, Décompte, Projet) ; la probabilité de maintien passe en bas à droite du rendez-vous, sous « Projet », en petit et en gris. Les heures de la grille sont un peu plus hautes pour que tout tienne dans un rendez-vous d'une heure." },
     { version: '2026-09-30 23:54', resume: "Agenda, comme dans Outlook : un clic sur une case vide surligne un créneau d'une heure (à la demi-heure près) ; un double-clic, ou un second clic sur le créneau surligné, ouvre « Nouveau rendez-vous » sur ce créneau, d'une durée d'1 h par défaut. Échap efface le créneau surligné." },
     { version: '2026-09-30 23:48', resume: "Agenda : la probabilité de maintien d'une signature passe en bas à gauche du rendez-vous, plus discrète (petit point de couleur et chiffre en gris, devant appel de fonds et décompte) ; le titre prend toute la largeur de la carte." },
     { version: '2026-09-30 23:46', resume: "Agenda : un clic sur un rendez-vous ouvre son détail dans une fenêtre posée à côté de lui sur l'agenda (plus dans la colonne de gauche) ; elle se ferme par la croix, Échap ou un clic ailleurs. Vue semaine : le nom du dossier s'affiche en entier sur plusieurs lignes, avec en dessous seulement l'heure de début et les initiales du collaborateur (l'heure de fin et la durée restent dans le détail)." },
@@ -18869,7 +18870,9 @@
       confrere: confrereLieuAgenda(d),
       etats: [
         { cle: 'appelFonds', libelle: 'Appel de fonds', fait: echeanceValidee(d, 'appelFonds') },
-        { cle: 'decompte', libelle: 'Décompte', fait: decompteAcquereurFait(d) }
+        { cle: 'decompte', libelle: 'Décompte', fait: decompteAcquereurFait(d) },
+        // Projet d'acte envoyé (étude, 30/09 : la probabilité se lit « sous projet envoyé »).
+        { cle: 'projet', libelle: 'Projet', fait: echeanceValidee(d, 'projetEnvoye') }
       ]
     };
   }
@@ -18887,8 +18890,9 @@
   function lignesTitreEvenement(minutes, avecEtats) {
     if (minutes < 40) return 2;
     if (minutes < 60) return 2;
-    if (minutes < 90) return avecEtats ? 3 : 4;
-    return Math.min(6, Math.floor((minutes / 60 * 80 - 34) / 15));
+    if (minutes < 90) return avecEtats ? 2 : 4;
+    // 90 px par heure (--ag-heure) ; en bas : ligne « 10:00 · BA », états sur 2 lignes et probabilité.
+    return Math.min(6, Math.floor((minutes / 60 * 90 - (avecEtats ? 62 : 34)) / 15));
   }
 
   function renderEvenementSemaine(place, auj) {
@@ -18915,7 +18919,8 @@
         data-cle="${escapeAttr(cle)}" onclick="ouvrirDetailAgenda('${escapeOnclickArg(cle)}')" title="${escapeAttr(bulle)}">
         <span class="ag-evt-titre" style="--lignes:${lignes}">${court ? heure + ' ' : ''}${escapeHtml(e.sujet || '(sans titre)')}</span>
         ${court ? '' : `<span class="ag-evt-meta">${heure}${meta.length ? ` · ${escapeHtml(meta.join(' · '))}` : (e.lieu && !d ? ` · ${escapeHtml(e.lieu)}` : '')}</span>`}
-        ${etats || (proba && !court) ? `<span class="ag-evt-etats">${proba ? renderPastilleProbabilite(proba) : ''}${etats ? renderEtatsRendezVous(infos) : ''}</span>` : ''}
+        ${etats ? `<span class="ag-evt-etats">${renderEtatsRendezVous(infos)}</span>` : ''}
+        ${proba && !court ? renderPastilleProbabilite(proba) : ''}
       </button>`;
   }
 
@@ -18945,7 +18950,8 @@
         <span class="ag-evt-titre">${escapeHtml(e.sujet || '(sans titre)')}</span>
         <span class="ag-evt-heure"><span>${escapeHtml(e.heure)}</span>${e.heureFin ? `<span class="ag-evt-fin">– ${escapeHtml(e.heureFin)}</span>` : ''}${duree ? `<span class="ag-evt-duree">${escapeHtml(duree)}</span>` : ''}</span>
         ${qui ? `<span class="ag-evt-qui">${escapeHtml(qui)}</span>` : (e.lieu ? `<span class="ag-evt-qui">${escapeHtml(e.lieu)}</span>` : '')}
-        ${infos && e.signature ? `<span class="ag-evt-etats">${proba ? renderPastilleProbabilite(proba) : ''}${renderEtatsRendezVous(infos)}</span>` : ''}
+        ${infos && e.signature ? `<span class="ag-evt-etats">${renderEtatsRendezVous(infos)}</span>` : ''}
+        ${proba ? renderPastilleProbabilite(proba) : ''}
       </button>`;
   }
 
@@ -19386,7 +19392,7 @@
         ${e.lieu ? ligne('map-pin', escapeHtml(e.lieu)) : ''}
         ${infos && infos.responsable ? ligne('user', `Responsable : <b>${escapeHtml(infos.responsable)}</b>`) : ''}
         ${infos && infos.confrere ? ligne('users', `Confrère : <b>${escapeHtml(infos.confrere)}</b>`) : ''}
-        ${infos ? `<div class="ag-detail-etats">${renderEtatsRendezVous(infos)}${echeanceValidee(d, 'projetEnvoye') ? `<span class="ag-etat fait">${icone('check')}Projet</span>` : `<span class="ag-etat afaire">${icone('x')}Projet</span>`}</div>` : ''}
+        ${infos ? `<div class="ag-detail-etats">${renderEtatsRendezVous(infos)}</div>` : ''}
         ${d ? `<button type="button" class="primary ag-ouvrir-fiche" onclick="ouvrirDossierDepuisDashboard('${d.id}')">${icone('folder')} Ouvrir la fiche</button>` : ''}
         ${peutSupprimer ? renderNotesRendezVous(e) : ''}
         ${blocProba}

@@ -13436,3 +13436,16 @@ rendez-vous à 9 h, entre 12 h et 14 h et après 18 h, sauf exception ; maximum 
   vérifiées à la création (confirmation d'un créneau exceptionnel).
 - Vérifié dans Chromium : clic moitié basse de 13 h → 13:30 – 14:30 sans ouvrir la création, Échap efface,
   double-clic sur 12 h → création au 02/10 à 12:00, durée 60 min.
+
+### 30/09/2026, soir — Probabilité en bas à droite, sous « Projet »
+
+- Demande de l'étude : « Pastille de probabilité à mettre en bas à droite du rendez-vous, plus discrètement,
+  sous projet envoyé. »
+- `infosRendezVousDossier` gagne l'état `projet` (« Projet », `echeanceValidee(d, 'projetEnvoye')`) : la carte
+  montre Appel de fonds / Décompte / Projet ; la fenêtre de détail ne l'ajoute plus à part (plus de doublon).
+- La pastille (point de couleur + chiffre gris 10 px) est le dernier élément de la carte, sur sa propre
+  ligne, alignée à droite (`align-self: flex-end`, `margin-top: auto`), vues Semaine et Jour.
+- Pour qu'un rendez-vous d'1 h tienne titre (2 lignes) + « 10:00 · BA » + états (2 lignes) + probabilité :
+  heures de la grille à 90 px (`--ag-heure`, 80 avant) ; `lignesTitreEvenement` suit (90 px/h).
+- Essai intermédiaire écarté : pastille en position absolue en bas à droite — elle chevauchait « Projet »
+  dans les colonnes étroites.
