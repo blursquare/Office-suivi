@@ -12600,3 +12600,18 @@ scans. »
 - Réglages › Pièces affiche l'heure exacte de départ sous « Nouveaux scans à partir du ».
 - Non vérifié ici : l'accès réel du serveur au partage `Scan` et son droit d'y écrire (l'original
   y est déplacé dans « CLAIRE - scans rangés »). 1 007 tests client, 506 serveur.
+
+### 30/09/2026 14:16 — Fiche › Prochaine étape : actions rangées sous leur étape
+
+- Signalé par l'étude (capture) : sous « Obtention du prêt — dépassée de 47 j », l'encadré listait
+  « Obtenir la renonciation de préemption », qui ne dépend pas de l'offre de prêt.
+- Cause : `renderProchaineEtapeFiche` mettait toutes les actions du dossier sous l'étape de tête.
+- `actionLieeEtape(a, typeEtape)` (pure, testée) : rattachement par catégorie ; la préemption relève
+  de l'étape « Fixer le rendez-vous » / « Renonciation préemption attendue » ; « Fixer le
+  rendez-vous » et la création du rendez-vous d'agenda relèvent de ces mêmes étapes et de la
+  signature ; la note d'agenda de l'appel de fonds, des étapes d'envoi. Le reste va sous un second
+  intitulé « Aussi à faire » dans le même encadré.
+- Le point « Obtenir la renonciation de préemption » porte le libellé « Droit de préemption » (au
+  lieu de « À décider »), partout où la ligne apparaît (À faire, fiche).
+- Vérifié dans Chromium (bureau et 390 px) avec un dossier inventé : prêt dépassé + butoir dépassé
+  sans renonciation. 1 008 tests client.

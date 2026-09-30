@@ -6377,6 +6377,7 @@ button.lien-action:hover { text-decoration: underline; }
 .prochaine-etape.proche .prochaine-delai { color: var(--pret); }
 .prochaine-etape.urgent .prochaine-delai { color: var(--urgent); }
 .prochaine-etape .ja-liste { border-top: 1px solid var(--line-soft); padding-top: 4px; }
+.prochaine-autres { padding-top: 10px; }
 
 /* ---- Fiche › Échéances : une ligne par étape (voir renderLigneEcheance) ---- */
 .ech-liste { list-style: none; margin: 0; padding: 0; }

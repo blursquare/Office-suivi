@@ -287,3 +287,21 @@ test('projet d’acte (30/09) : email avec rappel du rendez-vous, proposé une f
   assert.equal(sans.geste.type, 'marquer');
   assert.equal(app.libelleCourtGeste(sans), 'Marquer envoyé');
 });
+
+test('fiche › Prochaine étape : la préemption n’est pas rangée sous l’obtention du prêt', () => {
+  // Prêt dépassé, butoir dépassé sans rendez-vous et sans renonciation : deux actions, deux étapes.
+  const d = dossier({ pret: '2026-08-14', acte: '2026-09-15', typeVente: 'maison' });
+  const r = app.actionsDuJour([d], '2026-09-30');
+  const pret = r.actions.find(a => a.type === 'pret');
+  const preemption = r.actions.find(a => /préemption/.test(a.titre));
+  assert.ok(pret && preemption, types(r));
+  assert.strictEqual(preemption.categorieLabel, 'Droit de préemption');
+  assert.strictEqual(app.actionLieeEtape(pret, 'pret'), true);
+  assert.strictEqual(app.actionLieeEtape(preemption, 'pret'), false);
+  // Elle relève de l'étape « Fixer le rendez-vous » (pas de rendez-vous sans elle).
+  assert.strictEqual(app.actionLieeEtape(preemption, 'fixerRdv'), true);
+  assert.strictEqual(app.actionLieeEtape(preemption, 'preemption'), true);
+  assert.strictEqual(app.actionLieeEtape(pret, 'fixerRdv'), false);
+  assert.strictEqual(app.actionLieeEtape({ categorie: 'appelFonds', titre: 'Envoyer l’appel de fonds' }, 'appelFonds'), true);
+  assert.strictEqual(app.actionLieeEtape({ categorie: 'appelFonds', titre: 'Envoyer l’appel de fonds' }, 'pret'), false);
+});

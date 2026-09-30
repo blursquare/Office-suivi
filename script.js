@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 14:03';
+  const VERSION_APP = '2026-09-30 14:16';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 14:16', resume: "Fiche › Prochaine étape : seules les actions liées à l'étape affichée restent dessous (ex. « Relancer l'offre de prêt » sous « Obtention du prêt ») ; les autres, comme la renonciation au droit de préemption, passent sous « Aussi à faire » et portent leur propre libellé (« Droit de préemption » au lieu de « À décider »)." },
     { version: '2026-09-30 14:03', resume: "Scans du copieur : CLAIRE trouve seule le dossier du copieur \\\\192.168.60.5\\Scan (partage à part du NAS, à côté de Commun). Seuls les nouveaux scans sont traités : ceux arrivés après l'activation du classement, à la minute près ; ceux déjà présents dans le dossier Scan ne sont pas touchés." },
     { version: '2026-09-30 13:33', resume: "Scans du copieur : le rangement est désormais automatique, sans validation, pour chaque scan dont la pièce est identifiée et le dossier reconnu avec certitude (option activée d'office, désactivable dans Réglages › Pièces). Il suffit qu'une fenêtre CLAIRE soit ouverte au bureau, celle du poste serveur en priorité. Le score de chaque scan est affiché (partie nommée 3 points, adresse du bien 4, parcelle 5, rangé à partir de 6 avec une marge sur le dossier suivant), ainsi que dans la liste des dossiers et le journal des rangements." },
     { version: '2026-09-30 13:29', resume: "Nouveau : « Scans à ranger » (menu Dossier). CLAIRE lit chaque scan déposé par le copieur dans le dossier « Scan » du NAS, reconnaît le dossier client (parties, adresse du bien ou parcelle) et la pièce (état daté, CU, diagnostics, offre de prêt, compromis, pièce d'identité…), puis range une copie dans la bonne rubrique du dossier sous un nom que la checklist reconnaît : la pièce passe « reçue » toute seule. L'original est gardé dans « Scan/CLAIRE - scans rangés ». À activer dans Réglages › Pièces ; le rangement sans intervention des cas sûrs est une option à part. Au passage, un pré-état daté ne fait plus passer l'état daté « reçu »." },
@@ -12404,19 +12405,34 @@
   // Encadré en tête de l'onglet Échéances : la prochaine échéance du dossier, et en dessous ce qu'il
   // y a à faire maintenant, en lignes d'action (renderLigneActionJour). Rien à faire et rien à venir :
   // pas d'encadré.
+  // Une action de la fiche relève-t-elle de l'étape affichée en tête de l'encadré ? Sinon elle va
+  // sous « Aussi à faire » (étude, 30/09 : la renonciation de préemption rangée sous « Obtention du
+  // prêt » laissait croire qu'elle en dépendait). Rattachement par catégorie ; la préemption relève
+  // de l'étape « Fixer le rendez-vous » (pas de rendez-vous sans elle).
+  function actionLieeEtape(a, typeEtape) {
+    if (!a || !typeEtape) return false;
+    if (/pr[ée]emption/i.test(a.titre || '')) return typeEtape === 'preemption' || typeEtape === 'fixerRdv';
+    if (typeEtape === 'fixerRdv' || typeEtape === 'preemption') return a.categorie === 'rendezVousSignature' || /rendez-vous/i.test(a.titre || '');
+    return a.categorie === typeEtape;
+  }
+
   function renderProchaineEtapeFiche(d) {
     if (!d || d.archive) return '';
     const prochaine = prochaineEcheanceDetail(d);
-    const lignes = actionsFicheDossier(d).map(a => renderLigneActionJour(a, false, true));
+    const lignes = [];
+    const autres = [];
+    actionsFicheDossier(d).forEach(a => {
+      (!prochaine || actionLieeEtape(a, prochaine.type) ? lignes : autres).push(renderLigneActionJour(a, false, true));
+    });
     const creerRdv = renderLigneCreerRdvAgenda(d);
-    if (creerRdv) lignes.push(creerRdv);
+    if (creerRdv) (!prochaine || ['fixerRdv', 'rendezVousSignature'].includes(prochaine.type) ? lignes : autres).push(creerRdv);
     // Échec de la note d'agenda automatique, ou envoi noté par CLAIRE depuis le NAS (le serveur ne
     // l'écrit pas dans l'agenda) : à reprendre, donc à faire.
     const envoiNoteParNas = d.detectionsNas && d.detectionsNas.appelFonds && d.detectionsNas.appelFonds === d.appelFonds && !d.agendaLieuNoteLe;
     // Déjà dans l'agenda (écrit par CLAIRE ou à la main dans Outlook) : plus rien à faire.
     if (((d.agendaLieuEchec && d.agendaLieuEchec.message) || envoiNoteParNas) && !mentionDejaDansAgenda(d)) {
       const ligneAgenda = renderNoterAgenda(d);
-      if (ligneAgenda) lignes.push(ligneAgenda);
+      if (ligneAgenda) (!prochaine || ['appelFonds', 'projetEnvoye'].includes(prochaine.type) ? lignes : autres).push(ligneAgenda);
     }
     if (!prochaine && !lignes.length) return '';
     let tete = '<div class="prochaine-tete"><span class="section-eyebrow">À faire sur ce dossier</span></div>';
@@ -12438,6 +12454,8 @@
     return `<div class="prochaine-etape${ton ? ' ' + ton : ''}">
       ${tete}
       ${lignes.length ? `<ul class="ja-liste">${lignes.join('')}</ul>` : ''}
+      ${autres.length ? `<div class="prochaine-tete prochaine-autres"><span class="section-eyebrow">Aussi à faire</span></div>
+      <ul class="ja-liste">${autres.join('')}</ul>` : ''}
     </div>`;
   }
 
@@ -15863,7 +15881,7 @@
         }
         const slug = normaliserPourRecherche(p.titre).replace(/[^a-z]+/g, '-');
         ajouter({
-          type: 'point-' + slug, categorie: 'neutre', categorieLabel: 'À décider',
+          type: 'point-' + slug, categorie: 'neutre', categorieLabel: /pr[ée]emption/i.test(p.titre) ? 'Droit de préemption' : 'À décider',
           titre: p.titre, contexte: p.detail + '.', jours: p.jours, gravite: p.gravite,
           geste: { type: 'fiche' }, bouton: 'Ouvrir la fiche'
         });
