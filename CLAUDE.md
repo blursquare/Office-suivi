@@ -210,7 +210,9 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
 - **Classeur des scans du copieur** (30/09, `TYPES_SCAN`, `propositionScan`, `server/src/scans.js`) :
   dossier du copieur = **`\\192.168.60.5\Scan`, partage à part** du NAS (étude, 30/09) — trouvé
   comme `\\serveur\Scan` du serveur de `nasRacine` (`partagesScansCandidats`), sinon un dossier
-  « Scan » dans `nasRacine` ou ses parents, ou `nasScans` dans config.json. **Seuls les nouveaux
+  « Scan » dans `nasRacine` ou ses parents, ou `nasScans` dans config.json. **Surveillance de fond dès le démarrage**
+  (`demarrerSurveillanceScans`, tôt dans `demarrerApplication`) : réessai toutes les 20 s tant que le
+  dossier n'est pas trouvé, puis toutes les 2 min ; le serveur retient le dernier dossier trouvé. **Seuls les nouveaux
   scans** : `depuis` = heure exacte de l'activation (les scans déjà présents ne sont jamais touchés),
   ou une date choisie dans les réglages. Lecture dans le navigateur (pdf.js, OCR tesseract.js des 2 premières pages d'un scan
   sans texte). **Type de pièce lu sur le haut de la page 1 seulement** (1 500 caractères), la mention

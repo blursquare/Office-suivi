@@ -260,3 +260,20 @@ test('activation : les scans déjà présents ne sont pas pris, seuls ceux qui a
     fs.rmSync(base2, { recursive: true, force: true });
   }
 });
+
+test('trouverDossierScans : racine d’un partage Windows acceptée avec la barre finale, dernier dossier retenu', async () => {
+  const vus = [];
+  const fauxFs = {
+    stat: async (c) => { vus.push(c); if (c === '\\\\192.168.60.5\\Scan\\') return { isDirectory: () => true }; throw new Error('ENOENT'); },
+    readdir: async () => { throw new Error('ENOENT'); }
+  };
+  const config = { nasRacine: '\\\\192.168.60.5\\Clients\\DOSSIERS' };
+  assert.equal(await trouverDossierScans(config, fauxFs), '\\\\192.168.60.5\\Scan');
+  // Second appel : le dossier retenu est essayé d'abord, sans reparcourir les autres candidats.
+  vus.length = 0;
+  assert.equal(await trouverDossierScans(config, fauxFs), '\\\\192.168.60.5\\Scan');
+  assert.deepEqual(vus, ['\\\\192.168.60.5\\Scan', '\\\\192.168.60.5\\Scan\\']);
+  // Partage devenu injoignable : plus rien de retenu.
+  const vide = { stat: async () => { throw new Error('ENOENT'); }, readdir: async () => { throw new Error('ENOENT'); } };
+  assert.equal(await trouverDossierScans(config, vide), null);
+});

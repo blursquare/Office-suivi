@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 16:35';
+  const VERSION_APP = '2026-09-30 16:38';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 16:38', resume: "Scans du copieur : la surveillance du dossier Scan démarre en arrière-plan dès l'ouverture de CLAIRE, sans passer par les Réglages. Si le dossier n'est pas encore joignable au démarrage (partage réseau pas prêt), CLAIRE réessaie toutes les 20 secondes jusqu'à le trouver, puis relit toutes les 2 minutes." },
     { version: '2026-09-30 16:35', resume: "Fonds reçus : un versement déjà retenu reste compté quand son fichier de reçus est supprimé du commun (icône boîte à côté du montant). Seul un fichier encore présent et relu peut retirer un versement ; un versement conservé peut être retiré à la main (croix), le retrait est noté dans l'historique." },
     { version: '2026-09-30 16:29', resume: "Suivi des dossiers : en-tête aligné sur les autres pages (surtitre « Portefeuille de l'office », titre « Suivi des dossiers » comme dans le menu), « Revérifier tous les dossiers » à côté de « + Nouveau dossier ». Nouvelle répartition des dossiers par statut (Urgent, À relier, Attente de pièces, Complet, Prêt) avec, pour chacun, le plus long retard, la pièce la plus attendue ou la prochaine signature ; un clic sur un statut filtre la liste, un second clic retire le filtre. Les chiffres suivent les filtres de la liste." },
     { version: '2026-09-30 16:24', resume: "Avis de taxe foncière portant sur plusieurs biens : CLAIRE lit chaque bien et sa taxe foncière en page 2 et demande lequel est vendu (présélectionné dans l'appel de fonds quand l'adresse du dossier le désigne). Les frais de gestion de la fiscalité directe locale de l'avis sont répartis au prorata de la taxe de chaque bien (produit en croix) et ajoutés à celle du bien vendu. Appel de fonds et Prorata : les pièces peuvent être glissées sur la ligne des boutons, plusieurs à la fois — leur type est reconnu sur la première page." },
@@ -20472,6 +20473,9 @@
     // bouton « Créer dans l'agenda » doit apparaître, sans attendre l'ouverture des Réglages.
     // Une fois connue, retente les retraits/déplacements de dates butoir restés en attente.
     chargerReglagesExchange().then(reconcilierEcheancesAgenda);
+    // Scans du copieur (voir chargerScans) : dès que les dossiers sont chargés, en tâche de fond —
+    // sans attendre l'état du NAS ni les autres lectures du démarrage.
+    demarrerSurveillanceScans();
     // Absences des collaborateurs lues dans l'agenda (voir chargerAbsencesOffice) : chargées au
     // démarrage pour que l'agenda du tableau de bord les affiche d'emblée, puis rafraîchies au même
     // rythme que le tour serveur (15 min) et à chaque ouverture du tableau de bord.
@@ -20502,8 +20506,6 @@
     majBadgeSignalements();
     setInterval(majBadgeSignalements, 5 * 60 * 1000);
     revérifierDossiersLiesAuDemarrage().catch(e => console.error('Relecture des dossiers NAS', e));
-    // Scans du copieur (voir chargerScans) : au démarrage, puis toutes les 2 minutes.
-    demarrerSurveillanceScans();
     // Résumé des emails du matin : lu au démarrage, puis toutes les 5 minutes (il arrive à 8 h 50).
     chargerResumeEmails();
     setInterval(chargerResumeEmails, 5 * 60 * 1000);
@@ -31884,13 +31886,16 @@
     return (dossiers || []).filter(d => d && !d.archive);
   }
 
-  async function chargerScans() {
-    if (!authToken) return;
+  // `fond` : appel de la surveillance (voir demarrerSurveillanceScans) — la lecture des scans (OCR,
+  // parfois plusieurs minutes) part sans être attendue, pour que la liste continue d'être relue.
+  // Rend vrai quand le dossier du copieur est trouvé et lu.
+  async function chargerScans(fond) {
+    if (!authToken) return false;
     try {
       const r = await fetchAvecAuth('/api/scans');
-      if (!r.ok) return;
+      if (!r.ok) return false;
       etatScans = Object.assign(etatScans, await r.json(), { charge: true });
-    } catch (e) { return; }
+    } catch (e) { return false; }
     majBadgeScans();
     // Carte « Dernières pièces » du tableau de bord : scans à ranger et rangés à jour.
     if (ongletActuel === 'dashboard') {
@@ -31904,7 +31909,11 @@
     Object.keys(lecturesScans).forEach(k => { if (!presents.has(k)) delete lecturesScans[k]; });
     const visible = ongletActuel === 'scans';
     if (visible) renderScans();
-    if (visible || rangementAutoScansActif()) await lireScansEnAttente();
+    if (visible || rangementAutoScansActif()) {
+      const lecture = lireScansEnAttente();
+      if (fond === true) lecture.catch(e => console.error('Lecture des scans', e)); else await lecture;
+    }
+    return !!etatScans.configure;
   }
 
   // Scans qui attendent quelqu'un : tous ceux du dossier Scan, sauf ceux que cette fenêtre est en
@@ -31942,11 +31951,20 @@
     burger.classList.toggle('a-notif', !!document.querySelector('.sidebar-link.a-notif'));
   }
 
+  // Surveillance de fond, lancée au démarrage sans rien ouvrir (étude, 30/09 : « obligé d'aller dans
+  // les réglages pour que le scan se relie au dossier Scan ») : toutes les 2 minutes une fois le
+  // dossier du copieur trouvé ; tant qu'il ne l'est pas (partage réseau pas encore joignable au
+  // démarrage du poste, serveur qui redémarre), nouvel essai toutes les 20 secondes.
+  var DELAI_REESSAI_SCANS = 20 * 1000;
   function demarrerSurveillanceScans() {
     if (surveillanceScansLancee) return;
     surveillanceScansLancee = true;
-    chargerScans();
-    setInterval(chargerScans, DELAI_SURVEILLANCE_SCANS);
+    const tour = async () => {
+      let relie = false;
+      try { relie = await chargerScans(true); } catch (e) { relie = false; }
+      setTimeout(tour, relie ? DELAI_SURVEILLANCE_SCANS : DELAI_REESSAI_SCANS);
+    };
+    tour();
   }
 
   // Lit un scan : texte de page 1 à part (le type s'y lit), texte des premières pages (le dossier),

@@ -12860,3 +12860,22 @@ supprimé faisait retomber le total, et « Tous les fonds sont reçus » pouvait
   noté dans l'historique du dossier. Vérifié dans Chromium avec un dossier inventé.
 - Limite connue : un versement conservé n'est plus recontrôlé si la règle de rapprochement change
   (`REGLE_RAPPROCHEMENT_RECUS`) — faute de fichier, il reste tel quel jusqu'au retrait à la main.
+
+### 30/09 16:38 — Scans : surveillance en arrière-plan dès le démarrage
+
+Retour de l'étude : « j'ai été obligé d'aller dans les réglages pour que le scan se relie au dossier
+Scan — mets-le en arrière-plan au démarrage ». La surveillance existait (`demarrerSurveillanceScans`)
+mais : elle partait en dernier dans `demarrerApplication`, après l'état du NAS et les autres
+lectures du démarrage (tous attendus) ; et un premier essai raté — dossier du copieur pas encore
+joignable quand le poste démarre — n'était retenté que 2 minutes plus tard, alors que l'ouverture des
+Réglages relançait aussitôt `chargerScans` (d'où l'impression qu'il fallait y passer). Cause exacte au
+bureau non observée ; corrections :
+- lancement juste après le chargement des dossiers, sans attendre le reste ;
+- tant que le dossier Scan n'est pas trouvé ou que la requête échoue, nouvel essai toutes les 20 s,
+  puis toutes les 2 min une fois relié (boucle `setTimeout` au lieu d'un `setInterval` fixe) ;
+- `chargerScans(true)` (appel de fond) n'attend plus la lecture/OCR des scans : la liste continue
+  d'être relue pendant un long OCR ;
+- serveur (`server/src/scans.js`) : le dernier dossier trouvé est retenu et essayé d'abord ; la racine
+  d'un partage Windows (`\\serveur\Scan`) est aussi essayée avec la barre finale, que `stat` exige
+  parfois. Vérifié dans Chromium : dossier créé 3 s après l'ouverture, relié ~20 s plus tard sans
+  quitter le tableau de bord. Test serveur ajouté.

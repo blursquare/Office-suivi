@@ -61,13 +61,31 @@ function partagesScansCandidats(racine) {
 }
 
 async function estDossier(chemin, fsImpl) {
-  try { return (await fsImpl.stat(chemin)).isDirectory(); } catch (_) { return false; }
+  try { return (await fsImpl.stat(chemin)).isDirectory(); } catch (_) { /* essai suivant */ }
+  // Racine d'un partage réseau (« \\serveur\Scan ») : sous Windows, stat peut la refuser sans la
+  // barre finale et l'accepter avec.
+  if (/^\\\\[^\\]+\\[^\\]+$/.test(String(chemin))) {
+    try { return (await fsImpl.stat(chemin + '\\')).isDirectory(); } catch (_) { return false; }
+  }
+  return false;
 }
+
+// Dernier dossier du copieur trouvé : essayé d'abord, pour ne pas reparcourir les candidats à
+// chaque relecture (toutes les 2 minutes par fenêtre CLAIRE ouverte).
+let dernierDossierScans = null;
 
 // Le dossier Scan : `config.nasScans` s'il est renseigné (config.json, réservé à l'administrateur
 // du poste), sinon le partage `\\serveur\Scan` du même NAS, sinon le premier dossier nommé « Scan »
 // dans la racine des dossiers clients ou l'un de ses parents. Jamais un chemin reçu d'une requête.
 async function trouverDossierScans(config, fsImpl = fsp) {
+  const cle = JSON.stringify([config && config.nasScans, config && config.nasRacine]);
+  if (dernierDossierScans && dernierDossierScans.cle === cle && await estDossier(dernierDossierScans.chemin, fsImpl)) return dernierDossierScans.chemin;
+  const trouve = await chercherDossierScans(config, fsImpl);
+  dernierDossierScans = trouve ? { cle, chemin: trouve } : null;
+  return trouve;
+}
+
+async function chercherDossierScans(config, fsImpl) {
   if (config && config.nasScans) {
     return (await estDossier(config.nasScans, fsImpl)) ? path.resolve(config.nasScans) : null;
   }
