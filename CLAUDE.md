@@ -46,6 +46,7 @@ server/                              Serveur (son propre package.json ; le packa
   src/ouvertureAuto.js               Installateur du relais « claire-ouvrir: » (ouverture auto des téléchargements)
   src/jobs/rappels.js                Rappels par email (miroir serveur du planning client)
   src/nas.js, nasWatch.js            Lecture du NAS par le serveur, surveillance périodique
+  src/scans.js, routes/scans.js      Classeur des scans du copieur (dossier « Scan » → dossiers clients)
   src/agendaOffice.js, agendaWatch.js  Lecture de l'agenda de l'office (EWS, toutes les 15 min)
   src/exchange/ews.js                Écriture dans l'agenda Outlook (EWS/NTLM)
   src/relecture/{claude,mistral}.js  Relecture d'actes par API (prompt, schéma, vérification)
@@ -75,7 +76,11 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
    collaborateur du poste est choisi une fois (`localStorage`), ses préférences vivent en base.
 3. **Le serveur lit le NAS** (`config.nasRacine`, jamais devinée). L'API File System Access du
    navigateur est abandonnée : elle n'existe pas sur une adresse IP. Chemins confinés à la racine
-   (`resoudreCheminNas`, liens symboliques résolus avant contrôle, PDF seulement). Tout accès disque
+   (`resoudreCheminNas`, liens symboliques résolus avant contrôle, PDF seulement). **Seule écriture
+   sur le NAS : le classeur des scans** (accord de l'étude du 30/09) — une COPIE dans le dossier
+   client (`COPYFILE_EXCL`, « Nom (2).pdf » plutôt qu'écraser), l'original déplacé dans
+   « Scan/CLAIRE - scans rangés/AAAA-MM », jamais supprimé ; nom de scan = simple nom de fichier,
+   dossier client confiné par `resoudreCheminNas`. Tout accès disque
    est **asynchrone** : un appel `*Sync` dans un chemin de requête fige tout le serveur (Node est
    mono-thread — la cause des « coupures » passées). Une route `async` doit rattraper ses erreurs
    (`routeAsync()` dans `routes/nas.js`) : Express 4 ne rattrape pas une promesse rejetée, la
@@ -183,6 +188,22 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   de compte client JurisWeb (`analyserReleveCompteClient`, colonne Débit/Crédit par position des
   items) → acomptes sur prix et sur frais versés à l'étude, qui **remplacent** la ligne d'acompte du
   dossier (même somme), reversements au confrère signalés. Rien n'est enregistré sur le dossier.
+- **Classeur des scans du copieur** (30/09, `TYPES_SCAN`, `propositionScan`, `server/src/scans.js`) :
+  le dossier « Scan » est cherché sous ce nom dans `nasRacine` puis ses parents (ou `nasScans` dans
+  config.json). Lecture dans le navigateur (pdf.js, OCR tesseract.js des 2 premières pages d'un scan
+  sans texte). **Type de pièce lu sur le haut de la page 1 seulement** (1 500 caractères), la mention
+  la plus haute l'emporte ; un acte notarié (« L'AN DEUX MILLE… ») est une promesse/un compromis s'il
+  le dit, sinon un titre de propriété — jamais compter les mots de tout le document (un compromis cite
+  toutes les pièces : le script Python d'origine classait 5 états datés sur 5 en « règlement »).
+  **Dossier** : partie nommée (tous ses mots, ou nom d'usage + prénom) 3 pts, deux au plus ; voie de
+  l'adresse du bien 4 ; parcelle 5 ; sûr à 6 et ×1,3 devant le second, sinon suggestion. **Copie
+  nommée du libellé de la pièce de la checklist** (« État daté - scan du JJ-MM-AAAA ») pour que le
+  parcours du NAS la coche seul ; « Compromis signé » / « Promesse de vente signée » pour
+  `choisirAvantContratNas`. **Rubrique retrouvée par son nom** (`RUBRIQUES_SCANS`, numéro ignoré),
+  racine du dossier à défaut ; pièce d'identité / état civil / RIB → Vendeur ou Acquéreur selon la
+  partie reconnue. Rangement automatique (réglage séparé) : cas sûrs seulement, depuis la fenêtre
+  CLAIRE du poste serveur (`localhost`), jamais retenté seul après un échec. Un pré-état daté n'est
+  pas un état daté (checklist corrigée le même jour).
 - **Mobilier** : le prix reste le prix total ; `d.prixMobilier` sort seulement de l'assiette des
   droits (frais d'acte, contrôle du barème).
 - **Prorata** : jours réels, jour de l'acte à la charge de l'acquéreur, arrondi du vendeur par
@@ -335,6 +356,13 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   **À confirmer par l'étude** : exclusion de la cotisation au fonds de travaux du prorata de charges
   (choix par défaut, décochable). Piste : reporter le fonds de travaux lu dans l'état daté trouvé sur
   le NAS sur la fiche (`d.fondsTravaux.montant`) — aujourd'hui l'outil Appel de fonds n'écrit rien.
+- **Classeur des scans** : **à confirmer par l'étude** — la rubrique de chaque type (urbanisme et
+  entretien en « AAE » d'après l'arborescence, avis de taxe foncière à la racine faute de rubrique,
+  voir `TYPES_SCAN`) ; **non vérifié au bureau** — détection du dossier « Scan » sur le vrai NAS,
+  droits d'écriture du compte qui fait tourner le serveur sur les dossiers clients, OCR des scans
+  du copieur Toshiba (temps, qualité), volume quotidien. Le script Python fourni
+  (`claire-classeur-scans`) n'est pas repris : il visait une autre application (Electron,
+  arborescence et numérotation inventées) et se trompait de type sur les pièces réelles.
 - **Banc d'essai d'extraction** : cadré dans `docs/spec-banc-essai-extraction.md`, délégué, pas
   encore engagé.
 - **Relecture d'actes** : non vérifiée avec une vraie clé API (qualité, durée, coût, contradictions)

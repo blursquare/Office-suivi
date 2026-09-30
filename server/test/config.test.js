@@ -45,8 +45,16 @@ test('config.json déjà présent (ancien jeton calendrier compris) : reprend to
 
   // `nasRacine` vide : jamais générée automatiquement, contrairement au mot de passe — seule
   // l'étude sait où sont ses dossiers clients (voir src/nas.js). L'ancien jeton est ignoré.
-  assert.deepEqual(resultat, { motDePasse: 'abc123', port: 4000, nasRacine: '', authActive: false, genere: false });
+  assert.deepEqual(resultat, { motDePasse: 'abc123', port: 4000, nasRacine: '', nasScans: '', authActive: false, genere: false });
   assert.deepEqual(fs.ecritures, {}); // aucune écriture quand la config existe déjà au complet
+});
+
+test('config.json : « nasScans » (dossier Scan du copieur) est repris quand il est renseigné', () => {
+  const fs = creerFsFictif({
+    '/exe/config.json': JSON.stringify({ authPassword: 'abc123', nasRacine: '\\\\NAS\\Commun\\DOSSIERS', nasScans: '\\\\NAS\\Commun\\Scan' })
+  });
+  const resultat = resoudreConfigExecutable('/exe', fs);
+  assert.equal(resultat.nasScans, '\\\\NAS\\Commun\\Scan');
 });
 
 test('config.json présent sans port : replie sur 3000 par défaut', () => {

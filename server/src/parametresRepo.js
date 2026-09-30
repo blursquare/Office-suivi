@@ -601,6 +601,39 @@ function assainirDernierTourAgenda(brut) {
 // Seulement l'expéditeur, l'objet, l'heure et les sujets repérés — jamais le corps d'un email.
 const CLE_RESUME_EMAILS = 'resume-emails-matin';
 
+// Classeur des scans du copieur (30/09, voir scans.js) : réglages, journal des rangements et scans
+// écartés (laissés dans Scan sans les ranger). `depuis` borne les scans proposés : le dossier Scan
+// contient tout l'historique du copieur, qu'il ne faut pas brasser à l'activation.
+const CLE_SCANS_REGLAGES = 'scans-reglages';
+const CLE_SCANS_JOURNAL = 'scans-journal';
+const CLE_SCANS_ECARTES = 'scans-ecartes';
+const MAX_SCANS_JOURNAL = 300;
+const MAX_SCANS_ECARTES = 500;
+function assainirReglagesScans(brut) {
+  const b = brut && typeof brut === 'object' ? brut : {};
+  const depuis = typeof b.depuis === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(b.depuis) ? b.depuis : null;
+  return { actif: b.actif === true, auto: b.auto === true, depuis };
+}
+function assainirEntreeJournalScans(e) {
+  if (!e || typeof e !== 'object') return null;
+  const txt = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
+  if (!txt(e.nom, 255) || !txt(e.date, 40)) return null;
+  return {
+    date: txt(e.date, 40), nom: txt(e.nom, 255), chemin: txt(e.chemin, 600), dossierId: txt(e.dossierId, 80),
+    dossier: txt(e.dossier, 200), type: txt(e.type, 80), rubrique: txt(e.rubrique, 200), original: txt(e.original, 400),
+    auteur: txt(e.auteur, 80), auto: e.auto === true
+  };
+}
+function assainirJournalScans(brut) {
+  return (Array.isArray(brut) ? brut : []).map(assainirEntreeJournalScans).filter(Boolean).slice(0, MAX_SCANS_JOURNAL);
+}
+function assainirScansEcartes(brut) {
+  return (Array.isArray(brut) ? brut : [])
+    .filter((e) => e && typeof e.nom === 'string' && e.nom && typeof e.date === 'string')
+    .map((e) => ({ nom: e.nom.slice(0, 255), date: e.date.slice(0, 40), auteur: typeof e.auteur === 'string' ? e.auteur.slice(0, 80) : '' }))
+    .slice(0, MAX_SCANS_ECARTES);
+}
+
 // Carnet des confrères (voir carnetConfreres.js). Absent = jamais ouvert : il part alors du relevé
 // de l'annuaire du 41, écrit en base à la première lecture pour que les postes partagent la même liste.
 const CLE_CARNET_CONFRERES = 'carnet-confreres';
@@ -903,6 +936,18 @@ function creerRepoParametres(db) {
     return propre;
   }
 
+  function lireJson(cle, assainir, defaut) {
+    const ligne = lireStmt.get(cle);
+    if (!ligne) return defaut;
+    try { return assainir(JSON.parse(ligne.valeur)); } catch (e) { return defaut; }
+  }
+  function lireReglagesScans() { return lireJson(CLE_SCANS_REGLAGES, assainirReglagesScans, assainirReglagesScans({})); }
+  function ecrireReglagesScans(r) { const p = assainirReglagesScans(r); ecrireStmt.run(CLE_SCANS_REGLAGES, JSON.stringify(p)); return p; }
+  function lireJournalScans() { return lireJson(CLE_SCANS_JOURNAL, assainirJournalScans, []); }
+  function ecrireJournalScans(j) { const p = assainirJournalScans(j); ecrireStmt.run(CLE_SCANS_JOURNAL, JSON.stringify(p)); return p; }
+  function lireScansEcartes() { return lireJson(CLE_SCANS_ECARTES, assainirScansEcartes, []); }
+  function ecrireScansEcartes(l) { const p = assainirScansEcartes(l); ecrireStmt.run(CLE_SCANS_ECARTES, JSON.stringify(p)); return p; }
+
   function lireResumeEmails() {
     const ligne = lireStmt.get(CLE_RESUME_EMAILS);
     if (!ligne) return null;
@@ -931,6 +976,7 @@ function creerRepoParametres(db) {
   }
 
   return {
+    lireReglagesScans, ecrireReglagesScans, lireJournalScans, ecrireJournalScans, lireScansEcartes, ecrireScansEcartes,
     lireCarnetConfreres, ecrireCarnetConfreres,
     lireResumeEmails, ecrireResumeEmails,
     lireReglagesMiseAJour, ecrireReglagesMiseAJour,
@@ -954,5 +1000,6 @@ module.exports = {
   assainirReglagesClaude, assainirReglagesMiseAJour, MODELES_CLAUDE, MODELE_CLAUDE_PAR_DEFAUT,
   assainirReglagesExchange, assainirCategoriesRdv, CATEGORIES_RDV_DEFAUT, URL_EWS_DEFAUT, assainirCategoriesAgenda,
   assainirDernierTourAgenda, assainirAbsenceAgenda, assainirAbsencesAgenda,
-  REGLAGES_PAR_DEFAUT, PORT_SMTP_PAR_DEFAUT, assainirResumeEmails
+  REGLAGES_PAR_DEFAUT, PORT_SMTP_PAR_DEFAUT, assainirResumeEmails,
+  assainirReglagesScans, assainirJournalScans, assainirScansEcartes
 };

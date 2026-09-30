@@ -76,6 +76,7 @@ function resoudreConfigExecutable(dossierExe, fsImpl = fs) {
       // passe — seule l'étude sait où sont ses dossiers clients. Absente =
       // fonctionnalité désactivée avec un message explicite, jamais un chemin deviné.
       nasRacine: brut.nasRacine || '',
+      nasScans: brut.nasScans || '',
       authActive: brut.authActive === true,
       genere: false
     };
@@ -102,6 +103,7 @@ let motDePasse = process.env.AUTH_PASSWORD || '';
 let port = parseInt(process.env.PORT || '3000', 10);
 let cheminDb = process.env.CLAIRE_DB_PATH || path.join(__dirname, '..', 'data', 'claire.db');
 let nasRacine = process.env.NAS_RACINE || '';
+let nasScans = process.env.NAS_SCANS || '';
 // Accès sans mot de passe par défaut (demandé par l'étude, 25/09) : le serveur n'est joignable que
 // depuis le réseau du bureau. Réactivable par CLAIRE_AUTH=1 (développement) ou "authActive": true
 // dans config.json (exécutable).
@@ -113,6 +115,7 @@ if (!motDePasse && estSea()) {
   motDePasse = resolu.motDePasse;
   port = resolu.port;
   nasRacine = nasRacine || resolu.nasRacine;
+  nasScans = nasScans || resolu.nasScans || '';
   authActive = authActive || resolu.authActive === true;
   cheminDb = path.join(dossierExe, 'data', 'claire.db');
   if (resolu.genere && authActive) {
@@ -136,6 +139,9 @@ const config = {
   // tous les postes du bureau (voir nas.js). Vide = fonctionnalité désactivée, signalée comme
   // telle dans l'interface plutôt que silencieusement inopérante.
   nasRacine,
+  // Dossier « Scan » du copieur (classeur des scans, voir scans.js). Facultatif : vide, il est
+  // cherché sous le nom « Scan » dans la racine ci-dessus puis dans ses dossiers parents.
+  nasScans,
   smtp: {
     host: process.env.SMTP_HOST || '',
     port: parseInt(process.env.SMTP_PORT || '587', 10),

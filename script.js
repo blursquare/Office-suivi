@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 09:44';
+  const VERSION_APP = '2026-09-30 13:29';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 13:29', resume: "Nouveau : « Scans à ranger » (menu Dossier). CLAIRE lit chaque scan déposé par le copieur dans le dossier « Scan » du NAS, reconnaît le dossier client (parties, adresse du bien ou parcelle) et la pièce (état daté, CU, diagnostics, offre de prêt, compromis, pièce d'identité…), puis range une copie dans la bonne rubrique du dossier sous un nom que la checklist reconnaît : la pièce passe « reçue » toute seule. L'original est gardé dans « Scan/CLAIRE - scans rangés ». À activer dans Réglages › Pièces ; le rangement sans intervention des cas sûrs est une option à part. Au passage, un pré-état daté ne fait plus passer l'état daté « reçu »." },
     { version: '2026-09-30 09:44', resume: "Appel de fonds (décompte établi par l'office) : trois pièces à déposer en plus de l'avis de taxe foncière — l'appel de charges du syndic (prorata de charges du jour du rendez-vous à la fin de la période, hors cotisation au fonds de travaux), l'état daté (montant du fonds de travaux attaché au lot, repris si l'avant-contrat prévoit son remboursement) et le relevé de compte client (sommes déjà versées à l'étude, reversements au confrère signalés). Prorata : « Lire un appel de charges » remplit le montant et la période. Avis de taxe foncière : le montant est lu en page 1 et contrôlé en bas de page 2 (l'avis 2026 fourni n'était plus lu)." },
     { version: '2026-09-30 09:30', resume: "Tableau de bord, carte Avancement en détail : la jauge et le pourcentage sont alignés sous le badge d'état, quelle que soit sa largeur." },
     { version: '2026-09-30 09:24', resume: "Projet d'acte : dans Échanges, un email « Envoyer le projet d'acte » prêt dans Outlook (le projet s'y joint) qui rappelle la date et l'heure du rendez-vous de signature ; l'envoi note la date, valide l'échéance et l'inscrit dans l'agenda comme pour l'appel de fonds. Dans Échéances, un bouton « Projet envoyé » valide l'envoi d'un clic (envoi fait hors de CLAIRE). Le texte de cet email est un premier jet, à remplacer par celui de l'étude." },
@@ -13708,6 +13709,7 @@
     document.getElementById('onglet-aujourdhui').style.display = nom === 'aujourdhui' ? '' : 'none';
     document.getElementById('onglet-nouveau').style.display = nom === 'nouveau' ? '' : 'none';
     document.getElementById('onglet-suivi').style.display = nom === 'suivi' ? '' : 'none';
+    document.getElementById('onglet-scans').style.display = nom === 'scans' ? '' : 'none';
     document.getElementById('onglet-calculateur').style.display = nom === 'calculateur' ? '' : 'none';
     document.getElementById('onglet-prorata').style.display = nom === 'prorata' ? '' : 'none';
     document.getElementById('onglet-appel-fonds').style.display = nom === 'appel-fonds' ? '' : 'none';
@@ -13719,6 +13721,7 @@
     document.getElementById('tab-dashboard').setAttribute('aria-selected', String(nom === 'dashboard'));
     document.getElementById('tab-aujourdhui').setAttribute('aria-selected', String(nom === 'aujourdhui'));
     document.getElementById('tab-suivi').setAttribute('aria-selected', String(nom === 'suivi'));
+    document.getElementById('tab-scans').setAttribute('aria-selected', String(nom === 'scans'));
     document.getElementById('tab-calculateur').setAttribute('aria-selected', String(nom === 'calculateur'));
     document.getElementById('tab-prorata').setAttribute('aria-selected', String(nom === 'prorata'));
     document.getElementById('tab-appel-fonds').setAttribute('aria-selected', String(nom === 'appel-fonds'));
@@ -13730,6 +13733,7 @@
     document.getElementById('tab-dashboard').classList.toggle('actif', nom === 'dashboard');
     document.getElementById('tab-aujourdhui').classList.toggle('actif', nom === 'aujourdhui');
     document.getElementById('tab-suivi').classList.toggle('actif', nom === 'suivi');
+    document.getElementById('tab-scans').classList.toggle('actif', nom === 'scans');
     document.getElementById('tab-calculateur').classList.toggle('actif', nom === 'calculateur');
     document.getElementById('tab-prorata').classList.toggle('actif', nom === 'prorata');
     document.getElementById('tab-appel-fonds').classList.toggle('actif', nom === 'appel-fonds');
@@ -13753,10 +13757,11 @@
     // installé/démarré/arrêté sur le serveur depuis la dernière visite de cet onglet.
     // Réglages relus à chaque ouverture (un collègue a pu les modifier depuis un autre poste,
     // même principe que la disponibilité d'Ollama ci-dessus).
-    if (nom === 'reglages') { definirSousOngletReglages(sousOngletReglagesRetenu()); chargerReglages(); chargerReglagesClaude(); chargerReglagesExchange(); chargerSignalements(); renderReglagesSignatureImages(true); }
+    if (nom === 'reglages') { renderReglagesScans(); chargerScans().then(renderReglagesScans); definirSousOngletReglages(sousOngletReglagesRetenu()); chargerReglages(); chargerReglagesClaude(); chargerReglagesExchange(); chargerSignalements(); renderReglagesSignatureImages(true); }
     if (nom === 'analyse-ia') initRelecture();
     // Date du jour et bornes de période posées au premier affichage seulement (voir initProrata).
     if (nom === 'prorata') initProrata();
+    if (nom === 'scans') initScans();
     // Date du jour, tableau vierge et chargement du modèle Word au premier affichage (voir
     // initAppelFonds) — puis seulement le chargement du modèle aux visites suivantes.
     if (nom === 'appel-fonds') initAppelFonds();
@@ -19721,6 +19726,8 @@
     majBadgeSignalements();
     setInterval(majBadgeSignalements, 5 * 60 * 1000);
     revérifierDossiersLiesAuDemarrage().catch(e => console.error('Relecture des dossiers NAS', e));
+    // Scans du copieur (voir chargerScans) : au démarrage, puis toutes les 2 minutes.
+    demarrerSurveillanceScans();
     // Résumé des emails du matin : lu au démarrage, puis toutes les 5 minutes (il arrive à 8 h 50).
     chargerResumeEmails();
     setInterval(chargerResumeEmails, 5 * 60 * 1000);
@@ -21383,7 +21390,9 @@
     { cle: 'titrePropriete', label: 'Titre de propriété', motifNom: /titre(?:\s+de\s+propri[ée]\s?t[ée]\s?|\s+vendeur)?/i }
   ];
   var PIECES_COPROPRIETE = [
-    { cle: 'etatDate', label: 'État daté', motifNom: /[ée]tat\s+dat[ée]/i },
+    // Un pré-état daté n'est pas un état daté (voir RE_PRE_ETAT_DATE) : « Pré-état daté.pdf » ne
+    // doit pas faire passer l'état daté « reçu » (corrigé le 30/09 avec le classeur des scans).
+    { cle: 'etatDate', label: 'État daté', motifNom: /(?<!pr[ée][\s-]*)[ée]tat\s+dat[ée]/i },
     { cle: 'article20', label: 'Article 20-II', motifNom: /article\s*20[\s.-]*(?:ii|2)\b/i },
     { cle: 'ribCopro', label: 'RIB de la copropriété', motifNom: /\bRIB\b[^\n]{0,50}(?:copropri[ée]t[ée]|syndic)|(?:copropri[ée]t[ée]|syndic)[^\n]{0,50}\bRIB\b/i }
   ];
@@ -21594,6 +21603,8 @@
       return correspondFormeNom(piece.label, tokensNomFichier(nomNormalise)) ? 'approche' : null;
     }
     if (piece.motifNom && piece.motifNom.test(nomNormalise)) return 'exact';
+    // « Pré-état daté » contient les mots « état daté » : la forme tolérante le prendrait.
+    if (piece.cle === 'etatDate' && RE_PRE_ETAT_DATE.test(nomNormalise)) return null;
     const formes = FORMES_NOM_PIECES[piece.cle];
     if (!formes) return null;
     const tokens = tokensNomFichier(nomNormalise);
@@ -30609,6 +30620,581 @@
     }
   }
 
+  // ==== CLASSEUR DES SCANS DU COPIEUR (30/09) ====
+  // Tous les scans du copieur arrivent dans UN dossier « Scan » à la racine du NAS. CLAIRE les lit
+  // (pdf.js, OCR tesseract.js pour un scan sans texte), reconnaît le dossier client et le type de
+  // pièce, puis demande au serveur de ranger une COPIE dans la bonne rubrique du dossier client
+  // (l'original part dans l'archive du dossier Scan, voir server/src/scans.js).
+  //
+  // Deux leçons déjà payées, appliquées ici :
+  //  - le type de pièce se lit sur le HAUT DE LA PREMIÈRE PAGE seulement (comme le titre d'une offre
+  //    de prêt) : un compromis ou un état daté cite toutes les autres pièces, compter des mots-clés
+  //    sur tout le document les mélange (essai du script Python fourni : 5 états datés sur 5 pris
+  //    pour un règlement de copropriété) ;
+  //  - la copie porte un nom que la checklist de CLAIRE reconnaît (le libellé même de la pièce), pour
+  //    que la pièce passe « reçue » au parcours suivant du NAS, sans rien à cocher.
+  // Tout ce bloc jusqu'à « fin du socle pur des scans » est pur (testé dans tests/scans.test.js).
+
+  // Texte comparable : minuscules, sans accents, apostrophes droites, espaces simples. Pure.
+  function texteNormaliseScan(texte) {
+    return String(texte || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+      .replace(/[’`´]/g, "'").replace(/\s+/g, ' ').trim();
+  }
+  // Même texte réduit aux lettres et chiffres, bordé d'espaces : un mot entier se teste par
+  // `includes(' mot ')`, sans les pièges de \b sur les lettres accentuées. Pure.
+  function texteMotsScan(texte) {
+    return ' ' + texteNormaliseScan(texte).replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
+  }
+
+  // Longueur du « haut de la première page » où se lit le type de pièce : assez pour passer
+  // l'en-tête d'un courrier (« Objet : … ») ou le préambule d'un acte (« L'AN DEUX MILLE… Maître…
+  // a reçu le présent acte… PROMESSE UNILATÉRALE DE VENTE »), pas assez pour atteindre le corps.
+  var LONGUEUR_ENTETE_SCAN = 1500;
+
+  // Types de pièces reconnus sur le haut de la première page, DANS L'ORDRE (le premier qui
+  // correspond l'emporte : les plus spécifiques d'abord). `piece` = clé de la checklist quand la
+  // copie doit la faire passer « reçue » (son libellé sert alors de nom de fichier) ; `rubriques`
+  // = rubriques du dossier client essayées dans l'ordre (voir RUBRIQUES_SCANS côté serveur), la
+  // racine du dossier à défaut ; `parPartie` = la rubrique dépend de la partie nommée (vendeur ou
+  // acquéreur). Motifs écrits sur des en-têtes réels (voir tests/scans.test.js) ; « à confirmer
+  // par l'étude » pour la rubrique de chaque type (arborescence reçue le 19/09, usage non précisé).
+  var TYPES_SCAN = [
+    { cle: 'preEtatDate', label: 'Pré-état daté', motif: /pre[- ]?etat date/, rubriques: ['preEtatDate', 'copro'] },
+    { cle: 'etatDate', label: 'État daté', piece: 'etatDate', motif: /etat date|immeuble sis a .{0,300}coproprietaire cedant/, rubriques: ['etatDate', 'copro'] },
+    { cle: 'article20', label: 'Article 20-II', piece: 'article20', motif: /certificat (de l'|prevu (a|par) l')?article 20|article 20[ -]*(ii|2) /, rubriques: ['etatDate', 'copro'] },
+    // Nommé « Compromis signé » : c'est le mot que choisirAvantContratNas cherche dans le nom d'un
+    // fichier du dossier quand l'avant-contrat n'a pas été importé par CLAIRE (« promesse » aussi).
+    { cle: 'promesse', label: 'Promesse de vente signée', motif: /promesse (unilaterale |synallagmatique )?de vente|promesse d'achat/, rubriques: ['sru'] },
+    { cle: 'avantContrat', label: 'Compromis signé', motif: /compromis de vente|vente .{0,80}sous conditions? suspensives?|entre les soussignes|information prealable .{0,200}avant[- ]contrat/, rubriques: ['sru'] },
+    { cle: 'certificatUrbanisme', label: "Certificat d'urbanisme", piece: 'certificatUrbanisme', motif: /certificat d'urbanisme|note de renseignements d'urbanisme/, rubriques: ['aae'] },
+    { cle: 'alignementNumerotage', label: "Certificat d'alignement et de numérotage", piece: 'certificatAlignement', piecesAussi: ['certificatNumerotage'], motif: /alignement.{0,80}numerotage|numerotage.{0,80}alignement/, rubriques: ['aae'] },
+    { cle: 'certificatAlignement', label: "Certificat d'alignement", piece: 'certificatAlignement', motif: /alignement/, rubriques: ['aae'] },
+    { cle: 'certificatNumerotage', label: 'Certificat de numérotage', piece: 'certificatNumerotage', motif: /numerotage/, rubriques: ['aae'] },
+    { cle: 'renonciationPreemption', label: 'Renonciation au droit de préemption', piece: 'renonciationPreemption', motif: /preemption|intention d'aliener/, rubriques: ['aae'] },
+    { cle: 'reponseAssainissement', label: 'Courrier réponse assainissement', piece: 'reponseAssainissement', motif: /assainissement|spanc/, rubriques: ['aae'] },
+    { cle: 'erp', label: 'ERP (état des risques et pollution)', piece: 'erp', motif: /etat des risques/, rubriques: ['environnement', 'diagnostics', 'aae'] },
+    { cle: 'diagnosticsTechniques', label: 'Diagnostics techniques', piece: 'diagnosticsTechniques', motif: /dossier de diagnostics? techniques?|diagnostic de performance energetique|constat de risque d'exposition au plomb|etat de l'installation interieure|presence de termites|reperage (des materiaux .{0,60})?amiante|rapport de (mission de )?(diagnostic|reperage)|attestation de (superficie|surface)|loi carrez/, rubriques: ['diagnostics', 'aae'] },
+    { cle: 'etudeSol', label: 'Étude de sol', piece: 'etudeSol', motif: /etude (geotechnique|de sol)/, rubriques: ['construction', 'environnement', 'aae'] },
+    { cle: 'offrePret', label: 'Offre de prêt', motif: /offre de (pret|credit)|offre prealable de credit|contrat de (pret|credit) immobilier/, rubriques: ['pret', 'comptabilite'] },
+    { cle: 'decompte', label: 'Décompte', motif: /decompte (previsionnel|financier|definitif|acquereur|vendeur)/, rubriques: ['comptabilite'] },
+    { cle: 'convocation', label: 'Convocation', motif: /confirmer le rendez-vous|confirme le rendez-vous|convocation/, rubriques: [] },
+    { cle: 'etatHypothecaire', label: 'État hypothécaire', motif: /etat hypothecaire|renseignements sommaires|etat (hors|sur) formalites?|demande de renseignements/, rubriques: ['hypotheque'] },
+    { cle: 'avisTaxeFonciere', label: 'Avis de taxe foncière', piece: 'avisTaxeFonciere', motif: /avis_tf|montant de vos taxes foncieres|avis d'impots? locaux|avis d'(impot|imposition).{0,80}foncier|taxes? foncieres? \d{4}/, rubriques: [] },
+    { cle: 'appelCharges', label: 'Appel de charges', motif: /appel (trimestriel|de fonds|de charges|provisionnel|de provisions?)/, exige: /coproprietaire|syndic|lot/, rubriques: ['copro'] },
+    { cle: 'pvAssemblee', label: "Procès-verbal d'assemblée générale", motif: /proces[- ]verbal .{0,60}assemblee generale/, rubriques: ['copro'] },
+    { cle: 'reglementCopro', label: 'Règlement de copropriété', motif: /reglement de copropriete|etat descriptif de division/, rubriques: ['copro'] },
+    { cle: 'ramonage', label: 'Ramonage (attestation ou facture)', piece: 'ramonage', motif: /ramonage/, rubriques: ['aae'] },
+    { cle: 'entretienChaudiere', label: 'Entretien de la chaudière', piece: 'entretienChaudiere', motif: /entretien .{0,40}chaudiere|chaudiere .{0,40}entretien/, rubriques: ['aae'] },
+    { cle: 'entretienPac', label: 'Entretien de la pompe à chaleur (PAC)', piece: 'entretienPac', motif: /pompe a chaleur/, rubriques: ['aae'] },
+    { cle: 'vidangeFosse', label: 'Vidange de la fosse septique', piece: 'vidangeFosse', motif: /vidange|fosse (septique|toutes eaux)/, rubriques: ['aae'] },
+    { cle: 'garantieDecennale', label: 'Garantie décennale', piece: 'garantieDecennale', motif: /decennale/, rubriques: ['travaux', 'aae'] },
+    { cle: 'dommageOuvrage', label: 'Assurance dommage-ouvrage', piece: 'dommageOuvrage', motif: /dommages?[- ]ouvrage/, rubriques: ['travaux', 'aae'] },
+    { cle: 'titrePropriete', label: 'Titre de propriété', piece: 'titrePropriete', motif: /attestation (immobiliere|de propriete)|titre de propriete/, rubriques: ['titre'] },
+    { cle: 'identite', label: "Pièce d'identité", motif: /carte nationale d'identite|passeport|titre de sejour|permis de conduire|identity card/, rubriques: [], parPartie: true },
+    { cle: 'etatCivil', label: 'État civil', motif: /livret de famille|acte de (naissance|mariage|deces)|pacte civil de solidarite|contrat de mariage|jugement de divorce/, rubriques: [], parPartie: true },
+    { cle: 'ribCopro', label: 'RIB de la copropriété', piece: 'ribCopro', motif: /releve d'identite bancaire|\biban\b/, exige: /syndic|copropriete/, rubriques: ['copro'] },
+    { cle: 'rib', label: 'RIB', motif: /releve d'identite bancaire|\biban\b/, rubriques: [], parPartie: true },
+    { cle: 'releveCompte', label: 'Relevé de compte client', motif: /releve de compte client/, rubriques: ['comptabilite'] },
+    { cle: 'facture', label: 'Facture', motif: /\bfacture\b/, rubriques: ['travaux', 'aae'], faible: true }
+  ];
+
+  // Haut de la première page, normalisé. `texte` = texte de la page 1 (lignes jointes). Pure.
+  function enTeteScan(textePage1) {
+    return texteNormaliseScan(textePage1).slice(0, LONGUEUR_ENTETE_SCAN);
+  }
+
+  // Un acte notarié s'ouvre sur « L'AN DEUX MILLE… » : c'est un avant-contrat s'il le dit
+  // (« PROMESSE UNILATÉRALE DE VENTE », « COMPROMIS »), sinon un acte de vente reçu, c'est-à-dire
+  // le titre de propriété du vendeur. Son préambule nomme les parties et leur état civil (« contrat
+  // de mariage », « acte de naissance ») : les autres types n'y sont donc pas cherchés.
+  var RE_OUVERTURE_ACTE_SCAN = /^.{0,200}l'an (deux )?mil/;
+  var RE_ACTE_DE_VENTE_SCAN = /\bvente\b|attestation (immobiliere|de propriete)/;
+
+  // Type de pièce d'après le haut de la première page, ou null. Parmi les types qui y figurent,
+  // celui mentionné LE PLUS HAUT l'emporte : c'est le titre ou l'objet ; ce qu'un courrier ou un
+  // décompte cite plus bas (« prorata de taxe foncière », « la promesse de vente ») ne décide
+  // rien. Un type `faible` (facture) ne compte que si aucun autre ne figure. Pure.
+  function typePieceScan(enTete) {
+    const t = String(enTete || '');
+    if (!t) return null;
+    if (RE_OUVERTURE_ACTE_SCAN.test(t)) {
+      const avant = TYPES_SCAN.find(ty => (ty.cle === 'promesse' || ty.cle === 'avantContrat') && ty.motif.test(t));
+      if (avant) return avant;
+      return RE_ACTE_DE_VENTE_SCAN.test(t) ? TYPES_SCAN.find(ty => ty.cle === 'titrePropriete') : null;
+    }
+    let meilleur = null;
+    let position = Infinity;
+    for (const faible of [false, true]) {
+      for (const ty of TYPES_SCAN) {
+        if (!!ty.faible !== faible || (ty.exige && !ty.exige.test(t))) continue;
+        const m = ty.motif.exec(t);
+        if (m && m.index < position) { meilleur = ty; position = m.index; }
+      }
+      if (meilleur) return meilleur;
+    }
+    return null;
+  }
+
+  // Mots d'un nom de personne qui permettent de la reconnaître : trois lettres au moins, hors
+  // civilités et particules. Pure.
+  var MOTS_VIDES_NOM_SCAN = new Set(['monsieur', 'madame', 'mademoiselle', 'mme', 'mlle', 'epoux', 'epouse', 'veuve', 'nee', 'les', 'des', 'del', 'societe', 'sci', 'sarl', 'sas', 'selarl', 'civile', 'immobiliere', 'vendeur', 'vendeurs', 'acquereur', 'acquereurs']);
+  function motsNomScan(nom) {
+    return texteMotsScan(nom).trim().split(' ').filter(m => m.length >= 3 && !MOTS_VIDES_NOM_SCAN.has(m) && !/^\d+$/.test(m));
+  }
+
+  // Voie de l'adresse du bien, au format de CLAIRE (« BLOIS (41000), 12 rue des Lilas ») comme au
+  // format postal (« 12 rue des Lilas 41000 BLOIS ») : « 12 rue des lilas ». Le script Python
+  // fourni gardait ce qui précède le code postal, soit la commune seule sur le format de CLAIRE,
+  // et ne reconnaissait donc jamais une adresse. Pure.
+  function voieAdresseScan(adresse) {
+    const a = String(adresse || '');
+    if (!a.trim()) return '';
+    let voie = /\(\d{5}\)\s*,\s*(.+)$/.exec(a) ? /\(\d{5}\)\s*,\s*(.+)$/.exec(a)[1] : a.split(/\b\d{5}\b/)[0];
+    voie = texteMotsScan(voie).trim();
+    return voie.length >= 8 && /[a-z]{3}/.test(voie) ? voie : '';
+  }
+
+  // Parcelles du dossier : [{ section: 'ab', numero: '123' }]. Pure.
+  function parcellesScan(d) {
+    const cad = d && d.bien && d.bien.cadastre;
+    return (typeof clesParcelles === 'function' ? clesParcelles(cad) : []).map(c => {
+      const [section, numero] = c.split(' ');
+      return { section: String(section || '').toLowerCase(), numero: String(numero || '') };
+    }).filter(p => /^[a-z]{1,2}$/.test(p.section) && /^\d{1,4}$/.test(p.numero));
+  }
+
+  // Personnes du dossier à chercher dans le scan : les parties (et leur nom d'usage), à défaut les
+  // deux côtés du nom du dossier (« VENDEUR / ACQUÉREUR »). Pure.
+  function personnesDossierScan(d) {
+    const parties = Array.isArray(d && d.parties) ? d.parties : [];
+    if (parties.length) {
+      return parties.map(p => ({ mots: motsNomScan(p.nom), usage: p.nomUsage ? motsNomScan(p.nomUsage) : [], role: p.role, nom: p.nom }))
+        .filter(p => p.mots.length);
+    }
+    return String((d && d.nom) || '').split(/[\/&]|\bet\b/i).map((morceau, i) => ({ mots: motsNomScan(morceau), usage: [], role: i === 0 ? 'VENDEUR' : 'ACQUEREUR', nom: morceau.trim() }))
+      .filter(p => p.mots.length);
+  }
+
+  var SEUIL_DOSSIER_SCAN = 6;
+  var MARGE_DOSSIER_SCAN = 1.3;
+
+  // Score d'un dossier pour un scan : personne nommée (tous ses mots) 3 points, deux au plus ;
+  // voie de l'adresse du bien 4 ; parcelle cadastrale (section et numéro rapprochés) 5. Pure.
+  function scoreDossierScan(d, mots) {
+    let score = 0;
+    const raisons = [];
+    const trouvees = [];
+    for (const p of personnesDossierScan(d)) {
+      const present = (liste) => liste.length && liste.every(m => mots.includes(' ' + m + ' '));
+      // Nom d'usage (« épouse LEROY ») : le nom de naissance peut manquer sur la pièce ; le nom
+      // d'usage ET un autre mot du nom (le prénom) suffisent alors.
+      const parUsage = present(p.usage) && p.mots.some(m => !p.usage.includes(m) && mots.includes(' ' + m + ' '));
+      if (present(p.mots) || parUsage) trouvees.push(p);
+    }
+    if (trouvees.length) {
+      score += 3 * Math.min(trouvees.length, 2);
+      raisons.push(trouvees.length > 1 ? 'deux parties nommées' : 'une partie nommée');
+    }
+    const voie = voieAdresseScan(d && d.adresseBien);
+    if (voie && mots.includes(' ' + voie + ' ')) { score += 4; raisons.push('adresse du bien'); }
+    for (const p of parcellesScan(d)) {
+      const re = new RegExp(`\\s${p.section}\\s(?:\\S+\\s){0,3}?0*${p.numero}\\s`);
+      if (re.test(mots)) { score += 5; raisons.push('parcelle ' + p.section.toUpperCase() + ' ' + p.numero); break; }
+    }
+    const roles = [...new Set(trouvees.map(p => p.role))];
+    return { score, raisons, role: roles.length === 1 ? roles[0] : null, personnes: trouvees.map(p => p.nom) };
+  }
+
+  // Le dossier d'un scan parmi `dossiers` (non archivés). `sur` seulement au-dessus du seuil ET
+  // nettement devant le deuxième ; sinon le meilleur reste une suggestion à confirmer. Pure.
+  function identifierDossierScan(texte, dossiersCandidats) {
+    const mots = texteMotsScan(texte);
+    const classes = (dossiersCandidats || []).filter(d => d && !d.archive)
+      .map(d => Object.assign({ dossier: d }, scoreDossierScan(d, mots)))
+      .filter(c => c.score > 0)
+      .sort((a, b) => b.score - a.score);
+    if (!classes.length) return { dossier: null, sur: false, score: 0, raisons: [], role: null, candidats: [] };
+    const [premier, second] = classes;
+    const sur = premier.score >= SEUIL_DOSSIER_SCAN && (!second || premier.score >= second.score * MARGE_DOSSIER_SCAN);
+    return { dossier: premier.dossier, sur, score: premier.score, raisons: premier.raisons, role: premier.role, personnes: premier.personnes,
+      candidats: classes.slice(0, 5).map(c => ({ id: c.dossier.id, score: c.score })) };
+  }
+
+  // Date « JJ-MM-AAAA » d'un ISO ou d'une date. Pure.
+  function dateCourteScan(dateIso) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(dateIso || ''));
+    return m ? `${m[3]}-${m[2]}-${m[1]}` : '';
+  }
+
+  // Nom de la copie rangée : le libellé du type (celui de la pièce de la checklist quand il y en
+  // a une, que CLAIRE reconnaîtra donc par son nom), la personne pour une pièce d'identité ou
+  // d'état civil, puis « scan du JJ-MM-AAAA ». Pure.
+  function nomCibleScan(type, options) {
+    const o = options || {};
+    const date = dateCourteScan(o.date);
+    if (!type) return date ? `Scan du ${date}` : 'Scan';
+    const personne = type.parPartie && o.personne ? ' - ' + String(o.personne).replace(/\s+/g, ' ').trim() : '';
+    return `${type.label}${personne}${date ? ' - scan du ' + date : ''}`;
+  }
+
+  // Rubriques essayées pour ce type et ce dossier (la partie reconnue décide pour une pièce
+  // d'identité, un état civil ou un RIB). Pure.
+  function rubriquesScan(type, role) {
+    if (!type) return [];
+    if (type.parPartie) return role === 'VENDEUR' ? ['vendeur'] : role === 'ACQUEREUR' ? ['acquereur'] : [];
+    return type.rubriques.slice();
+  }
+
+  // Libellé lisible d'une rubrique proposée (écran « Scans à ranger »). Pure.
+  var LIBELLES_RUBRIQUES_SCAN = {
+    vendeur: 'Vendeur', acquereur: 'Acquéreur', titre: 'Titre de propriété', diagnostics: 'Diagnostics', environnement: 'Environnement',
+    hypotheque: 'Situation hypothécaire', travaux: 'Travaux', construction: 'Construction', sru: 'SRU', aae: 'AAE', copro: 'Copropriété',
+    etatDate: 'COPRO › ETAT DATE', preEtatDate: 'COPRO › PRE ETAT DATE', comptabilite: 'Comptabilité', pret: 'Comptabilité › PRET'
+  };
+  function libelleRubriquesScan(rubriques) {
+    return rubriques && rubriques.length ? (LIBELLES_RUBRIQUES_SCAN[rubriques[0]] || rubriques[0]) : 'racine du dossier';
+  }
+
+  // Proposition complète pour un scan : dossier, type, nom de la copie, rubriques, et si elle peut
+  // être rangée sans intervention (dossier sûr, relié au NAS, et type reconnu). Pure.
+  function propositionScan(lecture, dossiersCandidats, dateIso) {
+    const texte = (lecture && lecture.texte) || '';
+    const type = typePieceScan(enTeteScan((lecture && lecture.page1) || texte));
+    const id = identifierDossierScan(texte, dossiersCandidats);
+    const d = id.dossier;
+    const personne = id.personnes && id.personnes.length === 1 ? id.personnes[0] : '';
+    const rubriques = rubriquesScan(type, id.role);
+    const relie = !!(d && d.nasDossier);
+    return {
+      dossierId: d ? d.id : null, dossierSur: id.sur, score: id.score, raisons: id.raisons, candidats: id.candidats,
+      type: type ? type.cle : null, rubriques, nomCible: nomCibleScan(type, { date: dateIso, personne }),
+      relie, automatique: !!(id.sur && type && relie)
+    };
+  }
+  // --- fin du socle pur des scans ---------------------------------------------------------------
+
+  // ---- Écran « Scans à ranger » et rangement automatique ------------------------------------
+  // État en mémoire : la liste du serveur, et pour chaque scan (clé nom + date) sa lecture et la
+  // proposition, que l'étude peut corriger avant de ranger. Rien n'est enregistré côté poste.
+  var etatScans = { configure: false, raison: '', dossier: '', reglages: { actif: false, auto: false, depuis: null }, scans: [], ecartes: [], journal: [] };
+  var lecturesScans = {};           // cle → { statut: 'lecture'|'pret'|'erreur', lecture, proposition, choix }
+  var scansEnRangement = new Set();
+  // Scans dont le rangement automatique a échoué : jamais retentés seuls (ils attendent un geste).
+  var echecsAutoScans = new Set();
+  var surveillanceScansLancee = false;
+  var DELAI_SURVEILLANCE_SCANS = 2 * 60 * 1000;
+  var PAGES_TEXTE_SCAN = 4;
+  var PAGES_OCR_SCAN = 2;
+
+  function cleScan(s) { return s.nom + '|' + s.date; }
+
+  // Le rangement automatique ne tourne que dans la fenêtre CLAIRE du poste serveur (celui qui
+  // porte CLAIRE, réponse de l'étude du 30/09) : deux postes qui liraient et rangeraient les mêmes
+  // scans se gêneraient, et l'OCR est lourd pour un poste de travail.
+  function estPosteServeurScans() {
+    return ['localhost', '127.0.0.1', '::1', '[::1]'].includes(String(location.hostname || '').toLowerCase());
+  }
+
+  function dossiersCandidatsScans() {
+    return (dossiers || []).filter(d => d && !d.archive);
+  }
+
+  async function chargerScans() {
+    if (!authToken) return;
+    try {
+      const r = await fetchAvecAuth('/api/scans');
+      if (!r.ok) return;
+      etatScans = Object.assign(etatScans, await r.json());
+    } catch (e) { return; }
+    majBadgeScans();
+    const presents = new Set((etatScans.scans || []).map(cleScan));
+    Object.keys(lecturesScans).forEach(k => { if (!presents.has(k)) delete lecturesScans[k]; });
+    const visible = ongletActuel === 'scans';
+    if (visible) renderScans();
+    if (visible || rangementAutoScansActif()) await lireScansEnAttente();
+  }
+
+  function majBadgeScans() {
+    const badge = document.getElementById('badge-scans');
+    if (!badge) return;
+    const n = etatScans.reglages.actif ? (etatScans.scans || []).length : 0;
+    badge.textContent = n > 99 ? '99+' : String(n);
+    badge.style.display = n ? '' : 'none';
+  }
+
+  function demarrerSurveillanceScans() {
+    if (surveillanceScansLancee) return;
+    surveillanceScansLancee = true;
+    chargerScans();
+    setInterval(chargerScans, DELAI_SURVEILLANCE_SCANS);
+  }
+
+  // Lit un scan : texte de page 1 à part (le type s'y lit), texte des premières pages (le dossier),
+  // OCR des deux premières pages si le PDF n'a pas de texte.
+  async function lireScan(scan) {
+    if (typeof pdfjsLib === 'undefined') throw new Error('Lecteur PDF indisponible');
+    const r = await fetchAvecAuth('/api/scans/fichier?nom=' + encodeURIComponent(scan.nom));
+    if (!r.ok) throw new Error('Scan introuvable');
+    const pdf = await pdfjsLib.getDocument({ data: await r.arrayBuffer() }).promise;
+    const pages = [];
+    for (let p = 1; p <= Math.min(pdf.numPages, PAGES_TEXTE_SCAN); p++) {
+      const page = await pdf.getPage(p);
+      pages.push(lignesDepuisItemsPdf((await page.getTextContent()).items).join('\n'));
+    }
+    let viaOcr = false;
+    if (pages.join('').trim().length < 40) {
+      const worker = await creerWorkerOcr();
+      if (!worker) throw new Error('OCR indisponible');
+      try {
+        pages.length = 0;
+        for (let p = 1; p <= Math.min(pdf.numPages, PAGES_OCR_SCAN); p++) pages.push(await ocrPage(pdf, p, worker));
+        viaOcr = true;
+      } finally {
+        await worker.terminate();
+      }
+    }
+    return { page1: pages[0] || '', texte: pages.join('\n'), pages: pdf.numPages, viaOcr };
+  }
+
+  // Lit les scans pas encore lus, un par un (l'OCR est lourd), et range ceux qui sont sûrs quand
+  // le rangement automatique est actif sur ce poste. Le réglage est relu à CHAQUE scan : activé
+  // pendant une lecture, il vaut pour la suite sans attendre le tour suivant. Un appel reçu pendant
+  // une lecture relance un passage à la fin plutôt que d'être perdu.
+  var lectureScansEnCours = false;
+  var relancerLectureScans = false;
+  function rangementAutoScansActif() {
+    return !!(etatScans.reglages.actif && etatScans.reglages.auto && estPosteServeurScans());
+  }
+  async function lireScansEnAttente() {
+    if (lectureScansEnCours) { relancerLectureScans = true; return; }
+    lectureScansEnCours = true;
+    relancerLectureScans = false;
+    try {
+      for (const scan of (etatScans.scans || []).slice()) {
+        if (!scan.stable) continue;
+        const cle = cleScan(scan);
+        if (!lecturesScans[cle]) {
+          lecturesScans[cle] = { statut: 'lecture' };
+          if (ongletActuel === 'scans') renderScans();
+          try {
+            const lecture = await lireScan(scan);
+            const proposition = propositionScan(lecture, dossiersCandidatsScans(), scan.date);
+            lecturesScans[cle] = { statut: 'pret', lecture: { viaOcr: lecture.viaOcr, pages: lecture.pages, texte: lecture.texte }, proposition, choix: choixDepuisProposition(proposition) };
+          } catch (e) {
+            lecturesScans[cle] = { statut: 'erreur', erreur: e.message || 'Lecture impossible', choix: choixDepuisProposition(null, scan.date) };
+          }
+          if (ongletActuel === 'scans') renderScans();
+        }
+        const l = lecturesScans[cle];
+        if (rangementAutoScansActif() && l && l.statut === 'pret' && l.proposition.automatique && !echecsAutoScans.has(cle)) await rangerScanChoisi(scan.nom, true);
+      }
+    } finally {
+      lectureScansEnCours = false;
+    }
+    if (relancerLectureScans) { relancerLectureScans = false; await lireScansEnAttente(); }
+  }
+
+  // Ce que l'étude valide : dossier, type, nom de la copie (les rubriques suivent le type).
+  function choixDepuisProposition(p, date) {
+    if (!p) return { dossierId: '', type: '', nomCible: nomCibleScan(null, { date }), rubriques: [] };
+    return { dossierId: p.dossierId || '', type: p.type || '', nomCible: p.nomCible, rubriques: p.rubriques.slice() };
+  }
+
+  function scanParNom(nom) { return (etatScans.scans || []).find(s => s.nom === nom) || null; }
+
+  function changerChoixScan(nom, champ, valeur) {
+    const scan = scanParNom(nom);
+    if (!scan) return;
+    const l = lecturesScans[cleScan(scan)];
+    if (!l || !l.choix) return;
+    l.choix[champ] = valeur;
+    if (champ === 'type' || champ === 'dossierId') {
+      // Le type ou la personne changent le nom proposé et la rubrique ; un nom retouché à la main
+      // est gardé tant que ni l'un ni l'autre ne bouge.
+      const type = TYPES_SCAN.find(t => t.cle === l.choix.type) || null;
+      const d = (dossiers || []).find(x => x.id === l.choix.dossierId);
+      const id = d ? scoreDossierScan(d, texteMotsScan((l.lecture && l.lecture.texte) || '')) : null;
+      l.choix.rubriques = rubriquesScan(type, id ? id.role : null);
+      l.choix.nomCible = nomCibleScan(type, { date: scan.date, personne: id && id.personnes.length === 1 ? id.personnes[0] : '' });
+    }
+    renderScans();
+  }
+
+  async function rangerScanChoisi(nom, auto) {
+    const scan = scanParNom(nom);
+    if (!scan || scansEnRangement.has(nom)) return;
+    const l = lecturesScans[cleScan(scan)];
+    const choix = l && l.choix;
+    const d = choix && (dossiers || []).find(x => x.id === choix.dossierId);
+    if (!d || !d.nasDossier) { if (auto) echecsAutoScans.add(cleScan(scan)); }
+    if (!d) { if (!auto) afficherToast('Choisissez le dossier client avant de ranger ce scan.', 'OK', null); return; }
+    if (!d.nasDossier) { if (!auto) afficherToast('Ce dossier n’est pas relié à son dossier du NAS : reliez-le depuis sa fiche.', 'OK', null); return; }
+    scansEnRangement.add(nom);
+    if (!auto) renderScans();
+    try {
+      const r = await fetchAvecAuth('/api/scans/ranger', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nom, dossierNas: d.nasDossier, rubriques: choix.rubriques, nomCible: choix.nomCible,
+          dossierId: d.id, dossier: libelleDossierAffiche(d), type: choix.type, auteur: auto ? 'CLAIRE' : (utilisateurPoste || ''), auto: !!auto })
+      });
+      const corps = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        if (auto) echecsAutoScans.add(cleScan(scan));
+        else afficherToast(corps.erreur || 'Rangement impossible.', 'OK', null);
+        return;
+      }
+      if (!auto) afficherToast(`Rangé dans ${libelleDossierAffiche(d)}${corps.rubrique ? ' › ' + corps.rubrique.replace(/[\\/]+/g, ' › ') : ''}.`, 'OK', null);
+      // La pièce passe « reçue » au parcours du NAS : relancé tout de suite pour ce dossier.
+      if (typeof verifierDossierLocal === 'function') verifierDossierLocal(d.id, false).catch(() => {});
+    } finally {
+      scansEnRangement.delete(nom);
+      await chargerScans();
+    }
+  }
+
+  async function ecarterScan(nom) {
+    await fetchAvecAuth('/api/scans/ecarter', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nom, auteur: utilisateurPoste || '' }) });
+    await chargerScans();
+  }
+
+  async function retablirScan(nom) {
+    await fetchAvecAuth('/api/scans/retablir', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nom }) });
+    await chargerScans();
+  }
+
+  async function ouvrirScan(nom) {
+    const fenetre = window.open('', '_blank');
+    try {
+      const r = await fetchAvecAuth('/api/scans/fichier?nom=' + encodeURIComponent(nom));
+      if (!r.ok) throw new Error();
+      const url = URL.createObjectURL(await r.blob());
+      if (fenetre) fenetre.location.href = url; else window.open(url, '_blank');
+    } catch (e) {
+      if (fenetre) fenetre.close();
+      afficherToast('Ce scan n’est plus dans le dossier Scan.', 'OK', null);
+    }
+  }
+
+  async function enregistrerReglagesScans(modif) {
+    const r = await fetchAvecAuth('/api/scans/reglages', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(modif) });
+    if (r.ok) etatScans.reglages = (await r.json()).reglages;
+    renderReglagesScans();
+    await chargerScans();
+  }
+
+  function renderReglagesScans() {
+    const zone = document.getElementById('reglages-scans');
+    if (!zone) return;
+    const r = etatScans.reglages || {};
+    const etat = etatScans.configure
+      ? `Dossier du copieur : <strong>${escapeHtml(etatScans.dossier)}</strong>`
+      : `${icone('alert-triangle')} ${escapeHtml(etatScans.raison || 'Dossier « Scan » introuvable.')}`;
+    zone.innerHTML = `
+      <div class="reglages-liste">
+        <label class="reglages-option" for="reglages-scans-actif">
+          <span class="reglages-option-texte"><span class="reglages-option-titre">Classer les scans du copieur ${infoBulle('CLAIRE lit chaque scan posé dans le dossier « Scan », reconnaît le dossier client et la pièce, puis range une copie dans la rubrique du dossier. L’original est conservé dans « CLAIRE - scans rangés », à l’intérieur du dossier Scan.')}</span>
+            <span class="hint">${etat}</span></span>
+          <span class="switch reglages-switch"><input type="checkbox" id="reglages-scans-actif"${r.actif ? ' checked' : ''} onchange="enregistrerReglagesScans({ actif: this.checked })"><span class="slider"></span></span>
+        </label>
+        <label class="reglages-option" for="reglages-scans-auto">
+          <span class="reglages-option-texte"><span class="reglages-option-titre">Ranger seuls les scans reconnus avec certitude ${infoBulle('Dossier reconnu sans ambiguïté (deux parties, ou l’adresse, ou la parcelle) et pièce identifiée. Le rangement se fait depuis la fenêtre CLAIRE du poste serveur ; les autres scans attendent dans « Scans à ranger ».')}</span></span>
+          <span class="switch reglages-switch"><input type="checkbox" id="reglages-scans-auto"${r.auto ? ' checked' : ''}${r.actif ? '' : ' disabled'} onchange="enregistrerReglagesScans({ auto: this.checked })"><span class="slider"></span></span>
+        </label>
+        <label class="reglages-option" for="reglages-scans-depuis">
+          <span class="reglages-option-texte"><span class="reglages-option-titre">Scans arrivés depuis le ${infoBulle('Les scans plus anciens restent dans le dossier Scan, sans être proposés.')}</span></span>
+          <input type="date" id="reglages-scans-depuis" value="${escapeAttr(r.depuis || '')}"${r.actif ? '' : ' disabled'} onchange="enregistrerReglagesScans({ depuis: this.value })">
+        </label>
+      </div>`;
+  }
+
+  function optionsDossiersScan(choisi, proposition) {
+    const candidats = dossiersCandidatsScans().slice().sort((a, b) => libelleDossierAffiche(a).localeCompare(libelleDossierAffiche(b), 'fr'));
+    const scores = new Map(((proposition && proposition.candidats) || []).map(c => [c.id, c.score]));
+    const suggeres = candidats.filter(d => scores.has(d.id)).sort((a, b) => scores.get(b.id) - scores.get(a.id));
+    const autres = candidats.filter(d => !scores.has(d.id));
+    const opt = d => `<option value="${escapeAttr(d.id)}"${d.id === choisi ? ' selected' : ''}>${escapeHtml(libelleDossierAffiche(d))}${d.nasDossier ? '' : ' (non relié au NAS)'}</option>`;
+    return `<option value=""${choisi ? '' : ' selected'}>Choisir le dossier…</option>`
+      + (suggeres.length ? `<optgroup label="Reconnus dans le scan">${suggeres.map(opt).join('')}</optgroup>` : '')
+      + `<optgroup label="Tous les dossiers">${autres.map(opt).join('')}</optgroup>`;
+  }
+
+  function optionsTypesScan(choisi) {
+    return `<option value=""${choisi ? '' : ' selected'}>Autre pièce</option>`
+      + TYPES_SCAN.map(t => `<option value="${escapeAttr(t.cle)}"${t.cle === choisi ? ' selected' : ''}>${escapeHtml(t.label)}</option>`).join('');
+  }
+
+  function renderLigneScan(scan) {
+    const l = lecturesScans[cleScan(scan)] || null;
+    const nomArg = escapeOnclickArg(scan.nom);
+    const quand = new Date(scan.date).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    const tete = `<div class="scan-tete">
+        <button type="button" class="scan-nom" onclick="ouvrirScan('${nomArg}')" title="Ouvrir le scan">${icone('file-text')}<span>${escapeHtml(scan.nom)}</span></button>
+        <span class="scan-date">${escapeHtml(quand)}</span>
+      </div>`;
+    if (!scan.stable || !l || l.statut === 'lecture') {
+      return `<li class="scan-ligne">${tete}<p class="hint scan-etat">${icone('spinner', null, true)} ${scan.stable ? 'Lecture du scan…' : 'Copie en cours depuis le copieur…'}</p></li>`;
+    }
+    const c = l.choix;
+    const p = l.proposition;
+    const enCours = scansEnRangement.has(scan.nom);
+    let statut;
+    if (l.statut === 'erreur') statut = `<span class="dot-label dl-urgent"><span class="dot"></span>${escapeHtml(l.erreur)}</span>`;
+    else if (p.automatique) statut = `<span class="dot-label dl-success"><span class="dot"></span>Reconnu : ${escapeHtml(p.raisons.join(', '))}</span>`;
+    else if (p.dossierId && !p.dossierSur) statut = `<span class="dot-label dl-pret"><span class="dot"></span>Dossier à confirmer (${escapeHtml(p.raisons.join(', '))})</span>`;
+    else if (p.dossierId && !p.relie) statut = `<span class="dot-label dl-pret"><span class="dot"></span>Dossier non relié au NAS</span>`;
+    else if (p.dossierId && !p.type) statut = `<span class="dot-label dl-pret"><span class="dot"></span>Pièce à préciser</span>`;
+    else statut = `<span class="dot-label dl-neutre"><span class="dot"></span>Dossier non reconnu${l.lecture && l.lecture.viaOcr ? ' (texte lu par OCR)' : ''}</span>`;
+    return `<li class="scan-ligne">${tete}
+      <div class="scan-statut">${statut}</div>
+      <div class="scan-champs">
+        <label class="scan-champ"><span>Dossier</span><select onchange="changerChoixScan('${nomArg}', 'dossierId', this.value)">${optionsDossiersScan(c.dossierId, p)}</select></label>
+        <label class="scan-champ"><span>Pièce</span><select onchange="changerChoixScan('${nomArg}', 'type', this.value)">${optionsTypesScan(c.type)}</select></label>
+        <label class="scan-champ scan-champ-large"><span>Nom de la copie</span><input type="text" value="${escapeAttr(c.nomCible)}" oninput="changerChoixScan('${nomArg}', 'nomCible', this.value)" onchange="renderScans()"></label>
+      </div>
+      <div class="scan-actions">
+        <span class="hint">Rubrique : ${escapeHtml(libelleRubriquesScan(c.rubriques))}</span>
+        <button type="button" class="secondary" onclick="ecarterScan('${nomArg}')">Laisser dans Scan</button>
+        <button type="button" class="primary" onclick="rangerScanChoisi('${nomArg}', false)"${enCours || !c.dossierId ? ' disabled' : ''}>${enCours ? 'Rangement…' : 'Ranger'}</button>
+      </div>
+    </li>`;
+  }
+
+  function renderScans() {
+    const zone = document.getElementById('scans-contenu');
+    if (!zone) return;
+    // Ne pas redessiner sous les doigts de quelqu'un qui tape le nom de la copie.
+    if (document.activeElement && zone.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return;
+    const e = etatScans;
+    if (!e.configure || !e.reglages.actif) {
+      zone.innerHTML = `<div class="calc-card scans-vide">
+        <p>${e.configure ? 'Le classement des scans du copieur n’est pas activé.' : escapeHtml(e.raison || 'Dossier « Scan » introuvable.')}</p>
+        ${e.configure ? `<button type="button" class="primary" onclick="enregistrerReglagesScans({ actif: true })">Activer le classement</button>` : ''}
+      </div>`;
+      return;
+    }
+    const scans = e.scans || [];
+    const liste = scans.length
+      ? `<ul class="scans-liste">${scans.map(renderLigneScan).join('')}</ul>`
+      : `<p class="hint scans-rien">Aucun scan en attente dans le dossier du copieur.</p>`;
+    const journal = (e.journal || []).slice(0, 12);
+    const journalHtml = journal.length ? `<div class="calc-card scans-journal">
+        <div class="dash-section-titre">Derniers rangements</div>
+        <ul>${journal.map(j => `<li><span class="scan-date">${escapeHtml(new Date(j.date).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</span>
+          <span>${escapeHtml(j.nom)} → <strong>${escapeHtml(j.dossier || '')}</strong>${j.rubrique ? ' › ' + escapeHtml(j.rubrique.replace(/[\\/]+/g, ' › ')) : ''}</span>
+          <span class="hint">${j.auto ? 'automatique' : escapeHtml(j.auteur || '')}</span></li>`).join('')}</ul>
+      </div>` : '';
+    const ecartes = (e.ecartes || []);
+    const ecartesHtml = ecartes.length ? `<details class="scans-ecartes"><summary>Laissés dans Scan (${ecartes.length})</summary>
+        <ul>${ecartes.map(s => `<li><span>${escapeHtml(s.nom)}</span><button type="button" class="lien-action" onclick="retablirScan('${escapeOnclickArg(s.nom)}')">Reproposer</button></li>`).join('')}</ul>
+      </details>` : '';
+    zone.innerHTML = `<div class="calc-card">${liste}${ecartesHtml}</div>${journalHtml}`;
+  }
+
+  function initScans() {
+    renderScans();
+    chargerScans();
+  }
+
   // Remplit les emplacements d'icônes du HTML statique (sidebar, burger mobile, dropzone) — le
   // reste de l'application est déjà rendu depuis script.js, ce point d'entrée unique évite de
   // dupliquer le dessin des icônes entre le HTML et ICONES.
@@ -30618,6 +31204,7 @@
       'icon-nav-dashboard': 'layout',
       'icon-nav-aujourdhui': 'sun',
       'icon-nav-suivi': 'list',
+      'icon-nav-scans': 'printer',
       'icon-signaler': 'flag',
       'icon-install': 'download',
       'icon-dropzone': 'upload',

@@ -77,6 +77,11 @@
              d.piecesNotifications dans script.js) : masqué tant qu'il n'y a rien à signaler. -->
         <span class="sidebar-badge-notif" id="badge-notif-suivi" style="display:none;"></span>
       </button>
+      <!-- Scans du copieur à ranger (voir server/src/scans.js) : compteur des scans en attente. -->
+      <button type="button" id="tab-scans" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('scans')">
+        <span class="sidebar-link-icone" id="icon-nav-scans" aria-hidden="true"></span>Scans à ranger
+        <span class="sidebar-badge-notif" id="badge-scans" style="display:none;"></span>
+      </button>
       <!-- Outil 2, relecture d'un acte (règles déterministes, sans IA depuis le 23/09/2026) :
            distinct du wizard "Nouveau dossier" — ici on dépose l'acte ET ses annexes séparément
            pour une relecture croisée, sans créer de dossier. -->
@@ -743,6 +748,24 @@
      loyer mensuel). Outil de calcul à la volée, sans dossier associé ni enregistrement — même
      principe que le simulateur de provision. Convention fixée par l'étude : jours réels sur la
      période réelle, jour de l'acte à la charge de l'acquéreur. Voir calculerProrata(). -->
+<!-- Scans du copieur : chaque scan posé dans le dossier « Scan » du NAS, avec la proposition de
+     CLAIRE (dossier client, pièce, nom de la copie, rubrique), à valider ou corriger avant de ranger.
+     Voir le classeur des scans dans script.js et server/src/scans.js. -->
+<div class="onglet-panel" id="onglet-scans" style="display:none;">
+  <div class="dash-header">
+    <div>
+      <div class="dash-eyebrow">Copieur</div>
+      <div class="dash-titre-ligne">
+        <h1 class="dash-titre">Scans à ranger <span class="info-i" tabindex="0" data-info="Chaque scan du dossier « Scan » est lu, rattaché à un dossier client et à une pièce. « Ranger » en copie le PDF dans la rubrique du dossier sous un nom que la checklist reconnaît ; l’original est conservé dans « CLAIRE - scans rangés »."></span></h1>
+      </div>
+    </div>
+    <div class="dash-header-actions">
+      <button type="button" class="secondary" onclick="chargerScans()">Actualiser</button>
+    </div>
+  </div>
+  <div id="scans-contenu"></div>
+</div>
+
 <div class="onglet-panel" id="onglet-prorata" style="display:none;">
   <div class="dash-header">
     <div>
@@ -1739,6 +1762,10 @@
        partagés par tout le bureau — voir retirerExclusionPiece() dans script.js. ===== -->
   <section class="reglages-panneau" id="reglages-panneau-pieces" role="tabpanel" aria-labelledby="reglages-onglet-pieces" hidden>
     <h2 class="reglages-titre">Pièces</h2>
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Scans du copieur</h3>
+      <div id="reglages-scans"></div>
+    </div>
     <div class="reglages-section">
       <h3 class="reglages-section-titre">Fichiers écartés <span class="info-i" tabindex="0" data-info="Noms de fichiers qui ne sont plus reconnus pour la pièce indiquée (bouton « Réinitialiser » d'une pièce). Partagé par tout le bureau."></span></h3>
       <div id="reglages-exclusions"></div>

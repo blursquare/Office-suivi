@@ -1,0 +1,184 @@
+'use strict';
+
+// Classeur des scans du copieur (src/scans.js + src/routes/scans.js). Le point sensible : c'est la
+// PREMIÈRE fonction de CLAIRE qui écrit dans les dossiers clients du NAS. D'où, en priorité, des
+// tests sur le confinement (un nom de scan ou un dossier venus d'une requête), l'absence
+// d'écrasement et la conservation de l'original.
+
+const { test, before, after } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+
+const { creerApp } = require('../src/app');
+const { ouvrirDb } = require('../src/db');
+const {
+  trouverDossierScans, parentsCandidats, nomScanValide, listerScans, nomRubriqueNormalise,
+  resoudreRubrique, nomFichierSur, rangerScan, NOM_ARCHIVE_SCANS
+} = require('../src/scans');
+
+test('nomScanValide : un simple nom de PDF, jamais un chemin', () => {
+  assert.equal(nomScanValide('SCAN_0001.pdf'), true);
+  assert.equal(nomScanValide('Doc 30-09-2026 10.12.PDF'), true);
+  for (const mauvais of ['../secret.pdf', 'a/b.pdf', 'a\\b.pdf', '..pdf', '.cache.pdf', '~tmp.pdf', 'image.jpg', '', 'a\0.pdf']) {
+    assert.equal(nomScanValide(mauvais), false, mauvais);
+  }
+});
+
+test('parentsCandidats remonte jusqu’à la racine du partage Windows', () => {
+  const liste = parentsCandidats('\\\\192.168.60.5\\Commun\\DOSSIERS CLIENTS', path.win32);
+  assert.equal(liste[0], '\\\\192.168.60.5\\Commun\\DOSSIERS CLIENTS');
+  assert.ok(liste.includes('\\\\192.168.60.5\\Commun\\'));
+});
+
+test('nomRubriqueNormalise retire numéro de rubrique, accents et ponctuation', () => {
+  assert.equal(nomRubriqueNormalise('8 - COPRO et ETAT DATE'), 'COPRO ET ETAT DATE');
+  assert.equal(nomRubriqueNormalise('2 - Acquéreur'), 'ACQUEREUR');
+  assert.equal(nomRubriqueNormalise('0 - COMPTABILITE - PRET'), 'COMPTABILITE PRET');
+  assert.equal(nomRubriqueNormalise('10 - AAE'), 'AAE');
+  assert.equal(nomRubriqueNormalise('0- COMPTABILITE'), 'COMPTABILITE');
+});
+
+test('nomFichierSur : nom Windows valide, extension .pdf unique, longueur bornée', () => {
+  assert.equal(nomFichierSur('État daté - scan du 01-10-2026'), 'État daté - scan du 01-10-2026.pdf');
+  assert.equal(nomFichierSur('a/b\\c:d*e?.pdf'), 'a b c d e.pdf');
+  assert.equal(nomFichierSur('  ..  '), 'Scan.pdf');
+  assert.ok(nomFichierSur('x'.repeat(300)).length <= 124);
+});
+
+// Arborescence reprenant le modèle réel de l'étude (MAISON / COPRO), noms inventés.
+let base, nas, scan, db, srv, url;
+function creerArbo() {
+  base = fs.mkdtempSync(path.join(os.tmpdir(), 'claire-scans-'));
+  nas = path.join(base, 'Commun', 'DOSSIERS CLIENTS');
+  scan = path.join(base, 'Commun', 'Scan');
+  const copro = path.join(nas, 'DURAND Camille');
+  for (const r of ['0 - COMPTABILITE - PRET/PRET', '1 - Vendeur', '2 - Acquéreur', '3 - Titre de propriété', '4 - Diagnostics',
+    '8 - COPRO et ETAT DATE/ETAT DATE', '8 - COPRO et ETAT DATE/PRE ETAT DATE', '9 - SRU', '10 - AAE']) {
+    fs.mkdirSync(path.join(copro, r), { recursive: true });
+  }
+  fs.mkdirSync(path.join(nas, 'LEROY Paul', '1 - Vendeur'), { recursive: true });
+  fs.mkdirSync(scan, { recursive: true });
+  fs.mkdirSync(path.join(scan, 'vieux'), { recursive: true });
+  fs.writeFileSync(path.join(scan, 'SCAN_0001.pdf'), '%PDF-1.4 etat date');
+  fs.writeFileSync(path.join(scan, 'SCAN_0002.pdf'), '%PDF-1.4 identite');
+  fs.writeFileSync(path.join(scan, 'notes.txt'), 'pas un pdf');
+  fs.writeFileSync(path.join(scan, 'vieux', 'SCAN_ANCIEN.pdf'), '%PDF-1.4 dans un sous-dossier');
+  const vieux = new Date('2026-01-05T10:00:00Z');
+  fs.writeFileSync(path.join(scan, 'SCAN_2025.pdf'), '%PDF-1.4 historique');
+  fs.utimesSync(path.join(scan, 'SCAN_2025.pdf'), vieux, vieux);
+  fs.writeFileSync(path.join(base, 'secret.pdf'), '%PDF-1.4 hors NAS');
+}
+
+before(async () => {
+  creerArbo();
+  db = ouvrirDb(':memory:');
+  const { app } = creerApp({ db, config: { motDePasse: '', authActive: false, racineRepo: os.tmpdir(), port: 0, jetonCalendrier: '', nasRacine: nas } });
+  srv = app.listen(0);
+  await new Promise((r) => srv.once('listening', r));
+  url = (c) => `http://127.0.0.1:${srv.address().port}${c}`;
+});
+
+after(() => {
+  srv.close();
+  db.close();
+  fs.rmSync(base, { recursive: true, force: true });
+});
+
+const envoyer = (methode, c, corps) => fetch(url(c), { method: methode, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) });
+
+test('trouverDossierScans trouve « Scan » à la racine du NAS, à côté des dossiers clients', async () => {
+  assert.equal(await trouverDossierScans({ nasRacine: nas }), scan);
+  assert.equal(await trouverDossierScans({ nasRacine: nas, nasScans: path.join(base, 'absent') }), null);
+  assert.equal(await trouverDossierScans({ nasRacine: '' }), null);
+});
+
+test('listerScans : seuls les PDF posés directement dans Scan, depuis la date donnée', async () => {
+  const depuis = Date.parse('2026-09-01T00:00:00');
+  const noms = (await listerScans(scan, depuis, Date.now() + 60000)).map((s) => s.nom).sort();
+  assert.equal(noms.join(','), 'SCAN_0001.pdf,SCAN_0002.pdf');
+  const tous = (await listerScans(scan, NaN, Date.now() + 60000)).map((s) => s.nom).sort();
+  assert.equal(tous.join(','), 'SCAN_0001.pdf,SCAN_0002.pdf,SCAN_2025.pdf');
+  // Un scan qui vient d'arriver peut être encore en cours d'écriture par le copieur.
+  assert.equal((await listerScans(scan, depuis, Date.now()))[0].stable, false);
+});
+
+test('resoudreRubrique suit l’arborescence réelle par le nom, numéro ignoré', async () => {
+  const client = path.join(nas, 'DURAND Camille');
+  assert.equal(await resoudreRubrique(client, ['etatDate']), path.join('8 - COPRO et ETAT DATE', 'ETAT DATE'));
+  assert.equal(await resoudreRubrique(client, ['preEtatDate']), path.join('8 - COPRO et ETAT DATE', 'PRE ETAT DATE'));
+  assert.equal(await resoudreRubrique(client, ['pret']), path.join('0 - COMPTABILITE - PRET', 'PRET'));
+  assert.equal(await resoudreRubrique(client, ['acquereur']), '2 - Acquéreur');
+  assert.equal(await resoudreRubrique(client, ['aae']), '10 - AAE');
+  // Terrain sans rubrique Diagnostics : l'alternative suivante, sinon la racine du dossier.
+  assert.equal(await resoudreRubrique(path.join(nas, 'LEROY Paul'), ['diagnostics', 'aae']), '');
+  assert.equal(await resoudreRubrique(path.join(nas, 'LEROY Paul'), ['vendeur']), '1 - Vendeur');
+});
+
+test('rangerScan refuse un dossier client hors du NAS ou la racine elle-même', async () => {
+  for (const dossierNas of ['../..', '..', '', '/etc']) {
+    const r = await rangerScan({ dossierScans: scan, nasRacine: nas, nom: 'SCAN_0001.pdf', dossierNas, rubriques: [], nomCible: 'x' });
+    assert.ok(r.erreur, dossierNas);
+  }
+  const r = await rangerScan({ dossierScans: scan, nasRacine: nas, nom: '../secret.pdf', dossierNas: 'DURAND Camille', rubriques: [], nomCible: 'x' });
+  assert.equal(r.statut, 400);
+  assert.ok(fs.existsSync(path.join(scan, 'SCAN_0001.pdf')), 'l’original ne bouge pas sur refus');
+});
+
+test('routes : rien n’est rangé tant que le classement n’est pas activé', async () => {
+  let etat = await (await fetch(url('/api/scans'))).json();
+  assert.equal(etat.configure, true);
+  assert.equal(etat.scans.length, 0);
+  const r = await envoyer('POST', '/api/scans/ranger', { nom: 'SCAN_0001.pdf', dossierNas: 'DURAND Camille', rubriques: ['etatDate'], nomCible: 'État daté' });
+  assert.equal(r.status, 409);
+  etat = await (await envoyer('PUT', '/api/scans/reglages', { actif: true, depuis: '2026-09-01' })).json();
+  assert.equal(etat.reglages.actif, true);
+  const liste = await (await fetch(url('/api/scans'))).json();
+  assert.equal(liste.scans.map((s) => s.nom).sort().join(','), 'SCAN_0001.pdf,SCAN_0002.pdf');
+});
+
+test('routes : un scan est servi par son nom seul', async () => {
+  let r = await fetch(url('/api/scans/fichier?nom=SCAN_0001.pdf'));
+  assert.equal(r.status, 200);
+  assert.equal(await r.text(), '%PDF-1.4 etat date');
+  for (const mauvais of ['../secret.pdf', 'vieux/SCAN_ANCIEN.pdf', 'notes.txt']) {
+    r = await fetch(url('/api/scans/fichier?nom=' + encodeURIComponent(mauvais)));
+    assert.ok(r.status === 400 || r.status === 404, mauvais + ' → ' + r.status);
+  }
+});
+
+test('routes : ranger copie dans la rubrique, garde l’original, n’écrase jamais', async () => {
+  const cible = path.join(nas, 'DURAND Camille', '8 - COPRO et ETAT DATE', 'ETAT DATE');
+  fs.writeFileSync(path.join(cible, 'État daté - scan du 30-09-2026.pdf'), '%PDF-1.4 existant');
+  const r = await envoyer('POST', '/api/scans/ranger', {
+    nom: 'SCAN_0001.pdf', dossierNas: 'DURAND Camille', rubriques: ['etatDate'], nomCible: 'État daté - scan du 30-09-2026',
+    dossierId: 'd1', dossier: 'VTE - DURAND', type: 'etatDate', auteur: 'Julie VASSELIN'
+  });
+  const corps = await r.json();
+  assert.equal(r.status, 200, JSON.stringify(corps));
+  assert.equal(corps.chemin, path.join('DURAND Camille', '8 - COPRO et ETAT DATE', 'ETAT DATE', 'État daté - scan du 30-09-2026 (2).pdf'));
+  assert.equal(fs.readFileSync(path.join(cible, 'État daté - scan du 30-09-2026.pdf'), 'utf8'), '%PDF-1.4 existant');
+  assert.equal(fs.readFileSync(path.join(nas, corps.chemin), 'utf8'), '%PDF-1.4 etat date');
+  // L'original a quitté la file du dossier Scan pour son archive, intact.
+  assert.equal(fs.existsSync(path.join(scan, 'SCAN_0001.pdf')), false);
+  assert.equal(fs.readFileSync(path.join(scan, corps.original), 'utf8'), '%PDF-1.4 etat date');
+  assert.ok(corps.original.startsWith(NOM_ARCHIVE_SCANS));
+  const etat = await (await fetch(url('/api/scans'))).json();
+  assert.equal(etat.scans.map((s) => s.nom).join(','), 'SCAN_0002.pdf');
+  assert.equal(etat.journal[0].nom, 'SCAN_0001.pdf');
+  assert.equal(etat.journal[0].auteur, 'Julie VASSELIN');
+  // Rangé une seconde fois (deux fenêtres) : refusé proprement, rien n'est dupliqué.
+  const bis = await envoyer('POST', '/api/scans/ranger', { nom: 'SCAN_0001.pdf', dossierNas: 'DURAND Camille', rubriques: ['etatDate'], nomCible: 'x' });
+  assert.equal(bis.status, 404);
+});
+
+test('routes : un scan écarté n’est plus proposé, puis peut être rétabli', async () => {
+  await envoyer('POST', '/api/scans/ecarter', { nom: 'SCAN_0002.pdf', auteur: 'Julie VASSELIN' });
+  let etat = await (await fetch(url('/api/scans'))).json();
+  assert.equal(etat.scans.length, 0);
+  assert.equal(etat.ecartes.map((s) => s.nom).join(','), 'SCAN_0002.pdf');
+  await envoyer('POST', '/api/scans/retablir', { nom: 'SCAN_0002.pdf' });
+  etat = await (await fetch(url('/api/scans'))).json();
+  assert.equal(etat.scans.map((s) => s.nom).join(','), 'SCAN_0002.pdf');
+});

@@ -12510,3 +12510,50 @@ reprennent leur structure avec des noms et montants inventés (`tests/pieces-app
   le pdf.js 3.11 du client) — avis 921 € par les deux sources, CITYA 422,13 € dont 17,43 €, relevé
   3 000 € + 500 € reversés, états datés 122,97 / 662 / 1 380,43 / aucun / 400,36 € ; rendu Chromium
   (analyses injectées, pdf.js étant sur CDN) ; 992 tests client, 487 serveur.
+
+### 30/09 13:29 — Classeur des scans du copieur
+
+Demande : l'étude a fourni un script Python issu d'une autre conversation (`claire-classeur-scans` :
+OCR, reconnaissance du dossier et du type, rangement) et demandé comment l'utiliser avec CLAIRE.
+Constat, sur pièces : sa notice décrivait une autre application (Electron, IndexedDB, File System
+Access), des dossiers numérotés « 2026-0123 » et des rubriques « 01_Identite »… absents du NAS ; sa
+reconnaissance du type, rejouée sur 36 PDF réels, se trompait le plus souvent (5 états datés sur 5
+en « règlement de copropriété », décomptes en « fiscal », promesses en « titre ») parce qu'elle
+compte des mots-clés sur huit pages ; son score d'adresse ne reconnaissait jamais le format de CLAIRE
+(« BLOIS (41000), 12 rue… »). Réponses de l'étude : le classement tourne sur le poste de CLAIRE ;
+CLAIRE peut ranger dans les dossiers clients en gardant l'original ; le dossier « Scan » est à la
+racine du NAS ; les dossiers clients portent le nom des clients (pas de numéro). Choix : tout en
+JavaScript dans CLAIRE (rien à installer à côté du .exe), l'OCR tesseract.js déjà présent.
+- **Serveur** (`server/src/scans.js`, `routes/scans.js`, 12 tests) : dossier « Scan » cherché comme
+  les reçus (racine configurée puis parents) ou `nasScans` ; liste des PDF posés directement dans
+  Scan, datés d'après `depuis` (à l'activation : le jour même, l'historique du copieur n'est pas
+  brassé), marqués « en cours de copie » moins de 15 s ; rangement = copie `COPYFILE_EXCL` dans la
+  rubrique (retrouvée par son nom, `nomRubriqueNormalise` retire « 8 - »), vérification de taille,
+  puis déplacement de l'original dans « Scan/CLAIRE - scans rangés/AAAA-MM » ; journal (300) et
+  scans écartés en base ; un seul rangement à la fois par nom. Première écriture de CLAIRE sur le
+  NAS : confinement testé (`..`, chemin absolu, racine elle-même, nom avec séparateur).
+- **Client** (`TYPES_SCAN`, `typePieceScan`, `identifierDossierScan`, `propositionScan`, 13 tests) :
+  type sur le haut de la page 1, mention la plus haute ; acte notarié traité à part (promesse ou
+  compromis s'il le dit, sinon titre) ; `faible` pour « facture ». Rejoué sur les PDF réels : tous
+  les documents reconnus le sont correctement (états datés, offres, promesses, compromis, avis 2026,
+  appel CITYA, relevé JurisWeb, décompte, convocations) ; le « certificat » de la mairie de Blois
+  (termites, mérules, plomb) reste à trier, à raison. OCR Tesseract des trois scans réels (compromis
+  BANCQUART et VERLAY, avis 2025) : ajout de « vente… sous conditions suspensives », « entre les
+  soussignés », « information préalable… avant-contrat », « avis d'impôts locaux ». Dossier retrouvé
+  sur le compromis BANCQUART OCRisé face à un homonyme (BANCQUART Pierre écarté).
+- **Nom de la copie** = libellé de la pièce de la checklist ; un test vérifie que chaque type relié
+  à une pièce produit un nom reconnu `exact` par `correspondancePieceNom`. Découvert en chemin : un
+  « Pré-état daté.pdf » cochait l'état daté (motif et forme tolérante) — corrigé (lookbehind sur le
+  motif, exclusion dans `correspondancePieceNom`).
+- **Écran** « Scans à ranger » (menu Dossier, compteur) : proposition modifiable (dossier, pièce,
+  nom), rubrique affichée, « Ranger », « Laisser dans Scan », derniers rangements, scans écartés
+  reproposables ; réglages dans Réglages › Pièces (activer, ranger seuls les cas sûrs, date de
+  départ). Rangement automatique depuis la fenêtre du poste serveur seulement ; bug trouvé en
+  Chromium : activé pendant une lecture, il attendait le tour suivant (2 min) — le réglage est relu
+  à chaque scan et un appel reçu pendant la lecture relance un passage ; échec jamais retenté seul.
+- Vérifié en Chromium (serveur réel, faux NAS à l'arborescence de l'étude, PDF inventés, pdf.js 3.11
+  servi en local) : état daté rangé dans « 8 - COPRO et ETAT DATE/ETAT DATE », original archivé,
+  journal, checklist « État daté : reçue » sans geste ; pièce d'identité proposée « à confirmer »
+  en rubrique Vendeur ; mode automatique : seul le cas sûr rangé ; 1440 px, 400 px, sombre. Non
+  vérifiable ici : OCR tesseract.js (CDN), vrai NAS, droits d'écriture. 1 005 tests client, 500
+  serveur.
