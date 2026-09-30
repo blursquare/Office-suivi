@@ -315,6 +315,11 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
 - En ajoutant ou modifiant une regex d'extraction, ajouter le cas dans le fichier de test du
   thème (`dates`, `engagements`, `parties`, `notaires`, `adresse`, `offre-pret`…), texte reprenant
   la structure réelle avec des noms inventés.
+- **Rejouer de vrais PDF** (avis de taxe foncière, appel de charges, état daté, relevé de compte)
+  sans navigateur : `npm i --no-save pdfjs-dist@4.10.38` à la racine, puis
+  `node tests/outils/rejouer-pdf.mjs [--lignes] fichier.pdf …` — mêmes items que le pdf.js du
+  client, tous les lecteurs de `script.js` appliqués, résultat en JSON. Les PDF déposés dans une
+  conversation sont sous `/root/.claude/uploads/<session>/` ; ils ne sont jamais commités.
 
 ## Ce qui reste ouvert
 

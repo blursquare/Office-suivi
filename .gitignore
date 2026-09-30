@@ -1,3 +1,5 @@
+# pdfjs-dist installé à la demande (npm i --no-save) pour tests/outils/rejouer-pdf.mjs : jamais commité.
+node_modules/
 # Serveur intranet (branche claude/serveur-intranet) — voir server/README.md
 server/node_modules/
 server/data/*.db
