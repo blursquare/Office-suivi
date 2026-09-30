@@ -206,3 +206,29 @@ test('pastille : scans en attente de rangement, sans ceux que la fenêtre range 
   // Classement désactivé : pas de pastille.
   assert.equal(app.nombreScansEnAttente({ reglages: { actif: false }, scans: etat.scans }, {}, new Set(), false), 0);
 });
+
+test('scan rangé : pièce de la checklist cochée, sinon ajoutée à la liste des pièces', () => {
+  const app = chargerApplication();
+  const d = { typeVente: 'copropriete', piecesPersonnalisees: [{ cle: 'perso-1', label: 'Facture chaudière' }] };
+  const checklist = app.checklistPieces('copropriete', d);
+  const maintenant = '2026-10-01T09:00:00Z';
+  // Type de la checklist : sa pièce, rien d'ajouté.
+  const ed = app.pieceDepuisScanRange(d, 'etatDate', 'État daté - Claire Scan', checklist, maintenant);
+  assert.equal(`${ed.cle}|${ed.nouvelle}`, 'etatDate|false');
+  // Type hors checklist : pièce personnalisée au libellé de la copie, sans « - Claire Scan ».
+  const facture = app.pieceDepuisScanRange(d, 'facture', 'Facture - Claire Scan', checklist, maintenant);
+  assert.equal(facture.nouvelle, true);
+  assert.equal(facture.label, 'Facture');
+  assert.match(facture.cle, /^perso-scan-/);
+  // Libellé déjà présent (casse et accents ignorés) : la pièce existante est reprise.
+  const reprise = app.pieceDepuisScanRange(d, 'facture', 'facture chaudiere - Claire Scan', checklist, maintenant);
+  assert.equal(`${reprise.cle}|${reprise.nouvelle}`, 'perso-1|false');
+  // Pièce d'identité : une pièce par personne.
+  const id = app.pieceDepuisScanRange(d, 'identite', "Pièce d'identité - Sophie DURAND - Claire Scan", checklist, maintenant);
+  assert.equal(id.label, "Pièce d'identité - Sophie DURAND");
+  // Offre de prêt et avant-contrat : suivis par leurs propres règles.
+  assert.equal(app.pieceDepuisScanRange(d, 'offrePret', 'Offre de prêt - Claire Scan', checklist, maintenant), null);
+  assert.equal(app.pieceDepuisScanRange(d, 'avantContrat', 'Compromis signé - Claire Scan', checklist, maintenant), null);
+  // Type inconnu, nom générique : « Scan du … ».
+  assert.equal(app.pieceDepuisScanRange(d, '', 'Claire Scan', checklist, maintenant).label, 'Scan du ' + app.formatDateFr('2026-10-01'));
+});

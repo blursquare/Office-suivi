@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 15:17';
+  const VERSION_APP = '2026-09-30 15:22';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 15:22', resume: "Scans du copieur : le rangement automatique ne dépend plus de l'écran « Scans à ranger ». Les scans en image restaient bloqués tant que la fenêtre CLAIRE était réduite ou cachée ; ils sont maintenant lus fenêtre cachée. Et chaque scan rangé, à la main ou automatiquement, coche aussitôt sa pièce dans la liste du dossier. Si la pièce n'y figure pas (facture, courrier, pièce d'identité…), elle est ajoutée puis cochée. Le responsable est prévenu sur Teams avec le lien vers le fichier rangé." },
     { version: '2026-09-30 15:17', resume: "Scans du copieur : le score est désormais noté sur 6 (« Score 6/6 : 1 partie nommée +3, adresse du bien +4 » au lieu de « Score 7/4 »). Rangement automatique toujours dès 4/6 ; au-delà de 6 points la note reste 6/6, le détail des points reste affiché." },
     { version: '2026-09-30 15:01', resume: "Réglages › Pièces : le classement des scans ne semble plus désactivé à chaque ouverture de CLAIRE. Le réglage était bien conservé, mais l'écran affichait « désactivé » et « dossier Scan introuvable » tant que le serveur n'avait pas fini de parcourir le dossier du copieur et de lire les scans en attente. L'interrupteur reste désormais grisé (« Lecture des réglages… ») jusqu'à la réponse du serveur, puis montre le vrai état." },
     { version: '2026-09-30 14:54', resume: "Nouveau dossier : on peut désormais déposer l'export d'un sous-dossier Authentic (.zip) à la place du PDF du compromis. CLAIRE y reprend les parties (vendeurs, acquéreurs), l'adresse et le type du bien, les notaires (confrère en participation, étude qui reçoit l'acte), l'email de l'acquéreur, le nom du dossier, et propose de marquer reçues les pièces déjà présentes dans Authentic. Les dates et le prix viennent de l'avant-contrat contenu dans l'export ; si l'export ne contient que l'acte de vente, seul le prix est repris et les dates butoir restent à saisir. Un export de succession est reconnu mais pas encore suivi." },
@@ -8846,7 +8847,16 @@
       canvas.width = viewport.width;
       canvas.height = viewport.height;
       const ctx = canvas.getContext('2d');
-      await page.render({ canvasContext: ctx, viewport }).promise;
+      // intent 'print' : pdf.js cadence sinon le dessin sur requestAnimationFrame, qui ne tourne
+      // plus dans une fenêtre réduite ou cachée — la lecture d'un scan restait alors bloquée tant
+      // que personne ne revenait sur CLAIRE (rangement automatique « seulement en ouvrant Scans à
+      // ranger », étude, 30/09). Borné dans le temps par sécurité.
+      const rendu = page.render({ canvasContext: ctx, viewport, intent: 'print' });
+      const fini = await Promise.race([
+        rendu.promise.then(() => true),
+        new Promise(resolve => setTimeout(() => resolve(false), DELAI_MAX_OCR))
+      ]);
+      if (!fini) { try { rendu.cancel(); } catch (e) { /* déjà terminé */ } return ''; }
       if (!worker) return '';
 
       // La reconnaissance d'image peut ne jamais rendre la main (bibliothèque indisponible ou
@@ -31528,8 +31538,9 @@
   var fenetreScans = 'f-' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36);
   var relaisScansAccorde = false;
   async function demanderRelaisScans() {
-    relaisScansAccorde = false;
-    if (!etatScans.reglages.actif || !etatScans.reglages.auto) return;
+    // Pas de remise à faux AVANT la réponse : une lecture en cours (OCR) testerait le relais pendant
+    // l'attente et sauterait le rangement d'un scan pourtant sûr.
+    if (!etatScans.reglages.actif || !etatScans.reglages.auto) { relaisScansAccorde = false; return; }
     try {
       const r = await fetchAvecAuth('/api/scans/relais', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fenetre: fenetreScans }) });
       relaisScansAccorde = r.ok && !!(await r.json()).accorde;
@@ -31718,12 +31729,69 @@
         return;
       }
       if (!auto) afficherToast(`Rangé dans ${libelleDossierAffiche(d)}${corps.rubrique ? ' › ' + corps.rubrique.replace(/[\\/]+/g, ' › ') : ''}.`, 'OK', null);
-      // La pièce passe « reçue » au parcours du NAS : relancé tout de suite pour ce dossier.
+      // Pièce ajoutée/cochée et responsable prévenu tout de suite, sans attendre le parcours du NAS
+      // (relancé ensuite pour le reste : il ne renotifie pas une pièce déjà « reçue »).
+      try { await enregistrerPieceRangee(d, choix, corps, auto); } catch (e) { console.warn('Pièce rangée non enregistrée :', e.message); }
       if (typeof verifierDossierLocal === 'function') verifierDossierLocal(d.id, false).catch(() => {});
     } finally {
       scansEnRangement.delete(nom);
       await chargerScans();
     }
+  }
+
+  // Types rangés qui ne sont pas des « pièces » du dossier : l'offre de prêt et l'avant-contrat ont
+  // leurs propres règles (reconnus par leur nom au parcours du NAS, qui notifie l'offre lui-même).
+  var TYPES_SCAN_HORS_PIECES = ['offrePret', 'avantContrat', 'promesse'];
+
+  // Pièce du dossier que représente un scan qu'on vient de ranger (étude, 30/09 : « la rajouter à la
+  // liste des pièces et la noter cochée ») : la pièce de la checklist de ce type si elle y figure,
+  // sinon une pièce personnalisée du même libellé (reprise si elle existe déjà, créée sinon). Le
+  // libellé est le nom de la copie sans « - Claire Scan ». null pour l'offre et l'avant-contrat.
+  // Pure.
+  function pieceDepuisScanRange(d, typeCle, nomCible, checklist, maintenantIso) {
+    if (TYPES_SCAN_HORS_PIECES.includes(typeCle)) return null;
+    const type = TYPES_SCAN.find(t => t.cle === typeCle) || null;
+    const liste = checklist || [];
+    if (type && type.piece) {
+      const piece = liste.find(p => p.cle === type.piece);
+      if (piece) return { cle: piece.cle, label: piece.label, nouvelle: false };
+    }
+    const suffixe = new RegExp('\\s*-?\\s*' + SUFFIXE_NOM_SCAN + '$', 'i');
+    let label = String(nomCible || '').replace(/\.pdf$/i, '').replace(suffixe, '').trim();
+    if (!label) label = type ? type.label : `Scan du ${formatDateFr(String(maintenantIso || '').slice(0, 10))}`;
+    const cleLabel = normaliserPourRecherche(label);
+    const existante = (d && d.piecesPersonnalisees || []).find(p => normaliserPourRecherche(p.label) === cleLabel)
+      || liste.find(p => normaliserPourRecherche(p.label) === cleLabel);
+    if (existante) return { cle: existante.cle, label: existante.label, nouvelle: false };
+    return { cle: 'perso-scan-' + String(Date.parse(maintenantIso) || Date.now()).slice(-8) + Math.random().toString(36).slice(2, 5), label, nouvelle: true };
+  }
+
+  // Après un rangement (à la main ou automatique) : la pièce est ajoutée si besoin, cochée, son
+  // fichier mémorisé, et le responsable prévenu (Teams, comme une pièce trouvée sur le NAS).
+  async function enregistrerPieceRangee(d, choix, corps, auto) {
+    const maintenant = new Date().toISOString();
+    const piece = pieceDepuisScanRange(d, choix.type, choix.nomCible, checklistPieces(d.typeVente, d), maintenant);
+    if (!piece) return;
+    if (piece.nouvelle) {
+      d.piecesPersonnalisees = d.piecesPersonnalisees || [];
+      d.piecesPersonnalisees.push({ cle: piece.cle, label: piece.label });
+    }
+    d.pieces = d.pieces || {};
+    d.pieces[piece.cle] = 'recue';
+    if (corps && corps.chemin) memoriserFichierTrouve(d, NAS_CLE_PIECE(piece.cle), String(corps.chemin).replace(/\\/g, '/'));
+    // Une pièce ajoutée pour ce scan n'a pas de motif de nom : sans ce drapeau, un parcours du NAS
+    // qui ne la retrouverait pas la repasserait « manquante ».
+    if (piece.nouvelle || !checklistPieces(d.typeVente).some(p => p.cle === piece.cle)) {
+      d.piecesValideesManuellement = Array.from(new Set([...(d.piecesValideesManuellement || []), piece.cle]));
+    }
+    d.piecesTrouveesLe = Object.assign({}, d.piecesTrouveesLe, { [piece.cle]: maintenant });
+    d.piecesNotifications = Array.from(new Set([...(d.piecesNotifications || []), piece.cle]));
+    ajouterHistorique(d, `Scan rangé ${auto ? 'automatiquement' : 'à la main'} : « ${piece.label} »${piece.nouvelle ? ' ajoutée à la liste des pièces' : ''}, reçue`);
+    await sauvegarder(d);
+    render();
+    notifierNouvellesPiecesTrouvees(d, [piece.cle]);
+    notifierNavigateurPieces(d, [piece.cle]);
+    signalerSiDossierDevenuComplet(d);
   }
 
   async function ecarterScan(nom) {

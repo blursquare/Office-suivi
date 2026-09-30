@@ -12711,3 +12711,30 @@ scans. »
   « score de 4/6 »). « sous le seuil de 4/6 », « un autre dossier est à 6/6 ». Le seuil, la marge
   ×1,3 et le rangement automatique restent calculés sur le score brut (7 reste plus sûr que 6 face à
   un second dossier). Tests mis à jour + cas 7 points → « 6/6 ».
+
+### 30/09/2026 15:22 — Scans : lecture fenêtre cachée, pièce rangée cochée et notifiée
+
+- Question de l'étude : « Je suis obligé d'ouvrir Scans à ranger pour que les documents se rangent
+  automatiquement ? » — Non en principe (surveillance toutes les 2 min), mais **reproduit** : l'OCR
+  d'un scan (image) dessine la page par `page.render`, que pdf.js 3.11 cadence en intent
+  « display » sur `requestAnimationFrame` (`useRequestAnimationFrame: !intentPrint`) ; rAF ne tourne
+  pas dans une fenêtre réduite/cachée → rendu jamais terminé, `lectureScansEnCours` bloqué, plus
+  rien ne se lisait jusqu'au retour sur la fenêtre. Vérifié dans Chromium en coupant rAF : bloqué
+  (> 8 s) avant, 0,2 s après ; pixels bien dessinés en intent « print ». Correctif dans `ocrPage`
+  (sert aussi à l'import de compromis scanné) + délai max sur le rendu. Au passage :
+  `demanderRelaisScans` ne remet plus le relais à faux avant la réponse (une lecture en cours
+  sautait le rangement d'un scan sûr pendant l'attente).
+- Demande de l'étude : « quand une nouvelle pièce est scannée et rangée à la main, la rajouter à la
+  liste des pièces, la noter cochée et envoyer une notification Teams ». `enregistrerPieceRangee`
+  après tout rangement réussi (main ou automatique, par cohérence) : `pieceDepuisScanRange` (pure,
+  testée) donne la pièce de la checklist du type, sinon une pièce personnalisée au libellé de la
+  copie sans « - Claire Scan » (reprise si le libellé existe déjà ; une pièce d'identité = une pièce
+  par personne ; type inconnu → « Scan du JJ/MM/AAAA ») ; offre de prêt et avant-contrat exclus (le
+  parcours du NAS les traite et notifie l'offre). Pièce cochée, fichier mémorisé, drapeau « validée
+  à la main » pour une pièce ajoutée (pas de motif de nom), « Nouveau », historique, notification
+  Teams (`notifierNouvellesPiecesTrouvees`, lien vers le fichier) et navigateur. Le parcours du NAS
+  relancé ensuite ne renotifie pas (pièce déjà reçue).
+- Vérifié dans Chromium (serveur réel, NAS et Scan inventés) : état daté et facture rangés à la
+  main → fiche 2/13, « État daté » et « Facture » cochés « Nouveau », deux requêtes
+  `/api/notifications/pieces-recues` avec le chemin du fichier. Non vérifié : réception réelle dans
+  Teams (flux Power Automate du bureau).

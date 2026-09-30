@@ -219,7 +219,12 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   partie reconnue. **Rangement automatique sans validation** (demandé le 30/09, actif par défaut,
   désactivable) : dossier sûr + pièce identifiée + dossier relié au NAS ; fait par UNE fenêtre CLAIRE
   ouverte à la fois (relais `/api/scans/relais`, poste serveur prioritaire, relais repris par une
-  autre fenêtre après 5 min de silence) ; jamais retenté seul après un échec. Un pré-état daté n'est
+  autre fenêtre après 5 min de silence) ; jamais retenté seul après un échec. **Après chaque
+  rangement** (main ou auto, `enregistrerPieceRangee`) : pièce de la checklist cochée, sinon pièce
+  personnalisée au libellé de la copie ajoutée puis cochée (`pieceDepuisScanRange`, validée à la main),
+  fichier mémorisé, notification Teams immédiate (offre de prêt et avant-contrat exclus : parcours
+  du NAS). **OCR d'un scan : `page.render(… intent: 'print')`** — en « display », pdf.js 3.11 cadence
+  le dessin sur `requestAnimationFrame`, arrêté fenêtre réduite/cachée (lecture bloquée sans fin). Un pré-état daté n'est
   pas un état daté (checklist corrigée le même jour).
 - **Mobilier** : le prix reste le prix total ; `d.prixMobilier` sort seulement de l'assiette des
   droits (frais d'acte, contrôle du barème).
