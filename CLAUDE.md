@@ -158,6 +158,9 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   Une pièce validée à la main (`piecesValideesManuellement`) n'est jamais repassée en manquante.
   Une exclusion (« Réinitialiser ») est globale et stockée en base — elle est la première cause
   d'une pièce « jamais reconnue » malgré un nom correct.
+  **Notification d'une pièce trouvée : une seule fois** par dossier + pièce + fichier (registre
+  serveur `pieces-notifiees`, 30 jours, `dedoublonnerPieces` dans `routes/notifications.js`) ; une
+  seule vérification NAS à la fois par dossier et par fenêtre (`verificationsDossierEnCours`).
 - **Dépôt de garantie** : toujours déduit de l'appel de fonds (l'agence reverse la somme) ; le
   détenteur dit seulement quoi réclamer.
 - **Fonds reçus** (reçus comptables du NAS) : le client est le **titulaire** en début de ligne, et

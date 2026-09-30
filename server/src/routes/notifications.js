@@ -99,6 +99,32 @@ function lirePiece(p) {
   return null;
 }
 
+// Une même pièce n'est notifiée qu'une fois (étude, 30/09 : « deux notifications pour le même
+// document », à 11 minutes d'écart) : clé dossier + pièce + fichier, retenue 30 jours. Une pièce
+// renouvelée (autre fichier) repart ; la même, relue par une autre fenêtre CLAIRE ou retrouvée après
+// avoir paru manquante un instant, non. Pure : renvoie les pièces à envoyer et le registre à jour
+// (entrées de plus de 30 jours purgées, nouvelles pièces enregistrées).
+const DUREE_DEDOUBLONNAGE_MS = 30 * 86400000;
+function normaliserCle(s) {
+  return String(s || '').normalize('NFC').toLowerCase().replace(/\\/g, '/').replace(/\s+/g, ' ').trim();
+}
+function dedoublonnerPieces(registre, dossierCle, pieces, maintenantMs) {
+  const limite = maintenantMs - DUREE_DEDOUBLONNAGE_MS;
+  const suivant = {};
+  for (const [k, v] of Object.entries(registre || {})) if (Date.parse(v) >= limite) suivant[k] = v;
+  const date = new Date(maintenantMs).toISOString();
+  const aEnvoyer = [];
+  const vues = new Set();
+  for (const p of pieces) {
+    const cle = `${normaliserCle(dossierCle)}|${normaliserCle(p.label)}|${normaliserCle(p.chemin)}`;
+    if (suivant[cle] || vues.has(cle)) continue;
+    vues.add(cle);
+    suivant[cle] = date;
+    aEnvoyer.push(p);
+  }
+  return { aEnvoyer, registre: suivant };
+}
+
 // Envoie un texte au responsable puis, en copie, à l'adresse de l'étude — même schéma que
 // executerTacheRappels() : la copie n'est envoyée qu'APRÈS le principal (ou reste le seul message
 // quand aucun responsable n'est connu), jamais en double si elle coïncide avec l'adresse déjà
@@ -146,12 +172,13 @@ function creerRouteurNotifications(parametresRepo, envoyerFn, options = {}) {
   const router = express.Router();
   const envoyer = envoyerFn || envoyerEmail;
   const adresses = options.adressesLan || adressesLan;
+  const horloge = options.horloge || (() => Date.now());
 
   router.post('/notifications/pieces-recues', async (req, res) => {
     const corps = req.body || {};
     const dossierNom = typeof corps.dossierNom === 'string' ? corps.dossierNom.trim() : '';
     const responsable = typeof corps.responsable === 'string' ? corps.responsable.trim() : '';
-    const pieces = (Array.isArray(corps.pieces) ? corps.pieces : []).map(lirePiece).filter(Boolean);
+    let pieces = (Array.isArray(corps.pieces) ? corps.pieces : []).map(lirePiece).filter(Boolean);
     if (!dossierNom) return res.status(400).json({ erreur: 'dossierNom manquant.' });
     if (pieces.length === 0) return res.status(400).json({ erreur: 'pieces manquantes ou vide.' });
 
@@ -159,6 +186,16 @@ function creerRouteurNotifications(parametresRepo, envoyerFn, options = {}) {
     // Envoi par email non activé : rien à envoyer, ce n'est pas une erreur — le client n'a pas à
     // vérifier lui-même cet état avant d'appeler la route (même principe que le job de rappels).
     if (!envoiConfigure(reglages)) return res.json({ ok: true, ignore: true });
+
+    // Déjà notifiée : rien ne repart. Le registre est écrit AVANT l'envoi (synchrone, donc sans
+    // course entre deux requêtes simultanées de deux fenêtres).
+    if (typeof parametresRepo.lirePiecesNotifiees === 'function') {
+      const dossierCle = typeof corps.dossierId === 'string' && corps.dossierId ? corps.dossierId : dossierNom;
+      const r = dedoublonnerPieces(parametresRepo.lirePiecesNotifiees(), dossierCle, pieces, horloge());
+      parametresRepo.ecrirePiecesNotifiees(r.registre);
+      pieces = r.aEnvoyer;
+      if (!pieces.length) return res.json({ ok: true, ignore: true, dejaNotifiees: true });
+    }
 
     let liens = [];
     const avecChemin = pieces.filter((p) => p.chemin);
@@ -228,4 +265,4 @@ function creerRouteurNotifications(parametresRepo, envoyerFn, options = {}) {
   return router;
 }
 
-module.exports = { creerRouteurNotifications, texteNotificationPieces, htmlNotificationPieces, texteDossierComplet, texteDateAjoutee, texteTacheFaite };
+module.exports = { creerRouteurNotifications, dedoublonnerPieces, texteNotificationPieces, htmlNotificationPieces, texteDossierComplet, texteDateAjoutee, texteTacheFaite };

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 15:45';
+  const VERSION_APP = '2026-09-30 15:53';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 15:53', resume: "Notifications Teams des pièces : une même pièce (même dossier, même fichier) n'est plus notifiée deux fois. Deux fenêtres CLAIRE qui relisaient le même dossier, ou une pièce qui repassait un instant « manquante », envoyaient un second message. Une pièce renouvelée (autre fichier) est toujours signalée." },
     { version: '2026-09-30 15:45', resume: "Tableau de bord, carte « Dernières pièces » : sous les pièces réceptionnées, les scans du copieur à ranger (un clic ouvre « Scans à ranger ») puis les scans rangés ces 14 derniers jours (un clic ouvre le dossier). En petit format, la carte affiche le nombre de scans à ranger." },
     { version: '2026-09-30 15:39', resume: "Scans du copieur : un avis de taxe foncière scanné est rangé dans la rubrique Comptabilité du dossier client (et non plus à sa racine)." },
     { version: '2026-09-30 15:22', resume: "Scans du copieur : le rangement automatique ne dépend plus de l'écran « Scans à ranger ». Les scans en image restaient bloqués tant que la fenêtre CLAIRE était réduite ou cachée ; ils sont maintenant lus fenêtre cachée. Et chaque scan rangé, à la main ou automatiquement, coche aussitôt sa pièce dans la liste du dossier. Si la pièce n'y figure pas (facture, courrier, pièce d'identité…), elle est ajoutée puis cochée. Le responsable est prévenu sur Teams avec le lien vers le fichier rangé." },
@@ -22772,7 +22773,7 @@
       await fetchAvecAuth('/api/notifications/pieces-recues', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ dossierNom: libelleDossierAffiche(d), responsable: d.responsable || null, pieces })
+        body: JSON.stringify({ dossierId: d.id, dossierNom: libelleDossierAffiche(d), responsable: d.responsable || null, pieces })
       });
     } catch (e) {
       console.warn('Notification par email (pièces reçues) impossible :', e.message);
@@ -23357,7 +23358,20 @@
   // les pièces d'urbanisme se trouvant plus loin dans l'arborescence, alors que les deux documents
   // se trouvent dans le même dossier local relié. Le parcours ne s'arrête plus tôt que si tout ce
   // qu'on cherche (offre comprise) est déjà résolu, ou si le dossier est entièrement parcouru.
-  async function verifierDossierLocal(id, viaClicUtilisateur) {
+  // Une seule vérification à la fois par dossier dans cette fenêtre : le tour automatique, la
+  // détection d'un nouveau document et un rangement de scan pouvaient relire le même dossier en
+  // même temps — chacune voyait la pièce « manquante » avant l'autre et la notifiait (étude, 30/09 :
+  // deux notifications Teams pour le même certificat). Un appel pendant qu'une vérification tourne
+  // attend simplement la même.
+  var verificationsDossierEnCours = new Map();
+  function verifierDossierLocal(id, viaClicUtilisateur) {
+    if (verificationsDossierEnCours.has(id)) return verificationsDossierEnCours.get(id);
+    const p = verifierDossierLocalUneFois(id, viaClicUtilisateur).finally(() => verificationsDossierEnCours.delete(id));
+    verificationsDossierEnCours.set(id, p);
+    return p;
+  }
+
+  async function verifierDossierLocalUneFois(id, viaClicUtilisateur) {
     const d = dossiers.find(x => x.id === id);
     if (!d || !d.dossierLie || !d.nasDossier) return;
     // Achat comptant (sans prêt) : rien à chercher côté offre, seul le nom de la fonction reste

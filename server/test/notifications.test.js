@@ -10,13 +10,13 @@
 // n'est démarré ici. Un faux serveur laissé ouvert par un test qui échoue fait pendre toute la
 // suite — déjà rencontré sur la version précédente de ce fichier.
 
-const { test, before, after } = require('node:test');
+const { test, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const os = require('node:os');
 
 const { creerApp } = require('../src/app');
 const { ouvrirDb } = require('../src/db');
-const { texteNotificationPieces } = require('../src/routes/notifications');
+const { texteNotificationPieces, dedoublonnerPieces } = require('../src/routes/notifications');
 
 function config() {
   return { motDePasse: 'mdp-test', racineRepo: os.tmpdir(), port: 0, jetonCalendrier: '' };
@@ -54,6 +54,12 @@ before(async () => {
 after(() => {
   serveurApp.close();
   db.close();
+});
+
+// Chaque test part d'un registre des pièces notifiées vide : plusieurs tests envoient la même pièce
+// sur le même dossier, que le dédoublonnage (testé plus bas) écarterait sinon.
+beforeEach(() => {
+  if (db) db.prepare("DELETE FROM parametres WHERE cle = 'pieces-notifiees'").run();
 });
 
 function appeler(chemin, options) {
@@ -120,6 +126,7 @@ test('copieEmail : reçoit un double, jamais si elle coïncide avec le destinata
 
   // Copie == responsable lui-même (ex. l'étude est elle-même la responsable du dossier) : un seul envoi.
   envois.length = 0;
+  db.prepare("DELETE FROM parametres WHERE cle = 'pieces-notifiees'").run();
   await appeler('/api/reglages', {
     method: 'PUT',
     body: JSON.stringify({ emailActif: true, smtpHote: 'smtp.test', emailPasserelle: 'passerelle@etude.fr', copieEmail: 'bastien@etude.fr', emailsResponsables: { 'Bastien ANGLUMENT': 'bastien@etude.fr' } })
@@ -129,6 +136,7 @@ test('copieEmail : reçoit un double, jamais si elle coïncide avec le destinata
 
   // Même boîte écrite avec une autre casse : toujours un seul envoi (doublon signalé par l'étude).
   envois.length = 0;
+  db.prepare("DELETE FROM parametres WHERE cle = 'pieces-notifiees'").run();
   await appeler('/api/reglages', {
     method: 'PUT',
     body: JSON.stringify({ emailActif: true, smtpHote: 'smtp.test', emailPasserelle: 'passerelle@etude.fr', copieEmail: 'bastien.anglument@gossart.notaires.fr', emailsResponsables: { 'Bastien ANGLUMENT': 'Bastien.ANGLUMENT@gossart.notaires.fr' } })
@@ -198,4 +206,36 @@ test('POST /api/notifications/date-ajoutee : prévient le responsable, sans copi
   // Date invalide : 400.
   reponse = await appeler('/api/notifications/date-ajoutee', { method: 'POST', body: JSON.stringify({ dossierNom: 'DUPONT / MARTIN', responsable: 'Julie VASSELIN', date: '14/10/2026' }) });
   assert.equal(reponse.status, 400);
+});
+
+test('dédoublonnage (pur) : même dossier, même pièce, même fichier → une seule fois ; autre fichier → renvoyée', () => {
+  const t0 = Date.parse('2026-09-30T13:19:00Z');
+  const alignement = { label: "Certificat d'alignement", chemin: 'GALLET BORDIN/AAE/Alignement.pdf' };
+  const r1 = dedoublonnerPieces({}, 'd1', [alignement], t0);
+  assert.equal(r1.aEnvoyer.length, 1);
+  // 11 minutes plus tard, relue par une autre fenêtre : rien ne repart.
+  const r2 = dedoublonnerPieces(r1.registre, 'd1', [alignement], t0 + 11 * 60000);
+  assert.equal(r2.aEnvoyer.length, 0);
+  // Même pièce, autre fichier (pièce renouvelée) : renvoyée.
+  const r3 = dedoublonnerPieces(r2.registre, 'd1', [{ label: "Certificat d'alignement", chemin: 'GALLET BORDIN/AAE/Alignement 2027.pdf' }], t0 + 60000);
+  assert.equal(r3.aEnvoyer.length, 1);
+  // Autre dossier : renvoyée.
+  assert.equal(dedoublonnerPieces(r3.registre, 'd2', [alignement], t0).aEnvoyer.length, 1);
+  // Après 30 jours, l'entrée est purgée.
+  const r4 = dedoublonnerPieces(r1.registre, 'd1', [alignement], t0 + 31 * 86400000);
+  assert.equal(r4.aEnvoyer.length, 1);
+  // Doublon dans un même appel : une seule fois.
+  assert.equal(dedoublonnerPieces({}, 'd1', [alignement, alignement], t0).aEnvoyer.length, 1);
+});
+
+test('POST pieces-recues deux fois pour la même pièce (deux fenêtres) : un seul message', async () => {
+  await appeler('/api/reglages', { method: 'PUT', body: JSON.stringify({ emailActif: true, smtpHote: 'smtp.test', emailPasserelle: 'passerelle@etude.fr', emailsResponsables: { 'Bastien ANGLUMENT': 'bastien@etude.fr' } }) });
+  envois.length = 0;
+  const corps = JSON.stringify({ dossierId: 'dos-1', dossierNom: 'VTE - DUPONT / MARTIN', responsable: 'Bastien ANGLUMENT', pieces: [{ label: "Certificat d'alignement", chemin: 'DUPONT/AAE/Alignement.pdf' }] });
+  const r1 = await (await appeler('/api/notifications/pieces-recues', { method: 'POST', body: corps })).json();
+  const nbApresPremier = envois.length;
+  const r2 = await (await appeler('/api/notifications/pieces-recues', { method: 'POST', body: corps })).json();
+  assert.ok(nbApresPremier >= 1, JSON.stringify(r1));
+  assert.equal(envois.length, nbApresPremier);
+  assert.equal(r2.dejaNotifiees, true);
 });

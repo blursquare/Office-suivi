@@ -607,6 +607,19 @@ const CLE_RESUME_EMAILS = 'resume-emails-matin';
 const CLE_SCANS_REGLAGES = 'scans-reglages';
 const CLE_SCANS_JOURNAL = 'scans-journal';
 const CLE_SCANS_ECARTES = 'scans-ecartes';
+// Pièces déjà notifiées au responsable (routes/notifications.js) : clé « dossier|pièce|fichier » →
+// date d'envoi ISO. Évite qu'une même pièce reparte sur Teams (deux fenêtres CLAIRE qui relisent le
+// même dossier, pièce qui repasse un instant « manquante » entre deux parcours du NAS).
+const CLE_PIECES_NOTIFIEES = 'pieces-notifiees';
+const MAX_PIECES_NOTIFIEES = 5000;
+function assainirPiecesNotifiees(brut) {
+  const b = brut && typeof brut === 'object' && !Array.isArray(brut) ? brut : {};
+  const entrees = Object.entries(b)
+    .filter(([k, v]) => typeof k === 'string' && k.length <= 700 && typeof v === 'string' && !Number.isNaN(Date.parse(v)))
+    .sort((a, b2) => b2[1].localeCompare(a[1]))
+    .slice(0, MAX_PIECES_NOTIFIEES);
+  return Object.fromEntries(entrees);
+}
 const MAX_SCANS_JOURNAL = 300;
 const MAX_SCANS_ECARTES = 500;
 function assainirReglagesScans(brut) {
@@ -950,6 +963,8 @@ function creerRepoParametres(db) {
   function lireJournalScans() { return lireJson(CLE_SCANS_JOURNAL, assainirJournalScans, []); }
   function ecrireJournalScans(j) { const p = assainirJournalScans(j); ecrireStmt.run(CLE_SCANS_JOURNAL, JSON.stringify(p)); return p; }
   function lireScansEcartes() { return lireJson(CLE_SCANS_ECARTES, assainirScansEcartes, []); }
+  function lirePiecesNotifiees() { return lireJson(CLE_PIECES_NOTIFIEES, assainirPiecesNotifiees, {}); }
+  function ecrirePiecesNotifiees(m) { const p = assainirPiecesNotifiees(m); ecrireStmt.run(CLE_PIECES_NOTIFIEES, JSON.stringify(p)); return p; }
   function ecrireScansEcartes(l) { const p = assainirScansEcartes(l); ecrireStmt.run(CLE_SCANS_ECARTES, JSON.stringify(p)); return p; }
 
   function lireResumeEmails() {
@@ -981,6 +996,7 @@ function creerRepoParametres(db) {
 
   return {
     lireReglagesScans, ecrireReglagesScans, lireJournalScans, ecrireJournalScans, lireScansEcartes, ecrireScansEcartes,
+    lirePiecesNotifiees, ecrirePiecesNotifiees,
     lireCarnetConfreres, ecrireCarnetConfreres,
     lireResumeEmails, ecrireResumeEmails,
     lireReglagesMiseAJour, ecrireReglagesMiseAJour,
@@ -1005,5 +1021,5 @@ module.exports = {
   assainirReglagesExchange, assainirCategoriesRdv, CATEGORIES_RDV_DEFAUT, URL_EWS_DEFAUT, assainirCategoriesAgenda,
   assainirDernierTourAgenda, assainirAbsenceAgenda, assainirAbsencesAgenda,
   REGLAGES_PAR_DEFAUT, PORT_SMTP_PAR_DEFAUT, assainirResumeEmails,
-  assainirReglagesScans, assainirJournalScans, assainirScansEcartes
+  assainirReglagesScans, assainirJournalScans, assainirScansEcartes, assainirPiecesNotifiees
 };

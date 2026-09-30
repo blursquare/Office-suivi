@@ -12758,3 +12758,22 @@ scans. »
   avant la première réponse du serveur. La carte est redessinée à chaque relecture du dossier Scan
   (toutes les 2 min) quand le tableau de bord est affiché.
 - Vérifié dans Chromium (serveur réel, un scan rangé à la main, deux en attente).
+
+### 30/09/2026 15:53 — Notifications Teams : plus de doublon pour une même pièce
+
+- Signalé par l'étude (capture Teams) : « Nouvelle pièce trouvée … Certificat d'alignement » reçu
+  deux fois, à 15 h 19 et 15 h 30, même dossier, même fichier. Causes possibles dans le code : deux
+  fenêtres CLAIRE qui vérifient le même dossier (chacune compare à sa propre copie « avant ») ; une
+  pièce qui repasse un instant « manquante » (lecture du NAS incomplète) puis est retrouvée ; deux
+  vérifications simultanées du même dossier dans une fenêtre (tour automatique + nouveau document
+  détecté + rangement d'un scan). Cause exacte non établie d'ici (pas d'accès aux journaux du bureau).
+- Correctif côté serveur, qui couvre tous les cas : `dedoublonnerPieces` (pur, testé) dans
+  `POST /api/notifications/pieces-recues` — clé dossier (`dossierId`, envoyé désormais par le client,
+  sinon le nom) + libellé + chemin du fichier, registre `pieces-notifiees` (parametres, 30 jours,
+  5 000 entrées max) écrit AVANT l'envoi (synchrone : deux requêtes simultanées ne passent pas
+  toutes les deux). Même pièce, autre fichier (renouvelée) → renvoyée. Côté client :
+  `verifierDossierLocal` ne lance plus deux vérifications du même dossier en parallèle dans une
+  fenêtre (`verificationsDossierEnCours`, l'appel suivant attend la même).
+- Tests serveur : pur (même fichier 11 min après → rien ; autre fichier → envoyé ; autre dossier ;
+  purge à 30 jours ; doublon dans un même appel) et route (deux POST identiques → un seul email).
+  Vérifié dans Chromium : deux scans rangés → deux emails ; renvoi de la même pièce → aucun.
