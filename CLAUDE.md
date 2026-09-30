@@ -146,12 +146,12 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   un rendez-vous placé avec une pièce manquante reste « Attente de pièces » ; une vente préalable non
   réalisée (financement, comme l'offre) empêche « Complet » et « Prêt ». Couleurs : rouge, gris, ambre, bleu `--acte`
   (jamais l'accent, qui peut être orange ou vert), vert. **Suivi** (30/09, choix de l'étude) : statuts en pastilles
-  de filtre dans la barre d'outils (`syntheseEtatsSuivi`, `renderEtatsSuivi`) ; « Vue d'ensemble » au-dessus
-  (`statsSuivi`, `renderStatsSuivi`, repliable) — signatures et montant du mois (le mois suivant dans les
-  5 derniers jours), offres attendues, dates butoir ≤ 15 j, signatures/dates butoir sur 8 semaines
-  (clic = filtre semaine), charge par collaborateur (clic = filtre), délais moyens depuis l'ouverture du
-  dossier dans CLAIRE (pas de date de compromis enregistrée). Couleurs du graphique `--graph-signature` /
-  `--graph-butoir`, validées au script dataviz en clair et en sombre. L'échéance a sa propre colonne (« Prochaine
+  de filtre dans la barre d'outils (`syntheseEtatsSuivi`, `renderEtatsSuivi`) ; au-dessus, « Prévu en
+  {mois} » (`prevuDuMois`, `renderStatsSuivi`, repliable) — angle voulu par l'étude : ce qui est prévu
+  ce mois-ci. Quatre listes de dossiers (signatures, envois appel de fonds/projet, rendez-vous à fixer,
+  dates butoir ; retards d'abord ; clic = fiche) + délais moyens depuis l'ouverture du dossier dans
+  CLAIRE. Mois suivant dans les 5 derniers jours (`moisPrevuSuivi`). Refusés par l'étude : graphique
+  par semaine, charge par collaborateur, montant des ventes, le mot « portefeuille ». L'échéance a sa propre colonne (« Prochaine
   échéance ») ; `statutDossier` (pièces trouvées) ne sert plus qu'aux points « À traiter ».
 - **Seuils des rappels email** : prêt J-15/J-7, vente préalable J-15/J-7, appel de fonds J-15/J-10,
   signature J-25/J-15, personnalisées J-15/J-7 (`SEUILS_RAPPELS_PAR_TYPE`).

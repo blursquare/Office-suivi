@@ -6939,78 +6939,50 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
 .scan-statut { display: flex; align-items: center; gap: 4px 12px; flex-wrap: wrap; }
 .scan-score { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 
-/* ---- Suivi des dossiers (30/09) : vue d'ensemble au-dessus de la liste, statuts en pastilles ----
-   Données : signatures = --graph-signature (bleu de l'app), dates butoir = --graph-butoir (ambre de
-   « Obtention du prêt ») ; teintes du mode sombre validées sur sa surface (#1B1E23, écart daltonien
-   ≥ 20). Le texte ne prend jamais la couleur d'une donnée. */
-:root { --graph-signature: #2472B0; --graph-butoir: #B07A12; }
-[data-theme="dark"] { --graph-signature: #4A95D6; --graph-butoir: #B98420; }
+/* ---- Suivi des dossiers (30/09) : « Prévu en … » au-dessus de la liste, statuts en pastilles ----
+   Quatre cartes (signatures, envois, rendez-vous à fixer, dates butoir) listant les dossiers du mois ;
+   les cartes vides passent en dernier, sur une ligne. Aucune couleur de donnée : le retard seul
+   prend le rouge du statut « Urgent » (.dot-label). */
 .suivi-compte { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .suivi-stats:empty { display: none; }
 .suivi-stats { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
 .suivi-stats.repliee { margin-bottom: 8px; }
-.st-tete { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.st-titre { margin: 0; font-size: 12.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); }
-.suivi-stats button.st-replier { display: inline-flex; align-items: center; gap: 4px; margin: 0; padding: 2px 4px; border: 0; background: none; color: var(--muted); font: inherit; font-size: 12.5px; cursor: pointer; box-shadow: none; }
+.st-tete { display: flex; align-items: center; gap: 12px 16px; flex-wrap: wrap; }
+.st-titre { margin: 0; font-size: 15px; font-weight: 600; color: var(--ink); }
+.st-titre::first-letter { text-transform: uppercase; }
+.pm-delais { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
+.pm-delais strong { color: var(--ink-soft); font-weight: 600; font-variant-numeric: tabular-nums; }
+.pm-sep { color: var(--line); }
+.suivi-stats button.st-replier { margin: 0 0 0 auto; display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px; border: 0; background: none; color: var(--muted); font: inherit; font-size: 12.5px; cursor: pointer; box-shadow: none; }
 .suivi-stats button.st-replier:hover { color: var(--ink); }
-/* Quatre chiffres : une seule carte, séparée par des filets. */
-.st-tuiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: var(--paper-card); border: 1px solid var(--line); border-radius: 10px; }
-.st-tuiles > * { min-width: 0; }
-.st-tuile { padding: 14px 18px 13px; border-left: 1px solid var(--line); display: flex; flex-direction: column; gap: 3px; }
-.st-tuile:first-child { border-left: 0; }
-.st-valeur { font-size: 26px; font-weight: 600; line-height: 1.1; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.st-valeur.st-alerte { color: var(--ink); }
-.st-libelle { font-size: 13px; color: var(--ink-soft); }
-.st-sous { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.st-grille { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 12px; }
-.st-carte { background: var(--paper-card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-.st-carte-tete { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
-.st-carte-tete h3 { margin: 0; font-size: 13.5px; font-weight: 600; color: var(--ink); }
-.st-legende { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-soft); }
-.st-cle { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
-.st-cle + .st-cle, .st-legende .st-cle-but { margin-left: 8px; }
-.st-cle-sig { background: var(--graph-signature); }
-.st-cle-but { background: var(--graph-butoir); }
-/* Graphique : axe à graduations entières, filets horizontaux fins, une colonne par semaine. */
-.st-plot { --base: 20px; display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 6px; flex: 1; min-height: 150px; }
-.st-court { display: none; }
-.st-axe { position: relative; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.st-axe span { position: absolute; right: 0; transform: translateY(50%); line-height: 1; }
-.st-colonnes { position: relative; display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; }
-.st-ligne { position: absolute; left: 0; right: 0; height: 1px; background: var(--line-soft); pointer-events: none; }
-.st-ligne-base { background: var(--line); }
-.st-colonnes button.st-sem { position: relative; display: grid; grid-template-rows: minmax(0, 1fr) 20px; margin: 0; padding: 0; border: 0; border-radius: 6px; background: transparent; font: inherit; cursor: pointer; box-shadow: none; min-width: 0; }
-.st-colonnes button.st-sem:hover, .st-colonnes button.st-sem:focus-visible { background: color-mix(in srgb, var(--ink) 5%, transparent); outline: none; }
-.st-colonnes button.st-sem.actif { background: color-mix(in srgb, var(--graph-signature) 12%, transparent); }
-.st-barres { display: flex; align-items: flex-end; justify-content: center; gap: 2px; height: 100%; }
-.st-barre { position: relative; width: min(14px, 30%); border-radius: 4px 4px 0 0; }
-.st-barre-sig { background: var(--graph-signature); }
-.st-barre-but { background: var(--graph-butoir); }
-.st-cap { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); padding-bottom: 2px; font-size: 11px; font-weight: 600; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
-.st-sem-lib { align-self: center; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.st-sem.actif .st-sem-lib { color: var(--ink); font-weight: 600; }
-.st-bulle { display: none; position: absolute; z-index: 20; bottom: calc(100% - 14px); left: 50%; transform: translateX(-50%); width: max-content; max-width: 260px;
-  padding: 8px 10px; border-radius: 8px; background: var(--ink); color: var(--paper-card); font-size: 12px; line-height: 1.4; text-align: left; box-shadow: 0 4px 14px rgba(0,0,0,0.18); pointer-events: none; }
-.st-sem:hover .st-bulle, .st-sem:focus-visible .st-bulle { display: block; }
-.st-colonnes .st-sem:first-child .st-bulle { left: 0; transform: none; }
-.st-colonnes .st-sem:last-child .st-bulle { left: auto; right: 0; transform: none; }
-.suivi-stats button.st-effacer { align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; margin: 0; padding: 2px 8px 2px 4px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper-card); color: var(--ink-soft); font: inherit; font-size: 12px; cursor: pointer; box-shadow: none; }
-/* Charge par collaborateur : une ligne cliquable par responsable, jauge urgents + autres. */
-.st-carte button.st-coll { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; margin: 0; padding: 6px 8px; border: 0; border-radius: 8px; background: transparent; font: inherit; text-align: left; color: var(--ink); cursor: pointer; box-shadow: none; }
-.st-carte button.st-coll:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); }
-.st-carte button.st-coll.actif { background: color-mix(in srgb, var(--graph-signature) 12%, transparent); }
-.st-coll-nom { font-size: 13px; font-weight: 500; }
-.st-coll-jauge { display: flex; gap: 2px; height: 6px; border-radius: 3px; background: var(--paper-sunk); overflow: hidden; }
-.st-coll-urgent { background: var(--urgent); }
-.st-coll-reste { background: var(--graph-signature); }
-.st-coll-urgent[style^="width:0.0"], .st-coll-reste[style^="width:0.0"] { display: none; }
-.st-coll-chiffres { font-size: 12px; color: var(--muted); }
-.st-coll-chiffres strong { color: var(--ink); font-variant-numeric: tabular-nums; }
-.st-urgents { color: var(--ink-soft); }
-.st-delais { display: flex; align-items: center; gap: 16px; margin-top: auto; padding-top: 10px; border-top: 1px solid var(--line-soft); }
-.st-delai { display: flex; flex-direction: column; gap: 1px; }
-.st-delai-v { font-size: 18px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
-.st-delai-l { font-size: 12px; color: var(--muted); }
+.pm-grille { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.pm-grille > * { min-width: 0; }
+.pm-carte { background: var(--paper-card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 12px 10px; display: flex; flex-direction: column; gap: 8px; }
+.pm-carte-tete { display: flex; align-items: center; gap: 7px; padding: 0 4px; }
+.pm-carte-tete .icone { color: var(--muted); flex: none; }
+.pm-carte-tete h3 { margin: 0; font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.pm-n { font-size: 13.5px; font-weight: 600; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.pm-retards { margin-left: auto; font-size: 11.5px; color: var(--urgent); white-space: nowrap; }
+.pm-lignes { display: flex; flex-direction: column; }
+.pm-carte button.pm-ligne { display: grid; grid-template-columns: 78px minmax(0, 1fr); column-gap: 8px; row-gap: 1px; align-items: baseline; margin: 0; padding: 6px 4px; border: 0; border-top: 1px solid var(--line-soft); border-radius: 0; background: transparent; font: inherit; text-align: left; color: var(--ink); cursor: pointer; box-shadow: none; }
+.pm-carte button.pm-ligne:first-child { border-top: 0; }
+.pm-carte button.pm-ligne:hover { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+.pm-carte button.pm-ligne:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.pm-date { font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pm-nom { font-size: 13px; font-weight: 500; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.pm-etat { grid-column: 2; font-size: 11.5px; color: var(--muted); }
+.pm-etat.dot-label { font-weight: 500; }
+.pm-passee { color: var(--muted); }
+.pm-rien { margin: 0; padding: 0 4px; font-size: 12.5px; color: var(--muted); }
+.pm-carte.pm-vide { gap: 4px; }
+.pm-carte.pm-vide .pm-n { color: var(--muted); }
+.suivi-stats button.pm-plus { align-self: flex-start; margin: 0 0 0 4px; padding: 0; border: 0; background: none; color: var(--focus); font: inherit; font-size: 12.5px; cursor: pointer; box-shadow: none; }
+.suivi-stats button.pm-plus:hover { text-decoration: underline; }
+@media (max-width: 1200px) { .pm-grille { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) {
+  .pm-grille { grid-template-columns: minmax(0, 1fr); }
+  .pm-delais { order: 3; width: 100%; }
+}
 /* Statuts en pastilles (barre d'outils). */
 .suivi-statuts { display: flex; flex-wrap: wrap; gap: 6px; }
 .suivi-statuts:empty { display: none; }
@@ -7019,19 +6991,6 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
 .suivi-statuts button.suivi-statut.actif { border-color: var(--ink); color: var(--ink); background: color-mix(in srgb, var(--ink) 6%, var(--paper-card)); font-weight: 500; }
 .suivi-statuts button.suivi-statut.vide { opacity: 0.5; }
 .suivi-statut-n { font-variant-numeric: tabular-nums; color: var(--muted); }
-@media (max-width: 900px) {
-  .st-grille { grid-template-columns: minmax(0, 1fr); }
-}
-@media (max-width: 640px) {
-  .st-tuiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .st-tuile:nth-child(3) { border-left: 0; }
-  .st-tuile:nth-child(n+3) { border-top: 1px solid var(--line); }
-  .st-tuile { padding: 11px 12px; }
-  .st-valeur { font-size: 21px; }
-  .st-sem-lib { font-size: 10px; }
-  .st-long { display: none; }
-  .st-court { display: inline; }
-}
 /* Versement conservé en mémoire : son fichier a été supprimé du commun (30/09). */
 .fonds-versements li.memorise { grid-template-columns: 48px minmax(0, 1fr) 20px auto; }
 .fonds-v-actions { display: inline-flex; align-items: center; gap: 2px; }

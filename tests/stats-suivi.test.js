@@ -1,64 +1,54 @@
 'use strict';
-// Statistiques au-dessus du Suivi (30/09) : chiffres du mois, signatures et dates butoir par
-// semaine, charge par collaborateur, délais moyens. Dossiers inventés.
+// « Prévu ce mois-ci » au-dessus du Suivi (30/09) : signatures, envois, rendez-vous à fixer, dates
+// butoir du mois, délais moyens. Dossiers inventés.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { chargerApplication } = require('./helpers/load-app.js');
 const app = chargerApplication();
 
-const AUJ = '2026-10-07'; // un mercredi
+const AUJ = '2026-10-07';
 const cree = (iso) => [{ date: iso + 'T09:00:00', texte: 'Dossier créé' }];
+const ids = (liste) => liste.map(x => x.d.id + ':' + x.iso + (x.retard ? '!' : '')).join(' ');
 const dossiers = [
-  { id: 'a', responsable: 'Julie VASSELIN', rendezVousSignature: '2026-10-09', prixVente: 200000, pret: '2026-09-20', offrePretStatut: 'recue', dossierLie: true,
+  // Signature le 20/10, offre reçue : appel de fonds à envoyer avant le 20/10.
+  { id: 'a', rendezVousSignature: '2026-10-20', pret: '2026-09-20', offrePretStatut: 'recue', dossierLie: true,
     historique: cree('2026-07-01').concat([{ date: '2026-08-10T10:00:00', texte: 'Offre de prêt retrouvée dans le dossier NAS' }]) },
-  { id: 'b', responsable: 'Julie VASSELIN', pret: '2026-10-15', acte: '2026-12-01', historique: cree('2026-08-01') },
-  { id: 'c', responsable: 'Jérémy SAUJOT', ventebien: '2026-10-01', pret: '2026-11-20', historique: cree('2026-08-15') },
-  { id: 'd', responsable: 'Bastien ANGLUMENT', sansPret: true, rendezVousSignature: '2026-10-28', prixVente: 150000, historique: cree('2026-09-01') }
+  // Prêt le 15/10, date butoir le 01/12.
+  { id: 'b', pret: '2026-10-15', acte: '2026-12-01', historique: cree('2026-08-01') },
+  // Vente préalable dépassée (01/10), prêt en novembre.
+  { id: 'c', ventebien: '2026-10-01', pret: '2026-11-20', historique: cree('2026-08-15') },
+  // Participation, offre reçue, pas de rendez-vous : rendez-vous à fixer avant la date butoir du 25/10.
+  { id: 'd', roleNotaire: 'participant', pret: '2026-09-01', offrePretStatut: 'recue', acte: '2026-10-25', historique: cree('2026-09-01') },
+  // Signature en novembre : hors du mois.
+  { id: 'e', rendezVousSignature: '2026-11-12', sansPret: true, historique: cree('2026-09-10') }
 ];
-const archive = { id: 'z', archive: true, responsable: 'Julie VASSELIN', rendezVousSignature: '2026-10-02', prixVente: 100000, sansPret: true, historique: cree('2026-07-04') };
+const archive = { id: 'z', archive: true, rendezVousSignature: '2026-10-02', sansPret: true, historique: cree('2026-07-04') };
 
-test('statsSuivi : chiffres du mois, offres attendues, dates butoir', () => {
-  const st = app.statsSuivi(dossiers, dossiers.concat([archive]), AUJ);
-  assert.equal(st.mois.cle, '2026-10');
-  assert.equal(st.mois.signatures, 3);          // a, d et le dossier archivé signé le 02/10
-  assert.equal(st.mois.aVenir, 2);
-  assert.equal(st.mois.montant, 450000);
-  assert.equal(st.mois.prochaine, '2026-10-09');
-  assert.equal(st.offres.attendues, 2);         // b et c (a reçue, d sans prêt)
-  assert.equal(st.offres.bientot, 1);           // b : prêt le 15/10
-  assert.equal(st.butoirs.dans15, 1);           // prêt de b
-  assert.equal(st.butoirs.depasses, 1);         // vente préalable de c
+test('prevuDuMois : signatures, envois, rendez-vous à fixer et dates butoir du mois', () => {
+  const p = app.prevuDuMois(dossiers, dossiers.concat([archive]), AUJ);
+  assert.equal(p.mois.cle, '2026-10');
+  assert.equal(ids(p.signatures), 'a:2026-10-20');
+  assert.equal(ids(p.envois), 'a:2026-10-20');
+  assert.equal(p.envois[0].libelle, 'Appel de fonds');
+  assert.equal(ids(p.rdvAFixer), 'd:2026-10-25');
+  // Retards d'abord (vente préalable de c), puis par date ; la date butoir de d reste (pas de
+  // rendez-vous), celle de b (décembre) est hors du mois.
+  assert.equal(ids(p.butoirs), 'c:2026-10-01! b:2026-10-15 d:2026-10-25');
 });
 
-test('statsSuivi : 8 semaines depuis le lundi, signatures et dates butoir à venir', () => {
-  const st = app.statsSuivi(dossiers, dossiers, AUJ);
-  assert.equal(st.semaines.length, 8);
-  assert.equal(st.semaines[0].debut, '2026-10-05');
-  assert.equal(st.semaines.map(s => s.signatures.length).join(''), '10010000');
-  assert.equal(st.semaines.map(s => s.butoirs.length).join(''), '01000010');
-  assert.equal(app.dossierDansSemaine(dossiers[1], '2026-10-12'), true);
-  assert.equal(app.dossierDansSemaine(dossiers[3], '2026-10-12'), false);
-  assert.equal(app.dossierDansSemaine(dossiers[3], ''), true);
+test('prevuDuMois : délais moyens depuis l’ouverture du dossier', () => {
+  const p = app.prevuDuMois(dossiers, dossiers.concat([archive]), AUJ);
+  assert.equal(p.delais.signature, 90);   // archivé : ouvert le 04/07, signé le 02/10
+  assert.equal(p.delais.nSignature, 1);
+  assert.equal(p.delais.offre, 40);       // a : ouvert le 01/07, offre le 10/08
 });
 
-test('statsSuivi : charge par collaborateur et délais moyens', () => {
-  const st = app.statsSuivi(dossiers, dossiers.concat([archive]), AUJ);
-  const julie = st.charge.find(c => c.responsable === 'Julie VASSELIN');
-  assert.equal(`${julie.nombre}/${julie.urgents}/${julie.prochaine}`, '2/0/2026-10-09');
-  const jeremy = st.charge.find(c => c.responsable === 'Jérémy SAUJOT');
-  assert.equal(jeremy.urgents, 1);
-  // Signé le 02/10, ouvert le 04/07 : 90 jours ; offre de a le 10/08, ouvert le 01/07 : 40 jours.
-  assert.equal(st.delais.signature, 90);
-  assert.equal(st.delais.nSignature, 1);
-  assert.equal(st.delais.offre, 40);
-  // Dossiers en cours ouverts depuis plus de 90 jours, sans signature passée : a (98 j).
-  assert.equal(st.delais.auDela, 1);
-});
-
-test('statsSuivi : dans les 5 derniers jours du mois, les chiffres passent au mois suivant', () => {
-  assert.equal(app.statsSuivi([], [], '2026-09-30').mois.cle, '2026-10');
-  assert.equal(app.statsSuivi([], [], '2026-09-25').mois.cle, '2026-09');
-  assert.equal(app.statsSuivi([], [], '2026-12-29').mois.cle, '2027-01');
-  const vide = app.statsSuivi([], [], '2026-09-10');
-  assert.equal(`${vide.mois.signatures}/${vide.delais.signature}/${vide.delais.offre}`, '0/null/null');
+test('moisPrevuSuivi : le mois en cours, le suivant dans ses 5 derniers jours', () => {
+  assert.equal(app.moisPrevuSuivi('2026-09-30').cle, '2026-10');
+  assert.equal(app.moisPrevuSuivi('2026-09-25').cle, '2026-09');
+  assert.equal(app.moisPrevuSuivi('2026-09-25').fin, '2026-09-30');
+  assert.equal(app.moisPrevuSuivi('2026-12-29').cle, '2027-01');
+  assert.equal(app.moisPrevuSuivi('2027-02-10').fin, '2027-02-28');
+  const vide = app.prevuDuMois([], [], '2026-09-10');
+  assert.equal(`${vide.signatures.length}/${vide.delais.signature}/${vide.delais.offre}`, '0/null/null');
 });

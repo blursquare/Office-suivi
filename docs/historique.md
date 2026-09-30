@@ -12931,3 +12931,21 @@ l'étude a retenu les quatre statistiques proposées et les statuts en pastilles
 - **Statuts** : pastilles « Urgent 2 · À relier 1 · … » dans la barre d'outils (même filtre qu'avant).
 - Repli de la vue d'ensemble mémorisé par poste (`localStorage`). Vérifié dans Chromium (clair,
   sombre, 390 px, survol, filtres semaine et collaborateur) ; tests `tests/stats-suivi.test.js`.
+
+### 30/09 18:09 — Suivi : « Prévu ce mois-ci » à la place de la vue d'ensemble
+
+Retour de l'étude sur la version de 17:59 : « le graphique ne sert à rien, la charge de collaborateur
+c'est pas non plus ce que je veux, les délais j'aime bien, pas de chiffres de montant des ventes, je
+n'aime pas le terme de portefeuille — retravaille sur un angle : quoi de prévu ce mois-ci ».
+- `prevuDuMois` (pure) : quatre listes de dossiers du mois regardé (`moisPrevuSuivi` : le mois en
+  cours, le suivant dans ses 5 derniers jours) — signatures (`rendezVousSignature`), envois à faire
+  (étapes `appelFonds` / `projetEnvoye` d'`echeancesPlanning` dans le mois ou déjà en retard),
+  rendez-vous à fixer (étape `fixerRdv` dont la date butoir tombe au plus tard en fin de mois), dates
+  butoir ouvertes (`butoirsOuverts` : vente préalable, prêt, date butoir sans rendez-vous) du mois
+  ou dépassées. Tri : retards d'abord, puis par date. Délais moyens gardés (même calcul).
+- Rendu : quatre cartes (deux colonnes sous 1 200 px, une sur téléphone), une ligne par dossier
+  (date, nom sans « VTE - », retard en rouge avec son type), 5 lignes puis « Voir les N autres » ; les
+  cartes vides passent en dernier avec une phrase courte ; un clic ouvre la fiche. Délais en une ligne
+  dans l'en-tête. Supprimés : graphique par semaine (et son filtre), charge par collaborateur, montant
+  des ventes, jetons `--graph-*`. Surtitre de la page : « Dossier » (groupe du menu).
+- Tests `tests/stats-suivi.test.js` réécrits ; vérifié dans Chromium (clair, sombre, 390 px, clic).
