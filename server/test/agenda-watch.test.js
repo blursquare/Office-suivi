@@ -429,3 +429,27 @@ test('rendez-vous supprimé dans CLAIRE : le flux encore à jour ne le remet pas
   assert.equal(d.rendezVousSignatureCategories.join(','), 'Catégorie Verte', 'catégorie de couleur conservée');
   db.close();
 });
+
+test('executerEtEnregistrerTourAgenda : garde les rendez-vous du jour pour la fenêtre du matin', async () => {
+  reinitialiserDisjoncteurAgenda();
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  depot.creer({ id: 'd1', nom: 'DUPONT / MARTIN' });
+  const parametresRepo = creerRepoParametres(db);
+  parametresRepo.ecrireReglagesExchange(REGLAGES_EXCHANGE);
+  const jour = dateDuJourParis();
+  const items = [
+    { sujet: 'Point équipe', start: `${jour}T13:00:00Z`, end: `${jour}T13:30:00Z` },
+    { sujet: 'VTE - DUPONT / MARTIN', start: `${jour}T08:00:00Z`, end: `${jour}T09:00:00Z` },
+    { sujet: 'Rendez-vous annulé', start: `${jour}T10:00:00Z`, cancelled: true }
+  ];
+  const resultat = await executerEtEnregistrerTourAgenda(depot, parametresRepo, { poster: fauxPoster([ok(items), ok([])]) }, 'manuel');
+  assert.equal(resultat.ok, true, resultat.erreur);
+  assert.equal(resultat.agendaDuJour, undefined, 'hors du compte rendu du tour');
+  const agenda = parametresRepo.lireAgendaDuJour();
+  assert.equal(agenda.jour, jour);
+  assert.ok(agenda.lu);
+  assert.equal(agenda.evenements.map((e) => e.sujet).join('|'), 'VTE - DUPONT / MARTIN|Point équipe');
+  assert.equal(agenda.evenements[0].dossierId, 'd1');
+  db.close();
+});

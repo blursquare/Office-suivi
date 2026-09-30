@@ -102,8 +102,9 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
 5. **Agenda de l'office** (Exchange 2019 de Fichorga, `mail.authentic-connect.fr`), tout par EWS en
    NTLMv2 (`httpntlm`) sur le **calendrier partagé de Sophie** : **lecture** toutes les 15 min
    (`lireCalendrierExchange`, FindItem en vue calendrier, 6 mois en 3 tranches ; envois relevés,
-   rendez-vous de signature, absences, catégories — le lien `.ics` publié n'est plus lu depuis le
-   29/09) ; **écriture** : création/déplacement/retrait
+   rendez-vous de signature, absences, catégories, et **tous les rendez-vous du jour** pour la fenêtre
+   du matin — `agendaDuJourDepuisEvenements`, clé `agenda-du-jour`, rubrique « Agenda du jour » —, le lien
+   `.ics` publié n'est plus lu depuis le 29/09) ; **écriture** : création/déplacement/retrait
    d'un rendez-vous de signature (catégorie = couleur : vert office, violet visio, orange confrère),
    note « Appel de fonds (et projet) envoyé » dans le Lieu, dates butoir prêt / vente préalable en
    journée entière — seule voie depuis le 29/09 (plus de flux `.ics` publié) : le poste les pose au
@@ -114,7 +115,9 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
    Microsoft Graph / Power Automate premium ne sont pas disponibles. **Lecture de la boîte de
    réception** du même compte (celle de Bastien, qui reçoit tout en double) à 8 h 50 pour le résumé
    des emails du matin (`emailsMatin.js`, FindItem seul, sans IA) : seuls expéditeur, objet et
-   heure sont gardés, jamais le corps ; affiché **pour Bastien seulement** (`DESTINATAIRES_EMAILS_MATIN`).
+   heure sont gardés, jamais le corps ; affiché **pour Bastien seulement** (`DESTINATAIRES_EMAILS_MATIN`),
+   en **résumé** (`syntheseEmailsMatin` : chiffres, sujets repérés avec leurs dossiers, une ligne par
+   dossier, expéditeurs hors dossiers — toujours sans IA), la liste complète dépliable.
 6. **Secrets** (mot de passe SMTP, clés API Mistral/Anthropic, mot de passe Exchange, jeton GitHub
    de mise à jour) : stockés en base, **jamais renvoyés par une route** (remplacés par un booléen
    « enregistré »), conservés si le formulaire ne les réémet pas, effacés sur chaîne vide explicite,

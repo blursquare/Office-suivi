@@ -35,7 +35,9 @@ function creerRouteurAgenda(parametresRepo, options) {
       // tableau de bord les affiche et signale les rendez-vous d'un collaborateur absent ce jour-là.
       absences: parametresRepo.lireAbsencesAgenda(),
       // Catégories Outlook vues dans l'agenda : suggestions pour régler les couleurs des rendez-vous.
-      categories: typeof parametresRepo.lireCategoriesAgenda === 'function' ? parametresRepo.lireCategoriesAgenda() : []
+      categories: typeof parametresRepo.lireCategoriesAgenda === 'function' ? parametresRepo.lireCategoriesAgenda() : [],
+      // Rendez-vous du jour (fenêtre du matin) : { jour, lu, evenements }, null avant le premier tour.
+      agendaDuJour: typeof parametresRepo.lireAgendaDuJour === 'function' ? parametresRepo.lireAgendaDuJour() : null
     });
   });
 

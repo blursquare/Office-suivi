@@ -13141,3 +13141,34 @@ envoyer un rapport anonymisé vers GitHub, demandes de fusion + rapport, horaire
   Chromium : une erreur provoquée contenant « DURAND / MARTIN » ressort « [nom] / [nom] » dans l'aperçu.
 - Remarque : le mode automatique de la session a d'abord bloqué l'envoi vers GitHub (« exfiltration
   de données ») ; repris après passage de la session en validation manuelle par l'étude.
+
+### 30/09/2026 soir — Fenêtre du matin : agenda du jour, résumé des emails, « Point du matin »
+
+Demande de l'étude (avec une capture d'agenda en exemple : heure de début en gras, fin dessous, liseré
+de couleur, étiquette au-dessus du titre) : « Dans le pop up aujourd'hui (remettre le texte à côté du
+soleil). Insérer tous les rendez-vous de l'agenda du jour comme dans l'exemple. Pour la partie e-mail
+faire un résumé des emails. »
+- Serveur : chaque tour de lecture EWS (15 min) garde aussi les rendez-vous du jour, heure de Paris
+  (`agendaDuJourDepuisEvenements` dans `agendaOffice.js` : titre, lieu, horaire, catégories, signature,
+  absence, dossier reconnu par la référence « VTE … » ; annulés écartés ; un événement de plusieurs
+  jours compte en journée entière ; journées entières d'abord puis par heure, 60 au plus). Persistés
+  sous la clé `agenda-du-jour` (`assainirAgendaDuJour`) à chaque tour réussi, exposés par
+  `GET /api/agenda` (`agendaDuJour`), jamais dans le compte rendu du tour.
+- Client : rubrique « Agenda du jour » en tête de la colonne de droite de la fenêtre du matin
+  (`renderAgendaDuJour`) — rien si l'agenda lu n'est pas celui d'aujourd'hui. Liseré : couleur de la
+  catégorie réglée pour les signatures (office vert, visio violet, confrère orange), sinon bleu des
+  actes pour une signature, gris pour une absence, neutre sinon (`teinteEvenementAgenda`) ; étiquette
+  « Signature · Office », « Absence », la catégorie Outlook, « Rendez-vous »… (`etiquetteEvenementAgenda`) ;
+  rendez-vous passés estompés, « en cours » signalé (`momentEvenementAgenda`). Le titre d'un rendez-vous
+  relié ouvre la fiche ; le nom du dossier n'est ajouté dessous que si le titre ne le cite pas.
+- Emails (Bastien seulement, inchangé) : résumé sans IA au-dessus de la liste, qui devient dépliable
+  (`syntheseEmailsMatin`, `renderSyntheseEmailsMatin`) — nombre d'emails, répartition dossiers / hors
+  dossiers / pièces jointes, sujets repérés (Urgent, Offre de prêt, Fonds, RIB, Rendez-vous, Projet
+  d'acte, Pièces) avec leurs dossiers, une ligne par dossier (nombre, expéditeurs), expéditeurs hors
+  dossiers. Ordre de la colonne : Agenda du jour, Emails, Nouveautés.
+- Carte « Aujourd'hui » du tableau de bord : le bouton soleil retrouve son texte « Point du matin »
+  (moyen et grand ; il avait perdu son texte au passage aux widgets, 66c1c96).
+- Tests : `tests/fenetre-matin-agenda-emails.test.js`, `agenda-office.test.js` (2), `agenda-watch.test.js`
+  (tour complet → clé `agenda-du-jour`), route mise à jour. Vérifié dans Chromium (clair, sombre,
+  téléphone) avec un agenda et des emails inventés. Non vérifié ici : la lecture réelle d'Exchange
+  (injoignable depuis l'environnement de développement).

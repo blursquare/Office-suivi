@@ -551,6 +551,32 @@ function assainirCategoriesAgenda(brut) {
 }
 const MAX_ABSENCES_AGENDA = 200;
 
+// Rendez-vous du jour lus dans l'agenda de l'office (voir agendaOffice.js/agendaDuJourDepuisEvenements),
+// remplacés à chaque tour réussi : la fenêtre du matin les affiche tant que `jour` est aujourd'hui.
+const CLE_AGENDA_DU_JOUR = 'agenda-du-jour';
+const MAX_AGENDA_DU_JOUR = 60;
+function assainirAgendaDuJour(brut) {
+  const b = (brut && typeof brut === 'object') ? brut : {};
+  const jour = /^\d{4}-\d{2}-\d{2}$/.test(String(b.jour || '')) ? b.jour : '';
+  const heure = (v) => (/^\d{2}:\d{2}$/.test(String(v || '')) ? v : null);
+  const evenements = Array.isArray(b.evenements) ? b.evenements.filter((e) => e && typeof e === 'object').slice(0, MAX_AGENDA_DU_JOUR).map((e) => {
+    const journeeEntiere = !!e.journeeEntiere || !heure(e.heure);
+    return {
+      sujet: texteBorne(e.sujet, 200),
+      lieu: texteBorne(e.lieu, 160),
+      heure: journeeEntiere ? null : heure(e.heure),
+      heureFin: journeeEntiere ? null : heure(e.heureFin),
+      journeeEntiere,
+      categories: Array.isArray(e.categories) ? e.categories.map((c) => texteBorne(c, 100)).filter(Boolean).slice(0, 5) : [],
+      signature: !!e.signature,
+      absence: !!e.absence,
+      dossierId: e.dossierId ? texteBorne(e.dossierId, 80) : null,
+      dossierNom: e.dossierNom ? texteBorne(e.dossierNom, 200) : null
+    };
+  }) : [];
+  return { jour, lu: texteBorne(b.lu, 40), evenements };
+}
+
 function assainirAbsenceAgenda(brut) {
   const b = (brut && typeof brut === 'object') ? brut : null;
   if (!b) return null;
@@ -931,6 +957,22 @@ function creerRepoParametres(db) {
     return propre;
   }
 
+  function lireAgendaDuJour() {
+    const ligne = lireStmt.get(CLE_AGENDA_DU_JOUR);
+    if (!ligne) return null;
+    try {
+      return assainirAgendaDuJour(JSON.parse(ligne.valeur));
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function ecrireAgendaDuJour(agenda) {
+    const propre = assainirAgendaDuJour(agenda);
+    ecrireStmt.run(CLE_AGENDA_DU_JOUR, JSON.stringify(propre));
+    return propre;
+  }
+
   function lireCategoriesAgenda() {
     const ligne = lireStmt.get(CLE_CATEGORIES_AGENDA);
     if (!ligne) return [];
@@ -1045,6 +1087,7 @@ function creerRepoParametres(db) {
     lireReglagesExchange, ecrireReglagesExchange,
     lireDernierTourAgenda, ecrireDernierTourAgenda,
     lireAbsencesAgenda, ecrireAbsencesAgenda, lireCategoriesAgenda, ecrireCategoriesAgenda,
+    lireAgendaDuJour, ecrireAgendaDuJour,
     lireReglageSauvegarde, ecrireReglageSauvegarde, lireEtatSauvegarde, ecrireEtatSauvegarde,
     lireReglages, ecrireReglages, lireDernierTour, ecrireDernierTour,
     lireCopiesEnAttente, ecrireCopiesEnAttente, lireRetoursAudit, ecrireRetoursAudit,
@@ -1061,7 +1104,7 @@ module.exports = {
   assainirRappelPerso, assainirRappelsPerso, MAX_RAPPELS_PERSO, assainirPreference, assainirPreferences,
   assainirReglagesClaude, assainirReglagesMiseAJour, MODELES_CLAUDE, MODELE_CLAUDE_PAR_DEFAUT,
   assainirReglagesExchange, assainirCategoriesRdv, CATEGORIES_RDV_DEFAUT, URL_EWS_DEFAUT, assainirCategoriesAgenda,
-  assainirDernierTourAgenda, assainirAbsenceAgenda, assainirAbsencesAgenda,
+  assainirDernierTourAgenda, assainirAbsenceAgenda, assainirAbsencesAgenda, assainirAgendaDuJour,
   REGLAGES_PAR_DEFAUT, PORT_SMTP_PAR_DEFAUT, assainirResumeEmails,
   assainirReglagesScans, assainirJournalScans, assainirScansEcartes, assainirPiecesNotifiees, assainirRapportTechnique
 };

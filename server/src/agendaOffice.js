@@ -427,11 +427,47 @@ function absencesDepuisEvenements(evenements, aujourdHui) {
   return absences;
 }
 
+// ---- Agenda du jour (fenêtre du matin, demandé par l'étude le 30/09) ----
+// « Insérer tous les rendez-vous de l'agenda du jour » : chaque tour de lecture garde les événements
+// du jour (Paris) du calendrier lu — titre, lieu, horaire, catégories, tels qu'ils figurent dans
+// l'agenda —, avec le dossier reconnu par la même référence « VTE … » que les détections. Pure,
+// testable. Un événement annulé est écarté ; un événement de plusieurs jours qui couvre le jour y
+// figure en journée entière (son horaire de début ou de fin n'est pas celui du jour).
+const MAX_AGENDA_JOUR = 60;
+function agendaDuJourDepuisEvenements(evenements, jour, dossiersActifs) {
+  const liste = [];
+  for (const evt of evenements || []) {
+    if (!evt || evt.annule || !evt.date) continue;
+    const fin = evt.dateFin || evt.date;
+    if (evt.date > jour || fin < jour) continue;
+    const journeeEntiere = !!evt.journeeEntiere || !evt.heure || evt.date < jour || fin > jour;
+    const reference = referenceDossierEvenement(evt);
+    const dossier = reference ? dossierPourReferenceAgenda(reference, dossiersActifs) : null;
+    const titre = String(evt.sujet || '');
+    liste.push({
+      sujet: titre.slice(0, 200),
+      lieu: String(evt.lieu || '').slice(0, 160),
+      heure: journeeEntiere ? null : evt.heure,
+      heureFin: journeeEntiere ? null : (evt.heureFin || null),
+      journeeEntiere,
+      categories: (evt.categories || []).slice(0, 5),
+      signature: !!reference && estRendezVousSignature(evt),
+      absence: !!evt.journeeEntiere && RE_MOT_ABSENCE.test(normaliserNomRapprochement(titre)),
+      dossierId: dossier ? dossier.id : null,
+      dossierNom: dossier ? dossier.nom : null
+    });
+  }
+  liste.sort((a, b) => (a.journeeEntiere === b.journeeEntiere ? 0 : a.journeeEntiere ? -1 : 1)
+    || String(a.heure || '').localeCompare(String(b.heure || ''))
+    || String(a.heureFin || '').localeCompare(String(b.heureFin || '')));
+  return liste.slice(0, MAX_AGENDA_JOUR);
+}
+
 module.exports = {
   momentParisDepuisIso, veilleDe, formatDateFr, evenementDepuisEws, evenementsDepuisEws,
   extraireReferenceVte, referenceDossierEvenement, detecteAppelDeFonds, detecteProjetEnvoye,
   detecterActionsEvenement, dossierPourReferenceAgenda, actionsDetecteesDepuisEvenements, motsVoisins,
   estRendezVousSignature, composerLieuAgenda,
   absencesDepuisEvenements, estEvenementJourneeEntiere, collaborateursDansTexte, COLLABORATEURS_ABSENCE,
-  categoriesDistinctes
+  categoriesDistinctes, agendaDuJourDepuisEvenements
 };

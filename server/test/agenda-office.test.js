@@ -12,7 +12,7 @@ const {
   evenementDepuisEws, evenementsDepuisEws, momentParisDepuisIso,
   extraireReferenceVte, referenceDossierEvenement, detecteAppelDeFonds, detecteProjetEnvoye,
   detecterActionsEvenement, dossierPourReferenceAgenda, actionsDetecteesDepuisEvenements, composerLieuAgenda,
-  categoriesDistinctes
+  categoriesDistinctes, agendaDuJourDepuisEvenements
 } = require('../src/agendaOffice');
 
 // Un rendez-vous tel que le rend exchange/ews.js (parseCalendrierEws), converti en modèle neutre.
@@ -307,4 +307,35 @@ test('composerLieuAgenda : le confrère (« Me DURAND en 1er / en 2nd ») entre 
   assert.equal(composerLieuAgenda('BA', { appelFonds: true }), 'BA - Appel de fonds envoyé');
   // Un mot qui CONTIENT le nom n'est pas pris pour lui.
   assert.equal(composerLieuAgenda('BA - DURANDIERE', { appelFonds: true, confrere: 'Me DURAND en 2nd' }), 'BA - DURANDIERE - Me DURAND en 2nd - Appel de fonds envoyé');
+});
+
+test('agendaDuJourDepuisEvenements : tous les rendez-vous du jour, journées entières d’abord puis par heure', () => {
+  const evenements = [
+    rdv({ sujet: 'Rendez-vous banque', lieu: 'Crédit Exemple', start: '2099-10-14T12:30:00Z', end: '2099-10-14T13:00:00Z' }),
+    rdv({ sujet: 'VTE - DUPONT / MARTIN', lieu: 'Office', start: '2099-10-14T08:00:00Z', end: '2099-10-14T09:00:00Z', categories: ['Catégorie Verte'] }),
+    rdv({ sujet: 'Congés JV', start: '2099-10-13T22:00:00Z', end: '2099-10-15T22:00:00Z', allDay: true }),
+    rdv({ sujet: 'Formation', start: '2099-10-13T08:00:00Z', end: '2099-10-15T16:00:00Z' }),
+    rdv({ sujet: 'Annulé', start: '2099-10-14T10:00:00Z', cancelled: true }),
+    rdv({ sujet: 'Demain', start: '2099-10-15T10:00:00Z' })
+  ];
+  const liste = agendaDuJourDepuisEvenements(evenements, '2099-10-14', [{ id: 'd1', nom: 'DUPONT / MARTIN' }]);
+  assert.equal(liste.map((e) => e.sujet).join('|'), 'Congés JV|Formation|VTE - DUPONT / MARTIN|Rendez-vous banque');
+  const [conges, formation, signature, banque] = liste;
+  assert.equal(conges.journeeEntiere, true);
+  assert.equal(conges.absence, true);
+  assert.equal(formation.journeeEntiere, true, 'un événement de plusieurs jours couvre le jour entier');
+  assert.equal(formation.heure, null);
+  assert.equal(signature.heure, '10:00');
+  assert.equal(signature.heureFin, '11:00');
+  assert.equal(signature.signature, true);
+  assert.equal(signature.dossierId, 'd1');
+  assert.equal(signature.categories.join('|'), 'Catégorie Verte');
+  assert.equal(banque.dossierId, null);
+  assert.equal(banque.signature, false);
+  assert.equal(banque.lieu, 'Crédit Exemple');
+});
+
+test('agendaDuJourDepuisEvenements : aucun événement ce jour-là → liste vide', () => {
+  assert.equal(agendaDuJourDepuisEvenements([rdv({ sujet: 'Autre jour', start: '2099-10-20T08:00:00Z' })], '2099-10-14', []).length, 0);
+  assert.equal(agendaDuJourDepuisEvenements(null, '2099-10-14', []).length, 0);
 });

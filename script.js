@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 20:19';
+  const VERSION_APP = '2026-09-30 22:06';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 22:06', resume: "Fenêtre du matin : nouvelle rubrique « Agenda du jour » avec tous les rendez-vous du jour de l'agenda de l'office (heure de début en gras et de fin dessous, liseré de la couleur du rendez-vous, type au-dessus du titre ; un clic sur un rendez-vous relié ouvre le dossier). Les emails depuis hier 18 h sont maintenant résumés : nombre d'emails, sujets qui comptent (urgent, offre de prêt, fonds, rendez-vous…) avec leurs dossiers, une ligne par dossier et les expéditeurs hors dossiers ; la liste complète reste dépliable. Sur la carte « Aujourd'hui », le soleil retrouve son texte « Point du matin »." },
     { version: '2026-09-30 20:19', resume: "Nouveau : rapport technique. Les jours ouvrés à 12 h et 17 h, CLAIRE dépose sur GitHub un résumé de la période (erreurs du serveur et des postes, signalements, champs corrigés à la main après une extraction, agenda, rappels, Claire Scan, sauvegarde), après avoir retiré noms, adresses, montants, chemins et noms de fichiers. Claude le relit ensuite et propose ses corrections, à valider sur GitHub. Réglages › Mise à jour : interrupteur, « Voir ce qui part » (le texte exact envoyé) et « Envoyer maintenant ». Le jeton GitHub doit avoir le droit « Issues : Read and write »." },
     { version: '2026-09-30 19:09', resume: "Suivi des dossiers, vue Échéances : en cochant « Archivés », les dossiers archivés apparaissent dans une section « Archivés » en bas de la liste, les plus récents d'abord, avec leur date de signature (ou d'archivage). Un clic ouvre la fiche, comme ailleurs : plus besoin de passer par la vue Tableau pour les retrouver." },
     { version: '2026-09-30 18:37', resume: "Suivi des dossiers : la barre au-dessus de la liste passe sur trois lignes. En haut, un grand champ de recherche (avec la bascule Échéances / Tableau). Dessous, les options pour affiner sur une seule ligne : responsable, échéance, offre de prêt, rôle, archivés. En bas, les statuts en couleur. Doublons retirés : la recherche porte sur le nom du dossier seulement (le collaborateur se choisit dans « Responsable », qui reste pré-réglé sur celui du poste) ; « Trier par » n'apparaît qu'en vue Tableau, la seule qu'il trie." },
@@ -16331,6 +16332,9 @@
   // (chargerAbsencesOffice) : l'agenda signale « Absent cette semaine : … » et marque les
   // rendez-vous d'un collaborateur absent ce jour-là.
   let absencesOffice = [];
+  // Rendez-vous du jour de l'agenda de l'office ({ jour, lu, evenements }, même route), pour la
+  // fenêtre du matin (voir renderAgendaDuJour).
+  let agendaDuJourOffice = null;
 
   function decalerSemaineAgenda(pas) {
     agendaDecalageSemaine = Math.max(0, Math.min(SEMAINES_AGENDA_MAX, agendaDecalageSemaine + pas));
@@ -16389,6 +16393,9 @@
       const corps = await reponse.json();
       const avant = JSON.stringify(absencesOffice);
       absencesOffice = Array.isArray(corps.absences) ? corps.absences : [];
+      const agendaAvant = JSON.stringify(agendaDuJourOffice);
+      agendaDuJourOffice = corps.agendaDuJour || null;
+      if (fenetreAujourdhuiOuverte && JSON.stringify(agendaDuJourOffice) !== agendaAvant) renderFenetreAujourdhui();
       if (ongletActuel === 'dashboard' && JSON.stringify(absencesOffice) !== avant) render();
     } catch (e) {
       // Session expirée : déjà géré par fetchAvecAuth. Absences laissées telles quelles.
@@ -17751,7 +17758,7 @@
       presentation,
       titre: 'Aujourd’hui',
       sous: presentation === 'petit' ? '' : escapeHtml(messageProgressionJour(actions.length, traites.length)),
-      droite: `${presentation === 'grand' ? `<button type="button" class="icon-btn" onclick="ouvrirFenetreAujourdhui()" title="Rouvrir la fenêtre du point du matin" aria-label="Point du matin">${icone('sun')}</button>` : ''}${anneau}`,
+      droite: `${presentation !== 'petit' ? `<button type="button" class="action-rapide w-point-matin" onclick="ouvrirFenetreAujourdhui()" title="Rouvrir la fenêtre du point du matin">${icone('sun')}<span>Point du matin</span></button>` : ''}${anneau}`,
       corps
     });
     renderFenetreAujourdhui();
@@ -17870,13 +17877,153 @@
     const source = `<p class="jour-source">Boîte lue à ${escapeHtml(heure)} · ${r.total || 0} email${(r.total || 0) > 1 ? 's' : ''} reçu${(r.total || 0) > 1 ? 's' : ''}. ${actualiser}</p>`;
     if (!nb) return source + '<p class="jour-vide">Aucun email depuis hier 18 h.</p>';
     return `${source}
+      ${renderSyntheseEmailsMatin(groupes, autres)}
+      <details class="echanges-autres em-detail"><summary>Voir les ${nb} emails</summary>
       <ul class="jour-fil">${groupes.map(g => `
         <li class="jour-fil-groupe">
           <button type="button" class="jour-fil-dossier" onclick="executerFicheDossierJour('${escapeOnclickArg(g.dossierId)}')">${escapeHtml(libelleDossierParNom(g.dossierNom, g.dossierId))}</button>
           <ul>${g.emails.map(renderLigneEmailMatin).join('')}</ul>
         </li>`).join('')}</ul>
       ${autres.length ? `<details class="echanges-autres email-matin-autres"><summary>Hors dossiers (${autres.length})</summary>
-        <ul class="jour-fil"><li class="jour-fil-groupe"><ul>${autres.map(renderLigneEmailMatin).join('')}</ul></li></ul></details>` : ''}`;
+        <ul class="jour-fil"><li class="jour-fil-groupe"><ul>${autres.map(renderLigneEmailMatin).join('')}</ul></li></ul></details>` : ''}
+      </details>`;
+  }
+
+  // ---- Résumé des emails du matin (étude, 30/09 : « faire un résumé des emails ») ----
+  // Sans IA, comme la lecture de la boîte : le résumé se tire de ce que le serveur garde (expéditeur,
+  // objet, heure, sujets repérés, pièce jointe) — les chiffres, les sujets qui comptent avec leurs
+  // dossiers, une ligne par dossier, les expéditeurs hors dossiers. La liste complète reste dépliable.
+  var ORDRE_SUJETS_EMAIL = ['Urgent', 'Offre de prêt', 'Fonds', 'RIB', 'Rendez-vous', 'Projet d’acte', 'Pièces'];
+
+  function syntheseEmailsMatin(groupes, autres) {
+    const gs = groupes || [];
+    const hors = autres || [];
+    const tous = gs.reduce((t, g) => t.concat(g.emails || []), []).concat(hors);
+    const aSujet = (e, libelle) => (e.sujets || []).indexOf(libelle) !== -1;
+    const themes = ORDRE_SUJETS_EMAIL.map(libelle => ({
+      libelle,
+      dossiers: gs.filter(g => (g.emails || []).some(e => aSujet(e, libelle))).map(g => ({ dossierId: g.dossierId, dossierNom: g.dossierNom })),
+      horsDossier: hors.filter(e => aSujet(e, libelle)).length
+    })).filter(t => t.dossiers.length || t.horsDossier);
+    const expediteurs = (liste) => {
+      const n = new Map();
+      for (const e of liste) { const de = e.de || 'Expéditeur inconnu'; n.set(de, (n.get(de) || 0) + 1); }
+      return [...n.entries()].map(([de, nb]) => ({ de, nb })).sort((a, b) => b.nb - a.nb || a.de.localeCompare(b.de, 'fr'));
+    };
+    const parDossier = gs.map(g => ({
+      dossierId: g.dossierId, dossierNom: g.dossierNom, nb: (g.emails || []).length,
+      pj: (g.emails || []).filter(e => e.pj).length,
+      expediteurs: expediteurs(g.emails || []).map(x => x.de),
+      sujets: ORDRE_SUJETS_EMAIL.filter(l => (g.emails || []).some(e => aSujet(e, l)))
+    })).sort((a, b) => b.nb - a.nb);
+    return {
+      nb: tous.length, nbDossiers: gs.length, nbDansDossiers: tous.length - hors.length, nbAutres: hors.length,
+      nbPj: tous.filter(e => e.pj).length, themes, parDossier, expediteursAutres: expediteurs(hors)
+    };
+  }
+
+  function pluriel(n, mot, motPluriel) { return `${n} ${n > 1 ? (motPluriel || mot + 's') : mot}`; }
+
+  function renderSyntheseEmailsMatin(groupes, autres) {
+    const s = syntheseEmailsMatin(groupes, autres);
+    const lienDossier = (id, nom) => `<button type="button" class="jour-fil-dossier" onclick="executerFicheDossierJour('${escapeOnclickArg(id)}')">${escapeHtml(libelleDossierParNom(nom, id))}</button>`;
+    const chiffres = [
+      s.nbDossiers ? `${s.nbDansDossiers} sur ${pluriel(s.nbDossiers, 'dossier')}` : '',
+      s.nbAutres ? `${s.nbAutres} hors dossiers` : '',
+      s.nbPj ? `${s.nbPj} avec pièce jointe` : ''
+    ].filter(Boolean);
+    const themes = s.themes.length ? `<ul class="em-themes">${s.themes.map(t => `<li>
+        <span class="email-matin-sujet${t.libelle === 'Urgent' ? ' em-urgent' : ''}">${escapeHtml(t.libelle)}</span>
+        <span class="em-theme-texte">${t.dossiers.map(d => lienDossier(d.dossierId, d.dossierNom)).join(', ')}${t.horsDossier ? `${t.dossiers.length ? ' · ' : ''}<span class="em-discret">${pluriel(t.horsDossier, 'email')} hors dossiers</span>` : ''}</span>
+      </li>`).join('')}</ul>` : '';
+    const lignes = s.parDossier.map(g => `<li>
+        ${lienDossier(g.dossierId, g.dossierNom)}
+        <span class="em-discret">${pluriel(g.nb, 'email')} · ${escapeHtml(g.expediteurs.slice(0, 3).join(', '))}${g.expediteurs.length > 3 ? '…' : ''}</span>
+      </li>`);
+    if (s.nbAutres) {
+      const ex = s.expediteursAutres.slice(0, 4).map(x => x.nb > 1 ? `${x.de} (${x.nb})` : x.de).join(', ');
+      lignes.push(`<li><span class="em-hors">Hors dossiers</span> <span class="em-discret">${pluriel(s.nbAutres, 'email')} · ${escapeHtml(ex)}${s.expediteursAutres.length > 4 ? '…' : ''}</span></li>`);
+    }
+    return `<div class="em-synthese">
+        <p class="em-chiffres"><b>${pluriel(s.nb, 'email')}</b>${chiffres.length ? ' · ' + chiffres.join(' · ') : ''}</p>
+        ${themes}
+        ${lignes.length ? `<ul class="em-dossiers">${lignes.join('')}</ul>` : ''}
+      </div>`;
+  }
+
+  // ---- Agenda du jour (étude, 30/09 : « insérer tous les rendez-vous de l'agenda du jour ») ----
+  // Les rendez-vous du calendrier de l'office lus par le serveur à chaque tour (toutes les 15 min),
+  // tels qu'ils figurent dans l'agenda : heure de début en gras et de fin dessous, un liseré de
+  // couleur, une étiquette au-dessus du titre. Pures : la liste du jour (null si l'agenda lu n'est
+  // pas celui d'aujourd'hui), la teinte et l'étiquette d'un événement.
+  function evenementsAgendaDuJour(agenda, aujourdhuiIso) {
+    if (!agenda || agenda.jour !== aujourdhuiIso || !Array.isArray(agenda.evenements)) return null;
+    return agenda.evenements;
+  }
+
+  // Couleur du liseré : celle de la catégorie Outlook réglée pour les rendez-vous de signature
+  // (office, visio, confrère), sinon signature (bleu des actes), absence (gris), autre (neutre).
+  function teinteEvenementAgenda(e, categoriesRdv) {
+    if (!e) return 'autre';
+    if (e.absence) return 'absence';
+    const cats = (e.categories || []).map(normaliserNomCategorie);
+    const noms = categoriesRdv || {};
+    for (const cle of Object.keys(TYPES_RDV)) {
+      if (noms[cle] && cats.indexOf(normaliserNomCategorie(noms[cle])) !== -1) return cle;
+    }
+    return e.signature ? 'signature' : 'autre';
+  }
+
+  function etiquetteEvenementAgenda(e, teinte) {
+    if (teinte === 'absence') return 'Absence';
+    if (TYPES_RDV[teinte]) return e.signature ? `Signature · ${TYPES_RDV[teinte].court}` : TYPES_RDV[teinte].libelle;
+    if (e.signature) return 'Signature';
+    if ((e.categories || []).length) return e.categories[0];
+    return e.journeeEntiere ? 'Journée entière' : 'Rendez-vous';
+  }
+
+  // Passé, en cours ou à venir, à l'heure « HH:MM » donnée (journée entière : jamais passée).
+  function momentEvenementAgenda(e, heureActuelle) {
+    if (!e || e.journeeEntiere || !e.heure) return 'journee';
+    const fin = e.heureFin || e.heure;
+    if (fin <= heureActuelle && fin !== e.heure) return 'passe';
+    if (e.heure <= heureActuelle && heureActuelle < fin) return 'en-cours';
+    return e.heure < heureActuelle ? 'passe' : 'a-venir';
+  }
+
+  function renderAgendaDuJour() {
+    const liste = evenementsAgendaDuJour(agendaDuJourOffice, isoAujourdhuiLocal());
+    if (!liste) return '<p class="jour-vide">L’agenda de l’office n’a pas encore été lu aujourd’hui.</p>';
+    if (!liste.length) return '<p class="jour-vide">Aucun rendez-vous aujourd’hui.</p>';
+    const maintenant = new Date();
+    const heureActuelle = String(maintenant.getHours()).padStart(2, '0') + ':' + String(maintenant.getMinutes()).padStart(2, '0');
+    const categories = categoriesRdvReglees();
+    return `<ol class="ajd-liste">${liste.map(e => {
+      const teinte = teinteEvenementAgenda(e, categories);
+      const moment = momentEvenementAgenda(e, heureActuelle);
+      const heures = e.journeeEntiere || !e.heure
+        ? '<b>Journée</b>'
+        : `<b>${escapeHtml(e.heure)}</b>${e.heureFin && e.heureFin !== e.heure ? `<span>${escapeHtml(e.heureFin)}</span>` : ''}`;
+      const connu = e.dossierId && dossiers.some(d => d.id === e.dossierId);
+      // Dossier reconnu : le titre ouvre sa fiche ; son nom n'est ajouté dessous que si le titre de
+      // l'agenda ne le cite pas déjà (« VTE - DUPONT » n'est pas répété).
+      const ouvrir = connu ? `executerFicheDossierJour('${escapeOnclickArg(e.dossierId)}')` : '';
+      const dejaCite = connu && normaliserPourRecherche(e.sujet || '').indexOf(normaliserPourRecherche(e.dossierNom || '')) !== -1;
+      const sous = [
+        e.lieu ? `<span>${escapeHtml(e.lieu)}</span>` : '',
+        connu && !dejaCite ? `<button type="button" class="ajd-dossier" onclick="${ouvrir}">${escapeHtml(libelleDossierParNom(e.dossierNom, e.dossierId))}</button>` : ''
+      ].filter(Boolean).join('<span aria-hidden="true"> · </span>');
+      const titre = escapeHtml(e.sujet || '(sans titre)');
+      return `<li class="ajd-evt ajd-${teinte} ajd-${moment}">
+          <span class="ajd-heure">${heures}</span>
+          <span class="ajd-barre" aria-hidden="true"></span>
+          <span class="ajd-texte">
+            <span class="ajd-etiquette">${escapeHtml(etiquetteEvenementAgenda(e, teinte))}${moment === 'en-cours' ? ' <span class="ajd-maintenant">en cours</span>' : ''}</span>
+            ${connu ? `<button type="button" class="ajd-titre ajd-titre-lien" onclick="${ouvrir}" title="Ouvrir la fiche du dossier">${titre}</button>` : `<span class="ajd-titre">${titre}</span>`}
+            ${sous ? `<span class="ajd-sous">${sous}</span>` : ''}
+          </span>
+        </li>`;
+    }).join('')}</ol>`;
   }
 
   function renderFenetreAujourdhui() {
@@ -17887,6 +18034,7 @@
     const global = vueGlobaleDashboard();
     const { actions, traites } = etatAujourdhui();
     const groupes = evenementsDepuisVisite(perimetre, derniereVisitePrecedente, utilisateurPoste);
+    const nbAgenda = (evenementsAgendaDuJour(agendaDuJourOffice, isoAujourdhuiLocal()) || []).length;
     const maintenant = new Date();
     const contenu = document.getElementById('aujourdhui-fenetre-contenu');
     contenu.innerHTML = `
@@ -17904,11 +18052,13 @@
           ${renderListeJour(actions, traites, global)}
         </div>
         <div class="jour-fenetre-rail">
-          <h3 class="jour-section-titre">Nouveautés <span class="jour-onglet-nb">${groupes.length}</span></h3>
-          <p class="jour-source">${escapeHtml(libelleDepuisVisite())}.</p>
-          ${renderNouveautesListe(groupes)}
+          <h3 class="jour-section-titre">Agenda du jour${nbAgenda ? ` <span class="jour-onglet-nb">${nbAgenda}</span>` : ''}</h3>
+          ${renderAgendaDuJour()}
           ${recoitEmailsMatin(utilisateurPoste) ? `<h3 class="jour-section-titre jour-section-emails">Emails depuis hier 18 h</h3>
           ${renderEmailsMatin()}` : ''}
+          <h3 class="jour-section-titre jour-section-suite">Nouveautés <span class="jour-onglet-nb">${groupes.length}</span></h3>
+          <p class="jour-source">${escapeHtml(libelleDepuisVisite())}.</p>
+          ${renderNouveautesListe(groupes)}
         </div>
       </div>
       <footer class="jour-fenetre-pied">
@@ -31412,6 +31562,7 @@
       const reponse = await fetchAvecAuth('/api/agenda');
       const corps = await reponse.json();
       if (Array.isArray(corps.absences)) absencesOffice = corps.absences;
+      if (corps.agendaDuJour !== undefined) agendaDuJourOffice = corps.agendaDuJour || null;
       renderSourceAgenda(corps.source);
       renderDernierTourAgenda(corps.dernierTour, corps.source);
     } catch (e) {

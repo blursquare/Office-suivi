@@ -64,7 +64,7 @@ test('GET /api/agenda sans authentification : 401', async () => {
 test('GET /api/agenda renvoie l’état par défaut au premier appel', async () => {
   const corps = await (await appeler('/api/agenda')).json();
   assert.deepEqual(corps, {
-    source: { configuree: false, calendrier: '', suspendue: false }, dernierTour: null, absences: [], categories: []
+    source: { configuree: false, calendrier: '', suspendue: false }, dernierTour: null, absences: [], categories: [], agendaDuJour: null
   });
 });
 
