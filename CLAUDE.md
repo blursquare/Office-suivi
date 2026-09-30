@@ -430,12 +430,11 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   testés par l'étude et déclarés fonctionnels : l'agenda, Claire Scan, les brouillons d'email (`.eml`
   ouverts dans Outlook), la création d'un nouveau dossier depuis l'export Authentic (ZIP) ; puis la
   mise à jour en un clic (Réglages › Mise à jour), le démarrage automatique de CLAIRE au lancement du
-  serveur et le lien vers une pièce ouvert depuis une notification Teams.
+  serveur, le lien vers une pièce ouvert depuis une notification Teams et l'icône de l'exe (nette).
 - **Non vérifié au bureau** : le détail des écritures EWS (déplacement et suppression d'un
   rendez-vous, note du Lieu, dates butoir en journée entière, noms exacts des catégories de couleur,
   reprise des dates butoir existantes au premier tour — une seule fois chacune) et de la lecture
-  (forme réelle des journées entières, volume par tranche) ; service NSSM (si utilisé) ; icône de
-  l'exe ; reçus comptables (« Fonds reçus ») au-delà des
+  (forme réelle des journées entières, volume par tranche) ; service NSSM (si utilisé) ; reçus comptables (« Fonds reçus ») au-delà des
   deux PDF fournis.
 - **Critères de sortie de bêta** (convenus) : quelques semaines sans bug bloquant, une restauration
   de sauvegarde testée, les points ci-dessus confirmés ; en bêta, seulement des corrections. Relecture

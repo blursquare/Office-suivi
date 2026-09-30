@@ -13110,3 +13110,4 @@ CLAIRE au lancement du serveur, lien vers une pièce ouvert depuis une notificat
 « fonctionne » pour les trois. Reportés en « Confirmé au bureau » dans CLAUDE.md. Restent non
 vérifiés : chaque écriture EWS prise isolément, OCR des scans (temps, qualité), icône de l'exe,
 reçus comptables au-delà des deux PDF fournis, restauration d'une sauvegarde. Aucun changement de code.
+- Icône de CLAIRE-serveur.exe : « Oui c'est bon » (nette) — confirmée au bureau le 30/09 au soir.
