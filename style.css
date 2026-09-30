@@ -5635,6 +5635,10 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
   font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 .derniere-piece.nouvelle .derniere-piece-date { color: var(--notif-nouveau); font-weight: 600; }
+/* Scans du copieur dans « Dernières pièces » : à ranger (ambre, en attente d'un geste), rangés (vert). */
+.derniere-piece.scan-a-ranger .derniere-piece-point { background: var(--pret); }
+.derniere-piece.scan-range .derniere-piece-point { background: var(--success); }
+button.scan-a-ranger-tag { border: 0; cursor: pointer; font: inherit; align-self: flex-start; }
 
 /* Jauge et pilule d'avancement : cartes du tableau de bord (Avancement, Aujourd'hui) et fiche. */
 .avancement-barre { display: block; height: 6px; border-radius: 3px; background: var(--line-soft); overflow: hidden; }

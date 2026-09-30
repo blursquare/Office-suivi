@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 15:39';
+  const VERSION_APP = '2026-09-30 15:45';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 15:45', resume: "Tableau de bord, carte « Dernières pièces » : sous les pièces réceptionnées, les scans du copieur à ranger (un clic ouvre « Scans à ranger ») puis les scans rangés ces 14 derniers jours (un clic ouvre le dossier). En petit format, la carte affiche le nombre de scans à ranger." },
     { version: '2026-09-30 15:39', resume: "Scans du copieur : un avis de taxe foncière scanné est rangé dans la rubrique Comptabilité du dossier client (et non plus à sa racine)." },
     { version: '2026-09-30 15:22', resume: "Scans du copieur : le rangement automatique ne dépend plus de l'écran « Scans à ranger ». Les scans en image restaient bloqués tant que la fenêtre CLAIRE était réduite ou cachée ; ils sont maintenant lus fenêtre cachée. Et chaque scan rangé, à la main ou automatiquement, coche aussitôt sa pièce dans la liste du dossier. Si la pièce n'y figure pas (facture, courrier, pièce d'identité…), elle est ajoutée puis cochée. Le responsable est prévenu sur Teams avec le lien vers le fichier rangé." },
     { version: '2026-09-30 15:17', resume: "Scans du copieur : le score est désormais noté sur 6 (« Score 6/6 : 1 partie nommée +3, adresse du bien +4 » au lieu de « Score 7/4 »). Rangement automatique toujours dès 4/6 ; au-delà de 6 points la note reste 6/6, le détail des points reste affiché." },
@@ -13916,6 +13917,26 @@
       .sort((a, b) => b.dossiers.length - a.dossiers.length || a.libelle.localeCompare(b.libelle, 'fr'));
   }
 
+  // Scans du copieur pour la carte « Dernières pièces » (étude, 30/09 : « dessous les scans à ranger
+  // et/ou déjà rangés ») : ceux qui attendent dans le dossier Scan (les plus récents d'abord) et
+  // ceux rangés ces 14 derniers jours (journal du serveur, le plus récent d'abord). Rien tant que le
+  // classement n'est pas activé ou que le serveur n'a pas répondu. Pure.
+  function scansPourCarte(etat, maintenantMs) {
+    const e = etat || {};
+    if (!e.charge || !e.reglages || !e.reglages.actif) return { actif: false, aRanger: [], ranges: [] };
+    const limite = (maintenantMs || Date.now()) - JOURS_DERNIERES_PIECES * 86400000;
+    const aRanger = (e.scans || []).slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+    const ranges = (e.journal || []).filter(j => j && j.date && Date.parse(j.date) >= limite)
+      .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    return { actif: true, aRanger, ranges };
+  }
+
+  // Libellé d'un type de scan (« État daté »), ou '' s'il est inconnu. Pure.
+  function libelleTypeScan(cle) {
+    const t = TYPES_SCAN.find(x => x.cle === cle);
+    return t ? t.label : '';
+  }
+
   // Carte « Dernières pièces », selon la présentation du widget (presentationWidget) :
   //  - petit : combien de pièces sont arrivées en 14 jours, dont les nouvelles, et la dernière ;
   //  - moyen : la liste (au plus 6, demandé par l'étude) ;
@@ -13940,6 +13961,41 @@
         </button>`;
     };
     const nouvelles = entrees.filter(e => e.nouvelle).length;
+    const scans = scansPourCarte(etatScans);
+    const quandCourt = (iso) => iso ? new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '';
+    const ligneARanger = (sc) => {
+      const l = lecturesScans[cleScan(sc)];
+      const p = l && l.proposition;
+      const dossier = p && p.dossierId && (dossiers || []).find(x => x.id === p.dossierId);
+      const titre = (p && libelleTypeScan(p.type)) || 'Scan à identifier';
+      return `
+        <button type="button" class="action-urgente-ligne derniere-piece scan-a-ranger" onclick="definirOnglet('scans')" title="${escapeAttr(sc.nom + ' — à ranger')}">
+          <span class="derniere-piece-point" aria-hidden="true"></span>
+          <span class="derniere-piece-texte"><b>${escapeHtml(titre)}</b><span class="derniere-piece-dossier"> · ${escapeHtml(dossier ? dossier.nom : sc.nom)}</span></span>
+          <span class="derniere-piece-date">${escapeHtml(quandCourt(sc.date))}</span>
+        </button>`;
+    };
+    const ligneRange = (j) => {
+      const titre = libelleTypeScan(j.type) || j.nom;
+      const dossier = (dossiers || []).find(x => x.id === j.dossierId);
+      const clic = dossier ? `ouvrirDossierDepuisDashboard('${escapeOnclickArg(dossier.id)}')` : "definirOnglet('scans')";
+      return `
+        <button type="button" class="action-urgente-ligne derniere-piece scan-range" onclick="${clic}"
+          title="${escapeAttr(`${titre} — ${j.dossier || ''} — rangé ${j.auto ? 'automatiquement' : 'à la main'}${j.rubrique ? ' dans ' + j.rubrique : ''}`)}">
+          <span class="derniere-piece-point" aria-hidden="true"></span>
+          <span class="derniere-piece-texte"><b>${escapeHtml(titre)}</b><span class="derniere-piece-dossier"> · ${escapeHtml(dossier ? dossier.nom : (j.dossier || '').replace(/^VTE - /, ''))}${j.auto ? ' · auto' : ''}</span></span>
+          <span class="derniere-piece-date">${escapeHtml(quandCourt(j.date))}</span>
+        </button>`;
+    };
+    const sectionsScans = !scans.actif ? '' : `
+        ${scans.aRanger.length ? `<div class="w-section">
+          <h3 class="jour-carte-sous-titre">Scans à ranger · ${scans.aRanger.length}</h3>
+          <div class="dash-liste dash-liste-carte" data-ajuster="2" data-min="1">${scans.aRanger.map(ligneARanger).join('')}</div>
+        </div>` : ''}
+        ${scans.ranges.length ? `<div class="w-section">
+          <h3 class="jour-carte-sous-titre">Scans rangés</h3>
+          <div class="dash-liste dash-liste-carte" data-ajuster="3">${scans.ranges.map(ligneRange).join('')}</div>
+        </div>` : ''}`;
     let corps;
     if (presentation === 'petit') {
       corps = `<div class="w-chiffre-bloc"><span class="w-chiffre">${entrees.length}</span><span class="w-chiffre-lib">pièce${entrees.length > 1 ? 's' : ''} en ${JOURS_DERNIERES_PIECES} jours</span></div>
@@ -13949,12 +14005,14 @@
           <span class="w-prochaine-sous">${escapeHtml(entrees[0].dossier.nom || '')}</span></button></div>`
           : attendues[0] ? `<div class="w-bas" data-ajuster="2"><div class="w-prochaine w-prochaine-info">
           <span class="w-prochaine-sous">La plus attendue</span>
-          <span class="w-prochaine-titre">${escapeHtml(attendues[0].libelle)} · ${attendues[0].dossiers.length} dossier${attendues[0].dossiers.length > 1 ? 's' : ''}</span></div></div>` : ''}`;
+          <span class="w-prochaine-titre">${escapeHtml(attendues[0].libelle)} · ${attendues[0].dossiers.length} dossier${attendues[0].dossiers.length > 1 ? 's' : ''}</span></div></div>` : ''}
+        ${scans.aRanger.length ? `<button type="button" class="dot-label dl-pret w-fixe scan-a-ranger-tag" onclick="definirOnglet('scans')"><span class="dot"></span>${scans.aRanger.length} scan${scans.aRanger.length > 1 ? 's' : ''} à ranger</button>` : ''}`;
     } else {
       corps = `${entrees.length ? `<div class="dash-liste dash-liste-carte" data-ajuster="1" data-min="1">${entrees.map(ligne).join('')}</div>` : '<p class="w-message w-fixe">Aucune pièce arrivée ces 14 derniers jours.</p>'}
+        ${sectionsScans}
         ${attendues.length ? `<div class="w-section">
           <h3 class="jour-carte-sous-titre">Encore attendues</h3>
-          <ul class="w-lignes" data-ajuster="2">${attendues.map(p => `<li class="w-ligne" title="${escapeAttr(p.dossiers.map(d => d.nom).join(', '))}">
+          <ul class="w-lignes" data-ajuster="4">${attendues.map(p => `<li class="w-ligne" title="${escapeAttr(p.dossiers.map(d => d.nom).join(', '))}">
             <span class="w-ligne-texte">${escapeHtml(p.libelle)}</span>
             <span class="w-ligne-meta">${p.dossiers.length} dossier${p.dossiers.length > 1 ? 's' : ''}</span></li>`).join('')}</ul>
         </div>` : ''}`;
@@ -13962,7 +14020,7 @@
     section.innerHTML = carteWidget({
       presentation,
       titre: 'Dernières pièces',
-      sous: `NAS · ${JOURS_DERNIERES_PIECES} derniers jours`,
+      sous: `${scans.actif ? 'NAS et scans' : 'NAS'} · ${JOURS_DERNIERES_PIECES} derniers jours`,
       corps
     });
     planifierAjustementWidgets();
@@ -31560,6 +31618,10 @@
       etatScans = Object.assign(etatScans, await r.json(), { charge: true });
     } catch (e) { return; }
     majBadgeScans();
+    // Carte « Dernières pièces » du tableau de bord : scans à ranger et rangés à jour.
+    if (ongletActuel === 'dashboard') {
+      try { renderPiecesRecuesDashboard(dossiersDuPerimetre(dossiers, utilisateurPoste, vueGlobaleDashboard()).filter(d => !d.archive)); } catch (e) { /* carte absente */ }
+    }
     // Réglages affichés dès la réponse, sans attendre la lecture des scans en attente (OCR : parfois
     // plusieurs minutes, pendant lesquelles l'écran montrait l'interrupteur décoché).
     renderReglagesScans();

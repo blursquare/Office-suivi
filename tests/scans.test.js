@@ -238,3 +238,24 @@ test('rubrique : l’avis de taxe foncière scanné va dans Comptabilité (étud
   const avis = app.TYPES_SCAN.find(t => t.cle === 'avisTaxeFonciere');
   assert.equal(app.rubriquesScan(avis, null).join(','), 'comptabilite');
 });
+
+test('carte Dernières pièces : scans à ranger puis rangés sur 14 jours, rien si le classement est coupé', () => {
+  const app = chargerApplication();
+  const maintenant = Date.parse('2026-10-01T12:00:00Z');
+  const etat = {
+    charge: true, reglages: { actif: true },
+    scans: [{ nom: 'a.pdf', date: '2026-10-01T08:00:00Z' }, { nom: 'b.pdf', date: '2026-10-01T10:00:00Z' }],
+    journal: [
+      { nom: 'x.pdf', date: '2026-09-30T09:00:00Z', type: 'etatDate' },
+      { nom: 'vieux.pdf', date: '2026-09-01T09:00:00Z', type: 'facture' },
+      { nom: 'y.pdf', date: '2026-10-01T09:00:00Z', type: 'facture' }
+    ]
+  };
+  const r = app.scansPourCarte(etat, maintenant);
+  assert.equal(r.actif, true);
+  assert.equal(r.aRanger.map(s => s.nom).join(','), 'b.pdf,a.pdf');
+  assert.equal(r.ranges.map(j => j.nom).join(','), 'y.pdf,x.pdf');
+  assert.equal(app.libelleTypeScan('etatDate'), 'État daté');
+  assert.equal(app.scansPourCarte(Object.assign({}, etat, { reglages: { actif: false } }), maintenant).actif, false);
+  assert.equal(app.scansPourCarte(Object.assign({}, etat, { charge: false }), maintenant).actif, false);
+});

@@ -12744,3 +12744,17 @@ scans. »
 - Étude : « l'avis de taxes foncières s'il est scanné va dans comptabilité ». `TYPES_SCAN` :
   `avisTaxeFonciere.rubriques = ['comptabilite']` (rubrique retrouvée par son nom, « COMPTABILITE »,
   racine du dossier à défaut) au lieu de la racine faute de rubrique. Test ajouté.
+
+### 30/09/2026 15:45 — Carte « Dernières pièces » : scans à ranger et rangés
+
+- Étude : « dans la carte dernières pièces mettre les pièces réceptionnées et dessous les scans à
+  ranger et/ou déjà rangés ». `renderPiecesRecuesDashboard` : après la liste des pièces reçues,
+  deux sections « Scans à ranger · N » (point ambre `--pret`, clic → onglet Scans ; type et dossier
+  proposés si le scan est déjà lu, sinon « Scan à identifier » et le nom du fichier) et « Scans
+  rangés » (journal du serveur, 14 jours, point vert `--success`, « auto » si rangement automatique,
+  clic → fiche du dossier). Priorités d'ajustement : pièces 1, à ranger 2, rangés 3, « Encore
+  attendues » 4 (appoint). Petit format : pastille « N scans à ranger ». Sous-titre « NAS et
+  scans ». `scansPourCarte` / `libelleTypeScan` purs et testés ; rien si le classement est coupé ou
+  avant la première réponse du serveur. La carte est redessinée à chaque relecture du dossier Scan
+  (toutes les 2 min) quand le tableau de bord est affiché.
+- Vérifié dans Chromium (serveur réel, un scan rangé à la main, deux en attente).
