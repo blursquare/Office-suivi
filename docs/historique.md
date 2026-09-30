@@ -12615,3 +12615,13 @@ scans. »
   lieu de « À décider »), partout où la ligne apparaît (À faire, fiche).
 - Vérifié dans Chromium (bureau et 390 px) avec un dossier inventé : prêt dépassé + butoir dépassé
   sans renonciation. 1 008 tests client.
+
+### 30/09/2026 14:37 — Scans : rangement automatique dès un score de 4
+
+- Demande de l'étude : « quand le score est à 4 ou plus ranger automatiquement le document sans
+  validation par un humain ». `BAREME_SCORE_SCAN.seuil` passe de 6 à 4.
+- Conséquences : l'adresse du bien seule (4) suffit ; une partie nommée seule (3) reste une
+  suggestion (pièce d'identité, RIB…). Conservés : la marge ×1,3 sur le deuxième dossier (deux
+  dossiers à égalité ne sont jamais départagés au hasard), et les autres conditions du rangement
+  automatique (pièce identifiée, dossier relié au NAS, option activée).
+- Tests : scan à l'adresse seule rangé automatiquement, partie seule à valider.

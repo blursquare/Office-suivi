@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 14:16';
+  const VERSION_APP = '2026-09-30 14:37';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 14:37', resume: "Scans du copieur : un scan est désormais rangé sans validation dès un score de 4 (au lieu de 6) — l'adresse du bien suffit, ou une partie nommée avec un autre indice. Une partie nommée seule (3 points) reste à valider, de même qu'un scan dont un autre dossier obtient un score proche." },
     { version: '2026-09-30 14:16', resume: "Fiche › Prochaine étape : seules les actions liées à l'étape affichée restent dessous (ex. « Relancer l'offre de prêt » sous « Obtention du prêt ») ; les autres, comme la renonciation au droit de préemption, passent sous « Aussi à faire » et portent leur propre libellé (« Droit de préemption » au lieu de « À décider »)." },
     { version: '2026-09-30 14:03', resume: "Scans du copieur : CLAIRE trouve seule le dossier du copieur \\\\192.168.60.5\\Scan (partage à part du NAS, à côté de Commun). Seuls les nouveaux scans sont traités : ceux arrivés après l'activation du classement, à la minute près ; ceux déjà présents dans le dossier Scan ne sont pas touchés." },
     { version: '2026-09-30 13:33', resume: "Scans du copieur : le rangement est désormais automatique, sans validation, pour chaque scan dont la pièce est identifiée et le dossier reconnu avec certitude (option activée d'office, désactivable dans Réglages › Pièces). Il suffit qu'une fenêtre CLAIRE soit ouverte au bureau, celle du poste serveur en priorité. Le score de chaque scan est affiché (partie nommée 3 points, adresse du bien 4, parcelle 5, rangé à partir de 6 avec une marge sur le dossier suivant), ainsi que dans la liste des dossiers et le journal des rangements." },
@@ -30801,7 +30802,9 @@
   // de l'adresse du bien au format de CLAIRE ; une parcelle (section et numéro rapprochés). Sûr à
   // partir du seuil ET avec une marge sur le deuxième dossier (deux dossiers d'une même famille ne
   // se départagent pas par un seul nom). Modifier ici change le rangement automatique.
-  var BAREME_SCORE_SCAN = { partie: 3, partiesMax: 2, adresse: 4, parcelle: 5, seuil: 6, marge: 1.3 };
+  // Seuil abaissé de 6 à 4 par l'étude (30/09) : l'adresse du bien seule, ou une partie nommée avec
+  // un autre indice, suffit ; une partie nommée seule (3) reste une suggestion à valider.
+  var BAREME_SCORE_SCAN = { partie: 3, partiesMax: 2, adresse: 4, parcelle: 5, seuil: 4, marge: 1.3 };
 
   // Score d'un dossier pour un scan, avec le détail des points (`raisons`, lisibles telles quelles
   // à l'écran : « 2 parties nommées +6 »). Pure.
@@ -30848,7 +30851,7 @@
       candidats: classes.slice(0, 5).map(c => ({ id: c.dossier.id, score: c.score })) };
   }
 
-  // « Score 10/6 : 2 parties nommées +6, adresse du bien +4 », et ce qui manque quand ce n'est pas
+  // « Score 10/4 : 2 parties nommées +6, adresse du bien +4 », et ce qui manque quand ce n'est pas
   // sûr (seuil non atteint, ou deuxième dossier trop proche). Pure.
   function explicationScoreScan(p) {
     if (!p || !p.score) return 'Aucun dossier reconnu (score 0)';
