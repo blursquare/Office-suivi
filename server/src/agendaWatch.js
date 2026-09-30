@@ -19,7 +19,7 @@
 const crypto = require('node:crypto');
 const {
   actionsDetecteesDepuisEvenements, absencesDepuisEvenements, categoriesDistinctes, evenementsDepuisEws, formatDateFr,
-  agendaDuJourDepuisEvenements
+  agendaDuJourDepuisEvenements, lundiSemainePrecedente, evenementsAgendaOffice
 } = require('./agendaOffice');
 const { lireCalendrierExchange } = require('./exchange/ews');
 const { poserEcheancesManquantes } = require('./echeancesAgenda');
@@ -218,7 +218,7 @@ function connexionAgendaConfiguree(reglagesExchange) {
 async function executerTourSurveillanceAgenda(depot, reglagesExchange, injections) {
   const resultat = {
     ok: false, dossiersVerifies: 0, evenementsLus: 0, misAJour: [], dejaRenseignes: [], sansCorrespondance: [],
-    absences: [], categories: [], agendaDuJour: null, echeancesPosees: [], erreurEcheances: null, erreur: null, identifiantsRefuses: false
+    absences: [], categories: [], agendaDuJour: null, agendaOffice: null, echeancesPosees: [], erreurEcheances: null, erreur: null, identifiantsRefuses: false
   };
   const r = reglagesExchange || {};
   if (!connexionAgendaConfiguree(r)) {
@@ -228,7 +228,9 @@ async function executerTourSurveillanceAgenda(depot, reglagesExchange, injection
   try {
     const jour = dateDuJourParis();
     const lu = await lireCalendrierExchange({
-      url: r.url, email: r.email, motDePasse: r.motDePasse, mailbox: r.calendrierPartage, aujourdHui: jour
+      // Depuis le lundi de la semaine précédente (page Agenda) ; les détections, elles, ne
+      // retiennent que les rendez-vous d'aujourd'hui ou postérieurs.
+      url: r.url, email: r.email, motDePasse: r.motDePasse, mailbox: r.calendrierPartage, aujourdHui: lundiSemainePrecedente(jour)
     }, injections);
     if (!lu.ok) {
       resultat.erreur = lu.message;
@@ -251,6 +253,7 @@ async function executerTourSurveillanceAgenda(depot, reglagesExchange, injection
     resultat.categories = categoriesDistinctes(evenements);
     // Les rendez-vous du jour, pour la fenêtre du matin (persistés à part, comme les absences).
     resultat.agendaDuJour = { jour, evenements: agendaDuJourDepuisEvenements(evenements, jour, dossiersActifs) };
+    resultat.agendaOffice = { debut: lundiSemainePrecedente(jour), evenements: evenementsAgendaOffice(evenements, dossiersActifs) };
     // Dates butoir (prêt, vente préalable) pas encore dans l'agenda : posées ou retrouvées, avec
     // la lecture qu'on vient de faire pour ne jamais créer de doublon (voir echeancesAgenda.js).
     const poses = await poserEcheancesManquantes(depot, r, lu.evenements, jour, injections);
@@ -283,7 +286,10 @@ async function executerEtEnregistrerTourAgenda(depot, parametresRepo, injections
   if (resultat.ok && resultat.agendaDuJour && typeof parametresRepo.ecrireAgendaDuJour === 'function') {
     parametresRepo.ecrireAgendaDuJour({ ...resultat.agendaDuJour, lu: new Date().toISOString() });
   }
-  const { absences, categories, agendaDuJour, ...compteRendu } = resultat;
+  if (resultat.ok && resultat.agendaOffice && typeof parametresRepo.ecrireAgendaOffice === 'function') {
+    parametresRepo.ecrireAgendaOffice({ ...resultat.agendaOffice, lu: new Date().toISOString() });
+  }
+  const { absences, categories, agendaDuJour, agendaOffice, ...compteRendu } = resultat;
   const calendrier = reglages.calendrierPartage || reglages.email || '';
   parametresRepo.ecrireDernierTourAgenda({
     ...compteRendu,

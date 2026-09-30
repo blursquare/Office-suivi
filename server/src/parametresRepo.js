@@ -577,6 +577,43 @@ function assainirAgendaDuJour(brut) {
   return { jour, lu: texteBorne(b.lu, 40), evenements };
 }
 
+// Agenda complet de l'office (page Agenda) : tous les rendez-vous de la fenêtre lue à chaque tour
+// (du lundi de la semaine précédente à ~6 mois), avec leur identifiant Exchange pour la suppression.
+// Remplacé à chaque tour réussi ; tenu à jour entre deux tours par la création et la suppression
+// faites depuis CLAIRE (voir routes/exchange.js).
+const CLE_AGENDA_OFFICE = 'agenda-office';
+const MAX_AGENDA_OFFICE = 3000;
+function assainirEvenementAgenda(e) {
+  if (!e || typeof e !== 'object') return null;
+  const dateOk = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? v : '');
+  const heure = (v) => (/^\d{2}:\d{2}$/.test(String(v || '')) ? v : null);
+  const date = dateOk(e.date);
+  if (!date) return null;
+  const journeeEntiere = !!e.journeeEntiere || !heure(e.heure);
+  const dateFin = dateOk(e.dateFin) && e.dateFin >= date ? e.dateFin : date;
+  return {
+    itemId: texteBorne(e.itemId, 400),
+    changeKey: texteBorne(e.changeKey, 200),
+    sujet: texteBorne(e.sujet, 200),
+    lieu: texteBorne(e.lieu, 160),
+    date, dateFin,
+    heure: journeeEntiere ? null : heure(e.heure),
+    heureFin: journeeEntiere ? null : heure(e.heureFin),
+    journeeEntiere,
+    categories: Array.isArray(e.categories) ? e.categories.map((c) => texteBorne(c, 100)).filter(Boolean).slice(0, 5) : [],
+    signature: !!e.signature,
+    absence: !!e.absence,
+    dossierId: e.dossierId ? texteBorne(e.dossierId, 80) : null,
+    dossierNom: e.dossierNom ? texteBorne(e.dossierNom, 200) : null,
+    creeDansClaire: !!e.creeDansClaire
+  };
+}
+function assainirAgendaOffice(brut) {
+  const b = (brut && typeof brut === 'object') ? brut : {};
+  const evenements = Array.isArray(b.evenements) ? b.evenements.map(assainirEvenementAgenda).filter(Boolean).slice(0, MAX_AGENDA_OFFICE) : [];
+  return { debut: /^\d{4}-\d{2}-\d{2}$/.test(String(b.debut || '')) ? b.debut : '', lu: texteBorne(b.lu, 40), evenements };
+}
+
 function assainirAbsenceAgenda(brut) {
   const b = (brut && typeof brut === 'object') ? brut : null;
   if (!b) return null;
@@ -973,6 +1010,39 @@ function creerRepoParametres(db) {
     return propre;
   }
 
+  function lireAgendaOffice() {
+    const ligne = lireStmt.get(CLE_AGENDA_OFFICE);
+    if (!ligne) return null;
+    try {
+      return assainirAgendaOffice(JSON.parse(ligne.valeur));
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function ecrireAgendaOffice(agenda) {
+    const propre = assainirAgendaOffice(agenda);
+    ecrireStmt.run(CLE_AGENDA_OFFICE, JSON.stringify(propre));
+    return propre;
+  }
+
+  // Entre deux tours de lecture : un rendez-vous créé depuis CLAIRE est ajouté, un rendez-vous
+  // supprimé est retiré, pour que tous les postes le voient sans attendre le tour suivant.
+  function ajouterEvenementAgendaOffice(evenement) {
+    const agenda = lireAgendaOffice() || { debut: '', lu: '', evenements: [] };
+    const propre = assainirEvenementAgenda(evenement);
+    if (!propre) return agenda;
+    const evenements = agenda.evenements.filter((e) => !propre.itemId || e.itemId !== propre.itemId).concat([propre])
+      .sort((a, c) => a.date.localeCompare(c.date) || String(a.heure || '').localeCompare(String(c.heure || '')));
+    return ecrireAgendaOffice({ ...agenda, evenements });
+  }
+
+  function retirerEvenementAgendaOffice(itemId) {
+    const agenda = lireAgendaOffice();
+    if (!agenda || !itemId) return agenda;
+    return ecrireAgendaOffice({ ...agenda, evenements: agenda.evenements.filter((e) => e.itemId !== itemId) });
+  }
+
   function lireCategoriesAgenda() {
     const ligne = lireStmt.get(CLE_CATEGORIES_AGENDA);
     if (!ligne) return [];
@@ -1087,7 +1157,8 @@ function creerRepoParametres(db) {
     lireReglagesExchange, ecrireReglagesExchange,
     lireDernierTourAgenda, ecrireDernierTourAgenda,
     lireAbsencesAgenda, ecrireAbsencesAgenda, lireCategoriesAgenda, ecrireCategoriesAgenda,
-    lireAgendaDuJour, ecrireAgendaDuJour,
+    lireAgendaDuJour, ecrireAgendaDuJour, lireAgendaOffice, ecrireAgendaOffice,
+    ajouterEvenementAgendaOffice, retirerEvenementAgendaOffice,
     lireReglageSauvegarde, ecrireReglageSauvegarde, lireEtatSauvegarde, ecrireEtatSauvegarde,
     lireReglages, ecrireReglages, lireDernierTour, ecrireDernierTour,
     lireCopiesEnAttente, ecrireCopiesEnAttente, lireRetoursAudit, ecrireRetoursAudit,
@@ -1104,7 +1175,7 @@ module.exports = {
   assainirRappelPerso, assainirRappelsPerso, MAX_RAPPELS_PERSO, assainirPreference, assainirPreferences,
   assainirReglagesClaude, assainirReglagesMiseAJour, MODELES_CLAUDE, MODELE_CLAUDE_PAR_DEFAUT,
   assainirReglagesExchange, assainirCategoriesRdv, CATEGORIES_RDV_DEFAUT, URL_EWS_DEFAUT, assainirCategoriesAgenda,
-  assainirDernierTourAgenda, assainirAbsenceAgenda, assainirAbsencesAgenda, assainirAgendaDuJour,
+  assainirDernierTourAgenda, assainirAbsenceAgenda, assainirAbsencesAgenda, assainirAgendaDuJour, assainirAgendaOffice,
   REGLAGES_PAR_DEFAUT, PORT_SMTP_PAR_DEFAUT, assainirResumeEmails,
   assainirReglagesScans, assainirJournalScans, assainirScansEcartes, assainirPiecesNotifiees, assainirRapportTechnique
 };

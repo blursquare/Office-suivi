@@ -451,5 +451,8 @@ test('executerEtEnregistrerTourAgenda : garde les rendez-vous du jour pour la fe
   assert.ok(agenda.lu);
   assert.equal(agenda.evenements.map((e) => e.sujet).join('|'), 'VTE - DUPONT / MARTIN|Point équipe');
   assert.equal(agenda.evenements[0].dossierId, 'd1');
+  const complet = parametresRepo.lireAgendaOffice();
+  assert.ok(complet.debut < jour, 'lu depuis le lundi de la semaine précédente');
+  assert.equal(complet.evenements.map((e) => e.sujet).join('|'), 'VTE - DUPONT / MARTIN|Point équipe');
   db.close();
 });

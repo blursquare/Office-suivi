@@ -115,3 +115,20 @@ test('PUT /api/agenda n’existe plus (plus d’adresse .ics à enregistrer)', a
   const reponse = await appeler('/api/agenda', { method: 'PUT', body: JSON.stringify({ icsUrl: 'https://x.test/a.ics' }) });
   assert.equal(reponse.status, 404);
 });
+
+test('GET /api/agenda/evenements : période validée, événements qui la chevauchent', async () => {
+  assert.equal((await appeler('/api/agenda/evenements?debut=2099-10-20&fin=2099-10-10')).status, 400);
+  parametresRepo.ecrireAgendaOffice({ debut: '2099-10-05', lu: '2099-10-12T08:00:00Z', evenements: [
+    { itemId: 'A', sujet: 'Avant', date: '2099-10-06', heure: '09:00', heureFin: '10:00' },
+    { itemId: 'B', sujet: 'Semaine', date: '2099-10-13', heure: '09:00', heureFin: '10:00' },
+    { itemId: 'C', sujet: 'Congés JV', date: '2099-10-10', dateFin: '2099-10-12', journeeEntiere: true, absence: true }
+  ] });
+  const corps = await (await appeler('/api/agenda/evenements?debut=2099-10-12&fin=2099-10-17')).json();
+  assert.equal(corps.evenements.map((e) => e.itemId).join('|'), 'B|C');
+  assert.equal(corps.debutLu, '2099-10-05');
+  assert.equal(JSON.stringify(corps).includes('motDePasse'), false);
+  parametresRepo.ajouterEvenementAgendaOffice({ itemId: 'N', sujet: 'Nouveau', date: '2099-10-14', heure: '11:00', creeDansClaire: true });
+  parametresRepo.retirerEvenementAgendaOffice('B');
+  const apres = await (await appeler('/api/agenda/evenements?debut=2099-10-12&fin=2099-10-17')).json();
+  assert.equal(apres.evenements.map((e) => e.itemId).sort().join('|'), 'C|N');
+});

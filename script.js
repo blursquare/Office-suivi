@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 22:06';
+  const VERSION_APP = '2026-09-30 22:26';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 22:26', resume: "Nouveau : page Agenda (barre latérale). La semaine du lundi au samedi de 7 h à 20 h avec tous les rendez-vous de l'agenda de l'office, le calendrier du mois à droite pour naviguer. Un clic sur un rendez-vous l'ouvre : fiche du dossier, et suppression après confirmation (il part dans les éléments supprimés d'Outlook). Un clic sur une case vide, ou « Nouveau rendez-vous », en crée un (avec ou sans dossier ; case « rendez-vous de signature » pour le noter sur la fiche). Agenda intelligent : pour chaque signature, la probabilité qu'elle se tienne à sa date et ce qui la fait baisser ; pour chaque dossier prêt à signer sans rendez-vous, trois créneaux libres proposés (jours ouvrés, hors fériés et absences), placés en un clic ; relation client : confirmation et rappel du rendez-vous, questionnaire après la signature, un mot un an après, prêts à envoyer. Barre latérale : le trait du menu Outils est plus visible." },
     { version: '2026-09-30 22:06', resume: "Fenêtre du matin : nouvelle rubrique « Agenda du jour » avec tous les rendez-vous du jour de l'agenda de l'office (heure de début en gras et de fin dessous, liseré de la couleur du rendez-vous, type au-dessus du titre ; un clic sur un rendez-vous relié ouvre le dossier). Les emails depuis hier 18 h sont maintenant résumés : nombre d'emails, sujets qui comptent (urgent, offre de prêt, fonds, rendez-vous…) avec leurs dossiers, une ligne par dossier et les expéditeurs hors dossiers ; la liste complète reste dépliable. Sur la carte « Aujourd'hui », le soleil retrouve son texte « Point du matin »." },
     { version: '2026-09-30 20:19', resume: "Nouveau : rapport technique. Les jours ouvrés à 12 h et 17 h, CLAIRE dépose sur GitHub un résumé de la période (erreurs du serveur et des postes, signalements, champs corrigés à la main après une extraction, agenda, rappels, Claire Scan, sauvegarde), après avoir retiré noms, adresses, montants, chemins et noms de fichiers. Claude le relit ensuite et propose ses corrections, à valider sur GitHub. Réglages › Mise à jour : interrupteur, « Voir ce qui part » (le texte exact envoyé) et « Envoyer maintenant ». Le jeton GitHub doit avoir le droit « Issues : Read and write »." },
     { version: '2026-09-30 19:09', resume: "Suivi des dossiers, vue Échéances : en cochant « Archivés », les dossiers archivés apparaissent dans une section « Archivés » en bas de la liste, les plus récents d'abord, avec leur date de signature (ou d'archivage). Un clic ouvre la fiche, comme ailleurs : plus besoin de passer par la vue Tableau pour les retrouver." },
@@ -14685,6 +14686,7 @@
     document.getElementById('onglet-dashboard').style.display = nom === 'dashboard' ? '' : 'none';
     document.getElementById('onglet-nouveau').style.display = nom === 'nouveau' ? '' : 'none';
     document.getElementById('onglet-suivi').style.display = nom === 'suivi' ? '' : 'none';
+    document.getElementById('onglet-agenda').style.display = nom === 'agenda' ? '' : 'none';
     document.getElementById('onglet-scans').style.display = nom === 'scans' ? '' : 'none';
     document.getElementById('onglet-calculateur').style.display = nom === 'calculateur' ? '' : 'none';
     document.getElementById('onglet-prorata').style.display = nom === 'prorata' ? '' : 'none';
@@ -14696,6 +14698,7 @@
     document.getElementById('onglet-reglages').style.display = nom === 'reglages' ? '' : 'none';
     document.getElementById('tab-dashboard').setAttribute('aria-selected', String(nom === 'dashboard'));
     document.getElementById('tab-suivi').setAttribute('aria-selected', String(nom === 'suivi'));
+    document.getElementById('tab-agenda').setAttribute('aria-selected', String(nom === 'agenda'));
     document.getElementById('tab-scans').setAttribute('aria-selected', String(nom === 'scans'));
     document.getElementById('tab-calculateur').setAttribute('aria-selected', String(nom === 'calculateur'));
     document.getElementById('tab-prorata').setAttribute('aria-selected', String(nom === 'prorata'));
@@ -14707,6 +14710,7 @@
     document.getElementById('tab-reglages').setAttribute('aria-selected', String(nom === 'reglages'));
     document.getElementById('tab-dashboard').classList.toggle('actif', nom === 'dashboard');
     document.getElementById('tab-suivi').classList.toggle('actif', nom === 'suivi');
+    document.getElementById('tab-agenda').classList.toggle('actif', nom === 'agenda');
     document.getElementById('tab-scans').classList.toggle('actif', nom === 'scans');
     document.getElementById('tab-calculateur').classList.toggle('actif', nom === 'calculateur');
     document.getElementById('tab-prorata').classList.toggle('actif', nom === 'prorata');
@@ -14736,6 +14740,9 @@
     // Date du jour et bornes de période posées au premier affichage seulement (voir initProrata).
     if (nom === 'prorata') initProrata();
     if (nom === 'scans') initScans();
+    // Agenda relu à chaque ouverture (tour de lecture du serveur toutes les 15 min), absences comprises.
+    if (nom === 'agenda') { if (authToken) chargerAbsencesOffice(); initAgenda(); }
+    if (nom !== 'agenda') renderModaleAgenda();
     // Date du jour, tableau vierge et chargement du modèle Word au premier affichage (voir
     // initAppelFonds) — puis seulement le chargement du modèle aux visites suivantes.
     if (nom === 'appel-fonds') initAppelFonds();
@@ -18069,6 +18076,761 @@
     overlay.style.display = 'flex';
   }
 
+  // ==== PAGE AGENDA (étude, 30/09) ====
+  // « Créer une page agenda … afficher l'agenda complet de la semaine du lundi au samedi de 7 h à
+  // 20 h, tous les rendez-vous … ouvrir la fiche des dossiers présents dans CLAIRE … création et
+  // suppression de rendez-vous, avec confirmation pour la suppression … un agenda intelligent et
+  // proactif ». Les rendez-vous sont ceux du calendrier partagé de l'office, lus par le serveur à
+  // chaque tour EWS (15 min, GET /api/agenda/evenements) ; créer et supprimer passent par Exchange
+  // (un seul essai ; une suppression part dans les éléments supprimés d'Outlook). L'« intelligence »
+  // est un calcul transparent sur les dossiers, sans IA, chaque point expliqué : probabilité de tenue
+  // d'une signature, créneaux proposés aux dossiers prêts à signer, gestes de relation client dus.
+  // Tout ce qui est pur est déclaré en `function`/`var` (testable, voir tests/agenda-page.test.js).
+
+  var AGENDA_HEURE_DEBUT = 7;
+  var AGENDA_HEURE_FIN = 20;
+  var AGENDA_JOURS_SEMAINE = 6; // lundi → samedi
+
+  // Pure : les jours (lundi → samedi) de la semaine qui commence au lundi donné.
+  function joursSemaineAgenda(lundiIso) {
+    const jours = [];
+    for (let i = 0; i < AGENDA_JOURS_SEMAINE; i++) jours.push(addDays(lundiIso, i));
+    return jours;
+  }
+
+  // Pure : « HH:MM » → minutes depuis minuit (null si illisible).
+  function minutesHeure(h) {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(String(h || ''));
+    return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+  }
+
+  // Pure : les rendez-vous qui touchent un jour (un rendez-vous de plusieurs jours y compte).
+  function evenementsJourAgenda(evenements, iso) {
+    return (evenements || []).filter(e => e && e.date <= iso && (e.dateFin || e.date) >= iso);
+  }
+
+  // Pure : place des rendez-vous horaires d'une journée dans la grille 7 h – 20 h (haut et hauteur
+  // en % de la grille). Les rendez-vous qui se chevauchent se partagent la largeur en colonnes ; un
+  // rendez-vous hors de la plage est ramené à son bord et signalé (`horsPlage`).
+  function disposerEvenementsJour(evenements, iso) {
+    const debutGrille = AGENDA_HEURE_DEBUT * 60;
+    const finGrille = AGENDA_HEURE_FIN * 60;
+    const total = finGrille - debutGrille;
+    const horaires = (evenements || []).filter(e => e && !e.journeeEntiere && e.heure && e.date === iso).map(e => {
+      const debut = minutesHeure(e.heure);
+      let fin = minutesHeure(e.heureFin);
+      if (fin === null || fin <= debut) fin = debut + (e.signature ? 60 : 30);
+      return { e, debut, fin };
+    }).filter(h => h.debut !== null).sort((a, b) => a.debut - b.debut || b.fin - a.fin);
+    const places = [];
+    let groupe = [];
+    let finGroupe = -1;
+    const fermer = () => {
+      const n = groupe.reduce((m, p) => Math.max(m, p.colonne + 1), 1);
+      groupe.forEach(p => { p.colonnes = n; });
+      groupe = [];
+      finGroupe = -1;
+    };
+    for (const h of horaires) {
+      if (groupe.length && h.debut >= finGroupe) fermer();
+      const occupees = groupe.filter(p => p.fin > h.debut).map(p => p.colonne);
+      let colonne = 0;
+      while (occupees.indexOf(colonne) !== -1) colonne++;
+      const p = { e: h.e, debut: h.debut, fin: h.fin, colonne, colonnes: 1 };
+      groupe.push(p);
+      places.push(p);
+      finGroupe = Math.max(finGroupe, h.fin);
+    }
+    if (groupe.length) fermer();
+    return places.map(p => {
+      const d = Math.max(debutGrille, Math.min(finGrille, p.debut));
+      const f = Math.max(debutGrille, Math.min(finGrille, p.fin));
+      return {
+        e: p.e, colonne: p.colonne, colonnes: p.colonnes,
+        haut: Math.min(d - debutGrille, total - 15) / total * 100,
+        hauteur: Math.max((f - d) / total * 100, 15 / total * 100),
+        horsPlage: p.debut < debutGrille || p.fin > finGrille
+      };
+    });
+  }
+
+  // Pure : les semaines (lundi → dimanche) qui couvrent un mois « AAAA-MM », pour le calendrier du mois.
+  function grilleMoisAgenda(anneeMois) {
+    const premier = anneeMois + '-01';
+    const dernier = addDays(isoLocalDepuisDate(new Date(Number(anneeMois.slice(0, 4)), Number(anneeMois.slice(5, 7)), 1)), -1);
+    const semaines = [];
+    for (let lundi = debutSemaine(premier); lundi <= dernier; lundi = addDays(lundi, 7)) {
+      const jours = [];
+      for (let i = 0; i < 7; i++) jours.push(addDays(lundi, i));
+      semaines.push(jours);
+    }
+    return semaines;
+  }
+
+  // Pure : jours fériés en France métropolitaine d'une année (AAAA-MM-JJ) — fixes, et ceux qui
+  // suivent Pâques (lundi de Pâques, Ascension, lundi de Pentecôte). Aucun créneau n'y est proposé.
+  function joursFeriesFrance(annee) {
+    const a = annee % 19, b = Math.floor(annee / 100), c = annee % 100;
+    const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
+    const h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4;
+    const l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+    const mois = Math.floor((h + l - 7 * m + 114) / 31), jour = ((h + l - 7 * m + 114) % 31) + 1;
+    const paques = `${annee}-${String(mois).padStart(2, '0')}-${String(jour).padStart(2, '0')}`;
+    return ['01-01', '05-01', '05-08', '07-14', '08-15', '11-01', '11-11', '12-25'].map(md => `${annee}-${md}`)
+      .concat([addDays(paques, 1), addDays(paques, 39), addDays(paques, 50)]).sort();
+  }
+  function estJourFerie(iso) {
+    return joursFeriesFrance(Number(String(iso).slice(0, 4))).indexOf(iso) !== -1;
+  }
+
+  // ---- Probabilité de tenue d'une signature ----
+  // Pure et indicative : part de 97 % et retire des points pour ce qui reste à faire, d'autant plus
+  // que la date approche. Chaque retrait est un facteur affiché avec le geste qui le lève — rien de
+  // caché, rien de deviné. null pour un dossier sans rendez-vous à venir.
+  function probabiliteTenueSignature(d, aujourdhuiIso, absences) {
+    if (!d || !d.rendezVousSignature) return null;
+    const auj = aujourdhuiIso || isoAujourdhuiLocal();
+    const jours = ecartJours(auj, d.rendezVousSignature);
+    if (jours === null || jours < 0) return null;
+    const facteurs = [];
+    const f = (libelle, retrait, action) => facteurs.push({ libelle, retrait, ok: retrait === 0, action: action || '' });
+    if (d.sansPret) f('Achat comptant', 0);
+    else if (echeanceValidee(d, 'pret')) f('Offre de prêt reçue', 0);
+    else f('Offre de prêt non reçue', jours <= 15 ? 40 : 25, 'Relancer l’offre de prêt');
+    if (d.ventebien) {
+      if (echeanceValidee(d, 'ventebien')) f('Vente préalable réalisée', 0);
+      else f('Vente préalable non réalisée', jours <= 15 ? 35 : 25, 'Relancer la vente préalable');
+    }
+    if (!preemptionLevee(d)) f('Renonciation au droit de préemption attendue', 20, 'Obtenir la renonciation');
+    const pieces = piecesAttenduesDossier(d).filter(p => p !== 'Offre de prêt' && p !== 'Vente préalable');
+    if (pieces.length) {
+      f(`${pieces.length} pièce${pieces.length > 1 ? 's' : ''} manquante${pieces.length > 1 ? 's' : ''} : ${pieces.slice(0, 3).join(', ')}${pieces.length > 3 ? '…' : ''}`,
+        Math.min(20, pieces.length * (jours <= 10 ? 6 : 3)), 'Réclamer les pièces');
+    } else if (d.roleNotaire !== 'participant') f('Pièces du dossier reçues', 0);
+    const appelFait = echeanceValidee(d, 'appelFonds');
+    if (appelFait) f('Appel de fonds envoyé', 0);
+    else if (jours <= 20) f('Appel de fonds à envoyer', jours <= 10 ? 15 : 8, 'Envoyer l’appel de fonds');
+    if (echeanceValidee(d, 'projetEnvoye')) f('Projet d’acte envoyé', 0);
+    else if (jours <= 10) f('Projet d’acte à envoyer', jours <= 5 ? 12 : 5, 'Envoyer le projet');
+    if (appelFait && jours <= 5) {
+      const fr = d.fondsRecus;
+      const b = bilanFondsRecus(fr ? fr.total : 0, d.fondsAttendusManuel || (fr && fr.attendu) || null);
+      if (b.etat === 'complet') f('Fonds reçus', 0);
+      else f(fr ? 'Fonds pas encore tous reçus' : 'Arrivée des fonds pas encore vérifiée', 10, 'Vérifier l’arrivée des fonds');
+    }
+    if (d.responsable && responsableAbsentLeJour(absences, d.responsable, d.rendezVousSignature)) {
+      f(`${prenomCollaborateur(d.responsable)} absent(e) ce jour-là`, 30, 'Déplacer le rendez-vous');
+    }
+    const retrait = facteurs.reduce((t, x) => t + x.retrait, 0);
+    const pourcent = Math.max(5, Math.min(97, 97 - retrait));
+    return { pourcent, niveau: pourcent >= 80 ? 'haute' : pourcent >= 55 ? 'moyenne' : 'basse', jours, facteurs };
+  }
+
+  // ---- Créneaux proposés aux dossiers prêts à signer ----
+  var CRENEAUX_SIGNATURE = ['09:00', '10:30', '14:00', '15:30', '17:00'];
+  var DUREE_CRENEAU_SIGNATURE = 60;
+  var MAX_SIGNATURES_JOUR = 3;
+  // Le temps d'envoyer l'appel de fonds (rappels J-15/J-10) et le projet avant la signature.
+  var DELAI_MIN_SIGNATURE_JOURS = 14;
+
+  // Pure : les dossiers prêts à signer sans rendez-vous — financement levé, vente préalable réalisée,
+  // préemption purgée — ceux à qui CLAIRE propose des créneaux (étape « Fixer le rendez-vous »).
+  function dossiersAPlacer(liste) {
+    return (liste || []).filter(d => d && !d.archive && !d.rendezVousSignature && pretLeve(d) && preemptionLevee(d)
+      && (!d.ventebien || echeanceValidee(d, 'ventebien')));
+  }
+
+  // Pure : jusqu'à `nombre` créneaux libres (un par jour), du lundi au vendredi hors jours fériés,
+  // dans l'agenda de l'office : ni chevauchement avec un rendez-vous horaire, ni responsable absent,
+  // ni plus de MAX_SIGNATURES_JOUR signatures le même jour. Au plus tôt dans DELAI_MIN_SIGNATURE_JOURS
+  // (3 jours si la date butoir est plus proche) ; `apresButoir` signale un créneau au-delà.
+  function creneauxProposesSignature(d, evenements, absences, aujourdhuiIso, nombre) {
+    const auj = aujourdhuiIso || isoAujourdhuiLocal();
+    const n = nombre || 3;
+    let depuis = addDays(auj, DELAI_MIN_SIGNATURE_JOURS);
+    if (d.acte && d.acte < depuis) depuis = addDays(auj, 3);
+    const limite = addDays(depuis, 60);
+    const creneaux = [];
+    for (let iso = depuis; iso <= limite && creneaux.length < n; iso = addDays(iso, 1)) {
+      const jourSemaine = new Date(iso + 'T00:00:00').getDay();
+      if (jourSemaine === 0 || jourSemaine === 6 || estJourFerie(iso)) continue;
+      if (d.responsable && responsableAbsentLeJour(absences, d.responsable, iso)) continue;
+      const duJour = evenementsJourAgenda(evenements, iso);
+      if (duJour.filter(e => e.signature).length >= MAX_SIGNATURES_JOUR) continue;
+      const pris = duJour.filter(e => !e.journeeEntiere && e.heure && e.date === iso).map(e => {
+        const a = minutesHeure(e.heure);
+        let b = minutesHeure(e.heureFin);
+        if (b === null || b <= a) b = a + 30;
+        return [a, b];
+      });
+      const libre = CRENEAUX_SIGNATURE.find(h => {
+        const a = minutesHeure(h);
+        const b = a + DUREE_CRENEAU_SIGNATURE;
+        return !pris.some(([x, y]) => x < b && a < y);
+      });
+      if (libre) creneaux.push({ date: iso, heure: libre, apresButoir: !!(d.acte && iso > d.acte) });
+    }
+    return creneaux;
+  }
+
+  // ---- Relation client ----
+  // Pure : les emails de relation client dus aujourd'hui, du plus pressant au moins pressant.
+  //  - rappel du rendez-vous à J-3…J-1 ; confirmation du rendez-vous de J-45 à J-3 (une fois par date) ;
+  //  - questionnaire de satisfaction dans les 14 jours après la signature (jamais au client d'un
+  //    confrère, règle de l'étude) ;
+  //  - un mot un an après la signature (client de l'office seulement).
+  var ORDRE_GESTES_RELATION = { rappelRdv: 0, confirmationRdv: 1, questionnaire: 2, anniversaire: 3 };
+  function gestesRelationClient(liste, aujourdhuiIso) {
+    const auj = aujourdhuiIso || isoAujourdhuiLocal();
+    const gestes = [];
+    for (const d of liste || []) {
+      const rdv = d && d.rendezVousSignature;
+      if (!rdv) continue;
+      const j = ecartJours(auj, rdv);
+      if (j === null) continue;
+      const confrere = notaireParticipantRepresenteAcquereur(d);
+      if (!d.archive && j >= 1 && j <= 3 && d.rappelRdvPour !== rdv) gestes.push({ d, type: 'rappelRdv', j });
+      else if (!d.archive && j > 3 && j <= 45 && d.confirmationRdvPour !== rdv) gestes.push({ d, type: 'confirmationRdv', j });
+      if (j <= -1 && j >= -14 && !d.questionnaireEnvoyeLe && !confrere) gestes.push({ d, type: 'questionnaire', j });
+      if (j <= -358 && j >= -372 && !confrere && !d.anniversaireEnvoyeLe) gestes.push({ d, type: 'anniversaire', j });
+    }
+    return gestes.sort((a, b) => ORDRE_GESTES_RELATION[a.type] - ORDRE_GESTES_RELATION[b.type] || Math.abs(a.j) - Math.abs(b.j));
+  }
+
+  // ---- État de la page ----
+  let agendaLundi = null;          // lundi de la semaine affichée
+  let agendaMois = null;           // « AAAA-MM » du calendrier du mois
+  let agendaEvenements = [];
+  let agendaLu = '';
+  let agendaSource = null;
+  let agendaErreur = '';
+  let agendaCharge = false;
+  let agendaModale = null;         // { type: 'detail', cle } | { type: 'creation', date, heure }
+
+  // Le mois du calendrier de droite : celui d'aujourd'hui si la semaine affichée le contient,
+  // sinon celui du jeudi de la semaine (le mois qui en porte le plus de jours).
+  function moisDeSemaineAgenda(lundiIso, aujourdhuiIso) {
+    const jours = joursSemaineAgenda(lundiIso);
+    return (jours.indexOf(aujourdhuiIso) !== -1 ? aujourdhuiIso : addDays(lundiIso, 3)).slice(0, 7);
+  }
+
+  function initAgenda() {
+    if (!agendaLundi) agendaLundi = debutSemaine(isoAujourdhuiLocal());
+    if (!agendaMois) agendaMois = moisDeSemaineAgenda(agendaLundi, isoAujourdhuiLocal());
+    renderPageAgenda();
+    chargerAgendaSemaine();
+  }
+
+  function periodeChargeeAgenda() {
+    const grille = grilleMoisAgenda(agendaMois);
+    const debut = [agendaLundi, grille[0][0]].sort()[0];
+    const fin = [addDays(agendaLundi, 6), grille[grille.length - 1][6]].sort()[1];
+    return { debut, fin };
+  }
+
+  async function chargerAgendaSemaine() {
+    if (!authToken) return;
+    const { debut, fin } = periodeChargeeAgenda();
+    try {
+      const r = await fetchAvecAuth(`/api/agenda/evenements?debut=${debut}&fin=${fin}`);
+      const corps = await r.json();
+      if (!r.ok) { agendaErreur = corps.erreur || 'Lecture de l’agenda impossible.'; }
+      else {
+        agendaEvenements = Array.isArray(corps.evenements) ? corps.evenements : [];
+        agendaLu = corps.lu || '';
+        agendaSource = corps.source || null;
+        agendaErreur = '';
+      }
+    } catch (e) {
+      agendaErreur = 'Serveur injoignable.';
+    }
+    agendaCharge = true;
+    if (ongletActuel === 'agenda') renderPageAgenda();
+  }
+
+  function naviguerSemaineAgenda(pas) {
+    agendaLundi = pas === 0 ? debutSemaine(isoAujourdhuiLocal()) : addDays(agendaLundi, pas * 7);
+    agendaMois = moisDeSemaineAgenda(agendaLundi, isoAujourdhuiLocal());
+    renderPageAgenda();
+    chargerAgendaSemaine();
+  }
+
+  function naviguerMoisAgenda(pas) {
+    const d = new Date(agendaMois + '-01T00:00:00');
+    d.setMonth(d.getMonth() + pas);
+    agendaMois = isoLocalDepuisDate(d).slice(0, 7);
+    renderPageAgenda();
+    chargerAgendaSemaine();
+  }
+
+  function allerAuJourAgenda(iso) {
+    agendaLundi = debutSemaine(iso);
+    renderPageAgenda();
+    chargerAgendaSemaine();
+  }
+
+  // Clé stable d'un rendez-vous de la page (identifiant Exchange, sinon titre + date + heure).
+  function cleEvenementAgenda(e) {
+    return e.itemId || `${e.sujet}|${e.date}|${e.heure || ''}`;
+  }
+
+  // Signatures fixées dans CLAIRE qui ne sont pas (ou pas encore) dans l'agenda de l'office : montrées
+  // en pointillé à leur jour, pour que la semaine soit complète. Pure.
+  function signaturesHorsAgenda(liste, evenements, jours) {
+    return (liste || []).filter(d => d && !d.archive && d.rendezVousSignature && jours.indexOf(d.rendezVousSignature) !== -1
+      && !(evenements || []).some(e => e.dossierId === d.id && e.date === d.rendezVousSignature))
+      .map(d => ({
+        sujet: libelleDossierAffiche(d), lieu: '', date: d.rendezVousSignature, dateFin: d.rendezVousSignature,
+        heure: d.rendezVousSignatureHeure || null, heureFin: d.rendezVousSignatureHeureFin || null,
+        journeeEntiere: !d.rendezVousSignatureHeure, categories: [], signature: true, absence: false,
+        dossierId: d.id, dossierNom: d.nom, horsAgenda: true
+      }));
+  }
+
+  function evenementsAffichesAgenda() {
+    const jours = joursSemaineAgenda(agendaLundi);
+    return agendaEvenements.concat(signaturesHorsAgenda(dossiers, agendaEvenements, jours));
+  }
+
+  function dossierDeEvenement(e) {
+    return e && e.dossierId ? dossiers.find(d => d.id === e.dossierId) || null : null;
+  }
+
+  function renderPastilleProbabilite(p) {
+    if (!p) return '';
+    const dl = p.niveau === 'haute' ? 'dl-success' : p.niveau === 'moyenne' ? 'dl-pret' : 'dl-urgent';
+    return `<span class="ag-proba dot-label ${dl}" title="Probabilité que la signature se tienne à cette date"><span class="dot"></span>${p.pourcent} %</span>`;
+  }
+
+  function renderEvenementGrille(place, auj) {
+    const e = place.e;
+    const teinte = teinteEvenementAgenda(e, categoriesRdvReglees());
+    const d = dossierDeEvenement(e);
+    const proba = d && e.signature ? probabiliteTenueSignature(d, auj, absencesOffice) : null;
+    const largeur = 100 / place.colonnes;
+    const style = `top:${place.haut.toFixed(2)}%;height:${place.hauteur.toFixed(2)}%;left:calc(${(place.colonne * largeur).toFixed(2)}% + 2px);width:calc(${largeur.toFixed(2)}% - 4px)`;
+    const heures = `${e.heure}${e.heureFin ? '–' + e.heureFin : ''}`;
+    // Dans la case : l'heure de début seule (la fin se lit à la hauteur, et dans la bulle).
+    return `<button type="button" class="ag-evt ajd-${teinte}${e.horsAgenda ? ' ag-hors-agenda' : ''}${place.hauteur < 5 ? ' ag-evt-court' : ''}" style="${style}"
+        onclick="ouvrirDetailAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')" title="${escapeAttr(`${heures} · ${e.sujet}${e.lieu ? ' · ' + e.lieu : ''}`)}">
+        <span class="ag-evt-heure">${escapeHtml(e.heure)}${proba ? renderPastilleProbabilite(proba) : ''}</span>
+        <span class="ag-evt-titre">${escapeHtml(e.sujet || '(sans titre)')}</span>
+        ${e.lieu ? `<span class="ag-evt-lieu">${escapeHtml(e.lieu)}</span>` : ''}
+      </button>`;
+  }
+
+  function renderGrilleAgenda() {
+    const auj = isoAujourdhuiLocal();
+    const jours = joursSemaineAgenda(agendaLundi);
+    const evenements = evenementsAffichesAgenda();
+    const heures = [];
+    for (let h = AGENDA_HEURE_DEBUT; h < AGENDA_HEURE_FIN; h++) heures.push(h);
+    const tetes = jours.map(iso => {
+      const dt = new Date(iso + 'T00:00:00');
+      const absents = (absencesOffice || []).filter(a => absenceCouvreJour(a, iso)).map(a => a.initiales || prenomCollaborateur(a.collaborateur));
+      return `<div class="ag-tete-jour${iso === auj ? ' ag-aujourdhui' : ''}${estJourFerie(iso) ? ' ag-ferie' : ''}">
+          <span class="ag-tete-nom">${escapeHtml(dt.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', ''))}</span>
+          <button type="button" class="ag-tete-num" onclick="ouvrirCreationAgenda('${iso}', '09:00')" title="Nouveau rendez-vous ce jour">${dt.getDate()}</button>
+          ${estJourFerie(iso) ? '<span class="ag-tete-note">Férié</span>' : absents.length ? `<span class="ag-tete-note" title="Absent ce jour">${icone('user')} ${escapeHtml(absents.join(', '))}</span>` : ''}
+        </div>`;
+    }).join('');
+    const journees = jours.map(iso => {
+      const liste = evenementsJourAgenda(evenements, iso).filter(e => e.journeeEntiere || !e.heure || e.date !== iso);
+      return `<div class="ag-journee${iso === auj ? ' ag-aujourdhui' : ''}">${liste.map(e => `<button type="button"
+          class="ag-journee-evt ajd-${teinteEvenementAgenda(e, categoriesRdvReglees())}${e.horsAgenda ? ' ag-hors-agenda' : ''}"
+          onclick="ouvrirDetailAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')" title="${escapeAttr(e.sujet || '')}">${escapeHtml(e.sujet || '(sans titre)')}</button>`).join('')}</div>`;
+    }).join('');
+    const maintenant = new Date();
+    const minutes = maintenant.getHours() * 60 + maintenant.getMinutes();
+    const ligneMaintenant = minutes >= AGENDA_HEURE_DEBUT * 60 && minutes <= AGENDA_HEURE_FIN * 60
+      ? `<div class="ag-maintenant" style="top:${((minutes - AGENDA_HEURE_DEBUT * 60) / ((AGENDA_HEURE_FIN - AGENDA_HEURE_DEBUT) * 60) * 100).toFixed(2)}%"></div>` : '';
+    const colonnes = jours.map(iso => `<div class="ag-colonne${iso === auj ? ' ag-aujourdhui' : ''}" data-jour="${iso}">
+        ${heures.map(h => `<button type="button" class="ag-case" onclick="ouvrirCreationAgenda('${iso}', '${String(h).padStart(2, '0')}:00')" aria-label="Nouveau rendez-vous le ${escapeAttr(formatDateFr(iso))} à ${h} h"></button>`).join('')}
+        ${disposerEvenementsJour(evenements, iso).map(p => renderEvenementGrille(p, auj)).join('')}
+        ${iso === auj ? ligneMaintenant : ''}
+      </div>`).join('');
+    return `<div class="ag-grille-defil"><div class="ag-grille">
+        <div class="ag-coin"></div>${tetes}
+        <div class="ag-coin ag-coin-journee">Journée</div>${journees}
+        <div class="ag-heures">${heures.map(h => `<span>${String(h).padStart(2, '0')}:00</span>`).join('')}</div>
+        <div class="ag-corps">${colonnes}</div>
+      </div></div>`;
+  }
+
+  function renderMoisAgenda() {
+    const auj = isoAujourdhuiLocal();
+    const semaines = grilleMoisAgenda(agendaMois);
+    const titre = new Date(agendaMois + '-01T00:00:00').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    const semaineAffichee = joursSemaineAgenda(agendaLundi);
+    const compte = (iso) => evenementsJourAgenda(agendaEvenements, iso).length;
+    const signature = (iso) => evenementsJourAgenda(agendaEvenements, iso).some(e => e.signature)
+      || dossiers.some(d => !d.archive && d.rendezVousSignature === iso);
+    return `<div class="ag-mois">
+        <div class="ag-mois-tete">
+          <span class="ag-mois-titre">${escapeHtml(titre.charAt(0).toUpperCase() + titre.slice(1))}</span>
+          <button type="button" class="icon-btn" onclick="naviguerMoisAgenda(-1)" aria-label="Mois précédent">${icone('chevron-left')}</button>
+          <button type="button" class="icon-btn" onclick="naviguerMoisAgenda(1)" aria-label="Mois suivant">${icone('chevron-right')}</button>
+        </div>
+        <div class="ag-mois-grille" role="grid">
+          ${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(l => `<span class="ag-mois-jsem">${l}</span>`).join('')}
+          ${semaines.map(s => s.map(iso => {
+            const n = compte(iso);
+            const classes = ['ag-mois-jour'];
+            if (iso.slice(0, 7) !== agendaMois) classes.push('hors-mois');
+            if (iso === auj) classes.push('aujourdhui');
+            if (semaineAffichee.indexOf(iso) !== -1) classes.push('dans-semaine');
+            return `<button type="button" class="${classes.join(' ')}" onclick="allerAuJourAgenda('${iso}')" title="${escapeAttr(`${formatDateFr(iso)} — ${n ? n + ' rendez-vous' : 'aucun rendez-vous'}`)}">
+                <span>${Number(iso.slice(8))}</span>
+                <span class="ag-mois-points">${n ? `<i class="${signature(iso) ? 'sig' : ''}"></i>` : ''}</span>
+              </button>`;
+          }).join('')).join('')}
+        </div>
+      </div>`;
+  }
+
+  // Anticipations : ce que CLAIRE voit venir, avec le geste qui y répond.
+  function renderAnticipationsAgenda() {
+    const auj = isoAujourdhuiLocal();
+    const global = vueGlobaleDashboard();
+    const perimetre = dossiersDuPerimetre(dossiers, utilisateurPoste, global);
+    const jours = joursSemaineAgenda(agendaLundi);
+    // Signatures de la semaine affichée, de la moins probable à la plus probable.
+    const signatures = perimetre.filter(d => !d.archive && jours.indexOf(d.rendezVousSignature) !== -1)
+      .map(d => ({ d, p: probabiliteTenueSignature(d, auj, absencesOffice) }))
+      .filter(x => x.p).sort((a, b) => a.p.pourcent - b.p.pourcent);
+    const blocSignatures = `<section class="ag-anticipe">
+        <h3 class="jour-section-titre">Signatures de la semaine ${infoBulle('Probabilité que chaque signature se tienne à sa date : 97 % moins les points de ce qui reste à faire (financement, préemption, pièces, envois, fonds, absence du collaborateur), d’autant plus que la date approche. Indicatif, sans IA : le détail est dans chaque rendez-vous.')}</h3>
+        ${signatures.length ? `<ul class="ag-liste">${signatures.map(({ d, p }) => {
+          const reste = p.facteurs.filter(x => !x.ok);
+          return `<li><button type="button" class="ag-ligne" onclick="ouvrirDetailDossierAgenda('${d.id}')">
+              ${renderPastilleProbabilite(p)}
+              <span class="ag-ligne-texte"><b>${escapeHtml(libelleDossierAffiche(d))}</b>
+              <span>${escapeHtml(new Date(d.rendezVousSignature + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric' }))}${d.rendezVousSignatureHeure ? ' · ' + escapeHtml(d.rendezVousSignatureHeure) : ''}${reste.length ? ' · ' + escapeHtml(reste[0].libelle) : ''}</span></span>
+            </button></li>`;
+        }).join('')}</ul>` : '<p class="jour-vide">Aucune signature cette semaine.</p>'}
+      </section>`;
+    // Dossiers prêts à signer sans rendez-vous : trois créneaux libres chacun.
+    const aPlacer = dossiersAPlacer(perimetre).sort((a, b) => (a.acte || '9999').localeCompare(b.acte || '9999')).slice(0, 6);
+    const ecrire = exchangeAgendaPret();
+    const blocPlacer = `<section class="ag-anticipe">
+        <h3 class="jour-section-titre">Rendez-vous à placer${aPlacer.length ? ` <span class="jour-onglet-nb">${aPlacer.length}</span>` : ''} ${infoBulle('Dossiers dont le financement, la vente préalable et la préemption sont levés, sans rendez-vous de signature. CLAIRE propose le premier créneau libre de trois jours ouvrés, au moins deux semaines après aujourd’hui (le temps de l’appel de fonds et du projet), hors jours fériés, absences du collaborateur et jours à trois signatures.')}</h3>
+        ${aPlacer.length ? `<ul class="ag-liste">${aPlacer.map(d => {
+          const creneaux = creneauxProposesSignature(d, agendaEvenements, absencesOffice, auj, 3);
+          return `<li class="ag-placer">
+              <button type="button" class="jour-fil-dossier" onclick="ouvrirDossierDepuisDashboard('${d.id}')">${escapeHtml(libelleDossierAffiche(d))}</button>
+              <span class="ag-ligne-meta">${d.acte ? `Date butoir ${escapeHtml(formatDateFr(d.acte))}` : 'Pas de date butoir'}${d.responsable ? ' · ' + escapeHtml(prenomCollaborateur(d.responsable)) : ''}</span>
+              <span class="ag-creneaux">${creneaux.length ? creneaux.map(c => `<button type="button" class="action-rapide ag-creneau${c.apresButoir ? ' apres-butoir' : ''}"
+                  onclick="placerCreneauSignature('${d.id}', '${c.date}', '${c.heure}')" ${ecrire ? '' : 'disabled'}
+                  title="${escapeAttr(c.apresButoir ? 'Après la date butoir' : 'Placer le rendez-vous de signature à ce créneau')}">${escapeHtml(new Date(c.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace('.', ''))} ${escapeHtml(c.heure.replace(':', ' h '))}</button>`).join('') : '<span class="jour-vide">Aucun créneau libre dans les deux mois lus.</span>'}</span>
+            </li>`;
+        }).join('')}</ul>` : '<p class="jour-vide">Aucun dossier prêt à signer sans rendez-vous.</p>'}
+      </section>`;
+    // Relation client : les emails dus aujourd'hui.
+    const gestes = gestesRelationClient(perimetre, auj).slice(0, 8);
+    const blocRelation = `<section class="ag-anticipe">
+        <h3 class="jour-section-titre">Relation client${gestes.length ? ` <span class="jour-onglet-nb">${gestes.length}</span>` : ''} ${infoBulle('Emails prêts à envoyer au bon moment : confirmation du rendez-vous dès qu’il est fixé, rappel trois jours avant, questionnaire de satisfaction après la signature, un mot un an après. Au client d’un confrère, les emails du rendez-vous vont au confrère ; ni questionnaire ni mot d’anniversaire.')}</h3>
+        ${gestes.length ? gestes.map(g => renderGesteRelationClient(g)).join('') : '<p class="jour-vide">Rien à envoyer aujourd’hui.</p>'}
+      </section>`;
+    return blocSignatures + blocPlacer + blocRelation;
+  }
+
+  var LIBELLES_GESTES_RELATION = {
+    rappelRdv: (g) => `Signature ${g.j === 1 ? 'demain' : `dans ${g.j} jours`}`,
+    confirmationRdv: (g) => `Signature le ${formatDateFr(g.d.rendezVousSignature)}`,
+    questionnaire: (g) => `Signé il y a ${-g.j} jour${-g.j > 1 ? 's' : ''}`,
+    anniversaire: (g) => `Signé le ${formatDateFr(g.d.rendezVousSignature)}`
+  };
+
+  function renderGesteRelationClient(g) {
+    const d = g.d;
+    if (g.type === 'questionnaire') {
+      return renderLigneAction({
+        categorie: 'neutre', categorieLabel: 'Après la signature', titre: 'Questionnaire de satisfaction',
+        sous: `${libelleDossierAffiche(d)} · ${LIBELLES_GESTES_RELATION.questionnaire(g)}${d.emailAcquereur ? '' : ' · email de l’acquéreur manquant'}`,
+        bouton: d.emailAcquereur ? { libelle: 'Envoyer', icone: icone('mail'), onclick: `envoyerQuestionnaireSatisfaction('${d.id}')`, titre: 'Prépare l’email avec le questionnaire joint, et archive le dossier' } : null
+      });
+    }
+    const a = ACTIONS_EMAIL_DOSSIER[g.type];
+    const destinataire = emailDestinataireRelance(d);
+    return renderLigneAction({
+      categorie: a.categorie, categorieLabel: a.categorieLabel, titre: a.titre,
+      sous: `${libelleDossierAffiche(d)} · ${LIBELLES_GESTES_RELATION[g.type](g)}${destinataire ? '' : ' · email manquant'}`,
+      bouton: destinataire ? { libelle: a.verbe, icone: icone('mail'), onclick: `envoyerRelanceCiblee('${d.id}', '${g.type}')`, titre: MODELES_EMAIL_RELANCE[g.type].libelle } : null
+    });
+  }
+
+  function renderPageAgenda() {
+    const zone = document.getElementById('agenda-contenu');
+    if (!zone) return;
+    if (!agendaLundi) agendaLundi = debutSemaine(isoAujourdhuiLocal());
+    if (!agendaMois) agendaMois = moisDeSemaineAgenda(agendaLundi, isoAujourdhuiLocal());
+    const samedi = addDays(agendaLundi, 5);
+    const debutTxt = new Date(agendaLundi + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: agendaLundi.slice(5, 7) === samedi.slice(5, 7) ? undefined : 'long' });
+    const finTxt = new Date(samedi + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+    const lu = agendaLu ? new Date(agendaLu).toLocaleString('fr-FR', { weekday: 'short', hour: '2-digit', minute: '2-digit' }).replace(':', ' h ') : '';
+    const source = agendaErreur ? `<span class="dot-label dl-alerte"><span class="dot"></span>${escapeHtml(agendaErreur)}</span>`
+      : !agendaCharge ? 'Lecture de l’agenda…'
+      : agendaSource && !agendaSource.configuree ? 'Connexion à l’agenda Outlook à configurer (Réglages › Agenda).'
+      : lu ? `Agenda de l’office lu ${escapeHtml(lu)}` : 'Agenda pas encore lu par le serveur.';
+    zone.innerHTML = `<div class="ag-page">
+        <div class="ag-principal">
+          <div class="ag-barre">
+            <div class="ag-nav">
+              <button type="button" class="icon-btn" onclick="naviguerSemaineAgenda(-1)" aria-label="Semaine précédente">${icone('chevron-left')}</button>
+              <button type="button" class="secondary ag-auj" onclick="naviguerSemaineAgenda(0)">Aujourd’hui</button>
+              <button type="button" class="icon-btn" onclick="naviguerSemaineAgenda(1)" aria-label="Semaine suivante">${icone('chevron-right')}</button>
+              <h2 class="ag-semaine">Du ${escapeHtml(debutTxt)} au ${escapeHtml(finTxt)}</h2>
+            </div>
+            <span class="ag-source">${source}</span>
+            ${exchangeAgendaPret() ? '<button type="button" class="bouton-ajout" onclick="ouvrirCreationAgenda()">Nouveau rendez-vous</button>' : ''}
+          </div>
+          ${renderGrilleAgenda()}
+        </div>
+        <aside class="ag-cote">
+          ${renderMoisAgenda()}
+          ${renderAnticipationsAgenda()}
+        </aside>
+      </div>`;
+    renderModaleAgenda();
+  }
+
+  // ---- Détail d'un rendez-vous ----
+  function ouvrirDetailAgenda(cle) {
+    agendaModale = { type: 'detail', cle };
+    renderModaleAgenda();
+  }
+
+  // Depuis « Signatures de la semaine » : le rendez-vous du dossier s'il est dans l'agenda, sinon
+  // la même fiche construite depuis le dossier.
+  function ouvrirDetailDossierAgenda(id) {
+    const e = evenementsAffichesAgenda().find(x => x.dossierId === id && x.signature);
+    if (e) ouvrirDetailAgenda(cleEvenementAgenda(e));
+    else ouvrirDossierDepuisDashboard(id);
+  }
+
+  function fermerModaleAgenda() {
+    agendaModale = null;
+    renderModaleAgenda();
+  }
+
+  function renderDetailEvenementAgenda(e) {
+    const auj = isoAujourdhuiLocal();
+    const teinte = teinteEvenementAgenda(e, categoriesRdvReglees());
+    const d = dossierDeEvenement(e);
+    const quand = e.journeeEntiere || !e.heure
+      ? (e.dateFin && e.dateFin !== e.date ? `Du ${dateAvecJourFr(e.date)} au ${dateAvecJourFr(e.dateFin)}` : `${dateAvecJourFr(e.date)}, toute la journée`)
+      : `${dateAvecJourFr(e.date)}, ${e.heure}${e.heureFin ? ' – ' + e.heureFin : ''}`;
+    const proba = d && e.signature ? probabiliteTenueSignature(d, auj, absencesOffice) : null;
+    const blocProba = proba ? `<div class="ag-detail-proba">
+        <div class="ag-detail-proba-tete">${renderPastilleProbabilite(proba)} <b>de chances que la signature se tienne ce jour-là</b> ${infoBulle('Indicatif : 97 % moins les points de ce qui reste à faire, pondérés par la proximité de la date. Sans IA.')}</div>
+        <ul class="ag-facteurs">${proba.facteurs.map(x => `<li class="${x.ok ? 'ok' : 'ko'}">${icone(x.ok ? 'check' : 'alert-triangle')}<span>${escapeHtml(x.libelle)}${x.ok ? '' : ` <em>−${x.retrait} pts</em>`}</span></li>`).join('')}</ul>
+      </div>` : '';
+    const relation = d && e.signature && !d.archive && d.rendezVousSignature === e.date && e.date >= auj
+      ? `<div class="ag-detail-actions">${renderLigneEmailDossier(d, 'confirmationRdv')}${ecartJours(auj, e.date) <= 3 ? renderLigneEmailDossier(d, 'rappelRdv') : ''}</div>` : '';
+    const peutSupprimer = exchangeAgendaPret() && e.itemId && !e.horsAgenda;
+    return `<header class="ag-modale-tete ajd-${teinte}">
+        <span class="ajd-barre" aria-hidden="true"></span>
+        <div>
+          <div class="ajd-etiquette">${escapeHtml(e.horsAgenda ? 'Signature fixée dans CLAIRE — pas dans l’agenda Outlook' : etiquetteEvenementAgenda(e, teinte))}</div>
+          <h2 class="ag-modale-titre" id="agenda-modale-titre">${escapeHtml(e.sujet || '(sans titre)')}</h2>
+          <div class="ag-modale-quand">${escapeHtml(quand.charAt(0).toUpperCase() + quand.slice(1))}</div>
+          ${e.lieu ? `<div class="ag-modale-lieu">${icone('map-pin')} ${escapeHtml(e.lieu)}</div>` : ''}
+          ${(e.categories || []).length ? `<div class="ag-modale-lieu">Catégorie : ${escapeHtml(e.categories.join(', '))}</div>` : ''}
+        </div>
+        <button type="button" class="icon-btn ag-modale-x" onclick="fermerModaleAgenda()" aria-label="Fermer">${icone('x')}</button>
+      </header>
+      <div class="ag-modale-corps">
+        ${d ? `<button type="button" class="primary ag-ouvrir-fiche" onclick="fermerModaleAgenda(); ouvrirDossierDepuisDashboard('${d.id}')">${icone('folder')} Ouvrir la fiche ${escapeHtml(libelleDossierAffiche(d))}</button>` : ''}
+        ${blocProba}
+        ${relation}
+        ${!d && e.dossierNom ? `<p class="jour-vide">Dossier « ${escapeHtml(e.dossierNom)} » archivé ou introuvable dans CLAIRE.</p>` : ''}
+      </div>
+      <footer class="ag-modale-pied">
+        ${peutSupprimer ? `<button type="button" class="lien-bouton ag-supprimer" onclick="supprimerEvenementAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')">${icone('trash')} Supprimer de l’agenda</button>` : ''}
+        <span class="jour-espace"></span>
+        <button type="button" class="secondary" onclick="fermerModaleAgenda()">Fermer</button>
+      </footer>`;
+  }
+
+  // ---- Création d'un rendez-vous ----
+  function ouvrirCreationAgenda(date, heure) {
+    if (!exchangeAgendaPret()) { afficherToast('Connexion à l’agenda Outlook à activer dans les Réglages pour créer un rendez-vous.', 'OK', null); return; }
+    const auj = isoAujourdhuiLocal();
+    const jour = date || (joursSemaineAgenda(agendaLundi).indexOf(auj) !== -1 ? auj : agendaLundi);
+    agendaModale = { type: 'creation', date: jour, heure: heure || '09:00' };
+    const contenu = document.getElementById('agenda-modale-contenu');
+    if (contenu) contenu.innerHTML = '';
+    renderModaleAgenda();
+    const champ = document.getElementById('agenda-creation-titre');
+    if (champ) champ.focus({ preventScroll: true });
+  }
+
+  function renderCreationAgenda(m) {
+    const actifs = dossiers.filter(d => !d.archive).sort((a, b) => libelleDossierAffiche(a).localeCompare(libelleDossierAffiche(b), 'fr'));
+    return `<header class="ag-modale-tete">
+        <div><h2 class="ag-modale-titre" id="agenda-modale-titre">Nouveau rendez-vous</h2>
+        <div class="ag-modale-quand">Dans l’agenda partagé de l’office</div></div>
+        <button type="button" class="icon-btn ag-modale-x" onclick="fermerModaleAgenda()" aria-label="Fermer">${icone('x')}</button>
+      </header>
+      <form class="ag-modale-corps ag-form" onsubmit="event.preventDefault(); creerEvenementAgenda();">
+        <label class="ag-champ"><span>Dossier <span class="ag-facultatif">— facultatif</span></span>
+          <select id="agenda-creation-dossier" onchange="choisirDossierCreationAgenda(this.value)">
+            <option value="">Aucun dossier</option>
+            ${actifs.map(d => `<option value="${escapeAttr(d.id)}">${escapeHtml(libelleDossierAffiche(d))}</option>`).join('')}
+          </select></label>
+        <label class="ag-champ ag-case-signature" id="agenda-creation-signature-bloc" style="display:none">
+          <input type="checkbox" id="agenda-creation-signature" onchange="choisirDossierCreationAgenda(document.getElementById('agenda-creation-dossier').value)"> Rendez-vous de signature (date notée sur la fiche)</label>
+        <label class="ag-champ">Titre <input type="text" id="agenda-creation-titre" required maxlength="200" placeholder="Ex. : Rendez-vous client, lecture d’acte…"></label>
+        <div class="ag-champs-ligne">
+          <label class="ag-champ">Date <input type="date" id="agenda-creation-date" value="${escapeAttr(m.date)}" required></label>
+          <label class="ag-champ">Début <input type="time" id="agenda-creation-heure" value="${escapeAttr(m.heure)}" step="900" required></label>
+          <label class="ag-champ">Durée
+            <select id="agenda-creation-duree">
+              <option value="30">30 min</option><option value="60" selected>1 h</option><option value="90">1 h 30</option><option value="120">2 h</option><option value="180">3 h</option>
+            </select></label>
+        </div>
+        <label class="ag-champ">Lieu <input type="text" id="agenda-creation-lieu" maxlength="160" placeholder="Facultatif"></label>
+        <div class="rdv-type-choix" role="radiogroup" aria-label="Couleur du rendez-vous">
+          <label class="rdv-type-option"><input type="radio" name="agenda-creation-type" value="" checked><span class="rdv-type-pastille"></span>Sans catégorie</label>
+          ${Object.entries(TYPES_RDV).map(([cle, t]) => `<label class="rdv-type-option"><input type="radio" name="agenda-creation-type" value="${cle}"><span class="rdv-type-pastille rdv-type-${cle}"></span>${t.libelle}</label>`).join('')}
+        </div>
+        <footer class="ag-modale-pied ag-modale-pied-form">
+          <span class="jour-espace"></span>
+          <button type="button" class="secondary" onclick="fermerModaleAgenda()">Annuler</button>
+          <button type="submit" class="primary" id="agenda-creation-ok">${icone('calendar')} Créer le rendez-vous</button>
+        </footer>
+      </form>`;
+  }
+
+  // Un dossier choisi : titre « VTE - NOM » proposé, et la case « signature » offerte tant que le
+  // dossier n'a pas de rendez-vous de signature.
+  function choisirDossierCreationAgenda(id) {
+    const d = dossiers.find(x => x.id === id);
+    const bloc = document.getElementById('agenda-creation-signature-bloc');
+    const titre = document.getElementById('agenda-creation-titre');
+    if (bloc) bloc.style.display = d && !d.rendezVousSignature ? '' : 'none';
+    if (d && titre && (!titre.value || RE_NOM_DEJA_PREFIXE.test(titre.value))) titre.value = libelleDossierAffiche(d);
+    const sig = document.getElementById('agenda-creation-signature');
+    if (sig && (!d || d.rendezVousSignature)) sig.checked = false;
+  }
+
+  async function creerEvenementAgenda() {
+    const val = (id) => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+    const sujet = val('agenda-creation-titre');
+    const date = val('agenda-creation-date');
+    const heure = val('agenda-creation-heure');
+    const dureeMinutes = parseInt(val('agenda-creation-duree'), 10) || 60;
+    const lieu = val('agenda-creation-lieu');
+    const choix = document.querySelector('input[name="agenda-creation-type"]:checked');
+    const typeRdv = choix && TYPES_RDV[choix.value] ? choix.value : '';
+    const d = dossiers.find(x => x.id === val('agenda-creation-dossier')) || null;
+    const signature = !!(d && document.getElementById('agenda-creation-signature') && document.getElementById('agenda-creation-signature').checked);
+    if (!sujet || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(heure)) { afficherToast('Titre, date et heure sont nécessaires.', 'OK', null); return; }
+    const bouton = document.getElementById('agenda-creation-ok');
+    if (bouton) { bouton.disabled = true; bouton.textContent = 'Création…'; }
+    const ok = await posterEvenementAgenda({ sujet, date, heure, dureeMinutes, lieu, typeRdv, dossier: d, signature });
+    if (bouton) { bouton.disabled = false; }
+    if (ok) { agendaModale = null; renderPageAgenda(); chargerAgendaSemaine(); }
+  }
+
+  // Écrit un rendez-vous dans l'agenda de l'office (un seul essai). Rendez-vous de signature d'un
+  // dossier : la date et l'heure sont notées sur la fiche, comme depuis la fiche elle-même.
+  async function posterEvenementAgenda({ sujet, date, heure, dureeMinutes, lieu, typeRdv, dossier, signature }) {
+    const categorie = typeRdv ? (categoriesRdvReglees()[typeRdv] || '') : '';
+    try {
+      const reponse = await fetchAvecAuth('/api/exchange/rendez-vous', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sujet, date, heure, dureeMinutes, lieu, categorie, signature,
+          dossierId: dossier ? dossier.id : null, dossierNom: dossier ? dossier.nom : null,
+          corps: signature ? 'Rendez-vous de signature créé depuis l’agenda de CLAIRE.' : 'Rendez-vous créé depuis l’agenda de CLAIRE.'
+        })
+      });
+      const corps = await reponse.json();
+      if (!corps.ok) { afficherToast(corps.message || 'La création du rendez-vous a échoué.', 'OK', null); return false; }
+      if (dossier && signature) {
+        dossier.rendezVousSignature = date;
+        dossier.rendezVousSignatureHeure = heure;
+        if (typeRdv) dossier.rendezVousType = typeRdv;
+        dossier.rdvAgendaCreeLe = new Date().toISOString();
+        dossier.rdvAgendaItem = corps.itemId ? { itemId: corps.itemId, changeKey: corps.changeKey || '', date } : null;
+        dossier.confiance = dossier.confiance || {};
+        dossier.confiance.rendezVousSignature = 'manuel';
+        ajouterHistorique(dossier, `Rendez-vous de signature fixé depuis l’agenda : ${formatDateFr(date)} à ${heure}${typeRdv ? `, ${TYPES_RDV[typeRdv].libelle.toLowerCase()}` : ''} (créé dans l’agenda Outlook).`);
+        notifierDateAjoutee(dossier, LIBELLES_CATEGORIE.rendezVousSignature || 'Rendez-vous de signature', date, '');
+        sauvegarder(dossier);
+      } else if (dossier) {
+        ajouterHistorique(dossier, `Rendez-vous « ${sujet} » créé dans l’agenda de l’office le ${formatDateFr(date)} à ${heure}.`);
+        sauvegarder(dossier);
+      }
+      afficherToast('Rendez-vous créé dans l’agenda de l’office.', 'OK', null);
+      render();
+      return true;
+    } catch (e) {
+      afficherToast('Serveur injoignable — rendez-vous non créé.', 'OK', null);
+      return false;
+    }
+  }
+
+  // Créneau proposé → rendez-vous de signature placé, après confirmation.
+  function placerCreneauSignature(id, date, heure) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    demanderConfirmation(`Placer la signature de ${libelleDossierAffiche(d)} le ${dateAvecJourFr(date)} à ${heure.replace(':', ' h ')} dans l’agenda de l’office ?`, async () => {
+      const typeRdv = typeRendezVous(d, categoriesRdvReglees()) || 'office';
+      const ok = await posterEvenementAgenda({ sujet: libelleDossierAffiche(d), date, heure, dureeMinutes: DUREE_CRENEAU_SIGNATURE, lieu: lieuRdvAgenda(d), typeRdv, dossier: d, signature: true });
+      if (ok) chargerAgendaSemaine();
+    }, { bouton: 'Placer', ton: 'valider' });
+  }
+
+  // ---- Suppression (toujours confirmée) ----
+  function supprimerEvenementAgenda(cle) {
+    const e = agendaEvenements.find(x => cleEvenementAgenda(x) === cle);
+    if (!e || !e.itemId) return;
+    const quand = e.heure ? `du ${dateAvecJourFr(e.date)} à ${e.heure.replace(':', ' h ')}` : `du ${dateAvecJourFr(e.date)}`;
+    const d = dossierDeEvenement(e);
+    const note = d && e.signature ? ' La date reste sur la fiche du dossier.' : '';
+    demanderConfirmation(`Supprimer le rendez-vous « ${e.sujet || 'sans titre'} » ${quand} de l’agenda de l’office ? Il ira dans les éléments supprimés d’Outlook.${note}`, async () => {
+      try {
+        const reponse = await fetchAvecAuth('/api/exchange/evenement/supprimer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ itemId: e.itemId, changeKey: e.changeKey || '' })
+        });
+        const corps = await reponse.json();
+        if (!corps.ok) { afficherToast(corps.message || 'La suppression a échoué.', 'OK', null); return; }
+        agendaEvenements = agendaEvenements.filter(x => x.itemId !== e.itemId);
+        if (d) {
+          if (d.rdvAgendaItem && d.rdvAgendaItem.itemId === e.itemId) { d.rdvAgendaItem = null; d.rdvAgendaCreeLe = null; }
+          ajouterHistorique(d, `Rendez-vous « ${e.sujet} » ${quand} supprimé de l’agenda de l’office depuis CLAIRE.`);
+          sauvegarder(d);
+        }
+        agendaModale = null;
+        afficherToast(corps.message || 'Rendez-vous supprimé.', 'OK', null);
+        renderPageAgenda();
+      } catch (err) {
+        afficherToast('Serveur injoignable — rendez-vous non supprimé.', 'OK', null);
+      }
+    });
+  }
+
+  function renderModaleAgenda() {
+    const overlay = document.getElementById('agenda-overlay');
+    if (!overlay) return;
+    if (!agendaModale || ongletActuel !== 'agenda') { overlay.style.display = 'none'; return; }
+    const contenu = document.getElementById('agenda-modale-contenu');
+    if (agendaModale.type === 'creation') {
+      if (!contenu.querySelector('#agenda-creation-titre')) contenu.innerHTML = renderCreationAgenda(agendaModale);
+    } else {
+      const e = evenementsAffichesAgenda().find(x => cleEvenementAgenda(x) === agendaModale.cle);
+      if (!e) { agendaModale = null; overlay.style.display = 'none'; return; }
+      contenu.innerHTML = renderDetailEvenementAgenda(e);
+    }
+    overlay.style.display = 'flex';
+  }
+
+
   function render() {
     const list = document.getElementById('dossier-list');
     const count = document.getElementById('dossier-count');
@@ -18101,6 +18863,7 @@
     // refermer, si son dossier vient d'être supprimé) dans tous les cas, pas seulement quand la
     // liste a des lignes à afficher.
     renderDrawer();
+    if (ongletActuel === 'agenda') renderPageAgenda();
 
     const dossiersVisibles = voirArchives ? dossiers : dossiersActifs;
 
@@ -20349,8 +21112,60 @@
     fonds: { cle: 'fonds', libelle: 'Confirmer la réception des fonds', construire: construireEmailReceptionFonds, historique: 'Email envoyé — confirmation de réception des fonds en comptabilité', date: 'receptionFondsConfirmeeLe' },
     // L'envoi du projet EST l'étape « Envoi projet » du dossier : sa date est d.projetEnvoye (même
     // effet que la date saisie sur la fiche ou « Marquer envoyé », agenda compris).
-    projet: { cle: 'projet', libelle: 'Projet d’acte', construire: construireEmailProjetActe, historique: 'Email envoyé — projet d’acte', date: 'projetEnvoye' }
+    projet: { cle: 'projet', libelle: 'Projet d’acte', construire: construireEmailProjetActe, historique: 'Email envoyé — projet d’acte', date: 'projetEnvoye' },
+    // Relation client (page Agenda, 30/09) : confirmation et rappel du rendez-vous — mémorisés pour
+    // CETTE date (confirmationRdvPour / rappelRdvPour), un rendez-vous déplacé les repropose —, et un
+    // mot un an après la signature.
+    confirmationRdv: { cle: 'confirmationRdv', libelle: 'Confirmer le rendez-vous de signature', construire: construireEmailConfirmationRdv, historique: 'Email envoyé — confirmation du rendez-vous de signature', date: 'confirmationRdvLe' },
+    rappelRdv: { cle: 'rappelRdv', libelle: 'Rappeler le rendez-vous de signature', construire: construireEmailRappelRdv, historique: 'Email envoyé — rappel du rendez-vous de signature', date: 'rappelRdvLe' },
+    anniversaire: { cle: 'anniversaire', libelle: 'Un an après la signature', construire: construireEmailAnniversaire, historique: 'Email envoyé — un an après la signature', date: 'anniversaireEnvoyeLe' }
   };
+
+  // Premiers jets de CLAIRE (comme l'email du projet d'acte) : à remplacer par les textes de l'étude
+  // dès qu'elle les fournit. La date et l'heure du rendez-vous sont en gras et soulignées.
+  function lieuRdvEmail(d, auConfrere) {
+    const t = typeRendezVous(d, categoriesRdvReglees());
+    if (t === 'visio') return 'en visioconférence (le lien de connexion vous sera communiqué)';
+    if (t === 'confrere') return auConfrere ? 'en votre office' : 'en l’office du notaire de l’acquéreur';
+    return 'en notre office';
+  }
+  function quandRdvEmail(d) {
+    return `${MARQUE_FORT_DEBUT}le ${dateAvecJourFr(d.rendezVousSignature)}${d.rendezVousSignatureHeure ? ' à ' + heureEmail(d.rendezVousSignatureHeure) : ''}${MARQUE_FORT_FIN}`;
+  }
+  function construireEmailConfirmationRdv(d) {
+    const confrere = notaireParticipantRepresenteAcquereur(d);
+    const sujet = `Confirmation du rendez-vous de signature — ${libelleDossierAffiche(d)}`;
+    if (confrere) {
+      return { sujet, corps: ['Bonjour,',
+        `Je vous confirme le rendez-vous de signature de l’acte de vente ${quandRdvEmail(d)}, ${lieuRdvEmail(d, true)}.`,
+        'Je vous remercie de bien vouloir me faire parvenir, le cas échéant, vos observations sur le projet d’acte.',
+        'Bien cordialement,'].join('\n\n') };
+    }
+    return { sujet, corps: ['Bonjour,',
+      `Nous vous confirmons le rendez-vous de signature de l’acte de vente ${quandRdvEmail(d)}, ${lieuRdvEmail(d, false)}.`,
+      'Merci de vous munir d’une pièce d’identité en cours de validité. Les fonds nécessaires à l’acquisition devront nous parvenir par virement quelques jours avant le rendez-vous.',
+      'Nous restons à votre disposition pour toute question.',
+      'Bien cordialement,'].join('\n\n') };
+  }
+  function construireEmailRappelRdv(d) {
+    const confrere = notaireParticipantRepresenteAcquereur(d);
+    const sujet = `Rappel — rendez-vous de signature — ${libelleDossierAffiche(d)}`;
+    if (confrere) {
+      return { sujet, corps: ['Bonjour,',
+        `Je vous rappelle le rendez-vous de signature de l’acte de vente ${quandRdvEmail(d)}, ${lieuRdvEmail(d, true)}.`,
+        'Bien cordialement,'].join('\n\n') };
+    }
+    return { sujet, corps: ['Bonjour,',
+      `Nous vous rappelons votre rendez-vous de signature ${quandRdvEmail(d)}, ${lieuRdvEmail(d, false)}.`,
+      'Pensez à vous munir d’une pièce d’identité en cours de validité.',
+      'Bien cordialement,'].join('\n\n') };
+  }
+  function construireEmailAnniversaire(d) {
+    return { sujet: `Un an déjà — ${libelleDossierAffiche(d)}`, corps: ['Bonjour,',
+      'Il y a un an, vous signiez l’acte d’acquisition de votre bien. Toute l’équipe de l’office espère que vous vous y plaisez.',
+      'Nous restons à votre disposition pour tout nouveau projet : donation, testament, contrat de mariage ou de PACS, succession, ou une nouvelle acquisition.',
+      'Bien cordialement,'].join('\n\n') };
+  }
 
   // discret : appelée depuis « Aujourd'hui », où la ligne se coche d'elle-même — une notification
   // suffit, pas de fenêtre à fermer entre deux actions.
@@ -20375,6 +21190,8 @@
     const aujourdhui = isoAujourdhuiLocal();
     if (modele.date) d[modele.date] = aujourdhui;
     if (type === 'projet') marquerProjetEnvoyeSelonDate(d, aujourdhui);
+    if (type === 'confirmationRdv') d.confirmationRdvPour = d.rendezVousSignature || '';
+    if (type === 'rappelRdv') d.rappelRdvPour = d.rendezVousSignature || '';
     // Une relance de l'offre faite à la main compte comme la relance du jour : la suivante, manuelle
     // ou automatique, n'est reproposée que 10 jours plus tard (voir relanceOffreDue).
     if (type === 'pret') d.derniereRelanceAuto = isoAujourdhuiLocal();
@@ -20443,7 +21260,10 @@
     pret: { titre: 'Relancer l’offre de prêt', verbe: 'Relancer', categorie: 'pret', categorieLabel: 'Obtention du prêt' },
     fonds: { titre: 'Confirmer la réception des fonds', verbe: 'Confirmer', categorie: 'appelFonds', categorieLabel: 'Réception des fonds' },
     projet: { titre: 'Envoyer le projet d’acte', verbe: 'Envoyer', categorie: 'projetEnvoye', categorieLabel: 'Envoi projet' },
-    rib: { titre: 'Demander le RIB et la pièce d’identité', verbe: 'Envoyer', categorie: 'rendezVousSignature', categorieLabel: 'Avant la signature' }
+    rib: { titre: 'Demander le RIB et la pièce d’identité', verbe: 'Envoyer', categorie: 'rendezVousSignature', categorieLabel: 'Avant la signature' },
+    confirmationRdv: { titre: 'Confirmer le rendez-vous', verbe: 'Confirmer', categorie: 'rendezVousSignature', categorieLabel: 'Relation client' },
+    rappelRdv: { titre: 'Rappeler le rendez-vous', verbe: 'Rappeler', categorie: 'rendezVousSignature', categorieLabel: 'Relation client' },
+    anniversaire: { titre: 'Un mot un an après la signature', verbe: 'Écrire', categorie: 'neutre', categorieLabel: 'Relation client' }
   };
 
   // Date du dernier envoi d'un email : le champ daté du dossier, à défaut la dernière ligne
@@ -20452,6 +21272,9 @@
     if (motif === 'pret' && d.derniereRelanceAuto) return d.derniereRelanceAuto;
     const m = MODELES_EMAIL_RELANCE[motif];
     if (!m) return null;
+    // Confirmation et rappel valent pour UNE date de rendez-vous : déplacé, il faut les refaire.
+    if (motif === 'confirmationRdv' && d.confirmationRdvPour !== d.rendezVousSignature) return null;
+    if (motif === 'rappelRdv' && d.rappelRdvPour !== d.rendezVousSignature) return null;
     if (m.date && d[m.date]) return d[m.date];
     const entrees = (d.historique || []).filter(e => e && typeof e.texte === 'string' && e.texte.indexOf(m.historique) === 0 && typeof e.date === 'string');
     return entrees.length ? entrees[entrees.length - 1].date.slice(0, 10) : null;
@@ -24883,6 +25706,9 @@
       } else if (fenetreAujourdhuiOuverte) {
         e.preventDefault();
         fermerFenetreAujourdhui();
+      } else if (agendaModale) {
+        e.preventDefault();
+        fermerModaleAgenda();
       } else if (barreSelection && barreSelection.style.display !== 'none') {
         e.preventDefault();
         masquerBoutonAjoutEngagement();
@@ -32944,6 +33770,7 @@
       'icon-nav-suivi': 'list',
       'icon-recherche-suivi': 'search',
       'icon-nav-scans': 'printer',
+      'icon-nav-agenda': 'calendar',
       'icon-signaler': 'flag',
       'icon-install': 'download',
       'icon-dropzone': 'upload',

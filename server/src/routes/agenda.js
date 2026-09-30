@@ -41,6 +41,18 @@ function creerRouteurAgenda(parametresRepo, options) {
     });
   });
 
+  // Page Agenda : les rendez-vous gardés du dernier tour de lecture entre `debut` et `fin` (AAAA-MM-JJ,
+  // bornes comprises ; un événement de plusieurs jours qui chevauche la période est rendu).
+  routeur.get('/agenda/evenements', (req, res) => {
+    const date = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? String(v) : '');
+    const debut = date(req.query.debut);
+    const fin = date(req.query.fin);
+    if (!debut || !fin || fin < debut) return res.status(400).json({ erreur: 'Période invalide (debut et fin au format AAAA-MM-JJ).' });
+    const agenda = typeof parametresRepo.lireAgendaOffice === 'function' ? parametresRepo.lireAgendaOffice() : null;
+    const evenements = ((agenda && agenda.evenements) || []).filter((e) => e.date <= fin && (e.dateFin || e.date) >= debut);
+    res.json({ lu: (agenda && agenda.lu) || '', debutLu: (agenda && agenda.debut) || '', source: source(), evenements });
+  });
+
   // Déclenche un vrai tour de lecture tout de suite — le chemin de production, pas une simulation.
   // Un seul essai, même quand la lecture automatique est suspendue : c'est une personne qui le
   // demande (et un succès lève la suspension).

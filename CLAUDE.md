@@ -104,12 +104,15 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
    (`lireCalendrierExchange`, FindItem en vue calendrier, 6 mois en 3 tranches ; envois relevés,
    rendez-vous de signature, absences, catégories, et **tous les rendez-vous du jour** pour la fenêtre
    du matin — `agendaDuJourDepuisEvenements`, clé `agenda-du-jour`, rubrique « Agenda du jour » —, le lien
-   `.ics` publié n'est plus lu depuis le 29/09) ; **écriture** : création/déplacement/retrait
+   `.ics` publié n'est plus lu depuis le 29/09 ; la lecture part du lundi de la semaine précédente et
+   tout est gardé sous `agenda-office` pour la page Agenda, `GET /api/agenda/evenements`) ; **écriture** : création/déplacement/retrait
    d'un rendez-vous de signature (catégorie = couleur : vert office, violet visio, orange confrère),
    note « Appel de fonds (et projet) envoyé » dans le Lieu, dates butoir prêt / vente préalable en
    journée entière — seule voie depuis le 29/09 (plus de flux `.ics` publié) : le poste les pose au
    geste, le serveur pose ce qui manque à chaque tour de lecture (`echeancesAgenda.js`) en adoptant
-   d'abord un événement de même titre et même date (jamais de doublon). **Un seul essai par appel, aucun réessai automatique** (verrouillage du compte),
+   d'abord un événement de même titre et même date (jamais de doublon) ; depuis la **page Agenda**
+   (30/09), création de tout rendez-vous et **suppression de n'importe lequel après confirmation**
+   (`POST /exchange/evenement/supprimer`, `MoveToDeletedItems`). **Un seul essai par appel, aucun réessai automatique** (verrouillage du compte),
    disjoncteur sur refus d'identifiants (côté client pour les écritures ; côté serveur, la lecture
    automatique est suspendue tant que les identifiants refusés restent enregistrés). Suppression = `MoveToDeletedItems`, jamais `HardDelete`.
    Microsoft Graph / Power Automate premium ne sont pas disponibles. **Lecture de la boîte de
@@ -261,6 +264,16 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   (`scansPourCarte`). **OCR d'un scan : `page.render(… intent: 'print')`** — en « display », pdf.js 3.11 cadence
   le dessin sur `requestAnimationFrame`, arrêté fenêtre réduite/cachée (lecture bloquée sans fin). Un pré-état daté n'est
   pas un état daté (checklist corrigée le même jour).
+- **Page Agenda** (30/09, `renderPageAgenda`) : semaine lundi → samedi, 7 h – 20 h, calendrier du mois
+  à droite ; rendez-vous lus par le serveur (stock `agenda-office`, tenu à jour à la création/suppression
+  depuis CLAIRE entre deux tours) ; signatures de CLAIRE absentes d'Outlook en pointillé. Agenda
+  « intelligent », **sans IA, chaque point expliqué** : `probabiliteTenueSignature` (97 % moins des
+  retraits pondérés par la proximité : financement, vente préalable, préemption, pièces, envois, fonds,
+  collaborateur absent), `creneauxProposesSignature` (dossiers de `dossiersAPlacer`, un créneau par jour
+  ouvré, ≥ 14 jours, hors fériés `joursFeriesFrance`, absences, chevauchements, 3 signatures/jour),
+  `gestesRelationClient` (rappel J-3…J-1, confirmation J-45…J-3 une fois par date `confirmationRdvPour`,
+  questionnaire J+1…J+14, un mot un an après — jamais au client d'un confrère). Emails de confirmation,
+  rappel et anniversaire = **premiers jets de CLAIRE**, à remplacer par les textes de l'étude.
 - **Mobilier** : le prix reste le prix total ; `d.prixMobilier` sort seulement de l'assiette des
   droits (frais d'acte, contrôle du barème).
 - **Prorata** : jours réels, jour de l'acte à la charge de l'acquéreur, arrondi du vendeur par

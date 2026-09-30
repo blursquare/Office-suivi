@@ -13172,3 +13172,39 @@ faire un résumé des emails. »
   (tour complet → clé `agenda-du-jour`), route mise à jour. Vérifié dans Chromium (clair, sombre,
   téléphone) avec un agenda et des emails inventés. Non vérifié ici : la lecture réelle d'Exchange
   (injoignable depuis l'environnement de développement).
+
+### 30/09/2026 soir — Page Agenda, agenda intelligent, trait du menu Outils
+
+Demande de l'étude : « la partie de droite par le calendrier du mois ; dans la sidebar rendre le
+liseré entre les outils plus visible ; créer une page agenda dans la sidebar et afficher l'agenda
+complet de la semaine du lundi au samedi de 7 h à 20 h, tous les rendez-vous ; pour les dossiers
+présents dans CLAIRE permettre d'ouvrir la fiche ; permettre la création et suppression de
+rendez-vous avec confirmation pour la suppression ; un agenda intelligent et proactif … une
+probabilité que le rendez-vous se tienne cette semaine-là … des choses qui nous donneraient un
+avantage sur la concurrence et la relation client ». Réponses aux questions de cadrage : calendrier
+du mois = à droite de la page Agenda ; suppression = n'importe quel rendez-vous (après confirmation) ;
+en premier : probabilité de tenue, créneaux proposés, relation client.
+- Serveur : la lecture EWS part du lundi de la semaine précédente (`lundiSemainePrecedente` ; les
+  détections gardent leur filtre « aujourd'hui ou après ») ; tous les rendez-vous non annulés sont
+  gardés avec leur ItemId (`evenementsAgendaOffice`, clé `agenda-office`, 3 000 au plus) ;
+  `GET /api/agenda/evenements?debut&fin` ; `POST /api/exchange/evenement/supprimer` (un seul essai,
+  `MoveToDeletedItems`) ; la création (`/exchange/rendez-vous`), la suppression et le déplacement
+  tiennent le stock à jour entre deux tours.
+- Client, page Agenda : grille de la semaine (colonnes pour les chevauchements `disposerEvenementsJour`,
+  ligne « maintenant », absences et jours fériés en tête de colonne, journées entières en haut),
+  calendrier du mois (points sur les jours chargés, bleu des actes pour une signature), détail d'un
+  rendez-vous (ouvrir la fiche, probabilité avec ses facteurs, confirmer/rappeler, supprimer après
+  confirmation), création (dossier facultatif, case « rendez-vous de signature » qui note la date et
+  l'heure sur la fiche, catégorie de couleur). Signatures fixées dans CLAIRE mais absentes d'Outlook
+  montrées en pointillé.
+- Agenda intelligent, sans IA : `probabiliteTenueSignature`, `dossiersAPlacer` +
+  `creneauxProposesSignature` (placés en un clic après confirmation), `gestesRelationClient` + trois
+  nouveaux modèles d'email (confirmation, rappel, un an après — premiers jets de CLAIRE, objet « … —
+  VTE - NOM » comme les autres). Confirmation et rappel mémorisés pour une date (`confirmationRdvPour`,
+  `rappelRdvPour`) : un rendez-vous déplacé les repropose.
+- Barre latérale : jeton `--sidebar-trait` (#525965), trait 1,5 px — `--line-soft` se confondait avec
+  le fond sombre.
+- Tests : `tests/agenda-page.test.js` (12), serveur (`agenda-office`, `agenda-route`, `agenda-watch`,
+  `exchange-route`). Vérifié dans Chromium (clair, sombre, téléphone) avec un agenda inventé : création,
+  suppression confirmée, créneau placé (routes Exchange simulées). **Non vérifié ici** : création et
+  suppression réelles dans Exchange, volume réel de l'agenda lu.

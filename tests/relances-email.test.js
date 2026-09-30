@@ -42,9 +42,9 @@ test('construireEmailRelanceRib reprend mot pour mot le texte de l’étude, san
   assert.equal(corps, 'Bonjour,\n\nEn prévision du rendez-vous de signature je vous remercie de vous munir de votre RIB et de votre pièce d’identité.\n\nBien cordialement,');
 });
 
-test('MODELES_EMAIL_RELANCE couvre exactement les six motifs', () => {
+test('MODELES_EMAIL_RELANCE couvre exactement les neuf motifs (dont la relation client de la page Agenda)', () => {
   const app = chargerApplication();
-  assert.equal(Object.keys(app.MODELES_EMAIL_RELANCE).sort().join(','), 'fonds,pret,projet,provision,rib,ventePrealable');
+  assert.equal(Object.keys(app.MODELES_EMAIL_RELANCE).sort().join(','), 'anniversaire,confirmationRdv,fonds,pret,projet,provision,rappelRdv,rib,ventePrealable');
 });
 
 test('relance de la vente préalable : au client, ou au confrère quand un autre office représente l’acquéreur', () => {

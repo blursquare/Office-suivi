@@ -73,6 +73,8 @@ function evenementDepuisEws(e) {
   if (journeeEntiere && fin) dateFin = veilleDe(fin.date);
   if (dateFin < debut.date) dateFin = debut.date;
   return {
+    itemId: String(x.itemId || ''),
+    changeKey: String(x.changeKey || ''),
     sujet: String(x.subject || ''),
     lieu: String(x.location || ''),
     date: debut.date,
@@ -463,11 +465,57 @@ function agendaDuJourDepuisEvenements(evenements, jour, dossiersActifs) {
   return liste.slice(0, MAX_AGENDA_JOUR);
 }
 
+// ---- Agenda complet (page Agenda, demandé par l'étude le 30/09) ----
+// Le lundi de la semaine précédant celle de `jour` (AAAA-MM-JJ) : début de la fenêtre lue, pour que
+// la page Agenda montre la semaine en cours depuis son lundi, et la précédente. Pure, en UTC.
+function lundiSemainePrecedente(jour) {
+  const d = new Date(String(jour) + 'T00:00:00Z');
+  if (isNaN(d.getTime())) return jour;
+  const decalage = (d.getUTCDay() + 6) % 7;
+  d.setUTCDate(d.getUTCDate() - decalage - 7);
+  return d.toISOString().slice(0, 10);
+}
+
+// Tous les rendez-vous lus (annulés exceptés), sous la forme gardée en base et montrée par la page
+// Agenda : l'identifiant Exchange (pour la suppression), le titre, le lieu, les dates et heures, les
+// catégories, et le dossier reconnu par la référence « VTE … ». Triés par date puis heure. Pure.
+const MAX_AGENDA_OFFICE = 3000;
+function evenementsAgendaOffice(evenements, dossiersActifs) {
+  const liste = [];
+  for (const evt of evenements || []) {
+    if (!evt || evt.annule || !evt.date) continue;
+    const reference = referenceDossierEvenement(evt);
+    const dossier = reference ? dossierPourReferenceAgenda(reference, dossiersActifs) : null;
+    const titre = String(evt.sujet || '');
+    const journeeEntiere = !!evt.journeeEntiere || !evt.heure;
+    liste.push({
+      itemId: evt.itemId || '',
+      changeKey: evt.changeKey || '',
+      sujet: titre.slice(0, 200),
+      lieu: String(evt.lieu || '').slice(0, 160),
+      date: evt.date,
+      dateFin: evt.dateFin || evt.date,
+      heure: journeeEntiere ? null : evt.heure,
+      heureFin: journeeEntiere ? null : (evt.heureFin || null),
+      journeeEntiere,
+      categories: (evt.categories || []).slice(0, 5),
+      signature: !!reference && estRendezVousSignature(evt),
+      absence: !!evt.journeeEntiere && RE_MOT_ABSENCE.test(normaliserNomRapprochement(titre)),
+      dossierId: dossier ? dossier.id : null,
+      dossierNom: dossier ? dossier.nom : null
+    });
+  }
+  liste.sort((a, b) => a.date.localeCompare(b.date)
+    || (a.journeeEntiere === b.journeeEntiere ? 0 : a.journeeEntiere ? -1 : 1)
+    || String(a.heure || '').localeCompare(String(b.heure || '')));
+  return liste.slice(0, MAX_AGENDA_OFFICE);
+}
+
 module.exports = {
   momentParisDepuisIso, veilleDe, formatDateFr, evenementDepuisEws, evenementsDepuisEws,
   extraireReferenceVte, referenceDossierEvenement, detecteAppelDeFonds, detecteProjetEnvoye,
   detecterActionsEvenement, dossierPourReferenceAgenda, actionsDetecteesDepuisEvenements, motsVoisins,
   estRendezVousSignature, composerLieuAgenda,
   absencesDepuisEvenements, estEvenementJourneeEntiere, collaborateursDansTexte, COLLABORATEURS_ABSENCE,
-  categoriesDistinctes, agendaDuJourDepuisEvenements
+  categoriesDistinctes, agendaDuJourDepuisEvenements, lundiSemainePrecedente, evenementsAgendaOffice
 };

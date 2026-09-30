@@ -69,6 +69,10 @@
              d.piecesNotifications dans script.js) : masqué tant qu'il n'y a rien à signaler. -->
         <span class="sidebar-badge-notif" id="badge-notif-suivi" style="display:none;"></span>
       </button>
+      <!-- Agenda de l'office (page Agenda, 30/09) : la semaine du lundi au samedi, 7 h – 20 h. -->
+      <button type="button" id="tab-agenda" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('agenda')">
+        <span class="sidebar-link-icone" id="icon-nav-agenda" aria-hidden="true"></span>Agenda
+      </button>
       <!-- Scans du copieur à ranger (voir server/src/scans.js) : compteur des scans en attente. -->
       <button type="button" id="tab-scans" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('scans')">
         <span class="sidebar-link-icone" id="icon-nav-scans" aria-hidden="true"></span>Claire Scan
@@ -741,6 +745,25 @@
      loyer mensuel). Outil de calcul à la volée, sans dossier associé ni enregistrement — même
      principe que le simulateur de provision. Convention fixée par l'étude : jours réels sur la
      période réelle, jour de l'acte à la charge de l'acquéreur. Voir calculerProrata(). -->
+<!-- Agenda de l'office : les rendez-vous du calendrier partagé (lus par le serveur toutes les 15 min),
+     la semaine du lundi au samedi de 7 h à 20 h, le calendrier du mois et les anticipations de
+     CLAIRE (probabilité de tenue des signatures, créneaux proposés, relation client). Voir
+     renderPageAgenda dans script.js. -->
+<div class="onglet-panel" id="onglet-agenda" style="display:none;">
+  <div class="dash-header">
+    <div>
+      <div class="dash-eyebrow">Office</div>
+      <div class="dash-titre-ligne">
+        <h1 class="dash-titre">Agenda <span class="info-i" tabindex="0" data-info="Le calendrier partagé de l’office, relu toutes les 15 minutes. Un clic sur un rendez-vous l’ouvre (fiche du dossier, suppression) ; un clic sur une case vide en crée un. À droite, le mois et ce que CLAIRE anticipe."></span></h1>
+      </div>
+    </div>
+    <div class="dash-header-actions">
+      <button type="button" class="secondary" onclick="chargerAgendaSemaine()">Actualiser</button>
+    </div>
+  </div>
+  <div id="agenda-contenu"></div>
+</div>
+
 <!-- Scans du copieur : chaque scan posé dans le dossier « Scan » du NAS, avec la proposition de
      CLAIRE (dossier client, pièce, nom de la copie, rubrique), à valider ou corriger avant de ranger.
      Voir le classeur des scans dans script.js et server/src/scans.js. -->
@@ -2113,6 +2136,10 @@
      ouvrirFenetreAujourdhuiSiPremiereFois dans script.js). -->
 <div class="jour-overlay" id="aujourdhui-overlay" style="display:none;" onclick="if (event.target === this) fermerFenetreAujourdhui()">
   <section class="jour-fenetre" role="dialog" aria-modal="true" aria-labelledby="jour-fenetre-titre" id="aujourdhui-fenetre-contenu"></section>
+</div>
+
+<div class="jour-overlay" id="agenda-overlay" style="display:none;" onclick="if (event.target === this) fermerModaleAgenda()">
+  <section class="ag-modale" role="dialog" aria-modal="true" aria-labelledby="agenda-modale-titre" id="agenda-modale-contenu"></section>
 </div>
 
 <!-- Fiche dossier en tiroir latéral plutôt qu'en dépliant la ligne du tableau : sur une

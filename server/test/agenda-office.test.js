@@ -339,3 +339,27 @@ test('agendaDuJourDepuisEvenements : aucun événement ce jour-là → liste vid
   assert.equal(agendaDuJourDepuisEvenements([rdv({ sujet: 'Autre jour', start: '2099-10-20T08:00:00Z' })], '2099-10-14', []).length, 0);
   assert.equal(agendaDuJourDepuisEvenements(null, '2099-10-14', []).length, 0);
 });
+
+test('lundiSemainePrecedente : lundi de la semaine d’avant', () => {
+  const { lundiSemainePrecedente } = require('../src/agendaOffice');
+  assert.equal(lundiSemainePrecedente('2026-09-30'), '2026-09-21', 'mercredi');
+  assert.equal(lundiSemainePrecedente('2026-09-28'), '2026-09-21', 'lundi');
+  assert.equal(lundiSemainePrecedente('2026-10-04'), '2026-09-21', 'dimanche');
+});
+
+test('evenementsAgendaOffice : tous les rendez-vous non annulés, avec identifiant, triés', () => {
+  const { evenementsAgendaOffice } = require('../src/agendaOffice');
+  const liste = evenementsAgendaOffice([
+    evenementDepuisEws({ itemId: 'B', subject: 'Point équipe', start: '2099-10-15T12:00:00Z', end: '2099-10-15T13:00:00Z' }),
+    evenementDepuisEws({ itemId: 'A', changeKey: 'k', subject: 'VTE - DUPONT / MARTIN', start: '2099-10-14T08:00:00Z', end: '2099-10-14T09:00:00Z' }),
+    evenementDepuisEws({ itemId: 'C', subject: 'Annulé', start: '2099-10-14T10:00:00Z', cancelled: true }),
+    evenementDepuisEws({ itemId: 'D', subject: 'Congés JS', start: '2099-10-13T22:00:00Z', end: '2099-10-16T22:00:00Z', allDay: true })
+  ], [{ id: 'd1', nom: 'DUPONT / MARTIN' }]);
+  assert.equal(liste.map((e) => e.itemId).join('|'), 'D|A|B');
+  assert.equal(liste[0].dateFin, '2099-10-16');
+  assert.equal(liste[0].absence, true);
+  assert.equal(liste[1].changeKey, 'k');
+  assert.equal(liste[1].dossierId, 'd1');
+  assert.equal(liste[1].signature, true);
+  assert.equal(liste[2].heure, '14:00');
+});

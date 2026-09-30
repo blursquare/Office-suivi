@@ -58,6 +58,14 @@ function adresseValide(a) {
   return typeof a === 'string' && /^[^\s@]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$/.test(a.trim());
 }
 
+// « HH:MM » + durée en minutes → « HH:MM » de fin (bornée à 23:59 : un rendez-vous ne déborde pas
+// sur le lendemain dans la page Agenda). Pure.
+function heureFinDepuisDuree(heure, dureeMinutes) {
+  const [h, m] = String(heure).split(':').map(Number);
+  const total = Math.min(23 * 60 + 59, h * 60 + m + (Number(dureeMinutes) || 60));
+  return String(Math.floor(total / 60)).padStart(2, '0') + ':' + String(total % 60).padStart(2, '0');
+}
+
 function reglagesExchangePublics(reglages) {
   const { motDePasse, ...reste } = reglages;
   return { ...reste, motDePasseEnregistre: !!motDePasse };
@@ -138,6 +146,15 @@ function creerRouteurExchange(parametresRepo) {
         mailbox: reglages.calendrierPartage
       }
     });
+    // Visible tout de suite dans la page Agenda de tous les postes, sans attendre le tour de lecture.
+    if (resultat.ok && typeof parametresRepo.ajouterEvenementAgendaOffice === 'function') {
+      parametresRepo.ajouterEvenementAgendaOffice({
+        itemId: resultat.itemId || '', changeKey: resultat.changeKey || '', sujet, lieu: String(b.lieu || '').trim(),
+        date: dateStr, heure: heureStr, heureFin: heureFinDepuisDuree(heureStr, dureeMinutes),
+        categories: categorieValide(b.categorie) ? [categorieValide(b.categorie)] : [],
+        signature: b.signature === true, dossierId: b.dossierId || null, dossierNom: b.dossierNom || null, creeDansClaire: true
+      });
+    }
     // L'identifiant de l'événement : le client le garde pour pouvoir le retirer ou le déplacer.
     res.json({ ok: !!resultat.ok, message: resultat.message, raison: resultat.raison || '',
       itemId: resultat.itemId || '', changeKey: resultat.changeKey || '' });
@@ -178,7 +195,30 @@ function creerRouteurExchange(parametresRepo) {
       return res.json({ ok: false, message: 'Plusieurs rendez-vous correspondent à cette date : aucun retiré, faites-le à la main dans Outlook.' });
     }
     const r = await supprimerEcheanceExchange({ ...acces, itemId: choix.evt.itemId, changeKey: choix.evt.changeKey || changeKey });
+    if (r.ok && typeof parametresRepo.retirerEvenementAgendaOffice === 'function') parametresRepo.retirerEvenementAgendaOffice(choix.evt.itemId);
     res.json({ ok: !!r.ok, message: r.ok ? "Rendez-vous retiré de l'agenda de l'office." : r.message, raison: r.raison || '' });
+  });
+
+  // Supprime N'IMPORTE QUEL rendez-vous de l'agenda de l'office depuis la page Agenda (demandé par
+  // l'étude le 30/09, après confirmation côté client). Désigné par son identifiant Exchange, tel que
+  // lu par le tour de lecture. MoveToDeletedItems : il se récupère dans les éléments supprimés
+  // d'Outlook. Un seul essai.
+  routeur.post('/exchange/evenement/supprimer', async (req, res) => {
+    const reglages = parametresRepo.lireReglagesExchange();
+    if (!reglages.actif) {
+      return res.status(400).json({ ok: false, message: "La connexion à l'agenda n'est pas activée dans les Réglages." });
+    }
+    if (!reglages.email || !reglages.motDePasse) {
+      return res.status(400).json({ ok: false, message: 'Identifiants de messagerie manquants dans les Réglages.' });
+    }
+    const b = req.body || {};
+    const itemId = String(b.itemId || '').trim();
+    if (!itemId) return res.status(400).json({ ok: false, message: 'Rendez-vous non désigné.' });
+    const r = await supprimerEcheanceExchange({
+      url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse, itemId, changeKey: String(b.changeKey || '').trim()
+    });
+    if (r.ok && typeof parametresRepo.retirerEvenementAgendaOffice === 'function') parametresRepo.retirerEvenementAgendaOffice(itemId);
+    res.json({ ok: !!r.ok, message: r.ok ? "Rendez-vous supprimé de l'agenda de l'office." : r.message, raison: r.raison || '' });
   });
 
   // Déplace le rendez-vous de signature quand l'étude change sa date dans CLAIRE : même heure, même
@@ -218,6 +258,14 @@ function creerRouteurExchange(parametresRepo) {
     const r = await deplacerRendezVousExchange({
       ...acces, itemId: choix.evt.itemId, changeKey: choix.evt.changeKey, debut: horaire.debut, fin: horaire.fin
     });
+    // Page Agenda : l'événement gardé en base suit le déplacement jusqu'au prochain tour de lecture.
+    if (r.ok && typeof parametresRepo.lireAgendaOffice === 'function') {
+      const stocke = ((parametresRepo.lireAgendaOffice() || {}).evenements || []).find((e) => e.itemId === choix.evt.itemId);
+      if (stocke) {
+        parametresRepo.retirerEvenementAgendaOffice(choix.evt.itemId);
+        parametresRepo.ajouterEvenementAgendaOffice({ ...stocke, itemId: r.itemId || stocke.itemId, changeKey: r.changeKey || '', date: nouvelleDate, dateFin: nouvelleDate });
+      }
+    }
     res.json({
       ok: !!r.ok, message: r.message, raison: r.raison || '', heure: r.ok ? horaire.heure : '',
       itemId: r.itemId || choix.evt.itemId, changeKey: r.changeKey || ''
@@ -391,4 +439,4 @@ function creerRouteurExchange(parametresRepo) {
   return routeur;
 }
 
-module.exports = { creerRouteurExchange, reglagesExchangePublics, choisirRendezVousDossier, URL_EWS_DEFAUT };
+module.exports = { heureFinDepuisDuree, creerRouteurExchange, reglagesExchangePublics, choisirRendezVousDossier, URL_EWS_DEFAUT };

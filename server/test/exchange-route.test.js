@@ -208,3 +208,20 @@ test('Réglages Exchange : catégories de couleur par défaut, remplacées et co
   const encore = await (await appeler('/api/exchange/reglages')).json();
   assert.equal(encore.categoriesRdv.visio, 'Visio', 'conservées quand le formulaire ne les réémet pas');
 });
+
+test('POST /api/exchange/evenement/supprimer : rendez-vous désigné avant tout appel réseau', async () => {
+  await appeler('/api/exchange/reglages', { method: 'PUT', body: JSON.stringify({ actif: false }) });
+  const inactif = await appeler('/api/exchange/evenement/supprimer', { method: 'POST', body: JSON.stringify({ itemId: 'AAA' }) });
+  assert.equal(inactif.status, 400);
+  await appeler('/api/exchange/reglages', { method: 'PUT', body: JSON.stringify({ actif: true, email: 'notaire@gossart.notaires.fr', motDePasse: 'SECRET123' }) });
+  const sansId = await appeler('/api/exchange/evenement/supprimer', { method: 'POST', body: JSON.stringify({}) });
+  assert.equal(sansId.status, 400);
+  assert.match((await sansId.json()).message, /non désigné/);
+});
+
+test('heureFinDepuisDuree : heure de fin, jamais au-delà de 23:59', () => {
+  const { heureFinDepuisDuree } = require('../src/routes/exchange');
+  assert.equal(heureFinDepuisDuree('09:30', 60), '10:30');
+  assert.equal(heureFinDepuisDuree('17:45', 90), '19:15');
+  assert.equal(heureFinDepuisDuree('23:30', 120), '23:59');
+});
