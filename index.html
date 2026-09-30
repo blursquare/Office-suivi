@@ -562,68 +562,76 @@
 
   <div class="suivi-stats" id="suivi-stats"></div>
 
-  <div class="list-toolbar">
-    <label class="toolbar-item toolbar-recherche">
-      <input type="search" id="recherche-dossiers" placeholder="Rechercher un dossier…" title="Par nom de dossier ou de responsable" oninput="render()">
-    </label>
-    <label class="toolbar-item">
-      Responsable
-      <select id="filtre-responsable" onchange="render()">
-        <option value="">Tous</option>
-        <option>Bastien ANGLUMENT</option>
-        <option>Julie VASSELIN</option>
-        <option>Jérémy SAUJOT</option>
-      </select>
-    </label>
-    <label class="toolbar-item">
-      Échéance
-      <select id="filtre-type" onchange="render()">
-        <option value="">Toutes</option>
-        <option value="pret">Obtention du prêt</option>
-        <option value="acte">Signature de l'acte</option>
-        <option value="ventebien">Vente préalable</option>
-      </select>
-    </label>
-    <label class="toolbar-item">
-      Offre de prêt
-      <select id="filtre-offre" onchange="render()">
-        <option value="">Tous statuts</option>
-        <option value="recue">Reçue</option>
-        <option value="aconfirmer">À confirmer</option>
-        <option value="manquante">Introuvable</option>
-        <option value="inconnu">À vérifier</option>
-      </select>
-    </label>
-    <label class="toolbar-item">
-      Rôle
-      <select id="filtre-role" onchange="render()">
-        <option value="">Tous</option>
-        <option value="instrumentaire">Instrumentaire</option>
-        <option value="participant">Participant</option>
-      </select>
-    </label>
-    <label class="toolbar-item">
-      Trier par
-      <select id="tri-dossiers" onchange="render()">
-        <option value="priorite">Priorité (recommandé)</option>
-        <option value="echeance">Échéance la plus proche</option>
-        <option value="statut">Statut</option>
-        <option value="nom">Nom du dossier</option>
-        <option value="responsable">Responsable</option>
-      </select>
-    </label>
-    <label class="toolbar-item toolbar-checkbox">
-      <input type="checkbox" id="voir-archives" onchange="render()">
-      Afficher les dossiers archivés
-    </label>
-    <div class="suivi-statuts" id="suivi-statuts" role="group" aria-label="Filtrer par statut"></div>
-    <span class="toolbar-spacer"></span>
-    <!-- Bascule d'affichage de la MÊME liste (mêmes filtres, même recherche) : le tableau habituel,
-         ou les mêmes dossiers regroupés par semaine d'échéance. Voir definirVueSuivi(). -->
-    <div class="vue-bascule" role="group" aria-label="Mode d'affichage de la liste">
-      <button type="button" class="vue-bascule-btn actif" id="vue-btn-semaines" onclick="definirVueSuivi('semaines')">Échéances</button>
-      <button type="button" class="vue-bascule-btn" id="vue-btn-tableau" onclick="definirVueSuivi('tableau')">Tableau</button>
+  <!-- Barre du Suivi en trois lignes (étude, 30/09) : la recherche mise en avant (avec la bascule de
+       vue), les options pour affiner sur une ligne, les statuts en couleur sur la dernière. -->
+  <div class="list-toolbar suivi-barre">
+    <div class="suivi-barre-ligne suivi-barre-recherche">
+      <label class="suivi-recherche" for="recherche-dossiers">
+        <span class="suivi-recherche-icone" id="icon-recherche-suivi" aria-hidden="true"></span>
+        <input type="search" id="recherche-dossiers" placeholder="Rechercher un dossier (vendeur, acquéreur)…" aria-label="Rechercher un dossier" oninput="render()">
+      </label>
+      <!-- Bascule d'affichage de la MÊME liste (mêmes filtres, même recherche) : les dossiers
+           regroupés par semaine d'échéance, ou le tableau. Voir definirVueSuivi(). -->
+      <div class="vue-bascule" role="group" aria-label="Mode d'affichage de la liste">
+        <button type="button" class="vue-bascule-btn actif" id="vue-btn-semaines" onclick="definirVueSuivi('semaines')">Échéances</button>
+        <button type="button" class="vue-bascule-btn" id="vue-btn-tableau" onclick="definirVueSuivi('tableau')">Tableau</button>
+      </div>
     </div>
+    <div class="suivi-barre-ligne suivi-barre-filtres" role="group" aria-label="Affiner la recherche">
+      <label class="toolbar-item">
+        Responsable
+        <select id="filtre-responsable" onchange="render()">
+          <option value="">Tous</option>
+          <option>Bastien ANGLUMENT</option>
+          <option>Julie VASSELIN</option>
+          <option>Jérémy SAUJOT</option>
+        </select>
+      </label>
+      <label class="toolbar-item">
+        Échéance
+        <select id="filtre-type" onchange="render()">
+          <option value="">Toutes</option>
+          <option value="pret">Obtention du prêt</option>
+          <option value="acte">Signature de l'acte</option>
+          <option value="ventebien">Vente préalable</option>
+        </select>
+      </label>
+      <label class="toolbar-item">
+        Offre de prêt
+        <select id="filtre-offre" onchange="render()">
+          <option value="">Tous statuts</option>
+          <option value="recue">Reçue</option>
+          <option value="aconfirmer">À confirmer</option>
+          <option value="manquante">Introuvable</option>
+          <option value="inconnu">À vérifier</option>
+        </select>
+      </label>
+      <label class="toolbar-item">
+        Rôle
+        <select id="filtre-role" onchange="render()">
+          <option value="">Tous</option>
+          <option value="instrumentaire">Instrumentaire</option>
+          <option value="participant">Participant</option>
+        </select>
+      </label>
+      <!-- Le tri ne sert qu'au tableau (la vue Échéances est rangée par date) : affiché avec lui
+           seulement, en doublon utile des en-têtes de colonnes cliquables (« Priorité » n'a pas de colonne). -->
+      <label class="toolbar-item" id="tri-dossiers-bloc" style="display:none;">
+        Trier par
+        <select id="tri-dossiers" onchange="render()">
+          <option value="priorite">Priorité (recommandé)</option>
+          <option value="echeance">Échéance la plus proche</option>
+          <option value="statut">Statut</option>
+          <option value="nom">Nom du dossier</option>
+          <option value="responsable">Responsable</option>
+        </select>
+      </label>
+      <label class="toolbar-item toolbar-checkbox">
+        <input type="checkbox" id="voir-archives" onchange="render()">
+        Archivés
+      </label>
+    </div>
+    <div class="suivi-statuts" id="suivi-statuts" role="group" aria-label="Filtrer par statut"></div>
   </div>
 
   <div id="dossier-list"></div>

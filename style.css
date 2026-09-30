@@ -6993,3 +6993,31 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
 .a-voir-table td .dot-label { white-space: normal; line-height: 1.3; }
 .a-voir-table .etape-cellule { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
 .a-voir-table td { vertical-align: middle; }
+
+/* ---- Barre du Suivi (étude, 30/09) : recherche mise en avant, filtres sur une ligne, statuts
+   en couleur dessous. ---- */
+.list-toolbar.suivi-barre { flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 10px; }
+.suivi-barre-ligne { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.suivi-barre-recherche { gap: 14px; }
+.suivi-recherche { position: relative; flex: 1 1 auto; min-width: 0; display: flex; }
+.suivi-recherche-icone { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); display: inline-flex; color: var(--muted); pointer-events: none; }
+.suivi-recherche-icone svg { width: 17px; height: 17px; }
+.suivi-barre input[type="search"]#recherche-dossiers {
+  width: 100%; max-width: none; box-sizing: border-box; height: 42px; padding: 0 14px 0 38px;
+  font-family: inherit; font-size: 15px; color: var(--ink);
+  background: var(--paper-card); border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 6%, transparent);
+}
+.suivi-barre input[type="search"]#recherche-dossiers::placeholder { color: var(--muted); }
+.suivi-barre input[type="search"]#recherche-dossiers:focus { outline: none; border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 18%, transparent); }
+.suivi-barre-recherche .vue-bascule { flex: none; }
+.suivi-barre-filtres { flex-wrap: nowrap; gap: 8px 16px; }
+.suivi-barre-filtres .toolbar-item { flex: none; font-size: 12.5px; color: var(--muted); }
+.suivi-barre .suivi-barre-filtres .toolbar-item select { width: auto; min-width: 0; max-width: 190px; font-size: 12.5px; padding: 3px 6px; border-radius: 6px; }
+@media (max-width: 1180px) {
+  .suivi-barre-filtres { flex-wrap: wrap; }
+}
+@media (max-width: 600px) {
+  .suivi-barre-recherche { flex-wrap: wrap; }
+  .suivi-barre-recherche .vue-bascule { margin-left: auto; }
+}

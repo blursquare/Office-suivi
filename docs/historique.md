@@ -13053,3 +13053,24 @@ page aujourd'hui ».
   (`actionsDuJour`, `evenementsDepuisVisite`…).
 - Vérifié dans Chromium (dossiers inventés) : aucun élément ne mène plus à la page, la carte ouvre la
   fenêtre, aucune erreur de page ; tests client verts.
+
+### 30/09/2026 soir — Barre du Suivi : recherche en avant, filtres sur une ligne, doublons retirés
+
+Demande de l'étude : « Dans suivi des dossiers met plus en avant le champ de recherche et met sur une
+ligne les options pour affiner la recherche. Les statuts par code couleur sur une autre ligne bien.
+Regarde s'il n'y a pas des doublons, bien garder le choix du collaborateur. »
+- `.list-toolbar.suivi-barre` en trois lignes : (1) champ de recherche pleine largeur, 42 px, icône
+  loupe (`icon-recherche-suivi`), bascule Échéances / Tableau à droite ; (2) `.suivi-barre-filtres` :
+  Responsable, Échéance, Offre de prêt, Rôle, (Trier par), Archivés — une ligne sur écran de bureau,
+  passe à la ligne sous ~1 180 px ; (3) `#suivi-statuts`, pastilles de couleur inchangées.
+- Doublons repérés et traités : la recherche cherchait aussi le nom du responsable, en double du
+  filtre « Responsable » → elle ne porte plus que sur le nom du dossier ; le filtre Responsable (choix
+  du collaborateur, posé sur celui du poste par `appliquerFiltreSuiviCollaborateur`) est gardé tel
+  quel. « Trier par » doublait les en-têtes cliquables du tableau et n'agissait pas sur la vue
+  Échéances (rangée par date) → affiché seulement en vue Tableau (`#tri-dossiers-bloc`, bascule dans
+  `definirVueSuivi`) ; gardé là pour « Priorité », qui n'a pas de colonne. Laissés : « Échéance » et
+  « Offre de prêt » recoupent en partie les statuts mais ne disent pas la même chose (type de la
+  prochaine échéance, état de l'offre) — à retirer seulement si l'étude le juge inutile.
+- « Afficher les dossiers archivés » devient « Archivés » (même case).
+- Vérifié dans Chromium (clair, sombre, 1 400, 1 100 et 390 px) : pas de défilement horizontal,
+  filtre Responsable resté sur le collaborateur du poste, recherche par nom de dossier.

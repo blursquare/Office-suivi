@@ -145,8 +145,10 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   sans rendez-vous) — prioritaire, calculé, il disparaît dès l'échéance levée. Confirmé par l'étude :
   un rendez-vous placé avec une pièce manquante reste « Attente de pièces » ; une vente préalable non
   réalisée (financement, comme l'offre) empêche « Complet » et « Prêt ». Couleurs : rouge, gris, ambre, bleu `--acte`
-  (jamais l'accent, qui peut être orange ou vert), vert. **Suivi** (30/09, choix de l'étude) : statuts en pastilles
-  de filtre dans la barre d'outils (`syntheseEtatsSuivi`, `renderEtatsSuivi`) ; au-dessus, « Prévu en
+  (jamais l'accent, qui peut être orange ou vert), vert. **Suivi** (30/09, choix de l'étude) : barre en trois lignes
+  (`.suivi-barre`) — grande recherche (nom du dossier seulement ; le collaborateur passe par le filtre
+  « Responsable », pré-réglé sur celui du poste) + bascule de vue, filtres sur une ligne (« Trier par »
+  en vue Tableau seulement), statuts en pastilles de filtre (`syntheseEtatsSuivi`, `renderEtatsSuivi`) ; au-dessus, « Prévu en
   {mois} » (`prevuDuMois`, `agendaPrevuDuMois`, `renderStatsSuivi`, repliable) — angle voulu par
   l'étude : ce qui est prévu ce mois-ci, **en un seul bloc compact** : une ligne d'en-tête (mois,
   4 compteurs-filtres en pastilles, retards, délais moyens depuis l'ouverture du dossier dans CLAIRE),

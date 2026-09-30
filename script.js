@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 18:34';
+  const VERSION_APP = '2026-09-30 18:37';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 18:37', resume: "Suivi des dossiers : la barre au-dessus de la liste passe sur trois lignes. En haut, un grand champ de recherche (avec la bascule Échéances / Tableau). Dessous, les options pour affiner sur une seule ligne : responsable, échéance, offre de prêt, rôle, archivés. En bas, les statuts en couleur. Doublons retirés : la recherche porte sur le nom du dossier seulement (le collaborateur se choisit dans « Responsable », qui reste pré-réglé sur celui du poste) ; « Trier par » n'apparaît qu'en vue Tableau, la seule qu'il trie." },
     { version: '2026-09-30 18:34', resume: "La page « Aujourd'hui » est supprimée. La carte « Aujourd'hui » du tableau de bord et la fenêtre du point du matin restent : « Voir plus » dans la carte ouvre désormais cette fenêtre. Le classeur des scans s'appelle « Claire Scan » partout : barre latérale, écran, rubrique des Réglages, carte « Dernières pièces »." },
     { version: '2026-09-30 18:31', resume: "Partout dans CLAIRE, un dossier cité porte son type devant son nom : « VTE - DURAND / MARTIN » (et « SUCC - … » pour les successions, à venir). C'est désormais le cas aussi dans les cartes du tableau de bord (activité de l'étude, dernières pièces, à faire, signatures), dans « Prévu en … » du Suivi, dans le journal de Claire Scan et de l'agenda, dans les messages de CLAIRE et dans les rappels envoyés sur Teams." },
     { version: '2026-09-30 18:26', resume: "Le classeur des scans du copieur s'appelle désormais « Claire Scan » (menu et titre de l'écran). Tableau de bord : la carte « Activité de l'étude » sur une rangée et deux colonnes montre tout le fil, qui défile dans la carte au lieu d'être coupé. Suivi des dossiers : la section « À voir en premier » devient « Nouveau », et le bouton « Échéances » passe avant « Tableau »." },
@@ -17930,12 +17931,13 @@
     }
     if (dossiersVisibles.length === 0) {
       count.textContent = '';
-      list.innerHTML = '<div class="empty-state">Aucun dossier actif — tous vos dossiers sont archivés. Cochez « Afficher les dossiers archivés » pour les revoir.</div>';
+      list.innerHTML = '<div class="empty-state">Aucun dossier actif — tous vos dossiers sont archivés. Cochez « Archivés » pour les revoir.</div>';
       return;
     }
 
     const passeFiltresSuivi = d => {
-      if (recherche && !normaliserPourRecherche(libelleDossierAffiche(d) + ' ' + (d.responsable || '')).includes(recherche)) return false;
+      // Le nom du dossier seulement : le collaborateur se choisit dans « Responsable » (doublon retiré, 30/09).
+      if (recherche && !normaliserPourRecherche(libelleDossierAffiche(d)).includes(recherche)) return false;
       if (filtreResponsable && d.responsable !== filtreResponsable) return false;
       if (filtreOffre) {
         if (d.sansPret) return false;
@@ -18184,6 +18186,8 @@
     vueSuivi = vue === 'semaines' ? 'semaines' : 'tableau';
     document.getElementById('vue-btn-tableau').classList.toggle('actif', vueSuivi === 'tableau');
     document.getElementById('vue-btn-semaines').classList.toggle('actif', vueSuivi === 'semaines');
+    const tri = document.getElementById('tri-dossiers-bloc');
+    if (tri) tri.style.display = vueSuivi === 'tableau' ? '' : 'none';
     render();
   }
 
@@ -32609,6 +32613,7 @@
       'icon-burger': 'menu',
       'icon-nav-dashboard': 'layout',
       'icon-nav-suivi': 'list',
+      'icon-recherche-suivi': 'search',
       'icon-nav-scans': 'printer',
       'icon-signaler': 'flag',
       'icon-install': 'download',
