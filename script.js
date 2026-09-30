@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 18:26';
+  const VERSION_APP = '2026-09-30 18:31';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 18:31', resume: "Partout dans CLAIRE, un dossier cité porte son type devant son nom : « VTE - DURAND / MARTIN » (et « SUCC - … » pour les successions, à venir). C'est désormais le cas aussi dans les cartes du tableau de bord (activité de l'étude, dernières pièces, à faire, signatures), dans « Prévu en … » du Suivi, dans le journal de Claire Scan et de l'agenda, dans les messages de CLAIRE et dans les rappels envoyés sur Teams." },
     { version: '2026-09-30 18:26', resume: "Le classeur des scans du copieur s'appelle désormais « Claire Scan » (menu et titre de l'écran). Tableau de bord : la carte « Activité de l'étude » sur une rangée et deux colonnes montre tout le fil, qui défile dans la carte au lieu d'être coupé. Suivi des dossiers : la section « À voir en premier » devient « Nouveau », et le bouton « Échéances » passe avant « Tableau »." },
     { version: '2026-09-30 18:23', resume: "Suivi des dossiers : « Prévu en octobre » est plus compact (environ deux fois moins haut). Une seule ligne d'en-tête : le mois, les compteurs en pastilles (un clic filtre), les retards et les délais moyens. Dessous, « À faire » et « Au calendrier » côte à côte, une ligne par échéance (quand · type · dossier), avec défilement au-delà de six lignes." },
     { version: '2026-09-30 18:16', resume: "Suivi des dossiers : « Prévu en octobre » tient en un seul bloc. À gauche, le mois, quatre compteurs (signatures, envois à faire, rendez-vous à fixer, dates butoir — un clic filtre l'agenda) et les délais moyens ; à droite, l'agenda du mois : d'abord ce qui est à faire (retards, envois, rendez-vous à placer, avec « avant le … »), puis le calendrier jour par jour (signatures et dates butoir), aux couleurs des échéances. Un clic sur un dossier ouvre sa fiche ; replié, le bloc tient sur une ligne." },
@@ -12743,7 +12744,7 @@
           <span class="rdv-type-pastille rdv-type-${cle}"></span>${t.libelle}
         </label>`).join('')}
       </div>
-      <p class="hint" style="margin:4px 0 6px;">Écrit « VTE - ${escapeHtml(d.nom)} » le ${formatDateFr(d.rendezVousSignature)} dans l'agenda partagé de l'office${lieuRdvAgenda(d) ? `, lieu « ${escapeHtml(lieuRdvAgenda(d))} »` : ''}.</p>
+      <p class="hint" style="margin:4px 0 6px;">Écrit « ${escapeHtml(libelleDossierAffiche(d))} » le ${formatDateFr(d.rendezVousSignature)} dans l'agenda partagé de l'office${lieuRdvAgenda(d) ? `, lieu « ${escapeHtml(lieuRdvAgenda(d))} »` : ''}.</p>
       <div class="rdv-agenda-actions">
         <button type="button" class="primary" onclick="creerRdvDansAgenda('${d.id}')">${icone('calendar')} Créer le rendez-vous</button>
         <button type="button" class="lien-bouton" onclick="basculerRdvAgenda('${d.id}')">Annuler</button>
@@ -12801,7 +12802,7 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sujet: 'VTE - ' + d.nom,
+          sujet: libelleDossierAffiche(d),
           date: d.rendezVousSignature,
           heure,
           dureeMinutes,
@@ -12951,7 +12952,7 @@
     d.agendaLieuEchec = { le: new Date().toISOString(), message };
     sauvegarder(d);
     render();
-    afficherToast(`Agenda non mis à jour (${d.nom}) : ${message}`, 'OK', null);
+    afficherToast(`Agenda non mis à jour (${libelleDossierAffiche(d)}) : ${message}`, 'OK', null);
   }
 
   // --- Obtention du prêt et vente préalable tenues dans le calendrier partagé de l'office ---
@@ -13945,7 +13946,7 @@
     for (const d of tousDossiers || []) {
       for (const h of d.historique || []) {
         if (!h || !h.date || !h.texte || h.auteur || RE_ENTREE_AGENDA.test(h.texte)) continue;
-        entrees.push({ date: h.date, auteur: '', texte: h.texte, source: 'claire', dossierId: d.id, dossierNom: d.nom || '' });
+        entrees.push({ date: h.date, auteur: '', texte: h.texte, source: 'claire', dossierId: d.id, dossierNom: libelleDossierAffiche(d) });
       }
     }
     entrees.sort((a, b) => String(b.date).localeCompare(String(a.date)));
@@ -13959,7 +13960,7 @@
         if (!h || !h.date || !h.texte) continue;
         const agenda = RE_ENTREE_AGENDA.test(h.texte);
         if (!h.auteur && !agenda) continue;
-        entrees.push({ date: h.date, auteur: h.auteur || '', texte: h.texte, source: agenda ? 'agenda' : 'dossier', dossierId: d.id, dossierNom: d.nom || '' });
+        entrees.push({ date: h.date, auteur: h.auteur || '', texte: h.texte, source: agenda ? 'agenda' : 'dossier', dossierId: d.id, dossierNom: libelleDossierAffiche(d) });
       }
     }
     entrees.sort((a, b) => String(b.date).localeCompare(String(a.date)));
@@ -14223,7 +14224,7 @@
         <button type="button" class="action-urgente-ligne derniere-piece${e.nouvelle ? ' nouvelle' : ''}" onclick="ouvrirDossierDepuisDashboard('${e.dossier.id}')"
           title="${escapeAttr(libelleNotificationPiece(e.dossier, e.cle) + ' — ' + libelleDossierAffiche(e.dossier) + (e.nouvelle ? ' (nouveau)' : ''))}">
           <span class="derniere-piece-point" aria-hidden="true"></span>
-          <span class="derniere-piece-texte"><b>${escapeHtml(libelleNotificationPiece(e.dossier, e.cle))}</b><span class="derniere-piece-dossier"> · ${escapeHtml(e.dossier.nom || '')}</span></span>
+          <span class="derniere-piece-texte"><b>${escapeHtml(libelleNotificationPiece(e.dossier, e.cle))}</b><span class="derniere-piece-dossier"> · ${escapeHtml(libelleDossierAffiche(e.dossier))}</span></span>
           <span class="derniere-piece-date">${escapeHtml(quand)}</span>
         </button>`;
     };
@@ -14238,7 +14239,7 @@
       return `
         <button type="button" class="action-urgente-ligne derniere-piece scan-a-ranger" onclick="definirOnglet('scans')" title="${escapeAttr(sc.nom + ' — à ranger')}">
           <span class="derniere-piece-point" aria-hidden="true"></span>
-          <span class="derniere-piece-texte"><b>${escapeHtml(titre)}</b><span class="derniere-piece-dossier"> · ${escapeHtml(dossier ? dossier.nom : sc.nom)}</span></span>
+          <span class="derniere-piece-texte"><b>${escapeHtml(titre)}</b><span class="derniere-piece-dossier"> · ${escapeHtml(dossier ? libelleDossierAffiche(dossier) : sc.nom)}</span></span>
           <span class="derniere-piece-date">${escapeHtml(quandCourt(sc.date))}</span>
         </button>`;
     };
@@ -14250,7 +14251,7 @@
         <button type="button" class="action-urgente-ligne derniere-piece scan-range" onclick="${clic}"
           title="${escapeAttr(`${titre} — ${j.dossier || ''} — rangé ${j.auto ? 'automatiquement' : 'à la main'}${j.rubrique ? ' dans ' + j.rubrique : ''}`)}">
           <span class="derniere-piece-point" aria-hidden="true"></span>
-          <span class="derniere-piece-texte"><b>${escapeHtml(titre)}</b><span class="derniere-piece-dossier"> · ${escapeHtml(dossier ? dossier.nom : (j.dossier || '').replace(/^VTE - /, ''))}${j.auto ? ' · auto' : ''}</span></span>
+          <span class="derniere-piece-texte"><b>${escapeHtml(titre)}</b><span class="derniere-piece-dossier"> · ${escapeHtml(dossier ? libelleDossierAffiche(dossier) : libelleDossierParNom(j.dossier || ''))}${j.auto ? ' · auto' : ''}</span></span>
           <span class="derniere-piece-date">${escapeHtml(quandCourt(j.date))}</span>
         </button>`;
     };
@@ -14269,7 +14270,7 @@
         ${nouvelles ? `<span class="dot-label dl-urgent notif-nouveau-tag w-fixe"><span class="dot"></span>${nouvelles} nouvelle${nouvelles > 1 ? 's' : ''}</span>` : ''}
         ${entrees[0] ? `<div class="w-bas" data-ajuster="2"><button type="button" class="w-prochaine" onclick="ouvrirDossierDepuisDashboard('${entrees[0].dossier.id}')">
           <span class="w-prochaine-titre">${escapeHtml(libelleNotificationPiece(entrees[0].dossier, entrees[0].cle))}</span>
-          <span class="w-prochaine-sous">${escapeHtml(entrees[0].dossier.nom || '')}</span></button></div>`
+          <span class="w-prochaine-sous">${escapeHtml(libelleDossierAffiche(entrees[0].dossier))}</span></button></div>`
           : attendues[0] ? `<div class="w-bas" data-ajuster="2"><div class="w-prochaine w-prochaine-info">
           <span class="w-prochaine-sous">La plus attendue</span>
           <span class="w-prochaine-titre">${escapeHtml(attendues[0].libelle)} · ${attendues[0].dossiers.length} dossier${attendues[0].dossiers.length > 1 ? 's' : ''}</span></div></div>` : ''}
@@ -14279,7 +14280,7 @@
         ${sectionsScans}
         ${attendues.length ? `<div class="w-section">
           <h3 class="jour-carte-sous-titre">Encore attendues</h3>
-          <ul class="w-lignes" data-ajuster="4">${attendues.map(p => `<li class="w-ligne" title="${escapeAttr(p.dossiers.map(d => d.nom).join(', '))}">
+          <ul class="w-lignes" data-ajuster="4">${attendues.map(p => `<li class="w-ligne" title="${escapeAttr(p.dossiers.map(d => libelleDossierAffiche(d)).join(', '))}">
             <span class="w-ligne-texte">${escapeHtml(p.libelle)}</span>
             <span class="w-ligne-meta">${p.dossiers.length} dossier${p.dossiers.length > 1 ? 's' : ''}</span></li>`).join('')}</ul>
         </div>` : ''}`;
@@ -15279,7 +15280,7 @@
     const ligneTache = x => `<button type="button" class="pv-ligne" onclick="ouvrirDossierDrawer('${escapeOnclickArg(x.d.id)}')" title="${escapeAttr(libelleDossierAffiche(x.d))}">
         <span class="pv-quand${x.retard ? ' pv-retard' : ''}">${x.retard ? 'retard' : 'avant le'} ${escapeHtml(jourCourt(x.iso))}</span>
         <span class="dot-label ${x.retard ? 'dl-urgent' : 'dl-' + x.type} pv-type"><span class="dot"></span>${escapeHtml(x.libelle)}</span>
-        <span class="pv-nom">${escapeHtml(x.d.nom || libelleDossierAffiche(x.d))}</span>
+        <span class="pv-nom">${escapeHtml(libelleDossierAffiche(x.d))}</span>
       </button>`;
     const ligneJour = (x, iso, premier) => {
       const dt = new Date(iso + 'T00:00:00');
@@ -15287,7 +15288,7 @@
       return `<button type="button" class="pv-ligne${iso < auj ? ' passe' : ''}${iso === auj ? ' aujourdhui' : ''}" onclick="ouvrirDossierDrawer('${escapeOnclickArg(x.d.id)}')" title="${escapeAttr(libelleDossierAffiche(x.d))}">
         <span class="pv-quand pv-jour">${escapeHtml(date)}</span>
         <span class="dot-label dl-${x.type} pv-type"><span class="dot"></span>${escapeHtml(x.libelle)}</span>
-        <span class="pv-nom">${escapeHtml(x.d.nom || libelleDossierAffiche(x.d))}</span>
+        <span class="pv-nom">${escapeHtml(libelleDossierAffiche(x.d))}</span>
       </button>`;
     };
     const colonne = (titre, contenu, vide) => `<div class="pv-colonne">
@@ -15382,8 +15383,24 @@
   // uniquement pour l'affichage (titres, lignes de tableau, résultats de recherche) : jamais dans
   // d.nom lui-même, qui reste la valeur brute utilisée pour l'édition du champ, les emails, les
   // noms de fichiers exportés, l'historique et la correspondance de recherche.
+  //
+  // Étude, 30/09 : « partout dans CLAIRE, si tu cites un nom de dossier, place devant le type — VTE
+  // pour vente et SUCC pour succession ». Le type vient de d.typeAffaire (absent = vente, seul type
+  // suivi aujourd'hui) ; un nom déjà préfixé (journal enregistré avec son libellé) n'est pas doublé.
+  var PREFIXES_TYPE_AFFAIRE = { vente: 'VTE', succession: 'SUCC' };
+  var RE_NOM_DEJA_PREFIXE = /^(VTE|SUCC)\s*-\s/i;
+  function prefixeTypeAffaire(d) {
+    return PREFIXES_TYPE_AFFAIRE[d && d.typeAffaire] || PREFIXES_TYPE_AFFAIRE.vente;
+  }
   function libelleDossierAffiche(d) {
-    return 'VTE - ' + ((d && d.nom) || '');
+    const nom = String((d && d.nom) || '').trim();
+    if (RE_NOM_DEJA_PREFIXE.test(nom)) return nom;
+    return prefixeTypeAffaire(d) + ' - ' + nom;
+  }
+  // Même libellé quand on n'a gardé que le nom (et l'identifiant) : le dossier retrouvé donne son type.
+  function libelleDossierParNom(nom, id) {
+    const d = id && typeof dossiers !== 'undefined' ? (dossiers || []).find(x => x.id === id) : null;
+    return libelleDossierAffiche(d ? Object.assign({}, d, { nom: nom || d.nom }) : { nom });
   }
 
   // Propriétés du dossier, une ligne par donnée : icône et libellé à gauche, valeur à droite,
@@ -16377,7 +16394,7 @@
       return `<li><button type="button" class="w-ligne" onclick="ouvrirDossierDepuisDashboard('${e.dossier.id}')" title="${escapeAttr(e.label + ' — ' + libelleDossierAffiche(e.dossier))}">
         <span class="w-ligne-date">${escapeHtml(quand)}</span>
         <span class="dot-label dl-${e.type}"><span class="dot"></span></span>
-        <span class="w-ligne-texte"><b>${escapeHtml(e.label)}</b> · ${escapeHtml(e.dossier.nom || '')}</span></button></li>`;
+        <span class="w-ligne-texte"><b>${escapeHtml(e.label)}</b> · ${escapeHtml(libelleDossierAffiche(e.dossier))}</span></button></li>`;
     }).join('');
   }
 
@@ -17243,7 +17260,7 @@
           const precedente = parCle.get(cle);
           if (precedente && precedente.t >= dt.getTime()) continue;
           parCle.set(cle, {
-            cle, titre: t.titre, categorie: t.categorie, dossier: d.nom, dossierId: d.id, t: dt.getTime(),
+            cle, titre: t.titre, categorie: t.categorie, dossier: libelleDossierAffiche(d), dossierId: d.id, t: dt.getTime(),
             etat: libelleFaitAilleurs(e, utilisateur), heure: `${pad2(dt.getHours())} h ${pad2(dt.getMinutes())}`,
             ailleurs: true, courrier: /noté automatiquement/.test(e.texte) && type === 'appelFonds'
           });
@@ -17333,7 +17350,7 @@
     etat.traites.liste = etat.traites.liste.filter(t => t.cle !== action.cle);
     const dt = new Date();
     etat.traites.liste.unshift(Object.assign({
-      cle: action.cle, titre: action.titre, dossier: action.dossier.nom, dossierId: action.dossier.id,
+      cle: action.cle, titre: action.titre, dossier: libelleDossierAffiche(action.dossier), dossierId: action.dossier.id,
       categorie: action.categorie, etat: etatTexte,
       heure: `${String(dt.getHours()).padStart(2, '0')} h ${String(dt.getMinutes()).padStart(2, '0')}`
     }, annulation || {}));
@@ -17374,7 +17391,7 @@
       const texte = geste.champ === 'projetEnvoye' ? 'Projet noté envoyé' : 'Appel de fonds noté envoyé';
       noterTraite(a, texte, { champ: geste.champ, precedent });
       marquerEnvoiAujourdhui(id, geste.champ);
-      afficherToast(`${texte} — ${a.dossier.nom}.`, 'Annuler', () => annulerTraiteJour(cle));
+      afficherToast(`${texte} — ${libelleDossierAffiche(a.dossier)}.`, 'Annuler', () => annulerTraiteJour(cle));
     } else if (geste.type === 'appelFonds') {
       fermerFenetreAujourdhui();
       preparerAppelFondsDepuisDossier(id);
@@ -17609,7 +17626,7 @@
     const cle = escapeOnclickArg(a.cle);
     const ouverte = apercusJour.has(a.cle);
     const brouillon = ouverte ? brouillonAction(a) : null;
-    const sous = [dansFiche ? '' : a.dossier.nom, global && a.dossier.responsable ? prenomCollaborateur(a.dossier.responsable) : '', a.categorieLabel].filter(Boolean).join(' · ');
+    const sous = [dansFiche ? '' : libelleDossierAffiche(a.dossier), global && a.dossier.responsable ? prenomCollaborateur(a.dossier.responsable) : '', a.categorieLabel].filter(Boolean).join(' · ');
     const sansGeste = dansFiche && (!a.geste || a.geste.type === 'fiche');
     return renderLigneAction({
       categorie: a.categorie, categorieLabel: a.categorieLabel, gravite: a.gravite,
@@ -17636,7 +17653,7 @@
         <span class="ja-coche" aria-hidden="true">${t.etat === 'Reporté à demain' ? icone('clock') : icone('check')}</span>
         <span class="ja-texte-fait">
           <span class="ja-titre">${escapeHtml(t.titre)}</span>
-          <span class="ja-sous">${escapeHtml(t.dossier)} · ${escapeHtml(t.etat)} · ${escapeHtml(t.heure)}</span>
+          <span class="ja-sous">${escapeHtml(libelleDossierParNom(t.dossier, t.dossierId))} · ${escapeHtml(t.etat)} · ${escapeHtml(t.heure)}</span>
         </span>
         ${t.etat === 'Reporté à demain' || t.champ || t.manuel ? `<button type="button" class="lien-discret ja-annuler" onclick="annulerTraiteJour('${escapeOnclickArg(t.cle)}')">Annuler</button>` : ''}
         ${t.courrier ? `<button type="button" class="lien-discret ja-annuler" onclick="ouvrirCourrierAppelFonds('${escapeOnclickArg(t.dossierId)}')">Voir le courrier</button>` : ''}
@@ -17662,7 +17679,7 @@
 
   function renderAVenirListe(aVenir, global) {
     if (!aVenir.length) return '<p class="jour-vide">Rien d’autre à l’horizon.</p>';
-    return `<ul class="jour-liste-simple">${aVenir.map(v => `<li><button type="button" class="lien-discret" onclick="executerFicheDossierJour('${v.dossier.id}')">${escapeHtml(v.titre)} — ${escapeHtml(v.dossier.nom)}</button>
+    return `<ul class="jour-liste-simple">${aVenir.map(v => `<li><button type="button" class="lien-discret" onclick="executerFicheDossierJour('${v.dossier.id}')">${escapeHtml(v.titre)} — ${escapeHtml(libelleDossierAffiche(v.dossier))}</button>
       <span class="jour-meta">${escapeHtml([v.detail, global && v.dossier.responsable ? prenomCollaborateur(v.dossier.responsable) : ''].filter(Boolean).join(' · '))}</span></li>`).join('')}</ul>`;
   }
 
@@ -17696,7 +17713,7 @@
       return `<li class="jour-signature${s.pret ? ' prete' : ''}">
         <button type="button" class="jour-signature-tete" onclick="executerFicheDossierJour('${s.dossier.id}')">
           <span class="jour-signature-quand">${escapeHtml(quandJour(s.date, aujourdhui))}${plage ? ' · ' + escapeHtml(plage) : ''}${global && s.dossier.responsable ? ' · ' + escapeHtml(prenomCollaborateur(s.dossier.responsable)) : ''}</span>
-          <span class="jour-signature-nom">${escapeHtml(s.dossier.nom)}</span>
+          <span class="jour-signature-nom">${escapeHtml(libelleDossierAffiche(s.dossier))}</span>
         </button>
         <span class="jour-signature-etat${s.pret ? ' ok' : ''}">${s.pret ? icone('check') + ' Prête' : `${manque} à faire`}</span>
         <div class="jour-signature-points">${s.points.map(p => {
@@ -17755,7 +17772,7 @@
         </div>
         ${premiere ? `<div class="w-bas" data-ajuster="2"><button type="button" class="w-prochaine g-${premiere.gravite}" onclick="${versPage}">
             <span class="w-prochaine-titre">${escapeHtml(premiere.titre)}</span>
-            <span class="w-prochaine-sous">${escapeHtml(premiere.dossier.nom)}</span>
+            <span class="w-prochaine-sous">${escapeHtml(libelleDossierAffiche(premiere.dossier))}</span>
           </button></div>` : `<p class="w-message">${escapeHtml(messageProgressionJour(actions.length, traites.length))}</p>`}
         ${rappelsAFaire ? `<button type="button" class="w-pied lien-discret" onclick="${versPage}">${rappelsAFaire} rappel${rappelsAFaire > 1 ? 's' : ''} à faire</button>` : ''}`;
     } else {
@@ -17771,7 +17788,7 @@
       const aVenirHtml = presentation === 'grand' && aVenir.length ? `<div class="w-section">
           <h3 class="jour-carte-sous-titre">À venir</h3>
           <ul class="w-lignes" data-ajuster="3">${aVenir.map(v => `<li><button type="button" class="w-ligne" onclick="ouvrirDossierDepuisDashboard('${v.dossier.id}')">
-            <span class="w-ligne-texte"><b>${escapeHtml(v.titre)}</b> · ${escapeHtml(v.dossier.nom)}</span>
+            <span class="w-ligne-texte"><b>${escapeHtml(v.titre)}</b> · ${escapeHtml(libelleDossierAffiche(v.dossier))}</span>
             <span class="w-ligne-meta">${escapeHtml(v.detail || '')}</span></button></li>`).join('')}${plusWidget(versPage)}</ul>
         </div>` : '';
       corps = `${feteHtml}${liste}
@@ -17847,7 +17864,7 @@
     else if (ongletPanneauJour === 'nouveautes') panneau = `<p class="jour-source">${escapeHtml(libelleDepuisVisite())}.</p>${renderNouveautesListe(groupes)}`;
     else if (ongletPanneauJour === 'avenir') panneau = `<p class="jour-source">Rien à faire aujourd’hui, mais dans les ${JOURS_A_VENIR} jours.</p>${renderAVenirListe(aVenir, global)}`;
     else if (ongletPanneauJour === 'journee') panneau = journal.length
-      ? `<ul class="jour-journal">${journal.slice(0, 20).map(j => `<li><span class="jour-meta">${escapeHtml(j.heure)}</span><span>${escapeHtml(j.texte)} — <button type="button" class="lien-discret" onclick="executerFicheDossierJour('${j.dossier.id}')">${escapeHtml(j.dossier.nom)}</button></span></li>`).join('')}</ul>`
+      ? `<ul class="jour-journal">${journal.slice(0, 20).map(j => `<li><span class="jour-meta">${escapeHtml(j.heure)}</span><span>${escapeHtml(j.texte)} — <button type="button" class="lien-discret" onclick="executerFicheDossierJour('${j.dossier.id}')">${escapeHtml(libelleDossierAffiche(j.dossier))}</button></span></li>`).join('')}</ul>`
       : '<p class="jour-vide">Rien encore aujourd’hui.</p>';
     else if (ongletPanneauJour === 'rappels') panneau = `<div class="rappels-perso jour-rappels">${renderMesRappels(perimetre)}</div>`;
     else if (ongletPanneauJour === 'equipe') panneau = `<ul class="jour-equipe">${equipe.map(e => `<li><span>${escapeHtml(e.nom)}</span><span class="jour-meta">${e.total} action${e.total > 1 ? 's' : ''}${e.critiques ? ` · <b class="jour-critique">${e.critiques} urgente${e.critiques > 1 ? 's' : ''}</b>` : ''}</span></li>`).join('')}</ul>`;
@@ -17994,7 +18011,7 @@
     return `${source}
       <ul class="jour-fil">${groupes.map(g => `
         <li class="jour-fil-groupe">
-          <button type="button" class="jour-fil-dossier" onclick="executerFicheDossierJour('${escapeOnclickArg(g.dossierId)}')">${escapeHtml('VTE - ' + g.dossierNom)}</button>
+          <button type="button" class="jour-fil-dossier" onclick="executerFicheDossierJour('${escapeOnclickArg(g.dossierId)}')">${escapeHtml(libelleDossierParNom(g.dossierNom, g.dossierId))}</button>
           <ul>${g.emails.map(renderLigneEmailMatin).join('')}</ul>
         </li>`).join('')}</ul>
       ${autres.length ? `<details class="echanges-autres email-matin-autres"><summary>Hors dossiers (${autres.length})</summary>
@@ -20857,7 +20874,7 @@
       if (index !== -1 && d.nasNouveaute && (!dossiers[index].nasNouveaute || dossiers[index].nasNouveaute.at !== d.nasNouveaute.at)) {
         const nb = (d.nasNouveaute.fichiers || []).length;
         afficherToast(
-          `${nb > 1 ? nb + ' nouveaux documents détectés' : 'Nouveau document détecté'} dans le dossier « ${d.nom} » — CLAIRE le vérifie.`,
+          `${nb > 1 ? nb + ' nouveaux documents détectés' : 'Nouveau document détecté'} dans le dossier « ${libelleDossierAffiche(d)} » — CLAIRE le vérifie.`,
           'OK', null
         );
         // Vérifié tout de suite (offre de prêt, pièces), sans attendre le tour des 5 minutes — le
@@ -21430,7 +21447,7 @@
       version: VERSION_APP,
       onglet: LIBELLES_ONGLETS[ongletActuel] || ongletActuel,
       dossierId: d ? d.id : '',
-      dossierNom: d ? d.nom : '',
+      dossierNom: d ? libelleDossierAffiche(d) : '',
       navigateur: typeof navigator !== 'undefined' ? navigator.userAgent : '',
       ecran: typeof window !== 'undefined' ? `${window.innerWidth}×${window.innerHeight}` : '',
       theme,
@@ -23352,7 +23369,7 @@
       if (!notificationsNavigateurActivees() || !document.hidden) return;
       const labels = cles.map(cle => libelleNotificationPiece(d, cle));
       new Notification('CLAIRE — Nouvelle(s) pièce(s) trouvée(s)', {
-        body: `${d.nom} : ${labels.join(', ')}`,
+        body: `${libelleDossierAffiche(d)} : ${labels.join(', ')}`,
         tag: 'claire-piece-' + d.id
       });
     } catch (e) {
@@ -23672,8 +23689,8 @@
     if (!overlay || !liste) return;
     if (intro) {
       intro.textContent = propose
-        ? `Dossier proposé pour « ${d.nom} » d'après son nom — corrigez si ce n'est pas le bon.`
-        : `Aucun rapprochement évident avec « ${d.nom} » : choisissez le dossier client sur le NAS.`;
+        ? `Dossier proposé pour « ${libelleDossierAffiche(d)} » d'après son nom — corrigez si ce n'est pas le bon.`
+        : `Aucun rapprochement évident avec « ${libelleDossierAffiche(d)} » : choisissez le dossier client sur le NAS.`;
     }
     // Le dossier proposé (et celui déjà relié) passent EN TÊTE de liste — demandé par l'étude :
     // les marquer sans les remonter obligeait à les chercher au milieu de centaines d'entrées.
@@ -24456,7 +24473,7 @@
     livrerEmailDossier({ destinataire, sujet: subject, corps: body, confrere: notaireParticipantRepresenteAcquereur(d), responsableSignature: d.responsable })
       .then(r => afficherToast(r.ok
         ? `Relance « offre de prêt » prête pour ${d.nom} — ${r.mode === 'eml' ? 'ouvrez le fichier téléchargé' : 'vérifiez'} puis envoyez.`
-        : `Relance « offre de prêt » de ${d.nom} non préparée.`, 'OK', null));
+        : `Relance « offre de prêt » de ${libelleDossierAffiche(d)} non préparée.`, 'OK', null));
   }
 
   // Statut de l'offre de prêt à afficher, dans le même vocabulaire court partout où il apparaît
@@ -26079,7 +26096,7 @@
       ? `<button type="button" class="action-rapide audit-aae-btn" onclick="ouvrirParcoursNasRelecture()" title="Affiche tout le dossier du client sur le NAS, rubrique par rubrique, pour choisir les pièces à joindre à la relecture">${icone('folder')}Parcourir le dossier du NAS</button>`
       : (d ? '<span class="hint">Dossier non relié au NAS.</span>' : '');
     pill.innerHTML = d
-      ? `<span class="dot-label dl-success">${icone('link')}${escapeHtml(d.nom)}<button type="button" class="piece-suppr" onclick="retirerDossierAudit()" title="Ne plus lier ce dossier" aria-label="Ne plus lier ce dossier">${icone('x')}</button></span>${aae}`
+      ? `<span class="dot-label dl-success">${icone('link')}${escapeHtml(libelleDossierAffiche(d))}<button type="button" class="piece-suppr" onclick="retirerDossierAudit()" title="Ne plus lier ce dossier" aria-label="Ne plus lier ce dossier">${icone('x')}</button></span>${aae}`
       : '';
   }
 
@@ -31528,7 +31545,7 @@
     const posees = Array.isArray(tour.echeancesPosees) ? tour.echeancesPosees : [];
     if (posees.length) {
       html += '<ul class="dernier-tour-erreurs" style="color:inherit;">' + posees.map((p) =>
-        `<li>${escapeHtml(p.dossierNom || '')} — ${p.type === 'ventebien' ? 'Vente préalable' : 'Obtention du prêt'} ${p.adoptee ? 'retrouvée dans' : 'posée dans'} l'agenda (${escapeHtml(formatDateFr(p.date))})</li>`
+        `<li>${escapeHtml(libelleDossierParNom(p.dossierNom || '', p.dossierId))} — ${p.type === 'ventebien' ? 'Vente préalable' : 'Obtention du prêt'} ${p.adoptee ? 'retrouvée dans' : 'posée dans'} l'agenda (${escapeHtml(formatDateFr(p.date))})</li>`
       ).join('') + '</ul>';
     }
     if (tour.ok && tour.erreurEcheances) {
@@ -31536,7 +31553,7 @@
     }
     if (misAJour.length) {
       html += '<ul class="dernier-tour-erreurs" style="color:inherit;">' + misAJour.map((m) =>
-        `<li>${escapeHtml(m.dossierNom || '')} — ${escapeHtml(libelleActionAgenda(m.action))} (${escapeHtml(formatDateFr(m.dateIso))}${m.ancienneDate ? ', au lieu du ' + escapeHtml(formatDateFr(m.ancienneDate)) : ''})</li>`
+        `<li>${escapeHtml(libelleDossierParNom(m.dossierNom || '', m.dossierId))} — ${escapeHtml(libelleActionAgenda(m.action))} (${escapeHtml(formatDateFr(m.dateIso))}${m.ancienneDate ? ', au lieu du ' + escapeHtml(formatDateFr(m.ancienneDate)) : ''})</li>`
       ).join('') + '</ul>';
     }
     // Un rendez-vous de l'agenda qui ne correspond pas à la date saisie à la main sur la fiche :
@@ -31545,7 +31562,7 @@
       .filter((m) => m.action === 'rendezVousSignature' && m.dateFiche);
     if (ecartsRdv.length) {
       html += '<ul class="dernier-tour-avertissements">' + ecartsRdv.map((m) =>
-        `<li>${escapeHtml(m.dossierNom || '')} — rendez-vous du ${escapeHtml(formatDateFr(m.dateIso))} dans l'agenda, ${escapeHtml(formatDateFr(m.dateFiche))} saisi sur la fiche : la fiche n'est pas modifiée.</li>`
+        `<li>${escapeHtml(libelleDossierParNom(m.dossierNom || '', m.dossierId))} — rendez-vous du ${escapeHtml(formatDateFr(m.dateIso))} dans l'agenda, ${escapeHtml(formatDateFr(m.dateFiche))} saisi sur la fiche : la fiche n'est pas modifiée.</li>`
       ).join('') + '</ul>';
     }
     if (sansCorrespondance.length) {
@@ -32740,7 +32757,7 @@
     const journalHtml = journal.length ? `<div class="calc-card scans-journal">
         <div class="dash-section-titre">Derniers rangements</div>
         <ul>${journal.map(j => `<li><span class="scan-date">${escapeHtml(new Date(j.date).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</span>
-          <span>${escapeHtml(j.nom)} → <strong>${escapeHtml(j.dossier || '')}</strong>${j.rubrique ? ' › ' + escapeHtml(j.rubrique.replace(/[\\/]+/g, ' › ')) : ''}</span>
+          <span>${escapeHtml(j.nom)} → <strong>${escapeHtml(j.dossier ? libelleDossierParNom(j.dossier, j.dossierId) : '')}</strong>${j.rubrique ? ' › ' + escapeHtml(j.rubrique.replace(/[\\/]+/g, ' › ')) : ''}</span>
           <span class="hint">${j.auto ? 'automatique' : escapeHtml(j.auteur || '')}${j.score != null ? ' · score ' + noteScoreScan(j.score) : ''}</span></li>`).join('')}</ul>
       </div>` : '';
     const ecartes = (e.ecartes || []);

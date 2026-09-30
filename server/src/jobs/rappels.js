@@ -146,7 +146,7 @@ function calculerRappelsDus(dossiers, aujourdHui, dejaEnvoyes) {
         if (dejaEnvoyes && dejaEnvoyes.has(`${d.id}:${reminderKey}`)) continue;
         dus.push({
           dossierId: d.id,
-          nomDossier: 'VTE - ' + d.nom, // même préfixe que l'affichage (libelleDossierAffiche, script.js)
+          nomDossier: libelleDossier(d), // même préfixe que l'affichage (libelleDossierAffiche, script.js)
           responsable: d.responsable,
           type: e.type,
           libelle: e.label || 'Échéance',
@@ -204,7 +204,7 @@ function alertesFondsDues(dossiers, aujourdHui, dejaEnvoyes) {
     const f = d.fondsRecus && typeof d.fondsRecus === 'object' ? d.fondsRecus : null;
     const bilan = f ? bilanFonds(f.total, d.fondsAttendusManuel || f.attendu) : null;
     const base = {
-      dossierId: d.id, nomDossier: 'VTE - ' + d.nom, responsable: d.responsable, libelle: 'Fonds reçus',
+      dossierId: d.id, nomDossier: libelleDossier(d), responsable: d.responsable, libelle: 'Fonds reçus',
       rdv: d.rendezVousSignature || '', heure: d.rendezVousSignatureHeure || '', bilan, verifieLe: f ? f.verifieLe || '' : ''
     };
     if (bilan && bilan.etat === 'complet') {
@@ -377,7 +377,17 @@ function demarrerTacheRappels(depot, db, config, parametresRepo, envoyerFn) {
   return setInterval(tour, config.intervalleRappelsMs);
 }
 
+// Nom du dossier cité dans un message, précédé du type d'affaire (étude, 30/09 : « VTE pour vente,
+// SUCC pour succession ») — miroir de libelleDossierAffiche (script.js), à modifier ensemble.
+const PREFIXES_TYPE_AFFAIRE = { vente: 'VTE', succession: 'SUCC' };
+function libelleDossier(d) {
+  const nom = String((d && d.nom) || '').trim();
+  if (/^(VTE|SUCC)\s*-\s/i.test(nom)) return nom;
+  return (PREFIXES_TYPE_AFFAIRE[d && d.typeAffaire] || PREFIXES_TYPE_AFFAIRE.vente) + ' - ' + nom;
+}
+
 module.exports = {
+  libelleDossier,
   SEUILS_RAPPELS_PAR_TYPE, SEUILS_RAPPELS_DEFAUT, seuilsPourType, echeanceValidee, toutesEcheances, joursRestants,
   calculerRappelsDus, texteRappel, executerTacheRappels, demarrerTacheRappels,
   bilanFonds, jourSemaine, alertesFondsDues, texteAlerteFonds

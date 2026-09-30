@@ -336,6 +336,11 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   de « À faire », même titre et même verbe qu'elle pour le même geste) ; tout « Ajouter … » est un
   `button.bouton-ajout` ; l'édition d'une donnée passe par des icônes (crayon, ✓, ×) ; seuls les
   formulaires gardent des boutons classiques.
+- **Nom d'un dossier cité (étude, 30/09)** : partout (écrans, cartes, toasts, journaux, Teams), toujours
+  par `libelleDossierAffiche(d)` — « VTE - NOM », « SUCC - NOM » pour une succession — ou
+  `libelleDossierParNom(nom, id)` quand seul le nom a été gardé ; jamais `d.nom` brut à l'écran.
+  `d.nom` brut reste pour l'édition du champ, la recherche, le rapprochement NAS, les emails au client
+  (textes de l'étude mot pour mot) et les titres des dates butoir de l'agenda (repris tels quels).
 - **Formats (étude, 29/09)** : tout montant en euros passe par `formaterMontantEuros`
   (`formaterPrix`/`formaterPrixCentimes`, « 360.000,00 € », miroir `formaterEuros` dans
   `jobs/rappels.js`) et toute saisie de montant par `eurosDepuisSaisie` (jamais « ne garder que les
@@ -436,7 +441,8 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   (`compte : N`) des reçus comptables ; exploiter le journal `corrections-extraction` pour resserrer
   les motifs (phase 3 de l'extraction).
 - **Dossiers de succession à venir** : aujourd'hui tous les dossiers sont des ventes, affichés
-  « VTE - NOM » (`libelleDossierAffiche`). À l'arrivée des successions, ce préfixe, le planning, la
+  « VTE - NOM » (`libelleDossierAffiche`, préfixe tiré de `d.typeAffaire` par `PREFIXES_TYPE_AFFAIRE` :
+  vente → VTE, succession → SUCC ; miroir serveur `libelleDossier` dans `jobs/rappels.js`). À l'arrivée des successions, ce préfixe, le planning, la
   checklist et les emails devront dépendre d'un type d'affaire du dossier. L'import Authentic lit
   déjà tout export (personnes, parties et leurs qualités, documents) et reconnaît une succession :
   il restera à brancher la création d'un dossier de succession sur `lireExportAuthentic`.

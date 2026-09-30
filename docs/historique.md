@@ -13008,3 +13008,26 @@ Quatre demandes de l'étude :
   effectif, rien ne dépasse de la carte, clair et sombre.
 - « Au lieu de à voir en premier met NOUVEAU » : libellé de la section (`renderAVoirSuivi`).
 - « Échange les deux boutons tableau et échéances » : « Échéances » (vue par défaut) en premier.
+
+### 30/09/2026 soir — Type d'affaire devant chaque nom de dossier cité
+
+Demande de l'étude : « Dans le widget et partout dans Claire si tu cites un nom de dossier placé
+devant le type VTE pour vente et SUCC pour succession (nouvelle catégorie à venir) ».
+- `libelleDossierAffiche(d)` prend son préfixe dans `PREFIXES_TYPE_AFFAIRE[d.typeAffaire]` (absent =
+  vente → « VTE », succession → « SUCC ») et ne double pas un nom déjà préfixé ;
+  `libelleDossierParNom(nom, id)` pour les listes qui n'ont gardé que le nom (journal Claire Scan,
+  journal de l'agenda, tâches faites de la carte À faire, emails du matin) — le dossier retrouvé par
+  son identifiant donne son type.
+- Passés au libellé : fil « Activité de l'étude », « Dernières pièces » (pièces, scans à ranger et
+  rangés), « Pièces encore attendues » (infobulle), cartes À faire / À venir / Signatures (dashboard et
+  page Aujourd'hui), « Prévu en … » du Suivi (qui montrait le nom brut), journal Claire Scan, journal
+  de l'agenda (dates posées, mises à jour, rendez-vous différents), emails du matin, toasts (agenda,
+  NAS, nouveaux documents, relance), dossier lié en Relecture d'actes, contexte d'un signalement,
+  sujet du rendez-vous créé dans l'agenda (même texte pour une vente). Côté serveur, les rappels et
+  l'alerte « Fonds reçus » envoyés sur Teams passent par `libelleDossier` (`jobs/rappels.js`, miroir).
+- Laissés bruts, volontairement : champ d'édition du nom, recherche, rapprochement NAS, emails au
+  client (textes de l'étude), titres des dates butoir posées dans l'agenda (le serveur retrouve un
+  événement existant par son titre exact — le changer créerait des doublons).
+- Tests : `tests/libelle-dossier.test.js`, cas `libelleDossier` dans `server/test/rappels.test.js`.
+  Vérifié dans Chromium (dossiers inventés) : aucun nom de dossier sans préfixe dans le texte du
+  tableau de bord, du Suivi (deux vues), de Claire Scan et d'une fiche.

@@ -684,3 +684,10 @@ test('fonds : à 50 € près ; un excédent n’est jamais « tous les fonds re
   assert.equal(dus[0].genre, 'incomplets');
   assert.match(texteAlerteFonds(dus[0]), /405\.977,91\s€ reçus pour 331\.158,76\s€ attendus : l'écart est à vérifier/);
 });
+
+test('libelleDossier : type d’affaire devant le nom, sans doublon (miroir de libelleDossierAffiche)', () => {
+  const { libelleDossier } = require('../src/jobs/rappels');
+  assert.equal(libelleDossier({ nom: 'DURAND / MARTIN' }), 'VTE - DURAND / MARTIN');
+  assert.equal(libelleDossier({ nom: 'LEROY', typeAffaire: 'succession' }), 'SUCC - LEROY');
+  assert.equal(libelleDossier({ nom: 'VTE - DURAND' }), 'VTE - DURAND');
+});
