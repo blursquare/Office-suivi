@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 23:29';
+  const VERSION_APP = '2026-09-30 23:46';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 23:46', resume: "Agenda : un clic sur un rendez-vous ouvre son détail dans une fenêtre posée à côté de lui sur l'agenda (plus dans la colonne de gauche) ; elle se ferme par la croix, Échap ou un clic ailleurs. Vue semaine : le nom du dossier s'affiche en entier sur plusieurs lignes, avec en dessous seulement l'heure de début et les initiales du collaborateur (l'heure de fin et la durée restent dans le détail)." },
     { version: '2026-09-30 23:29', resume: "Barre latérale fermée : le volet des outils s'ouvre sous l'icône Outils, aligné sur elle ; l'icône reste marquée ouverte avec son nom dans la bulle à côté tant que le volet est affiché." },
     { version: '2026-09-30 23:28', resume: "Barre latérale : l'épingle est retirée ; nouveau réglage « Barre latérale au démarrage » (ouverte ou fermée) dans Réglages › Général — la flèche la replie ou la déplie pour la séance seulement. Le groupe Outils est fermé au démarrage (son titre est surligné quand un outil est ouvert). Le logo est aligné sur la bannette Claire Scan." },
     { version: '2026-09-30 23:25', resume: "Barre latérale repliée : au survol d'une icône, son nom s'affiche dans une bulle sombre à côté ; les outils sont regroupés sous une seule icône « Outils » qui ouvre un volet sombre avec la liste des outils (l'outil ouvert surligné, avec une flèche), comme sur l'exemple fourni." },
@@ -18705,7 +18706,22 @@
     agendaMois = agendaVue === 'mois' ? agendaJour.slice(0, 7) : moisDeSemaineAgenda(agendaLundi, joursSemaineAgenda(agendaLundi).indexOf(agendaJour) !== -1 ? agendaJour : auj);
   }
 
+  let popoverAgendaInit = false;
+  function initPopoverAgenda() {
+    if (popoverAgendaInit) return;
+    popoverAgendaInit = true;
+    document.addEventListener('click', (e) => {
+      if (ongletActuel !== 'agenda' || !agendaSelection || agendaModale || notesAgendaEdition) return;
+      if (!document.body.contains(e.target)) return;
+      if (e.target.closest('#agenda-popover, .ag-evt, .ag-journee-evt, .ag-vm-evt, .ag-ligne, .ag-placer, .confirm-overlay, #agenda-overlay, .toast')) return;
+      agendaSelection = null;
+      renderPageAgenda();
+    });
+    window.addEventListener('resize', positionnerPopoverAgenda);
+  }
+
   function initAgenda() {
+    initPopoverAgenda();
     // Premier affichage sur un écran étroit (téléphone) : la vue Jour, lisible sans défilement latéral.
     if (!agendaJour && window.innerWidth && window.innerWidth < 700) agendaVue = 'jour';
     if (!agendaJour) positionnerAgenda(isoAujourdhuiLocal());
@@ -18863,9 +18879,48 @@
   // Carte d'un rendez-vous dans la grille, à la manière d'Outlook : liseré et fond clair de la couleur
   // de sa catégorie, titre, heure et durée ; pour un dossier, le responsable et le confrère, puis
   // l'appel de fonds et le décompte (fait ou non) — autant de lignes que la hauteur en laisse.
+  // Vue Semaine (étude, 30/09 : « afficher le nom du dossier entier ou presque ; si trop long,
+  // retirer l'heure de fin et la durée, laisser le début et mettre les initiales du collaborateur ») :
+  // le titre passe sur autant de lignes que la carte en tient, puis une ligne « 10:00 · BA ».
+  function lignesTitreEvenement(minutes, avecEtats) {
+    if (minutes < 40) return 2;
+    if (minutes < 60) return 2;
+    if (minutes < 90) return avecEtats ? 3 : 4;
+    return Math.min(6, Math.floor((minutes / 60 * 80 - 34) / 15));
+  }
+
+  function renderEvenementSemaine(place, auj) {
+    const e = place.e;
+    const teinte = teinteEvenementAgenda(e, categoriesRdvReglees());
+    const d = dossierDeEvenement(e);
+    const infos = infosRendezVousDossier(d);
+    const proba = d && e.signature ? probabiliteTenueSignature(d, auj, absencesOffice) : null;
+    const largeur = 100 / place.colonnes;
+    const style = `top:${place.haut.toFixed(2)}%;height:${place.hauteur.toFixed(2)}%;left:calc(${(place.colonne * largeur).toFixed(2)}% + 2px);width:calc(${largeur.toFixed(2)}% - 4px)`;
+    const minutes = place.hauteur * (AGENDA_HEURE_FIN - AGENDA_HEURE_DEBUT) * 60 / 100;
+    const court = minutes < 40;
+    const etats = infos && e.signature && !court;
+    const lignes = lignesTitreEvenement(minutes, etats);
+    const initiales = d && d.responsable ? initialesResponsable(d) : '';
+    const meta = [initiales, infos && infos.confrere ? infos.confrere.replace(/\s+en 2nd$/, '') : ''].filter(Boolean);
+    const cle = cleEvenementAgenda(e);
+    const duree = dureeRendezVous(e.heure, e.heureFin);
+    const bulle = [`${e.heure}${e.heureFin ? ' – ' + e.heureFin : ''}${duree ? ' (' + duree + ')' : ''}`, e.sujet, e.lieu,
+      infos ? [infos.responsable, infos.confrere].filter(Boolean).join(' · ') : '',
+      proba ? `${proba.pourcent} % de chances que le rendez-vous soit maintenu` : ''].filter(Boolean).join(' · ');
+    const heure = `<b class="ag-evt-debut">${escapeHtml(e.heure)}</b>`;
+    return `<button type="button" class="ag-evt ag-evt-compact ajd-${teinte}${e.horsAgenda ? ' ag-hors-agenda' : ''}${court ? ' ag-evt-court' : ''}${agendaSelection === cle ? ' selection' : ''}" style="${style}"
+        data-cle="${escapeAttr(cle)}" onclick="ouvrirDetailAgenda('${escapeOnclickArg(cle)}')" title="${escapeAttr(bulle)}">
+        <span class="ag-evt-titre" style="--lignes:${lignes}">${court ? heure + ' ' : ''}${escapeHtml(e.sujet || '(sans titre)')}</span>
+        ${court ? '' : `<span class="ag-evt-meta">${heure}${meta.length ? ` · ${escapeHtml(meta.join(' · '))}` : (e.lieu && !d ? ` · ${escapeHtml(e.lieu)}` : '')}${proba ? renderPastilleProbabilite(proba) : ''}</span>`}
+        ${etats ? `<span class="ag-evt-etats">${renderEtatsRendezVous(infos)}</span>` : ''}
+      </button>`;
+  }
+
   function renderEvenementGrille(place, auj) {
     const e = place.e;
     if (e.fantome) return renderFantomeGrille(place);
+    if (agendaVue === 'semaine') return renderEvenementSemaine(place, auj);
     const teinte = teinteEvenementAgenda(e, categoriesRdvReglees());
     const d = dossierDeEvenement(e);
     const infos = infosRendezVousDossier(d);
@@ -18884,7 +18939,7 @@
       infos ? infos.etats.map(x => `${x.libelle} ${x.fait ? 'fait' : 'à faire'}`).join(', ') : '',
       proba ? `${proba.pourcent} % de chances que la signature se tienne` : ''].filter(Boolean).join(' · ');
     return `<button type="button" class="ag-evt ajd-${teinte}${e.horsAgenda ? ' ag-hors-agenda' : ''}${court ? ' ag-evt-court' : ''}${haut ? ' ag-evt-haut' : ''}${etroit ? ' ag-evt-etroit' : ''}${selection ? ' selection' : ''}${proba ? ' ag-evt-avec-proba' : ''}" style="${style}"
-        onclick="ouvrirDetailAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')" title="${escapeAttr(bulle)}">
+        data-cle="${escapeAttr(cleEvenementAgenda(e))}" onclick="ouvrirDetailAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')" title="${escapeAttr(bulle)}">
         ${proba ? renderPastilleProbabilite(proba) : ''}
         <span class="ag-evt-titre">${escapeHtml(e.sujet || '(sans titre)')}</span>
         <span class="ag-evt-heure"><span>${escapeHtml(e.heure)}</span>${e.heureFin ? `<span class="ag-evt-fin">– ${escapeHtml(e.heureFin)}</span>` : ''}${duree ? `<span class="ag-evt-duree">${escapeHtml(duree)}</span>` : ''}</span>
@@ -18902,7 +18957,7 @@
     const style = `top:${place.haut.toFixed(2)}%;height:${place.hauteur.toFixed(2)}%;left:calc(${(place.colonne * largeur).toFixed(2)}% + 2px);width:calc(${largeur.toFixed(2)}% - 4px)`;
     const selection = agendaSelection === cleEvenementAgenda(e);
     return `<button type="button" class="ag-evt ag-fantome ajd-signature${selection ? ' selection' : ''}" style="${style}"
-        onclick="ouvrirDetailAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')"
+        data-cle="${escapeAttr(cleEvenementAgenda(e))}" onclick="ouvrirDetailAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')"
         title="${escapeAttr(`Il est probable que la signature de ${e.sujet} se tienne cette semaine-là (${p.pourcent} %). Proposé : ${e.heure}. Cliquer pour le placer.`)}">
         <span class="ag-fantome-tete">${icone('sparkle')}Probable</span>
         <span class="ag-evt-titre">${escapeHtml(e.sujet)}</span>
@@ -18968,7 +19023,7 @@
       const liste = evenementsJourAgenda(evenements, iso).filter(e => e.journeeEntiere || !e.heure || e.date !== iso);
       return `<div class="ag-journee${iso === auj ? ' aujourdhui' : ''}">${liste.map(e => `<button type="button"
           class="ag-journee-evt ajd-${teinteEvenementAgenda(e, categoriesRdvReglees())}${e.horsAgenda ? ' ag-hors-agenda' : ''}${e.fantome ? ' ag-fantome' : ''}${agendaSelection === cleEvenementAgenda(e) ? ' selection' : ''}"
-          onclick="ouvrirDetailAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')" title="${escapeAttr(e.fantome ? `Signature probable cette semaine (${e.probable.pourcent} %) — aucun créneau libre` : e.sujet || '')}">${e.fantome ? `${icone('sparkle')}${escapeHtml(e.probable.pourcent + ' % · ')}` : ''}${escapeHtml(e.sujet || '(sans titre)')}</button>`).join('')}</div>`;
+          data-cle="${escapeAttr(cleEvenementAgenda(e))}" onclick="ouvrirDetailAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')" title="${escapeAttr(e.fantome ? `Signature probable cette semaine (${e.probable.pourcent} %) — aucun créneau libre` : e.sujet || '')}">${e.fantome ? `${icone('sparkle')}${escapeHtml(e.probable.pourcent + ' % · ')}` : ''}${escapeHtml(e.sujet || '(sans titre)')}</button>`).join('')}</div>`;
     }).join('');
     const trait = traitHeureAgenda(new Date(), jours, auj);
     const colonnes = jours.map(iso => `<div class="ag-colonne${iso === auj ? ' aujourdhui' : ''}" data-jour="${iso}">
@@ -19002,7 +19057,7 @@
           if (iso === auj) classes.push('aujourdhui');
           return `<div class="${classes.join(' ')}">
               <button type="button" class="ag-vm-num" onclick="choisirJourAgenda('${iso}')" title="Voir le ${escapeAttr(formatDateFr(iso))}">${Number(iso.slice(8))}</button>
-              ${liste.slice(0, 3).map(e => `<button type="button" class="ag-vm-evt ajd-${teinteEvenementAgenda(e, categoriesRdvReglees())}${e.horsAgenda ? ' ag-hors-agenda' : ''}"
+              ${liste.slice(0, 3).map(e => `<button type="button" class="ag-vm-evt ajd-${teinteEvenementAgenda(e, categoriesRdvReglees())}${e.horsAgenda ? ' ag-hors-agenda' : ''}" data-cle="${escapeAttr(cleEvenementAgenda(e))}"
                   onclick="ouvrirDetailAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')" title="${escapeAttr(`${e.heure ? e.heure + (e.heureFin ? ' – ' + e.heureFin : '') + ' · ' : ''}${e.sujet || ''}`)}">
                   ${e.heure && !e.journeeEntiere ? `<b>${escapeHtml(e.heure)}</b> ` : ''}${escapeHtml(e.sujet || '(sans titre)')}</button>`).join('')}
               ${liste.length > 3 ? `<button type="button" class="ag-vm-plus" onclick="choisirJourAgenda('${iso}')">+ ${liste.length - 3} autre${liste.length - 3 > 1 ? 's' : ''}</button>` : ''}
@@ -19171,7 +19226,6 @@
         <div class="ag-page-corps">
           <aside class="ag-cote">
             ${renderMoisAgenda()}
-            <div id="agenda-detail">${renderPanneauDetailAgenda()}</div>
             ${renderAnticipationsAgenda()}
           </aside>
           <div class="ag-principal">
@@ -19179,6 +19233,7 @@
           </div>
         </div>
       </div>`;
+    renderPopoverAgenda();
     if (curseurNotes) {
       const champ = document.getElementById('agenda-notes-texte');
       if (champ) { champ.focus({ preventScroll: true }); champ.setSelectionRange(curseurNotes[0], curseurNotes[1]); champ.scrollTop = curseurNotes[2]; }
@@ -19193,11 +19248,49 @@
     if (cle !== agendaSelection && notesAgenda[cle] && notesAgenda[cle].etat !== 'chargement') delete notesAgenda[cle];
     agendaSelection = cle;
     renderPageAgenda();
-    // Écran étroit : le panneau est sous le calendrier du mois, on l'amène à l'écran.
-    if (window.innerWidth && window.innerWidth < 1100) {
-      const p = document.getElementById('agenda-detail');
-      if (p && p.scrollIntoView) p.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const pop = document.getElementById('agenda-popover');
+    if (pop && pop.style.display !== 'none' && !pop.classList.contains('feuille') && pop.scrollIntoView) pop.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  // ---- Détail d'un rendez-vous en fenêtre posée sur l'agenda (étude, 30/09 : « quand on clique sur
+  // un rendez-vous, ouvrir le contenu dans un popup dans l'agenda, pas à gauche ») : à droite du
+  // rendez-vous cliqué, à gauche s'il manque la place, au milieu de la grille sans rendez-vous
+  // repérable ; en feuille au bas de l'écran sur téléphone. ----
+  function renderPopoverAgenda() {
+    const pop = document.getElementById('agenda-popover');
+    if (!pop) return;
+    const html = agendaSelection && ongletActuel === 'agenda' ? renderPanneauDetailAgenda() : '';
+    if (!html) { pop.style.display = 'none'; pop.innerHTML = ''; return; }
+    pop.innerHTML = html;
+    pop.style.display = 'block';
+    positionnerPopoverAgenda();
+  }
+
+  function positionnerPopoverAgenda() {
+    const pop = document.getElementById('agenda-popover');
+    const panneau = document.getElementById('onglet-agenda');
+    if (!pop || !panneau || pop.style.display === 'none') return;
+    const telephone = window.innerWidth < 700;
+    pop.classList.toggle('feuille', telephone);
+    if (telephone) { pop.style.left = ''; pop.style.top = ''; return; }
+    const pr = panneau.getBoundingClientRect();
+    const largeur = pop.offsetWidth;
+    const echappe = (v) => (window.CSS && CSS.escape ? CSS.escape(v) : String(v).replace(/["\\]/g, '\\$&'));
+    const ancre = agendaSelection ? document.querySelector(`#agenda-contenu [data-cle="${echappe(agendaSelection)}"]`) : null;
+    let left;
+    let top;
+    if (ancre) {
+      const ar = ancre.getBoundingClientRect();
+      left = ar.right + 10 + largeur <= pr.right ? ar.right - pr.left + 10 : ar.left - pr.left - 10 - largeur;
+      top = ar.top - pr.top - 6;
+    } else {
+      const zone = document.querySelector('#agenda-contenu .ag-principal') || panneau;
+      const zr = zone.getBoundingClientRect();
+      left = zr.left - pr.left + (zr.width - largeur) / 2;
+      top = zr.top - pr.top + 60;
     }
+    pop.style.left = `${Math.round(Math.max(0, Math.min(left, pr.width - largeur)))}px`;
+    pop.style.top = `${Math.round(Math.max(0, top))}px`;
   }
 
   // Depuis « Signatures de la semaine » : le rendez-vous du dossier s'il est dans l'agenda, sinon

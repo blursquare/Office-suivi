@@ -13393,3 +13393,23 @@ rendez-vous à 9 h, entre 12 h et 14 h et après 18 h, sauf exception ; maximum 
   « Outils » reste affichée tant que le volet est ouvert (`libelleBoutonSidebar` lit `.sidebar-groupe-label`).
 - Vérifié dans Chromium : icône bas 394 px → volet haut 402 px, bords gauches identiques (31 px), bulle
   « Outils » visible, en clair et en sombre.
+
+### 30/09/2026, soir — Détail d'un rendez-vous en fenêtre sur l'agenda ; cartes de la vue semaine
+
+- Demande de l'étude : « Quand on clique sur un rendez-vous, ouvrir le contenu dans un popup dans l'agenda,
+  ne pas le mettre à gauche. Pour le rendez-vous en vue semaine, afficher le nom du dossier entier ou presque ;
+  si vraiment trop long, retirer l'horaire de fin et la durée, laisser le début et mettre les initiales du
+  collaborateur. »
+- Détail : `#agenda-popover` (dans `#onglet-agenda`, positionné en absolu) rempli par
+  `renderPanneauDetailAgenda` à chaque `renderPageAgenda` (`renderPopoverAgenda`), placé par
+  `positionnerPopoverAgenda` à droite du rendez-vous (attribut `data-cle` sur toutes les cartes), à gauche
+  s'il manque la place, au milieu de la grille sans ancre ; en feuille fixe au bas de l'écran sous 700 px.
+  Fermeture : ×, Échap, clic hors de la fenêtre (pas pendant l'écriture d'une note, ni sur une carte, une
+  confirmation ou un toast). Le panneau de la colonne de gauche est retiré.
+- Vue Semaine : `renderEvenementSemaine` — titre sur `lignesTitreEvenement` lignes (2 sous 1 h, 3 à 4 pour
+  1 h, jusqu'à 6 au-delà), ligne « 10:00 · BA · Me LEBRUN » (`initialesResponsable`) + pastille de
+  probabilité, états appel de fonds/décompte ; rendez-vous court : « 09:30 Titre… » sur deux lignes. Piège :
+  le titre, élément flex d'une colonne, s'étirait à la hauteur de la carte et laissait voir une ligne coupée
+  sous l'ellipse — `flex: none` sur le titre.
+- Vérifié dans Chromium : fenêtre à côté du rendez-vous, clic ailleurs / Échap / autre rendez-vous, note
+  modifiée et enregistrée dans la fenêtre, suppression et placement confirmés, téléphone.

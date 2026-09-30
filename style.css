@@ -7269,6 +7269,16 @@ button.primary.ag-ajout svg { width: 14px; height: 14px; }
 .ag-evt .ag-proba .dot { display: none; }
 .ag-evt-avec-proba:not(.ag-evt-court) .ag-evt-titre { padding-right: 32px; }
 .ag-evt-court .ag-proba { position: static; flex: none; }
+/* Vue Semaine : titre sur plusieurs lignes, puis « 10:00 · BA ». */
+.ag-evt.ag-evt-compact { gap: 2px; }
+.ag-evt-compact .ag-evt-titre { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: var(--lignes, 2); overflow-wrap: anywhere; line-height: 1.22; padding-right: 0; }
+.ag-evt-compact.ag-evt-court { flex-direction: column; align-items: stretch; justify-content: center; }
+/* Jamais étiré ni écrasé par la colonne : sinon une ligne coupée apparaît sous les lignes gardées. */
+.ag-evt-compact .ag-evt-titre, .ag-evt-compact.ag-evt-court .ag-evt-titre { flex: none; }
+.ag-evt-meta { display: flex; align-items: center; gap: 0 4px; font-size: 11px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; flex: none; font-variant-numeric: tabular-nums; }
+.ag-evt-debut { font-weight: 700; color: var(--ink); }
+.ag-evt-compact .ag-evt-titre .ag-evt-debut { font-weight: 700; margin-right: 2px; }
+.ag-evt-compact .ag-evt-meta .ag-proba { position: static; margin-left: auto; flex: none; }
 .ag-hors-agenda { background: var(--paper-card); border: 1.5px dashed var(--ag-teinte, var(--line)); border-left-width: 4px; }
 /* Carte fantôme : signature probable cette semaine, pas encore placée (proposition de CLAIRE). */
 .ag-evt.ag-fantome, .ag-journee-evt.ag-fantome {
@@ -7338,7 +7348,15 @@ button.primary.ag-ajout svg { width: 14px; height: 14px; }
 .ag-mois-points { height: 4px; display: flex; margin-top: -3px; }
 .ag-mois-points i { width: 4px; height: 4px; border-radius: 999px; background: var(--muted); }
 .ag-mois-points i.sig { background: var(--acte); }
-#agenda-detail:empty { display: none; }
+/* Détail d'un rendez-vous en fenêtre posée sur l'agenda, à côté du rendez-vous cliqué. */
+#onglet-agenda { position: relative; }
+.ag-popover {
+  position: absolute; z-index: 40; width: 370px; max-width: calc(100% - 16px); box-sizing: border-box;
+  max-height: 72vh; overflow-y: auto; padding: 14px 16px 16px;
+  background: var(--paper-card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-float);
+}
+.ag-popover .ag-detail { border-top: none; padding-top: 0; }
+.ag-popover.feuille { position: fixed; left: 8px; right: 8px; bottom: 8px; top: auto !important; width: auto; max-width: none; max-height: 78vh; z-index: 960; border-radius: 18px; }
 .ag-detail { border-top: 1px solid var(--line); padding-top: 14px; display: flex; flex-direction: column; gap: 7px; }
 .ag-detail-tete { display: flex; align-items: flex-start; gap: 8px; justify-content: space-between; margin-bottom: 2px; }
 .ag-detail-etiquette { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--muted); }

@@ -754,7 +754,7 @@
     <div>
       <div class="dash-eyebrow">Office</div>
       <div class="dash-titre-ligne">
-        <h1 class="dash-titre">Agenda <span class="info-i" tabindex="0" data-info="Le calendrier partagé de l’office, relu toutes les 2 minutes. Un clic sur un rendez-vous l’ouvre (fiche du dossier, suppression) ; un clic sur une case vide en crée un. À droite, le mois et ce que CLAIRE anticipe."></span></h1>
+        <h1 class="dash-titre">Agenda <span class="info-i" tabindex="0" data-info="Le calendrier partagé de l’office, relu toutes les 2 minutes. Un clic sur un rendez-vous l’ouvre à côté de lui (notes, fiche du dossier, suppression) ; un clic sur une case vide en crée un. À gauche, le mois et ce que CLAIRE anticipe."></span></h1>
       </div>
     </div>
     <div class="dash-header-actions">
@@ -762,6 +762,8 @@
     </div>
   </div>
   <div id="agenda-contenu"></div>
+  <!-- Détail d'un rendez-vous, posé sur l'agenda à côté du rendez-vous cliqué (renderPopoverAgenda). -->
+  <div id="agenda-popover" class="ag-popover" style="display:none;" role="dialog" aria-label="Détail du rendez-vous"></div>
 </div>
 
 <!-- Scans du copieur : chaque scan posé dans le dossier « Scan » du NAS, avec la proposition de

@@ -277,9 +277,13 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   **sur un rendez-vous d'un dossier, comme dans Outlook : responsable (prénom), confrère (`confrereLieuAgenda`),
   appel de fonds fait (`echeanceValidee`) et décompte acquéreur fait** (`decompteAcquereurFait` : courrier
   d'appel de fonds/décompte trouvé sur le NAS ou lu pour les fonds reçus — choix de l'étude) —
-  `infosRendezVousDossier`. Trait rouge de l'heure mis à jour toutes les 30 s (`traitHeureAgenda`, `majTraitHeureAgenda`). Colonne de gauche : mini-calendrier du mois (sans légende des couleurs, étude 30/09), **panneau de détail du
-  rendez-vous choisi** (`agendaSelection`, `renderPanneauDetailAgenda` — plus de fenêtre modale sauf pour
-  la création), anticipations ; rendez-vous lus par le serveur (stock `agenda-office`, tenu à jour à la création/suppression
+  `infosRendezVousDossier`. Trait rouge de l'heure mis à jour toutes les 30 s (`traitHeureAgenda`, `majTraitHeureAgenda`). Colonne de gauche : mini-calendrier du mois (sans légende des couleurs, étude 30/09) et anticipations ;
+  **détail du rendez-vous choisi dans une fenêtre posée sur l'agenda, à côté du rendez-vous cliqué**
+  (étude, 30/09 : « dans un popup, pas à gauche » — `agendaSelection`, `renderPanneauDetailAgenda` dans
+  `#agenda-popover`, `renderPopoverAgenda`/`positionnerPopoverAgenda`, ancre `data-cle` ; feuille au bas de
+  l'écran sur téléphone ; fermée par ×, Échap ou clic ailleurs). **Vue Semaine** : nom du dossier en
+  entier sur plusieurs lignes (`lignesTitreEvenement`), puis heure de début + initiales du collaborateur
+  (+ confrère), sans heure de fin ni durée (`renderEvenementSemaine`) ; rendez-vous lus par le serveur (stock `agenda-office`, tenu à jour à la création/suppression
   depuis CLAIRE entre deux tours) ; signatures de CLAIRE absentes d'Outlook en pointillé. Agenda
   « intelligent », **sans IA, chaque point expliqué** : `probabiliteTenueSignature` (97 % moins des
   retraits pondérés par la proximité : financement, vente préalable, préemption, pièces, envois, fonds,
