@@ -6,6 +6,7 @@
 
 const express = require('express');
 const { assainirOffice, MAX_OFFICES, ID_OFFICE_ETUDE } = require('../carnetConfreres');
+const { assainirContact, MAX_CONTACTS, THEMES_REPERTOIRE } = require('../repertoire');
 
 function creerRouteurConfreres(parametresRepo) {
   const routeur = express.Router();
@@ -29,6 +30,28 @@ function creerRouteurConfreres(parametresRepo) {
     if (req.params.id === ID_OFFICE_ETUDE) return res.status(400).json({ erreur: 'Notre office reste dans le carnet.' });
     const carnet = parametresRepo.lireCarnetConfreres();
     res.json({ offices: parametresRepo.ecrireCarnetConfreres(carnet.filter((o) => o.id !== req.params.id)) });
+  });
+
+  // Répertoire (repertoire.js) : mêmes règles que le carnet — un contact à la fois, fusionné par
+  // identifiant.
+  routeur.get('/repertoire', (req, res) => {
+    res.json({ themes: THEMES_REPERTOIRE, contacts: parametresRepo.lireRepertoire() });
+  });
+
+  routeur.post('/repertoire', (req, res) => {
+    const contact = assainirContact(req.body && req.body.contact);
+    if (!contact) return res.status(400).json({ erreur: 'Contact invalide : un organisme ou une personne est nécessaire.' });
+    const contacts = parametresRepo.lireRepertoire();
+    const existe = contacts.some((c) => c.id === contact.id);
+    if (!existe && contacts.length >= MAX_CONTACTS) return res.status(400).json({ erreur: 'Répertoire plein.' });
+    contact.modifieLe = new Date().toISOString();
+    const suite = existe ? contacts.map((c) => (c.id === contact.id ? contact : c)) : contacts.concat([contact]);
+    res.json({ contacts: parametresRepo.ecrireRepertoire(suite) });
+  });
+
+  routeur.delete('/repertoire/:id', (req, res) => {
+    const contacts = parametresRepo.lireRepertoire();
+    res.json({ contacts: parametresRepo.ecrireRepertoire(contacts.filter((c) => c.id !== req.params.id)) });
   });
 
   return routeur;

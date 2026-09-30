@@ -96,3 +96,49 @@ test('GET part du relevé du 41 ; POST ajoute puis corrige un office ; DELETE le
   j = await (await appeler('/api/confreres')).json();
   assert.equal(j.offices.map((o) => o.id).join(), ID_OFFICE_ETUDE);
 });
+
+// ---- Répertoire (src/repertoire.js) : les autres interlocuteurs de l'étude, par thème ----
+const { repertoireInitial, assainirContact, THEMES_REPERTOIRE, REPERTOIRE_INITIAL } = require('../src/repertoire');
+
+test('répertoire initial : identifiants uniques, chaque contact dans un thème connu, emails bien formés', () => {
+  const contacts = repertoireInitial();
+  assert.equal(contacts.length, REPERTOIRE_INITIAL.length);
+  const themes = new Set(THEMES_REPERTOIRE.map((t) => t.cle));
+  assert.ok(contacts.every((c) => themes.has(c.theme) && (c.organisme || c.personnes.length) && c.source));
+  // Chaque email (après son éventuel libellé « … : ») est une adresse, jamais un reste de code
+  // de fusion Genapi.
+  const adresses = contacts.flatMap((c) => c.emails.map((e) => e.split(' : ').pop()));
+  assert.ok(adresses.every((a) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(a)), adresses.find((a) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(a)));
+  const valeurs = contacts.flatMap((c) => Object.values(c).flat()).filter((v) => typeof v === 'string');
+  assert.ok(!valeurs.some((v) => /[{}]/.test(v)), 'code de fusion resté dans une fiche');
+});
+
+test('assainirContact : liste blanche, thème inconnu rangé en divers, lien non http retiré', () => {
+  const c = assainirContact({ id: 'x-1', theme: 'inconnu', organisme: '  Banque  Test ', telephones: ['01 02 03 04 05', ''], liens: ['javascript:alert(1)', 'https://exemple.fr'], pirate: 1 });
+  assert.equal(c.theme, 'divers');
+  assert.equal(c.organisme, 'Banque Test');
+  assert.equal(c.telephones.join('|'), '01 02 03 04 05');
+  assert.equal(c.liens.join('|'), 'https://exemple.fr');
+  assert.equal(c.pirate, undefined);
+  assert.equal(assainirContact({ id: 'x-2', theme: 'divers' }), null);
+  assert.equal(assainirContact({ id: '../x', organisme: 'A' }), null);
+});
+
+test('routes /api/repertoire : relevé initial à la première lecture, ajout, modification, retrait', async () => {
+  let r = await appeler('/api/repertoire');
+  let j = await r.json();
+  assert.equal(j.contacts.length, REPERTOIRE_INITIAL.length);
+  assert.equal(j.themes[0].cle, 'confreres');
+  r = await appeler('/api/repertoire', 'POST', { contact: { id: 'saisie-essai', theme: 'banquesPrets', organisme: 'Banque d’essai', emails: ['pret@banque-essai.fr'] } });
+  j = await r.json();
+  assert.equal(j.contacts.length, REPERTOIRE_INITIAL.length + 1);
+  r = await appeler('/api/repertoire', 'POST', { contact: { id: 'saisie-essai', theme: 'banquesSuccessions', organisme: 'Banque d’essai' } });
+  j = await r.json();
+  assert.equal(j.contacts.find((c) => c.id === 'saisie-essai').theme, 'banquesSuccessions');
+  assert.equal(j.contacts.length, REPERTOIRE_INITIAL.length + 1);
+  r = await appeler('/api/repertoire', 'POST', { contact: { id: 'vide' } });
+  assert.equal(r.status, 400);
+  r = await appeler('/api/repertoire/saisie-essai', 'DELETE');
+  j = await r.json();
+  assert.equal(j.contacts.length, REPERTOIRE_INITIAL.length);
+});

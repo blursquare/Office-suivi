@@ -43,6 +43,7 @@ server/                              Serveur (son propre package.json ; le packa
                                      relectureClaude, relectures, extractionIa, offrePret,
                                      signatureImages — images de la signature des emails, …)
   src/carnetConfreres.js             Carnet des confrères (relevé initial des offices du 41, liste blanche)
+  src/repertoire.js                  Répertoire hors notaires (relevé du répertoire Word de l'étude, par thème)
   src/ouvertureAuto.js               Installateur du relais « claire-ouvrir: » (ouverture auto des téléchargements)
   src/jobs/rappels.js                Rappels par email (miroir serveur du planning client)
   src/nas.js, nasWatch.js            Lecture du NAS par le serveur, surveillance périodique
@@ -249,6 +250,11 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   à remplacer par le texte de l'étude dès qu'elle le fournit.
 - **Barème du simulateur de provision : jamais audité.** Indicatif seulement, jamais recopié dans
   un courrier ; le contrôle du barème de l'appel de fonds est un signal, il ne remplit rien.
+- **Répertoire** (Outils, 30/09) : thème « Confrères » = le carnet des confrères (inchangé, rapproché
+  des fiches) ; autres thèmes = `repertoire.js` (clé `repertoire-contacts`, relevé du répertoire Word
+  de l'étude du 02/09/2026, coordonnées d'organismes, jamais de client) — `THEMES_REPERTOIRE` côté
+  serveur, repli identique dans `repertoireThemes` côté client. Rien n'y est deviné : une adresse
+  douteuse du document est signalée en note, pas corrigée.
 - **Rendez-vous retiré de CLAIRE** → retiré aussi de l'agenda (et repère `rendezVousRetire` pour
   que le flux ne le remette pas). Une date saisie à la main n'est jamais écrasée par l'agenda.
 - **Apprentissage** : corrections de classification (dates, engagements) et exclusions stockées en

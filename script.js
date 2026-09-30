@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 16:38';
+  const VERSION_APP = '2026-09-30 17:11';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 17:11', resume: "Outils › Répertoire (remplace le Carnet des confrères) : les offices notariaux et une centaine de contacts repris du répertoire Word de l'étude, classés par thème — banques (prêts et mainlevées, successions), assurances et assurance-vie, retraite et aide sociale, tribunaux, impôts, mairies et urbanisme, département, agences immobilières, chambres consulaires. Recherche commune, une pastille par thème, téléphones et emails cliquables ; chaque contact se corrige, s'ajoute ou se retire sur place, pour tous les postes." },
     { version: '2026-09-30 16:38', resume: "Scans du copieur : la surveillance du dossier Scan démarre en arrière-plan dès l'ouverture de CLAIRE, sans passer par les Réglages. Si le dossier n'est pas encore joignable au démarrage (partage réseau pas prêt), CLAIRE réessaie toutes les 20 secondes jusqu'à le trouver, puis relit toutes les 2 minutes." },
     { version: '2026-09-30 16:35', resume: "Fonds reçus : un versement déjà retenu reste compté quand son fichier de reçus est supprimé du commun (icône boîte à côté du montant). Seul un fichier encore présent et relu peut retirer un versement ; un versement conservé peut être retiré à la main (croix), le retrait est noté dans l'historique." },
     { version: '2026-09-30 16:29', resume: "Suivi des dossiers : en-tête aligné sur les autres pages (surtitre « Portefeuille de l'office », titre « Suivi des dossiers » comme dans le menu), « Revérifier tous les dossiers » à côté de « + Nouveau dossier ». Nouvelle répartition des dossiers par statut (Urgent, À relier, Attente de pièces, Complet, Prêt) avec, pour chacun, le plus long retard, la pièce la plus attendue ou la prochaine signature ; un clic sur un statut filtre la liste, un second clic retire le filtre. Les chiffres suivent les filtres de la liste." },
@@ -399,6 +400,7 @@
     'alert-triangle': '<path d="M8 2.3 14.4 13.2a0.9 0.9 0 0 1-0.8 1.3H2.4a0.9 0.9 0 0 1-0.8-1.3L8 2.3Z" stroke-linejoin="round"/><line x1="8" y1="6" x2="8" y2="9.3"/><circle cx="8" cy="11.5" r="0.8" fill="currentColor" stroke="none"/>',
     'file-text': '<path d="M4 2h5.5L12 4.5V14H4Z" stroke-linejoin="round"/><path d="M9.5 2v2.5H12"/><line x1="6" y1="8" x2="10" y2="8"/><line x1="6" y1="10.5" x2="9" y2="10.5"/>',
     mail: '<rect x="1.4" y="3.5" width="13.2" height="9" rx="1.4"/><path d="M2 4.3 8 9l6-4.7"/>',
+    phone: '<path d="M4.3 1.9 5.9 4.6a1 1 0 0 1-.2 1.3l-1 .8a8 8 0 0 0 4.6 4.6l.8-1a1 1 0 0 1 1.3-.2l2.7 1.6a1 1 0 0 1 .4 1.2l-.5 1.2a1.6 1.6 0 0 1-1.7 1A11.6 11.6 0 0 1 1.9 3.8a1.6 1.6 0 0 1 1-1.7l1.2-.5a1 1 0 0 1 .2.3Z" stroke-linejoin="round"/>',
     sun: '<circle cx="8" cy="8" r="2.8"/><path d="M8 1.6v1.6M8 12.8v1.6M1.6 8h1.6M12.8 8h1.6M3.5 3.5l1.1 1.1M11.4 11.4l1.1 1.1M12.5 3.5l-1.1 1.1M4.6 11.4l-1.1 1.1"/>',
     calendar: '<rect x="1.5" y="2.8" width="13" height="11.2" rx="1.7"/><rect x="1.5" y="2.8" width="13" height="3" rx="1" fill="currentColor" opacity="0.22" stroke="none"/><line x1="4.6" y1="1.3" x2="4.6" y2="3.6"/><line x1="11.4" y1="1.3" x2="11.4" y2="3.6"/>',
     link: '<path d="M6.6 9.4 9.4 6.6"/><path d="M7 4.2 8.3 2.9a2.6 2.6 0 0 1 3.7 3.7L9.7 8"/><path d="M9 11.8 7.7 13.1a2.6 2.6 0 0 1-3.7-3.7L6.3 8"/>',
@@ -12256,19 +12258,20 @@
     if (!nom || estEtude({ nom })) return '';
     const t = officeConfrereDossier(d, cote);
     if (!t) {
-      return `<div class="confrere-carnet"><button type="button" class="bouton-ajout bouton-ajout-court" onclick="ajouterAuCarnetDepuisFiche('${escapeOnclickArg(nom)}')">Ajouter au carnet</button></div>`;
+      return `<div class="confrere-carnet"><button type="button" class="bouton-ajout bouton-ajout-court" onclick="ajouterAuCarnetDepuisFiche('${escapeOnclickArg(nom)}')">Ajouter au répertoire</button></div>`;
     }
     // L'office seul (jugé trop chargé avec téléphone et email, retour de l'étude du 29/09) : les
     // coordonnées sont dans le carnet, à un clic.
     const o = t.office;
     return `<div class="confrere-carnet">
-      <button type="button" class="confrere-carnet-office" onclick="ouvrirOfficeCarnet('${escapeOnclickArg(o.id)}')" title="Voir les coordonnées dans le carnet des confrères">${icone('book')}${escapeHtml(o.office)}${o.ville ? ` — ${escapeHtml(o.ville)}` : ''}</button>
+      <button type="button" class="confrere-carnet-office" onclick="ouvrirOfficeCarnet('${escapeOnclickArg(o.id)}')" title="Voir les coordonnées dans le répertoire">${icone('book')}${escapeHtml(o.office)}${o.ville ? ` — ${escapeHtml(o.ville)}` : ''}</button>
     </div>`;
   }
 
   function ouvrirOfficeCarnet(id) {
     const o = carnetConfreres.find(x => x.id === id);
     carnetRecherche = o ? o.office : '';
+    repertoireTheme = 'confreres';
     fermerDossierDrawer();
     definirOnglet('confreres');
   }
@@ -12279,33 +12282,248 @@
     const ville = (brut.match(/\(([^)]*)\)/) || [])[1] || '';
     const notaire = brut.replace(/\([^)]*\)/g, ' ').replace(/^\s*(ma[iî]tre|me)\.?\s+/i, '').replace(/\s+/g, ' ').trim();
     carnetRecherche = '';
+    repertoireTheme = 'confreres';
+    repertoireEdition = null;
     carnetEdition = 'nouveau';
     carnetBrouillon = { office: '', notaires: [notaire], ville: ville ? ville.charAt(0) + ville.slice(1).toLowerCase() : '' };
     fermerDossierDrawer();
     definirOnglet('confreres');
   }
 
+  // Page « Répertoire » (étude, 30/09 : « un répertoire avec les confrères et ce nouveau fichier,
+  // classé par thèmes ») : les offices du carnet des confrères forment le thème « Confrères », les
+  // autres interlocuteurs (repertoire.js côté serveur) leurs thèmes ; une recherche commune, une
+  // pastille par thème (avec son compte), puis une section par thème. Le nom de la fonction est
+  // resté celui du carnet : toutes les mises à jour du carnet redessinent la page.
   function renderCarnetConfreres() {
     const zone = document.getElementById('carnet-liste');
     if (!zone) return;
     const champ = document.getElementById('carnet-recherche');
     if (champ && champ.value !== carnetRecherche && document.activeElement !== champ) champ.value = carnetRecherche;
-    const liste = filtrerCarnet(carnetConfreres, carnetRecherche);
+    const offices = filtrerCarnet(carnetConfreres, carnetRecherche);
+    const contacts = filtrerRepertoire(repertoireContacts, carnetRecherche);
     const parOffice = dossiersParOfficeConfrere(dossiers, carnetConfreres);
+    const parTheme = {};
+    repertoireThemes.forEach(t => { parTheme[t.cle] = contacts.filter(c => c.theme === t.cle); });
+    const nombre = (cle) => (parTheme[cle] || []).length + (cle === 'confreres' ? offices.length : 0);
+    const total = offices.length + contacts.length;
+    const totalTout = carnetConfreres.length + repertoireContacts.length;
     const compte = document.getElementById('carnet-compte');
-    if (compte) {
-      compte.textContent = carnetRecherche
-        ? `${liste.length} sur ${carnetConfreres.length} offices`
-        : `${carnetConfreres.length} offices`;
+    if (compte) compte.textContent = carnetRecherche ? `${total} sur ${totalTout} contacts` : `${totalTout} contacts`;
+    const bouton = document.getElementById('repertoire-ajouter');
+    if (bouton) bouton.textContent = repertoireTheme === 'confreres' ? 'Ajouter un office' : 'Ajouter un contact';
+
+    const pastille = (cle, libelle, n) => `<button type="button" class="rep-theme${repertoireTheme === cle ? ' actif' : ''}${n ? '' : ' vide'}" aria-pressed="${repertoireTheme === cle}" onclick="choisirThemeRepertoire('${cle}')">${escapeHtml(libelle)}<span class="rep-theme-n">${n}</span></button>`;
+    const pastilles = `<div class="rep-themes" role="group" aria-label="Thèmes du répertoire">${pastille('', 'Tout', total)}${repertoireThemes.map(t => pastille(t.cle, t.libelle, nombre(t.cle))).join('')}</div>`;
+
+    const formNouveau = carnetEdition === 'nouveau' ? renderFormOfficeCarnet(carnetBrouillon || {})
+      : repertoireEdition === 'nouveau' ? renderFormContactRepertoire(repertoireBrouillon || {}) : '';
+    const sections = repertoireThemes.filter(t => !repertoireTheme || t.cle === repertoireTheme).map(t => {
+      const cartes = (t.cle === 'confreres'
+        ? offices.map(o => carnetEdition === o.id ? renderFormOfficeCarnet(o) : renderOfficeCarnet(o, parOffice[o.id] || []))
+        : []).concat(parTheme[t.cle].map(c => repertoireEdition === c.id ? renderFormContactRepertoire(c) : renderContactRepertoire(c)));
+      if (!cartes.length) return '';
+      return `<section class="rep-section">
+          <h2 class="rep-section-titre">${escapeHtml(t.libelle)}<span class="rep-section-n">${nombre(t.cle)}</span></h2>
+          <div class="carnet-liste">${cartes.join('')}</div>
+        </section>`;
+    }).join('');
+    const vide = !sections && !formNouveau
+      ? `<p class="carnet-vide">${totalTout ? 'Aucun contact ne correspond à cette recherche.' : 'Le répertoire est vide.'}</p>` : '';
+    zone.innerHTML = pastilles + (formNouveau ? `<div class="carnet-liste rep-nouveau">${formNouveau}</div>` : '') + sections + vide;
+  }
+
+  // ---- Répertoire hors offices notariaux (server/src/repertoire.js) ----
+  var repertoireContacts = [];
+  // Repli avant la réponse du serveur, qui renvoie la même liste (THEMES_REPERTOIRE).
+  var repertoireThemes = [
+    { cle: 'confreres', libelle: 'Confrères' },
+    { cle: 'banquesPrets', libelle: 'Banques — prêts et mainlevées' },
+    { cle: 'banquesSuccessions', libelle: 'Banques — successions' },
+    { cle: 'assurances', libelle: 'Assurances et assurance-vie' },
+    { cle: 'social', libelle: 'Retraite, santé et aide sociale' },
+    { cle: 'justice', libelle: 'Tribunaux et état civil' },
+    { cle: 'impots', libelle: 'Impôts et enregistrement' },
+    { cle: 'mairies', libelle: 'Mairies et urbanisme' },
+    { cle: 'departement', libelle: 'Département et services de l’État' },
+    { cle: 'immobilier', libelle: 'Agences immobilières' },
+    { cle: 'divers', libelle: 'Chambres consulaires et divers' }
+  ];
+  var repertoireTheme = '';
+  var repertoireEdition = null;
+  var repertoireBrouillon = null;
+
+  async function chargerRepertoire() {
+    try {
+      const r = await fetchAvecAuth('/api/repertoire');
+      if (!r.ok) return;
+      const j = await r.json();
+      repertoireContacts = j.contacts || [];
+      if (Array.isArray(j.themes) && j.themes.length) repertoireThemes = j.themes;
+      if (ongletActuel === 'confreres') renderCarnetConfreres();
+    } catch (e) { console.warn('Répertoire indisponible :', e.message); }
+  }
+
+  // Pure : les contacts qui répondent à tous les mots cherchés (organisme, service, personnes,
+  // adresse, téléphones, emails, notes), triés par organisme puis service.
+  function filtrerRepertoire(contacts, recherche) {
+    const mots = normaliserPourRecherche(recherche || '').split(/\s+/).filter(Boolean);
+    return (contacts || []).filter(c => {
+      if (!mots.length) return true;
+      const botte = normaliserPourRecherche([c.organisme, c.service, (c.personnes || []).join(' '), c.adresse,
+        (c.telephones || []).join(' '), (c.emails || []).join(' '), c.notes].join(' '));
+      return mots.every(m => botte.indexOf(m) !== -1);
+    }).sort((a, b) => (a.organisme || '').localeCompare(b.organisme || '', 'fr') || (a.service || '').localeCompare(b.service || '', 'fr'));
+  }
+
+  // Pure : « Mainlevée : 04 67 40 94 00 » → { libelle: 'Mainlevée', valeur: '04 67 40 94 00' }.
+  function valeurLibelleeRepertoire(v) {
+    const t = String(v || '');
+    const i = t.lastIndexOf(' : ');
+    return i === -1 ? { libelle: '', valeur: t.trim() } : { libelle: t.slice(0, i).trim(), valeur: t.slice(i + 3).trim() };
+  }
+
+  // Pure : le premier numéro appelable d'un téléphone saisi (« 02 54 95 53 04 — 06 78… » → le
+  // premier ; « 3960 » gardé), pour le lien tel:.
+  function numeroAppelable(v) {
+    const m = String(v || '').match(/\+?\d[\d .]{2,}\d/);
+    return m ? m[0].replace(/[ .]/g, '') : '';
+  }
+
+  function renderContactRepertoire(c) {
+    const lignes = [];
+    if ((c.personnes || []).length) lignes.push(`<div class="carnet-ligne">${icone('user')}<span>${c.personnes.map(escapeHtml).join(' · ')}</span></div>`);
+    if (c.adresse) lignes.push(`<div class="carnet-ligne">${icone('map-pin')}<span>${escapeHtml(c.adresse)}</span></div>`);
+    const tel = (c.telephones || []).map(t => {
+      const { libelle, valeur } = valeurLibelleeRepertoire(t);
+      const num = numeroAppelable(valeur);
+      const lien = num && !/^fax$/i.test(libelle) ? `<a href="tel:${escapeAttr(num)}">${escapeHtml(valeur)}</a>` : escapeHtml(valeur);
+      return `<span class="rep-valeur">${libelle ? `<span class="rep-libelle">${escapeHtml(libelle)}</span>` : ''}${lien}</span>`;
+    });
+    if (tel.length) lignes.push(`<div class="carnet-ligne carnet-contacts">${icone('phone')}<span class="rep-valeurs">${tel.join('')}</span></div>`);
+    const mails = (c.emails || []).map(e => {
+      const { libelle, valeur } = valeurLibelleeRepertoire(e);
+      return `<span class="rep-valeur">${libelle ? `<span class="rep-libelle">${escapeHtml(libelle)}</span>` : ''}<a href="mailto:${escapeAttr(valeur)}">${escapeHtml(valeur)}</a></span>`;
+    });
+    if (mails.length) lignes.push(`<div class="carnet-ligne carnet-contacts">${icone('mail')}<span class="rep-valeurs">${mails.join('')}</span></div>`);
+    const liens = (c.liens || []).map(l => `<a href="${escapeAttr(l)}" target="_blank" rel="noopener">${escapeHtml(l.replace(/^https?:\/\//, '').replace(/\/$/, '').slice(0, 60))}${l.length > 70 ? '…' : ''}</a>`);
+    if (liens.length) lignes.push(`<div class="carnet-ligne carnet-contacts">${icone('link')}<span class="rep-valeurs">${liens.join('')}</span></div>`);
+    if (c.notes) lignes.push(`<div class="carnet-ligne carnet-notes">${escapeHtml(c.notes)}</div>`);
+    return `<article class="carnet-office rep-contact">
+      <div class="carnet-office-tete">
+        <div class="rep-contact-titres">
+          <h3 class="carnet-office-nom">${escapeHtml(c.organisme || (c.personnes || [])[0] || '')}</h3>
+          ${c.service ? `<div class="rep-contact-service">${escapeHtml(c.service)}</div>` : ''}
+        </div>
+        <span class="carnet-office-icones">
+          <button type="button" class="ech-ico" onclick="modifierContactRepertoire('${escapeOnclickArg(c.id)}')" title="Modifier" aria-label="Modifier ce contact">${icone('pencil')}</button>
+          <button type="button" class="ech-ico ech-ico-suppr" onclick="retirerContactRepertoire('${escapeOnclickArg(c.id)}')" title="Retirer du répertoire" aria-label="Retirer ce contact du répertoire">${icone('x')}</button>
+        </span>
+      </div>
+      ${lignes.join('')}
+    </article>`;
+  }
+
+  function renderFormContactRepertoire(c) {
+    const v = x => escapeAttr(x || '');
+    const zone = (id, libelle, valeurs, ph) => `<div class="calc-champ"><label for="${id}">${libelle}</label>
+        <textarea id="${id}" rows="2" placeholder="${escapeAttr(ph)}">${escapeHtml((valeurs || []).join('\n'))}</textarea></div>`;
+    const themes = repertoireThemes.map(t => `<option value="${escapeAttr(t.cle)}"${(c.theme || repertoireTheme || 'divers') === t.cle ? ' selected' : ''}>${escapeHtml(t.libelle)}</option>`).join('');
+    return `<form class="carnet-office carnet-form" onsubmit="event.preventDefault(); validerContactRepertoire()">
+      <div class="calc-champs">
+        <div class="calc-champ-paire">
+          <div class="calc-champ"><label for="rep-f-organisme">Organisme</label>
+            <input type="text" id="rep-f-organisme" value="${v(c.organisme)}" placeholder="Crédit Agricole Val de France"></div>
+          <div class="calc-champ"><label for="rep-f-theme">Thème</label>
+            <select id="rep-f-theme">${themes}</select></div>
+        </div>
+        <div class="calc-champ"><label for="rep-f-service">Service</label>
+          <input type="text" id="rep-f-service" value="${v(c.service)}" placeholder="Service successions"></div>
+        ${zone('rep-f-personnes', 'Personnes (une par ligne)', c.personnes, 'Prénom NOM — fonction')}
+        <div class="calc-champ"><label for="rep-f-adresse">Adresse</label>
+          <input type="text" id="rep-f-adresse" value="${v(c.adresse)}" placeholder="rue, CS/BP, code postal, VILLE CEDEX"></div>
+        <div class="calc-champ-paire">
+          ${zone('rep-f-telephones', 'Téléphones (un par ligne)', c.telephones, 'Mainlevée : 01 23 45 67 89')}
+          ${zone('rep-f-emails', 'Emails (un par ligne)', c.emails, 'Service prêt : pret@banque.fr')}
+        </div>
+        ${zone('rep-f-liens', 'Liens (un par ligne)', c.liens, 'https://…')}
+        <div class="calc-champ"><label for="rep-f-notes">Notes</label>
+          <input type="text" id="rep-f-notes" value="${v(c.notes)}" placeholder="Uniquement par email, horaires…"></div>
+      </div>
+      <div class="carnet-form-actions">
+        <button type="button" class="secondary" onclick="annulerEditionRepertoire()">Annuler</button>
+        <button type="submit" class="primary" id="rep-f-valider">Enregistrer</button>
+      </div>
+    </form>`;
+  }
+
+  function choisirThemeRepertoire(cle) {
+    repertoireTheme = repertoireTheme === cle ? '' : cle;
+    renderCarnetConfreres();
+  }
+
+  function ajouterAuRepertoire() {
+    if (repertoireTheme === 'confreres') { repertoireEdition = null; nouvelOfficeCarnet(); return; }
+    carnetEdition = null;
+    repertoireEdition = 'nouveau';
+    repertoireBrouillon = { theme: repertoireTheme || '' };
+    renderCarnetConfreres();
+    const champ = document.getElementById('rep-f-organisme');
+    if (champ) champ.focus();
+  }
+
+  function modifierContactRepertoire(id) {
+    carnetEdition = null;
+    repertoireEdition = id;
+    repertoireBrouillon = null;
+    renderCarnetConfreres();
+  }
+
+  function annulerEditionRepertoire() {
+    repertoireEdition = null;
+    repertoireBrouillon = null;
+    renderCarnetConfreres();
+  }
+
+  async function validerContactRepertoire() {
+    const val = id => (document.getElementById(id) || {}).value || '';
+    const lignes = id => val(id).split(/\n+/).map(s => s.trim()).filter(Boolean);
+    const existant = repertoireEdition && repertoireEdition !== 'nouveau' ? repertoireContacts.find(c => c.id === repertoireEdition) : null;
+    const contact = Object.assign({}, existant || { id: 'saisie-' + Date.now().toString(36), source: 'Saisi par l’étude' }, {
+      theme: val('rep-f-theme'), organisme: val('rep-f-organisme').trim(), service: val('rep-f-service').trim(),
+      personnes: lignes('rep-f-personnes'), adresse: val('rep-f-adresse').trim(),
+      telephones: lignes('rep-f-telephones'), emails: lignes('rep-f-emails'), liens: lignes('rep-f-liens'), notes: val('rep-f-notes').trim()
+    });
+    if (!contact.organisme && !contact.personnes.length) { afficherToast('Indiquez au moins l’organisme ou une personne.', 'OK', null); return; }
+    const emailInvalide = contact.emails.map(e => valeurLibelleeRepertoire(e).valeur).find(e => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+    if (emailInvalide) { afficherToast(`Email non valide : ${emailInvalide}`, 'OK', null); return; }
+    const bouton = document.getElementById('rep-f-valider');
+    if (bouton) bouton.disabled = true;
+    try {
+      const r = await fetchAvecAuth('/api/repertoire', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contact }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.erreur || 'Enregistrement impossible.');
+      repertoireContacts = j.contacts || repertoireContacts;
+      repertoireEdition = null;
+      repertoireBrouillon = null;
+      renderCarnetConfreres();
+    } catch (e) {
+      if (bouton) bouton.disabled = false;
+      afficherToast(e.message, 'OK', null);
     }
-    const formNouveau = carnetEdition === 'nouveau' ? renderFormOfficeCarnet(carnetBrouillon || {}) : '';
-    if (!liste.length && !formNouveau) {
-      zone.innerHTML = `<p class="carnet-vide">${carnetConfreres.length ? 'Aucun office ne correspond à cette recherche.' : 'Le carnet est vide.'}</p>`;
-      return;
-    }
-    zone.innerHTML = formNouveau + liste.map(o => carnetEdition === o.id
-      ? renderFormOfficeCarnet(o)
-      : renderOfficeCarnet(o, parOffice[o.id] || [])).join('');
+  }
+
+  function retirerContactRepertoire(id) {
+    const c = repertoireContacts.find(x => x.id === id);
+    if (!c) return;
+    demanderConfirmation(`Retirer ${[c.organisme, c.service].filter(Boolean).join(' — ') || 'ce contact'} du répertoire ?`, async () => {
+      try {
+        const r = await fetchAvecAuth('/api/repertoire/' + encodeURIComponent(id), { method: 'DELETE' });
+        if (!r.ok) throw new Error('Retrait impossible.');
+        repertoireContacts = (await r.json()).contacts || [];
+        renderCarnetConfreres();
+      } catch (e) { afficherToast(e.message, 'OK', null); }
+    });
   }
 
   // Office au nom de son seul notaire (« Me Camille GATARD ») : la liste des notaires répéterait
@@ -12374,6 +12592,7 @@
   }
 
   function modifierOfficeCarnet(id) {
+    repertoireEdition = null;
     carnetEdition = id;
     carnetBrouillon = null;
     renderCarnetConfreres();
@@ -14412,7 +14631,7 @@
   var LIBELLES_ONGLETS = {
     dashboard: 'Tableau de bord', aujourdhui: "Aujourd'hui", nouveau: 'Nouveau dossier', suivi: 'Suivi des dossiers',
     calculateur: 'Simulateur de provision', prorata: 'Prorata & répartitions', 'appel-fonds': 'Appel de fonds',
-    inventaire: 'Arbitrage forfait mobilier', quotites: "Quotités d'acquisition", confreres: 'Carnet des confrères', 'analyse-ia': "Relecture d'actes",
+    inventaire: 'Arbitrage forfait mobilier', quotites: "Quotités d'acquisition", confreres: 'Répertoire', 'analyse-ia': "Relecture d'actes",
     reglages: 'Réglages'
   };
 
@@ -14484,7 +14703,7 @@
     // ne doit pas effacer une saisie en cours.
     if (nom === 'quotites') initQuotites();
     // Relu à chaque ouverture : un collègue a pu compléter le carnet depuis un autre poste.
-    if (nom === 'confreres') { renderCarnetConfreres(); if (authToken) chargerCarnetConfreres(); }
+    if (nom === 'confreres') { renderCarnetConfreres(); if (authToken) { chargerCarnetConfreres(); chargerRepertoire(); } }
     // Premier passage : coûts habituels posés, droits vides — le verdict et le message d'invite
     // sont posés dans la foulée (voir initInventaire / reinitialiserInventaire).
     if (nom === 'inventaire') initInventaire();

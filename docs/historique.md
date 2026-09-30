@@ -12879,3 +12879,28 @@ bureau non observée ; corrections :
   d'un partage Windows (`\\serveur\Scan`) est aussi essayée avec la barre finale, que `stat` exige
   parfois. Vérifié dans Chromium : dossier créé 3 s après l'ouverture, relié ~20 s plus tard sans
   quitter le tableau de bord. Test serveur ajouté.
+
+### 30/09 17:11 — Répertoire : confrères + répertoire Word de l'étude, par thèmes
+
+Demande : « créer un répertoire avec les confrères et ce nouveau fichier. Classe par thèmes »
+(REPERTOIRE.doc, Word 97-2003 de 13 pages, enregistré le 02/09/2026, lu avec antiword — pas commité).
+- **Page** : Outils › « Carnet des confrères » devient « Répertoire » (même onglet `confreres`, même
+  recherche). Pastilles « Tout » + un thème chacune avec son compte (suivant la recherche), puis une
+  section par thème. Thème « Confrères » = les offices du carnet, inchangés (rapprochement avec les
+  fiches, email de l'office pour les relances) + un contact isolé d'étude (clerc).
+- **Autres contacts** : `server/src/repertoire.js`, 100 fiches (une par service), clé
+  `repertoire-contacts` remplie au premier accès ; routes `GET/POST/DELETE /api/repertoire` dans
+  `routes/confreres.js` (fusion par identifiant, comme le carnet). Thèmes : banques — prêts et
+  mainlevées (21), banques — successions (23), assurances et assurance-vie (11), retraite, santé et
+  aide sociale (12), tribunaux et état civil (4), impôts et enregistrement (2), mairies et urbanisme
+  (11), département et services de l'État (3), agences immobilières (7), chambres consulaires et
+  divers (5). Classement proposé par CLAIRE, modifiable fiche par fiche (sélecteur de thème).
+- **Reprise sans rien deviner** : codes de fusion Genapi retirés ; doublons du document réunis (LCL
+  prêts, BNP Cardif, TJ/TGI de Blois — l'ancienne adresse TGI gardée en note) ; adresses douteuses
+  signalées en note (« urbanisme@romroantin.fr », « affairesgeneralesitry-mory.net ») ; contact MSA
+  parti à la retraite en note, pas en email ; deux images du document (police de l'eau, Caisse
+  d'épargne) non lues. Coordonnées professionnelles d'organismes : dépôt privé, même principe que le
+  relevé du carnet des confrères.
+- Téléphones/emails libellés (« Mainlevée : … ») ; téléphone cliquable (`numeroAppelable`), fax non.
+  Icône `phone` ajoutée au jeu `ICONES`. Vérifié dans Chromium (clair, sombre, 390 px) ; tests
+  `tests/repertoire.test.js` et `server/test/confreres.test.js`.

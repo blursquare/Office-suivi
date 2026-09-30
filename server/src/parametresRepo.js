@@ -11,6 +11,7 @@
 
 const { MODELES_MISTRAL, MODELE_MISTRAL_PAR_DEFAUT, REGIONS_MISTRAL } = require('./relecture/mistral');
 const { assainirCarnet, carnetInitial, avecOfficeEtude } = require('./carnetConfreres');
+const { assainirRepertoire, repertoireInitial } = require('./repertoire');
 
 const CLE_REGLAGES = 'reglages';
 
@@ -654,6 +655,9 @@ function assainirScansEcartes(brut) {
 // Carnet des confrères (voir carnetConfreres.js). Absent = jamais ouvert : il part alors du relevé
 // de l'annuaire du 41, écrit en base à la première lecture pour que les postes partagent la même liste.
 const CLE_CARNET_CONFRERES = 'carnet-confreres';
+// Répertoire de l'étude hors offices notariaux (voir repertoire.js) : rempli du relevé initial à
+// la première lecture.
+const CLE_REPERTOIRE = 'repertoire-contacts';
 function assainirEmailResume(e) {
   const b = e && typeof e === 'object' ? e : {};
   return {
@@ -994,10 +998,23 @@ function creerRepoParametres(db) {
     return propre;
   }
 
+  function lireRepertoire() {
+    const ligne = lireStmt.get(CLE_REPERTOIRE);
+    if (!ligne) return ecrireRepertoire(repertoireInitial());
+    try { return assainirRepertoire(JSON.parse(ligne.valeur)); } catch (e) { return []; }
+  }
+
+  function ecrireRepertoire(contacts) {
+    const propre = assainirRepertoire(contacts);
+    ecrireStmt.run(CLE_REPERTOIRE, JSON.stringify(propre));
+    return propre;
+  }
+
   return {
     lireReglagesScans, ecrireReglagesScans, lireJournalScans, ecrireJournalScans, lireScansEcartes, ecrireScansEcartes,
     lirePiecesNotifiees, ecrirePiecesNotifiees,
     lireCarnetConfreres, ecrireCarnetConfreres,
+    lireRepertoire, ecrireRepertoire,
     lireResumeEmails, ecrireResumeEmails,
     lireReglagesMiseAJour, ecrireReglagesMiseAJour,
     lireReglagesExchange, ecrireReglagesExchange,

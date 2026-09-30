@@ -125,10 +125,10 @@
         <button type="button" id="tab-quotites" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('quotites')">
           <span class="sidebar-link-icone" id="icon-nav-quotites" aria-hidden="true"></span>Quotités d'acquisition
         </button>
-        <!-- Carnet des confrères : les offices notariaux avec qui l'étude traite (notaires, adresse,
-             téléphone, email), partagé en base — voir server/src/carnetConfreres.js. -->
+        <!-- Répertoire : offices notariaux (carnet des confrères, server/src/carnetConfreres.js) et
+             autres interlocuteurs de l'étude par thème (server/src/repertoire.js), partagés en base. -->
         <button type="button" id="tab-confreres" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('confreres')">
-          <span class="sidebar-link-icone" id="icon-nav-confreres" aria-hidden="true"></span>Carnet des confrères
+          <span class="sidebar-link-icone" id="icon-nav-confreres" aria-hidden="true"></span>Répertoire
         </button>
       </div>
 
@@ -1442,29 +1442,29 @@
   </section>
 </div>
 
-<!-- Carnet des confrères — voir renderCarnetConfreres (script.js). Parti du relevé de l'annuaire
-     du Loir-et-Cher, complété par l'étude ; la fiche d'un dossier rapproche chaque notaire de son
-     office (trouverOfficeConfrere). -->
+<!-- Répertoire (étude, 30/09) — voir renderCarnetConfreres (script.js). Thème « Confrères » = le
+     carnet des confrères (relevé de l'annuaire du 41, la fiche d'un dossier rapproche chaque notaire
+     de son office, trouverOfficeConfrere) ; les autres thèmes = le répertoire Word de l'étude
+     (server/src/repertoire.js). -->
 <div class="onglet-panel" id="onglet-confreres" style="display:none;">
   <div class="dash-header">
     <div>
       <div class="dash-eyebrow">Outils</div>
       <div class="dash-titre-ligne">
-        <h1 class="dash-titre">Carnet des confrères</h1>
+        <h1 class="dash-titre">Répertoire <span class="info-i" tabindex="0" data-info="Confrères : notre office, puis les offices du Loir-et-Cher relevés le 29/09/2026 sur l'annuaire public immonot. Autres thèmes : le répertoire Word de l'étude (02/09/2026). Partagé entre les postes : une correction faite ici vaut pour tous, à vérifier au fil des dossiers."></span></h1>
       </div>
     </div>
     <div class="dash-header-actions">
-      <button type="button" class="bouton-ajout" onclick="nouvelOfficeCarnet()">Ajouter un office</button>
+      <button type="button" class="bouton-ajout" id="repertoire-ajouter" onclick="ajouterAuRepertoire()">Ajouter un contact</button>
     </div>
   </div>
   <div class="carnet-outils">
     <div class="dash-recherche carnet-recherche">
-      <input type="search" id="carnet-recherche" placeholder="Rechercher un notaire, un office, une ville…" oninput="rechercherCarnet(this.value)" autocomplete="off" aria-label="Rechercher dans le carnet">
+      <input type="search" id="carnet-recherche" placeholder="Rechercher un organisme, un nom, une ville, un email…" oninput="rechercherCarnet(this.value)" autocomplete="off" aria-label="Rechercher dans le répertoire">
     </div>
     <span class="carnet-compte" id="carnet-compte"></span>
   </div>
-  <p class="carnet-source">Notre office, puis les offices du Loir-et-Cher relevés le 29/09/2026 sur l'annuaire public immonot. À vérifier au fil des dossiers.</p>
-  <div id="carnet-liste" class="carnet-liste"></div>
+  <div id="carnet-liste" class="rep-page"></div>
 </div>
 
 <!-- Réglages : URL du flux Power Automate + adresse email de chaque responsable (voir
