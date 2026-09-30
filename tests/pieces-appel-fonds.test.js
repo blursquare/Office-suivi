@@ -194,3 +194,76 @@ test('lignesAvecPositionsDepuisItems garde l’abscisse de chaque item et le tex
   assert.equal(lignes[0].items.map(i => i.x).join(','), '20,490');
   assert.equal(app.lignesDepuisItemsPdf(items).join('|'), '22/07/2026 500,00|Solde');
 });
+
+// Page 2 d'un avis portant sur deux biens, positions reprises de l'avis réel reçu le 30/09 (y
+// croissant vers le haut) ; adresses et montants inventés. Colonnes de gauche : taux et bases ;
+// colonne de droite (x ≈ 540) : la cotisation de chaque bien, puis la somme des biens ; « 60 » =
+// frais de gestion imprimés à part ; en bas à droite, le montant de l'impôt.
+function itemsAvisDeuxBiens() {
+  return [
+    { str: 'ABCDEF', x: 13, y: 788 },
+    { str: '40,40', x: 130, y: 672 }, { str: '1,00', x: 266, y: 672 }, { str: '14,38', x: 394, y: 672 },
+    { str: '5 RUE DES LILAS', x: 116, y: 640 },
+    { str: '1310', x: 133, y: 626 }, { str: '1310', x: 264, y: 626 }, { str: '1310', x: 397, y: 626 },
+    { str: '530', x: 138, y: 610 }, { str: '12', x: 274, y: 610 }, { str: '158', x: 402, y: 610 }, { str: '700', x: 540, y: 610 },
+    { str: '12 ALL DES MESANGES', x: 116, y: 578 },
+    { str: '930', x: 133, y: 562 }, { str: '930', x: 264, y: 562 }, { str: '930', x: 397, y: 562 },
+    { str: '376', x: 138, y: 546 }, { str: '9', x: 274, y: 546 }, { str: '115', x: 402, y: 546 }, { str: '500', x: 540, y: 546 },
+    { str: '1200', x: 535, y: 498 },
+    { str: '60', x: 549, y: 245 },
+    { str: 'Pour assurer la compensation à l\'euro près de la suppression de la taxe d\'habitation', x: 15, y: 250 },
+    { str: '1260', x: 538, y: 140 },
+    { str: 'Références administratives : 410 01 000 000 000 000 D R', x: 15, y: 133 }
+  ];
+}
+
+test('biensAvisTaxeFonciere lit chaque bien, sa cotisation et les frais de gestion de l\'avis', () => {
+  const app = chargerApplication();
+  const r = app.biensAvisTaxeFonciere(itemsAvisDeuxBiens());
+  assert.equal(r.biens.map(b => `${b.adresse}=${b.tf}`).join(' | '), '5 RUE DES LILAS=700 | 12 ALL DES MESANGES=500');
+  assert.equal(r.impot, 1260);
+  assert.equal(r.fraisGestion, 60);
+  // Produit en croix : 700 + 60 × 700 / 1 200 = 735 ; 500 + 25 = 525.
+  assert.equal(app.montantTfBienAvecFrais(700, 1200, r.fraisGestion).total, 735);
+  assert.equal(app.montantTfBienAvecFrais(500, 1200, r.fraisGestion).total, 525);
+});
+
+test('biensAvisTaxeFonciere : un seul bien, le montant de l\'impôt reste celui de l\'avis', () => {
+  const app = chargerApplication();
+  const items = [
+    { str: '8 IMP DES CHARMES', x: 116, y: 640 },
+    { str: '2150', x: 133, y: 626 }, { str: '870', x: 540, y: 610 },
+    { str: '51', x: 549, y: 245 },
+    { str: '921', x: 538, y: 140 }
+  ];
+  const r = app.biensAvisTaxeFonciere(items);
+  assert.equal(r.biens.length, 1);
+  assert.equal(r.impot, 921);
+  assert.equal(r.fraisGestion, 0);
+  assert.deepEqual(JSON.parse(JSON.stringify(app.biensAvisTaxeFonciere([]))), { biens: [], impot: null, fraisGestion: 0 });
+});
+
+test('bienAvisPourAdresse retrouve le bien vendu d\'après l\'adresse du dossier', () => {
+  const app = chargerApplication();
+  const biens = [{ adresse: '5 RUE DES LILAS', tf: 700 }, { adresse: '12 ALL DES MESANGES', tf: 500 }];
+  assert.equal(app.bienAvisPourAdresse(biens, 'VINEUIL (41350), 12 allée des Mésanges'), 1);
+  assert.equal(app.bienAvisPourAdresse(biens, '5 rue des Lilas, 41000 BLOIS'), 0);
+  // Même voie, autre numéro ; adresse vide ; deux biens au même numéro et même voie : rien n'est choisi.
+  assert.equal(app.bienAvisPourAdresse(biens, '7 rue des Lilas'), null);
+  assert.equal(app.bienAvisPourAdresse(biens, ''), null);
+  assert.equal(app.bienAvisPourAdresse([...biens, { adresse: '5 RUE DES LILAS', tf: 10 }], '5 rue des Lilas'), null);
+});
+
+test('destinationPieceDeposee : chaque pièce déposée va à son lecteur, ou nulle part', () => {
+  const app = chargerApplication();
+  assert.equal(app.destinationPieceDeposee('af', 'avisTaxeFonciere'), 'tf');
+  assert.equal(app.destinationPieceDeposee('af', 'appelCharges'), 'charges');
+  assert.equal(app.destinationPieceDeposee('af', 'etatDate'), 'etatDate');
+  assert.equal(app.destinationPieceDeposee('af', 'releveCompte'), 'releve');
+  assert.equal(app.destinationPieceDeposee('prorata', 'avisTaxeFonciere'), 'tf');
+  assert.equal(app.destinationPieceDeposee('prorata', 'appelCharges'), 'charges');
+  assert.equal(app.destinationPieceDeposee('prorata', 'etatDate'), null);
+  assert.equal(app.destinationPieceDeposee('af', 'offrePret'), null);
+  assert.equal(app.destinationPieceDeposee('af', null), null);
+  assert.equal(app.destinationPieceDeposee('autre', 'avisTaxeFonciere'), null);
+});

@@ -780,12 +780,13 @@
   <div class="dash-grid">
     <div class="calc-card">
       <div class="dash-section-titre">Somme à répartir</div>
-      <div class="tf-import">
-        <label for="prorata-avis-tf" class="file-btn">Lire un avis de taxe foncière</label>
+      <div class="tf-import" ondragover="survolDepotPieces(event)" ondragleave="quitteDepotPieces(event)" ondrop="deposerPiecesOutil(event, 'prorata')">
+        <label for="prorata-avis-tf" class="file-btn" data-piece="tf">Lire un avis de taxe foncière</label>
         <input type="file" id="prorata-avis-tf" accept="application/pdf" hidden onchange="importerAvisTaxeFonciere('prorata', this.files && this.files[0]); this.value='';">
-        <label for="prorata-appel-charges" class="file-btn">Lire un appel de charges</label>
+        <label for="prorata-appel-charges" class="file-btn" data-piece="charges">Lire un appel de charges</label>
         <input type="file" id="prorata-appel-charges" accept="application/pdf" hidden onchange="importerAppelChargesProrata(this.files && this.files[0]); this.value='';">
-        <span class="info-i" tabindex="0" data-info="Avis de taxe foncière : le montant est lu en page 1 (« Montant de vos taxes foncières ») et contrôlé en bas à droite de la page 2 ; si l'avis porte sur plusieurs biens, indiquez la taxe foncière du bien vendu, la taxe d'ordures ménagères est répartie au prorata puis ajoutée. Appel de charges : le montant et la période appelée sont repris, hors cotisation au fonds de travaux (attachée au lot)."></span>
+        <span class="info-i" tabindex="0" data-info="Avis de taxe foncière : le montant est lu en page 1 (« Montant de vos taxes foncières ») et contrôlé en bas à droite de la page 2 ; si l'avis porte sur plusieurs biens, choisissez le bien vendu : les frais de gestion de la fiscalité directe locale sont répartis au prorata de la taxe foncière de chaque bien, puis ajoutés. Appel de charges : le montant et la période appelée sont repris, hors cotisation au fonds de travaux (attachée au lot). Les PDF peuvent aussi être glissés ici : leur type est reconnu sur la première page."></span>
+        <span class="tf-import-depot">ou glissez les PDF ici</span>
       </div>
       <div id="prorata-tf-bloc" class="tf-bloc"></div>
       <div id="prorata-charges-bloc" class="tf-bloc"></div>
@@ -896,16 +897,17 @@
         <button type="button" class="vue-bascule-btn" id="af-mode-btn-confrere" onclick="definirModeDecompteAppelFonds('confrere')">Décompte du confrère</button>
       </div>
       <div id="af-mode-office" class="af-mode-panneau">
-        <div class="tf-import">
-          <label for="af-avis-tf" class="file-btn">Avis de taxe foncière</label>
+        <div class="tf-import" ondragover="survolDepotPieces(event)" ondragleave="quitteDepotPieces(event)" ondrop="deposerPiecesOutil(event, 'af')">
+          <label for="af-avis-tf" class="file-btn" data-piece="tf">Avis de taxe foncière</label>
           <input type="file" id="af-avis-tf" accept="application/pdf" hidden onchange="importerAvisTaxeFonciere('af', this.files && this.files[0]); this.value='';">
-          <label for="af-appel-charges" class="file-btn">Appel de charges</label>
+          <label for="af-appel-charges" class="file-btn" data-piece="charges">Appel de charges</label>
           <input type="file" id="af-appel-charges" accept="application/pdf" hidden onchange="importerPieceAppelFonds('charges', this.files && this.files[0]); this.value='';">
-          <label for="af-etat-date" class="file-btn">État daté</label>
+          <label for="af-etat-date" class="file-btn" data-piece="etatDate">État daté</label>
           <input type="file" id="af-etat-date" accept="application/pdf" hidden onchange="importerPieceAppelFonds('etatDate', this.files && this.files[0]); this.value='';">
-          <label for="af-releve-compte" class="file-btn">Relevé de compte client</label>
+          <label for="af-releve-compte" class="file-btn" data-piece="releve">Relevé de compte client</label>
           <input type="file" id="af-releve-compte" accept="application/pdf" hidden onchange="importerPieceAppelFonds('releve', this.files && this.files[0]); this.value='';">
-          <span class="info-i" tabindex="0" data-info="Chaque pièce ajoute ou remplit une ligne du décompte : l'avis de taxe foncière et l'appel de charges donnent le prorata à la charge de l'acquéreur (du jour du rendez-vous à la fin de la période), l'état daté le fonds de travaux attaché au lot (repris seulement si l'avant-contrat prévoit son remboursement), le relevé de compte client les sommes déjà versées à l'étude. Honoraires de négociation et prêt hypothécaire sont repris du dossier rattaché."></span>
+          <span class="info-i" tabindex="0" data-info="Chaque pièce ajoute ou remplit une ligne du décompte : l'avis de taxe foncière et l'appel de charges donnent le prorata à la charge de l'acquéreur (du jour du rendez-vous à la fin de la période), l'état daté le fonds de travaux attaché au lot (repris seulement si l'avant-contrat prévoit son remboursement), le relevé de compte client les sommes déjà versées à l'étude. Avis portant sur plusieurs biens : choisissez le bien vendu, les frais de gestion de l'avis sont répartis au prorata. Honoraires de négociation et prêt hypothécaire sont repris du dossier rattaché. Les PDF peuvent aussi être glissés ici, plusieurs à la fois : leur type est reconnu sur la première page."></span>
+          <span class="tf-import-depot">ou glissez les PDF ici</span>
         </div>
         <div id="af-tf-bloc" class="tf-bloc"></div>
         <div id="af-charges-bloc" class="tf-bloc"></div>

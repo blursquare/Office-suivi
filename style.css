@@ -6598,6 +6598,19 @@ button.confrere-carnet-office:focus-visible, button.carnet-dossier:focus-visible
 .tf-case { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-soft); margin: 0 0 6px; }
 .tf-case input { margin: 0; }
 .tf-multi-champs { margin-top: 8px; }
+/* Glisser-déposer des pièces (30/09) : la ligne de boutons est la zone de dépôt. */
+.tf-import { border: 1px dashed transparent; border-radius: 8px; padding: 4px; margin-left: -5px; margin-right: -5px; transition: border-color 0.15s, background 0.15s; }
+.tf-import.survol { border-color: var(--focus); background: var(--acte-bg); }
+.tf-import-depot { font-size: 12px; color: var(--muted); }
+/* Avis portant sur plusieurs biens : un choix par bien. */
+.tf-biens { display: flex; flex-direction: column; gap: 6px; margin: 0 0 8px; }
+.tf-biens > .hint { margin: 0; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.tf-bien-choix { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 8px; row-gap: 2px; align-items: baseline; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; font-size: 13px; }
+.tf-bien-choix > * { min-width: 0; }
+.tf-bien-choix:has(input:checked) { border-color: var(--focus); background: var(--acte-bg); }
+.tf-bien-choix input { margin: 0; grid-row: span 2; align-self: center; }
+.tf-bien-adresse { font-weight: 500; color: var(--ink); overflow-wrap: anywhere; }
+.tf-bien-montant { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .af-mode-decompte { margin: 6px 0 12px; }
 .af-mode-panneau { margin-bottom: 4px; }
 .af-mode-aide { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-soft); margin-bottom: 8px; }

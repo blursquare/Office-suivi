@@ -51,10 +51,13 @@ for (const fichier of fichiers) {
 
   console.log(`\n===== ${path.basename(fichier)} — ${pdf.numPages} page(s), ${lignes.length} ligne(s) de texte`);
   if (avecLignes) { lignes.forEach((l, i) => console.log(String(i + 1).padStart(4), l)); console.log(''); }
+  const typePage1 = app.typePieceScan(app.enTeteScan(app.lignesDepuisItemsPdf(pages[0] || []).join('\n')));
   const resultats = {
+    typePiece: typePage1 ? typePage1.cle : null,
     avisTaxeFonciere: {
       enTete: app.montantAvisTaxeFonciereEnTete(app.lignesDepuisItemsPdf(pages[0])),
-      basDroitePage2: pages[1] ? app.montantBasDroitePage(xy(pages[1])) : null
+      basDroitePage2: pages[1] ? app.montantBasDroitePage(xy(pages[1])) : null,
+      biens: pages[1] ? app.biensAvisTaxeFonciere(xy(pages[1])) : null
     },
     appelCharges: app.analyserAppelCharges(texte),
     etatDate: app.fondsTravauxDepuisEtatDate(texte),

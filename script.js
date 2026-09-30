@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 16:13';
+  const VERSION_APP = '2026-09-30 16:24';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 16:24', resume: "Avis de taxe foncière portant sur plusieurs biens : CLAIRE lit chaque bien et sa taxe foncière en page 2 et demande lequel est vendu (présélectionné dans l'appel de fonds quand l'adresse du dossier le désigne). Les frais de gestion de la fiscalité directe locale de l'avis sont répartis au prorata de la taxe de chaque bien (produit en croix) et ajoutés à celle du bien vendu. Appel de fonds et Prorata : les pièces peuvent être glissées sur la ligne des boutons, plusieurs à la fois — leur type est reconnu sur la première page." },
     { version: '2026-09-30 16:13', resume: "Offre de prêt : la garantie est lue aussi quand le paragraphe s'intitule « 5 LES GARANTIES » (offres CIC) — une caution Crédit Logement s'affiche désormais sur la ligne « Obtention du prêt ». Le montant du prêt est lu aussi sous la forme « Le montant du crédit est de : … » (plusieurs prêts additionnés). Pour un dossier existant : « Revérifier » sur la fiche." },
     { version: '2026-09-30 15:53', resume: "Notifications Teams des pièces : une même pièce (même dossier, même fichier) n'est plus notifiée deux fois. Deux fenêtres CLAIRE qui relisaient le même dossier, ou une pièce qui repassait un instant « manquante », envoyaient un second message. Une pièce renouvelée (autre fichier) est toujours signalée." },
     { version: '2026-09-30 15:45', resume: "Tableau de bord, carte « Dernières pièces » : sous les pièces réceptionnées, les scans du copieur à ranger (un clic ouvre « Scans à ranger ») puis les scans rangés ces 14 derniers jours (un clic ouvre le dossier). En petit format, la carte affiche le nombre de scans à ranger." },
@@ -28786,7 +28787,9 @@
   // « Le montant est toujours en bas à droite, en fin de page deux. » Pure : parmi les items pdf.js
   // de la page ({ str, x, y }, y croissant vers le haut), le montant le plus bas, puis le plus à
   // droite. Un montant est un nombre avec centimes, ou suivi de « € » (l'avis arrondit à l'euro).
-  var RE_ITEM_MONTANT_AVIS = /^(\d{1,3}(?:[ .\u00a0\u202f]\d{3})*)(,\d{2})?\s*(€)?$/;
+  // Entier nu de 4 à 6 chiffres admis aussi (« 1530 » en bas de l'avis 2025 : sans lui, les « 64 »
+  // de frais de gestion, plus haut, étaient retenus comme montant de l'avis).
+  var RE_ITEM_MONTANT_AVIS = /^(\d{1,3}(?:[ .\u00a0\u202f]\d{3})*|\d{4,6})(,\d{2})?\s*(€)?$/;
   // Sur l'avis réel de 2026 (SDIF de Loir-et-Cher), le total en bas à droite de la page 2 est un
   // entier nu, « 921 », sans centimes ni € : un entier d'au moins 10 € et d'au plus six chiffres,
   // sans zéro de tête, est donc un candidat (jamais un numéro de téléphone ni un « 0 » de colonne).
@@ -28809,14 +28812,63 @@
     return bas.reduce((a, b) => (b.x > a.x ? b : a)).n;
   }
 
-  // Pure : avis portant sur plusieurs biens — la taxe d'ordures ménagères de l'avis est répartie au
-  // prorata de la taxe foncière de chaque bien (règle de l'étude, 29/09), puis ajoutée à celle du
-  // bien vendu.
-  function montantTfBienAvecTeom(tfBien, tfTotale, teomTotale) {
-    const bien = Number(tfBien), total = Number(tfTotale), teom = Number(teomTotale) || 0;
+  // Pure : avis portant sur plusieurs biens (étude, 30/09 — remplace la règle du 29/09 sur les
+  // ordures ménagères, déjà comprises dans la cotisation de chaque bien) : les « frais de gestion de
+  // la fiscalité directe locale », portés une seule fois pour tout l'avis, sont répartis par produit
+  // en croix au prorata de la taxe foncière de chaque bien, puis ajoutés à celle du bien vendu.
+  // Ex. 838 + 64 × 838 / 1 466 = 874,58 €.
+  function montantTfBienAvecFrais(tfBien, tfTousBiens, fraisGestion) {
+    const bien = Number(tfBien), total = Number(tfTousBiens), frais = Number(fraisGestion) || 0;
     if (!(bien > 0) || !(total > 0) || bien > total) return null;
-    const partTeom = Math.round(teom * bien / total * 100) / 100;
-    return { tf: bien, teom: partTeom, total: Math.round((bien + partTeom) * 100) / 100 };
+    const partFrais = Math.round(frais * bien / total * 100) / 100;
+    return { tf: bien, frais: partFrais, total: Math.round((bien + partFrais) * 100) / 100 };
+  }
+
+  // Pure : les biens d'un avis de taxe foncière, lus en page 2 par position (les libellés
+  // « Adresse », « Cotisation », « Frais de gestion »… sont dessinés, absents du texte). Chaque
+  // adresse est suivie, dans la colonne de droite « Total des cotisations », du montant du bien ;
+  // en bas à droite, « Montant de votre impôt » (montantBasDroitePage). Frais de gestion = impôt −
+  // somme des biens (le « 64 » de l'avis réel). `items` : [{str, x, y}], y croissant vers le haut.
+  var RE_ADRESSE_BIEN_AVIS = /[A-Za-zÀ-ÿ]{2}/;
+  function biensAvisTaxeFonciere(items) {
+    const liste = (items || []).filter(it => it && typeof it.str === 'string' && it.str.trim());
+    const montants = liste.map(it => {
+      const m = RE_ITEM_MONTANT_AVIS.exec(it.str.trim());
+      return m ? { n: montantDepuisTexteFr(m[1] + (m[2] || '')), x: it.x, y: it.y } : null;
+    }).filter(c => c && c.n > 0);
+    const impot = montantBasDroitePage(liste);
+    if (!montants.length) return { biens: [], impot, fraisGestion: 0 };
+    const xDroite = Math.max(...montants.map(c => c.x));
+    const colonneDroite = montants.filter(c => c.x > xDroite - 40);
+    // Adresse d'un bien : texte à gauche, suivi (plus bas, à moins de 60 points) d'un montant dans
+    // la colonne de droite — ce qui écarte le nom du propriétaire, les notes et les en-têtes.
+    const adresses = liste.filter(it => RE_ADRESSE_BIEN_AVIS.test(it.str) && it.x > 40 && it.x < xDroite - 150 && !/[:€]/.test(it.str))
+      .sort((a, b) => b.y - a.y);
+    const biens = [];
+    adresses.forEach((a, i) => {
+      const suivante = adresses[i + 1];
+      const montant = colonneDroite
+        .filter(c => c.y < a.y && c.y > a.y - 60 && (!suivante || c.y > suivante.y))
+        .sort((c1, c2) => c2.y - c1.y)[0];
+      if (montant) biens.push({ adresse: a.str.replace(/\s+/g, ' ').trim(), tf: montant.n });
+    });
+    const somme = biens.reduce((t, b) => t + b.tf, 0);
+    const fraisGestion = biens.length > 1 && impot > somme ? Math.round((impot - somme) * 100) / 100 : 0;
+    return { biens, impot, fraisGestion };
+  }
+
+  // Pure : le bien de l'avis qui correspond à l'adresse du dossier — même numéro et un mot de la voie
+  // en commun (« 2 ALL DES VANNEAUX » ↔ « 2 allée des Vanneaux ») ; null si aucun ou plusieurs.
+  function bienAvisPourAdresse(biens, adresseDossier) {
+    const mots = (s) => normaliserPourRecherche(String(s || '')).replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter(Boolean);
+    const cible = mots(adresseDossier);
+    if (!cible.length) return null;
+    const vides = new Set(['rue', 'route', 'allee', 'all', 'avenue', 'av', 'chemin', 'impasse', 'place', 'bd', 'boulevard', 'de', 'des', 'du', 'la', 'le', 'les', 'st', 'saint']);
+    const trouves = (biens || []).map((b, i) => ({ b, i, m: mots(b.adresse) })).filter(({ m }) => {
+      const numero = m.find(x => /^\d+$/.test(x));
+      return numero && cible.includes(numero) && m.some(x => !/^\d+$/.test(x) && !vides.has(x) && x.length > 2 && cible.includes(x));
+    });
+    return trouves.length === 1 ? trouves[0].i : null;
   }
 
   // Pure : la ligne « prorata de taxe foncière » d'un décompte acquéreur — du jour de l'acte (inclus)
@@ -29583,7 +29635,8 @@
     const contenu = await page.getTextContent();
     const items = contenu.items.map(it => ({ str: it.str, x: it.transform[4], y: it.transform[5] }));
     const basDroite = montantBasDroitePage(items);
-    return { montant: enTete || basDroite, enTete, basDroite, pages: pdf.numPages };
+    const detail = biensAvisTaxeFonciere(items);
+    return { montant: enTete || basDroite, enTete, basDroite, pages: pdf.numPages, biens: detail.biens, fraisGestion: detail.fraisGestion };
   }
 
   async function importerAvisTaxeFonciere(cible, fichier) {
@@ -29596,6 +29649,16 @@
       } else {
         const divergence = lu.enTete && lu.basDroite && Math.abs(lu.enTete - lu.basDroite) > 0.5;
         tfAvis[cible] = { fichier: fichier.name, montantAvis: lu.montant, retenu: lu.montant, enTete: lu.enTete, basDroite: lu.basDroite, divergence };
+        // Plusieurs biens sur l'avis : rien n'est retenu tant que le bien vendu n'est pas choisi
+        // (étude, 30/09 : « si deux biens demander lequel prendre ») — sauf si l'adresse du dossier
+        // de l'appel de fonds désigne sans doute l'un d'eux.
+        if (lu.biens && lu.biens.length > 1) {
+          const t = tfAvis[cible];
+          t.biens = lu.biens; t.fraisGestion = lu.fraisGestion;
+          const d = cible === 'af' && afDossierLie ? (dossiers || []).find(x => x.id === afDossierLie) : null;
+          const i = d ? bienAvisPourAdresse(lu.biens, d.adresseBien) : null;
+          choisirBienAvis(cible, i, true);
+        }
       }
     } catch (e) {
       console.error(e);
@@ -29614,7 +29677,7 @@
       zone.innerHTML = `<p class="hint">${icone('alert-triangle')} ${escapeHtml(t.fichier)} : montant introuvable en bas de la page 2 — saisissez-le.</p>`;
       return;
     }
-    const retenu = t.retenu !== t.montantAvis
+    const retenu = t.retenu && t.retenu !== t.montantAvis
       ? ` · retenu : <strong>${formaterPrixCentimes(t.retenu)}</strong>` : '';
     const divergence = t.divergence
       ? `<p class="hint">${icone('alert-triangle')} Page 1 : ${escapeHtml(formaterPrixCentimes(t.enTete))} · bas de la page 2 : ${escapeHtml(formaterPrixCentimes(t.basDroite))} — le montant de la page 1 est retenu, à vérifier sur l'avis.</p>`
@@ -29622,31 +29685,59 @@
     zone.innerHTML = `
       <p class="hint tf-lu">${escapeHtml(t.fichier)} : <strong>${formaterPrixCentimes(t.montantAvis)}</strong>${retenu}
         <button type="button" class="icon-btn" onclick="effacerTaxeFonciere('${cible}')" title="Retirer l'avis" aria-label="Retirer l'avis">${icone('x')}</button></p>${divergence}
-      <details class="tf-multi"${t.multi ? ' open' : ''}>
+      ${t.biens && t.biens.length > 1 ? renderChoixBienAvis(cible, t) : `<details class="tf-multi"${t.multi ? ' open' : ''}>
         <summary>L'avis porte sur plusieurs biens</summary>
         <div class="calc-champs tf-multi-champs">
           <div class="calc-champ"><label for="${cible}-tf-bien">Taxe foncière du bien vendu (€)</label>
             <input type="text" inputmode="decimal" id="${cible}-tf-bien" value="${t.tfBien ? escapeAttr(String(t.tfBien).replace('.', ',')) : ''}" oninput="majTaxeFonciereMulti('${cible}')"></div>
           <div class="calc-champ"><label for="${cible}-tf-total">Taxe foncière de tous les biens (€)</label>
             <input type="text" inputmode="decimal" id="${cible}-tf-total" value="${t.tfTotal ? escapeAttr(String(t.tfTotal).replace('.', ',')) : ''}" oninput="majTaxeFonciereMulti('${cible}')"></div>
-          <div class="calc-champ"><label for="${cible}-tf-teom">Ordures ménagères de l'avis (€)</label>
-            <input type="text" inputmode="decimal" id="${cible}-tf-teom" value="${t.teom ? escapeAttr(String(t.teom).replace('.', ',')) : ''}" oninput="majTaxeFonciereMulti('${cible}')"></div>
+          <div class="calc-champ"><label for="${cible}-tf-frais">Frais de gestion de l'avis (€)</label>
+            <input type="text" inputmode="decimal" id="${cible}-tf-frais" value="${t.frais ? escapeAttr(String(t.frais).replace('.', ',')) : ''}" oninput="majTaxeFonciereMulti('${cible}')"></div>
         </div>
         <p class="hint" id="${cible}-tf-multi-resultat"></p>
-      </details>`;
-    majTaxeFonciereMulti(cible, true);
+      </details>`}`;
+    if (!(t.biens && t.biens.length > 1)) majTaxeFonciereMulti(cible, true);
+  }
+
+  // Choix du bien vendu quand l'avis en porte plusieurs : une ligne par bien, avec sa taxe foncière
+  // et le montant retenu (sa part des frais de gestion ajoutée).
+  function renderChoixBienAvis(cible, t) {
+    const lignes = t.biens.map((b, i) => {
+      const r = montantTfBienAvecFrais(b.tf, t.biens.reduce((s, x) => s + x.tf, 0), t.fraisGestion);
+      return `<label class="tf-bien-choix"><input type="radio" name="${cible}-tf-bien-choix" value="${i}"${t.bienChoisi === i ? ' checked' : ''} onchange="choisirBienAvis('${cible}', ${i})">
+        <span class="tf-bien-adresse">${escapeHtml(b.adresse)}</span>
+        <span class="tf-bien-montant">${formaterPrixCentimes(b.tf)}${r && r.frais ? ` + ${formaterPrixCentimes(r.frais)} de frais = <strong>${formaterPrixCentimes(r.total)}</strong>` : ''}</span></label>`;
+    }).join('');
+    return `<div class="tf-biens">
+        <p class="hint">${t.bienChoisi === null || t.bienChoisi === undefined ? `${icone('alert-triangle')} ` : ''}L'avis porte sur ${t.biens.length} biens : lequel est vendu ?
+          ${infoBulle(`Frais de gestion de la fiscalité directe locale (${formaterPrixCentimes(t.fraisGestion || 0)}) répartis au prorata de la taxe foncière de chaque bien, puis ajoutés à celle du bien vendu.`)}</p>
+        ${lignes}
+      </div>`;
+  }
+
+  function choisirBienAvis(cible, index, sansRendu) {
+    const t = tfAvis[cible];
+    if (!t || !t.biens) return;
+    const b = Number.isInteger(index) ? t.biens[index] : null;
+    t.bienChoisi = b ? index : null;
+    const r = b ? montantTfBienAvecFrais(b.tf, t.biens.reduce((s, x) => s + x.tf, 0), t.fraisGestion) : null;
+    t.retenu = r ? r.total : null;
+    if (sansRendu) return;
+    renderBlocTaxeFonciere(cible);
+    appliquerTaxeFonciere(cible);
   }
 
   function majTaxeFonciereMulti(cible, sansAppliquer) {
     const t = tfAvis[cible];
     if (!t) return;
     const lire = (id) => { const e = document.getElementById(`${cible}-tf-${id}`); return e ? montantDepuisTexteFr(e.value) : null; };
-    t.tfBien = lire('bien'); t.tfTotal = lire('total'); t.teom = lire('teom');
-    const r = montantTfBienAvecTeom(t.tfBien, t.tfTotal, t.teom);
-    t.multi = !!(t.tfBien || t.tfTotal || t.teom);
+    t.tfBien = lire('bien'); t.tfTotal = lire('total'); t.frais = lire('frais');
+    const r = montantTfBienAvecFrais(t.tfBien, t.tfTotal, t.frais);
+    t.multi = !!(t.tfBien || t.tfTotal || t.frais);
     const sortie = document.getElementById(`${cible}-tf-multi-resultat`);
     if (sortie) sortie.innerHTML = r
-      ? `Montant retenu : <strong>${formaterPrixCentimes(r.total)}</strong> (taxe foncière ${formaterPrixCentimes(r.tf)} + ordures ménagères ${formaterPrixCentimes(r.teom)})`
+      ? `Montant retenu : <strong>${formaterPrixCentimes(r.total)}</strong> (taxe foncière ${formaterPrixCentimes(r.tf)} + frais de gestion ${formaterPrixCentimes(r.frais)})`
       : (t.multi ? 'Renseignez la taxe foncière du bien et celle de tous les biens.' : '');
     t.retenu = r ? r.total : t.montantAvis;
     if (!sansAppliquer) appliquerTaxeFonciere(cible);
@@ -29912,6 +30003,74 @@
       (piece.notes || []).forEach(n => { corps += ligneNote(n, false); });
     }
     zone.innerHTML = `<p class="hint tf-lu">${tete} ${croix}</p>${corps}`;
+  }
+
+  // ---- Glisser-déposer des pièces (Appel de fonds, Prorata — 30/09) ---------------------------
+  // Une pièce déposée sur un bouton est lue comme cette pièce ; déposée ailleurs dans la zone, son
+  // type est reconnu sur le haut de la page 1 comme pour un scan du copieur (typePieceScan).
+  // Rôle de chaque type de pièce dans chaque outil, ou null s'il n'y sert pas. Pure.
+  var PIECES_DEPOT_OUTILS = {
+    af: { avisTaxeFonciere: 'tf', appelCharges: 'charges', etatDate: 'etatDate', releveCompte: 'releve' },
+    prorata: { avisTaxeFonciere: 'tf', appelCharges: 'charges' }
+  };
+  function destinationPieceDeposee(outil, cleType) {
+    const table = PIECES_DEPOT_OUTILS[outil];
+    return (table && cleType && table[cleType]) || null;
+  }
+
+  // Haut de la page 1 d'un PDF déposé (OCR de la seule page 1 s'il n'a pas de texte).
+  async function textePage1Depose(fichier) {
+    const pdf = await pdfjsLib.getDocument({ data: await fichier.arrayBuffer() }).promise;
+    const page = await pdf.getPage(1);
+    let texte = lignesDepuisItemsPdf((await page.getTextContent()).items).join('\n');
+    if (texte.trim().length < 40) {
+      const worker = await creerWorkerOcr();
+      if (!worker) return texte;
+      try { texte = await ocrPage(pdf, 1, worker); } finally { await worker.terminate(); }
+    }
+    return texte;
+  }
+
+  function zoneDepotPieces(e) { return e.currentTarget && e.currentTarget.classList ? e.currentTarget : null; }
+  function survolDepotPieces(e) {
+    e.preventDefault();
+    const z = zoneDepotPieces(e);
+    if (z) z.classList.add('survol');
+  }
+  function quitteDepotPieces(e) {
+    const z = zoneDepotPieces(e);
+    if (z && !(e.relatedTarget && z.contains(e.relatedTarget))) z.classList.remove('survol');
+  }
+  async function deposerPiecesOutil(e, outil) {
+    e.preventDefault();
+    const z = zoneDepotPieces(e);
+    if (z) z.classList.remove('survol');
+    const fichiers = Array.from((e.dataTransfer && e.dataTransfer.files) || []);
+    if (!fichiers.length) return;
+    if (typeof pdfjsLib === 'undefined') { afficherToast('Le lecteur PDF n\'est pas disponible.', 'OK', null); return; }
+    const cible = e.target && e.target.closest ? e.target.closest('[data-piece]') : null;
+    const imposee = cible && fichiers.length === 1 ? cible.getAttribute('data-piece') : null;
+    for (const fichier of fichiers) {
+      if (!/\.pdf$/i.test(fichier.name) && fichier.type !== 'application/pdf') {
+        afficherToast(`${fichier.name} : seuls les PDF sont lus.`, 'OK', null);
+        continue;
+      }
+      let role = imposee;
+      if (!role) {
+        let type = null;
+        try { type = typePieceScan(enTeteScan(await textePage1Depose(fichier))); } catch (err) { console.error(err); }
+        role = type ? destinationPieceDeposee(outil, type.cle) : null;
+        if (!role) {
+          afficherToast(type
+            ? `${fichier.name} : ${type.label.toLowerCase()} — pièce non utilisée ici.`
+            : `${fichier.name} : pièce non reconnue — déposez-la sur le bouton qui lui correspond.`, 'OK', null);
+          continue;
+        }
+      }
+      if (role === 'tf') await importerAvisTaxeFonciere(outil, fichier);
+      else if (outil === 'prorata') { if (role === 'charges') await importerAppelChargesProrata(fichier); }
+      else await importerPieceAppelFonds(role, fichier);
+    }
   }
 
   // ---- Prorata : appel de charges (30/09) ------------------------------------------------------

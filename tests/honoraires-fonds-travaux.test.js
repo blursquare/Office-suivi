@@ -104,13 +104,15 @@ test('avis de taxe foncière : montant le plus bas puis le plus à droite de la 
   assert.equal(app.montantBasDroitePage([{ str: 'Rien', x: 1, y: 1 }]), null);
 });
 
-test('avis sur plusieurs biens : ordures ménagères au prorata de la taxe foncière', () => {
+test('avis sur plusieurs biens : frais de gestion au prorata de la taxe foncière (produit en croix)', () => {
   const app = chargerApplication();
-  const r = app.montantTfBienAvecTeom(600, 1500, 300);
-  assert.equal(r.teom, 120);
-  assert.equal(r.total, 720);
-  assert.equal(app.montantTfBienAvecTeom(2000, 1500, 300), null);
-  assert.equal(app.montantTfBienAvecTeom(600, 0, 300), null);
+  // Avis réel du 30/09 (structure) : 838 + 628 = 1 466, frais de gestion 64, impôt 1 530.
+  const r = app.montantTfBienAvecFrais(838, 1466, 64);
+  assert.equal(r.frais, 36.58);
+  assert.equal(r.total, 874.58);
+  assert.equal(app.montantTfBienAvecFrais(628, 1466, 64).total, 655.42);
+  assert.equal(app.montantTfBienAvecFrais(2000, 1500, 64), null);
+  assert.equal(app.montantTfBienAvecFrais(600, 0, 64), null);
 });
 
 test('prorata de taxe foncière à la charge de l’acquéreur, jour de l’acte compris', () => {

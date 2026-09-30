@@ -12795,3 +12795,33 @@ scans. »
   inventés.
 - Un dossier existant récupère la garantie au prochain parcours du NAS (l'offre est rouverte à
   chaque parcours) : automatique si le dossier n'est pas complet, sinon « Revérifier ».
+
+### 30/09 16:24 — Avis de taxe foncière à plusieurs biens, glisser-déposer des pièces
+
+Demande de l'étude sur un avis réel (non commité) portant sur deux biens de la même commune : « faire
+le prorata non des ordures ménagères comme dit avant mais des frais de gestion de la fiscalité
+directe locale, un produit en croix pour connaître le montant du bien vendu ; si deux biens, demander
+lequel prendre » ; « si un seul bien, le montant aurait été au même endroit » ; « permettre le
+glisser-déposer des pièces ».
+- **Lecture de la page 2 par position** (`biensAvisTaxeFonciere`) : les libellés du tableau sont
+  dessinés, absents du texte. Chaque adresse (texte à gauche) prend le montant de la colonne de
+  droite placé sous elle (à moins de 60 points, au-dessus de l'adresse suivante) ; le total des
+  biens, plus bas, est écarté. Impôt = bas à droite (`montantBasDroitePage`) ; frais de gestion =
+  impôt − somme des biens, seulement s'il y a plusieurs biens. Avec un seul bien, le montant de
+  l'avis reste celui de la page 1 / bas de la page 2 (règle inchangée).
+- **Piège** : `RE_ITEM_MONTANT_AVIS` refusait un entier nu de quatre chiffres (« 1530 ») : le bas de
+  page rendait les frais de gestion (64), imprimés plus haut, au lieu du montant de l'impôt.
+- **Produit en croix** (`montantTfBienAvecFrais`, remplace `montantTfBienAvecTeom`) : part des frais =
+  frais × TF du bien / TF de tous les biens, arrondie au centime. Sur l'avis réel : 838 + 36,58 et
+  628 + 27,42 (total 1 530). La règle du 29/09 (TEOM répartie) est abandonnée : la TEOM est déjà
+  comprise dans la cotisation de chaque bien.
+- **Choix du bien** : une ligne par bien (adresse, TF + part des frais = montant retenu), rien n'est
+  retenu tant qu'aucun n'est choisi. Dans l'appel de fonds, un dossier rattaché dont l'adresse
+  désigne sans doute un bien (même numéro + un mot de la voie, `bienAvisPourAdresse`) le présélectionne.
+  La saisie manuelle « L'avis porte sur plusieurs biens » reste pour un avis scanné.
+- **Glisser-déposer** (`deposerPiecesOutil`) : la ligne des boutons de l'Appel de fonds (office) et
+  du Prorata est une zone de dépôt. Sur un bouton : cette pièce ; ailleurs : type reconnu sur le haut
+  de la page 1 comme pour un scan (`typePieceScan`, OCR de la page 1 si besoin), rôle par
+  `PIECES_DEPOT_OUTILS` ; plusieurs PDF à la fois ; une pièce non reconnue ou inutile ici → message.
+  Vérifié : les types des vrais avis (2025, 2026), appel de charges, états datés et relevé de compte
+  sont reconnus (`rejouer-pdf.mjs` affiche désormais `typePiece`).

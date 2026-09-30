@@ -178,8 +178,11 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   participation. Prêt hypothécaire : montant du prêt **déduit**, frais de garantie **appelés au
   débit**. Taxe foncière : montant lu en page 1 (« Montant de vos taxes foncières », jamais la
   « somme à prélever ») et contrôlé en bas à droite de la page 2 (entier nu possible) ; avis sur
-  plusieurs biens → TEOM répartie **au prorata de la taxe foncière** de chaque bien, ajoutée au bien
-  vendu ; prorata acquéreur du jour de l'acte au 31/12. **Pièces lues sur exemples réels (30/09,
+  plusieurs biens (lus en page 2 par position, `biensAvisTaxeFonciere`) → **le bien vendu est demandé**
+  (présélectionné si l'adresse du dossier le désigne) et les **frais de gestion de la fiscalité directe
+  locale** (impôt − somme des biens) sont répartis par produit en croix au prorata de la TF de chaque
+  bien, ajoutés au bien vendu (étude, 30/09 — plus la TEOM) ; pièces déposables par glisser-déposer,
+  type reconnu sur la page 1 (`deposerPiecesOutil`) ; prorata acquéreur du jour de l'acte au 31/12. **Pièces lues sur exemples réels (30/09,
   `tests/pieces-appel-fonds.test.js`)** : appel de charges du syndic (`analyserAppelCharges` :
   période « du … au … », « Montant de l'appel » avant « Total à payer », montants à point décimal
   `montantSyndicDepuisTexte`) → prorata de charges du jour de l'acte à la fin de la période, **hors
@@ -377,8 +380,7 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   fichier dans les deux listes d'assets.
 - **Appel de fonds** : aperçu de pagination A4 non repris ; frais et droits de l'acte de vente à
   saisir à la main (barème non audité). **Encore à lire, en attente d'exemples réels** : montant des
-  frais de garantie dans l'offre de prêt ; détection automatique d'un avis de taxe foncière portant
-  sur plusieurs biens (aujourd'hui saisie assistée ; les deux avis reçus portent sur un seul bien).
+  frais de garantie dans l'offre de prêt.
   **À confirmer par l'étude** : exclusion de la cotisation au fonds de travaux du prorata de charges
   (choix par défaut, décochable). Piste : reporter le fonds de travaux lu dans l'état daté trouvé sur
   le NAS sur la fiche (`d.fondsTravaux.montant`) — aujourd'hui l'outil Appel de fonds n'écrit rien.
